@@ -3,7 +3,7 @@ menuconfig FB_OMAP2
         depends on FB && OMAP2_DSS
 
 	select OMAP2_VRAM
-	select OMAP2_VRFB
+	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
         select FB_CFB_FILLRECT
         select FB_CFB_COPYAREA
         select FB_CFB_IMAGEBLIT
@@ -16,16 +16,7 @@ config FB_OMAP2_DEBUG_SUPPORT
 	depends on FB_OMAP2
 	help
 	  Support for debug output. You have to enable the actual printing
-	  with debug module parameter.
-
-config FB_OMAP2_FORCE_AUTO_UPDATE
-	bool "Force main display to automatic update mode"
-	depends on FB_OMAP2
-	help
-	  Forces main display to automatic update mode (if possible),
-	  and also enables tearsync (if possible). By default
-	  displays that support manual update are started in manual
-	  update mode.
+	  with 'debug' module parameter.
 
 config FB_OMAP2_NUM_FBS
 	int "Number of framebuffers"

@@ -72,21 +72,6 @@
 
 /* DCB PFC functions */
 s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *, struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_get_pfc_stats_82598(struct ixgbe_hw *, struct ixgbe_hw_stats *,
-                                  u8);
-
-/* DCB traffic class stats */
-s32 ixgbe_dcb_config_tc_stats_82598(struct ixgbe_hw *);
-s32 ixgbe_dcb_get_tc_stats_82598(struct ixgbe_hw *, struct ixgbe_hw_stats *,
-                                 u8);
-
-/* DCB config arbiters */
-s32 ixgbe_dcb_config_tx_desc_arbiter_82598(struct ixgbe_hw *,
-                                           struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_config_tx_data_arbiter_82598(struct ixgbe_hw *,
-                                           struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_config_rx_arbiter_82598(struct ixgbe_hw *,
-                                      struct ixgbe_dcb_config *);
 
 /* DCB hw initialization */
 s32 ixgbe_dcb_hw_config_82598(struct ixgbe_hw *, struct ixgbe_dcb_config *);

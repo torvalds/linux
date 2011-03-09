@@ -2,7 +2,7 @@
  *  linux/arch/x86_64/mm/init.c
  *
  *  Copyright (C) 1995  Linus Torvalds
- *  Copyright (C) 2000  Pavel Machek <pavel@suse.cz>
+ *  Copyright (C) 2000  Pavel Machek <pavel@ucw.cz>
  *  Copyright (C) 2002,2003 Andi Kleen <ak@suse.de>
  */
 
@@ -21,6 +21,7 @@
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
 #include <linux/pfn.h>
@@ -29,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
 #include <linux/nmi.h>
+#include <linux/gfp.h>
 
 #include <asm/processor.h>
 #include <asm/bios_ebda.h>
@@ -49,8 +51,6 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 #include <asm/init.h>
-
-static unsigned long dma_reserve __initdata;
 
 static int __init parse_direct_gbpages_off(char *arg)
 {
@@ -94,6 +94,43 @@ static int __init nonx32_setup(char *str)
 	return 1;
 }
 __setup("noexec32=", nonx32_setup);
+
+/*
+ * When memory was added/removed make sure all the processes MM have
+ * suitable PGD entries in the local PGD level page.
+ */
+void sync_global_pgds(unsigned long start, unsigned long end)
+{
+	unsigned long address;
+
+	for (address = start; address <= end; address += PGDIR_SIZE) {
+		const pgd_t *pgd_ref = pgd_offset_k(address);
+		unsigned long flags;
+		struct page *page;
+
+		if (pgd_none(*pgd_ref))
+			continue;
+
+		spin_lock_irqsave(&pgd_lock, flags);
+		list_for_each_entry(page, &pgd_list, lru) {
+			pgd_t *pgd;
+			spinlock_t *pgt_lock;
+
+			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+			spin_lock(pgt_lock);
+
+			if (pgd_none(*pgd))
+				set_pgd(pgd, *pgd_ref);
+			else
+				BUG_ON(pgd_page_vaddr(*pgd)
+				       != pgd_page_vaddr(*pgd_ref));
+
+			spin_unlock(pgt_lock);
+		}
+		spin_unlock_irqrestore(&pgd_lock, flags);
+	}
+}
 
 /*
  * NOTE: This function is marked __ref because it calls __init function
@@ -291,7 +328,7 @@ static __ref void *alloc_low_page(unsigned long *phys)
 		panic("alloc_low_page: ran out of memory");
 
 	adr = early_memremap(pfn * PAGE_SIZE, PAGE_SIZE);
-	memset(adr, 0, PAGE_SIZE);
+	clear_page(adr);
 	*phys  = pfn * PAGE_SIZE;
 	return adr;
 }
@@ -532,11 +569,13 @@ kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask)
 {
-
+	bool pgd_changed = false;
 	unsigned long next, last_map_addr = end;
+	unsigned long addr;
 
 	start = (unsigned long)__va(start);
 	end = (unsigned long)__va(end);
+	addr = start;
 
 	for (; start < end; start = next) {
 		pgd_t *pgd = pgd_offset_k(start);
@@ -561,7 +600,12 @@ kernel_physical_mapping_init(unsigned long start,
 		spin_lock(&init_mm.page_table_lock);
 		pgd_populate(&init_mm, pgd, __va(pud_phys));
 		spin_unlock(&init_mm.page_table_lock);
+		pgd_changed = true;
 	}
+
+	if (pgd_changed)
+		sync_global_pgds(addr, end);
+
 	__flush_tlb_all();
 
 	return last_map_addr;
@@ -571,20 +615,7 @@ kernel_physical_mapping_init(unsigned long start,
 void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 				int acpi, int k8)
 {
-	unsigned long bootmap_size, bootmap;
-
-	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
-	bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size,
-				 PAGE_SIZE);
-	if (bootmap == -1L)
-		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
-	/* don't touch min_low_pfn */
-	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap >> PAGE_SHIFT,
-					 0, end_pfn);
-	e820_register_active_regions(0, start_pfn, end_pfn);
-	free_bootmem_with_active_regions(0, end_pfn);
-	early_res_to_bootmem(0, end_pfn<<PAGE_SHIFT);
-	reserve_bootmem(bootmap, bootmap_size, BOOTMEM_DEFAULT);
+	memblock_x86_register_active_regions(0, start_pfn, end_pfn);
 }
 #endif
 
@@ -616,6 +647,21 @@ void __init paging_init(void)
  */
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
+ * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
+ * updating.
+ */
+static void  update_end_of_memory_vars(u64 start, u64 size)
+{
+	unsigned long end_pfn = PFN_UP(start + size);
+
+	if (end_pfn > max_pfn) {
+		max_pfn = end_pfn;
+		max_low_pfn = end_pfn;
+		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+	}
+}
+
+/*
  * Memory is added always to NORMAL zone. This means you will never get
  * additional DMA/DMA32 memory.
  */
@@ -633,6 +679,9 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	ret = __add_pages(nid, zone, start_pfn, nr_pages);
 	WARN_ON_ONCE(ret);
+
+	/* update max_pfn, max_low_pfn and high_memory */
+	update_end_of_memory_vars(start, size);
 
 	return ret;
 }
@@ -776,52 +825,6 @@ void mark_rodata_ro(void)
 
 #endif
 
-int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
-				   int flags)
-{
-#ifdef CONFIG_NUMA
-	int nid, next_nid;
-	int ret;
-#endif
-	unsigned long pfn = phys >> PAGE_SHIFT;
-
-	if (pfn >= max_pfn) {
-		/*
-		 * This can happen with kdump kernels when accessing
-		 * firmware tables:
-		 */
-		if (pfn < max_pfn_mapped)
-			return -EFAULT;
-
-		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %lu\n",
-				phys, len);
-		return -EFAULT;
-	}
-
-	/* Should check here against the e820 map to avoid double free */
-#ifdef CONFIG_NUMA
-	nid = phys_to_nid(phys);
-	next_nid = phys_to_nid(phys + len - 1);
-	if (nid == next_nid)
-		ret = reserve_bootmem_node(NODE_DATA(nid), phys, len, flags);
-	else
-		ret = reserve_bootmem(phys, len, flags);
-
-	if (ret != 0)
-		return ret;
-
-#else
-	reserve_bootmem(phys, len, flags);
-#endif
-
-	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
-		dma_reserve += len / PAGE_SIZE;
-		set_dma_reserve(dma_reserve);
-	}
-
-	return 0;
-}
-
 int kern_addr_valid(unsigned long addr)
 {
 	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
@@ -955,7 +958,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 			if (pmd_none(*pmd)) {
 				pte_t entry;
 
-				p = vmemmap_alloc_block(PMD_SIZE, node);
+				p = vmemmap_alloc_block_buf(PMD_SIZE, node);
 				if (!p)
 					return -ENOMEM;
 
@@ -980,6 +983,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 		}
 
 	}
+	sync_global_pgds((unsigned long)start_page, end);
 	return 0;
 }
 

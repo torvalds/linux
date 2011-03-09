@@ -28,39 +28,70 @@ struct qeth_arp_cache_entry {
 	__u8  reserved2[32];
 } __attribute__ ((packed));
 
+enum qeth_arp_ipaddrtype {
+	QETHARP_IP_ADDR_V4 = 1,
+	QETHARP_IP_ADDR_V6 = 2,
+};
+struct qeth_arp_entrytype {
+	__u8 mac;
+	__u8 ip;
+} __attribute__((packed));
+
+#define QETH_QARP_MEDIASPECIFIC_BYTES 32
+#define QETH_QARP_MACADDRTYPE_BYTES 1
 struct qeth_arp_qi_entry7 {
-	__u8 media_specific[32];
-	__u8 macaddr_type;
-	__u8 ipaddr_type;
+	__u8 media_specific[QETH_QARP_MEDIASPECIFIC_BYTES];
+	struct qeth_arp_entrytype type;
 	__u8 macaddr[6];
 	__u8 ipaddr[4];
+} __attribute__((packed));
+
+struct qeth_arp_qi_entry7_ipv6 {
+	__u8 media_specific[QETH_QARP_MEDIASPECIFIC_BYTES];
+	struct qeth_arp_entrytype type;
+	__u8 macaddr[6];
+	__u8 ipaddr[16];
 } __attribute__((packed));
 
 struct qeth_arp_qi_entry7_short {
-	__u8 macaddr_type;
-	__u8 ipaddr_type;
+	struct qeth_arp_entrytype type;
 	__u8 macaddr[6];
 	__u8 ipaddr[4];
 } __attribute__((packed));
 
+struct qeth_arp_qi_entry7_short_ipv6 {
+	struct qeth_arp_entrytype type;
+	__u8 macaddr[6];
+	__u8 ipaddr[16];
+} __attribute__((packed));
+
 struct qeth_arp_qi_entry5 {
-	__u8 media_specific[32];
-	__u8 macaddr_type;
-	__u8 ipaddr_type;
+	__u8 media_specific[QETH_QARP_MEDIASPECIFIC_BYTES];
+	struct qeth_arp_entrytype type;
 	__u8 ipaddr[4];
+} __attribute__((packed));
+
+struct qeth_arp_qi_entry5_ipv6 {
+	__u8 media_specific[QETH_QARP_MEDIASPECIFIC_BYTES];
+	struct qeth_arp_entrytype type;
+	__u8 ipaddr[16];
 } __attribute__((packed));
 
 struct qeth_arp_qi_entry5_short {
-	__u8 macaddr_type;
-	__u8 ipaddr_type;
+	struct qeth_arp_entrytype type;
 	__u8 ipaddr[4];
 } __attribute__((packed));
 
+struct qeth_arp_qi_entry5_short_ipv6 {
+	struct qeth_arp_entrytype type;
+	__u8 ipaddr[16];
+} __attribute__((packed));
 /*
  * can be set by user if no "media specific information" is wanted
  * -> saves a lot of space in user space buffer
  */
 #define QETH_QARP_STRIP_ENTRIES  0x8000
+#define QETH_QARP_WITH_IPV6	 0x4000
 #define QETH_QARP_REQUEST_MASK   0x00ff
 
 /* data sent to user space as result of query arp ioctl */

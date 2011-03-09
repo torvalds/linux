@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/anon_inodes.h>
@@ -292,6 +293,7 @@ static const struct file_operations eventfd_fops = {
 	.poll		= eventfd_poll,
 	.read		= eventfd_read,
 	.write		= eventfd_write,
+	.llseek		= noop_llseek,
 };
 
 /**

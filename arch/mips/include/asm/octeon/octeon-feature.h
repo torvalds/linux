@@ -99,6 +99,8 @@ static inline int octeon_has_feature(enum octeon_feature feature)
 		return !cvmx_fuse_read(90);
 
 	case OCTEON_FEATURE_PCIE:
+	case OCTEON_FEATURE_MGMT_PORT:
+	case OCTEON_FEATURE_RAID:
 		return OCTEON_IS_MODEL(OCTEON_CN56XX)
 			|| OCTEON_IS_MODEL(OCTEON_CN52XX);
 
@@ -110,12 +112,6 @@ static inline int octeon_has_feature(enum octeon_feature feature)
 	case OCTEON_FEATURE_TRA:
 		return !(OCTEON_IS_MODEL(OCTEON_CN30XX)
 			 || OCTEON_IS_MODEL(OCTEON_CN50XX));
-	case OCTEON_FEATURE_MGMT_PORT:
-		return OCTEON_IS_MODEL(OCTEON_CN56XX)
-			|| OCTEON_IS_MODEL(OCTEON_CN52XX);
-	case OCTEON_FEATURE_RAID:
-		return OCTEON_IS_MODEL(OCTEON_CN56XX)
-			|| OCTEON_IS_MODEL(OCTEON_CN52XX);
 	case OCTEON_FEATURE_USB:
 		return !(OCTEON_IS_MODEL(OCTEON_CN38XX)
 			 || OCTEON_IS_MODEL(OCTEON_CN58XX));

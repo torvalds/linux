@@ -21,6 +21,11 @@
 #define SERIAL_IRQ	XIRQ0	/* Dual serial (PC16552)	(Hi) */
 
 /*
+ * The ASB2305 has an 18.432 MHz clock the UART
+ */
+#define BASE_BAUD	(18432000 / 16)
+
+/*
  * dispose of the /dev/ttyS0 serial port
  */
 #ifndef CONFIG_GDBSTUB_ON_TTYSx

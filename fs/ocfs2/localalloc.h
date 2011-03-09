@@ -30,6 +30,9 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb);
 
 void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb);
 
+void ocfs2_la_set_sizes(struct ocfs2_super *osb, int requested_mb);
+unsigned int ocfs2_la_default_mb(struct ocfs2_super *osb);
+
 int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 				     int node_num,
 				     struct ocfs2_dinode **alloc_copy);

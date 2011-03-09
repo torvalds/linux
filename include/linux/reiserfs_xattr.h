@@ -41,7 +41,7 @@ int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
 int reiserfs_lookup_privroot(struct super_block *sb);
 int reiserfs_delete_xattrs(struct inode *inode);
 int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs);
-int reiserfs_permission(struct inode *inode, int mask);
+int reiserfs_permission(struct inode *inode, int mask, unsigned int flags);
 
 #ifdef CONFIG_REISERFS_FS_XATTR
 #define has_xattr_dir(inode) (REISERFS_I(inode)->i_flags & i_has_xattr_dir)
@@ -58,9 +58,9 @@ int reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *,
 			      struct inode *, const char *, const void *,
 			      size_t, int);
 
-extern struct xattr_handler reiserfs_xattr_user_handler;
-extern struct xattr_handler reiserfs_xattr_trusted_handler;
-extern struct xattr_handler reiserfs_xattr_security_handler;
+extern const struct xattr_handler reiserfs_xattr_user_handler;
+extern const struct xattr_handler reiserfs_xattr_trusted_handler;
+extern const struct xattr_handler reiserfs_xattr_security_handler;
 #ifdef CONFIG_REISERFS_FS_SECURITY
 int reiserfs_security_init(struct inode *dir, struct inode *inode,
 			   struct reiserfs_security_handle *sec);
@@ -69,6 +69,11 @@ int reiserfs_security_write(struct reiserfs_transaction_handle *th,
 			    struct reiserfs_security_handle *sec);
 void reiserfs_security_free(struct reiserfs_security_handle *sec);
 #endif
+
+static inline int reiserfs_xattrs_initialized(struct super_block *sb)
+{
+	return REISERFS_SB(sb)->priv_root != NULL;
+}
 
 #define xattr_size(size) ((size) + sizeof(struct reiserfs_xattr_header))
 static inline loff_t reiserfs_xattr_nblocks(struct inode *inode, loff_t size)

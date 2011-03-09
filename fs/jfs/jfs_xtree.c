@@ -585,10 +585,10 @@ int xtInsert(tid_t tid,		/* transaction id */
 			hint = addressXAD(xad) + lengthXAD(xad) - 1;
 		} else
 			hint = 0;
-		if ((rc = vfs_dq_alloc_block(ip, xlen)))
+		if ((rc = dquot_alloc_block(ip, xlen)))
 			goto out;
 		if ((rc = dbAlloc(ip, hint, (s64) xlen, &xaddr))) {
-			vfs_dq_free_block(ip, xlen);
+			dquot_free_block(ip, xlen);
 			goto out;
 		}
 	}
@@ -617,7 +617,7 @@ int xtInsert(tid_t tid,		/* transaction id */
 			/* undo data extent allocation */
 			if (*xaddrp == 0) {
 				dbFree(ip, xaddr, (s64) xlen);
-				vfs_dq_free_block(ip, xlen);
+				dquot_free_block(ip, xlen);
 			}
 			return rc;
 		}
@@ -985,10 +985,9 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	rbn = addressPXD(pxd);
 
 	/* Allocate blocks to quota. */
-	if (vfs_dq_alloc_block(ip, lengthPXD(pxd))) {
-		rc = -EDQUOT;
+	rc = dquot_alloc_block(ip, lengthPXD(pxd));
+	if (rc)
 		goto clean_up;
-	}
 
 	quota_allocation += lengthPXD(pxd);
 
@@ -1195,7 +1194,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 
 	/* Rollback quota allocation. */
 	if (quota_allocation)
-		vfs_dq_free_block(ip, quota_allocation);
+		dquot_free_block(ip, quota_allocation);
 
 	return (rc);
 }
@@ -1235,6 +1234,7 @@ xtSplitRoot(tid_t tid,
 	struct pxdlist *pxdlist;
 	struct tlock *tlck;
 	struct xtlock *xtlck;
+	int rc;
 
 	sp = &JFS_IP(ip)->i_xtroot;
 
@@ -1252,9 +1252,10 @@ xtSplitRoot(tid_t tid,
 		return -EIO;
 
 	/* Allocate blocks to quota. */
-	if (vfs_dq_alloc_block(ip, lengthPXD(pxd))) {
+	rc = dquot_alloc_block(ip, lengthPXD(pxd));
+	if (rc) {
 		release_metapage(rmp);
-		return -EDQUOT;
+		return rc;
 	}
 
 	jfs_info("xtSplitRoot: ip:0x%p rmp:0x%p", ip, rmp);
@@ -3680,7 +3681,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 		ip->i_size = newsize;
 
 	/* update quota allocation to reflect freed blocks */
-	vfs_dq_free_block(ip, nfreed);
+	dquot_free_block(ip, nfreed);
 
 	/*
 	 * free tlock of invalidated pages

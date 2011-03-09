@@ -85,6 +85,4 @@
 #define REGF_INV		(1 << 6)
 #define REGF_ALB		(1 << 7)
 
-extern struct snd_soc_dai ad73311_dai;
-extern struct snd_soc_codec_device soc_codec_dev_ad73311;
 #endif

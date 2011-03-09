@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -177,11 +178,8 @@ static int __devinit ck804xrom_init_one (struct pci_dev *pdev,
 	if (request_resource(&iomem_resource, &window->rsrc)) {
 		window->rsrc.parent = NULL;
 		printk(KERN_ERR MOD_NAME
-			" %s(): Unable to register resource"
-			" 0x%.016llx-0x%.016llx - kernel bug?\n",
-			__func__,
-			(unsigned long long)window->rsrc.start,
-			(unsigned long long)window->rsrc.end);
+		       " %s(): Unable to register resource %pR - kernel bug?\n",
+			__func__, &window->rsrc);
 	}
 
 

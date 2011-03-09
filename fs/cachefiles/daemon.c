@@ -55,6 +55,7 @@ const struct file_operations cachefiles_daemon_fops = {
 	.read		= cachefiles_daemon_read,
 	.write		= cachefiles_daemon_write,
 	.poll		= cachefiles_daemon_poll,
+	.llseek		= noop_llseek,
 };
 
 struct cachefiles_daemon_cmd {
@@ -552,8 +553,7 @@ static int cachefiles_daemon_tag(struct cachefiles_cache *cache, char *args)
  */
 static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 {
-	struct fs_struct *fs;
-	struct dentry *dir;
+	struct path path;
 	const struct cred *saved_cred;
 	int ret;
 
@@ -573,24 +573,21 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	}
 
 	/* extract the directory dentry from the cwd */
-	fs = current->fs;
-	read_lock(&fs->lock);
-	dir = dget(fs->pwd.dentry);
-	read_unlock(&fs->lock);
+	get_fs_pwd(current->fs, &path);
 
-	if (!S_ISDIR(dir->d_inode->i_mode))
+	if (!S_ISDIR(path.dentry->d_inode->i_mode))
 		goto notdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	ret = cachefiles_cull(cache, dir, args);
+	ret = cachefiles_cull(cache, path.dentry, args);
 	cachefiles_end_secure(cache, saved_cred);
 
-	dput(dir);
+	path_put(&path);
 	_leave(" = %d", ret);
 	return ret;
 
 notdir:
-	dput(dir);
+	path_put(&path);
 	kerror("cull command requires dirfd to be a directory");
 	return -ENOTDIR;
 
@@ -628,8 +625,7 @@ inval:
  */
 static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 {
-	struct fs_struct *fs;
-	struct dentry *dir;
+	struct path path;
 	const struct cred *saved_cred;
 	int ret;
 
@@ -649,24 +645,21 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	}
 
 	/* extract the directory dentry from the cwd */
-	fs = current->fs;
-	read_lock(&fs->lock);
-	dir = dget(fs->pwd.dentry);
-	read_unlock(&fs->lock);
+	get_fs_pwd(current->fs, &path);
 
-	if (!S_ISDIR(dir->d_inode->i_mode))
+	if (!S_ISDIR(path.dentry->d_inode->i_mode))
 		goto notdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	ret = cachefiles_check_in_use(cache, dir, args);
+	ret = cachefiles_check_in_use(cache, path.dentry, args);
 	cachefiles_end_secure(cache, saved_cred);
 
-	dput(dir);
+	path_put(&path);
 	//_leave(" = %d", ret);
 	return ret;
 
 notdir:
-	dput(dir);
+	path_put(&path);
 	kerror("inuse command requires dirfd to be a directory");
 	return -ENOTDIR;
 
@@ -683,6 +676,10 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 			 unsigned fnr, unsigned bnr)
 {
 	struct kstatfs stats;
+	struct path path = {
+		.mnt	= cache->mnt,
+		.dentry	= cache->mnt->mnt_root,
+	};
 	int ret;
 
 	//_enter("{%llu,%llu,%llu,%llu,%llu,%llu},%u,%u",
@@ -697,7 +694,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 	/* find out how many pages of blockdev are available */
 	memset(&stats, 0, sizeof(stats));
 
-	ret = vfs_statfs(cache->mnt->mnt_root, &stats);
+	ret = vfs_statfs(&path, &stats);
 	if (ret < 0) {
 		if (ret == -EIO)
 			cachefiles_io_error(cache, "statfs failed");

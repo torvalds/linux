@@ -22,7 +22,7 @@
 /* Power-Management-Code ( CONFIG_PM )
  * for ens1371 only ( FIXME )
  * derived from cs4281.c, atiixp.c and via82xx.c
- * using http://www.alsa-project.org/~iwai/writing-an-alsa-driver/c1540.htm
+ * using http://www.alsa-project.org/~tiwai/writing-an-alsa-driver/ 
  * by Kurt J. Bosch
  */
 
@@ -443,7 +443,7 @@ struct ensoniq {
 
 static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id);
 
-static struct pci_device_id snd_audiopci_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_audiopci_ids) = {
 #ifdef CHIP1370
 	{ PCI_VDEVICE(ENSONIQ, 0x5000), 0, },	/* ES1370 */
 #endif

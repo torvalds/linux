@@ -8,12 +8,36 @@
  * published by the Free Software Foundation.
  *
  */
-	.macro	addruart,rx
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1			@MMU enabled?
-	moveq	\rx, #0x80000000	@MMU off, Physical address
-	movne	\rx, #0xF0000000	@MMU on, Virtual address
-	orr	\rx, \rx, #0x7000
+#include <mach/hardware.h>
+
+#if CONFIG_UX500_DEBUG_UART > 2
+#error Invalid Ux500 debug UART
+#endif
+
+/*
+ * DEBUG_LL only works if only one SOC is built in.  We don't use #else below
+ * in order to get "__UX500_UART redefined" warnings if more than one SOC is
+ * built, so that there's some hint during the build that something is wrong.
+ */
+
+#ifdef CONFIG_UX500_SOC_DB5500
+#define __UX500_UART(n)	U5500_UART##n##_BASE
+#endif
+
+#ifdef CONFIG_UX500_SOC_DB8500
+#define __UX500_UART(n)	U8500_UART##n##_BASE
+#endif
+
+#ifndef __UX500_UART
+#error Unknown SOC
+#endif
+
+#define UX500_UART(n)	__UX500_UART(n)
+#define UART_BASE	UX500_UART(CONFIG_UX500_DEBUG_UART)
+
+	.macro	addruart, rp, rv
+	ldr	\rp, =UART_BASE				@ no, physical address
+	ldr	\rv, =IO_ADDRESS(UART_BASE)		@ yes, virtual address
 	.endm
 
 #include <asm/hardware/debug-pl01x.S>

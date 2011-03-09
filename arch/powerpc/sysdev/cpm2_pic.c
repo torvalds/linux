@@ -198,7 +198,7 @@ err_sense:
 }
 
 static struct irq_chip cpm2_pic = {
-	.name = " CPM2 SIU ",
+	.name = "CPM2 SIU",
 	.mask = cpm2_mask_irq,
 	.unmask = cpm2_unmask_irq,
 	.ack = cpm2_ack,

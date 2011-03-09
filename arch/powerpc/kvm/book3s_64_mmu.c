@@ -54,7 +54,7 @@ static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
 		if (!vcpu_book3s->slb[i].valid)
 			continue;
 
-		if (vcpu_book3s->slb[i].large)
+		if (vcpu_book3s->slb[i].tb)
 			cmp_esid = esid_1t;
 
 		if (vcpu_book3s->slb[i].esid == cmp_esid)
@@ -65,9 +65,10 @@ static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
 		eaddr, esid, esid_1t);
 	for (i = 0; i < vcpu_book3s->slb_nr; i++) {
 	    if (vcpu_book3s->slb[i].vsid)
-		dprintk("  %d: %c%c %llx %llx\n", i,
+		dprintk("  %d: %c%c%c %llx %llx\n", i,
 			vcpu_book3s->slb[i].valid ? 'v' : ' ',
 			vcpu_book3s->slb[i].large ? 'l' : ' ',
+			vcpu_book3s->slb[i].tb    ? 't' : ' ',
 			vcpu_book3s->slb[i].esid,
 			vcpu_book3s->slb[i].vsid);
 	}
@@ -84,7 +85,7 @@ static u64 kvmppc_mmu_book3s_64_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 	if (!slb)
 		return 0;
 
-	if (slb->large)
+	if (slb->tb)
 		return (((u64)eaddr >> 12) & 0xfffffff) |
 		       (((u64)slb->vsid) << 28);
 
@@ -162,6 +163,22 @@ static int kvmppc_mmu_book3s_64_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	bool found = false;
 	bool perm_err = false;
 	int second = 0;
+	ulong mp_ea = vcpu->arch.magic_page_ea;
+
+	/* Magic page override */
+	if (unlikely(mp_ea) &&
+	    unlikely((eaddr & ~0xfffULL) == (mp_ea & ~0xfffULL)) &&
+	    !(vcpu->arch.shared->msr & MSR_PR)) {
+		gpte->eaddr = eaddr;
+		gpte->vpage = kvmppc_mmu_book3s_64_ea_to_vp(vcpu, eaddr, data);
+		gpte->raddr = vcpu->arch.magic_page_pa | (gpte->raddr & 0xfff);
+		gpte->raddr &= KVM_PAM;
+		gpte->may_execute = true;
+		gpte->may_read = true;
+		gpte->may_write = true;
+
+		return 0;
+	}
 
 	slbe = kvmppc_mmu_book3s_64_find_slbe(vcpu_book3s, eaddr);
 	if (!slbe)
@@ -179,9 +196,9 @@ do_second:
 		goto no_page_found;
 	}
 
-	if ((vcpu->arch.msr & MSR_PR) && slbe->Kp)
+	if ((vcpu->arch.shared->msr & MSR_PR) && slbe->Kp)
 		key = 4;
-	else if (!(vcpu->arch.msr & MSR_PR) && slbe->Ks)
+	else if (!(vcpu->arch.shared->msr & MSR_PR) && slbe->Ks)
 		key = 4;
 
 	for (i=0; i<16; i+=2) {
@@ -231,7 +248,7 @@ do_second:
 			}
 
 			dprintk("KVM MMU: Translated 0x%lx [0x%llx] -> 0x%llx "
-				"-> 0x%llx\n",
+				"-> 0x%lx\n",
 				eaddr, avpn, gpte->vpage, gpte->raddr);
 			found = true;
 			break;
@@ -309,7 +326,8 @@ static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 	slbe = &vcpu_book3s->slb[slb_nr];
 
 	slbe->large = (rs & SLB_VSID_L) ? 1 : 0;
-	slbe->esid  = slbe->large ? esid_1t : esid;
+	slbe->tb    = (rs & SLB_VSID_B_1T) ? 1 : 0;
+	slbe->esid  = slbe->tb ? esid_1t : esid;
 	slbe->vsid  = rs >> 12;
 	slbe->valid = (rb & SLB_ESID_V) ? 1 : 0;
 	slbe->Ks    = (rs & SLB_VSID_KS) ? 1 : 0;
@@ -379,9 +397,9 @@ static void kvmppc_mmu_book3s_64_slbia(struct kvm_vcpu *vcpu)
 	for (i = 1; i < vcpu_book3s->slb_nr; i++)
 		vcpu_book3s->slb[i].valid = false;
 
-	if (vcpu->arch.msr & MSR_IR) {
+	if (vcpu->arch.shared->msr & MSR_IR) {
 		kvmppc_mmu_flush_segments(vcpu);
-		kvmppc_mmu_map_segment(vcpu, vcpu->arch.pc);
+		kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
 	}
 }
 
@@ -437,38 +455,56 @@ static void kvmppc_mmu_book3s_64_tlbie(struct kvm_vcpu *vcpu, ulong va,
 	kvmppc_mmu_pte_vflush(vcpu, va >> 12, mask);
 }
 
-static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, u64 esid,
+static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
-	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
-	case 0:
-		*vsid = (VSID_REAL >> 16) | esid;
-		break;
-	case MSR_IR:
-		*vsid = (VSID_REAL_IR >> 16) | esid;
-		break;
-	case MSR_DR:
-		*vsid = (VSID_REAL_DR >> 16) | esid;
-		break;
-	case MSR_DR|MSR_IR:
-	{
-		ulong ea;
-		struct kvmppc_slb *slb;
-		ea = esid << SID_SHIFT;
+	ulong ea = esid << SID_SHIFT;
+	struct kvmppc_slb *slb;
+	u64 gvsid = esid;
+	ulong mp_ea = vcpu->arch.magic_page_ea;
+
+	if (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
 		slb = kvmppc_mmu_book3s_64_find_slbe(to_book3s(vcpu), ea);
 		if (slb)
-			*vsid = slb->vsid;
-		else
-			return -ENOENT;
-
-		break;
+			gvsid = slb->vsid;
 	}
+
+	switch (vcpu->arch.shared->msr & (MSR_DR|MSR_IR)) {
+	case 0:
+		*vsid = VSID_REAL | esid;
+		break;
+	case MSR_IR:
+		*vsid = VSID_REAL_IR | gvsid;
+		break;
+	case MSR_DR:
+		*vsid = VSID_REAL_DR | gvsid;
+		break;
+	case MSR_DR|MSR_IR:
+		if (!slb)
+			goto no_slb;
+
+		*vsid = gvsid;
+		break;
 	default:
 		BUG();
 		break;
 	}
 
+	if (vcpu->arch.shared->msr & MSR_PR)
+		*vsid |= VSID_PR;
+
 	return 0;
+
+no_slb:
+	/* Catch magic page case */
+	if (unlikely(mp_ea) &&
+	    unlikely(esid == (mp_ea >> SID_SHIFT)) &&
+	    !(vcpu->arch.shared->msr & MSR_PR)) {
+		*vsid = VSID_REAL | esid;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static bool kvmppc_mmu_book3s_64_is_dcbz32(struct kvm_vcpu *vcpu)

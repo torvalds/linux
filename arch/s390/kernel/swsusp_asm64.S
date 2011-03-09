@@ -176,7 +176,7 @@ pgm_check_entry:
 	cgr	%r1,%r2
 	je	restore_registers		/* r1 = r2 -> nothing to do */
 	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
-	mvc	__LC_RESTART_PSW(16,%r0),0(%r4)
+	mvc	__LC_RST_NEW_PSW(16,%r0),0(%r4)
 3:
 	sigp	%r9,%r1,__SIGP_INITIAL_CPU_RESET
 	brc	8,4f	/* accepted */
@@ -255,6 +255,9 @@ restore_registers:
 	/* Make all free pages unstable */
 	lghi	%r2,0
 	brasl	%r14,arch_set_page_states
+
+	/* Reinitialize the channel subsystem */
+	brasl	%r14,channel_subsystem_reinit
 
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)

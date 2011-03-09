@@ -99,7 +99,8 @@ static struct rfkill *rfk;
 
 static int force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Disable the DMI check and forces the driver to be loaded");
+MODULE_PARM_DESC(force,
+		"Disable the DMI check and forces the driver to be loaded");
 
 static int debug;
 module_param(debug, bool, S_IRUGO | S_IWUSR);
@@ -268,7 +269,7 @@ static int update_status(struct backlight_device *bd)
 	return 0;
 }
 
-static struct backlight_ops backlight_ops = {
+static const struct backlight_ops backlight_ops = {
 	.get_brightness	= get_brightness,
 	.update_status	= update_status,
 };
@@ -355,7 +356,7 @@ static ssize_t set_silent_state(struct device *dev,
 	}
 	return count;
 }
-static DEVICE_ATTR(silent, S_IWUGO | S_IRUGO,
+static DEVICE_ATTR(silent, S_IWUSR | S_IRUGO,
 		   get_silent_state, set_silent_state);
 
 
@@ -370,7 +371,8 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 	{
 		.ident = "N128",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N128"),
 			DMI_MATCH(DMI_BOARD_NAME, "N128"),
 		},
@@ -379,7 +381,8 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 	{
 		.ident = "N130",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N130"),
 			DMI_MATCH(DMI_BOARD_NAME, "N130"),
 		},
@@ -391,6 +394,7 @@ MODULE_DEVICE_TABLE(dmi, samsung_dmi_table);
 
 static int __init samsung_init(void)
 {
+	struct backlight_properties props;
 	struct sabi_retval sretval;
 	const char *testStr = "SECLINUX";
 	void __iomem *memcheck;
@@ -483,12 +487,14 @@ static int __init samsung_init(void)
 		goto error_no_platform;
 
 	/* create a backlight device to talk to this one */
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = MAX_BRIGHT;
 	backlight_device = backlight_device_register("samsung", &sdev->dev,
-						     NULL, &backlight_ops);
+						     NULL, &backlight_ops,
+						     &props);
 	if (IS_ERR(backlight_device))
 		goto error_no_backlight;
 
-	backlight_device->props.max_brightness = MAX_BRIGHT;
 	backlight_device->props.brightness = read_brightness();
 	backlight_device->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(backlight_device);

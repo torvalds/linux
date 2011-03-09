@@ -41,10 +41,12 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
+		conf.sync = TSF_SYNC_ADHOC;
+		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_WDS:
-		conf.sync = TSF_SYNC_BEACON;
+		conf.sync = TSF_SYNC_AP_NONE;
 		break;
 	case NL80211_IFTYPE_STATION:
 		conf.sync = TSF_SYNC_INFRA;
@@ -60,13 +62,13 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	 * This will prevent the device being confused when it wants
 	 * to ACK frames or consideres itself associated.
 	 */
-	memset(&conf.mac, 0, sizeof(conf.mac));
+	memset(conf.mac, 0, sizeof(conf.mac));
 	if (mac)
-		memcpy(&conf.mac, mac, ETH_ALEN);
+		memcpy(conf.mac, mac, ETH_ALEN);
 
-	memset(&conf.bssid, 0, sizeof(conf.bssid));
+	memset(conf.bssid, 0, sizeof(conf.bssid));
 	if (bssid)
-		memcpy(&conf.bssid, bssid, ETH_ALEN);
+		memcpy(conf.bssid, bssid, ETH_ALEN);
 
 	flags |= CONFIG_UPDATE_TYPE;
 	if (mac || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))
@@ -79,7 +81,8 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 
 void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct rt2x00_intf *intf,
-			  struct ieee80211_bss_conf *bss_conf)
+			  struct ieee80211_bss_conf *bss_conf,
+			  u32 changed)
 {
 	struct rt2x00lib_erp erp;
 
@@ -100,7 +103,10 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	/* Update global beacon interval time, this is needed for PS support */
 	rt2x00dev->beacon_int = bss_conf->beacon_int;
 
-	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
+	if (changed & BSS_CHANGED_HT)
+		erp.ht_opmode = bss_conf->ht_operation_mode;
+
+	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp, changed);
 }
 
 static inline
@@ -124,31 +130,23 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * ANTENNA_SW_DIVERSITY state to the driver.
 	 * If that happens, fallback to hardware defaults,
 	 * or our own default.
-	 * If diversity handling is active for a particular antenna,
-	 * we shouldn't overwrite that antenna.
-	 * The calls to rt2x00lib_config_antenna_check()
-	 * might have caused that we restore back to the already
-	 * active setting. If that has happened we can quit.
 	 */
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
 		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
-	else
+	else if (config.rx == ANTENNA_SW_DIVERSITY)
 		config.rx = active->rx;
 
 	if (!(ant->flags & ANTENNA_TX_DIVERSITY))
 		config.tx = rt2x00lib_config_antenna_check(config.tx, def->tx);
-	else
+	else if (config.tx == ANTENNA_SW_DIVERSITY)
 		config.tx = active->tx;
-
-	if (config.rx == active->rx && config.tx == active->tx)
-		return;
 
 	/*
 	 * Antenna setup changes require the RX to be disabled,
 	 * else the changes will be ignored by the device.
 	 */
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
+		rt2x00queue_stop_queue(rt2x00dev->rx);
 
 	/*
 	 * Write new antenna setup to device and reset the link tuner.
@@ -162,7 +160,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	memcpy(active, &config, sizeof(config));
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
+		rt2x00queue_start_queue(rt2x00dev->rx);
 }
 
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
@@ -170,23 +168,27 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      unsigned int ieee80211_flags)
 {
 	struct rt2x00lib_conf libconf;
+	u16 hw_value;
 
 	memset(&libconf, 0, sizeof(libconf));
 
 	libconf.conf = conf;
 
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL) {
-		if (conf_is_ht40(conf))
+		if (conf_is_ht40(conf)) {
 			__set_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
-		else
+			hw_value = rt2x00ht_center_channel(rt2x00dev, conf);
+		} else {
 			__clear_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags);
+			hw_value = conf->channel->hw_value;
+		}
 
 		memcpy(&libconf.rf,
-		       &rt2x00dev->spec.channels[conf->channel->hw_value],
+		       &rt2x00dev->spec.channels[hw_value],
 		       sizeof(libconf.rf));
 
 		memcpy(&libconf.channel,
-		       &rt2x00dev->spec.channels_info[conf->channel->hw_value],
+		       &rt2x00dev->spec.channels_info[hw_value],
 		       sizeof(libconf.channel));
 	}
 
@@ -203,10 +205,8 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		rt2x00link_reset_tuner(rt2x00dev, false);
 
 	rt2x00dev->curr_band = conf->channel->band;
+	rt2x00dev->curr_freq = conf->channel->center_freq;
 	rt2x00dev->tx_power = conf->power_level;
 	rt2x00dev->short_retry = conf->short_frame_max_tx_count;
 	rt2x00dev->long_retry = conf->long_frame_max_tx_count;
-
-	rt2x00dev->rx_status.band = conf->channel->band;
-	rt2x00dev->rx_status.freq = conf->channel->center_freq;
 }

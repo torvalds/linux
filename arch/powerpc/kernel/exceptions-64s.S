@@ -13,6 +13,7 @@
  */
 
 #include <asm/exception-64s.h>
+#include <asm/ptrace.h>
 
 /*
  * We layout physical memory as follows:
@@ -298,6 +299,12 @@ slb_miss_user_pseries:
 	rfid
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
+
+/* KVM's trampoline code needs to be close to the interrupt handlers */
+
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include "../kvm/book3s_rmhandlers.S"
+#endif
 
 	.align	7
 	.globl	__end_interrupts
@@ -735,8 +742,11 @@ _STATIC(do_hash_page)
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
 
-	andis.	r0,r4,0xa450		/* weird error? */
+	andis.	r0,r4,0xa410		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
+	andis.  r0,r4,DSISR_DABRMATCH@h
+	bne-    handle_dabr_fault
+
 BEGIN_FTR_SECTION
 	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
 	bne-	do_ste_alloc		/* If so handle it */
@@ -815,13 +825,22 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 	/*
 	 * hash_page couldn't handle it, set soft interrupt enable back
-	 * to what it was before the trap.  Note that .raw_local_irq_restore
+	 * to what it was before the trap.  Note that .arch_local_irq_restore
 	 * handles any interrupts pending at this point.
 	 */
 	ld	r3,SOFTE(r1)
 	TRACE_AND_RESTORE_IRQ_PARTIAL(r3, 11f)
-	bl	.raw_local_irq_restore
+	bl	.arch_local_irq_restore
 	b	11f
+
+/* We have a data breakpoint exception - handle it */
+handle_dabr_fault:
+	bl	.save_nvgprs
+	ld      r4,_DAR(r1)
+	ld      r5,_DSISR(r1)
+	addi    r3,r1,STACK_FRAME_OVERHEAD
+	bl      .do_dabr
+	b       .ret_from_except_lite
 
 /* Here we have a page fault that hash_page can't handle. */
 handle_page_fault:

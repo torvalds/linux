@@ -548,6 +548,14 @@ enum {
 	CHIP_ID_YUKON_UL_2 = 0xba, /* YUKON-2 Ultra 2 */
 	CHIP_ID_YUKON_OPT  = 0xbc, /* YUKON-2 Optima */
 };
+
+enum yukon_xl_rev {
+	CHIP_REV_YU_XL_A0  = 0,
+	CHIP_REV_YU_XL_A1  = 1,
+	CHIP_REV_YU_XL_A2  = 2,
+	CHIP_REV_YU_XL_A3  = 3,
+};
+
 enum yukon_ec_rev {
 	CHIP_REV_YU_EC_A1    = 0,  /* Chip Rev. for Yukon-EC A1/A0 */
 	CHIP_REV_YU_EC_A2    = 1,  /* Chip Rev. for Yukon-EC A2 */
@@ -557,6 +565,7 @@ enum yukon_ec_u_rev {
 	CHIP_REV_YU_EC_U_A0  = 1,
 	CHIP_REV_YU_EC_U_A1  = 2,
 	CHIP_REV_YU_EC_U_B0  = 3,
+	CHIP_REV_YU_EC_U_B1  = 5,
 };
 enum yukon_fe_rev {
 	CHIP_REV_YU_FE_A1    = 1,
@@ -685,8 +694,21 @@ enum {
 	TXA_CTRL	= 0x0210,/*  8 bit	Tx Arbiter Control Register */
 	TXA_TEST	= 0x0211,/*  8 bit	Tx Arbiter Test Register */
 	TXA_STAT	= 0x0212,/*  8 bit	Tx Arbiter Status Register */
+
+	RSS_KEY		= 0x0220, /* RSS Key setup */
+	RSS_CFG		= 0x0248, /* RSS Configuration */
 };
 
+enum {
+	HASH_TCP_IPV6_EX_CTRL	= 1<<5,
+	HASH_IPV6_EX_CTRL	= 1<<4,
+	HASH_TCP_IPV6_CTRL	= 1<<3,
+	HASH_IPV6_CTRL		= 1<<2,
+	HASH_TCP_IPV4_CTRL	= 1<<1,
+	HASH_IPV4_CTRL		= 1<<0,
+
+	HASH_ALL		= 0x3f,
+};
 
 enum {
 	B6_EXT_REG	= 0x0300,/* External registers (GENESIS only) */
@@ -1775,10 +1797,13 @@ enum {
 /*	GM_SERIAL_MODE			16 bit r/w	Serial Mode Register */
 enum {
 	GM_SMOD_DATABL_MSK	= 0x1f<<11, /* Bit 15..11:	Data Blinder (r/o) */
-	GM_SMOD_LIMIT_4		= 1<<10, /* Bit 10:	4 consecutive Tx trials */
-	GM_SMOD_VLAN_ENA	= 1<<9,	/* Bit  9:	Enable VLAN  (Max. Frame Len) */
-	GM_SMOD_JUMBO_ENA	= 1<<8,	/* Bit  8:	Enable Jumbo (Max. Frame Len) */
-	 GM_SMOD_IPG_MSK	= 0x1f	/* Bit 4..0:	Inter-Packet Gap (IPG) */
+	GM_SMOD_LIMIT_4		= 1<<10, /* 4 consecutive Tx trials */
+	GM_SMOD_VLAN_ENA	= 1<<9,	 /* Enable VLAN  (Max. Frame Len) */
+	GM_SMOD_JUMBO_ENA	= 1<<8,	 /* Enable Jumbo (Max. Frame Len) */
+
+	GM_NEW_FLOW_CTRL	= 1<<6,	 /* Enable New Flow-Control */
+
+	GM_SMOD_IPG_MSK		= 0x1f	 /* Bit 4..0:	Inter-Packet Gap (IPG) */
 };
 
 #define DATA_BLIND_VAL(x)	(((x)<<11) & GM_SMOD_DATABL_MSK)
@@ -1895,14 +1920,14 @@ enum {
 
 /*	TX_GMF_CTRL_T	32 bit	Tx GMAC FIFO Control/Test */
 enum {
-	TX_STFW_DIS	= 1<<31,/* Disable Store & Forward (Yukon-EC Ultra) */
-	TX_STFW_ENA	= 1<<30,/* Enable  Store & Forward (Yukon-EC Ultra) */
+	TX_STFW_DIS	= 1<<31,/* Disable Store & Forward */
+	TX_STFW_ENA	= 1<<30,/* Enable  Store & Forward */
 
 	TX_VLAN_TAG_ON	= 1<<25,/* enable  VLAN tagging */
 	TX_VLAN_TAG_OFF	= 1<<24,/* disable VLAN tagging */
 
-	TX_JUMBO_ENA	= 1<<23,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
-	TX_JUMBO_DIS	= 1<<22,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
+	TX_PCI_JUM_ENA  = 1<<23,/* PCI Jumbo Mode enable */
+	TX_PCI_JUM_DIS  = 1<<22,/* PCI Jumbo Mode enable */
 
 	GMF_WSP_TST_ON	= 1<<18,/* Write Shadow Pointer Test On */
 	GMF_WSP_TST_OFF	= 1<<17,/* Write Shadow Pointer Test Off */
@@ -2136,35 +2161,35 @@ struct sky2_tx_le {
 	__le16	length;	/* also vlan tag or checksum start */
 	u8	ctrl;
 	u8	opcode;
-} __attribute((packed));
+} __packed;
 
 struct sky2_rx_le {
 	__le32	addr;
 	__le16	length;
 	u8	ctrl;
 	u8	opcode;
-} __attribute((packed));
+} __packed;
 
 struct sky2_status_le {
 	__le32	status;	/* also checksum */
 	__le16	length;	/* also vlan tag */
 	u8	css;
 	u8	opcode;
-} __attribute((packed));
+} __packed;
 
 struct tx_ring_info {
 	struct sk_buff	*skb;
 	unsigned long flags;
 #define TX_MAP_SINGLE   0x0001
-#define TX_MAP_PAGE     000002
-	DECLARE_PCI_UNMAP_ADDR(mapaddr);
-	DECLARE_PCI_UNMAP_LEN(maplen);
+#define TX_MAP_PAGE     0x0002
+	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	DEFINE_DMA_UNMAP_LEN(maplen);
 };
 
 struct rx_ring_info {
 	struct sk_buff	*skb;
 	dma_addr_t	data_addr;
-	DECLARE_PCI_UNMAP_LEN(data_size);
+	DEFINE_DMA_UNMAP_LEN(data_size);
 	dma_addr_t	frag_addr[ETH_JUMBO_MTU >> PAGE_SHIFT];
 };
 
@@ -2173,6 +2198,12 @@ enum flow_control {
 	FC_TX	= 1,
 	FC_RX	= 2,
 	FC_BOTH	= 3,
+};
+
+struct sky2_stats {
+	struct u64_stats_sync syncp;
+	u64		packets;
+	u64		bytes;
 };
 
 struct sky2_port {
@@ -2184,6 +2215,8 @@ struct sky2_port {
 
 	struct tx_ring_info  *tx_ring;
 	struct sky2_tx_le    *tx_le;
+	struct sky2_stats    tx_stats;
+
 	u16		     tx_ring_size;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
@@ -2196,17 +2229,15 @@ struct sky2_port {
 
 	struct rx_ring_info  *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
+	struct sky2_stats    rx_stats;
 
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
-
-#ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
-	struct vlan_group    *vlgrp;
-#endif
+
 	struct {
 		unsigned long last;
 		u32	mac_rp;
@@ -2249,6 +2280,8 @@ struct sky2_hw {
 #define SKY2_HW_NEW_LE		0x00000020	/* new LSOv2 format */
 #define SKY2_HW_AUTO_TX_SUM	0x00000040	/* new IP decode for Tx */
 #define SKY2_HW_ADV_POWER_CTL	0x00000080	/* additional PHY power regs */
+#define SKY2_HW_RSS_BROKEN	0x00000100
+#define SKY2_HW_VLAN_BROKEN     0x00000200
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
@@ -2256,6 +2289,7 @@ struct sky2_hw {
 	u8		     ports;
 
 	struct sky2_status_le *st_le;
+	u32		     st_size;
 	u32		     st_idx;
 	dma_addr_t   	     st_dma;
 
@@ -2317,6 +2351,39 @@ static inline u32 gma_read32(struct sky2_hw *hw, unsigned port, unsigned reg)
 	unsigned base = SK_GMAC_REG(port, reg);
 	return (u32) sky2_read16(hw, base)
 		| (u32) sky2_read16(hw, base+4) << 16;
+}
+
+static inline u64 gma_read64(struct sky2_hw *hw, unsigned port, unsigned reg)
+{
+	unsigned base = SK_GMAC_REG(port, reg);
+
+	return (u64) sky2_read16(hw, base)
+		| (u64) sky2_read16(hw, base+4) << 16
+		| (u64) sky2_read16(hw, base+8) << 32
+		| (u64) sky2_read16(hw, base+12) << 48;
+}
+
+/* There is no way to atomically read32 bit values from PHY, so retry */
+static inline u32 get_stats32(struct sky2_hw *hw, unsigned port, unsigned reg)
+{
+	u32 val;
+
+	do {
+		val = gma_read32(hw, port, reg);
+	} while (gma_read32(hw, port, reg) != val);
+
+	return val;
+}
+
+static inline u64 get_stats64(struct sky2_hw *hw, unsigned port, unsigned reg)
+{
+	u64 val;
+
+	do {
+		val = gma_read64(hw, port, reg);
+	} while (gma_read64(hw, port, reg) != val);
+
+	return val;
 }
 
 static inline void gma_write16(const struct sky2_hw *hw, unsigned port, int r, u16 v)

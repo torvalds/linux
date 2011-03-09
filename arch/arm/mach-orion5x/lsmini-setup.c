@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/pci.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/leds.h>
@@ -19,12 +18,13 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/ata_platform.h>
-#include <asm/mach-types.h>
 #include <linux/gpio.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/system.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
-#include "include/mach/system.h"
 
 /*****************************************************************************
  * Linkstation Mini Info
@@ -186,7 +186,7 @@ static struct mv_sata_platform_data lsmini_sata_data = {
 
 static void lsmini_power_off(void)
 {
-	arch_reset(0, NULL);
+	arm_machine_restart('h', NULL);
 }
 
 
@@ -267,8 +267,6 @@ static void __init lsmini_init(void)
 #ifdef CONFIG_MACH_LINKSTATION_MINI
 MACHINE_START(LINKSTATION_MINI, "Buffalo Linkstation Mini")
 	/* Maintainer: Alexey Kopytko <alexey@kopytko.ru> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= lsmini_init,
 	.map_io		= orion5x_map_io,

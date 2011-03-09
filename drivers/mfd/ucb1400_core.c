@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/ucb1400.h>
 
 unsigned int ucb1400_adc_read(struct snd_ac97 *ac97, u16 adc_channel,
@@ -113,7 +114,7 @@ static int ucb1400_core_probe(struct device *dev)
 err3:
 	platform_device_put(ucb->ucb1400_ts);
 err2:
-	platform_device_unregister(ucb->ucb1400_gpio);
+	platform_device_del(ucb->ucb1400_gpio);
 err1:
 	platform_device_put(ucb->ucb1400_gpio);
 err0:

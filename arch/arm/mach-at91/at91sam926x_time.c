@@ -51,7 +51,6 @@ static struct clocksource pit_clk = {
 	.name		= "pit",
 	.rating		= 175,
 	.read		= read_pit_clk,
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -62,16 +61,12 @@ static struct clocksource pit_clk = {
 static void
 pit_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 {
-	unsigned long	flags;
-
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		/* update clocksource counter, then enable the IRQ */
-		raw_local_irq_save(flags);
+		/* update clocksource counter */
 		pit_cnt += pit_cycle * PIT_PICNT(at91_sys_read(AT91_PIT_PIVR));
 		at91_sys_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN
 				| AT91_PIT_PITIEN);
-		raw_local_irq_restore(flags);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		BUG();
@@ -100,6 +95,11 @@ static struct clock_event_device pit_clkevt = {
  */
 static irqreturn_t at91sam926x_pit_interrupt(int irq, void *dev_id)
 {
+	/*
+	 * irqs should be disabled here, but as the irq is shared they are only
+	 * guaranteed to be off if the timer irq is registered first.
+	 */
+	WARN_ON_ONCE(!irqs_disabled());
 
 	/* The PIT interrupt may be disabled, and is shared */
 	if ((pit_clkevt.mode == CLOCK_EVT_MODE_PERIODIC)
@@ -162,10 +162,9 @@ static void __init at91sam926x_pit_init(void)
 	 * Register clocksource.  The high order bits of PIV are unused,
 	 * so this isn't a 32-bit counter unless we get clockevent irqs.
 	 */
-	pit_clk.mult = clocksource_hz2mult(pit_rate, pit_clk.shift);
 	bits = 12 /* PICNT */ + ilog2(pit_cycle) /* PIV */;
 	pit_clk.mask = CLOCKSOURCE_MASK(bits);
-	clocksource_register(&pit_clk);
+	clocksource_register_hz(&pit_clk, pit_rate);
 
 	/* Set up irq handler */
 	setup_irq(AT91_ID_SYS, &at91sam926x_pit_irq);

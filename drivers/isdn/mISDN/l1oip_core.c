@@ -233,6 +233,7 @@ socket process and create a new one.
 #include <linux/inet.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include "core.h"
 #include "l1oip.h"
@@ -477,7 +478,7 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 		printk(KERN_DEBUG "%s: received frame, parsing... (%d)\n",
 			__func__, len);
 
-	/* check lenght */
+	/* check length */
 	if (len < 1+1+2) {
 		printk(KERN_WARNING "%s: packet error - length %d below "
 			"4 bytes\n", __func__, len);
@@ -971,7 +972,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		if (debug & DEBUG_L1OIP_SOCKET)
 			printk(KERN_DEBUG "%s: got new ip address from user "
 				"space.\n", __func__);
-			l1oip_socket_open(hc);
+		l1oip_socket_open(hc);
 		break;
 	case MISDN_CTRL_UNSETPEER:
 		if (debug & DEBUG_L1OIP_SOCKET)
@@ -1268,6 +1269,8 @@ release_card(struct l1oip *hc)
 	if (timer_pending(&hc->timeout_tl))
 		del_timer(&hc->timeout_tl);
 
+	cancel_work_sync(&hc->workq);
+
 	if (hc->socket_thread)
 		l1oip_socket_close(hc);
 
@@ -1509,7 +1512,7 @@ l1oip_init(void)
 			printk(KERN_DEBUG "%s: interface %d is %s with %s.\n",
 			    __func__, l1oip_cnt, pri ? "PRI" : "BRI",
 			    bundle ? "bundled IP packet for all B-channels" :
-			    "seperate IP packets for every B-channel");
+			    "separate IP packets for every B-channel");
 
 		hc = kzalloc(sizeof(struct l1oip), GFP_ATOMIC);
 		if (!hc) {

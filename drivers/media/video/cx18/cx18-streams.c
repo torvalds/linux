@@ -4,7 +4,7 @@
  *  Derived from ivtv-streams.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ static struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.read = cx18_v4l2_read,
 	.open = cx18_v4l2_open,
 	/* FIXME change to video_ioctl2 if serialization lock can be removed */
-	.ioctl = cx18_v4l2_ioctl,
+	.unlocked_ioctl = cx18_v4l2_ioctl,
 	.release = cx18_v4l2_close,
 	.poll = cx18_v4l2_enc_poll,
 };
@@ -107,6 +107,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->video_dev = video_dev;
 
 	/* initialize cx18_stream fields */
+	s->dvb = NULL;
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
@@ -140,10 +141,15 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	int num_offset = cx18_stream_info[type].num_offset;
 	int num = cx->instance + cx18_first_minor + num_offset;
 
-	/* These four fields are always initialized. If video_dev == NULL, then
-	   this stream is not in use. In that case no other fields but these
-	   four can be used. */
+	/*
+	 * These five fields are always initialized.
+	 * For analog capture related streams, if video_dev == NULL then the
+	 * stream is not in use.
+	 * For the TS stream, if dvb == NULL then the stream is not in use.
+	 * In those cases no other fields but these four can be used.
+	 */
 	s->video_dev = NULL;
+	s->dvb = NULL;
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
@@ -166,6 +172,21 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	}
 
 	cx18_stream_init(cx, type);
+
+	/* Allocate the cx18_dvb struct only for the TS on cards with DTV */
+	if (type == CX18_ENC_STREAM_TYPE_TS) {
+		if (cx->card->hw_all & CX18_HW_DVB) {
+			s->dvb = kzalloc(sizeof(struct cx18_dvb), GFP_KERNEL);
+			if (s->dvb == NULL) {
+				CX18_ERR("Couldn't allocate cx18_dvb structure"
+					 " for %s\n", s->name);
+				return -ENOMEM;
+			}
+		} else {
+			/* Don't need buffers for the TS, if there is no DVB */
+			s->buffers = 0;
+		}
+	}
 
 	if (num_offset == -1)
 		return 0;
@@ -222,13 +243,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	const char *name;
 	int num, ret;
 
-	/* TODO: Shouldn't this be a VFL_TYPE_TRANSPORT or something?
-	 * We need a VFL_TYPE_TS defined.
-	 */
-	if (strcmp("TS", s->name) == 0) {
-		/* just return if no DVB is supported */
-		if ((cx->card->hw_all & CX18_HW_DVB) == 0)
-			return 0;
+	if (type == CX18_ENC_STREAM_TYPE_TS && s->dvb != NULL) {
 		ret = cx18_dvb_register(s);
 		if (ret < 0) {
 			CX18_ERR("DVB failed to register\n");
@@ -319,11 +334,29 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 
 	/* Teardown all streams */
 	for (type = 0; type < CX18_MAX_STREAMS; type++) {
-		if (cx->streams[type].dvb.enabled) {
-			cx18_dvb_unregister(&cx->streams[type]);
-			cx->streams[type].dvb.enabled = false;
+
+		/* The TS has a cx18_dvb structure, not a video_device */
+		if (type == CX18_ENC_STREAM_TYPE_TS) {
+			if (cx->streams[type].dvb != NULL) {
+				if (unregister)
+					cx18_dvb_unregister(&cx->streams[type]);
+				kfree(cx->streams[type].dvb);
+				cx->streams[type].dvb = NULL;
+				cx18_stream_free(&cx->streams[type]);
+			}
+			continue;
 		}
 
+		/* No struct video_device, but can have buffers allocated */
+		if (type == CX18_ENC_STREAM_TYPE_IDX) {
+			if (cx->stream_buffers[type] != 0) {
+				cx->stream_buffers[type] = 0;
+				cx18_stream_free(&cx->streams[type]);
+			}
+			continue;
+		}
+
+		/* If struct video_device exists, can have buffers allocated */
 		vdev = cx->streams[type].video_dev;
 
 		cx->streams[type].video_dev = NULL;
@@ -358,7 +391,10 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	}
 
 	/* setup VBI registers */
-	v4l2_subdev_call(cx->sd_av, video, s_fmt, &cx->vbi.in);
+	if (raw)
+		v4l2_subdev_call(cx->sd_av, vbi, s_raw_fmt, &cx->vbi.in.fmt.vbi);
+	else
+		v4l2_subdev_call(cx->sd_av, vbi, s_sliced_fmt, &cx->vbi.in.fmt.sliced);
 
 	/*
 	 * Send the CX18_CPU_SET_RAW_VBI_PARAM API command to setup Encoder Raw
@@ -445,6 +481,32 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 			data[0], data[1], data[2], data[3], data[4], data[5]);
 
 	cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
+}
+
+void cx18_stream_rotate_idx_mdls(struct cx18 *cx)
+{
+	struct cx18_stream *s = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+	struct cx18_mdl *mdl;
+
+	if (!cx18_stream_enabled(s))
+		return;
+
+	/* Return if the firmware is not running low on MDLs */
+	if ((atomic_read(&s->q_free.depth) + atomic_read(&s->q_busy.depth)) >=
+					    CX18_ENC_STREAM_TYPE_IDX_FW_MDL_MIN)
+		return;
+
+	/* Return if there are no MDLs to rotate back to the firmware */
+	if (atomic_read(&s->q_full.depth) < 2)
+		return;
+
+	/*
+	 * Take the oldest IDX MDL still holding data, and discard its index
+	 * entries by scheduling the MDL to go back to the firmware
+	 */
+	mdl = cx18_dequeue(s, &s->q_full);
+	if (mdl != NULL)
+		cx18_enqueue(s, mdl, &s->q_free);
 }
 
 static
@@ -546,8 +608,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	struct cx18 *cx = s->cx;
 	int captype = 0;
 	struct cx18_api_func_private priv;
+	struct cx18_stream *s_idx;
 
-	if (s->video_dev == NULL && s->dvb.enabled == 0)
+	if (!cx18_stream_enabled(s))
 		return -EINVAL;
 
 	CX18_DEBUG_INFO("Start encoder stream %s\n", s->name);
@@ -561,6 +624,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		cx->search_pack_header = 0;
 		break;
 
+	case CX18_ENC_STREAM_TYPE_IDX:
+		captype = CAPTURE_CHANNEL_TYPE_INDEX;
+		break;
 	case CX18_ENC_STREAM_TYPE_TS:
 		captype = CAPTURE_CHANNEL_TYPE_TS;
 		break;
@@ -635,11 +701,13 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 			cx18_vbi_setup(s);
 
 		/*
-		 * assign program index info.
-		 * Mask 7: select I/P/B, Num_req: 400 max
-		 * FIXME - currently we have this hardcoded as disabled
+		 * Select to receive I, P, and B frame index entries, if the
+		 * index stream is enabled.  Otherwise disable index entry
+		 * generation.
 		 */
-		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 1, 0);
+		s_idx = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 2,
+				 s->handle, cx18_stream_enabled(s_idx) ? 7 : 0);
 
 		/* Call out to the common CX2341x API setup for user controls */
 		priv.cx = cx;
@@ -697,6 +765,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	atomic_inc(&cx->tot_capturing);
 	return 0;
 }
+EXPORT_SYMBOL(cx18_start_v4l2_encode_stream);
 
 void cx18_stop_all_captures(struct cx18 *cx)
 {
@@ -705,7 +774,7 @@ void cx18_stop_all_captures(struct cx18 *cx)
 	for (i = CX18_MAX_STREAMS - 1; i >= 0; i--) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->video_dev == NULL && s->dvb.enabled == 0)
+		if (!cx18_stream_enabled(s))
 			continue;
 		if (test_bit(CX18_F_S_STREAMING, &s->s_flags))
 			cx18_stop_v4l2_encode_stream(s, 0);
@@ -717,7 +786,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	struct cx18 *cx = s->cx;
 	unsigned long then;
 
-	if (s->video_dev == NULL && s->dvb.enabled == 0)
+	if (!cx18_stream_enabled(s))
 		return -EINVAL;
 
 	/* This function assumes that you are allowed to stop the capture
@@ -762,6 +831,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 
 	return 0;
 }
+EXPORT_SYMBOL(cx18_stop_v4l2_encode_stream);
 
 u32 cx18_find_handle(struct cx18 *cx)
 {
@@ -789,7 +859,7 @@ struct cx18_stream *cx18_handle_to_stream(struct cx18 *cx, u32 handle)
 		s = &cx->streams[i];
 		if (s->handle != handle)
 			continue;
-		if (s->video_dev || s->dvb.enabled)
+		if (cx18_stream_enabled(s))
 			return s;
 	}
 	return NULL;

@@ -1694,7 +1694,6 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	i2c_set_adapdata(&ttusb->i2c_adap, ttusb);
 
-	ttusb->i2c_adap.class		  = I2C_CLASS_TV_DIGITAL;
 	ttusb->i2c_adap.algo              = &ttusb_dec_algo;
 	ttusb->i2c_adap.algo_data         = NULL;
 	ttusb->i2c_adap.dev.parent	  = &udev->dev;

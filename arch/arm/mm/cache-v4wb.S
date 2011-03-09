@@ -51,6 +51,17 @@ flush_base:
 	.text
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(v4wb_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(v4wb_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Clean and invalidate all cache entries in a particular address
@@ -173,7 +184,7 @@ ENTRY(v4wb_coherent_user_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(v4wb_dma_inv_range)
+v4wb_dma_inv_range:
 	tst	r0, #CACHE_DLINESIZE - 1
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -194,7 +205,7 @@ ENTRY(v4wb_dma_inv_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(v4wb_dma_clean_range)
+v4wb_dma_clean_range:
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -216,17 +227,42 @@ ENTRY(v4wb_dma_clean_range)
 	.globl	v4wb_dma_flush_range
 	.set	v4wb_dma_flush_range, v4wb_coherent_kern_range
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v4wb_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	v4wb_dma_clean_range
+	bcs	v4wb_dma_inv_range
+	b	v4wb_dma_flush_range
+ENDPROC(v4wb_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v4wb_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(v4wb_dma_unmap_area)
+
 	__INITDATA
 
 	.type	v4wb_cache_fns, #object
 ENTRY(v4wb_cache_fns)
+	.long	v4wb_flush_icache_all
 	.long	v4wb_flush_kern_cache_all
 	.long	v4wb_flush_user_cache_all
 	.long	v4wb_flush_user_cache_range
 	.long	v4wb_coherent_kern_range
 	.long	v4wb_coherent_user_range
 	.long	v4wb_flush_kern_dcache_area
-	.long	v4wb_dma_inv_range
-	.long	v4wb_dma_clean_range
+	.long	v4wb_dma_map_area
+	.long	v4wb_dma_unmap_area
 	.long	v4wb_dma_flush_range
 	.size	v4wb_cache_fns, . - v4wb_cache_fns

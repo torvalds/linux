@@ -657,8 +657,9 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 #ifndef PCMCIA
 	/* finish figuring the shared RAM address */
 	if (cardpresent == TR_ISA) {
-		static __u32 ram_bndry_mask[] =
-			{ 0xffffe000, 0xffffc000, 0xffff8000, 0xffff0000 };
+		static const __u32 ram_bndry_mask[] = {
+			0xffffe000, 0xffffc000, 0xffff8000, 0xffff0000
+		};
 		__u32 new_base, rrr_32, chk_base, rbm;
 
 		rrr_32=readb(ti->mmio+ACA_OFFSET+ACA_RW+RRR_ODD) >> 2 & 0x03;
@@ -986,7 +987,7 @@ static void open_sap(unsigned char type, struct net_device *dev)
 static void tok_set_multicast_list(struct net_device *dev)
 {
 	struct tok_info *ti = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	unsigned char address[4];
 
 	int i;
@@ -995,13 +996,11 @@ static void tok_set_multicast_list(struct net_device *dev)
 	/*BMS ifconfig tr down or hot unplug a PCMCIA card ??hownowbrowncow*/
 	if (/*BMSHELPdev->start == 0 ||*/ ti->open_status != OPEN) return;
 	address[0] = address[1] = address[2] = address[3] = 0;
-	mclist = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++) {
-		address[0] |= mclist->dmi_addr[2];
-		address[1] |= mclist->dmi_addr[3];
-		address[2] |= mclist->dmi_addr[4];
-		address[3] |= mclist->dmi_addr[5];
-		mclist = mclist->next;
+	netdev_for_each_mc_addr(ha, dev) {
+		address[0] |= ha->addr[2];
+		address[1] |= ha->addr[3];
+		address[2] |= ha->addr[4];
+		address[3] |= ha->addr[5];
 	}
 	SET_PAGE(ti->srb_page);
 	for (i = 0; i < sizeof(struct srb_set_funct_addr); i++)
@@ -1043,7 +1042,6 @@ static netdev_tx_t tok_send_packet(struct sk_buff *skb,
 	writew(ti->exsap_station_id, ti->srb + STATION_ID_OFST);
 	writeb(CMD_IN_SRB, ti->mmio + ACA_OFFSET + ACA_SET + ISRA_ODD);
 	spin_unlock_irqrestore(&(ti->lock), flags);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

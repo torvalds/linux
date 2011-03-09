@@ -69,7 +69,7 @@
 #endif
 
 /* table of devices that work with this driver */
-static struct usb_device_id ld_usb_table [] = {
+static const struct usb_device_id ld_usb_table[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_CASSY) },
 	{ USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_POCKETCASSY) },
 	{ USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_MOBILECASSY) },
@@ -613,6 +613,7 @@ static const struct file_operations ld_usb_fops = {
 	.open =		ld_usb_open,
 	.release =	ld_usb_release,
 	.poll =		ld_usb_poll,
+	.llseek =	no_llseek,
 };
 
 /*
@@ -641,7 +642,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	int i;
 	int retval = -ENOMEM;
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
@@ -798,7 +799,7 @@ static int __init ld_usb_init(void)
 	/* register this driver with the USB subsystem */
 	retval = usb_register(&ld_usb_driver);
 	if (retval)
-		err("usb_register failed for the "__FILE__" driver. Error number %d\n", retval);
+		err("usb_register failed for the %s driver. Error number %d\n", __FILE__, retval);
 
 	return retval;
 }

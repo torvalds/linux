@@ -116,7 +116,7 @@ static struct platform_device smc91x_device = {
 	},
 };
 
-#if defined(CONFIG_FB_PXA) || (CONFIG_FB_PXA_MODULE)
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static uint16_t lcd_power_on[] = {
 	/* single frame */
 	SMART_CMD_NOOP,
@@ -596,10 +596,8 @@ static void __init saar_init(void)
 
 MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
-	.phys_io        = 0x40000000,
 	.boot_params    = 0xa0000100,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io         = pxa_map_io,
+	.map_io         = pxa3xx_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saar_init,

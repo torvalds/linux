@@ -34,6 +34,7 @@
  *
  */
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <rdma/ib_cache.h>
 
 #include "mad_priv.h"
@@ -46,8 +47,8 @@ MODULE_DESCRIPTION("kernel IB MAD API");
 MODULE_AUTHOR("Hal Rosenstock");
 MODULE_AUTHOR("Sean Hefty");
 
-int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
-int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
+static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
+static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
 
 module_param_named(send_queue_size, mad_sendq_size, int, 0444);
 MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests");
@@ -290,13 +291,11 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 
 	if (mad_reg_req) {
-		reg_req = kmalloc(sizeof *reg_req, GFP_KERNEL);
+		reg_req = kmemdup(mad_reg_req, sizeof *reg_req, GFP_KERNEL);
 		if (!reg_req) {
 			ret = ERR_PTR(-ENOMEM);
 			goto error3;
 		}
-		/* Make a copy of the MAD registration request */
-		memcpy(reg_req, mad_reg_req, sizeof *reg_req);
 	}
 
 	/* Now, fill in the various structures */
@@ -1193,10 +1192,7 @@ static int method_in_use(struct ib_mad_mgmt_method_table **method,
 {
 	int i;
 
-	for (i = find_first_bit(mad_reg_req->method_mask, IB_MGMT_MAX_METHODS);
-	     i < IB_MGMT_MAX_METHODS;
-	     i = find_next_bit(mad_reg_req->method_mask, IB_MGMT_MAX_METHODS,
-			       1+i)) {
+	for_each_set_bit(i, mad_reg_req->method_mask, IB_MGMT_MAX_METHODS) {
 		if ((*method)->agent[i]) {
 			printk(KERN_ERR PFX "Method %d already in use\n", i);
 			return -EINVAL;
@@ -1330,13 +1326,9 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 		goto error3;
 
 	/* Finally, add in methods being registered */
-	for (i = find_first_bit(mad_reg_req->method_mask,
-				IB_MGMT_MAX_METHODS);
-	     i < IB_MGMT_MAX_METHODS;
-	     i = find_next_bit(mad_reg_req->method_mask, IB_MGMT_MAX_METHODS,
-			       1+i)) {
+	for_each_set_bit(i, mad_reg_req->method_mask, IB_MGMT_MAX_METHODS)
 		(*method)->agent[i] = agent_priv;
-	}
+
 	return 0;
 
 error3:
@@ -1429,13 +1421,9 @@ check_in_use:
 		goto error4;
 
 	/* Finally, add in methods being registered */
-	for (i = find_first_bit(mad_reg_req->method_mask,
-				IB_MGMT_MAX_METHODS);
-	     i < IB_MGMT_MAX_METHODS;
-	     i = find_next_bit(mad_reg_req->method_mask, IB_MGMT_MAX_METHODS,
-			       1+i)) {
+	for_each_set_bit(i, mad_reg_req->method_mask, IB_MGMT_MAX_METHODS)
 		(*method)->agent[i] = agent_priv;
-	}
+
 	return 0;
 
 error4:
@@ -2610,6 +2598,9 @@ static void cleanup_recv_queue(struct ib_mad_qp_info *qp_info)
 	struct ib_mad_private *recv;
 	struct ib_mad_list_head *mad_list;
 
+	if (!qp_info->qp)
+		return;
+
 	while (!list_empty(&qp_info->recv_queue.list)) {
 
 		mad_list = list_entry(qp_info->recv_queue.list.next,
@@ -2651,6 +2642,9 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 
 	for (i = 0; i < IB_MAD_QPS_CORE; i++) {
 		qp = port_priv->qp_info[i].qp;
+		if (!qp)
+			continue;
+
 		/*
 		 * PKey index for QP1 is irrelevant but
 		 * one is needed for the Reset to Init transition
@@ -2692,6 +2686,9 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	}
 
 	for (i = 0; i < IB_MAD_QPS_CORE; i++) {
+		if (!port_priv->qp_info[i].qp)
+			continue;
+
 		ret = ib_mad_post_receive_mads(&port_priv->qp_info[i], NULL);
 		if (ret) {
 			printk(KERN_ERR PFX "Couldn't post receive WRs\n");
@@ -2770,6 +2767,9 @@ error:
 
 static void destroy_mad_qp(struct ib_mad_qp_info *qp_info)
 {
+	if (!qp_info->qp)
+		return;
+
 	ib_destroy_qp(qp_info->qp);
 	kfree(qp_info->snoop_table);
 }
@@ -2785,6 +2785,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	struct ib_mad_port_private *port_priv;
 	unsigned long flags;
 	char name[sizeof "ib_mad123"];
+	int has_smi;
 
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
@@ -2800,7 +2801,11 @@ static int ib_mad_port_open(struct ib_device *device,
 	init_mad_qp(port_priv, &port_priv->qp_info[0]);
 	init_mad_qp(port_priv, &port_priv->qp_info[1]);
 
-	cq_size = (mad_sendq_size + mad_recvq_size) * 2;
+	cq_size = mad_sendq_size + mad_recvq_size;
+	has_smi = rdma_port_get_link_layer(device, port_num) == IB_LINK_LAYER_INFINIBAND;
+	if (has_smi)
+		cq_size *= 2;
+
 	port_priv->cq = ib_create_cq(port_priv->device,
 				     ib_mad_thread_completion_handler,
 				     NULL, port_priv, cq_size, 0);
@@ -2824,9 +2829,11 @@ static int ib_mad_port_open(struct ib_device *device,
 		goto error5;
 	}
 
-	ret = create_mad_qp(&port_priv->qp_info[0], IB_QPT_SMI);
-	if (ret)
-		goto error6;
+	if (has_smi) {
+		ret = create_mad_qp(&port_priv->qp_info[0], IB_QPT_SMI);
+		if (ret)
+			goto error6;
+	}
 	ret = create_mad_qp(&port_priv->qp_info[1], IB_QPT_GSI);
 	if (ret)
 		goto error7;
@@ -2963,6 +2970,9 @@ error:
 static void ib_mad_remove_device(struct ib_device *device)
 {
 	int i, num_ports, cur_port;
+
+	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
+		return;
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		num_ports = 1;

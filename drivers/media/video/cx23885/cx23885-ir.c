@@ -3,7 +3,7 @@
  *
  *  Infrared device support routines - non-input, non-vl42_subdev routines
  *
- *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ void cx23885_ir_rx_work_handler(struct work_struct *work)
 	if (events == 0)
 		return;
 
-	if (dev->ir_input)
+	if (dev->kernel_ir)
 		cx23885_input_rx_work_handler(dev, events);
 }
 
@@ -72,7 +72,7 @@ void cx23885_ir_tx_work_handler(struct work_struct *work)
 
 }
 
-/* Called in an IRQ context */
+/* Possibly called in an IRQ context */
 void cx23885_ir_rx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
 {
 	struct cx23885_dev *dev = to_cx23885(sd->v4l2_dev);
@@ -86,10 +86,18 @@ void cx23885_ir_rx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
 		set_bit(CX23885_IR_RX_HW_FIFO_OVERRUN, notifications);
 	if (events & V4L2_SUBDEV_IR_RX_SW_FIFO_OVERRUN)
 		set_bit(CX23885_IR_RX_SW_FIFO_OVERRUN, notifications);
-	schedule_work(&dev->ir_rx_work);
+
+	/*
+	 * For the integrated AV core, we are already in a workqueue context.
+	 * For the CX23888 integrated IR, we are in an interrupt context.
+	 */
+	if (sd == dev->sd_cx25840)
+		cx23885_ir_rx_work_handler(&dev->ir_rx_work);
+	else
+		schedule_work(&dev->ir_rx_work);
 }
 
-/* Called in an IRQ context */
+/* Possibly called in an IRQ context */
 void cx23885_ir_tx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
 {
 	struct cx23885_dev *dev = to_cx23885(sd->v4l2_dev);
@@ -97,5 +105,13 @@ void cx23885_ir_tx_v4l2_dev_notify(struct v4l2_subdev *sd, u32 events)
 
 	if (events & V4L2_SUBDEV_IR_TX_FIFO_SERVICE_REQ)
 		set_bit(CX23885_IR_TX_FIFO_SERVICE_REQ, notifications);
-	schedule_work(&dev->ir_tx_work);
+
+	/*
+	 * For the integrated AV core, we are already in a workqueue context.
+	 * For the CX23888 integrated IR, we are in an interrupt context.
+	 */
+	if (sd == dev->sd_cx25840)
+		cx23885_ir_tx_work_handler(&dev->ir_tx_work);
+	else
+		schedule_work(&dev->ir_tx_work);
 }

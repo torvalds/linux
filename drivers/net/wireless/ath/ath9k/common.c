@@ -27,251 +27,6 @@ MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Shared library for Atheros wireless 802.11n LAN cards.");
 MODULE_LICENSE("Dual BSD/GPL");
 
-/* Common RX processing */
-
-/* Assumes you've already done the endian to CPU conversion */
-static bool ath9k_rx_accept(struct ath_common *common,
-			    struct sk_buff *skb,
-			    struct ieee80211_rx_status *rxs,
-			    struct ath_rx_status *rx_stats,
-			    bool *decrypt_error)
-{
-	struct ath_hw *ah = common->ah;
-	struct ieee80211_hdr *hdr;
-	__le16 fc;
-
-	hdr = (struct ieee80211_hdr *) skb->data;
-	fc = hdr->frame_control;
-
-	if (!rx_stats->rs_datalen)
-		return false;
-        /*
-         * rs_status follows rs_datalen so if rs_datalen is too large
-         * we can take a hint that hardware corrupted it, so ignore
-         * those frames.
-         */
-	if (rx_stats->rs_datalen > common->rx_bufsize)
-		return false;
-
-	/*
-	 * rs_more indicates chained descriptors which can be used
-	 * to link buffers together for a sort of scatter-gather
-	 * operation.
-	 *
-	 * The rx_stats->rs_status will not be set until the end of the
-	 * chained descriptors so it can be ignored if rs_more is set. The
-	 * rs_more will be false at the last element of the chained
-	 * descriptors.
-	 */
-	if (!rx_stats->rs_more && rx_stats->rs_status != 0) {
-		if (rx_stats->rs_status & ATH9K_RXERR_CRC)
-			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
-		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
-			return false;
-
-		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
-			*decrypt_error = true;
-		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
-			if (ieee80211_is_ctl(fc))
-				/*
-				 * Sometimes, we get invalid
-				 * MIC failures on valid control frames.
-				 * Remove these mic errors.
-				 */
-				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
-			else
-				rxs->flag |= RX_FLAG_MMIC_ERROR;
-		}
-		/*
-		 * Reject error frames with the exception of
-		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
-		 */
-		if (ah->opmode == NL80211_IFTYPE_MONITOR) {
-			if (rx_stats->rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_CRC))
-				return false;
-		} else {
-			if (rx_stats->rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-static u8 ath9k_process_rate(struct ath_common *common,
-			     struct ieee80211_hw *hw,
-			     struct ath_rx_status *rx_stats,
-			     struct ieee80211_rx_status *rxs,
-			     struct sk_buff *skb)
-{
-	struct ieee80211_supported_band *sband;
-	enum ieee80211_band band;
-	unsigned int i = 0;
-
-	band = hw->conf.channel->band;
-	sband = hw->wiphy->bands[band];
-
-	if (rx_stats->rs_rate & 0x80) {
-		/* HT rate */
-		rxs->flag |= RX_FLAG_HT;
-		if (rx_stats->rs_flags & ATH9K_RX_2040)
-			rxs->flag |= RX_FLAG_40MHZ;
-		if (rx_stats->rs_flags & ATH9K_RX_GI)
-			rxs->flag |= RX_FLAG_SHORT_GI;
-		return rx_stats->rs_rate & 0x7f;
-	}
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sband->bitrates[i].hw_value == rx_stats->rs_rate)
-			return i;
-		if (sband->bitrates[i].hw_value_short == rx_stats->rs_rate) {
-			rxs->flag |= RX_FLAG_SHORTPRE;
-			return i;
-		}
-	}
-
-	/* No valid hardware bitrate found -- we should not get here */
-	ath_print(common, ATH_DBG_XMIT, "unsupported hw bitrate detected "
-		  "0x%02x using 1 Mbit\n", rx_stats->rs_rate);
-	if ((common->debug_mask & ATH_DBG_XMIT))
-		print_hex_dump_bytes("", DUMP_PREFIX_NONE, skb->data, skb->len);
-
-        return 0;
-}
-
-static void ath9k_process_rssi(struct ath_common *common,
-			       struct ieee80211_hw *hw,
-			       struct sk_buff *skb,
-			       struct ath_rx_status *rx_stats)
-{
-	struct ath_hw *ah = common->ah;
-	struct ieee80211_sta *sta;
-	struct ieee80211_hdr *hdr;
-	struct ath_node *an;
-	int last_rssi = ATH_RSSI_DUMMY_MARKER;
-	__le16 fc;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
-
-	rcu_read_lock();
-	/*
-	 * XXX: use ieee80211_find_sta! This requires quite a bit of work
-	 * under the current ath9k virtual wiphy implementation as we have
-	 * no way of tying a vif to wiphy. Typically vifs are attached to
-	 * at least one sdata of a wiphy on mac80211 but with ath9k virtual
-	 * wiphy you'd have to iterate over every wiphy and each sdata.
-	 */
-	sta = ieee80211_find_sta_by_hw(hw, hdr->addr2);
-	if (sta) {
-		an = (struct ath_node *) sta->drv_priv;
-		if (rx_stats->rs_rssi != ATH9K_RSSI_BAD &&
-		   !rx_stats->rs_moreaggr)
-			ATH_RSSI_LPF(an->last_rssi, rx_stats->rs_rssi);
-		last_rssi = an->last_rssi;
-	}
-	rcu_read_unlock();
-
-	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-		rx_stats->rs_rssi = ATH_EP_RND(last_rssi,
-					      ATH_RSSI_EP_MULTIPLIER);
-	if (rx_stats->rs_rssi < 0)
-		rx_stats->rs_rssi = 0;
-
-	/* Update Beacon RSSI, this is used by ANI. */
-	if (ieee80211_is_beacon(fc))
-		ah->stats.avgbrssi = rx_stats->rs_rssi;
-}
-
-/*
- * For Decrypt or Demic errors, we only mark packet status here and always push
- * up the frame up to let mac80211 handle the actual error case, be it no
- * decryption key or real decryption error. This let us keep statistics there.
- */
-int ath9k_cmn_rx_skb_preprocess(struct ath_common *common,
-				struct ieee80211_hw *hw,
-				struct sk_buff *skb,
-				struct ath_rx_status *rx_stats,
-				struct ieee80211_rx_status *rx_status,
-				bool *decrypt_error)
-{
-	struct ath_hw *ah = common->ah;
-
-	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
-	if (!ath9k_rx_accept(common, skb, rx_status, rx_stats, decrypt_error))
-		return -EINVAL;
-
-	ath9k_process_rssi(common, hw, skb, rx_stats);
-
-	rx_status->rate_idx = ath9k_process_rate(common, hw,
-						 rx_stats, rx_status, skb);
-	rx_status->mactime = ath9k_hw_extend_tsf(ah, rx_stats->rs_tstamp);
-	rx_status->band = hw->conf.channel->band;
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->noise = common->ani.noise_floor;
-	rx_status->signal = ATH_DEFAULT_NOISE_FLOOR + rx_stats->rs_rssi;
-	rx_status->antenna = rx_stats->rs_antenna;
-	rx_status->flag |= RX_FLAG_TSFT;
-
-	return 0;
-}
-EXPORT_SYMBOL(ath9k_cmn_rx_skb_preprocess);
-
-void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
-				  struct sk_buff *skb,
-				  struct ath_rx_status *rx_stats,
-				  struct ieee80211_rx_status *rxs,
-				  bool decrypt_error)
-{
-	struct ath_hw *ah = common->ah;
-	struct ieee80211_hdr *hdr;
-	int hdrlen, padpos, padsize;
-	u8 keyix;
-	__le16 fc;
-
-	/* see if any padding is done by the hw and remove it */
-	hdr = (struct ieee80211_hdr *) skb->data;
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	fc = hdr->frame_control;
-	padpos = ath9k_cmn_padpos(hdr->frame_control);
-
-	/* The MAC header is padded to have 32-bit boundary if the
-	 * packet payload is non-zero. The general calculation for
-	 * padsize would take into account odd header lengths:
-	 * padsize = (4 - padpos % 4) % 4; However, since only
-	 * even-length headers are used, padding can only be 0 or 2
-	 * bytes and we can optimize this a bit. In addition, we must
-	 * not try to remove padding from short control frames that do
-	 * not have payload. */
-	padsize = padpos & 3;
-	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, padpos);
-		skb_pull(skb, padsize);
-	}
-
-	keyix = rx_stats->rs_keyix;
-
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error) {
-		rxs->flag |= RX_FLAG_DECRYPTED;
-	} else if (ieee80211_has_protected(fc)
-		   && !decrypt_error && skb->len >= hdrlen + 4) {
-		keyix = skb->data[hdrlen + 3] >> 6;
-
-		if (test_bit(keyix, common->keymap))
-			rxs->flag |= RX_FLAG_DECRYPTED;
-	}
-	if (ah->sw_mgmt_crypto &&
-	    (rxs->flag & RX_FLAG_DECRYPTED) &&
-	    ieee80211_is_mgmt(fc))
-		/* Use software decrypt for management frames. */
-		rxs->flag &= ~RX_FLAG_DECRYPTED;
-}
-EXPORT_SYMBOL(ath9k_cmn_rx_skb_postprocess);
-
 int ath9k_cmn_padpos(__le16 frame_control)
 {
 	int padpos = 24;
@@ -285,6 +40,154 @@ int ath9k_cmn_padpos(__le16 frame_control)
 	return padpos;
 }
 EXPORT_SYMBOL(ath9k_cmn_padpos);
+
+int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+
+	if (tx_info->control.hw_key) {
+		switch (tx_info->control.hw_key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			return ATH9K_KEY_TYPE_WEP;
+		case WLAN_CIPHER_SUITE_TKIP:
+			return ATH9K_KEY_TYPE_TKIP;
+		case WLAN_CIPHER_SUITE_CCMP:
+			return ATH9K_KEY_TYPE_AES;
+		default:
+			break;
+		}
+	}
+
+	return ATH9K_KEY_TYPE_CLEAR;
+}
+EXPORT_SYMBOL(ath9k_cmn_get_hw_crypto_keytype);
+
+static u32 ath9k_get_extchanmode(struct ieee80211_channel *chan,
+				 enum nl80211_channel_type channel_type)
+{
+	u32 chanmode = 0;
+
+	switch (chan->band) {
+	case IEEE80211_BAND_2GHZ:
+		switch (channel_type) {
+		case NL80211_CHAN_NO_HT:
+		case NL80211_CHAN_HT20:
+			chanmode = CHANNEL_G_HT20;
+			break;
+		case NL80211_CHAN_HT40PLUS:
+			chanmode = CHANNEL_G_HT40PLUS;
+			break;
+		case NL80211_CHAN_HT40MINUS:
+			chanmode = CHANNEL_G_HT40MINUS;
+			break;
+		}
+		break;
+	case IEEE80211_BAND_5GHZ:
+		switch (channel_type) {
+		case NL80211_CHAN_NO_HT:
+		case NL80211_CHAN_HT20:
+			chanmode = CHANNEL_A_HT20;
+			break;
+		case NL80211_CHAN_HT40PLUS:
+			chanmode = CHANNEL_A_HT40PLUS;
+			break;
+		case NL80211_CHAN_HT40MINUS:
+			chanmode = CHANNEL_A_HT40MINUS;
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return chanmode;
+}
+
+/*
+ * Update internal channel flags.
+ */
+void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type channel_type)
+{
+	ichan->channel = chan->center_freq;
+	ichan->chan = chan;
+
+	if (chan->band == IEEE80211_BAND_2GHZ) {
+		ichan->chanmode = CHANNEL_G;
+		ichan->channelFlags = CHANNEL_2GHZ | CHANNEL_OFDM | CHANNEL_G;
+	} else {
+		ichan->chanmode = CHANNEL_A;
+		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
+	}
+
+	if (channel_type != NL80211_CHAN_NO_HT)
+		ichan->chanmode = ath9k_get_extchanmode(chan, channel_type);
+}
+EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
+
+/*
+ * Get the internal channel reference.
+ */
+struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
+					       struct ath_hw *ah)
+{
+	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ath9k_channel *channel;
+	u8 chan_idx;
+
+	chan_idx = curchan->hw_value;
+	channel = &ah->channels[chan_idx];
+	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
+
+	return channel;
+}
+EXPORT_SYMBOL(ath9k_cmn_get_curchannel);
+
+int ath9k_cmn_count_streams(unsigned int chainmask, int max)
+{
+	int streams = 0;
+
+	do {
+		if (++streams == max)
+			break;
+	} while ((chainmask = chainmask & (chainmask - 1)));
+
+	return streams;
+}
+EXPORT_SYMBOL(ath9k_cmn_count_streams);
+
+/*
+ * Configures appropriate weight based on stomp type.
+ */
+void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
+				  enum ath_stomp_type stomp_type)
+{
+	struct ath_hw *ah = common->ah;
+
+	switch (stomp_type) {
+	case ATH_BTCOEX_STOMP_ALL:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_ALL_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_LOW:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		break;
+	case ATH_BTCOEX_STOMP_NONE:
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_NONE_WLAN_WGHT);
+		break;
+	default:
+		ath_dbg(common, ATH_DBG_BTCOEX,
+			"Invalid Stomptype\n");
+		break;
+	}
+
+	ath9k_hw_btcoex_enable(ah);
+}
+EXPORT_SYMBOL(ath9k_cmn_btcoex_bt_stomp);
 
 static int __init ath9k_cmn_init(void)
 {

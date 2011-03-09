@@ -331,12 +331,10 @@ static int __init pci_check_direct(void)
 static int __devinit is_valid_resource(struct pci_dev *dev, int idx)
 {
 	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;
-	struct resource *devr = &dev->resource[idx];
+	struct resource *devr = &dev->resource[idx], *busr;
 
 	if (dev->bus) {
-		for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-			struct resource *busr = dev->bus->resource[i];
-
+		pci_bus_for_each_resource(dev->bus, busr, i) {
 			if (!busr || (busr->flags ^ devr->flags) & type_mask)
 				continue;
 
@@ -505,7 +503,7 @@ asmlinkage void __init unit_pci_init(void)
 	struct pci_ops *o = &pci_direct_ampci;
 	u32 x;
 
-	set_intr_level(XIRQ1, GxICR_LEVEL_3);
+	set_intr_level(XIRQ1, NUM2GxICR_LEVEL(CONFIG_PCI_IRQ_LEVEL));
 
 	memset(&bus, 0, sizeof(bus));
 

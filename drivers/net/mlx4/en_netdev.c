@@ -35,6 +35,7 @@
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>
@@ -68,6 +69,7 @@ static void mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
+	int idx;
 
 	if (!priv->vlgrp)
 		return;
@@ -82,7 +84,10 @@ static void mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 		if (err)
 			en_err(priv, "Failed configuring VLAN filter\n");
 	}
+	if (mlx4_register_vlan(mdev->dev, priv->port, vid, &idx))
+		en_err(priv, "failed adding vlan %d\n", vid);
 	mutex_unlock(&mdev->state_lock);
+
 }
 
 static void mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
@@ -90,6 +95,7 @@ static void mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
+	int idx;
 
 	if (!priv->vlgrp)
 		return;
@@ -100,6 +106,11 @@ static void mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 	/* Remove VID from port VLAN filter */
 	mutex_lock(&mdev->state_lock);
+	if (!mlx4_find_cached_vlan(mdev->dev, priv->port, vid, &idx))
+		mlx4_unregister_vlan(mdev->dev, priv->port, idx);
+	else
+		en_err(priv, "could not find vid %d in cache\n", vid);
+
 	if (mdev->device_up && priv->port_up) {
 		err = mlx4_SET_VLAN_FLTR(mdev->dev, priv->port, priv->vlgrp);
 		if (err)
@@ -108,7 +119,7 @@ static void mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	mutex_unlock(&mdev->state_lock);
 }
 
-static u64 mlx4_en_mac_to_u64(u8 *addr)
+u64 mlx4_en_mac_to_u64(u8 *addr)
 {
 	u64 mac = 0;
 	int i;
@@ -160,39 +171,29 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 static void mlx4_en_clear_list(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct dev_mc_list *plist = priv->mc_list;
-	struct dev_mc_list *next;
 
-	while (plist) {
-		next = plist->next;
-		kfree(plist);
-		plist = next;
-	}
-	priv->mc_list = NULL;
+	kfree(priv->mc_addrs);
+	priv->mc_addrs_cnt = 0;
 }
 
 static void mlx4_en_cache_mclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct dev_mc_list *mclist;
-	struct dev_mc_list *tmp;
-	struct dev_mc_list *plist = NULL;
+	struct netdev_hw_addr *ha;
+	char *mc_addrs;
+	int mc_addrs_cnt = netdev_mc_count(dev);
+	int i;
 
-	for (mclist = dev->mc_list; mclist; mclist = mclist->next) {
-		tmp = kmalloc(sizeof(struct dev_mc_list), GFP_ATOMIC);
-		if (!tmp) {
-			en_err(priv, "failed to allocate multicast list\n");
-			mlx4_en_clear_list(dev);
-			return;
-		}
-		memcpy(tmp, mclist, sizeof(struct dev_mc_list));
-		tmp->next = NULL;
-		if (plist)
-			plist->next = tmp;
-		else
-			priv->mc_list = tmp;
-		plist = tmp;
+	mc_addrs = kmalloc(mc_addrs_cnt * ETH_ALEN, GFP_ATOMIC);
+	if (!mc_addrs) {
+		en_err(priv, "failed to allocate multicast list\n");
+		return;
 	}
+	i = 0;
+	netdev_for_each_mc_addr(ha, dev)
+		memcpy(mc_addrs + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
+	priv->mc_addrs = mc_addrs;
+	priv->mc_addrs_cnt = mc_addrs_cnt;
 }
 
 
@@ -212,7 +213,6 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 						 mcast_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
-	struct dev_mc_list *mclist;
 	u64 mcast_addr = 0;
 	int err;
 
@@ -288,6 +288,8 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		if (err)
 			en_err(priv, "Failed disabling multicast filter\n");
 	} else {
+		int i;
+
 		err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 					  0, MLX4_MCAST_DISABLE);
 		if (err)
@@ -302,8 +304,9 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		netif_tx_lock_bh(dev);
 		mlx4_en_cache_mclist(dev);
 		netif_tx_unlock_bh(dev);
-		for (mclist = priv->mc_list; mclist; mclist = mclist->next) {
-			mcast_addr = mlx4_en_mac_to_u64(mclist->dmi_addr);
+		for (i = 0; i < priv->mc_addrs_cnt; i++) {
+			mcast_addr =
+			      mlx4_en_mac_to_u64(priv->mc_addrs + i * ETH_ALEN);
 			mlx4_SET_MCAST_FLTR(mdev->dev, priv->port,
 					    mcast_addr, 0, MLX4_MCAST_CONFIG);
 		}
@@ -511,7 +514,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 	err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 	if (err)
-		en_dbg(HW, priv, "Could not update stats \n");
+		en_dbg(HW, priv, "Could not update stats\n");
 
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
@@ -519,6 +522,10 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 			mlx4_en_auto_moderation(priv);
 
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
+	}
+	if (mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port]) {
+		queue_work(mdev->workqueue, &priv->mac_task);
+		mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port] = 0;
 	}
 	mutex_unlock(&mdev->state_lock);
 }
@@ -535,10 +542,10 @@ static void mlx4_en_linkstate(struct work_struct *work)
 	 * report to system log */
 	if (priv->last_link_state != linkstate) {
 		if (linkstate == MLX4_DEV_EVENT_PORT_DOWN) {
-			en_dbg(LINK, priv, "Link Down\n");
+			en_info(priv, "Link Down\n");
 			netif_carrier_off(priv->dev);
 		} else {
-			en_dbg(LINK, priv, "Link Up\n");
+			en_info(priv, "Link Up\n");
 			netif_carrier_on(priv->dev);
 		}
 	}
@@ -660,6 +667,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		en_err(priv, "Failed setting port mac\n");
 		goto tx_err;
 	}
+	mdev->mac_removed[priv->port] = 0;
 
 	/* Init port */
 	en_dbg(HW, priv, "Initializing port\n");
@@ -711,12 +719,12 @@ void mlx4_en_stop_port(struct net_device *dev)
 	netif_tx_stop_all_queues(dev);
 	netif_tx_unlock_bh(dev);
 
-	/* close port*/
+	/* Set port as not active */
 	priv->port_up = false;
-	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 
 	/* Unregister Mac address for the port */
 	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac_index);
+	mdev->mac_removed[priv->port] = 1;
 
 	/* Free TX Rings */
 	for (i = 0; i < priv->tx_ring_num; i++) {
@@ -738,6 +746,9 @@ void mlx4_en_stop_port(struct net_device *dev)
 			msleep(1);
 		mlx4_en_deactivate_cq(priv, &priv->rx_cq[i]);
 	}
+
+	/* close port*/
+	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 }
 
 static void mlx4_en_restart(struct work_struct *work)
@@ -961,13 +972,15 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	int i;
 	int err;
 
-	dev = alloc_etherdev_mq(sizeof(struct mlx4_en_priv), prof->tx_ring_num);
+	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
+	    prof->tx_ring_num, prof->rx_ring_num);
 	if (dev == NULL) {
 		mlx4_err(mdev, "Net device allocation failed\n");
 		return -ENOMEM;
 	}
 
 	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
+	dev->dev_id =  port - 1;
 
 	/*
 	 * Initialize driver private data
@@ -984,7 +997,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->flags = prof->flags;
 	priv->tx_ring_num = prof->tx_ring_num;
 	priv->rx_ring_num = prof->rx_ring_num;
-	priv->mc_list = NULL;
 	priv->mac_index = -1;
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	spin_lock_init(&priv->stats_lock);
@@ -1024,15 +1036,17 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	 */
 	dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
-	dev->real_num_tx_queues = MLX4_EN_NUM_TX_RINGS;
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
+	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
 	/* Set defualt MAC */
 	dev->addr_len = ETH_ALEN;
-	for (i = 0; i < ETH_ALEN; i++)
-		dev->dev_addr[ETH_ALEN - 1 - i] =
-		(u8) (priv->mac >> (8 * i));
+	for (i = 0; i < ETH_ALEN; i++) {
+		dev->dev_addr[ETH_ALEN - 1 - i] = (u8) (priv->mac >> (8 * i));
+		dev->perm_addr[ETH_ALEN - 1 - i] = (u8) (priv->mac >> (8 * i));
+	}
 
 	/*
 	 * Set driver features
@@ -1045,8 +1059,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->features |= NETIF_F_HW_VLAN_TX |
 			 NETIF_F_HW_VLAN_RX |
 			 NETIF_F_HW_VLAN_FILTER;
-	if (mdev->profile.num_lro)
-		dev->features |= NETIF_F_LRO;
+	dev->features |= NETIF_F_GRO;
 	if (mdev->LSO_support) {
 		dev->features |= NETIF_F_TSO;
 		dev->features |= NETIF_F_TSO6;

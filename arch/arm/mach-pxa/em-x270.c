@@ -26,6 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
 #include <linux/spi/libertas_spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
 #include <linux/i2c.h>
@@ -43,10 +44,9 @@
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <plat/i2c.h>
 #include <mach/camera.h>
-#include <mach/pxa2xx_spi.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -109,26 +109,7 @@ static unsigned long common_pin_config[] = {
 	GPIO111_MMC_DAT_3,
 
 	/* LCD */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
-	GPIO77_LCD_BIAS,
+	GPIOxx_LCD_TFT_16BPP,
 
 	/* QCI */
 	GPIO84_CIF_FV,
@@ -645,6 +626,7 @@ static int em_x270_mci_get_ro(struct device *dev)
 }
 
 static struct pxamci_platform_data em_x270_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_20_21|MMC_VDD_21_22|MMC_VDD_22_23|
 				  MMC_VDD_24_25|MMC_VDD_25_26|MMC_VDD_26_27|
 				  MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
@@ -662,7 +644,6 @@ static void __init em_x270_init_mmc(void)
 	if (machine_is_em_x270())
 		em_x270_mci_platform_data.get_ro = em_x270_mci_get_ro;
 
-	em_x270_mci_platform_data.detect_delay	= msecs_to_jiffies(250);
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }
 #else
@@ -1034,7 +1015,6 @@ static struct soc_camera_link iclink = {
 	.power		= em_x270_sensor_power,
 	.board_info	= &em_x270_i2c_cam_info[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9m111",
 };
 
 static struct platform_device em_x270_camera = {
@@ -1320,9 +1300,7 @@ static void __init em_x270_init(void)
 
 MACHINE_START(EM_X270, "Compulab EM-X270")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
@@ -1330,9 +1308,7 @@ MACHINE_END
 
 MACHINE_START(EXEDA, "Compulab eXeda")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,

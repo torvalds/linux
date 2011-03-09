@@ -37,4 +37,9 @@ struct osd_attr {
 	void *val_ptr;		/* in network order */
 };
 
+struct osd_sg_entry {
+	u64 offset;
+	u64 len;
+};
+
 #endif /* ndef __OSD_TYPES_H__ */

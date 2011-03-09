@@ -34,8 +34,9 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/slab.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs4_acl.h>
+#include "acl.h"
 
 
 /* mode bit translations: */

@@ -19,7 +19,6 @@
 #include <linux/mman.h>
 #include <linux/utsname.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/ipc.h>
 
 #include <asm/uaccess.h>
@@ -98,119 +97,6 @@ out:
 	return error;
 }
 
-/*
- * sys_ipc() is the de-multiplexer for the SysV IPC calls..
- *
- * This is really horribly ugly.
- */
-
-asmlinkage int sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fifth)
-{
-	int version, err;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	if (call <= SEMCTL)
-		switch (call) {
-		case SEMOP:
-			err = sys_semtimedop (first, (struct sembuf __user *)ptr, second, NULL);
-			goto out;
-		case SEMTIMEDOP:
-			err = sys_semtimedop (first, (struct sembuf __user *)ptr, second, (const struct timespec __user *) fifth);
-			goto out;
-		case SEMGET:
-			err = sys_semget (first, second, third);
-			goto out;
-		case SEMCTL: {
-			union semun fourth;
-			err = -EINVAL;
-			if (!ptr)
-				goto out;
-			err = -EFAULT;
-			if (get_user(fourth.__pad,
-				     (void __user * __user *)ptr))
-				goto out;
-			err = sys_semctl (first, second, third, fourth);
-			goto out;
-			}
-		default:
-			err = -ENOSYS;
-			goto out;
-		}
-	if (call <= MSGCTL) 
-		switch (call) {
-		case MSGSND:
-			err = sys_msgsnd (first, (struct msgbuf __user *) ptr, 
-					  second, third);
-			goto out;
-		case MSGRCV:
-			switch (version) {
-			case 0: {
-				struct ipc_kludge tmp;
-				err = -EINVAL;
-				if (!ptr)
-					goto out;
-				err = -EFAULT;
-				if (copy_from_user(&tmp, (struct ipc_kludge __user *) ptr, sizeof (tmp)))
-					goto out;
-				err = sys_msgrcv (first, tmp.msgp, second, tmp.msgtyp, third);
-				goto out;
-				}
-			case 1: default:
-				err = sys_msgrcv (first,
-						  (struct msgbuf __user *) ptr,
-						  second, fifth, third);
-				goto out;
-			}
-		case MSGGET:
-			err = sys_msgget ((key_t) first, second);
-			goto out;
-		case MSGCTL:
-			err = sys_msgctl (first, second, (struct msqid_ds __user *) ptr);
-			goto out;
-		default:
-			err = -ENOSYS;
-			goto out;
-		}
-	if (call <= SHMCTL) 
-		switch (call) {
-		case SHMAT:
-			switch (version) {
-			case 0: default: {
-				ulong raddr;
-				err = do_shmat (first, (char __user *) ptr, second, &raddr);
-				if (err)
-					goto out;
-				err = -EFAULT;
-				if (put_user (raddr, (ulong __user *) third))
-					goto out;
-				err = 0;
-				goto out;
-				}
-			case 1:	/* iBCS2 emulator entry point */
-				err = -EINVAL;
-				goto out;
-			}
-		case SHMDT: 
-			err = sys_shmdt ((char __user *)ptr);
-			goto out;
-		case SHMGET:
-			err = sys_shmget (first, second, third);
-			goto out;
-		case SHMCTL:
-			err = sys_shmctl (first, second, (struct shmid_ds __user *) ptr);
-			goto out;
-		default:
-			err = -ENOSYS;
-			goto out;
-		}
-	else
-		err = -ENOSYS;
-out:
-	return err;
-}
-
 int sparc_mmap_check(unsigned long addr, unsigned long len)
 {
 	if (ARCH_SUN4C &&
@@ -279,7 +165,6 @@ sparc_breakpoint (struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	lock_kernel();
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
@@ -293,7 +178,6 @@ sparc_breakpoint (struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
 #endif
-	unlock_kernel();
 }
 
 asmlinkage int
@@ -395,7 +279,9 @@ out:
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	long __res;
 	register long __g1 __asm__ ("g1") = __NR_execve;

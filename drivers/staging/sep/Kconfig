@@ -1,10 +1,10 @@
 config DX_SEP
 	tristate "Discretix SEP driver"
-#	depends on MRST
-	depends on RAR_REGISTER && PCI
-	default y
+	depends on PCI
 	help
-	  Discretix SEP driver
+	  Discretix SEP driver; used for the security processor subsystem
+	  on bard the Intel Mobile Internet Device.
 
-	  If unsure say M. The compiled module will be
-	  called sep_driver.ko
+	  The driver's name is sep_driver.
+
+	  If unsure, select N.

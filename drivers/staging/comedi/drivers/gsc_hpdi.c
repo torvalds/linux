@@ -311,17 +311,25 @@ struct hpdi_private {
 	void *plx9080_iobase;
 	void *hpdi_iobase;
 	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/*  dma buffers */
-	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];	/*  physical addresses of dma buffers */
-	struct plx_dma_desc *dma_desc;	/*  array of dma descriptors read by plx9080, allocated to get proper alignment */
-	dma_addr_t dma_desc_phys_addr;	/*  physical address of dma descriptor array */
+	/* physical addresses of dma buffers */
+	dma_addr_t dio_buffer_phys_addr[NUM_DMA_BUFFERS];
+	/* array of dma descriptors read by plx9080, allocated to get proper
+	 * alignment */
+	struct plx_dma_desc *dma_desc;
+	/* physical address of dma descriptor array */
+	dma_addr_t dma_desc_phys_addr;
 	unsigned int num_dma_descriptors;
-	uint32_t *desc_dio_buffer[NUM_DMA_DESCRIPTORS];	/*  pointer to start of buffers indexed by descriptor */
-	volatile unsigned int dma_desc_index;	/*  index of the dma descriptor that is currently being used */
+	/* pointer to start of buffers indexed by descriptor */
+	uint32_t *desc_dio_buffer[NUM_DMA_DESCRIPTORS];
+	/* index of the dma descriptor that is currently being used */
+	volatile unsigned int dma_desc_index;
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
 	volatile unsigned long dio_count;
-	volatile uint32_t bits[24];	/*  software copies of values written to hpdi registers */
-	volatile unsigned int block_size;	/*  number of bytes at which to generate COMEDI_CB_BLOCK events */
+	/* software copies of values written to hpdi registers */
+	volatile uint32_t bits[24];
+	/* number of bytes at which to generate COMEDI_CB_BLOCK events */
+	volatile unsigned int block_size;
 	unsigned dio_config_output:1;
 };
 
@@ -337,7 +345,43 @@ static struct comedi_driver driver_hpdi = {
 	.detach = hpdi_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(driver_hpdi, hpdi_pci_table);
+static int __devinit driver_hpdi_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_hpdi.driver_name);
+}
+
+static void __devexit driver_hpdi_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_hpdi_pci_driver = {
+	.id_table = hpdi_pci_table,
+	.probe = &driver_hpdi_pci_probe,
+	.remove = __devexit_p(&driver_hpdi_pci_remove)
+};
+
+static int __init driver_hpdi_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_hpdi);
+	if (retval < 0)
+		return retval;
+
+	driver_hpdi_pci_driver.name = (char *)driver_hpdi.driver_name;
+	return pci_register_driver(&driver_hpdi_pci_driver);
+}
+
+static void __exit driver_hpdi_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_hpdi_pci_driver);
+	comedi_driver_unregister(&driver_hpdi);
+}
+
+module_init(driver_hpdi_init_module);
+module_exit(driver_hpdi_cleanup_module);
 
 static int dio_config_insn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
@@ -570,7 +614,8 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	pcidev = NULL;
-	for (i = 0; i < ARRAY_SIZE(hpdi_boards) && dev->board_ptr == NULL; i++) {
+	for (i = 0; i < ARRAY_SIZE(hpdi_boards) &&
+		    dev->board_ptr == NULL; i++) {
 		do {
 			pcidev = pci_get_subsys(PCI_VENDOR_ID_PLX,
 						hpdi_boards[i].device_id,
@@ -618,7 +663,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/*  remap, won't work with 2.0 kernels but who cares */
 	priv(dev)->plx9080_iobase = ioremap(priv(dev)->plx9080_phys_iobase,
 					    pci_resource_len(pcidev,
-							     PLX9080_BADDRINDEX));
+					    PLX9080_BADDRINDEX));
 	priv(dev)->hpdi_iobase =
 	    ioremap(priv(dev)->hpdi_phys_iobase,
 		    pci_resource_len(pcidev, HPDI_BADDRINDEX));
@@ -769,7 +814,8 @@ static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually
+	 * compatible */
 
 	/*  uniqueness check */
 	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
@@ -1066,3 +1112,7 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

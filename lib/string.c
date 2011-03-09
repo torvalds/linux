@@ -36,25 +36,21 @@ int strnicmp(const char *s1, const char *s2, size_t len)
 	/* Yes, Virginia, it had better be unsigned */
 	unsigned char c1, c2;
 
-	c1 = c2 = 0;
-	if (len) {
-		do {
-			c1 = *s1;
-			c2 = *s2;
-			s1++;
-			s2++;
-			if (!c1)
-				break;
-			if (!c2)
-				break;
-			if (c1 == c2)
-				continue;
-			c1 = tolower(c1);
-			c2 = tolower(c2);
-			if (c1 != c2)
-				break;
-		} while (--len);
-	}
+	if (!len)
+		return 0;
+
+	do {
+		c1 = *s1++;
+		c2 = *s2++;
+		if (!c1 || !c2)
+			break;
+		if (c1 == c2)
+			continue;
+		c1 = tolower(c1);
+		c2 = tolower(c2);
+		if (c1 != c2)
+			break;
+	} while (--len);
 	return (int)c1 - (int)c2;
 }
 EXPORT_SYMBOL(strnicmp);
@@ -693,13 +689,13 @@ EXPORT_SYMBOL(strstr);
  */
 char *strnstr(const char *s1, const char *s2, size_t len)
 {
-	size_t l1 = len, l2;
+	size_t l2;
 
 	l2 = strlen(s2);
 	if (!l2)
 		return (char *)s1;
-	while (l1 >= l2) {
-		l1--;
+	while (len >= l2) {
+		len--;
 		if (!memcmp(s1, s2, l2))
 			return (char *)s1;
 		s1++;

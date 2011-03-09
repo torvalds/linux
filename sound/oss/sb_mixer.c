@@ -16,6 +16,8 @@
  * Stanislav Voronyi <stas@esc.kharkov.com>	: Support for AWE 3DSE device (Jun 7 1999)
  */
 
+#include <linux/slab.h>
+
 #include "sound_config.h"
 
 #define __SB_MIXER_C__

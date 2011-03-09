@@ -1,0 +1,41 @@
+
+menuconfig SPECTRA
+	tristate "Denali Spectra Flash Translation Layer"
+	depends on BLOCK
+	depends on X86_MRST
+	default n
+	---help---
+	  Enable the FTL pseudo-filesystem used with the NAND Flash
+	  controller on Intel Moorestown Platform to pretend to be a disk.
+
+choice
+	prompt "Compile for"
+	depends on SPECTRA
+	default SPECTRA_MRST_HW
+
+config SPECTRA_MRST_HW
+	bool "Moorestown hardware mode"
+	help
+	  Driver communicates with the Moorestown hardware's register interface.
+	  in DMA mode.
+
+config SPECTRA_MTD
+	bool "Linux MTD mode"
+	depends on MTD
+	help
+	  Driver communicates with the kernel MTD subsystem instead of its own
+	  built-in hardware driver.
+
+config SPECTRA_EMU
+	bool "RAM emulator testing"
+	help
+	  Driver emulates Flash on a RAM buffer and / or disk file.  Useful to test the behavior of FTL layer.
+
+endchoice
+
+config SPECTRA_MRST_HW_DMA
+       bool
+       default n
+       depends on SPECTRA_MRST_HW
+       help
+         Use DMA for native hardware interface.

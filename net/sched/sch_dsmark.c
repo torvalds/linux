@@ -5,6 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -60,8 +61,7 @@ static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
 		sch, p, new, old);
 
 	if (new == NULL) {
-		new = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-					&pfifo_qdisc_ops,
+		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					sch->handle);
 		if (new == NULL)
 			new = &noop_qdisc;
@@ -260,8 +260,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return err;
 	}
 
-	sch->bstats.bytes += qdisc_pkt_len(skb);
-	sch->bstats.packets++;
+	qdisc_bstats_update(sch, skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -383,8 +382,7 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 	p->default_index = default_index;
 	p->set_tc_index = nla_get_flag(tb[TCA_DSMARK_SET_TC_INDEX]);
 
-	p->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-				 &pfifo_qdisc_ops, sch->handle);
+	p->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, sch->handle);
 	if (p->q == NULL)
 		p->q = &noop_qdisc;
 

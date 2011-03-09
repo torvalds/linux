@@ -15,14 +15,13 @@
  * published by the Free Software Foundation.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CONNSECMARK.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
-
-#define PFX "CONNSECMARK: "
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@redhat.com>");
@@ -65,7 +64,7 @@ static void secmark_restore(struct sk_buff *skb)
 }
 
 static unsigned int
-connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
+connsecmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_connsecmark_target_info *info = par->targinfo;
 
@@ -85,15 +84,16 @@ connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
+static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_connsecmark_target_info *info = par->targinfo;
+	int ret;
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", par->table);
-		return false;
+		pr_info("target only valid in the \'mangle\' "
+			"or \'security\' tables, not \'%s\'.\n", par->table);
+		return -EINVAL;
 	}
 
 	switch (info->mode) {
@@ -102,16 +102,15 @@ static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 		break;
 
 	default:
-		printk(KERN_INFO PFX "invalid mode: %hu\n", info->mode);
-		return false;
+		pr_info("invalid mode: %hu\n", info->mode);
+		return -EINVAL;
 	}
 
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
-		return false;
-	}
-	return true;
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0)
+		pr_info("cannot load conntrack support for proto=%u\n",
+			par->family);
+	return ret;
 }
 
 static void connsecmark_tg_destroy(const struct xt_tgdtor_param *par)

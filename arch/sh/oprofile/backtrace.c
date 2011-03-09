@@ -91,7 +91,7 @@ void sh_backtrace(struct pt_regs * const regs, unsigned int depth)
 	if (depth > backtrace_limit)
 		depth = backtrace_limit;
 
-	stackaddr = (unsigned long *)regs->regs[15];
+	stackaddr = (unsigned long *)kernel_stack_pointer(regs);
 	if (!user_mode(regs)) {
 		if (depth)
 			unwind_stack(NULL, regs, stackaddr,

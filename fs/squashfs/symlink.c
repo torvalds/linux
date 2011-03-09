@@ -33,15 +33,15 @@
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
-#include <linux/zlib.h>
+#include <linux/xattr.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "xattr.h"
 
 static int squashfs_symlink_readpage(struct file *file, struct page *page)
 {
@@ -116,3 +116,12 @@ error_out:
 const struct address_space_operations squashfs_symlink_aops = {
 	.readpage = squashfs_symlink_readpage
 };
+
+const struct inode_operations squashfs_symlink_inode_ops = {
+	.readlink = generic_readlink,
+	.follow_link = page_follow_link_light,
+	.put_link = page_put_link,
+	.getxattr = generic_getxattr,
+	.listxattr = squashfs_listxattr
+};
+

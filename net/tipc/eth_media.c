@@ -34,11 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <net/tipc/tipc.h>
-#include <net/tipc/tipc_bearer.h>
-#include <net/tipc/tipc_msg.h>
-#include <linux/netdevice.h>
-#include <net/net_namespace.h>
+#include "core.h"
+#include "bearer.h"
 
 #define MAX_ETH_BEARERS		2
 #define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
@@ -59,7 +56,7 @@ struct eth_bearer {
 };
 
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
-static int eth_started = 0;
+static int eth_started;
 static struct notifier_block notifier;
 
 /**
@@ -71,17 +68,26 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 {
 	struct sk_buff *clone;
 	struct net_device *dev;
+	int delta;
 
 	clone = skb_clone(buf, GFP_ATOMIC);
-	if (clone) {
-		skb_reset_network_header(clone);
-		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
-		clone->dev = dev;
-		dev_hard_header(clone, dev, ETH_P_TIPC,
-				 &dest->dev_addr.eth_addr,
-				 dev->dev_addr, clone->len);
-		dev_queue_xmit(clone);
+	if (!clone)
+		return 0;
+
+	dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
+	delta = dev->hard_header_len - skb_headroom(buf);
+
+	if ((delta > 0) &&
+	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
+		kfree_skb(clone);
+		return 0;
 	}
+
+	skb_reset_network_header(clone);
+	clone->dev = dev;
+	dev_hard_header(clone, dev, ETH_P_TIPC, &dest->dev_addr.eth_addr,
+			dev->dev_addr, clone->len);
+	dev_queue_xmit(clone);
 	return 0;
 }
 
@@ -91,15 +97,12 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
  * Accept only packets explicitly sent to this node, or broadcast packets;
  * ignores packets sent using Ethernet multicast, and traffic sent to other
  * nodes (which can happen if interface is running in promiscuous mode).
- * Routine truncates any Ethernet padding/CRC appended to the message,
- * and ensures message size matches actual length
  */
 
 static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 		    struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
-	u32 size;
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(buf);
@@ -108,13 +111,9 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 	if (likely(eb_ptr->bearer)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
-			size = msg_size((struct tipc_msg *)buf->data);
-			skb_trim(buf, size);
-			if (likely(buf->len == size)) {
-				buf->next = NULL;
-				tipc_recv_msg(buf, eb_ptr->bearer);
-				return 0;
-			}
+			buf->next = NULL;
+			tipc_recv_msg(buf, eb_ptr->bearer);
+			return 0;
 		}
 	}
 	kfree_skb(buf);
@@ -132,10 +131,20 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
+	int pending_dev = 0;
+
+	/* Find unused Ethernet bearer structure */
+
+	while (eb_ptr->dev) {
+		if (!eb_ptr->bearer)
+			pending_dev++;
+		if (++eb_ptr == stop)
+			return pending_dev ? -EAGAIN : -EDQUOT;
+	}
 
 	/* Find device with specified name */
 
-	for_each_netdev(&init_net, pdev){
+	for_each_netdev(&init_net, pdev) {
 		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
 			dev = pdev;
 			break;
@@ -146,7 +155,8 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 
 	/* Find Ethernet bearer for device (or create one) */
 
-	for (;(eb_ptr != stop) && eb_ptr->dev && (eb_ptr->dev != dev); eb_ptr++);
+	while ((eb_ptr != stop) && eb_ptr->dev && (eb_ptr->dev != dev))
+		eb_ptr++;
 	if (eb_ptr == stop)
 		return -EDQUOT;
 	if (!eb_ptr->dev) {

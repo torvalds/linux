@@ -1,0 +1,23 @@
+config SND_JZ4740_SOC
+	tristate "SoC Audio for Ingenic JZ4740 SoC"
+	depends on MACH_JZ4740 && SND_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the JZ4740 I2S interface. You will also need to select the audio
+	  interfaces to support below.
+
+config SND_JZ4740_SOC_I2S
+	depends on SND_JZ4740_SOC
+	tristate "SoC Audio (I2S protocol) for Ingenic JZ4740 SoC"
+	help
+	  Say Y if you want to use I2S protocol and I2S codec on Ingenic JZ4740
+	  based boards.
+
+config SND_JZ4740_SOC_QI_LB60
+	tristate "SoC Audio support for Qi LB60"
+	depends on SND_JZ4740_SOC && JZ4740_QI_LB60
+	select SND_JZ4740_SOC_I2S
+    select SND_SOC_JZ4740_CODEC
+	help
+	  Say Y if you want to add support for ASoC audio on the Qi LB60 board
+	  a.k.a Qi Ben NanoNote.

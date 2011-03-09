@@ -610,7 +610,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	/* Link quality statistics */
-	status.noise = dev->stats.link_noise;
 	if ((chanstat & B43_RX_CHAN_PHYTYPE) == B43_PHYTYPE_N) {
 //		s8 rssi = max(rxhdr->power0, rxhdr->power1);
 		//TODO: Find out what the rssi value is (dBm or percentage?)

@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include <linux/dvb/frontend.h>
@@ -713,7 +714,7 @@ static int stb0899_send_diseqc_msg(struct dvb_frontend *fe, struct dvb_diseqc_ma
 	reg = stb0899_read_reg(state, STB0899_DISCNTRL1);
 	STB0899_SETFIELD_VAL(DISPRECHARGE, reg, 0);
 	stb0899_write_reg(state, STB0899_DISCNTRL1, reg);
-
+	msleep(100);
 	return 0;
 }
 

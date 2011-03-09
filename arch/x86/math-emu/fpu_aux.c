@@ -30,10 +30,10 @@ static void fclex(void)
 }
 
 /* Needs to be externally visible */
-void finit_task(struct task_struct *tsk)
+void finit_soft_fpu(struct i387_soft_struct *soft)
 {
-	struct i387_soft_struct *soft = &tsk->thread.xstate->soft;
 	struct address *oaddr, *iaddr;
+	memset(soft, 0, sizeof(*soft));
 	soft->cwd = 0x037f;
 	soft->swd = 0;
 	soft->ftop = 0;	/* We don't keep top in the status word internally. */
@@ -52,7 +52,7 @@ void finit_task(struct task_struct *tsk)
 
 void finit(void)
 {
-	finit_task(current);
+	finit_soft_fpu(&current->thread.fpu.state->soft);
 }
 
 /*

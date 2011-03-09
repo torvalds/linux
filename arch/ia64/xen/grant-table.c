@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 
 #include <xen/interface/xen.h>

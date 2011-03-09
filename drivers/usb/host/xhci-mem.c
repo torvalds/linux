@@ -22,6 +22,7 @@
 
 #include <linux/usb.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/dmapool.h>
 
 #include "xhci.h"
@@ -40,13 +41,13 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci, gfp_t flag
 
 	seg = kzalloc(sizeof *seg, flags);
 	if (!seg)
-		return 0;
+		return NULL;
 	xhci_dbg(xhci, "Allocating priv segment structure at %p\n", seg);
 
 	seg->trbs = dma_pool_alloc(xhci->segment_pool, flags, &dma);
 	if (!seg->trbs) {
 		kfree(seg);
-		return 0;
+		return NULL;
 	}
 	xhci_dbg(xhci, "// Allocating segment at %p (virtual) 0x%llx (DMA)\n",
 			seg->trbs, (unsigned long long)dma);
@@ -158,7 +159,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	ring = kzalloc(sizeof *(ring), flags);
 	xhci_dbg(xhci, "Allocating ring at %p\n", ring);
 	if (!ring)
-		return 0;
+		return NULL;
 
 	INIT_LIST_HEAD(&ring->td_list);
 	if (num_segs == 0)
@@ -195,7 +196,32 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 
 fail:
 	xhci_ring_free(xhci, ring);
-	return 0;
+	return NULL;
+}
+
+void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		unsigned int ep_index)
+{
+	int rings_cached;
+
+	rings_cached = virt_dev->num_rings_cached;
+	if (rings_cached < XHCI_MAX_RINGS_CACHED) {
+		virt_dev->num_rings_cached++;
+		rings_cached = virt_dev->num_rings_cached;
+		virt_dev->ring_cache[rings_cached] =
+			virt_dev->eps[ep_index].ring;
+		xhci_dbg(xhci, "Cached old ring, "
+				"%d ring%s cached\n",
+				rings_cached,
+				(rings_cached > 1) ? "s" : "");
+	} else {
+		xhci_ring_free(xhci, virt_dev->eps[ep_index].ring);
+		xhci_dbg(xhci, "Ring cache full (%d rings), "
+				"freeing ring\n",
+				virt_dev->num_rings_cached);
+	}
+	virt_dev->eps[ep_index].ring = NULL;
 }
 
 /* Zero an endpoint ring (except for link TRBs) and move the enqueue and dequeue
@@ -221,7 +247,7 @@ static void xhci_reinit_cached_ring(struct xhci_hcd *xhci,
 
 #define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
 
-struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
+static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
 {
 	struct xhci_container_ctx *ctx = kzalloc(sizeof(*ctx), flags);
@@ -239,9 +265,11 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 	return ctx;
 }
 
-void xhci_free_container_ctx(struct xhci_hcd *xhci,
+static void xhci_free_container_ctx(struct xhci_hcd *xhci,
 			     struct xhci_container_ctx *ctx)
 {
+	if (!ctx)
+		return;
 	dma_pool_free(xhci->device_pool, ctx->bytes, ctx->dma);
 	kfree(ctx);
 }
@@ -276,6 +304,379 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
 		(ctx->bytes + (ep_index * CTX_SIZE(xhci->hcc_params)));
 }
 
+
+/***************** Streams structures manipulation *************************/
+
+void xhci_free_stream_ctx(struct xhci_hcd *xhci,
+		unsigned int num_stream_ctxs,
+		struct xhci_stream_ctx *stream_ctx, dma_addr_t dma)
+{
+	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	if (num_stream_ctxs > MEDIUM_STREAM_ARRAY_SIZE)
+		pci_free_consistent(pdev,
+				sizeof(struct xhci_stream_ctx)*num_stream_ctxs,
+				stream_ctx, dma);
+	else if (num_stream_ctxs <= SMALL_STREAM_ARRAY_SIZE)
+		return dma_pool_free(xhci->small_streams_pool,
+				stream_ctx, dma);
+	else
+		return dma_pool_free(xhci->medium_streams_pool,
+				stream_ctx, dma);
+}
+
+/*
+ * The stream context array for each endpoint with bulk streams enabled can
+ * vary in size, based on:
+ *  - how many streams the endpoint supports,
+ *  - the maximum primary stream array size the host controller supports,
+ *  - and how many streams the device driver asks for.
+ *
+ * The stream context array must be a power of 2, and can be as small as
+ * 64 bytes or as large as 1MB.
+ */
+struct xhci_stream_ctx *xhci_alloc_stream_ctx(struct xhci_hcd *xhci,
+		unsigned int num_stream_ctxs, dma_addr_t *dma,
+		gfp_t mem_flags)
+{
+	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	if (num_stream_ctxs > MEDIUM_STREAM_ARRAY_SIZE)
+		return pci_alloc_consistent(pdev,
+				sizeof(struct xhci_stream_ctx)*num_stream_ctxs,
+				dma);
+	else if (num_stream_ctxs <= SMALL_STREAM_ARRAY_SIZE)
+		return dma_pool_alloc(xhci->small_streams_pool,
+				mem_flags, dma);
+	else
+		return dma_pool_alloc(xhci->medium_streams_pool,
+				mem_flags, dma);
+}
+
+struct xhci_ring *xhci_dma_to_transfer_ring(
+		struct xhci_virt_ep *ep,
+		u64 address)
+{
+	if (ep->ep_state & EP_HAS_STREAMS)
+		return radix_tree_lookup(&ep->stream_info->trb_address_map,
+				address >> SEGMENT_SHIFT);
+	return ep->ring;
+}
+
+/* Only use this when you know stream_info is valid */
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+static struct xhci_ring *dma_to_stream_ring(
+		struct xhci_stream_info *stream_info,
+		u64 address)
+{
+	return radix_tree_lookup(&stream_info->trb_address_map,
+			address >> SEGMENT_SHIFT);
+}
+#endif	/* CONFIG_USB_XHCI_HCD_DEBUGGING */
+
+struct xhci_ring *xhci_stream_id_to_ring(
+		struct xhci_virt_device *dev,
+		unsigned int ep_index,
+		unsigned int stream_id)
+{
+	struct xhci_virt_ep *ep = &dev->eps[ep_index];
+
+	if (stream_id == 0)
+		return ep->ring;
+	if (!ep->stream_info)
+		return NULL;
+
+	if (stream_id > ep->stream_info->num_streams)
+		return NULL;
+	return ep->stream_info->stream_rings[stream_id];
+}
+
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+static int xhci_test_radix_tree(struct xhci_hcd *xhci,
+		unsigned int num_streams,
+		struct xhci_stream_info *stream_info)
+{
+	u32 cur_stream;
+	struct xhci_ring *cur_ring;
+	u64 addr;
+
+	for (cur_stream = 1; cur_stream < num_streams; cur_stream++) {
+		struct xhci_ring *mapped_ring;
+		int trb_size = sizeof(union xhci_trb);
+
+		cur_ring = stream_info->stream_rings[cur_stream];
+		for (addr = cur_ring->first_seg->dma;
+				addr < cur_ring->first_seg->dma + SEGMENT_SIZE;
+				addr += trb_size) {
+			mapped_ring = dma_to_stream_ring(stream_info, addr);
+			if (cur_ring != mapped_ring) {
+				xhci_warn(xhci, "WARN: DMA address 0x%08llx "
+						"didn't map to stream ID %u; "
+						"mapped to ring %p\n",
+						(unsigned long long) addr,
+						cur_stream,
+						mapped_ring);
+				return -EINVAL;
+			}
+		}
+		/* One TRB after the end of the ring segment shouldn't return a
+		 * pointer to the current ring (although it may be a part of a
+		 * different ring).
+		 */
+		mapped_ring = dma_to_stream_ring(stream_info, addr);
+		if (mapped_ring != cur_ring) {
+			/* One TRB before should also fail */
+			addr = cur_ring->first_seg->dma - trb_size;
+			mapped_ring = dma_to_stream_ring(stream_info, addr);
+		}
+		if (mapped_ring == cur_ring) {
+			xhci_warn(xhci, "WARN: Bad DMA address 0x%08llx "
+					"mapped to valid stream ID %u; "
+					"mapped ring = %p\n",
+					(unsigned long long) addr,
+					cur_stream,
+					mapped_ring);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+#endif	/* CONFIG_USB_XHCI_HCD_DEBUGGING */
+
+/*
+ * Change an endpoint's internal structure so it supports stream IDs.  The
+ * number of requested streams includes stream 0, which cannot be used by device
+ * drivers.
+ *
+ * The number of stream contexts in the stream context array may be bigger than
+ * the number of streams the driver wants to use.  This is because the number of
+ * stream context array entries must be a power of two.
+ *
+ * We need a radix tree for mapping physical addresses of TRBs to which stream
+ * ID they belong to.  We need to do this because the host controller won't tell
+ * us which stream ring the TRB came from.  We could store the stream ID in an
+ * event data TRB, but that doesn't help us for the cancellation case, since the
+ * endpoint may stop before it reaches that event data TRB.
+ *
+ * The radix tree maps the upper portion of the TRB DMA address to a ring
+ * segment that has the same upper portion of DMA addresses.  For example, say I
+ * have segments of size 1KB, that are always 64-byte aligned.  A segment may
+ * start at 0x10c91000 and end at 0x10c913f0.  If I use the upper 10 bits, the
+ * key to the stream ID is 0x43244.  I can use the DMA address of the TRB to
+ * pass the radix tree a key to get the right stream ID:
+ *
+ * 	0x10c90fff >> 10 = 0x43243
+ * 	0x10c912c0 >> 10 = 0x43244
+ * 	0x10c91400 >> 10 = 0x43245
+ *
+ * Obviously, only those TRBs with DMA addresses that are within the segment
+ * will make the radix tree return the stream ID for that ring.
+ *
+ * Caveats for the radix tree:
+ *
+ * The radix tree uses an unsigned long as a key pair.  On 32-bit systems, an
+ * unsigned long will be 32-bits; on a 64-bit system an unsigned long will be
+ * 64-bits.  Since we only request 32-bit DMA addresses, we can use that as the
+ * key on 32-bit or 64-bit systems (it would also be fine if we asked for 64-bit
+ * PCI DMA addresses on a 64-bit system).  There might be a problem on 32-bit
+ * extended systems (where the DMA address can be bigger than 32-bits),
+ * if we allow the PCI dma mask to be bigger than 32-bits.  So don't do that.
+ */
+struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
+		unsigned int num_stream_ctxs,
+		unsigned int num_streams, gfp_t mem_flags)
+{
+	struct xhci_stream_info *stream_info;
+	u32 cur_stream;
+	struct xhci_ring *cur_ring;
+	unsigned long key;
+	u64 addr;
+	int ret;
+
+	xhci_dbg(xhci, "Allocating %u streams and %u "
+			"stream context array entries.\n",
+			num_streams, num_stream_ctxs);
+	if (xhci->cmd_ring_reserved_trbs == MAX_RSVD_CMD_TRBS) {
+		xhci_dbg(xhci, "Command ring has no reserved TRBs available\n");
+		return NULL;
+	}
+	xhci->cmd_ring_reserved_trbs++;
+
+	stream_info = kzalloc(sizeof(struct xhci_stream_info), mem_flags);
+	if (!stream_info)
+		goto cleanup_trbs;
+
+	stream_info->num_streams = num_streams;
+	stream_info->num_stream_ctxs = num_stream_ctxs;
+
+	/* Initialize the array of virtual pointers to stream rings. */
+	stream_info->stream_rings = kzalloc(
+			sizeof(struct xhci_ring *)*num_streams,
+			mem_flags);
+	if (!stream_info->stream_rings)
+		goto cleanup_info;
+
+	/* Initialize the array of DMA addresses for stream rings for the HW. */
+	stream_info->stream_ctx_array = xhci_alloc_stream_ctx(xhci,
+			num_stream_ctxs, &stream_info->ctx_array_dma,
+			mem_flags);
+	if (!stream_info->stream_ctx_array)
+		goto cleanup_ctx;
+	memset(stream_info->stream_ctx_array, 0,
+			sizeof(struct xhci_stream_ctx)*num_stream_ctxs);
+
+	/* Allocate everything needed to free the stream rings later */
+	stream_info->free_streams_command =
+		xhci_alloc_command(xhci, true, true, mem_flags);
+	if (!stream_info->free_streams_command)
+		goto cleanup_ctx;
+
+	INIT_RADIX_TREE(&stream_info->trb_address_map, GFP_ATOMIC);
+
+	/* Allocate rings for all the streams that the driver will use,
+	 * and add their segment DMA addresses to the radix tree.
+	 * Stream 0 is reserved.
+	 */
+	for (cur_stream = 1; cur_stream < num_streams; cur_stream++) {
+		stream_info->stream_rings[cur_stream] =
+			xhci_ring_alloc(xhci, 1, true, mem_flags);
+		cur_ring = stream_info->stream_rings[cur_stream];
+		if (!cur_ring)
+			goto cleanup_rings;
+		cur_ring->stream_id = cur_stream;
+		/* Set deq ptr, cycle bit, and stream context type */
+		addr = cur_ring->first_seg->dma |
+			SCT_FOR_CTX(SCT_PRI_TR) |
+			cur_ring->cycle_state;
+		stream_info->stream_ctx_array[cur_stream].stream_ring = addr;
+		xhci_dbg(xhci, "Setting stream %d ring ptr to 0x%08llx\n",
+				cur_stream, (unsigned long long) addr);
+
+		key = (unsigned long)
+			(cur_ring->first_seg->dma >> SEGMENT_SHIFT);
+		ret = radix_tree_insert(&stream_info->trb_address_map,
+				key, cur_ring);
+		if (ret) {
+			xhci_ring_free(xhci, cur_ring);
+			stream_info->stream_rings[cur_stream] = NULL;
+			goto cleanup_rings;
+		}
+	}
+	/* Leave the other unused stream ring pointers in the stream context
+	 * array initialized to zero.  This will cause the xHC to give us an
+	 * error if the device asks for a stream ID we don't have setup (if it
+	 * was any other way, the host controller would assume the ring is
+	 * "empty" and wait forever for data to be queued to that stream ID).
+	 */
+#if XHCI_DEBUG
+	/* Do a little test on the radix tree to make sure it returns the
+	 * correct values.
+	 */
+	if (xhci_test_radix_tree(xhci, num_streams, stream_info))
+		goto cleanup_rings;
+#endif
+
+	return stream_info;
+
+cleanup_rings:
+	for (cur_stream = 1; cur_stream < num_streams; cur_stream++) {
+		cur_ring = stream_info->stream_rings[cur_stream];
+		if (cur_ring) {
+			addr = cur_ring->first_seg->dma;
+			radix_tree_delete(&stream_info->trb_address_map,
+					addr >> SEGMENT_SHIFT);
+			xhci_ring_free(xhci, cur_ring);
+			stream_info->stream_rings[cur_stream] = NULL;
+		}
+	}
+	xhci_free_command(xhci, stream_info->free_streams_command);
+cleanup_ctx:
+	kfree(stream_info->stream_rings);
+cleanup_info:
+	kfree(stream_info);
+cleanup_trbs:
+	xhci->cmd_ring_reserved_trbs--;
+	return NULL;
+}
+/*
+ * Sets the MaxPStreams field and the Linear Stream Array field.
+ * Sets the dequeue pointer to the stream context array.
+ */
+void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
+		struct xhci_ep_ctx *ep_ctx,
+		struct xhci_stream_info *stream_info)
+{
+	u32 max_primary_streams;
+	/* MaxPStreams is the number of stream context array entries, not the
+	 * number we're actually using.  Must be in 2^(MaxPstreams + 1) format.
+	 * fls(0) = 0, fls(0x1) = 1, fls(0x10) = 2, fls(0x100) = 3, etc.
+	 */
+	max_primary_streams = fls(stream_info->num_stream_ctxs) - 2;
+	xhci_dbg(xhci, "Setting number of stream ctx array entries to %u\n",
+			1 << (max_primary_streams + 1));
+	ep_ctx->ep_info &= ~EP_MAXPSTREAMS_MASK;
+	ep_ctx->ep_info |= EP_MAXPSTREAMS(max_primary_streams);
+	ep_ctx->ep_info |= EP_HAS_LSA;
+	ep_ctx->deq  = stream_info->ctx_array_dma;
+}
+
+/*
+ * Sets the MaxPStreams field and the Linear Stream Array field to 0.
+ * Reinstalls the "normal" endpoint ring (at its previous dequeue mark,
+ * not at the beginning of the ring).
+ */
+void xhci_setup_no_streams_ep_input_ctx(struct xhci_hcd *xhci,
+		struct xhci_ep_ctx *ep_ctx,
+		struct xhci_virt_ep *ep)
+{
+	dma_addr_t addr;
+	ep_ctx->ep_info &= ~EP_MAXPSTREAMS_MASK;
+	ep_ctx->ep_info &= ~EP_HAS_LSA;
+	addr = xhci_trb_virt_to_dma(ep->ring->deq_seg, ep->ring->dequeue);
+	ep_ctx->deq  = addr | ep->ring->cycle_state;
+}
+
+/* Frees all stream contexts associated with the endpoint,
+ *
+ * Caller should fix the endpoint context streams fields.
+ */
+void xhci_free_stream_info(struct xhci_hcd *xhci,
+		struct xhci_stream_info *stream_info)
+{
+	int cur_stream;
+	struct xhci_ring *cur_ring;
+	dma_addr_t addr;
+
+	if (!stream_info)
+		return;
+
+	for (cur_stream = 1; cur_stream < stream_info->num_streams;
+			cur_stream++) {
+		cur_ring = stream_info->stream_rings[cur_stream];
+		if (cur_ring) {
+			addr = cur_ring->first_seg->dma;
+			radix_tree_delete(&stream_info->trb_address_map,
+					addr >> SEGMENT_SHIFT);
+			xhci_ring_free(xhci, cur_ring);
+			stream_info->stream_rings[cur_stream] = NULL;
+		}
+	}
+	xhci_free_command(xhci, stream_info->free_streams_command);
+	xhci->cmd_ring_reserved_trbs--;
+	if (stream_info->stream_ctx_array)
+		xhci_free_stream_ctx(xhci,
+				stream_info->num_stream_ctxs,
+				stream_info->stream_ctx_array,
+				stream_info->ctx_array_dma);
+
+	if (stream_info)
+		kfree(stream_info->stream_rings);
+	kfree(stream_info);
+}
+
+
+/***************** Device context manipulation *************************/
+
 static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
 		struct xhci_virt_ep *ep)
 {
@@ -300,9 +701,13 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 	if (!dev)
 		return;
 
-	for (i = 0; i < 31; ++i)
+	for (i = 0; i < 31; ++i) {
 		if (dev->eps[i].ring)
 			xhci_ring_free(xhci, dev->eps[i].ring);
+		if (dev->eps[i].stream_info)
+			xhci_free_stream_info(xhci,
+					dev->eps[i].stream_info);
+	}
 
 	if (dev->ring_cache) {
 		for (i = 0; i < dev->num_rings_cached; i++)
@@ -316,7 +721,7 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		xhci_free_container_ctx(xhci, dev->out_ctx);
 
 	kfree(xhci->devs[slot_id]);
-	xhci->devs[slot_id] = 0;
+	xhci->devs[slot_id] = NULL;
 }
 
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
@@ -373,6 +778,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 
 	init_completion(&dev->cmd_completion);
 	INIT_LIST_HEAD(&dev->cmd_list);
+	dev->udev = udev;
 
 	/* Point to output device context in dcbaa. */
 	xhci->dcbaa->dev_context_ptrs[slot_id] = dev->out_ctx->dma;
@@ -385,6 +791,27 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 fail:
 	xhci_free_virt_device(xhci, slot_id);
 	return 0;
+}
+
+void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
+		struct usb_device *udev)
+{
+	struct xhci_virt_device *virt_dev;
+	struct xhci_ep_ctx	*ep0_ctx;
+	struct xhci_ring	*ep_ring;
+
+	virt_dev = xhci->devs[udev->slot_id];
+	ep0_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, 0);
+	ep_ring = virt_dev->eps[0].ring;
+	/*
+	 * FIXME we don't keep track of the dequeue pointer very well after a
+	 * Set TR dequeue pointer, so we're setting the dequeue pointer of the
+	 * host to our enqueue pointer.  This should only be called after a
+	 * configured device has reset, so all control transfers should have
+	 * been completed or cancelled before the reset.
+	 */
+	ep0_ctx->deq = xhci_trb_virt_to_dma(ep_ring->enq_seg, ep_ring->enqueue);
+	ep0_ctx->deq |= ep_ring->cycle_state;
 }
 
 /* Setup an xHCI virtual device for a Set Address command */
@@ -427,7 +854,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	case USB_SPEED_LOW:
 		slot_ctx->dev_info |= (u32) SLOT_SPEED_LS;
 		break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
 		return -EINVAL;
 		break;
@@ -440,6 +867,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 			top_dev = top_dev->parent)
 		/* Found device below root hub */;
 	slot_ctx->dev_info2 |= (u32) ROOT_HUB_PORT(top_dev->portnum);
+	dev->port = top_dev->portnum;
 	xhci_dbg(xhci, "Set root hub portnum to %d\n", top_dev->portnum);
 
 	/* Is this a LS/FS device under a HS hub? */
@@ -471,7 +899,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	case USB_SPEED_LOW:
 		ep0_ctx->ep_info2 |= MAX_PACKET(8);
 		break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
 		return -EINVAL;
 		break;
@@ -539,14 +967,33 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 			if (interval < 3)
 				interval = 3;
 			if ((1 << interval) != 8*ep->desc.bInterval)
-				dev_warn(&udev->dev, "ep %#x - rounding interval to %d microframes\n",
-						ep->desc.bEndpointAddress, 1 << interval);
+				dev_warn(&udev->dev,
+						"ep %#x - rounding interval"
+						" to %d microframes, "
+						"ep desc says %d microframes\n",
+						ep->desc.bEndpointAddress,
+						1 << interval,
+						8*ep->desc.bInterval);
 		}
 		break;
 	default:
 		BUG();
 	}
 	return EP_INTERVAL(interval);
+}
+
+/* The "Mult" field in the endpoint context is only set for SuperSpeed isoc eps.
+ * High speed endpoint descriptors can define "the number of additional
+ * transaction opportunities per microframe", but that goes in the Max Burst
+ * endpoint context field.
+ */
+static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	if (udev->speed != USB_SPEED_SUPER ||
+			!usb_endpoint_xfer_isoc(&ep->desc))
+		return 0;
+	return ep->ss_ep_comp.bmAttributes;
 }
 
 static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
@@ -579,6 +1026,34 @@ static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
 	return type;
 }
 
+/* Return the maximum endpoint service interval time (ESIT) payload.
+ * Basically, this is the maxpacket size, multiplied by the burst size
+ * and mult size.
+ */
+static inline u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	int max_burst;
+	int max_packet;
+
+	/* Only applies for interrupt or isochronous endpoints */
+	if (usb_endpoint_xfer_control(&ep->desc) ||
+			usb_endpoint_xfer_bulk(&ep->desc))
+		return 0;
+
+	if (udev->speed == USB_SPEED_SUPER)
+		return ep->ss_ep_comp.wBytesPerInterval;
+
+	max_packet = GET_MAX_PACKET(ep->desc.wMaxPacketSize);
+	max_burst = (ep->desc.wMaxPacketSize & 0x1800) >> 11;
+	/* A 0 in max burst means 1 transfer per ESIT */
+	return max_packet * (max_burst + 1);
+}
+
+/* Set up an endpoint with one ring segment.  Do not allocate stream rings.
+ * Drivers will have to call usb_alloc_streams() to do that.
+ */
 int xhci_endpoint_init(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		struct usb_device *udev,
@@ -590,13 +1065,24 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	struct xhci_ring *ep_ring;
 	unsigned int max_packet;
 	unsigned int max_burst;
+	u32 max_esit_payload;
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
 	/* Set up the endpoint ring */
-	virt_dev->eps[ep_index].new_ring =
-		xhci_ring_alloc(xhci, 1, true, mem_flags);
+	/*
+	 * Isochronous endpoint ring needs bigger size because one isoc URB
+	 * carries multiple packets and it will insert multiple tds to the
+	 * ring.
+	 * This should be replaced with dynamic ring resizing in the future.
+	 */
+	if (usb_endpoint_xfer_isoc(&ep->desc))
+		virt_dev->eps[ep_index].new_ring =
+			xhci_ring_alloc(xhci, 8, true, mem_flags);
+	else
+		virt_dev->eps[ep_index].new_ring =
+			xhci_ring_alloc(xhci, 1, true, mem_flags);
 	if (!virt_dev->eps[ep_index].new_ring) {
 		/* Attempt to use the ring cache */
 		if (virt_dev->num_rings_cached == 0)
@@ -607,10 +1093,12 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		virt_dev->num_rings_cached--;
 		xhci_reinit_cached_ring(xhci, virt_dev->eps[ep_index].new_ring);
 	}
+	virt_dev->eps[ep_index].skip = false;
 	ep_ring = virt_dev->eps[ep_index].new_ring;
 	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
 	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
+	ep_ctx->ep_info |= EP_MULT(xhci_get_endpoint_mult(udev, ep));
 
 	/* FIXME dig Mult and streams info out of ep companion desc */
 
@@ -630,12 +1118,9 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		max_packet = ep->desc.wMaxPacketSize;
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
 		/* dig out max burst from ep companion desc */
-		if (!ep->ss_ep_comp) {
-			xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
-			max_packet = 0;
-		} else {
-			max_packet = ep->ss_ep_comp->desc.bMaxBurst;
-		}
+		max_packet = ep->ss_ep_comp.bMaxBurst;
+		if (!max_packet)
+			xhci_warn(xhci, "WARN no SS endpoint bMaxBurst\n");
 		ep_ctx->ep_info2 |= MAX_BURST(max_packet);
 		break;
 	case USB_SPEED_HIGH:
@@ -650,12 +1135,32 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		/* Fall through */
 	case USB_SPEED_FULL:
 	case USB_SPEED_LOW:
-		max_packet = ep->desc.wMaxPacketSize & 0x3ff;
+		max_packet = GET_MAX_PACKET(ep->desc.wMaxPacketSize);
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
 		break;
 	default:
 		BUG();
 	}
+	max_esit_payload = xhci_get_max_esit_payload(xhci, udev, ep);
+	ep_ctx->tx_info = MAX_ESIT_PAYLOAD_FOR_EP(max_esit_payload);
+
+	/*
+	 * XXX no idea how to calculate the average TRB buffer length for bulk
+	 * endpoints, as the driver gives us no clue how big each scatter gather
+	 * list entry (or buffer) is going to be.
+	 *
+	 * For isochronous and interrupt endpoints, we set it to the max
+	 * available, until we have new API in the USB core to allow drivers to
+	 * declare how much bandwidth they actually need.
+	 *
+	 * Normally, it would be calculated by taking the total of the buffer
+	 * lengths in the TD and then dividing by the number of TRBs in a TD,
+	 * including link TRBs, No-op TRBs, and Event data TRBs.  Since we don't
+	 * use Event Data TRBs, and we don't chain in a link TRB on short
+	 * transfers, we're basically dividing by 1.
+	 */
+	ep_ctx->tx_info |= AVG_TRB_LENGTH_FOR_EP(max_esit_payload);
+
 	/* FIXME Debug endpoint context */
 	return 0;
 }
@@ -819,7 +1324,8 @@ static void scratchpad_free(struct xhci_hcd *xhci)
 }
 
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
-		bool allocate_completion, gfp_t mem_flags)
+		bool allocate_in_ctx, bool allocate_completion,
+		gfp_t mem_flags)
 {
 	struct xhci_command *command;
 
@@ -827,11 +1333,14 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	if (!command)
 		return NULL;
 
-	command->in_ctx =
-		xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, mem_flags);
-	if (!command->in_ctx) {
-		kfree(command);
-		return NULL;
+	if (allocate_in_ctx) {
+		command->in_ctx =
+			xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT,
+					mem_flags);
+		if (!command->in_ctx) {
+			kfree(command);
+			return NULL;
+		}
 	}
 
 	if (allocate_completion) {
@@ -848,6 +1357,22 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	command->status = 0;
 	INIT_LIST_HEAD(&command->cmd_list);
 	return command;
+}
+
+void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv)
+{
+	int last;
+
+	if (!urb_priv)
+		return;
+
+	last = urb_priv->length - 1;
+	if (last >= 0) {
+		int	i;
+		for (i = 0; i <= last; i++)
+			kfree(urb_priv->td[i]);
+	}
+	kfree(urb_priv);
 }
 
 void xhci_free_command(struct xhci_hcd *xhci,
@@ -901,6 +1426,16 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->device_pool = NULL;
 	xhci_dbg(xhci, "Freed device context pool\n");
 
+	if (xhci->small_streams_pool)
+		dma_pool_destroy(xhci->small_streams_pool);
+	xhci->small_streams_pool = NULL;
+	xhci_dbg(xhci, "Freed small stream array pool\n");
+
+	if (xhci->medium_streams_pool)
+		dma_pool_destroy(xhci->medium_streams_pool);
+	xhci->medium_streams_pool = NULL;
+	xhci_dbg(xhci, "Freed medium stream array pool\n");
+
 	xhci_write_64(xhci, 0, &xhci->op_regs->dcbaa_ptr);
 	if (xhci->dcbaa)
 		pci_free_consistent(pdev, sizeof(*xhci->dcbaa),
@@ -908,8 +1443,16 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->dcbaa = NULL;
 
 	scratchpad_free(xhci);
+
+	xhci->num_usb2_ports = 0;
+	xhci->num_usb3_ports = 0;
+	kfree(xhci->usb2_ports);
+	kfree(xhci->usb3_ports);
+	kfree(xhci->port_array);
+
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
+	xhci->bus_suspended = 0;
 }
 
 static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
@@ -1039,7 +1582,7 @@ static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci, gfp_t mem_flags)
 	unsigned int num_tests;
 	int i, ret;
 
-	num_tests = sizeof(simple_test_vector) / sizeof(simple_test_vector[0]);
+	num_tests = ARRAY_SIZE(simple_test_vector);
 	for (i = 0; i < num_tests; i++) {
 		ret = xhci_test_trb_in_td(xhci,
 				xhci->event_ring->first_seg,
@@ -1052,7 +1595,7 @@ static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci, gfp_t mem_flags)
 			return ret;
 	}
 
-	num_tests = sizeof(complex_test_vector) / sizeof(complex_test_vector[0]);
+	num_tests = ARRAY_SIZE(complex_test_vector);
 	for (i = 0; i < num_tests; i++) {
 		ret = xhci_test_trb_in_td(xhci,
 				complex_test_vector[i].input_seg,
@@ -1068,6 +1611,189 @@ static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci, gfp_t mem_flags)
 	return 0;
 }
 
+static void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
+{
+	u64 temp;
+	dma_addr_t deq;
+
+	deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
+			xhci->event_ring->dequeue);
+	if (deq == 0 && !in_interrupt())
+		xhci_warn(xhci, "WARN something wrong with SW event ring "
+				"dequeue ptr.\n");
+	/* Update HC event ring dequeue pointer */
+	temp = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp &= ERST_PTR_MASK;
+	/* Don't clear the EHB bit (which is RW1C) because
+	 * there might be more events to service.
+	 */
+	temp &= ~ERST_EHB;
+	xhci_dbg(xhci, "// Write event ring dequeue pointer, "
+			"preserving EHB bit\n");
+	xhci_write_64(xhci, ((u64) deq & (u64) ~ERST_PTR_MASK) | temp,
+			&xhci->ir_set->erst_dequeue);
+}
+
+static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
+		u32 __iomem *addr, u8 major_revision)
+{
+	u32 temp, port_offset, port_count;
+	int i;
+
+	if (major_revision > 0x03) {
+		xhci_warn(xhci, "Ignoring unknown port speed, "
+				"Ext Cap %p, revision = 0x%x\n",
+				addr, major_revision);
+		/* Ignoring port protocol we can't understand. FIXME */
+		return;
+	}
+
+	/* Port offset and count in the third dword, see section 7.2 */
+	temp = xhci_readl(xhci, addr + 2);
+	port_offset = XHCI_EXT_PORT_OFF(temp);
+	port_count = XHCI_EXT_PORT_COUNT(temp);
+	xhci_dbg(xhci, "Ext Cap %p, port offset = %u, "
+			"count = %u, revision = 0x%x\n",
+			addr, port_offset, port_count, major_revision);
+	/* Port count includes the current port offset */
+	if (port_offset == 0 || (port_offset + port_count - 1) > num_ports)
+		/* WTF? "Valid values are ‘1’ to MaxPorts" */
+		return;
+	port_offset--;
+	for (i = port_offset; i < (port_offset + port_count); i++) {
+		/* Duplicate entry.  Ignore the port if the revisions differ. */
+		if (xhci->port_array[i] != 0) {
+			xhci_warn(xhci, "Duplicate port entry, Ext Cap %p,"
+					" port %u\n", addr, i);
+			xhci_warn(xhci, "Port was marked as USB %u, "
+					"duplicated as USB %u\n",
+					xhci->port_array[i], major_revision);
+			/* Only adjust the roothub port counts if we haven't
+			 * found a similar duplicate.
+			 */
+			if (xhci->port_array[i] != major_revision &&
+				xhci->port_array[i] != (u8) -1) {
+				if (xhci->port_array[i] == 0x03)
+					xhci->num_usb3_ports--;
+				else
+					xhci->num_usb2_ports--;
+				xhci->port_array[i] = (u8) -1;
+			}
+			/* FIXME: Should we disable the port? */
+			continue;
+		}
+		xhci->port_array[i] = major_revision;
+		if (major_revision == 0x03)
+			xhci->num_usb3_ports++;
+		else
+			xhci->num_usb2_ports++;
+	}
+	/* FIXME: Should we disable ports not in the Extended Capabilities? */
+}
+
+/*
+ * Scan the Extended Capabilities for the "Supported Protocol Capabilities" that
+ * specify what speeds each port is supposed to be.  We can't count on the port
+ * speed bits in the PORTSC register being correct until a device is connected,
+ * but we need to set up the two fake roothubs with the correct number of USB
+ * 3.0 and USB 2.0 ports at host controller initialization time.
+ */
+static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
+{
+	u32 __iomem *addr;
+	u32 offset;
+	unsigned int num_ports;
+	int i, port_index;
+
+	addr = &xhci->cap_regs->hcc_params;
+	offset = XHCI_HCC_EXT_CAPS(xhci_readl(xhci, addr));
+	if (offset == 0) {
+		xhci_err(xhci, "No Extended Capability registers, "
+				"unable to set up roothub.\n");
+		return -ENODEV;
+	}
+
+	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	xhci->port_array = kzalloc(sizeof(*xhci->port_array)*num_ports, flags);
+	if (!xhci->port_array)
+		return -ENOMEM;
+
+	/*
+	 * For whatever reason, the first capability offset is from the
+	 * capability register base, not from the HCCPARAMS register.
+	 * See section 5.3.6 for offset calculation.
+	 */
+	addr = &xhci->cap_regs->hc_capbase + offset;
+	while (1) {
+		u32 cap_id;
+
+		cap_id = xhci_readl(xhci, addr);
+		if (XHCI_EXT_CAPS_ID(cap_id) == XHCI_EXT_CAPS_PROTOCOL)
+			xhci_add_in_port(xhci, num_ports, addr,
+					(u8) XHCI_EXT_PORT_MAJOR(cap_id));
+		offset = XHCI_EXT_CAPS_NEXT(cap_id);
+		if (!offset || (xhci->num_usb2_ports + xhci->num_usb3_ports)
+				== num_ports)
+			break;
+		/*
+		 * Once you're into the Extended Capabilities, the offset is
+		 * always relative to the register holding the offset.
+		 */
+		addr += offset;
+	}
+
+	if (xhci->num_usb2_ports == 0 && xhci->num_usb3_ports == 0) {
+		xhci_warn(xhci, "No ports on the roothubs?\n");
+		return -ENODEV;
+	}
+	xhci_dbg(xhci, "Found %u USB 2.0 ports and %u USB 3.0 ports.\n",
+			xhci->num_usb2_ports, xhci->num_usb3_ports);
+	/*
+	 * Note we could have all USB 3.0 ports, or all USB 2.0 ports.
+	 * Not sure how the USB core will handle a hub with no ports...
+	 */
+	if (xhci->num_usb2_ports) {
+		xhci->usb2_ports = kmalloc(sizeof(*xhci->usb2_ports)*
+				xhci->num_usb2_ports, flags);
+		if (!xhci->usb2_ports)
+			return -ENOMEM;
+
+		port_index = 0;
+		for (i = 0; i < num_ports; i++) {
+			if (xhci->port_array[i] == 0x03 ||
+					xhci->port_array[i] == 0 ||
+					xhci->port_array[i] == -1)
+				continue;
+
+			xhci->usb2_ports[port_index] =
+				&xhci->op_regs->port_status_base +
+				NUM_PORT_REGS*i;
+			xhci_dbg(xhci, "USB 2.0 port at index %u, "
+					"addr = %p\n", i,
+					xhci->usb2_ports[port_index]);
+			port_index++;
+		}
+	}
+	if (xhci->num_usb3_ports) {
+		xhci->usb3_ports = kmalloc(sizeof(*xhci->usb3_ports)*
+				xhci->num_usb3_ports, flags);
+		if (!xhci->usb3_ports)
+			return -ENOMEM;
+
+		port_index = 0;
+		for (i = 0; i < num_ports; i++)
+			if (xhci->port_array[i] == 0x03) {
+				xhci->usb3_ports[port_index] =
+					&xhci->op_regs->port_status_base +
+					NUM_PORT_REGS*i;
+				xhci_dbg(xhci, "USB 3.0 port at index %u, "
+						"addr = %p\n", i,
+						xhci->usb3_ports[port_index]);
+				port_index++;
+			}
+	}
+	return 0;
+}
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
@@ -1135,6 +1861,22 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,
 			2112, 64, xhci->page_size);
 	if (!xhci->segment_pool || !xhci->device_pool)
+		goto fail;
+
+	/* Linear stream context arrays don't have any boundary restrictions,
+	 * and only need to be 16-byte aligned.
+	 */
+	xhci->small_streams_pool =
+		dma_pool_create("xHCI 256 byte stream ctx arrays",
+			dev, SMALL_STREAM_ARRAY_SIZE, 16, 0);
+	xhci->medium_streams_pool =
+		dma_pool_create("xHCI 1KB stream ctx arrays",
+			dev, MEDIUM_STREAM_ARRAY_SIZE, 16, 0);
+	/* Any stream context array bigger than MEDIUM_STREAM_ARRAY_SIZE
+	 * will be allocated with pci_alloc_consistent()
+	 */
+
+	if (!xhci->small_streams_pool || !xhci->medium_streams_pool)
 		goto fail;
 
 	/* Set up the command ring to have one segments for now. */
@@ -1228,9 +1970,13 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 */
 	init_completion(&xhci->addr_dev);
 	for (i = 0; i < MAX_HC_SLOTS; ++i)
-		xhci->devs[i] = 0;
+		xhci->devs[i] = NULL;
+	for (i = 0; i < MAX_HC_PORTS; ++i)
+		xhci->resume_done[i] = 0;
 
 	if (scratchpad_alloc(xhci, flags))
+		goto fail;
+	if (xhci_setup_port_arrays(xhci, flags))
 		goto fail;
 
 	return 0;

@@ -84,6 +84,7 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, int mode,
 	int err;
 
 	UFSD("BEGIN\n");
+
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 
@@ -107,6 +108,7 @@ static int ufs_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
+
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
@@ -139,7 +141,7 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 
 	if (l > UFS_SB(sb)->s_uspi->s_maxsymlinklen) {
 		/* slow symlink */
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &ufs_symlink_inode_operations;
 		inode->i_mapping->a_ops = &ufs_aops;
 		err = page_symlink(inode, symname, l);
 		if (err)
@@ -178,7 +180,7 @@ static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	error = ufs_add_nondir(dentry, inode);
 	unlock_kernel();

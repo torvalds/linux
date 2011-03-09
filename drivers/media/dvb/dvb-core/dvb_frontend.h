@@ -36,6 +36,7 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <linux/dvb/frontend.h>
 
@@ -214,14 +215,14 @@ struct dvb_tuner_ops {
 	int (*get_status)(struct dvb_frontend *fe, u32 *status);
 	int (*get_rf_strength)(struct dvb_frontend *fe, u16 *strength);
 
-	/** These are provided seperately from set_params in order to facilitate silicon
-	 * tuners which require sophisticated tuning loops, controlling each parameter seperately. */
+	/** These are provided separately from set_params in order to facilitate silicon
+	 * tuners which require sophisticated tuning loops, controlling each parameter separately. */
 	int (*set_frequency)(struct dvb_frontend *fe, u32 frequency);
 	int (*set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
 
 	/*
-	 * These are provided seperately from set_params in order to facilitate silicon
-	 * tuners which require sophisticated tuning loops, controlling each parameter seperately.
+	 * These are provided separately from set_params in order to facilitate silicon
+	 * tuners which require sophisticated tuning loops, controlling each parameter separately.
 	 */
 	int (*set_state)(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state);
 	int (*get_state)(struct dvb_frontend *fe, enum tuner_param param, struct tuner_state *state);
@@ -259,7 +260,7 @@ struct dvb_frontend_ops {
 	int (*init)(struct dvb_frontend* fe);
 	int (*sleep)(struct dvb_frontend* fe);
 
-	int (*write)(struct dvb_frontend* fe, u8* buf, int len);
+	int (*write)(struct dvb_frontend* fe, const u8 buf[], int len);
 
 	/* if this is set, it overrides the default swzigzag */
 	int (*tune)(struct dvb_frontend* fe,

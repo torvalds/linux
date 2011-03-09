@@ -33,6 +33,7 @@
 #include <linux/regulator/max1586.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/usb/gpio_vbus.h>
 
 #include <mach/hardware.h>
@@ -43,7 +44,6 @@
 #include <mach/hx4700.h>
 #include <plat/i2c.h>
 #include <mach/irda.h>
-#include <mach/pxa2xx_spi.h>
 
 #include <video/platform_lcd.h>
 #include <video/w100fb.h>
@@ -870,10 +870,9 @@ static void __init hx4700_init(void)
 }
 
 MACHINE_START(H4700, "HP iPAQ HX4700")
-	.phys_io      = 0x40000000,
-	.io_pg_offst  = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params  = 0xa0000100,
-	.map_io       = pxa_map_io,
+	.map_io       = pxa27x_map_io,
+	.nr_irqs      = HX4700_NR_IRQS,
 	.init_irq     = pxa27x_init_irq,
 	.init_machine = hx4700_init,
 	.timer        = &pxa_timer,

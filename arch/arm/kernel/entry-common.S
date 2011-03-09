@@ -29,6 +29,9 @@ ret_fast_syscall:
 	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
 	bne	fast_work_pending
+#if defined(CONFIG_IRQSOFF_TRACER)
+	asm_trace_hardirqs_on
+#endif
 
 	/* perform architecture specific actions before user return */
 	arch_ret_to_user r1, lr
@@ -48,6 +51,8 @@ work_pending:
 	beq	no_work_pending
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
+	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
+	movne	why, #0				@ prevent further restarts
 	bl	do_notify_resume
 	b	ret_slow_syscall		@ Check work again
 
@@ -63,6 +68,9 @@ ret_slow_syscall:
 	tst	r1, #_TIF_WORK_MASK
 	bne	work_pending
 no_work_pending:
+#if defined(CONFIG_IRQSOFF_TRACER)
+	asm_trace_hardirqs_on
+#endif
 	/* perform architecture specific actions before user return */
 	arch_ret_to_user r1, lr
 
@@ -92,75 +100,222 @@ ENDPROC(ret_from_fork)
 #define CALL(x) .long x
 
 #ifdef CONFIG_FUNCTION_TRACER
+/*
+ * When compiling with -pg, gcc inserts a call to the mcount routine at the
+ * start of every function.  In mcount, apart from the function's address (in
+ * lr), we need to get hold of the function's caller's address.
+ *
+ * Older GCCs (pre-4.4) inserted a call to a routine called mcount like this:
+ *
+ *	bl	mcount
+ *
+ * These versions have the limitation that in order for the mcount routine to
+ * be able to determine the function's caller's address, an APCS-style frame
+ * pointer (which is set up with something like the code below) is required.
+ *
+ *	mov     ip, sp
+ *	push    {fp, ip, lr, pc}
+ *	sub     fp, ip, #4
+ *
+ * With EABI, these frame pointers are not available unless -mapcs-frame is
+ * specified, and if building as Thumb-2, not even then.
+ *
+ * Newer GCCs (4.4+) solve this problem by introducing a new version of mcount,
+ * with call sites like:
+ *
+ *	push	{lr}
+ *	bl	__gnu_mcount_nc
+ *
+ * With these compilers, frame pointers are not necessary.
+ *
+ * mcount can be thought of as a function called in the middle of a subroutine
+ * call.  As such, it needs to be transparent for both the caller and the
+ * callee: the original lr needs to be restored when leaving mcount, and no
+ * registers should be clobbered.  (In the __gnu_mcount_nc implementation, we
+ * clobber the ip register.  This is OK because the ARM calling convention
+ * allows it to be clobbered in subroutines and doesn't use it to hold
+ * parameters.)
+ *
+ * When using dynamic ftrace, we patch out the mcount call by a "mov r0, r0"
+ * for the mcount case, and a "pop {lr}" for the __gnu_mcount_nc case (see
+ * arch/arm/kernel/ftrace.c).
+ */
+
+#ifndef CONFIG_OLD_MCOUNT
+#if (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error Ftrace requires CONFIG_FRAME_POINTER=y with GCC older than 4.4.0.
+#endif
+#endif
+
+.macro __mcount suffix
+	mcount_enter
+	ldr	r0, =ftrace_trace_function
+	ldr	r2, [r0]
+	adr	r0, .Lftrace_stub
+	cmp	r0, r2
+	bne	1f
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	ldr     r1, =ftrace_graph_return
+	ldr     r2, [r1]
+	cmp     r0, r2
+	bne     ftrace_graph_caller\suffix
+
+	ldr     r1, =ftrace_graph_entry
+	ldr     r2, [r1]
+	ldr     r0, =ftrace_graph_entry_stub
+	cmp     r0, r2
+	bne     ftrace_graph_caller\suffix
+#endif
+
+	mcount_exit
+
+1: 	mcount_get_lr	r1			@ lr of instrumented func
+	mov	r0, lr				@ instrumented function
+	sub	r0, r0, #MCOUNT_INSN_SIZE
+	adr	lr, BSYM(2f)
+	mov	pc, r2
+2:	mcount_exit
+.endm
+
+.macro __ftrace_caller suffix
+	mcount_enter
+
+	mcount_get_lr	r1			@ lr of instrumented func
+	mov	r0, lr				@ instrumented function
+	sub	r0, r0, #MCOUNT_INSN_SIZE
+
+	.globl ftrace_call\suffix
+ftrace_call\suffix:
+	bl	ftrace_stub
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.globl ftrace_graph_call\suffix
+ftrace_graph_call\suffix:
+	mov	r0, r0
+#endif
+
+	mcount_exit
+.endm
+
+.macro __ftrace_graph_caller
+	sub	r0, fp, #4		@ &lr of instrumented routine (&parent)
 #ifdef CONFIG_DYNAMIC_FTRACE
-ENTRY(mcount)
-	stmdb sp!, {r0-r3, lr}
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
-
-	.globl mcount_call
-mcount_call:
-	bl ftrace_stub
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
-
-ENTRY(ftrace_caller)
-	stmdb sp!, {r0-r3, lr}
-	ldr r1, [fp, #-4]
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
-
-	.globl ftrace_call
-ftrace_call:
-	bl ftrace_stub
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
-
+	@ called from __ftrace_caller, saved in mcount_enter
+	ldr	r1, [sp, #16]		@ instrumented routine (func)
 #else
+	@ called from __mcount, untouched in lr
+	mov	r1, lr			@ instrumented routine (func)
+#endif
+	sub	r1, r1, #MCOUNT_INSN_SIZE
+	mov	r2, fp			@ frame pointer
+	bl	prepare_ftrace_return
+	mcount_exit
+.endm
+
+#ifdef CONFIG_OLD_MCOUNT
+/*
+ * mcount
+ */
+
+.macro mcount_enter
+	stmdb	sp!, {r0-r3, lr}
+.endm
+
+.macro mcount_get_lr reg
+	ldr	\reg, [fp, #-4]
+.endm
+
+.macro mcount_exit
+	ldr	lr, [fp, #-4]
+	ldmia	sp!, {r0-r3, pc}
+.endm
+
+ENTRY(mcount)
+#ifdef CONFIG_DYNAMIC_FTRACE
+	stmdb	sp!, {lr}
+	ldr	lr, [fp, #-4]
+	ldmia	sp!, {pc}
+#else
+	__mcount _old
+#endif
+ENDPROC(mcount)
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+ENTRY(ftrace_caller_old)
+	__ftrace_caller _old
+ENDPROC(ftrace_caller_old)
+#endif
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(ftrace_graph_caller_old)
+	__ftrace_graph_caller
+ENDPROC(ftrace_graph_caller_old)
+#endif
+
+.purgem mcount_enter
+.purgem mcount_get_lr
+.purgem mcount_exit
+#endif
+
+/*
+ * __gnu_mcount_nc
+ */
+
+.macro mcount_enter
+	stmdb	sp!, {r0-r3, lr}
+.endm
+
+.macro mcount_get_lr reg
+	ldr	\reg, [sp, #20]
+.endm
+
+.macro mcount_exit
+	ldmia	sp!, {r0-r3, ip, lr}
+	mov	pc, ip
+.endm
 
 ENTRY(__gnu_mcount_nc)
-	stmdb sp!, {r0-r3, lr}
-	ldr r0, =ftrace_trace_function
-	ldr r2, [r0]
-	adr r0, ftrace_stub
-	cmp r0, r2
-	bne gnu_trace
-	ldmia sp!, {r0-r3, ip, lr}
-	mov pc, ip
+#ifdef CONFIG_DYNAMIC_FTRACE
+	mov	ip, lr
+	ldmia	sp!, {lr}
+	mov	pc, ip
+#else
+	__mcount
+#endif
+ENDPROC(__gnu_mcount_nc)
 
-gnu_trace:
-	ldr r1, [sp, #20]			@ lr of instrumented routine
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
-	mov lr, pc
-	mov pc, r2
-	ldmia sp!, {r0-r3, ip, lr}
-	mov pc, ip
+#ifdef CONFIG_DYNAMIC_FTRACE
+ENTRY(ftrace_caller)
+	__ftrace_caller
+ENDPROC(ftrace_caller)
+#endif
 
-ENTRY(mcount)
-	stmdb sp!, {r0-r3, lr}
-	ldr r0, =ftrace_trace_function
-	ldr r2, [r0]
-	adr r0, ftrace_stub
-	cmp r0, r2
-	bne trace
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+ENTRY(ftrace_graph_caller)
+	__ftrace_graph_caller
+ENDPROC(ftrace_graph_caller)
+#endif
 
-trace:
-	ldr r1, [fp, #-4]			@ lr of instrumented routine
-	mov r0, lr
-	sub r0, r0, #MCOUNT_INSN_SIZE
-	mov lr, pc
-	mov pc, r2
-	ldr lr, [fp, #-4]			@ restore lr
-	ldmia sp!, {r0-r3, pc}
+.purgem mcount_enter
+.purgem mcount_get_lr
+.purgem mcount_exit
 
-#endif /* CONFIG_DYNAMIC_FTRACE */
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.globl return_to_handler
+return_to_handler:
+	stmdb	sp!, {r0-r3}
+	mov	r0, fp			@ frame pointer
+	bl	ftrace_return_to_handler
+	mov	lr, r0			@ r0 has real ret addr
+	ldmia	sp!, {r0-r3}
+	mov	pc, lr
+#endif
 
-	.globl ftrace_stub
-ftrace_stub:
-	mov pc, lr
+ENTRY(ftrace_stub)
+.Lftrace_stub:
+	mov	pc, lr
+ENDPROC(ftrace_stub)
 
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -257,7 +412,6 @@ ENTRY(vector_swi)
 
 	get_thread_info tsk
 	adr	tbl, sys_call_table		@ load syscall table pointer
-	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
 
 #if defined(CONFIG_OABI_COMPAT)
 	/*
@@ -274,8 +428,20 @@ ENTRY(vector_swi)
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
 
+	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
-	tst	ip, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
+
+#ifdef CONFIG_SECCOMP
+	tst	r10, #_TIF_SECCOMP
+	beq	1f
+	mov	r0, scno
+	bl	__secure_computing	
+	add	r0, sp, #S_R0 + S_OFF		@ pointer to regs
+	ldmia	r0, {r0 - r3}			@ have to reload r0 - r3
+1:
+#endif
+
+	tst	r10, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
@@ -382,11 +548,13 @@ ENDPROC(sys_clone_wrapper)
 
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
 		b	sys_sigreturn
 ENDPROC(sys_sigreturn_wrapper)
 
 sys_rt_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
+		mov	why, #0		@ prevent syscall restart handling
 		b	sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn_wrapper)
 

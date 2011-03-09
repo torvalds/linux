@@ -27,7 +27,9 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/kernel.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -49,6 +51,25 @@ static int fc_bsg_hostadd(struct Scsi_Host *, struct fc_host_attrs *);
 static int fc_bsg_rportadd(struct Scsi_Host *, struct fc_rport *);
 static void fc_bsg_remove(struct request_queue *);
 static void fc_bsg_goose_queue(struct fc_rport *);
+
+/*
+ * Module Parameters
+ */
+
+/*
+ * dev_loss_tmo: the default number of seconds that the FC transport
+ *   should insulate the loss of a remote port.
+ *   The maximum will be capped by the value of SCSI_DEVICE_BLOCK_MAX_TIMEOUT.
+ */
+static unsigned int fc_dev_loss_tmo = 60;		/* seconds */
+
+module_param_named(dev_loss_tmo, fc_dev_loss_tmo, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(dev_loss_tmo,
+		 "Maximum number of seconds that the FC transport should"
+		 " insulate the loss of a remote port. Once this value is"
+		 " exceeded, the scsi target is removed. Value should be"
+		 " between 1 and SCSI_DEVICE_BLOCK_MAX_TIMEOUT if"
+		 " fast_io_fail_tmo is not set.");
 
 /*
  * Redefine so that we can have same named attributes in the
@@ -406,6 +427,7 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	if (!fc_host->work_q)
 		return -ENOMEM;
 
+	fc_host->dev_loss_tmo = fc_dev_loss_tmo;
 	snprintf(fc_host->devloss_work_q_name,
 		 sizeof(fc_host->devloss_work_q_name),
 		 "fc_dl_%d", shost->host_no);
@@ -458,24 +480,6 @@ static DECLARE_TRANSPORT_CLASS(fc_vport_class,
 			       NULL,
 			       NULL,
 			       NULL);
-
-/*
- * Module Parameters
- */
-
-/*
- * dev_loss_tmo: the default number of seconds that the FC transport
- *   should insulate the loss of a remote port.
- *   The maximum will be capped by the value of SCSI_DEVICE_BLOCK_MAX_TIMEOUT.
- */
-static unsigned int fc_dev_loss_tmo = 60;		/* seconds */
-
-module_param_named(dev_loss_tmo, fc_dev_loss_tmo, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(dev_loss_tmo,
-		 "Maximum number of seconds that the FC transport should"
-		 " insulate the loss of a remote port. Once this value is"
-		 " exceeded, the scsi target is removed. Value should be"
-		 " between 1 and SCSI_DEVICE_BLOCK_MAX_TIMEOUT.");
 
 /*
  * Netlink Infrastructure
@@ -827,25 +831,66 @@ static FC_DEVICE_ATTR(rport, supported_classes, S_IRUGO,
 /*
  * dev_loss_tmo attribute
  */
+static int fc_str_to_dev_loss(const char *buf, unsigned long *val)
+{
+	char *cp;
+
+	*val = simple_strtoul(buf, &cp, 0);
+	if ((*cp && (*cp != '\n')) || (*val < 0))
+		return -EINVAL;
+	/*
+	 * Check for overflow; dev_loss_tmo is u32
+	 */
+	if (*val > UINT_MAX)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int fc_rport_set_dev_loss_tmo(struct fc_rport *rport,
+				     unsigned long val)
+{
+	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+
+	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
+	    (rport->port_state == FC_PORTSTATE_DELETED) ||
+	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
+		return -EBUSY;
+	/*
+	 * Check for overflow; dev_loss_tmo is u32
+	 */
+	if (val > UINT_MAX)
+		return -EINVAL;
+
+	/*
+	 * If fast_io_fail is off we have to cap
+	 * dev_loss_tmo at SCSI_DEVICE_BLOCK_MAX_TIMEOUT
+	 */
+	if (rport->fast_io_fail_tmo == -1 &&
+	    val > SCSI_DEVICE_BLOCK_MAX_TIMEOUT)
+		return -EINVAL;
+
+	i->f->set_rport_dev_loss_tmo(rport, val);
+	return 0;
+}
+
 fc_rport_show_function(dev_loss_tmo, "%d\n", 20, )
 static ssize_t
 store_fc_rport_dev_loss_tmo(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	int val;
 	struct fc_rport *rport = transport_class_to_rport(dev);
-	struct Scsi_Host *shost = rport_to_shost(rport);
-	struct fc_internal *i = to_fc_internal(shost->transportt);
-	char *cp;
-	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
-	    (rport->port_state == FC_PORTSTATE_DELETED) ||
-	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
-		return -EBUSY;
-	val = simple_strtoul(buf, &cp, 0);
-	if ((*cp && (*cp != '\n')) ||
-	    (val < 0) || (val > SCSI_DEVICE_BLOCK_MAX_TIMEOUT))
-		return -EINVAL;
-	i->f->set_rport_dev_loss_tmo(rport, val);
+	unsigned long val;
+	int rc;
+
+	rc = fc_str_to_dev_loss(buf, &val);
+	if (rc)
+		return rc;
+
+	rc = fc_rport_set_dev_loss_tmo(rport, val);
+	if (rc)
+		return rc;
 	return count;
 }
 static FC_DEVICE_ATTR(rport, dev_loss_tmo, S_IRUGO | S_IWUSR,
@@ -925,9 +970,16 @@ store_fc_rport_fast_io_fail_tmo(struct device *dev,
 		rport->fast_io_fail_tmo = -1;
 	else {
 		val = simple_strtoul(buf, &cp, 0);
-		if ((*cp && (*cp != '\n')) ||
-		    (val < 0) || (val >= rport->dev_loss_tmo))
+		if ((*cp && (*cp != '\n')) || (val < 0))
 			return -EINVAL;
+		/*
+		 * Cap fast_io_fail by dev_loss_tmo or
+		 * SCSI_DEVICE_BLOCK_MAX_TIMEOUT.
+		 */
+		if ((val >= rport->dev_loss_tmo) ||
+		    (val > SCSI_DEVICE_BLOCK_MAX_TIMEOUT))
+			return -EINVAL;
+
 		rport->fast_io_fail_tmo = val;
 	}
 	return count;
@@ -942,7 +994,7 @@ static FC_DEVICE_ATTR(rport, fast_io_fail_tmo, S_IRUGO | S_IWUSR,
 
 /*
  * Note: in the target show function we recognize when the remote
- *  port is in the heirarchy and do not allow the driver to get
+ *  port is in the hierarchy and do not allow the driver to get
  *  involved in sysfs functions. The driver only gets involved if
  *  it's the "old" style that doesn't use rports.
  */
@@ -1216,6 +1268,15 @@ store_fc_vport_delete(struct device *dev, struct device_attribute *attr,
 {
 	struct fc_vport *vport = transport_class_to_vport(dev);
 	struct Scsi_Host *shost = vport_to_shost(vport);
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING)) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		return -EBUSY;
+	}
+	vport->flags |= FC_VPORT_DELETING;
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	fc_queue_work(shost, &vport->vport_delete_work);
 	return count;
@@ -1575,8 +1636,35 @@ store_fc_private_host_issue_lip(struct device *dev,
 static FC_DEVICE_ATTR(host, issue_lip, S_IWUSR, NULL,
 			store_fc_private_host_issue_lip);
 
-fc_private_host_rd_attr(npiv_vports_inuse, "%u\n", 20);
+static ssize_t
+store_fc_private_host_dev_loss_tmo(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = transport_class_to_shost(dev);
+	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
+	struct fc_rport *rport;
+	unsigned long val, flags;
+	int rc;
 
+	rc = fc_str_to_dev_loss(buf, &val);
+	if (rc)
+		return rc;
+
+	fc_host_dev_loss_tmo(shost) = val;
+	spin_lock_irqsave(shost->host_lock, flags);
+	list_for_each_entry(rport, &fc_host->rports, peers)
+		fc_rport_set_dev_loss_tmo(rport, val);
+	spin_unlock_irqrestore(shost->host_lock, flags);
+	return count;
+}
+
+fc_private_host_show_function(dev_loss_tmo, "%d\n", 20, );
+static FC_DEVICE_ATTR(host, dev_loss_tmo, S_IRUGO | S_IWUSR,
+		      show_fc_host_dev_loss_tmo,
+		      store_fc_private_host_dev_loss_tmo);
+
+fc_private_host_rd_attr(npiv_vports_inuse, "%u\n", 20);
 
 /*
  * Host Statistics Management
@@ -1698,12 +1786,11 @@ fc_parse_wwn(const char *ns, u64 *nm)
 
 	/* Validate and store the new name */
 	for (i=0, j=0; i < 16; i++) {
-		if ((*ns >= 'a') && (*ns <= 'f'))
-			j = ((j << 4) | ((*ns++ -'a') + 10));
-		else if ((*ns >= 'A') && (*ns <= 'F'))
-			j = ((j << 4) | ((*ns++ -'A') + 10));
-		else if ((*ns >= '0') && (*ns <= '9'))
-			j = ((j << 4) | (*ns++ -'0'));
+		int value;
+
+		value = hex_to_bin(*ns++);
+		if (value >= 0)
+			j = (j << 4) | value;
 		else
 			return -EINVAL;
 		if (i % 2) {
@@ -1805,6 +1892,9 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	list_for_each_entry(vport, &fc_host->vports, peers) {
 		if ((vport->channel == 0) &&
 		    (vport->port_name == wwpn) && (vport->node_name == wwnn)) {
+			if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING))
+				break;
+			vport->flags |= FC_VPORT_DELETING;
 			match = 1;
 			break;
 		}
@@ -2130,6 +2220,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_HOST_ATTRIBUTE_RW(system_hostname);
 
 	/* Transport-managed attributes */
+	SETUP_PRIVATE_HOST_ATTRIBUTE_RW(dev_loss_tmo);
 	SETUP_PRIVATE_HOST_ATTRIBUTE_RW(tgtid_bind_type);
 	if (ft->issue_fc_host_lip)
 		SETUP_PRIVATE_HOST_ATTRIBUTE_RW(issue_lip);
@@ -2490,7 +2581,7 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;
-	rport->dev_loss_tmo = fc_dev_loss_tmo;
+	rport->dev_loss_tmo = fc_host->dev_loss_tmo;
 	memcpy(&rport->node_name, &ids->node_name, sizeof(rport->node_name));
 	memcpy(&rport->port_name, &ids->port_name, sizeof(rport->port_name));
 	rport->port_id = ids->port_id;
@@ -2836,7 +2927,7 @@ void
 fc_remote_port_delete(struct fc_rport  *rport)
 {
 	struct Scsi_Host *shost = rport_to_shost(rport);
-	int timeout = rport->dev_loss_tmo;
+	unsigned long timeout = rport->dev_loss_tmo;
 	unsigned long flags;
 
 	/*
@@ -3162,23 +3253,33 @@ fc_scsi_scan_rport(struct work_struct *work)
  *
  * This routine can be called from a FC LLD scsi_eh callback. It
  * blocks the scsi_eh thread until the fc_rport leaves the
- * FC_PORTSTATE_BLOCKED. This is necessary to avoid the scsi_eh
- * failing recovery actions for blocked rports which would lead to
- * offlined SCSI devices.
+ * FC_PORTSTATE_BLOCKED, or the fast_io_fail_tmo fires. This is
+ * necessary to avoid the scsi_eh failing recovery actions for blocked
+ * rports which would lead to offlined SCSI devices.
+ *
+ * Returns: 0 if the fc_rport left the state FC_PORTSTATE_BLOCKED.
+ *	    FAST_IO_FAIL if the fast_io_fail_tmo fired, this should be
+ *	    passed back to scsi_eh.
  */
-void fc_block_scsi_eh(struct scsi_cmnd *cmnd)
+int fc_block_scsi_eh(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	unsigned long flags;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	while (rport->port_state == FC_PORTSTATE_BLOCKED) {
+	while (rport->port_state == FC_PORTSTATE_BLOCKED &&
+	       !(rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	if (rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT)
+		return FAST_IO_FAIL;
+
+	return 0;
 }
 EXPORT_SYMBOL(fc_block_scsi_eh);
 
@@ -3353,18 +3454,6 @@ fc_vport_terminate(struct fc_vport *vport)
 	struct device *dev = &vport->dev;
 	unsigned long flags;
 	int stat;
-
-	spin_lock_irqsave(shost->host_lock, flags);
-	if (vport->flags & FC_VPORT_CREATING) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return -EBUSY;
-	}
-	if (vport->flags & (FC_VPORT_DEL)) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return -EALREADY;
-	}
-	vport->flags |= FC_VPORT_DELETING;
-	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (i->f->vport_delete)
 		stat = i->f->vport_delete(vport);
@@ -3836,7 +3925,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 		if (rport && (rport->port_state != FC_PORTSTATE_ONLINE)) {
 			req->errors = -ENXIO;
 			spin_unlock_irq(q->queue_lock);
-			blk_end_request(req, -ENXIO, blk_rq_bytes(req));
+			blk_end_request_all(req, -ENXIO);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}
@@ -3846,7 +3935,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 		ret = fc_req_to_bsgjob(shost, rport, req);
 		if (ret) {
 			req->errors = ret;
-			blk_end_request(req, ret, blk_rq_bytes(req));
+			blk_end_request_all(req, ret);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}
@@ -4011,11 +4100,54 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 /**
  * fc_bsg_remove - Deletes the bsg hooks on fchosts/rports
  * @q:	the request_queue that is to be torn down.
+ *
+ * Notes:
+ *   Before unregistering the queue empty any requests that are blocked
+ *
+ *
  */
 static void
 fc_bsg_remove(struct request_queue *q)
 {
+	struct request *req; /* block request */
+	int counts; /* totals for request_list count and starved */
+
 	if (q) {
+		/* Stop taking in new requests */
+		spin_lock_irq(q->queue_lock);
+		blk_stop_queue(q);
+
+		/* drain all requests in the queue */
+		while (1) {
+			/* need the lock to fetch a request
+			 * this may fetch the same reqeust as the previous pass
+			 */
+			req = blk_fetch_request(q);
+			/* save requests in use and starved */
+			counts = q->rq.count[0] + q->rq.count[1] +
+				q->rq.starved[0] + q->rq.starved[1];
+			spin_unlock_irq(q->queue_lock);
+			/* any requests still outstanding? */
+			if (counts == 0)
+				break;
+
+			/* This may be the same req as the previous iteration,
+			 * always send the blk_end_request_all after a prefetch.
+			 * It is not okay to not end the request because the
+			 * prefetch started the request.
+			 */
+			if (req) {
+				/* return -ENXIO to indicate that this queue is
+				 * going away
+				 */
+				req->errors = -ENXIO;
+				blk_end_request_all(req, -ENXIO);
+			}
+
+			msleep(200); /* allow bsg to possibly finish */
+			spin_lock_irq(q->queue_lock);
+		}
+
 		bsg_unregister_queue(q);
 		blk_cleanup_queue(q);
 	}

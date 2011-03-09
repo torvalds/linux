@@ -25,7 +25,7 @@
 #include "via_drm.h"
 #include "via_drv.h"
 
-static int via_do_init_map(struct drm_device * dev, drm_via_init_t * init)
+static int via_do_init_map(struct drm_device *dev, drm_via_init_t *init)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 
@@ -68,7 +68,7 @@ static int via_do_init_map(struct drm_device * dev, drm_via_init_t * init)
 	return 0;
 }
 
-int via_do_cleanup_map(struct drm_device * dev)
+int via_do_cleanup_map(struct drm_device *dev)
 {
 	via_dma_cleanup(dev);
 

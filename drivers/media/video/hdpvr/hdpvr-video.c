@@ -26,7 +26,7 @@
 #include <media/v4l2-ioctl.h>
 #include "hdpvr.h"
 
-#define BULK_URB_TIMEOUT 1250 /* 1.25 seconds */
+#define BULK_URB_TIMEOUT   90 /* 0.09 seconds */
 
 #define print_buffer_status() { \
 		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,	\
@@ -92,8 +92,8 @@ static int hdpvr_free_queue(struct list_head *q)
 		buf = list_entry(p, struct hdpvr_buffer, buff_list);
 
 		urb = buf->urb;
-		usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-				urb->transfer_buffer, urb->transfer_dma);
+		usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
 		tmp = p->next;
 		list_del(p);
@@ -143,8 +143,8 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		}
 		buf->urb = urb;
 
-		mem = usb_buffer_alloc(dev->udev, dev->bulk_in_size, GFP_KERNEL,
-				       &urb->transfer_dma);
+		mem = usb_alloc_coherent(dev->udev, dev->bulk_in_size, GFP_KERNEL,
+					 &urb->transfer_dma);
 		if (!mem) {
 			v4l2_err(&dev->v4l2_dev,
 				 "cannot allocate usb transfer buffer\n");
@@ -157,6 +157,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 				  mem, dev->bulk_in_size,
 				  hdpvr_read_bulk_callback, buf);
 
+		buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		buf->status = BUFSTAT_AVAILABLE;
 		list_add_tail(&buf->buff_list, &dev->free_buff_list);
 	}
@@ -302,7 +303,8 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 /* function expects dev->io_mutex to be hold by caller */
 static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 {
-	uint actual_length, c = 0;
+	int actual_length;
+	uint c = 0;
 	u8 *buf;
 
 	if (dev->status == STATUS_IDLE)
@@ -336,8 +338,6 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 					     dev->bulk_in_endpointAddr),
 			     buf, dev->bulk_in_size, &actual_length,
 			     BULK_URB_TIMEOUT)) {
-		/* wait */
-		msleep(5);
 		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			 "%2d: got %d bytes\n", c, actual_length);
 	}
@@ -365,7 +365,7 @@ static int hdpvr_open(struct file *file)
 
 	dev = (struct hdpvr_device *)video_get_drvdata(video_devdata(file));
 	if (!dev) {
-		v4l2_err(&dev->v4l2_dev, "open failing with with ENODEV\n");
+		pr_err("open failing with with ENODEV\n");
 		retval = -ENODEV;
 		goto err;
 	}
@@ -393,7 +393,7 @@ err:
 
 static int hdpvr_release(struct file *file)
 {
-	struct hdpvr_fh		*fh  = (struct hdpvr_fh *)file->private_data;
+	struct hdpvr_fh		*fh  = file->private_data;
 	struct hdpvr_device	*dev = fh->dev;
 
 	if (!dev)
@@ -517,7 +517,7 @@ err:
 static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 {
 	struct hdpvr_buffer *buf = NULL;
-	struct hdpvr_fh *fh = (struct hdpvr_fh *)filp->private_data;
+	struct hdpvr_fh *fh = filp->private_data;
 	struct hdpvr_device *dev = fh->dev;
 	unsigned int mask = 0;
 
@@ -572,7 +572,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct hdpvr_device *dev = video_drvdata(file);
 
 	strcpy(cap->driver, "hdpvr");
-	strcpy(cap->card, "Haupauge HD PVR");
+	strcpy(cap->card, "Hauppauge HD PVR");
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->version = HDPVR_VERSION;
 	cap->capabilities =     V4L2_CAP_VIDEO_CAPTURE |
@@ -1213,6 +1213,24 @@ static void hdpvr_device_release(struct video_device *vdev)
 	struct hdpvr_device *dev = video_get_drvdata(vdev);
 
 	hdpvr_delete(dev);
+	mutex_lock(&dev->io_mutex);
+	destroy_workqueue(dev->workqueue);
+	mutex_unlock(&dev->io_mutex);
+
+	v4l2_device_unregister(&dev->v4l2_dev);
+
+	/* deregister I2C adapter */
+#ifdef CONFIG_I2C
+	mutex_lock(&dev->i2c_mutex);
+	if (dev->i2c_adapter)
+		i2c_del_adapter(dev->i2c_adapter);
+	kfree(dev->i2c_adapter);
+	dev->i2c_adapter = NULL;
+	mutex_unlock(&dev->i2c_mutex);
+#endif /* CONFIG_I2C */
+
+	kfree(dev->usbc_buf);
+	kfree(dev);
 }
 
 static const struct video_device hdpvr_video_template = {

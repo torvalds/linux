@@ -15,6 +15,9 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/cpu-regs.h>
+#ifdef CONFIG_SMP
+#include <proc/smp-regs.h>
+#endif /* CONFIG_SMP */
 
 	.text
 
@@ -35,8 +38,6 @@ ENTRY(__switch_to)
 	mov	d1,a1
 
 	# save prev context
-	mov	(__frame),d0
-	mov	d0,(THREAD_FRAME,a0)
 	mov	__switch_back,d0
 	mov	d0,(THREAD_PC,a0)
 	mov	sp,a2
@@ -58,8 +59,6 @@ ENTRY(__switch_to)
 	mov	a2,e2
 #endif
 
-	mov	(THREAD_FRAME,a1),a2
-	mov	a2,(__frame)
 	mov	(THREAD_PC,a1),a2
 	mov	d2,d0			# for ret_from_fork
 	mov	d0,a0			# for __switch_to

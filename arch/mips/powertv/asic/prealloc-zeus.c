@@ -22,7 +22,9 @@
  */
 
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <asm/mach-powertv/asic.h>
+#include "prealloc.h"
 
 /*
  * DVR_CAPABLE RESOURCES
@@ -30,280 +32,151 @@
 struct resource dvr_zeus_resources[] __initdata =
 {
 	/*
-	 *
 	 * VIDEO1 / LX1
-	 *
 	 */
-	{
-		.name   = "ST231aImage",	/* Delta-Mu 1 image and ram */
-		.start  = 0x20000000,
-		.end    = 0x201FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "ST231aMonitor",	/* 8KiB block ST231a monitor */
-		.start  = 0x20200000,
-		.end    = 0x20201FFF,
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "MediaMemory1",
-		.start  = 0x20202000,
-		.end    = 0x21FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_IO,
-	},
+	/* Delta-Mu 1 image (2MiB) */
+	PREALLOC_NORMAL("ST231aImage", 0x20000000, 0x20200000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 monitor (8KiB) */
+	PREALLOC_NORMAL("ST231aMonitor", 0x20200000, 0x20202000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 RAM (~29.9MiB (32MiB - (2MiB + 8KiB))) */
+	PREALLOC_NORMAL("MediaMemory1", 0x20202000, 0x22000000-1,
+		IORESOURCE_MEM)
+
 	/*
-	 *
 	 * VIDEO2 / LX2
-	 *
 	 */
-	{
-		.name   = "ST231bImage",	/* Delta-Mu 2 image and ram */
-		.start  = 0x30000000,
-		.end    = 0x301FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "ST231bMonitor",	/* 8KiB block ST231b monitor */
-		.start  = 0x30200000,
-		.end    = 0x30201FFF,
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "MediaMemory2",
-		.start  = 0x30202000,
-		.end    = 0x31FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_IO,
-	},
+	/* Delta-Mu 2 image (2MiB) */
+	PREALLOC_NORMAL("ST231bImage", 0x30000000, 0x30200000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 2 monitor (8KiB) */
+	PREALLOC_NORMAL("ST231bMonitor", 0x30200000, 0x30202000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 2 RAM (~29.9MiB (32MiB - (2MiB + 8KiB))) */
+	PREALLOC_NORMAL("MediaMemory2", 0x30202000, 0x32000000-1,
+		IORESOURCE_MEM)
+
 	/*
-	 *
 	 * Sysaudio Driver
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  DSP_Image_Buff - DSP code and data images (1MB)
-	 *  ADSC_CPU_PCM_Buff - ADSC CPU PCM buffer (40KB)
-	 *  ADSC_AUX_Buff - ADSC AUX buffer (16KB)
-	 *  ADSC_Main_Buff - ADSC Main buffer (16KB)
-	 *
 	 */
-	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* DSP code and data images (1MiB) */
+	PREALLOC_NORMAL("DSP_Image_Buff", 0x00000000, 0x00100000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC CPU PCM buffer (40KiB) */
+	PREALLOC_NORMAL("ADSC_CPU_PCM_Buff", 0x00000000, 0x0000A000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC AUX buffer (16KiB) */
+	PREALLOC_NORMAL("ADSC_AUX_Buff", 0x00000000, 0x00004000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC Main buffer (16KiB) */
+	PREALLOC_NORMAL("ADSC_Main_Buff", 0x00000000, 0x00004000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * STAVEM driver/STAPI
 	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
 	 *  This memory area is used for allocating buffers for Video decoding
 	 *  purposes.  Allocation/De-allocation within this buffer is managed
 	 *  by the STAVMEM driver of the STAPI.  They could be Decimated
 	 *  Picture Buffers, Intermediate Buffers, as deemed necessary for
 	 *  video decoding purposes, for any video decoders on Zeus.
-	 *
 	 */
-	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x00000000,
-		.end    = 0x00c00000 - 1,	/* 12 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 12MiB */
+	PREALLOC_NORMAL("AVMEMPartition0", 0x00000000, 0x00c00000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * DOCSIS Subsystem
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Docsis -
-	 *
 	 */
-	{
-		.name   = "Docsis",
-		.start  = 0x40100000,
-		.end    = 0x407fffff,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 7MiB */
+	PREALLOC_DOCSIS("Docsis", 0x40100000, 0x40800000-1, IORESOURCE_MEM)
+
 	/*
-	 *
 	 * GHW HAL Driver
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  GraphicsHeap - PowerTV Graphics Heap
-	 *
 	 */
-	{
-		.name   = "GraphicsHeap",
-		.start  = 0x46900000,
-		.end    = 0x47700000 - 1,	/* 14 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* PowerTV Graphics Heap (14MiB) */
+	PREALLOC_NORMAL("GraphicsHeap", 0x46900000, 0x47700000-1,
+		IORESOURCE_MEM)
+
 	/*
-	 *
 	 * multi com buffer area
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Docsis -
-	 *
 	 */
-	{
-		.name   = "MulticomSHM",
-		.start  = 0x47900000,
-		.end    = 0x47920000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 128KiB */
+	PREALLOC_NORMAL("MulticomSHM", 0x47900000, 0x47920000-1,
+		IORESOURCE_MEM)
+
 	/*
-	 *
 	 * DMA Ring buffer
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Docsis -
-	 *
 	 */
-	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x00280000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 2.5MiB */
+	PREALLOC_NORMAL("BMM_Buffer", 0x00000000, 0x00280000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * Display bins buffer for unit0
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Display Bins for unit0
-	 *
 	 */
-	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,	/* 4 KB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins0", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
-	 * Display bins buffer
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Display Bins for unit1
-	 *
+	 * Display bins buffer for unit1
 	 */
-	{
-		.name   = "DisplayBins1",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,	/* 4 KB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins1", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * ITFS
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Docsis -
-	 *
 	 */
-	{
-		.name   = "ITFS",
-		.start  = 0x00000000,
-		/* 815,104 bytes each for 2 ITFS partitions. */
-		.end    = 0x0018DFFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 815,104 bytes each for 2 ITFS partitions. */
+	PREALLOC_NORMAL("ITFS", 0x00000000, 0x0018E000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * AVFS
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Docsis -
-	 *
 	 */
-	{
-		.name   = "AvfsDmaMem",
-		.start  = 0x00000000,
-		/* (945K * 8) = (128K * 3) 5 playbacks / 3 server */
-		.end    = 0x007c2000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "AvfsFileSys",
-		.start  = 0x00000000,
-		.end    = 0x00001000 - 1,  /* 4K */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* (945K * 8) = (128K * 3) 5 playbacks / 3 server */
+	PREALLOC_NORMAL("AvfsDmaMem", 0x00000000, 0x007c2000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* 4KiB */
+	PREALLOC_NORMAL("AvfsFileSys", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * PMEM
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Persistent memory for diagnostics.
-	 *
 	 */
-	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Persistent memory for diagnostics (64KiB) */
+	PREALLOC_PMEM("DiagPersistentMemory", 0x00000000, 0x10000-1,
+	     (IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * Smartcard
-	 *
-	 * This driver requires:
-	 *
-	 * Arbitrary Based Buffers:
-	 *  Read and write buffers for Internal/External cards
-	 *
 	 */
-	{
-		.name   = "SmartCardInfo",
-		.start  = 0x00000000,
-		.end    = 0x2800 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Read and write buffers for Internal/External cards (10KiB) */
+	PREALLOC_NORMAL("SmartCardInfo", 0x00000000, 0x2800-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
+	/*
+	 * TFTPBuffer
+	 *
+	 *  This buffer is used in some minimal configurations (e.g. two-way
+	 *  loader) for storing software images
+	 */
+	PREALLOC_TFTP("TFTPBuffer", 0x00000000, MEBIBYTE(80)-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Add other resources here
 	 */
-	{ },
+
+	/*
+	 * End of Resource marker
+	 */
+	{
+		.flags  = 0,
+	},
 };
 
 /*
@@ -314,146 +187,118 @@ struct resource non_dvr_zeus_resources[] __initdata =
 	/*
 	 * VIDEO1 / LX1
 	 */
-	{
-		.name   = "ST231aImage",	/* Delta-Mu 1 image and ram */
-		.start  = 0x20000000,
-		.end    = 0x201FFFFF,		/* 2MiB */
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "ST231aMonitor",	/* 8KiB block ST231a monitor */
-		.start  = 0x20200000,
-		.end    = 0x20201FFF,
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "MediaMemory1",
-		.start  = 0x20202000,
-		.end    = 0x21FFFFFF, /*~29.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_IO,
-	},
+	/* Delta-Mu 1 image (2MiB) */
+	PREALLOC_NORMAL("ST231aImage", 0x20000000, 0x20200000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 monitor (8KiB) */
+	PREALLOC_NORMAL("ST231aMonitor", 0x20200000, 0x20202000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 RAM (~29.9MiB (32MiB - (2MiB + 8KiB))) */
+	PREALLOC_NORMAL("MediaMemory1", 0x20202000, 0x22000000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Sysaudio Driver
 	 */
-	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* DSP code and data images (1MiB) */
+	PREALLOC_NORMAL("DSP_Image_Buff", 0x00000000, 0x00100000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC CPU PCM buffer (40KiB) */
+	PREALLOC_NORMAL("ADSC_CPU_PCM_Buff", 0x00000000, 0x0000A000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC AUX buffer (16KiB) */
+	PREALLOC_NORMAL("ADSC_AUX_Buff", 0x00000000, 0x00004000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC Main buffer (16KiB) */
+	PREALLOC_NORMAL("ADSC_Main_Buff", 0x00000000, 0x00004000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * STAVEM driver/STAPI
 	 */
-	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x00000000,
-		.end    = 0x00600000 - 1,	/* 6 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 6MiB */
+	PREALLOC_NORMAL("AVMEMPartition0", 0x00000000, 0x00600000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * DOCSIS Subsystem
 	 */
-	{
-		.name   = "Docsis",
-		.start  = 0x40100000,
-		.end    = 0x407fffff,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 7MiB */
+	PREALLOC_DOCSIS("Docsis", 0x40100000, 0x40800000-1, IORESOURCE_MEM)
+
 	/*
 	 * GHW HAL Driver
 	 */
-	{
-		.name   = "GraphicsHeap",
-		.start  = 0x46900000,
-		.end    = 0x47700000 - 1,	/* 14 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* PowerTV Graphics Heap (14MiB) */
+	PREALLOC_NORMAL("GraphicsHeap", 0x46900000, 0x47700000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * multi com buffer area
 	 */
-	{
-		.name   = "MulticomSHM",
-		.start  = 0x47900000,
-		.end    = 0x47920000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 128KiB */
+	PREALLOC_NORMAL("MulticomSHM", 0x47900000, 0x47920000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * DMA Ring buffer
 	 */
-	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x00280000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 2.5MiB */
+	PREALLOC_NORMAL("BMM_Buffer", 0x00000000, 0x00280000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Display bins buffer for unit0
 	 */
-	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,		/* 4 KB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins0", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * AVFS: player HAL memory
-	 *
-	 *
 	 */
-	{
-		.name   = "AvfsDmaMem",
-		.start  = 0x00000000,
-		.end    = 0x002c4c00 - 1,	/* 945K * 3 for playback */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 945K * 3 for playback */
+	PREALLOC_NORMAL("AvfsDmaMem", 0x00000000, 0x002c4c00-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * PMEM
 	 */
-	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Persistent memory for diagnostics (64KiB) */
+	PREALLOC_PMEM("DiagPersistentMemory", 0x00000000, 0x10000-1,
+	     (IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Smartcard
 	 */
-	{
-		.name   = "SmartCardInfo",
-		.start  = 0x00000000,
-		.end    = 0x2800 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Read and write buffers for Internal/External cards (10KiB) */
+	PREALLOC_NORMAL("SmartCardInfo", 0x00000000, 0x2800-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * NAND Flash
 	 */
-	{
-		.name   = "NandFlash",
-		.start  = NAND_FLASH_BASE,
-		.end    = NAND_FLASH_BASE + 0x400 - 1,
-		.flags  = IORESOURCE_IO,
-	},
+	/* 10KiB */
+	PREALLOC_NORMAL("NandFlash", NAND_FLASH_BASE, NAND_FLASH_BASE+0x400-1,
+		IORESOURCE_MEM)
+
+	/*
+	 * TFTPBuffer
+	 *
+	 *  This buffer is used in some minimal configurations (e.g. two-way
+	 *  loader) for storing software images
+	 */
+	PREALLOC_TFTP("TFTPBuffer", 0x00000000, MEBIBYTE(80)-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Add other resources here
 	 */
-	{ },
+
+	/*
+	 * End of Resource marker
+	 */
+	{
+		.flags  = 0,
+	},
 };

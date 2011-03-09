@@ -28,7 +28,7 @@ Supported peripherals:
 - serial ports (ttyS[0-2])
   - ttyS0 is default for serial console
 - Smart I/O (ADC, keypad, digital inputs, etc)
-  See http://www.applieddata.com/developers/linux for IOCTL documentation
+  See http://www.eurotech-inc.com/linux-sbc.asp for IOCTL documentation
   and example user space code. ps/2 keybd is multiplexed through this driver
 
 To do:

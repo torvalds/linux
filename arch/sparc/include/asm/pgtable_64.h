@@ -652,9 +652,7 @@ static inline int pte_special(pte_t pte)
 	 ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 #define pte_offset_kernel		pte_index
 #define pte_offset_map			pte_index
-#define pte_offset_map_nested		pte_index
 #define pte_unmap(pte)			do { } while (0)
-#define pte_unmap_nested(pte)		do { } while (0)
 
 /* Actual page table PTE updates.  */
 extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig);
@@ -706,7 +704,7 @@ extern unsigned long find_ecache_flush_span(unsigned long size);
 #define mmu_unlockarea(vaddr, len)		do { } while(0)
 
 struct vm_area_struct;
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
+extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> PAGE_SHIFT) & 0xffUL)

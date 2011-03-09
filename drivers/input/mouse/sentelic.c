@@ -26,6 +26,7 @@
 #include <linux/libps2.h>
 #include <linux/serio.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 
 #include "psmouse.h"
 #include "sentelic.h"

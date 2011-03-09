@@ -25,8 +25,6 @@
 #include <linux/gpio.h>
 #include <linux/i2c/twl.h>
 
-#include <plat/mux.h>
-#include <plat/mux.h>
 #include <asm/mach-types.h>
 
 #include "omapfb.h"

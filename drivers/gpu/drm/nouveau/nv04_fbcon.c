@@ -25,54 +25,42 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 #include "nouveau_fbcon.h"
 
-static void
+int
 nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
+	int ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return;
-
-	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 4)) {
-		nouveau_fbcon_gpu_lockup(info);
-	}
-
-	if (info->flags & FBINFO_HWACCEL_DISABLED) {
-		cfb_copyarea(info, region);
-		return;
-	}
+	ret = RING_SPACE(chan, 4);
+	if (ret)
+		return ret;
 
 	BEGIN_RING(chan, NvSubImageBlit, 0x0300, 3);
 	OUT_RING(chan, (region->sy << 16) | region->sx);
 	OUT_RING(chan, (region->dy << 16) | region->dx);
 	OUT_RING(chan, (region->height << 16) | region->width);
 	FIRE_RING(chan);
+	return 0;
 }
 
-static void
+int
 nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
+	int ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return;
-
-	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 7)) {
-		nouveau_fbcon_gpu_lockup(info);
-	}
-
-	if (info->flags & FBINFO_HWACCEL_DISABLED) {
-		cfb_fillrect(info, rect);
-		return;
-	}
+	ret = RING_SPACE(chan, 7);
+	if (ret)
+		return ret;
 
 	BEGIN_RING(chan, NvSubGdiRect, 0x02fc, 1);
 	OUT_RING(chan, (rect->rop != ROP_COPY) ? 1 : 3);
@@ -86,13 +74,14 @@ nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	OUT_RING(chan, (rect->dx << 16) | rect->dy);
 	OUT_RING(chan, (rect->width << 16) | rect->height);
 	FIRE_RING(chan);
+	return 0;
 }
 
-static void
+int
 nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	uint32_t fg;
@@ -100,26 +89,17 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	uint32_t dsize;
 	uint32_t width;
 	uint32_t *data = (uint32_t *)image->data;
+	int ret;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return;
+	if (image->depth != 1)
+		return -ENODEV;
 
-	if (image->depth != 1) {
-		cfb_imageblit(info, image);
-		return;
-	}
+	ret = RING_SPACE(chan, 8);
+	if (ret)
+		return ret;
 
-	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 8)) {
-		nouveau_fbcon_gpu_lockup(info);
-	}
-
-	if (info->flags & FBINFO_HWACCEL_DISABLED) {
-		cfb_imageblit(info, image);
-		return;
-	}
-
-	width = (image->width + 31) & ~31;
-	dsize = (width * image->height) >> 5;
+	width = ALIGN(image->width, 8);
+	dsize = ALIGN(width * image->height, 32) >> 5;
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -136,18 +116,16 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 			 ((image->dx + image->width) & 0xffff));
 	OUT_RING(chan, bg);
 	OUT_RING(chan, fg);
-	OUT_RING(chan, (image->height << 16) | image->width);
 	OUT_RING(chan, (image->height << 16) | width);
+	OUT_RING(chan, (image->height << 16) | image->width);
 	OUT_RING(chan, (image->dy << 16) | (image->dx & 0xffff));
 
 	while (dsize) {
 		int iter_len = dsize > 128 ? 128 : dsize;
 
-		if (RING_SPACE(chan, iter_len + 1)) {
-			nouveau_fbcon_gpu_lockup(info);
-			cfb_imageblit(info, image);
-			return;
-		}
+		ret = RING_SPACE(chan, iter_len + 1);
+		if (ret)
+			return ret;
 
 		BEGIN_RING(chan, NvSubGdiRect, 0x0c00, iter_len);
 		OUT_RINGp(chan, data, iter_len);
@@ -156,31 +134,14 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 
 	FIRE_RING(chan);
-}
-
-static int
-nv04_fbcon_grobj_new(struct drm_device *dev, int class, uint32_t handle)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *obj = NULL;
-	int ret;
-
-	ret = nouveau_gpuobj_gr_new(dev_priv->channel, class, &obj);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, handle, obj, NULL);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
 int
 nv04_fbcon_accel_init(struct fb_info *info)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	const int sub = NvSubCtxSurf2D;
@@ -215,29 +176,31 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nv04_fbcon_grobj_new(dev, dev_priv->card_type >= NV_10 ?
-				   0x0062 : 0x0042, NvCtxSurf2D);
+	ret = nouveau_gpuobj_gr_new(chan, NvCtxSurf2D,
+				    dev_priv->card_type >= NV_10 ?
+				    0x0062 : 0x0042);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x0019, NvClipRect);
+	ret = nouveau_gpuobj_gr_new(chan, NvClipRect, 0x0019);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x0043, NvRop);
+	ret = nouveau_gpuobj_gr_new(chan, NvRop, 0x0043);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x0044, NvImagePatt);
+	ret = nouveau_gpuobj_gr_new(chan, NvImagePatt, 0x0044);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x004a, NvGdiRect);
+	ret = nouveau_gpuobj_gr_new(chan, NvGdiRect, 0x004a);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, dev_priv->card_type >= NV_10 ?
-				   0x009f : 0x005f, NvImageBlit);
+	ret = nouveau_gpuobj_gr_new(chan, NvImageBlit,
+				    dev_priv->chipset >= 0x11 ?
+				    0x009f : 0x005f);
 	if (ret)
 		return ret;
 
@@ -307,9 +270,6 @@ nv04_fbcon_accel_init(struct fb_info *info)
 
 	FIRE_RING(chan);
 
-	info->fbops->fb_fillrect = nv04_fbcon_fillrect;
-	info->fbops->fb_copyarea = nv04_fbcon_copyarea;
-	info->fbops->fb_imageblit = nv04_fbcon_imageblit;
 	return 0;
 }
 

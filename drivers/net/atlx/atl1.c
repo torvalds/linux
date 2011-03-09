@@ -84,12 +84,14 @@
 
 #define ATLX_DRIVER_VERSION "2.1.3"
 MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, \
-	Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
+Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATLX_DRIVER_VERSION);
 
 /* Temporary hack for merging atl1 and atl2 */
 #include "atlx.c"
+
+static const struct ethtool_ops atl1_ethtool_ops;
 
 /*
  * This is the only thing that needs to be changed to adjust the
@@ -232,7 +234,7 @@ static void __devinit atl1_check_options(struct atl1_adapter *adapter)
 /*
  * atl1_pci_tbl - PCI Device ID Table
  */
-static const struct pci_device_id atl1_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl1_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1)},
 	/* required last entry */
 	{0,}
@@ -353,7 +355,7 @@ static bool atl1_read_eeprom(struct atl1_hw *hw, u32 offset, u32 *p_value)
  * hw - Struct containing variables accessed by shared code
  * reg_addr - address of the PHY register to read
  */
-s32 atl1_read_phy_reg(struct atl1_hw *hw, u16 reg_addr, u16 *phy_data)
+static s32 atl1_read_phy_reg(struct atl1_hw *hw, u16 reg_addr, u16 *phy_data)
 {
 	u32 val;
 	int i;
@@ -553,7 +555,7 @@ static s32 atl1_read_mac_addr(struct atl1_hw *hw)
  *          1. calcu 32bit CRC for multicast address
  *          2. reverse crc with MSB to LSB
  */
-u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr)
+static u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr)
 {
 	u32 crc32, value = 0;
 	int i;
@@ -570,7 +572,7 @@ u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr)
  * hw - Struct containing variables accessed by shared code
  * hash_value - Multicast address hash value
  */
-void atl1_hash_set(struct atl1_hw *hw, u32 hash_value)
+static void atl1_hash_set(struct atl1_hw *hw, u32 hash_value)
 {
 	u32 hash_bit, hash_reg;
 	u32 mta;
@@ -914,7 +916,7 @@ static s32 atl1_get_speed_and_duplex(struct atl1_hw *hw, u16 *speed, u16 *duplex
 	return 0;
 }
 
-void atl1_set_mac_addr(struct atl1_hw *hw)
+static void atl1_set_mac_addr(struct atl1_hw *hw)
 {
 	u32 value;
 	/*
@@ -1251,6 +1253,12 @@ static void atl1_free_ring_resources(struct atl1_adapter *adapter)
 
 	rrd_ring->desc = NULL;
 	rrd_ring->dma = 0;
+
+	adapter->cmb.dma = 0;
+	adapter->cmb.cmb = NULL;
+
+	adapter->smb.dma = 0;
+	adapter->smb.smb = NULL;
 }
 
 static void atl1_setup_mac_ctrl(struct atl1_adapter *adapter)
@@ -1805,7 +1813,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	 * the higher layers and let it be sorted out there.
 	 */
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	if (unlikely(rrd->pkt_flg & PACKET_FLAG_ERR)) {
 		if (rrd->err_flg & (ERR_FLAG_CRC | ERR_FLAG_TRUNC |
@@ -1830,8 +1838,6 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		adapter->hw_csum_good++;
 		return;
 	}
-
-	return;
 }
 
 /*
@@ -2096,9 +2102,9 @@ static u16 atl1_tpd_avail(struct atl1_tpd_ring *tpd_ring)
 {
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 next_to_use = atomic_read(&tpd_ring->next_to_use);
-	return ((next_to_clean > next_to_use) ?
+	return (next_to_clean > next_to_use) ?
 		next_to_clean - next_to_use - 1 :
-		tpd_ring->count + next_to_clean - next_to_use - 1);
+		tpd_ring->count + next_to_clean - next_to_use - 1;
 }
 
 static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
@@ -2168,7 +2174,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 	u8 css, cso;
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		css = (u8) (skb->csum_start - skb_headroom(skb));
+		css = skb_checksum_start_offset(skb);
 		cso = css + (u8) skb->csum_offset;
 		if (unlikely(css & 0x1)) {
 			/* L1 hardware requires an even number here */
@@ -2347,7 +2353,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
-	int len = skb->len;
+	int len;
 	int tso;
 	int count = 1;
 	int ret_val;
@@ -2359,7 +2365,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	unsigned int f;
 	unsigned int proto_hdr_len;
 
-	len -= skb->data_len;
+	len = skb_headlen(skb);
 
 	if (unlikely(skb->len <= 0)) {
 		dev_kfree_skb_any(skb);
@@ -2404,7 +2410,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 		(u16) atomic_read(&tpd_ring->next_to_use));
 	memset(ptpd, 0, sizeof(struct tx_packet_desc));
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		vlan_tag = vlan_tx_tag_get(skb);
 		vlan_tag = (vlan_tag << 4) | (vlan_tag >> 13) |
 			((vlan_tag >> 9) & 0x8);
@@ -2849,10 +2855,11 @@ static int atl1_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
 	atl1_reset_hw(&adapter->hw);
-	adapter->cmb.cmb->int_stats = 0;
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		adapter->cmb.cmb->int_stats = 0;
 		atl1_up(adapter);
+	}
 	netif_device_attach(netdev);
 
 	return 0;
@@ -3036,9 +3043,8 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	atl1_pcie_patch(adapter);
 	/* assume we have no link for now */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
-	setup_timer(&adapter->phy_config_timer, &atl1_phy_config,
+	setup_timer(&adapter->phy_config_timer, atl1_phy_config,
 		    (unsigned long)adapter);
 	adapter->phy_timer_pending = false;
 
@@ -3390,7 +3396,6 @@ static void atl1_get_wol(struct net_device *netdev,
 	wol->wolopts = 0;
 	if (adapter->wol & ATLX_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-	return;
 }
 
 static int atl1_set_wol(struct net_device *netdev,
@@ -3499,6 +3504,8 @@ static int atl1_set_ringparam(struct net_device *netdev,
 	struct atl1_rfd_ring rfd_old, rfd_new;
 	struct atl1_rrd_ring rrd_old, rrd_new;
 	struct atl1_ring_header rhdr_old, rhdr_new;
+	struct atl1_smb smb;
+	struct atl1_cmb cmb;
 	int err;
 
 	tpd_old = adapter->tpd_ring;
@@ -3539,11 +3546,19 @@ static int atl1_set_ringparam(struct net_device *netdev,
 		adapter->rrd_ring = rrd_old;
 		adapter->tpd_ring = tpd_old;
 		adapter->ring_header = rhdr_old;
+		/*
+		 * Save SMB and CMB, since atl1_free_ring_resources
+		 * will clear them.
+		 */
+		smb = adapter->smb;
+		cmb = adapter->cmb;
 		atl1_free_ring_resources(adapter);
 		adapter->rfd_ring = rfd_new;
 		adapter->rrd_ring = rrd_new;
 		adapter->tpd_ring = tpd_new;
 		adapter->ring_header = rhdr_new;
+		adapter->smb = smb;
+		adapter->cmb = cmb;
 
 		err = atl1_up(adapter);
 		if (err)
@@ -3654,7 +3669,7 @@ static int atl1_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-const struct ethtool_ops atl1_ethtool_ops = {
+static const struct ethtool_ops atl1_ethtool_ops = {
 	.get_settings		= atl1_get_settings,
 	.set_settings		= atl1_set_settings,
 	.get_drvinfo		= atl1_get_drvinfo,

@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <linux/slab.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_addr.h>
@@ -505,6 +506,8 @@ int iw_cm_accept(struct iw_cm_id *cm_id,
 	qp = cm_id->device->iwcm->get_qp(cm_id->device, iw_param->qpn);
 	if (!qp) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
+		wake_up_all(&cm_id_priv->connect_wait);
 		return -EINVAL;
 	}
 	cm_id->device->iwcm->add_ref(qp);
@@ -564,6 +567,8 @@ int iw_cm_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param)
 	qp = cm_id->device->iwcm->get_qp(cm_id->device, iw_param->qpn);
 	if (!qp) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
+		wake_up_all(&cm_id_priv->connect_wait);
 		return -EINVAL;
 	}
 	cm_id->device->iwcm->add_ref(qp);

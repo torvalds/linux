@@ -9,19 +9,19 @@ field##_show (struct device *dev, struct device_attribute *attr,	\
               char *buf)						\
 {									\
 	struct macio_dev *mdev = to_macio_device (dev);			\
-	return sprintf (buf, format_string, mdev->ofdev.node->field);	\
+	return sprintf (buf, format_string, mdev->ofdev.dev.of_node->field); \
 }
 
 static ssize_t
 compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct of_device *of;
+	struct platform_device *of;
 	const char *compat;
 	int cplen;
 	int length = 0;
 
 	of = &to_macio_device (dev)->ofdev;
-	compat = of_get_property(of->node, "compatible", &cplen);
+	compat = of_get_property(of->dev.of_node, "compatible", &cplen);
 	if (!compat) {
 		*buf = '\0';
 		return 0;
@@ -41,10 +41,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	struct of_device *ofdev = to_of_device(dev);
-	int len;
-
-	len = of_device_get_modalias(ofdev, buf, PAGE_SIZE - 2);
+	int len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
 
 	buf[len] = '\n';
 	buf[len+1] = 0;
@@ -55,10 +52,10 @@ static ssize_t modalias_show (struct device *dev, struct device_attribute *attr,
 static ssize_t devspec_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 
-	ofdev = to_of_device(dev);
-	return sprintf(buf, "%s\n", ofdev->node->full_name);
+	ofdev = to_platform_device(dev);
+	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
 }
 
 macio_config_of_attr (name, "%s\n");

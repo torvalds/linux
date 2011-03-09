@@ -369,10 +369,19 @@ int ivtv_vapi(struct ivtv *itv, int cmd, int args, ...)
 }
 
 /* This one is for stuff that can't sleep.. irq handlers, etc.. */
-void ivtv_api_get_data(struct ivtv_mailbox_data *mbdata, int mb, u32 data[])
+void ivtv_api_get_data(struct ivtv_mailbox_data *mbdata, int mb,
+		       int argc, u32 data[])
+{
+	volatile u32 __iomem *p = mbdata->mbox[mb].data;
+	int i;
+	for (i = 0; i < argc; i++, p++)
+		data[i] = readl(p);
+}
+
+/* Wipe api cache */
+void ivtv_mailbox_cache_invalidate(struct ivtv *itv)
 {
 	int i;
-
-	for (i = 0; i < CX2341X_MBOX_MAX_DATA; i++)
-		data[i] = readl(&mbdata->mbox[mb].data[i]);
+	for (i = 0; i < 256; i++)
+		itv->api_cache[i].last_jiffies = 0;
 }

@@ -41,7 +41,7 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 
 	size = bsize;
 	n = 1024;
-	r = radeon_bo_create(rdev, NULL, size, true, sdomain, &sobj);
+	r = radeon_bo_create(rdev, NULL, size, PAGE_SIZE, true, sdomain, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -53,7 +53,7 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 	if (r) {
 		goto out_cleanup;
 	}
-	r = radeon_bo_create(rdev, NULL, size, true, ddomain, &dobj);
+	r = radeon_bo_create(rdev, NULL, size, PAGE_SIZE, true, ddomain, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -65,31 +65,42 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 	if (r) {
 		goto out_cleanup;
 	}
-	start_jiffies = jiffies;
-	for (i = 0; i < n; i++) {
-		r = radeon_fence_create(rdev, &fence);
-		if (r) {
-			goto out_cleanup;
+
+	/* r100 doesn't have dma engine so skip the test */
+	if (rdev->asic->copy_dma) {
+
+		start_jiffies = jiffies;
+		for (i = 0; i < n; i++) {
+			r = radeon_fence_create(rdev, &fence);
+			if (r) {
+				goto out_cleanup;
+			}
+
+			r = radeon_copy_dma(rdev, saddr, daddr,
+					size / RADEON_GPU_PAGE_SIZE, fence);
+
+			if (r) {
+				goto out_cleanup;
+			}
+			r = radeon_fence_wait(fence, false);
+			if (r) {
+				goto out_cleanup;
+			}
+			radeon_fence_unref(&fence);
 		}
-		r = radeon_copy_dma(rdev, saddr, daddr, size / RADEON_GPU_PAGE_SIZE, fence);
-		if (r) {
-			goto out_cleanup;
+		end_jiffies = jiffies;
+		time = end_jiffies - start_jiffies;
+		time = jiffies_to_msecs(time);
+		if (time > 0) {
+			i = ((n * size) >> 10) / time;
+			printk(KERN_INFO "radeon: dma %u bo moves of %ukb from"
+					" %d to %d in %lums (%ukb/ms %ukb/s %uM/s)\n",
+					n, size >> 10,
+					sdomain, ddomain, time,
+					i, i * 1000, (i * 1000) / 1024);
 		}
-		r = radeon_fence_wait(fence, false);
-		if (r) {
-			goto out_cleanup;
-		}
-		radeon_fence_unref(&fence);
 	}
-	end_jiffies = jiffies;
-	time = end_jiffies - start_jiffies;
-	time = jiffies_to_msecs(time);
-	if (time > 0) {
-		i = ((n * size) >> 10) / time;
-		printk(KERN_INFO "radeon: dma %u bo moves of %ukb from %d to %d"
-		       " in %lums (%ukb/ms %ukb/s %uM/s)\n", n, size >> 10,
-		       sdomain, ddomain, time, i, i * 1000, (i * 1000) / 1024);
-	}
+
 	start_jiffies = jiffies;
 	for (i = 0; i < n; i++) {
 		r = radeon_fence_create(rdev, &fence);

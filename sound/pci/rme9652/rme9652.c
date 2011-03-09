@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/moduleparam.h>
 
 #include <sound/core.h>
@@ -314,7 +313,7 @@ static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_d
 }
 
 
-static struct pci_device_id snd_rme9652_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_rme9652_ids) = {
 	{
 		.vendor	   = 0x10ee,
 		.device	   = 0x3fc4,

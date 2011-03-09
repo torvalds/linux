@@ -22,6 +22,7 @@
 #include <linux/blkdev.h>
 #include <linux/raid/md_u.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "md.h"
 #include "multipath.h"
 
@@ -84,13 +85,13 @@ static void multipath_end_bh_io (struct multipath_bh *mp_bh, int err)
 static void multipath_end_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct multipath_bh * mp_bh = (struct multipath_bh *)(bio->bi_private);
+	struct multipath_bh *mp_bh = bio->bi_private;
 	multipath_conf_t *conf = mp_bh->mddev->private;
 	mdk_rdev_t *rdev = conf->multipaths[mp_bh->path].rdev;
 
 	if (uptodate)
 		multipath_end_bh_io(mp_bh, 0);
-	else if (!bio_rw_flagged(bio, BIO_RW_AHEAD)) {
+	else if (!(bio->bi_rw & REQ_RAHEAD)) {
 		/*
 		 * oops, IO error:
 		 */
@@ -135,17 +136,14 @@ static void multipath_unplug(struct request_queue *q)
 }
 
 
-static int multipath_make_request (struct request_queue *q, struct bio * bio)
+static int multipath_make_request(mddev_t *mddev, struct bio * bio)
 {
-	mddev_t *mddev = q->queuedata;
 	multipath_conf_t *conf = mddev->private;
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
-	const int rw = bio_data_dir(bio);
-	int cpu;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
-		md_barrier_request(mddev, bio);
+	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+		md_flush_request(mddev, bio);
 		return 0;
 	}
 
@@ -153,12 +151,6 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 
 	mp_bh->master_bio = bio;
 	mp_bh->mddev = mddev;
-
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
-	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
-		      bio_sectors(bio));
-	part_stat_unlock();
 
 	mp_bh->path = multipath_map(conf);
 	if (mp_bh->path < 0) {
@@ -171,7 +163,7 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	mp_bh->bio = *bio;
 	mp_bh->bio.bi_sector += multipath->rdev->data_offset;
 	mp_bh->bio.bi_bdev = multipath->rdev->bdev;
-	mp_bh->bio.bi_rw |= (1 << BIO_RW_FAILFAST_TRANSPORT);
+	mp_bh->bio.bi_rw |= REQ_FAILFAST_TRANSPORT;
 	mp_bh->bio.bi_end_io = multipath_end_request;
 	mp_bh->bio.bi_private = mp_bh;
 	generic_make_request(&mp_bh->bio);
@@ -301,14 +293,16 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 					  rdev->data_offset << 9);
 
 		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, so limit ->max_sector to one PAGE, as
-		 * a one page request is never in violation.
+		 * violating it, so limit ->max_segments to one, lying
+		 * within a single page.
 		 * (Note: it is very unlikely that a device with
 		 * merge_bvec_fn will be involved in multipath.)
 		 */
-			if (q->merge_bvec_fn &&
-			    queue_max_sectors(q) > (PAGE_SIZE>>9))
-				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+			if (q->merge_bvec_fn) {
+				blk_queue_max_segments(mddev->queue, 1);
+				blk_queue_segment_boundary(mddev->queue,
+							   PAGE_CACHE_SIZE - 1);
+			}
 
 			conf->working_disks++;
 			mddev->degraded--;
@@ -404,7 +398,7 @@ static void multipathd (mddev_t *mddev)
 			*bio = *(mp_bh->master_bio);
 			bio->bi_sector += conf->multipaths[mp_bh->path].rdev->data_offset;
 			bio->bi_bdev = conf->multipaths[mp_bh->path].rdev->bdev;
-			bio->bi_rw |= (1 << BIO_RW_FAILFAST_TRANSPORT);
+			bio->bi_rw |= REQ_FAILFAST_TRANSPORT;
 			bio->bi_end_io = multipath_end_request;
 			bio->bi_private = mp_bh;
 			generic_make_request(bio);
@@ -476,9 +470,11 @@ static int multipath_run (mddev_t *mddev)
 		/* as we don't honour merge_bvec_fn, we must never risk
 		 * violating it, not that we ever expect a device with
 		 * a merge_bvec_fn to be involved in multipath */
-		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+		if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
+			blk_queue_max_segments(mddev->queue, 1);
+			blk_queue_segment_boundary(mddev->queue,
+						   PAGE_CACHE_SIZE - 1);
+		}
 
 		if (!test_bit(Faulty, &rdev->flags))
 			conf->working_disks++;

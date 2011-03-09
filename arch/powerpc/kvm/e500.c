@@ -13,6 +13,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 
 #include <asm/reg.h>
@@ -59,6 +60,12 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 
 	kvmppc_e500_tlb_setup(vcpu_e500);
+
+	/* Registers init */
+	vcpu->arch.pvr = mfspr(SPRN_PVR);
+
+	/* Since booke kvm only support one core, update all vcpus' PIR to 0 */
+	vcpu->vcpu_id = 0;
 
 	return 0;
 }
@@ -110,8 +117,14 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto uninit_vcpu;
 
+	vcpu->arch.shared = (void*)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+	if (!vcpu->arch.shared)
+		goto uninit_tlb;
+
 	return vcpu;
 
+uninit_tlb:
+	kvmppc_e500_tlb_uninit(vcpu_e500);
 uninit_vcpu:
 	kvm_vcpu_uninit(vcpu);
 free_vcpu:
@@ -124,8 +137,9 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 
-	kvmppc_e500_tlb_uninit(vcpu_e500);
+	free_page((unsigned long)vcpu->arch.shared);
 	kvm_vcpu_uninit(vcpu);
+	kvmppc_e500_tlb_uninit(vcpu_e500);
 	kmem_cache_free(kvm_vcpu_cache, vcpu_e500);
 }
 
@@ -154,10 +168,10 @@ static int __init kvmppc_e500_init(void)
 	flush_icache_range(kvmppc_booke_handlers,
 			kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
 
-	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), THIS_MODULE);
+	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
 }
 
-static void __init kvmppc_e500_exit(void)
+static void __exit kvmppc_e500_exit(void)
 {
 	kvmppc_booke_exit();
 }

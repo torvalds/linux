@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 
 #include <linux/freezer.h>
 
@@ -56,7 +57,7 @@ static int videobuf_dvb_thread(void *data)
 		buf = list_entry(dvb->dvbq.stream.next,
 				 struct videobuf_buffer, stream);
 		list_del(&buf->stream);
-		err = videobuf_waiton(buf,0,1);
+		err = videobuf_waiton(&dvb->dvbq, buf, 0, 1);
 
 		/* no more feeds left or stop_feed() asked us to quit */
 		if (0 == dvb->nfeeds)
@@ -66,7 +67,7 @@ static int videobuf_dvb_thread(void *data)
 		try_to_freeze();
 
 		/* feed buffer data to demux */
-		outp = videobuf_queue_to_vmalloc (&dvb->dvbq, buf);
+		outp = videobuf_queue_to_vaddr(&dvb->dvbq, buf);
 
 		if (buf->state == VIDEOBUF_DONE)
 			dvb_dmx_swfilter(&dvb->demux, outp,

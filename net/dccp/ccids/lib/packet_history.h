@@ -40,12 +40,28 @@
 #include <linux/slab.h>
 #include "tfrc.h"
 
-struct tfrc_tx_hist_entry;
+/**
+ *  tfrc_tx_hist_entry  -  Simple singly-linked TX history list
+ *  @next:  next oldest entry (LIFO order)
+ *  @seqno: sequence number of this entry
+ *  @stamp: send time of packet with sequence number @seqno
+ */
+struct tfrc_tx_hist_entry {
+	struct tfrc_tx_hist_entry *next;
+	u64			  seqno;
+	ktime_t			  stamp;
+};
+
+static inline struct tfrc_tx_hist_entry *
+	tfrc_tx_hist_find_entry(struct tfrc_tx_hist_entry *head, u64 seqno)
+{
+	while (head != NULL && head->seqno != seqno)
+		head = head->next;
+	return head;
+}
 
 extern int  tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqno);
 extern void tfrc_tx_hist_purge(struct tfrc_tx_hist_entry **headp);
-extern u32  tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head,
-			     const u64 seqno, const ktime_t now);
 
 /* Subtraction a-b modulo-16, respects circular wrap-around */
 #define SUB16(a, b) (((a) + 16 - (b)) & 0xF)

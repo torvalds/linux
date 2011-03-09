@@ -22,6 +22,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
@@ -91,8 +92,7 @@ static void pte_free_rcu_callback(struct rcu_head *head)
 
 static void pte_free_submit(struct pte_freelist_batch *batch)
 {
-	INIT_RCU_HEAD(&batch->rcu);
-	call_rcu(&batch->rcu, pte_free_rcu_callback);
+	call_rcu_sched(&batch->rcu, pte_free_rcu_callback);
 }
 
 void pgtable_free_tlb(struct mmu_gather *tlb, void *table, unsigned shift)

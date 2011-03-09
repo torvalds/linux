@@ -74,6 +74,11 @@ struct ath5k_dbg_info {
 	struct dentry		*debugfs_registers;
 	struct dentry		*debugfs_beacon;
 	struct dentry		*debugfs_reset;
+	struct dentry		*debugfs_antenna;
+	struct dentry		*debugfs_misc;
+	struct dentry		*debugfs_frameerrors;
+	struct dentry		*debugfs_ani;
+	struct dentry		*debugfs_queue;
 };
 
 /**
@@ -90,7 +95,9 @@ struct ath5k_dbg_info {
  * @ATH5K_DEBUG_DUMP_RX: print received skb content
  * @ATH5K_DEBUG_DUMP_TX: print transmit skb content
  * @ATH5K_DEBUG_DUMPBANDS: dump bands
+ * @ATH5K_DEBUG_DMA: debug dma start/stop
  * @ATH5K_DEBUG_TRACE: trace function calls
+ * @ATH5K_DEBUG_DESC: descriptor setup
  * @ATH5K_DEBUG_ANY: show at any debug level
  *
  * The debug level is used to control the amount and type of debugging output
@@ -112,16 +119,13 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_DUMP_RX	= 0x00000100,
 	ATH5K_DEBUG_DUMP_TX	= 0x00000200,
 	ATH5K_DEBUG_DUMPBANDS	= 0x00000400,
-	ATH5K_DEBUG_TRACE	= 0x00001000,
+	ATH5K_DEBUG_DMA		= 0x00000800,
+	ATH5K_DEBUG_ANI		= 0x00002000,
+	ATH5K_DEBUG_DESC	= 0x00004000,
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 
 #ifdef CONFIG_ATH5K_DEBUG
-
-#define ATH5K_TRACE(_sc) do { \
-	if (unlikely((_sc)->debug.level & ATH5K_DEBUG_TRACE)) \
-		printk(KERN_DEBUG "ath5k trace %s:%d\n", __func__, __LINE__); \
-	} while (0)
 
 #define ATH5K_DBG(_sc, _m, _fmt, ...) do { \
 	if (unlikely((_sc)->debug.level & (_m) && net_ratelimit())) \
@@ -136,13 +140,7 @@ enum ath5k_debug_level {
 	} while (0)
 
 void
-ath5k_debug_init(void);
-
-void
 ath5k_debug_init_device(struct ath5k_softc *sc);
-
-void
-ath5k_debug_finish(void);
 
 void
 ath5k_debug_finish_device(struct ath5k_softc *sc);
@@ -164,8 +162,6 @@ ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf);
 
 #include <linux/compiler.h>
 
-#define ATH5K_TRACE(_sc) typecheck(struct ath5k_softc *, (_sc))
-
 static inline void __attribute__ ((format (printf, 3, 4)))
 ATH5K_DBG(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...) {}
 
@@ -174,13 +170,7 @@ ATH5K_DBG_UNLIMIT(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...)
 {}
 
 static inline void
-ath5k_debug_init(void) {}
-
-static inline void
 ath5k_debug_init_device(struct ath5k_softc *sc) {}
-
-static inline void
-ath5k_debug_finish(void) {}
 
 static inline void
 ath5k_debug_finish_device(struct ath5k_softc *sc) {}

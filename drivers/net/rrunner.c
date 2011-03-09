@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -1244,7 +1245,7 @@ static int rr_open(struct net_device *dev)
 	init_timer(&rrpriv->timer);
 	rrpriv->timer.expires = RUN_AT(5*HZ);           /* 5 sec. watchdog */
 	rrpriv->timer.data = (unsigned long)dev;
-	rrpriv->timer.function = &rr_timer;               /* timer handler */
+	rrpriv->timer.function = rr_timer;               /* timer handler */
 	add_timer(&rrpriv->timer);
 
 	netif_start_queue(dev);
@@ -1466,7 +1467,6 @@ static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
 
 	spin_unlock_irqrestore(&rrpriv->lock, flags);
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -1688,7 +1688,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 }
 
-static struct pci_device_id rr_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(rr_pci_tbl) = {
 	{ PCI_VENDOR_ID_ESSENTIAL, PCI_DEVICE_ID_ESSENTIAL_ROADRUNNER,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

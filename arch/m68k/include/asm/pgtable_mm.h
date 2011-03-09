@@ -115,7 +115,7 @@ extern void kernel_set_cachemode(void *addr, unsigned long size, int cmode);
  * they are updated on demand.
  */
 static inline void update_mmu_cache(struct vm_area_struct *vma,
-				    unsigned long address, pte_t pte)
+				    unsigned long address, pte_t *ptep)
 {
 }
 

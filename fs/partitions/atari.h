@@ -31,4 +31,4 @@ struct rootsector
   u16 checksum;			/* checksum for bootable disks */
 } __attribute__((__packed__));
 
-int atari_partition(struct parsed_partitions *state, struct block_device *bdev);
+int atari_partition(struct parsed_partitions *state);

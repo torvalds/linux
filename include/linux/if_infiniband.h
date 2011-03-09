@@ -5,7 +5,7 @@
  * <http://www.fsf.org/copyleft/gpl.html>, or the OpenIB.org BSD
  * license, available in the LICENSE.TXT file accompanying this
  * software.  These details are also available at
- * <http://openib.org/license.html>.
+ * <http://www.openfabrics.org/software_license.htm>.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF

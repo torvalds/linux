@@ -16,7 +16,7 @@
 #include <linux/netfilter_bridge/ebt_arp.h>
 
 static bool
-ebt_arp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_arp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ebt_arp_info *info = par->matchinfo;
 	const struct arphdr *ah;
@@ -100,7 +100,7 @@ ebt_arp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool ebt_arp_mt_check(const struct xt_mtchk_param *par)
+static int ebt_arp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_arp_info *info = par->matchinfo;
 	const struct ebt_entry *e = par->entryinfo;
@@ -108,10 +108,10 @@ static bool ebt_arp_mt_check(const struct xt_mtchk_param *par)
 	if ((e->ethproto != htons(ETH_P_ARP) &&
 	   e->ethproto != htons(ETH_P_RARP)) ||
 	   e->invflags & EBT_IPROTO)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & ~EBT_ARP_MASK || info->invflags & ~EBT_ARP_MASK)
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static struct xt_match ebt_arp_mt_reg __read_mostly = {
@@ -120,7 +120,7 @@ static struct xt_match ebt_arp_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_arp_mt,
 	.checkentry	= ebt_arp_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_arp_info)),
+	.matchsize	= sizeof(struct ebt_arp_info),
 	.me		= THIS_MODULE,
 };
 

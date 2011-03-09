@@ -77,27 +77,17 @@ config BLK_DEV_INTEGRITY
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
-config BLK_CGROUP
-	bool
-	depends on CGROUPS
+config BLK_DEV_THROTTLING
+	bool "Block layer bio throttling support"
+	depends on BLK_CGROUP=y && EXPERIMENTAL
 	default n
 	---help---
-	Generic block IO controller cgroup interface. This is the common
-	cgroup interface which should be used by various IO controlling
-	policies.
+	Block layer bio throttling support. It can be used to limit
+	the IO rate to a device. IO rate policies are per cgroup and
+	one needs to mount and use blkio cgroup controller for creating
+	cgroups and specifying per device IO rate policies.
 
-	Currently, CFQ IO scheduler uses it to recognize task groups and
-	control disk bandwidth allocation (proportional time slice allocation)
-	to such task groups.
-
-config DEBUG_BLK_CGROUP
-	bool
-	depends on BLK_CGROUP
-	default n
-	---help---
-	Enable some debugging help. Currently it stores the cgroup path
-	in the blk group which can be used by cfq for tracing various
-	group related activity.
+	See Documentation/cgroups/blkio-controller.txt for more information.
 
 endif # BLOCK
 

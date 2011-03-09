@@ -20,10 +20,12 @@
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb/isp1362.h>
 #endif
+#include <linux/i2c.h>
+#include <linux/i2c/adp5588.h>
+#include <linux/etherdevice.h>
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/i2c.h>
 #include <linux/usb/sl811.h>
 #include <linux/spi/mmc_spi.h>
 #include <linux/leds.h>
@@ -33,6 +35,12 @@
 #include <asm/reboot.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
+#ifdef CONFIG_REGULATOR_FIXED_VOLTAGE
+#include <linux/regulator/fixed.h>
+#endif
+#include <linux/regulator/machine.h>
+#include <linux/regulator/consumer.h>
+#include <linux/regulator/userspace-consumer.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -208,8 +216,8 @@ static struct resource sl811_hcd_resources[] = {
 		.end = 0x20340004,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = CONFIG_USB_SL811_BFIN_IRQ,
-		.end = CONFIG_USB_SL811_BFIN_IRQ,
+		.start = IRQ_PF4,
+		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
@@ -254,7 +262,7 @@ static struct resource isp1362_hcd_resources[] = {
 	}, {
 		.start = IRQ_PF3,
 		.end = IRQ_PF3,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 
@@ -281,7 +289,7 @@ static struct platform_device isp1362_hcd_device = {
 #endif
 
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
-unsigned short bfin_can_peripherals[] = {
+static unsigned short bfin_can_peripherals[] = {
 	P_CAN0_RX, P_CAN0_TX, 0
 };
 
@@ -319,13 +327,35 @@ static struct platform_device bfin_can_device = {
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+#include <linux/bfin_mac.h>
+static const unsigned short bfin_mac_peripherals[] = P_MII0;
+
+static struct bfin_phydev_platform_data bfin_phydev_data[] = {
+	{
+		.addr = 1,
+		.irq = PHY_POLL, /* IRQ_MAC_PHYINT */
+	},
+};
+
+static struct bfin_mii_bus_platform_data bfin_mii_bus_data = {
+	.phydev_number = 1,
+	.phydev_data = bfin_phydev_data,
+	.phy_mode = PHY_INTERFACE_MODE_MII,
+	.mac_peripherals = bfin_mac_peripherals,
+};
+
 static struct platform_device bfin_mii_bus = {
 	.name = "bfin_mii_bus",
+	.dev = {
+		.platform_data = &bfin_mii_bus_data,
+	}
 };
 
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
-	.dev.platform_data = &bfin_mii_bus,
+	.dev = {
+		.platform_data = &bfin_mii_bus,
+	}
 };
 #endif
 
@@ -390,6 +420,7 @@ static int bfin_plat_nand_dev_ready(struct mtd_info *mtd)
 
 static struct platform_nand_data bfin_plat_nand_data = {
 	.chip = {
+		.nr_chips = 1,
 		.chip_delay = 30,
 #ifdef CONFIG_MTD_PARTITIONS
 		.part_probe_types = part_probes,
@@ -407,7 +438,7 @@ static struct platform_nand_data bfin_plat_nand_data = {
 static struct resource bfin_plat_nand_resources = {
 	.start = 0x20212000,
 	.end   = 0x20212000 + (1 << MAX(BFIN_NAND_PLAT_CLE, BFIN_NAND_PLAT_ALE)),
-	.flags = IORESOURCE_IO,
+	.flags = IORESOURCE_MEM,
 };
 
 static struct platform_device bfin_async_nand_device = {
@@ -454,6 +485,9 @@ static struct physmap_flash_data stamp_flash_data = {
 	.width      = 2,
 	.parts      = stamp_partitions,
 	.nr_parts   = ARRAY_SIZE(stamp_partitions),
+#ifdef CONFIG_ROMKERNEL
+	.probe_type = "map_rom",
+#endif
 };
 
 static struct resource stamp_flash_resource = {
@@ -515,20 +549,27 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
-	|| defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD1938) \
-	|| defined(CONFIG_SND_BF5XX_SOC_AD1938_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD193X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
 static struct bfin5xx_spi_chip ad1938_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 8,
-	.cs_gpio = GPIO_PF5,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+static struct bfin5xx_spi_chip adav801_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
 };
 #endif
 
@@ -644,6 +685,101 @@ static struct ad714x_platform_data ad7142_i2c_platform_data = {
 };
 #endif
 
+#if defined(CONFIG_AD2S90) || defined(CONFIG_AD2S90_MODULE)
+static struct bfin5xx_spi_chip ad2s90_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_AD2S120X) || defined(CONFIG_AD2S120X_MODULE)
+static unsigned short ad2s120x_platform_data[] = {
+	/* used as SAMPLE and RDVEL */
+	GPIO_PF5, GPIO_PF6, 0
+};
+
+static struct bfin5xx_spi_chip ad2s120x_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_AD2S1210) || defined(CONFIG_AD2S1210_MODULE)
+static unsigned short ad2s1210_platform_data[] = {
+	/* use as SAMPLE, A0, A1 */
+	GPIO_PF7, GPIO_PF8, GPIO_PF9,
+# if defined(CONFIG_AD2S1210_GPIO_INPUT) || defined(CONFIG_AD2S1210_GPIO_OUTPUT)
+	/* the RES0 and RES1 pins */
+	GPIO_PF4, GPIO_PF5,
+# endif
+	0,
+};
+
+static struct bfin5xx_spi_chip ad2s1210_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_AD7314) || defined(CONFIG_AD7314_MODULE)
+static struct bfin5xx_spi_chip ad7314_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_AD7816) || defined(CONFIG_AD7816_MODULE)
+static unsigned short ad7816_platform_data[] = {
+	GPIO_PF4, /* rdwr_pin */
+	GPIO_PF5, /* convert_pin */
+	GPIO_PF7, /* busy_pin */
+	0,
+};
+
+static struct bfin5xx_spi_chip ad7816_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_ADT7310) || defined(CONFIG_ADT7310_MODULE)
+static unsigned long adt7310_platform_data[3] = {
+/* INT bound temperature alarm event. line 1 */
+	IRQ_PG4, IRQF_TRIGGER_LOW,
+/* CT bound temperature alarm event irq_flags. line 0 */
+	IRQF_TRIGGER_LOW,
+};
+
+static struct bfin5xx_spi_chip adt7310_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_AD7298) || defined(CONFIG_AD7298_MODULE)
+static unsigned short ad7298_platform_data[] = {
+	GPIO_PF7, /* busy_pin */
+	0,
+};
+
+static struct bfin5xx_spi_chip ad7298_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_ADT7316_SPI) || defined(CONFIG_ADT7316_SPI_MODULE)
+static unsigned long adt7316_spi_data[2] = {
+	IRQF_TRIGGER_LOW, /* interrupt flags */
+	GPIO_PF7, /* ldac_pin, 0 means DAC/LDAC registers control DAC update */
+};
+
+static struct bfin5xx_spi_chip adt7316_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 #define MMC_SPI_CARD_DETECT_INT IRQ_PF5
 
@@ -686,11 +822,11 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.y_plate_ohms		= 486,
 	.pressure_max		= 1000,
 	.pressure_min		= 0,
-	.stopacq_polarity 	= 1,
-	.first_conversion_delay = 3,
-	.acquisition_time 	= 1,
-	.averaging 		= 1,
-	.pen_down_acc_interval 	= 1,
+	.stopacq_polarity	= 1,
+	.first_conversion_delay	= 3,
+	.acquisition_time	= 1,
+	.averaging		= 1,
+	.pen_down_acc_interval	= 1,
 };
 #endif
 
@@ -701,13 +837,13 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */
 	.pressure_max		= 10000,
 	.pressure_min		= 0,
-	.first_conversion_delay = 3,	/* wait 512us before do a first conversion */
-	.acquisition_time 	= 1,	/* 4us acquisition time per sample */
+	.first_conversion_delay	= 3,	/* wait 512us before do a first conversion */
+	.acquisition_time	= 1,	/* 4us acquisition time per sample */
 	.median			= 2,	/* do 8 measurements */
-	.averaging 		= 1,	/* take the average of 4 middle samples */
-	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
-	.gpio_output		= 1,	/* configure AUX/VBAT/GPIO as GPIO output */
-	.gpio_default 		= 1,	/* During initialization set GPIO = HIGH */
+	.averaging		= 1,	/* take the average of 4 middle samples */
+	.pen_down_acc_interval	= 255,	/* 9.4 ms */
+	.gpio_export		= 1,	/* Export GPIO to gpiolib */
+	.gpio_base		= -1,	/* Dynamic allocation */
 };
 #endif
 
@@ -742,6 +878,11 @@ static const struct adxl34x_platform_data adxl34x_info = {
 /*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
 	.power_mode = ADXL_AUTO_SLEEP | ADXL_LINK,
 	.fifo_mode = ADXL_FIFO_STREAM,
+	.orientation_enable = ADXL_EN_ORIENTATION_3D,
+	.deadzone_angle = ADXL_DEADZONE_ANGLE_10p8,
+	.divisor_length =  ADXL_LP_FILTER_DIVISOR_16,
+	/* EV_KEY {+Z, +Y, +X, -X, -Y, -Z} */
+	.ev_codes_orient_3d = {BTN_Z, BTN_Y, BTN_X, BTN_A, BTN_B, BTN_C},
 };
 #endif
 
@@ -770,14 +911,12 @@ static struct bfin5xx_spi_chip lq035q1_spi_chip_info = {
 static struct bfin5xx_spi_chip enc28j60_spi_chip_info = {
 	.enable_dma	= 1,
 	.bits_per_word	= 8,
-	.cs_gpio = GPIO_PF10,
 };
 #endif
 
 #if defined(CONFIG_ADF702X) || defined(CONFIG_ADF702X_MODULE)
 static struct bfin5xx_spi_chip adf7021_spi_chip_info = {
 	.bits_per_word = 16,
-	.cs_gpio = GPIO_PF10,
 };
 
 #include <linux/spi/adf702x.h>
@@ -812,6 +951,35 @@ static struct adf702x_platform_data adf7021_platform_data = {
 	.adf702x_model = MODEL_ADF7021,
 	.adf702x_regs = adf7021_regs,
 	.tx_reg = TXREG,
+};
+static inline void adf702x_mac_init(void)
+{
+	random_ether_addr(adf7021_platform_data.mac_addr);
+}
+#else
+static inline void adf702x_mac_init(void) {}
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_ADS7846) || defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
+#include <linux/spi/ads7846.h>
+static struct bfin5xx_spi_chip ad7873_spi_chip_info = {
+	.bits_per_word	= 8,
+};
+
+static int ads7873_get_pendown_state(void)
+{
+	return gpio_get_value(GPIO_PF6);
+}
+
+static struct ads7846_platform_data __initdata ad7873_pdata = {
+	.model		= 7873,		/* AD7873 */
+	.x_max		= 0xfff,
+	.y_max		= 0xfff,
+	.x_plate_ohms	= 620,
+	.debounce_max	= 1,
+	.debounce_rep	= 0,
+	.debounce_tol	= (~0),
+	.get_pendown_state = ads7873_get_pendown_state,
 };
 #endif
 
@@ -855,6 +1023,13 @@ static struct bfin5xx_spi_chip spi_adxl34x_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_AD7476) || defined(CONFIG_AD7476_MODULE)
+static struct bfin5xx_spi_chip spi_ad7476_chip_info = {
+	.enable_dma = 0,         /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+#endif
+
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -893,25 +1068,37 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
-	|| defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
-		.modalias = "ad1836",
+		.modalias = "ad183x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 4,/* CONFIG_SND_BLACKFIN_SPI_PFBIT */
+		.chip_select = 4,
+		.platform_data = "ad1836", /* only includes chip name for the moment */
 		.controller_data = &ad1836_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD1938) || defined(CONFIG_SND_BF5XX_SOC_AD1938_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
 	{
-		.modalias = "ad1938",
+		.modalias = "ad193x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 0,/* CONFIG_SND_BLACKFIN_SPI_PFBIT */
+		.chip_select = 5,
 		.controller_data = &ad1938_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) || defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+	{
+		.modalias = "adav80x",
+		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1,
+		.controller_data = &adav801_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -926,6 +1113,99 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 		.platform_data = &ad7147_spi_platform_data,
 		.controller_data = &ad7147_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD2S90) || defined(CONFIG_AD2S90_MODULE)
+	{
+		.modalias = "ad2s90",
+		.bus_num = 0,
+		.chip_select = 3,            /* change it for your board */
+		.mode = SPI_MODE_3,
+		.platform_data = NULL,
+		.controller_data = &ad2s90_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD2S120X) || defined(CONFIG_AD2S120X_MODULE)
+	{
+		.modalias = "ad2s120x",
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad2s120x_platform_data,
+		.controller_data = &ad2s120x_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD2S1210) || defined(CONFIG_AD2S1210_MODULE)
+	{
+		.modalias = "ad2s1210",
+		.max_speed_hz = 8192000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad2s1210_platform_data,
+		.controller_data = &ad2s1210_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD7314) || defined(CONFIG_AD7314_MODULE)
+	{
+		.modalias = "ad7314",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.controller_data = &ad7314_spi_chip_info,
+		.mode = SPI_MODE_1,
+	},
+#endif
+
+#if defined(CONFIG_AD7816) || defined(CONFIG_AD7816_MODULE)
+	{
+		.modalias = "ad7818",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad7816_platform_data,
+		.controller_data = &ad7816_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_ADT7310) || defined(CONFIG_ADT7310_MODULE)
+	{
+		.modalias = "adt7310",
+		.max_speed_hz = 1000000,
+		.irq = IRQ_PG5,		/* CT alarm event. Line 0 */
+		.bus_num = 0,
+		.chip_select = 4,	/* CS, change it for your board */
+		.platform_data = adt7310_platform_data,
+		.controller_data = &adt7310_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_AD7298) || defined(CONFIG_AD7298_MODULE)
+	{
+		.modalias = "ad7298",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad7298_platform_data,
+		.controller_data = &ad7298_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_ADT7316_SPI) || defined(CONFIG_ADT7316_SPI_MODULE)
+	{
+		.modalias = "adt7316",
+		.max_speed_hz = 1000000,
+		.irq = IRQ_PG5,		/* interrupt line */
+		.bus_num = 0,
+		.chip_select = 4,	/* CS, change it for your board */
+		.platform_data = adt7316_spi_data,
+		.controller_data = &adt7316_spi_chip_info,
+		.mode = SPI_MODE_3,
 	},
 #endif
 
@@ -988,7 +1268,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.irq = IRQ_PF6,
 		.bus_num = 0,
-		.chip_select = 0,	/* GPIO controlled SSEL */
+		.chip_select = GPIO_PF10 + MAX_CTRL_CS,	/* GPIO controlled SSEL */
 		.controller_data = &enc28j60_spi_chip_info,
 		.mode = SPI_MODE_0,
 	},
@@ -1010,19 +1290,257 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "adf702x",
 		.max_speed_hz = 16000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 0,	/* GPIO controlled SSEL */
+		.chip_select = GPIO_PF10 + MAX_CTRL_CS,	/* GPIO controlled SSEL */
 		.controller_data = &adf7021_spi_chip_info,
 		.platform_data = &adf7021_platform_data,
 		.mode = SPI_MODE_0,
 	},
 #endif
-
+#if defined(CONFIG_TOUCHSCREEN_ADS7846) || defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
+	{
+		.modalias = "ads7846",
+		.max_speed_hz = 2000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.irq = IRQ_PF6,
+		.chip_select = GPIO_PF10 + MAX_CTRL_CS,	/* GPIO controlled SSEL */
+		.controller_data = &ad7873_spi_chip_info,
+		.platform_data = &ad7873_pdata,
+		.mode = SPI_MODE_0,
+	},
+#endif
+#if defined(CONFIG_AD7476) \
+	|| defined(CONFIG_AD7476_MODULE)
+	{
+		.modalias = "ad7476", /* Name of spi_driver for this device */
+		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0, /* Framework bus number */
+		.chip_select = 1, /* Framework chip select. */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.controller_data = &spi_ad7476_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADE7753) \
+	|| defined(CONFIG_ADE7753_MODULE)
+	{
+		.modalias = "ade7753",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7754) \
+	|| defined(CONFIG_ADE7754_MODULE)
+	{
+		.modalias = "ade7754",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7758) \
+	|| defined(CONFIG_ADE7758_MODULE)
+	{
+		.modalias = "ade7758",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7759) \
+	|| defined(CONFIG_ADE7759_MODULE)
+	{
+		.modalias = "ade7759",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7854_SPI) \
+	|| defined(CONFIG_ADE7854_SPI_MODULE)
+	{
+		.modalias = "ade7854",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADIS16060) \
+	|| defined(CONFIG_ADIS16060_MODULE)
+	{
+		.modalias = "adis16060_r",
+		.max_speed_hz = 2900000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = MAX_CTRL_CS + 1, /* CS for read, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_0,
+	},
+	{
+		.modalias = "adis16060_w",
+		.max_speed_hz = 2900000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 2, /* CS for write, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADIS16130) \
+	|| defined(CONFIG_ADIS16130_MODULE)
+	{
+		.modalias = "adis16130",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS for read, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADIS16201) \
+	|| defined(CONFIG_ADIS16201_MODULE)
+	{
+		.modalias = "adis16201",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16203) \
+	|| defined(CONFIG_ADIS16203_MODULE)
+	{
+		.modalias = "adis16203",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16204) \
+	|| defined(CONFIG_ADIS16204_MODULE)
+	{
+		.modalias = "adis16204",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16209) \
+	|| defined(CONFIG_ADIS16209_MODULE)
+	{
+		.modalias = "adis16209",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16220) \
+	|| defined(CONFIG_ADIS16220_MODULE)
+	{
+		.modalias = "adis16220",
+		.max_speed_hz = 2000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16240) \
+	|| defined(CONFIG_ADIS16240_MODULE)
+	{
+		.modalias = "adis16240",
+		.max_speed_hz = 1500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16260) \
+	|| defined(CONFIG_ADIS16260_MODULE)
+	{
+		.modalias = "adis16260",
+		.max_speed_hz = 1500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16261) \
+	|| defined(CONFIG_ADIS16261_MODULE)
+	{
+		.modalias = "adis16261",
+		.max_speed_hz = 2500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADIS16300) \
+	|| defined(CONFIG_ADIS16300_MODULE)
+	{
+		.modalias = "adis16300",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16350) \
+	|| defined(CONFIG_ADIS16350_MODULE)
+	{
+		.modalias = "adis16364",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16400) \
+	|| defined(CONFIG_ADIS16400_MODULE)
+	{
+		.modalias = "adis16400",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
 };
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI controller data */
 static struct bfin5xx_spi_master bfin_spi0_info = {
-	.num_chipselect = 8,
+	.num_chipselect = MAX_CTRL_CS + MAX_BLACKFIN_GPIOS,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -1132,9 +1650,10 @@ static struct platform_device bfin_fb_device = {
 #include <asm/bfin-lq035q1.h>
 
 static struct bfin_lq035q1fb_disp_info bfin_lq035q1_data = {
-	.mode = 	LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
-	.use_bl = 	0,	/* let something else control the LCD Blacklight */
-	.gpio_bl =	GPIO_PF7,
+	.mode = LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
+	.ppi_mode = USE_RGB565_16_BIT_PPI,
+	.use_bl = 0,	/* let something else control the LCD Blacklight */
+	.gpio_bl = GPIO_PF7,
 };
 
 static struct resource bfin_lq035q1_resources[] = {
@@ -1148,8 +1667,8 @@ static struct resource bfin_lq035q1_resources[] = {
 static struct platform_device bfin_lq035q1_device = {
 	.name		= "bfin-lq035q1",
 	.id		= -1,
-	.num_resources 	= ARRAY_SIZE(bfin_lq035q1_resources),
-	.resource 	= bfin_lq035q1_resources,
+	.num_resources	= ARRAY_SIZE(bfin_lq035q1_resources),
+	.resource	= bfin_lq035q1_resources,
 	.dev		= {
 		.platform_data = &bfin_lq035q1_data,
 	},
@@ -1157,29 +1676,104 @@ static struct platform_device bfin_lq035q1_device = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-static struct resource bfin_uart_resources[] = {
 #ifdef CONFIG_SERIAL_BFIN_UART0
+static struct resource bfin_uart0_resources[] = {
 	{
-		.start = 0xFFC00400,
-		.end = 0xFFC004FF,
+		.start = UART0_THR,
+		.end = UART0_GCTL+2,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
-#ifdef CONFIG_SERIAL_BFIN_UART1
 	{
-		.start = 0xFFC02000,
-		.end = 0xFFC020FF,
-		.flags = IORESOURCE_MEM,
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART0_ERROR,
+		.end = IRQ_UART0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_TX,
+		.end = CH_UART0_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX,
+		.flags = IORESOURCE_DMA,
+	},
+#ifdef CONFIG_BFIN_UART0_CTSRTS
+	{	/* CTS pin */
+		.start = GPIO_PG7,
+		.end = GPIO_PG7,
+		.flags = IORESOURCE_IO,
+	},
+	{	/* RTS pin */
+		.start = GPIO_PG6,
+		.end = GPIO_PG6,
+		.flags = IORESOURCE_IO,
 	},
 #endif
 };
 
-static struct platform_device bfin_uart_device = {
+static unsigned short bfin_uart0_peripherals[] = {
+	P_UART0_TX, P_UART0_RX, 0
+};
+
+static struct platform_device bfin_uart0_device = {
+	.name = "bfin-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_uart0_resources),
+	.resource = bfin_uart0_resources,
+	.dev = {
+		.platform_data = &bfin_uart0_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+static struct resource bfin_uart1_resources[] = {
+	{
+		.start = UART1_THR,
+		.end = UART1_GCTL+2,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART1_ERROR,
+		.end = IRQ_UART1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_TX,
+		.end = CH_UART1_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static unsigned short bfin_uart1_peripherals[] = {
+	P_UART1_TX, P_UART1_RX, 0
+};
+
+static struct platform_device bfin_uart1_device = {
 	.name = "bfin-uart",
 	.id = 1,
-	.num_resources = ARRAY_SIZE(bfin_uart_resources),
-	.resource = bfin_uart_resources,
+	.num_resources = ARRAY_SIZE(bfin_uart1_resources),
+	.resource = bfin_uart1_resources,
+	.dev = {
+		.platform_data = &bfin_uart1_peripherals, /* Passed to driver */
+	},
 };
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -1260,7 +1854,6 @@ static struct platform_device i2c_bfin_twi_device = {
 #endif
 
 #if defined(CONFIG_KEYBOARD_ADP5588) || defined(CONFIG_KEYBOARD_ADP5588_MODULE)
-#include <linux/i2c/adp5588.h>
 static const unsigned short adp5588_keymap[ADP5588_KEYMAPSIZE] = {
 	[0]	 = KEY_GRAVE,
 	[1]	 = KEY_1,
@@ -1444,7 +2037,7 @@ static struct adp5520_keys_platform_data adp5520_keys_data = {
 };
 
 	/*
-	 *  ADP5520/5501 Multifuction Device Init Data
+	 *  ADP5520/5501 Multifunction Device Init Data
 	 */
 
 static struct adp5520_platform_data adp5520_pdev_data = {
@@ -1457,7 +2050,6 @@ static struct adp5520_platform_data adp5520_pdev_data = {
 #endif
 
 #if defined(CONFIG_GPIO_ADP5588) || defined(CONFIG_GPIO_ADP5588_MODULE)
-#include <linux/i2c/adp5588.h>
 static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 	.gpio_start = 50,
 	.pullup_dis_mask = 0,
@@ -1516,7 +2108,123 @@ static struct adp8870_backlight_platform_data adp8870_pdata = {
 };
 #endif
 
+#if defined(CONFIG_BACKLIGHT_ADP8860) || defined(CONFIG_BACKLIGHT_ADP8860_MODULE)
+#include <linux/i2c/adp8860.h>
+static struct led_info adp8860_leds[] = {
+	{
+		.name = "adp8860-led7",
+		.default_trigger = "none",
+		.flags = ADP8860_LED_D7 | ADP8860_LED_OFFT_600ms,
+	},
+};
+
+static struct adp8860_backlight_platform_data adp8860_pdata = {
+	.bl_led_assign = ADP8860_BL_D1 | ADP8860_BL_D2 | ADP8860_BL_D3 |
+			 ADP8860_BL_D4 | ADP8860_BL_D5 | ADP8860_BL_D6,	/* 1 = Backlight 0 = Individual LED */
+
+	.bl_fade_in = ADP8860_FADE_T_1200ms,		/* Backlight Fade-In Timer */
+	.bl_fade_out = ADP8860_FADE_T_1200ms,		/* Backlight Fade-Out Timer */
+	.bl_fade_law = ADP8860_FADE_LAW_CUBIC1,		/* fade-on/fade-off transfer characteristic */
+
+	.en_ambl_sens = 1,				/* 1 = enable ambient light sensor */
+	.abml_filt = ADP8860_BL_AMBL_FILT_320ms,	/* Light sensor filter time */
+
+	.l1_daylight_max = ADP8860_BL_CUR_mA(20),	/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l1_daylight_dim = ADP8860_BL_CUR_mA(0),	/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_office_max = ADP8860_BL_CUR_mA(6),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_office_dim = ADP8860_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_dark_max = ADP8860_BL_CUR_mA(2),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_dark_dim = ADP8860_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+
+	.l2_trip = ADP8860_L2_COMP_CURR_uA(710),	/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l2_hyst = ADP8860_L2_COMP_CURR_uA(73),		/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l3_trip = ADP8860_L3_COMP_CURR_uA(43),		/* use L3_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+	.l3_hyst = ADP8860_L3_COMP_CURR_uA(11),		/* use L3_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+
+	.leds = adp8860_leds,
+	.num_leds = ARRAY_SIZE(adp8860_leds),
+	.led_fade_law = ADP8860_FADE_LAW_SQUARE,	/* fade-on/fade-off transfer characteristic */
+	.led_fade_in = ADP8860_FADE_T_600ms,
+	.led_fade_out = ADP8860_FADE_T_600ms,
+	.led_on_time = ADP8860_LED_ONT_200ms,
+};
+#endif
+
+#if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
+static struct regulator_consumer_supply ad5398_consumer = {
+	.supply = "current",
+};
+
+static struct regulator_init_data ad5398_regulator_data = {
+	.constraints = {
+		.name = "current range",
+		.max_uA = 120000,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = 1,
+	.consumer_supplies     = &ad5398_consumer,
+};
+
+#if defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER) || \
+	defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER_MODULE)
+static struct platform_device ad5398_virt_consumer_device = {
+	.name = "reg-virt-consumer",
+	.id = 0,
+	.dev = {
+		.platform_data = "current", /* Passed to driver */
+	},
+};
+#endif
+#if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
+	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
+static struct regulator_bulk_data ad5398_bulk_data = {
+	.supply = "current",
+};
+
+static struct regulator_userspace_consumer_data ad5398_userspace_comsumer_data = {
+	.name = "ad5398",
+	.num_supplies = 1,
+	.supplies = &ad5398_bulk_data,
+};
+
+static struct platform_device ad5398_userspace_consumer_device = {
+	.name = "reg-userspace-consumer",
+	.id = 0,
+	.dev = {
+		.platform_data = &ad5398_userspace_comsumer_data,
+	},
+};
+#endif
+#endif
+
+#if defined(CONFIG_ADT7410) || defined(CONFIG_ADT7410_MODULE)
+/* INT bound temperature alarm event. line 1 */
+static unsigned long adt7410_platform_data[2] = {
+	IRQ_PG4, IRQF_TRIGGER_LOW,
+};
+#endif
+
+#if defined(CONFIG_ADT7316_I2C) || defined(CONFIG_ADT7316_I2C_MODULE)
+/* INT bound temperature alarm event. line 1 */
+static unsigned long adt7316_i2c_data[2] = {
+	IRQF_TRIGGER_LOW, /* interrupt flags */
+	GPIO_PF4, /* ldac_pin, 0 means DAC/LDAC registers control DAC update */
+};
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
+#if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
+	{
+		I2C_BOARD_INFO("ad1937", 0x04),
+	},
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_ADAV80X) || defined(CONFIG_SND_BF5XX_SOC_ADAV80X_MODULE)
+	{
+		I2C_BOARD_INFO("adav803", 0x10),
+	},
+#endif
+
 #if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 	{
 		I2C_BOARD_INFO("ad7142_captouch", 0x2C),
@@ -1524,6 +2232,91 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		.platform_data = (void *)&ad7142_i2c_platform_data,
 	},
 #endif
+
+#if defined(CONFIG_AD7150) || defined(CONFIG_AD7150_MODULE)
+	{
+		I2C_BOARD_INFO("ad7150", 0x48),
+		.irq = IRQ_PG5, /* fixme: use real interrupt number */
+	},
+#endif
+
+#if defined(CONFIG_AD7152) || defined(CONFIG_AD7152_MODULE)
+	{
+		I2C_BOARD_INFO("ad7152", 0x48),
+	},
+#endif
+
+#if defined(CONFIG_AD774X) || defined(CONFIG_AD774X_MODULE)
+	{
+		I2C_BOARD_INFO("ad774x", 0x48),
+	},
+#endif
+
+#if defined(CONFIG_AD7414) || defined(CONFIG_AD7414_MODULE)
+	{
+		I2C_BOARD_INFO("ad7414", 0x9),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_AD7416) || defined(CONFIG_AD7416_MODULE)
+	{
+		I2C_BOARD_INFO("ad7417", 0xb),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+		.platform_data = (void *)GPIO_PF4,
+	},
+#endif
+
+#if defined(CONFIG_ADE7854_I2C) || defined(CONFIG_ADE7854_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("ade7854", 0x38),
+	},
+#endif
+
+#if defined(CONFIG_ADT75) || defined(CONFIG_ADT75_MODULE)
+	{
+		I2C_BOARD_INFO("adt75", 0x9),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_ADT7408) || defined(CONFIG_ADT7408_MODULE)
+	{
+		I2C_BOARD_INFO("adt7408", 0x18),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_ADT7410) || defined(CONFIG_ADT7410_MODULE)
+	{
+		I2C_BOARD_INFO("adt7410", 0x48),
+		/* CT critical temperature event. line 0 */
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+		.platform_data = (void *)&adt7410_platform_data,
+	},
+#endif
+
+#if defined(CONFIG_AD7291) || defined(CONFIG_AD7291_MODULE)
+	{
+		I2C_BOARD_INFO("ad7291", 0x20),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_ADT7316_I2C) || defined(CONFIG_ADT7316_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("adt7316", 0x48),
+		.irq = IRQ_PG6,
+		.platform_data = (void *)&adt7316_i2c_data,
+	},
+#endif
+
 #if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
@@ -1576,7 +2369,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #endif
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 	{
-		I2C_BOARD_INFO("bf537-lq035-ad5280", 0x2C),
+		I2C_BOARD_INFO("bf537-lq035-ad5280", 0x2F),
 	},
 #endif
 #if defined(CONFIG_BACKLIGHT_ADP8870) || defined(CONFIG_BACKLIGHT_ADP8870_MODULE)
@@ -1595,23 +2388,114 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		I2C_BOARD_INFO("adau1761", 0x38),
 	},
 #endif
+#if defined(CONFIG_SND_SOC_ADAU1361) || defined(CONFIG_SND_SOC_ADAU1361_MODULE)
+	{
+		I2C_BOARD_INFO("adau1361", 0x38),
+	},
+#endif
 #if defined(CONFIG_AD525X_DPOT) || defined(CONFIG_AD525X_DPOT_MODULE)
 	{
 		I2C_BOARD_INFO("ad5258", 0x18),
 	},
 #endif
+#if defined(CONFIG_SND_SOC_SSM2602) || defined(CONFIG_SND_SOC_SSM2602_MODULE)
+	{
+		I2C_BOARD_INFO("ssm2602", 0x1b),
+	},
+#endif
+#if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
+	{
+		I2C_BOARD_INFO("ad5398", 0xC),
+		.platform_data = (void *)&ad5398_regulator_data,
+	},
+#endif
+#if defined(CONFIG_BACKLIGHT_ADP8860) || defined(CONFIG_BACKLIGHT_ADP8860_MODULE)
+	{
+		I2C_BOARD_INFO("adp8860", 0x2A),
+		.platform_data = (void *)&adp8860_pdata,
+	},
+#endif
+#if defined(CONFIG_SND_SOC_ADAU1373) || defined(CONFIG_SND_SOC_ADAU1373_MODULE)
+	{
+		I2C_BOARD_INFO("adau1373", 0x1A),
+	},
+#endif
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
+	{
+		I2C_BOARD_INFO("ad5252", 0x2e),
+	},
+#endif
 };
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+static struct resource bfin_sport0_uart_resources[] = {
+	{
+		.start = SPORT0_TCR1,
+		.end = SPORT0_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT0_RX,
+		.end = IRQ_SPORT0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT0_ERROR,
+		.end = IRQ_SPORT0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static unsigned short bfin_sport0_peripherals[] = {
+	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
+	P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0
+};
+
 static struct platform_device bfin_sport0_uart_device = {
 	.name = "bfin-sport-uart",
 	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sport0_uart_resources),
+	.resource = bfin_sport0_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport0_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+static struct resource bfin_sport1_uart_resources[] = {
+	{
+		.start = SPORT1_TCR1,
+		.end = SPORT1_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT1_RX,
+		.end = IRQ_SPORT1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT1_ERROR,
+		.end = IRQ_SPORT1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static unsigned short bfin_sport1_peripherals[] = {
+	P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
+	P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0
 };
 
 static struct platform_device bfin_sport1_uart_device = {
 	.name = "bfin-sport-uart",
 	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sport1_uart_resources),
+	.resource = bfin_sport1_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport1_peripherals, /* Passed to driver */
+	},
 };
+#endif
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
@@ -1701,10 +2585,105 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+static struct platform_device bfin_i2s = {
+	.name = "bfin-i2s",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
+	/* TODO: add platform data here */
+};
+#endif
+
 #if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
 static struct platform_device bfin_tdm = {
 	.name = "bfin-tdm",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
 	/* TODO: add platform data here */
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+static struct platform_device bfin_ac97 = {
+	.name = "bfin-ac97",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
+	/* TODO: add platform data here */
+};
+#endif
+
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
+#define REGULATOR_ADP122	"adp122"
+#define REGULATOR_ADP122_UV	2500000
+
+static struct regulator_consumer_supply adp122_consumers = {
+		.supply = REGULATOR_ADP122,
+};
+
+static struct regulator_init_data adp_switch_regulator_data = {
+	.constraints = {
+		.name = REGULATOR_ADP122,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.min_uV = REGULATOR_ADP122_UV,
+		.max_uV = REGULATOR_ADP122_UV,
+		.min_uA = 0,
+		.max_uA = 300000,
+	},
+	.num_consumer_supplies = 1,	/* only 1 */
+	.consumer_supplies     = &adp122_consumers,
+};
+
+static struct fixed_voltage_config adp_switch_pdata = {
+	.supply_name = REGULATOR_ADP122,
+	.microvolts = REGULATOR_ADP122_UV,
+	.gpio = GPIO_PF2,
+	.enable_high = 1,
+	.enabled_at_boot = 0,
+	.init_data = &adp_switch_regulator_data,
+};
+
+static struct platform_device adp_switch_device = {
+	.name = "reg-fixed-voltage",
+	.id = 0,
+	.dev = {
+		.platform_data = &adp_switch_pdata,
+	},
+};
+
+#if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
+	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
+static struct regulator_bulk_data adp122_bulk_data = {
+	.supply = REGULATOR_ADP122,
+};
+
+static struct regulator_userspace_consumer_data adp122_userspace_comsumer_data = {
+	.name = REGULATOR_ADP122,
+	.num_supplies = 1,
+	.supplies = &adp122_bulk_data,
+};
+
+static struct platform_device adp122_userspace_consumer_device = {
+	.name = "reg-userspace-consumer",
+	.id = 0,
+	.dev = {
+		.platform_data = &adp122_userspace_comsumer_data,
+	},
+};
+#endif
+#endif
+
+#if defined(CONFIG_IIO_GPIO_TRIGGER) || \
+	defined(CONFIG_IIO_GPIO_TRIGGER_MODULE)
+
+static struct resource iio_gpio_trigger_resources[] = {
+	[0] = {
+		.start  = IRQ_PF5,
+		.end    = IRQ_PF5,
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+static struct platform_device iio_gpio_trigger = {
+	.name = "iio_gpio_trigger",
+	.num_resources = ARRAY_SIZE(iio_gpio_trigger_resources),
+	.resource = iio_gpio_trigger_resources,
 };
 #endif
 
@@ -1771,7 +2750,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-	&bfin_uart_device,
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -1788,8 +2772,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
 	&bfin_sport0_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
 	&bfin_sport1_uart_device,
+#endif
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
@@ -1808,24 +2796,84 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&stamp_flash_device,
 #endif
 
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+	&bfin_i2s,
+#endif
+
 #if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
 	&bfin_tdm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+	&bfin_ac97,
+#endif
+#if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
+#if defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER) || \
+	defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER_MODULE)
+	&ad5398_virt_consumer_device,
+#endif
+#if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
+	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
+	&ad5398_userspace_consumer_device,
+#endif
+#endif
+
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
+	&adp_switch_device,
+#if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
+	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
+	&adp122_userspace_consumer_device,
+#endif
+#endif
+
+#if defined(CONFIG_IIO_GPIO_TRIGGER) || \
+	defined(CONFIG_IIO_GPIO_TRIGGER_MODULE)
+	&iio_gpio_trigger,
 #endif
 };
 
 static int __init stamp_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+	bfin_plat_nand_init();
+	adf702x_mac_init();
+	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-	bfin_plat_nand_init();
-	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
 	return 0;
 }
 
 arch_initcall(stamp_init);
+
+
+static struct platform_device *stamp_early_devices[] __initdata = {
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
+#endif
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT_CONSOLE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+	&bfin_sport0_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+	&bfin_sport1_uart_device,
+#endif
+#endif
+};
+
+void __init native_machine_early_platform_add_devices(void)
+{
+	printk(KERN_INFO "register early platform devices\n");
+	early_platform_add_devices(stamp_early_devices,
+		ARRAY_SIZE(stamp_early_devices));
+}
 
 void native_machine_restart(char *cmd)
 {

@@ -51,7 +51,8 @@ static inline bool efx_mdio_phyxgxs_lane_sync(struct efx_nic *efx)
 
 	sync = !!(lane_status & MDIO_PHYXS_LNSTAT_ALIGN);
 	if (!sync)
-		EFX_LOG(efx, "XGXS lane status: %x\n", lane_status);
+		netif_dbg(efx, hw, efx->net_dev, "XGXS lane status: %x\n",
+			  lane_status);
 	return sync;
 }
 
@@ -105,5 +106,8 @@ efx_mdio_set_flag(struct efx_nic *efx, int devad, int addr,
 {
 	mdio_set_flag(&efx->mdio, efx->mdio.prtad, devad, addr, mask, state);
 }
+
+/* Liveness self-test for MDIO PHYs */
+extern int efx_mdio_test_alive(struct efx_nic *efx);
 
 #endif /* EFX_MDIO_10G_H */

@@ -95,8 +95,6 @@ static void prom_sync_me(void)
 			     "nop\n\t"
 			     "nop\n\t" : : "r" (prom_tbr));
 	local_irq_restore(flags);
-
-	return;
 }
 
 static unsigned int boot_flags __initdata = 0;
@@ -187,7 +185,6 @@ static void __init boot_flags_init(char *commands)
 
 extern void sun4c_probe_vac(void);
 extern char cputypval;
-extern unsigned long start, end;
 
 extern unsigned short root_flags;
 extern unsigned short root_dev;
@@ -212,7 +209,7 @@ void __init setup_arch(char **cmdline_p)
 	int i;
 	unsigned long highest_paddr;
 
-	sparc_ttable = (struct tt_entry *) &start;
+	sparc_ttable = (struct tt_entry *) &trapbase;
 
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();

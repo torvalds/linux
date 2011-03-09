@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/wanrouter.h>	/* WAN router API definitions */
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <net/net_namespace.h>
 #include <asm/io.h>
@@ -66,6 +66,7 @@
  *	/proc/net/router
  */
 
+static DEFINE_MUTEX(config_mutex);
 static struct proc_dir_entry *proc_router;
 
 /* Strings */
@@ -85,7 +86,7 @@ static void *r_start(struct seq_file *m, loff_t *pos)
 	struct wan_device *wandev;
 	loff_t l = *pos;
 
-	lock_kernel();
+	mutex_lock(&config_mutex);
 	if (!l--)
 		return SEQ_START_TOKEN;
 	for (wandev = wanrouter_router_devlist; l-- && wandev;
@@ -104,7 +105,7 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 static void r_stop(struct seq_file *m, void *v)
 	__releases(kernel_lock)
 {
-	unlock_kernel();
+	mutex_unlock(&config_mutex);
 }
 
 static int config_show(struct seq_file *m, void *v)

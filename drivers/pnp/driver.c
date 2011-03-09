@@ -189,8 +189,11 @@ static int pnp_bus_resume(struct device *dev)
 	if (!pnp_drv)
 		return 0;
 
-	if (pnp_dev->protocol->resume)
-		pnp_dev->protocol->resume(pnp_dev);
+	if (pnp_dev->protocol->resume) {
+		error = pnp_dev->protocol->resume(pnp_dev);
+		if (error)
+			return error;
+	}
 
 	if (pnp_can_write(pnp_dev)) {
 		error = pnp_start_dev(pnp_dev);
@@ -236,7 +239,7 @@ void pnp_unregister_driver(struct pnp_driver *drv)
  * @dev: pointer to the desired device
  * @id: pointer to an EISA id string
  */
-struct pnp_id *pnp_add_id(struct pnp_dev *dev, char *id)
+struct pnp_id *pnp_add_id(struct pnp_dev *dev, const char *id)
 {
 	struct pnp_id *dev_id, *ptr;
 

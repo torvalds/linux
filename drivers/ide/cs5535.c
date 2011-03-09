@@ -86,7 +86,7 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 		cmd = pioa = speed - XFER_PIO_0;
 
 		if (pair) {
-			u8 piob = ide_get_best_pio_mode(pair, 255, 4);
+			u8 piob = pair->pio_mode - XFER_PIO_0;
 
 			if (piob < cmd)
 				cmd = piob;
@@ -129,28 +129,28 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 
 /**
  *	cs5535_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Programs the chipset for DMA mode.
  */
 
-static void cs5535_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void cs5535_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	cs5535_set_speed(drive, speed);
+	cs5535_set_speed(drive, drive->dma_mode);
 }
 
 /**
  *	cs5535_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	A callback from the upper layers for PIO-only tuning.
  */
 
-static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cs5535_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	cs5535_set_speed(drive, XFER_PIO_0 + pio);
+	cs5535_set_speed(drive, drive->pio_mode);
 }
 
 static u8 cs5535_cable_detect(ide_hwif_t *hwif)

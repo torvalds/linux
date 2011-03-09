@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/unistd.h>
 #include <linux/time.h>
@@ -251,23 +252,22 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 		go->modet_map[i] = 0;
 
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING) {
-		struct v4l2_format res;
+		struct v4l2_mbus_framefmt mbus_fmt;
 
-		if (fmt != NULL) {
-			res = *fmt;
-		} else {
-			res.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			res.fmt.pix.width = width;
-		}
+		mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
+		if (fmt != NULL)
+			mbus_fmt.width = fmt->fmt.pix.width;
+		else
+			mbus_fmt.width = width;
 
 		if (height > sensor_height / 2) {
-			res.fmt.pix.height = height / 2;
+			mbus_fmt.height = height / 2;
 			go->encoder_v_halve = 0;
 		} else {
-			res.fmt.pix.height = height;
+			mbus_fmt.height = height;
 			go->encoder_v_halve = 1;
 		}
-		call_all(&go->v4l2_dev, video, s_fmt, &res);
+		call_all(&go->v4l2_dev, video, s_mbus_fmt, &mbus_fmt);
 	} else {
 		if (width <= sensor_width / 4) {
 			go->encoder_h_halve = 1;
@@ -719,15 +719,13 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		if (count > 32)
 			count = 32;
 
-		gofh->bufs = kmalloc(count * sizeof(struct go7007_buffer),
+		gofh->bufs = kcalloc(count, sizeof(struct go7007_buffer),
 				     GFP_KERNEL);
 
 		if (!gofh->bufs) {
 			mutex_unlock(&go->hw_lock);
 			goto unlock_and_return;
 		}
-
-		memset(gofh->bufs, 0, count * sizeof(struct go7007_buffer));
 
 		for (i = 0; i < count; ++i) {
 			gofh->bufs[i].go = go;

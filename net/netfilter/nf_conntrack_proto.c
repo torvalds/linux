@@ -12,13 +12,12 @@
 #include <linux/types.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/stddef.h>
 #include <linux/err.h>
 #include <linux/percpu.h>
-#include <linux/moduleparam.h>
 #include <linux/notifier.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -29,8 +28,8 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-static struct nf_conntrack_l4proto **nf_ct_protos[PF_MAX] __read_mostly;
-struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX] __read_mostly;
+static struct nf_conntrack_l4proto __rcu **nf_ct_protos[PF_MAX] __read_mostly;
+struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[AF_MAX] __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_l3protos);
 
 static DEFINE_MUTEX(nf_ct_proto_mutex);
@@ -118,9 +117,13 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 {
 	struct nf_conntrack_l3proto *p;
 
-	/* rcu_read_lock not necessary since the caller holds a reference */
+	/* rcu_read_lock not necessary since the caller holds a reference, but
+	 * taken anyways to avoid lockdep warnings in __nf_ct_l3proto_find()
+	 */
+	rcu_read_lock();
 	p = __nf_ct_l3proto_find(l3proto);
 	module_put(p->me);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
@@ -289,6 +292,12 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 
 		for (i = 0; i < MAX_NF_CT_PROTO; i++)
 			proto_array[i] = &nf_conntrack_l4proto_generic;
+
+		/* Before making proto_array visible to lockless readers,
+		 * we must make sure its content is committed to memory.
+		 */
+		smp_wmb();
+
 		nf_ct_protos[l4proto->l3proto] = proto_array;
 	} else if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto] !=
 					&nf_conntrack_l4proto_generic) {

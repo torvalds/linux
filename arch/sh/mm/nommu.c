@@ -67,6 +67,10 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	BUG();
 }
 
+void __flush_tlb_global(void)
+{
+}
+
 void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 }
@@ -92,5 +96,9 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 }
 
 void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+{
+}
+
+void pgtable_cache_init(void)
 {
 }

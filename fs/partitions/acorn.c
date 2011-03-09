@@ -45,8 +45,11 @@ adfs_partition(struct parsed_partitions *state, char *name, char *data,
 	nr_sects = (le32_to_cpu(dr->disc_size_high) << 23) |
 		   (le32_to_cpu(dr->disc_size) >> 9);
 
-	if (name)
-		printk(" [%s]", name);
+	if (name) {
+		strlcat(state->pp_buf, " [", PAGE_SIZE);
+		strlcat(state->pp_buf, name, PAGE_SIZE);
+		strlcat(state->pp_buf, "]", PAGE_SIZE);
+	}
 	put_partition(state, slot, first_sector, nr_sects);
 	return dr;
 }
@@ -70,25 +73,25 @@ struct riscix_record {
 
 #if defined(CONFIG_ACORN_PARTITION_CUMANA) || \
 	defined(CONFIG_ACORN_PARTITION_ADFS)
-static int
-riscix_partition(struct parsed_partitions *state, struct block_device *bdev,
-		unsigned long first_sect, int slot, unsigned long nr_sects)
+static int riscix_partition(struct parsed_partitions *state,
+			    unsigned long first_sect, int slot,
+			    unsigned long nr_sects)
 {
 	Sector sect;
 	struct riscix_record *rr;
 	
-	rr = (struct riscix_record *)read_dev_sector(bdev, first_sect, &sect);
+	rr = read_part_sector(state, first_sect, &sect);
 	if (!rr)
 		return -1;
 
-	printk(" [RISCiX]");
+	strlcat(state->pp_buf, " [RISCiX]", PAGE_SIZE);
 
 
 	if (rr->magic == RISCIX_MAGIC) {
 		unsigned long size = nr_sects > 2 ? 2 : nr_sects;
 		int part;
 
-		printk(" <");
+		strlcat(state->pp_buf, " <", PAGE_SIZE);
 
 		put_partition(state, slot++, first_sect, size);
 		for (part = 0; part < 8; part++) {
@@ -97,11 +100,13 @@ riscix_partition(struct parsed_partitions *state, struct block_device *bdev,
 				put_partition(state, slot++,
 					le32_to_cpu(rr->part[part].start),
 					le32_to_cpu(rr->part[part].length));
-				printk("(%s)", rr->part[part].name);
+				strlcat(state->pp_buf, "(", PAGE_SIZE);
+				strlcat(state->pp_buf, rr->part[part].name, PAGE_SIZE);
+				strlcat(state->pp_buf, ")", PAGE_SIZE);
 			}
 		}
 
-		printk(" >\n");
+		strlcat(state->pp_buf, " >\n", PAGE_SIZE);
 	} else {
 		put_partition(state, slot++, first_sect, nr_sects);
 	}
@@ -123,23 +128,23 @@ struct linux_part {
 
 #if defined(CONFIG_ACORN_PARTITION_CUMANA) || \
 	defined(CONFIG_ACORN_PARTITION_ADFS)
-static int
-linux_partition(struct parsed_partitions *state, struct block_device *bdev,
-		unsigned long first_sect, int slot, unsigned long nr_sects)
+static int linux_partition(struct parsed_partitions *state,
+			   unsigned long first_sect, int slot,
+			   unsigned long nr_sects)
 {
 	Sector sect;
 	struct linux_part *linuxp;
 	unsigned long size = nr_sects > 2 ? 2 : nr_sects;
 
-	printk(" [Linux]");
+	strlcat(state->pp_buf, " [Linux]", PAGE_SIZE);
 
 	put_partition(state, slot++, first_sect, size);
 
-	linuxp = (struct linux_part *)read_dev_sector(bdev, first_sect, &sect);
+	linuxp = read_part_sector(state, first_sect, &sect);
 	if (!linuxp)
 		return -1;
 
-	printk(" <");
+	strlcat(state->pp_buf, " <", PAGE_SIZE);
 	while (linuxp->magic == cpu_to_le32(LINUX_NATIVE_MAGIC) ||
 	       linuxp->magic == cpu_to_le32(LINUX_SWAP_MAGIC)) {
 		if (slot == state->limit)
@@ -149,7 +154,7 @@ linux_partition(struct parsed_partitions *state, struct block_device *bdev,
 				 le32_to_cpu(linuxp->nr_sects));
 		linuxp ++;
 	}
-	printk(" >");
+	strlcat(state->pp_buf, " >", PAGE_SIZE);
 
 	put_dev_sector(sect);
 	return slot;
@@ -157,8 +162,7 @@ linux_partition(struct parsed_partitions *state, struct block_device *bdev,
 #endif
 
 #ifdef CONFIG_ACORN_PARTITION_CUMANA
-int
-adfspart_check_CUMANA(struct parsed_partitions *state, struct block_device *bdev)
+int adfspart_check_CUMANA(struct parsed_partitions *state)
 {
 	unsigned long first_sector = 0;
 	unsigned int start_blk = 0;
@@ -185,7 +189,7 @@ adfspart_check_CUMANA(struct parsed_partitions *state, struct block_device *bdev
 		struct adfs_discrecord *dr;
 		unsigned int nr_sects;
 
-		data = read_dev_sector(bdev, start_blk * 2 + 6, &sect);
+		data = read_part_sector(state, start_blk * 2 + 6, &sect);
 		if (!data)
 			return -1;
 
@@ -217,14 +221,14 @@ adfspart_check_CUMANA(struct parsed_partitions *state, struct block_device *bdev
 #ifdef CONFIG_ACORN_PARTITION_RISCIX
 		case PARTITION_RISCIX_SCSI:
 			/* RISCiX - we don't know how to find the next one. */
-			slot = riscix_partition(state, bdev, first_sector,
-						 slot, nr_sects);
+			slot = riscix_partition(state, first_sector, slot,
+						nr_sects);
 			break;
 #endif
 
 		case PARTITION_LINUX:
-			slot = linux_partition(state, bdev, first_sector,
-						slot, nr_sects);
+			slot = linux_partition(state, first_sector, slot,
+					       nr_sects);
 			break;
 		}
 		put_dev_sector(sect);
@@ -249,8 +253,7 @@ adfspart_check_CUMANA(struct parsed_partitions *state, struct block_device *bdev
  *	    hda1 = ADFS partition on first drive.
  *	    hda2 = non-ADFS partition.
  */
-int
-adfspart_check_ADFS(struct parsed_partitions *state, struct block_device *bdev)
+int adfspart_check_ADFS(struct parsed_partitions *state)
 {
 	unsigned long start_sect, nr_sects, sectscyl, heads;
 	Sector sect;
@@ -259,7 +262,7 @@ adfspart_check_ADFS(struct parsed_partitions *state, struct block_device *bdev)
 	unsigned char id;
 	int slot = 1;
 
-	data = read_dev_sector(bdev, 6, &sect);
+	data = read_part_sector(state, 6, &sect);
 	if (!data)
 		return -1;
 
@@ -278,25 +281,25 @@ adfspart_check_ADFS(struct parsed_partitions *state, struct block_device *bdev)
 	/*
 	 * Work out start of non-adfs partition.
 	 */
-	nr_sects = (bdev->bd_inode->i_size >> 9) - start_sect;
+	nr_sects = (state->bdev->bd_inode->i_size >> 9) - start_sect;
 
 	if (start_sect) {
 		switch (id) {
 #ifdef CONFIG_ACORN_PARTITION_RISCIX
 		case PARTITION_RISCIX_SCSI:
 		case PARTITION_RISCIX_MFM:
-			slot = riscix_partition(state, bdev, start_sect,
-						 slot, nr_sects);
+			slot = riscix_partition(state, start_sect, slot,
+						nr_sects);
 			break;
 #endif
 
 		case PARTITION_LINUX:
-			slot = linux_partition(state, bdev, start_sect,
-						slot, nr_sects);
+			slot = linux_partition(state, start_sect, slot,
+					       nr_sects);
 			break;
 		}
 	}
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	return 1;
 }
 #endif
@@ -308,10 +311,11 @@ struct ics_part {
 	__le32 size;
 };
 
-static int adfspart_check_ICSLinux(struct block_device *bdev, unsigned long block)
+static int adfspart_check_ICSLinux(struct parsed_partitions *state,
+				   unsigned long block)
 {
 	Sector sect;
-	unsigned char *data = read_dev_sector(bdev, block, &sect);
+	unsigned char *data = read_part_sector(state, block, &sect);
 	int result = 0;
 
 	if (data) {
@@ -349,8 +353,7 @@ static inline int valid_ics_sector(const unsigned char *data)
  *	    hda2 = ADFS partition 1 on first drive.
  *		..etc..
  */
-int
-adfspart_check_ICS(struct parsed_partitions *state, struct block_device *bdev)
+int adfspart_check_ICS(struct parsed_partitions *state)
 {
 	const unsigned char *data;
 	const struct ics_part *p;
@@ -360,7 +363,7 @@ adfspart_check_ICS(struct parsed_partitions *state, struct block_device *bdev)
 	/*
 	 * Try ICS style partitions - sector 0 contains partition info.
 	 */
-	data = read_dev_sector(bdev, 0, &sect);
+	data = read_part_sector(state, 0, &sect);
 	if (!data)
 	    	return -1;
 
@@ -369,7 +372,7 @@ adfspart_check_ICS(struct parsed_partitions *state, struct block_device *bdev)
 		return 0;
 	}
 
-	printk(" [ICS]");
+	strlcat(state->pp_buf, " [ICS]", PAGE_SIZE);
 
 	for (slot = 1, p = (const struct ics_part *)data; p->size; p++) {
 		u32 start = le32_to_cpu(p->start);
@@ -392,7 +395,7 @@ adfspart_check_ICS(struct parsed_partitions *state, struct block_device *bdev)
 			 * partition is.  We must not make this visible
 			 * to the filesystem.
 			 */
-			if (size > 1 && adfspart_check_ICSLinux(bdev, start)) {
+			if (size > 1 && adfspart_check_ICSLinux(state, start)) {
 				start += 1;
 				size -= 1;
 			}
@@ -403,7 +406,7 @@ adfspart_check_ICS(struct parsed_partitions *state, struct block_device *bdev)
 	}
 
 	put_dev_sector(sect);
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	return 1;
 }
 #endif
@@ -446,8 +449,7 @@ static inline int valid_ptec_sector(const unsigned char *data)
  *	    hda2 = ADFS partition 1 on first drive.
  *		..etc..
  */
-int
-adfspart_check_POWERTEC(struct parsed_partitions *state, struct block_device *bdev)
+int adfspart_check_POWERTEC(struct parsed_partitions *state)
 {
 	Sector sect;
 	const unsigned char *data;
@@ -455,7 +457,7 @@ adfspart_check_POWERTEC(struct parsed_partitions *state, struct block_device *bd
 	int slot = 1;
 	int i;
 
-	data = read_dev_sector(bdev, 0, &sect);
+	data = read_part_sector(state, 0, &sect);
 	if (!data)
 		return -1;
 
@@ -464,7 +466,7 @@ adfspart_check_POWERTEC(struct parsed_partitions *state, struct block_device *bd
 		return 0;
 	}
 
-	printk(" [POWERTEC]");
+	strlcat(state->pp_buf, " [POWERTEC]", PAGE_SIZE);
 
 	for (i = 0, p = (const struct ptec_part *)data; i < 12; i++, p++) {
 		u32 start = le32_to_cpu(p->start);
@@ -475,7 +477,7 @@ adfspart_check_POWERTEC(struct parsed_partitions *state, struct block_device *bd
 	}
 
 	put_dev_sector(sect);
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	return 1;
 }
 #endif
@@ -508,8 +510,7 @@ static const char eesox_name[] = {
  *  1. The individual ADFS boot block entries that are placed on the disk.
  *  2. The start address of the next entry.
  */
-int
-adfspart_check_EESOX(struct parsed_partitions *state, struct block_device *bdev)
+int adfspart_check_EESOX(struct parsed_partitions *state)
 {
 	Sector sect;
 	const unsigned char *data;
@@ -518,7 +519,7 @@ adfspart_check_EESOX(struct parsed_partitions *state, struct block_device *bdev)
 	sector_t start = 0;
 	int i, slot = 1;
 
-	data = read_dev_sector(bdev, 7, &sect);
+	data = read_part_sector(state, 7, &sect);
 	if (!data)
 		return -1;
 
@@ -545,9 +546,9 @@ adfspart_check_EESOX(struct parsed_partitions *state, struct block_device *bdev)
 	if (i != 0) {
 		sector_t size;
 
-		size = get_capacity(bdev->bd_disk);
+		size = get_capacity(state->bdev->bd_disk);
 		put_partition(state, slot++, start, size - start);
-		printk("\n");
+		strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	}
 
 	return i ? 1 : 0;

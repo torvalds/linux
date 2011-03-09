@@ -10,10 +10,10 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 /*
@@ -115,6 +115,9 @@ int unregister_filesystem(struct file_system_type * fs)
 		tmp = &(*tmp)->next;
 	}
 	write_unlock(&file_systems_lock);
+
+	synchronize_rcu();
+
 	return -EINVAL;
 }
 

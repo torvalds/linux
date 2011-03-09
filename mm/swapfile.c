@@ -30,6 +30,7 @@
 #include <linux/capability.h>
 #include <linux/syscalls.h>
 #include <linux/memcontrol.h>
+#include <linux/poll.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -57,6 +58,10 @@ static struct swap_list_t swap_list = {-1, -1};
 static struct swap_info_struct *swap_info[MAX_SWAPFILES];
 
 static DEFINE_MUTEX(swapon_mutex);
+
+static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
+/* Activity counter to indicate that a swapon or swapoff has occurred */
+static atomic_t proc_poll_event = ATOMIC_INIT(0);
 
 static inline unsigned char swap_count(unsigned char ent)
 {
@@ -139,7 +144,7 @@ static int discard_swap(struct swap_info_struct *si)
 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
 	if (nr_blocks) {
 		err = blkdev_issue_discard(si->bdev, start_block,
-				nr_blocks, GFP_KERNEL, DISCARD_FL_BARRIER);
+				nr_blocks, GFP_KERNEL, 0);
 		if (err)
 			return err;
 		cond_resched();
@@ -150,7 +155,7 @@ static int discard_swap(struct swap_info_struct *si)
 		nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
 
 		err = blkdev_issue_discard(si->bdev, start_block,
-				nr_blocks, GFP_KERNEL, DISCARD_FL_BARRIER);
+				nr_blocks, GFP_KERNEL, 0);
 		if (err)
 			break;
 
@@ -189,7 +194,7 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 			start_block <<= PAGE_SHIFT - 9;
 			nr_blocks <<= PAGE_SHIFT - 9;
 			if (blkdev_issue_discard(si->bdev, start_block,
-				    nr_blocks, GFP_NOIO, DISCARD_FL_BARRIER))
+				    nr_blocks, GFP_NOIO, 0))
 				break;
 		}
 
@@ -574,6 +579,7 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 
 	/* free if no reference */
 	if (!usage) {
+		struct gendisk *disk = p->bdev->bd_disk;
 		if (offset < p->lowest_bit)
 			p->lowest_bit = offset;
 		if (offset > p->highest_bit)
@@ -583,6 +589,9 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 			swap_list.next = p->type;
 		nr_swap_pages++;
 		p->inuse_pages--;
+		if ((p->flags & SWP_BLKDEV) &&
+				disk->fops->swap_slot_free_notify)
+			disk->fops->swap_slot_free_notify(p->bdev, offset);
 	}
 
 	return usage;
@@ -679,6 +688,24 @@ int try_to_free_swap(struct page *page)
 	if (page_swapcount(page))
 		return 0;
 
+	/*
+	 * Once hibernation has begun to create its image of memory,
+	 * there's a danger that one of the calls to try_to_free_swap()
+	 * - most probably a call from __try_to_reclaim_swap() while
+	 * hibernation is allocating its own swap pages for the image,
+	 * but conceivably even a call from memory reclaim - will free
+	 * the swap from a page which has already been recorded in the
+	 * image as a clean swapcache page, and then reuse its swap for
+	 * another page of the image.  On waking from hibernation, the
+	 * original page might be freed under memory pressure, then
+	 * later read back in from swap, now with the wrong data.
+	 *
+	 * Hibernation clears bits from gfp_allowed_mask to prevent
+	 * memory reclaim from writing to disk, so check that here.
+	 */
+	if (!(gfp_allowed_mask & __GFP_IO))
+		return 0;
+
 	delete_from_swap_cache(page);
 	SetPageDirty(page);
 	return 1;
@@ -722,6 +749,37 @@ int free_swap_and_cache(swp_entry_t entry)
 	}
 	return p != NULL;
 }
+
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+/**
+ * mem_cgroup_count_swap_user - count the user of a swap entry
+ * @ent: the swap entry to be checked
+ * @pagep: the pointer for the swap cache page of the entry to be stored
+ *
+ * Returns the number of the user of the swap entry. The number is valid only
+ * for swaps of anonymous pages.
+ * If the entry is found on swap cache, the page is stored to pagep with
+ * refcount of it being incremented.
+ */
+int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep)
+{
+	struct page *page;
+	struct swap_info_struct *p;
+	int count = 0;
+
+	page = find_get_page(&swapper_space, ent.val);
+	if (page)
+		count += page_mapcount(page);
+	p = swap_info_get(ent);
+	if (p) {
+		count += swap_count(p->swap_map[swp_offset(ent)]);
+		spin_unlock(&swap_lock);
+	}
+
+	*pagep = page;
+	return count;
+}
+#endif
 
 #ifdef CONFIG_HIBERNATION
 /*
@@ -840,7 +898,8 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 		goto out;
 	}
 
-	inc_mm_counter(vma->vm_mm, anon_rss);
+	dec_mm_counter(vma->vm_mm, MM_SWAPENTS);
+	inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
 	get_page(page);
 	set_pte_at(vma->vm_mm, addr, pte,
 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
@@ -905,6 +964,8 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
+		if (unlikely(pmd_trans_huge(*pmd)))
+			continue;
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
 		ret = unuse_pte_range(vma, pmd, addr, next, entry, page);
@@ -1618,7 +1679,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	if (S_ISBLK(inode->i_mode)) {
 		struct block_device *bdev = I_BDEV(inode);
 		set_blocksize(bdev, p->old_block_size);
-		bd_release(bdev);
+		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	} else {
 		mutex_lock(&inode->i_mutex);
 		inode->i_flags &= ~S_SWAPFILE;
@@ -1626,6 +1687,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	}
 	filp_close(swap_file, NULL);
 	err = 0;
+	atomic_inc(&proc_poll_event);
+	wake_up_interruptible(&proc_poll_wait);
 
 out_dput:
 	filp_close(victim, NULL);
@@ -1634,6 +1697,25 @@ out:
 }
 
 #ifdef CONFIG_PROC_FS
+struct proc_swaps {
+	struct seq_file seq;
+	int event;
+};
+
+static unsigned swaps_poll(struct file *file, poll_table *wait)
+{
+	struct proc_swaps *s = file->private_data;
+
+	poll_wait(file, &proc_poll_wait, wait);
+
+	if (s->event != atomic_read(&proc_poll_event)) {
+		s->event = atomic_read(&proc_poll_event);
+		return POLLIN | POLLRDNORM | POLLERR | POLLPRI;
+	}
+
+	return POLLIN | POLLRDNORM;
+}
+
 /* iterator */
 static void *swap_start(struct seq_file *swap, loff_t *pos)
 {
@@ -1717,7 +1799,24 @@ static const struct seq_operations swaps_op = {
 
 static int swaps_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &swaps_op);
+	struct proc_swaps *s;
+	int ret;
+
+	s = kmalloc(sizeof(struct proc_swaps), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	file->private_data = s;
+
+	ret = seq_open(file, &swaps_op);
+	if (ret) {
+		kfree(s);
+		return ret;
+	}
+
+	s->seq.private = s;
+	s->event = atomic_read(&proc_poll_event);
+	return ret;
 }
 
 static const struct file_operations proc_swaps_operations = {
@@ -1725,6 +1824,7 @@ static const struct file_operations proc_swaps_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
+	.poll		= swaps_poll,
 };
 
 static int __init procswaps_init(void)
@@ -1759,11 +1859,11 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	unsigned int type;
 	int i, prev;
 	int error;
-	union swap_header *swap_header = NULL;
-	unsigned int nr_good_pages = 0;
+	union swap_header *swap_header;
+	unsigned int nr_good_pages;
 	int nr_extents = 0;
 	sector_t span;
-	unsigned long maxpages = 1;
+	unsigned long maxpages;
 	unsigned long swapfilepages;
 	unsigned char *swap_map = NULL;
 	struct page *page = NULL;
@@ -1841,7 +1941,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	error = -EINVAL;
 	if (S_ISBLK(inode->i_mode)) {
 		bdev = I_BDEV(inode);
-		error = bd_claim(bdev, sys_swapon);
+		error = blkdev_get(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL,
+				   sys_swapon);
 		if (error < 0) {
 			bdev = NULL;
 			error = -EINVAL;
@@ -1852,6 +1953,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		if (error < 0)
 			goto bad_swap;
 		p->bdev = bdev;
+		p->flags |= SWP_BLKDEV;
 	} else if (S_ISREG(inode->i_mode)) {
 		p->bdev = inode->i_sb->s_bdev;
 		mutex_lock(&inode->i_mutex);
@@ -1922,9 +2024,13 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	 * swap pte.
 	 */
 	maxpages = swp_offset(pte_to_swp_entry(
-			swp_entry_to_pte(swp_entry(0, ~0UL)))) - 1;
-	if (maxpages > swap_header->info.last_page)
-		maxpages = swap_header->info.last_page;
+			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
+	if (maxpages > swap_header->info.last_page) {
+		maxpages = swap_header->info.last_page + 1;
+		/* p->max is an unsigned int: don't overflow it */
+		if ((unsigned int)maxpages == 0)
+			maxpages = UINT_MAX;
+	}
 	p->highest_bit = maxpages - 1;
 
 	error = -EINVAL;
@@ -1948,22 +2054,23 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	}
 
 	memset(swap_map, 0, maxpages);
+	nr_good_pages = maxpages - 1;	/* omit header page */
+
 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
-		int page_nr = swap_header->info.badpages[i];
-		if (page_nr <= 0 || page_nr >= swap_header->info.last_page) {
+		unsigned int page_nr = swap_header->info.badpages[i];
+		if (page_nr == 0 || page_nr > swap_header->info.last_page) {
 			error = -EINVAL;
 			goto bad_swap;
 		}
-		swap_map[page_nr] = SWAP_MAP_BAD;
+		if (page_nr < maxpages) {
+			swap_map[page_nr] = SWAP_MAP_BAD;
+			nr_good_pages--;
+		}
 	}
 
 	error = swap_cgroup_swapon(type, maxpages);
 	if (error)
 		goto bad_swap;
-
-	nr_good_pages = swap_header->info.last_page -
-			swap_header->info.nr_badpages -
-			1 /* header page */;
 
 	if (nr_good_pages) {
 		swap_map[0] = SWAP_MAP_BAD;
@@ -1987,7 +2094,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 			p->flags |= SWP_SOLIDSTATE;
 			p->cluster_next = 1 + (random32() % p->highest_bit);
 		}
-		if (discard_swap(p) == 0)
+		if (discard_swap(p) == 0 && (swap_flags & SWAP_FLAG_DISCARD))
 			p->flags |= SWP_DISCARDABLE;
 	}
 
@@ -2024,12 +2131,15 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		swap_info[prev]->next = type;
 	spin_unlock(&swap_lock);
 	mutex_unlock(&swapon_mutex);
+	atomic_inc(&proc_poll_event);
+	wake_up_interruptible(&proc_poll_wait);
+
 	error = 0;
 	goto out;
 bad_swap:
 	if (bdev) {
 		set_blocksize(bdev, p->old_block_size);
-		bd_release(bdev);
+		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 	}
 	destroy_swap_extents(p);
 	swap_cgroup_swapoff(type);
@@ -2155,7 +2265,11 @@ void swap_shmem_alloc(swp_entry_t entry)
 }
 
 /*
- * increase reference count of swap entry by 1.
+ * Increase reference count of swap entry by 1.
+ * Returns 0 for success, or -ENOMEM if a swap_count_continuation is required
+ * but could not be atomically allocated.  Returns 0, just as if it succeeded,
+ * if __swap_duplicate() fails for another reason (-EINVAL or -ENOENT), which
+ * might occur if a page table entry has got corrupted.
  */
 int swap_duplicate(swp_entry_t entry)
 {

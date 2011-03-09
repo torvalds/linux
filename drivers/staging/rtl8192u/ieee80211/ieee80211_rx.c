@@ -44,9 +44,7 @@
 #include <linux/ctype.h>
 
 #include "ieee80211.h"
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct sk_buff *skb,
 					struct ieee80211_rx_stats *rx_stats)
@@ -360,8 +358,8 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 	    strcmp(crypt->ops->name, "TKIP") == 0) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "received packet from " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(hdr->addr2));
+			       "received packet from %pM\n",
+			       ieee->dev->name, hdr->addr2);
 		}
 		return -1;
 	}
@@ -372,8 +370,8 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		IEEE80211_DEBUG_DROP(
-			"decryption failed (SA=" MAC_FMT
-			") res=%d\n", MAC_ARG(hdr->addr2), res);
+			"decryption failed (SA=%pM"
+			") res=%d\n", hdr->addr2, res);
 		if (res == -2)
 			IEEE80211_DEBUG_DROP("Decryption failed ICV "
 					     "mismatch (key %d)\n",
@@ -410,8 +408,8 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *s
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
-		       " (SA=" MAC_FMT " keyidx=%d)\n",
-		       ieee->dev->name, MAC_ARG(hdr->addr2), keyidx);
+		       " (SA=%pM keyidx=%d)\n",
+		       ieee->dev->name, hdr->addr2, keyidx);
 		return -1;
 	}
 
@@ -1016,8 +1014,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * frames silently instead of filling system log with
 			 * these reports. */
 			IEEE80211_DEBUG_DROP("Decryption failed (not set)"
-					     " (SA=" MAC_FMT ")\n",
-					     MAC_ARG(hdr->addr2));
+					     " (SA=%pM)\n",
+					     hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			goto rx_dropped;
 		}
@@ -1256,8 +1254,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		} else {
 			IEEE80211_DEBUG_DROP(
 				"encryption configured, but RX "
-				"frame not encrypted (SA=" MAC_FMT ")\n",
-				MAC_ARG(hdr->addr2));
+				"frame not encrypted (SA=%pM)\n",
+				hdr->addr2);
 			goto rx_dropped;
 		}
 	}
@@ -1276,9 +1274,9 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	    !ieee80211_is_eapol_frame(ieee, skb, hdrlen)) {
 		IEEE80211_DEBUG_DROP(
 			"dropped unencrypted RX data "
-			"frame from " MAC_FMT
+			"frame from %pM"
 			" (drop_unencrypted=1)\n",
-			MAC_ARG(hdr->addr2));
+			hdr->addr2);
 		goto rx_dropped;
 	}
 /*
@@ -1302,7 +1300,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full plaintext payload */
 	payload = skb->data + hdrlen;
 	//ethertype = (payload[6] << 8) | payload[7];
-	rxb = (struct ieee80211_rxb*)kmalloc(sizeof(struct ieee80211_rxb),GFP_ATOMIC);
+	rxb = kmalloc(sizeof(struct ieee80211_rxb), GFP_ATOMIC);
 	if(rxb == NULL)
 	{
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,"%s(): kmalloc rxb error\n",__FUNCTION__);
@@ -1599,7 +1597,6 @@ static const char *get_info_element_string(u16 id)
 }
 #endif
 
-#ifdef ENABLE_DOT11D
 static inline void ieee80211_extract_country_ie(
 	struct ieee80211_device *ieee,
 	struct ieee80211_info_element *info_element,
@@ -1632,7 +1629,6 @@ static inline void ieee80211_extract_country_ie(
 	}
 
 }
-#endif
 
 int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 		struct ieee80211_info_element *info_element,
@@ -2086,14 +2082,12 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			       "QoS Error need to parse QOS_PARAMETER IE\n");
 			break;
 
-#ifdef ENABLE_DOT11D
 		case MFIE_TYPE_COUNTRY:
 			IEEE80211_DEBUG_SCAN("MFIE_TYPE_COUNTRY: %d bytes\n",
 					     info_element->len);
 			//printk("=====>Receive <%s> Country IE\n",network->ssid);
 			ieee80211_extract_country_ie(ieee, info_element, network, network->bssid);//addr2 is same as addr3 when from an AP
 			break;
-#endif
 /* TODO */
 		default:
 			IEEE80211_DEBUG_MGMT
@@ -2229,10 +2223,8 @@ static inline int ieee80211_network_init(
 #ifdef THOMAS_TURBO
 	network->Turbo_Enable = 0;
 #endif
-#ifdef ENABLE_DOT11D
 	network->CountryIeLen = 0;
 	memset(network->CountryIeBuf, 0, MAX_IE_LEN);
-#endif
 //Initialize HT parameters
 	//ieee80211_ht_initialize(&network->bssht);
 	HTInitializeBssDesc(&network->bssht);
@@ -2260,11 +2252,11 @@ static inline int ieee80211_network_init(
 	}
 
 	if (network->mode == 0) {
-		IEEE80211_DEBUG_SCAN("Filtered out '%s (" MAC_FMT ")' "
+		IEEE80211_DEBUG_SCAN("Filtered out '%s (%pM)' "
 				     "network.\n",
 				     escape_essid(network->ssid,
 						  network->ssid_len),
-				     MAC_ARG(network->bssid));
+				     network->bssid);
 		return 1;
 	}
 
@@ -2391,7 +2383,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	if(src->wmm_param[0].ac_aci_acm_aifsn|| \
 	   src->wmm_param[1].ac_aci_acm_aifsn|| \
 	   src->wmm_param[2].ac_aci_acm_aifsn|| \
-	   src->wmm_param[1].ac_aci_acm_aifsn) {
+	   src->wmm_param[3].ac_aci_acm_aifsn) {
 	  memcpy(dst->wmm_param, src->wmm_param, WME_AC_PRAM_LEN);
 	}
 	//dst->QoS_Enable = src->QoS_Enable;
@@ -2399,10 +2391,8 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->Turbo_Enable = src->Turbo_Enable;
 #endif
 
-#ifdef ENABLE_DOT11D
 	dst->CountryIeLen = src->CountryIeLen;
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);
-#endif
 
 	//added by amy for LEAP
 	dst->bWithAironetIE = src->bWithAironetIE;
@@ -2439,9 +2429,9 @@ static inline void ieee80211_process_probe_response(
 
 	memset(&network, 0, sizeof(struct ieee80211_network));
 	IEEE80211_DEBUG_SCAN(
-		"'%s' (" MAC_FMT "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
+		"'%s' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		escape_essid(info_element->data, info_element->len),
-		MAC_ARG(beacon->header.addr3),
+		beacon->header.addr3,
 		(beacon->capability & (1<<0xf)) ? '1' : '0',
 		(beacon->capability & (1<<0xe)) ? '1' : '0',
 		(beacon->capability & (1<<0xd)) ? '1' : '0',
@@ -2460,17 +2450,16 @@ static inline void ieee80211_process_probe_response(
 		(beacon->capability & (1<<0x0)) ? '1' : '0');
 
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
-		IEEE80211_DEBUG_SCAN("Dropped '%s' (" MAC_FMT ") via %s.\n",
+		IEEE80211_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
 				     escape_essid(info_element->data,
 						  info_element->len),
-				     MAC_ARG(beacon->header.addr3),
+				     beacon->header.addr3,
 				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 		return;
 	}
 
-#ifdef ENABLE_DOT11D
 	// For Asus EeePc request,
 	// (1) if wireless adapter receive get any 802.11d country code in AP beacon,
 	//	   wireless adapter should follow the country code.
@@ -2527,7 +2516,6 @@ static inline void ieee80211_process_probe_response(
 			}
 		}
 	}
-#endif
 
 	/* The network parsed correctly -- so now we scan our known networks
 	 * to see if we can find it in our list.
@@ -2574,11 +2562,11 @@ static inline void ieee80211_process_probe_response(
 			/* If there are no more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
-			IEEE80211_DEBUG_SCAN("Expired '%s' (" MAC_FMT ") from "
+			IEEE80211_DEBUG_SCAN("Expired '%s' (%pM) from "
 					     "network list.\n",
 					     escape_essid(target->ssid,
 							  target->ssid_len),
-					     MAC_ARG(target->bssid));
+					     target->bssid);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -2588,10 +2576,10 @@ static inline void ieee80211_process_probe_response(
 
 
 #ifdef CONFIG_IEEE80211_DEBUG
-		IEEE80211_DEBUG_SCAN("Adding '%s' (" MAC_FMT ") via %s.\n",
+		IEEE80211_DEBUG_SCAN("Adding '%s' (%pM) via %s.\n",
 				     escape_essid(network.ssid,
 						  network.ssid_len),
-				     MAC_ARG(network.bssid),
+				     network.bssid,
 				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
@@ -2601,10 +2589,10 @@ static inline void ieee80211_process_probe_response(
 		if(ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
 			ieee80211_softmac_new_net(ieee,&network);
 	} else {
-		IEEE80211_DEBUG_SCAN("Updating '%s' (" MAC_FMT ") via %s.\n",
+		IEEE80211_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
 				     escape_essid(target->ssid,
 						  target->ssid_len),
-				     MAC_ARG(target->bssid),
+				     target->bssid,
 				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");

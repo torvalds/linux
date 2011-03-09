@@ -45,7 +45,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	private = to_io_private(sch);
 	orb = &private->orb;
-	cc = stsch(sch->schid, &schib);
+	cc = stsch_err(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
 	       "device information:\n", get_clock());
@@ -174,7 +174,10 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 		ret = cio_clear (sch);
 		return (ret == 0) ? -EBUSY : ret;
 	}
-	panic("Can't stop i/o on subchannel.\n");
+	/* Function was unsuccessful */
+	CIO_MSG_EVENT(0, "0.%x.%04x: could not stop I/O\n",
+		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno);
+	return -EIO;
 }
 
 void ccw_device_update_sense_data(struct ccw_device *cdev)
@@ -313,23 +316,49 @@ ccw_device_sense_id_done(struct ccw_device *cdev, int err)
 	}
 }
 
+/**
+  * ccw_device_notify() - inform the device's driver about an event
+  * @cdev: device for which an event occured
+  * @event: event that occurred
+  *
+  * Returns:
+  *   -%EINVAL if the device is offline or has no driver.
+  *   -%EOPNOTSUPP if the device's driver has no notifier registered.
+  *   %NOTIFY_OK if the driver wants to keep the device.
+  *   %NOTIFY_BAD if the driver doesn't want to keep the device.
+  */
 int ccw_device_notify(struct ccw_device *cdev, int event)
 {
+	int ret = -EINVAL;
+
 	if (!cdev->drv)
-		return 0;
+		goto out;
 	if (!cdev->online)
-		return 0;
+		goto out;
 	CIO_MSG_EVENT(2, "notify called for 0.%x.%04x, event=%d\n",
 		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno,
 		      event);
-	return cdev->drv->notify ? cdev->drv->notify(cdev, event) : 0;
+	if (!cdev->drv->notify) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+	if (cdev->drv->notify(cdev, event))
+		ret = NOTIFY_OK;
+	else
+		ret = NOTIFY_BAD;
+out:
+	return ret;
 }
 
 static void ccw_device_oper_notify(struct ccw_device *cdev)
 {
-	if (ccw_device_notify(cdev, CIO_OPER)) {
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	if (ccw_device_notify(cdev, CIO_OPER) == NOTIFY_OK) {
 		/* Reenable channel measurements, if needed. */
 		ccw_device_sched_todo(cdev, CDEV_TODO_ENABLE_CMF);
+		/* Save indication for new paths. */
+		cdev->private->path_new_mask = sch->vpm;
 		return;
 	}
 	/* Driver doesn't want device back. */
@@ -361,14 +390,15 @@ ccw_device_done(struct ccw_device *cdev, int state)
 	case DEV_STATE_BOXED:
 		CIO_MSG_EVENT(0, "Boxed device %04x on subchannel %04x\n",
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
-		if (cdev->online && !ccw_device_notify(cdev, CIO_BOXED))
+		if (cdev->online &&
+		    ccw_device_notify(cdev, CIO_BOXED) != NOTIFY_OK)
 			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		cdev->private->flags.donotify = 0;
 		break;
 	case DEV_STATE_NOT_OPER:
 		CIO_MSG_EVENT(0, "Device %04x gone on subchannel %04x\n",
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
-		if (!ccw_device_notify(cdev, CIO_GONE))
+		if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
 			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		else
 			ccw_device_set_disconnected(cdev);
@@ -378,7 +408,7 @@ ccw_device_done(struct ccw_device *cdev, int state)
 		CIO_MSG_EVENT(0, "Disconnected device %04x on subchannel "
 			      "%04x\n", cdev->private->dev_id.devno,
 			      sch->schid.sch_no);
-		if (!ccw_device_notify(cdev, CIO_NO_PATH))
+		if (ccw_device_notify(cdev, CIO_NO_PATH) != NOTIFY_OK)
 			ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		else
 			ccw_device_set_disconnected(cdev);
@@ -439,6 +469,32 @@ static void ccw_device_request_event(struct ccw_device *cdev, enum dev_event e)
 	}
 }
 
+static void ccw_device_report_path_events(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int path_event[8];
+	int chp, mask;
+
+	for (chp = 0, mask = 0x80; chp < 8; chp++, mask >>= 1) {
+		path_event[chp] = PE_NONE;
+		if (mask & cdev->private->path_gone_mask & ~(sch->vpm))
+			path_event[chp] |= PE_PATH_GONE;
+		if (mask & cdev->private->path_new_mask & sch->vpm)
+			path_event[chp] |= PE_PATH_AVAILABLE;
+		if (mask & cdev->private->pgid_reset_mask & sch->vpm)
+			path_event[chp] |= PE_PATHGROUP_ESTABLISHED;
+	}
+	if (cdev->online && cdev->drv->path_event)
+		cdev->drv->path_event(cdev, path_event);
+}
+
+static void ccw_device_reset_path_events(struct ccw_device *cdev)
+{
+	cdev->private->path_gone_mask = 0;
+	cdev->private->path_new_mask = 0;
+	cdev->private->pgid_reset_mask = 0;
+}
+
 void
 ccw_device_verify_done(struct ccw_device *cdev, int err)
 {
@@ -475,6 +531,7 @@ callback:
 					      &cdev->private->irb);
 			memset(&cdev->private->irb, 0, sizeof(struct irb));
 		}
+		ccw_device_report_path_events(cdev);
 		break;
 	case -ETIME:
 	case -EUSERS:
@@ -493,6 +550,7 @@ callback:
 		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		break;
 	}
+	ccw_device_reset_path_events(cdev);
 }
 
 /*
@@ -586,7 +644,7 @@ ccw_device_offline(struct ccw_device *cdev)
 static void ccw_device_generic_notoper(struct ccw_device *cdev,
 				       enum dev_event dev_event)
 {
-	if (!ccw_device_notify(cdev, CIO_GONE))
+	if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 	else
 		ccw_device_set_disconnected(cdev);
@@ -667,7 +725,7 @@ ccw_device_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	struct irb *irb;
 	int is_cmd;
 
-	irb = (struct irb *) __LC_IRB;
+	irb = (struct irb *)&S390_lowcore.irb;
 	is_cmd = !scsw_is_tm(&irb->scsw);
 	/* Check for unsolicited interrupt. */
 	if (!scsw_is_solicited(&irb->scsw)) {
@@ -711,13 +769,14 @@ ccw_device_online_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	ccw_device_set_timeout(cdev, 0);
+	cdev->private->iretry = 255;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
 		cdev->private->state = DEV_STATE_TIMEOUT_KILL;
 		return;
 	}
-	if (ret == -ENODEV)
+	if (ret)
 		dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 	else if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
@@ -732,7 +791,7 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 {
 	struct irb *irb;
 
-	irb = (struct irb *) __LC_IRB;
+	irb = (struct irb *)&S390_lowcore.irb;
 	/* Check for unsolicited interrupt. */
 	if (scsw_stctl(&irb->scsw) ==
 	    (SCSW_STCTL_STATUS_PEND | SCSW_STCTL_ALERT_STATUS)) {
@@ -814,6 +873,7 @@ void ccw_device_kill_io(struct ccw_device *cdev)
 {
 	int ret;
 
+	cdev->private->iretry = 255;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);

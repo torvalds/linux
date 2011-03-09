@@ -33,8 +33,7 @@ static int write_control_reg(struct echoaudio *chip, u32 value, char force);
 static int set_input_clock(struct echoaudio *chip, u16 clock);
 static int set_professional_spdif(struct echoaudio *chip, char prof);
 static int set_digital_mode(struct echoaudio *chip, u8 mode);
-static int load_asic_generic(struct echoaudio *chip, u32 cmd,
-			     const struct firmware *asic);
+static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic);
 static int check_asic_status(struct echoaudio *chip);
 
 
@@ -58,19 +57,16 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		ECHO_CLOCK_BIT_INTERNAL | ECHO_CLOCK_BIT_SPDIF |
 		ECHO_CLOCK_BIT_ESYNC | ECHO_CLOCK_BIT_ESYNC96 |
 		ECHO_CLOCK_BIT_ADAT;
-	chip->professional_spdif = FALSE;
-	chip->digital_in_automute = TRUE;
-	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
 
 	/* Gina24 comes in both '301 and '361 flavors */
 	if (chip->device_id == DEVICE_ID_56361) {
-		chip->dsp_code_to_load = &card_fw[FW_GINA24_361_DSP];
+		chip->dsp_code_to_load = FW_GINA24_361_DSP;
 		chip->digital_modes =
 			ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_RCA |
 			ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_OPTICAL |
 			ECHOCAPS_HAS_DIGITAL_MODE_ADAT;
 	} else {
-		chip->dsp_code_to_load = &card_fw[FW_GINA24_301_DSP];
+		chip->dsp_code_to_load = FW_GINA24_301_DSP;
 		chip->digital_modes =
 			ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_RCA |
 			ECHOCAPS_HAS_DIGITAL_MODE_SPDIF_OPTICAL |
@@ -82,15 +78,18 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	if ((err = init_line_levels(chip)) < 0)
-		return err;
-	err = set_digital_mode(chip, DIGITAL_MODE_SPDIF_RCA);
-	if (err < 0)
-		return err;
-	err = set_professional_spdif(chip, TRUE);
-
 	DE_INIT(("init_hw done\n"));
 	return err;
+}
+
+
+
+static int set_mixer_defaults(struct echoaudio *chip)
+{
+	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
+	chip->professional_spdif = FALSE;
+	chip->digital_in_automute = TRUE;
+	return init_line_levels(chip);
 }
 
 
@@ -125,7 +124,7 @@ static int load_asic(struct echoaudio *chip)
 {
 	u32 control_reg;
 	int err;
-	const struct firmware *fw;
+	short asic;
 
 	if (chip->asic_loaded)
 		return 1;
@@ -135,14 +134,15 @@ static int load_asic(struct echoaudio *chip)
 
 	/* Pick the correct ASIC for '301 or '361 Gina24 */
 	if (chip->device_id == DEVICE_ID_56361)
-		fw = &card_fw[FW_GINA24_361_ASIC];
+		asic = FW_GINA24_361_ASIC;
 	else
-		fw = &card_fw[FW_GINA24_301_ASIC];
+		asic = FW_GINA24_301_ASIC;
 
-	if ((err = load_asic_generic(chip, DSP_FNC_LOAD_GINA24_ASIC, fw)) < 0)
+	err = load_asic_generic(chip, DSP_FNC_LOAD_GINA24_ASIC, asic);
+	if (err < 0)
 		return err;
 
-	chip->asic_code = fw;
+	chip->asic_code = asic;
 
 	/* Now give the new ASIC a little time to set up */
 	mdelay(10);

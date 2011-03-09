@@ -15,6 +15,7 @@
 #include <linux/msi.h>
 #include <linux/of_platform.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include <asm/dcr.h>
 #include <asm/machdep.h>
@@ -309,9 +310,9 @@ static void axon_msi_teardown_msi_irqs(struct pci_dev *dev)
 }
 
 static struct irq_chip msic_irq_chip = {
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
-	.shutdown	= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
+	.irq_shutdown	= mask_msi_irq,
 	.name		= "AXON-MSI",
 };
 
@@ -327,7 +328,7 @@ static struct irq_host_ops msic_host_ops = {
 	.map	= msic_host_map,
 };
 
-static int axon_msi_shutdown(struct of_device *device)
+static int axon_msi_shutdown(struct platform_device *device)
 {
 	struct axon_msic *msic = dev_get_drvdata(&device->dev);
 	u32 tmp;
@@ -341,10 +342,10 @@ static int axon_msi_shutdown(struct of_device *device)
 	return 0;
 }
 
-static int axon_msi_probe(struct of_device *device,
+static int axon_msi_probe(struct platform_device *device,
 			  const struct of_device_id *device_id)
 {
-	struct device_node *dn = device->node;
+	struct device_node *dn = device->dev.of_node;
 	struct axon_msic *msic;
 	unsigned int virq;
 	int dcr_base, dcr_len;
@@ -446,11 +447,12 @@ static const struct of_device_id axon_msi_device_id[] = {
 };
 
 static struct of_platform_driver axon_msi_driver = {
-	.match_table	= axon_msi_device_id,
 	.probe		= axon_msi_probe,
 	.shutdown	= axon_msi_shutdown,
-	.driver		= {
-		.name	= "axon-msi"
+	.driver = {
+		.name = "axon-msi",
+		.owner = THIS_MODULE,
+		.of_match_table = axon_msi_device_id,
 	},
 };
 

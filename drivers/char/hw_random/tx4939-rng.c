@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
+#include <linux/gfp.h>
 
 #define TX4939_RNG_RCSR		0x00000000
 #define TX4939_RNG_ROR(n)	(0x00000018 + (n) * 8)

@@ -122,8 +122,3 @@ _GLOBAL(longjmp)
 	mtlr	r0
 	mr	r3,r4
 	blr
-
-_GLOBAL(__setup_cpu_power7)
-_GLOBAL(__restore_cpu_power7)
-	/* place holder */
-	blr

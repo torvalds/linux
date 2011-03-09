@@ -38,8 +38,21 @@ struct svc_stat {
 				rpcbadclnt;
 };
 
-void			rpc_proc_init(void);
-void			rpc_proc_exit(void);
+struct net;
+#ifdef CONFIG_PROC_FS
+int			rpc_proc_init(struct net *);
+void			rpc_proc_exit(struct net *);
+#else
+static inline int rpc_proc_init(struct net *net)
+{
+	return 0;
+}
+
+static inline void rpc_proc_exit(struct net *net)
+{
+}
+#endif
+
 #ifdef MODULE
 void			rpc_modcount(struct inode *, int);
 #endif
@@ -54,9 +67,6 @@ void			svc_proc_unregister(const char *);
 
 void			svc_seq_show(struct seq_file *,
 				     const struct svc_stat *);
-
-extern struct proc_dir_entry	*proc_net_rpc;
-
 #else
 
 static inline struct proc_dir_entry *rpc_proc_register(struct rpc_stat *s) { return NULL; }
@@ -69,9 +79,6 @@ static inline void svc_proc_unregister(const char *p) {}
 
 static inline void svc_seq_show(struct seq_file *seq,
 				const struct svc_stat *st) {}
-
-#define proc_net_rpc NULL
-
 #endif
 
 #endif /* _LINUX_SUNRPC_STATS_H */

@@ -29,13 +29,7 @@
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)				\
 	tlbmiss_handler_setup_pgd((unsigned long)(pgd))
 
-static inline void tlbmiss_handler_setup_pgd(unsigned long pgd)
-{
-	/* Check for swapper_pg_dir and convert to physical address. */
-	if ((pgd & CKSEG3) == CKSEG0)
-		pgd = CPHYSADDR(pgd);
-	write_c0_context(pgd << 11);
-}
+extern void tlbmiss_handler_setup_pgd(unsigned long pgd);
 
 #define TLBMISS_HANDLER_SETUP()						\
 	do {								\
@@ -104,7 +98,7 @@ extern unsigned long smtc_asid_mask;
 
 #endif
 
-#define cpu_context(cpu, mm)	((mm)->context[cpu])
+#define cpu_context(cpu, mm)	((mm)->context.asid[cpu])
 #define cpu_asid(cpu, mm)	(cpu_context((cpu), (mm)) & ASID_MASK)
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 

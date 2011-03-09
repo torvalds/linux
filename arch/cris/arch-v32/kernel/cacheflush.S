@@ -1,4 +1,5 @@
 	.global cris_flush_cache_range
+	.type	cris_flush_cache_range, @function
 cris_flush_cache_range:
 	move.d 1024, $r12
 	cmp.d $r11, $r12
@@ -80,8 +81,10 @@ cris_flush_1KB:
 	addq 32, $r10
 	ba cris_flush_cache_range
 	sub.d $r12, $r11
+	.size	cris_flush_cache_range, . - cris_flush_cache_range
 
 	.global cris_flush_cache
+	.type	cris_flush_cache, @function
 cris_flush_cache:
 	moveq 0, $r10
 cris_flush_line:
@@ -92,3 +95,5 @@ cris_flush_line:
 	fidxd [$r10]
 	ret
 	nop
+	.size	cris_flush_cache, . - cris_flush_cache
+

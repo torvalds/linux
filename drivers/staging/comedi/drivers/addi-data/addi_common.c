@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -50,7 +50,6 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -58,6 +57,7 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include "../../comedidev.h"
 #include <asm/io.h>
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)
@@ -67,6 +67,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 #include "addi_common.h"
 #include "addi_amcc_s5933.h"
+
+#ifndef ADDIDATA_DRIVER_NAME
+#define ADDIDATA_DRIVER_NAME	"addi_common"
+#endif
 
 /* Update-0.7.57->0.7.68MODULE_AUTHOR("ADDI-DATA GmbH <info@addi-data.com>"); */
 /* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
@@ -293,8 +297,8 @@ static const struct addi_board boardtypes[] = {
 			0,
 			0,
 			0,
-			0,
-			0,
+			NULL,
+			NULL,
 			32,
 			0,
 			0,
@@ -2527,8 +2531,8 @@ static const struct addi_board boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
 
-struct comedi_driver driver_addi = {
-	.driver_name = "addi_common",
+static struct comedi_driver driver_addi = {
+	.driver_name = ADDIDATA_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = i_ADDI_Attach,
 	.detach = i_ADDI_Detach,
@@ -2537,7 +2541,43 @@ struct comedi_driver driver_addi = {
 	.offset = sizeof(struct addi_board),
 };
 
-COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
+static int __devinit driver_addi_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_addi.driver_name);
+}
+
+static void __devexit driver_addi_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_addi_pci_driver = {
+	.id_table = addi_apci_tbl,
+	.probe = &driver_addi_pci_probe,
+	.remove = __devexit_p(&driver_addi_pci_remove)
+};
+
+static int __init driver_addi_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_addi);
+	if (retval < 0)
+		return retval;
+
+	driver_addi_pci_driver.name = (char *)driver_addi.driver_name;
+	return pci_register_driver(&driver_addi_pci_driver);
+}
+
+static void __exit driver_addi_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_addi_pci_driver);
+	comedi_driver_unregister(&driver_addi);
+}
+
+module_init(driver_addi_init_module);
+module_exit(driver_addi_cleanup_module);
 
 /*
 +----------------------------------------------------------------------------+
@@ -2570,10 +2610,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcilst_struct *card = NULL;
 	unsigned char pci_bus, pci_slot, pci_func;
 	int i_Dma = 0;
-	static char c_Identifier[150];
-
-	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
-		this_board->pc_DriverName);
 
 	ret = alloc_private(dev, sizeof(struct addi_private));
 	if (ret < 0)
@@ -2583,7 +2619,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
 		pci_list_builded = 1;
 	}
-	/* printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName); */
+	/* printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s",dev->minor,this_board->pc_DriverName); */
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
@@ -2639,9 +2675,8 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->ps_BoardInfo = this_board;
 		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
-		devpriv->dw_AiBase =
-			(unsigned long) ioremap(io_addr[3],
-			this_board->i_IorangeBase3);
+		devpriv->dw_AiBase = ioremap(io_addr[3],
+					     this_board->i_IorangeBase3);
 		printk("\nioremap end");
 	}
 
@@ -2649,7 +2684,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (irq > 0) {
 		if (request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
-				c_Identifier, dev) < 0) {
+				this_board->pc_DriverName, dev) < 0) {
 			printk(", unable to allocate IRQ %u, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
@@ -2675,10 +2710,10 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			} else {
 				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
 			}
-			/*  Enable the interrupt for the controler */
+			/*  Enable the interrupt for the controller */
 			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-			printk("\nEnable the interrupt for the controler");
+			printk("\nEnable the interrupt for the controller");
 		}
 		printk("\nRead Eeprom");
 		i_EepromReadMainHeader(io_addr[0], this_board->pc_EepromChip,
@@ -2952,7 +2987,7 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 					devpriv->ui_DmaBufferPages[1]);
 			}
 		} else {
-			iounmap((void *)devpriv->dw_AiBase);
+			iounmap(devpriv->dw_AiBase);
 
 			if (devpriv->allocated) {
 				i_pci_card_free(devpriv->amcc);

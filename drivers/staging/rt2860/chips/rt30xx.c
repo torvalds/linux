@@ -28,10 +28,11 @@
 	rt30xx.c
 
 	Abstract:
-	Specific funcitons and variables for RT30xx.
+	Specific functions and variables for RT30xx.
 
 	Revision History:
-	Who         When          What
+	Who         		When            What
+	Justin P. Mattock	11/07/2010	Fix some typos
 	--------    ----------    ----------------------------------------------
 */
 
@@ -53,7 +54,7 @@ struct rt_reg_pair RT30xx_RFRegTable[] = {
 	,
 	{RF_R06, 0x02}
 	,
-	{RF_R07, 0x70}
+	{RF_R07, 0x60}
 	,
 	{RF_R09, 0x0F}
 	,
@@ -89,7 +90,7 @@ struct rt_reg_pair RT30xx_RFRegTable[] = {
 
 u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(struct rt_reg_pair));
 
-/* Antenna divesity use GPIO3 and EESK pin for control */
+/* Antenna diversity use GPIO3 and EESK pin for control */
 /* Antenna and EEPROM access are both using EESK pin, */
 /* Therefor we should avoid accessing EESK at the same time */
 /* Then restore antenna after EEPROM access */
@@ -170,8 +171,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 	pAd->Mlme.CaliBW40RfR24 = 0x2F;	/*Bit[5] must be 1 for BW 40 */
 
 	do {
-		if (loop == 1)	/*BandWidth = 40 MHz */
-		{
+		if (loop == 1) {	/*BandWidth = 40 MHz */
 			/* Write 0x27 to RF_R24 to program filter */
 			RF_R24_Value = 0x27;
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
@@ -190,8 +190,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value |= 0x20;
 			RT30xxWriteRFRegister(pAd, RF_R31, value);
-		} else		/*BandWidth = 20 MHz */
-		{
+		} else {	/*BandWidth = 20 MHz */
 			/* Write 0x07 to RF_R24 to program filter */
 			RF_R24_Value = 0x07;
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
@@ -245,7 +244,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 				break;
 			}
 
-			/* prevent infinite loop cause driver hang. */
+			/* prevent infinite loop; causes driver hang. */
 			if (loopcnt++ > 100) {
 				DBGPRINT(RT_DEBUG_ERROR,
 					 ("RTMPFilterCalibration - can't find a valid value, loopcnt=%d stop calibrating",
@@ -353,8 +352,7 @@ void RT30xxLoadRFNormalModeSetup(struct rt_rtmp_adapter *pAd)
 	RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
 	/* TX to RX IQ glitch(RF_R27) has been fixed in RT3070(F). */
 	/* Raising RF voltage is no longer needed for RT3070(F) */
-	if (IS_RT3090(pAd))	/* RT309x and RT3071/72 */
-	{
+	if (IS_RT3090(pAd)) {	/* RT309x and RT3071/72 */
 		if ((pAd->MACVersion & 0xffff) < 0x0211)
 			RFValue = (RFValue & (~0x77)) | 0x3;
 		else
@@ -444,7 +442,7 @@ void RT30xxReverseRFSleepModeSetup(struct rt_rtmp_adapter *pAd)
 
 		/* VCO_IC, RF R7 register Bit 4 & Bit 5 to 1 */
 		RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
-		RFValue |= 0x30;
+		RFValue |= 0x20;
 		RT30xxWriteRFRegister(pAd, RF_R07, RFValue);
 
 		/* Idoh, RF R9 register Bit 1, Bit 2 & Bit 3 to 1 */

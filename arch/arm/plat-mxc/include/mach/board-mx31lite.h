@@ -25,14 +25,14 @@
 
 #ifndef __ASSEMBLY__
 
-enum mx31lilly_boards {
+enum mx31lite_boards {
 	MX31LITE_NOBOARD	= 0,
 	MX31LITE_DB		= 1,
 };
 
 /*
  * This CPU module needs a baseboard to work. After basic initializing
- * its own devices, it calls baseboard's init function.
+ * its own devices, it calls the baseboard's init function.
  */
 
 extern void mx31lite_db_init(void);

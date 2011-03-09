@@ -464,6 +464,9 @@ enum vmxnet3_intr_type {
 /* addition 1 for events */
 #define VMXNET3_MAX_INTRS      25
 
+/* value of intrCtrl */
+#define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
+
 
 struct Vmxnet3_IntrConf {
 	bool		autoMask;
@@ -471,7 +474,8 @@ struct Vmxnet3_IntrConf {
 	u8		eventIntrIdx;
 	u8		modLevels[VMXNET3_MAX_INTRS];	/* moderation level for
 							 * each intr */
-	__le32		reserved[3];
+	__le32		intrCtrl;
+	__le32		reserved[2];
 };
 
 /* one bit per VLAN ID, the size is in the units of u32	*/
@@ -519,9 +523,9 @@ struct Vmxnet3_RxFilterConf {
 #define VMXNET3_PM_MAX_PATTERN_SIZE   128
 #define VMXNET3_PM_MAX_MASK_SIZE      (VMXNET3_PM_MAX_PATTERN_SIZE / 8)
 
-#define VMXNET3_PM_WAKEUP_MAGIC       0x01  /* wake up on magic pkts */
-#define VMXNET3_PM_WAKEUP_FILTER      0x02  /* wake up on pkts matching
-					     * filters */
+#define VMXNET3_PM_WAKEUP_MAGIC       cpu_to_le16(0x01)  /* wake up on magic pkts */
+#define VMXNET3_PM_WAKEUP_FILTER      cpu_to_le16(0x02)  /* wake up on pkts matching
+							  * filters */
 
 
 struct Vmxnet3_PM_PktFilter {

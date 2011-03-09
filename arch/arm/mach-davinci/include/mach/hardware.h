@@ -27,7 +27,7 @@
 /*
  * I/O mapping
  */
-#define IO_PHYS				0x01c00000
+#define IO_PHYS				0x01c00000UL
 #define IO_OFFSET			0xfd000000 /* Virtual IO = 0xfec00000 */
 #define IO_SIZE				0x00400000
 #define IO_VIRT				(IO_PHYS + IO_OFFSET)

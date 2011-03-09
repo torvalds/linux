@@ -2,6 +2,7 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by Arjan van de Ven <arjanv@redhat.com>
  *
@@ -30,8 +31,7 @@
 /* _compress returns the compressed size, -1 if bigger */
 static int jffs2_rtime_compress(unsigned char *data_in,
 				unsigned char *cpage_out,
-				uint32_t *sourcelen, uint32_t *dstlen,
-				void *model)
+				uint32_t *sourcelen, uint32_t *dstlen)
 {
 	short positions[256];
 	int outpos = 0;
@@ -72,8 +72,7 @@ static int jffs2_rtime_compress(unsigned char *data_in,
 
 static int jffs2_rtime_decompress(unsigned char *data_in,
 				  unsigned char *cpage_out,
-				  uint32_t srclen, uint32_t destlen,
-				  void *model)
+				  uint32_t srclen, uint32_t destlen)
 {
 	short positions[256];
 	int outpos = 0;

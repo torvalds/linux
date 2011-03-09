@@ -9,6 +9,7 @@
  */
 
 	.globl	csum_partial_copy_nocheck
+	.type   csum_partial_copy_nocheck,@function
 csum_partial_copy_nocheck:
 
 	;; r10 - src
@@ -89,3 +90,5 @@ _do_byte:
 	move.b	$r9,[$r11]
 	ret
 	move.d	$r13,$r10
+
+	.size   csum_partial_copy_nocheck, . - csum_partial_copy_nocheck

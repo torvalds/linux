@@ -19,6 +19,7 @@
 #define PIN_BASE		NR_AIC_IRQS
 
 #define MAX_GPIO_BANKS		5
+#define NR_BUILTIN_GPIO		(PIN_BASE + (MAX_GPIO_BANKS * 32))
 
 /* these pin numbers double as IRQ numbers, like AT91xxx_ID_* values */
 

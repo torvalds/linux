@@ -42,7 +42,6 @@ struct dib0700_state {
 	u16 mt2060_if1[2];
 	u8 rc_toggle;
 	u8 rc_counter;
-	u8 rc_func_version;
 	u8 is_dib7000pc;
 	u8 fw_use_new_i2c_api;
 	u8 disable_streaming_master_mode;
@@ -61,6 +60,7 @@ extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
 extern struct i2c_algorithm dib0700_i2c_algo;
 extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
 			struct dvb_usb_device_description **desc, int *cold);
+extern int dib0700_change_protocol(struct rc_dev *dev, u64 rc_type);
 
 extern int dib0700_device_count;
 extern int dvb_usb_dib0700_ir_proto;

@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/page.h>

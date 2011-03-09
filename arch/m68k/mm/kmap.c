@@ -99,8 +99,7 @@ static inline void free_io_area(void *addr)
 #endif
 
 /*
- * Map some physical address range into the kernel address space. The
- * code is copied and adapted from map_chunk().
+ * Map some physical address range into the kernel address space.
  */
 /* Rewritten by Andreas Schwab to remove all races. */
 
@@ -116,7 +115,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	/*
 	 * Don't allow mappings that wrap..
 	 */
-	if (!size || size > physaddr + size)
+	if (!size || physaddr > (unsigned long)(-size))
 		return NULL;
 
 #ifdef CONFIG_AMIGA

@@ -97,7 +97,7 @@
 #define TTP_MAX_SDU_SIZE 0x01
 
 /*
- *  This structure contains all data assosiated with one instance of a TTP 
+ *  This structure contains all data associated with one instance of a TTP 
  *  connection.
  */
 struct tsap_cb {
@@ -204,7 +204,7 @@ static inline int irttp_is_primary(struct tsap_cb *self)
 	    (self->lsap->lap == NULL) ||
 	    (self->lsap->lap->irlap == NULL))
 		return -2;
-	return(irlap_is_primary(self->lsap->lap->irlap));
+	return irlap_is_primary(self->lsap->lap->irlap);
 }
 
 #endif /* IRTTP_H */

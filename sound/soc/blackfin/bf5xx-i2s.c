@@ -42,7 +42,6 @@
 #include <linux/gpio.h>
 
 #include "bf5xx-sport.h"
-#include "bf5xx-i2s.h"
 
 struct bf5xx_i2s_port {
 	u16 tcr1;
@@ -195,8 +194,7 @@ static void bf5xx_i2s_shutdown(struct snd_pcm_substream *substream,
 		bf5xx_i2s.configured = 0;
 }
 
-static int bf5xx_i2s_probe(struct platform_device *pdev,
-			   struct snd_soc_dai *dai)
+static int bf5xx_i2s_probe(struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 	if (peripheral_request_list(&sport_req[sport_num][0], "soc-audio")) {
@@ -215,11 +213,11 @@ static int bf5xx_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void bf5xx_i2s_remove(struct platform_device *pdev,
-			struct snd_soc_dai *dai)
+static int bf5xx_i2s_remove(struct snd_soc_dai *dai)
 {
 	pr_debug("%s enter\n", __func__);
 	peripheral_free_list(&sport_req[sport_num][0]);
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -228,9 +226,9 @@ static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 
 	pr_debug("%s : sport %d\n", __func__, dai->id);
 
-	if (dai->capture.active)
+	if (dai->capture_active)
 		sport_rx_stop(sport_handle);
-	if (dai->playback.active)
+	if (dai->playback_active)
 		sport_tx_stop(sport_handle);
 	return 0;
 }
@@ -277,9 +275,7 @@ static struct snd_soc_dai_ops bf5xx_i2s_dai_ops = {
 	.set_fmt	= bf5xx_i2s_set_dai_fmt,
 };
 
-struct snd_soc_dai bf5xx_i2s_dai = {
-	.name = "bf5xx-i2s",
-	.id = 0,
+static struct snd_soc_dai_driver bf5xx_i2s_dai = {
 	.probe = bf5xx_i2s_probe,
 	.remove = bf5xx_i2s_remove,
 	.suspend = bf5xx_i2s_suspend,
@@ -296,18 +292,39 @@ struct snd_soc_dai bf5xx_i2s_dai = {
 		.formats = BF5XX_I2S_FORMATS,},
 	.ops = &bf5xx_i2s_dai_ops,
 };
-EXPORT_SYMBOL_GPL(bf5xx_i2s_dai);
+
+static int bfin_i2s_drv_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_dai(&pdev->dev, &bf5xx_i2s_dai);
+}
+
+static int __devexit bfin_i2s_drv_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver bfin_i2s_driver = {
+	.probe = bfin_i2s_drv_probe,
+	.remove = __devexit_p(bfin_i2s_drv_remove),
+
+	.driver = {
+		.name = "bf5xx-i2s",
+		.owner = THIS_MODULE,
+	},
+};
 
 static int __init bfin_i2s_init(void)
 {
-	return snd_soc_register_dai(&bf5xx_i2s_dai);
+	return platform_driver_register(&bfin_i2s_driver);
 }
-module_init(bfin_i2s_init);
 
 static void __exit bfin_i2s_exit(void)
 {
-	snd_soc_unregister_dai(&bf5xx_i2s_dai);
+	platform_driver_unregister(&bfin_i2s_driver);
 }
+
+module_init(bfin_i2s_init);
 module_exit(bfin_i2s_exit);
 
 /* Module information */

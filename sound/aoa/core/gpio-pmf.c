@@ -6,6 +6,7 @@
  * GPL v2, can be found in COPYING.
  */
 
+#include <linux/slab.h>
 #include <asm/pmac_feature.h>
 #include <asm/pmac_pfunc.h>
 #include "../aoa.h"
@@ -106,21 +107,17 @@ static void pmf_gpio_exit(struct gpio_runtime *rt)
 
 	/* make sure no work is pending before freeing
 	 * all things */
-	cancel_delayed_work(&rt->headphone_notify.work);
-	cancel_delayed_work(&rt->line_in_notify.work);
-	cancel_delayed_work(&rt->line_out_notify.work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&rt->headphone_notify.work);
+	cancel_delayed_work_sync(&rt->line_in_notify.work);
+	cancel_delayed_work_sync(&rt->line_out_notify.work);
 
 	mutex_destroy(&rt->headphone_notify.mutex);
 	mutex_destroy(&rt->line_in_notify.mutex);
 	mutex_destroy(&rt->line_out_notify.mutex);
 
-	if (rt->headphone_notify.gpio_private)
-		kfree(rt->headphone_notify.gpio_private);
-	if (rt->line_in_notify.gpio_private)
-		kfree(rt->line_in_notify.gpio_private);
-	if (rt->line_out_notify.gpio_private)
-		kfree(rt->line_out_notify.gpio_private);
+	kfree(rt->headphone_notify.gpio_private);
+	kfree(rt->line_in_notify.gpio_private);
+	kfree(rt->line_out_notify.gpio_private);
 }
 
 static void pmf_handle_notify_irq(void *data)

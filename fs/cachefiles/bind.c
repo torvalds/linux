@@ -146,7 +146,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 		goto error_unsupported;
 
 	/* get the cache size and blocksize */
-	ret = vfs_statfs(root, &stats);
+	ret = vfs_statfs(&path, &stats);
 	if (ret < 0)
 		goto error_unsupported;
 

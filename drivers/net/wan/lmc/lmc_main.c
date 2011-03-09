@@ -77,7 +77,7 @@
 
 static int LMC_PKT_BUF_SZ = 1542;
 
-static struct pci_device_id lmc_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(lmc_pci_tbl) = {
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_FAST,
 	  PCI_VENDOR_ID_LMC, PCI_ANY_ID },
 	{ PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_TULIP_FAST,
@@ -1022,7 +1022,7 @@ static int lmc_open(struct net_device *dev)
 
     if (sc->lmc_ok){
         lmc_trace(dev, "lmc_open lmc_ok out");
-        return (0);
+        return 0;
     }
 
     lmc_softreset (sc);
@@ -1105,12 +1105,12 @@ static int lmc_open(struct net_device *dev)
     init_timer (&sc->timer);
     sc->timer.expires = jiffies + HZ;
     sc->timer.data = (unsigned long) dev;
-    sc->timer.function = &lmc_watchdog;
+    sc->timer.function = lmc_watchdog;
     add_timer (&sc->timer);
 
     lmc_trace(dev, "lmc_open out");
 
-    return (0);
+    return 0;
 }
 
 /* Total reset to compensate for the AdTran DSU doing bad things
@@ -1505,8 +1505,6 @@ static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
 
     /* send now! */
     LMC_CSR_WRITE (sc, csr_txpoll, 0);
-
-    dev->trans_start = jiffies;
 
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
 
@@ -2103,7 +2101,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     printk("%s: Xmitter busy|\n", dev->name);
 
     sc->extra_stats.tx_tbusy_calls++;
-    if (jiffies - dev->trans_start < TX_TIMEOUT)
+    if (jiffies - dev_trans_start(dev) < TX_TIMEOUT)
 	    goto bug_out;
 
     /*
@@ -2135,7 +2133,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     sc->lmc_device->stats.tx_errors++;
     sc->extra_stats.tx_ProcTimeout++; /* -baz */
 
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
 
 bug_out:
 

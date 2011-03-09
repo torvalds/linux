@@ -12,6 +12,7 @@
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
@@ -162,6 +163,7 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
 
 static const struct file_operations proc_vmcore_operations = {
 	.read		= read_vmcore,
+	.llseek		= default_llseek,
 };
 
 static struct vmcore* __init get_new_element(void)
@@ -497,7 +499,7 @@ static int __init parse_crash_elf64_headers(void)
 	/* Do some basic Verification. */
 	if (memcmp(ehdr.e_ident, ELFMAG, SELFMAG) != 0 ||
 		(ehdr.e_type != ET_CORE) ||
-		!vmcore_elf_check_arch(&ehdr) ||
+		!vmcore_elf64_check_arch(&ehdr) ||
 		ehdr.e_ident[EI_CLASS] != ELFCLASS64 ||
 		ehdr.e_ident[EI_VERSION] != EV_CURRENT ||
 		ehdr.e_version != EV_CURRENT ||

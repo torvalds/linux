@@ -36,11 +36,10 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 
 #include "../pci.h"
 #include "pciehp.h"
-
-static atomic_t pciehp_num_controllers = ATOMIC_INIT(0);
 
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
@@ -492,6 +491,7 @@ int pciehp_power_on_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	u16 slot_status;
+	u16 lnk_status;
 	int retval = 0;
 
 	/* Clear sticky power-fault bit from previous power failures */
@@ -522,6 +522,14 @@ int pciehp_power_on_slot(struct slot * slot)
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
+
+	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
+	if (retval) {
+		ctrl_err(ctrl, "%s: Cannot read LNKSTA register\n",
+				__func__);
+		return retval;
+	}
+	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
 
 	return retval;
 }
@@ -610,37 +618,6 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int pciehp_get_max_link_speed(struct slot *slot, enum pci_bus_speed *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_speed lnk_speed;
-	u32	lnk_cap;
-	int retval = 0;
-
-	retval = pciehp_readl(ctrl, PCI_EXP_LNKCAP, &lnk_cap);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKCAP register\n", __func__);
-		return retval;
-	}
-
-	switch (lnk_cap & 0x000F) {
-	case 1:
-		lnk_speed = PCIE_2_5GB;
-		break;
-	case 2:
-		lnk_speed = PCIE_5_0GB;
-		break;
-	default:
-		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_speed;
-	ctrl_dbg(ctrl, "Max link speed = %d\n", lnk_speed);
-
-	return retval;
-}
-
 int pciehp_get_max_lnk_width(struct slot *slot,
 				 enum pcie_link_width *value)
 {
@@ -687,38 +664,6 @@ int pciehp_get_max_lnk_width(struct slot *slot,
 
 	*value = lnk_wdth;
 	ctrl_dbg(ctrl, "Max link width = %d\n", lnk_wdth);
-
-	return retval;
-}
-
-int pciehp_get_cur_link_speed(struct slot *slot, enum pci_bus_speed *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_speed lnk_speed = PCI_SPEED_UNKNOWN;
-	int retval = 0;
-	u16 lnk_status;
-
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTATUS register\n",
-			 __func__);
-		return retval;
-	}
-
-	switch (lnk_status & PCI_EXP_LNKSTA_CLS) {
-	case 1:
-		lnk_speed = PCIE_2_5GB;
-		break;
-	case 2:
-		lnk_speed = PCIE_5_0GB;
-		break;
-	default:
-		lnk_speed = PCIE_LNK_SPEED_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_speed;
-	ctrl_dbg(ctrl, "Current link speed = %d\n", lnk_speed);
 
 	return retval;
 }
@@ -858,8 +803,8 @@ static void pcie_cleanup_slot(struct controller *ctrl)
 {
 	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
-	flush_scheduled_work();
 	flush_workqueue(pciehp_wq);
+	flush_workqueue(pciehp_ordered_wq);
 	kfree(slot);
 }
 
@@ -886,9 +831,8 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		if (!pci_resource_len(pdev, i))
 			continue;
-		ctrl_info(ctrl, "  PCI resource [%d]     : 0x%llx@0x%llx\n",
-			  i, (unsigned long long)pci_resource_len(pdev, i),
-			  (unsigned long long)pci_resource_start(pdev, i));
+		ctrl_info(ctrl, "  PCI resource [%d]     : %pR\n",
+			  i, &pdev->resource[i]);
 	}
 	ctrl_info(ctrl, "Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);
 	ctrl_info(ctrl, "  Physical Slot Number : %d\n", PSN(ctrl));
@@ -966,16 +910,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 	/* Disable sotfware notification */
 	pcie_disable_notification(ctrl);
 
-	/*
-	 * If this is the first controller to be initialized,
-	 * initialize the pciehp work queue
-	 */
-	if (atomic_add_return(1, &pciehp_num_controllers) == 1) {
-		pciehp_wq = create_singlethread_workqueue("pciehpd");
-		if (!pciehp_wq)
-			goto abort_ctrl;
-	}
-
 	ctrl_info(ctrl, "HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n",
 		  pdev->vendor, pdev->device, pdev->subsystem_vendor,
 		  pdev->subsystem_device);
@@ -995,11 +929,5 @@ void pciehp_release_ctrl(struct controller *ctrl)
 {
 	pcie_shutdown_notification(ctrl);
 	pcie_cleanup_slot(ctrl);
-	/*
-	 * If this is the last controller to be released, destroy the
-	 * pciehp work queue
-	 */
-	if (atomic_dec_and_test(&pciehp_num_controllers))
-		destroy_workqueue(pciehp_wq);
 	kfree(ctrl);
 }

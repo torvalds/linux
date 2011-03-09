@@ -317,7 +317,8 @@ Events         (highest priority)  EMU         0
 
 #define GPIO_IRQ_BASE	IRQ_PA0
 
-#define NR_IRQS     (IRQ_PJ15+1)
+#define NR_MACH_IRQS	(IRQ_PJ15 + 1)
+#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
 
 /* For compatibility reasons with existing code */
 
@@ -472,5 +473,27 @@ Events         (highest priority)  EMU         0
 #define IRQ_TIMER7_POS		20
 #define IRQ_PINT2_POS		24
 #define IRQ_PINT3_POS		28
+
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+
+/*
+ * bfin pint registers layout
+ */
+struct bfin_pint_regs {
+	u32 mask_set;
+	u32 mask_clear;
+	u32 irq;
+	u32 assign;
+	u32 edge_set;
+	u32 edge_clear;
+	u32 invert_set;
+	u32 invert_clear;
+	u32 pinstate;
+	u32 latch;
+	u32 __pad0[2];
+};
+
+#endif
 
 #endif /* _BF548_IRQ_H_ */

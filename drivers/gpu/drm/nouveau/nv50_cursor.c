@@ -107,6 +107,7 @@ nv50_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
 
+	nv_crtc->cursor_saved_x = x; nv_crtc->cursor_saved_y = y;
 	nv_wr32(dev, NV50_PDISPLAY_CURSOR_USER_POS(nv_crtc->index),
 		((y & 0xFFFF) << 16) | (x & 0xFFFF));
 	/* Needed to make the cursor move. */
@@ -146,7 +147,7 @@ nv50_cursor_fini(struct nouveau_crtc *nv_crtc)
 	NV_DEBUG_KMS(dev, "\n");
 
 	nv_wr32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(idx), 0);
-	if (!nv_wait(NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(idx),
+	if (!nv_wait(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(idx),
 		     NV50_PDISPLAY_CURSOR_CURSOR_CTRL2_STATUS, 0)) {
 		NV_ERROR(dev, "timeout: CURSOR_CTRL2_STATUS == 0\n");
 		NV_ERROR(dev, "CURSOR_CTRL2 = 0x%08x\n",

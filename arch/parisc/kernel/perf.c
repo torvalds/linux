@@ -46,7 +46,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
@@ -261,16 +260,13 @@ printk("Preparing to start counters\n");
  */
 static int perf_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
 	spin_lock(&perf_lock);
 	if (perf_enabled) {
 		spin_unlock(&perf_lock);
-		unlock_kernel();
 		return -EBUSY;
 	}
 	perf_enabled = 1;
  	spin_unlock(&perf_lock);
-	unlock_kernel();
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * ISDB-T driver for VA1J5JF8007
+ * ISDB-T driver for VA1J5JF8007/VA1J5JF8011
  *
  * Copyright (C) 2009 HIRANO Takahito <hiranotaka@zng.info>
  *
@@ -429,7 +429,7 @@ static void va1j5jf8007t_release(struct dvb_frontend *fe)
 
 static struct dvb_frontend_ops va1j5jf8007t_ops = {
 	.info = {
-		.name = "VA1J5JF8007 ISDB-T",
+		.name = "VA1J5JF8007/VA1J5JF8011 ISDB-T",
 		.type = FE_OFDM,
 		.frequency_min = 90000000,
 		.frequency_max = 770000000,
@@ -448,29 +448,50 @@ static struct dvb_frontend_ops va1j5jf8007t_ops = {
 	.release = va1j5jf8007t_release,
 };
 
-static const u8 va1j5jf8007t_prepare_bufs[][2] = {
+static const u8 va1j5jf8007t_20mhz_prepare_bufs[][2] = {
 	{0x03, 0x90}, {0x14, 0x8f}, {0x1c, 0x2a}, {0x1d, 0xa8}, {0x1e, 0xa2},
 	{0x22, 0x83}, {0x31, 0x0d}, {0x32, 0xe0}, {0x39, 0xd3}, {0x3a, 0x00},
 	{0x5c, 0x40}, {0x5f, 0x80}, {0x75, 0x02}, {0x76, 0x4e}, {0x77, 0x03},
 	{0xef, 0x01}
 };
 
+static const u8 va1j5jf8007t_25mhz_prepare_bufs[][2] = {
+	{0x03, 0x90}, {0x1c, 0x2a}, {0x1d, 0xa8}, {0x1e, 0xa2}, {0x22, 0x83},
+	{0x3a, 0x00}, {0x5c, 0x40}, {0x5f, 0x80}, {0x75, 0x0a}, {0x76, 0x4c},
+	{0x77, 0x03}, {0xef, 0x01}
+};
+
 int va1j5jf8007t_prepare(struct dvb_frontend *fe)
 {
 	struct va1j5jf8007t_state *state;
+	const u8 (*bufs)[2];
+	int size;
 	u8 buf[2];
 	struct i2c_msg msg;
 	int i;
 
 	state = fe->demodulator_priv;
 
+	switch (state->config->frequency) {
+	case VA1J5JF8007T_20MHZ:
+		bufs = va1j5jf8007t_20mhz_prepare_bufs;
+		size = ARRAY_SIZE(va1j5jf8007t_20mhz_prepare_bufs);
+		break;
+	case VA1J5JF8007T_25MHZ:
+		bufs = va1j5jf8007t_25mhz_prepare_bufs;
+		size = ARRAY_SIZE(va1j5jf8007t_25mhz_prepare_bufs);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	msg.addr = state->config->demod_address;
 	msg.flags = 0;
 	msg.len = sizeof(buf);
 	msg.buf = buf;
 
-	for (i = 0; i < ARRAY_SIZE(va1j5jf8007t_prepare_bufs); i++) {
-		memcpy(buf, va1j5jf8007t_prepare_bufs[i], sizeof(buf));
+	for (i = 0; i < size; i++) {
+		memcpy(buf, bufs[i], sizeof(buf));
 		if (i2c_transfer(state->adap, &msg, 1) != 1)
 			return -EREMOTEIO;
 	}

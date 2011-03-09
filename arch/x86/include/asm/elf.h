@@ -170,10 +170,7 @@ static inline void elf_common_init(struct thread_struct *t,
 }
 
 #define ELF_PLAT_INIT(_r, load_addr)			\
-do {							\
-	elf_common_init(&current->thread, _r, 0);	\
-	clear_thread_flag(TIF_IA32);			\
-} while (0)
+	elf_common_init(&current->thread, _r, 0)
 
 #define	COMPAT_ELF_PLAT_INIT(regs, load_addr)		\
 	elf_common_init(&current->thread, regs, __USER_DS)

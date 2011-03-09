@@ -157,7 +157,8 @@ static int pcmda12_attach(struct comedi_device *dev,
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
+	printk(KERN_INFO
+	       "comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
 	       iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
 	if (!request_region(iobase, IOSIZE, driver.driver_name)) {
@@ -177,7 +178,7 @@ static int pcmda12_attach(struct comedi_device *dev,
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(struct pcmda12_private)) < 0) {
-		printk("cannot allocate private data structure\n");
+		printk(KERN_ERR "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -191,7 +192,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 	 * 96-channel version of the board.
 	 */
 	if (alloc_subdevices(dev, 1) < 0) {
-		printk("cannot allocate subdevice data structures\n");
+		printk(KERN_ERR "cannot allocate subdevice data structures\n");
 		return -ENOMEM;
 	}
 
@@ -207,7 +208,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	zero_chans(dev);	/* clear out all the registers, basically */
 
-	printk("attached\n");
+	printk(KERN_INFO "attached\n");
 
 	return 1;
 }
@@ -222,7 +223,8 @@ static int pcmda12_attach(struct comedi_device *dev,
  */
 static int pcmda12_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
+	printk(KERN_INFO
+	       "comedi%d: %s: remove\n", dev->minor, driver.driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, IOSIZE);
 	return 0;
@@ -303,4 +305,19 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver);
+static int __init driver_init_module(void)
+{
+	return comedi_driver_register(&driver);
+}
+
+static void __exit driver_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver);
+}
+
+module_init(driver_init_module);
+module_exit(driver_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

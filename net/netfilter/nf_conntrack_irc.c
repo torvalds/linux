@@ -15,6 +15,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_expect.h>
@@ -234,7 +235,7 @@ static int __init nf_conntrack_irc_init(void)
 	char *tmpname;
 
 	if (max_dcc_channels < 1) {
-		printk("nf_ct_irc: max_dcc_channels must not be zero\n");
+		printk(KERN_ERR "nf_ct_irc: max_dcc_channels must not be zero\n");
 		return -EINVAL;
 	}
 
@@ -266,7 +267,7 @@ static int __init nf_conntrack_irc_init(void)
 
 		ret = nf_conntrack_helper_register(&irc[i]);
 		if (ret) {
-			printk("nf_ct_irc: failed to register helper "
+			printk(KERN_ERR "nf_ct_irc: failed to register helper "
 			       "for pf: %u port: %u\n",
 			       irc[i].tuple.src.l3num, ports[i]);
 			nf_conntrack_irc_fini();

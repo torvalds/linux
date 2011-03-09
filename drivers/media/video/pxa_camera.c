@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -252,8 +253,8 @@ static int pxa_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 
 	if (0 == *count)
 		*count = 32;
-	while (*size * *count > vid_limit * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > vid_limit * 1024 * 1024)
+		*count = (vid_limit * 1024 * 1024) / *size;
 
 	return 0;
 }
@@ -274,8 +275,8 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	videobuf_waiton(&buf->vb, 0, 0);
-	videobuf_dma_unmap(vq, dma);
+	videobuf_waiton(vq, &buf->vb, 0, 0);
+	videobuf_dma_unmap(vq->dev, dma);
 	videobuf_dma_free(dma);
 
 	for (i = 0; i < ARRAY_SIZE(buf->dmas); i++) {
@@ -608,12 +609,9 @@ static void pxa_dma_add_tail_buf(struct pxa_camera_dev *pcdev,
  */
 static void pxa_camera_start_capture(struct pxa_camera_dev *pcdev)
 {
-	unsigned long cicr0, cifr;
+	unsigned long cicr0;
 
 	dev_dbg(pcdev->soc_host.v4l2_dev.dev, "%s\n", __func__);
-	/* Reset the FIFOs */
-	cifr = __raw_readl(pcdev->base + CIFR) | CIFR_RESET_F;
-	__raw_writel(cifr, pcdev->base + CIFR);
 	/* Enable End-Of-Frame Interrupt */
 	cicr0 = __raw_readl(pcdev->base + CICR0) | CICR0_ENB;
 	cicr0 &= ~CICR0_EOFM;
@@ -854,7 +852,7 @@ static void pxa_camera_init_videobuf(struct videobuf_queue *q,
 	 */
 	videobuf_queue_sg_init(q, &pxa_videobuf_ops, NULL, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct pxa_buffer), icd);
+				sizeof(struct pxa_buffer), icd, &icd->video_lock);
 }
 
 static u32 mclk_get_divisor(struct platform_device *pdev,
@@ -898,17 +896,7 @@ static void recalculate_fifo_timeout(struct pxa_camera_dev *pcdev,
 
 static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 {
-	struct pxacamera_platform_data *pdata = pcdev->pdata;
-	struct device *dev = pcdev->soc_host.v4l2_dev.dev;
 	u32 cicr4 = 0;
-
-	dev_dbg(dev, "Registered platform device at %p data %p\n",
-		pcdev, pdata);
-
-	if (pdata && pdata->init) {
-		dev_dbg(dev, "%s: Init gpios\n", __func__);
-		pdata->init(dev);
-	}
 
 	/* disable all interrupts */
 	__raw_writel(0x3ff, pcdev->base + CICR0);
@@ -944,7 +932,7 @@ static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 static irqreturn_t pxa_camera_irq(int irq, void *data)
 {
 	struct pxa_camera_dev *pcdev = data;
-	unsigned long status, cicr0;
+	unsigned long status, cifr, cicr0;
 	struct pxa_buffer *buf;
 	struct videobuf_buffer *vb;
 
@@ -958,6 +946,10 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 	__raw_writel(status, pcdev->base + CISR);
 
 	if (status & CISR_EOF) {
+		/* Reset the FIFOs */
+		cifr = __raw_readl(pcdev->base + CIFR) | CIFR_RESET_F;
+		__raw_writel(cifr, pcdev->base + CIFR);
+
 		pcdev->active = list_first_entry(&pcdev->capture,
 					   struct pxa_buffer, vb.queue);
 		vb = &pcdev->active->vb;
@@ -1255,7 +1247,7 @@ static bool pxa_camera_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 		 fmt->packing == SOC_MBUS_PACKING_EXTEND16);
 }
 
-static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
+static int pxa_camera_get_formats(struct soc_camera_device *icd, unsigned int idx,
 				  struct soc_camera_format_xlate *xlate)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -1272,7 +1264,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(dev, "Invalid format code #%d: %d\n", idx, code);
+		dev_err(dev, "Invalid format code #%u: %d\n", idx, code);
 		return 0;
 	}
 
@@ -1292,7 +1284,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 	}
 
 	switch (code) {
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &pxa_camera_formats[0];
@@ -1301,9 +1293,9 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 			dev_dbg(dev, "Providing format %s using code %d\n",
 				pxa_camera_formats[0].name, code);
 		}
-	case V4L2_MBUS_FMT_YVYU8_2X8_BE:
-	case V4L2_MBUS_FMT_YUYV8_2X8_LE:
-	case V4L2_MBUS_FMT_YVYU8_2X8_LE:
+	case V4L2_MBUS_FMT_VYUY8_2X8:
+	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case V4L2_MBUS_FMT_YVYU8_2X8:
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
 		if (xlate)
@@ -1547,7 +1539,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int pxa_camera_reqbufs(struct soc_camera_file *icf,
+static int pxa_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1559,7 +1551,7 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct pxa_buffer *buf = container_of(icf->vb_vidq.bufs[i],
+		struct pxa_buffer *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct pxa_buffer, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -1570,10 +1562,10 @@ static int pxa_camera_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int pxa_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct pxa_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct pxa_buffer,
+	buf = list_entry(icd->vb_vidq.stream.next, struct pxa_buffer,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);

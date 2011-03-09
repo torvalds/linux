@@ -22,7 +22,6 @@
 
 /* Forward declarations */
 struct orinoco_private;
-struct dev_addr_list;
 
 int determine_fw_capabilities(struct orinoco_private *priv, char *fw_name,
 			      size_t fw_name_len, u32 *hw_ver);
@@ -43,7 +42,7 @@ int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
 			      u8 *tsc, size_t tsc_len);
 int orinoco_clear_tkip_key(struct orinoco_private *priv, int key_idx);
 int __orinoco_hw_set_multicast_list(struct orinoco_private *priv,
-				    struct dev_addr_list *mc_list,
+				    struct net_device *dev,
 				    int mc_count, int promisc);
 int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 			 char buf[IW_ESSID_MAX_SIZE+1]);

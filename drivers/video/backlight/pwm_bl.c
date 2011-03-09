@@ -19,11 +19,13 @@
 #include <linux/err.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
+#include <linux/slab.h>
 
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
 	struct device		*dev;
 	unsigned int		period;
+	unsigned int		lth_brightness;
 	int			(*notify)(struct device *,
 					  int brightness);
 };
@@ -47,7 +49,9 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_config(pb->pwm, 0, pb->period);
 		pwm_disable(pb->pwm);
 	} else {
-		pwm_config(pb->pwm, brightness * pb->period / max, pb->period);
+		brightness = pb->lth_brightness +
+			(brightness * (pb->period - pb->lth_brightness) / max);
+		pwm_config(pb->pwm, brightness, pb->period);
 		pwm_enable(pb->pwm);
 	}
 	return 0;
@@ -65,6 +69,7 @@ static const struct backlight_ops pwm_backlight_ops = {
 
 static int pwm_backlight_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct platform_pwm_backlight_data *data = pdev->dev.platform_data;
 	struct backlight_device *bl;
 	struct pwm_bl_data *pb;
@@ -90,6 +95,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	pb->period = data->pwm_period_ns;
 	pb->notify = data->notify;
+	pb->lth_brightness = data->lth_brightness *
+		(data->pwm_period_ns / data->max_brightness);
 	pb->dev = &pdev->dev;
 
 	pb->pwm = pwm_request(data->pwm_id, "backlight");
@@ -100,15 +107,16 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	} else
 		dev_dbg(&pdev->dev, "got pwm for backlight\n");
 
-	bl = backlight_device_register(dev_name(&pdev->dev), &pdev->dev,
-			pb, &pwm_backlight_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = data->max_brightness;
+	bl = backlight_device_register(dev_name(&pdev->dev), &pdev->dev, pb,
+				       &pwm_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		ret = PTR_ERR(bl);
 		goto err_bl;
 	}
 
-	bl->props.max_brightness = data->max_brightness;
 	bl->props.brightness = data->dft_brightness;
 	backlight_update_status(bl);
 

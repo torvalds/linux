@@ -6,6 +6,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <net/cfg80211.h>
 #include "wext-compat.h"
 #include "nl80211.h"
@@ -80,17 +81,31 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 			 struct cfg80211_cached_keys *connkeys)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct ieee80211_channel *chan;
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	chan = rdev_fixed_channel(rdev, wdev);
-	if (chan && chan != params->channel)
-		return -EBUSY;
-
 	if (wdev->ssid_len)
 		return -EALREADY;
+
+	if (!params->basic_rates) {
+		/*
+		* If no rates were explicitly configured,
+		* use the mandatory rate set for 11b or
+		* 11a for maximum compatibility.
+		*/
+		struct ieee80211_supported_band *sband =
+			rdev->wiphy.bands[params->channel->band];
+		int j;
+		u32 flag = params->channel->band == IEEE80211_BAND_5GHZ ?
+			IEEE80211_RATE_MANDATORY_A :
+			IEEE80211_RATE_MANDATORY_B;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			if (sband->bitrates[j].flags & flag)
+				params->basic_rates |= BIT(j);
+		}
+	}
 
 	if (WARN_ON(wdev->connect_keys))
 		kfree(wdev->connect_keys);
@@ -145,7 +160,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	 */
 	if (rdev->ops->del_key)
 		for (i = 0; i < 6; i++)
-			rdev->ops->del_key(wdev->wiphy, dev, i, NULL);
+			rdev->ops->del_key(wdev->wiphy, dev, i, false, NULL);
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
@@ -251,8 +266,10 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	if (!netif_running(wdev->netdev))
 		return 0;
 
-	if (wdev->wext.keys)
+	if (wdev->wext.keys) {
 		wdev->wext.keys->def = wdev->wext.default_key;
+		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
+	}
 
 	wdev->wext.ibss.privacy = wdev->wext.default_key != -1;
 

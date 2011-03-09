@@ -32,18 +32,16 @@
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void
-pcibios_align_resource(void *data, struct resource *res,
+resource_size_t
+pcibios_align_resource(void *data, const struct resource *res,
 		       resource_size_t size, resource_size_t align)
 {
-	if (res->flags & IORESOURCE_IO) {
-		resource_size_t start = res->start;
+	resource_size_t start = res->start;
 
-		if (start & 0x300) {
-			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
-	}
+	if ((res->flags & IORESOURCE_IO) && (start & 0x300))
+		start = (start + 0x3ff) & ~0x3ff;
+
+	return start;
 }
 
 
@@ -96,8 +94,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 				r = &dev->resource[idx];
 				if (!r->start)
 					continue;
-				if (pci_claim_resource(dev, idx) < 0)
-					printk(KERN_ERR "PCI: Cannot allocate resource region %d of bridge %s\n", idx, pci_name(dev));
+				pci_claim_resource(dev, idx);
 			}
 		}
 		pcibios_allocate_bus_resources(&bus->children);
@@ -127,7 +124,6 @@ static void __init pcibios_allocate_resources(int pass)
 				DBG("PCI: Resource %08lx-%08lx (f=%lx, d=%d, p=%d)\n",
 				    r->start, r->end, r->flags, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					printk(KERN_ERR "PCI: Cannot allocate resource region %d of device %s\n", idx, pci_name(dev));
 					/* We'll assign a new address later */
 					r->end -= r->start;
 					r->start = 0;

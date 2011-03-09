@@ -27,7 +27,7 @@
 #define CORE_DATE		"20060810"
 
 #define DRM_IF_MAJOR	1
-#define DRM_IF_MINOR	3
+#define DRM_IF_MINOR	4
 
 #define CORE_MAJOR	1
 #define CORE_MINOR	1

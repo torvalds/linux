@@ -30,13 +30,13 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/uaccess.h>
+#include <linux/gfp.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -229,7 +229,7 @@ static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
 		msr_device_destroy(cpu);
 		break;
 	}
-	return err ? NOTIFY_BAD : NOTIFY_OK;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block __refdata msr_class_cpu_notifier = {

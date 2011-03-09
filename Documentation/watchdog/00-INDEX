@@ -1,10 +1,15 @@
 00-INDEX
 	- this file.
+hpwdt.txt
+	- information on the HP iLO2 NMI watchdog
 pcwd-watchdog.txt
 	- documentation for Berkshire Products PC Watchdog ISA cards.
 src/
 	- directory holding watchdog related example programs.
 watchdog-api.txt
 	- description of the Linux Watchdog driver API.
+watchdog-parameters.txt
+	- information on driver parameters (for drivers other than
+	  the ones that have driver-specific files here)
 wdt.txt
 	- description of the Watchdog Timer Interfaces for Linux.

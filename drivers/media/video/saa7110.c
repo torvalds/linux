@@ -36,7 +36,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("Philips SAA7110 video decoder driver");
 MODULE_AUTHOR("Pauline Middelink");
@@ -505,9 +504,25 @@ static const struct i2c_device_id saa7110_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, saa7110_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "saa7110",
-	.probe = saa7110_probe,
-	.remove = saa7110_remove,
-	.id_table = saa7110_id,
+static struct i2c_driver saa7110_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "saa7110",
+	},
+	.probe		= saa7110_probe,
+	.remove		= saa7110_remove,
+	.id_table	= saa7110_id,
 };
+
+static __init int init_saa7110(void)
+{
+	return i2c_add_driver(&saa7110_driver);
+}
+
+static __exit void exit_saa7110(void)
+{
+	i2c_del_driver(&saa7110_driver);
+}
+
+module_init(init_saa7110);
+module_exit(exit_saa7110);

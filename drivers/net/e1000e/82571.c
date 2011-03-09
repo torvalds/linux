@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -52,6 +52,11 @@
 			      (ID_LED_DEF1_DEF2))
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
+#define AN_RETRY_COUNT          5 /* Autoneg Retry Count value */
+#define E1000_BASE1000T_STATUS          10
+#define E1000_IDLE_ERROR_COUNT_MASK     0xFF
+#define E1000_RECEIVE_ERROR_COUNTER     21
+#define E1000_RECEIVE_ERROR_MAX         0xFFFF
 
 #define E1000_NVM_INIT_CTRL2_MNGM 0x6000 /* Manageability Operation Mode mask */
 
@@ -70,6 +75,11 @@ static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
 static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw);
+static void e1000_put_hw_semaphore_82573(struct e1000_hw *hw);
+static s32 e1000_get_hw_semaphore_82574(struct e1000_hw *hw);
+static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw);
+static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active);
+static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active);
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
@@ -103,6 +113,10 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	case e1000_82574:
 	case e1000_82583:
 		phy->type		 = e1000_phy_bm;
+		phy->ops.acquire = e1000_get_hw_semaphore_82574;
+		phy->ops.release = e1000_put_hw_semaphore_82574;
+		phy->ops.set_d0_lplu_state = e1000_set_d0_lplu_state_82574;
+		phy->ops.set_d3_lplu_state = e1000_set_d3_lplu_state_82574;
 		break;
 	default:
 		return -E1000_ERR_PHY;
@@ -111,29 +125,36 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 
 	/* This can only be done after all function pointers are setup. */
 	ret_val = e1000_get_phy_id_82571(hw);
+	if (ret_val) {
+		e_dbg("Error getting PHY ID\n");
+		return ret_val;
+	}
 
 	/* Verify phy id */
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
 		if (phy->id != IGP01E1000_I_PHY_ID)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82573:
 		if (phy->id != M88E1111_I_PHY_ID)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82574:
 	case e1000_82583:
 		if (phy->id != BME1000_E_PHY_ID_R2)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	default:
-		return -E1000_ERR_PHY;
+		ret_val = -E1000_ERR_PHY;
 		break;
 	}
 
-	return 0;
+	if (ret_val)
+		e_dbg("PHY ID unknown: type = 0x%08x\n", phy->id);
+
+	return ret_val;
 }
 
 /**
@@ -196,6 +217,17 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 		break;
 	}
 
+	/* Function Pointers */
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82583:
+		nvm->ops.acquire = e1000_get_hw_semaphore_82574;
+		nvm->ops.release = e1000_put_hw_semaphore_82574;
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
@@ -234,9 +266,6 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
-	                ? true : false;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
 
@@ -267,20 +296,39 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	switch (hw->mac.type) {
+	case e1000_82573:
+		func->set_lan_id = e1000_set_lan_id_single_port;
+		func->check_mng_mode = e1000e_check_mng_mode_generic;
+		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
+		/*
+		 * ARC supported; valid only if manageability features are
+		 * enabled.
+		 */
+		mac->arc_subsystem_valid =
+			(er32(FWSM) & E1000_FWSM_MODE_MASK)
+			? true : false;
+		break;
 	case e1000_82574:
 	case e1000_82583:
+		func->set_lan_id = e1000_set_lan_id_single_port;
 		func->check_mng_mode = e1000_check_mng_mode_82574;
 		func->led_on = e1000_led_on_82574;
 		break;
 	default:
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
 		break;
 	}
 
 	/*
 	 * Ensure that the inter-port SWSM.SMBI lock bit is clear before
-	 * first NVM or PHY acess. This should be done for single-port
+	 * first NVM or PHY access. This should be done for single-port
 	 * devices, and for one port only on dual-port devices so that
 	 * for those devices we can still use the SMBI lock to synchronize
 	 * inter-port accesses to the PHY & NVM.
@@ -317,7 +365,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	/*
-	 * Initialze device specific counter of SMBI acquisition
+	 * Initialize device specific counter of SMBI acquisition
 	 * timeouts.
 	 */
 	 hw->dev_spec.e82571.smb_counter = 0;
@@ -330,7 +378,6 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	static int global_quad_port_a; /* global port a indication */
 	struct pci_dev *pdev = adapter->pdev;
-	u16 eeprom_data = 0;
 	int is_port_b = er32(STATUS) & E1000_STATUS_FUNC_1;
 	s32 rc;
 
@@ -381,16 +428,15 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 		if (pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD)
 			adapter->flags &= ~FLAG_HAS_WOL;
 		break;
-
 	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+		/* Disable ASPM L0s due to hardware errata */
+		e1000e_disable_aspm(adapter->pdev, PCIE_LINK_STATE_L0S);
+
 		if (pdev->device == E1000_DEV_ID_82573L) {
-			if (e1000_read_nvm(&adapter->hw, NVM_INIT_3GIO_3, 1,
-				       &eeprom_data) < 0)
-				break;
-			if (!(eeprom_data & NVM_WORD1A_ASPM_MASK)) {
-				adapter->flags |= FLAG_HAS_JUMBO_FRAMES;
-				adapter->max_hw_frame_size = DEFAULT_JUMBO;
-			}
+			adapter->flags |= FLAG_HAS_JUMBO_FRAMES;
+			adapter->max_hw_frame_size = DEFAULT_JUMBO;
 		}
 		break;
 	default:
@@ -524,6 +570,146 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
 	ew32(SWSM, swsm);
 }
+/**
+ *  e1000_get_hw_semaphore_82573 - Acquire hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the HW semaphore during reset.
+ *
+ **/
+static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
+{
+	u32 extcnf_ctrl;
+	s32 ret_val = 0;
+	s32 i = 0;
+
+	extcnf_ctrl = er32(EXTCNF_CTRL);
+	extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
+	do {
+		ew32(EXTCNF_CTRL, extcnf_ctrl);
+		extcnf_ctrl = er32(EXTCNF_CTRL);
+
+		if (extcnf_ctrl & E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP)
+			break;
+
+		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
+
+		msleep(2);
+		i++;
+	} while (i < MDIO_OWNERSHIP_TIMEOUT);
+
+	if (i == MDIO_OWNERSHIP_TIMEOUT) {
+		/* Release semaphores */
+		e1000_put_hw_semaphore_82573(hw);
+		e_dbg("Driver can't access the PHY\n");
+		ret_val = -E1000_ERR_PHY;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_put_hw_semaphore_82573 - Release hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Release hardware semaphore used during reset.
+ *
+ **/
+static void e1000_put_hw_semaphore_82573(struct e1000_hw *hw)
+{
+	u32 extcnf_ctrl;
+
+	extcnf_ctrl = er32(EXTCNF_CTRL);
+	extcnf_ctrl &= ~E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
+	ew32(EXTCNF_CTRL, extcnf_ctrl);
+}
+
+static DEFINE_MUTEX(swflag_mutex);
+
+/**
+ *  e1000_get_hw_semaphore_82574 - Acquire hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the HW semaphore to access the PHY or NVM.
+ *
+ **/
+static s32 e1000_get_hw_semaphore_82574(struct e1000_hw *hw)
+{
+	s32 ret_val;
+
+	mutex_lock(&swflag_mutex);
+	ret_val = e1000_get_hw_semaphore_82573(hw);
+	if (ret_val)
+		mutex_unlock(&swflag_mutex);
+	return ret_val;
+}
+
+/**
+ *  e1000_put_hw_semaphore_82574 - Release hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Release hardware semaphore used to access the PHY or NVM
+ *
+ **/
+static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw)
+{
+	e1000_put_hw_semaphore_82573(hw);
+	mutex_unlock(&swflag_mutex);
+}
+
+/**
+ *  e1000_set_d0_lplu_state_82574 - Set Low Power Linkup D0 state
+ *  @hw: pointer to the HW structure
+ *  @active: true to enable LPLU, false to disable
+ *
+ *  Sets the LPLU D0 state according to the active flag.
+ *  LPLU will not be activated unless the
+ *  device autonegotiation advertisement meets standards of
+ *  either 10 or 10/100 or 10/100/1000 at all duplexes.
+ *  This is a function pointer entry point only called by
+ *  PHY setup routines.
+ **/
+static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active)
+{
+	u16 data = er32(POEMB);
+
+	if (active)
+		data |= E1000_PHY_CTRL_D0A_LPLU;
+	else
+		data &= ~E1000_PHY_CTRL_D0A_LPLU;
+
+	ew32(POEMB, data);
+	return 0;
+}
+
+/**
+ *  e1000_set_d3_lplu_state_82574 - Sets low power link up state for D3
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
+ *
+ *  The low power link up (lplu) state is set to the power management level D3
+ *  when active is true, else clear lplu for D3. LPLU
+ *  is used during Dx states where the power conservation is most important.
+ *  During driver activity, SmartSpeed should be enabled so performance is
+ *  maintained.
+ **/
+static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active)
+{
+	u16 data = er32(POEMB);
+
+	if (!active) {
+		data &= ~E1000_PHY_CTRL_NOND0A_LPLU;
+	} else if ((hw->phy.autoneg_advertised == E1000_ALL_SPEED_DUPLEX) ||
+		   (hw->phy.autoneg_advertised == E1000_ALL_NOT_GIG) ||
+		   (hw->phy.autoneg_advertised == E1000_ALL_10_SPEED)) {
+		data |= E1000_PHY_CTRL_NOND0A_LPLU;
+	}
+
+	ew32(POEMB, data);
+	return 0;
+}
 
 /**
  *  e1000_acquire_nvm_82571 - Request for access to the EEPROM
@@ -544,8 +730,6 @@ static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
 
 	switch (hw->mac.type) {
 	case e1000_82573:
-	case e1000_82574:
-	case e1000_82583:
 		break;
 	default:
 		ret_val = e1000e_acquire_nvm(hw);
@@ -835,9 +1019,8 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, extcnf_ctrl, ctrl_ext, icr;
+	u32 ctrl, ctrl_ext;
 	s32 ret_val;
-	u16 i = 0;
 
 	/*
 	 * Prevent the PCI-E bus from sticking if there is no TLP connection
@@ -862,32 +1045,32 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 */
 	switch (hw->mac.type) {
 	case e1000_82573:
+		ret_val = e1000_get_hw_semaphore_82573(hw);
+		break;
 	case e1000_82574:
 	case e1000_82583:
-		extcnf_ctrl = er32(EXTCNF_CTRL);
-		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
-
-		do {
-			ew32(EXTCNF_CTRL, extcnf_ctrl);
-			extcnf_ctrl = er32(EXTCNF_CTRL);
-
-			if (extcnf_ctrl & E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP)
-				break;
-
-			extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
-
-			msleep(2);
-			i++;
-		} while (i < MDIO_OWNERSHIP_TIMEOUT);
+		ret_val = e1000_get_hw_semaphore_82574(hw);
 		break;
 	default:
 		break;
 	}
+	if (ret_val)
+		e_dbg("Cannot acquire MDIO ownership\n");
 
 	ctrl = er32(CTRL);
 
 	e_dbg("Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
+
+	/* Must release MDIO ownership and mutex after MAC reset. */
+	switch (hw->mac.type) {
+	case e1000_82574:
+	case e1000_82583:
+		e1000_put_hw_semaphore_82574(hw);
+		break;
+	default:
+		break;
+	}
 
 	if (hw->nvm.type == e1000_nvm_flash_hw) {
 		udelay(10);
@@ -920,11 +1103,16 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	ew32(IMC, 0xffffffff);
-	icr = er32(ICR);
+	er32(ICR);
 
-	if (hw->mac.type == e1000_82571 &&
-		hw->dev_spec.e82571.alt_mac_addr_is_present)
-			e1000e_set_laa_state_82571(hw, true);
+	if (hw->mac.type == e1000_82571) {
+		/* Install any alternate MAC address into RAR0 */
+		ret_val = e1000_check_alt_mac_addr_generic(hw);
+		if (ret_val)
+			return ret_val;
+
+		e1000e_set_laa_state_82571(hw, true);
+	}
 
 	/* Reinitialize the 82571 serdes link state machine */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes)
@@ -986,9 +1174,10 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* ...for both queues. */
 	switch (mac->type) {
 	case e1000_82573:
+		e1000e_enable_tx_pkt_filtering(hw);
+		/* fall through */
 	case e1000_82574:
 	case e1000_82583:
-		e1000e_enable_tx_pkt_filtering(hw);
 		reg_data = er32(GCR);
 		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		ew32(GCR, reg_data);
@@ -1121,7 +1310,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		 * apply workaround for hardware errata documented in errata
 		 * docs Fixes issue where some error prone or unreliable PCIe
 		 * completions are occurring, particularly with ASPM enabled.
-		 * Without fix, issue can cause tx timeouts.
+		 * Without fix, issue can cause Tx timeouts.
 		 */
 		reg = er32(GCR2);
 		reg |= 1;
@@ -1130,8 +1319,6 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-
-	return;
 }
 
 /**
@@ -1225,29 +1412,36 @@ static s32 e1000_led_on_82574(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_update_mc_addr_list_82571 - Update Multicast addresses
+ *  e1000_check_phy_82574 - check 82574 phy hung state
  *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
  *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
+ *  Returns whether phy is hung or not
  **/
-static void e1000_update_mc_addr_list_82571(struct e1000_hw *hw,
-					    u8 *mc_addr_list,
-					    u32 mc_addr_count,
-					    u32 rar_used_count,
-					    u32 rar_count)
+bool e1000_check_phy_82574(struct e1000_hw *hw)
 {
-	if (e1000e_get_laa_state_82571(hw))
-		rar_count--;
+	u16 status_1kbt = 0;
+	u16 receive_errors = 0;
+	bool phy_hung = false;
+	s32 ret_val = 0;
 
-	e1000e_update_mc_addr_list_generic(hw, mc_addr_list, mc_addr_count,
-					   rar_used_count, rar_count);
+	/*
+	 * Read PHY Receive Error counter first, if its is max - all F's then
+	 * read the Base1000T status register If both are max then PHY is hung.
+	 */
+	ret_val = e1e_rphy(hw, E1000_RECEIVE_ERROR_COUNTER, &receive_errors);
+
+	if (ret_val)
+		goto out;
+	if (receive_errors == E1000_RECEIVE_ERROR_MAX)  {
+		ret_val = e1e_rphy(hw, E1000_BASE1000T_STATUS, &status_1kbt);
+		if (ret_val)
+			goto out;
+		if ((status_1kbt & E1000_IDLE_ERROR_COUNT_MASK) ==
+		    E1000_IDLE_ERROR_COUNT_MASK)
+			phy_hung = true;
+	}
+out:
+	return phy_hung;
 }
 
 /**
@@ -1363,7 +1557,7 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
  *
  *  1) down
  *  2) autoneg_progress
- *  3) autoneg_complete (the link sucessfully autonegotiated)
+ *  3) autoneg_complete (the link successfully autonegotiated)
  *  4) forced_up (the link has been forced up, it did not autonegotiate)
  *
  **/
@@ -1373,6 +1567,8 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	u32 rxcw;
 	u32 ctrl;
 	u32 status;
+	u32 txcw;
+	u32 i;
 	s32 ret_val = 0;
 
 	ctrl = er32(CTRL);
@@ -1393,8 +1589,10 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				    e1000_serdes_link_autoneg_progress;
 				mac->serdes_has_link = false;
 				e_dbg("AN_UP     -> AN_PROG\n");
+			} else {
+				mac->serdes_has_link = true;
 			}
-		break;
+			break;
 
 		case e1000_serdes_link_forced_up:
 			/*
@@ -1402,8 +1600,10 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			 * auto-negotiation in the TXCW register and disable
 			 * forced link in the Device Control register in an
 			 * attempt to auto-negotiate with our link partner.
+			 * If the partner code word is null, stop forcing
+			 * and restart auto negotiation.
 			 */
-			if (rxcw & E1000_RXCW_C) {
+			if ((rxcw & E1000_RXCW_C) || !(rxcw & E1000_RXCW_CW))  {
 				/* Enable autoneg, and unforce link up */
 				ew32(TXCW, mac->txcw);
 				ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
@@ -1411,6 +1611,8 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				    e1000_serdes_link_autoneg_progress;
 				mac->serdes_has_link = false;
 				e_dbg("FORCED_UP -> AN_PROG\n");
+			} else {
+				mac->serdes_has_link = true;
 			}
 			break;
 
@@ -1466,6 +1668,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 			mac->serdes_link_state =
 			    e1000_serdes_link_autoneg_progress;
+			mac->serdes_has_link = false;
 			e_dbg("DOWN      -> AN_PROG\n");
 			break;
 		}
@@ -1476,16 +1679,32 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/*
-			 * We have sync, and can tolerate one invalid (IV)
-			 * codeword before declaring link down, so reread
-			 * to look again.
+			 * Check several times, if Sync and Config
+			 * both are consistently 1 then simply ignore
+			 * the Invalid bit and restart Autoneg
 			 */
-			udelay(10);
-			rxcw = er32(RXCW);
-			if (rxcw & E1000_RXCW_IV) {
-				mac->serdes_link_state = e1000_serdes_link_down;
+			for (i = 0; i < AN_RETRY_COUNT; i++) {
+				udelay(10);
+				rxcw = er32(RXCW);
+				if ((rxcw & E1000_RXCW_IV) &&
+				    !((rxcw & E1000_RXCW_SYNCH) &&
+				      (rxcw & E1000_RXCW_C))) {
+					mac->serdes_has_link = false;
+					mac->serdes_link_state =
+					    e1000_serdes_link_down;
+					e_dbg("ANYSTATE  -> DOWN\n");
+					break;
+				}
+			}
+
+			if (i == AN_RETRY_COUNT) {
+				txcw = er32(TXCW);
+				txcw |= E1000_TXCW_ANE;
+				ew32(TXCW, txcw);
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_progress;
 				mac->serdes_has_link = false;
-				e_dbg("ANYSTATE  -> DOWN\n");
+				e_dbg("ANYSTATE  -> AN_PROG\n");
 			}
 		}
 	}
@@ -1621,6 +1840,31 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_read_mac_addr_82571 - Read device MAC address
+ *  @hw: pointer to the HW structure
+ **/
+static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	if (hw->mac.type == e1000_82571) {
+		/*
+		 * If there's an alternate MAC address place it in RAR0
+		 * so that it will override the Si installed default perm
+		 * address.
+		 */
+		ret_val = e1000_check_alt_mac_addr_generic(hw);
+		if (ret_val)
+			goto out;
+	}
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  * e1000_power_down_phy_copper_82571 - Remove link during PHY power down
  * @hw: pointer to the HW structure
  *
@@ -1638,8 +1882,6 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**
@@ -1695,10 +1937,11 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
+	.set_lan_id		= e1000_set_lan_id_multi_port_pcie,
 	/* .get_link_up_info: media type dependent */
 	/* .led_on: mac type dependent */
 	.led_off		= e1000e_led_off_generic,
-	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
+	.update_mc_addr_list	= e1000e_update_mc_addr_list_generic,
 	.write_vfta		= e1000_write_vfta_generic,
 	.clear_vfta		= e1000_clear_vfta_82571,
 	.reset_hw		= e1000_reset_hw_82571,
@@ -1706,6 +1949,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
 	.setup_led		= e1000e_setup_led_generic,
+	.read_mac_addr		= e1000_read_mac_addr_82571,
 };
 
 static struct e1000_phy_operations e82_phy_ops_igp = {
@@ -1784,6 +2028,8 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_RESET_OVERWRITES_LAA /* errata */
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
+	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+				  | FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1801,6 +2047,8 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
+	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+				  | FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1812,14 +2060,13 @@ struct e1000_info e1000_82572_info = {
 struct e1000_info e1000_82573_info = {
 	.mac			= e1000_82573,
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
-				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
+	.flags2			= FLAG2_DISABLE_ASPM_L1,
 	.pba			= 20,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
@@ -1839,7 +2086,8 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.pba			= 20,
+	.flags2			  = FLAG2_CHECK_PHY_HANG,
+	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
@@ -1856,7 +2104,7 @@ struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.pba			= 20,
+	.pba			= 32,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,

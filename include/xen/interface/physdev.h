@@ -106,6 +106,57 @@ struct physdev_irq {
 	uint32_t vector;
 };
 
+#define MAP_PIRQ_TYPE_MSI		0x0
+#define MAP_PIRQ_TYPE_GSI		0x1
+#define MAP_PIRQ_TYPE_UNKNOWN		0x2
+
+#define PHYSDEVOP_map_pirq		13
+struct physdev_map_pirq {
+    domid_t domid;
+    /* IN */
+    int type;
+    /* IN */
+    int index;
+    /* IN or OUT */
+    int pirq;
+    /* IN */
+    int bus;
+    /* IN */
+    int devfn;
+    /* IN */
+    int entry_nr;
+    /* IN */
+    uint64_t table_base;
+};
+
+#define PHYSDEVOP_unmap_pirq		14
+struct physdev_unmap_pirq {
+    domid_t domid;
+    /* IN */
+    int pirq;
+};
+
+#define PHYSDEVOP_manage_pci_add	15
+#define PHYSDEVOP_manage_pci_remove	16
+struct physdev_manage_pci {
+	/* IN */
+	uint8_t bus;
+	uint8_t devfn;
+};
+
+#define PHYSDEVOP_manage_pci_add_ext	20
+struct physdev_manage_pci_ext {
+	/* IN */
+	uint8_t bus;
+	uint8_t devfn;
+	unsigned is_extfn;
+	unsigned is_virtfn;
+	struct {
+		uint8_t bus;
+		uint8_t devfn;
+	} physfn;
+};
+
 /*
  * Argument to physdev_op_compat() hypercall. Superceded by new physdev_op()
  * hypercall since 0x00030202.
@@ -119,6 +170,32 @@ struct physdev_op {
 		struct physdev_apic		     apic_op;
 		struct physdev_irq		     irq_op;
 	} u;
+};
+
+#define PHYSDEVOP_setup_gsi    21
+struct physdev_setup_gsi {
+    int gsi;
+    /* IN */
+    uint8_t triggering;
+    /* IN */
+    uint8_t polarity;
+    /* IN */
+};
+
+#define PHYSDEVOP_get_nr_pirqs    22
+struct physdev_nr_pirqs {
+    /* OUT */
+    uint32_t nr_pirqs;
+};
+
+/* type is MAP_PIRQ_TYPE_GSI or MAP_PIRQ_TYPE_MSI
+ * the hypercall returns a free pirq */
+#define PHYSDEVOP_get_free_pirq    23
+struct physdev_get_free_pirq {
+    /* IN */ 
+    int type;
+    /* OUT */
+    uint32_t pirq;
 };
 
 /*

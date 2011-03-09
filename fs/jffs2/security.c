@@ -77,7 +77,7 @@ static size_t jffs2_security_listxattr(struct dentry *dentry, char *list,
 	return retlen;
 }
 
-struct xattr_handler jffs2_security_xattr_handler = {
+const struct xattr_handler jffs2_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.list = jffs2_security_listxattr,
 	.set = jffs2_security_setxattr,

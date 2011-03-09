@@ -37,6 +37,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
@@ -66,7 +67,6 @@ static int netobj_equal(struct xdr_netobj *a, struct xdr_netobj *b)
 
 #define	RSI_HASHBITS	6
 #define	RSI_HASHMAX	(1<<RSI_HASHBITS)
-#define	RSI_HASHMASK	(RSI_HASHMAX-1)
 
 struct rsi {
 	struct cache_head	h;
@@ -318,7 +318,6 @@ static struct rsi *rsi_update(struct rsi *new, struct rsi *old)
 
 #define	RSC_HASHBITS	10
 #define	RSC_HASHMAX	(1<<RSC_HASHBITS)
-#define	RSC_HASHMASK	(RSC_HASHMAX-1)
 
 #define GSS_SEQ_WIN	128
 
@@ -493,7 +492,7 @@ static int rsc_parse(struct cache_detail *cd,
 		len = qword_get(&mesg, buf, mlen);
 		if (len < 0)
 			goto out;
-		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx);
+		status = gss_import_sec_context(buf, len, gm, &rsci.mechctx, GFP_KERNEL);
 		if (status)
 			goto out;
 
@@ -963,7 +962,7 @@ svcauth_gss_set_client(struct svc_rqst *rqstp)
 	if (rqstp->rq_gssclient == NULL)
 		return SVC_DENIED;
 	stat = svcauth_unix_set_client(rqstp);
-	if (stat == SVC_DROP)
+	if (stat == SVC_DROP || stat == SVC_CLOSE)
 		return stat;
 	return SVC_OK;
 }
@@ -1017,7 +1016,7 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 		return SVC_DENIED;
 	memset(&rsikey, 0, sizeof(rsikey));
 	if (dup_netobj(&rsikey.in_handle, &gc->gc_ctx))
-		return SVC_DROP;
+		return SVC_CLOSE;
 	*authp = rpc_autherr_badverf;
 	if (svc_safe_getnetobj(argv, &tmpobj)) {
 		kfree(rsikey.in_handle.data);
@@ -1025,38 +1024,35 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 	}
 	if (dup_netobj(&rsikey.in_token, &tmpobj)) {
 		kfree(rsikey.in_handle.data);
-		return SVC_DROP;
+		return SVC_CLOSE;
 	}
 
 	/* Perform upcall, or find upcall result: */
 	rsip = rsi_lookup(&rsikey);
 	rsi_free(&rsikey);
 	if (!rsip)
-		return SVC_DROP;
-	switch (cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
-	case -EAGAIN:
-	case -ETIMEDOUT:
-	case -ENOENT:
+		return SVC_CLOSE;
+	if (cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle) < 0)
 		/* No upcall result: */
-		return SVC_DROP;
-	case 0:
-		ret = SVC_DROP;
-		/* Got an answer to the upcall; use it: */
-		if (gss_write_init_verf(rqstp, rsip))
-			goto out;
-		if (resv->iov_len + 4 > PAGE_SIZE)
-			goto out;
-		svc_putnl(resv, RPC_SUCCESS);
-		if (svc_safe_putnetobj(resv, &rsip->out_handle))
-			goto out;
-		if (resv->iov_len + 3 * 4 > PAGE_SIZE)
-			goto out;
-		svc_putnl(resv, rsip->major_status);
-		svc_putnl(resv, rsip->minor_status);
-		svc_putnl(resv, GSS_SEQ_WIN);
-		if (svc_safe_putnetobj(resv, &rsip->out_token))
-			goto out;
-	}
+		return SVC_CLOSE;
+
+	ret = SVC_CLOSE;
+	/* Got an answer to the upcall; use it: */
+	if (gss_write_init_verf(rqstp, rsip))
+		goto out;
+	if (resv->iov_len + 4 > PAGE_SIZE)
+		goto out;
+	svc_putnl(resv, RPC_SUCCESS);
+	if (svc_safe_putnetobj(resv, &rsip->out_handle))
+		goto out;
+	if (resv->iov_len + 3 * 4 > PAGE_SIZE)
+		goto out;
+	svc_putnl(resv, rsip->major_status);
+	svc_putnl(resv, rsip->minor_status);
+	svc_putnl(resv, GSS_SEQ_WIN);
+	if (svc_safe_putnetobj(resv, &rsip->out_token))
+		goto out;
+
 	ret = SVC_COMPLETE;
 out:
 	cache_put(&rsip->h, &rsi_cache);
@@ -1314,6 +1310,14 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 	inpages = resbuf->pages;
 	/* XXX: Would be better to write some xdr helper functions for
 	 * nfs{2,3,4}xdr.c that place the data right, instead of copying: */
+
+	/*
+	 * If there is currently tail data, make sure there is
+	 * room for the head, tail, and 2 * RPC_MAX_AUTH_SIZE in
+	 * the page, and move the current tail data such that
+	 * there is RPC_MAX_AUTH_SIZE slack space available in
+	 * both the head and tail.
+	 */
 	if (resbuf->tail[0].iov_base) {
 		BUG_ON(resbuf->tail[0].iov_base >= resbuf->head[0].iov_base
 							+ PAGE_SIZE);
@@ -1326,6 +1330,13 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 			resbuf->tail[0].iov_len);
 		resbuf->tail[0].iov_base += RPC_MAX_AUTH_SIZE;
 	}
+	/*
+	 * If there is no current tail data, make sure there is
+	 * room for the head data, and 2 * RPC_MAX_AUTH_SIZE in the
+	 * allotted page, and set up tail information such that there
+	 * is RPC_MAX_AUTH_SIZE slack space available in both the
+	 * head and tail.
+	 */
 	if (resbuf->tail[0].iov_base == NULL) {
 		if (resbuf->head[0].iov_len + 2*RPC_MAX_AUTH_SIZE > PAGE_SIZE)
 			return -ENOMEM;

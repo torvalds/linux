@@ -66,7 +66,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs[BFIN_RETN] = regs->retn;
 	gdb_regs[BFIN_RETE] = regs->rete;
 	gdb_regs[BFIN_PC] = regs->pc;
-	gdb_regs[BFIN_CC] = 0;
+	gdb_regs[BFIN_CC] = (regs->astat >> 5) & 1;
 	gdb_regs[BFIN_EXTRA1] = 0;
 	gdb_regs[BFIN_EXTRA2] = 0;
 	gdb_regs[BFIN_EXTRA3] = 0;
@@ -145,7 +145,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 #endif
 }
 
-struct hw_breakpoint {
+static struct hw_breakpoint {
 	unsigned int occupied:1;
 	unsigned int skip:1;
 	unsigned int enabled:1;
@@ -155,7 +155,7 @@ struct hw_breakpoint {
 	unsigned int addr;
 } breakinfo[HW_WATCHPOINT_NUM];
 
-int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
+static int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 {
 	int breakno;
 	int bfin_type;
@@ -202,7 +202,7 @@ int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 	return -ENOSPC;
 }
 
-int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
+static int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 {
 	int breakno;
 	int bfin_type;
@@ -230,7 +230,7 @@ int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 	return 0;
 }
 
-void bfin_remove_all_hw_break(void)
+static void bfin_remove_all_hw_break(void)
 {
 	int breakno;
 
@@ -242,7 +242,7 @@ void bfin_remove_all_hw_break(void)
 		breakinfo[breakno].type = TYPE_DATA_WATCHPOINT;
 }
 
-void bfin_correct_hw_break(void)
+static void bfin_correct_hw_break(void)
 {
 	int breakno;
 	unsigned int wpiactl = 0;
@@ -320,7 +320,7 @@ void bfin_correct_hw_break(void)
 	}
 }
 
-void kgdb_disable_hw_debug(struct pt_regs *regs)
+static void bfin_disable_hw_debug(struct pt_regs *regs)
 {
 	/* Disable hardware debugging while we are in kgdb */
 	bfin_write_WPIACTL(0);
@@ -344,6 +344,23 @@ void kgdb_roundup_cpu(int cpu, unsigned long flags)
 	smp_call_function_single(cpu, kgdb_passive_cpu_callback, NULL, 0);
 }
 #endif
+
+#ifdef CONFIG_IPIPE
+static unsigned long kgdb_arch_imask;
+#endif
+
+void kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
+{
+	if (kgdb_single_step)
+		preempt_enable();
+
+#ifdef CONFIG_IPIPE
+	if (kgdb_arch_imask) {
+		cpu_pda[raw_smp_processor_id()].ex_imask = kgdb_arch_imask;
+		kgdb_arch_imask = 0;
+	}
+#endif
+}
 
 int kgdb_arch_handle_exception(int vector, int signo,
 			       int err_code, char *remcom_in_buffer,
@@ -388,6 +405,12 @@ int kgdb_arch_handle_exception(int vector, int signo,
 			 * kgdb_single_step > 0 means in single step mode
 			 */
 			kgdb_single_step = i + 1;
+
+			preempt_disable();
+#ifdef CONFIG_IPIPE
+			kgdb_arch_imask = cpu_pda[raw_smp_processor_id()].ex_imask;
+			cpu_pda[raw_smp_processor_id()].ex_imask = 0;
+#endif
 		}
 
 		bfin_correct_hw_break();
@@ -406,6 +429,7 @@ struct kgdb_arch arch_kgdb_ops = {
 #endif
 	.set_hw_breakpoint = bfin_set_hw_break,
 	.remove_hw_breakpoint = bfin_remove_hw_break,
+	.disable_hw_break = bfin_disable_hw_debug,
 	.remove_all_hw_break = bfin_remove_all_hw_break,
 	.correct_hw_break = bfin_correct_hw_break,
 };
@@ -439,9 +463,17 @@ int kgdb_validate_break_address(unsigned long addr)
 	return -EFAULT;
 }
 
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
+{
+	regs->retx = ip;
+}
+
 int kgdb_arch_init(void)
 {
 	kgdb_single_step = 0;
+#ifdef CONFIG_IPIPE
+	kgdb_arch_imask = 0;
+#endif
 
 	bfin_remove_all_hw_break();
 	return 0;

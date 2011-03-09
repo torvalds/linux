@@ -49,6 +49,7 @@
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/socket.h>
 #include <linux/mqueue.h>
@@ -64,7 +65,6 @@
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
-#include <linux/inotify.h>
 #include <linux/capability.h>
 #include <linux/fs_struct.h>
 
@@ -241,6 +241,10 @@ struct audit_context {
 			pid_t			pid;
 			struct audit_cap_data	cap;
 		} capset;
+		struct {
+			int			fd;
+			int			flags;
+		} mmap;
 	};
 	int fds[2];
 
@@ -548,9 +552,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_WATCH:
-			if (name && audit_watch_inode(rule->watch) != (unsigned long)-1)
-				result = (name->dev == audit_watch_dev(rule->watch) &&
-					  name->ino == audit_watch_inode(rule->watch));
+			if (name)
+				result = audit_watch_compare(rule->watch, name->ino, name->dev);
 			break;
 		case AUDIT_DIR:
 			if (ctx)
@@ -1306,6 +1309,10 @@ static void show_special(struct audit_context *context, int *call_panic)
 		audit_log_cap(ab, "cap_pp", &context->capset.cap.permitted);
 		audit_log_cap(ab, "cap_pe", &context->capset.cap.effective);
 		break; }
+	case AUDIT_MMAP: {
+		audit_log_format(ab, "fd=%d flags=0x%x", context->mmap.fd,
+				 context->mmap.flags);
+		break; }
 	}
 	audit_log_end(ab);
 }
@@ -1725,7 +1732,7 @@ static inline void handle_one(const struct inode *inode)
 	struct audit_tree_refs *p;
 	struct audit_chunk *chunk;
 	int count;
-	if (likely(list_empty(&inode->inotify_watches)))
+	if (likely(hlist_empty(&inode->i_fsnotify_marks)))
 		return;
 	context = current->audit_context;
 	p = context->trees;
@@ -1768,7 +1775,7 @@ retry:
 	seq = read_seqbegin(&rename_lock);
 	for(;;) {
 		struct inode *inode = d->d_inode;
-		if (inode && unlikely(!list_empty(&inode->inotify_watches))) {
+		if (inode && unlikely(!hlist_empty(&inode->i_fsnotify_marks))) {
 			struct audit_chunk *chunk;
 			chunk = audit_tree_lookup(inode);
 			if (chunk) {
@@ -1836,13 +1843,8 @@ void __audit_getname(const char *name)
 	context->names[context->name_count].ino  = (unsigned long)-1;
 	context->names[context->name_count].osid = 0;
 	++context->name_count;
-	if (!context->pwd.dentry) {
-		read_lock(&current->fs->lock);
-		context->pwd = current->fs->pwd;
-		path_get(&current->fs->pwd);
-		read_unlock(&current->fs->lock);
-	}
-
+	if (!context->pwd.dentry)
+		get_fs_pwd(current->fs, &context->pwd);
 }
 
 /* audit_putname - intercept a putname request
@@ -1893,7 +1895,7 @@ static int audit_inc_name_count(struct audit_context *context,
 {
 	if (context->name_count >= AUDIT_NAMES) {
 		if (inode)
-			printk(KERN_DEBUG "name_count maxed, losing inode data: "
+			printk(KERN_DEBUG "audit: name_count maxed, losing inode data: "
 			       "dev=%02x:%02x, inode=%lu\n",
 			       MAJOR(inode->i_sb->s_dev),
 			       MINOR(inode->i_sb->s_dev),
@@ -1988,7 +1990,6 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 
 /**
  * audit_inode_child - collect inode info for created/removed objects
- * @dname: inode's dentry name
  * @dentry: dentry being audited
  * @parent: inode of dentry parent
  *
@@ -2000,13 +2001,14 @@ void __audit_inode(const char *name, const struct dentry *dentry)
  * must be hooked prior, in order to capture the target inode during
  * unsuccessful attempts.
  */
-void __audit_inode_child(const char *dname, const struct dentry *dentry,
+void __audit_inode_child(const struct dentry *dentry,
 			 const struct inode *parent)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
 	const char *found_parent = NULL, *found_child = NULL;
 	const struct inode *inode = dentry->d_inode;
+	const char *dname = dentry->d_name.name;
 	int dirlen = 0;
 
 	if (!context->in_syscall)
@@ -2014,9 +2016,6 @@ void __audit_inode_child(const char *dname, const struct dentry *dentry,
 
 	if (inode)
 		handle_one(inode);
-	/* determine matching parent */
-	if (!dname)
-		goto add_names;
 
 	/* parent is more likely, look for it first */
 	for (idx = 0; idx < context->name_count; idx++) {
@@ -2483,6 +2482,14 @@ void __audit_log_capset(pid_t pid,
 	context->capset.cap.inheritable = new->cap_effective;
 	context->capset.cap.permitted   = new->cap_permitted;
 	context->type = AUDIT_CAPSET;
+}
+
+void __audit_mmap_fd(int fd, int flags)
+{
+	struct audit_context *context = current->audit_context;
+	context->mmap.fd = fd;
+	context->mmap.flags = flags;
+	context->type = AUDIT_MMAP;
 }
 
 /**

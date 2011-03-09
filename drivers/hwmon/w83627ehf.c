@@ -39,7 +39,10 @@
     w83627dhg    9      5       4       3      0xa020 0xc1    0x5ca3
     w83627dhg-p  9      5       4       3      0xb070 0xc1    0x5ca3
     w83667hg     9      5       3       3      0xa510 0xc1    0x5ca3
+    w83667hg-b   9      5       3       3      0xb350 0xc1    0x5ca3
 */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -55,13 +58,14 @@
 #include <linux/io.h>
 #include "lm75.h"
 
-enum kinds { w83627ehf, w83627dhg, w83627dhg_p, w83667hg };
+enum kinds { w83627ehf, w83627dhg, w83627dhg_p, w83667hg, w83667hg_b };
 
 /* used to set data->name = w83627ehf_device_names[data->sio_kind] */
 static const char * w83627ehf_device_names[] = {
 	"w83627ehf",
 	"w83627dhg",
 	"w83627dhg",
+	"w83667hg",
 	"w83667hg",
 };
 
@@ -91,6 +95,7 @@ MODULE_PARM_DESC(force_id, "Override the detected device ID");
 #define SIO_W83627DHG_ID	0xa020
 #define SIO_W83627DHG_P_ID	0xb070
 #define SIO_W83667HG_ID 	0xa510
+#define SIO_W83667HG_B_ID	0xb350
 #define SIO_ID_MASK		0xFFF0
 
 static inline void
@@ -124,6 +129,7 @@ superio_enter(int ioreg)
 static inline void
 superio_exit(int ioreg)
 {
+	outb(0xaa, ioreg);
 	outb(0x02, ioreg);
 	outb(0x02, ioreg + 1);
 }
@@ -201,8 +207,14 @@ static const u8 W83627EHF_REG_TOLERANCE[] = { 0x07, 0x07, 0x14, 0x62 };
 static const u8 W83627EHF_REG_FAN_START_OUTPUT[] = { 0x0a, 0x0b, 0x16, 0x65 };
 static const u8 W83627EHF_REG_FAN_STOP_OUTPUT[] = { 0x08, 0x09, 0x15, 0x64 };
 static const u8 W83627EHF_REG_FAN_STOP_TIME[] = { 0x0c, 0x0d, 0x17, 0x66 };
-static const u8 W83627EHF_REG_FAN_MAX_OUTPUT[] = { 0xff, 0x67, 0xff, 0x69 };
-static const u8 W83627EHF_REG_FAN_STEP_OUTPUT[] = { 0xff, 0x68, 0xff, 0x6a };
+
+static const u8 W83627EHF_REG_FAN_MAX_OUTPUT_COMMON[]
+						= { 0xff, 0x67, 0xff, 0x69 };
+static const u8 W83627EHF_REG_FAN_STEP_OUTPUT_COMMON[]
+						= { 0xff, 0x68, 0xff, 0x6a };
+
+static const u8 W83627EHF_REG_FAN_MAX_OUTPUT_W83667_B[] = { 0x67, 0x69, 0x6b };
+static const u8 W83627EHF_REG_FAN_STEP_OUTPUT_W83667_B[] = { 0x68, 0x6a, 0x6c };
 
 /*
  * Conversions
@@ -276,6 +288,11 @@ struct w83627ehf_data {
 
 	struct device *hwmon_dev;
 	struct mutex lock;
+
+	const u8 *REG_FAN_START_OUTPUT;
+	const u8 *REG_FAN_STOP_OUTPUT;
+	const u8 *REG_FAN_MAX_OUTPUT;
+	const u8 *REG_FAN_STEP_OUTPUT;
 
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -524,7 +541,10 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 			}
 		}
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < data->pwm_num; i++) {
+			if (!(data->has_fan & (1 << i)))
+				continue;
+
 			/* pwmcfg, tolerance mapped for i=0, i=1 to same reg */
 			if (i != 1) {
 				pwmcfg = w83627ehf_read_value(data,
@@ -546,6 +566,17 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 						W83627EHF_REG_FAN_STOP_OUTPUT[i]);
 			data->fan_stop_time[i] = w83627ehf_read_value(data,
 						W83627EHF_REG_FAN_STOP_TIME[i]);
+
+			if (data->REG_FAN_MAX_OUTPUT[i] != 0xff)
+				data->fan_max_output[i] =
+				  w83627ehf_read_value(data,
+					       data->REG_FAN_MAX_OUTPUT[i]);
+
+			if (data->REG_FAN_STEP_OUTPUT[i] != 0xff)
+				data->fan_step_output[i] =
+				  w83627ehf_read_value(data,
+					       data->REG_FAN_STEP_OUTPUT[i]);
+
 			data->target_temp[i] =
 				w83627ehf_read_value(data,
 					W83627EHF_REG_TARGET[i]) &
@@ -1126,7 +1157,7 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	u32 val = SENSORS_LIMIT(simple_strtoul(buf, NULL, 10), 1, 255); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
-	w83627ehf_write_value(data, W83627EHF_REG_##REG[nr], val); \
+	w83627ehf_write_value(data, data->REG_##REG[nr], val); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 }
@@ -1206,12 +1237,26 @@ static struct sensor_device_attribute sda_sf3_arrays[] = {
 		    store_fan_stop_output, 1),
 	SENSOR_ATTR(pwm3_stop_output, S_IWUSR | S_IRUGO, show_fan_stop_output,
 		    store_fan_stop_output, 2),
+};
 
-	/* pwm1 and pwm3 don't support max and step settings */
+
+/*
+ * pwm1 and pwm3 don't support max and step settings on all chips.
+ * Need to check support while generating/removing attribute files.
+ */
+static struct sensor_device_attribute sda_sf3_max_step_arrays[] = {
+	SENSOR_ATTR(pwm1_max_output, S_IWUSR | S_IRUGO, show_fan_max_output,
+		    store_fan_max_output, 0),
+	SENSOR_ATTR(pwm1_step_output, S_IWUSR | S_IRUGO, show_fan_step_output,
+		    store_fan_step_output, 0),
 	SENSOR_ATTR(pwm2_max_output, S_IWUSR | S_IRUGO, show_fan_max_output,
 		    store_fan_max_output, 1),
 	SENSOR_ATTR(pwm2_step_output, S_IWUSR | S_IRUGO, show_fan_step_output,
 		    store_fan_step_output, 1),
+	SENSOR_ATTR(pwm3_max_output, S_IWUSR | S_IRUGO, show_fan_max_output,
+		    store_fan_max_output, 2),
+	SENSOR_ATTR(pwm3_step_output, S_IWUSR | S_IRUGO, show_fan_step_output,
+		    store_fan_step_output, 2),
 };
 
 static ssize_t
@@ -1235,6 +1280,12 @@ static void w83627ehf_device_remove_files(struct device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays); i++)
 		device_remove_file(dev, &sda_sf3_arrays[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_max_step_arrays); i++) {
+		struct sensor_device_attribute *attr =
+		  &sda_sf3_max_step_arrays[i];
+		if (data->REG_FAN_STEP_OUTPUT[attr->index] != 0xff)
+			device_remove_file(dev, &attr->dev_attr);
+	}
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
 		device_remove_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
 	for (i = 0; i < data->in_num; i++) {
@@ -1343,13 +1394,28 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	/* 627EHG and 627EHF have 10 voltage inputs; 627DHG and 667HG have 9 */
 	data->in_num = (sio_data->kind == w83627ehf) ? 10 : 9;
 	/* 667HG has 3 pwms */
-	data->pwm_num = (sio_data->kind == w83667hg) ? 3 : 4;
+	data->pwm_num = (sio_data->kind == w83667hg
+			 || sio_data->kind == w83667hg_b) ? 3 : 4;
 
 	/* Check temp3 configuration bit for 667HG */
-	if (sio_data->kind == w83667hg) {
+	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
 		data->temp3_disable = w83627ehf_read_value(data,
 					W83627EHF_REG_TEMP_CONFIG[1]) & 0x01;
 		data->in6_skip = !data->temp3_disable;
+	}
+
+	data->REG_FAN_START_OUTPUT = W83627EHF_REG_FAN_START_OUTPUT;
+	data->REG_FAN_STOP_OUTPUT = W83627EHF_REG_FAN_STOP_OUTPUT;
+	if (sio_data->kind == w83667hg_b) {
+		data->REG_FAN_MAX_OUTPUT =
+		  W83627EHF_REG_FAN_MAX_OUTPUT_W83667_B;
+		data->REG_FAN_STEP_OUTPUT =
+		  W83627EHF_REG_FAN_STEP_OUTPUT_W83667_B;
+	} else {
+		data->REG_FAN_MAX_OUTPUT =
+		  W83627EHF_REG_FAN_MAX_OUTPUT_COMMON;
+		data->REG_FAN_STEP_OUTPUT =
+		  W83627EHF_REG_FAN_STEP_OUTPUT_COMMON;
 	}
 
 	/* Initialize the chip */
@@ -1358,7 +1424,7 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	data->vrm = vid_which_vrm();
 	superio_enter(sio_data->sioreg);
 	/* Read VID value */
-	if (sio_data->kind == w83667hg) {
+	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
 		/* W83667HG has different pins for VID input and output, so
 		we can get the VID input values directly at logical device D
 		0xe3. */
@@ -1409,7 +1475,7 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	}
 
 	/* fan4 and fan5 share some pins with the GPIO and serial flash */
-	if (sio_data->kind == w83667hg) {
+	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
 		fan5pin = superio_inb(sio_data->sioreg, 0x27) & 0x20;
 		fan4pin = superio_inb(sio_data->sioreg, 0x27) & 0x40;
 	} else {
@@ -1440,6 +1506,15 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			&sda_sf3_arrays[i].dev_attr)))
 			goto exit_remove;
 
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_max_step_arrays); i++) {
+		struct sensor_device_attribute *attr =
+		  &sda_sf3_max_step_arrays[i];
+		if (data->REG_FAN_STEP_OUTPUT[attr->index] != 0xff) {
+			err = device_create_file(dev, &attr->dev_attr);
+			if (err)
+				goto exit_remove;
+		}
+	}
 	/* if fan4 is enabled create the sf3 files for it */
 	if ((data->has_fan & (1 << 3)) && data->pwm_num >= 4)
 		for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++) {
@@ -1556,6 +1631,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	static const char __initdata sio_name_W83627DHG[] = "W83627DHG";
 	static const char __initdata sio_name_W83627DHG_P[] = "W83627DHG-P";
 	static const char __initdata sio_name_W83667HG[] = "W83667HG";
+	static const char __initdata sio_name_W83667HG_B[] = "W83667HG-B";
 
 	u16 val;
 	const char *sio_name;
@@ -1588,10 +1664,13 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 		sio_data->kind = w83667hg;
 		sio_name = sio_name_W83667HG;
 		break;
+	case SIO_W83667HG_B_ID:
+		sio_data->kind = w83667hg_b;
+		sio_name = sio_name_W83667HG_B;
+		break;
 	default:
 		if (val != 0xffff)
-			pr_debug(DRVNAME ": unsupported chip ID: 0x%04x\n",
-				 val);
+			pr_debug("unsupported chip ID: 0x%04x\n", val);
 		superio_exit(sioaddr);
 		return -ENODEV;
 	}
@@ -1602,8 +1681,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	    | superio_inb(sioaddr, SIO_REG_ADDR + 1);
 	*addr = val & IOREGION_ALIGNMENT;
 	if (*addr == 0) {
-		printk(KERN_ERR DRVNAME ": Refusing to enable a Super-I/O "
-		       "device with a base I/O port 0.\n");
+		pr_err("Refusing to enable a Super-I/O device with a base I/O port 0\n");
 		superio_exit(sioaddr);
 		return -ENODEV;
 	}
@@ -1611,13 +1689,12 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	/* Activate logical device if needed */
 	val = superio_inb(sioaddr, SIO_REG_ENABLE);
 	if (!(val & 0x01)) {
-		printk(KERN_WARNING DRVNAME ": Forcibly enabling Super-I/O. "
-		       "Sensor is probably unusable.\n");
+		pr_warn("Forcibly enabling Super-I/O. Sensor is probably unusable.\n");
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
 
 	superio_exit(sioaddr);
-	pr_info(DRVNAME ": Found %s chip at %#x\n", sio_name, *addr);
+	pr_info("Found %s chip at %#x\n", sio_name, *addr);
 	sio_data->sioreg = sioaddr;
 
 	return 0;
@@ -1651,14 +1728,14 @@ static int __init sensors_w83627ehf_init(void)
 
 	if (!(pdev = platform_device_alloc(DRVNAME, address))) {
 		err = -ENOMEM;
-		printk(KERN_ERR DRVNAME ": Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		goto exit_unregister;
 	}
 
 	err = platform_device_add_data(pdev, &sio_data,
 				       sizeof(struct w83627ehf_sio_data));
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Platform data allocation failed\n");
+		pr_err("Platform data allocation failed\n");
 		goto exit_device_put;
 	}
 
@@ -1674,16 +1751,14 @@ static int __init sensors_w83627ehf_init(void)
 
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device resource addition failed "
-		       "(%d)\n", err);
+		pr_err("Device resource addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
 	/* platform_device_add calls probe() */
 	err = platform_device_add(pdev);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device addition failed (%d)\n",
-		       err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 

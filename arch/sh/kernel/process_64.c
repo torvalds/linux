@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -32,30 +33,7 @@
 
 struct task_struct *last_task_used_math = NULL;
 
-void machine_restart(char * __unused)
-{
-	extern void phys_stext(void);
-
-	phys_stext();
-}
-
-void machine_halt(void)
-{
-	for (;;);
-}
-
-void machine_power_off(void)
-{
-	__asm__ __volatile__ (
-		"sleep\n\t"
-		"synci\n\t"
-		"nop;nop;nop;nop\n\t"
-	);
-
-	panic("Unexpected wakeup!\n");
-}
-
-void show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
 	unsigned long long ah, al, bh, bl, ch, cl;
 
@@ -410,7 +388,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 			regs->sr |= SR_FD;
 		}
 
-		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
+		memcpy(fpu, &tsk->thread.xstate->hardfpu, sizeof(*fpu));
 	}
 
 	return fpvalid;
@@ -505,7 +483,7 @@ asmlinkage int sys_vfork(unsigned long r2, unsigned long r3,
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char *ufilename, char **uargv,
+asmlinkage int sys_execve(const char *ufilename, char **uargv,
 			  char **uenvp, unsigned long r5,
 			  unsigned long r6, unsigned long r7,
 			  struct pt_regs *pregs)
@@ -519,20 +497,13 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 		goto out;
 
 	error = do_execve(filename,
-			  (char __user * __user *)uargv,
-			  (char __user * __user *)uenvp,
+			  (const char __user *const __user *)uargv,
+			  (const char __user *const __user *)uenvp,
 			  pregs);
 	putname(filename);
 out:
 	return error;
 }
-
-/*
- * These bracket the sleeping functions..
- */
-extern void interruptible_sleep_on(wait_queue_head_t *q);
-
-#define mid_sched	((unsigned long) interruptible_sleep_on)
 
 #ifdef CONFIG_FRAME_POINTER
 static int in_sh64_switch_to(unsigned long pc)

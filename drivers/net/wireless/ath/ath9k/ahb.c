@@ -27,12 +27,6 @@ static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 	*csz = L1_CACHE_BYTES >> 2;
 }
 
-static void ath_ahb_cleanup(struct ath_common *common)
-{
-	struct ath_softc *sc = (struct ath_softc *)common->priv;
-	iounmap(sc->mem);
-}
-
 static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
 	struct ath_softc *sc = (struct ath_softc *)common->priv;
@@ -41,10 +35,9 @@ static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 
 	pdata = (struct ath9k_platform_data *) pdev->dev.platform_data;
 	if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "%s: flash read failed, offset %08x "
-			  "is out of range\n",
-			  __func__, off);
+		ath_err(common,
+			"%s: flash read failed, offset %08x is out of range\n",
+			__func__, off);
 		return false;
 	}
 
@@ -53,9 +46,8 @@ static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 }
 
 static struct ath_bus_ops ath_ahb_bus_ops  = {
+	.ath_bus_type = ATH_AHB,
 	.read_cachesize = ath_ahb_read_cachesize,
-	.cleanup = ath_ahb_cleanup,
-
 	.eeprom_read = ath_ahb_eeprom_read,
 };
 
@@ -121,30 +113,30 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	sc->mem = mem;
 	sc->irq = irq;
 
-	ret = ath_init_device(AR5416_AR9100_DEVID, sc, 0x0, &ath_ahb_bus_ops);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize device\n");
-		goto err_free_hw;
-	}
+	/* Will be cleared in ath9k_start() */
+	sc->sc_flags |= SC_OP_INVALID;
 
 	ret = request_irq(irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
-		goto err_detach;
+		goto err_free_hw;
+	}
+
+	ret = ath9k_init_device(AR5416_AR9100_DEVID, sc, 0x0, &ath_ahb_bus_ops);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to initialize device\n");
+		goto err_irq;
 	}
 
 	ah = sc->sc_ah;
 	ath9k_hw_name(ah, hw_name, sizeof(hw_name));
-	printk(KERN_INFO
-	       "%s: %s mem=0x%lx, irq=%d\n",
-	       wiphy_name(hw->wiphy),
-	       hw_name,
-	       (unsigned long)mem, irq);
+	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
+		   hw_name, (unsigned long)mem, irq);
 
 	return 0;
 
- err_detach:
-	ath_detach(sc);
+ err_irq:
+	free_irq(irq, sc);
  err_free_hw:
 	ieee80211_free_hw(hw);
 	platform_set_drvdata(pdev, NULL);
@@ -161,8 +153,12 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	if (hw) {
 		struct ath_wiphy *aphy = hw->priv;
 		struct ath_softc *sc = aphy->sc;
+		void __iomem *mem = sc->mem;
 
-		ath_cleanup(sc);
+		ath9k_deinit_device(sc);
+		free_irq(sc->irq, sc);
+		ieee80211_free_hw(sc->hw);
+		iounmap(mem);
 		platform_set_drvdata(pdev, NULL);
 	}
 

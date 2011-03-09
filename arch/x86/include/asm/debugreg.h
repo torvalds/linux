@@ -14,6 +14,9 @@
    which debugging register was responsible for the trap.  The other bits
    are either reserved or not of interest to us. */
 
+/* Define reserved bits in DR6 which are always set to 1 */
+#define DR6_RESERVED	(0xFFFF0FF0)
+
 #define DR_TRAP0	(0x1)		/* db0 */
 #define DR_TRAP1	(0x2)		/* db1 */
 #define DR_TRAP2	(0x4)		/* db2 */
@@ -91,7 +94,7 @@ static inline void hw_breakpoint_disable(void)
 
 static inline int hw_breakpoint_active(void)
 {
-	return __get_cpu_var(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
+	return __this_cpu_read(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
 }
 
 extern void aout_dump_debugregs(struct user *dump);

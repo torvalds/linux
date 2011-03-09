@@ -17,7 +17,7 @@ config HYPERV_STORAGE
 
 config HYPERV_BLOCK
 	tristate "Microsoft Hyper-V virtual block driver"
-	depends on BLOCK && SCSI
+	depends on BLOCK && SCSI && (LBDAF || 64BIT)
 	default HYPERV
 	help
 	  Select this option to enable the Hyper-V virtual block driver.
@@ -28,5 +28,11 @@ config HYPERV_NET
 	default HYPERV
 	help
 	  Select this option to enable the Hyper-V virtual network driver.
+
+config HYPERV_UTILS
+	tristate "Microsoft Hyper-V Utilities driver"
+	default HYPERV
+	help
+	  Select this option to enable the Hyper-V Utilities.
 
 endif

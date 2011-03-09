@@ -63,10 +63,6 @@ static u8 twl4030_start_script_address = 0x2b;
 #define R_MEMORY_ADDRESS	PHY_TO_OFF_PM_MASTER(0x59)
 #define R_MEMORY_DATA		PHY_TO_OFF_PM_MASTER(0x5a)
 
-#define R_PROTECT_KEY		0x0E
-#define R_KEY_1			0xC0
-#define R_KEY_2			0x0C
-
 /* resource configuration registers
    <RESOURCE>_DEV_GRP   at address 'n+0'
    <RESOURCE>_TYPE      at address 'n+1'
@@ -405,7 +401,7 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 
 	if (rconfig->remap_sleep != TWL4030_RESCONFIG_UNDEF) {
 		remap &= ~SLEEP_STATE_MASK;
-		remap |= rconfig->remap_off << SLEEP_STATE_SHIFT;
+		remap |= rconfig->remap_sleep << SLEEP_STATE_SHIFT;
 	}
 
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
@@ -461,6 +457,59 @@ out:
 	return err;
 }
 
+int twl4030_remove_script(u8 flags)
+{
+	int err = 0;
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
+			TWL4030_PM_MASTER_KEY_CFG1,
+			TWL4030_PM_MASTER_PROTECT_KEY);
+	if (err) {
+		pr_err("twl4030: unable to unlock PROTECT_KEY\n");
+		return err;
+	}
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
+			TWL4030_PM_MASTER_KEY_CFG2,
+			TWL4030_PM_MASTER_PROTECT_KEY);
+	if (err) {
+		pr_err("twl4030: unable to unlock PROTECT_KEY\n");
+		return err;
+	}
+
+	if (flags & TWL4030_WRST_SCRIPT) {
+		err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, END_OF_SCRIPT,
+				R_SEQ_ADD_WARM);
+		if (err)
+			return err;
+	}
+	if (flags & TWL4030_WAKEUP12_SCRIPT) {
+		if (err)
+		err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, END_OF_SCRIPT,
+				R_SEQ_ADD_S2A12);
+			return err;
+	}
+	if (flags & TWL4030_WAKEUP3_SCRIPT) {
+		err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, END_OF_SCRIPT,
+				R_SEQ_ADD_S2A3);
+		if (err)
+			return err;
+	}
+	if (flags & TWL4030_SLEEP_SCRIPT) {
+		err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, END_OF_SCRIPT,
+				R_SEQ_ADD_A2S);
+		if (err)
+			return err;
+	}
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0,
+			TWL4030_PM_MASTER_PROTECT_KEY);
+	if (err)
+		pr_err("TWL4030 Unable to relock registers\n");
+
+	return err;
+}
+
 void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 {
 	int err = 0;
@@ -468,13 +517,15 @@ void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 	struct twl4030_resconfig *resconfig;
 	u8 address = twl4030_start_script_address;
 
-	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, R_KEY_1,
-				R_PROTECT_KEY);
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
+			TWL4030_PM_MASTER_KEY_CFG1,
+			TWL4030_PM_MASTER_PROTECT_KEY);
 	if (err)
 		goto unlock;
 
-	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, R_KEY_2,
-				R_PROTECT_KEY);
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
+			TWL4030_PM_MASTER_KEY_CFG2,
+			TWL4030_PM_MASTER_PROTECT_KEY);
 	if (err)
 		goto unlock;
 
@@ -496,7 +547,8 @@ void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 		}
 	}
 
-	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0, R_PROTECT_KEY);
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0,
+			TWL4030_PM_MASTER_PROTECT_KEY);
 	if (err)
 		pr_err("TWL4030 Unable to relock registers\n");
 	return;

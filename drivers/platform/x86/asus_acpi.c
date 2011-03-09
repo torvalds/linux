@@ -32,6 +32,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
@@ -937,10 +938,11 @@ static int set_brightness(int value)
 	/* SPLV laptop */
 	if (hotk->methods->brightness_set) {
 		if (!write_acpi_int(hotk->handle, hotk->methods->brightness_set,
-				    value, NULL))
+				    value, NULL)) {
 			printk(KERN_WARNING
 			       "Asus ACPI: Error changing brightness\n");
 			ret = -EIO;
+		}
 		goto out;
 	}
 
@@ -952,10 +954,11 @@ static int set_brightness(int value)
 					      hotk->methods->brightness_down,
 					      NULL, NULL);
 		(value > 0) ? value-- : value++;
-		if (ACPI_FAILURE(status))
+		if (ACPI_FAILURE(status)) {
 			printk(KERN_WARNING
 			       "Asus ACPI: Error changing brightness\n");
 			ret = -EIO;
+		}
 	}
 out:
 	return ret;
@@ -1225,9 +1228,8 @@ static int asus_model_match(char *model)
 	else if (strncmp(model, "M2N", 3) == 0 ||
 		 strncmp(model, "M3N", 3) == 0 ||
 		 strncmp(model, "M5N", 3) == 0 ||
-		 strncmp(model, "M6N", 3) == 0 ||
 		 strncmp(model, "S1N", 3) == 0 ||
-		 strncmp(model, "S5N", 3) == 0 || strncmp(model, "W1N", 3) == 0)
+		 strncmp(model, "S5N", 3) == 0)
 		return xxN;
 	else if (strncmp(model, "M1", 2) == 0)
 		return M1A;
@@ -1330,6 +1332,9 @@ static int asus_hotk_get_info(void)
 			hotk->model = P30;
 			printk(KERN_NOTICE
 			       "  Samsung P30 detected, supported\n");
+			hotk->methods = &model_conf[hotk->model];
+			kfree(model);
+			return 0;
 		} else {
 			hotk->model = M2E;
 			printk(KERN_NOTICE "  unsupported model %s, trying "
@@ -1339,8 +1344,6 @@ static int asus_hotk_get_info(void)
 			kfree(model);
 			return -ENODEV;
 		}
-		hotk->methods = &model_conf[hotk->model];
-		return AE_OK;
 	}
 	hotk->methods = &model_conf[hotk->model];
 	printk(KERN_NOTICE "  %s model detected, supported\n", string);
@@ -1374,7 +1377,7 @@ static int asus_hotk_get_info(void)
 
 	kfree(model);
 
-	return AE_OK;
+	return 0;
 }
 
 static int asus_hotk_check(void)
@@ -1464,7 +1467,7 @@ static int asus_hotk_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static struct backlight_ops asus_backlight_data = {
+static const struct backlight_ops asus_backlight_data = {
 	.get_brightness = read_brightness,
 	.update_status  = set_brightness_status,
 };
@@ -1482,6 +1485,7 @@ static void asus_acpi_exit(void)
 
 static int __init asus_acpi_init(void)
 {
+	struct backlight_properties props;
 	int result;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
@@ -1508,15 +1512,17 @@ static int __init asus_acpi_init(void)
 		return -ENODEV;
 	}
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 15;
 	asus_backlight_device = backlight_device_register("asus", NULL, NULL,
-							  &asus_backlight_data);
+							  &asus_backlight_data,
+							  &props);
 	if (IS_ERR(asus_backlight_device)) {
 		printk(KERN_ERR "Could not register asus backlight device\n");
 		asus_backlight_device = NULL;
 		asus_acpi_exit();
 		return -ENODEV;
 	}
-	asus_backlight_device->props.max_brightness = 15;
 
 	return 0;
 }

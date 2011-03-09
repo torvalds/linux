@@ -111,8 +111,11 @@ Running Lguest:
 
   Then use --tunnet=bridge:lg0 when launching the guest.
 
-  See http://linux-net.osdl.org/index.php/Bridge for general information
-  on how to get bridging working.
+  See:
+  
+    http://www.linuxfoundation.org/collaborate/workgroups/networking/bridge
+    
+  for general information on how to get bridging to work.
 
 There is a helpful mailing list at http://ozlabs.org/mailman/listinfo/lguest
 

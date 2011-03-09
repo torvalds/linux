@@ -170,6 +170,9 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 	case SB_HW_CS5530:
 		str = "16 (CS5530)";
 		break;
+	case SB_HW_JAZZ16:
+		str = "Pro (Jazz16)";
+		break;
 	default:
 		return -ENODEV;
 	}

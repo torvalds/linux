@@ -91,7 +91,7 @@ Mount options
 'default_permissions'
 
   By default FUSE doesn't check file access permissions, the
-  filesystem is free to implement it's access policy or leave it to
+  filesystem is free to implement its access policy or leave it to
   the underlying file access mechanism (e.g. in case of network
   filesystems).  This option enables permission checking, restricting
   access based on file mode.  It is usually useful together with the
@@ -171,7 +171,7 @@ or may honor them by sending a reply to the _original_ request, with
 the error set to EINTR.
 
 It is also possible that there's a race between processing the
-original request and it's INTERRUPT request.  There are two possibilities:
+original request and its INTERRUPT request.  There are two possibilities:
 
   1) The INTERRUPT request is processed before the original request is
      processed

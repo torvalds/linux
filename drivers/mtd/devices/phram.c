@@ -15,7 +15,7 @@
  *	phram=swap,64Mi,128Mi phram=test,900Mi,1Mi
  */
 
-#define pr_fmt(fmt) "phram: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/io.h>
 #include <linux/init.h>

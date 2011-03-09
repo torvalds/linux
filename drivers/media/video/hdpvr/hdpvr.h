@@ -16,6 +16,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
+#include <media/ir-kbd-i2c.h>
 
 #define HDPVR_MAJOR_VERSION 0
 #define HDPVR_MINOR_VERSION 2
@@ -30,13 +31,17 @@
 #define HD_PVR_PRODUCT_ID	0x4900
 #define HD_PVR_PRODUCT_ID1	0x4901
 #define HD_PVR_PRODUCT_ID2	0x4902
+#define HD_PVR_PRODUCT_ID4	0x4903
+#define HD_PVR_PRODUCT_ID3	0x4982
 
 #define UNSET    (-1U)
 
 #define NUM_BUFFERS 64
 
-#define HDPVR_FIRMWARE_VERSION		0x8
-#define HDPVR_FIRMWARE_VERSION_AC3	0xd
+#define HDPVR_FIRMWARE_VERSION		0x08
+#define HDPVR_FIRMWARE_VERSION_AC3	0x0d
+#define HDPVR_FIRMWARE_VERSION_0X12	0x12
+#define HDPVR_FIRMWARE_VERSION_0X15	0x15
 
 /* #define HDPVR_DEBUG */
 
@@ -105,10 +110,18 @@ struct hdpvr_device {
 	/* I2C lock */
 	struct mutex		i2c_mutex;
 
+	/* For passing data to ir-kbd-i2c */
+	struct IR_i2c_init_data	ir_i2c_init_data;
+
 	/* usb control transfer buffer and lock */
 	struct mutex		usbc_mutex;
 	u8			*usbc_buf;
 };
+
+static inline struct hdpvr_device *to_hdpvr_dev(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct hdpvr_device, v4l2_dev);
+}
 
 
 /* buffer one bulk urb of data */
@@ -296,6 +309,8 @@ int hdpvr_cancel_queue(struct hdpvr_device *dev);
 /*========================================================================*/
 /* i2c adapter registration */
 int hdpvr_register_i2c_adapter(struct hdpvr_device *dev);
+
+int hdpvr_register_i2c_ir(struct hdpvr_device *dev);
 
 /*========================================================================*/
 /* buffer management */

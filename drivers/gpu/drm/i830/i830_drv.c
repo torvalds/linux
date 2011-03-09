@@ -57,8 +57,6 @@ static struct drm_driver driver = {
 	.device_is_agp = i830_driver_device_is_agp,
 	.reclaim_buffers_locked = i830_driver_reclaim_buffers_locked,
 	.dma_quiescent = i830_driver_dma_quiescent,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 #if USE_IRQS
 	.irq_preinstall = i830_driver_irq_preinstall,
 	.irq_postinstall = i830_driver_irq_postinstall,
@@ -70,10 +68,11 @@ static struct drm_driver driver = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
 		 .release = drm_release,
-		 .unlocked_ioctl = drm_ioctl,
+		 .unlocked_ioctl = i830_ioctl,
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .llseek = noop_llseek,
 	},
 
 	.pci_driver = {

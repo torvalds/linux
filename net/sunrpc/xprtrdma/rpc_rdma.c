@@ -249,6 +249,8 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 	req->rl_nchunks = nchunks;
 
 	BUG_ON(nchunks == 0);
+	BUG_ON((r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_FRMR)
+	       && (nchunks > 3));
 
 	/*
 	 * finish off header. If write, marshal discrim and nchunks.

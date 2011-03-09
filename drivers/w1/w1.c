@@ -120,7 +120,7 @@ static struct device_attribute w1_slave_attr_id =
 
 /* Default family */
 
-static ssize_t w1_default_write(struct kobject *kobj,
+static ssize_t w1_default_write(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
@@ -139,7 +139,7 @@ out_up:
 	return count;
 }
 
-static ssize_t w1_default_read(struct kobject *kobj,
+static ssize_t w1_default_read(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
@@ -517,10 +517,10 @@ static W1_MASTER_ATTR_RO(max_slave_count, S_IRUGO);
 static W1_MASTER_ATTR_RO(attempts, S_IRUGO);
 static W1_MASTER_ATTR_RO(timeout, S_IRUGO);
 static W1_MASTER_ATTR_RO(pointer, S_IRUGO);
-static W1_MASTER_ATTR_RW(search, S_IRUGO | S_IWUGO);
-static W1_MASTER_ATTR_RW(pullup, S_IRUGO | S_IWUGO);
-static W1_MASTER_ATTR_RW(add, S_IRUGO | S_IWUGO);
-static W1_MASTER_ATTR_RW(remove, S_IRUGO | S_IWUGO);
+static W1_MASTER_ATTR_RW(search, S_IRUGO | S_IWUSR | S_IWGRP);
+static W1_MASTER_ATTR_RW(pullup, S_IRUGO | S_IWUSR | S_IWGRP);
+static W1_MASTER_ATTR_RW(add, S_IRUGO | S_IWUSR | S_IWGRP);
+static W1_MASTER_ATTR_RW(remove, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static struct attribute *w1_master_default_attrs[] = {
 	&w1_master_attribute_name.attr,
@@ -986,7 +986,7 @@ int w1_process(void *data)
 	return 0;
 }
 
-static int w1_init(void)
+static int __init w1_init(void)
 {
 	int retval;
 
@@ -1034,7 +1034,7 @@ err_out_exit_init:
 	return retval;
 }
 
-static void w1_fini(void)
+static void __exit w1_fini(void)
 {
 	struct w1_master *dev;
 

@@ -11,8 +11,8 @@ menuconfig NET_TULIP
 if NET_TULIP
 
 config DE2104X
-	tristate "Early DECchip Tulip (dc2104x) PCI support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Early DECchip Tulip (dc2104x) PCI support"
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver is developed for the SMC EtherPower series Ethernet
@@ -151,7 +151,7 @@ config ULI526X
 	select CRC32
 	---help---
 	  This driver is for ULi M5261/M5263 10/100M Ethernet Controller
-	  (<http://www.uli.com.tw/>).
+	  (<http://www.nvidia.com/page/uli_drivers.html>).
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called uli526x.

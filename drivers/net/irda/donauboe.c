@@ -184,7 +184,7 @@
 #define CONFIG0H_DMA_ON_NORX CONFIG0H_DMA_OFF| OBOE_CONFIG0H_ENDMAC
 #define CONFIG0H_DMA_ON CONFIG0H_DMA_ON_NORX | OBOE_CONFIG0H_ENRX
 
-static struct pci_device_id toshoboe_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(toshoboe_pci_tbl) = {
 	{ PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_FIR701, PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_FIRD01, PCI_ANY_ID, PCI_ANY_ID, },
 	{ }			/* Terminating entry */
@@ -217,7 +217,7 @@ toshoboe_checkfcs (unsigned char *buf, int len)
   for (i = 0; i < len; ++i)
     fcs.value = irda_fcs (fcs.value, *(buf++));
 
-  return (fcs.value == GOOD_FCS);
+  return fcs.value == GOOD_FCS;
 }
 
 /***********************************************************************/
@@ -759,7 +759,7 @@ toshoboe_maketestpacket (unsigned char *buf, int badcrc, int fir)
   if (fir)
     {
       memset (buf, 0, TT_LEN);
-      return (TT_LEN);
+      return TT_LEN;
     }
 
   fcs.value = INIT_FCS;
@@ -818,9 +818,9 @@ toshoboe_probe (struct toshoboe_cb *self)
 {
   int i, j, n;
 #ifdef USE_MIR
-  int bauds[] = { 9600, 115200, 4000000, 1152000 };
+  static const int bauds[] = { 9600, 115200, 4000000, 1152000 };
 #else
-  int bauds[] = { 9600, 115200, 4000000 };
+  static const int bauds[] = { 9600, 115200, 4000000 };
 #endif
   unsigned long flags;
 
@@ -1001,8 +1001,6 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
       return NETDEV_TX_BUSY;
 
   toshoboe_checkstuck (self);
-
-  dev->trans_start = jiffies;
 
  /* Check if we need to change the speed */
   /* But not now. Wait after transmission if mtt not required */

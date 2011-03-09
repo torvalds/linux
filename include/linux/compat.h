@@ -23,6 +23,7 @@
 typedef __compat_uid32_t	compat_uid_t;
 typedef __compat_gid32_t	compat_gid_t;
 
+struct compat_sel_arg_struct;
 struct rusage;
 
 struct compat_itimerspec { 
@@ -249,6 +250,8 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 		struct compat_timeval __user *tvp);
 
+asmlinkage long compat_sys_old_select(struct compat_sel_arg_struct __user *arg);
+
 asmlinkage long compat_sys_wait4(compat_pid_t pid,
 				 compat_uint_t __user *stat_addr, int options,
 				 struct compat_rusage __user *ru);
@@ -328,7 +331,7 @@ asmlinkage long compat_sys_epoll_pwait(int epfd,
 			const compat_sigset_t __user *sigmask,
 			compat_size_t sigsetsize);
 
-asmlinkage long compat_sys_utimensat(unsigned int dfd, char __user *filename,
+asmlinkage long compat_sys_utimensat(unsigned int dfd, const char __user *filename,
 				struct compat_timespec __user *t, int flags);
 
 asmlinkage long compat_sys_signalfd(int ufd,
@@ -345,13 +348,20 @@ asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_page,
 				      const int __user *nodes,
 				      int __user *status,
 				      int flags);
-asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,
+asmlinkage long compat_sys_futimesat(unsigned int dfd, const char __user *filename,
 				     struct compat_timeval __user *t);
-asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
+asmlinkage long compat_sys_newfstatat(unsigned int dfd, const char __user * filename,
 				      struct compat_stat __user *statbuf,
 				      int flag);
 asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
 				  int flags, int mode);
+
+extern ssize_t compat_rw_copy_check_uvector(int type,
+		const struct compat_iovec __user *uvector, unsigned long nr_segs,
+		unsigned long fast_segs, struct iovec *fast_pointer,
+		struct iovec **ret_pointer);
+
+extern void __user *compat_alloc_user_space(unsigned long len);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

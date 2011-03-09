@@ -15,7 +15,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include "regd.h"
@@ -51,6 +50,7 @@
 
 #define ATH9K_5GHZ_ALL		ATH9K_5GHZ_5150_5350, \
 				ATH9K_5GHZ_5470_5850
+
 /* This one skips what we call "mid band" */
 #define ATH9K_5GHZ_NO_MIDBAND	ATH9K_5GHZ_5150_5350, \
 				ATH9K_5GHZ_5725_5850
@@ -110,8 +110,9 @@ static const struct ieee80211_regdomain ath_world_regdom_67_68_6A = {
 
 static inline bool is_wwr_sku(u16 regd)
 {
-	return ((regd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX) ||
-		(regd == WORLD);
+	return ((regd & COUNTRY_ERD_FLAG) != COUNTRY_ERD_FLAG) &&
+		(((regd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX) ||
+		(regd == WORLD));
 }
 
 static u16 ath_regd_get_eepromRD(struct ath_regulatory *reg)
@@ -332,7 +333,6 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 		ath_reg_apply_active_scan_flags(wiphy, initiator);
 		break;
 	}
-	return;
 }
 
 int ath_reg_notifier_apply(struct wiphy *wiphy,
@@ -341,6 +341,14 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 {
 	/* We always apply this */
 	ath_reg_apply_radar_flags(wiphy);
+
+	/*
+	 * This would happen when we have sent a custom regulatory request
+	 * a world regulatory domain and the scheduler hasn't yet processed
+	 * any pending requests in the queue.
+	 */
+	if (!request)
+		return 0;
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
@@ -360,7 +368,7 @@ EXPORT_SYMBOL(ath_reg_notifier_apply);
 
 static bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
 {
-	 u16 rd = ath_regd_get_eepromRD(reg);
+	u16 rd = ath_regd_get_eepromRD(reg);
 	int i;
 
 	if (rd & COUNTRY_ERD_FLAG) {

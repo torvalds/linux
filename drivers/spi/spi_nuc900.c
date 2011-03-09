@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -448,7 +449,7 @@ err_iomap:
 	release_mem_region(hw->res->start, resource_size(hw->res));
 	kfree(hw->ioarea);
 err_pdata:
-	spi_master_put(hw->master);;
+	spi_master_put(hw->master);
 
 err_nomem:
 	return err;

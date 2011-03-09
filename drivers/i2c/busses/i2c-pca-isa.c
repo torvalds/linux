@@ -30,8 +30,8 @@
 #include <linux/isa.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #define DRIVER "i2c-pca-isa"
@@ -71,8 +71,8 @@ static int pca_isa_readbyte(void *pd, int reg)
 
 static int pca_isa_waitforcompletion(void *pd)
 {
-	long ret = ~0;
 	unsigned long timeout;
+	long ret;
 
 	if (irq > -1) {
 		ret = wait_event_timeout(pca_wait,
@@ -81,11 +81,15 @@ static int pca_isa_waitforcompletion(void *pd)
 	} else {
 		/* Do polling */
 		timeout = jiffies + pca_isa_ops.timeout;
-		while (((pca_isa_readbyte(pd, I2C_PCA_CON)
-				& I2C_PCA_CON_SI) == 0)
-				&& (ret = time_before(jiffies, timeout)))
+		do {
+			ret = time_before(jiffies, timeout);
+			if (pca_isa_readbyte(pd, I2C_PCA_CON)
+					& I2C_PCA_CON_SI)
+				break;
 			udelay(100);
+		} while (ret);
 	}
+
 	return ret > 0;
 }
 

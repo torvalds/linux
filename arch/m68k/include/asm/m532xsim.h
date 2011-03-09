@@ -9,6 +9,11 @@
 #define	m532xsim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m532x)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m53xxacr.h>
+
 #define MCF_REG32(x) (*(volatile unsigned long  *)(x))
 #define MCF_REG16(x) (*(volatile unsigned short *)(x))
 #define MCF_REG08(x) (*(volatile unsigned char  *)(x))
@@ -17,6 +22,7 @@
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
 #define MCFINT_UART1        27          /* Interrupt number for UART1 */
 #define MCFINT_UART2        28          /* Interrupt number for UART2 */
+#define MCFINT_QSPI         31          /* Interrupt number for QSPI */
 
 #define MCF_WTM_WCR	MCF_REG16(0xFC098000)
 
@@ -73,31 +79,11 @@
 #define	MCF_IRQ_PROFILER	(64 + 33)	/* Timer1 */
 
 /*
- *	Define the Cache register flags.
+ *  UART module.
  */
-#define	CACR_EC			(1<<31)
-#define	CACR_ESB		(1<<29)
-#define	CACR_DPI		(1<<28)
-#define	CACR_HLCK		(1<<27)
-#define	CACR_CINVA		(1<<24)
-#define	CACR_DNFB		(1<<10)
-#define	CACR_DCM_WTHRU		(0<<8)
-#define	CACR_DCM_WBACK		(1<<8)
-#define	CACR_DCM_OFF_PRE	(2<<8)
-#define	CACR_DCM_OFF_IMP	(3<<8)
-#define	CACR_DW			(1<<5)
-
-#define	ACR_BASE_POS		24
-#define	ACR_MASK_POS		16
-#define	ACR_ENABLE		(1<<15)
-#define	ACR_USER		(0<<13)
-#define	ACR_SUPER		(1<<13)
-#define	ACR_ANY			(2<<13)
-#define	ACR_CM_WTHRU		(0<<5)
-#define	ACR_CM_WBACK		(1<<5)
-#define	ACR_CM_OFF_PRE		(2<<5)
-#define	ACR_CM_OFF_IMP		(3<<5)
-#define	ACR_WPROTECT		(1<<2)
+#define MCFUART_BASE1		0xFC060000	/* Base address of UART1 */
+#define MCFUART_BASE2		0xFC064000	/* Base address of UART2 */
+#define MCFUART_BASE3		0xFC068000	/* Base address of UART3 */
 
 /*********************************************************************
  *

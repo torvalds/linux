@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <asm/tlb.h>

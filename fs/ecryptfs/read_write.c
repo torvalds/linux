@@ -93,7 +93,7 @@ int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
 
 /**
  * ecryptfs_write
- * @ecryptfs_file: The eCryptfs file into which to write
+ * @ecryptfs_inode: The eCryptfs file into which to write
  * @data: Virtual address where data to write is located
  * @offset: Offset in the eCryptfs file at which to begin writing the
  *          data from @data
@@ -109,12 +109,11 @@ int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
+int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 		   size_t size)
 {
 	struct page *ecryptfs_page;
 	struct ecryptfs_crypt_stat *crypt_stat;
-	struct inode *ecryptfs_inode = ecryptfs_file->f_dentry->d_inode;
 	char *ecryptfs_page_virt;
 	loff_t ecryptfs_file_size = i_size_read(ecryptfs_inode);
 	loff_t data_offset = 0;
@@ -145,7 +144,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 			if (num_bytes > total_remaining_zeros)
 				num_bytes = total_remaining_zeros;
 		}
-		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_file,
+		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_inode,
 							 ecryptfs_page_idx);
 		if (IS_ERR(ecryptfs_page)) {
 			rc = PTR_ERR(ecryptfs_page);
@@ -302,10 +301,10 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 int ecryptfs_read(char *data, loff_t offset, size_t size,
 		  struct file *ecryptfs_file)
 {
+	struct inode *ecryptfs_inode = ecryptfs_file->f_dentry->d_inode;
 	struct page *ecryptfs_page;
 	char *ecryptfs_page_virt;
-	loff_t ecryptfs_file_size =
-		i_size_read(ecryptfs_file->f_dentry->d_inode);
+	loff_t ecryptfs_file_size = i_size_read(ecryptfs_inode);
 	loff_t data_offset = 0;
 	loff_t pos;
 	int rc = 0;
@@ -327,7 +326,7 @@ int ecryptfs_read(char *data, loff_t offset, size_t size,
 
 		if (num_bytes > total_remaining_bytes)
 			num_bytes = total_remaining_bytes;
-		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_file,
+		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_inode,
 							 ecryptfs_page_idx);
 		if (IS_ERR(ecryptfs_page)) {
 			rc = PTR_ERR(ecryptfs_page);

@@ -55,8 +55,9 @@ static struct irqaction cayman_action_pci2 = {
 	.flags		= IRQF_DISABLED,
 };
 
-static void enable_cayman_irq(unsigned int irq)
+static void enable_cayman_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned long flags;
 	unsigned long mask;
 	unsigned int reg;
@@ -66,14 +67,15 @@ static void enable_cayman_irq(unsigned int irq)
 	reg = EPLD_MASK_BASE + ((irq / 8) << 2);
 	bit = 1<<(irq % 8);
 	local_irq_save(flags);
-	mask = ctrl_inl(reg);
+	mask = __raw_readl(reg);
 	mask |= bit;
-	ctrl_outl(mask, reg);
+	__raw_writel(mask, reg);
 	local_irq_restore(flags);
 }
 
-void disable_cayman_irq(unsigned int irq)
+static void disable_cayman_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned long flags;
 	unsigned long mask;
 	unsigned int reg;
@@ -83,22 +85,16 @@ void disable_cayman_irq(unsigned int irq)
 	reg = EPLD_MASK_BASE + ((irq / 8) << 2);
 	bit = 1<<(irq % 8);
 	local_irq_save(flags);
-	mask = ctrl_inl(reg);
+	mask = __raw_readl(reg);
 	mask &= ~bit;
-	ctrl_outl(mask, reg);
+	__raw_writel(mask, reg);
 	local_irq_restore(flags);
-}
-
-static void ack_cayman_irq(unsigned int irq)
-{
-	disable_cayman_irq(irq);
 }
 
 struct irq_chip cayman_irq_type = {
 	.name		= "Cayman-IRQ",
-	.unmask 	= enable_cayman_irq,
-	.mask		= disable_cayman_irq,
-	.mask_ack	= ack_cayman_irq,
+	.irq_unmask	= enable_cayman_irq,
+	.irq_mask	= disable_cayman_irq,
 };
 
 int cayman_irq_demux(int evt)
@@ -109,8 +105,8 @@ int cayman_irq_demux(int evt)
 		unsigned long status;
 		int i;
 
-		status = ctrl_inl(EPLD_STATUS_BASE) &
-			 ctrl_inl(EPLD_MASK_BASE) & 0xff;
+		status = __raw_readl(EPLD_STATUS_BASE) &
+			 __raw_readl(EPLD_MASK_BASE) & 0xff;
 		if (status == 0) {
 			irq = -1;
 		} else {
@@ -126,8 +122,8 @@ int cayman_irq_demux(int evt)
 		unsigned long status;
 		int i;
 
-		status = ctrl_inl(EPLD_STATUS_BASE + 3 * sizeof(u32)) &
-			 ctrl_inl(EPLD_MASK_BASE + 3 * sizeof(u32)) & 0xff;
+		status = __raw_readl(EPLD_STATUS_BASE + 3 * sizeof(u32)) &
+			 __raw_readl(EPLD_MASK_BASE + 3 * sizeof(u32)) & 0xff;
 		if (status == 0) {
 			irq = -1;
 		} else {

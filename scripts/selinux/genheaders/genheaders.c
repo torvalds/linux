@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	fprintf(fout, "\n");
 
 	for (i = 1; i < isids_len; i++) {
-		char *s = initial_sid_to_string[i];
+		const char *s = initial_sid_to_string[i];
 		fprintf(fout, "#define SECINITSID_%s", s);
 		for (j = 0; j < max(1, 40 - strlen(s)); j++)
 			fprintf(fout, " ");

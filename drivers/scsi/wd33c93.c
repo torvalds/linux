@@ -371,8 +371,8 @@ calc_sync_msg(unsigned int period, unsigned int offset, unsigned int fast,
 	msg[1] = offset;
 }
 
-int
-wd33c93_queuecommand(struct scsi_cmnd *cmd,
+static int
+wd33c93_queuecommand_lck(struct scsi_cmnd *cmd,
 		void (*done)(struct scsi_cmnd *))
 {
 	struct WD33C93_hostdata *hostdata;
@@ -467,6 +467,8 @@ wd33c93_queuecommand(struct scsi_cmnd *cmd,
 	spin_unlock_irq(&hostdata->lock);
 	return 0;
 }
+
+DEF_SCSI_QCMD(wd33c93_queuecommand)
 
 /*
  * This routine attempts to start a scsi command. If the host_card is
@@ -2224,14 +2226,8 @@ wd33c93_proc_info(struct Scsi_Host *instance, char *buf, char **start, off_t off
 
 }
 
-void
-wd33c93_release(void)
-{
-}
-
 EXPORT_SYMBOL(wd33c93_host_reset);
 EXPORT_SYMBOL(wd33c93_init);
-EXPORT_SYMBOL(wd33c93_release);
 EXPORT_SYMBOL(wd33c93_abort);
 EXPORT_SYMBOL(wd33c93_queuecommand);
 EXPORT_SYMBOL(wd33c93_intr);

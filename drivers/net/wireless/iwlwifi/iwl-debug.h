@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project.
  *
@@ -67,68 +67,20 @@ do {                                            			\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-struct iwl_debugfs {
-	const char *name;
-	struct dentry *dir_drv;
-	struct dentry *dir_data;
-	struct dentry *dir_debug;
-	struct dentry *dir_rf;
-	struct dir_data_files {
-		struct dentry *file_sram;
-		struct dentry *file_nvm;
-		struct dentry *file_stations;
-		struct dentry *file_log_event;
-		struct dentry *file_channels;
-		struct dentry *file_status;
-		struct dentry *file_interrupt;
-		struct dentry *file_qos;
-		struct dentry *file_thermal_throttling;
-		struct dentry *file_led;
-		struct dentry *file_disable_ht40;
-		struct dentry *file_sleep_level_override;
-		struct dentry *file_current_sleep_command;
-	} dbgfs_data_files;
-	struct dir_rf_files {
-		struct dentry *file_disable_sensitivity;
-		struct dentry *file_disable_chain_noise;
-		struct dentry *file_disable_tx_power;
-	} dbgfs_rf_files;
-	struct dir_debug_files {
-		struct dentry *file_rx_statistics;
-		struct dentry *file_tx_statistics;
-		struct dentry *file_traffic_log;
-		struct dentry *file_rx_queue;
-		struct dentry *file_tx_queue;
-		struct dentry *file_ucode_rx_stats;
-		struct dentry *file_ucode_tx_stats;
-		struct dentry *file_ucode_general_stats;
-		struct dentry *file_sensitivity;
-		struct dentry *file_chain_noise;
-		struct dentry *file_tx_power;
-		struct dentry *file_power_save_status;
-		struct dentry *file_clear_ucode_statistics;
-		struct dentry *file_clear_traffic_statistics;
-	} dbgfs_debug_files;
-	u32 sram_offset;
-	u32 sram_len;
-};
-
-int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
-void iwl_dbgfs_unregister(struct iwl_priv *priv);
-#endif
-
 #else
 #define IWL_DEBUG(__priv, level, fmt, args...)
 #define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)
 static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
-				      void *p, u32 len)
+				      const void *p, u32 len)
 {}
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
-
-
-#ifndef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
+void iwl_dbgfs_unregister(struct iwl_priv *priv);
+extern int iwl_dbgfs_statistics_flag(struct iwl_priv *priv, char *buf,
+				     int bufsz);
+#else
 static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {
 	return 0;
@@ -168,6 +120,7 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 /* 0x000000F0 - 0x00000010 */
 #define IWL_DL_MACDUMP		(1 << 4)
 #define IWL_DL_HCMD_DUMP	(1 << 5)
+#define IWL_DL_EEPROM		(1 << 6)
 #define IWL_DL_RADIO		(1 << 7)
 /* 0x00000F00 - 0x00000100 */
 #define IWL_DL_POWER		(1 << 8)
@@ -212,6 +165,7 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_WEP(p, f, a...)	IWL_DEBUG(p, IWL_DL_WEP, f, ## a)
 #define IWL_DEBUG_HC(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD, f, ## a)
 #define IWL_DEBUG_HC_DUMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD_DUMP, f, ## a)
+#define IWL_DEBUG_EEPROM(p, f, a...)	IWL_DEBUG(p, IWL_DL_EEPROM, f, ## a)
 #define IWL_DEBUG_CALIB(p, f, a...)	IWL_DEBUG(p, IWL_DL_CALIB, f, ## a)
 #define IWL_DEBUG_FW(p, f, a...)	IWL_DEBUG(p, IWL_DL_FW, f, ## a)
 #define IWL_DEBUG_RF_KILL(p, f, a...)	IWL_DEBUG(p, IWL_DL_RF_KILL, f, ## a)

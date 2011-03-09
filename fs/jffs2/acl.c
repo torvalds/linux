@@ -234,8 +234,9 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			if (inode->i_mode != mode) {
 				struct iattr attr;
 
-				attr.ia_valid = ATTR_MODE;
+				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
+				attr.ia_ctime = CURRENT_TIME_SEC;
 				rc = jffs2_do_setattr(inode, &attr);
 				if (rc < 0)
 					return rc;
@@ -258,10 +259,13 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	return rc;
 }
 
-int jffs2_check_acl(struct inode *inode, int mask)
+int jffs2_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	struct posix_acl *acl;
 	int rc;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	acl = jffs2_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
@@ -419,7 +423,7 @@ static int jffs2_acl_setxattr(struct dentry *dentry, const char *name,
 	return rc;
 }
 
-struct xattr_handler jffs2_acl_access_xattr_handler = {
+const struct xattr_handler jffs2_acl_access_xattr_handler = {
 	.prefix	= POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= jffs2_acl_access_listxattr,
@@ -427,7 +431,7 @@ struct xattr_handler jffs2_acl_access_xattr_handler = {
 	.set	= jffs2_acl_setxattr,
 };
 
-struct xattr_handler jffs2_acl_default_xattr_handler = {
+const struct xattr_handler jffs2_acl_default_xattr_handler = {
 	.prefix	= POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= jffs2_acl_default_listxattr,

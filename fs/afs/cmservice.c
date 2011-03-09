@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/ip.h>
 #include "internal.h"
@@ -288,7 +289,7 @@ static int afs_deliver_cb_callback(struct afs_call *call, struct sk_buff *skb,
 	call->server = server;
 
 	INIT_WORK(&call->work, SRXAFSCB_CallBack);
-	schedule_work(&call->work);
+	queue_work(afs_wq, &call->work);
 	return 0;
 }
 
@@ -335,7 +336,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call,
 	call->server = server;
 
 	INIT_WORK(&call->work, SRXAFSCB_InitCallBackState);
-	schedule_work(&call->work);
+	queue_work(afs_wq, &call->work);
 	return 0;
 }
 
@@ -366,7 +367,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call,
 	call->server = server;
 
 	INIT_WORK(&call->work, SRXAFSCB_InitCallBackState);
-	schedule_work(&call->work);
+	queue_work(afs_wq, &call->work);
 	return 0;
 }
 
@@ -399,7 +400,7 @@ static int afs_deliver_cb_probe(struct afs_call *call, struct sk_buff *skb,
 	call->state = AFS_CALL_REPLYING;
 
 	INIT_WORK(&call->work, SRXAFSCB_Probe);
-	schedule_work(&call->work);
+	queue_work(afs_wq, &call->work);
 	return 0;
 }
 
@@ -495,7 +496,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call, struct sk_buff *skb,
 	call->state = AFS_CALL_REPLYING;
 
 	INIT_WORK(&call->work, SRXAFSCB_ProbeUuid);
-	schedule_work(&call->work);
+	queue_work(afs_wq, &call->work);
 	return 0;
 }
 
@@ -579,6 +580,6 @@ static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *call,
 	call->state = AFS_CALL_REPLYING;
 
 	INIT_WORK(&call->work, SRXAFSCB_TellMeAboutYourself);
-	schedule_work(&call->work);
+	queue_work(afs_wq, &call->work);
 	return 0;
 }

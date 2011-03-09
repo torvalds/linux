@@ -2,7 +2,7 @@
  * Modifications by Kumar Gala (galak@kernel.crashing.org) to support
  * E500 Book E processors.
  *
- * Copyright 2004 Freescale Semiconductor, Inc
+ * Copyright 2004,2010 Freescale Semiconductor, Inc.
  *
  * This file contains the routines for initializing the MMU
  * on the 4xx series of chips.
@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/highmem.h>
+#include <linux/memblock.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -57,18 +58,7 @@
 unsigned int tlbcam_index;
 
 #define NUM_TLBCAMS	(64)
-
-#if defined(CONFIG_LOWMEM_CAM_NUM_BOOL) && (CONFIG_LOWMEM_CAM_NUM >= NUM_TLBCAMS)
-#error "LOWMEM_CAM_NUM must be less than NUM_TLBCAMS"
-#endif
-
-struct tlbcam {
-	u32	MAS0;
-	u32	MAS1;
-	unsigned long	MAS2;
-	u32	MAS3;
-	u32	MAS7;
-} TLBCAM[NUM_TLBCAMS];
+struct tlbcam TLBCAM[NUM_TLBCAMS];
 
 struct tlbcamrange {
 	unsigned long start;
@@ -109,23 +99,11 @@ unsigned long p_mapped_by_tlbcam(phys_addr_t pa)
 	return 0;
 }
 
-void loadcam_entry(int idx)
-{
-	mtspr(SPRN_MAS0, TLBCAM[idx].MAS0);
-	mtspr(SPRN_MAS1, TLBCAM[idx].MAS1);
-	mtspr(SPRN_MAS2, TLBCAM[idx].MAS2);
-	mtspr(SPRN_MAS3, TLBCAM[idx].MAS3);
-
-	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
-		mtspr(SPRN_MAS7, TLBCAM[idx].MAS7);
-
-	asm volatile("isync;tlbwe;isync" : : : "memory");
-}
-
 /*
- * Set up one of the I/D BAT (block address translation) register pairs.
- * The parameters are not checked; in particular size must be a power
- * of 4 between 4k and 256M.
+ * Set up a variable-size TLB entry (tlbcam). The parameters are not checked;
+ * in particular size must be a power of 4 between 4k and 256M (or 1G, for cpus
+ * that support extended page sizes).  Note that while some cpus support a
+ * page size of 4G, we don't allow its use here.
  */
 static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		unsigned long size, unsigned long flags, unsigned int pid)
@@ -152,18 +130,14 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 
 	TLBCAM[index].MAS3 = (phys & MAS3_RPN) | MAS3_SX | MAS3_SR;
 	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_SW : 0);
-	if (cur_cpu_spec->cpu_features & MMU_FTR_BIG_PHYS)
+	if (mmu_has_feature(MMU_FTR_BIG_PHYS))
 		TLBCAM[index].MAS7 = (u64)phys >> 32;
 
-#ifndef CONFIG_KGDB /* want user access for breakpoints */
-	if (flags & _PAGE_USER) {
+	/* Below is unlikely -- only for large user pages or similar */
+	if (pte_user(flags)) {
 	   TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
 	   TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
 	}
-#else
-	TLBCAM[index].MAS3 |= MAS3_UX | MAS3_UR;
-	TLBCAM[index].MAS3 |= ((flags & _PAGE_RW) ? MAS3_UW : 0);
-#endif
 
 	tlbcam_addrs[index].start = virt;
 	tlbcam_addrs[index].limit = virt + size - 1;
@@ -207,6 +181,12 @@ unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx)
 	return amount_mapped;
 }
 
+#ifdef CONFIG_PPC32
+
+#if defined(CONFIG_LOWMEM_CAM_NUM_BOOL) && (CONFIG_LOWMEM_CAM_NUM >= NUM_TLBCAMS)
+#error "LOWMEM_CAM_NUM must be less than NUM_TLBCAMS"
+#endif
+
 unsigned long __init mmu_mapin_ram(unsigned long top)
 {
 	return tlbcam_addrs[tlbcam_index - 1].limit - PAGE_OFFSET + 1;
@@ -236,5 +216,15 @@ void __init adjust_total_lowmem(void)
 	pr_cont("%lu Mb, residual: %dMb\n", tlbcam_sz(tlbcam_index - 1) >> 20,
 	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
 
-	__initial_memory_limit_addr = memstart_addr + __max_low_memory;
+	memblock_set_current_limit(memstart_addr + __max_low_memory);
 }
+
+void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				phys_addr_t first_memblock_size)
+{
+	phys_addr_t limit = first_memblock_base + first_memblock_size;
+
+	/* 64M mapped initially according to head_fsl_booke.S */
+	memblock_set_current_limit(min_t(u64, limit, 0x04000000));
+}
+#endif

@@ -140,6 +140,14 @@ config MACH_FSG
 	  FSG-3 device. For more information on this platform,
 	  see http://www.nslu2-linux.org/wiki/FSG3/HomePage
 
+config MACH_ARCOM_VULCAN
+	bool
+	prompt "Arcom/Eurotech Vulcan"
+	select PCI
+	help
+	  Say 'Y' here if you want your kernel to support Arcom's
+	  Vulcan board.
+
 #
 # Certain registers and IRQs are only enabled if supporting IXP465 CPUs
 #

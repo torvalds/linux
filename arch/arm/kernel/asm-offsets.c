@@ -12,6 +12,7 @@
  */
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
 #include <asm/mach/arch.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
@@ -39,6 +40,9 @@
 int main(void)
 {
   DEFINE(TSK_ACTIVE_MM,		offsetof(struct task_struct, active_mm));
+#ifdef CONFIG_CC_STACKPROTECTOR
+  DEFINE(TSK_STACK_CANARY,	offsetof(struct task_struct, stack_canary));
+#endif
   BLANK();
   DEFINE(TI_FLAGS,		offsetof(struct thread_info, flags));
   DEFINE(TI_PREEMPT,		offsetof(struct thread_info, preempt_count));
@@ -98,8 +102,6 @@ int main(void)
   DEFINE(SIZEOF_MACHINE_DESC,	sizeof(struct machine_desc));
   DEFINE(MACHINFO_TYPE,		offsetof(struct machine_desc, nr));
   DEFINE(MACHINFO_NAME,		offsetof(struct machine_desc, name));
-  DEFINE(MACHINFO_PHYSIO,	offsetof(struct machine_desc, phys_io));
-  DEFINE(MACHINFO_PGOFFIO,	offsetof(struct machine_desc, io_pg_offst));
   BLANK();
   DEFINE(PROC_INFO_SZ,		sizeof(struct proc_info_list));
   DEFINE(PROCINFO_INITFUNC,	offsetof(struct proc_info_list, __cpu_flush));
@@ -112,5 +114,9 @@ int main(void)
 #ifdef MULTI_PABORT
   DEFINE(PROCESSOR_PABT_FUNC,	offsetof(struct processor, _prefetch_abort));
 #endif
+  BLANK();
+  DEFINE(DMA_BIDIRECTIONAL,	DMA_BIDIRECTIONAL);
+  DEFINE(DMA_TO_DEVICE,		DMA_TO_DEVICE);
+  DEFINE(DMA_FROM_DEVICE,	DMA_FROM_DEVICE);
   return 0; 
 }

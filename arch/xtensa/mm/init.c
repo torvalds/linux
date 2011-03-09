@@ -18,11 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/bootmem.h>
+#include <linux/gfp.h>
 #include <linux/swap.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 
 #include <asm/bootparam.h>
 #include <asm/page.h>

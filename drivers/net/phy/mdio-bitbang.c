@@ -19,12 +19,16 @@
 
 #include <linux/module.h>
 #include <linux/mdio-bitbang.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 
-#define MDIO_READ 1
-#define MDIO_WRITE 0
+#define MDIO_READ 2
+#define MDIO_WRITE 1
+
+#define MDIO_C45 (1<<15)
+#define MDIO_C45_ADDR (MDIO_C45 | 0)
+#define MDIO_C45_READ (MDIO_C45 | 3)
+#define MDIO_C45_WRITE (MDIO_C45 | 1)
 
 #define MDIO_SETUP_TIME 10
 #define MDIO_HOLD_TIME 10
@@ -90,7 +94,7 @@ static u16 mdiobb_get_num(struct mdiobb_ctrl *ctrl, int bits)
 /* Utility to send the preamble, address, and
  * register (common to read and write).
  */
-static void mdiobb_cmd(struct mdiobb_ctrl *ctrl, int read, u8 phy, u8 reg)
+static void mdiobb_cmd(struct mdiobb_ctrl *ctrl, int op, u8 phy, u8 reg)
 {
 	const struct mdiobb_ops *ops = ctrl->ops;
 	int i;
@@ -109,23 +113,56 @@ static void mdiobb_cmd(struct mdiobb_ctrl *ctrl, int read, u8 phy, u8 reg)
 	for (i = 0; i < 32; i++)
 		mdiobb_send_bit(ctrl, 1);
 
-	/* send the start bit (01) and the read opcode (10) or write (10) */
+	/* send the start bit (01) and the read opcode (10) or write (10).
+	   Clause 45 operation uses 00 for the start and 11, 10 for
+	   read/write */
 	mdiobb_send_bit(ctrl, 0);
-	mdiobb_send_bit(ctrl, 1);
-	mdiobb_send_bit(ctrl, read);
-	mdiobb_send_bit(ctrl, !read);
+	if (op & MDIO_C45)
+		mdiobb_send_bit(ctrl, 0);
+	else
+		mdiobb_send_bit(ctrl, 1);
+	mdiobb_send_bit(ctrl, (op >> 1) & 1);
+	mdiobb_send_bit(ctrl, (op >> 0) & 1);
 
 	mdiobb_send_num(ctrl, phy, 5);
 	mdiobb_send_num(ctrl, reg, 5);
 }
 
+/* In clause 45 mode all commands are prefixed by MDIO_ADDR to specify the
+   lower 16 bits of the 21 bit address. This transfer is done identically to a
+   MDIO_WRITE except for a different code. To enable clause 45 mode or
+   MII_ADDR_C45 into the address. Theoretically clause 45 and normal devices
+   can exist on the same bus. Normal devices should ignore the MDIO_ADDR
+   phase. */
+static int mdiobb_cmd_addr(struct mdiobb_ctrl *ctrl, int phy, u32 addr)
+{
+	unsigned int dev_addr = (addr >> 16) & 0x1F;
+	unsigned int reg = addr & 0xFFFF;
+	mdiobb_cmd(ctrl, MDIO_C45_ADDR, phy, dev_addr);
+
+	/* send the turnaround (10) */
+	mdiobb_send_bit(ctrl, 1);
+	mdiobb_send_bit(ctrl, 0);
+
+	mdiobb_send_num(ctrl, reg, 16);
+
+	ctrl->ops->set_mdio_dir(ctrl, 0);
+	mdiobb_get_bit(ctrl);
+
+	return dev_addr;
+}
 
 static int mdiobb_read(struct mii_bus *bus, int phy, int reg)
 {
 	struct mdiobb_ctrl *ctrl = bus->priv;
 	int ret, i;
 
-	mdiobb_cmd(ctrl, MDIO_READ, phy, reg);
+	if (reg & MII_ADDR_C45) {
+		reg = mdiobb_cmd_addr(ctrl, phy, reg);
+		mdiobb_cmd(ctrl, MDIO_C45_READ, phy, reg);
+	} else
+		mdiobb_cmd(ctrl, MDIO_READ, phy, reg);
+
 	ctrl->ops->set_mdio_dir(ctrl, 0);
 
 	/* check the turnaround bit: the PHY should be driving it to zero */
@@ -148,7 +185,11 @@ static int mdiobb_write(struct mii_bus *bus, int phy, int reg, u16 val)
 {
 	struct mdiobb_ctrl *ctrl = bus->priv;
 
-	mdiobb_cmd(ctrl, MDIO_WRITE, phy, reg);
+	if (reg & MII_ADDR_C45) {
+		reg = mdiobb_cmd_addr(ctrl, phy, reg);
+		mdiobb_cmd(ctrl, MDIO_C45_WRITE, phy, reg);
+	} else
+		mdiobb_cmd(ctrl, MDIO_WRITE, phy, reg);
 
 	/* send the turnaround (10) */
 	mdiobb_send_bit(ctrl, 1);

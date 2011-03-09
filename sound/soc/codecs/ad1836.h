@@ -54,11 +54,10 @@
 #define AD1836_ADC_SERFMT_MASK	       (7 << 6)
 #define AD1836_ADC_SERFMT_PCK256       (0x4 << 6)
 #define AD1836_ADC_SERFMT_PCK128       (0x5 << 6)
+#define AD1836_ADC_AUX                 (0x6 << 6)
 
 #define AD1836_ADC_CTRL3               14
 
 #define AD1836_NUM_REGS                16
 
-extern struct snd_soc_dai ad1836_dai;
-extern struct snd_soc_codec_device soc_codec_dev_ad1836;
 #endif

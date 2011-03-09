@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <scsi/scsi.h>
@@ -123,7 +124,12 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 	mb = &pmb->u.mb;
 
-	lpfc_read_sparam(phba, pmb, vport->vpi);
+	rc = lpfc_read_sparam(phba, pmb, vport->vpi);
+	if (rc) {
+		mempool_free(pmb, phba->mbox_mem_pool);
+		return -ENOMEM;
+	}
+
 	/*
 	 * Grab buffer pointer and clear context1 so we can use
 	 * lpfc_sli_issue_box_wait
@@ -389,8 +395,8 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * by the port.
 	 */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-	    (pport->vpi_state & LPFC_VPI_REGISTERED)) {
-		rc = lpfc_sli4_init_vpi(phba, vpi);
+	    (pport->fc_flag & FC_VFI_REGISTERED)) {
+		rc = lpfc_sli4_init_vpi(vport);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 					"1838 Failed to INIT_VPI on vpi %d "
@@ -412,7 +418,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
 	    (pport->port_state < LPFC_FABRIC_CFG_LINK) ||
-	    (phba->fc_topology == TOPOLOGY_LOOP)) {
+	    (phba->fc_topology == LPFC_TOPOLOGY_LOOP)) {
 		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
 		rc = VPORT_OK;
 		goto out;
@@ -505,17 +511,18 @@ enable_vport(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
-	    (phba->fc_topology == TOPOLOGY_LOOP)) {
+	    (phba->fc_topology == LPFC_TOPOLOGY_LOOP)) {
 		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
 		return VPORT_OK;
 	}
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(shost->host_lock);
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(shost->host_lock);
 
 	/* Use the Physical nodes Fabric NDLP to determine if the link is
 	 * up and ready to FDISC.
@@ -573,7 +580,9 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				 "static vport.\n");
 		return VPORT_ERROR;
 	}
-
+	spin_lock_irq(&phba->hbalock);
+	vport->load_flag |= FC_UNLOADING;
+	spin_unlock_irq(&phba->hbalock);
 	/*
 	 * If we are not unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
@@ -611,10 +620,6 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		scsi_host_put(shost);
 		return VPORT_INVAL;
 	}
-	spin_lock_irq(&phba->hbalock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(&phba->hbalock);
-
 	lpfc_free_sysfs_attr(vport);
 
 	lpfc_debugfs_terminate(vport);
@@ -660,7 +665,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
 	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 	    phba->link_state >= LPFC_LINK_UP &&
-	    phba->fc_topology != TOPOLOGY_LOOP) {
+	    phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
 			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))
@@ -756,7 +761,9 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
 		if (!scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
-			lpfc_printf_vlog(port_iterator, KERN_WARNING, LOG_VPORT,
+			if (!(port_iterator->load_flag & FC_UNLOADING))
+				lpfc_printf_vlog(port_iterator, KERN_ERR,
+					 LOG_VPORT,
 					 "1801 Create vport work array FAILED: "
 					 "cannot do scsi_host_get\n");
 			continue;
@@ -773,7 +780,7 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 	int i;
 	if (vports == NULL)
 		return;
-	for (i = 0; vports[i] != NULL && i <= phba->max_vports; i++)
+	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
 		scsi_host_put(lpfc_shost_from_vport(vports[i]));
 	kfree(vports);
 }

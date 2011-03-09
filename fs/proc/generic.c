@@ -12,7 +12,9 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
+#include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/idr.h>
@@ -257,17 +259,22 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 
 	error = inode_change_ok(inode, iattr);
 	if (error)
-		goto out;
+		return error;
 
-	error = inode_setattr(inode, iattr);
-	if (error)
-		goto out;
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, iattr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
 	
 	de->uid = inode->i_uid;
 	de->gid = inode->i_gid;
 	de->mode = inode->i_mode;
-out:
-	return error;
+	return 0;
 }
 
 static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
@@ -291,19 +298,17 @@ static const struct inode_operations proc_file_inode_operations = {
  * returns the struct proc_dir_entry for "/proc/tty/driver", and
  * returns "serial" in residual.
  */
-static int xlate_proc_name(const char *name,
-			   struct proc_dir_entry **ret, const char **residual)
+static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
+			     const char **residual)
 {
 	const char     		*cp = name, *next;
 	struct proc_dir_entry	*de;
 	int			len;
-	int 			rtn = 0;
 
 	de = *ret;
 	if (!de)
 		de = &proc_root;
 
-	spin_lock(&proc_subdir_lock);
 	while (1) {
 		next = strchr(cp, '/');
 		if (!next)
@@ -315,16 +320,25 @@ static int xlate_proc_name(const char *name,
 				break;
 		}
 		if (!de) {
-			rtn = -ENOENT;
-			goto out;
+			WARN(1, "name '%s'\n", name);
+			return -ENOENT;
 		}
 		cp += len + 1;
 	}
 	*residual = cp;
 	*ret = de;
-out:
+	return 0;
+}
+
+static int xlate_proc_name(const char *name, struct proc_dir_entry **ret,
+			   const char **residual)
+{
+	int rv;
+
+	spin_lock(&proc_subdir_lock);
+	rv = __xlate_proc_name(name, ret, residual);
 	spin_unlock(&proc_subdir_lock);
-	return rtn;
+	return rv;
 }
 
 static DEFINE_IDA(proc_inum_ida);
@@ -335,21 +349,6 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 /*
  * Return an inode number between PROC_DYNAMIC_FIRST and
  * 0xffffffff, or zero on failure.
- *
- * Current inode allocations in the proc-fs (hex-numbers):
- *
- * 00000000		reserved
- * 00000001-00000fff	static entries	(goners)
- *      001		root-ino
- *
- * 00001000-00001fff	unused
- * 0001xxxx-7fffxxxx	pid-dir entries for pid 1-7fff
- * 80000000-efffffff	unused
- * f0000000-ffffffff	dynamic entries
- *
- * Goal:
- *	Once we split the thing into several virtual filesystems,
- *	we will get rid of magical ranges (and this comment, BTW).
  */
 static unsigned int get_inode_number(void)
 {
@@ -401,7 +400,7 @@ static const struct inode_operations proc_link_inode_operations = {
  * smarter: we could keep a "volatile" flag in the 
  * inode to indicate which ones to keep.
  */
-static int proc_delete_dentry(struct dentry * dentry)
+static int proc_delete_dentry(const struct dentry * dentry)
 {
 	return 1;
 }
@@ -426,13 +425,10 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		if (de->namelen != dentry->d_name.len)
 			continue;
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-			unsigned int ino;
-
-			ino = de->low_ino;
 			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
 			error = -EINVAL;
-			inode = proc_get_inode(dir->i_sb, ino, de);
+			inode = proc_get_inode(dir->i_sb, de);
 			goto out_unlock;
 		}
 	}
@@ -440,7 +436,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 out_unlock:
 
 	if (inode) {
-		dentry->d_op = &proc_dentry_operations;
+		d_set_d_op(dentry, &proc_dentry_operations);
 		d_add(dentry, inode);
 		return NULL;
 	}
@@ -662,6 +658,7 @@ struct proc_dir_entry *proc_symlink(const char *name,
 	}
 	return ent;
 }
+EXPORT_SYMBOL(proc_symlink);
 
 struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 		struct proc_dir_entry *parent)
@@ -700,6 +697,7 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 {
 	return proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
 }
+EXPORT_SYMBOL(proc_mkdir);
 
 struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 					 struct proc_dir_entry *parent)
@@ -728,6 +726,7 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 	}
 	return ent;
 }
+EXPORT_SYMBOL(create_proc_entry);
 
 struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
 					struct proc_dir_entry *parent,
@@ -762,15 +761,11 @@ out_free:
 out:
 	return NULL;
 }
+EXPORT_SYMBOL(proc_create_data);
 
 static void free_proc_entry(struct proc_dir_entry *de)
 {
-	unsigned int ino = de->low_ino;
-
-	if (ino < PROC_DYNAMIC_FIRST)
-		return;
-
-	release_inode_number(ino);
+	release_inode_number(de->low_ino);
 
 	if (S_ISLNK(de->mode))
 		kfree(de->data);
@@ -793,11 +788,13 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	const char *fn = name;
 	int len;
 
-	if (xlate_proc_name(name, &parent, &fn) != 0)
+	spin_lock(&proc_subdir_lock);
+	if (__xlate_proc_name(name, &parent, &fn) != 0) {
+		spin_unlock(&proc_subdir_lock);
 		return;
+	}
 	len = strlen(fn);
 
-	spin_lock(&proc_subdir_lock);
 	for (p = &parent->subdir; *p; p=&(*p)->next ) {
 		if (proc_match(len, fn, *p)) {
 			de = *p;
@@ -807,8 +804,10 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		}
 	}
 	spin_unlock(&proc_subdir_lock);
-	if (!de)
+	if (!de) {
+		WARN(1, "name '%s'\n", name);
 		return;
+	}
 
 	spin_lock(&de->pde_unload_lock);
 	/*
@@ -827,12 +826,9 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 		wait_for_completion(de->pde_unload_completion);
 
-		goto continue_removing;
+		spin_lock(&de->pde_unload_lock);
 	}
-	spin_unlock(&de->pde_unload_lock);
 
-continue_removing:
-	spin_lock(&de->pde_unload_lock);
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
 
@@ -853,3 +849,4 @@ continue_removing:
 			de->parent->name, de->name, de->subdir->name);
 	pde_put(de);
 }
+EXPORT_SYMBOL(remove_proc_entry);

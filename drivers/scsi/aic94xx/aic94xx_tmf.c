@@ -25,6 +25,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/gfp.h>
 #include "aic94xx.h"
 #include "aic94xx_sas.h"
 #include "aic94xx_hwi.h"

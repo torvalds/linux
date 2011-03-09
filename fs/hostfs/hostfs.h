@@ -28,12 +28,7 @@
  * #define ATTR_KILL_SUID	2048
  * #define ATTR_KILL_SGID	4096
  *
- * and this is because they were added in 2.5 development in this patch:
- *
- * http://linux.bkbits.net:8080/linux-2.5/
- * cset@3caf4a12k4XgDzK7wyK-TGpSZ9u2Ww?nav=index.html
- * |src/.|src/include|src/include/linux|related/include/linux/fs.h
- *
+ * and this is because they were added in 2.5 development.
  * Actually, they are not needed by most ->setattr() methods - they are set by
  * callers of notify_change() to notify that the setuid/setgid bits must be
  * dropped.
@@ -53,18 +48,28 @@ struct hostfs_iattr {
 	struct timespec	ia_ctime;
 };
 
-extern int stat_file(const char *path, unsigned long long *inode_out,
-		     int *mode_out, int *nlink_out, int *uid_out, int *gid_out,
-		     unsigned long long *size_out, struct timespec *atime_out,
-		     struct timespec *mtime_out, struct timespec *ctime_out,
-		     int *blksize_out, unsigned long long *blocks_out, int fd);
+struct hostfs_stat {
+	unsigned long long ino;
+	unsigned int mode;
+	unsigned int nlink;
+	unsigned int uid;
+	unsigned int gid;
+	unsigned long long size;
+	struct timespec atime, mtime, ctime;
+	unsigned int blksize;
+	unsigned long long blocks;
+	unsigned int maj;
+	unsigned int min;
+};
+
+extern int stat_file(const char *path, struct hostfs_stat *p, int fd);
 extern int access_file(char *path, int r, int w, int x);
 extern int open_file(char *path, int r, int w, int append);
-extern int file_type(const char *path, int *maj, int *min);
 extern void *open_dir(char *path, int *err_out);
 extern char *read_dir(void *stream, unsigned long long *pos,
 		      unsigned long long *ino_out, int *len_out);
 extern void close_file(void *stream);
+extern int replace_file(int oldfd, int fd);
 extern void close_dir(void *stream);
 extern int read_file(int fd, unsigned long long *offset, char *buf, int len);
 extern int write_file(int fd, unsigned long long *offset, const char *buf,
@@ -86,7 +91,6 @@ extern int rename_file(char *from, char *to);
 extern int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 		     long long *bfree_out, long long *bavail_out,
 		     long long *files_out, long long *ffree_out,
-		     void *fsid_out, int fsid_size, long *namelen_out,
-		     long *spare_out);
+		     void *fsid_out, int fsid_size, long *namelen_out);
 
 #endif

@@ -1,5 +1,20 @@
 /*
- * Portions of MTD ABI definition which are shared by kernel and user space
+ * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org> et al.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *
  */
 
 #ifndef __MTD_ABI_H__
@@ -37,6 +52,7 @@ struct mtd_oob_buf64 {
 #define MTD_NANDFLASH		4
 #define MTD_DATAFLASH		6
 #define MTD_UBIVOLUME		7
+#define MTD_MLCNANDFLASH	8
 
 #define MTD_WRITEABLE		0x400	/* Device is writeable */
 #define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
@@ -104,12 +120,13 @@ struct otp_info {
 #define OTPGETREGIONCOUNT	_IOW('M', 14, int)
 #define OTPGETREGIONINFO	_IOW('M', 15, struct otp_info)
 #define OTPLOCK			_IOR('M', 16, struct otp_info)
-#define ECCGETLAYOUT		_IOR('M', 17, struct nand_ecclayout)
+#define ECCGETLAYOUT		_IOR('M', 17, struct nand_ecclayout_user)
 #define ECCGETSTATS		_IOR('M', 18, struct mtd_ecc_stats)
 #define MTDFILEMODE		_IO('M', 19)
 #define MEMERASE64		_IOW('M', 20, struct erase_info_user64)
 #define MEMWRITEOOB64		_IOWR('M', 21, struct mtd_oob_buf64)
 #define MEMREADOOB64		_IOWR('M', 22, struct mtd_oob_buf64)
+#define MEMISLOCKED		_IOR('M', 23, struct erase_info_user)
 
 /*
  * Obsolete legacy interface. Keep it in order not to break userspace
@@ -128,13 +145,18 @@ struct nand_oobfree {
 };
 
 #define MTD_MAX_OOBFREE_ENTRIES	8
+#define MTD_MAX_ECCPOS_ENTRIES	64
 /*
- * ECC layout control structure. Exported to userspace for
- * diagnosis and to allow creation of raw images
+ * OBSOLETE: ECC layout control structure. Exported to user-space via ioctl
+ * ECCGETLAYOUT for backwards compatbility and should not be mistaken as a
+ * complete set of ECC information. The ioctl truncates the larger internal
+ * structure to retain binary compatibility with the static declaration of the
+ * ioctl. Note that the "MTD_MAX_..._ENTRIES" macros represent the max size of
+ * the user struct, not the MAX size of the internal struct nand_ecclayout.
  */
-struct nand_ecclayout {
+struct nand_ecclayout_user {
 	__u32 eccbytes;
-	__u32 eccpos[64];
+	__u32 eccpos[MTD_MAX_ECCPOS_ENTRIES];
 	__u32 oobavail;
 	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES];
 };

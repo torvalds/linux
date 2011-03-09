@@ -92,20 +92,9 @@ static struct ch7xxx_id_struct {
 	{ CH7301_VID, "CH7301" },
 };
 
-struct ch7xxx_reg_state {
-    uint8_t regs[CH7xxx_NUM_REGS];
-};
-
 struct ch7xxx_priv {
 	bool quiet;
-
-	struct ch7xxx_reg_state save_reg;
-	struct ch7xxx_reg_state mode_reg;
-	uint8_t save_TCTL, save_TPCP, save_TPD, save_TPVT;
-	uint8_t save_TLPF, save_TCT, save_PM, save_IDF;
 };
-
-static void ch7xxx_save(struct intel_dvo_device *dvo);
 
 static char *ch7xxx_get_id(uint8_t vid)
 {
@@ -124,7 +113,6 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 {
 	struct ch7xxx_priv *ch7xxx= dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	u8 out_buf[2];
 	u8 in_buf[2];
 
@@ -146,14 +134,14 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (i2c_transfer(&i2cbus->adapter, msgs, 2) == 2) {
+	if (i2c_transfer(adapter, msgs, 2) == 2) {
 		*ch = in_buf[0];
 		return true;
 	};
 
 	if (!ch7xxx->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from %s:%02x.\n",
-			  addr, i2cbus->adapter.name, dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -163,7 +151,6 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 {
 	struct ch7xxx_priv *ch7xxx = dvo->dev_priv;
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	uint8_t out_buf[2];
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
@@ -175,12 +162,12 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (i2c_transfer(&i2cbus->adapter, &msg, 1) == 1)
+	if (i2c_transfer(adapter, &msg, 1) == 1)
 		return true;
 
 	if (!ch7xxx->quiet) {
 		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, i2cbus->adapter.name, dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 
 	return false;
@@ -312,40 +299,15 @@ static void ch7xxx_dpms(struct intel_dvo_device *dvo, int mode)
 
 static void ch7xxx_dump_regs(struct intel_dvo_device *dvo)
 {
-	struct ch7xxx_priv *ch7xxx = dvo->dev_priv;
 	int i;
 
 	for (i = 0; i < CH7xxx_NUM_REGS; i++) {
+		uint8_t val;
 		if ((i % 8) == 0 )
 			DRM_LOG_KMS("\n %02X: ", i);
-		DRM_LOG_KMS("%02X ", ch7xxx->mode_reg.regs[i]);
+		ch7xxx_readb(dvo, i, &val);
+		DRM_LOG_KMS("%02X ", val);
 	}
-}
-
-static void ch7xxx_save(struct intel_dvo_device *dvo)
-{
-	struct ch7xxx_priv *ch7xxx= dvo->dev_priv;
-
-	ch7xxx_readb(dvo, CH7xxx_TCTL, &ch7xxx->save_TCTL);
-	ch7xxx_readb(dvo, CH7xxx_TPCP, &ch7xxx->save_TPCP);
-	ch7xxx_readb(dvo, CH7xxx_TPD, &ch7xxx->save_TPD);
-	ch7xxx_readb(dvo, CH7xxx_TPVT, &ch7xxx->save_TPVT);
-	ch7xxx_readb(dvo, CH7xxx_TLPF, &ch7xxx->save_TLPF);
-	ch7xxx_readb(dvo, CH7xxx_PM, &ch7xxx->save_PM);
-	ch7xxx_readb(dvo, CH7xxx_IDF, &ch7xxx->save_IDF);
-}
-
-static void ch7xxx_restore(struct intel_dvo_device *dvo)
-{
-	struct ch7xxx_priv *ch7xxx = dvo->dev_priv;
-
-	ch7xxx_writeb(dvo, CH7xxx_TCTL, ch7xxx->save_TCTL);
-	ch7xxx_writeb(dvo, CH7xxx_TPCP, ch7xxx->save_TPCP);
-	ch7xxx_writeb(dvo, CH7xxx_TPD, ch7xxx->save_TPD);
-	ch7xxx_writeb(dvo, CH7xxx_TPVT, ch7xxx->save_TPVT);
-	ch7xxx_writeb(dvo, CH7xxx_TLPF, ch7xxx->save_TLPF);
-	ch7xxx_writeb(dvo, CH7xxx_IDF, ch7xxx->save_IDF);
-	ch7xxx_writeb(dvo, CH7xxx_PM, ch7xxx->save_PM);
 }
 
 static void ch7xxx_destroy(struct intel_dvo_device *dvo)
@@ -365,7 +327,5 @@ struct intel_dvo_dev_ops ch7xxx_ops = {
 	.mode_set = ch7xxx_mode_set,
 	.dpms = ch7xxx_dpms,
 	.dump_regs = ch7xxx_dump_regs,
-	.save = ch7xxx_save,
-	.restore = ch7xxx_restore,
 	.destroy = ch7xxx_destroy,
 };

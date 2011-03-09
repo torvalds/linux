@@ -153,6 +153,9 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 		if (pressure)
 			p = MODR;
 
+		dev_dbg(wm->dev, "Raw coordinates: x=%x, y=%x, p=%x\n",
+			x, y, p);
+
 		/* are samples valid */
 		if ((x & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_X ||
 		    (y & WM97XX_ADCSRC_MASK) != WM97XX_ADCSEL_Y ||

@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/parport.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include <asm/current.h>

@@ -25,8 +25,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
-
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
@@ -165,7 +163,7 @@ int remove_phb_dynamic(struct pci_controller *phb)
 	struct resource *res;
 	int rc, i;
 
-	pr_debug("PCI: Removing PHB %04x:%02x... \n",
+	pr_debug("PCI: Removing PHB %04x:%02x...\n",
 		 pci_domain_nr(b), b->number);
 
 	/* We cannot to remove a root bus that has children */

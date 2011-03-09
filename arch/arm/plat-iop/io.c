@@ -34,7 +34,8 @@ void * __iomem __iop3xx_ioremap(unsigned long cookie, size_t size,
 		retval = (void *) IOP3XX_PMMR_PHYS_TO_VIRT(cookie);
 		break;
 	default:
-		retval = __arm_ioremap(cookie, size, mtype);
+		retval = __arm_ioremap_caller(cookie, size, mtype,
+				__builtin_return_address(0));
 	}
 
 	return retval;

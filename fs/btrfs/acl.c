@@ -22,6 +22,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "ctree.h"
 #include "btrfs_inode.h"
@@ -59,6 +60,10 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		size = __btrfs_getxattr(inode, name, value, size);
 		if (size > 0) {
 			acl = posix_acl_from_xattr(value, size);
+			if (IS_ERR(acl)) {
+				kfree(value);
+				return acl;
+			}
 			set_cached_acl(inode, type, acl);
 		}
 		kfree(value);
@@ -159,6 +164,12 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	int ret;
 	struct posix_acl *acl = NULL;
 
+	if (!is_owner_or_cap(dentry->d_inode))
+		return -EPERM;
+
+	if (!IS_POSIXACL(dentry->d_inode))
+		return -EOPNOTSUPP;
+
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);
 		if (acl == NULL) {
@@ -176,18 +187,23 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	return ret;
 }
 
-int btrfs_check_acl(struct inode *inode, int mask)
+int btrfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl;
 	int error = -EAGAIN;
 
-	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			error = -ECHILD;
 
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
+	} else {
+		struct posix_acl *acl;
+		acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+		if (acl) {
+			error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+		}
 	}
 
 	return error;
@@ -281,14 +297,14 @@ int btrfs_acl_chmod(struct inode *inode)
 	return ret;
 }
 
-struct xattr_handler btrfs_xattr_acl_default_handler = {
+const struct xattr_handler btrfs_xattr_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.get	= btrfs_xattr_acl_get,
 	.set	= btrfs_xattr_acl_set,
 };
 
-struct xattr_handler btrfs_xattr_acl_access_handler = {
+const struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.get	= btrfs_xattr_acl_get,

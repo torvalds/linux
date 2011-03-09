@@ -47,7 +47,7 @@ int pwc_decode_size(struct pwc_device *pdev, int width, int height)
 	   you don't have the decompressor loaded or use RAW mode,
 	   the maximum viewable size is smaller.
 	*/
-	if (pdev->vpalette == VIDEO_PALETTE_RAW)
+	if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
 	{
 		if (width > pdev->abs_max.x || height > pdev->abs_max.y)
 		{
@@ -123,7 +123,7 @@ void pwc_construct(struct pwc_device *pdev)
 		pdev->frame_header_size = 0;
 		pdev->frame_trailer_size = 0;
 	}
-	pdev->vpalette = VIDEO_PALETTE_YUV420P; /* default */
+	pdev->pixfmt = V4L2_PIX_FMT_YUV420; /* default */
 	pdev->view_min.size = pdev->view_min.x * pdev->view_min.y;
 	pdev->view_max.size = pdev->view_max.x * pdev->view_max.y;
 	/* length of image, in YUV format; always allocate enough memory. */

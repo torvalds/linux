@@ -50,54 +50,17 @@ Configuration Options:
   within each minor will be concatenated together in the order given here.
 */
 
-/*
- * The previous block comment is used to automatically generate
- * documentation in Comedi and Comedilib.  The fields:
- *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the struct comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
- *
- * These headers should be followed by a blank line, and any comments
- * you wish to say about the driver.  The comment area is the place
- * to put any known bugs, limitations, unsupported features, supported
- * command triggers, whether or not commands are supported on particular
- * subdevices, etc.
- *
- * Somewhere in the comment should be information about configuration
- * options that are used with comedi_config.
- */
-
+#include <linux/string.h>
+#include <linux/slab.h>
+#include "../comedi.h"
 #include "../comedilib.h"
 #include "../comedidev.h"
-#include <linux/string.h>
 
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
 #define MODULE_NAME "comedi_bond"
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("GPL");
-#endif
 #ifndef STR
 #  define STR1(x) #x
 #  define STR(x) STR1(x)
@@ -142,7 +105,7 @@ static const struct BondingBoard bondingBoards[] = {
 #define thisboard ((const struct BondingBoard *)dev->board_ptr)
 
 struct BondedDevice {
-	void *dev;
+	struct comedi_device *dev;
 	unsigned minor;
 	unsigned subdev;
 	unsigned subdev_type;
@@ -404,20 +367,20 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
-	void *devs_opened[COMEDI_NUM_BOARD_MINORS];
+	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
 	memset(devs_opened, 0, sizeof(devs_opened));
-	devpriv->name[0] = 0;;
+	devpriv->name[0] = 0;
 	/* Loop through all comedi devices specified on the command-line,
 	   building our device list */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
-		void *d;
+		struct comedi_device *d;
 		int sdev = -1, nchans, tmp;
 		struct BondedDevice *bdev = NULL;
 
-		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
+		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
 			return 0;
 		}

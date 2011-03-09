@@ -85,7 +85,7 @@ such, if you are interested in deploying or shipping a driver as part of
 solution intended to be used for purposes other than development, please 
 obtain a tested driver from Intel Customer Support at:
 
-http://support.intel.com/support/notebook/sb/CS-006408.htm
+http://support.intel.com
 
 
 1.   Introduction
@@ -171,7 +171,7 @@ Where the supported parameter are:
   
   led
 	Can be used to turn on experimental LED code.
-	0 = Off, 1 = On.  Default is 0.
+	0 = Off, 1 = On.  Default is 1.
 
   mode
 	Can be used to set the default mode of the adapter.  

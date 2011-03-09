@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "mlx4_ib.h"
 
 static u32 convert_access(int acc)
@@ -224,7 +226,7 @@ struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device 
 	struct mlx4_ib_fast_reg_page_list *mfrpl;
 	int size = page_list_len * sizeof (u64);
 
-	if (size > PAGE_SIZE)
+	if (page_list_len > MLX4_MAX_FAST_REG_PAGES)
 		return ERR_PTR(-EINVAL);
 
 	mfrpl = kmalloc(sizeof *mfrpl, GFP_KERNEL);
@@ -238,7 +240,7 @@ struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device 
 	mfrpl->mapped_page_list = dma_alloc_coherent(&dev->dev->pdev->dev,
 						     size, &mfrpl->map,
 						     GFP_KERNEL);
-	if (!mfrpl->ibfrpl.page_list)
+	if (!mfrpl->mapped_page_list)
 		goto err_free;
 
 	WARN_ON(mfrpl->map & 0x3f);

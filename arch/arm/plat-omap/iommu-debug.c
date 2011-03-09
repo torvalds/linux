@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
@@ -327,12 +328,14 @@ static int debug_open_generic(struct inode *inode, struct file *file)
 		.open = debug_open_generic,				\
 		.read = debug_read_##name,				\
 		.write = debug_write_##name,				\
+		.llseek = generic_file_llseek,				\
 	};
 
 #define DEBUG_FOPS_RO(name)						\
 	static const struct file_operations debug_##name##_fops = {	\
 		.open = debug_open_generic,				\
 		.read = debug_read_##name,				\
+		.llseek = generic_file_llseek,				\
 	};
 
 DEBUG_FOPS_RO(ver);

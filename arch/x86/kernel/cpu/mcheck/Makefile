@@ -7,3 +7,5 @@ obj-$(CONFIG_X86_MCE_THRESHOLD) += threshold.o
 obj-$(CONFIG_X86_MCE_INJECT)	+= mce-inject.o
 
 obj-$(CONFIG_X86_THERMAL_VECTOR) += therm_throt.o
+
+obj-$(CONFIG_ACPI_APEI)		+= mce-apei.o

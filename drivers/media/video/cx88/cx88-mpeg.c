@@ -23,6 +23,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -65,8 +66,14 @@ static void request_modules(struct cx8802_dev *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx8802_dev *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 
@@ -109,6 +116,9 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
 		case CX88_BOARD_PCHDTV_HD5500:
 			cx_write(TS_SOP_STAT, 1<<13);
+			break;
+		case CX88_BOARD_SAMSUNG_SMT_7020:
+			cx_write(TS_SOP_STAT, 0x00);
 			break;
 		case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 		case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
@@ -309,7 +319,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 
 /* ----------------------------------------------------------- */
 
-static void do_cancel_buffers(struct cx8802_dev *dev, char *reason, int restart)
+static void do_cancel_buffers(struct cx8802_dev *dev, const char *reason, int restart)
 {
 	struct cx88_dmaqueue *q = &dev->mpegq;
 	struct cx88_buffer *buf;
@@ -354,7 +364,7 @@ static void cx8802_timeout(unsigned long data)
 	do_cancel_buffers(dev,"timeout",1);
 }
 
-static char *cx88_mpeg_irqs[32] = {
+static const char * cx88_mpeg_irqs[32] = {
 	"ts_risci1", NULL, NULL, NULL,
 	"ts_risci2", NULL, NULL, NULL,
 	"ts_oflow",  NULL, NULL, NULL,
@@ -595,13 +605,22 @@ struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board
 static int cx8802_request_acquire(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
+	unsigned int	i;
 
 	/* Fail a request for hardware if the device is busy. */
 	if (core->active_type_id != CX88_BOARD_NONE &&
 	    core->active_type_id != drv->type_id)
 		return -EBUSY;
 
-	core->input = CX88_VMUX_DVB;
+	core->input = 0;
+	for (i = 0;
+	     i < (sizeof(core->board.input) / sizeof(struct cx88_input));
+	     i++) {
+		if (core->board.input[i].type == CX88_VMUX_DVB) {
+			core->input = i;
+			break;
+		}
+	}
 
 	if (drv->advise_acquire)
 	{
@@ -806,6 +825,8 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 
 	dprintk( 1, "%s\n", __func__);
 
+	flush_request_modules(dev);
+
 	if (!list_empty(&dev->drvlist)) {
 		struct cx8802_driver *drv, *tmp;
 		int err;
@@ -836,7 +857,7 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
-static struct pci_device_id cx8802_pci_tbl[] = {
+static const struct pci_device_id cx8802_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8802,

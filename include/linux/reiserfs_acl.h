@@ -53,8 +53,8 @@ int reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 				 struct inode *dir, struct dentry *dentry,
 				 struct inode *inode);
 int reiserfs_cache_default_acl(struct inode *dir);
-extern struct xattr_handler reiserfs_posix_acl_default_handler;
-extern struct xattr_handler reiserfs_posix_acl_access_handler;
+extern const struct xattr_handler reiserfs_posix_acl_default_handler;
+extern const struct xattr_handler reiserfs_posix_acl_access_handler;
 
 #else
 

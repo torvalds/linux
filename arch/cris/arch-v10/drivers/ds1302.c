@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <linux/bcd.h>
 #include <linux/capability.h>
 
@@ -33,6 +34,7 @@
 
 #define RTC_MAJOR_NR 121 /* local major, change later */
 
+static DEFINE_MUTEX(ds1302_mutex);
 static const char ds1302_name[] = "ds1302";
 
 /* The DS1302 might be connected to different bits on different products. 
@@ -238,9 +240,7 @@ static unsigned char days_in_mo[] =
 
 /* ioctl that supports RTC_RD_TIME and RTC_SET_TIME (read and set time/date). */
 
-static int
-rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	  unsigned long arg) 
+static int rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 
@@ -354,6 +354,17 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 }
 
+static long rtc_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&ds1302_mutex);
+	ret = rtc_ioctl(file, cmd, arg);
+	mutex_unlock(&ds1302_mutex);
+
+	return ret;
+}
+
 static void
 print_rtc_status(void)
 {
@@ -375,8 +386,9 @@ print_rtc_status(void)
 /* The various file operations we support. */
 
 static const struct file_operations rtc_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	rtc_ioctl,
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl = rtc_unlocked_ioctl,
+	.llseek		= noop_llseek,
 }; 
 
 /* Probe for the chip by writing something to its RAM and try reading it back. */

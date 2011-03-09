@@ -5,11 +5,10 @@ Supported chips:
   * Genesys Logic GL518SM release 0x00
     Prefix: 'gl518sm'
     Addresses scanned: I2C 0x2c and 0x2d
-    Datasheet: http://www.genesyslogic.com/pdf
   * Genesys Logic GL518SM release 0x80
     Prefix: 'gl518sm'
     Addresses scanned: I2C 0x2c and 0x2d
-    Datasheet: http://www.genesyslogic.com/pdf
+    Datasheet: http://www.genesyslogic.com/
 
 Authors:
         Frodo Looijaard <frodol@dds.nl>,

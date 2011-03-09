@@ -25,9 +25,9 @@
 #include "xonar.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_DESCRIPTION("Asus AVx00 driver");
+MODULE_DESCRIPTION("Asus Virtuoso driver");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{Asus,AV100},{Asus,AV200}}");
+MODULE_SUPPORTED_DEVICE("{{Asus,AV66},{Asus,AV100},{Asus,AV200}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -40,7 +40,7 @@ MODULE_PARM_DESC(id, "ID string");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable card");
 
-static struct pci_device_id xonar_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(xonar_ids) = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8269) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8275) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x82b7) },
@@ -49,6 +49,8 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x834f) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835c) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835d) },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x835e) },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x838e) },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
 	{ }
 };
@@ -60,6 +62,8 @@ static int __devinit get_xonar_model(struct oxygen *chip,
 	if (get_xonar_pcm179x_model(chip, id) >= 0)
 		return 0;
 	if (get_xonar_cs43xx_model(chip, id) >= 0)
+		return 0;
+	if (get_xonar_wm87x6_model(chip, id) >= 0)
 		return 0;
 	return -EINVAL;
 }
@@ -92,6 +96,7 @@ static struct pci_driver xonar_driver = {
 	.suspend = oxygen_pci_suspend,
 	.resume = oxygen_pci_resume,
 #endif
+	.shutdown = oxygen_pci_shutdown,
 };
 
 static int __init alsa_card_xonar_init(void)

@@ -141,9 +141,9 @@ typedef struct irq_data_isa {
 	__u8            rcvhdr[8];
 } irq_data_isa;
 
-typedef union irq_data {
+typedef union act2000_irq_data {
 	irq_data_isa isa;
-} irq_data;
+} act2000_irq_data;
 
 /*
  * Per card driver data
@@ -176,7 +176,7 @@ typedef struct act2000_card {
 	char   *status_buf_read;
 	char   *status_buf_write;
 	char   *status_buf_end;
-	irq_data idat;			/* Data used for IRQ handler        */
+	act2000_irq_data idat;		/* Data used for IRQ handler        */
 	isdn_if interface;		/* Interface to upper layer         */
 	char regname[35];		/* Name used for request_region     */
 } act2000_card;

@@ -50,18 +50,41 @@
 		tmio_iowrite16((val) >> 16, (base) + ((reg + 2) << (shift))); \
 	} while (0)
 
+/* tmio MMC platform flags */
+#define TMIO_MMC_WRPROTECT_DISABLE	(1 << 0)
+/*
+ * Some controllers can support a 2-byte block size when the bus width
+ * is configured in 4-bit mode.
+ */
+#define TMIO_MMC_BLKSZ_2BYTES		(1 << 1)
+/*
+ * Some controllers can support SDIO IRQ signalling.
+ */
+#define TMIO_MMC_SDIO_IRQ		(1 << 2)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
 void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
+struct tmio_mmc_dma {
+	void *chan_priv_tx;
+	void *chan_priv_rx;
+	int alignment_shift;
+};
+
 /*
  * data for the MMC controller
  */
 struct tmio_mmc_data {
-	const unsigned int		hclk;
+	unsigned int			hclk;
+	unsigned long			capabilities;
+	unsigned long			flags;
+	u32				ocr_mask;	/* available voltages */
+	struct tmio_mmc_dma		*dma;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
+	int (*get_cd)(struct platform_device *host);
 };
 
 /*

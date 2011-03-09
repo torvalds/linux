@@ -84,6 +84,7 @@ enum {
 	OI_LS_PARENT,
 	OI_LS_RENAME1,
 	OI_LS_RENAME2,
+	OI_LS_REFLINK_TARGET,
 };
 
 int ocfs2_dlm_init(struct ocfs2_super *osb);

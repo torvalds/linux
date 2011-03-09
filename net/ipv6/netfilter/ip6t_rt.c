@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
@@ -29,14 +29,14 @@ static inline bool
 segsleft_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
 	bool r;
-	pr_debug("rt segsleft_match:%c 0x%x <= 0x%x <= 0x%x",
+	pr_debug("segsleft_match:%c 0x%x <= 0x%x <= 0x%x\n",
 		 invert ? '!' : ' ', min, id, max);
 	r = (id >= min && id <= max) ^ invert;
 	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
-static bool rt_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct ipv6_rt_hdr _route;
 	const struct ipv6_rt_hdr *rh;
@@ -52,13 +52,13 @@ static bool rt_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_ROUTING, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		return false;
 	}
 
 	rh = skb_header_pointer(skb, ptr, sizeof(_route), &_route);
 	if (rh == NULL) {
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -183,23 +183,23 @@ static bool rt_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	return false;
 }
 
-static bool rt_mt6_check(const struct xt_mtchk_param *par)
+static int rt_mt6_check(const struct xt_mtchk_param *par)
 {
 	const struct ip6t_rt *rtinfo = par->matchinfo;
 
 	if (rtinfo->invflags & ~IP6T_RT_INV_MASK) {
-		pr_debug("ip6t_rt: unknown flags %X\n", rtinfo->invflags);
-		return false;
+		pr_debug("unknown flags %X\n", rtinfo->invflags);
+		return -EINVAL;
 	}
 	if ((rtinfo->flags & (IP6T_RT_RES | IP6T_RT_FST_MASK)) &&
 	    (!(rtinfo->flags & IP6T_RT_TYP) ||
 	     (rtinfo->rt_type != 0) ||
 	     (rtinfo->invflags & IP6T_RT_INV_TYP))) {
 		pr_debug("`--rt-type 0' required before `--rt-0-*'");
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match rt_mt6_reg __read_mostly = {

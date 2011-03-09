@@ -492,6 +492,7 @@ static int genregs32_get(struct task_struct *target,
 			*k++ = regs->u_regs[pos++];
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (get_user(*k++, &reg_window[pos++]))
@@ -516,6 +517,7 @@ static int genregs32_get(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (get_user(reg, &reg_window[pos++]) ||
@@ -599,6 +601,7 @@ static int genregs32_set(struct task_struct *target,
 			regs->u_regs[pos++] = *k++;
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (put_user(*k++, &reg_window[pos++]))
@@ -625,6 +628,7 @@ static int genregs32_set(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
+		reg_window -= 16;
 		if (target == current) {
 			for (; count > 0 && pos < 32; count--) {
 				if (get_user(reg, u++) ||
@@ -965,16 +969,19 @@ struct fps {
 	unsigned long fsr;
 };
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	const struct user_regset_view *view = task_user_regset_view(current);
 	unsigned long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
 	struct pt_regs __user *pregs;
 	struct fps __user *fps;
+	void __user *addr2p;
 	int ret;
 
-	pregs = (struct pt_regs __user *) (unsigned long) addr;
-	fps = (struct fps __user *) (unsigned long) addr;
+	pregs = (struct pt_regs __user *) addr;
+	fps = (struct fps __user *) addr;
+	addr2p = (void __user *) addr2;
 
 	switch (request) {
 	case PTRACE_PEEKUSR:
@@ -1025,8 +1032,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_READTEXT:
 	case PTRACE_READDATA:
-		ret = ptrace_readdata(child, addr,
-				      (char __user *)addr2, data);
+		ret = ptrace_readdata(child, addr, addr2p, data);
 		if (ret == data)
 			ret = 0;
 		else if (ret >= 0)
@@ -1035,8 +1041,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_WRITETEXT:
 	case PTRACE_WRITEDATA:
-		ret = ptrace_writedata(child, (char __user *) addr2,
-				       addr, data);
+		ret = ptrace_writedata(child, addr2p, addr, data);
 		if (ret == data)
 			ret = 0;
 		else if (ret >= 0)

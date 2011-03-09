@@ -49,6 +49,7 @@
 #include <linux/module.h>
 #include <linux/kdebug.h>
 #include <linux/kallsyms.h>
+#include <linux/ftrace.h>
 
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
@@ -106,29 +107,41 @@ struct kretprobe_blackpoint kretprobe_blacklist[] = {
 };
 const int kretprobe_blacklist_size = ARRAY_SIZE(kretprobe_blacklist);
 
-/* Insert a jump instruction at address 'from', which jumps to address 'to'.*/
-static void __kprobes set_jmp_op(void *from, void *to)
+static void __kprobes __synthesize_relative_insn(void *from, void *to, u8 op)
 {
-	struct __arch_jmp_op {
-		char op;
+	struct __arch_relative_insn {
+		u8 op;
 		s32 raddr;
-	} __attribute__((packed)) * jop;
-	jop = (struct __arch_jmp_op *)from;
-	jop->raddr = (s32)((long)(to) - ((long)(from) + 5));
-	jop->op = RELATIVEJUMP_INSTRUCTION;
+	} __attribute__((packed)) *insn;
+
+	insn = (struct __arch_relative_insn *)from;
+	insn->raddr = (s32)((long)(to) - ((long)(from) + 5));
+	insn->op = op;
+}
+
+/* Insert a jump instruction at address 'from', which jumps to address 'to'.*/
+static void __kprobes synthesize_reljump(void *from, void *to)
+{
+	__synthesize_relative_insn(from, to, RELATIVEJUMP_OPCODE);
 }
 
 /*
- * Check for the REX prefix which can only exist on X86_64
- * X86_32 always returns 0
+ * Skip the prefixes of the instruction.
  */
-static int __kprobes is_REX_prefix(kprobe_opcode_t *insn)
+static kprobe_opcode_t *__kprobes skip_prefixes(kprobe_opcode_t *insn)
 {
+	insn_attr_t attr;
+
+	attr = inat_get_opcode_attribute((insn_byte_t)*insn);
+	while (inat_is_legacy_prefix(attr)) {
+		insn++;
+		attr = inat_get_opcode_attribute((insn_byte_t)*insn);
+	}
 #ifdef CONFIG_X86_64
-	if ((*insn & 0xf0) == 0x40)
-		return 1;
+	if (inat_is_rex_prefix(attr))
+		insn++;
 #endif
-	return 0;
+	return insn;
 }
 
 /*
@@ -202,7 +215,7 @@ static int recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 	/*
 	 *  Basically, kp->ainsn.insn has an original instruction.
 	 *  However, RIP-relative instruction can not do single-stepping
-	 *  at different place, fix_riprel() tweaks the displacement of
+	 *  at different place, __copy_instruction() tweaks the displacement of
 	 *  that instruction. In that case, we can't recover the instruction
 	 *  from the kp->ainsn.insn.
 	 *
@@ -217,9 +230,6 @@ static int recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 	return 0;
 }
 
-/* Dummy buffers for kallsyms_lookup */
-static char __dummy_buf[KSYM_NAME_LEN];
-
 /* Check if paddr is at an instruction boundary */
 static int __kprobes can_probe(unsigned long paddr)
 {
@@ -228,7 +238,7 @@ static int __kprobes can_probe(unsigned long paddr)
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
 
-	if (!kallsyms_lookup(paddr, NULL, &offset, NULL, __dummy_buf))
+	if (!kallsyms_lookup_size_offset(paddr, NULL, &offset))
 		return 0;
 
 	/* Decode instructions */
@@ -265,6 +275,9 @@ static int __kprobes can_probe(unsigned long paddr)
  */
 static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 {
+	/* Skip prefixes */
+	insn = skip_prefixes(insn);
+
 	switch (*insn) {
 	case 0xfa:		/* cli */
 	case 0xfb:		/* sti */
@@ -273,32 +286,41 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 		return 1;
 	}
 
-	/*
-	 * on X86_64, 0x40-0x4f are REX prefixes so we need to look
-	 * at the next byte instead.. but of course not recurse infinitely
-	 */
-	if (is_REX_prefix(insn))
-		return is_IF_modifier(++insn);
-
 	return 0;
 }
 
 /*
- * Adjust the displacement if the instruction uses the %rip-relative
- * addressing mode.
+ * Copy an instruction and adjust the displacement if the instruction
+ * uses the %rip-relative addressing mode.
  * If it does, Return the address of the 32-bit displacement word.
  * If not, return null.
  * Only applicable to 64-bit x86.
  */
-static void __kprobes fix_riprel(struct kprobe *p)
+static int __kprobes __copy_instruction(u8 *dest, u8 *src, int recover)
 {
-#ifdef CONFIG_X86_64
 	struct insn insn;
-	kernel_insn_init(&insn, p->ainsn.insn);
+	int ret;
+	kprobe_opcode_t buf[MAX_INSN_SIZE];
 
+	kernel_insn_init(&insn, src);
+	if (recover) {
+		insn_get_opcode(&insn);
+		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION) {
+			ret = recover_probed_instruction(buf,
+							 (unsigned long)src);
+			if (ret)
+				return 0;
+			kernel_insn_init(&insn, buf);
+		}
+	}
+	insn_get_length(&insn);
+	memcpy(dest, insn.kaddr, insn.length);
+
+#ifdef CONFIG_X86_64
 	if (insn_rip_relative(&insn)) {
 		s64 newdisp;
 		u8 *disp;
+		kernel_insn_init(&insn, dest);
 		insn_get_displacement(&insn);
 		/*
 		 * The copied instruction uses the %rip-relative addressing
@@ -312,20 +334,23 @@ static void __kprobes fix_riprel(struct kprobe *p)
 		 * extension of the original signed 32-bit displacement would
 		 * have given.
 		 */
-		newdisp = (u8 *) p->addr + (s64) insn.displacement.value -
-			  (u8 *) p->ainsn.insn;
+		newdisp = (u8 *) src + (s64) insn.displacement.value -
+			  (u8 *) dest;
 		BUG_ON((s64) (s32) newdisp != newdisp); /* Sanity check.  */
-		disp = (u8 *) p->ainsn.insn + insn_offset_displacement(&insn);
+		disp = (u8 *) dest + insn_offset_displacement(&insn);
 		*(s32 *) disp = (s32) newdisp;
 	}
 #endif
+	return insn.length;
 }
 
 static void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
-	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
-
-	fix_riprel(p);
+	/*
+	 * Copy an instruction without recovering int3, because it will be
+	 * put by another subsystem.
+	 */
+	__copy_instruction(p->ainsn.insn, p->addr, 0);
 
 	if (can_boost(p->addr))
 		p->ainsn.boostable = 0;
@@ -337,6 +362,9 @@ static void __kprobes arch_copy_kprobe(struct kprobe *p)
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
+	if (alternatives_text_reserved(p->addr, p->addr))
+		return -EINVAL;
+
 	if (!can_probe((unsigned long)p->addr))
 		return -EILSEQ;
 	/* insn: must be on special executable page on x86. */
@@ -375,7 +403,7 @@ static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
 
 static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
-	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
+	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 	kcb->kprobe_old_flags = kcb->prev_kprobe.old_flags;
 	kcb->kprobe_saved_flags = kcb->prev_kprobe.saved_flags;
@@ -384,7 +412,7 @@ static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 				struct kprobe_ctlblk *kcb)
 {
-	__get_cpu_var(current_kprobe) = p;
+	__this_cpu_write(current_kprobe, p);
 	kcb->kprobe_saved_flags = kcb->kprobe_old_flags
 		= (regs->flags & (X86_EFLAGS_TF | X86_EFLAGS_IF));
 	if (is_IF_modifier(p->ainsn.insn))
@@ -393,26 +421,22 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 
 static void __kprobes clear_btf(void)
 {
-	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		update_debugctlmsr(0);
+	if (test_thread_flag(TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+	}
 }
 
 static void __kprobes restore_btf(void)
 {
-	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		update_debugctlmsr(current->thread.debugctlmsr);
-}
+	if (test_thread_flag(TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
 
-static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
-{
-	clear_btf();
-	regs->flags |= X86_EFLAGS_TF;
-	regs->flags &= ~X86_EFLAGS_IF;
-	/* single step inline if the instruction is an int3 */
-	if (p->opcode == BREAKPOINT_INSTRUCTION)
-		regs->ip = (unsigned long)p->addr;
-	else
-		regs->ip = (unsigned long)p->ainsn.insn;
+		debugctl |= DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+	}
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
@@ -426,20 +450,50 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	*sara = (unsigned long) &kretprobe_trampoline;
 }
 
+#ifdef CONFIG_OPTPROBES
+static int  __kprobes setup_detour_execution(struct kprobe *p,
+					     struct pt_regs *regs,
+					     int reenter);
+#else
+#define setup_detour_execution(p, regs, reenter) (0)
+#endif
+
 static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs,
-				       struct kprobe_ctlblk *kcb)
+				       struct kprobe_ctlblk *kcb, int reenter)
 {
-#if !defined(CONFIG_PREEMPT) || defined(CONFIG_FREEZER)
+	if (setup_detour_execution(p, regs, reenter))
+		return;
+
+#if !defined(CONFIG_PREEMPT)
 	if (p->ainsn.boostable == 1 && !p->post_handler) {
 		/* Boost up -- we can execute copied instructions directly */
-		reset_current_kprobe();
+		if (!reenter)
+			reset_current_kprobe();
+		/*
+		 * Reentering boosted probe doesn't reset current_kprobe,
+		 * nor set current_kprobe, because it doesn't use single
+		 * stepping.
+		 */
 		regs->ip = (unsigned long)p->ainsn.insn;
 		preempt_enable_no_resched();
 		return;
 	}
 #endif
-	prepare_singlestep(p, regs);
-	kcb->kprobe_status = KPROBE_HIT_SS;
+	if (reenter) {
+		save_previous_kprobe(kcb);
+		set_current_kprobe(p, regs, kcb);
+		kcb->kprobe_status = KPROBE_REENTER;
+	} else
+		kcb->kprobe_status = KPROBE_HIT_SS;
+	/* Prepare real single stepping */
+	clear_btf();
+	regs->flags |= X86_EFLAGS_TF;
+	regs->flags &= ~X86_EFLAGS_IF;
+	/* single step inline if the instruction is an int3 */
+	if (p->opcode == BREAKPOINT_INSTRUCTION)
+		regs->ip = (unsigned long)p->addr;
+	else
+		regs->ip = (unsigned long)p->ainsn.insn;
 }
 
 /*
@@ -453,11 +507,8 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 	switch (kcb->kprobe_status) {
 	case KPROBE_HIT_SSDONE:
 	case KPROBE_HIT_ACTIVE:
-		save_previous_kprobe(kcb);
-		set_current_kprobe(p, regs, kcb);
 		kprobes_inc_nmissed_count(p);
-		prepare_singlestep(p, regs);
-		kcb->kprobe_status = KPROBE_REENTER;
+		setup_singlestep(p, regs, kcb, 1);
 		break;
 	case KPROBE_HIT_SS:
 		/* A probe has been hit in the codepath leading up to, or just
@@ -490,20 +541,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb;
 
 	addr = (kprobe_opcode_t *)(regs->ip - sizeof(kprobe_opcode_t));
-	if (*addr != BREAKPOINT_INSTRUCTION) {
-		/*
-		 * The breakpoint instruction was removed right
-		 * after we hit it.  Another cpu has removed
-		 * either a probepoint or a debugger breakpoint
-		 * at this address.  In either case, no further
-		 * handling of this interrupt is appropriate.
-		 * Back up over the (now missing) int3 and run
-		 * the original instruction.
-		 */
-		regs->ip = (unsigned long)addr;
-		return 1;
-	}
-
 	/*
 	 * We don't want to be preempted for the entire
 	 * duration of kprobe processing. We conditionally
@@ -532,13 +569,26 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 * more here.
 			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs))
-				setup_singlestep(p, regs, kcb);
+				setup_singlestep(p, regs, kcb, 0);
 			return 1;
 		}
+	} else if (*addr != BREAKPOINT_INSTRUCTION) {
+		/*
+		 * The breakpoint instruction was removed right
+		 * after we hit it.  Another cpu has removed
+		 * either a probepoint or a debugger breakpoint
+		 * at this address.  In either case, no further
+		 * handling of this interrupt is appropriate.
+		 * Back up over the (now missing) int3 and run
+		 * the original instruction.
+		 */
+		regs->ip = (unsigned long)addr;
+		preempt_enable_no_resched();
+		return 1;
 	} else if (kprobe_running()) {
-		p = __get_cpu_var(current_kprobe);
+		p = __this_cpu_read(current_kprobe);
 		if (p->break_handler && p->break_handler(p, regs)) {
-			setup_singlestep(p, regs, kcb);
+			setup_singlestep(p, regs, kcb, 0);
 			return 1;
 		}
 	} /* else: not a kprobe fault; let the kernel handle it */
@@ -546,6 +596,69 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	preempt_enable_no_resched();
 	return 0;
 }
+
+#ifdef CONFIG_X86_64
+#define SAVE_REGS_STRING		\
+	/* Skip cs, ip, orig_ax. */	\
+	"	subq $24, %rsp\n"	\
+	"	pushq %rdi\n"		\
+	"	pushq %rsi\n"		\
+	"	pushq %rdx\n"		\
+	"	pushq %rcx\n"		\
+	"	pushq %rax\n"		\
+	"	pushq %r8\n"		\
+	"	pushq %r9\n"		\
+	"	pushq %r10\n"		\
+	"	pushq %r11\n"		\
+	"	pushq %rbx\n"		\
+	"	pushq %rbp\n"		\
+	"	pushq %r12\n"		\
+	"	pushq %r13\n"		\
+	"	pushq %r14\n"		\
+	"	pushq %r15\n"
+#define RESTORE_REGS_STRING		\
+	"	popq %r15\n"		\
+	"	popq %r14\n"		\
+	"	popq %r13\n"		\
+	"	popq %r12\n"		\
+	"	popq %rbp\n"		\
+	"	popq %rbx\n"		\
+	"	popq %r11\n"		\
+	"	popq %r10\n"		\
+	"	popq %r9\n"		\
+	"	popq %r8\n"		\
+	"	popq %rax\n"		\
+	"	popq %rcx\n"		\
+	"	popq %rdx\n"		\
+	"	popq %rsi\n"		\
+	"	popq %rdi\n"		\
+	/* Skip orig_ax, ip, cs */	\
+	"	addq $24, %rsp\n"
+#else
+#define SAVE_REGS_STRING		\
+	/* Skip cs, ip, orig_ax and gs. */	\
+	"	subl $16, %esp\n"	\
+	"	pushl %fs\n"		\
+	"	pushl %es\n"		\
+	"	pushl %ds\n"		\
+	"	pushl %eax\n"		\
+	"	pushl %ebp\n"		\
+	"	pushl %edi\n"		\
+	"	pushl %esi\n"		\
+	"	pushl %edx\n"		\
+	"	pushl %ecx\n"		\
+	"	pushl %ebx\n"
+#define RESTORE_REGS_STRING		\
+	"	popl %ebx\n"		\
+	"	popl %ecx\n"		\
+	"	popl %edx\n"		\
+	"	popl %esi\n"		\
+	"	popl %edi\n"		\
+	"	popl %ebp\n"		\
+	"	popl %eax\n"		\
+	/* Skip ds, es, fs, gs, orig_ax, and ip. Note: don't pop cs here*/\
+	"	addl $24, %esp\n"
+#endif
 
 /*
  * When a retprobed function returns, this code saves registers and
@@ -560,65 +673,16 @@ static void __used __kprobes kretprobe_trampoline_holder(void)
 			/* We don't bother saving the ss register */
 			"	pushq %rsp\n"
 			"	pushfq\n"
-			/*
-			 * Skip cs, ip, orig_ax.
-			 * trampoline_handler() will plug in these values
-			 */
-			"	subq $24, %rsp\n"
-			"	pushq %rdi\n"
-			"	pushq %rsi\n"
-			"	pushq %rdx\n"
-			"	pushq %rcx\n"
-			"	pushq %rax\n"
-			"	pushq %r8\n"
-			"	pushq %r9\n"
-			"	pushq %r10\n"
-			"	pushq %r11\n"
-			"	pushq %rbx\n"
-			"	pushq %rbp\n"
-			"	pushq %r12\n"
-			"	pushq %r13\n"
-			"	pushq %r14\n"
-			"	pushq %r15\n"
+			SAVE_REGS_STRING
 			"	movq %rsp, %rdi\n"
 			"	call trampoline_handler\n"
 			/* Replace saved sp with true return address. */
 			"	movq %rax, 152(%rsp)\n"
-			"	popq %r15\n"
-			"	popq %r14\n"
-			"	popq %r13\n"
-			"	popq %r12\n"
-			"	popq %rbp\n"
-			"	popq %rbx\n"
-			"	popq %r11\n"
-			"	popq %r10\n"
-			"	popq %r9\n"
-			"	popq %r8\n"
-			"	popq %rax\n"
-			"	popq %rcx\n"
-			"	popq %rdx\n"
-			"	popq %rsi\n"
-			"	popq %rdi\n"
-			/* Skip orig_ax, ip, cs */
-			"	addq $24, %rsp\n"
+			RESTORE_REGS_STRING
 			"	popfq\n"
 #else
 			"	pushf\n"
-			/*
-			 * Skip cs, ip, orig_ax and gs.
-			 * trampoline_handler() will plug in these values
-			 */
-			"	subl $16, %esp\n"
-			"	pushl %fs\n"
-			"	pushl %es\n"
-			"	pushl %ds\n"
-			"	pushl %eax\n"
-			"	pushl %ebp\n"
-			"	pushl %edi\n"
-			"	pushl %esi\n"
-			"	pushl %edx\n"
-			"	pushl %ecx\n"
-			"	pushl %ebx\n"
+			SAVE_REGS_STRING
 			"	movl %esp, %eax\n"
 			"	call trampoline_handler\n"
 			/* Move flags to cs */
@@ -626,15 +690,7 @@ static void __used __kprobes kretprobe_trampoline_holder(void)
 			"	movl %edx, 52(%esp)\n"
 			/* Replace saved flags with true return address. */
 			"	movl %eax, 56(%esp)\n"
-			"	popl %ebx\n"
-			"	popl %ecx\n"
-			"	popl %edx\n"
-			"	popl %esi\n"
-			"	popl %edi\n"
-			"	popl %ebp\n"
-			"	popl %eax\n"
-			/* Skip ds, es, fs, gs, orig_ax and ip */
-			"	addl $24, %esp\n"
+			RESTORE_REGS_STRING
 			"	popf\n"
 #endif
 			"	ret\n");
@@ -650,6 +706,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
+	kprobe_opcode_t *correct_ret_addr = NULL;
 
 	INIT_HLIST_HEAD(&empty_rp);
 	kretprobe_hash_lock(current, &head, &flags);
@@ -681,15 +738,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 			/* another task is sharing our hash bucket */
 			continue;
 
-		if (ri->rp && ri->rp->handler) {
-			__get_cpu_var(current_kprobe) = &ri->rp->kp;
-			get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
-			ri->rp->handler(ri, regs);
-			__get_cpu_var(current_kprobe) = NULL;
-		}
-
 		orig_ret_address = (unsigned long)ri->ret_addr;
-		recycle_rp_inst(ri, &empty_rp);
 
 		if (orig_ret_address != trampoline_address)
 			/*
@@ -701,6 +750,32 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	}
 
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
+	correct_ret_addr = ri->ret_addr;
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+		if (ri->task != current)
+			/* another task is sharing our hash bucket */
+			continue;
+
+		orig_ret_address = (unsigned long)ri->ret_addr;
+		if (ri->rp && ri->rp->handler) {
+			__this_cpu_write(current_kprobe, &ri->rp->kp);
+			get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
+			ri->ret_addr = correct_ret_addr;
+			ri->rp->handler(ri, regs);
+			__this_cpu_write(current_kprobe, NULL);
+		}
+
+		recycle_rp_inst(ri, &empty_rp);
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
 
 	kretprobe_hash_unlock(current, &flags);
 
@@ -746,9 +821,8 @@ static void __kprobes resume_execution(struct kprobe *p,
 	unsigned long orig_ip = (unsigned long)p->addr;
 	kprobe_opcode_t *insn = p->ainsn.insn;
 
-	/*skip the REX prefix*/
-	if (is_REX_prefix(insn))
-		insn++;
+	/* Skip prefixes */
+	insn = skip_prefixes(insn);
 
 	regs->flags &= ~X86_EFLAGS_TF;
 	switch (*insn) {
@@ -802,8 +876,8 @@ static void __kprobes resume_execution(struct kprobe *p,
 			 * These instructions can be executed directly if it
 			 * jumps back to correct address.
 			 */
-			set_jmp_op((void *)regs->ip,
-				   (void *)orig_ip + (regs->ip - copy_ip));
+			synthesize_reljump((void *)regs->ip,
+				(void *)orig_ip + (regs->ip - copy_ip));
 			p->ainsn.boostable = 1;
 		} else {
 			p->ainsn.boostable = -1;
@@ -1030,9 +1104,457 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
-int __init arch_init_kprobes(void)
+
+#ifdef CONFIG_OPTPROBES
+
+/* Insert a call instruction at address 'from', which calls address 'to'.*/
+static void __kprobes synthesize_relcall(void *from, void *to)
+{
+	__synthesize_relative_insn(from, to, RELATIVECALL_OPCODE);
+}
+
+/* Insert a move instruction which sets a pointer to eax/rdi (1st arg). */
+static void __kprobes synthesize_set_arg1(kprobe_opcode_t *addr,
+					  unsigned long val)
+{
+#ifdef CONFIG_X86_64
+	*addr++ = 0x48;
+	*addr++ = 0xbf;
+#else
+	*addr++ = 0xb8;
+#endif
+	*(unsigned long *)addr = val;
+}
+
+static void __used __kprobes kprobes_optinsn_template_holder(void)
+{
+	asm volatile (
+			".global optprobe_template_entry\n"
+			"optprobe_template_entry: \n"
+#ifdef CONFIG_X86_64
+			/* We don't bother saving the ss register */
+			"	pushq %rsp\n"
+			"	pushfq\n"
+			SAVE_REGS_STRING
+			"	movq %rsp, %rsi\n"
+			".global optprobe_template_val\n"
+			"optprobe_template_val: \n"
+			ASM_NOP5
+			ASM_NOP5
+			".global optprobe_template_call\n"
+			"optprobe_template_call: \n"
+			ASM_NOP5
+			/* Move flags to rsp */
+			"	movq 144(%rsp), %rdx\n"
+			"	movq %rdx, 152(%rsp)\n"
+			RESTORE_REGS_STRING
+			/* Skip flags entry */
+			"	addq $8, %rsp\n"
+			"	popfq\n"
+#else /* CONFIG_X86_32 */
+			"	pushf\n"
+			SAVE_REGS_STRING
+			"	movl %esp, %edx\n"
+			".global optprobe_template_val\n"
+			"optprobe_template_val: \n"
+			ASM_NOP5
+			".global optprobe_template_call\n"
+			"optprobe_template_call: \n"
+			ASM_NOP5
+			RESTORE_REGS_STRING
+			"	addl $4, %esp\n"	/* skip cs */
+			"	popf\n"
+#endif
+			".global optprobe_template_end\n"
+			"optprobe_template_end: \n");
+}
+
+#define TMPL_MOVE_IDX \
+	((long)&optprobe_template_val - (long)&optprobe_template_entry)
+#define TMPL_CALL_IDX \
+	((long)&optprobe_template_call - (long)&optprobe_template_entry)
+#define TMPL_END_IDX \
+	((long)&optprobe_template_end - (long)&optprobe_template_entry)
+
+#define INT3_SIZE sizeof(kprobe_opcode_t)
+
+/* Optimized kprobe call back function: called from optinsn */
+static void __kprobes optimized_callback(struct optimized_kprobe *op,
+					 struct pt_regs *regs)
+{
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	/* This is possible if op is under delayed unoptimizing */
+	if (kprobe_disabled(&op->kp))
+		return;
+
+	preempt_disable();
+	if (kprobe_running()) {
+		kprobes_inc_nmissed_count(&op->kp);
+	} else {
+		/* Save skipped registers */
+#ifdef CONFIG_X86_64
+		regs->cs = __KERNEL_CS;
+#else
+		regs->cs = __KERNEL_CS | get_kernel_rpl();
+		regs->gs = 0;
+#endif
+		regs->ip = (unsigned long)op->kp.addr + INT3_SIZE;
+		regs->orig_ax = ~0UL;
+
+		__this_cpu_write(current_kprobe, &op->kp);
+		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+		opt_pre_handler(&op->kp, regs);
+		__this_cpu_write(current_kprobe, NULL);
+	}
+	preempt_enable_no_resched();
+}
+
+static int __kprobes copy_optimized_instructions(u8 *dest, u8 *src)
+{
+	int len = 0, ret;
+
+	while (len < RELATIVEJUMP_SIZE) {
+		ret = __copy_instruction(dest + len, src + len, 1);
+		if (!ret || !can_boost(dest + len))
+			return -EINVAL;
+		len += ret;
+	}
+	/* Check whether the address range is reserved */
+	if (ftrace_text_reserved(src, src + len - 1) ||
+	    alternatives_text_reserved(src, src + len - 1) ||
+	    jump_label_text_reserved(src, src + len - 1))
+		return -EBUSY;
+
+	return len;
+}
+
+/* Check whether insn is indirect jump */
+static int __kprobes insn_is_indirect_jump(struct insn *insn)
+{
+	return ((insn->opcode.bytes[0] == 0xff &&
+		(X86_MODRM_REG(insn->modrm.value) & 6) == 4) || /* Jump */
+		insn->opcode.bytes[0] == 0xea);	/* Segment based jump */
+}
+
+/* Check whether insn jumps into specified address range */
+static int insn_jump_into_range(struct insn *insn, unsigned long start, int len)
+{
+	unsigned long target = 0;
+
+	switch (insn->opcode.bytes[0]) {
+	case 0xe0:	/* loopne */
+	case 0xe1:	/* loope */
+	case 0xe2:	/* loop */
+	case 0xe3:	/* jcxz */
+	case 0xe9:	/* near relative jump */
+	case 0xeb:	/* short relative jump */
+		break;
+	case 0x0f:
+		if ((insn->opcode.bytes[1] & 0xf0) == 0x80) /* jcc near */
+			break;
+		return 0;
+	default:
+		if ((insn->opcode.bytes[0] & 0xf0) == 0x70) /* jcc short */
+			break;
+		return 0;
+	}
+	target = (unsigned long)insn->next_byte + insn->immediate.value;
+
+	return (start <= target && target <= start + len);
+}
+
+/* Decode whole function to ensure any instructions don't jump into target */
+static int __kprobes can_optimize(unsigned long paddr)
+{
+	int ret;
+	unsigned long addr, size = 0, offset = 0;
+	struct insn insn;
+	kprobe_opcode_t buf[MAX_INSN_SIZE];
+
+	/* Lookup symbol including addr */
+	if (!kallsyms_lookup_size_offset(paddr, &size, &offset))
+		return 0;
+
+	/* Check there is enough space for a relative jump. */
+	if (size - offset < RELATIVEJUMP_SIZE)
+		return 0;
+
+	/* Decode instructions */
+	addr = paddr - offset;
+	while (addr < paddr - offset + size) { /* Decode until function end */
+		if (search_exception_tables(addr))
+			/*
+			 * Since some fixup code will jumps into this function,
+			 * we can't optimize kprobe in this function.
+			 */
+			return 0;
+		kernel_insn_init(&insn, (void *)addr);
+		insn_get_opcode(&insn);
+		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION) {
+			ret = recover_probed_instruction(buf, addr);
+			if (ret)
+				return 0;
+			kernel_insn_init(&insn, buf);
+		}
+		insn_get_length(&insn);
+		/* Recover address */
+		insn.kaddr = (void *)addr;
+		insn.next_byte = (void *)(addr + insn.length);
+		/* Check any instructions don't jump into target */
+		if (insn_is_indirect_jump(&insn) ||
+		    insn_jump_into_range(&insn, paddr + INT3_SIZE,
+					 RELATIVE_ADDR_SIZE))
+			return 0;
+		addr += insn.length;
+	}
+
+	return 1;
+}
+
+/* Check optimized_kprobe can actually be optimized. */
+int __kprobes arch_check_optimized_kprobe(struct optimized_kprobe *op)
+{
+	int i;
+	struct kprobe *p;
+
+	for (i = 1; i < op->optinsn.size; i++) {
+		p = get_kprobe(op->kp.addr + i);
+		if (p && !kprobe_disabled(p))
+			return -EEXIST;
+	}
+
+	return 0;
+}
+
+/* Check the addr is within the optimized instructions. */
+int __kprobes arch_within_optimized_kprobe(struct optimized_kprobe *op,
+					   unsigned long addr)
+{
+	return ((unsigned long)op->kp.addr <= addr &&
+		(unsigned long)op->kp.addr + op->optinsn.size > addr);
+}
+
+/* Free optimized instruction slot */
+static __kprobes
+void __arch_remove_optimized_kprobe(struct optimized_kprobe *op, int dirty)
+{
+	if (op->optinsn.insn) {
+		free_optinsn_slot(op->optinsn.insn, dirty);
+		op->optinsn.insn = NULL;
+		op->optinsn.size = 0;
+	}
+}
+
+void __kprobes arch_remove_optimized_kprobe(struct optimized_kprobe *op)
+{
+	__arch_remove_optimized_kprobe(op, 1);
+}
+
+/*
+ * Copy replacing target instructions
+ * Target instructions MUST be relocatable (checked inside)
+ */
+int __kprobes arch_prepare_optimized_kprobe(struct optimized_kprobe *op)
+{
+	u8 *buf;
+	int ret;
+	long rel;
+
+	if (!can_optimize((unsigned long)op->kp.addr))
+		return -EILSEQ;
+
+	op->optinsn.insn = get_optinsn_slot();
+	if (!op->optinsn.insn)
+		return -ENOMEM;
+
+	/*
+	 * Verify if the address gap is in 2GB range, because this uses
+	 * a relative jump.
+	 */
+	rel = (long)op->optinsn.insn - (long)op->kp.addr + RELATIVEJUMP_SIZE;
+	if (abs(rel) > 0x7fffffff)
+		return -ERANGE;
+
+	buf = (u8 *)op->optinsn.insn;
+
+	/* Copy instructions into the out-of-line buffer */
+	ret = copy_optimized_instructions(buf + TMPL_END_IDX, op->kp.addr);
+	if (ret < 0) {
+		__arch_remove_optimized_kprobe(op, 0);
+		return ret;
+	}
+	op->optinsn.size = ret;
+
+	/* Copy arch-dep-instance from template */
+	memcpy(buf, &optprobe_template_entry, TMPL_END_IDX);
+
+	/* Set probe information */
+	synthesize_set_arg1(buf + TMPL_MOVE_IDX, (unsigned long)op);
+
+	/* Set probe function call */
+	synthesize_relcall(buf + TMPL_CALL_IDX, optimized_callback);
+
+	/* Set returning jmp instruction at the tail of out-of-line buffer */
+	synthesize_reljump(buf + TMPL_END_IDX + op->optinsn.size,
+			   (u8 *)op->kp.addr + op->optinsn.size);
+
+	flush_icache_range((unsigned long) buf,
+			   (unsigned long) buf + TMPL_END_IDX +
+			   op->optinsn.size + RELATIVEJUMP_SIZE);
+	return 0;
+}
+
+#define MAX_OPTIMIZE_PROBES 256
+static struct text_poke_param *jump_poke_params;
+static struct jump_poke_buffer {
+	u8 buf[RELATIVEJUMP_SIZE];
+} *jump_poke_bufs;
+
+static void __kprobes setup_optimize_kprobe(struct text_poke_param *tprm,
+					    u8 *insn_buf,
+					    struct optimized_kprobe *op)
+{
+	s32 rel = (s32)((long)op->optinsn.insn -
+			((long)op->kp.addr + RELATIVEJUMP_SIZE));
+
+	/* Backup instructions which will be replaced by jump address */
+	memcpy(op->optinsn.copied_insn, op->kp.addr + INT3_SIZE,
+	       RELATIVE_ADDR_SIZE);
+
+	insn_buf[0] = RELATIVEJUMP_OPCODE;
+	*(s32 *)(&insn_buf[1]) = rel;
+
+	tprm->addr = op->kp.addr;
+	tprm->opcode = insn_buf;
+	tprm->len = RELATIVEJUMP_SIZE;
+}
+
+/*
+ * Replace breakpoints (int3) with relative jumps.
+ * Caller must call with locking kprobe_mutex and text_mutex.
+ */
+void __kprobes arch_optimize_kprobes(struct list_head *oplist)
+{
+	struct optimized_kprobe *op, *tmp;
+	int c = 0;
+
+	list_for_each_entry_safe(op, tmp, oplist, list) {
+		WARN_ON(kprobe_disabled(&op->kp));
+		/* Setup param */
+		setup_optimize_kprobe(&jump_poke_params[c],
+				      jump_poke_bufs[c].buf, op);
+		list_del_init(&op->list);
+		if (++c >= MAX_OPTIMIZE_PROBES)
+			break;
+	}
+
+	/*
+	 * text_poke_smp doesn't support NMI/MCE code modifying.
+	 * However, since kprobes itself also doesn't support NMI/MCE
+	 * code probing, it's not a problem.
+	 */
+	text_poke_smp_batch(jump_poke_params, c);
+}
+
+static void __kprobes setup_unoptimize_kprobe(struct text_poke_param *tprm,
+					      u8 *insn_buf,
+					      struct optimized_kprobe *op)
+{
+	/* Set int3 to first byte for kprobes */
+	insn_buf[0] = BREAKPOINT_INSTRUCTION;
+	memcpy(insn_buf + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);
+
+	tprm->addr = op->kp.addr;
+	tprm->opcode = insn_buf;
+	tprm->len = RELATIVEJUMP_SIZE;
+}
+
+/*
+ * Recover original instructions and breakpoints from relative jumps.
+ * Caller must call with locking kprobe_mutex.
+ */
+extern void arch_unoptimize_kprobes(struct list_head *oplist,
+				    struct list_head *done_list)
+{
+	struct optimized_kprobe *op, *tmp;
+	int c = 0;
+
+	list_for_each_entry_safe(op, tmp, oplist, list) {
+		/* Setup param */
+		setup_unoptimize_kprobe(&jump_poke_params[c],
+					jump_poke_bufs[c].buf, op);
+		list_move(&op->list, done_list);
+		if (++c >= MAX_OPTIMIZE_PROBES)
+			break;
+	}
+
+	/*
+	 * text_poke_smp doesn't support NMI/MCE code modifying.
+	 * However, since kprobes itself also doesn't support NMI/MCE
+	 * code probing, it's not a problem.
+	 */
+	text_poke_smp_batch(jump_poke_params, c);
+}
+
+/* Replace a relative jump with a breakpoint (int3).  */
+void __kprobes arch_unoptimize_kprobe(struct optimized_kprobe *op)
+{
+	u8 buf[RELATIVEJUMP_SIZE];
+
+	/* Set int3 to first byte for kprobes */
+	buf[0] = BREAKPOINT_INSTRUCTION;
+	memcpy(buf + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);
+	text_poke_smp(op->kp.addr, buf, RELATIVEJUMP_SIZE);
+}
+
+static int  __kprobes setup_detour_execution(struct kprobe *p,
+					     struct pt_regs *regs,
+					     int reenter)
+{
+	struct optimized_kprobe *op;
+
+	if (p->flags & KPROBE_FLAG_OPTIMIZED) {
+		/* This kprobe is really able to run optimized path. */
+		op = container_of(p, struct optimized_kprobe, kp);
+		/* Detour through copied instructions */
+		regs->ip = (unsigned long)op->optinsn.insn + TMPL_END_IDX;
+		if (!reenter)
+			reset_current_kprobe();
+		preempt_enable_no_resched();
+		return 1;
+	}
+	return 0;
+}
+
+static int __kprobes init_poke_params(void)
+{
+	/* Allocate code buffer and parameter array */
+	jump_poke_bufs = kmalloc(sizeof(struct jump_poke_buffer) *
+				 MAX_OPTIMIZE_PROBES, GFP_KERNEL);
+	if (!jump_poke_bufs)
+		return -ENOMEM;
+
+	jump_poke_params = kmalloc(sizeof(struct text_poke_param) *
+				   MAX_OPTIMIZE_PROBES, GFP_KERNEL);
+	if (!jump_poke_params) {
+		kfree(jump_poke_bufs);
+		jump_poke_bufs = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+#else	/* !CONFIG_OPTPROBES */
+static int __kprobes init_poke_params(void)
 {
 	return 0;
+}
+#endif
+
+int __init arch_init_kprobes(void)
+{
+	return init_poke_params();
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/gfp.h>
 #include <net/tcp.h>
 
 int sysctl_tcp_max_ssthresh = 0;
@@ -195,10 +196,10 @@ void tcp_get_allowed_congestion_control(char *buf, size_t maxlen)
 int tcp_set_allowed_congestion_control(char *val)
 {
 	struct tcp_congestion_ops *ca;
-	char *clone, *name;
+	char *saved_clone, *clone, *name;
 	int ret = 0;
 
-	clone = kstrdup(val, GFP_USER);
+	saved_clone = clone = kstrdup(val, GFP_USER);
 	if (!clone)
 		return -ENOMEM;
 
@@ -225,6 +226,7 @@ int tcp_set_allowed_congestion_control(char *val)
 	}
 out:
 	spin_unlock(&tcp_cong_list_lock);
+	kfree(saved_clone);
 
 	return ret;
 }

@@ -99,7 +99,10 @@ enum {
  *
  * @tx_workqueue: workqeueue used for data TX; we don't use the
  *     system's workqueue as that might cause deadlocks with code in
- *     the bus-generic driver.
+ *     the bus-generic driver. The read/write operation to the queue
+ *     is protected with spinlock (tx_lock in struct i2400m) to avoid
+ *     the queue being destroyed in the middle of a the queue read/write
+ *     operation.
  *
  * @debugfs_dentry: dentry for the SDIO specific debugfs files
  *
@@ -137,7 +140,6 @@ void i2400ms_init(struct i2400ms *i2400ms)
 
 extern int i2400ms_rx_setup(struct i2400ms *);
 extern void i2400ms_rx_release(struct i2400ms *);
-extern ssize_t __i2400ms_rx_get_size(struct i2400ms *);
 
 extern int i2400ms_tx_setup(struct i2400ms *);
 extern void i2400ms_tx_release(struct i2400ms *);

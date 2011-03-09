@@ -67,11 +67,12 @@ struct ocfs2_journal {
 	struct buffer_head        *j_bh;      /* Journal disk inode block */
 	atomic_t                  j_num_trans; /* Number of transactions
 					        * currently in the system. */
+	spinlock_t                j_lock;
 	unsigned long             j_trans_id;
 	struct rw_semaphore       j_trans_barrier;
 	wait_queue_head_t         j_checkpointed;
 
-	spinlock_t                j_lock;
+	/* both fields protected by j_lock*/
 	struct list_head          j_la_cleanups;
 	struct work_struct        j_recovery_work;
 };
@@ -325,8 +326,7 @@ int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
  *	<modify the bh>
  * 	ocfs2_journal_dirty(handle, bh);
  */
-int                  ocfs2_journal_dirty(handle_t *handle,
-					 struct buffer_head *bh);
+void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh);
 
 /*
  *  Credit Macros:
@@ -560,6 +560,18 @@ static inline int ocfs2_calc_group_alloc_credits(struct super_block *sb,
 	   + bitmap blocks affected */
 	blocks = 1 + 1 + 1 + bitmap_blocks;
 	return blocks;
+}
+
+/*
+ * Allocating a discontiguous block group requires the credits from
+ * ocfs2_calc_group_alloc_credits() as well as enough credits to fill
+ * the group descriptor's extent list.  The caller already has started
+ * the transaction with ocfs2_calc_group_alloc_credits().  They extend
+ * it with these credits.
+ */
+static inline int ocfs2_calc_bg_discontig_credits(struct super_block *sb)
+{
+	return ocfs2_extent_recs_per_gd(sb);
 }
 
 static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,

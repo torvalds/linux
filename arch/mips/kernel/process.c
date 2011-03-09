@@ -17,7 +17,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/mman.h>
 #include <linux/personality.h>
 #include <linux/sys.h>
@@ -64,8 +63,13 @@ void __noreturn cpu_idle(void)
 
 			smtc_idle_loop_hook();
 #endif
-			if (cpu_wait)
+
+			if (cpu_wait) {
+				/* Don't trace irqs off for idle */
+				stop_critical_timings();
 				(*cpu_wait)();
+				start_critical_timings();
+			}
 		}
 #ifdef CONFIG_HOTPLUG_CPU
 		if (!cpu_online(cpu) && !cpu_isset(cpu, cpu_callin_map) &&
@@ -138,7 +142,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs->regs[7] = 0;	/* Clear error flag */
 
 	childregs->regs[2] = 0;	/* Child gets zero as return value */
-	regs->regs[2] = p->pid;
 
 	if (childregs->cp0_status & ST0_CU0) {
 		childregs->regs[28] = (unsigned long) ti;

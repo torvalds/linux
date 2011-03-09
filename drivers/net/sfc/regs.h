@@ -95,7 +95,7 @@
 #define	FRF_AA_INT_ACK_KER_FIELD_LBN 0
 #define	FRF_AA_INT_ACK_KER_FIELD_WIDTH 32
 
-/* INT_ISR0_REG: Function 0 Interrupt Acknowlege Status register */
+/* INT_ISR0_REG: Function 0 Interrupt Acknowledge Status register */
 #define	FR_BZ_INT_ISR0 0x00000090
 #define	FRF_BZ_INT_ISR_REG_LBN 0
 #define	FRF_BZ_INT_ISR_REG_WIDTH 64
@@ -2892,6 +2892,20 @@
 #define	FRF_AB_XX_FORCE_SIG_LBN FRF_AB_XX_FORCE_SIG0_VAL_LBN
 #define	FRF_AB_XX_FORCE_SIG_WIDTH 8
 #define	FFE_AB_XX_FORCE_SIG_ALL_LANES 0xff
+
+/* RX_MAC_FILTER_TBL0 */
+/* RMFT_DEST_MAC is wider than 32 bits */
+#define FRF_CZ_RMFT_DEST_MAC_LO_LBN 12
+#define FRF_CZ_RMFT_DEST_MAC_LO_WIDTH 32
+#define FRF_CZ_RMFT_DEST_MAC_HI_LBN 44
+#define FRF_CZ_RMFT_DEST_MAC_HI_WIDTH 16
+
+/* TX_MAC_FILTER_TBL0 */
+/* TMFT_SRC_MAC is wider than 32 bits */
+#define FRF_CZ_TMFT_SRC_MAC_LO_LBN 12
+#define FRF_CZ_TMFT_SRC_MAC_LO_WIDTH 32
+#define FRF_CZ_TMFT_SRC_MAC_HI_LBN 44
+#define FRF_CZ_TMFT_SRC_MAC_HI_WIDTH 16
 
 /* DRIVER_EV */
 /* Sub-fields of an RX flush completion event */

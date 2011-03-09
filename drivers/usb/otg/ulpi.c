@@ -24,94 +24,227 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
-/* ULPI register addresses */
-#define ULPI_VID_LOW         0x00    /* Vendor ID low */
-#define ULPI_VID_HIGH        0x01    /* Vendor ID high */
-#define ULPI_PID_LOW         0x02    /* Product ID low */
-#define ULPI_PID_HIGH        0x03    /* Product ID high */
-#define ULPI_ITFCTL          0x07    /* Interface Control */
-#define ULPI_OTGCTL          0x0A    /* OTG Control */
 
-/* add to above register address to access Set/Clear functions */
-#define ULPI_REG_SET         0x01
-#define ULPI_REG_CLEAR       0x02
-
-/* ULPI OTG Control Register bits */
-#define ID_PULL_UP              (1 << 0)        /* enable ID Pull Up */
-#define DP_PULL_DOWN            (1 << 1)        /* enable DP Pull Down */
-#define DM_PULL_DOWN            (1 << 2)        /* enable DM Pull Down */
-#define DISCHRG_VBUS            (1 << 3)        /* Discharge Vbus */
-#define CHRG_VBUS               (1 << 4)        /* Charge Vbus */
-#define DRV_VBUS                (1 << 5)        /* Drive Vbus */
-#define DRV_VBUS_EXT            (1 << 6)        /* Drive Vbus external */
-#define USE_EXT_VBUS_IND        (1 << 7)        /* Use ext. Vbus indicator */
-
-#define ULPI_ID(vendor, product) (((vendor) << 16) | (product))
-
-#define TR_FLAG(flags, a, b)	(((flags) & a) ? b : 0)
-
-/* ULPI hardcoded IDs, used for probing */
-static unsigned int ulpi_ids[] = {
-	ULPI_ID(0x04cc, 0x1504),	/* NXP ISP1504 */
+struct ulpi_info {
+	unsigned int	id;
+	char		*name;
 };
 
-static int ulpi_set_flags(struct otg_transceiver *otg)
+#define ULPI_ID(vendor, product) (((vendor) << 16) | (product))
+#define ULPI_INFO(_id, _name)		\
+	{				\
+		.id	= (_id),	\
+		.name	= (_name),	\
+	}
+
+/* ULPI hardcoded IDs, used for probing */
+static struct ulpi_info ulpi_ids[] = {
+	ULPI_INFO(ULPI_ID(0x04cc, 0x1504), "NXP ISP1504"),
+	ULPI_INFO(ULPI_ID(0x0424, 0x0006), "SMSC USB3319"),
+};
+
+static int ulpi_set_otg_flags(struct otg_transceiver *otg)
+{
+	unsigned int flags = ULPI_OTG_CTRL_DP_PULLDOWN |
+			     ULPI_OTG_CTRL_DM_PULLDOWN;
+
+	if (otg->flags & ULPI_OTG_ID_PULLUP)
+		flags |= ULPI_OTG_CTRL_ID_PULLUP;
+
+	/*
+	 * ULPI Specification rev.1.1 default
+	 * for Dp/DmPulldown is enabled.
+	 */
+	if (otg->flags & ULPI_OTG_DP_PULLDOWN_DIS)
+		flags &= ~ULPI_OTG_CTRL_DP_PULLDOWN;
+
+	if (otg->flags & ULPI_OTG_DM_PULLDOWN_DIS)
+		flags &= ~ULPI_OTG_CTRL_DM_PULLDOWN;
+
+	if (otg->flags & ULPI_OTG_EXTVBUSIND)
+		flags |= ULPI_OTG_CTRL_EXTVBUSIND;
+
+	return otg_io_write(otg, flags, ULPI_OTG_CTRL);
+}
+
+static int ulpi_set_fc_flags(struct otg_transceiver *otg)
 {
 	unsigned int flags = 0;
 
-	if (otg->flags & USB_OTG_PULLUP_ID)
-		flags |= ID_PULL_UP;
+	/*
+	 * ULPI Specification rev.1.1 default
+	 * for XcvrSelect is Full Speed.
+	 */
+	if (otg->flags & ULPI_FC_HS)
+		flags |= ULPI_FUNC_CTRL_HIGH_SPEED;
+	else if (otg->flags & ULPI_FC_LS)
+		flags |= ULPI_FUNC_CTRL_LOW_SPEED;
+	else if (otg->flags & ULPI_FC_FS4LS)
+		flags |= ULPI_FUNC_CTRL_FS4LS;
+	else
+		flags |= ULPI_FUNC_CTRL_FULL_SPEED;
 
-	if (otg->flags & USB_OTG_PULLDOWN_DM)
-		flags |= DM_PULL_DOWN;
+	if (otg->flags & ULPI_FC_TERMSEL)
+		flags |= ULPI_FUNC_CTRL_TERMSELECT;
 
-	if (otg->flags & USB_OTG_PULLDOWN_DP)
-		flags |= DP_PULL_DOWN;
+	/*
+	 * ULPI Specification rev.1.1 default
+	 * for OpMode is Normal Operation.
+	 */
+	if (otg->flags & ULPI_FC_OP_NODRV)
+		flags |= ULPI_FUNC_CTRL_OPMODE_NONDRIVING;
+	else if (otg->flags & ULPI_FC_OP_DIS_NRZI)
+		flags |= ULPI_FUNC_CTRL_OPMODE_DISABLE_NRZI;
+	else if (otg->flags & ULPI_FC_OP_NSYNC_NEOP)
+		flags |= ULPI_FUNC_CTRL_OPMODE_NOSYNC_NOEOP;
+	else
+		flags |= ULPI_FUNC_CTRL_OPMODE_NORMAL;
 
-	if (otg->flags & USB_OTG_EXT_VBUS_INDICATOR)
-		flags |= USE_EXT_VBUS_IND;
+	/*
+	 * ULPI Specification rev.1.1 default
+	 * for SuspendM is Powered.
+	 */
+	flags |= ULPI_FUNC_CTRL_SUSPENDM;
 
-	return otg_io_write(otg, flags, ULPI_OTGCTL + ULPI_REG_SET);
+	return otg_io_write(otg, flags, ULPI_FUNC_CTRL);
+}
+
+static int ulpi_set_ic_flags(struct otg_transceiver *otg)
+{
+	unsigned int flags = 0;
+
+	if (otg->flags & ULPI_IC_AUTORESUME)
+		flags |= ULPI_IFC_CTRL_AUTORESUME;
+
+	if (otg->flags & ULPI_IC_EXTVBUS_INDINV)
+		flags |= ULPI_IFC_CTRL_EXTERNAL_VBUS;
+
+	if (otg->flags & ULPI_IC_IND_PASSTHRU)
+		flags |= ULPI_IFC_CTRL_PASSTHRU;
+
+	if (otg->flags & ULPI_IC_PROTECT_DIS)
+		flags |= ULPI_IFC_CTRL_PROTECT_IFC_DISABLE;
+
+	return otg_io_write(otg, flags, ULPI_IFC_CTRL);
+}
+
+static int ulpi_set_flags(struct otg_transceiver *otg)
+{
+	int ret;
+
+	ret = ulpi_set_otg_flags(otg);
+	if (ret)
+		return ret;
+
+	ret = ulpi_set_ic_flags(otg);
+	if (ret)
+		return ret;
+
+	return ulpi_set_fc_flags(otg);
+}
+
+static int ulpi_check_integrity(struct otg_transceiver *otg)
+{
+	int ret, i;
+	unsigned int val = 0x55;
+
+	for (i = 0; i < 2; i++) {
+		ret = otg_io_write(otg, val, ULPI_SCRATCH);
+		if (ret < 0)
+			return ret;
+
+		ret = otg_io_read(otg, ULPI_SCRATCH);
+		if (ret < 0)
+			return ret;
+
+		if (ret != val) {
+			pr_err("ULPI integrity check: failed!");
+			return -ENODEV;
+		}
+		val = val << 1;
+	}
+
+	pr_info("ULPI integrity check: passed.\n");
+
+	return 0;
 }
 
 static int ulpi_init(struct otg_transceiver *otg)
 {
-	int i, vid, pid;
+	int i, vid, pid, ret;
+	u32 ulpi_id = 0;
 
-	vid = (otg_io_read(otg, ULPI_VID_HIGH) << 8) |
-	       otg_io_read(otg, ULPI_VID_LOW);
-	pid = (otg_io_read(otg, ULPI_PID_HIGH) << 8) |
-	       otg_io_read(otg, ULPI_PID_LOW);
+	for (i = 0; i < 4; i++) {
+		ret = otg_io_read(otg, ULPI_PRODUCT_ID_HIGH - i);
+		if (ret < 0)
+			return ret;
+		ulpi_id = (ulpi_id << 8) | ret;
+	}
+	vid = ulpi_id & 0xffff;
+	pid = ulpi_id >> 16;
 
 	pr_info("ULPI transceiver vendor/product ID 0x%04x/0x%04x\n", vid, pid);
 
-	for (i = 0; i < ARRAY_SIZE(ulpi_ids); i++)
-		if (ulpi_ids[i] == ULPI_ID(vid, pid))
-			return ulpi_set_flags(otg);
+	for (i = 0; i < ARRAY_SIZE(ulpi_ids); i++) {
+		if (ulpi_ids[i].id == ULPI_ID(vid, pid)) {
+			pr_info("Found %s ULPI transceiver.\n",
+				ulpi_ids[i].name);
+			break;
+		}
+	}
 
-	pr_err("ULPI ID does not match any known transceiver.\n");
-	return -ENODEV;
+	ret = ulpi_check_integrity(otg);
+	if (ret)
+		return ret;
+
+	return ulpi_set_flags(otg);
+}
+
+static int ulpi_set_host(struct otg_transceiver *otg, struct usb_bus *host)
+{
+	unsigned int flags = otg_io_read(otg, ULPI_IFC_CTRL);
+
+	if (!host) {
+		otg->host = NULL;
+		return 0;
+	}
+
+	otg->host = host;
+
+	flags &= ~(ULPI_IFC_CTRL_6_PIN_SERIAL_MODE |
+		   ULPI_IFC_CTRL_3_PIN_SERIAL_MODE |
+		   ULPI_IFC_CTRL_CARKITMODE);
+
+	if (otg->flags & ULPI_IC_6PIN_SERIAL)
+		flags |= ULPI_IFC_CTRL_6_PIN_SERIAL_MODE;
+	else if (otg->flags & ULPI_IC_3PIN_SERIAL)
+		flags |= ULPI_IFC_CTRL_3_PIN_SERIAL_MODE;
+	else if (otg->flags & ULPI_IC_CARKIT)
+		flags |= ULPI_IFC_CTRL_CARKITMODE;
+
+	return otg_io_write(otg, flags, ULPI_IFC_CTRL);
 }
 
 static int ulpi_set_vbus(struct otg_transceiver *otg, bool on)
 {
-	unsigned int flags = otg_io_read(otg, ULPI_OTGCTL);
+	unsigned int flags = otg_io_read(otg, ULPI_OTG_CTRL);
 
-	flags &= ~(DRV_VBUS | DRV_VBUS_EXT);
+	flags &= ~(ULPI_OTG_CTRL_DRVVBUS | ULPI_OTG_CTRL_DRVVBUS_EXT);
 
 	if (on) {
-		if (otg->flags & USB_OTG_DRV_VBUS)
-			flags |= DRV_VBUS;
+		if (otg->flags & ULPI_OTG_DRVVBUS)
+			flags |= ULPI_OTG_CTRL_DRVVBUS;
 
-		if (otg->flags & USB_OTG_DRV_VBUS_EXT)
-			flags |= DRV_VBUS_EXT;
+		if (otg->flags & ULPI_OTG_DRVVBUS_EXT)
+			flags |= ULPI_OTG_CTRL_DRVVBUS_EXT;
 	}
 
-	return otg_io_write(otg, flags, ULPI_OTGCTL + ULPI_REG_SET);
+	return otg_io_write(otg, flags, ULPI_OTG_CTRL);
 }
 
 struct otg_transceiver *
@@ -128,6 +261,7 @@ otg_ulpi_create(struct otg_io_access_ops *ops,
 	otg->flags	= flags;
 	otg->io_ops	= ops;
 	otg->init	= ulpi_init;
+	otg->set_host	= ulpi_set_host;
 	otg->set_vbus	= ulpi_set_vbus;
 
 	return otg;

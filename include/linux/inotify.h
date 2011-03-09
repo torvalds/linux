@@ -51,6 +51,7 @@ struct inotify_event {
 /* special flags */
 #define IN_ONLYDIR		0x01000000	/* only watch the path if it is a directory */
 #define IN_DONT_FOLLOW		0x02000000	/* don't follow a sym link */
+#define IN_EXCL_UNLINK		0x04000000	/* exclude events on unlinked objects */
 #define IN_MASK_ADD		0x20000000	/* add to the mask of an already existing watch */
 #define IN_ISDIR		0x40000000	/* event occurred against dir */
 #define IN_ONESHOT		0x80000000	/* only send event once */
@@ -70,177 +71,17 @@ struct inotify_event {
 #define IN_NONBLOCK O_NONBLOCK
 
 #ifdef __KERNEL__
+#include <linux/sysctl.h>
+extern struct ctl_table inotify_table[]; /* for sysctl */
 
-#include <linux/dcache.h>
-#include <linux/fs.h>
+#define ALL_INOTIFY_BITS (IN_ACCESS | IN_MODIFY | IN_ATTRIB | IN_CLOSE_WRITE | \
+			  IN_CLOSE_NOWRITE | IN_OPEN | IN_MOVED_FROM | \
+			  IN_MOVED_TO | IN_CREATE | IN_DELETE | \
+			  IN_DELETE_SELF | IN_MOVE_SELF | IN_UNMOUNT | \
+			  IN_Q_OVERFLOW | IN_IGNORED | IN_ONLYDIR | \
+			  IN_DONT_FOLLOW | IN_EXCL_UNLINK | IN_MASK_ADD | \
+			  IN_ISDIR | IN_ONESHOT)
 
-/*
- * struct inotify_watch - represents a watch request on a specific inode
- *
- * h_list is protected by ih->mutex of the associated inotify_handle.
- * i_list, mask are protected by inode->inotify_mutex of the associated inode.
- * ih, inode, and wd are never written to once the watch is created.
- *
- * Callers must use the established inotify interfaces to access inotify_watch
- * contents.  The content of this structure is private to the inotify
- * implementation.
- */
-struct inotify_watch {
-	struct list_head	h_list;	/* entry in inotify_handle's list */
-	struct list_head	i_list;	/* entry in inode's list */
-	atomic_t		count;	/* reference count */
-	struct inotify_handle	*ih;	/* associated inotify handle */
-	struct inode		*inode;	/* associated inode */
-	__s32			wd;	/* watch descriptor */
-	__u32			mask;	/* event mask for this watch */
-};
-
-struct inotify_operations {
-	void (*handle_event)(struct inotify_watch *, u32, u32, u32,
-			     const char *, struct inode *);
-	void (*destroy_watch)(struct inotify_watch *);
-};
-
-#ifdef CONFIG_INOTIFY
-
-/* Kernel API for producing events */
-
-extern void inotify_d_instantiate(struct dentry *, struct inode *);
-extern void inotify_d_move(struct dentry *);
-extern void inotify_inode_queue_event(struct inode *, __u32, __u32,
-				      const char *, struct inode *);
-extern void inotify_dentry_parent_queue_event(struct dentry *, __u32, __u32,
-					      const char *);
-extern void inotify_unmount_inodes(struct list_head *);
-extern void inotify_inode_is_dead(struct inode *);
-extern u32 inotify_get_cookie(void);
-
-/* Kernel Consumer API */
-
-extern struct inotify_handle *inotify_init(const struct inotify_operations *);
-extern void inotify_init_watch(struct inotify_watch *);
-extern void inotify_destroy(struct inotify_handle *);
-extern __s32 inotify_find_watch(struct inotify_handle *, struct inode *,
-				struct inotify_watch **);
-extern __s32 inotify_find_update_watch(struct inotify_handle *, struct inode *,
-				       u32);
-extern __s32 inotify_add_watch(struct inotify_handle *, struct inotify_watch *,
-			       struct inode *, __u32);
-extern __s32 inotify_clone_watch(struct inotify_watch *, struct inotify_watch *);
-extern void inotify_evict_watch(struct inotify_watch *);
-extern int inotify_rm_watch(struct inotify_handle *, struct inotify_watch *);
-extern int inotify_rm_wd(struct inotify_handle *, __u32);
-extern void inotify_remove_watch_locked(struct inotify_handle *,
-					struct inotify_watch *);
-extern void get_inotify_watch(struct inotify_watch *);
-extern void put_inotify_watch(struct inotify_watch *);
-extern int pin_inotify_watch(struct inotify_watch *);
-extern void unpin_inotify_watch(struct inotify_watch *);
-
-#else
-
-static inline void inotify_d_instantiate(struct dentry *dentry,
-					struct inode *inode)
-{
-}
-
-static inline void inotify_d_move(struct dentry *dentry)
-{
-}
-
-static inline void inotify_inode_queue_event(struct inode *inode,
-					     __u32 mask, __u32 cookie,
-					     const char *filename,
-					     struct inode *n_inode)
-{
-}
-
-static inline void inotify_dentry_parent_queue_event(struct dentry *dentry,
-						     __u32 mask, __u32 cookie,
-						     const char *filename)
-{
-}
-
-static inline void inotify_unmount_inodes(struct list_head *list)
-{
-}
-
-static inline void inotify_inode_is_dead(struct inode *inode)
-{
-}
-
-static inline u32 inotify_get_cookie(void)
-{
-	return 0;
-}
-
-static inline struct inotify_handle *inotify_init(const struct inotify_operations *ops)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void inotify_init_watch(struct inotify_watch *watch)
-{
-}
-
-static inline void inotify_destroy(struct inotify_handle *ih)
-{
-}
-
-static inline __s32 inotify_find_watch(struct inotify_handle *ih, struct inode *inode,
-				       struct inotify_watch **watchp)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline __s32 inotify_find_update_watch(struct inotify_handle *ih,
-					      struct inode *inode, u32 mask)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline __s32 inotify_add_watch(struct inotify_handle *ih,
-				      struct inotify_watch *watch,
-				      struct inode *inode, __u32 mask)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int inotify_rm_watch(struct inotify_handle *ih,
-				   struct inotify_watch *watch)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int inotify_rm_wd(struct inotify_handle *ih, __u32 wd)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline void inotify_remove_watch_locked(struct inotify_handle *ih,
-					       struct inotify_watch *watch)
-{
-}
-
-static inline void get_inotify_watch(struct inotify_watch *watch)
-{
-}
-
-static inline void put_inotify_watch(struct inotify_watch *watch)
-{
-}
-
-extern inline int pin_inotify_watch(struct inotify_watch *watch)
-{
-	return 0;
-}
-
-extern inline void unpin_inotify_watch(struct inotify_watch *watch)
-{
-}
-
-#endif	/* CONFIG_INOTIFY */
-
-#endif	/* __KERNEL __ */
+#endif
 
 #endif	/* _LINUX_INOTIFY_H */

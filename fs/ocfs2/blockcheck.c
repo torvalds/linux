@@ -403,7 +403,7 @@ void ocfs2_block_check_compute(void *data, size_t blocksize,
 	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
 	 * larger than 16 bits.
 	 */
-	BUG_ON(ecc > USHORT_MAX);
+	BUG_ON(ecc > USHRT_MAX);
 
 	bc->bc_crc32e = cpu_to_le32(crc);
 	bc->bc_ecc = cpu_to_le16((u16)ecc);
@@ -439,7 +439,7 @@ int ocfs2_block_check_validate(void *data, size_t blocksize,
 
 	ocfs2_blockcheck_inc_failure(stats);
 	mlog(ML_ERROR,
-	     "CRC32 failed: stored: %u, computed %u.  Applying ECC.\n",
+	     "CRC32 failed: stored: 0x%x, computed 0x%x. Applying ECC.\n",
 	     (unsigned int)check.bc_crc32e, (unsigned int)crc);
 
 	/* Ok, try ECC fixups */
@@ -453,7 +453,7 @@ int ocfs2_block_check_validate(void *data, size_t blocksize,
 		goto out;
 	}
 
-	mlog(ML_ERROR, "Fixed CRC32 failed: stored: %u, computed %u\n",
+	mlog(ML_ERROR, "Fixed CRC32 failed: stored: 0x%x, computed 0x%x\n",
 	     (unsigned int)check.bc_crc32e, (unsigned int)crc);
 
 	rc = -EIO;
@@ -508,7 +508,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
 	 * larger than 16 bits.
 	 */
-	BUG_ON(ecc > USHORT_MAX);
+	BUG_ON(ecc > USHRT_MAX);
 
 	bc->bc_crc32e = cpu_to_le32(crc);
 	bc->bc_ecc = cpu_to_le16((u16)ecc);

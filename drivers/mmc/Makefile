@@ -2,9 +2,7 @@
 # Makefile for the kernel mmc device drivers.
 #
 
-ifeq ($(CONFIG_MMC_DEBUG),y)
-	EXTRA_CFLAGS		+= -DDEBUG
-endif
+subdir-ccflags-$(CONFIG_MMC_DEBUG) := -DDEBUG
 
 obj-$(CONFIG_MMC)		+= core/
 obj-$(CONFIG_MMC)		+= card/

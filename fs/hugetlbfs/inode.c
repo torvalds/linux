@@ -31,6 +31,7 @@
 #include <linux/statfs.h>
 #include <linux/security.h>
 #include <linux/magic.h>
+#include <linux/migrate.h>
 
 #include <asm/uaccess.h>
 
@@ -371,27 +372,10 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 	hugetlb_unreserve_pages(inode, start, freed);
 }
 
-static void hugetlbfs_delete_inode(struct inode *inode)
+static void hugetlbfs_evict_inode(struct inode *inode)
 {
 	truncate_hugepages(inode, 0);
-	clear_inode(inode);
-}
-
-static void hugetlbfs_forget_inode(struct inode *inode) __releases(inode_lock)
-{
-	if (generic_detach_inode(inode)) {
-		truncate_hugepages(inode, 0);
-		clear_inode(inode);
-		destroy_inode(inode);
-	}
-}
-
-static void hugetlbfs_drop_inode(struct inode *inode)
-{
-	if (!inode->i_nlink)
-		generic_delete_inode(inode);
-	else
-		hugetlbfs_forget_inode(inode);
+	end_writeback(inode);
 }
 
 static inline void
@@ -448,19 +432,20 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_change_ok(inode, attr);
 	if (error)
-		goto out;
+		return error;
 
 	if (ia_valid & ATTR_SIZE) {
 		error = -EINVAL;
-		if (!(attr->ia_size & ~huge_page_mask(h)))
-			error = hugetlb_vmtruncate(inode, attr->ia_size);
+		if (attr->ia_size & ~huge_page_mask(h))
+			return -EINVAL;
+		error = hugetlb_vmtruncate(inode, attr->ia_size);
 		if (error)
-			goto out;
-		attr->ia_valid &= ~ATTR_SIZE;
+			return error;
 	}
-	error = inode_setattr(inode, attr);
-out:
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid, 
@@ -471,6 +456,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 	inode = new_inode(sb);
 	if (inode) {
 		struct hugetlbfs_inode_info *info;
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = uid;
 		inode->i_gid = gid;
@@ -589,6 +575,19 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 	return 0;
 }
 
+static int hugetlbfs_migrate_page(struct address_space *mapping,
+				struct page *newpage, struct page *page)
+{
+	int rc;
+
+	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+	if (rc)
+		return rc;
+	migrate_page_copy(newpage, page);
+
+	return 0;
+}
+
 static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
@@ -664,17 +663,25 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 	return &p->vfs_inode;
 }
 
+static void hugetlbfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
+}
+
 static void hugetlbfs_destroy_inode(struct inode *inode)
 {
 	hugetlbfs_inc_free_inodes(HUGETLBFS_SB(inode->i_sb));
 	mpol_free_shared_policy(&HUGETLBFS_I(inode)->policy);
-	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
+	call_rcu(&inode->i_rcu, hugetlbfs_i_callback);
 }
 
 static const struct address_space_operations hugetlbfs_aops = {
 	.write_begin	= hugetlbfs_write_begin,
 	.write_end	= hugetlbfs_write_end,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
+	.migratepage    = hugetlbfs_migrate_page,
 };
 
 
@@ -688,8 +695,9 @@ static void init_once(void *foo)
 const struct file_operations hugetlbfs_file_operations = {
 	.read			= hugetlbfs_read,
 	.mmap			= hugetlbfs_file_mmap,
-	.fsync			= simple_sync_file,
+	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations hugetlbfs_dir_inode_operations = {
@@ -712,9 +720,8 @@ static const struct inode_operations hugetlbfs_inode_operations = {
 static const struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
+	.evict_inode	= hugetlbfs_evict_inode,
 	.statfs		= hugetlbfs_statfs,
-	.delete_inode	= hugetlbfs_delete_inode,
-	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
 	.show_options	= generic_show_options,
 };
@@ -896,15 +903,15 @@ void hugetlb_put_quota(struct address_space *mapping, long delta)
 	}
 }
 
-static int hugetlbfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *hugetlbfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, hugetlbfs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, hugetlbfs_fill_super);
 }
 
 static struct file_system_type hugetlbfs_fs_type = {
 	.name		= "hugetlbfs",
-	.get_sb		= hugetlbfs_get_sb,
+	.mount		= hugetlbfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 
@@ -932,8 +939,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
 		*user = current_user();
 		if (user_shm_lock(size, *user)) {
-			WARN_ONCE(1,
-			  "Using mlock ulimits for SHM_HUGETLB deprecated\n");
+			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
 		} else {
 			*user = NULL;
 			return ERR_PTR(-EPERM);

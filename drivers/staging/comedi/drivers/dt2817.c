@@ -57,7 +57,18 @@ static struct comedi_driver driver_dt2817 = {
 	.detach = dt2817_detach,
 };
 
-COMEDI_INITCLEANUP(driver_dt2817);
+static int __init driver_dt2817_init_module(void)
+{
+	return comedi_driver_register(&driver_dt2817);
+}
+
+static void __exit driver_dt2817_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dt2817);
+}
+
+module_init(driver_dt2817_init_module);
+module_exit(driver_dt2817_cleanup_module);
 
 static int dt2817_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
@@ -71,13 +82,13 @@ static int dt2817_dio_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 
 	chan = CR_CHAN(insn->chanspec);
-	if (chan < 8) {
+	if (chan < 8)
 		mask = 0xff;
-	} else if (chan < 16) {
+	else if (chan < 16)
 		mask = 0xff00;
-	} else if (chan < 24) {
+	else if (chan < 24)
 		mask = 0xff0000;
-	} else
+	else
 		mask = 0xff000000;
 	if (data[0])
 		s->io_bits |= mask;
@@ -141,7 +152,7 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, DT2817_SIZE, "dt2817")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -166,17 +177,21 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->state = 0;
 	outb(0, dev->iobase + DT2817_CR);
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 
 	return 0;
 }
 
 static int dt2817_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: dt2817: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dt2817: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, DT2817_SIZE);
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

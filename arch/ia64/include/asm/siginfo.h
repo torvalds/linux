@@ -62,6 +62,7 @@ typedef struct siginfo {
 			int _imm;		/* immediate value for "break" */
 			unsigned int _flags;	/* see below */
 			unsigned long _isr;	/* isr */
+			short _addr_lsb;	/* lsb of faulting address */
 		} _sigfault;
 
 		/* SIGPOLL */

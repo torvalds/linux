@@ -961,7 +961,7 @@ static int __init rtc_init(void)
 #endif
 #ifdef CONFIG_SPARC32
 	struct device_node *ebus_dp;
-	struct of_device *op;
+	struct platform_device *op;
 #else
 	void *r;
 #ifdef RTC_IRQ

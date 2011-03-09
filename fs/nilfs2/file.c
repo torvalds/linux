@@ -27,7 +27,7 @@
 #include "nilfs.h"
 #include "segment.h"
 
-int nilfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
+int nilfs_sync_file(struct file *file, int datasync)
 {
 	/*
 	 * Called from fsync() system call
@@ -37,7 +37,7 @@ int nilfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	 * This function should be implemented when the writeback function
 	 * will be implemented.
 	 */
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int err;
 
 	if (!nilfs_inode_dirty(inode))
@@ -155,6 +155,7 @@ const struct inode_operations nilfs_file_inode_operations = {
 	.truncate	= nilfs_truncate,
 	.setattr	= nilfs_setattr,
 	.permission     = nilfs_permission,
+	.fiemap		= nilfs_fiemap,
 };
 
 /* end of file */

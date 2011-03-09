@@ -4,11 +4,11 @@
 #ifndef __NETNS_PACKET_H__
 #define __NETNS_PACKET_H__
 
-#include <linux/list.h>
+#include <linux/rculist.h>
 #include <linux/spinlock.h>
 
 struct netns_packet {
-	rwlock_t		sklist_lock;
+	spinlock_t		sklist_lock;
 	struct hlist_head	sklist;
 };
 

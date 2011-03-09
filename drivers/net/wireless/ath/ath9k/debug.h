@@ -35,6 +35,8 @@ struct ath_buf;
  * struct ath_interrupt_stats - Contains statistics about interrupts
  * @total: Total no. of interrupts generated so far
  * @rxok: RX with no errors
+ * @rxlp: RX with low priority RX
+ * @rxhp: RX with high priority, uapsd only
  * @rxeol: RX with no more RXDESC available
  * @rxorn: RX FIFO overrun
  * @txok: TX completed at the requested rate
@@ -51,10 +53,13 @@ struct ath_buf;
  * @cabend: RX End of CAB traffic
  * @dtimsync: DTIM sync lossage
  * @dtim: RX Beacon with DTIM
+ * @bb_watchdog: Baseband watchdog
  */
 struct ath_interrupt_stats {
 	u32 total;
 	u32 rxok;
+	u32 rxlp;
+	u32 rxhp;
 	u32 rxeol;
 	u32 rxorn;
 	u32 txok;
@@ -72,17 +77,15 @@ struct ath_interrupt_stats {
 	u32 cabend;
 	u32 dtimsync;
 	u32 dtim;
-};
-
-struct ath_rc_stats {
-	u32 success;
-	u32 retries;
-	u32 xretries;
-	u8 per;
+	u32 bb_watchdog;
 };
 
 /**
  * struct ath_tx_stats - Statistics about TX
+ * @tx_pkts_all:  No. of total frames transmitted, including ones that
+	may have had errors.
+ * @tx_bytes_all:  No. of total bytes transmitted, including ones that
+	may have had errors.
  * @queued: Total MPDUs (non-aggr) queued
  * @completed: Total MPDUs (non-aggr) completed
  * @a_aggr: Total no. of aggregates queued
@@ -101,6 +104,8 @@ struct ath_rc_stats {
  * @delim_urn: TX delimiter underrun errors
  */
 struct ath_tx_stats {
+	u32 tx_pkts_all;
+	u32 tx_bytes_all;
 	u32 queued;
 	u32 completed;
 	u32 a_aggr;
@@ -116,34 +121,54 @@ struct ath_tx_stats {
 	u32 delim_underrun;
 };
 
+/**
+ * struct ath_rx_stats - RX Statistics
+ * @rx_pkts_all:  No. of total frames received, including ones that
+	may have had errors.
+ * @rx_bytes_all:  No. of total bytes received, including ones that
+	may have had errors.
+ * @crc_err: No. of frames with incorrect CRC value
+ * @decrypt_crc_err: No. of frames whose CRC check failed after
+	decryption process completed
+ * @phy_err: No. of frames whose reception failed because the PHY
+	encountered an error
+ * @mic_err: No. of frames with incorrect TKIP MIC verification failure
+ * @pre_delim_crc_err: Pre-Frame delimiter CRC error detections
+ * @post_delim_crc_err: Post-Frame delimiter CRC error detections
+ * @decrypt_busy_err: Decryption interruptions counter
+ * @phy_err_stats: Individual PHY error statistics
+ */
+struct ath_rx_stats {
+	u32 rx_pkts_all;
+	u32 rx_bytes_all;
+	u32 crc_err;
+	u32 decrypt_crc_err;
+	u32 phy_err;
+	u32 mic_err;
+	u32 pre_delim_crc_err;
+	u32 post_delim_crc_err;
+	u32 decrypt_busy_err;
+	u32 phy_err_stats[ATH9K_PHYERR_MAX];
+};
+
 struct ath_stats {
 	struct ath_interrupt_stats istats;
-	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
+	struct ath_rx_stats rxstats;
 };
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
-	struct dentry *debugfs_debug;
-	struct dentry *debugfs_dma;
-	struct dentry *debugfs_interrupt;
-	struct dentry *debugfs_rcstat;
-	struct dentry *debugfs_wiphy;
-	struct dentry *debugfs_xmit;
+	u32 regidx;
 	struct ath_stats stats;
 };
 
 int ath9k_init_debug(struct ath_hw *ah);
-void ath9k_exit_debug(struct ath_hw *ah);
 
-int ath9k_debug_create_root(void);
-void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
-void ath_debug_stat_rc(struct ath_softc *sc, int final_rate);
-void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf);
-void ath_debug_stat_retries(struct ath_softc *sc, int rix,
-			    int xretries, int retries, u8 per);
+void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
+		       struct ath_tx_status *ts);
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #else
 
@@ -152,37 +177,19 @@ static inline int ath9k_init_debug(struct ath_hw *ah)
 	return 0;
 }
 
-static inline void ath9k_exit_debug(struct ath_hw *ah)
-{
-}
-
-static inline int ath9k_debug_create_root(void)
-{
-	return 0;
-}
-
-static inline void ath9k_debug_remove_root(void)
-{
-}
-
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 					    enum ath9k_int status)
 {
 }
 
-static inline void ath_debug_stat_rc(struct ath_softc *sc,
-				     int final_rate)
-{
-}
-
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
-				     struct ath_txq *txq,
-				     struct ath_buf *bf)
+				     struct ath_buf *bf,
+				     struct ath_tx_status *ts)
 {
 }
 
-static inline void ath_debug_stat_retries(struct ath_softc *sc, int rix,
-					  int xretries, int retries, u8 per)
+static inline void ath_debug_stat_rx(struct ath_softc *sc,
+				     struct ath_rx_status *rs)
 {
 }
 

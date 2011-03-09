@@ -111,6 +111,7 @@ static APBC_CLK(pwm3, PXA910_PWM3, 1, 13000000);
 static APBC_CLK(pwm4, PXA910_PWM4, 1, 13000000);
 
 static APMU_CLK(nand, NAND, 0x01db, 208000000);
+static APMU_CLK(u2o, USB, 0x1b, 480000000);
 
 /* device and clock bindings */
 static struct clk_lookup pxa910_clkregs[] = {
@@ -123,6 +124,7 @@ static struct clk_lookup pxa910_clkregs[] = {
 	INIT_CLKREG(&clk_pwm3, "pxa910-pwm.2", NULL),
 	INIT_CLKREG(&clk_pwm4, "pxa910-pwm.3", NULL),
 	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
+	INIT_CLKREG(&clk_u2o, "pxa-u2o", "U2OCLK"),
 };
 
 static int __init pxa910_init(void)
@@ -131,7 +133,7 @@ static int __init pxa910_init(void)
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa910_mfp_addr_map);
 		pxa_init_dma(IRQ_PXA910_DMA_INT0, 32);
-		clks_register(ARRAY_AND_SIZE(pxa910_clkregs));
+		clkdev_add_table(ARRAY_AND_SIZE(pxa910_clkregs));
 	}
 
 	return 0;

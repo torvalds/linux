@@ -1,7 +1,7 @@
 #ifndef _ALCHEMY_GPIO_H_
 #define _ALCHEMY_GPIO_H_
 
-#if defined(CONFIG_ALCHEMY_GPIO_AU1000)
+#if defined(CONFIG_ALCHEMY_GPIOINT_AU1000)
 
 #include <asm/mach-au1x00/gpio-au1000.h>
 

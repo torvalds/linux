@@ -20,7 +20,12 @@
 
 /*
 	Module: rt2x00dump
-	Abstract: Data structures for the rt2x00debug & userspace.
+	Abstract:
+		Data structures for the rt2x00debug & userspace.
+
+		The declarations in this file can be used by both rt2x00
+		and userspace and therefore should be kept together in
+		this file.
  */
 
 #ifndef RT2X00DUMP_H
@@ -62,11 +67,14 @@
  *	the tx event which has either succeeded or failed. A frame
  *	with this type should also have been reported with as a
  *	%DUMP_FRAME_TX frame.
+ * @DUMP_FRAME_BEACON: This beacon frame is queued for transmission to the
+ *	hardware.
  */
 enum rt2x00_dump_type {
 	DUMP_FRAME_RXDONE = 1,
 	DUMP_FRAME_TX = 2,
 	DUMP_FRAME_TXDONE = 3,
+	DUMP_FRAME_BEACON = 4,
 };
 
 /**
@@ -108,7 +116,7 @@ struct rt2x00dump_hdr {
 
 	__le16 chip_rt;
 	__le16 chip_rf;
-	__le32 chip_rev;
+	__le16 chip_rev;
 
 	__le16 type;
 	__u8 queue_index;

@@ -21,6 +21,9 @@
 #define __KVM_HAVE_PIT_STATE2
 #define __KVM_HAVE_XEN_HVM
 #define __KVM_HAVE_VCPU_EVENTS
+#define __KVM_HAVE_DEBUGREGS
+#define __KVM_HAVE_XSAVE
+#define __KVM_HAVE_XCRS
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -257,6 +260,11 @@ struct kvm_reinject_control {
 /* When set in flags, include corresponding fields on KVM_SET_VCPU_EVENTS */
 #define KVM_VCPUEVENT_VALID_NMI_PENDING	0x00000001
 #define KVM_VCPUEVENT_VALID_SIPI_VECTOR	0x00000002
+#define KVM_VCPUEVENT_VALID_SHADOW	0x00000004
+
+/* Interrupt shadow states */
+#define KVM_X86_SHADOW_INT_MOV_SS	0x01
+#define KVM_X86_SHADOW_INT_STI		0x02
 
 /* for KVM_GET/SET_VCPU_EVENTS */
 struct kvm_vcpu_events {
@@ -271,7 +279,7 @@ struct kvm_vcpu_events {
 		__u8 injected;
 		__u8 nr;
 		__u8 soft;
-		__u8 pad;
+		__u8 shadow;
 	} interrupt;
 	struct {
 		__u8 injected;
@@ -282,6 +290,35 @@ struct kvm_vcpu_events {
 	__u32 sipi_vector;
 	__u32 flags;
 	__u32 reserved[10];
+};
+
+/* for KVM_GET/SET_DEBUGREGS */
+struct kvm_debugregs {
+	__u64 db[4];
+	__u64 dr6;
+	__u64 dr7;
+	__u64 flags;
+	__u64 reserved[9];
+};
+
+/* for KVM_CAP_XSAVE */
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+#define KVM_MAX_XCRS	16
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
 };
 
 #endif /* _ASM_X86_KVM_H */

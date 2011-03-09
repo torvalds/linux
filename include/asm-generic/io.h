@@ -19,7 +19,9 @@
 #include <asm-generic/iomap.h>
 #endif
 
+#ifndef mmiowb
 #define mmiowb() do {} while (0)
+#endif
 
 /*****************************************************************************/
 /*
@@ -28,39 +30,51 @@
  * differently. On the simple architectures, we just read/write the
  * memory location directly.
  */
+#ifndef __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
 	return *(const volatile u8 __force *) addr;
 }
+#endif
 
+#ifndef __raw_readw
 static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	return *(const volatile u16 __force *) addr;
 }
+#endif
 
+#ifndef __raw_readl
 static inline u32 __raw_readl(const volatile void __iomem *addr)
 {
 	return *(const volatile u32 __force *) addr;
 }
+#endif
 
 #define readb __raw_readb
 #define readw(addr) __le16_to_cpu(__raw_readw(addr))
 #define readl(addr) __le32_to_cpu(__raw_readl(addr))
 
+#ifndef __raw_writeb
 static inline void __raw_writeb(u8 b, volatile void __iomem *addr)
 {
 	*(volatile u8 __force *) addr = b;
 }
+#endif
 
+#ifndef __raw_writew
 static inline void __raw_writew(u16 b, volatile void __iomem *addr)
 {
 	*(volatile u16 __force *) addr = b;
 }
+#endif
 
+#ifndef __raw_writel
 static inline void __raw_writel(u32 b, volatile void __iomem *addr)
 {
 	*(volatile u32 __force *) addr = b;
 }
+#endif
 
 #define writeb __raw_writeb
 #define writew(b,addr) __raw_writew(__cpu_to_le16(b),addr)
@@ -122,6 +136,7 @@ static inline void outl(u32 b, unsigned long addr)
 #define outw_p(x, addr)	outw((x), (addr))
 #define outl_p(x, addr)	outl((x), (addr))
 
+#ifndef insb
 static inline void insb(unsigned long addr, void *buffer, int count)
 {
 	if (count) {
@@ -132,7 +147,9 @@ static inline void insb(unsigned long addr, void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef insw
 static inline void insw(unsigned long addr, void *buffer, int count)
 {
 	if (count) {
@@ -143,7 +160,9 @@ static inline void insw(unsigned long addr, void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef insl
 static inline void insl(unsigned long addr, void *buffer, int count)
 {
 	if (count) {
@@ -154,7 +173,9 @@ static inline void insl(unsigned long addr, void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef outsb
 static inline void outsb(unsigned long addr, const void *buffer, int count)
 {
 	if (count) {
@@ -164,7 +185,9 @@ static inline void outsb(unsigned long addr, const void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef outsw
 static inline void outsw(unsigned long addr, const void *buffer, int count)
 {
 	if (count) {
@@ -174,7 +197,9 @@ static inline void outsw(unsigned long addr, const void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
 
+#ifndef outsl
 static inline void outsl(unsigned long addr, const void *buffer, int count)
 {
 	if (count) {
@@ -184,15 +209,50 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 		} while (--count);
 	}
 }
+#endif
+
+static inline void readsl(const void __iomem *addr, void *buf, int len)
+{
+	insl((unsigned long)addr, buf, len);
+}
+
+static inline void readsw(const void __iomem *addr, void *buf, int len)
+{
+	insw((unsigned long)addr, buf, len);
+}
+
+static inline void readsb(const void __iomem *addr, void *buf, int len)
+{
+	insb((unsigned long)addr, buf, len);
+}
+
+static inline void writesl(const void __iomem *addr, const void *buf, int len)
+{
+	outsl((unsigned long)addr, buf, len);
+}
+
+static inline void writesw(const void __iomem *addr, const void *buf, int len)
+{
+	outsw((unsigned long)addr, buf, len);
+}
+
+static inline void writesb(const void __iomem *addr, const void *buf, int len)
+{
+	outsb((unsigned long)addr, buf, len);
+}
 
 #ifndef CONFIG_GENERIC_IOMAP
 #define ioread8(addr)		readb(addr)
 #define ioread16(addr)		readw(addr)
+#define ioread16be(addr)	be16_to_cpu(ioread16(addr))
 #define ioread32(addr)		readl(addr)
+#define ioread32be(addr)	be32_to_cpu(ioread32(addr))
 
 #define iowrite8(v, addr)	writeb((v), (addr))
 #define iowrite16(v, addr)	writew((v), (addr))
+#define iowrite16be(v, addr)	iowrite16(be16_to_cpu(v), (addr))
 #define iowrite32(v, addr)	writel((v), (addr))
+#define iowrite32be(v, addr)	iowrite32(be32_to_cpu(v), (addr))
 
 #define ioread8_rep(p, dst, count) \
 	insb((unsigned long) (p), (dst), (count))

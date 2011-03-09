@@ -5,10 +5,10 @@
 
 #include <linux/stddef.h>
 #include <linux/bootmem.h>
-#include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include <asm/fixmap.h>
 #include <asm/page.h>
 #include "as-layout.h"

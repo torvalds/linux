@@ -51,7 +51,18 @@ cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
 # prologue (push %ebp, mov %esp, %ebp) which breaks the function graph
 # tracer assumptions. For i686, generic, core2 this is set by the
 # compiler anyway
-cflags-$(CONFIG_FUNCTION_GRAPH_TRACER) += $(call cc-option,-maccumulate-outgoing-args)
+ifeq ($(CONFIG_FUNCTION_GRAPH_TRACER), y)
+ADD_ACCUMULATE_OUTGOING_ARGS := y
+endif
+
+# Work around to a bug with asm goto with first implementations of it
+# in gcc causing gcc to mess up the push and pop of the stack in some
+# uses of asm goto.
+ifeq ($(CONFIG_JUMP_LABEL), y)
+ADD_ACCUMULATE_OUTGOING_ARGS := y
+endif
+
+cflags-$(ADD_ACCUMULATE_OUTGOING_ARGS) += $(call cc-option,-maccumulate-outgoing-args)
 
 # Bug fix for binutils: this option is required in order to keep
 # binutils from generating NOPL instructions against our will.

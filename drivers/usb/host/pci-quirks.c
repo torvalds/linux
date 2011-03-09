@@ -169,6 +169,7 @@ static int __devinit mmio_resource_enabled(struct pci_dev *pdev, int idx)
 static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 {
 	void __iomem *base;
+	u32 control;
 
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
@@ -177,10 +178,14 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	if (base == NULL)
 		return;
 
+	control = readl(base + OHCI_CONTROL);
+
 /* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
-#ifndef __hppa__
-{
-	u32 control = readl(base + OHCI_CONTROL);
+#ifdef __hppa__
+#define	OHCI_CTRL_MASK		(OHCI_CTRL_RWC | OHCI_CTRL_IR)
+#else
+#define	OHCI_CTRL_MASK		OHCI_CTRL_RWC
+
 	if (control & OHCI_CTRL_IR) {
 		int wait_time = 500; /* arbitrary; 5 seconds */
 		writel(OHCI_INTR_OC, base + OHCI_INTRENABLE);
@@ -194,12 +199,11 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			dev_warn(&pdev->dev, "OHCI: BIOS handoff failed"
 					" (BIOS bug?) %08x\n",
 					readl(base + OHCI_CONTROL));
-
-		/* reset controller, preserving RWC */
-		writel(control & OHCI_CTRL_RWC, base + OHCI_CONTROL);
 	}
-}
 #endif
+
+	/* reset controller, preserving RWC (and possibly IR) */
+	writel(control & OHCI_CTRL_MASK, base + OHCI_CONTROL);
 
 	/*
 	 * disable interrupts
@@ -338,8 +342,6 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	writel(0x3f, op_reg_base + EHCI_USBSTS);
 
 	iounmap(base);
-
-	return;
 }
 
 /*

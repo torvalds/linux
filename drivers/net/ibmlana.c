@@ -23,7 +23,7 @@ paper sources:
   'LAN Technical Reference Ethernet Adapter Interface Version 1 Release 1.0
    Document Number SC30-3661-00' by IBM for info on the adapter itself
 
-  Also see http://www.natsemi.com/
+  Also see http://www.national.com/analog 
 
 special acknowledgements to:
   - Bob Eager for helping me out with documentation from IBM
@@ -79,7 +79,6 @@ History:
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/time.h>
@@ -385,7 +384,7 @@ static void InitBoard(struct net_device *dev)
 	int camcnt;
 	camentry_t cams[16];
 	u32 cammask;
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	u16 rcrval;
 
 	/* reset the SONIC */
@@ -420,8 +419,8 @@ static void InitBoard(struct net_device *dev)
 	/* start putting the multicast addresses into the CAM list.  Stop if
 	   it is full. */
 
-	for (mcptr = dev->mc_list; mcptr != NULL; mcptr = mcptr->next) {
-		putcam(cams, &camcnt, mcptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		putcam(cams, &camcnt, ha->addr);
 		if (camcnt == 16)
 			break;
 	}
@@ -479,7 +478,7 @@ static void InitBoard(struct net_device *dev)
 	/* if still multicast addresses left or ALLMULTI is set, set the multicast
 	   enable bit */
 
-	if ((dev->flags & IFF_ALLMULTI) || (mcptr != NULL))
+	if ((dev->flags & IFF_ALLMULTI) || netdev_mc_count(dev) > camcnt)
 		rcrval |= RCREG_AMC;
 
 	/* promiscous mode ? */
@@ -603,7 +602,7 @@ static void irqrx_handler(struct net_device *dev)
 				/* set up skb fields */
 
 				skb->protocol = eth_type_trans(skb, dev);
-				skb->ip_summed = CHECKSUM_NONE;
+				skb_checksum_none_assert(skb);
 
 				/* bookkeeping */
 				dev->stats.rx_packets++;

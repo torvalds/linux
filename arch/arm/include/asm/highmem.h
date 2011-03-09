@@ -11,7 +11,11 @@
 
 #define kmap_prot		PAGE_KERNEL
 
-#define flush_cache_kmaps()	flush_cache_all()
+#define flush_cache_kmaps() \
+	do { \
+		if (cache_is_vivt()) \
+			flush_cache_all(); \
+	} while (0)
 
 extern pte_t *pkmap_page_table;
 
@@ -21,11 +25,17 @@ extern void *kmap_high(struct page *page);
 extern void *kmap_high_get(struct page *page);
 extern void kunmap_high(struct page *page);
 
+/*
+ * The following functions are already defined by <linux/highmem.h>
+ * when CONFIG_HIGHMEM is not set.
+ */
+#ifdef CONFIG_HIGHMEM
 extern void *kmap(struct page *page);
 extern void kunmap(struct page *page);
-extern void *kmap_atomic(struct page *page, enum km_type type);
-extern void kunmap_atomic(void *kvaddr, enum km_type type);
-extern void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
+extern void *__kmap_atomic(struct page *page);
+extern void __kunmap_atomic(void *kvaddr);
+extern void *kmap_atomic_pfn(unsigned long pfn);
 extern struct page *kmap_atomic_to_page(const void *ptr);
+#endif
 
 #endif

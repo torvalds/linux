@@ -22,6 +22,7 @@
 #include <linux/kprobes.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <linux/ktime.h>
@@ -153,7 +154,7 @@ static int tcpprobe_sprint(char *tbuf, int n)
 	struct timespec tv
 		= ktime_to_timespec(ktime_sub(p->tstamp, tcp_probe.start));
 
-	return snprintf(tbuf, n,
+	return scnprintf(tbuf, n,
 			"%lu.%09lu %pI4:%u %pI4:%u %d %#x %#x %u %u %u %u\n",
 			(unsigned long) tv.tv_sec,
 			(unsigned long) tv.tv_nsec,
@@ -173,7 +174,7 @@ static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 		return -EINVAL;
 
 	while (cnt < len) {
-		char tbuf[128];
+		char tbuf[164];
 		int width;
 
 		/* Wait for data in buffer */
@@ -213,6 +214,7 @@ static const struct file_operations tcpprobe_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = tcpprobe_open,
 	.read    = tcpprobe_read,
+	.llseek  = noop_llseek,
 };
 
 static __init int tcpprobe_init(void)

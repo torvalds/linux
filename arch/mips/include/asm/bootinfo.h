@@ -71,6 +71,12 @@
 #define MACH_LEMOTE_LL2F       7
 #define MACH_LOONGSON_END      8
 
+/*
+ * Valid machtype for group INGENIC
+ */
+#define  MACH_INGENIC_JZ4730	0	/* JZ4730 SOC		*/
+#define  MACH_INGENIC_JZ4740	1	/* JZ4740 SOC		*/
+
 extern char *system_type;
 const char *get_system_type(void);
 
@@ -118,5 +124,17 @@ extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
  * Platform memory detection hook called by setup_arch
  */
 extern void plat_mem_setup(void);
+
+#ifdef CONFIG_SWIOTLB
+/*
+ * Optional platform hook to call swiotlb_setup().
+ */
+extern void plat_swiotlb_setup(void);
+
+#else
+
+static inline void plat_swiotlb_setup(void) {}
+
+#endif /* CONFIG_SWIOTLB */
 
 #endif /* _ASM_BOOTINFO_H */

@@ -45,9 +45,6 @@
 #error "INTERRUPT_VECTOR_BASE not aligned to 16MiB boundary!"
 #endif
 
-struct pt_regs *__frame; /* current frame pointer */
-EXPORT_SYMBOL(__frame);
-
 int kstack_depth_to_print = 24;
 
 spinlock_t die_lock = __SPIN_LOCK_UNLOCKED(die_lock);
@@ -101,7 +98,6 @@ DO_EINFO(SIGILL,  {}, "invalid opcode",		invalid_op,	ILL_ILLOPC);
 DO_EINFO(SIGILL,  {}, "invalid ex opcode",	invalid_exop,	ILL_ILLOPC);
 DO_EINFO(SIGBUS,  {}, "invalid address",	mem_error,	BUS_ADRERR);
 DO_EINFO(SIGBUS,  {}, "bus error",		bus_error,	BUS_ADRERR);
-DO_EINFO(SIGILL,  {}, "FPU invalid opcode", 	fpu_invalid_op,	ILL_COPROC);
 
 DO_ERROR(SIGTRAP,
 #ifndef CONFIG_MN10300_USING_JTAG
@@ -222,11 +218,14 @@ void show_registers_only(struct pt_regs *regs)
 	printk(KERN_EMERG "threadinfo=%p task=%p)\n",
 	       current_thread_info(), current);
 
-	if ((unsigned long) current >= 0x90000000UL &&
-	    (unsigned long) current < 0x94000000UL)
+	if ((unsigned long) current >= PAGE_OFFSET &&
+	    (unsigned long) current < (unsigned long)high_memory)
 		printk(KERN_EMERG "Process %s (pid: %d)\n",
 		       current->comm, current->pid);
 
+#ifdef CONFIG_SMP
+	printk(KERN_EMERG "CPUID:  %08x\n", CPUID);
+#endif
 	printk(KERN_EMERG "CPUP:   %04hx\n", CPUP);
 	printk(KERN_EMERG "TBR:    %08x\n", TBR);
 	printk(KERN_EMERG "DEAR:   %08x\n", DEAR);
@@ -522,8 +521,12 @@ void __init set_intr_stub(enum exception_code code, void *handler)
 {
 	unsigned long addr;
 	u8 *vector = (u8 *)(CONFIG_INTERRUPT_VECTOR_BASE + code);
+	unsigned long flags;
 
 	addr = (unsigned long) handler - (unsigned long) vector;
+
+	flags = arch_local_cli_save();
+
 	vector[0] = 0xdc;		/* JMP handler */
 	vector[1] = addr;
 	vector[2] = addr >> 8;
@@ -533,30 +536,12 @@ void __init set_intr_stub(enum exception_code code, void *handler)
 	vector[6] = 0xcb;
 	vector[7] = 0xcb;
 
+	arch_local_irq_restore(flags);
+
+#ifndef CONFIG_MN10300_CACHE_SNOOP
 	mn10300_dcache_flush_inv();
 	mn10300_icache_inv();
-}
-
-/*
- * set an interrupt stub to invoke the JTAG unit and then jump to a handler
- */
-void __init set_jtag_stub(enum exception_code code, void *handler)
-{
-	unsigned long addr;
-	u8 *vector = (u8 *)(CONFIG_INTERRUPT_VECTOR_BASE + code);
-
-	addr = (unsigned long) handler - ((unsigned long) vector + 1);
-	vector[0] = 0xff;		/* PI to jump into JTAG debugger */
-	vector[1] = 0xdc;		/* jmp handler */
-	vector[2] = addr;
-	vector[3] = addr >> 8;
-	vector[4] = addr >> 16;
-	vector[5] = addr >> 24;
-	vector[6] = 0xcb;
-	vector[7] = 0xcb;
-
-	mn10300_dcache_flush_inv();
-	flush_icache_range((unsigned long) vector, (unsigned long) vector + 8);
+#endif
 }
 
 /*
@@ -581,7 +566,6 @@ void __init trap_init(void)
 	set_excp_vector(EXCEP_PRIVINSACC,	insn_acc_error);
 	set_excp_vector(EXCEP_PRIVDATACC,	data_acc_error);
 	set_excp_vector(EXCEP_DATINSACC,	insn_acc_error);
-	set_excp_vector(EXCEP_FPU_DISABLED,	fpu_disabled);
 	set_excp_vector(EXCEP_FPU_UNIMPINS,	fpu_invalid_op);
 	set_excp_vector(EXCEP_FPU_OPERATION,	fpu_exception);
 

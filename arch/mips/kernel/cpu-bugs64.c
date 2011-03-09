@@ -239,7 +239,7 @@ static inline void check_daddi(void)
 	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
-int daddiu_bug __cpuinitdata = -1;
+int daddiu_bug  = -1;
 
 static inline void check_daddiu(void)
 {

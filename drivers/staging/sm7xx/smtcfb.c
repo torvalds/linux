@@ -3,27 +3,27 @@
  *
  * Copyright (C) 2006 Silicon Motion Technology Corp.
  * Authors: Ge Wang, gewang@siliconmotion.com
- * 	    Boyod boyod.yang@siliconmotion.com.cn
+ *	    Boyod boyod.yang@siliconmotion.com.cn
  *
  * Copyright (C) 2009 Lemote, Inc.
- * Author: Wu Zhangjin, wuzj@lemote.com
+ * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for
  *  more details.
  *
  * Version 0.10.26192.21.01
- * 	- Add PowerPC/Big endian support
- * 	- Add 2D support for Lynx
- * 	- Verified on2.6.19.2  Boyod.yang <boyod.yang@siliconmotion.com.cn>
+ *	- Add PowerPC/Big endian support
+ *	- Add 2D support for Lynx
+ *	- Verified on2.6.19.2  Boyod.yang <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09.2621.00.01
- * 	- Only support Linux Kernel's version 2.6.21.
+ *	- Only support Linux Kernel's version 2.6.21.
  *	Boyod.yang  <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09
- * 	- Only support Linux Kernel's version 2.6.12.
- * 	Boyod.yang <boyod.yang@siliconmotion.com.cn>
+ *	- Only support Linux Kernel's version 2.6.12.
+ *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  */
 
 #ifndef __KERNEL__
@@ -34,6 +34,7 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/console.h>
 #include <linux/screen_info.h>
@@ -45,7 +46,6 @@
 struct screen_info smtc_screen_info;
 
 #include "smtcfb.h"
-#include "smtc2d.h"
 
 #ifdef DEBUG
 #define smdbg(format, arg...)	printk(KERN_DEBUG format , ## arg)
@@ -120,10 +120,6 @@ static struct vesa_mode_table vesa_mode[] = {
 char __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
 char __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
 
-char *smtc_2DBaseAddress;	/* 2D engine starting address */
-char *smtc_2Ddataport;		/* 2D data port offset */
-short smtc_2Dacceleration;
-
 static u32 colreg[17];
 static struct par_info hw;	/* hardware information */
 
@@ -134,16 +130,6 @@ u16 smtc_ChipIDs[] = {
 };
 
 #define numSMTCchipIDs (sizeof(smtc_ChipIDs) / sizeof(u16))
-
-void deWaitForNotBusy(void)
-{
-	unsigned long i = 0x1000000;
-	while (i--) {
-		if ((smtc_seqr(0x16) & 0x18) == 0x10)
-			break;
-	}
-	smtc_de_busy = 0;
-}
 
 static void sm712_set_timing(struct smtcfb_info *sfb,
 			     struct par_info *ppar_info)
@@ -324,7 +310,7 @@ static inline unsigned int chan_to_field(unsigned int chan,
 	return chan << bf->offset;
 }
 
-static int smtcfb_blank(int blank_mode, struct fb_info *info)
+static int cfb_blank(int blank_mode, struct fb_info *info)
 {
 	/* clear DPMS setting */
 	switch (blank_mode) {
@@ -622,93 +608,13 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 }
 #endif	/* ! __BIG_ENDIAN */
 
-#include "smtc2d.c"
-
-void smtcfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
-{
-	struct par_info *p = (struct par_info *)info->par;
-
-	if (smtc_2Dacceleration) {
-		if (!area->width || !area->height)
-			return;
-
-		deCopy(p->BaseAddressInVRAM, 0, info->var.bits_per_pixel,
-		       area->dx, area->dy, area->width, area->height,
-		       p->BaseAddressInVRAM, 0, area->sx, area->sy, 0, 0xC);
-
-	} else
-		cfb_copyarea(info, area);
-}
-
-void smtcfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
-{
-	struct par_info *p = (struct par_info *)info->par;
-
-	if (smtc_2Dacceleration) {
-		if (!rect->width || !rect->height)
-			return;
-		if (info->var.bits_per_pixel >= 24)
-			deFillRect(p->BaseAddressInVRAM, 0, rect->dx * 3,
-				   rect->dy * 3, rect->width * 3, rect->height,
-				   rect->color);
-		else
-			deFillRect(p->BaseAddressInVRAM, 0, rect->dx, rect->dy,
-				   rect->width, rect->height, rect->color);
-	} else
-		cfb_fillrect(info, rect);
-}
-
-void smtcfb_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	struct par_info *p = (struct par_info *)info->par;
-	u32 bg_col = 0, fg_col = 0;
-
-	if ((smtc_2Dacceleration) && (image->depth == 1)) {
-		if (smtc_de_busy)
-			deWaitForNotBusy();
-
-		switch (info->var.bits_per_pixel) {
-		case 8:
-			bg_col = image->bg_color;
-			fg_col = image->fg_color;
-			break;
-		case 16:
-			bg_col =
-			    ((u32 *) (info->pseudo_palette))[image->bg_color];
-			fg_col =
-			    ((u32 *) (info->pseudo_palette))[image->fg_color];
-			break;
-		case 32:
-			bg_col =
-			    ((u32 *) (info->pseudo_palette))[image->bg_color];
-			fg_col =
-			    ((u32 *) (info->pseudo_palette))[image->fg_color];
-			break;
-		}
-
-		deSystemMem2VideoMemMonoBlt(
-			image->data,
-			image->width / 8,
-			0,
-			p->BaseAddressInVRAM,
-			0,
-			0,
-			image->dx, image->dy,
-			image->width, image->height,
-			fg_col, bg_col,
-			0x0C);
-
-	} else
-		cfb_imageblit(info, image);
-}
-
 static struct fb_ops smtcfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_setcolreg = smtc_setcolreg,
-	.fb_blank = smtcfb_blank,
-	.fb_fillrect = smtcfb_fillrect,
-	.fb_imageblit = smtcfb_imageblit,
-	.fb_copyarea = smtcfb_copyarea,
+	.fb_blank = cfb_blank,
+	.fb_fillrect = cfb_fillrect,
+	.fb_imageblit = cfb_imageblit,
+	.fb_copyarea = cfb_copyarea,
 #ifdef __BIG_ENDIAN
 	.fb_read = smtcfb_read,
 	.fb_write = smtcfb_write,
@@ -772,12 +678,6 @@ void smtcfb_setmode(struct smtcfb_info *sfb)
 	hw.height = sfb->fb.var.yres;
 	hw.hz = 60;
 	smtc_set_timing(sfb, &hw);
-	if (smtc_2Dacceleration) {
-		printk("2D acceleration enabled!\n");
-		/* Init smtc drawing engine */
-		deInit(sfb->fb.var.xres, sfb->fb.var.yres,
-				sfb->fb.var.bits_per_pixel);
-	}
 }
 
 /*
@@ -788,12 +688,10 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *dev,
 {
 	struct smtcfb_info *sfb;
 
-	sfb = kmalloc(sizeof(struct smtcfb_info), GFP_KERNEL);
+	sfb = kzalloc(sizeof(struct smtcfb_info), GFP_KERNEL);
 
 	if (!sfb)
 		return NULL;
-
-	memset(sfb, 0, sizeof(struct smtcfb_info));
 
 	sfb->currcon = -1;
 	sfb->dev = dev;
@@ -937,7 +835,7 @@ __setup("vga=", sm712vga_setup);
  * Original init function changed to probe method to be used by pci_drv
  * process used to detect chips replaced with kernel process in pci_drv
  */
-static int __init smtcfb_pci_probe(struct pci_dev *pdev,
+static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;
@@ -950,7 +848,6 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 		"Silicon Motion display driver " SMTC_LINUX_FB_VERSION "\n");
 
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
-
 	if (err)
 		return err;
 	err = -ENOMEM;
@@ -961,7 +858,7 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 	sfb = smtc_alloc_fb_info(pdev, name);
 
 	if (!sfb)
-		goto failed;
+		goto failed_free;
 	/* Jason (08/13/2009)
 	 * Store fb_info to be further used when suspending and resuming
 	 */
@@ -1004,9 +901,7 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 #endif
 		hw.m_pMMIO = (smtc_RegBaseAddress =
 		    smtc_VRAMBaseAddress + 0x00700000);
-		smtc_2DBaseAddress = (hw.m_pDPR =
-		    smtc_VRAMBaseAddress + 0x00408000);
-		smtc_2Ddataport = smtc_VRAMBaseAddress + DE_DATA_PORT_712;
+		hw.m_pDPR = smtc_VRAMBaseAddress + 0x00408000;
 		hw.m_pVPR = hw.m_pLFB + 0x0040c000;
 #ifdef __BIG_ENDIAN
 		if (sfb->fb.var.bits_per_pixel == 32) {
@@ -1021,7 +916,8 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 			printk(KERN_INFO
 				"%s: unable to map memory mapped IO\n",
 				sfb->fb.fix.id);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto failed_fb;
 		}
 
 		/* set MCLK = 14.31818 * (0x16 / 0x2) */
@@ -1035,34 +931,27 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 		if (sfb->fb.var.bits_per_pixel == 32)
 			smtc_seqw(0x17, 0x30);
 #endif
-#ifdef CONFIG_FB_SM7XX_ACCEL
-		smtc_2Dacceleration = 1;
-#endif
 		break;
 	case 0x720:
 		sfb->fb.fix.mmio_start = pFramebufferPhysical;
 		sfb->fb.fix.mmio_len = 0x00200000;
 		smem_size = SM722_VIDEOMEMORYSIZE;
-		smtc_2DBaseAddress = (hw.m_pDPR =
-		    ioremap(pFramebufferPhysical, 0x00a00000));
+		hw.m_pDPR = ioremap(pFramebufferPhysical, 0x00a00000);
 		hw.m_pLFB = (smtc_VRAMBaseAddress =
-		    smtc_2DBaseAddress + 0x00200000);
+		    hw.m_pDPR + 0x00200000);
 		hw.m_pMMIO = (smtc_RegBaseAddress =
-		    smtc_2DBaseAddress + 0x000c0000);
-		smtc_2Ddataport = smtc_2DBaseAddress + DE_DATA_PORT_722;
-		hw.m_pVPR = smtc_2DBaseAddress + 0x800;
+		    hw.m_pDPR + 0x000c0000);
+		hw.m_pVPR = hw.m_pDPR + 0x800;
 
 		smtc_seqw(0x62, 0xff);
 		smtc_seqw(0x6a, 0x0d);
 		smtc_seqw(0x6b, 0x02);
-		smtc_2Dacceleration = 0;
 		break;
 	default:
 		printk(KERN_INFO
 		"No valid Silicon Motion display chip was detected!\n");
 
-		smtc_free_fb_info(sfb);
-		return err;
+		goto failed_fb;
 	}
 
 	/* can support 32 bpp */
@@ -1096,14 +985,18 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
+failed_fb:
 	smtc_free_fb_info(sfb);
+
+failed_free:
+	pci_disable_device(pdev);
 
 	return err;
 }
 
 
 /* Jason (08/11/2009) PCI_DRV wrapper essential structs */
-static struct pci_device_id smtcfb_pci_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(smtcfb_pci_table) = {
 	{0x126f, 0x710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x712, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -1178,7 +1071,7 @@ static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
 	/* when resuming, restore pci data and fb cursor */
 	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
 		retv = pci_set_power_state(pdev, PCI_D0);
-		retv = pci_restore_state(pdev);
+		pci_restore_state(pdev);
 		if (pci_enable_device(pdev))
 			return -1;
 		pci_set_master(pdev);

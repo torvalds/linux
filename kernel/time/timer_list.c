@@ -79,26 +79,26 @@ print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base,
 {
 	struct hrtimer *timer, tmp;
 	unsigned long next = 0, i;
-	struct rb_node *curr;
+	struct timerqueue_node *curr;
 	unsigned long flags;
 
 next_one:
 	i = 0;
 	raw_spin_lock_irqsave(&base->cpu_base->lock, flags);
 
-	curr = base->first;
+	curr = timerqueue_getnext(&base->active);
 	/*
 	 * Crude but we have to do this O(N*N) thing, because
 	 * we have to unlock the base when printing:
 	 */
 	while (curr && i < next) {
-		curr = rb_next(curr);
+		curr = timerqueue_iterate_next(curr);
 		i++;
 	}
 
 	if (curr) {
 
-		timer = rb_entry(curr, struct hrtimer, node);
+		timer = container_of(curr, struct hrtimer, node);
 		tmp = *timer;
 		raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 
@@ -176,6 +176,7 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 		P_ns(idle_waketime);
 		P_ns(idle_exittime);
 		P_ns(idle_sleeptime);
+		P_ns(iowait_sleeptime);
 		P(last_jiffies);
 		P(next_jiffies);
 		P_ns(idle_expires);
@@ -228,6 +229,7 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 	SEQ_printf(m, " event_handler:  ");
 	print_name_offset(m, dev->event_handler);
 	SEQ_printf(m, "\n");
+	SEQ_printf(m, " retries:        %lu\n", dev->retries);
 }
 
 static void timer_list_show_tickdevices(struct seq_file *m)
@@ -257,7 +259,7 @@ static int timer_list_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Timer List Version: v0.5\n");
+	SEQ_printf(m, "Timer List Version: v0.6\n");
 	SEQ_printf(m, "HRTIMER_MAX_CLOCK_BASES: %d\n", HRTIMER_MAX_CLOCK_BASES);
 	SEQ_printf(m, "now at %Ld nsecs\n", (unsigned long long)now);
 

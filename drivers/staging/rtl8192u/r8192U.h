@@ -39,7 +39,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#include "ieee80211.h"
+#include "ieee80211/ieee80211.h"
 
 #define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"

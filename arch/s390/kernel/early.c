@@ -82,7 +82,8 @@ asm(
 	"	lm	6,15,24(15)\n"
 #endif
 	"	br	14\n"
-	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n");
+	"	.size	savesys_ipl_nss, .-savesys_ipl_nss\n"
+	"	.previous\n");
 
 static __initdata char upper_command_line[COMMAND_LINE_SIZE];
 
@@ -207,17 +208,21 @@ static noinline __init void init_kernel_storage_key(void)
 	end_pfn = PFN_UP(__pa(&_end));
 
 	for (init_pfn = 0 ; init_pfn < end_pfn; init_pfn++)
-		page_set_storage_key(init_pfn << PAGE_SHIFT, PAGE_DEFAULT_KEY);
+		page_set_storage_key(init_pfn << PAGE_SHIFT,
+				     PAGE_DEFAULT_KEY, 0);
 }
 
 static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
 
 static noinline __init void detect_machine_type(void)
 {
-	/* No VM information? Looks like LPAR */
-	if (stsi(&vmms, 3, 2, 2) == -ENOSYS)
+	/* Check current-configuration-level */
+	if ((stsi(NULL, 0, 0, 0) >> 28) <= 2) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
 		return;
-	if (!vmms.count)
+	}
+	/* Get virtual-machine cpu information. */
+	if (stsi(&vmms, 3, 2, 2) == -ENOSYS || !vmms.count)
 		return;
 
 	/* Running under KVM? If not we assume z/VM */
@@ -251,13 +256,33 @@ static noinline __init void setup_lowcore_early(void)
 	s390_base_pgm_handler_fn = early_pgm_check_handler;
 }
 
+static noinline __init void setup_facility_list(void)
+{
+	unsigned long nr;
+
+	S390_lowcore.stfl_fac_list = 0;
+	asm volatile(
+		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
+		"0:\n"
+		EX_TABLE(0b,0b) : "=m" (S390_lowcore.stfl_fac_list));
+	memcpy(&S390_lowcore.stfle_fac_list, &S390_lowcore.stfl_fac_list, 4);
+	nr = 4;				/* # bytes stored by stfl */
+	if (test_facility(7)) {
+		/* More facility bits available with stfle */
+		register unsigned long reg0 asm("0") = MAX_FACILITY_BIT/64 - 1;
+		asm volatile(".insn s,0xb2b00000,%0" /* stfle */
+			     : "=m" (S390_lowcore.stfle_fac_list), "+d" (reg0)
+			     : : "cc");
+		nr = (reg0 + 1) * 8;	/* # bytes stored by stfle */
+	}
+	memset((char *) S390_lowcore.stfle_fac_list + nr, 0,
+	       MAX_FACILITY_BIT/8 - nr);
+}
+
 static noinline __init void setup_hpage(void)
 {
 #ifndef CONFIG_DEBUG_PAGEALLOC
-	unsigned int facilities;
-
-	facilities = stfl();
-	if (!(facilities & (1UL << 23)) || !(facilities & (1UL << 29)))
+	if (!test_facility(2) || !test_facility(8))
 		return;
 	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;
 	__ctl_set_bit(0, 23);
@@ -351,15 +376,16 @@ static __init void detect_diag44(void)
 static __init void detect_machine_facilities(void)
 {
 #ifdef CONFIG_64BIT
-	unsigned int facilities;
-
-	facilities = stfl();
-	if (facilities & (1 << 28))
+	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (facilities & (1 << 23))
+	if (test_facility(8))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
-	if (facilities & (1 << 4))
+	if (test_facility(11))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
+	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
+	if (test_facility(40))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
 #endif
 }
 
@@ -402,8 +428,19 @@ static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
 
 static void __init setup_boot_command_line(void)
 {
+	int i;
+
+	/* convert arch command line to ascii */
+	for (i = 0; i < ARCH_COMMAND_LINE_SIZE; i++)
+		if (COMMAND_LINE[i] & 0x80)
+			break;
+	if (i < ARCH_COMMAND_LINE_SIZE)
+		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE-1] = 0;
+
 	/* copy arch command line */
-	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, strstrip(COMMAND_LINE),
+		ARCH_COMMAND_LINE_SIZE);
 
 	/* append IPL PARM data to the boot command line */
 	if (MACHINE_IS_VM)
@@ -428,6 +465,7 @@ void __init startup_init(void)
 	lockdep_off();
 	sort_main_extable();
 	setup_lowcore_early();
+	setup_facility_list();
 	detect_machine_type();
 	ipl_update_parameters();
 	setup_boot_command_line();

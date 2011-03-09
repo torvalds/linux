@@ -25,12 +25,13 @@
  *************************************************************************
 
     Module Name:
-        mac_usb.h
+		mac_usb.h
 
     Abstract:
 
     Revision History:
-    Who          When          What
+    Who          	When            What
+    Justin P. Mattock	11/07/2010	Fix a typo
     ---------    ----------    ----------------------------------------------
  */
 
@@ -46,7 +47,7 @@
 #define USB_CYC_CFG				0x02a4
 
 #define BEACON_RING_SIZE		2
-#define MGMTPIPEIDX				0	/* EP6 is highest priority */
+#define MGMTPIPEIDX			0	/* EP6 is highest priority */
 
 #define RTMP_PKT_TAIL_PADDING	11	/* 3(max 4 byte padding) + 4 (last packet padding) + 4 (MaxBulkOutsize align padding) */
 
@@ -93,7 +94,7 @@ struct rt_txinfo {
 	/* Word 0 */
 	u32 USBDMATxPktLen:16;	/*used ONLY in USB bulk Aggregation,  Total byte counts of all sub-frame. */
 	u32 rsv:8;
-	u32 WIV:1;		/* Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition */
+	u32 WIV:1;		/* Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correct position */
 	u32 QSEL:2;		/* select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA */
 	u32 SwUseLastRound:1;	/* Software use. */
 	u32 rsv2:2;		/* Software use. */
@@ -220,53 +221,51 @@ struct rt_rx_context {
 
 ******************************************************************************/
 #define RTMP_START_DEQUEUE(pAd, QueIdx, irqFlags)				\
-			do{													\
+			do {													\
 				RTMP_IRQ_LOCK(&pAd->DeQueueLock[QueIdx], irqFlags);		\
-				if (pAd->DeQueueRunning[QueIdx])						\
-				{														\
-					RTMP_IRQ_UNLOCK(&pAd->DeQueueLock[QueIdx], irqFlags);\
+				if (pAd->DeQueueRunning[QueIdx]) {						\
+					RTMP_IRQ_UNLOCK(&pAd->DeQueueLock[QueIdx], irqFlags); \
 					DBGPRINT(RT_DEBUG_OFF, ("DeQueueRunning[%d]= TRUE!\n", QueIdx));		\
 					continue;											\
-				}														\
-				else													\
-				{														\
+				} else {												\
 					pAd->DeQueueRunning[QueIdx] = TRUE;					\
 					RTMP_IRQ_UNLOCK(&pAd->DeQueueLock[QueIdx], irqFlags);\
 				}														\
-			}while(0)
+			} while (0)
 
 #define RTMP_STOP_DEQUEUE(pAd, QueIdx, irqFlags)						\
-			do{															\
+			do {													\
 				RTMP_IRQ_LOCK(&pAd->DeQueueLock[QueIdx], irqFlags);		\
 				pAd->DeQueueRunning[QueIdx] = FALSE;					\
 				RTMP_IRQ_UNLOCK(&pAd->DeQueueLock[QueIdx], irqFlags);	\
-			}while(0)
+			} while (0)
 
 #define	RTMP_HAS_ENOUGH_FREE_DESC(pAd, pTxBlk, freeNum, pPacket) \
 		(RTUSBFreeDescriptorRequest(pAd, pTxBlk->QueIdx, (pTxBlk->TotalFrameLen + GET_OS_PKT_LEN(pPacket))) == NDIS_STATUS_SUCCESS)
 
 #define RTMP_RELEASE_DESC_RESOURCE(pAd, QueIdx)			\
-		do{}while(0)
+		do {} while (0)
 
 #define NEED_QUEUE_BACK_FOR_AGG(_pAd, _QueIdx, _freeNum, _TxFrameType)		\
-		((_TxFrameType == TX_RALINK_FRAME) && (RTUSBNeedQueueBackForAgg(_pAd, _QueIdx)))
+		((_TxFrameType == TX_RALINK_FRAME) && \
+		(RTUSBNeedQueueBackForAgg(_pAd, _QueIdx)))
 
 #define HAL_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)	\
-			RtmpUSB_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)
+		RtmpUSB_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)
 
-#define HAL_WriteTxResource(pAd, pTxBlk,bIsLast, pFreeNumber)	\
-			RtmpUSB_WriteSingleTxResource(pAd, pTxBlk,bIsLast, pFreeNumber)
+#define HAL_WriteTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)	\
+		RtmpUSB_WriteSingleTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)
 
 #define HAL_WriteFragTxResource(pAd, pTxBlk, fragNum, pFreeNumber) \
-			RtmpUSB_WriteFragTxResource(pAd, pTxBlk, fragNum, pFreeNumber)
+		RtmpUSB_WriteFragTxResource(pAd, pTxBlk, fragNum, pFreeNumber)
 
-#define HAL_WriteMultiTxResource(pAd, pTxBlk,frameNum, pFreeNumber)	\
-			RtmpUSB_WriteMultiTxResource(pAd, pTxBlk,frameNum, pFreeNumber)
+#define HAL_WriteMultiTxResource(pAd, pTxBlk, frameNum, pFreeNumber)	\
+		RtmpUSB_WriteMultiTxResource(pAd, pTxBlk, frameNum, pFreeNumber)
 
 #define HAL_FinalWriteTxResource(pAd, pTxBlk, totalMPDUSize, TxIdx)	\
-			RtmpUSB_FinalWriteTxResource(pAd, pTxBlk, totalMPDUSize, TxIdx)
+		RtmpUSB_FinalWriteTxResource(pAd, pTxBlk, totalMPDUSize, TxIdx)
 
-#define HAL_LastTxIdx(pAd, QueIdx,TxIdx) \
+#define HAL_LastTxIdx(pAd, QueIdx, TxIdx) \
 				/*RtmpUSBDataLastTxIdx(pAd, QueIdx,TxIdx) */
 
 #define HAL_KickOutTx(pAd, pTxBlk, QueIdx)	\
@@ -286,8 +285,8 @@ struct rt_rx_context {
 /*
   *	Device Hardware Interface Related MACRO
   */
-#define RTMP_IRQ_INIT(pAd)				do{}while(0)
-#define RTMP_IRQ_ENABLE(pAd)			do{}while(0)
+#define RTMP_IRQ_INIT(pAd)				do {} while (0)
+#define RTMP_IRQ_ENABLE(pAd)			do {} while (0)
 
 /*
   *	MLME Related MACRO
@@ -305,8 +304,8 @@ struct rt_rx_context {
 		RTUSBMlmeUp(pAd); }
 
 #define RTMP_MLME_RESET_STATE_MACHINE(pAd)	\
-		        MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_RESET_CONF, 0, NULL);	\
-		        RTUSBMlmeUp(pAd);
+	{	MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_RESET_CONF, 0, NULL);	\
+		RTUSBMlmeUp(pAd); }
 
 #define RTMP_HANDLE_COUNTER_MEASURE(_pAd, _pEntry)		\
 	{	RTUSBEnqueueInternalCmd(_pAd, CMDTHREAD_802_11_COUNTER_MEASURE, _pEntry, sizeof(struct rt_mac_table_entry));	\
@@ -330,12 +329,11 @@ struct rt_rx_context {
 	{\
 		if ((_pAd)->StaCfg.WindowsPowerMode == Ndis802_11PowerModeFast_PSP) \
 			MlmeSetPsmBit(_pAd, _val);\
-		else \
-		{ \
+		else { \
 			u16 _psm_val; \
 			_psm_val = _val; \
 			RTUSBEnqueueInternalCmd(_pAd, CMDTHREAD_SET_PSM_BIT, &(_psm_val), sizeof(u16)); \
-		}\
+		} \
 	}
 
 #define RTMP_MLME_RADIO_ON(pAd) \

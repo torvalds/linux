@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
+#include <linux/slab.h>
 
 #define GPIODIR 0x400
 #define GPIOIS  0x404
@@ -90,6 +91,12 @@ static int pl061_direction_output(struct gpio_chip *gc, unsigned offset,
 	gpiodir = readb(chip->base + GPIODIR);
 	gpiodir |= 1 << offset;
 	writeb(gpiodir, chip->base + GPIODIR);
+
+	/*
+	 * gpio value is set again, because pl061 doesn't allow to set value of
+	 * a gpio pin before configuring it in OUT mode.
+	 */
+	writeb(!!value << offset, chip->base + (1 << (offset + 2)));
 	spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
@@ -122,10 +129,10 @@ static int pl061_to_irq(struct gpio_chip *gc, unsigned offset)
 /*
  * PL061 GPIO IRQ
  */
-static void pl061_irq_disable(unsigned irq)
+static void pl061_irq_disable(struct irq_data *d)
 {
-	struct pl061_gpio *chip = get_irq_chip_data(irq);
-	int offset = irq - chip->irq_base;
+	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - chip->irq_base;
 	unsigned long flags;
 	u8 gpioie;
 
@@ -136,10 +143,10 @@ static void pl061_irq_disable(unsigned irq)
 	spin_unlock_irqrestore(&chip->irq_lock, flags);
 }
 
-static void pl061_irq_enable(unsigned irq)
+static void pl061_irq_enable(struct irq_data *d)
 {
-	struct pl061_gpio *chip = get_irq_chip_data(irq);
-	int offset = irq - chip->irq_base;
+	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - chip->irq_base;
 	unsigned long flags;
 	u8 gpioie;
 
@@ -150,14 +157,14 @@ static void pl061_irq_enable(unsigned irq)
 	spin_unlock_irqrestore(&chip->irq_lock, flags);
 }
 
-static int pl061_irq_type(unsigned irq, unsigned trigger)
+static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 {
-	struct pl061_gpio *chip = get_irq_chip_data(irq);
-	int offset = irq - chip->irq_base;
+	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
+	int offset = d->irq - chip->irq_base;
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
 
-	if (offset < 0 || offset > PL061_GPIO_NR)
+	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
 	spin_lock_irqsave(&chip->irq_lock, flags);
@@ -182,7 +189,7 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 		gpioibe &= ~(1 << offset);
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			gpioiev |= 1 << offset;
-		else
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
 			gpioiev &= ~(1 << offset);
 	}
 	writeb(gpioibe, chip->base + GPIOIBE);
@@ -196,18 +203,18 @@ static int pl061_irq_type(unsigned irq, unsigned trigger)
 
 static struct irq_chip pl061_irqchip = {
 	.name		= "GPIO",
-	.enable		= pl061_irq_enable,
-	.disable	= pl061_irq_disable,
-	.set_type	= pl061_irq_type,
+	.irq_enable	= pl061_irq_enable,
+	.irq_disable	= pl061_irq_disable,
+	.irq_set_type	= pl061_irq_type,
 };
 
 static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct list_head *chip_list = get_irq_chip_data(irq);
+	struct list_head *chip_list = get_irq_data(irq);
 	struct list_head *ptr;
 	struct pl061_gpio *chip;
 
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	list_for_each(ptr, chip_list) {
 		unsigned long pending;
 		int offset;
@@ -219,13 +226,13 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 		if (pending == 0)
 			continue;
 
-		for_each_bit(offset, &pending, PL061_GPIO_NR)
+		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
 			generic_handle_irq(pl061_to_irq(&chip->gc, offset));
 	}
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
-static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
+static int pl061_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct pl061_platform_data *pdata;
 	struct pl061_gpio *chip;
@@ -296,9 +303,9 @@ static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
 			goto iounmap;
 		}
 		INIT_LIST_HEAD(chip_list);
-		set_irq_chip_data(irq, chip_list);
+		set_irq_data(irq, chip_list);
 	} else
-		chip_list = get_irq_chip_data(irq);
+		chip_list = get_irq_data(irq);
 	list_add(&chip->list, chip_list);
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {
@@ -326,7 +333,7 @@ free_mem:
 	return ret;
 }
 
-static struct amba_id pl061_ids[] __initdata = {
+static struct amba_id pl061_ids[] = {
 	{
 		.id	= 0x00041061,
 		.mask	= 0x000fffff,

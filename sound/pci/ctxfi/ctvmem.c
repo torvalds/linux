@@ -138,7 +138,7 @@ ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 		return NULL;
 	}
 
-	ptp = vm->ptp[0];
+	ptp = (unsigned long *)vm->ptp[0].area;
 	pte_start = (block->addr >> CT_PAGE_SHIFT);
 	pages = block->size >> CT_PAGE_SHIFT;
 	for (i = 0; i < pages; i++) {
@@ -158,25 +158,25 @@ static void ct_vm_unmap(struct ct_vm *vm, struct ct_vm_block *block)
 }
 
 /* *
- * return the host (kmalloced) addr of the @index-th device
- * page talbe page on success, or NULL on failure.
- * The first returned NULL indicates the termination.
+ * return the host physical addr of the @index-th device
+ * page table page on success, or ~0UL on failure.
+ * The first returned ~0UL indicates the termination.
  * */
-static void *
-ct_get_ptp_virt(struct ct_vm *vm, int index)
+static dma_addr_t
+ct_get_ptp_phys(struct ct_vm *vm, int index)
 {
-	void *addr;
+	dma_addr_t addr;
 
-	addr = (index >= CT_PTP_NUM) ? NULL : vm->ptp[index];
+	addr = (index >= CT_PTP_NUM) ? ~0UL : vm->ptp[index].addr;
 
 	return addr;
 }
 
-int ct_vm_create(struct ct_vm **rvm)
+int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 {
 	struct ct_vm *vm;
 	struct ct_vm_block *block;
-	int i;
+	int i, err = 0;
 
 	*rvm = NULL;
 
@@ -188,23 +188,21 @@ int ct_vm_create(struct ct_vm **rvm)
 
 	/* Allocate page table pages */
 	for (i = 0; i < CT_PTP_NUM; i++) {
-		vm->ptp[i] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (!vm->ptp[i])
+		err = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+					  snd_dma_pci_data(pci),
+					  PAGE_SIZE, &vm->ptp[i]);
+		if (err < 0)
 			break;
 	}
-	if (!i) {
+	if (err < 0) {
 		/* no page table pages are allocated */
-		kfree(vm);
+		ct_vm_destroy(vm);
 		return -ENOMEM;
 	}
 	vm->size = CT_ADDRS_PER_PAGE * i;
-	/* Initialise remaining ptps */
-	for (; i < CT_PTP_NUM; i++)
-		vm->ptp[i] = NULL;
-
 	vm->map = ct_vm_map;
 	vm->unmap = ct_vm_unmap;
-	vm->get_ptp_virt = ct_get_ptp_virt;
+	vm->get_ptp_phys = ct_get_ptp_phys;
 	INIT_LIST_HEAD(&vm->unused);
 	INIT_LIST_HEAD(&vm->used);
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
@@ -242,7 +240,7 @@ void ct_vm_destroy(struct ct_vm *vm)
 
 	/* free allocated page table pages */
 	for (i = 0; i < CT_PTP_NUM; i++)
-		kfree(vm->ptp[i]);
+		snd_dma_free_pages(&vm->ptp[i]);
 
 	vm->size = 0;
 

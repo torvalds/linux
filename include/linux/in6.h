@@ -221,10 +221,10 @@ struct in6_flowlabel_req {
 #define IPV6_RTHDR		57
 #define IPV6_RECVDSTOPTS	58
 #define IPV6_DSTOPTS		59
-#if 0	/* not yet */
 #define IPV6_RECVPATHMTU	60
 #define IPV6_PATHMTU		61
 #define IPV6_DONTFRAG		62
+#if 0	/* not yet */
 #define IPV6_USE_MIN_MTU	63
 #endif
 
@@ -264,6 +264,13 @@ struct in6_flowlabel_req {
 #define IPV6_PREFER_SRC_HOME		0x0400
 #define IPV6_PREFER_SRC_CGA		0x0008
 #define IPV6_PREFER_SRC_NONCGA		0x0800
+
+/* RFC5082: Generalized Ttl Security Mechanism */
+#define IPV6_MINHOPCOUNT		73
+
+#define IPV6_ORIGDSTADDR        74
+#define IPV6_RECVORIGDSTADDR    IPV6_ORIGDSTADDR
+#define IPV6_TRANSPARENT        75
 
 /*
  * Multicast Routing:

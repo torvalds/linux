@@ -14,7 +14,7 @@ telecom systems. In addition to an XScale core, it contains up to 8
 interfaces (UTOPIA, SPI, etc), a PCI host bridge, one serial port,
 flash interface, and some other odds and ends. For more information, see:
 
-http://developer.intel.com/design/network/products/npfamily/ixp2xxx.htm
+http://developer.intel.com
 
 2. Linux Support
 

@@ -5,11 +5,14 @@
  * See COPYING in the top level directory of the kernel tree.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/hwmon.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
@@ -761,6 +764,7 @@ static const struct file_operations atk_debugfs_ggrp_fops = {
 	.read		= atk_debugfs_ggrp_read,
 	.open		= atk_debugfs_ggrp_open,
 	.release	= atk_debugfs_ggrp_release,
+	.llseek		= no_llseek,
 };
 
 static void atk_debugfs_init(struct atk_data *data)
@@ -1168,15 +1172,19 @@ static int atk_create_files(struct atk_data *data)
 	int err;
 
 	list_for_each_entry(s, &data->sensor_list, list) {
+		sysfs_attr_init(&s->input_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->input_attr);
 		if (err)
 			return err;
+		sysfs_attr_init(&s->label_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->label_attr);
 		if (err)
 			return err;
+		sysfs_attr_init(&s->limit1_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->limit1_attr);
 		if (err)
 			return err;
+		sysfs_attr_init(&s->limit2_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->limit2_attr);
 		if (err)
 			return err;
@@ -1406,9 +1414,15 @@ static int __init atk0110_init(void)
 {
 	int ret;
 
+	/* Make sure it's safe to access the device through ACPI */
+	if (!acpi_resources_are_enforced()) {
+		pr_err("Resources not safely usable due to acpi_enforce_resources kernel parameter\n");
+		return -EBUSY;
+	}
+
 	ret = acpi_bus_register_driver(&atk_driver);
 	if (ret)
-		pr_info("atk: acpi_bus_register_driver failed: %d\n", ret);
+		pr_info("acpi_bus_register_driver failed: %d\n", ret);
 
 	return ret;
 }

@@ -357,7 +357,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 {
 	int status = 0;
 	u64 blkno;
-	unsigned long long blocks, bytes;
+	unsigned long long blocks, bytes = 0;
 	unsigned int i;
 	struct buffer_head *bh;
 

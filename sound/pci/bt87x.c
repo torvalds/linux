@@ -637,15 +637,9 @@ static struct snd_kcontrol_new snd_bt87x_capture_boost = {
 static int snd_bt87x_capture_source_info(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_info *info)
 {
-	static char *texts[3] = {"TV Tuner", "FM", "Mic/Line"};
+	static const char *const texts[3] = {"TV Tuner", "FM", "Mic/Line"};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item > 2)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, texts[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 3, texts);
 }
 
 static int snd_bt87x_capture_source_get(struct snd_kcontrol *kcontrol,
@@ -795,7 +789,7 @@ fail:
 	  .driver_data = SND_BT87X_BOARD_ ## id }
 /* driver_data is the card id for that device */
 
-static struct pci_device_id snd_bt87x_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_bt87x_ids) = {
 	/* Hauppauge WinTV series */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0x13eb, GENERIC),
 	/* Hauppauge WinTV series */
@@ -964,7 +958,7 @@ static void __devexit snd_bt87x_remove(struct pci_dev *pci)
 
 /* default entries for all Bt87x cards - it's not exported */
 /* driver_data is set to 0 to call detection */
-static struct pci_device_id snd_bt87x_default_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(snd_bt87x_default_ids) = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, UNKNOWN),
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, UNKNOWN),
 	{ }

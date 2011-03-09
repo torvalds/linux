@@ -377,16 +377,15 @@ static const struct cb_pcidas_board cb_pcidas_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidas_pci_table) = {
-	{
-	PCI_VENDOR_ID_CB, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x000f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x0010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x001c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x004c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x001a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x001b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0001) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0010) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0019) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x004c) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001a) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001b) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, cb_pcidas_pci_table);
@@ -518,7 +517,7 @@ static int trimpot_7376_write(struct comedi_device *dev, uint8_t value);
 static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 			      uint8_t value);
 static int nvram_read(struct comedi_device *dev, unsigned int address,
-		      uint8_t * data);
+		      uint8_t *data);
 
 static inline unsigned int cal_enable_bits(struct comedi_device *dev)
 {
@@ -533,7 +532,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 	int i;
 
@@ -550,9 +549,7 @@ static int cb_pcidas_attach(struct comedi_device *dev,
  */
 	printk("\n");
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_CB)
 			continue;
@@ -760,9 +757,8 @@ static int cb_pcidas_detach(struct comedi_device *dev)
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 	if (devpriv && devpriv->pci_dev) {
-		if (devpriv->s5933_config) {
+		if (devpriv->s5933_config)
 			comedi_pci_disable(devpriv->pci_dev);
-		}
 		pci_dev_put(devpriv->pci_dev);
 	}
 
@@ -1248,9 +1244,8 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 					cmd->flags & TRIG_ROUND_MASK);
 
 	/*  set number of conversions */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count = cmd->chanlist_len * cmd->stop_arg;
-	}
 	/*  enable interrupts */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->adc_fifo_bits |= INTE;
@@ -1449,9 +1444,8 @@ static int cb_pcidas_ao_cmd(struct comedi_device *dev,
 			   devpriv->ao_divisor2, 2);
 	}
 	/*  set number of conversions */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_count = cmd->chanlist_len * cmd->stop_arg;
-	}
 	/*  set pacer source */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	switch (cmd->scan_begin_src) {
@@ -1494,9 +1488,8 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 					       num_points * sizeof(short));
 	num_points = num_bytes / sizeof(short);
 
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_count -= num_points;
-	}
 	/*  write data to board's fifo */
 	outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer, num_bytes);
 
@@ -1534,9 +1527,8 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 	static const int timeout = 10000;
 	unsigned long flags;
 
-	if (dev->attached == 0) {
+	if (dev->attached == 0)
 		return IRQ_NONE;
-	}
 
 	async = s->async;
 	async->events = 0;
@@ -1558,15 +1550,13 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 
 	status = inw(devpriv->control_status + INT_ADCFIFO);
 #ifdef CB_PCIDAS_DEBUG
-	if ((status & (INT | EOAI | LADFUL | DAHFI | DAEMI)) == 0) {
+	if ((status & (INT | EOAI | LADFUL | DAHFI | DAEMI)) == 0)
 		comedi_error(dev, "spurious interrupt");
-	}
 #endif
 
 	/*  check for analog output interrupt */
-	if (status & (DAHFI | DAEMI)) {
+	if (status & (DAHFI | DAEMI))
 		handle_ao_interrupt(dev, status);
-	}
 	/*  check for analog input interrupts */
 	/*  if fifo half-full */
 	if (status & ADHFI) {
@@ -1675,9 +1665,8 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 					       num_points * sizeof(short));
 		num_points = num_bytes / sizeof(short);
 
-		if (async->cmd.stop_src == TRIG_COUNT) {
+		if (async->cmd.stop_src == TRIG_COUNT)
 			devpriv->ao_count -= num_points;
-		}
 		/*  write data to board's fifo */
 		outsw(devpriv->ao_registers + DACDATA, devpriv->ao_buffer,
 		      num_points);
@@ -1852,7 +1841,7 @@ static int wait_for_nvram_ready(unsigned long s5933_base_addr)
 }
 
 static int nvram_read(struct comedi_device *dev, unsigned int address,
-		      uint8_t * data)
+			uint8_t *data)
 {
 	unsigned long iobase = devpriv->s5933_config;
 
@@ -1879,4 +1868,44 @@ static int nvram_read(struct comedi_device *dev, unsigned int address,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, cb_pcidas_pci_table);
+static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
+}
+
+static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidas_pci_driver = {
+	.id_table = cb_pcidas_pci_table,
+	.probe = &driver_cb_pcidas_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
+};
+
+static int __init driver_cb_pcidas_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidas);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
+	return pci_register_driver(&driver_cb_pcidas_pci_driver);
+}
+
+static void __exit driver_cb_pcidas_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidas);
+}
+
+module_init(driver_cb_pcidas_init_module);
+module_exit(driver_cb_pcidas_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

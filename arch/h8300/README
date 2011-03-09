@@ -18,6 +18,7 @@ H8/300H and H8S
 
 4.EDOSK2674
   see http://www.eu.renesas.com/products/mpumcu/tool/edk/support/edosk2674.html
+      http://www.uclinux.org/pub/uClinux/ports/h8/HITACHI-EDOSK2674-HOWTO
       http://www.azpower.com/H8-uClinux/
 
 * Toolchain Version

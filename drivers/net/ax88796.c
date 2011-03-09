@@ -25,6 +25,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/slab.h>
 
 #include <net/ax88796.h>
 
@@ -302,7 +303,6 @@ static void ax_block_output(struct net_device *dev, int count,
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 /* definitions for accessing MII/EEPROM interface */
@@ -325,7 +325,7 @@ static void ax_block_output(struct net_device *dev, int count,
 static void
 ax_mii_ei_outbits(struct net_device *dev, unsigned int bits, int len)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	void __iomem *memr_addr = (void __iomem *)dev->base_addr + AX_MEMR;
 	unsigned int memr;
 
@@ -364,7 +364,7 @@ ax_mii_ei_outbits(struct net_device *dev, unsigned int bits, int len)
 static unsigned int
 ax_phy_ei_inbits(struct net_device *dev, int no)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	void __iomem *memr_addr = (void __iomem *)dev->base_addr + AX_MEMR;
 	unsigned int memr;
 	unsigned int result = 0;
@@ -412,7 +412,7 @@ ax_phy_issueaddr(struct net_device *dev, int phy_addr, int reg, int opc)
 static int
 ax_phy_read(struct net_device *dev, int phy_addr, int reg)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned long flags;
  	unsigned int result;
 
@@ -435,7 +435,7 @@ ax_phy_read(struct net_device *dev, int phy_addr, int reg)
 static void
 ax_phy_write(struct net_device *dev, int phy_addr, int reg, int value)
 {
-	struct ei_device *ei = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei = netdev_priv(dev);
 	struct ax_device  *ax = to_ax_dev(dev);
 	unsigned long flags;
 
@@ -481,8 +481,10 @@ static int ax_open(struct net_device *dev)
 		return ret;
 
 	ret = ax_ei_open(dev);
-	if (ret)
+	if (ret) {
+		free_irq(dev->irq, dev);
 		return ret;
+	}
 
 	/* turn the phy on (if turned off) */
 
@@ -862,6 +864,7 @@ static int ax_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ specified\n");
+		ret = -ENXIO;
 		goto exit_mem;
 	}
 
@@ -921,7 +924,7 @@ static int ax_probe(struct platform_device *pdev)
  		size = (res->end - res->start) + 1;
 
 		ax->mem2 = request_mem_region(res->start, size, pdev->name);
-		if (ax->mem == NULL) {
+		if (ax->mem2 == NULL) {
 			dev_err(&pdev->dev, "cannot reserve registers\n");
 			ret = -ENXIO;
 			goto exit_mem1;

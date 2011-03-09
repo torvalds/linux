@@ -13,6 +13,7 @@
 
 #include "ext2.h"
 #include <linux/quotaops.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/buffer_head.h>
 #include <linux/capability.h>
@@ -570,7 +571,7 @@ do_more:
 error_return:
 	brelse(bitmap_bh);
 	release_blocks(sb, freed);
-	vfs_dq_free_block(inode, freed);
+	dquot_free_block_nodirty(inode, freed);
 }
 
 /**
@@ -645,10 +646,9 @@ find_next_usable_block(int start, struct buffer_head *bh, int maxblocks)
 	return here;
 }
 
-/*
+/**
  * ext2_try_to_allocate()
  * @sb:			superblock
- * @handle:		handle to this transaction
  * @group:		given allocation block group
  * @bitmap_bh:		bufferhead holds the block bitmap
  * @grp_goal:		given target block within the group
@@ -1236,6 +1236,7 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 	unsigned short windowsz = 0;
 	unsigned long ngroups;
 	unsigned long num = *count;
+	int ret;
 
 	*errp = -ENOSPC;
 	sb = inode->i_sb;
@@ -1247,8 +1248,9 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 	/*
 	 * Check quota for allocation of this block.
 	 */
-	if (vfs_dq_alloc_block(inode, num)) {
-		*errp = -EDQUOT;
+	ret = dquot_alloc_block(inode, num);
+	if (ret) {
+		*errp = ret;
 		return 0;
 	}
 
@@ -1328,6 +1330,12 @@ retry_alloc:
 			goto io_error;
 
 		free_blocks = le16_to_cpu(gdp->bg_free_blocks_count);
+		/*
+		 * skip this group (and avoid loading bitmap) if there
+		 * are no free blocks
+		 */
+		if (!free_blocks)
+			continue;
 		/*
 		 * skip this group if the number of
 		 * free blocks is less than half of the reservation
@@ -1409,7 +1417,8 @@ allocated:
 
 	*errp = 0;
 	brelse(bitmap_bh);
-	vfs_dq_free_block(inode, *count-num);
+	dquot_free_block_nodirty(inode, *count-num);
+	mark_inode_dirty(inode);
 	*count = num;
 	return ret_block;
 
@@ -1419,8 +1428,10 @@ out:
 	/*
 	 * Undo the block allocation
 	 */
-	if (!performed_allocation)
-		vfs_dq_free_block(inode, *count);
+	if (!performed_allocation) {
+		dquot_free_block_nodirty(inode, *count);
+		mark_inode_dirty(inode);
+	}
 	brelse(bitmap_bh);
 	return 0;
 }

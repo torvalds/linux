@@ -39,8 +39,8 @@ static const struct ctrl hdcs1x00_ctrl[] = {
 			.minimum	= 0x00,
 			.maximum	= 0xff,
 			.step		= 0x1,
-			.default_value 	= HDCS_DEFAULT_EXPOSURE,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.default_value	= HDCS_DEFAULT_EXPOSURE,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = hdcs_set_exposure,
 		.get = hdcs_get_exposure
@@ -52,8 +52,8 @@ static const struct ctrl hdcs1x00_ctrl[] = {
 			.minimum	= 0x00,
 			.maximum	= 0xff,
 			.step		= 0x1,
-			.default_value 	= HDCS_DEFAULT_GAIN,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.default_value	= HDCS_DEFAULT_GAIN,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = hdcs_set_gain,
 		.get = hdcs_get_gain
@@ -83,8 +83,8 @@ static const struct ctrl hdcs1020_ctrl[] = {
 			.minimum	= 0x00,
 			.maximum	= 0xffff,
 			.step		= 0x1,
-			.default_value 	= HDCS_DEFAULT_EXPOSURE,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.default_value	= HDCS_DEFAULT_EXPOSURE,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = hdcs_set_exposure,
 		.get = hdcs_get_exposure
@@ -96,8 +96,8 @@ static const struct ctrl hdcs1020_ctrl[] = {
 			.minimum	= 0x00,
 			.maximum	= 0xff,
 			.step		= 0x1,
-			.default_value 	= HDCS_DEFAULT_GAIN,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.default_value	= HDCS_DEFAULT_GAIN,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = hdcs_set_gain,
 		.get = hdcs_get_gain
@@ -163,7 +163,8 @@ static int hdcs_reg_write_seq(struct sd *sd, u8 reg, u8 *vals, u8 len)
 	for (i = 0; i < len; i++) {
 		regs[2 * i] = reg;
 		regs[2 * i + 1] = vals[i];
-		/* All addresses are shifted left one bit as bit 0 toggles r/w */
+		/* All addresses are shifted left one bit
+		 * as bit 0 toggles r/w */
 		reg += 2;
 	}
 

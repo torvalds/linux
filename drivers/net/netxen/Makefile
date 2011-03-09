@@ -18,7 +18,7 @@
 # MA  02111-1307, USA.
 # 
 # The full GNU General Public License is included in this distribution
-# in the file called LICENSE.
+# in the file called "COPYING".
 # 
 #
 

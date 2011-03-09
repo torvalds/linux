@@ -368,13 +368,6 @@ struct ahc_platform_data {
 	resource_size_t 	 mem_busaddr;	/* Mem Base Addr */
 };
 
-/************************** OS Utility Wrappers *******************************/
-#define printf printk
-#define M_NOWAIT GFP_ATOMIC
-#define M_WAITOK 0
-#define malloc(size, type, flags) kmalloc(size, flags)
-#define free(ptr, type) kfree(ptr)
-
 void ahc_delay(long);
 
 

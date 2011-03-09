@@ -50,12 +50,15 @@
  * be incorporated into the next SCTP release.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/net.h>
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/inet_ecn.h>
 #include <linux/skbuff.h>
@@ -1137,18 +1140,16 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 	if (unlikely(!link)) {
 		if (from_addr.sa.sa_family == AF_INET6) {
 			if (net_ratelimit())
-				printk(KERN_WARNING
-				    "%s association %p could not find address %pI6\n",
-				    __func__,
-				    asoc,
-				    &from_addr.v6.sin6_addr);
+				pr_warn("%s association %p could not find address %pI6\n",
+					__func__,
+					asoc,
+					&from_addr.v6.sin6_addr);
 		} else {
 			if (net_ratelimit())
-				printk(KERN_WARNING
-				    "%s association %p could not find address %pI4\n",
-				    __func__,
-				    asoc,
-				    &from_addr.v4.sin_addr.s_addr);
+				pr_warn("%s association %p could not find address %pI4\n",
+					__func__,
+					asoc,
+					&from_addr.v4.sin_addr.s_addr);
 		}
 		return SCTP_DISPOSITION_DISCARD;
 	}
@@ -1231,6 +1232,18 @@ out:
 	return 0;
 }
 
+static bool list_has_sctp_addr(const struct list_head *list,
+			       union sctp_addr *ipaddr)
+{
+	struct sctp_transport *addr;
+
+	list_for_each_entry(addr, list, transports) {
+		if (sctp_cmp_addr_exact(ipaddr, &addr->ipaddr))
+			return true;
+	}
+
+	return false;
+}
 /* A restart is occurring, check to make sure no new addresses
  * are being added as we may be under a takeover attack.
  */
@@ -1239,10 +1252,10 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 				       struct sctp_chunk *init,
 				       sctp_cmd_seq_t *commands)
 {
-	struct sctp_transport *new_addr, *addr;
-	int found;
+	struct sctp_transport *new_addr;
+	int ret = 1;
 
-	/* Implementor's Guide - Sectin 5.2.2
+	/* Implementor's Guide - Section 5.2.2
 	 * ...
 	 * Before responding the endpoint MUST check to see if the
 	 * unexpected INIT adds new addresses to the association. If new
@@ -1253,31 +1266,19 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 	/* Search through all current addresses and make sure
 	 * we aren't adding any new ones.
 	 */
-	new_addr = NULL;
-	found = 0;
-
 	list_for_each_entry(new_addr, &new_asoc->peer.transport_addr_list,
-			transports) {
-		found = 0;
-		list_for_each_entry(addr, &asoc->peer.transport_addr_list,
-				transports) {
-			if (sctp_cmp_addr_exact(&new_addr->ipaddr,
-						&addr->ipaddr)) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
+			    transports) {
+		if (!list_has_sctp_addr(&asoc->peer.transport_addr_list,
+					&new_addr->ipaddr)) {
+			sctp_sf_send_restart_abort(&new_addr->ipaddr, init,
+						   commands);
+			ret = 0;
 			break;
-	}
-
-	/* If a new address was added, ABORT the sender. */
-	if (!found && new_addr) {
-		sctp_sf_send_restart_abort(&new_addr->ipaddr, init, commands);
+		}
 	}
 
 	/* Return success if all addresses were found. */
-	return found;
+	return ret;
 }
 
 /* Populate the verification/tie tags based on overlapping INIT
@@ -3675,8 +3676,14 @@ sctp_disposition_t sctp_sf_do_asconf_ack(const struct sctp_endpoint *ep,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_T4_RTO));
 
 		if (!sctp_process_asconf_ack((struct sctp_association *)asoc,
-					     asconf_ack))
+					     asconf_ack)) {
+			/* Successfully processed ASCONF_ACK.  We can
+			 * release the next asconf if we have one.
+			 */
+			sctp_add_cmd_sf(commands, SCTP_CMD_SEND_NEXT_ASCONF,
+					SCTP_NULL());
 			return SCTP_DISPOSITION_CONSUME;
+		}
 
 		abort = sctp_make_abort(asoc, asconf_ack,
 					sizeof(sctp_errhdr_t));

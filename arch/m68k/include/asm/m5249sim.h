@@ -11,6 +11,11 @@
 #define	m5249sim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m5249)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m52xxacr.h>
+
 /*
  *	Define the 5249 SIM register set addresses.
  */
@@ -56,6 +61,11 @@
 #define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
 #define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
 
+/*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
+#define MCFUART_BASE2		0x200           /* Base address of UART2 */
 
 /*
  *	Some symbol defines for the above...
@@ -69,10 +79,12 @@
 #define	MCFSIM_DMA1ICR		MCFSIM_ICR7	/* DMA 1 ICR */
 #define	MCFSIM_DMA2ICR		MCFSIM_ICR8	/* DMA 2 ICR */
 #define	MCFSIM_DMA3ICR		MCFSIM_ICR9	/* DMA 3 ICR */
+#define	MCFSIM_QSPIICR		MCFSIM_ICR10	/* QSPI ICR */
 
 /*
  *	Define system peripheral IRQ usage.
  */
+#define	MCF_IRQ_QSPI		28		/* QSPI, Level 4 */
 #define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
 #define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
 

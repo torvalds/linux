@@ -77,7 +77,7 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define TIF_UAC_NOPRINT		10	/* see sysinfo.h */
 #define TIF_UAC_NOFIX		11
 #define TIF_UAC_SIGBUS		12
-#define TIF_MEMDIE		13
+#define TIF_MEMDIE		13	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	14	/* restore signal mask in do_signal */
 #define TIF_FREEZE		16	/* is freezing for suspend */
 

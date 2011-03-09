@@ -40,6 +40,7 @@
 #include <linux/blkdev.h>
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>

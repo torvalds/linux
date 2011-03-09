@@ -90,6 +90,27 @@ static void do_test(unsigned long size)
 	iounmap(p);
 }
 
+/*
+ * Tests how mmiotrace behaves in face of multiple ioremap / iounmaps in
+ * a short time. We had a bug in deferred freeing procedure which tried
+ * to free this region multiple times (ioremap can reuse the same address
+ * for many mappings).
+ */
+static void do_test_bulk_ioremapping(void)
+{
+	void __iomem *p;
+	int i;
+
+	for (i = 0; i < 10; ++i) {
+		p = ioremap_nocache(mmio_address, PAGE_SIZE);
+		if (p)
+			iounmap(p);
+	}
+
+	/* Force freeing. If it will crash we will know why. */
+	synchronize_rcu();
+}
+
 static int __init init(void)
 {
 	unsigned long size = (read_far) ? (8 << 20) : (16 << 10);
@@ -104,6 +125,7 @@ static int __init init(void)
 		   "and writing 16 kB of rubbish in there.\n",
 		   size >> 10, mmio_address);
 	do_test(size);
+	do_test_bulk_ioremapping();
 	pr_info("All done.\n");
 	return 0;
 }

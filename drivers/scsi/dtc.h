@@ -36,7 +36,7 @@ static int dtc_abort(Scsi_Cmnd *);
 static int dtc_biosparam(struct scsi_device *, struct block_device *,
 		         sector_t, int*);
 static int dtc_detect(struct scsi_host_template *);
-static int dtc_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
+static int dtc_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
 static int dtc_bus_reset(Scsi_Cmnd *);
 
 #ifndef CMD_PER_LUN

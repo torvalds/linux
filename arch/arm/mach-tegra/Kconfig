@@ -1,0 +1,61 @@
+if ARCH_TEGRA
+
+comment "NVIDIA Tegra options"
+
+choice
+	prompt "Select Tegra processor family for target system"
+
+config ARCH_TEGRA_2x_SOC
+	bool "Tegra 2 family"
+	select CPU_V7
+	select ARM_GIC
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
+	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
+
+endchoice
+
+config TEGRA_PCI
+	bool "PCI Express support"
+	select PCI
+
+comment "Tegra board type"
+
+config MACH_HARMONY
+       bool "Harmony board"
+       help
+         Support for nVidia Harmony development platform
+
+choice
+        prompt "Low-level debug console UART"
+        default TEGRA_DEBUG_UART_NONE
+
+config TEGRA_DEBUG_UART_NONE
+        bool "None"
+
+config TEGRA_DEBUG_UARTA
+        bool "UART-A"
+
+config TEGRA_DEBUG_UARTB
+        bool "UART-B"
+
+config TEGRA_DEBUG_UARTC
+        bool "UART-C"
+
+config TEGRA_DEBUG_UARTD
+        bool "UART-D"
+
+config TEGRA_DEBUG_UARTE
+        bool "UART-E"
+
+endchoice
+
+config TEGRA_SYSTEM_DMA
+	bool "Enable system DMA driver for NVIDIA Tegra SoCs"
+	default y
+	help
+	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
+	  several Tegra device drivers
+
+endif

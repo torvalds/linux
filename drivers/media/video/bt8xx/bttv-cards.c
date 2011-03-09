@@ -241,6 +241,10 @@ static struct CARD {
 	{ 0xa1550101, BTTV_BOARD_IVC200,        "IVC-200G" },
 	{ 0xa1550102, BTTV_BOARD_IVC200,        "IVC-200G" },
 	{ 0xa1550103, BTTV_BOARD_IVC200,        "IVC-200G" },
+	{ 0xa1550800, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550801, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550802, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550803, BTTV_BOARD_IVC200,        "IVC-200"  },
 	{ 0xa182ff00, BTTV_BOARD_IVC120,        "IVC-120G" },
 	{ 0xa182ff01, BTTV_BOARD_IVC120,        "IVC-120G" },
 	{ 0xa182ff02, BTTV_BOARD_IVC120,        "IVC-120G" },
@@ -3525,7 +3529,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		struct v4l2_subdev *sd;
 
 		sd = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "saa6588", "saa6588", 0, addrs);
+			&btv->c.i2c_adap, "saa6588", 0, addrs);
 		btv->has_saa6588 = (sd != NULL);
 	}
 
@@ -3550,7 +3554,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		};
 
 		btv->sd_msp34xx = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "msp3400", "msp3400", 0, addrs);
+			&btv->c.i2c_adap, "msp3400", 0, addrs);
 		if (btv->sd_msp34xx)
 			return;
 		goto no_audio;
@@ -3564,7 +3568,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		};
 
 		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tda7432", "tda7432", 0, addrs))
+				&btv->c.i2c_adap, "tda7432", 0, addrs))
 			return;
 		goto no_audio;
 	}
@@ -3572,7 +3576,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case 3: {
 		/* The user specified that we should probe for tvaudio */
 		btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "tvaudio", "tvaudio", 0, tvaudio_addrs());
+			&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
 		if (btv->sd_tvaudio)
 			return;
 		goto no_audio;
@@ -3592,11 +3596,11 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	   found is really something else (e.g. a tea6300). */
 	if (!bttv_tvcards[btv->c.type].no_msp34xx) {
 		btv->sd_msp34xx = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "msp3400", "msp3400",
+			&btv->c.i2c_adap, "msp3400",
 			0, I2C_ADDRS(I2C_ADDR_MSP3400 >> 1));
 	} else if (bttv_tvcards[btv->c.type].msp34xx_alt) {
 		btv->sd_msp34xx = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, "msp3400", "msp3400",
+			&btv->c.i2c_adap, "msp3400",
 			0, I2C_ADDRS(I2C_ADDR_MSP3400_ALT >> 1));
 	}
 
@@ -3612,13 +3616,13 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		};
 
 		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tda7432", "tda7432", 0, addrs))
+				&btv->c.i2c_adap, "tda7432", 0, addrs))
 			return;
 	}
 
 	/* Now see if we can find one of the tvaudio devices. */
 	btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-		&btv->c.i2c_adap, "tvaudio", "tvaudio", 0, tvaudio_addrs());
+		&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
 	if (btv->sd_tvaudio)
 		return;
 
@@ -3642,13 +3646,13 @@ void __devinit bttv_init_tuner(struct bttv *btv)
 		/* Load tuner module before issuing tuner config call! */
 		if (bttv_tvcards[btv->c.type].has_radio)
 			v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tuner", "tuner",
+				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_RADIO));
 		v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tuner", "tuner",
+				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, "tuner", "tuner",
+				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_TV_WITH_DEMOD));
 
 		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
@@ -4404,7 +4408,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
 /* Tibet Systems 'Progress DVR' CS16 muxsel helper [Chris Fanning]
  *
  * The CS16 (available on eBay cheap) is a PCI board with four Fusion
- * 878A chips, a PCI bridge, an Atmel microcontroller, four sync seperator
+ * 878A chips, a PCI bridge, an Atmel microcontroller, four sync separator
  * chips, ten eight input analog multiplexors, a not chip and a few
  * other components.
  *
@@ -4426,7 +4430,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
  *
  * There is an ATMEL microcontroller with an 8031 core on board.  I have not
  * determined what function (if any) it provides.  With the microcontroller
- * and sync seperator chips a guess is that it might have to do with video
+ * and sync separator chips a guess is that it might have to do with video
  * switching and maybe some digital I/O.
  */
 static void tibetCS16_muxsel(struct bttv *btv, unsigned int input)

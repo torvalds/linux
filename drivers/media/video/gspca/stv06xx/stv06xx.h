@@ -30,13 +30,14 @@
 #ifndef STV06XX_H_
 #define STV06XX_H_
 
+#include <linux/slab.h>
 #include "gspca.h"
 
 #define MODULE_NAME "STV06xx"
 
 #define STV_ISOC_ENDPOINT_ADDR		0x81
 
-#define STV_REG23 			0x0423
+#define STV_REG23			0x0423
 
 /* Control registers of the STV0600 ASIC */
 #define STV_I2C_PARTNER			0x1420

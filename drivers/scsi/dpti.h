@@ -29,7 +29,7 @@
  */
 
 static int adpt_detect(struct scsi_host_template * sht);
-static int adpt_queue(struct scsi_cmnd * cmd, void (*cmdcomplete) (struct scsi_cmnd *));
+static int adpt_queue(struct Scsi_Host *h, struct scsi_cmnd * cmd);
 static int adpt_abort(struct scsi_cmnd * cmd);
 static int adpt_reset(struct scsi_cmnd* cmd);
 static int adpt_release(struct Scsi_Host *host);

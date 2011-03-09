@@ -106,7 +106,7 @@ static unsigned outcnt = 0;  /* bytes in output buffer */
 
 static void flush_window(void);
 static void error(char *m);
-static void puts(const char *);
+static void aputs(const char *s);
 
 extern char *input_data;  /* lives in head.S */
 
@@ -137,52 +137,37 @@ static inline void serout(const char *s, reg_scope_instances regi_ser)
 
 	REG_WR(ser, regi_ser, rw_dout, dout);
 }
+#define SEROUT(S, N) \
+	do { \
+		serout(S, regi_ser ## N); \
+		s++; \
+	} while (0)
+#else
+#define SEROUT(S, N) do { \
+		while (!(*R_SERIAL ## N ## _STATUS & (1 << 5))) \
+			; \
+		*R_SERIAL ## N ## _TR_DATA = *s++; \
+	} while (0)
 #endif
 
-static void puts(const char *s)
+static void aputs(const char *s)
 {
 #ifndef CONFIG_ETRAX_DEBUG_PORT_NULL
 	while (*s) {
 #ifdef CONFIG_ETRAX_DEBUG_PORT0
-#ifdef CONFIG_ETRAX_ARCH_V32
-		serout(s, regi_ser0);
-#else
-		while (!(*R_SERIAL0_STATUS & (1 << 5)))
-			;
-		*R_SERIAL0_TR_DATA = *s++;
-#endif
+		SEROUT(s, 0);
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT1
-#ifdef CONFIG_ETRAX_ARCH_V32
-		serout(s, regi_ser1);
-#else
-		while (!(*R_SERIAL1_STATUS & (1 << 5)))
-			;
-		*R_SERIAL1_TR_DATA = *s++;
-#endif
+		SEROUT(s, 1);
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT2
-#ifdef CONFIG_ETRAX_ARCH_V32
-		serout(s, regi_ser2);
-#else
-		while (!(*R_SERIAL2_STATUS & (1 << 5)))
-			;
-		*R_SERIAL2_TR_DATA = *s++;
-#endif
+		SEROUT(s, 2);
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT3
-#ifdef CONFIG_ETRAX_ARCH_V32
-		serout(s, regi_ser3);
-#else
-		while (!(*R_SERIAL3_STATUS & (1 << 5)))
-			;
-		*R_SERIAL3_TR_DATA = *s++;
+		SEROUT(s, 3);
 #endif
-#endif
-		*s++;
 	}
-/* CONFIG_ETRAX_DEBUG_PORT_NULL */
-#endif
+#endif /* CONFIG_ETRAX_DEBUG_PORT_NULL */
 }
 
 void *memset(void *s, int c, size_t n)
@@ -233,9 +218,9 @@ static void flush_window(void)
 
 static void error(char *x)
 {
-	puts("\n\n");
-	puts(x);
-	puts("\n\n -- System halted\n");
+	aputs("\n\n");
+	aputs(x);
+	aputs("\n\n -- System halted\n");
 
 	while(1);	/* Halt */
 }
@@ -378,14 +363,14 @@ void decompress_kernel(void)
 	__asm__ volatile ("move $vr,%0" : "=rm" (revision));
 	if (revision < compile_rev) {
 #ifdef CONFIG_ETRAX_ARCH_V32
-		puts("You need an ETRAX FS to run Linux 2.6/crisv32\n");
+		aputs("You need at least ETRAX FS to run Linux 2.6/crisv32\n");
 #else
-		puts("You need an ETRAX 100LX to run linux 2.6\n");
+		aputs("You need an ETRAX 100LX to run linux 2.6/crisv10\n");
 #endif
 		while(1);
 	}
 
-	puts("Uncompressing Linux...\n");
+	aputs("Uncompressing Linux...\n");
 	gunzip();
-	puts("Done. Now booting the kernel\n");
+	aputs("Done. Now booting the kernel\n");
 }

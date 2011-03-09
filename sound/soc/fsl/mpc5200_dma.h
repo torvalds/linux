@@ -73,17 +73,12 @@ struct psc_dma {
 };
 
 /* Utility for retrieving psc_dma_stream structure from a substream */
-inline struct psc_dma_stream *
+static inline struct psc_dma_stream *
 to_psc_dma_stream(struct snd_pcm_substream *substream, struct psc_dma *psc_dma)
 {
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
 		return &psc_dma->capture;
 	return &psc_dma->playback;
 }
-
-int mpc5200_audio_dma_create(struct of_device *op);
-int mpc5200_audio_dma_destroy(struct of_device *op);
-
-extern struct snd_soc_platform mpc5200_audio_dma_platform;
 
 #endif /* __SOUND_SOC_FSL_MPC5200_DMA_H__ */

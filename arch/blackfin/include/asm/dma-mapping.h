@@ -21,8 +21,6 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 #define dma_supported(d, m)         (1)
-#define dma_get_cache_alignment()   (32)
-#define dma_is_consistent(d, h)     (1)
 
 static inline int
 dma_set_mask(struct device *dev, u64 dma_mask)
@@ -44,13 +42,8 @@ dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 extern void
 __dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir);
 static inline void
-_dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir)
+__dma_sync_inline(dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
-	if (!__builtin_constant_p(dir)) {
-		__dma_sync(addr, size, dir);
-		return;
-	}
-
 	switch (dir) {
 	case DMA_NONE:
 		BUG();
@@ -64,14 +57,15 @@ _dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir)
 		break;
 	}
 }
+static inline void
+_dma_sync(dma_addr_t addr, size_t size, enum dma_data_direction dir)
+{
+	if (__builtin_constant_p(dir))
+		__dma_sync_inline(addr, size, dir);
+	else
+		__dma_sync(addr, size, dir);
+}
 
-/*
- * Map a single buffer of the indicated size for DMA in streaming mode.
- * The 32-bit bus address to use is returned.
- *
- * Once the device is given the dma address, the device owns this memory
- * until either pci_unmap_single or pci_dma_sync_single is performed.
- */
 static inline dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
 	       enum dma_data_direction dir)
@@ -88,14 +82,6 @@ dma_map_page(struct device *dev, struct page *page,
 	return dma_map_single(dev, page_address(page) + offset, size, dir);
 }
 
-/*
- * Unmap a single streaming mode DMA translation.  The dma_addr and size
- * must match what was provided for in a previous pci_map_single call.  All
- * other usages are undefined.
- *
- * After this call, reads by the cpu to the buffer are guarenteed to see
- * whatever the device wrote there.
- */
 static inline void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 enum dma_data_direction dir)
@@ -110,30 +96,9 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
 	dma_unmap_single(dev, dma_addr, size, dir);
 }
 
-/*
- * Map a set of buffers described by scatterlist in streaming
- * mode for DMA.  This is the scather-gather version of the
- * above pci_map_single interface.  Here the scatter gather list
- * elements are each tagged with the appropriate dma address
- * and length.  They are obtained via sg_dma_{address,length}(SG).
- *
- * NOTE: An implementation may be able to use a smaller number of
- *       DMA address/length pairs than there are SG table elements.
- *       (for example via virtual mapping capabilities)
- *       The routine returns the number of addr/length pairs actually
- *       used, at most nents.
- *
- * Device ownership issues as mentioned above for pci_map_single are
- * the same here.
- */
 extern int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		      enum dma_data_direction dir);
 
-/*
- * Unmap a set of streaming mode DMA translations.
- * Again, cpu read rules concerning calls here are the same as for
- * pci_unmap_single() above.
- */
 static inline void
 dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	     int nhwentries, enum dma_data_direction dir)

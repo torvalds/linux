@@ -116,7 +116,7 @@ struct atl1e_option {
 	} arg;
 };
 
-static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt, struct pci_dev *pdev)
+static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt, struct atl1e_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -127,16 +127,19 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
 	case enable_option:
 		switch (*value) {
 		case OPTION_ENABLED:
-			dev_info(&pdev->dev, "%s Enabled\n", opt->name);
+			netdev_info(adapter->netdev,
+				    "%s Enabled\n", opt->name);
 			return 0;
 		case OPTION_DISABLED:
-			dev_info(&pdev->dev, "%s Disabled\n", opt->name);
+			netdev_info(adapter->netdev,
+				    "%s Disabled\n", opt->name);
 			return 0;
 		}
 		break;
 	case range_option:
 		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
-			dev_info(&pdev->dev, "%s set to %i\n", opt->name, *value);
+			netdev_info(adapter->netdev, "%s set to %i\n",
+				    opt->name, *value);
 			return 0;
 		}
 		break;
@@ -148,8 +151,8 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
 				ent = &opt->arg.l.p[i];
 				if (*value == ent->i) {
 					if (ent->str[0] != '\0')
-						dev_info(&pdev->dev, "%s\n",
-							ent->str);
+						netdev_info(adapter->netdev,
+							    "%s\n", ent->str);
 					return 0;
 				}
 			}
@@ -159,8 +162,8 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
 		BUG();
 	}
 
-	dev_info(&pdev->dev, "Invalid %s specified (%i) %s\n",
-			opt->name, *value, opt->err);
+	netdev_info(adapter->netdev, "Invalid %s specified (%i) %s\n",
+		    opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
 }
@@ -176,11 +179,13 @@ static int __devinit atl1e_validate_option(int *value, struct atl1e_option *opt,
  */
 void __devinit atl1e_check_options(struct atl1e_adapter *adapter)
 {
-	struct pci_dev *pdev = adapter->pdev;
 	int bd = adapter->bd_number;
+
 	if (bd >= ATL1E_MAX_NIC) {
-		dev_notice(&pdev->dev, "no configuration for board #%i\n", bd);
-		dev_notice(&pdev->dev, "Using defaults for all values\n");
+		netdev_notice(adapter->netdev,
+			      "no configuration for board #%i\n", bd);
+		netdev_notice(adapter->netdev,
+			      "Using defaults for all values\n");
 	}
 
 	{ 		/* Transmit Ring Size */
@@ -196,7 +201,7 @@ void __devinit atl1e_check_options(struct atl1e_adapter *adapter)
 		int val;
 		if (num_tx_desc_cnt > bd) {
 			val = tx_desc_cnt[bd];
-			atl1e_validate_option(&val, &opt, pdev);
+			atl1e_validate_option(&val, &opt, adapter);
 			adapter->tx_ring.count = (u16) val & 0xFFFC;
 		} else
 			adapter->tx_ring.count = (u16)opt.def;
@@ -215,7 +220,7 @@ void __devinit atl1e_check_options(struct atl1e_adapter *adapter)
 		int val;
 		if (num_rx_mem_size > bd) {
 			val = rx_mem_size[bd];
-			atl1e_validate_option(&val, &opt, pdev);
+			atl1e_validate_option(&val, &opt, adapter);
 			adapter->rx_ring.page_size = (u32)val * 1024;
 		} else {
 			adapter->rx_ring.page_size = (u32)opt.def * 1024;
@@ -235,7 +240,7 @@ void __devinit atl1e_check_options(struct atl1e_adapter *adapter)
 		int val;
 		if (num_int_mod_timer > bd) {
 			val = int_mod_timer[bd];
-			atl1e_validate_option(&val, &opt, pdev);
+			atl1e_validate_option(&val, &opt, adapter);
 			adapter->hw.imt = (u16) val;
 		} else
 			adapter->hw.imt = (u16)(opt.def);
@@ -254,7 +259,7 @@ void __devinit atl1e_check_options(struct atl1e_adapter *adapter)
 		int val;
 		if (num_media_type > bd) {
 			val = media_type[bd];
-			atl1e_validate_option(&val, &opt, pdev);
+			atl1e_validate_option(&val, &opt, adapter);
 			adapter->hw.media_type = (u16) val;
 		} else
 			adapter->hw.media_type = (u16)(opt.def);

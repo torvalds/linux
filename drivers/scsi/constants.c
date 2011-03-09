@@ -219,18 +219,15 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 			break;
 		}
 		sa = (cdbp[8] << 8) + cdbp[9];
-		name = get_sa_name(maint_in_arr, MAINT_IN_SZ, sa);
-		if (name) {
+		name = get_sa_name(variable_length_arr, VARIABLE_LENGTH_SZ, sa);
+		if (name)
 			printk("%s", name);
-			if ((cdb_len > 0) && (len != cdb_len))
-				printk(", in_cdb_len=%d, ext_len=%d",
-				       len, cdb_len);
-		} else {
+		else
 			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
-			if ((cdb_len > 0) && (len != cdb_len))
-				printk(", in_cdb_len=%d, ext_len=%d",
-				       len, cdb_len);
-		}
+
+		if ((cdb_len > 0) && (len != cdb_len))
+			printk(", in_cdb_len=%d, ext_len=%d", len, cdb_len);
+
 		break;
 	case MAINTENANCE_IN:
 		sa = cdbp[1] & 0x1f;
@@ -348,6 +345,9 @@ EXPORT_SYMBOL(__scsi_print_command);
 void scsi_print_command(struct scsi_cmnd *cmd)
 {
 	int k;
+
+	if (cmd->cmnd == NULL)
+		return;
 
 	scmd_printk(KERN_INFO, cmd, "CDB: ");
 	print_opcode_name(cmd->cmnd, cmd->cmd_len);
@@ -1404,13 +1404,13 @@ void scsi_print_sense(char *name, struct scsi_cmnd *cmd)
 {
 	struct scsi_sense_hdr sshdr;
 
-	scmd_printk(KERN_INFO, cmd, "");
+	scmd_printk(KERN_INFO, cmd, " ");
 	scsi_decode_sense_buffer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
 				 &sshdr);
 	scsi_show_sense_hdr(&sshdr);
 	scsi_decode_sense_extras(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
 				 &sshdr);
-	scmd_printk(KERN_INFO, cmd, "");
+	scmd_printk(KERN_INFO, cmd, " ");
 	scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
 }
 EXPORT_SYMBOL(scsi_print_sense);
@@ -1453,7 +1453,7 @@ EXPORT_SYMBOL(scsi_show_result);
 
 void scsi_print_result(struct scsi_cmnd *cmd)
 {
-	scmd_printk(KERN_INFO, cmd, "");
+	scmd_printk(KERN_INFO, cmd, " ");
 	scsi_show_result(cmd->result);
 }
 EXPORT_SYMBOL(scsi_print_result);

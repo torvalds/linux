@@ -103,7 +103,7 @@ struct kvm_userspace_memory_region {
 
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
-
+#define KVM_MEMSLOT_INVALID      (1UL << 1)
 
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
@@ -160,6 +160,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_DCR              15
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
+#define KVM_EXIT_OSI              18
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -259,6 +260,10 @@ struct kvm_run {
 			__u32 ndata;
 			__u64 data[16];
 		} internal;
+		/* KVM_EXIT_OSI */
+		struct {
+			__u64 gprs[32];
+		} osi;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -400,6 +405,23 @@ struct kvm_ioeventfd {
 	__u8  pad[36];
 };
 
+/* for KVM_ENABLE_CAP */
+struct kvm_enable_cap {
+	/* in */
+	__u32 cap;
+	__u32 flags;
+	__u64 args[4];
+	__u8  pad[64];
+};
+
+/* for KVM_PPC_GET_PVINFO */
+struct kvm_ppc_pvinfo {
+	/* out */
+	__u32 flags;
+	__u32 hcall[4];
+	__u8  pad[108];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -497,6 +519,28 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_S390_PSW 42
 #define KVM_CAP_PPC_SEGSTATE 43
+#define KVM_CAP_HYPERV 44
+#define KVM_CAP_HYPERV_VAPIC 45
+#define KVM_CAP_HYPERV_SPIN 46
+#define KVM_CAP_PCI_SEGMENT 47
+#define KVM_CAP_PPC_PAIRED_SINGLES 48
+#define KVM_CAP_INTR_SHADOW 49
+#ifdef __KVM_HAVE_DEBUGREGS
+#define KVM_CAP_DEBUGREGS 50
+#endif
+#define KVM_CAP_X86_ROBUST_SINGLESTEP 51
+#define KVM_CAP_PPC_OSI 52
+#define KVM_CAP_PPC_UNSET_IRQ 53
+#define KVM_CAP_ENABLE_CAP 54
+#ifdef __KVM_HAVE_XSAVE
+#define KVM_CAP_XSAVE 55
+#endif
+#ifdef __KVM_HAVE_XCRS
+#define KVM_CAP_XCRS 56
+#endif
+#define KVM_CAP_PPC_GET_PVINFO 57
+#define KVM_CAP_PPC_IRQ_LEVEL 58
+#define KVM_CAP_ASYNC_PF 59
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -586,6 +630,7 @@ struct kvm_clock_data {
  */
 #define KVM_CREATE_VCPU           _IO(KVMIO,   0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO,  0x42, struct kvm_dirty_log)
+/* KVM_SET_MEMORY_ALIAS is obsolete: */
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO,  0x43, struct kvm_memory_alias)
 #define KVM_SET_NR_MMU_PAGES      _IO(KVMIO,   0x44)
 #define KVM_GET_NR_MMU_PAGES      _IO(KVMIO,   0x45)
@@ -630,6 +675,8 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_PIT_STATE2 */
 #define KVM_GET_PIT2              _IOR(KVMIO,  0x9f, struct kvm_pit_state2)
 #define KVM_SET_PIT2              _IOW(KVMIO,  0xa0, struct kvm_pit_state2)
+/* Available with KVM_CAP_PPC_GET_PVINFO */
+#define KVM_PPC_GET_PVINFO	  _IOW(KVMIO,  0xa1, struct kvm_ppc_pvinfo)
 
 /*
  * ioctls for vcpu fds
@@ -683,6 +730,16 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_VCPU_EVENTS */
 #define KVM_GET_VCPU_EVENTS       _IOR(KVMIO,  0x9f, struct kvm_vcpu_events)
 #define KVM_SET_VCPU_EVENTS       _IOW(KVMIO,  0xa0, struct kvm_vcpu_events)
+/* Available with KVM_CAP_DEBUGREGS */
+#define KVM_GET_DEBUGREGS         _IOR(KVMIO,  0xa1, struct kvm_debugregs)
+#define KVM_SET_DEBUGREGS         _IOW(KVMIO,  0xa2, struct kvm_debugregs)
+#define KVM_ENABLE_CAP            _IOW(KVMIO,  0xa3, struct kvm_enable_cap)
+/* Available with KVM_CAP_XSAVE */
+#define KVM_GET_XSAVE		  _IOR(KVMIO,  0xa4, struct kvm_xsave)
+#define KVM_SET_XSAVE		  _IOW(KVMIO,  0xa5, struct kvm_xsave)
+/* Available with KVM_CAP_XCRS */
+#define KVM_GET_XCRS		  _IOR(KVMIO,  0xa6, struct kvm_xcrs)
+#define KVM_SET_XCRS		  _IOW(KVMIO,  0xa7, struct kvm_xcrs)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 
@@ -691,8 +748,9 @@ struct kvm_assigned_pci_dev {
 	__u32 busnr;
 	__u32 devfn;
 	__u32 flags;
+	__u32 segnr;
 	union {
-		__u32 reserved[12];
+		__u32 reserved[11];
 	};
 };
 

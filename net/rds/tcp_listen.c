@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/in.h>
 #include <net/tcp.h>
 
@@ -66,9 +67,9 @@ static int rds_tcp_accept_one(struct socket *sock)
 
 	inet = inet_sk(new_sock->sk);
 
-	rdsdebug("accepted tcp %u.%u.%u.%u:%u -> %u.%u.%u.%u:%u\n",
-		  NIPQUAD(inet->inet_saddr), ntohs(inet->inet_sport),
-		  NIPQUAD(inet->inet_daddr), ntohs(inet->inet_dport));
+	rdsdebug("accepted tcp %pI4:%u -> %pI4:%u\n",
+		 &inet->inet_saddr, ntohs(inet->inet_sport),
+		 &inet->inet_daddr, ntohs(inet->inet_dport));
 
 	conn = rds_conn_create(inet->inet_saddr, inet->inet_daddr,
 			       &rds_tcp_transport, GFP_KERNEL);
@@ -113,9 +114,9 @@ void rds_tcp_listen_data_ready(struct sock *sk, int bytes)
 
 	rdsdebug("listen data ready sk %p\n", sk);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
-	if (ready == NULL) { /* check for teardown race */
+	if (!ready) { /* check for teardown race */
 		ready = sk->sk_data_ready;
 		goto out;
 	}
@@ -130,11 +131,11 @@ void rds_tcp_listen_data_ready(struct sock *sk, int bytes)
 		queue_work(rds_wq, &rds_tcp_listen_work);
 
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk, bytes);
 }
 
-int __init rds_tcp_listen_init(void)
+int rds_tcp_listen_init(void)
 {
 	struct sockaddr_in sin;
 	struct socket *sock = NULL;
@@ -177,7 +178,7 @@ void rds_tcp_listen_stop(void)
 	struct socket *sock = rds_tcp_listen_sock;
 	struct sock *sk;
 
-	if (sock == NULL)
+	if (!sock)
 		return;
 
 	sk = sock->sk;

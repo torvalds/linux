@@ -31,6 +31,7 @@
 
 /* max number of user-defined controls */
 #define MAX_USER_CONTROLS	32
+#define MAX_CONTROL_COUNT	1028
 
 struct snd_kctl_ioctl {
 	struct list_head list;		/* list of all ioctls */
@@ -49,6 +50,10 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 	struct snd_card *card;
 	struct snd_ctl_file *ctl;
 	int err;
+
+	err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 
 	card = snd_lookup_minor_data(iminor(inode), SNDRV_DEVICE_TYPE_CONTROL);
 	if (!card) {
@@ -191,6 +196,10 @@ static struct snd_kcontrol *snd_ctl_new(struct snd_kcontrol *control,
 	
 	if (snd_BUG_ON(!control || !control->count))
 		return NULL;
+
+	if (control->count > MAX_CONTROL_COUNT)
+		return NULL;
+
 	kctl = kzalloc(sizeof(*kctl) + sizeof(struct snd_kcontrol_volatile) * control->count, GFP_KERNEL);
 	if (kctl == NULL) {
 		snd_printk(KERN_ERR "Cannot allocate control instance\n");
@@ -237,8 +246,9 @@ struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new *ncontrol,
 	access = ncontrol->access == 0 ? SNDRV_CTL_ELEM_ACCESS_READWRITE :
 		 (ncontrol->access & (SNDRV_CTL_ELEM_ACCESS_READWRITE|
 				      SNDRV_CTL_ELEM_ACCESS_INACTIVE|
-		 		      SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE|
-		 		      SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK));
+				      SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE|
+				      SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND|
+				      SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK));
 	kctl.info = ncontrol->info;
 	kctl.get = ncontrol->get;
 	kctl.put = ncontrol->put;
@@ -1099,7 +1109,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 
 	if (copy_from_user(&tlv, _tlv, sizeof(tlv)))
 		return -EFAULT;
-	if (tlv.length < sizeof(unsigned int) * 3)
+	if (tlv.length < sizeof(unsigned int) * 2)
 		return -EINVAL;
 	down_read(&card->controls_rwsem);
 	kctl = snd_ctl_find_numid(card, tlv.numid);
@@ -1387,6 +1397,7 @@ static const struct file_operations snd_ctl_f_ops =
 	.read =		snd_ctl_read,
 	.open =		snd_ctl_open,
 	.release =	snd_ctl_release,
+	.llseek =	no_llseek,
 	.poll =		snd_ctl_poll,
 	.unlocked_ioctl =	snd_ctl_ioctl,
 	.compat_ioctl =	snd_ctl_ioctl_compat,
@@ -1477,7 +1488,7 @@ int snd_ctl_create(struct snd_card *card)
 }
 
 /*
- * Frequently used control callbacks
+ * Frequently used control callbacks/helpers
  */
 int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
@@ -1502,3 +1513,29 @@ int snd_ctl_boolean_stereo_info(struct snd_kcontrol *kcontrol,
 }
 
 EXPORT_SYMBOL(snd_ctl_boolean_stereo_info);
+
+/**
+ * snd_ctl_enum_info - fills the info structure for an enumerated control
+ * @info: the structure to be filled
+ * @channels: the number of the control's channels; often one
+ * @items: the number of control values; also the size of @names
+ * @names: an array containing the names of all control values
+ *
+ * Sets all required fields in @info to their appropriate values.
+ * If the control's accessibility is not the default (readable and writable),
+ * the caller has to fill @info->access.
+ */
+int snd_ctl_enum_info(struct snd_ctl_elem_info *info, unsigned int channels,
+		      unsigned int items, const char *const names[])
+{
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = channels;
+	info->value.enumerated.items = items;
+	if (info->value.enumerated.item >= items)
+		info->value.enumerated.item = items - 1;
+	strlcpy(info->value.enumerated.name,
+		names[info->value.enumerated.item],
+		sizeof(info->value.enumerated.name));
+	return 0;
+}
+EXPORT_SYMBOL(snd_ctl_enum_info);

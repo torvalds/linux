@@ -32,6 +32,7 @@
 #include <asm/system.h>
 #include <asm/fpu.h>
 #include <asm/war.h>
+#include <asm/vdso.h>
 
 #include "signal-common.h"
 
@@ -47,8 +48,6 @@ extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user 
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
-#define __NR_O32_sigreturn		4119
-#define __NR_O32_rt_sigreturn		4193
 #define __NR_O32_restart_syscall        4253
 
 /* 32-bit compatibility types */
@@ -77,46 +76,19 @@ struct ucontext32 {
 	compat_sigset_t     uc_sigmask;   /* mask last for extensibility */
 };
 
-/*
- * Horribly complicated - with the bloody RM9000 workarounds enabled
- * the signal trampolines is moving to the end of the structure so we can
- * increase the alignment without breaking software compatibility.
- */
-#if ICACHE_REFILLS_WORKAROUND_WAR == 0
-
 struct sigframe32 {
 	u32 sf_ass[4];		/* argument save space for o32 */
-	u32 sf_code[2];		/* signal trampoline */
+	u32 sf_pad[2];		/* Was: signal trampoline */
 	struct sigcontext32 sf_sc;
 	compat_sigset_t sf_mask;
 };
 
 struct rt_sigframe32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
-	u32 rs_code[2];			/* signal trampoline */
+	u32 rs_pad[2];			/* Was: signal trampoline */
 	compat_siginfo_t rs_info;
 	struct ucontext32 rs_uc;
 };
-
-#else  /* ICACHE_REFILLS_WORKAROUND_WAR */
-
-struct sigframe32 {
-	u32 sf_ass[4];			/* argument save space for o32 */
-	u32 sf_pad[2];
-	struct sigcontext32 sf_sc;	/* hw context */
-	compat_sigset_t sf_mask;
-	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
-};
-
-struct rt_sigframe32 {
-	u32 rs_ass[4];			/* argument save space for o32 */
-	u32 rs_pad[2];
-	compat_siginfo_t rs_info;
-	struct ucontext32 rs_uc;
-	u32 rs_code[8] __attribute__((aligned(32)));	/* signal trampoline */
-};
-
-#endif	/* !ICACHE_REFILLS_WORKAROUND_WAR */
 
 /*
  * sigcontext handlers
@@ -598,8 +570,8 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-static int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-	int signr, sigset_t *set)
+static int setup_frame_32(void *sig_return, struct k_sigaction *ka,
+			  struct pt_regs *regs, int signr, sigset_t *set)
 {
 	struct sigframe32 __user *frame;
 	int err = 0;
@@ -607,8 +579,6 @@ static int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	frame = get_sigframe(ka, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
-
-	err |= install_sigtramp(frame->sf_code, __NR_O32_sigreturn);
 
 	err |= setup_sigcontext32(regs, &frame->sf_sc);
 	err |= __copy_conv_sigset_to_user(&frame->sf_mask, set);
@@ -630,7 +600,7 @@ static int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	regs->regs[ 5] = 0;
 	regs->regs[ 6] = (unsigned long) &frame->sf_sc;
 	regs->regs[29] = (unsigned long) frame;
-	regs->regs[31] = (unsigned long) frame->sf_code;
+	regs->regs[31] = (unsigned long) sig_return;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
 	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
@@ -644,8 +614,9 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-	int signr, sigset_t *set, siginfo_t *info)
+static int setup_rt_frame_32(void *sig_return, struct k_sigaction *ka,
+			     struct pt_regs *regs, int signr, sigset_t *set,
+			     siginfo_t *info)
 {
 	struct rt_sigframe32 __user *frame;
 	int err = 0;
@@ -654,8 +625,6 @@ static int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	frame = get_sigframe(ka, regs, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
-
-	err |= install_sigtramp(frame->rs_code, __NR_O32_rt_sigreturn);
 
 	/* Convert (siginfo_t -> compat_siginfo_t) and copy to user. */
 	err |= copy_siginfo_to_user32(&frame->rs_info, info);
@@ -690,7 +659,7 @@ static int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	regs->regs[ 5] = (unsigned long) &frame->rs_info;
 	regs->regs[ 6] = (unsigned long) &frame->rs_uc;
 	regs->regs[29] = (unsigned long) frame;
-	regs->regs[31] = (unsigned long) frame->rs_code;
+	regs->regs[31] = (unsigned long) sig_return;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ka->sa.sa_handler;
 
 	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
@@ -709,7 +678,11 @@ give_sigsegv:
  */
 struct mips_abi mips_abi_32 = {
 	.setup_frame	= setup_frame_32,
+	.signal_return_offset =
+		offsetof(struct mips_vdso, o32_signal_trampoline),
 	.setup_rt_frame	= setup_rt_frame_32,
+	.rt_signal_return_offset =
+		offsetof(struct mips_vdso, o32_rt_signal_trampoline),
 	.restart	= __NR_O32_restart_syscall
 };
 

@@ -15,7 +15,7 @@
  *  Rewritten for 2.6 by Cesar Eduardo Barros
  *
  *  A datasheet for this chip can be found at
- *  http://www.silan.com.cn/english/products/pdf/SC92031AY.pdf
+ *  http://www.silan.com.cn/english/product/pdf/SC92031AY.pdf 
  */
 
 /* Note about set_mac_address: I don't know how to change the hardware
@@ -429,17 +429,17 @@ static void _sc92031_set_mar(struct net_device *dev)
 	u32 mar0 = 0, mar1 = 0;
 
 	if ((dev->flags & IFF_PROMISC) ||
-	    dev->mc_count > multicast_filter_limit ||
+	    netdev_mc_count(dev) > multicast_filter_limit ||
 	    (dev->flags & IFF_ALLMULTI))
 		mar0 = mar1 = 0xffffffff;
 	else if (dev->flags & IFF_MULTICAST) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
-		for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 crc;
 			unsigned bit = 0;
 
-			crc = ~ether_crc(ETH_ALEN, mc_list->dmi_addr);
+			crc = ~ether_crc(ETH_ALEN, ha->addr);
 			crc >>= 24;
 
 			if (crc & 0x01)	bit |= 0x02;
@@ -987,8 +987,6 @@ static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
 	iowrite32(tx_status, port_base + TxStatus0 + entry * 4);
 	mmiowb();
 
-	dev->trans_start = jiffies;
-
 	if (priv->tx_head - priv->tx_tail >= NUM_TX_DESC)
 		netif_stop_queue(dev);
 
@@ -1253,16 +1251,6 @@ static int sc92031_ethtool_set_settings(struct net_device *dev,
 	return 0;
 }
 
-static void sc92031_ethtool_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *drvinfo)
-{
-	struct sc92031_priv *priv = netdev_priv(dev);
-	struct pci_dev *pdev = priv->pdev;
-
-	strcpy(drvinfo->driver, SC92031_NAME);
-	strcpy(drvinfo->bus_info, pci_name(pdev));
-}
-
 static void sc92031_ethtool_get_wol(struct net_device *dev,
 		struct ethtool_wolinfo *wolinfo)
 {
@@ -1384,7 +1372,6 @@ static void sc92031_ethtool_get_ethtool_stats(struct net_device *dev,
 static const struct ethtool_ops sc92031_ethtool_ops = {
 	.get_settings		= sc92031_ethtool_get_settings,
 	.set_settings		= sc92031_ethtool_set_settings,
-	.get_drvinfo		= sc92031_ethtool_get_drvinfo,
 	.get_wol		= sc92031_ethtool_get_wol,
 	.set_wol		= sc92031_ethtool_set_wol,
 	.nway_reset		= sc92031_ethtool_nway_reset,
@@ -1462,7 +1449,8 @@ static int __devinit sc92031_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 
 	/* faked with skb_copy_and_csum_dev */
-	dev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA;
+	dev->features = NETIF_F_SG | NETIF_F_HIGHDMA |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	dev->netdev_ops		= &sc92031_netdev_ops;
 	dev->watchdog_timeo	= TX_TIMEOUT;
@@ -1589,7 +1577,7 @@ out:
 	return 0;
 }
 
-static struct pci_device_id sc92031_pci_device_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sc92031_pci_device_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
 	{ PCI_DEVICE(0x1088, 0x2031) },

@@ -39,7 +39,7 @@ static void __init gapspci_fixup_resources(struct pci_dev *dev)
 		/*
 		 * We also assume that dev->devfn == 0
 		 */
-		dev->resource[1].start	= p->io_resource->start  + 0x100;
+		dev->resource[1].start	= p->resources[0].start  + 0x100;
 		dev->resource[1].end	= dev->resource[1].start + 0x200 - 1;
 
 		/*

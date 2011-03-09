@@ -12,6 +12,7 @@
  */
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include "isdn_audio.h"
 #include "isdn_common.h"
 
@@ -438,7 +439,7 @@ isdn_audio_xlaw2adpcm(adpcm_state * s, int fmt, unsigned char *in,
 
 /*
  * Goertzel algorithm.
- * See http://ptolemy.eecs.berkeley.edu/~pino/Ptolemy/papers/96/dtmf_ict/
+ * See http://ptolemy.eecs.berkeley.edu/papers/96/dtmf_ict/ 
  * for more info.
  * Result is stored into an sk_buff and queued up for later
  * evaluation.

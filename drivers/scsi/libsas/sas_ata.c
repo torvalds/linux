@@ -22,6 +22,7 @@
  */
 
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <scsi/sas_ata.h>
 #include "sas_internal.h"
@@ -70,7 +71,7 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 		case SAS_SG_ERR:
 			return AC_ERR_INVALID;
 
-		case SAM_CHECK_COND:
+		case SAM_STAT_CHECK_CONDITION:
 		case SAS_OPEN_TO:
 		case SAS_OPEN_REJECT:
 			SAS_DPRINTK("%s: Saw error %d.  What to do?\n",
@@ -106,7 +107,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	sas_ha = dev->port->ha;
 
 	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
-	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_GOOD) {
+	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD) {
 		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
 		qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
 		dev->sata_dev.sstatus = resp->sstatus;
@@ -160,6 +161,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct scatterlist *sg;
 	unsigned int xfer = 0;
 	unsigned int si;
+
+	/* If the device fell off, no sense in issuing commands */
+	if (dev->gone)
+		return AC_ERR_SYSTEM;
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
@@ -346,6 +351,7 @@ static int sas_ata_scr_read(struct ata_link *link, unsigned int sc_reg_in,
 static struct ata_port_operations sas_sata_ops = {
 	.phy_reset		= sas_ata_phy_reset,
 	.post_internal_cmd	= sas_ata_post_internal,
+	.qc_defer               = ata_std_qc_defer,
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
 	.qc_fill_rtf		= sas_ata_qc_fill_rtf,
@@ -398,7 +404,12 @@ void sas_ata_task_abort(struct sas_task *task)
 
 	/* Bounce SCSI-initiated commands to the SCSI EH */
 	if (qc->scsicmd) {
+		struct request_queue *q = qc->scsicmd->device->request_queue;
+		unsigned long flags;
+
+		spin_lock_irqsave(q->queue_lock, flags);
 		blk_abort_request(qc->scsicmd->request);
+		spin_unlock_irqrestore(q->queue_lock, flags);
 		scsi_schedule_eh(qc->scsicmd->device->host);
 		return;
 	}
@@ -505,12 +516,12 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 					goto ex_err;
 			}
 		}
-		if (task->task_status.stat == SAM_BUSY ||
-			   task->task_status.stat == SAM_TASK_SET_FULL ||
+		if (task->task_status.stat == SAM_STAT_BUSY ||
+			   task->task_status.stat == SAM_STAT_TASK_SET_FULL ||
 			   task->task_status.stat == SAS_QUEUE_FULL) {
 			SAS_DPRINTK("task: q busy, sleeping...\n");
 			schedule_timeout_interruptible(HZ);
-		} else if (task->task_status.stat == SAM_CHECK_COND) {
+		} else if (task->task_status.stat == SAM_STAT_CHECK_CONDITION) {
 			struct scsi_sense_hdr shdr;
 
 			if (!scsi_normalize_sense(ts->buf, ts->buf_valid_size,
@@ -543,7 +554,7 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 					    shdr.asc, shdr.ascq);
 			}
 		} else if (task->task_status.resp != SAS_TASK_COMPLETE ||
-			   task->task_status.stat != SAM_GOOD) {
+			   task->task_status.stat != SAM_STAT_GOOD) {
 			SAS_DPRINTK("task finished with resp:0x%x, "
 				    "stat:0x%x\n",
 				    task->task_status.resp,

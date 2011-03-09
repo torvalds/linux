@@ -17,6 +17,7 @@
 
 #include "ctpcm.h"
 #include "cttimer.h"
+#include <linux/slab.h>
 #include <sound/pcm.h>
 
 /* Hardware descriptions for playback */
@@ -128,8 +129,6 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
-	runtime->private_data = apcm;
-	runtime->private_free = ct_atc_pcm_free_substream;
 	if (IEC958 == substream->pcm->device) {
 		runtime->hw = ct_spdif_passthru_playback_hw;
 		atc->spdif_out_passthru(atc, 1);
@@ -154,8 +153,12 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 	}
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
-	if (!apcm->timer)
+	if (!apcm->timer) {
+		kfree(apcm);
 		return -ENOMEM;
+	}
+	runtime->private_data = apcm;
+	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
 }
@@ -277,8 +280,6 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 	apcm->started = 0;
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
-	runtime->private_data = apcm;
-	runtime->private_free = ct_atc_pcm_free_substream;
 	runtime->hw = ct_pcm_capture_hw;
 	runtime->hw.rate_max = atc->rsr * atc->msr;
 
@@ -297,8 +298,12 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 	}
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
-	if (!apcm->timer)
+	if (!apcm->timer) {
+		kfree(apcm);
 		return -ENOMEM;
+	}
+	runtime->private_data = apcm;
+	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
 }

@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 #define LINE_SIZE 80

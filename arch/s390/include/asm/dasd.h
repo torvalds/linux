@@ -73,6 +73,7 @@ typedef struct dasd_information2_t {
  * 0x02: use diag discipline (diag)
  * 0x04: set the device initially online (internal use only)
  * 0x08: enable ERP related logging
+ * 0x20: give access to raw eckd data
  */
 #define DASD_FEATURE_DEFAULT	     0x00
 #define DASD_FEATURE_READONLY	     0x01
@@ -80,6 +81,8 @@ typedef struct dasd_information2_t {
 #define DASD_FEATURE_INITIAL_ONLINE  0x04
 #define DASD_FEATURE_ERPLOG	     0x08
 #define DASD_FEATURE_FAILFAST	     0x10
+#define DASD_FEATURE_FAILONSLCK      0x20
+#define DASD_FEATURE_USERAW	     0x40
 
 #define DASD_PARTN_BITS 2
 
@@ -217,6 +220,25 @@ typedef struct dasd_symmio_parms {
 	int rssd_result_len;
 } __attribute__ ((packed)) dasd_symmio_parms_t;
 
+/*
+ * Data returned by Sense Path Group ID (SNID)
+ */
+struct dasd_snid_data {
+	struct {
+		__u8 group:2;
+		__u8 reserve:2;
+		__u8 mode:1;
+		__u8 res:3;
+	} __attribute__ ((packed)) path_state;
+	__u8 pgid[11];
+} __attribute__ ((packed));
+
+struct dasd_snid_ioctl_data {
+	struct dasd_snid_data data;
+	__u8 path_mask;
+} __attribute__ ((packed));
+
+
 /********************************************************************************
  * SECTION: Definition of IOCTLs
  *
@@ -261,25 +283,10 @@ typedef struct dasd_symmio_parms {
 /* Set Attributes (cache operations) */
 #define BIODASDSATTR   _IOW(DASD_IOCTL_LETTER,2,attrib_data_t) 
 
+/* Get Sense Path Group ID (SNID) data */
+#define BIODASDSNID    _IOWR(DASD_IOCTL_LETTER, 1, struct dasd_snid_ioctl_data)
+
 #define BIODASDSYMMIO  _IOWR(DASD_IOCTL_LETTER, 240, dasd_symmio_parms_t)
 
 #endif				/* DASD_H */
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-indent-level: 4 
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -4
- * c-argdecl-indent: 4
- * c-label-offset: -4
- * c-continued-statement-offset: 4
- * c-continued-brace-offset: 0
- * indent-tabs-mode: nil
- * tab-width: 8
- * End:
- */

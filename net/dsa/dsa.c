@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <net/dsa.h>
 #include "dsa_priv.h"
 
@@ -389,7 +390,7 @@ static int dsa_remove(struct platform_device *pdev)
 	if (dst->link_poll_needed)
 		del_timer_sync(&dst->link_poll_timer);
 
-	flush_scheduled_work();
+	flush_work_sync(&dst->link_poll_work);
 
 	for (i = 0; i < dst->pd->nr_chips; i++) {
 		struct dsa_switch *ds = dst->ds[i];

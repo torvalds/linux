@@ -35,32 +35,13 @@
 #define RT2800PCI_H
 
 /*
- * PCI registers.
- */
-
-/*
- * E2PROM_CSR: EEPROM control register.
- * RELOAD: Write 1 to reload eeprom content.
- * TYPE: 0: 93c46, 1:93c66.
- * LOAD_STATUS: 1:loading, 0:done.
- */
-#define E2PROM_CSR			0x0004
-#define E2PROM_CSR_DATA_CLOCK		FIELD32(0x00000001)
-#define E2PROM_CSR_CHIP_SELECT		FIELD32(0x00000002)
-#define E2PROM_CSR_DATA_IN		FIELD32(0x00000004)
-#define E2PROM_CSR_DATA_OUT		FIELD32(0x00000008)
-#define E2PROM_CSR_TYPE			FIELD32(0x00000030)
-#define E2PROM_CSR_LOAD_STATUS		FIELD32(0x00000040)
-#define E2PROM_CSR_RELOAD		FIELD32(0x00000080)
-
-/*
  * Queue register offset macros
  */
 #define TX_QUEUE_REG_OFFSET		0x10
-#define TX_BASE_PTR(__x)		TX_BASE_PTR0 + ((__x) * TX_QUEUE_REG_OFFSET)
-#define TX_MAX_CNT(__x)			TX_MAX_CNT0 + ((__x) * TX_QUEUE_REG_OFFSET)
-#define TX_CTX_IDX(__x)			TX_CTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET)
-#define TX_DTX_IDX(__x)			TX_DTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET)
+#define TX_BASE_PTR(__x)		(TX_BASE_PTR0 + ((__x) * TX_QUEUE_REG_OFFSET))
+#define TX_MAX_CNT(__x)			(TX_MAX_CNT0 + ((__x) * TX_QUEUE_REG_OFFSET))
+#define TX_CTX_IDX(__x)			(TX_CTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET))
+#define TX_DTX_IDX(__x)			(TX_DTX_IDX0 + ((__x) * TX_QUEUE_REG_OFFSET))
 
 /*
  * 8051 firmware image.
@@ -71,8 +52,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 4 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 4 * sizeof(__le32) )
+#define TXD_DESC_SIZE			(4 * sizeof(__le32))
+#define RXD_DESC_SIZE			(4 * sizeof(__le32))
 
 /*
  * TX descriptor format for TX, PRIO and Beacon Ring.

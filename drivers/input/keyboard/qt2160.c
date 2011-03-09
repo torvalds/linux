@@ -358,11 +358,10 @@ static int __devexit qt2160_remove(struct i2c_client *client)
 	input_unregister_device(qt2160->input);
 	kfree(qt2160);
 
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 
-static struct i2c_device_id qt2160_idtable[] = {
+static const struct i2c_device_id qt2160_idtable[] = {
 	{ "qt2160", 0, },
 	{ }
 };

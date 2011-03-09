@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fb.h>
 #include <linux/vt_kern.h>
@@ -21,7 +22,7 @@
 /*
  * Accelerated handlers.
  */
-static inline void update_attr(u8 *dst, u8 *src, int attribute,
+static void update_attr(u8 *dst, u8 *src, int attribute,
 			       struct vc_data *vc)
 {
 	int i, offset = (vc->vc_font.height < 10) ? 1 : 2;

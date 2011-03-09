@@ -31,16 +31,18 @@
     Create and register network interface for PCI based chipsets in Linux platform.
 
     Revision History:
-    Who         When            What
+    Who         	When            What
+    Justin P. Mattock	11/07/2010	Fix typos in some comments
     --------    ----------      ----------------------------------------------
 */
 
 #include "rt_config.h"
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 /* Following information will be show when you run 'modinfo' */
-/* *** If you have a solution for the bug in current version of driver, please mail to me. */
-/* Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. *** */
+/* If you have a solution for a bug in current version of driver, please e-mail me. */
+/* Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. */
 MODULE_AUTHOR("Jett Chen <jett_chen@ralinktech.com>");
 MODULE_DESCRIPTION("RT2860/RT3090 Wireless Lan Linux Driver");
 MODULE_LICENSE("GPL");
@@ -49,9 +51,6 @@ MODULE_ALIAS("rt3090sta");
 /* */
 /* Function declarations */
 /* */
-extern int rt28xx_close(IN struct net_device *net_dev);
-extern int rt28xx_open(struct net_device *net_dev);
-
 static void __devexit rt2860_remove_one(struct pci_dev *pci_dev);
 static int __devinit rt2860_probe(struct pci_dev *pci_dev,
 				  const struct pci_device_id *ent);
@@ -106,13 +105,13 @@ MODULE_VERSION(STA_DRIVER_VERSION);
 /* Our PCI driver structure */
 /* */
 static struct pci_driver rt2860_driver = {
-name:	"rt2860",
-id_table:rt2860_pci_tbl,
-probe:	rt2860_probe,
-remove:__devexit_p(rt2860_remove_one),
+name: "rt2860",
+id_table : rt2860_pci_tbl,
+probe : rt2860_probe,
+remove : __devexit_p(rt2860_remove_one),
 #ifdef CONFIG_PM
-suspend:rt2860_suspend,
-resume:rt2860_resume,
+suspend : rt2860_suspend,
+resume : rt2860_resume,
 #endif
 };
 
@@ -204,15 +203,15 @@ static int rt2860_resume(struct pci_dev *pci_dev)
 
 	/* initialize device before it's used by a driver */
 	if (pci_enable_device(pci_dev)) {
-		printk("pci enable fail!\n");
+		printk(KERN_ERR "rt2860: pci enable fail!\n");
 		return 0;
 	}
 
 	DBGPRINT(RT_DEBUG_TRACE, ("===> rt2860_resume()\n"));
 
-	if (net_dev == NULL) {
+	if (net_dev == NULL)
 		DBGPRINT(RT_DEBUG_ERROR, ("net_dev == NULL!\n"));
-	} else
+	else
 		GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
 	if (pAd != NULL) {
@@ -280,7 +279,9 @@ static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 
 /*PCIDevInit============================================== */
 	/* wake up and enable device */
-	if ((rv = pci_enable_device(pci_dev)) != 0) {
+	rv = pci_enable_device(pci_dev);
+
+	if (rv != 0) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("Enable PCI device failed, errno=%d!\n", rv));
 		return rv;
@@ -288,7 +289,9 @@ static int __devinit rt2860_probe(IN struct pci_dev *pci_dev,
 
 	print_name = (char *)pci_name(pci_dev);
 
-	if ((rv = pci_request_regions(pci_dev, print_name)) != 0) {
+	rv = pci_request_regions(pci_dev, print_name);
+
+	if (rv != 0) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("Request PCI resource failed, errno=%d!\n", rv));
 		goto err_out;
@@ -489,9 +492,8 @@ static void RTMPInitPCIeDevice(struct pci_dev *pci_dev, struct rt_rtmp_adapter *
 
 		/* Support advanced power save after 2892/2790. */
 		/* MAC version at offset 0x1000 is 0x2872XXXX/0x2870XXXX(PCIe, USB, SDIO). */
-		if ((MacCsr0 & 0xffff0000) != 0x28600000) {
+		if ((MacCsr0 & 0xffff0000) != 0x28600000)
 			OPSTATUS_SET_FLAG(pAd, fOP_STATUS_PCIE_DEVICE);
-		}
 	}
 }
 
@@ -595,7 +597,7 @@ void RTMPInitPCIeLinkCtrlValue(struct rt_rtmp_adapter *pAd)
 		DBGPRINT_RAW(RT_DEBUG_ERROR,
 			     (" AUX_CTRL = 0x%32x\n", MacValue));
 
-		/* for RT30xx F and after, PCIe infterface, and for power solution 3 */
+		/* for RT30xx F and after, PCIe interface, and for power solution 3 */
 		if ((IS_VERSION_AFTER_F(pAd))
 		    && (pAd->StaCfg.PSControl.field.rt30xxPowerMode >= 2)
 		    && (pAd->StaCfg.PSControl.field.rt30xxPowerMode <= 3)) {
@@ -898,10 +900,10 @@ void RTMPPCIeLinkCtrlValueRestore(struct rt_rtmp_adapter *pAd, u8 Level)
 				  Configuration);
 		if ((Configuration != 0) && (Configuration != 0xFFFF)) {
 			Configuration &= 0xfefc;
-			/* If call from interface down, restore to orginial setting. */
-			if (Level == RESTORE_CLOSE) {
+			/* If call from interface down, restore to original setting. */
+			if (Level == RESTORE_CLOSE)
 				Configuration |= pAd->HostLnkCtrlConfiguration;
-			} else
+			else
 				Configuration |= 0x0;
 			PCI_REG_WIRTE_WORD(pObj->parent_pci_dev,
 					   pAd->HostLnkCtrlOffset,
@@ -920,7 +922,7 @@ void RTMPPCIeLinkCtrlValueRestore(struct rt_rtmp_adapter *pAd, u8 Level)
 				  Configuration);
 		if ((Configuration != 0) && (Configuration != 0xFFFF)) {
 			Configuration &= 0xfefc;
-			/* If call from interface down, restore to orginial setting. */
+			/* If call from interface down, restore to original setting. */
 			if (Level == RESTORE_CLOSE)
 				Configuration |= pAd->RLnkCtrlConfiguration;
 			else
@@ -1099,15 +1101,15 @@ void RTMPrt3xSetPCIePowerLinkCtrl(struct rt_rtmp_adapter *pAd)
 		/* Find PCI-to-PCI Bridge Express Capability Offset */
 		pos = pci_find_capability(pObj->parent_pci_dev, PCI_CAP_ID_EXP);
 
-		if (pos != 0) {
+		if (pos != 0)
 			pAd->HostLnkCtrlOffset = pos + PCI_EXP_LNKCTL;
-		}
-		/* If configurared to turn on L1. */
+
+		/* If configured to turn on L1. */
 		HostConfiguration = 0;
 		if (pAd->StaCfg.PSControl.field.rt30xxForceASPMTest == 1) {
-			DBGPRINT(RT_DEBUG_TRACE, ("Enter,PSM : Force ASPM \n"));
+			DBGPRINT(RT_DEBUG_TRACE, ("Enter,PSM : Force ASPM\n"));
 
-			/* Skip non-exist deice right away */
+			/* Skip non-exist device right away */
 			if ((pAd->HostLnkCtrlOffset != 0)) {
 				PCI_REG_READ_WORD(pObj->parent_pci_dev,
 						  pAd->HostLnkCtrlOffset,

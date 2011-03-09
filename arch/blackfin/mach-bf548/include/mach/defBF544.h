@@ -1,16 +1,11 @@
 /*
- * Copyright 2007-2008 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF544_H
 #define _DEF_BF544_H
-
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
-
-/* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF544 */
 
 /* Include defBF54x_base.h for the set of #defines that are common to all ADSP-BF54x processors */
 #include "defBF54x_base.h"
@@ -60,15 +55,15 @@
 #define                     TWI1_REGBASE  0xffc02200
 #define                      TWI1_CLKDIV  0xffc02200   /* Clock Divider Register */
 #define                     TWI1_CONTROL  0xffc02204   /* TWI Control Register */
-#define                  TWI1_SLAVE_CTRL  0xffc02208   /* TWI Slave Mode Control Register */
+#define                   TWI1_SLAVE_CTL  0xffc02208   /* TWI Slave Mode Control Register */
 #define                  TWI1_SLAVE_STAT  0xffc0220c   /* TWI Slave Mode Status Register */
 #define                  TWI1_SLAVE_ADDR  0xffc02210   /* TWI Slave Mode Address Register */
-#define                 TWI1_MASTER_CTRL  0xffc02214   /* TWI Master Mode Control Register */
+#define                  TWI1_MASTER_CTL  0xffc02214   /* TWI Master Mode Control Register */
 #define                 TWI1_MASTER_STAT  0xffc02218   /* TWI Master Mode Status Register */
 #define                 TWI1_MASTER_ADDR  0xffc0221c   /* TWI Master Mode Address Register */
 #define                    TWI1_INT_STAT  0xffc02220   /* TWI Interrupt Status Register */
 #define                    TWI1_INT_MASK  0xffc02224   /* TWI Interrupt Mask Register */
-#define                   TWI1_FIFO_CTRL  0xffc02228   /* TWI FIFO Control Register */
+#define                    TWI1_FIFO_CTL  0xffc02228   /* TWI FIFO Control Register */
 #define                   TWI1_FIFO_STAT  0xffc0222c   /* TWI FIFO Status Register */
 #define                   TWI1_XMT_DATA8  0xffc02280   /* TWI FIFO Transmit Data Single Byte Register */
 #define                  TWI1_XMT_DATA16  0xffc02284   /* TWI FIFO Transmit Data Double Byte Register */

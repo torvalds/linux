@@ -1,6 +1,7 @@
 #include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/ah.h>
@@ -313,13 +314,14 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	ah = (struct ip_auth_hdr *)skb->data;
-	iph = ip_hdr(skb);
-	ihl = ip_hdrlen(skb);
 
 	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
 		goto out;
 	nfrags = err;
+
+	ah = (struct ip_auth_hdr *)skb->data;
+	iph = ip_hdr(skb);
+	ihl = ip_hdrlen(skb);
 
 	work_iph = ah_alloc_tmp(ahash, nfrags, ihl + ahp->icv_trunc_len);
 	if (!work_iph)
@@ -393,7 +395,7 @@ static void ah4_err(struct sk_buff *skb, u32 info)
 	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
-	x = xfrm_state_lookup(net, (xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET);
+	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET);
 	if (!x)
 		return;
 	printk(KERN_DEBUG "pmtu discovery on SA AH/%08x/%08x\n",

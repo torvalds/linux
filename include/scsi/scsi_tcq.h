@@ -97,13 +97,9 @@ static inline void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
 static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
 {
         struct request *req = cmd->request;
-	struct scsi_device *sdev = cmd->device;
 
         if (blk_rq_tagged(req)) {
-		if (sdev->ordered_tags && req->cmd_flags & REQ_HARDBARRIER)
-        	        *msg++ = MSG_ORDERED_TAG;
-        	else
-        	        *msg++ = MSG_SIMPLE_TAG;
+		*msg++ = MSG_SIMPLE_TAG;
         	*msg++ = req->tag;
         	return 2;
 	}

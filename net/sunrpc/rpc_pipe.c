@@ -28,7 +28,7 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/cache.h>
 
-static struct vfsmount *rpc_mount __read_mostly;
+static struct vfsmount *rpc_mnt __read_mostly;
 static int rpc_mount_count;
 
 static struct file_system_type rpc_pipe_fs_type;
@@ -47,7 +47,7 @@ static void rpc_purge_list(struct rpc_inode *rpci, struct list_head *head,
 		return;
 	do {
 		msg = list_entry(head->next, struct rpc_pipe_msg, list);
-		list_del(&msg->list);
+		list_del_init(&msg->list);
 		msg->errno = err;
 		destroy_msg(msg);
 	} while (!list_empty(head));
@@ -78,7 +78,7 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 }
 
 /**
- * rpc_queue_upcall
+ * rpc_queue_upcall - queue an upcall message to userspace
  * @inode: inode of upcall pipe on which to queue given message
  * @msg: message to queue
  *
@@ -162,9 +162,17 @@ rpc_alloc_inode(struct super_block *sb)
 }
 
 static void
+rpc_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
+}
+
+static void
 rpc_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
+	call_rcu(&inode->i_rcu, rpc_i_callback);
 }
 
 static int
@@ -203,11 +211,11 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 	mutex_lock(&inode->i_mutex);
 	if (rpci->ops == NULL)
 		goto out;
-	msg = (struct rpc_pipe_msg *)filp->private_data;
+	msg = filp->private_data;
 	if (msg != NULL) {
 		spin_lock(&inode->i_lock);
 		msg->errno = -EAGAIN;
-		list_del(&msg->list);
+		list_del_init(&msg->list);
 		spin_unlock(&inode->i_lock);
 		rpci->ops->destroy_msg(msg);
 	}
@@ -267,7 +275,7 @@ rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 	if (res < 0 || msg->len == msg->copied) {
 		filp->private_data = NULL;
 		spin_lock(&inode->i_lock);
-		list_del(&msg->list);
+		list_del_init(&msg->list);
 		spin_unlock(&inode->i_lock);
 		rpci->ops->destroy_msg(msg);
 	}
@@ -308,23 +316,27 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 	return mask;
 }
 
-static int
-rpc_pipe_ioctl(struct inode *ino, struct file *filp,
-		unsigned int cmd, unsigned long arg)
+static long
+rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct rpc_inode *rpci = RPC_I(filp->f_path.dentry->d_inode);
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct rpc_inode *rpci = RPC_I(inode);
 	int len;
 
 	switch (cmd) {
 	case FIONREAD:
-		if (rpci->ops == NULL)
+		spin_lock(&inode->i_lock);
+		if (rpci->ops == NULL) {
+			spin_unlock(&inode->i_lock);
 			return -EPIPE;
+		}
 		len = rpci->pipelen;
 		if (filp->private_data) {
 			struct rpc_pipe_msg *msg;
-			msg = (struct rpc_pipe_msg *)filp->private_data;
+			msg = filp->private_data;
 			len += msg->len - msg->copied;
 		}
+		spin_unlock(&inode->i_lock);
 		return put_user(len, (int __user *)arg);
 	default:
 		return -EINVAL;
@@ -337,7 +349,7 @@ static const struct file_operations rpc_pipe_fops = {
 	.read		= rpc_pipe_read,
 	.write		= rpc_pipe_write,
 	.poll		= rpc_pipe_poll,
-	.ioctl		= rpc_pipe_ioctl,
+	.unlocked_ioctl	= rpc_pipe_ioctl,
 	.open		= rpc_pipe_open,
 	.release	= rpc_pipe_release,
 };
@@ -359,21 +371,23 @@ rpc_show_info(struct seq_file *m, void *v)
 static int
 rpc_info_open(struct inode *inode, struct file *file)
 {
-	struct rpc_clnt *clnt;
+	struct rpc_clnt *clnt = NULL;
 	int ret = single_open(file, rpc_show_info, NULL);
 
 	if (!ret) {
 		struct seq_file *m = file->private_data;
-		mutex_lock(&inode->i_mutex);
-		clnt = RPC_I(inode)->private;
-		if (clnt) {
-			kref_get(&clnt->cl_kref);
+
+		spin_lock(&file->f_path.dentry->d_lock);
+		if (!d_unhashed(file->f_path.dentry))
+			clnt = RPC_I(inode)->private;
+		if (clnt != NULL && atomic_inc_not_zero(&clnt->cl_count)) {
+			spin_unlock(&file->f_path.dentry->d_lock);
 			m->private = clnt;
 		} else {
+			spin_unlock(&file->f_path.dentry->d_lock);
 			single_release(inode, file);
 			ret = -EINVAL;
 		}
-		mutex_unlock(&inode->i_mutex);
 	}
 	return ret;
 }
@@ -411,20 +425,20 @@ struct vfsmount *rpc_get_mount(void)
 {
 	int err;
 
-	err = simple_pin_fs(&rpc_pipe_fs_type, &rpc_mount, &rpc_mount_count);
+	err = simple_pin_fs(&rpc_pipe_fs_type, &rpc_mnt, &rpc_mount_count);
 	if (err != 0)
 		return ERR_PTR(err);
-	return rpc_mount;
+	return rpc_mnt;
 }
 EXPORT_SYMBOL_GPL(rpc_get_mount);
 
 void rpc_put_mount(void)
 {
-	simple_release_fs(&rpc_mount, &rpc_mount_count);
+	simple_release_fs(&rpc_mnt, &rpc_mount_count);
 }
 EXPORT_SYMBOL_GPL(rpc_put_mount);
 
-static int rpc_delete_dentry(struct dentry *dentry)
+static int rpc_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }
@@ -439,6 +453,7 @@ rpc_get_inode(struct super_block *sb, umode_t mode)
 	struct inode *inode = new_inode(sb);
 	if (!inode)
 		return NULL;
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	switch(mode & S_IFMT) {
@@ -459,7 +474,7 @@ static int __rpc_create_common(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode;
 
-	BUG_ON(!d_unhashed(dentry));
+	d_drop(dentry);
 	inode = rpc_get_inode(dir->i_sb, mode);
 	if (!inode)
 		goto out_err;
@@ -576,7 +591,7 @@ static struct dentry *__rpc_lookup_create(struct dentry *parent,
 		}
 	}
 	if (!dentry->d_inode)
-		dentry->d_op = &rpc_dentry_operations;
+		d_set_d_op(dentry, &rpc_dentry_operations);
 out_err:
 	return dentry;
 }
@@ -587,6 +602,8 @@ static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 	struct dentry *dentry;
 
 	dentry = __rpc_lookup_create(parent, name);
+	if (IS_ERR(dentry))
+		return dentry;
 	if (dentry->d_inode == NULL)
 		return dentry;
 	dput(dentry);
@@ -999,32 +1016,27 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	inode = rpc_get_inode(sb, S_IFDIR | 0755);
 	if (!inode)
 		return -ENOMEM;
-	root = d_alloc_root(inode);
+	sb->s_root = root = d_alloc_root(inode);
 	if (!root) {
 		iput(inode);
 		return -ENOMEM;
 	}
 	if (rpc_populate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF, NULL))
-		goto out;
-	sb->s_root = root;
+		return -ENOMEM;
 	return 0;
-out:
-	d_genocide(root);
-	dput(root);
-	return -ENOMEM;
 }
 
-static int
-rpc_get_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *
+rpc_mount(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, rpc_fill_super, mnt);
+	return mount_single(fs_type, flags, data, rpc_fill_super);
 }
 
 static struct file_system_type rpc_pipe_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "rpc_pipefs",
-	.get_sb		= rpc_get_sb,
+	.mount		= rpc_mount,
 	.kill_sb	= kill_litter_super,
 };
 

@@ -24,7 +24,7 @@
  * @src_addr: transfer source address
  * @dst_addr: transfer destination address
  * @link_addr:  physical address to next lli
- * @virt_link_addr: virtual addres of next lli (only used by pool_free)
+ * @virt_link_addr: virtual address of next lli (only used by pool_free)
  * @phy_this: physical address of current lli (only used by pool_free)
  */
 struct coh901318_lli {
@@ -53,7 +53,7 @@ struct coh901318_params {
  * struct coh_dma_channel - dma channel base
  * @name: ascii name of dma channel
  * @number: channel id number
- * @desc_nbr_max: number of preallocated descriptortors
+ * @desc_nbr_max: number of preallocated descriptors
  * @priority_high: prio of channel, 0 low otherwise high.
  * @param: configuration parameters
  * @dev_addr: physical address of periphal connected to channel
@@ -90,7 +90,7 @@ struct powersave {
  * struct coh901318_platform - platform arch structure
  * @chans_slave: specifying dma slave channels
  * @chans_memcpy: specifying dma memcpy channels
- * @access_memory_state: requesting DMA memeory access (on / off)
+ * @access_memory_state: requesting DMA memory access (on / off)
  * @chan_conf: dma channel configurations
  * @max_channels: max number of dma chanenls
  */
@@ -101,27 +101,6 @@ struct coh901318_platform {
 	const struct coh_dma_channel *chan_conf;
 	const int max_channels;
 };
-
-/**
- * coh901318_get_bytes_left() - Get number of bytes left on a current transfer
- * @chan: dma channel handle
- * return number of bytes left, or negative on error
- */
-u32 coh901318_get_bytes_left(struct dma_chan *chan);
-
-/**
- * coh901318_stop() - Stops dma transfer
- * @chan: dma channel handle
- * return 0 on success otherwise negative value
- */
-void coh901318_stop(struct dma_chan *chan);
-
-/**
- * coh901318_continue() - Resumes a stopped dma transfer
- * @chan: dma channel handle
- * return 0 on success otherwise negative value
- */
-void coh901318_continue(struct dma_chan *chan);
 
 /**
  * coh901318_filter_id() - DMA channel filter function

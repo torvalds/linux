@@ -18,6 +18,8 @@
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xffe80000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 40, 41, 43, 42 },
 };
@@ -31,16 +33,13 @@ static struct platform_device scif0_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -62,16 +61,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -93,15 +89,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002f,
 		.flags	= IORESOURCE_MEM,
@@ -198,7 +191,7 @@ void __init plat_irq_setup_pins(int mode)
 {
 	switch (mode) {
 	case IRQ_MODE_IRQ: /* individual interrupt mode for IRL3-0 */
-		ctrl_outw(ctrl_inw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
+		__raw_writew(__raw_readw(INTC_ICR) | INTC_ICR_IRLM, INTC_ICR);
 		register_intc_controller(&intc_desc_irlm);
 		break;
 	default:

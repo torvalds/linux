@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
@@ -326,7 +327,6 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	dev->trans_start = jiffies;
 
 	bd = (struct bcom_fec_bd *)
 		bcom_prepare_next_buffer(priv->tx_dmatsk);
@@ -366,9 +366,8 @@ static irqreturn_t mpc52xx_fec_tx_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock(&priv->lock);
 	while (bcom_buffer_done(priv->tx_dmatsk)) {
 		struct sk_buff *skb;
 		struct bcom_fec_bd *bd;
@@ -379,7 +378,7 @@ static irqreturn_t mpc52xx_fec_tx_interrupt(int irq, void *dev_id)
 
 		dev_kfree_skb_irq(skb);
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock(&priv->lock);
 
 	netif_wake_queue(dev);
 
@@ -395,9 +394,8 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 	struct bcom_fec_bd *bd;
 	u32 status, physaddr;
 	int length;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock(&priv->lock);
 
 	while (bcom_buffer_done(priv->rx_dmatsk)) {
 
@@ -429,20 +427,19 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 
 		/* Process the received skb - Drop the spin lock while
 		 * calling into the network stack */
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock(&priv->lock);
 
 		dma_unmap_single(dev->dev.parent, physaddr, rskb->len,
 				 DMA_FROM_DEVICE);
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
-		rskb->dev = dev;
 		rskb->protocol = eth_type_trans(rskb, dev);
 		netif_rx(rskb);
 
-		spin_lock_irqsave(&priv->lock, flags);
+		spin_lock(&priv->lock);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
 }
@@ -453,7 +450,6 @@ static irqreturn_t mpc52xx_fec_interrupt(int irq, void *dev_id)
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	struct mpc52xx_fec __iomem *fec = priv->fec;
 	u32 ievent;
-	unsigned long flags;
 
 	ievent = in_be32(&fec->ievent);
 
@@ -471,9 +467,9 @@ static irqreturn_t mpc52xx_fec_interrupt(int irq, void *dev_id)
 		if (net_ratelimit() && (ievent & FEC_IEVENT_XFIFO_ERROR))
 			dev_warn(&dev->dev, "FEC_IEVENT_XFIFO_ERROR\n");
 
-		spin_lock_irqsave(&priv->lock, flags);
+		spin_lock(&priv->lock);
 		mpc52xx_fec_reset(dev);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock(&priv->lock);
 
 		return IRQ_HANDLED;
 	}
@@ -575,19 +571,16 @@ static void mpc52xx_fec_set_multicast_list(struct net_device *dev)
 			out_be32(&fec->gaddr2, 0xffffffff);
 		} else {
 			u32 crc;
-			int i;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 			u32 gaddr1 = 0x00000000;
 			u32 gaddr2 = 0x00000000;
 
-			dmi = dev->mc_list;
-			for (i=0; i<dev->mc_count; i++) {
-				crc = ether_crc_le(6, dmi->dmi_addr) >> 26;
+			netdev_for_each_mc_addr(ha, dev) {
+				crc = ether_crc_le(6, ha->addr) >> 26;
 				if (crc >= 32)
 					gaddr1 |= 1 << (crc-32);
 				else
 					gaddr2 |= 1 << crc;
-				dmi = dmi->next;
 			}
 			out_be32(&fec->gaddr1, gaddr1);
 			out_be32(&fec->gaddr2, gaddr2);
@@ -775,11 +768,6 @@ static void mpc52xx_fec_reset(struct net_device *dev)
 
 
 /* ethtool interface */
-static void mpc52xx_fec_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, DRIVER_NAME);
-}
 
 static int mpc52xx_fec_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
@@ -814,7 +802,6 @@ static void mpc52xx_fec_set_msglevel(struct net_device *dev, u32 level)
 }
 
 static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
-	.get_drvinfo = mpc52xx_fec_get_drvinfo,
 	.get_settings = mpc52xx_fec_get_settings,
 	.set_settings = mpc52xx_fec_set_settings,
 	.get_link = ethtool_op_get_link,
@@ -830,7 +817,7 @@ static int mpc52xx_fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!priv->phydev)
 		return -ENOTSUPP;
 
-	return phy_mii_ioctl(priv->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(priv->phydev, rq, cmd);
 }
 
 static const struct net_device_ops mpc52xx_fec_netdev_ops = {
@@ -854,7 +841,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 /* ======================================================================== */
 
 static int __devinit
-mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
+mpc52xx_fec_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	int rv;
 	struct net_device *ndev;
@@ -875,21 +862,25 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	priv->ndev = ndev;
 
 	/* Reserve FEC control zone */
-	rv = of_address_to_resource(op->node, 0, &mem);
+	rv = of_address_to_resource(op->dev.of_node, 0, &mem);
 	if (rv) {
 		printk(KERN_ERR DRIVER_NAME ": "
 				"Error while parsing device node resource\n" );
-		return rv;
+		goto err_netdev;
 	}
 	if ((mem.end - mem.start + 1) < sizeof(struct mpc52xx_fec)) {
 		printk(KERN_ERR DRIVER_NAME
 			" - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 			(unsigned long)(mem.end - mem.start + 1), sizeof(struct mpc52xx_fec));
-		return -EINVAL;
+		rv = -EINVAL;
+		goto err_netdev;
 	}
 
-	if (!request_mem_region(mem.start, sizeof(struct mpc52xx_fec), DRIVER_NAME))
-		return -EBUSY;
+	if (!request_mem_region(mem.start, sizeof(struct mpc52xx_fec),
+				DRIVER_NAME)) {
+		rv = -EBUSY;
+		goto err_netdev;
+	}
 
 	/* Init ether ndev with what we have */
 	ndev->netdev_ops	= &mpc52xx_fec_netdev_ops;
@@ -905,7 +896,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	if (!priv->fec) {
 		rv = -ENOMEM;
-		goto probe_error;
+		goto err_mem_region;
 	}
 
 	/* Bestcomm init */
@@ -918,12 +909,12 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
 		printk(KERN_ERR DRIVER_NAME ": Can not init SDMA tasks\n" );
 		rv = -ENOMEM;
-		goto probe_error;
+		goto err_rx_tx_dmatsk;
 	}
 
 	/* Get the IRQ we need one by one */
 		/* Control */
-	ndev->irq = irq_of_parse_and_map(op->node, 0);
+	ndev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 		/* RX */
 	priv->r_irq = bcom_get_task_irq(priv->rx_dmatsk);
@@ -946,20 +937,20 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	/* Start with safe defaults for link connection */
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->node) >> 20) / 5) << 1;
+	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->dev.of_node) >> 20) / 5) << 1;
 
 	/* The current speed preconfigures the speed of the MII link */
-	prop = of_get_property(op->node, "current-speed", &prop_size);
+	prop = of_get_property(op->dev.of_node, "current-speed", &prop_size);
 	if (prop && (prop_size >= sizeof(u32) * 2)) {
 		priv->speed = prop[0];
 		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	/* If there is a phy handle, then get the PHY node */
-	priv->phy_node = of_parse_phandle(op->node, "phy-handle", 0);
+	priv->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 
 	/* the 7-wire property means don't use MII mode */
-	if (of_find_property(op->node, "fsl,7-wire-mode", NULL)) {
+	if (of_find_property(op->dev.of_node, "fsl,7-wire-mode", NULL)) {
 		priv->seven_wire_mode = 1;
 		dev_info(&ndev->dev, "using 7-wire PHY mode\n");
 	}
@@ -970,40 +961,32 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	rv = register_netdev(ndev);
 	if (rv < 0)
-		goto probe_error;
+		goto err_node;
 
 	/* We're done ! */
 	dev_set_drvdata(&op->dev, ndev);
 
 	return 0;
 
-
-	/* Error handling - free everything that might be allocated */
-probe_error:
-
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	priv->phy_node = NULL;
-
+err_node:
+	of_node_put(priv->phy_node);
 	irq_dispose_mapping(ndev->irq);
-
+err_rx_tx_dmatsk:
 	if (priv->rx_dmatsk)
 		bcom_fec_rx_release(priv->rx_dmatsk);
 	if (priv->tx_dmatsk)
 		bcom_fec_tx_release(priv->tx_dmatsk);
-
-	if (priv->fec)
-		iounmap(priv->fec);
-
+	iounmap(priv->fec);
+err_mem_region:
 	release_mem_region(mem.start, sizeof(struct mpc52xx_fec));
-
+err_netdev:
 	free_netdev(ndev);
 
 	return rv;
 }
 
 static int
-mpc52xx_fec_remove(struct of_device *op)
+mpc52xx_fec_remove(struct platform_device *op)
 {
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv;
@@ -1033,7 +1016,7 @@ mpc52xx_fec_remove(struct of_device *op)
 }
 
 #ifdef CONFIG_PM
-static int mpc52xx_fec_of_suspend(struct of_device *op, pm_message_t state)
+static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(&op->dev);
 
@@ -1043,7 +1026,7 @@ static int mpc52xx_fec_of_suspend(struct of_device *op, pm_message_t state)
 	return 0;
 }
 
-static int mpc52xx_fec_of_resume(struct of_device *op)
+static int mpc52xx_fec_of_resume(struct platform_device *op)
 {
 	struct net_device *dev = dev_get_drvdata(&op->dev);
 
@@ -1067,9 +1050,11 @@ static struct of_device_id mpc52xx_fec_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
 static struct of_platform_driver mpc52xx_fec_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_fec_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_match,
+	},
 	.probe		= mpc52xx_fec_probe,
 	.remove		= mpc52xx_fec_remove,
 #ifdef CONFIG_PM

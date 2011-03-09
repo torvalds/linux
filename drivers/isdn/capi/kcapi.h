@@ -24,16 +24,19 @@ printk(KERN_DEBUG "%s: " format "\n" , __func__ , ## arg); \
 #endif
 
 enum {
-	CARD_DETECTED = 1,
-	CARD_LOADING  =	2,
-	CARD_RUNNING  = 3,
+	CAPI_CTR_DETACHED = 0,
+	CAPI_CTR_DETECTED = 1,
+	CAPI_CTR_LOADING  = 2,
+	CAPI_CTR_RUNNING  = 3,
 };
 
 extern struct list_head capi_drivers;
-extern rwlock_t capi_drivers_list_lock;
+extern struct mutex capi_drivers_lock;
+
+extern struct capi_ctr *capi_controller[CAPI_MAXCONTR];
+extern struct mutex capi_controller_lock;
 
 extern struct capi20_appl *capi_applications[CAPI_MAXAPPL];
-extern struct capi_ctr *capi_cards[CAPI_MAXCONTR];
 
 #ifdef CONFIG_PROC_FS
 

@@ -37,6 +37,7 @@
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/gfp.h>
 
 #include "mthca_dev.h"
 #include "mthca_config_reg.h"
@@ -789,7 +790,7 @@ static int mthca_setup_hca(struct mthca_dev *dev)
 		goto err_uar_table_free;
 	}
 
-	dev->kar = ioremap(dev->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
+	dev->kar = ioremap((phys_addr_t) dev->driver_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!dev->kar) {
 		mthca_err(dev, "Couldn't map kernel access region, "
 			  "aborting.\n");

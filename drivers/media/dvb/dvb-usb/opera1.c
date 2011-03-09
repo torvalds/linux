@@ -35,7 +35,7 @@
 struct opera1_state {
 	u32 last_key_pressed;
 };
-struct opera_rc_keys {
+struct rc_map_opera_table {
 	u32 keycode;
 	u32 event;
 };
@@ -138,7 +138,7 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 					(msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:0),
 					msg[i].buf,
 					msg[i].len
-					)!= msg[i].len)) {
+					)) != msg[i].len) {
 			break;
 		}
 		if (dvb_usb_opera1_debug & 0x10)
@@ -331,7 +331,7 @@ static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 	return 0;
 }
 
-static struct dvb_usb_rc_key opera1_rc_keys[] = {
+static struct rc_map_table rc_map_opera1_table[] = {
 	{0x5fa0, KEY_1},
 	{0x51af, KEY_2},
 	{0x5da2, KEY_3},
@@ -404,12 +404,12 @@ static int opera1_rc_query(struct dvb_usb_device *dev, u32 * event, int *state)
 
 		send_key = (send_key & 0xffff) | 0x0100;
 
-		for (i = 0; i < ARRAY_SIZE(opera1_rc_keys); i++) {
-			if (rc5_scan(&opera1_rc_keys[i]) == (send_key & 0xffff)) {
+		for (i = 0; i < ARRAY_SIZE(rc_map_opera1_table); i++) {
+			if (rc5_scan(&rc_map_opera1_table[i]) == (send_key & 0xffff)) {
 				*state = REMOTE_KEY_PRESSED;
-				*event = opera1_rc_keys[i].event;
+				*event = rc_map_opera1_table[i].keycode;
 				opst->last_key_pressed =
-					opera1_rc_keys[i].event;
+					rc_map_opera1_table[i].keycode;
 				break;
 			}
 			opst->last_key_pressed = 0;
@@ -483,9 +483,7 @@ static int opera1_xilinx_load_firmware(struct usb_device *dev,
 		}
 	}
 	kfree(p);
-	if (fw) {
-		release_firmware(fw);
-	}
+	release_firmware(fw);
 	return ret;
 }
 
@@ -498,10 +496,12 @@ static struct dvb_usb_device_properties opera1_properties = {
 	.power_ctrl = opera1_power_ctrl,
 	.i2c_algo = &opera1_i2c_algo,
 
-	.rc_key_map = opera1_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(opera1_rc_keys),
-	.rc_interval = 200,
-	.rc_query = opera1_rc_query,
+	.rc.legacy = {
+		.rc_map_table = rc_map_opera1_table,
+		.rc_map_size = ARRAY_SIZE(rc_map_opera1_table),
+		.rc_interval = 200,
+		.rc_query = opera1_rc_query,
+	},
 	.read_mac_address = opera1_read_mac_address,
 	.generic_bulk_ctrl_endpoint = 0x00,
 	/* parameter for the MPEG2-data transfer */

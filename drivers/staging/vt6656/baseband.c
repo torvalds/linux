@@ -662,11 +662,11 @@ const WORD awcFrameTime[MAX_RATE] =
 
 /*
 static
-ULONG
+unsigned long
 s_ulGetLowSQ3(PSDevice pDevice);
 
 static
-ULONG
+unsigned long
 s_ulGetRatio(PSDevice pDevice);
 
 static
@@ -689,19 +689,19 @@ s_vClearSQ3Value(PSDevice pDevice);
  * Return Value: FrameTime
  *
  */
-UINT
+unsigned int
 BBuGetFrameTime (
-    IN BYTE byPreambleType,
-    IN BYTE byPktType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+     BYTE byPreambleType,
+     BYTE byPktType,
+     unsigned int cbFrameLength,
+     WORD wRate
     )
 {
-    UINT uFrameTime;
-    UINT uPreamble;
-    UINT uTmp;
-    UINT uRateIdx = (UINT)wRate;
-    UINT uRate = 0;
+    unsigned int uFrameTime;
+    unsigned int uPreamble;
+    unsigned int uTmp;
+    unsigned int uRateIdx = (unsigned int)wRate;
+    unsigned int uRate = 0;
 
 
     if (uRateIdx > RATE_54M) {
@@ -709,7 +709,7 @@ BBuGetFrameTime (
         return 0;
     }
 
-    uRate = (UINT)awcFrameTime[uRateIdx];
+    uRate = (unsigned int)awcFrameTime[uRateIdx];
 
     if (uRateIdx <= 3) {          //CCK mode
 
@@ -756,20 +756,20 @@ BBuGetFrameTime (
  * Return Value: none
  *
  */
-VOID
+void
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
-    OUT PWORD pwPhyLen,
-    OUT PBYTE pbyPhySrv,
-    OUT PBYTE pbyPhySgn
+      PSDevice pDevice,
+      unsigned int cbFrameLength,
+      WORD wRate,
+      BYTE byPacketType,
+     PWORD pwPhyLen,
+     PBYTE pbyPhySrv,
+     PBYTE pbyPhySgn
     )
 {
-    UINT cbBitCount;
-    UINT cbUsCount = 0;
-    UINT cbTmp;
+    unsigned int cbBitCount;
+    unsigned int cbUsCount = 0;
+    unsigned int cbTmp;
     BOOL bExtBit;
     BYTE byPreambleType = pDevice->byPreambleType;
     BOOL bCCK = pDevice->bCCK;
@@ -929,7 +929,7 @@ BBvCaculateParameter (
  * Return Value: none
  *
  */
-VOID
+void
 BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
 {
     //{{ RobertYu: 20041124, ABG Mode, VC1/VC2 define, make the ANT_A, ANT_B inverted
@@ -963,7 +963,7 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
             break;
         case ANT_RXB:
             pDevice->byBBRxConf &= 0xFE;
-            pDevice->byBBRxConf |= 0x02;;
+            pDevice->byBBRxConf |= 0x02;
             break;
     }
 
@@ -989,10 +989,10 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
  * Return Value: none
  *
  */
-BOOL
-BBbVT3184Init (PSDevice pDevice)
+
+BOOL BBbVT3184Init(PSDevice pDevice)
 {
-    NTSTATUS                ntStatus;
+	int ntStatus;
     WORD                    wLength;
     PBYTE                   pbyAddr;
     PBYTE                   pbyAgc;
@@ -1010,11 +1010,9 @@ BBbVT3184Init (PSDevice pDevice)
     }
 
 
-    //20080215-01,<Add> by Mike Liu
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
 //        return FALSE;
 
-//20080804-01,<Add> by Mike Liu
 //zonetype initial
  pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
  if(pDevice->config_file.ZoneType >= 0) {         //read zonetype file ok!
@@ -1274,7 +1272,7 @@ void BBvLoopbackOff (PSDevice pDevice)
  * Return Value: none
  *
  */
-VOID
+void
 BBvSetShortSlotTime (PSDevice pDevice)
 {
     BYTE byBBVGA=0;
@@ -1295,7 +1293,7 @@ BBvSetShortSlotTime (PSDevice pDevice)
 }
 
 
-VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
+void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
 {
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xE7, byData);
@@ -1324,7 +1322,7 @@ VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
  * Return Value: none
  *
  */
-VOID
+void
 BBvSoftwareReset (PSDevice pDevice)
 {
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0x40);
@@ -1345,14 +1343,14 @@ BBvSoftwareReset (PSDevice pDevice)
  * Return Value: none
  *
  */
-VOID
+void
 BBvSetDeepSleep (PSDevice pDevice)
 {
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0c, 0x17);//CR12
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0xB9);//CR13
 }
 
-VOID
+void
 BBvExitDeepSleep (PSDevice pDevice)
 {
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0C, 0x00);//CR12
@@ -1360,13 +1358,11 @@ BBvExitDeepSleep (PSDevice pDevice)
 }
 
 
-static
-ULONG
-s_ulGetLowSQ3(PSDevice pDevice)
+static unsigned long s_ulGetLowSQ3(PSDevice pDevice)
 {
-int   ii;
-ULONG ulSQ3 = 0;
-ULONG ulMaxPacket;
+	int ii;
+	unsigned long ulSQ3 = 0;
+	unsigned long ulMaxPacket;
 
     ulMaxPacket = pDevice->aulPktNum[RATE_54M];
     if ( pDevice->aulPktNum[RATE_54M] != 0 ) {
@@ -1382,16 +1378,12 @@ ULONG ulMaxPacket;
     return ulSQ3;
 }
 
-
-
-static
-ULONG
-s_ulGetRatio (PSDevice pDevice)
+static unsigned long s_ulGetRatio(PSDevice pDevice)
 {
-int     ii,jj;
-ULONG   ulRatio = 0;
-ULONG   ulMaxPacket;
-ULONG   ulPacketNum;
+	int ii, jj;
+	unsigned long ulRatio = 0;
+	unsigned long ulMaxPacket;
+	unsigned long ulPacketNum;
 
     //This is a thousand-ratio
     ulMaxPacket = pDevice->aulPktNum[RATE_54M];
@@ -1445,7 +1437,7 @@ s_vClearSQ3Value (PSDevice pDevice)
  *
  */
 
-VOID
+void
 BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
 {
 
@@ -1513,7 +1505,9 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
                 if ( pDevice->byTMax == 0 )
                     return;
 
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_CHANGE_ANTENNA,
+				 NULL);
 
                 pDevice->byAntennaState = 1;
 
@@ -1543,7 +1537,9 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
                  ((pDevice->ulSQ3_State1 != 0) && (pDevice->ulSQ3_State0 != 0) && (pDevice->ulSQ3_State0 < pDevice->ulSQ3_State1))
                ) {
 
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+		bScheduleCommand((void *) pDevice,
+				 WLAN_CMD_CHANGE_ANTENNA,
+				 NULL);
 
                 pDevice->TimerSQ3Tmax3.expires =  RUN_AT(pDevice->byTMax3 * HZ);
                 pDevice->TimerSQ3Tmax2.expires =  RUN_AT(pDevice->byTMax2 * HZ);
@@ -1576,17 +1572,14 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
  *
 -*/
 
-VOID
-TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
-    )
+void TimerSQ3CallBack(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TimerSQ3CallBack...");
     spin_lock_irq(&pDevice->lock);
 
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
     pDevice->byAntennaState = 0;
     s_vClearSQ3Value(pDevice);
     pDevice->TimerSQ3Tmax3.expires =  RUN_AT(pDevice->byTMax3 * HZ);
@@ -1618,10 +1611,7 @@ TimerSQ3CallBack (
  *
 -*/
 
-VOID
-TimerSQ3Tmax3CallBack (
-    IN  HANDLE      hDeviceContext
-    )
+void TimerSQ3Tmax3CallBack(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
@@ -1639,7 +1629,7 @@ TimerSQ3Tmax3CallBack (
         return;
     }
 
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_CHANGE_ANTENNA, NULL);
     pDevice->byAntennaState = 1;
     del_timer(&pDevice->TimerSQ3Tmax3);
     del_timer(&pDevice->TimerSQ3Tmax2);
@@ -1650,10 +1640,10 @@ TimerSQ3Tmax3CallBack (
     return;
 }
 
-VOID
+void
 BBvUpdatePreEDThreshold(
-    IN  PSDevice    pDevice,
-    IN  BOOL        bScanning)
+      PSDevice    pDevice,
+      BOOL        bScanning)
 {
 
 

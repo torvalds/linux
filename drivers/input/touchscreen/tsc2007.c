@@ -265,7 +265,7 @@ static int __devinit tsc2007_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct tsc2007 *ts;
-	struct tsc2007_platform_data *pdata = pdata = client->dev.platform_data;
+	struct tsc2007_platform_data *pdata = client->dev.platform_data;
 	struct input_dev *input_dev;
 	int err;
 
@@ -358,7 +358,7 @@ static int __devexit tsc2007_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id tsc2007_idtable[] = {
+static const struct i2c_device_id tsc2007_idtable[] = {
 	{ "tsc2007", 0 },
 	{ }
 };

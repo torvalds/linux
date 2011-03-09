@@ -18,6 +18,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <video/edid.h>
 #include <video/uvesafb.h>
 #ifdef CONFIG_X86
@@ -1976,8 +1977,7 @@ static void __devexit uvesafb_exit(void)
 
 module_exit(uvesafb_exit);
 
-#define param_get_scroll NULL
-static int param_set_scroll(const char *val, struct kernel_param *kp)
+static int param_set_scroll(const char *val, const struct kernel_param *kp)
 {
 	ypan = 0;
 
@@ -1992,7 +1992,9 @@ static int param_set_scroll(const char *val, struct kernel_param *kp)
 
 	return 0;
 }
-
+static struct kernel_param_ops param_ops_scroll = {
+	.set = param_set_scroll,
+};
 #define param_check_scroll(name, p) __param_check(name, p, void)
 
 module_param_named(scroll, ypan, scroll, 0);

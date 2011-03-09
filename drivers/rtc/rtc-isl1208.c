@@ -462,39 +462,16 @@ isl1208_sysfs_store_usr(struct device *dev,
 static DEVICE_ATTR(usr, S_IRUGO | S_IWUSR, isl1208_sysfs_show_usr,
 		   isl1208_sysfs_store_usr);
 
-static int
-isl1208_sysfs_register(struct device *dev)
-{
-	int err;
+static struct attribute *isl1208_rtc_attrs[] = {
+	&dev_attr_atrim.attr,
+	&dev_attr_dtrim.attr,
+	&dev_attr_usr.attr,
+	NULL
+};
 
-	err = device_create_file(dev, &dev_attr_atrim);
-	if (err)
-		return err;
-
-	err = device_create_file(dev, &dev_attr_dtrim);
-	if (err) {
-		device_remove_file(dev, &dev_attr_atrim);
-		return err;
-	}
-
-	err = device_create_file(dev, &dev_attr_usr);
-	if (err) {
-		device_remove_file(dev, &dev_attr_atrim);
-		device_remove_file(dev, &dev_attr_dtrim);
-	}
-
-	return 0;
-}
-
-static int
-isl1208_sysfs_unregister(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_dtrim);
-	device_remove_file(dev, &dev_attr_atrim);
-	device_remove_file(dev, &dev_attr_usr);
-
-	return 0;
-}
+static const struct attribute_group isl1208_rtc_sysfs_files = {
+	.attrs	= isl1208_rtc_attrs,
+};
 
 static int
 isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -529,7 +506,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_warn(&client->dev, "rtc power failure detected, "
 			 "please set clock.\n");
 
-	rc = isl1208_sysfs_register(&client->dev);
+	rc = sysfs_create_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
 	if (rc)
 		goto exit_unregister;
 
@@ -546,7 +523,7 @@ isl1208_remove(struct i2c_client *client)
 {
 	struct rtc_device *rtc = i2c_get_clientdata(client);
 
-	isl1208_sysfs_unregister(&client->dev);
+	sysfs_remove_group(&client->dev.kobj, &isl1208_rtc_sysfs_files);
 	rtc_device_unregister(rtc);
 
 	return 0;

@@ -28,22 +28,39 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/hw_irq.h>
-#include <asm/kvm_para.h>
 
 /*G:030
  * But first, how does our Guest contact the Host to ask for privileged
  * operations?  There are two ways: the direct way is to make a "hypercall",
  * to make requests of the Host Itself.
  *
- * We use the KVM hypercall mechanism, though completely different hypercall
- * numbers. Seventeen hypercalls are available: the hypercall number is put in
- * the %eax register, and the arguments (when required) are placed in %ebx,
- * %ecx, %edx and %esi.  If a return value makes sense, it's returned in %eax.
+ * Our hypercall mechanism uses the highest unused trap code (traps 32 and
+ * above are used by real hardware interrupts).  Seventeen hypercalls are
+ * available: the hypercall number is put in the %eax register, and the
+ * arguments (when required) are placed in %ebx, %ecx, %edx and %esi.
+ * If a return value makes sense, it's returned in %eax.
  *
  * Grossly invalid calls result in Sudden Death at the hands of the vengeful
  * Host, rather than returning failure.  This reflects Winston Churchill's
  * definition of a gentleman: "someone who is only rude intentionally".
-:*/
+ */
+static inline unsigned long
+hcall(unsigned long call,
+      unsigned long arg1, unsigned long arg2, unsigned long arg3,
+      unsigned long arg4)
+{
+	/* "int" is the Intel instruction to trigger a trap. */
+	asm volatile("int $" __stringify(LGUEST_TRAP_ENTRY)
+		     /* The call in %eax (aka "a") might be overwritten */
+		     : "=a"(call)
+		       /* The arguments are in %eax, %ebx, %ecx, %edx & %esi */
+		     : "a"(call), "b"(arg1), "c"(arg2), "d"(arg3), "S"(arg4)
+		       /* "memory" means this might write somewhere in memory.
+			* This isn't true for all calls, but it's safe to tell
+			* gcc that it might happen so it doesn't get clever. */
+		     : "memory");
+	return call;
+}
 
 /* Can't use our min() macro here: needs to be a constant */
 #define LGUEST_IRQS (NR_IRQS < 32 ? NR_IRQS: 32)

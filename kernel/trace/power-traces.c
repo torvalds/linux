@@ -9,10 +9,12 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/power.h>
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(power_frequency);
+#ifdef EVENT_POWER_TRACING_DEPRECATED
+EXPORT_TRACEPOINT_SYMBOL_GPL(power_start);
+#endif
+EXPORT_TRACEPOINT_SYMBOL_GPL(cpu_idle);
 

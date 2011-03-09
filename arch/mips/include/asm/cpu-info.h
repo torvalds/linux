@@ -58,6 +58,9 @@ struct cpuinfo_mips {
 	struct cache_desc	tcache;	/* Tertiary/split secondary cache */
 	int			srsets;	/* Shadow register sets */
 	int			core;	/* physical core number */
+#ifdef CONFIG_64BIT
+	int			vmbits;	/* Virtual memory size in bits */
+#endif
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
 	/*
 	 * In the MIPS MT "SMTC" model, each TC is considered
@@ -75,6 +78,7 @@ struct cpuinfo_mips {
 	unsigned int		watch_reg_use_cnt; /* Usable by ptrace */
 #define NUM_WATCH_REGS 4
 	u16			watch_reg_masks[NUM_WATCH_REGS];
+	unsigned int		kscratch_mask; /* Usable KScratch mask. */
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];

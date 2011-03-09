@@ -22,8 +22,6 @@
 #include <mach/asp.h>
 #include "davinci-pcm.h"
 
-extern struct snd_soc_dai davinci_mcasp_dai[];
-
 #define DAVINCI_MCASP_RATES	SNDRV_PCM_RATE_8000_96000
 #define DAVINCI_MCASP_I2S_DAI	0
 #define DAVINCI_MCASP_DIT_DAI	1
@@ -44,6 +42,7 @@ struct davinci_audio_dev {
 	int sample_rate;
 	struct clk *clk;
 	unsigned int codec_fmt;
+	u8 clk_active;
 
 	/* McASP specific data */
 	int	tdm_slots;

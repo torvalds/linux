@@ -16,7 +16,7 @@
 # Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
-EXTRA_CFLAGS +=	 -I$(src) -I$(src)/linux-2.6 -funsigned-char
+EXTRA_CFLAGS +=	 -I$(src) -I$(src)/linux-2.6
 
 XFS_LINUX := linux-2.6
 
@@ -77,6 +77,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_itable.o \
 				   xfs_dfrag.o \
 				   xfs_log.o \
+				   xfs_log_cil.o \
 				   xfs_log_recover.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \
@@ -86,11 +87,9 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_trans_buf.o \
 				   xfs_trans_extfree.o \
 				   xfs_trans_inode.o \
-				   xfs_trans_item.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
-				   xfs_rw.o \
-				   xfs_dmops.o
+				   xfs_rw.o
 
 xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o
 
@@ -99,13 +98,13 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   kmem.o \
 				   xfs_aops.o \
 				   xfs_buf.o \
+				   xfs_discard.o \
 				   xfs_export.o \
 				   xfs_file.o \
 				   xfs_fs_subr.o \
 				   xfs_globals.o \
 				   xfs_ioctl.o \
 				   xfs_iops.o \
-				   xfs_lrw.o \
 				   xfs_super.o \
 				   xfs_sync.o \
 				   xfs_xattr.o)

@@ -198,8 +198,8 @@ int ieee80211_encrypt_fragment(
 		header = (struct ieee80211_hdr_4addr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(header->addr1));
+			       "TX packet to %pM\n",
+			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}
@@ -407,7 +407,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 			memcpy(&header.addr2, src, ETH_ALEN);
 			memcpy(&header.addr3, ieee->current_network.bssid, ETH_ALEN);
 		}
-	//	printk(KERN_WARNING "essid MAC address is "MAC_FMT, MAC_ARG(&header.addr1));
+	//	printk(KERN_WARNING "essid MAC address is %pM", &header.addr1);
 		header.frame_ctl = cpu_to_le16(fc);
 		//hdr_len = IEEE80211_3ADDR_LEN;
 

@@ -73,7 +73,8 @@
 #define FULL_DUPLEX        2
 
 #define AT_RX_BUF_SIZE		(ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN)
-#define MAX_JUMBO_FRAME_SIZE 	(9*1024)
+#define MAX_JUMBO_FRAME_SIZE	(6*1024)
+#define MAX_TSO_FRAME_SIZE      (7*1024)
 #define MAX_TX_OFFLOAD_THRESH	(9*1024)
 
 #define AT_MAX_RECEIVE_QUEUE    4
@@ -87,10 +88,11 @@
 #define AT_MAX_INT_WORK		5
 #define AT_TWSI_EEPROM_TIMEOUT 	100
 #define AT_HW_MAX_IDLE_DELAY 	10
-#define AT_SUSPEND_LINK_TIMEOUT 28
+#define AT_SUSPEND_LINK_TIMEOUT 100
 
 #define AT_ASPM_L0S_TIMER	6
 #define AT_ASPM_L1_TIMER	12
+#define AT_LCKDET_TIMER		12
 
 #define ATL1C_PCIE_L0S_L1_DISABLE 	0x01
 #define ATL1C_PCIE_PHY_RESET		0x02
@@ -313,6 +315,10 @@ enum atl1c_rss_type {
 enum atl1c_nic_type {
 	athr_l1c = 0,
 	athr_l2c = 1,
+	athr_l2c_b,
+	athr_l2c_b2,
+	athr_l1d,
+	athr_l1d_2,
 };
 
 enum atl1c_trans_queue {
@@ -389,6 +395,8 @@ struct atl1c_hw {
 	u16 subsystem_id;
 	u16 subsystem_vendor_id;
 	u8 revision_id;
+	u16 phy_id1;
+	u16 phy_id2;
 
 	u32 intr_mask;
 	u8 dmaw_dly_cnt;
@@ -426,8 +434,12 @@ struct atl1c_hw {
 #define ATL1C_ASPM_L1_SUPPORT		0x0100
 #define ATL1C_ASPM_CTRL_MON		0x0200
 #define ATL1C_HIB_DISABLE		0x0400
-#define ATL1C_LINK_CAP_1000M		0x0800
-#define ATL1C_FPGA_VERSION		0x8000
+#define ATL1C_APS_MODE_ENABLE           0x0800
+#define ATL1C_LINK_EXT_SYNC             0x1000
+#define ATL1C_CLK_GATING_EN             0x2000
+#define ATL1C_FPGA_VERSION              0x8000
+	u16 link_cap_flags;
+#define ATL1C_LINK_CAP_1000M		0x0001
 	u16 cmb_tpd;
 	u16 cmb_rrd;
 	u16 cmb_rx_timer; /* 2us resolution */
@@ -547,7 +559,6 @@ struct atl1c_adapter {
 	struct napi_struct  napi;
 	struct atl1c_hw        hw;
 	struct atl1c_hw_stats  hw_stats;
-	struct net_device_stats net_stats;
 	struct mii_if_info  mii;    /* MII interface info */
 	u16 rx_buffer_len;
 
@@ -620,8 +631,6 @@ struct atl1c_adapter {
 extern char atl1c_driver_name[];
 extern char atl1c_driver_version[];
 
-extern int atl1c_up(struct atl1c_adapter *adapter);
-extern void atl1c_down(struct atl1c_adapter *adapter);
 extern void atl1c_reinit_locked(struct atl1c_adapter *adapter);
 extern s32 atl1c_reset_hw(struct atl1c_hw *hw);
 extern void atl1c_set_ethtool_ops(struct net_device *netdev);

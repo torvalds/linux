@@ -41,6 +41,7 @@
 #include <linux/wait.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -3151,7 +3152,7 @@ deinit_card(struct idt77252_dev *card)
 }
 
 
-static int __devinit
+static void __devinit
 init_sram(struct idt77252_dev *card)
 {
 	int i;
@@ -3297,7 +3298,6 @@ init_sram(struct idt77252_dev *card)
 	       SAR_REG_RXFD);
 
 	IPRINTK("%s: SRAM initialization complete.\n", card->name);
-	return 0;
 }
 
 static int __devinit
@@ -3363,7 +3363,7 @@ init_card(struct atm_dev *dev)
 		writel(SAR_STAT_TMROF, SAR_REG_STAT);
 	}
 	IPRINTK("%s: Request IRQ ... ", card->name);
-	if (request_irq(pcidev->irq, idt77252_interrupt, IRQF_DISABLED|IRQF_SHARED,
+	if (request_irq(pcidev->irq, idt77252_interrupt, IRQF_SHARED,
 			card->name, card) != 0) {
 		printk("%s: can't allocate IRQ.\n", card->name);
 		deinit_card(card);
@@ -3409,8 +3409,7 @@ init_card(struct atm_dev *dev)
 
 	writel(readl(SAR_REG_CFG) | conf, SAR_REG_CFG);
 
-	if (init_sram(card) < 0)
-		return -1;
+	init_sram(card);
 
 /********************************************************************/
 /*  A L L O C   R A M   A N D   S E T   V A R I O U S   T H I N G S */
@@ -3557,10 +3556,7 @@ init_card(struct atm_dev *dev)
 	if (tmp) {
 		memcpy(card->atmdev->esi, tmp->dev_addr, 6);
 
-		printk("%s: ESI %02x:%02x:%02x:%02x:%02x:%02x\n",
-		       card->name, card->atmdev->esi[0], card->atmdev->esi[1],
-		       card->atmdev->esi[2], card->atmdev->esi[3],
-		       card->atmdev->esi[4], card->atmdev->esi[5]);
+		printk("%s: ESI %pM\n", card->name, card->atmdev->esi);
 	}
 	/*
 	 * XXX: </hack>
@@ -3702,7 +3698,8 @@ idt77252_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 		goto err_out_iounmap;
 	}
 
-	dev = atm_dev_register("idt77252", &idt77252_ops, -1, NULL);
+	dev = atm_dev_register("idt77252", &pcidev->dev, &idt77252_ops, -1,
+			       NULL);
 	if (!dev) {
 		printk("%s: can't register atm device\n", card->name);
 		err = -EIO;
@@ -3781,8 +3778,7 @@ err_out_disable_pdev:
 
 static struct pci_device_id idt77252_pci_tbl[] =
 {
-	{ PCI_VENDOR_ID_IDT, PCI_DEVICE_ID_IDT_IDT77252,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77252), 0 },
 	{ 0, }
 };
 

@@ -272,33 +272,32 @@ ahd_proc_write_seeprom(struct ahd_softc *ahd, char *buffer, int length)
 	saved_modes = ahd_save_modes(ahd);
 	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	if (length != sizeof(struct seeprom_config)) {
-		printf("ahd_proc_write_seeprom: incorrect buffer size\n");
+		printk("ahd_proc_write_seeprom: incorrect buffer size\n");
 		goto done;
 	}
 
 	have_seeprom = ahd_verify_cksum((struct seeprom_config*)buffer);
 	if (have_seeprom == 0) {
-		printf("ahd_proc_write_seeprom: cksum verification failed\n");
+		printk("ahd_proc_write_seeprom: cksum verification failed\n");
 		goto done;
 	}
 
 	have_seeprom = ahd_acquire_seeprom(ahd);
 	if (!have_seeprom) {
-		printf("ahd_proc_write_seeprom: No Serial EEPROM\n");
+		printk("ahd_proc_write_seeprom: No Serial EEPROM\n");
 		goto done;
 	} else {
 		u_int start_addr;
 
 		if (ahd->seep_config == NULL) {
-			ahd->seep_config = malloc(sizeof(*ahd->seep_config),
-						  M_DEVBUF, M_NOWAIT);
+			ahd->seep_config = kmalloc(sizeof(*ahd->seep_config), GFP_ATOMIC);
 			if (ahd->seep_config == NULL) {
-				printf("aic79xx: Unable to allocate serial "
+				printk("aic79xx: Unable to allocate serial "
 				       "eeprom buffer.  Write failing\n");
 				goto done;
 			}
 		}
-		printf("aic79xx: Writing Serial EEPROM\n");
+		printk("aic79xx: Writing Serial EEPROM\n");
 		start_addr = 32 * (ahd->channel - 'A');
 		ahd_write_seeprom(ahd, (u_int16_t *)buffer, start_addr,
 				  sizeof(struct seeprom_config)/2);

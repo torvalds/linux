@@ -1,7 +1,7 @@
 /*
  * STV0680 USB Camera Driver
  *
- * Copyright (C) 2009 Hans de Goede <hdgoede@redhat.com>
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 stv680 driver:
  *
@@ -31,7 +31,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("STV0680 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -45,7 +45,7 @@ struct sd {
 };
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 };
 
 static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
@@ -53,30 +53,33 @@ static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 {
 	int ret = -1;
 	u8 req_type = 0;
+	unsigned int pipe = 0;
 
 	switch (set) {
 	case 0: /*  0xc1  */
 		req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT;
+		pipe = usb_rcvctrlpipe(gspca_dev->dev, 0);
 		break;
 	case 1: /*  0x41  */
 		req_type = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_ENDPOINT;
+		pipe = usb_sndctrlpipe(gspca_dev->dev, 0);
 		break;
 	case 2:	/*  0x80  */
 		req_type = USB_DIR_IN | USB_RECIP_DEVICE;
+		pipe = usb_rcvctrlpipe(gspca_dev->dev, 0);
 		break;
 	case 3:	/*  0x40  */
 		req_type = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
+		pipe = usb_sndctrlpipe(gspca_dev->dev, 0);
 		break;
 	}
 
-	ret = usb_control_msg(gspca_dev->dev,
-			      usb_rcvctrlpipe(gspca_dev->dev, 0),
+	ret = usb_control_msg(gspca_dev->dev, pipe,
 			      req, req_type,
 			      val, 0, gspca_dev->usb_buf, size, 500);
 
 	if ((ret < 0) && (req != 0x0a))
-		PDEBUG(D_ERR,
-		       "usb_control_msg error %i, request = 0x%x, error = %i",
+		err("usb_control_msg error %i, request = 0x%x, error = %i",
 		       set, req, ret);
 
 	return ret;
@@ -138,6 +141,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam = &gspca_dev->cam;
 
+	/* Give the camera some time to settle, otherwise initalization will
+	   fail on hotplug, and yes it really needs a full second. */
+	msleep(1000);
+
 	/* ping camera to be sure STV0680 is present */
 	if (stv_sndctrl(gspca_dev, 0, 0x88, 0x5678, 0x02) != 0x02 ||
 	    gspca_dev->usb_buf[0] != 0x56 || gspca_dev->usb_buf[1] != 0x78) {
@@ -169,6 +176,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "Camera supports CIF mode");
 	if (gspca_dev->usb_buf[7] & 0x02)
 		PDEBUG(D_PROBE, "Camera supports VGA mode");
+	if (gspca_dev->usb_buf[7] & 0x04)
+		PDEBUG(D_PROBE, "Camera supports QCIF mode");
 	if (gspca_dev->usb_buf[7] & 0x08)
 		PDEBUG(D_PROBE, "Camera supports QVGA mode");
 
@@ -227,7 +236,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (stv_sndctrl(gspca_dev, 2, 0x06, 0x0100, 0x12) != 0x12 ||
 	    gspca_dev->usb_buf[8] != 0x53 || gspca_dev->usb_buf[9] != 0x05) {
-		PDEBUG(D_ERR, "Could not get descriptor 0100.");
+		err("Could not get descriptor 0100.");
 		return stv0680_handle_error(gspca_dev, -EIO);
 	}
 
@@ -347,17 +356,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

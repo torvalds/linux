@@ -24,7 +24,6 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 #include "indycam.h"
 
@@ -378,9 +377,25 @@ static const struct i2c_device_id indycam_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, indycam_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "indycam",
-	.probe = indycam_probe,
-	.remove = indycam_remove,
-	.id_table = indycam_id,
+static struct i2c_driver indycam_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "indycam",
+	},
+	.probe		= indycam_probe,
+	.remove		= indycam_remove,
+	.id_table	= indycam_id,
 };
+
+static __init int init_indycam(void)
+{
+	return i2c_add_driver(&indycam_driver);
+}
+
+static __exit void exit_indycam(void)
+{
+	i2c_del_driver(&indycam_driver);
+}
+
+module_init(init_indycam);
+module_exit(exit_indycam);

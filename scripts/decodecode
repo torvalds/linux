@@ -40,7 +40,7 @@ echo $code
 code=`echo $code | sed -e 's/.*Code: //'`
 
 width=`expr index "$code" ' '`
-width=$[($width-1)/2]
+width=$((($width-1)/2))
 case $width in
 1) type=byte ;;
 2) type=2byte ;;
@@ -48,10 +48,10 @@ case $width in
 esac
 
 disas() {
-	${CROSS_COMPILE}as $AFLAGS -o $1.o $1.s &> /dev/null
+	${CROSS_COMPILE}as $AFLAGS -o $1.o $1.s > /dev/null 2>&1
 
-	if [ "$ARCH" == "arm" ]; then
-		if [ $width == 2 ]; then
+	if [ "$ARCH" = "arm" ]; then
+		if [ $width -eq 2 ]; then
 			OBJDUMPFLAGS="-M force-thumb"
 		fi
 
@@ -59,7 +59,7 @@ disas() {
 	fi
 
 	${CROSS_COMPILE}objdump $OBJDUMPFLAGS -S $1.o | \
-		grep -v "/tmp\|Disassembly\|\.text\|^$" &> $1.dis
+		grep -v "/tmp\|Disassembly\|\.text\|^$" > $1.dis 2>&1
 }
 
 marker=`expr index "$code" "\<"`

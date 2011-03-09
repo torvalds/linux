@@ -60,7 +60,7 @@ int h8300_put_reg(struct task_struct *task, int regno, unsigned long data)
 }
 
 /* disable singlestep */
-void h8300_disable_trace(struct task_struct *child)
+void user_disable_single_step(struct task_struct *child)
 {
 	if((long)child->thread.breakinfo.addr != -1L) {
 		*child->thread.breakinfo.addr = child->thread.breakinfo.inst;
@@ -264,7 +264,7 @@ static unsigned short *getnextpc(struct task_struct *child, unsigned short *pc)
 
 /* Set breakpoint(s) to simulate a single step from the current PC.  */
 
-void h8300_enable_trace(struct task_struct *child)
+void user_enable_single_step(struct task_struct *child)
 {
 	unsigned short *nextpc;
 	nextpc = getnextpc(child,(unsigned short *)h8300_get_reg(child, PT_PC));
@@ -276,7 +276,7 @@ void h8300_enable_trace(struct task_struct *child)
 asmlinkage void trace_trap(unsigned long bp)
 {
 	if ((unsigned long)current->thread.breakinfo.addr == bp) {
-		h8300_disable_trace(current);
+		user_disable_single_step(current);
 		force_sig(SIGTRAP,current);
 	} else
 	        force_sig(SIGILL,current);

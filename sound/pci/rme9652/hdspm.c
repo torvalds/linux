@@ -487,7 +487,7 @@ struct hdspm {
 	struct snd_kcontrol *playback_mixer_ctls[HDSPM_MAX_CHANNELS];
 	/* but input to much, so not used */
 	struct snd_kcontrol *input_mixer_ctls[HDSPM_MAX_CHANNELS];
-	/* full mixer accessable over mixer ioctl or hwdep-device */
+	/* full mixer accessible over mixer ioctl or hwdep-device */
 	struct hdspm_mixer *mixer;
 
 };
@@ -512,7 +512,7 @@ static char channel_map_madi_ss[HDSPM_MAX_CHANNELS] = {
 };
 
 
-static struct pci_device_id snd_hdspm_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(snd_hdspm_ids) = {
 	{
 	 .vendor = PCI_VENDOR_ID_XILINX,
 	 .device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI,
@@ -550,7 +550,7 @@ static inline int HDSPM_bit2freq(int n)
 	return bit2freq_tab[n];
 }
 
-/* Write/read to/from HDSPM with Adresses in Bytes
+/* Write/read to/from HDSPM with Addresses in Bytes
    not words but only 32Bit writes are allowed */
 
 static inline void hdspm_write(struct hdspm * hdspm, unsigned int reg,
@@ -2479,7 +2479,7 @@ static int snd_hdspm_put_qs_wire(struct snd_kcontrol *kcontrol,
    on MADICARD 
   - playback mixer matrix: [channelout+64] [output] [value]
   - input(thru) mixer matrix: [channelin] [output] [value]
-  (better do 2 kontrols for seperation ?)
+  (better do 2 kontrols for separation ?)
 */
 
 #define HDSPM_MIXER(xname, xindex) \
@@ -2908,7 +2908,7 @@ static int snd_hdspm_create_controls(struct snd_card *card, struct hdspm * hdspm
 
 	/* Channel playback mixer as default control 
 	   Note: the whole matrix would be 128*HDSPM_MIXER_CHANNELS Faders,
-	   thats too * big for any alsamixer they are accesible via special
+	   thats too * big for any alsamixer they are accessible via special
 	   IOCTL on hwdep and the mixer 2dimensional mixer control
 	*/
 
@@ -4127,6 +4127,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep * hw, struct file *file,
 
 	case SNDRV_HDSPM_IOCTL_GET_CONFIG_INFO:
 
+		memset(&info, 0, sizeof(info));
 		spin_lock_irq(&hdspm->lock);
 		info.pref_sync_ref = hdspm_pref_sync_ref(hdspm);
 		info.wordclock_sync_check = hdspm_wc_sync_check(hdspm);

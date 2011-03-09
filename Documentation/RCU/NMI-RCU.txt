@@ -34,7 +34,7 @@ NMI handler.
 		cpu = smp_processor_id();
 		++nmi_count(cpu);
 
-		if (!rcu_dereference(nmi_callback)(regs, cpu))
+		if (!rcu_dereference_sched(nmi_callback)(regs, cpu))
 			default_do_nmi(regs);
 
 		nmi_exit();
@@ -47,12 +47,13 @@ function pointer.  If this handler returns zero, do_nmi() invokes the
 default_do_nmi() function to handle a machine-specific NMI.  Finally,
 preemption is restored.
 
-Strictly speaking, rcu_dereference() is not needed, since this code runs
-only on i386, which does not need rcu_dereference() anyway.  However,
-it is a good documentation aid, particularly for anyone attempting to
-do something similar on Alpha.
+In theory, rcu_dereference_sched() is not needed, since this code runs
+only on i386, which in theory does not need rcu_dereference_sched()
+anyway.  However, in practice it is a good documentation aid, particularly
+for anyone attempting to do something similar on Alpha or on systems
+with aggressive optimizing compilers.
 
-Quick Quiz:  Why might the rcu_dereference() be necessary on Alpha,
+Quick Quiz:  Why might the rcu_dereference_sched() be necessary on Alpha,
 	     given that the code referenced by the pointer is read-only?
 
 
@@ -99,17 +100,21 @@ invoke irq_enter() and irq_exit() on NMI entry and exit, respectively.
 
 Answer to Quick Quiz
 
-	Why might the rcu_dereference() be necessary on Alpha, given
+	Why might the rcu_dereference_sched() be necessary on Alpha, given
 	that the code referenced by the pointer is read-only?
 
 	Answer: The caller to set_nmi_callback() might well have
-		initialized some data that is to be used by the
-		new NMI handler.  In this case, the rcu_dereference()
-		would be needed, because otherwise a CPU that received
-		an NMI just after the new handler was set might see
-		the pointer to the new NMI handler, but the old
-		pre-initialized version of the handler's data.
+		initialized some data that is to be used by the new NMI
+		handler.  In this case, the rcu_dereference_sched() would
+		be needed, because otherwise a CPU that received an NMI
+		just after the new handler was set might see the pointer
+		to the new NMI handler, but the old pre-initialized
+		version of the handler's data.
 
-		More important, the rcu_dereference() makes it clear
-		to someone reading the code that the pointer is being
-		protected by RCU.
+		This same sad story can happen on other CPUs when using
+		a compiler with aggressive pointer-value speculation
+		optimizations.
+
+		More important, the rcu_dereference_sched() makes it
+		clear to someone reading the code that the pointer is
+		being protected by RCU-sched.

@@ -705,8 +705,13 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (ourport->info->has_divslot) {
 		unsigned int div = ourport->baudclk_rate / baud;
 
-		udivslot = udivslot_table[div & 15];
-		dbg("udivslot = %04x (div %d)\n", udivslot, div & 15);
+		if (cfg->has_fracval) {
+			udivslot = (div & 15);
+			dbg("fracval = %04x\n", udivslot);
+		} else {
+			udivslot = udivslot_table[div & 15];
+			dbg("udivslot = %04x (div %d)\n", udivslot, div & 15);
+		}
 	}
 
 	switch (termios->c_cflag & CSIZE) {
@@ -878,10 +883,10 @@ static struct uart_ops s3c24xx_serial_ops = {
 
 static struct uart_driver s3c24xx_uart_drv = {
 	.owner		= THIS_MODULE,
-	.dev_name	= "s3c2410_serial",
+	.driver_name	= "s3c2410_serial",
 	.nr		= CONFIG_SERIAL_SAMSUNG_UARTS,
 	.cons		= S3C24XX_SERIAL_CONSOLE,
-	.driver_name	= S3C24XX_SERIAL_NAME,
+	.dev_name	= S3C24XX_SERIAL_NAME,
 	.major		= S3C24XX_SERIAL_MAJOR,
 	.minor		= S3C24XX_SERIAL_MINOR,
 };
@@ -1096,7 +1101,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
 	port->mapbase = res->start;
-	port->membase = S3C_VA_UART + res->start - (S3C_PA_UART & 0xfff00000);
+	port->membase = S3C_VA_UART + (res->start & 0xfffff);
 	ret = platform_get_irq(platdev, 0);
 	if (ret < 0)
 		port->irq = 0;
@@ -1271,7 +1276,7 @@ s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 	unsigned long ufstat, utrstat;
 
 	if (ufcon & S3C2410_UFCON_FIFOMODE) {
-		/* fifo mode - check ammount of data in fifo registers... */
+		/* fifo mode - check amount of data in fifo registers... */
 
 		ufstat = rd_regl(port, S3C2410_UFSTAT);
 		return (ufstat & info->tx_fifofull) ? 0 : 1;
@@ -1374,7 +1379,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
  * data.
 */
 
-static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info **info)
 {
 	struct s3c24xx_uart_port *ptr = s3c24xx_serial_ports;
 	struct platform_device **platdev_ptr;
@@ -1385,7 +1390,7 @@ static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info *info)
 	platdev_ptr = s3c24xx_uart_devs;
 
 	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++, ptr++, platdev_ptr++) {
-		s3c24xx_serial_init_port(ptr, info, *platdev_ptr);
+		s3c24xx_serial_init_port(ptr, info[i], *platdev_ptr);
 	}
 
 	return 0;
@@ -1451,7 +1456,7 @@ static struct console s3c24xx_serial_console = {
 };
 
 int s3c24xx_serial_initconsole(struct platform_driver *drv,
-			       struct s3c24xx_uart_info *info)
+			       struct s3c24xx_uart_info **info)
 
 {
 	struct platform_device *dev = s3c24xx_uart_devs[0];

@@ -42,12 +42,11 @@ IRQ is assigned but not used.
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -76,13 +75,15 @@ struct dio700_board {
 static const struct dio700_board dio700_boards[] = {
 	{
 	 .name = "daqcard-700",
-	 .device_id = 0x4743,	/*  0x10b is manufacturer id, 0x4743 is device id */
+	  /*  0x10b is manufacturer id, 0x4743 is device id */
+	 .device_id = 0x4743,
 	 .bustype = pcmcia_bustype,
 	 .have_dio = 1,
 	 },
 	{
 	 .name = "ni_daq_700",
-	 .device_id = 0x4743,	/*  0x10b is manufacturer id, 0x4743 is device id */
+	  /*  0x10b is manufacturer id, 0x4743 is device id */
+	 .device_id = 0x4743,
 	 .bustype = pcmcia_bustype,
 	 .have_dio = 1,
 	 },
@@ -142,6 +143,7 @@ void subdev_700_interrupt(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	comedi_event(dev, s);
 }
+EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 {
@@ -309,11 +311,11 @@ int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -ENOMEM;
 
 	CALLBACK_ARG = arg;
-	if (cb == NULL) {
+	if (cb == NULL)
 		CALLBACK_FUNC = subdev_700_cb;
-	} else {
+	 else
 		CALLBACK_FUNC = cb;
-	}
+
 	s->insn_bits = subdev_700_insn;
 	s->insn_config = subdev_700_insn_config;
 
@@ -323,6 +325,7 @@ int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+EXPORT_SYMBOL(subdev_700_init);
 
 int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 			int (*cb) (int, int, int, unsigned long),
@@ -342,21 +345,16 @@ int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+EXPORT_SYMBOL(subdev_700_init_irq);
 
 void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	if (s->private) {
-		if (subdevpriv->have_irq) {
-		}
+	if (s->private)
+		if (subdevpriv->have_irq)
 
-		kfree(s->private);
-	}
+			kfree(s->private);
 }
-
-EXPORT_SYMBOL(subdev_700_init);
-EXPORT_SYMBOL(subdev_700_init_irq);
 EXPORT_SYMBOL(subdev_700_cleanup);
-EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -377,9 +375,9 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		link = pcmcia_cur_dev;	/* XXX hack */
 		if (!link)
 			return -EIO;
-		iobase = link->io.BasePort1;
+		iobase = link->resource[0]->start;
 #ifdef incomplete
-		irq = link->irq.AssignedIRQ;
+		irq = link->irq;
 #endif
 		break;
 	default:
@@ -390,9 +388,9 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("comedi%d: ni_daq_700: %s, io 0x%lx", dev->minor,
 	       thisboard->name, iobase);
 #ifdef incomplete
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
+
 #endif
 
 	printk("\n");
@@ -436,55 +434,19 @@ static int dio700_detach(struct comedi_device *dev)
 	return 0;
 };
 
-/* PCMCIA crap -- watch your words, please! */
-
 static void dio700_config(struct pcmcia_device *link);
 static void dio700_release(struct pcmcia_device *link);
 static int dio700_cs_suspend(struct pcmcia_device *p_dev);
 static int dio700_cs_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int dio700_cs_attach(struct pcmcia_device *);
 static void dio700_cs_detach(struct pcmcia_device *);
 
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static const dev_info_t dev_info = "ni_daq_700";
-
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
-
-/*======================================================================
-
-    dio700_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int dio700_cs_attach(struct pcmcia_device *link)
 {
@@ -501,35 +463,12 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = NULL;
-
-	/*
-	   General socket configuration defaults can go here.  In this
-	   client, we assume very little, and rely on the CIS for almost
-	   everything.  In most clients, many details (i.e., number, sizes,
-	   and attributes of IO windows) are fixed by the nature of the
-	   device, and can be hard-wired here.
-	 */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	pcmcia_cur_dev = link;
 
 	dio700_config(link);
 
 	return 0;
 }				/* dio700_cs_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void dio700_cs_detach(struct pcmcia_device *link)
 {
@@ -538,149 +477,46 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "dio700_cs_detach\n");
 
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		dio700_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	dio700_release(link);
 
 	/* This points to the parent struct local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 
 }				/* dio700_cs_detach */
 
-/*======================================================================
-
-    dio700_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
 static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
-	win_req_t *req = priv_data;
-	memreq_t map;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	if (cfg->index == 0)
-		return -ENODEV;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
-		}
-		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
-			return -ENODEV;
-	}
-
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem =
-			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		req->Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		if (req->Size < 0x1000)
-			req->Size = 0x1000;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(p_dev, req, &p_dev->win))
-			return -ENODEV;
-		map.Page = 0;
-		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
-			return -ENODEV;
-	}
-	/* If we got this far, we're cool! */
-	return 0;
+	return pcmcia_request_io(p_dev);
 }
 
 static void dio700_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
-	win_req_t req;
 	int ret;
 
 	printk(KERN_INFO "ni_daq_700:  cs-config\n");
 
 	dev_dbg(&link->dev, "dio700_config\n");
 
-	ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, &req);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_AUDIO |
+		CONF_AUTO_SET_IO;
+
+	ret = pcmcia_loop_config(link, dio700_pcmcia_config_loop, NULL);
 	if (ret) {
 		dev_warn(&link->dev, "no configuration found\n");
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
-
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
-	if (ret != 0)
+	if (!link->irq)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "ni_daq_700");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
-	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
-	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", req.Base,
-		       req.Base + req.Size - 1);
-	printk("\n");
+	ret = pcmcia_enable_device(link);
+	if (ret != 0)
+		goto failed;
 
 	return;
 
@@ -696,18 +532,6 @@ static void dio700_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }				/* dio700_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
 
 static int dio700_cs_suspend(struct pcmcia_device *link)
 {
@@ -734,8 +558,12 @@ static struct pcmcia_device_id dio700_cs_ids[] = {
 	PCMCIA_DEVICE_NULL
 };
 
-MODULE_LICENSE("GPL");
+
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
+MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments "
+		   "PCMCIA DAQCard-700 DIO");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver dio700_cs_driver = {
 	.probe = dio700_cs_attach,
@@ -744,9 +572,7 @@ struct pcmcia_driver dio700_cs_driver = {
 	.resume = dio700_cs_resume,
 	.id_table = dio700_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = dev_info,
-		},
+	.name = "ni_daq_700",
 };
 
 static int __init init_dio700_cs(void)

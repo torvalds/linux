@@ -301,6 +301,7 @@
 #define E1000_VFTE      0x00C90 /* VF Transmit Enables */
 #define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
 #define E1000_DTXSWC    0x03500 /* DMA Tx Switch Control - RW */
+#define E1000_WVBR      0x03554 /* VM Wrong Behavior - RWS */
 #define E1000_RPLOLR    0x05AF0 /* Replication Offload - RW */
 #define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
@@ -310,6 +311,7 @@
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
 #define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
                                                        * Filter - RW */
+#define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 
 #define wr32(reg, value) (writel(value, hw->hw_addr + reg))
 #define rd32(reg) (readl(hw->hw_addr + reg))

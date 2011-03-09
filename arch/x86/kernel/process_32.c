@@ -55,7 +55,6 @@
 #include <asm/cpu.h>
 #include <asm/idle.h>
 #include <asm/syscalls.h>
-#include <asm/ds.h>
 #include <asm/debugreg.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
@@ -174,12 +173,6 @@ void __show_regs(struct pt_regs *regs, int all)
 			d6, d7);
 }
 
-void show_regs(struct pt_regs *regs)
-{
-	show_registers(regs);
-	show_trace(NULL, regs, &regs->sp, regs->bp);
-}
-
 void release_thread(struct task_struct *dead_task)
 {
 	BUG_ON(dead_task->mm);
@@ -244,13 +237,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		kfree(p->thread.io_bitmap_ptr);
 		p->thread.io_bitmap_max = 0;
 	}
-
-	clear_tsk_thread_flag(p, TIF_DS_AREA_MSR);
-	p->thread.ds_ctx = NULL;
-
-	clear_tsk_thread_flag(p, TIF_DEBUGCTLMSR);
-	p->thread.debugctlmsr = 0;
-
 	return err;
 }
 
@@ -323,7 +309,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* we're going to use this soon, after a few expensive things */
 	if (preload_fpu)
-		prefetch(next->xstate);
+		prefetch(next->fpu.state);
 
 	/*
 	 * Reload esp0.

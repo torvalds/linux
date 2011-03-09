@@ -398,7 +398,7 @@ exit:
  * guaranteed that all the free functions for all the elements have finished
  * executing and the reaper is not running.
  */
-void
+static void
 xfs_mru_cache_flush(
 	xfs_mru_cache_t		*mru)
 {
@@ -408,7 +408,7 @@ xfs_mru_cache_flush(
 	spin_lock(&mru->lock);
 	if (mru->queued) {
 		spin_unlock(&mru->lock);
-		cancel_rearming_delayed_workqueue(xfs_mru_reap_wq, &mru->work);
+		cancel_delayed_work_sync(&mru->work);
 		spin_lock(&mru->lock);
 	}
 

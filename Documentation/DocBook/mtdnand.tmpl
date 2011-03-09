@@ -250,7 +250,7 @@ static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 		<title>Device ready function</title>
 		<para>
 			If the hardware interface has the ready busy pin of the NAND chip connected to a
-			GPIO or other accesible I/O pin, this function is used to read back the state of the
+			GPIO or other accessible I/O pin, this function is used to read back the state of the
 			pin. The function has no arguments and should return 0, if the device is busy (R/B pin 
 			is low) and 1, if the device is ready (R/B pin is high).
 			If the hardware interface does not give access to the ready busy pin, then
@@ -269,7 +269,7 @@ static void board_hwcontrol(struct mtd_info *mtd, int cmd)
 			information about the device.
 		</para>
 		<programlisting>
-int __init board_init (void)
+static int __init board_init (void)
 {
 	struct nand_chip *this;
 	int err = 0;
@@ -488,7 +488,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				The ECC bytes must be placed immidiately after the data
 				bytes in order to make the syndrome generator work. This
 				is contrary to the usual layout used by software ECC. The
-				seperation of data and out of band area is not longer
+				separation of data and out of band area is not longer
 				possible. The nand driver code handles this layout and
 				the remaining free bytes in the oob area are managed by 
 				the autoplacement code. Provide a matching oob-layout
@@ -560,7 +560,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 				bad blocks. They have factory marked good blocks. The marker pattern
 				is erased when the block is erased to be reused. So in case of
 				powerloss before writing the pattern back to the chip this block 
-				would be lost and added to the bad blocks. Therefor we scan the 
+				would be lost and added to the bad blocks. Therefore we scan the 
 				chip(s) when we detect them the first time for good blocks and 
 				store this information in a bad block table before erasing any 
 				of the blocks.
@@ -1094,7 +1094,7 @@ in this page</entry>
 		manufacturers specifications. This applies similar to the spare area. 
 	</para>
 	<para>
-		Therefor NAND aware filesystems must either write in page size chunks
+		Therefore NAND aware filesystems must either write in page size chunks
 		or hold a writebuffer to collect smaller writes until they sum up to 
 		pagesize. Available NAND aware filesystems: JFFS2, YAFFS. 		
 	</para>

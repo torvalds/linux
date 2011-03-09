@@ -26,15 +26,15 @@
  * Cherry Cymotion keyboard have an invalid HID report descriptor,
  * that needs fixing before we can parse it.
  */
-static void ch_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *ch_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
-	if (rsize >= 17 && rdesc[11] == 0x3c && rdesc[12] == 0x02) {
-		dev_info(&hdev->dev, "fixing up Cherry Cymotion report "
-				"descriptor\n");
+	if (*rsize >= 17 && rdesc[11] == 0x3c && rdesc[12] == 0x02) {
+		hid_info(hdev, "fixing up Cherry Cymotion report descriptor\n");
 		rdesc[11] = rdesc[16] = 0xff;
 		rdesc[12] = rdesc[17] = 0x03;
 	}
+	return rdesc;
 }
 
 #define ch_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
@@ -59,6 +59,7 @@ static int ch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 static const struct hid_device_id ch_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION_SOLAR) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ch_devices);

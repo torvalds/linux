@@ -36,6 +36,7 @@
 #include <linux/poison.h>
 #include <linux/proc_fs.h>
 #include <linux/debugfs.h>
+#include <linux/ratelimit.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -84,6 +85,7 @@ EXPORT_SYMBOL(journal_force_commit);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
+static const char *journal_dev_name(journal_t *journal, char *buffer);
 
 /*
  * Helper function used to manage commit timeouts
@@ -439,7 +441,7 @@ int __log_start_commit(journal_t *journal, tid_t target)
 	 */
 	if (!tid_geq(journal->j_commit_request, target)) {
 		/*
-		 * We want a new commit: OK, mark the request and wakup the
+		 * We want a new commit: OK, mark the request and wakeup the
 		 * commit thread.  We do _not_ do the commit ourselves.
 		 */
 
@@ -563,6 +565,38 @@ int log_wait_commit(journal_t *journal, tid_t tid)
 	}
 	return err;
 }
+
+/*
+ * Return 1 if a given transaction has not yet sent barrier request
+ * connected with a transaction commit. If 0 is returned, transaction
+ * may or may not have sent the barrier. Used to avoid sending barrier
+ * twice in common cases.
+ */
+int journal_trans_will_send_data_barrier(journal_t *journal, tid_t tid)
+{
+	int ret = 0;
+	transaction_t *commit_trans;
+
+	if (!(journal->j_flags & JFS_BARRIER))
+		return 0;
+	spin_lock(&journal->j_state_lock);
+	/* Transaction already committed? */
+	if (tid_geq(journal->j_commit_sequence, tid))
+		goto out;
+	/*
+	 * Transaction is being committed and we already proceeded to
+	 * writing commit record?
+	 */
+	commit_trans = journal->j_committing_transaction;
+	if (commit_trans && commit_trans->t_tid == tid &&
+	    commit_trans->t_state >= T_COMMIT_RECORD)
+		goto out;
+	ret = 1;
+out:
+	spin_unlock(&journal->j_state_lock);
+	return ret;
+}
+EXPORT_SYMBOL(journal_trans_will_send_data_barrier);
 
 /*
  * Log buffer allocation routines:
@@ -918,6 +952,8 @@ int journal_create(journal_t *journal)
 		if (err)
 			return err;
 		bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
+		if (unlikely(!bh))
+			return -ENOMEM;
 		lock_buffer(bh);
 		memset (bh->b_data, 0, journal->j_blocksize);
 		BUFFER_TRACE(bh, "marking dirty");
@@ -978,6 +1014,23 @@ void journal_update_superblock(journal_t *journal, int wait)
 		goto out;
 	}
 
+	if (buffer_write_io_error(bh)) {
+		char b[BDEVNAME_SIZE];
+		/*
+		 * Oh, dear.  A previous attempt to write the journal
+		 * superblock failed.  This could happen because the
+		 * USB device was yanked out.  Or it could happen to
+		 * be a transient write error and maybe the block will
+		 * be remapped.  Nothing we can do but to retry the
+		 * write and hope for the best.
+		 */
+		printk(KERN_ERR "JBD: previous I/O error detected "
+		       "for journal superblock update for %s.\n",
+		       journal_dev_name(journal, b));
+		clear_buffer_write_io_error(bh);
+		set_buffer_uptodate(bh);
+	}
+
 	spin_lock(&journal->j_state_lock);
 	jbd_debug(1,"JBD: updating superblock (start %u, seq %d, errno %d)\n",
 		  journal->j_tail, journal->j_tail_sequence, journal->j_errno);
@@ -989,10 +1042,18 @@ void journal_update_superblock(journal_t *journal, int wait)
 
 	BUFFER_TRACE(bh, "marking dirty");
 	mark_buffer_dirty(bh);
-	if (wait)
+	if (wait) {
 		sync_dirty_buffer(bh);
-	else
-		ll_rw_block(SWRITE, 1, &bh);
+		if (buffer_write_io_error(bh)) {
+			char b[BDEVNAME_SIZE];
+			printk(KERN_ERR "JBD: I/O error detected "
+			       "when updating journal superblock for %s.\n",
+			       journal_dev_name(journal, b));
+			clear_buffer_write_io_error(bh);
+			set_buffer_uptodate(bh);
+		}
+	} else
+		write_dirty_buffer(bh, WRITE);
 
 out:
 	/* If we have just flushed the log (by marking s_start==0), then
@@ -1157,6 +1218,7 @@ int journal_destroy(journal_t *journal)
 {
 	int err = 0;
 
+	
 	/* Wait for the commit thread to wake up and die. */
 	journal_kill_thread(journal);
 
@@ -1248,12 +1310,8 @@ int journal_check_used_features (journal_t *journal, unsigned long compat,
 int journal_check_available_features (journal_t *journal, unsigned long compat,
 				      unsigned long ro, unsigned long incompat)
 {
-	journal_superblock_t *sb;
-
 	if (!compat && !ro && !incompat)
 		return 1;
-
-	sb = journal->j_superblock;
 
 	/* We can support any known requested features iff the
 	 * superblock is in version 2.  Otherwise we fail to support any
@@ -1448,7 +1506,6 @@ int journal_flush(journal_t *journal)
 
 int journal_wipe(journal_t *journal, int write)
 {
-	journal_superblock_t *sb;
 	int err = 0;
 
 	J_ASSERT (!(journal->j_flags & JFS_LOADED));
@@ -1456,8 +1513,6 @@ int journal_wipe(journal_t *journal, int write)
 	err = load_superblock(journal);
 	if (err)
 		return err;
-
-	sb = journal->j_superblock;
 
 	if (!journal->j_tail)
 		goto no_recovery;
@@ -1693,7 +1748,6 @@ static void journal_destroy_journal_head_cache(void)
 static struct journal_head *journal_alloc_journal_head(void)
 {
 	struct journal_head *ret;
-	static unsigned long last_warning;
 
 #ifdef CONFIG_JBD_DEBUG
 	atomic_inc(&nr_journal_heads);
@@ -1701,11 +1755,9 @@ static struct journal_head *journal_alloc_journal_head(void)
 	ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);
 	if (ret == NULL) {
 		jbd_debug(1, "out of memory for journal_head\n");
-		if (time_after(jiffies, last_warning + 5*HZ)) {
-			printk(KERN_NOTICE "ENOMEM in %s, retrying.\n",
-			       __func__);
-			last_warning = jiffies;
-		}
+		printk_ratelimited(KERN_NOTICE "ENOMEM in %s, retrying.\n",
+				   __func__);
+
 		while (ret == NULL) {
 			yield();
 			ret = kmem_cache_alloc(journal_head_cache, GFP_NOFS);

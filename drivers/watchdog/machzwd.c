@@ -101,7 +101,7 @@ MODULE_PARM_DESC(nowayout,
 
 #define PFX "machzwd"
 
-static struct watchdog_info zf_info = {
+static const struct watchdog_info zf_info = {
 	.options		= WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.firmware_version	= 1,
 	.identity		= "ZF-Logic watchdog",
@@ -143,7 +143,7 @@ static unsigned long next_heartbeat;
 #ifndef ZF_DEBUG
 #	define dprintk(format, args...)
 #else
-#	define dprintk(format, args...) printk(KERN_DEBUG PFX
+#	define dprintk(format, args...) printk(KERN_DEBUG PFX \
 				":%s:%d: " format, __func__, __LINE__ , ## args)
 #endif
 
@@ -388,7 +388,7 @@ static struct notifier_block zf_notifier = {
 
 static void __init zf_show_action(int act)
 {
-	char *str[] = { "RESET", "SMI", "NMI", "SCI" };
+	static const char * const str[] = { "RESET", "SMI", "NMI", "SCI" };
 
 	printk(KERN_INFO PFX ": Watchdog using action = %s\n", str[act]);
 }

@@ -2,6 +2,8 @@
 #define _ASM_POWERPC_MMU_H_
 #ifdef __KERNEL__
 
+#include <linux/types.h>
+
 #include <asm/asm-compat.h>
 #include <asm/feature-fixups.h>
 
@@ -18,6 +20,7 @@
 #define MMU_FTR_TYPE_44x		ASM_CONST(0x00000008)
 #define MMU_FTR_TYPE_FSL_E		ASM_CONST(0x00000010)
 #define MMU_FTR_TYPE_3E			ASM_CONST(0x00000020)
+#define MMU_FTR_TYPE_47x		ASM_CONST(0x00000040)
 
 /*
  * This is individual features
@@ -80,6 +83,16 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
 /* MMU initialization (64-bit only fo now) */
 extern void early_init_mmu(void);
 extern void early_init_mmu_secondary(void);
+
+extern void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				       phys_addr_t first_memblock_size);
+
+#ifdef CONFIG_PPC64
+/* This is our real memory area size on ppc64 server, on embedded, we
+ * make it match the size our of bolted TLB area
+ */
+extern u64 ppc64_rma_size;
+#endif /* CONFIG_PPC64 */
 
 #endif /* !__ASSEMBLY__ */
 

@@ -3490,7 +3490,7 @@ extern u8 regmask[8];
 /* remote control decoder */
 extern int af9005_rc_decode(struct dvb_usb_device *d, u8 * data, int len,
 			    u32 * event, int *state);
-extern struct dvb_usb_rc_key af9005_rc_keys[];
-extern int af9005_rc_keys_size;
+extern struct rc_map_table rc_map_af9005_table[];
+extern int rc_map_af9005_table_size;
 
 #endif

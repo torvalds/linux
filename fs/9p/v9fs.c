@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/parser.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -84,7 +85,7 @@ static const match_table_t tokens = {
 
 static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 {
-	char *options;
+	char *options, *tmp_options;
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 	int option = 0;
@@ -102,9 +103,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	if (!opts)
 		return 0;
 
-	options = kstrdup(opts, GFP_KERNEL);
-	if (!options)
+	tmp_options = kstrdup(opts, GFP_KERNEL);
+	if (!tmp_options) {
+		ret = -ENOMEM;
 		goto fail_option_alloc;
+	}
+	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -159,8 +163,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			break;
 		case Opt_cache:
 			s = match_strdup(&args[0]);
-			if (!s)
-				goto fail_option_alloc;
+			if (!s) {
+				ret = -ENOMEM;
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				  "problem allocating copy of cache arg\n");
+				goto free_and_return;
+			}
 
 			if (strcmp(s, "loose") == 0)
 				v9ses->cache = CACHE_LOOSE;
@@ -173,15 +181,29 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 
 		case Opt_access:
 			s = match_strdup(&args[0]);
-			if (!s)
-				goto fail_option_alloc;
+			if (!s) {
+				ret = -ENOMEM;
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				  "problem allocating copy of access arg\n");
+				goto free_and_return;
+			}
 
 			v9ses->flags &= ~V9FS_ACCESS_MASK;
 			if (strcmp(s, "user") == 0)
 				v9ses->flags |= V9FS_ACCESS_USER;
 			else if (strcmp(s, "any") == 0)
 				v9ses->flags |= V9FS_ACCESS_ANY;
-			else {
+			else if (strcmp(s, "client") == 0) {
+#ifdef CONFIG_9P_FS_POSIX_ACL
+				v9ses->flags |= V9FS_ACCESS_CLIENT;
+#else
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					"access=client option not supported\n");
+				kfree(s);
+				ret = -EINVAL;
+				goto free_and_return;
+#endif
+			} else {
 				v9ses->flags |= V9FS_ACCESS_SINGLE;
 				v9ses->uid = simple_strtoul(s, &e, 10);
 				if (*e != '\0')
@@ -194,13 +216,11 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			continue;
 		}
 	}
-	kfree(options);
-	return ret;
 
+free_and_return:
+	kfree(tmp_options);
 fail_option_alloc:
-	P9_DPRINTK(P9_DEBUG_ERROR,
-		   "failed to allocate copy of option argument\n");
-	return -ENOMEM;
+	return ret;
 }
 
 /**
@@ -227,12 +247,20 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		__putname(v9ses->uname);
 		return ERR_PTR(-ENOMEM);
 	}
+	init_rwsem(&v9ses->rename_sem);
+
+	rc = bdi_setup_and_register(&v9ses->bdi, "9p", BDI_CAP_MAP_COPY);
+	if (rc) {
+		__putname(v9ses->aname);
+		__putname(v9ses->uname);
+		return ERR_PTR(rc);
+	}
 
 	spin_lock(&v9fs_sessionlist_lock);
 	list_add(&v9ses->slist, &v9fs_sessionlist);
 	spin_unlock(&v9fs_sessionlist_lock);
 
-	v9ses->flags = V9FS_EXTENDED | V9FS_ACCESS_USER;
+	v9ses->flags = V9FS_ACCESS_USER;
 	strcpy(v9ses->uname, V9FS_DEFUSER);
 	strcpy(v9ses->aname, V9FS_DEFANAME);
 	v9ses->uid = ~0;
@@ -253,13 +281,25 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	if (!v9ses->clnt->dotu)
-		v9ses->flags &= ~V9FS_EXTENDED;
+	if (p9_is_proto_dotl(v9ses->clnt))
+		v9ses->flags |= V9FS_PROTO_2000L;
+	else if (p9_is_proto_dotu(v9ses->clnt))
+		v9ses->flags |= V9FS_PROTO_2000U;
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
+	if (!v9fs_proto_dotl(v9ses) &&
+	    ((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_CLIENT)) {
+		/*
+		 * We support ACCESS_CLIENT only for dotl.
+		 * Fall back to ACCESS_USER
+		 */
+		v9ses->flags &= ~V9FS_ACCESS_MASK;
+		v9ses->flags |= V9FS_ACCESS_USER;
+	}
+	/*FIXME !! */
 	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
-	if (!v9fs_extended(v9ses) &&
+	if (!(v9fs_proto_dotu(v9ses) || v9fs_proto_dotl(v9ses)) &&
 		((v9ses->flags&V9FS_ACCESS_MASK) == V9FS_ACCESS_USER)) {
 
 		v9ses->flags &= ~V9FS_ACCESS_MASK;
@@ -289,6 +329,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	return fid;
 
 error:
+	bdi_destroy(&v9ses->bdi);
 	return ERR_PTR(retval);
 }
 
@@ -314,6 +355,8 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 	__putname(v9ses->uname);
 	__putname(v9ses->aname);
 
+	bdi_destroy(&v9ses->bdi);
+
 	spin_lock(&v9fs_sessionlist_lock);
 	list_del(&v9ses->slist);
 	spin_unlock(&v9fs_sessionlist_lock);
@@ -329,6 +372,19 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
 	P9_DPRINTK(P9_DEBUG_ERROR, "cancel session %p\n", v9ses);
 	p9_client_disconnect(v9ses->clnt);
+}
+
+/**
+ * v9fs_session_begin_cancel - Begin terminate of a session
+ * @v9ses: session to terminate
+ *
+ * After this call we don't allow any request other than clunk.
+ */
+
+void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses)
+{
+	P9_DPRINTK(P9_DEBUG_ERROR, "begin cancel session %p\n", v9ses);
+	p9_client_begin_disconnect(v9ses->clnt);
 }
 
 extern int v9fs_error_init(void);

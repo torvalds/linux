@@ -33,7 +33,7 @@
 #include <mach/dma.h>
 #include <mach/map.h>
 
-#include <plat/dma-plat.h>
+#include <plat/dma-s3c24xx.h>
 #include <plat/regs-dma.h>
 
 /* io map for dma */
@@ -1104,7 +1104,7 @@ EXPORT_SYMBOL(s3c2410_dma_config);
  * devaddr:   physical address of the source
 */
 
-int s3c2410_dma_devconfig(int channel,
+int s3c2410_dma_devconfig(unsigned int channel,
 			  enum s3c2410_dmasrc source,
 			  unsigned long devaddr)
 {

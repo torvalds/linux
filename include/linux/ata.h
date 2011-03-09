@@ -89,6 +89,7 @@ enum {
 	ATA_ID_SPG		= 98,
 	ATA_ID_LBA_CAPACITY_2	= 100,
 	ATA_ID_SECTOR_SIZE	= 106,
+	ATA_ID_LOGICAL_SECTOR_SIZE	= 117,	/* and 118 */
 	ATA_ID_LAST_LUN		= 126,
 	ATA_ID_DLF		= 128,
 	ATA_ID_CSFO		= 129,
@@ -467,7 +468,7 @@ enum ata_ioctls {
 
 /* core structures */
 
-struct ata_prd {
+struct ata_bmdma_prd {
 	__le32			addr;
 	__le32			flags_len;
 };
@@ -640,16 +641,49 @@ static inline int ata_id_flush_ext_enabled(const u16 *id)
 	return (id[ATA_ID_CFS_ENABLE_2] & 0x2400) == 0x2400;
 }
 
-static inline int ata_id_has_large_logical_sectors(const u16 *id)
+static inline u32 ata_id_logical_sector_size(const u16 *id)
 {
-	if ((id[ATA_ID_SECTOR_SIZE] & 0xc000) != 0x4000)
-		return 0;
-	return id[ATA_ID_SECTOR_SIZE] & (1 << 13);
+	/* T13/1699-D Revision 6a, Sep 6, 2008. Page 128.
+	 * IDENTIFY DEVICE data, word 117-118.
+	 * 0xd000 ignores bit 13 (logical:physical > 1)
+	 */
+	if ((id[ATA_ID_SECTOR_SIZE] & 0xd000) == 0x5000)
+		return (((id[ATA_ID_LOGICAL_SECTOR_SIZE+1] << 16)
+			 + id[ATA_ID_LOGICAL_SECTOR_SIZE]) * sizeof(u16)) ;
+	return ATA_SECT_SIZE;
 }
 
-static inline u8 ata_id_logical_per_physical_sectors(const u16 *id)
+static inline u8 ata_id_log2_per_physical_sector(const u16 *id)
 {
-	return id[ATA_ID_SECTOR_SIZE] & 0xf;
+	/* T13/1699-D Revision 6a, Sep 6, 2008. Page 128.
+	 * IDENTIFY DEVICE data, word 106.
+	 * 0xe000 ignores bit 12 (logical sector > 512 bytes)
+	 */
+	if ((id[ATA_ID_SECTOR_SIZE] & 0xe000) == 0x6000)
+		return (id[ATA_ID_SECTOR_SIZE] & 0xf);
+	return 0;
+}
+
+/* Offset of logical sectors relative to physical sectors.
+ *
+ * If device has more than one logical sector per physical sector
+ * (aka 512 byte emulation), vendors might offset the "sector 0" address
+ * so sector 63 is "naturally aligned" - e.g. FAT partition table.
+ * This avoids Read/Mod/Write penalties when using FAT partition table
+ * and updating "well aligned" (FS perspective) physical sectors on every
+ * transaction.
+ */
+static inline u16 ata_id_logical_sector_offset(const u16 *id,
+	 u8 log2_per_phys)
+{
+	u16 word_209 = id[209];
+
+	if ((log2_per_phys > 1) && (word_209 & 0xc000) == 0x4000) {
+		u16 first = word_209 & 0x3fff;
+		if (first > 0)
+			return (1 << log2_per_phys) - first;
+	}
+	return 0;
 }
 
 static inline int ata_id_has_lba48(const u16 *id)
@@ -841,7 +875,8 @@ static inline int ata_id_current_chs_valid(const u16 *id)
 
 static inline int ata_id_is_cfa(const u16 *id)
 {
-	if (id[ATA_ID_CONFIG] == 0x848A)	/* Traditional CF */
+	if ((id[ATA_ID_CONFIG] == 0x848A) ||	/* Traditional CF */
+	    (id[ATA_ID_CONFIG] == 0x844A))	/* Delkin Devices CF */
 		return 1;
 	/*
 	 * CF specs don't require specific value in the word 0 anymore and yet
@@ -1024,8 +1059,8 @@ static inline int ata_ok(u8 status)
 
 static inline int lba_28_ok(u64 block, u32 n_block)
 {
-	/* check the ending block number */
-	return ((block + n_block) < ((u64)1 << 28)) && (n_block <= 256);
+	/* check the ending block number: must be LESS THAN 0x0fffffff */
+	return ((block + n_block) < ((1 << 28) - 1)) && (n_block <= 256);
 }
 
 static inline int lba_48_ok(u64 block, u32 n_block)

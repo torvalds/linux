@@ -44,4 +44,30 @@ config CAN_KVASER_PCI
 	  This driver is for the the PCIcanx and PCIcan cards (1, 2 or
 	  4 channel) from Kvaser (http://www.kvaser.com).
 
+config CAN_PLX_PCI
+	tristate "PLX90xx PCI-bridge based Cards"
+	depends on PCI
+	---help---
+	  This driver is for CAN interface cards based on
+	  the PLX90xx PCI bridge.
+	  Driver supports now:
+	   - Adlink PCI-7841/cPCI-7841 card (http://www.adlinktech.com/)
+	   - Adlink PCI-7841/cPCI-7841 SE card
+	   - esd CAN-PCI/CPCI/PCI104/200 (http://www.esd.eu/)
+	   - esd CAN-PCI/PMC/266
+	   - esd CAN-PCIe/2000
+	   - Marathon CAN-bus-PCI card (http://www.marathon.ru/)
+	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
+
+config CAN_TSCAN1
+	tristate "TS-CAN1 PC104 boards"
+	depends on ISA
+	help
+	This driver is for Technologic Systems' TSCAN-1 PC104 boards.
+	http://www.embeddedarm.com/products/board-detail.php?product=TS-CAN1
+	The driver supports multiple boards and automatically configures them:
+	PLD IO base addresses are read from jumpers JP1 and JP2,
+	IRQ numbers are read from jumpers JP4 and JP5,
+	SJA1000 IO base addresses are chosen heuristically (first that works).
+
 endif

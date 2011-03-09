@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <asm/coldfire.h>
@@ -29,6 +30,10 @@
  * via a set of 4 "Interrupt Controller Registers" (ICR). There is a
  * loose mapping of vector number to register and internal bits, but
  * a table is the easiest and quickest way to map them.
+ *
+ * Note that the external interrupts are edge triggered (unlike the
+ * internal interrupt sources which are level triggered). Which means
+ * they also need acknowledgeing via acknowledge bits.
  */
 struct irqmap {
 	unsigned char	icr;
@@ -68,6 +73,11 @@ static struct irqmap intc_irqmap[MCFINT_VECMAX - MCFINT_VECBASE] = {
 	/*MCF_IRQ_SWTO*/	{ .icr = MCFSIM_ICR4, .index = 16, .ack = 0, },
 };
 
+/*
+ * The act of masking the interrupt also has a side effect of 'ack'ing
+ * an interrupt on this irq (for the external irqs). So this mask function
+ * is also an ack_mask function.
+ */
 static void intc_irq_mask(unsigned int irq)
 {
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX)) {
@@ -95,7 +105,9 @@ static void intc_irq_ack(unsigned int irq)
 		irq -= MCFINT_VECBASE;
 		if (intc_irqmap[irq].ack) {
 			u32 v;
-			v = 0xd << intc_irqmap[irq].index;
+			v = readl(MCF_MBAR + intc_irqmap[irq].icr);
+			v &= (0x7 << intc_irqmap[irq].index);
+			v |= (0x8 << intc_irqmap[irq].index);
 			writel(v, MCF_MBAR + intc_irqmap[irq].icr);
 		}
 	}
@@ -103,21 +115,47 @@ static void intc_irq_ack(unsigned int irq)
 
 static int intc_irq_set_type(unsigned int irq, unsigned int type)
 {
-	/* We can set the edge type here for external interrupts */
+	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX)) {
+		irq -= MCFINT_VECBASE;
+		if (intc_irqmap[irq].ack) {
+			u32 v;
+			v = readl(MCF_MBAR + MCFSIM_PITR);
+			if (type == IRQ_TYPE_EDGE_FALLING)
+				v &= ~(0x1 << (32 - irq));
+			else
+				v |= (0x1 << (32 - irq));
+			writel(v, MCF_MBAR + MCFSIM_PITR);
+		}
+	}
 	return 0;
+}
+
+/*
+ * Simple flow handler to deal with the external edge triggered interrupts.
+ * We need to be careful with the masking/acking due to the side effects
+ * of masking an interrupt.
+ */
+static void intc_external_irq(unsigned int irq, struct irq_desc *desc)
+{
+	kstat_incr_irqs_this_cpu(irq, desc);
+	desc->status |= IRQ_INPROGRESS;
+	desc->chip->ack(irq);
+	handle_IRQ_event(irq, desc->action);
+	desc->status &= ~IRQ_INPROGRESS;
 }
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "CF-INTC",
 	.mask		= intc_irq_mask,
 	.unmask		= intc_irq_unmask,
+	.mask_ack	= intc_irq_mask,
 	.ack		= intc_irq_ack,
 	.set_type	= intc_irq_set_type,
 };
 
 void __init init_IRQ(void)
 {
-	int irq;
+	int irq, edge;
 
 	init_vectors();
 
@@ -128,11 +166,17 @@ void __init init_IRQ(void)
 	writel(0x88888888, MCF_MBAR + MCFSIM_ICR4);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
-		irq_desc[irq].status = IRQ_DISABLED;
-		irq_desc[irq].action = NULL;
-		irq_desc[irq].depth = 1;
-		irq_desc[irq].chip = &intc_irq_chip;
-		intc_irq_set_type(irq, 0);
+		set_irq_chip(irq, &intc_irq_chip);
+		edge = 0;
+		if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX))
+			edge = intc_irqmap[irq - MCFINT_VECBASE].ack;
+		if (edge) {
+			set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
+			set_irq_handler(irq, intc_external_irq);
+		} else {
+			set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+			set_irq_handler(irq, handle_level_irq);
+		}
 	}
 }
 

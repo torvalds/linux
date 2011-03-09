@@ -205,6 +205,7 @@ ext3_set_acl(handle_t *handle, struct inode *inode, int type,
 					return error;
 				else {
 					inode->i_mode = mode;
+					inode->i_ctime = CURRENT_TIME_SEC;
 					ext3_mark_inode_dirty(handle, inode);
 					if (error == 0)
 						acl = NULL;
@@ -239,10 +240,17 @@ ext3_set_acl(handle_t *handle, struct inode *inode, int type,
 }
 
 int
-ext3_check_acl(struct inode *inode, int mask)
+ext3_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = ext3_get_acl(inode, ACL_TYPE_ACCESS);
+	struct posix_acl *acl;
 
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			return -ECHILD;
+		return -EAGAIN;
+	}
+
+	acl = ext3_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl) {
@@ -456,7 +464,7 @@ release_and_out:
 	return error;
 }
 
-struct xattr_handler ext3_xattr_acl_access_handler = {
+const struct xattr_handler ext3_xattr_acl_access_handler = {
 	.prefix	= POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.list	= ext3_xattr_list_acl_access,
@@ -464,7 +472,7 @@ struct xattr_handler ext3_xattr_acl_access_handler = {
 	.set	= ext3_xattr_set_acl,
 };
 
-struct xattr_handler ext3_xattr_acl_default_handler = {
+const struct xattr_handler ext3_xattr_acl_default_handler = {
 	.prefix	= POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= ext3_xattr_list_acl_default,

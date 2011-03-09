@@ -1,5 +1,5 @@
 /*
- * BF5XX - NAND flash controller platfrom_device info
+ * BF5XX - NAND flash controller platform_device info
  *
  * Copyright 2007-2008 Analog Devices, Inc.
  *
@@ -8,15 +8,13 @@
 
 /* struct bf5xx_nand_platform
  *
- * define a interface between platfrom board specific code and
+ * define a interface between platform board specific code and
  * bf54x NFC driver.
  *
  * nr_partitions = number of partitions pointed to be partitoons (or zero)
  * partitions	 = mtd partition list
  */
 
-#define NFC_PG_SIZE_256		0
-#define NFC_PG_SIZE_512		1
 #define NFC_PG_SIZE_OFFSET	9
 
 #define NFC_NWIDTH_8		0
@@ -30,7 +28,6 @@
 
 struct bf5xx_nand_platform {
 	/* NAND chip information */
-	unsigned short		page_size;
 	unsigned short		data_width;
 
 	/* RD/WR strobe delay timing information, all times in SCLK cycles */

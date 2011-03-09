@@ -35,29 +35,6 @@ struct ath_btcoex_config {
 	bool bt_hold_rx_clear;
 };
 
-static const u16 ath_subsysid_tbl[] = {
-	AR9280_COEX2WIRE_SUBSYSID,
-	AT9285_COEX3WIRE_SA_SUBSYSID,
-	AT9285_COEX3WIRE_DA_SUBSYSID
-};
-
-/*
- * Checks the subsystem id of the device to see if it
- * supports btcoex
- */
-bool ath9k_hw_btcoex_supported(struct ath_hw *ah)
-{
-	int i;
-
-	if (!ah->hw_version.subsysid)
-		return false;
-
-	for (i = 0; i < ARRAY_SIZE(ath_subsysid_tbl); i++)
-		if (ah->hw_version.subsysid == ath_subsysid_tbl[i])
-			return true;
-
-	return false;
-}
 
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 {
@@ -168,6 +145,7 @@ EXPORT_SYMBOL(ath9k_hw_btcoex_set_weight);
 static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+	u32  val;
 
 	/*
 	 * Program coex mode and weight registers to
@@ -176,6 +154,12 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex_hw->bt_coex_mode);
 	REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex_hw->bt_coex_weights);
 	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex_hw->bt_coex_mode2);
+
+	if (AR_SREV_9271(ah)) {
+		val = REG_READ(ah, 0x50040);
+		val &= 0xFFFFFEFF;
+		REG_WRITE(ah, 0x50040, val);
+	}
 
 	REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
 	REG_RMW_FIELD(ah, AR_PCU_MISC, AR_PCU_BT_ANT_PREVENT_RX, 0);

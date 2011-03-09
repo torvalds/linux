@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mISDNhw.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "ipac.h"
 
@@ -1115,7 +1116,7 @@ fritz_remove_pci(struct pci_dev *pdev)
 		release_card(card);
 	else
 		if (debug)
-			pr_info("%s: drvdata allready removed\n", __func__);
+			pr_info("%s: drvdata already removed\n", __func__);
 }
 
 static struct pci_device_id fcpci_ids[] __devinitdata = {

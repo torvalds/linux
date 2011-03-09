@@ -1022,7 +1022,7 @@ typedef struct iadev_t {
 	struct dle_q rx_dle_q;  
 	struct free_desc_q *rx_free_desc_qhead;  
 	struct sk_buff_head rx_dma_q;  
-        spinlock_t rx_lock, misc_lock;
+	spinlock_t rx_lock;
 	struct atm_vcc **rx_open;	/* list of all open VCs */  
         u16 num_rx_desc, rx_buf_sz, rxing;
         u32 rx_pkt_ram, rx_tmp_cnt;

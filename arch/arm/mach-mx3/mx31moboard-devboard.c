@@ -10,28 +10,23 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
 #include <linux/usb/otg.h>
 
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/hardware.h>
-#include <mach/mmc.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 static unsigned int devboard_pins[] = {
@@ -49,9 +44,12 @@ static unsigned int devboard_pins[] = {
 	MX31_PIN_CSPI1_SS2__USBH1_RCV, MX31_PIN_CSPI1_SCLK__USBH1_OEB,
 	MX31_PIN_CSPI1_SPI_RDY__USBH1_FS, MX31_PIN_SFS6__USBH1_SUSPEND,
 	MX31_PIN_NFRE_B__GPIO1_11, MX31_PIN_NFALE__GPIO1_12,
+	/* SEL */
+	MX31_PIN_DTR_DCE1__GPIO2_8, MX31_PIN_DSR_DCE1__GPIO2_9,
+	MX31_PIN_RI_DCE1__GPIO2_10, MX31_PIN_DCD_DCE1__GPIO2_11,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -102,12 +100,39 @@ static void devboard_sdhc2_exit(struct device *dev, void *data)
 	gpio_free(SDHC2_CD);
 }
 
-static struct imxmmc_platform_data sdhc2_pdata = {
+static const struct imxmmc_platform_data sdhc2_pdata __initconst = {
 	.get_ro	= devboard_sdhc2_get_ro,
 	.init	= devboard_sdhc2_init,
 	.exit	= devboard_sdhc2_exit,
 };
 
+#define SEL0 IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
+#define SEL1 IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
+#define SEL2 IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
+#define SEL3 IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
+
+static void devboard_init_sel_gpios(void)
+{
+	if (!gpio_request(SEL0, "sel0")) {
+		gpio_direction_input(SEL0);
+		gpio_export(SEL0, true);
+	}
+
+	if (!gpio_request(SEL1, "sel1")) {
+		gpio_direction_input(SEL1);
+		gpio_export(SEL1, true);
+	}
+
+	if (!gpio_request(SEL2, "sel2")) {
+		gpio_direction_input(SEL2);
+		gpio_export(SEL2, true);
+	}
+
+	if (!gpio_request(SEL3, "sel3")) {
+		gpio_direction_input(SEL3);
+		gpio_export(SEL3, true);
+	}
+}
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
 
@@ -159,7 +184,7 @@ static int devboard_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
 	return 0;
 }
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static struct mxc_usbh_platform_data usbh1_pdata __initdata = {
 	.init	= devboard_usbh1_hw_init,
 	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
@@ -168,6 +193,7 @@ static struct mxc_usbh_platform_data usbh1_pdata = {
 static int __init devboard_usbh1_init(void)
 {
 	struct otg_transceiver *otg;
+	struct platform_device *pdev;
 
 	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
 	if (!otg)
@@ -179,8 +205,18 @@ static int __init devboard_usbh1_init(void)
 
 	usbh1_pdata.otg = otg;
 
-	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	pdev = imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
 }
+
+
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
 
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
@@ -192,9 +228,13 @@ void __init mx31moboard_devboard_init(void)
 	mxc_iomux_setup_multiple_pins(devboard_pins, ARRAY_SIZE(devboard_pins),
 		"devboard");
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx31_add_imx_uart1(&uart_pdata);
 
-	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+	imx31_add_mxc_mmc(1, &sdhc2_pdata);
+
+	devboard_init_sel_gpios();
+
+	imx31_add_fsl_usb2_udc(&usb_pdata);
 
 	devboard_usbh1_init();
 }

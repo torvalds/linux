@@ -808,4 +808,12 @@ enum _RTL8192Pci_HW {
 #define GPI 0x108
 #define GPO 0x109
 #define GPE 0x10a
+
+#define	ANAPAR_FOR_8192PciE							0x17		// Analog parameter register
+
+#define	MSR_NOLINK					0x00
+#define	MSR_ADHOC					0x01
+#define	MSR_INFRA					0x02
+#define	MSR_AP						0x03
+
 #endif

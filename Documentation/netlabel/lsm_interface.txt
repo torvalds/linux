@@ -38,7 +38,7 @@ Depending on the exact configuration, translation between the network packet
 label and the internal LSM security identifier can be time consuming.  The
 NetLabel label mapping cache is a caching mechanism which can be used to
 sidestep much of this overhead once a mapping has been established.  Once the
-LSM has received a packet, used NetLabel to decode it's security attributes,
+LSM has received a packet, used NetLabel to decode its security attributes,
 and translated the security attributes into a LSM internal identifier the LSM
 can use the NetLabel caching functions to associate the LSM internal
 identifier with the network packet's label.  This means that in the future

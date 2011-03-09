@@ -151,6 +151,27 @@ static void tqm85xx_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
+static void __init tqm85xx_ti1520_fixup(struct pci_dev *pdev)
+{
+	unsigned int val;
+
+	/* Do not do the fixup on other platforms! */
+	if (!machine_is(tqm85xx))
+		return;
+
+	dev_info(&pdev->dev, "Using TI 1520 fixup on TQM85xx\n");
+
+	/*
+	 * Enable P2CCLK bit in system control register
+	 * to enable CLOCK output to power chip
+	 */
+	pci_read_config_dword(pdev, 0x80, &val);
+	pci_write_config_dword(pdev, 0x80, val | (1 << 27));
+
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1520,
+		tqm85xx_ti1520_fixup);
+
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "gianfar", },
@@ -165,21 +186,21 @@ static int __init declare_of_platform_devices(void)
 }
 machine_device_initcall(tqm85xx, declare_of_platform_devices);
 
+static const char *board[] __initdata = {
+	"tqc,tqm8540",
+	"tqc,tqm8541",
+	"tqc,tqm8548",
+	"tqc,tqm8555",
+	"tqc,tqm8560",
+	NULL
+};
+
 /*
  * Called very early, device-tree isn't unflattened
  */
 static int __init tqm85xx_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if ((of_flat_dt_is_compatible(root, "tqc,tqm8540")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8541")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8548")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8555")) ||
-	    (of_flat_dt_is_compatible(root, "tqc,tqm8560")))
-		return 1;
-
-	return 0;
+	return of_flat_dt_match(of_get_flat_dt_root(), board);
 }
 
 define_machine(tqm85xx) {

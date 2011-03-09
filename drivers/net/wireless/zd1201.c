@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
@@ -29,6 +30,7 @@ static struct usb_device_id zd1201_table[] = {
 	{USB_DEVICE(0x0ace, 0x1201)}, /* ZyDAS ZD1201 Wireless USB Adapter */
 	{USB_DEVICE(0x050d, 0x6051)}, /* Belkin F5D6051 usb  adapter */
 	{USB_DEVICE(0x0db0, 0x6823)}, /* MSI UB11B usb  adapter */
+	{USB_DEVICE(0x1044, 0x8004)}, /* Gigabyte GN-WLBZ101 */
 	{USB_DEVICE(0x1044, 0x8005)}, /* GIGABYTE GN-WLBZ201 usb adapter */
 	{}
 };
@@ -133,7 +135,6 @@ static void zd1201_usbfree(struct urb *urb)
 
 	kfree(urb->transfer_buffer);
 	usb_free_urb(urb);
-	return;
 }
 
 /* cmdreq message: 
@@ -184,7 +185,6 @@ static void zd1201_usbtx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	netif_wake_queue(zd->dev);
-	return;
 }
 
 /* Incoming data */
@@ -406,7 +406,6 @@ exit:
 		wake_up(&zd->rxdataq);
 		kfree(urb->transfer_buffer);
 	}
-	return;
 }
 
 static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
@@ -826,7 +825,6 @@ static netdev_tx_t zd1201_hard_start_xmit(struct sk_buff *skb,
 	} else {
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
-		dev->trans_start = jiffies;
 	}
 	kfree_skb(skb);
 
@@ -844,7 +842,7 @@ static void zd1201_tx_timeout(struct net_device *dev)
 	usb_unlink_urb(zd->tx_urb);
 	dev->stats.tx_errors++;
 	/* Restart the timeout to quiet the watchdog: */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 static int zd1201_set_mac_address(struct net_device *dev, void *p)
@@ -875,20 +873,18 @@ static struct iw_statistics *zd1201_get_wireless_stats(struct net_device *dev)
 static void zd1201_set_multicast(struct net_device *dev)
 {
 	struct zd1201 *zd = netdev_priv(dev);
-	struct dev_mc_list *mc = dev->mc_list;
+	struct netdev_hw_addr *ha;
 	unsigned char reqbuf[ETH_ALEN*ZD1201_MAXMULTI];
 	int i;
 
-	if (dev->mc_count > ZD1201_MAXMULTI)
+	if (netdev_mc_count(dev) > ZD1201_MAXMULTI)
 		return;
 
-	for (i=0; i<dev->mc_count; i++) {
-		memcpy(reqbuf+i*ETH_ALEN, mc->dmi_addr, ETH_ALEN);
-		mc = mc->next;
-	}
+	i = 0;
+	netdev_for_each_mc_addr(ha, dev)
+		memcpy(reqbuf + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
 	zd1201_setconfig(zd, ZD1201_RID_CNFGROUPADDRESS, reqbuf,
-	    dev->mc_count*ETH_ALEN, 0);
-	
+			 netdev_mc_count(dev) * ETH_ALEN, 0);
 }
 
 static int zd1201_config_commit(struct net_device *dev, 
@@ -1834,7 +1830,7 @@ err_zd:
 
 static void zd1201_disconnect(struct usb_interface *interface)
 {
-	struct zd1201 *zd=(struct zd1201 *)usb_get_intfdata(interface);
+	struct zd1201 *zd = usb_get_intfdata(interface);
 	struct hlist_node *node, *node2;
 	struct zd1201_frag *frag;
 

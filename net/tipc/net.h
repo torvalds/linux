@@ -37,26 +37,26 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-struct _zone;
+struct tipc_node;
 
 /**
  * struct network - TIPC network structure
- * @zones: array of pointers to all zones within network
+ * @nodes: array of pointers to all nodes within cluster
+ * @highest_node: id of highest numbered node within cluster
+ * @links: number of (unicast) links to cluster
  */
 
 struct network {
-	struct _zone **zones;
+	struct tipc_node **nodes;
+	u32 highest_node;
+	u32 links;
 };
 
 
 extern struct network tipc_net;
 extern rwlock_t tipc_net_lock;
 
-void tipc_net_remove_as_router(u32 router);
-void tipc_net_send_external_routes(u32 dest);
 void tipc_net_route_msg(struct sk_buff *buf);
-struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref);
-u32 tipc_net_select_router(u32 addr, u32 ref);
 
 int tipc_net_start(u32 addr);
 void tipc_net_stop(void);

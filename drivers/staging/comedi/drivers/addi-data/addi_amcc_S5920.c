@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -17,7 +17,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
+You should also find the complete GPL in the COPYING file accompanying this source code.
 
 @endverbatim
 */
@@ -173,11 +173,10 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			} while (dw_eeprom_busy == EEPROM_BUSY);
 
 			/* Select the upper address part */
-			if (i_Counter == 0) {
+			if (i_Counter == 0)
 				b_ReadLowByte = pb_ReadByte[0];
-			} else {
+			else
 				b_ReadHighByte = pb_ReadByte[0];
-			}
 
 			/* Sleep */
 			msleep(1);

@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
-#include <linux/slab.h>
 #include <linux/sysctl.h>
 
 #include <asm/mman.h>
@@ -215,7 +214,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	if (pud) {
 		pmd = pmd_alloc(mm, pud, addr);
 		if (pmd)
-			pte = pte_alloc_map(mm, pmd, addr);
+			pte = pte_alloc_map(mm, NULL, pmd, addr);
 	}
 	return pte;
 }

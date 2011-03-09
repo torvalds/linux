@@ -13,7 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/ptrace.h>
+#include <asm/hw_breakpoint.h>
 
 /*
  * Default implementation of macro that returns current
@@ -25,8 +25,6 @@
 #define CCN_PVR		0xff000030
 #define CCN_CVR		0xff000040
 #define CCN_PRR		0xff000044
-
-asmlinkage void __init sh_cpu_init(void);
 
 /*
  * User space process size: 2GB.
@@ -90,9 +88,9 @@ struct sh_fpu_soft_struct {
 	unsigned long entry_pc;
 };
 
-union sh_fpu_union {
-	struct sh_fpu_hard_struct hard;
-	struct sh_fpu_soft_struct soft;
+union thread_xstate {
+	struct sh_fpu_hard_struct hardfpu;
+	struct sh_fpu_soft_struct softfpu;
 };
 
 struct thread_struct {
@@ -100,38 +98,30 @@ struct thread_struct {
 	unsigned long sp;
 	unsigned long pc;
 
-	/* Hardware debugging registers */
-	unsigned long ubc_pc;
+	/* Various thread flags, see SH_THREAD_xxx */
+	unsigned long flags;
 
-	/* floating point info */
-	union sh_fpu_union fpu;
+	/* Save middle states of ptrace breakpoints */
+	struct perf_event *ptrace_bps[HBP_NUM];
 
 #ifdef CONFIG_SH_DSP
 	/* Dsp status information */
 	struct sh_dsp_struct dsp_status;
 #endif
-};
 
-/* Count of active tasks with UBC settings */
-extern int ubc_usercnt;
+	/* Extended processor state */
+	union thread_xstate *xstate;
+};
 
 #define INIT_THREAD  {						\
 	.sp = sizeof(init_stack) + (long) &init_stack,		\
+	.flags = 0,						\
 }
-
-/*
- * Do necessary setup to start up a newly executed thread.
- */
-#define start_thread(_regs, new_pc, new_sp)	 \
-	set_fs(USER_DS);			 \
-	_regs->pr = 0;				 \
-	_regs->sr = SR_FD;	/* User mode. */ \
-	_regs->pc = new_pc;			 \
-	_regs->regs[15] = new_sp
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
-struct mm_struct;
+
+extern void start_thread(struct pt_regs *regs, unsigned long new_pc, unsigned long new_sp);
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
@@ -203,18 +193,21 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
 
-#define user_stack_pointer(_regs)	((_regs)->regs[15])
-
 #if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH4)
+
 #define PREFETCH_STRIDE		L1_CACHE_BYTES
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
-static inline void prefetch(void *x)
+
+static inline void prefetch(const void *x)
 {
-	__asm__ __volatile__ ("pref @%0\n\t" : : "r" (x) : "memory");
+	__builtin_prefetch(x, 0, 3);
 }
 
-#define prefetchw(x)	prefetch(x)
+static inline void prefetchw(const void *x)
+{
+	__builtin_prefetch(x, 1, 3);
+}
 #endif
 
 #endif /* __KERNEL__ */

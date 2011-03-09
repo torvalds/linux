@@ -61,18 +61,29 @@ static const char *get_wid_type_name(unsigned int wid_value)
 		return "UNKNOWN Widget";
 }
 
-static void print_nid_mixers(struct snd_info_buffer *buffer,
-			     struct hda_codec *codec, hda_nid_t nid)
+static void print_nid_array(struct snd_info_buffer *buffer,
+			    struct hda_codec *codec, hda_nid_t nid,
+			    struct snd_array *array)
 {
 	int i;
-	struct hda_nid_item *items = codec->mixers.list;
+	struct hda_nid_item *items = array->list, *item;
 	struct snd_kcontrol *kctl;
-	for (i = 0; i < codec->mixers.used; i++) {
-		if (items[i].nid == nid) {
-			kctl = items[i].kctl;
+	for (i = 0; i < array->used; i++) {
+		item = &items[i];
+		if (item->nid == nid) {
+			kctl = item->kctl;
 			snd_iprintf(buffer,
 			  "  Control: name=\"%s\", index=%i, device=%i\n",
-			  kctl->id.name, kctl->id.index, kctl->id.device);
+			  kctl->id.name, kctl->id.index + item->index,
+			  kctl->id.device);
+			if (item->flags & HDA_NID_ITEM_AMP)
+				snd_iprintf(buffer,
+				  "    ControlAmp: chs=%lu, dir=%s, "
+				  "idx=%lu, ofs=%lu\n",
+				  get_amp_channels(kctl),
+				  get_amp_direction(kctl) ? "Out" : "In",
+				  get_amp_index(kctl),
+				  get_amp_offset(kctl));
 		}
 	}
 }
@@ -407,7 +418,7 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 
 static const char *get_pwr_state(u32 state)
 {
-	static const char *buf[4] = {
+	static const char * const buf[4] = {
 		"D0", "D1", "D2", "D3"
 	};
 	if (state < 4)
@@ -528,7 +539,8 @@ static void print_gpio(struct snd_info_buffer *buffer,
 			    (data & (1<<i)) ? 1 : 0,
 			    (unsol & (1<<i)) ? 1 : 0);
 	/* FIXME: add GPO and GPI pin information */
-	print_nid_mixers(buffer, codec, nid);
+	print_nid_array(buffer, codec, nid, &codec->mixers);
+	print_nid_array(buffer, codec, nid, &codec->nids);
 }
 
 static void print_codec_info(struct snd_info_entry *entry,
@@ -545,7 +557,12 @@ static void print_codec_info(struct snd_info_entry *entry,
 	else
 		snd_iprintf(buffer, "Not Set\n");
 	snd_iprintf(buffer, "Address: %d\n", codec->addr);
-	snd_iprintf(buffer, "Function Id: 0x%x\n", codec->function_id);
+	if (codec->afg)
+		snd_iprintf(buffer, "AFG Function Id: 0x%x (unsol %u)\n",
+			codec->afg_function_id, codec->afg_unsol);
+	if (codec->mfg)
+		snd_iprintf(buffer, "MFG Function Id: 0x%x (unsol %u)\n",
+			codec->mfg_function_id, codec->mfg_unsol);
 	snd_iprintf(buffer, "Vendor Id: 0x%08x\n", codec->vendor_id);
 	snd_iprintf(buffer, "Subsystem Id: 0x%08x\n", codec->subsystem_id);
 	snd_iprintf(buffer, "Revision Id: 0x%x\n", codec->revision_id);
@@ -608,7 +625,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_iprintf(buffer, " CP");
 		snd_iprintf(buffer, "\n");
 
-		print_nid_mixers(buffer, codec, nid);
+		print_nid_array(buffer, codec, nid, &codec->mixers);
+		print_nid_array(buffer, codec, nid, &codec->nids);
 		print_nid_pcms(buffer, codec, nid);
 
 		/* volume knob is a special widget that always have connection

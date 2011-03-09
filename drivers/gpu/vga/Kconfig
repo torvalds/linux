@@ -8,3 +8,22 @@ config VGA_ARB
 	  are accessed at same time they need some kind of coordination. Please
 	  see Documentation/vgaarbiter.txt for more details. Select this to
 	  enable VGA arbiter.
+
+config VGA_ARB_MAX_GPUS
+	int "Maximum number of GPUs"
+	default 16
+	depends on VGA_ARB
+	help
+	  Reserves space in the kernel to maintain resource locking for
+	  multiple GPUS.  The overhead for each GPU is very small.
+
+config VGA_SWITCHEROO
+	bool "Laptop Hybrid Graphics - GPU switching support"
+	depends on X86
+	depends on ACPI
+	help
+	  Many laptops released in 2008/9/10 have two GPUs with a multiplexer
+	  to switch between them. This adds support for dynamic switching when
+          X isn't running and delayed switching until the next logoff. This
+	  feature is called hybrid graphics, ATI PowerXpress, and Nvidia
+	  HybridPower.

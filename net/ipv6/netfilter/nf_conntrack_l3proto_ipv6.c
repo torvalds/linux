@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/icmp.h>
-#include <linux/sysctl.h>
 #include <net/ipv6.h>
 #include <net/inet_frag.h>
 
@@ -27,7 +26,9 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/nf_log.h>
 
 static bool ipv6_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
@@ -188,48 +189,6 @@ out:
 	return nf_conntrack_confirm(skb);
 }
 
-static enum ip6_defrag_users nf_ct6_defrag_user(unsigned int hooknum,
-						struct sk_buff *skb)
-{
-#ifdef CONFIG_BRIDGE_NETFILTER
-	if (skb->nf_bridge &&
-	    skb->nf_bridge->mask & BRNF_NF_BRIDGE_PREROUTING)
-		return IP6_DEFRAG_CONNTRACK_BRIDGE_IN;
-#endif
-	if (hooknum == NF_INET_PRE_ROUTING)
-		return IP6_DEFRAG_CONNTRACK_IN;
-	else
-		return IP6_DEFRAG_CONNTRACK_OUT;
-
-}
-
-static unsigned int ipv6_defrag(unsigned int hooknum,
-				struct sk_buff *skb,
-				const struct net_device *in,
-				const struct net_device *out,
-				int (*okfn)(struct sk_buff *))
-{
-	struct sk_buff *reasm;
-
-	/* Previously seen (loopback)?  */
-	if (skb->nfct)
-		return NF_ACCEPT;
-
-	reasm = nf_ct_frag6_gather(skb, nf_ct6_defrag_user(hooknum, skb));
-	/* queued */
-	if (reasm == NULL)
-		return NF_STOLEN;
-
-	/* error occured or not fragmented */
-	if (reasm == skb)
-		return NF_ACCEPT;
-
-	nf_ct_frag6_output(hooknum, reasm, (struct net_device *)in,
-			   (struct net_device *)out, okfn);
-
-	return NF_STOLEN;
-}
-
 static unsigned int __ipv6_conntrack_in(struct net *net,
 					unsigned int hooknum,
 					struct sk_buff *skb,
@@ -274,20 +233,13 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct ipv6hdr)) {
 		if (net_ratelimit())
-			printk("ipv6_conntrack_local: packet too short\n");
+			pr_notice("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
 	return __ipv6_conntrack_in(dev_net(out), hooknum, skb, okfn);
 }
 
 static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
-	{
-		.hook		= ipv6_defrag,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_PRE_ROUTING,
-		.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
-	},
 	{
 		.hook		= ipv6_conntrack_in,
 		.owner		= THIS_MODULE,
@@ -301,13 +253,6 @@ static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_CONNTRACK,
-	},
-	{
-		.hook		= ipv6_defrag,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_LOCAL_OUT,
-		.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
 	},
 	{
 		.hook		= ipv6_confirm,
@@ -381,10 +326,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.nlattr_to_tuple	= ipv6_nlattr_to_tuple,
 	.nla_policy		= ipv6_nla_policy,
 #endif
-#ifdef CONFIG_SYSCTL
-	.ctl_table_path		= nf_net_netfilter_sysctl_path,
-	.ctl_table		= nf_ct_ipv6_sysctl_table,
-#endif
 	.me			= THIS_MODULE,
 };
 
@@ -397,40 +338,36 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	int ret = 0;
 
 	need_conntrack();
+	nf_defrag_ipv6_enable();
 
-	ret = nf_ct_frag6_init();
-	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't initialize frag6.\n");
-		return ret;
-	}
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register tcp.\n");
-		goto cleanup_frag6;
+		pr_err("nf_conntrack_ipv6: can't register tcp.\n");
+		return ret;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register udp.\n");
+		pr_err("nf_conntrack_ipv6: can't register udp.\n");
 		goto cleanup_tcp;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_icmpv6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register icmpv6.\n");
+		pr_err("nf_conntrack_ipv6: can't register icmpv6.\n");
 		goto cleanup_udp;
 	}
 
 	ret = nf_conntrack_l3proto_register(&nf_conntrack_l3proto_ipv6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register ipv6\n");
+		pr_err("nf_conntrack_ipv6: can't register ipv6\n");
 		goto cleanup_icmpv6;
 	}
 
 	ret = nf_register_hooks(ipv6_conntrack_ops,
 				ARRAY_SIZE(ipv6_conntrack_ops));
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register pre-routing defrag "
+		pr_err("nf_conntrack_ipv6: can't register pre-routing defrag "
 		       "hook.\n");
 		goto cleanup_ipv6;
 	}
@@ -444,8 +381,6 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp6);
  cleanup_tcp:
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp6);
- cleanup_frag6:
-	nf_ct_frag6_cleanup();
 	return ret;
 }
 
@@ -457,7 +392,6 @@ static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmpv6);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp6);
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp6);
-	nf_ct_frag6_cleanup();
 }
 
 module_init(nf_conntrack_l3proto_ipv6_init);

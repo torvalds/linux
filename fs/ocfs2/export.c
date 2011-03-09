@@ -137,9 +137,7 @@ check_gen:
 	}
 
 	result = d_obtain_alias(inode);
-	if (!IS_ERR(result))
-		result->d_op = &ocfs2_dentry_ops;
-	else
+	if (IS_ERR(result))
 		mlog_errno(PTR_ERR(result));
 
 bail:
@@ -175,8 +173,6 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	}
 
 	parent = d_obtain_alias(ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0, 0));
-	if (!IS_ERR(parent))
-		parent->d_op = &ocfs2_dentry_ops;
 
 bail_unlock:
 	ocfs2_inode_unlock(dir, 0);
@@ -239,7 +235,7 @@ static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
 		mlog(0, "Encoding parent: blkno: %llu, generation: %u\n",
 		     (unsigned long long)blkno, generation);
 	}
-	
+
 	*max_len = len;
 
 bail:

@@ -112,7 +112,7 @@
  * Disable rx-data:
  * If cmx is realized in hardware, rx data will be disabled if requested by
  * the upper layer. If dtmf decoding is done by software and enabled, rx data
- * will not be diabled but blocked to the upper layer.
+ * will not be disabled but blocked to the upper layer.
  *
  * HFC conference engine:
  * If it is possible to realize all features using hardware, hardware will be
@@ -124,6 +124,7 @@
 
 /* delay.h is required for hw_lock.h */
 
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mISDNif.h>
 #include <linux/mISDNdsp.h>
@@ -1236,6 +1237,7 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 			if (dsp->cmx_delay)
 				dsp->rx_W = (dsp->rx_R + dsp->cmx_delay)
 					& CMX_BUFF_MASK;
+			else
 				dsp->rx_W = (dsp->rx_R + (dsp_poll >> 1))
 					& CMX_BUFF_MASK;
 		} else {

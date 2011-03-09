@@ -2,6 +2,7 @@
 #define __NET_FIB_RULES_H
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/fib_rules.h>
 #include <net/flow.h>
@@ -19,7 +20,7 @@ struct fib_rule {
 	u32			table;
 	u8			action;
 	u32			target;
-	struct fib_rule *	ctarget;
+	struct fib_rule __rcu	*ctarget;
 	char			iifname[IFNAMSIZ];
 	char			oifname[IFNAMSIZ];
 	struct rcu_head		rcu;
@@ -30,6 +31,8 @@ struct fib_lookup_arg {
 	void			*lookup_ptr;
 	void			*result;
 	struct fib_rule		*rule;
+	int			flags;
+#define FIB_LOOKUP_NOREF	1
 };
 
 struct fib_rules_ops {
@@ -103,9 +106,8 @@ static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
 	return frh->table;
 }
 
-extern struct fib_rules_ops *fib_rules_register(struct fib_rules_ops *, struct net *);
+extern struct fib_rules_ops *fib_rules_register(const struct fib_rules_ops *, struct net *);
 extern void fib_rules_unregister(struct fib_rules_ops *);
-extern void                     fib_rules_cleanup_ops(struct fib_rules_ops *);
 
 extern int			fib_rules_lookup(struct fib_rules_ops *,
 						 struct flowi *, int flags,
@@ -113,4 +115,5 @@ extern int			fib_rules_lookup(struct fib_rules_ops *,
 extern int			fib_default_rule_add(struct fib_rules_ops *,
 						     u32 pref, u32 table,
 						     u32 flags);
+extern u32			fib_default_rule_pref(struct fib_rules_ops *ops);
 #endif

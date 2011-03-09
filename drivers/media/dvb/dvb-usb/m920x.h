@@ -18,7 +18,7 @@
 #define M9206_FW	0x30
 
 #define M9206_MAX_FILTERS 8
-#define M9206_MAX_ADAPTERS 2
+#define M9206_MAX_ADAPTERS 4
 
 /*
 sequences found in logs:

@@ -6,6 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/workqueue.h>
 #include <linux/connector.h>
@@ -172,11 +173,15 @@ int dm_consult_userspace(const char *uuid, uint64_t luid, int request_type,
 {
 	int r = 0;
 	size_t dummy = 0;
-	int overhead_size =
-		sizeof(struct dm_ulog_request *) + sizeof(struct cn_msg);
+	int overhead_size = sizeof(struct dm_ulog_request) + sizeof(struct cn_msg);
 	struct dm_ulog_request *tfr = prealloced_ulog_tfr;
 	struct receiving_pkg pkg;
 
+	/*
+	 * Given the space needed to hold the 'struct cn_msg' and
+	 * 'struct dm_ulog_request' - do we have enough payload
+	 * space remaining?
+	 */
 	if (data_size > (DM_ULOG_PREALLOCED_SIZE - overhead_size)) {
 		DMINFO("Size of tfr exceeds preallocated size");
 		return -EINVAL;
@@ -191,8 +196,9 @@ resend:
 	 */
 	mutex_lock(&dm_ulog_lock);
 
-	memset(tfr, 0, DM_ULOG_PREALLOCED_SIZE - overhead_size);
+	memset(tfr, 0, DM_ULOG_PREALLOCED_SIZE - sizeof(struct cn_msg));
 	memcpy(tfr->uuid, uuid, DM_UUID_LEN);
+	tfr->version = DM_ULOG_REQUEST_VERSION;
 	tfr->luid = luid;
 	tfr->seq = dm_ulog_seq++;
 

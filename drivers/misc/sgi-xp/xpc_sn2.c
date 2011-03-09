@@ -14,6 +14,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/uncached.h>
 #include <asm/sn/mspec.h>
 #include <asm/sn/sn_sal.h>

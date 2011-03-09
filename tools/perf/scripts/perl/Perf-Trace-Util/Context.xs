@@ -1,5 +1,5 @@
 /*
- * Context.xs.  XS interfaces for perf trace.
+ * Context.xs.  XS interfaces for perf script.
  *
  * Copyright (C) 2009 Tom Zanussi <tzanussi@gmail.com>
  *
@@ -22,7 +22,8 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-#include "../../../util/trace-event-perl.h"
+#include "../../../perf.h"
+#include "../../../util/script-event.h"
 
 MODULE = Perf::Trace::Context		PACKAGE = Perf::Trace::Context
 PROTOTYPES: ENABLE

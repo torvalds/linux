@@ -105,16 +105,18 @@ static const struct backlight_ops hp680bl_ops = {
 
 static int __devinit hp680bl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 
-	bd = backlight_device_register ("hp680-bl", &pdev->dev, NULL,
-		    &hp680bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = HP680_MAX_INTENSITY;
+	bd = backlight_device_register("hp680-bl", &pdev->dev, NULL,
+				       &hp680bl_ops, &props);
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
 
 	platform_set_drvdata(pdev, bd);
 
-	bd->props.max_brightness = HP680_MAX_INTENSITY;
 	bd->props.brightness = HP680_DEFAULT_INTENSITY;
 	hp680bl_send_intensity(bd);
 

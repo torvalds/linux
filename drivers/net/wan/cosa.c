@@ -89,7 +89,6 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
@@ -174,6 +173,7 @@ struct cosa_data {
  * Character device major number. 117 was allocated for us.
  * The value of 0 means to allocate a first free one.
  */
+static DEFINE_MUTEX(cosa_chardev_mutex);
 static int cosa_major = 117;
 
 /*
@@ -575,7 +575,7 @@ static int cosa_probe(int base, int irq, int dma)
 
 		/* Initialize the chardev data structures */
 		mutex_init(&chan->rlock);
-		init_MUTEX(&chan->wsem);
+		sema_init(&chan->wsem, 1);
 
 		/* Register the network interface */
 		if (!(chan->netdev = alloc_hdlcdev(chan))) {
@@ -811,7 +811,7 @@ static ssize_t cosa_read(struct file *file,
 	cosa_enable_rx(chan);
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->rxwaitq, &wait);
-	while(!chan->rx_status) {
+	while (!chan->rx_status) {
 		current->state = TASK_INTERRUPTIBLE;
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
@@ -896,7 +896,7 @@ static ssize_t cosa_write(struct file *file,
 
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->txwaitq, &wait);
-	while(!chan->tx_status) {
+	while (!chan->tx_status) {
 		current->state = TASK_INTERRUPTIBLE;
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
@@ -944,7 +944,7 @@ static int cosa_open(struct inode *inode, struct file *file)
 	int n;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&cosa_chardev_mutex);
 	if ((n=iminor(file->f_path.dentry->d_inode)>>CARD_MINOR_BITS)
 		>= nr_cards) {
 		ret = -ENODEV;
@@ -976,7 +976,7 @@ static int cosa_open(struct inode *inode, struct file *file)
 	chan->rx_done = chrdev_rx_done;
 	spin_unlock_irqrestore(&cosa->lock, flags);
 out:
-	unlock_kernel();
+	mutex_unlock(&cosa_chardev_mutex);
 	return ret;
 }
 
@@ -1153,7 +1153,7 @@ static int cosa_ioctl_common(struct cosa_data *cosa,
 	struct channel_data *channel, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	switch(cmd) {
+	switch (cmd) {
 	case COSAIORSET:	/* Reset the device */
 		if (!capable(CAP_NET_ADMIN))
 			return -EACCES;
@@ -1212,10 +1212,10 @@ static long cosa_chardev_ioctl(struct file *file, unsigned int cmd,
 	struct cosa_data *cosa;
 	long ret;
 
-	lock_kernel();
+	mutex_lock(&cosa_chardev_mutex);
 	cosa = channel->cosa;
 	ret = cosa_ioctl_common(cosa, channel, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&cosa_chardev_mutex);
 	return ret;
 }
 
@@ -1704,7 +1704,7 @@ static inline void tx_interrupt(struct cosa_data *cosa, int status)
 			spin_unlock_irqrestore(&cosa->lock, flags);
 			return;
 		}
-		while(1) {
+		while (1) {
 			cosa->txchan++;
 			i++;
 			if (cosa->txchan >= cosa->nchannels)
@@ -2010,7 +2010,7 @@ again:
 static void debug_status_in(struct cosa_data *cosa, int status)
 {
 	char *s;
-	switch(status & SR_CMD_FROM_SRP_MASK) {
+	switch (status & SR_CMD_FROM_SRP_MASK) {
 	case SR_UP_REQUEST:
 		s = "RX_REQ";
 		break;

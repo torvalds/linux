@@ -273,7 +273,7 @@ static void iseries_end_IRQ(unsigned int irq)
 }
 
 static struct irq_chip iseries_pic = {
-	.name	= "iSeries irq controller",
+	.name		= "iSeries",
 	.startup	= iseries_startup_IRQ,
 	.shutdown	= iseries_shutdown_IRQ,
 	.unmask		= iseries_enable_IRQ,

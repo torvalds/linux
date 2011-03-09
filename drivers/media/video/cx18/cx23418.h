@@ -177,7 +177,7 @@
    IN[0] - Task handle.
    IN[1] - luma type: 0 = disable, 1 = 1D horizontal only, 2 = 1D vertical only,
 		      3 = 2D H/V separable, 4 = 2D symmetric non-separable
-   IN[2] - chroma type: 0 - diable, 1 = 1D horizontal
+   IN[2] - chroma type: 0 - disable, 1 = 1D horizontal
    ReturnCode - One of the ERR_CAPTURE_... */
 #define CX18_CPU_SET_SPATIAL_FILTER_TYPE     	(CPU_CMD_MASK_CAPTURE | 0x000C)
 
@@ -191,7 +191,8 @@
 #define CX18_CPU_SET_MEDIAN_CORING           	(CPU_CMD_MASK_CAPTURE | 0x000E)
 
 /* Description: This command set the picture type mask for index file
-   IN[0] - 	0 = disable index file output
+   IN[0] - Task handle (ignored by firmware)
+   IN[1] - 	0 = disable index file output
 			1 = output I picture
 			2 = P picture
 			4 = B picture

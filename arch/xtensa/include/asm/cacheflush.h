@@ -115,6 +115,7 @@ extern void flush_cache_page(struct vm_area_struct*, unsigned long, unsigned lon
 #define flush_cache_vmap(start,end)			do { } while (0)
 #define flush_cache_vunmap(start,end)			do { } while (0)
 
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #define flush_dcache_page(page)				do { } while (0)
 
 #define flush_cache_page(vma,addr,pfn)			do { } while (0)

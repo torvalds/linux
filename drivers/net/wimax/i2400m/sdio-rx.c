@@ -65,6 +65,7 @@
 #include <linux/skbuff.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/slab.h>
 #include "i2400m-sdio.h"
 
 #define D_SUBMODULE rx
@@ -86,7 +87,7 @@ static const __le32 i2400m_ACK_BARKER[4] = {
  *
  * sdio_readl() doesn't work.
  */
-ssize_t __i2400ms_rx_get_size(struct i2400ms *i2400ms)
+static ssize_t __i2400ms_rx_get_size(struct i2400ms *i2400ms)
 {
 	int ret, cnt, val;
 	ssize_t rx_size;
@@ -196,7 +197,6 @@ error_alloc_skb:
 error_get_size:
 error_bad_size:
 	d_fnend(7, dev, "(i2400ms %p) = %d\n", i2400ms, ret);
-	return;
 }
 
 
@@ -228,7 +228,6 @@ void i2400ms_irq(struct sdio_func *func)
 	i2400ms_rx(i2400ms);
 error_no_irq:
 	d_fnend(6, dev, "(i2400ms %p) = void\n", i2400ms);
-	return;
 }
 
 

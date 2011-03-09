@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2009, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,6 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
-#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsrepair2")
@@ -75,7 +74,15 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
+acpi_ns_repair_CID(struct acpi_predefined_data *data,
+		   union acpi_operand_object **return_object_ptr);
+
+static acpi_status
 acpi_ns_repair_FDE(struct acpi_predefined_data *data,
+		   union acpi_operand_object **return_object_ptr);
+
+static acpi_status
+acpi_ns_repair_HID(struct acpi_predefined_data *data,
 		   union acpi_operand_object **return_object_ptr);
 
 static acpi_status
@@ -93,7 +100,7 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 			  u32 sort_index,
 			  u8 sort_direction, char *sort_key_name);
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction);
 
@@ -109,15 +116,26 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
  * As necessary:
  *
  * _ALR: Sort the list ascending by ambient_illuminance
+ * _CID: Strings: uppercase all, remove any leading asterisk
  * _FDE: Convert Buffer of BYTEs to a Buffer of DWORDs
  * _GTM: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _HID: Strings: uppercase all, remove any leading asterisk
  * _PSS: Sort the list descending by Power
  * _TSS: Sort the list descending by Power
+ *
+ * Names that must be packages, but cannot be sorted:
+ *
+ * _BCL: Values are tied to the Package index where they appear, and cannot
+ * be moved or sorted. These index values are used for _BQC and _BCM.
+ * However, we can fix the case where a buffer is returned, by converting
+ * it to a Package of integers.
  */
 static const struct acpi_repair_info acpi_ns_repairable_names[] = {
 	{"_ALR", acpi_ns_repair_ALR},
+	{"_CID", acpi_ns_repair_CID},
 	{"_FDE", acpi_ns_repair_FDE},
 	{"_GTM", acpi_ns_repair_FDE},	/* _GTM has same repair as _FDE */
+	{"_HID", acpi_ns_repair_HID},
 	{"_PSS", acpi_ns_repair_PSS},
 	{"_TSS", acpi_ns_repair_TSS},
 	{{0, 0, 0, 0}, NULL}	/* Table terminator */
@@ -315,6 +333,157 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
 
 /******************************************************************************
  *
+ * FUNCTION:    acpi_ns_repair_CID
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              return_object_ptr   - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if object is OK or was repaired successfully
+ *
+ * DESCRIPTION: Repair for the _CID object. If a string, ensure that all
+ *              letters are uppercase and that there is no leading asterisk.
+ *              If a Package, ensure same for all string elements.
+ *
+ *****************************************************************************/
+
+static acpi_status
+acpi_ns_repair_CID(struct acpi_predefined_data *data,
+		   union acpi_operand_object **return_object_ptr)
+{
+	acpi_status status;
+	union acpi_operand_object *return_object = *return_object_ptr;
+	union acpi_operand_object **element_ptr;
+	union acpi_operand_object *original_element;
+	u16 original_ref_count;
+	u32 i;
+
+	/* Check for _CID as a simple string */
+
+	if (return_object->common.type == ACPI_TYPE_STRING) {
+		status = acpi_ns_repair_HID(data, return_object_ptr);
+		return (status);
+	}
+
+	/* Exit if not a Package */
+
+	if (return_object->common.type != ACPI_TYPE_PACKAGE) {
+		return (AE_OK);
+	}
+
+	/* Examine each element of the _CID package */
+
+	element_ptr = return_object->package.elements;
+	for (i = 0; i < return_object->package.count; i++) {
+		original_element = *element_ptr;
+		original_ref_count = original_element->common.reference_count;
+
+		status = acpi_ns_repair_HID(data, element_ptr);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+
+		/* Take care with reference counts */
+
+		if (original_element != *element_ptr) {
+
+			/* Element was replaced */
+
+			(*element_ptr)->common.reference_count =
+			    original_ref_count;
+
+			acpi_ut_remove_reference(original_element);
+		}
+
+		element_ptr++;
+	}
+
+	return (AE_OK);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_repair_HID
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              return_object_ptr   - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if object is OK or was repaired successfully
+ *
+ * DESCRIPTION: Repair for the _HID object. If a string, ensure that all
+ *              letters are uppercase and that there is no leading asterisk.
+ *
+ *****************************************************************************/
+
+static acpi_status
+acpi_ns_repair_HID(struct acpi_predefined_data *data,
+		   union acpi_operand_object **return_object_ptr)
+{
+	union acpi_operand_object *return_object = *return_object_ptr;
+	union acpi_operand_object *new_string;
+	char *source;
+	char *dest;
+
+	ACPI_FUNCTION_NAME(ns_repair_HID);
+
+	/* We only care about string _HID objects (not integers) */
+
+	if (return_object->common.type != ACPI_TYPE_STRING) {
+		return (AE_OK);
+	}
+
+	if (return_object->string.length == 0) {
+		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
+				      "Invalid zero-length _HID or _CID string"));
+
+		/* Return AE_OK anyway, let driver handle it */
+
+		data->flags |= ACPI_OBJECT_REPAIRED;
+		return (AE_OK);
+	}
+
+	/* It is simplest to always create a new string object */
+
+	new_string = acpi_ut_create_string_object(return_object->string.length);
+	if (!new_string) {
+		return (AE_NO_MEMORY);
+	}
+
+	/*
+	 * Remove a leading asterisk if present. For some unknown reason, there
+	 * are many machines in the field that contains IDs like this.
+	 *
+	 * Examples: "*PNP0C03", "*ACPI0003"
+	 */
+	source = return_object->string.pointer;
+	if (*source == '*') {
+		source++;
+		new_string->string.length--;
+
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Removed invalid leading asterisk\n",
+				  data->pathname));
+	}
+
+	/*
+	 * Copy and uppercase the string. From the ACPI specification:
+	 *
+	 * A valid PNP ID must be of the form "AAA####" where A is an uppercase
+	 * letter and # is a hex digit. A valid ACPI ID must be of the form
+	 * "ACPI####" where # is a hex digit.
+	 */
+	for (dest = new_string->string.pointer; *source; dest++, source++) {
+		*dest = (char)ACPI_TOUPPER(*source);
+	}
+
+	acpi_ut_remove_reference(return_object);
+	*return_object_ptr = new_string;
+	return (AE_OK);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    acpi_ns_repair_TSS
  *
  * PARAMETERS:  Data                - Pointer to validation data structure
@@ -443,7 +612,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	union acpi_operand_object *obj_desc;
 	u32 i;
 	u32 previous_value;
-	acpi_status status;
 
 	ACPI_FUNCTION_NAME(ns_check_sorted_list);
 
@@ -494,19 +662,15 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 		/*
 		 * The list must be sorted in the specified order. If we detect a
-		 * discrepancy, issue a warning and sort the entire list
+		 * discrepancy, sort the entire list.
 		 */
 		if (((sort_direction == ACPI_SORT_ASCENDING) &&
 		     (obj_desc->integer.value < previous_value)) ||
 		    ((sort_direction == ACPI_SORT_DESCENDING) &&
 		     (obj_desc->integer.value > previous_value))) {
-			status =
-			    acpi_ns_sort_list(return_object->package.elements,
-					      outer_element_count, sort_index,
-					      sort_direction);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
+			acpi_ns_sort_list(return_object->package.elements,
+					  outer_element_count, sort_index,
+					  sort_direction);
 
 			data->flags |= ACPI_OBJECT_REPAIRED;
 
@@ -525,89 +689,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_ns_remove_null_elements
- *
- * PARAMETERS:  Data                - Pointer to validation data structure
- *              package_type        - An acpi_return_package_types value
- *              obj_desc            - A Package object
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Remove all NULL package elements from packages that contain
- *              a variable number of sub-packages.
- *
- *****************************************************************************/
-
-void
-acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
-			     u8 package_type,
-			     union acpi_operand_object *obj_desc)
-{
-	union acpi_operand_object **source;
-	union acpi_operand_object **dest;
-	u32 count;
-	u32 new_count;
-	u32 i;
-
-	ACPI_FUNCTION_NAME(ns_remove_null_elements);
-
-	/*
-	 * PTYPE1 packages contain no subpackages.
-	 * PTYPE2 packages contain a variable number of sub-packages. We can
-	 * safely remove all NULL elements from the PTYPE2 packages.
-	 */
-	switch (package_type) {
-	case ACPI_PTYPE1_FIXED:
-	case ACPI_PTYPE1_VAR:
-	case ACPI_PTYPE1_OPTION:
-		return;
-
-	case ACPI_PTYPE2:
-	case ACPI_PTYPE2_COUNT:
-	case ACPI_PTYPE2_PKG_COUNT:
-	case ACPI_PTYPE2_FIXED:
-	case ACPI_PTYPE2_MIN:
-	case ACPI_PTYPE2_REV_FIXED:
-		break;
-
-	default:
-		return;
-	}
-
-	count = obj_desc->package.count;
-	new_count = count;
-
-	source = obj_desc->package.elements;
-	dest = source;
-
-	/* Examine all elements of the package object, remove nulls */
-
-	for (i = 0; i < count; i++) {
-		if (!*source) {
-			new_count--;
-		} else {
-			*dest = *source;
-			dest++;
-		}
-		source++;
-	}
-
-	/* Update parent package if any null elements were removed */
-
-	if (new_count < count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
-				  "%s: Found and removed %u NULL elements\n",
-				  data->pathname, (count - new_count)));
-
-		/* NULL terminate list and update the package count */
-
-		*dest = NULL;
-		obj_desc->package.count = new_count;
-	}
-}
-
-/******************************************************************************
- *
  * FUNCTION:    acpi_ns_sort_list
  *
  * PARAMETERS:  Elements            - Package object element list
@@ -615,15 +696,16 @@ acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
  *              Index               - Sort by which package element
  *              sort_direction      - Ascending or Descending sort
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Sort the objects that are in a package element list.
  *
- * NOTE: Assumes that all NULL elements have been removed from the package.
+ * NOTE: Assumes that all NULL elements have been removed from the package,
+ *       and that all elements have been verified to be of type Integer.
  *
  *****************************************************************************/
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction)
 {
@@ -652,6 +734,4 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
 			}
 		}
 	}
-
-	return (AE_OK);
 }

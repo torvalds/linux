@@ -181,7 +181,7 @@
 #include <linux/init.h>
 #include <linux/soundcard.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 
@@ -194,6 +194,7 @@
      *  Declarations
      */
 
+static DEFINE_MUTEX(dmasound_core_mutex);
 int dmasound_catchRadius = 0;
 module_param(dmasound_catchRadius, int, 0);
 
@@ -323,22 +324,26 @@ static struct {
 
 static int mixer_open(struct inode *inode, struct file *file)
 {
-	if (!try_module_get(dmasound.mach.owner))
+	mutex_lock(&dmasound_core_mutex);
+	if (!try_module_get(dmasound.mach.owner)) {
+		mutex_unlock(&dmasound_core_mutex);
 		return -ENODEV;
+	}
 	mixer.busy = 1;
+	mutex_unlock(&dmasound_core_mutex);
 	return 0;
 }
 
 static int mixer_release(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	mutex_lock(&dmasound_core_mutex);
 	mixer.busy = 0;
 	module_put(dmasound.mach.owner);
-	unlock_kernel();
+	mutex_unlock(&dmasound_core_mutex);
 	return 0;
 }
-static int mixer_ioctl(struct inode *inode, struct file *file, u_int cmd,
-		       u_long arg)
+
+static int mixer_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	if (_SIOC_DIR(cmd) & _SIOC_WRITE)
 	    mixer.modify_counter++;
@@ -362,11 +367,22 @@ static int mixer_ioctl(struct inode *inode, struct file *file, u_int cmd,
 	return -EINVAL;
 }
 
+static long mixer_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
+{
+	int ret;
+
+	mutex_lock(&dmasound_core_mutex);
+	ret = mixer_ioctl(file, cmd, arg);
+	mutex_unlock(&dmasound_core_mutex);
+
+	return ret;
+}
+
 static const struct file_operations mixer_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
-	.ioctl		= mixer_ioctl,
+	.unlocked_ioctl	= mixer_unlocked_ioctl,
 	.open		= mixer_open,
 	.release	= mixer_release,
 };
@@ -737,8 +753,11 @@ static int sq_open(struct inode *inode, struct file *file)
 {
 	int rc;
 
-	if (!try_module_get(dmasound.mach.owner))
+	mutex_lock(&dmasound_core_mutex);
+	if (!try_module_get(dmasound.mach.owner)) {
+		mutex_unlock(&dmasound_core_mutex);
 		return -ENODEV;
+	}
 
 	rc = write_sq_open(file); /* checks the f_mode */
 	if (rc)
@@ -781,10 +800,11 @@ static int sq_open(struct inode *inode, struct file *file)
 		sound_set_format(AFMT_MU_LAW);
 	}
 #endif
-
+	mutex_unlock(&dmasound_core_mutex);
 	return 0;
  out:
 	module_put(dmasound.mach.owner);
+	mutex_unlock(&dmasound_core_mutex);
 	return rc;
 }
 
@@ -850,7 +870,7 @@ static int sq_release(struct inode *inode, struct file *file)
 {
 	int rc = 0;
 
-	lock_kernel();
+	mutex_lock(&dmasound_core_mutex);
 
 	if (file->f_mode & FMODE_WRITE) {
 		if (write_sq.busy)
@@ -881,7 +901,7 @@ static int sq_release(struct inode *inode, struct file *file)
 	write_sq_wake_up(file); /* checks f_mode */
 #endif /* blocking open() */
 
-	unlock_kernel();
+	mutex_unlock(&dmasound_core_mutex);
 
 	return rc;
 }
@@ -955,8 +975,7 @@ printk("dmasound_core: tried to set_queue_frags on a locked queue\n") ;
 	return 0 ;
 }
 
-static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
-		    u_long arg)
+static int sq_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	int val, result;
 	u_long fmt;
@@ -1114,9 +1133,20 @@ static int sq_ioctl(struct inode *inode, struct file *file, u_int cmd,
 		return IOCTL_OUT(arg,val);
 
 	default:
-		return mixer_ioctl(inode, file, cmd, arg);
+		return mixer_ioctl(file, cmd, arg);
 	}
 	return -EINVAL;
+}
+
+static long sq_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
+{
+	int ret;
+
+	mutex_lock(&dmasound_core_mutex);
+	ret = sq_ioctl(file, cmd, arg);
+	mutex_unlock(&dmasound_core_mutex);
+
+	return ret;
 }
 
 static const struct file_operations sq_fops =
@@ -1125,7 +1155,7 @@ static const struct file_operations sq_fops =
 	.llseek		= no_llseek,
 	.write		= sq_write,
 	.poll		= sq_poll,
-	.ioctl		= sq_ioctl,
+	.unlocked_ioctl	= sq_unlocked_ioctl,
 	.open		= sq_open,
 	.release	= sq_release,
 };
@@ -1226,12 +1256,17 @@ static int state_open(struct inode *inode, struct file *file)
 {
 	char *buffer = state.buf;
 	int len = 0;
+	int ret;
 
+	mutex_lock(&dmasound_core_mutex);
+	ret = -EBUSY;
 	if (state.busy)
-		return -EBUSY;
+		goto out;
 
+	ret = -ENODEV;
 	if (!try_module_get(dmasound.mach.owner))
-		return -ENODEV;
+		goto out;
+
 	state.ptr = 0;
 	state.busy = 1;
 
@@ -1293,15 +1328,18 @@ printk("dmasound: stat buffer used %d bytes\n", len) ;
 		printk(KERN_ERR "dmasound_core: stat buffer overflowed!\n");
 
 	state.len = len;
-	return 0;
+	ret = 0;
+out:
+	mutex_unlock(&dmasound_core_mutex);
+	return ret;
 }
 
 static int state_release(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	mutex_lock(&dmasound_core_mutex);
 	state.busy = 0;
 	module_put(dmasound.mach.owner);
-	unlock_kernel();
+	mutex_unlock(&dmasound_core_mutex);
 	return 0;
 }
 

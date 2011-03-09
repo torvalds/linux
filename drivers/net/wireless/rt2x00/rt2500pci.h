@@ -76,6 +76,7 @@
  * CSR0: ASIC revision number.
  */
 #define CSR0				0x0000
+#define CSR0_REVISION			FIELD32(0x0000ffff)
 
 /*
  * CSR1: System control register.
@@ -1087,8 +1088,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 11 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 11 * sizeof(__le32) )
+#define TXD_DESC_SIZE			(11 * sizeof(__le32))
+#define RXD_DESC_SIZE			(11 * sizeof(__le32))
 
 /*
  * TX descriptor format for TX, PRIO, ATIM and Beacon Ring.

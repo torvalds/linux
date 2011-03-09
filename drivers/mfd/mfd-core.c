@@ -13,7 +13,10 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 #include <linux/mfd/core.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,
@@ -36,17 +39,19 @@ static int mfd_add_device(struct device *parent, int id,
 	pdev->dev.parent = parent;
 	platform_set_drvdata(pdev, cell->driver_data);
 
-	ret = platform_device_add_data(pdev,
-			cell->platform_data, cell->data_size);
-	if (ret)
-		goto fail_res;
+	if (cell->data_size) {
+		ret = platform_device_add_data(pdev,
+					cell->platform_data, cell->data_size);
+		if (ret)
+			goto fail_res;
+	}
 
 	for (r = 0; r < cell->num_resources; r++) {
 		res[r].name = cell->resources[r].name;
 		res[r].flags = cell->resources[r].flags;
 
 		/* Find out base to use */
-		if (cell->resources[r].flags & IORESOURCE_MEM) {
+		if ((cell->resources[r].flags & IORESOURCE_MEM) && mem_base) {
 			res[r].parent = mem_base;
 			res[r].start = mem_base->start +
 				cell->resources[r].start;
@@ -62,13 +67,24 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].start = cell->resources[r].start;
 			res[r].end   = cell->resources[r].end;
 		}
+
+		if (!cell->ignore_resource_conflicts) {
+			ret = acpi_check_resource_conflict(res);
+			if (ret)
+				goto fail_res;
+		}
 	}
 
-	platform_device_add_resources(pdev, res, cell->num_resources);
+	ret = platform_device_add_resources(pdev, res, cell->num_resources);
+	if (ret)
+		goto fail_res;
 
 	ret = platform_device_add(pdev);
 	if (ret)
 		goto fail_res;
+
+	if (cell->pm_runtime_no_callbacks)
+		pm_runtime_no_callbacks(&pdev->dev);
 
 	kfree(res);
 

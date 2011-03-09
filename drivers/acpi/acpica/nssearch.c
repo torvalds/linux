@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -152,17 +152,6 @@ acpi_ns_search_one_scope(u32 target_name,
 			return_ACPI_STATUS(AE_OK);
 		}
 
-		/*
-		 * The last entry in the list points back to the parent,
-		 * so a flag is used to indicate the end-of-list
-		 */
-		if (node->flags & ANOBJ_END_OF_PEER_LIST) {
-
-			/* Searched entire list, we are done */
-
-			break;
-		}
-
 		/* Didn't match name, move on to the next peer object */
 
 		node = node->peer;
@@ -217,7 +206,7 @@ acpi_ns_search_parent_tree(u32 target_name,
 
 	ACPI_FUNCTION_TRACE(ns_search_parent_tree);
 
-	parent_node = acpi_ns_get_parent_node(node);
+	parent_node = node->parent;
 
 	/*
 	 * If there is no parent (i.e., we are at the root) or type is "local",
@@ -261,7 +250,7 @@ acpi_ns_search_parent_tree(u32 target_name,
 
 		/* Not found here, go up another level (until we reach the root) */
 
-		parent_node = acpi_ns_get_parent_node(parent_node);
+		parent_node = parent_node->parent;
 	}
 
 	/* Not found in parent tree */
@@ -311,7 +300,7 @@ acpi_ns_search_and_enter(u32 target_name,
 
 	if (!node || !target_name || !return_node) {
 		ACPI_ERROR((AE_INFO,
-			    "Null parameter: Node %p Name %X ReturnNode %p",
+			    "Null parameter: Node %p Name 0x%X ReturnNode %p",
 			    node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}

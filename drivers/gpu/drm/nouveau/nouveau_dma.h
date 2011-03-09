@@ -31,6 +31,9 @@
 #define NOUVEAU_DMA_DEBUG 0
 #endif
 
+void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
+		   int delta, int length);
+
 /*
  * There's a hw race condition where you can't jump to your PUT offset,
  * to avoid this we jump to offset + SKIPS and fill the difference with
@@ -69,11 +72,13 @@ enum {
 	NvGdiRect	= 0x8000000c,
 	NvImageBlit	= 0x8000000d,
 	NvSw		= 0x8000000e,
+	NvSema		= 0x8000000f,
 
 	/* G80+ display objects */
 	NvEvoVRAM	= 0x01000000,
 	NvEvoFB16	= 0x01000001,
-	NvEvoFB32	= 0x01000002
+	NvEvoFB32	= 0x01000002,
+	NvEvoVRAM_LP	= 0x01000003
 };
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                                    0x00000039
@@ -96,13 +101,11 @@ enum {
 static __must_check inline int
 RING_SPACE(struct nouveau_channel *chan, int size)
 {
-	if (chan->dma.free < size) {
-		int ret;
+	int ret;
 
-		ret = nouveau_dma_wait(chan, size);
-		if (ret)
-			return ret;
-	}
+	ret = nouveau_dma_wait(chan, 1, size);
+	if (ret)
+		return ret;
 
 	chan->dma.free -= size;
 	return 0;
@@ -121,6 +124,12 @@ OUT_RING(struct nouveau_channel *chan, int data)
 
 extern void
 OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords);
+
+static inline void
+BEGIN_NVC0(struct nouveau_channel *chan, int op, int subc, int mthd, int size)
+{
+	OUT_RING(chan, (op << 28) | (size << 16) | (subc << 13) | (mthd >> 2));
+}
 
 static inline void
 BEGIN_RING(struct nouveau_channel *chan, int subc, int mthd, int size)
@@ -146,7 +155,13 @@ FIRE_RING(struct nouveau_channel *chan)
 		return;
 	chan->accel_done = true;
 
-	WRITE_PUT(chan->dma.cur);
+	if (chan->dma.ib_max) {
+		nv50_dma_push(chan, chan->pushbuf_bo, chan->dma.put << 2,
+			      (chan->dma.cur - chan->dma.put) << 2);
+	} else {
+		WRITE_PUT(chan->dma.cur);
+	}
+
 	chan->dma.put = chan->dma.cur;
 }
 

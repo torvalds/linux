@@ -11,11 +11,14 @@
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
+#include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	atomic_set(&mm->context.attach_count, 0);
+	mm->context.flush_mm = 0;
 	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
 #ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
@@ -76,6 +79,12 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
 	update_mm(next, tsk);
+	atomic_dec(&prev->context.attach_count);
+	WARN_ON(atomic_read(&prev->context.attach_count) < 0);
+	atomic_inc(&next->context.attach_count);
+	/* Check for TLBs not flushed yet */
+	if (next->context.flush_mm)
+		__tlb_flush_mm(next);
 }
 
 #define enter_lazy_tlb(mm,tsk)	do { } while (0)

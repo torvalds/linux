@@ -124,7 +124,4 @@ struct ssm2602_setup_data {
 	unsigned short i2c_address;
 };
 
-extern struct snd_soc_dai ssm2602_dai;
-extern struct snd_soc_codec_device soc_codec_dev_ssm2602;
-
 #endif

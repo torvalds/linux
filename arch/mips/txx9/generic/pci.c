@@ -20,6 +20,7 @@
 #include <asm/txx9/pci.h>
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/i8259.h>
 #include <asm/txx9/smsc_fdc37m81x.h>
 #endif
@@ -106,7 +107,7 @@ int txx9_pci_mem_high __initdata;
 
 /*
  * allocate pci_controller and resources.
- * mem_base, io_base: physical addresss.  0 for auto assignment.
+ * mem_base, io_base: physical address.  0 for auto assignment.
  * mem_size and io_size means max size on auto assignment.
  * pcic must be &txx9_primary_pcic or NULL.
  */
@@ -212,11 +213,8 @@ txx9_alloc_pci_controller(struct pci_controller *pcic,
 
 	pcic->mem_offset = 0;	/* busaddr == physaddr */
 
-	printk(KERN_INFO "PCI: IO 0x%08llx-0x%08llx MEM 0x%08llx-0x%08llx\n",
-	       (unsigned long long)pcic->mem_resource[1].start,
-	       (unsigned long long)pcic->mem_resource[1].end,
-	       (unsigned long long)pcic->mem_resource[0].start,
-	       (unsigned long long)pcic->mem_resource[0].end);
+	printk(KERN_INFO "PCI: IO %pR MEM %pR\n",
+	       &pcic->mem_resource[1], &pcic->mem_resource[0]);
 
 	/* register_pci_controller() will request MEM resource */
 	release_resource(&pcic->mem_resource[0]);

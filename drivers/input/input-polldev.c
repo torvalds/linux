@@ -8,7 +8,10 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/input-polldev.h>
 
@@ -32,8 +35,7 @@ static int input_polldev_start_workqueue(void)
 	if (!polldev_users) {
 		polldev_wq = create_singlethread_workqueue("ipolldevd");
 		if (!polldev_wq) {
-			printk(KERN_ERR "input-polldev: failed to create "
-				"ipolldevd workqueue\n");
+			pr_err("failed to create ipolldevd workqueue\n");
 			retval = -ENOMEM;
 			goto out;
 		}
@@ -100,6 +102,12 @@ static void input_close_polled_device(struct input_dev *input)
 	struct input_polled_dev *dev = input_get_drvdata(input);
 
 	cancel_delayed_work_sync(&dev->work);
+	/*
+	 * Clean up work struct to remove references to the workqueue.
+	 * It may be destroyed by the next call. This causes problems
+	 * at next device open-close in case of poll_interval == 0.
+	 */
+	INIT_DELAYED_WORK(&dev->work, dev->work.work.func);
 	input_polldev_stop_workqueue();
 
 	if (dev->close)

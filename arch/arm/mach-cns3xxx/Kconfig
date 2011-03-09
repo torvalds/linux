@@ -1,0 +1,13 @@
+menu "CNS3XXX platform type"
+	depends on ARCH_CNS3XXX
+
+config MACH_CNS3420VB
+	bool "Support for CNS3420 Validation Board"
+	select MIGHT_HAVE_PCI
+	help
+	  Include support for the Cavium Networks CNS3420 MPCore Platform
+	  Baseboard.
+	  This is a platform with an on-board ARM11 MPCore and has support
+	  for USB, USB-OTG, MMC/SD/SDIO, SATA, PCI-E, etc.
+
+endmenu

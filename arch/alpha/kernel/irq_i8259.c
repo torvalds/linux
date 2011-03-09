@@ -69,28 +69,11 @@ i8259a_mask_and_ack_irq(unsigned int irq)
 	spin_unlock(&i8259_irq_lock);
 }
 
-unsigned int
-i8259a_startup_irq(unsigned int irq)
-{
-	i8259a_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-void
-i8259a_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		i8259a_enable_irq(irq);
-}
-
 struct irq_chip i8259a_irq_type = {
 	.name		= "XT-PIC",
-	.startup	= i8259a_startup_irq,
-	.shutdown	= i8259a_disable_irq,
-	.enable		= i8259a_enable_irq,
-	.disable	= i8259a_disable_irq,
-	.ack		= i8259a_mask_and_ack_irq,
-	.end		= i8259a_end_irq,
+	.unmask		= i8259a_enable_irq,
+	.mask		= i8259a_disable_irq,
+	.mask_ack	= i8259a_mask_and_ack_irq,
 };
 
 void __init
@@ -107,8 +90,7 @@ init_i8259a_irqs(void)
 	outb(0xff, 0xA1);	/* mask all of 8259A-2 */
 
 	for (i = 0; i < 16; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].chip = &i8259a_irq_type;
+		set_irq_chip_and_handler(i, &i8259a_irq_type, handle_level_irq);
 	}
 
 	setup_irq(2, &cascade);

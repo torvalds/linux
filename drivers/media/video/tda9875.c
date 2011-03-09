@@ -28,7 +28,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/i2c-addr.h>
 
 static int debug; /* insmod parameter */
@@ -388,9 +387,25 @@ static const struct i2c_device_id tda9875_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tda9875_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tda9875",
-	.probe = tda9875_probe,
-	.remove = tda9875_remove,
-	.id_table = tda9875_id,
+static struct i2c_driver tda9875_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tda9875",
+	},
+	.probe		= tda9875_probe,
+	.remove		= tda9875_remove,
+	.id_table	= tda9875_id,
 };
+
+static __init int init_tda9875(void)
+{
+	return i2c_add_driver(&tda9875_driver);
+}
+
+static __exit void exit_tda9875(void)
+{
+	i2c_del_driver(&tda9875_driver);
+}
+
+module_init(init_tda9875);
+module_exit(exit_tda9875);

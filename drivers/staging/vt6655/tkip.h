@@ -46,12 +46,12 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID TKIPvMixKey(
-    PBYTE   pbyTKey,
-    PBYTE   pbyTA,
-    WORD    wTSC15_0,
-    DWORD   dwTSC47_16,
-    PBYTE   pbyRC4Key
+void TKIPvMixKey(
+    unsigned char *pbyTKey,
+    unsigned char *pbyTA,
+    unsigned short wTSC15_0,
+    unsigned long dwTSC47_16,
+    unsigned char *pbyRC4Key
     );
 
 #endif // __TKIP_H__

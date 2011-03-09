@@ -1,0 +1,24 @@
+TODO (staging => main):
+
+	* Motion detection flags need to be moved to v4l2
+	* Some private CIDs need to be moved to v4l2
+
+TODO (general):
+
+	* encoder on/off controls
+	* mpeg cid bitrate mode (vbr/cbr)
+	* mpeg cid bitrate/bitrate-peak
+	* mpeg encode of user data
+	* mpeg decode of user data
+	* switch between 4 frames/irq to 1 when using mjpeg (and then back
+	  when not)
+	* implement a CID control for motion areas/thresholds
+	* implement CID controls for mozaic areas
+	* allow for higher level of interval (for < 1 fps)
+	* sound:
+	  - implement playback via external sound jack
+	  - implement loopback of external sound jack with incoming audio?
+	  - implement pause/resume
+
+Plase send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc Ben Collins
+<bcollins@bluecherry.net>

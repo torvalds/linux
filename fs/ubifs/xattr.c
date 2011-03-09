@@ -56,6 +56,7 @@
  */
 
 #include "ubifs.h"
+#include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 

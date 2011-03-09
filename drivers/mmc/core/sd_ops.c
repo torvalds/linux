@@ -79,8 +79,6 @@ int mmc_wait_for_app_cmd(struct mmc_host *host, struct mmc_card *card,
 	 * we cannot use the retries field in mmc_command.
 	 */
 	for (i = 0;i <= retries;i++) {
-		memset(&mrq, 0, sizeof(struct mmc_request));
-
 		err = mmc_app_cmd(host, card);
 		if (err) {
 			/* no point in retrying; no APP commands allowed */
@@ -348,3 +346,51 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	return 0;
 }
 
+int mmc_app_sd_status(struct mmc_card *card, void *ssr)
+{
+	int err;
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+	struct scatterlist sg;
+
+	BUG_ON(!card);
+	BUG_ON(!card->host);
+	BUG_ON(!ssr);
+
+	/* NOTE: caller guarantees ssr is heap-allocated */
+
+	err = mmc_app_cmd(card->host, card);
+	if (err)
+		return err;
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+	memset(&cmd, 0, sizeof(struct mmc_command));
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	cmd.opcode = SD_APP_SD_STATUS;
+	cmd.arg = 0;
+	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	data.blksz = 64;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	sg_init_one(&sg, ssr, 64);
+
+	mmc_set_data_timeout(&data, card);
+
+	mmc_wait_for_req(card->host, &mrq);
+
+	if (cmd.error)
+		return cmd.error;
+	if (data.error)
+		return data.error;
+
+	return 0;
+}

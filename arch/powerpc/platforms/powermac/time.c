@@ -317,9 +317,9 @@ void __init pmac_calibrate_decr(void)
 	 * calibration. That's better since the VIA itself seems
 	 * to be slightly off. --BenH
 	 */
-	if (!machine_is_compatible("MacRISC2") &&
-	    !machine_is_compatible("MacRISC3") &&
-	    !machine_is_compatible("MacRISC4"))
+	if (!of_machine_is_compatible("MacRISC2") &&
+	    !of_machine_is_compatible("MacRISC3") &&
+	    !of_machine_is_compatible("MacRISC4"))
 		if (via_calibrate_decr())
 			return;
 
@@ -328,7 +328,7 @@ void __init pmac_calibrate_decr(void)
 	 * probably implement calibration based on the KL timer on these
 	 * machines anyway... -BenH
 	 */
-	if (machine_is_compatible("PowerMac3,5"))
+	if (of_machine_is_compatible("PowerMac3,5"))
 		if (via_calibrate_decr())
 			return;
 #endif

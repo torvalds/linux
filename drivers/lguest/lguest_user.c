@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/eventfd.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 #include "lg.h"
 
 /*L:056
@@ -513,6 +514,7 @@ static const struct file_operations lguest_fops = {
 	.release = close,
 	.write	 = write,
 	.read	 = read,
+	.llseek  = default_llseek,
 };
 
 /*

@@ -65,9 +65,7 @@ extern void dn_rt_cache_flush(int delay);
  * packets to the originating host.
  */
 struct dn_route {
-	union {
-		struct dst_entry dst;
-	} u;
+	struct dst_entry dst;
 
 	struct flowi fl;
 
@@ -81,6 +79,16 @@ struct dn_route {
 	unsigned rt_flags;
 	unsigned rt_type;
 };
+
+static inline bool dn_is_input_route(struct dn_route *rt)
+{
+	return rt->fl.iif != 0;
+}
+
+static inline bool dn_is_output_route(struct dn_route *rt)
+{
+	return rt->fl.iif == 0;
+}
 
 extern void dn_route_init(void);
 extern void dn_route_cleanup(void);

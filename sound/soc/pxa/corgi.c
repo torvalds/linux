@@ -23,14 +23,12 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
 #include <mach/corgi.h>
 #include <mach/audio.h>
 
 #include "../codecs/wm8731.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
 
 #define CORGI_HP        0
@@ -49,60 +47,67 @@ static int corgi_spk_func;
 
 static void corgi_ext_control(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
 	/* set up jack connection */
 	switch (corgi_jack_func) {
 	case CORGI_HP:
 		/* set = unmute headphone */
 		gpio_set_value(CORGI_GPIO_MUTE_L, 1);
 		gpio_set_value(CORGI_GPIO_MUTE_R, 1);
-		snd_soc_dapm_disable_pin(codec, "Mic Jack");
-		snd_soc_dapm_disable_pin(codec, "Line Jack");
-		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
-		snd_soc_dapm_disable_pin(codec, "Headset Jack");
+		snd_soc_dapm_disable_pin(dapm, "Mic Jack");
+		snd_soc_dapm_disable_pin(dapm, "Line Jack");
+		snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headset Jack");
 		break;
 	case CORGI_MIC:
 		/* reset = mute headphone */
 		gpio_set_value(CORGI_GPIO_MUTE_L, 0);
 		gpio_set_value(CORGI_GPIO_MUTE_R, 0);
-		snd_soc_dapm_enable_pin(codec, "Mic Jack");
-		snd_soc_dapm_disable_pin(codec, "Line Jack");
-		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
-		snd_soc_dapm_disable_pin(codec, "Headset Jack");
+		snd_soc_dapm_enable_pin(dapm, "Mic Jack");
+		snd_soc_dapm_disable_pin(dapm, "Line Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headset Jack");
 		break;
 	case CORGI_LINE:
 		gpio_set_value(CORGI_GPIO_MUTE_L, 0);
 		gpio_set_value(CORGI_GPIO_MUTE_R, 0);
-		snd_soc_dapm_disable_pin(codec, "Mic Jack");
-		snd_soc_dapm_enable_pin(codec, "Line Jack");
-		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
-		snd_soc_dapm_disable_pin(codec, "Headset Jack");
+		snd_soc_dapm_disable_pin(dapm, "Mic Jack");
+		snd_soc_dapm_enable_pin(dapm, "Line Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headset Jack");
 		break;
 	case CORGI_HEADSET:
 		gpio_set_value(CORGI_GPIO_MUTE_L, 0);
 		gpio_set_value(CORGI_GPIO_MUTE_R, 1);
-		snd_soc_dapm_enable_pin(codec, "Mic Jack");
-		snd_soc_dapm_disable_pin(codec, "Line Jack");
-		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
-		snd_soc_dapm_enable_pin(codec, "Headset Jack");
+		snd_soc_dapm_enable_pin(dapm, "Mic Jack");
+		snd_soc_dapm_disable_pin(dapm, "Line Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(dapm, "Headset Jack");
 		break;
 	}
 
 	if (corgi_spk_func == CORGI_SPK_ON)
-		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+		snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 	else
-		snd_soc_dapm_disable_pin(codec, "Ext Spk");
+		snd_soc_dapm_disable_pin(dapm, "Ext Spk");
 
 	/* signal a DAPM event */
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 }
 
 static int corgi_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
+
+	mutex_lock(&codec->mutex);
 
 	/* check the jack status at stream startup */
 	corgi_ext_control(codec);
+
+	mutex_unlock(&codec->mutex);
+
 	return 0;
 }
 
@@ -118,8 +123,8 @@ static int corgi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int clk = 0;
 	int ret = 0;
 
@@ -150,7 +155,7 @@ static int corgi_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* set the codec system clock for DAC and ADC */
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK, clk,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL, clk,
 		SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
@@ -272,12 +277,14 @@ static const struct snd_kcontrol_new wm8731_corgi_controls[] = {
 /*
  * Logic for a wm8731 as connected on a Sharp SL-C7x0 Device
  */
-static int corgi_wm8731_init(struct snd_soc_codec *codec)
+static int corgi_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
-	snd_soc_dapm_nc_pin(codec, "LLINEIN");
-	snd_soc_dapm_nc_pin(codec, "RLINEIN");
+	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
+	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
 
 	/* Add corgi specific controls */
 	err = snd_soc_add_controls(codec, wm8731_corgi_controls,
@@ -286,13 +293,13 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 		return err;
 
 	/* Add corgi specific widgets */
-	snd_soc_dapm_new_controls(codec, wm8731_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8731_dapm_widgets,
 				  ARRAY_SIZE(wm8731_dapm_widgets));
 
 	/* Set up corgi specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 	return 0;
 }
 
@@ -300,8 +307,10 @@ static int corgi_wm8731_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link corgi_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731",
-	.cpu_dai = &pxa_i2s_dai,
-	.codec_dai = &wm8731_dai,
+	.cpu_dai_name = "pxa-is2-dai",
+	.codec_dai_name = "wm8731-hifi",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name = "wm8731-codec-0.001a",
 	.init = corgi_wm8731_init,
 	.ops = &corgi_ops,
 };
@@ -309,15 +318,8 @@ static struct snd_soc_dai_link corgi_dai = {
 /* corgi audio machine driver */
 static struct snd_soc_card snd_soc_corgi = {
 	.name = "Corgi",
-	.platform = &pxa2xx_soc_platform,
 	.dai_link = &corgi_dai,
 	.num_links = 1,
-};
-
-/* corgi audio subsystem */
-static struct snd_soc_device corgi_snd_devdata = {
-	.card = &snd_soc_corgi,
-	.codec_dev = &soc_codec_dev_wm8731,
 };
 
 static struct platform_device *corgi_snd_device;
@@ -334,8 +336,7 @@ static int __init corgi_init(void)
 	if (!corgi_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(corgi_snd_device, &corgi_snd_devdata);
-	corgi_snd_devdata.dev = &corgi_snd_device->dev;
+	platform_set_drvdata(corgi_snd_device, &snd_soc_corgi);
 	ret = platform_device_add(corgi_snd_device);
 
 	if (ret)

@@ -20,6 +20,9 @@ struct genl_multicast_group {
 	u32			id;
 };
 
+struct genl_ops;
+struct genl_info;
+
 /**
  * struct genl_family - generic netlink family
  * @id: protocol family idenfitier
@@ -29,6 +32,10 @@ struct genl_multicast_group {
  * @maxattr: maximum number of attributes supported
  * @netnsok: set to true if the family can handle network
  *	namespaces and should be presented in all of them
+ * @pre_doit: called before an operation's doit callback, it may
+ *	do additional, common, filtering and return an error
+ * @post_doit: called after an operation's doit callback, it may
+ *	undo operations done by pre_doit, for example release locks
  * @attrbuf: buffer to store parsed attributes
  * @ops_list: list of all assigned operations
  * @family_list: family list
@@ -41,6 +48,12 @@ struct genl_family {
 	unsigned int		version;
 	unsigned int		maxattr;
 	bool			netnsok;
+	int			(*pre_doit)(struct genl_ops *ops,
+					    struct sk_buff *skb,
+					    struct genl_info *info);
+	void			(*post_doit)(struct genl_ops *ops,
+					     struct sk_buff *skb,
+					     struct genl_info *info);
 	struct nlattr **	attrbuf;	/* private */
 	struct list_head	ops_list;	/* private */
 	struct list_head	family_list;	/* private */
@@ -55,6 +68,8 @@ struct genl_family {
  * @genlhdr: generic netlink message header
  * @userhdr: user specific header
  * @attrs: netlink attributes
+ * @_net: network namespace
+ * @user_ptr: user pointers
  */
 struct genl_info {
 	u32			snd_seq;
@@ -66,32 +81,23 @@ struct genl_info {
 #ifdef CONFIG_NET_NS
 	struct net *		_net;
 #endif
+	void *			user_ptr[2];
 };
 
-#ifdef CONFIG_NET_NS
 static inline struct net *genl_info_net(struct genl_info *info)
 {
-	return info->_net;
+	return read_pnet(&info->_net);
 }
 
 static inline void genl_info_net_set(struct genl_info *info, struct net *net)
 {
-	info->_net = net;
+	write_pnet(&info->_net, net);
 }
-#else
-static inline struct net *genl_info_net(struct genl_info *info)
-{
-	return &init_net;
-}
-
-static inline void genl_info_net_set(struct genl_info *info, struct net *net)
-{
-}
-#endif
 
 /**
  * struct genl_ops - generic netlink operations
  * @cmd: command identifier
+ * @internal_flags: flags used by the family
  * @flags: flags
  * @policy: attribute validation policy
  * @doit: standard command callback
@@ -101,6 +107,7 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
  */
 struct genl_ops {
 	u8			cmd;
+	u8			internal_flags;
 	unsigned int		flags;
 	const struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,

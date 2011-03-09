@@ -77,7 +77,7 @@ static struct gpio_keys_button wrt350n_v2_buttons[] = {
 		.desc		= "Reset Button",
 		.active_low	= 1,
 	}, {
-		.code		= KEY_WLAN,
+		.code		= KEY_WPS_BUTTON,
 		.gpio		= 2,
 		.desc		= "WPS Button",
 		.active_low	= 1,
@@ -260,8 +260,6 @@ subsys_initcall(wrt350n_v2_pci_init);
 
 MACHINE_START(WRT350N_V2, "Linksys WRT350N v2")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= wrt350n_v2_init,
 	.map_io		= orion5x_map_io,

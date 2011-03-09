@@ -13,12 +13,14 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/if_ether.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include "br_private.h"
@@ -59,30 +61,27 @@ static int port_cost(struct net_device *dev)
 }
 
 
-/*
- * Check for port carrier transistions.
- * Called from work queue to allow for calling functions that
- * might sleep (such as speed check), and to debounce.
- */
+/* Check for port carrier transistions. */
 void br_port_carrier_check(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
 
-	if (netif_carrier_ok(dev))
+	if (netif_running(dev) && netif_carrier_ok(dev))
 		p->path_cost = port_cost(dev);
 
-	if (netif_running(br->dev)) {
-		spin_lock_bh(&br->lock);
-		if (netif_carrier_ok(dev)) {
-			if (p->state == BR_STATE_DISABLED)
-				br_stp_enable_port(p);
-		} else {
-			if (p->state != BR_STATE_DISABLED)
-				br_stp_disable_port(p);
-		}
-		spin_unlock_bh(&br->lock);
+	if (!netif_running(br->dev))
+		return;
+
+	spin_lock_bh(&br->lock);
+	if (netif_running(dev) && netif_carrier_ok(dev)) {
+		if (p->state == BR_STATE_DISABLED)
+			br_stp_enable_port(p);
+	} else {
+		if (p->state != BR_STATE_DISABLED)
+			br_stp_disable_port(p);
 	}
+	spin_unlock_bh(&br->lock);
 }
 
 static void release_nbp(struct kobject *kobj)
@@ -131,7 +130,7 @@ static void del_nbp(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
-	sysfs_remove_link(br->ifobj, dev->name);
+	sysfs_remove_link(br->ifobj, p->dev->name);
 
 	dev_set_promiscuity(dev, -1);
 
@@ -145,10 +144,16 @@ static void del_nbp(struct net_bridge_port *p)
 
 	list_del_rcu(&p->list);
 
-	rcu_assign_pointer(dev->br_port, NULL);
+	dev->priv_flags &= ~IFF_BRIDGE_PORT;
+
+	netdev_rx_handler_unregister(dev);
+
+	br_multicast_del_port(p);
 
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
+
+	br_netpoll_disable(p);
 
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
@@ -183,6 +188,12 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 	br = netdev_priv(dev);
 	br->dev = dev;
 
+	br->stats = alloc_percpu(struct br_cpu_netstats);
+	if (!br->stats) {
+		free_netdev(dev);
+		return NULL;
+	}
+
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);
 	spin_lock_init(&br->hash_lock);
@@ -206,9 +217,8 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 
 	br_netfilter_rtable_init(br);
 
-	INIT_LIST_HEAD(&br->age_list);
-
 	br_stp_timer_init(br);
+	br_multicast_init(br);
 
 	return dev;
 }
@@ -260,6 +270,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
 	br_stp_port_timer_init(p);
+	br_multicast_add_port(p);
 
 	return p;
 }
@@ -387,7 +398,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		return -ELOOP;
 
 	/* Device is already being bridged */
-	if (dev->br_port != NULL)
+	if (br_port_exists(dev))
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */
@@ -415,7 +426,15 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err2;
 
-	rcu_assign_pointer(dev->br_port, p);
+	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p))))
+		goto err3;
+
+	err = netdev_rx_handler_register(dev, br_handle_frame, p);
+	if (err)
+		goto err3;
+
+	dev->priv_flags |= IFF_BRIDGE_PORT;
+
 	dev_disable_lro(dev);
 
 	list_add_rcu(&p->list, &br->port_list);
@@ -436,6 +455,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
+err3:
+	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
@@ -452,8 +473,9 @@ put_back:
 /* called with RTNL */
 int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
-	struct net_bridge_port *p = dev->br_port;
+	struct net_bridge_port *p;
 
+	p = br_port_get_rtnl(dev);
 	if (!p || p->br != br)
 		return -EINVAL;
 
@@ -467,7 +489,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	return 0;
 }
 
-void br_net_exit(struct net *net)
+void __net_exit br_net_exit(struct net *net)
 {
 	struct net_device *dev;
 	LIST_HEAD(list);

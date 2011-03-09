@@ -89,7 +89,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 			if (pAd->TxDescRing[num].AllocVa == NULL) {
 				ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-				DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+				DBGPRINT_ERR("Failed to allocate a big buffer\n");
 				Status = NDIS_STATUS_RESOURCES;
 				break;
 			}
@@ -121,7 +121,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 			if (pAd->TxBufSpace[num].AllocVa == NULL) {
 				ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-				DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+				DBGPRINT_ERR("Failed to allocate a big buffer\n");
 				Status = NDIS_STATUS_RESOURCES;
 				break;
 			}
@@ -197,7 +197,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 		if (pAd->MgmtDescRing.AllocVa == NULL) {
 			ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-			DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+			DBGPRINT_ERR("Failed to allocate a big buffer\n");
 			Status = NDIS_STATUS_RESOURCES;
 			break;
 		}
@@ -251,7 +251,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 
 		if (pAd->RxDescRing.AllocVa == NULL) {
 			ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-			DBGPRINT_ERR(("Failed to allocate a big buffer\n"));
+			DBGPRINT_ERR("Failed to allocate a big buffer\n");
 			Status = NDIS_STATUS_RESOURCES;
 			break;
 		}
@@ -304,7 +304,7 @@ int RTMPAllocTxRxRingMemory(struct rt_rtmp_adapter *pAd)
 			/* Error handling */
 			if (pDmaBuf->AllocVa == NULL) {
 				ErrorValue = ERRLOG_OUT_OF_SHARED_MEMORY;
-				DBGPRINT_ERR(("Failed to allocate RxRing's 1st buffer\n"));
+				DBGPRINT_ERR("Failed to allocate RxRing's 1st buffer\n");
 				Status = NDIS_STATUS_RESOURCES;
 				break;
 			}
@@ -1558,7 +1558,7 @@ void RT28xxPciMlmeRadioOFF(struct rt_rtmp_adapter *pAd)
 		if (INFRA_ON(pAd) || ADHOC_ON(pAd)) {
 			struct rt_mlme_disassoc_req DisReq;
 			struct rt_mlme_queue_elem *pMsgElem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
+			    kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 
 			if (pMsgElem) {

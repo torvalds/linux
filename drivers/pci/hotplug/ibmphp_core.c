@@ -395,89 +395,40 @@ static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 * value)
 	return rc;
 }
 
-static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)
+static int get_max_bus_speed(struct slot *slot)
 {
-	int rc = -ENODEV;
-	struct slot *pslot;
+	int rc;
 	u8 mode = 0;
+	enum pci_bus_speed speed;
+	struct pci_bus *bus = slot->hotplug_slot->pci_slot->bus;
 
-	debug("%s - Entry hotplug_slot[%p] pvalue[%p]\n", __func__,
-		hotplug_slot, value);
+	debug("%s - Entry slot[%p]\n", __func__, slot);
 
 	ibmphp_lock_operations();
+	mode = slot->supported_bus_mode;
+	speed = slot->supported_speed; 
+	ibmphp_unlock_operations();
 
-	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			rc = 0;
-			mode = pslot->supported_bus_mode;
-			*value = pslot->supported_speed; 
-			switch (*value) {
-			case BUS_SPEED_33:
-				break;
-			case BUS_SPEED_66:
-				if (mode == BUS_MODE_PCIX) 
-					*value += 0x01;
-				break;
-			case BUS_SPEED_100:
-			case BUS_SPEED_133:
-				*value = pslot->supported_speed + 0x01;
-				break;
-			default:
-				/* Note (will need to change): there would be soon 256, 512 also */
-				rc = -ENODEV;
-			}
-		}
+	switch (speed) {
+	case BUS_SPEED_33:
+		break;
+	case BUS_SPEED_66:
+		if (mode == BUS_MODE_PCIX) 
+			speed += 0x01;
+		break;
+	case BUS_SPEED_100:
+	case BUS_SPEED_133:
+		speed += 0x01;
+		break;
+	default:
+		/* Note (will need to change): there would be soon 256, 512 also */
+		rc = -ENODEV;
 	}
 
-	ibmphp_unlock_operations();
-	debug("%s - Exit rc[%d] value[%x]\n", __func__, rc, *value);
-	return rc;
-}
+	if (!rc)
+		bus->max_bus_speed = speed;
 
-static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)
-{
-	int rc = -ENODEV;
-	struct slot *pslot;
-	u8 mode = 0;
-
-	debug("%s - Entry hotplug_slot[%p] pvalue[%p]\n", __func__,
-		hotplug_slot, value);
-
-	ibmphp_lock_operations();
-
-	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			rc = get_cur_bus_info(&pslot);
-			if (!rc) {
-				mode = pslot->bus_on->current_bus_mode;
-				*value = pslot->bus_on->current_speed;
-				switch (*value) {
-				case BUS_SPEED_33:
-					break;
-				case BUS_SPEED_66:
-					if (mode == BUS_MODE_PCIX) 
-						*value += 0x01;
-					else if (mode == BUS_MODE_PCI)
-						;
-					else
-						*value = PCI_SPEED_UNKNOWN;
-					break;
-				case BUS_SPEED_100:
-				case BUS_SPEED_133:
-					*value += 0x01;
-					break;
-				default:
-					/* Note of change: there would also be 256, 512 soon */
-					rc = -ENODEV;
-				}
-			}
-		}
-	}
-
-	ibmphp_unlock_operations();
-	debug("%s - Exit rc[%d] value[%x]\n", __func__, rc, *value);
+	debug("%s - Exit rc[%d] speed[%x]\n", __func__, rc, speed);
 	return rc;
 }
 
@@ -572,6 +523,7 @@ static int __init init_ops(void)
 		if (slot_cur->bus_on->current_speed == 0xFF) 
 			if (get_cur_bus_info(&slot_cur)) 
 				return -1;
+		get_max_bus_speed(slot_cur);
 
 		if (slot_cur->ctrl->options == 0xFF)
 			if (get_hpc_options(slot_cur, &slot_cur->ctrl->options))
@@ -655,6 +607,7 @@ static int validate(struct slot *slot_cur, int opn)
 int ibmphp_update_slot_info(struct slot *slot_cur)
 {
 	struct hotplug_slot_info *info;
+	struct pci_bus *bus = slot_cur->hotplug_slot->pci_slot->bus;
 	int rc;
 	u8 bus_speed;
 	u8 mode;
@@ -700,8 +653,7 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
 			bus_speed = PCI_SPEED_UNKNOWN;
 	}
 
-	info->cur_bus_speed = bus_speed;
-	info->max_bus_speed = slot_cur->hotplug_slot->info->max_bus_speed;
+	bus->cur_bus_speed = bus_speed;
 	// To do: bus_names 
 	
 	rc = pci_hp_change_slot_info(slot_cur->hotplug_slot, info);
@@ -1326,8 +1278,6 @@ struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
 	.get_attention_status =		get_attention_status,
 	.get_latch_status =		get_latch_status,
 	.get_adapter_status =		get_adapter_present,
-	.get_max_bus_speed =		get_max_bus_speed,
-	.get_cur_bus_speed =		get_cur_bus_speed,
 /*	.get_max_adapter_speed =	get_max_adapter_speed,
 	.get_bus_name_status =		get_bus_name,
 */

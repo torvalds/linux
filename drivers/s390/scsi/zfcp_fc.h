@@ -30,6 +30,30 @@
 #define ZFCP_FC_CTELS_TMO	(2 * FC_DEF_R_A_TOV / 1000)
 
 /**
+ * struct zfcp_fc_event - FC HBAAPI event for internal queueing from irq context
+ * @code: Event code
+ * @data: Event data
+ * @list: list_head for zfcp_fc_events list
+ */
+struct zfcp_fc_event {
+	enum fc_host_event_code code;
+	u32 data;
+	struct list_head list;
+};
+
+/**
+ * struct zfcp_fc_events - Infrastructure for posting FC events from irq context
+ * @list: List for queueing of events from irq context to workqueue
+ * @list_lock: Lock for event list
+ * @work: work_struct for forwarding events in workqueue
+*/
+struct zfcp_fc_events {
+	struct list_head list;
+	spinlock_t list_lock;
+	struct work_struct work;
+};
+
+/**
  * struct zfcp_fc_gid_pn_req - container for ct header plus gid_pn request
  * @ct_hdr: FC GS common transport header
  * @gid_pn: GID_PN request
@@ -196,6 +220,9 @@ void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi)
 	memcpy(fcp->fc_cdb, scsi->cmnd, scsi->cmd_len);
 
 	fcp->fc_dl = scsi_bufflen(scsi);
+
+	if (scsi_get_prot_type(scsi) == SCSI_PROT_DIF_TYPE1)
+		fcp->fc_dl += fcp->fc_dl / scsi->device->sector_size * 8;
 }
 
 /**
@@ -243,7 +270,7 @@ void zfcp_fc_eval_fcp_rsp(struct fcp_resp_with_ext *fcp_rsp,
 	if (unlikely(rsp_flags & FCP_SNS_LEN_VAL)) {
 		sense = (char *) &fcp_rsp[1];
 		if (rsp_flags & FCP_RSP_LEN_VAL)
-			sense += fcp_rsp->ext.fr_sns_len;
+			sense += fcp_rsp->ext.fr_rsp_len;
 		sense_len = min(fcp_rsp->ext.fr_sns_len,
 				(u32) SCSI_SENSE_BUFFERSIZE);
 		memcpy(scsi->sense_buffer, sense, sense_len);

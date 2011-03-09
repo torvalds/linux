@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
+#include <linux/irq.h>
 
 #include <asm/smtc_ipi.h>
 #include <asm/time.h>
@@ -31,7 +32,7 @@ static int mips_next_event(unsigned long delta,
 	cnt = read_c0_count();
 	cnt += delta;
 	write_c0_compare(cnt);
-	res = ((int)(read_c0_count() - cnt) > 0) ? -ETIME : 0;
+	res = ((int)(read_c0_count() - cnt) >= 0) ? -ETIME : 0;
 	return res;
 }
 
@@ -163,7 +164,6 @@ int c0_compare_int_usable(void)
 
 int __cpuinit r4k_clockevent_init(void)
 {
-	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
 	unsigned int irq;
@@ -188,9 +188,9 @@ int __cpuinit r4k_clockevent_init(void)
 	cd->name		= "MIPS";
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 
+	clockevent_set_clock(cd, mips_hpt_frequency);
+
 	/* Calculate the min / max delta */
-	cd->mult	= div_sc((unsigned long) mips_freq, NSEC_PER_SEC, 32);
-	cd->shift		= 32;
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
 	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
 

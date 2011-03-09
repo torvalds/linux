@@ -30,6 +30,7 @@
 #include <linux/bitrev.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/macintosh.h>
@@ -39,7 +40,6 @@
 #include "mace.h"
 
 static char mac_mace_string[] = "macmace";
-static struct platform_device *mac_mace_device;
 
 #define N_TX_BUFF_ORDER	0
 #define N_TX_RING	(1 << N_TX_BUFF_ORDER)
@@ -488,7 +488,6 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -496,7 +495,7 @@ static void mace_set_multicast(struct net_device *dev)
 {
 	struct mace_data *mp = netdev_priv(dev);
 	volatile struct mace *mb = mp->mace;
-	int i, j;
+	int i;
 	u32 crc;
 	u8 maccc;
 	unsigned long flags;
@@ -509,7 +508,7 @@ static void mace_set_multicast(struct net_device *dev)
 		mb->maccc |= PROM;
 	} else {
 		unsigned char multicast_filter[8];
-		struct dev_mc_list *dmi = dev->mc_list;
+		struct netdev_hw_addr *ha;
 
 		if (dev->flags & IFF_ALLMULTI) {
 			for (i = 0; i < 8; i++) {
@@ -518,11 +517,11 @@ static void mace_set_multicast(struct net_device *dev)
 		} else {
 			for (i = 0; i < 8; i++)
 				multicast_filter[i] = 0;
-			for (i = 0; i < dev->mc_count; i++) {
-				crc = ether_crc_le(6, dmi->dmi_addr);
-				j = crc >> 26;	/* bit number in multicast_filter */
-				multicast_filter[j >> 3] |= 1 << (j & 7);
-				dmi = dmi->next;
+			netdev_for_each_mc_addr(ha, dev) {
+				crc = ether_crc_le(6, ha->addr);
+				/* bit number in multicast_filter */
+				i = crc >> 26;
+				multicast_filter[i >> 3] |= 1 << (i & 7);
 			}
 		}
 
@@ -752,6 +751,7 @@ static irqreturn_t mace_dma_intr(int irq, void *dev_id)
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Macintosh MACE ethernet driver");
+MODULE_ALIAS("platform:macmace");
 
 static int __devexit mac_mace_device_remove (struct platform_device *pdev)
 {
@@ -777,47 +777,22 @@ static struct platform_driver mac_mace_driver = {
 	.probe  = mace_probe,
 	.remove = __devexit_p(mac_mace_device_remove),
 	.driver	= {
-		.name = mac_mace_string,
+		.name	= mac_mace_string,
+		.owner	= THIS_MODULE,
 	},
 };
 
 static int __init mac_mace_init_module(void)
 {
-	int err;
-
 	if (!MACH_IS_MAC)
 		return -ENODEV;
 
-	if ((err = platform_driver_register(&mac_mace_driver))) {
-		printk(KERN_ERR "Driver registration failed\n");
-		return err;
-	}
-
-	mac_mace_device = platform_device_alloc(mac_mace_string, 0);
-	if (!mac_mace_device)
-		goto out_unregister;
-
-	if (platform_device_add(mac_mace_device)) {
-		platform_device_put(mac_mace_device);
-		mac_mace_device = NULL;
-	}
-
-	return 0;
-
-out_unregister:
-	platform_driver_unregister(&mac_mace_driver);
-
-	return -ENOMEM;
+	return platform_driver_register(&mac_mace_driver);
 }
 
 static void __exit mac_mace_cleanup_module(void)
 {
 	platform_driver_unregister(&mac_mace_driver);
-
-	if (mac_mace_device) {
-		platform_device_unregister(mac_mace_device);
-		mac_mace_device = NULL;
-	}
 }
 
 module_init(mac_mace_init_module);

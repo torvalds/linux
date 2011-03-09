@@ -2,7 +2,7 @@
 
     comedi/drivers/aio_aio12_8.c
 
-    Driver for Acces I/O Products PC-104 AIO12-8 Analog I/O Board
+    Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board
     Copyright (C) 2006 C&C Technologies, Inc.
 
     This program is free software; you can redistribute it and/or modify
@@ -23,10 +23,10 @@
 /*
 
 Driver: aio_aio12_8
-Description: Acces I/O Products PC-104 AIO12-8 Analog I/O Board
+Description: Access I/O Products PC-104 AIO12-8 Analog I/O Board
 Author: Pablo Mejia <pablo.mejia@cctechnol.com>
 Devices:
- [Acces I/O] PC-104 AIO12-8
+ [Access I/O] PC-104 AIO12-8
 Status: experimental
 
 Configuration Options:
@@ -110,7 +110,7 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 		while (timeout &&
 		       !(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
-			printk("timeout %d\n", timeout);
+			printk(KERN_ERR "timeout %d\n", timeout);
 			udelay(1);
 		}
 		if (timeout == 0) {
@@ -172,7 +172,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {
-		printk("I/O port conflict");
+		printk(KERN_ERR "I/O port conflict");
 		return -EIO;
 	}
 
@@ -227,4 +227,19 @@ static struct comedi_driver driver_aio_aio12_8 = {
 	.offset = sizeof(struct aio12_8_boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_aio_aio12_8);
+static int __init driver_aio_aio12_8_init_module(void)
+{
+	return comedi_driver_register(&driver_aio_aio12_8);
+}
+
+static void __exit driver_aio_aio12_8_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_aio_aio12_8);
+}
+
+module_init(driver_aio_aio12_8_init_module);
+module_exit(driver_aio_aio12_8_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

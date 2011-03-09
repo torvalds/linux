@@ -47,6 +47,7 @@
 #include <linux/bootmem.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -56,7 +57,7 @@ static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
-static DEFINE_SPINLOCK(context_lock);
+static DEFINE_RAW_SPINLOCK(context_lock);
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -110,8 +111,8 @@ static unsigned int steal_context_smp(unsigned int id)
 		 * a core map instead but this will do for now.
 		 */
 		for_each_cpu(cpu, mm_cpumask(mm)) {
-			for (i = cpu_first_thread_in_core(cpu);
-			     i <= cpu_last_thread_in_core(cpu); i++)
+			for (i = cpu_first_thread_sibling(cpu);
+			     i <= cpu_last_thread_sibling(cpu); i++)
 				__set_bit(id, stale_map[i]);
 			cpu = i - 1;
 		}
@@ -121,9 +122,9 @@ static unsigned int steal_context_smp(unsigned int id)
 	/* This will happen if you have more CPUs than available contexts,
 	 * all we can do here is wait a bit and try again
 	 */
-	spin_unlock(&context_lock);
+	raw_spin_unlock(&context_lock);
 	cpu_relax();
-	spin_lock(&context_lock);
+	raw_spin_lock(&context_lock);
 
 	/* This will cause the caller to try again */
 	return MMU_NO_CONTEXT;
@@ -194,7 +195,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
-	spin_lock(&context_lock);
+	raw_spin_lock(&context_lock);
 
 	pr_hard("[%d] activating context for mm @%p, active=%d, id=%d",
 		cpu, next, next->context.active, next->context.id);
@@ -263,14 +264,14 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	 */
 	if (test_bit(id, stale_map[cpu])) {
 		pr_hardcont(" | stale flush %d [%d..%d]",
-			    id, cpu_first_thread_in_core(cpu),
-			    cpu_last_thread_in_core(cpu));
+			    id, cpu_first_thread_sibling(cpu),
+			    cpu_last_thread_sibling(cpu));
 
 		local_flush_tlb_mm(next);
 
 		/* XXX This clear should ultimately be part of local_flush_tlb_mm */
-		for (i = cpu_first_thread_in_core(cpu);
-		     i <= cpu_last_thread_in_core(cpu); i++) {
+		for (i = cpu_first_thread_sibling(cpu);
+		     i <= cpu_last_thread_sibling(cpu); i++) {
 			__clear_bit(id, stale_map[i]);
 		}
 	}
@@ -278,7 +279,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	/* Flick the MMU and release lock */
 	pr_hardcont(" -> %d\n", id);
 	set_context(id, next->pgd);
-	spin_unlock(&context_lock);
+	raw_spin_unlock(&context_lock);
 }
 
 /*
@@ -307,7 +308,7 @@ void destroy_context(struct mm_struct *mm)
 
 	WARN_ON(mm->context.active != 0);
 
-	spin_lock_irqsave(&context_lock, flags);
+	raw_spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
@@ -318,7 +319,7 @@ void destroy_context(struct mm_struct *mm)
 		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
-	spin_unlock_irqrestore(&context_lock, flags);
+	raw_spin_unlock_irqrestore(&context_lock, flags);
 }
 
 #ifdef CONFIG_SMP
@@ -333,7 +334,7 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 	/* We don't touch CPU 0 map, it's allocated at aboot and kept
 	 * around forever
 	 */
-	if (cpu == 0)
+	if (cpu == boot_cpuid)
 		return NOTIFY_OK;
 
 	switch (action) {
@@ -394,10 +395,18 @@ void __init mmu_context_init(void)
 	 * the PID/TID comparison is disabled, so we can use a TID of zero
 	 * to represent all kernel pages as shared among all contexts.
 	 * 	-- Dan
+	 *
+	 * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We
+	 * should normally never have to steal though the facility is
+	 * present if needed.
+	 *      -- BenH
 	 */
 	if (mmu_has_feature(MMU_FTR_TYPE_8xx)) {
 		first_context = 0;
 		last_context = 15;
+	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
+		first_context = 1;
+		last_context = 65535;
 	} else {
 		first_context = 1;
 		last_context = 255;
@@ -411,9 +420,11 @@ void __init mmu_context_init(void)
 	 */
 	context_map = alloc_bootmem(CTX_MAP_SIZE);
 	context_mm = alloc_bootmem(sizeof(void *) * (last_context + 1));
+#ifndef CONFIG_SMP
 	stale_map[0] = alloc_bootmem(CTX_MAP_SIZE);
+#else
+	stale_map[boot_cpuid] = alloc_bootmem(CTX_MAP_SIZE);
 
-#ifdef CONFIG_SMP
 	register_cpu_notifier(&mmu_context_cpu_nb);
 #endif
 

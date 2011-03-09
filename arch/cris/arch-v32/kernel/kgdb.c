@@ -174,10 +174,10 @@
 #include <asm/ptrace.h>
 
 #include <asm/irq.h>
-#include <arch/hwregs/reg_map.h>
-#include <arch/hwregs/reg_rdwr.h>
-#include <arch/hwregs/intr_vect_defs.h>
-#include <arch/hwregs/ser_defs.h>
+#include <hwregs/reg_map.h>
+#include <hwregs/reg_rdwr.h>
+#include <hwregs/intr_vect_defs.h>
+#include <hwregs/ser_defs.h>
 
 /* From entry.S. */
 extern void gdb_handle_exception(void);
@@ -988,26 +988,26 @@ stub_is_stopped(int sigval)
 	}
 	/* Only send PC, frame and stack pointer. */
 	read_register(PC, &reg_cont);
-	ptr = pack_hex_byte(PC);
+	ptr = pack_hex_byte(ptr, PC);
 	*ptr++ = ':';
 	ptr = mem2hex(ptr, (unsigned char *)&reg_cont, register_size[PC]);
 	*ptr++ = ';';
 
 	read_register(R8, &reg_cont);
-	ptr = pack_hex_byte(R8);
+	ptr = pack_hex_byte(ptr, R8);
 	*ptr++ = ':';
 	ptr = mem2hex(ptr, (unsigned char *)&reg_cont, register_size[R8]);
 	*ptr++ = ';';
 
 	read_register(SP, &reg_cont);
-	ptr = pack_hex_byte(SP);
+	ptr = pack_hex_byte(ptr, SP);
 	*ptr++ = ':';
 	ptr = mem2hex(ptr, (unsigned char *)&reg_cont, register_size[SP]);
 	*ptr++ = ';';
 
 	/* Send ERP as well; this will save us an entire register fetch in some cases. */
         read_register(ERP, &reg_cont);
-	ptr = pack_hex_byte(ERP);
+	ptr = pack_hex_byte(ptr, ERP);
         *ptr++ = ':';
         ptr = mem2hex(ptr, (unsigned char *)&reg_cont, register_size[ERP]);
         *ptr++ = ';';

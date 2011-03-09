@@ -336,7 +336,7 @@ struct snd_amd7930 {
 	int			pgain;
 	int			mgain;
 
-	struct of_device	*op;
+	struct platform_device	*op;
 	unsigned int		irq;
 	struct snd_amd7930	*next;
 };
@@ -906,7 +906,7 @@ static int __devinit snd_amd7930_mixer(struct snd_amd7930 *amd)
 
 static int snd_amd7930_free(struct snd_amd7930 *amd)
 {
-	struct of_device *op = amd->op;
+	struct platform_device *op = amd->op;
 
 	amd7930_idle(amd);
 
@@ -934,7 +934,7 @@ static struct snd_device_ops snd_amd7930_dev_ops = {
 };
 
 static int __devinit snd_amd7930_create(struct snd_card *card,
-					struct of_device *op,
+					struct platform_device *op,
 					int irq, int dev,
 					struct snd_amd7930 **ramd)
 {
@@ -1002,7 +1002,7 @@ static int __devinit snd_amd7930_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit amd7930_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit amd7930_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource *rp = &op->resource[0];
 	static int dev_num;
@@ -1010,7 +1010,7 @@ static int __devinit amd7930_sbus_probe(struct of_device *op, const struct of_de
 	struct snd_amd7930 *amd;
 	int err, irq;
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 
 	if (dev_num >= SNDRV_CARDS)
 		return -ENODEV;
@@ -1065,14 +1065,17 @@ static const struct of_device_id amd7930_match[] = {
 };
 
 static struct of_platform_driver amd7930_sbus_driver = {
-	.name		= "audio",
-	.match_table	= amd7930_match,
+	.driver = {
+		.name = "audio",
+		.owner = THIS_MODULE,
+		.of_match_table = amd7930_match,
+	},
 	.probe		= amd7930_sbus_probe,
 };
 
 static int __init amd7930_init(void)
 {
-	return of_register_driver(&amd7930_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&amd7930_sbus_driver);
 }
 
 static void __exit amd7930_exit(void)
@@ -1089,7 +1092,7 @@ static void __exit amd7930_exit(void)
 
 	amd7930_list = NULL;
 
-	of_unregister_driver(&amd7930_sbus_driver);
+	of_unregister_platform_driver(&amd7930_sbus_driver);
 }
 
 module_init(amd7930_init);

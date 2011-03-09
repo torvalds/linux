@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
@@ -74,7 +75,7 @@ static struct resource isp1362_hcd_resources[] = {
 	}, {
 		.start = IRQ_PF8,
 		.end = IRQ_PF8,
-		.flags = IORESOURCE_IRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 
@@ -160,20 +161,49 @@ static struct platform_device smc91x_device = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-static struct resource bfin_uart_resources[] = {
+#ifdef CONFIG_SERIAL_BFIN_UART0
+static struct resource bfin_uart0_resources[] = {
 	{
-		.start = 0xFFC00400,
-		.end = 0xFFC004FF,
+		.start = BFIN_UART_THR,
+		.end = BFIN_UART_GCTL+2,
 		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_UART_RX,
+		.end = IRQ_UART_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART_ERROR,
+		.end = IRQ_UART_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART_TX,
+		.end = CH_UART_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART_RX,
+		.end = CH_UART_RX,
+		.flags = IORESOURCE_DMA,
 	},
 };
 
-static struct platform_device bfin_uart_device = {
-	.name = "bfin-uart",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(bfin_uart_resources),
-	.resource = bfin_uart_resources,
+static unsigned short bfin_uart0_peripherals[] = {
+	P_UART0_TX, P_UART0_RX, 0
 };
+
+static struct platform_device bfin_uart0_device = {
+	.name = "bfin-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_uart0_resources),
+	.resource = bfin_uart0_resources,
+	.dev = {
+		.platform_data = &bfin_uart0_peripherals, /* Passed to driver */
+	},
+};
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -245,8 +275,8 @@ static struct platform_device ezkit_flash_device = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD1836) \
-	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -299,14 +329,16 @@ static struct platform_device bfin_spi0_device = {
 #endif
 
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
-#if defined(CONFIG_SND_BLACKFIN_AD1836) \
-	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
-		.modalias = "ad1836",
+		.modalias = "ad183x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.chip_select = 4,
+		.platform_data = "ad1836", /* only includes chip name for the moment */
 		.controller_data = &ad1836_spi_chip_info,
+		.mode = SPI_MODE_3,
 	},
 #endif
 #if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
@@ -348,8 +380,8 @@ static struct platform_device bfin_device_gpiokeys = {
 #include <linux/i2c-gpio.h>
 
 static struct i2c_gpio_platform_data i2c_gpio_data = {
-	.sda_pin		= 1,
-	.scl_pin		= 0,
+	.sda_pin		= GPIO_PF1,
+	.scl_pin		= GPIO_PF0,
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
 	.udelay			= 40,
@@ -391,6 +423,30 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+static struct platform_device bfin_i2s = {
+	.name = "bfin-i2s",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
+	/* TODO: add platform data here */
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+static struct platform_device bfin_tdm = {
+	.name = "bfin-tdm",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
+	/* TODO: add platform data here */
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+static struct platform_device bfin_ac97 = {
+	.name = "bfin-ac97",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
+	/* TODO: add platform data here */
+};
+#endif
+
 static struct platform_device *ezkit_devices[] __initdata = {
 
 	&bfin_dpmc,
@@ -412,7 +468,9 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-	&bfin_uart_device,
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -436,6 +494,18 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
 #endif
+
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+	&bfin_i2s,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+	&bfin_tdm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+	&bfin_ac97,
+#endif
 };
 
 static int __init ezkit_init(void)
@@ -453,8 +523,34 @@ static int __init ezkit_init(void)
 	SSYNC();
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
+	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 15));
+	bfin_write_FIO0_FLAG_S(1 << 15);
+	SSYNC();
+	/*
+	 * This initialization lasts for approximately 4500 MCLKs.
+	 * MCLK = 12.288MHz
+	 */
+	udelay(400);
+#endif
+
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 	return 0;
 }
 
 arch_initcall(ezkit_init);
+
+static struct platform_device *ezkit_early_devices[] __initdata = {
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#endif
+};
+
+void __init native_machine_early_platform_add_devices(void)
+{
+	printk(KERN_INFO "register early platform devices\n");
+	early_platform_add_devices(ezkit_early_devices,
+		ARRAY_SIZE(ezkit_early_devices));
+}

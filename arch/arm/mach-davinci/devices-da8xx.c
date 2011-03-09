@@ -24,8 +24,11 @@
 #include "clock.h"
 
 #define DA8XX_TPCC_BASE			0x01c00000
+#define DA850_MMCSD1_BASE		0x01e1b000
+#define DA850_TPCC1_BASE		0x01e30000
 #define DA8XX_TPTC0_BASE		0x01c08000
 #define DA8XX_TPTC1_BASE		0x01c08400
+#define DA850_TPTC2_BASE		0x01e38000
 #define DA8XX_WDOG_BASE			0x01c21000 /* DA8XX_TIMER64P1_BASE */
 #define DA8XX_I2C0_BASE			0x01c22000
 #define DA8XX_RTC_BASE			0x01C23000
@@ -39,10 +42,10 @@
 #define DA8XX_EMAC_CTRL_REG_OFFSET	0x3000
 #define DA8XX_EMAC_MOD_REG_OFFSET	0x2000
 #define DA8XX_EMAC_RAM_OFFSET		0x0000
-#define DA8XX_MDIO_REG_OFFSET		0x4000
 #define DA8XX_EMAC_CTRL_RAM_SIZE	SZ_8K
 
-void __iomem *da8xx_syscfg_base;
+void __iomem *da8xx_syscfg0_base;
+void __iomem *da8xx_syscfg1_base;
 
 static struct plat_serial8250_port da8xx_serial_pdata[] = {
 	{
@@ -82,11 +85,6 @@ struct platform_device da8xx_serial_device = {
 	},
 };
 
-static const s8 da8xx_dma_chan_no_event[] = {
-	20, 21,
-	-1
-};
-
 static const s8 da8xx_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
@@ -101,20 +99,59 @@ static const s8 da8xx_queue_priority_mapping[][2] = {
 	{-1, -1}
 };
 
-static struct edma_soc_info da8xx_edma_info[] = {
+static const s8 da850_queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{-1, -1}
+};
+
+static const s8 da850_queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 3},
+	{-1, -1}
+};
+
+static struct edma_soc_info da830_edma_cc0_info = {
+	.n_channel		= 32,
+	.n_region		= 4,
+	.n_slot			= 128,
+	.n_tc			= 2,
+	.n_cc			= 1,
+	.queue_tc_mapping	= da8xx_queue_tc_mapping,
+	.queue_priority_mapping	= da8xx_queue_priority_mapping,
+};
+
+static struct edma_soc_info *da830_edma_info[EDMA_MAX_CC] = {
+	&da830_edma_cc0_info,
+};
+
+static struct edma_soc_info da850_edma_cc_info[] = {
 	{
 		.n_channel		= 32,
 		.n_region		= 4,
 		.n_slot			= 128,
 		.n_tc			= 2,
 		.n_cc			= 1,
-		.noevent		= da8xx_dma_chan_no_event,
 		.queue_tc_mapping	= da8xx_queue_tc_mapping,
 		.queue_priority_mapping	= da8xx_queue_priority_mapping,
 	},
+	{
+		.n_channel		= 32,
+		.n_region		= 4,
+		.n_slot			= 128,
+		.n_tc			= 1,
+		.n_cc			= 1,
+		.queue_tc_mapping	= da850_queue_tc_mapping,
+		.queue_priority_mapping	= da850_queue_priority_mapping,
+	},
 };
 
-static struct resource da8xx_edma_resources[] = {
+static struct edma_soc_info *da850_edma_info[EDMA_MAX_CC] = {
+	&da850_edma_cc_info[0],
+	&da850_edma_cc_info[1],
+};
+
+static struct resource da830_edma_resources[] = {
 	{
 		.name	= "edma_cc0",
 		.start	= DA8XX_TPCC_BASE,
@@ -145,19 +182,94 @@ static struct resource da8xx_edma_resources[] = {
 	},
 };
 
-static struct platform_device da8xx_edma_device = {
+static struct resource da850_edma_resources[] = {
+	{
+		.name	= "edma_cc0",
+		.start	= DA8XX_TPCC_BASE,
+		.end	= DA8XX_TPCC_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc0",
+		.start	= DA8XX_TPTC0_BASE,
+		.end	= DA8XX_TPTC0_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc1",
+		.start	= DA8XX_TPTC1_BASE,
+		.end	= DA8XX_TPTC1_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_cc1",
+		.start	= DA850_TPCC1_BASE,
+		.end	= DA850_TPCC1_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc2",
+		.start	= DA850_TPTC2_BASE,
+		.end	= DA850_TPTC2_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma0",
+		.start	= IRQ_DA8XX_CCINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "edma0_err",
+		.start	= IRQ_DA8XX_CCERRINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "edma1",
+		.start	= IRQ_DA850_CCINT1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "edma1_err",
+		.start	= IRQ_DA850_CCERRINT1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device da830_edma_device = {
 	.name		= "edma",
 	.id		= -1,
 	.dev = {
-		.platform_data	= da8xx_edma_info,
+		.platform_data = da830_edma_info,
 	},
-	.num_resources	= ARRAY_SIZE(da8xx_edma_resources),
-	.resource	= da8xx_edma_resources,
+	.num_resources	= ARRAY_SIZE(da830_edma_resources),
+	.resource	= da830_edma_resources,
 };
 
-int __init da8xx_register_edma(void)
+static struct platform_device da850_edma_device = {
+	.name		= "edma",
+	.id		= -1,
+	.dev = {
+		.platform_data = da850_edma_info,
+	},
+	.num_resources	= ARRAY_SIZE(da850_edma_resources),
+	.resource	= da850_edma_resources,
+};
+
+int __init da830_register_edma(struct edma_rsv_info *rsv)
 {
-	return platform_device_register(&da8xx_edma_device);
+	da830_edma_cc0_info.rsv = rsv;
+
+	return platform_device_register(&da830_edma_device);
+}
+
+int __init da850_register_edma(struct edma_rsv_info *rsv[2])
+{
+	if (rsv) {
+		da850_edma_cc_info[0].rsv = rsv[0];
+		da850_edma_cc_info[1].rsv = rsv[1];
+	}
+
+	return platform_device_register(&da850_edma_device);
 }
 
 static struct resource da8xx_i2c_resources0[] = {
@@ -224,7 +336,7 @@ static struct resource da8xx_watchdog_resources[] = {
 	},
 };
 
-struct platform_device davinci_wdt_device = {
+struct platform_device da8xx_wdt_device = {
 	.name		= "watchdog",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(da8xx_watchdog_resources),
@@ -233,13 +345,13 @@ struct platform_device davinci_wdt_device = {
 
 int __init da8xx_register_watchdog(void)
 {
-	return platform_device_register(&davinci_wdt_device);
+	return platform_device_register(&da8xx_wdt_device);
 }
 
 static struct resource da8xx_emac_resources[] = {
 	{
 		.start	= DA8XX_EMAC_CPPI_PORT_BASE,
-		.end	= DA8XX_EMAC_CPPI_PORT_BASE + 0x5000 - 1,
+		.end	= DA8XX_EMAC_CPPI_PORT_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -268,7 +380,6 @@ struct emac_platform_data da8xx_emac_pdata = {
 	.ctrl_reg_offset	= DA8XX_EMAC_CTRL_REG_OFFSET,
 	.ctrl_mod_reg_offset	= DA8XX_EMAC_MOD_REG_OFFSET,
 	.ctrl_ram_offset	= DA8XX_EMAC_RAM_OFFSET,
-	.mdio_reg_offset	= DA8XX_MDIO_REG_OFFSET,
 	.ctrl_ram_size		= DA8XX_EMAC_CTRL_RAM_SIZE,
 	.version		= EMAC_VERSION_2,
 };
@@ -283,9 +394,34 @@ static struct platform_device da8xx_emac_device = {
 	.resource	= da8xx_emac_resources,
 };
 
+static struct resource da8xx_mdio_resources[] = {
+	{
+		.start	= DA8XX_EMAC_MDIO_BASE,
+		.end	= DA8XX_EMAC_MDIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da8xx_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(da8xx_mdio_resources),
+	.resource	= da8xx_mdio_resources,
+};
+
 int __init da8xx_register_emac(void)
 {
-	return platform_device_register(&da8xx_emac_device);
+	int ret;
+
+	ret = platform_device_register(&da8xx_mdio_device);
+	if (ret < 0)
+		return ret;
+	ret = platform_device_register(&da8xx_emac_device);
+	if (ret < 0)
+		return ret;
+	ret = clk_add_alias(NULL, dev_name(&da8xx_mdio_device.dev),
+			    NULL, &da8xx_emac_device.dev);
+	return ret;
 }
 
 static struct resource da830_mcasp1_resources[] = {
@@ -454,6 +590,44 @@ int __init da8xx_register_mmcsd0(struct davinci_mmc_config *config)
 	return platform_device_register(&da8xx_mmcsd0_device);
 }
 
+#ifdef CONFIG_ARCH_DAVINCI_DA850
+static struct resource da850_mmcsd1_resources[] = {
+	{		/* registers */
+		.start	= DA850_MMCSD1_BASE,
+		.end	= DA850_MMCSD1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{		/* interrupt */
+		.start	= IRQ_DA850_MMCSDINT0_1,
+		.end	= IRQ_DA850_MMCSDINT0_1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{		/* DMA RX */
+		.start	= EDMA_CTLR_CHAN(1, 28),
+		.end	= EDMA_CTLR_CHAN(1, 28),
+		.flags	= IORESOURCE_DMA,
+	},
+	{		/* DMA TX */
+		.start	= EDMA_CTLR_CHAN(1, 29),
+		.end	= EDMA_CTLR_CHAN(1, 29),
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device da850_mmcsd1_device = {
+	.name		= "davinci_mmc",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(da850_mmcsd1_resources),
+	.resource	= da850_mmcsd1_resources,
+};
+
+int __init da850_register_mmcsd1(struct davinci_mmc_config *config)
+{
+	da850_mmcsd1_device.dev.platform_data = config;
+	return platform_device_register(&da850_mmcsd1_device);
+}
+#endif
+
 static struct resource da8xx_rtc_resources[] = {
 	{
 		.start		= DA8XX_RTC_BASE,
@@ -482,10 +656,17 @@ static struct platform_device da8xx_rtc_device = {
 int da8xx_register_rtc(void)
 {
 	int ret;
+	void __iomem *base;
+
+	base = ioremap(DA8XX_RTC_BASE, SZ_4K);
+	if (WARN_ON(!base))
+		return -ENOMEM;
 
 	/* Unlock the rtc's registers */
-	__raw_writel(0x83e70b13, IO_ADDRESS(DA8XX_RTC_BASE + 0x6c));
-	__raw_writel(0x95a4f1e0, IO_ADDRESS(DA8XX_RTC_BASE + 0x70));
+	__raw_writel(0x83e70b13, base + 0x6c);
+	__raw_writel(0x95a4f1e0, base + 0x70);
+
+	iounmap(base);
 
 	ret = platform_device_register(&da8xx_rtc_device);
 	if (!ret)
@@ -493,6 +674,19 @@ int da8xx_register_rtc(void)
 		device_init_wakeup(&da8xx_rtc_device.dev, true);
 
 	return ret;
+}
+
+static void __iomem *da8xx_ddr2_ctlr_base;
+void __iomem * __init da8xx_get_mem_ctlr(void)
+{
+	if (da8xx_ddr2_ctlr_base)
+		return da8xx_ddr2_ctlr_base;
+
+	da8xx_ddr2_ctlr_base = ioremap(DA8XX_DDR2_CTL_BASE, SZ_32K);
+	if (!da8xx_ddr2_ctlr_base)
+		pr_warning("%s: Unable to map DDR2 controller",	__func__);
+
+	return da8xx_ddr2_ctlr_base;
 }
 
 static struct resource da8xx_cpuidle_resources[] = {
@@ -520,6 +714,7 @@ static struct platform_device da8xx_cpuidle_device = {
 
 int __init da8xx_register_cpuidle(void)
 {
+	da8xx_cpuidle_pdata.ddr2_ctlr_base = da8xx_get_mem_ctlr();
+
 	return platform_device_register(&da8xx_cpuidle_device);
 }
-

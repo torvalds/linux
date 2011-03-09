@@ -153,7 +153,7 @@ static void __cpuinit vsmp_init_secondary(void)
 {
 	extern int gic_present;
 
-	/* This is Malta specific: IPI,performance and timer inetrrupts */
+	/* This is Malta specific: IPI,performance and timer interrupts */
 	if (gic_present)
 		change_c0_status(ST0_IM, STATUSF_IP3 | STATUSF_IP4 |
 					 STATUSF_IP6 | STATUSF_IP7);

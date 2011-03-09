@@ -36,6 +36,7 @@
 #include <linux/err.h>
 #include <linux/sht15.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 
 #define SHT15_MEASURE_TEMP	3
@@ -302,13 +303,13 @@ error_ret:
  **/
 static inline int sht15_calc_temp(struct sht15_data *data)
 {
-	int d1 = 0;
+	int d1 = temppoints[0].d1;
 	int i;
 
-	for (i = 1; i < ARRAY_SIZE(temppoints); i++)
+	for (i = ARRAY_SIZE(temppoints) - 1; i > 0; i--)
 		/* Find pointer to interpolate */
 		if (data->supply_uV > temppoints[i - 1].vdd) {
-			d1 = (data->supply_uV/1000 - temppoints[i - 1].vdd)
+			d1 = (data->supply_uV - temppoints[i - 1].vdd)
 				* (temppoints[i].d1 - temppoints[i - 1].d1)
 				/ (temppoints[i].vdd - temppoints[i - 1].vdd)
 				+ temppoints[i - 1].d1;
@@ -541,7 +542,12 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 /* If a regulator is available, query what the supply voltage actually is!*/
 	data->reg = regulator_get(data->dev, "vcc");
 	if (!IS_ERR(data->reg)) {
-		data->supply_uV = regulator_get_voltage(data->reg);
+		int voltage;
+
+		voltage = regulator_get_voltage(data->reg);
+		if (voltage)
+			data->supply_uV = voltage;
+
 		regulator_enable(data->reg);
 		/* setup a notifier block to update this if another device
 		 *  causes the voltage to change */

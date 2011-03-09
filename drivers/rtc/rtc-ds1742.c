@@ -15,6 +15,7 @@
 #include <linux/bcd.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/rtc.h>
@@ -127,7 +128,7 @@ static const struct rtc_class_ops ds1742_rtc_ops = {
 	.set_time	= ds1742_rtc_set_time,
 };
 
-static ssize_t ds1742_nvram_read(struct kobject *kobj,
+static ssize_t ds1742_nvram_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
@@ -142,7 +143,7 @@ static ssize_t ds1742_nvram_read(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t ds1742_nvram_write(struct kobject *kobj,
+static ssize_t ds1742_nvram_write(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t size)
 {
@@ -184,6 +185,7 @@ static int __devinit ds1742_rtc_probe(struct platform_device *pdev)
 	pdata->size_nvram = pdata->size - RTC_SIZE;
 	pdata->ioaddr_rtc = ioaddr + pdata->size_nvram;
 
+	sysfs_bin_attr_init(&pdata->nvram_attr);
 	pdata->nvram_attr.attr.name = "nvram";
 	pdata->nvram_attr.attr.mode = S_IRUGO | S_IWUSR;
 	pdata->nvram_attr.read = ds1742_nvram_read;

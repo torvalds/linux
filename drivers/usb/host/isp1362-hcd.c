@@ -70,13 +70,13 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb/isp1362.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/io.h>
@@ -95,7 +95,6 @@ module_param(dbg_level, int, 0);
 #define	STUB_DEBUG_FILE
 #endif
 
-#include "../core/hcd.h"
 #include "../core/usb.h"
 #include "isp1362.h"
 
@@ -1257,7 +1256,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 
 	/* avoid all allocations within spinlocks: request or endpoint */
 	if (!hep->hcpriv) {
-		ep = kcalloc(1, sizeof *ep, mem_flags);
+		ep = kzalloc(sizeof *ep, mem_flags);
 		if (!ep)
 			return -ENOMEM;
 	}
@@ -1265,7 +1264,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 
 	/* don't submit to a dead or disabled port */
 	if (!((isp1362_hcd->rhport[0] | isp1362_hcd->rhport[1]) &
-	      (1 << USB_PORT_FEAT_ENABLE)) ||
+	      USB_PORT_STAT_ENABLE) ||
 	    !HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
 		retval = -ENODEV;
@@ -1676,13 +1675,6 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
 			_DBG(0, "USB_PORT_FEAT_SUSPEND\n");
-#ifdef	CONFIG_USB_OTG
-			if (ohci->hcd.self.otg_port == (wIndex + 1) &&
-			    ohci->hcd.self.b_hnp_enable) {
-				start_hnp(ohci);
-				break;
-			}
-#endif
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 			isp1362_write_reg32(isp1362_hcd, HCRHPORT1 + wIndex, RH_PS_PSS);
 			isp1362_hcd->rhport[wIndex] =
@@ -2217,19 +2209,16 @@ static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
 	if (isp1362_hcd->pde)
-		remove_proc_entry(proc_filename, 0);
+		remove_proc_entry(proc_filename, NULL);
 }
 
 #endif
 
 /*-------------------------------------------------------------------------*/
 
-static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
+static void __isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 {
 	int tmp = 20;
-	unsigned long flags;
-
-	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 
 	isp1362_write_reg16(isp1362_hcd, HCSWRES, HCSWRES_MAGIC);
 	isp1362_write_reg32(isp1362_hcd, HCCMDSTAT, OHCI_HCR);
@@ -2240,6 +2229,14 @@ static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 	}
 	if (!tmp)
 		pr_err("Software reset timeout\n");
+}
+
+static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&isp1362_hcd->lock, flags);
+	__isp1362_sw_reset(isp1362_hcd);
 	spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 }
 
@@ -2418,7 +2415,7 @@ static void isp1362_hc_stop(struct usb_hcd *hcd)
 	if (isp1362_hcd->board && isp1362_hcd->board->reset)
 		isp1362_hcd->board->reset(hcd->self.controller, 1);
 	else
-		isp1362_sw_reset(isp1362_hcd);
+		__isp1362_sw_reset(isp1362_hcd);
 
 	if (isp1362_hcd->board && isp1362_hcd->board->clock)
 		isp1362_hcd->board->clock(hcd->self.controller, 0);
@@ -2651,8 +2648,6 @@ static struct hc_driver isp1362_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
-
 static int __devexit isp1362_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
@@ -2674,12 +2669,12 @@ static int __devexit isp1362_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	DBG(0, "%s: release mem_region: %08lx\n", __func__, (long unsigned int)res->start);
 	if (res)
-		release_mem_region(res->start, resource_len(res));
+		release_mem_region(res->start, resource_size(res));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	DBG(0, "%s: release mem_region: %08lx\n", __func__, (long unsigned int)res->start);
 	if (res)
-		release_mem_region(res->start, resource_len(res));
+		release_mem_region(res->start, resource_size(res));
 
 	DBG(0, "%s: put_hcd\n", __func__);
 	usb_put_hcd(hcd);
@@ -2688,7 +2683,7 @@ static int __devexit isp1362_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init isp1362_probe(struct platform_device *pdev)
+static int __devinit isp1362_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp1362_hcd *isp1362_hcd;
@@ -2719,40 +2714,27 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	}
 	irq = irq_res->start;
 
-#ifdef CONFIG_USB_HCD_DMA
-	if (pdev->dev.dma_mask) {
-		struct resource *dma_res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-
-		if (!dma_res) {
-			retval = -ENODEV;
-			goto err1;
-		}
-		isp1362_hcd->data_dma = dma_res->start;
-		isp1362_hcd->max_dma_size = resource_len(dma_res);
-	}
-#else
 	if (pdev->dev.dma_mask) {
 		DBG(1, "won't do DMA");
 		retval = -ENODEV;
 		goto err1;
 	}
-#endif
 
-	if (!request_mem_region(addr->start, resource_len(addr), hcd_name)) {
+	if (!request_mem_region(addr->start, resource_size(addr), hcd_name)) {
 		retval = -EBUSY;
 		goto err1;
 	}
-	addr_reg = ioremap(addr->start, resource_len(addr));
+	addr_reg = ioremap(addr->start, resource_size(addr));
 	if (addr_reg == NULL) {
 		retval = -ENOMEM;
 		goto err2;
 	}
 
-	if (!request_mem_region(data->start, resource_len(data), hcd_name)) {
+	if (!request_mem_region(data->start, resource_size(data), hcd_name)) {
 		retval = -EBUSY;
 		goto err3;
 	}
-	data_reg = ioremap(data->start, resource_len(data));
+	data_reg = ioremap(data->start, resource_size(data));
 	if (data_reg == NULL) {
 		retval = -ENOMEM;
 		goto err4;
@@ -2810,13 +2792,13 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	iounmap(data_reg);
  err4:
 	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)data->start);
-	release_mem_region(data->start, resource_len(data));
+	release_mem_region(data->start, resource_size(data));
  err3:
 	DBG(0, "%s: Unmapping addr_reg @ %p\n", __func__, addr_reg);
 	iounmap(addr_reg);
  err2:
 	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)addr->start);
-	release_mem_region(addr->start, resource_len(addr));
+	release_mem_region(addr->start, resource_size(addr));
  err1:
 	pr_err("%s: init error, %d\n", __func__, retval);
 

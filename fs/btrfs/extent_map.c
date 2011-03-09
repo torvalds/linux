@@ -1,9 +1,9 @@
 #include <linux/err.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
+#include "ctree.h"
 #include "extent_map.h"
 
 
@@ -35,7 +35,7 @@ void extent_map_exit(void)
  */
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
-	tree->map.rb_node = NULL;
+	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);
 }
 
@@ -55,6 +55,7 @@ struct extent_map *alloc_extent_map(gfp_t mask)
 		return em;
 	em->in_tree = 0;
 	em->flags = 0;
+	em->compress_type = BTRFS_COMPRESS_NONE;
 	atomic_set(&em->refs, 1);
 	return em;
 }
@@ -336,7 +337,7 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 	}
 	if (IS_ERR(rb_node)) {
-		em = ERR_PTR(PTR_ERR(rb_node));
+		em = ERR_CAST(rb_node);
 		goto out;
 	}
 	em = rb_entry(rb_node, struct extent_map, rb_node);
@@ -385,7 +386,7 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 	}
 	if (IS_ERR(rb_node)) {
-		em = ERR_PTR(PTR_ERR(rb_node));
+		em = ERR_CAST(rb_node);
 		goto out;
 	}
 	em = rb_entry(rb_node, struct extent_map, rb_node);

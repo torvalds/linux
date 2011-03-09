@@ -44,26 +44,4 @@ static inline unsigned long rdsp(void)
 struct __xchg_dummy { unsigned long a[100]; };
 #define __xg(x) ((struct __xchg_dummy *)(x))
 
-/* Used for interrupt control. */
-#define local_save_flags(x) \
-	__asm__ __volatile__ ("move $ccs, %0" : "=rm" (x) : : "memory");
-
-#define local_irq_restore(x) \
-	__asm__ __volatile__ ("move %0, $ccs" : : "rm" (x) : "memory");
-
-#define local_irq_disable()  __asm__ __volatile__ ("di" : : : "memory");
-#define local_irq_enable()   __asm__ __volatile__ ("ei" : : : "memory");
-
-#define irqs_disabled()		\
-({				\
-	unsigned long flags;	\
-				\
-	local_save_flags(flags);\
-	!(flags & (1 << I_CCS_BITNR));	\
-})
-
-/* Used for spinlocks, etc. */
-#define local_irq_save(x) \
-	__asm__ __volatile__ ("move $ccs, %0\n\tdi" : "=rm" (x) : : "memory");
-
 #endif /* _ASM_CRIS_ARCH_SYSTEM_H */

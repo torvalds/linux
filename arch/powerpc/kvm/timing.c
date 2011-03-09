@@ -35,7 +35,6 @@ void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu)
 	int i;
 
 	/* pause guest execution to avoid concurrent updates */
-	local_irq_disable();
 	mutex_lock(&vcpu->mutex);
 
 	vcpu->arch.last_exit_type = 0xDEAD;
@@ -51,7 +50,6 @@ void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu)
 	vcpu->arch.timing_last_enter.tv64 = 0;
 
 	mutex_unlock(&vcpu->mutex);
-	local_irq_enable();
 }
 
 static void add_exit_timing(struct kvm_vcpu *vcpu, u64 duration, int type)
@@ -182,7 +180,7 @@ static ssize_t kvmppc_exit_timing_write(struct file *file,
 	}
 
 	if (c == 'c') {
-		struct seq_file *seqf = (struct seq_file *)file->private_data;
+		struct seq_file *seqf = file->private_data;
 		struct kvm_vcpu *vcpu = seqf->private;
 		/* Write does not affect our buffers previously generated with
 		 * show. seq_file is locked here to prevent races of init with

@@ -166,7 +166,7 @@ static int ns558_isa_probe(int io)
 
 #ifdef CONFIG_PNP
 
-static struct pnp_device_id pnp_devids[] = {
+static const struct pnp_device_id pnp_devids[] = {
 	{ .id = "@P@0001", .driver_data = 0 }, /* ALS 100 */
 	{ .id = "@P@0020", .driver_data = 0 }, /* ALS 200 */
 	{ .id = "@P@1001", .driver_data = 0 }, /* ALS 100+ */

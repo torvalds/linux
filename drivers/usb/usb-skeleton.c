@@ -28,7 +28,7 @@
 #define USB_SKEL_PRODUCT_ID	0xfff0
 
 /* table of devices that work with this driver */
-static struct usb_device_id skel_table[] = {
+static const struct usb_device_id skel_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
@@ -142,7 +142,7 @@ static int skel_release(struct inode *inode, struct file *file)
 {
 	struct usb_skel *dev;
 
-	dev = (struct usb_skel *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -162,7 +162,7 @@ static int skel_flush(struct file *file, fl_owner_t id)
 	struct usb_skel *dev;
 	int res;
 
-	dev = (struct usb_skel *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -246,7 +246,7 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 	int rv;
 	bool ongoing_io;
 
-	dev = (struct usb_skel *)file->private_data;
+	dev = file->private_data;
 
 	/* if we cannot read at all, return EOF */
 	if (!dev->bulk_in_urb || !count)
@@ -387,8 +387,8 @@ static void skel_write_bulk_callback(struct urb *urb)
 	}
 
 	/* free up our allocated buffer */
-	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	up(&dev->limit_sem);
 }
 
@@ -401,7 +401,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 	char *buf = NULL;
 	size_t writesize = min(count, (size_t)MAX_TRANSFER);
 
-	dev = (struct usb_skel *)file->private_data;
+	dev = file->private_data;
 
 	/* verify that we actually have some data to write */
 	if (count == 0)
@@ -442,8 +442,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 		goto error;
 	}
 
-	buf = usb_buffer_alloc(dev->udev, writesize, GFP_KERNEL,
-			       &urb->transfer_dma);
+	buf = usb_alloc_coherent(dev->udev, writesize, GFP_KERNEL,
+				 &urb->transfer_dma);
 	if (!buf) {
 		retval = -ENOMEM;
 		goto error;
@@ -491,7 +491,7 @@ error_unanchor:
 	usb_unanchor_urb(urb);
 error:
 	if (urb) {
-		usb_buffer_free(dev->udev, writesize, buf, urb->transfer_dma);
+		usb_free_coherent(dev->udev, writesize, buf, urb->transfer_dma);
 		usb_free_urb(urb);
 	}
 	up(&dev->limit_sem);
@@ -507,6 +507,7 @@ static const struct file_operations skel_fops = {
 	.open =		skel_open,
 	.release =	skel_release,
 	.flush =	skel_flush,
+	.llseek =	noop_llseek,
 };
 
 /*

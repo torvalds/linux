@@ -38,6 +38,7 @@
 #include <linux/jhash.h>
 #include <linux/ipsec.h>
 #include <linux/times.h>
+#include <linux/slab.h>
 
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
@@ -74,6 +75,9 @@ static void	tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req);
 
 static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
+static void	__tcp_v6_send_check(struct sk_buff *skb,
+				    struct in6_addr *saddr,
+				    struct in6_addr *daddr);
 
 static const struct inet_connection_sock_af_ops ipv6_mapped;
 static const struct inet_connection_sock_af_ops ipv6_specific;
@@ -125,7 +129,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct in6_addr *saddr = NULL, *final_p = NULL, final;
+	struct in6_addr *saddr = NULL, *final_p, final;
+	struct rt6_info *rt;
 	struct flowi fl;
 	struct dst_entry *dst;
 	int addr_type;
@@ -135,7 +140,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		return -EINVAL;
 
 	if (usin->sin6_family != AF_INET6)
-		return(-EAFNOSUPPORT);
+		return -EAFNOSUPPORT;
 
 	memset(&fl, 0, sizeof(fl));
 
@@ -246,12 +251,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	fl.fl_ip_dport = usin->sin6_port;
 	fl.fl_ip_sport = inet->inet_sport;
 
-	if (np->opt && np->opt->srcrt) {
-		struct rt0_hdr *rt0 = (struct rt0_hdr *)np->opt->srcrt;
-		ipv6_addr_copy(&final, &fl.fl6_dst);
-		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-		final_p = &final;
-	}
+	final_p = fl6_update_dst(&fl, np->opt, &final);
 
 	security_sk_classify_flow(sk, &fl);
 
@@ -280,6 +280,26 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	sk->sk_gso_type = SKB_GSO_TCPV6;
 	__ip6_dst_store(sk, dst, NULL, NULL);
+
+	rt = (struct rt6_info *) dst;
+	if (tcp_death_row.sysctl_tw_recycle &&
+	    !tp->rx_opt.ts_recent_stamp &&
+	    ipv6_addr_equal(&rt->rt6i_dst.addr, &np->daddr)) {
+		struct inet_peer *peer = rt6_get_peer(rt);
+		/*
+		 * VJ's idea. We save last timestamp seen from
+		 * the destination in peer table, when entering state
+		 * TIME-WAIT * and initialize rx_opt.ts_recent from it,
+		 * when trying new connection.
+		 */
+		if (peer) {
+			inet_peer_refcheck(peer);
+			if ((u32)get_seconds() - peer->tcp_ts_stamp <= TCP_PAWS_MSL) {
+				tp->rx_opt.ts_recent_stamp = peer->tcp_ts_stamp;
+				tp->rx_opt.ts_recent = peer->tcp_ts;
+			}
+		}
+	}
 
 	icsk->icsk_ext_hdr_len = 0;
 	if (np->opt)
@@ -348,6 +368,11 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	if (sk->sk_state == TCP_CLOSE)
 		goto out;
+
+	if (ipv6_hdr(skb)->hop_limit < inet6_sk(sk)->min_hopcount) {
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		goto out;
+	}
 
 	tp = tcp_sk(sk);
 	seq = ntohl(th->seq);
@@ -468,7 +493,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff * skb;
 	struct ipv6_txoptions *opt = NULL;
-	struct in6_addr * final_p = NULL, final;
+	struct in6_addr * final_p, final;
 	struct flowi fl;
 	struct dst_entry *dst;
 	int err = -1;
@@ -485,12 +510,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	security_req_classify_flow(req, &fl);
 
 	opt = np->opt;
-	if (opt && opt->srcrt) {
-		struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
-		ipv6_addr_copy(&final, &fl.fl6_dst);
-		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-		final_p = &final;
-	}
+	final_p = fl6_update_dst(&fl, opt, &final);
 
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
@@ -502,14 +522,10 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 
 	skb = tcp_make_synack(sk, dst, req, rvp);
 	if (skb) {
-		struct tcphdr *th = tcp_hdr(skb);
-
-		th->check = tcp_v6_check(skb->len,
-					 &treq->loc_addr, &treq->rmt_addr,
-					 csum_partial(th, skb->len, skb->csum));
+		__tcp_v6_send_check(skb, &treq->loc_addr, &treq->rmt_addr);
 
 		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-		err = ip6_xmit(sk, skb, &fl, opt, 0);
+		err = ip6_xmit(sk, skb, &fl, opt);
 		err = net_xmit_eval(err);
 	}
 
@@ -518,6 +534,13 @@ done:
 		sock_kfree_s(sk, opt, opt->tot_len);
 	dst_release(dst);
 	return err;
+}
+
+static int tcp_v6_rtx_synack(struct sock *sk, struct request_sock *req,
+			     struct request_values *rvp)
+{
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return tcp_v6_send_synack(sk, req, rvp);
 }
 
 static inline void syn_flood_warning(struct sk_buff *skb)
@@ -592,7 +615,7 @@ static int tcp_v6_md5_do_add(struct sock *sk, struct in6_addr *peer,
 				kfree(newkey);
 				return -ENOMEM;
 			}
-			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+			sk_nocaps_add(sk, NETIF_F_GSO_MASK);
 		}
 		if (tcp_alloc_md5sig_pool(sk) == NULL) {
 			kfree(newkey);
@@ -729,7 +752,7 @@ static int tcp_v6_parse_md5_keys (struct sock *sk, char __user *optval,
 			return -ENOMEM;
 
 		tp->md5sig_info = p;
-		sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+		sk_nocaps_add(sk, NETIF_F_GSO_MASK);
 	}
 
 	newkey = kmemdup(cmd.tcpm_key, cmd.tcpm_keylen, GFP_KERNEL);
@@ -876,7 +899,7 @@ static int tcp_v6_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
 
 	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
 		if (net_ratelimit()) {
-			printk(KERN_INFO "MD5 Hash %s for (%pI6, %u)->(%pI6, %u)\n",
+			printk(KERN_INFO "MD5 Hash %s for [%pI6c]:%u->[%pI6c]:%u\n",
 			       genhash ? "failed" : "mismatch",
 			       &ip6h->saddr, ntohs(th->source),
 			       &ip6h->daddr, ntohs(th->dest));
@@ -890,10 +913,11 @@ static int tcp_v6_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
 struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
-	.rtx_syn_ack	=	tcp_v6_send_synack,
+	.rtx_syn_ack	=	tcp_v6_rtx_synack,
 	.send_ack	=	tcp_v6_reqsk_send_ack,
 	.destructor	=	tcp_v6_reqsk_destructor,
-	.send_reset	=	tcp_v6_send_reset
+	.send_reset	=	tcp_v6_send_reset,
+	.syn_ack_timeout = 	tcp_syn_ack_timeout,
 };
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -903,26 +927,27 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 };
 #endif
 
-static struct timewait_sock_ops tcp6_timewait_sock_ops = {
-	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
-	.twsk_unique	= tcp_twsk_unique,
-	.twsk_destructor= tcp_twsk_destructor,
-};
-
-static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
+static void __tcp_v6_send_check(struct sk_buff *skb,
+				struct in6_addr *saddr, struct in6_addr *daddr)
 {
-	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcphdr *th = tcp_hdr(skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
+		th->check = ~tcp_v6_check(skb->len, saddr, daddr, 0);
 		skb->csum_start = skb_transport_header(skb) - skb->head;
 		skb->csum_offset = offsetof(struct tcphdr, check);
 	} else {
-		th->check = csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,
-					    csum_partial(th, th->doff<<2,
-							 skb->csum));
+		th->check = tcp_v6_check(skb->len, saddr, daddr,
+					 csum_partial(th, th->doff << 2,
+						      skb->csum));
 	}
+}
+
+static void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb)
+{
+	struct ipv6_pinfo *np = inet6_sk(sk);
+
+	__tcp_v6_send_check(skb, &np->saddr, &np->daddr);
 }
 
 static int tcp_v6_gso_send_check(struct sk_buff *skb)
@@ -937,11 +962,8 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 	th = tcp_hdr(skb);
 
 	th->check = 0;
-	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
-				     IPPROTO_TCP, 0);
-	skb->csum_start = skb_transport_header(skb) - skb->head;
-	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
+	__tcp_v6_send_check(skb, &ipv6h->saddr, &ipv6h->daddr);
 	return 0;
 }
 
@@ -1006,7 +1028,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	skb_reserve(buff, MAX_HEADER + sizeof(struct ipv6hdr) + tot_len);
 
 	t1 = (struct tcphdr *) skb_push(buff, tot_len);
-	skb_reset_transport_header(skb);
+	skb_reset_transport_header(buff);
 
 	/* Swap the send and the receive. */
 	memset(t1, 0, sizeof(*t1));
@@ -1038,15 +1060,14 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	}
 #endif
 
-	buff->csum = csum_partial(t1, tot_len, 0);
-
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&fl.fl6_src, &ipv6_hdr(skb)->daddr);
 
-	t1->check = csum_ipv6_magic(&fl.fl6_src, &fl.fl6_dst,
-				    tot_len, IPPROTO_TCP,
-				    buff->csum);
+	buff->ip_summed = CHECKSUM_PARTIAL;
+	buff->csum = 0;
+
+	__tcp_v6_send_check(buff, &fl.fl6_src, &fl.fl6_dst);
 
 	fl.proto = IPPROTO_TCP;
 	fl.oif = inet6_iif(skb);
@@ -1061,7 +1082,7 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 	if (!ip6_dst_lookup(ctl_sk, &dst, &fl)) {
 		if (xfrm_lookup(net, &dst, &fl, NULL, 0) >= 0) {
 			skb_dst_set(buff, dst);
-			ip6_xmit(ctl_sk, buff, &fl, NULL, 0);
+			ip6_xmit(ctl_sk, buff, &fl, NULL);
 			TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
 			if (rst)
 				TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
@@ -1151,7 +1172,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_SYN_COOKIES
-	if (!th->rst && !th->syn && th->ack)
+	if (!th->syn)
 		sk = cookie_v6_check(sk, skb);
 #endif
 	return sk;
@@ -1170,6 +1191,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 isn = TCP_SKB_CB(skb)->when;
+	struct dst_entry *dst = NULL;
 #ifdef CONFIG_SYN_COOKIES
 	int want_cookie = 0;
 #else
@@ -1224,12 +1246,12 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 			goto drop_and_free;
 
 		/* Secret recipe starts with IP addresses */
-		d = &ipv6_hdr(skb)->daddr.s6_addr32[0];
+		d = (__force u32 *)&ipv6_hdr(skb)->daddr.s6_addr32[0];
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
-		d = &ipv6_hdr(skb)->saddr.s6_addr32[0];
+		d = (__force u32 *)&ipv6_hdr(skb)->saddr.s6_addr32[0];
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
 		*mess++ ^= *d++;
@@ -1263,13 +1285,12 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	treq = inet6_rsk(req);
 	ipv6_addr_copy(&treq->rmt_addr, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&treq->loc_addr, &ipv6_hdr(skb)->daddr);
-	if (!want_cookie)
+	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
 
-	if (want_cookie) {
-		isn = cookie_v6_init_sequence(sk, skb, &req->mss);
-		req->cookie_ts = tmp_opt.tstamp_ok;
-	} else if (!isn) {
+	if (!isn) {
+		struct inet_peer *peer = NULL;
+
 		if (ipv6_opt_accepted(sk, skb) ||
 		    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
 		    np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim) {
@@ -1283,8 +1304,56 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
 			treq->iif = inet6_iif(skb);
 
+		if (want_cookie) {
+			isn = cookie_v6_init_sequence(sk, skb, &req->mss);
+			req->cookie_ts = tmp_opt.tstamp_ok;
+			goto have_isn;
+		}
+
+		/* VJ's idea. We save last timestamp seen
+		 * from the destination in peer table, when entering
+		 * state TIME-WAIT, and check against it before
+		 * accepting new connection request.
+		 *
+		 * If "isn" is not zero, this request hit alive
+		 * timewait bucket, so that all the necessary checks
+		 * are made in the function processing timewait state.
+		 */
+		if (tmp_opt.saw_tstamp &&
+		    tcp_death_row.sysctl_tw_recycle &&
+		    (dst = inet6_csk_route_req(sk, req)) != NULL &&
+		    (peer = rt6_get_peer((struct rt6_info *)dst)) != NULL &&
+		    ipv6_addr_equal((struct in6_addr *)peer->daddr.a6,
+				    &treq->rmt_addr)) {
+			inet_peer_refcheck(peer);
+			if ((u32)get_seconds() - peer->tcp_ts_stamp < TCP_PAWS_MSL &&
+			    (s32)(peer->tcp_ts - req->ts_recent) >
+							TCP_PAWS_WINDOW) {
+				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_PAWSPASSIVEREJECTED);
+				goto drop_and_release;
+			}
+		}
+		/* Kill the following clause, if you dislike this way. */
+		else if (!sysctl_tcp_syncookies &&
+			 (sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
+			  (sysctl_max_syn_backlog >> 2)) &&
+			 (!peer || !peer->tcp_ts_stamp) &&
+			 (!dst || !dst_metric(dst, RTAX_RTT))) {
+			/* Without syncookies last quarter of
+			 * backlog is filled with destinations,
+			 * proven to be alive.
+			 * It means that we continue to communicate
+			 * to destinations, already remembered
+			 * to the moment of synflood.
+			 */
+			LIMIT_NETDEBUG(KERN_DEBUG "TCP: drop open request from %pI6/%u\n",
+				       &treq->rmt_addr, ntohs(tcp_hdr(skb)->source));
+			goto drop_and_release;
+		}
+
 		isn = tcp_v6_init_sequence(skb);
 	}
+have_isn:
 	tcp_rsk(req)->snt_isn = isn;
 
 	security_inet_conn_request(sk, skb, req);
@@ -1297,6 +1366,8 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	inet6_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	return 0;
 
+drop_and_release:
+	dst_release(dst);
 drop_and_free:
 	reqsk_free(req);
 drop:
@@ -1375,39 +1446,15 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	if (sk_acceptq_is_full(sk))
 		goto out_overflow;
 
-	if (dst == NULL) {
-		struct in6_addr *final_p = NULL, final;
-		struct flowi fl;
-
-		memset(&fl, 0, sizeof(fl));
-		fl.proto = IPPROTO_TCP;
-		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-		if (opt && opt->srcrt) {
-			struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
-			ipv6_addr_copy(&final, &fl.fl6_dst);
-			ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-			final_p = &final;
-		}
-		ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
-		fl.oif = sk->sk_bound_dev_if;
-		fl.mark = sk->sk_mark;
-		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-		fl.fl_ip_sport = inet_rsk(req)->loc_port;
-		security_req_classify_flow(req, &fl);
-
-		if (ip6_dst_lookup(sk, &dst, &fl))
-			goto out;
-
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-
-		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+	if (!dst) {
+		dst = inet6_csk_route_req(sk, req);
+		if (!dst)
 			goto out;
 	}
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (newsk == NULL)
-		goto out;
+		goto out_nonewsk;
 
 	/*
 	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
@@ -1474,7 +1521,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
-	newtp->advmss = dst_metric(dst, RTAX_ADVMSS);
+	newtp->advmss = dst_metric_advmss(dst);
 	tcp_initialize_rcv_mss(newsk);
 
 	newinet->inet_daddr = newinet->inet_saddr = LOOPBACK4_IPV6;
@@ -1495,18 +1542,22 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
+	if (__inet_inherit_port(sk, newsk) < 0) {
+		sock_put(newsk);
+		goto out;
+	}
 	__inet6_hash(newsk, NULL);
-	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
 out_overflow:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
-out:
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+out_nonewsk:
 	if (opt && opt != np->opt)
 		sock_kfree_s(sk, opt, opt->tot_len);
 	dst_release(dst);
+out:
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 }
 
@@ -1667,6 +1718,7 @@ ipv6_pktoptions:
 static int tcp_v6_rcv(struct sk_buff *skb)
 {
 	struct tcphdr *th;
+	struct ipv6hdr *hdr;
 	struct sock *sk;
 	int ret;
 	struct net *net = dev_net(skb->dev);
@@ -1693,12 +1745,13 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 		goto bad_packet;
 
 	th = tcp_hdr(skb);
+	hdr = ipv6_hdr(skb);
 	TCP_SKB_CB(skb)->seq = ntohl(th->seq);
 	TCP_SKB_CB(skb)->end_seq = (TCP_SKB_CB(skb)->seq + th->syn + th->fin +
 				    skb->len - th->doff*4);
 	TCP_SKB_CB(skb)->ack_seq = ntohl(th->ack_seq);
 	TCP_SKB_CB(skb)->when = 0;
-	TCP_SKB_CB(skb)->flags = ipv6_get_dsfield(ipv6_hdr(skb));
+	TCP_SKB_CB(skb)->flags = ipv6_get_dsfield(hdr);
 	TCP_SKB_CB(skb)->sacked = 0;
 
 	sk = __inet6_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest);
@@ -1708,6 +1761,11 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)
 		goto do_time_wait;
+
+	if (hdr->hop_limit < inet6_sk(sk)->min_hopcount) {
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		goto discard_and_relse;
+	}
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
@@ -1732,8 +1790,11 @@ process:
 			if (!tcp_prequeue(sk, skb))
 				ret = tcp_v6_do_rcv(sk, skb);
 		}
-	} else
-		sk_add_backlog(sk, skb);
+	} else if (unlikely(sk_add_backlog(sk, skb))) {
+		bh_unlock_sock(sk);
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPBACKLOGDROP);
+		goto discard_and_relse;
+	}
 	bh_unlock_sock(sk);
 
 	sock_put(sk);
@@ -1802,11 +1863,43 @@ do_time_wait:
 	goto discard_it;
 }
 
-static int tcp_v6_remember_stamp(struct sock *sk)
+static struct inet_peer *tcp_v6_get_peer(struct sock *sk, bool *release_it)
 {
-	/* Alas, not yet... */
-	return 0;
+	struct rt6_info *rt = (struct rt6_info *) __sk_dst_get(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct inet_peer *peer;
+
+	if (!rt ||
+	    !ipv6_addr_equal(&np->daddr, &rt->rt6i_dst.addr)) {
+		peer = inet_getpeer_v6(&np->daddr, 1);
+		*release_it = true;
+	} else {
+		if (!rt->rt6i_peer)
+			rt6_bind_peer(rt, 1);
+		peer = rt->rt6i_peer;
+		*release_it = false;
+	}
+
+	return peer;
 }
+
+static void *tcp_v6_tw_get_peer(struct sock *sk)
+{
+	struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
+	struct inet_timewait_sock *tw = inet_twsk(sk);
+
+	if (tw->tw_family == AF_INET)
+		return tcp_v4_tw_get_peer(sk);
+
+	return inet_getpeer_v6(&tw6->tw_v6_daddr, 1);
+}
+
+static struct timewait_sock_ops tcp6_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
+	.twsk_unique	= tcp_twsk_unique,
+	.twsk_destructor= tcp_twsk_destructor,
+	.twsk_getpeer	= tcp_v6_tw_get_peer,
+};
 
 static const struct inet_connection_sock_af_ops ipv6_specific = {
 	.queue_xmit	   = inet6_csk_xmit,
@@ -1814,7 +1907,7 @@ static const struct inet_connection_sock_af_ops ipv6_specific = {
 	.rebuild_header	   = inet6_sk_rebuild_header,
 	.conn_request	   = tcp_v6_conn_request,
 	.syn_recv_sock	   = tcp_v6_syn_recv_sock,
-	.remember_stamp	   = tcp_v6_remember_stamp,
+	.get_peer	   = tcp_v6_get_peer,
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,
@@ -1846,7 +1939,7 @@ static const struct inet_connection_sock_af_ops ipv6_mapped = {
 	.rebuild_header	   = inet_sk_rebuild_header,
 	.conn_request	   = tcp_v6_conn_request,
 	.syn_recv_sock	   = tcp_v6_syn_recv_sock,
-	.remember_stamp	   = tcp_v4_remember_stamp,
+	.get_peer	   = tcp_v4_get_peer,
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,
@@ -2105,7 +2198,7 @@ static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 	},
 };
 
-int tcp6_proc_init(struct net *net)
+int __net_init tcp6_proc_init(struct net *net)
 {
 	return tcp_proc_register(net, &tcp6_seq_afinfo);
 }
@@ -2130,6 +2223,8 @@ struct proto tcpv6_prot = {
 	.setsockopt		= tcp_setsockopt,
 	.getsockopt		= tcp_getsockopt,
 	.recvmsg		= tcp_recvmsg,
+	.sendmsg		= tcp_sendmsg,
+	.sendpage		= tcp_sendpage,
 	.backlog_rcv		= tcp_v6_do_rcv,
 	.hash			= tcp_v6_hash,
 	.unhash			= inet_unhash,
@@ -2148,6 +2243,7 @@ struct proto tcpv6_prot = {
 	.twsk_prot		= &tcp6_timewait_sock_ops,
 	.rsk_prot		= &tcp6_request_sock_ops,
 	.h.hashinfo		= &tcp_hashinfo,
+	.no_autobind		= true,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt	= compat_tcp_setsockopt,
 	.compat_getsockopt	= compat_tcp_getsockopt,
@@ -2174,18 +2270,18 @@ static struct inet_protosw tcpv6_protosw = {
 				INET_PROTOSW_ICSK,
 };
 
-static int tcpv6_net_init(struct net *net)
+static int __net_init tcpv6_net_init(struct net *net)
 {
 	return inet_ctl_sock_create(&net->ipv6.tcp_sk, PF_INET6,
 				    SOCK_RAW, IPPROTO_TCP, net);
 }
 
-static void tcpv6_net_exit(struct net *net)
+static void __net_exit tcpv6_net_exit(struct net *net)
 {
 	inet_ctl_sock_destroy(net->ipv6.tcp_sk);
 }
 
-static void tcpv6_net_exit_batch(struct list_head *net_exit_list)
+static void __net_exit tcpv6_net_exit_batch(struct list_head *net_exit_list)
 {
 	inet_twsk_purge(&tcp_hashinfo, &tcp_death_row, AF_INET6);
 }

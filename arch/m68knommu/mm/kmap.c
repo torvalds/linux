@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include <asm/setup.h>
@@ -33,15 +32,6 @@ void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag)
  * Unmap a ioremap()ed region again.
  */
 void iounmap(void *addr)
-{
-}
-
-/*
- * __iounmap unmaps nearly everything, so be careful
- * it doesn't free currently pointer/page tables anymore but it
- * wans't used anyway and might be added later.
- */
-void __iounmap(void *addr, unsigned long size)
 {
 }
 

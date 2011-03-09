@@ -21,8 +21,8 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/sysdev.h>
-#include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

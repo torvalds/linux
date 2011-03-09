@@ -85,6 +85,8 @@
 #define POODLE_LOCOMO_GPIO_232VCC_ON   LOCOMO_GPIO(12)
 #define POODLE_LOCOMO_GPIO_JK_B        LOCOMO_GPIO(13)
 
+#define POODLE_NR_IRQS		(IRQ_BOARD_START + 4)	/* 4 for LoCoMo */
+
 extern struct platform_device poodle_locomo_device;
 
 #endif /* __ASM_ARCH_POODLE_H  */

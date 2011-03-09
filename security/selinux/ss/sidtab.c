@@ -147,6 +147,17 @@ out:
 	return rc;
 }
 
+static void sidtab_update_cache(struct sidtab *s, struct sidtab_node *n, int loc)
+{
+	BUG_ON(loc >= SIDTAB_CACHE_LEN);
+
+	while (loc > 0) {
+		s->cache[loc] = s->cache[loc - 1];
+		loc--;
+	}
+	s->cache[0] = n;
+}
+
 static inline u32 sidtab_search_context(struct sidtab *s,
 						  struct context *context)
 {
@@ -156,9 +167,28 @@ static inline u32 sidtab_search_context(struct sidtab *s,
 	for (i = 0; i < SIDTAB_SIZE; i++) {
 		cur = s->htable[i];
 		while (cur) {
-			if (context_cmp(&cur->context, context))
+			if (context_cmp(&cur->context, context)) {
+				sidtab_update_cache(s, cur, SIDTAB_CACHE_LEN - 1);
 				return cur->sid;
+			}
 			cur = cur->next;
+		}
+	}
+	return 0;
+}
+
+static inline u32 sidtab_search_cache(struct sidtab *s, struct context *context)
+{
+	int i;
+	struct sidtab_node *node;
+
+	for (i = 0; i < SIDTAB_CACHE_LEN; i++) {
+		node = s->cache[i];
+		if (unlikely(!node))
+			return 0;
+		if (context_cmp(&node->context, context)) {
+			sidtab_update_cache(s, node, i);
+			return node->sid;
 		}
 	}
 	return 0;
@@ -174,7 +204,9 @@ int sidtab_context_to_sid(struct sidtab *s,
 
 	*out_sid = SECSID_NULL;
 
-	sid = sidtab_search_context(s, context);
+	sid  = sidtab_search_cache(s, context);
+	if (!sid)
+		sid = sidtab_search_context(s, context);
 	if (!sid) {
 		spin_lock_irqsave(&s->lock, flags);
 		/* Rescan now that we hold the lock. */
@@ -259,12 +291,15 @@ void sidtab_destroy(struct sidtab *s)
 void sidtab_set(struct sidtab *dst, struct sidtab *src)
 {
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(&src->lock, flags);
 	dst->htable = src->htable;
 	dst->nel = src->nel;
 	dst->next_sid = src->next_sid;
 	dst->shutdown = 0;
+	for (i = 0; i < SIDTAB_CACHE_LEN; i++)
+		dst->cache[i] = NULL;
 	spin_unlock_irqrestore(&src->lock, flags);
 }
 

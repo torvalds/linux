@@ -117,6 +117,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 	.urb_enqueue		= ehci_urb_enqueue,
 	.urb_dequeue		= ehci_urb_dequeue,
 	.endpoint_disable	= ehci_endpoint_disable,
+	.endpoint_reset		= ehci_endpoint_reset,
 
 	/*
 	 * scheduling support
@@ -140,7 +141,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 
 /**
  * ehci_hcd_xilinx_of_probe - Probe method for the USB host controller
- * @op:		pointer to the of_device to which the host controller bound
+ * @op:		pointer to the platform_device bound to the host controller
  * @match:	pointer to of_device_id structure, not used
  *
  * This function requests resources and sets up appropriate properties for the
@@ -149,9 +150,9 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
  * entry, and sets an appropriate value for hcd->has_tt.
  */
 static int __devinit
-ehci_hcd_xilinx_of_probe(struct of_device *op, const struct of_device_id *match)
+ehci_hcd_xilinx_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci;
 	struct resource res;
@@ -177,21 +178,21 @@ ehci_hcd_xilinx_of_probe(struct of_device *op, const struct of_device_id *match)
 	hcd->rsrc_len = res.end - res.start + 1;
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		printk(KERN_ERR __FILE__ ": request_mem_region failed\n");
+		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_rmr;
 	}
 
 	irq = irq_of_parse_and_map(dn, 0);
 	if (irq == NO_IRQ) {
-		printk(KERN_ERR __FILE__ ": irq_of_parse_and_map failed\n");
+		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_irq;
 	}
 
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
-		printk(KERN_ERR __FILE__ ": ioremap failed\n");
+		printk(KERN_ERR "%s: ioremap failed\n", __FILE__);
 		rv = -ENOMEM;
 		goto err_ioremap;
 	}
@@ -242,12 +243,12 @@ err_rmr:
 
 /**
  * ehci_hcd_xilinx_of_remove - shutdown hcd and release resources
- * @op:		pointer to of_device structure that is to be removed
+ * @op:		pointer to platform_device structure that is to be removed
  *
  * Remove the hcd structure, and release resources that has been requested
  * during probe.
  */
-static int ehci_hcd_xilinx_of_remove(struct of_device *op)
+static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 	dev_set_drvdata(&op->dev, NULL);
@@ -266,11 +267,11 @@ static int ehci_hcd_xilinx_of_remove(struct of_device *op)
 
 /**
  * ehci_hcd_xilinx_of_shutdown - shutdown the hcd
- * @op:		pointer to of_device structure that is to be removed
+ * @op:		pointer to platform_device structure that is to be removed
  *
  * Properly shutdown the hcd, call driver's shutdown routine.
  */
-static int ehci_hcd_xilinx_of_shutdown(struct of_device *op)
+static int ehci_hcd_xilinx_of_shutdown(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 
@@ -281,20 +282,19 @@ static int ehci_hcd_xilinx_of_shutdown(struct of_device *op)
 }
 
 
-static struct of_device_id ehci_hcd_xilinx_of_match[] = {
+static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
 		{.compatible = "xlnx,xps-usb-host-1.00.a",},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ehci_hcd_xilinx_of_match);
 
 static struct of_platform_driver ehci_hcd_xilinx_of_driver = {
-	.name		= "xilinx-of-ehci",
-	.match_table	= ehci_hcd_xilinx_of_match,
 	.probe		= ehci_hcd_xilinx_of_probe,
 	.remove		= ehci_hcd_xilinx_of_remove,
 	.shutdown	= ehci_hcd_xilinx_of_shutdown,
-	.driver		= {
-		.name	= "xilinx-of-ehci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "xilinx-of-ehci",
+		.owner = THIS_MODULE,
+		.of_match_table = ehci_hcd_xilinx_of_match,
 	},
 };

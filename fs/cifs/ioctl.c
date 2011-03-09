@@ -37,46 +37,36 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 #ifdef CONFIG_CIFS_POSIX
+	struct cifsFileInfo *pSMBFile = filep->private_data;
+	struct cifsTconInfo *tcon;
 	__u64	ExtAttrBits = 0;
 	__u64	ExtAttrMask = 0;
 	__u64   caps;
-	struct cifsTconInfo *tcon;
-	struct cifsFileInfo *pSMBFile =
-		(struct cifsFileInfo *)filep->private_data;
 #endif /* CONFIG_CIFS_POSIX */
 
 	xid = GetXid();
 
-	cFYI(1, ("ioctl file %p  cmd %u  arg %lu", filep, command, arg));
+	cFYI(1, "ioctl file %p  cmd %u  arg %lu", filep, command, arg);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
-#ifdef CONFIG_CIFS_POSIX
-	tcon = cifs_sb->tcon;
-	if (tcon)
-		caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
-	else {
-		rc = -EIO;
-		FreeXid(xid);
-		return -EIO;
-	}
-#endif /* CONFIG_CIFS_POSIX */
-
 	switch (command) {
 		case CIFS_IOC_CHECKUMOUNT:
-			cFYI(1, ("User unmount attempted"));
+			cFYI(1, "User unmount attempted");
 			if (cifs_sb->mnt_uid == current_uid())
 				rc = 0;
 			else {
 				rc = -EACCES;
-				cFYI(1, ("uids do not match"));
+				cFYI(1, "uids do not match");
 			}
 			break;
 #ifdef CONFIG_CIFS_POSIX
 		case FS_IOC_GETFLAGS:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
-				if (pSMBFile == NULL)
-					break;
 				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
 					&ExtAttrBits, &ExtAttrMask);
 				if (rc == 0)
@@ -87,21 +77,23 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 
 		case FS_IOC_SETFLAGS:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
 				if (get_user(ExtAttrBits, (int __user *)arg)) {
 					rc = -EFAULT;
 					break;
 				}
-				if (pSMBFile == NULL)
-					break;
 				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
 					extAttrBits, &ExtAttrMask);*/
 			}
-			cFYI(1, ("set flags not implemented yet"));
+			cFYI(1, "set flags not implemented yet");
 			break;
 #endif /* CONFIG_CIFS_POSIX */
 		default:
-			cFYI(1, ("unsupported ioctl"));
+			cFYI(1, "unsupported ioctl");
 			break;
 	}
 

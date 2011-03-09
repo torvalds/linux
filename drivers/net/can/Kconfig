@@ -12,6 +12,27 @@ config CAN_VCAN
 	  This driver can also be built as a module.  If so, the module
 	  will be called vcan.
 
+config CAN_SLCAN
+	tristate "Serial / USB serial CAN Adaptors (slcan)"
+	depends on CAN
+	default N
+	---help---
+	  CAN driver for several 'low cost' CAN interfaces that are attached
+	  via serial lines or via USB-to-serial adapters using the LAWICEL
+	  ASCII protocol. The driver implements the tty linediscipline N_SLCAN.
+
+	  As only the sending and receiving of CAN frames is implemented, this
+	  driver should work with the (serial/USB) CAN hardware from:
+	  www.canusb.com / www.can232.com / www.mictronic.com / www.canhack.de
+
+	  Userspace tools to attach the SLCAN line discipline (slcan_attach,
+	  slcand) can be found in the can-utils at the SocketCAN SVN, see
+	  http://developer.berlios.de/projects/socketcan for details.
+
+	  The slcan driver supports up to 10 CAN netdevices by default which
+	  can be changed by the 'maxdev=xx' module option. This driver can
+	  also be built as a module. If so, the module will be called slcan.
+
 config CAN_DEV
 	tristate "Platform CAN drivers with Netlink support"
 	depends on CAN
@@ -62,6 +83,33 @@ config CAN_BFIN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_can.
+
+config CAN_JANZ_ICAN3
+	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
+	depends on CAN_DEV && MFD_JANZ_CMODIO
+	---help---
+	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
+	  connects to a MODULbus carrier board.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called janz-ican3.ko.
+
+config HAVE_CAN_FLEXCAN
+	bool
+
+config CAN_FLEXCAN
+	tristate "Support for Freescale FLEXCAN based chips"
+	depends on CAN_DEV && HAVE_CAN_FLEXCAN
+	---help---
+	  Say Y here if you want to support for Freescale FlexCAN.
+
+config PCH_CAN
+	tristate "PCH CAN"
+	depends on CAN_DEV && PCI
+	---help---
+	  This driver is for PCH CAN of Topcliff which is an IOH for x86
+	  embedded processor.
+	  This driver can access CAN bus.
 
 source "drivers/net/can/mscan/Kconfig"
 

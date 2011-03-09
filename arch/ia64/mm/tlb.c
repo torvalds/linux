@@ -22,6 +22,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 #include <asm/delay.h>
 #include <asm/mmu_context.h>
@@ -120,7 +121,7 @@ static inline void down_spin(struct spinaphore *ss)
 	ia64_invala();
 
 	for (;;) {
-		asm volatile ("ld4.c.nc %0=[%1]" : "=r"(serve) : "r"(&ss->serve) : "memory");
+		asm volatile ("ld8.c.nc %0=[%1]" : "=r"(serve) : "r"(&ss->serve) : "memory");
 		if (time_before(t, serve))
 			return;
 		cpu_relax();

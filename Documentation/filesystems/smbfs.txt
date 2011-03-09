@@ -1,8 +1,0 @@
-Smbfs is a filesystem that implements the SMB protocol, which is the
-protocol used by Windows for Workgroups, Windows 95 and Windows NT.
-Smbfs was inspired by Samba, the program written by Andrew Tridgell
-that turns any Unix host into a file server for DOS or Windows clients.
-
-Smbfs is a SMB client, but uses parts of samba for it's operation. For
-more info on samba, including documentation, please go to
-http://www.samba.org/ and then on to your nearest mirror.

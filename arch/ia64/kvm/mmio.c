@@ -130,7 +130,7 @@ static void mmio_access(struct kvm_vcpu *vcpu, u64 src_pa, u64 *dest,
 
 	local_irq_save(psr);
 
-	/*Intercept the acces for PIB range*/
+	/*Intercept the access for PIB range*/
 	if (iot == GPFN_PIB) {
 		if (!dir)
 			lsapic_write(vcpu, src_pa, s, *dest);
@@ -316,8 +316,8 @@ void emulate_io_inst(struct kvm_vcpu *vcpu, u64 padr, u64 ma)
 		return;
 	} else {
 		inst_type = -1;
-		panic_vm(vcpu, "Unsupported MMIO access instruction! \
-				Bunld[0]=0x%lx, Bundle[1]=0x%lx\n",
+		panic_vm(vcpu, "Unsupported MMIO access instruction! "
+				"Bunld[0]=0x%lx, Bundle[1]=0x%lx\n",
 				bundle.i64[0], bundle.i64[1]);
 	}
 

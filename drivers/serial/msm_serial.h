@@ -114,4 +114,60 @@
 #define UART_MISR	0x0010
 #define UART_ISR	0x0014
 
+#define UART_TO_MSM(uart_port)	((struct msm_port *) uart_port)
+
+static inline
+void msm_write(struct uart_port *port, unsigned int val, unsigned int off)
+{
+	__raw_writel(val, port->membase + off);
+}
+
+static inline
+unsigned int msm_read(struct uart_port *port, unsigned int off)
+{
+	return __raw_readl(port->membase + off);
+}
+
+/*
+ * Setup the MND registers to use the TCXO clock.
+ */
+static inline void msm_serial_set_mnd_regs_tcxo(struct uart_port *port)
+{
+	msm_write(port, 0x06, UART_MREG);
+	msm_write(port, 0xF1, UART_NREG);
+	msm_write(port, 0x0F, UART_DREG);
+	msm_write(port, 0x1A, UART_MNDREG);
+}
+
+/*
+ * Setup the MND registers to use the TCXO clock divided by 4.
+ */
+static inline void msm_serial_set_mnd_regs_tcxoby4(struct uart_port *port)
+{
+	msm_write(port, 0x18, UART_MREG);
+	msm_write(port, 0xF6, UART_NREG);
+	msm_write(port, 0x0F, UART_DREG);
+	msm_write(port, 0x0A, UART_MNDREG);
+}
+
+static inline
+void msm_serial_set_mnd_regs_from_uartclk(struct uart_port *port)
+{
+	if (port->uartclk == 19200000)
+		msm_serial_set_mnd_regs_tcxo(port);
+	else
+		msm_serial_set_mnd_regs_tcxoby4(port);
+}
+
+/*
+ * TROUT has a specific defect that makes it report it's uartclk
+ * as 19.2Mhz (TCXO) when it's actually 4.8Mhz (TCXO/4). This special
+ * cases TROUT to use the right clock.
+ */
+#ifdef CONFIG_MACH_TROUT
+#define msm_serial_set_mnd_regs msm_serial_set_mnd_regs_tcxoby4
+#else
+#define msm_serial_set_mnd_regs msm_serial_set_mnd_regs_from_uartclk
+#endif
+
 #endif	/* __DRIVERS_SERIAL_MSM_SERIAL_H */

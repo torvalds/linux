@@ -33,6 +33,7 @@
 #include <linux/crypto.h>
 #include <linux/file.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
@@ -347,7 +348,7 @@ static int encrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 	BUG_ON(!crypt_stat || !crypt_stat->tfm
 	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED));
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Key size [%d]; key:\n",
+		ecryptfs_printk(KERN_DEBUG, "Key size [%zd]; key:\n",
 				crypt_stat->key_size);
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
@@ -381,8 +382,8 @@ out:
 static void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
 					     struct ecryptfs_crypt_stat *crypt_stat)
 {
-	(*offset) = (crypt_stat->num_header_bytes_at_front
-		     + (crypt_stat->extent_size * extent_num));
+	(*offset) = ecryptfs_lower_header_size(crypt_stat)
+		    + (crypt_stat->extent_size * extent_num);
 }
 
 /**
@@ -412,10 +413,9 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to "
-				"derive IV for extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_ERR, "Error attempting to derive IV for "
+			"extent [0x%.16llx]; rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
 	if (unlikely(ecryptfs_verbosity > 0)) {
@@ -442,9 +442,9 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 	}
 	rc = 0;
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16llx]; "
+			"rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
 				"encryption:\n");
 		ecryptfs_dump_hex((char *)(page_address(enc_extent_page)), 8);
@@ -539,10 +539,9 @@ static int ecryptfs_decrypt_extent(struct page *page,
 	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
 				(extent_base + extent_offset));
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to "
-				"derive IV for extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_ERR, "Error attempting to derive IV for "
+			"extent [0x%.16llx]; rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
 	if (unlikely(ecryptfs_verbosity > 0)) {
@@ -570,9 +569,9 @@ static int ecryptfs_decrypt_extent(struct page *page,
 	}
 	rc = 0;
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Decrypt extent [0x%.16x]; "
-				"rc = [%d]\n", (extent_base + extent_offset),
-				rc);
+		ecryptfs_printk(KERN_DEBUG, "Decrypt extent [0x%.16llx]; "
+			"rc = [%d]\n",
+			(unsigned long long)(extent_base + extent_offset), rc);
 		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
 				"decryption:\n");
 		ecryptfs_dump_hex((char *)(page_address(page)
@@ -761,7 +760,7 @@ ecryptfs_decrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 
 /**
  * ecryptfs_init_crypt_ctx
- * @crypt_stat: Uninitilized crypt stats structure
+ * @crypt_stat: Uninitialized crypt stats structure
  *
  * Initialize the crypto context.
  *
@@ -779,7 +778,7 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat)
 	}
 	ecryptfs_printk(KERN_DEBUG,
 			"Initializing cipher [%s]; strlen = [%d]; "
-			"key_size_bits = [%d]\n",
+			"key_size_bits = [%zd]\n",
 			crypt_stat->cipher, (int)strlen(crypt_stat->cipher),
 			crypt_stat->key_size << 3);
 	if (crypt_stat->tfm) {
@@ -834,13 +833,13 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
 	set_extent_mask_and_shift(crypt_stat);
 	crypt_stat->iv_bytes = ECRYPTFS_DEFAULT_IV_BYTES;
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		crypt_stat->num_header_bytes_at_front = 0;
+		crypt_stat->metadata_size = ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 	else {
 		if (PAGE_CACHE_SIZE <= ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)
-			crypt_stat->num_header_bytes_at_front =
+			crypt_stat->metadata_size =
 				ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 		else
-			crypt_stat->num_header_bytes_at_front =	PAGE_CACHE_SIZE;
+			crypt_stat->metadata_size = PAGE_CACHE_SIZE;
 	}
 }
 
@@ -1107,9 +1106,9 @@ static void write_ecryptfs_marker(char *page_virt, size_t *written)
 	(*written) = MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
 }
 
-static void
-write_ecryptfs_flags(char *page_virt, struct ecryptfs_crypt_stat *crypt_stat,
-		     size_t *written)
+void ecryptfs_write_crypt_stat_flags(char *page_virt,
+				     struct ecryptfs_crypt_stat *crypt_stat,
+				     size_t *written)
 {
 	u32 flags = 0;
 	int i;
@@ -1237,8 +1236,7 @@ ecryptfs_write_header_metadata(char *virt,
 
 	header_extent_size = (u32)crypt_stat->extent_size;
 	num_header_extents_at_front =
-		(u16)(crypt_stat->num_header_bytes_at_front
-		      / crypt_stat->extent_size);
+		(u16)(crypt_stat->metadata_size / crypt_stat->extent_size);
 	put_unaligned_be32(header_extent_size, virt);
 	virt += 4;
 	put_unaligned_be16(num_header_extents_at_front, virt);
@@ -1291,7 +1289,8 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t max,
 	offset = ECRYPTFS_FILE_SIZE_BYTES;
 	write_ecryptfs_marker((page_virt + offset), &written);
 	offset += written;
-	write_ecryptfs_flags((page_virt + offset), crypt_stat, &written);
+	ecryptfs_write_crypt_stat_flags((page_virt + offset), crypt_stat,
+					&written);
 	offset += written;
 	ecryptfs_write_header_metadata((page_virt + offset), crypt_stat,
 				       &written);
@@ -1381,7 +1380,7 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 		rc = -EINVAL;
 		goto out;
 	}
-	virt_len = crypt_stat->num_header_bytes_at_front;
+	virt_len = crypt_stat->metadata_size;
 	order = get_order(virt_len);
 	/* Released in this function */
 	virt = (char *)ecryptfs_get_zeroed_pages(GFP_KERNEL, order);
@@ -1427,16 +1426,15 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 	header_extent_size = get_unaligned_be32(virt);
 	virt += sizeof(__be32);
 	num_header_extents_at_front = get_unaligned_be16(virt);
-	crypt_stat->num_header_bytes_at_front =
-		(((size_t)num_header_extents_at_front
-		  * (size_t)header_extent_size));
+	crypt_stat->metadata_size = (((size_t)num_header_extents_at_front
+				     * (size_t)header_extent_size));
 	(*bytes_read) = (sizeof(__be32) + sizeof(__be16));
 	if ((validate_header_size == ECRYPTFS_VALIDATE_HEADER_SIZE)
-	    && (crypt_stat->num_header_bytes_at_front
+	    && (crypt_stat->metadata_size
 		< ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)) {
 		rc = -EINVAL;
 		printk(KERN_WARNING "Invalid header size: [%zd]\n",
-		       crypt_stat->num_header_bytes_at_front);
+		       crypt_stat->metadata_size);
 	}
 	return rc;
 }
@@ -1451,8 +1449,7 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
  */
 static void set_default_header_data(struct ecryptfs_crypt_stat *crypt_stat)
 {
-	crypt_stat->num_header_bytes_at_front =
-		ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
+	crypt_stat->metadata_size = ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
 }
 
 /**
@@ -1606,6 +1603,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 						ecryptfs_dentry,
 						ECRYPTFS_VALIDATE_HEADER_SIZE);
 	if (rc) {
+		memset(page_virt, 0, PAGE_CACHE_SIZE);
 		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
 		if (rc) {
 			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
@@ -1793,7 +1791,7 @@ struct kmem_cache *ecryptfs_key_tfm_cache;
 static struct list_head key_tfm_list;
 struct mutex key_tfm_list_mutex;
 
-int ecryptfs_init_crypto(void)
+int __init ecryptfs_init_crypto(void)
 {
 	mutex_init(&key_tfm_list_mutex);
 	INIT_LIST_HEAD(&key_tfm_list);
@@ -2169,7 +2167,6 @@ int ecryptfs_encrypt_and_encode_filename(
 				(ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE
 				 + encoded_name_no_prefix_size);
 			(*encoded_name)[(*encoded_name_size)] = '\0';
-			(*encoded_name_size)++;
 		} else {
 			rc = -EOPNOTSUPP;
 		}

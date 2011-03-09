@@ -27,12 +27,14 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/gpio.h>
+#include <linux/jiffies.h>
 #include <linux/i2c-gpio.h>
 #include <linux/serial_8250.h>
 #include <linux/smc91x.h>
@@ -247,9 +249,9 @@ static inline int viper_bit_to_irq(int bit)
 	return viper_isa_irqs[bit] + PXA_ISA_IRQ(0);
 }
 
-static void viper_ack_irq(unsigned int irq)
+static void viper_ack_irq(struct irq_data *d)
 {
-	int viper_irq = viper_irq_to_bitmask(irq);
+	int viper_irq = viper_irq_to_bitmask(d->irq);
 
 	if (viper_irq & 0xff)
 		VIPER_LO_IRQ_STATUS = viper_irq;
@@ -257,14 +259,14 @@ static void viper_ack_irq(unsigned int irq)
 		VIPER_HI_IRQ_STATUS = (viper_irq >> 8);
 }
 
-static void viper_mask_irq(unsigned int irq)
+static void viper_mask_irq(struct irq_data *d)
 {
-	viper_irq_enabled_mask &= ~(viper_irq_to_bitmask(irq));
+	viper_irq_enabled_mask &= ~(viper_irq_to_bitmask(d->irq));
 }
 
-static void viper_unmask_irq(unsigned int irq)
+static void viper_unmask_irq(struct irq_data *d)
 {
-	viper_irq_enabled_mask |= viper_irq_to_bitmask(irq);
+	viper_irq_enabled_mask |= viper_irq_to_bitmask(d->irq);
 }
 
 static inline unsigned long viper_irq_pending(void)
@@ -281,7 +283,7 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		GEDR(VIPER_CPLD_GPIO) = GPIO_bit(VIPER_CPLD_GPIO);
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		if (likely(pending)) {
 			irq = viper_bit_to_irq(__ffs(pending));
@@ -292,10 +294,10 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 static struct irq_chip viper_irq_chip = {
-	.name	= "ISA",
-	.ack	= viper_ack_irq,
-	.mask	= viper_mask_irq,
-	.unmask	= viper_unmask_irq
+	.name		= "ISA",
+	.irq_ack	= viper_ack_irq,
+	.irq_mask	= viper_mask_irq,
+	.irq_unmask	= viper_unmask_irq
 };
 
 static void __init viper_init_irq(void)
@@ -453,7 +455,7 @@ static struct i2c_gpio_platform_data i2c_bus_data = {
 	.sda_pin = VIPER_RTC_I2C_SDA_GPIO,
 	.scl_pin = VIPER_RTC_I2C_SCL_GPIO,
 	.udelay  = 10,
-	.timeout = 100,
+	.timeout = HZ,
 };
 
 static struct platform_device i2c_bus_device = {
@@ -711,6 +713,12 @@ static mfp_cfg_t viper_pin_config[] __initdata = {
 	GPIO80_nCS_4,
 	GPIO33_nCS_5,
 
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+
 	/* FP Backlight */
 	GPIO9_GPIO, 				/* VIPER_BCKLIGHT_EN_GPIO */
 	GPIO10_GPIO,				/* VIPER_LCD_EN_GPIO */
@@ -772,7 +780,7 @@ static void __init viper_tpm_init(void)
 		.sda_pin = VIPER_TPM_I2C_SDA_GPIO,
 		.scl_pin = VIPER_TPM_I2C_SCL_GPIO,
 		.udelay  = 10,
-		.timeout = 100,
+		.timeout = HZ,
 	};
 	char *errstr;
 
@@ -975,7 +983,7 @@ static struct map_desc viper_io_desc[] __initdata = {
 
 static void __init viper_map_io(void)
 {
-	pxa_map_io();
+	pxa25x_map_io();
 
 	iotable_init(viper_io_desc, ARRAY_SIZE(viper_io_desc));
 
@@ -984,8 +992,6 @@ static void __init viper_map_io(void)
 
 MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= viper_map_io,
 	.init_irq	= viper_init_irq,

@@ -5,18 +5,19 @@
  *   Nov 2002: Martin Bene <martin.bene@icomedias.com>:
  *		only ignore TIME_WAIT or gone connections
  *   (C) CC Computer Consultants GmbH, 2007
- *   Contact: <jengelh@computergmbh.de>
  *
  * based on ...
  *
  * Kernel module to match connection tracking information.
  * GPL (C) 1999  Rusty Russell (rusty@rustcorp.com.au).
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/jhash.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -28,6 +29,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 /* we will save the tuples of all connections we care about */
 struct xt_connlimit_conn {
@@ -40,15 +42,11 @@ struct xt_connlimit_data {
 	spinlock_t lock;
 };
 
-static u_int32_t connlimit_rnd;
-static bool connlimit_rnd_inited;
+static u_int32_t connlimit_rnd __read_mostly;
+static bool connlimit_rnd_inited __read_mostly;
 
 static inline unsigned int connlimit_iphash(__be32 addr)
 {
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
-	}
 	return jhash_1word((__force __u32)addr, connlimit_rnd) & 0xFF;
 }
 
@@ -58,11 +56,6 @@ connlimit_iphash6(const union nf_inet_addr *addr,
 {
 	union nf_inet_addr res;
 	unsigned int i;
-
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(addr->ip6); ++i)
 		res.ip6[i] = addr->ip6[i] & mask->ip6[i];
@@ -99,7 +92,8 @@ same_source_net(const union nf_inet_addr *addr,
 	}
 }
 
-static int count_them(struct xt_connlimit_data *data,
+static int count_them(struct net *net,
+		      struct xt_connlimit_data *data,
 		      const struct nf_conntrack_tuple *tuple,
 		      const union nf_inet_addr *addr,
 		      const union nf_inet_addr *mask,
@@ -122,7 +116,8 @@ static int count_them(struct xt_connlimit_data *data,
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, tmp, hash, list) {
-		found    = nf_conntrack_find_get(&init_net, &conn->tuple);
+		found    = nf_conntrack_find_get(net, NF_CT_DEFAULT_ZONE,
+						 &conn->tuple);
 		found_ct = NULL;
 
 		if (found != NULL)
@@ -178,8 +173,9 @@ static int count_them(struct xt_connlimit_data *data,
 }
 
 static bool
-connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
+	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct xt_connlimit_info *info = par->matchinfo;
 	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
@@ -204,46 +200,52 @@ connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	}
 
 	spin_lock_bh(&info->data->lock);
-	connections = count_them(info->data, tuple_ptr, &addr,
+	connections = count_them(net, info->data, tuple_ptr, &addr,
 	                         &info->mask, par->family);
 	spin_unlock_bh(&info->data->lock);
 
 	if (connections < 0) {
 		/* kmalloc failed, drop it entirely */
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
 	return (connections > info->limit) ^ info->inverse;
 
  hotdrop:
-	*par->hotdrop = true;
+	par->hotdrop = true;
 	return false;
 }
 
-static bool connlimit_mt_check(const struct xt_mtchk_param *par)
+static int connlimit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
+	int ret;
 
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "cannot load conntrack support for "
-		       "address family %u\n", par->family);
-		return false;
+	if (unlikely(!connlimit_rnd_inited)) {
+		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
+		connlimit_rnd_inited = true;
+	}
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
+		pr_info("cannot load conntrack support for "
+			"address family %u\n", par->family);
+		return ret;
 	}
 
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
 		nf_ct_l3proto_module_put(par->family);
-		return false;
+		return -ENOMEM;
 	}
 
 	spin_lock_init(&info->data->lock);
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i)
 		INIT_LIST_HEAD(&info->data->iphash[i]);
 
-	return true;
+	return 0;
 }
 
 static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)

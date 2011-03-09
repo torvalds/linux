@@ -31,9 +31,9 @@
 
 #define DATASIZE 100
 
-static int use_pipes = 0;
+static bool use_pipes = false;
 static unsigned int loops = 100;
-static unsigned int thread_mode = 0;
+static bool thread_mode = false;
 static unsigned int num_groups = 10;
 
 struct sender_context {
@@ -256,10 +256,8 @@ static const struct option options[] = {
 		    "Use pipe() instead of socketpair()"),
 	OPT_BOOLEAN('t', "thread", &thread_mode,
 		    "Be multi thread instead of multi process"),
-	OPT_INTEGER('g', "group", &num_groups,
-		    "Specify number of groups"),
-	OPT_INTEGER('l', "loop", &loops,
-		    "Specify number of loops"),
+	OPT_UINTEGER('g', "group", &num_groups, "Specify number of groups"),
+	OPT_UINTEGER('l', "loop", &loops, "Specify number of loops"),
 	OPT_END()
 };
 

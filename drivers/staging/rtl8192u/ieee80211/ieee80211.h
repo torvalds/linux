@@ -30,6 +30,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 
 #include <linux/delay.h>
 #include <linux/wireless.h>
@@ -550,9 +551,6 @@ do { if (ieee80211_debug_level & (level)) \
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
 /*
  * To use the debug system;
@@ -1574,10 +1572,8 @@ struct ieee80211_network {
 #ifdef THOMAS_TURBO
 	u8 Turbo_Enable;//enable turbo mode, added by thomas
 #endif
-#ifdef ENABLE_DOT11D
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
-#endif
 	// HT Related, by amy, 2008.04.29
 	BSS_HT	bssht;
 	// Add to handle broadcom AP management frame CCK rate.
@@ -1771,7 +1767,6 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_IPS BIT28
 #define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
 
-#ifdef ENABLE_DOT11D
 typedef enum
 {
 	COUNTRY_CODE_FCC = 0,
@@ -1786,7 +1781,6 @@ typedef enum
 	COUNTRY_CODE_MIC,
 	COUNTRY_CODE_GLOBAL_DOMAIN
 }country_code_type_t;
-#endif
 
 #define RT_MAX_LD_SLOT_NUM	10
 typedef struct _RT_LINK_DETECT_T{
@@ -1831,7 +1825,7 @@ struct ieee80211_device {
 	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
-	// for HT operation rate set.  we use this one for HT data rate to seperate different descriptors
+	// for HT operation rate set.  we use this one for HT data rate to separate different descriptors
 	//the way fill this is the same as in the IE
 	u8	Regdot11HTOperationalRateSet[16];		//use RATR format
 	u8	dot11HTOperationalRateSet[16];		//use RATR format
@@ -1972,12 +1966,8 @@ struct ieee80211_device {
 
 	/* map of allowed channels. 0 is dummy */
 	// FIXME: remeber to default to a basic channel plan depending of the PHY type
-#ifdef ENABLE_DOT11D
 	void* pDot11dInfo;
 	bool bGlobalDomain;
-#else
-	int channel_map[MAX_CHANNEL_NUMBER+1];
-#endif
 	int rate;       /* current rate */
 	int basic_rate;
 	//FIXME: pleace callback, see if redundant with softmac_features

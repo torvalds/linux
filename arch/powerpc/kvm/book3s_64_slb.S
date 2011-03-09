@@ -31,7 +31,7 @@
 #define REBOLT_SLB_ENTRY(num) \
 	ld	r10, SHADOW_SLB_ESID(num)(r11); \
 	cmpdi	r10, 0; \
-	beq	slb_exit_skip_1; \
+	beq	slb_exit_skip_ ## num; \
 	oris	r10, r10, SLB_ESID_V@h; \
 	ld	r9, SHADOW_SLB_VSID(num)(r11); \
 	slbmte	r9, r10; \
@@ -44,30 +44,21 @@ slb_exit_skip_ ## num:
  *                                                                            *
  *****************************************************************************/
 
-.global kvmppc_handler_trampoline_enter
-kvmppc_handler_trampoline_enter:
+.macro LOAD_GUEST_SEGMENTS
 
 	/* Required state:
 	 *
 	 * MSR = ~IR|DR
 	 * R13 = PACA
-	 * R9 = guest IP
-	 * R10 = guest MSR
-	 * R11 = free
-	 * R12 = free
-	 * PACA[PACA_EXMC + EX_R9] = guest R9
-	 * PACA[PACA_EXMC + EX_R10] = guest R10
-	 * PACA[PACA_EXMC + EX_R11] = guest R11
-	 * PACA[PACA_EXMC + EX_R12] = guest R12
-	 * PACA[PACA_EXMC + EX_R13] = guest R13
-	 * PACA[PACA_EXMC + EX_CCR] = guest CR
-	 * PACA[PACA_EXMC + EX_R3] = guest XER
+	 * R1 = host R1
+	 * R2 = host R2
+	 * R3 = shadow vcpu
+	 * all other volatile GPRS = free
+	 * SVCPU[CR]  = guest CR
+	 * SVCPU[XER] = guest XER
+	 * SVCPU[CTR] = guest CTR
+	 * SVCPU[LR]  = guest LR
 	 */
-
-	mtsrr0	r9
-	mtsrr1	r10
-
-	mtspr	SPRN_SPRG_SCRATCH0, r0
 
 	/* Remove LPAR shadow entries */
 
@@ -103,14 +94,14 @@ kvmppc_handler_trampoline_enter:
 
 	/* Fill SLB with our shadow */
 
-	lbz	r12, PACA_KVM_SLB_MAX(r13)
+	lbz	r12, SVCPU_SLB_MAX(r3)
 	mulli	r12, r12, 16
-	addi	r12, r12, PACA_KVM_SLB
-	add	r12, r12, r13
+	addi	r12, r12, SVCPU_SLB
+	add	r12, r12, r3
 
 	/* for (r11 = kvm_slb; r11 < kvm_slb + kvm_slb_size; r11+=slb_entry) */
-	li	r11, PACA_KVM_SLB
-	add	r11, r11, r13
+	li	r11, SVCPU_SLB
+	add	r11, r11, r3
 
 slb_loop_enter:
 
@@ -129,27 +120,7 @@ slb_loop_enter_skip:
 
 slb_do_enter:
 
-	/* Enter guest */
-
-	mfspr	r0, SPRN_SPRG_SCRATCH0
-
-	ld	r9, (PACA_EXMC+EX_R9)(r13)
-	ld	r10, (PACA_EXMC+EX_R10)(r13)
-	ld	r12, (PACA_EXMC+EX_R12)(r13)
-
-	lwz	r11, (PACA_EXMC+EX_CCR)(r13)
-	mtcr	r11
-
-	ld	r11, (PACA_EXMC+EX_R3)(r13)
-	mtxer	r11
-
-	ld	r11, (PACA_EXMC+EX_R11)(r13)
-	ld	r13, (PACA_EXMC+EX_R13)(r13)
-
-	RFI
-kvmppc_handler_trampoline_enter_end:
-
-
+.endm
 
 /******************************************************************************
  *                                                                            *
@@ -157,61 +128,21 @@ kvmppc_handler_trampoline_enter_end:
  *                                                                            *
  *****************************************************************************/
 
-.global kvmppc_handler_trampoline_exit
-kvmppc_handler_trampoline_exit:
+.macro LOAD_HOST_SEGMENTS
 
 	/* Register usage at this point:
 	 *
-	 * SPRG_SCRATCH0 = guest R13
-	 * R01           = host R1
-	 * R02           = host R2
-	 * R10           = guest PC
-	 * R11           = guest MSR
-	 * R12           = exit handler id
-	 * R13           = PACA
-	 * PACA.exmc.CCR  = guest CR
-	 * PACA.exmc.R9  = guest R1
-	 * PACA.exmc.R10 = guest R10
-	 * PACA.exmc.R11 = guest R11
-	 * PACA.exmc.R12 = guest R12
-	 * PACA.exmc.R13 = guest R2
+	 * R1         = host R1
+	 * R2         = host R2
+	 * R12        = exit handler id
+	 * R13        = shadow vcpu - SHADOW_VCPU_OFF [=PACA on PPC64]
+	 * SVCPU.*    = guest *
+	 * SVCPU[CR]  = guest CR
+	 * SVCPU[XER] = guest XER
+	 * SVCPU[CTR] = guest CTR
+	 * SVCPU[LR]  = guest LR
 	 *
 	 */
-
-	/* Save registers */
-
-	std	r0, (PACA_EXMC+EX_SRR0)(r13)
-	std	r9, (PACA_EXMC+EX_R3)(r13)
-	std	r10, (PACA_EXMC+EX_LR)(r13)
-	std	r11, (PACA_EXMC+EX_DAR)(r13)
-
-	/*
-	 * In order for us to easily get the last instruction,
-	 * we got the #vmexit at, we exploit the fact that the
-	 * virtual layout is still the same here, so we can just
-	 * ld from the guest's PC address
-	 */
-
-	/* We only load the last instruction when it's safe */
-	cmpwi	r12, BOOK3S_INTERRUPT_DATA_STORAGE
-	beq	ld_last_inst
-	cmpwi	r12, BOOK3S_INTERRUPT_PROGRAM
-	beq	ld_last_inst
-
-	b	no_ld_last_inst
-
-ld_last_inst:
-	/* Save off the guest instruction we're at */
-	/*    1) enable paging for data */
-	mfmsr	r9
-	ori	r11, r9, MSR_DR			/* Enable paging for data */
-	mtmsr	r11
-	/*    2) fetch the instruction */
-	lwz	r0, 0(r10)
-	/*    3) disable paging again */
-	mtmsr	r9
-
-no_ld_last_inst:
 
 	/* Restore bolted entries from the shadow and fix it along the way */
 
@@ -233,30 +164,4 @@ no_ld_last_inst:
 
 slb_do_exit:
 
-	/* Restore registers */
-
-	ld	r11, (PACA_EXMC+EX_DAR)(r13)
-	ld	r10, (PACA_EXMC+EX_LR)(r13)
-	ld	r9, (PACA_EXMC+EX_R3)(r13)
-
-	/* Save last inst */
-	stw	r0, (PACA_EXMC+EX_LR)(r13)
-
-	/* Save DAR and DSISR before going to paged mode */
-	mfdar	r0
-	std	r0, (PACA_EXMC+EX_DAR)(r13)
-	mfdsisr	r0
-	stw	r0, (PACA_EXMC+EX_DSISR)(r13)
-
-	/* RFI into the highmem handler */
-	mfmsr	r0
-	ori	r0, r0, MSR_IR|MSR_DR|MSR_RI	/* Enable paging */
-	mtsrr1	r0
-	ld	r0, PACASAVEDMSR(r13)		/* Highmem handler address */
-	mtsrr0	r0
-
-	mfspr	r0, SPRN_SPRG_SCRATCH0
-
-	RFI
-kvmppc_handler_trampoline_exit_end:
-
+.endm

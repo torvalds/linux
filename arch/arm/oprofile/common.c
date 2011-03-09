@@ -2,182 +2,129 @@
  * @file common.c
  *
  * @remark Copyright 2004 Oprofile Authors
+ * @remark Copyright 2010 ARM Ltd.
  * @remark Read the file COPYING
  *
  * @author Zwane Mwaikambo
+ * @author Will Deacon [move to perf]
  */
 
-#include <linux/init.h>
-#include <linux/oprofile.h>
+#include <linux/cpumask.h>
+#include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/sysdev.h>
+#include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/oprofile.h>
+#include <linux/perf_event.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <asm/stacktrace.h>
+#include <linux/uaccess.h>
 
-#include "op_counter.h"
-#include "op_arm_model.h"
+#include <asm/perf_event.h>
+#include <asm/ptrace.h>
 
-static struct op_arm_model_spec *op_arm_model;
-static int op_arm_enabled;
-static DEFINE_MUTEX(op_arm_mutex);
-
-struct op_counter_config *counter_config;
-
-static int op_arm_create_files(struct super_block *sb, struct dentry *root)
+#ifdef CONFIG_HW_PERF_EVENTS
+char *op_name_from_perf_id(void)
 {
-	unsigned int i;
+	enum arm_perf_pmu_ids id = armpmu_get_pmu_id();
 
-	for (i = 0; i < op_arm_model->num_counters; i++) {
-		struct dentry *dir;
-		char buf[4];
+	switch (id) {
+	case ARM_PERF_PMU_ID_XSCALE1:
+		return "arm/xscale1";
+	case ARM_PERF_PMU_ID_XSCALE2:
+		return "arm/xscale2";
+	case ARM_PERF_PMU_ID_V6:
+		return "arm/armv6";
+	case ARM_PERF_PMU_ID_V6MP:
+		return "arm/mpcore";
+	case ARM_PERF_PMU_ID_CA8:
+		return "arm/armv7";
+	case ARM_PERF_PMU_ID_CA9:
+		return "arm/armv7-ca9";
+	default:
+		return NULL;
+	}
+}
 
-		snprintf(buf, sizeof buf, "%d", i);
-		dir = oprofilefs_mkdir(sb, root, buf);
-		oprofilefs_create_ulong(sb, dir, "enabled", &counter_config[i].enabled);
-		oprofilefs_create_ulong(sb, dir, "event", &counter_config[i].event);
-		oprofilefs_create_ulong(sb, dir, "count", &counter_config[i].count);
-		oprofilefs_create_ulong(sb, dir, "unit_mask", &counter_config[i].unit_mask);
-		oprofilefs_create_ulong(sb, dir, "kernel", &counter_config[i].kernel);
-		oprofilefs_create_ulong(sb, dir, "user", &counter_config[i].user);
+static int report_trace(struct stackframe *frame, void *d)
+{
+	unsigned int *depth = d;
+
+	if (*depth) {
+		oprofile_add_trace(frame->pc);
+		(*depth)--;
 	}
 
-	return 0;
+	return *depth == 0;
 }
 
-static int op_arm_setup(void)
-{
-	int ret;
+/*
+ * The registers we're interested in are at the end of the variable
+ * length saved register structure. The fp points at the end of this
+ * structure so the address of this struct is:
+ * (struct frame_tail *)(xxx->fp)-1
+ */
+struct frame_tail {
+	struct frame_tail *fp;
+	unsigned long sp;
+	unsigned long lr;
+} __attribute__((packed));
 
-	spin_lock(&oprofilefs_lock);
-	ret = op_arm_model->setup_ctrs();
-	spin_unlock(&oprofilefs_lock);
-	return ret;
+static struct frame_tail* user_backtrace(struct frame_tail *tail)
+{
+	struct frame_tail buftail[2];
+
+	/* Also check accessibility of one struct frame_tail beyond */
+	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
+		return NULL;
+	if (__copy_from_user_inatomic(buftail, tail, sizeof(buftail)))
+		return NULL;
+
+	oprofile_add_trace(buftail[0].lr);
+
+	/* frame pointers should strictly progress back up the stack
+	 * (towards higher addresses) */
+	if (tail >= buftail[0].fp)
+		return NULL;
+
+	return buftail[0].fp-1;
 }
 
-static int op_arm_start(void)
+static void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
-	int ret = -EBUSY;
+	struct frame_tail *tail = ((struct frame_tail *) regs->ARM_fp) - 1;
 
-	mutex_lock(&op_arm_mutex);
-	if (!op_arm_enabled) {
-		ret = op_arm_model->start();
-		op_arm_enabled = !ret;
+	if (!user_mode(regs)) {
+		struct stackframe frame;
+		frame.fp = regs->ARM_fp;
+		frame.sp = regs->ARM_sp;
+		frame.lr = regs->ARM_lr;
+		frame.pc = regs->ARM_pc;
+		walk_stackframe(&frame, report_trace, &depth);
+		return;
 	}
-	mutex_unlock(&op_arm_mutex);
-	return ret;
+
+	while (depth-- && tail && !((unsigned long) tail & 3))
+		tail = user_backtrace(tail);
 }
-
-static void op_arm_stop(void)
-{
-	mutex_lock(&op_arm_mutex);
-	if (op_arm_enabled)
-		op_arm_model->stop();
-	op_arm_enabled = 0;
-	mutex_unlock(&op_arm_mutex);
-}
-
-#ifdef CONFIG_PM
-static int op_arm_suspend(struct sys_device *dev, pm_message_t state)
-{
-	mutex_lock(&op_arm_mutex);
-	if (op_arm_enabled)
-		op_arm_model->stop();
-	mutex_unlock(&op_arm_mutex);
-	return 0;
-}
-
-static int op_arm_resume(struct sys_device *dev)
-{
-	mutex_lock(&op_arm_mutex);
-	if (op_arm_enabled && op_arm_model->start())
-		op_arm_enabled = 0;
-	mutex_unlock(&op_arm_mutex);
-	return 0;
-}
-
-static struct sysdev_class oprofile_sysclass = {
-	.name		= "oprofile",
-	.resume		= op_arm_resume,
-	.suspend	= op_arm_suspend,
-};
-
-static struct sys_device device_oprofile = {
-	.id		= 0,
-	.cls		= &oprofile_sysclass,
-};
-
-static int __init init_driverfs(void)
-{
-	int ret;
-
-	if (!(ret = sysdev_class_register(&oprofile_sysclass)))
-		ret = sysdev_register(&device_oprofile);
-
-	return ret;
-}
-
-static void  exit_driverfs(void)
-{
-	sysdev_unregister(&device_oprofile);
-	sysdev_class_unregister(&oprofile_sysclass);
-}
-#else
-#define init_driverfs()	do { } while (0)
-#define exit_driverfs() do { } while (0)
-#endif /* CONFIG_PM */
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	struct op_arm_model_spec *spec = NULL;
-	int ret = -ENODEV;
+	ops->backtrace		= arm_backtrace;
 
-	ops->backtrace = arm_backtrace;
-
-#ifdef CONFIG_CPU_XSCALE
-	spec = &op_xscale_spec;
-#endif
-
-#ifdef CONFIG_OPROFILE_ARMV6
-	spec = &op_armv6_spec;
-#endif
-
-#ifdef CONFIG_OPROFILE_MPCORE
-	spec = &op_mpcore_spec;
-#endif
-
-#ifdef CONFIG_OPROFILE_ARMV7
-	spec = &op_armv7_spec;
-#endif
-
-	if (spec) {
-		ret = spec->init();
-		if (ret < 0)
-			return ret;
-
-		counter_config = kcalloc(spec->num_counters, sizeof(struct op_counter_config),
-					 GFP_KERNEL);
-		if (!counter_config)
-			return -ENOMEM;
-
-		op_arm_model = spec;
-		init_driverfs();
-		ops->create_files = op_arm_create_files;
-		ops->setup = op_arm_setup;
-		ops->shutdown = op_arm_stop;
-		ops->start = op_arm_start;
-		ops->stop = op_arm_stop;
-		ops->cpu_type = op_arm_model->name;
-		printk(KERN_INFO "oprofile: using %s\n", spec->name);
-	}
-
-	return ret;
+	return oprofile_perf_init(ops);
 }
 
-void oprofile_arch_exit(void)
+void __exit oprofile_arch_exit(void)
 {
-	if (op_arm_model) {
-		exit_driverfs();
-		op_arm_model = NULL;
-	}
-	kfree(counter_config);
+	oprofile_perf_exit();
 }
+#else
+int __init oprofile_arch_init(struct oprofile_operations *ops)
+{
+	pr_info("oprofile: hardware counters not available\n");
+	return -ENODEV;
+}
+void __exit oprofile_arch_exit(void) {}
+#endif /* CONFIG_HW_PERF_EVENTS */

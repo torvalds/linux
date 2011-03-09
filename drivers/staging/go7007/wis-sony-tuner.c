@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
+#include <linux/slab.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -683,15 +684,15 @@ static int wis_sony_tuner_remove(struct i2c_client *client)
 {
 	struct wis_sony_tuner *t = i2c_get_clientdata(client);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(t);
 	return 0;
 }
 
-static struct i2c_device_id wis_sony_tuner_id[] = {
+static const struct i2c_device_id wis_sony_tuner_id[] = {
 	{ "wis_sony_tuner", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, wis_sony_tuner_id);
 
 static struct i2c_driver wis_sony_tuner_driver = {
 	.driver = {

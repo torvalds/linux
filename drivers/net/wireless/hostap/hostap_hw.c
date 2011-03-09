@@ -1896,7 +1896,7 @@ fail:
 /* Some SMP systems have reported number of odd errors with hostap_pci. fid
  * register has changed values between consecutive reads for an unknown reason.
  * This should really not happen, so more debugging is needed. This test
- * version is a big slower, but it will detect most of such register changes
+ * version is a bit slower, but it will detect most of such register changes
  * and will try to get the correct fid eventually. */
 #define EXTRA_FID_READ_TESTS
 
@@ -2621,6 +2621,18 @@ static irqreturn_t prism2_interrupt(int irq, void *dev_id)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
+	/* Detect early interrupt before driver is fully configured */
+	spin_lock(&local->irq_init_lock);
+	if (!dev->base_addr) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: Interrupt, but dev not configured\n",
+			       dev->name);
+		}
+		spin_unlock(&local->irq_init_lock);
+		return IRQ_HANDLED;
+	}
+	spin_unlock(&local->irq_init_lock);
+
 	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INTERRUPT, 0, 0);
 
 	if (local->func->card_present && !local->func->card_present(local)) {
@@ -3138,6 +3150,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	spin_lock_init(&local->cmdlock);
 	spin_lock_init(&local->baplock);
 	spin_lock_init(&local->lock);
+	spin_lock_init(&local->irq_init_lock);
 	mutex_init(&local->rid_bap_mtx);
 
 	if (card_idx < 0 || card_idx >= MAX_PARM_DEVICES)
@@ -3304,7 +3317,13 @@ static void prism2_free_local_data(struct net_device *dev)
 
 	unregister_netdev(local->dev);
 
-	flush_scheduled_work();
+	flush_work_sync(&local->reset_queue);
+	flush_work_sync(&local->set_multicast_list_queue);
+	flush_work_sync(&local->set_tim_queue);
+#ifndef PRISM2_NO_STATION_MODES
+	flush_work_sync(&local->info_queue);
+#endif
+	flush_work_sync(&local->comms_qual_update);
 
 	lib80211_crypt_info_free(&local->crypt_info);
 

@@ -32,7 +32,7 @@
 
 
 /*
- * Prolific PL-2301/PL-2302 driver ... http://www.prolifictech.com
+ * Prolific PL-2301/PL-2302 driver ... http://www.prolific.com.tw/ 
  *
  * The protocol and handshaking used here should be bug-compatible
  * with the Linux 2.2 "plusb" driver, by Deti Fliegl.

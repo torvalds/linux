@@ -12,11 +12,16 @@
 #ifndef SOC_CAMERA_H
 #define SOC_CAMERA_H
 
+#include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/v4l2-device.h>
+
+extern struct bus_type soc_camera_bus_type;
+
+struct file;
 
 struct soc_camera_device {
 	struct list_head list;
@@ -38,10 +43,7 @@ struct soc_camera_device {
 	/* soc_camera.c private count. Only accessed with .video_lock held */
 	int use_count;
 	struct mutex video_lock;	/* Protects device data */
-};
-
-struct soc_camera_file {
-	struct soc_camera_device *icd;
+	struct file *streamer;		/* stream owner */
 	struct videobuf_queue vb_vidq;
 };
 
@@ -66,7 +68,7 @@ struct soc_camera_host_ops {
 	 * .get_formats() fail, .put_formats() will not be called at all, the
 	 * failing .get_formats() must then clean up internally.
 	 */
-	int (*get_formats)(struct soc_camera_device *, int,
+	int (*get_formats)(struct soc_camera_device *, unsigned int,
 			   struct soc_camera_format_xlate *);
 	void (*put_formats)(struct soc_camera_device *);
 	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);
@@ -76,11 +78,13 @@ struct soc_camera_host_ops {
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
 			      struct soc_camera_device *);
-	int (*reqbufs)(struct soc_camera_file *, struct v4l2_requestbuffers *);
+	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
 	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
+	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
+	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	unsigned int (*poll)(struct file *, poll_table *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
@@ -93,6 +97,7 @@ struct soc_camera_host_ops {
 #define SOCAM_SENSOR_INVERT_DATA	(1 << 4)
 
 struct i2c_board_info;
+struct regulator_bulk_data;
 
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
@@ -103,6 +108,10 @@ struct soc_camera_link {
 	struct i2c_board_info *board_info;
 	const char *module_name;
 	void *priv;
+
+	/* Optional regulators that have to be managed on power on/off events */
+	struct regulator_bulk_data *regulators;
+	int num_regulators;
 
 	/*
 	 * For non-I2C devices platform platform has to provide methods to
@@ -264,8 +273,8 @@ static inline unsigned long soc_camera_bus_param_compatible(
 		common_flags;
 }
 
-static inline void soc_camera_limit_side(unsigned int *start,
-		unsigned int *length, unsigned int start_min,
+static inline void soc_camera_limit_side(int *start, int *length,
+		unsigned int start_min,
 		unsigned int length_min, unsigned int length_max)
 {
 	if (*length < length_min)
@@ -281,5 +290,13 @@ static inline void soc_camera_limit_side(unsigned int *start,
 
 extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
 						   unsigned long flags);
+
+/* This is only temporary here - until v4l2-subdev begins to link to video_device */
+#include <linux/i2c.h>
+static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *client)
+{
+	struct soc_camera_device *icd = client->dev.platform_data;
+	return icd->vdev;
+}
 
 #endif

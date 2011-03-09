@@ -23,12 +23,13 @@
 
 /* #define DEBUG */
 
-#define debug(format, arg...) pr_debug("ff-core: " format "\n", ## arg)
+#define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
 
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * Check that the effect_id is a valid effect and whether the user
@@ -115,7 +116,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 
 	if (effect->type < FF_EFFECT_MIN || effect->type > FF_EFFECT_MAX ||
 	    !test_bit(effect->type, dev->ffbit)) {
-		debug("invalid or not supported effect type in upload");
+		pr_debug("invalid or not supported effect type in upload\n");
 		return -EINVAL;
 	}
 
@@ -123,7 +124,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	    (effect->u.periodic.waveform < FF_WAVEFORM_MIN ||
 	     effect->u.periodic.waveform > FF_WAVEFORM_MAX ||
 	     !test_bit(effect->u.periodic.waveform, dev->ffbit))) {
-		debug("invalid or not supported wave form in upload");
+		pr_debug("invalid or not supported wave form in upload\n");
 		return -EINVAL;
 	}
 
@@ -245,7 +246,7 @@ static int flush_effects(struct input_dev *dev, struct file *file)
 	struct ff_device *ff = dev->ff;
 	int i;
 
-	debug("flushing now");
+	pr_debug("flushing now\n");
 
 	mutex_lock(&ff->mutex);
 
@@ -314,8 +315,7 @@ int input_ff_create(struct input_dev *dev, int max_effects)
 	int i;
 
 	if (!max_effects) {
-		printk(KERN_ERR
-		       "ff-core: cannot allocate device without any effects\n");
+		pr_err("cannot allocate device without any effects\n");
 		return -EINVAL;
 	}
 

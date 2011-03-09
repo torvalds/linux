@@ -542,6 +542,9 @@ static struct atbm8830_config mygica_x8558pro_atbm8830_cfg1 = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0xFF,
+	.agc_hold_loop = 0,
 };
 
 static struct max2165_config mygic_x8558pro_max2165_cfg1 = {
@@ -558,6 +561,9 @@ static struct atbm8830_config mygica_x8558pro_atbm8830_cfg2 = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0xFF,
+	.agc_hold_loop = 0,
 };
 
 static struct max2165_config mygic_x8558pro_max2165_cfg2 = {
@@ -985,6 +991,8 @@ static int dvb_register(struct cx23885_tsport *port)
 	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
 					&dev->pci->dev, adapter_nr, 0,
 					cx23885_dvb_fe_ioctl_override);
+	if (ret)
+		return ret;
 
 	/* init CI & MAC */
 	switch (dev->board) {
@@ -994,17 +1002,23 @@ static int dvb_register(struct cx23885_tsport *port)
 		netup_get_card_info(&dev->i2c_bus[0].i2c_adap, &cinfo);
 		memcpy(port->frontends.adapter.proposed_mac,
 				cinfo.port[port->nr - 1].mac, 6);
-		printk(KERN_INFO "NetUP Dual DVB-S2 CI card port%d MAC="
-			"%02X:%02X:%02X:%02X:%02X:%02X\n",
-			port->nr,
-			port->frontends.adapter.proposed_mac[0],
-			port->frontends.adapter.proposed_mac[1],
-			port->frontends.adapter.proposed_mac[2],
-			port->frontends.adapter.proposed_mac[3],
-			port->frontends.adapter.proposed_mac[4],
-			port->frontends.adapter.proposed_mac[5]);
+		printk(KERN_INFO "NetUP Dual DVB-S2 CI card port%d MAC=%pM\n",
+			port->nr, port->frontends.adapter.proposed_mac);
 
 		netup_ci_init(port);
+		break;
+		}
+	case CX23885_BOARD_TEVII_S470: {
+		u8 eeprom[256]; /* 24C02 i2c eeprom */
+
+		if (port->nr != 1)
+			break;
+
+		/* Read entire EEPROM */
+		dev->i2c_bus[0].i2c_client.addr = 0xa0 >> 1;
+		tveeprom_read(&dev->i2c_bus[0].i2c_client, eeprom, sizeof(eeprom));
+		printk(KERN_INFO "TeVii S470 MAC= %pM\n", eeprom + 0xa0);
+		memcpy(port->frontends.adapter.proposed_mac, eeprom + 0xa0, 6);
 		break;
 		}
 	}
@@ -1057,7 +1071,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops,
 			    &dev->pci->dev, &port->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
-			    sizeof(struct cx23885_buffer), port);
+			    sizeof(struct cx23885_buffer), port, NULL);
 	}
 	err = dvb_register(port);
 	if (err != 0)

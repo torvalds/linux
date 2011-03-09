@@ -9,4 +9,4 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
-#define VMALLOC_END       (0xF0000000)
+#define VMALLOC_END       0xf0000000UL

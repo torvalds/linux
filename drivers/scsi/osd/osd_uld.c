@@ -50,6 +50,7 @@
 #include <linux/idr.h>
 #include <linux/major.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_driver.h>
@@ -181,6 +182,7 @@ static const struct file_operations osd_fops = {
 	.open           = osd_uld_open,
 	.release        = osd_uld_release,
 	.unlocked_ioctl = osd_uld_ioctl,
+	.llseek		= noop_llseek,
 };
 
 struct osd_dev *osduld_path_lookup(const char *name)

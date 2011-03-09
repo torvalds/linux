@@ -970,6 +970,33 @@ out_kfree:
 }
 EXPORT_SYMBOL(ipmi_create_user);
 
+int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data)
+{
+	int           rv = 0;
+	ipmi_smi_t    intf;
+	struct ipmi_smi_handlers *handlers;
+
+	mutex_lock(&ipmi_interfaces_mutex);
+	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
+		if (intf->intf_num == if_num)
+			goto found;
+	}
+	/* Not found, return an error */
+	rv = -EINVAL;
+	mutex_unlock(&ipmi_interfaces_mutex);
+	return rv;
+
+found:
+	handlers = intf->handlers;
+	rv = -ENOSYS;
+	if (handlers->get_smi_info)
+		rv = handlers->get_smi_info(intf->send_info, data);
+	mutex_unlock(&ipmi_interfaces_mutex);
+
+	return rv;
+}
+EXPORT_SYMBOL(ipmi_get_smi_info);
+
 static void free_user(struct kref *ref)
 {
 	ipmi_user_t user = container_of(ref, struct ipmi_user, refcount);
@@ -2272,42 +2299,52 @@ static int create_files(struct bmc_device *bmc)
 	bmc->device_id_attr.attr.name = "device_id";
 	bmc->device_id_attr.attr.mode = S_IRUGO;
 	bmc->device_id_attr.show = device_id_show;
+	sysfs_attr_init(&bmc->device_id_attr.attr);
 
 	bmc->provides_dev_sdrs_attr.attr.name = "provides_device_sdrs";
 	bmc->provides_dev_sdrs_attr.attr.mode = S_IRUGO;
 	bmc->provides_dev_sdrs_attr.show = provides_dev_sdrs_show;
+	sysfs_attr_init(&bmc->provides_dev_sdrs_attr.attr);
 
 	bmc->revision_attr.attr.name = "revision";
 	bmc->revision_attr.attr.mode = S_IRUGO;
 	bmc->revision_attr.show = revision_show;
+	sysfs_attr_init(&bmc->revision_attr.attr);
 
 	bmc->firmware_rev_attr.attr.name = "firmware_revision";
 	bmc->firmware_rev_attr.attr.mode = S_IRUGO;
 	bmc->firmware_rev_attr.show = firmware_rev_show;
+	sysfs_attr_init(&bmc->firmware_rev_attr.attr);
 
 	bmc->version_attr.attr.name = "ipmi_version";
 	bmc->version_attr.attr.mode = S_IRUGO;
 	bmc->version_attr.show = ipmi_version_show;
+	sysfs_attr_init(&bmc->version_attr.attr);
 
 	bmc->add_dev_support_attr.attr.name = "additional_device_support";
 	bmc->add_dev_support_attr.attr.mode = S_IRUGO;
 	bmc->add_dev_support_attr.show = add_dev_support_show;
+	sysfs_attr_init(&bmc->add_dev_support_attr.attr);
 
 	bmc->manufacturer_id_attr.attr.name = "manufacturer_id";
 	bmc->manufacturer_id_attr.attr.mode = S_IRUGO;
 	bmc->manufacturer_id_attr.show = manufacturer_id_show;
+	sysfs_attr_init(&bmc->manufacturer_id_attr.attr);
 
 	bmc->product_id_attr.attr.name = "product_id";
 	bmc->product_id_attr.attr.mode = S_IRUGO;
 	bmc->product_id_attr.show = product_id_show;
+	sysfs_attr_init(&bmc->product_id_attr.attr);
 
 	bmc->guid_attr.attr.name = "guid";
 	bmc->guid_attr.attr.mode = S_IRUGO;
 	bmc->guid_attr.show = guid_show;
+	sysfs_attr_init(&bmc->guid_attr.attr);
 
 	bmc->aux_firmware_rev_attr.attr.name = "aux_firmware_revision";
 	bmc->aux_firmware_rev_attr.attr.mode = S_IRUGO;
 	bmc->aux_firmware_rev_attr.show = aux_firmware_rev_show;
+	sysfs_attr_init(&bmc->aux_firmware_rev_attr.attr);
 
 	err = device_create_file(&bmc->dev->dev,
 			   &bmc->device_id_attr);
@@ -2495,12 +2532,11 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 			return rv;
 		}
 
-		printk(KERN_INFO
-		       "ipmi: Found new BMC (man_id: 0x%6.6x, "
-		       " prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
-		       bmc->id.manufacturer_id,
-		       bmc->id.product_id,
-		       bmc->id.device_id);
+		dev_info(intf->si_dev, "Found new BMC (man_id: 0x%6.6x, "
+			 "prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
+			 bmc->id.manufacturer_id,
+			 bmc->id.product_id,
+			 bmc->id.device_id);
 	}
 
 	/*
@@ -4027,8 +4063,8 @@ static void ipmi_request_event(void)
 
 static struct timer_list ipmi_timer;
 
-/* Call every ~100 ms. */
-#define IPMI_TIMEOUT_TIME	100
+/* Call every ~1000 ms. */
+#define IPMI_TIMEOUT_TIME	1000
 
 /* How many jiffies does it take to get to the timeout time. */
 #define IPMI_TIMEOUT_JIFFIES	((IPMI_TIMEOUT_TIME * HZ) / 1000)
@@ -4433,13 +4469,13 @@ static int ipmi_init_msghandler(void)
 	return 0;
 }
 
-static __init int ipmi_init_msghandler_mod(void)
+static int __init ipmi_init_msghandler_mod(void)
 {
 	ipmi_init_msghandler();
 	return 0;
 }
 
-static __exit void cleanup_ipmi(void)
+static void __exit cleanup_ipmi(void)
 {
 	int count;
 

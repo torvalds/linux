@@ -9,11 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
+#include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/mutex.h>
 
 #include "usb_mon.h"
-#include "../core/hcd.h"
+
 
 static void mon_stop(struct mon_bus *mbus);
 static void mon_dissolve(struct mon_bus *mbus, struct usb_bus *ubus);
@@ -88,7 +90,6 @@ static void mon_bus_submit(struct mon_bus *mbus, struct urb *urb)
 		r->rnf_submit(r->r_data, urb);
 	}
 	spin_unlock_irqrestore(&mbus->lock, flags);
-	return;
 }
 
 static void mon_submit(struct usb_bus *ubus, struct urb *urb)
@@ -115,7 +116,6 @@ static void mon_bus_submit_error(struct mon_bus *mbus, struct urb *urb, int erro
 		r->rnf_error(r->r_data, urb, error);
 	}
 	spin_unlock_irqrestore(&mbus->lock, flags);
-	return;
 }
 
 static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int error)

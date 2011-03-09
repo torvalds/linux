@@ -16,7 +16,6 @@
 #include "io.h"
 #include "mac.h"
 #include "mdio_10g.h"
-#include "phy.h"
 #include "workarounds.h"
 
 /**************************************************************************
@@ -26,7 +25,7 @@
  *************************************************************************/
 
 /* Configure the XAUI driver that is an output from Falcon */
-static void falcon_setup_xaui(struct efx_nic *efx)
+void falcon_setup_xaui(struct efx_nic *efx)
 {
 	efx_oword_t sdctl, txdrv;
 
@@ -81,34 +80,29 @@ int falcon_reset_xaui(struct efx_nic *efx)
 		}
 		udelay(10);
 	}
-	EFX_ERR(efx, "timed out waiting for XAUI/XGXS reset\n");
+	netif_err(efx, hw, efx->net_dev,
+		  "timed out waiting for XAUI/XGXS reset\n");
 	return -ETIMEDOUT;
 }
 
-static void falcon_mask_status_intr(struct efx_nic *efx, bool enable)
+static void falcon_ack_status_intr(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
 
 	if ((efx_nic_rev(efx) != EFX_REV_FALCON_B0) || LOOPBACK_INTERNAL(efx))
 		return;
 
-	/* We expect xgmii faults if the wireside link is up */
+	/* We expect xgmii faults if the wireside link is down */
 	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up)
 		return;
 
 	/* We can only use this interrupt to signal the negative edge of
 	 * xaui_align [we have to poll the positive edge]. */
-	if (efx->xmac_poll_required)
+	if (nic_data->xmac_poll_required)
 		return;
 
-	/* Flush the ISR */
-	if (enable)
-		efx_reado(efx, &reg, FR_AB_XM_MGT_INT_MSK);
-
-	EFX_POPULATE_OWORD_2(reg,
-			     FRF_AB_XM_MSK_RMTFLT, !enable,
-			     FRF_AB_XM_MSK_LCLFLT, !enable);
-	efx_writeo(efx, &reg, FR_AB_XM_MGT_INT_MASK);
+	efx_reado(efx, &reg, FR_AB_XM_MGT_INT_MSK);
 }
 
 static bool falcon_xgxs_link_ok(struct efx_nic *efx)
@@ -149,7 +143,7 @@ static bool falcon_xmac_link_ok(struct efx_nic *efx)
 		 efx_mdio_phyxgxs_lane_sync(efx));
 }
 
-void falcon_reconfigure_xmac_core(struct efx_nic *efx)
+static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 {
 	unsigned int max_frame_len;
 	efx_oword_t reg;
@@ -263,7 +257,7 @@ static bool falcon_xmac_link_ok_retry(struct efx_nic *efx, int tries)
 	falcon_stop_nic_stats(efx);
 
 	while (!mac_up && tries) {
-		EFX_LOG(efx, "bashing xaui\n");
+		netif_dbg(efx, hw, efx->net_dev, "bashing xaui\n");
 		falcon_reset_xaui(efx);
 		udelay(200);
 
@@ -283,15 +277,15 @@ static bool falcon_xmac_check_fault(struct efx_nic *efx)
 
 static int falcon_reconfigure_xmac(struct efx_nic *efx)
 {
-	falcon_mask_status_intr(efx, false);
+	struct falcon_nic_data *nic_data = efx->nic_data;
 
 	falcon_reconfigure_xgxs_core(efx);
 	falcon_reconfigure_xmac_core(efx);
 
 	falcon_reconfigure_mac_wrapper(efx);
 
-	efx->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 5);
-	falcon_mask_status_intr(efx, true);
+	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 5);
+	falcon_ack_status_intr(efx);
 
 	return 0;
 }
@@ -358,13 +352,14 @@ static void falcon_update_stats_xmac(struct efx_nic *efx)
 
 void falcon_poll_xmac(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
+
 	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up ||
-	    !efx->xmac_poll_required)
+	    !nic_data->xmac_poll_required)
 		return;
 
-	falcon_mask_status_intr(efx, false);
-	efx->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
-	falcon_mask_status_intr(efx, true);
+	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
+	falcon_ack_status_intr(efx);
 }
 
 struct efx_mac_operations falcon_xmac_operations = {

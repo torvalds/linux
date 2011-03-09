@@ -49,7 +49,6 @@
 #define PREBOOT
 #else
 #include <linux/decompress/bunzip2.h>
-#include <linux/slab.h>
 #endif /* STATIC */
 
 #include <linux/decompress/mm.h>
@@ -107,6 +106,8 @@ struct bunzip_data {
 	unsigned char selectors[32768];		/* nSelectors = 15 bits */
 	struct group_data groups[MAX_GROUPS];	/* Huffman coding tables */
 	int io_error;			/* non-zero if we have IO error */
+	int byteCount[256];
+	unsigned char symToByte[256], mtfSymbol[256];
 };
 
 
@@ -158,14 +159,16 @@ static int INIT get_next_block(struct bunzip_data *bd)
 	int *base = NULL;
 	int *limit = NULL;
 	int dbufCount, nextSym, dbufSize, groupCount, selector,
-		i, j, k, t, runPos, symCount, symTotal, nSelectors,
-		byteCount[256];
-	unsigned char uc, symToByte[256], mtfSymbol[256], *selectors;
+		i, j, k, t, runPos, symCount, symTotal, nSelectors, *byteCount;
+	unsigned char uc, *symToByte, *mtfSymbol, *selectors;
 	unsigned int *dbuf, origPtr;
 
 	dbuf = bd->dbuf;
 	dbufSize = bd->dbufSize;
 	selectors = bd->selectors;
+	byteCount = bd->byteCount;
+	symToByte = bd->symToByte;
+	mtfSymbol = bd->mtfSymbol;
 
 	/* Read in header signature and CRC, then validate signature.
 	   (last block signature means CRC is for whole file, return now) */
@@ -678,13 +681,12 @@ STATIC int INIT bunzip2(unsigned char *buf, int len,
 			int(*flush)(void*, unsigned int),
 			unsigned char *outbuf,
 			int *pos,
-			void(*error_fn)(char *x))
+			void(*error)(char *x))
 {
 	struct bunzip_data *bd;
 	int i = -1;
 	unsigned char *inbuf;
 
-	set_error_fn(error_fn);
 	if (flush)
 		outbuf = malloc(BZIP2_IOBUF_SIZE);
 
@@ -747,8 +749,8 @@ STATIC int INIT decompress(unsigned char *buf, int len,
 			int(*flush)(void*, unsigned int),
 			unsigned char *outbuf,
 			int *pos,
-			void(*error_fn)(char *x))
+			void(*error)(char *x))
 {
-	return bunzip2(buf, len - 4, fill, flush, outbuf, pos, error_fn);
+	return bunzip2(buf, len - 4, fill, flush, outbuf, pos, error);
 }
 #endif

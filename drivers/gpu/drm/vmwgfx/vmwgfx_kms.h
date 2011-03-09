@@ -94,9 +94,11 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 
 /*
- * Legacy display unit functions - vmwgfx_ldu.h
+ * Legacy display unit functions - vmwgfx_ldu.c
  */
 int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv);
 int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv);
+int vmw_kms_ldu_update_layout(struct vmw_private *dev_priv, unsigned num,
+			      struct drm_vmw_rect *rects);
 
 #endif

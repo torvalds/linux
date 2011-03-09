@@ -21,6 +21,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -30,12 +32,12 @@
 #include "cx25821.h"
 #include "tuner-xc2028.h"
 
-// board config info
+/* board config info */
 
 struct cx25821_board cx25821_boards[] = {
 	[UNKNOWN_BOARD] = {
 			   .name = "UNKNOWN/GENERIC",
-			   // Ensure safe default for unknown boards
+			   /* Ensure safe default for unknown boards */
 			   .clk_freq = 0,
 			   },
 

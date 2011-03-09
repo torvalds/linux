@@ -647,7 +647,7 @@ static struct irqaction omap_wakeup_irq = {
 
 
 
-static struct platform_suspend_ops omap_pm_ops ={
+static const struct platform_suspend_ops omap_pm_ops = {
 	.prepare	= omap_pm_prepare,
 	.enter		= omap_pm_enter,
 	.finish		= omap_pm_finish,
@@ -660,6 +660,9 @@ static int __init omap_pm_init(void)
 #ifdef CONFIG_OMAP_32K_TIMER
 	int error;
 #endif
+
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
 
 	printk("Power Management for TI OMAP.\n");
 

@@ -68,9 +68,9 @@ const BYTE abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
  *
 -*/
 
-VOID
-WPA_ClearRSN (
-    IN PKnownBSS        pBSSList
+void
+WPA_ClearRSN(
+     PKnownBSS        pBSSList
     )
 {
     int ii;
@@ -104,10 +104,10 @@ WPA_ClearRSN (
  * Return Value: none.
  *
 -*/
-VOID
-WPA_ParseRSN (
-    IN PKnownBSS        pBSSList,
-    IN PWLAN_IE_RSN_EXT pRSN
+void
+WPA_ParseRSN(
+     PKnownBSS        pBSSList,
+     PWLAN_IE_RSN_EXT pRSN
     )
 {
     PWLAN_IE_RSN_AUTH  pIE_RSN_Auth = NULL;
@@ -148,7 +148,8 @@ WPA_ParseRSN (
         {
             j = 0;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d, sizeof(pBSSList->abyPKType): %zu\n", pRSN->wPKCount, sizeof(pBSSList->abyPKType));
-            for(i = 0; (i < pRSN->wPKCount) && (j < sizeof(pBSSList->abyPKType)/sizeof(BYTE)); i++) {
+	    for (i = 0; (i < pRSN->wPKCount) &&
+		   (j < sizeof(pBSSList->abyPKType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 12+i*4+4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*i)
                     if ( !memcmp(pRSN->PKSList[i].abyOUI, abyOUI00, 4))
                         pBSSList->abyPKType[j++] = WPA_NONE;
@@ -180,7 +181,8 @@ WPA_ParseRSN (
             j = 0;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d, sizeof(pBSSList->abyAuthType): %zu\n",
                           pIE_RSN_Auth->wAuthCount, sizeof(pBSSList->abyAuthType));
-            for(i = 0; (i < pIE_RSN_Auth->wAuthCount) && (j < sizeof(pBSSList->abyAuthType)/sizeof(BYTE)); i++) {
+	    for (i = 0; (i < pIE_RSN_Auth->wAuthCount) &&
+		   (j < sizeof(pBSSList->abyAuthType)/sizeof(BYTE)); i++) {
                 if(pRSN->len >= 14+4+(m+i)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*i)
                     if ( !memcmp(pIE_RSN_Auth->AuthKSList[i].abyOUI, abyOUI01, 4))
                         pBSSList->abyAuthType[j++] = WPA_AUTH_IEEE802_1X;
@@ -238,10 +240,10 @@ WPA_ParseRSN (
  *
 -*/
 BOOL
-WPA_SearchRSN (
+WPA_SearchRSN(
     BYTE                byCmd,
     BYTE                byEncrypt,
-    IN PKnownBSS        pBSSList
+     PKnownBSS        pBSSList
     )
 {
     int ii;
@@ -298,8 +300,8 @@ WPA_SearchRSN (
  *
 -*/
 BOOL
-WPAb_Is_RSN (
-    IN PWLAN_IE_RSN_EXT pRSN
+WPAb_Is_RSN(
+     PWLAN_IE_RSN_EXT pRSN
     )
 {
     if (pRSN == NULL)

@@ -171,18 +171,18 @@ extern int	affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 extern unsigned long		 affs_parent_ino(struct inode *dir);
 extern struct inode		*affs_new_inode(struct inode *dir);
 extern int			 affs_notify_change(struct dentry *dentry, struct iattr *attr);
-extern void			 affs_delete_inode(struct inode *inode);
-extern void			 affs_clear_inode(struct inode *inode);
+extern void			 affs_evict_inode(struct inode *inode);
 extern struct inode		*affs_iget(struct super_block *sb,
 					unsigned long ino);
-extern int			 affs_write_inode(struct inode *inode, int);
+extern int			 affs_write_inode(struct inode *inode,
+					struct writeback_control *wbc);
 extern int			 affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s32 type);
 
 /* file.c */
 
 void		affs_free_prealloc(struct inode *inode);
 extern void	affs_truncate(struct inode *);
-int		affs_file_fsync(struct file *, struct dentry *, int);
+int		affs_file_fsync(struct file *, int);
 
 /* dir.c */
 
@@ -201,6 +201,7 @@ extern const struct address_space_operations	 affs_aops;
 extern const struct address_space_operations	 affs_aops_ofs;
 
 extern const struct dentry_operations	 affs_dentry_operations;
+extern const struct dentry_operations	 affs_intl_dentry_operations;
 
 static inline void
 affs_set_blocksize(struct super_block *sb, int size)

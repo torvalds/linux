@@ -42,6 +42,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max8660.h>
 
 #define MAX8660_DCDC_MIN_UV	 725000
@@ -140,7 +141,8 @@ static int max8660_dcdc_get(struct regulator_dev *rdev)
 	return MAX8660_DCDC_MIN_UV + selector * MAX8660_DCDC_STEP;
 }
 
-static int max8660_dcdc_set(struct regulator_dev *rdev, int min_uV, int max_uV)
+static int max8660_dcdc_set(struct regulator_dev *rdev, int min_uV, int max_uV,
+			    unsigned int *s)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 reg, selector, bits;
@@ -153,6 +155,7 @@ static int max8660_dcdc_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 
 	selector = (min_uV - (MAX8660_DCDC_MIN_UV - MAX8660_DCDC_STEP + 1))
 			/ MAX8660_DCDC_STEP;
+	*s = selector;
 
 	ret = max8660_dcdc_list(rdev, selector);
 	if (ret < 0 || ret > max_uV)
@@ -195,7 +198,8 @@ static int max8660_ldo5_get(struct regulator_dev *rdev)
 	return MAX8660_LDO5_MIN_UV + selector * MAX8660_LDO5_STEP;
 }
 
-static int max8660_ldo5_set(struct regulator_dev *rdev, int min_uV, int max_uV)
+static int max8660_ldo5_set(struct regulator_dev *rdev, int min_uV, int max_uV,
+			    unsigned int *s)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 selector;
@@ -211,6 +215,8 @@ static int max8660_ldo5_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 	ret = max8660_ldo5_list(rdev, selector);
 	if (ret < 0 || ret > max_uV)
 		return -EINVAL;
+
+	*s = selector;
 
 	ret = max8660_write(max8660, MAX8660_MDTV2, 0, selector);
 	if (ret)
@@ -269,7 +275,8 @@ static int max8660_ldo67_get(struct regulator_dev *rdev)
 	return MAX8660_LDO67_MIN_UV + selector * MAX8660_LDO67_STEP;
 }
 
-static int max8660_ldo67_set(struct regulator_dev *rdev, int min_uV, int max_uV)
+static int max8660_ldo67_set(struct regulator_dev *rdev, int min_uV,
+			     int max_uV, unsigned int *s)
 {
 	struct max8660 *max8660 = rdev_get_drvdata(rdev);
 	u8 selector;
@@ -286,6 +293,8 @@ static int max8660_ldo67_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 	ret = max8660_ldo67_list(rdev, selector);
 	if (ret < 0 || ret > max_uV)
 		return -EINVAL;
+
+	*s = selector;
 
 	if (rdev_get_id(rdev) == MAX8660_V6)
 		return max8660_write(max8660, MAX8660_L12VCR, 0xf0, selector);
@@ -345,8 +354,8 @@ static struct regulator_desc max8660_reg[] = {
 	},
 };
 
-static int max8660_probe(struct i2c_client *client,
-			      const struct i2c_device_id *i2c_id)
+static int __devinit max8660_probe(struct i2c_client *client,
+				   const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
 	struct max8660_platform_data *pdata = client->dev.platform_data;
@@ -354,7 +363,7 @@ static int max8660_probe(struct i2c_client *client,
 	int boot_on, i, id, ret = -EINVAL;
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
-		dev_err(&client->dev, "Too much regulators found!\n");
+		dev_err(&client->dev, "Too many regulators found!\n");
 		goto out;
 	}
 
@@ -449,7 +458,7 @@ static int max8660_probe(struct i2c_client *client,
 		}
 	}
 
-	i2c_set_clientdata(client, rdev);
+	i2c_set_clientdata(client, max8660);
 	dev_info(&client->dev, "Maxim 8660/8661 regulator driver loaded\n");
 	return 0;
 
@@ -462,16 +471,15 @@ out:
 	return ret;
 }
 
-static int max8660_remove(struct i2c_client *client)
+static int __devexit max8660_remove(struct i2c_client *client)
 {
-	struct regulator_dev **rdev = i2c_get_clientdata(client);
+	struct max8660 *max8660 = i2c_get_clientdata(client);
 	int i;
 
 	for (i = 0; i < MAX8660_V_END; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-	kfree(rdev);
-	i2c_set_clientdata(client, NULL);
+		if (max8660->rdev[i])
+			regulator_unregister(max8660->rdev[i]);
+	kfree(max8660);
 
 	return 0;
 }
@@ -485,9 +493,10 @@ MODULE_DEVICE_TABLE(i2c, max8660_id);
 
 static struct i2c_driver max8660_driver = {
 	.probe = max8660_probe,
-	.remove = max8660_remove,
+	.remove = __devexit_p(max8660_remove),
 	.driver		= {
 		.name	= "max8660",
+		.owner	= THIS_MODULE,
 	},
 	.id_table	= max8660_id,
 };

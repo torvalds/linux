@@ -37,12 +37,12 @@ struct ocfs2_security_xattr_info {
 	size_t value_len;
 };
 
-extern struct xattr_handler ocfs2_xattr_user_handler;
-extern struct xattr_handler ocfs2_xattr_trusted_handler;
-extern struct xattr_handler ocfs2_xattr_security_handler;
-extern struct xattr_handler ocfs2_xattr_acl_access_handler;
-extern struct xattr_handler ocfs2_xattr_acl_default_handler;
-extern struct xattr_handler *ocfs2_xattr_handlers[];
+extern const struct xattr_handler ocfs2_xattr_user_handler;
+extern const struct xattr_handler ocfs2_xattr_trusted_handler;
+extern const struct xattr_handler ocfs2_xattr_security_handler;
+extern const struct xattr_handler ocfs2_xattr_acl_access_handler;
+extern const struct xattr_handler ocfs2_xattr_acl_default_handler;
+extern const struct xattr_handler *ocfs2_xattr_handlers[];
 
 ssize_t ocfs2_listxattr(struct dentry *, char *, size_t);
 int ocfs2_xattr_get_nolock(struct inode *, struct buffer_head *, int,

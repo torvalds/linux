@@ -38,7 +38,7 @@
 
 
 /*
- * This supports acccess to SPI devices using normal userspace I/O calls.
+ * This supports access to SPI devices using normal userspace I/O calls.
  * Note that while traditional UNIX/POSIX I/O semantics are half duplex,
  * and often mask message boundaries, full SPI support requires full duplex
  * transfers.  There are several kinds of internal message boundaries to
@@ -545,6 +545,7 @@ static const struct file_operations spidev_fops = {
 	.unlocked_ioctl = spidev_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
+	.llseek =	no_llseek,
 };
 
 /*-------------------------------------------------------------------------*/

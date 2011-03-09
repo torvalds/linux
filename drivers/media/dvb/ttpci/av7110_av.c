@@ -25,7 +25,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * the project's page is at http://www.linuxtv.org/ 
  */
 
 #include <linux/types.h>
@@ -245,8 +245,11 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 		return -1;
 	}
 	while (1) {
-		if ((len = dvb_ringbuffer_avail(buf)) < 6)
+		len = dvb_ringbuffer_avail(buf);
+		if (len < 6) {
+			wake_up(&buf->queue);
 			return -1;
+		}
 		sync =  DVB_RINGBUFFER_PEEK(buf, 0) << 24;
 		sync |= DVB_RINGBUFFER_PEEK(buf, 1) << 16;
 		sync |= DVB_RINGBUFFER_PEEK(buf, 2) << 8;
@@ -1089,7 +1092,7 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 }
 
 
-static int dvb_video_ioctl(struct inode *inode, struct file *file,
+static int dvb_video_ioctl(struct file *file,
 			   unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1297,7 +1300,7 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int dvb_audio_ioctl(struct inode *inode, struct file *file,
+static int dvb_audio_ioctl(struct file *file,
 			   unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1517,10 +1520,11 @@ static int dvb_audio_release(struct inode *inode, struct file *file)
 static const struct file_operations dvb_video_fops = {
 	.owner		= THIS_MODULE,
 	.write		= dvb_video_write,
-	.ioctl		= dvb_generic_ioctl,
+	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_video_open,
 	.release	= dvb_video_release,
 	.poll		= dvb_video_poll,
+	.llseek		= noop_llseek,
 };
 
 static struct dvb_device dvbdev_video = {
@@ -1535,10 +1539,11 @@ static struct dvb_device dvbdev_video = {
 static const struct file_operations dvb_audio_fops = {
 	.owner		= THIS_MODULE,
 	.write		= dvb_audio_write,
-	.ioctl		= dvb_generic_ioctl,
+	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_audio_open,
 	.release	= dvb_audio_release,
 	.poll		= dvb_audio_poll,
+	.llseek		= noop_llseek,
 };
 
 static struct dvb_device dvbdev_audio = {

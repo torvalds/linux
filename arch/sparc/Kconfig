@@ -1,9 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/SPARC Kernel Configuration"
-
 config 64BIT
 	bool "64-bit kernel" if ARCH = "sparc"
 	default ARCH = "sparc64"
@@ -18,6 +12,8 @@ config 64BIT
 config SPARC
 	bool
 	default y
+	select OF
+	select OF_PROMTREE
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP || SPARC64
@@ -25,10 +21,10 @@ config SPARC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
-	select HAVE_PERF_EVENTS
-	select PERF_USE_VMALLOC
+	select HAVE_IRQ_WORK
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
+	select HAVE_ARCH_JUMP_LABEL
 
 config SPARC32
 	def_bool !64BIT
@@ -37,9 +33,12 @@ config SPARC64
 	def_bool 64BIT
 	select ARCH_SUPPORTS_MSI
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_GRAPH_FP_TEST
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -63,16 +62,13 @@ config BITS
 	default 32 if SPARC32
 	default 64 if SPARC64
 
-config GENERIC_TIME
-	def_bool y
-
 config ARCH_USES_GETTIMEOFFSET
 	bool
 	default y if SPARC32
 
 config GENERIC_CMOS_UPDATE
 	bool
-	default y if SPARC64
+	default y
 
 config GENERIC_CLOCKEVENTS
 	bool
@@ -127,6 +123,12 @@ config ZONE_DMA
 	bool
 	default y if SPARC32
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 config GENERIC_ISA_DMA
 	bool
 	default y if SPARC32
@@ -137,9 +139,6 @@ config GENERIC_GPIO
 	  Generic GPIO API support
 
 config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-
-config OF
 	def_bool y
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC

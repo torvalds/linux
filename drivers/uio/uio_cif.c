@@ -1,7 +1,7 @@
 /*
  * UIO Hilscher CIF card driver
  *
- * (C) 2007 Hans J. Koch <hjk@linutronix.de>
+ * (C) 2007 Hans J. Koch <hjk@hansjkoch.de>
  * Original code (C) 2005 Benedikt Spranger <b.spranger@linutronix.de>
  *
  * Licensed under GPL version 2 only.
@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/uio_driver.h>
 
 #include <asm/io.h>
@@ -78,7 +79,7 @@ static int __devinit hilscher_pci_probe(struct pci_dev *dev,
 	}
 	info->version = "0.0.1";
 	info->irq = dev->irq;
-	info->irq_flags = IRQF_DISABLED | IRQF_SHARED;
+	info->irq_flags = IRQF_SHARED;
 	info->handler = hilscher_handler;
 
 	if (uio_register_device(&dev->dev, info))

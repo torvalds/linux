@@ -353,7 +353,7 @@ int hpfs_ea_read(struct super_block *s, secno a, int ano, unsigned pos,
 }
 
 int hpfs_ea_write(struct super_block *s, secno a, int ano, unsigned pos,
-	     unsigned len, char *buf)
+	     unsigned len, const char *buf)
 {
 	struct buffer_head *bh;
 	char *data;

@@ -59,17 +59,20 @@ enum {
 
 	SRP_RQ_SHIFT    	= 6,
 	SRP_RQ_SIZE		= 1 << SRP_RQ_SHIFT,
-	SRP_SQ_SIZE		= SRP_RQ_SIZE - 1,
-	SRP_CQ_SIZE		= SRP_SQ_SIZE + SRP_RQ_SIZE,
 
-	SRP_TAG_TSK_MGMT	= 1 << (SRP_RQ_SHIFT + 1),
+	SRP_SQ_SIZE		= SRP_RQ_SIZE,
+	SRP_RSP_SQ_SIZE		= 1,
+	SRP_REQ_SQ_SIZE		= SRP_SQ_SIZE - SRP_RSP_SQ_SIZE,
+	SRP_TSK_MGMT_SQ_SIZE	= 1,
+	SRP_CMD_SQ_SIZE		= SRP_REQ_SQ_SIZE - SRP_TSK_MGMT_SQ_SIZE,
+
+	SRP_TAG_NO_REQ		= ~0U,
+	SRP_TAG_TSK_MGMT	= 1U << 31,
 
 	SRP_FMR_SIZE		= 256,
 	SRP_FMR_POOL_SIZE	= 1024,
 	SRP_FMR_DIRTY_SIZE	= SRP_FMR_POOL_SIZE / 4
 };
-
-#define SRP_OP_RECV		(1 << 31)
 
 enum srp_target_state {
 	SRP_TARGET_LIVE,
@@ -78,9 +81,10 @@ enum srp_target_state {
 	SRP_TARGET_REMOVED
 };
 
-enum srp_request_type {
-	SRP_REQ_NORMAL,
-	SRP_REQ_TASK_MGMT,
+enum srp_iu_type {
+	SRP_IU_CMD,
+	SRP_IU_TSK_MGMT,
+	SRP_IU_RSP,
 };
 
 struct srp_device {
@@ -108,15 +112,29 @@ struct srp_request {
 	struct list_head	list;
 	struct scsi_cmnd       *scmnd;
 	struct srp_iu	       *cmd;
-	struct srp_iu	       *tsk_mgmt;
 	struct ib_pool_fmr     *fmr;
-	struct completion	done;
 	short			index;
-	u8			cmd_done;
-	u8			tsk_status;
 };
 
 struct srp_target_port {
+	/* These are RW in the hot path, and commonly used together */
+	struct list_head	free_tx;
+	struct list_head	free_reqs;
+	spinlock_t		lock;
+	s32			req_lim;
+
+	/* These are read-only in the hot path */
+	struct ib_cq	       *send_cq ____cacheline_aligned_in_smp;
+	struct ib_cq	       *recv_cq;
+	struct ib_qp	       *qp;
+	u32			lkey;
+	u32			rkey;
+	enum srp_target_state	state;
+
+	/* Everything above this point is used in the hot path of
+	 * command processing. Try to keep them packed into cachelines.
+	 */
+
 	__be64			id_ext;
 	__be64			ioc_guid;
 	__be64			service_id;
@@ -133,35 +151,28 @@ struct srp_target_port {
 	int			path_query_id;
 
 	struct ib_cm_id	       *cm_id;
-	struct ib_cq	       *cq;
-	struct ib_qp	       *qp;
 
 	int			max_ti_iu_len;
-	s32			req_lim;
 
 	int			zero_req_lim;
 
-	unsigned		rx_head;
+	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
 	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
-
-	unsigned		tx_head;
-	unsigned		tx_tail;
-	struct srp_iu	       *tx_ring[SRP_SQ_SIZE + 1];
-
-	struct list_head	free_reqs;
-	struct list_head	req_queue;
-	struct srp_request	req_ring[SRP_SQ_SIZE];
+	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
 
 	struct work_struct	work;
 
 	struct list_head	list;
 	struct completion	done;
 	int			status;
-	enum srp_target_state	state;
 	int			qp_in_error;
+
+	struct completion	tsk_mgmt_done;
+	u8			tsk_mgmt_status;
 };
 
 struct srp_iu {
+	struct list_head	list;
 	u64			dma;
 	void		       *buf;
 	size_t			size;

@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
 #include <linux/cpumask.h>
@@ -535,6 +536,7 @@ static ssize_t stats_read_ul(struct file *fp, char __user *ubuf, size_t count,
 static const struct file_operations idle_fops = {
 	.open	= stats_open_generic,
 	.read	= stats_read_ul,
+	.llseek = default_llseek,
 };
 
 struct debugfs_file_info {

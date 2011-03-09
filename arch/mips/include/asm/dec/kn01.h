@@ -80,7 +80,6 @@
 struct pt_regs;
 
 extern u16 cached_kn01_csr;
-extern spinlock_t kn01_lock;
 
 extern void dec_kn01_be_init(void);
 extern int dec_kn01_be_handler(struct pt_regs *regs, int is_fixup);

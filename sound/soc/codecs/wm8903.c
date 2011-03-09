@@ -11,25 +11,27 @@
  *
  * TODO:
  *  - TDM mode configuration.
- *  - Mic detect.
  *  - Digital microphone support.
- *  - Interrupt support (mic detect and sequencer).
  */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/wm8903.h>
+#include <trace/events/asoc.h>
 
 #include "wm8903.h"
 
@@ -211,18 +213,23 @@ static u16 wm8903_reg_defaults[] = {
 };
 
 struct wm8903_priv {
-	struct snd_soc_codec codec;
-	u16 reg_cache[ARRAY_SIZE(wm8903_reg_defaults)];
 
 	int sysclk;
+	int irq;
 
-	/* Reference counts */
+	int fs;
+	int deemph;
+
+	/* Reference count */
 	int class_w_users;
-	int playback_active;
-	int capture_active;
 
-	struct snd_pcm_substream *master_substream;
-	struct snd_pcm_substream *slave_substream;
+	struct completion wseq;
+
+	struct snd_soc_jack *mic_jack;
+	int mic_det;
+	int mic_short;
+	int mic_last_report;
+	int mic_delay;
 };
 
 static int wm8903_volatile_register(unsigned int reg)
@@ -242,35 +249,34 @@ static int wm8903_volatile_register(unsigned int reg)
 static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 {
 	u16 reg[5];
-	struct i2c_client *i2c = codec->control_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	BUG_ON(start > 48);
 
-	/* Enable the sequencer */
+	/* Enable the sequencer if it's not already on */
 	reg[0] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_0);
-	reg[0] |= WM8903_WSEQ_ENA;
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
+	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
+		      reg[0] | WM8903_WSEQ_ENA);
 
-	dev_dbg(&i2c->dev, "Starting sequence at %d\n", start);
+	dev_dbg(codec->dev, "Starting sequence at %d\n", start);
 
 	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_3,
 		     start | WM8903_WSEQ_START);
 
 	/* Wait for it to complete.  If we have the interrupt wired up then
-	 * we could block waiting for an interrupt, though polling may still
-	 * be desirable for diagnostic purposes.
+	 * that will break us out of the poll early.
 	 */
 	do {
-		msleep(10);
+		wait_for_completion_timeout(&wm8903->wseq,
+					    msecs_to_jiffies(10));
 
 		reg[4] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_4);
 	} while (reg[4] & WM8903_WSEQ_BUSY);
 
-	dev_dbg(&i2c->dev, "Sequence complete\n");
+	dev_dbg(codec->dev, "Sequence complete\n");
 
-	/* Disable the sequencer again */
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
-		     reg[0] & ~WM8903_WSEQ_ENA);
+	/* Disable the sequencer again if we enabled it */
+	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
 
 	return 0;
 }
@@ -411,8 +417,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_codec *codec = widget->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
-	struct i2c_client *i2c = codec->control_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	u16 reg;
 	int ret;
 
@@ -421,7 +426,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 	/* Turn it off if we're about to enable bypass */
 	if (ucontrol->value.integer.value[0]) {
 		if (wm8903->class_w_users == 0) {
-			dev_dbg(&i2c->dev, "Disabling Class W\n");
+			dev_dbg(codec->dev, "Disabling Class W\n");
 			snd_soc_write(codec, WM8903_CLASS_W_0, reg &
 				     ~(WM8903_CP_DYN_FREQ | WM8903_CP_DYN_V));
 		}
@@ -434,14 +439,14 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 	/* If we've just disabled the last bypass path turn Class W on */
 	if (!ucontrol->value.integer.value[0]) {
 		if (wm8903->class_w_users == 1) {
-			dev_dbg(&i2c->dev, "Enabling Class W\n");
+			dev_dbg(codec->dev, "Enabling Class W\n");
 			snd_soc_write(codec, WM8903_CLASS_W_0, reg |
 				     WM8903_CP_DYN_FREQ | WM8903_CP_DYN_V);
 		}
 		wm8903->class_w_users--;
 	}
 
-	dev_dbg(&i2c->dev, "Bypass use count now %d\n",
+	dev_dbg(codec->dev, "Bypass use count now %d\n",
 		wm8903->class_w_users);
 
 	return ret;
@@ -454,6 +459,72 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
 
 
+static int wm8903_deemph[] = { 0, 32000, 44100, 48000 };
+
+static int wm8903_set_deemph(struct snd_soc_codec *codec)
+{
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int val, i, best;
+
+	/* If we're using deemphasis select the nearest available sample
+	 * rate.
+	 */
+	if (wm8903->deemph) {
+		best = 1;
+		for (i = 2; i < ARRAY_SIZE(wm8903_deemph); i++) {
+			if (abs(wm8903_deemph[i] - wm8903->fs) <
+			    abs(wm8903_deemph[best] - wm8903->fs))
+				best = i;
+		}
+
+		val = best << WM8903_DEEMPH_SHIFT;
+	} else {
+		best = 0;
+		val = 0;
+	}
+
+	dev_dbg(codec->dev, "Set deemphasis %d (%dHz)\n",
+		best, wm8903_deemph[best]);
+
+	return snd_soc_update_bits(codec, WM8903_DAC_DIGITAL_1,
+				   WM8903_DEEMPH_MASK, val);
+}
+
+static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = wm8903->deemph;
+
+	return 0;
+}
+
+static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int deemph = ucontrol->value.enumerated.item[0];
+	int ret = 0;
+
+	if (deemph > 1)
+		return -EINVAL;
+
+	mutex_lock(&codec->mutex);
+	if (wm8903->deemph != deemph) {
+		wm8903->deemph = deemph;
+
+		wm8903_set_deemph(codec);
+
+		ret = 1;
+	}
+	mutex_unlock(&codec->mutex);
+
+	return ret;
+}
+
 /* ALSA can only do steps of .01dB */
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 
@@ -465,6 +536,23 @@ static const DECLARE_TLV_DB_SCALE(drc_tlv_amp, -2250, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_tlv_min, 0, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_tlv_max, 1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(drc_tlv_startup, -300, 50, 0);
+
+static const char *hpf_mode_text[] = {
+	"Hi-fi", "Voice 1", "Voice 2", "Voice 3"
+};
+
+static const struct soc_enum hpf_mode =
+	SOC_ENUM_SINGLE(WM8903_ADC_DIGITAL_0, 5, 4, hpf_mode_text);
+
+static const char *osr_text[] = {
+	"Low power", "High performance"
+};
+
+static const struct soc_enum adc_osr =
+	SOC_ENUM_SINGLE(WM8903_ANALOGUE_ADC_0, 0, 2, osr_text);
+
+static const struct soc_enum dac_osr =
+	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 0, 2, osr_text);
 
 static const char *drc_slope_text[] = {
 	"1", "1/2", "1/4", "1/8", "1/16", "0"
@@ -527,13 +615,6 @@ static const char *mute_mode_text[] = {
 
 static const struct soc_enum mute_mode =
 	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 9, 2, mute_mode_text);
-
-static const char *dac_deemphasis_text[] = {
-	"Disabled", "32kHz", "44.1kHz", "48kHz"
-};
-
-static const struct soc_enum dac_deemphasis =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 1, 4, dac_deemphasis_text);
 
 static const char *companding_text[] = {
 	"ulaw", "alaw"
@@ -604,6 +685,9 @@ SOC_SINGLE("Right Input PGA Common Mode Switch", WM8903_ANALOGUE_RIGHT_INPUT_1,
 	   6, 1, 0),
 
 /* ADCs */
+SOC_ENUM("ADC OSR", adc_osr),
+SOC_SINGLE("HPF Switch", WM8903_ADC_DIGITAL_0, 4, 1, 0),
+SOC_ENUM("HPF Mode", hpf_mode),
 SOC_SINGLE("DRC Switch", WM8903_DRC_0, 15, 1, 0),
 SOC_ENUM("DRC Compressor Slope R0", drc_slope_r0),
 SOC_ENUM("DRC Compressor Slope R1", drc_slope_r1),
@@ -633,14 +717,16 @@ SOC_DOUBLE_TLV("Digital Sidetone Volume", WM8903_DAC_DIGITAL_0, 4, 8,
 	       12, 0, digital_sidetone_tlv),
 
 /* DAC */
+SOC_ENUM("DAC OSR", dac_osr),
 SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8903_DAC_DIGITAL_VOLUME_LEFT,
 		 WM8903_DAC_DIGITAL_VOLUME_RIGHT, 1, 120, 0, digital_tlv),
 SOC_ENUM("DAC Soft Mute Rate", soft_mute),
 SOC_ENUM("DAC Mute Mode", mute_mode),
 SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
-SOC_ENUM("DAC De-emphasis", dac_deemphasis),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
+SOC_SINGLE_BOOL_EXT("Playback Deemphasis Switch", 0,
+		    wm8903_get_deemph, wm8903_put_deemph),
 
 /* Headphones */
 SOC_DOUBLE_R("Headphone Switch",
@@ -914,10 +1000,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 static int wm8903_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8903_dapm_widgets,
-				  ARRAY_SIZE(wm8903_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_new_controls(dapm, wm8903_dapm_widgets,
+				  ARRAY_SIZE(wm8903_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	return 0;
 }
@@ -925,8 +1012,7 @@ static int wm8903_add_widgets(struct snd_soc_codec *codec)
 static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct i2c_client *i2c = codec->control_data;
-	u16 reg, reg2;
+	u16 reg;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -938,7 +1024,7 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			snd_soc_write(codec, WM8903_CLOCK_RATES_2,
 				     WM8903_CLK_SYS_ENA);
 
@@ -950,23 +1036,15 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 			wm8903_run_sequence(codec, 0);
 			wm8903_sync_reg_cache(codec, codec->reg_cache);
 
-			/* Enable low impedence charge pump output */
-			reg = snd_soc_read(codec,
-					  WM8903_CONTROL_INTERFACE_TEST_1);
-			snd_soc_write(codec, WM8903_CONTROL_INTERFACE_TEST_1,
-				     reg | WM8903_TEST_KEY);
-			reg2 = snd_soc_read(codec, WM8903_CHARGE_PUMP_TEST_1);
-			snd_soc_write(codec, WM8903_CHARGE_PUMP_TEST_1,
-				     reg2 | WM8903_CP_SW_KELVIN_MODE_MASK);
-			snd_soc_write(codec, WM8903_CONTROL_INTERFACE_TEST_1,
-				     reg);
-
 			/* By default no bypass paths are enabled so
 			 * enable Class W support.
 			 */
-			dev_dbg(&i2c->dev, "Enabling Class W\n");
-			snd_soc_write(codec, WM8903_CLASS_W_0, reg |
-				     WM8903_CP_DYN_FREQ | WM8903_CP_DYN_V);
+			dev_dbg(codec->dev, "Enabling Class W\n");
+			snd_soc_update_bits(codec, WM8903_CLASS_W_0,
+					    WM8903_CP_DYN_FREQ |
+					    WM8903_CP_DYN_V,
+					    WM8903_CP_DYN_FREQ |
+					    WM8903_CP_DYN_V);
 		}
 
 		reg = snd_soc_read(codec, WM8903_VMID_CONTROL_0);
@@ -983,7 +1061,7 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
@@ -992,7 +1070,7 @@ static int wm8903_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	wm8903->sysclk = freq;
 
@@ -1214,70 +1292,13 @@ static struct {
 	{ 0,      0 },
 };
 
-static int wm8903_startup(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
-	struct i2c_client *i2c = codec->control_data;
-	struct snd_pcm_runtime *master_runtime;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		wm8903->playback_active++;
-	else
-		wm8903->capture_active++;
-
-	/* The DAI has shared clocks so if we already have a playback or
-	 * capture going then constrain this substream to match it.
-	 */
-	if (wm8903->master_substream) {
-		master_runtime = wm8903->master_substream->runtime;
-
-		dev_dbg(&i2c->dev, "Constraining to %d bits\n",
-			master_runtime->sample_bits);
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-					     master_runtime->sample_bits,
-					     master_runtime->sample_bits);
-
-		wm8903->slave_substream = substream;
-	} else
-		wm8903->master_substream = substream;
-
-	return 0;
-}
-
-static void wm8903_shutdown(struct snd_pcm_substream *substream,
-			    struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		wm8903->playback_active--;
-	else
-		wm8903->capture_active--;
-
-	if (wm8903->master_substream == substream)
-		wm8903->master_substream = wm8903->slave_substream;
-
-	wm8903->slave_substream = NULL;
-}
-
 static int wm8903_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
-	struct i2c_client *i2c = codec->control_data;
+	struct snd_soc_codec *codec =rtd->codec;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	int fs = params_rate(params);
 	int bclk;
 	int bclk_div;
@@ -1294,11 +1315,6 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	u16 clock0 = snd_soc_read(codec, WM8903_CLOCK_RATES_0);
 	u16 clock1 = snd_soc_read(codec, WM8903_CLOCK_RATES_1);
 	u16 dac_digital1 = snd_soc_read(codec, WM8903_DAC_DIGITAL_1);
-
-	if (substream == wm8903->slave_substream) {
-		dev_dbg(&i2c->dev, "Ignoring hw_params for slave substream\n");
-		return 0;
-	}
 
 	/* Enable sloping stopband filter for low sample rates */
 	if (fs <= 24000)
@@ -1317,20 +1333,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	/* Constraints should stop us hitting this but let's make sure */
-	if (wm8903->capture_active)
-		switch (sample_rates[dsp_config].rate) {
-		case 88200:
-		case 96000:
-			dev_err(&i2c->dev, "%dHz unsupported by ADC\n",
-				fs);
-			return -EINVAL;
-
-		default:
-			break;
-		}
-
-	dev_dbg(&i2c->dev, "DSP fs = %dHz\n", sample_rates[dsp_config].rate);
+	dev_dbg(codec->dev, "DSP fs = %dHz\n", sample_rates[dsp_config].rate);
 	clock1 &= ~WM8903_SAMPLE_RATE_MASK;
 	clock1 |= sample_rates[dsp_config].value;
 
@@ -1356,7 +1359,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	dev_dbg(&i2c->dev, "MCLK = %dHz, target sample rate = %dHz\n",
+	dev_dbg(codec->dev, "MCLK = %dHz, target sample rate = %dHz\n",
 		wm8903->sysclk, fs);
 
 	/* We may not have an MCLK which allows us to generate exactly
@@ -1391,12 +1394,12 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	clock1 |= clk_sys_ratios[clk_config].rate << WM8903_CLK_SYS_RATE_SHIFT;
 	clock1 |= clk_sys_ratios[clk_config].mode << WM8903_CLK_SYS_MODE_SHIFT;
 
-	dev_dbg(&i2c->dev, "CLK_SYS_RATE=%x, CLK_SYS_MODE=%x div=%d\n",
+	dev_dbg(codec->dev, "CLK_SYS_RATE=%x, CLK_SYS_MODE=%x div=%d\n",
 		clk_sys_ratios[clk_config].rate,
 		clk_sys_ratios[clk_config].mode,
 		clk_sys_ratios[clk_config].div);
 
-	dev_dbg(&i2c->dev, "Actual CLK_SYS = %dHz\n", clk_sys);
+	dev_dbg(codec->dev, "Actual CLK_SYS = %dHz\n", clk_sys);
 
 	/* We may not get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
@@ -1418,12 +1421,15 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	aif2 &= ~WM8903_BCLK_DIV_MASK;
 	aif3 &= ~WM8903_LRCLK_RATE_MASK;
 
-	dev_dbg(&i2c->dev, "BCLK ratio %d for %dHz - actual BCLK = %dHz\n",
+	dev_dbg(codec->dev, "BCLK ratio %d for %dHz - actual BCLK = %dHz\n",
 		bclk_divs[bclk_div].ratio / 10, bclk,
 		(clk_sys * 10) / bclk_divs[bclk_div].ratio);
 
 	aif2 |= bclk_divs[bclk_div].div;
 	aif3 |= bclk / fs;
+
+	wm8903->fs = params_rate(params);
+	wm8903_set_deemph(codec);
 
 	snd_soc_write(codec, WM8903_CLOCK_RATES_0, clock0);
 	snd_soc_write(codec, WM8903_CLOCK_RATES_1, clock1);
@@ -1433,6 +1439,121 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_write(codec, WM8903_DAC_DIGITAL_1, dac_digital1);
 
 	return 0;
+}
+
+/**
+ * wm8903_mic_detect - Enable microphone detection via the WM8903 IRQ
+ *
+ * @codec:  WM8903 codec
+ * @jack:   jack to report detection events on
+ * @det:    value to report for presence detection
+ * @shrt:   value to report for short detection
+ *
+ * Enable microphone detection via IRQ on the WM8903.  If GPIOs are
+ * being used to bring out signals to the processor then only platform
+ * data configuration is needed for WM8903 and processor GPIOs should
+ * be configured using snd_soc_jack_add_gpios() instead.
+ *
+ * The current threasholds for detection should be configured using
+ * micdet_cfg in the platform data.  Using this function will force on
+ * the microphone bias for the device.
+ */
+int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+		      int det, int shrt)
+{
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int irq_mask = WM8903_MICDET_EINT | WM8903_MICSHRT_EINT;
+
+	dev_dbg(codec->dev, "Enabling microphone detection: %x %x\n",
+		det, shrt);
+
+	/* Store the configuration */
+	wm8903->mic_jack = jack;
+	wm8903->mic_det = det;
+	wm8903->mic_short = shrt;
+
+	/* Enable interrupts we've got a report configured for */
+	if (det)
+		irq_mask &= ~WM8903_MICDET_EINT;
+	if (shrt)
+		irq_mask &= ~WM8903_MICSHRT_EINT;
+
+	snd_soc_update_bits(codec, WM8903_INTERRUPT_STATUS_1_MASK,
+			    WM8903_MICDET_EINT | WM8903_MICSHRT_EINT,
+			    irq_mask);
+
+	if (det && shrt) {
+		/* Enable mic detection, this may not have been set through
+		 * platform data (eg, if the defaults are OK). */
+		snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+		snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+				    WM8903_MICDET_ENA, WM8903_MICDET_ENA);
+	} else {
+		snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+				    WM8903_MICDET_ENA, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8903_mic_detect);
+
+static irqreturn_t wm8903_irq(int irq, void *data)
+{
+	struct snd_soc_codec *codec = data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int mic_report;
+	int int_pol;
+	int int_val = 0;
+	int mask = ~snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1_MASK);
+
+	int_val = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1) & mask;
+
+	if (int_val & WM8903_WSEQ_BUSY_EINT) {
+		dev_dbg(codec->dev, "Write sequencer done\n");
+		complete(&wm8903->wseq);
+	}
+
+	/*
+	 * The rest is microphone jack detection.  We need to manually
+	 * invert the polarity of the interrupt after each event - to
+	 * simplify the code keep track of the last state we reported
+	 * and just invert the relevant bits in both the report and
+	 * the polarity register.
+	 */
+	mic_report = wm8903->mic_last_report;
+	int_pol = snd_soc_read(codec, WM8903_INTERRUPT_POLARITY_1);
+
+#ifndef CONFIG_SND_SOC_WM8903_MODULE
+	if (int_val & (WM8903_MICSHRT_EINT | WM8903_MICDET_EINT))
+		trace_snd_soc_jack_irq(dev_name(codec->dev));
+#endif
+
+	if (int_val & WM8903_MICSHRT_EINT) {
+		dev_dbg(codec->dev, "Microphone short (pol=%x)\n", int_pol);
+
+		mic_report ^= wm8903->mic_short;
+		int_pol ^= WM8903_MICSHRT_INV;
+	}
+
+	if (int_val & WM8903_MICDET_EINT) {
+		dev_dbg(codec->dev, "Microphone detect (pol=%x)\n", int_pol);
+
+		mic_report ^= wm8903->mic_det;
+		int_pol ^= WM8903_MICDET_INV;
+
+		msleep(wm8903->mic_delay);
+	}
+
+	snd_soc_update_bits(codec, WM8903_INTERRUPT_POLARITY_1,
+			    WM8903_MICSHRT_INV | WM8903_MICDET_INV, int_pol);
+
+	snd_soc_jack_report(wm8903->mic_jack, mic_report,
+			    wm8903->mic_short | wm8903->mic_det);
+
+	wm8903->mic_last_report = mic_report;
+
+	return IRQ_HANDLED;
 }
 
 #define WM8903_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
@@ -1458,16 +1579,14 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 			SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_ops wm8903_dai_ops = {
-	.startup	= wm8903_startup,
-	.shutdown	= wm8903_shutdown,
 	.hw_params	= wm8903_hw_params,
 	.digital_mute	= wm8903_digital_mute,
 	.set_fmt	= wm8903_set_dai_fmt,
 	.set_sysclk	= wm8903_set_dai_sysclk,
 };
 
-struct snd_soc_dai wm8903_dai = {
-	.name = "WM8903",
+static struct snd_soc_dai_driver wm8903_dai = {
+	.name = "wm8903-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -1485,23 +1604,16 @@ struct snd_soc_dai wm8903_dai = {
 	.ops = &wm8903_dai_ops,
 	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL_GPL(wm8903_dai);
 
-static int wm8903_suspend(struct platform_device *pdev, pm_message_t state)
+static int wm8903_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
-static int wm8903_resume(struct platform_device *pdev)
+static int wm8903_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct i2c_client *i2c = codec->control_data;
 	int i;
 	u16 *reg_cache = codec->reg_cache;
 	u16 *tmp_cache = kmemdup(reg_cache, sizeof(wm8903_reg_defaults),
@@ -1509,7 +1621,6 @@ static int wm8903_resume(struct platform_device *pdev)
 
 	/* Bring the codec back up to standby first to minimise pop/clicks */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8903_set_bias_level(codec, codec->suspend_bias_level);
 
 	/* Sync back everything else */
 	if (tmp_cache) {
@@ -1518,65 +1629,87 @@ static int wm8903_resume(struct platform_device *pdev)
 				snd_soc_write(codec, i, tmp_cache[i]);
 		kfree(tmp_cache);
 	} else {
-		dev_err(&i2c->dev, "Failed to allocate temporary cache\n");
+		dev_err(codec->dev, "Failed to allocate temporary cache\n");
 	}
 
 	return 0;
 }
 
-static struct snd_soc_codec *wm8903_codec;
-
-static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm8903_probe(struct snd_soc_codec *codec)
 {
-	struct wm8903_priv *wm8903;
-	struct snd_soc_codec *codec;
-	int ret;
+	struct wm8903_platform_data *pdata = dev_get_platdata(codec->dev);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int ret, i;
+	int trigger, irq_pol;
 	u16 val;
 
-	wm8903 = kzalloc(sizeof(struct wm8903_priv), GFP_KERNEL);
-	if (wm8903 == NULL)
-		return -ENOMEM;
-
-	codec = &wm8903->codec;
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	codec->dev = &i2c->dev;
-	codec->name = "WM8903";
-	codec->owner = THIS_MODULE;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = wm8903_set_bias_level;
-	codec->dai = &wm8903_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(wm8903->reg_cache);
-	codec->reg_cache = &wm8903->reg_cache[0];
-	codec->private_data = wm8903;
-	codec->volatile_register = wm8903_volatile_register;
-
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
+	init_completion(&wm8903->wseq);
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
 	}
 
 	val = snd_soc_read(codec, WM8903_SW_RESET_AND_ID);
 	if (val != wm8903_reg_defaults[WM8903_SW_RESET_AND_ID]) {
-		dev_err(&i2c->dev,
+		dev_err(codec->dev,
 			"Device with ID register %x is not a WM8903\n", val);
 		return -ENODEV;
 	}
 
 	val = snd_soc_read(codec, WM8903_REVISION_NUMBER);
-	dev_info(&i2c->dev, "WM8903 revision %d\n",
+	dev_info(codec->dev, "WM8903 revision %d\n",
 		 val & WM8903_CHIP_REV_MASK);
 
 	wm8903_reset(codec);
+
+	/* Set up GPIOs and microphone detection */
+	if (pdata) {
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
+			if (!pdata->gpio_cfg[i])
+				continue;
+
+			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
+				      pdata->gpio_cfg[i] & 0xffff);
+		}
+
+		snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
+			      pdata->micdet_cfg);
+
+		/* Microphone detection needs the WSEQ clock */
+		if (pdata->micdet_cfg)
+			snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+					    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+
+		wm8903->mic_delay = pdata->micdet_delay;
+	}
+	
+	if (wm8903->irq) {
+		if (pdata && pdata->irq_active_low) {
+			trigger = IRQF_TRIGGER_LOW;
+			irq_pol = WM8903_IRQ_POL;
+		} else {
+			trigger = IRQF_TRIGGER_HIGH;
+			irq_pol = 0;
+		}
+
+		snd_soc_update_bits(codec, WM8903_INTERRUPT_CONTROL,
+				    WM8903_IRQ_POL, irq_pol);
+		
+		ret = request_threaded_irq(wm8903->irq, NULL, wm8903_irq,
+					   trigger | IRQF_ONESHOT,
+					   "wm8903", codec);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to request IRQ: %d\n",
+				ret);
+			return ret;
+		}
+
+		/* Enable write sequencer interrupts */
+		snd_soc_update_bits(codec, WM8903_INTERRUPT_STATUS_1_MASK,
+				    WM8903_IM_WSEQ_BUSY_EINT, 0);
+	}
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1612,126 +1745,96 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	val |= WM8903_DAC_MUTEMODE;
 	snd_soc_write(codec, WM8903_DAC_DIGITAL_1, val);
 
-	wm8903_dai.dev = &i2c->dev;
-	wm8903_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		goto err;
-	}
-
-	ret = snd_soc_register_dai(&wm8903_dai);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to register DAI: %d\n", ret);
-		goto err_codec;
-	}
+	snd_soc_add_controls(codec, wm8903_snd_controls,
+				ARRAY_SIZE(wm8903_snd_controls));
+	wm8903_add_widgets(codec);
 
 	return ret;
+}
 
-err_codec:
-	snd_soc_unregister_codec(codec);
-err:
-	wm8903_codec = NULL;
-	kfree(wm8903);
+/* power down chip */
+static int wm8903_remove(struct snd_soc_codec *codec)
+{
+	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
+	.probe =	wm8903_probe,
+	.remove =	wm8903_remove,
+	.suspend =	wm8903_suspend,
+	.resume =	wm8903_resume,
+	.set_bias_level = wm8903_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(wm8903_reg_defaults),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm8903_reg_defaults,
+	.volatile_register = wm8903_volatile_register,
+};
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
+{
+	struct wm8903_priv *wm8903;
+	int ret;
+
+	wm8903 = kzalloc(sizeof(struct wm8903_priv), GFP_KERNEL);
+	if (wm8903 == NULL)
+		return -ENOMEM;
+
+	i2c_set_clientdata(i2c, wm8903);
+	wm8903->irq = i2c->irq;
+
+	ret = snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm8903, &wm8903_dai, 1);
+	if (ret < 0)
+		kfree(wm8903);
 	return ret;
 }
 
 static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 {
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-
-	snd_soc_unregister_dai(&wm8903_dai);
-	snd_soc_unregister_codec(codec);
-
-	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	kfree(codec->private_data);
-
-	wm8903_codec = NULL;
-	wm8903_dai.dev = NULL;
-
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
-/* i2c codec control layer */
 static const struct i2c_device_id wm8903_i2c_id[] = {
-       { "wm8903", 0 },
-       { }
+	{ "wm8903", 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8903_i2c_id);
 
 static struct i2c_driver wm8903_i2c_driver = {
 	.driver = {
-		.name = "WM8903",
+		.name = "wm8903-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe    = wm8903_i2c_probe,
-	.remove   = __devexit_p(wm8903_i2c_remove),
+	.probe =    wm8903_i2c_probe,
+	.remove =   __devexit_p(wm8903_i2c_remove),
 	.id_table = wm8903_i2c_id,
 };
-
-static int wm8903_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	int ret = 0;
-
-	if (!wm8903_codec) {
-		dev_err(&pdev->dev, "I2C device not yet probed\n");
-		goto err;
-	}
-
-	socdev->card->codec = wm8903_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to create pcms\n");
-		goto err;
-	}
-
-	snd_soc_add_controls(socdev->card->codec, wm8903_snd_controls,
-				ARRAY_SIZE(wm8903_snd_controls));
-	wm8903_add_widgets(socdev->card->codec);
-
-	return ret;
-
-err:
-	return ret;
-}
-
-/* power down chip */
-static int wm8903_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec->control_data)
-		wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_wm8903 = {
-	.probe = 	wm8903_probe,
-	.remove = 	wm8903_remove,
-	.suspend = 	wm8903_suspend,
-	.resume =	wm8903_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8903);
+#endif
 
 static int __init wm8903_modinit(void)
 {
-	return i2c_add_driver(&wm8903_i2c_driver);
+	int ret = 0;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	ret = i2c_add_driver(&wm8903_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register wm8903 I2C driver: %d\n",
+		       ret);
+	}
+#endif
+	return ret;
 }
 module_init(wm8903_modinit);
 
 static void __exit wm8903_exit(void)
 {
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8903_i2c_driver);
+#endif
 }
 module_exit(wm8903_exit);
 

@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/irq.h>
 
 #include <asm/system.h>
 
@@ -131,4 +132,3 @@ void msp_cic_irq_dispatch(void)
 	else
 		do_IRQ(ffs(pending) + intbase - 1);
 }
-

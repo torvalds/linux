@@ -60,6 +60,7 @@ from http://www.comedi.org
 
 #define ME_DRIVER_NAME		"me_daq"
 
+#define PCI_VENDOR_ID_MEILHAUS	0x1402
 #define ME2000_DEVICE_ID	0x2000
 #define ME2600_DEVICE_ID	0x2600
 
@@ -256,7 +257,43 @@ static struct comedi_driver me_driver = {
 	.detach = me_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(me_driver, me_pci_table);
+static int __devinit me_driver_pci_probe(struct pci_dev *dev,
+					 const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, me_driver.driver_name);
+}
+
+static void __devexit me_driver_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver me_driver_pci_driver = {
+	.id_table = me_pci_table,
+	.probe = &me_driver_pci_probe,
+	.remove = __devexit_p(&me_driver_pci_remove)
+};
+
+static int __init me_driver_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&me_driver);
+	if (retval < 0)
+		return retval;
+
+	me_driver_pci_driver.name = (char *)me_driver.driver_name;
+	return pci_register_driver(&me_driver_pci_driver);
+}
+
+static void __exit me_driver_cleanup_module(void)
+{
+	pci_unregister_driver(&me_driver_pci_driver);
+	comedi_driver_unregister(&me_driver);
+}
+
+module_init(me_driver_init_module);
+module_exit(me_driver_cleanup_module);
 
 /* Private data structure */
 struct me_private_data {
@@ -643,7 +680,7 @@ static int me_reset(struct comedi_device *dev)
  */
 static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pci_device;
+	struct pci_dev *pci_device = NULL;
 	struct comedi_subdevice *subdevice;
 	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
@@ -660,9 +697,7 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* Probe the device to determine what device in the series it is. */
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_device != NULL;
-	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
 			for (i = 0; i < me_board_nbr; i++) {
 				if (me_boards[i].device_id ==
@@ -856,3 +891,7 @@ static int me_detach(struct comedi_device *dev)
 	}
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

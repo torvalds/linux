@@ -4,7 +4,7 @@
  * User space memory access functions
  *
  * These routines provide basic accessing functions to the user memory
- * space for the kernel. This header file provides fuctions such as:
+ * space for the kernel. This header file provides functions such as:
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive

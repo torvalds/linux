@@ -188,7 +188,6 @@ good_area:
 	if ((error_code & ACE_INSTRUCTION) && !(vma->vm_flags & VM_EXEC))
 	  goto bad_area;
 
-survive:
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -271,15 +270,10 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (is_global_init(tsk)) {
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
-	printk("VM: killing process %s\n", tsk->comm);
-	if (error_code & ACE_USERMODE)
-		do_group_exit(SIGKILL);
-	goto no_context;
+	if (!(error_code & ACE_USERMODE))
+		goto no_context;
+	pagefault_out_of_memory();
+	return;
 
 do_sigbus:
 	up_read(&mm->mmap_sem);
@@ -336,7 +330,7 @@ vmalloc_fault:
 
 		addr = (address & PAGE_MASK);
 		set_thread_fault_code(error_code);
-		update_mmu_cache(NULL, addr, *pte_k);
+		update_mmu_cache(NULL, addr, pte_k);
 		set_thread_fault_code(0);
 		return;
 	}
@@ -349,7 +343,7 @@ vmalloc_fault:
 #define ITLB_END	(unsigned long *)(ITLB_BASE + (NR_TLB_ENTRIES * 8))
 #define DTLB_END	(unsigned long *)(DTLB_BASE + (NR_TLB_ENTRIES * 8))
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr,
-	pte_t pte)
+	pte_t *ptep)
 {
 	volatile unsigned long *entry1, *entry2;
 	unsigned long pte_data, flags;
@@ -365,7 +359,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr,
 
 	vaddr = (vaddr & PAGE_MASK) | get_asid();
 
-	pte_data = pte_val(pte);
+	pte_data = pte_val(*ptep);
 
 #ifdef CONFIG_CHIP_OPSP
 	entry1 = (unsigned long *)ITLB_BASE;

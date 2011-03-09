@@ -10,7 +10,7 @@
 #     workqueue:workqueue_destruction -e workqueue:workqueue_execution
 #     -e workqueue:workqueue_insertion
 #
-#   perf trace -p -s tools/perf/scripts/perl/workqueue-stats.pl
+#   perf script -p -s tools/perf/scripts/perl/workqueue-stats.pl
 
 use 5.010000;
 use strict;
@@ -71,9 +71,9 @@ sub trace_end
     printf("%3s %6s %6s\t%-20s\n", "---", "---", "----", "----");
     foreach my $pidhash (@cpus) {
 	while ((my $pid, my $wqhash) = each %$pidhash) {
-	    my $ins = $$wqhash{'inserted'};
-	    my $exe = $$wqhash{'executed'};
-	    my $comm = $$wqhash{'comm'};
+	    my $ins = $$wqhash{'inserted'} || 0;
+	    my $exe = $$wqhash{'executed'} || 0;
+	    my $comm = $$wqhash{'comm'} || "";
 	    if ($ins || $exe) {
 		printf("%3u %6u %6u\t%-20s\n", $cpu, $ins, $exe, $comm);
 	    }
@@ -87,9 +87,9 @@ sub trace_end
     printf("%3s %6s %6s\t%-20s\n", "---", "-------", "---------", "----");
     foreach my $pidhash (@cpus) {
 	while ((my $pid, my $wqhash) = each %$pidhash) {
-	    my $created = $$wqhash{'created'};
-	    my $destroyed = $$wqhash{'destroyed'};
-	    my $comm = $$wqhash{'comm'};
+	    my $created = $$wqhash{'created'} || 0;
+	    my $destroyed = $$wqhash{'destroyed'} || 0;
+	    my $comm = $$wqhash{'comm'} || "";
 	    if ($created || $destroyed) {
 		printf("%3u %6u %6u\t%-20s\n", $cpu, $created, $destroyed,
 		       $comm);

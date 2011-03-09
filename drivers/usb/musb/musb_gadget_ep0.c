@@ -261,6 +261,7 @@ __acquires(musb->lock)
 					ctrlrequest->wIndex & 0x0f;
 				struct musb_ep		*musb_ep;
 				struct musb_hw_ep	*ep;
+				struct musb_request	*request;
 				void __iomem		*regs;
 				int			is_in;
 				u16			csr;
@@ -300,6 +301,14 @@ __acquires(musb->lock)
 					csr &= ~(MUSB_RXCSR_P_SENDSTALL |
 						 MUSB_RXCSR_P_SENTSTALL);
 					musb_writew(regs, MUSB_RXCSR, csr);
+				}
+
+				/* Maybe start the first request in the queue */
+				request = to_musb_request(
+						next_request(musb_ep));
+				if (!musb_ep->busy && request) {
+					DBG(3, "restarting the request\n");
+					musb_ep_restart(musb, request);
 				}
 
 				/* select ep0 again */
@@ -351,6 +360,31 @@ __acquires(musb->lock)
 						musb->test_mode_nr =
 							MUSB_TEST_PACKET;
 						break;
+
+					case 0xc0:
+						/* TEST_FORCE_HS */
+						pr_debug("TEST_FORCE_HS\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FORCE_HS;
+						break;
+					case 0xc1:
+						/* TEST_FORCE_FS */
+						pr_debug("TEST_FORCE_FS\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FORCE_FS;
+						break;
+					case 0xc2:
+						/* TEST_FIFO_ACCESS */
+						pr_debug("TEST_FIFO_ACCESS\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FIFO_ACCESS;
+						break;
+					case 0xc3:
+						/* TEST_FORCE_HOST */
+						pr_debug("TEST_FORCE_HOST\n");
+						musb->test_mode_nr =
+							MUSB_TEST_FORCE_HOST;
+						break;
 					default:
 						goto stall;
 					}
@@ -377,6 +411,9 @@ __acquires(musb->lock)
 					musb->g.a_alt_hnp_support = 1;
 					break;
 #endif
+				case USB_DEVICE_DEBUG_MODE:
+					handled = 0;
+					break;
 stall:
 				default:
 					handled = -EINVAL;

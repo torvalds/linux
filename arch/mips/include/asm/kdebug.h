@@ -8,6 +8,9 @@ enum die_val {
 	DIE_FP,
 	DIE_TRAP,
 	DIE_RI,
+	DIE_PAGE_FAULT,
+	DIE_BREAK,
+	DIE_SSTEPBP
 };
 
 #endif /* _ASM_MIPS_KDEBUG_H */

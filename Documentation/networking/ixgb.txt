@@ -309,15 +309,15 @@ Additional Configurations
   Ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.  Ethtool
+  diagnostics, as well as displaying statistical information.  The ethtool
   version 1.6 or later is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://sourceforge.net/projects/gkernel
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
-  NOTE: Ethtool 1.6 only supports a limited set of ethtool options. Support
-        for a more complete ethtool feature set can be enabled by upgrading
-        to the latest version.
+  NOTE: The ethtool version 1.6 only supports a limited set of ethtool options.
+        Support for a more complete ethtool feature set can be enabled by
+        upgrading to the latest version.
 
 
   NAPI

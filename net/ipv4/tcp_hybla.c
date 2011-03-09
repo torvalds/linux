@@ -126,8 +126,8 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 		 * calculate 2^fract in a <<7 value.
 		 */
 		is_slowstart = 1;
-		increment = ((1 << ca->rho) * hybla_fraction(rho_fractions))
-			- 128;
+		increment = ((1 << min(ca->rho, 16U)) *
+			hybla_fraction(rho_fractions)) - 128;
 	} else {
 		/*
 		 * congestion avoidance

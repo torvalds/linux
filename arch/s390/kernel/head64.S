@@ -1,7 +1,7 @@
 /*
  * arch/s390/kernel/head64.S
  *
- * Copyright (C) IBM Corp. 1999,2006
+ * Copyright (C) IBM Corp. 1999,2010
  *
  *   Author(s):	Hartmut Penner <hp@de.ibm.com>
  *		Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -10,81 +10,17 @@
  *
  */
 
-	.org	0x11000
+#include <linux/init.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
+#include <asm/page.h>
 
+__HEAD
+	.globl	startup_continue
 startup_continue:
-	basr	%r13,0			# get base
-.LPG1:	sll	%r13,1			# remove high order bit
-	srl	%r13,1
-
-#ifdef CONFIG_ZFCPDUMP
-
-	# check if we have been ipled using zfcp dump:
-
-	tm	0xb9,0x01		# test if subchannel is enabled
-	jno	.nodump			# subchannel disabled
-	l	%r1,0xb8
-	la	%r5,.Lipl_schib-.LPG1(%r13)
-	stsch	0(%r5)			# get schib of subchannel
-	jne	.nodump			# schib not available
-	tm	5(%r5),0x01		# devno valid?
-	jno	.nodump
-	tm	4(%r5),0x80		# qdio capable device?
-	jno	.nodump
-	l	%r2,20(%r0)		# address of ipl parameter block
-	lhi	%r3,0
-	ic	%r3,0x148(%r2)		# get opt field
-	chi	%r3,0x20		# load with dump?
-	jne	.nodump
-
-	# store all prefix registers in case of load with dump:
-
-	la	%r7,0			# base register for 0 page
-	la	%r8,0			# first cpu
-	l	%r11,.Lpref_arr_ptr-.LPG1(%r13)	# address of prefix array
-	ahi	%r11,4			# skip boot cpu
-	lr	%r12,%r11
-	ahi	%r12,(CONFIG_NR_CPUS*4)	# end of prefix array
-	stap	.Lcurrent_cpu+2-.LPG1(%r13)	# store current cpu addr
-1:
-	cl	%r8,.Lcurrent_cpu-.LPG1(%r13)	# is ipl cpu ?
-	je	4f				# if yes get next cpu
-2:
-	lr	%r9,%r7
-	sigp	%r9,%r8,0x9		# stop & store status of cpu
-	brc	8,3f			# accepted
-	brc	4,4f			# status stored: next cpu
-	brc	2,2b			# busy: 	 try again
-	brc	1,4f			# not op:	 next cpu
-3:
-	mvc	0(4,%r11),264(%r7)	# copy prefix register to prefix array
-	ahi	%r11,4			# next element in prefix array
-	clr	%r11,%r12
-	je	5f			# no more space in prefix array
-4:
-	ahi	%r8,1			# next cpu (r8 += 1)
-	chi	%r8,MAX_CPU_ADDRESS	# is last possible cpu ?
-	jle	1b			# jump if not last cpu
-5:
-	lhi	%r1,2			# mode 2 = esame (dump)
-	j	6f
-	.align 4
-.Lipl_schib:
-	.rept 13
-	.long 0
-	.endr
-.nodump:
-	lhi	%r1,1			# mode 1 = esame (normal ipl)
-6:
-#else
-	lhi	%r1,1			# mode 1 = esame (normal ipl)
-#endif /* CONFIG_ZFCPDUMP */
-	mvi	__LC_AR_MODE_ID,1	# set esame flag
-	slr	%r0,%r0 		# set cpuid to zero
-	sigp	%r1,%r0,0x12		# switch to esame mode
-	sam64				# switch to 64 bit mode
-	llgfr	%r13,%r13		# clear high-order half of base reg
-	lmh	%r0,%r15,.Lzero64-.LPG1(%r13)	# clear high-order half
+	larl	%r1,sched_clock_base_cc
+	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
+	larl	%r13,.LPG1		# get base
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
 					# move IPL device to lowcore
@@ -108,6 +44,7 @@ startup_continue:
 	lpswe	.Lentry-.LPG1(13)	# jump to _stext in primary-space,
 					# virtual and never return ...
 	.align	16
+.LPG1:
 .Lentry:.quad	0x0000000180000000,_stext
 .Lctl:	.quad	0x04350002		# cr0: various things
 	.quad	0			# cr1: primary space segment table
@@ -129,13 +66,6 @@ startup_continue:
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad	0x80000000 + 0x20000 - 8	# 2GB + 128K - 8
 .Lnop:	.long	0x07000700
-.Lzero64:.fill	16,4,0x0
-#ifdef CONFIG_ZFCPDUMP
-.Lcurrent_cpu:
-	.long 0x0
-.Lpref_arr_ptr:
-	.long zfcpdump_prefix_array
-#endif /* CONFIG_ZFCPDUMP */
 .Lparmaddr:
 	.quad	PARMAREA
 	.align	64
@@ -146,11 +76,11 @@ startup_continue:
 	.long	0x80000000,0,0,0	# invalid access-list entries
 	.endr
 
-	.org	0x12000
 	.globl	_ehead
 _ehead:
+
 #ifdef CONFIG_SHARED_KERNEL
-	.org	0x100000
+	.org	0x100000 - 0x11000	# head.o ends at 0x11000
 #endif
 
 #

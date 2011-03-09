@@ -57,7 +57,9 @@ struct proto 	udplite_prot = {
 	.compat_setsockopt = compat_udp_setsockopt,
 	.compat_getsockopt = compat_udp_getsockopt,
 #endif
+	.clear_sk	   = sk_prot_clear_portaddr_nulls,
 };
+EXPORT_SYMBOL(udplite_prot);
 
 static struct inet_protosw udplite4_protosw = {
 	.type		=  SOCK_DGRAM,
@@ -81,12 +83,12 @@ static struct udp_seq_afinfo udplite4_seq_afinfo = {
 	},
 };
 
-static int udplite4_proc_init_net(struct net *net)
+static int __net_init udplite4_proc_init_net(struct net *net)
 {
 	return udp_proc_register(net, &udplite4_seq_afinfo);
 }
 
-static void udplite4_proc_exit_net(struct net *net)
+static void __net_exit udplite4_proc_exit_net(struct net *net)
 {
 	udp_proc_unregister(net, &udplite4_seq_afinfo);
 }
@@ -127,5 +129,3 @@ out_unregister_proto:
 out_register_err:
 	printk(KERN_CRIT "%s: Cannot add UDP-Lite protocol.\n", __func__);
 }
-
-EXPORT_SYMBOL(udplite_prot);

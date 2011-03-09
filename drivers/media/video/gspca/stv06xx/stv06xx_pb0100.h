@@ -138,6 +138,9 @@ const struct stv06xx_sensor stv06xx_sensor_pb0100 = {
 	.i2c_addr = 0xba,
 	.i2c_len = 2,
 
+	.min_packet_size = { 635, 847 },
+	.max_packet_size = { 847, 923 },
+
 	.init = pb0100_init,
 	.probe = pb0100_probe,
 	.start = pb0100_start,

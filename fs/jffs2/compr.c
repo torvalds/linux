@@ -2,10 +2,11 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
- * Created by Arjan van de Ven <arjanv@redhat.com>
- *
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  * Copyright © 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *		    University of Szeged, Hungary
+ *
+ * Created by Arjan van de Ven <arjan@infradead.org>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -102,7 +103,7 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			spin_unlock(&jffs2_compressor_list_lock);
 			*datalen  = orig_slen;
 			*cdatalen = orig_dlen;
-			compr_ret = this->compress(data_in, output_buf, datalen, cdatalen, NULL);
+			compr_ret = this->compress(data_in, output_buf, datalen, cdatalen);
 			spin_lock(&jffs2_compressor_list_lock);
 			this->usecount--;
 			if (!compr_ret) {
@@ -151,7 +152,7 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			spin_unlock(&jffs2_compressor_list_lock);
 			*datalen  = orig_slen;
 			*cdatalen = orig_dlen;
-			compr_ret = this->compress(data_in, this->compr_buf, datalen, cdatalen, NULL);
+			compr_ret = this->compress(data_in, this->compr_buf, datalen, cdatalen);
 			spin_lock(&jffs2_compressor_list_lock);
 			this->usecount--;
 			if (!compr_ret) {
@@ -219,7 +220,7 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			if (comprtype == this->compr) {
 				this->usecount++;
 				spin_unlock(&jffs2_compressor_list_lock);
-				ret = this->decompress(cdata_in, data_out, cdatalen, datalen, NULL);
+				ret = this->decompress(cdata_in, data_out, cdatalen, datalen);
 				spin_lock(&jffs2_compressor_list_lock);
 				if (ret) {
 					printk(KERN_WARNING "Decompressor \"%s\" returned %d\n", this->name, ret);

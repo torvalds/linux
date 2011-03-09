@@ -344,6 +344,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235,
 			 vt8237_force_enable_hpet);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
 			 vt8237_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_CX700,
+			 vt8237_force_enable_hpet);
 
 static void ati_force_hpet_resume(void)
 {
@@ -495,6 +497,9 @@ void force_hpet_resume(void)
 /*
  * HPET MSI on some boards (ATI SB700/SB800) has side effect on
  * floppy DMA. Disable HPET MSI on such platforms.
+ * See erratum #27 (Misinterpreted MSI Requests May Result in
+ * Corrupted LPC DMA Data) in AMD Publication #46837,
+ * "SB700 Family Product Errata", Rev. 1.0, March 2010.
  */
 static void force_disable_hpet_msi(struct pci_dev *unused)
 {

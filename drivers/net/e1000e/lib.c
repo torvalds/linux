@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -51,10 +51,10 @@ enum e1000_mng_mode {
  **/
 s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 {
+	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_bus_info *bus = &hw->bus;
 	struct e1000_adapter *adapter = hw->adapter;
-	u32 status;
-	u16 pcie_link_status, pci_header_type, cap_offset;
+	u16 pcie_link_status, cap_offset;
 
 	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
 	if (!cap_offset) {
@@ -68,17 +68,43 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 						    PCIE_LINK_WIDTH_SHIFT);
 	}
 
-	pci_read_config_word(adapter->pdev, PCI_HEADER_TYPE_REGISTER,
-			     &pci_header_type);
-	if (pci_header_type & PCI_HEADER_TYPE_MULTIFUNC) {
-		status = er32(STATUS);
-		bus->func = (status & E1000_STATUS_FUNC_MASK)
-			    >> E1000_STATUS_FUNC_SHIFT;
-	} else {
-		bus->func = 0;
-	}
+	mac->ops.set_lan_id(hw);
 
 	return 0;
+}
+
+/**
+ *  e1000_set_lan_id_multi_port_pcie - Set LAN id for PCIe multiple port devices
+ *
+ *  @hw: pointer to the HW structure
+ *
+ *  Determines the LAN function id by reading memory-mapped registers
+ *  and swaps the port value if requested.
+ **/
+void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw)
+{
+	struct e1000_bus_info *bus = &hw->bus;
+	u32 reg;
+
+	/*
+	 * The status register reports the correct function number
+	 * for the device regardless of function swap state.
+	 */
+	reg = er32(STATUS);
+	bus->func = (reg & E1000_STATUS_FUNC_MASK) >> E1000_STATUS_FUNC_SHIFT;
+}
+
+/**
+ *  e1000_set_lan_id_single_port - Set LAN id for a single port device
+ *  @hw: pointer to the HW structure
+ *
+ *  Sets the LAN function id to zero for a single port device.
+ **/
+void e1000_set_lan_id_single_port(struct e1000_hw *hw)
+{
+	struct e1000_bus_info *bus = &hw->bus;
+
+	bus->func = 0;
 }
 
 /**
@@ -136,6 +162,78 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 	e_dbg("Clearing RAR[1-%u]\n", rar_count-1);
 	for (i = 1; i < rar_count; i++)
 		e1000e_rar_set(hw, mac_addr, i);
+}
+
+/**
+ *  e1000_check_alt_mac_addr_generic - Check for alternate MAC addr
+ *  @hw: pointer to the HW structure
+ *
+ *  Checks the nvm for an alternate MAC address.  An alternate MAC address
+ *  can be setup by pre-boot software and must be treated like a permanent
+ *  address and must override the actual permanent MAC address. If an
+ *  alternate MAC address is found it is programmed into RAR0, replacing
+ *  the permanent address that was installed into RAR0 by the Si on reset.
+ *  This function will return SUCCESS unless it encounters an error while
+ *  reading the EEPROM.
+ **/
+s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
+{
+	u32 i;
+	s32 ret_val = 0;
+	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
+	u8 alt_mac_addr[ETH_ALEN];
+
+	ret_val = e1000_read_nvm(hw, NVM_COMPAT, 1, &nvm_data);
+	if (ret_val)
+		goto out;
+
+	/* Check for LOM (vs. NIC) or one of two valid mezzanine cards */
+	if (!((nvm_data & NVM_COMPAT_LOM) ||
+	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_DUAL) ||
+	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD)))
+		goto out;
+
+	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
+	                         &nvm_alt_mac_addr_offset);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	if (nvm_alt_mac_addr_offset == 0xFFFF) {
+		/* There is no Alternate MAC Address */
+		goto out;
+	}
+
+	if (hw->bus.func == E1000_FUNC_1)
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
+	for (i = 0; i < ETH_ALEN; i += 2) {
+		offset = nvm_alt_mac_addr_offset + (i >> 1);
+		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
+		if (ret_val) {
+			e_dbg("NVM Read Error\n");
+			goto out;
+		}
+
+		alt_mac_addr[i] = (u8)(nvm_data & 0xFF);
+		alt_mac_addr[i + 1] = (u8)(nvm_data >> 8);
+	}
+
+	/* if multicast bit is set, the alternate address will not be used */
+	if (alt_mac_addr[0] & 0x01) {
+		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
+		goto out;
+	}
+
+	/*
+	 * We have a valid alternate MAC address, and we want to treat it the
+	 * same as the normal permanent MAC address stored by the HW into the
+	 * RAR. Do this by mapping this address into RAR0.
+	 */
+	e1000e_rar_set(hw, alt_mac_addr, 0);
+
+out:
+	return ret_val;
 }
 
 /**
@@ -252,62 +350,34 @@ static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
  *
- *  Updates the Receive Address Registers and Multicast Table Array.
+ *  Updates entire Multicast Table Array.
  *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
  **/
 void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
-					u8 *mc_addr_list, u32 mc_addr_count,
-					u32 rar_used_count, u32 rar_count)
+					u8 *mc_addr_list, u32 mc_addr_count)
 {
-	u32 i;
-	u32 *mcarray = kzalloc(hw->mac.mta_reg_count * sizeof(u32), GFP_ATOMIC);
+	u32 hash_value, hash_bit, hash_reg;
+	int i;
 
-	if (!mcarray) {
-		printk(KERN_ERR "multicast array memory allocation failed\n");
-		return;
-	}
+	/* clear mta_shadow */
+	memset(&hw->mac.mta_shadow, 0, sizeof(hw->mac.mta_shadow));
 
-	/*
-	 * Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = rar_used_count; i < rar_count; i++) {
-		if (mc_addr_count) {
-			e1000e_rar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			E1000_WRITE_REG_ARRAY(hw, E1000_RA, i << 1, 0);
-			e1e_flush();
-			E1000_WRITE_REG_ARRAY(hw, E1000_RA, (i << 1) + 1, 0);
-			e1e_flush();
-		}
-	}
-
-	/* Load any remaining multicast addresses into the hash table. */
-	for (; mc_addr_count > 0; mc_addr_count--) {
-		u32 hash_value, hash_reg, hash_bit, mta;
+	/* update mta_shadow from mc_addr_list */
+	for (i = 0; (u32) i < mc_addr_count; i++) {
 		hash_value = e1000_hash_mc_addr(hw, mc_addr_list);
-		e_dbg("Hash value = 0x%03X\n", hash_value);
+
 		hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
 		hash_bit = hash_value & 0x1F;
-		mta = (1 << hash_bit);
-		mcarray[hash_reg] |= mta;
-		mc_addr_list += ETH_ALEN;
+
+		hw->mac.mta_shadow[hash_reg] |= (1 << hash_bit);
+		mc_addr_list += (ETH_ALEN);
 	}
 
-	/* write the hash table completely */
-	for (i = 0; i < hw->mac.mta_reg_count; i++)
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, mcarray[i]);
-
+	/* replace the entire MTA table */
+	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
+		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, hw->mac.mta_shadow[i]);
 	e1e_flush();
-	kfree(mcarray);
 }
 
 /**
@@ -423,9 +493,8 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 * different link partner.
 	 */
 	ret_val = e1000e_config_fc_after_link_up(hw);
-	if (ret_val) {
+	if (ret_val)
 		e_dbg("Error configuring flow control\n");
-	}
 
 	return ret_val;
 }
@@ -464,7 +533,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 			mac->autoneg_failed = 1;
 			return 0;
 		}
-		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -487,7 +556,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("Rx'ing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -529,7 +598,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 			mac->autoneg_failed = 1;
 			return 0;
 		}
-		e_dbg("NOT RXing /C/, disable AutoNeg and force link.\n");
+		e_dbg("NOT Rx'ing /C/, disable AutoNeg and force link.\n");
 
 		/* Disable auto-negotiation in the TXCW register */
 		ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
@@ -552,7 +621,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
 		 */
-		e_dbg("RXing /C/, enable AutoNeg and stop forcing link.\n");
+		e_dbg("Rx'ing /C/, enable AutoNeg and stop forcing link.\n");
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -587,7 +656,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 				if (!(rxcw & E1000_RXCW_IV)) {
 					mac->serdes_has_link = true;
 					e_dbg("SERDES: Link up - autoneg "
-					   "completed sucessfully.\n");
+					   "completed successfully.\n");
 				} else {
 					mac->serdes_has_link = false;
 					e_dbg("SERDES: Link down - invalid"
@@ -731,9 +800,9 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames,
-	 *	  but not send pause frames).
+	 *          but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames but we
-	 *	  do not support receiving pause frames).
+	 *          do not support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 */
 	switch (hw->fc.current_mode) {
@@ -962,9 +1031,9 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause
-	 *	  frames but not send pause frames).
+	 *          frames but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *	  frames but we do not receive pause frames).
+	 *          frames but we do not receive pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) is enabled.
 	 *  other:  No other values should be possible at this point.
 	 */
@@ -1066,7 +1135,8 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		ret_val = e1e_rphy(hw, PHY_AUTONEG_ADV, &mii_nway_adv_reg);
 		if (ret_val)
 			return ret_val;
-		ret_val = e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
+		ret_val =
+		    e1e_rphy(hw, PHY_LP_ABILITY, &mii_nway_lp_ability_reg);
 		if (ret_val)
 			return ret_val;
 
@@ -1119,7 +1189,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
 				e_dbg("Flow Control = "
-					 "RX PAUSE frames only.\r\n");
+				      "Rx PAUSE frames only.\r\n");
 			}
 		}
 		/*
@@ -1202,24 +1272,21 @@ s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u16 *dup
 	u32 status;
 
 	status = er32(STATUS);
-	if (status & E1000_STATUS_SPEED_1000) {
+	if (status & E1000_STATUS_SPEED_1000)
 		*speed = SPEED_1000;
-		e_dbg("1000 Mbs, ");
-	} else if (status & E1000_STATUS_SPEED_100) {
+	else if (status & E1000_STATUS_SPEED_100)
 		*speed = SPEED_100;
-		e_dbg("100 Mbs, ");
-	} else {
+	else
 		*speed = SPEED_10;
-		e_dbg("10 Mbs, ");
-	}
 
-	if (status & E1000_STATUS_FD) {
+	if (status & E1000_STATUS_FD)
 		*duplex = FULL_DUPLEX;
-		e_dbg("Full Duplex\n");
-	} else {
+	else
 		*duplex = HALF_DUPLEX;
-		e_dbg("Half Duplex\n");
-	}
+
+	e_dbg("%u Mbps, %s Duplex\n",
+	      *speed == SPEED_1000 ? 1000 : *speed == SPEED_100 ? 100 : 10,
+	      *duplex == FULL_DUPLEX ? "Full" : "Half");
 
 	return 0;
 }
@@ -1429,9 +1496,8 @@ s32 e1000e_setup_led_generic(struct e1000_hw *hw)
 {
 	u32 ledctl;
 
-	if (hw->mac.ops.setup_led != e1000e_setup_led_generic) {
+	if (hw->mac.ops.setup_led != e1000e_setup_led_generic)
 		return -E1000_ERR_CONFIG;
-	}
 
 	if (hw->phy.media_type == e1000_media_type_fiber) {
 		ledctl = er32(LEDCTL);
@@ -2072,67 +2138,140 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 }
 
 /**
- *  e1000e_read_mac_addr - Read device MAC address
+ *  e1000_read_pba_string_generic - Read device part number
+ *  @hw: pointer to the HW structure
+ *  @pba_num: pointer to device part number
+ *  @pba_num_size: size of part number buffer
+ *
+ *  Reads the product board assembly (PBA) number from the EEPROM and stores
+ *  the value in pba_num.
+ **/
+s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
+				  u32 pba_num_size)
+{
+	s32 ret_val;
+	u16 nvm_data;
+	u16 pba_ptr;
+	u16 offset;
+	u16 length;
+
+	if (pba_num == NULL) {
+		e_dbg("PBA string buffer was null\n");
+		ret_val = E1000_ERR_INVALID_ARGUMENT;
+		goto out;
+	}
+
+	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_1, 1, &pba_ptr);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	/*
+	 * if nvm_data is not ptr guard the PBA must be in legacy format which
+	 * means pba_ptr is actually our second data word for the PBA number
+	 * and we can decode it into an ascii string
+	 */
+	if (nvm_data != NVM_PBA_PTR_GUARD) {
+		e_dbg("NVM PBA number is not stored as string\n");
+
+		/* we will need 11 characters to store the PBA */
+		if (pba_num_size < 11) {
+			e_dbg("PBA string buffer too small\n");
+			return E1000_ERR_NO_SPACE;
+		}
+
+		/* extract hex string from data and pba_ptr */
+		pba_num[0] = (nvm_data >> 12) & 0xF;
+		pba_num[1] = (nvm_data >> 8) & 0xF;
+		pba_num[2] = (nvm_data >> 4) & 0xF;
+		pba_num[3] = nvm_data & 0xF;
+		pba_num[4] = (pba_ptr >> 12) & 0xF;
+		pba_num[5] = (pba_ptr >> 8) & 0xF;
+		pba_num[6] = '-';
+		pba_num[7] = 0;
+		pba_num[8] = (pba_ptr >> 4) & 0xF;
+		pba_num[9] = pba_ptr & 0xF;
+
+		/* put a null character on the end of our string */
+		pba_num[10] = '\0';
+
+		/* switch all the data but the '-' to hex char */
+		for (offset = 0; offset < 10; offset++) {
+			if (pba_num[offset] < 0xA)
+				pba_num[offset] += '0';
+			else if (pba_num[offset] < 0x10)
+				pba_num[offset] += 'A' - 0xA;
+		}
+
+		goto out;
+	}
+
+	ret_val = e1000_read_nvm(hw, pba_ptr, 1, &length);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	if (length == 0xFFFF || length == 0) {
+		e_dbg("NVM PBA number section invalid length\n");
+		ret_val = E1000_ERR_NVM_PBA_SECTION;
+		goto out;
+	}
+	/* check if pba_num buffer is big enough */
+	if (pba_num_size < (((u32)length * 2) - 1)) {
+		e_dbg("PBA string buffer too small\n");
+		ret_val = E1000_ERR_NO_SPACE;
+		goto out;
+	}
+
+	/* trim pba length from start of string */
+	pba_ptr++;
+	length--;
+
+	for (offset = 0; offset < length; offset++) {
+		ret_val = e1000_read_nvm(hw, pba_ptr + offset, 1, &nvm_data);
+		if (ret_val) {
+			e_dbg("NVM Read Error\n");
+			goto out;
+		}
+		pba_num[offset * 2] = (u8)(nvm_data >> 8);
+		pba_num[(offset * 2) + 1] = (u8)(nvm_data & 0xFF);
+	}
+	pba_num[offset * 2] = '\0';
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_read_mac_addr_generic - Read device MAC address
  *  @hw: pointer to the HW structure
  *
  *  Reads the device MAC address from the EEPROM and stores the value.
  *  Since devices with two ports use the same EEPROM, we increment the
  *  last bit in the MAC address for the second port.
  **/
-s32 e1000e_read_mac_addr(struct e1000_hw *hw)
+s32 e1000_read_mac_addr_generic(struct e1000_hw *hw)
 {
-	s32 ret_val;
-	u16 offset, nvm_data, i;
-	u16 mac_addr_offset = 0;
+	u32 rar_high;
+	u32 rar_low;
+	u16 i;
 
-	if (hw->mac.type == e1000_82571) {
-		/* Check for an alternate MAC address.  An alternate MAC
-		 * address can be setup by pre-boot software and must be
-		 * treated like a permanent address and must override the
-		 * actual permanent MAC address.*/
-		ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
-					 &mac_addr_offset);
-		if (ret_val) {
-			e_dbg("NVM Read Error\n");
-			return ret_val;
-		}
-		if (mac_addr_offset == 0xFFFF)
-			mac_addr_offset = 0;
+	rar_high = er32(RAH(0));
+	rar_low = er32(RAL(0));
 
-		if (mac_addr_offset) {
-			if (hw->bus.func == E1000_FUNC_1)
-				mac_addr_offset += ETH_ALEN/sizeof(u16);
+	for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i] = (u8)(rar_low >> (i*8));
 
-			/* make sure we have a valid mac address here
-			* before using it */
-			ret_val = e1000_read_nvm(hw, mac_addr_offset, 1,
-						 &nvm_data);
-			if (ret_val) {
-				e_dbg("NVM Read Error\n");
-				return ret_val;
-			}
-			if (nvm_data & 0x0001)
-				mac_addr_offset = 0;
-		}
-
-		if (mac_addr_offset)
-		hw->dev_spec.e82571.alt_mac_addr_is_present = 1;
-	}
-
-	for (i = 0; i < ETH_ALEN; i += 2) {
-		offset = mac_addr_offset + (i >> 1);
-		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
-		if (ret_val) {
-			e_dbg("NVM Read Error\n");
-			return ret_val;
-		}
-		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
-		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
-	}
-
-	/* Flip last bit of mac address if we're on second port */
-	if (!mac_addr_offset && hw->bus.func == E1000_FUNC_1)
-		hw->mac.perm_addr[5] ^= 1;
+	for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i+4] = (u8)(rar_high >> (i*8));
 
 	for (i = 0; i < ETH_ALEN; i++)
 		hw->mac.addr[i] = hw->mac.perm_addr[i];
@@ -2254,6 +2393,11 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 {
 	u32 hicr;
 	u8 i;
+
+	if (!(hw->mac.arc_subsystem_valid)) {
+		e_dbg("ARC subsystem not valid.\n");
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
+	}
 
 	/* Check that the host interface is enabled. */
 	hicr = er32(HICR);
@@ -2498,10 +2642,11 @@ s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
 }
 
 /**
- *  e1000e_enable_mng_pass_thru - Enable processing of ARP's
+ *  e1000e_enable_mng_pass_thru - Check if management passthrough is needed
  *  @hw: pointer to the HW structure
  *
- *  Verifies the hardware needs to allow ARPs to be processed by the host.
+ *  Verifies the hardware needs to leave interface enabled so that frames can
+ *  be directed to and from the management interface.
  **/
 bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 {
@@ -2511,11 +2656,10 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 
 	manc = er32(MANC);
 
-	if (!(manc & E1000_MANC_RCV_TCO_EN) ||
-	    !(manc & E1000_MANC_EN_MAC_ADDR_FILTER))
-		return ret_val;
+	if (!(manc & E1000_MANC_RCV_TCO_EN))
+		goto out;
 
-	if (hw->mac.arc_subsystem_valid) {
+	if (hw->mac.has_fwsm) {
 		fwsm = er32(FWSM);
 		factps = er32(FACTPS);
 
@@ -2523,37 +2667,27 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 		    ((fwsm & E1000_FWSM_MODE_MASK) ==
 		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT))) {
 			ret_val = true;
-			return ret_val;
+			goto out;
 		}
-	} else {
-		if ((manc & E1000_MANC_SMBUS_EN) &&
+	} else if ((hw->mac.type == e1000_82574) ||
+		   (hw->mac.type == e1000_82583)) {
+		u16 data;
+
+		factps = er32(FACTPS);
+		e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+
+		if (!(factps & E1000_FACTPS_MNGCG) &&
+		    ((data & E1000_NVM_INIT_CTRL2_MNGM) ==
+		     (e1000_mng_mode_pt << 13))) {
+			ret_val = true;
+			goto out;
+		}
+	} else if ((manc & E1000_MANC_SMBUS_EN) &&
 		    !(manc & E1000_MANC_ASF_EN)) {
 			ret_val = true;
-			return ret_val;
-		}
+			goto out;
 	}
 
+out:
 	return ret_val;
-}
-
-s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num)
-{
-	s32 ret_val;
-	u16 nvm_data;
-
-	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
-	if (ret_val) {
-		e_dbg("NVM Read Error\n");
-		return ret_val;
-	}
-	*pba_num = (u32)(nvm_data << 16);
-
-	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_1, 1, &nvm_data);
-	if (ret_val) {
-		e_dbg("NVM Read Error\n");
-		return ret_val;
-	}
-	*pba_num |= nvm_data;
-
-	return 0;
 }

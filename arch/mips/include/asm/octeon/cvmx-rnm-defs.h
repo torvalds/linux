@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -30,10 +30,11 @@
 
 #include <linux/types.h>
 
-#define CVMX_RNM_BIST_STATUS \
-	 CVMX_ADD_IO_SEG(0x0001180040000008ull)
-#define CVMX_RNM_CTL_STATUS \
-	 CVMX_ADD_IO_SEG(0x0001180040000000ull)
+#define CVMX_RNM_BIST_STATUS (CVMX_ADD_IO_SEG(0x0001180040000008ull))
+#define CVMX_RNM_CTL_STATUS (CVMX_ADD_IO_SEG(0x0001180040000000ull))
+#define CVMX_RNM_EER_DBG (CVMX_ADD_IO_SEG(0x0001180040000018ull))
+#define CVMX_RNM_EER_KEY (CVMX_ADD_IO_SEG(0x0001180040000010ull))
+#define CVMX_RNM_SERIAL_NUM (CVMX_ADD_IO_SEG(0x0001180040000020ull))
 
 union cvmx_rnm_bist_status {
 	uint64_t u64;
@@ -53,12 +54,16 @@ union cvmx_rnm_bist_status {
 	struct cvmx_rnm_bist_status_s cn56xxp1;
 	struct cvmx_rnm_bist_status_s cn58xx;
 	struct cvmx_rnm_bist_status_s cn58xxp1;
+	struct cvmx_rnm_bist_status_s cn63xx;
+	struct cvmx_rnm_bist_status_s cn63xxp1;
 };
 
 union cvmx_rnm_ctl_status {
 	uint64_t u64;
 	struct cvmx_rnm_ctl_status_s {
-		uint64_t reserved_9_63:55;
+		uint64_t reserved_11_63:53;
+		uint64_t eer_lck:1;
+		uint64_t eer_val:1;
 		uint64_t ent_sel:4;
 		uint64_t exp_ent:1;
 		uint64_t rng_rst:1;
@@ -76,13 +81,49 @@ union cvmx_rnm_ctl_status {
 	struct cvmx_rnm_ctl_status_cn30xx cn31xx;
 	struct cvmx_rnm_ctl_status_cn30xx cn38xx;
 	struct cvmx_rnm_ctl_status_cn30xx cn38xxp2;
-	struct cvmx_rnm_ctl_status_s cn50xx;
-	struct cvmx_rnm_ctl_status_s cn52xx;
-	struct cvmx_rnm_ctl_status_s cn52xxp1;
-	struct cvmx_rnm_ctl_status_s cn56xx;
-	struct cvmx_rnm_ctl_status_s cn56xxp1;
-	struct cvmx_rnm_ctl_status_s cn58xx;
-	struct cvmx_rnm_ctl_status_s cn58xxp1;
+	struct cvmx_rnm_ctl_status_cn50xx {
+		uint64_t reserved_9_63:55;
+		uint64_t ent_sel:4;
+		uint64_t exp_ent:1;
+		uint64_t rng_rst:1;
+		uint64_t rnm_rst:1;
+		uint64_t rng_en:1;
+		uint64_t ent_en:1;
+	} cn50xx;
+	struct cvmx_rnm_ctl_status_cn50xx cn52xx;
+	struct cvmx_rnm_ctl_status_cn50xx cn52xxp1;
+	struct cvmx_rnm_ctl_status_cn50xx cn56xx;
+	struct cvmx_rnm_ctl_status_cn50xx cn56xxp1;
+	struct cvmx_rnm_ctl_status_cn50xx cn58xx;
+	struct cvmx_rnm_ctl_status_cn50xx cn58xxp1;
+	struct cvmx_rnm_ctl_status_s cn63xx;
+	struct cvmx_rnm_ctl_status_s cn63xxp1;
+};
+
+union cvmx_rnm_eer_dbg {
+	uint64_t u64;
+	struct cvmx_rnm_eer_dbg_s {
+		uint64_t dat:64;
+	} s;
+	struct cvmx_rnm_eer_dbg_s cn63xx;
+	struct cvmx_rnm_eer_dbg_s cn63xxp1;
+};
+
+union cvmx_rnm_eer_key {
+	uint64_t u64;
+	struct cvmx_rnm_eer_key_s {
+		uint64_t key:64;
+	} s;
+	struct cvmx_rnm_eer_key_s cn63xx;
+	struct cvmx_rnm_eer_key_s cn63xxp1;
+};
+
+union cvmx_rnm_serial_num {
+	uint64_t u64;
+	struct cvmx_rnm_serial_num_s {
+		uint64_t dat:64;
+	} s;
+	struct cvmx_rnm_serial_num_s cn63xx;
 };
 
 #endif

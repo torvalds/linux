@@ -157,7 +157,7 @@ __u16 sctp_tsnmap_pending(struct sctp_tsnmap *map);
 /* Is there a gap in the TSN map?  */
 static inline int sctp_tsnmap_has_gap(const struct sctp_tsnmap *map)
 {
-	return (map->cumulative_tsn_ack_point != map->max_tsn_seen);
+	return map->cumulative_tsn_ack_point != map->max_tsn_seen;
 }
 
 /* Mark a duplicate TSN.  Note:  limit the storage of duplicate TSN

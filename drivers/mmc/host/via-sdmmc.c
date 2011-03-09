@@ -1050,8 +1050,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 	mmc->ops = &via_sdc_ops;
 
 	/*Hardware cannot do scatter lists*/
-	mmc->max_hw_segs = 1;
-	mmc->max_phys_segs = 1;
+	mmc->max_segs = 1;
 
 	mmc->max_blk_size = VIA_CRDR_MAX_BLOCK_LENGTH;
 	mmc->max_blk_count = VIA_CRDR_MAX_BLOCK_COUNT;
@@ -1280,7 +1279,7 @@ static int via_sd_suspend(struct pci_dev *pcidev, pm_message_t state)
 	via_save_pcictrlreg(host);
 	via_save_sdcreg(host);
 
-	ret = mmc_suspend_host(host->mmc, state);
+	ret = mmc_suspend_host(host->mmc);
 
 	pci_save_state(pcidev);
 	pci_enable_wake(pcidev, pci_choose_state(pcidev, state), 0);

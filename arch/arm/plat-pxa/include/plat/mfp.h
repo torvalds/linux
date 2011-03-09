@@ -316,6 +316,13 @@ enum {
 	MFP_PIN_PMIC_INT,
 	MFP_PIN_RDY,
 
+	/* additional pins on MMP2 */
+	MFP_PIN_TWSI1_SCL,
+	MFP_PIN_TWSI1_SDA,
+	MFP_PIN_TWSI4_SCL,
+	MFP_PIN_TWSI4_SDA,
+	MFP_PIN_CLK_REQ,
+
 	MFP_PIN_MAX,
 };
 
@@ -416,7 +423,7 @@ typedef unsigned long mfp_cfg_t;
 	((MFP_CFG_DEFAULT & ~(MFP_AF_MASK | MFP_DS_MASK | MFP_LPM_STATE_MASK)) |\
 	 (MFP_PIN(MFP_PIN_##pin) | MFP_##af | MFP_##drv | MFP_LPM_##lpm))
 
-#if defined(CONFIG_PXA3xx) || defined(CONFIG_ARCH_MMP)
+#if defined(CONFIG_PXA3xx) || defined(CONFIG_PXA95x) || defined(CONFIG_ARCH_MMP)
 /*
  * each MFP pin will have a MFPR register, since the offset of the
  * register varies between processors, the processor specific code
@@ -463,6 +470,6 @@ void mfp_write(int mfp, unsigned long mfpr_val);
 void mfp_config(unsigned long *mfp_cfgs, int num);
 void mfp_config_run(void);
 void mfp_config_lpm(void);
-#endif /* CONFIG_PXA3xx || CONFIG_ARCH_MMP */
+#endif /* CONFIG_PXA3xx || CONFIG_PXA95x || CONFIG_ARCH_MMP */
 
 #endif /* __ASM_PLAT_MFP_H */

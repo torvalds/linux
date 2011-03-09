@@ -615,7 +615,7 @@ ultra2_dmafifoflush:
 			 * went empty and the next bit of data is copied from
 			 * the SCSI fifo into the PCI fifo.  It should only
 			 * come on when both FIFOs (meaning the entire FIFO
-			 * chain) are emtpy.  Since it can take up to 4 cycles
+			 * chain) are empty.  Since it can take up to 4 cycles
 			 * for new data to be copied from the SCSI fifo into
 			 * the PCI fifo, testing for FIFOEMP status for 4
 			 * extra times gives the needed time for any
@@ -1178,7 +1178,7 @@ notFound:
 /*
  * Retrieve an SCB by SCBID first searching the disconnected list falling
  * back to DMA'ing the SCB down from the host.  This routine assumes that
- * ARG_1 is the SCBID of interrest and that SINDEX is the position in the
+ * ARG_1 is the SCBID of interest and that SINDEX is the position in the
  * disconnected list to start the search from.  If SINDEX is SCB_LIST_NULL,
  * we go directly to the host for the SCB.
  */

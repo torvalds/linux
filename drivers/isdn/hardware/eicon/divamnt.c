@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "platform.h"
@@ -22,6 +22,7 @@
 #include "divasync.h"
 #include "debug_if.h"
 
+static DEFINE_MUTEX(maint_mutex);
 static char *main_revision = "$Revision: 1.32.6.10 $";
 
 static int major;
@@ -130,7 +131,7 @@ static int maint_open(struct inode *ino, struct file *filep)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&maint_mutex);
 	/* only one open is allowed, so we test
 	   it atomically */
 	if (test_and_set_bit(0, &opened))
@@ -139,7 +140,7 @@ static int maint_open(struct inode *ino, struct file *filep)
 		filep->private_data = NULL;
 		ret = nonseekable_open(ino, filep);
 	}
-	unlock_kernel();
+	mutex_unlock(&maint_mutex);
 	return ret;
 }
 

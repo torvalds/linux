@@ -32,6 +32,7 @@
 
 	Revision History:
 	Who			When		  What
+	Justin P. Mattock	11/07/2010	  Fix a comments, and typos
 	--------	----------	  ----------------------------------------------
 */
 
@@ -43,7 +44,7 @@
 /* ================================================================================= */
 
 /* the first 24-byte in TXD is called TXINFO and will be DMAed to MAC block through TXFIFO. */
-/* MAC block use this TXINFO to control the transmission behavior of this frame. */
+/* MAC block uses this TXINFO to control the transmission behavior of this frame. */
 #define FIFO_MGMT                 0
 #define FIFO_HCCA                 1
 #define FIFO_EDCA                 2
@@ -154,7 +155,7 @@ typedef union _INT_SOURCE_CSR_STRUC {
 		u32 GPTimer:1;
 		u32 RxCoherent:1;	/*bit16 */
 		u32 TxCoherent:1;
-		u32 : 14;
+		u32: 14;
 	} field;
 	u32 word;
 } INT_SOURCE_CSR_STRUC, *PINT_SOURCE_CSR_STRUC;
@@ -175,7 +176,7 @@ typedef union _INT_MASK_CSR_STRUC {
 		u32 HccaDmaDone:1;
 		u32 MgmtDmaDone:1;
 		u32 MCUCommandINT:1;
-		u32 : 20;
+		u32: 20;
 		u32 RxCoherent:1;
 		u32 TxCoherent:1;
 	} field;
@@ -209,7 +210,7 @@ typedef union _WPDMA_RST_IDX_STRUC {
 		u32 RST_DTX_IDX5:1;
 		u32 rsv:10;
 		u32 RST_DRX_IDX0:1;
-		u32 : 15;
+		u32: 15;
 	} field;
 	u32 word;
 } WPDMA_RST_IDX_STRUC, *PWPDMA_RST_IDX_STRUC;
@@ -448,7 +449,7 @@ typedef union _BBP_CSR_CFG_STRUC {
 		u32 Busy:1;	/* 1: ASIC is busy execute BBP programming. */
 		u32 BBP_PAR_DUR:1;	/* 0: 4 MAC clock cycles  1: 8 MAC clock cycles */
 		u32 BBP_RW_MODE:1;	/* 0: use serial mode  1:parallel */
-		u32 : 12;
+		u32: 12;
 	} field;
 	u32 word;
 } BBP_CSR_CFG_STRUC, *PBBP_CSR_CFG_STRUC;
@@ -458,8 +459,8 @@ typedef union _BBP_CSR_CFG_STRUC {
 /* */
 typedef union _RF_CSR_CFG0_STRUC {
 	struct {
-		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
-		u32 bitwidth:5;	/* Selected     BBP     register */
+		u32 RegIdAndContent:24;	/* Register value to program into BBP */
+		u32 bitwidth:5;	/* Selected BBP register */
 		u32 StandbyMode:1;	/* 0: high when stand by 1: low when standby */
 		u32 Sel:1;	/* 0:RF_LE0 activate  1:RF_LE1 activate */
 		u32 Busy:1;	/* 0: idle 1: 8busy */
@@ -469,7 +470,7 @@ typedef union _RF_CSR_CFG0_STRUC {
 #define RF_CSR_CFG1			0x1024
 typedef union _RF_CSR_CFG1_STRUC {
 	struct {
-		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 RegIdAndContent:24;	/* Register value to program into BBP */
 		u32 RFGap:5;	/* Gap between BB_CONTROL_RF and RF_LE. 0: 3 system clock cycle (37.5usec) 1: 5 system clock cycle (62.5usec) */
 		u32 rsv:7;	/* 0: idle 1: 8busy */
 	} field;
@@ -478,7 +479,7 @@ typedef union _RF_CSR_CFG1_STRUC {
 #define RF_CSR_CFG2			0x1028	/* */
 typedef union _RF_CSR_CFG2_STRUC {
 	struct {
-		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 RegIdAndContent:24;	/* Register value to program into BBP */
 		u32 rsv:8;	/* 0: idle 1: 8busy */
 	} field;
 	u32 word;
@@ -490,11 +491,11 @@ typedef union _LED_CFG_STRUC {
 		u32 OffPeriod:8;	/* blinking off period unit 1ms */
 		u32 SlowBlinkPeriod:6;	/* slow blinking period. unit:1ms */
 		u32 rsv:2;
-		u32 RLedMode:2;	/* red Led Mode    0: off1: blinking upon TX2: periodic slow blinking3: always on */
+		u32 RLedMode:2;	/* red Led Mode 0: off1: blinking upon TX2: periodic slow blinking3: always on */
 		u32 GLedMode:2;	/* green Led Mode */
 		u32 YLedMode:2;	/* yellow Led Mode */
 		u32 LedPolar:1;	/* Led Polarity.  0: active low1: active high */
-		u32 : 1;
+		u32: 1;
 	} field;
 	u32 word;
 } LED_CFG_STRUC, *PLED_CFG_STRUC;
@@ -533,7 +534,7 @@ typedef union _BCN_TIME_CFG_STRUC {
 		u32 TsfSyncMode:2;	/* Enable TSF sync, 00: disable, 01: infra mode, 10: ad-hoc mode */
 		u32 bTBTTEnable:1;
 		u32 bBeaconGen:1;	/* Enable beacon generator */
-		u32 : 3;
+		u32: 3;
 		u32 TxTimestampCompensate:8;
 	} field;
 	u32 word;
@@ -560,7 +561,7 @@ typedef union _AUTO_WAKEUP_STRUC {
 		u32 AutoLeadTime:8;
 		u32 NumofSleepingTbtt:7;	/* ForceWake has high privilege than PutToSleep when both set */
 		u32 EnableAutoWakeup:1;	/* 0:sleep, 1:awake */
-		u32 : 16;
+		u32: 16;
 	} field;
 	u32 word;
 } AUTO_WAKEUP_STRUC, *PAUTO_WAKEUP_STRUC;
@@ -578,7 +579,7 @@ typedef union _EDCA_AC_CFG_STRUC {
 		u32 Aifsn:4;	/* # of slot time */
 		u32 Cwmin:4;	/* */
 		u32 Cwmax:4;	/*unit power of 2 */
-		u32 : 12;	/* */
+		u32: 12;	/* */
 	} field;
 	u32 word;
 } EDCA_AC_CFG_STRUC, *PEDCA_AC_CFG_STRUC;
@@ -621,9 +622,9 @@ typedef union _TX_TIMEOUT_CFG_STRUC {
 #define TX_RTY_CFG	0x134c
 typedef union PACKED _TX_RTY_CFG_STRUC {
 	struct {
-		u32 ShortRtyLimit:8;	/*  short retry limit */
-		u32 LongRtyLimit:8;	/*long retry limit */
-		u32 LongRtyThre:12;	/* Long retry threshoold */
+		u32 ShortRtyLimit:8;	/* short retry limit */
+		u32 LongRtyLimit:8;	/* long retry limit */
+		u32 LongRtyThre:12;	/* Long retry threshold */
 		u32 NonAggRtyMode:1;	/* Non-Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
 		u32 AggRtyMode:1;	/* Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
 		u32 TxautoFBEnable:1;	/* Tx retry PHY rate auto fallback enable */
@@ -751,7 +752,7 @@ typedef union _AUTO_RSP_CFG_STRUC {
 		u32 rsv:1;	/* Power bit value in conrtrol frame */
 		u32 DualCTSEn:1;	/* Power bit value in conrtrol frame */
 		u32 AckCtsPsmBit:1;	/* Power bit value in conrtrol frame */
-		u32 : 24;
+		u32: 24;
 	} field;
 	u32 word;
 } AUTO_RSP_CFG_STRUC, *PAUTO_RSP_CFG_STRUC;
@@ -981,21 +982,21 @@ typedef union _MPDU_DEN_CNT_STRUC {
 typedef union _SHAREDKEY_MODE_STRUC {
 	struct {
 		u32 Bss0Key0CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss0Key1CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss0Key2CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss0Key3CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss1Key0CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss1Key1CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss1Key2CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss1Key3CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 	} field;
 	u32 word;
 } SHAREDKEY_MODE_STRUC, *PSHAREDKEY_MODE_STRUC;
@@ -1103,7 +1104,7 @@ typedef union _RX_FILTR_CFG_STRUC {
 		u32 DropBAR:1;	/* */
 
 		u32 DropRsvCntlType:1;
-		u32 : 15;
+		u32: 15;
 	} field;
 	u32 word;
 } RX_FILTR_CFG_STRUC, *PRX_FILTR_CFG_STRUC;
@@ -1128,21 +1129,21 @@ typedef union _PHY_CSR4_STRUC {
 typedef union _SEC_CSR5_STRUC {
 	struct {
 		u32 Bss2Key0CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss2Key1CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss2Key2CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss2Key3CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss3Key0CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss3Key1CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss3Key2CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 		u32 Bss3Key3CipherAlg:3;
-		u32 : 1;
+		u32: 1;
 	} field;
 	u32 word;
 } SEC_CSR5_STRUC, *PSEC_CSR5_STRUC;

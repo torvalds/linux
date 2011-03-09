@@ -126,7 +126,7 @@ struct ehea_swqe {
 			u8 immediate_data[SWQE2_MAX_IMM];
 			/* 0xd0 */
 			struct ehea_vsgentry sg_list[EHEA_MAX_WQE_SG_ENTRIES-1];
-		} immdata_desc __attribute__ ((packed));
+		} immdata_desc __packed;
 
 		/*  Send WQE Format 3 */
 		struct {
@@ -150,9 +150,13 @@ struct ehea_rwqe {
 #define EHEA_CQE_TYPE_RQ           0x60
 #define EHEA_CQE_STAT_ERR_MASK     0x700F
 #define EHEA_CQE_STAT_FAT_ERR_MASK 0xF
+#define EHEA_CQE_BLIND_CKSUM       0x8000
 #define EHEA_CQE_STAT_ERR_TCP      0x4000
 #define EHEA_CQE_STAT_ERR_IP       0x2000
 #define EHEA_CQE_STAT_ERR_CRC      0x1000
+
+/* Defines which bad send cqe stati lead to a port reset */
+#define EHEA_CQE_STAT_RESET_MASK   0x0002
 
 struct ehea_cqe {
 	u64 wr_id;		/* work request ID from WQE */
@@ -186,6 +190,14 @@ struct ehea_cqe {
 #define EHEA_EQE_SM_ID           EHEA_BMASK_IBM(48, 63)
 #define EHEA_EQE_SM_MECH_NUMBER  EHEA_BMASK_IBM(48, 55)
 #define EHEA_EQE_SM_PORT_NUMBER  EHEA_BMASK_IBM(56, 63)
+
+#define EHEA_AER_RESTYPE_QP  0x8
+#define EHEA_AER_RESTYPE_CQ  0x4
+#define EHEA_AER_RESTYPE_EQ  0x3
+
+/* Defines which affiliated errors lead to a port reset */
+#define EHEA_AER_RESET_MASK   0xFFFFFFFFFEFFFFFFULL
+#define EHEA_AERR_RESET_MASK  0xFFFFFFFFFFFFFFFFULL
 
 struct ehea_eqe {
 	u64 entry;
@@ -379,7 +391,8 @@ int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
 
 int ehea_rem_mr(struct ehea_mr *mr);
 
-void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle);
+u64 ehea_error_data(struct ehea_adapter *adapter, u64 res_handle,
+		    u64 *aer, u64 *aerr);
 
 int ehea_add_sect_bmap(unsigned long pfn, unsigned long nr_pages);
 int ehea_rem_sect_bmap(unsigned long pfn, unsigned long nr_pages);

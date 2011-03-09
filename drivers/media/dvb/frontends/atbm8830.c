@@ -50,8 +50,7 @@ static int atbm8830_write_reg(struct atbm_state *priv, u16 reg, u8 data)
 	msg2.addr = dev_addr;
 
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%04X, data=0x%02X\n",
-			__func__, reg, data);
+		dprintk("%s: reg=0x%04X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg1, 1);
 	if (ret != 1)
@@ -77,8 +76,7 @@ static int atbm8830_read_reg(struct atbm_state *priv, u16 reg, u8 *p_data)
 
 	ret = i2c_transfer(priv->i2c, &msg1, 1);
 	if (ret != 1) {
-		dprintk(KERN_DEBUG "%s: error reg=0x%04x, ret=%i\n",
-			__func__, reg, ret);
+		dprintk("%s: error reg=0x%04x, ret=%i\n", __func__, reg, ret);
 		return -EIO;
 	}
 
@@ -88,7 +86,7 @@ static int atbm8830_read_reg(struct atbm_state *priv, u16 reg, u8 *p_data)
 
 	*p_data = buf2[0];
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%04X, data=0x%02X\n",
+		dprintk("%s: reg=0x%04X, data=0x%02X\n",
 			__func__, reg, buf2[0]);
 
 	return 0;
@@ -170,6 +168,19 @@ static int is_locked(struct atbm_state *priv, u8 *locked)
 	return 0;
 }
 
+static int set_agc_config(struct atbm_state *priv,
+	u8 min, u8 max, u8 hold_loop)
+{
+	/* no effect if both min and max are zero */
+	if (!min && !max)
+	    return 0;
+
+	atbm8830_write_reg(priv, REG_AGC_MIN, min);
+	atbm8830_write_reg(priv, REG_AGC_MAX, max);
+	atbm8830_write_reg(priv, REG_AGC_HOLD_LOOP, hold_loop);
+
+	return 0;
+}
 
 static int set_static_channel_mode(struct atbm_state *priv)
 {
@@ -227,6 +238,9 @@ static int atbm8830_init(struct dvb_frontend *fe)
 	/*Set IF frequency*/
 	set_if_freq(priv, cfg->if_freq);
 
+	/*Set AGC Config*/
+	set_agc_config(priv, cfg->agc_min, cfg->agc_max,
+		cfg->agc_hold_loop);
 
 	/*Set static channel mode*/
 	set_static_channel_mode(priv);

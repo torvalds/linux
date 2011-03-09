@@ -13,7 +13,7 @@
  */
 
 /*
- * Comand coalescing - This feature allows the driver to be able to combine
+ * Command coalescing - This feature allows the driver to be able to combine
  * two or more commands and issue as one command in order to boost I/O
  * performance. Useful if the nature of the I/O is sequential. It is not very
  * useful for random natured I/Os.
@@ -987,7 +987,7 @@ static int mega_query_adapter(adapter_t *);
 static int issue_scb(adapter_t *, scb_t *);
 static int mega_setup_mailbox(adapter_t *);
 
-static int megaraid_queue (Scsi_Cmnd *, void (*)(Scsi_Cmnd *));
+static int megaraid_queue (struct Scsi_Host *, struct scsi_cmnd *);
 static scb_t * mega_build_cmd(adapter_t *, Scsi_Cmnd *, int *);
 static void __mega_runpendq(adapter_t *);
 static int issue_scb_block(adapter_t *, u_char *);
@@ -1013,8 +1013,7 @@ static void mega_8_to_40ld (mraid_inquiry *inquiry,
 		mega_inquiry3 *enquiry3, mega_product_info *);
 
 static int megadev_open (struct inode *, struct file *);
-static int megadev_ioctl (struct inode *, struct file *, unsigned int,
-		unsigned long);
+static int megadev_ioctl (struct file *, unsigned int, unsigned long);
 static int mega_m_to_n(void __user *, nitioctl_t *);
 static int mega_n_to_m(void __user *, megacmd_t *);
 

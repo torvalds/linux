@@ -36,7 +36,7 @@ static struct menu *current_menu, *current_entry;
 #define YYERROR_VERBOSE
 #endif
 %}
-%expect 26
+%expect 30
 
 %union
 {
@@ -68,6 +68,7 @@ static struct menu *current_menu, *current_entry;
 %token <id>T_DEFAULT
 %token <id>T_SELECT
 %token <id>T_RANGE
+%token <id>T_VISIBLE
 %token <id>T_OPTION
 %token <id>T_ON
 %token <string> T_WORD
@@ -104,14 +105,15 @@ static struct menu *current_menu, *current_entry;
 %}
 
 %%
-input: stmt_list;
+input: nl start | start;
+
+start: mainmenu_stmt stmt_list | stmt_list;
 
 stmt_list:
 	  /* empty */
 	| stmt_list common_stmt
 	| stmt_list choice_stmt
 	| stmt_list menu_stmt
-	| stmt_list T_MAINMENU prompt nl
 	| stmt_list end			{ zconf_error("unexpected end statement"); }
 	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
 	| stmt_list option_name error T_EOL
@@ -122,7 +124,7 @@ stmt_list:
 ;
 
 option_name:
-	T_DEPENDS | T_PROMPT | T_TYPE | T_SELECT | T_OPTIONAL | T_RANGE | T_DEFAULT
+	T_DEPENDS | T_PROMPT | T_TYPE | T_SELECT | T_OPTIONAL | T_RANGE | T_DEFAULT | T_VISIBLE
 ;
 
 common_stmt:
@@ -342,6 +344,13 @@ if_block:
 	| if_block choice_stmt
 ;
 
+/* mainmenu entry */
+
+mainmenu_stmt: T_MAINMENU prompt nl
+{
+	menu_add_prompt(P_MENU, $2, NULL);
+};
+
 /* menu entry */
 
 menu: T_MENU prompt T_EOL
@@ -351,7 +360,7 @@ menu: T_MENU prompt T_EOL
 	printd(DEBUG_PARSE, "%s:%d:menu\n", zconf_curname(), zconf_lineno());
 };
 
-menu_entry: menu depends_list
+menu_entry: menu visibility_list depends_list
 {
 	$$ = menu_add_menu();
 };
@@ -420,6 +429,19 @@ depends: T_DEPENDS T_ON expr T_EOL
 {
 	menu_add_dep($3);
 	printd(DEBUG_PARSE, "%s:%d:depends on\n", zconf_curname(), zconf_lineno());
+};
+
+/* visibility option */
+
+visibility_list:
+	  /* empty */
+	| visibility_list visible
+	| visibility_list T_EOL
+;
+
+visible: T_VISIBLE if_expr
+{
+	menu_add_visibility($2);
 };
 
 /* prompt statement */
@@ -494,6 +516,10 @@ void conf_parse(const char *name)
 		prop = prop_alloc(P_DEFAULT, modules_sym);
 		prop->expr = expr_alloc_symbol(sym_lookup("MODULES", 0));
 	}
+
+	rootmenu.prompt->text = _(rootmenu.prompt->text);
+	rootmenu.prompt->text = sym_expand_string_value(rootmenu.prompt->text);
+
 	menu_finalize(&rootmenu);
 	for_all_symbols(i, sym) {
 		if (sym_check_deps(sym))
@@ -514,6 +540,7 @@ static const char *zconf_tokenname(int token)
 	case T_IF:		return "if";
 	case T_ENDIF:		return "endif";
 	case T_DEPENDS:		return "depends";
+	case T_VISIBLE:		return "visible";
 	}
 	return "<token>";
 }

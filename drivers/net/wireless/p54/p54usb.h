@@ -70,12 +70,12 @@ struct net2280_tx_hdr {
 	__le16 len;
 	__le16 follower;	/* ? */
 	u8 padding[8];
-} __attribute__((packed));
+} __packed;
 
 struct lm87_tx_hdr {
 	__le32 device_addr;
 	__le32 chksum;
-} __attribute__((packed));
+} __packed;
 
 /* Some flags for the isl hardware registers controlling DMA inside the
  * chip */
@@ -103,7 +103,7 @@ struct x2_header {
 	__le32 fw_load_addr;
 	__le32 fw_length;
 	__le32 crc;
-} __attribute__((packed));
+} __packed;
 
 /* pipes 3 and 4 are not used by the driver */
 #define P54U_PIPE_NUMBER 9

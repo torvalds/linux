@@ -10,5 +10,7 @@ nfulnl_log_packet(u_int8_t pf,
 		  const struct nf_loginfo *li_user,
 		  const char *prefix);
 
+#define NFULNL_COPY_DISABLED    0xff
+
 #endif /* _KER_NFNETLINK_LOG_H */
 

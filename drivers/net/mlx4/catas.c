@@ -101,8 +101,8 @@ static void catas_reset(struct work_struct *work)
 		ret = mlx4_restart_one(priv->dev.pdev);
 		/* 'priv' now is not valid */
 		if (ret)
-			printk(KERN_ERR "mlx4 %s: Reset failed (%d)\n",
-				pci_name(pdev), ret);
+			pr_err("mlx4 %s: Reset failed (%d)\n",
+			       pci_name(pdev), ret);
 		else {
 			dev  = pci_get_drvdata(pdev);
 			mlx4_dbg(dev, "Reset succeeded\n");
@@ -113,7 +113,7 @@ static void catas_reset(struct work_struct *work)
 void mlx4_start_catas_poll(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	unsigned long addr;
+	phys_addr_t addr;
 
 	INIT_LIST_HEAD(&priv->catas_err.list);
 	init_timer(&priv->catas_err.timer);
@@ -124,8 +124,8 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 
 	priv->catas_err.map = ioremap(addr, priv->fw.catas_size * 4);
 	if (!priv->catas_err.map) {
-		mlx4_warn(dev, "Failed to map internal error buffer at 0x%lx\n",
-			  addr);
+		mlx4_warn(dev, "Failed to map internal error buffer at 0x%llx\n",
+			  (unsigned long long) addr);
 		return;
 	}
 

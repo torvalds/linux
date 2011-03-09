@@ -37,7 +37,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 	u8 *buffer, *alignbuffer;
 	int err;
 
-	absize = keylen + (alignmask & ~(CRYPTO_MINALIGN - 1));
+	absize = keylen + (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 	buffer = kmalloc(absize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
@@ -310,7 +310,13 @@ static int shash_async_export(struct ahash_request *req, void *out)
 
 static int shash_async_import(struct ahash_request *req, const void *in)
 {
-	return crypto_shash_import(ahash_request_ctx(req), in);
+	struct crypto_shash **ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(req));
+	struct shash_desc *desc = ahash_request_ctx(req);
+
+	desc->tfm = *ctx;
+	desc->flags = req->base.flags;
+
+	return crypto_shash_import(desc, in);
 }
 
 static void crypto_exit_shash_ops_async(struct crypto_tfm *tfm)

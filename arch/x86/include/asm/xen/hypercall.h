@@ -200,6 +200,23 @@ extern struct { char _entry[32]; } hypercall_page[];
 	(type)__res;							\
 })
 
+static inline long
+privcmd_call(unsigned call,
+	     unsigned long a1, unsigned long a2,
+	     unsigned long a3, unsigned long a4,
+	     unsigned long a5)
+{
+	__HYPERCALL_DECLS;
+	__HYPERCALL_5ARG(a1, a2, a3, a4, a5);
+
+	asm volatile("call *%[call]"
+		     : __HYPERCALL_5PARAM
+		     : [call] "a" (&hypercall_page[call])
+		     : __HYPERCALL_CLOBBER5);
+
+	return (long)__res;
+}
+
 static inline int
 HYPERVISOR_set_trap_table(struct trap_info *table)
 {
@@ -415,6 +432,12 @@ static inline int
 HYPERVISOR_nmi_op(unsigned long op, unsigned long arg)
 {
 	return _hypercall2(int, nmi_op, op, arg);
+}
+
+static inline unsigned long __must_check
+HYPERVISOR_hvm_op(int op, void *arg)
+{
+       return _hypercall2(unsigned long, hvm_op, op, arg);
 }
 
 static inline void

@@ -1,6 +1,6 @@
 obj-$(CONFIG_LINE6_USB)		+= line6usb.o
 
-line6usb-objs := 		\
+line6usb-y := 		\
 		audio.o		\
 		capture.o	\
 		control.o	\

@@ -180,6 +180,8 @@ static DECLARE_INTC_DESC(intc_desc, "sh7201", vectors, groups,
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xfffe8000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 180, 180, 180, 180 }
 };
@@ -195,6 +197,8 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.mapbase	= 0xfffe8800,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 184, 184, 184, 184 }
 };
@@ -210,6 +214,8 @@ static struct platform_device scif1_device = {
 static struct plat_sci_port scif2_platform_data = {
 	.mapbase	= 0xfffe9000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 188, 188, 188, 188 }
 };
@@ -225,6 +231,8 @@ static struct platform_device scif2_device = {
 static struct plat_sci_port scif3_platform_data = {
 	.mapbase	= 0xfffe9800,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 192, 192, 192, 192 }
 };
@@ -240,6 +248,8 @@ static struct platform_device scif3_device = {
 static struct plat_sci_port scif4_platform_data = {
 	.mapbase	= 0xfffea000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 196, 196, 196, 196 }
 };
@@ -255,6 +265,8 @@ static struct platform_device scif4_device = {
 static struct plat_sci_port scif5_platform_data = {
 	.mapbase	= 0xfffea800,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 200, 200, 200, 200 }
 };
@@ -270,6 +282,8 @@ static struct platform_device scif5_device = {
 static struct plat_sci_port scif6_platform_data = {
 	.mapbase	= 0xfffeb000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 204, 204, 204, 204 }
 };
@@ -285,6 +299,8 @@ static struct platform_device scif6_device = {
 static struct plat_sci_port scif7_platform_data = {
 	.mapbase	= 0xfffeb800,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 208, 208, 208, 208 }
 };
@@ -318,16 +334,13 @@ static struct platform_device rtc_device = {
 };
 
 static struct sh_timer_config mtu2_0_platform_data = {
-	.name = "MTU2_0",
 	.channel_offset = -0x80,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_0_resources[] = {
 	[0] = {
-		.name	= "MTU2_0",
 		.start	= 0xfffe4300,
 		.end	= 0xfffe4326,
 		.flags	= IORESOURCE_MEM,
@@ -349,16 +362,13 @@ static struct platform_device mtu2_0_device = {
 };
 
 static struct sh_timer_config mtu2_1_platform_data = {
-	.name = "MTU2_1",
 	.channel_offset = -0x100,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_1_resources[] = {
 	[0] = {
-		.name	= "MTU2_1",
 		.start	= 0xfffe4380,
 		.end	= 0xfffe4390,
 		.flags	= IORESOURCE_MEM,
@@ -380,16 +390,13 @@ static struct platform_device mtu2_1_device = {
 };
 
 static struct sh_timer_config mtu2_2_platform_data = {
-	.name = "MTU2_2",
 	.channel_offset = 0x80,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_2_resources[] = {
 	[0] = {
-		.name	= "MTU2_2",
 		.start	= 0xfffe4000,
 		.end	= 0xfffe400a,
 		.flags	= IORESOURCE_MEM,

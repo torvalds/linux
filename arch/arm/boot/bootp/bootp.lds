@@ -19,7 +19,7 @@ SECTIONS
    initrd_size = initrd_end - initrd_start;
    _etext = .;
   }
-  
+
   .stab 0 : { *(.stab) }
   .stabstr 0 : { *(.stabstr) }
   .stab.excl 0 : { *(.stab.excl) }

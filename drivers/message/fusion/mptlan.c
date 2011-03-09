@@ -57,6 +57,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #define my_VERSION	MPT_LINUX_VERSION_COMMON
 #define MYNAM		"mptlan"
@@ -1451,7 +1452,9 @@ static int __init mpt_lan_init (void)
 {
 	show_mptmod_ver(LANAME, LANVER);
 
-	if ((LanCtx = mpt_register(lan_reply, MPTLAN_DRIVER)) <= 0) {
+	LanCtx = mpt_register(lan_reply, MPTLAN_DRIVER,
+				"lan_reply");
+	if (LanCtx <= 0) {
 		printk (KERN_ERR MYNAM ": Failed to register with MPT base driver\n");
 		return -EBUSY;
 	}

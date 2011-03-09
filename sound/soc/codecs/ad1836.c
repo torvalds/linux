@@ -17,6 +17,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -26,20 +27,14 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/soc-dapm.h>
 #include <linux/spi/spi.h>
 #include "ad1836.h"
 
 /* codec private data */
 struct ad1836_priv {
-	struct snd_soc_codec codec;
-	u16 reg_cache[AD1836_NUM_REGS];
+	enum snd_soc_control_type control_type;
+	void *control_data;
 };
-
-static struct snd_soc_codec *ad1836_codec;
-struct snd_soc_codec_device soc_codec_dev_ad1836;
-static int ad1836_register(struct ad1836_priv *ad1836);
-static void ad1836_unregister(struct ad1836_priv *ad1836);
 
 /*
  * AD1836 volume/mute/de-emphasis etc. controls
@@ -145,8 +140,7 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	int word_len = 0;
 
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -171,92 +165,29 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-
-/*
- * interface to read/write ad1836 register
- */
-#define AD1836_SPI_REG_SHFT 12
-#define AD1836_SPI_READ     (1 << 11)
-#define AD1836_SPI_VAL_MSK  0x3FF
-
-/*
- * write to the ad1836 register space
- */
-
-static int ad1836_write_reg(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value)
+#ifdef CONFIG_PM
+static int ad1836_soc_suspend(struct snd_soc_codec *codec,
+		pm_message_t state)
 {
-	u16 *reg_cache = codec->reg_cache;
-	int ret = 0;
+	/* reset clock control mode */
+	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 &= ~AD1836_ADC_SERFMT_MASK;
 
-	if (value != reg_cache[reg]) {
-		unsigned short buf;
-		struct spi_transfer t = {
-			.tx_buf = &buf,
-			.len = 2,
-		};
-		struct spi_message m;
-
-		buf = (reg << AD1836_SPI_REG_SHFT) |
-			(value & AD1836_SPI_VAL_MSK);
-		spi_message_init(&m);
-		spi_message_add_tail(&t, &m);
-		ret = spi_sync(codec->control_data, &m);
-		if (ret == 0)
-			reg_cache[reg] = value;
-	}
-
-	return ret;
+	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
 }
 
-/*
- * read from the ad1836 register space cache
- */
-static unsigned int ad1836_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
+static int ad1836_soc_resume(struct snd_soc_codec *codec)
 {
-	u16 *reg_cache = codec->reg_cache;
+	/* restore clock control mode */
+	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 |= AD1836_ADC_AUX;
 
-	if (reg >= codec->reg_cache_size)
-		return -EINVAL;
-
-	return reg_cache[reg];
+	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
 }
-
-static int __devinit ad1836_spi_probe(struct spi_device *spi)
-{
-	struct snd_soc_codec *codec;
-	struct ad1836_priv *ad1836;
-
-	ad1836 = kzalloc(sizeof(struct ad1836_priv), GFP_KERNEL);
-	if (ad1836 == NULL)
-		return -ENOMEM;
-
-	codec = &ad1836->codec;
-	codec->control_data = spi;
-	codec->dev = &spi->dev;
-
-	dev_set_drvdata(&spi->dev, ad1836);
-
-	return ad1836_register(ad1836);
-}
-
-static int __devexit ad1836_spi_remove(struct spi_device *spi)
-{
-	struct ad1836_priv *ad1836 = dev_get_drvdata(&spi->dev);
-
-	ad1836_unregister(ad1836);
-	return 0;
-}
-
-static struct spi_driver ad1836_spi_driver = {
-	.driver = {
-		.name	= "ad1836",
-		.owner	= THIS_MODULE,
-	},
-	.probe		= ad1836_spi_probe,
-	.remove		= __devexit_p(ad1836_spi_remove),
-};
+#else
+#define ad1836_soc_suspend NULL
+#define ad1836_soc_resume  NULL
+#endif
 
 static struct snd_soc_dai_ops ad1836_dai_ops = {
 	.hw_params = ad1836_hw_params,
@@ -264,8 +195,8 @@ static struct snd_soc_dai_ops ad1836_dai_ops = {
 };
 
 /* codec DAI instance */
-struct snd_soc_dai ad1836_dai = {
-	.name = "AD1836",
+static struct snd_soc_dai_driver ad1836_dai = {
+	.name = "ad1836-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -284,128 +215,103 @@ struct snd_soc_dai ad1836_dai = {
 	},
 	.ops = &ad1836_dai_ops,
 };
-EXPORT_SYMBOL_GPL(ad1836_dai);
 
-static int ad1836_register(struct ad1836_priv *ad1836)
+static int ad1836_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-	struct snd_soc_codec *codec = &ad1836->codec;
+	struct ad1836_priv *ad1836 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	int ret = 0;
 
-	if (ad1836_codec) {
-		dev_err(codec->dev, "Another ad1836 is registered\n");
-		return -EINVAL;
+	codec->control_data = ad1836->control_data;
+	ret = snd_soc_codec_set_cache_io(codec, 4, 12, SND_SOC_SPI);
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to set cache I/O: %d\n",
+				ret);
+		return ret;
 	}
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-	codec->private_data = ad1836;
-	codec->reg_cache = ad1836->reg_cache;
-	codec->reg_cache_size = AD1836_NUM_REGS;
-	codec->name = "AD1836";
-	codec->owner = THIS_MODULE;
-	codec->dai = &ad1836_dai;
-	codec->num_dai = 1;
-	codec->write = ad1836_write_reg;
-	codec->read = ad1836_read_reg_cache;
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	ad1836_dai.dev = codec->dev;
-	ad1836_codec = codec;
 
 	/* default setting for ad1836 */
 	/* de-emphasis: 48kHz, power-on dac */
-	codec->write(codec, AD1836_DAC_CTRL1, 0x300);
+	snd_soc_write(codec, AD1836_DAC_CTRL1, 0x300);
 	/* unmute dac channels */
-	codec->write(codec, AD1836_DAC_CTRL2, 0x0);
+	snd_soc_write(codec, AD1836_DAC_CTRL2, 0x0);
 	/* high-pass filter enable, power-on adc */
-	codec->write(codec, AD1836_ADC_CTRL1, 0x100);
+	snd_soc_write(codec, AD1836_ADC_CTRL1, 0x100);
 	/* unmute adc channles, adc aux mode */
-	codec->write(codec, AD1836_ADC_CTRL2, 0x180);
+	snd_soc_write(codec, AD1836_ADC_CTRL2, 0x180);
 	/* left/right diff:PGA/MUX */
-	codec->write(codec, AD1836_ADC_CTRL3, 0x3A);
+	snd_soc_write(codec, AD1836_ADC_CTRL3, 0x3A);
 	/* volume */
-	codec->write(codec, AD1836_DAC_L1_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_R1_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_L2_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_R2_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_L3_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_R3_VOL, 0x3FF);
-
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		kfree(ad1836);
-		return ret;
-	}
-
-	ret = snd_soc_register_dai(&ad1836_dai);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		kfree(ad1836);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void ad1836_unregister(struct ad1836_priv *ad1836)
-{
-	snd_soc_unregister_dai(&ad1836_dai);
-	snd_soc_unregister_codec(&ad1836->codec);
-	kfree(ad1836);
-	ad1836_codec = NULL;
-}
-
-static int ad1836_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	if (ad1836_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = ad1836_codec;
-	codec = ad1836_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
+	snd_soc_write(codec, AD1836_DAC_L1_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R1_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L2_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R2_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L3_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R3_VOL, 0x3FF);
 
 	snd_soc_add_controls(codec, ad1836_snd_controls,
 			     ARRAY_SIZE(ad1836_snd_controls));
-	snd_soc_dapm_new_controls(codec, ad1836_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, ad1836_dapm_widgets,
 				  ARRAY_SIZE(ad1836_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
+	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
 
-pcm_err:
 	return ret;
 }
 
 /* power down chip */
-static int ad1836_remove(struct platform_device *pdev)
+static int ad1836_remove(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	/* reset clock control mode */
+	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 &= ~AD1836_ADC_SERFMT_MASK;
 
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
+	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
+}
 
+static struct snd_soc_codec_driver soc_codec_dev_ad1836 = {
+	.probe = 	ad1836_probe,
+	.remove = 	ad1836_remove,
+	.suspend =      ad1836_soc_suspend,
+	.resume =       ad1836_soc_resume,
+	.reg_cache_size = AD1836_NUM_REGS,
+	.reg_word_size = sizeof(u16),
+};
+
+static int __devinit ad1836_spi_probe(struct spi_device *spi)
+{
+	struct ad1836_priv *ad1836;
+	int ret;
+
+	ad1836 = kzalloc(sizeof(struct ad1836_priv), GFP_KERNEL);
+	if (ad1836 == NULL)
+		return -ENOMEM;
+
+	spi_set_drvdata(spi, ad1836);
+	ad1836->control_data = spi;
+	ad1836->control_type = SND_SOC_SPI;
+
+	ret = snd_soc_register_codec(&spi->dev,
+			&soc_codec_dev_ad1836, &ad1836_dai, 1);
+	if (ret < 0)
+		kfree(ad1836);
+	return ret;
+}
+
+static int __devexit ad1836_spi_remove(struct spi_device *spi)
+{
+	snd_soc_unregister_codec(&spi->dev);
+	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_ad1836 = {
-	.probe = 	ad1836_probe,
-	.remove = 	ad1836_remove,
+static struct spi_driver ad1836_spi_driver = {
+	.driver = {
+		.name	= "ad1836-codec",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= ad1836_spi_probe,
+	.remove		= __devexit_p(ad1836_spi_remove),
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_ad1836);
 
 static int __init ad1836_init(void)
 {

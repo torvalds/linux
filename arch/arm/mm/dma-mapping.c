@@ -11,30 +11,19 @@
  */
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 
 #include <asm/memory.h>
 #include <asm/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
-
-/* Sanity check size */
-#if (CONSISTENT_DMA_SIZE % SZ_2M)
-#error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
-#endif
-
-#define CONSISTENT_END	(0xffe00000)
-#define CONSISTENT_BASE	(CONSISTENT_END - CONSISTENT_DMA_SIZE)
-
-#define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
-#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
-#define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
 
 static u64 get_coherent_dma_mask(struct device *dev)
 {
@@ -126,6 +115,15 @@ static void __dma_free_buffer(struct page *page, size_t size)
 }
 
 #ifdef CONFIG_MMU
+/* Sanity check size */
+#if (CONSISTENT_DMA_SIZE % SZ_2M)
+#error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
+#endif
+
+#define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
+#define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
+#define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
+
 /*
  * These are the page tables (2MB each) covering uncached, DMA consistent allocations
  */
@@ -186,6 +184,8 @@ static void *
 __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 {
 	struct arm_vmregion *c;
+	size_t align;
+	int bit;
 
 	if (!consistent_pte[0]) {
 		printk(KERN_ERR "%s: not initialised\n", __func__);
@@ -194,9 +194,20 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 	}
 
 	/*
+	 * Align the virtual region allocation - maximum alignment is
+	 * a section size, minimum is a page size.  This helps reduce
+	 * fragmentation of the DMA space, and also prevents allocations
+	 * smaller than a section from crossing a section boundary.
+	 */
+	bit = fls(size - 1);
+	if (bit > SECTION_SHIFT)
+		bit = SECTION_SHIFT;
+	align = 1 << bit;
+
+	/*
 	 * Allocate a virtual address in the consistent mapping region.
 	 */
-	c = arm_vmregion_alloc(&consistent_head, size,
+	c = arm_vmregion_alloc(&consistent_head, align, size,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
 		pte_t *pte;
@@ -218,6 +229,8 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 				pte = consistent_pte[++idx];
 			}
 		} while (size -= PAGE_SIZE);
+
+		dsb();
 
 		return (void *)c->vm_start;
 	}
@@ -299,7 +312,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		addr = page_address(page);
 
 	if (addr)
-		*handle = page_to_dma(dev, page);
+		*handle = pfn_to_dma(dev, page_to_pfn(page));
 
 	return addr;
 }
@@ -394,7 +407,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	if (!arch_is_coherent())
 		__dma_free_remap(cpu_addr, size);
 
-	__dma_free_buffer(dma_to_page(dev, handle), size);
+	__dma_free_buffer(pfn_to_page(dma_to_pfn(dev, handle)), size);
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
@@ -404,78 +417,44 @@ EXPORT_SYMBOL(dma_free_coherent);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-void dma_cache_maint(const void *start, size_t size, int direction)
+void ___dma_single_cpu_to_dev(const void *kaddr, size_t size,
+	enum dma_data_direction dir)
 {
-	void (*inner_op)(const void *, const void *);
-	void (*outer_op)(unsigned long, unsigned long);
-
-	BUG_ON(!virt_addr_valid(start) || !virt_addr_valid(start + size - 1));
-
-	switch (direction) {
-	case DMA_FROM_DEVICE:		/* invalidate only */
-		inner_op = dmac_inv_range;
-		outer_op = outer_inv_range;
-		break;
-	case DMA_TO_DEVICE:		/* writeback only */
-		inner_op = dmac_clean_range;
-		outer_op = outer_clean_range;
-		break;
-	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		inner_op = dmac_flush_range;
-		outer_op = outer_flush_range;
-		break;
-	default:
-		BUG();
-	}
-
-	inner_op(start, start + size);
-	outer_op(__pa(start), __pa(start) + size);
-}
-EXPORT_SYMBOL(dma_cache_maint);
-
-static void dma_cache_maint_contiguous(struct page *page, unsigned long offset,
-				       size_t size, int direction)
-{
-	void *vaddr;
 	unsigned long paddr;
-	void (*inner_op)(const void *, const void *);
-	void (*outer_op)(unsigned long, unsigned long);
 
-	switch (direction) {
-	case DMA_FROM_DEVICE:		/* invalidate only */
-		inner_op = dmac_inv_range;
-		outer_op = outer_inv_range;
-		break;
-	case DMA_TO_DEVICE:		/* writeback only */
-		inner_op = dmac_clean_range;
-		outer_op = outer_clean_range;
-		break;
-	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		inner_op = dmac_flush_range;
-		outer_op = outer_flush_range;
-		break;
-	default:
-		BUG();
-	}
+	BUG_ON(!virt_addr_valid(kaddr) || !virt_addr_valid(kaddr + size - 1));
 
-	if (!PageHighMem(page)) {
-		vaddr = page_address(page) + offset;
-		inner_op(vaddr, vaddr + size);
+	dmac_map_area(kaddr, size, dir);
+
+	paddr = __pa(kaddr);
+	if (dir == DMA_FROM_DEVICE) {
+		outer_inv_range(paddr, paddr + size);
 	} else {
-		vaddr = kmap_high_get(page);
-		if (vaddr) {
-			vaddr += offset;
-			inner_op(vaddr, vaddr + size);
-			kunmap_high(page);
-		}
+		outer_clean_range(paddr, paddr + size);
+	}
+	/* FIXME: non-speculating: flush on bidirectional mappings? */
+}
+EXPORT_SYMBOL(___dma_single_cpu_to_dev);
+
+void ___dma_single_dev_to_cpu(const void *kaddr, size_t size,
+	enum dma_data_direction dir)
+{
+	BUG_ON(!virt_addr_valid(kaddr) || !virt_addr_valid(kaddr + size - 1));
+
+	/* FIXME: non-speculating: not required */
+	/* don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE) {
+		unsigned long paddr = __pa(kaddr);
+		outer_inv_range(paddr, paddr + size);
 	}
 
-	paddr = page_to_phys(page) + offset;
-	outer_op(paddr, paddr + size);
+	dmac_unmap_area(kaddr, size, dir);
 }
+EXPORT_SYMBOL(___dma_single_dev_to_cpu);
 
-void dma_cache_maint_page(struct page *page, unsigned long offset,
-			  size_t size, int dir)
+static void dma_cache_maint_page(struct page *page, unsigned long offset,
+	size_t size, enum dma_data_direction dir,
+	void (*op)(const void *, size_t, int))
 {
 	/*
 	 * A single sg entry may refer to multiple physically contiguous
@@ -486,20 +465,73 @@ void dma_cache_maint_page(struct page *page, unsigned long offset,
 	size_t left = size;
 	do {
 		size_t len = left;
-		if (PageHighMem(page) && len + offset > PAGE_SIZE) {
-			if (offset >= PAGE_SIZE) {
-				page += offset / PAGE_SIZE;
-				offset %= PAGE_SIZE;
+		void *vaddr;
+
+		if (PageHighMem(page)) {
+			if (len + offset > PAGE_SIZE) {
+				if (offset >= PAGE_SIZE) {
+					page += offset / PAGE_SIZE;
+					offset %= PAGE_SIZE;
+				}
+				len = PAGE_SIZE - offset;
 			}
-			len = PAGE_SIZE - offset;
+			vaddr = kmap_high_get(page);
+			if (vaddr) {
+				vaddr += offset;
+				op(vaddr, len, dir);
+				kunmap_high(page);
+			} else if (cache_is_vipt()) {
+				/* unmapped pages might still be cached */
+				vaddr = kmap_atomic(page);
+				op(vaddr + offset, len, dir);
+				kunmap_atomic(vaddr);
+			}
+		} else {
+			vaddr = page_address(page) + offset;
+			op(vaddr, len, dir);
 		}
-		dma_cache_maint_contiguous(page, offset, len, dir);
 		offset = 0;
 		page++;
 		left -= len;
 	} while (left);
 }
-EXPORT_SYMBOL(dma_cache_maint_page);
+
+void ___dma_page_cpu_to_dev(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
+	unsigned long paddr;
+
+	dma_cache_maint_page(page, off, size, dir, dmac_map_area);
+
+	paddr = page_to_phys(page) + off;
+	if (dir == DMA_FROM_DEVICE) {
+		outer_inv_range(paddr, paddr + size);
+	} else {
+		outer_clean_range(paddr, paddr + size);
+	}
+	/* FIXME: non-speculating: flush on bidirectional mappings? */
+}
+EXPORT_SYMBOL(___dma_page_cpu_to_dev);
+
+void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
+	size_t size, enum dma_data_direction dir)
+{
+	unsigned long paddr = page_to_phys(page) + off;
+
+	/* FIXME: non-speculating: not required */
+	/* don't bother invalidating if DMA to device */
+	if (dir != DMA_TO_DEVICE)
+		outer_inv_range(paddr, paddr + size);
+
+	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+
+	/*
+	 * Mark the D-cache clean for this page to avoid extra flushing.
+	 */
+	if (dir != DMA_TO_DEVICE && off == 0 && size >= PAGE_SIZE)
+		set_bit(PG_dcache_clean, &page->flags);
+}
+EXPORT_SYMBOL(___dma_page_dev_to_cpu);
 
 /**
  * dma_map_sg - map a set of SG buffers for streaming mode DMA
@@ -523,17 +555,20 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	struct scatterlist *s;
 	int i, j;
 
+	BUG_ON(!valid_dma_direction(dir));
+
 	for_each_sg(sg, s, nents, i) {
-		s->dma_address = dma_map_page(dev, sg_page(s), s->offset,
+		s->dma_address = __dma_map_page(dev, sg_page(s), s->offset,
 						s->length, dir);
 		if (dma_mapping_error(dev, s->dma_address))
 			goto bad_mapping;
 	}
+	debug_dma_map_sg(dev, sg, nents, nents, dir);
 	return nents;
 
  bad_mapping:
 	for_each_sg(sg, s, i, j)
-		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
+		__dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
 	return 0;
 }
 EXPORT_SYMBOL(dma_map_sg);
@@ -542,7 +577,7 @@ EXPORT_SYMBOL(dma_map_sg);
  * dma_unmap_sg - unmap a set of SG buffers mapped by dma_map_sg
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @sg: list of buffers
- * @nents: number of buffers to unmap (returned from dma_map_sg)
+ * @nents: number of buffers to unmap (same as was passed to dma_map_sg)
  * @dir: DMA transfer direction (same as was passed to dma_map_sg)
  *
  * Unmap a set of streaming mode DMA translations.  Again, CPU access
@@ -554,8 +589,10 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 	struct scatterlist *s;
 	int i;
 
+	debug_dma_unmap_sg(dev, sg, nents, dir);
+
 	for_each_sg(sg, s, nents, i)
-		dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
+		__dma_unmap_page(dev, sg_dma_address(s), sg_dma_len(s), dir);
 }
 EXPORT_SYMBOL(dma_unmap_sg);
 
@@ -573,9 +610,15 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
-		dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
-					sg_dma_len(s), dir);
+		if (!dmabounce_sync_for_cpu(dev, sg_dma_address(s), 0,
+					    sg_dma_len(s), dir))
+			continue;
+
+		__dma_page_dev_to_cpu(sg_page(s), s->offset,
+				      s->length, dir);
 	}
+
+	debug_dma_sync_sg_for_cpu(dev, sg, nents, dir);
 }
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
 
@@ -597,9 +640,19 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 					sg_dma_len(s), dir))
 			continue;
 
-		if (!arch_is_coherent())
-			dma_cache_maint_page(sg_page(s), s->offset,
-					     s->length, dir);
+		__dma_page_cpu_to_dev(sg_page(s), s->offset,
+				      s->length, dir);
 	}
+
+	debug_dma_sync_sg_for_device(dev, sg, nents, dir);
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
+
+#define PREALLOC_DMA_DEBUG_ENTRIES	4096
+
+static int __init dma_debug_do_init(void)
+{
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+	return 0;
+}
+fs_initcall(dma_debug_do_init);

@@ -112,7 +112,7 @@ typedef struct {
 	unsigned de:	1;
 	unsigned ea2:	1;
 #endif
-}__attribute__ ((packed)) fr_hdr;
+}__packed fr_hdr;
 
 
 typedef struct pvc_device_struct {

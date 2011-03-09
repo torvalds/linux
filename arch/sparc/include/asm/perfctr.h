@@ -10,8 +10,8 @@
  * from enumeration below.  The meaning of further arguments
  * are determined by the operation code.
  *
- * int sys_perfctr(int opcode, unsigned long arg0,
- *                 unsigned long arg1, unsigned long arg2)
+ * NOTE: This system call is no longer provided, use the perf_events
+ *       infrastructure.
  *
  * Pointers which are passed by the user are pointers to 64-bit
  * integers.

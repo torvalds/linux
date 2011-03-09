@@ -1,0 +1,13 @@
+tools/perf
+include/linux/perf_event.h
+include/linux/rbtree.h
+include/linux/list.h
+include/linux/hash.h
+include/linux/stringify.h
+lib/rbtree.c
+include/linux/swab.h
+arch/*/include/asm/unistd*.h
+arch/*/lib/memcpy*.S
+include/linux/poison.h
+include/linux/magic.h
+include/linux/hw_breakpoint.h

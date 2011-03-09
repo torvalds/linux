@@ -55,6 +55,7 @@ struct proto udplitev6_prot = {
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
 #endif
+	.clear_sk	   = sk_prot_clear_portaddr_nulls,
 };
 
 static struct inet_protosw udplite6_protosw = {
@@ -104,12 +105,12 @@ static struct udp_seq_afinfo udplite6_seq_afinfo = {
 	},
 };
 
-static int udplite6_proc_init_net(struct net *net)
+static int __net_init udplite6_proc_init_net(struct net *net)
 {
 	return udp_proc_register(net, &udplite6_seq_afinfo);
 }
 
-static void udplite6_proc_exit_net(struct net *net)
+static void __net_exit udplite6_proc_exit_net(struct net *net)
 {
 	udp_proc_unregister(net, &udplite6_seq_afinfo);
 }

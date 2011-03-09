@@ -24,6 +24,8 @@ void xonar_init_ext_power(struct oxygen *chip);
 void xonar_init_cs53x1(struct oxygen *chip);
 void xonar_set_cs53x1_params(struct oxygen *chip,
 			     struct snd_pcm_hw_params *params);
+
+#define XONAR_GPIO_BIT_INVERT	(1 << 16)
 int xonar_gpio_bit_switch_get(struct snd_kcontrol *ctl,
 			      struct snd_ctl_elem_value *value);
 int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
@@ -34,6 +36,8 @@ int xonar_gpio_bit_switch_put(struct snd_kcontrol *ctl,
 int get_xonar_pcm179x_model(struct oxygen *chip,
 			    const struct pci_device_id *id);
 int get_xonar_cs43xx_model(struct oxygen *chip,
+			   const struct pci_device_id *id);
+int get_xonar_wm87x6_model(struct oxygen *chip,
 			   const struct pci_device_id *id);
 
 /* HDMI helper functions */

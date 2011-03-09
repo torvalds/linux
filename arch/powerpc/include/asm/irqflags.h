@@ -6,7 +6,7 @@
 
 #ifndef __ASSEMBLY__
 /*
- * Get definitions for raw_local_save_flags(x), etc.
+ * Get definitions for arch_local_save_flags(x), etc.
  */
 #include <asm/hw_irq.h>
 

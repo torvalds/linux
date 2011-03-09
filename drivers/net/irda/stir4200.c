@@ -219,7 +219,7 @@ static inline int read_reg(struct stir_cb *stir, __u16 reg,
 
 static inline int isfir(u32 speed)
 {
-	return (speed == 4000000);
+	return speed == 4000000;
 }
 
 /*

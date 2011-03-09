@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,8 +71,9 @@
 #define ACPI_TOOLS                  0x00002000
 #define ACPI_EXAMPLE                0x00004000
 #define ACPI_DRIVER                 0x00008000
+#define DT_COMPILER                 0x00010000
 
-#define ACPI_ALL_COMPONENTS         0x0000FFFF
+#define ACPI_ALL_COMPONENTS         0x0001FFFF
 #define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
 
 /* Component IDs reserved for ACPI drivers */
@@ -206,6 +207,7 @@
 #define ACPI_WARNING(plist)             acpi_warning plist
 #define ACPI_EXCEPTION(plist)           acpi_exception plist
 #define ACPI_ERROR(plist)               acpi_error plist
+#define ACPI_DEBUG_OBJECT(obj,l,i)      acpi_ex_do_debug_object(obj,l,i)
 
 #else
 
@@ -215,6 +217,7 @@
 #define ACPI_WARNING(plist)
 #define ACPI_EXCEPTION(plist)
 #define ACPI_ERROR(plist)
+#define ACPI_DEBUG_OBJECT(obj,l,i)
 
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 

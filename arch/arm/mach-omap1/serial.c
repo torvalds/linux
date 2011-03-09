@@ -27,6 +27,8 @@
 #include <mach/gpio.h>
 #include <plat/fpga.h>
 
+#include "pm.h"
+
 static struct clk * uart1_ck;
 static struct clk * uart2_ck;
 static struct clk * uart3_ck;
@@ -52,9 +54,11 @@ static inline void omap_serial_outp(struct plat_serial8250_port *p, int offset,
  */
 static void __init omap_serial_reset(struct plat_serial8250_port *p)
 {
-	omap_serial_outp(p, UART_OMAP_MDR1, 0x07);	/* disable UART */
+	omap_serial_outp(p, UART_OMAP_MDR1,
+			UART_OMAP_MDR1_DISABLE);	/* disable UART */
 	omap_serial_outp(p, UART_OMAP_SCR, 0x08);	/* TX watermark */
-	omap_serial_outp(p, UART_OMAP_MDR1, 0x00);	/* enable UART */
+	omap_serial_outp(p, UART_OMAP_MDR1,
+			UART_OMAP_MDR1_16X_MODE);	/* enable UART */
 
 	if (!cpu_is_omap15xx()) {
 		omap_serial_outp(p, UART_OMAP_SYSC, 0x01);
@@ -64,7 +68,7 @@ static void __init omap_serial_reset(struct plat_serial8250_port *p)
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.mapbase	= OMAP_UART1_BASE,
+		.mapbase	= OMAP1_UART1_BASE,
 		.irq		= INT_UART1,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -72,7 +76,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.mapbase	= OMAP_UART2_BASE,
+		.mapbase	= OMAP1_UART2_BASE,
 		.irq		= INT_UART2,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -80,7 +84,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.uartclk	= OMAP16XX_BASE_BAUD * 16,
 	},
 	{
-		.mapbase	= OMAP_UART3_BASE,
+		.mapbase	= OMAP1_UART3_BASE,
 		.irq		= INT_UART3,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -121,6 +125,13 @@ void __init omap_serial_init(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(serial_platform_data) - 1; i++) {
+
+		/* Don't look at UARTs higher than 2 for omap7xx */
+		if (cpu_is_omap7xx() && i > 1) {
+			serial_platform_data[i].membase = NULL;
+			serial_platform_data[i].mapbase = 0;
+			continue;
+		}
 
 		/* Static mapping, never released */
 		serial_platform_data[i].membase =
@@ -247,6 +258,9 @@ late_initcall(omap_serial_wakeup_init);
 
 static int __init omap_init(void)
 {
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	return platform_device_register(&serial_device);
 }
 arch_initcall(omap_init);

@@ -24,7 +24,8 @@
 #include <linux/sched.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 static struct pci_driver pasemi_smb_driver;
 
@@ -87,7 +88,7 @@ static void pasemi_smb_clear(struct pasemi_smbus *smbus)
 	reg_write(smbus, REG_SMSTA, status);
 }
 
-static unsigned int pasemi_smb_waitready(struct pasemi_smbus *smbus)
+static int pasemi_smb_waitready(struct pasemi_smbus *smbus)
 {
 	int timeout = 10;
 	unsigned int status;
@@ -400,7 +401,7 @@ static void __devexit pasemi_smb_remove(struct pci_dev *dev)
 	kfree(smbus);
 }
 
-static struct pci_device_id pasemi_smb_ids[] = {
+static const struct pci_device_id pasemi_smb_ids[] = {
 	{ PCI_DEVICE(0x1959, 0xa003) },
 	{ 0, }
 };

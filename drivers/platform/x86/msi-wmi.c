@@ -26,6 +26,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Thomas Renninger <trenn@suse.de>");
 MODULE_DESCRIPTION("MSI laptop WMI hotkeys driver");
@@ -42,21 +43,23 @@ MODULE_ALIAS("wmi:B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2");
 
 #define dprintk(msg...) pr_debug(DRV_PFX msg)
 
-#define KEYCODE_BASE 0xD0
-#define MSI_WMI_BRIGHTNESSUP   KEYCODE_BASE
-#define MSI_WMI_BRIGHTNESSDOWN (KEYCODE_BASE + 1)
-#define MSI_WMI_VOLUMEUP       (KEYCODE_BASE + 2)
-#define MSI_WMI_VOLUMEDOWN     (KEYCODE_BASE + 3)
+#define SCANCODE_BASE 0xD0
+#define MSI_WMI_BRIGHTNESSUP   SCANCODE_BASE
+#define MSI_WMI_BRIGHTNESSDOWN (SCANCODE_BASE + 1)
+#define MSI_WMI_VOLUMEUP       (SCANCODE_BASE + 2)
+#define MSI_WMI_VOLUMEDOWN     (SCANCODE_BASE + 3)
+#define MSI_WMI_MUTE           (SCANCODE_BASE + 4)
 static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_WMI_BRIGHTNESSUP,   {KEY_BRIGHTNESSUP} },
 	{ KE_KEY, MSI_WMI_BRIGHTNESSDOWN, {KEY_BRIGHTNESSDOWN} },
 	{ KE_KEY, MSI_WMI_VOLUMEUP,       {KEY_VOLUMEUP} },
 	{ KE_KEY, MSI_WMI_VOLUMEDOWN,     {KEY_VOLUMEDOWN} },
+	{ KE_KEY, MSI_WMI_MUTE,           {KEY_MUTE} },
 	{ KE_END, 0}
 };
 static ktime_t last_pressed[ARRAY_SIZE(msi_wmi_keymap) - 1];
 
-struct backlight_device *backlight;
+static struct backlight_device *backlight;
 
 static int backlight_map[] = { 0x00, 0x33, 0x66, 0x99, 0xCC, 0xFF };
 
@@ -138,7 +141,7 @@ static int bl_set_status(struct backlight_device *bd)
 	return msi_wmi_set_block(0, backlight_map[bright]);
 }
 
-static struct backlight_ops msi_backlight_ops = {
+static const struct backlight_ops msi_backlight_ops = {
 	.get_brightness	= bl_get,
 	.update_status	= bl_set_status,
 };
@@ -168,7 +171,7 @@ static void msi_wmi_notify(u32 value, void *context)
 			ktime_t diff;
 			cur = ktime_get_real();
 			diff = ktime_sub(cur, last_pressed[key->code -
-					KEYCODE_BASE]);
+					SCANCODE_BASE]);
 			/* Ignore event if the same event happened in a 50 ms
 			   timeframe -> Key press may result in 10-20 GPEs */
 			if (ktime_to_us(diff) < 1000 * 50) {
@@ -177,7 +180,7 @@ static void msi_wmi_notify(u32 value, void *context)
 					 key->code, ktime_to_us(diff));
 				return;
 			}
-			last_pressed[key->code - KEYCODE_BASE] = cur;
+			last_pressed[key->code - SCANCODE_BASE] = cur;
 
 			if (key->type == KE_KEY &&
 			/* Brightness is served via acpi video driver */
@@ -249,12 +252,17 @@ static int __init msi_wmi_init(void)
 		goto err_uninstall_notifier;
 
 	if (!acpi_video_backlight_support()) {
-		backlight = backlight_device_register(DRV_NAME,
-				NULL, NULL, &msi_backlight_ops);
-		if (IS_ERR(backlight))
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
+		backlight = backlight_device_register(DRV_NAME, NULL, NULL,
+						      &msi_backlight_ops,
+						      &props);
+		if (IS_ERR(backlight)) {
+			err = PTR_ERR(backlight);
 			goto err_free_input;
+		}
 
-		backlight->props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
 		err = bl_get(NULL);
 		if (err < 0)
 			goto err_free_backlight;

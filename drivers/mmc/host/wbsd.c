@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -1234,8 +1235,7 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	 * Maximum number of segments. Worst case is one sector per segment
 	 * so this will be 64kB/512.
 	 */
-	mmc->max_hw_segs = 128;
-	mmc->max_phys_segs = 128;
+	mmc->max_segs = 128;
 
 	/*
 	 * Maximum request size. Also limited by 64KiB buffer.
@@ -1818,7 +1818,7 @@ static int wbsd_suspend(struct wbsd_host *host, pm_message_t state)
 {
 	BUG_ON(host == NULL);
 
-	return mmc_suspend_host(host->mmc, state);
+	return mmc_suspend_host(host->mmc);
 }
 
 static int wbsd_resume(struct wbsd_host *host)

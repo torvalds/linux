@@ -58,7 +58,6 @@ static const char version[] =
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 
@@ -202,7 +201,7 @@ struct net_local {
 #define RX_BUF_SIZE 	(1518+14+18)	/* packet+header+RBD */
 #define RX_BUF_END		(dev->mem_end - dev->mem_start)
 
-#define TX_TIMEOUT 5
+#define TX_TIMEOUT (HZ/20)
 
 /*
   That's it: only 86 bytes to set up the beast, including every extra
@@ -312,8 +311,8 @@ static int mem_start;
 struct net_device * __init el16_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
-	static unsigned ports[] = { 0x300, 0x320, 0x340, 0x280, 0};
-	unsigned *port;
+	static const unsigned ports[] = { 0x300, 0x320, 0x340, 0x280, 0};
+	const unsigned *port;
 	int err = -ENODEV;
 
 	if (!dev)
@@ -450,7 +449,6 @@ static int __init el16_probe1(struct net_device *dev, int ioaddr)
 		pr_debug("%s", version);
 
 	lp = netdev_priv(dev);
- 	memset(lp, 0, sizeof(*lp));
 	spin_lock_init(&lp->lock);
 	lp->base = ioremap(dev->mem_start, RX_BUF_END);
 	if (!lp->base) {
@@ -506,7 +504,7 @@ static void el16_tx_timeout (struct net_device *dev)
 		outb (0, ioaddr + SIGNAL_CA);	/* Issue channel-attn. */
 		lp->last_restart = dev->stats.tx_packets;
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -530,7 +528,6 @@ static netdev_tx_t el16_send_packet (struct sk_buff *skb,
 
 	hardware_send_packet (dev, buf, skb->len, length - skb->len);
 
-	dev->trans_start = jiffies;
 	/* Enable the 82586 interrupt input. */
 	outb (0x84, ioaddr + MISC_CTRL);
 
@@ -554,8 +551,7 @@ static irqreturn_t el16_interrupt(int irq, void *dev_id)
 	void __iomem *shmem;
 
 	if (dev == NULL) {
-		pr_err("%s: net_interrupt(): irq %d for unknown device.\n",
-			dev->name, irq);
+		pr_err("net_interrupt(): irq %d for unknown device.\n", irq);
 		return IRQ_NONE;
 	}
 
@@ -767,7 +763,6 @@ static void init_82586_mem(struct net_device *dev)
 	if (net_debug > 4)
 		pr_debug("%s: Initialized 82586, status %04x.\n", dev->name,
 			   readw(shmem+iSCB_STATUS));
-	return;
 }
 
 static void hardware_send_packet(struct net_device *dev, void *buf, short length, short pad)

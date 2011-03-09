@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
@@ -48,8 +49,6 @@
 /*
  * CSI registers
  */
-#define DMA_CCR(x)	(0x8c + ((x) << 6))	/* Control Registers */
-#define DMA_DIMR	0x08			/* Interrupt mask Register */
 #define CSICR1		0x00			/* CSI Control Register 1 */
 #define CSISR		0x08			/* CSI Status Register */
 #define CSIRXR		0x10			/* CSI RxFIFO Register */
@@ -140,8 +139,8 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (!*count)
 		*count = 32;
 
-	while (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
+		*count = (MAX_VIDEO_MEM * 1024 * 1024) / *size;
 
 	dev_dbg(icd->dev.parent, "count=%d, size=%d\n", *count, *size);
 
@@ -162,7 +161,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx1_buffer *buf)
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 	videobuf_dma_contig_free(vq, vb);
 
 	vb->state = VIDEOBUF_NEEDS_INIT;
@@ -383,10 +382,9 @@ static void mx1_camera_init_videobuf(struct videobuf_queue *q,
 	struct mx1_camera_dev *pcdev = ici->priv;
 
 	videobuf_queue_dma_contig_init(q, &mx1_videobuf_ops, icd->dev.parent,
-					&pcdev->lock,
-					V4L2_BUF_TYPE_VIDEO_CAPTURE,
-					V4L2_FIELD_NONE,
-					sizeof(struct mx1_buffer), icd);
+				&pcdev->lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
+				V4L2_FIELD_NONE,
+				sizeof(struct mx1_buffer), icd, &icd->video_lock);
 }
 
 static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
@@ -639,7 +637,7 @@ static int mx1_camera_try_fmt(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int mx1_camera_reqbufs(struct soc_camera_file *icf,
+static int mx1_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -651,7 +649,7 @@ static int mx1_camera_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct mx1_buffer *buf = container_of(icf->vb_vidq.bufs[i],
+		struct mx1_buffer *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct mx1_buffer, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -662,10 +660,10 @@ static int mx1_camera_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int mx1_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct mx1_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct mx1_buffer,
+	buf = list_entry(icd->vb_vidq.stream.next, struct mx1_buffer,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);
@@ -783,7 +781,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 			       pcdev);
 
 	imx_dma_config_channel(pcdev->dma_chan, IMX_DMA_TYPE_FIFO,
-			       IMX_DMA_MEMSIZE_32, DMA_REQ_CSI_R, 0);
+			       IMX_DMA_MEMSIZE_32, MX1_DMA_REQ_CSI_R, 0);
 	/* burst length : 16 words = 64 bytes */
 	imx_dma_config_burstlen(pcdev->dma_chan, 0);
 
@@ -797,8 +795,8 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	set_fiq_handler(&mx1_camera_sof_fiq_start, &mx1_camera_sof_fiq_end -
 						   &mx1_camera_sof_fiq_start);
 
-	regs.ARM_r8 = DMA_BASE + DMA_DIMR;
-	regs.ARM_r9 = DMA_BASE + DMA_CCR(pcdev->dma_chan);
+	regs.ARM_r8 = (long)MX1_DMA_DIMR;
+	regs.ARM_r9 = (long)MX1_DMA_CCR(pcdev->dma_chan);
 	regs.ARM_r10 = (long)pcdev->base + CSICR1;
 	regs.ARM_fp = (long)pcdev->base + CSISR;
 	regs.ARM_sp = 1 << pcdev->dma_chan;

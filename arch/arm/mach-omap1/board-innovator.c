@@ -22,16 +22,17 @@
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
 #include <plat/mux.h>
+#include <plat/flash.h>
 #include <plat/fpga.h>
 #include <mach/gpio.h>
 #include <plat/tc.h>
@@ -43,17 +44,16 @@
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define INNOVATOR1610_ETHR_START	0x04000300
 
-static int innovator_keymap[] = {
+static const unsigned int innovator_keymap[] = {
 	KEY(0, 0, KEY_F1),
-	KEY(0, 3, KEY_DOWN),
+	KEY(3, 0, KEY_DOWN),
 	KEY(1, 1, KEY_F2),
-	KEY(1, 2, KEY_RIGHT),
-	KEY(2, 0, KEY_F3),
-	KEY(2, 1, KEY_F4),
+	KEY(2, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_F3),
+	KEY(1, 2, KEY_F4),
 	KEY(2, 2, KEY_UP),
-	KEY(3, 2, KEY_ENTER),
+	KEY(2, 3, KEY_ENTER),
 	KEY(3, 3, KEY_LEFT),
-	0
 };
 
 static struct mtd_partition innovator_partitions[] = {
@@ -94,9 +94,9 @@ static struct mtd_partition innovator_partitions[] = {
 	}
 };
 
-static struct flash_platform_data innovator_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data innovator_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= innovator_partitions,
 	.nr_parts	= ARRAY_SIZE(innovator_partitions),
 };
@@ -108,7 +108,7 @@ static struct resource innovator_flash_resource = {
 };
 
 static struct platform_device innovator_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &innovator_flash_data,
@@ -125,11 +125,15 @@ static struct resource innovator_kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data innovator_keymap_data = {
+	.keymap		= innovator_keymap,
+	.keymap_size	= ARRAY_SIZE(innovator_keymap),
+};
+
 static struct omap_kp_platform_data innovator_kp_data = {
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= innovator_keymap,
-	.keymapsize	= ARRAY_SIZE(innovator_keymap),
+	.keymap_data	= &innovator_keymap_data,
 	.delay		= 4,
 };
 
@@ -289,13 +293,6 @@ static void __init innovator_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-#ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
-		omap1510_fpga_init_irq();
-	}
-#endif
-	innovator_init_smc91x();
 }
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -386,6 +383,10 @@ static struct omap_board_config_kernel innovator_config[] = {
 
 static void __init innovator_init(void)
 {
+	if (cpu_is_omap1510())
+		omap1510_fpga_init_irq();
+	innovator_init_smc91x();
+
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		unsigned char reg;
@@ -421,13 +422,13 @@ static void __init innovator_init(void)
 
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
-		omap_usb_init(&innovator1510_usb_config);
+		omap1_usb_init(&innovator1510_usb_config);
 		innovator_config[1].data = &innovator1510_lcd_config;
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	if (cpu_is_omap1610()) {
-		omap_usb_init(&h2_usb_config);
+		omap1_usb_init(&h2_usb_config);
 		innovator_config[1].data = &innovator1610_lcd_config;
 	}
 #endif
@@ -458,10 +459,9 @@ static void __init innovator_map_io(void)
 
 MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_io	= 0xfff00000,
-	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= innovator_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= innovator_init_irq,
 	.init_machine	= innovator_init,
 	.timer		= &omap_timer,

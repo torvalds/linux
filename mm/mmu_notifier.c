@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * This function can't run concurrently against mmu_notifier_register
@@ -93,6 +94,26 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
 		if (mn->ops->clear_flush_young)
 			young |= mn->ops->clear_flush_young(mn, mm, address);
+	}
+	rcu_read_unlock();
+
+	return young;
+}
+
+int __mmu_notifier_test_young(struct mm_struct *mm,
+			      unsigned long address)
+{
+	struct mmu_notifier *mn;
+	struct hlist_node *n;
+	int young = 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+		if (mn->ops->test_young) {
+			young = mn->ops->test_young(mn, mm, address);
+			if (young)
+				break;
+		}
 	}
 	rcu_read_unlock();
 

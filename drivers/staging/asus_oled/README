@@ -2,7 +2,7 @@
     Driver for Asus OLED display present in some Asus laptops.
 
     The code of this driver is based on 'asusoled' program taken from
-    https://launchpad.net/asusoled/. I just wanted to have a simple
+    <http://lapsus.berlios.de/asus_oled.html>. I just wanted to have a simple
     kernel driver for controlling this device, but I didn't know how
     to do that. Now I know ;) Also, that program can not be used
     with usbhid loaded, which means no USB mouse/keyboard while

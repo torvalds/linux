@@ -315,7 +315,8 @@ static struct hda_verb cmi9880_allout_init[] = {
 static int cmi9880_build_controls(struct hda_codec *codec)
 {
 	struct cmi_spec *spec = codec->spec;
-	int err;
+	struct snd_kcontrol *kctl;
+	int i, err;
 
 	err = snd_hda_add_new_ctls(codec, cmi9880_basic_mixer);
 	if (err < 0)
@@ -337,6 +338,14 @@ static int cmi9880_build_controls(struct hda_codec *codec)
 	}
 	if (spec->dig_in_nid) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
+		if (err < 0)
+			return err;
+	}
+
+	/* assign Capture Source enums to NID */
+	kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
+	for (i = 0; kctl && i < kctl->count; i++) {
+		err = snd_hda_add_nid(codec, kctl, i, spec->adc_nids[i]);
 		if (err < 0)
 			return err;
 	}
@@ -599,7 +608,7 @@ static void cmi9880_free(struct hda_codec *codec)
 /*
  */
 
-static const char *cmi9880_models[CMI_MODELS] = {
+static const char * const cmi9880_models[CMI_MODELS] = {
 	[CMI_MINIMAL]	= "minimal",
 	[CMI_MIN_FP]	= "min_fp",
 	[CMI_FULL]	= "full",

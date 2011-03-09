@@ -58,7 +58,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/input.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
@@ -144,7 +143,10 @@ struct amradio_device {
 	int initialized;
 };
 
-#define vdev_to_amradio(r) container_of(r, struct amradio_device, videodev)
+static inline struct amradio_device *to_amradio_dev(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct amradio_device, v4l2_dev);
+}
 
 /* USB Device ID List */
 static struct usb_device_id usb_amradio_device_table[] = {
@@ -172,8 +174,6 @@ static int amradio_set_mute(struct amradio_device *radio, char argument)
 {
 	int retval;
 	int size;
-
-	BUG_ON(!mutex_is_locked(&radio->lock));
 
 	radio->buffer[0] = 0x00;
 	radio->buffer[1] = 0x55;
@@ -203,8 +203,6 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	int retval;
 	int size;
 	unsigned short freq_send = 0x10 + (freq >> 3) / 25;
-
-	BUG_ON(!mutex_is_locked(&radio->lock));
 
 	radio->buffer[0] = 0x00;
 	radio->buffer[1] = 0x55;
@@ -250,8 +248,6 @@ static int amradio_set_stereo(struct amradio_device *radio, char argument)
 	int retval;
 	int size;
 
-	BUG_ON(!mutex_is_locked(&radio->lock));
-
 	radio->buffer[0] = 0x00;
 	radio->buffer[1] = 0x55;
 	radio->buffer[2] = 0xaa;
@@ -284,15 +280,16 @@ static int amradio_set_stereo(struct amradio_device *radio, char argument)
  */
 static void usb_amradio_disconnect(struct usb_interface *intf)
 {
-	struct amradio_device *radio = usb_get_intfdata(intf);
+	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
-	radio->usbdev = NULL;
-	mutex_unlock(&radio->lock);
-
-	usb_set_intfdata(intf, NULL);
+	/* increase the device node's refcount */
+	get_device(&radio->videodev.dev);
 	v4l2_device_disconnect(&radio->v4l2_dev);
 	video_unregister_device(&radio->videodev);
+	mutex_unlock(&radio->lock);
+	/* decrease the device node's refcount, allowing it to be released */
+	put_device(&radio->videodev.dev);
 }
 
 /* vidioc_querycap - query device capabilities */
@@ -500,29 +497,19 @@ out:
 /* open device - amradio_start() and amradio_setfreq() */
 static int usb_amradio_open(struct file *file)
 {
-	struct amradio_device *radio = vdev_to_amradio(video_devdata(file));
-	int retval = 0;
-
-	mutex_lock(&radio->lock);
-
-	if (!radio->usbdev) {
-		retval = -EIO;
-		goto unlock;
-	}
+	struct amradio_device *radio = video_drvdata(file);
+	int retval;
 
 	file->private_data = radio;
 	retval = usb_autopm_get_interface(radio->intf);
 	if (retval)
-		goto unlock;
+		return retval;
 
 	if (unlikely(!radio->initialized)) {
 		retval = usb_amradio_init(radio);
 		if (retval)
 			usb_autopm_put_interface(radio->intf);
 	}
-
-unlock:
-	mutex_unlock(&radio->lock);
 	return retval;
 }
 
@@ -530,64 +517,34 @@ unlock:
 static int usb_amradio_close(struct file *file)
 {
 	struct amradio_device *radio = file->private_data;
-	int retval = 0;
 
-	mutex_lock(&radio->lock);
-
-	if (!radio->usbdev)
-		retval = -EIO;
-	else
+	if (video_is_registered(&radio->videodev))
 		usb_autopm_put_interface(radio->intf);
-
-	mutex_unlock(&radio->lock);
-	return retval;
-}
-
-static long usb_amradio_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg)
-{
-	struct amradio_device *radio = file->private_data;
-	long retval = 0;
-
-	mutex_lock(&radio->lock);
-
-	if (!radio->usbdev) {
-		retval = -EIO;
-		goto unlock;
-	}
-
-	retval = video_ioctl2(file, cmd, arg);
-
-unlock:
-	mutex_unlock(&radio->lock);
-	return retval;
+	return 0;
 }
 
 /* Suspend device - stop device. Need to be checked and fixed */
 static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	struct amradio_device *radio = usb_get_intfdata(intf);
+	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
-
 	if (!radio->muted && radio->initialized) {
 		amradio_set_mute(radio, AMRADIO_STOP);
 		radio->muted = 0;
 	}
+	mutex_unlock(&radio->lock);
 
 	dev_info(&intf->dev, "going into suspend..\n");
-
-	mutex_unlock(&radio->lock);
 	return 0;
 }
 
 /* Resume device - start device. Need to be checked and fixed */
 static int usb_amradio_resume(struct usb_interface *intf)
 {
-	struct amradio_device *radio = usb_get_intfdata(intf);
+	struct amradio_device *radio = to_amradio_dev(usb_get_intfdata(intf));
 
 	mutex_lock(&radio->lock);
-
 	if (unlikely(!radio->initialized))
 		goto unlock;
 
@@ -602,9 +559,9 @@ static int usb_amradio_resume(struct usb_interface *intf)
 		amradio_set_mute(radio, AMRADIO_START);
 
 unlock:
-	dev_info(&intf->dev, "coming out of suspend..\n");
-
 	mutex_unlock(&radio->lock);
+
+	dev_info(&intf->dev, "coming out of suspend..\n");
 	return 0;
 }
 
@@ -613,7 +570,7 @@ static const struct v4l2_file_operations usb_amradio_fops = {
 	.owner		= THIS_MODULE,
 	.open		= usb_amradio_open,
 	.release	= usb_amradio_close,
-	.ioctl		= usb_amradio_ioctl,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops usb_amradio_ioctl_ops = {
@@ -633,9 +590,7 @@ static const struct v4l2_ioctl_ops usb_amradio_ioctl_ops = {
 
 static void usb_amradio_video_device_release(struct video_device *videodev)
 {
-	struct amradio_device *radio = vdev_to_amradio(videodev);
-
-	v4l2_device_unregister(&radio->v4l2_dev);
+	struct amradio_device *radio = video_get_drvdata(videodev);
 
 	/* free rest memory */
 	kfree(radio->buffer);
@@ -671,18 +626,19 @@ static int usb_amradio_probe(struct usb_interface *intf,
 		goto err_v4l2;
 	}
 
+	mutex_init(&radio->lock);
+
 	strlcpy(radio->videodev.name, radio->v4l2_dev.name,
 		sizeof(radio->videodev.name));
 	radio->videodev.v4l2_dev = &radio->v4l2_dev;
 	radio->videodev.fops = &usb_amradio_fops;
 	radio->videodev.ioctl_ops = &usb_amradio_ioctl_ops;
 	radio->videodev.release = usb_amradio_video_device_release;
+	radio->videodev.lock = &radio->lock;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
 	radio->curfreq = 95.16 * FREQ_MUL;
-
-	mutex_init(&radio->lock);
 
 	video_set_drvdata(&radio->videodev, radio);
 
@@ -693,7 +649,6 @@ static int usb_amradio_probe(struct usb_interface *intf,
 		goto err_vdev;
 	}
 
-	usb_set_intfdata(intf, radio);
 	return 0;
 
 err_vdev:

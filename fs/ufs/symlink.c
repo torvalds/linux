@@ -42,4 +42,12 @@ static void *ufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 const struct inode_operations ufs_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= ufs_follow_link,
+	.setattr	= ufs_setattr,
+};
+
+const struct inode_operations ufs_symlink_inode_operations = {
+	.readlink	= generic_readlink,
+	.follow_link	= page_follow_link_light,
+	.put_link	= page_put_link,
+	.setattr	= ufs_setattr,
 };

@@ -127,7 +127,7 @@ void __init orion5x_mpp_conf(struct orion5x_mpp_mode *mode)
 	/* Initialize gpiolib. */
 	orion_gpio_init();
 
-	while (mode->mpp >= 0) {
+	for ( ; mode->mpp >= 0; mode++) {
 		u32 *reg;
 		int num_type;
 		int shift;
@@ -160,8 +160,6 @@ void __init orion5x_mpp_conf(struct orion5x_mpp_mode *mode)
 			orion_gpio_set_unused(mode->mpp);
 
 		orion_gpio_set_valid(mode->mpp, !!(mode->type == MPP_GPIO));
-
-		mode++;
 	}
 
 	writel(mpp_0_7_ctrl, MPP_0_7_CTRL);

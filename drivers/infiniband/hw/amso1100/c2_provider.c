@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/if_arp.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -864,7 +865,7 @@ int c2_register_device(struct c2_dev *dev)
 	dev->ibdev.iwcm->create_listen = c2_service_create;
 	dev->ibdev.iwcm->destroy_listen = c2_service_destroy;
 
-	ret = ib_register_device(&dev->ibdev);
+	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)
 		goto out_free_iwcm;
 

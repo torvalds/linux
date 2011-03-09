@@ -23,6 +23,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define RDAC_NAME "rdac"
 #define RDAC_RETRY_COUNT 5
@@ -767,10 +768,13 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"DELL", "MD3000i"},
 	{"DELL", "MD32xx"},
 	{"DELL", "MD32xxi"},
+	{"DELL", "MD36xxi"},
 	{"LSI", "INF-01-00"},
 	{"ENGENIO", "INF-01-00"},
 	{"STK", "FLEXLINE 380"},
 	{"SUN", "CSM100_R_FC"},
+	{"SUN", "STK6580_6780"},
+	{"SUN", "SUN_6180"},
 	{NULL, NULL},
 };
 

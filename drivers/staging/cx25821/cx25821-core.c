@@ -21,7 +21,10 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include "cx25821.h"
 #include "cx25821-sram.h"
 #include "cx25821-video.h"
@@ -31,6 +34,7 @@ MODULE_AUTHOR("Shu Lin - Hiep Huynh");
 MODULE_LICENSE("GPL");
 
 struct list_head cx25821_devlist;
+EXPORT_SYMBOL(cx25821_devlist);
 
 static unsigned int debug;
 module_param(debug, int, 0644);
@@ -40,7 +44,7 @@ static unsigned int card[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
 module_param_array(card, int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-static unsigned int cx25821_devcount = 0;
+static unsigned int cx25821_devcount;
 
 static DEFINE_MUTEX(devlist);
 LIST_HEAD(cx25821_devlist);
@@ -312,6 +316,7 @@ struct sram_channel cx25821_sram_channels[] = {
 		       .irq_bit = 11,
 		       },
 };
+EXPORT_SYMBOL(cx25821_sram_channels);
 
 struct sram_channel *channel0 = &cx25821_sram_channels[SRAM_CH00];
 struct sram_channel *channel1 = &cx25821_sram_channels[SRAM_CH01];
@@ -329,7 +334,7 @@ struct cx25821_dmaqueue mpegq;
 
 static int cx25821_risc_decode(u32 risc)
 {
-	static char *instr[16] = {
+	static const char * const instr[16] = {
 		[RISC_SYNC >> 28] = "sync",
 		[RISC_WRITE >> 28] = "write",
 		[RISC_WRITEC >> 28] = "writec",
@@ -341,7 +346,7 @@ static int cx25821_risc_decode(u32 risc)
 		[RISC_WRITECM >> 28] = "writecm",
 		[RISC_WRITECR >> 28] = "writecr",
 	};
-	static int incr[16] = {
+	static const int incr[16] = {
 		[RISC_WRITE >> 28] = 3,
 		[RISC_JUMP >> 28] = 3,
 		[RISC_SKIP >> 28] = 1,
@@ -350,7 +355,7 @@ static int cx25821_risc_decode(u32 risc)
 		[RISC_WRITECM >> 28] = 3,
 		[RISC_WRITECR >> 28] = 4,
 	};
-	static char *bits[] = {
+	static const char * const bits[] = {
 		"12", "13", "14", "resync",
 		"cnt0", "cnt1", "18", "19",
 		"20", "21", "22", "23",
@@ -358,13 +363,13 @@ static int cx25821_risc_decode(u32 risc)
 	};
 	int i;
 
-	printk("0x%08x [ %s", risc,
-	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
+	pr_cont("0x%08x [ %s",
+		risc, instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
 	for (i = ARRAY_SIZE(bits) - 1; i >= 0; i--) {
 		if (risc & (1 << (i + 12)))
-			printk(" %s", bits[i]);
+			pr_cont(" %s", bits[i]);
 	}
-	printk(" count=%d ]\n", risc & 0xfff);
+	pr_cont(" count=%d ]\n", risc & 0xfff);
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
@@ -387,70 +392,74 @@ static void cx25821_registers_init(struct cx25821_dev *dev)
 {
 	u32 tmp;
 
-	// enable RUN_RISC in Pecos
+	/* enable RUN_RISC in Pecos */
 	cx_write(DEV_CNTRL2, 0x20);
 
-	// Set the master PCI interrupt masks to enable video, audio, MBIF, and GPIO interrupts
-	// I2C interrupt masking is handled by the I2C objects themselves.
+	/* Set the master PCI interrupt masks to enable video, audio, MBIF,
+	 * and GPIO interrupts
+	 * I2C interrupt masking is handled by the I2C objects themselves. */
 	cx_write(PCI_INT_MSK, 0x2001FFFF);
 
 	tmp = cx_read(RDR_TLCTL0);
-	tmp &= ~FLD_CFG_RCB_CK_EN;	// Clear the RCB_CK_EN bit
+	tmp &= ~FLD_CFG_RCB_CK_EN;	/* Clear the RCB_CK_EN bit */
 	cx_write(RDR_TLCTL0, tmp);
 
-	// PLL-A setting for the Audio Master Clock
+	/* PLL-A setting for the Audio Master Clock */
 	cx_write(PLL_A_INT_FRAC, 0x9807A58B);
 
-	// PLL_A_POST = 0x1C, PLL_A_OUT_TO_PIN = 0x1
+	/* PLL_A_POST = 0x1C, PLL_A_OUT_TO_PIN = 0x1 */
 	cx_write(PLL_A_POST_STAT_BIST, 0x8000019C);
 
-	// clear reset bit [31]
+	/* clear reset bit [31] */
 	tmp = cx_read(PLL_A_INT_FRAC);
 	cx_write(PLL_A_INT_FRAC, tmp & 0x7FFFFFFF);
 
-	// PLL-B setting for Mobilygen Host Bus Interface
+	/* PLL-B setting for Mobilygen Host Bus Interface */
 	cx_write(PLL_B_INT_FRAC, 0x9883A86F);
 
-	// PLL_B_POST = 0xD, PLL_B_OUT_TO_PIN = 0x0
+	/* PLL_B_POST = 0xD, PLL_B_OUT_TO_PIN = 0x0 */
 	cx_write(PLL_B_POST_STAT_BIST, 0x8000018D);
 
-	// clear reset bit [31]
+	/* clear reset bit [31] */
 	tmp = cx_read(PLL_B_INT_FRAC);
 	cx_write(PLL_B_INT_FRAC, tmp & 0x7FFFFFFF);
 
-	// PLL-C setting for video upstream channel
+	/* PLL-C setting for video upstream channel */
 	cx_write(PLL_C_INT_FRAC, 0x96A0EA3F);
 
-	// PLL_C_POST = 0x3, PLL_C_OUT_TO_PIN = 0x0
+	/* PLL_C_POST = 0x3, PLL_C_OUT_TO_PIN = 0x0 */
 	cx_write(PLL_C_POST_STAT_BIST, 0x80000103);
 
-	// clear reset bit [31]
+	/* clear reset bit [31] */
 	tmp = cx_read(PLL_C_INT_FRAC);
 	cx_write(PLL_C_INT_FRAC, tmp & 0x7FFFFFFF);
 
-	// PLL-D setting for audio upstream channel
+	/* PLL-D setting for audio upstream channel */
 	cx_write(PLL_D_INT_FRAC, 0x98757F5B);
 
-	// PLL_D_POST = 0x13, PLL_D_OUT_TO_PIN = 0x0
+	/* PLL_D_POST = 0x13, PLL_D_OUT_TO_PIN = 0x0 */
 	cx_write(PLL_D_POST_STAT_BIST, 0x80000113);
 
-	// clear reset bit [31]
+	/* clear reset bit [31] */
 	tmp = cx_read(PLL_D_INT_FRAC);
 	cx_write(PLL_D_INT_FRAC, tmp & 0x7FFFFFFF);
 
-	// This selects the PLL C clock source for the video upstream channel I and J
+	/* This selects the PLL C clock source for the video upstream channel
+	 * I and J */
 	tmp = cx_read(VID_CH_CLK_SEL);
 	cx_write(VID_CH_CLK_SEL, (tmp & 0x00FFFFFF) | 0x24000000);
 
-	// 656/VIP SRC Upstream Channel I & J and 7 - Host Bus Interface for channel A-C
-	//select 656/VIP DST for downstream Channel A - C
+	/* 656/VIP SRC Upstream Channel I & J and 7 - Host Bus Interface for
+	 * channel A-C
+	 * select 656/VIP DST for downstream Channel A - C */
 	tmp = cx_read(VID_CH_MODE_SEL);
-	//cx_write( VID_CH_MODE_SEL, tmp | 0x1B0001FF);
+	/* cx_write( VID_CH_MODE_SEL, tmp | 0x1B0001FF); */
 	cx_write(VID_CH_MODE_SEL, tmp & 0xFFFFFE00);
 
-	// enables 656 port I and J as output
+	/* enables 656 port I and J as output */
 	tmp = cx_read(CLK_RST);
-	tmp |= FLD_USE_ALT_PLL_REF;	// use external ALT_PLL_REF pin as its reference clock instead
+	/* use external ALT_PLL_REF pin as its reference clock instead */
+	tmp |= FLD_USE_ALT_PLL_REF;
 	cx_write(CLK_RST, tmp & ~(FLD_VID_I_CLK_NOE | FLD_VID_J_CLK_NOE));
 
 	mdelay(100);
@@ -475,9 +484,8 @@ int cx25821_sram_channel_setup(struct cx25821_dev *dev,
 	cdt = ch->cdt;
 	lines = ch->fifo_size / bpl;
 
-	if (lines > 4) {
+	if (lines > 4)
 		lines = 4;
-	}
 
 	BUG_ON(lines < 2);
 
@@ -493,16 +501,15 @@ int cx25821_sram_channel_setup(struct cx25821_dev *dev,
 		cx_write(cdt + 16 * i + 12, 0);
 	}
 
-	//init the first cdt buffer
+	/* init the first cdt buffer */
 	for (i = 0; i < 128; i++)
 		cx_write(ch->fifo_start + 4 * i, i);
 
 	/* write CMDS */
-	if (ch->jumponly) {
+	if (ch->jumponly)
 		cx_write(ch->cmds_start + 0, 8);
-	} else {
+	else
 		cx_write(ch->cmds_start + 0, risc);
-	}
 
 	cx_write(ch->cmds_start + 4, 0);	/* 64 bits 63-32 */
 	cx_write(ch->cmds_start + 8, cdt);
@@ -525,6 +532,7 @@ int cx25821_sram_channel_setup(struct cx25821_dev *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL(cx25821_sram_channel_setup);
 
 int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 				     struct sram_channel *ch,
@@ -545,9 +553,8 @@ int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 	cdt = ch->cdt;
 	lines = ch->fifo_size / bpl;
 
-	if (lines > 3) {
-		lines = 3;	//for AUDIO
-	}
+	if (lines > 3)
+		lines = 3;	/* for AUDIO */
 
 	BUG_ON(lines < 2);
 
@@ -564,25 +571,23 @@ int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 	}
 
 	/* write CMDS */
-	if (ch->jumponly) {
+	if (ch->jumponly)
 		cx_write(ch->cmds_start + 0, 8);
-	} else {
+	else
 		cx_write(ch->cmds_start + 0, risc);
-	}
 
 	cx_write(ch->cmds_start + 4, 0);	/* 64 bits 63-32 */
 	cx_write(ch->cmds_start + 8, cdt);
 	cx_write(ch->cmds_start + 12, (lines * 16) >> 3);
 	cx_write(ch->cmds_start + 16, ch->ctrl_start);
 
-	//IQ size
-	if (ch->jumponly) {
+	/* IQ size */
+	if (ch->jumponly)
 		cx_write(ch->cmds_start + 20, 0x80000000 | (64 >> 2));
-	} else {
+	else
 		cx_write(ch->cmds_start + 20, 64 >> 2);
-	}
 
-	//zero out
+	/* zero out */
 	for (i = 24; i < 80; i += 4)
 		cx_write(ch->cmds_start + i, 0);
 
@@ -594,6 +599,7 @@ int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL(cx25821_sram_channel_setup_audio);
 
 void cx25821_sram_channel_dump(struct cx25821_dev *dev, struct sram_channel *ch)
 {
@@ -616,16 +622,15 @@ void cx25821_sram_channel_dump(struct cx25821_dev *dev, struct sram_channel *ch)
 	u32 risc;
 	unsigned int i, j, n;
 
-	printk(KERN_WARNING "%s: %s - dma channel status dump\n", dev->name,
-	       ch->name);
+	pr_warn("%s: %s - dma channel status dump\n", dev->name, ch->name);
 	for (i = 0; i < ARRAY_SIZE(name); i++)
-		printk(KERN_WARNING "cmds + 0x%2x:   %-15s: 0x%08x\n", i * 4,
-		       name[i], cx_read(ch->cmds_start + 4 * i));
+		pr_warn("cmds + 0x%2x:   %-15s: 0x%08x\n",
+			i * 4, name[i], cx_read(ch->cmds_start + 4 * i));
 
 	j = i * 4;
 	for (i = 0; i < 4;) {
 		risc = cx_read(ch->cmds_start + 4 * (i + 14));
-		printk(KERN_WARNING "cmds + 0x%2x:   risc%d: ", j + i * 4, i);
+		pr_warn("cmds + 0x%2x:   risc%d: ", j + i * 4, i);
 		i += cx25821_risc_decode(risc);
 	}
 
@@ -633,35 +638,35 @@ void cx25821_sram_channel_dump(struct cx25821_dev *dev, struct sram_channel *ch)
 		risc = cx_read(ch->ctrl_start + 4 * i);
 		/* No consideration for bits 63-32 */
 
-		printk(KERN_WARNING "ctrl + 0x%2x (0x%08x): iq %x: ", i * 4,
-		       ch->ctrl_start + 4 * i, i);
+		pr_warn("ctrl + 0x%2x (0x%08x): iq %x: ",
+			i * 4, ch->ctrl_start + 4 * i, i);
 		n = cx25821_risc_decode(risc);
 		for (j = 1; j < n; j++) {
 			risc = cx_read(ch->ctrl_start + 4 * (i + j));
-			printk(KERN_WARNING
-			       "ctrl + 0x%2x :   iq %x: 0x%08x [ arg #%d ]\n",
-			       4 * (i + j), i + j, risc, j);
+			pr_warn("ctrl + 0x%2x :   iq %x: 0x%08x [ arg #%d ]\n",
+				4 * (i + j), i + j, risc, j);
 		}
 	}
 
-	printk(KERN_WARNING "        :   fifo: 0x%08x -> 0x%x\n",
-	       ch->fifo_start, ch->fifo_start + ch->fifo_size);
-	printk(KERN_WARNING "        :   ctrl: 0x%08x -> 0x%x\n",
-	       ch->ctrl_start, ch->ctrl_start + 6 * 16);
-	printk(KERN_WARNING "        :   ptr1_reg: 0x%08x\n",
-	       cx_read(ch->ptr1_reg));
-	printk(KERN_WARNING "        :   ptr2_reg: 0x%08x\n",
-	       cx_read(ch->ptr2_reg));
-	printk(KERN_WARNING "        :   cnt1_reg: 0x%08x\n",
-	       cx_read(ch->cnt1_reg));
-	printk(KERN_WARNING "        :   cnt2_reg: 0x%08x\n",
-	       cx_read(ch->cnt2_reg));
+	pr_warn("        :   fifo: 0x%08x -> 0x%x\n",
+		ch->fifo_start, ch->fifo_start + ch->fifo_size);
+	pr_warn("        :   ctrl: 0x%08x -> 0x%x\n",
+		ch->ctrl_start, ch->ctrl_start + 6 * 16);
+	pr_warn("        :   ptr1_reg: 0x%08x\n",
+		cx_read(ch->ptr1_reg));
+	pr_warn("        :   ptr2_reg: 0x%08x\n",
+		cx_read(ch->ptr2_reg));
+	pr_warn("        :   cnt1_reg: 0x%08x\n",
+		cx_read(ch->cnt1_reg));
+	pr_warn("        :   cnt2_reg: 0x%08x\n",
+		cx_read(ch->cnt2_reg));
 }
+EXPORT_SYMBOL(cx25821_sram_channel_dump);
 
 void cx25821_sram_channel_dump_audio(struct cx25821_dev *dev,
 				     struct sram_channel *ch)
 {
-	static char *name[] = {
+	static const char * const name[] = {
 		"init risc lo",
 		"init risc hi",
 		"cdt base",
@@ -681,18 +686,18 @@ void cx25821_sram_channel_dump_audio(struct cx25821_dev *dev,
 	u32 risc, value, tmp;
 	unsigned int i, j, n;
 
-	printk(KERN_INFO "\n%s: %s - dma Audio channel status dump\n",
-	       dev->name, ch->name);
+	pr_info("\n%s: %s - dma Audio channel status dump\n",
+		dev->name, ch->name);
 
 	for (i = 0; i < ARRAY_SIZE(name); i++)
-		printk(KERN_INFO "%s: cmds + 0x%2x:   %-15s: 0x%08x\n",
-		       dev->name, i * 4, name[i],
-		       cx_read(ch->cmds_start + 4 * i));
+		pr_info("%s: cmds + 0x%2x:   %-15s: 0x%08x\n",
+			dev->name, i * 4, name[i],
+			cx_read(ch->cmds_start + 4 * i));
 
 	j = i * 4;
 	for (i = 0; i < 4;) {
 		risc = cx_read(ch->cmds_start + 4 * (i + 14));
-		printk(KERN_WARNING "cmds + 0x%2x:   risc%d: ", j + i * 4, i);
+		pr_warn("cmds + 0x%2x:   risc%d: ", j + i * 4, i);
 		i += cx25821_risc_decode(risc);
 	}
 
@@ -700,71 +705,71 @@ void cx25821_sram_channel_dump_audio(struct cx25821_dev *dev,
 		risc = cx_read(ch->ctrl_start + 4 * i);
 		/* No consideration for bits 63-32 */
 
-		printk(KERN_WARNING "ctrl + 0x%2x (0x%08x): iq %x: ", i * 4,
-		       ch->ctrl_start + 4 * i, i);
+		pr_warn("ctrl + 0x%2x (0x%08x): iq %x: ",
+			i * 4, ch->ctrl_start + 4 * i, i);
 		n = cx25821_risc_decode(risc);
 
 		for (j = 1; j < n; j++) {
 			risc = cx_read(ch->ctrl_start + 4 * (i + j));
-			printk(KERN_WARNING
-			       "ctrl + 0x%2x :   iq %x: 0x%08x [ arg #%d ]\n",
-			       4 * (i + j), i + j, risc, j);
+			pr_warn("ctrl + 0x%2x :   iq %x: 0x%08x [ arg #%d ]\n",
+				4 * (i + j), i + j, risc, j);
 		}
 	}
 
-	printk(KERN_WARNING "        :   fifo: 0x%08x -> 0x%x\n",
-	       ch->fifo_start, ch->fifo_start + ch->fifo_size);
-	printk(KERN_WARNING "        :   ctrl: 0x%08x -> 0x%x\n",
-	       ch->ctrl_start, ch->ctrl_start + 6 * 16);
-	printk(KERN_WARNING "        :   ptr1_reg: 0x%08x\n",
-	       cx_read(ch->ptr1_reg));
-	printk(KERN_WARNING "        :   ptr2_reg: 0x%08x\n",
-	       cx_read(ch->ptr2_reg));
-	printk(KERN_WARNING "        :   cnt1_reg: 0x%08x\n",
-	       cx_read(ch->cnt1_reg));
-	printk(KERN_WARNING "        :   cnt2_reg: 0x%08x\n",
-	       cx_read(ch->cnt2_reg));
+	pr_warn("        :   fifo: 0x%08x -> 0x%x\n",
+		ch->fifo_start, ch->fifo_start + ch->fifo_size);
+	pr_warn("        :   ctrl: 0x%08x -> 0x%x\n",
+		ch->ctrl_start, ch->ctrl_start + 6 * 16);
+	pr_warn("        :   ptr1_reg: 0x%08x\n",
+		cx_read(ch->ptr1_reg));
+	pr_warn("        :   ptr2_reg: 0x%08x\n",
+		cx_read(ch->ptr2_reg));
+	pr_warn("        :   cnt1_reg: 0x%08x\n",
+		cx_read(ch->cnt1_reg));
+	pr_warn("        :   cnt2_reg: 0x%08x\n",
+		cx_read(ch->cnt2_reg));
 
 	for (i = 0; i < 4; i++) {
 		risc = cx_read(ch->cmds_start + 56 + (i * 4));
-		printk(KERN_WARNING "instruction %d = 0x%x\n", i, risc);
+		pr_warn("instruction %d = 0x%x\n", i, risc);
 	}
 
-	//read data from the first cdt buffer
+	/* read data from the first cdt buffer */
 	risc = cx_read(AUD_A_CDT);
-	printk(KERN_WARNING "\nread cdt loc=0x%x\n", risc);
+	pr_warn("\nread cdt loc=0x%x\n", risc);
 	for (i = 0; i < 8; i++) {
 		n = cx_read(risc + i * 4);
-		printk(KERN_WARNING "0x%x ", n);
+		pr_cont("0x%x ", n);
 	}
-	printk(KERN_WARNING "\n\n");
+	pr_cont("\n\n");
 
 	value = cx_read(CLK_RST);
-	CX25821_INFO(" CLK_RST = 0x%x \n\n", value);
+	CX25821_INFO(" CLK_RST = 0x%x\n\n", value);
 
 	value = cx_read(PLL_A_POST_STAT_BIST);
-	CX25821_INFO(" PLL_A_POST_STAT_BIST = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_A_POST_STAT_BIST = 0x%x\n\n", value);
 	value = cx_read(PLL_A_INT_FRAC);
-	CX25821_INFO(" PLL_A_INT_FRAC = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_A_INT_FRAC = 0x%x\n\n", value);
 
 	value = cx_read(PLL_B_POST_STAT_BIST);
-	CX25821_INFO(" PLL_B_POST_STAT_BIST = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_B_POST_STAT_BIST = 0x%x\n\n", value);
 	value = cx_read(PLL_B_INT_FRAC);
-	CX25821_INFO(" PLL_B_INT_FRAC = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_B_INT_FRAC = 0x%x\n\n", value);
 
 	value = cx_read(PLL_C_POST_STAT_BIST);
-	CX25821_INFO(" PLL_C_POST_STAT_BIST = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_C_POST_STAT_BIST = 0x%x\n\n", value);
 	value = cx_read(PLL_C_INT_FRAC);
-	CX25821_INFO(" PLL_C_INT_FRAC = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_C_INT_FRAC = 0x%x\n\n", value);
 
 	value = cx_read(PLL_D_POST_STAT_BIST);
-	CX25821_INFO(" PLL_D_POST_STAT_BIST = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_D_POST_STAT_BIST = 0x%x\n\n", value);
 	value = cx_read(PLL_D_INT_FRAC);
-	CX25821_INFO(" PLL_D_INT_FRAC = 0x%x \n\n", value);
+	CX25821_INFO(" PLL_D_INT_FRAC = 0x%x\n\n", value);
 
 	value = cx25821_i2c_read(&dev->i2c_bus[0], AFE_AB_DIAG_CTRL, &tmp);
-	CX25821_INFO(" AFE_AB_DIAG_CTRL (0x10900090) = 0x%x \n\n", value);
+	CX25821_INFO(" AFE_AB_DIAG_CTRL (0x10900090) = 0x%x\n\n", value);
 }
+EXPORT_SYMBOL(cx25821_sram_channel_dump_audio);
 
 static void cx25821_shutdown(struct cx25821_dev *dev)
 {
@@ -775,14 +780,14 @@ static void cx25821_shutdown(struct cx25821_dev *dev)
 
 	/* Disable Video A/B activity */
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-		cx_write(dev->sram_channels[i].dma_ctl, 0);
-		cx_write(dev->sram_channels[i].int_msk, 0);
+		cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
+		cx_write(dev->channels[i].sram_channels->int_msk, 0);
 	}
 
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I; i <= VID_UPSTREAM_SRAM_CHANNEL_J;
-	     i++) {
-		cx_write(dev->sram_channels[i].dma_ctl, 0);
-		cx_write(dev->sram_channels[i].int_msk, 0);
+	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
+		i <= VID_UPSTREAM_SRAM_CHANNEL_J; i++) {
+		cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
+		cx_write(dev->channels[i].sram_channels->int_msk, 0);
 	}
 
 	/* Disable Audio activity */
@@ -799,12 +804,10 @@ static void cx25821_shutdown(struct cx25821_dev *dev)
 void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel_select,
 			      u32 format)
 {
-	struct sram_channel *ch;
-
 	if (channel_select <= 7 && channel_select >= 0) {
-		ch = &cx25821_sram_channels[channel_select];
-		cx_write(ch->pix_frmt, format);
-		dev->pixel_formats[channel_select] = format;
+		cx_write(dev->channels[channel_select].
+			sram_channels->pix_frmt, format);
+		dev->channels[channel_select].pixel_formats = format;
 	}
 }
 
@@ -825,7 +828,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	cx_write(PCI_INT_STAT, 0xffffffff);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++)
-		cx_write(dev->sram_channels[i].int_stat, 0xffffffff);
+		cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
 
 	cx_write(AUD_A_INT_STAT, 0xffffffff);
 	cx_write(AUD_B_INT_STAT, 0xffffffff);
@@ -834,38 +837,39 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	cx_write(AUD_E_INT_STAT, 0xffffffff);
 
 	cx_write(CLK_DELAY, cx_read(CLK_DELAY) & 0x80000000);
-	cx_write(PAD_CTRL, 0x12);	//for I2C
-	cx25821_registers_init(dev);	//init Pecos registers
+	cx_write(PAD_CTRL, 0x12);	/* for I2C */
+	cx25821_registers_init(dev);	/* init Pecos registers */
 	mdelay(100);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-		cx25821_set_vip_mode(dev, &dev->sram_channels[i]);
-		cx25821_sram_channel_setup(dev, &dev->sram_channels[i], 1440,
-					   0);
-		dev->pixel_formats[i] = PIXEL_FRMT_422;
-		dev->use_cif_resolution[i] = FALSE;
+		cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
+		cx25821_sram_channel_setup(dev, dev->channels[i].sram_channels,
+						1440, 0);
+		dev->channels[i].pixel_formats = PIXEL_FRMT_422;
+		dev->channels[i].use_cif_resolution = FALSE;
 	}
 
-	//Probably only affect Downstream
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I; i <= VID_UPSTREAM_SRAM_CHANNEL_J;
-	     i++) {
-		cx25821_set_vip_mode(dev, &dev->sram_channels[i]);
+	/* Probably only affect Downstream */
+	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
+		i <= VID_UPSTREAM_SRAM_CHANNEL_J; i++) {
+		cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
 	}
 
-	cx25821_sram_channel_setup_audio(dev, &dev->sram_channels[SRAM_CH08],
-					 128, 0);
+	cx25821_sram_channel_setup_audio(dev,
+				dev->channels[SRAM_CH08].sram_channels,
+				128, 0);
 
 	cx25821_gpio_init(dev);
 }
 
-static int get_resources(struct cx25821_dev *dev)
+static int cx25821_get_resources(struct cx25821_dev *dev)
 {
 	if (request_mem_region
 	    (pci_resource_start(dev->pci, 0), pci_resource_len(dev->pci, 0),
 	     dev->name))
 		return 0;
 
-	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
+	pr_err("%s: can't get MMIO memory @ 0x%llx\n",
 	       dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
 
 	return -EBUSY;
@@ -875,8 +879,8 @@ static void cx25821_dev_checkrevision(struct cx25821_dev *dev)
 {
 	dev->hwrevision = cx_read(RDR_CFG2) & 0xff;
 
-	printk(KERN_INFO "%s() Hardware revision = 0x%02x\n", __func__,
-	       dev->hwrevision);
+	pr_info("%s(): Hardware revision = 0x%02x\n",
+		__func__, dev->hwrevision);
 }
 
 static void cx25821_iounmap(struct cx25821_dev *dev)
@@ -896,24 +900,9 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 {
 	int io_size = 0, i;
 
-	struct video_device *video_template[] = {
-		&cx25821_video_template0,
-		&cx25821_video_template1,
-		&cx25821_video_template2,
-		&cx25821_video_template3,
-		&cx25821_video_template4,
-		&cx25821_video_template5,
-		&cx25821_video_template6,
-		&cx25821_video_template7,
-		&cx25821_video_template9,
-		&cx25821_video_template10,
-		&cx25821_video_template11,
-		&cx25821_videoioctl_template,
-	};
-
-	printk(KERN_INFO "\n***********************************\n");
-	printk(KERN_INFO "cx25821 set up\n");
-	printk(KERN_INFO "***********************************\n\n");
+	pr_info("\n***********************************\n");
+	pr_info("cx25821 set up\n");
+	pr_info("***********************************\n\n");
 
 	mutex_init(&dev->lock);
 
@@ -930,25 +919,23 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	strcpy(cx25821_boards[CX25821_BOARD].name, "cx25821");
 
 	if (dev->pci->device != 0x8210) {
-		printk(KERN_INFO
-		       "%s() Exiting. Incorrect Hardware device = 0x%02x\n",
-		       __func__, dev->pci->device);
+		pr_info("%s(): Exiting. Incorrect Hardware device = 0x%02x\n",
+			__func__, dev->pci->device);
 		return -1;
 	} else {
-		printk(KERN_INFO "Athena Hardware device = 0x%02x\n",
-		       dev->pci->device);
+		pr_info("Athena Hardware device = 0x%02x\n", dev->pci->device);
 	}
 
 	/* Apply a sensible clock frequency for the PCIe bridge */
 	dev->clk_freq = 28000000;
-	dev->sram_channels = cx25821_sram_channels;
+	for (i = 0; i < MAX_VID_CHANNEL_NUM; i++)
+		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
 
-	if (dev->nr > 1) {
+	if (dev->nr > 1)
 		CX25821_INFO("dev->nr > 1!");
-	}
 
 	/* board config */
-	dev->board = 1;		//card[dev->nr];
+	dev->board = 1;		/* card[dev->nr]; */
 	dev->_max_num_decoders = MAX_DECODERS;
 
 	dev->pci_bus = dev->pci->bus->number;
@@ -965,15 +952,13 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	dev->i2c_bus[0].reg_wdata = I2C1_WDATA;
 	dev->i2c_bus[0].i2c_period = (0x07 << 24);	/* 1.95MHz */
 
-
-	if (get_resources(dev) < 0) {
-		printk(KERN_ERR "%s No more PCIe resources for "
-		       "subsystem: %04x:%04x\n",
+	if (cx25821_get_resources(dev) < 0) {
+		pr_err("%s: No more PCIe resources for subsystem: %04x:%04x\n",
 		       dev->name, dev->pci->subsystem_vendor,
 		       dev->pci->subsystem_device);
 
 		cx25821_devcount--;
-		return -ENODEV;
+		return -EBUSY;
 	}
 
 	/* PCIe stuff */
@@ -996,58 +981,43 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	dev->bmmio = (u8 __iomem *) dev->lmmio;
 
-	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
-	       dev->name, dev->pci->subsystem_vendor,
-	       dev->pci->subsystem_device, cx25821_boards[dev->board].name,
-	       dev->board, card[dev->nr] == dev->board ?
-	       "insmod option" : "autodetected");
+	pr_info("%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+		dev->name, dev->pci->subsystem_vendor,
+		dev->pci->subsystem_device, cx25821_boards[dev->board].name,
+		dev->board, card[dev->nr] == dev->board ?
+		"insmod option" : "autodetected");
 
 	/* init hardware */
 	cx25821_initialize(dev);
 
 	cx25821_i2c_register(&dev->i2c_bus[0]);
-//  cx25821_i2c_register(&dev->i2c_bus[1]);
-//  cx25821_i2c_register(&dev->i2c_bus[2]);
+/*  cx25821_i2c_register(&dev->i2c_bus[1]);
+ *  cx25821_i2c_register(&dev->i2c_bus[2]); */
 
 	CX25821_INFO("i2c register! bus->i2c_rc = %d\n",
 		     dev->i2c_bus[0].i2c_rc);
 
 	cx25821_card_setup(dev);
-	medusa_video_init(dev);
 
-	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-		if (cx25821_video_register(dev, i, video_template[i]) < 0) {
-			printk(KERN_ERR
-			       "%s() Failed to register analog video adapters on VID channel %d\n",
-			       __func__, i);
-		}
-	}
+	if (medusa_video_init(dev) < 0)
+		CX25821_ERR("%s(): Failed to initialize medusa!\n", __func__);
 
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
-	     i <= AUDIO_UPSTREAM_SRAM_CHANNEL_B; i++) {
-		//Since we don't have template8 for Audio Downstream
-		if (cx25821_video_register(dev, i, video_template[i - 1]) < 0) {
-			printk(KERN_ERR
-			       "%s() Failed to register analog video adapters for Upstream channel %d.\n",
-			       __func__, i);
-		}
-	}
+	cx25821_video_register(dev);
 
-	// register IOCTL device
+	/* register IOCTL device */
 	dev->ioctl_dev =
-	    cx25821_vdev_init(dev, dev->pci, video_template[VIDEO_IOCTL_CH],
+	   cx25821_vdev_init(dev, dev->pci, &cx25821_videoioctl_template,
 			      "video");
 
 	if (video_register_device
 	    (dev->ioctl_dev, VFL_TYPE_GRABBER, VIDEO_IOCTL_CH) < 0) {
 		cx25821_videoioctl_unregister(dev);
-		printk(KERN_ERR
-		       "%s() Failed to register video adapter for IOCTL so releasing.\n",
+		pr_err("%s(): Failed to register video adapter for IOCTL, so unregistering videoioctl device\n",
 		       __func__);
 	}
 
 	cx25821_dev_checkrevision(dev);
-	CX25821_INFO("cx25821 setup done!\n");
+	CX25821_INFO("setup done!\n");
 
 	return 0;
 }
@@ -1111,6 +1081,7 @@ void cx25821_dev_unregister(struct cx25821_dev *dev)
 	cx25821_i2c_unregister(&dev->i2c_bus[0]);
 	cx25821_iounmap(dev);
 }
+EXPORT_SYMBOL(cx25821_dev_unregister);
 
 static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 				  unsigned int offset, u32 sync_line,
@@ -1121,9 +1092,8 @@ static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 	unsigned int line, todo;
 
 	/* sync instruction */
-	if (sync_line != NO_SYNC_LINE) {
+	if (sync_line != NO_SYNC_LINE)
 		*(rp++) = cpu_to_le32(RISC_RESYNC | sync_line);
-	}
 
 	/* scan lines */
 	sg = sglist;
@@ -1298,7 +1268,8 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 	instructions = 1 + (bpl * lines) / PAGE_SIZE + lines;
 	instructions += 1;
 
-	if ((rc = btcx_riscmem_alloc(pci, risc, instructions * 12)) < 0)
+	rc = btcx_riscmem_alloc(pci, risc, instructions * 12);
+	if (rc < 0)
 		return rc;
 
 	/* write risc instructions */
@@ -1311,6 +1282,7 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
+EXPORT_SYMBOL(cx25821_risc_databuffer_audio);
 
 int cx25821_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 			 u32 reg, u32 mask, u32 value)
@@ -1341,8 +1313,8 @@ void cx25821_free_buffer(struct videobuf_queue *q, struct cx25821_buffer *buf)
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 
 	BUG_ON(in_interrupt());
-	videobuf_waiton(&buf->vb, 0, 0);
-	videobuf_dma_unmap(q, dma);
+	videobuf_waiton(q, &buf->vb, 0, 0);
+	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -1364,17 +1336,18 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
 		if (pci_status & mask[i]) {
-			vid_status = cx_read(dev->sram_channels[i].int_stat);
+			vid_status = cx_read(dev->channels[i].
+				sram_channels->int_stat);
 
 			if (vid_status)
 				handled +=
-				    cx25821_video_irq(dev, i, vid_status);
+				cx25821_video_irq(dev, i, vid_status);
 
 			cx_write(PCI_INT_STAT, mask[i]);
 		}
 	}
 
-      out:
+out:
 	return IRQ_RETVAL(handled);
 }
 
@@ -1383,27 +1356,29 @@ void cx25821_print_irqbits(char *name, char *tag, char **strings,
 {
 	unsigned int i;
 
-	printk(KERN_DEBUG "%s: %s [0x%x]", name, tag, bits);
+	printk(KERN_DEBUG pr_fmt("%s: %s [0x%x]"), name, tag, bits);
 
 	for (i = 0; i < len; i++) {
 		if (!(bits & (1 << i)))
 			continue;
 		if (strings[i])
-			printk(" %s", strings[i]);
+			pr_cont(" %s", strings[i]);
 		else
-			printk(" %d", i);
+			pr_cont(" %d", i);
 		if (!(mask & (1 << i)))
 			continue;
-		printk("*");
+		pr_cont("*");
 	}
-	printk("\n");
+	pr_cont("\n");
 }
+EXPORT_SYMBOL(cx25821_print_irqbits);
 
 struct cx25821_dev *cx25821_dev_get(struct pci_dev *pci)
 {
 	struct cx25821_dev *dev = pci_get_drvdata(pci);
 	return dev;
 }
+EXPORT_SYMBOL(cx25821_dev_get);
 
 static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 				     const struct pci_device_id *pci_id)
@@ -1424,29 +1399,31 @@ static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 	if (pci_enable_device(pci_dev)) {
 		err = -EIO;
 
-		printk(KERN_INFO "pci enable failed! ");
+		pr_info("pci enable failed!\n");
 
 		goto fail_unregister_device;
 	}
 
-	printk(KERN_INFO "cx25821 Athena pci enable ! \n");
+	pr_info("Athena pci enable !\n");
 
-	if (cx25821_dev_setup(dev) < 0) {
-		err = -EINVAL;
-		goto fail_unregister_device;
+	err = cx25821_dev_setup(dev);
+	if (err) {
+		if (err == -EBUSY)
+			goto fail_unregister_device;
+		else
+			goto fail_unregister_pci;
 	}
 
 	/* print pci info */
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER, &dev->pci_lat);
-	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", dev->name,
-	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat, (unsigned long long)dev->base_io_addr);
+	pr_info("%s/0: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+		dev->name, pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
+		dev->pci_lat, (unsigned long long)dev->base_io_addr);
 
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev, 0xffffffff)) {
-		printk("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_err("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
 		err = -EIO;
 		goto fail_irq;
 	}
@@ -1456,21 +1433,22 @@ static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 			dev->name, dev);
 
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get IRQ %d\n", dev->name,
-		       pci_dev->irq);
+		pr_err("%s: can't get IRQ %d\n", dev->name, pci_dev->irq);
 		goto fail_irq;
 	}
 
 	return 0;
 
-      fail_irq:
-	printk(KERN_INFO "cx25821 cx25821_initdev() can't get IRQ ! \n");
+fail_irq:
+	pr_info("cx25821_initdev() can't get IRQ !\n");
 	cx25821_dev_unregister(dev);
 
-      fail_unregister_device:
+fail_unregister_pci:
+	pci_disable_device(pci_dev);
+fail_unregister_device:
 	v4l2_device_unregister(&dev->v4l2_dev);
 
-      fail_free:
+fail_free:
 	kfree(dev);
 	return err;
 }
@@ -1524,9 +1502,10 @@ static struct pci_driver cx25821_pci_driver = {
 static int __init cx25821_init(void)
 {
 	INIT_LIST_HEAD(&cx25821_devlist);
-	printk(KERN_INFO "cx25821 driver version %d.%d.%d loaded\n",
-	       (CX25821_VERSION_CODE >> 16) & 0xff,
-	       (CX25821_VERSION_CODE >> 8) & 0xff, CX25821_VERSION_CODE & 0xff);
+	pr_info("driver version %d.%d.%d loaded\n",
+		(CX25821_VERSION_CODE >> 16) & 0xff,
+		(CX25821_VERSION_CODE >> 8) & 0xff,
+		CX25821_VERSION_CODE & 0xff);
 	return pci_register_driver(&cx25821_pci_driver);
 }
 
@@ -1535,16 +1514,6 @@ static void __exit cx25821_fini(void)
 	pci_unregister_driver(&cx25821_pci_driver);
 }
 
-EXPORT_SYMBOL(cx25821_devlist);
-EXPORT_SYMBOL(cx25821_sram_channels);
-EXPORT_SYMBOL(cx25821_print_irqbits);
-EXPORT_SYMBOL(cx25821_dev_get);
-EXPORT_SYMBOL(cx25821_dev_unregister);
-EXPORT_SYMBOL(cx25821_sram_channel_setup);
-EXPORT_SYMBOL(cx25821_sram_channel_dump);
-EXPORT_SYMBOL(cx25821_sram_channel_setup_audio);
-EXPORT_SYMBOL(cx25821_sram_channel_dump_audio);
-EXPORT_SYMBOL(cx25821_risc_databuffer_audio);
 EXPORT_SYMBOL(cx25821_set_gpiopin_direction);
 
 module_init(cx25821_init);

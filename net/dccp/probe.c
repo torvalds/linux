@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/kfifo.h>
 #include <linux/vmalloc.h>
+#include <linux/gfp.h>
 #include <net/net_namespace.h>
 
 #include "dccp.h"
@@ -148,6 +149,7 @@ static const struct file_operations dccpprobe_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dccpprobe_open,
 	.read    = dccpprobe_read,
+	.llseek  = noop_llseek,
 };
 
 static __init int dccpprobe_init(void)
@@ -161,8 +163,8 @@ static __init int dccpprobe_init(void)
 	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &dccpprobe_fops))
 		goto err0;
 
-	ret = try_then_request_module((register_jprobe(&dccp_send_probe) == 0),
-					"dccp");
+	try_then_request_module((ret = register_jprobe(&dccp_send_probe)) == 0,
+				"dccp");
 	if (ret)
 		goto err1;
 

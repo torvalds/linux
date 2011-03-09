@@ -62,12 +62,14 @@ invalid ramWidth is Very Bad.
 V. References
 
 http://www.scyld.com/expert/NWay.html
-http://www.national.com/pf/DP/DP83840.html
+http://www.national.com/opf/DP/DP83840A.html
 
 Thanks to Terry Murphy of 3Com for providing development information for
 earlier 3Com products.
 
 */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -83,17 +85,13 @@ earlier 3Com products.
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
-#include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/mii.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -200,7 +198,6 @@ enum Window4 {		/* Window 4: Xcvr/media bits. */
 
 struct el3_private {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	u16 advertising, partner;		/* NWay media advertisement */
 	unsigned char phys;			/* MII device address */
 	unsigned int autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
@@ -241,7 +238,6 @@ static int el3_rx(struct net_device *dev, int worklimit);
 static int el3_close(struct net_device *dev);
 static void el3_tx_timeout(struct net_device *dev);
 static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static const struct ethtool_ops netdev_ethtool_ops;
 static void set_rx_mode(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 
@@ -281,29 +277,16 @@ static int tc574_probe(struct pcmcia_device *link)
 	lp->p_dev = link;
 
 	spin_lock_init(&lp->window_lock);
-	link->io.NumPorts1 = 32;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = &el3_interrupt;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.ConfigIndex = 1;
+	link->resource[0]->end = 32;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_index = 1;
 
 	dev->netdev_ops = &el3_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	return tc574_config(link);
-} /* tc574_attach */
-
-/*
-
-	This deletes a driver "instance".  The device is de-registered
-	with Card Services.  If it has been released, all local data
-	structures are freed.  Otherwise, the structures will be freed
-	when the device is released.
-
-*/
+}
 
 static void tc574_detach(struct pcmcia_device *link)
 {
@@ -311,19 +294,12 @@ static void tc574_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "3c574_detach()\n");
 
-	if (link->dev_node)
-		unregister_netdev(dev);
+	unregister_netdev(dev);
 
 	tc574_release(link);
 
 	free_netdev(dev);
 } /* tc574_detach */
-
-/*
-	tc574_config() is scheduled to run after a CARD_INSERTION event
-	is received, to configure the PCMCIA socket, and to make the
-	ethernet device available to the system.
-*/
 
 static const char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 
@@ -343,26 +319,27 @@ static int tc574_config(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "3c574_config()\n");
 
-	link->io.IOAddrLines = 16;
+	link->io_lines = 16;
+
 	for (i = j = 0; j < 0x400; j += 0x20) {
-		link->io.BasePort1 = j ^ 0x300;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = j ^ 0x300;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}
 	if (i != 0)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, el3_interrupt);
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
-	dev->irq = link->irq.AssignedIRQ;
-	dev->base_addr = link->io.BasePort1;
+	dev->irq = link->irq;
+	dev->base_addr = link->resource[0]->start;
 
 	ioaddr = dev->base_addr;
 
@@ -381,8 +358,8 @@ static int tc574_config(struct pcmcia_device *link)
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(read_eeprom(ioaddr, i + 10));
 		if (phys_addr[0] == htons(0x6060)) {
-			printk(KERN_NOTICE "3c574_cs: IO port conflict at 0x%03lx"
-				   "-0x%03lx\n", dev->base_addr, dev->base_addr+15);
+			pr_notice("IO port conflict at 0x%03lx-0x%03lx\n",
+				  dev->base_addr, dev->base_addr+15);
 			goto failed;
 		}
 	}
@@ -396,7 +373,7 @@ static int tc574_config(struct pcmcia_device *link)
 		outw(2<<11, ioaddr + RunnerRdCtrl);
 		mcr = inb(ioaddr + 2);
 		outw(0<<11, ioaddr + RunnerRdCtrl);
-		printk(KERN_INFO "  ASIC rev %d,", mcr>>3);
+		pr_info("  ASIC rev %d,", mcr>>3);
 		EL3WINDOW(3);
 		config = inl(ioaddr + Wn3_Config);
 		lp->default_media = (config & Xcvr) >> Xcvr_shift;
@@ -433,7 +410,7 @@ static int tc574_config(struct pcmcia_device *link)
 			}
 		}
 		if (phy > 32) {
-			printk(KERN_NOTICE "  No MII transceivers found!\n");
+			pr_notice("  No MII transceivers found!\n");
 			goto failed;
 		}
 		i = mdio_read(ioaddr, lp->phys, 16) | 0x40;
@@ -446,25 +423,19 @@ static int tc574_config(struct pcmcia_device *link)
 		}
 	}
 
-	link->dev_node = &lp->node;
 	SET_NETDEV_DEV(dev, &link->dev);
 
 	if (register_netdev(dev) != 0) {
-		printk(KERN_NOTICE "3c574_cs: register_netdev() failed\n");
-		link->dev_node = NULL;
+		pr_notice("register_netdev() failed\n");
 		goto failed;
 	}
 
-	strcpy(lp->node.dev_name, dev->name);
-
-	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, "
-	       "hw_addr %pM.\n",
-	       dev->name, cardname, dev->base_addr, dev->irq,
-	       dev->dev_addr);
-	printk(" %dK FIFO split %s Rx:Tx, %sMII interface.\n",
-		   8 << config & Ram_size,
-		   ram_split[(config & Ram_split) >> Ram_split_shift],
-		   config & Autoselect ? "autoselect " : "");
+	netdev_info(dev, "%s at io %#3lx, irq %d, hw_addr %pM\n",
+		    cardname, dev->base_addr, dev->irq, dev->dev_addr);
+	netdev_info(dev, " %dK FIFO split %s Rx:Tx, %sMII interface.\n",
+		    8 << config & Ram_size,
+		    ram_split[(config & Ram_split) >> Ram_split_shift],
+		    config & Autoselect ? "autoselect " : "");
 
 	return 0;
 
@@ -473,12 +444,6 @@ failed:
 	return -ENODEV;
 
 } /* tc574_config */
-
-/*
-	After a card is removed, tc574_release() will unregister the net
-	device, and release the PCMCIA configuration.  If the device is
-	still open, this will be postponed until it is closed.
-*/
 
 static void tc574_release(struct pcmcia_device *link)
 {
@@ -511,14 +476,14 @@ static void dump_status(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	EL3WINDOW(1);
-	printk(KERN_INFO "  irq status %04x, rx status %04x, tx status "
-		   "%02x, tx free %04x\n", inw(ioaddr+EL3_STATUS),
-		   inw(ioaddr+RxStatus), inb(ioaddr+TxStatus),
-		   inw(ioaddr+TxFree));
+	netdev_info(dev, "  irq status %04x, rx status %04x, tx status %02x, tx free %04x\n",
+		    inw(ioaddr+EL3_STATUS),
+		    inw(ioaddr+RxStatus), inb(ioaddr+TxStatus),
+		    inw(ioaddr+TxFree));
 	EL3WINDOW(4);
-	printk(KERN_INFO "  diagnostics: fifo %04x net %04x ethernet %04x"
-		   " media %04x\n", inw(ioaddr+0x04), inw(ioaddr+0x06),
-		   inw(ioaddr+0x08), inw(ioaddr+0x0a));
+	netdev_info(dev, "  diagnostics: fifo %04x net %04x ethernet %04x media %04x\n",
+		    inw(ioaddr+0x04), inw(ioaddr+0x06),
+		    inw(ioaddr+0x08), inw(ioaddr+0x0a));
 	EL3WINDOW(1);
 }
 
@@ -532,7 +497,7 @@ static void tc574_wait_for_completion(struct net_device *dev, int cmd)
 	while (--i > 0)
 		if (!(inw(dev->base_addr + EL3_STATUS) & 0x1000)) break;
 	if (i == 0)
-		printk(KERN_NOTICE "%s: command 0x%04x did not complete!\n", dev->name, cmd);
+		netdev_notice(dev, "command 0x%04x did not complete!\n", cmd);
 }
 
 /* Read a word from the EEPROM using the regular EEPROM access register.
@@ -622,8 +587,6 @@ static void mdio_write(unsigned int ioaddr, int phy_id, int location, int value)
 		outw(MDIO_ENB_IN, mdio_addr);
 		outw(MDIO_ENB_IN | MDIO_SHIFT_CLK, mdio_addr);
 	}
-
-	return;
 }
 
 /* Reset and restore all of the 3c574 registers. */
@@ -721,7 +684,7 @@ static int el3_open(struct net_device *dev)
 	netif_start_queue(dev);
 	
 	tc574_reset(dev);
-	lp->media.function = &media_check;
+	lp->media.function = media_check;
 	lp->media.data = (unsigned long) dev;
 	lp->media.expires = jiffies + HZ;
 	add_timer(&lp->media);
@@ -736,10 +699,10 @@ static void el3_tx_timeout(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	
-	printk(KERN_NOTICE "%s: Transmit timed out!\n", dev->name);
+	netdev_notice(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	tc574_wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);
@@ -781,11 +744,14 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 		  inw(ioaddr + EL3_STATUS));
 
 	spin_lock_irqsave(&lp->window_lock, flags);
+
+	dev->stats.tx_bytes += skb->len;
+
+	/* Put out the doubleword header... */
 	outw(skb->len, ioaddr + TX_FIFO);
 	outw(0, ioaddr + TX_FIFO);
+	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len+3)>>2);
-
-	dev->trans_start = jiffies;
 
 	/* TxFree appears only in Window 1, not offset 0x1c. */
 	if (inw(ioaddr + TxFree) <= 1536) {
@@ -856,8 +822,8 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 				EL3WINDOW(4);
 				fifo_diag = inw(ioaddr + Wn4_FIFODiag);
 				EL3WINDOW(1);
-				printk(KERN_NOTICE "%s: adapter failure, FIFO diagnostic"
-					   " register %04x.\n", dev->name, fifo_diag);
+				netdev_notice(dev, "adapter failure, FIFO diagnostic register %04x\n",
+					      fifo_diag);
 				if (fifo_diag & 0x0400) {
 					/* Tx overrun */
 					tc574_wait_for_completion(dev, TxReset);
@@ -911,7 +877,7 @@ static void media_check(unsigned long arg)
 	   this, we can limp along even if the interrupt is blocked */
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
-			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+			netdev_info(dev, "interrupt(s) dropped!\n");
 
 		local_irq_save(flags);
 		el3_interrupt(dev->irq, dev);
@@ -934,23 +900,21 @@ static void media_check(unsigned long arg)
 	
 	if (media != lp->media_status) {
 		if ((media ^ lp->media_status) & 0x0004)
-			printk(KERN_INFO "%s: %s link beat\n", dev->name,
-				   (lp->media_status & 0x0004) ? "lost" : "found");
+			netdev_info(dev, "%s link beat\n",
+				    (lp->media_status & 0x0004) ? "lost" : "found");
 		if ((media ^ lp->media_status) & 0x0020) {
 			lp->partner = 0;
 			if (lp->media_status & 0x0020) {
-				printk(KERN_INFO "%s: autonegotiation restarted\n",
-					   dev->name);
+				netdev_info(dev, "autonegotiation restarted\n");
 			} else if (partner) {
 				partner &= lp->advertising;
 				lp->partner = partner;
-				printk(KERN_INFO "%s: autonegotiation complete: "
-					   "%sbaseT-%cD selected\n", dev->name,
-					   ((partner & 0x0180) ? "100" : "10"),
-					   ((partner & 0x0140) ? 'F' : 'H'));
+				netdev_info(dev, "autonegotiation complete: "
+					    "%dbaseT-%cD selected\n",
+					    (partner & 0x0180) ? 100 : 10,
+					    (partner & 0x0140) ? 'F' : 'H');
 			} else {
-				printk(KERN_INFO "%s: link partner did not autonegotiate\n",
-					   dev->name);
+				netdev_info(dev, "link partner did not autonegotiate\n");
 			}
 
 			EL3WINDOW(3);
@@ -960,10 +924,9 @@ static void media_check(unsigned long arg)
 
 		}
 		if (media & 0x0010)
-			printk(KERN_INFO "%s: remote fault detected\n",
-				   dev->name);
+			netdev_info(dev, "remote fault detected\n");
 		if (media & 0x0002)
-			printk(KERN_INFO "%s: jabber detected\n", dev->name);
+			netdev_info(dev, "jabber detected\n");
 		lp->media_status = media;
 	}
 	spin_unlock_irqrestore(&lp->window_lock, flags);
@@ -1021,8 +984,6 @@ static void update_stats(struct net_device *dev)
 	/* BadSSD */				   inb(ioaddr + 12);
 	up					 = inb(ioaddr + 13);
 
-	dev->stats.tx_bytes 			+= tx + ((up & 0xf0) << 12);
-
 	EL3WINDOW(1);
 }
 
@@ -1074,16 +1035,6 @@ static int el3_rx(struct net_device *dev, int worklimit)
 
 	return worklimit;
 }
-
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "3c574_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
 
 /* Provide ioctl() calls to examine the MII xcvr state. */
 static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1148,7 +1099,7 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
 			 ioaddr + EL3_CMD);
-	else if (dev->mc_count || (dev->flags & IFF_ALLMULTI))
+	else if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI))
 		outw(SetRxFilter|RxStation|RxMulticast|RxBroadcast, ioaddr + EL3_CMD);
 	else
 		outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);
@@ -1208,9 +1159,7 @@ MODULE_DEVICE_TABLE(pcmcia, tc574_ids);
 
 static struct pcmcia_driver tc574_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "3c574_cs",
-	},
+	.name		= "3c574_cs",
 	.probe		= tc574_probe,
 	.remove		= tc574_detach,
 	.id_table       = tc574_ids,

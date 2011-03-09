@@ -4,7 +4,7 @@
  *  Derived from ivtv-driver.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -46,6 +46,10 @@
    video1 device together with a radio0 device for the Compro. By
    setting this to 1 you ensure that radio0 is now also radio1. */
 int cx18_first_minor;
+
+/* Callback for registering extensions */
+int (*cx18_ext_init)(struct cx18 *);
+EXPORT_SYMBOL(cx18_ext_init);
 
 /* add your revision and whatnot here */
 static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
@@ -91,7 +95,7 @@ static int enc_pcm_bufsize = CX18_DEFAULT_ENC_PCM_BUFSIZE;
 
 static int enc_ts_bufs = -1;
 static int enc_mpg_bufs = -1;
-static int enc_idx_bufs = -1;
+static int enc_idx_bufs = CX18_MAX_FW_MDLS_PER_STREAM;
 static int enc_yuv_bufs = -1;
 static int enc_vbi_bufs = -1;
 static int enc_pcm_bufs = -1;
@@ -152,6 +156,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 6 = Toshiba Qosmio DVB-T/Analog\n"
 		 "\t\t\t 7 = Leadtek WinFast PVR2100\n"
 		 "\t\t\t 8 = Leadtek WinFast DVR3100 H\n"
+		 "\t\t\t 9 = GoTView PCI DVD3 Hybrid\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -196,14 +201,17 @@ MODULE_PARM_DESC(enc_mpg_bufs,
 		 "Number of encoder MPG buffers\n"
 		 "\t\t\tDefault is computed from other enc_mpg_* parameters");
 MODULE_PARM_DESC(enc_idx_buffers,
-		 "Encoder IDX buffer memory (MB). (enc_idx_bufs can override)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFFERS));
+		 "(Deprecated) Encoder IDX buffer memory (MB)\n"
+		 "\t\t\tIgnored, except 0 disables IDX buffer allocations\n"
+		 "\t\t\tDefault: 1 [Enabled]");
 MODULE_PARM_DESC(enc_idx_bufsize,
 		 "Size of an encoder IDX buffer (kB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFSIZE));
+		 "\t\t\tAllowed values are multiples of 1.5 kB rounded up\n"
+		 "\t\t\t(multiples of size required for 64 index entries)\n"
+		 "\t\t\tDefault: 2");
 MODULE_PARM_DESC(enc_idx_bufs,
 		 "Number of encoder IDX buffers\n"
-		 "\t\t\tDefault is computed from other enc_idx_* parameters");
+		 "\t\t\tDefault: " __stringify(CX18_MAX_FW_MDLS_PER_STREAM));
 MODULE_PARM_DESC(enc_yuv_buffers,
 		 "Encoder YUV buffer memory (MB). (enc_yuv_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFFERS));
@@ -231,7 +239,8 @@ MODULE_PARM_DESC(enc_pcm_bufs,
 		 "Number of encoder PCM buffers\n"
 		 "\t\t\tDefault is computed from other enc_pcm_* parameters");
 
-MODULE_PARM_DESC(cx18_first_minor, "Set device node number assigned to first card");
+MODULE_PARM_DESC(cx18_first_minor,
+		 "Set device node number assigned to first card");
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");
@@ -239,6 +248,34 @@ MODULE_SUPPORTED_DEVICE("CX23418 MPEG2 encoder");
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
+
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct cx18 *dev = container_of(work, struct cx18, request_module_wk);
+
+	/* Make sure cx18-alsa module is loaded */
+	request_module("cx18-alsa");
+
+	/* Initialize cx18-alsa for this instance of the cx18 device */
+	if (cx18_ext_init != NULL)
+		cx18_ext_init(dev);
+}
+
+static void request_modules(struct cx18 *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+
+static void flush_request_modules(struct cx18 *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#define flush_request_modules(dev)
+#endif /* CONFIG_MODULES */
 
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
@@ -303,6 +340,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 		tveeprom_hauppauge_analog(&c, tv, eedata);
 		break;
 	case CX18_CARD_YUAN_MPC718:
+	case CX18_CARD_GOTVIEW_PCI_DVD3:
 		tv->model = 0x718;
 		cx18_eeprom_dump(cx, eedata, sizeof(eedata));
 		CX18_INFO("eeprom PCI ID: %02x%02x:%02x%02x\n",
@@ -501,7 +539,12 @@ static void cx18_process_options(struct cx18 *cx)
 		/*
 		 * YUV is a special case where the stream_buf_size needs to be
 		 * an integral multiple of 33.75 kB (storage for 32 screens
-		 * lines to maintain alignment in case of lost buffers
+		 * lines to maintain alignment in case of lost buffers).
+		 *
+		 * IDX is a special case where the stream_buf_size should be
+		 * an integral multiple of 1.5 kB (storage for 64 index entries
+		 * to maintain alignment in case of lost buffers).
+		 *
 		 */
 		if (i == CX18_ENC_STREAM_TYPE_YUV) {
 			cx->stream_buf_size[i] *= 1024;
@@ -511,15 +554,24 @@ static void cx18_process_options(struct cx18 *cx)
 			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_YUV_BUFSIZE)
 				cx->stream_buf_size[i] =
 						CX18_UNIT_ENC_YUV_BUFSIZE;
+		} else if (i == CX18_ENC_STREAM_TYPE_IDX) {
+			cx->stream_buf_size[i] *= 1024;
+			cx->stream_buf_size[i] -=
+			   (cx->stream_buf_size[i] % CX18_UNIT_ENC_IDX_BUFSIZE);
+
+			if (cx->stream_buf_size[i] < CX18_UNIT_ENC_IDX_BUFSIZE)
+				cx->stream_buf_size[i] =
+						CX18_UNIT_ENC_IDX_BUFSIZE;
 		}
 		/*
-		 * YUV is a special case where the stream_buf_size is
+		 * YUV and IDX are special cases where the stream_buf_size is
 		 * now in bytes.
 		 * VBI is a special case where the stream_buf_size is fixed
 		 * and already in bytes
 		 */
 		if (i == CX18_ENC_STREAM_TYPE_VBI ||
-		    i == CX18_ENC_STREAM_TYPE_YUV) {
+		    i == CX18_ENC_STREAM_TYPE_YUV ||
+		    i == CX18_ENC_STREAM_TYPE_IDX) {
 			if (cx->stream_buffers[i] < 0) {
 				cx->stream_buffers[i] =
 					cx->options.megabytes[i] * 1024 * 1024
@@ -879,8 +931,13 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
-		CX18_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		CX18_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		CX18_ERR("ioremap failed. Can't get a window into CX23418 "
+			 "memory and register space\n");
+		CX18_ERR("Each capture card with a CX23418 needs 64 MB of "
+			 "vmalloc address space for the window\n");
+		CX18_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		CX18_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
@@ -1032,6 +1089,10 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	}
 
 	CX18_INFO("Initialized card: %s\n", cx->card_name);
+
+	/* Load cx18 submodules (cx18-alsa) */
+	request_modules(cx);
+
 	return 0;
 
 free_streams:
@@ -1178,6 +1239,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	CX18_DEBUG_INFO("Removing Card\n");
 
+	flush_request_modules(cx);
+
 	/* Stop all captures */
 	CX18_DEBUG_INFO("Stopping all streams\n");
 	if (atomic_read(&cx->tot_capturing) > 0)
@@ -1220,6 +1283,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	kfree(cx);
 }
 
+
 /* define a pci_driver for card detection */
 static struct pci_driver cx18_pci_driver = {
       .name =     "cx18",
@@ -1230,7 +1294,8 @@ static struct pci_driver cx18_pci_driver = {
 
 static int __init module_start(void)
 {
-	printk(KERN_INFO "cx18:  Start initialization, version %s\n", CX18_VERSION);
+	printk(KERN_INFO "cx18:  Start initialization, version %s\n",
+	       CX18_VERSION);
 
 	/* Validate parameters */
 	if (cx18_first_minor < 0 || cx18_first_minor >= CX18_MAX_CARDS) {

@@ -8,6 +8,8 @@
 #include <linux/errno.h>
 #include <linux/prefetch.h>
 #include <linux/lockdep.h>
+#include <asm/alternative.h>
+#include <asm/cpufeature.h>
 #include <asm/page.h>
 
 /*
@@ -16,7 +18,24 @@
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
 __must_check unsigned long
-copy_user_generic(void *to, const void *from, unsigned len);
+copy_user_generic_string(void *to, const void *from, unsigned len);
+__must_check unsigned long
+copy_user_generic_unrolled(void *to, const void *from, unsigned len);
+
+static __always_inline __must_check unsigned long
+copy_user_generic(void *to, const void *from, unsigned len)
+{
+	unsigned ret;
+
+	alternative_call(copy_user_generic_unrolled,
+			 copy_user_generic_string,
+			 X86_FEATURE_REP_GOOD,
+			 ASM_OUTPUT2("=a" (ret), "=D" (to), "=S" (from),
+				     "=d" (len)),
+			 "1" (to), "2" (from), "3" (len)
+			 : "memory", "rcx", "r8", "r9", "r10", "r11");
+	return ret;
+}
 
 __must_check unsigned long
 _copy_to_user(void __user *to, const void *from, unsigned len);

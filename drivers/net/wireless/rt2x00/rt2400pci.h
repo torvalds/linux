@@ -65,6 +65,7 @@
  * CSR0: ASIC revision number.
  */
 #define CSR0				0x0000
+#define CSR0_REVISION			FIELD32(0x0000ffff)
 
 /*
  * CSR1: System control register.
@@ -808,8 +809,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 8 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 8 * sizeof(__le32) )
+#define TXD_DESC_SIZE			(8 * sizeof(__le32))
+#define RXD_DESC_SIZE			(8 * sizeof(__le32))
 
 /*
  * TX descriptor format for TX, PRIO, ATIM and Beacon Ring.
@@ -947,6 +948,6 @@
 	((__CLAMP_TX(__txpower) - MAX_TXPOWER) + MIN_TXPOWER)
 
 #define TXPOWER_TO_DEV(__txpower) \
-	MAX_TXPOWER - (__CLAMP_TX(__txpower) - MIN_TXPOWER)
+	(MAX_TXPOWER - (__CLAMP_TX(__txpower) - MIN_TXPOWER))
 
 #endif /* RT2400PCI_H */

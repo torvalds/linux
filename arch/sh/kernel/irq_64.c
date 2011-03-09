@@ -11,17 +11,17 @@
 #include <linux/module.h>
 #include <cpu/registers.h>
 
-void notrace raw_local_irq_restore(unsigned long flags)
+void notrace arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long long __dummy;
 
-	if (flags == RAW_IRQ_DISABLED) {
+	if (flags == ARCH_IRQ_DISABLED) {
 		__asm__ __volatile__ (
 			"getcon	" __SR ", %0\n\t"
 			"or	%0, %1, %0\n\t"
 			"putcon	%0, " __SR "\n\t"
 			: "=&r" (__dummy)
-			: "r" (RAW_IRQ_DISABLED)
+			: "r" (ARCH_IRQ_DISABLED)
 		);
 	} else {
 		__asm__ __volatile__ (
@@ -29,13 +29,13 @@ void notrace raw_local_irq_restore(unsigned long flags)
 			"and	%0, %1, %0\n\t"
 			"putcon	%0, " __SR "\n\t"
 			: "=&r" (__dummy)
-			: "r" (~RAW_IRQ_DISABLED)
+			: "r" (~ARCH_IRQ_DISABLED)
 		);
 	}
 }
-EXPORT_SYMBOL(raw_local_irq_restore);
+EXPORT_SYMBOL(arch_local_irq_restore);
 
-unsigned long notrace __raw_local_save_flags(void)
+unsigned long notrace arch_local_save_flags(void)
 {
 	unsigned long flags;
 
@@ -43,9 +43,9 @@ unsigned long notrace __raw_local_save_flags(void)
 		"getcon	" __SR ", %0\n\t"
 		"and	%0, %1, %0"
 		: "=&r" (flags)
-		: "r" (RAW_IRQ_DISABLED)
+		: "r" (ARCH_IRQ_DISABLED)
 	);
 
 	return flags;
 }
-EXPORT_SYMBOL(__raw_local_save_flags);
+EXPORT_SYMBOL(arch_local_save_flags);

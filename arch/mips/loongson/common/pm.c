@@ -2,7 +2,7 @@
  * loongson-specific suspend support
  *
  *  Copyright (C) 2009 Lemote Inc.
- *  Author: Wu Zhangjin <wuzj@lemote.com>
+ *  Author: Wu Zhangjin <wuzhangjin@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ static int loongson_pm_valid_state(suspend_state_t state)
 	}
 }
 
-static struct platform_suspend_ops loongson_pm_ops = {
+static const struct platform_suspend_ops loongson_pm_ops = {
 	.valid	= loongson_pm_valid_state,
 	.enter	= loongson_pm_enter,
 };

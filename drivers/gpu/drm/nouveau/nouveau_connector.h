@@ -49,6 +49,10 @@ static inline struct nouveau_connector *nouveau_connector(
 	return container_of(con, struct nouveau_connector, base);
 }
 
-int nouveau_connector_create(struct drm_device *dev, int i2c_index, int type);
+struct drm_connector *
+nouveau_connector_create(struct drm_device *, int index);
+
+int
+nouveau_connector_bpp(struct drm_connector *);
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

@@ -83,6 +83,7 @@
  * i2400mu_rx_release()            called from i2400mu_bus_dev_stop()
  */
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include "i2400m-usb.h"
 

@@ -281,7 +281,7 @@ void construct_mic_header2(unsigned char *mic_header2,
 	mic_header2[6] = mpdu[22] & 0x0f;	/* SC */
 	mic_header2[7] = 0x00;	/* mpdu[23]; */
 
-	if ((!qc_exists) & a4_exists) {
+	if ((!qc_exists) && a4_exists) {
 		for (i = 0; i < 6; i++)
 			mic_header2[8 + i] = mpdu[24 + i];	/* A4 */
 
@@ -330,8 +330,6 @@ void construct_mic_iv(unsigned char *mic_iv,
 	for (i = 8; i < 14; i++)
 		mic_iv[i] = pn_vector[13 - i];	/* mic_iv[8:13] = PN[5:0] */
 #endif
-	i = (payload_length / 256);
-	i = (payload_length % 256);
 	mic_iv[14] = (unsigned char)(payload_length / 256);
 	mic_iv[15] = (unsigned char)(payload_length % 256);
 

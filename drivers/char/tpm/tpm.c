@@ -24,6 +24,7 @@
  */
 
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
@@ -45,6 +46,16 @@ enum tpm_duration {
 #define TPM_MAX_ORDINAL 243
 #define TPM_MAX_PROTECTED_ORDINAL 12
 #define TPM_PROTECTED_ORDINAL_MASK 0xFF
+
+/*
+ * Bug workaround - some TPM's don't flush the most
+ * recently changed pcr on suspend, so force the flush
+ * with an extend to the selected _unused_ non-volatile pcr.
+ */
+static int tpm_suspend_pcr;
+module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
+MODULE_PARM_DESC(suspend_pcr,
+		 "PCR to use for dummy writes to faciltate flush on suspend.");
 
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
@@ -725,7 +736,7 @@ int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf)
 	if (chip == NULL)
 		return -ENODEV;
 	rc = __tpm_pcr_read(chip, pcr_idx, res_buf);
-	module_put(chip->dev->driver->owner);
+	tpm_chip_put(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_read);
@@ -764,10 +775,26 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 	rc = transmit_cmd(chip, &cmd, EXTEND_PCR_RESULT_SIZE,
 			  "attempting extend a PCR value");
 
-	module_put(chip->dev->driver->owner);
+	tpm_chip_put(chip);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_extend);
+
+int tpm_send(u32 chip_num, void *cmd, size_t buflen)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+
+	rc = transmit_cmd(chip, cmd, buflen, "attempting tpm_cmd");
+
+	tpm_chip_put(chip);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_send);
 
 ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 		      char *buf)
@@ -975,7 +1002,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	struct tpm_chip *chip = file->private_data;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_scheduled_work();
+	flush_work_sync(&chip->work);
 	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
 	kfree(chip->data_buffer);
@@ -1027,7 +1054,7 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	ssize_t ret_size;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_scheduled_work();
+	flush_work_sync(&chip->work);
 	ret_size = atomic_read(&chip->data_pending);
 	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
@@ -1067,6 +1094,15 @@ void tpm_remove_hardware(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_remove_hardware);
 
+#define TPM_ORD_SAVESTATE cpu_to_be32(152)
+#define SAVESTATE_RESULT_SIZE 10
+
+static struct tpm_input_header savestate_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(10),
+	.ordinal = TPM_ORD_SAVESTATE
+};
+
 /*
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
@@ -1074,17 +1110,29 @@ EXPORT_SYMBOL_GPL(tpm_remove_hardware);
 int tpm_pm_suspend(struct device *dev, pm_message_t pm_state)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	u8 savestate[] = {
-		0, 193,		/* TPM_TAG_RQU_COMMAND */
-		0, 0, 0, 10,	/* blob length (in bytes) */
-		0, 0, 0, 152	/* TPM_ORD_SaveState */
-	};
+	struct tpm_cmd_t cmd;
+	int rc;
+
+	u8 dummy_hash[TPM_DIGEST_SIZE] = { 0 };
 
 	if (chip == NULL)
 		return -ENODEV;
 
-	tpm_transmit(chip, savestate, sizeof(savestate));
-	return 0;
+	/* for buggy tpm, flush pcrs with extend to selected dummy */
+	if (tpm_suspend_pcr) {
+		cmd.header.in = pcrextend_header;
+		cmd.params.pcrextend_in.pcr_idx = cpu_to_be32(tpm_suspend_pcr);
+		memcpy(cmd.params.pcrextend_in.hash, dummy_hash,
+		       TPM_DIGEST_SIZE);
+		rc = transmit_cmd(chip, &cmd, EXTEND_PCR_RESULT_SIZE,
+				  "extending dummy pcr before suspend");
+	}
+
+	/* now do the actual savestate */
+	cmd.header.in = savestate_header;
+	rc = transmit_cmd(chip, &cmd, SAVESTATE_RESULT_SIZE,
+			  "sending savestate before suspend");
+	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pm_suspend);
 

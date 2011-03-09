@@ -10,6 +10,7 @@
 
 #include <asm/machvec.h>
 #include <asm/dma.h>
+#include <asm/perf_event.h>
 
 #include "proto.h"
 #include "irq_impl.h"
@@ -218,31 +219,23 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
  * processed by PALcode, and comes in via entInt vector 1.
  */
 
-static void rtc_enable_disable(unsigned int irq) { }
-static unsigned int rtc_startup(unsigned int irq) { return 0; }
-
 struct irqaction timer_irqaction = {
 	.handler	= timer_interrupt,
 	.flags		= IRQF_DISABLED,
 	.name		= "timer",
 };
 
-static struct irq_chip rtc_irq_type = {
-	.name		= "RTC",
-	.startup	= rtc_startup,
-	.shutdown	= rtc_enable_disable,
-	.enable		= rtc_enable_disable,
-	.disable	= rtc_enable_disable,
-	.ack		= rtc_enable_disable,
-	.end		= rtc_enable_disable,
-};
-
 void __init
 init_rtc_irq(void)
 {
-	irq_desc[RTC_IRQ].status = IRQ_DISABLED;
-	irq_desc[RTC_IRQ].chip = &rtc_irq_type;
-	setup_irq(RTC_IRQ, &timer_irqaction);
+	struct irq_desc *desc = irq_to_desc(RTC_IRQ);
+
+	if (desc) {
+		desc->status |= IRQ_DISABLED;
+		set_irq_chip_and_handler_name(RTC_IRQ, &no_irq_chip,
+			handle_simple_irq, "RTC");
+		setup_irq(RTC_IRQ, &timer_irqaction);
+	}
 }
 
 /* Dummy irqactions.  */

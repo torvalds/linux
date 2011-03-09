@@ -9,6 +9,7 @@
  */
 #include <linux/pci.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 #include <asm/addrspace.h>
 #include "pci-sh4.h"
 
@@ -16,9 +17,7 @@
  * Direct access to PCI hardware...
  */
 #define CONFIG_CMD(bus, devfn, where) \
-	(P1SEG | (bus->number << 16) | (devfn << 8) | (where & ~3))
-
-static DEFINE_SPINLOCK(sh4_pci_lock);
+	(0x80000000 | (bus->number << 16) | (devfn << 8) | (where & ~3))
 
 /*
  * Functions for accessing PCI configuration space with type 1 accesses
@@ -34,10 +33,10 @@ static int sh4_pci_read(struct pci_bus *bus, unsigned int devfn,
 	 * PCIPDR may only be accessed as 32 bit words,
 	 * so we must do byte alignment by hand
 	 */
-	spin_lock_irqsave(&sh4_pci_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	pci_write_reg(chan, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
 	data = pci_read_reg(chan, SH4_PCIPDR);
-	spin_unlock_irqrestore(&sh4_pci_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	switch (size) {
 	case 1:
@@ -69,10 +68,10 @@ static int sh4_pci_write(struct pci_bus *bus, unsigned int devfn,
 	int shift;
 	u32 data;
 
-	spin_lock_irqsave(&sh4_pci_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	pci_write_reg(chan, CONFIG_CMD(bus, devfn, where), SH4_PCIPAR);
 	data = pci_read_reg(chan, SH4_PCIPDR);
-	spin_unlock_irqrestore(&sh4_pci_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	switch (size) {
 	case 1:
@@ -101,34 +100,6 @@ struct pci_ops sh4_pci_ops = {
 	.read		= sh4_pci_read,
 	.write		= sh4_pci_write,
 };
-
-/*
- * Not really related to pci_ops, but it's common and not worth shoving
- * somewhere else for now..
- */
-int __init sh4_pci_check_direct(struct pci_channel *chan)
-{
-	/*
-	 * Check if configuration works.
-	 */
-	unsigned int tmp = pci_read_reg(chan, SH4_PCIPAR);
-
-	pci_write_reg(chan, P1SEG, SH4_PCIPAR);
-
-	if (pci_read_reg(chan, SH4_PCIPAR) == P1SEG) {
-		pci_write_reg(chan, tmp, SH4_PCIPAR);
-		printk(KERN_INFO "PCI: Using configuration type 1\n");
-		request_region(chan->reg_base + SH4_PCIPAR, 8,
-			       "PCI conf1");
-		return 0;
-	}
-
-	pci_write_reg(chan, tmp, SH4_PCIPAR);
-
-	printk(KERN_ERR "PCI: %s failed\n", __func__);
-
-	return -EINVAL;
-}
 
 int __attribute__((weak)) pci_fixup_pcic(struct pci_channel *chan)
 {

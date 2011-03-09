@@ -28,7 +28,6 @@
 #include <linux/syscalls.h>
 #include <linux/times.h>
 #include <linux/utsname.h>
-#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/uio.h>
 #include <linux/poll.h>
@@ -40,6 +39,7 @@
 #include <linux/ptrace.h>
 #include <linux/highuid.h>
 #include <linux/sysctl.h>
+#include <linux/slab.h>
 #include <asm/mman.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
@@ -50,7 +50,7 @@
 #define AA(__x)		((unsigned long)(__x))
 
 
-asmlinkage long sys32_truncate64(char __user *filename,
+asmlinkage long sys32_truncate64(const char __user *filename,
 				 unsigned long offset_low,
 				 unsigned long offset_high)
 {
@@ -95,7 +95,7 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	return 0;
 }
 
-asmlinkage long sys32_stat64(char __user *filename,
+asmlinkage long sys32_stat64(const char __user *filename,
 			     struct stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -106,7 +106,7 @@ asmlinkage long sys32_stat64(char __user *filename,
 	return ret;
 }
 
-asmlinkage long sys32_lstat64(char __user *filename,
+asmlinkage long sys32_lstat64(const char __user *filename,
 			      struct stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -125,7 +125,7 @@ asmlinkage long sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
 	return ret;
 }
 
-asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
+asmlinkage long sys32_fstatat(unsigned int dfd, const char __user *filename,
 			      struct stat64 __user *statbuf, int flag)
 {
 	struct kstat stat;
@@ -143,7 +143,7 @@ asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
  * block for parameter passing..
  */
 
-struct mmap_arg_struct {
+struct mmap_arg_struct32 {
 	unsigned int addr;
 	unsigned int len;
 	unsigned int prot;
@@ -152,9 +152,9 @@ struct mmap_arg_struct {
 	unsigned int offset;
 };
 
-asmlinkage long sys32_mmap(struct mmap_arg_struct __user *arg)
+asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *arg)
 {
-	struct mmap_arg_struct a;
+	struct mmap_arg_struct32 a;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
 		return -EFAULT;
@@ -332,24 +332,6 @@ asmlinkage long sys32_alarm(unsigned int seconds)
 	return alarm_setitimer(seconds);
 }
 
-struct sel_arg_struct {
-	unsigned int n;
-	unsigned int inp;
-	unsigned int outp;
-	unsigned int exp;
-	unsigned int tvp;
-};
-
-asmlinkage long sys32_old_select(struct sel_arg_struct __user *arg)
-{
-	struct sel_arg_struct a;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-	return compat_sys_select(a.n, compat_ptr(a.inp), compat_ptr(a.outp),
-				 compat_ptr(a.exp), compat_ptr(a.tvp));
-}
-
 asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr,
 			      int options)
 {
@@ -425,8 +407,8 @@ asmlinkage long sys32_pread(unsigned int fd, char __user *ubuf, u32 count,
 			 ((loff_t)AA(poshi) << 32) | AA(poslo));
 }
 
-asmlinkage long sys32_pwrite(unsigned int fd, char __user *ubuf, u32 count,
-			     u32 poslo, u32 poshi)
+asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
+			     u32 count, u32 poslo, u32 poshi)
 {
 	return sys_pwrite64(fd, ubuf, count,
 			  ((loff_t)AA(poshi) << 32) | AA(poslo));
@@ -466,59 +448,7 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd,
 	return ret;
 }
 
-asmlinkage long sys32_olduname(struct oldold_utsname __user *name)
-{
-	char *arch = "x86_64";
-	int err;
-
-	if (!name)
-		return -EFAULT;
-	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
-		return -EFAULT;
-
-	down_read(&uts_sem);
-
-	err = __copy_to_user(&name->sysname, &utsname()->sysname,
-			     __OLD_UTS_LEN);
-	err |= __put_user(0, name->sysname+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->nodename, &utsname()->nodename,
-			      __OLD_UTS_LEN);
-	err |= __put_user(0, name->nodename+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->release, &utsname()->release,
-			      __OLD_UTS_LEN);
-	err |= __put_user(0, name->release+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->version, &utsname()->version,
-			      __OLD_UTS_LEN);
-	err |= __put_user(0, name->version+__OLD_UTS_LEN);
-
-	if (personality(current->personality) == PER_LINUX32)
-		arch = "i686";
-
-	err |= __copy_to_user(&name->machine, arch, strlen(arch) + 1);
-
-	up_read(&uts_sem);
-
-	err = err ? -EFAULT : 0;
-
-	return err;
-}
-
-long sys32_uname(struct old_utsname __user *name)
-{
-	int err;
-
-	if (!name)
-		return -EFAULT;
-	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof(*name));
-	up_read(&uts_sem);
-	if (personality(current->personality) == PER_LINUX32)
-		err |= copy_to_user(&name->machine, "i686", 5);
-
-	return err ? -EFAULT : 0;
-}
-
-asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
 			     compat_uptr_t __user *envp, struct pt_regs *regs)
 {
 	long error;
@@ -614,4 +544,13 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
 {
 	return sys_fallocate(fd, mode, ((u64)offset_hi << 32) | offset_lo,
 			     ((u64)len_hi << 32) | len_lo);
+}
+
+asmlinkage long sys32_fanotify_mark(int fanotify_fd, unsigned int flags,
+				    u32 mask_lo, u32 mask_hi,
+				    int fd, const char  __user *pathname)
+{
+	return sys_fanotify_mark(fanotify_fd, flags,
+				 ((u64)mask_hi << 32) | mask_lo,
+				 fd, pathname);
 }

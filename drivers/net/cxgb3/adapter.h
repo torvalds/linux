@@ -264,6 +264,10 @@ struct adapter {
 	struct work_struct fatal_error_handler_task;
 	struct work_struct link_fault_handler_task;
 
+	struct work_struct db_full_task;
+	struct work_struct db_empty_task;
+	struct work_struct db_drop_task;
+
 	struct dentry *debugfs_root;
 
 	struct mutex mdio_lock;
@@ -332,9 +336,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		      int irq_vec_idx, const struct qset_params *p,
 		      int ntxq, struct net_device *dev,
 		      struct netdev_queue *netdevq);
-int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
-		unsigned char *data);
-irqreturn_t t3_sge_intr_msix(int irq, void *cookie);
+extern struct workqueue_struct *cxgb3_wq;
 
 int t3_get_edc_fw(struct cphy *phy, int edc_idx, int size);
 

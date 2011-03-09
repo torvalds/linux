@@ -306,6 +306,7 @@ struct pvr2_hdw_debug_info {
 	int state_encoder_ok;
 	int state_encoder_run;
 	int state_decoder_run;
+	int state_decoder_ready;
 	int state_usbstream_run;
 	int state_decoder_quiescent;
 	int state_pipeline_config;

@@ -49,8 +49,6 @@
 #include <scsi/scsi_host.h>
 #include "aha152x.h"
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -80,15 +78,12 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     struct Scsi_Host	*host;
 } scsi_info_t;
 
 static void aha152x_release_cs(struct pcmcia_device *link);
 static void aha152x_detach(struct pcmcia_device *p_dev);
 static int aha152x_config_cs(struct pcmcia_device *link);
-
-static struct pcmcia_device *dev_list;
 
 static int aha152x_probe(struct pcmcia_device *link)
 {
@@ -102,13 +97,8 @@ static int aha152x_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = info;
 
-    link->io.NumPorts1 = 0x20;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 10;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.Present = PRESENT_OPTION;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
+    link->config_regs = PRESENT_OPTION;
 
     return aha152x_config_cs(link);
 } /* aha152x_attach */
@@ -127,24 +117,24 @@ static void aha152x_detach(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static int aha152x_config_check(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
-				void *priv_data)
+static int aha152x_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
+	p_dev->io_lines = 10;
+
 	/* For New Media T&J, look for a SCSI window */
-	if (cfg->io.win[0].len >= 0x20)
-		p_dev->io.BasePort1 = cfg->io.win[0].base;
-	else if ((cfg->io.nwin > 1) &&
-		 (cfg->io.win[1].len >= 0x20))
-		p_dev->io.BasePort1 = cfg->io.win[1].base;
-	if ((cfg->io.nwin > 0) &&
-	    (p_dev->io.BasePort1 < 0xffff)) {
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
-			return 0;
-	}
-	return -EINVAL;
+	if ((p_dev->resource[0]->end < 0x20) &&
+		(p_dev->resource[1]->end >= 0x20))
+		p_dev->resource[0]->start = p_dev->resource[1]->start;
+
+	if (p_dev->resource[0]->start >= 0xffff)
+		return -EINVAL;
+
+	p_dev->resource[1]->start = p_dev->resource[1]->end = 0;
+	p_dev->resource[0]->end = 0x20;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int aha152x_config_cs(struct pcmcia_device *link)
@@ -160,19 +150,18 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
 
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
     
     /* Set configuration options for the aha152x driver */
     memset(&s, 0, sizeof(s));
     s.conf        = "PCMCIA setup";
-    s.io_port     = link->io.BasePort1;
-    s.irq         = link->irq.AssignedIRQ;
+    s.io_port     = link->resource[0]->start;
+    s.irq         = link->irq;
     s.scsiid      = host_id;
     s.reconnect   = reconnect;
     s.parity      = parity;
@@ -187,8 +176,6 @@ static int aha152x_config_cs(struct pcmcia_device *link)
 	goto failed;
     }
 
-    sprintf(info->node.dev_name, "scsi%d", host->host_no);
-    link->dev_node = &info->node;
     info->host = host;
 
     return 0;
@@ -227,9 +214,7 @@ MODULE_DEVICE_TABLE(pcmcia, aha152x_ids);
 
 static struct pcmcia_driver aha152x_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "aha152x_cs",
-	},
+	.name		= "aha152x_cs",
 	.probe		= aha152x_probe,
 	.remove		= aha152x_detach,
 	.id_table       = aha152x_ids,
@@ -244,7 +229,6 @@ static int __init init_aha152x_cs(void)
 static void __exit exit_aha152x_cs(void)
 {
 	pcmcia_unregister_driver(&aha152x_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_aha152x_cs);

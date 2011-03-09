@@ -51,7 +51,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static struct pci_dev *vt596_pdev;
 
@@ -185,14 +185,8 @@ static int vt596_transaction(u8 size)
 	}
 
 	if (temp & 0x04) {
-		int read = inb_p(SMBHSTADD) & 0x01;
 		result = -ENXIO;
-		/* The quick and receive byte commands are used to probe
-		   for chips, so errors are expected, and we don't want
-		   to frighten the user. */
-		if (!((size == VT596_QUICK && !read) ||
-		      (size == VT596_BYTE && read)))
-			dev_err(&vt596_adapter.dev, "Transaction error!\n");
+		dev_dbg(&vt596_adapter.dev, "No response\n");
 	}
 
 	/* Resetting status register */
@@ -444,7 +438,7 @@ release_region:
 	return error;
 }
 
-static struct pci_device_id vt596_ids[] = {
+static const struct pci_device_id vt596_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C596_3),
 	  .driver_data = SMBBA1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C596B_3),

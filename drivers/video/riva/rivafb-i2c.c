@@ -94,7 +94,6 @@ static int __devinit riva_setup_i2c_bus(struct riva_i2c_chan *chan,
 
 	strcpy(chan->adapter.name, name);
 	chan->adapter.owner		= THIS_MODULE;
-	chan->adapter.id		= I2C_HW_B_RIVA;
 	chan->adapter.class		= i2c_class;
 	chan->adapter.algo_data		= &chan->algo;
 	chan->adapter.dev.parent	= &chan->par->pdev->dev;

@@ -29,6 +29,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
+#include <linux/sysdev.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
@@ -39,253 +41,181 @@
 
 static int au1x_ic_settype(unsigned int irq, unsigned int flow_type);
 
+/* NOTE on interrupt priorities: The original writers of this code said:
+ *
+ * Because of the tight timing of SETUP token to reply transactions,
+ * the USB devices-side packet complete interrupt (USB_DEV_REQ_INT)
+ * needs the highest priority.
+ */
+
 /* per-processor fixed function irqs */
-struct au1xxx_irqmap au1xxx_ic0_map[] __initdata = {
-
-#if defined(CONFIG_SOC_AU1000)
-	{ AU1000_UART0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_UART1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_UART2_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_UART3_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_SSI0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_SSI1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+1, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+2, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+3, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+4, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+5, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+6, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+7, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_TOY_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 1 },
-	{ AU1000_RTC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_IRDA_TX_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_IRDA_RX_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_USB_HOST_INT, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1000_ACSYNC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_MAC0_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_MAC1_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_AC97C_INT, IRQ_TYPE_EDGE_RISING, 0 },
-
-#elif defined(CONFIG_SOC_AU1500)
-
-	{ AU1500_UART0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_PCI_INTA, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1000_PCI_INTB, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1500_UART3_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_PCI_INTC, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1000_PCI_INTD, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1000_DMA_INT_BASE, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+1, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+2, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+3, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+4, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+5, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+6, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+7, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_TOY_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 1 },
-	{ AU1000_RTC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_USB_HOST_INT, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1000_ACSYNC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1500_MAC0_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1500_MAC1_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_AC97C_INT, IRQ_TYPE_EDGE_RISING, 0 },
-
-#elif defined(CONFIG_SOC_AU1100)
-
-	{ AU1100_UART0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1100_UART1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1100_SD_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1100_UART3_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_SSI0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_SSI1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+1, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+2, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+3, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+4, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+5, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+6, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_DMA_INT_BASE+7, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_TOY_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 1 },
-	{ AU1000_RTC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_IRDA_TX_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_IRDA_RX_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_USB_HOST_INT, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1000_ACSYNC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1100_MAC0_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1100_LCD_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_AC97C_INT, IRQ_TYPE_EDGE_RISING, 0 },
-
-#elif defined(CONFIG_SOC_AU1550)
-
-	{ AU1550_UART0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_PCI_INTA, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1550_PCI_INTB, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1550_DDMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_CRYPTO_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_PCI_INTC, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1550_PCI_INTD, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1550_PCI_RST_INT, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1550_UART1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_UART3_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_PSC0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_PSC1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_PSC2_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_PSC3_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_TOY_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 1 },
-	{ AU1000_RTC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1550_NAND_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1550_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1550_USB_HOST_INT, IRQ_TYPE_LEVEL_LOW, 0 },
-	{ AU1550_MAC0_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1550_MAC1_DMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-
-#elif defined(CONFIG_SOC_AU1200)
-
-	{ AU1200_UART0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_SWT_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1200_SD_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_DDMA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_MAE_BE_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_UART1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_MAE_FE_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_PSC0_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_PSC1_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_AES_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_CAMERA_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1000_TOY_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_TOY_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 1 },
-	{ AU1000_RTC_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH0_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH1_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1000_RTC_MATCH2_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1200_NAND_INT, IRQ_TYPE_EDGE_RISING, 0 },
-	{ AU1200_USB_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_LCD_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-	{ AU1200_MAE_BOTH_INT, IRQ_TYPE_LEVEL_HIGH, 0 },
-
-#else
-#error "Error: Unknown Alchemy SOC"
-#endif
+struct au1xxx_irqmap {
+	int im_irq;
+	int im_type;
+	int im_request;		/* set 1 to get higher priority */
 };
 
+struct au1xxx_irqmap au1000_irqmap[] __initdata = {
+	{ AU1000_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_UART1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_UART2_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_UART3_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_SSI0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_SSI1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+1,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+2,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+3,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+4,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+5,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+6,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_DMA_INT_BASE+7,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_TOY_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_TOY_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_TOY_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_TOY_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_RTC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_RTC_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_RTC_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_RTC_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 1 },
+	{ AU1000_IRDA_TX_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_IRDA_RX_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH,  1 },
+	{ AU1000_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_USB_HOST_INT,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1000_ACSYNC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1000_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_MAC1_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1000_AC97C_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ -1, },
+};
 
-#ifdef CONFIG_PM
+struct au1xxx_irqmap au1500_irqmap[] __initdata = {
+	{ AU1500_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_PCI_INTA,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1500_PCI_INTB,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1500_UART3_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_PCI_INTC,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1500_PCI_INTD,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1500_DMA_INT_BASE,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+1,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+2,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+3,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+4,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+5,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+6,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_DMA_INT_BASE+7,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_TOY_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_TOY_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_TOY_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_TOY_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_RTC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_RTC_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_RTC_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_RTC_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 1 },
+	{ AU1500_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH,  1 },
+	{ AU1500_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_USB_HOST_INT,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1500_ACSYNC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1500_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_MAC1_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1500_AC97C_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ -1, },
+};
 
-/*
- * Save/restore the interrupt controller state.
- * Called from the save/restore core registers as part of the
- * au_sleep function in power.c.....maybe I should just pm_register()
- * them instead?
- */
-static unsigned int	sleep_intctl_config0[2];
-static unsigned int	sleep_intctl_config1[2];
-static unsigned int	sleep_intctl_config2[2];
-static unsigned int	sleep_intctl_src[2];
-static unsigned int	sleep_intctl_assign[2];
-static unsigned int	sleep_intctl_wake[2];
-static unsigned int	sleep_intctl_mask[2];
+struct au1xxx_irqmap au1100_irqmap[] __initdata = {
+	{ AU1100_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_UART1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_SD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_UART3_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_SSI0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_SSI1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+1,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+2,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+3,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+4,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+5,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+6,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_DMA_INT_BASE+7,  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_TOY_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_TOY_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_TOY_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_TOY_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_RTC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_RTC_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_RTC_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_RTC_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 1 },
+	{ AU1100_IRDA_TX_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_IRDA_RX_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH,  1 },
+	{ AU1100_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_USB_HOST_INT,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1100_ACSYNC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1100_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_LCD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1100_AC97C_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ -1, },
+};
 
-void save_au1xxx_intctl(void)
-{
-	sleep_intctl_config0[0] = au_readl(IC0_CFG0RD);
-	sleep_intctl_config1[0] = au_readl(IC0_CFG1RD);
-	sleep_intctl_config2[0] = au_readl(IC0_CFG2RD);
-	sleep_intctl_src[0] = au_readl(IC0_SRCRD);
-	sleep_intctl_assign[0] = au_readl(IC0_ASSIGNRD);
-	sleep_intctl_wake[0] = au_readl(IC0_WAKERD);
-	sleep_intctl_mask[0] = au_readl(IC0_MASKRD);
+struct au1xxx_irqmap au1550_irqmap[] __initdata = {
+	{ AU1550_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_PCI_INTA,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1550_PCI_INTB,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1550_DDMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_CRYPTO_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_PCI_INTC,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1550_PCI_INTD,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1550_PCI_RST_INT,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1550_UART1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_UART3_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_PSC0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_PSC1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_PSC2_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_PSC3_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_TOY_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_TOY_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_TOY_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_TOY_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_RTC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_RTC_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_RTC_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_RTC_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 1 },
+	{ AU1550_NAND_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_USB_DEV_REQ_INT, IRQ_TYPE_LEVEL_HIGH,  1 },
+	{ AU1550_USB_DEV_SUS_INT, IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1550_USB_HOST_INT,	  IRQ_TYPE_LEVEL_LOW,   0 },
+	{ AU1550_MAC0_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1550_MAC1_DMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ -1, },
+};
 
-	sleep_intctl_config0[1] = au_readl(IC1_CFG0RD);
-	sleep_intctl_config1[1] = au_readl(IC1_CFG1RD);
-	sleep_intctl_config2[1] = au_readl(IC1_CFG2RD);
-	sleep_intctl_src[1] = au_readl(IC1_SRCRD);
-	sleep_intctl_assign[1] = au_readl(IC1_ASSIGNRD);
-	sleep_intctl_wake[1] = au_readl(IC1_WAKERD);
-	sleep_intctl_mask[1] = au_readl(IC1_MASKRD);
-}
-
-/*
- * For most restore operations, we clear the entire register and
- * then set the bits we found during the save.
- */
-void restore_au1xxx_intctl(void)
-{
-	au_writel(0xffffffff, IC0_MASKCLR); au_sync();
-
-	au_writel(0xffffffff, IC0_CFG0CLR); au_sync();
-	au_writel(sleep_intctl_config0[0], IC0_CFG0SET); au_sync();
-	au_writel(0xffffffff, IC0_CFG1CLR); au_sync();
-	au_writel(sleep_intctl_config1[0], IC0_CFG1SET); au_sync();
-	au_writel(0xffffffff, IC0_CFG2CLR); au_sync();
-	au_writel(sleep_intctl_config2[0], IC0_CFG2SET); au_sync();
-	au_writel(0xffffffff, IC0_SRCCLR); au_sync();
-	au_writel(sleep_intctl_src[0], IC0_SRCSET); au_sync();
-	au_writel(0xffffffff, IC0_ASSIGNCLR); au_sync();
-	au_writel(sleep_intctl_assign[0], IC0_ASSIGNSET); au_sync();
-	au_writel(0xffffffff, IC0_WAKECLR); au_sync();
-	au_writel(sleep_intctl_wake[0], IC0_WAKESET); au_sync();
-	au_writel(0xffffffff, IC0_RISINGCLR); au_sync();
-	au_writel(0xffffffff, IC0_FALLINGCLR); au_sync();
-	au_writel(0x00000000, IC0_TESTBIT); au_sync();
-
-	au_writel(0xffffffff, IC1_MASKCLR); au_sync();
-
-	au_writel(0xffffffff, IC1_CFG0CLR); au_sync();
-	au_writel(sleep_intctl_config0[1], IC1_CFG0SET); au_sync();
-	au_writel(0xffffffff, IC1_CFG1CLR); au_sync();
-	au_writel(sleep_intctl_config1[1], IC1_CFG1SET); au_sync();
-	au_writel(0xffffffff, IC1_CFG2CLR); au_sync();
-	au_writel(sleep_intctl_config2[1], IC1_CFG2SET); au_sync();
-	au_writel(0xffffffff, IC1_SRCCLR); au_sync();
-	au_writel(sleep_intctl_src[1], IC1_SRCSET); au_sync();
-	au_writel(0xffffffff, IC1_ASSIGNCLR); au_sync();
-	au_writel(sleep_intctl_assign[1], IC1_ASSIGNSET); au_sync();
-	au_writel(0xffffffff, IC1_WAKECLR); au_sync();
-	au_writel(sleep_intctl_wake[1], IC1_WAKESET); au_sync();
-	au_writel(0xffffffff, IC1_RISINGCLR); au_sync();
-	au_writel(0xffffffff, IC1_FALLINGCLR); au_sync();
-	au_writel(0x00000000, IC1_TESTBIT); au_sync();
-
-	au_writel(sleep_intctl_mask[1], IC1_MASKSET); au_sync();
-
-	au_writel(sleep_intctl_mask[0], IC0_MASKSET); au_sync();
-}
-#endif /* CONFIG_PM */
+struct au1xxx_irqmap au1200_irqmap[] __initdata = {
+	{ AU1200_UART0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_SWT_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_SD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_DDMA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_MAE_BE_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_UART1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_MAE_FE_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_PSC0_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_PSC1_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_AES_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_CAMERA_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_TOY_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_TOY_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_TOY_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_TOY_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_RTC_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_RTC_MATCH0_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_RTC_MATCH1_INT,  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_RTC_MATCH2_INT,  IRQ_TYPE_EDGE_RISING, 1 },
+	{ AU1200_NAND_INT,	  IRQ_TYPE_EDGE_RISING, 0 },
+	{ AU1200_USB_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_LCD_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ AU1200_MAE_BOTH_INT,	  IRQ_TYPE_LEVEL_HIGH,  0 },
+	{ -1, },
+};
 
 
 static void au1x_ic0_unmask(unsigned int irq_nr)
@@ -306,7 +236,7 @@ static void au1x_ic1_unmask(unsigned int irq_nr)
  * nowhere in the current kernel sources is it disabled.	--mlau
  */
 #if defined(CONFIG_MIPS_PB1000)
-	if (irq_nr == AU1000_GPIO_15)
+	if (irq_nr == AU1000_GPIO15_INT)
 		au_writel(0x4000, PB1000_MDR); /* enable int */
 #endif
 	au_sync();
@@ -378,11 +308,13 @@ static void au1x_ic1_maskack(unsigned int irq_nr)
 
 static int au1x_ic1_setwake(unsigned int irq, unsigned int on)
 {
-	unsigned int bit = irq - AU1000_INTC1_INT_BASE;
+	int bit = irq - AU1000_INTC1_INT_BASE;
 	unsigned long wakemsk, flags;
 
-	/* only GPIO 0-7 can act as wakeup source: */
-	if ((irq < AU1000_GPIO_0) || (irq > AU1000_GPIO_7))
+	/* only GPIO 0-7 can act as wakeup source.  Fortunately these
+	 * are wired up identically on all supported variants.
+	 */
+	if ((bit < 0) || (bit > 7))
 		return -EINVAL;
 
 	local_irq_save(flags);
@@ -504,11 +436,11 @@ static int au1x_ic_settype(unsigned int irq, unsigned int flow_type)
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause();
-	unsigned long s, off, bit;
+	unsigned long s, off;
 
 	if (pending & CAUSEF_IP7) {
-		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
-		return;
+		off = MIPS_CPU_IRQ_BASE + 7;
+		goto handle;
 	} else if (pending & CAUSEF_IP2) {
 		s = IC0_REQ0INT;
 		off = AU1000_INTC0_INT_BASE;
@@ -524,58 +456,20 @@ asmlinkage void plat_irq_dispatch(void)
 	} else
 		goto spurious;
 
-	bit = 0;
 	s = au_readl(s);
 	if (unlikely(!s)) {
 spurious:
 		spurious_interrupt();
 		return;
 	}
-#ifdef AU1000_USB_DEV_REQ_INT
-	/*
-	 * Because of the tight timing of SETUP token to reply
-	 * transactions, the USB devices-side packet complete
-	 * interrupt needs the highest priority.
-	 */
-	bit = 1 << (AU1000_USB_DEV_REQ_INT - AU1000_INTC0_INT_BASE);
-	if ((pending & CAUSEF_IP2) && (s & bit)) {
-		do_IRQ(AU1000_USB_DEV_REQ_INT);
-		return;
-	}
-#endif
-	do_IRQ(__ffs(s) + off);
+	off += __ffs(s);
+handle:
+	do_IRQ(off);
 }
 
-/* setup edge/level and assign request 0/1 */
-void __init au1xxx_setup_irqmap(struct au1xxx_irqmap *map, int count)
+static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 {
 	unsigned int bit, irq_nr;
-
-	while (count--) {
-		irq_nr = map[count].im_irq;
-
-		if (((irq_nr < AU1000_INTC0_INT_BASE) ||
-		     (irq_nr >= AU1000_INTC0_INT_BASE + 32)) &&
-		    ((irq_nr < AU1000_INTC1_INT_BASE) ||
-		     (irq_nr >= AU1000_INTC1_INT_BASE + 32)))
-			continue;
-
-		if (irq_nr >= AU1000_INTC1_INT_BASE) {
-			bit = irq_nr - AU1000_INTC1_INT_BASE;
-			if (map[count].im_request)
-				au_writel(1 << bit, IC1_ASSIGNCLR);
-		} else {
-			bit = irq_nr - AU1000_INTC0_INT_BASE;
-			if (map[count].im_request)
-				au_writel(1 << bit, IC0_ASSIGNCLR);
-		}
-
-		au1x_ic_settype(irq_nr, map[count].im_type);
-	}
-}
-
-void __init arch_init_irq(void)
-{
 	int i;
 
 	/*
@@ -585,7 +479,7 @@ void __init arch_init_irq(void)
 	au_writel(0xffffffff, IC0_CFG1CLR);
 	au_writel(0xffffffff, IC0_CFG2CLR);
 	au_writel(0xffffffff, IC0_MASKCLR);
-	au_writel(0xffffffff, IC0_ASSIGNSET);
+	au_writel(0xffffffff, IC0_ASSIGNCLR);
 	au_writel(0xffffffff, IC0_WAKECLR);
 	au_writel(0xffffffff, IC0_SRCSET);
 	au_writel(0xffffffff, IC0_FALLINGCLR);
@@ -596,7 +490,7 @@ void __init arch_init_irq(void)
 	au_writel(0xffffffff, IC1_CFG1CLR);
 	au_writel(0xffffffff, IC1_CFG2CLR);
 	au_writel(0xffffffff, IC1_MASKCLR);
-	au_writel(0xffffffff, IC1_ASSIGNSET);
+	au_writel(0xffffffff, IC1_ASSIGNCLR);
 	au_writel(0xffffffff, IC1_WAKECLR);
 	au_writel(0xffffffff, IC1_SRCSET);
 	au_writel(0xffffffff, IC1_FALLINGCLR);
@@ -619,11 +513,131 @@ void __init arch_init_irq(void)
 	/*
 	 * Initialize IC0, which is fixed per processor.
 	 */
-	au1xxx_setup_irqmap(au1xxx_ic0_map, ARRAY_SIZE(au1xxx_ic0_map));
+	while (map->im_irq != -1) {
+		irq_nr = map->im_irq;
 
-	/* Boards can register additional (GPIO-based) IRQs.
-	*/
-	board_init_irq();
+		if (irq_nr >= AU1000_INTC1_INT_BASE) {
+			bit = irq_nr - AU1000_INTC1_INT_BASE;
+			if (map->im_request)
+				au_writel(1 << bit, IC1_ASSIGNSET);
+		} else {
+			bit = irq_nr - AU1000_INTC0_INT_BASE;
+			if (map->im_request)
+				au_writel(1 << bit, IC0_ASSIGNSET);
+		}
+
+		au1x_ic_settype(irq_nr, map->im_type);
+		++map;
+	}
 
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
 }
+
+void __init arch_init_irq(void)
+{
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1000:
+		au1000_init_irq(au1000_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1500:
+		au1000_init_irq(au1500_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1100:
+		au1000_init_irq(au1100_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1550:
+		au1000_init_irq(au1550_irqmap);
+		break;
+	case ALCHEMY_CPU_AU1200:
+		au1000_init_irq(au1200_irqmap);
+		break;
+	}
+}
+
+struct alchemy_ic_sysdev {
+	struct sys_device sysdev;
+	void __iomem *base;
+	unsigned long pmdata[7];
+};
+
+static int alchemy_ic_suspend(struct sys_device *dev, pm_message_t state)
+{
+	struct alchemy_ic_sysdev *icdev =
+			container_of(dev, struct alchemy_ic_sysdev, sysdev);
+
+	icdev->pmdata[0] = __raw_readl(icdev->base + IC_CFG0RD);
+	icdev->pmdata[1] = __raw_readl(icdev->base + IC_CFG1RD);
+	icdev->pmdata[2] = __raw_readl(icdev->base + IC_CFG2RD);
+	icdev->pmdata[3] = __raw_readl(icdev->base + IC_SRCRD);
+	icdev->pmdata[4] = __raw_readl(icdev->base + IC_ASSIGNRD);
+	icdev->pmdata[5] = __raw_readl(icdev->base + IC_WAKERD);
+	icdev->pmdata[6] = __raw_readl(icdev->base + IC_MASKRD);
+
+	return 0;
+}
+
+static int alchemy_ic_resume(struct sys_device *dev)
+{
+	struct alchemy_ic_sysdev *icdev =
+			container_of(dev, struct alchemy_ic_sysdev, sysdev);
+
+	__raw_writel(0xffffffff, icdev->base + IC_MASKCLR);
+	__raw_writel(0xffffffff, icdev->base + IC_CFG0CLR);
+	__raw_writel(0xffffffff, icdev->base + IC_CFG1CLR);
+	__raw_writel(0xffffffff, icdev->base + IC_CFG2CLR);
+	__raw_writel(0xffffffff, icdev->base + IC_SRCCLR);
+	__raw_writel(0xffffffff, icdev->base + IC_ASSIGNCLR);
+	__raw_writel(0xffffffff, icdev->base + IC_WAKECLR);
+	__raw_writel(0xffffffff, icdev->base + IC_RISINGCLR);
+	__raw_writel(0xffffffff, icdev->base + IC_FALLINGCLR);
+	__raw_writel(0x00000000, icdev->base + IC_TESTBIT);
+	wmb();
+	__raw_writel(icdev->pmdata[0], icdev->base + IC_CFG0SET);
+	__raw_writel(icdev->pmdata[1], icdev->base + IC_CFG1SET);
+	__raw_writel(icdev->pmdata[2], icdev->base + IC_CFG2SET);
+	__raw_writel(icdev->pmdata[3], icdev->base + IC_SRCSET);
+	__raw_writel(icdev->pmdata[4], icdev->base + IC_ASSIGNSET);
+	__raw_writel(icdev->pmdata[5], icdev->base + IC_WAKESET);
+	wmb();
+
+	__raw_writel(icdev->pmdata[6], icdev->base + IC_MASKSET);
+	wmb();
+
+	return 0;
+}
+
+static struct sysdev_class alchemy_ic_sysdev_class = {
+	.name		= "ic",
+	.suspend	= alchemy_ic_suspend,
+	.resume		= alchemy_ic_resume,
+};
+
+static int __init alchemy_ic_sysdev_init(void)
+{
+	struct alchemy_ic_sysdev *icdev;
+	unsigned long icbase[2] = { IC0_PHYS_ADDR, IC1_PHYS_ADDR };
+	int err, i;
+
+	err = sysdev_class_register(&alchemy_ic_sysdev_class);
+	if (err)
+		return err;
+
+	for (i = 0; i < 2; i++) {
+		icdev = kzalloc(sizeof(struct alchemy_ic_sysdev), GFP_KERNEL);
+		if (!icdev)
+			return -ENOMEM;
+
+		icdev->base = ioremap(icbase[i], 0x1000);
+
+		icdev->sysdev.id = i;
+		icdev->sysdev.cls = &alchemy_ic_sysdev_class;
+		err = sysdev_register(&icdev->sysdev);
+		if (err) {
+			kfree(icdev);
+			return err;
+		}
+	}
+
+	return 0;
+}
+device_initcall(alchemy_ic_sysdev_init);

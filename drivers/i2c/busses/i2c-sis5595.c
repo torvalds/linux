@@ -61,7 +61,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static int blacklist[] = {
 	PCI_DEVICE_ID_SI_540,
@@ -369,7 +369,7 @@ static struct i2c_adapter sis5595_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static struct pci_device_id sis5595_ids[] __devinitdata = {
+static const struct pci_device_id sis5595_ids[] __devinitconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_503) }, 
 	{ 0, }
 };

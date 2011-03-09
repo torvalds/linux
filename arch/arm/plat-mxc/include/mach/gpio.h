@@ -19,8 +19,14 @@
 #ifndef __ASM_ARCH_MXC_GPIO_H__
 #define __ASM_ARCH_MXC_GPIO_H__
 
+#include <linux/spinlock.h>
 #include <mach/hardware.h>
 #include <asm-generic/gpio.h>
+
+
+/* There's a off-by-one betweem the gpio bank number and the gpiochip */
+/* range e.g. GPIO_1_5 is gpio 5 under linux */
+#define IMX_GPIO_NR(bank, nr)		(((bank) - 1) * 32 + (nr))
 
 /* use gpiolib dispatchers */
 #define gpio_get_value		__gpio_get_value
@@ -33,9 +39,11 @@
 struct mxc_gpio_port {
 	void __iomem *base;
 	int irq;
+	int irq_high;
 	int virtual_irq_start;
 	struct gpio_chip chip;
 	u32 both_edges;
+	spinlock_t lock;
 };
 
 int mxc_gpio_init(struct mxc_gpio_port*, int);

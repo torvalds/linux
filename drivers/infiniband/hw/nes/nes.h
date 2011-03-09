@@ -64,8 +64,9 @@
  * NetEffect PCI vendor id and NE010 PCI device id.
  */
 #ifndef PCI_VENDOR_ID_NETEFFECT	/* not in pci.ids yet */
-#define PCI_VENDOR_ID_NETEFFECT       0x1678
-#define PCI_DEVICE_ID_NETEFFECT_NE020 0x0100
+#define PCI_VENDOR_ID_NETEFFECT          0x1678
+#define PCI_DEVICE_ID_NETEFFECT_NE020    0x0100
+#define PCI_DEVICE_ID_NETEFFECT_NE020_KR 0x0110
 #endif
 
 #define NE020_REV   4
@@ -193,8 +194,8 @@ extern u32 cm_packets_created;
 extern u32 cm_packets_received;
 extern u32 cm_packets_dropped;
 extern u32 cm_packets_retrans;
-extern u32 cm_listens_created;
-extern u32 cm_listens_destroyed;
+extern atomic_t cm_listens_created;
+extern atomic_t cm_listens_destroyed;
 extern u32 cm_backlog_drops;
 extern atomic_t cm_loopbacks;
 extern atomic_t cm_nodes_created;
@@ -261,11 +262,15 @@ struct nes_device {
 	u16                    base_doorbell_index;
 	u16                    currcq_count;
 	u16                    deepcq_count;
+	u8                     iw_status;
 	u8                     msi_enabled;
 	u8                     netdev_count;
 	u8                     napi_isr_ran;
 	u8                     disable_rx_flow_control;
 	u8                     disable_tx_flow_control;
+
+	struct delayed_work    work;
+	u8                     link_recheck;
 };
 
 
@@ -505,6 +510,7 @@ void nes_nic_ce_handler(struct nes_device *, struct nes_hw_nic_cq *);
 void nes_iwarp_ce_handler(struct nes_device *, struct nes_hw_cq *);
 int nes_destroy_cqp(struct nes_device *);
 int nes_nic_cm_xmit(struct sk_buff *, struct net_device *);
+void nes_recheck_link_status(struct work_struct *work);
 
 /* nes_nic.c */
 struct net_device *nes_netdev_init(struct nes_device *, void __iomem *);
@@ -526,6 +532,7 @@ void nes_cm_disconn_worker(void *);
 int nes_hw_modify_qp(struct nes_device *, struct nes_qp *, u32, u32, u32);
 int nes_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
 struct nes_ib_device *nes_init_ofa_device(struct net_device *);
+void  nes_port_ibevent(struct nes_vnic *nesvnic);
 void nes_destroy_ofa_device(struct nes_ib_device *);
 int nes_register_ofa_device(struct nes_ib_device *);
 

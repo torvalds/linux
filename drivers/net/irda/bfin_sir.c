@@ -107,8 +107,12 @@ static int bfin_sir_set_speed(struct bfin_sir_port *port, int speed)
 	case 57600:
 	case 115200:
 
-		quot = (port->clk + (8 * speed)) / (16 * speed)\
-						- ANOMALY_05000230;
+		/*
+		 * IRDA is not affected by anomaly 05000230, so there is no
+		 * need to tweak the divisor like he UART driver (which will
+		 * slightly speed up the baud rate on us).
+		 */
+		quot = (port->clk + (8 * speed)) / (16 * speed);
 
 		do {
 			udelay(utime);

@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -30,6 +26,7 @@
 #include <mach/common.h>
 #include <asm/proc-fns.h>
 #include <asm/system.h>
+#include <asm/mach-types.h>
 
 static void __iomem *wdog_base;
 
@@ -46,12 +43,19 @@ void arch_reset(char mode, const char *cmd)
 		return;
 	}
 #endif
+#ifdef CONFIG_MACH_MX51_EFIKAMX
+	if (machine_is_mx51_efikamx()) {
+		mx51_efikamx_reset();
+		return;
+	}
+#endif
+
 	if (cpu_is_mx1()) {
 		wcr_enable = (1 << 0);
 	} else {
 		struct clk *clk;
 
-		clk = clk_get_sys("imx-wdt.0", NULL);
+		clk = clk_get_sys("imx2-wdt.0", NULL);
 		if (!IS_ERR(clk))
 			clk_enable(clk);
 		wcr_enable = (1 << 2);

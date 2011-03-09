@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/wm8350/core.h>
+#include <linux/slab.h>
 
 static int wm8350_i2c_read_device(struct wm8350 *wm8350, char reg,
 				  int bytes, void *dest)
@@ -63,10 +64,8 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 	int ret = 0;
 
 	wm8350 = kzalloc(sizeof(struct wm8350), GFP_KERNEL);
-	if (wm8350 == NULL) {
-		kfree(i2c);
+	if (wm8350 == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, wm8350);
 	wm8350->dev = &i2c->dev;

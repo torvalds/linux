@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 
 #include <mach/timer.h>
 
@@ -670,7 +671,7 @@ static int ConfigChannel(DMA_Handle_t handle)
 
 /****************************************************************************/
 /**
-*   Intializes all of the data structures associated with the DMA.
+*   Initializes all of the data structures associated with the DMA.
 *   @return
 *       >= 0    - Initialization was successfull.
 *
@@ -690,7 +691,7 @@ int dma_init(void)
 
 	memset(&gDMA, 0, sizeof(gDMA));
 
-	init_MUTEX_LOCKED(&gDMA.lock);
+	sema_init(&gDMA.lock, 0);
 	init_waitqueue_head(&gDMA.freeChannelQ);
 
 	/* Initialize the Hardware */
@@ -1573,7 +1574,7 @@ int dma_init_mem_map(DMA_MemMap_t *memMap)
 {
 	memset(memMap, 0, sizeof(*memMap));
 
-	init_MUTEX(&memMap->lock);
+	sema_init(&memMap->lock, 1);
 
 	return 0;
 }
@@ -2220,10 +2221,14 @@ EXPORT_SYMBOL(dma_map_create_descriptor_ring);
 int dma_unmap(DMA_MemMap_t *memMap,	/* Stores state information about the map */
 	      int dirtied	/* non-zero if any of the pages were modified */
     ) {
+
+	int rc = 0;
 	int regionIdx;
 	int segmentIdx;
 	DMA_Region_t *region;
 	DMA_Segment_t *segment;
+
+	down(&memMap->lock);
 
 	for (regionIdx = 0; regionIdx < memMap->numRegionsUsed; regionIdx++) {
 		region = &memMap->region[regionIdx];
@@ -2238,7 +2243,8 @@ int dma_unmap(DMA_MemMap_t *memMap,	/* Stores state information about the map */
 					printk(KERN_ERR
 					       "%s: vmalloc'd pages are not yet supported\n",
 					       __func__);
-					return -EINVAL;
+					rc = -EINVAL;
+					goto out;
 				}
 
 			case DMA_MEM_TYPE_KMALLOC:
@@ -2275,7 +2281,8 @@ int dma_unmap(DMA_MemMap_t *memMap,	/* Stores state information about the map */
 					printk(KERN_ERR
 					       "%s: Unsupported memory type: %d\n",
 					       __func__, region->memType);
-					return -EINVAL;
+					rc = -EINVAL;
+					goto out;
 				}
 			}
 
@@ -2313,9 +2320,10 @@ int dma_unmap(DMA_MemMap_t *memMap,	/* Stores state information about the map */
 	memMap->numRegionsUsed = 0;
 	memMap->inUse = 0;
 
+out:
 	up(&memMap->lock);
 
-	return 0;
+	return rc;
 }
 
 EXPORT_SYMBOL(dma_unmap);

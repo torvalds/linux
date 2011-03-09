@@ -25,7 +25,6 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/highmem.h>
 
 #include <cluster/masklog.h>
@@ -368,7 +367,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 	}
 	ocfs2_metadata_cache_io_unlock(ci);
 
-	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n", 
+	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s, flags=0x%x\n",
 	     (unsigned long long)block, nr,
 	     ((flags & OCFS2_BH_IGNORE_CACHE) || ignore_cache) ? "no" : "yes",
 	     flags);
@@ -407,6 +406,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 				struct buffer_head *bh)
 {
 	int ret = 0;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 
 	mlog_entry_void();
 
@@ -426,6 +426,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 
 	get_bh(bh); /* for end_buffer_write_sync() */
 	bh->b_end_io = end_buffer_write_sync;
+	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &di->i_check);
 	submit_bh(WRITE, bh);
 
 	wait_on_buffer(bh);

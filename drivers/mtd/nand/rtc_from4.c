@@ -24,7 +24,6 @@
 #include <linux/rslib.h>
 #include <linux/bitrev.h>
 #include <linux/module.h>
-#include <linux/mtd/compatmac.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>

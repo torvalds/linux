@@ -10,7 +10,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/mipsregs.h>
 #include <bcm63xx_cpu.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
@@ -36,6 +38,7 @@ static const unsigned long bcm96338_regs_base[] = {
 	[RSET_TIMER]		= BCM_6338_TIMER_BASE,
 	[RSET_WDT]		= BCM_6338_WDT_BASE,
 	[RSET_UART0]		= BCM_6338_UART0_BASE,
+	[RSET_UART1]		= BCM_6338_UART1_BASE,
 	[RSET_GPIO]		= BCM_6338_GPIO_BASE,
 	[RSET_SPI]		= BCM_6338_SPI_BASE,
 	[RSET_OHCI0]		= BCM_6338_OHCI0_BASE,
@@ -72,6 +75,7 @@ static const unsigned long bcm96345_regs_base[] = {
 	[RSET_TIMER]		= BCM_6345_TIMER_BASE,
 	[RSET_WDT]		= BCM_6345_WDT_BASE,
 	[RSET_UART0]		= BCM_6345_UART0_BASE,
+	[RSET_UART1]		= BCM_6345_UART1_BASE,
 	[RSET_GPIO]		= BCM_6345_GPIO_BASE,
 	[RSET_SPI]		= BCM_6345_SPI_BASE,
 	[RSET_UDC0]		= BCM_6345_UDC0_BASE,
@@ -109,6 +113,7 @@ static const unsigned long bcm96348_regs_base[] = {
 	[RSET_TIMER]		= BCM_6348_TIMER_BASE,
 	[RSET_WDT]		= BCM_6348_WDT_BASE,
 	[RSET_UART0]		= BCM_6348_UART0_BASE,
+	[RSET_UART1]		= BCM_6348_UART1_BASE,
 	[RSET_GPIO]		= BCM_6348_GPIO_BASE,
 	[RSET_SPI]		= BCM_6348_SPI_BASE,
 	[RSET_OHCI0]		= BCM_6348_OHCI0_BASE,
@@ -150,6 +155,7 @@ static const unsigned long bcm96358_regs_base[] = {
 	[RSET_TIMER]		= BCM_6358_TIMER_BASE,
 	[RSET_WDT]		= BCM_6358_WDT_BASE,
 	[RSET_UART0]		= BCM_6358_UART0_BASE,
+	[RSET_UART1]		= BCM_6358_UART1_BASE,
 	[RSET_GPIO]		= BCM_6358_GPIO_BASE,
 	[RSET_SPI]		= BCM_6358_SPI_BASE,
 	[RSET_OHCI0]		= BCM_6358_OHCI0_BASE,
@@ -170,6 +176,7 @@ static const unsigned long bcm96358_regs_base[] = {
 static const int bcm96358_irqs[] = {
 	[IRQ_TIMER]		= BCM_6358_TIMER_IRQ,
 	[IRQ_UART0]		= BCM_6358_UART0_IRQ,
+	[IRQ_UART1]		= BCM_6358_UART1_IRQ,
 	[IRQ_DSL]		= BCM_6358_DSL_IRQ,
 	[IRQ_ENET0]		= BCM_6358_ENET0_IRQ,
 	[IRQ_ENET1]		= BCM_6358_ENET1_IRQ,
@@ -291,26 +298,24 @@ void __init bcm63xx_cpu_init(void)
 	expected_cpu_id = 0;
 
 	switch (c->cputype) {
-	/*
-	 * BCM6338 as the same PrId as BCM3302 see arch/mips/kernel/cpu-probe.c
-	 */
-	case CPU_BCM3302:
-		__cpu_name[cpu] = "Broadcom BCM6338";
-		expected_cpu_id = BCM6338_CPU_ID;
-		bcm63xx_regs_base = bcm96338_regs_base;
-		bcm63xx_irqs = bcm96338_irqs;
+	case CPU_BMIPS3300:
+		if ((read_c0_prid() & 0xff00) == PRID_IMP_BMIPS3300_ALT) {
+			expected_cpu_id = BCM6348_CPU_ID;
+			bcm63xx_regs_base = bcm96348_regs_base;
+			bcm63xx_irqs = bcm96348_irqs;
+		} else {
+			__cpu_name[cpu] = "Broadcom BCM6338";
+			expected_cpu_id = BCM6338_CPU_ID;
+			bcm63xx_regs_base = bcm96338_regs_base;
+			bcm63xx_irqs = bcm96338_irqs;
+		}
 		break;
-	case CPU_BCM6345:
+	case CPU_BMIPS32:
 		expected_cpu_id = BCM6345_CPU_ID;
 		bcm63xx_regs_base = bcm96345_regs_base;
 		bcm63xx_irqs = bcm96345_irqs;
 		break;
-	case CPU_BCM6348:
-		expected_cpu_id = BCM6348_CPU_ID;
-		bcm63xx_regs_base = bcm96348_regs_base;
-		bcm63xx_irqs = bcm96348_irqs;
-		break;
-	case CPU_BCM6358:
+	case CPU_BMIPS4350:
 		expected_cpu_id = BCM6358_CPU_ID;
 		bcm63xx_regs_base = bcm96358_regs_base;
 		bcm63xx_irqs = bcm96358_irqs;

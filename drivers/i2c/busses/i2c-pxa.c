@@ -12,7 +12,7 @@
  *
  *  History:
  *    Apr 2002: Initial version [CS]
- *    Jun 2002: Properly seperated algo/adap [FB]
+ *    Jun 2002: Properly separated algo/adap [FB]
  *    Jan 2003: Fixed several bugs concerning interrupt handling [Kai-Uwe Bloem]
  *    Jan 2003: added limited signal handling [Kai-Uwe Bloem]
  *    Sep 2004: Major rework to ensure efficient bus handling [RMK]
@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/sched.h>
@@ -33,9 +32,10 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <plat/i2c.h>
 
 /*
@@ -208,18 +208,6 @@ static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 }
 
 #define show_state(i2c) i2c_pxa_show_state(i2c, __LINE__, __func__)
-#else
-#define i2c_debug	0
-
-#define show_state(i2c) do { } while (0)
-#define decode_ISR(val) do { } while (0)
-#define decode_ICR(val) do { } while (0)
-#endif
-
-#define eedbg(lvl, x...) do { if ((lvl) < 1) { printk(KERN_DEBUG "" x); } } while(0)
-
-static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret);
-static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id);
 
 static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 {
@@ -234,6 +222,20 @@ static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 		printk("[%08x:%08x] ", i2c->isrlog[i], i2c->icrlog[i]);
 	printk("\n");
 }
+
+#else /* ifdef DEBUG */
+
+#define i2c_debug	0
+
+#define show_state(i2c) do { } while (0)
+#define decode_ISR(val) do { } while (0)
+#define decode_ICR(val) do { } while (0)
+#define i2c_pxa_scream_blue_murder(i2c, why) do { } while (0)
+
+#endif /* ifdef DEBUG / else */
+
+static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret);
+static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id);
 
 static inline int i2c_pxa_is_slavemode(struct pxa_i2c *i2c)
 {
@@ -998,7 +1000,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	struct pxa_i2c *i2c;
 	struct resource *res;
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
-	struct platform_device_id *id = platform_get_device_id(dev);
+	const struct platform_device_id *id = platform_get_device_id(dev);
 	int ret;
 	int irq;
 

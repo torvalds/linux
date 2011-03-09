@@ -114,6 +114,17 @@
 #define CVMX_DCACHE_INVALIDATE \
 	{ CVMX_SYNC; asm volatile ("cache 9, 0($0)" : : ); }
 
+#define CVMX_CACHE(op, address, offset)					\
+	asm volatile ("cache " CVMX_TMP_STR(op) ", " CVMX_TMP_STR(offset) "(%[rbase])" \
+		: : [rbase] "d" (address) )
+/* fetch and lock the state. */
+#define CVMX_CACHE_LCKL2(address, offset) CVMX_CACHE(31, address, offset)
+/* unlock the state. */
+#define CVMX_CACHE_WBIL2(address, offset) CVMX_CACHE(23, address, offset)
+/* invalidate the cache block and clear the USED bits for the block */
+#define CVMX_CACHE_WBIL2I(address, offset) CVMX_CACHE(3, address, offset)
+/* load virtual tag and data for the L2 cache block into L2C_TAD0_TAG register */
+#define CVMX_CACHE_LTGL2I(address, offset) CVMX_CACHE(7, address, offset)
 
 #define CVMX_POP(result, input) \
 	asm ("pop %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))

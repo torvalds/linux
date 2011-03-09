@@ -14,12 +14,11 @@ function makedev () {
 	ln -s /dev/${1}0 /dev/$1
 }
 
-# see http://roadrunner.swansea.uk.linux.org/v4lapi.shtml
+# see http://linux.bytesex.org/v4l2/API.html
 
 echo "*** new device names ***"
 makedev video 0
 makedev radio 64
-makedev vtx 192
 makedev vbi 224
 
 #echo "*** old device names (for compatibility only) ***"

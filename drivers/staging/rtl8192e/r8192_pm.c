@@ -9,8 +9,6 @@
    Released under the terms of GPL (General Public Licence)
 */
 
-#ifdef CONFIG_PM_RTL
-
 #include "r8192E.h"
 #include "r8192E_hw.h"
 #include "r8192_pm.h"
@@ -19,7 +17,7 @@
 int rtl8192E_save_state (struct pci_dev *dev, pm_message_t state)
 {
         printk(KERN_NOTICE "r8192E save state call (state %u).\n", state.event);
-	return(-EAGAIN);
+	return -EAGAIN;
 }
 
 
@@ -27,7 +25,9 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = ieee80211_priv(dev);
+#ifdef RTL8190P
 	u8	ucRegRead;
+#endif
 	u32	ulRegRead;
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
@@ -104,7 +104,7 @@ out_pci_suspend:
 	netif_device_detach(dev);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev,state),\
+	pci_enable_wake(pdev, pci_choose_state(pdev,state),
 			priv->ieee80211->bSupportRemoteWakeUp?1:0);
 	pci_set_power_state(pdev,pci_choose_state(pdev,state));
 
@@ -166,7 +166,5 @@ int rtl8192E_enable_wake (struct pci_dev *dev, pm_message_t state, int enable)
 {
         printk(KERN_NOTICE "r8192E enable wake call (state %u, enable %d).\n",
 	       state.event, enable);
-	return(-EAGAIN);
+	return -EAGAIN;
 }
-
-#endif //CONFIG_PM_RTL

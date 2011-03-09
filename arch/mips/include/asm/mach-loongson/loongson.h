@@ -1,12 +1,11 @@
 /*
  * Copyright (C) 2009 Lemote, Inc.
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
- *
  */
 
 #ifndef __ASM_MACH_LOONGSON_LOONGSON_H
@@ -14,6 +13,7 @@
 
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 
 /* loongson internal northbridge initialization */
 extern void bonito_irq_init(void);
@@ -23,7 +23,7 @@ extern void mach_prepare_reboot(void);
 extern void mach_prepare_shutdown(void);
 
 /* environment arguments from bootloader */
-extern unsigned long bus_clock, cpu_clock_freq;
+extern unsigned long cpu_clock_freq;
 extern unsigned long memsize, highmemsize;
 
 /* loongson-specific command line, env and memory initialization */
@@ -46,7 +46,6 @@ static inline void prom_init_uart_base(void)
 /* irq operation functions */
 extern void bonito_irqdispatch(void);
 extern void __init bonito_irq_init(void);
-extern void __init set_irq_trigger_mode(void);
 extern void __init mach_init_irq(void);
 extern void mach_irq_dispatch(unsigned int pending);
 extern int mach_i8259_irq(void);
@@ -63,6 +62,14 @@ extern int mach_i8259_irq(void);
 
 #define LOONGSON_IRQ_BASE	32
 #define LOONGSON2_PERFCNT_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* cpu perf counter */
+
+#include <linux/interrupt.h>
+static inline void do_perfcnt_IRQ(void)
+{
+#if defined(CONFIG_OPROFILE) || defined(CONFIG_OPROFILE_MODULE)
+	do_IRQ(LOONGSON2_PERFCNT_IRQ);
+#endif
+}
 
 #define LOONGSON_FLASH_BASE	0x1c000000
 #define LOONGSON_FLASH_SIZE	0x02000000	/* 32M */
@@ -308,7 +315,7 @@ extern unsigned long _loongson_addrwincfg_base;
  */
 #define LOONGSON_ADDRWIN_CFG(s, d, w, src, dst, size) do {\
 	s##_WIN##w##_BASE = (src); \
-	s##_WIN##w##_MMAP = (src) | ADDRWIN_MAP_DST_##d; \
+	s##_WIN##w##_MMAP = (dst) | ADDRWIN_MAP_DST_##d; \
 	s##_WIN##w##_MASK = ~(size-1); \
 } while (0)
 

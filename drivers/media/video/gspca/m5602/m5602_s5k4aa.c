@@ -143,13 +143,13 @@ static const struct ctrl s5k4aa_ctrls[] = {
 #define VFLIP_IDX 0
 	{
 		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_VFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "vertical flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = s5k4aa_set_vflip,
 		.get = s5k4aa_get_vflip
@@ -157,13 +157,13 @@ static const struct ctrl s5k4aa_ctrls[] = {
 #define HFLIP_IDX 1
 	{
 		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_HFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "horizontal flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = s5k4aa_set_hflip,
 		.get = s5k4aa_get_hflip
@@ -248,7 +248,7 @@ int s5k4aa_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a s5k4aa sensor");
+	PDEBUG(D_PROBE, "Probing for a s5k4aa sensor");
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k4aa) && !err; i++) {

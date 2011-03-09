@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #define DRV_VERSION "0.6"
 
@@ -206,7 +207,7 @@ static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
 	struct rs5c372	*rs5c = i2c_get_clientdata(client);
-	unsigned char	buf[8];
+	unsigned char	buf[7];
 	int		addr;
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d "

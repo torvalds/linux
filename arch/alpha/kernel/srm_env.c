@@ -30,6 +30,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
@@ -86,7 +87,7 @@ static int srm_env_proc_show(struct seq_file *m, void *v)
 	srm_env_t	*entry;
 	char		*page;
 
-	entry = (srm_env_t *)m->private;
+	entry = m->private;
 	page = (char *)__get_free_page(GFP_USER);
 	if (!page)
 		return -ENOMEM;

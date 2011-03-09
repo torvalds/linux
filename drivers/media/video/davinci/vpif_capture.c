@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/version.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
@@ -730,7 +731,6 @@ static int vpif_mmap(struct file *filep, struct vm_area_struct *vma)
  */
 static unsigned int vpif_poll(struct file *filep, poll_table * wait)
 {
-	int err = 0;
 	struct vpif_fh *fh = filep->private_data;
 	struct channel_obj *channel = fh->channel;
 	struct common_obj *common = &(channel->common[VPIF_VIDEO_INDEX]);
@@ -738,8 +738,7 @@ static unsigned int vpif_poll(struct file *filep, poll_table * wait)
 	vpif_dbg(2, debug, "vpif_poll\n");
 
 	if (common->started)
-		err = videobuf_poll_stream(filep, &common->buffer_queue, wait);
-
+		return videobuf_poll_stream(filep, &common->buffer_queue, wait);
 	return 0;
 }
 
@@ -792,7 +791,7 @@ static int vpif_open(struct file *filep)
 	}
 
 	/* Allocate memory for the file handle object */
-	fh = kmalloc(sizeof(struct vpif_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(struct vpif_fh), GFP_KERNEL);
 	if (NULL == fh) {
 		vpif_err("unable to allocate memory for file handle object\n");
 		ret = -ENOMEM;
@@ -868,7 +867,7 @@ static int vpif_release(struct file *filep)
 	mutex_unlock(&common->lock);
 
 	/* Close the priority */
-	v4l2_prio_close(&ch->prio, &fh->prio);
+	v4l2_prio_close(&ch->prio, fh->prio);
 
 	if (fh->initialized)
 		ch->initialized = 0;
@@ -928,7 +927,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 					    &common->irqlock,
 					    reqbuf->type,
 					    common->fmt.fmt.pix.field,
-					    sizeof(struct videobuf_buffer), fh);
+					    sizeof(struct videobuf_buffer), fh,
+					    NULL);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;
@@ -1029,9 +1029,10 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			goto qbuf_exit;
 
 		if ((VIDEOBUF_NEEDS_INIT != buf1->state)
-			    && (buf1->baddr != tbuf.m.userptr))
+			    && (buf1->baddr != tbuf.m.userptr)) {
 			vpif_buffer_release(&common->buffer_queue, buf1);
 			buf1->baddr = tbuf.m.userptr;
+		}
 		break;
 
 	default:
@@ -1443,7 +1444,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1553,7 +1554,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1709,7 +1710,7 @@ static int vpif_s_fmt_vid_cap(struct file *file, void *priv,
 		}
 	}
 
-	ret = v4l2_prio_check(&ch->prio, &fh->prio);
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
 	if (0 != ret)
 		return ret;
 
@@ -1993,7 +1994,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	config = pdev->dev.platform_data;
 
 	subdev_count = config->subdev_count;
-	vpif_obj.sd = kmalloc(sizeof(struct v4l2_subdev *) * subdev_count,
+	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 				GFP_KERNEL);
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
@@ -2012,7 +2013,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		vpif_obj.sd[i] =
 			v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
 						  i2c_adap,
-						  subdevdata->name,
 						  &subdevdata->board_info,
 						  NULL);
 
@@ -2112,7 +2112,7 @@ static const struct dev_pm_ops vpif_dev_pm_ops = {
 	.resume = vpif_resume,
 };
 
-static struct platform_driver vpif_driver = {
+static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 		.name	= "vpif_capture",
 		.owner	= THIS_MODULE,

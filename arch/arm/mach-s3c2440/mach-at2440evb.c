@@ -5,7 +5,7 @@
  *      and modifications by SBZ <sbz@spgui.org> and
  *      Weibing <http://weibing.blogbus.com>
  *
- * For product information, visit http://www.arm9e.com/
+ * For product information, visit http://www.arm.com/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -165,7 +165,7 @@ static struct platform_device at2440evb_device_eth = {
 	},
 };
 
-static struct s3c24xx_mci_pdata at2440evb_mci_pdata = {
+static struct s3c24xx_mci_pdata at2440evb_mci_pdata __initdata = {
 	.gpio_detect	= S3C2410_GPG(10),
 };
 
@@ -203,7 +203,7 @@ static struct s3c2410fb_mach_info at2440evb_fb_info __initdata = {
 };
 
 static struct platform_device *at2440evb_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_adc,
 	&s3c_device_i2c0,
@@ -216,8 +216,6 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 
 static void __init at2440evb_map_io(void)
 {
-	s3c_device_sdi.dev.platform_data = &at2440evb_mci_pdata;
-
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
 	s3c24xx_init_clocks(16934400);
 	s3c24xx_init_uarts(at2440evb_uartcfgs, ARRAY_SIZE(at2440evb_uartcfgs));
@@ -226,6 +224,7 @@ static void __init at2440evb_map_io(void)
 static void __init at2440evb_init(void)
 {
 	s3c24xx_fb_set_platdata(&at2440evb_fb_info);
+	s3c24xx_mci_set_platdata(&at2440evb_mci_pdata);
 	s3c_nand_set_platdata(&at2440evb_nand_info);
 	s3c_i2c0_set_platdata(NULL);
 
@@ -234,8 +233,6 @@ static void __init at2440evb_init(void)
 
 
 MACHINE_START(AT2440EVB, "AT2440EVB")
-	.phys_io	= S3C2410_PA_UART,
-	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= at2440evb_map_io,
 	.init_machine	= at2440evb_init,

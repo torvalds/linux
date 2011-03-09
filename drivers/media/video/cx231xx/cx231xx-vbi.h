@@ -41,7 +41,7 @@ extern struct videobuf_queue_ops cx231xx_vbi_qops;
 /* stream functions */
 int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 			  int num_bufs, int max_pkt_size,
-			  int (*isoc_copy) (struct cx231xx *dev,
+			  int (*bulk_copy) (struct cx231xx *dev,
 					    struct urb *urb));
 
 void cx231xx_uninit_vbi_isoc(struct cx231xx *dev);

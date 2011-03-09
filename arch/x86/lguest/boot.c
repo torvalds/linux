@@ -115,7 +115,7 @@ static void async_hcall(unsigned long call, unsigned long arg1,
 	local_irq_save(flags);
 	if (lguest_data.hcall_status[next_call] != 0xFF) {
 		/* Table full, so do normal hcall which will flush table. */
-		kvm_hypercall4(call, arg1, arg2, arg3, arg4);
+		hcall(call, arg1, arg2, arg3, arg4);
 	} else {
 		lguest_data.hcalls[next_call].arg0 = call;
 		lguest_data.hcalls[next_call].arg1 = arg1;
@@ -145,46 +145,45 @@ static void async_hcall(unsigned long call, unsigned long arg1,
  * So, when we're in lazy mode, we call async_hcall() to store the call for
  * future processing:
  */
-static void lazy_hcall1(unsigned long call,
-		       unsigned long arg1)
+static void lazy_hcall1(unsigned long call, unsigned long arg1)
 {
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		kvm_hypercall1(call, arg1);
+		hcall(call, arg1, 0, 0, 0);
 	else
 		async_hcall(call, arg1, 0, 0, 0);
 }
 
 /* You can imagine what lazy_hcall2, 3 and 4 look like. :*/
 static void lazy_hcall2(unsigned long call,
-		       unsigned long arg1,
-		       unsigned long arg2)
+			unsigned long arg1,
+			unsigned long arg2)
 {
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		kvm_hypercall2(call, arg1, arg2);
+		hcall(call, arg1, arg2, 0, 0);
 	else
 		async_hcall(call, arg1, arg2, 0, 0);
 }
 
 static void lazy_hcall3(unsigned long call,
-		       unsigned long arg1,
-		       unsigned long arg2,
-		       unsigned long arg3)
+			unsigned long arg1,
+			unsigned long arg2,
+			unsigned long arg3)
 {
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		kvm_hypercall3(call, arg1, arg2, arg3);
+		hcall(call, arg1, arg2, arg3, 0);
 	else
 		async_hcall(call, arg1, arg2, arg3, 0);
 }
 
 #ifdef CONFIG_X86_PAE
 static void lazy_hcall4(unsigned long call,
-		       unsigned long arg1,
-		       unsigned long arg2,
-		       unsigned long arg3,
-		       unsigned long arg4)
+			unsigned long arg1,
+			unsigned long arg2,
+			unsigned long arg3,
+			unsigned long arg4)
 {
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		kvm_hypercall4(call, arg1, arg2, arg3, arg4);
+		hcall(call, arg1, arg2, arg3, arg4);
 	else
 		async_hcall(call, arg1, arg2, arg3, arg4);
 }
@@ -196,13 +195,13 @@ static void lazy_hcall4(unsigned long call,
 :*/
 static void lguest_leave_lazy_mmu_mode(void)
 {
-	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0, 0);
 	paravirt_leave_lazy_mmu();
 }
 
 static void lguest_end_context_switch(struct task_struct *next)
 {
-	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0, 0);
 	paravirt_end_context_switch(next);
 }
 
@@ -286,7 +285,7 @@ static void lguest_write_idt_entry(gate_desc *dt,
 	/* Keep the local copy up to date. */
 	native_write_idt_entry(dt, entrynum, g);
 	/* Tell Host about this new entry. */
-	kvm_hypercall3(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1]);
+	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1], 0);
 }
 
 /*
@@ -300,7 +299,7 @@ static void lguest_load_idt(const struct desc_ptr *desc)
 	struct desc_struct *idt = (void *)desc->address;
 
 	for (i = 0; i < (desc->size+1)/8; i++)
-		kvm_hypercall3(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b);
+		hcall(LHCALL_LOAD_IDT_ENTRY, i, idt[i].a, idt[i].b, 0);
 }
 
 /*
@@ -321,27 +320,30 @@ static void lguest_load_gdt(const struct desc_ptr *desc)
 	struct desc_struct *gdt = (void *)desc->address;
 
 	for (i = 0; i < (desc->size+1)/8; i++)
-		kvm_hypercall3(LHCALL_LOAD_GDT_ENTRY, i, gdt[i].a, gdt[i].b);
+		hcall(LHCALL_LOAD_GDT_ENTRY, i, gdt[i].a, gdt[i].b, 0);
 }
 
 /*
- * For a single GDT entry which changes, we do the lazy thing: alter our GDT,
- * then tell the Host to reload the entire thing.  This operation is so rare
- * that this naive implementation is reasonable.
+ * For a single GDT entry which changes, we simply change our copy and
+ * then tell the host about it.
  */
 static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 				   const void *desc, int type)
 {
 	native_write_gdt_entry(dt, entrynum, desc, type);
 	/* Tell Host about this new entry. */
-	kvm_hypercall3(LHCALL_LOAD_GDT_ENTRY, entrynum,
-		       dt[entrynum].a, dt[entrynum].b);
+	hcall(LHCALL_LOAD_GDT_ENTRY, entrynum,
+	      dt[entrynum].a, dt[entrynum].b, 0);
 }
 
 /*
- * OK, I lied.  There are three "thread local storage" GDT entries which change
+ * There are three "thread local storage" GDT entries which change
  * on every context switch (these three entries are how glibc implements
- * __thread variables).  So we have a hypercall specifically for this case.
+ * __thread variables).  As an optimization, we have a hypercall
+ * specifically for this case.
+ *
+ * Wouldn't it be nicer to have a general LOAD_GDT_ENTRIES hypercall
+ * which took a range of entries?
  */
 static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 {
@@ -529,7 +531,10 @@ static void lguest_write_cr3(unsigned long cr3)
 {
 	lguest_data.pgdir = cr3;
 	lazy_hcall1(LHCALL_NEW_PGTABLE, cr3);
-	cr3_changed = true;
+
+	/* These two page tables are simple, linear, and used during boot */
+	if (cr3 != __pa(swapper_pg_dir) && cr3 != __pa(initial_page_table))
+		cr3_changed = true;
 }
 
 static unsigned long lguest_read_cr3(void)
@@ -701,9 +706,9 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * to forget all of them.  Fortunately, this is very rare.
  *
  * ... except in early boot when the kernel sets up the initial pagetables,
- * which makes booting astonishingly slow: 1.83 seconds!  So we don't even tell
- * the Host anything changed until we've done the first page table switch,
- * which brings boot back to 0.25 seconds.
+ * which makes booting astonishingly slow: 48 seconds!  So we don't even tell
+ * the Host anything changed until we've done the first real page table switch,
+ * which brings boot back to 4.3 seconds.
  */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
@@ -789,22 +794,22 @@ static void lguest_flush_tlb_kernel(void)
  * simple as setting a bit.  We don't actually "ack" interrupts as such, we
  * just mask and unmask them.  I wonder if we should be cleverer?
  */
-static void disable_lguest_irq(unsigned int irq)
+static void disable_lguest_irq(struct irq_data *data)
 {
-	set_bit(irq, lguest_data.blocked_interrupts);
+	set_bit(data->irq, lguest_data.blocked_interrupts);
 }
 
-static void enable_lguest_irq(unsigned int irq)
+static void enable_lguest_irq(struct irq_data *data)
 {
-	clear_bit(irq, lguest_data.blocked_interrupts);
+	clear_bit(data->irq, lguest_data.blocked_interrupts);
 }
 
 /* This structure describes the lguest IRQ controller. */
 static struct irq_chip lguest_irq_controller = {
 	.name		= "lguest",
-	.mask		= disable_lguest_irq,
-	.mask_ack	= disable_lguest_irq,
-	.unmask		= enable_lguest_irq,
+	.irq_mask	= disable_lguest_irq,
+	.irq_mask_ack	= disable_lguest_irq,
+	.irq_unmask	= enable_lguest_irq,
 };
 
 /*
@@ -836,12 +841,12 @@ static void __init lguest_init_IRQ(void)
  * rather than set them in lguest_init_IRQ we are called here every time an
  * lguest device needs an interrupt.
  *
- * FIXME: irq_to_desc_alloc_node() can fail due to lack of memory, we should
+ * FIXME: irq_alloc_desc_at() can fail due to lack of memory, we should
  * pass that up!
  */
 void lguest_setup_irq(unsigned int irq)
 {
-	irq_to_desc_alloc_node(irq, 0);
+	irq_alloc_desc_at(irq, 0);
 	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
 }
@@ -931,7 +936,7 @@ static int lguest_clockevent_set_next_event(unsigned long delta,
 	}
 
 	/* Please wake us this far in the future. */
-	kvm_hypercall1(LHCALL_SET_CLOCKEVENT, delta);
+	hcall(LHCALL_SET_CLOCKEVENT, delta, 0, 0, 0);
 	return 0;
 }
 
@@ -942,7 +947,7 @@ static void lguest_clockevent_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		/* A 0 argument shuts the clock down. */
-		kvm_hypercall0(LHCALL_SET_CLOCKEVENT);
+		hcall(LHCALL_SET_CLOCKEVENT, 0, 0, 0, 0);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* This is what we expect. */
@@ -1000,7 +1005,7 @@ static void lguest_time_init(void)
 	clockevents_register_device(&lguest_clockevent);
 
 	/* Finally, we unblock the timer interrupt. */
-	enable_lguest_irq(0);
+	clear_bit(0, lguest_data.blocked_interrupts);
 }
 
 /*
@@ -1100,7 +1105,7 @@ static void set_lguest_basic_apic_ops(void)
 /* STOP!  Until an interrupt comes in. */
 static void lguest_safe_halt(void)
 {
-	kvm_hypercall0(LHCALL_HALT);
+	hcall(LHCALL_HALT, 0, 0, 0, 0);
 }
 
 /*
@@ -1112,8 +1117,8 @@ static void lguest_safe_halt(void)
  */
 static void lguest_power_off(void)
 {
-	kvm_hypercall2(LHCALL_SHUTDOWN, __pa("Power down"),
-					LGUEST_SHUTDOWN_POWEROFF);
+	hcall(LHCALL_SHUTDOWN, __pa("Power down"),
+	      LGUEST_SHUTDOWN_POWEROFF, 0, 0);
 }
 
 /*
@@ -1123,7 +1128,7 @@ static void lguest_power_off(void)
  */
 static int lguest_panic(struct notifier_block *nb, unsigned long l, void *p)
 {
-	kvm_hypercall2(LHCALL_SHUTDOWN, __pa(p), LGUEST_SHUTDOWN_POWEROFF);
+	hcall(LHCALL_SHUTDOWN, __pa(p), LGUEST_SHUTDOWN_POWEROFF, 0, 0);
 	/* The hcall won't return, but to keep gcc happy, we're "done". */
 	return NOTIFY_DONE;
 }
@@ -1162,7 +1167,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 		len = sizeof(scratch) - 1;
 	scratch[len] = '\0';
 	memcpy(scratch, buf, len);
-	kvm_hypercall1(LHCALL_NOTIFY, __pa(scratch));
+	hcall(LHCALL_NOTIFY, __pa(scratch), 0, 0, 0);
 
 	/* This routine returns the number of bytes actually written. */
 	return len;
@@ -1174,7 +1179,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
  */
 static void lguest_restart(char *reason)
 {
-	kvm_hypercall2(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART);
+	hcall(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART, 0, 0);
 }
 
 /*G:050
@@ -1347,9 +1352,6 @@ __init void lguest_init(void)
 	 */
 	switch_to_new_gdt(0);
 
-	/* We actually boot with all memory mapped, but let's say 128MB. */
-	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
-
 	/*
 	 * The Host<->Guest Switcher lives at the top of our address space, and
 	 * the Host told us how big it is when we made LGUEST_INIT hypercall:
@@ -1391,7 +1393,6 @@ __init void lguest_init(void)
 #endif
 #ifdef CONFIG_ACPI
 	acpi_disabled = 1;
-	acpi_ht = 0;
 #endif
 
 	/*

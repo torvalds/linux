@@ -166,8 +166,14 @@ static void request_submodules(struct saa7134_dev *dev)
 	schedule_work(&dev->request_module_wk);
 }
 
+static void flush_request_submodules(struct saa7134_dev *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
+
 #else
 #define request_submodules(dev)
+#define flush_request_submodules(dev)
 #endif /* CONFIG_MODULES */
 
 /* ------------------------------------------------------------------ */
@@ -255,8 +261,8 @@ void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	BUG_ON(in_interrupt());
 
-	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_unmap(q, dma);
+	videobuf_waiton(q, &buf->vb, 0, 0);
+	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
@@ -471,7 +477,7 @@ static char *irqbits[] = {
 	"DONE_RA0", "DONE_RA1", "DONE_RA2", "DONE_RA3",
 	"AR", "PE", "PWR_ON", "RDCAP", "INTL", "FIDT", "MMC",
 	"TRIG_ERR", "CONF_ERR", "LOAD_ERR",
-	"GPIO16?", "GPIO18", "GPIO22", "GPIO23"
+	"GPIO16", "GPIO18", "GPIO22", "GPIO23"
 };
 #define IRQBITS ARRAY_SIZE(irqbits)
 
@@ -601,12 +607,14 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 			/* disable gpio16 IRQ */
 			printk(KERN_WARNING "%s/irq: looping -- "
 			       "clearing GPIO16 enable bit\n",dev->name);
-			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_P);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_N);
 		} else if (report & SAA7134_IRQ_REPORT_GPIO18) {
 			/* disable gpio18 IRQs */
 			printk(KERN_WARNING "%s/irq: looping -- "
 			       "clearing GPIO18 enable bit\n",dev->name);
-			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_N);
 		} else {
 			/* disable all irqs */
 			printk(KERN_WARNING "%s/irq: looping -- "
@@ -698,11 +706,13 @@ static int saa7134_hw_enable2(struct saa7134_dev *dev)
 
 	if (dev->has_remote == SAA7134_REMOTE_GPIO && dev->remote) {
 		if (dev->remote->mask_keydown & 0x10000)
-			irq2_mask |= SAA7134_IRQ2_INTE_GPIO16;
-		else if (dev->remote->mask_keydown & 0x40000)
-			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18;
-		else if (dev->remote->mask_keyup & 0x40000)
-			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18A;
+			irq2_mask |= SAA7134_IRQ2_INTE_GPIO16_N;
+		else {		/* Allow enabling both IRQ edge triggers */
+			if (dev->remote->mask_keydown & 0x40000)
+				irq2_mask |= SAA7134_IRQ2_INTE_GPIO18_P;
+			if (dev->remote->mask_keyup & 0x40000)
+				irq2_mask |= SAA7134_IRQ2_INTE_GPIO18_N;
+		}
 	}
 
 	if (dev->has_remote == SAA7134_REMOTE_I2C) {
@@ -987,7 +997,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (card_is_empress(dev)) {
 		struct v4l2_subdev *sd =
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"saa6752hs", "saa6752hs",
+				"saa6752hs",
 				saa7134_boards[dev->board].empress_addr, NULL);
 
 		if (sd)
@@ -998,15 +1008,13 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		struct v4l2_subdev *sd;
 
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap,	"saa6588", "saa6588",
+				&dev->i2c_adap, "saa6588",
 				0, I2C_ADDRS(saa7134_boards[dev->board].rds_addr));
 		if (sd) {
 			printk(KERN_INFO "%s: found RDS decoder\n", dev->name);
 			dev->has_rds = 1;
 		}
 	}
-
-	request_submodules(dev);
 
 	v4l2_prio_init(&dev->prio);
 
@@ -1062,6 +1070,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (saa7134_dmasound_init && !dev->dmasound.priv_data)
 		saa7134_dmasound_init(dev);
 
+	request_submodules(dev);
 	return 0;
 
  fail4:
@@ -1086,6 +1095,8 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
 	struct saa7134_mpeg_ops *mops;
+
+	flush_request_submodules(dev);
 
 	/* Release DMA sound modules if present */
 	if (saa7134_dmasound_exit && dev->dmasound.priv_data) {
@@ -1227,7 +1238,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	if (card_has_mpeg(dev))
 		saa7134_ts_init_hw(dev);
 	if (dev->remote)
-		saa7134_ir_start(dev, dev->remote);
+		saa7134_ir_start(dev);
 	saa7134_hw_enable1(dev);
 
 	msleep(100);

@@ -4,8 +4,6 @@
 #ifdef CONFIG_LOCK_KERNEL
 #include <linux/sched.h>
 
-#define kernel_locked()		(current->lock_depth >= 0)
-
 extern int __lockfunc __reacquire_kernel_lock(void);
 extern void __lockfunc __release_kernel_lock(void);
 
@@ -54,12 +52,14 @@ static inline void cycle_kernel_lock(void)
 
 #else
 
+#ifdef CONFIG_BKL /* provoke build bug if not set */
 #define lock_kernel()
 #define unlock_kernel()
-#define release_kernel_lock(task)		do { } while(0)
 #define cycle_kernel_lock()			do { } while(0)
+#endif /* CONFIG_BKL */
+
+#define release_kernel_lock(task)		do { } while(0)
 #define reacquire_kernel_lock(task)		0
-#define kernel_locked()				1
 
 #endif /* CONFIG_LOCK_KERNEL */
 #endif /* __LINUX_SMPLOCK_H */

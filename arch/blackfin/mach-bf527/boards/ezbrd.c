@@ -46,11 +46,13 @@ static struct resource musb_resources[] = {
 		.start	= IRQ_USB_INT0,
 		.end	= IRQ_USB_INT0,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.name	= "mc"
 	},
 	[2] = {	/* DMA IRQ */
 		.start	= IRQ_USB_DMA,
 		.end	= IRQ_USB_DMA,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.name	= "dma"
 	},
 };
 
@@ -62,6 +64,11 @@ static struct musb_hdrc_config musb_config = {
 	.num_eps	= 8,
 	.dma_channels	= 8,
 	.gpio_vrsel	= GPIO_PG13,
+	/* Some custom boards need to be active low, just set it to "0"
+	 * if it is the case.
+	 */
+	.gpio_vrsel_active	= 1,
+	.clkin          = 24,           /* musb CLKIN in MHZ */
 };
 
 static struct musb_hdrc_platform_data musb_plat = {
@@ -78,7 +85,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 static u64 musb_dmamask = ~(u32)0;
 
 static struct platform_device musb_device = {
-	.name		= "musb_hdrc",
+	.name		= "musb-blackfin",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &musb_dmamask,
@@ -133,8 +140,12 @@ static struct platform_device ezbrd_flash_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "linux kernel(nand)",
+		.name = "bootloader(nand)",
 		.offset = 0,
+		.size = 0x40000,
+	}, {
+		.name = "linux kernel(nand)",
+		.offset = MTDPART_OFS_APPEND,
 		.size = 4 * 1024 * 1024,
 	},
 	{
@@ -145,7 +156,6 @@ static struct mtd_partition partition_info[] = {
 };
 
 static struct bf5xx_nand_platform bf5xx_nand_platform = {
-	.page_size = NFC_PG_SIZE_256,
 	.data_width = NFC_NWIDTH_8,
 	.partitions = partition_info,
 	.nr_partitions = ARRAY_SIZE(partition_info),
@@ -186,13 +196,35 @@ static struct platform_device rtc_device = {
 
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+#include <linux/bfin_mac.h>
+static const unsigned short bfin_mac_peripherals[] = P_RMII0;
+
+static struct bfin_phydev_platform_data bfin_phydev_data[] = {
+	{
+		.addr = 1,
+		.irq = IRQ_MAC_PHYINT,
+	},
+};
+
+static struct bfin_mii_bus_platform_data bfin_mii_bus_data = {
+	.phydev_number = 1,
+	.phydev_data = bfin_phydev_data,
+	.phy_mode = PHY_INTERFACE_MODE_RMII,
+	.mac_peripherals = bfin_mac_peripherals,
+};
+
 static struct platform_device bfin_mii_bus = {
 	.name = "bfin_mii_bus",
+	.dev = {
+		.platform_data = &bfin_mii_bus_data,
+	}
 };
 
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
-	.dev.platform_data = &bfin_mii_bus,
+	.dev = {
+		.platform_data = &bfin_mii_bus,
+	}
 };
 #endif
 
@@ -274,8 +306,8 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.median			= 2,	/* do 8 measurements */
 	.averaging 		= 1,	/* take the average of 4 middle samples */
 	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
-	.gpio_output		= 1,	/* configure AUX/VBAT/GPIO as GPIO output */
-	.gpio_default 		= 1,	/* During initialization set GPIO = HIGH */
+	.gpio_export		= 1,	/* Export GPIO to gpiolib */
+	.gpio_base		= -1,	/* Dynamic allocation */
 };
 #endif
 
@@ -439,29 +471,104 @@ static struct platform_device bfin_spi0_device = {
 #endif  /* spi master and devices */
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-static struct resource bfin_uart_resources[] = {
 #ifdef CONFIG_SERIAL_BFIN_UART0
+static struct resource bfin_uart0_resources[] = {
 	{
-		.start = 0xFFC00400,
-		.end = 0xFFC004FF,
+		.start = UART0_THR,
+		.end = UART0_GCTL+2,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART0_ERROR,
+		.end = IRQ_UART0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_TX,
+		.end = CH_UART0_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static unsigned short bfin_uart0_peripherals[] = {
+	P_UART0_TX, P_UART0_RX, 0
+};
+
+static struct platform_device bfin_uart0_device = {
+	.name = "bfin-uart",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_uart0_resources),
+	.resource = bfin_uart0_resources,
+	.dev = {
+		.platform_data = &bfin_uart0_peripherals, /* Passed to driver */
+	},
+};
 #endif
 #ifdef CONFIG_SERIAL_BFIN_UART1
+static struct resource bfin_uart1_resources[] = {
 	{
-		.start = 0xFFC02000,
-		.end = 0xFFC020FF,
+		.start = UART1_THR,
+		.end = UART1_GCTL+2,
 		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_UART1_ERROR,
+		.end = IRQ_UART1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_TX,
+		.end = CH_UART1_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX,
+		.flags = IORESOURCE_DMA,
+	},
+#ifdef CONFIG_BFIN_UART1_CTSRTS
+	{	/* CTS pin */
+		.start = GPIO_PG0,
+		.end = GPIO_PG0,
+		.flags = IORESOURCE_IO,
+	},
+	{	/* RTS pin */
+		.start = GPIO_PF10,
+		.end = GPIO_PF10,
+		.flags = IORESOURCE_IO,
 	},
 #endif
 };
 
-static struct platform_device bfin_uart_device = {
+static unsigned short bfin_uart1_peripherals[] = {
+	P_UART1_TX, P_UART1_RX, 0
+};
+
+static struct platform_device bfin_uart1_device = {
 	.name = "bfin-uart",
 	.id = 1,
-	.num_resources = ARRAY_SIZE(bfin_uart_resources),
-	.resource = bfin_uart_resources,
+	.num_resources = ARRAY_SIZE(bfin_uart1_resources),
+	.resource = bfin_uart1_resources,
+	.dev = {
+		.platform_data = &bfin_uart1_peripherals, /* Passed to driver */
+	},
 };
+#endif
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
@@ -556,15 +663,74 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 };
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+static struct resource bfin_sport0_uart_resources[] = {
+	{
+		.start = SPORT0_TCR1,
+		.end = SPORT0_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT0_RX,
+		.end = IRQ_SPORT0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT0_ERROR,
+		.end = IRQ_SPORT0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static unsigned short bfin_sport0_peripherals[] = {
+	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
+	P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0
+};
+
 static struct platform_device bfin_sport0_uart_device = {
 	.name = "bfin-sport-uart",
 	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sport0_uart_resources),
+	.resource = bfin_sport0_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport0_peripherals, /* Passed to driver */
+	},
+};
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+static struct resource bfin_sport1_uart_resources[] = {
+	{
+		.start = SPORT1_TCR1,
+		.end = SPORT1_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT1_RX,
+		.end = IRQ_SPORT1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT1_ERROR,
+		.end = IRQ_SPORT1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static unsigned short bfin_sport1_peripherals[] = {
+	P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
+	P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0
 };
 
 static struct platform_device bfin_sport1_uart_device = {
 	.name = "bfin-sport-uart",
 	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sport1_uart_resources),
+	.resource = bfin_sport1_uart_resources,
+	.dev = {
+		.platform_data = &bfin_sport1_peripherals, /* Passed to driver */
+	},
 };
+#endif
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -615,9 +781,10 @@ static struct platform_device bfin_dpmc = {
 #include <asm/bfin-lq035q1.h>
 
 static struct bfin_lq035q1fb_disp_info bfin_lq035q1_data = {
-	.mode = 	LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
-	.use_bl = 	1,
-	.gpio_bl =	GPIO_PG12,
+	.mode = LQ035_NORM | LQ035_RGB | LQ035_RL | LQ035_TB,
+	.ppi_mode = USE_RGB565_16_BIT_PPI,
+	.use_bl = 1,
+	.gpio_bl = GPIO_PG12,
 };
 
 static struct resource bfin_lq035q1_resources[] = {
@@ -665,7 +832,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
-	&bfin_uart_device,
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
 #endif
 
 #if defined(CONFIG_FB_BFIN_LQ035Q1) || defined(CONFIG_FB_BFIN_LQ035Q1_MODULE)
@@ -686,8 +858,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
 	&bfin_sport0_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
 	&bfin_sport1_uart_device,
+#endif
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -710,6 +886,33 @@ static int __init ezbrd_init(void)
 }
 
 arch_initcall(ezbrd_init);
+
+static struct platform_device *ezbrd_early_devices[] __initdata = {
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+#ifdef CONFIG_SERIAL_BFIN_UART0
+	&bfin_uart0_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	&bfin_uart1_device,
+#endif
+#endif
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT_CONSOLE)
+#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
+	&bfin_sport0_uart_device,
+#endif
+#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
+	&bfin_sport1_uart_device,
+#endif
+#endif
+};
+
+void __init native_machine_early_platform_add_devices(void)
+{
+	printk(KERN_INFO "register early platform devices\n");
+	early_platform_add_devices(ezbrd_early_devices,
+		ARRAY_SIZE(ezbrd_early_devices));
+}
 
 void native_machine_restart(char *cmd)
 {

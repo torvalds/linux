@@ -30,6 +30,8 @@
  *     This is a compressed table of upper and lower case conversion.
  *
  */
+#ifndef _CIFS_UNICODE_H
+#define _CIFS_UNICODE_H
 
 #include <asm/byteorder.h>
 #include <linux/types.h>
@@ -67,8 +69,8 @@ extern const struct UniCaseRange CifsUniUpperRange[];
 #endif				/* UNIUPR_NOUPPER */
 
 #ifndef UNIUPR_NOLOWER
-extern signed char UniLowerTable[512];
-extern struct UniCaseRange UniLowerRange[];
+extern signed char CifsUniLowerTable[512];
+extern const struct UniCaseRange CifsUniLowerRange[];
 #endif				/* UNIUPR_NOLOWER */
 
 #ifdef __KERNEL__
@@ -337,15 +339,15 @@ UniStrupr(register wchar_t *upin)
  * UniTolower:  Convert a unicode character to lower case
  */
 static inline wchar_t
-UniTolower(wchar_t uc)
+UniTolower(register wchar_t uc)
 {
-	register struct UniCaseRange *rp;
+	register const struct UniCaseRange *rp;
 
-	if (uc < sizeof(UniLowerTable)) {
+	if (uc < sizeof(CifsUniLowerTable)) {
 		/* Latin characters */
-		return uc + UniLowerTable[uc];	/* Use base tables */
+		return uc + CifsUniLowerTable[uc];	/* Use base tables */
 	} else {
-		rp = UniLowerRange;	/* Use range tables */
+		rp = CifsUniLowerRange;	/* Use range tables */
 		while (rp->start) {
 			if (uc < rp->start)	/* Before start of range */
 				return uc;	/* Uppercase = input */
@@ -374,3 +376,5 @@ UniStrlwr(register wchar_t *upin)
 }
 
 #endif
+
+#endif /* _CIFS_UNICODE_H */

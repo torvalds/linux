@@ -12,9 +12,10 @@
  * published by the Free Software Foundation.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
+#include <linux/security.h>
 #include <linux/skbuff.h>
-#include <linux/selinux.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_SECMARK.h>
 
@@ -29,7 +30,7 @@ MODULE_ALIAS("ip6t_SECMARK");
 static u8 mode;
 
 static unsigned int
-secmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
+secmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	u32 secmark = 0;
 	const struct xt_secmark_target_info *info = par->targinfo;
@@ -38,9 +39,8 @@ secmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 
 	switch (mode) {
 	case SECMARK_MODE_SEL:
-		secmark = info->u.sel.selsid;
+		secmark = info->secid;
 		break;
-
 	default:
 		BUG();
 	}
@@ -49,75 +49,76 @@ secmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool checkentry_selinux(struct xt_secmark_target_info *info)
+static int checkentry_lsm(struct xt_secmark_target_info *info)
 {
 	int err;
-	struct xt_secmark_target_selinux_info *sel = &info->u.sel;
 
-	sel->selctx[SECMARK_SELCTX_MAX - 1] = '\0';
+	info->secctx[SECMARK_SECCTX_MAX - 1] = '\0';
+	info->secid = 0;
 
-	err = selinux_string_to_sid(sel->selctx, &sel->selsid);
+	err = security_secctx_to_secid(info->secctx, strlen(info->secctx),
+				       &info->secid);
 	if (err) {
 		if (err == -EINVAL)
-			printk(KERN_INFO PFX "invalid SELinux context \'%s\'\n",
-			       sel->selctx);
-		return false;
+			pr_info("invalid security context \'%s\'\n", info->secctx);
+		return err;
 	}
 
-	if (!sel->selsid) {
-		printk(KERN_INFO PFX "unable to map SELinux context \'%s\'\n",
-		       sel->selctx);
-		return false;
+	if (!info->secid) {
+		pr_info("unable to map security context \'%s\'\n", info->secctx);
+		return -ENOENT;
 	}
 
-	err = selinux_secmark_relabel_packet_permission(sel->selsid);
+	err = security_secmark_relabel_packet(info->secid);
 	if (err) {
-		printk(KERN_INFO PFX "unable to obtain relabeling permission\n");
-		return false;
+		pr_info("unable to obtain relabeling permission\n");
+		return err;
 	}
 
-	selinux_secmark_refcount_inc();
-	return true;
+	security_secmark_refcount_inc();
+	return 0;
 }
 
-static bool secmark_tg_check(const struct xt_tgchk_param *par)
+static int secmark_tg_check(const struct xt_tgchk_param *par)
 {
 	struct xt_secmark_target_info *info = par->targinfo;
+	int err;
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", par->table);
-		return false;
+		pr_info("target only valid in the \'mangle\' "
+			"or \'security\' tables, not \'%s\'.\n", par->table);
+		return -EINVAL;
 	}
 
 	if (mode && mode != info->mode) {
-		printk(KERN_INFO PFX "mode already set to %hu cannot mix with "
-		       "rules for mode %hu\n", mode, info->mode);
-		return false;
+		pr_info("mode already set to %hu cannot mix with "
+			"rules for mode %hu\n", mode, info->mode);
+		return -EINVAL;
 	}
 
 	switch (info->mode) {
 	case SECMARK_MODE_SEL:
-		if (!checkentry_selinux(info))
-			return false;
 		break;
-
 	default:
-		printk(KERN_INFO PFX "invalid mode: %hu\n", info->mode);
-		return false;
+		pr_info("invalid mode: %hu\n", info->mode);
+		return -EINVAL;
 	}
+
+	err = checkentry_lsm(info);
+	if (err)
+		return err;
 
 	if (!mode)
 		mode = info->mode;
-	return true;
+	return 0;
 }
 
 static void secmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
 	switch (mode) {
 	case SECMARK_MODE_SEL:
-		selinux_secmark_refcount_dec();
+		security_secmark_refcount_dec();
 	}
 }
 

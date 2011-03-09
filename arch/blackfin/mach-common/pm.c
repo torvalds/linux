@@ -11,6 +11,7 @@
 #include <linux/suspend.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 
@@ -19,36 +20,9 @@
 #include <asm/dma.h>
 #include <asm/dpmc.h>
 
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_H
-#define WAKEUP_TYPE	PM_WAKE_HIGH
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_L
-#define WAKEUP_TYPE	PM_WAKE_LOW
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_F
-#define WAKEUP_TYPE	PM_WAKE_FALLING
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_R
-#define WAKEUP_TYPE	PM_WAKE_RISING
-#endif
-
-#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_B
-#define WAKEUP_TYPE	PM_WAKE_BOTH_EDGES
-#endif
-
 
 void bfin_pm_suspend_standby_enter(void)
 {
-	unsigned long flags;
-
-#ifdef CONFIG_PM_WAKEUP_BY_GPIO
-	gpio_pm_wakeup_request(CONFIG_PM_WAKEUP_GPIO_NUMBER, WAKEUP_TYPE);
-#endif
-
-	local_irq_save_hw(flags);
 	bfin_pm_standby_setup();
 
 #ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
@@ -78,16 +52,15 @@ void bfin_pm_suspend_standby_enter(void)
 #else
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
-
-	local_irq_restore_hw(flags);
 }
 
 int bf53x_suspend_l1_mem(unsigned char *memptr)
 {
-	dma_memcpy(memptr, (const void *) L1_CODE_START, L1_CODE_LENGTH);
-	dma_memcpy(memptr + L1_CODE_LENGTH, (const void *) L1_DATA_A_START,
-			L1_DATA_A_LENGTH);
-	dma_memcpy(memptr + L1_CODE_LENGTH + L1_DATA_A_LENGTH,
+	dma_memcpy_nocache(memptr, (const void *) L1_CODE_START,
+			L1_CODE_LENGTH);
+	dma_memcpy_nocache(memptr + L1_CODE_LENGTH,
+			(const void *) L1_DATA_A_START, L1_DATA_A_LENGTH);
+	dma_memcpy_nocache(memptr + L1_CODE_LENGTH + L1_DATA_A_LENGTH,
 			(const void *) L1_DATA_B_START, L1_DATA_B_LENGTH);
 	memcpy(memptr + L1_CODE_LENGTH + L1_DATA_A_LENGTH +
 			L1_DATA_B_LENGTH, (const void *) L1_SCRATCH_START,
@@ -98,10 +71,10 @@ int bf53x_suspend_l1_mem(unsigned char *memptr)
 
 int bf53x_resume_l1_mem(unsigned char *memptr)
 {
-	dma_memcpy((void *) L1_CODE_START, memptr, L1_CODE_LENGTH);
-	dma_memcpy((void *) L1_DATA_A_START, memptr + L1_CODE_LENGTH,
+	dma_memcpy_nocache((void *) L1_CODE_START, memptr, L1_CODE_LENGTH);
+	dma_memcpy_nocache((void *) L1_DATA_A_START, memptr + L1_CODE_LENGTH,
 			L1_DATA_A_LENGTH);
-	dma_memcpy((void *) L1_DATA_B_START, memptr + L1_CODE_LENGTH +
+	dma_memcpy_nocache((void *) L1_DATA_B_START, memptr + L1_CODE_LENGTH +
 			L1_DATA_A_LENGTH, L1_DATA_B_LENGTH);
 	memcpy((void *) L1_SCRATCH_START, memptr + L1_CODE_LENGTH +
 			L1_DATA_A_LENGTH + L1_DATA_B_LENGTH, L1_SCRATCH_LENGTH);
@@ -149,7 +122,6 @@ static void flushinv_all_dcache(void)
 
 int bfin_pm_suspend_mem_enter(void)
 {
-	unsigned long flags;
 	int wakeup, ret;
 
 	unsigned char *memptr = kmalloc(L1_CODE_LENGTH + L1_DATA_A_LENGTH
@@ -171,12 +143,9 @@ int bfin_pm_suspend_mem_enter(void)
 	wakeup |= GPWE;
 #endif
 
-	local_irq_save_hw(flags);
-
 	ret = blackfin_dma_suspend();
 
 	if (ret) {
-		local_irq_restore_hw(flags);
 		kfree(memptr);
 		return ret;
 	}
@@ -190,7 +159,7 @@ int bfin_pm_suspend_mem_enter(void)
 	_disable_icplb();
 	bf53x_suspend_l1_mem(memptr);
 
-	do_hibernate(wakeup | vr_wakeup);	/* Goodbye */
+	do_hibernate(wakeup | vr_wakeup);	/* See you later! */
 
 	bf53x_resume_l1_mem(memptr);
 
@@ -200,7 +169,6 @@ int bfin_pm_suspend_mem_enter(void)
 	bfin_gpio_pm_hibernate_restore();
 	blackfin_dma_resume();
 
-	local_irq_restore_hw(flags);
 	kfree(memptr);
 
 	return 0;
@@ -255,7 +223,7 @@ static int bfin_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-struct platform_suspend_ops bfin_pm_ops = {
+static const struct platform_suspend_ops bfin_pm_ops = {
 	.enter = bfin_pm_enter,
 	.valid	= bfin_pm_valid,
 };

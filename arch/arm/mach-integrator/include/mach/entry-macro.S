@@ -8,6 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <mach/irqs.h>
 
  		.macro	disable_fiq

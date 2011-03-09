@@ -9,7 +9,7 @@ struct mmc_host;
 
 struct pxamci_platform_data {
 	unsigned int ocr_mask;			/* available voltages */
-	unsigned long detect_delay;		/* delay in jiffies before detecting cards after interrupt */
+	unsigned long detect_delay_ms;		/* delay in millisecond before detecting cards after interrupt */
 	int (*init)(struct device *, irq_handler_t , void *);
 	int (*get_ro)(struct device *);
 	void (*setpower)(struct device *, unsigned int);

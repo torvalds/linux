@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,7 +134,7 @@ char *acpi_ut_get_region_name(u8 space_id);
 
 char *acpi_ut_get_event_name(u32 event_id);
 
-char acpi_ut_hex_to_ascii_char(acpi_integer integer, u32 position);
+char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
 
 u8 acpi_ut_valid_object_type(acpi_object_type type);
 
@@ -279,8 +279,7 @@ acpi_ut_status_exit(u32 line_number,
 void
 acpi_ut_value_exit(u32 line_number,
 		   const char *function_name,
-		   const char *module_name,
-		   u32 component_id, acpi_integer value);
+		   const char *module_name, u32 component_id, u64 value);
 
 void
 acpi_ut_ptr_exit(u32 line_number,
@@ -313,8 +312,6 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list);
 /*
  * uteval - object evaluation
  */
-acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
-
 acpi_status
 acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 			char *path,
@@ -324,7 +321,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 acpi_status
 acpi_ut_evaluate_numeric_object(char *object_name,
 				struct acpi_namespace_node *device_node,
-				acpi_integer *value);
+				u64 *value);
 
 acpi_status
 acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 *status_flags);
@@ -396,6 +393,21 @@ acpi_status
 acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size * obj_length);
 
 /*
+ * utosi - Support for the _OSI predefined control method
+ */
+acpi_status acpi_ut_initialize_interfaces(void);
+
+void acpi_ut_interface_terminate(void);
+
+acpi_status acpi_ut_install_interface(acpi_string interface_name);
+
+acpi_status acpi_ut_remove_interface(acpi_string interface_name);
+
+struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name);
+
+acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
+
+/*
  * utstate - Generic state creation/cache routines
  */
 void
@@ -437,14 +449,12 @@ void acpi_ut_delete_generic_state(union acpi_generic_state *state);
  * utmath
  */
 acpi_status
-acpi_ut_divide(acpi_integer in_dividend,
-	       acpi_integer in_divisor,
-	       acpi_integer * out_quotient, acpi_integer * out_remainder);
+acpi_ut_divide(u64 in_dividend,
+	       u64 in_divisor, u64 *out_quotient, u64 *out_remainder);
 
 acpi_status
-acpi_ut_short_divide(acpi_integer in_dividend,
-		     u32 divisor,
-		     acpi_integer * out_quotient, u32 * out_remainder);
+acpi_ut_short_divide(u64 in_dividend,
+		     u32 divisor, u64 *out_quotient, u32 *out_remainder);
 
 /*
  * utmisc
@@ -474,19 +484,7 @@ acpi_name acpi_ut_repair_name(char *name);
 
 u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
-acpi_status
-acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_predefined_warning(const char *module_name,
-			   u32 line_number,
-			   char *pathname,
-			   u8 node_flags, const char *format, ...);
-
-void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_predefined_info(const char *module_name,
-			u32 line_number,
-			char *pathname, u8 node_flags, const char *format, ...);
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer);
 
 /* Values for Base above (16=Hex, 10=Decimal) */
 
@@ -578,6 +576,32 @@ acpi_status
 acpi_ut_create_list(char *list_name,
 		    u16 object_size, struct acpi_memory_list **return_cache);
 
-#endif
+#endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
+
+/*
+ * utxferror - various error/warning output functions
+ */
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_warning(const char *module_name,
+			   u32 line_number,
+			   char *pathname,
+			   u8 node_flags, const char *format, ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_info(const char *module_name,
+			u32 line_number,
+			char *pathname, u8 node_flags, const char *format, ...);
+
+void
+acpi_ut_namespace_error(const char *module_name,
+			u32 line_number,
+			const char *internal_name, acpi_status lookup_status);
+
+void
+acpi_ut_method_error(const char *module_name,
+		     u32 line_number,
+		     const char *message,
+		     struct acpi_namespace_node *node,
+		     const char *path, acpi_status lookup_status);
 
 #endif				/* _ACUTILS_H */

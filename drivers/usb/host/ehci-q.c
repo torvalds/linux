@@ -663,7 +663,7 @@ qh_urb_transaction (
 	 */
 	i = urb->num_sgs;
 	if (len > 0 && i > 0) {
-		sg = urb->sg->sg;
+		sg = urb->sg;
 		buf = sg_dma_address(sg);
 
 		/* urb->transfer_buffer_length may be smaller than the
@@ -1126,8 +1126,7 @@ submit_async (
 #endif
 
 	spin_lock_irqsave (&ehci->lock, flags);
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &ehci_to_hcd(ehci)->flags))) {
+	if (unlikely(!HCD_HW_ACCESSIBLE(ehci_to_hcd(ehci)))) {
 		rc = -ESHUTDOWN;
 		goto done;
 	}

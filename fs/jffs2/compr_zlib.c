@@ -2,6 +2,7 @@
  * JFFS2 -- Journalling Flash File System, Version 2.
  *
  * Copyright © 2001-2007 Red Hat, Inc.
+ * Copyright © 2004-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
@@ -14,7 +15,6 @@
 #endif
 
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/zlib.h>
 #include <linux/zutil.h>
 #include "nodelist.h"
@@ -68,8 +68,7 @@ static void free_workspaces(void)
 
 static int jffs2_zlib_compress(unsigned char *data_in,
 			       unsigned char *cpage_out,
-			       uint32_t *sourcelen, uint32_t *dstlen,
-			       void *model)
+			       uint32_t *sourcelen, uint32_t *dstlen)
 {
 	int ret;
 
@@ -136,8 +135,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 
 static int jffs2_zlib_decompress(unsigned char *data_in,
 				 unsigned char *cpage_out,
-				 uint32_t srclen, uint32_t destlen,
-				 void *model)
+				 uint32_t srclen, uint32_t destlen)
 {
 	int ret;
 	int wbits = MAX_WBITS;

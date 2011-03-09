@@ -42,6 +42,7 @@ void usbhid_submit_report
 (struct hid_device *hid, struct hid_report *report, unsigned char dir);
 int usbhid_get_power(struct hid_device *hid);
 void usbhid_put_power(struct hid_device *hid);
+struct usb_interface *usbhid_find_interface(int minor);
 
 /* iofl flags */
 #define HID_CTRL_RUNNING	1
@@ -75,17 +76,18 @@ struct usbhid_device {
 
 	struct urb *urbctrl;                                            /* Control URB */
 	struct usb_ctrlrequest *cr;                                     /* Control request struct */
-	dma_addr_t cr_dma;                                              /* Control request struct dma */
 	struct hid_control_fifo ctrl[HID_CONTROL_FIFO_SIZE];  		/* Control fifo */
 	unsigned char ctrlhead, ctrltail;                               /* Control fifo head & tail */
 	char *ctrlbuf;                                                  /* Control buffer */
 	dma_addr_t ctrlbuf_dma;                                         /* Control buffer dma */
+	unsigned long last_ctrl;						/* record of last output for timeouts */
 
 	struct urb *urbout;                                             /* Output URB */
 	struct hid_output_fifo out[HID_CONTROL_FIFO_SIZE];              /* Output pipe fifo */
 	unsigned char outhead, outtail;                                 /* Output pipe fifo head & tail */
 	char *outbuf;                                                   /* Output buffer */
 	dma_addr_t outbuf_dma;                                          /* Output buffer dma */
+	unsigned long last_out;							/* record of last output for timeouts */
 
 	spinlock_t lock;						/* fifo spinlock */
 	unsigned long iofl;                                             /* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
@@ -93,7 +95,6 @@ struct usbhid_device {
 	unsigned long stop_retry;                                       /* Time to give up, in jiffies */
 	unsigned int retry_delay;                                       /* Delay length in ms */
 	struct work_struct reset_work;                                  /* Task context for resets */
-	struct work_struct restart_work;				/* waking up for output to be done in a task */
 	wait_queue_head_t wait;						/* For sleeping */
 	int ledcount;							/* counting the number of active leds */
 };

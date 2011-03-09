@@ -286,6 +286,7 @@
 
 		ssi@16100 {
 			compatible = "fsl,mpc8610-ssi";
+			status = "disabled";
 			cell-index = <1>;
 			reg = <0x16100 0x100>;
 			interrupt-parent = <&mpic>;

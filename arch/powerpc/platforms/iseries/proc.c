@@ -85,7 +85,7 @@ static int proc_titantod_show(struct seq_file *m, void *v)
 
 		seq_printf(m, "  titan elapsed = %lu uSec\n", titan_usec);
 		seq_printf(m, "  tb elapsed    = %lu ticks\n", tb_ticks);
-		seq_printf(m, "  titan jiffies = %lu.%04lu \n", titan_jiffies,
+		seq_printf(m, "  titan jiffies = %lu.%04lu\n", titan_jiffies,
 			   titan_jiff_rem_usec);
 		seq_printf(m, "  tb jiffies    = %lu.%04lu\n", tb_jiffies,
 			   tb_jiff_rem_usec);

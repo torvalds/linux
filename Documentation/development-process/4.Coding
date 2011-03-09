@@ -281,7 +281,7 @@ With sparse, the programmer can be warned about confusion between
 user-space and kernel-space addresses, mixture of big-endian and
 small-endian quantities, the passing of integer values where a set of bit
 flags is expected, and so on.  Sparse must be installed separately (it can
-be found at http://www.kernel.org/pub/software/devel/sparse/ if your
+be found at https://sparse.wiki.kernel.org/index.php/Main_Page if your
 distributor does not package it); it can then be run on the code by adding
 "C=1" to your make command.
 

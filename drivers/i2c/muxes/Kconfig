@@ -1,0 +1,40 @@
+#
+# Multiplexer I2C chip drivers configuration
+#
+
+menu "Multiplexer I2C Chip support"
+	depends on I2C_MUX
+
+config I2C_MUX_GPIO
+	tristate "GPIO-based I2C multiplexer"
+	depends on GENERIC_GPIO
+	help
+	  If you say yes to this option, support will be included for a
+	  GPIO based I2C multiplexer. This driver provides access to
+	  I2C busses connected through a MUX, which is controlled
+	  through GPIO pins.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called gpio-i2cmux.
+
+config I2C_MUX_PCA9541
+	tristate "NXP PCA9541 I2C Master Selector"
+	depends on EXPERIMENTAL
+	help
+	  If you say yes here you get support for the NXP PCA9541
+	  I2C Master Selector.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pca9541.
+
+config I2C_MUX_PCA954x
+	tristate "Philips PCA954x I2C Mux/switches"
+	depends on EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Philips PCA954x
+	  I2C mux/switch devices.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called pca954x.
+
+endmenu

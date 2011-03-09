@@ -7,7 +7,8 @@
 #define IP6T_LOG_IPOPT		0x04	/* Log IP options */
 #define IP6T_LOG_UID		0x08	/* Log UID owning local socket */
 #define IP6T_LOG_NFLOG		0x10	/* Unsupported, don't use */
-#define IP6T_LOG_MASK		0x1f
+#define IP6T_LOG_MACDECODE	0x20	/* Decode MAC header */
+#define IP6T_LOG_MASK		0x2f
 
 struct ip6t_log_info {
 	unsigned char level;

@@ -48,20 +48,20 @@ struct zmii_instance {
 	u32				fer_save;
 
 	/* OF device instance */
-	struct of_device		*ofdev;
+	struct platform_device		*ofdev;
 };
 
 #ifdef CONFIG_IBM_NEW_EMAC_ZMII
 
 extern int zmii_init(void);
 extern void zmii_exit(void);
-extern int zmii_attach(struct of_device *ofdev, int input, int *mode);
-extern void zmii_detach(struct of_device *ofdev, int input);
-extern void zmii_get_mdio(struct of_device *ofdev, int input);
-extern void zmii_put_mdio(struct of_device *ofdev, int input);
-extern void zmii_set_speed(struct of_device *ofdev, int input, int speed);
-extern int zmii_get_regs_len(struct of_device *ocpdev);
-extern void *zmii_dump_regs(struct of_device *ofdev, void *buf);
+extern int zmii_attach(struct platform_device *ofdev, int input, int *mode);
+extern void zmii_detach(struct platform_device *ofdev, int input);
+extern void zmii_get_mdio(struct platform_device *ofdev, int input);
+extern void zmii_put_mdio(struct platform_device *ofdev, int input);
+extern void zmii_set_speed(struct platform_device *ofdev, int input, int speed);
+extern int zmii_get_regs_len(struct platform_device *ocpdev);
+extern void *zmii_dump_regs(struct platform_device *ofdev, void *buf);
 
 #else
 # define zmii_init()		0

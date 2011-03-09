@@ -96,7 +96,7 @@ static int w1_f2d_readblock(struct w1_slave *sl, int off, int count, char *buf)
 	return -1;
 }
 
-static ssize_t w1_f2d_read_bin(struct kobject *kobj,
+static ssize_t w1_f2d_read_bin(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
@@ -202,7 +202,7 @@ retry:
 	return 0;
 }
 
-static ssize_t w1_f2d_write_bin(struct kobject *kobj,
+static ssize_t w1_f2d_write_bin(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {

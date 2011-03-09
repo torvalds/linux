@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include "rt2x00.h"
 #include "rt2x00soc.h"
@@ -39,6 +40,8 @@ static void rt2x00soc_free_reg(struct rt2x00_dev *rt2x00dev)
 
 	kfree(rt2x00dev->eeprom);
 	rt2x00dev->eeprom = NULL;
+
+	iounmap(rt2x00dev->csr.base);
 }
 
 static int rt2x00soc_alloc_reg(struct rt2x00_dev *rt2x00dev)
@@ -50,9 +53,9 @@ static int rt2x00soc_alloc_reg(struct rt2x00_dev *rt2x00dev)
 	if (!res)
 		return -ENODEV;
 
-	rt2x00dev->csr.base = (void __iomem *)KSEG1ADDR(res->start);
+	rt2x00dev->csr.base = ioremap(res->start, resource_size(res));
 	if (!rt2x00dev->csr.base)
-		goto exit;
+		return -ENOMEM;
 
 	rt2x00dev->eeprom = kzalloc(rt2x00dev->ops->eeprom_size, GFP_KERNEL);
 	if (!rt2x00dev->eeprom)
@@ -71,9 +74,7 @@ exit:
 	return -ENOMEM;
 }
 
-int rt2x00soc_probe(struct platform_device *pdev,
-		    const unsigned short chipset,
-		    const struct rt2x00_ops *ops)
+int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops)
 {
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
@@ -94,12 +95,7 @@ int rt2x00soc_probe(struct platform_device *pdev,
 	rt2x00dev->irq = platform_get_irq(pdev, 0);
 	rt2x00dev->name = pdev->dev.driver->name;
 
-	/*
-	 * SoC devices mimic PCI behavior.
-	 */
-	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
-
-	rt2x00_set_chip_rt(rt2x00dev, chipset);
+	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
 
 	retval = rt2x00soc_alloc_reg(rt2x00dev);
 	if (retval)
@@ -119,6 +115,7 @@ exit_free_device:
 
 	return retval;
 }
+EXPORT_SYMBOL_GPL(rt2x00soc_probe);
 
 int rt2x00soc_remove(struct platform_device *pdev)
 {

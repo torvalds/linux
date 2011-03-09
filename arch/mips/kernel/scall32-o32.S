@@ -63,9 +63,9 @@ stack_done:
 	sw	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
 
+	lw	t1, PT_R2(sp)		# syscall number
 	negu	v0			# error
-	sw	v0, PT_R0(sp)		# set flag for syscall
-					# restarting
+	sw	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sw	v0, PT_R2(sp)		# result
 
 o32_syscall_exit:
@@ -104,9 +104,9 @@ syscall_trace_entry:
 	sw	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
 
+	lw	t1, PT_R2(sp)		# syscall number
 	negu	v0			# error
-	sw	v0, PT_R0(sp)		# set flag for syscall
-					# restarting
+	sw	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sw	v0, PT_R2(sp)		# result
 
 	j	syscall_exit
@@ -169,8 +169,7 @@ stackargs:
 	 * We probably should handle this case a bit more drastic.
 	 */
 bad_stack:
-	negu	v0				# error
-	sw	v0, PT_R0(sp)
+	li	v0, EFAULT
 	sw	v0, PT_R2(sp)
 	li	t0, 1				# set error flag
 	sw	t0, PT_R7(sp)
@@ -583,7 +582,10 @@ einval:	li	v0, -ENOSYS
 	sys	sys_rt_tgsigqueueinfo	4
 	sys	sys_perf_event_open	5
 	sys	sys_accept4		4
-	sys     sys_recvmmsg            5
+	sys	sys_recvmmsg		5	/* 4335 */
+	sys	sys_fanotify_init	2
+	sys	sys_fanotify_mark	6
+	sys	sys_prlimit64		4
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

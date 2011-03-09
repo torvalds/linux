@@ -63,7 +63,7 @@ static	char expect_close;
 static	DEFINE_SPINLOCK(spinlock);
 
 module_param(timeout, int, 0);
-MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (60..15300), default="
+MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (60..15300, default="
 				__MODULE_STRING(DEFAULT_TIMEOUT) ")");
 module_param(testmode, int, 0);
 MODULE_PARM_DESC(testmode, "Watchdog testmode (1 = no reboot), default=0");

@@ -74,7 +74,6 @@
 #include <linux/un.h>
 #include <linux/net.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/file.h>
@@ -97,7 +96,7 @@ static DECLARE_WAIT_QUEUE_HEAD(unix_gc_wait);
 unsigned int unix_tot_inflight;
 
 
-static struct sock *unix_get_socket(struct file *filp)
+struct sock *unix_get_socket(struct file *filp)
 {
 	struct sock *u_sock = NULL;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -154,15 +153,6 @@ void unix_notinflight(struct file *fp)
 	}
 }
 
-static inline struct sk_buff *sock_queue_head(struct sock *sk)
-{
-	return (struct sk_buff *)&sk->sk_receive_queue;
-}
-
-#define receive_queue_for_each_skb(sk, next, skb) \
-	for (skb = sock_queue_head(sk)->next, next = skb->next; \
-	     skb != sock_queue_head(sk); skb = next, next = skb->next)
-
 static void scan_inflight(struct sock *x, void (*func)(struct unix_sock *),
 			  struct sk_buff_head *hitlist)
 {
@@ -170,7 +160,7 @@ static void scan_inflight(struct sock *x, void (*func)(struct unix_sock *),
 	struct sk_buff *next;
 
 	spin_lock(&x->sk_receive_queue.lock);
-	receive_queue_for_each_skb(x, next, skb) {
+	skb_queue_walk_safe(&x->sk_receive_queue, skb, next) {
 		/*
 		 *	Do we have file descriptors ?
 		 */
@@ -226,7 +216,7 @@ static void scan_children(struct sock *x, void (*func)(struct unix_sock *),
 		 * and perform a scan on them as well.
 		 */
 		spin_lock(&x->sk_receive_queue.lock);
-		receive_queue_for_each_skb(x, next, skb) {
+		skb_queue_walk_safe(&x->sk_receive_queue, skb, next) {
 			u = unix_sk(skb->sk);
 
 			/*
@@ -269,9 +259,16 @@ static void inc_inflight_move_tail(struct unix_sock *u)
 }
 
 static bool gc_in_progress = false;
+#define UNIX_INFLIGHT_TRIGGER_GC 16000
 
 void wait_for_unix_gc(void)
 {
+	/*
+	 * If number of inflight sockets is insane,
+	 * force a garbage collect right now.
+	 */
+	if (unix_tot_inflight > UNIX_INFLIGHT_TRIGGER_GC && !gc_in_progress)
+		unix_gc();
 	wait_event(unix_gc_wait, gc_in_progress == false);
 }
 

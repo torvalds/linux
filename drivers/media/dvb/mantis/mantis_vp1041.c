@@ -136,12 +136,12 @@ static const struct stb0899_s1_reg vp1041_stb0899_s1_init_3[] = {
 	{ STB0899_RCOMPC        	, 0xc9 },
 	{ STB0899_AGC1CN        	, 0x01 },
 	{ STB0899_AGC1REF       	, 0x10 },
-	{ STB0899_RTC	        	, 0x23 },
+	{ STB0899_RTC			, 0x23 },
 	{ STB0899_TMGCFG        	, 0x4e },
 	{ STB0899_AGC2REF       	, 0x34 },
 	{ STB0899_TLSR          	, 0x84 },
 	{ STB0899_CFD           	, 0xf7 },
-	{ STB0899_ACLC	        	, 0x87 },
+	{ STB0899_ACLC			, 0x87 },
 	{ STB0899_BCLC          	, 0x94 },
 	{ STB0899_EQON          	, 0x41 },
 	{ STB0899_LDT           	, 0xf1 },
@@ -194,10 +194,10 @@ static const struct stb0899_s1_reg vp1041_stb0899_s1_init_3[] = {
 	{ STB0899_ECNT3M		, 0x0a },
 	{ STB0899_ECNT3L		, 0xad },
 	{ STB0899_FECAUTO1      	, 0x06 },
-	{ STB0899_FECM	        	, 0x01 },
+	{ STB0899_FECM			, 0x01 },
 	{ STB0899_VTH12         	, 0xb0 },
 	{ STB0899_VTH23         	, 0x7a },
-	{ STB0899_VTH34	        	, 0x58 },
+	{ STB0899_VTH34			, 0x58 },
 	{ STB0899_VTH56         	, 0x38 },
 	{ STB0899_VTH67         	, 0x34 },
 	{ STB0899_VTH78         	, 0x24 },
@@ -206,7 +206,7 @@ static const struct stb0899_s1_reg vp1041_stb0899_s1_init_3[] = {
 	{ STB0899_RSULC         	, 0xb1 }, /* DVB = 0xb1, DSS = 0xa1 */
 	{ STB0899_TSULC         	, 0x42 },
 	{ STB0899_RSLLC         	, 0x41 },
-	{ STB0899_TSLPL	        	, 0x12 },
+	{ STB0899_TSLPL			, 0x12 },
 	{ STB0899_TSCFGH        	, 0x0c },
 	{ STB0899_TSCFGM        	, 0x00 },
 	{ STB0899_TSCFGL        	, 0x00 },
@@ -316,14 +316,14 @@ static int vp1041_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 	if (err == 0) {
 		mantis_frontend_soft_reset(mantis);
 		msleep(250);
-		mantis->fe = stb0899_attach(&vp1041_stb0899_config, adapter);
+		mantis->fe = dvb_attach(stb0899_attach, &vp1041_stb0899_config, adapter);
 		if (mantis->fe) {
 			dprintk(MANTIS_ERROR, 1,
 				"found STB0899 DVB-S/DVB-S2 frontend @0x%02x",
 				vp1041_stb0899_config.demod_address);
 
-			if (stb6100_attach(mantis->fe, &vp1041_stb6100_config, adapter)) {
-				if (!lnbp21_attach(mantis->fe, adapter, 0, 0))
+			if (dvb_attach(stb6100_attach, mantis->fe, &vp1041_stb6100_config, adapter)) {
+				if (!dvb_attach(lnbp21_attach, mantis->fe, adapter, 0, 0))
 					dprintk(MANTIS_ERROR, 1, "No LNBP21 found!");
 			}
 		} else {

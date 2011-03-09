@@ -19,7 +19,6 @@
 #include <asm/paravirt.h>
 
 #include <linux/bitops.h>
-#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
@@ -27,6 +26,7 @@ struct mm_struct;
 struct vm_area_struct;
 
 extern pgd_t swapper_pg_dir[1024];
+extern pgd_t initial_page_table[1024];
 
 static inline void pgtable_cache_init(void) { }
 static inline void check_pgt_cache(void) { }
@@ -49,24 +49,14 @@ extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
 #endif
 
 #if defined(CONFIG_HIGHPTE)
-#define __KM_PTE			\
-	(in_nmi() ? KM_NMI_PTE : 	\
-	 in_irq() ? KM_IRQ_PTE :	\
-	 KM_PTE0)
 #define pte_offset_map(dir, address)					\
-	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)), __KM_PTE) +		\
+	((pte_t *)kmap_atomic(pmd_page(*(dir))) +		\
 	 pte_index((address)))
-#define pte_offset_map_nested(dir, address)				\
-	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)), KM_PTE1) +		\
-	 pte_index((address)))
-#define pte_unmap(pte) kunmap_atomic((pte), __KM_PTE)
-#define pte_unmap_nested(pte) kunmap_atomic((pte), KM_PTE1)
+#define pte_unmap(pte) kunmap_atomic((pte))
 #else
 #define pte_offset_map(dir, address)					\
 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index((address)))
-#define pte_offset_map_nested(dir, address) pte_offset_map((dir), (address))
 #define pte_unmap(pte) do { } while (0)
-#define pte_unmap_nested(pte) do { } while (0)
 #endif
 
 /* Clear a kernel PTE and flush it from the TLB */
@@ -80,7 +70,7 @@ do {						\
  * The i386 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.
  */
-#define update_mmu_cache(vma, address, pte) do { } while (0)
+#define update_mmu_cache(vma, address, ptep) do { } while (0)
 
 #endif /* !__ASSEMBLY__ */
 

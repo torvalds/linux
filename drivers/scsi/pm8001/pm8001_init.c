@@ -38,6 +38,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include "pm8001_sas.h"
 #include "pm8001_chips.h"
 
@@ -602,7 +603,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 #endif
 
 intx:
-	/* intialize the INT-X interrupt */
+	/* initialize the INT-X interrupt */
 	rc = request_irq(pdev->irq, irq_handler, IRQF_SHARED, DRV_NAME,
 		SHOST_TO_SAS_HA(pm8001_ha->shost));
 	return rc;
@@ -654,7 +655,7 @@ static int __devinit pm8001_pci_probe(struct pci_dev *pdev,
 	}
 	chip = &pm8001_chips[ent->driver_data];
 	SHOST_TO_SAS_HA(shost) =
-		kcalloc(1, sizeof(struct sas_ha_struct), GFP_KERNEL);
+		kzalloc(sizeof(struct sas_ha_struct), GFP_KERNEL);
 	if (!SHOST_TO_SAS_HA(shost)) {
 		rc = -ENOMEM;
 		goto err_out_free_host;

@@ -74,20 +74,25 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP3_SPI_MISO,
 	MPP4_SATA1_ACTn,
 	MPP5_SATA0_ACTn,
-	MPP8_TW_SDA,
-	MPP9_TW_SCK,
+	MPP8_TW0_SDA,
+	MPP9_TW0_SCK,
 	MPP10_UART0_TXD,
 	MPP11_UART0_RXD,
 	MPP13_UART1_TXD,	/* PIC controller */
 	MPP14_UART1_RXD,	/* PIC controller */
-	MPP15_GPIO,		/* USB Copy button */
-	MPP16_GPIO,		/* Reset button */
+	MPP15_GPIO,		/* USB Copy button (on devices with 88F6281) */
+	MPP16_GPIO,		/* Reset button (on devices with 88F6281) */
 	MPP36_GPIO,		/* RAM: 0: 256 MB, 1: 512 MB */
+	MPP37_GPIO,		/* Reset button (on devices with 88F6282) */
+	MPP43_GPIO,		/* USB Copy button (on devices with 88F6282) */
+	MPP44_GPIO,		/* Board ID: 0: TS-11x, 1: TS-21x */
 	0
 };
 
 static void __init qnap_ts219_init(void)
 {
+	u32 dev, rev;
+
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
@@ -99,6 +104,14 @@ static void __init qnap_ts219_init(void)
 	qnap_tsx1x_register_flash();
 	kirkwood_i2c_init();
 	i2c_register_board_info(0, &qnap_ts219_i2c_rtc, 1);
+
+	kirkwood_pcie_id(&dev, &rev);
+	if (dev == MV88F6282_DEV_ID) {
+		qnap_ts219_buttons[0].gpio = 43; /* USB Copy button */
+		qnap_ts219_buttons[1].gpio = 37; /* Reset button */
+		qnap_ts219_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
+	}
+
 	kirkwood_ge00_init(&qnap_ts219_ge00_data);
 	kirkwood_sata_init(&qnap_ts219_sata_data);
 	kirkwood_ehci_init();
@@ -110,17 +123,15 @@ static void __init qnap_ts219_init(void)
 
 static int __init ts219_pci_init(void)
 {
-   if (machine_is_ts219())
-           kirkwood_pcie_init();
+	if (machine_is_ts219())
+		kirkwood_pcie_init(KW_PCIE0);
 
-   return 0;
+	return 0;
 }
 subsys_initcall(ts219_pci_init);
 
 MACHINE_START(TS219, "QNAP TS-119/TS-219")
 	/* Maintainer: Martin Michlmayr <tbm@cyrius.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts219_init,
 	.map_io		= kirkwood_map_io,

@@ -99,6 +99,7 @@ static const struct hc_driver ehci_atmel_hc_driver = {
 	.urb_enqueue		= ehci_urb_enqueue,
 	.urb_dequeue		= ehci_urb_dequeue,
 	.endpoint_disable	= ehci_endpoint_disable,
+	.endpoint_reset		= ehci_endpoint_reset,
 
 	/* scheduling support */
 	.get_frame_number	= ehci_get_frame,
@@ -110,6 +111,8 @@ static const struct hc_driver ehci_atmel_hc_driver = {
 	.bus_resume		= ehci_bus_resume,
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
+
+	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
 static int __init ehci_atmel_drv_probe(struct platform_device *pdev)
@@ -149,7 +152,7 @@ static int __init ehci_atmel_drv_probe(struct platform_device *pdev)
 		goto fail_request_resource;
 	}
 	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = res->end - res->start + 1;
+	hcd->rsrc_len = resource_size(res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				driver->description)) {

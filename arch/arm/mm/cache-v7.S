@@ -18,6 +18,21 @@
 #include "proc-macros.S"
 
 /*
+ *	v7_flush_icache_all()
+ *
+ *	Flush the whole I-cache.
+ *
+ *	Registers:
+ *	r0 - set to 0
+ */
+ENTRY(v7_flush_icache_all)
+	mov	r0, #0
+	ALT_SMP(mcr	p15, 0, r0, c7, c1, 0)		@ invalidate I-cache inner shareable
+	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)		@ I+BTB cache invalidate
+	mov	pc, lr
+ENDPROC(v7_flush_icache_all)
+
+/*
  *	v7_flush_dcache_all()
  *
  *	Flush the whole D-cache.
@@ -91,7 +106,8 @@ ENTRY(v7_flush_kern_cache_all)
  THUMB(	stmfd	sp!, {r4-r7, r9-r11, lr}	)
 	bl	v7_flush_dcache_all
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
+	ALT_SMP(mcr	p15, 0, r0, c7, c1, 0)	@ invalidate I-cache inner shareable
+	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)	@ I+BTB cache invalidate
  ARM(	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
  THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
 	mov	pc, lr
@@ -157,17 +173,25 @@ ENTRY(v7_coherent_user_range)
  UNWIND(.fnstart		)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
-	bic	r0, r0, r3
+	bic	r12, r0, r3
 1:
- USER(	mcr	p15, 0, r0, c7, c11, 1	)	@ clean D line to the point of unification
-	dsb
- USER(	mcr	p15, 0, r0, c7, c5, 1	)	@ invalidate I line
-	add	r0, r0, r2
-2:
-	cmp	r0, r1
+ USER(	mcr	p15, 0, r12, c7, c11, 1	)	@ clean D line to the point of unification
+	add	r12, r12, r2
+	cmp	r12, r1
 	blo	1b
+	dsb
+	icache_line_size r2, r3
+	sub	r3, r2, #1
+	bic	r12, r0, r3
+2:
+ USER(	mcr	p15, 0, r12, c7, c5, 1	)	@ invalidate I line
+	add	r12, r12, r2
+	cmp	r12, r1
+	blo	2b
+3:
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
+	ALT_SMP(mcr	p15, 0, r0, c7, c1, 6)	@ invalidate BTB Inner Shareable
+	ALT_UP(mcr	p15, 0, r0, c7, c5, 6)	@ invalidate BTB
 	dsb
 	isb
 	mov	pc, lr
@@ -177,10 +201,10 @@ ENTRY(v7_coherent_user_range)
  * isn't mapped, just try the next page.
  */
 9001:
-	mov	r0, r0, lsr #12
-	mov	r0, r0, lsl #12
-	add	r0, r0, #4096
-	b	2b
+	mov	r12, r12, lsr #12
+	mov	r12, r12, lsl #12
+	add	r12, r12, #4096
+	b	3b
  UNWIND(.fnend		)
 ENDPROC(v7_coherent_kern_range)
 ENDPROC(v7_coherent_user_range)
@@ -216,7 +240,7 @@ ENDPROC(v7_flush_kern_dcache_area)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v7_dma_inv_range)
+v7_dma_inv_range:
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	tst	r0, r3
@@ -240,7 +264,7 @@ ENDPROC(v7_dma_inv_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v7_dma_clean_range)
+v7_dma_clean_range:
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	bic	r0, r0, r3
@@ -271,17 +295,44 @@ ENTRY(v7_dma_flush_range)
 	mov	pc, lr
 ENDPROC(v7_dma_flush_range)
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v7_dma_map_area)
+	add	r1, r1, r0
+	teq	r2, #DMA_FROM_DEVICE
+	beq	v7_dma_inv_range
+	b	v7_dma_clean_range
+ENDPROC(v7_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v7_dma_unmap_area)
+	add	r1, r1, r0
+	teq	r2, #DMA_TO_DEVICE
+	bne	v7_dma_inv_range
+	mov	pc, lr
+ENDPROC(v7_dma_unmap_area)
+
 	__INITDATA
 
 	.type	v7_cache_fns, #object
 ENTRY(v7_cache_fns)
+	.long	v7_flush_icache_all
 	.long	v7_flush_kern_cache_all
 	.long	v7_flush_user_cache_all
 	.long	v7_flush_user_cache_range
 	.long	v7_coherent_kern_range
 	.long	v7_coherent_user_range
 	.long	v7_flush_kern_dcache_area
-	.long	v7_dma_inv_range
-	.long	v7_dma_clean_range
+	.long	v7_dma_map_area
+	.long	v7_dma_unmap_area
 	.long	v7_dma_flush_range
 	.size	v7_cache_fns, . - v7_cache_fns

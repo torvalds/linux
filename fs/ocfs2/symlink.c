@@ -128,7 +128,7 @@ static void *ocfs2_fast_follow_link(struct dentry *dentry,
 	}
 
 	/* Fast symlinks can't be large */
-	len = strlen(target);
+	len = strnlen(target, ocfs2_fast_symlink_chars(inode->i_sb));
 	link = kzalloc(len + 1, GFP_NOFS);
 	if (!link) {
 		status = -ENOMEM;
@@ -137,20 +137,20 @@ static void *ocfs2_fast_follow_link(struct dentry *dentry,
 	}
 
 	memcpy(link, target, len);
-	nd_set_link(nd, link);
 
 bail:
+	nd_set_link(nd, status ? ERR_PTR(status) : link);
 	brelse(bh);
 
 	mlog_exit(status);
-	return status ? ERR_PTR(status) : link;
+	return NULL;
 }
 
 static void ocfs2_fast_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
 {
-	char *link = cookie;
-
-	kfree(link);
+	char *link = nd_get_link(nd);
+	if (!IS_ERR(link))
+		kfree(link);
 }
 
 const struct inode_operations ocfs2_symlink_inode_operations = {

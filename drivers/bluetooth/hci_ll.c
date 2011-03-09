@@ -74,7 +74,7 @@ enum hcill_states_e {
 
 struct hcill_cmd {
 	u8 cmd;
-} __attribute__((packed));
+} __packed;
 
 struct ll_struct {
 	unsigned long rx_state;
@@ -402,7 +402,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 				continue;
 
 			case HCILL_W4_EVENT_HDR:
-				eh = (struct hci_event_hdr *) ll->rx_skb->data;
+				eh = hci_event_hdr(ll->rx_skb);
 
 				BT_DBG("Event header: evt 0x%2.2x plen %d", eh->evt, eh->plen);
 
@@ -410,7 +410,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 				continue;
 
 			case HCILL_W4_ACL_HDR:
-				ah = (struct hci_acl_hdr *) ll->rx_skb->data;
+				ah = hci_acl_hdr(ll->rx_skb);
 				dlen = __le16_to_cpu(ah->dlen);
 
 				BT_DBG("ACL header: dlen %d", dlen);
@@ -419,7 +419,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 				continue;
 
 			case HCILL_W4_SCO_HDR:
-				sh = (struct hci_sco_hdr *) ll->rx_skb->data;
+				sh = hci_sco_hdr(ll->rx_skb);
 
 				BT_DBG("SCO header: dlen %d", sh->dlen);
 
@@ -491,7 +491,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			BT_ERR("Can't allocate mem for new packet");
 			ll->rx_state = HCILL_W4_PACKET_TYPE;
 			ll->rx_count = 0;
-			return 0;
+			return -ENOMEM;
 		}
 
 		ll->rx_skb->dev = (void *) hu->hdev;
@@ -517,7 +517,7 @@ static struct hci_uart_proto llp = {
 	.flush		= ll_flush,
 };
 
-int ll_init(void)
+int __init ll_init(void)
 {
 	int err = hci_uart_register_proto(&llp);
 
@@ -529,7 +529,7 @@ int ll_init(void)
 	return err;
 }
 
-int ll_deinit(void)
+int __exit ll_deinit(void)
 {
 	return hci_uart_unregister_proto(&llp);
 }

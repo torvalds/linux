@@ -41,6 +41,7 @@
  * be incorporated into the next SCTP release.
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -954,7 +955,6 @@ void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 	 * ordering and deliver them if needed.
 	 */
 	sctp_ulpq_reap_ordered(ulpq, sid);
-	return;
 }
 
 static __u16 sctp_ulpq_renege_list(struct sctp_ulpq *ulpq,
@@ -1063,7 +1063,6 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	}
 
 	sk_mem_reclaim(asoc->base.sk);
-	return;
 }
 
 

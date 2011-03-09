@@ -220,6 +220,7 @@ static const struct file_operations seq_oss_f_ops =
 	.poll =		odev_poll,
 	.unlocked_ioctl =	odev_ioctl,
 	.compat_ioctl =	odev_ioctl_compat,
+	.llseek =	noop_llseek,
 };
 
 static int __init

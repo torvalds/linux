@@ -221,7 +221,7 @@ restart:
 			goto restart;
 		}
 		if (buffer_locked(bh)) {
-			atomic_inc(&bh->b_count);
+			get_bh(bh);
 			spin_unlock(&journal->j_list_lock);
 			jbd_unlock_bh_state(bh);
 			wait_on_buffer(bh);
@@ -254,7 +254,9 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
 {
 	int i;
 
-	ll_rw_block(SWRITE, *batch_count, bhs);
+	for (i = 0; i < *batch_count; i++)
+		write_dirty_buffer(bhs[i], WRITE);
+
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = bhs[i];
 		clear_buffer_jwrite(bh);
@@ -281,7 +283,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 	int ret = 0;
 
 	if (buffer_locked(bh)) {
-		atomic_inc(&bh->b_count);
+		get_bh(bh);
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
 		wait_on_buffer(bh);

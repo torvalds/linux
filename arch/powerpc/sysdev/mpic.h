@@ -37,5 +37,6 @@ static inline int mpic_pasemi_msi_init(struct mpic *mpic)
 extern int mpic_set_irq_type(unsigned int virq, unsigned int flow_type);
 extern void mpic_set_vector(unsigned int virq, unsigned int vector);
 extern int mpic_set_affinity(unsigned int irq, const struct cpumask *cpumask);
+extern void mpic_reset_core(int cpu);
 
 #endif /* _POWERPC_SYSDEV_MPIC_H */

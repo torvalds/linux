@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/mc33880.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "mc33880"
 

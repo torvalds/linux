@@ -29,22 +29,14 @@
 #include <linux/interrupt.h>
 
 #include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-pb1x00/pb1500.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 #include <prom.h>
 
 
 char irq_tab_alchemy[][5] __initdata = {
-	[12] = { -1, INTA, INTX, INTX, INTX },   /* IDSEL 12 - HPT370	*/
-	[13] = { -1, INTA, INTB, INTC, INTD },   /* IDSEL 13 - PCI slot */
-};
-
-struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-	{ AU1500_GPIO_204, IRQF_TRIGGER_HIGH, 0 },
-	{ AU1500_GPIO_201, IRQF_TRIGGER_LOW, 0 },
-	{ AU1500_GPIO_202, IRQF_TRIGGER_LOW, 0 },
-	{ AU1500_GPIO_203, IRQF_TRIGGER_LOW, 0 },
-	{ AU1500_GPIO_205, IRQF_TRIGGER_LOW, 0 },
+	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff },   /* IDSEL 12 - HPT370	*/
+	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD },   /* IDSEL 13 - PCI slot */
 };
 
 
@@ -53,37 +45,13 @@ const char *get_system_type(void)
 	return "Alchemy Pb1500";
 }
 
-void board_reset(void)
-{
-	/* Hit BCSR.RST_VDDI[SOFT_RESET] */
-	au_writel(0x00000000, PB1500_RST_VDDI);
-}
-
-void __init board_init_irq(void)
-{
-	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
-}
-
 void __init board_setup(void)
 {
 	u32 pin_func;
 	u32 sys_freqctrl, sys_clksrc;
-	char *argptr;
 
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-
-#if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
-	/* au1000 does not support vra, au1500 and au1100 do */
-	strcat(argptr, " au1000_audio=vra");
-	argptr = prom_getcmdline();
-#endif
+	bcsr_init(DB1000_BCSR_PHYS_ADDR,
+		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
 	sys_clksrc = sys_freqctrl = pin_func = 0;
 	/* Set AUX clock to 12 MHz * 8 = 96 MHz */
@@ -163,3 +131,18 @@ void __init board_setup(void)
 		au_sync();
 	}
 }
+
+static int __init pb1500_init_irq(void)
+{
+	set_irq_type(AU1500_GPIO9_INT, IRQF_TRIGGER_LOW);   /* CD0# */
+	set_irq_type(AU1500_GPIO10_INT, IRQF_TRIGGER_LOW);  /* CARD0 */
+	set_irq_type(AU1500_GPIO11_INT, IRQF_TRIGGER_LOW);  /* STSCHG0# */
+	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
+
+	return 0;
+}
+arch_initcall(pb1500_init_irq);

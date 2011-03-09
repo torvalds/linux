@@ -17,6 +17,8 @@
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xff923000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 61, 61, 61, 61 },
 };
@@ -32,6 +34,8 @@ static struct platform_device scif0_device = {
 static struct plat_sci_port scif1_platform_data = {
 	.mapbase	= 0xff924000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 62, 62, 62, 62 },
 };
@@ -47,6 +51,8 @@ static struct platform_device scif1_device = {
 static struct plat_sci_port scif2_platform_data = {
 	.mapbase	= 0xff925000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 63, 63, 63, 63 },
 };
@@ -62,6 +68,8 @@ static struct platform_device scif2_device = {
 static struct plat_sci_port scif3_platform_data = {
 	.mapbase	= 0xff926000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 64, 64, 64, 64 },
 };
@@ -77,6 +85,8 @@ static struct platform_device scif3_device = {
 static struct plat_sci_port scif4_platform_data = {
 	.mapbase	= 0xff927000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 65, 65, 65, 65 },
 };
@@ -92,6 +102,8 @@ static struct platform_device scif4_device = {
 static struct plat_sci_port scif5_platform_data = {
 	.mapbase	= 0xff928000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 66, 66, 66, 66 },
 };
@@ -107,6 +119,8 @@ static struct platform_device scif5_device = {
 static struct plat_sci_port scif6_platform_data = {
 	.mapbase	= 0xff929000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 67, 67, 67, 67 },
 };
@@ -122,6 +136,8 @@ static struct platform_device scif6_device = {
 static struct plat_sci_port scif7_platform_data = {
 	.mapbase	= 0xff92a000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 68, 68, 68, 68 },
 };
@@ -137,6 +153,8 @@ static struct platform_device scif7_device = {
 static struct plat_sci_port scif8_platform_data = {
 	.mapbase	= 0xff92b000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 69, 69, 69, 69 },
 };
@@ -152,6 +170,8 @@ static struct platform_device scif8_device = {
 static struct plat_sci_port scif9_platform_data = {
 	.mapbase	= 0xff92c000,
 	.flags		= UPF_BOOT_AUTOCONF,
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_TOIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 70, 70, 70, 70 },
 };
@@ -165,16 +185,13 @@ static struct platform_device scif9_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -196,16 +213,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -227,15 +241,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002f,
 		.flags	= IORESOURCE_MEM,
@@ -257,15 +268,12 @@ static struct platform_device tmu2_device = {
 };
 
 static struct sh_timer_config tmu3_platform_data = {
-	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu3_resources[] = {
 	[0] = {
-		.name	= "TMU3",
 		.start	= 0xffd81008,
 		.end	= 0xffd81013,
 		.flags	= IORESOURCE_MEM,
@@ -287,15 +295,12 @@ static struct platform_device tmu3_device = {
 };
 
 static struct sh_timer_config tmu4_platform_data = {
-	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu4_resources[] = {
 	[0] = {
-		.name	= "TMU4",
 		.start	= 0xffd81014,
 		.end	= 0xffd8101f,
 		.flags	= IORESOURCE_MEM,
@@ -317,15 +322,12 @@ static struct platform_device tmu4_device = {
 };
 
 static struct sh_timer_config tmu5_platform_data = {
-	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu5_resources[] = {
 	[0] = {
-		.name	= "TMU5",
 		.start	= 0xffd81020,
 		.end	= 0xffd8102f,
 		.flags	= IORESOURCE_MEM,
@@ -347,15 +349,12 @@ static struct platform_device tmu5_device = {
 };
 
 static struct sh_timer_config tmu6_platform_data = {
-	.name = "TMU6",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu6_resources[] = {
 	[0] = {
-		.name	= "TMU6",
 		.start	= 0xffd82008,
 		.end	= 0xffd82013,
 		.flags	= IORESOURCE_MEM,
@@ -377,15 +376,12 @@ static struct platform_device tmu6_device = {
 };
 
 static struct sh_timer_config tmu7_platform_data = {
-	.name = "TMU7",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu7_resources[] = {
 	[0] = {
-		.name	= "TMU7",
 		.start	= 0xffd82014,
 		.end	= 0xffd8201f,
 		.flags	= IORESOURCE_MEM,
@@ -407,15 +403,12 @@ static struct platform_device tmu7_device = {
 };
 
 static struct sh_timer_config tmu8_platform_data = {
-	.name = "TMU8",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu8_resources[] = {
 	[0] = {
-		.name	= "TMU8",
 		.start	= 0xffd82020,
 		.end	= 0xffd8202b,
 		.flags	= IORESOURCE_MEM,
@@ -694,17 +687,17 @@ static DECLARE_INTC_DESC(intc_irl3210_desc, "sh7780-irl3210", irl_vectors,
 void __init plat_irq_setup(void)
 {
 	/* disable IRQ7-0 */
-	ctrl_outl(0xff000000, INTC_INTMSK0);
+	__raw_writel(0xff000000, INTC_INTMSK0);
 
 	/* disable IRL3-0 + IRL7-4 */
-	ctrl_outl(0xc0000000, INTC_INTMSK1);
-	ctrl_outl(0xfffefffe, INTC_INTMSK2);
+	__raw_writel(0xc0000000, INTC_INTMSK1);
+	__raw_writel(0xfffefffe, INTC_INTMSK2);
 
 	/* select IRL mode for IRL3-0 + IRL7-4 */
-	ctrl_outl(ctrl_inl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
+	__raw_writel(__raw_readl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
 
 	/* disable holding function, ie enable "SH-4 Mode" */
-	ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00200000, INTC_ICR0);
+	__raw_writel(__raw_readl(INTC_ICR0) | 0x00200000, INTC_ICR0);
 
 	register_intc_controller(&intc_desc);
 }
@@ -714,27 +707,27 @@ void __init plat_irq_setup_pins(int mode)
 	switch (mode) {
 	case IRQ_MODE_IRQ:
 		/* select IRQ mode for IRL3-0 + IRL7-4 */
-		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00c00000, INTC_ICR0);
+		__raw_writel(__raw_readl(INTC_ICR0) | 0x00c00000, INTC_ICR0);
 		register_intc_controller(&intc_irq_desc);
 		break;
 	case IRQ_MODE_IRL7654:
 		/* enable IRL7-4 but don't provide any masking */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
-		ctrl_outl(0x0000fffe, INTC_INTMSKCLR2);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x0000fffe, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL3210:
 		/* enable IRL0-3 but don't provide any masking */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
-		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0xfffe0000, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL7654_MASK:
 		/* enable IRL7-4 and mask using cpu intc controller */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_irl7654_desc);
 		break;
 	case IRQ_MODE_IRL3210_MASK:
 		/* enable IRL0-3 and mask using cpu intc controller */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_irl3210_desc);
 		break;
 	default:

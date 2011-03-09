@@ -61,17 +61,27 @@
 	.endm
 
 /*
- * cache_line_size - get the cache line size from the CSIDR register
- * (available on ARMv7+). It assumes that the CSSR register was configured
- * to access the L1 data cache CSIDR.
+ * dcache_line_size - get the minimum D-cache line size from the CTR register
+ * on ARMv7.
  */
 	.macro	dcache_line_size, reg, tmp
-	mrc	p15, 1, \tmp, c0, c0, 0		@ read CSIDR
-	and	\tmp, \tmp, #7			@ cache line size encoding
-	mov	\reg, #16			@ size offset
+	mrc	p15, 0, \tmp, c0, c0, 1		@ read ctr
+	lsr	\tmp, \tmp, #16
+	and	\tmp, \tmp, #0xf		@ cache line size encoding
+	mov	\reg, #4			@ bytes per word
 	mov	\reg, \reg, lsl \tmp		@ actual cache line size
 	.endm
 
+/*
+ * icache_line_size - get the minimum I-cache line size from the CTR register
+ * on ARMv7.
+ */
+	.macro	icache_line_size, reg, tmp
+	mrc	p15, 0, \tmp, c0, c0, 1		@ read ctr
+	and	\tmp, \tmp, #0xf		@ cache line size encoding
+	mov	\reg, #4			@ bytes per word
+	mov	\reg, \reg, lsl \tmp		@ actual cache line size
+	.endm
 
 /*
  * Sanity check the PTE configuration for the code below - which makes
@@ -81,7 +91,7 @@
 #if L_PTE_SHARED != PTE_EXT_SHARED
 #error PTE shared bit mismatch
 #endif
-#if (L_PTE_EXEC+L_PTE_USER+L_PTE_WRITE+L_PTE_DIRTY+L_PTE_YOUNG+\
+#if (L_PTE_XN+L_PTE_USER+L_PTE_RDONLY+L_PTE_DIRTY+L_PTE_YOUNG+\
      L_PTE_FILE+L_PTE_PRESENT) > L_PTE_SHARED
 #error Invalid Linux PTE bit settings
 #endif
@@ -99,6 +109,10 @@
  *  110x   0   1   0	r/w	r/o
  *  11x0   0   1   0	r/w	r/o
  *  1111   0   1   1	r/w	r/w
+ *
+ * If !CONFIG_CPU_USE_DOMAINS, the following permissions are changed:
+ *  110x   1   1   1	r/o	r/o
+ *  11x0   1   1   1	r/o	r/o
  */
 	.macro	armv6_mt_table pfx
 \pfx\()_mt_table:
@@ -121,7 +135,7 @@
 	.endm
 
 	.macro	armv6_set_pte_ext pfx
-	str	r1, [r0], #-2048		@ linux version
+	str	r1, [r0], #2048			@ linux version
 
 	bic	r3, r1, #0x000003fc
 	bic	r3, r3, #PTE_TYPE_MASK
@@ -132,17 +146,20 @@
 	and	r2, r1, #L_PTE_MT_MASK
 	ldr	r2, [ip, r2]
 
-	tst	r1, #L_PTE_WRITE
-	tstne	r1, #L_PTE_DIRTY
-	orreq	r3, r3, #PTE_EXT_APX
+	eor	r1, r1, #L_PTE_DIRTY
+	tst	r1, #L_PTE_DIRTY|L_PTE_RDONLY
+	orrne	r3, r3, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
 	orrne	r3, r3, #PTE_EXT_AP1
+#ifdef CONFIG_CPU_USE_DOMAINS
+	@ allow kernel read/write access to read-only user pages
 	tstne	r3, #PTE_EXT_APX
 	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
+#endif
 
-	tst	r1, #L_PTE_EXEC
-	orreq	r3, r3, #PTE_EXT_XN
+	tst	r1, #L_PTE_XN
+	orrne	r3, r3, #PTE_EXT_XN
 
 	orr	r3, r3, r2
 
@@ -170,9 +187,9 @@
  *  1111  0xff	r/w	r/w
  */
 	.macro	armv3_set_pte_ext wc_disable=1
-	str	r1, [r0], #-2048		@ linux version
+	str	r1, [r0], #2048			@ linux version
 
-	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
+	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY
 
 	bic	r2, r1, #PTE_SMALL_AP_MASK	@ keep C, B bits
 	bic	r2, r2, #PTE_TYPE_MASK
@@ -181,7 +198,7 @@
 	tst	r3, #L_PTE_USER			@ user?
 	orrne	r2, r2, #PTE_SMALL_AP_URO_SRW
 
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ write and dirty?
+	tst	r3, #L_PTE_RDONLY | L_PTE_DIRTY	@ write and dirty?
 	orreq	r2, r2, #PTE_SMALL_AP_UNO_SRW
 
 	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
@@ -193,7 +210,7 @@
 	bicne	r2, r2, #PTE_BUFFERABLE
 #endif
 	.endif
-	str	r2, [r0]			@ hardware version
+	str	r2, [r0]		@ hardware version
 	.endm
 
 
@@ -213,9 +230,9 @@
  *  1111  11	r/w	r/w
  */
 	.macro	xscale_set_pte_ext_prologue
-	str	r1, [r0], #-2048		@ linux version
+	str	r1, [r0]			@ linux version
 
-	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
+	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY
 
 	bic	r2, r1, #PTE_SMALL_AP_MASK	@ keep C, B bits
 	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
@@ -223,7 +240,7 @@
 	tst	r3, #L_PTE_USER			@ user?
 	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
 
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ write and dirty?
+	tst	r3, #L_PTE_RDONLY | L_PTE_DIRTY	@ write and dirty?
 	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
 						@ combined with user -> user r/w
 	.endm
@@ -232,7 +249,7 @@
 	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
 	movne	r2, #0				@ no -> fault
 
-	str	r2, [r0]			@ hardware version
+	str	r2, [r0, #2048]!		@ hardware version
 	mov	ip, #0
 	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier

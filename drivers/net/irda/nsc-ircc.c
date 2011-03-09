@@ -43,6 +43,7 @@
  ********************************************************************/
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -50,7 +51,6 @@
 #include <linux/netdevice.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/dma-mapping.h>
@@ -1348,7 +1348,7 @@ static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 speed)
 	outb(bank, iobase+BSR);
 
 	/* Make sure interrupt handlers keep the proper interrupt mask */
-	return(ier);
+	return ier;
 }
 
 /*

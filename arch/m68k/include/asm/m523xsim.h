@@ -11,6 +11,10 @@
 #define	m523xsim_h
 /****************************************************************************/
 
+#define	CPU_NAME		"COLDFIRE(m523x)"
+#define	CPU_INSTR_PER_JIFFY	3
+
+#include <asm/m52xxacr.h>
 
 /*
  *	Define the 523x SIM register set addresses.
@@ -49,6 +53,13 @@
 
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
+/*
+ *  UART module.
+ */
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x240           /* Base address of UART2 */
+#define MCFUART_BASE3		0x280           /* Base address of UART3 */
 
 #define MCFGPIO_PODR_ADDR	(MCF_IPSBAR + 0x100000)
 #define MCFGPIO_PODR_DATAH	(MCF_IPSBAR + 0x100001)
@@ -127,5 +138,10 @@
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
 
+/*
+ * Pin Assignment
+*/
+#define	MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10004A)
+#define	MCFGPIO_PAR_TIMER	(MCF_IPSBAR + 0x10004C)
 /****************************************************************************/
 #endif	/* m523xsim_h */

@@ -11,7 +11,6 @@
 #include <linux/pnp.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>

@@ -324,10 +324,7 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 #define pte_offset_kernel(dir,addr) 					\
 	((pte_t*) pmd_page_vaddr(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir),(addr))
-#define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir),(addr))
-
 #define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
 
 
 /*
@@ -394,7 +391,7 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 #define kern_addr_valid(addr)	(1)
 
 extern  void update_mmu_cache(struct vm_area_struct * vma,
-			      unsigned long address, pte_t pte);
+			      unsigned long address, pte_t *ptep);
 
 /*
  * remap a physical page `pfn' of size `size' with page protection `prot'

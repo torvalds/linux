@@ -7,6 +7,8 @@
 
 #include <asm/asm-offsets.h>
 
+	.section .kprobes.text, "ax"
+
 	.globl ftrace_stub
 ftrace_stub:
 	br	%r14
@@ -15,12 +17,6 @@ ftrace_stub:
 _mcount:
 #ifdef CONFIG_DYNAMIC_FTRACE
 	br	%r14
-
-	.data
-	.globl	ftrace_dyn_func
-ftrace_dyn_func:
-	.quad	ftrace_stub
-	.previous
 
 	.globl ftrace_caller
 ftrace_caller:
@@ -35,26 +31,19 @@ ftrace_caller:
 	stg	%r1,__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r14
 	lg	%r3,168(%r15)
-#ifdef CONFIG_DYNAMIC_FTRACE
-	larl	%r14,ftrace_dyn_func
-#else
 	larl	%r14,ftrace_trace_function
-#endif
 	lg	%r14,0(%r14)
 	basr	%r14,%r14
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-#ifdef CONFIG_DYNAMIC_FTRACE
+	lg	%r2,168(%r15)
+	lg	%r3,272(%r15)
 	.globl	ftrace_graph_caller
 ftrace_graph_caller:
-	# This unconditional branch gets runtime patched. Change only if
-	# you know what you are doing. See ftrace_enable_graph_caller().
-	j	0f
-#endif
-	lg	%r2,272(%r15)
-	lg	%r3,168(%r15)
-	brasl	%r14,prepare_ftrace_return
-	stg	%r2,168(%r15)
-0:
+# The bras instruction gets runtime patched to call prepare_ftrace_return.
+# See ftrace_enable_ftrace_graph_caller. The patched instruction is:
+#	bras	%r14,prepare_ftrace_return
+	bras	%r14,0f
+0:	stg	%r2,168(%r15)
 #endif
 	aghi	%r15,160
 	lmg	%r2,%r5,32(%r15)

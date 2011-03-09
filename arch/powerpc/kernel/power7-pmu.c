@@ -369,4 +369,4 @@ static int init_power7_pmu(void)
 	return register_power_pmu(&power7_pmu);
 }
 
-arch_initcall(init_power7_pmu);
+early_initcall(init_power7_pmu);

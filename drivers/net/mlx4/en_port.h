@@ -36,7 +36,8 @@
 
 
 #define SET_PORT_GEN_ALL_VALID	0x7
-#define SET_PORT_PROMISC_SHIFT	31
+#define SET_PORT_PROMISC_EN_SHIFT	31
+#define SET_PORT_PROMISC_MODE_SHIFT	30
 
 enum {
 	MLX4_CMD_SET_VLAN_FLTR  = 0x47,
@@ -82,6 +83,20 @@ enum {
 	MLX4_MCAST_CONFIG       = 0,
 	MLX4_MCAST_DISABLE      = 1,
 	MLX4_MCAST_ENABLE       = 2,
+};
+
+struct mlx4_en_query_port_context {
+	u8 link_up;
+#define MLX4_EN_LINK_UP_MASK	0x80
+	u8 reserved;
+	__be16 mtu;
+	u8 reserved2;
+	u8 link_speed;
+#define MLX4_EN_SPEED_MASK	0x3
+#define MLX4_EN_1G_SPEED	0x2
+	u16 reserved3[5];
+	__be64 mac;
+	u8 transceiver;
 };
 
 

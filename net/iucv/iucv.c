@@ -36,6 +36,7 @@
 #define KMSG_COMPONENT "iucv"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
@@ -632,13 +633,14 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 		iucv_irq_data[cpu] = kmalloc_node(sizeof(struct iucv_irq_data),
 					GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
 		if (!iucv_irq_data[cpu])
-			return NOTIFY_BAD;
+			return notifier_from_errno(-ENOMEM);
+
 		iucv_param[cpu] = kmalloc_node(sizeof(union iucv_param),
 				     GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
 		if (!iucv_param[cpu]) {
 			kfree(iucv_irq_data[cpu]);
 			iucv_irq_data[cpu] = NULL;
-			return NOTIFY_BAD;
+			return notifier_from_errno(-ENOMEM);
 		}
 		iucv_param_irq[cpu] = kmalloc_node(sizeof(union iucv_param),
 					GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
@@ -647,7 +649,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 			iucv_param[cpu] = NULL;
 			kfree(iucv_irq_data[cpu]);
 			iucv_irq_data[cpu] = NULL;
-			return NOTIFY_BAD;
+			return notifier_from_errno(-ENOMEM);
 		}
 		break;
 	case CPU_UP_CANCELED:
@@ -677,7 +679,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 		cpu_clear(cpu, cpumask);
 		if (cpus_empty(cpumask))
 			/* Can't offline last IUCV enabled cpu. */
-			return NOTIFY_BAD;
+			return notifier_from_errno(-EINVAL);
 		smp_call_function_single(cpu, iucv_retrieve_cpu, NULL, 1);
 		if (cpus_empty(iucv_irq_cpumask))
 			smp_call_function_single(first_cpu(iucv_buffer_cpumask),
@@ -1462,7 +1464,7 @@ struct iucv_path_pending {
 	u32 res3;
 	u8  ippollfg;
 	u8  res4[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_pending(struct iucv_irq_data *data)
 {
@@ -1523,7 +1525,7 @@ struct iucv_path_complete {
 	u32 res3;
 	u8  ippollfg;
 	u8  res4[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_complete(struct iucv_irq_data *data)
 {
@@ -1553,7 +1555,7 @@ struct iucv_path_severed {
 	u32 res4;
 	u8  ippollfg;
 	u8  res5[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_severed(struct iucv_irq_data *data)
 {
@@ -1589,7 +1591,7 @@ struct iucv_path_quiesced {
 	u32 res4;
 	u8  ippollfg;
 	u8  res5[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_quiesced(struct iucv_irq_data *data)
 {
@@ -1617,7 +1619,7 @@ struct iucv_path_resumed {
 	u32 res4;
 	u8  ippollfg;
 	u8  res5[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_resumed(struct iucv_irq_data *data)
 {
@@ -1648,7 +1650,7 @@ struct iucv_message_complete {
 	u32 ipbfln2f;
 	u8  ippollfg;
 	u8  res2[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_message_complete(struct iucv_irq_data *data)
 {
@@ -1693,7 +1695,7 @@ struct iucv_message_pending {
 	u32 ipbfln2f;
 	u8  ippollfg;
 	u8  res2[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_message_pending(struct iucv_irq_data *data)
 {
@@ -1797,11 +1799,13 @@ static void iucv_work_fn(struct work_struct *work)
  * Handles external interrupts coming in from CP.
  * Places the interrupt buffer on a queue and schedules iucv_tasklet_fn().
  */
-static void iucv_external_interrupt(u16 code)
+static void iucv_external_interrupt(unsigned int ext_int_code,
+				    unsigned int param32, unsigned long param64)
 {
 	struct iucv_irq_data *p;
 	struct iucv_irq_list *work;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_IUC]++;
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
 		WARN_ON(p->ippathid >= iucv_max_pathid);

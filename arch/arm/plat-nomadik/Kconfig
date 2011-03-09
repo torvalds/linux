@@ -14,9 +14,15 @@ if PLAT_NOMADIK
 
 config HAS_MTU
 	bool
+	select HAVE_SCHED_CLOCK
 	help
 	  Support for Multi Timer Unit. MTU provides access
 	  to multiple interrupt generating programmable
 	  32-bit free running decrementing counters.
+
+config NOMADIK_GPIO
+	bool
+	help
+	  Support for the Nomadik GPIO controller.
 
 endif

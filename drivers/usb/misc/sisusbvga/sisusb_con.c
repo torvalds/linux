@@ -58,7 +58,6 @@
 #include <linux/string.h>
 #include <linux/kd.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/spinlock.h>
@@ -1188,9 +1187,9 @@ sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
 		 * And so is the hi_font_mask.
 		 */
 		for (i = 0; i < MAX_NR_CONSOLES; i++) {
-			struct vc_data *c = vc_cons[i].d;
-			if (c && c->vc_sw == &sisusb_con)
-				c->vc_hi_font_mask = ch512 ? 0x0800 : 0;
+			struct vc_data *d = vc_cons[i].d;
+			if (d && d->vc_sw == &sisusb_con)
+				d->vc_hi_font_mask = ch512 ? 0x0800 : 0;
 		}
 
 		sisusb->current_font_512 = ch512;
@@ -1250,7 +1249,7 @@ sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
 		mutex_unlock(&sisusb->lock);
 
 	if (dorecalc && c) {
-		int i, rows = c->vc_scan_lines / fh;
+		int rows = c->vc_scan_lines / fh;
 
 		/* Now adjust our consoles' size */
 

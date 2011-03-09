@@ -168,7 +168,7 @@ static int spider_set_irq_type(unsigned int virq, unsigned int type)
 }
 
 static struct irq_chip spider_pic = {
-	.name = " SPIDER   ",
+	.name = "SPIDER",
 	.unmask = spider_unmask_irq,
 	.mask = spider_mask_irq,
 	.ack = spider_ack_irq,
@@ -258,8 +258,10 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 		return NO_IRQ;
 	imap += intsize + 1;
 	tmp = of_get_property(iic, "#interrupt-cells", NULL);
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		of_node_put(iic);
 		return NO_IRQ;
+	}
 	intsize = *tmp;
 	/* Assume unit is last entry of interrupt specifier */
 	unit = imap[intsize - 1];

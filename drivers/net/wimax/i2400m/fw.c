@@ -156,6 +156,7 @@
  */
 #include <linux/firmware.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include "i2400m.h"
 
@@ -612,7 +613,7 @@ ssize_t i2400m_bm_cmd(struct i2400m *i2400m,
 		goto error_wait_for_ack;
 	}
 	rx_bytes = result;
-	/* verify the ack and read more if neccessary [result is the
+	/* verify the ack and read more if necessary [result is the
 	 * final amount of bytes we get in the ack]  */
 	result = __i2400m_bm_ack_verify(i2400m, opcode, ack, ack_size, flags);
 	if (result < 0)
@@ -650,7 +651,7 @@ static int i2400m_download_chunk(struct i2400m *i2400m, const void *chunk,
 	struct {
 		struct i2400m_bootrom_header cmd;
 		u8 cmd_payload[chunk_len];
-	} __attribute__((packed)) *buf;
+	} __packed *buf;
 	struct i2400m_bootrom_header ack;
 
 	d_fnstart(5, dev, "(i2400m %p chunk %p __chunk_len %zu addr 0x%08lx "
@@ -793,7 +794,7 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
 	struct {
 		struct i2400m_bootrom_header cmd;
 		u8 cmd_pl[0];
-	} __attribute__((packed)) *cmd_buf;
+	} __packed *cmd_buf;
 	size_t signature_block_offset, signature_block_size;
 
 	d_fnstart(3, dev, "offset %zu\n", offset);
@@ -1028,7 +1029,7 @@ int i2400m_read_mac_addr(struct i2400m *i2400m)
 	struct {
 		struct i2400m_bootrom_header ack;
 		u8 ack_pl[16];
-	} __attribute__((packed)) ack_buf;
+	} __packed ack_buf;
 
 	d_fnstart(5, dev, "(i2400m %p)\n", i2400m);
 	cmd = i2400m->bm_cmd_buf;
@@ -1041,21 +1042,14 @@ int i2400m_read_mac_addr(struct i2400m *i2400m)
 		dev_err(dev, "BM: read mac addr failed: %d\n", result);
 		goto error_read_mac;
 	}
-	d_printf(2, dev,
-		 "mac addr is %02x:%02x:%02x:%02x:%02x:%02x\n",
-		 ack_buf.ack_pl[0], ack_buf.ack_pl[1],
-		 ack_buf.ack_pl[2], ack_buf.ack_pl[3],
-		 ack_buf.ack_pl[4], ack_buf.ack_pl[5]);
+	d_printf(2, dev, "mac addr is %pM\n", ack_buf.ack_pl);
 	if (i2400m->bus_bm_mac_addr_impaired == 1) {
 		ack_buf.ack_pl[0] = 0x00;
 		ack_buf.ack_pl[1] = 0x16;
 		ack_buf.ack_pl[2] = 0xd3;
 		get_random_bytes(&ack_buf.ack_pl[3], 3);
 		dev_err(dev, "BM is MAC addr impaired, faking MAC addr to "
-			"mac addr is %02x:%02x:%02x:%02x:%02x:%02x\n",
-			ack_buf.ack_pl[0], ack_buf.ack_pl[1],
-			ack_buf.ack_pl[2], ack_buf.ack_pl[3],
-			ack_buf.ack_pl[4], ack_buf.ack_pl[5]);
+			"mac addr is %pM\n", ack_buf.ack_pl);
 		result = 0;
 	}
 	net_dev->addr_len = ETH_ALEN;
@@ -1121,7 +1115,7 @@ int i2400m_dnload_init_signed(struct i2400m *i2400m,
 	struct {
 		struct i2400m_bootrom_header cmd;
 		struct i2400m_bcf_hdr cmd_pl;
-	} __attribute__((packed)) *cmd_buf;
+	} __packed *cmd_buf;
 	struct i2400m_bootrom_header ack;
 
 	d_fnstart(5, dev, "(i2400m %p bcf_hdr %p)\n", i2400m, bcf_hdr);
@@ -1198,7 +1192,7 @@ int i2400m_fw_hdr_check(struct i2400m *i2400m,
 	unsigned module_type, header_len, major_version, minor_version,
 		module_id, module_vendor, date, size;
 
-	module_type = bcf_hdr->module_type;
+	module_type = le32_to_cpu(bcf_hdr->module_type);
 	header_len = sizeof(u32) * le32_to_cpu(bcf_hdr->header_len);
 	major_version = (le32_to_cpu(bcf_hdr->header_version) & 0xffff0000)
 		>> 16;

@@ -21,7 +21,6 @@
 #include <linux/isapnp.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 extern struct pnp_protocol isapnp_protocol;
@@ -31,8 +30,9 @@ static struct proc_dir_entry *isapnp_proc_bus_dir = NULL;
 static loff_t isapnp_proc_bus_lseek(struct file *file, loff_t off, int whence)
 {
 	loff_t new = -1;
+	struct inode *inode = file->f_path.dentry->d_inode;
 
-	lock_kernel();
+	mutex_lock(&inode->i_mutex);
 	switch (whence) {
 	case 0:
 		new = off;
@@ -44,12 +44,12 @@ static loff_t isapnp_proc_bus_lseek(struct file *file, loff_t off, int whence)
 		new = 256 + off;
 		break;
 	}
-	if (new < 0 || new > 256) {
-		unlock_kernel();
-		return -EINVAL;
-	}
-	unlock_kernel();
-	return (file->f_pos = new);
+	if (new < 0 || new > 256)
+		new = -EINVAL;
+	else
+		file->f_pos = new;
+	mutex_unlock(&inode->i_mutex);
+	return new;
 }
 
 static ssize_t isapnp_proc_bus_read(struct file *file, char __user * buf,

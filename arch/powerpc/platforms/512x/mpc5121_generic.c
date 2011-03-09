@@ -26,7 +26,7 @@
 /*
  * list of supported boards
  */
-static char *board[] __initdata = {
+static const char *board[] __initdata = {
 	"prt,prtlvt",
 	NULL
 };
@@ -36,23 +36,17 @@ static char *board[] __initdata = {
  */
 static int __init mpc5121_generic_probe(void)
 {
-	unsigned long node = of_get_flat_dt_root();
-	int i = 0;
-
-	while (board[i]) {
-		if (of_flat_dt_is_compatible(node, board[i]))
-			break;
-		i++;
-	}
-
-	return board[i] != NULL;
+	return of_flat_dt_match(of_get_flat_dt_root(), board);
 }
 
 define_machine(mpc5121_generic) {
 	.name			= "MPC5121 generic",
 	.probe			= mpc5121_generic_probe,
-	.init			= mpc512x_declare_of_platform_devices,
+	.init			= mpc512x_init,
+	.init_early		= mpc512x_init_diu,
+	.setup_arch		= mpc512x_setup_diu,
 	.init_IRQ		= mpc512x_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,
+	.restart		= mpc512x_restart,
 };

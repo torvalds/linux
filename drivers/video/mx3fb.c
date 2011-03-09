@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
@@ -324,8 +325,11 @@ static void sdc_enable_channel(struct mx3fb_info *mx3_fbi)
 	unsigned long flags;
 	dma_cookie_t cookie;
 
-	dev_dbg(mx3fb->dev, "mx3fbi %p, desc %p, sg %p\n", mx3_fbi,
-		to_tx_desc(mx3_fbi->txd), to_tx_desc(mx3_fbi->txd)->sg);
+	if (mx3_fbi->txd)
+		dev_dbg(mx3fb->dev, "mx3fbi %p, desc %p, sg %p\n", mx3_fbi,
+			to_tx_desc(mx3_fbi->txd), to_tx_desc(mx3_fbi->txd)->sg);
+	else
+		dev_dbg(mx3fb->dev, "mx3fbi %p, txd = NULL\n", mx3_fbi);
 
 	/* This enables the channel */
 	if (mx3_fbi->cookie < 0) {
@@ -384,7 +388,8 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 
 	spin_unlock_irqrestore(&mx3fb->lock, flags);
 
-	mx3_fbi->txd->chan->device->device_terminate_all(mx3_fbi->txd->chan);
+	mx3_fbi->txd->chan->device->device_control(mx3_fbi->txd->chan,
+						   DMA_TERMINATE_ALL, 0);
 	mx3_fbi->txd = NULL;
 	mx3_fbi->cookie = -EINVAL;
 }
@@ -646,6 +651,7 @@ static int sdc_set_global_alpha(struct mx3fb_data *mx3fb, bool enable, uint8_t a
 
 static void sdc_set_brightness(struct mx3fb_data *mx3fb, uint8_t value)
 {
+	dev_dbg(mx3fb->dev, "%s: value = %d\n", __func__, value);
 	/* This might be board-specific */
 	mx3fb_write_reg(mx3fb, 0x03000000UL | value << 16, SDC_PWM_CTRL);
 	return;
@@ -1415,6 +1421,9 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 	struct device *dev;
 	struct mx3fb_platform_data *mx3fb_pdata;
 
+	if (!imx_dma_is_ipu(chan))
+		return false;
+
 	if (!rq)
 		return false;
 
@@ -1465,8 +1474,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 		goto eremap;
 	}
 
-	pr_debug("Remapped %x to %x at %p\n", sdc_reg->start, sdc_reg->end,
-		 mx3fb->reg_base);
+	pr_debug("Remapped %pR at %p\n", sdc_reg, mx3fb->reg_base);
 
 	/* IDMAC interface */
 	dmaengine_get();
@@ -1486,11 +1494,11 @@ static int mx3fb_probe(struct platform_device *pdev)
 		goto ersdc0;
 	}
 
+	mx3fb->backlight_level = 255;
+
 	ret = init_fb_chan(mx3fb, to_idmac_chan(chan));
 	if (ret < 0)
 		goto eisdc0;
-
-	mx3fb->backlight_level = 255;
 
 	return 0;
 

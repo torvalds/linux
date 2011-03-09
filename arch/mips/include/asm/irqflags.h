@@ -17,7 +17,7 @@
 #include <asm/hazards.h>
 
 __asm__(
-	"	.macro	raw_local_irq_enable				\n"
+	"	.macro	arch_local_irq_enable				\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
@@ -40,7 +40,7 @@ __asm__(
 
 extern void smtc_ipi_replay(void);
 
-static inline void raw_local_irq_enable(void)
+static inline void arch_local_irq_enable(void)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
 	/*
@@ -50,7 +50,7 @@ static inline void raw_local_irq_enable(void)
 	smtc_ipi_replay();
 #endif
 	__asm__ __volatile__(
-		"raw_local_irq_enable"
+		"arch_local_irq_enable"
 		: /* no outputs */
 		: /* no inputs */
 		: "memory");
@@ -76,7 +76,7 @@ static inline void raw_local_irq_enable(void)
  * Workaround: mask EXL bit of the result or place a nop before mfc0.
  */
 __asm__(
-	"	.macro	raw_local_irq_disable\n"
+	"	.macro	arch_local_irq_disable\n"
 	"	.set	push						\n"
 	"	.set	noat						\n"
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -97,17 +97,17 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-static inline void raw_local_irq_disable(void)
+static inline void arch_local_irq_disable(void)
 {
 	__asm__ __volatile__(
-		"raw_local_irq_disable"
+		"arch_local_irq_disable"
 		: /* no outputs */
 		: /* no inputs */
 		: "memory");
 }
 
 __asm__(
-	"	.macro	raw_local_save_flags flags			\n"
+	"	.macro	arch_local_save_flags flags			\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -118,13 +118,15 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-#define raw_local_save_flags(x)						\
-__asm__ __volatile__(							\
-	"raw_local_save_flags %0"					\
-	: "=r" (x))
+static inline unsigned long arch_local_save_flags(void)
+{
+	unsigned long flags;
+	asm volatile("arch_local_save_flags %0" : "=r" (flags));
+	return flags;
+}
 
 __asm__(
-	"	.macro	raw_local_irq_save result			\n"
+	"	.macro	arch_local_irq_save result			\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
@@ -148,15 +150,18 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-#define raw_local_irq_save(x)						\
-__asm__ __volatile__(							\
-	"raw_local_irq_save\t%0"					\
-	: "=r" (x)							\
-	: /* no inputs */						\
-	: "memory")
+static inline unsigned long arch_local_irq_save(void)
+{
+	unsigned long flags;
+	asm volatile("arch_local_irq_save\t%0"
+		     : "=r" (flags)
+		     : /* no inputs */
+		     : "memory");
+	return flags;
+}
 
 __asm__(
-	"	.macro	raw_local_irq_restore flags			\n"
+	"	.macro	arch_local_irq_restore flags			\n"
 	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
@@ -196,7 +201,7 @@ __asm__(
 	"	.endm							\n");
 
 
-static inline void raw_local_irq_restore(unsigned long flags)
+static inline void arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
@@ -211,24 +216,24 @@ static inline void raw_local_irq_restore(unsigned long flags)
 #endif
 
 	__asm__ __volatile__(
-		"raw_local_irq_restore\t%0"
+		"arch_local_irq_restore\t%0"
 		: "=r" (__tmp1)
 		: "0" (flags)
 		: "memory");
 }
 
-static inline void __raw_local_irq_restore(unsigned long flags)
+static inline void __arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
 	__asm__ __volatile__(
-		"raw_local_irq_restore\t%0"
+		"arch_local_irq_restore\t%0"
 		: "=r" (__tmp1)
 		: "0" (flags)
 		: "memory");
 }
 
-static inline int raw_irqs_disabled_flags(unsigned long flags)
+static inline int arch_irqs_disabled_flags(unsigned long flags)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
 	/*

@@ -43,6 +43,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/rtc.h>
+#include <linux/mutex.h>
 #include <linux/semaphore.h>
 
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
@@ -51,6 +52,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define RTC_VERSION "1.10d"
 
+static DEFINE_MUTEX(hp_sdc_rtc_mutex);
 static unsigned long epoch = 2000;
 
 static struct semaphore i8042tregs;
@@ -64,8 +66,8 @@ static DECLARE_WAIT_QUEUE_HEAD(hp_sdc_rtc_wait);
 static ssize_t hp_sdc_rtc_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos);
 
-static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, unsigned long arg);
+static long hp_sdc_rtc_unlocked_ioctl(struct file *file,
+				      unsigned int cmd, unsigned long arg);
 
 static unsigned int hp_sdc_rtc_poll(struct file *file, poll_table *wait);
 
@@ -103,7 +105,7 @@ static int hp_sdc_rtc_do_read_bbrtc (struct rtc_time *rtctm)
 	t.endidx =		91;
 	t.seq =			tseq;
 	t.act.semaphore =	&tsem;
-	init_MUTEX_LOCKED(&tsem);
+	sema_init(&tsem, 0);
 	
 	if (hp_sdc_enqueue_transaction(&t)) return -1;
 	
@@ -512,7 +514,7 @@ static int hp_sdc_rtc_read_proc(char *page, char **start, off_t off,
         return len;
 }
 
-static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file, 
+static int hp_sdc_rtc_ioctl(struct file *file, 
 			    unsigned int cmd, unsigned long arg)
 {
 #if 1
@@ -659,14 +661,27 @@ static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file,
 #endif
 }
 
+static long hp_sdc_rtc_unlocked_ioctl(struct file *file,
+				      unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&hp_sdc_rtc_mutex);
+	ret = hp_sdc_rtc_ioctl(file, cmd, arg);
+	mutex_unlock(&hp_sdc_rtc_mutex);
+
+	return ret;
+}
+
+
 static const struct file_operations hp_sdc_rtc_fops = {
-        .owner =	THIS_MODULE,
-        .llseek =	no_llseek,
-        .read =		hp_sdc_rtc_read,
-        .poll =		hp_sdc_rtc_poll,
-        .ioctl =	hp_sdc_rtc_ioctl,
-        .open =		hp_sdc_rtc_open,
-        .fasync =	hp_sdc_rtc_fasync,
+        .owner =		THIS_MODULE,
+        .llseek =		no_llseek,
+        .read =			hp_sdc_rtc_read,
+        .poll =			hp_sdc_rtc_poll,
+        .unlocked_ioctl =	hp_sdc_rtc_unlocked_ioctl,
+        .open =			hp_sdc_rtc_open,
+        .fasync =		hp_sdc_rtc_fasync,
 };
 
 static struct miscdevice hp_sdc_rtc_dev = {
@@ -684,7 +699,7 @@ static int __init hp_sdc_rtc_init(void)
 		return -ENODEV;
 #endif
 
-	init_MUTEX(&i8042tregs);
+	sema_init(&i8042tregs, 1);
 
 	if ((ret = hp_sdc_request_timer_irq(&hp_sdc_rtc_isr)))
 		return ret;

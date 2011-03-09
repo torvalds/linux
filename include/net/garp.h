@@ -107,7 +107,7 @@ struct garp_applicant {
 };
 
 struct garp_port {
-	struct garp_applicant	*applicants[GARP_APPLICATION_MAX + 1];
+	struct garp_applicant __rcu	*applicants[GARP_APPLICATION_MAX + 1];
 };
 
 extern int	garp_register_application(struct garp_application *app);

@@ -126,8 +126,8 @@ DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_final);
 #define MB			(1024*KB)
 #define GB			(1024*MB)
 
-void
-pcibios_align_resource(void *data, struct resource *res,
+resource_size_t
+pcibios_align_resource(void *data, const struct resource *res,
 		       resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
@@ -184,7 +184,7 @@ pcibios_align_resource(void *data, struct resource *res,
 		}
 	}
 
-	res->start = start;
+	return start;
 }
 #undef KB
 #undef MB

@@ -120,21 +120,18 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 	}
 }
 
-void local_flush_tlb_all(void)
+void __flush_tlb_global(void)
 {
-	unsigned long flags, status;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	/*
-	 * Flush all the TLB.
-	 *
-	 * Write to the MMU control register's bit:
-	 *	TF-bit for SH-3, TI-bit for SH-4.
-	 *      It's same position, bit #2.
+	 * This is the most destructive of the TLB flushing options,
+	 * and will tear down all of the UTLB/ITLB mappings, including
+	 * wired entries.
 	 */
-	local_irq_save(flags);
-	status = ctrl_inl(MMUCR);
-	status |= 0x04;
-	ctrl_outl(status, MMUCR);
-	ctrl_barrier();
+	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
+
 	local_irq_restore(flags);
 }

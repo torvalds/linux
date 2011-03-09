@@ -116,11 +116,12 @@ extern unsigned long acpi_realmode_flags;
 
 int acpi_register_gsi (struct device *dev, u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
+int acpi_isa_irq_to_gsi (unsigned isa_irq, u32 *gsi);
 
 #ifdef CONFIG_X86_IO_APIC
-extern int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity);
+extern int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity);
 #else
-#define acpi_get_override_irq(bus, trigger, polarity) (-1)
+#define acpi_get_override_irq(gsi, trigger, polarity) (-1)
 #endif
 /*
  * This function undoes the effect of one call to acpi_register_gsi().
@@ -218,7 +219,7 @@ static inline int acpi_video_display_switch_support(void)
 
 extern int acpi_blacklisted(void);
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
-extern int acpi_osi_setup(char *str);
+extern void acpi_osi_setup(char *str);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_pxm(acpi_handle handle);
@@ -244,14 +245,13 @@ int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
-int acpi_check_mem_region(resource_size_t start, resource_size_t n,
-		      const char *name);
+
+int acpi_resources_are_enforced(void);
 
 #ifdef CONFIG_PM_SLEEP
 void __init acpi_no_s4_hw_signature(void);
 void __init acpi_old_suspend_ordering(void);
-void __init acpi_s4_no_nvs(void);
-void __init acpi_set_sci_en_on_resume(void);
+void __init acpi_nvs_nosave(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
@@ -302,9 +302,12 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 				OSC_PCI_EXPRESS_PME_CONTROL |		\
 				OSC_PCI_EXPRESS_AER_CONTROL |		\
 				OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL)
-
-extern acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags);
+extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
+					     u32 *mask, u32 req);
 extern void acpi_early_init(void);
+
+int acpi_os_map_generic_address(struct acpi_generic_address *addr);
+void acpi_os_unmap_generic_address(struct acpi_generic_address *addr);
 
 #else	/* !CONFIG_ACPI */
 
@@ -342,12 +345,6 @@ static inline int acpi_check_region(resource_size_t start, resource_size_t n,
 	return 0;
 }
 
-static inline int acpi_check_mem_region(resource_size_t start,
-					resource_size_t n, const char *name)
-{
-	return 0;
-}
-
 struct acpi_table_header;
 static inline int acpi_table_parse(char *id,
 				int (*handler)(struct acpi_table_header *))
@@ -355,4 +352,14 @@ static inline int acpi_table_parse(char *id,
 	return -1;
 }
 #endif	/* !CONFIG_ACPI */
+
+#ifdef CONFIG_ACPI_SLEEP
+int suspend_nvs_register(unsigned long start, unsigned long size);
+#else
+static inline int suspend_nvs_register(unsigned long a, unsigned long b)
+{
+	return 0;
+}
+#endif
+
 #endif	/*_LINUX_ACPI_H*/

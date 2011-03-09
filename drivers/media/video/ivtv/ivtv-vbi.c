@@ -38,7 +38,7 @@ static void ivtv_set_vps(struct ivtv *itv, int enabled)
 	data.data[9] = itv->vbi.vps_payload.data[2];
 	data.data[10] = itv->vbi.vps_payload.data[3];
 	data.data[11] = itv->vbi.vps_payload.data[4];
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_vbi_data, &data);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, vbi, s_vbi_data, &data);
 }
 
 static void ivtv_set_cc(struct ivtv *itv, int mode, const struct vbi_cc *cc)
@@ -52,12 +52,12 @@ static void ivtv_set_cc(struct ivtv *itv, int mode, const struct vbi_cc *cc)
 	data.line = (mode & 1) ? 21 : 0;
 	data.data[0] = cc->odd[0];
 	data.data[1] = cc->odd[1];
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_vbi_data, &data);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, vbi, s_vbi_data, &data);
 	data.field = 1;
 	data.line = (mode & 2) ? 21 : 0;
 	data.data[0] = cc->even[0];
 	data.data[1] = cc->even[1];
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_vbi_data, &data);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, vbi, s_vbi_data, &data);
 }
 
 static void ivtv_set_wss(struct ivtv *itv, int enabled, int mode)
@@ -80,7 +80,7 @@ static void ivtv_set_wss(struct ivtv *itv, int enabled, int mode)
 	data.line = enabled ? 23 : 0;
 	data.data[0] = mode & 0xff;
 	data.data[1] = (mode >> 8) & 0xff;
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_vbi_data, &data);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, vbi, s_vbi_data, &data);
 }
 
 static int odd_parity(u8 c)
@@ -92,52 +92,95 @@ static int odd_parity(u8 c)
 	return c & 1;
 }
 
-void ivtv_write_vbi(struct ivtv *itv, const struct v4l2_sliced_vbi_data *sliced, size_t cnt)
+static void ivtv_write_vbi_line(struct ivtv *itv,
+				const struct v4l2_sliced_vbi_data *d,
+				struct vbi_cc *cc, int *found_cc)
 {
 	struct vbi_info *vi = &itv->vbi;
+
+	if (d->id == V4L2_SLICED_CAPTION_525 && d->line == 21) {
+		if (d->field) {
+			cc->even[0] = d->data[0];
+			cc->even[1] = d->data[1];
+		} else {
+			cc->odd[0] = d->data[0];
+			cc->odd[1] = d->data[1];
+		}
+		*found_cc = 1;
+	} else if (d->id == V4L2_SLICED_VPS && d->line == 16 && d->field == 0) {
+		struct vbi_vps vps;
+
+		vps.data[0] = d->data[2];
+		vps.data[1] = d->data[8];
+		vps.data[2] = d->data[9];
+		vps.data[3] = d->data[10];
+		vps.data[4] = d->data[11];
+		if (memcmp(&vps, &vi->vps_payload, sizeof(vps))) {
+			vi->vps_payload = vps;
+			set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
+		}
+	} else if (d->id == V4L2_SLICED_WSS_625 &&
+		   d->line == 23 && d->field == 0) {
+		int wss = d->data[0] | d->data[1] << 8;
+
+		if (vi->wss_payload != wss) {
+			vi->wss_payload = wss;
+			set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
+		}
+	}
+}
+
+static void ivtv_write_vbi_cc_lines(struct ivtv *itv, const struct vbi_cc *cc)
+{
+	struct vbi_info *vi = &itv->vbi;
+
+	if (vi->cc_payload_idx < ARRAY_SIZE(vi->cc_payload)) {
+		memcpy(&vi->cc_payload[vi->cc_payload_idx], cc,
+		       sizeof(struct vbi_cc));
+		vi->cc_payload_idx++;
+		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
+	}
+}
+
+static void ivtv_write_vbi(struct ivtv *itv,
+			   const struct v4l2_sliced_vbi_data *sliced,
+			   size_t cnt)
+{
 	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
 	int found_cc = 0;
 	size_t i;
 
+	for (i = 0; i < cnt; i++)
+		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
+
+	if (found_cc)
+		ivtv_write_vbi_cc_lines(itv, &cc);
+}
+
+ssize_t
+ivtv_write_vbi_from_user(struct ivtv *itv,
+			 const struct v4l2_sliced_vbi_data __user *sliced,
+			 size_t cnt)
+{
+	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
+	int found_cc = 0;
+	size_t i;
+	struct v4l2_sliced_vbi_data d;
+	ssize_t ret = cnt * sizeof(struct v4l2_sliced_vbi_data);
+
 	for (i = 0; i < cnt; i++) {
-		const struct v4l2_sliced_vbi_data *d = sliced + i;
-
-		if (d->id == V4L2_SLICED_CAPTION_525 && d->line == 21) {
-			if (d->field) {
-				cc.even[0] = d->data[0];
-				cc.even[1] = d->data[1];
-			} else {
-				cc.odd[0] = d->data[0];
-				cc.odd[1] = d->data[1];
-			}
-			found_cc = 1;
+		if (copy_from_user(&d, sliced + i,
+				   sizeof(struct v4l2_sliced_vbi_data))) {
+			ret = -EFAULT;
+			break;
 		}
-		else if (d->id == V4L2_SLICED_VPS && d->line == 16 && d->field == 0) {
-			struct vbi_vps vps;
-
-			vps.data[0] = d->data[2];
-			vps.data[1] = d->data[8];
-			vps.data[2] = d->data[9];
-			vps.data[3] = d->data[10];
-			vps.data[4] = d->data[11];
-			if (memcmp(&vps, &vi->vps_payload, sizeof(vps))) {
-				vi->vps_payload = vps;
-				set_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags);
-			}
-		}
-		else if (d->id == V4L2_SLICED_WSS_625 && d->line == 23 && d->field == 0) {
-			int wss = d->data[0] | d->data[1] << 8;
-
-			if (vi->wss_payload != wss) {
-				vi->wss_payload = wss;
-				set_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags);
-			}
-		}
+		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
 	}
-	if (found_cc && vi->cc_payload_idx < sizeof(vi->cc_payload)) {
-		vi->cc_payload[vi->cc_payload_idx++] = cc;
-		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
-	}
+
+	if (found_cc)
+		ivtv_write_vbi_cc_lines(itv, &cc);
+
+	return ret;
 }
 
 static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)
@@ -316,7 +359,7 @@ static u32 compress_sliced_buf(struct ivtv *itv, u32 line, u8 *buf, u32 size, u8
 			continue;
 		}
 		vbi.p = p + 4;
-		v4l2_subdev_call(itv->sd_video, video, decode_vbi_line, &vbi);
+		v4l2_subdev_call(itv->sd_video, vbi, decode_vbi_line, &vbi);
 		if (vbi.type && !(lines & (1 << vbi.line))) {
 			lines |= 1 << vbi.line;
 			itv->vbi.sliced_data[line].id = vbi.type;
@@ -440,7 +483,7 @@ void ivtv_vbi_work_handler(struct ivtv *itv)
 			data.id = V4L2_SLICED_WSS_625;
 			data.field = 0;
 
-			if (v4l2_subdev_call(itv->sd_video, video, g_vbi_data, &data) == 0) {
+			if (v4l2_subdev_call(itv->sd_video, vbi, g_vbi_data, &data) == 0) {
 				ivtv_set_wss(itv, 1, data.data[0] & 0xf);
 				vi->wss_missing_cnt = 0;
 			} else if (vi->wss_missing_cnt == 4) {
@@ -454,13 +497,13 @@ void ivtv_vbi_work_handler(struct ivtv *itv)
 
 			data.id = V4L2_SLICED_CAPTION_525;
 			data.field = 0;
-			if (v4l2_subdev_call(itv->sd_video, video, g_vbi_data, &data) == 0) {
+			if (v4l2_subdev_call(itv->sd_video, vbi, g_vbi_data, &data) == 0) {
 				mode |= 1;
 				cc.odd[0] = data.data[0];
 				cc.odd[1] = data.data[1];
 			}
 			data.field = 1;
-			if (v4l2_subdev_call(itv->sd_video, video, g_vbi_data, &data) == 0) {
+			if (v4l2_subdev_call(itv->sd_video, vbi, g_vbi_data, &data) == 0) {
 				mode |= 2;
 				cc.even[0] = data.data[0];
 				cc.even[1] = data.data[1];

@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include "iio.h"
 #include "trigger_consumer.h"
 
@@ -28,29 +29,20 @@
 #define IIO_ID_FORMAT IIO_ID_PREFIX "%d"
 
 /* IDR to assign each registered device a unique id*/
-static DEFINE_IDR(iio_idr);
-
-/* IDR for general event identifiers */
-static DEFINE_IDR(iio_event_idr);
+static DEFINE_IDA(iio_ida);
 /* IDR to allocate character device minor numbers */
-static DEFINE_IDR(iio_chrdev_idr);
+static DEFINE_IDA(iio_chrdev_ida);
 /* Lock used to protect both of the above */
-static DEFINE_SPINLOCK(iio_idr_lock);
+static DEFINE_SPINLOCK(iio_ida_lock);
 
 dev_t iio_devt;
 EXPORT_SYMBOL(iio_devt);
 
 #define IIO_DEV_MAX 256
-static char *iio_devnode(struct device *dev, mode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "iio/%s", dev_name(dev));
-}
-
-struct class iio_class = {
+struct bus_type iio_bus_type = {
 	.name = "iio",
-	.devnode = iio_devnode,
 };
-EXPORT_SYMBOL(iio_class);
+EXPORT_SYMBOL(iio_bus_type);
 
 void __iio_change_event(struct iio_detected_event_list *ev,
 			int ev_code,
@@ -67,7 +59,7 @@ EXPORT_SYMBOL(__iio_change_event);
  * are queued. Hence a client MUST open the chrdev before the ring buffer is
  * switched on.
  */
- int __iio_push_event(struct iio_event_interface *ev_int,
+int __iio_push_event(struct iio_event_interface *ev_int,
 		     int ev_code,
 		     s64 timestamp,
 		     struct iio_shared_ev_pointer *
@@ -79,11 +71,14 @@ EXPORT_SYMBOL(__iio_change_event);
 	/* Does anyone care? */
 	mutex_lock(&ev_int->event_list_lock);
 	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->handler.flags)) {
-		if (ev_int->current_events == ev_int->max_events)
+		if (ev_int->current_events == ev_int->max_events) {
+			mutex_unlock(&ev_int->event_list_lock);
 			return 0;
+		}
 		ev = kmalloc(sizeof(*ev), GFP_KERNEL);
 		if (ev == NULL) {
 			ret = -ENOMEM;
+			mutex_unlock(&ev_int->event_list_lock);
 			goto error_ret;
 		}
 		ev->ev.id = ev_code;
@@ -115,7 +110,7 @@ int iio_push_event(struct iio_dev *dev_info,
 EXPORT_SYMBOL(iio_push_event);
 
 /* Generic interrupt line interrupt handler */
-irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
+static irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
 {
 	struct iio_interrupt *int_info = _int_info;
 	struct iio_dev *dev_info = int_info->dev_info;
@@ -130,19 +125,10 @@ irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
 	}
 
 	time_ns = iio_get_time_ns();
-	/* detect single element list*/
-	if (list_is_singular(&int_info->ev_list)) {
+	list_for_each_entry(p, &int_info->ev_list, list) {
 		disable_irq_nosync(irq);
-		p = list_first_entry(&int_info->ev_list,
-				     struct iio_event_handler_list,
-				     list);
-		/* single event handler - maybe shared */
 		p->handler(dev_info, 1, time_ns, !(p->refcount > 1));
-	} else
-		list_for_each_entry(p, &int_info->ev_list, list) {
-			disable_irq_nosync(irq);
-			p->handler(dev_info, 1, time_ns, 0);
-		}
+	}
 	spin_unlock_irqrestore(&int_info->ev_list_lock, flags);
 
 	return IRQ_HANDLED;
@@ -249,10 +235,10 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
 }
 EXPORT_SYMBOL(iio_remove_event_from_list);
 
-ssize_t iio_event_chrdev_read(struct file *filep,
-			      char *buf,
-			      size_t count,
-			      loff_t *f_ps)
+static ssize_t iio_event_chrdev_read(struct file *filep,
+				     char __user *buf,
+				     size_t count,
+				     loff_t *f_ps)
 {
 	struct iio_event_interface *ev_int = filep->private_data;
 	struct iio_detected_event_list *el;
@@ -289,16 +275,16 @@ ssize_t iio_event_chrdev_read(struct file *filep,
 	mutex_unlock(&ev_int->event_list_lock);
 	/*
 	 * Possible concurency issue if an update of this event is on its way
-	 * through. May lead to new even being removed whilst the reported event
-	 * was the unescalated event. In typical use case this is not a problem
-	 * as userspace will say read half the buffer due to a 50% full event
-	 * which would make the correct 100% full incorrect anyway.
+	 * through. May lead to new event being removed whilst the reported
+	 * event was the unescalated event. In typical use case this is not a
+	 * problem as userspace will say read half the buffer due to a 50%
+	 * full event which would make the correct 100% full incorrect anyway.
 	 */
-	spin_lock(&el->shared_pointer->lock);
-	if (el->shared_pointer)
+	if (el->shared_pointer) {
+		spin_lock(&el->shared_pointer->lock);
 		(el->shared_pointer->ev_p) = NULL;
-	spin_unlock(&el->shared_pointer->lock);
-
+		spin_unlock(&el->shared_pointer->lock);
+	}
 	kfree(el);
 
 	return len;
@@ -310,7 +296,7 @@ error_ret:
 	return ret;
 }
 
-int iio_event_chrdev_release(struct inode *inode, struct file *filep)
+static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
 	struct iio_handler *hand = iio_cdev_to_handler(inode->i_cdev);
 	struct iio_event_interface *ev_int = hand->private;
@@ -332,7 +318,7 @@ int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-int iio_event_chrdev_open(struct inode *inode, struct file *filep)
+static int iio_event_chrdev_open(struct inode *inode, struct file *filep)
 {
 	struct iio_handler *hand = iio_cdev_to_handler(inode->i_cdev);
 	struct iio_event_interface *ev_int = hand->private;
@@ -354,6 +340,7 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.release = iio_event_chrdev_release,
 	.open = iio_event_chrdev_open,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static void iio_event_dev_release(struct device *dev)
@@ -372,14 +359,14 @@ int iio_device_get_chrdev_minor(void)
 {
 	int ret, val;
 
-idr_again:
-	if (unlikely(idr_pre_get(&iio_chrdev_idr, GFP_KERNEL) == 0))
+ida_again:
+	if (unlikely(ida_pre_get(&iio_chrdev_ida, GFP_KERNEL) == 0))
 		return -ENOMEM;
-	spin_lock(&iio_idr_lock);
-	ret = idr_get_new(&iio_chrdev_idr, NULL, &val);
-	spin_unlock(&iio_idr_lock);
+	spin_lock(&iio_ida_lock);
+	ret = ida_get_new(&iio_chrdev_ida, &val);
+	spin_unlock(&iio_ida_lock);
 	if (unlikely(ret == -EAGAIN))
-		goto idr_again;
+		goto ida_again;
 	else if (unlikely(ret))
 		return ret;
 	if (val > IIO_DEV_MAX)
@@ -389,9 +376,9 @@ idr_again:
 
 void iio_device_free_chrdev_minor(int val)
 {
-	spin_lock(&iio_idr_lock);
-	idr_remove(&iio_chrdev_idr, val);
-	spin_unlock(&iio_idr_lock);
+	spin_lock(&iio_ida_lock);
+	ida_remove(&iio_chrdev_ida, val);
+	spin_unlock(&iio_ida_lock);
 }
 
 int iio_setup_ev_int(struct iio_event_interface *ev_int,
@@ -401,7 +388,7 @@ int iio_setup_ev_int(struct iio_event_interface *ev_int,
 {
 	int ret, minor;
 
-	ev_int->dev.class = &iio_class;
+	ev_int->dev.bus = &iio_bus_type;
 	ev_int->dev.parent = dev;
 	ev_int->dev.type = &iio_event_type;
 	device_initialize(&ev_int->dev);
@@ -474,23 +461,23 @@ static int __init iio_init(void)
 {
 	int ret;
 
-	/* Create sysfs class */
-	ret  = class_register(&iio_class);
+	/* Register sysfs bus */
+	ret  = bus_register(&iio_bus_type);
 	if (ret < 0) {
 		printk(KERN_ERR
-		       "%s could not create sysfs class\n",
+		       "%s could not register bus type\n",
 			__FILE__);
 		goto error_nothing;
 	}
 
 	ret = iio_dev_init();
 	if (ret < 0)
-		goto error_unregister_class;
+		goto error_unregister_bus_type;
 
 	return 0;
 
-error_unregister_class:
-	class_unregister(&iio_class);
+error_unregister_bus_type:
+	bus_unregister(&iio_bus_type);
 error_nothing:
 	return ret;
 }
@@ -498,7 +485,7 @@ error_nothing:
 static void __exit iio_exit(void)
 {
 	iio_dev_exit();
-	class_unregister(&iio_class);
+	bus_unregister(&iio_bus_type);
 }
 
 static int iio_device_register_sysfs(struct iio_dev *dev_info)
@@ -512,61 +499,49 @@ static int iio_device_register_sysfs(struct iio_dev *dev_info)
 		goto error_ret;
 	}
 
-	if (dev_info->scan_el_attrs) {
-		ret = sysfs_create_group(&dev_info->dev.kobj,
-					 dev_info->scan_el_attrs);
-		if (ret)
-			dev_err(&dev_info->dev,
-				"Failed to add sysfs scan els\n");
-	}
-
 error_ret:
 	return ret;
 }
 
 static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 {
-	if (dev_info->scan_el_attrs)
-		sysfs_remove_group(&dev_info->dev.kobj,
-				   dev_info->scan_el_attrs);
-
 	sysfs_remove_group(&dev_info->dev.kobj, dev_info->attrs);
 }
 
-int iio_get_new_idr_val(struct idr *this_idr)
+/* Return a negative errno on failure */
+int iio_get_new_ida_val(struct ida *this_ida)
 {
 	int ret;
 	int val;
 
-idr_again:
-	if (unlikely(idr_pre_get(this_idr, GFP_KERNEL) == 0))
+ida_again:
+	if (unlikely(ida_pre_get(this_ida, GFP_KERNEL) == 0))
 		return -ENOMEM;
 
-	spin_lock(&iio_idr_lock);
-	ret = idr_get_new(this_idr, NULL, &val);
-	spin_unlock(&iio_idr_lock);
+	spin_lock(&iio_ida_lock);
+	ret = ida_get_new(this_ida, &val);
+	spin_unlock(&iio_ida_lock);
 	if (unlikely(ret == -EAGAIN))
-		goto idr_again;
+		goto ida_again;
 	else if (unlikely(ret))
 		return ret;
 
 	return val;
 }
-EXPORT_SYMBOL(iio_get_new_idr_val);
+EXPORT_SYMBOL(iio_get_new_ida_val);
 
-void iio_free_idr_val(struct idr *this_idr, int id)
+void iio_free_ida_val(struct ida *this_ida, int id)
 {
-	spin_lock(&iio_idr_lock);
-	idr_remove(this_idr, id);
-	spin_unlock(&iio_idr_lock);
+	spin_lock(&iio_ida_lock);
+	ida_remove(this_ida, id);
+	spin_unlock(&iio_ida_lock);
 }
-EXPORT_SYMBOL(iio_free_idr_val);
+EXPORT_SYMBOL(iio_free_ida_val);
 
 static int iio_device_register_id(struct iio_dev *dev_info,
-				  struct idr *this_idr)
+				  struct ida *this_ida)
 {
-
-	dev_info->id = iio_get_new_idr_val(&iio_idr);
+	dev_info->id = iio_get_new_ida_val(&iio_ida);
 	if (dev_info->id < 0)
 		return dev_info->id;
 	return 0;
@@ -574,7 +549,7 @@ static int iio_device_register_id(struct iio_dev *dev_info,
 
 static void iio_device_unregister_id(struct iio_dev *dev_info)
 {
-	iio_free_idr_val(&iio_idr, dev_info->id);
+	iio_free_ida_val(&iio_ida, dev_info->id);
 }
 
 static inline int __iio_add_event_config_attrs(struct iio_dev *dev_info, int i)
@@ -655,15 +630,11 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
 		dev_info->event_interfaces[i].owner = dev_info->driver_module;
-		ret = iio_get_new_idr_val(&iio_event_idr);
-		if (ret)
-			goto error_free_setup_ev_ints;
-		else
-			dev_info->event_interfaces[i].id = ret;
 
 		snprintf(dev_info->event_interfaces[i]._name, 20,
-			 "event_line%d",
-			dev_info->event_interfaces[i].id);
+			 "%s:event%d",
+			 dev_name(&dev_info->dev),
+			 i);
 
 		ret = iio_setup_ev_int(&dev_info->event_interfaces[i],
 				       (const char *)(dev_info
@@ -674,20 +645,16 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 		if (ret) {
 			dev_err(&dev_info->dev,
 				"Could not get chrdev interface\n");
-			iio_free_idr_val(&iio_event_idr,
-					 dev_info->event_interfaces[i].id);
 			goto error_free_setup_ev_ints;
 		}
-	}
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
-		snprintf(dev_info->event_interfaces[i]._attrname, 20,
-			"event_line%d_sources", i);
-		dev_info->event_attrs[i].name
-			= (const char *)
-			(dev_info->event_interfaces[i]._attrname);
-		ret = sysfs_create_group(&dev_info->dev.kobj,
-					 &dev_info->event_attrs[i]);
+		dev_set_drvdata(&dev_info->event_interfaces[i].dev,
+				(void *)dev_info);
+		ret = sysfs_create_group(&dev_info
+					->event_interfaces[i]
+					.dev.kobj,
+					&dev_info->event_attrs[i]);
+
 		if (ret) {
 			dev_err(&dev_info->dev,
 				"Failed to register sysfs for event attrs");
@@ -709,15 +676,12 @@ error_unregister_config_attrs:
 	i = dev_info->num_interrupt_lines - 1;
 error_remove_sysfs_interfaces:
 	for (j = 0; j < i; j++)
-		sysfs_remove_group(&dev_info->dev.kobj,
+		sysfs_remove_group(&dev_info
+				   ->event_interfaces[j].dev.kobj,
 				   &dev_info->event_attrs[j]);
-	i = dev_info->num_interrupt_lines - 1;
 error_free_setup_ev_ints:
-	for (j = 0; j < i; j++) {
-		iio_free_idr_val(&iio_event_idr,
-				 dev_info->event_interfaces[i].id);
+	for (j = 0; j < i; j++)
 		iio_free_ev_int(&dev_info->event_interfaces[j]);
-	}
 	kfree(dev_info->interrupts);
 error_free_event_interfaces:
 	kfree(dev_info->event_interfaces);
@@ -733,14 +697,12 @@ static void iio_device_unregister_eventset(struct iio_dev *dev_info)
 	if (dev_info->num_interrupt_lines == 0)
 		return;
 	for (i = 0; i < dev_info->num_interrupt_lines; i++)
-		sysfs_remove_group(&dev_info->dev.kobj,
+		sysfs_remove_group(&dev_info
+				   ->event_interfaces[i].dev.kobj,
 				   &dev_info->event_attrs[i]);
 
-	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
-		iio_free_idr_val(&iio_event_idr,
-				 dev_info->event_interfaces[i].id);
+	for (i = 0; i < dev_info->num_interrupt_lines; i++)
 		iio_free_ev_int(&dev_info->event_interfaces[i]);
-	}
 	kfree(dev_info->interrupts);
 	kfree(dev_info->event_interfaces);
 }
@@ -764,7 +726,7 @@ struct iio_dev *iio_allocate_device(void)
 
 	if (dev) {
 		dev->dev.type = &iio_dev_type;
-		dev->dev.class = &iio_class;
+		dev->dev.bus = &iio_bus_type;
 		device_initialize(&dev->dev);
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
@@ -786,7 +748,7 @@ int iio_device_register(struct iio_dev *dev_info)
 {
 	int ret;
 
-	ret = iio_device_register_id(dev_info, &iio_idr);
+	ret = iio_device_register_id(dev_info, &iio_ida);
 	if (ret) {
 		dev_err(&dev_info->dev, "Failed to get id\n");
 		goto error_ret;
@@ -795,7 +757,7 @@ int iio_device_register(struct iio_dev *dev_info)
 
 	ret = device_add(&dev_info->dev);
 	if (ret)
-		goto error_free_idr;
+		goto error_free_ida;
 	ret = iio_device_register_sysfs(dev_info);
 	if (ret) {
 		dev_err(dev_info->dev.parent,
@@ -805,7 +767,7 @@ int iio_device_register(struct iio_dev *dev_info)
 	ret = iio_device_register_eventset(dev_info);
 	if (ret) {
 		dev_err(dev_info->dev.parent,
-			"Failed to register event set \n");
+			"Failed to register event set\n");
 		goto error_free_sysfs;
 	}
 	if (dev_info->modes & INDIO_RING_TRIGGERED)
@@ -817,7 +779,7 @@ error_free_sysfs:
 	iio_device_unregister_sysfs(dev_info);
 error_del_device:
 	device_del(&dev_info->dev);
-error_free_idr:
+error_free_ida:
 	iio_device_unregister_id(dev_info);
 error_ret:
 	return ret;

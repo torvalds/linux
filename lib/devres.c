@@ -1,5 +1,6 @@
 #include <linux/pci.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 #include <linux/module.h>
 
 void devm_ioremap_release(struct device *dev, void *res)
@@ -327,7 +328,7 @@ EXPORT_SYMBOL(pcim_iomap_regions_request_all);
  * @pdev: PCI device to map IO resources for
  * @mask: Mask of BARs to unmap and release
  *
- * Unamp and release regions specified by @mask.
+ * Unmap and release regions specified by @mask.
  */
 void pcim_iounmap_regions(struct pci_dev *pdev, u16 mask)
 {

@@ -91,7 +91,7 @@
 #define SCA3000_INT_STATUS_X_TRIGGER		0x02
 #define SCA3000_INT_STATUS_Z_TRIGGER		0x01
 
-/* Used to allow accesss to multiplexed registers */
+/* Used to allow access to multiplexed registers */
 #define SCA3000_REG_ADDR_CTRL_SEL		0x18
 /* Only available for SCA3000-D03 and SCA3000-D01 */
 #define SCA3000_REG_CTRL_SEL_I2C_DISABLE	0x01
@@ -187,6 +187,7 @@ struct sca3000_state {
 /**
  * struct sca3000_chip_info - model dependant parameters
  * @name: 			model identification
+ * @scale:			string containing floating point scale factor
  * @temp_output:		some devices have temperature sensors.
  * @measurement_mode_freq:	normal mode sampling frequency
  * @option_mode_1:		first optional mode. Not all models have one
@@ -199,6 +200,7 @@ struct sca3000_state {
  **/
 struct sca3000_chip_info {
 	const char		*name;
+	const char		*scale;
 	bool			temp_output;
 	int			measurement_mode_freq;
 	int			option_mode_1;
@@ -240,7 +242,7 @@ static inline int sca3000_11bit_convert(uint8_t msb, uint8_t lsb)
 	val |= (val & (1 << 12)) ? 0xE000 : 0;
 
 	return val;
-};
+}
 
 static inline int sca3000_13bit_convert(uint8_t msb, uint8_t lsb)
 {
@@ -251,7 +253,7 @@ static inline int sca3000_13bit_convert(uint8_t msb, uint8_t lsb)
 	val |= (val & (1 << 12)) ? 0xE000 : 0;
 
 	return val;
-};
+}
 
 
 #ifdef CONFIG_IIO_RING_BUFFER
@@ -284,15 +286,19 @@ void sca3000_unconfigure_ring(struct iio_dev *indio_dev);
 void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring);
 
 #else
-static inline void sca3000_register_ring_funcs(struct iio_dev *indio_dev) {};
+static inline void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
+{
+}
 
 static inline
 int sca3000_register_ring_access_and_init(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
-static inline void sca3000_ring_int_process(u8 val, void *ring) {};
+static inline void sca3000_ring_int_process(u8 val, void *ring)
+{
+}
 
 #endif
 

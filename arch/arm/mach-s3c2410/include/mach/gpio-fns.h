@@ -10,13 +10,27 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __MACH_GPIO_FNS_H
+#define __MACH_GPIO_FNS_H __FILE__
+
 /* These functions are in the to-be-removed category and it is strongly
  * encouraged not to use these in new code. They will be marked deprecated
  * very soon.
  *
  * Most of the functionality can be either replaced by the gpiocfg calls
  * for the s3c platform or by the generic GPIOlib API.
+ *
+ * As of 2.6.35-rc, these will be removed, with the few drivers using them
+ * either replaced or given a wrapper until the calls can be removed.
 */
+
+#include <plat/gpio-cfg.h>
+
+static inline void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int cfg)
+{
+	/* 1:1 mapping between cfgpin and setcfg calls at the moment */
+	s3c_gpio_cfgpin(pin, cfg);
+}
 
 /* external functions for GPIO support
  *
@@ -24,17 +38,6 @@
  * registers without conflicting. If your driver only owns the entire
  * GPIO register, then it is safe to ioremap/__raw_{read|write} to it.
 */
-
-/* s3c2410_gpio_cfgpin
- *
- * set the configuration of the given pin to the value passed.
- *
- * eg:
- *    s3c2410_gpio_cfgpin(S3C2410_GPA(0), S3C2410_GPA0_ADDR0);
- *    s3c2410_gpio_cfgpin(S3C2410_GPE(8), S3C2410_GPE8_SDDAT1);
-*/
-
-extern void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function);
 
 extern unsigned int s3c2410_gpio_getcfg(unsigned int pin);
 
@@ -73,6 +76,14 @@ extern int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 
 /* s3c2410_gpio_pullup
  *
+ * This call should be replaced with s3c_gpio_setpull().
+ *
+ * As a note, there is currently no distinction between pull-up and pull-down
+ * in the s3c24xx series devices with only an on/off configuration.
+ */
+
+/* s3c2410_gpio_pullup
+ *
  * configure the pull-up control on the given pin
  *
  * to = 1 => disable the pull-up
@@ -86,18 +97,8 @@ extern int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 
 extern void s3c2410_gpio_pullup(unsigned int pin, unsigned int to);
 
-/* s3c2410_gpio_getpull
- *
- * Read the state of the pull-up on a given pin
- *
- * return:
- *	< 0 => error code
- *	  0 => enabled
- *	  1 => disabled
-*/
-
-extern int s3c2410_gpio_getpull(unsigned int pin);
-
 extern void s3c2410_gpio_setpin(unsigned int pin, unsigned int to);
 
 extern unsigned int s3c2410_gpio_getpin(unsigned int pin);
+
+#endif /* __MACH_GPIO_FNS_H */

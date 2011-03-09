@@ -16,17 +16,21 @@
 
 #include <linux/nl80211.h>
 #include <linux/pci.h>
+#include <linux/ath9k_platform.h>
 #include "ath9k.h"
 
-static struct pci_device_id ath_pci_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0024) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x0027) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0029) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002A) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x002B) }, /* PCI-E */
+	{ PCI_VDEVICE(ATHEROS, 0x002C) }, /* PCI-E 802.11n bonded out */
 	{ PCI_VDEVICE(ATHEROS, 0x002D) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002E) }, /* PCI-E */
+	{ PCI_VDEVICE(ATHEROS, 0x0030) }, /* PCI-E  AR9300 */
+	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ 0 }
 };
 
@@ -49,32 +53,36 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 		*csz = DEFAULT_CACHELINE >> 2;   /* Use the default size */
 }
 
-static void ath_pci_cleanup(struct ath_common *common)
-{
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	struct pci_dev *pdev = to_pci_dev(sc->dev);
-
-	pci_iounmap(pdev, sc->mem);
-	pci_disable_device(pdev);
-	pci_release_region(pdev, 0);
-}
-
 static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_hw *ah = (struct ath_hw *) common->ah;
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath9k_platform_data *pdata = sc->dev->platform_data;
 
-	common->ops->read(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
+	if (pdata) {
+		if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
+			ath_err(common,
+				"%s: eeprom read failed, offset %08x is out of range\n",
+				__func__, off);
+		}
 
-	if (!ath9k_hw_wait(ah,
-			   AR_EEPROM_STATUS_DATA,
-			   AR_EEPROM_STATUS_DATA_BUSY |
-			   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
-			   AH_WAIT_TIMEOUT)) {
-		return false;
+		*data = pdata->eeprom_data[off];
+	} else {
+		struct ath_hw *ah = (struct ath_hw *) common->ah;
+
+		common->ops->read(ah, AR5416_EEPROM_OFFSET +
+				      (off << AR5416_EEPROM_S));
+
+		if (!ath9k_hw_wait(ah,
+				   AR_EEPROM_STATUS_DATA,
+				   AR_EEPROM_STATUS_DATA_BUSY |
+				   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
+				   AH_WAIT_TIMEOUT)) {
+			return false;
+		}
+
+		*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
+			   AR_EEPROM_STATUS_DATA_VAL);
 	}
-
-	*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
-		   AR_EEPROM_STATUS_DATA_VAL);
 
 	return true;
 }
@@ -88,7 +96,7 @@ static void ath_pci_bt_coex_prep(struct ath_common *common)
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	u8 aspm;
 
-	if (!pdev->is_pcie)
+	if (!pci_is_pcie(pdev))
 		return;
 
 	pci_read_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, &aspm);
@@ -96,11 +104,23 @@ static void ath_pci_bt_coex_prep(struct ath_common *common)
 	pci_write_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, aspm);
 }
 
+static void ath_pci_extn_synch_enable(struct ath_common *common)
+{
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct pci_dev *pdev = to_pci_dev(sc->dev);
+	u8 lnkctl;
+
+	pci_read_config_byte(pdev, sc->sc_ah->caps.pcie_lcr_offset, &lnkctl);
+	lnkctl |= PCI_EXP_LNKCTL_ES;
+	pci_write_config_byte(pdev, sc->sc_ah->caps.pcie_lcr_offset, lnkctl);
+}
+
 static const struct ath_bus_ops ath_pci_bus_ops = {
+	.ath_bus_type = ATH_PCI,
 	.read_cachesize = ath_pci_read_cachesize,
-	.cleanup = ath_pci_cleanup,
 	.eeprom_read = ath_pci_eeprom_read,
 	.bt_coex_prep = ath_pci_bt_coex_prep,
+	.extn_synch_en = ath_pci_extn_synch_enable,
 };
 
 static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -113,25 +133,22 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u16 subsysid;
 	u32 val;
 	int ret = 0;
-	struct ath_hw *ah;
 	char hw_name[64];
 
 	if (pci_enable_device(pdev))
 		return -EIO;
 
 	ret =  pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-
 	if (ret) {
 		printk(KERN_ERR "ath9k: 32-bit DMA not available\n");
-		goto bad;
+		goto err_dma;
 	}
 
 	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-
 	if (ret) {
 		printk(KERN_ERR "ath9k: 32-bit DMA consistent "
 			"DMA enable failed\n");
-		goto bad;
+		goto err_dma;
 	}
 
 	/*
@@ -171,22 +188,22 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret) {
 		dev_err(&pdev->dev, "PCI memory region reserve error\n");
 		ret = -ENODEV;
-		goto bad;
+		goto err_region;
 	}
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
 		printk(KERN_ERR "PCI memory map error\n") ;
 		ret = -EIO;
-		goto bad1;
+		goto err_iomap;
 	}
 
 	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy) +
 				sizeof(struct ath_softc), &ath9k_ops);
 	if (!hw) {
-		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
+		dev_err(&pdev->dev, "No memory for ieee80211_hw\n");
 		ret = -ENOMEM;
-		goto bad2;
+		goto err_alloc_hw;
 	}
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -201,41 +218,41 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
 
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsysid);
-	ret = ath_init_device(id->device, sc, subsysid, &ath_pci_bus_ops);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize device\n");
-		goto bad3;
-	}
-
-	/* setup interrupt service routine */
+	/* Will be cleared in ath9k_start() */
+	sc->sc_flags |= SC_OP_INVALID;
 
 	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
-		goto bad4;
+		goto err_irq;
 	}
 
 	sc->irq = pdev->irq;
 
-	ah = sc->sc_ah;
-	ath9k_hw_name(ah, hw_name, sizeof(hw_name));
-	printk(KERN_INFO
-	       "%s: %s mem=0x%lx, irq=%d\n",
-	       wiphy_name(hw->wiphy),
-	       hw_name,
-	       (unsigned long)mem, pdev->irq);
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsysid);
+	ret = ath9k_init_device(id->device, sc, subsysid, &ath_pci_bus_ops);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize device\n");
+		goto err_init;
+	}
+
+	ath9k_hw_name(sc->sc_ah, hw_name, sizeof(hw_name));
+	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
+		   hw_name, (unsigned long)mem, pdev->irq);
 
 	return 0;
-bad4:
-	ath_detach(sc);
-bad3:
+
+err_init:
+	free_irq(sc->irq, sc);
+err_irq:
 	ieee80211_free_hw(hw);
-bad2:
+err_alloc_hw:
 	pci_iounmap(pdev, mem);
-bad1:
+err_iomap:
 	pci_release_region(pdev, 0);
-bad:
+err_region:
+	/* Nothing */
+err_dma:
 	pci_disable_device(pdev);
 	return ret;
 }
@@ -245,40 +262,40 @@ static void ath_pci_remove(struct pci_dev *pdev)
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	void __iomem *mem = sc->mem;
 
-	ath_cleanup(sc);
+	if (!is_ath9k_unloaded)
+		sc->sc_ah->ah_flags |= AH_UNPLUGGED;
+	ath9k_deinit_device(sc);
+	free_irq(sc->irq, sc);
+	ieee80211_free_hw(sc->hw);
+
+	pci_iounmap(pdev, mem);
+	pci_disable_device(pdev);
+	pci_release_region(pdev, 0);
 }
 
 #ifdef CONFIG_PM
 
-static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int ath_pci_suspend(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
 	return 0;
 }
 
-static int ath_pci_resume(struct pci_dev *pdev)
+static int ath_pci_resume(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	u32 val;
-	int err;
-
-	pci_restore_state(pdev);
-
-	err = pci_enable_device(pdev);
-	if (err)
-		return err;
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
@@ -294,10 +311,38 @@ static int ath_pci_resume(struct pci_dev *pdev)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
+	  /*
+	   * Reset key cache to sane defaults (all entries cleared) instead of
+	   * semi-random values after suspend/resume.
+	   */
+	ath9k_ps_wakeup(sc);
+	ath9k_init_crypto(sc);
+	ath9k_ps_restore(sc);
+
+	sc->ps_idle = true;
+	ath9k_set_wiphy_idle(aphy, true);
+	ath_radio_disable(sc, hw);
+
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+static const struct dev_pm_ops ath9k_pm_ops = {
+	.suspend = ath_pci_suspend,
+	.resume = ath_pci_resume,
+	.freeze = ath_pci_suspend,
+	.thaw = ath_pci_resume,
+	.poweroff = ath_pci_suspend,
+	.restore = ath_pci_resume,
+};
+
+#define ATH9K_PM_OPS	(&ath9k_pm_ops)
+
+#else /* !CONFIG_PM */
+
+#define ATH9K_PM_OPS	NULL
+
+#endif /* !CONFIG_PM */
+
 
 MODULE_DEVICE_TABLE(pci, ath_pci_id_table);
 
@@ -306,10 +351,7 @@ static struct pci_driver ath_pci_driver = {
 	.id_table   = ath_pci_id_table,
 	.probe      = ath_pci_probe,
 	.remove     = ath_pci_remove,
-#ifdef CONFIG_PM
-	.suspend    = ath_pci_suspend,
-	.resume     = ath_pci_resume,
-#endif /* CONFIG_PM */
+	.driver.pm  = ATH9K_PM_OPS,
 };
 
 int ath_pci_init(void)

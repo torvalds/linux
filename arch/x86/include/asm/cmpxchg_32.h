@@ -11,38 +11,42 @@
 extern void __xchg_wrong_size(void);
 
 /*
- * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
- * Note 2: xchg has side effect, so that attribute volatile is necessary,
- *	  but generally the primitive is invalid, *ptr is output argument. --ANK
+ * Note: no "lock" prefix even on SMP: xchg always implies lock anyway.
+ * Since this is generally used to protect other memory information, we
+ * use "asm volatile" and "memory" clobbers to prevent gcc from moving
+ * information around.
  */
-
-struct __xchg_dummy {
-	unsigned long a[100];
-};
-#define __xg(x) ((struct __xchg_dummy *)(x))
-
 #define __xchg(x, ptr, size)						\
 ({									\
 	__typeof(*(ptr)) __x = (x);					\
 	switch (size) {							\
 	case 1:								\
-		asm volatile("xchgb %b0,%1"				\
-			     : "=q" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+	{								\
+		volatile u8 *__ptr = (volatile u8 *)(ptr);		\
+		asm volatile("xchgb %0,%1"				\
+			     : "=q" (__x), "+m" (*__ptr)		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
+	}								\
 	case 2:								\
-		asm volatile("xchgw %w0,%1"				\
-			     : "=r" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+	{								\
+		volatile u16 *__ptr = (volatile u16 *)(ptr);		\
+		asm volatile("xchgw %0,%1"				\
+			     : "=r" (__x), "+m" (*__ptr)		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
+	}								\
 	case 4:								\
+	{								\
+		volatile u32 *__ptr = (volatile u32 *)(ptr);		\
 		asm volatile("xchgl %0,%1"				\
-			     : "=r" (__x)				\
-			     : "m" (*__xg(ptr)), "0" (__x)		\
+			     : "=r" (__x), "+m" (*__ptr)		\
+			     : "0" (__x)				\
 			     : "memory");				\
 		break;							\
+	}								\
 	default:							\
 		__xchg_wrong_size();					\
 	}								\
@@ -53,59 +57,32 @@ struct __xchg_dummy {
 	__xchg((v), (ptr), sizeof(*ptr))
 
 /*
- * The semantics of XCHGCMP8B are a bit strange, this is why
- * there is a loop and the loading of %%eax and %%edx has to
- * be inside. This inlines well in most cases, the cached
- * cost is around ~38 cycles. (in the future we might want
- * to do an SIMD/3DNOW!/MMX/FPU 64-bit store here, but that
- * might have an implicit FPU-save as a cost, so it's not
- * clear which path to go.)
+ * CMPXCHG8B only writes to the target if we had the previous
+ * value in registers, otherwise it acts as a read and gives us the
+ * "new previous" value.  That is why there is a loop.  Preloading
+ * EDX:EAX is a performance optimization: in the common case it means
+ * we need only one locked operation.
  *
- * cmpxchg8b must be used with the lock prefix here to allow
- * the instruction to be executed atomically, see page 3-102
- * of the instruction set reference 24319102.pdf. We need
- * the reader side to see the coherent 64bit value.
+ * A SIMD/3DNOW!/MMX/FPU 64-bit store here would require at the very
+ * least an FPU save and/or %cr0.ts manipulation.
+ *
+ * cmpxchg8b must be used with the lock prefix here to allow the
+ * instruction to be executed atomically.  We need to have the reader
+ * side to see the coherent 64bit value.
  */
-static inline void __set_64bit(unsigned long long *ptr,
-			       unsigned int low, unsigned int high)
+static inline void set_64bit(volatile u64 *ptr, u64 value)
 {
+	u32 low  = value;
+	u32 high = value >> 32;
+	u64 prev = *ptr;
+
 	asm volatile("\n1:\t"
-		     "movl (%0), %%eax\n\t"
-		     "movl 4(%0), %%edx\n\t"
-		     LOCK_PREFIX "cmpxchg8b (%0)\n\t"
+		     LOCK_PREFIX "cmpxchg8b %0\n\t"
 		     "jnz 1b"
-		     : /* no outputs */
-		     : "D"(ptr),
-		       "b"(low),
-		       "c"(high)
-		     : "ax", "dx", "memory");
+		     : "=m" (*ptr), "+A" (prev)
+		     : "b" (low), "c" (high)
+		     : "memory");
 }
-
-static inline void __set_64bit_constant(unsigned long long *ptr,
-					unsigned long long value)
-{
-	__set_64bit(ptr, (unsigned int)value, (unsigned int)(value >> 32));
-}
-
-#define ll_low(x)	*(((unsigned int *)&(x)) + 0)
-#define ll_high(x)	*(((unsigned int *)&(x)) + 1)
-
-static inline void __set_64bit_var(unsigned long long *ptr,
-				   unsigned long long value)
-{
-	__set_64bit(ptr, ll_low(value), ll_high(value));
-}
-
-#define set_64bit(ptr, value)			\
-	(__builtin_constant_p((value))		\
-	 ? __set_64bit_constant((ptr), (value))	\
-	 : __set_64bit_var((ptr), (value)))
-
-#define _set_64bit(ptr, value)						\
-	(__builtin_constant_p(value)					\
-	 ? __set_64bit(ptr, (unsigned int)(value),			\
-		       (unsigned int)((value) >> 32))			\
-	 : __set_64bit(ptr, ll_low((value)), ll_high((value))))
 
 extern void __cmpxchg_wrong_size(void);
 
@@ -121,23 +98,32 @@ extern void __cmpxchg_wrong_size(void);
 	__typeof__(*(ptr)) __new = (new);				\
 	switch (size) {							\
 	case 1:								\
-		asm volatile(lock "cmpxchgb %b1,%2"			\
-			     : "=a"(__ret)				\
-			     : "q"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+	{								\
+		volatile u8 *__ptr = (volatile u8 *)(ptr);		\
+		asm volatile(lock "cmpxchgb %2,%1"			\
+			     : "=a" (__ret), "+m" (*__ptr)		\
+			     : "q" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
+	}								\
 	case 2:								\
-		asm volatile(lock "cmpxchgw %w1,%2"			\
-			     : "=a"(__ret)				\
-			     : "r"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+	{								\
+		volatile u16 *__ptr = (volatile u16 *)(ptr);		\
+		asm volatile(lock "cmpxchgw %2,%1"			\
+			     : "=a" (__ret), "+m" (*__ptr)		\
+			     : "r" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
+	}								\
 	case 4:								\
-		asm volatile(lock "cmpxchgl %1,%2"			\
-			     : "=a"(__ret)				\
-			     : "r"(__new), "m"(*__xg(ptr)), "0"(__old)	\
+	{								\
+		volatile u32 *__ptr = (volatile u32 *)(ptr);		\
+		asm volatile(lock "cmpxchgl %2,%1"			\
+			     : "=a" (__ret), "+m" (*__ptr)		\
+			     : "r" (__new), "0" (__old)			\
 			     : "memory");				\
 		break;							\
+	}								\
 	default:							\
 		__cmpxchg_wrong_size();					\
 	}								\
@@ -175,32 +161,28 @@ extern void __cmpxchg_wrong_size(void);
 					       (unsigned long long)(n)))
 #endif
 
-static inline unsigned long long __cmpxchg64(volatile void *ptr,
-					     unsigned long long old,
-					     unsigned long long new)
+static inline u64 __cmpxchg64(volatile u64 *ptr, u64 old, u64 new)
 {
-	unsigned long long prev;
-	asm volatile(LOCK_PREFIX "cmpxchg8b %3"
-		     : "=A"(prev)
-		     : "b"((unsigned long)new),
-		       "c"((unsigned long)(new >> 32)),
-		       "m"(*__xg(ptr)),
-		       "0"(old)
+	u64 prev;
+	asm volatile(LOCK_PREFIX "cmpxchg8b %1"
+		     : "=A" (prev),
+		       "+m" (*ptr)
+		     : "b" ((u32)new),
+		       "c" ((u32)(new >> 32)),
+		       "0" (old)
 		     : "memory");
 	return prev;
 }
 
-static inline unsigned long long __cmpxchg64_local(volatile void *ptr,
-						   unsigned long long old,
-						   unsigned long long new)
+static inline u64 __cmpxchg64_local(volatile u64 *ptr, u64 old, u64 new)
 {
-	unsigned long long prev;
-	asm volatile("cmpxchg8b %3"
-		     : "=A"(prev)
-		     : "b"((unsigned long)new),
-		       "c"((unsigned long)(new >> 32)),
-		       "m"(*__xg(ptr)),
-		       "0"(old)
+	u64 prev;
+	asm volatile("cmpxchg8b %1"
+		     : "=A" (prev),
+		       "+m" (*ptr)
+		     : "b" ((u32)new),
+		       "c" ((u32)(new >> 32)),
+		       "0" (old)
 		     : "memory");
 	return prev;
 }
@@ -264,14 +246,13 @@ static inline unsigned long cmpxchg_386(volatile void *ptr, unsigned long old,
  * to simulate the cmpxchg8b on the 80386 and 80486 CPU.
  */
 
-extern unsigned long long cmpxchg_486_u64(volatile void *, u64, u64);
-
 #define cmpxchg64(ptr, o, n)					\
 ({								\
 	__typeof__(*(ptr)) __ret;				\
 	__typeof__(*(ptr)) __old = (o);				\
 	__typeof__(*(ptr)) __new = (n);				\
-	alternative_io("call cmpxchg8b_emu",			\
+	alternative_io(LOCK_PREFIX_HERE				\
+			"call cmpxchg8b_emu",			\
 			"lock; cmpxchg8b (%%esi)" ,		\
 		       X86_FEATURE_CX8,				\
 		       "=A" (__ret),				\
@@ -282,20 +263,20 @@ extern unsigned long long cmpxchg_486_u64(volatile void *, u64, u64);
 	__ret; })
 
 
-
-#define cmpxchg64_local(ptr, o, n)					\
-({									\
-	__typeof__(*(ptr)) __ret;					\
-	if (likely(boot_cpu_data.x86 > 4))				\
-		__ret = (__typeof__(*(ptr)))__cmpxchg64_local((ptr),	\
-				(unsigned long long)(o),		\
-				(unsigned long long)(n));		\
-	else								\
-		__ret = (__typeof__(*(ptr)))cmpxchg_486_u64((ptr),	\
-				(unsigned long long)(o),		\
-				(unsigned long long)(n));		\
-	__ret;								\
-})
+#define cmpxchg64_local(ptr, o, n)				\
+({								\
+	__typeof__(*(ptr)) __ret;				\
+	__typeof__(*(ptr)) __old = (o);				\
+	__typeof__(*(ptr)) __new = (n);				\
+	alternative_io("call cmpxchg8b_emu",			\
+		       "cmpxchg8b (%%esi)" ,			\
+		       X86_FEATURE_CX8,				\
+		       "=A" (__ret),				\
+		       "S" ((ptr)), "0" (__old),		\
+		       "b" ((unsigned int)__new),		\
+		       "c" ((unsigned int)(__new>>32))		\
+		       : "memory");				\
+	__ret; })
 
 #endif
 

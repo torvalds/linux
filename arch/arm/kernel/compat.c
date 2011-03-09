@@ -217,10 +217,3 @@ void __init convert_to_tag_list(struct tag *tags)
 	struct param_struct *params = (struct param_struct *)tags;
 	build_tag_list(params, &params->u2);
 }
-
-void __init squash_mem_tags(struct tag *tag)
-{
-	for (; tag->hdr.size; tag = tag_next(tag))
-		if (tag->hdr.tag == ATAG_MEM)
-			tag->hdr.tag = ATAG_NONE;
-}

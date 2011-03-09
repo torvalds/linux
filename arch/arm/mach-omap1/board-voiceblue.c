@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mtd/physmap.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
@@ -27,11 +28,11 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
 #include <plat/common.h>
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
@@ -82,13 +83,16 @@ static struct platform_device serial_device = {
 
 static int __init ext_uart_init(void)
 {
+	if (!machine_is_voiceblue())
+		return -ENODEV;
+
 	return platform_device_register(&serial_device);
 }
 arch_initcall(ext_uart_init);
 
-static struct flash_platform_data voiceblue_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data voiceblue_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 };
 
 static struct resource voiceblue_flash_resource = {
@@ -98,7 +102,7 @@ static struct resource voiceblue_flash_resource = {
 };
 
 static struct platform_device voiceblue_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &voiceblue_flash_data,
@@ -157,7 +161,6 @@ static void __init voiceblue_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static void __init voiceblue_init(void)
@@ -197,7 +200,7 @@ static void __init voiceblue_init(void)
 	omap_board_config = voiceblue_config;
 	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
 	omap_serial_init();
-	omap_usb_init(&voiceblue_usb_config);
+	omap1_usb_init(&voiceblue_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	/* There is a good chance board is going up, so enable power LED
@@ -235,6 +238,9 @@ static struct notifier_block panic_block = {
 
 static int __init voiceblue_setup(void)
 {
+	if (!machine_is_voiceblue())
+		return -ENODEV;
+
 	/* Setup panic notifier */
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
@@ -282,10 +288,9 @@ EXPORT_SYMBOL(voiceblue_wdt_ping);
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */
-	.phys_io	= 0xfff00000,
-	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= voiceblue_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= voiceblue_init_irq,
 	.init_machine	= voiceblue_init,
 	.timer		= &omap_timer,

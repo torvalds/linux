@@ -978,11 +978,10 @@ static int tifm_sd_probe(struct tifm_dev *sock)
 	mmc->f_max = 24000000;
 
 	mmc->max_blk_count = 2048;
-	mmc->max_hw_segs = mmc->max_blk_count;
+	mmc->max_segs = mmc->max_blk_count;
 	mmc->max_blk_size = min(TIFM_MMCSD_MAX_BLOCK_SIZE, PAGE_SIZE);
 	mmc->max_seg_size = mmc->max_blk_count * mmc->max_blk_size;
 	mmc->max_req_size = mmc->max_seg_size;
-	mmc->max_phys_segs = mmc->max_hw_segs;
 
 	sock->card_event = tifm_sd_card_event;
 	sock->data_event = tifm_sd_data_event;
@@ -1032,7 +1031,7 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 
 static int tifm_sd_suspend(struct tifm_dev *sock, pm_message_t state)
 {
-	return mmc_suspend_host(tifm_get_drvdata(sock), state);
+	return mmc_suspend_host(tifm_get_drvdata(sock));
 }
 
 static int tifm_sd_resume(struct tifm_dev *sock)

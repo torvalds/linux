@@ -27,7 +27,6 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
-#include <linux/slab.h>
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -165,8 +164,6 @@ static void __init gtwx5715_init(void)
 
 MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
 	/* Maintainer: George Joseph */
-	.phys_io	= IXP4XX_UART2_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,

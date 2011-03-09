@@ -7,18 +7,20 @@
 
 struct unwind_table;
 
-struct mod_arch_specific
-{
 #ifdef CONFIG_ARM_UNWIND
-	Elf_Shdr *unw_sec_init;
-	Elf_Shdr *unw_sec_devinit;
-	Elf_Shdr *unw_sec_core;
-	Elf_Shdr *sec_init_text;
-	Elf_Shdr *sec_devinit_text;
-	Elf_Shdr *sec_core_text;
-	struct unwind_table *unwind_init;
-	struct unwind_table *unwind_devinit;
-	struct unwind_table *unwind_core;
+enum {
+	ARM_SEC_INIT,
+	ARM_SEC_DEVINIT,
+	ARM_SEC_CORE,
+	ARM_SEC_EXIT,
+	ARM_SEC_DEVEXIT,
+	ARM_SEC_MAX,
+};
+#endif
+
+struct mod_arch_specific {
+#ifdef CONFIG_ARM_UNWIND
+	struct unwind_table *unwind[ARM_SEC_MAX];
 #endif
 };
 

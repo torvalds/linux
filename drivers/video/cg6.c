@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>
@@ -719,7 +718,7 @@ static void __devinit cg6_chip_init(struct fb_info *info)
 	sbus_writel(info->var.yres - 1, &fbc->clipmaxy);
 }
 
-static void cg6_unmap_regs(struct of_device *op, struct fb_info *info,
+static void cg6_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   struct cg6_par *par)
 {
 	if (par->fbc)
@@ -738,10 +737,10 @@ static void cg6_unmap_regs(struct of_device *op, struct fb_info *info,
 			   info->fix.smem_len);
 }
 
-static int __devinit cg6_probe(struct of_device *op,
+static int __devinit cg6_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct cg6_par *par;
 	int linebytes, err;
@@ -828,7 +827,7 @@ out_err:
 	return err;
 }
 
-static int __devexit cg6_remove(struct of_device *op)
+static int __devexit cg6_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct cg6_par *par = info->par;
@@ -857,8 +856,11 @@ static const struct of_device_id cg6_match[] = {
 MODULE_DEVICE_TABLE(of, cg6_match);
 
 static struct of_platform_driver cg6_driver = {
-	.name		= "cg6",
-	.match_table	= cg6_match,
+	.driver = {
+		.name = "cg6",
+		.owner = THIS_MODULE,
+		.of_match_table = cg6_match,
+	},
 	.probe		= cg6_probe,
 	.remove		= __devexit_p(cg6_remove),
 };
@@ -868,12 +870,12 @@ static int __init cg6_init(void)
 	if (fb_get_options("cg6fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&cg6_driver, &of_bus_type);
+	return of_register_platform_driver(&cg6_driver);
 }
 
 static void __exit cg6_exit(void)
 {
-	of_unregister_driver(&cg6_driver);
+	of_unregister_platform_driver(&cg6_driver);
 }
 
 module_init(cg6_init);

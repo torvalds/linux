@@ -436,8 +436,8 @@ void mpc52xx_lpbfifo_abort(struct mpc52xx_lpbfifo_request *req)
 }
 EXPORT_SYMBOL(mpc52xx_lpbfifo_abort);
 
-static int __devinit
-mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit mpc52xx_lpbfifo_probe(struct platform_device *op,
+					   const struct of_device_id *match)
 {
 	struct resource res;
 	int rc = -ENOMEM;
@@ -445,14 +445,14 @@ mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
 	if (lpbfifo.dev != NULL)
 		return -ENOSPC;
 
-	lpbfifo.irq = irq_of_parse_and_map(op->node, 0);
+	lpbfifo.irq = irq_of_parse_and_map(op->dev.of_node, 0);
 	if (!lpbfifo.irq)
 		return -ENODEV;
 
-	if (of_address_to_resource(op->node, 0, &res))
+	if (of_address_to_resource(op->dev.of_node, 0, &res))
 		return -ENODEV;
 	lpbfifo.regs_phys = res.start;
-	lpbfifo.regs = of_iomap(op->node, 0);
+	lpbfifo.regs = of_iomap(op->dev.of_node, 0);
 	if (!lpbfifo.regs)
 		return -ENOMEM;
 
@@ -481,6 +481,8 @@ mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
 	if (rc)
 		goto err_bcom_rx_irq;
 
+	lpbfifo.dma_irqs_enabled = 1;
+
 	/* Request the Bestcomm transmit (memory --> fifo) task and IRQ */
 	lpbfifo.bcom_tx_task =
 		bcom_gen_bd_tx_init(2, res.start + LPBFIFO_REG_FIFO_DATA,
@@ -505,7 +507,7 @@ mpc52xx_lpbfifo_probe(struct of_device *op, const struct of_device_id *match)
 }
 
 
-static int __devexit mpc52xx_lpbfifo_remove(struct of_device *op)
+static int __devexit mpc52xx_lpbfifo_remove(struct platform_device *op)
 {
 	if (lpbfifo.dev != &op->dev)
 		return 0;
@@ -535,9 +537,11 @@ static struct of_device_id mpc52xx_lpbfifo_match[] __devinitconst = {
 };
 
 static struct of_platform_driver mpc52xx_lpbfifo_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc52xx-lpbfifo",
-	.match_table = mpc52xx_lpbfifo_match,
+	.driver = {
+		.name = "mpc52xx-lpbfifo",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_lpbfifo_match,
+	},
 	.probe = mpc52xx_lpbfifo_probe,
 	.remove = __devexit_p(mpc52xx_lpbfifo_remove),
 };

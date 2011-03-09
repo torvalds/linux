@@ -25,10 +25,12 @@
 
 #define ATH_BTCOEX_DEF_BT_PERIOD  45
 #define ATH_BTCOEX_DEF_DUTY_CYCLE 55
+#define ATH_BTCOEX_BTSCAN_DUTY_CYCLE 90
 #define ATH_BTCOEX_BMISS_THRESH   50
 
 #define ATH_BT_PRIORITY_TIME_THRESHOLD 1000 /* ms */
 #define ATH_BT_CNT_THRESHOLD	       3
+#define ATH_BT_CNT_SCAN_THRESHOLD      15
 
 enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_NONE,
@@ -47,7 +49,6 @@ struct ath_btcoex_hw {
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */
 };
 
-bool ath9k_hw_btcoex_supported(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah);
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum);

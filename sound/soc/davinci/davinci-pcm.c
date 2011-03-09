@@ -49,7 +49,7 @@ static void print_buf_info(int slot, char *name)
 static struct snd_pcm_hardware pcm_hardware_playback = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-		 SNDRV_PCM_INFO_PAUSE),
+		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
 	.formats = (SNDRV_PCM_FMTBIT_S16_LE),
 	.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |
 		  SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
@@ -381,7 +381,7 @@ static int request_ping_pong(struct snd_pcm_substream *substream,
 	/* Request ram master channel */
 	link = prtd->ram_channel = edma_alloc_channel(EDMA_CHANNEL_ANY,
 				  davinci_pcm_dma_irq, substream,
-				  EVENTQ_1);
+				  prtd->params->ram_chan_q);
 	if (link < 0)
 		goto exit1;
 
@@ -477,7 +477,8 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 
 	/* Request asp master DMA channel */
 	link = prtd->asp_channel = edma_alloc_channel(params->channel,
-			davinci_pcm_dma_irq, substream, EVENTQ_0);
+			davinci_pcm_dma_irq, substream,
+			prtd->params->asp_chan_q);
 	if (link < 0)
 		goto exit1;
 
@@ -649,8 +650,10 @@ static int davinci_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_hardware *ppcm;
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct davinci_pcm_dma_params *pa = rtd->dai->cpu_dai->dma_data;
+	struct davinci_pcm_dma_params *pa;
 	struct davinci_pcm_dma_params *params;
+
+	pa = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 	if (!pa)
 		return -ENODEV;
 	params = &pa[substream->stream];
@@ -798,7 +801,7 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 		dma_free_writecombine(pcm->card->dev, buf->bytes,
 				      buf->area, buf->addr);
 		buf->area = NULL;
-		iram_dma = (struct snd_dma_buffer *)buf->private_data;
+		iram_dma = buf->private_data;
 		if (iram_dma) {
 			sram_free(iram_dma->area, iram_dma->bytes);
 			kfree(iram_dma);
@@ -818,7 +821,7 @@ static int davinci_pcm_new(struct snd_card *card,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = davinci_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK,
 			pcm_hardware_playback.buffer_bytes_max);
@@ -826,7 +829,7 @@ static int davinci_pcm_new(struct snd_card *card,
 			return ret;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = davinci_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE,
 			pcm_hardware_capture.buffer_bytes_max);
@@ -837,25 +840,44 @@ static int davinci_pcm_new(struct snd_card *card,
 	return 0;
 }
 
-struct snd_soc_platform davinci_soc_platform = {
-	.name = 	"davinci-audio",
-	.pcm_ops = 	&davinci_pcm_ops,
+static struct snd_soc_platform_driver davinci_soc_platform = {
+	.ops =		&davinci_pcm_ops,
 	.pcm_new = 	davinci_pcm_new,
 	.pcm_free = 	davinci_pcm_free,
 };
-EXPORT_SYMBOL_GPL(davinci_soc_platform);
 
-static int __init davinci_soc_platform_init(void)
+static int __devinit davinci_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&davinci_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &davinci_soc_platform);
 }
-module_init(davinci_soc_platform_init);
 
-static void __exit davinci_soc_platform_exit(void)
+static int __devexit davinci_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&davinci_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
-module_exit(davinci_soc_platform_exit);
+
+static struct platform_driver davinci_pcm_driver = {
+	.driver = {
+			.name = "davinci-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = davinci_soc_platform_probe,
+	.remove = __devexit_p(davinci_soc_platform_remove),
+};
+
+static int __init snd_davinci_pcm_init(void)
+{
+	return platform_driver_register(&davinci_pcm_driver);
+}
+module_init(snd_davinci_pcm_init);
+
+static void __exit snd_davinci_pcm_exit(void)
+{
+	platform_driver_unregister(&davinci_pcm_driver);
+}
+module_exit(snd_davinci_pcm_exit);
 
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI PCM DMA module");

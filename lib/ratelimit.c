@@ -16,9 +16,14 @@
 /*
  * __ratelimit - rate limiting
  * @rs: ratelimit_state data
+ * @func: name of calling function
  *
- * This enforces a rate limit: not more than @rs->ratelimit_burst callbacks
- * in every @rs->ratelimit_jiffies
+ * This enforces a rate limit: not more than @rs->burst callbacks
+ * in every @rs->interval
+ *
+ * RETURNS:
+ * 0 means callbacks will be suppressed.
+ * 1 means go ahead and do it.
  */
 int ___ratelimit(struct ratelimit_state *rs, const char *func)
 {
@@ -35,7 +40,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	 * the entity that is holding the lock already:
 	 */
 	if (!spin_trylock_irqsave(&rs->lock, flags))
-		return 1;
+		return 0;
 
 	if (!rs->begin)
 		rs->begin = jiffies;

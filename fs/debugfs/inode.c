@@ -27,6 +27,7 @@
 #include <linux/fsnotify.h>
 #include <linux/string.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
@@ -39,6 +40,7 @@ static struct inode *debugfs_get_inode(struct super_block *sb, int mode, dev_t d
 	struct inode *inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
@@ -133,17 +135,17 @@ static int debug_fill_super(struct super_block *sb, void *data, int silent)
 	return simple_fill_super(sb, DEBUGFS_MAGIC, debug_files);
 }
 
-static int debug_get_sb(struct file_system_type *fs_type,
+static struct dentry *debug_mount(struct file_system_type *fs_type,
 			int flags, const char *dev_name,
-			void *data, struct vfsmount *mnt)
+			void *data)
 {
-	return get_sb_single(fs_type, flags, data, debug_fill_super, mnt);
+	return mount_single(fs_type, flags, data, debug_fill_super);
 }
 
 static struct file_system_type debug_fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"debugfs",
-	.get_sb =	debug_get_sb,
+	.mount =	debug_mount,
 	.kill_sb =	kill_litter_super,
 };
 
@@ -496,7 +498,7 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 	}
 	d_move(old_dentry, dentry);
 	fsnotify_move(old_dir->d_inode, new_dir->d_inode, old_name,
-		old_dentry->d_name.name, S_ISDIR(old_dentry->d_inode->i_mode),
+		S_ISDIR(old_dentry->d_inode->i_mode),
 		NULL, old_dentry);
 	fsnotify_oldname_free(old_name);
 	unlock_rename(new_dir, old_dir);

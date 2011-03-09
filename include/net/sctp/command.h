@@ -107,11 +107,9 @@ typedef enum {
 	SCTP_CMD_T1_RETRAN,	 /* Mark for retransmission after T1 timeout  */
 	SCTP_CMD_UPDATE_INITTAG, /* Update peer inittag */
 	SCTP_CMD_SEND_MSG,	 /* Send the whole use message */
+	SCTP_CMD_SEND_NEXT_ASCONF, /* Send the next ASCONF after ACK */
 	SCTP_CMD_LAST
 } sctp_verb_t;
-
-#define SCTP_CMD_MAX		(SCTP_CMD_LAST - 1)
-#define SCTP_CMD_NUM_VERBS	(SCTP_CMD_MAX + 1)
 
 /* How many commands can you put in an sctp_cmd_seq_t?
  * This is a rather arbitrary number, ideally derived from a careful

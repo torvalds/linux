@@ -14,16 +14,16 @@
 #include <linux/init.h>
 #include "autofs_i.h"
 
-static int autofs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *autofs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, autofs4_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, autofs4_fill_super);
 }
 
 static struct file_system_type autofs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "autofs",
-	.get_sb		= autofs_get_sb,
+	.mount		= autofs_mount,
 	.kill_sb	= autofs4_kill_sb,
 };
 

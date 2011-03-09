@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ixgb.h"
 
 char ixgb_driver_name[] = "ixgb";
@@ -50,7 +52,7 @@ MODULE_PARM_DESC(copybreak,
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id ixgb_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(ixgb_pci_tbl) = {
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_CX4,
@@ -96,6 +98,8 @@ static void ixgb_alloc_rx_buffers(struct ixgb_adapter *, int);
 static void ixgb_tx_timeout(struct net_device *dev);
 static void ixgb_tx_timeout_task(struct work_struct *work);
 
+static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
+static void ixgb_vlan_strip_disable(struct ixgb_adapter *adapter);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
                                   struct vlan_group *grp);
 static void ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
@@ -146,10 +150,8 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 static int __init
 ixgb_init_module(void)
 {
-	printk(KERN_INFO "%s - version %s\n",
-	       ixgb_driver_string, ixgb_driver_version);
-
-	printk(KERN_INFO "%s\n", ixgb_copyright);
+	pr_info("%s - version %s\n", ixgb_driver_string, ixgb_driver_version);
+	pr_info("%s\n", ixgb_copyright);
 
 	return pci_register_driver(&ixgb_driver);
 }
@@ -238,8 +240,8 @@ ixgb_up(struct ixgb_adapter *adapter)
 	if (err) {
 		if (adapter->have_msi)
 			pci_disable_msi(adapter->pdev);
-		DPRINTK(PROBE, ERR,
-		 "Unable to allocate interrupt Error: %d\n", err);
+		netif_err(adapter, probe, adapter->netdev,
+			  "Unable to allocate interrupt Error: %d\n", err);
 		return err;
 	}
 
@@ -310,7 +312,7 @@ ixgb_reset(struct ixgb_adapter *adapter)
 
 	ixgb_adapter_stop(hw);
 	if (!ixgb_init_hw(hw))
-		DPRINTK(PROBE, ERR, "ixgb_init_hw failed.\n");
+		netif_err(adapter, probe, adapter->netdev, "ixgb_init_hw failed\n");
 
 	/* restore frame size information */
 	IXGB_WRITE_REG(hw, MFS, hw->max_frame_size << IXGB_MFS_SHIFT);
@@ -368,17 +370,22 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) &&
-	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
-		pci_using_dac = 1;
+	pci_using_dac = 0;
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	if (!err) {
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+		if (!err)
+			pci_using_dac = 1;
 	} else {
-		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
-		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			printk(KERN_ERR
-			 "ixgb: No usable DMA configuration, aborting\n");
-			goto err_dma_mask;
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		if (err) {
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
+			if (err) {
+				pr_err("No usable DMA configuration, aborting\n");
+				goto err_dma_mask;
+			}
 		}
-		pci_using_dac = 0;
 	}
 
 	err = pci_request_regions(pdev, ixgb_driver_name);
@@ -441,13 +448,16 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_HW_VLAN_FILTER;
 	netdev->features |= NETIF_F_TSO;
 
-	if (pci_using_dac)
+	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
+		netdev->vlan_features |= NETIF_F_HIGHDMA;
+	}
 
 	/* make sure the EEPROM is good */
 
 	if (!ixgb_validate_eeprom_checksum(&adapter->hw)) {
-		DPRINTK(PROBE, ERR, "The EEPROM Checksum Is Not Valid\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "The EEPROM Checksum Is Not Valid\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -456,7 +466,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
-		DPRINTK(PROBE, ERR, "Invalid MAC Address\n");
+		netif_err(adapter, probe, adapter->netdev, "Invalid MAC Address\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -464,7 +474,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->part_num = ixgb_get_ee_pba_number(&adapter->hw);
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &ixgb_watchdog;
+	adapter->watchdog_timer.function = ixgb_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
@@ -477,7 +487,8 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-	DPRINTK(PROBE, INFO, "Intel(R) PRO/10GbE Network Connection\n");
+	netif_info(adapter, probe, adapter->netdev,
+		   "Intel(R) PRO/10GbE Network Connection\n");
 	ixgb_check_options(adapter);
 	/* reset the hardware with the new settings */
 
@@ -516,7 +527,7 @@ ixgb_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->tx_timeout_task);
 
 	unregister_netdev(netdev);
 
@@ -524,6 +535,7 @@ ixgb_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	free_netdev(netdev);
+	pci_disable_device(pdev);
 }
 
 /**
@@ -552,14 +564,14 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 	hw->max_frame_size = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
 	adapter->rx_buffer_len = hw->max_frame_size + 8; /* + 8 for errata */
 
-	if ((hw->device_id == IXGB_DEVICE_ID_82597EX)
-	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_CX4)
-	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_LR)
-	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_SR))
+	if ((hw->device_id == IXGB_DEVICE_ID_82597EX) ||
+	    (hw->device_id == IXGB_DEVICE_ID_82597EX_CX4) ||
+	    (hw->device_id == IXGB_DEVICE_ID_82597EX_LR) ||
+	    (hw->device_id == IXGB_DEVICE_ID_82597EX_SR))
 		hw->mac_type = ixgb_82597;
 	else {
 		/* should never have loaded on this device */
-		DPRINTK(PROBE, ERR, "unsupported device id\n");
+		netif_err(adapter, probe, adapter->netdev, "unsupported device id\n");
 	}
 
 	/* enable flow control to be programmed */
@@ -659,24 +671,24 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	int size;
 
 	size = sizeof(struct ixgb_buffer) * txdr->count;
-	txdr->buffer_info = vmalloc(size);
+	txdr->buffer_info = vzalloc(size);
 	if (!txdr->buffer_info) {
-		DPRINTK(PROBE, ERR,
-		 "Unable to allocate transmit descriptor ring memory\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "Unable to allocate transmit descriptor ring memory\n");
 		return -ENOMEM;
 	}
-	memset(txdr->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
+	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
-		DPRINTK(PROBE, ERR,
-		 "Unable to allocate transmit descriptor memory\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "Unable to allocate transmit descriptor memory\n");
 		return -ENOMEM;
 	}
 	memset(txdr->desc, 0, txdr->size);
@@ -748,25 +760,25 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 	int size;
 
 	size = sizeof(struct ixgb_buffer) * rxdr->count;
-	rxdr->buffer_info = vmalloc(size);
+	rxdr->buffer_info = vzalloc(size);
 	if (!rxdr->buffer_info) {
-		DPRINTK(PROBE, ERR,
-		 "Unable to allocate receive descriptor ring\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "Unable to allocate receive descriptor ring\n");
 		return -ENOMEM;
 	}
-	memset(rxdr->buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 
 	rxdr->size = rxdr->count * sizeof(struct ixgb_rx_desc);
 	rxdr->size = ALIGN(rxdr->size, 4096);
 
-	rxdr->desc = pci_alloc_consistent(pdev, rxdr->size, &rxdr->dma);
+	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
+					GFP_KERNEL);
 
 	if (!rxdr->desc) {
 		vfree(rxdr->buffer_info);
-		DPRINTK(PROBE, ERR,
-		 "Unable to allocate receive descriptors\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "Unable to allocate receive descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxdr->desc, 0, rxdr->size);
@@ -882,8 +894,8 @@ ixgb_free_tx_resources(struct ixgb_adapter *adapter)
 	vfree(adapter->tx_ring.buffer_info);
 	adapter->tx_ring.buffer_info = NULL;
 
-	pci_free_consistent(pdev, adapter->tx_ring.size,
-			    adapter->tx_ring.desc, adapter->tx_ring.dma);
+	dma_free_coherent(&pdev->dev, adapter->tx_ring.size,
+			  adapter->tx_ring.desc, adapter->tx_ring.dma);
 
 	adapter->tx_ring.desc = NULL;
 }
@@ -894,12 +906,11 @@ ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
 {
 	if (buffer_info->dma) {
 		if (buffer_info->mapped_as_page)
-			pci_unmap_page(adapter->pdev, buffer_info->dma,
-				       buffer_info->length, PCI_DMA_TODEVICE);
+			dma_unmap_page(&adapter->pdev->dev, buffer_info->dma,
+				       buffer_info->length, DMA_TO_DEVICE);
 		else
-			pci_unmap_single(adapter->pdev, buffer_info->dma,
-					 buffer_info->length,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(&adapter->pdev->dev, buffer_info->dma,
+					 buffer_info->length, DMA_TO_DEVICE);
 		buffer_info->dma = 0;
 	}
 
@@ -965,7 +976,8 @@ ixgb_free_rx_resources(struct ixgb_adapter *adapter)
 	vfree(rx_ring->buffer_info);
 	rx_ring->buffer_info = NULL;
 
-	pci_free_consistent(pdev, rx_ring->size, rx_ring->desc, rx_ring->dma);
+	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+			  rx_ring->dma);
 
 	rx_ring->desc = NULL;
 }
@@ -989,10 +1001,10 @@ ixgb_clean_rx_ring(struct ixgb_adapter *adapter)
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
-			pci_unmap_single(pdev,
+			dma_unmap_single(&pdev->dev,
 					 buffer_info->dma,
 					 buffer_info->length,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 			buffer_info->length = 0;
 		}
@@ -1056,7 +1068,7 @@ ixgb_set_multi(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 rctl;
 	int i;
 
@@ -1066,6 +1078,8 @@ ixgb_set_multi(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (IXGB_RCTL_UPE | IXGB_RCTL_MPE);
+		/* disable VLAN filtering */
+		rctl &= ~IXGB_RCTL_CFIEN;
 		rctl &= ~IXGB_RCTL_VFE;
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
@@ -1074,10 +1088,12 @@ ixgb_set_multi(struct net_device *netdev)
 		} else {
 			rctl &= ~(IXGB_RCTL_UPE | IXGB_RCTL_MPE);
 		}
+		/* enable VLAN filtering */
 		rctl |= IXGB_RCTL_VFE;
+		rctl &= ~IXGB_RCTL_CFIEN;
 	}
 
-	if (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES) {
+	if (netdev_mc_count(netdev) > IXGB_MAX_NUM_MULTICAST_ADDRESSES) {
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
@@ -1086,14 +1102,19 @@ ixgb_set_multi(struct net_device *netdev)
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
-		for (i = 0, mc_ptr = netdev->mc_list;
-		     mc_ptr;
-		     i++, mc_ptr = mc_ptr->next)
-			memcpy(&mta[i * IXGB_ETH_LENGTH_OF_ADDRESS],
-			       mc_ptr->dmi_addr, IXGB_ETH_LENGTH_OF_ADDRESS);
+		i = 0;
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(&mta[i++ * IXGB_ETH_LENGTH_OF_ADDRESS],
+			       ha->addr, IXGB_ETH_LENGTH_OF_ADDRESS);
 
-		ixgb_mc_addr_list_update(hw, mta, netdev->mc_count, 0);
+		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);
 	}
+
+	if (netdev->features & NETIF_F_HW_VLAN_RX)
+		ixgb_vlan_strip_enable(adapter);
+	else
+		ixgb_vlan_strip_disable(adapter);
+
 }
 
 /**
@@ -1117,15 +1138,14 @@ ixgb_watchdog(unsigned long data)
 
 	if (adapter->hw.link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			printk(KERN_INFO "ixgb: %s NIC Link is Up 10 Gbps "
-			       "Full Duplex, Flow Control: %s\n",
-			       netdev->name,
-			       (adapter->hw.fc.type == ixgb_fc_full) ?
-			        "RX/TX" :
-			        ((adapter->hw.fc.type == ixgb_fc_rx_pause) ?
-			         "RX" :
-			         ((adapter->hw.fc.type == ixgb_fc_tx_pause) ?
-			          "TX" : "None")));
+			netdev_info(netdev,
+				    "NIC Link is Up 10 Gbps Full Duplex, Flow Control: %s\n",
+				    (adapter->hw.fc.type == ixgb_fc_full) ?
+				    "RX/TX" :
+				    (adapter->hw.fc.type == ixgb_fc_rx_pause) ?
+				     "RX" :
+				    (adapter->hw.fc.type == ixgb_fc_tx_pause) ?
+				    "TX" : "None");
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
@@ -1134,8 +1154,7 @@ ixgb_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			printk(KERN_INFO "ixgb: %s NIC Link is Down\n",
-			       netdev->name);
+			netdev_info(netdev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 		}
 	}
@@ -1243,7 +1262,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
-		css = skb_transport_offset(skb);
+		css = skb_checksum_start_offset(skb);
 		cso = css + skb->csum_offset;
 
 		i = adapter->tx_ring.next_to_use;
@@ -1302,9 +1321,10 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		WARN_ON(buffer_info->dma != 0);
 		buffer_info->time_stamp = jiffies;
 		buffer_info->mapped_as_page = false;
-		buffer_info->dma = pci_map_single(pdev, skb->data + offset,
-						  size, PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+		buffer_info->dma = dma_map_single(&pdev->dev,
+						  skb->data + offset,
+						  size, DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 			goto dma_error;
 		buffer_info->next_to_watch = 0;
 
@@ -1343,10 +1363,9 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 			buffer_info->time_stamp = jiffies;
 			buffer_info->mapped_as_page = true;
 			buffer_info->dma =
-				pci_map_page(pdev, frag->page,
-					     offset, size,
-					     PCI_DMA_TODEVICE);
-			if (pci_dma_mapping_error(pdev, buffer_info->dma))
+				dma_map_page(&pdev->dev, frag->page,
+					     offset, size, DMA_TO_DEVICE);
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 				goto dma_error;
 			buffer_info->next_to_watch = 0;
 
@@ -1580,7 +1599,8 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 	/* MTU < 68 is an error for IPv4 traffic, just don't allow it */
 	if ((new_mtu < 68) ||
 	    (max_frame > IXGB_MAX_JUMBO_FRAME_SIZE + ENET_FCS_LENGTH)) {
-		DPRINTK(PROBE, ERR, "Invalid MTU setting %d\n", new_mtu);
+		netif_err(adapter, probe, adapter->netdev,
+			  "Invalid MTU setting %d\n", new_mtu);
 		return -EINVAL;
 	}
 
@@ -1616,7 +1636,7 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 		return;
 
 	if ((netdev->flags & IFF_PROMISC) || (netdev->flags & IFF_ALLMULTI) ||
-	   (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES)) {
+	   (netdev_mc_count(netdev) > IXGB_MAX_NUM_MULTICAST_ADDRESSES)) {
 		u64 multi = IXGB_READ_REG(&adapter->hw, MPRCL);
 		u32 bcast_l = IXGB_READ_REG(&adapter->hw, BPRCL);
 		u32 bcast_h = IXGB_READ_REG(&adapter->hw, BPRCH);
@@ -1809,6 +1829,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 	while (eop_desc->status & IXGB_TX_DESC_STATUS_DD) {
 
+		rmb(); /* read buffer_info after eop_desc */
 		for (cleaned = false; !cleaned; ) {
 			tx_desc = IXGB_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -1854,24 +1875,25 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 		   && !(IXGB_READ_REG(&adapter->hw, STATUS) &
 		        IXGB_STATUS_TXOFF)) {
 			/* detected Tx unit hang */
-			DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
-					"  TDH                  <%x>\n"
-					"  TDT                  <%x>\n"
-					"  next_to_use          <%x>\n"
-					"  next_to_clean        <%x>\n"
-					"buffer_info[next_to_clean]\n"
-					"  time_stamp           <%lx>\n"
-					"  next_to_watch        <%x>\n"
-					"  jiffies              <%lx>\n"
-					"  next_to_watch.status <%x>\n",
-				IXGB_READ_REG(&adapter->hw, TDH),
-				IXGB_READ_REG(&adapter->hw, TDT),
-				tx_ring->next_to_use,
-				tx_ring->next_to_clean,
-				tx_ring->buffer_info[eop].time_stamp,
-				eop,
-				jiffies,
-				eop_desc->status);
+			netif_err(adapter, drv, adapter->netdev,
+				  "Detected Tx Unit Hang\n"
+				  "  TDH                  <%x>\n"
+				  "  TDT                  <%x>\n"
+				  "  next_to_use          <%x>\n"
+				  "  next_to_clean        <%x>\n"
+				  "buffer_info[next_to_clean]\n"
+				  "  time_stamp           <%lx>\n"
+				  "  next_to_watch        <%x>\n"
+				  "  jiffies              <%lx>\n"
+				  "  next_to_watch.status <%x>\n",
+				  IXGB_READ_REG(&adapter->hw, TDH),
+				  IXGB_READ_REG(&adapter->hw, TDT),
+				  tx_ring->next_to_use,
+				  tx_ring->next_to_clean,
+				  tx_ring->buffer_info[eop].time_stamp,
+				  eop,
+				  jiffies,
+				  eop_desc->status);
 			netif_stop_queue(netdev);
 		}
 	}
@@ -1896,7 +1918,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
 	 */
 	if ((rx_desc->status & IXGB_RX_DESC_STATUS_IXSM) ||
 	   (!(rx_desc->status & IXGB_RX_DESC_STATUS_TCPCS))) {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		return;
 	}
 
@@ -1904,13 +1926,38 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
 	/* now look at the TCP checksum error bit */
 	if (rx_desc->errors & IXGB_RX_DESC_ERRORS_TCPE) {
 		/* let the stack verify checksum errors */
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		adapter->hw_csum_rx_error++;
 	} else {
 		/* TCP checksum is good */
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		adapter->hw_csum_rx_good++;
 	}
+}
+
+/*
+ * this should improve performance for small packets with large amounts
+ * of reassembly being done in the stack
+ */
+static void ixgb_check_copybreak(struct net_device *netdev,
+				 struct ixgb_buffer *buffer_info,
+				 u32 length, struct sk_buff **skb)
+{
+	struct sk_buff *new_skb;
+
+	if (length > copybreak)
+		return;
+
+	new_skb = netdev_alloc_skb_ip_align(netdev, length);
+	if (!new_skb)
+		return;
+
+	skb_copy_to_linear_data_offset(new_skb, -NET_IP_ALIGN,
+				       (*skb)->data - NET_IP_ALIGN,
+				       length + NET_IP_ALIGN);
+	/* save the skb in buffer_info as good */
+	buffer_info->skb = *skb;
+	*skb = new_skb;
 }
 
 /**
@@ -1943,17 +1990,21 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			break;
 
 		(*work_done)++;
+		rmb();	/* read descriptor and rx_buffer_info after status DD */
 		status = rx_desc->status;
 		skb = buffer_info->skb;
 		buffer_info->skb = NULL;
 
 		prefetch(skb->data - NET_IP_ALIGN);
 
-		if (++i == rx_ring->count) i = 0;
+		if (++i == rx_ring->count)
+			i = 0;
 		next_rxd = IXGB_RX_DESC(*rx_ring, i);
 		prefetch(next_rxd);
 
-		if ((j = i + 1) == rx_ring->count) j = 0;
+		j = i + 1;
+		if (j == rx_ring->count)
+			j = 0;
 		next2_buffer = &rx_ring->buffer_info[j];
 		prefetch(next2_buffer);
 
@@ -1962,10 +2013,10 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 		cleaned = true;
 		cleaned_count++;
 
-		pci_unmap_single(pdev,
+		dma_unmap_single(&pdev->dev,
 				 buffer_info->dma,
 				 buffer_info->length,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 		buffer_info->dma = 0;
 
 		length = le16_to_cpu(rx_desc->length);
@@ -1989,25 +2040,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			goto rxdesc_done;
 		}
 
-		/* code added for copybreak, this should improve
-		 * performance for small packets with large amounts
-		 * of reassembly being done in the stack */
-		if (length < copybreak) {
-			struct sk_buff *new_skb =
-			    netdev_alloc_skb_ip_align(netdev, length);
-			if (new_skb) {
-				skb_copy_to_linear_data_offset(new_skb,
-							       -NET_IP_ALIGN,
-							       (skb->data -
-							        NET_IP_ALIGN),
-							       (length +
-							        NET_IP_ALIGN));
-				/* save the skb in buffer_info as good */
-				buffer_info->skb = skb;
-				skb = new_skb;
-			}
-		}
-		/* end copybreak code */
+		ixgb_check_copybreak(netdev, buffer_info, length, &skb);
 
 		/* Good Receive */
 		skb_put(skb, length);
@@ -2088,10 +2121,10 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter, int cleaned_count)
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 map_skb:
-		buffer_info->dma = pci_map_single(pdev,
+		buffer_info->dma = dma_map_single(&pdev->dev,
 		                                  skb->data,
 		                                  adapter->rx_buffer_len,
-		                                  PCI_DMA_FROMDEVICE);
+						  DMA_FROM_DEVICE);
 
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
@@ -2129,33 +2162,30 @@ static void
 ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	u32 ctrl, rctl;
 
-	ixgb_irq_disable(adapter);
 	adapter->vlgrp = grp;
+}
 
-	if (grp) {
-		/* enable VLAN tag insert/strip */
-		ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
-		ctrl |= IXGB_CTRL0_VME;
-		IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
+static void
+ixgb_vlan_strip_enable(struct ixgb_adapter *adapter)
+{
+	u32 ctrl;
 
-		/* enable VLAN receive filtering */
+	/* enable VLAN tag insert/strip */
+	ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
+	ctrl |= IXGB_CTRL0_VME;
+	IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
+}
 
-		rctl = IXGB_READ_REG(&adapter->hw, RCTL);
-		rctl &= ~IXGB_RCTL_CFIEN;
-		IXGB_WRITE_REG(&adapter->hw, RCTL, rctl);
-	} else {
-		/* disable VLAN tag insert/strip */
+static void
+ixgb_vlan_strip_disable(struct ixgb_adapter *adapter)
+{
+	u32 ctrl;
 
-		ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
-		ctrl &= ~IXGB_CTRL0_VME;
-		IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
-	}
-
-	/* don't enable interrupts unless we are UP */
-	if (adapter->netdev->flags & IFF_UP)
-		ixgb_irq_enable(adapter);
+	/* disable VLAN tag insert/strip */
+	ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
+	ctrl &= ~IXGB_CTRL0_VME;
+	IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
 }
 
 static void
@@ -2201,7 +2231,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 
 	if (adapter->vlgrp) {
 		u16 vid;
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			ixgb_vlan_rx_add_vid(adapter->netdev, vid);
@@ -2269,7 +2299,8 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
 	if (pci_enable_device(pdev)) {
-		DPRINTK(PROBE, ERR, "Cannot re-enable PCI device after reset.\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "Cannot re-enable PCI device after reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -2285,14 +2316,16 @@ static pci_ers_result_t ixgb_io_slot_reset(struct pci_dev *pdev)
 
 	/* Make sure the EEPROM is good */
 	if (!ixgb_validate_eeprom_checksum(&adapter->hw)) {
-		DPRINTK(PROBE, ERR, "After reset, the EEPROM checksum is not valid.\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "After reset, the EEPROM checksum is not valid\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	ixgb_get_ee_mac_addr(&adapter->hw, netdev->dev_addr);
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
-		DPRINTK(PROBE, ERR, "After reset, invalid MAC address.\n");
+		netif_err(adapter, probe, adapter->netdev,
+			  "After reset, invalid MAC address\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -2316,7 +2349,7 @@ static void ixgb_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (ixgb_up(adapter)) {
-			printk ("ixgb: can't bring device back up after reset\n");
+			pr_err("can't bring device back up after reset\n");
 			return;
 		}
 	}

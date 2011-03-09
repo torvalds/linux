@@ -37,6 +37,7 @@
 /* kernel includes */
 #include <linux/usb.h>
 #include <linux/hid.h>
+#include <linux/slab.h>
 
 #include "radio-si470x.h"
 
@@ -516,7 +517,7 @@ int si470x_fops_open(struct file *file)
 	struct si470x_device *radio = video_drvdata(file);
 	int retval;
 
-	lock_kernel();
+	mutex_lock(&radio->lock);
 	radio->users++;
 
 	retval = usb_autopm_get_interface(radio->intf);
@@ -557,7 +558,7 @@ int si470x_fops_open(struct file *file)
 	}
 
 done:
-	unlock_kernel();
+	mutex_unlock(&radio->lock);
 	return retval;
 }
 
@@ -576,7 +577,7 @@ int si470x_fops_release(struct file *file)
 		goto done;
 	}
 
-	mutex_lock(&radio->disconnect_lock);
+	mutex_lock(&radio->lock);
 	radio->users--;
 	if (radio->users == 0) {
 		/* shutdown interrupt handler */
@@ -590,8 +591,9 @@ int si470x_fops_release(struct file *file)
 			video_unregister_device(radio->videodev);
 			kfree(radio->int_in_buffer);
 			kfree(radio->buffer);
+			mutex_unlock(&radio->lock);
 			kfree(radio);
-			goto unlock;
+			goto done;
 		}
 
 		/* cancel read processes */
@@ -601,8 +603,7 @@ int si470x_fops_release(struct file *file)
 		retval = si470x_stop(radio);
 		usb_autopm_put_interface(radio->intf);
 	}
-unlock:
-	mutex_unlock(&radio->disconnect_lock);
+	mutex_unlock(&radio->lock);
 done:
 	return retval;
 }
@@ -660,7 +661,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->disconnected = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
-	mutex_init(&radio->disconnect_lock);
 	mutex_init(&radio->lock);
 
 	iface_desc = intf->cur_altsetting;
@@ -829,7 +829,7 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 {
 	struct si470x_device *radio = usb_get_intfdata(intf);
 
-	mutex_lock(&radio->disconnect_lock);
+	mutex_lock(&radio->lock);
 	radio->disconnected = 1;
 	usb_set_intfdata(intf, NULL);
 	if (radio->users == 0) {
@@ -842,9 +842,11 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 		kfree(radio->int_in_buffer);
 		video_unregister_device(radio->videodev);
 		kfree(radio->buffer);
+		mutex_unlock(&radio->lock);
 		kfree(radio);
+	} else {
+		mutex_unlock(&radio->lock);
 	}
-	mutex_unlock(&radio->disconnect_lock);
 }
 
 

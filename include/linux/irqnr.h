@@ -25,6 +25,7 @@
 
 extern int nr_irqs;
 extern struct irq_desc *irq_to_desc(unsigned int irq);
+unsigned int irq_get_next_irq(unsigned int offset);
 
 # define for_each_irq_desc(irq, desc)					\
 	for (irq = 0, desc = irq_to_desc(irq); irq < nr_irqs;		\
@@ -42,10 +43,14 @@ extern struct irq_desc *irq_to_desc(unsigned int irq);
 		else
 
 #ifdef CONFIG_SMP
-#define irq_node(irq)	(irq_to_desc(irq)->node)
+#define irq_node(irq)	(irq_get_irq_data(irq)->node)
 #else
 #define irq_node(irq)	0
 #endif
+
+# define for_each_active_irq(irq)			\
+	for (irq = irq_get_next_irq(0); irq < nr_irqs;	\
+	     irq = irq_get_next_irq(irq + 1))
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 

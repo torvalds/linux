@@ -18,6 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/rwsem.h>
 
 #include "i2c-core.h"

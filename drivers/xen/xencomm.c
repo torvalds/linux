@@ -18,8 +18,8 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
-#include <linux/gfp.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <asm/page.h>
 #include <xen/xencomm.h>
 #include <xen/interface/xen.h>

@@ -387,7 +387,7 @@ static struct spi_board_info yl9200_spi_devices[] = {
  * EPSON S1D13806 FB (discontinued chip)
  * EPSON S1D13506 FB
  */
-#if defined(CONFIG_FB_S1D135XX) || defined(CONFIG_FB_S1D13XXX_MODULE)
+#if defined(CONFIG_FB_S1D13XXX) || defined(CONFIG_FB_S1D13XXX_MODULE)
 #include <video/s1d13xxxfb.h>
 
 
@@ -594,8 +594,6 @@ static void __init yl9200_board_init(void)
 
 MACHINE_START(YL9200, "uCdragon YL-9200")
 	/* Maintainer: S.Birtles */
-	.phys_io	= AT91_BASE_SYS,
-	.io_pg_offst	= (AT91_VA_BASE_SYS >> 18) & 0xfffc,
 	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
 	.map_io		= yl9200_map_io,

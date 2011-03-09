@@ -113,7 +113,7 @@ void __init plat_mem_setup(void)
 	PNX8550_GLB2_ENAB_INTA_O = 0;
 
 	/* IO/MEM resources. */
-	set_io_port_base(KSEG1);
+	set_io_port_base(PNX8550_PORT_BASE);
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0;
 	iomem_resource.start = 0;

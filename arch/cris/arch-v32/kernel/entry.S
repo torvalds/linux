@@ -76,12 +76,15 @@ _need_resched:
 
 	; Called at exit from fork. schedule_tail must be called to drop
 	; spinlock if CONFIG_PREEMPT.
+	.type	ret_from_fork,@function
 ret_from_fork:
 	jsr schedule_tail
 	nop
 	ba  ret_from_sys_call
 	nop
+	.size	ret_from_fork, . - ret_from_fork
 
+	.type	ret_from_intr,@function
 ret_from_intr:
 	;; Check for resched if preemptive kernel, or if we're going back to
 	;; user-mode. This test matches the user_regs(regs) macro. Don't simply
@@ -91,9 +94,10 @@ ret_from_intr:
 	move.d	[$acr], $r0
 	btstq	16, $r0			; User-mode flag.
 	bpl	_resume_kernel
+	.size	ret_from_intr, . - ret_from_intr + 2	; +2 includes the dslot.
 
 	; Note that di below is in delay slot.
-
+	.type	_resume_userspace,@function
 _resume_userspace:
 	di			; So need_resched and sigpending don't change.
 
@@ -107,6 +111,7 @@ _resume_userspace:
 	nop
 	ba	_Rexit
 	nop
+	.size	_resume_userspace, . - _resume_userspace
 
 	;; The system_call is called by a BREAK instruction, which looks pretty
 	;; much like any other exception.
@@ -122,30 +127,28 @@ _resume_userspace:
 	;; non-used instructions. Only the non-common cases cause the outlined code
 	;; to run..
 
+	.type	system_call,@function
 system_call:
 	;; Stack-frame similar to the irq heads, which is reversed in
 	;; ret_from_sys_call.
-	subq	12, $sp		; Skip EXS, EDA.
-	move	$erp, [$sp]
-	subq	4, $sp
-	move	$srp, [$sp]
-	subq	4, $sp
-	move	$ccs, [$sp]
-	subq	4, $sp
-	ei			; Allow IRQs while handling system call
-	move	$spc, [$sp]
-	subq	4, $sp
-	move	$mof, [$sp]
-	subq	4, $sp
-	move	$srs, [$sp]
-	subq	4, $sp
-	move.d	$acr, [$sp]
-	subq	14*4, $sp	; Make room for R0-R13.
-	movem	$r13, [$sp]	; Push R0-R13
-	subq	4, $sp
-	move.d	$r10, [$sp]	; Push orig_r10.
 
-; Set S-bit when kernel debugging to keep hardware breakpoints active.
+	sub.d	92, $sp		; Skip EXS and EDA.
+	movem	$r13, [$sp]
+	move.d	$sp, $r8
+	addq	14*4, $r8
+	move.d	$acr, $r0
+	move	$srs, $r1
+	move	$mof, $r2
+	move	$spc, $r3
+	move	$ccs, $r4
+	move	$srp, $r5
+	move	$erp, $r6
+	subq	4, $sp
+	movem	$r6, [$r8]
+	ei			; Enable interrupts while processing syscalls.
+	move.d	$r10, [$sp]
+
+	; Set S-bit when kernel debugging to keep hardware breakpoints active.
 #ifdef CONFIG_ETRAX_KGDB
 	move $ccs, $r0
 	or.d (1<<9), $r0
@@ -217,7 +220,9 @@ ret_from_sys_call:
 	and.d	_TIF_ALLWORK_MASK, $r1
 	bne	_syscall_exit_work
 	nop
+	.size	system_call, . - system_call
 
+	.type	_Rexit,@function
 _Rexit:
 	;; This epilogue MUST match the prologues in multiple_interrupt, irq.h
 	;; and ptregs.h.
@@ -234,10 +239,12 @@ _Rexit:
 	addq    8, $sp		; Skip EXS, EDA.
 	jump	$erp
 	rfe			; Restore condition code stack in delay-slot.
+	.size	_Rexit, . - _Rexit
 
 	;; We get here after doing a syscall if extra work might need to be done
 	;; perform syscall exit tracing if needed.
 
+	.type	_syscall_exit_work,@function
 _syscall_exit_work:
 	;; R0 contains current at this point and irq's are disabled.
 
@@ -253,14 +260,18 @@ _syscall_exit_work:
 	move.d	$r1, $r9
 	ba	_resume_userspace
 	nop
+	.size	_syscall_exit_work, . - _syscall_exit_work
 
+	.type	_work_pending,@function
 _work_pending:
 	addoq	+TI_flags, $r0, $acr
 	move.d	[$acr], $r10
 	btstq	TIF_NEED_RESCHED, $r10	; Need resched?
 	bpl	_work_notifysig		; No, must be signal/notify.
 	nop
+	.size	_work_pending, . - _work_pending
 
+	.type	_work_resched,@function
 _work_resched:
 	move.d	$r9, $r1		; Preserve R9.
 	jsr	schedule
@@ -276,7 +287,9 @@ _work_resched:
 	btstq	TIF_NEED_RESCHED, $r1
 	bmi	_work_resched		; current->work.need_resched.
 	nop
+	.size	_work_resched, . - _work_resched
 
+	.type	_work_notifysig,@function
 _work_notifysig:
 	;; Deal with pending signals and notify-resume requests.
 
@@ -288,6 +301,7 @@ _work_notifysig:
 
 	ba _Rexit
 	nop
+	.size	_work_notifysig, . - _work_notifysig
 
 	;; We get here as a sidetrack when we've entered a syscall with the
 	;; trace-bit set. We need to call do_syscall_trace and then continue
@@ -329,41 +343,43 @@ _syscall_trace_entry:
 	;;
 	;; Returns old current in R10.
 
+	.type	resume,@function
 resume:
-	subq	4, $sp
-	move	$srp, [$sp]		; Keep old/new PC on the stack.
+	subq	4, $sp			; Make space for srp.
+
 	add.d	$r12, $r10		; R10 = current tasks tss.
 	addoq	+THREAD_ccs, $r10, $acr
+	move	$srp, [$sp]		; Keep old/new PC on the stack.
 	move	$ccs, [$acr]		; Save IRQ enable state.
 	di
 
 	addoq	+THREAD_usp, $r10, $acr
+	subq	10*4, $sp		; Make room for R9.
 	move	$usp, [$acr]		; Save user-mode stackpointer.
 
 	;; See copy_thread for the reason why register R9 is saved.
-	subq	10*4, $sp
 	movem	$r9, [$sp]		; Save non-scratch registers and R9.
 
 	addoq	+THREAD_ksp, $r10, $acr
+	move.d	$sp, $r10		; Return last running task in R10.
 	move.d	$sp, [$acr]		; Save kernel SP for old task.
 
-	move.d	$sp, $r10		; Return last running task in R10.
 	and.d   -8192, $r10		; Get thread_info from stackpointer.
 	addoq	+TI_task, $r10, $acr
-	move.d	[$acr], $r10		; Get task.
 	add.d	$r12, $r11		; Find the new tasks tss.
+	move.d	[$acr], $r10		; Get task.
 	addoq	+THREAD_ksp, $r11, $acr
 	move.d	[$acr], $sp		; Switch to new stackframe.
+	addoq	+THREAD_usp, $r11, $acr
 	movem	[$sp+], $r9		; Restore non-scratch registers and R9.
 
-	addoq	+THREAD_usp, $r11, $acr
 	move	[$acr], $usp		; Restore user-mode stackpointer.
 
 	addoq	+THREAD_ccs, $r11, $acr
+	move.d	[$sp+], $r11
+	jump	$r11			; Restore PC.
 	move	[$acr], $ccs		; Restore IRQ enable status.
-	move.d	[$sp+], $acr
-	jump	$acr			; Restore PC.
-	nop
+	.size	resume, . - resume
 
 nmi_interrupt:
 
@@ -426,6 +442,7 @@ spurious_interrupt:
 	;; time. Jump to the first set interrupt bit in a priotiry fashion. The
 	;; hardware will call the unserved interrupts after the handler
 	;; finishes.
+	.type	multiple_interrupt, @function
 multiple_interrupt:
 	;; This prologue MUST match the one in irq.h and the struct in ptregs.h!
 	subq	12, $sp		; Skip EXS, EDA.
@@ -458,6 +475,7 @@ multiple_interrupt:
 	move.d	$sp, $r10
 	jump    ret_from_intr
 	nop
+	.size	multiple_interrupt, . - multiple_interrupt
 
 do_sigtrap:
 	;; Sigtraps the process that executed the BREAK instruction. Creates a
@@ -514,11 +532,13 @@ _ugdb_handle_exception:
 	move.d	[$sp+], $r0		; Restore R0 in delay slot.
 
 	.global kernel_execve
+	.type	kernel_execve,@function
 kernel_execve:
 	move.d __NR_execve, $r9
 	break 13
 	ret
 	nop
+	.size	kernel_execve, . - kernel_execve
 
 	.data
 
@@ -615,7 +635,7 @@ sys_call_table:
 	.long sys_swapon
 	.long sys_reboot
 	.long sys_old_readdir
-	.long old_mmap		/* 90 */
+	.long sys_old_mmap	/* 90 */
 	.long sys_munmap
 	.long sys_truncate
 	.long sys_ftruncate

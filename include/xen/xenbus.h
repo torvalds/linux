@@ -39,6 +39,7 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
@@ -93,7 +94,7 @@ struct xenbus_driver {
 	int (*remove)(struct xenbus_device *dev);
 	int (*suspend)(struct xenbus_device *dev, pm_message_t state);
 	int (*resume)(struct xenbus_device *dev);
-	int (*uevent)(struct xenbus_device *, char **, int, char *, int);
+	int (*uevent)(struct xenbus_device *, struct kobj_uevent_env *);
 	struct device_driver driver;
 	int (*read_otherend_details)(struct xenbus_device *dev);
 	int (*is_ready)(struct xenbus_device *dev);

@@ -57,8 +57,7 @@ static void snd_ak4113_free(struct ak4113 *chip)
 {
 	chip->init = 1;	/* don't schedule new work */
 	mb();
-	cancel_delayed_work(&chip->work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&chip->work);
 	kfree(chip);
 }
 
@@ -70,7 +69,7 @@ static int snd_ak4113_dev_free(struct snd_device *device)
 }
 
 int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
-		ak4113_write_t *write, const unsigned char pgm[5],
+		ak4113_write_t *write, const unsigned char *pgm,
 		void *private_data, struct ak4113 **r_ak4113)
 {
 	struct ak4113 *chip;
@@ -141,7 +140,7 @@ void snd_ak4113_reinit(struct ak4113 *chip)
 {
 	chip->init = 1;
 	mb();
-	flush_scheduled_work();
+	flush_delayed_work_sync(&chip->work);
 	ak4113_init_regs(chip);
 	/* bring up statistics / event queing */
 	chip->init = 0;

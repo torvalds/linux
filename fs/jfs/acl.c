@@ -19,8 +19,8 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
-#include <linux/quotaops.h>
 #include <linux/posix_acl_xattr.h>
 #include "jfs_incore.h"
 #include "jfs_txnmgr.h"
@@ -114,10 +114,14 @@ out:
 	return rc;
 }
 
-int jfs_check_acl(struct inode *inode, int mask)
+int jfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
+	struct posix_acl *acl;
 
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl) {
@@ -174,7 +178,7 @@ cleanup:
 	return rc;
 }
 
-static int jfs_acl_chmod(struct inode *inode)
+int jfs_acl_chmod(struct inode *inode)
 {
 	struct posix_acl *acl, *clone;
 	int rc;
@@ -203,28 +207,5 @@ static int jfs_acl_chmod(struct inode *inode)
 	}
 
 	posix_acl_release(clone);
-	return rc;
-}
-
-int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
-{
-	struct inode *inode = dentry->d_inode;
-	int rc;
-
-	rc = inode_change_ok(inode, iattr);
-	if (rc)
-		return rc;
-
-	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
-	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
-		if (vfs_dq_transfer(inode, iattr))
-			return -EDQUOT;
-	}
-
-	rc = inode_setattr(inode, iattr);
-
-	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = jfs_acl_chmod(inode);
-
 	return rc;
 }

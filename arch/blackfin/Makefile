@@ -14,9 +14,12 @@ OBJCOPYFLAGS     := -O binary -R .note -R .comment -S
 GZFLAGS          := -9
 
 KBUILD_CFLAGS           += $(call cc-option,-mno-fdpic)
+ifeq ($(CONFIG_ROMKERNEL),y)
+KBUILD_CFLAGS           += -mlong-calls
+endif
 KBUILD_AFLAGS           += $(call cc-option,-mno-fdpic)
-CFLAGS_MODULE    += -mlong-calls
-LDFLAGS_MODULE   += -m elf32bfin
+KBUILD_CFLAGS_MODULE    += -mlong-calls
+LDFLAGS                 += -m elf32bfin
 KALLSYMS         += --symbol-prefix=_
 
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig
@@ -94,13 +97,15 @@ rev-$(CONFIG_BF_REV_0_6)  := 0.6
 rev-$(CONFIG_BF_REV_NONE) := none
 rev-$(CONFIG_BF_REV_ANY)  := any
 
-KBUILD_CFLAGS += -mcpu=$(cpu-y)-$(rev-y)
-KBUILD_AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
+CPU_REV := $(cpu-y)-$(rev-y)
+export CPU_REV
+
+KBUILD_CFLAGS += -mcpu=$(CPU_REV)
+KBUILD_AFLAGS += -mcpu=$(CPU_REV)
 
 # - we utilize the silicon rev from the toolchain, so move it over to the checkflags
-# - the l1_text attribute is Blackfin specific, so fake it out as used to kill warnings
 CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
-CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -Dl1_text=__used__
+CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -D__bfin__
 
 head-y   := arch/$(ARCH)/kernel/init_task.o
 
@@ -130,7 +135,6 @@ KBUILD_CFLAGS += -Iarch/$(ARCH)/mach-$(MACHINE)/include
 KBUILD_CPPFLAGS	+= $(patsubst %,-I$(srctree)/%include,$(machdirs))
 
 CLEAN_FILES += \
-	arch/$(ARCH)/include/asm/asm-offsets.h \
 	arch/$(ARCH)/kernel/asm-offsets.s \
 
 archclean:
@@ -138,7 +142,7 @@ archclean:
 
 INSTALL_PATH ?= /tftpboot
 boot := arch/$(ARCH)/boot
-BOOT_TARGETS = vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma
+BOOT_TARGETS = vmImage vmImage.bin vmImage.bz2 vmImage.gz vmImage.lzma vmImage.lzo vmImage.xip
 PHONY += $(BOOT_TARGETS) install
 KBUILD_IMAGE := $(boot)/vmImage
 
@@ -156,6 +160,8 @@ define archhelp
   echo  '  vmImage.bz2     - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.bz2)'
   echo  '* vmImage.gz      - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.gz)'
   echo  '  vmImage.lzma    - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.lzma)'
+  echo  '  vmImage.lzo     - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.lzo)'
+  echo  '  vmImage.xip     - XIP Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage.xip)'
   echo  '  install         - Install kernel using'
   echo  '                     (your) ~/bin/$(INSTALLKERNEL) or'
   echo  '                     (distribution) PATH: $(INSTALLKERNEL) or'

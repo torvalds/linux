@@ -26,7 +26,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
-#include "radeon_fixed.h"
+#include <drm/drm_fixed.h>
 #include "radeon.h"
 #include "atom.h"
 
@@ -272,7 +272,7 @@ static uint8_t radeon_compute_pll_gain(uint16_t ref_freq, uint16_t ref_div,
 	if (!ref_div)
 		return 1;
 
-	vcoFreq = ((unsigned)ref_freq & fb_div) / ref_div;
+	vcoFreq = ((unsigned)ref_freq * fb_div) / ref_div;
 
 	/*
 	 * This is horribly crude: the VCO frequency range is divided into
@@ -314,6 +314,9 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
+		radeon_crtc->enabled = true;
+		/* adjust pm to dpms changes BEFORE enabling crtcs */
+		radeon_pm_compute_clocks(rdev);
 		if (radeon_crtc->crtc_id)
 			WREG32_P(RADEON_CRTC2_GEN_CNTL, RADEON_CRTC2_EN, ~(RADEON_CRTC2_EN | mask));
 		else {
@@ -335,6 +338,9 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 										    RADEON_CRTC_DISP_REQ_EN_B));
 			WREG32_P(RADEON_CRTC_EXT_CNTL, mask, ~mask);
 		}
+		radeon_crtc->enabled = false;
+		/* adjust pm to dpms changes AFTER disabling crtcs */
+		radeon_pm_compute_clocks(rdev);
 		break;
 	}
 }
@@ -342,10 +348,25 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			 struct drm_framebuffer *old_fb)
 {
+	return radeon_crtc_do_set_base(crtc, old_fb, x, y, 0);
+}
+
+int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				int x, int y, enum mode_set_atomic state)
+{
+	return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
+}
+
+int radeon_crtc_do_set_base(struct drm_crtc *crtc,
+			 struct drm_framebuffer *fb,
+			 int x, int y, int atomic)
+{
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_framebuffer *radeon_fb;
+	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
 	uint64_t base;
@@ -356,16 +377,23 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint32_t gen_cntl_reg, gen_cntl_val;
 	int r;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	/* no fb bound */
-	if (!crtc->fb) {
-		DRM_DEBUG("No FB bound\n");
+	if (!atomic && !crtc->fb) {
+		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
-	radeon_fb = to_radeon_framebuffer(crtc->fb);
+	if (atomic) {
+		radeon_fb = to_radeon_framebuffer(fb);
+		target_fb = fb;
+	}
+	else {
+		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		target_fb = crtc->fb;
+	}
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (target_fb->bits_per_pixel) {
 	case 8:
 		format = 2;
 		break;
@@ -403,16 +431,16 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* if scanout was in GTT this really wouldn't work */
 	/* crtc offset is from display base addr not FB location */
-	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_location;
+	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_start;
 
 	base -= radeon_crtc->legacy_display_base_addr;
 
 	crtc_offset_cntl = 0;
 
-	pitch_pixels = crtc->fb->pitch / (crtc->fb->bits_per_pixel / 8);
-	crtc_pitch  = (((pitch_pixels * crtc->fb->bits_per_pixel) +
-			((crtc->fb->bits_per_pixel * 8) - 1)) /
-		       (crtc->fb->bits_per_pixel * 8));
+	pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
+	crtc_pitch  = (((pitch_pixels * target_fb->bits_per_pixel) +
+			((target_fb->bits_per_pixel * 8) - 1)) /
+		       (target_fb->bits_per_pixel * 8));
 	crtc_pitch |= crtc_pitch << 16;
 
 
@@ -437,14 +465,14 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			crtc_tile_x0_y0 = x | (y << 16);
 			base &= ~0x7ff;
 		} else {
-			int byteshift = crtc->fb->bits_per_pixel >> 4;
+			int byteshift = target_fb->bits_per_pixel >> 4;
 			int tile_addr = (((y >> 3) * pitch_pixels +  x) >> (8 - byteshift)) << 11;
 			base += tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
 			crtc_offset_cntl |= (y % 16);
 		}
 	} else {
 		int offset = y * pitch_pixels + x;
-		switch (crtc->fb->bits_per_pixel) {
+		switch (target_fb->bits_per_pixel) {
 		case 8:
 			offset *= 1;
 			break;
@@ -490,8 +518,8 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, crtc_offset);
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
-	if (old_fb && old_fb != crtc->fb) {
-		radeon_fb = to_radeon_framebuffer(old_fb);
+	if (!atomic && fb && fb != crtc->fb) {
+		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = radeon_fb->obj->driver_private;
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
@@ -522,7 +550,7 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 	uint32_t crtc_v_sync_strt_wid;
 	bool is_tv = false;
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -582,29 +610,6 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				   ? RADEON_CRTC_V_SYNC_POL
 				   : 0));
 
-	/* TODO -> Dell Server */
-	if (0) {
-		uint32_t disp_hw_debug = RREG32(RADEON_DISP_HW_DEBUG);
-		uint32_t tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
-		uint32_t dac2_cntl = RREG32(RADEON_DAC_CNTL2);
-		uint32_t crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
-
-		dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
-		dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
-
-		/* For CRT on DAC2, don't turn it on if BIOS didn't
-		   enable it, even it's detected.
-		*/
-		disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
-		tv_dac_cntl &= ~((1<<2) | (3<<8) | (7<<24) | (0xff<<16));
-		tv_dac_cntl |= (0x03 | (2<<8) | (0x58<<16));
-
-		WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
-		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
-		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
-		WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
-	}
-
 	if (radeon_crtc->crtc_id) {
 		uint32_t crtc2_gen_cntl;
 		uint32_t disp2_merge_cntl;
@@ -625,6 +630,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				   | ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 				      ? RADEON_CRTC2_INTERLACE_EN
 				      : 0));
+
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc2_gen_cntl |= RADEON_CRTC2_EN;
 
 		disp2_merge_cntl = RREG32(RADEON_DISP2_MERGE_CNTL);
 		disp2_merge_cntl &= ~RADEON_DISP2_RGB_OFFSET_EN;
@@ -652,6 +661,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				 | ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 				    ? RADEON_CRTC_INTERLACE_EN
 				    : 0));
+
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc_gen_cntl |= RADEON_CRTC_EN;
 
 		crtc_ext_cntl = RREG32(RADEON_CRTC_EXT_CNTL);
 		crtc_ext_cntl |= (RADEON_XCRT_CNT_EN |
@@ -762,7 +775,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		}
 	}
 
-	DRM_DEBUG("\n");
+	DRM_DEBUG_KMS("\n");
 
 	if (!use_bios_divs) {
 		radeon_compute_pll(pll, mode->clock,
@@ -777,7 +790,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		if (!post_div->divider)
 			post_div = &post_divs[0];
 
-		DRM_DEBUG("dc=%u, fd=%d, rd=%d, pd=%d\n",
+		DRM_DEBUG_KMS("dc=%u, fd=%d, rd=%d, pd=%d\n",
 			  (unsigned)freq,
 			  feedback_div,
 			  reference_div,
@@ -846,12 +859,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			       | RADEON_P2PLL_SLEEP
 			       | RADEON_P2PLL_ATOMIC_UPDATE_EN));
 
-		DRM_DEBUG("Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		DRM_DEBUG_KMS("Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 			  (unsigned)pll_ref_div,
 			  (unsigned)pll_fb_post_div,
 			  (unsigned)htotal_cntl,
 			  RREG32_PLL(RADEON_P2PLL_CNTL));
-		DRM_DEBUG("Wrote2: rd=%u, fd=%u, pd=%u\n",
+		DRM_DEBUG_KMS("Wrote2: rd=%u, fd=%u, pd=%u\n",
 			  (unsigned)pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
 			  (unsigned)pll_fb_post_div & RADEON_P2PLL_FB0_DIV_MASK,
 			  (unsigned)((pll_fb_post_div &
@@ -952,12 +965,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			       | RADEON_PPLL_ATOMIC_UPDATE_EN
 			       | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
 
-		DRM_DEBUG("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		DRM_DEBUG_KMS("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 			  pll_ref_div,
 			  pll_fb_post_div,
 			  (unsigned)htotal_cntl,
 			  RREG32_PLL(RADEON_PPLL_CNTL));
-		DRM_DEBUG("Wrote: rd=%d, fd=%d, pd=%d\n",
+		DRM_DEBUG_KMS("Wrote: rd=%d, fd=%d, pd=%d\n",
 			  pll_ref_div & RADEON_PPLL_REF_DIV_MASK,
 			  pll_fb_post_div & RADEON_PPLL_FB3_DIV_MASK,
 			  (pll_fb_post_div & RADEON_PPLL_POST3_DIV_MASK) >> 16);
@@ -977,6 +990,12 @@ static bool radeon_crtc_mode_fixup(struct drm_crtc *crtc,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	/* adjust pm to upcoming mode change */
+	radeon_pm_compute_clocks(rdev);
+
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	return true;
@@ -1039,6 +1058,7 @@ static const struct drm_crtc_helper_funcs legacy_helper_funcs = {
 	.mode_fixup = radeon_crtc_mode_fixup,
 	.mode_set = radeon_crtc_mode_set,
 	.mode_set_base = radeon_crtc_set_base,
+	.mode_set_base_atomic = radeon_crtc_set_base_atomic,
 	.prepare = radeon_crtc_prepare,
 	.commit = radeon_crtc_commit,
 	.load_lut = radeon_crtc_load_lut,

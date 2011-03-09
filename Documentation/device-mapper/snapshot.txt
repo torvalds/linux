@@ -122,3 +122,47 @@ volumeGroup-base: 0 2097152 snapshot-merge 254:11 254:12 P 16
 brw-------  1 root root 254, 11 29 ago 18:15 /dev/mapper/volumeGroup-base-real
 brw-------  1 root root 254, 12 29 ago 18:16 /dev/mapper/volumeGroup-base-cow
 brw-------  1 root root 254, 10 29 ago 18:16 /dev/mapper/volumeGroup-base
+
+
+How to determine when a merging is complete
+===========================================
+The snapshot-merge and snapshot status lines end with:
+  <sectors_allocated>/<total_sectors> <metadata_sectors>
+
+Both <sectors_allocated> and <total_sectors> include both data and metadata.
+During merging, the number of sectors allocated gets smaller and
+smaller.  Merging has finished when the number of sectors holding data
+is zero, in other words <sectors_allocated> == <metadata_sectors>.
+
+Here is a practical example (using a hybrid of lvm and dmsetup commands):
+
+# lvs
+  LV      VG          Attr   LSize Origin  Snap%  Move Log Copy%  Convert
+  base    volumeGroup owi-a- 4.00g
+  snap    volumeGroup swi-a- 1.00g base  18.97
+
+# dmsetup status volumeGroup-snap
+0 8388608 snapshot 397896/2097152 1560
+                                  ^^^^ metadata sectors
+
+# lvconvert --merge -b volumeGroup/snap
+  Merging of volume snap started.
+
+# lvs volumeGroup/snap
+  LV      VG          Attr   LSize Origin  Snap%  Move Log Copy%  Convert
+  base    volumeGroup Owi-a- 4.00g          17.23
+
+# dmsetup status volumeGroup-base
+0 8388608 snapshot-merge 281688/2097152 1104
+
+# dmsetup status volumeGroup-base
+0 8388608 snapshot-merge 180480/2097152 712
+
+# dmsetup status volumeGroup-base
+0 8388608 snapshot-merge 16/2097152 16
+
+Merging has finished.
+
+# lvs
+  LV      VG          Attr   LSize Origin  Snap%  Move Log Copy%  Convert
+  base    volumeGroup owi-a- 4.00g

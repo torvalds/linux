@@ -1156,7 +1156,6 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	char *name;
-	int ret = 0;
 
 	mutex_lock(&priv->lock);
 	tda18271_read_regs(fe);
@@ -1172,17 +1171,16 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 		priv->id = TDA18271HDC2;
 		break;
 	default:
-		name = "Unknown device";
-		ret = -EINVAL;
-		break;
+		tda_info("Unknown device (%i) detected @ %d-%04x, device not supported.\n",
+			 regs[R_ID], i2c_adapter_id(priv->i2c_props.adap),
+			 priv->i2c_props.addr);
+		return -EINVAL;
 	}
 
-	tda_info("%s detected @ %d-%04x%s\n", name,
-		 i2c_adapter_id(priv->i2c_props.adap),
-		 priv->i2c_props.addr,
-		 (0 == ret) ? "" : ", device not supported.");
+	tda_info("%s detected @ %d-%04x\n", name,
+		 i2c_adapter_id(priv->i2c_props.adap), priv->i2c_props.addr);
 
-	return ret;
+	return 0;
 }
 
 static int tda18271_setup_configuration(struct dvb_frontend *fe,
@@ -1249,7 +1247,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				     struct tda18271_config *cfg)
 {
 	struct tda18271_priv *priv = NULL;
-	int instance;
+	int instance, ret;
 
 	mutex_lock(&tda18271_list_mutex);
 
@@ -1268,10 +1266,12 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
 
-		if (tda_fail(tda18271_get_id(fe)))
+		ret = tda18271_get_id(fe);
+		if (tda_fail(ret))
 			goto fail;
 
-		if (tda_fail(tda18271_assign_map_layout(fe)))
+		ret = tda18271_assign_map_layout(fe);
+		if (tda_fail(ret))
 			goto fail;
 
 		mutex_lock(&priv->lock);

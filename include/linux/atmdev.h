@@ -427,10 +427,20 @@ extern rwlock_t vcc_sklist_lock;
 
 #define ATM_SKB(skb) (((struct atm_skb_data *) (skb)->cb))
 
-struct atm_dev *atm_dev_register(const char *type,const struct atmdev_ops *ops,
-    int number,unsigned long *flags); /* number == -1: pick first available */
+struct atm_dev *atm_dev_register(const char *type, struct device *parent,
+				 const struct atmdev_ops *ops,
+				 int number, /* -1 == pick first available */
+				 unsigned long *flags);
 struct atm_dev *atm_dev_lookup(int number);
 void atm_dev_deregister(struct atm_dev *dev);
+
+/* atm_dev_signal_change
+ *
+ * Propagate lower layer signal change in atm_dev->signal to netdevice.
+ * The event will be sent via a notifier call chain.
+ */
+void atm_dev_signal_change(struct atm_dev *dev, char signal);
+
 void vcc_insert_socket(struct sock *sk);
 
 
@@ -441,7 +451,7 @@ void vcc_insert_socket(struct sock *sk);
 
 static inline int atm_guess_pdu2truesize(int size)
 {
-	return (SKB_DATA_ALIGN(size) + sizeof(struct skb_shared_info));
+	return SKB_DATA_ALIGN(size) + sizeof(struct skb_shared_info);
 }
 
 
@@ -509,6 +519,15 @@ void register_atm_ioctl(struct atm_ioctl *);
  * deregister_atm_ioctl - remove the ioctl handler
  */
 void deregister_atm_ioctl(struct atm_ioctl *);
+
+
+/* register_atmdevice_notifier - register atm_dev notify events
+ *
+ * Clients like br2684 will register notify events
+ * Currently we notify of signal found/lost
+ */
+int register_atmdevice_notifier(struct notifier_block *nb);
+void unregister_atmdevice_notifier(struct notifier_block *nb);
 
 #endif /* __KERNEL__ */
 

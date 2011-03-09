@@ -169,9 +169,11 @@ static int p970_marked_instr_event(u64 event)
 	switch (unit) {
 	case PM_VPU:
 		mask = 0x4c;		/* byte 0 bits 2,3,6 */
+		break;
 	case PM_LSU0:
 		/* byte 2 bits 0,2,3,4,6; all of byte 1 */
 		mask = 0x085dff00;
+		break;
 	case PM_LSU1L:
 		mask = 0x50 << 24;	/* byte 3 bits 4,6 */
 		break;
@@ -492,4 +494,4 @@ static int init_ppc970_pmu(void)
 	return register_power_pmu(&ppc970_pmu);
 }
 
-arch_initcall(init_ppc970_pmu);
+early_initcall(init_ppc970_pmu);

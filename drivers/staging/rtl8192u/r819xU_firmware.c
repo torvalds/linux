@@ -1,7 +1,7 @@
 /**************************************************************************************************
  * Procedure:    Init boot code/firmware code/data session
  *
- * Description: This routine will intialize firmware. If any error occurs during the initialization
+ * Description: This routine will initialize firmware. If any error occurs during the initialization
  * 		process, the routine shall terminate immediately and return fail.
  *		NIC driver should call NdisOpenFile only from MiniportInitialize.
  *
@@ -11,7 +11,7 @@
  *        NDIS_STATUS_FAILURE - the following initialization process should be terminated
  *        NDIS_STATUS_SUCCESS - if firmware initialization process success
 **************************************************************************************************/
-//#include "ieee80211.h"
+
 #include "r8192U.h"
 #include "r8192U_hw.h"
 #include "r819xU_firmware_img.h"

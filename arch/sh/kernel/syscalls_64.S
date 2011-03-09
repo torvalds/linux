@@ -393,3 +393,6 @@ sys_call_table:
 	.long sys_perf_event_open
 	.long sys_recvmmsg		/* 365 */
 	.long sys_accept4
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64

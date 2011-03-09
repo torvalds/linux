@@ -15,6 +15,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw(
 avg nsecs nsecs_secs nsecs_nsecs nsecs_usecs print_nsecs
+clear_term
 );
 
 our $VERSION = '0.01';
@@ -44,7 +45,7 @@ sub nsecs_secs {
 sub nsecs_nsecs {
     my ($nsecs) = @_;
 
-    return $nsecs - nsecs_secs($nsecs);
+    return $nsecs % $NSECS_PER_SEC;
 }
 
 sub nsecs_str {
@@ -55,11 +56,16 @@ sub nsecs_str {
     return $str;
 }
 
+sub clear_term
+{
+    print "\x1b[H\x1b[2J";
+}
+
 1;
 __END__
 =head1 NAME
 
-Perf::Trace::Util - Perl extension for perf trace
+Perf::Trace::Util - Perl extension for perf script
 
 =head1 SYNOPSIS
 
@@ -67,7 +73,7 @@ Perf::Trace::Util - Perl extension for perf trace
 
 =head1 SEE ALSO
 
-Perf (trace) documentation
+Perf (script) documentation
 
 =head1 AUTHOR
 

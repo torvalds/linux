@@ -22,6 +22,8 @@
 
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/pci.h>
+#include <sound/memalloc.h>
 
 /* The chip can handle the page table of 4k pages
  * (emu20k1 can handle even 8k pages, but we don't use it right now)
@@ -41,7 +43,7 @@ struct snd_pcm_substream;
 
 /* Virtual memory management object for card device */
 struct ct_vm {
-	void *ptp[CT_PTP_NUM];		/* Device page table pages */
+	struct snd_dma_buffer ptp[CT_PTP_NUM];	/* Device page table pages */
 	unsigned int size;		/* Available addr space in bytes */
 	struct list_head unused;	/* List of unused blocks */
 	struct list_head used;		/* List of used blocks */
@@ -52,10 +54,10 @@ struct ct_vm {
 				   int size);
 	/* Unmap device logical addr area. */
 	void (*unmap)(struct ct_vm *, struct ct_vm_block *block);
-	void *(*get_ptp_virt)(struct ct_vm *vm, int index);
+	dma_addr_t (*get_ptp_phys)(struct ct_vm *vm, int index);
 };
 
-int ct_vm_create(struct ct_vm **rvm);
+int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci);
 void ct_vm_destroy(struct ct_vm *vm);
 
 #endif /* CTVMEM_H */

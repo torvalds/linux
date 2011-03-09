@@ -44,7 +44,6 @@
  * and if they're the last, they fire off the decision.
  */
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
 
@@ -326,5 +325,7 @@ void o2quo_init(void)
 
 void o2quo_exit(void)
 {
-	flush_scheduled_work();
+	struct o2quo_state *qs = &o2quo_state;
+
+	flush_work_sync(&qs->qs_work);
 }

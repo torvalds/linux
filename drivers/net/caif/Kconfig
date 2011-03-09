@@ -1,0 +1,40 @@
+#
+# CAIF physical drivers
+#
+
+comment "CAIF transport drivers"
+
+config CAIF_TTY
+	tristate "CAIF TTY transport driver"
+	depends on CAIF
+	default n
+	---help---
+	The CAIF TTY transport driver is a Line Discipline (ldisc)
+	identified as N_CAIF. When this ldisc is opened from user space
+	it will redirect the TTY's traffic into the CAIF stack.
+
+config CAIF_SPI_SLAVE
+	tristate "CAIF SPI transport driver for slave interface"
+	depends on CAIF && HAS_DMA
+	default n
+	---help---
+	The CAIF Link layer SPI Protocol driver for Slave SPI interface.
+	This driver implements a platform driver to accommodate for a
+	platform specific SPI device. A sample CAIF SPI Platform device is
+	provided in Documentation/networking/caif/spi_porting.txt
+
+config CAIF_SPI_SYNC
+	bool "Next command and length in start of frame"
+	depends on CAIF_SPI_SLAVE
+	default n
+	---help---
+	Putting the next command and length in the start of the frame can
+	help to synchronize to the next transfer in case of over or under-runs.
+	This option also needs to be enabled on the modem.
+
+config CAIF_SHM
+	tristate "CAIF shared memory protocol driver"
+	depends on CAIF && U5500_MBOX
+	default n
+	---help---
+	The CAIF shared memory protocol driver for the STE UX5500 platform.

@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/spi/spi.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 /*
  * WARNING! Do not include this pl022-specific controller header
  * for any generic driver. It is only done in this dummy chip
@@ -45,7 +46,6 @@ static ssize_t dummy_looptest(struct device *dev,
 	 * struct, this is just used here to alter the behaviour of the chip
 	 * in order to perform tests.
 	 */
-	struct pl022_config_chip *chip_info = spi->controller_data;
 	int status;
 	u8 txbuf[14] = {0xDE, 0xAD, 0xBE, 0xEF, 0x2B, 0xAD,
 			0xCA, 0xFE, 0xBA, 0xBE, 0xB1, 0x05,
@@ -71,7 +71,7 @@ static ssize_t dummy_looptest(struct device *dev,
 	 * Force chip to 8 bit mode
 	 * WARNING: NEVER DO THIS IN REAL DRIVER CODE, THIS SHOULD BE STATIC!
 	 */
-	chip_info->data_size = SSP_DATA_BITS_8;
+	spi->bits_per_word = 8;
 	/* You should NOT DO THIS EITHER */
 	spi->master->setup(spi);
 
@@ -158,7 +158,7 @@ static ssize_t dummy_looptest(struct device *dev,
 	 * Force chip to 16 bit mode
 	 * WARNING: NEVER DO THIS IN REAL DRIVER CODE, THIS SHOULD BE STATIC!
 	 */
-	chip_info->data_size = SSP_DATA_BITS_16;
+	spi->bits_per_word = 16;
 	/* You should NOT DO THIS EITHER */
 	spi->master->setup(spi);
 

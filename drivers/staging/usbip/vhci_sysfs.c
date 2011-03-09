@@ -144,7 +144,7 @@ static int valid_args(__u32 rhport, enum usb_device_speed speed)
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		break;
 	default:
 		usbip_uerr("speed %d\n", speed);

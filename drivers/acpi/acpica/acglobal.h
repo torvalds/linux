@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,17 +100,31 @@ u8 ACPI_INIT_GLOBAL(acpi_gbl_all_methods_serialized, FALSE);
 u8 ACPI_INIT_GLOBAL(acpi_gbl_create_osi_method, TRUE);
 
 /*
- * Disable wakeup GPEs during runtime? Default is TRUE because WAKE and
- * RUNTIME GPEs should never be shared, and WAKE GPEs should typically only
- * be enabled just before going to sleep.
- */
-u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
-
-/*
  * Optionally use default values for the ACPI register widths. Set this to
  * TRUE to use the defaults, if an FADT contains incorrect widths/lengths.
  */
 u8 ACPI_INIT_GLOBAL(acpi_gbl_use_default_register_widths, TRUE);
+
+/*
+ * Optionally enable output from the AML Debug Object.
+ */
+u32 ACPI_INIT_GLOBAL(acpi_gbl_enable_aml_debug_object, FALSE);
+
+/*
+ * Optionally copy the entire DSDT to local memory (instead of simply
+ * mapping it.) There are some BIOSs that corrupt or replace the original
+ * DSDT, creating the need for this option. Default is FALSE, do not copy
+ * the DSDT.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_copy_dsdt_locally, FALSE);
+
+/*
+ * Optionally truncate I/O addresses to 16 bits. Provides compatibility
+ * with other ACPI implementations. NOTE: During ACPICA initialization,
+ * this value is set to TRUE if any Windows OSI strings have been
+ * requested by the BIOS.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_truncate_io_addresses, FALSE);
 
 /* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
 
@@ -118,6 +132,7 @@ struct acpi_table_fadt acpi_gbl_FADT;
 u32 acpi_current_gpe_count;
 u32 acpi_gbl_trace_flags;
 acpi_name acpi_gbl_trace_method_name;
+u8 acpi_gbl_system_awake_and_running;
 
 #endif
 
@@ -130,6 +145,9 @@ acpi_name acpi_gbl_trace_method_name;
 /* Procedure nesting level for debug output */
 
 extern u32 acpi_gbl_nesting_level;
+
+ACPI_EXTERN u32 acpi_gpe_count;
+ACPI_EXTERN u32 acpi_fixed_event_count[ACPI_NUM_FIXED_EVENTS];
 
 /* Support for dynamic control method tracing mechanism */
 
@@ -145,11 +163,10 @@ ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
  ****************************************************************************/
 
 /*
- * acpi_gbl_root_table_list is the master list of ACPI tables found in the
- * RSDT/XSDT.
- *
+ * acpi_gbl_root_table_list is the master list of ACPI tables that were
+ * found in the RSDT/XSDT.
  */
-ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
+ACPI_EXTERN struct acpi_table_list acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_facs *acpi_gbl_FACS;
 
 /* These addresses are calculated from the FADT Event Block addresses */
@@ -160,6 +177,11 @@ ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_status;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 
+/* DSDT information. Used to check for DSDT corruption */
+
+ACPI_EXTERN struct acpi_table_header *acpi_gbl_DSDT;
+ACPI_EXTERN struct acpi_table_header acpi_gbl_original_dsdt_header;
+
 /*
  * Handle both ACPI 1.0 and ACPI 2.0 Integer widths. The integer width is
  * determined by the revision of the DSDT: If the DSDT revision is less than
@@ -168,6 +190,10 @@ ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
+
+/* Mutex for _OSI support */
+
+ACPI_EXTERN acpi_mutex acpi_gbl_osi_mutex;
 
 /* Reader/Writer lock is used for namespace walk and dynamic table unload */
 
@@ -202,8 +228,10 @@ ACPI_EXTERN u8 acpi_gbl_global_lock_present;
  */
 ACPI_EXTERN spinlock_t _acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
 ACPI_EXTERN spinlock_t _acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
+ACPI_EXTERN spinlock_t _acpi_ev_global_lock_pending_lock; /* For global lock */
 #define acpi_gbl_gpe_lock	&_acpi_gbl_gpe_lock
 #define acpi_gbl_hardware_lock	&_acpi_gbl_hardware_lock
+#define acpi_ev_global_lock_pending_lock &_acpi_ev_global_lock_pending_lock
 
 /*****************************************************************************
  *
@@ -237,6 +265,7 @@ ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
 ACPI_EXTERN acpi_tbl_handler acpi_gbl_table_handler;
 ACPI_EXTERN void *acpi_gbl_table_handler_context;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
+ACPI_EXTERN acpi_interface_handler acpi_gbl_interface_handler;
 
 /* Owner ID support */
 
@@ -255,8 +284,8 @@ ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;
 ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
-ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
 ACPI_EXTERN u8 acpi_gbl_osi_data;
+ACPI_EXTERN struct acpi_interface_info *acpi_gbl_supported_interfaces;
 
 #ifndef DEFINE_ACPI_GLOBALS
 
@@ -346,6 +375,9 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
 *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
+ACPI_EXTERN ACPI_GBL_EVENT_HANDLER acpi_gbl_global_event_handler;
+ACPI_EXTERN void *acpi_gbl_global_event_handler_context;
 
 /*****************************************************************************
  *

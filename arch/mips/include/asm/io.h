@@ -329,10 +329,14 @@ static inline void pfx##write##bwlq(type val,				\
 			"dsrl32	%L0, %L0, 0"			"\n\t"	\
 			"dsll32	%M0, %M0, 0"			"\n\t"	\
 			"or	%L0, %L0, %M0"			"\n\t"	\
+			".set	push"				"\n\t"	\
+			".set	noreorder"			"\n\t"	\
+			".set	nomacro"			"\n\t"	\
 			"sd	%L0, %2"			"\n\t"	\
+			".set	pop"				"\n\t"	\
 			".set	mips0"				"\n"	\
 			: "=r" (__tmp)					\
-			: "0" (__val), "m" (*__mem));			\
+			: "0" (__val), "R" (*__mem));			\
 		if (irq)						\
 			local_irq_restore(__flags);			\
 	} else								\
@@ -355,12 +359,16 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 			local_irq_save(__flags);			\
 		__asm__ __volatile__(					\
 			".set	mips3"		"\t\t# __readq"	"\n\t"	\
+			".set	push"				"\n\t"	\
+			".set	noreorder"			"\n\t"	\
+			".set	nomacro"			"\n\t"	\
 			"ld	%L0, %1"			"\n\t"	\
+			".set	pop"				"\n\t"	\
 			"dsra32	%M0, %L0, 0"			"\n\t"	\
 			"sll	%L0, %L0, 0"			"\n\t"	\
 			".set	mips0"				"\n"	\
 			: "=r" (__val)					\
-			: "m" (*__mem));				\
+			: "R" (*__mem));				\
 		if (irq)						\
 			local_irq_restore(__flags);			\
 	} else {							\
@@ -446,6 +454,24 @@ __BUILDIO(q, u64)
 #define readw_relaxed			readw
 #define readl_relaxed			readl
 #define readq_relaxed			readq
+
+#define readb_be(addr)							\
+	__raw_readb((__force unsigned *)(addr))
+#define readw_be(addr)							\
+	be16_to_cpu(__raw_readw((__force unsigned *)(addr)))
+#define readl_be(addr)							\
+	be32_to_cpu(__raw_readl((__force unsigned *)(addr)))
+#define readq_be(addr)							\
+	be64_to_cpu(__raw_readq((__force unsigned *)(addr)))
+
+#define writeb_be(val, addr)						\
+	__raw_writeb((val), (__force unsigned *)(addr))
+#define writew_be(val, addr)						\
+	__raw_writew(cpu_to_be16((val)), (__force unsigned *)(addr))
+#define writel_be(val, addr)						\
+	__raw_writel(cpu_to_be32((val)), (__force unsigned *)(addr))
+#define writeq_be(val, addr)						\
+	__raw_writeq(cpu_to_be64((val)), (__force unsigned *)(addr))
 
 /*
  * Some code tests for these symbols

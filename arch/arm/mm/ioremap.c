@@ -42,78 +42,11 @@
  */
 #define VM_ARM_SECTION_MAPPING	0x80000000
 
-static int remap_area_pte(pmd_t *pmd, unsigned long addr, unsigned long end,
-			  unsigned long phys_addr, const struct mem_type *type)
-{
-	pgprot_t prot = __pgprot(type->prot_pte);
-	pte_t *pte;
-
-	pte = pte_alloc_kernel(pmd, addr);
-	if (!pte)
-		return -ENOMEM;
-
-	do {
-		if (!pte_none(*pte))
-			goto bad;
-
-		set_pte_ext(pte, pfn_pte(phys_addr >> PAGE_SHIFT, prot), 0);
-		phys_addr += PAGE_SIZE;
-	} while (pte++, addr += PAGE_SIZE, addr != end);
-	return 0;
-
- bad:
-	printk(KERN_CRIT "remap_area_pte: page already exists\n");
-	BUG();
-}
-
-static inline int remap_area_pmd(pgd_t *pgd, unsigned long addr,
-				 unsigned long end, unsigned long phys_addr,
-				 const struct mem_type *type)
-{
-	unsigned long next;
-	pmd_t *pmd;
-	int ret = 0;
-
-	pmd = pmd_alloc(&init_mm, pgd, addr);
-	if (!pmd)
-		return -ENOMEM;
-
-	do {
-		next = pmd_addr_end(addr, end);
-		ret = remap_area_pte(pmd, addr, next, phys_addr, type);
-		if (ret)
-			return ret;
-		phys_addr += next - addr;
-	} while (pmd++, addr = next, addr != end);
-	return ret;
-}
-
-static int remap_area_pages(unsigned long start, unsigned long pfn,
-			    size_t size, const struct mem_type *type)
-{
-	unsigned long addr = start;
-	unsigned long next, end = start + size;
-	unsigned long phys_addr = __pfn_to_phys(pfn);
-	pgd_t *pgd;
-	int err = 0;
-
-	BUG_ON(addr >= end);
-	pgd = pgd_offset_k(addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		err = remap_area_pmd(pgd, addr, next, phys_addr, type);
-		if (err)
-			break;
-		phys_addr += next - addr;
-	} while (pgd++, addr = next, addr != end);
-
-	return err;
-}
-
 int ioremap_page(unsigned long virt, unsigned long phys,
 		 const struct mem_type *mtype)
 {
-	return remap_area_pages(virt, __phys_to_pfn(phys), PAGE_SIZE, mtype);
+	return ioremap_page_range(virt, virt + PAGE_SIZE, phys,
+				  __pgprot(mtype->prot_pte));
 }
 EXPORT_SYMBOL(ioremap_page);
 
@@ -139,8 +72,8 @@ void __check_kvm_seq(struct mm_struct *mm)
  * which requires the new ioremap'd region to be referenced, the CPU will
  * reference the _old_ region.
  *
- * Note that get_vm_area() allocates a guard 4K page, so we need to mask
- * the size back to 1MB aligned or we will overflow in the loop below.
+ * Note that get_vm_area_caller() allocates a guard 4K page, so we need to
+ * mask the size back to 1MB aligned or we will overflow in the loop below.
  */
 static void unmap_area_sections(unsigned long virt, unsigned long size)
 {
@@ -254,22 +187,8 @@ remap_area_supersections(unsigned long virt, unsigned long pfn,
 }
 #endif
 
-
-/*
- * Remap an arbitrary physical address space into the kernel virtual
- * address space. Needed when the kernel wants to access high addresses
- * directly.
- *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
- * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
- *
- * 'flags' are the extra L_PTE_ flags that you want to specify for this
- * mapping.  See <asm/pgtable.h> for more information.
- */
-void __iomem *
-__arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
-		  unsigned int mtype)
+void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
+	unsigned long offset, size_t size, unsigned int mtype, void *caller)
 {
 	const struct mem_type *type;
 	int err;
@@ -282,6 +201,12 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	if (pfn >= 0x100000 && (__pfn_to_phys(pfn) & ~SUPERSECTION_MASK))
 		return NULL;
 
+	/*
+	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
+	 */
+	if (WARN_ON(pfn_valid(pfn)))
+		return NULL;
+
 	type = get_mem_type(mtype);
 	if (!type)
 		return NULL;
@@ -291,7 +216,7 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	 */
 	size = PAGE_ALIGN(offset + size);
 
- 	area = get_vm_area(size, VM_IOREMAP);
+	area = get_vm_area_caller(size, VM_IOREMAP, caller);
  	if (!area)
  		return NULL;
  	addr = (unsigned long)area->addr;
@@ -308,7 +233,8 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 		err = remap_area_sections(addr, pfn, size, type);
 	} else
 #endif
-		err = remap_area_pages(addr, pfn, size, type);
+		err = ioremap_page_range(addr, addr + size, __pfn_to_phys(pfn),
+					 __pgprot(type->prot_pte));
 
 	if (err) {
  		vunmap((void *)addr);
@@ -318,10 +244,9 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 	flush_cache_vmap(addr, addr + size);
 	return (void __iomem *) (offset + addr);
 }
-EXPORT_SYMBOL(__arm_ioremap_pfn);
 
-void __iomem *
-__arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
+void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
+	unsigned int mtype, void *caller)
 {
 	unsigned long last_addr;
  	unsigned long offset = phys_addr & ~PAGE_MASK;
@@ -334,7 +259,33 @@ __arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 	if (!size || last_addr < phys_addr)
 		return NULL;
 
- 	return __arm_ioremap_pfn(pfn, offset, size, mtype);
+	return __arm_ioremap_pfn_caller(pfn, offset, size, mtype,
+			caller);
+}
+
+/*
+ * Remap an arbitrary physical address space into the kernel virtual
+ * address space. Needed when the kernel wants to access high addresses
+ * directly.
+ *
+ * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * have to convert them into an offset in a page-aligned mapping, but the
+ * caller shouldn't need to know that small detail.
+ */
+void __iomem *
+__arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
+		  unsigned int mtype)
+{
+	return __arm_ioremap_pfn_caller(pfn, offset, size, mtype,
+			__builtin_return_address(0));
+}
+EXPORT_SYMBOL(__arm_ioremap_pfn);
+
+void __iomem *
+__arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
+{
+	return __arm_ioremap_caller(phys_addr, size, mtype,
+			__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__arm_ioremap);
 

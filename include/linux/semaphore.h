@@ -26,7 +26,7 @@ struct semaphore {
 	.wait_list	= LIST_HEAD_INIT((name).wait_list),		\
 }
 
-#define DECLARE_MUTEX(name)	\
+#define DEFINE_SEMAPHORE(name)	\
 	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
 
 static inline void sema_init(struct semaphore *sem, int val)
@@ -35,9 +35,6 @@ static inline void sema_init(struct semaphore *sem, int val)
 	*sem = (struct semaphore) __SEMAPHORE_INITIALIZER(*sem, val);
 	lockdep_init_map(&sem->lock.dep_map, "semaphore->lock", &__key, 0);
 }
-
-#define init_MUTEX(sem)		sema_init(sem, 1)
-#define init_MUTEX_LOCKED(sem)	sema_init(sem, 0)
 
 extern void down(struct semaphore *sem);
 extern int __must_check down_interruptible(struct semaphore *sem);

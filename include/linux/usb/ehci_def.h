@@ -39,13 +39,19 @@ struct ehci_caps {
 #define HCS_N_PORTS(p)		(((p)>>0)&0xf)	/* bits 3:0, ports on HC */
 
 	u32		hcc_params;      /* HCCPARAMS - offset 0x8 */
+/* EHCI 1.1 addendum */
+#define HCC_32FRAME_PERIODIC_LIST(p)	((p)&(1 << 19))
+#define HCC_PER_PORT_CHANGE_EVENT(p)	((p)&(1 << 18))
+#define HCC_LPM(p)			((p)&(1 << 17))
+#define HCC_HW_PREFETCH(p)		((p)&(1 << 16))
+
 #define HCC_EXT_CAPS(p)		(((p)>>8)&0xff)	/* for pci extended caps */
 #define HCC_ISOC_CACHE(p)       ((p)&(1 << 7))  /* true: can cache isoc frame */
 #define HCC_ISOC_THRES(p)       (((p)>>4)&0x7)  /* bits 6:4, uframes cached */
 #define HCC_CANPARK(p)		((p)&(1 << 2))  /* true: can park on async qh */
 #define HCC_PGM_FRAMELISTLEN(p) ((p)&(1 << 1))  /* true: periodic_size changes*/
 #define HCC_64BIT_ADDR(p)       ((p)&(1))       /* true: can use 64-bit addr */
-	u8		portroute [8];	 /* nibbles for routing - offset 0xC */
+	u8		portroute[8];	 /* nibbles for routing - offset 0xC */
 } __attribute__ ((packed));
 
 
@@ -54,6 +60,13 @@ struct ehci_regs {
 
 	/* USBCMD: offset 0x00 */
 	u32		command;
+
+/* EHCI 1.1 addendum */
+#define CMD_HIRD	(0xf<<24)	/* host initiated resume duration */
+#define CMD_PPCEE	(1<<15)		/* per port change event enable */
+#define CMD_FSP		(1<<14)		/* fully synchronized prefetch */
+#define CMD_ASPE	(1<<13)		/* async schedule prefetch enable */
+#define CMD_PSPE	(1<<12)		/* periodic schedule prefetch enable */
 /* 23:16 is r/w intr rate, in microframes; default "8" == 1/msec */
 #define CMD_PARK	(1<<11)		/* enable "park" on async qh */
 #define CMD_PARK_CNT(c)	(((c)>>8)&3)	/* how many transfers to park for */
@@ -67,6 +80,7 @@ struct ehci_regs {
 
 	/* USBSTS: offset 0x04 */
 	u32		status;
+#define STS_PPCE_MASK	(0xff<<16)	/* Per-Port change event 1-16 */
 #define STS_ASS		(1<<15)		/* Async Schedule Status */
 #define STS_PSS		(1<<14)		/* Periodic Schedule Status */
 #define STS_RECL	(1<<13)		/* Reclamation */
@@ -92,14 +106,22 @@ struct ehci_regs {
 	/* ASYNCLISTADDR: offset 0x18 */
 	u32		async_next;	/* address of next async queue head */
 
-	u32		reserved [9];
+	u32		reserved[9];
 
 	/* CONFIGFLAG: offset 0x40 */
 	u32		configured_flag;
 #define FLAG_CF		(1<<0)		/* true: we'll support "high speed" */
 
 	/* PORTSC: offset 0x44 */
-	u32		port_status [0];	/* up to N_PORTS */
+	u32		port_status[0];	/* up to N_PORTS */
+/* EHCI 1.1 addendum */
+#define PORTSC_SUSPEND_STS_ACK 0
+#define PORTSC_SUSPEND_STS_NYET 1
+#define PORTSC_SUSPEND_STS_STALL 2
+#define PORTSC_SUSPEND_STS_ERR 3
+
+#define PORT_DEV_ADDR	(0x7f<<25)		/* device address */
+#define PORT_SSTS	(0x3<<23)		/* suspend status */
 /* 31:23 reserved */
 #define PORT_WKOC_E	(1<<22)		/* wake on overcurrent (enable) */
 #define PORT_WKDISC_E	(1<<21)		/* wake on disconnect (enable) */
@@ -115,6 +137,7 @@ struct ehci_regs {
 #define PORT_USB11(x) (((x)&(3<<10)) == (1<<10))	/* USB 1.1 device */
 /* 11:10 for detecting lowspeed devices (reset vs release ownership) */
 /* 9 reserved */
+#define PORT_LPM	(1<<9)		/* LPM transaction */
 #define PORT_RESET	(1<<8)		/* reset port */
 #define PORT_SUSPEND	(1<<7)		/* suspend port */
 #define PORT_RESUME	(1<<6)		/* resume it */

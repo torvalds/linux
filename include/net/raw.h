@@ -19,6 +19,7 @@
 
 
 #include <net/protocol.h>
+#include <linux/icmp.h>
 
 extern struct proto raw_prot;
 
@@ -44,7 +45,10 @@ struct raw_iter_state {
 	struct raw_hashinfo *h;
 };
 
-#define raw_seq_private(seq) ((struct raw_iter_state *)(seq)->private)
+static inline struct raw_iter_state *raw_seq_private(struct seq_file *seq)
+{
+	return seq->private;
+}
 void *raw_seq_start(struct seq_file *seq, loff_t *pos);
 void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 void raw_seq_stop(struct seq_file *seq, void *v);
@@ -55,5 +59,17 @@ int raw_seq_open(struct inode *ino, struct file *file,
 
 void raw_hash_sk(struct sock *sk);
 void raw_unhash_sk(struct sock *sk);
+
+struct raw_sock {
+	/* inet_sock has to be the first member */
+	struct inet_sock   inet;
+	struct icmp_filter filter;
+	u32		   ipmr_table;
+};
+
+static inline struct raw_sock *raw_sk(const struct sock *sk)
+{
+	return (struct raw_sock *)sk;
+}
 
 #endif	/* _RAW_H */

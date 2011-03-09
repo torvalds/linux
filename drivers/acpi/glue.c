@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/rwsem.h>
 #include <linux/acpi.h>
 
@@ -87,7 +88,7 @@ static int acpi_find_bridge_device(struct device *dev, acpi_handle * handle)
 /* Get device's handler per its address under its parent */
 struct acpi_find_child {
 	acpi_handle handle;
-	acpi_integer address;
+	u64 address;
 };
 
 static acpi_status
@@ -99,14 +100,15 @@ do_acpi_find_child(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	status = acpi_get_object_info(handle, &info);
 	if (ACPI_SUCCESS(status)) {
-		if (info->address == find->address)
+		if ((info->address == find->address)
+			&& (info->valid & ACPI_VALID_ADR))
 			find->handle = handle;
 		kfree(info);
 	}
 	return AE_OK;
 }
 
-acpi_handle acpi_get_child(acpi_handle parent, acpi_integer address)
+acpi_handle acpi_get_child(acpi_handle parent, u64 address)
 {
 	struct acpi_find_child find = { NULL, address };
 
@@ -165,11 +167,8 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 				"firmware_node");
 		ret = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 				"physical_node");
-		if (acpi_dev->wakeup.flags.valid) {
+		if (acpi_dev->wakeup.flags.valid)
 			device_set_wakeup_capable(dev, true);
-			device_set_wakeup_enable(dev,
-						acpi_dev->wakeup.state.enabled);
-		}
 	}
 
 	return 0;

@@ -20,6 +20,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 
 #define MAX1111_TX_BUF_SIZE	1
 #define MAX1111_RX_BUF_SIZE	2

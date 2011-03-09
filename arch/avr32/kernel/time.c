@@ -35,7 +35,6 @@ static struct clocksource counter = {
 	.rating		= 50,
 	.read		= read_cycle_count,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 16,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -110,22 +109,20 @@ static struct clock_event_device comparator = {
 	.set_mode	= comparator_mode,
 };
 
+void read_persistent_clock(struct timespec *ts)
+{
+	ts->tv_sec = mktime(2007, 1, 1, 0, 0, 0);
+	ts->tv_nsec = 0;
+}
+
 void __init time_init(void)
 {
 	unsigned long counter_hz;
 	int ret;
 
-	xtime.tv_sec = mktime(2007, 1, 1, 0, 0, 0);
-	xtime.tv_nsec = 0;
-
-	set_normalized_timespec(&wall_to_monotonic,
-				-xtime.tv_sec, -xtime.tv_nsec);
-
 	/* figure rate for counter */
 	counter_hz = clk_get_rate(boot_cpu_data.clk);
-	counter.mult = clocksource_hz2mult(counter_hz, counter.shift);
-
-	ret = clocksource_register(&counter);
+	ret = clocksource_register_hz(&counter, counter_hz);
 	if (ret)
 		pr_debug("timer: could not register clocksource: %d\n", ret);
 

@@ -29,6 +29,7 @@
 #define WM8350_GPIO_FUNCTION_SELECT_2           0x8D
 #define WM8350_GPIO_FUNCTION_SELECT_3           0x8E
 #define WM8350_GPIO_FUNCTION_SELECT_4           0x8F
+#define WM8350_GPIO_LEVEL			0xE6
 
 /*
  * GPIO Functions

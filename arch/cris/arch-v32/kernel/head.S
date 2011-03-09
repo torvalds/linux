@@ -69,7 +69,13 @@ secondary_cpu_entry: /* Entry point for secondary CPUs */
 	;;
 	;; Note; 3 cycles is needed for a bank-select to take effect. Further;
 	;; bank 1 is the instruction MMU, bank 2 is the data MMU.
-#ifndef CONFIG_ETRAX_VCS_SIM
+
+#ifdef CONFIG_CRIS_MACH_ARTPEC3
+	move.d	REG_FIELD(mmu, rw_mm_kbase_hi, base_e, 8)	\
+		| REG_FIELD(mmu, rw_mm_kbase_hi, base_c, 4)	\
+		| REG_FIELD(mmu, rw_mm_kbase_hi, base_d, 5)     \
+		| REG_FIELD(mmu, rw_mm_kbase_hi, base_b, 0xb), $r0
+#elif !defined(CONFIG_ETRAX_VCS_SIM)
 	move.d	REG_FIELD(mmu, rw_mm_kbase_hi, base_e, 8)	\
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_c, 4)	\
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_b, 0xb), $r0
@@ -88,7 +94,39 @@ secondary_cpu_entry: /* Entry point for secondary CPUs */
 
 	;; Enable certain page protections and setup linear mapping
 	;; for f,e,c,b,4,0.
-#ifndef CONFIG_ETRAX_VCS_SIM
+
+	;; ARTPEC-3:
+	;; c,d used for linear kernel mapping, up to 512 MB
+	;; e used for vmalloc
+	;; f unused, but page mapped to get page faults
+
+	;; ETRAX FS:
+	;; c used for linear kernel mapping, up to 256 MB
+	;; d used for vmalloc
+	;; e,f used for memory-mapped NOR flash
+
+#ifdef CONFIG_CRIS_MACH_ARTPEC3
+	move.d	REG_STATE(mmu, rw_mm_cfg, we, on)		\
+		| REG_STATE(mmu, rw_mm_cfg, acc, on)		\
+		| REG_STATE(mmu, rw_mm_cfg, ex, on)		\
+		| REG_STATE(mmu, rw_mm_cfg, inv, on)            \
+		| REG_STATE(mmu, rw_mm_cfg, seg_f, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_e, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_d, linear)      \
+		| REG_STATE(mmu, rw_mm_cfg, seg_c, linear)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_b, linear)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_a, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_9, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_8, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_7, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_6, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_5, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_4, linear)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_3, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_2, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_1, page)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_0, linear), $r2
+#elif !defined(CONFIG_ETRAX_VCS_SIM)
 	move.d	REG_STATE(mmu, rw_mm_cfg, we, on)		\
 		| REG_STATE(mmu, rw_mm_cfg, acc, on)		\
 		| REG_STATE(mmu, rw_mm_cfg, ex, on)		\
@@ -329,7 +367,7 @@ _no_romfs_in_flash:
 	;; For jffs2, a jhead is prepended which contains with magic and length.
 	;; The jhead is not part of the jffs2 partition however.
 #ifndef CONFIG_ETRAXFS_SIM
-	move.d	__vmlinux_end, $r0
+	move.d	__bss_start, $r0
 #else
 	move.d	__end, $r0
 #endif

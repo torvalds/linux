@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -353,6 +354,7 @@ static const struct file_operations proc_rtas_log_operations = {
 	.poll =		rtas_log_poll,
 	.open =		rtas_log_open,
 	.release =	rtas_log_release,
+	.llseek =	noop_llseek,
 };
 
 static int enable_surveillance(int timeout)
@@ -410,9 +412,9 @@ static void rtas_event_scan(struct work_struct *w)
 
 	get_online_cpus();
 
-	cpu = next_cpu(smp_processor_id(), cpu_online_map);
-	if (cpu == NR_CPUS) {
-		cpu = first_cpu(cpu_online_map);
+	cpu = cpumask_next(smp_processor_id(), cpu_online_mask);
+        if (cpu >= nr_cpu_ids) {
+		cpu = cpumask_first(cpu_online_mask);
 
 		if (first_pass) {
 			first_pass = 0;
@@ -465,8 +467,8 @@ static void start_event_scan(void)
 	/* Retreive errors from nvram if any */
 	retreive_nvram_error_log();
 
-	schedule_delayed_work_on(first_cpu(cpu_online_map), &event_scan_work,
-				 event_scan_delay);
+	schedule_delayed_work_on(cpumask_first(cpu_online_mask),
+				 &event_scan_work, event_scan_delay);
 }
 
 static int __init rtas_init(void)
@@ -487,6 +489,12 @@ static int __init rtas_init(void)
 	if (rtas_event_scan_rate == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_ERR "rtasd: no rtas-event-scan-rate on system\n");
 		return -ENODEV;
+	}
+
+	if (!rtas_event_scan_rate) {
+		/* Broken firmware: take a rate of zero to mean don't scan */
+		printk(KERN_DEBUG "rtasd: scan rate is 0, not scanning\n");
+		return 0;
 	}
 
 	/* Make room for the sequence number */

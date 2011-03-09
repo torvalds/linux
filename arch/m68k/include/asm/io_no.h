@@ -16,7 +16,7 @@
  * memory location directly.
  */
 /* ++roman: The assignments to temp. vars avoid that gcc sometimes generates
- * two accesses to memory, which may be undesireable for some devices.
+ * two accesses to memory, which may be undesirable for some devices.
  */
 
 /*
@@ -145,7 +145,6 @@ static inline void io_insl(unsigned int addr, void *buf, int len)
 #define IOMAP_WRITETHROUGH		3
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
-extern void __iounmap(void *addr, unsigned long size);
 
 static inline void *ioremap(unsigned long physaddr, unsigned long size)
 {

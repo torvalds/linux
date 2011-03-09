@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -25,6 +25,7 @@
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/utsname.h>
 
 #include <scsi/scsi.h>
@@ -47,14 +48,14 @@
 #include "lpfc_vport.h"
 #include "lpfc_debugfs.h"
 
-#define HBA_PORTSPEED_UNKNOWN               0	/* Unknown - transceiver
-						 * incapable of reporting */
-#define HBA_PORTSPEED_1GBIT                 1	/* 1 GBit/sec */
-#define HBA_PORTSPEED_2GBIT                 2	/* 2 GBit/sec */
-#define HBA_PORTSPEED_4GBIT                 8   /* 4 GBit/sec */
-#define HBA_PORTSPEED_8GBIT                16   /* 8 GBit/sec */
-#define HBA_PORTSPEED_10GBIT                4	/* 10 GBit/sec */
-#define HBA_PORTSPEED_NOT_NEGOTIATED        5	/* Speed not established */
+/* FDMI Port Speed definitions */
+#define HBA_PORTSPEED_1GBIT		0x0001	/* 1 GBit/sec */
+#define HBA_PORTSPEED_2GBIT		0x0002	/* 2 GBit/sec */
+#define HBA_PORTSPEED_4GBIT		0x0008	/* 4 GBit/sec */
+#define HBA_PORTSPEED_10GBIT		0x0004	/* 10 GBit/sec */
+#define HBA_PORTSPEED_8GBIT		0x0010	/* 8 GBit/sec */
+#define HBA_PORTSPEED_16GBIT		0x0020	/* 16 GBit/sec */
+#define HBA_PORTSPEED_UNKNOWN		0x0800	/* Unknown */
 
 #define FOURBYTES	4
 
@@ -97,7 +98,8 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct list_head head;
 	struct lpfc_dmabuf *bdeBuf;
 
-	lpfc_bsg_ct_unsol_event(phba, pring, piocbq);
+	if (lpfc_bsg_ct_unsol_event(phba, pring, piocbq) == 0)
+		return;
 
 	if (unlikely(icmd->ulpStatus == IOSTAT_NEED_BUFFER)) {
 		lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
@@ -181,7 +183,8 @@ lpfc_sli4_ct_abort_unsol_event(struct lpfc_hba *phba,
 	uint32_t size;
 
 	/* Forward abort event to any process registered to receive ct event */
-	lpfc_bsg_ct_unsol_event(phba, pring, piocbq);
+	if (lpfc_bsg_ct_unsol_event(phba, pring, piocbq) == 0)
+		return;
 
 	/* If there is no BDE associated with IOCB, there is nothing to do */
 	if (icmd->ulpBdeCount == 0)
@@ -1590,8 +1593,10 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + 4);
 
 			ae->un.SupportSpeed = 0;
+			if (phba->lmt & LMT_16Gb)
+				ae->un.SupportSpeed |= HBA_PORTSPEED_16GBIT;
 			if (phba->lmt & LMT_10Gb)
-				ae->un.SupportSpeed = HBA_PORTSPEED_10GBIT;
+				ae->un.SupportSpeed |= HBA_PORTSPEED_10GBIT;
 			if (phba->lmt & LMT_8Gb)
 				ae->un.SupportSpeed |= HBA_PORTSPEED_8GBIT;
 			if (phba->lmt & LMT_4Gb)
@@ -1609,24 +1614,26 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 			ae->ad.bits.AttrType = be16_to_cpu(PORT_SPEED);
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + 4);
 			switch(phba->fc_linkspeed) {
-				case LA_1GHZ_LINK:
-					ae->un.PortSpeed = HBA_PORTSPEED_1GBIT;
+			case LPFC_LINK_SPEED_1GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_1GBIT;
 				break;
-				case LA_2GHZ_LINK:
-					ae->un.PortSpeed = HBA_PORTSPEED_2GBIT;
+			case LPFC_LINK_SPEED_2GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_2GBIT;
 				break;
-				case LA_4GHZ_LINK:
-					ae->un.PortSpeed = HBA_PORTSPEED_4GBIT;
+			case LPFC_LINK_SPEED_4GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_4GBIT;
 				break;
-				case LA_8GHZ_LINK:
-					ae->un.PortSpeed = HBA_PORTSPEED_8GBIT;
+			case LPFC_LINK_SPEED_8GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_8GBIT;
 				break;
-				case LA_10GHZ_LINK:
-					ae->un.PortSpeed = HBA_PORTSPEED_10GBIT;
+			case LPFC_LINK_SPEED_10GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_10GBIT;
 				break;
-				default:
-					ae->un.PortSpeed =
-						HBA_PORTSPEED_UNKNOWN;
+			case LPFC_LINK_SPEED_16GHZ:
+				ae->un.PortSpeed = HBA_PORTSPEED_16GBIT;
+				break;
+			default:
+				ae->un.PortSpeed = HBA_PORTSPEED_UNKNOWN;
 				break;
 			}
 			pab->ab.EntryCnt++;
@@ -1843,12 +1850,7 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 		c  = (rev & 0x0000ff00) >> 8;
 		b4 = (rev & 0x000000ff);
 
-		if (flag)
-			sprintf(fwrevision, "%d.%d%d%c%d ", b1,
-				b2, b3, c, b4);
-		else
-			sprintf(fwrevision, "%d.%d%d%c%d ", b1,
-				b2, b3, c, b4);
+		sprintf(fwrevision, "%d.%d%d%c%d", b1, b2, b3, c, b4);
 	}
 	return;
 }

@@ -1,0 +1,47 @@
+tlg2300 release notes
+====================
+
+This is a v4l2/dvb device driver for the tlg2300 chip.
+
+
+current status
+==============
+
+video
+	- support mmap and read().(no overlay)
+
+audio
+	- The driver will register a ALSA card for the audio input.
+
+vbi
+	- Works for almost TV norms.
+
+dvb-t
+	- works for DVB-T
+
+FM
+	- Works for radio.
+
+---------------------------------------------------------------------------
+TESTED APPLICATIONS:
+
+-VLC1.0.4 test the video and dvb. The GUI is friendly to use.
+
+-Mplayer test the video.
+
+-Mplayer test the FM. The mplayer should be compiled with --enable-radio and
+	 --enable-radio-capture.
+	The command runs as this(The alsa audio registers to card 1):
+	#mplayer radio://103.7/capture/ -radio adevice=hw=1,0:arate=48000 \
+		-rawaudio rate=48000:channels=2
+
+---------------------------------------------------------------------------
+KNOWN PROBLEMS:
+about preemphasis:
+	You can set the preemphasis for radio by the following command:
+	#v4l2-ctl -d /dev/radio0 --set-ctrl=pre_emphasis_settings=1
+
+	"pre_emphasis_settings=1" means that you select the 50us. If you want
+	to select the 75us, please use "pre_emphasis_settings=2"
+
+

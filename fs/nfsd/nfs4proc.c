@@ -33,6 +33,7 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/file.h>
+#include <linux/slab.h>
 
 #include "cache.h"
 #include "xdr4.h"
@@ -603,9 +604,7 @@ nfsd4_link(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	return status;
 }
 
-static __be32
-nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
-	      void *arg)
+static __be32 nfsd4_do_lookupp(struct svc_rqst *rqstp, struct svc_fh *fh)
 {
 	struct svc_fh tmp_fh;
 	__be32 ret;
@@ -614,13 +613,19 @@ nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	ret = exp_pseudoroot(rqstp, &tmp_fh);
 	if (ret)
 		return ret;
-	if (tmp_fh.fh_dentry == cstate->current_fh.fh_dentry) {
+	if (tmp_fh.fh_dentry == fh->fh_dentry) {
 		fh_put(&tmp_fh);
 		return nfserr_noent;
 	}
 	fh_put(&tmp_fh);
-	return nfsd_lookup(rqstp, &cstate->current_fh,
-			   "..", 2, &cstate->current_fh);
+	return nfsd_lookup(rqstp, fh, "..", 2, fh);
+}
+
+static __be32
+nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      void *arg)
+{
+	return nfsd4_do_lookupp(rqstp, &cstate->current_fh);
 }
 
 static __be32
@@ -768,7 +773,33 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	} else
 		secinfo->si_exp = exp;
 	dput(dentry);
+	if (cstate->minorversion)
+		/* See rfc 5661 section 2.6.3.1.1.8 */
+		fh_put(&cstate->current_fh);
 	return err;
+}
+
+static __be32
+nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      struct nfsd4_secinfo_no_name *sin)
+{
+	__be32 err;
+
+	switch (sin->sin_style) {
+	case NFS4_SECINFO_STYLE4_CURRENT_FH:
+		break;
+	case NFS4_SECINFO_STYLE4_PARENT:
+		err = nfsd4_do_lookupp(rqstp, &cstate->current_fh);
+		if (err)
+			return err;
+		break;
+	default:
+		return nfserr_inval;
+	}
+	exp_get(cstate->current_fh.fh_export);
+	sin->sin_exp = cstate->current_fh.fh_export;
+	fh_put(&cstate->current_fh);
+	return nfs_ok;
 }
 
 static __be32
@@ -968,20 +999,36 @@ static struct nfsd4_operation nfsd4_ops[];
 static const char *nfsd4_op_name(unsigned opnum);
 
 /*
- * Enforce NFSv4.1 COMPOUND ordering rules.
+ * Enforce NFSv4.1 COMPOUND ordering rules:
  *
- * TODO:
- * - enforce NFS4ERR_NOT_ONLY_OP,
- * - DESTROY_SESSION MUST be the final operation in the COMPOUND request.
+ * Also note, enforced elsewhere:
+ *	- SEQUENCE other than as first op results in
+ *	  NFS4ERR_SEQUENCE_POS. (Enforced in nfsd4_sequence().)
+ *	- BIND_CONN_TO_SESSION must be the only op in its compound.
+ *	  (Enforced in nfsd4_bind_conn_to_session().)
+ *	- DESTROY_SESSION must be the final operation in a compound, if
+ *	  sessionid's in SEQUENCE and DESTROY_SESSION are the same.
+ *	  (Enforced in nfsd4_destroy_session().)
  */
-static bool nfs41_op_ordering_ok(struct nfsd4_compoundargs *args)
+static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 {
-	if (args->minorversion && args->opcnt > 0) {
-		struct nfsd4_op *op = &args->ops[0];
-		return (op->status == nfserr_op_illegal) ||
-		       (nfsd4_ops[op->opnum].op_flags & ALLOWED_AS_FIRST_OP);
-	}
-	return true;
+	struct nfsd4_op *op = &args->ops[0];
+
+	/* These ordering requirements don't apply to NFSv4.0: */
+	if (args->minorversion == 0)
+		return nfs_ok;
+	/* This is weird, but OK, not our problem: */
+	if (args->opcnt == 0)
+		return nfs_ok;
+	if (op->status == nfserr_op_illegal)
+		return nfs_ok;
+	if (!(nfsd4_ops[op->opnum].op_flags & ALLOWED_AS_FIRST_OP))
+		return nfserr_op_not_in_session;
+	if (op->opnum == OP_SEQUENCE)
+		return nfs_ok;
+	if (args->opcnt != 1)
+		return nfserr_not_only_op;
+	return nfs_ok;
 }
 
 /*
@@ -1011,10 +1058,14 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	resp->rqstp = rqstp;
 	resp->cstate.minorversion = args->minorversion;
 	resp->cstate.replay_owner = NULL;
+	resp->cstate.session = NULL;
 	fh_init(&resp->cstate.current_fh, NFS4_FHSIZE);
 	fh_init(&resp->cstate.save_fh, NFS4_FHSIZE);
-	/* Use the deferral mechanism only for NFSv4.0 compounds */
-	rqstp->rq_usedeferral = (args->minorversion == 0);
+	/*
+	 * Don't use the deferral mechanism for NFSv4; compounds make it
+	 * too hard to avoid non-idempotency problems.
+	 */
+	rqstp->rq_usedeferral = 0;
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
@@ -1023,13 +1074,13 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	if (args->minorversion > nfsd_supported_minorversion)
 		goto out;
 
-	if (!nfs41_op_ordering_ok(args)) {
+	status = nfs41_check_op_ordering(args);
+	if (status) {
 		op = &args->ops[0];
-		op->status = nfserr_sequence_pos;
+		op->status = status;
 		goto encode_op;
 	}
 
-	status = nfs_ok;
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
 
@@ -1104,10 +1155,6 @@ encode_op:
 			fput(op->u.read.rd_filp);
 
 		nfsd4_increment_op_stats(op->opnum);
-	}
-	if (!rqstp->rq_usedeferral && status == nfserr_dropit) {
-		dprintk("%s Dropit - send NFS4ERR_DELAY\n", __func__);
-		status = nfserr_jukebox;
 	}
 
 	resp->cstate.status = status;
@@ -1279,6 +1326,11 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_EXCHANGE_ID",
 	},
+	[OP_BIND_CONN_TO_SESSION] = {
+		.op_func = (nfsd4op_func)nfsd4_bind_conn_to_session,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_name = "OP_BIND_CONN_TO_SESSION",
+	},
 	[OP_CREATE_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_create_session,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
@@ -1293,6 +1345,15 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_sequence,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_SEQUENCE",
+	},
+	[OP_RECLAIM_COMPLETE] = {
+		.op_func = (nfsd4op_func)nfsd4_reclaim_complete,
+		.op_flags = ALLOWED_WITHOUT_FH,
+		.op_name = "OP_RECLAIM_COMPLETE",
+	},
+	[OP_SECINFO_NO_NAME] = {
+		.op_func = (nfsd4op_func)nfsd4_secinfo_no_name,
+		.op_name = "OP_SECINFO_NO_NAME",
 	},
 };
 

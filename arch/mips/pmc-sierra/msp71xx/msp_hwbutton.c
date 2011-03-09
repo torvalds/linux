@@ -32,9 +32,6 @@
 #include <msp_int.h>
 #include <msp_regs.h>
 #include <msp_regops.h>
-#ifdef CONFIG_PMCTWILED
-#include <msp_led_macros.h>
-#endif
 
 /* For hwbutton_interrupt->initial_state */
 #define HWBUTTON_HI	0x1
@@ -82,10 +79,6 @@ static void standby_on(void *data)
 	printk(KERN_WARNING "STANDBY switch was set to ON (not implemented)\n");
 
 	/* TODO: Put board in standby mode */
-#ifdef CONFIG_PMCTWILED
-	msp_led_turn_off(MSP_LED_PWRSTANDBY_GREEN);
-	msp_led_turn_on(MSP_LED_PWRSTANDBY_RED);
-#endif
 }
 
 static void standby_off(void *data)
@@ -94,10 +87,6 @@ static void standby_off(void *data)
 		"STANDBY switch was set to OFF (not implemented)\n");
 
 	/* TODO: Take out of standby mode */
-#ifdef CONFIG_PMCTWILED
-	msp_led_turn_on(MSP_LED_PWRSTANDBY_GREEN);
-	msp_led_turn_off(MSP_LED_PWRSTANDBY_RED);
-#endif
 }
 
 static struct hwbutton_interrupt softreset_sw = {

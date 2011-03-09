@@ -44,6 +44,7 @@
 #include <linux/spi/flash.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -112,7 +113,7 @@ static struct resource bfin_i2c_pca_resources[] = {
 struct i2c_pca9564_pf_platform_data pca9564_platform_data = {
 	.gpio = -1,
 	.i2c_clock_speed = 330000,
-	.timeout = 10000
+	.timeout = HZ,
 };
 
 /* PCA9564 I2C Bus driver */
@@ -176,7 +177,7 @@ static struct resource smsc911x_resources[] = {
 };
 
 static struct smsc911x_platform_config smsc911x_config = {
-	.flags = SMSC911X_USE_32BIT,
+	.flags = SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS,
 	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type = SMSC911X_IRQ_TYPE_OPEN_DRAIN,
 	.phy_interface = PHY_INTERFACE_MODE_MII,
@@ -223,7 +224,7 @@ static struct resource bfin_uart0_resources[] = {
 	 },
 };
 
-unsigned short bfin_uart0_peripherals[] = {
+static unsigned short bfin_uart0_peripherals[] = {
 	P_UART0_TX, P_UART0_RX, 0
 };
 
@@ -283,6 +284,7 @@ static int bfin_plat_nand_dev_ready(struct mtd_info *mtd)
 
 static struct platform_nand_data bfin_plat_nand_data = {
 	.chip = {
+		 .nr_chips = 1,
 		 .chip_delay = 30,
 #ifdef CONFIG_MTD_PARTITIONS
 		 .part_probe_types = part_probes,
@@ -300,7 +302,7 @@ static struct platform_nand_data bfin_plat_nand_data = {
 static struct resource bfin_plat_nand_resources = {
 	.start = 0x24000000,
 	.end = 0x24000000 + (1 << MAX(BFIN_NAND_PLAT_CLE, BFIN_NAND_PLAT_ALE)),
-	.flags = IORESOURCE_IO,
+	.flags = IORESOURCE_MEM,
 };
 
 static struct platform_device bfin_async_nand_device = {

@@ -9,15 +9,20 @@
 #include <linux/memory.h>
 #include <linux/node.h>
 #include <linux/hugetlb.h>
+#include <linux/compaction.h>
 #include <linux/cpumask.h>
 #include <linux/topology.h>
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
+
+static struct sysdev_class_attribute *node_state_attrs[];
 
 static struct sysdev_class node_class = {
 	.name = "node",
+	.attrs = node_state_attrs,
 };
 
 
@@ -61,8 +66,7 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
 	struct sysinfo i;
 
 	si_meminfo_node(&i, nid);
-
-	n = sprintf(buf, "\n"
+	n = sprintf(buf,
 		       "Node %d MemTotal:       %8lu kB\n"
 		       "Node %d MemFree:        %8lu kB\n"
 		       "Node %d MemUsed:        %8lu kB\n"
@@ -73,13 +77,33 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
 		       "Node %d Active(file):   %8lu kB\n"
 		       "Node %d Inactive(file): %8lu kB\n"
 		       "Node %d Unevictable:    %8lu kB\n"
-		       "Node %d Mlocked:        %8lu kB\n"
+		       "Node %d Mlocked:        %8lu kB\n",
+		       nid, K(i.totalram),
+		       nid, K(i.freeram),
+		       nid, K(i.totalram - i.freeram),
+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
+				node_page_state(nid, NR_ACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
+				node_page_state(nid, NR_INACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
+		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
+		       nid, K(node_page_state(nid, NR_MLOCK)));
+
 #ifdef CONFIG_HIGHMEM
+	n += sprintf(buf + n,
 		       "Node %d HighTotal:      %8lu kB\n"
 		       "Node %d HighFree:       %8lu kB\n"
 		       "Node %d LowTotal:       %8lu kB\n"
-		       "Node %d LowFree:        %8lu kB\n"
+		       "Node %d LowFree:        %8lu kB\n",
+		       nid, K(i.totalhigh),
+		       nid, K(i.freehigh),
+		       nid, K(i.totalram - i.totalhigh),
+		       nid, K(i.freeram - i.freehigh));
 #endif
+	n += sprintf(buf + n,
 		       "Node %d Dirty:          %8lu kB\n"
 		       "Node %d Writeback:      %8lu kB\n"
 		       "Node %d FilePages:      %8lu kB\n"
@@ -93,31 +117,21 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
 		       "Node %d WritebackTmp:   %8lu kB\n"
 		       "Node %d Slab:           %8lu kB\n"
 		       "Node %d SReclaimable:   %8lu kB\n"
-		       "Node %d SUnreclaim:     %8lu kB\n",
-		       nid, K(i.totalram),
-		       nid, K(i.freeram),
-		       nid, K(i.totalram - i.freeram),
-		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
-				node_page_state(nid, NR_ACTIVE_FILE)),
-		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
-				node_page_state(nid, NR_INACTIVE_FILE)),
-		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
-		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
-		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
-		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
-		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
-		       nid, K(node_page_state(nid, NR_MLOCK)),
-#ifdef CONFIG_HIGHMEM
-		       nid, K(i.totalhigh),
-		       nid, K(i.freehigh),
-		       nid, K(i.totalram - i.totalhigh),
-		       nid, K(i.freeram - i.freehigh),
+		       "Node %d SUnreclaim:     %8lu kB\n"
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		       "Node %d AnonHugePages:  %8lu kB\n"
 #endif
+			,
 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
-		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
+		       nid, K(node_page_state(nid, NR_ANON_PAGES)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+			+ node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+			HPAGE_PMD_NR
+#endif
+		       ),
 		       nid, K(node_page_state(nid, NR_SHMEM)),
 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
 				THREAD_SIZE / 1024,
@@ -128,7 +142,13 @@ static ssize_t node_read_meminfo(struct sys_device * dev,
 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+			, nid,
+			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+			HPAGE_PMD_NR)
+#endif
+		       );
 	n += hugetlb_report_node_meminfo(nid, buf + n);
 	return n;
 }
@@ -155,6 +175,18 @@ static ssize_t node_read_numastat(struct sys_device * dev,
 }
 static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 
+static ssize_t node_read_vmstat(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
+{
+	int nid = dev->id;
+	return sprintf(buf,
+		"nr_written %lu\n"
+		"nr_dirtied %lu\n",
+		node_page_state(nid, NR_WRITTEN),
+		node_page_state(nid, NR_DIRTIED));
+}
+static SYSDEV_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
+
 static ssize_t node_read_distance(struct sys_device * dev,
 			struct sysdev_attribute *attr, char * buf)
 {
@@ -162,8 +194,11 @@ static ssize_t node_read_distance(struct sys_device * dev,
 	int len = 0;
 	int i;
 
-	/* buf currently PAGE_SIZE, need ~4 chars per node */
-	BUILD_BUG_ON(MAX_NUMNODES*4 > PAGE_SIZE/2);
+	/*
+	 * buf is currently PAGE_SIZE in length and each node needs 4 chars
+	 * at the most (distance + space or newline).
+	 */
+	BUILD_BUG_ON(MAX_NUMNODES * 4 > PAGE_SIZE);
 
 	for_each_online_node(i)
 		len += sprintf(buf + len, "%s%d", i ? " " : "", node_distance(nid, i));
@@ -235,10 +270,13 @@ int register_node(struct node *node, int num, struct node *parent)
 		sysdev_create_file(&node->sysdev, &attr_meminfo);
 		sysdev_create_file(&node->sysdev, &attr_numastat);
 		sysdev_create_file(&node->sysdev, &attr_distance);
+		sysdev_create_file(&node->sysdev, &attr_vmstat);
 
 		scan_unevictable_register_node(node);
 
 		hugetlb_register_node(node);
+
+		compaction_register_node(node);
 	}
 	return error;
 }
@@ -257,6 +295,7 @@ void unregister_node(struct node *node)
 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
 	sysdev_remove_file(&node->sysdev, &attr_numastat);
 	sysdev_remove_file(&node->sysdev, &attr_distance);
+	sysdev_remove_file(&node->sysdev, &attr_vmstat);
 
 	scan_unevictable_unregister_node(node);
 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
@@ -399,25 +438,27 @@ static int link_mem_sections(int nid)
 	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
 	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
 	unsigned long pfn;
+	struct memory_block *mem_blk = NULL;
 	int err = 0;
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
 		unsigned long section_nr = pfn_to_section_nr(pfn);
 		struct mem_section *mem_sect;
-		struct memory_block *mem_blk;
 		int ret;
 
 		if (!present_section_nr(section_nr))
 			continue;
 		mem_sect = __nr_to_section(section_nr);
-		mem_blk = find_memory_block(mem_sect);
+		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
 		ret = register_mem_sect_under_node(mem_blk, nid);
 		if (!err)
 			err = ret;
 
 		/* discard ref obtained in find_memory_block() */
-		kobject_put(&mem_blk->sysdev.kobj);
 	}
+
+	if (mem_blk)
+		kobject_put(&mem_blk->sysdev.kobj);
 	return err;
 }
 
@@ -544,76 +585,52 @@ static ssize_t print_nodes_state(enum node_states state, char *buf)
 	return n;
 }
 
-static ssize_t print_nodes_possible(struct sysdev_class *class, char *buf)
-{
-	return print_nodes_state(N_POSSIBLE, buf);
-}
-
-static ssize_t print_nodes_online(struct sysdev_class *class, char *buf)
-{
-	return print_nodes_state(N_ONLINE, buf);
-}
-
-static ssize_t print_nodes_has_normal_memory(struct sysdev_class *class,
-						char *buf)
-{
-	return print_nodes_state(N_NORMAL_MEMORY, buf);
-}
-
-static ssize_t print_nodes_has_cpu(struct sysdev_class *class, char *buf)
-{
-	return print_nodes_state(N_CPU, buf);
-}
-
-static SYSDEV_CLASS_ATTR(possible, 0444, print_nodes_possible, NULL);
-static SYSDEV_CLASS_ATTR(online, 0444, print_nodes_online, NULL);
-static SYSDEV_CLASS_ATTR(has_normal_memory, 0444, print_nodes_has_normal_memory,
-									NULL);
-static SYSDEV_CLASS_ATTR(has_cpu, 0444, print_nodes_has_cpu, NULL);
-
-#ifdef CONFIG_HIGHMEM
-static ssize_t print_nodes_has_high_memory(struct sysdev_class *class,
-						 char *buf)
-{
-	return print_nodes_state(N_HIGH_MEMORY, buf);
-}
-
-static SYSDEV_CLASS_ATTR(has_high_memory, 0444, print_nodes_has_high_memory,
-									 NULL);
-#endif
-
-struct sysdev_class_attribute *node_state_attr[] = {
-	&attr_possible,
-	&attr_online,
-	&attr_has_normal_memory,
-#ifdef CONFIG_HIGHMEM
-	&attr_has_high_memory,
-#endif
-	&attr_has_cpu,
+struct node_attr {
+	struct sysdev_class_attribute attr;
+	enum node_states state;
 };
 
-static int node_states_init(void)
+static ssize_t show_node_state(struct sysdev_class *class,
+			       struct sysdev_class_attribute *attr, char *buf)
 {
-	int i;
-	int err = 0;
-
-	for (i = 0;  i < NR_NODE_STATES; i++) {
-		int ret;
-		ret = sysdev_class_create_file(&node_class, node_state_attr[i]);
-		if (!err)
-			err = ret;
-	}
-	return err;
+	struct node_attr *na = container_of(attr, struct node_attr, attr);
+	return print_nodes_state(na->state, buf);
 }
+
+#define _NODE_ATTR(name, state) \
+	{ _SYSDEV_CLASS_ATTR(name, 0444, show_node_state, NULL), state }
+
+static struct node_attr node_state_attr[] = {
+	_NODE_ATTR(possible, N_POSSIBLE),
+	_NODE_ATTR(online, N_ONLINE),
+	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
+	_NODE_ATTR(has_cpu, N_CPU),
+#ifdef CONFIG_HIGHMEM
+	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+#endif
+};
+
+static struct sysdev_class_attribute *node_state_attrs[] = {
+	&node_state_attr[0].attr,
+	&node_state_attr[1].attr,
+	&node_state_attr[2].attr,
+	&node_state_attr[3].attr,
+#ifdef CONFIG_HIGHMEM
+	&node_state_attr[4].attr,
+#endif
+	NULL
+};
 
 #define NODE_CALLBACK_PRI	2	/* lower than SLAB */
 static int __init register_node_type(void)
 {
 	int ret;
 
+ 	BUILD_BUG_ON(ARRAY_SIZE(node_state_attr) != NR_NODE_STATES);
+ 	BUILD_BUG_ON(ARRAY_SIZE(node_state_attrs)-1 != NR_NODE_STATES);
+
 	ret = sysdev_class_register(&node_class);
 	if (!ret) {
-		ret = node_states_init();
 		hotplug_memory_notifier(node_memory_callback,
 					NODE_CALLBACK_PRI);
 	}

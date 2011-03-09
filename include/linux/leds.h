@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
+#include <linux/timer.h>
 
 struct device;
 /*
@@ -45,10 +46,14 @@ struct led_classdev {
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
-	/* Activate hardware accelerated blink, delays are in
-	 * miliseconds and if none is provided then a sensible default
-	 * should be chosen. The call can adjust the timings if it can't
-	 * match the values specified exactly. */
+	/*
+	 * Activate hardware accelerated blink, delays are in milliseconds
+	 * and if both are zero then a sensible default should be chosen.
+	 * The call should adjust the timings in that case and if it can't
+	 * match the values specified exactly.
+	 * Deactivate blinking again when the brightness is set to a fixed
+	 * value via the brightness_set() callback.
+	 */
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off);
@@ -56,6 +61,10 @@ struct led_classdev {
 	struct device		*dev;
 	struct list_head	 node;			/* LED Device list */
 	const char		*default_trigger;	/* Trigger to use */
+
+	unsigned long		 blink_delay_on, blink_delay_off;
+	struct timer_list	 blink_timer;
+	int			 blink_brightness;
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	/* Protects the trigger data below */
@@ -72,6 +81,36 @@ extern int led_classdev_register(struct device *parent,
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
 extern void led_classdev_suspend(struct led_classdev *led_cdev);
 extern void led_classdev_resume(struct led_classdev *led_cdev);
+
+/**
+ * led_blink_set - set blinking with software fallback
+ * @led_cdev: the LED to start blinking
+ * @delay_on: the time it should be on (in ms)
+ * @delay_off: the time it should ble off (in ms)
+ *
+ * This function makes the LED blink, attempting to use the
+ * hardware acceleration if possible, but falling back to
+ * software blinking if there is no hardware blinking or if
+ * the LED refuses the passed values.
+ *
+ * Note that if software blinking is active, simply calling
+ * led_cdev->brightness_set() will not stop the blinking,
+ * use led_classdev_brightness_set() instead.
+ */
+extern void led_blink_set(struct led_classdev *led_cdev,
+			  unsigned long *delay_on,
+			  unsigned long *delay_off);
+/**
+ * led_brightness_set - set LED brightness
+ * @led_cdev: the LED to set
+ * @brightness: the brightness to set it to
+ *
+ * Set an LED's brightness, and, if necessary, cancel the
+ * software blink timer that implements blinking when the
+ * hardware doesn't.
+ */
+extern void led_brightness_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness);
 
 /*
  * LED Triggers
@@ -149,14 +188,18 @@ struct gpio_led {
 	unsigned	default_state : 2;
 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 };
-#define LEDS_GPIO_DEFSTATE_OFF	0
-#define LEDS_GPIO_DEFSTATE_ON	1
-#define LEDS_GPIO_DEFSTATE_KEEP	2
+#define LEDS_GPIO_DEFSTATE_OFF		0
+#define LEDS_GPIO_DEFSTATE_ON		1
+#define LEDS_GPIO_DEFSTATE_KEEP		2
 
 struct gpio_led_platform_data {
 	int 		num_leds;
 	struct gpio_led *leds;
-	int		(*gpio_blink_set)(unsigned gpio,
+
+#define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
+#define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
+#define GPIO_LED_BLINK		2	/* Plase, blink */
+	int		(*gpio_blink_set)(unsigned gpio, int state,
 					unsigned long *delay_on,
 					unsigned long *delay_off);
 };

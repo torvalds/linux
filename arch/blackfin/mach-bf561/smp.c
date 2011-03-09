@@ -11,10 +11,9 @@
 #include <linux/delay.h>
 #include <asm/smp.h>
 #include <asm/dma.h>
+#include <asm/time.h>
 
 static DEFINE_SPINLOCK(boot_lock);
-
-static cpumask_t cpu_callin_map;
 
 /*
  * platform_init_cpus() - Tell the world about how many cores we
@@ -53,26 +52,28 @@ int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	/* Clone setup for peripheral interrupt sources from CoreA. */
-	bfin_write_SICB_IMASK0(bfin_read_SICA_IMASK0());
-	bfin_write_SICB_IMASK1(bfin_read_SICA_IMASK1());
+	bfin_write_SICB_IMASK0(bfin_read_SIC_IMASK0());
+	bfin_write_SICB_IMASK1(bfin_read_SIC_IMASK1());
 	SSYNC();
 
 	/* Clone setup for IARs from CoreA. */
-	bfin_write_SICB_IAR0(bfin_read_SICA_IAR0());
-	bfin_write_SICB_IAR1(bfin_read_SICA_IAR1());
-	bfin_write_SICB_IAR2(bfin_read_SICA_IAR2());
-	bfin_write_SICB_IAR3(bfin_read_SICA_IAR3());
-	bfin_write_SICB_IAR4(bfin_read_SICA_IAR4());
-	bfin_write_SICB_IAR5(bfin_read_SICA_IAR5());
-	bfin_write_SICB_IAR6(bfin_read_SICA_IAR6());
-	bfin_write_SICB_IAR7(bfin_read_SICA_IAR7());
+	bfin_write_SICB_IAR0(bfin_read_SIC_IAR0());
+	bfin_write_SICB_IAR1(bfin_read_SIC_IAR1());
+	bfin_write_SICB_IAR2(bfin_read_SIC_IAR2());
+	bfin_write_SICB_IAR3(bfin_read_SIC_IAR3());
+	bfin_write_SICB_IAR4(bfin_read_SIC_IAR4());
+	bfin_write_SICB_IAR5(bfin_read_SIC_IAR5());
+	bfin_write_SICB_IAR6(bfin_read_SIC_IAR6());
+	bfin_write_SICB_IAR7(bfin_read_SIC_IAR7());
+	bfin_write_SICB_IWR0(IWR_DISABLE_ALL);
+	bfin_write_SICB_IWR1(IWR_DISABLE_ALL);
 	SSYNC();
 
 	/* Store CPU-private information to the cpu_data array. */
 	bfin_setup_cpudata(cpu);
 
 	/* We are done with local CPU inits, unblock the boot CPU. */
-	cpu_set(cpu, cpu_callin_map);
+	set_cpu_online(cpu, true);
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
 }
@@ -81,28 +82,28 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 {
 	unsigned long timeout;
 
-	/* CoreB already running?! */
-	BUG_ON((bfin_read_SICA_SYSCR() & COREB_SRAM_INIT) == 0);
-
 	printk(KERN_INFO "Booting Core B.\n");
 
 	spin_lock(&boot_lock);
 
-	/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
-	SSYNC();
-	bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~COREB_SRAM_INIT);
-	SSYNC();
+	if ((bfin_read_SYSCR() & COREB_SRAM_INIT) == 0) {
+		/* CoreB already running, sending ipi to wakeup it */
+		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
+	} else {
+		/* Kick CoreB, which should start execution from CORE_SRAM_BASE. */
+		bfin_write_SYSCR(bfin_read_SYSCR() & ~COREB_SRAM_INIT);
+		SSYNC();
+	}
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-		if (cpu_isset(cpu, cpu_callin_map))
+		if (cpu_online(cpu))
 			break;
 		udelay(100);
 		barrier();
 	}
 
-	if (cpu_isset(cpu, cpu_callin_map)) {
-		cpu_set(cpu, cpu_online_map);
+	if (cpu_online(cpu)) {
 		/* release the lock and let coreb run */
 		spin_unlock(&boot_lock);
 		return 0;
@@ -110,40 +111,62 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		panic("CPU%u: processor failed to boot\n", cpu);
 }
 
-void __init platform_request_ipi(irq_handler_t handler)
+static const char supple0[] = "IRQ_SUPPLE_0";
+static const char supple1[] = "IRQ_SUPPLE_1";
+void __init platform_request_ipi(int irq, void *handler)
 {
 	int ret;
+	const char *name = (irq == IRQ_SUPPLE_0) ? supple0 : supple1;
 
-	ret = request_irq(IRQ_SUPPLE_0, handler, IRQF_DISABLED,
-			  "Supplemental Interrupt0", handler);
+	ret = request_irq(irq, handler, IRQF_DISABLED | IRQF_PERCPU, name, handler);
 	if (ret)
-		panic("Cannot request supplemental interrupt 0 for IPI service");
+		panic("Cannot request %s for IPI service", name);
 }
 
-void platform_send_ipi(cpumask_t callmap)
+void platform_send_ipi(cpumask_t callmap, int irq)
 {
 	unsigned int cpu;
+	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 
 	for_each_cpu_mask(cpu, callmap) {
 		BUG_ON(cpu >= 2);
 		SSYNC();
-		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (6 + cpu)));
+		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 		SSYNC();
 	}
 }
 
-void platform_send_ipi_cpu(unsigned int cpu)
+void platform_send_ipi_cpu(unsigned int cpu, int irq)
 {
+	int offset = (irq == IRQ_SUPPLE_0) ? 6 : 8;
 	BUG_ON(cpu >= 2);
 	SSYNC();
-	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (6 + cpu)));
+	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 	SSYNC();
 }
 
-void platform_clear_ipi(unsigned int cpu)
+void platform_clear_ipi(unsigned int cpu, int irq)
 {
+	int offset = (irq == IRQ_SUPPLE_0) ? 10 : 12;
 	BUG_ON(cpu >= 2);
 	SSYNC();
-	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (10 + cpu)));
+	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (offset + cpu)));
 	SSYNC();
+}
+
+/*
+ * Setup core B's local core timer.
+ * In SMP, core timer is used for clock event device.
+ */
+void __cpuinit bfin_local_timer_setup(void)
+{
+#if defined(CONFIG_TICKSOURCE_CORETMR)
+	bfin_coretmr_init();
+	bfin_coretmr_clockevent_init();
+	get_irq_chip(IRQ_CORETMR)->unmask(IRQ_CORETMR);
+#else
+	/* Power down the core timer, just to play safe. */
+	bfin_write_TCNTL(0);
+#endif
+
 }

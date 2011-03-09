@@ -15,22 +15,13 @@
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/module.h>
 #include <linux/cdev.h>
-#include <linux/idr.h>
+#include <linux/slab.h>
 
 #include "iio.h"
 #include "ring_generic.h"
-
-/* IDR for ring buffer identifier */
-static DEFINE_IDR(iio_ring_idr);
-/* IDR for ring event identifier */
-static DEFINE_IDR(iio_ring_event_idr);
-/* IDR for ring access identifier */
-static DEFINE_IDR(iio_ring_access_idr);
 
 int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
 		       int event_code,
@@ -60,12 +51,12 @@ int iio_push_or_escallate_ring_event(struct iio_ring_buffer *ring_buf,
 EXPORT_SYMBOL(iio_push_or_escallate_ring_event);
 
 /**
- * iio_ring_open() chrdev file open for ring buffer access
+ * iio_ring_open() - chrdev file open for ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
  **/
-int iio_ring_open(struct inode *inode, struct file *filp)
+static int iio_ring_open(struct inode *inode, struct file *filp)
 {
 	struct iio_handler *hand
 		= container_of(inode->i_cdev, struct iio_handler, chrdev);
@@ -79,12 +70,12 @@ int iio_ring_open(struct inode *inode, struct file *filp)
 }
 
 /**
- * iio_ring_release() -chrdev file close ring buffer access
+ * iio_ring_release() - chrdev file close ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
  **/
-int iio_ring_release(struct inode *inode, struct file *filp)
+static int iio_ring_release(struct inode *inode, struct file *filp)
 {
 	struct cdev *cd = inode->i_cdev;
 	struct iio_handler *hand = iio_cdev_to_handler(cd);
@@ -98,15 +89,13 @@ int iio_ring_release(struct inode *inode, struct file *filp)
 }
 
 /**
- * iio_ring_rip_outer() chrdev read for ring buffer access
+ * iio_ring_rip_outer() - chrdev read for ring buffer access
  *
  * This function relies on all ring buffer implementations having an
  * iio_ring _bufer as their first element.
  **/
-ssize_t iio_ring_rip_outer(struct file *filp,
-			   char *buf,
-			   size_t count,
-			   loff_t *f_ps)
+static ssize_t iio_ring_rip_outer(struct file *filp, char __user *buf,
+				  size_t count, loff_t *f_ps)
 {
 	struct iio_ring_buffer *rb = filp->private_data;
 	int ret, dead_offset, copied;
@@ -116,7 +105,7 @@ ssize_t iio_ring_rip_outer(struct file *filp,
 		return -EINVAL;
 	copied = rb->access.rip_lots(rb, count, &data, &dead_offset);
 
-	if (copied < 0) {
+	if (copied <= 0) {
 		ret = copied;
 		goto error_ret;
 	}
@@ -142,11 +131,13 @@ static const struct file_operations iio_ring_fileops = {
 	.release = iio_ring_release,
 	.open = iio_ring_open,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 /**
- * __iio_request_ring_buffer_event_chrdev() allocate ring event chrdev
+ * __iio_request_ring_buffer_event_chrdev() - allocate ring event chrdev
  * @buf:	ring buffer whose event chrdev we are allocating
+ * @id:		id of this ring buffer (typically 0)
  * @owner:	the module who owns the ring buffer (for ref counting)
  * @dev:	device with which the chrdev is associated
  **/
@@ -157,25 +148,19 @@ __iio_request_ring_buffer_event_chrdev(struct iio_ring_buffer *buf,
 				       struct device *dev)
 {
 	int ret;
-	ret = iio_get_new_idr_val(&iio_ring_event_idr);
-	if (ret < 0)
-		goto error_ret;
-	else
-		buf->ev_int.id = ret;
 
-	snprintf(buf->ev_int._name, 20,
-		 "ring_event_line%d",
-		 buf->ev_int.id);
+	snprintf(buf->ev_int._name, sizeof(buf->ev_int._name),
+		 "%s:event%d",
+		 dev_name(&buf->dev),
+		 id);
 	ret = iio_setup_ev_int(&(buf->ev_int),
 			       buf->ev_int._name,
 			       owner,
 			       dev);
 	if (ret)
-		goto error_free_id;
+		goto error_ret;
 	return 0;
 
-error_free_id:
-	iio_free_idr_val(&iio_ring_event_idr, buf->ev_int.id);
 error_ret:
 	return ret;
 }
@@ -184,7 +169,6 @@ static inline void
 __iio_free_ring_buffer_event_chrdev(struct iio_ring_buffer *buf)
 {
 	iio_free_ev_int(&(buf->ev_int));
-	iio_free_idr_val(&iio_ring_event_idr, buf->ev_int.id);
 }
 
 static void iio_ring_access_release(struct device *dev)
@@ -209,7 +193,7 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 	buf->access_handler.flags = 0;
 
 	buf->access_dev.parent = &buf->dev;
-	buf->access_dev.class = &iio_class;
+	buf->access_dev.bus = &iio_bus_type;
 	buf->access_dev.type = &iio_ring_access_type;
 	device_initialize(&buf->access_dev);
 
@@ -220,16 +204,16 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 	}
 	buf->access_dev.devt = MKDEV(MAJOR(iio_devt), minor);
 
-	ret = iio_get_new_idr_val(&iio_ring_access_idr);
-	if (ret < 0)
-		goto error_device_put;
-	else
-		buf->access_id = ret;
-	dev_set_name(&buf->access_dev, "ring_access%d", buf->access_id);
+
+	buf->access_id = id;
+
+	dev_set_name(&buf->access_dev, "%s:access%d",
+		     dev_name(&buf->dev),
+		     buf->access_id);
 	ret = device_add(&buf->access_dev);
 	if (ret < 0) {
 		printk(KERN_ERR "failed to add the ring access dev\n");
-		goto error_free_idr;
+		goto error_device_put;
 	}
 
 	cdev_init(&buf->access_handler.chrdev, &iio_ring_fileops);
@@ -241,10 +225,9 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 		goto error_device_unregister;
 	}
 	return 0;
+
 error_device_unregister:
 	device_unregister(&buf->access_dev);
-error_free_idr:
-	iio_free_idr_val(&iio_ring_access_idr, buf->access_id);
 error_device_put:
 	put_device(&buf->access_dev);
 
@@ -253,7 +236,6 @@ error_device_put:
 
 static void __iio_free_ring_buffer_access_chrdev(struct iio_ring_buffer *buf)
 {
-	iio_free_idr_val(&iio_ring_access_idr, buf->access_id);
 	device_unregister(&buf->access_dev);
 }
 
@@ -265,22 +247,23 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 	ring->indio_dev = dev_info;
 	ring->ev_int.private = ring;
 	ring->access_handler.private = ring;
+	ring->shared_ev_pointer.ev_p = NULL;
+	spin_lock_init(&ring->shared_ev_pointer.lock);
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);
 
-int iio_ring_buffer_register(struct iio_ring_buffer *ring)
+int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
 {
 	int ret;
-	ret = iio_get_new_idr_val(&iio_ring_idr);
-	if (ret < 0)
-		goto error_ret;
-	else
-		ring->id = ret;
 
-	dev_set_name(&ring->dev, "ring_buffer%d", ring->id);
+	ring->id = id;
+
+	dev_set_name(&ring->dev, "%s:buffer%d",
+		     dev_name(ring->dev.parent),
+		     ring->id);
 	ret = device_add(&ring->dev);
 	if (ret)
-		goto error_free_id;
+		goto error_ret;
 
 	ret = __iio_request_ring_buffer_event_chrdev(ring,
 						     0,
@@ -296,13 +279,21 @@ int iio_ring_buffer_register(struct iio_ring_buffer *ring)
 	if (ret)
 		goto error_free_ring_buffer_event_chrdev;
 
+	if (ring->scan_el_attrs) {
+		ret = sysfs_create_group(&ring->dev.kobj,
+					 ring->scan_el_attrs);
+		if (ret) {
+			dev_err(&ring->dev,
+				"Failed to add sysfs scan elements\n");
+			goto error_free_ring_buffer_event_chrdev;
+		}
+	}
+
 	return ret;
 error_free_ring_buffer_event_chrdev:
 	__iio_free_ring_buffer_event_chrdev(ring);
 error_remove_device:
 	device_del(&ring->dev);
-error_free_id:
-	iio_free_idr_val(&iio_ring_idr, ring->id);
 error_ret:
 	return ret;
 }
@@ -310,10 +301,13 @@ EXPORT_SYMBOL(iio_ring_buffer_register);
 
 void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 {
+	if (ring->scan_el_attrs)
+		sysfs_remove_group(&ring->dev.kobj,
+				   ring->scan_el_attrs);
+
 	__iio_free_ring_buffer_access_chrdev(ring);
 	__iio_free_ring_buffer_event_chrdev(ring);
 	device_del(&ring->dev);
-	iio_free_idr_val(&iio_ring_idr, ring->id);
 }
 EXPORT_SYMBOL(iio_ring_buffer_unregister);
 
@@ -332,7 +326,7 @@ ssize_t iio_read_ring_length(struct device *dev,
 }
 EXPORT_SYMBOL(iio_read_ring_length);
 
- ssize_t iio_write_ring_length(struct device *dev,
+ssize_t iio_write_ring_length(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf,
 			       size_t len)
@@ -358,20 +352,20 @@ EXPORT_SYMBOL(iio_read_ring_length);
 }
 EXPORT_SYMBOL(iio_write_ring_length);
 
-ssize_t iio_read_ring_bps(struct device *dev,
+ssize_t iio_read_ring_bytes_per_datum(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf)
 {
 	int len = 0;
 	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 
-	if (ring->access.get_bpd)
+	if (ring->access.get_bytes_per_datum)
 		len = sprintf(buf, "%d\n",
-			      ring->access.get_bpd(ring));
+			      ring->access.get_bytes_per_datum(ring));
 
 	return len;
 }
-EXPORT_SYMBOL(iio_read_ring_bps);
+EXPORT_SYMBOL(iio_read_ring_bytes_per_datum);
 
 ssize_t iio_store_ring_enable(struct device *dev,
 			      struct device_attribute *attr,
@@ -485,10 +479,10 @@ ssize_t iio_scan_el_show(struct device *dev,
 			 char *buf)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
 	struct iio_scan_el *this_el = to_iio_scan_el(attr);
 
-	ret = iio_scan_mask_query(indio_dev, this_el->number);
+	ret = iio_scan_mask_query(ring, this_el->number);
 	if (ret < 0)
 		return ret;
 	return sprintf(buf, "%d\n", ret);
@@ -502,7 +496,8 @@ ssize_t iio_scan_el_store(struct device *dev,
 {
 	int ret = 0;
 	bool state;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
 	struct iio_scan_el *this_el = to_iio_scan_el(attr);
 
 	state = !(buf[0] == '0');
@@ -511,19 +506,17 @@ ssize_t iio_scan_el_store(struct device *dev,
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	ret = iio_scan_mask_query(indio_dev, this_el->number);
+	ret = iio_scan_mask_query(ring, this_el->number);
 	if (ret < 0)
 		goto error_ret;
 	if (!state && ret) {
-		ret = iio_scan_mask_clear(indio_dev, this_el->number);
+		ret = iio_scan_mask_clear(ring, this_el->number);
 		if (ret)
 			goto error_ret;
-		indio_dev->scan_count--;
 	} else if (state && !ret) {
-		ret = iio_scan_mask_set(indio_dev, this_el->number);
+		ret = iio_scan_mask_set(ring, this_el->number);
 		if (ret)
 			goto error_ret;
-		indio_dev->scan_count++;
 	}
 	if (this_el->set_state)
 		ret = this_el->set_state(this_el, indio_dev, state);
@@ -539,8 +532,8 @@ ssize_t iio_scan_el_ts_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", indio_dev->scan_timestamp);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", ring->scan_timestamp);
 }
 EXPORT_SYMBOL(iio_scan_el_ts_show);
 
@@ -550,7 +543,8 @@ ssize_t iio_scan_el_ts_store(struct device *dev,
 			     size_t len)
 {
 	int ret = 0;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
 	bool state;
 	state = !(buf[0] == '0');
 	mutex_lock(&indio_dev->mlock);
@@ -558,7 +552,7 @@ ssize_t iio_scan_el_ts_store(struct device *dev,
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	indio_dev->scan_timestamp = state;
+	ring->scan_timestamp = state;
 error_ret:
 	mutex_unlock(&indio_dev->mlock);
 

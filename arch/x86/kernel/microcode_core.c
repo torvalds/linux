@@ -12,7 +12,7 @@
  *	Software Developer's Manual
  *	Order Number 253668 or free download from:
  *
- *	http://developer.intel.com/design/pentium4/manuals/253668.htm
+ *	http://developer.intel.com/Assets/PDF/manual/253668.pdf	
  *
  *	For more information, go to http://www.urbanmyth.org/microcode
  *
@@ -201,9 +201,9 @@ static int do_microcode_update(const void __user *buf, size_t size)
 	return error;
 }
 
-static int microcode_open(struct inode *unused1, struct file *unused2)
+static int microcode_open(struct inode *inode, struct file *file)
 {
-	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
+	return capable(CAP_SYS_RAWIO) ? nonseekable_open(inode, file) : -EPERM;
 }
 
 static ssize_t microcode_write(struct file *file, const char __user *buf,
@@ -232,6 +232,7 @@ static const struct file_operations microcode_fops = {
 	.owner			= THIS_MODULE,
 	.write			= microcode_write,
 	.open			= microcode_open,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice microcode_dev = {
@@ -260,6 +261,7 @@ static void microcode_dev_exit(void)
 }
 
 MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
+MODULE_ALIAS("devname:cpu/microcode");
 #else
 #define microcode_dev_init()	0
 #define microcode_dev_exit()	do { } while (0)

@@ -36,7 +36,7 @@
  * Radeon chip families
  */
 enum radeon_family {
-	CHIP_R100,
+	CHIP_R100 = 0,
 	CHIP_RV100,
 	CHIP_RS100,
 	CHIP_RV200,
@@ -75,6 +75,15 @@ enum radeon_family {
 	CHIP_RV730,
 	CHIP_RV710,
 	CHIP_RV740,
+	CHIP_CEDAR,
+	CHIP_REDWOOD,
+	CHIP_JUNIPER,
+	CHIP_CYPRESS,
+	CHIP_HEMLOCK,
+	CHIP_PALM,
+	CHIP_BARTS,
+	CHIP_TURKS,
+	CHIP_CAICOS,
 	CHIP_LAST,
 };
 
@@ -94,4 +103,5 @@ enum radeon_chip_flags {
 	RADEON_IS_PCI = 0x00800000UL,
 	RADEON_IS_IGPGART = 0x01000000UL,
 };
+
 #endif

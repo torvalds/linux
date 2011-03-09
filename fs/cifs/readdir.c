@@ -22,6 +22,7 @@
  */
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -46,15 +47,15 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 	if (file) {
 		cf = file->private_data;
 		if (cf == NULL) {
-			cFYI(1, ("empty cifs private file data"));
+			cFYI(1, "empty cifs private file data");
 			return;
 		}
 		if (cf->invalidHandle)
-			cFYI(1, ("invalid handle"));
+			cFYI(1, "invalid handle");
 		if (cf->srch_inf.endOfSearch)
-			cFYI(1, ("end of search"));
+			cFYI(1, "end of search");
 		if (cf->srch_inf.emptyDir)
-			cFYI(1, ("empty dir"));
+			cFYI(1, "empty dir");
 	}
 }
 #else
@@ -75,7 +76,12 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 	struct inode *inode;
 	struct super_block *sb = parent->d_inode->i_sb;
 
-	cFYI(1, ("For %s", name->name));
+	cFYI(1, "For %s", name->name);
+
+	if (parent->d_op && parent->d_op->d_hash)
+		parent->d_op->d_hash(parent, parent->d_inode, name);
+	else
+		name->hash = full_name_hash(name->name, name->len);
 
 	dentry = d_lookup(parent, name);
 	if (dentry) {
@@ -95,11 +101,6 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 		dput(dentry);
 		return NULL;
 	}
-
-	if (CIFS_SB(sb)->tcon->nocase)
-		dentry->d_op = &cifs_ci_dentry_ops;
-	else
-		dentry->d_op = &cifs_dentry_ops;
 
 	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
@@ -154,6 +155,7 @@ cifs_dir_info_to_fattr(struct cifs_fattr *fattr, FILE_DIRECTORY_INFO *info,
 	fattr->cf_cifsattrs = le32_to_cpu(info->ExtFileAttributes);
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_atime = cifs_NTtimeToUnix(info->LastAccessTime);
 	fattr->cf_ctime = cifs_NTtimeToUnix(info->ChangeTime);
 	fattr->cf_mtime = cifs_NTtimeToUnix(info->LastWriteTime);
@@ -165,7 +167,7 @@ static void
 cifs_std_info_to_fattr(struct cifs_fattr *fattr, FIND_FILE_STANDARD_INFO *info,
 		       struct cifs_sb_info *cifs_sb)
 {
-	int offset = cifs_sb->tcon->ses->server->timeAdj;
+	int offset = cifs_sb_master_tcon(cifs_sb)->ses->server->timeAdj;
 
 	memset(fattr, 0, sizeof(*fattr));
 	fattr->cf_atime = cnvrtDosUnixTm(info->LastAccessDate,
@@ -193,7 +195,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 	int len;
 	int oplock = 0;
 	int rc;
-	struct cifsTconInfo *ptcon = cifs_sb->tcon;
+	struct cifsTconInfo *ptcon = cifs_sb_tcon(cifs_sb);
 	char *tmpbuffer;
 
 	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
@@ -208,7 +210,7 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 				fid,
 				cifs_sb->local_nls);
 		if (CIFSSMBClose(xid, ptcon, fid)) {
-			cFYI(1, ("Error closing temporary reparsepoint open)"));
+			cFYI(1, "Error closing temporary reparsepoint open");
 		}
 	}
 }
@@ -217,36 +219,40 @@ int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
 static int initiate_cifs_search(const int xid, struct file *file)
 {
 	int rc = 0;
-	char *full_path;
+	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct tcon_link *tlink = NULL;
 	struct cifsTconInfo *pTcon;
 
 	if (file->private_data == NULL) {
-		file->private_data =
-			kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+		tlink = cifs_sb_tlink(cifs_sb);
+		if (IS_ERR(tlink))
+			return PTR_ERR(tlink);
+
+		cifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+		if (cifsFile == NULL) {
+			rc = -ENOMEM;
+			goto error_exit;
+		}
+		file->private_data = cifsFile;
+		cifsFile->tlink = cifs_get_tlink(tlink);
+		pTcon = tlink_tcon(tlink);
+	} else {
+		cifsFile = file->private_data;
+		pTcon = tlink_tcon(cifsFile->tlink);
 	}
 
-	if (file->private_data == NULL)
-		return -ENOMEM;
-	cifsFile = file->private_data;
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
 
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	if (cifs_sb == NULL)
-		return -EINVAL;
-
-	pTcon = cifs_sb->tcon;
-	if (pTcon == NULL)
-		return -EINVAL;
-
 	full_path = build_path_from_dentry(file->f_path.dentry);
+	if (full_path == NULL) {
+		rc = -ENOMEM;
+		goto error_exit;
+	}
 
-	if (full_path == NULL)
-		return -ENOMEM;
-
-	cFYI(1, ("Full path: %s start at: %lld", full_path, file->f_pos));
+	cFYI(1, "Full path: %s start at: %lld", full_path, file->f_pos);
 
 ffirst_retry:
 	/* test for Unix extensions */
@@ -277,7 +283,9 @@ ffirst_retry:
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		goto ffirst_retry;
 	}
+error_exit:
 	kfree(full_path);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -291,7 +299,7 @@ static int cifs_unicode_bytelen(char *str)
 		if (ustr[len] == 0)
 			return len << 1;
 	}
-	cFYI(1, ("Unicode string longer than PATH_MAX found"));
+	cFYI(1, "Unicode string longer than PATH_MAX found");
 	return len << 1;
 }
 
@@ -308,19 +316,18 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 				pfData->FileNameLength;
 	} else
 		new_entry = old_entry + le32_to_cpu(pDirInfo->NextEntryOffset);
-	cFYI(1, ("new entry %p old entry %p", new_entry, old_entry));
+	cFYI(1, "new entry %p old entry %p", new_entry, old_entry);
 	/* validate that new_entry is not past end of SMB */
 	if (new_entry >= end_of_smb) {
-		cERROR(1,
-		      ("search entry %p began after end of SMB %p old entry %p",
-			new_entry, end_of_smb, old_entry));
+		cERROR(1, "search entry %p began after end of SMB %p old entry %p",
+			new_entry, end_of_smb, old_entry);
 		return NULL;
 	} else if (((level == SMB_FIND_FILE_INFO_STANDARD) &&
 		    (new_entry + sizeof(FIND_FILE_STANDARD_INFO) > end_of_smb))
 		  || ((level != SMB_FIND_FILE_INFO_STANDARD) &&
 		   (new_entry + sizeof(FILE_DIRECTORY_INFO) > end_of_smb)))  {
-		cERROR(1, ("search entry %p extends after end of SMB %p",
-			new_entry, end_of_smb));
+		cERROR(1, "search entry %p extends after end of SMB %p",
+			new_entry, end_of_smb);
 		return NULL;
 	} else
 		return new_entry;
@@ -374,8 +381,8 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
 		filename = &pFindData->FileName[0];
 		len = pFindData->FileNameLength;
 	} else {
-		cFYI(1, ("Unknown findfirst level %d",
-			 cfile->srch_inf.info_level));
+		cFYI(1, "Unknown findfirst level %d",
+			 cfile->srch_inf.info_level);
 	}
 
 	if (filename) {
@@ -475,7 +482,7 @@ static int cifs_save_resume_key(const char *current_entry,
 		len = (unsigned int)pFindData->FileNameLength;
 		cifsFile->srch_inf.resume_key = pFindData->ResumeKey;
 	} else {
-		cFYI(1, ("Unknown findfirst level %d", level));
+		cFYI(1, "Unknown findfirst level %d", level);
 		return -EINVAL;
 	}
 	cifsFile->srch_inf.resume_name_len = len;
@@ -519,17 +526,17 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	     is_dir_changed(file)) ||
 	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
-		cFYI(1, ("search backing up - close and restart search"));
-		write_lock(&GlobalSMBSeslock);
+		cFYI(1, "search backing up - close and restart search");
+		spin_lock(&cifs_file_list_lock);
 		if (!cifsFile->srch_inf.endOfSearch &&
 		    !cifsFile->invalidHandle) {
 			cifsFile->invalidHandle = true;
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		} else
-			write_unlock(&GlobalSMBSeslock);
+			spin_unlock(&cifs_file_list_lock);
 		if (cifsFile->srch_inf.ntwrk_buf_start) {
-			cFYI(1, ("freeing SMB ff cache buf on search rewind"));
+			cFYI(1, "freeing SMB ff cache buf on search rewind");
 			if (cifsFile->srch_inf.smallBuf)
 				cifs_small_buf_release(cifsFile->srch_inf.
 						ntwrk_buf_start);
@@ -540,8 +547,8 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		}
 		rc = initiate_cifs_search(xid, file);
 		if (rc) {
-			cFYI(1, ("error %d reinitiating a search on rewind",
-				 rc));
+			cFYI(1, "error %d reinitiating a search on rewind",
+				 rc);
 			return rc;
 		}
 		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
@@ -549,7 +556,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
 	      (rc == 0) && !cifsFile->srch_inf.endOfSearch) {
-		cFYI(1, ("calling findnext2"));
+		cFYI(1, "calling findnext2");
 		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid,
 				  &cifsFile->srch_inf);
 		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
@@ -569,7 +576,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		first_entry_in_buffer = cifsFile->srch_inf.index_of_last_entry
 					- cifsFile->srch_inf.entries_in_buffer;
 		pos_in_buf = index_to_find - first_entry_in_buffer;
-		cFYI(1, ("found entry - pos_in_buf %d", pos_in_buf));
+		cFYI(1, "found entry - pos_in_buf %d", pos_in_buf);
 
 		for (i = 0; (i < (pos_in_buf)) && (current_entry != NULL); i++) {
 			/* go entry by entry figuring out which is first */
@@ -578,19 +585,19 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		}
 		if ((current_entry == NULL) && (i < pos_in_buf)) {
 			/* BB fixme - check if we should flag this error */
-			cERROR(1, ("reached end of buf searching for pos in buf"
+			cERROR(1, "reached end of buf searching for pos in buf"
 			  " %d index to find %lld rc %d",
-			  pos_in_buf, index_to_find, rc));
+			  pos_in_buf, index_to_find, rc);
 		}
 		rc = 0;
 		*ppCurrentEntry = current_entry;
 	} else {
-		cFYI(1, ("index not in buffer - could not findnext into it"));
+		cFYI(1, "index not in buffer - could not findnext into it");
 		return 0;
 	}
 
 	if (pos_in_buf >= cifsFile->srch_inf.entries_in_buffer) {
-		cFYI(1, ("can not return entries pos_in_buf beyond last"));
+		cFYI(1, "can not return entries pos_in_buf beyond last");
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cifsFile->srch_inf.entries_in_buffer - pos_in_buf;
@@ -650,12 +657,12 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 		/* one byte length, no name conversion */
 		len = (unsigned int)pFindData->FileNameLength;
 	} else {
-		cFYI(1, ("Unknown findfirst level %d", level));
+		cFYI(1, "Unknown findfirst level %d", level);
 		return -EINVAL;
 	}
 
 	if (len > max_len) {
-		cERROR(1, ("bad search response length %d past smb end", len));
+		cERROR(1, "bad search response length %d past smb end", len);
 		return -EINVAL;
 	}
 
@@ -666,12 +673,11 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 					   min(len, max_len), nlt,
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		pqst->len -= nls_nullsize(nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;
 	}
-	pqst->hash = full_name_hash(pqst->name, pqst->len);
-/*	cFYI(1, ("filldir on %s",pqst->name));  */
 	return rc;
 }
 
@@ -734,24 +740,21 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 		cifs_autodisable_serverino(cifs_sb);
 	}
 
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
+	    CIFSCouldBeMFSymlink(&fattr))
+		/*
+		 * trying to get the type and mode can be slow,
+		 * so just call those regular files for now, and mark
+		 * for reval
+		 */
+		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
+
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
 	tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring, &fattr);
 
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
 		     ino, fattr.cf_dtype);
 
-	/*
-	 * we can not return filldir errors to the caller since they are
-	 * "normal" when the stat blocksize is too small - we return remapped
-	 * error instead
-	 *
-	 * FIXME: This looks bogus. filldir returns -EOVERFLOW in the above
-	 * case already. Why should we be clobbering other errors from it?
-	 */
-	if (rc) {
-		cFYI(1, ("filldir rc = %d", rc));
-		rc = -EOVERFLOW;
-	}
 	dput(tmp_dentry);
 	return rc;
 }
@@ -773,15 +776,23 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	pTcon = cifs_sb->tcon;
-	if (pTcon == NULL)
-		return -EINVAL;
+
+	/*
+	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and
+	 * '..'. Otherwise we won't be able to notify VFS in case of failure.
+	 */
+	if (file->private_data == NULL) {
+		rc = initiate_cifs_search(xid, file);
+		cFYI(1, "initiate cifs search rc %d", rc);
+		if (rc)
+			goto rddir2_exit;
+	}
 
 	switch ((int) file->f_pos) {
 	case 0:
 		if (filldir(direntry, ".", 1, file->f_pos,
 		     file->f_path.dentry->d_inode->i_ino, DT_DIR) < 0) {
-			cERROR(1, ("Filldir for current dir failed"));
+			cERROR(1, "Filldir for current dir failed");
 			rc = -ENOMEM;
 			break;
 		}
@@ -789,7 +800,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	case 1:
 		if (filldir(direntry, "..", 2, file->f_pos,
 		     file->f_path.dentry->d_parent->d_inode->i_ino, DT_DIR) < 0) {
-			cERROR(1, ("Filldir for parent dir failed"));
+			cERROR(1, "Filldir for parent dir failed");
 			rc = -ENOMEM;
 			break;
 		}
@@ -801,14 +812,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			if after then keep searching till find it */
 
 		if (file->private_data == NULL) {
-			rc = initiate_cifs_search(xid, file);
-			cFYI(1, ("initiate cifs search rc %d", rc));
-			if (rc) {
-				FreeXid(xid);
-				return rc;
-			}
-		}
-		if (file->private_data == NULL) {
 			rc = -EINVAL;
 			FreeXid(xid);
 			return rc;
@@ -816,7 +819,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		cifsFile = file->private_data;
 		if (cifsFile->srch_inf.endOfSearch) {
 			if (cifsFile->srch_inf.emptyDir) {
-				cFYI(1, ("End of search, empty dir"));
+				cFYI(1, "End of search, empty dir");
 				rc = 0;
 				break;
 			}
@@ -825,29 +828,35 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			CIFSFindClose(xid, pTcon, cifsFile->netfid);
 		} */
 
+		pTcon = tlink_tcon(cifsFile->tlink);
 		rc = find_cifs_entry(xid, pTcon, file,
 				&current_entry, &num_to_fill);
 		if (rc) {
-			cFYI(1, ("fce error %d", rc));
+			cFYI(1, "fce error %d", rc);
 			goto rddir2_exit;
 		} else if (current_entry != NULL) {
-			cFYI(1, ("entry %lld found", file->f_pos));
+			cFYI(1, "entry %lld found", file->f_pos);
 		} else {
-			cFYI(1, ("could not find entry"));
+			cFYI(1, "could not find entry");
 			goto rddir2_exit;
 		}
-		cFYI(1, ("loop through %d times filling dir for net buf %p",
-			num_to_fill, cifsFile->srch_inf.ntwrk_buf_start));
+		cFYI(1, "loop through %d times filling dir for net buf %p",
+			num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
 		max_len = smbCalcSize((struct smb_hdr *)
 				cifsFile->srch_inf.ntwrk_buf_start);
 		end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
 
 		tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);
+		if (tmp_buf == NULL) {
+			rc = -ENOMEM;
+			break;
+		}
+
 		for (i = 0; (i < num_to_fill) && (rc == 0); i++) {
 			if (current_entry == NULL) {
 				/* evaluate whether this case is an error */
-				cERROR(1, ("past SMB end,  num to fill %d i %d",
-					  num_to_fill, i));
+				cERROR(1, "past SMB end,  num to fill %d i %d",
+					  num_to_fill, i);
 				break;
 			}
 			/* if buggy server returns . and .. late do
@@ -862,8 +871,8 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			file->f_pos++;
 			if (file->f_pos ==
 				cifsFile->srch_inf.index_of_last_entry) {
-				cFYI(1, ("last entry in buf at pos %lld %s",
-					file->f_pos, tmp_buf));
+				cFYI(1, "last entry in buf at pos %lld %s",
+					file->f_pos, tmp_buf);
 				cifs_save_resume_key(current_entry, cifsFile);
 				break;
 			} else

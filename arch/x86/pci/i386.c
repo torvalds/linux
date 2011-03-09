@@ -60,22 +60,20 @@ skip_isa_ioresource_align(struct pci_dev *dev) {
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void
-pcibios_align_resource(void *data, struct resource *res,
+resource_size_t
+pcibios_align_resource(void *data, const struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
+	resource_size_t start = res->start;
 
 	if (res->flags & IORESOURCE_IO) {
-		resource_size_t start = res->start;
-
 		if (skip_isa_ioresource_align(dev))
-			return;
-		if (start & 0x300) {
+			return start;
+		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
 	}
+	return start;
 }
 EXPORT_SYMBOL(pcibios_align_resource);
 
@@ -95,6 +93,7 @@ EXPORT_SYMBOL(pcibios_align_resource);
  *	  the fact the PCI specs explicitly allow address decoders to be
  *	  shared between expansion ROMs and other resource regions, it's
  *	  at least dangerous)
+ *	- bad resource sizes or overlaps with other regions
  *
  *  Our solution:
  *	(1) Allocate resources for all buses behind PCI-to-PCI bridges.
@@ -129,15 +128,13 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 					continue;
 				if (!r->start ||
 				    pci_claim_resource(dev, idx) < 0) {
-					dev_info(&dev->dev,
-						 "can't reserve window %pR\n",
-						 r);
 					/*
 					 * Something is wrong with the region.
 					 * Invalidate the resource to prevent
 					 * child resource allocations in this
 					 * range.
 					 */
+					r->start = r->end = 0;
 					r->flags = 0;
 				}
 			}
@@ -183,9 +180,8 @@ static void __init pcibios_allocate_resources(int pass)
 					"BAR %d: reserving %pr (d=%d, p=%d)\n",
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					dev_info(&dev->dev,
-						 "can't reserve %pR\n", r);
 					/* We'll assign a new address later */
+					dev->fw_addr[idx] = r->start;
 					r->end -= r->start;
 					r->start = 0;
 				}
@@ -257,10 +253,6 @@ void __init pcibios_resource_survey(void)
  */
 fs_initcall(pcibios_assign_resources);
 
-void __weak x86_pci_root_bus_res_quirks(struct pci_bus *b)
-{
-}
-
 /*
  *  If we set up a device for bus mastering, we need to check the latency
  *  timer as certain crappy BIOSes forget to set it properly.
@@ -315,6 +307,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		 * aswell.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
+
+	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
 
 	vma->vm_page_prot = __pgprot(prot);
 

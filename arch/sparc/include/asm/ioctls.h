@@ -19,6 +19,7 @@
 #define TCSETS2		_IOW('T', 13, struct termios2)
 #define TCSETSW2	_IOW('T', 14, struct termios2)
 #define TCSETSF2	_IOW('T', 15, struct termios2)
+#define TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get primary device node of /dev/console */
 
 /* Note that all the ioctls that are not available in Linux have a 
  * double underscore on the front to: a) avoid some programs to
@@ -80,6 +81,7 @@
 /* Get minor device of a pty master's FD -- Solaris equiv is ISPTM */
 #define TIOCGPTN	_IOR('t', 134, unsigned int) /* Get Pty Number */
 #define TIOCSPTLCK	_IOW('t', 135, int) /* Lock/unlock PTY */
+#define TIOCSIG		_IOW('t', 136, int) /* Generate signal on Pty slave */
 
 /* Little f */
 #define FIOCLEX		_IO('f', 1)
@@ -132,5 +134,6 @@
 #define TIOCPKT_START		 8
 #define TIOCPKT_NOSTOP		16
 #define TIOCPKT_DOSTOP		32
+#define TIOCPKT_IOCTL		64
 
 #endif /* !(_ASM_SPARC_IOCTLS_H) */

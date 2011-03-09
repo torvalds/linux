@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include "pciehp.h"
@@ -42,6 +43,7 @@ int pciehp_poll_mode;
 int pciehp_poll_time;
 int pciehp_force;
 struct workqueue_struct *pciehp_wq;
+struct workqueue_struct *pciehp_ordered_wq;
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -58,7 +60,7 @@ module_param(pciehp_force, bool, 0644);
 MODULE_PARM_DESC(pciehp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
-MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if _OSC and OSHP are missing");
+MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if OSHP is missing");
 
 #define PCIE_MODULE_NAME "pciehp"
 
@@ -69,8 +71,6 @@ static int get_power_status	(struct hotplug_slot *slot, u8 *value);
 static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
-static int get_max_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
-static int get_cur_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 
 /**
  * release_slot - free up the memory used by a slot
@@ -113,8 +113,6 @@ static int init_slot(struct controller *ctrl)
 	ops->disable_slot = disable_slot;
 	ops->get_power_status = get_power_status;
 	ops->get_adapter_status = get_adapter_status;
-	ops->get_max_bus_speed = get_max_bus_speed;
-	ops->get_cur_bus_speed = get_cur_bus_speed;
 	if (MRL_SENS(ctrl))
 		ops->get_latch_status = get_latch_status;
 	if (ATTN_LED(ctrl)) {
@@ -227,27 +225,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return pciehp_get_adapter_status(slot, value);
 }
 
-static int get_max_bus_speed(struct hotplug_slot *hotplug_slot,
-				enum pci_bus_speed *value)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
-		 __func__, slot_name(slot));
-
-	return pciehp_get_max_link_speed(slot, value);
-}
-
-static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
-		 __func__, slot_name(slot));
-
-	return pciehp_get_cur_link_speed(slot, value);
-}
-
 static int pciehp_probe(struct pcie_device *dev)
 {
 	int rc;
@@ -259,7 +236,7 @@ static int pciehp_probe(struct pcie_device *dev)
 		dev_info(&dev->device,
 			 "Bypassing BIOS check for pciehp use on %s\n",
 			 pci_name(dev->port));
-	else if (pciehp_get_hp_hw_control_from_firmware(dev->port))
+	else if (pciehp_acpi_slot_detection_check(dev->port))
 		goto err_out_none;
 
 	ctrl = pcie_init(dev);
@@ -364,18 +341,33 @@ static int __init pcied_init(void)
 {
 	int retval = 0;
 
+	pciehp_wq = alloc_workqueue("pciehp", 0, 0);
+	if (!pciehp_wq)
+		return -ENOMEM;
+
+	pciehp_ordered_wq = alloc_ordered_workqueue("pciehp_ordered", 0);
+	if (!pciehp_ordered_wq) {
+		destroy_workqueue(pciehp_wq);
+		return -ENOMEM;
+	}
+
 	pciehp_firmware_init();
 	retval = pcie_port_service_register(&hpdriver_portdrv);
  	dbg("pcie_port_service_register = %d\n", retval);
   	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
- 	if (retval)
+ 	if (retval) {
+		destroy_workqueue(pciehp_ordered_wq);
+		destroy_workqueue(pciehp_wq);
 		dbg("Failure to register service\n");
+	}
 	return retval;
 }
 
 static void __exit pcied_cleanup(void)
 {
 	dbg("unload_pciehpd()\n");
+	destroy_workqueue(pciehp_ordered_wq);
+	destroy_workqueue(pciehp_wq);
 	pcie_port_service_unregister(&hpdriver_portdrv);
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }

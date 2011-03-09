@@ -97,4 +97,91 @@ enum cx25840_audio_input {
 	CX25840_AUDIO8,
 };
 
+enum cx25840_io_pin {
+	CX25840_PIN_DVALID_PRGM0 = 0,
+	CX25840_PIN_FIELD_PRGM1,
+	CX25840_PIN_HRESET_PRGM2,
+	CX25840_PIN_VRESET_HCTL_PRGM3,
+	CX25840_PIN_IRQ_N_PRGM4,
+	CX25840_PIN_IR_TX_PRGM6,
+	CX25840_PIN_IR_RX_PRGM5,
+	CX25840_PIN_GPIO0_PRGM8,
+	CX25840_PIN_GPIO1_PRGM9,
+	CX25840_PIN_SA_SDIN,		/* Alternate GP Input only */
+	CX25840_PIN_SA_SDOUT,		/* Alternate GP Input only */
+	CX25840_PIN_PLL_CLK_PRGM7,
+	CX25840_PIN_CHIP_SEL_VIPCLK,	/* Output only */
+};
+
+enum cx25840_io_pad {
+	/* Output pads */
+	CX25840_PAD_DEFAULT = 0,
+	CX25840_PAD_ACTIVE,
+	CX25840_PAD_VACTIVE,
+	CX25840_PAD_CBFLAG,
+	CX25840_PAD_VID_DATA_EXT0,
+	CX25840_PAD_VID_DATA_EXT1,
+	CX25840_PAD_GPO0,
+	CX25840_PAD_GPO1,
+	CX25840_PAD_GPO2,
+	CX25840_PAD_GPO3,
+	CX25840_PAD_IRQ_N,
+	CX25840_PAD_AC_SYNC,
+	CX25840_PAD_AC_SDOUT,
+	CX25840_PAD_PLL_CLK,
+	CX25840_PAD_VRESET,
+	CX25840_PAD_RESERVED,
+	/* Pads for PLL_CLK output only */
+	CX25840_PAD_XTI_X5_DLL,
+	CX25840_PAD_AUX_PLL,
+	CX25840_PAD_VID_PLL,
+	CX25840_PAD_XTI,
+	/* Input Pads */
+	CX25840_PAD_GPI0,
+	CX25840_PAD_GPI1,
+	CX25840_PAD_GPI2,
+	CX25840_PAD_GPI3,
+};
+
+enum cx25840_io_pin_strength {
+	CX25840_PIN_DRIVE_MEDIUM = 0,
+	CX25840_PIN_DRIVE_SLOW,
+	CX25840_PIN_DRIVE_FAST,
+};
+
+enum cx23885_io_pin {
+	CX23885_PIN_IR_RX_GPIO19,
+	CX23885_PIN_IR_TX_GPIO20,
+	CX23885_PIN_I2S_SDAT_GPIO21,
+	CX23885_PIN_I2S_WCLK_GPIO22,
+	CX23885_PIN_I2S_BCLK_GPIO23,
+	CX23885_PIN_IRQ_N_GPIO16,
+};
+
+enum cx23885_io_pad {
+	CX23885_PAD_IR_RX,
+	CX23885_PAD_GPIO19,
+	CX23885_PAD_IR_TX,
+	CX23885_PAD_GPIO20,
+	CX23885_PAD_I2S_SDAT,
+	CX23885_PAD_GPIO21,
+	CX23885_PAD_I2S_WCLK,
+	CX23885_PAD_GPIO22,
+	CX23885_PAD_I2S_BCLK,
+	CX23885_PAD_GPIO23,
+	CX23885_PAD_IRQ_N,
+	CX23885_PAD_GPIO16,
+};
+
+/* pvr150_workaround activates a workaround for a hardware bug that is
+   present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
+   certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
+   audio autodetect fails on some channels for these models and the workaround
+   is to select the audio standard explicitly. Many thanks to Hauppauge for
+   providing this information.
+   This platform data only needs to be supplied by the ivtv driver. */
+struct cx25840_platform_data {
+	int pvr150_workaround;
+};
+
 #endif

@@ -94,6 +94,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
 #include <linux/errno.h>
@@ -978,7 +979,6 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: send request\n", dev->name);
 
 	spin_lock_irq(&nl->lock);
-	dev->trans_start = jiffies;
 	snd->skb = skb;
 	snd->length.h = skb->len;
 	snd->state = PLIP_PK_TRIGGER;
@@ -995,8 +995,10 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 static void
 plip_rewrite_address(const struct net_device *dev, struct ethhdr *eth)
 {
-	const struct in_device *in_dev = dev->ip_ptr;
+	const struct in_device *in_dev;
 
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		/* Any address will do - we take the first */
 		const struct in_ifaddr *ifa = in_dev->ifa_list;
@@ -1006,6 +1008,7 @@ plip_rewrite_address(const struct net_device *dev, struct ethhdr *eth)
 			memcpy(eth->h_dest+2, &ifa->ifa_address, 4);
 		}
 	}
+	rcu_read_unlock();
 }
 
 static int
@@ -1088,7 +1091,8 @@ plip_open(struct net_device *dev)
 	   when the device address isn't identical to the address of a
 	   received frame, the kernel incorrectly drops it).             */
 
-	if ((in_dev=dev->ip_ptr) != NULL) {
+	in_dev=__in_dev_get_rtnl(dev);
+	if (in_dev) {
 		/* Any address will do - we take the first. We already
 		   have the first two bytes filled with 0xfc, from
 		   plip_init_dev(). */
@@ -1191,8 +1195,6 @@ plip_wakeup(void *handle)
 		/* Clear the data port. */
 		write_data (dev, 0x00);
 	}
-
-	return;
 }
 
 static int
@@ -1281,7 +1283,6 @@ static void plip_attach (struct parport *port)
 		if (!nl->pardev) {
 			printk(KERN_ERR "%s: parport_register failed\n", name);
 			goto err_free_dev;
-			return;
 		}
 
 		plip_init_netdev(dev);
@@ -1308,7 +1309,6 @@ err_parport_unregister:
 	parport_unregister_device(nl->pardev);
 err_free_dev:
 	free_netdev(dev);
-	return;
 }
 
 /* plip_detach() is called (by the parport code) when a port is

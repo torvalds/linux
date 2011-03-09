@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"

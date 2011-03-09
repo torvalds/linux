@@ -1,0 +1,13 @@
+The binding between hdpvr and lirc_zilog is currently disabled,
+due to an OOPS reported a few years ago when both the hdpvr and cx18
+drivers were loaded in his system. More details can be seen at:
+	http://www.mail-archive.com/linux-media@vger.kernel.org/msg09163.html
+More tests need to be done, in order to fix the reported issue.
+
+There's a conflict between ir-kbd-i2c: Both provide support for RX events.
+Such conflict needs to be fixed, before moving it out of staging.
+
+The way I2C probe works, it will try to register the driver twice, one
+for RX and another for TX. The logic needs to be fixed to avoid such
+issue.
+

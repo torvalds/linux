@@ -1,0 +1,164 @@
+if ARCH_MX5
+# ARCH_MX51 and ARCH_MX50 are left for compatibility
+
+config ARCH_MX50
+	bool
+
+config ARCH_MX51
+	bool
+
+config ARCH_MX53
+	bool
+
+config SOC_IMX50
+	bool
+	select MXC_TZIC
+	select ARCH_MXC_IOMUX_V3
+	select ARCH_MXC_AUDMUX_V2
+	select ARCH_HAS_CPUFREQ
+	select ARCH_MX50
+
+config	SOC_IMX51
+	bool
+	select MXC_TZIC
+	select ARCH_MXC_IOMUX_V3
+	select ARCH_MXC_AUDMUX_V2
+	select ARCH_HAS_CPUFREQ
+	select ARCH_MX51
+
+config	SOC_IMX53
+	bool
+	select MXC_TZIC
+	select ARCH_MXC_IOMUX_V3
+	select ARCH_MX53
+
+comment "MX5 platforms:"
+
+config MACH_MX51_BABBAGE
+	bool "Support MX51 BABBAGE platforms"
+	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	help
+	  Include support for MX51 Babbage platform, also known as MX51EVK in
+	  u-boot. This includes specific configurations for the board and its
+	  peripherals.
+
+config MACH_MX51_3DS
+	bool "Support MX51PDK (3DS)"
+	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_IMX_KEYPAD
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	select MXC_DEBUG_BOARD
+	help
+	  Include support for MX51PDK (3DS) platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_EUKREA_CPUIMX51
+	bool "Support Eukrea CPUIMX51 module"
+	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	help
+	  Include support for Eukrea CPUIMX51 platform. This includes
+	  specific configurations for the module and its peripherals.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX51
+	default MACH_EUKREA_MBIMX51_BASEBOARD
+
+config MACH_EUKREA_MBIMX51_BASEBOARD
+	prompt "Eukrea MBIMX51 development board"
+	bool
+	select IMX_HAVE_PLATFORM_IMX_KEYPAD
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMX51 evaluation board.
+
+endchoice
+
+config MACH_EUKREA_CPUIMX51SD
+	bool "Support Eukrea CPUIMX51SD module"
+	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	help
+	  Include support for Eukrea CPUIMX51SD platform. This includes
+	  specific configurations for the module and its peripherals.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX51SD
+	default MACH_EUKREA_MBIMXSD51_BASEBOARD
+
+config MACH_EUKREA_MBIMXSD51_BASEBOARD
+	prompt "Eukrea MBIMXSD development board"
+	bool
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMXSD evaluation board.
+
+endchoice
+
+config MACH_MX51_EFIKAMX
+	bool "Support MX51 Genesi Efika MX nettop"
+	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	help
+	  Include support for Genesi Efika MX nettop. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX53_EVK
+	bool "Support MX53 EVK platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	help
+	  Include support for MX53 EVK platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX53_SMD
+	bool "Support MX53 SMD platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for MX53 SMD platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX53_LOCO
+	bool "Support MX53 LOCO platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for MX53 LOCO platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX50_RDP
+	bool "Support MX50 reference design platform"
+	depends on BROKEN
+	select SOC_IMX50
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_SPI_IMX
+	help
+	  Include support for MX50 reference design platform (RDP) board. This
+	  includes specific configurations for the board and its peripherals.
+
+endif

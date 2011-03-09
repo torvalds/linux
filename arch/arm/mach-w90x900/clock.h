@@ -10,11 +10,10 @@
  * the Free Software Foundation; either version 2 of the License.
  */
 
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 void nuc900_clk_enable(struct clk *clk, int enable);
 void nuc900_subclk_enable(struct clk *clk, int enable);
-void clks_register(struct clk_lookup *clks, size_t num);
 
 struct clk {
 	unsigned long		cken;

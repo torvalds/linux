@@ -75,7 +75,7 @@ and the number of steps or will clamp at the maximum and zero depending on
 the configuration.
 
 Because GPIO to IRQ mapping is platform specific, this information must
-be given in seperately to the driver. See the example below.
+be given in separately to the driver. See the example below.
 
 ---------<snip>---------
 

@@ -12,6 +12,9 @@
 #ifndef _DAVINCI_I2S_H
 #define _DAVINCI_I2S_H
 
-extern struct snd_soc_dai davinci_i2s_dai;
+/* McBSP dividers */
+enum davinci_mcbsp_div {
+	DAVINCI_MCBSP_CLKGDV,              /* Sample rate generator divider */
+};
 
 #endif

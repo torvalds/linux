@@ -586,12 +586,12 @@ void print_block(struct buffer_head *bh, ...)	//int print_mode, int first, int l
 	va_list args;
 	int mode, first, last;
 
-	va_start(args, bh);
-
 	if (!bh) {
 		printk("print_block: buffer is NULL\n");
 		return;
 	}
+
+	va_start(args, bh);
 
 	mode = va_arg(args, int);
 	first = va_arg(args, int);

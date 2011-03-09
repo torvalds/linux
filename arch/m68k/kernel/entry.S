@@ -99,7 +99,10 @@ do_trace_exit:
 	jra	.Lret_from_exception
 
 ENTRY(ret_from_signal)
-	RESTORE_SWITCH_STACK
+	tstb	%curptr@(TASK_INFO+TINFO_FLAGS+2)
+	jge	1f
+	jbsr	syscall_trace
+1:	RESTORE_SWITCH_STACK
 	addql	#4,%sp
 /* on 68040 complete pending writebacks if any */
 #ifdef CONFIG_M68040
@@ -174,16 +177,11 @@ do_signal_return:
 	subql	#4,%sp			| dummy return address
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	clrl	%sp@-
 	bsrl	do_signal
-	addql	#8,%sp
+	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	tstl	%d0
-	jeq	resume_userspace
-	| when single stepping into handler stop at the first insn
-	btst	#6,%curptr@(TASK_INFO+TINFO_FLAGS+2)
-	jeq	resume_userspace
+	jbra	resume_userspace
 
 do_delayed_trace:
 	bclr	#7,%sp@(PT_OFF_SR)	| clear trace bit in SR
@@ -286,22 +284,6 @@ ENTRY(sys_vfork)
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
 	jbsr	m68k_vfork
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
-	rts
-
-ENTRY(sys_sigsuspend)
-	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	do_sigsuspend
-	addql	#4,%sp
-	RESTORE_SWITCH_STACK
-	rts
-
-ENTRY(sys_rt_sigsuspend)
-	SAVE_SWITCH_STACK
-	pea	%sp@(SWITCH_STACK_SIZE)
-	jbsr	do_rt_sigsuspend
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	rts
@@ -510,7 +492,7 @@ sys_call_table:
 	.long sys_settimeofday
 	.long sys_getgroups16	/* 80 */
 	.long sys_setgroups16
-	.long old_select
+	.long sys_old_select
 	.long sys_symlink
 	.long sys_lstat
 	.long sys_readlink	/* 85 */
@@ -518,7 +500,7 @@ sys_call_table:
 	.long sys_swapon
 	.long sys_reboot
 	.long sys_old_readdir
-	.long old_mmap		/* 90 */
+	.long sys_old_mmap	/* 90 */
 	.long sys_munmap
 	.long sys_truncate
 	.long sys_ftruncate
@@ -761,4 +743,11 @@ sys_call_table:
 	.long sys_pwritev		/* 330 */
 	.long sys_rt_tgsigqueueinfo
 	.long sys_perf_event_open
+	.long sys_get_thread_area
+	.long sys_set_thread_area
+	.long sys_atomic_cmpxchg_32	/* 335 */
+	.long sys_atomic_barrier
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64
 

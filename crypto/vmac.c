@@ -43,6 +43,8 @@ const u64 m63   = UINT64_C(0x7fffffffffffffff);  /* 63-bit mask       */
 const u64 m64   = UINT64_C(0xffffffffffffffff);  /* 64-bit mask       */
 const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 
+#define pe64_to_cpup le64_to_cpup		/* Prefer little endian */
+
 #ifdef __LITTLE_ENDIAN
 #define INDEX_HIGH 1
 #define INDEX_LOW 0
@@ -110,8 +112,8 @@ const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 		int i; u64 th, tl;					\
 		rh = rl = 0;						\
 		for (i = 0; i < nw; i += 2) {				\
-			MUL64(th, tl, le64_to_cpup((mp)+i)+(kp)[i],	\
-				le64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i)+(kp)[i],	\
+				pe64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
 			ADD128(rh, rl, th, tl);				\
 		}							\
 	} while (0)
@@ -121,11 +123,11 @@ const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 		int i; u64 th, tl;					\
 		rh1 = rl1 = rh = rl = 0;				\
 		for (i = 0; i < nw; i += 2) {				\
-			MUL64(th, tl, le64_to_cpup((mp)+i)+(kp)[i],	\
-				le64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i)+(kp)[i],	\
+				pe64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i)+(kp)[i+2],	\
-				le64_to_cpup((mp)+i+1)+(kp)[i+3]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i)+(kp)[i+2],	\
+				pe64_to_cpup((mp)+i+1)+(kp)[i+3]);	\
 			ADD128(rh1, rl1, th, tl);			\
 		}							\
 	} while (0)
@@ -136,17 +138,17 @@ const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 		int i; u64 th, tl;					\
 		rh = rl = 0;						\
 		for (i = 0; i < nw; i += 8) {				\
-			MUL64(th, tl, le64_to_cpup((mp)+i)+(kp)[i],	\
-				le64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i)+(kp)[i],	\
+				pe64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i+2)+(kp)[i+2],	\
-				le64_to_cpup((mp)+i+3)+(kp)[i+3]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+2)+(kp)[i+2],	\
+				pe64_to_cpup((mp)+i+3)+(kp)[i+3]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i+4)+(kp)[i+4],	\
-				le64_to_cpup((mp)+i+5)+(kp)[i+5]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+4)+(kp)[i+4],	\
+				pe64_to_cpup((mp)+i+5)+(kp)[i+5]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i+6)+(kp)[i+6],	\
-				le64_to_cpup((mp)+i+7)+(kp)[i+7]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+6)+(kp)[i+6],	\
+				pe64_to_cpup((mp)+i+7)+(kp)[i+7]);	\
 			ADD128(rh, rl, th, tl);				\
 		}							\
 	} while (0)
@@ -156,29 +158,29 @@ const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 		int i; u64 th, tl;					\
 		rh1 = rl1 = rh = rl = 0;				\
 		for (i = 0; i < nw; i += 8) {				\
-			MUL64(th, tl, le64_to_cpup((mp)+i)+(kp)[i],	\
-				le64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i)+(kp)[i],	\
+				pe64_to_cpup((mp)+i+1)+(kp)[i+1]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i)+(kp)[i+2],	\
-				le64_to_cpup((mp)+i+1)+(kp)[i+3]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i)+(kp)[i+2],	\
+				pe64_to_cpup((mp)+i+1)+(kp)[i+3]);	\
 			ADD128(rh1, rl1, th, tl);			\
-			MUL64(th, tl, le64_to_cpup((mp)+i+2)+(kp)[i+2],	\
-				le64_to_cpup((mp)+i+3)+(kp)[i+3]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+2)+(kp)[i+2],	\
+				pe64_to_cpup((mp)+i+3)+(kp)[i+3]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i+2)+(kp)[i+4],	\
-				le64_to_cpup((mp)+i+3)+(kp)[i+5]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+2)+(kp)[i+4],	\
+				pe64_to_cpup((mp)+i+3)+(kp)[i+5]);	\
 			ADD128(rh1, rl1, th, tl);			\
-			MUL64(th, tl, le64_to_cpup((mp)+i+4)+(kp)[i+4],	\
-				le64_to_cpup((mp)+i+5)+(kp)[i+5]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+4)+(kp)[i+4],	\
+				pe64_to_cpup((mp)+i+5)+(kp)[i+5]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i+4)+(kp)[i+6],	\
-				le64_to_cpup((mp)+i+5)+(kp)[i+7]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+4)+(kp)[i+6],	\
+				pe64_to_cpup((mp)+i+5)+(kp)[i+7]);	\
 			ADD128(rh1, rl1, th, tl);			\
-			MUL64(th, tl, le64_to_cpup((mp)+i+6)+(kp)[i+6],	\
-				le64_to_cpup((mp)+i+7)+(kp)[i+7]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+6)+(kp)[i+6],	\
+				pe64_to_cpup((mp)+i+7)+(kp)[i+7]);	\
 			ADD128(rh, rl, th, tl);				\
-			MUL64(th, tl, le64_to_cpup((mp)+i+6)+(kp)[i+8],	\
-				le64_to_cpup((mp)+i+7)+(kp)[i+9]);	\
+			MUL64(th, tl, pe64_to_cpup((mp)+i+6)+(kp)[i+8],	\
+				pe64_to_cpup((mp)+i+7)+(kp)[i+9]);	\
 			ADD128(rh1, rl1, th, tl);			\
 		}							\
 	} while (0)
@@ -216,8 +218,8 @@ const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 		int i;							\
 		rh = rl = t = 0;					\
 		for (i = 0; i < nw; i += 2)  {				\
-			t1 = le64_to_cpup(mp+i) + kp[i];		\
-			t2 = le64_to_cpup(mp+i+1) + kp[i+1];		\
+			t1 = pe64_to_cpup(mp+i) + kp[i];		\
+			t2 = pe64_to_cpup(mp+i+1) + kp[i+1];		\
 			m2 = MUL32(t1 >> 32, t2);			\
 			m1 = MUL32(t1, t2 >> 32);			\
 			ADD128(rh, rl, MUL32(t1 >> 32, t2 >> 32),	\
@@ -322,8 +324,7 @@ static void vhash_abort(struct vmac_ctx *ctx)
 	ctx->first_block_processed = 0;
 }
 
-static u64 l3hash(u64 p1, u64 p2,
-			u64 k1, u64 k2, u64 len)
+static u64 l3hash(u64 p1, u64 p2, u64 k1, u64 k2, u64 len)
 {
 	u64 rh, rl, t, z = 0;
 
@@ -474,7 +475,7 @@ static u64 vmac(unsigned char m[], unsigned int mbytes,
 	}
 	p = be64_to_cpup(out_p + i);
 	h = vhash(m, mbytes, (u64 *)0, &ctx->__vmac_ctx);
-	return p + h;
+	return le64_to_cpu(p + h);
 }
 
 static int vmac_set_key(unsigned char user_key[], struct vmac_ctx_t *ctx)
@@ -549,10 +550,6 @@ static int vmac_setkey(struct crypto_shash *parent,
 
 static int vmac_init(struct shash_desc *pdesc)
 {
-	struct crypto_shash *parent = pdesc->tfm;
-	struct vmac_ctx_t *ctx = crypto_shash_ctx(parent);
-
-	memset(&ctx->__vmac_ctx, 0, sizeof(struct vmac_ctx));
 	return 0;
 }
 

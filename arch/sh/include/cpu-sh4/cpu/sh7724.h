@@ -9,6 +9,7 @@
  * MD3: BSC - Area0 Bus Width (16/32-bit) [CS0BCR.9,10]
  * MD5: BSC - Endian Mode (L: Big, H: Little) [CMNCR.3]
  * MD8: Test Mode
+ * BOOT: FBR - Boot Mode (L: MMCIF, H: Area0)
  */
 
 /* Pin Function Controller:
@@ -282,5 +283,27 @@ enum {
 	HWBLK_BEU0, HWBLK_CEU0,	HWBLK_VEU0, HWBLK_VPU, HWBLK_LCDC,
 	HWBLK_NR,
 };
+
+enum {
+	SHDMA_SLAVE_SCIF0_TX,
+	SHDMA_SLAVE_SCIF0_RX,
+	SHDMA_SLAVE_SCIF1_TX,
+	SHDMA_SLAVE_SCIF1_RX,
+	SHDMA_SLAVE_SCIF2_TX,
+	SHDMA_SLAVE_SCIF2_RX,
+	SHDMA_SLAVE_SCIF3_TX,
+	SHDMA_SLAVE_SCIF3_RX,
+	SHDMA_SLAVE_SCIF4_TX,
+	SHDMA_SLAVE_SCIF4_RX,
+	SHDMA_SLAVE_SCIF5_TX,
+	SHDMA_SLAVE_SCIF5_RX,
+	SHDMA_SLAVE_SDHI0_TX,
+	SHDMA_SLAVE_SDHI0_RX,
+	SHDMA_SLAVE_SDHI1_TX,
+	SHDMA_SLAVE_SDHI1_RX,
+};
+
+extern struct clk sh7724_fsimcka_clk;
+extern struct clk sh7724_fsimckb_clk;
 
 #endif /* __ASM_SH7724_H__ */

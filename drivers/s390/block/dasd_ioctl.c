@@ -16,7 +16,7 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>
-#include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include <asm/cmb.h>
@@ -199,7 +199,8 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 	if (!argp)
 		return -EINVAL;
 
-	if (block->base->features & DASD_FEATURE_READONLY)
+	if (block->base->features & DASD_FEATURE_READONLY ||
+	    test_bit(DASD_FLAG_DEVICE_RO, &block->base->flags))
 		return -EROFS;
 	if (copy_from_user(&fdata, argp, sizeof(struct format_data_t)))
 		return -EFAULT;
@@ -349,7 +350,8 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 		return -EINVAL;
 	if (get_user(intval, (int __user *)argp))
 		return -EFAULT;
-
+	if (!intval && test_bit(DASD_FLAG_DEVICE_RO, &block->base->flags))
+		return -EROFS;
 	set_disk_ro(bdev->bd_disk, intval);
 	return dasd_set_feature(block->base->cdev, DASD_FEATURE_READONLY, intval);
 }
@@ -367,9 +369,8 @@ static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
 	return ret;
 }
 
-static int
-dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
-	      unsigned int cmd, unsigned long arg)
+int dasd_ioctl(struct block_device *bdev, fmode_t mode,
+	       unsigned int cmd, unsigned long arg)
 {
 	struct dasd_block *block = bdev->bd_disk->private_data;
 	void __user *argp;
@@ -426,15 +427,4 @@ dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
 
 		return -EINVAL;
 	}
-}
-
-int dasd_ioctl(struct block_device *bdev, fmode_t mode,
-	       unsigned int cmd, unsigned long arg)
-{
-	int rc;
-
-	lock_kernel();
-	rc = dasd_do_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
-	return rc;
 }

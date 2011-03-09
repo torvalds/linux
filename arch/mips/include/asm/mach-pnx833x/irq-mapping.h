@@ -123,4 +123,3 @@
 #define PNX833X_GPIO_15_INT			(PNX833X_GPIO_IRQ_BASE + 15)
 
 #endif
-

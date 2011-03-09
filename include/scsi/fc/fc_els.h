@@ -191,6 +191,7 @@ enum fc_els_rjt_reason {
 	ELS_RJT_UNAB =		0x09,	/* unable to perform command request */
 	ELS_RJT_UNSUP =		0x0b,	/* command not supported */
 	ELS_RJT_INPROG =	0x0e,	/* command already in progress */
+	ELS_RJT_FIP =		0x20,	/* FIP error */
 	ELS_RJT_VENDOR =	0xff,	/* vendor specific error */
 };
 
@@ -212,6 +213,7 @@ enum fc_els_rjt_explan {
 	ELS_EXPL_UNAB_DATA =	0x2a,	/* unable to supply requested data */
 	ELS_EXPL_UNSUPR =	0x2c,	/* Request not supported */
 	ELS_EXPL_INV_LEN =	0x2d,	/* Invalid payload length */
+	ELS_EXPL_NOT_NEIGHBOR = 0x62,	/* VN2VN_Port not in neighbor set */
 	/* TBD - above definitions incomplete */
 };
 
@@ -402,6 +404,15 @@ struct fc_els_prli {
 	__u8		prli_spp_len;	/* length of each serv. parm. page */
 	__be16		prli_len;	/* length of entire payload */
 	/* service parameter pages follow */
+};
+
+/*
+ * ELS_PRLO - Process logout request and response.
+ */
+struct fc_els_prlo {
+	__u8            prlo_cmd;       /* command */
+	__u8            prlo_obs;       /* obsolete, but shall be set to 10h */
+	__be16          prlo_len;       /* payload length */
 };
 
 /*

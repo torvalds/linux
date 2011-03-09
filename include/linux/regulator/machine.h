@@ -157,7 +157,11 @@ struct regulator_consumer_supply {
  *
  * Initialisation constraints, our supply and consumers supplies.
  *
- * @supply_regulator_dev: Parent regulator (if any).
+ * @supply_regulator: Parent regulator.  Specified using the regulator name
+ *                    as it appears in the name field in sysfs, which can
+ *                    be explicitly set using the constraints field 'name'.
+ * @supply_regulator_dev: Parent regulator (if any) - DEPRECATED in favour
+ *                        of supply_regulator.
  *
  * @constraints: Constraints.  These must be specified for the regulator to
  *               be usable.
@@ -168,7 +172,8 @@ struct regulator_consumer_supply {
  * @driver_data: Data passed to regulator_init.
  */
 struct regulator_init_data {
-	struct device *supply_regulator_dev; /* or NULL for LINE */
+	const char *supply_regulator;        /* or NULL for system supply */
+	struct device *supply_regulator_dev; /* or NULL for system supply */
 
 	struct regulation_constraints constraints;
 
@@ -184,8 +189,13 @@ int regulator_suspend_prepare(suspend_state_t state);
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
+void regulator_use_dummy_regulator(void);
 #else
 static inline void regulator_has_full_constraints(void)
+{
+}
+
+static inline void regulator_use_dummy_regulator(void)
 {
 }
 #endif

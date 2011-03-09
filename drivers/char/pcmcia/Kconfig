@@ -28,7 +28,7 @@ config CARDMAN_4000
 
 	  This kernel driver requires additional userspace support, either
 	  by the vendor-provided PC/SC ifd_handler (http://www.omnikey.com/),
-	  or via the cm4000 backend of OpenCT (http://www.opensc.com/).
+	  or via the cm4000 backend of OpenCT (http://www.opensc-project.org/opensc).
 
 config CARDMAN_4040
 	tristate "Omnikey CardMan 4040 support"
@@ -41,7 +41,7 @@ config CARDMAN_4040
 	  in I/O space.  To use the kernel driver, you will need either the
 	  PC/SC ifdhandler provided from the Omnikey homepage
 	  (http://www.omnikey.com/), or a current development version of OpenCT
-	  (http://www.opensc.org/).
+	  (http://www.opensc-project.org/opensc).
 
 config IPWIRELESS
 	tristate "IPWireless 3G UMTS PCMCIA card support"

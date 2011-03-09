@@ -64,14 +64,13 @@ NI manuals:
 #include "../comedidev.h"
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "8253.h"
 #include "8255.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -142,8 +141,8 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		link = pcmcia_cur_dev;	/* XXX hack */
 		if (!link)
 			return -EIO;
-		iobase = link->io.BasePort1;
-		irq = link->irq.AssignedIRQ;
+		iobase = link->resource[0]->start;
+		irq = link->irq;
 		break;
 	default:
 		printk("bug! couldn't determine board type\n");
@@ -153,67 +152,19 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return labpc_common_attach(dev, iobase, irq, 0);
 }
 
-/*====================================================================*/
-
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.  They are invoked from the dummy
-   event handler.
-
-   Kernel version 2.6.16 upwards uses suspend() and resume() functions
-   instead of an event() function.
-*/
-
 static void labpc_config(struct pcmcia_device *link);
 static void labpc_release(struct pcmcia_device *link);
 static int labpc_cs_suspend(struct pcmcia_device *p_dev);
 static int labpc_cs_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int labpc_cs_attach(struct pcmcia_device *);
 static void labpc_cs_detach(struct pcmcia_device *);
 
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static const dev_info_t dev_info = "daqcard-1200";
-
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
-
-/*======================================================================
-
-    labpc_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int labpc_cs_attach(struct pcmcia_device *link)
 {
@@ -228,35 +179,12 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_FORCED_PULSE;
-	link->irq.Handler = NULL;
-
-	/*
-	   General socket configuration defaults can go here.  In this
-	   client, we assume very little, and rely on the CIS for almost
-	   everything.  In most clients, many details (i.e., number, sizes,
-	   and attributes of IO windows) are fixed by the nature of the
-	   device, and can be hard-wired here.
-	 */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	pcmcia_cur_dev = link;
 
 	labpc_config(link);
 
 	return 0;
 }				/* labpc_cs_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void labpc_cs_detach(struct pcmcia_device *link)
 {
@@ -268,147 +196,45 @@ static void labpc_cs_detach(struct pcmcia_device *link)
 	   the release() function is called, that will trigger a proper
 	   detach().
 	 */
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		labpc_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	labpc_release(link);
 
 	/* This points to the parent local_info_t struct (may be null) */
 	kfree(link->priv);
 
 }				/* labpc_cs_detach */
 
-/*======================================================================
-
-    labpc_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
 static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
-	win_req_t *req = priv_data;
-	memreq_t map;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	if (cfg->index == 0)
-		return -ENODEV;
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
-		}
-		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
-			return -ENODEV;
-	}
-
-	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
-		cistpl_mem_t *mem =
-			(cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		req->Attributes = WIN_DATA_WIDTH_16 | WIN_MEMORY_TYPE_CM;
-		req->Attributes |= WIN_ENABLE;
-		req->Base = mem->win[0].host_addr;
-		req->Size = mem->win[0].len;
-		if (req->Size < 0x1000)
-			req->Size = 0x1000;
-		req->AccessSpeed = 0;
-		if (pcmcia_request_window(p_dev, req, &p_dev->win))
-			return -ENODEV;
-		map.Page = 0;
-		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map))
-			return -ENODEV;
-	}
-	/* If we got this far, we're cool! */
-	return 0;
+	return pcmcia_request_io(p_dev);
 }
 
 
 static void labpc_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	int ret;
-	win_req_t req;
 
 	dev_dbg(&link->dev, "labpc_config\n");
 
-	ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop, &req);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ |
+		CONF_AUTO_AUDIO | CONF_AUTO_SET_IO;
+
+	ret = pcmcia_loop_config(link, labpc_pcmcia_config_loop, NULL);
 	if (ret) {
 		dev_warn(&link->dev, "no configuration found\n");
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
-
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
-	if (ret)
+	if (!link->irq)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "daqcard-1200");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
-	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
-	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", req.Base,
-		       req.Base + req.Size - 1);
-	printk("\n");
+	ret = pcmcia_enable_device(link);
+	if (ret)
+		goto failed;
 
 	return;
 
@@ -423,18 +249,6 @@ static void labpc_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }				/* labpc_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
 
 static int labpc_cs_suspend(struct pcmcia_device *link)
 {
@@ -453,8 +267,6 @@ static int labpc_cs_resume(struct pcmcia_device *link)
 	return 0;
 }				/* labpc_cs_resume */
 
-/*====================================================================*/
-
 static struct pcmcia_device_id labpc_cs_ids[] = {
 	/* N.B. These IDs should match those in labpc_cs_boards (ni_labpc.c) */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x0103),	/* daqcard-1200 */
@@ -462,6 +274,9 @@ static struct pcmcia_device_id labpc_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, labpc_cs_ids);
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments Lab-PC");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver labpc_cs_driver = {
 	.probe = labpc_cs_attach,
@@ -470,9 +285,7 @@ struct pcmcia_driver labpc_cs_driver = {
 	.resume = labpc_cs_resume,
 	.id_table = labpc_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = dev_info,
-		},
+	.name = "daqcard-1200",
 };
 
 static int __init init_labpc_cs(void)
@@ -503,6 +316,5 @@ void __exit labpc_exit_module(void)
 	comedi_driver_unregister(&driver_labpc_cs);
 }
 
-MODULE_LICENSE("GPL");
 module_init(labpc_init_module);
 module_exit(labpc_exit_module);

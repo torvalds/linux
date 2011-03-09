@@ -75,9 +75,8 @@ __be32 in_aton(const char *str)
 				str++;
 		}
 	}
-	return(htonl(l));
+	return htonl(l);
 }
-
 EXPORT_SYMBOL(in_aton);
 
 #define IN6PTON_XDIGIT		0x00010000
@@ -93,18 +92,19 @@ EXPORT_SYMBOL(in_aton);
 
 static inline int xdigit2bin(char c, int delim)
 {
+	int val;
+
 	if (c == delim || c == '\0')
 		return IN6PTON_DELIM;
 	if (c == ':')
 		return IN6PTON_COLON_MASK;
 	if (c == '.')
 		return IN6PTON_DOT;
-	if (c >= '0' && c <= '9')
-		return (IN6PTON_XDIGIT | IN6PTON_DIGIT| (c - '0'));
-	if (c >= 'a' && c <= 'f')
-		return (IN6PTON_XDIGIT | (c - 'a' + 10));
-	if (c >= 'A' && c <= 'F')
-		return (IN6PTON_XDIGIT | (c - 'A' + 10));
+
+	val = hex_to_bin(c);
+	if (val >= 0)
+		return val | IN6PTON_XDIGIT | (val < 10 ? IN6PTON_DIGIT : 0);
+
 	if (delim == -1)
 		return IN6PTON_DELIM;
 	return IN6PTON_UNKNOWN;
@@ -162,7 +162,6 @@ out:
 		*end = s;
 	return ret;
 }
-
 EXPORT_SYMBOL(in4_pton);
 
 int in6_pton(const char *src, int srclen,
@@ -280,7 +279,6 @@ out:
 		*end = s;
 	return ret;
 }
-
 EXPORT_SYMBOL(in6_pton);
 
 void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,

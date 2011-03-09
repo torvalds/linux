@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
 
@@ -469,7 +470,7 @@ struct cgroup_subsys devices_subsys = {
 	.name = "devices",
 	.can_attach = devcgroup_can_attach,
 	.create = devcgroup_create,
-	.destroy  = devcgroup_destroy,
+	.destroy = devcgroup_destroy,
 	.populate = devcgroup_populate,
 	.subsys_id = devices_subsys_id,
 };

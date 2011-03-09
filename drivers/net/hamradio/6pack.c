@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <net/ax25.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -607,7 +608,7 @@ static int sixpack_open(struct tty_struct *tty)
 
 	spin_lock_init(&sp->lock);
 	atomic_set(&sp->refcnt, 1);
-	init_MUTEX_LOCKED(&sp->dead_sem);
+	sema_init(&sp->dead_sem, 0);
 
 	/* !!! length of the buffers. MTU is IP MTU, not PACLEN!  */
 

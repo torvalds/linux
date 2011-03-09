@@ -220,7 +220,7 @@ static int pci200_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		    new_line.clock_type != CLOCK_TXFROMRX &&
 		    new_line.clock_type != CLOCK_INT &&
 		    new_line.clock_type != CLOCK_TXINT)
-		return -EINVAL;	/* No such clock setting */
+			return -EINVAL;	/* No such clock setting */
 
 		if (new_line.loopback != 0 && new_line.loopback != 1)
 			return -EINVAL;
@@ -417,7 +417,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 
 
 
-static struct pci_device_id pci200_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(pci200_pci_tbl) = {
 	{ PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050, PCI_VENDOR_ID_PLX,
 	  PCI_DEVICE_ID_PLX_PCI200SYN, 0, 0, 0 },
 	{ 0, }

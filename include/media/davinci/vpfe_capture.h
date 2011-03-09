@@ -94,6 +94,8 @@ struct vpfe_config {
 	/* vpfe clock */
 	struct clk *vpssclk;
 	struct clk *slaveclk;
+	/* Function for Clearing the interrupt */
+	void (*clr_intr)(int vdint);
 };
 
 struct vpfe_device {
@@ -165,7 +167,7 @@ struct vpfe_device {
 	u8 started;
 	/*
 	 * offset where second field starts from the starting of the
-	 * buffer for field seperated YCbCr formats
+	 * buffer for field separated YCbCr formats
 	 */
 	u32 field_off;
 };

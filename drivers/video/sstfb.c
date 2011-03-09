@@ -86,7 +86,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <video/sstfb.h>
@@ -537,7 +536,7 @@ static int sstfb_set_par(struct fb_info *info)
 	fbiinit2 = sst_read(FBIINIT2);
 	fbiinit3 = sst_read(FBIINIT3);
 
-	/* everything is reset. we enable fbiinit2/3 remap : dac acces ok */
+	/* everything is reset. we enable fbiinit2/3 remap : dac access ok */
 	pci_write_config_dword(sst_dev, PCI_INIT_ENABLE,
 	                       PCI_EN_INIT_WR | PCI_REMAP_DAC );
 
@@ -1102,7 +1101,7 @@ static void sst_set_vidmod_ics(struct fb_info *info, const int bpp)
  * detect dac type
  * prerequisite : write to FbiInitx enabled, video and fbi and pci fifo reset,
  * dram refresh disabled, FbiInit remaped.
- * TODO: mmh.. maybe i shoud put the "prerequisite" in the func ...
+ * TODO: mmh.. maybe i should put the "prerequisite" in the func ...
  */
 
 

@@ -90,21 +90,6 @@ pasemi_mac_ethtool_set_settings(struct net_device *netdev,
 	return phy_ethtool_sset(phydev, cmd);
 }
 
-static void
-pasemi_mac_ethtool_get_drvinfo(struct net_device *netdev,
-			       struct ethtool_drvinfo *drvinfo)
-{
-	struct pasemi_mac *mac;
-	mac = netdev_priv(netdev);
-
-	/* clear and fill out info */
-	memset(drvinfo, 0, sizeof(struct ethtool_drvinfo));
-	strncpy(drvinfo->driver, "pasemi_mac", 12);
-	strcpy(drvinfo->version, "N/A");
-	strcpy(drvinfo->fw_version, "N/A");
-	strncpy(drvinfo->bus_info, pci_name(mac->pdev), 32);
-}
-
 static u32
 pasemi_mac_ethtool_get_msglevel(struct net_device *netdev)
 {
@@ -164,7 +149,6 @@ static void pasemi_mac_get_strings(struct net_device *netdev, u32 stringset,
 const struct ethtool_ops pasemi_mac_ethtool_ops = {
 	.get_settings		= pasemi_mac_ethtool_get_settings,
 	.set_settings		= pasemi_mac_ethtool_set_settings,
-	.get_drvinfo		= pasemi_mac_ethtool_get_drvinfo,
 	.get_msglevel		= pasemi_mac_ethtool_get_msglevel,
 	.set_msglevel		= pasemi_mac_ethtool_set_msglevel,
 	.get_link		= ethtool_op_get_link,

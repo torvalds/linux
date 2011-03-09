@@ -77,6 +77,8 @@ static const struct pci_device_id ath5k_led_devices[] = {
 	{ ATH_SDEVICE(PCI_VENDOR_ID_HP, 0x0137a), ATH_LED(3, 1) },
 	/* HP Compaq C700 (nitrousnrg@gmail.com) */
 	{ ATH_SDEVICE(PCI_VENDOR_ID_HP, 0x0137b), ATH_LED(3, 1) },
+	/* LiteOn AR5BXB63 (magooz@salug.it) */
+	{ ATH_SDEVICE(PCI_VENDOR_ID_ATHEROS, 0x3067), ATH_LED(3, 0) },
 	/* IBM-specific AR5212 (all others) */
 	{ PCI_VDEVICE(ATHEROS, PCI_DEVICE_ID_ATHEROS_AR5212_IBM), ATH_LED(0, 0) },
 	/* Dell Vostro A860 (shahar@shahar-or.co.il) */
@@ -131,7 +133,7 @@ ath5k_register_led(struct ath5k_softc *sc, struct ath5k_led *led,
 	led->led_dev.default_trigger = trigger;
 	led->led_dev.brightness_set = ath5k_led_brightness_set;
 
-	err = led_classdev_register(&sc->pdev->dev, &led->led_dev);
+	err = led_classdev_register(sc->dev, &led->led_dev);
 	if (err) {
 		ATH5K_WARN(sc, "could not register LED %s\n", name);
 		led->sc = NULL;
@@ -159,11 +161,20 @@ int ath5k_init_leds(struct ath5k_softc *sc)
 {
 	int ret = 0;
 	struct ieee80211_hw *hw = sc->hw;
+#ifndef CONFIG_ATHEROS_AR231X
 	struct pci_dev *pdev = sc->pdev;
+#endif
 	char name[ATH5K_LED_MAX_NAME_LEN + 1];
 	const struct pci_device_id *match;
 
+	if (!sc->pdev)
+		return 0;
+
+#ifdef CONFIG_ATHEROS_AR231X
+	match = NULL;
+#else
 	match = pci_match_id(&ath5k_led_devices[0], pdev);
+#endif
 	if (match) {
 		__set_bit(ATH_STAT_LEDSOFT, sc->status);
 		sc->led_pin = ATH_PIN(match->driver_data);

@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "vnic_dev.h"
 #include "vnic_rq.h"
 

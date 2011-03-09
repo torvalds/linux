@@ -19,7 +19,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <sound/core.h>
@@ -91,12 +90,7 @@ int snd_cs5535audio_resume(struct pci_dev *pci)
 	int i;
 
 	pci_set_power_state(pci, PCI_D0);
-	if (pci_restore_state(pci) < 0) {
-		printk(KERN_ERR "cs5535audio: pci_restore_state failed, "
-		       "disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
+	pci_restore_state(pci);
 	if (pci_enable_device(pci) < 0) {
 		printk(KERN_ERR "cs5535audio: pci_enable_device failed, "
 		       "disabling device\n");

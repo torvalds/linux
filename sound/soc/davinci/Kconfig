@@ -12,15 +12,38 @@ config SND_DAVINCI_SOC_I2S
 config SND_DAVINCI_SOC_MCASP
 	tristate
 
+config SND_DAVINCI_SOC_VCIF
+	tristate
+
 config SND_DAVINCI_SOC_EVM
 	tristate "SoC Audio support for DaVinci DM6446, DM355 or DM365 EVM"
 	depends on SND_DAVINCI_SOC
-	depends on MACH_DAVINCI_EVM || MACH_DAVINCI_DM355_EVM  || MACH_DAVINCI_DM365_EVM
+	depends on MACH_DAVINCI_EVM || MACH_DAVINCI_DM355_EVM || MACH_DAVINCI_DM365_EVM
 	select SND_DAVINCI_SOC_I2S
 	select SND_SOC_TLV320AIC3X
 	help
 	  Say Y if you want to add support for SoC audio on TI
-	  DaVinci DM6446 or DM355 EVM platforms.
+	  DaVinci DM6446, DM355 or DM365 EVM platforms.
+
+choice
+	prompt "DM365 codec select"
+	depends on SND_DAVINCI_SOC_EVM
+	depends on MACH_DAVINCI_DM365_EVM
+	default SND_DM365_EXTERNAL_CODEC
+
+config SND_DM365_AIC3X_CODEC
+	bool "Audio Codec - AIC3101"
+	help
+	  Say Y if you want to add support for AIC3101 audio codec
+
+config SND_DM365_VOICE_CODEC
+	bool "Voice Codec - CQ93VC"
+	select MFD_DAVINCI_VOICECODEC
+	select SND_DAVINCI_SOC_VCIF
+	select SND_SOC_CQ0093VC
+	help
+	  Say Y if you want to add support for SoC On-chip voice codec
+endchoice
 
 config  SND_DM6467_SOC_EVM
 	tristate "SoC Audio support for DaVinci DM6467 EVM"

@@ -46,10 +46,12 @@ static inline void crisv32_io_set(struct crisv32_iopin *iopin, int val)
 	unsigned long flags;
 	spin_lock_irqsave(&iopin->port->lock, flags);
 
-	if (val)
-		*iopin->port->data |= iopin->bit;
-	else
-		*iopin->port->data &= ~iopin->bit;
+	if (iopin->port->data) {
+		if (val)
+			*iopin->port->data |= iopin->bit;
+		else
+			*iopin->port->data &= ~iopin->bit;
+	}
 
 	spin_unlock_irqrestore(&iopin->port->lock, flags);
 }
@@ -60,10 +62,12 @@ static inline void crisv32_io_set_dir(struct crisv32_iopin* iopin,
 	unsigned long flags;
 	spin_lock_irqsave(&iopin->port->lock, flags);
 
-	if (dir == crisv32_io_dir_in)
-		*iopin->port->oe &= ~iopin->bit;
-	else
-		*iopin->port->oe |= iopin->bit;
+	if (iopin->port->oe) {
+		if (dir == crisv32_io_dir_in)
+			*iopin->port->oe &= ~iopin->bit;
+		else
+			*iopin->port->oe |= iopin->bit;
+	}
 
 	spin_unlock_irqrestore(&iopin->port->lock, flags);
 }

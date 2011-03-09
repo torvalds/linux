@@ -17,8 +17,6 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/ir-common.h>
-#include <media/ir-kbd-i2c.h>
 #include <media/i2c-addr.h>
 #include <media/tuner.h>
 

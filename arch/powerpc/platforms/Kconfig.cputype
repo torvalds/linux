@@ -43,7 +43,7 @@ config 40x
 	select PPC_PCI_CHOICE
 
 config 44x
-	bool "AMCC 44x"
+	bool "AMCC 44x, 46x or 47x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
@@ -125,6 +125,7 @@ config 8xx
 
 config E500
 	select FSL_EMB_PERFMON
+	select PPC_FSL_BOOK3E
 	bool
 
 config PPC_E500MC
@@ -144,6 +145,16 @@ config FSL_EMB_PERFMON
 	  and some e300 cores (c3 and c4).  Select this only if your
 	  core supports the Embedded Performance Monitor APU
 
+config FSL_EMB_PERF_EVENT
+	bool
+	depends on FSL_EMB_PERFMON && PERF_EVENTS && !PPC_PERF_CTRS
+	default y
+
+config FSL_EMB_PERF_EVENT_E500
+	bool
+	depends on FSL_EMB_PERF_EVENT && E500
+	default y
+
 config 4xx
 	bool
 	depends on 40x || 44x
@@ -156,9 +167,14 @@ config BOOKE
 
 config FSL_BOOKE
 	bool
-	depends on E200 || E500
+	depends on (E200 || E500) && PPC32
 	default y
 
+# this is for common code between PPC32 & PPC64 FSL BOOKE
+config PPC_FSL_BOOK3E
+	bool
+	select FSL_EMB_PERFMON
+	default y if FSL_BOOKE
 
 config PTE_64BIT
 	bool
@@ -284,7 +300,7 @@ config PPC_PERF_CTRS
          This enables the powerpc-specific perf_event back-end.
 
 config SMP
-	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE
+	depends on PPC_BOOK3S || PPC_BOOK3E || FSL_BOOKE || PPC_47x
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU. If you have
@@ -312,6 +328,7 @@ config NR_CPUS
 config NOT_COHERENT_CACHE
 	bool
 	depends on 4xx || 8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
+	default n if PPC_47x
 	default y
 
 config CHECK_CACHE_COHERENCY

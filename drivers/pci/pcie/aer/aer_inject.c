@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/stddef.h>
@@ -167,7 +168,7 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 		target = &err->root_status;
 		rw1cs = 1;
 		break;
-	case PCI_ERR_ROOT_COR_SRC:
+	case PCI_ERR_ROOT_ERR_SRC:
 		target = &err->source_id;
 		break;
 	}
@@ -471,6 +472,7 @@ static ssize_t aer_inject_write(struct file *filp, const char __user *ubuf,
 static const struct file_operations aer_inject_fops = {
 	.write = aer_inject_write,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice aer_inject_device = {

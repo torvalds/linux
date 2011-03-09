@@ -67,7 +67,7 @@
 	    (__avg).avg_weight  ? \
 		((((__avg).avg_weight * ((AVG_SAMPLES) - 1)) + \
 		  ((__val) * (AVG_FACTOR))) / \
-		 (AVG_SAMPLES) ) : \
+		 (AVG_SAMPLES)) : \
 		((__val) * (AVG_FACTOR)); \
 	__new.avg = __new.avg_weight / (AVG_FACTOR); \
 	__new; \
@@ -188,7 +188,6 @@ static void rt2x00lib_antenna_diversity_eval(struct rt2x00_dev *rt2x00dev)
 static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 {
 	struct link_ant *ant = &rt2x00dev->link.ant;
-	unsigned int flags = ant->flags;
 
 	/*
 	 * Determine if software diversity is enabled for
@@ -196,22 +195,19 @@ static bool rt2x00lib_antenna_diversity(struct rt2x00_dev *rt2x00dev)
 	 * Always perform this check since within the link
 	 * tuner interval the configuration might have changed.
 	 */
-	flags &= ~ANTENNA_RX_DIVERSITY;
-	flags &= ~ANTENNA_TX_DIVERSITY;
+	ant->flags &= ~ANTENNA_RX_DIVERSITY;
+	ant->flags &= ~ANTENNA_TX_DIVERSITY;
 
 	if (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY)
-		flags |= ANTENNA_RX_DIVERSITY;
+		ant->flags |= ANTENNA_RX_DIVERSITY;
 	if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
-		flags |= ANTENNA_TX_DIVERSITY;
+		ant->flags |= ANTENNA_TX_DIVERSITY;
 
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY) &&
 	    !(ant->flags & ANTENNA_TX_DIVERSITY)) {
 		ant->flags = 0;
 		return true;
 	}
-
-	/* Update flags */
-	ant->flags = flags;
 
 	/*
 	 * If we have only sampled the data over the last period
@@ -238,6 +234,12 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 	struct link_qual *qual = &rt2x00dev->link.qual;
 	struct link_ant *ant = &rt2x00dev->link.ant;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+	/*
+	 * No need to update the stats for !=STA interfaces
+	 */
+	if (!rt2x00dev->intf_sta_count)
+		return;
 
 	/*
 	 * Frame was received successfully since non-succesfull
@@ -271,11 +273,20 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Link tuning should only be performed when
-	 * an active sta or master interface exists.
-	 * Single monitor mode interfaces should never have
-	 * work with link tuners.
+	 * an active sta interface exists. AP interfaces
+	 * don't need link tuning and monitor mode interfaces
+	 * should never have to work with link tuners.
 	 */
-	if (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count)
+	if (!rt2x00dev->intf_sta_count)
+		return;
+
+	/**
+	 * While scanning, link tuning is disabled. By default
+	 * the most sensitive settings will be used to make sure
+	 * that all beacons and probe responses will be recieved
+	 * during the scan.
+	 */
+	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
 		return;
 
 	rt2x00link_reset_tuner(rt2x00dev, false);
@@ -293,6 +304,7 @@ void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev)
 void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 {
 	struct link_qual *qual = &rt2x00dev->link.qual;
+	u8 vgc_level = qual->vgc_level_reg;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
@@ -307,6 +319,13 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 	 */
 	rt2x00dev->link.count = 0;
 	memset(qual, 0, sizeof(*qual));
+
+	/*
+	 * Restore the VGC level as stored in the registers,
+	 * the driver can use this to determine if the register
+	 * must be updated during reset or not.
+	 */
+	qual->vgc_level_reg = vgc_level;
 
 	/*
 	 * Reset the link tuner.
@@ -338,7 +357,8 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 * When the radio is shutting down we should
 	 * immediately cease all link tuning.
 	 */
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
+	    test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
 		return;
 
 	/*
@@ -359,10 +379,11 @@ static void rt2x00link_tuner(struct work_struct *work)
 		qual->rssi = link->avg_rssi.avg;
 
 	/*
-	 * Only perform the link tuning when Link tuning
-	 * has been enabled (This could have been disabled from the EEPROM).
+	 * Check if link tuning is supported by the hardware, some hardware
+	 * do not support link tuning at all, while other devices can disable
+	 * the feature from the EEPROM.
 	 */
-	if (!test_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags))
+	if (test_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev, qual, link->count);
 
 	/*
@@ -388,7 +409,43 @@ static void rt2x00link_tuner(struct work_struct *work)
 					     &link->work, LINK_TUNE_INTERVAL);
 }
 
+void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	struct link *link = &rt2x00dev->link;
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
+	    !test_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags))
+		return;
+
+	schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
+}
+
+void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	cancel_delayed_work_sync(&rt2x00dev->link.watchdog_work);
+}
+
+static void rt2x00link_watchdog(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, link.watchdog_work.work);
+	struct link *link = &rt2x00dev->link;
+
+	/*
+	 * When the radio is shutting down we should
+	 * immediately cease the watchdog monitoring.
+	 */
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
+	rt2x00dev->ops->lib->watchdog(rt2x00dev);
+
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
+}
+
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)
 {
+	INIT_DELAYED_WORK(&rt2x00dev->link.watchdog_work, rt2x00link_watchdog);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00link_tuner);
 }

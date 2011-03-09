@@ -201,6 +201,20 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 	return 0;
 }
 
+/* nVidia controllers continue to drive Reset signalling on the bus
+ * even after system shutdown, wasting power.  This flag tells the
+ * shutdown routine to leave the controller OPERATIONAL instead of RESET.
+ */
+static int ohci_quirk_nvidia_shutdown(struct usb_hcd *hcd)
+{
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+
+	ohci->flags |= OHCI_QUIRK_SHUTDOWN;
+	ohci_dbg(ohci, "enabled nVidia shutdown quirk\n");
+
+	return 0;
+}
+
 /*
  * The hardware normally enables the A-link power management feature, which
  * lets the system lower the power consumption in idle states.
@@ -332,6 +346,10 @@ static const struct pci_device_id ohci_pci_quirks[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_ATI, 0x4399),
 		.driver_data = (unsigned long)ohci_quirk_amd700,
 	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID),
+		.driver_data = (unsigned long) ohci_quirk_nvidia_shutdown,
+	},
 
 	/* FIXME for some of the early AMD 760 southbridges, OHCI
 	 * won't work at all.  blacklist them.
@@ -392,7 +410,7 @@ static int __devinit ohci_pci_start (struct usb_hcd *hcd)
 
 #ifdef	CONFIG_PM
 
-static int ohci_pci_suspend(struct usb_hcd *hcd)
+static int ohci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	unsigned long	flags;

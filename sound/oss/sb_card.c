@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include "sound_config.h"
 #include "sb_mixer.h"

@@ -22,6 +22,7 @@
 #include <linux/jiffies.h>
 #include <linux/security.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 
@@ -476,7 +477,7 @@ EXPORT_SYMBOL_GPL(scsi_nl_remove_driver);
 
 
 /**
- * scsi_netlink_init - Called by SCSI subsystem to intialize
+ * scsi_netlink_init - Called by SCSI subsystem to initialize
  * 	the SCSI transport netlink interface
  *
  **/

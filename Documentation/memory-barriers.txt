@@ -3,6 +3,7 @@
 			 ============================
 
 By: David Howells <dhowells@redhat.com>
+    Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
 Contents:
 
@@ -59,6 +60,10 @@ Contents:
  (*) The things CPUs get up to.
 
      - And then there's the Alpha.
+
+ (*) Example uses.
+
+     - Circular buffers.
 
  (*) References.
 
@@ -2224,6 +2229,21 @@ changes vs new data occur in the right order.
 The Alpha defines the Linux kernel's memory barrier model.
 
 See the subsection on "Cache Coherency" above.
+
+
+============
+EXAMPLE USES
+============
+
+CIRCULAR BUFFERS
+----------------
+
+Memory barriers can be used to implement circular buffering without the need
+of a lock to serialise the producer with the consumer.  See:
+
+	Documentation/circular-buffers.txt
+
+for details.
 
 
 ==========

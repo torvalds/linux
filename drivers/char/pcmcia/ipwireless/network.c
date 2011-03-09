@@ -21,6 +21,7 @@
 #include <linux/netdevice.h>
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
+#include <linux/slab.h>
 #include <linux/if_ppp.h>
 #include <linux/skbuff.h>
 
@@ -238,7 +239,7 @@ static int ipwireless_ppp_ioctl(struct ppp_channel *ppp_channel,
 	return err;
 }
 
-static struct ppp_channel_ops ipwireless_ppp_channel_ops = {
+static const struct ppp_channel_ops ipwireless_ppp_channel_ops = {
 	.start_xmit = ipwireless_ppp_start_xmit,
 	.ioctl      = ipwireless_ppp_ioctl
 };
@@ -429,7 +430,8 @@ void ipwireless_network_free(struct ipw_network *network)
 	network->shutting_down = 1;
 
 	ipwireless_ppp_close(network);
-	flush_scheduled_work();
+	flush_work_sync(&network->work_go_online);
+	flush_work_sync(&network->work_go_offline);
 
 	ipwireless_stop_interrupts(network->hardware);
 	ipwireless_associate_network(network->hardware, NULL);

@@ -5,7 +5,7 @@ Supported chips:
   * Via VT82C686A, VT82C686B  Southbridge Integrated Hardware Monitor
     Prefix: 'via686a'
     Addresses scanned: ISA in PCI-space encoded address
-    Datasheet: On request through web form (http://www.via.com.tw/en/support/datasheets/)
+    Datasheet: On request through web form (http://www.via.com.tw/en/resources/download-center/)
 
 Authors:
         Kyösti Mälkki <kmalkki@cc.hut.fi>,

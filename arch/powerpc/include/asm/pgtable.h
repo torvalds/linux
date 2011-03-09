@@ -209,7 +209,7 @@ extern void paging_init(void);
  * corresponding HPTE into the hash table ahead of time, instead of
  * waiting for the inevitable extra hash-table miss exception.
  */
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
+extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 
 extern int gup_hugepd(hugepd_t *hugepd, unsigned pdshift, unsigned long addr,
 		      unsigned long end, int write, struct page **pages, int *nr);

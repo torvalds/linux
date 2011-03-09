@@ -29,6 +29,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 
@@ -161,10 +162,6 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], \
-		   ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
-
 /*
  * To use the debug system;
  *
@@ -218,7 +215,6 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
 #include <linux/netdevice.h>
-#include <linux/wireless.h>
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
 
 #ifndef WIRELESS_SPY
@@ -481,15 +477,6 @@ struct ieee80211_header_data {
 	u8 addr3[6];
 	u16 seq_ctrl;
 };
-
-struct ieee80211_hdr_3addr {
-	u16 frame_ctl;
-	u16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	u16 seq_ctl;
-} __attribute__ ((packed));
 
 struct ieee80211_hdr_4addr {
 	u16 frame_ctl;

@@ -1,0 +1,44 @@
+perf-lock(1)
+============
+
+NAME
+----
+perf-lock - Analyze lock events
+
+SYNOPSIS
+--------
+[verse]
+'perf lock' {record|report|trace}
+
+DESCRIPTION
+-----------
+You can analyze various lock behaviours
+and statistics with this 'perf lock' command.
+
+  'perf lock record <command>' records lock events
+  between start and end <command>. And this command
+  produces the file "perf.data" which contains tracing
+  results of lock events.
+
+  'perf lock trace' shows raw lock events.
+
+  'perf lock report' reports statistical data.
+
+OPTIONS
+-------
+
+-i::
+--input=<file>::
+        Input file name.
+
+-v::
+--verbose::
+        Be more verbose (show symbol address, etc).
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
+SEE ALSO
+--------
+linkperf:perf[1]

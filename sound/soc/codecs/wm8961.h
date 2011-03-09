@@ -11,9 +11,6 @@
 
 #include <sound/soc.h>
 
-extern struct snd_soc_codec_device soc_codec_dev_wm8961;
-extern struct snd_soc_dai wm8961_dai;
-
 #define WM8961_BCLK  1
 #define WM8961_LRCLK 2
 

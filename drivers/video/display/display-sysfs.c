@@ -27,6 +27,7 @@
 #include <linux/idr.h>
 #include <linux/err.h>
 #include <linux/kdev_t.h>
+#include <linux/slab.h>
 
 static ssize_t display_show_name(struct device *dev,
 				struct device_attribute *attr, char *buf)

@@ -35,7 +35,7 @@
 #define SLAVE_ICW4_DEFAULT	0x01
 #define PIC_ICW4_AEOI		2
 
-extern spinlock_t i8259A_lock;
+extern raw_spinlock_t i8259A_lock;
 
 extern int i8259A_irq_pending(unsigned int irq);
 extern void make_8259A_irq(unsigned int irq);
@@ -51,7 +51,7 @@ static inline int i8259_irq(void)
 {
 	int irq;
 
-	spin_lock(&i8259A_lock);
+	raw_spin_lock(&i8259A_lock);
 
 	/* Perform an interrupt acknowledge cycle on controller 1. */
 	outb(0x0C, PIC_MASTER_CMD);		/* prepare for poll */
@@ -78,7 +78,7 @@ static inline int i8259_irq(void)
 			irq = -1;
 	}
 
-	spin_unlock(&i8259A_lock);
+	raw_spin_unlock(&i8259A_lock);
 
 	return likely(irq >= 0) ? irq + I8259A_IRQ_BASE : irq;
 }

@@ -1,35 +1,32 @@
   <title>Teletext Interface</title>
 
-  <para>This interface aims at devices receiving and demodulating
+  <para>This interface was aimed at devices receiving and demodulating
 Teletext data [<xref linkend="ets300706" />, <xref linkend="itu653" />], evaluating the
 Teletext packages and storing formatted pages in cache memory. Such
 devices are usually implemented as microcontrollers with serial
-interface (I<superscript>2</superscript>C) and can be found on older
+interface (I<superscript>2</superscript>C) and could be found on old
 TV cards, dedicated Teletext decoding cards and home-brew devices
 connected to the PC parallel port.</para>
 
-  <para>The Teletext API was designed by Martin Buck. It is defined in
+  <para>The Teletext API was designed by Martin Buck. It was defined in
 the kernel header file <filename>linux/videotext.h</filename>, the
 specification is available from <ulink url="ftp://ftp.gwdg.de/pub/linux/misc/videotext/">
 ftp://ftp.gwdg.de/pub/linux/misc/videotext/</ulink>. (Videotext is the name of
-the German public television Teletext service.) Conventional character
-device file names are <filename>/dev/vtx</filename> and
-<filename>/dev/vttuner</filename>, with device number 83, 0 and 83, 16
-respectively. A similar interface exists for the Philips SAA5249
-Teletext decoder [specification?] with character device file names
-<filename>/dev/tlkN</filename>, device number 102, N.</para>
+the German public television Teletext service.)</para>
 
   <para>Eventually the Teletext API was integrated into the V4L API
 with character device file names <filename>/dev/vtx0</filename> to
 <filename>/dev/vtx31</filename>, device major number 81, minor numbers
-192 to 223. For reference the V4L Teletext API specification is
-reproduced here in full: "Teletext interfaces talk the existing VTX
-API." Teletext devices with major number 83 and 102 will be removed in
-Linux 2.6.</para>
+192 to 223.</para>
 
-  <para>There are no plans to replace the Teletext API or to integrate
-it into V4L2. Please write to the linux-media mailing list: &v4l-ml;
-when the need arises.</para>
+  <para>However, teletext decoders were quickly replaced by more
+generic VBI demodulators and those dedicated teletext decoders no longer exist.
+For many years the vtx devices were still around, even though nobody used
+them. So the decision was made to finally remove support for the Teletext API in
+kernel 2.6.37.</para>
+
+  <para>Modern devices all use the <link linkend="raw-vbi">raw</link> or
+<link linkend="sliced">sliced</link> VBI API.</para>
 
   <!--
 Local Variables:

@@ -22,7 +22,7 @@
 static char			const *input_name = "perf.data";
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
-static char			*sort_order = default_sort_order;
+static const char		*sort_order = default_sort_order;
 
 static int			profile_cpu = -1;
 
@@ -68,10 +68,10 @@ enum sched_event_type {
 
 struct sched_atom {
 	enum sched_event_type	type;
+	int			specific_wait;
 	u64			timestamp;
 	u64			duration;
 	unsigned long		nr;
-	int			specific_wait;
 	sem_t			*wait_sem;
 	struct task_desc	*wakee;
 };
@@ -105,7 +105,7 @@ static u64			sum_runtime;
 static u64			sum_fluct;
 static u64			run_avg;
 
-static unsigned long		replay_repeat = 10;
+static unsigned int		replay_repeat = 10;
 static unsigned long		nr_timestamps;
 static unsigned long		nr_unordered_timestamps;
 static unsigned long		nr_state_machine_bugs;
@@ -489,7 +489,8 @@ static void create_tasks(void)
 
 	err = pthread_attr_init(&attr);
 	BUG_ON(err);
-	err = pthread_attr_setstacksize(&attr, (size_t)(16*1024));
+	err = pthread_attr_setstacksize(&attr,
+			(size_t) max(16 * 1024, PTHREAD_STACK_MIN));
 	BUG_ON(err);
 	err = pthread_mutex_lock(&start_work_mutex);
 	BUG_ON(err);
@@ -1606,28 +1607,15 @@ process_raw_event(event_t *raw_event __used, struct perf_session *session,
 		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(event_t *event, struct sample_data *sample,
+				struct perf_session *session)
 {
-	struct sample_data data;
 	struct thread *thread;
 
 	if (!(session->sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
-	memset(&data, 0, sizeof(data));
-	data.time = -1;
-	data.cpu = -1;
-	data.period = -1;
-
-	event__parse_sample(event, session->sample_type, &data);
-
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
-
-	thread = perf_session__findnew(session, data.pid);
+	thread = perf_session__findnew(session, sample->pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -1636,50 +1624,38 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	if (profile_cpu != -1 && profile_cpu != (int)data.cpu)
+	if (profile_cpu != -1 && profile_cpu != (int)sample->cpu)
 		return 0;
 
-	process_raw_event(event, session, data.raw_data, data.cpu, data.time, thread);
-
-	return 0;
-}
-
-static int process_lost_event(event_t *event __used,
-			      struct perf_session *session __used)
-{
-	nr_lost_chunks++;
-	nr_lost_events += event->lost.lost;
-
-	return 0;
-}
-
-static int sample_type_check(struct perf_session *session __used)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr,
-			"No trace sample to read. Did you call perf record "
-			"without -R?");
-		return -1;
-	}
+	process_raw_event(event, session, sample->raw_data, sample->cpu,
+			  sample->time, thread);
 
 	return 0;
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.process_lost_event	= process_lost_event,
-	.sample_type_check	= sample_type_check,
+	.sample			= process_sample_event,
+	.comm			= event__process_comm,
+	.lost			= event__process_lost,
+	.fork			= event__process_task,
+	.ordered_samples	= true,
 };
 
 static int read_events(void)
 {
-	int err;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+	int err = -EINVAL;
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
+							 0, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
 
-	err = perf_session__process_events(session, &event_ops);
+	if (perf_session__has_traces(session, "record -R")) {
+		err = perf_session__process_events(session, &event_ops);
+		nr_events      = session->hists.stats.nr_events[0];
+		nr_lost_events = session->hists.stats.total_lost;
+		nr_lost_chunks = session->hists.stats.nr_events[PERF_RECORD_LOST];
+	}
+
 	perf_session__delete(session);
 	return err;
 }
@@ -1804,7 +1780,7 @@ static const char * const sched_usage[] = {
 static const struct option sched_options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -1819,7 +1795,7 @@ static const char * const latency_usage[] = {
 static const struct option latency_options[] = {
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): runtime, switch, avg, max"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
@@ -1834,9 +1810,9 @@ static const char * const replay_usage[] = {
 };
 
 static const struct option replay_options[] = {
-	OPT_INTEGER('r', "repeat", &replay_repeat,
-		    "repeat the workload replay N times (-1: infinite)"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_UINTEGER('r', "repeat", &replay_repeat,
+		     "repeat the workload replay N times (-1: infinite)"),
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -1864,19 +1840,18 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-m", "1024",
 	"-c", "1",
-	"-e", "sched:sched_switch:r",
-	"-e", "sched:sched_stat_wait:r",
-	"-e", "sched:sched_stat_sleep:r",
-	"-e", "sched:sched_stat_iowait:r",
-	"-e", "sched:sched_stat_runtime:r",
-	"-e", "sched:sched_process_exit:r",
-	"-e", "sched:sched_process_fork:r",
-	"-e", "sched:sched_wakeup:r",
-	"-e", "sched:sched_migrate_task:r",
+	"-e", "sched:sched_switch",
+	"-e", "sched:sched_stat_wait",
+	"-e", "sched:sched_stat_sleep",
+	"-e", "sched:sched_stat_iowait",
+	"-e", "sched:sched_stat_runtime",
+	"-e", "sched:sched_process_exit",
+	"-e", "sched:sched_process_fork",
+	"-e", "sched:sched_wakeup",
+	"-e", "sched:sched_migrate_task",
 };
 
 static int __cmd_record(int argc, const char **argv)
@@ -1886,6 +1861,9 @@ static int __cmd_record(int argc, const char **argv)
 
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+
+	if (rec_argv == NULL)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
@@ -1906,10 +1884,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(sched_usage, sched_options);
 
 	/*
-	 * Aliased to 'perf trace' for now:
+	 * Aliased to 'perf script' for now:
 	 */
-	if (!strcmp(argv[0], "trace"))
-		return cmd_trace(argc, argv, prefix);
+	if (!strcmp(argv[0], "script"))
+		return cmd_script(argc, argv, prefix);
 
 	symbol__init();
 	if (!strncmp(argv[0], "rec", 3)) {

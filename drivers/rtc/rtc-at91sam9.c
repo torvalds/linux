@@ -18,6 +18,7 @@
 #include <linux/rtc.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 
 #include <mach/board.h>
 #include <mach/at91_rtt.h>
@@ -161,7 +162,7 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (offset == 0)
 		return -EILSEQ;
 
-	memset(alrm, 0, sizeof(alrm));
+	memset(alrm, 0, sizeof(*alrm));
 	if (alarm != ALARM_DISABLED && offset != 0) {
 		rtc_time_to_tm(offset + alarm, tm);
 

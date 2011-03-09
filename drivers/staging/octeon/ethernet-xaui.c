@@ -26,7 +26,6 @@
 **********************************************************************/
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/mii.h>
 #include <net/dst.h>
 
 #include <asm/octeon/octeon.h>

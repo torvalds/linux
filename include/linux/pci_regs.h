@@ -300,12 +300,22 @@
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
 #define PCI_MSI_MASK_64		16	/* Mask bits register for 64-bit devices */
 
-/* MSI-X registers (these are at offset PCI_MSIX_FLAGS) */
+/* MSI-X registers */
 #define PCI_MSIX_FLAGS		2
 #define  PCI_MSIX_FLAGS_QSIZE	0x7FF
 #define  PCI_MSIX_FLAGS_ENABLE	(1 << 15)
 #define  PCI_MSIX_FLAGS_MASKALL	(1 << 14)
-#define PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
+#define PCI_MSIX_TABLE		4
+#define PCI_MSIX_PBA		8
+#define  PCI_MSIX_FLAGS_BIRMASK	(7 << 0)
+
+/* MSI-X entry's format */
+#define PCI_MSIX_ENTRY_SIZE		16
+#define  PCI_MSIX_ENTRY_LOWER_ADDR	0
+#define  PCI_MSIX_ENTRY_UPPER_ADDR	4
+#define  PCI_MSIX_ENTRY_DATA		8
+#define  PCI_MSIX_ENTRY_VECTOR_CTRL	12
+#define   PCI_MSIX_ENTRY_CTRL_MASKBIT	1
 
 /* CompactPCI Hotswap Register */
 
@@ -442,7 +452,10 @@
 #define  PCI_EXP_LNKCTL_LABIE	0x0800	/* Lnk Autonomous Bandwidth Interrupt Enable */
 #define PCI_EXP_LNKSTA		18	/* Link Status */
 #define  PCI_EXP_LNKSTA_CLS	0x000f	/* Current Link Speed */
+#define  PCI_EXP_LNKSTA_CLS_2_5GB 0x01	/* Current Link Speed 2.5GT/s */
+#define  PCI_EXP_LNKSTA_CLS_5_0GB 0x02	/* Current Link Speed 5.0GT/s */
 #define  PCI_EXP_LNKSTA_NLW	0x03f0	/* Nogotiated Link Width */
+#define  PCI_EXP_LNKSTA_NLW_SHIFT 4	/* start of NLW mask in link status */
 #define  PCI_EXP_LNKSTA_LT	0x0800	/* Link Training */
 #define  PCI_EXP_LNKSTA_SLC	0x1000	/* Slot Clock Configuration */
 #define  PCI_EXP_LNKSTA_DLLLA	0x2000	/* Data Link Layer Link Active */
@@ -491,6 +504,8 @@
 #define  PCI_EXP_RTCTL_CRSSVE	0x10	/* CRS Software Visibility Enable */
 #define PCI_EXP_RTCAP		30	/* Root Capabilities */
 #define PCI_EXP_RTSTA		32	/* Root Status */
+#define PCI_EXP_RTSTA_PME	0x10000 /* PME status */
+#define PCI_EXP_RTSTA_PENDING	0x20000 /* PME pending */
 #define PCI_EXP_DEVCAP2		36	/* Device Capabilities 2 */
 #define  PCI_EXP_DEVCAP2_ARI	0x20	/* Alternative Routing-ID */
 #define PCI_EXP_DEVCTL2		40	/* Device Control 2 */
@@ -507,6 +522,7 @@
 #define PCI_EXT_CAP_ID_VC	2
 #define PCI_EXT_CAP_ID_DSN	3
 #define PCI_EXT_CAP_ID_PWR	4
+#define PCI_EXT_CAP_ID_VNDR	11
 #define PCI_EXT_CAP_ID_ACS	13
 #define PCI_EXT_CAP_ID_ARI	14
 #define PCI_EXT_CAP_ID_ATS	15
@@ -562,8 +578,7 @@
 #define PCI_ERR_ROOT_FIRST_FATAL	0x00000010	/* First Fatal */
 #define PCI_ERR_ROOT_NONFATAL_RCV	0x00000020	/* Non-Fatal Received */
 #define PCI_ERR_ROOT_FATAL_RCV		0x00000040	/* Fatal Received */
-#define PCI_ERR_ROOT_COR_SRC	52
-#define PCI_ERR_ROOT_SRC	54
+#define PCI_ERR_ROOT_ERR_SRC	52	/* Error Source Identification */
 
 /* Virtual Channel */
 #define PCI_VC_PORT_REG1	4

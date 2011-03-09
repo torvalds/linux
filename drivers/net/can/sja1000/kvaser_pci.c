@@ -36,7 +36,6 @@
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/io.h>
 
@@ -109,7 +108,7 @@ struct kvaser_pci {
 #define KVASER_PCI_VENDOR_ID2     0x1a07    /* the PCI device and vendor IDs */
 #define KVASER_PCI_DEVICE_ID2     0x0008
 
-static struct pci_device_id kvaser_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(kvaser_pci_tbl) = {
 	{KVASER_PCI_VENDOR_ID1, KVASER_PCI_DEVICE_ID1, PCI_ANY_ID, PCI_ANY_ID,},
 	{KVASER_PCI_VENDOR_ID2, KVASER_PCI_DEVICE_ID2, PCI_ANY_ID, PCI_ANY_ID,},
 	{ 0,}

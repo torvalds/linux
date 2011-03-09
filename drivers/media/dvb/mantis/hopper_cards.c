@@ -22,6 +22,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 #include <linux/interrupt.h>
 
@@ -249,6 +250,8 @@ static struct pci_device_id hopper_pci_table[] = {
 	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config),
 	{ }
 };
+
+MODULE_DEVICE_TABLE(pci, hopper_pci_table);
 
 static struct pci_driver hopper_pci_driver = {
 	.name		= DRIVER_NAME,

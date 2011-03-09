@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <asm/debug.h>
 #include <asm/uaccess.h>
 
@@ -151,6 +152,7 @@ static const struct file_operations prng_fops = {
 	.open		= &prng_open,
 	.release	= NULL,
 	.read		= &prng_read,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice prng_dev = {

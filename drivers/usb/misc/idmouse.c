@@ -48,7 +48,7 @@
 #define ID_CHERRY  0x0010
 
 /* device ID table */
-static struct usb_device_id idmouse_table[] = {
+static const struct usb_device_id idmouse_table[] = {
 	{USB_DEVICE(ID_SIEMENS, ID_IDMOUSE)}, /* Siemens ID Mouse (Professional) */
 	{USB_DEVICE(ID_SIEMENS, ID_CHERRY )}, /* Cherry FingerTIP ID Board       */
 	{}                                    /* terminating null entry          */
@@ -105,6 +105,7 @@ static const struct file_operations idmouse_fops = {
 	.read = idmouse_read,
 	.open = idmouse_open,
 	.release = idmouse_release,
+	.llseek = default_llseek,
 };
 
 /* class driver information */

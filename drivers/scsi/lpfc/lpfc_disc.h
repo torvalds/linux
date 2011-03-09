@@ -38,6 +38,7 @@ enum lpfc_work_type {
 	LPFC_EVT_ELS_RETRY,
 	LPFC_EVT_DEV_LOSS,
 	LPFC_EVT_FASTPATH_MGMT_EVT,
+	LPFC_EVT_RESET_HBA,
 };
 
 /* structure used to queue event to the discovery tasklet */
@@ -65,6 +66,12 @@ struct lpfc_fast_path_event {
 		struct lpfc_fabric_event_header fabric_evt;
 		struct lpfc_fcprdchkerr_event read_check_error;
 	} un;
+};
+
+#define LPFC_SLI4_MAX_XRI	1024	/* Used to make the ndlp's xri_bitmap */
+#define XRI_BITMAP_ULONGS (LPFC_SLI4_MAX_XRI / BITS_PER_LONG)
+struct lpfc_node_rrqs {
+	unsigned long xri_bitmap[XRI_BITMAP_ULONGS];
 };
 
 struct lpfc_nodelist {
@@ -109,10 +116,23 @@ struct lpfc_nodelist {
 	atomic_t cmd_pending;
 	uint32_t cmd_qdepth;
 	unsigned long last_change_time;
+	struct lpfc_node_rrqs active_rrqs;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
+};
+struct lpfc_node_rrq {
+	struct list_head list;
+	uint16_t xritag;
+	uint16_t send_rrq;
+	uint16_t rxid;
+	uint32_t         nlp_DID;		/* FC D_ID of entry */
+	struct lpfc_vport *vport;
+	struct lpfc_nodelist *ndlp;
+	unsigned long rrq_stop_time;
 };
 
 /* Defines for nlp_flag (uint32) */
+#define NLP_IGNR_REG_CMPL  0x00000001 /* Rcvd rscn before we cmpl reg login */
+#define NLP_REG_LOGIN_SEND 0x00000002   /* sent reglogin to adapter */
 #define NLP_PLOGI_SND      0x00000020	/* sent PLOGI request for this entry */
 #define NLP_PRLI_SND       0x00000040	/* sent PRLI request for this entry */
 #define NLP_ADISC_SND      0x00000080	/* sent ADISC request for this entry */
@@ -133,7 +153,7 @@ struct lpfc_nodelist {
 #define NLP_NODEV_REMOVE   0x08000000	/* Defer removal till discovery ends */
 #define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
 #define NLP_SC_REQ         0x20000000	/* Target requires authentication */
-#define NLP_RPI_VALID      0x80000000	/* nlp_rpi is valid */
+#define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
 
 /* ndlp usage management macros */
 #define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \

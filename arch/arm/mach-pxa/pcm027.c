@@ -25,12 +25,12 @@
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/max7301.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/pxa27x.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/pcm027.h>
 #include "generic.h"
 
@@ -244,7 +244,7 @@ static void __init pcm027_init(void)
 
 static void __init pcm027_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 
 	/* initialize sleep mode regs (wake-up sources, etc) */
 	PGSR0 = 0x01308000;
@@ -259,9 +259,8 @@ static void __init pcm027_map_io(void)
 MACHINE_START(PCM027, "Phytec Messtechnik GmbH phyCORE-PXA270")
 	/* Maintainer: Pengutronix */
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= pcm027_map_io,
+	.nr_irqs	= PCM027_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= pcm027_init,

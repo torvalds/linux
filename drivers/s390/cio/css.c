@@ -1,7 +1,7 @@
 /*
  * driver for channel subsystem
  *
- * Copyright IBM Corp. 2002, 2009
+ * Copyright IBM Corp. 2002, 2010
  *
  * Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *	      Cornelia Huck (cornelia.huck@de.ibm.com)
@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
+#include <linux/proc_fs.h>
 #include <asm/isc.h>
 #include <asm/crw.h>
 
@@ -232,7 +233,7 @@ void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo)
 	if (!get_device(&sch->dev))
 		return;
 	sch->todo = todo;
-	if (!queue_work(slow_path_wq, &sch->todo_work)) {
+	if (!queue_work(cio_work_q, &sch->todo_work)) {
 		/* Already queued, release workqueue ref. */
 		put_device(&sch->dev);
 	}
@@ -543,7 +544,7 @@ static void css_slow_path_func(struct work_struct *unused)
 }
 
 static DECLARE_WORK(slow_path_work, css_slow_path_func);
-struct workqueue_struct *slow_path_wq;
+struct workqueue_struct *cio_work_q;
 
 void css_schedule_eval(struct subchannel_id schid)
 {
@@ -552,7 +553,7 @@ void css_schedule_eval(struct subchannel_id schid)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_sch_add(slow_subchannel_set, schid);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(slow_path_wq, &slow_path_work);
+	queue_work(cio_work_q, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
@@ -563,7 +564,7 @@ void css_schedule_eval_all(void)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_fill(slow_subchannel_set);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(slow_path_wq, &slow_path_work);
+	queue_work(cio_work_q, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
@@ -576,7 +577,7 @@ static int __unset_registered(struct device *dev, void *data)
 	return 0;
 }
 
-void css_schedule_eval_all_unreg(void)
+static void css_schedule_eval_all_unreg(void)
 {
 	unsigned long flags;
 	struct idset *unreg_set;
@@ -594,14 +595,14 @@ void css_schedule_eval_all_unreg(void)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_add_set(slow_subchannel_set, unreg_set);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(slow_path_wq, &slow_path_work);
+	queue_work(cio_work_q, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 	idset_free(unreg_set);
 }
 
 void css_wait_for_slow_path(void)
 {
-	flush_workqueue(slow_path_wq);
+	flush_workqueue(cio_work_q);
 }
 
 /* Schedule reprobing of all unregistered subchannels. */
@@ -617,6 +618,7 @@ EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
 	struct subchannel_id mchk_schid;
+	struct subchannel *sch;
 
 	if (overflow) {
 		css_schedule_eval_all();
@@ -634,8 +636,15 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 	init_subchannel_id(&mchk_schid);
 	mchk_schid.sch_no = crw0->rsid;
 	if (crw1)
-		mchk_schid.ssid = (crw1->rsid >> 8) & 3;
+		mchk_schid.ssid = (crw1->rsid >> 4) & 3;
 
+	if (crw0->erc == CRW_ERC_PMOD) {
+		sch = get_subchannel_by_schid(mchk_schid);
+		if (sch) {
+			css_update_ssd_info(sch);
+			put_device(&sch->dev);
+		}
+	}
 	/*
 	 * Since we are always presented with IPI in the CRW, we have to
 	 * use stsch() to find out if the subchannel in question has come
@@ -647,6 +656,8 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 static void __init
 css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 {
+	struct cpuid cpu_id;
+
 	if (css_general_characteristics.mcss) {
 		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
 		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
@@ -657,8 +668,9 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif
 	}
-	css->global_pgid.cpu_id = S390_lowcore.cpu_id.ident;
-	css->global_pgid.cpu_model = S390_lowcore.cpu_id.machine;
+	get_cpu_id(&cpu_id);
+	css->global_pgid.cpu_id = cpu_id.ident;
+	css->global_pgid.cpu_model = cpu_id.machine;
 	css->global_pgid.tod_high = tod_high;
 
 }
@@ -786,7 +798,6 @@ static struct notifier_block css_reboot_notifier = {
 static int css_power_event(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	void *secm_area;
 	int ret, i;
 
 	switch (event) {
@@ -802,15 +813,8 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 				mutex_unlock(&css->mutex);
 				continue;
 			}
-			secm_area = (void *)get_zeroed_page(GFP_KERNEL |
-							    GFP_DMA);
-			if (secm_area) {
-				if (__chsc_do_secm(css, 0, secm_area))
-					ret = NOTIFY_BAD;
-				free_page((unsigned long)secm_area);
-			} else
+			if (__chsc_do_secm(css, 0))
 				ret = NOTIFY_BAD;
-
 			mutex_unlock(&css->mutex);
 		}
 		break;
@@ -826,15 +830,8 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 				mutex_unlock(&css->mutex);
 				continue;
 			}
-			secm_area = (void *)get_zeroed_page(GFP_KERNEL |
-							    GFP_DMA);
-			if (secm_area) {
-				if (__chsc_do_secm(css, 1, secm_area))
-					ret = NOTIFY_BAD;
-				free_page((unsigned long)secm_area);
-			} else
+			if (__chsc_do_secm(css, 1))
 				ret = NOTIFY_BAD;
-
 			mutex_unlock(&css->mutex);
 		}
 		/* search for subchannels, which appeared during hibernation */
@@ -859,25 +856,17 @@ static int __init css_bus_init(void)
 {
 	int ret, i;
 
-	ret = chsc_determine_css_characteristics();
-	if (ret == -ENOMEM)
-		goto out;
-
-	ret = chsc_alloc_sei_area();
+	ret = chsc_init();
 	if (ret)
-		goto out;
+		return ret;
 
+	chsc_determine_css_characteristics();
 	/* Try to enable MSS. */
 	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
-	switch (ret) {
-	case 0: /* Success. */
-		max_ssid = __MAX_SSID;
-		break;
-	case -ENOMEM:
-		goto out;
-	default:
+	if (ret)
 		max_ssid = 0;
-	}
+	else /* Success. */
+		max_ssid = __MAX_SSID;
 
 	ret = slow_subchannel_init();
 	if (ret)
@@ -957,9 +946,9 @@ out_unregister:
 	}
 	bus_unregister(&css_bus_type);
 out:
-	crw_unregister_handler(CRW_RSC_CSS);
-	chsc_free_sei_area();
+	crw_unregister_handler(CRW_RSC_SCH);
 	idset_free(slow_subchannel_set);
+	chsc_init_cleanup();
 	pr_alert("The CSS device driver initialization failed with "
 		 "errno=%d\n", ret);
 	return ret;
@@ -979,9 +968,9 @@ static void __init css_bus_cleanup(void)
 		device_unregister(&css->device);
 	}
 	bus_unregister(&css_bus_type);
-	crw_unregister_handler(CRW_RSC_CSS);
-	chsc_free_sei_area();
+	crw_unregister_handler(CRW_RSC_SCH);
 	idset_free(slow_subchannel_set);
+	chsc_init_cleanup();
 	isc_unregister(IO_SCH_ISC);
 }
 
@@ -992,11 +981,20 @@ static int __init channel_subsystem_init(void)
 	ret = css_bus_init();
 	if (ret)
 		return ret;
-
+	cio_work_q = create_singlethread_workqueue("cio");
+	if (!cio_work_q) {
+		ret = -ENOMEM;
+		goto out_bus;
+	}
 	ret = io_subchannel_init();
 	if (ret)
-		css_bus_cleanup();
+		goto out_wq;
 
+	return ret;
+out_wq:
+	destroy_workqueue(cio_work_q);
+out_bus:
+	css_bus_cleanup();
 	return ret;
 }
 subsys_initcall(channel_subsystem_init);
@@ -1006,9 +1004,24 @@ static int css_settle(struct device_driver *drv, void *unused)
 	struct css_driver *cssdrv = to_cssdriver(drv);
 
 	if (cssdrv->settle)
-		cssdrv->settle();
+		return cssdrv->settle();
 	return 0;
 }
+
+int css_complete_work(void)
+{
+	int ret;
+
+	/* Wait for the evaluation of subchannels to finish. */
+	ret = wait_event_interruptible(css_eval_wq,
+				       atomic_read(&css_eval_scheduled) == 0);
+	if (ret)
+		return -EINTR;
+	flush_workqueue(cio_work_q);
+	/* Wait for the subchannel type specific initialization to finish */
+	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+}
+
 
 /*
  * Wait for the initialization of devices to finish, to make sure we are
@@ -1018,12 +1031,56 @@ static int __init channel_subsystem_init_sync(void)
 {
 	/* Start initial subchannel evaluation. */
 	css_schedule_eval_all();
-	/* Wait for the evaluation of subchannels to finish. */
-	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
-	/* Wait for the subchannel type specific initialization to finish */
-	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+	css_complete_work();
+	return 0;
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
+
+void channel_subsystem_reinit(void)
+{
+	struct channel_path *chp;
+	struct chp_id chpid;
+
+	chsc_enable_facility(CHSC_SDA_OC_MSS);
+	chp_id_for_each(&chpid) {
+		chp = chpid_to_chp(chpid);
+		if (!chp)
+			continue;
+		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+	}
+}
+
+#ifdef CONFIG_PROC_FS
+static ssize_t cio_settle_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	int ret;
+
+	/* Handle pending CRW's. */
+	crw_wait_for_channel_report();
+	ret = css_complete_work();
+
+	return ret ? ret : count;
+}
+
+static const struct file_operations cio_settle_proc_fops = {
+	.open = nonseekable_open,
+	.write = cio_settle_write,
+	.llseek = no_llseek,
+};
+
+static int __init cio_settle_init(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_create("cio_settle", S_IWUSR, NULL,
+			    &cio_settle_proc_fops);
+	if (!entry)
+		return -ENOMEM;
+	return 0;
+}
+device_initcall(cio_settle_init);
+#endif /*CONFIG_PROC_FS*/
 
 int sch_is_pseudo_sch(struct subchannel *sch)
 {
@@ -1142,6 +1199,7 @@ static int css_pm_restore(struct device *dev)
 	struct subchannel *sch = to_subchannel(dev);
 	struct css_driver *drv;
 
+	css_update_ssd_info(sch);
 	if (!sch->dev.driver)
 		return 0;
 	drv = to_cssdriver(sch->dev.driver);

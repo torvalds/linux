@@ -91,8 +91,6 @@ static void __init stmp37xx_devb_init(void)
 }
 
 MACHINE_START(STMP37XX, "STMP37XX")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf0000000) >> 18) & 0xfffc,
 	.boot_params	= 0x40000100,
 	.map_io		= stmp37xx_map_io,
 	.init_irq	= stmp37xx_init_irq,

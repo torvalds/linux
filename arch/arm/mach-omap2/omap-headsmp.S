@@ -33,7 +33,7 @@
 ENTRY(omap_secondary_startup)
 hold:	ldr	r12,=0x103
 	dsb
-	smc				@ read from AuxCoreBoot0
+	smc	#0			@ read from AuxCoreBoot0
 	mov	r0, r0, lsr #9
 	mrc	p15, 0, r4, c0, c0, 5
 	and	r4, r4, #0x0f
@@ -47,19 +47,3 @@ hold:	ldr	r12,=0x103
 	b	secondary_startup
 END(omap_secondary_startup)
 
-
-ENTRY(omap_modify_auxcoreboot0)
-	stmfd   sp!, {r1-r12, lr}
-	ldr	r12, =0x104
-	dsb
-	smc
-	ldmfd   sp!, {r1-r12, pc}
-END(omap_modify_auxcoreboot0)
-
-ENTRY(omap_auxcoreboot_addr)
-	stmfd   sp!, {r2-r12, lr}
-	ldr	r12, =0x105
-	dsb
-	smc
-	ldmfd   sp!, {r2-r12, pc}
-END(omap_auxcoreboot_addr)

@@ -40,7 +40,7 @@ static struct clk *mpu_clk;
 
 /* TODO: Add support for SDRAM timing changes */
 
-int omap_verify_speed(struct cpufreq_policy *policy)
+static int omap_verify_speed(struct cpufreq_policy *policy)
 {
 	if (freq_table)
 		return cpufreq_frequency_table_verify(policy, freq_table);
@@ -58,7 +58,7 @@ int omap_verify_speed(struct cpufreq_policy *policy)
 	return 0;
 }
 
-unsigned int omap_getspeed(unsigned int cpu)
+static unsigned int omap_getspeed(unsigned int cpu)
 {
 	unsigned long rate;
 

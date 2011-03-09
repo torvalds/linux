@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/idr.h>
 #include <net/9p/9p.h>
@@ -96,6 +97,34 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, u32 uid, int any)
 	return ret;
 }
 
+/*
+ * We need to hold v9ses->rename_sem as long as we hold references
+ * to returned path array. Array element contain pointers to
+ * dentry names.
+ */
+static int build_path_from_dentry(struct v9fs_session_info *v9ses,
+				  struct dentry *dentry, char ***names)
+{
+	int n = 0, i;
+	char **wnames;
+	struct dentry *ds;
+
+	for (ds = dentry; !IS_ROOT(ds); ds = ds->d_parent)
+		n++;
+
+	wnames = kmalloc(sizeof(char *) * n, GFP_KERNEL);
+	if (!wnames)
+		goto err_out;
+
+	for (ds = dentry, i = (n-1); i >= 0; i--, ds = ds->d_parent)
+		wnames[i] = (char  *)ds->d_name.name;
+
+	*names = wnames;
+	return n;
+err_out:
+	return -ENOMEM;
+}
+
 /**
  * v9fs_fid_lookup - lookup for a fid, try to walk if not found
  * @dentry: dentry to look for fid in
@@ -110,8 +139,8 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 {
 	int i, n, l, clone, any, access;
 	u32 uid;
-	struct p9_fid *fid;
-	struct dentry *d, *ds;
+	struct p9_fid *fid, *old_fid = NULL;
+	struct dentry *ds;
 	struct v9fs_session_info *v9ses;
 	char **wnames, *uname;
 
@@ -120,6 +149,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	switch (access) {
 	case V9FS_ACCESS_SINGLE:
 	case V9FS_ACCESS_USER:
+	case V9FS_ACCESS_CLIENT:
 		uid = current_fsuid();
 		any = 0;
 		break;
@@ -138,61 +168,85 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	fid = v9fs_fid_find(dentry, uid, any);
 	if (fid)
 		return fid;
-
+	/*
+	 * we don't have a matching fid. To do a TWALK we need
+	 * parent fid. We need to prevent rename when we want to
+	 * look at the parent.
+	 */
+	down_read(&v9ses->rename_sem);
 	ds = dentry->d_parent;
 	fid = v9fs_fid_find(ds, uid, any);
-	if (!fid) { /* walk from the root */
-		n = 0;
-		for (ds = dentry; !IS_ROOT(ds); ds = ds->d_parent)
-			n++;
+	if (fid) {
+		/* Found the parent fid do a lookup with that */
+		fid = p9_client_walk(fid, 1, (char **)&dentry->d_name.name, 1);
+		goto fid_out;
+	}
+	up_read(&v9ses->rename_sem);
 
-		fid = v9fs_fid_find(ds, uid, any);
-		if (!fid) { /* the user is not attached to the fs yet */
-			if (access == V9FS_ACCESS_SINGLE)
-				return ERR_PTR(-EPERM);
+	/* start from the root and try to do a lookup */
+	fid = v9fs_fid_find(dentry->d_sb->s_root, uid, any);
+	if (!fid) {
+		/* the user is not attached to the fs yet */
+		if (access == V9FS_ACCESS_SINGLE)
+			return ERR_PTR(-EPERM);
 
-			if (v9fs_extended(v9ses))
+		if (v9fs_proto_dotu(v9ses) || v9fs_proto_dotl(v9ses))
 				uname = NULL;
-			else
-				uname = v9ses->uname;
+		else
+			uname = v9ses->uname;
 
-			fid = p9_client_attach(v9ses->clnt, NULL, uname, uid,
-				v9ses->aname);
+		fid = p9_client_attach(v9ses->clnt, NULL, uname, uid,
+				       v9ses->aname);
+		if (IS_ERR(fid))
+			return fid;
 
-			if (IS_ERR(fid))
-				return fid;
-
-			v9fs_fid_add(ds, fid);
-		}
-	} else /* walk from the parent */
-		n = 1;
-
-	if (ds == dentry)
+		v9fs_fid_add(dentry->d_sb->s_root, fid);
+	}
+	/* If we are root ourself just return that */
+	if (dentry->d_sb->s_root == dentry)
 		return fid;
-
-	wnames = kmalloc(sizeof(char *) * n, GFP_KERNEL);
-	if (!wnames)
-		return ERR_PTR(-ENOMEM);
-
-	for (d = dentry, i = (n-1); i >= 0; i--, d = d->d_parent)
-		wnames[i] = (char *) d->d_name.name;
-
+	/*
+	 * Do a multipath walk with attached root.
+	 * When walking parent we need to make sure we
+	 * don't have a parallel rename happening
+	 */
+	down_read(&v9ses->rename_sem);
+	n  = build_path_from_dentry(v9ses, dentry, &wnames);
+	if (n < 0) {
+		fid = ERR_PTR(n);
+		goto err_out;
+	}
 	clone = 1;
 	i = 0;
 	while (i < n) {
 		l = min(n - i, P9_MAXWELEM);
+		/*
+		 * We need to hold rename lock when doing a multipath
+		 * walk to ensure none of the patch component change
+		 */
 		fid = p9_client_walk(fid, l, &wnames[i], clone);
 		if (IS_ERR(fid)) {
+			if (old_fid) {
+				/*
+				 * If we fail, clunk fid which are mapping
+				 * to path component and not the last component
+				 * of the path.
+				 */
+				p9_client_clunk(old_fid);
+			}
 			kfree(wnames);
-			return fid;
+			goto err_out;
 		}
-
+		old_fid = fid;
 		i += l;
 		clone = 0;
 	}
-
 	kfree(wnames);
-	v9fs_fid_add(dentry, fid);
+fid_out:
+	if (!IS_ERR(fid))
+		v9fs_fid_add(dentry, fid);
+err_out:
+	up_read(&v9ses->rename_sem);
 	return fid;
 }
 

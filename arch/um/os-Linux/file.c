@@ -561,3 +561,18 @@ int os_lock_file(int fd, int excl)
  out:
 	return err;
 }
+
+unsigned os_major(unsigned long long dev)
+{
+	return major(dev);
+}
+
+unsigned os_minor(unsigned long long dev)
+{
+	return minor(dev);
+}
+
+unsigned long long os_makedev(unsigned major, unsigned minor)
+{
+	return makedev(major, minor);
+}

@@ -24,9 +24,9 @@
 
 #ifndef __ASSEMBLY__
 
-#define L1_CACHE_ALIGN(x)       (((x)+(L1_CACHE_BYTES-1))&~(L1_CACHE_BYTES-1))
-
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
+
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
 

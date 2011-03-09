@@ -13,7 +13,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
-int __init detect_cpu_and_cache_system(void)
+void __cpuinit cpu_probe(void)
 {
 #if defined(CONFIG_CPU_SUBTYPE_SH7619)
 	boot_cpu_data.type			= CPU_SH7619;
@@ -30,7 +30,4 @@ int __init detect_cpu_and_cache_system(void)
 	boot_cpu_data.dcache.flags |= SH_CACHE_COMBINED;
 	boot_cpu_data.icache = boot_cpu_data.dcache;
 	boot_cpu_data.family = CPU_FAMILY_SH2;
-
-	return 0;
 }
-

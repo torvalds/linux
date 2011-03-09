@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 
 #include <mach/pm.h>
 
@@ -95,7 +96,7 @@ void pxa_pm_finish(void)
 		pxa_cpu_pm_fns->finish();
 }
 
-static struct platform_suspend_ops pxa_pm_ops = {
+static const struct platform_suspend_ops pxa_pm_ops = {
 	.valid		= pxa_pm_valid,
 	.enter		= pxa_pm_enter,
 	.prepare	= pxa_pm_prepare,

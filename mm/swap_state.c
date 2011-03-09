@@ -8,6 +8,7 @@
  */
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/gfp.h>
 #include <linux/kernel_stat.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
@@ -155,6 +156,12 @@ int add_to_swap(struct page *page)
 	entry = get_swap_page();
 	if (!entry.val)
 		return 0;
+
+	if (unlikely(PageTransHuge(page)))
+		if (unlikely(split_huge_page(page))) {
+			swapcache_free(entry, NULL);
+			return 0;
+		}
 
 	/*
 	 * Radix-tree node allocations from PF_MEMALLOC contexts could

@@ -93,15 +93,12 @@ static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
 static struct heartbeat_data heartbeat_data = {
 	.bit_pos	= heartbeat_bit_pos,
 	.nr_bits	= ARRAY_SIZE(heartbeat_bit_pos),
-	.regsize	= 16,
 };
 
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= PA_LED,
-		.end	= PA_LED,
-		.flags	= IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start	= PA_LED,
+	.end	= PA_LED,
+	.flags	= IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
 };
 
 static struct platform_device heartbeat_device = {
@@ -110,8 +107,8 @@ static struct platform_device heartbeat_device = {
 	.dev	= {
 		.platform_data	= &heartbeat_data,
 	},
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
 };
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7710) ||\
@@ -198,27 +195,5 @@ static struct sh_machine_vector mv_se __initmv = {
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 	.mv_nr_irqs             = 104,
 #endif
-
-	.mv_inb			= se_inb,
-	.mv_inw			= se_inw,
-	.mv_inl			= se_inl,
-	.mv_outb		= se_outb,
-	.mv_outw		= se_outw,
-	.mv_outl		= se_outl,
-
-	.mv_inb_p		= se_inb_p,
-	.mv_inw_p		= se_inw,
-	.mv_inl_p		= se_inl,
-	.mv_outb_p		= se_outb_p,
-	.mv_outw_p		= se_outw,
-	.mv_outl_p		= se_outl,
-
-	.mv_insb		= se_insb,
-	.mv_insw		= se_insw,
-	.mv_insl		= se_insl,
-	.mv_outsb		= se_outsb,
-	.mv_outsw		= se_outsw,
-	.mv_outsl		= se_outsl,
-
 	.mv_init_irq		= init_se_IRQ,
 };

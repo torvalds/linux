@@ -33,16 +33,15 @@
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
 #include <linux/kexec.h>
+#include <linux/kdb.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
+#include <linux/syslog.h>
+#include <linux/cpu.h>
+#include <linux/notifier.h>
+#include <linux/rculist.h>
 
 #include <asm/uaccess.h>
-
-/*
- * for_each_console() allows you to iterate on each console
- */
-#define for_each_console(con) \
-	for (con = console_drivers; con != NULL; con = con->next)
 
 /*
  * Architectures can override it:
@@ -69,8 +68,6 @@ int console_printk[4] = {
 	DEFAULT_CONSOLE_LOGLEVEL,	/* default_console_loglevel */
 };
 
-static int saved_console_loglevel = -1;
-
 /*
  * Low level drivers may need that to know if they can schedule in
  * their unblank() callback or not. So let's export it.
@@ -83,7 +80,7 @@ EXPORT_SYMBOL(oops_in_progress);
  * provides serialisation for access to the entire console
  * driver system.
  */
-static DECLARE_MUTEX(console_sem);
+static DEFINE_SEMAPHORE(console_sem);
 struct console *console_drivers;
 EXPORT_SYMBOL_GPL(console_drivers);
 
@@ -145,6 +142,7 @@ static char __log_buf[__LOG_BUF_LEN];
 static char *log_buf = __log_buf;
 static int log_buf_len = __LOG_BUF_LEN;
 static unsigned logged_chars; /* Number of chars produced since last read+clear operation */
+static int saved_console_loglevel = -1;
 
 #ifdef CONFIG_KEXEC
 /*
@@ -207,7 +205,7 @@ __setup("log_buf_len=", log_buf_len_setup);
 
 #ifdef CONFIG_BOOT_PRINTK_DELAY
 
-static unsigned int boot_delay; /* msecs delay after each printk during bootup */
+static int boot_delay; /* msecs delay after each printk during bootup */
 static unsigned long long loops_per_msec;	/* based on boot_delay */
 
 static int __init boot_delay_setup(char *str)
@@ -258,38 +256,42 @@ static inline void boot_delay_msec(void)
 }
 #endif
 
-/*
- * Commands to do_syslog:
- *
- * 	0 -- Close the log.  Currently a NOP.
- * 	1 -- Open the log. Currently a NOP.
- * 	2 -- Read from the log.
- * 	3 -- Read all messages remaining in the ring buffer.
- * 	4 -- Read and clear all messages remaining in the ring buffer
- * 	5 -- Clear ring buffer.
- * 	6 -- Disable printk's to console
- * 	7 -- Enable printk's to console
- *	8 -- Set level of messages printed to console
- *	9 -- Return number of unread characters in the log buffer
- *     10 -- Return size of the log buffer
- */
-int do_syslog(int type, char __user *buf, int len)
+#ifdef CONFIG_SECURITY_DMESG_RESTRICT
+int dmesg_restrict = 1;
+#else
+int dmesg_restrict;
+#endif
+
+int do_syslog(int type, char __user *buf, int len, bool from_file)
 {
 	unsigned i, j, limit, count;
 	int do_clear = 0;
 	char c;
 	int error = 0;
 
+	/*
+	 * If this is from /proc/kmsg we only do the capabilities checks
+	 * at open time.
+	 */
+	if (type == SYSLOG_ACTION_OPEN || !from_file) {
+		if (dmesg_restrict && !capable(CAP_SYSLOG))
+			goto warn; /* switch to return -EPERM after 2.6.39 */
+		if ((type != SYSLOG_ACTION_READ_ALL &&
+		     type != SYSLOG_ACTION_SIZE_BUFFER) &&
+		    !capable(CAP_SYSLOG))
+			goto warn; /* switch to return -EPERM after 2.6.39 */
+	}
+
 	error = security_syslog(type);
 	if (error)
 		return error;
 
 	switch (type) {
-	case 0:		/* Close log */
+	case SYSLOG_ACTION_CLOSE:	/* Close log */
 		break;
-	case 1:		/* Open log */
+	case SYSLOG_ACTION_OPEN:	/* Open log */
 		break;
-	case 2:		/* Read from log */
+	case SYSLOG_ACTION_READ:	/* Read from log */
 		error = -EINVAL;
 		if (!buf || len < 0)
 			goto out;
@@ -320,10 +322,12 @@ int do_syslog(int type, char __user *buf, int len)
 		if (!error)
 			error = i;
 		break;
-	case 4:		/* Read/clear last kernel messages */
+	/* Read/clear last kernel messages */
+	case SYSLOG_ACTION_READ_CLEAR:
 		do_clear = 1;
 		/* FALL THRU */
-	case 3:		/* Read last kernel messages */
+	/* Read last kernel messages */
+	case SYSLOG_ACTION_READ_ALL:
 		error = -EINVAL;
 		if (!buf || len < 0)
 			goto out;
@@ -376,21 +380,25 @@ int do_syslog(int type, char __user *buf, int len)
 			}
 		}
 		break;
-	case 5:		/* Clear ring buffer */
+	/* Clear ring buffer */
+	case SYSLOG_ACTION_CLEAR:
 		logged_chars = 0;
 		break;
-	case 6:		/* Disable logging to console */
+	/* Disable logging to console */
+	case SYSLOG_ACTION_CONSOLE_OFF:
 		if (saved_console_loglevel == -1)
 			saved_console_loglevel = console_loglevel;
 		console_loglevel = minimum_console_loglevel;
 		break;
-	case 7:		/* Enable logging to console */
+	/* Enable logging to console */
+	case SYSLOG_ACTION_CONSOLE_ON:
 		if (saved_console_loglevel != -1) {
 			console_loglevel = saved_console_loglevel;
 			saved_console_loglevel = -1;
 		}
 		break;
-	case 8:		/* Set level of messages printed to console */
+	/* Set level of messages printed to console */
+	case SYSLOG_ACTION_CONSOLE_LEVEL:
 		error = -EINVAL;
 		if (len < 1 || len > 8)
 			goto out;
@@ -401,10 +409,12 @@ int do_syslog(int type, char __user *buf, int len)
 		saved_console_loglevel = -1;
 		error = 0;
 		break;
-	case 9:		/* Number of chars in the log buffer */
+	/* Number of chars in the log buffer */
+	case SYSLOG_ACTION_SIZE_UNREAD:
 		error = log_end - log_start;
 		break;
-	case 10:	/* Size of the log buffer */
+	/* Size of the log buffer */
+	case SYSLOG_ACTION_SIZE_BUFFER:
 		error = log_buf_len;
 		break;
 	default:
@@ -413,12 +423,34 @@ int do_syslog(int type, char __user *buf, int len)
 	}
 out:
 	return error;
+warn:
+	/* remove after 2.6.39 */
+	if (capable(CAP_SYS_ADMIN))
+		WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
+		  "but no CAP_SYSLOG (deprecated and denied).\n");
+	return -EPERM;
 }
 
 SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 {
-	return do_syslog(type, buf, len);
+	return do_syslog(type, buf, len, SYSLOG_FROM_CALL);
 }
+
+#ifdef	CONFIG_KGDB_KDB
+/* kdb dmesg command needs access to the syslog buffer.  do_syslog()
+ * uses locks so it cannot be used during debugging.  Just tell kdb
+ * where the start and end of the physical and logical logs are.  This
+ * is equivalent to do_syslog(3).
+ */
+void kdb_syslog_data(char *syslog_data[4])
+{
+	syslog_data[0] = log_buf;
+	syslog_data[1] = log_buf + log_buf_len;
+	syslog_data[2] = log_buf + log_end -
+		(logged_chars < log_buf_len ? logged_chars : log_buf_len);
+	syslog_data[3] = log_buf + log_end;
+}
+#endif	/* CONFIG_KGDB_KDB */
 
 /*
  * Call the console drivers on a range of log_buf
@@ -544,7 +576,7 @@ static void zap_locks(void)
 	/* If a crash is occurring, make sure we can't deadlock */
 	spin_lock_init(&logbuf_lock);
 	/* And make sure that we print immediately */
-	init_MUTEX(&console_sem);
+	sema_init(&console_sem, 1);
 }
 
 #if defined(CONFIG_PRINTK_TIME)
@@ -593,6 +625,14 @@ asmlinkage int printk(const char *fmt, ...)
 	va_list args;
 	int r;
 
+#ifdef CONFIG_KGDB_KDB
+	if (unlikely(kdb_trap_printk)) {
+		va_start(args, fmt);
+		r = vkdb_printf(fmt, args);
+		va_end(args);
+		return r;
+	}
+#endif
 	va_start(args, fmt);
 	r = vprintk(fmt, args);
 	va_end(args);
@@ -627,6 +667,7 @@ static inline int can_use_console(unsigned int cpu)
  * released but interrupts still disabled.
  */
 static int acquire_console_semaphore_for_printk(unsigned int cpu)
+	__releases(&logbuf_lock)
 {
 	int retval = 0;
 
@@ -967,6 +1008,32 @@ void resume_console(void)
 }
 
 /**
+ * console_cpu_notify - print deferred console messages after CPU hotplug
+ * @self: notifier struct
+ * @action: CPU hotplug event
+ * @hcpu: unused
+ *
+ * If printk() is called from a CPU that is not online yet, the messages
+ * will be spooled but will not show up on the console.  This function is
+ * called when a new CPU comes online (or fails to come up), and ensures
+ * that any such output gets printed.
+ */
+static int __cpuinit console_cpu_notify(struct notifier_block *self,
+	unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_DEAD:
+	case CPU_DYING:
+	case CPU_DOWN_FAILED:
+	case CPU_UP_CANCELED:
+		acquire_console_sem();
+		release_console_sem();
+	}
+	return NOTIFY_OK;
+}
+
+/**
  * acquire_console_sem - lock the console system for exclusive use.
  *
  * Acquires a semaphore which guarantees that the caller has
@@ -1008,21 +1075,23 @@ static DEFINE_PER_CPU(int, printk_pending);
 
 void printk_tick(void)
 {
-	if (__get_cpu_var(printk_pending)) {
-		__get_cpu_var(printk_pending) = 0;
+	if (__this_cpu_read(printk_pending)) {
+		__this_cpu_write(printk_pending, 0);
 		wake_up_interruptible(&log_wait);
 	}
 }
 
 int printk_needs_cpu(int cpu)
 {
-	return per_cpu(printk_pending, cpu);
+	if (cpu_is_offline(cpu))
+		printk_tick();
+	return __this_cpu_read(printk_pending);
 }
 
 void wake_up_klogd(void)
 {
 	if (waitqueue_active(&log_wait))
-		__raw_get_cpu_var(printk_pending) = 1;
+		this_cpu_write(printk_pending, 1);
 }
 
 /**
@@ -1291,6 +1360,7 @@ void register_console(struct console *newcon)
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
 	release_console_sem();
+	console_sysfs_notify();
 
 	/*
 	 * By unregistering the bootconsoles after we enable the real console
@@ -1349,11 +1419,12 @@ int unregister_console(struct console *console)
 		console_drivers->flags |= CON_CONSDEV;
 
 	release_console_sem();
+	console_sysfs_notify();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
 
-static int __init disable_boot_consoles(void)
+static int __init printk_late_init(void)
 {
 	struct console *con;
 
@@ -1364,9 +1435,10 @@ static int __init disable_boot_consoles(void)
 			unregister_console(con);
 		}
 	}
+	hotcpu_notifier(console_cpu_notify, 0);
 	return 0;
 }
-late_initcall(disable_boot_consoles);
+late_initcall(printk_late_init);
 
 #if defined CONFIG_PRINTK
 
@@ -1431,7 +1503,7 @@ int kmsg_dump_register(struct kmsg_dumper *dumper)
 	/* Don't allow registering multiple times */
 	if (!dumper->registered) {
 		dumper->registered = 1;
-		list_add_tail(&dumper->list, &dump_list);
+		list_add_tail_rcu(&dumper->list, &dump_list);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
@@ -1455,28 +1527,15 @@ int kmsg_dump_unregister(struct kmsg_dumper *dumper)
 	spin_lock_irqsave(&dump_list_lock, flags);
 	if (dumper->registered) {
 		dumper->registered = 0;
-		list_del(&dumper->list);
+		list_del_rcu(&dumper->list);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&dump_list_lock, flags);
+	synchronize_rcu();
 
 	return err;
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_unregister);
-
-static const char const *kmsg_reasons[] = {
-	[KMSG_DUMP_OOPS]	= "oops",
-	[KMSG_DUMP_PANIC]	= "panic",
-	[KMSG_DUMP_KEXEC]	= "kexec",
-};
-
-static const char *kmsg_to_str(enum kmsg_dump_reason reason)
-{
-	if (reason >= ARRAY_SIZE(kmsg_reasons) || reason < 0)
-		return "unknown";
-
-	return kmsg_reasons[reason];
-}
 
 /**
  * kmsg_dump - dump kernel log to kernel message dumpers.
@@ -1502,9 +1561,9 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 	chars = logged_chars;
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 
-	if (logged_chars > end) {
-		s1 = log_buf + log_buf_len - logged_chars + end;
-		l1 = logged_chars - end;
+	if (chars > end) {
+		s1 = log_buf + log_buf_len - chars + end;
+		l1 = chars - end;
 
 		s2 = log_buf;
 		l2 = end;
@@ -1512,17 +1571,13 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		s1 = "";
 		l1 = 0;
 
-		s2 = log_buf + end - logged_chars;
-		l2 = logged_chars;
+		s2 = log_buf + end - chars;
+		l2 = chars;
 	}
 
-	if (!spin_trylock_irqsave(&dump_list_lock, flags)) {
-		printk(KERN_ERR "dump_kmsg: dump list lock is held during %s, skipping dump\n",
-				kmsg_to_str(reason));
-		return;
-	}
-	list_for_each_entry(dumper, &dump_list, list)
+	rcu_read_lock();
+	list_for_each_entry_rcu(dumper, &dump_list, list)
 		dumper->dump(dumper, reason, s1, l1, s2, l2);
-	spin_unlock_irqrestore(&dump_list_lock, flags);
+	rcu_read_unlock();
 }
 #endif

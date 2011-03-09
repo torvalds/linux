@@ -148,7 +148,7 @@ static int full_duplex[MAX_UNITS] = {0, };
  * This SUCKS.
  * We need a much better method to determine if dma_addr_t is 64-bit.
  */
-#if (defined(__i386__) && defined(CONFIG_HIGHMEM64G)) || defined(__x86_64__) || defined (__ia64__) || defined(__alpha__) || defined(__mips64__) || (defined(__mips__) && defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR))
+#if (defined(__i386__) && defined(CONFIG_HIGHMEM64G)) || defined(__x86_64__) || defined (__ia64__) || defined(__alpha__) || (defined(CONFIG_MIPS) && ((defined(CONFIG_HIGHMEM) && defined(CONFIG_64BIT_PHYS_ADDR)) || defined(CONFIG_64BIT))) || (defined(__powerpc64__) || defined(CONFIG_PHYS_64BIT))
 /* 64-bit dma_addr_t */
 #define ADDR_64BITS	/* This chip uses 64 bit addresses. */
 #define netdrv_addr_t __le64
@@ -301,8 +301,8 @@ enum chipset {
 	CH_6915 = 0,
 };
 
-static struct pci_device_id starfire_pci_tbl[] = {
-	{ 0x9004, 0x6915, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_6915 },
+static DEFINE_PCI_DEVICE_TABLE(starfire_pci_tbl) = {
+	{ PCI_VDEVICE(ADAPTEC, 0x6915), CH_6915 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
@@ -562,7 +562,6 @@ struct netdev_private {
 	unsigned int tx_done;
 	struct napi_struct napi;
 	struct net_device *dev;
-	struct net_device_stats stats;
 	struct pci_dev *pci_dev;
 #ifdef VLAN_SUPPORT
 	struct vlan_group *vlgrp;
@@ -1063,7 +1062,7 @@ static int netdev_open(struct net_device *dev)
 	if (retval) {
 		printk(KERN_ERR "starfire: Failed to load firmware \"%s\"\n",
 		       FIRMWARE_RX);
-		return retval;
+		goto out_init;
 	}
 	if (fw_rx->size % 4) {
 		printk(KERN_ERR "starfire: bogus length %zu in \"%s\"\n",
@@ -1108,6 +1107,9 @@ out_tx:
 	release_firmware(fw_tx);
 out_rx:
 	release_firmware(fw_rx);
+out_init:
+	if (retval)
+		netdev_close(dev);
 	return retval;
 }
 
@@ -1170,8 +1172,8 @@ static void tx_timeout(struct net_device *dev)
 
 	/* Trigger an immediate transmit demand. */
 
-	dev->trans_start = jiffies;
-	np->stats.tx_errors++;
+	dev->trans_start = jiffies; /* prevent tx timeout */
+	dev->stats.tx_errors++;
 	netif_wake_queue(dev);
 }
 
@@ -1218,8 +1220,6 @@ static void init_ring(struct net_device *dev)
 
 	for (i = 0; i < TX_RING_SIZE; i++)
 		memset(&np->tx_info[i], 0, sizeof(np->tx_info[i]));
-
-	return;
 }
 
 
@@ -1264,7 +1264,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 			}
 			if (skb->ip_summed == CHECKSUM_PARTIAL) {
 				status |= TxCalTCP;
-				np->stats.tx_compressed++;
+				dev->stats.tx_compressed++;
 			}
 			status |= skb_first_frag_len(skb) | (skb_num_frags(skb) << 16);
 
@@ -1308,8 +1308,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* 4 is arbitrary, but should be ok */
 	if ((np->cur_tx - np->dirty_tx) + 4 > TX_RING_SIZE)
 		netif_stop_queue(dev);
-
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
@@ -1375,7 +1373,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				printk(KERN_DEBUG "%s: Tx completion #%d entry %d is %#8.8x.\n",
 				       dev->name, np->dirty_tx, np->tx_done, tx_status);
 			if ((tx_status & 0xe0000000) == 0xa0000000) {
-				np->stats.tx_packets++;
+				dev->stats.tx_packets++;
 			} else if ((tx_status & 0xe0000000) == 0x80000000) {
 				u16 entry = (tx_status & 0x7fff) / sizeof(starfire_tx_desc);
 				struct sk_buff *skb = np->tx_info[entry].skb;
@@ -1463,9 +1461,9 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			/* There was an error. */
 			if (debug > 2)
 				printk(KERN_DEBUG "  netdev_rx() Rx error was %#8.8x.\n", desc_status);
-			np->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (desc_status & RxFIFOErr)
-				np->stats.rx_fifo_errors++;
+				dev->stats.rx_fifo_errors++;
 			goto next_rx;
 		}
 
@@ -1516,7 +1514,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 #endif
 		if (le16_to_cpu(desc->status2) & 0x0100) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			np->stats.rx_compressed++;
+			dev->stats.rx_compressed++;
 		}
 		/*
 		 * This feature doesn't seem to be working, at least
@@ -1548,7 +1546,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		} else
 #endif /* VLAN_SUPPORT */
 			netif_receive_skb(skb);
-		np->stats.rx_packets++;
+		dev->stats.rx_packets++;
 
 	next_rx:
 		np->cur_rx++;
@@ -1718,12 +1716,12 @@ static void netdev_error(struct net_device *dev, int intr_status)
 			printk(KERN_WARNING "%s: PCI Tx underflow -- adapter is probably malfunctioning\n", dev->name);
 	}
 	if (intr_status & IntrRxGFPDead) {
-		np->stats.rx_fifo_errors++;
-		np->stats.rx_errors++;
+		dev->stats.rx_fifo_errors++;
+		dev->stats.rx_errors++;
 	}
 	if (intr_status & (IntrNoTxCsum | IntrDMAErr)) {
-		np->stats.tx_fifo_errors++;
-		np->stats.tx_errors++;
+		dev->stats.tx_fifo_errors++;
+		dev->stats.tx_errors++;
 	}
 	if ((intr_status & ~(IntrNormalMask | IntrAbnormalSummary | IntrLinkChange | IntrStatsMax | IntrTxDataLow | IntrRxGFPDead | IntrNoTxCsum | IntrPCIPad)) && debug)
 		printk(KERN_ERR "%s: Something Wicked happened! %#8.8x.\n",
@@ -1737,24 +1735,24 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	void __iomem *ioaddr = np->base;
 
 	/* This adapter architecture needs no SMP locks. */
-	np->stats.tx_bytes = readl(ioaddr + 0x57010);
-	np->stats.rx_bytes = readl(ioaddr + 0x57044);
-	np->stats.tx_packets = readl(ioaddr + 0x57000);
-	np->stats.tx_aborted_errors =
+	dev->stats.tx_bytes = readl(ioaddr + 0x57010);
+	dev->stats.rx_bytes = readl(ioaddr + 0x57044);
+	dev->stats.tx_packets = readl(ioaddr + 0x57000);
+	dev->stats.tx_aborted_errors =
 		readl(ioaddr + 0x57024) + readl(ioaddr + 0x57028);
-	np->stats.tx_window_errors = readl(ioaddr + 0x57018);
-	np->stats.collisions =
+	dev->stats.tx_window_errors = readl(ioaddr + 0x57018);
+	dev->stats.collisions =
 		readl(ioaddr + 0x57004) + readl(ioaddr + 0x57008);
 
 	/* The chip only need report frame silently dropped. */
-	np->stats.rx_dropped += readw(ioaddr + RxDMAStatus);
+	dev->stats.rx_dropped += readw(ioaddr + RxDMAStatus);
 	writew(0, ioaddr + RxDMAStatus);
-	np->stats.rx_crc_errors = readl(ioaddr + 0x5703C);
-	np->stats.rx_frame_errors = readl(ioaddr + 0x57040);
-	np->stats.rx_length_errors = readl(ioaddr + 0x57058);
-	np->stats.rx_missed_errors = readl(ioaddr + 0x5707C);
+	dev->stats.rx_crc_errors = readl(ioaddr + 0x5703C);
+	dev->stats.rx_frame_errors = readl(ioaddr + 0x57040);
+	dev->stats.rx_length_errors = readl(ioaddr + 0x57058);
+	dev->stats.rx_missed_errors = readl(ioaddr + 0x5707C);
 
-	return &np->stats;
+	return &dev->stats;
 }
 
 
@@ -1763,7 +1761,7 @@ static void set_rx_mode(struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 	u32 rx_mode = MinVLANPrio;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i;
 #ifdef VLAN_SUPPORT
 
@@ -1793,22 +1791,22 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
 		rx_mode |= AcceptAll;
-	} else if ((dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		rx_mode |= AcceptBroadcast|AcceptAllMulticast|PerfectFilter;
-	} else if (dev->mc_count <= 14) {
+	} else if (netdev_mc_count(dev) <= 14) {
 		/* Use the 16 element perfect filter, skip first two entries. */
 		void __iomem *filter_addr = ioaddr + PerfFilterTable + 2 * 16;
 		__be16 *eaddrs;
-		for (i = 2, mclist = dev->mc_list; mclist && i < dev->mc_count + 2;
-		     i++, mclist = mclist->next) {
-			eaddrs = (__be16 *)mclist->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			eaddrs = (__be16 *) ha->addr;
 			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 8;
 		}
 		eaddrs = (__be16 *)dev->dev_addr;
+		i = netdev_mc_count(dev) + 2;
 		while (i++ < 16) {
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
@@ -1822,11 +1820,10 @@ static void set_rx_mode(struct net_device *dev)
 		__le16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-		     i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(ha, dev) {
 			/* The chip uses the upper 9 CRC bits
 			   as index into the hash table */
-			int bit_nr = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 23;
+			int bit_nr = ether_crc_le(ETH_ALEN, ha->addr) >> 23;
 			__le32 *fptr = (__le32 *) &mc_filter[(bit_nr >> 4) & ~1];
 
 			*fptr |= cpu_to_le32(1 << (bit_nr & 31));
@@ -2081,11 +2078,7 @@ static int __init starfire_init (void)
 	printk(KERN_INFO DRV_NAME ": polling (NAPI) enabled\n");
 #endif
 
-	/* we can do this test only at run-time... sigh */
-	if (sizeof(dma_addr_t) != sizeof(netdrv_addr_t)) {
-		printk("This driver has dma_addr_t issues, please send email to maintainer\n");
-		return -ENODEV;
-	}
+	BUILD_BUG_ON(sizeof(dma_addr_t) != sizeof(netdrv_addr_t));
 
 	return pci_register_driver(&starfire_driver);
 }

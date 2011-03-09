@@ -201,9 +201,6 @@ typedef struct xfs_qoff_logformat {
 #define XFS_QMOPT_FORCE_RES	0x0000010 /* ignore quota limits */
 #define XFS_QMOPT_DQSUSER	0x0000020 /* don't cache super users dquot */
 #define XFS_QMOPT_SBVERSION	0x0000040 /* change superblock version num */
-#define XFS_QMOPT_QUOTAOFF	0x0000080 /* quotas are being turned off */
-#define XFS_QMOPT_UMOUNTING	0x0000100 /* filesys is being unmounted */
-#define XFS_QMOPT_DOLOG		0x0000200 /* log buf changes (in quotacheck) */
 #define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if needed */
 #define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot if damaged */
 #define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
@@ -223,16 +220,9 @@ typedef struct xfs_qoff_logformat {
 #define XFS_QMOPT_RES_INOS	0x0800000
 
 /*
- * flags for dqflush and dqflush_all.
- */
-#define XFS_QMOPT_SYNC		0x1000000
-#define XFS_QMOPT_ASYNC		0x2000000
-#define XFS_QMOPT_DELWRI	0x4000000
-
-/*
  * flags for dqalloc.
  */
-#define XFS_QMOPT_INHERIT	0x8000000
+#define XFS_QMOPT_INHERIT	0x1000000
 
 /*
  * flags to xfs_trans_mod_dquot.
@@ -356,8 +346,17 @@ xfs_qm_vop_dqalloc(struct xfs_inode *ip, uid_t uid, gid_t gid, prid_t prid,
 #define xfs_trans_mod_dquot_byino(tp, ip, fields, delta)
 #define xfs_trans_apply_dquot_deltas(tp)
 #define xfs_trans_unreserve_and_mod_dquots(tp)
-#define xfs_trans_reserve_quota_nblks(tp, ip, nblks, ninos, flags)	(0)
-#define xfs_trans_reserve_quota_bydquots(tp, mp, u, g, nb, ni, fl)	(0)
+static inline int xfs_trans_reserve_quota_nblks(struct xfs_trans *tp,
+		struct xfs_inode *ip, long nblks, long ninos, uint flags)
+{
+	return 0;
+}
+static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
+		struct xfs_mount *mp, struct xfs_dquot *udqp,
+		struct xfs_dquot *gdqp, long nblks, long nions, uint flags)
+{
+	return 0;
+}
 #define xfs_qm_vop_create_dqattach(tp, ip, u, g)
 #define xfs_qm_vop_rename_dqattach(it)					(0)
 #define xfs_qm_vop_chown(tp, ip, old, new)				(NULL)
@@ -367,11 +366,14 @@ xfs_qm_vop_dqalloc(struct xfs_inode *ip, uid_t uid, gid_t gid, prid_t prid,
 #define xfs_qm_dqdetach(ip)
 #define xfs_qm_dqrele(d)
 #define xfs_qm_statvfs(ip, s)
-#define xfs_qm_sync(mp, fl)						(0)
+static inline int xfs_qm_sync(struct xfs_mount *mp, int flags)
+{
+	return 0;
+}
 #define xfs_qm_newmount(mp, a, b)					(0)
 #define xfs_qm_mount_quotas(mp)
 #define xfs_qm_unmount(mp)
-#define xfs_qm_unmount_quotas(mp)					(0)
+#define xfs_qm_unmount_quotas(mp)
 #endif /* CONFIG_XFS_QUOTA */
 
 #define xfs_trans_unreserve_quota_nblks(tp, ip, nblks, ninos, flags) \

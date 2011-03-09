@@ -88,10 +88,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 
 #define pte_offset_map(dir, address)	\
 	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
-#define pte_offset_map_nested(dir, address)	\
-	((pte_t *)page_address(pmd_page(*(dir))) + __pte_offset(address))
 #define pte_unmap(pte) ((void)(pte))
-#define pte_unmap_nested(pte) ((void)(pte))
 
 /*
  * Bits 9(_PAGE_PRESENT) and 10(_PAGE_FILE)are taken,
@@ -272,8 +269,9 @@ extern void __update_cache(struct vm_area_struct *vma,
 	unsigned long address,	pte_t pte);
 
 static inline void update_mmu_cache(struct vm_area_struct *vma,
-	unsigned long address, pte_t pte)
+	unsigned long address, pte_t *ptep)
 {
+	pte_t pte = *ptep;
 	__update_tlb(vma, address, pte);
 	__update_cache(vma, address, pte);
 }

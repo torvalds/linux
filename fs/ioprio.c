@@ -19,6 +19,7 @@
  * See also Documentation/block/ioprio.txt
  *
  */
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/ioprio.h>
 #include <linux/blkdev.h>
@@ -102,12 +103,7 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 	}
 
 	ret = -ESRCH;
-	/*
-	 * We want IOPRIO_WHO_PGRP/IOPRIO_WHO_USER to be "atomic",
-	 * so we can't use rcu_read_lock(). See re-copy of ->ioprio
-	 * in copy_process().
-	 */
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
 			if (!who)
@@ -152,7 +148,7 @@ free_uid:
 			ret = -EINVAL;
 	}
 
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -196,7 +192,7 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 	int ret = -ESRCH;
 	int tmpio;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
 			if (!who)
@@ -249,6 +245,6 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 			ret = -EINVAL;
 	}
 
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return ret;
 }

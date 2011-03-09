@@ -48,7 +48,7 @@ static size_t trusted_list(struct dentry *dentry, char *list, size_t list_size,
 	return len;
 }
 
-struct xattr_handler reiserfs_xattr_trusted_handler = {
+const struct xattr_handler reiserfs_xattr_trusted_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = trusted_get,
 	.set = trusted_set,

@@ -2,7 +2,7 @@
  *  arch/s390/kernel/setup.c
  *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 1999,2010
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -25,7 +25,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
@@ -112,22 +111,6 @@ static struct resource data_resource = {
 	.name = "Kernel data",
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
-
-/*
- * cpu_init() initializes state that is per-CPU.
- */
-void __cpuinit cpu_init(void)
-{
-        /*
-         * Store processor id in lowcore (used e.g. in timer_interrupt)
-         */
-	get_cpu_id(&S390_lowcore.cpu_id);
-
-	atomic_inc(&init_mm.mm_count);
-	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
-        enter_lazy_tlb(&init_mm, current);
-}
 
 /*
  * condev= and conmode= setup parameter.
@@ -386,25 +369,18 @@ static void setup_addressing_mode(void)
 			pr_info("Address spaces switched, "
 				"mvcos not available\n");
 	}
-#ifdef CONFIG_TRACE_IRQFLAGS
-	sysc_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-	io_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-#endif
 }
 
 static void __init
 setup_lowcore(void)
 {
 	struct _lowcore *lc;
-	int lc_pages;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	lc_pages = sizeof(void *) == 8 ? 2 : 1;
-	lc = (struct _lowcore *)
-		__alloc_bootmem(lc_pages * PAGE_SIZE, lc_pages * PAGE_SIZE, 0);
-	memset(lc, 0, lc_pages * PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
@@ -433,14 +409,18 @@ setup_lowcore(void)
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
 	lc->machine_flags = S390_lowcore.machine_flags;
+	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
+	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
+	       MAX_FACILITY_BIT/8);
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
-			__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0);
+			__alloc_bootmem_low(PAGE_SIZE, PAGE_SIZE, 0);
 		/* enable extended save area */
 		__ctl_set_bit(14, 29);
 	}
 #else
+	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -650,7 +630,8 @@ setup_memory(void)
 		add_active_range(0, start_chunk, end_chunk);
 		pfn = max(start_chunk, start_pfn);
 		for (; pfn < end_chunk; pfn++)
-			page_set_storage_key(PFN_PHYS(pfn), PAGE_DEFAULT_KEY);
+			page_set_storage_key(PFN_PHYS(pfn),
+					     PAGE_DEFAULT_KEY, 0);
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
@@ -697,11 +678,9 @@ setup_memory(void)
 static void __init setup_hwcaps(void)
 {
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
-	unsigned long long facility_list_extended;
-	unsigned int facility_list;
+	struct cpuid cpu_id;
 	int i;
 
-	facility_list = stfl();
 	/*
 	 * The store facility list bits numbers as found in the principles
 	 * of operation are numbered with bit 1UL<<31 as number 0 to
@@ -721,11 +700,10 @@ static void __init setup_hwcaps(void)
 	 *   HWCAP_S390_ETF3EH bit 8 (22 && 30).
 	 */
 	for (i = 0; i < 6; i++)
-		if (facility_list & (1UL << (31 - stfl_bits[i])))
+		if (test_facility(stfl_bits[i]))
 			elf_hwcap |= 1UL << i;
 
-	if ((facility_list & (1UL << (31 - 22)))
-	    && (facility_list & (1UL << (31 - 30))))
+	if (test_facility(22) && test_facility(30))
 		elf_hwcap |= HWCAP_S390_ETF3EH;
 
 	/*
@@ -741,12 +719,8 @@ static void __init setup_hwcaps(void)
 	 * translated to:
 	 *   HWCAP_S390_DFP bit 6 (42 && 44).
 	 */
-	if ((elf_hwcap & (1UL << 2)) &&
-	    __stfle(&facility_list_extended, 1) > 0) {
-		if ((facility_list_extended & (1ULL << (63 - 42)))
-		    && (facility_list_extended & (1ULL << (63 - 44))))
-			elf_hwcap |= HWCAP_S390_DFP;
-	}
+	if ((elf_hwcap & (1UL << 2)) && test_facility(42) && test_facility(44))
+		elf_hwcap |= HWCAP_S390_DFP;
 
 	/*
 	 * Huge page support HWCAP_S390_HPAGE is bit 7.
@@ -760,7 +734,8 @@ static void __init setup_hwcaps(void)
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
 
-	switch (S390_lowcore.cpu_id.machine) {
+	get_cpu_id(&cpu_id);
+	switch (cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
 	default:	/* Use "g5" as default for 31 bit kernels. */
@@ -786,6 +761,9 @@ static void __init setup_hwcaps(void)
 	case 0x2098:
 		strcpy(elf_platform, "z10");
 		break;
+	case 0x2817:
+		strcpy(elf_platform, "z196");
+		break;
 	}
 }
 
@@ -804,7 +782,7 @@ setup_arch(char **cmdline_p)
 	if (MACHINE_IS_VM)
 		pr_info("Linux is running as a z/VM "
 			"guest operating system in 31-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 31-bit mode\n");
 	if (MACHINE_HAS_IEEE)
 		pr_info("The hardware system has IEEE compatible "
@@ -818,7 +796,7 @@ setup_arch(char **cmdline_p)
 			"guest operating system in 64-bit mode\n");
 	else if (MACHINE_IS_KVM)
 		pr_info("Linux is running under KVM in 64-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 64-bit mode\n");
 #endif /* CONFIG_64BIT */
 

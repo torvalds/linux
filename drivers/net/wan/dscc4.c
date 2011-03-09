@@ -89,6 +89,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/cache.h>
@@ -124,7 +125,7 @@ static u32 dscc4_pci_config_store[16];
 /* Module parameters */
 
 MODULE_AUTHOR("Maintainer: Francois Romieu <romieu@cogenit.fr>");
-MODULE_DESCRIPTION("Siemens PEB20534 PCI Controler");
+MODULE_DESCRIPTION("Siemens PEB20534 PCI Controller");
 MODULE_LICENSE("GPL");
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,"Enable/disable extra messages");
@@ -1174,8 +1175,6 @@ static netdev_tx_t dscc4_start_xmit(struct sk_buff *skb,
 	spin_unlock(&dpriv->lock);
 #endif
 
-	dev->trans_start = jiffies;
-
 	if (debug > 2)
 		dscc4_tx_print(dev, dpriv, "Xmit");
 	/* To be cleaned(unsigned int)/optimized. Later, ok ? */
@@ -1359,7 +1358,7 @@ static int dscc4_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return ret;
 }
 
-static int dscc4_match(struct thingie *p, int value)
+static int dscc4_match(const struct thingie *p, int value)
 {
 	int i;
 
@@ -1404,7 +1403,7 @@ done:
 static int dscc4_encoding_setting(struct dscc4_dev_priv *dpriv,
 				  struct net_device *dev)
 {
-	struct thingie encoding[] = {
+	static const struct thingie encoding[] = {
 		{ ENCODING_NRZ,		0x00000000 },
 		{ ENCODING_NRZI,	0x00200000 },
 		{ ENCODING_FM_MARK,	0x00400000 },
@@ -1443,7 +1442,7 @@ static int dscc4_loopback_setting(struct dscc4_dev_priv *dpriv,
 static int dscc4_crc_setting(struct dscc4_dev_priv *dpriv,
 			     struct net_device *dev)
 {
-	struct thingie crc[] = {
+	static const struct thingie crc[] = {
 		{ PARITY_CRC16_PR0_CCITT,	0x00000010 },
 		{ PARITY_CRC16_PR1_CCITT,	0x00000000 },
 		{ PARITY_CRC32_PR0_CCITT,	0x00000011 },
@@ -2050,7 +2049,7 @@ static int __init dscc4_setup(char *str)
 __setup("dscc4.setup=", dscc4_setup);
 #endif
 
-static struct pci_device_id dscc4_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(dscc4_pci_tbl) = {
 	{ PCI_VENDOR_ID_SIEMENS, PCI_DEVICE_ID_SIEMENS_DSCC4,
 	        PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

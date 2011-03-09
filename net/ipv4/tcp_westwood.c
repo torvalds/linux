@@ -80,7 +80,7 @@ static void tcp_westwood_init(struct sock *sk)
  */
 static inline u32 westwood_do_filter(u32 a, u32 b)
 {
-	return (((7 * a) + b) >> 3);
+	return ((7 * a) + b) >> 3;
 }
 
 static void westwood_filter(struct westwood *w, u32 delta)

@@ -222,11 +222,16 @@ struct bitmap {
 	unsigned long file_pages; /* number of pages in the file */
 	int last_page_size; /* bytes in the last page */
 
+	unsigned long logattrs; /* used when filemap_attr doesn't exist
+				 * because we are working with a dirty_log
+				 */
+
 	unsigned long flags;
 
 	int allclean;
 
 	atomic_t behind_writes;
+	unsigned long behind_writes_used; /* highest actual value at runtime */
 
 	/*
 	 * the bitmap daemon - periodically wakes up and sweeps the bitmap
@@ -239,14 +244,17 @@ struct bitmap {
 	atomic_t pending_writes; /* pending writes to the bitmap file */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t overflow_wait;
+	wait_queue_head_t behind_wait;
 
 	struct sysfs_dirent *sysfs_can_clear;
+
 };
 
 /* the bitmap API */
 
 /* these are used only by md/bitmap */
 int  bitmap_create(mddev_t *mddev);
+int bitmap_load(mddev_t *mddev);
 void bitmap_flush(mddev_t *mddev);
 void bitmap_destroy(mddev_t *mddev);
 
@@ -263,8 +271,8 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset,
 			unsigned long sectors, int behind);
 void bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
 			unsigned long sectors, int success, int behind);
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int degraded);
-void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, int *blocks, int aborted);
+int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int degraded);
+void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted);
 void bitmap_close_sync(struct bitmap *bitmap);
 void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector);
 

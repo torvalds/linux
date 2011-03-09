@@ -206,7 +206,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 	}
 	/* TODO */
 	dvbdev->users--;
-	if(dvbdev->users==-1 && dmxdev->exit==1) {
+	if (dvbdev->users == 1 && dmxdev->exit == 1) {
 		fops_put(file->f_op);
 		file->f_op = NULL;
 		mutex_unlock(&dmxdev->mutex);
@@ -572,13 +572,13 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 	dmx_output_t otype;
 	int ret;
 	int ts_type;
-	enum dmx_ts_pes ts_pes;
+	dmx_pes_type_t ts_pes;
 	struct dmx_ts_feed *tsfeed;
 
 	feed->ts = NULL;
 	otype = para->output;
 
-	ts_pes = (enum dmx_ts_pes)para->pes_type;
+	ts_pes = para->pes_type;
 
 	if (ts_pes < DMX_PES_OTHER)
 		ts_type = TS_DECODER;
@@ -761,7 +761,6 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dmxdevfilter->type = DMXDEV_TYPE_NONE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
-	INIT_LIST_HEAD(&dmxdevfilter->feed.ts);
 	init_timer(&dmxdevfilter->timer);
 
 	dvbdev->users++;
@@ -887,6 +886,7 @@ static int dvb_dmxdev_pes_filter_set(struct dmxdev *dmxdev,
 	dmxdevfilter->type = DMXDEV_TYPE_PES;
 	memcpy(&dmxdevfilter->params, params,
 	       sizeof(struct dmx_pes_filter_params));
+	INIT_LIST_HEAD(&dmxdevfilter->feed.ts);
 
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_SET);
 
@@ -963,7 +963,7 @@ dvb_demux_read(struct file *file, char __user *buf, size_t count,
 	return ret;
 }
 
-static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
+static int dvb_demux_do_ioctl(struct file *file,
 			      unsigned int cmd, void *parg)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
@@ -1084,10 +1084,10 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int dvb_demux_ioctl(struct inode *inode, struct file *file,
-			   unsigned int cmd, unsigned long arg)
+static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
+			    unsigned long arg)
 {
-	return dvb_usercopy(inode, file, cmd, arg, dvb_demux_do_ioctl);
+	return dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
 }
 
 static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
@@ -1139,10 +1139,11 @@ static int dvb_demux_release(struct inode *inode, struct file *file)
 static const struct file_operations dvb_demux_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_demux_read,
-	.ioctl = dvb_demux_ioctl,
+	.unlocked_ioctl = dvb_demux_ioctl,
 	.open = dvb_demux_open,
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_demux = {
@@ -1152,7 +1153,7 @@ static struct dvb_device dvbdev_demux = {
 	.fops = &dvb_demux_fops
 };
 
-static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
+static int dvb_dvr_do_ioctl(struct file *file,
 			    unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1176,10 +1177,10 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int dvb_dvr_ioctl(struct inode *inode, struct file *file,
+static long dvb_dvr_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	return dvb_usercopy(inode, file, cmd, arg, dvb_dvr_do_ioctl);
+	return dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
 static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
@@ -1208,10 +1209,11 @@ static const struct file_operations dvb_dvr_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_dvr_read,
 	.write = dvb_dvr_write,
-	.ioctl = dvb_dvr_ioctl,
+	.unlocked_ioctl = dvb_dvr_ioctl,
 	.open = dvb_dvr_open,
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_dvr = {

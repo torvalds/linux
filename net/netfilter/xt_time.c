@@ -1,7 +1,6 @@
 /*
  *	xt_time
  *	Copyright © CC Computer Consultants GmbH, 2007
- *	Contact: <jengelh@computergmbh.de>
  *
  *	based on ipt_time by Fabrice MARIE <fabrice@netfilter.org>
  *	This is a module which is used for time matching
@@ -149,11 +148,10 @@ static void localtime_3(struct xtm *r, time_t time)
 	}
 
 	r->month    = i + 1;
-	return;
 }
 
 static bool
-time_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+time_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_time_info *info = par->matchinfo;
 	unsigned int packet_time;
@@ -218,18 +216,18 @@ time_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool time_mt_check(const struct xt_mtchk_param *par)
+static int time_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_time_info *info = par->matchinfo;
 
 	if (info->daytime_start > XT_TIME_MAX_DAYTIME ||
 	    info->daytime_stop > XT_TIME_MAX_DAYTIME) {
-		printk(KERN_WARNING "xt_time: invalid argument - start or "
-		       "stop time greater than 23:59:59\n");
-		return false;
+		pr_info("invalid argument - start or "
+			"stop time greater than 23:59:59\n");
+		return -EDOM;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match xt_time_mt_reg __read_mostly = {
@@ -264,7 +262,7 @@ static void __exit time_mt_exit(void)
 
 module_init(time_mt_init);
 module_exit(time_mt_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: time-based matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_time");

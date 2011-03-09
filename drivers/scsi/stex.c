@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/pci.h>
 #include <linux/blkdev.h>
@@ -571,7 +572,7 @@ stex_slave_destroy(struct scsi_device *sdev)
 }
 
 static int
-stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
+stex_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	struct st_hba *hba;
 	struct Scsi_Host *host;
@@ -696,6 +697,8 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 	hba->send(hba, req, tag);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(stex_queuecommand)
 
 static void stex_scsi_done(struct st_ccb *ccb)
 {

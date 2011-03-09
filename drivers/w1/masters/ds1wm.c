@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/ds1wm.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 

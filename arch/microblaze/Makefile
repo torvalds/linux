@@ -17,7 +17,7 @@ export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 # The various CONFIG_XILINX cpu features options are integers 0/1/2...
 # rather than bools y/n
 
-# Work out HW multipler support.  This is icky.
+# Work out HW multipler support. This is tricky.
 # 1. Spartan2 has no HW multiplers.
 # 2. MicroBlaze v3.x always uses them, except in Spartan 2
 # 3. All other FPGa/CPU ver combos, we can trust the CONFIG_ settings
@@ -25,7 +25,7 @@ ifeq (,$(findstring spartan2,$(CONFIG_XILINX_MICROBLAZE0_FAMILY)))
   ifeq ($(CPU_MAJOR),3)
     CPUFLAGS-1 += -mno-xl-soft-mul
   else
-    # USE_HW_MUL can be 0, 1, or 2, defining a heirarchy of HW Mul support.
+    # USE_HW_MUL can be 0, 1, or 2, defining a hierarchy of HW Mul support.
     CPUFLAGS-$(subst 1,,$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL)) += -mxl-multiply-high
     CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL) += -mno-xl-soft-mul
   endif
@@ -42,14 +42,12 @@ KBUILD_CFLAGS += -ffixed-r31 $(CPUFLAGS-1) $(CPUFLAGS-2)
 LDFLAGS		:=
 LDFLAGS_vmlinux	:=
 
-LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-
 head-y := arch/microblaze/kernel/head.o
 libs-y += arch/microblaze/lib/
-libs-y += $(LIBGCC)
 core-y += arch/microblaze/kernel/
 core-y += arch/microblaze/mm/
 core-y += arch/microblaze/platform/
+core-$(CONFIG_PCI) += arch/microblaze/pci/
 
 drivers-$(CONFIG_OPROFILE) += arch/microblaze/oprofile/
 
@@ -71,19 +69,23 @@ export MMU DTB
 
 all: linux.bin
 
-BOOT_TARGETS = linux.bin linux.bin.gz simpleImage.%
+# With make 3.82 we cannot mix normal and wildcard targets
+BOOT_TARGETS1 = linux.bin linux.bin.gz
+BOOT_TARGETS2 = simpleImage.%
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-$(BOOT_TARGETS): vmlinux
+$(BOOT_TARGETS1): vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+$(BOOT_TARGETS2): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 define archhelp
   echo '* linux.bin    - Create raw binary'
   echo '  linux.bin.gz - Create compressed raw binary'
   echo '  simpleImage.<dt> - ELF image with $(arch)/boot/dts/<dt>.dts linked in'
-  echo '                   - stripped elf with fdt blob
+  echo '                   - stripped elf with fdt blob'
   echo '  simpleImage.<dt>.unstrip - full ELF image with fdt blob'
   echo '  *_defconfig      - Select default config from arch/microblaze/configs'
   echo ''
@@ -93,3 +95,5 @@ define archhelp
   echo '  name of a dts file from the arch/microblaze/boot/dts/ directory'
   echo '  (minus the .dts extension).'
 endef
+
+MRPROPER_FILES += $(boot)/simpleImage.*

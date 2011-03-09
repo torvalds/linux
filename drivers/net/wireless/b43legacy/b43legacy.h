@@ -372,7 +372,7 @@ struct b43legacy_fw_header {
 	/* Size of the data. For ucode and PCM this is in bytes.
 	 * For IV this is number-of-ivs. */
 	__be32 size;
-} __attribute__((__packed__));
+} __packed;
 
 /* Initial Value file format */
 #define B43legacy_IV_OFFSET_MASK	0x7FFF
@@ -382,8 +382,8 @@ struct b43legacy_iv {
 	union {
 		__be16 d16;
 		__be32 d32;
-	} data __attribute__((__packed__));
-} __attribute__((__packed__));
+	} data __packed;
+} __packed;
 
 #define B43legacy_PHYMODE(phytype)	(1 << (phytype))
 #define B43legacy_PHYMODE_B		B43legacy_PHYMODE	\

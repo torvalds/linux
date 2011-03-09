@@ -15,6 +15,7 @@
 #define KMSG_COMPONENT "time"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -36,6 +37,8 @@
 #include <linux/notifier.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/gfp.h>
+#include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
@@ -51,14 +54,6 @@
 #define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
 #define CLK_TICKS_PER_JIFFY ((unsigned long) USECS_PER_JIFFY << 12)
 
-/*
- * Create a small time difference between the timer interrupts
- * on the different cpus to avoid lock contention.
- */
-#define CPU_DEVIATION       (smp_processor_id() << 12)
-
-#define TICK_SIZE tick
-
 u64 sched_clock_base_cc = -1;	/* Force to data section. */
 EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
@@ -67,7 +62,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long notrace __kprobes sched_clock(void)
 {
 	return (get_clock_monotonic() * 125) >> 9;
 }
@@ -81,15 +76,15 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec *xtime)
+void tod_to_timeval(__u64 todval, struct timespec *xt)
 {
 	unsigned long long sec;
 
 	sec = todval >> 12;
 	do_div(sec, 1000000);
-	xtime->tv_sec = sec;
+	xt->tv_sec = sec;
 	todval -= (sec * 1000000) << 12;
-	xtime->tv_nsec = ((todval * 1000) >> 12);
+	xt->tv_nsec = ((todval * 1000) >> 12);
 }
 EXPORT_SYMBOL(tod_to_timeval);
 
@@ -162,8 +157,11 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(__u16 code)
+static void clock_comparator_interrupt(unsigned int ext_int_code,
+				       unsigned int param32,
+				       unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -171,14 +169,14 @@ static void clock_comparator_interrupt(__u16 code)
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(__u16 code)
+static void timing_alert_interrupt(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
-	if (S390_lowcore.ext_params & 0x00c40000)
-		etr_timing_alert((struct etr_irq_parm *)
-				 &S390_lowcore.ext_params);
-	if (S390_lowcore.ext_params & 0x00038000)
-		stp_timing_alert((struct stp_irq_parm *)
-				 &S390_lowcore.ext_params);
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
+	if (param32 & 0x00c40000)
+		etr_timing_alert((struct etr_irq_parm *) &param32);
+	if (param32 & 0x00038000)
+		stp_timing_alert((struct stp_irq_parm *) &param32);
 }
 
 static void etr_reset(void);
@@ -214,8 +212,8 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
-		     u32 mult)
+void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+			struct clocksource *clock, u32 mult)
 {
 	if (clock != &clocksource_tod)
 		return;
@@ -224,10 +222,11 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	++vdso_data->tb_update_count;
 	smp_wmb();
 	vdso_data->xtime_tod_stamp = clock->cycle_last;
-	vdso_data->xtime_clock_sec = xtime.tv_sec;
-	vdso_data->xtime_clock_nsec = xtime.tv_nsec;
-	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	vdso_data->xtime_clock_sec = wall_time->tv_sec;
+	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
+	vdso_data->wtom_clock_sec = wtm->tv_sec;
+	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
+	vdso_data->ntp_mult = mult;
 	smp_wmb();
 	++vdso_data->tb_update_count;
 }
@@ -397,7 +396,6 @@ static void __init time_init_wq(void)
 	if (time_sync_wq)
 		return;
 	time_sync_wq = create_singlethread_workqueue("timesync");
-	stop_machine_create();
 }
 
 /*
@@ -531,8 +529,11 @@ void etr_switch_to_local(void)
 	if (!etr_eacr.sl)
 		return;
 	disable_sync_clock(NULL);
-	set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events);
-	queue_work(time_sync_wq, &etr_work);
+	if (!test_and_set_bit(ETR_EVENT_SWITCH_LOCAL, &etr_events)) {
+		etr_eacr.es = etr_eacr.sl = 0;
+		etr_setr(&etr_eacr);
+		queue_work(time_sync_wq, &etr_work);
+	}
 }
 
 /*
@@ -546,8 +547,11 @@ void etr_sync_check(void)
 	if (!etr_eacr.es)
 		return;
 	disable_sync_clock(NULL);
-	set_bit(ETR_EVENT_SYNC_CHECK, &etr_events);
-	queue_work(time_sync_wq, &etr_work);
+	if (!test_and_set_bit(ETR_EVENT_SYNC_CHECK, &etr_events)) {
+		etr_eacr.es = 0;
+		etr_setr(&etr_eacr);
+		queue_work(time_sync_wq, &etr_work);
+	}
 }
 
 /*
@@ -909,7 +913,7 @@ static struct etr_eacr etr_handle_update(struct etr_aib *aib,
 	 * Do not try to get the alternate port aib if the clock
 	 * is not in sync yet.
 	 */
-	if (!check_sync_clock())
+	if (!eacr.es || !check_sync_clock())
 		return eacr;
 
 	/*
@@ -1071,7 +1075,7 @@ static void etr_work_fn(struct work_struct *work)
 	 * If the clock is in sync just update the eacr and return.
 	 * If there is no valid sync port wait for a port update.
 	 */
-	if (check_sync_clock() || sync_port < 0) {
+	if ((eacr.es && check_sync_clock()) || sync_port < 0) {
 		etr_update_eacr(eacr);
 		etr_set_tolec_timeout(now);
 		goto out_unlock;
@@ -1124,14 +1128,18 @@ static struct sys_device etr_port1_dev = {
 /*
  * ETR class attributes
  */
-static ssize_t etr_stepping_port_show(struct sysdev_class *class, char *buf)
+static ssize_t etr_stepping_port_show(struct sysdev_class *class,
+					struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%i\n", etr_port0.esw.p);
 }
 
 static SYSDEV_CLASS_ATTR(stepping_port, 0400, etr_stepping_port_show, NULL);
 
-static ssize_t etr_stepping_mode_show(struct sysdev_class *class, char *buf)
+static ssize_t etr_stepping_mode_show(struct sysdev_class *class,
+				      	struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	char *mode_str;
 
@@ -1592,7 +1600,9 @@ static struct sysdev_class stp_sysclass = {
 	.name	= "stp",
 };
 
-static ssize_t stp_ctn_id_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_ctn_id_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1602,7 +1612,9 @@ static ssize_t stp_ctn_id_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(ctn_id, 0400, stp_ctn_id_show, NULL);
 
-static ssize_t stp_ctn_type_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_ctn_type_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1611,7 +1623,9 @@ static ssize_t stp_ctn_type_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(ctn_type, 0400, stp_ctn_type_show, NULL);
 
-static ssize_t stp_dst_offset_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_dst_offset_show(struct sysdev_class *class,
+				   struct sysdev_class_attribute *attr,
+				   char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x2000))
 		return -ENODATA;
@@ -1620,7 +1634,9 @@ static ssize_t stp_dst_offset_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(dst_offset, 0400, stp_dst_offset_show, NULL);
 
-static ssize_t stp_leap_seconds_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_leap_seconds_show(struct sysdev_class *class,
+					struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x8000))
 		return -ENODATA;
@@ -1629,7 +1645,9 @@ static ssize_t stp_leap_seconds_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(leap_seconds, 0400, stp_leap_seconds_show, NULL);
 
-static ssize_t stp_stratum_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_stratum_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1638,7 +1656,9 @@ static ssize_t stp_stratum_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(stratum, 0400, stp_stratum_show, NULL);
 
-static ssize_t stp_time_offset_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_time_offset_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x0800))
 		return -ENODATA;
@@ -1647,7 +1667,9 @@ static ssize_t stp_time_offset_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(time_offset, 0400, stp_time_offset_show, NULL);
 
-static ssize_t stp_time_zone_offset_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_time_zone_offset_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x4000))
 		return -ENODATA;
@@ -1657,7 +1679,9 @@ static ssize_t stp_time_zone_offset_show(struct sysdev_class *class, char *buf)
 static SYSDEV_CLASS_ATTR(time_zone_offset, 0400,
 			 stp_time_zone_offset_show, NULL);
 
-static ssize_t stp_timing_mode_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_timing_mode_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1666,7 +1690,9 @@ static ssize_t stp_timing_mode_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(timing_mode, 0400, stp_timing_mode_show, NULL);
 
-static ssize_t stp_timing_state_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_timing_state_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1675,12 +1701,15 @@ static ssize_t stp_timing_state_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(timing_state, 0400, stp_timing_state_show, NULL);
 
-static ssize_t stp_online_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_online_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	return sprintf(buf, "%i\n", stp_online);
 }
 
 static ssize_t stp_online_store(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
 				const char *buf, size_t count)
 {
 	unsigned int value;

@@ -221,6 +221,7 @@ config JOYSTICK_DB9
 config JOYSTICK_GAMECON
 	tristate "Multisystem, NES, SNES, N64, PSX joysticks and gamepads"
 	depends on PARPORT
+	select INPUT_FF_MEMLESS
 	---help---
 	  Say Y here if you have a Nintendo Entertainment System gamepad,
 	  Super Nintendo Entertainment System gamepad, Nintendo 64 gamepad,
@@ -253,6 +254,16 @@ config JOYSTICK_AMIGA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called amijoy.
+
+config JOYSTICK_AS5011
+	tristate "Austria Microsystem AS5011 joystick"
+	depends on I2C
+	help
+	  Say Y here if you have an AS5011 digital joystick connected to your
+	  system.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called as5011.
 
 config JOYSTICK_JOYDUMP
 	tristate "Gameport data dumper"

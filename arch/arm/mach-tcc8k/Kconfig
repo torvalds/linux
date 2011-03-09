@@ -1,0 +1,11 @@
+if ARCH_TCC8K
+
+comment "TCC8000 systems:"
+
+config MACH_TCC8000_SDK
+	bool "Telechips TCC8000-SDK development kit"
+	default y
+	help
+	  Support for the Telechips TCC8000-SDK board.
+
+endif

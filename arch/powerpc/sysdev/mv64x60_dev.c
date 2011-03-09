@@ -16,15 +16,12 @@
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
+#include <linux/of_net.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/prom.h>
 
-/*
- * These functions provide the necessary setup for the mv64x60 drivers.
- * These drivers are unusual in that they work on both the MIPS and PowerPC
- * architectures.  Because of that, the drivers do not support the normal
- * PowerPC of_platform_bus_type.  They support platform_bus_type instead.
- */
+/* These functions provide the necessary setup for the mv64x60 drivers. */
 
 static struct of_device_id __initdata of_mv64x60_devices[] = {
 	{ .compatible = "marvell,mv64306-devctrl", },
@@ -189,6 +186,7 @@ static int __init mv64x60_mpsc_device_setup(struct device_node *np, int id)
 	pdev = platform_device_alloc(MPSC_CTLR_NAME, port_number);
 	if (!pdev)
 		return -ENOMEM;
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	err = platform_device_add_resources(pdev, r, 5);
 	if (err)
@@ -302,6 +300,7 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id,
 	if (!pdev)
 		return -ENOMEM;
 
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	err = platform_device_add_resources(pdev, r, 1);
 	if (err)
 		goto error;

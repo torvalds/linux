@@ -107,98 +107,13 @@ extern struct ia64_boot_param {
  */
 #define set_mb(var, value)	do { (var) = (value); mb(); } while (0)
 
-#define safe_halt()         ia64_pal_halt_light()    /* PAL_HALT_LIGHT */
-
 /*
  * The group barrier in front of the rsm & ssm are necessary to ensure
  * that none of the previous instructions in the same group are
  * affected by the rsm/ssm.
  */
-/* For spinlocks etc */
-
-/*
- * - clearing psr.i is implicitly serialized (visible by next insn)
- * - setting psr.i requires data serialization
- * - we need a stop-bit before reading PSR because we sometimes
- *   write a floating-point register right before reading the PSR
- *   and that writes to PSR.mfl
- */
-#ifdef CONFIG_PARAVIRT
-#define __local_save_flags()	ia64_get_psr_i()
-#else
-#define __local_save_flags()	ia64_getreg(_IA64_REG_PSR)
-#endif
-
-#define __local_irq_save(x)			\
-do {						\
-	ia64_stop();				\
-	(x) = __local_save_flags();		\
-	ia64_stop();				\
-	ia64_rsm(IA64_PSR_I);			\
-} while (0)
-
-#define __local_irq_disable()			\
-do {						\
-	ia64_stop();				\
-	ia64_rsm(IA64_PSR_I);			\
-} while (0)
-
-#define __local_irq_restore(x)	ia64_intrin_local_irq_restore((x) & IA64_PSR_I)
-
-#ifdef CONFIG_IA64_DEBUG_IRQ
-
-  extern unsigned long last_cli_ip;
-
-# define __save_ip()		last_cli_ip = ia64_getreg(_IA64_REG_IP)
-
-# define local_irq_save(x)					\
-do {								\
-	unsigned long __psr;					\
-								\
-	__local_irq_save(__psr);				\
-	if (__psr & IA64_PSR_I)					\
-		__save_ip();					\
-	(x) = __psr;						\
-} while (0)
-
-# define local_irq_disable()	do { unsigned long __x; local_irq_save(__x); } while (0)
-
-# define local_irq_restore(x)					\
-do {								\
-	unsigned long __old_psr, __psr = (x);			\
-								\
-	local_save_flags(__old_psr);				\
-	__local_irq_restore(__psr);				\
-	if ((__old_psr & IA64_PSR_I) && !(__psr & IA64_PSR_I))	\
-		__save_ip();					\
-} while (0)
-
-#else /* !CONFIG_IA64_DEBUG_IRQ */
-# define local_irq_save(x)	__local_irq_save(x)
-# define local_irq_disable()	__local_irq_disable()
-# define local_irq_restore(x)	__local_irq_restore(x)
-#endif /* !CONFIG_IA64_DEBUG_IRQ */
-
-#define local_irq_enable()	({ ia64_stop(); ia64_ssm(IA64_PSR_I); ia64_srlz_d(); })
-#define local_save_flags(flags)	({ ia64_stop(); (flags) = __local_save_flags(); })
-
-#define irqs_disabled()				\
-({						\
-	unsigned long __ia64_id_flags;		\
-	local_save_flags(__ia64_id_flags);	\
-	(__ia64_id_flags & IA64_PSR_I) == 0;	\
-})
 
 #ifdef __KERNEL__
-
-#ifdef CONFIG_IA32_SUPPORT
-# define IS_IA32_PROCESS(regs)	(ia64_psr(regs)->is != 0)
-#else
-# define IS_IA32_PROCESS(regs)		0
-struct task_struct;
-static inline void ia32_save_state(struct task_struct *t __attribute__((unused))){}
-static inline void ia32_load_state(struct task_struct *t __attribute__((unused))){}
-#endif
 
 /*
  * Context switch from one thread to another.  If the two threads have
@@ -233,7 +148,7 @@ extern void ia64_account_on_switch (struct task_struct *prev, struct task_struct
 
 #define IA64_HAS_EXTRA_STATE(t)							\
 	((t)->thread.flags & (IA64_THREAD_DBG_VALID|IA64_THREAD_PM_VALID)	\
-	 || IS_IA32_PROCESS(task_pt_regs(t)) || PERFMON_IS_SYSWIDE())
+	 || PERFMON_IS_SYSWIDE())
 
 #define __switch_to(prev,next,last) do {							 \
 	IA64_ACCOUNT_ON_SWITCH(prev, next);							 \
@@ -280,10 +195,6 @@ void cpu_idle_wait(void);
 #define arch_align_stack(x) (x)
 
 void default_idle(void);
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-extern void account_system_vtime(struct task_struct *);
-#endif
 
 #endif /* __KERNEL__ */
 

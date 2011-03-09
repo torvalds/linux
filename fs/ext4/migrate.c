@@ -13,6 +13,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
 
@@ -365,17 +366,17 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * happened after we started the migrate. We need to
 	 * fail the migrate
 	 */
-	if (!(EXT4_I(inode)->i_state & EXT4_STATE_EXT_MIGRATE)) {
+	if (!ext4_test_inode_state(inode, EXT4_STATE_EXT_MIGRATE)) {
 		retval = -EAGAIN;
 		up_write(&EXT4_I(inode)->i_data_sem);
 		goto err_out;
 	} else
-		EXT4_I(inode)->i_state &= ~EXT4_STATE_EXT_MIGRATE;
+		ext4_clear_inode_state(inode, EXT4_STATE_EXT_MIGRATE);
 	/*
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
 	 */
-	ei->i_flags |= EXT4_EXTENTS_FL;
+	ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS);
 	memcpy(ei->i_data, tmp_ei->i_data, sizeof(ei->i_data));
 
 	/*
@@ -411,7 +412,7 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 	struct buffer_head *bh;
 	struct ext4_extent_header *eh;
 
-	block = idx_pblock(ix);
+	block = ext4_idx_pblock(ix);
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh)
 		return -EIO;
@@ -474,7 +475,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 */
 	if (!EXT4_HAS_INCOMPAT_FEATURE(inode->i_sb,
 				       EXT4_FEATURE_INCOMPAT_EXTENTS) ||
-	    (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+	    (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EINVAL;
 
 	if (S_ISLNK(inode->i_mode) && inode->i_blocks == 0)
@@ -495,7 +496,7 @@ int ext4_ext_migrate(struct inode *inode)
 	goal = (((inode->i_ino - 1) / EXT4_INODES_PER_GROUP(inode->i_sb)) *
 		EXT4_INODES_PER_GROUP(inode->i_sb)) + 1;
 	tmp_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
-				   S_IFREG, 0, goal);
+				   S_IFREG, NULL, goal);
 	if (IS_ERR(tmp_inode)) {
 		retval = -ENOMEM;
 		ext4_journal_stop(handle);
@@ -503,14 +504,10 @@ int ext4_ext_migrate(struct inode *inode)
 	}
 	i_size_write(tmp_inode, i_size_read(inode));
 	/*
-	 * We don't want the inode to be reclaimed
-	 * if we got interrupted in between. We have
-	 * this tmp inode carrying reference to the
-	 * data blocks of the original file. We set
-	 * the i_nlink to zero at the last stage after
-	 * switching the original file to extent format
+	 * Set the i_nlink to zero so it will be deleted later
+	 * when we drop inode reference.
 	 */
-	tmp_inode->i_nlink = 1;
+	tmp_inode->i_nlink = 0;
 
 	ext4_ext_tree_init(handle, tmp_inode);
 	ext4_orphan_add(handle, tmp_inode);
@@ -533,10 +530,20 @@ int ext4_ext_migrate(struct inode *inode)
 	 * allocation.
 	 */
 	down_read((&EXT4_I(inode)->i_data_sem));
-	EXT4_I(inode)->i_state |= EXT4_STATE_EXT_MIGRATE;
+	ext4_set_inode_state(inode, EXT4_STATE_EXT_MIGRATE);
 	up_read((&EXT4_I(inode)->i_data_sem));
 
 	handle = ext4_journal_start(inode, 1);
+	if (IS_ERR(handle)) {
+		/*
+		 * It is impossible to update on-disk structures without
+		 * a handle, so just rollback in-core changes and live other
+		 * work to orphan_list_cleanup()
+		 */
+		ext4_orphan_del(NULL, tmp_inode);
+		retval = PTR_ERR(handle);
+		goto out;
+	}
 
 	ei = EXT4_I(inode);
 	i_data = ei->i_data;
@@ -618,15 +625,8 @@ err_out:
 
 	/* Reset the extent details */
 	ext4_ext_tree_init(handle, tmp_inode);
-
-	/*
-	 * Set the i_nlink to zero so that
-	 * generic_drop_inode really deletes the
-	 * inode
-	 */
-	tmp_inode->i_nlink = 0;
-
 	ext4_journal_stop(handle);
+out:
 	unlock_new_inode(tmp_inode);
 	iput(tmp_inode);
 

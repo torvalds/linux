@@ -39,6 +39,7 @@
 #include <linux/pci_ids.h>
 #include <linux/pm.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/tcp.h>
@@ -50,10 +51,10 @@
 
 #define ATL2_DRV_VERSION "2.2.3"
 
-static char atl2_driver_name[] = "atl2";
+static const char atl2_driver_name[] = "atl2";
 static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
-static char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
-static char atl2_driver_version[] = ATL2_DRV_VERSION;
+static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
+static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
@@ -63,7 +64,7 @@ MODULE_VERSION(ATL2_DRV_VERSION);
 /*
  * atl2_pci_tbl - PCI Device ID Table
  */
-static struct pci_device_id atl2_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl2_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2)},
 	/* required last entry */
 	{0,}
@@ -135,7 +136,7 @@ static void atl2_set_multi(struct net_device *netdev)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 	struct atl2_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 rctl;
 	u32 hash_value;
 
@@ -157,8 +158,8 @@ static void atl2_set_multi(struct net_device *netdev)
 	ATL2_WRITE_REG_ARRAY(hw, REG_RX_HASH_TABLE, 1, 0);
 
 	/* comoute mc addresses' hash value ,and put it into hash table */
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
-		hash_value = atl2_hash_mc_addr(hw, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash_value = atl2_hash_mc_addr(hw, ha->addr);
 		atl2_hash_set(hw, hash_value);
 	}
 }
@@ -421,7 +422,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 				netdev->stats.rx_dropped++;
 				break;
 			}
-			skb->dev = netdev;
 			memcpy(skb->data, rxd->packet, rx_size);
 			skb_put(skb, rx_size);
 			skb->protocol = eth_type_trans(skb, netdev);
@@ -870,7 +870,7 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 		offset = ((u32)(skb->len-copy_len + 3) & ~3);
 	}
 #ifdef NETIF_F_HW_VLAN_TX
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		u16 vlan_tag = vlan_tx_tag_get(skb);
 		vlan_tag = (vlan_tag << 4) |
 			(vlan_tag >> 13) |
@@ -892,7 +892,6 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 		(adapter->txd_write_ptr >> 2));
 
 	mmiowb();
-	netdev->trans_start = jiffies;
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
@@ -1445,11 +1444,11 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 	atl2_check_options(adapter);
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &atl2_watchdog;
+	adapter->watchdog_timer.function = atl2_watchdog;
 	adapter->watchdog_timer.data = (unsigned long) adapter;
 
 	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl2_phy_config;
+	adapter->phy_config_timer.function = atl2_phy_config;
 	adapter->phy_config_timer.data = (unsigned long) adapter;
 
 	INIT_WORK(&adapter->reset_task, atl2_reset_task);
@@ -1505,8 +1504,8 @@ static void __devexit atl2_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_config_timer);
-
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->reset_task);
+	cancel_work_sync(&adapter->link_chg_task);
 
 	unregister_netdev(netdev);
 

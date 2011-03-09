@@ -14,17 +14,17 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/rtc.h>
 #include "../iio.h"
 #include "../trigger.h"
 
-LIST_HEAD(iio_prtc_trigger_list);
-DEFINE_MUTEX(iio_prtc_trigger_list_lock);
+static LIST_HEAD(iio_prtc_trigger_list);
+static DEFINE_MUTEX(iio_prtc_trigger_list_lock);
 
 struct iio_prtc_trigger_info {
 	struct rtc_device *rtc;
 	int frequency;
-	char *name;
 	struct rtc_task task;
 };
 
@@ -72,18 +72,7 @@ error_ret:
 	return ret;
 }
 
-static ssize_t iio_trig_periodic_read_name(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	struct iio_trigger *trig = dev_get_drvdata(dev);
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
-	return sprintf(buf, "%s\n", trig_info->name);
-}
-
-static DEVICE_ATTR(name, S_IRUGO,
-	    iio_trig_periodic_read_name,
-	    NULL);
+static IIO_TRIGGER_NAME_ATTR;
 static DEVICE_ATTR(frequency, S_IRUGO | S_IWUSR,
 	    iio_trig_periodic_read_freq,
 	    iio_trig_periodic_write_freq);
@@ -99,7 +88,8 @@ static const struct attribute_group iio_trig_prtc_attr_group = {
 
 static void iio_prtc_trigger_poll(void *private_data)
 {
-	iio_trigger_poll(private_data);
+	/* Timestamp is not provided currently */
+	iio_trigger_poll(private_data, 0);
 }
 
 static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
@@ -128,16 +118,12 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 		trig->private_data = trig_info;
 		trig->owner = THIS_MODULE;
 		trig->set_trigger_state = &iio_trig_periodic_rtc_set_state;
-		trig->name = kmalloc(IIO_TRIGGER_NAME_LENGTH, GFP_KERNEL);
+		trig->name = kasprintf(GFP_KERNEL, "periodic%s", pdata[i]);
 		if (trig->name == NULL) {
 			ret = -ENOMEM;
 			goto error_free_trig_info;
 		}
-		snprintf((char *)trig->name,
-			 IIO_TRIGGER_NAME_LENGTH,
-			 "periodic%s",
-			 pdata[i]);
-		trig_info->name = (char *)trig->name;
+
 		/* RTC access */
 		trig_info->rtc
 			= rtc_class_open(pdata[i]);

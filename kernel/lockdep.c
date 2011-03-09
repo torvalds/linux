@@ -43,6 +43,7 @@
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/sections.h>
 
@@ -145,7 +146,7 @@ static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS],
 
 static inline u64 lockstat_clock(void)
 {
-	return cpu_clock(smp_processor_id());
+	return local_clock();
 }
 
 static int lock_point(unsigned long points[], unsigned long ip)
@@ -430,20 +431,7 @@ static struct stack_trace lockdep_init_trace = {
 /*
  * Various lockdep statistics:
  */
-atomic_t chain_lookup_hits;
-atomic_t chain_lookup_misses;
-atomic_t hardirqs_on_events;
-atomic_t hardirqs_off_events;
-atomic_t redundant_hardirqs_on;
-atomic_t redundant_hardirqs_off;
-atomic_t softirqs_on_events;
-atomic_t softirqs_off_events;
-atomic_t redundant_softirqs_on;
-atomic_t redundant_softirqs_off;
-atomic_t nr_unused_locks;
-atomic_t nr_cyclic_checks;
-atomic_t nr_find_usage_forwards_checks;
-atomic_t nr_find_usage_backwards_checks;
+DEFINE_PER_CPU(struct lockdep_stats, lockdep_stats);
 #endif
 
 /*
@@ -582,9 +570,6 @@ static int static_obj(void *obj)
 	unsigned long start = (unsigned long) &_stext,
 		      end   = (unsigned long) &_end,
 		      addr  = (unsigned long) obj;
-#ifdef CONFIG_SMP
-	int i;
-#endif
 
 	/*
 	 * static variable?
@@ -595,24 +580,16 @@ static int static_obj(void *obj)
 	if (arch_is_kernel_data(addr))
 		return 1;
 
-#ifdef CONFIG_SMP
 	/*
-	 * percpu var?
+	 * in-kernel percpu var?
 	 */
-	for_each_possible_cpu(i) {
-		start = (unsigned long) &__per_cpu_start + per_cpu_offset(i);
-		end   = (unsigned long) &__per_cpu_start + PERCPU_ENOUGH_ROOM
-					+ per_cpu_offset(i);
-
-		if ((addr >= start) && (addr < end))
-			return 1;
-	}
-#endif
+	if (is_kernel_percpu_address(addr))
+		return 1;
 
 	/*
-	 * module var?
+	 * module static or percpu var?
 	 */
-	return is_module_address(addr);
+	return is_module_address(addr) || is_module_percpu_address(addr);
 }
 
 /*
@@ -661,6 +638,16 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
 		save_stack_trace(&lockdep_init_trace);
 	}
 #endif
+
+	if (unlikely(subclass >= MAX_LOCKDEP_SUBCLASSES)) {
+		debug_locks_off();
+		printk(KERN_ERR
+			"BUG: looking up invalid subclass: %u\n", subclass);
+		printk(KERN_ERR
+			"turning off the locking correctness validator.\n");
+		dump_stack();
+		return NULL;
+	}
 
 	/*
 	 * Static locks do not have their class-keys yet - for them the key
@@ -758,7 +745,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 		return NULL;
 	}
 	class = lock_classes + nr_lock_classes++;
-	debug_atomic_inc(&nr_unused_locks);
+	debug_atomic_inc(nr_unused_locks);
 	class->key = key;
 	class->name = lock->name;
 	class->subclass = subclass;
@@ -797,7 +784,9 @@ out_unlock_set:
 	raw_local_irq_restore(flags);
 
 	if (!subclass || force)
-		lock->class_cache = class;
+		lock->class_cache[0] = class;
+	else if (subclass < NR_LOCKDEP_CACHING_CLASSES)
+		lock->class_cache[subclass] = class;
 
 	if (DEBUG_LOCKS_WARN_ON(class->subclass != subclass))
 		return NULL;
@@ -828,7 +817,8 @@ static struct lock_list *alloc_list_entry(void)
  * Add a new dependency to the head of the list:
  */
 static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
-			    struct list_head *head, unsigned long ip, int distance)
+			    struct list_head *head, unsigned long ip,
+			    int distance, struct stack_trace *trace)
 {
 	struct lock_list *entry;
 	/*
@@ -839,11 +829,9 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	if (!entry)
 		return 0;
 
-	if (!save_trace(&entry->trace))
-		return 0;
-
 	entry->class = this;
 	entry->distance = distance;
+	entry->trace = *trace;
 	/*
 	 * Since we never remove from the dependency list, the list can
 	 * be walked lockless by other CPUs, it's only allocation
@@ -1215,7 +1203,7 @@ check_noncircular(struct lock_list *root, struct lock_class *target,
 {
 	int result;
 
-	debug_atomic_inc(&nr_cyclic_checks);
+	debug_atomic_inc(nr_cyclic_checks);
 
 	result = __bfs_forwards(root, target, class_equal, target_entry);
 
@@ -1252,7 +1240,7 @@ find_usage_forwards(struct lock_list *root, enum lock_usage_bit bit,
 {
 	int result;
 
-	debug_atomic_inc(&nr_find_usage_forwards_checks);
+	debug_atomic_inc(nr_find_usage_forwards_checks);
 
 	result = __bfs_forwards(root, (void *)bit, usage_match, target_entry);
 
@@ -1275,7 +1263,7 @@ find_usage_backwards(struct lock_list *root, enum lock_usage_bit bit,
 {
 	int result;
 
-	debug_atomic_inc(&nr_find_usage_backwards_checks);
+	debug_atomic_inc(nr_find_usage_backwards_checks);
 
 	result = __bfs_backwards(root, (void *)bit, usage_match, target_entry);
 
@@ -1645,12 +1633,20 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
  */
 static int
 check_prev_add(struct task_struct *curr, struct held_lock *prev,
-	       struct held_lock *next, int distance)
+	       struct held_lock *next, int distance, int trylock_loop)
 {
 	struct lock_list *entry;
 	int ret;
 	struct lock_list this;
 	struct lock_list *uninitialized_var(target_entry);
+	/*
+	 * Static variable, serialized by the graph_lock().
+	 *
+	 * We use this static variable to save the stack trace in case
+	 * we call into this function multiple times due to encountering
+	 * trylocks in the held lock stack.
+	 */
+	static struct stack_trace trace;
 
 	/*
 	 * Prove that the new <prev> -> <next> dependency would not
@@ -1698,20 +1694,23 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		}
 	}
 
+	if (!trylock_loop && !save_trace(&trace))
+		return 0;
+
 	/*
 	 * Ok, all validations passed, add the new lock
 	 * to the previous lock's dependency list:
 	 */
 	ret = add_lock_to_list(hlock_class(prev), hlock_class(next),
 			       &hlock_class(prev)->locks_after,
-			       next->acquire_ip, distance);
+			       next->acquire_ip, distance, &trace);
 
 	if (!ret)
 		return 0;
 
 	ret = add_lock_to_list(hlock_class(next), hlock_class(prev),
 			       &hlock_class(next)->locks_before,
-			       next->acquire_ip, distance);
+			       next->acquire_ip, distance, &trace);
 	if (!ret)
 		return 0;
 
@@ -1741,6 +1740,7 @@ static int
 check_prevs_add(struct task_struct *curr, struct held_lock *next)
 {
 	int depth = curr->lockdep_depth;
+	int trylock_loop = 0;
 	struct held_lock *hlock;
 
 	/*
@@ -1766,7 +1766,8 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		 * added:
 		 */
 		if (hlock->read != 2) {
-			if (!check_prev_add(curr, hlock, next, distance))
+			if (!check_prev_add(curr, hlock, next,
+						distance, trylock_loop))
 				return 0;
 			/*
 			 * Stop after the first non-trylock entry,
@@ -1789,6 +1790,7 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		if (curr->held_locks[depth].irq_context !=
 				curr->held_locks[depth-1].irq_context)
 			break;
+		trylock_loop = 1;
 	}
 	return 1;
 out_bug:
@@ -1835,7 +1837,7 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
 cache_hit:
-			debug_atomic_inc(&chain_lookup_hits);
+			debug_atomic_inc(chain_lookup_hits);
 			if (very_verbose(class))
 				printk("\nhash chain already cached, key: "
 					"%016Lx tail class: [%p] %s\n",
@@ -1900,7 +1902,7 @@ cache_hit:
 		chain_hlocks[chain->base + j] = class - lock_classes;
 	}
 	list_add_tail_rcu(&chain->entry, hash_head);
-	debug_atomic_inc(&chain_lookup_misses);
+	debug_atomic_inc(chain_lookup_misses);
 	inc_chains();
 
 	return 1;
@@ -2147,7 +2149,7 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 		return ret;
 
 	return print_irq_inversion_bug(curr, &root, target_entry,
-					this, 1, irqclass);
+					this, 0, irqclass);
 }
 
 void print_irqtrace_events(struct task_struct *curr)
@@ -2321,7 +2323,12 @@ void trace_hardirqs_on_caller(unsigned long ip)
 		return;
 
 	if (unlikely(curr->hardirqs_enabled)) {
-		debug_atomic_inc(&redundant_hardirqs_on);
+		/*
+		 * Neither irq nor preemption are disabled here
+		 * so this is racy by nature but loosing one hit
+		 * in a stat is not a big deal.
+		 */
+		__debug_atomic_inc(redundant_hardirqs_on);
 		return;
 	}
 	/* we'll do an OFF -> ON transition: */
@@ -2348,7 +2355,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
 
 	curr->hardirq_enable_ip = ip;
 	curr->hardirq_enable_event = ++curr->irq_events;
-	debug_atomic_inc(&hardirqs_on_events);
+	debug_atomic_inc(hardirqs_on_events);
 }
 EXPORT_SYMBOL(trace_hardirqs_on_caller);
 
@@ -2380,9 +2387,9 @@ void trace_hardirqs_off_caller(unsigned long ip)
 		curr->hardirqs_enabled = 0;
 		curr->hardirq_disable_ip = ip;
 		curr->hardirq_disable_event = ++curr->irq_events;
-		debug_atomic_inc(&hardirqs_off_events);
+		debug_atomic_inc(hardirqs_off_events);
 	} else
-		debug_atomic_inc(&redundant_hardirqs_off);
+		debug_atomic_inc(redundant_hardirqs_off);
 }
 EXPORT_SYMBOL(trace_hardirqs_off_caller);
 
@@ -2406,7 +2413,7 @@ void trace_softirqs_on(unsigned long ip)
 		return;
 
 	if (curr->softirqs_enabled) {
-		debug_atomic_inc(&redundant_softirqs_on);
+		debug_atomic_inc(redundant_softirqs_on);
 		return;
 	}
 
@@ -2416,7 +2423,7 @@ void trace_softirqs_on(unsigned long ip)
 	curr->softirqs_enabled = 1;
 	curr->softirq_enable_ip = ip;
 	curr->softirq_enable_event = ++curr->irq_events;
-	debug_atomic_inc(&softirqs_on_events);
+	debug_atomic_inc(softirqs_on_events);
 	/*
 	 * We are going to turn softirqs on, so set the
 	 * usage bit for all held locks, if hardirqs are
@@ -2446,10 +2453,10 @@ void trace_softirqs_off(unsigned long ip)
 		curr->softirqs_enabled = 0;
 		curr->softirq_disable_ip = ip;
 		curr->softirq_disable_event = ++curr->irq_events;
-		debug_atomic_inc(&softirqs_off_events);
+		debug_atomic_inc(softirqs_off_events);
 		DEBUG_LOCKS_WARN_ON(!softirq_count());
 	} else
-		debug_atomic_inc(&redundant_softirqs_off);
+		debug_atomic_inc(redundant_softirqs_off);
 }
 
 static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
@@ -2654,7 +2661,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			return 0;
 		break;
 	case LOCK_USED:
-		debug_atomic_dec(&nr_unused_locks);
+		debug_atomic_dec(nr_unused_locks);
 		break;
 	default:
 		if (!debug_locks_off_graph_unlock())
@@ -2684,7 +2691,11 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
-	lock->class_cache = NULL;
+	int i;
+
+	for (i = 0; i < NR_LOCKDEP_CACHING_CLASSES; i++)
+		lock->class_cache[i] = NULL;
+
 #ifdef CONFIG_LOCK_STAT
 	lock->cpu = raw_smp_processor_id();
 #endif
@@ -2716,6 +2727,8 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 }
 EXPORT_SYMBOL_GPL(lockdep_init_map);
 
+struct lock_class_key __lockdep_no_validate__;
+
 /*
  * This gets called for every mutex_lock*()/spin_lock*() operation.
  * We maintain the dependency maps and validate the locking attempt:
@@ -2742,25 +2755,20 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return 0;
 
-	if (unlikely(subclass >= MAX_LOCKDEP_SUBCLASSES)) {
-		debug_locks_off();
-		printk("BUG: MAX_LOCKDEP_SUBCLASSES too low!\n");
-		printk("turning off the locking correctness validator.\n");
-		dump_stack();
-		return 0;
-	}
+	if (lock->key == &__lockdep_no_validate__)
+		check = 1;
 
-	if (!subclass)
-		class = lock->class_cache;
+	if (subclass < NR_LOCKDEP_CACHING_CLASSES)
+		class = lock->class_cache[subclass];
 	/*
-	 * Not cached yet or subclass?
+	 * Not cached?
 	 */
 	if (unlikely(!class)) {
 		class = register_lock_class(lock, subclass, 0);
 		if (!class)
 			return 0;
 	}
-	debug_atomic_inc((atomic_t *)&class->ops);
+	atomic_inc((atomic_t *)&class->ops);
 	if (very_verbose(class)) {
 		printk("\nacquire class [%p] %s", class->key, class->name);
 		if (class->name_version > 1)
@@ -2918,7 +2926,7 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 		return 1;
 
 	if (hlock->references) {
-		struct lock_class *class = lock->class_cache;
+		struct lock_class *class = lock->class_cache[0];
 
 		if (!class)
 			class = look_up_lock_class(lock, 0);
@@ -3211,8 +3219,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 {
 	unsigned long flags;
 
-	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
-
 	if (unlikely(current->lockdep_recursion))
 		return;
 
@@ -3220,6 +3226,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
+	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
 	__lock_acquire(lock, subclass, trylock, read, check,
 		       irqs_disabled_flags(flags), nest_lock, ip, 0);
 	current->lockdep_recursion = 0;
@@ -3232,14 +3239,13 @@ void lock_release(struct lockdep_map *lock, int nested,
 {
 	unsigned long flags;
 
-	trace_lock_release(lock, nested, ip);
-
 	if (unlikely(current->lockdep_recursion))
 		return;
 
 	raw_local_irq_save(flags);
 	check_flags(flags);
 	current->lockdep_recursion = 1;
+	trace_lock_release(lock, ip);
 	__lock_release(lock, nested, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
@@ -3392,7 +3398,7 @@ found_it:
 		hlock->holdtime_stamp = now;
 	}
 
-	trace_lock_acquired(lock, ip, waittime);
+	trace_lock_acquired(lock, ip);
 
 	stats = get_lock_stats(hlock_class(hlock));
 	if (waittime) {
@@ -3413,8 +3419,6 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
 
-	trace_lock_contended(lock, ip);
-
 	if (unlikely(!lock_stat))
 		return;
 
@@ -3424,6 +3428,7 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 	raw_local_irq_save(flags);
 	check_flags(flags);
 	current->lockdep_recursion = 1;
+	trace_lock_contended(lock, ip);
 	__lock_contended(lock, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
@@ -3562,7 +3567,12 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 		if (list_empty(head))
 			continue;
 		list_for_each_entry_safe(class, next, head, hash_entry) {
-			if (unlikely(class == lock->class_cache)) {
+			int match = 0;
+
+			for (j = 0; j < NR_LOCKDEP_CACHING_CLASSES; j++)
+				match |= class == lock->class_cache[j];
+
+			if (unlikely(match)) {
 				if (debug_locks_off_graph_unlock())
 					WARN_ON(1);
 				goto out_restore;
@@ -3778,19 +3788,13 @@ EXPORT_SYMBOL_GPL(debug_show_all_locks);
  * Careful: only use this function if you are sure that
  * the task cannot run in parallel!
  */
-void __debug_show_held_locks(struct task_struct *task)
+void debug_show_held_locks(struct task_struct *task)
 {
 	if (unlikely(!debug_locks)) {
 		printk("INFO: lockdep is turned off.\n");
 		return;
 	}
 	lockdep_print_held_locks(task);
-}
-EXPORT_SYMBOL_GPL(__debug_show_held_locks);
-
-void debug_show_held_locks(struct task_struct *task)
-{
-		__debug_show_held_locks(task);
 }
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
 
@@ -3809,3 +3813,25 @@ void lockdep_sys_exit(void)
 		lockdep_print_held_locks(curr);
 	}
 }
+
+void lockdep_rcu_dereference(const char *file, const int line)
+{
+	struct task_struct *curr = current;
+
+#ifndef CONFIG_PROVE_RCU_REPEATEDLY
+	if (!debug_locks_off())
+		return;
+#endif /* #ifdef CONFIG_PROVE_RCU_REPEATEDLY */
+	/* Note: the following can be executed concurrently, so be careful. */
+	printk("\n===================================================\n");
+	printk(  "[ INFO: suspicious rcu_dereference_check() usage. ]\n");
+	printk(  "---------------------------------------------------\n");
+	printk("%s:%d invoked rcu_dereference_check() without protection!\n",
+			file, line);
+	printk("\nother info that might help us debug this:\n\n");
+	printk("\nrcu_scheduler_active = %d, debug_locks = %d\n", rcu_scheduler_active, debug_locks);
+	lockdep_print_held_locks(curr);
+	printk("\nstack backtrace:\n");
+	dump_stack();
+}
+EXPORT_SYMBOL_GPL(lockdep_rcu_dereference);

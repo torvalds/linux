@@ -12,7 +12,6 @@
 #include <linux/sched.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
@@ -22,6 +21,7 @@
 #include <linux/profile.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -55,8 +55,8 @@ void __init leon_configure_cache_smp(void);
 static inline unsigned long do_swap(volatile unsigned long *ptr,
 				    unsigned long val)
 {
-	__asm__ __volatile__("swapa [%1] %2, %0\n\t" : "=&r"(val)
-			     : "r"(ptr), "i"(ASI_LEON_DCACHE_MISS)
+	__asm__ __volatile__("swapa [%2] %3, %0\n\t" : "=&r"(val)
+			     : "0"(val), "r"(ptr), "i"(ASI_LEON_DCACHE_MISS)
 			     : "memory");
 	return val;
 }
@@ -177,7 +177,7 @@ void __init leon_boot_cpus(void)
 	int nrcpu = leon_smp_nrcpus();
 	int me = smp_processor_id();
 
-	printk(KERN_INFO "%d:(%d:%d) cpus mpirq at 0x%x \n", (unsigned int)me,
+	printk(KERN_INFO "%d:(%d:%d) cpus mpirq at 0x%x\n", (unsigned int)me,
 	       (unsigned int)nrcpu, (unsigned int)NR_CPUS,
 	       (unsigned int)&(leon3_irqctrl_regs->mpstatus));
 
@@ -226,7 +226,7 @@ int __cpuinit leon_boot_one_cpu(int i)
 			break;
 		udelay(200);
 	}
-	printk(KERN_INFO "Started CPU %d \n", (unsigned int)i);
+	printk(KERN_INFO "Started CPU %d\n", (unsigned int)i);
 
 	if (!(cpu_callin_map[i])) {
 		printk(KERN_ERR "Processor %d is stuck.\n", i);

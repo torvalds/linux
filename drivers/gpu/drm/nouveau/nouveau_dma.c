@@ -28,11 +28,27 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 
 void
 nouveau_dma_pre_init(struct nouveau_channel *chan)
 {
-	chan->dma.max  = (chan->pushbuf_bo->bo.mem.size >> 2) - 2;
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nouveau_bo *pushbuf = chan->pushbuf_bo;
+
+	if (dev_priv->card_type >= NV_50) {
+		const int ib_size = pushbuf->bo.mem.size / 2;
+
+		chan->dma.ib_base = (pushbuf->bo.mem.size - ib_size) >> 2;
+		chan->dma.ib_max = (ib_size / 8) - 1;
+		chan->dma.ib_put = 0;
+		chan->dma.ib_free = chan->dma.ib_max - chan->dma.ib_put;
+
+		chan->dma.max = (pushbuf->bo.mem.size - ib_size) >> 2;
+	} else {
+		chan->dma.max  = (pushbuf->bo.mem.size >> 2) - 2;
+	}
+
 	chan->dma.put  = 0;
 	chan->dma.cur  = chan->dma.put;
 	chan->dma.free = chan->dma.max - chan->dma.cur;
@@ -43,26 +59,26 @@ nouveau_dma_init(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *m2mf = NULL;
-	struct nouveau_gpuobj *nvsw = NULL;
 	int ret, i;
 
+	if (dev_priv->card_type >= NV_C0) {
+		ret = nouveau_gpuobj_gr_new(chan, 0x9039, 0x9039);
+		if (ret)
+			return ret;
+
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0000, 1);
+		OUT_RING  (chan, 0x00009039);
+		FIRE_RING (chan);
+		return 0;
+	}
+
 	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
-	ret = nouveau_gpuobj_gr_new(chan, dev_priv->card_type < NV_50 ?
-				    0x0039 : 0x5039, &m2mf);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_ref_add(dev, chan, NvM2MF, m2mf, NULL);
-	if (ret)
-		return ret;
-
-	/* Create an NV_SW object for various sync purposes */
-	ret = nouveau_gpuobj_sw_new(chan, NV_SW, &nvsw);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_ref_add(dev, chan, NvSw, nvsw, NULL);
+	ret = nouveau_gpuobj_gr_new(chan, NvM2MF, dev_priv->card_type < NV_50 ?
+				    0x0039 : 0x5039);
 	if (ret)
 		return ret;
 
@@ -70,18 +86,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, &chan->m2mf_ntfy);
 	if (ret)
 		return ret;
-
-	/* Map push buffer */
-	ret = nouveau_bo_map(chan->pushbuf_bo);
-	if (ret)
-		return ret;
-
-	/* Map M2MF notifier object - fbcon. */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = nouveau_bo_map(chan->notifier_bo);
-		if (ret)
-			return ret;
-	}
 
 	/* Insert NOPS for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
@@ -99,13 +103,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 	OUT_RING(chan, NvM2MF);
 	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 1);
 	OUT_RING(chan, NvNotify0);
-
-	/* Initialise NV_SW */
-	ret = RING_SPACE(chan, 2);
-	if (ret)
-		return ret;
-	BEGIN_RING(chan, NvSubSw, 0, 1);
-	OUT_RING(chan, NvSw);
 
 	/* Sit back and pray the channel works.. */
 	FIRE_RING(chan);
@@ -162,11 +159,105 @@ READ_GET(struct nouveau_channel *chan, uint32_t *prev_get, uint32_t *timeout)
 	return (val - chan->pushbuf_base) >> 2;
 }
 
+void
+nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
+	      int delta, int length)
+{
+	struct nouveau_bo *pb = chan->pushbuf_bo;
+	uint64_t offset = bo->bo.offset + delta;
+	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
+
+	BUG_ON(chan->dma.ib_free < 1);
+	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
+	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);
+
+	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
+
+	DRM_MEMORYBARRIER();
+	/* Flush writes. */
+	nouveau_bo_rd32(pb, 0);
+
+	nvchan_wr32(chan, 0x8c, chan->dma.ib_put);
+	chan->dma.ib_free--;
+}
+
+static int
+nv50_dma_push_wait(struct nouveau_channel *chan, int count)
+{
+	uint32_t cnt = 0, prev_get = 0;
+
+	while (chan->dma.ib_free < count) {
+		uint32_t get = nvchan_rd32(chan, 0x88);
+		if (get != prev_get) {
+			prev_get = get;
+			cnt = 0;
+		}
+
+		if ((++cnt & 0xff) == 0) {
+			DRM_UDELAY(1);
+			if (cnt > 100000)
+				return -EBUSY;
+		}
+
+		chan->dma.ib_free = get - chan->dma.ib_put;
+		if (chan->dma.ib_free <= 0)
+			chan->dma.ib_free += chan->dma.ib_max;
+	}
+
+	return 0;
+}
+
+static int
+nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
+{
+	uint32_t cnt = 0, prev_get = 0;
+	int ret;
+
+	ret = nv50_dma_push_wait(chan, slots + 1);
+	if (unlikely(ret))
+		return ret;
+
+	while (chan->dma.free < count) {
+		int get = READ_GET(chan, &prev_get, &cnt);
+		if (unlikely(get < 0)) {
+			if (get == -EINVAL)
+				continue;
+
+			return get;
+		}
+
+		if (get <= chan->dma.cur) {
+			chan->dma.free = chan->dma.max - chan->dma.cur;
+			if (chan->dma.free >= count)
+				break;
+
+			FIRE_RING(chan);
+			do {
+				get = READ_GET(chan, &prev_get, &cnt);
+				if (unlikely(get < 0)) {
+					if (get == -EINVAL)
+						continue;
+					return get;
+				}
+			} while (get == 0);
+			chan->dma.cur = 0;
+			chan->dma.put = 0;
+		}
+
+		chan->dma.free = get - chan->dma.cur - 1;
+	}
+
+	return 0;
+}
+
 int
-nouveau_dma_wait(struct nouveau_channel *chan, int size)
+nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 {
 	uint32_t prev_get = 0, cnt = 0;
 	int get;
+
+	if (chan->dma.ib_max)
+		return nv50_dma_wait(chan, slots, size);
 
 	while (chan->dma.free < size) {
 		get = READ_GET(chan, &prev_get, &cnt);

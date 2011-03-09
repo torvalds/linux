@@ -18,6 +18,7 @@
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include "ext4.h"
 
 struct ext4_system_zone {
@@ -28,16 +29,15 @@ struct ext4_system_zone {
 
 static struct kmem_cache *ext4_system_zone_cachep;
 
-int __init init_ext4_system_zone(void)
+int __init ext4_init_system_zone(void)
 {
-	ext4_system_zone_cachep = KMEM_CACHE(ext4_system_zone,
-					     SLAB_RECLAIM_ACCOUNT);
+	ext4_system_zone_cachep = KMEM_CACHE(ext4_system_zone, 0);
 	if (ext4_system_zone_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-void exit_ext4_system_zone(void)
+void ext4_exit_system_zone(void)
 {
 	kmem_cache_destroy(ext4_system_zone_cachep);
 }
@@ -71,9 +71,9 @@ static int add_system_zone(struct ext4_sb_info *sbi,
 		else if (start_blk >= (entry->start_blk + entry->count))
 			n = &(*n)->rb_right;
 		else {
-			if (start_blk + count > (entry->start_blk + 
+			if (start_blk + count > (entry->start_blk +
 						 entry->count))
-				entry->count = (start_blk + count - 
+				entry->count = (start_blk + count -
 						entry->start_blk);
 			new_node = *n;
 			new_entry = rb_entry(new_node, struct ext4_system_zone,
@@ -205,14 +205,14 @@ void ext4_release_system_zone(struct super_block *sb)
 		entry = rb_entry(n, struct ext4_system_zone, node);
 		kmem_cache_free(ext4_system_zone_cachep, entry);
 		if (!parent)
-			EXT4_SB(sb)->system_blks.rb_node = NULL;
+			EXT4_SB(sb)->system_blks = RB_ROOT;
 		else if (parent->rb_left == n)
 			parent->rb_left = NULL;
 		else if (parent->rb_right == n)
 			parent->rb_right = NULL;
 		n = parent;
 	}
-	EXT4_SB(sb)->system_blks.rb_node = NULL;
+	EXT4_SB(sb)->system_blks = RB_ROOT;
 }
 
 /*
@@ -228,16 +228,20 @@ int ext4_data_block_valid(struct ext4_sb_info *sbi, ext4_fsblk_t start_blk,
 
 	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
 	    (start_blk + count < start_blk) ||
-	    (start_blk + count > ext4_blocks_count(sbi->s_es)))
+	    (start_blk + count > ext4_blocks_count(sbi->s_es))) {
+		sbi->s_es->s_last_error_block = cpu_to_le64(start_blk);
 		return 0;
+	}
 	while (n) {
 		entry = rb_entry(n, struct ext4_system_zone, node);
 		if (start_blk + count - 1 < entry->start_blk)
 			n = n->rb_left;
 		else if (start_blk >= (entry->start_blk + entry->count))
 			n = n->rb_right;
-		else
+		else {
+			sbi->s_es->s_last_error_block = cpu_to_le64(start_blk);
 			return 0;
+		}
 	}
 	return 1;
 }

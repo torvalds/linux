@@ -455,7 +455,7 @@ static inline void access_error040(struct frame *fp)
 
 		if (do_page_fault(&fp->ptregs, addr, errorcode)) {
 #ifdef DEBUG
-		        printk("do_page_fault() !=0 \n");
+			printk("do_page_fault() !=0\n");
 #endif
 			if (user_mode(&fp->ptregs)){
 				/* delay writebacks after signal delivery */

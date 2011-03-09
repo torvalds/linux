@@ -56,7 +56,9 @@
 #define FRQCR1			0xffc40004
 #define FRQMR1			0xffc40014
 #elif defined(CONFIG_CPU_SUBTYPE_SHX3)
-#define FRQCR			0xffc00014
+#define FRQCR0			0xffc00000
+#define FRQCR1			0xffc00004
+#define FRQMR1			0xffc00014
 #else
 #define FRQCR			0xffc00000
 #define FRQCR_PSTBY		0x0200

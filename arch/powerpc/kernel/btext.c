@@ -7,7 +7,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>

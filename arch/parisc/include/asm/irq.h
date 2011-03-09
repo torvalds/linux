@@ -40,7 +40,7 @@ struct irq_chip;
 void no_ack_irq(unsigned int irq);
 void no_end_irq(unsigned int irq);
 void cpu_ack_irq(unsigned int irq);
-void cpu_end_irq(unsigned int irq);
+void cpu_eoi_irq(unsigned int irq);
 
 extern int txn_alloc_irq(unsigned int nbits);
 extern int txn_claim_irq(int);

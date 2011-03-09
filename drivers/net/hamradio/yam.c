@@ -396,7 +396,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate,
 	while (p) {
 		if (p->bitrate == bitrate) {
 			memcpy(p->bits, bits, YAM_FPGA_SIZE);
-			return p->bits;
+			goto out;
 		}
 		p = p->next;
 	}
@@ -411,7 +411,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate,
 	p->bitrate = bitrate;
 	p->next = yam_data;
 	yam_data = p;
-
+ out:
 	release_firmware(fw);
 	return p->bits;
 }
@@ -1151,8 +1151,7 @@ static int __init yam_init_driver(void)
 		dev = alloc_netdev(sizeof(struct yam_port), name,
 				   yam_setup);
 		if (!dev) {
-			printk(KERN_ERR "yam: cannot allocate net device %s\n",
-			       dev->name);
+			pr_err("yam: cannot allocate net device\n");
 			err = -ENOMEM;
 			goto error;
 		}

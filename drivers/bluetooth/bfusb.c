@@ -703,7 +703,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	data->hdev = hdev;
 
-	hdev->type = HCI_USB;
+	hdev->bus = HCI_USB;
 	hdev->driver_data = data;
 	SET_HCIDEV_DEV(hdev, &intf->dev);
 

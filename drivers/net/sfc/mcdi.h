@@ -116,12 +116,11 @@ extern int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 				loff_t offset, size_t length);
 extern int efx_mcdi_nvram_update_finish(struct efx_nic *efx,
 					unsigned int type);
+extern int efx_mcdi_nvram_test_all(struct efx_nic *efx);
 extern int efx_mcdi_handle_assertion(struct efx_nic *efx);
 extern void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
 extern int efx_mcdi_reset_port(struct efx_nic *efx);
 extern int efx_mcdi_reset_mc(struct efx_nic *efx);
-extern int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
-				   const u8 *mac, int *id_out);
 extern int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,
 					 const u8 *mac, int *id_out);
 extern int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);

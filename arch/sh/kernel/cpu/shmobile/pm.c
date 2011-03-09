@@ -33,7 +33,8 @@ ATOMIC_NOTIFIER_HEAD(sh_mobile_post_sleep_notifier_list);
 #define SUSP_MODE_SLEEP		(SUSP_SH_SLEEP)
 #define SUSP_MODE_SLEEP_SF	(SUSP_SH_SLEEP | SUSP_SH_SF)
 #define SUSP_MODE_STANDBY_SF	(SUSP_SH_STANDBY | SUSP_SH_SF)
-#define SUSP_MODE_RSTANDBY	(SUSP_SH_RSTANDBY | SUSP_SH_MMU | SUSP_SH_SF)
+#define SUSP_MODE_RSTANDBY_SF \
+	(SUSP_SH_RSTANDBY | SUSP_SH_MMU | SUSP_SH_REGS | SUSP_SH_SF)
  /*
   * U-standby mode is unsupported since it needs bootloader hacks
   */
@@ -140,7 +141,7 @@ static int sh_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-static struct platform_suspend_ops sh_pm_ops = {
+static const struct platform_suspend_ops sh_pm_ops = {
 	.enter          = sh_pm_enter,
 	.valid          = suspend_valid_only_mem,
 };

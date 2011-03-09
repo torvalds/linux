@@ -20,9 +20,9 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-subdev.h>
 #include "go7007-priv.h"
 
@@ -159,7 +159,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 	struct go7007 *go = i2c_get_adapdata(client->adapter);
 	struct go7007_usb *usb;
 	int rc;
-	int dev_addr = client->addr;
+	int dev_addr = client->addr << 1;  /* firmware wants 8-bit address */
 	u8 *buf;
 
 	if (go == NULL)
@@ -478,12 +478,13 @@ static int s2250_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-static int s2250_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int s2250_s_mbus_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *fmt)
 {
 	struct s2250 *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (fmt->fmt.pix.height < 640) {
+	if (fmt->height < 640) {
 		write_reg_fp(client, 0x12b, state->reg12b_val | 0x400);
 		write_reg_fp(client, 0x140, 0x060);
 	} else {
@@ -554,7 +555,7 @@ static const struct v4l2_subdev_audio_ops s2250_audio_ops = {
 
 static const struct v4l2_subdev_video_ops s2250_video_ops = {
 	.s_routing = s2250_s_video_routing,
-	.s_fmt = s2250_s_fmt,
+	.s_mbus_fmt = s2250_s_mbus_fmt,
 };
 
 static const struct v4l2_subdev_ops s2250_ops = {
@@ -667,15 +668,31 @@ static int s2250_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id s2250_id[] = {
+static const struct i2c_device_id s2250_id[] = {
 	{ "s2250", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, s2250_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "s2250",
-	.probe = s2250_probe,
-	.remove = s2250_remove,
-	.id_table = s2250_id,
+static struct i2c_driver s2250_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "s2250",
+	},
+	.probe		= s2250_probe,
+	.remove		= s2250_remove,
+	.id_table	= s2250_id,
 };
+
+static __init int init_s2250(void)
+{
+	return i2c_add_driver(&s2250_driver);
+}
+
+static __exit void exit_s2250(void)
+{
+	i2c_del_driver(&s2250_driver);
+}
+
+module_init(init_s2250);
+module_exit(exit_s2250);

@@ -34,8 +34,11 @@ struct lpfc_cq_event {
 	union {
 		struct lpfc_mcqe		mcqe_cmpl;
 		struct lpfc_acqe_link		acqe_link;
-		struct lpfc_acqe_fcoe		acqe_fcoe;
+		struct lpfc_acqe_fip		acqe_fip;
 		struct lpfc_acqe_dcbx		acqe_dcbx;
+		struct lpfc_acqe_grp5		acqe_grp5;
+		struct lpfc_acqe_fc_la		acqe_fc;
+		struct lpfc_acqe_sli		acqe_sli;
 		struct lpfc_rcqe		rcqe_cmpl;
 		struct sli4_wcqe_xri_aborted	wcqe_axri;
 		struct lpfc_wcqe_complete	wcqe_cmpl;
@@ -47,23 +50,28 @@ struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
 	struct list_head clist;
+	struct list_head dlist;
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct lpfc_cq_event cq_event;
 
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
-	uint8_t iocb_flag;
+	uint16_t iocb_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
 #define LPFC_IO_WAKE		2	/* High Priority Queue signal flag */
 #define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
 #define LPFC_DELAY_MEM_FREE	0x20    /* Defer free'ing of FC data */
-#define LPFC_FIP_ELS_ID_MASK	0xc0	/* ELS_ID range 0-3 */
-#define LPFC_FIP_ELS_ID_SHIFT	6
+#define LPFC_EXCHANGE_BUSY	0x40    /* SLI4 hba reported XB in response */
+#define LPFC_USE_FCPWQIDX	0x80    /* Submit to specified FCPWQ index */
+#define DSS_SECURITY_OP		0x100	/* security IO */
+#define LPFC_IO_ON_Q		0x200	/* The IO is still on the TXCMPLQ */
 
-	uint8_t abort_count;
+#define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
+#define LPFC_FIP_ELS_ID_SHIFT	14
+
 	uint8_t rsvd2;
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	uint32_t fcp_wqidx;	/* index to FCP work queue */
@@ -76,6 +84,7 @@ struct lpfc_iocbq {
 		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
 		struct lpfc_nodelist *ndlp;
+		struct lpfc_node_rrq *rrq;
 	} context_un;
 
 	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
@@ -107,6 +116,9 @@ typedef struct lpfcMboxq {
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;
+	uint16_t in_ext_byte_len;
+	uint16_t out_ext_byte_len;
+	uint8_t  mbox_offset_word;
 	struct lpfc_mcqe mcqe;
 	struct lpfc_mbx_nembed_sge_virt *sge_array;
 } LPFC_MBOXQ_t;

@@ -77,10 +77,11 @@ static int wis_ov7640_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id wis_ov7640_id[] = {
+static const struct i2c_device_id wis_ov7640_id[] = {
 	{ "wis_ov7640", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, wis_ov7640_id);
 
 static struct i2c_driver wis_ov7640_driver = {
 	.driver = {

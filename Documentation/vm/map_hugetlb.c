@@ -19,7 +19,7 @@
 #define PROTECTION (PROT_READ | PROT_WRITE)
 
 #ifndef MAP_HUGETLB
-#define MAP_HUGETLB 0x40
+#define MAP_HUGETLB 0x40000 /* arch specific */
 #endif
 
 /* Only ia64 requires this */
@@ -31,12 +31,12 @@
 #define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
 #endif
 
-void check_bytes(char *addr)
+static void check_bytes(char *addr)
 {
 	printf("First hex is %x\n", *((unsigned int *)addr));
 }
 
-void write_bytes(char *addr)
+static void write_bytes(char *addr)
 {
 	unsigned long i;
 
@@ -44,7 +44,7 @@ void write_bytes(char *addr)
 		*(addr + i) = (char)i;
 }
 
-void read_bytes(char *addr)
+static void read_bytes(char *addr)
 {
 	unsigned long i;
 

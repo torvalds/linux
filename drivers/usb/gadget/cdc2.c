@@ -151,7 +151,6 @@ static int __init cdc_do_config(struct usb_configuration *c)
 
 static struct usb_configuration cdc_config_driver = {
 	.label			= "CDC Composite (ECM + ACM)",
-	.bind			= cdc_do_config,
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
@@ -218,7 +217,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	device_desc.iProduct = status;
 
 	/* register our configuration */
-	status = usb_add_config(cdev, &cdc_config_driver);
+	status = usb_add_config(cdev, &cdc_config_driver, cdc_do_config);
 	if (status < 0)
 		goto fail1;
 
@@ -245,7 +244,6 @@ static struct usb_composite_driver cdc_driver = {
 	.name		= "g_cdc",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= cdc_bind,
 	.unbind		= __exit_p(cdc_unbind),
 };
 
@@ -255,7 +253,7 @@ MODULE_LICENSE("GPL");
 
 static int __init init(void)
 {
-	return usb_composite_register(&cdc_driver);
+	return usb_composite_probe(&cdc_driver, cdc_bind);
 }
 module_init(init);
 

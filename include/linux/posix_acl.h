@@ -108,6 +108,25 @@ static inline struct posix_acl *get_cached_acl(struct inode *inode, int type)
 	return acl;
 }
 
+static inline int negative_cached_acl(struct inode *inode, int type)
+{
+	struct posix_acl **p, *acl;
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		p = &inode->i_acl;
+		break;
+	case ACL_TYPE_DEFAULT:
+		p = &inode->i_default_acl;
+		break;
+	default:
+		BUG();
+	}
+	acl = ACCESS_ONCE(*p);
+	if (acl)
+		return 0;
+	return 1;
+}
+
 static inline void set_cached_acl(struct inode *inode,
 				  int type,
 				  struct posix_acl *acl)

@@ -1,106 +1,125 @@
 Linux Base Driver for 10 Gigabit PCI Express Intel(R) Network Connection
 ========================================================================
 
-March 10, 2009
-
+Intel Gigabit Linux driver.
+Copyright(c) 1999 - 2010 Intel Corporation.
 
 Contents
 ========
 
-- In This Release
 - Identifying Your Adapter
-- Building and Installation
 - Additional Configurations
+- Performance Tuning
+- Known Issues
 - Support
-
-
-
-In This Release
-===============
-
-This file describes the ixgbe Linux Base Driver for the 10 Gigabit PCI
-Express Intel(R) Network Connection.  This driver includes support for
-Itanium(R)2-based systems.
-
-For questions related to hardware requirements, refer to the documentation
-supplied with your 10 Gigabit adapter.  All hardware requirements listed apply
-to use with Linux.
-
-The following features are available in this kernel:
- - Native VLANs
- - Channel Bonding (teaming)
- - SNMP
- - Generic Receive Offload
- - Data Center Bridging
-
-Channel Bonding documentation can be found in the Linux kernel source:
-/Documentation/networking/bonding.txt
-
-Ethtool, lspci, and ifconfig can be used to display device and driver
-specific information.
-
 
 Identifying Your Adapter
 ========================
 
-This driver supports devices based on the 82598 controller and the 82599
-controller.
+The driver in this release is compatible with 82598 and 82599-based Intel
+Network Connections.
 
-For specific information on identifying which adapter you have, please visit:
+For more information on how to identify your adapter, go to the Adapter &
+Driver ID Guide at:
 
-    http://support.intel.com/support/network/sb/CS-008441.htm
+    http://support.intel.com/support/network/sb/CS-012904.htm
+
+SFP+ Devices with Pluggable Optics
+----------------------------------
+
+82599-BASED ADAPTERS
+
+NOTES: If your 82599-based Intel(R) Network Adapter came with Intel optics, or
+is an Intel(R) Ethernet Server Adapter X520-2, then it only supports Intel
+optics and/or the direct attach cables listed below.
+
+When 82599-based SFP+ devices are connected back to back, they should be set to
+the same Speed setting via ethtool. Results may vary if you mix speed settings.
+82598-based adapters support all passive direct attach cables that comply
+with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach
+cables are not supported.
+
+Supplier    Type                                             Part Numbers
+
+SR Modules
+Intel       DUAL RATE 1G/10G SFP+ SR (bailed)                FTLX8571D3BCV-IT
+Intel       DUAL RATE 1G/10G SFP+ SR (bailed)                AFBR-703SDDZ-IN1
+Intel       DUAL RATE 1G/10G SFP+ SR (bailed)                AFBR-703SDZ-IN2
+LR Modules
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                FTLX1471D3BCV-IT
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDDZ-IN1
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDZ-IN2
+
+The following is a list of 3rd party SFP+ modules and direct attach cables that
+have received some testing. Not all modules are applicable to all devices.
+
+Supplier   Type                                              Part Numbers
+
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX1471D3BCL
+
+Finisar    DUAL RATE 1G/10G SFP+ SR (No Bail)                FTLX8571D3QCV-IT
+Avago      DUAL RATE 1G/10G SFP+ SR (No Bail)                AFBR-703SDZ-IN1
+Finisar    DUAL RATE 1G/10G SFP+ LR (No Bail)                FTLX1471D3QCV-IT
+Avago      DUAL RATE 1G/10G SFP+ LR (No Bail)                AFCT-701SDZ-IN1
+Finistar   1000BASE-T SFP                                    FCLF8522P2BTL
+Avago      1000BASE-T SFP                                    ABCU-5710RZ
+
+82599-based adapters support all passive and active limiting direct attach
+cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
+
+Laser turns off for SFP+ when ifconfig down
+-------------------------------------------
+"ifconfig down" turns off the laser for 82599-based SFP+ fiber adapters.
+"ifconfig up" turns on the later.
 
 
-Building and Installation
-=========================
+82598-BASED ADAPTERS
 
-select m for "Intel(R) 10GbE PCI Express adapters support" located at:
-      Location:
-        -> Device Drivers
-          -> Network device support (NETDEVICES [=y])
-            -> Ethernet (10000 Mbit) (NETDEV_10000 [=y])
+NOTES for 82598-Based Adapters:
+- Intel(R) Network Adapters that support removable optical modules only support
+  their original module type (i.e., the Intel(R) 10 Gigabit SR Dual Port
+  Express Module only supports SR optical modules). If you plug in a different
+  type of module, the driver will not load.
+- Hot Swapping/hot plugging optical modules is not supported.
+- Only single speed, 10 gigabit modules are supported.
+- LAN on Motherboard (LOMs) may support DA, SR, or LR modules. Other module
+  types are not supported. Please see your system documentation for details.
 
-1. make modules & make modules_install
+The following is a list of 3rd party SFP+ modules and direct attach cables that
+have received some testing. Not all modules are applicable to all devices.
 
-2. Load the module:
+Supplier   Type                                              Part Numbers
 
-# modprobe ixgbe
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX1471D3BCL
 
-   The insmod command can be used if the full
-   path to the driver module is specified.  For example:
+82598-based adapters support all passive direct attach cables that comply
+with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach
+cables are not supported.
 
-     insmod /lib/modules/<KERNEL VERSION>/kernel/drivers/net/ixgbe/ixgbe.ko
 
-   With 2.6 based kernels also make sure that older ixgbe drivers are
-   removed from the kernel, before loading the new module:
+Flow Control
+------------
+Ethernet Flow Control (IEEE 802.3x) can be configured with ethtool to enable
+receiving and transmitting pause frames for ixgbe. When TX is enabled, PAUSE
+frames are generated when the receive packet buffer crosses a predefined
+threshold.  When rx is enabled, the transmit unit will halt for the time delay
+specified when a PAUSE frame is received.
 
-     rmmod ixgbe; modprobe ixgbe
+Flow Control is enabled by default. If you want to disable a flow control
+capable link partner, use ethtool:
 
-3. Assign an IP address to the interface by entering the following, where
-   x is the interface number:
+     ethtool -A eth? autoneg off RX off TX off
 
-     ifconfig ethx <IP_address>
-
-4. Verify that the interface works. Enter the following, where <IP_address>
-   is the IP address for another machine on the same subnet as the interface
-   that is being tested:
-
-     ping  <IP_address>
-
+NOTE: For 82598 backplane cards entering 1 gig mode, flow control default
+behavior is changed to off.  Flow control in 1 gig mode on these devices can
+lead to Tx hangs.
 
 Additional Configurations
 =========================
-
-  Viewing Link Messages
-  ---------------------
-  Link messages will not be displayed to the console if the distribution is
-  restricting system messages. In order to see network driver link messages on
-  your console, set dmesg to eight by entering the following:
-
-       dmesg -n 8
-
-  NOTE: This setting is not saved across reboots.
-
 
   Jumbo Frames
   ------------
@@ -123,13 +142,8 @@ Additional Configurations
   other protocols besides TCP.  It's also safe to use with configurations that
   are problematic for LRO, namely bridging and iSCSI.
 
-  GRO is enabled by default in the driver.  Future versions of ethtool will
-  support disabling and re-enabling GRO on the fly.
-
-
   Data Center Bridging, aka DCB
   -----------------------------
-
   DCB is a configuration Quality of Service implementation in hardware.
   It uses the VLAN priority tag (802.1p) to filter traffic.  That means
   that there are 8 different priorities that traffic can be filtered into.
@@ -163,24 +177,71 @@ Additional Configurations
 
         http://e1000.sf.net
 
-
   Ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.  Ethtool
-  version 3.0 or later is required for this functionality.
+  diagnostics, as well as displaying statistical information. The latest
+  ethtool version is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://sourceforge.net/projects/gkernel.
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
-
-  NAPI
+  FCoE
   ----
+  This release of the ixgbe driver contains new code to enable users to use
+  Fiber Channel over Ethernet (FCoE) and Data Center Bridging (DCB)
+  functionality that is supported by the 82598-based hardware.  This code has
+  no default effect on the regular driver operation, and configuring DCB and
+  FCoE is outside the scope of this driver README. Refer to
+  http://www.open-fcoe.org/ for FCoE project information and contact
+  e1000-eedc@lists.sourceforge.net for DCB information.
 
-  NAPI (Rx polling mode) is supported in the ixgbe driver.  NAPI is enabled
-  by default in the driver.
+  MAC and VLAN anti-spoofing feature
+  ----------------------------------
+  When a malicious driver attempts to send a spoofed packet, it is dropped by
+  the hardware and not transmitted.  An interrupt is sent to the PF driver
+  notifying it of the spoof attempt.
 
-  See www.cyberus.ca/~hadi/usenix-paper.tgz for more information on NAPI.
+  When a spoofed packet is detected the PF driver will send the following
+  message to the system log (displayed by  the "dmesg" command):
+
+  Spoof event(s) detected on VF (n)
+
+  Where n=the VF that attempted to do the spoofing.
+
+
+Performance Tuning
+==================
+
+An excellent article on performance tuning can be found at:
+
+http://www.redhat.com/promo/summit/2008/downloads/pdf/Thursday/Mark_Wagner.pdf
+
+
+Known Issues
+============
+
+  Enabling SR-IOV in a 32-bit Microsoft* Windows* Server 2008 Guest OS using
+  Intel (R) 82576-based GbE or Intel (R) 82599-based 10GbE controller under KVM
+  -----------------------------------------------------------------------------
+  KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM.  This
+  includes traditional PCIe devices, as well as SR-IOV-capable devices using
+  Intel 82576-based and 82599-based controllers.
+
+  While direct assignment of a PCIe device or an SR-IOV Virtual Function (VF)
+  to a Linux-based VM running 2.6.32 or later kernel works fine, there is a
+  known issue with Microsoft Windows Server 2008 VM that results in a "yellow
+  bang" error. This problem is within the KVM VMM itself, not the Intel driver,
+  or the SR-IOV logic of the VMM, but rather that KVM emulates an older CPU
+  model for the guests, and this older CPU model does not support MSI-X
+  interrupts, which is a requirement for Intel SR-IOV.
+
+  If you wish to use the Intel 82576 or 82599-based controllers in SR-IOV mode
+  with KVM and a Microsoft Windows Server 2008 guest try the following
+  workaround. The workaround is to tell KVM to emulate a different model of CPU
+  when using qemu to create the KVM guest:
+
+       "-cpu qemu64,model=13"
 
 
 Support

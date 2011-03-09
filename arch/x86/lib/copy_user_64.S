@@ -29,7 +29,7 @@
 	.align 8
 	.quad  0b
 	.quad  2b
-	.byte  \feature			/* when feature is set */
+	.word  \feature			/* when feature is set */
 	.byte  5
 	.byte  5
 	.previous
@@ -89,12 +89,6 @@ ENTRY(_copy_from_user)
 	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
 	CFI_ENDPROC
 ENDPROC(_copy_from_user)
-
-ENTRY(copy_user_generic)
-	CFI_STARTPROC
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
-	CFI_ENDPROC
-ENDPROC(copy_user_generic)
 
 	.section .fixup,"ax"
 	/* must zero dest */

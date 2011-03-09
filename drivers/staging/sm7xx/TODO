@@ -1,5 +1,6 @@
 TODO:
 - Dual head support
+- 2D acceleration support
 - use kernel coding style
 - checkpatch.pl clean
 - refine the code and remove unused code

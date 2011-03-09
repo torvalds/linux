@@ -18,20 +18,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * XXX This file is deprecated.  The PRCM is an OMAP2+-only subsystem,
+ * so this file doesn't belong in plat-omap/include/plat.  Please
+ * do not add anything new to this file.
  */
 
 #ifndef __ASM_ARM_ARCH_OMAP_PRCM_H
 #define __ASM_ARM_ARCH_OMAP_PRCM_H
 
 u32 omap_prcm_get_reset_sources(void);
-void omap_prcm_arch_reset(char mode);
-int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name);
-
-#define START_PADCONF_SAVE 0x2
-#define PADCONF_SAVE_DONE  0x1
-
-void omap3_prcm_save_context(void);
-void omap3_prcm_restore_context(void);
+void omap_prcm_arch_reset(char mode, const char *cmd);
+int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
+			 const char *name);
 
 #endif
 

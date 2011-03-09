@@ -237,7 +237,6 @@ static int lib80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 
 	pos = skb->data + hdr_len + CCMP_HDR_LEN;
-	mic = skb_put(skb, CCMP_MIC_LEN);
 	hdr = (struct ieee80211_hdr *)skb->data;
 	ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
 
@@ -257,6 +256,7 @@ static int lib80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		pos += len;
 	}
 
+	mic = skb_put(skb, CCMP_MIC_LEN);
 	for (i = 0; i < CCMP_MIC_LEN; i++)
 		mic[i] = b[i] ^ s0[i];
 
@@ -467,7 +467,6 @@ static struct lib80211_crypto_ops lib80211_crypt_ccmp = {
 	.name = "CCMP",
 	.init = lib80211_ccmp_init,
 	.deinit = lib80211_ccmp_deinit,
-	.build_iv = lib80211_ccmp_hdr,
 	.encrypt_mpdu = lib80211_ccmp_encrypt,
 	.decrypt_mpdu = lib80211_ccmp_decrypt,
 	.encrypt_msdu = NULL,

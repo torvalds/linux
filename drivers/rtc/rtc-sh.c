@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/log2.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
@@ -760,7 +761,7 @@ err_unmap:
 	clk_put(rtc->clk);
 	iounmap(rtc->regbase);
 err_badmap:
-	release_resource(rtc->res);
+	release_mem_region(rtc->res->start, rtc->regsize);
 err_badres:
 	kfree(rtc);
 
@@ -785,7 +786,7 @@ static int __exit sh_rtc_remove(struct platform_device *pdev)
 	}
 
 	iounmap(rtc->regbase);
-	release_resource(rtc->res);
+	release_mem_region(rtc->res->start, rtc->regsize);
 
 	clk_disable(rtc->clk);
 	clk_put(rtc->clk);

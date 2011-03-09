@@ -26,7 +26,6 @@
 /* it will make jiffies at 96 hz instead of 100 hz though */
 #undef USE_CASCADE_TIMERS
 
-extern void update_xtime_from_cmos(void);
 extern int set_rtc_mmss(unsigned long nowtime);
 extern int have_rtc;
 
@@ -62,66 +61,16 @@ unsigned long get_ns_in_jiffie(void)
 
 unsigned long do_slow_gettimeoffset(void)
 {
-	unsigned long count, t1;
-	unsigned long usec_count = 0;
-	unsigned short presc_count;
-
-	static unsigned long count_p = TIMER0_DIV;/* for the first call after boot */
-	static unsigned long jiffies_p = 0;
-
-	/*
-	 * cache volatile jiffies temporarily; we have IRQs turned off. 
-	 */
-	unsigned long jiffies_t;
+	unsigned long count;
 
 	/* The timer interrupt comes from Etrax timer 0. In order to get
 	 * better precision, we check the current value. It might have
 	 * underflowed already though.
 	 */
-
-#ifndef CONFIG_SVINTO_SIM
-	/* Not available in the xsim simulator. */
 	count = *R_TIMER0_DATA;
-	presc_count = *R_TIM_PRESC_STATUS;  
-	/* presc_count might be wrapped */
-	t1 = *R_TIMER0_DATA;
-	if (count != t1){
-		/* it wrapped, read prescaler again...  */
-		presc_count = *R_TIM_PRESC_STATUS;
-		count = t1;
-	}
-#else
-	count = 0;
-	presc_count = 0;
-#endif
 
- 	jiffies_t = jiffies;
-
-	/*
-	 * avoiding timer inconsistencies (they are rare, but they happen)...
-	 * there are one problem that must be avoided here:
-	 *  1. the timer counter underflows
-	 */
-	if( jiffies_t == jiffies_p ) {
-		if( count > count_p ) {
-			/* Timer wrapped, use new count and prescale 
-			 * increase the time corresponding to one jiffie
-			 */
-			usec_count = 1000000/HZ;
-		}
-	} else
-		jiffies_p = jiffies_t;
-        count_p = count;
-	if (presc_count >= PRESCALE_VALUE/2 ){
-		presc_count =  PRESCALE_VALUE - presc_count + PRESCALE_VALUE/2;
-	} else {
-		presc_count =  PRESCALE_VALUE - presc_count - PRESCALE_VALUE/2;
-	}
 	/* Convert timer value to usec */
-	usec_count += ( (TIMER0_DIV - count) * (1000000/HZ)/TIMER0_DIV ) +
-	              (( (presc_count) * (1000000000/PRESCALE_FREQ))/1000);
-
-	return usec_count;
+	return (TIMER0_DIV - count) * ((NSEC_PER_SEC/1000)/HZ)/TIMER0_DIV;
 }
 
 /* Excerpt from the Etrax100 HSDD about the built-in watchdog:
@@ -188,8 +137,6 @@ stop_watchdog(void)
 #endif	
 }
 
-/* last time the cmos clock got updated */
-static long last_rtc_update = 0;
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -232,24 +179,6 @@ timer_interrupt(int irq, void *dev_id)
 	do_timer(1);
 	
         cris_do_profile(regs); /* Save profiling information */
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 *
-	 * The division here is not time critical since it will run once in 
-	 * 11 minutes
-	 */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - (tick_nsec / 1000) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + (tick_nsec / 1000) / 2) {
-		if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
-	}
         return IRQ_HANDLED;
 }
 
@@ -274,22 +203,10 @@ time_init(void)
 	 */
 	loops_per_usec = 50;
 
-	if(RTC_INIT() < 0) {
-		/* no RTC, start at 1980 */
-		xtime.tv_sec = 0;
-		xtime.tv_nsec = 0;
+	if(RTC_INIT() < 0)
 		have_rtc = 0;
-	} else {		
-		/* get the current time */
+	else
 		have_rtc = 1;
-		update_xtime_from_cmos();
-	}
-
-	/*
-	 * Initialize wall_to_monotonic such that adding it to xtime will yield zero, the
-	 * tv_nsec field must be normalized (i.e., 0 <= nsec < NSEC_PER_SEC).
-	 */
-	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* Setup the etrax timers
 	 * Base frequency is 25000 hz, divider 250 -> 100 HZ

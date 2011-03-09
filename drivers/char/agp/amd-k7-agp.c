@@ -6,9 +6,9 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/agp_backend.h>
-#include <linux/gfp.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include "agp.h"
 
 #define AMD_MMBASE	0x14
@@ -142,6 +142,7 @@ static int amd_create_gatt_table(struct agp_bridge_data *bridge)
 {
 	struct aper_size_info_lvl2 *value;
 	struct amd_page_map page_dir;
+	unsigned long __iomem *cur_gatt;
 	unsigned long addr;
 	int retval;
 	u32 temp;
@@ -176,6 +177,13 @@ static int amd_create_gatt_table(struct agp_bridge_data *bridge)
 		writel(virt_to_phys(amd_irongate_private.gatt_pages[i]->real) | 1,
 			page_dir.remapped+GET_PAGE_DIR_OFF(addr));
 		readl(page_dir.remapped+GET_PAGE_DIR_OFF(addr));	/* PCI Posting. */
+	}
+
+	for (i = 0; i < value->num_entries; i++) {
+		addr = (i * PAGE_SIZE) + agp_bridge->gart_bus_addr;
+		cur_gatt = GET_GATT(addr);
+		writel(agp_bridge->scratch_page, cur_gatt+GET_GATT_OFF(addr));
+		readl(cur_gatt+GET_GATT_OFF(addr));	/* PCI Posting. */
 	}
 
 	return 0;
@@ -301,7 +309,8 @@ static int amd_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 
 	num_entries = A_SIZE_LVL2(agp_bridge->current_size)->num_entries;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type ||
+	    agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type))
 		return -EINVAL;
 
 	if ((pg_start + mem->page_count) > num_entries)
@@ -340,7 +349,8 @@ static int amd_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	unsigned long __iomem *cur_gatt;
 	unsigned long addr;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type ||
+	    agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type))
 		return -EINVAL;
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
@@ -375,6 +385,7 @@ static const struct agp_bridge_driver amd_irongate_driver = {
 	.aperture_sizes		= amd_irongate_sizes,
 	.size_type		= LVL2_APER_SIZE,
 	.num_aperture_sizes	= 7,
+	.needs_scratch_page	= true,
 	.configure		= amd_irongate_configure,
 	.fetch_size		= amd_irongate_fetch_size,
 	.cleanup		= amd_irongate_cleanup,

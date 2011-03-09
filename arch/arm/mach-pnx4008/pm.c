@@ -19,8 +19,11 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/cacheflush.h>
+
+#include <mach/hardware.h>
 #include <mach/pm.h>
 #include <mach/clock.h>
 
@@ -116,7 +119,7 @@ static int pnx4008_pm_valid(suspend_state_t state)
 	       (state == PM_SUSPEND_MEM);
 }
 
-static struct platform_suspend_ops pnx4008_pm_ops = {
+static const struct platform_suspend_ops pnx4008_pm_ops = {
 	.enter = pnx4008_pm_enter,
 	.valid = pnx4008_pm_valid,
 };

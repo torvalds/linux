@@ -3,7 +3,7 @@
  *
  * Copyright(C) 2005, Benedikt Spranger <b.spranger@linutronix.de>
  * Copyright(C) 2005, Thomas Gleixner <tglx@linutronix.de>
- * Copyright(C) 2006, Hans J. Koch <hjk@linutronix.de>
+ * Copyright(C) 2006, Hans J. Koch <hjk@hansjkoch.de>
  * Copyright(C) 2006, Greg Kroah-Hartman <greg@kroah.com>
  *
  * Userspace IO driver.
@@ -108,7 +108,7 @@ extern void uio_event_notify(struct uio_info *info);
 
 /* defines for uio_info->irq */
 #define UIO_IRQ_CUSTOM	-1
-#define UIO_IRQ_NONE	-2
+#define UIO_IRQ_NONE	0
 
 /* defines for uio_mem->memtype */
 #define UIO_MEM_NONE	0

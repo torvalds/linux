@@ -8,10 +8,10 @@
  *  and associated source files.  Please see the usb/serial files for
  *  individual credits and copyrights.
  *
- * 	This program is free software; you can redistribute it and/or modify
- * 	it under the terms of the GNU General Public License as published by
- * 	the Free Software Foundation; either version 2 of the License, or
- * 	(at your option) any later version.
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
@@ -66,7 +66,7 @@
 #ifdef WHEN_I_LEARN_THIS
 #define BELKIN_SA_SET_MAGIC_REQUEST	17 /* I don't know, possibly flush */
 					   /* (always in Wininit sequence before flow control) */
-#define BELKIN_SA_RESET 		xx /* Reset the port */
+#define BELKIN_SA_RESET			xx /* Reset the port */
 #define BELKIN_SA_GET_MODEM_STATUS	xx /* Force return of modem status register */
 #endif
 

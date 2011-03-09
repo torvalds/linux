@@ -76,6 +76,17 @@
  */
 #define IOREMAP_MAX_ORDER	24
 
+/*
+ * Size of DMA-consistent memory region.  Must be multiple of 2M,
+ * between 2MB and 14MB inclusive.
+ */
+#ifndef CONSISTENT_DMA_SIZE
+#define CONSISTENT_DMA_SIZE 	SZ_2M
+#endif
+
+#define CONSISTENT_END		(0xffe00000UL)
+#define CONSISTENT_BASE		(CONSISTENT_END - CONSISTENT_DMA_SIZE)
+
 #else /* CONFIG_MMU */
 
 /*
@@ -93,11 +104,11 @@
 #endif
 
 #ifndef PHYS_OFFSET
-#define PHYS_OFFSET 		(CONFIG_DRAM_BASE)
+#define PHYS_OFFSET 		UL(CONFIG_DRAM_BASE)
 #endif
 
 #ifndef END_MEM
-#define END_MEM     		(CONFIG_DRAM_BASE + CONFIG_DRAM_SIZE)
+#define END_MEM     		(UL(CONFIG_DRAM_BASE) + CONFIG_DRAM_SIZE)
 #endif
 
 #ifndef PAGE_OFFSET
@@ -113,11 +124,12 @@
 #endif /* !CONFIG_MMU */
 
 /*
- * Size of DMA-consistent memory region.  Must be multiple of 2M,
- * between 2MB and 14MB inclusive.
+ * We fix the TCM memories max 32 KiB ITCM resp DTCM at these
+ * locations
  */
-#ifndef CONSISTENT_DMA_SIZE
-#define CONSISTENT_DMA_SIZE SZ_2M
+#ifdef CONFIG_HAVE_TCM
+#define ITCM_OFFSET	UL(0xfffe0000)
+#define DTCM_OFFSET	UL(0xfffe8000)
 #endif
 
 /*
@@ -155,7 +167,7 @@
 #endif
 
 #ifndef arch_adjust_zones
-#define arch_adjust_zones(node,size,holes) do { } while (0)
+#define arch_adjust_zones(size,holes) do { } while (0)
 #elif !defined(CONFIG_ZONE_DMA)
 #error "custom arch_adjust_zones() requires CONFIG_ZONE_DMA"
 #endif
@@ -231,75 +243,10 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
  *  virt_to_page(k)	convert a _valid_ virtual address to struct page *
  *  virt_addr_valid(k)	indicates whether a virtual address is valid
  */
-#ifndef CONFIG_DISCONTIGMEM
-
 #define ARCH_PFN_OFFSET		PHYS_PFN_OFFSET
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	((unsigned long)(kaddr) >= PAGE_OFFSET && (unsigned long)(kaddr) < (unsigned long)high_memory)
-
-#define PHYS_TO_NID(addr)	(0)
-
-#else /* CONFIG_DISCONTIGMEM */
-
-/*
- * This is more complex.  We have a set of mem_map arrays spread
- * around in memory.
- */
-#include <linux/numa.h>
-
-#define arch_pfn_to_nid(pfn)	PFN_TO_NID(pfn)
-#define arch_local_page_offset(pfn, nid) LOCAL_MAP_NR((pfn) << PAGE_SHIFT)
-
-#define virt_to_page(kaddr)					\
-	(ADDR_TO_MAPBASE(kaddr) + LOCAL_MAP_NR(kaddr))
-
-#define virt_addr_valid(kaddr)	(KVADDR_TO_NID(kaddr) < MAX_NUMNODES)
-
-/*
- * Common discontigmem stuff.
- *  PHYS_TO_NID is used by the ARM kernel/setup.c
- */
-#define PHYS_TO_NID(addr)	PFN_TO_NID((addr) >> PAGE_SHIFT)
-
-/*
- * Given a kaddr, ADDR_TO_MAPBASE finds the owning node of the memory
- * and returns the mem_map of that node.
- */
-#define ADDR_TO_MAPBASE(kaddr)	NODE_MEM_MAP(KVADDR_TO_NID(kaddr))
-
-/*
- * Given a page frame number, find the owning node of the memory
- * and returns the mem_map of that node.
- */
-#define PFN_TO_MAPBASE(pfn)	NODE_MEM_MAP(PFN_TO_NID(pfn))
-
-#ifdef NODE_MEM_SIZE_BITS
-#define NODE_MEM_SIZE_MASK	((1 << NODE_MEM_SIZE_BITS) - 1)
-
-/*
- * Given a kernel address, find the home node of the underlying memory.
- */
-#define KVADDR_TO_NID(addr) \
-	(((unsigned long)(addr) - PAGE_OFFSET) >> NODE_MEM_SIZE_BITS)
-
-/*
- * Given a page frame number, convert it to a node id.
- */
-#define PFN_TO_NID(pfn) \
-	(((pfn) - PHYS_PFN_OFFSET) >> (NODE_MEM_SIZE_BITS - PAGE_SHIFT))
-
-/*
- * Given a kaddr, LOCAL_MEM_MAP finds the owning node of the memory
- * and returns the index corresponding to the appropriate page in the
- * node's mem_map.
- */
-#define LOCAL_MAP_NR(addr) \
-	(((unsigned long)(addr) & NODE_MEM_SIZE_MASK) >> PAGE_SHIFT)
-
-#endif /* NODE_MEM_SIZE_BITS */
-
-#endif /* !CONFIG_DISCONTIGMEM */
 
 /*
  * Optional coherency support.  Currently used only by selected

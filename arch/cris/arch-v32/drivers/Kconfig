@@ -360,23 +360,9 @@ config ETRAX_SER4_DSR_BIT
 	string "Ser 4 DSR bit (empty = not used)"
 	depends on ETRAX_SERIAL_PORT4
 
-config ETRAX_SER3_CD_BIT
+config ETRAX_SER4_CD_BIT
 	string "Ser 4 CD bit (empty = not used)"
 	depends on ETRAX_SERIAL_PORT4
-
-config ETRAX_RS485
-	bool "RS-485 support"
-	depends on ETRAXFS_SERIAL
-	help
-	  Enables support for RS-485 serial communication.  For a primer on
-	  RS-485, see <http://www.hw.cz/english/docs/rs485/rs485.html>.
-
-config ETRAX_RS485_DISABLE_RECEIVER
-	bool "Disable serial receiver"
-	depends on ETRAX_RS485
-	help
-	  It is necessary to disable the serial receiver to avoid serial
-	  loopback.  Not all products are able to do this in software only.
 
 config ETRAX_SYNCHRONOUS_SERIAL
 	bool "Synchronous serial-port support"

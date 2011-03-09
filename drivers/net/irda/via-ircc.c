@@ -45,11 +45,11 @@ F02 Oct/28/02: Add SB device ID for 3147 and 3177.
 #include <linux/netdevice.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -121,7 +121,7 @@ static void iodelay(int udelay)
 	}
 }
 
-static struct pci_device_id via_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(via_pci_tbl) = {
 	{ PCI_VENDOR_ID_VIA, 0x8231, PCI_ANY_ID, PCI_ANY_ID,0,0,0 },
 	{ PCI_VENDOR_ID_VIA, 0x3109, PCI_ANY_ID, PCI_ANY_ID,0,0,1 },
 	{ PCI_VENDOR_ID_VIA, 0x3074, PCI_ANY_ID, PCI_ANY_ID,0,0,2 },
@@ -1182,12 +1182,13 @@ F01_E */
 
 		skb = dev_alloc_skb(len + 1 - 4);
 		/*
-		 * if frame size,data ptr,or skb ptr are wrong ,the get next
+		 * if frame size, data ptr, or skb ptr are wrong, then get next
 		 * entry.
 		 */
 		if ((skb == NULL) || (skb->data == NULL) ||
 		    (self->rx_buff.data == NULL) || (len < 6)) {
 			self->netdev->stats.rx_dropped++;
+			kfree_skb(skb);
 			return TRUE;
 		}
 		skb_reserve(skb, 1);

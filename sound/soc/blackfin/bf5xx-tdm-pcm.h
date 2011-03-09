@@ -15,7 +15,4 @@ struct bf5xx_pcm_dma_params {
 	char *name;                     /* stream identifier */
 };
 
-/* platform data */
-extern struct snd_soc_platform bf5xx_tdm_soc_platform;
-
 #endif

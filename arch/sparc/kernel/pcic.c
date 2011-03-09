@@ -284,7 +284,7 @@ int __init pcic_probe(void)
 	struct linux_prom_registers regs[PROMREG_MAX];
 	struct linux_pbm_info* pbm;
 	char namebuf[64];
-	int node;
+	phandle node;
 	int err;
 
 	if (pcic0_up) {
@@ -440,7 +440,7 @@ static int __devinit pdev_to_pnode(struct linux_pbm_info *pbm,
 {
 	struct linux_prom_pci_registers regs[PROMREG_MAX];
 	int err;
-	int node = prom_getchild(pbm->prom_node);
+	phandle node = prom_getchild(pbm->prom_node);
 
 	while(node) {
 		err = prom_getproperty(node, "reg", 
@@ -585,8 +585,6 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 			writew(ivec, pcic->pcic_regs+PCI_INT_SELECT_LO);
 		}
  	}
-
-	return;
 }
 
 /*
@@ -768,9 +766,10 @@ char * __devinit pcibios_setup(char *str)
 	return str;
 }
 
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
+	return res->start;
 }
 
 int pcibios_enable_device(struct pci_dev *pdev, int mask)

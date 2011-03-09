@@ -10,7 +10,7 @@
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.
- * Author: Wu Zhangjin, wuzj@lemote.com
+ * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -21,12 +21,11 @@
 
 #include <loongson.h>
 
-int prom_argc;
-/* pmon passes arguments in 32bit pointers */
-int *_prom_argv;
-
 void __init prom_init_cmdline(void)
 {
+	int prom_argc;
+	/* pmon passes arguments in 32bit pointers */
+	int *_prom_argv;
 	int i;
 	long l;
 

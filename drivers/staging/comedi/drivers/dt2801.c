@@ -18,10 +18,10 @@ Configuration options:
   [1] - unused
   [2] - A/D reference 0=differential, 1=single-ended
   [3] - A/D range
-          0 = [-10,10]
+	  0 = [-10, 10]
 	  1 = [0,10]
   [4] - D/A 0 range
-          0 = [-10,10]
+	  0 = [-10, 10]
 	  1 = [-5,5]
 	  2 = [-2.5,2.5]
 	  3 = [0,10]
@@ -98,7 +98,18 @@ static struct comedi_driver driver_dt2801 = {
 	.detach = dt2801_detach,
 };
 
-COMEDI_INITCLEANUP(driver_dt2801);
+static int __init driver_dt2801_init_module(void)
+{
+	return comedi_driver_register(&driver_dt2801);
+}
+
+static void __exit driver_dt2801_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dt2801);
+}
+
+module_init(driver_dt2801_init_module);
+module_exit(driver_dt2801_cleanup_module);
 
 #if 0
 /* ignore 'defined but not used' warning */
@@ -279,9 +290,8 @@ static int dt2801_readdata(struct comedi_device *dev, int *data)
 
 	do {
 		stat = inb_p(dev->iobase + DT2801_STATUS);
-		if (stat & (DT_S_COMPOSITE_ERROR | DT_S_READY)) {
+		if (stat & (DT_S_COMPOSITE_ERROR | DT_S_READY))
 			return stat;
-		}
 		if (stat & DT_S_DATA_OUT_READY) {
 			*data = inb_p(dev->iobase + DT2801_DATA);
 			return 0;
@@ -315,9 +325,8 @@ static int dt2801_writedata(struct comedi_device *dev, unsigned int data)
 	do {
 		stat = inb_p(dev->iobase + DT2801_STATUS);
 
-		if (stat & DT_S_COMPOSITE_ERROR) {
+		if (stat & DT_S_COMPOSITE_ERROR)
 			return stat;
-		}
 		if (!(stat & DT_S_DATA_IN_FULL)) {
 			outb_p(data & 0xff, dev->iobase + DT2801_DATA);
 			return 0;
@@ -354,18 +363,15 @@ static int dt2801_wait_for_ready(struct comedi_device *dev)
 	int stat;
 
 	stat = inb_p(dev->iobase + DT2801_STATUS);
-	if (stat & DT_S_READY) {
+	if (stat & DT_S_READY)
 		return 0;
-	}
 	do {
 		stat = inb_p(dev->iobase + DT2801_STATUS);
 
-		if (stat & DT_S_COMPOSITE_ERROR) {
+		if (stat & DT_S_COMPOSITE_ERROR)
 			return stat;
-		}
-		if (stat & DT_S_READY) {
+		if (stat & DT_S_READY)
 			return 0;
-		}
 	} while (--timeout > 0);
 
 	return -ETIME;
@@ -382,9 +388,8 @@ static int dt2801_writecmd(struct comedi_device *dev, int command)
 		printk
 		    ("dt2801: composite-error in dt2801_writecmd(), ignoring\n");
 	}
-	if (!(stat & DT_S_READY)) {
+	if (!(stat & DT_S_READY))
 		printk("dt2801: !ready in dt2801_writecmd(), ignoring\n");
-	}
 	outb_p(command, dev->iobase + DT2801_CMD);
 
 	return 0;
@@ -418,9 +423,8 @@ static int dt2801_reset(struct comedi_device *dev)
 		if (stat & DT_S_READY)
 			break;
 	} while (timeout--);
-	if (!timeout) {
+	if (!timeout)
 		printk("dt2801: timeout 1 status=0x%02x\n", stat);
-	}
 
 	/* printk("dt2801: reading dummy\n"); */
 	/* dt2801_readdata(dev,&board_code); */
@@ -436,9 +440,8 @@ static int dt2801_reset(struct comedi_device *dev)
 		if (stat & DT_S_READY)
 			break;
 	} while (timeout--);
-	if (!timeout) {
+	if (!timeout)
 		printk("dt2801: timeout 2 status=0x%02x\n", stat);
-	}
 
 	DPRINTK("dt2801: reading code\n");
 	dt2801_readdata(dev, &board_code);
@@ -480,7 +483,7 @@ static const struct comedi_lrange *dac_range_table[] = {
 
 static const struct comedi_lrange *dac_range_lkup(int opt)
 {
-	if (opt < 0 || opt > 5)
+	if (opt < 0 || opt >= 5)
 		return &range_unknown;
 	return dac_range_table[opt];
 }
@@ -623,11 +626,10 @@ static int dt2801_detach(struct comedi_device *dev)
 static int dt2801_error(struct comedi_device *dev, int stat)
 {
 	if (stat < 0) {
-		if (stat == -ETIME) {
+		if (stat == -ETIME)
 			printk("dt2801: timeout\n");
-		} else {
+		else
 			printk("dt2801: error %d\n", stat);
-		}
 		return stat;
 	}
 	printk("dt2801: error status 0x%02x, resetting...\n", stat);
@@ -729,3 +731,7 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 
 	return 1;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

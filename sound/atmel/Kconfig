@@ -12,7 +12,7 @@ config SND_ATMEL_AC97C
 	tristate "Atmel AC97 Controller (AC97C) driver"
 	select SND_PCM
 	select SND_AC97_CODEC
-	depends on DW_DMAC && AVR32
+	depends on (DW_DMAC && AVR32) || ARCH_AT91
 	help
 	  ALSA sound driver for the Atmel AC97 controller.
 

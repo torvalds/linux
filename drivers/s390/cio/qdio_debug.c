@@ -33,7 +33,6 @@ void qdio_allocate_dbf(struct qdio_initialize *init_data,
 	DBF_HEX(&init_data->input_handler, sizeof(void *));
 	DBF_HEX(&init_data->output_handler, sizeof(void *));
 	DBF_HEX(&init_data->int_parm, sizeof(long));
-	DBF_HEX(&init_data->flags, sizeof(long));
 	DBF_HEX(&init_data->input_sbal_addr_array, sizeof(void *));
 	DBF_HEX(&init_data->output_sbal_addr_array, sizeof(void *));
 	DBF_EVENT("irq:%8lx", (unsigned long)irq_ptr);
@@ -57,10 +56,17 @@ static int qstat_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "DSCI: %d   nr_used: %d\n",
 		   *(u32 *)q->irq_ptr->dsci, atomic_read(&q->nr_buf_used));
-	seq_printf(m, "ftc: %d  last_move: %d\n", q->first_to_check, q->last_move);
-	seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
-		   q->u.in.polling, q->u.in.ack_start, q->u.in.ack_count);
-	seq_printf(m, "slsb buffer states:\n");
+	seq_printf(m, "ftc: %d  last_move: %d\n",
+		   q->first_to_check, q->last_move);
+	if (q->is_input_q) {
+		seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
+			   q->u.in.polling, q->u.in.ack_start,
+			   q->u.in.ack_count);
+		seq_printf(m, "IRQs disabled: %u\n",
+			   test_bit(QDIO_QUEUE_IRQS_DISABLED,
+			   &q->u.in.queue_irq_state));
+	}
+	seq_printf(m, "SBAL states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
 
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
@@ -97,23 +103,21 @@ static int qstat_show(struct seq_file *m, void *v)
 	}
 	seq_printf(m, "\n");
 	seq_printf(m, "|64     |72     |80     |88     |96     |104    |112    |   127|\n");
-	return 0;
-}
 
-static ssize_t qstat_seq_write(struct file *file, const char __user *buf,
-			       size_t count, loff_t *off)
-{
-	struct seq_file *seq = file->private_data;
-	struct qdio_q *q = seq->private;
-
-	if (!q)
+	seq_printf(m, "\nSBAL statistics:");
+	if (!q->irq_ptr->perf_stat_enabled) {
+		seq_printf(m, " disabled\n");
 		return 0;
-	if (q->is_input_q)
-		xchg(q->irq_ptr->dsci, 1);
-	local_bh_disable();
-	tasklet_schedule(&q->tasklet);
-	local_bh_enable();
-	return count;
+	}
+
+	seq_printf(m, "\n1          2..        4..        8..        "
+		   "16..       32..       64..       127\n");
+	for (i = 0; i < ARRAY_SIZE(q->q_stats.nr_sbals); i++)
+		seq_printf(m, "%-10u ", q->q_stats.nr_sbals[i]);
+	seq_printf(m, "\nError      NOP        Total\n%-10u %-10u %-10u\n\n",
+		   q->q_stats.nr_sbal_error, q->q_stats.nr_sbal_nop,
+		   q->q_stats.nr_sbal_total);
+	return 0;
 }
 
 static int qstat_seq_open(struct inode *inode, struct file *filp)
@@ -126,7 +130,6 @@ static const struct file_operations debugfs_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = qstat_seq_open,
 	.read	 = seq_read,
-	.write	 = qstat_seq_write,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
@@ -148,12 +151,14 @@ static char *qperf_names[] = {
 	"Inbound queue full",
 	"Outbound calls",
 	"Outbound handler",
+	"Outbound queue full",
 	"Outbound fast_requeue",
 	"Outbound target_full",
 	"QEBSM eqbs",
 	"QEBSM eqbs partial",
 	"QEBSM sqbs",
-	"QEBSM sqbs partial"
+	"QEBSM sqbs partial",
+	"Discarded interrupts"
 };
 
 static int qperf_show(struct seq_file *m, void *v)
@@ -181,9 +186,10 @@ static ssize_t qperf_seq_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *seq = file->private_data;
 	struct qdio_irq *irq_ptr = seq->private;
+	struct qdio_q *q;
 	unsigned long val;
 	char buf[8];
-	int ret;
+	int ret, i;
 
 	if (!irq_ptr)
 		return 0;
@@ -201,6 +207,10 @@ static ssize_t qperf_seq_write(struct file *file, const char __user *ubuf,
 	case 0:
 		irq_ptr->perf_stat_enabled = 0;
 		memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
+		for_each_input_queue(irq_ptr, q, i)
+			memset(&q->q_stats, 0, sizeof(q->q_stats));
+		for_each_output_queue(irq_ptr, q, i)
+			memset(&q->q_stats, 0, sizeof(q->q_stats));
 		break;
 	case 1:
 		irq_ptr->perf_stat_enabled = 1;

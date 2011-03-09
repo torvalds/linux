@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/termios.h>
@@ -448,8 +449,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		}
 
 #ifdef SERIAL_DO_RESTART
-		return ((self->flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
+		return (self->flags & ASYNC_HUP_NOTIFY) ?
+			-EAGAIN : -ERESTARTSYS;
 #else
 		return -EAGAIN;
 #endif
@@ -495,9 +496,6 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	unsigned long flags;
 
 	IRDA_DEBUG(0, "%s()\n", __func__ );
-
-	if (!tty)
-		return;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
@@ -1006,9 +1004,6 @@ static void ircomm_tty_hangup(struct tty_struct *tty)
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
-
-	if (!tty)
-		return;
 
 	/* ircomm_tty_flush_buffer(tty); */
 	ircomm_tty_shutdown(self);

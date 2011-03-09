@@ -62,6 +62,8 @@
  * RM7000-specific cacheops
  */
 #define Page_Invalidate_T	0x16
+#define Index_Store_Tag_T	0x0a
+#define Index_Load_Tag_T	0x06
 
 /*
  * R10000-specific cacheops

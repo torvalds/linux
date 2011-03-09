@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2009 Analog Devices Inc.
+ * Copyright 2004-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later
  */
@@ -17,6 +17,7 @@
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 #include <asm/fixed_code.h>
+#include <asm/syscall.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -49,6 +50,9 @@ rt_restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *p
 {
 	unsigned long usp = 0;
 	int err = 0;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 #define RESTORE(x) err |= __get_user(regs->x, &sc->sc_##x)
 
@@ -206,16 +210,6 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 	regs->r1 = (unsigned long)(&frame->info);
 	regs->r2 = (unsigned long)(&frame->uc);
 
-	/*
-	 * Clear the trace flag when entering the signal handler, but
-	 * notify any tracer that was single-stepping it. The tracer
-	 * may want to single-step inside the handler too.
-	 */
-	if (regs->syscfg & TRACE_BITS) {
-		regs->syscfg &= ~TRACE_BITS;
-		ptrace_notify(SIGTRAP);
-	}
-
 	return 0;
 
  give_sigsegv:
@@ -245,6 +239,11 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
  do_restart:
 		regs->p0 = regs->orig_p0;
 		regs->r0 = regs->orig_r0;
+		regs->pc -= 2;
+		break;
+
+	case -ERESTART_RESTARTBLOCK:
+		regs->p0 = __NR_restart_syscall;
 		regs->pc -= 2;
 		break;
 	}
@@ -315,6 +314,9 @@ asmlinkage void do_signal(struct pt_regs *regs)
 			 * clear the TIF_RESTORE_SIGMASK flag */
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+			tracehook_signal_handler(signr, &info, &ka, regs,
+				test_thread_flag(TIF_SINGLESTEP));
 		}
 
 		return;

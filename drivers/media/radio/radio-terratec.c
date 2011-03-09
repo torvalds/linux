@@ -338,7 +338,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static const struct v4l2_file_operations terratec_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops terratec_ioctl_ops = {
@@ -389,6 +389,9 @@ static int __init terratec_init(void)
 
 	mutex_init(&tt->lock);
 
+	/* mute card - prevents noisy bootups */
+	tt_write_vol(tt, 0);
+
 	if (video_register_device(&tt->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		v4l2_device_unregister(&tt->v4l2_dev);
 		release_region(tt->io, 2);
@@ -396,9 +399,6 @@ static int __init terratec_init(void)
 	}
 
 	v4l2_info(v4l2_dev, "TERRATEC ActivRadio Standalone card driver.\n");
-
-	/* mute card - prevents noisy bootups */
-	tt_write_vol(tt, 0);
 	return 0;
 }
 

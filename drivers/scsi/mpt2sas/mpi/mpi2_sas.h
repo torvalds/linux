@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2007 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_sas.h
  *          Title:  MPI Serial Attached SCSI structures and definitions
  *  Creation Date:  February 9, 2007
  *
- *  mpi2.h Version:  02.00.02
+ *  mpi2_sas.h Version:  02.00.04
  *
  *  Version History
  *  ---------------
@@ -18,6 +18,9 @@
  *                      Control Request.
  *  10-02-08  02.00.02  Added Set IOC Parameter Operation to SAS IO Unit Control
  *                      Request.
+ *  10-28-09  02.00.03  Changed the type of SGL in MPI2_SATA_PASSTHROUGH_REQUEST
+ *                      to MPI2_SGE_IO_UNION since it supports chained SGLs.
+ *  05-12-10  02.00.04  Modified some comments.
  *  --------------------------------------------------------------------------
  */
 
@@ -108,7 +111,7 @@ typedef struct _MPI2_SMP_PASSTHROUGH_REQUEST
 /* values for PassthroughFlags field */
 #define MPI2_SMP_PT_REQ_PT_FLAGS_IMMEDIATE      (0x80)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* SMP Passthrough Reply Message */
@@ -160,7 +163,7 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REQUEST
     U32                     Reserved4;          /* 0x14 */
     U32                     DataLength;         /* 0x18 */
     U8                      CommandFIS[20];     /* 0x1C */
-    MPI2_SIMPLE_SGE_UNION   SGL;                /* 0x20 */
+    MPI2_SGE_IO_UNION       SGL;                /* 0x20 */
 } MPI2_SATA_PASSTHROUGH_REQUEST, MPI2_POINTER PTR_MPI2_SATA_PASSTHROUGH_REQUEST,
   Mpi2SataPassthroughRequest_t, MPI2_POINTER pMpi2SataPassthroughRequest_t;
 
@@ -172,7 +175,7 @@ typedef struct _MPI2_SATA_PASSTHROUGH_REQUEST
 #define MPI2_SATA_PT_REQ_PT_FLAGS_WRITE             (0x0002)
 #define MPI2_SATA_PT_REQ_PT_FLAGS_READ              (0x0001)
 
-/* values for SGLFlags field are in the SGL section of mpi2.h */
+/* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
 
 /* SATA Passthrough Reply Message */

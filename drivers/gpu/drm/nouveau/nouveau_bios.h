@@ -34,9 +34,88 @@
 
 #define DCB_LOC_ON_CHIP 0
 
+#define ROM16(x) le16_to_cpu(*(uint16_t *)&(x))
+#define ROM32(x) le32_to_cpu(*(uint32_t *)&(x))
+#define ROMPTR(bios, x) (ROM16(x) ? &(bios)->data[ROM16(x)] : NULL)
+
+struct bit_entry {
+	uint8_t  id;
+	uint8_t  version;
+	uint16_t length;
+	uint16_t offset;
+	uint8_t *data;
+};
+
+int bit_table(struct drm_device *, u8 id, struct bit_entry *);
+
+struct dcb_i2c_entry {
+	uint32_t entry;
+	uint8_t port_type;
+	uint8_t read, write;
+	struct nouveau_i2c_chan *chan;
+};
+
+enum dcb_gpio_tag {
+	DCB_GPIO_TVDAC0 = 0xc,
+	DCB_GPIO_TVDAC1 = 0x2d,
+};
+
+struct dcb_gpio_entry {
+	enum dcb_gpio_tag tag;
+	int line;
+	bool invert;
+	uint32_t entry;
+	uint8_t state_default;
+	uint8_t state[2];
+};
+
+struct dcb_gpio_table {
+	int entries;
+	struct dcb_gpio_entry entry[DCB_MAX_NUM_GPIO_ENTRIES];
+};
+
+enum dcb_connector_type {
+	DCB_CONNECTOR_VGA = 0x00,
+	DCB_CONNECTOR_TV_0 = 0x10,
+	DCB_CONNECTOR_TV_1 = 0x11,
+	DCB_CONNECTOR_TV_3 = 0x13,
+	DCB_CONNECTOR_DVI_I = 0x30,
+	DCB_CONNECTOR_DVI_D = 0x31,
+	DCB_CONNECTOR_LVDS = 0x40,
+	DCB_CONNECTOR_DP = 0x46,
+	DCB_CONNECTOR_eDP = 0x47,
+	DCB_CONNECTOR_HDMI_0 = 0x60,
+	DCB_CONNECTOR_HDMI_1 = 0x61,
+	DCB_CONNECTOR_NONE = 0xff
+};
+
+struct dcb_connector_table_entry {
+	uint8_t index;
+	uint32_t entry;
+	enum dcb_connector_type type;
+	uint8_t index2;
+	uint8_t gpio_tag;
+	void *drm;
+};
+
+struct dcb_connector_table {
+	int entries;
+	struct dcb_connector_table_entry entry[DCB_MAX_NUM_CONNECTOR_ENTRIES];
+};
+
+enum dcb_type {
+	OUTPUT_ANALOG = 0,
+	OUTPUT_TV = 1,
+	OUTPUT_TMDS = 2,
+	OUTPUT_LVDS = 3,
+	OUTPUT_DP = 6,
+	OUTPUT_EOL = 14, /* DCB 4.0+, appears to be end-of-list */
+	OUTPUT_ANY = -1
+};
+
 struct dcb_entry {
 	int index;	/* may not be raw dcb index if merging has happened */
-	uint8_t type;
+	enum dcb_type type;
 	uint8_t i2c_index;
 	uint8_t heads;
 	uint8_t connector;
@@ -54,6 +133,7 @@ struct dcb_entry {
 		struct {
 			struct sor_conf sor;
 			bool use_straps_for_mode;
+			bool use_acpi_for_edid;
 			bool use_power_scripts;
 		} lvdsconf;
 		struct {
@@ -66,72 +146,26 @@ struct dcb_entry {
 		} dpconf;
 		struct {
 			struct sor_conf sor;
+			int slave_addr;
 		} tmdsconf;
 	};
 	bool i2c_upper_default;
 };
 
-struct dcb_i2c_entry {
-	uint8_t port_type;
-	uint8_t read, write;
-	struct nouveau_i2c_chan *chan;
-};
-
-struct parsed_dcb {
-	int entries;
-	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
-	struct dcb_i2c_entry i2c[DCB_MAX_NUM_I2C_ENTRIES];
-};
-
-enum dcb_gpio_tag {
-	DCB_GPIO_TVDAC0 = 0xc,
-	DCB_GPIO_TVDAC1 = 0x2d,
-};
-
-struct dcb_gpio_entry {
-	enum dcb_gpio_tag tag;
-	int line;
-	bool invert;
-};
-
-struct parsed_dcb_gpio {
-	int entries;
-	struct dcb_gpio_entry entry[DCB_MAX_NUM_GPIO_ENTRIES];
-};
-
-struct dcb_connector_table_entry {
-	uint32_t entry;
-	uint8_t type;
-	uint8_t index;
-	uint8_t gpio_tag;
-};
-
-struct dcb_connector_table {
-	int entries;
-	struct dcb_connector_table_entry entry[DCB_MAX_NUM_CONNECTOR_ENTRIES];
-};
-
-struct bios_parsed_dcb {
+struct dcb_table {
 	uint8_t version;
 
-	struct parsed_dcb dcb;
+	int entries;
+	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
 
 	uint8_t *i2c_table;
 	uint8_t i2c_default_indices;
+	struct dcb_i2c_entry i2c[DCB_MAX_NUM_I2C_ENTRIES];
 
 	uint16_t gpio_table_ptr;
-	struct parsed_dcb_gpio gpio;
+	struct dcb_gpio_table gpio;
 	uint16_t connector_table_ptr;
 	struct dcb_connector_table connector;
-};
-
-enum nouveau_encoder_type {
-	OUTPUT_ANALOG = 0,
-	OUTPUT_TV = 1,
-	OUTPUT_TMDS = 2,
-	OUTPUT_LVDS = 3,
-	OUTPUT_DP = 6,
-	OUTPUT_ANY = -1
 };
 
 enum nouveau_or {
@@ -150,16 +184,28 @@ enum LVDS_script {
 	LVDS_PANEL_OFF
 };
 
-/* changing these requires matching changes to reg tables in nv_get_clock */
-#define MAX_PLL_TYPES	4
+/* these match types in pll limits table version 0x40,
+ * nouveau uses them on all chipsets internally where a
+ * specific pll needs to be referenced, but the exact
+ * register isn't known.
+ */
 enum pll_types {
-	NVPLL,
-	MPLL,
-	VPLL1,
-	VPLL2
+	PLL_CORE   = 0x01,
+	PLL_SHADER = 0x02,
+	PLL_UNK03  = 0x03,
+	PLL_MEMORY = 0x04,
+	PLL_UNK05  = 0x05,
+	PLL_UNK40  = 0x40,
+	PLL_UNK41  = 0x41,
+	PLL_UNK42  = 0x42,
+	PLL_VPLL0  = 0x80,
+	PLL_VPLL1  = 0x81,
+	PLL_MAX    = 0xff
 };
 
 struct pll_lims {
+	u32 reg;
+
 	struct {
 		int minfreq;
 		int maxfreq;
@@ -190,8 +236,13 @@ struct pll_lims {
 	int refclk;
 };
 
-struct nouveau_bios_info {
-	struct parsed_dcb *dcb;
+struct nvbios {
+	struct drm_device *dev;
+	enum {
+		NVBIOS_BMP,
+		NVBIOS_BIT
+	} type;
+	uint16_t offset;
 
 	uint8_t chip_version;
 
@@ -199,11 +250,8 @@ struct nouveau_bios_info {
 	uint32_t tvdactestval;
 	uint8_t digital_min_front_porch;
 	bool fp_no_ddc;
-};
 
-struct nvbios {
-	struct drm_device *dev;
-	struct nouveau_bios_info pub;
+	struct mutex lock;
 
 	uint8_t data[NV_PROM_SIZE];
 	unsigned int length;
@@ -232,12 +280,10 @@ struct nvbios {
 	uint16_t some_script_ptr; /* BIT I + 14 */
 	uint16_t init96_tbl_ptr; /* BIT I + 16 */
 
-	struct bios_parsed_dcb bdcb;
+	struct dcb_table dcb;
 
 	struct {
 		int crtchead;
-		/* these need remembering across suspend */
-		uint32_t saved_nv_pfb_cfg0;
 	} state;
 
 	struct {
@@ -258,7 +304,6 @@ struct nvbios {
 		bool reset_after_pclk_change;
 		bool dual_link;
 		bool link_c_increment;
-		bool BITbit1;
 		bool if_is_24bit;
 		int duallink_transition_clk;
 		uint8_t strapless_is_24bit;

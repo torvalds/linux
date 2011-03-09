@@ -69,12 +69,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 }
 #endif /* CONIFG_8xx */
 
-/*
- * As of today, we don't support tlbivax broadcast on any
- * implementation. When that becomes the case, this will be
- * an extern.
- */
-#ifdef CONFIG_PPC_BOOK3E
+#if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
 			   unsigned int tsize, unsigned int ind);
 #else
@@ -145,11 +140,22 @@ extern void wii_memory_fixups(void);
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(unsigned long top);
 
-#elif defined(CONFIG_FSL_BOOKE)
+#elif defined(CONFIG_PPC_FSL_BOOK3E)
+extern unsigned long map_mem_in_cams(unsigned long ram, int max_cam_idx);
+#ifdef CONFIG_PPC32
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void adjust_total_lowmem(void);
+#endif
+extern void loadcam_entry(unsigned int index);
 
+struct tlbcam {
+	u32	MAS0;
+	u32	MAS1;
+	unsigned long	MAS2;
+	u32	MAS3;
+	u32	MAS7;
+};
 #elif defined(CONFIG_PPC32)
 /* anything 32-bit except 4xx or 8xx */
 extern void MMU_init_hw(void);

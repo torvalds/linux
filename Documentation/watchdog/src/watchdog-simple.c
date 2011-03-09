@@ -17,9 +17,6 @@ int main(void)
 			ret = -1;
 			break;
 		}
-		ret = fsync(fd);
-		if (ret)
-			break;
 		sleep(10);
 	}
 	close(fd);

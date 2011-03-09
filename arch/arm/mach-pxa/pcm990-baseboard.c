@@ -58,6 +58,12 @@ static unsigned long pcm990_pin_config[] __initdata = {
 	/* I2C */
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
+
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
 };
 
 /*
@@ -235,23 +241,23 @@ static struct platform_device pcm990_backlight_device = {
 
 static unsigned long pcm990_irq_enabled;
 
-static void pcm990_mask_ack_irq(unsigned int irq)
+static void pcm990_mask_ack_irq(struct irq_data *d)
 {
-	int pcm990_irq = (irq - PCM027_IRQ(0));
+	int pcm990_irq = (d->irq - PCM027_IRQ(0));
 	PCM990_INTMSKENA = (pcm990_irq_enabled &= ~(1 << pcm990_irq));
 }
 
-static void pcm990_unmask_irq(unsigned int irq)
+static void pcm990_unmask_irq(struct irq_data *d)
 {
-	int pcm990_irq = (irq - PCM027_IRQ(0));
+	int pcm990_irq = (d->irq - PCM027_IRQ(0));
 	/* the irq can be acknowledged only if deasserted, so it's done here */
 	PCM990_INTSETCLR |= 1 << pcm990_irq;
 	PCM990_INTMSKENA  = (pcm990_irq_enabled |= (1 << pcm990_irq));
 }
 
 static struct irq_chip pcm990_irq_chip = {
-	.mask_ack	= pcm990_mask_ack_irq,
-	.unmask		= pcm990_unmask_irq,
+	.irq_mask_ack	= pcm990_mask_ack_irq,
+	.irq_unmask	= pcm990_unmask_irq,
 };
 
 static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -259,8 +265,8 @@ static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long pending = (~PCM990_INTSETCLR) & pcm990_irq_enabled;
 
 	do {
-		GEDR(PCM990_CTRL_INT_IRQ_GPIO) =
-					GPIO_bit(PCM990_CTRL_INT_IRQ_GPIO);
+		/* clear our parent IRQ */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = PCM027_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);
@@ -321,7 +327,7 @@ static void pcm990_mci_exit(struct device *dev, void *data)
 #define MSECS_PER_JIFFY (1000/HZ)
 
 static struct pxamci_platform_data pcm990_mci_platform_data = {
-	.detect_delay		= 250 / MSECS_PER_JIFFY,
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.init 			= pcm990_mci_init,
 	.setpower 		= pcm990_mci_setpower,
@@ -448,7 +454,6 @@ static struct soc_camera_link iclink[] = {
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,
 		.free_bus		= pcm990_camera_free_bus,
-		.module_name		= "mt9v022",
 	}, {
 		.bus_id			= 0, /* Must match with the camera ID */
 		.board_info		= &pcm990_camera_i2c[1],
@@ -456,7 +461,6 @@ static struct soc_camera_link iclink[] = {
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,
 		.free_bus		= pcm990_camera_free_bus,
-		.module_name		= "mt9m001",
 	},
 };
 

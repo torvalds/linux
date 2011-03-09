@@ -68,7 +68,7 @@ REAL NAME" to listserv@tichy.ch.uj.edu.pl.  Then, to submit messages to the
 list, mail to linux-arcnet@tichy.ch.uj.edu.pl.
 
 There are archives of the mailing list at:
-	http://tichy.ch.uj.edu.pl/lists/linux-arcnet
+	http://epistolary.org/mailman/listinfo.cgi/arcnet
 
 The people on linux-net@vger.kernel.org have also been known to be very
 helpful, especially when we're talking about ALPHA Linux kernels that may or
@@ -79,7 +79,7 @@ Other Drivers and Info
 ----------------------
 
 You can try my ARCNET page on the World Wide Web at:
-	http://www.worldvisions.ca/~apenwarr/arcnet/
+	http://www.qis.net/~jschmitz/arcnet/	
 
 Also, SMC (one of the companies that makes ARCnet cards) has a WWW site you
 might be interested in, which includes several drivers for various cards

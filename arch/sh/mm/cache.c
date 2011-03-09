@@ -2,7 +2,7 @@
  * arch/sh/mm/cache.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2002 - 2009  Paul Mundt
+ * Copyright (C) 2002 - 2010  Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
@@ -41,8 +41,17 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
                                    int wait)
 {
 	preempt_disable();
-	smp_call_function(func, info, wait);
+
+	/*
+	 * It's possible that this gets called early on when IRQs are
+	 * still disabled due to ioremapping by the boot CPU, so don't
+	 * even attempt IPIs unless there are other CPUs online.
+	 */
+	if (num_online_cpus() > 1)
+		smp_call_function(func, info, wait);
+
 	func(info);
+
 	preempt_enable();
 }
 
@@ -51,14 +60,14 @@ void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long len)
 {
 	if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-	    !test_bit(PG_dcache_dirty, &page->flags)) {
+	    test_bit(PG_dcache_clean, &page->flags)) {
 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(vto, src, len);
 		kunmap_coherent(vto);
 	} else {
 		memcpy(dst, src, len);
 		if (boot_cpu_data.dcache.n_aliases)
-			set_bit(PG_dcache_dirty, &page->flags);
+			clear_bit(PG_dcache_clean, &page->flags);
 	}
 
 	if (vma->vm_flags & VM_EXEC)
@@ -70,14 +79,14 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 			 unsigned long len)
 {
 	if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-	    !test_bit(PG_dcache_dirty, &page->flags)) {
+	    test_bit(PG_dcache_clean, &page->flags)) {
 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(dst, vfrom, len);
 		kunmap_coherent(vfrom);
 	} else {
 		memcpy(dst, src, len);
 		if (boot_cpu_data.dcache.n_aliases)
-			set_bit(PG_dcache_dirty, &page->flags);
+			clear_bit(PG_dcache_clean, &page->flags);
 	}
 }
 
@@ -89,7 +98,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	vto = kmap_atomic(to, KM_USER1);
 
 	if (boot_cpu_data.dcache.n_aliases && page_mapped(from) &&
-	    !test_bit(PG_dcache_dirty, &from->flags)) {
+	    test_bit(PG_dcache_clean, &from->flags)) {
 		vfrom = kmap_coherent(from, vaddr);
 		copy_page(vto, vfrom);
 		kunmap_coherent(vfrom);
@@ -132,7 +141,7 @@ void __update_cache(struct vm_area_struct *vma,
 
 	page = pfn_to_page(pfn);
 	if (pfn_valid(pfn)) {
-		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
+		int dirty = !test_and_set_bit(PG_dcache_clean, &page->flags);
 		if (dirty)
 			__flush_purge_region(page_address(page), PAGE_SIZE);
 	}
@@ -144,7 +153,7 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 
 	if (pages_do_alias(addr, vmaddr)) {
 		if (boot_cpu_data.dcache.n_aliases && page_mapped(page) &&
-		    !test_bit(PG_dcache_dirty, &page->flags)) {
+		    test_bit(PG_dcache_clean, &page->flags)) {
 			void *kaddr;
 
 			kaddr = kmap_coherent(page, vmaddr);
@@ -325,6 +334,13 @@ void __init cpu_cache_init(void)
 		extern void __weak sh4_cache_init(void);
 
 		sh4_cache_init();
+
+		if ((boot_cpu_data.type == CPU_SH7786) ||
+		    (boot_cpu_data.type == CPU_SHX3)) {
+			extern void __weak shx3_cache_init(void);
+
+			shx3_cache_init();
+		}
 	}
 
 	if (boot_cpu_data.family == CPU_FAMILY_SH5) {
