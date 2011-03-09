@@ -2114,7 +2114,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			    const struct open_flags *op, const char *pathname)
 {
 	struct dentry *dir = nd->path.dentry;
+	int open_flag = op->open_flag;
 	int will_truncate;
+	int want_write = 0;
+	int skip_perm = 0;
 	struct file *filp;
 	struct inode *inode;
 	int error;
@@ -2138,7 +2141,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (error)
 			goto exit;
 		audit_inode(pathname, nd->path.dentry);
-		if (op->open_flag & O_CREAT) {
+		if (open_flag & O_CREAT) {
 			error = -EISDIR;
 			goto exit;
 		}
@@ -2152,7 +2155,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		goto ok;
 	}
 
-	if (!(op->open_flag & O_CREAT)) {
+	if (!(open_flag & O_CREAT)) {
 		if (nd->last.name[nd->last.len])
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 		/* we _can_ be in RCU mode here */
@@ -2230,28 +2233,15 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
 			goto exit_mutex_unlock;
-		error = __open_namei_create(nd, path, op->open_flag, op->mode);
-		if (error) {
-			mnt_drop_write(nd->path.mnt);
+		want_write = 1;
+		will_truncate = 0;
+		error = __open_namei_create(nd, path, open_flag, op->mode);
+		if (error)
 			goto exit;
-		}
 		/* Don't check for write permission, don't truncate */
-		error = may_open(&nd->path, 0, op->open_flag & ~O_TRUNC);
-		if (error) {
-			mnt_drop_write(nd->path.mnt);
-			goto exit;
-		}
-		filp = nameidata_to_filp(nd);
-		mnt_drop_write(nd->path.mnt);
-		path_put(&nd->path);
-		if (!IS_ERR(filp)) {
-			error = ima_file_check(filp, op->acc_mode);
-			if (error) {
-				fput(filp);
-				filp = ERR_PTR(error);
-			}
-		}
-		return filp;
+		open_flag &= ~O_TRUNC;
+		skip_perm = 1;
+		goto common;
 	}
 
 	/*
@@ -2261,7 +2251,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	audit_inode(pathname, path->dentry);
 
 	error = -EEXIST;
-	if (op->open_flag & O_EXCL)
+	if (open_flag & O_EXCL)
 		goto exit_dput;
 
 	error = follow_managed(path, nd->flags);
@@ -2281,18 +2271,17 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
 ok:
-	will_truncate = open_will_truncate(op->open_flag, nd->path.dentry->d_inode);
+	will_truncate = open_will_truncate(open_flag, nd->path.dentry->d_inode);
 	if (will_truncate) {
 		error = mnt_want_write(nd->path.mnt);
 		if (error)
 			goto exit;
+		want_write = 1;
 	}
-	error = may_open(&nd->path, op->acc_mode, op->open_flag);
-	if (error) {
-		if (will_truncate)
-			mnt_drop_write(nd->path.mnt);
+common:
+	error = may_open(&nd->path, skip_perm ? 0 : op->acc_mode, open_flag);
+	if (error)
 		goto exit;
-	}
 	filp = nameidata_to_filp(nd);
 	if (!IS_ERR(filp)) {
 		error = ima_file_check(filp, op->acc_mode);
@@ -2310,12 +2299,8 @@ ok:
 			}
 		}
 	}
-	/*
-	 * It is now safe to drop the mnt write
-	 * because the filp has had a write taken
-	 * on its behalf.
-	 */
-	if (will_truncate)
+out:
+	if (want_write)
 		mnt_drop_write(nd->path.mnt);
 	path_put(&nd->path);
 	return filp;
@@ -2325,8 +2310,8 @@ exit_mutex_unlock:
 exit_dput:
 	path_put_conditional(path, nd);
 exit:
-	path_put(&nd->path);
-	return ERR_PTR(error);
+	filp = ERR_PTR(error);
+	goto out;
 }
 
 static struct file *path_openat(int dfd, const char *pathname,
