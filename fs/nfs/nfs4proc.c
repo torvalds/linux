@@ -436,8 +436,8 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		clp = res->sr_session->clp;
 		do_renew_lease(clp, timestamp);
 		/* Check sequence flags */
-		if (atomic_read(&clp->cl_count) > 1)
-			nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
+		if (res->sr_status_flags != 0)
+			nfs4_schedule_lease_recovery(clp);
 		break;
 	case -NFS4ERR_DELAY:
 		/* The server detected a resend of the RPC call and
@@ -5254,8 +5254,13 @@ static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
 		goto out;
 	}
 	ret = rpc_wait_for_completion_task(task);
-	if (!ret)
+	if (!ret) {
+		struct nfs4_sequence_res *res = task->tk_msg.rpc_resp;
+
+		if (task->tk_status == 0)
+			nfs41_handle_sequence_flag_errors(clp, res->sr_status_flags);
 		ret = task->tk_status;
+	}
 	rpc_put_task(task);
 out:
 	dprintk("<-- %s status=%d\n", __func__, ret);
