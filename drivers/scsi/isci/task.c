@@ -83,21 +83,10 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	unsigned long flags;
 	int ret;
 	enum sci_status status;
-
+	enum isci_status device_status;
 
 	dev_dbg(task->dev->port->ha->dev, "%s: num=%d\n", __func__, num);
 
-	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
-
-		isci_task_complete_for_upper_layer(
-			task,
-			SAS_TASK_UNDELIVERED,
-			SAM_STAT_TASK_ABORTED,
-			isci_perform_normal_io_completion
-			);
-
-		return 0;  /* The I/O was accepted (and failed). */
-	}
 	if ((task->dev == NULL) || (task->dev->port == NULL)) {
 
 		/* Indicate SAS_TASK_UNDELIVERED, so that the scsi midlayer
@@ -143,93 +132,105 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 			/* We don't have a valid host reference, so we
 			 * can't control the host queueing condition.
 			 */
-			continue;
+			goto next_task;
 		}
 
 		device = isci_dev_from_domain_dev(task->dev);
 
 		isci_host = isci_host_from_sas_ha(task->dev->port->ha);
 
-		if (device && device->status == isci_ready) {
+		if (device)
+			device_status = device->status;
+		else
+			device_status = isci_freed;
+
+		/* From this point onward, any process that needs to guarantee
+		 * that there is no kernel I/O being started will have to wait
+		 * for the quiesce spinlock.
+		 */
+
+		if (device_status != isci_ready_for_io) {
 
 			/* Forces a retry from scsi mid layer. */
 			dev_warn(task->dev->port->ha->dev,
 				 "%s: task %p: isci_host->status = %d, "
-				 "device = %p\n",
+				 "device = %p; device_status = 0x%x\n\n",
 				 __func__,
 				 task,
 				 isci_host_get_state(isci_host),
-				 device);
+				 device, device_status);
 
-			if (device)
-				dev_dbg(task->dev->port->ha->dev,
-					"%s: device->status = 0x%x\n",
-					__func__, device->status);
-
-			/* Indicate QUEUE_FULL so that the scsi midlayer
-			 * retries.
-			 */
-			isci_task_complete_for_upper_layer(
-				task,
-				SAS_TASK_COMPLETE,
-				SAS_QUEUE_FULL,
-				isci_perform_normal_io_completion
-				);
+			if (device_status == isci_ready) {
+				/* Indicate QUEUE_FULL so that the scsi midlayer
+				* retries.
+				*/
+				isci_task_complete_for_upper_layer(
+					task,
+					SAS_TASK_COMPLETE,
+					SAS_QUEUE_FULL,
+					isci_perform_normal_io_completion
+					);
+			} else {
+				/* Else, the device is going down. */
+				isci_task_complete_for_upper_layer(
+					task,
+					SAS_TASK_UNDELIVERED,
+					SAS_DEVICE_UNKNOWN,
+					isci_perform_normal_io_completion
+					);
+			}
 			isci_host_can_dequeue(isci_host, 1);
-		}
-		/* the device is going down... */
-		else if (!device || device->status != isci_ready_for_io) {
-
-			dev_dbg(task->dev->port->ha->dev,
-				"%s: task %p: isci_host->status = %d, "
-				"device = %p\n",
-				__func__,
-				task,
-				isci_host_get_state(isci_host),
-				device);
-
-			if (device)
-				dev_dbg(task->dev->port->ha->dev,
-					"%s: device->status = 0x%x\n",
-					__func__, device->status);
-
-			/* Indicate SAS_TASK_UNDELIVERED, so that the scsi
-			 * midlayer removes the target.
-			 */
-			isci_task_complete_for_upper_layer(
-				task,
-				SAS_TASK_UNDELIVERED,
-				SAS_DEVICE_UNKNOWN,
-				isci_perform_normal_io_completion
-				);
-			isci_host_can_dequeue(isci_host, 1);
-
 		} else {
-			/* build and send the request. */
-			status = isci_request_execute(isci_host, task, &request,
-						      gfp_flags);
+			/* There is a device and it's ready for I/O. */
+			spin_lock_irqsave(&task->task_state_lock, flags);
 
-			if (status == SCI_SUCCESS) {
-				spin_lock_irqsave(&task->task_state_lock, flags);
+			if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+
+				spin_unlock_irqrestore(&task->task_state_lock,
+						       flags);
+
+				isci_task_complete_for_upper_layer(
+					task,
+					SAS_TASK_UNDELIVERED,
+					SAM_STAT_TASK_ABORTED,
+					isci_perform_normal_io_completion
+					);
+
+				/* The I/O was aborted. */
+
+			} else {
 				task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 				spin_unlock_irqrestore(&task->task_state_lock, flags);
-			} else {
-				/* Indicate QUEUE_FULL so that the scsi
-				 * midlayer retries. if the request
-				 * failed for remote device reasons,
-				 * it gets returned as
-				 * SAS_TASK_UNDELIVERED next time
-				 * through.
-				 */
-				isci_task_complete_for_upper_layer(
+
+				/* build and send the request. */
+				status = isci_request_execute(isci_host, task, &request,
+							      gfp_flags);
+
+				if (status != SCI_SUCCESS) {
+
+					spin_lock_irqsave(&task->task_state_lock, flags);
+					/* Did not really start this command. */
+					task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
+					spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+					/* Indicate QUEUE_FULL so that the scsi
+					* midlayer retries. if the request
+					* failed for remote device reasons,
+					* it gets returned as
+					* SAS_TASK_UNDELIVERED next time
+					* through.
+					*/
+					isci_task_complete_for_upper_layer(
 						task,
 						SAS_TASK_COMPLETE,
 						SAS_QUEUE_FULL,
 						isci_perform_normal_io_completion
 						);
-				isci_host_can_dequeue(isci_host, 1);
+					isci_host_can_dequeue(isci_host, 1);
+				}
 			}
 		}
+next_task:
 		task = list_entry(task->list.next, struct sas_task, list);
 	} while (--num > 0);
 	return 0;
