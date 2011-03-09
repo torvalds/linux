@@ -747,19 +747,18 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		tmio_mmc_set_clock(host, ios->clock);
 
 	/* Power sequence - OFF -> UP -> ON */
-	switch (ios->power_mode) {
-	case MMC_POWER_OFF: /* power down SD bus */
-		if (host->set_pwr)
+	if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
+		/* power down SD bus */
+		if (ios->power_mode == MMC_POWER_OFF && host->set_pwr)
 			host->set_pwr(host->pdev, 0);
 		tmio_mmc_clk_stop(host);
-		break;
-	case MMC_POWER_ON: /* start bus clock */
-		tmio_mmc_clk_start(host);
-		break;
-	case MMC_POWER_UP: /* power up SD bus */
+	} else if (ios->power_mode == MMC_POWER_UP) {
+		/* power up SD bus */
 		if (host->set_pwr)
 			host->set_pwr(host->pdev, 1);
-		break;
+	} else {
+		/* start bus clock */
+		tmio_mmc_clk_start(host);
 	}
 
 	switch (ios->bus_width) {
