@@ -28,7 +28,6 @@
 #include <linux/fs.h>
 
 struct the_nilfs;
-struct nilfs_sc_info;
 
 /*
  * NILFS super-block data in memory
@@ -37,19 +36,11 @@ struct nilfs_sb_info {
 	/* Fundamental members */
 	struct super_block *s_super;	/* reverse pointer to super_block */
 	struct the_nilfs *s_nilfs;
-
-	/* Segment constructor */
-	struct nilfs_sc_info *s_sc_info; /* segment constructor info */
 };
 
 static inline struct nilfs_sb_info *NILFS_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
-}
-
-static inline struct nilfs_sc_info *NILFS_SC(struct nilfs_sb_info *sbi)
-{
-	return sbi->s_sc_info;
 }
 
 #endif /* _NILFS_SB */

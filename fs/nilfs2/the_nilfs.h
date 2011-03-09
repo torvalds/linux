@@ -33,6 +33,8 @@
 #include <linux/slab.h>
 #include "sb.h"
 
+struct nilfs_sc_info;
+
 /* the_nilfs struct */
 enum {
 	THE_NILFS_INIT = 0,     /* Information from super_block is set */
@@ -65,7 +67,8 @@ enum {
  * @ns_last_cno: checkpoint number of the latest segment
  * @ns_prot_seq: least sequence number of segments which must not be reclaimed
  * @ns_prev_seq: base sequence number used to decide if advance log cursor
- * @ns_segctor_sem: segment constructor semaphore
+ * @ns_writer: log writer
+ * @ns_segctor_sem: semaphore protecting log write
  * @ns_dat: DAT file inode
  * @ns_cpfile: checkpoint file inode
  * @ns_sufile: segusage file inode
@@ -140,6 +143,7 @@ struct the_nilfs {
 	u64			ns_prot_seq;
 	u64			ns_prev_seq;
 
+	struct nilfs_sc_info   *ns_writer;
 	struct rw_semaphore	ns_segctor_sem;
 
 	/*
