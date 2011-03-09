@@ -53,21 +53,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * This file contains the isci_module object definition.
- *
- * isci.h
- */
-
-#if !defined(_SCI_MODULE_H_)
-#define _SCI_MODULE_H_
-
-/**
- * This file contains the SCI low level driver interface to the SCI and Libsas
- *    Libraries.
- *
- * isci.h
- */
+#ifndef __ISCI_H__
+#define __ISCI_H__
 
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -136,11 +123,4 @@ enum sci_status isci_parse_user_parameters(
 	int scu_index,
 	struct isci_firmware *fw);
 
-#ifdef ISCI_SLAVE_ALLOC
-extern int ISCI_SLAVE_ALLOC(struct scsi_device *scsi_dev);
-#endif /* ISCI_SLAVE_ALLOC */
-
-#ifdef ISCI_SLAVE_DESTROY
-extern void ISCI_SLAVE_DESTROY(struct scsi_device *scsi_dev);
-#endif  /* ISCI_SLAVE_DESTROY */
-#endif  /* !defined(_SCI_MODULE_H_) */
+#endif  /* __ISCI_H__ */
