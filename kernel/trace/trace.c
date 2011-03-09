@@ -1101,7 +1101,6 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
-	entry->lock_depth		= (tsk) ? tsk->lock_depth : 0;
 	entry->flags =
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -1748,10 +1747,9 @@ static void print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#                | / _----=> need-resched    \n");
 	seq_puts(m, "#                || / _---=> hardirq/softirq \n");
 	seq_puts(m, "#                ||| / _--=> preempt-depth   \n");
-	seq_puts(m, "#                |||| /_--=> lock-depth       \n");
-	seq_puts(m, "#                |||||/     delay             \n");
-	seq_puts(m, "#  cmd     pid   |||||| time  |   caller      \n");
-	seq_puts(m, "#     \\   /      ||||||   \\   |   /           \n");
+	seq_puts(m, "#                |||| /     delay             \n");
+	seq_puts(m, "#  cmd     pid   ||||| time  |   caller      \n");
+	seq_puts(m, "#     \\   /      |||||  \\    |   /           \n");
 }
 
 static void print_func_help_header(struct seq_file *m)
