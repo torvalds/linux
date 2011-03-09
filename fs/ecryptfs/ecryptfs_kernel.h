@@ -296,7 +296,6 @@ struct ecryptfs_inode_info {
 	struct inode vfs_inode;
 	struct inode *wii_inode;
 	struct file *lower_file;
-	struct mutex lower_file_mutex;
 	struct ecryptfs_crypt_stat crypt_stat;
 };
 

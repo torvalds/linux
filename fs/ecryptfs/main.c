@@ -122,7 +122,6 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 		ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
 	int rc = 0;
 
-	mutex_lock(&inode_info->lower_file_mutex);
 	if (!inode_info->lower_file) {
 		struct dentry *lower_dentry;
 		struct vfsmount *lower_mnt =
@@ -138,7 +137,6 @@ int ecryptfs_init_persistent_file(struct dentry *ecryptfs_dentry)
 			inode_info->lower_file = NULL;
 		}
 	}
-	mutex_unlock(&inode_info->lower_file_mutex);
 	return rc;
 }
 
