@@ -1730,7 +1730,7 @@ static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 		emac_read(EMAC_TXCARRIERSENSE);
 	emac_write(EMAC_TXCARRIERSENSE, stats_clear_mask);
 
-	ndev->stats.tx_fifo_errors = emac_read(EMAC_TXUNDERRUN);
+	ndev->stats.tx_fifo_errors += emac_read(EMAC_TXUNDERRUN);
 	emac_write(EMAC_TXUNDERRUN, stats_clear_mask);
 
 	return &ndev->stats;
