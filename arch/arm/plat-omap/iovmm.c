@@ -279,7 +279,7 @@ static struct iovm_struct *alloc_iovm_area(struct iommu *obj, u32 da,
 	start = da;
 	alignment = PAGE_SIZE;
 
-	if (flags & IOVMF_DA_ANON) {
+	if (~flags & IOVMF_DA_FIXED) {
 		/* Don't map address 0 */
 		start = obj->da_start ? obj->da_start : alignment;
 
@@ -304,7 +304,7 @@ static struct iovm_struct *alloc_iovm_area(struct iommu *obj, u32 da,
 		if (tmp->da_start > start && (tmp->da_start - start) >= bytes)
 			goto found;
 
-		if (tmp->da_end >= start && flags & IOVMF_DA_ANON)
+		if (tmp->da_end >= start && ~flags & IOVMF_DA_FIXED)
 			start = roundup(tmp->da_end + 1, alignment);
 
 		prev_end = tmp->da_end;
@@ -651,7 +651,6 @@ u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
 	flags &= IOVMF_HW_MASK;
 	flags |= IOVMF_DISCONT;
 	flags |= IOVMF_MMIO;
-	flags |= (da ? IOVMF_DA_FIXED : IOVMF_DA_ANON);
 
 	da = __iommu_vmap(obj, da, sgt, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
@@ -691,7 +690,7 @@ EXPORT_SYMBOL_GPL(iommu_vunmap);
  * @flags:	iovma and page property
  *
  * Allocate @bytes linearly and creates 1-n-1 mapping and returns
- * @da again, which might be adjusted if 'IOVMF_DA_ANON' is set.
+ * @da again, which might be adjusted if 'IOVMF_DA_FIXED' is not set.
  */
 u32 iommu_vmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
 {
@@ -710,7 +709,6 @@ u32 iommu_vmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
 	flags &= IOVMF_HW_MASK;
 	flags |= IOVMF_DISCONT;
 	flags |= IOVMF_ALLOC;
-	flags |= (da ? IOVMF_DA_FIXED : IOVMF_DA_ANON);
 
 	sgt = sgtable_alloc(bytes, flags, da, 0);
 	if (IS_ERR(sgt)) {
@@ -781,7 +779,7 @@ static u32 __iommu_kmap(struct iommu *obj, u32 da, u32 pa, void *va,
  * @flags:	iovma and page property
  *
  * Creates 1-1-1 mapping and returns @da again, which can be
- * adjusted if 'IOVMF_DA_ANON' is set.
+ * adjusted if 'IOVMF_DA_FIXED' is not set.
  */
 u32 iommu_kmap(struct iommu *obj, u32 da, u32 pa, size_t bytes,
 		 u32 flags)
@@ -800,7 +798,6 @@ u32 iommu_kmap(struct iommu *obj, u32 da, u32 pa, size_t bytes,
 	flags &= IOVMF_HW_MASK;
 	flags |= IOVMF_LINEAR;
 	flags |= IOVMF_MMIO;
-	flags |= (da ? IOVMF_DA_FIXED : IOVMF_DA_ANON);
 
 	da = __iommu_kmap(obj, da, pa, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
@@ -839,7 +836,7 @@ EXPORT_SYMBOL_GPL(iommu_kunmap);
  * @flags:	iovma and page property
  *
  * Allocate @bytes linearly and creates 1-1-1 mapping and returns
- * @da again, which might be adjusted if 'IOVMF_DA_ANON' is set.
+ * @da again, which might be adjusted if 'IOVMF_DA_FIXED' is not set.
  */
 u32 iommu_kmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
 {
@@ -859,7 +856,6 @@ u32 iommu_kmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
 	flags &= IOVMF_HW_MASK;
 	flags |= IOVMF_LINEAR;
 	flags |= IOVMF_ALLOC;
-	flags |= (da ? IOVMF_DA_FIXED : IOVMF_DA_ANON);
 
 	da = __iommu_kmap(obj, da, pa, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
