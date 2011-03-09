@@ -2320,11 +2320,12 @@ static struct file *path_openat(int dfd, const char *pathname,
 		struct path link = path;
 		struct inode *linki = link.dentry->d_inode;
 		void *cookie;
-		error = -ELOOP;
-		if (!(nd.flags & LOOKUP_FOLLOW))
-			goto exit_dput;
-		if (count++ == 32)
-			goto exit_dput;
+		if (!(nd.flags & LOOKUP_FOLLOW) || count++ == 32) {
+			path_put_conditional(&path, &nd);
+			path_put(&nd.path);
+			filp = ERR_PTR(-ELOOP);
+			break;
+		}
 		/*
 		 * This is subtle. Instead of calling do_follow_link() we do
 		 * the thing by hands. The reason is that this way we have zero
@@ -2355,9 +2356,6 @@ out:
 	release_open_intent(&nd);
 	return filp;
 
-exit_dput:
-	path_put_conditional(&path, &nd);
-	path_put(&nd.path);
 out_filp:
 	filp = ERR_PTR(error);
 	goto out;
