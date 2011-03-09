@@ -229,12 +229,6 @@ static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
 	dev_dbg(dev, "ioctl: cmd=%08x, arg=%08lx, mr %08x\n", cmd, arg, mr);
 
 	switch (cmd) {
-	case RTC_AIE_OFF:		/* alarm off */
-		rtt_writel(rtc, MR, mr & ~AT91_RTT_ALMIEN);
-		break;
-	case RTC_AIE_ON:		/* alarm on */
-		rtt_writel(rtc, MR, mr | AT91_RTT_ALMIEN);
-		break;
 	case RTC_UIE_OFF:		/* update off */
 		rtt_writel(rtc, MR, mr & ~AT91_RTT_RTTINCIEN);
 		break;
@@ -247,6 +241,19 @@ static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
 	}
 
 	return ret;
+}
+
+static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct sam9_rtc *rtc = dev_get_drvdata(dev);
+	u32 mr = rtt_readl(rtc, MR);
+
+	dev_dbg(dev, "alarm_irq_enable: enabled=%08x, mr %08x\n", enabled, mr);
+	if (enabled)
+		rtt_writel(rtc, MR, mr | AT91_RTT_ALMIEN);
+	else
+		rtt_writel(rtc, MR, mr & ~AT91_RTT_ALMIEN);
+	return 0;
 }
 
 /*
@@ -302,6 +309,7 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.read_alarm	= at91_rtc_readalarm,
 	.set_alarm	= at91_rtc_setalarm,
 	.proc		= at91_rtc_proc,
+	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
 /*

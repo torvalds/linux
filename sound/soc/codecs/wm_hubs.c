@@ -674,6 +674,9 @@ SND_SOC_DAPM_OUTPUT("LINEOUT2N"),
 };
 
 static const struct snd_soc_dapm_route analogue_routes[] = {
+	{ "MICBIAS1", NULL, "CLK_SYS" },
+	{ "MICBIAS2", NULL, "CLK_SYS" },
+
 	{ "IN1L PGA", "IN1LP Switch", "IN1LP" },
 	{ "IN1L PGA", "IN1LN Switch", "IN1LN" },
 

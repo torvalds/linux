@@ -626,6 +626,9 @@ static int dcbnl_getapp(struct net_device *netdev, struct nlattr **tb,
 	dcb->cmd = DCB_CMD_GAPP;
 
 	app_nest = nla_nest_start(dcbnl_skb, DCB_ATTR_APP);
+	if (!app_nest)
+		goto out_cancel;
+
 	ret = nla_put_u8(dcbnl_skb, DCB_APP_ATTR_IDTYPE, idtype);
 	if (ret)
 		goto out_cancel;
@@ -1190,7 +1193,7 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlattr **tb,
 			goto err;
 	}
 
-	if (ieee[DCB_ATTR_IEEE_PFC] && ops->ieee_setets) {
+	if (ieee[DCB_ATTR_IEEE_PFC] && ops->ieee_setpfc) {
 		struct ieee_pfc *pfc = nla_data(ieee[DCB_ATTR_IEEE_PFC]);
 		err = ops->ieee_setpfc(netdev, pfc);
 		if (err)
@@ -1613,6 +1616,10 @@ EXPORT_SYMBOL(dcb_getapp);
 u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
 	struct dcb_app_type *itr;
+	struct dcb_app_type event;
+
+	memcpy(&event.name, dev->name, sizeof(event.name));
+	memcpy(&event.app, new, sizeof(event.app));
 
 	spin_lock(&dcb_lock);
 	/* Search for existing match and replace */
@@ -1644,7 +1651,7 @@ u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 	}
 out:
 	spin_unlock(&dcb_lock);
-	call_dcbevent_notifiers(DCB_APP_EVENT, new);
+	call_dcbevent_notifiers(DCB_APP_EVENT, &event);
 	return 0;
 }
 EXPORT_SYMBOL(dcb_setapp);

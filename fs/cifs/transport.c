@@ -457,6 +457,9 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 	case MID_RETRY_NEEDED:
 		rc = -EAGAIN;
 		break;
+	case MID_RESPONSE_MALFORMED:
+		rc = -EIO;
+		break;
 	default:
 		cERROR(1, "%s: invalid mid state mid=%d state=%d", __func__,
 			mid->mid, mid->midState);

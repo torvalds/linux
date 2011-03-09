@@ -1338,11 +1338,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 	ret = btrfs_shrink_device(device, 0);
 	if (ret)
-		goto error_brelse;
+		goto error_undo;
 
 	ret = btrfs_rm_dev_item(root->fs_info->chunk_root, device);
 	if (ret)
-		goto error_brelse;
+		goto error_undo;
 
 	device->in_fs_metadata = 0;
 
@@ -1416,6 +1416,13 @@ out:
 	mutex_unlock(&root->fs_info->volume_mutex);
 	mutex_unlock(&uuid_mutex);
 	return ret;
+error_undo:
+	if (device->writeable) {
+		list_add(&device->dev_alloc_list,
+			 &root->fs_info->fs_devices->alloc_list);
+		root->fs_info->fs_devices->rw_devices++;
+	}
+	goto error_brelse;
 }
 
 /*
@@ -1605,12 +1612,14 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 	ret = find_next_devid(root, &device->devid);
 	if (ret) {
+		kfree(device->name);
 		kfree(device);
 		goto error;
 	}
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
+		kfree(device->name);
 		kfree(device);
 		ret = PTR_ERR(trans);
 		goto error;
@@ -1631,7 +1640,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	device->dev_root = root->fs_info->dev_root;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
-	device->mode = 0;
+	device->mode = FMODE_EXCL;
 	set_blocksize(device->bdev, 4096);
 
 	if (seeding_dev) {

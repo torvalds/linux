@@ -220,7 +220,7 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
+static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
                                   u8 *mc_addr_list, u32 mc_addr_count,
                                   u32 rar_used_count, u32 rar_count)
 {

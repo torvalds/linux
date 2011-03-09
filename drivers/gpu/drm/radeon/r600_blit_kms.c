@@ -54,7 +54,7 @@ set_render_target(struct radeon_device *rdev, int format,
 	if (h < 8)
 		h = 8;
 
-	cb_color_info = ((format << 2) | (1 << 27));
+	cb_color_info = ((format << 2) | (1 << 27) | (1 << 8));
 	pitch = (w / 8) - 1;
 	slice = ((w * h) / 64) - 1;
 
@@ -165,6 +165,9 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 	u32 sq_vtx_constant_word2;
 
 	sq_vtx_constant_word2 = ((upper_32_bits(gpu_addr) & 0xff) | (16 << 8));
+#ifdef __BIG_ENDIAN
+	sq_vtx_constant_word2 |= (2 << 30);
+#endif
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 7));
 	radeon_ring_write(rdev, 0x460);
@@ -199,7 +202,7 @@ set_tex_resource(struct radeon_device *rdev,
 	if (h < 1)
 		h = 1;
 
-	sq_tex_resource_word0 = (1 << 0);
+	sq_tex_resource_word0 = (1 << 0) | (1 << 3);
 	sq_tex_resource_word0 |= ((((pitch >> 3) - 1) << 8) |
 				  ((w - 1) << 19));
 
@@ -253,7 +256,11 @@ draw_auto(struct radeon_device *rdev)
 	radeon_ring_write(rdev, DI_PT_RECTLIST);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDEX_TYPE, 0));
-	radeon_ring_write(rdev, DI_INDEX_SIZE_16_BIT);
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 2) |
+#endif
+			  DI_INDEX_SIZE_16_BIT);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_NUM_INSTANCES, 0));
 	radeon_ring_write(rdev, 1);
@@ -424,7 +431,11 @@ set_default_state(struct radeon_device *rdev)
 	dwords = ALIGN(rdev->r600_blit.state_len, 0x10);
 	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.state_offset;
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	radeon_ring_write(rdev, gpu_addr & 0xFFFFFFFC);
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 0) |
+#endif
+			  (gpu_addr & 0xFFFFFFFC));
 	radeon_ring_write(rdev, upper_32_bits(gpu_addr) & 0xFF);
 	radeon_ring_write(rdev, dwords);
 
@@ -467,7 +478,7 @@ static inline uint32_t i2f(uint32_t input)
 int r600_blit_init(struct radeon_device *rdev)
 {
 	u32 obj_size;
-	int r, dwords;
+	int i, r, dwords;
 	void *ptr;
 	u32 packet2s[16];
 	int num_packet2s = 0;
@@ -486,7 +497,7 @@ int r600_blit_init(struct radeon_device *rdev)
 
 	dwords = rdev->r600_blit.state_len;
 	while (dwords & 0xf) {
-		packet2s[num_packet2s++] = PACKET2(0);
+		packet2s[num_packet2s++] = cpu_to_le32(PACKET2(0));
 		dwords++;
 	}
 
@@ -529,8 +540,10 @@ int r600_blit_init(struct radeon_device *rdev)
 	if (num_packet2s)
 		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
 			    packet2s, num_packet2s * 4);
-	memcpy(ptr + rdev->r600_blit.vs_offset, r6xx_vs, r6xx_vs_size * 4);
-	memcpy(ptr + rdev->r600_blit.ps_offset, r6xx_ps, r6xx_ps_size * 4);
+	for (i = 0; i < r6xx_vs_size; i++)
+		*(u32 *)((unsigned long)ptr + rdev->r600_blit.vs_offset + i * 4) = cpu_to_le32(r6xx_vs[i]);
+	for (i = 0; i < r6xx_ps_size; i++)
+		*(u32 *)((unsigned long)ptr + rdev->r600_blit.ps_offset + i * 4) = cpu_to_le32(r6xx_ps[i]);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 

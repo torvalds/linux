@@ -462,8 +462,8 @@ static struct se_device *pscsi_create_type_disk(
 	 */
 	bd = blkdev_get_by_path(se_dev->se_dev_udev_path,
 				FMODE_WRITE|FMODE_READ|FMODE_EXCL, pdv);
-	if (!(bd)) {
-		printk("pSCSI: blkdev_get_by_path() failed\n");
+	if (IS_ERR(bd)) {
+		printk(KERN_ERR "pSCSI: blkdev_get_by_path() failed\n");
 		scsi_device_put(sd);
 		return NULL;
 	}

@@ -70,6 +70,8 @@ struct ixgbe_fcoe {
 	spinlock_t lock;
 	struct pci_pool *pool;
 	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];
+	unsigned char *extra_ddp_buffer;
+	dma_addr_t extra_ddp_buffer_dma;
 };
 
 #endif /* _IXGBE_FCOE_H */

@@ -133,17 +133,17 @@ static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 	}
 
 	ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL, (ctrl | IXGBE_CTRL_RST));
+	IXGBE_WRITE_REG(hw, IXGBE_CTRL, (ctrl | reset_bit));
 	IXGBE_WRITE_FLUSH(hw);
 
 	/* Poll for reset bit to self-clear indicating reset is complete */
 	for (i = 0; i < 10; i++) {
 		udelay(1);
 		ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
-		if (!(ctrl & IXGBE_CTRL_RST))
+		if (!(ctrl & reset_bit))
 			break;
 	}
-	if (ctrl & IXGBE_CTRL_RST) {
+	if (ctrl & reset_bit) {
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
 	}

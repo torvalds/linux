@@ -99,7 +99,7 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_get);
  * @ctx: [in] Pointer to eventfd context.
  *
  * The eventfd context reference must have been previously acquired either
- * with eventfd_ctx_get() or eventfd_ctx_fdget()).
+ * with eventfd_ctx_get() or eventfd_ctx_fdget().
  */
 void eventfd_ctx_put(struct eventfd_ctx *ctx)
 {
@@ -146,9 +146,9 @@ static void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt)
  * eventfd_ctx_remove_wait_queue - Read the current counter and removes wait queue.
  * @ctx: [in] Pointer to eventfd context.
  * @wait: [in] Wait queue to be removed.
- * @cnt: [out] Pointer to the 64bit conter value.
+ * @cnt: [out] Pointer to the 64-bit counter value.
  *
- * Returns zero if successful, or the following error codes:
+ * Returns %0 if successful, or the following error codes:
  *
  * -EAGAIN      : The operation would have blocked.
  *
@@ -175,11 +175,11 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_remove_wait_queue);
  * eventfd_ctx_read - Reads the eventfd counter or wait if it is zero.
  * @ctx: [in] Pointer to eventfd context.
  * @no_wait: [in] Different from zero if the operation should not block.
- * @cnt: [out] Pointer to the 64bit conter value.
+ * @cnt: [out] Pointer to the 64-bit counter value.
  *
- * Returns zero if successful, or the following error codes:
+ * Returns %0 if successful, or the following error codes:
  *
- * -EAGAIN      : The operation would have blocked but @no_wait was nonzero.
+ * -EAGAIN      : The operation would have blocked but @no_wait was non-zero.
  * -ERESTARTSYS : A signal interrupted the wait operation.
  *
  * If @no_wait is zero, the function might sleep until the eventfd internal
