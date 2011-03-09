@@ -2608,35 +2608,43 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 int viafb_get_pixclock(int hres, int vres, int vmode_refresh)
 {
 	int i;
+	struct crt_mode_table *best;
+	struct VideoModeTable *vmode = viafb_get_mode(hres, vres);
 
-	for (i = 0; i < NUM_TOTAL_RES_MAP_REFRESH; i++) {
-		if ((hres == res_map_refresh_tbl[i].hres)
-		    && (vres == res_map_refresh_tbl[i].vres)
-		    && (vmode_refresh == res_map_refresh_tbl[i].vmode_refresh))
-			return res_map_refresh_tbl[i].pixclock;
+	if (!vmode)
+		return RES_640X480_60HZ_PIXCLOCK;
+
+	best = &vmode->crtc[0];
+	for (i = 1; i < vmode->mode_array; i++) {
+		if (abs(vmode->crtc[i].refresh_rate - vmode_refresh)
+			< abs(best->refresh_rate - vmode_refresh))
+			best = &vmode->crtc[i];
 	}
-	return RES_640X480_60HZ_PIXCLOCK;
 
+	return 1000000000 / (best->crtc.hor_total * best->crtc.ver_total)
+		* 1000 / best->refresh_rate;
 }
 
 int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 {
-#define REFRESH_TOLERANCE 3
-	int i, nearest = -1, diff = REFRESH_TOLERANCE;
-	for (i = 0; i < NUM_TOTAL_RES_MAP_REFRESH; i++) {
-		if ((hres == res_map_refresh_tbl[i].hres)
-		    && (vres == res_map_refresh_tbl[i].vres)
-		    && (diff > (abs(long_refresh -
-		    res_map_refresh_tbl[i].vmode_refresh)))) {
-			diff = abs(long_refresh - res_map_refresh_tbl[i].
-				vmode_refresh);
-			nearest = i;
-		}
+	int i;
+	struct crt_mode_table *best;
+	struct VideoModeTable *vmode = viafb_get_mode(hres, vres);
+
+	if (!vmode)
+		return 60;
+
+	best = &vmode->crtc[0];
+	for (i = 1; i < vmode->mode_array; i++) {
+		if (abs(vmode->crtc[i].refresh_rate - long_refresh)
+			< abs(best->refresh_rate - long_refresh))
+			best = &vmode->crtc[i];
 	}
-#undef REFRESH_TOLERANCE
-	if (nearest > 0)
-		return res_map_refresh_tbl[nearest].vmode_refresh;
-	return 60;
+
+	if (abs(best->refresh_rate - long_refresh) > 3)
+		return 60;
+
+	return best->refresh_rate;
 }
 
 static void device_off(void)
