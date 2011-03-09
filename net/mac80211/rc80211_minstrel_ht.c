@@ -598,19 +598,46 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		sample = true;
 		minstrel_ht_set_rate(mp, mi, &ar[0], sample_idx,
 			txrc, true, false);
-		minstrel_ht_set_rate(mp, mi, &ar[1], mi->max_tp_rate,
-			txrc, false, false);
 		info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 	} else {
 		minstrel_ht_set_rate(mp, mi, &ar[0], mi->max_tp_rate,
 			txrc, false, false);
-		minstrel_ht_set_rate(mp, mi, &ar[1], mi->max_tp_rate2,
-			txrc, false, true);
 	}
-	minstrel_ht_set_rate(mp, mi, &ar[2], mi->max_prob_rate, txrc, false, !sample);
 
-	ar[3].count = 0;
-	ar[3].idx = -1;
+	if (mp->hw->max_rates >= 3) {
+		/*
+		 * At least 3 tx rates supported, use
+		 * sample_rate -> max_tp_rate -> max_prob_rate for sampling and
+		 * max_tp_rate -> max_tp_rate2 -> max_prob_rate by default.
+		 */
+		if (sample_idx >= 0)
+			minstrel_ht_set_rate(mp, mi, &ar[1], mi->max_tp_rate,
+				txrc, false, false);
+		else
+			minstrel_ht_set_rate(mp, mi, &ar[1], mi->max_tp_rate2,
+				txrc, false, true);
+
+		minstrel_ht_set_rate(mp, mi, &ar[2], mi->max_prob_rate,
+				     txrc, false, !sample);
+
+		ar[3].count = 0;
+		ar[3].idx = -1;
+	} else if (mp->hw->max_rates == 2) {
+		/*
+		 * Only 2 tx rates supported, use
+		 * sample_rate -> max_prob_rate for sampling and
+		 * max_tp_rate -> max_prob_rate by default.
+		 */
+		minstrel_ht_set_rate(mp, mi, &ar[1], mi->max_prob_rate,
+				     txrc, false, !sample);
+
+		ar[2].count = 0;
+		ar[2].idx = -1;
+	} else {
+		/* Not using MRR, only use the first rate */
+		ar[1].count = 0;
+		ar[1].idx = -1;
+	}
 
 	mi->total_packets++;
 
