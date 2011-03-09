@@ -399,7 +399,7 @@ static struct resource sdhi_cn9_resources[] = {
 	[0] = {
 		.name	= "SDHI",
 		.start	= 0x04ce0000,
-		.end	= 0x04ce01ff,
+		.end	= 0x04ce00ff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
