@@ -1793,6 +1793,24 @@ dont_forward:
 	return 0;
 }
 
+static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct rtable *rt)
+{
+	struct flowi fl = {
+		.fl4_dst = rt->rt_key_dst,
+		.fl4_src = rt->rt_key_src,
+		.fl4_tos = rt->rt_tos,
+		.oif = rt->rt_oif,
+		.iif = rt->rt_iif,
+		.mark = rt->rt_mark,
+	};
+	struct mr_table *mrt;
+	int err;
+
+	err = ipmr_fib_lookup(net, &fl, &mrt);
+	if (err)
+		return ERR_PTR(err);
+	return mrt;
+}
 
 /*
  *	Multicast packets for forwarding arrive here
@@ -1805,7 +1823,6 @@ int ip_mr_input(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int local = skb_rtable(skb)->rt_flags & RTCF_LOCAL;
 	struct mr_table *mrt;
-	int err;
 
 	/* Packet is looped back after forward, it should not be
 	 * forwarded second time, but still can be delivered locally.
@@ -1813,21 +1830,10 @@ int ip_mr_input(struct sk_buff *skb)
 	if (IPCB(skb)->flags & IPSKB_FORWARDED)
 		goto dont_forward;
 
-	{
-		struct rtable *rt = skb_rtable(skb);
-		struct flowi fl = {
-			.fl4_dst = rt->rt_key_dst,
-			.fl4_src = rt->rt_key_src,
-			.fl4_tos = rt->rt_tos,
-			.oif = rt->rt_oif,
-			.iif = rt->rt_iif,
-			.mark = rt->rt_mark,
-		};
-		err = ipmr_fib_lookup(net, &fl, &mrt);
-		if (err < 0) {
-			kfree_skb(skb);
-			return err;
-		}
+	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	if (IS_ERR(mrt)) {
+		kfree_skb(skb);
+		return PTR_ERR(mrt);
 	}
 	if (!local) {
 		if (IPCB(skb)->opt.router_alert) {
@@ -1956,19 +1962,9 @@ int pim_rcv_v1(struct sk_buff *skb)
 
 	pim = igmp_hdr(skb);
 
-	{
-		struct rtable *rt = skb_rtable(skb);
-		struct flowi fl = {
-			.fl4_dst = rt->rt_key_dst,
-			.fl4_src = rt->rt_key_src,
-			.fl4_tos = rt->rt_tos,
-			.oif = rt->rt_oif,
-			.iif = rt->rt_iif,
-			.mark = rt->rt_mark,
-		};
-		if (ipmr_fib_lookup(net, &fl, &mrt) < 0)
-			goto drop;
-	}
+	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	if (IS_ERR(mrt))
+		goto drop;
 	if (!mrt->mroute_do_pim ||
 	    pim->group != PIM_V1_VERSION || pim->code != PIM_V1_REGISTER)
 		goto drop;
@@ -1998,19 +1994,9 @@ static int pim_rcv(struct sk_buff *skb)
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
-	{
-		struct rtable *rt = skb_rtable(skb);
-		struct flowi fl = {
-			.fl4_dst = rt->rt_key_dst,
-			.fl4_src = rt->rt_key_src,
-			.fl4_tos = rt->rt_tos,
-			.oif = rt->rt_oif,
-			.iif = rt->rt_iif,
-			.mark = rt->rt_mark,
-		};
-		if (ipmr_fib_lookup(net, &fl, &mrt) < 0)
-			goto drop;
-	}
+	mrt = ipmr_rt_fib_lookup(net, skb_rtable(skb));
+	if (IS_ERR(mrt))
+		goto drop;
 	if (__pim_rcv(mrt, skb, sizeof(*pim))) {
 drop:
 		kfree_skb(skb);
