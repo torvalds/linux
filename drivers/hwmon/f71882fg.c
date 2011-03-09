@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Copyright (C) 2006 by Hans Edgington <hans@edgington.nl>              *
- *   Copyright (C) 2007-2009 Hans de Goede <hdegoede@redhat.com>           *
+ *   Copyright (C) 2007-2011 Hans de Goede <hdegoede@redhat.com>           *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -56,8 +56,6 @@
 #define REGION_LENGTH		8
 #define ADDR_REG_OFFSET		5
 #define DATA_REG_OFFSET		6
-
-#define F71882FG_REG_PECI		0x0A
 
 #define F71882FG_REG_IN_STATUS		0x12 /* f71882fg only */
 #define F71882FG_REG_IN_BEEP		0x13 /* f71882fg only */
@@ -943,7 +941,7 @@ static u16 f71882fg_read_temp(struct f71882fg_data *data, int nr)
 static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr, reg = 0, reg2;
+	int nr, reg;
 	int nr_fans = (data->type == f71882fg) ? 4 : 3;
 	int nr_ins = (data->type == f71858fg || data->type == f8000) ? 3 : 9;
 
@@ -980,37 +978,10 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 						F71882FG_REG_FAN_BEEP);
 			data->temp_beep = f71882fg_read8(data,
 						F71882FG_REG_TEMP_BEEP);
-			/* Have to hardcode type, because temp1 is special */
 			reg  = f71882fg_read8(data, F71882FG_REG_TEMP_TYPE);
+			data->temp_type[1] = (reg & 0x02) ? 2 : 4;
 			data->temp_type[2] = (reg & 0x04) ? 2 : 4;
 			data->temp_type[3] = (reg & 0x08) ? 2 : 4;
-		}
-		/* Determine temp index 1 sensor type */
-		if (data->type == f71889fg) {
-			reg2 = f71882fg_read8(data, F71882FG_REG_START);
-			switch ((reg2 & 0x60) >> 5) {
-			case 0x00: /* BJT / Thermistor */
-				data->temp_type[1] = (reg & 0x02) ? 2 : 4;
-				break;
-			case 0x01: /* AMDSI */
-				data->temp_type[1] = 5;
-				break;
-			case 0x02: /* PECI */
-			case 0x03: /* Ibex Peak ?? Report as PECI for now */
-				data->temp_type[1] = 6;
-				break;
-			}
-		} else {
-			reg2 = f71882fg_read8(data, F71882FG_REG_PECI);
-			if ((reg2 & 0x03) == 0x01)
-				data->temp_type[1] = 6; /* PECI */
-			else if ((reg2 & 0x03) == 0x02)
-				data->temp_type[1] = 5; /* AMDSI */
-			else if (data->type == f71862fg ||
-				 data->type == f71882fg)
-				data->temp_type[1] = (reg & 0x02) ? 2 : 4;
-			else /* f71858fg and f8000 only support BJT */
-				data->temp_type[1] = 2;
 		}
 
 		data->pwm_enable = f71882fg_read8(data,
