@@ -295,7 +295,7 @@ const struct address_space_operations nilfs_aops = {
 struct inode *nilfs_new_inode(struct inode *dir, int mode)
 {
 	struct super_block *sb = dir->i_sb;
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct inode *inode;
 	struct nilfs_inode_info *ii;
 	struct nilfs_root *root;
@@ -433,7 +433,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 			      struct nilfs_root *root, unsigned long ino,
 			      struct inode *inode)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct buffer_head *bh;
 	struct nilfs_inode *raw_inode;
 	int err;
@@ -807,7 +807,7 @@ int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
 
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 {
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	int err;
 
@@ -836,7 +836,7 @@ int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 int nilfs_inode_dirty(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	int ret = 0;
 
 	if (!list_empty(&ii->i_dirty)) {
@@ -851,7 +851,7 @@ int nilfs_inode_dirty(struct inode *inode)
 int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 
 	atomic_add(nr_dirty, &nilfs->ns_ndirtyblks);
 

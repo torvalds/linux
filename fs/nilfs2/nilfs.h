@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/nilfs2_fs.h>
 #include "the_nilfs.h"
-#include "sb.h"
 #include "bmap.h"
 
 /*
@@ -122,7 +121,7 @@ enum {
 #define NILFS_SYS_INO_BITS   \
   ((unsigned int)(1 << NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
 
-#define NILFS_FIRST_INO(sb)  (NILFS_SB(sb)->s_nilfs->ns_first_ino)
+#define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ino)
 
 #define NILFS_MDT_INODE(sb, ino) \
   ((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & (1 << (ino))))

@@ -31,7 +31,6 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/slab.h>
-#include "sb.h"
 
 struct nilfs_sc_info;
 

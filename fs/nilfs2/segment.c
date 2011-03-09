@@ -191,7 +191,7 @@ int nilfs_transaction_begin(struct super_block *sb,
 
 	vfs_check_frozen(sb, SB_FREEZE_WRITE);
 
-	nilfs = NILFS_SB(sb)->s_nilfs;
+	nilfs = sb->s_fs_info;
 	down_read(&nilfs->ns_segctor_sem);
 	if (vacancy_check && nilfs_near_disk_full(nilfs)) {
 		up_read(&nilfs->ns_segctor_sem);
@@ -222,7 +222,7 @@ int nilfs_transaction_begin(struct super_block *sb,
 int nilfs_transaction_commit(struct super_block *sb)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	int err = 0;
 
 	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
@@ -252,13 +252,14 @@ int nilfs_transaction_commit(struct super_block *sb)
 void nilfs_transaction_abort(struct super_block *sb)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 
 	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
 	if (ti->ti_count > 0) {
 		ti->ti_count--;
 		return;
 	}
-	up_read(&NILFS_SB(sb)->s_nilfs->ns_segctor_sem);
+	up_read(&nilfs->ns_segctor_sem);
 
 	current->journal_info = ti->ti_save;
 	if (ti->ti_flags & NILFS_TI_DYNAMIC_ALLOC)
@@ -267,7 +268,7 @@ void nilfs_transaction_abort(struct super_block *sb)
 
 void nilfs_relax_pressure_in_lock(struct super_block *sb)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 
 	if (!sci || !sci->sc_flush_request)
@@ -293,7 +294,7 @@ static void nilfs_transaction_lock(struct super_block *sb,
 				   int gcflag)
 {
 	struct nilfs_transaction_info *cur_ti = current->journal_info;
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 
 	WARN_ON(cur_ti);
@@ -321,7 +322,7 @@ static void nilfs_transaction_lock(struct super_block *sb,
 static void nilfs_transaction_unlock(struct super_block *sb)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 
 	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
 	BUG_ON(ti->ti_count > 0);
@@ -770,7 +771,7 @@ static int nilfs_segctor_clean(struct nilfs_sc_info *sci)
 
 static int nilfs_segctor_confirm(struct nilfs_sc_info *sci)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	int ret = 0;
 
 	if (nilfs_test_metadata_dirty(nilfs, sci->sc_root))
@@ -786,7 +787,7 @@ static int nilfs_segctor_confirm(struct nilfs_sc_info *sci)
 
 static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 
 	nilfs_mdt_clear_dirty(sci->sc_root->ifile);
 	nilfs_mdt_clear_dirty(nilfs->ns_cpfile);
@@ -796,7 +797,7 @@ static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 
 static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	struct buffer_head *bh_cp;
 	struct nilfs_checkpoint *raw_cp;
 	int err;
@@ -820,7 +821,7 @@ static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
 
 static int nilfs_segctor_fill_in_checkpoint(struct nilfs_sc_info *sci)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	struct buffer_head *bh_cp;
 	struct nilfs_checkpoint *raw_cp;
 	int err;
@@ -1044,7 +1045,7 @@ static int nilfs_segctor_scan_file_dsync(struct nilfs_sc_info *sci,
 
 static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	struct list_head *head;
 	struct nilfs_inode_info *ii;
 	size_t ndone;
@@ -1853,7 +1854,7 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 {
 	struct nilfs_segment_buffer *segbuf;
 	struct page *bd_page = NULL, *fs_page = NULL;
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	int update_sr = false;
 
 	list_for_each_entry(segbuf, &sci->sc_write_logs, sb_list) {
@@ -2024,7 +2025,7 @@ static void nilfs_segctor_drop_written_files(struct nilfs_sc_info *sci,
  */
 static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	struct page *failed_page;
 	int err;
 
@@ -2162,7 +2163,7 @@ static void nilfs_segctor_do_flush(struct nilfs_sc_info *sci, int bn)
  */
 void nilfs_flush_segment(struct super_block *sb, ino_t ino)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 
 	if (!sci || nilfs_doing_construction())
@@ -2252,7 +2253,7 @@ static void nilfs_segctor_wakeup(struct nilfs_sc_info *sci, int err)
  */
 int nilfs_construct_segment(struct super_block *sb)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 	struct nilfs_transaction_info *ti;
 	int err;
@@ -2290,7 +2291,7 @@ int nilfs_construct_segment(struct super_block *sb)
 int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 				  loff_t start, loff_t end)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 	struct nilfs_inode_info *ii;
 	struct nilfs_transaction_info ti;
@@ -2381,7 +2382,7 @@ static void nilfs_segctor_notify(struct nilfs_sc_info *sci, int mode, int err)
  */
 static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	struct nilfs_super_block **sbp;
 	int err = 0;
 
@@ -2436,7 +2437,7 @@ nilfs_remove_written_gcinodes(struct the_nilfs *nilfs, struct list_head *head)
 int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 			 void **kbufs)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci = nilfs->ns_writer;
 	struct nilfs_transaction_info ti;
 	int err;
@@ -2552,7 +2553,7 @@ static int nilfs_segctor_flush_mode(struct nilfs_sc_info *sci)
 static int nilfs_segctor_thread(void *arg)
 {
 	struct nilfs_sc_info *sci = (struct nilfs_sc_info *)arg;
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	int timeout = 0;
 
 	sci->sc_timer.data = (unsigned long)current;
@@ -2666,7 +2667,7 @@ static void nilfs_segctor_kill_thread(struct nilfs_sc_info *sci)
 static struct nilfs_sc_info *nilfs_segctor_new(struct super_block *sb,
 					       struct nilfs_root *root)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci;
 
 	sci = kzalloc(sizeof(*sci), GFP_KERNEL);
@@ -2726,7 +2727,7 @@ static void nilfs_segctor_write_out(struct nilfs_sc_info *sci)
  */
 static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sci->sc_super)->s_nilfs;
+	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
 	int flag;
 
 	up_write(&nilfs->ns_segctor_sem);
@@ -2774,7 +2775,7 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
  */
 int nilfs_attach_log_writer(struct super_block *sb, struct nilfs_root *root)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	int err;
 
 	if (nilfs->ns_writer) {
@@ -2807,7 +2808,7 @@ int nilfs_attach_log_writer(struct super_block *sb, struct nilfs_root *root)
  */
 void nilfs_detach_log_writer(struct super_block *sb)
 {
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	LIST_HEAD(garbage_list);
 
 	down_write(&nilfs->ns_segctor_sem);

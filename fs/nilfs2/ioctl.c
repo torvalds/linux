@@ -166,8 +166,7 @@ static int nilfs_ioctl_getversion(struct inode *inode, void __user *argp)
 static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 				     unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
-	struct inode *cpfile = nilfs->ns_cpfile;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_transaction_info ti;
 	struct nilfs_cpmode cpmode;
 	int ret;
@@ -187,7 +186,7 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
 	ret = nilfs_cpfile_change_cpmode(
-		cpfile, cpmode.cm_cno, cpmode.cm_mode);
+		nilfs->ns_cpfile, cpmode.cm_cno, cpmode.cm_mode);
 	if (unlikely(ret < 0))
 		nilfs_transaction_abort(inode->i_sb);
 	else
@@ -203,7 +202,7 @@ static int
 nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
 			      unsigned int cmd, void __user *argp)
 {
-	struct inode *cpfile = NILFS_SB(inode->i_sb)->s_nilfs->ns_cpfile;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_transaction_info ti;
 	__u64 cno;
 	int ret;
@@ -220,7 +219,7 @@ nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
 		goto out;
 
 	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-	ret = nilfs_cpfile_delete_checkpoint(cpfile, cno);
+	ret = nilfs_cpfile_delete_checkpoint(nilfs->ns_cpfile, cno);
 	if (unlikely(ret < 0))
 		nilfs_transaction_abort(inode->i_sb);
 	else
@@ -246,7 +245,7 @@ nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 static int nilfs_ioctl_get_cpstat(struct inode *inode, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_cpstat cpstat;
 	int ret;
 
@@ -277,7 +276,7 @@ nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 static int nilfs_ioctl_get_sustat(struct inode *inode, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_sustat sustat;
 	int ret;
 
@@ -333,7 +332,7 @@ nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 static int nilfs_ioctl_get_bdescs(struct inode *inode, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_argv argv;
 	int ret;
 
@@ -402,7 +401,7 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 				   struct nilfs_argv *argv, void *buf)
 {
 	size_t nmembs = argv->v_nmembs;
-	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
+	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct inode *inode;
 	struct nilfs_vdesc *vdesc;
 	struct buffer_head *bh, *n;
@@ -616,7 +615,7 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 		ret = PTR_ERR(kbufs[4]);
 		goto out;
 	}
-	nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	nilfs = inode->i_sb->s_fs_info;
 
 	for (n = 0; n < 4; n++) {
 		ret = -EINVAL;
@@ -689,7 +688,7 @@ static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
 		return ret;
 
 	if (argp != NULL) {
-		nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+		nilfs = inode->i_sb->s_fs_info;
 		down_read(&nilfs->ns_segctor_sem);
 		cno = nilfs->ns_cno - 1;
 		up_read(&nilfs->ns_segctor_sem);
@@ -707,7 +706,7 @@ static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
 						  void *, size_t, size_t))
 
 {
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	struct nilfs_argv argv;
 	int ret;
 

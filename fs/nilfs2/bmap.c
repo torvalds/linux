@@ -25,7 +25,6 @@
 #include <linux/errno.h>
 #include "nilfs.h"
 #include "bmap.h"
-#include "sb.h"
 #include "btree.h"
 #include "direct.h"
 #include "btnode.h"
