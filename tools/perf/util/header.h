@@ -39,7 +39,7 @@ struct perf_pipe_file_header {
 
 struct perf_header;
 
-int perf_file_header__read(struct perf_file_header *self,
+int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd);
 
 struct perf_header {
@@ -66,12 +66,12 @@ char *perf_header__find_event(u64 id);
 
 u64 perf_evlist__sample_type(struct perf_evlist *evlist);
 bool perf_evlist__sample_id_all(const struct perf_evlist *evlist);
-void perf_header__set_feat(struct perf_header *self, int feat);
-void perf_header__clear_feat(struct perf_header *self, int feat);
-bool perf_header__has_feat(const struct perf_header *self, int feat);
+void perf_header__set_feat(struct perf_header *header, int feat);
+void perf_header__clear_feat(struct perf_header *header, int feat);
+bool perf_header__has_feat(const struct perf_header *header, int feat);
 
-int perf_header__process_sections(struct perf_header *self, int fd,
-				  int (*process)(struct perf_file_section *self,
+int perf_header__process_sections(struct perf_header *header, int fd,
+				  int (*process)(struct perf_file_section *section,
 						 struct perf_header *ph,
 						 int feat, int fd));
 
