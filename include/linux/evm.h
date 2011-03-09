@@ -9,6 +9,7 @@
 #define _LINUX_EVM_H
 
 #include <linux/integrity.h>
+#include <linux/xattr.h>
 
 #ifdef CONFIG_EVM
 extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
@@ -25,6 +26,9 @@ extern void evm_inode_post_setxattr(struct dentry *dentry,
 extern int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name);
 extern void evm_inode_post_removexattr(struct dentry *dentry,
 				       const char *xattr_name);
+extern int evm_inode_init_security(struct inode *inode,
+				   const struct xattr *xattr_array,
+				   struct xattr *evm);
 #else
 #ifdef CONFIG_INTEGRITY
 static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
@@ -65,6 +69,13 @@ static inline void evm_inode_post_removexattr(struct dentry *dentry,
 					      const char *xattr_name)
 {
 	return;
+}
+
+static inline int evm_inode_init_security(struct inode *inode,
+					  const struct xattr *xattr_array,
+					  struct xattr *evm)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif /* CONFIG_EVM_H */

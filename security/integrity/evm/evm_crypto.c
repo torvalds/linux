@@ -157,6 +157,26 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 	return rc;
 }
 
+int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
+		  char *hmac_val)
+{
+	struct hash_desc desc;
+	struct scatterlist sg[1];
+	int error;
+
+	error = init_desc(&desc);
+	if (error != 0) {
+		printk(KERN_INFO "init_desc failed\n");
+		return error;
+	}
+
+	sg_init_one(sg, lsm_xattr->value, lsm_xattr->value_len);
+	crypto_hash_update(&desc, sg, lsm_xattr->value_len);
+	hmac_add_misc(&desc, inode, hmac_val);
+	crypto_free_hash(desc.tfm);
+	return 0;
+}
+
 /*
  * Get the key from the TPM for the SHA1-HMAC
  */

@@ -98,6 +98,12 @@ static int evm_protected_xattr(const char *req_xattr_name)
 			found = 1;
 			break;
 		}
+		if (strncmp(req_xattr_name,
+			    *xattrname + XATTR_SECURITY_PREFIX_LEN,
+			    strlen(req_xattr_name)) == 0) {
+			found = 1;
+			break;
+		}
 	}
 	return found;
 }
@@ -244,6 +250,38 @@ void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 		evm_update_evmxattr(dentry, NULL, NULL, 0);
 	return;
 }
+
+/*
+ * evm_inode_init_security - initializes security.evm
+ */
+int evm_inode_init_security(struct inode *inode,
+				 const struct xattr *lsm_xattr,
+				 struct xattr *evm_xattr)
+{
+	struct evm_ima_xattr_data *xattr_data;
+	int rc;
+
+	if (!evm_initialized || !evm_protected_xattr(lsm_xattr->name))
+		return -EOPNOTSUPP;
+
+	xattr_data = kzalloc(sizeof(*xattr_data), GFP_NOFS);
+	if (!xattr_data)
+		return -ENOMEM;
+
+	xattr_data->type = EVM_XATTR_HMAC;
+	rc = evm_init_hmac(inode, lsm_xattr, xattr_data->digest);
+	if (rc < 0)
+		goto out;
+
+	evm_xattr->value = xattr_data;
+	evm_xattr->value_len = sizeof(*xattr_data);
+	evm_xattr->name = kstrdup(XATTR_EVM_SUFFIX, GFP_NOFS);
+	return 0;
+out:
+	kfree(xattr_data);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(evm_inode_init_security);
 
 static struct crypto_hash *tfm_hmac;	/* preload crypto alg */
 static int __init init_evm(void)
