@@ -469,7 +469,7 @@ int init_lcdc(struct fb_info *info)
 	// set AHB access rule and disable all windows
     LcdWrReg(inf, SYS_CONFIG, 0x60000000);
     LcdWrReg(inf, SWAP_CTRL, 0);
-    LcdWrReg(inf, FIFO_WATER_MARK, 0x00000864);//68
+    LcdWrReg(inf, FIFO_WATER_MARK, 0x00000862);//68
     LcdWrReg(inf, AXI_MS_ID, 0x54321);
 
 	// and mcu holdmode; and set win1 top.
@@ -1452,6 +1452,9 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	    break;
 	case FBIOPUT_FBPHYADD:
         return info->fix.smem_start;
+   case FBIOGET_OVERLAY_STATE:
+        return inf->video_mode;
+
 	case FBIOPUT_SET_CURSOR_EN:
 		{
 			int en;
@@ -1777,7 +1780,7 @@ int fb1_open(struct fb_info *info, int user)
     par->addr_seted = 0;
     inf->video_mode = 1;
     wq_condition2 = 1;
-
+    memset(inf->fb0->screen_base, 0, inf->fb0->fix.smem_len);
     if(par->refcount) {
         printk(">>>>>> fb1 has opened! \n");
         return -EACCES;
