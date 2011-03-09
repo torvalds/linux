@@ -325,7 +325,7 @@ no_present:
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			      u64 *spte, const void *pte)
+			      u64 *spte, const void *pte, unsigned long mmu_seq)
 {
 	pt_element_t gpte;
 	unsigned pte_access;
@@ -337,12 +337,14 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-	pfn = vcpu->arch.update_pte.pfn;
-	if (is_error_pfn(pfn))
+	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
+	if (is_error_pfn(pfn)) {
+		kvm_release_pfn_clean(pfn);
 		return;
-	if (mmu_notifier_retry(vcpu, vcpu->arch.update_pte.mmu_seq))
+	}
+	if (mmu_notifier_retry(vcpu, mmu_seq))
 		return;
-	kvm_get_pfn(pfn);
+
 	/*
 	 * we call mmu_set_spte() with host_writable = true beacuse that
 	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).

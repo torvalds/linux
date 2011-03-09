@@ -255,6 +255,8 @@ struct kvm_mmu {
 	int (*sync_page)(struct kvm_vcpu *vcpu,
 			 struct kvm_mmu_page *sp);
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva);
+	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+			u64 *spte, const void *pte, unsigned long mmu_seq);
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
@@ -334,11 +336,6 @@ struct kvm_vcpu_arch {
 	int   last_pt_write_count;
 	u64  *last_pte_updated;
 	gfn_t last_pte_gfn;
-
-	struct {
-		pfn_t pfn;	/* pfn corresponding to that gfn */
-		unsigned long mmu_seq;
-	} update_pte;
 
 	struct fpu guest_fpu;
 	u64 xcr0;
