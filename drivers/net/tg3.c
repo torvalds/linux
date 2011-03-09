@@ -2120,7 +2120,7 @@ out:
 
 static void tg3_frob_aux_power(struct tg3 *tp)
 {
-	struct tg3 *tp_peer = tp;
+	bool need_vaux = false;
 
 	/* The GPIOs do something completely different on 57765. */
 	if ((tp->tg3_flags2 & TG3_FLG2_IS_NIC) == 0 ||
@@ -2128,23 +2128,32 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
 		return;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
+	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714 ||
+	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) &&
+	    tp->pdev_peer != tp->pdev) {
 		struct net_device *dev_peer;
 
 		dev_peer = pci_get_drvdata(tp->pdev_peer);
+
 		/* remove_one() may have been run on the peer. */
-		if (!dev_peer)
-			tp_peer = tp;
-		else
-			tp_peer = netdev_priv(dev_peer);
+		if (dev_peer) {
+			struct tg3 *tp_peer = netdev_priv(dev_peer);
+
+			if (tp_peer->tg3_flags & TG3_FLAG_INIT_COMPLETE)
+				return;
+
+			if ((tp_peer->tg3_flags & TG3_FLAG_WOL_ENABLE) ||
+			    (tp_peer->tg3_flags & TG3_FLAG_ENABLE_ASF))
+				need_vaux = true;
+		}
 	}
 
-	if ((tp->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0 ||
-	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0 ||
-	    (tp_peer->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0 ||
-	    (tp_peer->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0) {
+	if ((tp->tg3_flags & TG3_FLAG_WOL_ENABLE) ||
+	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF))
+		need_vaux = true;
+
+	if (need_vaux) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701) {
 			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
@@ -2173,10 +2182,6 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 		} else {
 			u32 no_gpio2;
 			u32 grc_local_ctrl = 0;
-
-			if (tp_peer != tp &&
-			    (tp_peer->tg3_flags & TG3_FLAG_INIT_COMPLETE) != 0)
-				return;
 
 			/* Workaround to prevent overdrawing Amps. */
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
@@ -2216,10 +2221,6 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 	} else {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700 &&
 		    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
-			if (tp_peer != tp &&
-			    (tp_peer->tg3_flags & TG3_FLAG_INIT_COMPLETE) != 0)
-				return;
-
 			tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
 				    (GRC_LCLCTRL_GPIO_OE1 |
 				     GRC_LCLCTRL_GPIO_OUTPUT1), 100);
