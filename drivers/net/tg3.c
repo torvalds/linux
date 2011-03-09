@@ -8193,10 +8193,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 			      RDMAC_MODE_MBUF_RBD_CRPT_ENAB |
 			      RDMAC_MODE_MBUF_SBD_CRPT_ENAB;
 
-	/* If statement applies to 5705 and 5750 PCI devices only */
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
-	     tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) ||
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750)) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
+	    tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) {
 		if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE &&
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) {
 			rdmac_mode |= RDMAC_MODE_FIFO_SIZE_128;
@@ -8369,17 +8367,14 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	       WDMAC_MODE_FIFOURUN_ENAB | WDMAC_MODE_FIFOOREAD_ENAB |
 	       WDMAC_MODE_LNGREAD_ENAB);
 
-	/* If statement applies to 5705 and 5750 PCI devices only */
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
-	     tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 &&
+	    tp->pci_chip_rev_id != CHIPREV_ID_5705_A0) {
 		if ((tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) &&
 		    (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 ||
 		     tp->pci_chip_rev_id == CHIPREV_ID_5705_A2)) {
 			/* nothing */
 		} else if (!(tr32(TG3PCI_PCISTATE) & PCISTATE_BUS_SPEED_HIGH) &&
-			   !(tp->tg3_flags2 & TG3_FLG2_IS_5788) &&
-			   !(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
+			   !(tp->tg3_flags2 & TG3_FLG2_IS_5788)) {
 			val |= WDMAC_MODE_RX_ACCEL;
 		}
 	}
