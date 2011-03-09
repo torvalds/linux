@@ -57,9 +57,9 @@
 #define DHDSDIO_MEM_DUMP_FNAME         "mem_dump"
 #endif
 
-#define QLEN		256	/* bulk rx and tx queue lengths */
-#define FCHI		(QLEN - 10)
-#define FCLOW		(FCHI / 2)
+#define TXQLEN		2048	/* bulk tx queue length */
+#define TXHI		(TXQLEN - 256)	/* turn on flow control above TXHI */
+#define TXLOW		(TXHI - 256)	/* turn off flow control below TXLOW */
 #define PRIOMASK	7
 
 #define TXRETRIES	2	/* # of retries for tx frames */
@@ -1119,7 +1119,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		}
 		dhd_os_sdunlock_txq(bus->dhd);
 
-		if ((pktq_len(&bus->txq) >= FCHI) && dhd_doflow)
+		if ((pktq_len(&bus->txq) >= TXHI) && dhd_doflow)
 			dhd_txflowcontrol(bus->dhd, 0, ON);
 
 #ifdef DHD_DEBUG
@@ -1218,7 +1218,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 
 	/* Deflow-control stack if needed */
 	if (dhd_doflow && dhd->up && (dhd->busstate == DHD_BUS_DATA) &&
-	    dhd->txoff && (pktq_len(&bus->txq) < FCLOW))
+	    dhd->txoff && (pktq_len(&bus->txq) < TXLOW))
 		dhd_txflowcontrol(dhd, 0, OFF);
 
 	return cnt;
@@ -5343,7 +5343,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva, u16 devid)
 	/* Set core control so an SDIO reset does a backplane reset */
 	OR_REG(&bus->regs->corecontrol, CC_BPRESEN);
 
-	pktq_init(&bus->txq, (PRIOMASK + 1), QLEN);
+	pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
 	/* Locate an appropriately-aligned portion of hdrbuf */
 	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], DHD_SDALIGN);
