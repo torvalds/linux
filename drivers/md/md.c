@@ -777,8 +777,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	bio->bi_end_io = super_written;
 
 	atomic_inc(&mddev->pending_writes);
-	submit_bio(REQ_WRITE | REQ_SYNC | REQ_UNPLUG | REQ_FLUSH | REQ_FUA,
-		   bio);
+	submit_bio(REQ_WRITE | REQ_SYNC | REQ_FLUSH | REQ_FUA, bio);
 }
 
 void md_super_wait(mddev_t *mddev)
@@ -806,7 +805,7 @@ int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 	struct completion event;
 	int ret;
 
-	rw |= REQ_SYNC | REQ_UNPLUG;
+	rw |= REQ_SYNC;
 
 	bio->bi_bdev = (metadata_op && rdev->meta_bdev) ?
 		rdev->meta_bdev : rdev->bdev;

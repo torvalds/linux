@@ -356,11 +356,8 @@ static int run_io_job(struct kcopyd_job *job)
 
 	if (job->rw == READ)
 		r = dm_io(&io_req, 1, &job->source, NULL);
-	else {
-		if (job->num_dests > 1)
-			io_req.bi_rw |= REQ_UNPLUG;
+	else
 		r = dm_io(&io_req, job->num_dests, job->dests, NULL);
-	}
 
 	return r;
 }

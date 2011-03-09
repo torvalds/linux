@@ -1290,7 +1290,7 @@ get_rq:
 	}
 
 	plug = current->plug;
-	if (plug && !sync) {
+	if (plug) {
 		if (!plug->should_sort && !list_empty(&plug->list)) {
 			struct request *__rq;
 

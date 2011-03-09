@@ -1100,8 +1100,6 @@ next_bio:
 	/* > e->sector, unless this is the first bio */
 	bio->bi_sector = sector;
 	bio->bi_bdev = mdev->ldev->backing_bdev;
-	/* we special case some flags in the multi-bio case, see below
-	 * (REQ_UNPLUG) */
 	bio->bi_rw = rw;
 	bio->bi_private = e;
 	bio->bi_end_io = drbd_endio_sec;
@@ -1129,10 +1127,6 @@ next_bio:
 		bio = bios;
 		bios = bios->bi_next;
 		bio->bi_next = NULL;
-
-		/* strip off REQ_UNPLUG unless it is the last bio */
-		if (bios)
-			bio->bi_rw &= ~REQ_UNPLUG;
 
 		drbd_generic_make_request(mdev, fault_type, bio);
 	} while (bios);
@@ -1621,12 +1615,11 @@ static unsigned long write_flags_to_bio(struct drbd_conf *mdev, u32 dpf)
 {
 	if (mdev->agreed_pro_version >= 95)
 		return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
-			(dpf & DP_UNPLUG ? REQ_UNPLUG : 0) |
 			(dpf & DP_FUA ? REQ_FUA : 0) |
 			(dpf & DP_FLUSH ? REQ_FUA : 0) |
 			(dpf & DP_DISCARD ? REQ_DISCARD : 0);
 	else
-		return dpf & DP_RW_SYNC ? (REQ_SYNC | REQ_UNPLUG) : 0;
+		return dpf & DP_RW_SYNC ? REQ_SYNC : 0;
 }
 
 /* mirrored write */

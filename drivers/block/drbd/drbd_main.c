@@ -2477,12 +2477,11 @@ static u32 bio_flags_to_wire(struct drbd_conf *mdev, unsigned long bi_rw)
 {
 	if (mdev->agreed_pro_version >= 95)
 		return  (bi_rw & REQ_SYNC ? DP_RW_SYNC : 0) |
-			(bi_rw & REQ_UNPLUG ? DP_UNPLUG : 0) |
 			(bi_rw & REQ_FUA ? DP_FUA : 0) |
 			(bi_rw & REQ_FLUSH ? DP_FLUSH : 0) |
 			(bi_rw & REQ_DISCARD ? DP_DISCARD : 0);
 	else
-		return bi_rw & (REQ_SYNC | REQ_UNPLUG) ? DP_RW_SYNC : 0;
+		return bi_rw & REQ_SYNC ? DP_RW_SYNC : 0;
 }
 
 /* Used to send write requests

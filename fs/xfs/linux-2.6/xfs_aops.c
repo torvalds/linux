@@ -413,8 +413,7 @@ xfs_submit_ioend_bio(
 	if (xfs_ioend_new_eof(ioend))
 		xfs_mark_inode_dirty(XFS_I(ioend->io_inode));
 
-	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
-		   WRITE_SYNC_PLUG : WRITE, bio);
+	submit_bio(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE, bio);
 }
 
 STATIC struct bio *
