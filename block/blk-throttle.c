@@ -770,6 +770,7 @@ static int throtl_dispatch(struct request_queue *q)
 	unsigned int nr_disp = 0;
 	struct bio_list bio_list_on_stack;
 	struct bio *bio;
+	struct blk_plug plug;
 
 	spin_lock_irq(q->queue_lock);
 
@@ -798,8 +799,10 @@ out:
 	 * immediate dispatch
 	 */
 	if (nr_disp) {
+		blk_start_plug(&plug);
 		while((bio = bio_list_pop(&bio_list_on_stack)))
 			generic_make_request(bio);
+		blk_finish_plug(&plug);
 	}
 	return nr_disp;
 }
