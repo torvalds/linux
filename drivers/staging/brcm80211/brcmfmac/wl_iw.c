@@ -862,10 +862,9 @@ wl_iw_get_aplist(struct net_device *dev,
 	if (!extra)
 		return -EINVAL;
 
-	list = kmalloc(buflen, GFP_KERNEL);
+	list = kzalloc(buflen, GFP_KERNEL);
 	if (!list)
 		return -ENOMEM;
-	memset(list, 0, buflen);
 	list->buflen = cpu_to_le32(buflen);
 	error = dev_wlc_ioctl(dev, WLC_SCAN_RESULTS, list, buflen);
 	if (error) {
@@ -3667,11 +3666,10 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 	params_size =
 	    (WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params));
 #endif
-	iscan = kmalloc(sizeof(iscan_info_t), GFP_KERNEL);
+	iscan = kzalloc(sizeof(iscan_info_t), GFP_KERNEL);
 
 	if (!iscan)
 		return -ENOMEM;
-	memset(iscan, 0, sizeof(iscan_info_t));
 
 	iscan->iscan_ex_params_p = kmalloc(params_size, GFP_KERNEL);
 	if (!iscan->iscan_ex_params_p)
@@ -3705,11 +3703,10 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 	priv_dev = dev;
 	MUTEX_LOCK_SOFTAP_SET_INIT(iw->pub);
 #endif
-	g_scan = kmalloc(G_SCAN_RESULTS, GFP_KERNEL);
+	g_scan = kzalloc(G_SCAN_RESULTS, GFP_KERNEL);
 	if (!g_scan)
 		return -ENOMEM;
 
-	memset(g_scan, 0, G_SCAN_RESULTS);
 	g_scan_specified_ssid = 0;
 
 	return 0;

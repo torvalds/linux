@@ -1931,13 +1931,11 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	}
 
 	/* Allocate primary dhd_info */
-	dhd = kmalloc(sizeof(dhd_info_t), GFP_ATOMIC);
+	dhd = kzalloc(sizeof(dhd_info_t), GFP_ATOMIC);
 	if (!dhd) {
 		DHD_ERROR(("%s: OOM - alloc dhd_info\n", __func__));
 		goto fail;
 	}
-
-	memset(dhd, 0, sizeof(dhd_info_t));
 
 	/*
 	 * Save the dhd_info into the priv

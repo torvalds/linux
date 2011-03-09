@@ -1634,13 +1634,11 @@ struct wl_timer *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg),
 {
 	struct wl_timer *t;
 
-	t = kmalloc(sizeof(struct wl_timer), GFP_ATOMIC);
+	t = kzalloc(sizeof(struct wl_timer), GFP_ATOMIC);
 	if (!t) {
 		WL_ERROR("wl%d: wl_init_timer: out of memory\n", wl->pub->unit);
 		return 0;
 	}
-
-	memset(t, 0, sizeof(struct wl_timer));
 
 	init_timer(&t->timer);
 	t->timer.data = (unsigned long) t;

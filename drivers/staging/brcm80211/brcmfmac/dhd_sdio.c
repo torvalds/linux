@@ -2528,11 +2528,10 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 	varaddr = (bus->ramsize - 4) - varsize;
 
 	if (bus->vars) {
-		vbuffer = kmalloc(varsize, GFP_ATOMIC);
+		vbuffer = kzalloc(varsize, GFP_ATOMIC);
 		if (!vbuffer)
 			return BCME_NOMEM;
 
-		memset(vbuffer, 0, varsize);
 		memcpy(vbuffer, bus->vars, bus->varsz);
 
 		/* Write the vars list */
@@ -5258,13 +5257,12 @@ dhdsdio_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva, u16 devid)
 		udelay(65);
 
 		for (fn = 0; fn <= numfn; fn++) {
-			cis[fn] = kmalloc(SBSDIO_CIS_SIZE_LIMIT, GFP_ATOMIC);
+			cis[fn] = kzalloc(SBSDIO_CIS_SIZE_LIMIT, GFP_ATOMIC);
 			if (!cis[fn]) {
 				DHD_INFO(("dhdsdio_probe: fn %d cis malloc "
 					"failed\n", fn));
 				break;
 			}
-			memset(cis[fn], 0, SBSDIO_CIS_SIZE_LIMIT);
 
 			err = bcmsdh_cis_read(sdh, fn, cis[fn],
 						SBSDIO_CIS_SIZE_LIMIT);
