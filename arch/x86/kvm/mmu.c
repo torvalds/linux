@@ -549,13 +549,23 @@ static int host_mapping_level(struct kvm *kvm, gfn_t gfn)
 	return ret;
 }
 
-static bool mapping_level_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+static struct kvm_memory_slot *
+gfn_to_memslot_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t gfn,
+			    bool no_dirty_log)
 {
 	struct kvm_memory_slot *slot;
-	slot = gfn_to_memslot(vcpu->kvm, large_gfn);
-	if (slot && slot->dirty_bitmap)
-		return true;
-	return false;
+
+	slot = gfn_to_memslot(vcpu->kvm, gfn);
+	if (!slot || slot->flags & KVM_MEMSLOT_INVALID ||
+	      (no_dirty_log && slot->dirty_bitmap))
+		slot = NULL;
+
+	return slot;
+}
+
+static bool mapping_level_dirty_bitmap(struct kvm_vcpu *vcpu, gfn_t large_gfn)
+{
+	return gfn_to_memslot_dirty_bitmap(vcpu, large_gfn, true);
 }
 
 static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
@@ -2145,26 +2155,13 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
-static struct kvm_memory_slot *
-pte_prefetch_gfn_to_memslot(struct kvm_vcpu *vcpu, gfn_t gfn, bool no_dirty_log)
-{
-	struct kvm_memory_slot *slot;
-
-	slot = gfn_to_memslot(vcpu->kvm, gfn);
-	if (!slot || slot->flags & KVM_MEMSLOT_INVALID ||
-	      (no_dirty_log && slot->dirty_bitmap))
-		slot = NULL;
-
-	return slot;
-}
-
 static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 				     bool no_dirty_log)
 {
 	struct kvm_memory_slot *slot;
 	unsigned long hva;
 
-	slot = pte_prefetch_gfn_to_memslot(vcpu, gfn, no_dirty_log);
+	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, no_dirty_log);
 	if (!slot) {
 		get_page(bad_page);
 		return page_to_pfn(bad_page);
@@ -2185,7 +2182,7 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 	gfn_t gfn;
 
 	gfn = kvm_mmu_page_get_gfn(sp, start - sp->spt);
-	if (!pte_prefetch_gfn_to_memslot(vcpu, gfn, access & ACC_WRITE_MASK))
+	if (!gfn_to_memslot_dirty_bitmap(vcpu, gfn, access & ACC_WRITE_MASK))
 		return -1;
 
 	ret = gfn_to_page_many_atomic(vcpu->kvm, gfn, pages, end - start);
