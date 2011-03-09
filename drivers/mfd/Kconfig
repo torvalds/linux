@@ -132,6 +132,8 @@ config UCB1400_CORE
 config TPS6105X
 	tristate "TPS61050/61052 Boost Converters"
 	depends on I2C
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  This option enables a driver for the TP61050/TPS61052
 	  high-power "white LED driver". This boost converter is

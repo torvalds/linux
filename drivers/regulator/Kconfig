@@ -223,6 +223,15 @@ config REGULATOR_AB3100
 	 AB3100 analog baseband dealing with power regulators
 	 for the system.
 
+config REGULATOR_TPS6105X
+	tristate "TI TPS6105X Power regulators"
+	depends on TPS6105X
+	default y if TPS6105X
+	help
+	  This driver supports TPS61050/TPS61052 voltage regulator chips.
+	  It is a single boost converter primarily for white LEDs and
+	  audio amplifiers.
+
 config REGULATOR_TPS65023
 	tristate "TI TPS65023 Power regulators"
 	depends on I2C

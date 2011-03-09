@@ -10,6 +10,7 @@
 #define MFD_TPS6105X_H
 
 #include <linux/i2c.h>
+#include <linux/regulator/machine.h>
 
 /*
  * Register definitions to all subdrivers
@@ -71,20 +72,25 @@ enum tps6105x_mode {
  * struct tps6105x_platform_data - TPS61905x platform data
  * @mode: what mode this instance shall be operated in,
  *	this is not selectable at runtime
+ * @regulator_data: initialization data for the voltage
+ *	regulator if used as a voltage source
  */
 struct tps6105x_platform_data {
 	enum tps6105x_mode mode;
+	struct regulator_init_data *regulator_data;
 };
 
 /**
  * struct tps6105x - state holder for the TPS6105x drivers
  * @mutex: mutex to serialize I2C accesses
  * @i2c_client: corresponding I2C client
+ * @regulator: regulator device if used in voltage mode
  */
 struct tps6105x {
 	struct tps6105x_platform_data *pdata;
 	struct mutex		lock;
 	struct i2c_client	*client;
+	struct regulator_dev	*regulator;
 };
 
 extern int tps6105x_set(struct tps6105x *tps6105x, u8 reg, u8 value);
