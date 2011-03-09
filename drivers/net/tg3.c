@@ -8103,7 +8103,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	/* Program the jumbo buffer descriptor ring control
 	 * blocks on those devices that have them.
 	 */
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0 ||
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	    ((tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) &&
 	    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS))) {
 		/* Setup replenish threshold. */
