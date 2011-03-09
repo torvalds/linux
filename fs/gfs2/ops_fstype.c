@@ -928,14 +928,9 @@ static const match_table_t nolock_tokens = {
 	{ Opt_err, NULL },
 };
 
-static void nolock_put_lock(struct gfs2_glock *gl)
-{
-	call_rcu(&gl->gl_rcu, gfs2_glock_free);
-}
-
 static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
-	.lm_put_lock = nolock_put_lock,
+	.lm_put_lock = gfs2_glock_free,
 	.lm_tokens = &nolock_tokens,
 };
 

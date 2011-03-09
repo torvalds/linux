@@ -30,7 +30,7 @@ static void gdlm_ast(void *arg)
 
 	switch (gl->gl_lksb.sb_status) {
 	case -DLM_EUNLOCK: /* Unlocked, so glock can be freed */
-		call_rcu(&gl->gl_rcu, gfs2_glock_free);
+		gfs2_glock_free(gl);
 		return;
 	case -DLM_ECANCEL: /* Cancel while getting lock */
 		ret |= LM_OUT_CANCELED;
@@ -165,7 +165,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	int error;
 
 	if (gl->gl_lksb.sb_lkid == 0) {
-		call_rcu(&gl->gl_rcu, gfs2_glock_free);
+		gfs2_glock_free(gl);
 		return;
 	}
 

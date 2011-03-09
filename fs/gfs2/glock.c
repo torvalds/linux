@@ -103,16 +103,21 @@ static inline void spin_unlock_bucket(unsigned int hash)
 	__bit_spin_unlock(0, (unsigned long *)bl);
 }
 
-void gfs2_glock_free(struct rcu_head *rcu)
+static void gfs2_glock_dealloc(struct rcu_head *rcu)
 {
 	struct gfs2_glock *gl = container_of(rcu, struct gfs2_glock, gl_rcu);
-	struct gfs2_sbd *sdp = gl->gl_sbd;
 
 	if (gl->gl_ops->go_flags & GLOF_ASPACE)
 		kmem_cache_free(gfs2_glock_aspace_cachep, gl);
 	else
 		kmem_cache_free(gfs2_glock_cachep, gl);
+}
 
+void gfs2_glock_free(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+
+	call_rcu(&gl->gl_rcu, gfs2_glock_dealloc);
 	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
 		wake_up(&sdp->sd_glock_wait);
 }
@@ -760,6 +765,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	if (tmp) {
 		spin_unlock_bucket(hash);
 		kmem_cache_free(cachep, gl);
+		atomic_dec(&sdp->sd_glock_disposal);
 		gl = tmp;
 	} else {
 		hlist_bl_add_head_rcu(&gl->gl_list, &gl_hash_table[hash]);

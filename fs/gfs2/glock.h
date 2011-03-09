@@ -230,7 +230,7 @@ extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
 extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
 extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
 extern void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl);
-extern void gfs2_glock_free(struct rcu_head *rcu);
+extern void gfs2_glock_free(struct gfs2_glock *gl);
 
 extern int __init gfs2_glock_init(void);
 extern void gfs2_glock_exit(void);
