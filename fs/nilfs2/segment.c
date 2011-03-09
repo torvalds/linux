@@ -104,8 +104,7 @@ struct nilfs_sc_operations {
 static void nilfs_segctor_start_timer(struct nilfs_sc_info *);
 static void nilfs_segctor_do_flush(struct nilfs_sc_info *, int);
 static void nilfs_segctor_do_immediate_flush(struct nilfs_sc_info *);
-static void nilfs_dispose_list(struct nilfs_sb_info *, struct list_head *,
-			       int);
+static void nilfs_dispose_list(struct the_nilfs *, struct list_head *, int);
 
 #define nilfs_cnt32_gt(a, b)   \
 	(typecheck(__u32, a) && typecheck(__u32, b) && \
@@ -325,14 +324,15 @@ static void nilfs_transaction_lock(struct nilfs_sb_info *sbi,
 static void nilfs_transaction_unlock(struct nilfs_sb_info *sbi)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
+	struct the_nilfs *nilfs = sbi->s_nilfs;
 
 	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
 	BUG_ON(ti->ti_count > 0);
 
-	up_write(&sbi->s_nilfs->ns_segctor_sem);
+	up_write(&nilfs->ns_segctor_sem);
 	current->journal_info = ti->ti_save;
 	if (!list_empty(&ti->ti_garbage))
-		nilfs_dispose_list(sbi, &ti->ti_garbage, 0);
+		nilfs_dispose_list(nilfs, &ti->ti_garbage, 0);
 }
 
 static void *nilfs_segctor_map_segsum_entry(struct nilfs_sc_info *sci,
@@ -714,7 +714,7 @@ static void nilfs_lookup_dirty_node_buffers(struct inode *inode,
 	}
 }
 
-static void nilfs_dispose_list(struct nilfs_sb_info *sbi,
+static void nilfs_dispose_list(struct the_nilfs *nilfs,
 			       struct list_head *head, int force)
 {
 	struct nilfs_inode_info *ii, *n;
@@ -722,7 +722,7 @@ static void nilfs_dispose_list(struct nilfs_sb_info *sbi,
 	unsigned nv = 0;
 
 	while (!list_empty(head)) {
-		spin_lock(&sbi->s_inode_lock);
+		spin_lock(&nilfs->ns_inode_lock);
 		list_for_each_entry_safe(ii, n, head, i_dirty) {
 			list_del_init(&ii->i_dirty);
 			if (force) {
@@ -733,14 +733,14 @@ static void nilfs_dispose_list(struct nilfs_sb_info *sbi,
 			} else if (test_bit(NILFS_I_DIRTY, &ii->i_state)) {
 				set_bit(NILFS_I_QUEUED, &ii->i_state);
 				list_add_tail(&ii->i_dirty,
-					      &sbi->s_dirty_files);
+					      &nilfs->ns_dirty_files);
 				continue;
 			}
 			ivec[nv++] = ii;
 			if (nv == SC_N_INODEVEC)
 				break;
 		}
-		spin_unlock(&sbi->s_inode_lock);
+		spin_unlock(&nilfs->ns_inode_lock);
 
 		for (pii = ivec; nv > 0; pii++, nv--)
 			iput(&(*pii)->vfs_inode);
@@ -773,17 +773,17 @@ static int nilfs_segctor_clean(struct nilfs_sc_info *sci)
 
 static int nilfs_segctor_confirm(struct nilfs_sc_info *sci)
 {
-	struct nilfs_sb_info *sbi = sci->sc_sbi;
+	struct the_nilfs *nilfs = sci->sc_sbi->s_nilfs;
 	int ret = 0;
 
-	if (nilfs_test_metadata_dirty(sbi->s_nilfs, sci->sc_root))
+	if (nilfs_test_metadata_dirty(nilfs, sci->sc_root))
 		set_bit(NILFS_SC_DIRTY, &sci->sc_flags);
 
-	spin_lock(&sbi->s_inode_lock);
-	if (list_empty(&sbi->s_dirty_files) && nilfs_segctor_clean(sci))
+	spin_lock(&nilfs->ns_inode_lock);
+	if (list_empty(&nilfs->ns_dirty_files) && nilfs_segctor_clean(sci))
 		ret++;
 
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 	return ret;
 }
 
@@ -1963,30 +1963,30 @@ static int nilfs_segctor_wait(struct nilfs_sc_info *sci)
 	return ret;
 }
 
-static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
-					struct nilfs_sb_info *sbi)
+static int nilfs_segctor_collect_dirty_files(struct nilfs_sc_info *sci,
+					     struct the_nilfs *nilfs)
 {
 	struct nilfs_inode_info *ii, *n;
 	struct inode *ifile = sci->sc_root->ifile;
 
-	spin_lock(&sbi->s_inode_lock);
+	spin_lock(&nilfs->ns_inode_lock);
  retry:
-	list_for_each_entry_safe(ii, n, &sbi->s_dirty_files, i_dirty) {
+	list_for_each_entry_safe(ii, n, &nilfs->ns_dirty_files, i_dirty) {
 		if (!ii->i_bh) {
 			struct buffer_head *ibh;
 			int err;
 
-			spin_unlock(&sbi->s_inode_lock);
+			spin_unlock(&nilfs->ns_inode_lock);
 			err = nilfs_ifile_get_inode_block(
 				ifile, ii->vfs_inode.i_ino, &ibh);
 			if (unlikely(err)) {
-				nilfs_warning(sbi->s_super, __func__,
+				nilfs_warning(sci->sc_super, __func__,
 					      "failed to get inode block.\n");
 				return err;
 			}
 			nilfs_mdt_mark_buffer_dirty(ibh);
 			nilfs_mdt_mark_dirty(ifile);
-			spin_lock(&sbi->s_inode_lock);
+			spin_lock(&nilfs->ns_inode_lock);
 			if (likely(!ii->i_bh))
 				ii->i_bh = ibh;
 			else
@@ -1999,18 +1999,18 @@ static int nilfs_segctor_check_in_files(struct nilfs_sc_info *sci,
 		list_del(&ii->i_dirty);
 		list_add_tail(&ii->i_dirty, &sci->sc_dirty_files);
 	}
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 
 	return 0;
 }
 
-static void nilfs_segctor_check_out_files(struct nilfs_sc_info *sci,
-					  struct nilfs_sb_info *sbi)
+static void nilfs_segctor_drop_written_files(struct nilfs_sc_info *sci,
+					     struct the_nilfs *nilfs)
 {
 	struct nilfs_transaction_info *ti = current->journal_info;
 	struct nilfs_inode_info *ii, *n;
 
-	spin_lock(&sbi->s_inode_lock);
+	spin_lock(&nilfs->ns_inode_lock);
 	list_for_each_entry_safe(ii, n, &sci->sc_dirty_files, i_dirty) {
 		if (!test_and_clear_bit(NILFS_I_UPDATED, &ii->i_state) ||
 		    test_bit(NILFS_I_DIRTY, &ii->i_state))
@@ -2022,7 +2022,7 @@ static void nilfs_segctor_check_out_files(struct nilfs_sc_info *sci,
 		list_del(&ii->i_dirty);
 		list_add_tail(&ii->i_dirty, &ti->ti_garbage);
 	}
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 }
 
 /*
@@ -2038,7 +2038,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 	sci->sc_stage.scnt = NILFS_ST_INIT;
 	sci->sc_cno = nilfs->ns_cno;
 
-	err = nilfs_segctor_check_in_files(sci, sbi);
+	err = nilfs_segctor_collect_dirty_files(sci, nilfs);
 	if (unlikely(err))
 		goto out;
 
@@ -2116,7 +2116,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 	} while (sci->sc_stage.scnt != NILFS_ST_DONE);
 
  out:
-	nilfs_segctor_check_out_files(sci, sbi);
+	nilfs_segctor_drop_written_files(sci, nilfs);
 	return err;
 
  failed_to_write:
@@ -2319,14 +2319,14 @@ int nilfs_construct_dsync_segment(struct super_block *sb, struct inode *inode,
 		return err;
 	}
 
-	spin_lock(&sbi->s_inode_lock);
+	spin_lock(&nilfs->ns_inode_lock);
 	if (!test_bit(NILFS_I_QUEUED, &ii->i_state) &&
 	    !test_bit(NILFS_I_BUSY, &ii->i_state)) {
-		spin_unlock(&sbi->s_inode_lock);
+		spin_unlock(&nilfs->ns_inode_lock);
 		nilfs_transaction_unlock(sbi);
 		return 0;
 	}
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 	sci->sc_dsync_inode = ii;
 	sci->sc_dsync_start = start;
 	sci->sc_dsync_end = end;
@@ -2738,10 +2738,10 @@ static void nilfs_segctor_write_out(struct nilfs_sc_info *sci)
  */
 static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 {
-	struct nilfs_sb_info *sbi = sci->sc_sbi;
+	struct the_nilfs *nilfs = sci->sc_sbi->s_nilfs;
 	int flag;
 
-	up_write(&sbi->s_nilfs->ns_segctor_sem);
+	up_write(&nilfs->ns_segctor_sem);
 
 	spin_lock(&sci->sc_state_lock);
 	nilfs_segctor_kill_thread(sci);
@@ -2755,9 +2755,9 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 	WARN_ON(!list_empty(&sci->sc_copied_buffers));
 
 	if (!list_empty(&sci->sc_dirty_files)) {
-		nilfs_warning(sbi->s_super, __func__,
+		nilfs_warning(sci->sc_super, __func__,
 			      "dirty file(s) after the final construction\n");
-		nilfs_dispose_list(sbi, &sci->sc_dirty_files, 1);
+		nilfs_dispose_list(nilfs, &sci->sc_dirty_files, 1);
 	}
 
 	WARN_ON(!list_empty(&sci->sc_segbufs));
@@ -2765,7 +2765,7 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
 
 	nilfs_put_root(sci->sc_root);
 
-	down_write(&sbi->s_nilfs->ns_segctor_sem);
+	down_write(&nilfs->ns_segctor_sem);
 
 	del_timer_sync(&sci->sc_timer);
 	kfree(sci);
@@ -2829,15 +2829,15 @@ void nilfs_detach_segment_constructor(struct nilfs_sb_info *sbi)
 	}
 
 	/* Force to free the list of dirty files */
-	spin_lock(&sbi->s_inode_lock);
-	if (!list_empty(&sbi->s_dirty_files)) {
-		list_splice_init(&sbi->s_dirty_files, &garbage_list);
+	spin_lock(&nilfs->ns_inode_lock);
+	if (!list_empty(&nilfs->ns_dirty_files)) {
+		list_splice_init(&nilfs->ns_dirty_files, &garbage_list);
 		nilfs_warning(sbi->s_super, __func__,
 			      "Non empty dirty list after the last "
 			      "segment construction\n");
 	}
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 	up_write(&nilfs->ns_segctor_sem);
 
-	nilfs_dispose_list(sbi, &garbage_list, 1);
+	nilfs_dispose_list(nilfs, &garbage_list, 1);
 }

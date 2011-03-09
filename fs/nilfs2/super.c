@@ -943,9 +943,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		goto failed_nilfs;
 
-	spin_lock_init(&sbi->s_inode_lock);
-	INIT_LIST_HEAD(&sbi->s_dirty_files);
-
 	/*
 	 * Following initialization is overlapped because
 	 * nilfs_sb_info structure has been cleared at the beginning.

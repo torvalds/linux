@@ -71,6 +71,8 @@ enum {
  * @ns_sufile: segusage file inode
  * @ns_cptree: rb-tree of all mounted checkpoints (nilfs_root)
  * @ns_cptree_lock: lock protecting @ns_cptree
+ * @ns_dirty_files: list of dirty files
+ * @ns_inode_lock: lock protecting @ns_dirty_files
  * @ns_gc_inodes: dummy inodes to keep live blocks
  * @ns_mount_opt: mount options
  * @ns_resuid: uid for reserved blocks
@@ -149,6 +151,10 @@ struct the_nilfs {
 	/* Checkpoint tree */
 	struct rb_root		ns_cptree;
 	spinlock_t		ns_cptree_lock;
+
+	/* Dirty inode list */
+	struct list_head	ns_dirty_files;
+	spinlock_t		ns_inode_lock;
 
 	/* GC inode list */
 	struct list_head	ns_gc_inodes;

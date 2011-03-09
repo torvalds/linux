@@ -39,10 +39,7 @@ struct nilfs_sb_info {
 	struct the_nilfs *s_nilfs;
 
 	/* Segment constructor */
-	struct list_head s_dirty_files;	/* dirty files list */
 	struct nilfs_sc_info *s_sc_info; /* segment constructor info */
-	spinlock_t s_inode_lock;	/* Lock for the nilfs inode.
-					   It covers s_dirty_files list */
 
 	/* Inode allocator */
 	spinlock_t s_next_gen_lock;

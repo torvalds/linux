@@ -807,18 +807,18 @@ int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
 
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	int err;
 
-	spin_lock(&sbi->s_inode_lock);
+	spin_lock(&nilfs->ns_inode_lock);
 	if (ii->i_bh == NULL) {
-		spin_unlock(&sbi->s_inode_lock);
+		spin_unlock(&nilfs->ns_inode_lock);
 		err = nilfs_ifile_get_inode_block(ii->i_root->ifile,
 						  inode->i_ino, pbh);
 		if (unlikely(err))
 			return err;
-		spin_lock(&sbi->s_inode_lock);
+		spin_lock(&nilfs->ns_inode_lock);
 		if (ii->i_bh == NULL)
 			ii->i_bh = *pbh;
 		else {
@@ -829,36 +829,36 @@ int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 		*pbh = ii->i_bh;
 
 	get_bh(*pbh);
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 	return 0;
 }
 
 int nilfs_inode_dirty(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 	int ret = 0;
 
 	if (!list_empty(&ii->i_dirty)) {
-		spin_lock(&sbi->s_inode_lock);
+		spin_lock(&nilfs->ns_inode_lock);
 		ret = test_bit(NILFS_I_DIRTY, &ii->i_state) ||
 			test_bit(NILFS_I_BUSY, &ii->i_state);
-		spin_unlock(&sbi->s_inode_lock);
+		spin_unlock(&nilfs->ns_inode_lock);
 	}
 	return ret;
 }
 
 int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 
-	atomic_add(nr_dirty, &sbi->s_nilfs->ns_ndirtyblks);
+	atomic_add(nr_dirty, &nilfs->ns_ndirtyblks);
 
 	if (test_and_set_bit(NILFS_I_DIRTY, &ii->i_state))
 		return 0;
 
-	spin_lock(&sbi->s_inode_lock);
+	spin_lock(&nilfs->ns_inode_lock);
 	if (!test_bit(NILFS_I_QUEUED, &ii->i_state) &&
 	    !test_bit(NILFS_I_BUSY, &ii->i_state)) {
 		/* Because this routine may race with nilfs_dispose_list(),
@@ -866,18 +866,18 @@ int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 		if (list_empty(&ii->i_dirty) && igrab(inode) == NULL) {
 			/* This will happen when somebody is freeing
 			   this inode. */
-			nilfs_warning(sbi->s_super, __func__,
+			nilfs_warning(inode->i_sb, __func__,
 				      "cannot get inode (ino=%lu)\n",
 				      inode->i_ino);
-			spin_unlock(&sbi->s_inode_lock);
+			spin_unlock(&nilfs->ns_inode_lock);
 			return -EINVAL; /* NILFS_I_DIRTY may remain for
 					   freeing inode */
 		}
 		list_del(&ii->i_dirty);
-		list_add_tail(&ii->i_dirty, &sbi->s_dirty_files);
+		list_add_tail(&ii->i_dirty, &nilfs->ns_dirty_files);
 		set_bit(NILFS_I_QUEUED, &ii->i_state);
 	}
-	spin_unlock(&sbi->s_inode_lock);
+	spin_unlock(&nilfs->ns_inode_lock);
 	return 0;
 }
 
