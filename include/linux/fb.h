@@ -20,6 +20,12 @@ struct dentry;
 #define FBIOPAN_DISPLAY		0x4606
 #define FBIOPUT_16OR32      0x4607
 #define FBIOPUT_FBPHYADD    0x4608
+#define FBIOPUT_SET_CURSOR_EN    0x4609
+#define FBIOPUT_SET_CURSOR_IMG    0x460a
+#define FBIOPUT_SET_CURSOR_POS    0x460b
+#define FBIOPUT_SET_CURSOR_CMAP    0x460c
+#define FBIOPUT_GET_CURSOR_RESOLUTION    0x460d
+#define FBIOPUT_GET_CURSOR_EN    0x460e
 #ifdef __KERNEL__
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
 #else

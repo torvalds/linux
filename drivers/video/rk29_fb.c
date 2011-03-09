@@ -60,6 +60,42 @@
 #include "./display/screen/screen.h"
 
 #define ANDROID_USE_THREE_BUFS  0       //android use three buffers to accelerate UI display in rgb plane
+#define CURSOR_BUF_SIZE         256     //RK2818 cursor need 256B buf
+int rk29_cursor_buf[CURSOR_BUF_SIZE];
+char cursor_img[] = {
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x20,0x00,0x00,
+0x00,0x30,0x00,0x00,
+0x00,0x28,0x00,0x00,
+0x00,0x24,0x00,0x00,
+0x00,0x22,0x00,0x00,
+0x00,0x21,0x00,0x00,
+0x00,0x20,0x80,0x00,
+0x00,0x20,0x40,0x00,
+0x00,0x20,0x20,0x00,
+0x00,0x20,0x10,0x00,
+0x00,0x20,0x08,0x00,
+0x00,0x20,0x7C,0x00,
+0x00,0x22,0x40,0x00,
+0x00,0x26,0x40,0x00,
+0x00,0x29,0x20,0x00,
+0x00,0x31,0x20,0x00,
+0x00,0x20,0x90,0x00,
+0x00,0x00,0x90,0x00,
+0x00,0x00,0x48,0x00,
+0x00,0x00,0x48,0x00,
+0x00,0x00,0x30,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00 
+};
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
@@ -726,6 +762,107 @@ static int fb_setcolreg(unsigned regno,
 
 	return 0;
 }
+
+int rk29_set_cursor_en(struct rk29fb_inf *inf, int enable)
+{
+    if (enable){
+		printk("%s: enable hardware cursor \n",__func__);
+        LcdSetBit(inf, SYS_CONFIG, m_HWC_ENABLE);
+    }else{
+		printk("%s: enable disable hardware cursor \n",__func__);
+        LcdClrBit(inf, SYS_CONFIG, m_HWC_ENABLE);
+	}
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+	return 0;
+}
+
+int rk29_set_cursor_pos(struct rk29fb_inf *inf, int x, int y)
+{
+	struct rk29fb_screen *screen = inf->cur_screen;
+
+    /* set data */
+    if (x >= 0x800 || y >= 0x800 )
+        return -EINVAL;
+	printk("%s: %08x,%08x \n",__func__, x, y);
+    x += (screen->left_margin + screen->hsync_len);
+    y += (screen->upper_margin + screen->vsync_len);
+    LcdWrReg(inf, HWC_DSP_ST, v_BIT11LO(x)|v_BIT11HI(y));
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    return 0;
+}
+
+
+int rk29_set_cursor_colour_map(struct rk29fb_inf *inf, int bg_col, int fg_col)
+{
+	printk("%s: bg = %08x,fg = %08x \n",__func__, bg_col, fg_col);
+	LcdMskReg(inf, HWC_COLOR_LUT0, m_HWC_R|m_HWC_G|m_HWC_B,bg_col);
+	LcdMskReg(inf, HWC_COLOR_LUT2, m_HWC_R|m_HWC_G|m_HWC_B,fg_col);
+	LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    return 0;
+}
+
+#define RK29_CURSOR_WRITE_BIT(addr,mask,value)		(*((char*)addr)) = (((*((char*)addr))&(~((char)mask)))|((char)value))
+int rk29_set_cursor_img_transform(char *data)
+{	int x, y;
+	char *pmsk = data;
+	char  *dst = (char*)rk29_cursor_buf;
+	unsigned char  dmsk = 0;
+	unsigned int   op,shift,offset;
+
+	/* rk29 cursor is a 2 bpp 32x32 bitmap this routine
+	 * clears it to transparent then combines the cursor
+	 * shape plane with the colour plane to set the
+	 * cursor */
+	for (y = 0; y < 32; y++)
+	{
+		for (x = 0; x < 32; x++)
+		{
+			if ((x % 8) == 0) {
+				dmsk = *pmsk++;
+			} else {
+				dmsk <<= 1;
+			}
+			op = (dmsk & 0x80) ? 1 : 3;
+			shift = (x*2)%8;
+			offset = x/4;
+			RK29_CURSOR_WRITE_BIT((dst+offset),(3<<shift),(op<<shift));
+		}
+		dst += 8;
+	}
+
+	return 0;
+}
+
+
+
+int rk29_set_cursor_img(struct rk29fb_inf *inf, char *data)
+{
+	if(data)
+	{
+		printk("%s:use user image \n",__func__);
+		rk29_set_cursor_img_transform(data);
+    }
+	else
+	{
+		printk("%s:use default image \n",__func__);
+		rk29_set_cursor_img_transform(cursor_img);
+	}
+	LcdWrReg(inf, HWC_MST, __pa(rk29_cursor_buf));
+	LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
+	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    return 0;
+}
+
+int rk29_set_cursor_test(struct fb_info *info)
+{
+	struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+	rk29_set_cursor_colour_map(inf, 0x000000ff, 0x00ff0000);
+	rk29_set_cursor_pos(inf, 0, 0);
+	rk29_set_cursor_img(inf, 0);
+	rk29_set_cursor_en(inf, 1);
+	return 0;
+}
 #if 0
 
 int rk29_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
@@ -1315,6 +1452,56 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	    break;
 	case FBIOPUT_FBPHYADD:
         return info->fix.smem_start;
+	case FBIOPUT_SET_CURSOR_EN:
+		{
+			int en;
+			if(copy_from_user(&en, (void*)arg, sizeof(int)))
+			    return -EFAULT;
+			rk29_set_cursor_en(inf, en);
+		}
+		break;
+	case FBIOPUT_SET_CURSOR_POS:
+		{
+			struct fbcurpos pos;
+			if(copy_from_user(&pos, (void*)arg, sizeof(struct fbcurpos)))
+			    return -EFAULT;
+			rk29_set_cursor_pos(inf, pos.x , pos.y);
+		}
+		break;
+	case FBIOPUT_SET_CURSOR_IMG:
+		{
+			char cursor_buf[CURSOR_BUF_SIZE];
+			if(copy_from_user(cursor_buf, (void*)arg, CURSOR_BUF_SIZE))
+				return -EFAULT;
+			rk29_set_cursor_img(inf, cursor_buf);
+		}
+		break;
+	case FBIOPUT_SET_CURSOR_CMAP:
+		{
+			struct fb_image img;
+			if(copy_from_user(&img, (void*)arg, sizeof(struct fb_image)))
+			    return -EFAULT;
+			rk29_set_cursor_colour_map(inf, img.bg_color, img.fg_color);
+		}
+		break;
+	case FBIOPUT_GET_CURSOR_RESOLUTION:
+		{
+            u32 panel_size[2];
+			//struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+             if(inf->fb1->var.rotate == 270) {
+                panel_size[0] = inf->cur_screen->y_res; //inf->cur_screen->y_res; change for hdmi video size
+                panel_size[1] = inf->cur_screen->x_res;
+            } else {
+                panel_size[0] = inf->cur_screen->x_res;
+                panel_size[1] = inf->cur_screen->y_res;
+            }
+            if(copy_to_user((void*)arg, panel_size, 8))  return -EFAULT;
+		}
+	case FBIOPUT_GET_CURSOR_EN:
+		{
+            u32 en = LcdReadBit(inf, SYS_CONFIG, m_HWC_ENABLE);
+            if(copy_to_user((void*)arg, &en, 4))  return -EFAULT;
+		}
    default:
         break;
     }
@@ -1776,7 +1963,11 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     fb0_set_par(inf->fb0);
     LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
-
+	if(enable){
+		rk29_set_cursor_en(inf, enable);
+	}else{
+		rk29_set_cursor_en(inf, enable);
+	}
     return 0;
 }
 
@@ -1799,6 +1990,7 @@ static ssize_t dsp_win0_info_read(struct device *device,
     xsize=LcdRdReg(inf, WIN0_DSP_INFO)& 0xffff;
     ysize=(LcdRdReg(inf, WIN0_DSP_INFO)>>16) & 0xffff;
     fbprintk("%s %d , %d, %d ,%d\n",__FUNCTION__,xpos,ypos,xsize,ysize);
+	rk29_set_cursor_test(inf->fb0);
 
     return snprintf(buf, PAGE_SIZE, "%d,%d,%d,%d\n", xpos,ypos,xsize,ysize);
 }
@@ -1808,7 +2000,7 @@ static ssize_t dsp_win0_info_write(struct device *device,
 {
      printk("%s\n",__FUNCTION__);
      printk("%s %x \n",__FUNCTION__,*buf);
-     return 0;
+     return count;
 }
 
 static DEVICE_ATTR(dsp_win0_info,  S_IRUGO|S_IWUSR, dsp_win0_info_read, dsp_win0_info_write);
