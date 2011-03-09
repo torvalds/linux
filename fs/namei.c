@@ -1546,6 +1546,7 @@ static int path_walk(const char *name, struct nameidata *nd)
 		/* nd->path had been dropped */
 		current->total_link_count = 0;
 		nd->path = save;
+		nd->inode = save.dentry->d_inode;
 		path_get(&nd->path);
 		nd->flags |= LOOKUP_REVAL;
 		result = link_path_walk(name, nd);
