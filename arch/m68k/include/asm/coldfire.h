@@ -14,14 +14,13 @@
 
 
 /*
- *	Define master clock frequency. This is essentially done at config
- *	time now. No point enumerating dozens of possible clock options
- *	here. Also the peripheral clock (bus clock) divide ratio is set
- *	at config time too.
+ *	Define master clock frequency. This is done at config time now.
+ *	No point enumerating dozens of possible clock options here. And
+ *	in any case new boards come along from time to time that have yet
+ *	another different clocking frequency.
  */
 #ifdef CONFIG_CLOCK_SET
 #define	MCF_CLK		CONFIG_CLOCK_FREQ
-#define	MCF_BUSCLK	(CONFIG_CLOCK_FREQ / CONFIG_CLOCK_DIV)
 #else
 #error "Don't know what your ColdFire CPU clock frequency is??"
 #endif

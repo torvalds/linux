@@ -13,6 +13,7 @@
 
 #define	CPU_NAME		"COLDFIRE(m528x)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		MCF_CLK
 
 #include <asm/m52xxacr.h>
 

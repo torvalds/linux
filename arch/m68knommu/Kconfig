@@ -260,17 +260,6 @@ config CLOCK_FREQ
 	  if it is fitted (there are some exceptions). This value will be
 	  specific to the exact CPU that you are using.
 
-config CLOCK_DIV
-	int "Set the core/bus clock divide ratio"
-	default "1"
-	depends on CLOCK_SET
-	help
-	  On many SoC style CPUs the master CPU clock is also used to drive 
-	  on-chip peripherals. The clock that is distributed to these
-	  peripherals is sometimes a fixed ratio of the master clock
-	  frequency. If so then set this to the divider ratio of the
-	  master clock to the peripheral clock. If not sure then select 1.
-
 config OLDMASK
 	bool "Old mask 5307 (1H55J) silicon"
 	depends on M5307
