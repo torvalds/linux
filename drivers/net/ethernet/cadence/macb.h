@@ -69,6 +69,13 @@
 #define GEM_SA1B				0x0088
 #define GEM_SA1T				0x008C
 #define GEM_OTX					0x0100
+#define GEM_DCFG1				0x0280
+#define GEM_DCFG2				0x0284
+#define GEM_DCFG3				0x0288
+#define GEM_DCFG4				0x028c
+#define GEM_DCFG5				0x0290
+#define GEM_DCFG6				0x0294
+#define GEM_DCFG7				0x0298
 
 /* Bitfields in NCR */
 #define MACB_LB_OFFSET				0
@@ -139,6 +146,14 @@
 /* GEM specific NCFGR bitfields. */
 #define GEM_CLK_OFFSET				18
 #define GEM_CLK_SIZE				3
+#define GEM_DBW_OFFSET				21
+#define GEM_DBW_SIZE				2
+
+/* Constants for data bus width. */
+#define GEM_DBW32				0
+#define GEM_DBW64				1
+#define GEM_DBW128				2
+
 /* Bitfields in NSR */
 #define MACB_NSR_LINK_OFFSET			0
 #define MACB_NSR_LINK_SIZE			1
@@ -246,6 +261,10 @@
 #define MACB_IDNUM_SIZE				16
 #define MACB_REV_OFFSET				0
 #define MACB_REV_SIZE				16
+
+/* Bitfields in DCFG1. */
+#define GEM_DBWDEF_OFFSET			25
+#define GEM_DBWDEF_SIZE				3
 
 /* Constants for CLK */
 #define MACB_CLK_DIV8				0

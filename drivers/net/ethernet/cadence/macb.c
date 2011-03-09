@@ -835,6 +835,27 @@ static u32 macb_mdc_clk_div(struct macb *bp)
 	return config;
 }
 
+/*
+ * Get the DMA bus width field of the network configuration register that we
+ * should program.  We find the width from decoding the design configuration
+ * register to find the maximum supported data bus width.
+ */
+static u32 macb_dbw(struct macb *bp)
+{
+	if (!macb_is_gem(bp))
+		return 0;
+
+	switch (GEM_BFEXT(DBWDEF, gem_readl(bp, DCFG1))) {
+	case 4:
+		return GEM_BF(DBW, GEM_DBW128);
+	case 2:
+		return GEM_BF(DBW, GEM_DBW64);
+	case 1:
+	default:
+		return GEM_BF(DBW, GEM_DBW32);
+	}
+}
+
 static void macb_init_hw(struct macb *bp)
 {
 	u32 config;
@@ -850,6 +871,7 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(CAF);	/* Copy All Frames */
 	if (!(bp->dev->flags & IFF_BROADCAST))
 		config |= MACB_BIT(NBC);	/* No BroadCast */
+	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 
 	/* Initialize TX and RX buffers */
@@ -1276,6 +1298,7 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	/* Set MII management clock divider */
 	config = macb_mdc_clk_div(bp);
+	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 
 	macb_get_hwaddr(bp);
