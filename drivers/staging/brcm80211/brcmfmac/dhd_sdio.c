@@ -333,7 +333,6 @@ uint dhd_txminmax;
 #define DONGLE_MIN_MEMSIZE (128 * 1024)
 int dhd_dongle_memsize;
 
-static bool dhd_doflow;
 static bool dhd_alignctl;
 
 static bool sd1idle;
@@ -1119,7 +1118,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		}
 		dhd_os_sdunlock_txq(bus->dhd);
 
-		if ((pktq_len(&bus->txq) >= TXHI) && dhd_doflow)
+		if (pktq_len(&bus->txq) >= TXHI)
 			dhd_txflowcontrol(bus->dhd, 0, ON);
 
 #ifdef DHD_DEBUG
@@ -1217,7 +1216,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if (dhd_doflow && dhd->up && (dhd->busstate == DHD_BUS_DATA) &&
+	if (dhd->up && (dhd->busstate == DHD_BUS_DATA) &&
 	    dhd->txoff && (pktq_len(&bus->txq) < TXLOW))
 		dhd_txflowcontrol(dhd, 0, OFF);
 
@@ -5073,7 +5072,6 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	sd1idle = true;
 	dhd_readahead = true;
 	retrydata = false;
-	dhd_doflow = false;
 	dhd_dongle_memsize = 0;
 	dhd_txminmax = DHD_TXMINMAX;
 
