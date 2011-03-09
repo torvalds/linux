@@ -779,20 +779,10 @@ static int mm_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-/*
- * Future support for removable devices
- */
-static int mm_check_change(struct gendisk *disk)
-{
-/*  struct cardinfo *dev = disk->private_data; */
-	return 0;
-}
-
 static const struct block_device_operations mm_fops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= mm_getgeo,
 	.revalidate_disk = mm_revalidate,
-	.media_changed	= mm_check_change,
 };
 
 static int __devinit mm_pci_probe(struct pci_dev *dev,
