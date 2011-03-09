@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/wakelock.h>
 #include <asm/tlbflush.h>
+#include <asm/hardware/gic.h>
 
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
@@ -20,6 +21,7 @@
 #include <mach/board.h>
 #include <mach/system.h>
 #include <mach/sram.h>
+#include <mach/gpio.h>
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel(v, RK29_CRU_BASE + offset); readl(RK29_CRU_BASE + offset); } while (0)
@@ -170,6 +172,29 @@ static void noinline rk29_suspend(void)
 	DDR_RESTORE_SP(save_sp);
 }
 
+static void dump_irq(void)
+{
+	u32 irq_gpio = (readl(RK29_GICPERI_BASE + GIC_DIST_PENDING_SET + 8) >> 23) & 0x7F;
+	printk("wakeup irq: %08x %08x %01x\n",
+		readl(RK29_GICPERI_BASE + GIC_DIST_PENDING_SET + 4),
+		readl(RK29_GICPERI_BASE + GIC_DIST_PENDING_SET + 8),
+		readl(RK29_GICPERI_BASE + GIC_DIST_PENDING_SET + 12) & 0xf);
+	if (irq_gpio & 1)
+		printk("wakeup gpio0: %08x\n", readl(RK29_GPIO0_BASE + GPIO_INT_STATUS));
+	if (irq_gpio & 2)
+		printk("wakeup gpio1: %08x\n", readl(RK29_GPIO1_BASE + GPIO_INT_STATUS));
+	if (irq_gpio & 4)
+		printk("wakeup gpio2: %08x\n", readl(RK29_GPIO2_BASE + GPIO_INT_STATUS));
+	if (irq_gpio & 8)
+		printk("wakeup gpio3: %08x\n", readl(RK29_GPIO3_BASE + GPIO_INT_STATUS));
+	if (irq_gpio & 0x10)
+		printk("wakeup gpio4: %08x\n", readl(RK29_GPIO4_BASE + GPIO_INT_STATUS));
+	if (irq_gpio & 0x20)
+		printk("wakeup gpio5: %08x\n", readl(RK29_GPIO5_BASE + GPIO_INT_STATUS));
+	if (irq_gpio & 0x40)
+		printk("wakeup gpio6: %08x\n", readl(RK29_GPIO6_BASE + GPIO_INT_STATUS));
+}
+
 static int rk29_pm_enter(suspend_state_t state)
 {
 	u32 apll, cpll, gpll, mode, clksel0;
@@ -276,6 +301,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(clkgate[3], CRU_CLKGATE3_CON);
 	printascii("0\n");
 
+	dump_irq();
 	return 0;
 }
 
