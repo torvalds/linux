@@ -1448,13 +1448,11 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 				disk_unblock_events(bdev->bd_disk);
 				disk_check_events(bdev->bd_disk);
 				bdev->bd_write_holder = false;
-			} else
-				disk_check_events(bdev->bd_disk);
+			}
 		}
 
 		mutex_unlock(&bdev->bd_mutex);
-	} else
-		disk_check_events(bdev->bd_disk);
+	}
 
 	return __blkdev_put(bdev, mode, 0);
 }
