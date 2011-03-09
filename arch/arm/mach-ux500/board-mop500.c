@@ -67,6 +67,8 @@ static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
 
 static struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
+	.regulator_reg_init = ab8500_regulator_reg_init,
+	.num_regulator_reg_init	= ARRAY_SIZE(ab8500_regulator_reg_init),
 	.regulator	= ab8500_regulators,
 	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
 	.gpio		= &ab8500_gpio_pdata,
