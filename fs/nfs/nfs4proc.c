@@ -5028,10 +5028,20 @@ int nfs4_proc_create_session(struct nfs_client *clp)
 	int status;
 	unsigned *ptr;
 	struct nfs4_session *session = clp->cl_session;
+	long timeout = 0;
+	int err;
 
 	dprintk("--> %s clp=%p session=%p\n", __func__, clp, session);
 
-	status = _nfs4_proc_create_session(clp);
+	do {
+		status = _nfs4_proc_create_session(clp);
+		if (status == -NFS4ERR_DELAY) {
+			err = nfs4_delay(clp->cl_rpcclient, &timeout);
+			if (err)
+				status = err;
+		}
+	} while (status == -NFS4ERR_DELAY);
+
 	if (status)
 		goto out;
 
