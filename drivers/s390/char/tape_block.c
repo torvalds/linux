@@ -48,14 +48,14 @@
 static DEFINE_MUTEX(tape_block_mutex);
 static int tapeblock_open(struct block_device *, fmode_t);
 static int tapeblock_release(struct gendisk *, fmode_t);
-static int tapeblock_medium_changed(struct gendisk *);
+static unsigned int tapeblock_check_events(struct gendisk *, unsigned int);
 static int tapeblock_revalidate_disk(struct gendisk *);
 
 static const struct block_device_operations tapeblock_fops = {
 	.owner		 = THIS_MODULE,
 	.open		 = tapeblock_open,
 	.release	 = tapeblock_release,
-	.media_changed   = tapeblock_medium_changed,
+	.check_events	 = tapeblock_check_events,
 	.revalidate_disk = tapeblock_revalidate_disk,
 };
 
@@ -237,6 +237,7 @@ tapeblock_setup_device(struct tape_device * device)
 	disk->major = tapeblock_major;
 	disk->first_minor = device->first_minor;
 	disk->fops = &tapeblock_fops;
+	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->private_data = tape_get_device(device);
 	disk->queue = blkdat->request_queue;
 	set_capacity(disk, 0);
@@ -340,8 +341,8 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	return 0;
 }
 
-static int
-tapeblock_medium_changed(struct gendisk *disk)
+static unsigned int
+tapeblock_check_events(struct gendisk *disk, unsigned int clearing)
 {
 	struct tape_device *device;
 
@@ -349,7 +350,7 @@ tapeblock_medium_changed(struct gendisk *disk)
 	DBF_LH(6, "tapeblock_medium_changed(%p) = %d\n",
 		device, device->blk_data.medium_changed);
 
-	return device->blk_data.medium_changed;
+	return device->blk_data.medium_changed ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 /*
