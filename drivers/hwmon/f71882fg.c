@@ -325,7 +325,7 @@ static struct sensor_device_attribute_2 f71858fg_temp_attr[] = {
 };
 
 /* Temp attr for the standard models */
-static struct sensor_device_attribute_2 fxxxx_temp_attr[] = {
+static struct sensor_device_attribute_2 fxxxx_temp_attr[3][11] = { {
 	SENSOR_ATTR_2(temp1_input, S_IRUGO, show_temp, NULL, 0, 1),
 	SENSOR_ATTR_2(temp1_max, S_IRUGO|S_IWUSR, show_temp_max,
 		store_temp_max, 0, 1),
@@ -346,6 +346,7 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[] = {
 		store_temp_beep, 0, 5),
 	SENSOR_ATTR_2(temp1_type, S_IRUGO, show_temp_type, NULL, 0, 1),
 	SENSOR_ATTR_2(temp1_fault, S_IRUGO, show_temp_fault, NULL, 0, 1),
+}, {
 	SENSOR_ATTR_2(temp2_input, S_IRUGO, show_temp, NULL, 0, 2),
 	SENSOR_ATTR_2(temp2_max, S_IRUGO|S_IWUSR, show_temp_max,
 		store_temp_max, 0, 2),
@@ -364,6 +365,7 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[] = {
 		store_temp_beep, 0, 6),
 	SENSOR_ATTR_2(temp2_type, S_IRUGO, show_temp_type, NULL, 0, 2),
 	SENSOR_ATTR_2(temp2_fault, S_IRUGO, show_temp_fault, NULL, 0, 2),
+}, {
 	SENSOR_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, 0, 3),
 	SENSOR_ATTR_2(temp3_max, S_IRUGO|S_IWUSR, show_temp_max,
 		store_temp_max, 0, 3),
@@ -382,7 +384,7 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[] = {
 		store_temp_beep, 0, 7),
 	SENSOR_ATTR_2(temp3_type, S_IRUGO, show_temp_type, NULL, 0, 3),
 	SENSOR_ATTR_2(temp3_fault, S_IRUGO, show_temp_fault, NULL, 0, 3),
-};
+} };
 
 /* Temp attr for the f8000
    Note on the f8000 temp_ovt (crit) is used as max, and temp_high (max)
@@ -1919,6 +1921,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	struct f71882fg_data *data;
 	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;
 	int err, i, nr_fans = (sio_data->type == f71882fg) ? 4 : 3;
+	int nr_temps = 3;
 	u8 start_reg, reg;
 
 	data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL);
@@ -1972,8 +1975,8 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			break;
 		default:
 			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_temp_attr,
-					ARRAY_SIZE(fxxxx_temp_attr));
+				&fxxxx_temp_attr[0][0],
+				ARRAY_SIZE(fxxxx_temp_attr[0]) * nr_temps);
 		}
 		if (err)
 			goto exit_unregister_sysfs;
@@ -2116,6 +2119,7 @@ static int f71882fg_remove(struct platform_device *pdev)
 {
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
 	int i, nr_fans = (data->type == f71882fg) ? 4 : 3;
+	int nr_temps = 3;
 	u8 start_reg = f71882fg_read8(data, F71882FG_REG_START);
 
 	if (data->hwmon_dev)
@@ -2142,8 +2146,8 @@ static int f71882fg_remove(struct platform_device *pdev)
 			break;
 		default:
 			f71882fg_remove_sysfs_files(pdev,
-					fxxxx_temp_attr,
-					ARRAY_SIZE(fxxxx_temp_attr));
+				&fxxxx_temp_attr[0][0],
+				ARRAY_SIZE(fxxxx_temp_attr[0]) * nr_temps);
 		}
 		for (i = 0; i < F71882FG_MAX_INS; i++) {
 			if (f71882fg_has_in[data->type][i]) {
