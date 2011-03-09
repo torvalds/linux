@@ -285,8 +285,8 @@ err_out:
 static void macb_update_stats(struct macb *bp)
 {
 	u32 __iomem *reg = bp->regs + MACB_PFR;
-	u32 *p = &bp->hw_stats.rx_pause_frames;
-	u32 *end = &bp->hw_stats.tx_pause_frames + 1;
+	u32 *p = &bp->hw_stats.macb.rx_pause_frames;
+	u32 *end = &bp->hw_stats.macb.tx_pause_frames + 1;
 
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
 
@@ -1042,11 +1042,62 @@ static int macb_close(struct net_device *dev)
 	return 0;
 }
 
+static void gem_update_stats(struct macb *bp)
+{
+	u32 __iomem *reg = bp->regs + GEM_OTX;
+	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
+	u32 *end = &bp->hw_stats.gem.rx_udp_checksum_errors + 1;
+
+	for (; p < end; p++, reg++)
+		*p += __raw_readl(reg);
+}
+
+static struct net_device_stats *gem_get_stats(struct macb *bp)
+{
+	struct gem_stats *hwstat = &bp->hw_stats.gem;
+	struct net_device_stats *nstat = &bp->stats;
+
+	gem_update_stats(bp);
+
+	nstat->rx_errors = (hwstat->rx_frame_check_sequence_errors +
+			    hwstat->rx_alignment_errors +
+			    hwstat->rx_resource_errors +
+			    hwstat->rx_overruns +
+			    hwstat->rx_oversize_frames +
+			    hwstat->rx_jabbers +
+			    hwstat->rx_undersized_frames +
+			    hwstat->rx_length_field_frame_errors);
+	nstat->tx_errors = (hwstat->tx_late_collisions +
+			    hwstat->tx_excessive_collisions +
+			    hwstat->tx_underrun +
+			    hwstat->tx_carrier_sense_errors);
+	nstat->multicast = hwstat->rx_multicast_frames;
+	nstat->collisions = (hwstat->tx_single_collision_frames +
+			     hwstat->tx_multiple_collision_frames +
+			     hwstat->tx_excessive_collisions);
+	nstat->rx_length_errors = (hwstat->rx_oversize_frames +
+				   hwstat->rx_jabbers +
+				   hwstat->rx_undersized_frames +
+				   hwstat->rx_length_field_frame_errors);
+	nstat->rx_over_errors = hwstat->rx_resource_errors;
+	nstat->rx_crc_errors = hwstat->rx_frame_check_sequence_errors;
+	nstat->rx_frame_errors = hwstat->rx_alignment_errors;
+	nstat->rx_fifo_errors = hwstat->rx_overruns;
+	nstat->tx_aborted_errors = hwstat->tx_excessive_collisions;
+	nstat->tx_carrier_errors = hwstat->tx_carrier_sense_errors;
+	nstat->tx_fifo_errors = hwstat->tx_underrun;
+
+	return nstat;
+}
+
 static struct net_device_stats *macb_get_stats(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
 	struct net_device_stats *nstat = &bp->stats;
-	struct macb_stats *hwstat = &bp->hw_stats;
+	struct macb_stats *hwstat = &bp->hw_stats.macb;
+
+	if (macb_is_gem(bp))
+		return gem_get_stats(bp);
 
 	/* read stats from hardware */
 	macb_update_stats(bp);

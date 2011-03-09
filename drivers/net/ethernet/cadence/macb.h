@@ -68,6 +68,7 @@
 #define GEM_HRT					0x0084
 #define GEM_SA1B				0x0088
 #define GEM_SA1T				0x008C
+#define GEM_OTX					0x0100
 
 /* Bitfields in NCR */
 #define MACB_LB_OFFSET				0
@@ -425,6 +426,54 @@ struct macb_stats {
 	u32	tx_pause_frames;
 };
 
+struct gem_stats {
+	u32	tx_octets_31_0;
+	u32	tx_octets_47_32;
+	u32	tx_frames;
+	u32	tx_broadcast_frames;
+	u32	tx_multicast_frames;
+	u32	tx_pause_frames;
+	u32	tx_64_byte_frames;
+	u32	tx_65_127_byte_frames;
+	u32	tx_128_255_byte_frames;
+	u32	tx_256_511_byte_frames;
+	u32	tx_512_1023_byte_frames;
+	u32	tx_1024_1518_byte_frames;
+	u32	tx_greater_than_1518_byte_frames;
+	u32	tx_underrun;
+	u32	tx_single_collision_frames;
+	u32	tx_multiple_collision_frames;
+	u32	tx_excessive_collisions;
+	u32	tx_late_collisions;
+	u32	tx_deferred_frames;
+	u32	tx_carrier_sense_errors;
+	u32	rx_octets_31_0;
+	u32	rx_octets_47_32;
+	u32	rx_frames;
+	u32	rx_broadcast_frames;
+	u32	rx_multicast_frames;
+	u32	rx_pause_frames;
+	u32	rx_64_byte_frames;
+	u32	rx_65_127_byte_frames;
+	u32	rx_128_255_byte_frames;
+	u32	rx_256_511_byte_frames;
+	u32	rx_512_1023_byte_frames;
+	u32	rx_1024_1518_byte_frames;
+	u32	rx_greater_than_1518_byte_frames;
+	u32	rx_undersized_frames;
+	u32	rx_oversize_frames;
+	u32	rx_jabbers;
+	u32	rx_frame_check_sequence_errors;
+	u32	rx_length_field_frame_errors;
+	u32	rx_symbol_errors;
+	u32	rx_alignment_errors;
+	u32	rx_resource_errors;
+	u32	rx_overruns;
+	u32	rx_ip_header_checksum_errors;
+	u32	rx_tcp_checksum_errors;
+	u32	rx_udp_checksum_errors;
+};
+
 struct macb {
 	void __iomem		*regs;
 
@@ -443,7 +492,10 @@ struct macb {
 	struct net_device	*dev;
 	struct napi_struct	napi;
 	struct net_device_stats	stats;
-	struct macb_stats	hw_stats;
+	union {
+		struct macb_stats	macb;
+		struct gem_stats	gem;
+	}			hw_stats;
 
 	dma_addr_t		rx_ring_dma;
 	dma_addr_t		tx_ring_dma;
