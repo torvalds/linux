@@ -43,7 +43,6 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/parser.h>
-#include <linux/random.h>
 #include <linux/crc32.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
@@ -942,16 +941,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	err = init_nilfs(nilfs, sbi, (char *)data);
 	if (err)
 		goto failed_nilfs;
-
-	/*
-	 * Following initialization is overlapped because
-	 * nilfs_sb_info structure has been cleared at the beginning.
-	 * But we reserve them to keep our interest and make ready
-	 * for the future change.
-	 */
-	get_random_bytes(&sbi->s_next_generation,
-			 sizeof(sbi->s_next_generation));
-	spin_lock_init(&sbi->s_next_gen_lock);
 
 	sb->s_op = &nilfs_sops;
 	sb->s_export_op = &nilfs_export_ops;

@@ -40,10 +40,6 @@ struct nilfs_sb_info {
 
 	/* Segment constructor */
 	struct nilfs_sc_info *s_sc_info; /* segment constructor info */
-
-	/* Inode allocator */
-	spinlock_t s_next_gen_lock;
-	u32 s_next_generation;
 };
 
 static inline struct nilfs_sb_info *NILFS_SB(struct super_block *sb)

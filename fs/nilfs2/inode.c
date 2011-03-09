@@ -295,7 +295,7 @@ const struct address_space_operations nilfs_aops = {
 struct inode *nilfs_new_inode(struct inode *dir, int mode)
 {
 	struct super_block *sb = dir->i_sb;
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct inode *inode;
 	struct nilfs_inode_info *ii;
 	struct nilfs_root *root;
@@ -340,9 +340,9 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
 	nilfs_set_inode_flags(inode);
-	spin_lock(&sbi->s_next_gen_lock);
-	inode->i_generation = sbi->s_next_generation++;
-	spin_unlock(&sbi->s_next_gen_lock);
+	spin_lock(&nilfs->ns_next_gen_lock);
+	inode->i_generation = nilfs->ns_next_generation++;
+	spin_unlock(&nilfs->ns_next_gen_lock);
 	insert_inode_hash(inode);
 
 	err = nilfs_init_acl(inode, dir);
