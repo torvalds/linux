@@ -6058,6 +6058,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	if (!skip_sum) {
 		dip->csums = kmalloc(sizeof(u32) * bio->bi_vcnt, GFP_NOFS);
 		if (!dip->csums) {
+			kfree(dip);
 			ret = -ENOMEM;
 			goto free_ordered;
 		}
