@@ -32,5 +32,6 @@
 #define TEGRA_GPIO_EXT_MIC_EN		TEGRA_GPIO_PX1
 
 void harmony_pinmux_init(void);
+int harmony_regulator_init(void);
 
 #endif
