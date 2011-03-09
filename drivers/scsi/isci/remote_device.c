@@ -380,6 +380,10 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 		"%s: isci_device = %p\n", __func__, idev);
 
 	isci_remote_device_change_state(idev, isci_stopping);
+
+	/* Kill all outstanding requests. */
+	isci_remote_device_nuke_requests(idev);
+
 	set_bit(IDEV_STOP_PENDING, &idev->flags);
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
