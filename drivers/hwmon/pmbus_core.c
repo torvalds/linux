@@ -1295,9 +1295,7 @@ static void pmbus_add_fan_attributes(struct i2c_client *client,
 				break;
 
 			if (!pmbus_check_word_register(client, page,
-						       pmbus_fan_registers[f])
-			    || !pmbus_check_byte_register(client, page,
-						pmbus_fan_config_registers[f]))
+						       pmbus_fan_registers[f]))
 				break;
 
 			/*
@@ -1305,7 +1303,7 @@ static void pmbus_add_fan_attributes(struct i2c_client *client,
 			 * Each fan configuration register covers multiple fans,
 			 * so we have to do some magic.
 			 */
-			regval = pmbus_read_byte_data(client, page,
+			regval = _pmbus_read_byte_data(client, page,
 				pmbus_fan_config_registers[f]);
 			if (regval < 0 ||
 			    (!(regval & (PB_FAN_1_INSTALLED >> ((f & 1) * 4)))))
