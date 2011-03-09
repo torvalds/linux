@@ -1177,7 +1177,7 @@ static struct cdrom_device_ops ide_cdrom_dops = {
 	.open			= ide_cdrom_open_real,
 	.release		= ide_cdrom_release_real,
 	.drive_status		= ide_cdrom_drive_status,
-	.media_changed		= ide_cdrom_check_media_change_real,
+	.check_events		= ide_cdrom_check_events_real,
 	.tray_move		= ide_cdrom_tray_move,
 	.lock_door		= ide_cdrom_lock_door,
 	.select_speed		= ide_cdrom_select_speed,
@@ -1702,10 +1702,11 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 }
 
 
-static int idecd_media_changed(struct gendisk *disk)
+static unsigned int idecd_check_events(struct gendisk *disk,
+				       unsigned int clearing)
 {
 	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
-	return cdrom_media_changed(&info->devinfo);
+	return cdrom_check_events(&info->devinfo, clearing);
 }
 
 static int idecd_revalidate_disk(struct gendisk *disk)
@@ -1723,7 +1724,7 @@ static const struct block_device_operations idecd_ops = {
 	.open			= idecd_open,
 	.release		= idecd_release,
 	.ioctl			= idecd_ioctl,
-	.media_changed		= idecd_media_changed,
+	.check_events		= idecd_check_events,
 	.revalidate_disk	= idecd_revalidate_disk
 };
 
@@ -1790,6 +1791,7 @@ static int ide_cd_probe(ide_drive_t *drive)
 	ide_cd_read_toc(drive, &sense);
 	g->fops = &idecd_ops;
 	g->flags |= GENHD_FL_REMOVABLE;
+	g->events = DISK_EVENT_MEDIA_CHANGE;
 	add_disk(g);
 	return 0;
 
