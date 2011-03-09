@@ -312,7 +312,7 @@ static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start  = 0xe6850000,
-		.end    = 0xe68501ff,
+		.end    = 0xe68500ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -345,7 +345,7 @@ static struct resource sdhi1_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start  = 0xe6860000,
-		.end    = 0xe68601ff,
+		.end    = 0xe68600ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
