@@ -931,11 +931,10 @@ static int __devinit rtsx_probe(struct pci_dev *pci, const struct pci_device_id 
 	dev = host_to_rtsx(host);
 	memset(dev, 0, sizeof(struct rtsx_dev));
 
-	dev->chip = (struct rtsx_chip *)kmalloc(sizeof(struct rtsx_chip), GFP_KERNEL);
+	dev->chip = kzalloc(sizeof(struct rtsx_chip), GFP_KERNEL);
 	if (dev->chip == NULL) {
 		goto errout;
 	}
-	memset(dev->chip, 0, sizeof(struct rtsx_chip));
 
 	spin_lock_init(&dev->reg_lock);
 	mutex_init(&(dev->dev_mutex));
