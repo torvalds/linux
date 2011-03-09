@@ -272,8 +272,8 @@ struct tracer {
 	/* If you handled the flag setting, return 0 */
 	int			(*set_flag)(u32 old_flags, u32 bit, int set);
 	struct tracer		*next;
-	int			print_max;
 	struct tracer_flags	*flags;
+	int			print_max;
 	int			use_max_tr;
 };
 
