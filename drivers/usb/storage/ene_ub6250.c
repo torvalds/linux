@@ -491,10 +491,6 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	if (info->BIN_FLAG == flag)
 		return USB_STOR_TRANSPORT_GOOD;
 
-	buf = kmalloc(ENE_BIN_CODE_LEN, GFP_KERNEL);
-	if (buf == NULL)
-		return USB_STOR_TRANSPORT_ERROR;
-
 	switch (flag) {
 	/* For SD */
 	case SD_INIT1_PATTERN:
