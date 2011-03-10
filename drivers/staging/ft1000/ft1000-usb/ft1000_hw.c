@@ -710,7 +710,7 @@ static const struct net_device_ops ftnet_ops =
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
+int init_ft1000_netdev(struct ft1000_device *ft1000dev)
 {
 	struct net_device *netdev;
 	struct ft1000_info *pInfo = NULL;

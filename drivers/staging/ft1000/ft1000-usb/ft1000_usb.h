@@ -589,7 +589,7 @@ void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);
 char *getfw (char *fn, size_t *pimgsz);
 
 int dsp_reload(struct ft1000_device *ft1000dev);
-u16 init_ft1000_netdev(struct ft1000_device *ft1000dev);
+int init_ft1000_netdev(struct ft1000_device *ft1000dev);
 struct usb_interface;
 int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf);
 int ft1000_poll(void* dev_id);
