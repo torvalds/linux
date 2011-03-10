@@ -1364,11 +1364,11 @@ uv_activation_descriptor_init(int node, int pnode)
 		memset(bd2, 0, sizeof(struct bau_desc));
 		bd2->header.sw_ack_flag = 1;
 		/*
-		 * base_dest_nodeid is the nasid (pnode<<1) of the first uvhub
+		 * base_dest_nodeid is the nasid of the first uvhub
 		 * in the partition. The bit map will indicate uvhub numbers,
 		 * which are 0-N in a partition. Pnodes are unique system-wide.
 		 */
-		bd2->header.base_dest_nodeid = uv_partition_base_pnode << 1;
+		bd2->header.base_dest_nodeid = UV_PNODE_TO_NASID(uv_partition_base_pnode);
 		bd2->header.dest_subnodeid = 0x10; /* the LB */
 		bd2->header.command = UV_NET_ENDPOINT_INTD;
 		bd2->header.int_both = 1;
