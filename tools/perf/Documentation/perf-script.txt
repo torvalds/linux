@@ -115,7 +115,10 @@ OPTIONS
 -f::
 --fields
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace, sym
+        comm, tid, pid, time, cpu, event, trace, sym. Field
+        list must be prepended with the type, trace, sw or hw,
+        to indicate to which event type the field list applies.
+        e.g., -f sw:comm,tid,time,sym  and -f trace:time,cpu,trace
 
 -k::
 --vmlinux=<file>::

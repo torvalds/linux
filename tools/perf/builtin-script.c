@@ -12,6 +12,8 @@
 #include "util/trace-event.h"
 #include "util/parse-options.h"
 #include "util/util.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -47,16 +49,65 @@ struct output_option {
 };
 
 /* default set to maintain compatibility with current format */
-static u64 output_fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
-			   PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
-			   PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE;
+static u64 output_fields[PERF_TYPE_MAX] = {
+	[PERF_TYPE_HARDWARE] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+			       PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+			       PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+	[PERF_TYPE_SOFTWARE] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+			       PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+			       PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+	[PERF_TYPE_TRACEPOINT] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+				 PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+				 PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
+};
 
 static bool output_set_by_user;
 
-#define PRINT_FIELD(x)  (output_fields & PERF_OUTPUT_##x)
+#define PRINT_FIELD(x)  (output_fields[attr->type] & PERF_OUTPUT_##x)
+
+static int perf_session__check_attr(struct perf_session *session,
+				    struct perf_event_attr *attr)
+{
+	if (PRINT_FIELD(TRACE) &&
+		!perf_session__has_traces(session, "record -R"))
+		return -EINVAL;
+
+	if (PRINT_FIELD(SYM)) {
+		if (!(session->sample_type & PERF_SAMPLE_IP)) {
+			pr_err("Samples do not contain IP data.\n");
+			return -EINVAL;
+		}
+		if (!no_callchain &&
+		    !(session->sample_type & PERF_SAMPLE_CALLCHAIN))
+			symbol_conf.use_callchain = false;
+	}
+
+	if ((PRINT_FIELD(PID) || PRINT_FIELD(TID)) &&
+		!(session->sample_type & PERF_SAMPLE_TID)) {
+		pr_err("Samples do not contain TID/PID data.\n");
+		return -EINVAL;
+	}
+
+	if (PRINT_FIELD(TIME) &&
+		!(session->sample_type & PERF_SAMPLE_TIME)) {
+		pr_err("Samples do not contain timestamps.\n");
+		return -EINVAL;
+	}
+
+	if (PRINT_FIELD(CPU) &&
+		!(session->sample_type & PERF_SAMPLE_CPU)) {
+		pr_err("Samples do not contain cpu.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static void print_sample_start(struct perf_sample *sample,
-			       struct thread *thread)
+			       struct thread *thread,
+			       struct perf_event_attr *attr)
 {
 	int type;
 	struct event *event;
@@ -97,10 +148,13 @@ static void print_sample_start(struct perf_sample *sample,
 	}
 
 	if (PRINT_FIELD(EVNAME)) {
-		type = trace_parse_common_type(sample->raw_data);
-		event = trace_find_event(type);
-		if (event)
-			evname = event->name;
+		if (attr->type == PERF_TYPE_TRACEPOINT) {
+			type = trace_parse_common_type(sample->raw_data);
+			event = trace_find_event(type);
+			if (event)
+				evname = event->name;
+		} else
+			evname = __event_name(attr->type, attr->config);
 
 		printf("%s: ", evname ? evname : "(unknown)");
 	}
@@ -108,10 +162,27 @@ static void print_sample_start(struct perf_sample *sample,
 
 static void process_event(union perf_event *event __unused,
 			  struct perf_sample *sample,
-			  struct perf_session *session __unused,
+			  struct perf_session *session,
 			  struct thread *thread)
 {
-	print_sample_start(sample, thread);
+	struct perf_event_attr *attr;
+	struct perf_evsel *evsel;
+
+	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	if (evsel == NULL) {
+		pr_err("Invalid data. Contains samples with id not in "
+		       "its header!\n");
+		return;
+	}
+	attr = &evsel->attr;
+
+	if (output_fields[attr->type] == 0)
+		return;
+
+	if (perf_session__check_attr(session, attr) < 0)
+		return;
+
+	print_sample_start(sample, thread, attr);
 
 	if (PRINT_FIELD(TRACE))
 		print_trace_event(sample->cpu, sample->raw_data,
@@ -183,19 +254,17 @@ static int process_sample_event(union perf_event *event,
 		return -1;
 	}
 
-	if (session->sample_type & PERF_SAMPLE_RAW) {
-		if (debug_mode) {
-			if (sample->time < last_timestamp) {
-				pr_err("Samples misordered, previous: %" PRIu64
-					" this: %" PRIu64 "\n", last_timestamp,
-					sample->time);
-				nr_unordered++;
-			}
-			last_timestamp = sample->time;
-			return 0;
+	if (debug_mode) {
+		if (sample->time < last_timestamp) {
+			pr_err("Samples misordered, previous: %" PRIu64
+				" this: %" PRIu64 "\n", last_timestamp,
+				sample->time);
+			nr_unordered++;
 		}
-		scripting_ops->process_event(event, sample, session, thread);
+		last_timestamp = sample->time;
+		return 0;
 	}
+	scripting_ops->process_event(event, sample, session, thread);
 
 	session->hists.stats.total_period += sample->period;
 	return 0;
@@ -391,21 +460,40 @@ static int parse_output_fields(const struct option *opt __used,
 	int i, imax = sizeof(all_output_options) / sizeof(struct output_option);
 	int rc = 0;
 	char *str = strdup(arg);
+	int type = -1;
 
 	if (!str)
 		return -ENOMEM;
 
-	tok = strtok(str, ",");
+	tok = strtok(str, ":");
 	if (!tok) {
-		fprintf(stderr, "Invalid field string.");
+		fprintf(stderr,
+			"Invalid field string - not prepended with type.");
 		return -EINVAL;
 	}
 
-	output_fields = 0;
+	/* first word should state which event type user
+	 * is specifying the fields
+	 */
+	if (!strcmp(tok, "hw"))
+		type = PERF_TYPE_HARDWARE;
+	else if (!strcmp(tok, "sw"))
+		type = PERF_TYPE_SOFTWARE;
+	else if (!strcmp(tok, "trace"))
+		type = PERF_TYPE_TRACEPOINT;
+	else {
+		fprintf(stderr, "Invalid event type in field string.");
+		return -EINVAL;
+	}
+
+	output_fields[type] = 0;
 	while (1) {
+		tok = strtok(NULL, ",");
+		if (!tok)
+			break;
 		for (i = 0; i < imax; ++i) {
 			if (strcmp(tok, all_output_options[i].str) == 0) {
-				output_fields |= all_output_options[i].field;
+				output_fields[type] |= all_output_options[i].field;
 				break;
 			}
 		}
@@ -414,10 +502,11 @@ static int parse_output_fields(const struct option *opt __used,
 			rc = -EINVAL;
 			break;
 		}
+	}
 
-		tok = strtok(NULL, ",");
-		if (!tok)
-			break;
+	if (output_fields[type] == 0) {
+		pr_debug("No fields requested for %s type. "
+			 "Events will not be displayed\n", event_type(type));
 	}
 
 	output_set_by_user = true;
@@ -747,7 +836,7 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields. Options: comm,tid,pid,time,cpu,event,trace,sym",
+		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace. Fields: comm,tid,pid,time,cpu,event,trace,sym",
 		     parse_output_fields),
 
 	OPT_END()
@@ -929,14 +1018,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (!no_callchain && (session->sample_type & PERF_SAMPLE_CALLCHAIN))
+	if (!no_callchain)
 		symbol_conf.use_callchain = true;
 	else
 		symbol_conf.use_callchain = false;
-
-	if (strcmp(input_name, "-") &&
-	    !perf_session__has_traces(session, "record -R"))
-		return -EINVAL;
 
 	if (generate_script_lang) {
 		struct stat perf_stat;
