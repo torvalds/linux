@@ -13758,6 +13758,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 }
 
 #define alc268_auto_init_analog_input	alc882_auto_init_analog_input
+#define alc268_auto_init_input_src	alc882_auto_init_input_src
 
 /* init callback for auto-configuration model -- overriding the default init */
 static void alc268_auto_init(struct hda_codec *codec)
@@ -13767,6 +13768,7 @@ static void alc268_auto_init(struct hda_codec *codec)
 	alc268_auto_init_hp_out(codec);
 	alc268_auto_init_mono_speaker_out(codec);
 	alc268_auto_init_analog_input(codec);
+	alc268_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -14074,13 +14076,6 @@ static int patch_alc268(struct hda_codec *codec)
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids);
 			add_mixer(spec, alc268_capture_mixer);
 		}
-		/* set default input source */
-		for (i = 0; i < spec->num_adc_nids; i++)
-			snd_hda_codec_write_cache(codec, alc268_capsrc_nids[i],
-				0, AC_VERB_SET_CONNECT_SEL,
-				i < spec->num_mux_defs ?
-				spec->input_mux[i].items[0].index :
-				spec->input_mux->items[0].index);
 	}
 
 	spec->vmaster_nid = 0x02;
@@ -14769,11 +14764,6 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 		fillup_priv_adc_nids(codec, alc269_adc_candidates,
 				     sizeof(alc269_adc_candidates));
 
-	/* set default input source */
-	if (!spec->dual_adc_switch)
-		select_or_unmute_capsrc(codec, spec->capsrc_nids[0],
-					spec->input_mux->items[0].index);
-
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
@@ -14787,6 +14777,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 #define alc269_auto_init_multi_out	alc268_auto_init_multi_out
 #define alc269_auto_init_hp_out		alc268_auto_init_hp_out
 #define alc269_auto_init_analog_input	alc882_auto_init_analog_input
+#define alc269_auto_init_input_src	alc882_auto_init_input_src
 
 
 /* init callback for auto-configuration model -- overriding the default init */
@@ -14796,6 +14787,8 @@ static void alc269_auto_init(struct hda_codec *codec)
 	alc269_auto_init_multi_out(codec);
 	alc269_auto_init_hp_out(codec);
 	alc269_auto_init_analog_input(codec);
+	if (!spec->dual_adc_switch)
+		alc269_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
