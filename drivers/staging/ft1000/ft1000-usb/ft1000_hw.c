@@ -882,8 +882,8 @@ int reg_ft1000_netdev(struct ft1000_device *ft1000dev,
 
 static int ft1000_reset(struct net_device *dev)
 {
-    ft1000_reset_card(dev);
-    return 0;
+	ft1000_reset_card(dev);
+	return 0;
 }
 
 //---------------------------------------------------------------------------
