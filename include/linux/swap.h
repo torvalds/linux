@@ -299,8 +299,6 @@ extern void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
 					struct page **pagep, swp_entry_t *ent);
 #endif
 
-extern void swap_unplug_io_fn(struct backing_dev_info *, struct page *);
-
 #ifdef CONFIG_SWAP
 /* linux/mm/page_io.c */
 extern int swap_readpage(struct page *);

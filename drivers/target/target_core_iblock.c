@@ -392,9 +392,8 @@ static int iblock_do_task(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct iblock_req *req = IBLOCK_REQ(task);
-	struct iblock_dev *ibd = (struct iblock_dev *)req->ib_dev;
-	struct request_queue *q = bdev_get_queue(ibd->ibd_bd);
 	struct bio *bio = req->ib_bio, *nbio = NULL;
+	struct blk_plug plug;
 	int rw;
 
 	if (task->task_data_direction == DMA_TO_DEVICE) {
@@ -412,6 +411,7 @@ static int iblock_do_task(struct se_task *task)
 		rw = READ;
 	}
 
+	blk_start_plug(&plug);
 	while (bio) {
 		nbio = bio->bi_next;
 		bio->bi_next = NULL;
@@ -421,9 +421,8 @@ static int iblock_do_task(struct se_task *task)
 		submit_bio(rw, bio);
 		bio = nbio;
 	}
+	blk_finish_plug(&plug);
 
-	if (q->unplug_fn)
-		q->unplug_fn(q);
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 

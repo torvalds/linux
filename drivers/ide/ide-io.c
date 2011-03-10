@@ -549,8 +549,6 @@ plug_device_2:
 
 	if (rq)
 		blk_requeue_request(q, rq);
-	if (!elv_queue_empty(q))
-		blk_plug_device(q);
 }
 
 void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
@@ -562,8 +560,6 @@ void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
 
 	if (rq)
 		blk_requeue_request(q, rq);
-	if (!elv_queue_empty(q))
-		blk_plug_device(q);
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }

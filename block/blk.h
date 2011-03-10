@@ -18,8 +18,6 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
 
-void blk_unplug_work(struct work_struct *work);
-void blk_unplug_timeout(unsigned long data);
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);

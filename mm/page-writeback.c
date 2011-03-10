@@ -1239,7 +1239,7 @@ int set_page_dirty_lock(struct page *page)
 {
 	int ret;
 
-	lock_page_nosync(page);
+	lock_page(page);
 	ret = set_page_dirty(page);
 	unlock_page(page);
 	return ret;

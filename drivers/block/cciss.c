@@ -3170,12 +3170,6 @@ static void do_cciss_request(struct request_queue *q)
 	int sg_index = 0;
 	int chained = 0;
 
-	/* We call start_io here in case there is a command waiting on the
-	 * queue that has not been sent.
-	 */
-	if (blk_queue_plugged(q))
-		goto startio;
-
       queue:
 	creq = blk_peek_request(q);
 	if (!creq)

@@ -394,7 +394,7 @@ static void raid_unplug(struct dm_target_callbacks *cb)
 {
 	struct raid_set *rs = container_of(cb, struct raid_set, callbacks);
 
-	md_raid5_unplug_device(rs->md.private);
+	md_raid5_kick_device(rs->md.private);
 }
 
 /*

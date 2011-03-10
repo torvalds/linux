@@ -194,7 +194,6 @@ static void flush_end_io(struct request *flush_rq, int error)
 {
 	struct request_queue *q = flush_rq->q;
 	struct list_head *running = &q->flush_queue[q->flush_running_idx];
-	bool was_empty = elv_queue_empty(q);
 	bool queued = false;
 	struct request *rq, *n;
 
@@ -218,7 +217,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 	 * from request completion path and calling directly into
 	 * request_fn may confuse the driver.  Always use kblockd.
 	 */
-	if (queued && was_empty)
+	if (queued)
 		__blk_run_queue(q, true);
 }
 
@@ -269,13 +268,12 @@ static bool blk_kick_flush(struct request_queue *q)
 static void flush_data_end_io(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
-	bool was_empty = elv_queue_empty(q);
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
 	 * the comment in flush_end_io().
 	 */
-	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error) && was_empty)
+	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error))
 		__blk_run_queue(q, true);
 }
 

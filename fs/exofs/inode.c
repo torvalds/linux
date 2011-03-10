@@ -795,7 +795,6 @@ const struct address_space_operations exofs_aops = {
 	.direct_IO	= NULL, /* TODO: Should be trivial to do */
 
 	/* With these NULL has special meaning or default is not exported */
-	.sync_page	= NULL,
 	.get_xip_mem	= NULL,
 	.migratepage	= NULL,
 	.launder_page	= NULL,

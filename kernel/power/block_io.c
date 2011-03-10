@@ -28,7 +28,7 @@
 static int submit(int rw, struct block_device *bdev, sector_t sector,
 		struct page *page, struct bio **bio_chain)
 {
-	const int bio_rw = rw | REQ_SYNC | REQ_UNPLUG;
+	const int bio_rw = rw | REQ_SYNC;
 	struct bio *bio;
 
 	bio = bio_alloc(__GFP_WAIT | __GFP_HIGH, 1);

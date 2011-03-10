@@ -1275,29 +1275,6 @@ int dm_table_any_busy_target(struct dm_table *t)
 	return 0;
 }
 
-void dm_table_unplug_all(struct dm_table *t)
-{
-	struct dm_dev_internal *dd;
-	struct list_head *devices = dm_table_get_devices(t);
-	struct dm_target_callbacks *cb;
-
-	list_for_each_entry(dd, devices, list) {
-		struct request_queue *q = bdev_get_queue(dd->dm_dev.bdev);
-		char b[BDEVNAME_SIZE];
-
-		if (likely(q))
-			blk_unplug(q);
-		else
-			DMWARN_LIMIT("%s: Cannot unplug nonexistent device %s",
-				     dm_device_name(t->md),
-				     bdevname(dd->dm_dev.bdev, b));
-	}
-
-	list_for_each_entry(cb, &t->target_callbacks, list)
-		if (cb->unplug_fn)
-			cb->unplug_fn(cb);
-}
-
 struct mapped_device *dm_table_get_md(struct dm_table *t)
 {
 	return t->md;
@@ -1345,4 +1322,3 @@ EXPORT_SYMBOL(dm_table_get_mode);
 EXPORT_SYMBOL(dm_table_get_md);
 EXPORT_SYMBOL(dm_table_put);
 EXPORT_SYMBOL(dm_table_get);
-EXPORT_SYMBOL(dm_table_unplug_all);

@@ -991,7 +991,7 @@ xfs_buf_lock(
 	if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
 		xfs_log_force(bp->b_target->bt_mount, 0);
 	if (atomic_read(&bp->b_io_remaining))
-		blk_run_address_space(bp->b_target->bt_mapping);
+		blk_flush_plug(current);
 	down(&bp->b_sema);
 	XB_SET_OWNER(bp);
 
@@ -1035,9 +1035,7 @@ xfs_buf_wait_unpin(
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (atomic_read(&bp->b_pin_count) == 0)
 			break;
-		if (atomic_read(&bp->b_io_remaining))
-			blk_run_address_space(bp->b_target->bt_mapping);
-		schedule();
+		io_schedule();
 	}
 	remove_wait_queue(&bp->b_waiters, &wait);
 	set_current_state(TASK_RUNNING);
@@ -1443,7 +1441,7 @@ xfs_buf_iowait(
 	trace_xfs_buf_iowait(bp, _RET_IP_);
 
 	if (atomic_read(&bp->b_io_remaining))
-		blk_run_address_space(bp->b_target->bt_mapping);
+		blk_flush_plug(current);
 	wait_for_completion(&bp->b_iowait);
 
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
@@ -1667,7 +1665,6 @@ xfs_mapping_buftarg(
 	struct inode		*inode;
 	struct address_space	*mapping;
 	static const struct address_space_operations mapping_aops = {
-		.sync_page = block_sync_page,
 		.migratepage = fail_migrate_page,
 	};
 
@@ -1948,7 +1945,7 @@ xfsbufd(
 			count++;
 		}
 		if (count)
-			blk_run_address_space(target->bt_mapping);
+			blk_flush_plug(current);
 
 	} while (!kthread_should_stop());
 
@@ -1996,7 +1993,7 @@ xfs_flush_buftarg(
 
 	if (wait) {
 		/* Expedite and wait for IO to complete. */
-		blk_run_address_space(target->bt_mapping);
+		blk_flush_plug(current);
 		while (!list_empty(&wait_list)) {
 			bp = list_first_entry(&wait_list, struct xfs_buf, b_list);
 

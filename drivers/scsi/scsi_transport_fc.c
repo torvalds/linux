@@ -3913,7 +3913,7 @@ fc_bsg_request_handler(struct request_queue *q, struct Scsi_Host *shost,
 	if (!get_device(dev))
 		return;
 
-	while (!blk_queue_plugged(q)) {
+	while (1) {
 		if (rport && (rport->port_state == FC_PORTSTATE_BLOCKED) &&
 		    !(rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT))
 			break;

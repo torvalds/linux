@@ -286,11 +286,6 @@ void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callback
 int dm_table_complete(struct dm_table *t);
 
 /*
- * Unplug all devices in a table.
- */
-void dm_table_unplug_all(struct dm_table *t);
-
-/*
  * Table reference counting.
  */
 struct dm_table *dm_get_live_table(struct mapped_device *md);

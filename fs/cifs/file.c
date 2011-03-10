@@ -1569,34 +1569,6 @@ int cifs_fsync(struct file *file, int datasync)
 	return rc;
 }
 
-/* static void cifs_sync_page(struct page *page)
-{
-	struct address_space *mapping;
-	struct inode *inode;
-	unsigned long index = page->index;
-	unsigned int rpages = 0;
-	int rc = 0;
-
-	cFYI(1, "sync page %p", page);
-	mapping = page->mapping;
-	if (!mapping)
-		return 0;
-	inode = mapping->host;
-	if (!inode)
-		return; */
-
-/*	fill in rpages then
-	result = cifs_pagein_inode(inode, index, rpages); */ /* BB finish */
-
-/*	cFYI(1, "rpages is %d for sync page of Index %ld", rpages, index);
-
-#if 0
-	if (rc < 0)
-		return rc;
-	return 0;
-#endif
-} */
-
 /*
  * As file closes, flush all cached write data for this inode checking
  * for write behind errors.
@@ -2510,7 +2482,6 @@ const struct address_space_operations cifs_addr_ops = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
-	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };
 
@@ -2528,6 +2499,5 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
-	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };

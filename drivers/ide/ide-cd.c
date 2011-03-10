@@ -258,17 +258,10 @@ static int ide_cd_breathe(ide_drive_t *drive, struct request *rq)
 	if (time_after(jiffies, info->write_timeout))
 		return 0;
 	else {
-		struct request_queue *q = drive->queue;
-		unsigned long flags;
-
 		/*
-		 * take a breather relying on the unplug timer to kick us again
+		 * take a breather
 		 */
-
-		spin_lock_irqsave(q->queue_lock, flags);
-		blk_plug_device(q);
-		spin_unlock_irqrestore(q->queue_lock, flags);
-
+		blk_delay_queue(drive->queue, 1);
 		return 1;
 	}
 }
@@ -1513,8 +1506,6 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	blk_queue_prep_rq(q, ide_cdrom_prep_fn);
 	blk_queue_dma_alignment(q, 31);
 	blk_queue_update_dma_pad(q, 15);
-
-	q->unplug_delay = max((1 * HZ) / 1000, 1);
 
 	drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
 	drive->atapi_flags = IDE_AFLAG_NO_EJECT | ide_cd_flags(id);
