@@ -902,14 +902,14 @@ static int ft1000_reset(struct net_device *dev)
 static void ft1000_usb_transmit_complete(struct urb *urb)
 {
 
-    struct ft1000_device *ft1000dev = urb->context;
+	struct ft1000_device *ft1000dev = urb->context;
 
     //DEBUG("ft1000_usb_transmit_complete entered\n");
 
-    if (urb->status)
-        printk("%s: TX status %d\n", ft1000dev->net->name, urb->status);
+	if (urb->status)
+		pr_err("%s: TX status %d\n", ft1000dev->net->name, urb->status);
 
-    netif_wake_queue(ft1000dev->net);
+	netif_wake_queue(ft1000dev->net);
 
     //DEBUG("Return from ft1000_usb_transmit_complete\n");
 }
