@@ -473,12 +473,63 @@ static struct regulator_consumer_supply overo_vmmc1_supply = {
 	.supply			= "vmmc",
 };
 
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+#include <linux/leds.h>
+
+static struct gpio_led gpio_leds[] = {
+	{
+		.name			= "overo:red:gpio21",
+		.default_trigger	= "heartbeat",
+		.gpio			= 21,
+		.active_low		= true,
+	},
+	{
+		.name			= "overo:blue:gpio22",
+		.default_trigger	= "none",
+		.gpio			= 22,
+		.active_low		= true,
+	},
+	{
+		.name			= "overo:blue:COM",
+		.default_trigger	= "mmc0",
+		.gpio			= -EINVAL,	/* gets replaced */
+		.active_low		= true,
+	},
+};
+
+static struct gpio_led_platform_data gpio_leds_pdata = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device gpio_leds_device = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_leds_pdata,
+	},
+};
+
+static void __init overo_init_led(void)
+{
+	platform_device_register(&gpio_leds_device);
+}
+
+#else
+static inline void __init overo_init_led(void) { return; }
+#endif
+
 static int overo_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
 	omap2_hsmmc_init(mmc);
 
 	overo_vmmc1_supply.dev = mmc[0].dev;
+
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
+	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
+#endif
 
 	return 0;
 }
@@ -487,6 +538,7 @@ static struct twl4030_gpio_platform_data overo_gpio_data = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
 	.irq_base	= TWL4030_GPIO_IRQ_BASE,
 	.irq_end	= TWL4030_GPIO_IRQ_END,
+	.use_leds	= true,
 	.setup		= overo_twl_gpio_setup,
 };
 
@@ -648,6 +700,7 @@ static void __init overo_init(void)
 	overo_spi_init();
 	overo_init_smsc911x();
 	overo_display_init();
+	overo_init_led();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
