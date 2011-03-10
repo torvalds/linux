@@ -222,16 +222,6 @@ static unsigned gsi_from_irq(unsigned irq)
 	return info->u.pirq.gsi;
 }
 
-static unsigned vector_from_irq(unsigned irq)
-{
-	struct irq_info *info = info_for_irq(irq);
-
-	BUG_ON(info == NULL);
-	BUG_ON(info->type != IRQT_PIRQ);
-
-	return info->u.pirq.vector;
-}
-
 static enum xen_irq_type type_from_irq(unsigned irq)
 {
 	return info_for_irq(irq)->type;
@@ -714,16 +704,6 @@ int xen_destroy_irq(int irq)
 out:
 	spin_unlock(&irq_mapping_update_lock);
 	return rc;
-}
-
-int xen_vector_from_irq(unsigned irq)
-{
-	return vector_from_irq(irq);
-}
-
-int xen_gsi_from_irq(unsigned irq)
-{
-	return gsi_from_irq(irq);
 }
 
 int xen_irq_from_pirq(unsigned pirq)
