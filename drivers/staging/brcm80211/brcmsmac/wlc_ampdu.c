@@ -34,7 +34,6 @@
 #include "wlc_antsel.h"
 #include "wl_export.h"
 #include "wl_dbg.h"
-#include "wlc_bsscfg.h"
 #include "wlc_channel.h"
 #include "wlc_main.h"
 #include "wlc_ampdu.h"

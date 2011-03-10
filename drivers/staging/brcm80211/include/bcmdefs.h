@@ -157,5 +157,6 @@ typedef struct {
 
 /* handle forward declaration */
 struct wl_info;
+struct wlc_bsscfg;
 
 #endif				/* _bcmdefs_h_ */

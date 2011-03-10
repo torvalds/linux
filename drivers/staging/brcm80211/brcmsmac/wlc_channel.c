@@ -35,7 +35,6 @@
 #include "wlc_bmac.h"
 #include "wlc_rate.h"
 #include "wlc_channel.h"
-#include "wlc_bsscfg.h"
 #include "wlc_main.h"
 #include "wlc_stf.h"
 #include "wl_dbg.h"

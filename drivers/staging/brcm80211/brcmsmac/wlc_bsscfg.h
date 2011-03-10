@@ -23,9 +23,6 @@
 
 #define BSSCFG_IBSS(cfg)	(!(cfg)->BSS)
 
-/* forward declarations */
-typedef struct wlc_bsscfg wlc_bsscfg_t;
-
 #define NTXRATE			64	/* # tx MPDUs rate is reported for */
 #define MAXMACLIST		64	/* max # source MAC matches */
 #define BCN_TEMPLATE_COUNT 	2
