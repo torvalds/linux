@@ -353,7 +353,7 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device* ieee, struct sk_buff *skb)
 	pBA->BaTimeoutValue = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
 	//for half N mode we only aggregate 1 frame
-	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee))
 	pBA->BaParamSet.field.BufferSize = 1;
 	else
 	pBA->BaParamSet.field.BufferSize = 32;

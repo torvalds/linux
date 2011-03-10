@@ -330,7 +330,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 
 
 #if 1
-	if(!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+	if (!ieee->GetNmodeSupportBySecCfg(ieee))
 	{
 		return;
 	}

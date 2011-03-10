@@ -2634,7 +2634,7 @@ static inline void ieee80211_process_probe_response(
 	if (is_beacon(beacon->header.frame_ctl)&&is_same_network(&ieee->current_network, &network, ieee)&&\
 		(ieee->state == IEEE80211_LINKED)) {
 		if(ieee->handle_beacon != NULL) {
-			ieee->handle_beacon(ieee->dev,beacon,&ieee->current_network);
+			ieee->handle_beacon(ieee, beacon, &ieee->current_network);
 		}
 	}
 }

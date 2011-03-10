@@ -2125,9 +2125,9 @@ void rtl8192_SetBWModeWorkItem(struct r8192_priv *priv)
  *    Note:  I doubt whether SetBWModeInProgress flag is necessary as we can
  *    	     test whether current work in the queue or not.//do I?
  * ***************************************************************************/
-void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET Offset)
+void rtl8192_SetBWMode(struct ieee80211_device *ieee, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee->dev);
 
 
 	if(priv->SetBWModeInProgress)
@@ -2152,11 +2152,11 @@ void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EX
 }
 
 
-void InitialGain819xPci(struct net_device *dev, u8 Operation)
+void InitialGain819xPci(struct ieee80211_device *ieee, u8 Operation)
 {
 #define SCAN_RX_INITIAL_GAIN	0x17
 #define POWER_DETECTION_TH	0x08
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee->dev);
 	u32					BitMask;
 	u8					initial_gain;
 

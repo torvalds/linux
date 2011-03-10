@@ -223,7 +223,7 @@ bool IsHTHalfNmode40Bandwidth(struct ieee80211_device* ieee)
 		retValue = false;
 	else if(pHTInfo->bRegBW40MHz == false)	// station supports 40 bw
 		retValue = false;
-	else if(!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) 	// station in half n mode
+	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee))	// station in half n mode
 		retValue = false;
 	else if(((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ChlWidth) // ap support 40 bw
 		retValue = true;
@@ -240,7 +240,7 @@ bool IsHTHalfNmodeSGI(struct ieee80211_device* ieee, bool is40MHz)
 
 	if(pHTInfo->bCurrentHTSupport == false )	// wireless is n mode
 		retValue = false;
-	else if(!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) 	// station in half n mode
+	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee))	// station in half n mode
 		retValue = false;
 	else if(is40MHz) // ap support 40 bw
 	{
@@ -652,7 +652,7 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 
 	//HT capability info
 	pCapELE->AdvCoding 		= 0; // This feature is not supported now!!
-	if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee))
 	{
 		pCapELE->ChlWidth = 0;
 	}
@@ -705,7 +705,7 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 
 	// 2008.06.12
 	// For RTL819X, if pairwisekey = wep/tkip, ap is ralink, we support only MCS0~7.
-	if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee))
 	{
 		int i;
 		for(i = 1; i< 16; i++)
@@ -993,7 +993,7 @@ u8 HTFilterMCSRate( struct ieee80211_device* ieee, u8* pSupportMCS, u8* pOperate
 	HT_PickMCSRate(ieee, pOperateMCS);
 
 	// For RTL819X, if pairwisekey = wep/tkip, we support only MCS0~7.
-	if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee))
 		pOperateMCS[1] = 0;
 
 	//
@@ -1679,7 +1679,7 @@ void HTSetConnectBwMode(struct ieee80211_device* ieee, HT_CHANNEL_WIDTH	Bandwidt
 		return;
 	}
 	//if in half N mode, set to 20M bandwidth please 09.08.2008 WB.
-	if(Bandwidth==HT_CHANNEL_WIDTH_20_40 && (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)))
+	if (Bandwidth==HT_CHANNEL_WIDTH_20_40 && (!ieee->GetHalfNmodeSupportByAPsHandler(ieee)))
 	 {
 	 		// Handle Illegal extention channel offset!!
 		if(ieee->current_network.channel<2 && Offset==HT_EXTCHNL_OFFSET_LOWER)
@@ -1722,10 +1722,10 @@ void HTSetConnectBwModeCallback(struct ieee80211_device* ieee)
 		else
 			ieee->set_chan(ieee, ieee->current_network.channel);
 
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
+		ieee->SetBWModeHandler(ieee, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
 	} else {
 		ieee->set_chan(ieee, ieee->current_network.channel);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+		ieee->SetBWModeHandler(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 
 	pHTInfo->bSwBwInProgress = false;

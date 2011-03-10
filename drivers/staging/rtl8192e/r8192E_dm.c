@@ -313,7 +313,7 @@ static void dm_check_rate_adaptive(struct r8192_priv *priv)
 		}
 
 		// For RTL819X, if pairwisekey = wep/tkip, we support only MCS0~7.
-		if(priv->ieee80211->GetHalfNmodeSupportByAPsHandler(priv->ieee80211->dev))
+		if(priv->ieee80211->GetHalfNmodeSupportByAPsHandler(priv->ieee80211))
 			targetRATR &=  0xf00fffff;
 
 		//

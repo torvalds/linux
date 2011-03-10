@@ -322,13 +322,13 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 	ieee->state = IEEE80211_LINKED_SCANNING;
 	ieee->link_change(ieee);
-	ieee->InitialGainHandler(ieee->dev,IG_Backup);
+	ieee->InitialGainHandler(ieee, IG_Backup);
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
 		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
 		bandwidth = (HT_CHANNEL_WIDTH)ieee->pHTInfo->bCurBW40MHz;
 		printk("Scan in 40M, force to 20M first:%d, %d\n", chan_offset, bandwidth);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+		ieee->SetBWModeHandler(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 		}
 	ieee80211_start_scan_syncro(ieee);
 	if (b40M) {
@@ -339,12 +339,12 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 			ieee->set_chan(ieee, chan - 2);
 		else
 			ieee->set_chan(ieee, chan);
-		ieee->SetBWModeHandler(ieee->dev, bandwidth, chan_offset);
+		ieee->SetBWModeHandler(ieee, bandwidth, chan_offset);
 	} else {
 		ieee->set_chan(ieee, chan);
 	}
 
-	ieee->InitialGainHandler(ieee->dev,IG_Restore);
+	ieee->InitialGainHandler(ieee, IG_Restore);
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee);
 

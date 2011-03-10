@@ -259,8 +259,8 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			ieee->seq_ctrl[0]++;
 
 		/* check wether the managed packet queued greater than 5 */
-		if(!ieee->check_nic_enough_desc(ieee->dev,tcb_desc->queue_index)||\
-				(skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0)||\
+		if(!ieee->check_nic_enough_desc(ieee, tcb_desc->queue_index)||
+				(skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0)||
 				(ieee->queue_stop) ) {
 			/* insert the skb packet to the management queue */
 			/* as for the completion function, it does not need
@@ -1508,11 +1508,11 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 					if(ieee80211_is_54g(ieee->current_network) &&
 						(ieee->modulation & IEEE80211_OFDM_MODULATION)){
 						ieee->rate = 108;
-						ieee->SetWirelessMode(ieee->dev, IEEE_G);
+						ieee->SetWirelessMode(ieee, IEEE_G);
 						printk(KERN_INFO"Using G rates\n");
 					}else{
 						ieee->rate = 22;
-						ieee->SetWirelessMode(ieee->dev, IEEE_B);
+						ieee->SetWirelessMode(ieee, IEEE_B);
 						printk(KERN_INFO"Using B rates\n");
 					}
 					memset(ieee->dot11HTOperationalRateSet, 0, 16);
@@ -1845,13 +1845,13 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 	}
 	if(sleep == 1){
 		if(ieee->sta_sleep == 1){
-			ieee->enter_sleep_state(ieee->dev,th,tl);
+			ieee->enter_sleep_state(ieee, th, tl);
 		}
 
 		else if(ieee->sta_sleep == 0){
 			spin_lock(&ieee->mgmt_tx_lock);
 
-			if(ieee->ps_is_queue_empty(ieee->dev)){
+			if (ieee->ps_is_queue_empty(ieee)) {
 				ieee->sta_sleep = 2;
 				ieee->ack_tx_to_ieee = 1;
 				ieee80211_sta_ps_send_null_frame(ieee,1);
@@ -1897,7 +1897,7 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 	}
 
 	if(ieee->sta_sleep == 1)
-		ieee->sta_wake_up(ieee->dev);
+		ieee->sta_wake_up(ieee);
 	if(nl){
 
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
@@ -1929,7 +1929,7 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 		/* Null frame with PS bit set */
 		if(success){
 			ieee->sta_sleep = 1;
-			ieee->enter_sleep_state(ieee->dev,ieee->ps_th,ieee->ps_tl);
+			ieee->enter_sleep_state(ieee, ieee->ps_th, ieee->ps_tl);
 		}
 	} else {/* 21112005 - tx again null without PS bit if lost */
 
@@ -2028,7 +2028,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 							memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
 						}
 						if (ieee->handle_assoc_response != NULL)
-							ieee->handle_assoc_response(ieee->dev, (struct ieee80211_assoc_response_frame*)header, network);
+							ieee->handle_assoc_response(ieee, (struct ieee80211_assoc_response_frame*)header, network);
 					}
 					ieee80211_associate_complete(ieee);
 				} else {
@@ -2072,7 +2072,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 								ieee->softmac_stats.rx_auth_rs_ok++;
 								if(!(ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE))
 								{
-									if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+									if (!ieee->GetNmodeSupportBySecCfg(ieee))
 									{
 										// WEP or TKIP encryption
 										if(IsHTHalfNmodeAPs(ieee))
@@ -2091,12 +2091,12 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 								/* Dummy wirless mode setting to avoid encryption issue */
 								if(bSupportNmode) {
 									//N mode setting
-									ieee->SetWirelessMode(ieee->dev, \
+									ieee->SetWirelessMode(ieee,
 											ieee->current_network.mode);
 								}else{
 									//b/g mode setting
 									/*TODO*/
-									ieee->SetWirelessMode(ieee->dev, IEEE_G);
+									ieee->SetWirelessMode(ieee, IEEE_G);
 								}
 
 								if (ieee->current_network.mode == IEEE_N_24G && bHalfSupportNmode == true)
@@ -2207,7 +2207,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 #else
 		if ((skb_queue_len(&ieee->skb_waitQ[queue_index]) != 0) ||
 #endif
-		(!ieee->check_nic_enough_desc(ieee->dev,queue_index))||\
+		(!ieee->check_nic_enough_desc(ieee, queue_index))||
 		     (ieee->queue_stop)) {
 			/* insert the skb packet to the wait queue */
 			/* as for the completion function, it does not need
@@ -2457,7 +2457,7 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 
 		// By default, WMM function will be disabled in IBSS mode
 		ieee->current_network.QoS_Enable = 0;
-		ieee->SetWirelessMode(ieee->dev, IEEE_G);
+		ieee->SetWirelessMode(ieee, IEEE_G);
 		ieee->current_network.atim_window = 0;
 		ieee->current_network.capability = WLAN_CAPABILITY_IBSS;
 		if(ieee->short_slot)

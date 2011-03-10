@@ -2186,20 +2186,20 @@ struct ieee80211_device {
 	void (*stop_send_beacons) (struct ieee80211_device *dev);
 
 	/* power save mode related */
-	void (*sta_wake_up) (struct net_device *dev);
-	void (*enter_sleep_state) (struct net_device *dev, u32 th, u32 tl);
-	short (*ps_is_queue_empty) (struct net_device *dev);
-        int (*handle_beacon) (struct net_device * dev, struct ieee80211_beacon * beacon, struct ieee80211_network * network);
-        int (*handle_assoc_response) (struct net_device * dev, struct ieee80211_assoc_response_frame * resp, struct ieee80211_network * network);
+	void (*sta_wake_up) (struct ieee80211_device *ieee80211);
+	void (*enter_sleep_state) (struct ieee80211_device *ieee80211, u32 th, u32 tl);
+	short (*ps_is_queue_empty) (struct ieee80211_device *ieee80211);
+        int (*handle_beacon) (struct ieee80211_device *ieee80211, struct ieee80211_beacon *beacon, struct ieee80211_network *network);
+        int (*handle_assoc_response) (struct ieee80211_device *ieee80211, struct ieee80211_assoc_response_frame *resp, struct ieee80211_network *network);
 
 	/* check whether Tx hw resouce available */
-	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
+	short (*check_nic_enough_desc)(struct ieee80211_device *ieee80211, int queue_index);
 	//added by wb for HT related
-	void (*SetBWModeHandler)(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);
-	bool (*GetNmodeSupportBySecCfg)(struct net_device* dev);
-	void (*SetWirelessMode)(struct net_device* dev, u8 wireless_mode);
-	bool (*GetHalfNmodeSupportByAPsHandler)(struct net_device* dev);
-	void (*InitialGainHandler)(struct net_device *dev, u8 Operation);
+	void (*SetBWModeHandler)(struct ieee80211_device *ieee80211, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);
+	bool (*GetNmodeSupportBySecCfg)(struct ieee80211_device *ieee80211);
+	void (*SetWirelessMode)(struct ieee80211_device *ieee80211, u8 wireless_mode);
+	bool (*GetHalfNmodeSupportByAPsHandler)(struct ieee80211_device *ieee80211);
+	void (*InitialGainHandler)(struct ieee80211_device *ieee80211, u8 Operation);
 
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_ieee80211 */

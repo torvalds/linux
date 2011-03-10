@@ -119,13 +119,13 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct r8192_priv *priv,
 
 u8 rtl8192_phy_SwChnl(struct ieee80211_device *ieee80211, u8 channel);
 
-void rtl8192_SetBWMode(struct net_device *dev,
+void rtl8192_SetBWMode(struct ieee80211_device *ieee80211,
 		HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);
 
 void rtl8192_SwChnl_WorkItem(struct r8192_priv *priv);
 
 void rtl8192_SetBWModeWorkItem(struct r8192_priv *priv);
 
-void InitialGain819xPci(struct net_device *dev, u8 Operation);
+void InitialGain819xPci(struct ieee80211_device *ieee, u8 Operation);
 
 #endif /* _R819XU_PHY_H */
