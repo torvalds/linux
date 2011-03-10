@@ -2648,62 +2648,7 @@ static void print_lat_fmt(void *data, int size __unused)
 		printf("%d", lock_depth);
 }
 
-/* taken from Linux, written by Frederic Weisbecker */
-static void print_graph_cpu(int cpu)
-{
-	int i;
-	int log10_this = log10_cpu(cpu);
-	int log10_all = log10_cpu(cpus);
-
-
-	/*
-	 * Start with a space character - to make it stand out
-	 * to the right a bit when trace output is pasted into
-	 * email:
-	 */
-	printf(" ");
-
-	/*
-	 * Tricky - we space the CPU field according to the max
-	 * number of online CPUs. On a 2-cpu system it would take
-	 * a maximum of 1 digit - on a 128 cpu system it would
-	 * take up to 3 digits:
-	 */
-	for (i = 0; i < log10_all - log10_this; i++)
-		printf(" ");
-
-	printf("%d) ", cpu);
-}
-
-#define TRACE_GRAPH_PROCINFO_LENGTH	14
 #define TRACE_GRAPH_INDENT	2
-
-static void print_graph_proc(int pid, const char *comm)
-{
-	/* sign + log10(MAX_INT) + '\0' */
-	char pid_str[11];
-	int spaces = 0;
-	int len;
-	int i;
-
-	sprintf(pid_str, "%d", pid);
-
-	/* 1 stands for the "-" character */
-	len = strlen(comm) + strlen(pid_str) + 1;
-
-	if (len < TRACE_GRAPH_PROCINFO_LENGTH)
-		spaces = TRACE_GRAPH_PROCINFO_LENGTH - len;
-
-	/* First spaces to align center */
-	for (i = 0; i < spaces / 2; i++)
-		printf(" ");
-
-	printf("%s-%s", comm, pid_str);
-
-	/* Last spaces to align center */
-	for (i = 0; i < spaces - (spaces / 2); i++)
-		printf(" ");
-}
 
 static struct record *
 get_return_for_leaf(int cpu, int cur_pid, unsigned long long cur_func,
@@ -2876,7 +2821,7 @@ static void print_graph_nested(struct event *event, void *data)
 
 static void
 pretty_print_func_ent(void *data, int size, struct event *event,
-		      int cpu, int pid, const char *comm,
+		      int cpu, int pid, const char *comm __unused,
 		      unsigned long secs, unsigned long usecs)
 {
 	struct format_field *field;
@@ -2885,9 +2830,6 @@ pretty_print_func_ent(void *data, int size, struct event *event,
 	unsigned long val;
 
 	printf("%5lu.%06lu |  ", secs, usecs);
-
-	print_graph_cpu(cpu);
-	print_graph_proc(pid, comm);
 
 	printf(" | ");
 
@@ -2924,7 +2866,7 @@ out_free:
 
 static void
 pretty_print_func_ret(void *data, int size __unused, struct event *event,
-		      int cpu, int pid, const char *comm,
+		      int cpu __unused, int pid __unused, const char *comm __unused,
 		      unsigned long secs, unsigned long usecs)
 {
 	unsigned long long rettime, calltime;
@@ -2933,9 +2875,6 @@ pretty_print_func_ret(void *data, int size __unused, struct event *event,
 	int i;
 
 	printf("%5lu.%06lu |  ", secs, usecs);
-
-	print_graph_cpu(cpu);
-	print_graph_proc(pid, comm);
 
 	printf(" | ");
 
