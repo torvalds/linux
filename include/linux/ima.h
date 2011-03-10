@@ -39,5 +39,15 @@ static inline int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	return 0;
 }
+
 #endif /* CONFIG_IMA_H */
+
+#ifdef CONFIG_IMA_APPRAISE
+extern void ima_inode_post_setattr(struct dentry *dentry);
+#else
+static inline void ima_inode_post_setattr(struct dentry *dentry)
+{
+	return;
+}
+#endif /* CONFIG_IMA_APPRAISE_H */
 #endif /* _LINUX_IMA_H */
