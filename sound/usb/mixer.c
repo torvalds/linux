@@ -1122,6 +1122,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		}
 		break;
 
+	case USB_ID(0x046d, 0x0808):
 	case USB_ID(0x046d, 0x0809):
 	case USB_ID(0x046d, 0x0991):
 	/* Most audio usb devices lie about volume resolution.
