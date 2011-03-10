@@ -165,6 +165,14 @@ config USB_EHCI_MSM
 	  This driver is not supported on boards like trout which
 	  has an external PHY.
 
+config USB_EHCI_TEGRA
+       boolean "NVIDIA Tegra HCD support"
+       depends on USB_EHCI_HCD && ARCH_TEGRA
+       select USB_EHCI_ROOT_HUB_TT
+       help
+         This driver enables support for the internal USB Host Controllers
+         found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
+
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
 	depends on USB_EHCI_HCD && PPC_OF
