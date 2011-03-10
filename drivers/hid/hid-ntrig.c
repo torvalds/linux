@@ -110,6 +110,36 @@ static int ntrig_version_string(unsigned char *raw, char *buf)
 	return sprintf(buf, "%u.%u.%u.%u.%u", a, b, c, d, e);
 }
 
+static inline int ntrig_get_mode(struct hid_device *hdev)
+{
+	struct hid_report *report = hdev->report_enum[HID_FEATURE_REPORT].
+				    report_id_hash[0x0d];
+
+	if (!report)
+		return -EINVAL;
+
+	usbhid_submit_report(hdev, report, USB_DIR_IN);
+	usbhid_wait_io(hdev);
+	return (int)report->field[0]->value[0];
+}
+
+static inline void ntrig_set_mode(struct hid_device *hdev, const int mode)
+{
+	struct hid_report *report;
+	__u8 mode_commands[4] = { 0xe, 0xf, 0x1b, 0x10 };
+
+	if (mode < 0 || mode > 3)
+		return;
+
+	report = hdev->report_enum[HID_FEATURE_REPORT].
+		 report_id_hash[mode_commands[mode]];
+
+	if (!report)
+		return;
+
+	usbhid_submit_report(hdev, report, USB_DIR_IN);
+}
+
 static void ntrig_report_version(struct hid_device *hdev)
 {
 	int ret;
@@ -905,8 +935,19 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/* This is needed for devices with more recent firmware versions */
 	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0x0a];
-	if (report)
-		usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	if (report) {
+		/* Let the device settle to ensure the wakeup message gets
+		 * through */
+		usbhid_wait_io(hdev);
+		usbhid_submit_report(hdev, report, USB_DIR_IN);
+
+		/*
+		 * Sanity check: if the current mode is invalid reset it to
+		 * something reasonable.
+		 */
+		if (ntrig_get_mode(hdev) >= 4)
+			ntrig_set_mode(hdev, 3);
+	}
 
 	ntrig_report_version(hdev);
 
