@@ -2081,12 +2081,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	struct fib_result res;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	struct flowi fl = { .fl4_dst	= daddr,
-			    .fl4_src	= saddr,
-			    .fl4_tos	= tos,
-			    .fl4_scope	= RT_SCOPE_UNIVERSE,
-			    .mark = skb->mark,
-			    .iif = dev->ifindex };
+	struct flowi fl;
 	unsigned	flags = 0;
 	u32		itag = 0;
 	struct rtable * rth;
@@ -2123,6 +2118,13 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/*
 	 *	Now we are ready to route packet.
 	 */
+	fl.oif = 0;
+	fl.iif = dev->ifindex;
+	fl.mark = skb->mark;
+	fl.fl4_dst = daddr;
+	fl.fl4_src = saddr;
+	fl.fl4_tos = tos;
+	fl.fl4_scope = RT_SCOPE_UNIVERSE;
 	err = fib_lookup(net, &fl, &res);
 	if (err != 0) {
 		if (!IN_DEV_FORWARD(in_dev))
