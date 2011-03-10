@@ -54,6 +54,8 @@
  */
 
 #include <linux/completion.h>
+#include <linux/irqflags.h>
+#include <scsi/sas_ata.h>
 #include "scic_task_request.h"
 #include "scic_remote_device.h"
 #include "scic_io_request.h"
@@ -64,6 +66,91 @@
 #include "sata.h"
 #include "task.h"
 
+/**
+* isci_task_complete_for_upper_layer() - This function completes the request
+*    to the upper layer driver in the case where an I/O needs to be completed
+*    back in the submit path.
+* @host: This parameter is a pointer to the host on which the the request
+*    should be queued (either as an error or success).
+* @task: This parameter is the completed request.
+* @response: This parameter is the response code for the completed task.
+* @status: This parameter is the status code for the completed task.
+*
+* none.
+*/
+static void isci_task_complete_for_upper_layer(struct sas_task *task,
+					       enum service_response response,
+					       enum exec_status status,
+					       enum isci_completion_selection task_notification_selection)
+{
+	unsigned long    flags = 0;
+	struct Scsi_Host *host = NULL;
+
+	task_notification_selection
+		= isci_task_set_completion_status(task, response, status,
+						  task_notification_selection);
+
+	/* Tasks aborted specifically by a call to the lldd_abort_task
+	* function should not be completed to the host in the regular path.
+	*/
+	switch (task_notification_selection) {
+		case isci_perform_normal_io_completion:
+			/* Normal notification (task_done) */
+			dev_dbg(task->dev->port->ha->dev,
+				"%s: Normal - task = %p, response=%d, status=%d\n",
+				__func__, task, response, status);
+
+			if (dev_is_sata(task->dev)) {
+				/* Since we are still in the submit path, and since
+				* libsas takes the host lock on behalf of SATA
+				* devices before I/O starts, we need to unlock
+				* before we can call back and report the I/O
+				* submission error.
+				*/
+				if (task->dev
+				    && task->dev->port
+				    && task->dev->port->ha) {
+
+					host = task->dev->port->ha->core.shost;
+					raw_local_irq_save(flags);
+					spin_unlock(host->host_lock);
+				}
+				task->task_done(task);
+				if (host) {
+					spin_lock(host->host_lock);
+					raw_local_irq_restore(flags);
+				}
+			} else
+				task->task_done(task);
+
+			task->lldd_task = NULL;
+			break;
+
+		case isci_perform_aborted_io_completion:
+			/* No notification because this request is already in the
+			* abort path.
+			*/
+			dev_warn(task->dev->port->ha->dev,
+				 "%s: Aborted - task = %p, response=%d, status=%d\n",
+				 __func__, task, response, status);
+			break;
+
+		case isci_perform_error_io_completion:
+			/* Use sas_task_abort */
+			dev_warn(task->dev->port->ha->dev,
+				 "%s: Error - task = %p, response=%d, status=%d\n",
+				 __func__, task, response, status);
+			sas_task_abort(task);
+			break;
+
+		default:
+			dev_warn(task->dev->port->ha->dev,
+				 "%s: isci task notification default case!",
+				 __func__);
+			sas_task_abort(task);
+			break;
+	}
+}
 
 /**
  * isci_task_execute_task() - This function is one of the SAS Domain Template
