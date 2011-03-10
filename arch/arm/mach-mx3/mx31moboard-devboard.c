@@ -15,6 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -149,7 +150,10 @@ static int devboard_usbh1_hw_init(struct platform_device *pdev)
 	mxc_iomux_set_pad(MX31_PIN_CSPI1_SPI_RDY, USB_PAD_CFG);
 	mxc_iomux_set_pad(MX31_PIN_SFS6, USB_PAD_CFG);
 
-	return 0;
+	mdelay(10);
+
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_SINGLE_UNI);
 }
 
 #define USBH1_VBUSEN_B	IOMUX_TO_GPIO(MX31_PIN_NFRE_B)
@@ -187,7 +191,6 @@ static int devboard_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
 static struct mxc_usbh_platform_data usbh1_pdata __initdata = {
 	.init	= devboard_usbh1_hw_init,
 	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
 };
 
 static int __init devboard_usbh1_init(void)
