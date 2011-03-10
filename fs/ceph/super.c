@@ -293,7 +293,7 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
         fsopt->sb_flags = flags;
         fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
 
-        fsopt->rsize = CEPH_MOUNT_RSIZE_DEFAULT;
+        fsopt->rsize = CEPH_RSIZE_DEFAULT;
         fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
@@ -375,7 +375,7 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
-	if (fsopt->rsize != CEPH_MOUNT_RSIZE_DEFAULT)
+	if (fsopt->rsize != CEPH_RSIZE_DEFAULT)
 		seq_printf(m, ",rsize=%d", fsopt->rsize);
 	if (fsopt->congestion_kb != default_congestion_kb())
 		seq_printf(m, ",write_congestion_kb=%d", fsopt->congestion_kb);
