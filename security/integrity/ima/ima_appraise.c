@@ -36,7 +36,10 @@ __setup("ima_appraise=", default_appraise_setup);
  */
 int ima_must_appraise(struct inode *inode, enum ima_hooks func, int mask)
 {
-	return 0;
+	if (!ima_appraise)
+		return 0;
+
+	return ima_match_policy(inode, func, mask, IMA_APPRAISE);
 }
 
 static void ima_fix_xattr(struct dentry *dentry,

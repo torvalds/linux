@@ -12,11 +12,14 @@ Description:
 		then closing the file.  The new policy takes effect after
 		the file ima/policy is closed.
 
+		IMA appraisal, if configured, uses these file measurements
+		for local measurement appraisal.
+
 		rule format: action [condition ...]
 
-		action: measure | dont_measure
+		action: measure | dont_measure | appraise | dont_appraise
 		condition:= base | lsm
-			base:	[[func=] [mask=] [fsmagic=] [uid=]]
+			base:	[[func=] [mask=] [fsmagic=] [uid=] [fowner]]
 			lsm:	[[subj_user=] [subj_role=] [subj_type=]
 				 [obj_user=] [obj_role=] [obj_type=]]
 
@@ -24,36 +27,50 @@ Description:
 			mask:= [MAY_READ] [MAY_WRITE] [MAY_APPEND] [MAY_EXEC]
 			fsmagic:= hex value
 			uid:= decimal value
+			fowner:=decimal value
 		lsm:  	are LSM specific
 
 		default policy:
 			# PROC_SUPER_MAGIC
 			dont_measure fsmagic=0x9fa0
+			dont_appraise fsmagic=0x9fa0
 			# SYSFS_MAGIC
 			dont_measure fsmagic=0x62656572
+			dont_appraise fsmagic=0x62656572
 			# DEBUGFS_MAGIC
 			dont_measure fsmagic=0x64626720
+			dont_appraise fsmagic=0x64626720
 			# TMPFS_MAGIC
 			dont_measure fsmagic=0x01021994
+			dont_appraise fsmagic=0x01021994
+			# RAMFS_MAGIC
+			dont_measure fsmagic=0x858458f6
+			dont_appraise fsmagic=0x858458f6
 			# SECURITYFS_MAGIC
 			dont_measure fsmagic=0x73636673
+			dont_appraise fsmagic=0x73636673
 
 			measure func=BPRM_CHECK
 			measure func=FILE_MMAP mask=MAY_EXEC
 			measure func=FILE_CHECK mask=MAY_READ uid=0
+			appraise fowner=0
 
 		The default policy measures all executables in bprm_check,
 		all files mmapped executable in file_mmap, and all files
-		open for read by root in do_filp_open.
+		open for read by root in do_filp_open.  The default appraisal
+		policy appraises all files owned by root.
 
 		Examples of LSM specific definitions:
 
 		SELinux:
 			# SELINUX_MAGIC
-			dont_measure fsmagic=0xF97CFF8C
+			dont_measure fsmagic=0xf97cff8c
+			dont_appraise fsmagic=0xf97cff8c
 
 			dont_measure obj_type=var_log_t
+			dont_appraise obj_type=var_log_t
 			dont_measure obj_type=auditd_log_t
+			dont_appraise obj_type=auditd_log_t
 			measure subj_user=system_u func=FILE_CHECK mask=MAY_READ
 			measure subj_role=system_r func=FILE_CHECK mask=MAY_READ
 
