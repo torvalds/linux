@@ -41,6 +41,8 @@
 #define BULK_BUFFER_SIZE    16384
 #define ACC_STRING_SIZE     256
 
+#define PROTOCOL_VERSION    1
+
 /* String IDs */
 #define INTERFACE_STRING_INDEX	0
 
@@ -56,13 +58,19 @@ struct acc_dev {
 	struct usb_ep *ep_in;
 	struct usb_ep *ep_out;
 
+	/* set to 1 when we connect */
 	int online:1;
+	/* Set to 1 when we disconnect.
+	 * Not cleared until our file is closed.
+	 */
+	int disconnected:1;
 
 	/* strings sent by the host */
 	char manufacturer[ACC_STRING_SIZE];
 	char model[ACC_STRING_SIZE];
-	char type[ACC_STRING_SIZE];
+	char description[ACC_STRING_SIZE];
 	char version[ACC_STRING_SIZE];
+	char uri[ACC_STRING_SIZE];
 
 	/* for acc_complete_set_string */
 	int string_index;
@@ -180,21 +188,6 @@ static void acc_request_free(struct usb_request *req, struct usb_ep *ep)
 	}
 }
 
-static inline int _lock(atomic_t *excl)
-{
-	if (atomic_inc_return(excl) == 1) {
-		return 0;
-	} else {
-		atomic_dec(excl);
-		return -1;
-	}
-}
-
-static inline void _unlock(atomic_t *excl)
-{
-	atomic_dec(excl);
-}
-
 /* add a request to the tail of a list */
 static void req_put(struct acc_dev *dev, struct list_head *head,
 		struct usb_request *req)
@@ -227,8 +220,10 @@ static void acc_complete_in(struct usb_ep *ep, struct usb_request *req)
 {
 	struct acc_dev *dev = _acc_dev;
 
-	if (req->status != 0)
+	if (req->status != 0) {
 		dev->online = 0;
+		dev->disconnected = 1;
+	}
 
 	req_put(dev, &dev->tx_idle, req);
 
@@ -240,8 +235,10 @@ static void acc_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct acc_dev *dev = _acc_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0)
+	if (req->status != 0) {
 		dev->online = 0;
+		dev->disconnected = 1;
+	}
 
 	wake_up(&dev->read_wq);
 }
@@ -258,11 +255,6 @@ static void acc_complete_set_string(struct usb_ep *ep, struct usb_request *req)
 		return;
 	}
 
-	if (length > ACC_STRING_SIZE) {
-		DBG(cdev, "accessory string too long (length %d)\n", length);
-		return;
-	}
-
 	switch (dev->string_index) {
 	case ACCESSORY_STRING_MANUFACTURER:
 		string_dest = dev->manufacturer;
@@ -270,19 +262,26 @@ static void acc_complete_set_string(struct usb_ep *ep, struct usb_request *req)
 	case ACCESSORY_STRING_MODEL:
 		string_dest = dev->model;
 		break;
-	case ACCESSORY_STRING_TYPE:
-		string_dest = dev->type;
+	case ACCESSORY_STRING_DESCRIPTION:
+		string_dest = dev->description;
 		break;
 	case ACCESSORY_STRING_VERSION:
 		string_dest = dev->version;
+		break;
+	case ACCESSORY_STRING_URI:
+		string_dest = dev->uri;
 		break;
 	}
 	if (string_dest) {
 		unsigned long flags;
 
+		if (length >= ACC_STRING_SIZE)
+			length = ACC_STRING_SIZE - 1;
+
 		spin_lock_irqsave(&dev->lock, flags);
-		if (string_dest)
-			memcpy(string_dest, cdev->req->buf, length);
+		memcpy(string_dest, cdev->req->buf, length);
+		/* ensure zero termination */
+		string_dest[length] = 0;
 		spin_unlock_irqrestore(&dev->lock, flags);
 	} else {
 		DBG(cdev, "unknown accessory string index %d\n",
@@ -348,6 +347,10 @@ static int __init create_bulk_endpoints(struct acc_dev *dev,
 
 fail:
 	printk(KERN_ERR "acc_bind() could not allocate requests\n");
+	while ((req = req_get(dev, &dev->tx_idle)))
+		acc_request_free(req, dev->ep_in);
+	for (i = 0; i < RX_REQ_MAX; i++)
+		acc_request_free(dev->rx_req[i], dev->ep_out);
 	return -1;
 }
 
@@ -361,6 +364,9 @@ static ssize_t acc_read(struct file *fp, char __user *buf,
 	int ret = 0;
 
 	DBG(cdev, "acc_read(%d)\n", count);
+
+	if (dev->disconnected)
+		return -ENODEV;
 
 	if (count > BULK_BUFFER_SIZE)
 		count = BULK_BUFFER_SIZE;
@@ -422,12 +428,8 @@ static ssize_t acc_write(struct file *fp, const char __user *buf,
 
 	DBG(cdev, "acc_write(%d)\n", count);
 
-	spin_lock_irq(&dev->lock);
-	if (!dev->online) {
-		spin_unlock_irq(&dev->lock);
+	if (!dev->online || dev->disconnected)
 		return -ENODEV;
-	}
-	spin_unlock_irq(&dev->lock);
 
 	while (count > 0) {
 		if (!dev->online) {
@@ -479,52 +481,42 @@ static ssize_t acc_write(struct file *fp, const char __user *buf,
 static long acc_ioctl(struct file *fp, unsigned code, unsigned long value)
 {
 	struct acc_dev *dev = fp->private_data;
-	int ret = -EINVAL;
+	char *src = NULL;
+	int ret;
 
 	if (dev->function.disabled)
 		return -ENODEV;
 
 	switch (code) {
 	case ACCESSORY_GET_STRING_MANUFACTURER:
-	spin_lock_irq(&dev->lock);
-	ret = strlen(dev->manufacturer) + 1;
-	if (copy_to_user((void __user *)value, dev->manufacturer, ret))
-		ret = -EFAULT;
-	spin_unlock_irq(&dev->lock);
-	break;
-
+		src = dev->manufacturer;
+		break;
 	case ACCESSORY_GET_STRING_MODEL:
-	spin_lock_irq(&dev->lock);
-	ret = strlen(dev->model) + 1;
-	if (copy_to_user((void __user *)value, dev->model, ret))
-		ret = -EFAULT;
-	spin_unlock_irq(&dev->lock);
-	break;
-
-	case ACCESSORY_GET_STRING_TYPE:
-	spin_lock_irq(&dev->lock);
-	ret = strlen(dev->type) + 1;
-	if (copy_to_user((void __user *)value, dev->type, ret))
-		ret = -EFAULT;
-	spin_unlock_irq(&dev->lock);
-	break;
-
+		src = dev->model;
+		break;
+	case ACCESSORY_GET_STRING_DESCRIPTION:
+		src = dev->description;
+		break;
 	case ACCESSORY_GET_STRING_VERSION:
-	spin_lock_irq(&dev->lock);
-	ret = strlen(dev->version) + 1;
-	if (copy_to_user((void __user *)value, dev->version, ret))
-		ret = -EFAULT;
-	spin_unlock_irq(&dev->lock);
-	break;
+		src = dev->version;
+		break;
+	case ACCESSORY_GET_STRING_URI:
+		src = dev->uri;
+		break;
 	}
+	if (!src)
+		return -EINVAL;
 
+	ret = strlen(src) + 1;
+	if (copy_to_user((void __user *)value, src, ret))
+		ret = -EFAULT;
 	return ret;
 }
 
 static int acc_open(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "acc_open\n");
-	if (_lock(&_acc_dev->open_excl))
+	if (atomic_xchg(&_acc_dev->open_excl, 1))
 		return -EBUSY;
 
 	fp->private_data = _acc_dev;
@@ -535,7 +527,8 @@ static int acc_release(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "acc_release\n");
 
-	_unlock(&_acc_dev->open_excl);
+	WARN_ON(!atomic_xchg(&_acc_dev->open_excl, 0));
+	_acc_dev->disconnected = 0;
 	return 0;
 }
 
@@ -626,6 +619,8 @@ static int acc_function_setup(struct usb_function *f,
 	struct acc_dev	*dev = func_to_dev(f);
 	struct usb_composite_dev *cdev = dev->cdev;
 	int	value = -EOPNOTSUPP;
+	u8 b_requestType = ctrl->bRequestType;
+	u8 b_request = ctrl->bRequest;
 	u16	w_index = le16_to_cpu(ctrl->wIndex);
 	u16	w_value = le16_to_cpu(ctrl->wValue);
 	u16	w_length = le16_to_cpu(ctrl->wLength);
@@ -633,20 +628,27 @@ static int acc_function_setup(struct usb_function *f,
 /*
 	printk(KERN_INFO "acc_function_setup "
 			"%02x.%02x v%04x i%04x l%u\n",
-			ctrl->bRequestType, ctrl->bRequest,
+			b_requestType, b_request,
 			w_value, w_index, w_length);
 */
 
-	if (dev->function.disabled && ctrl->bRequestType ==
-			(USB_DIR_OUT | USB_TYPE_VENDOR)) {
-		if (ctrl->bRequest == ACCESSORY_START) {
-			schedule_delayed_work(&dev->work, msecs_to_jiffies(10));
-			value = 0;
-		} else if (ctrl->bRequest == ACCESSORY_SEND_STRING) {
-			dev->string_index = w_index;
-			cdev->gadget->ep0->driver_data = dev;
-			cdev->req->complete = acc_complete_set_string;
-			value = w_length;
+	if (dev->function.disabled) {
+		if (b_requestType == (USB_DIR_OUT | USB_TYPE_VENDOR)) {
+			if (b_request == ACCESSORY_START) {
+				schedule_delayed_work(
+					&dev->work, msecs_to_jiffies(10));
+				value = 0;
+			} else if (b_request == ACCESSORY_SEND_STRING) {
+				dev->string_index = w_index;
+				cdev->gadget->ep0->driver_data = dev;
+				cdev->req->complete = acc_complete_set_string;
+				value = w_length;
+			}
+		} else if (b_requestType == (USB_DIR_IN | USB_TYPE_VENDOR)) {
+			if (b_request == ACCESSORY_GET_PROTOCOL) {
+				*((u16 *)cdev->req->buf) = PROTOCOL_VERSION;
+				value = sizeof(u16);
+			}
 		}
 	}
 
