@@ -41,8 +41,6 @@
      */
 
 #define FBPIXMAPSIZE	(1024 * 8)
-#define SETFBIOVADDR    0x4619
-#define GETFBIOVADDR    0x4620
 
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
 int num_registered_fb __read_mostly;
@@ -1147,17 +1145,6 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		release_console_sem();
 		unlock_fb_info(info);
 		break;
-#if 1		
-	case SETFBIOVADDR:
-		if (copy_from_user(&fb_vaddr, argp, 4))
-			return -EFAULT;
-		//printk("fbmem.c  set fb_vaddr = 0x%08x \n",fb_vaddr);
-		break;		
-	case GETFBIOVADDR:
-		copy_to_user(argp, &fb_vaddr, 4);
-		//printk("fbmem.c  get fb_vaddr = 0x%08x \n",fb_vaddr);
-		break;	
-#endif		
 	default:
 		if (!lock_fb_info(info))
 			return -ENODEV;

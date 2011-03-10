@@ -1499,11 +1499,13 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 panel_size[1] = inf->cur_screen->y_res;
             }
             if(copy_to_user((void*)arg, panel_size, 8))  return -EFAULT;
+            break;
 		}
 	case FBIOPUT_GET_CURSOR_EN:
 		{
             u32 en = LcdReadBit(inf, SYS_CONFIG, m_HWC_ENABLE);
             if(copy_to_user((void*)arg, &en, 4))  return -EFAULT;
+            break;
 		}
    default:
         break;

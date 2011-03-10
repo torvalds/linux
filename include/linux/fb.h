@@ -26,7 +26,6 @@ struct dentry;
 #define FBIOPUT_SET_CURSOR_CMAP    0x460c
 #define FBIOPUT_GET_CURSOR_RESOLUTION    0x460d
 #define FBIOPUT_GET_CURSOR_EN    0x460e
-#define FBIOGET_OVERLAY_STATE 0X460f
 #ifdef __KERNEL__
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
 #else
@@ -46,6 +45,7 @@ struct dentry;
 #define FBIOGET_HWCINFO         0x4616
 #define FBIOPUT_MODEINFO        0x4617
 #define FBIOGET_DISPINFO        0x4618
+#define FBIOGET_OVERLAY_STATE   0X4619
 
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
