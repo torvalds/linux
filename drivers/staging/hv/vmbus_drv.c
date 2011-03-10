@@ -190,9 +190,8 @@ static int vmbus_dev_rm(struct hv_device *dev)
 /*
  * vmbus_cleanup - Perform any cleanup when the driver is removed
  */
-static void vmbus_cleanup(struct hv_driver *drv)
+static void vmbus_cleanup(void)
 {
-	/* struct vmbus_driver *driver = (struct vmbus_driver *)drv; */
 
 	hv_cleanup();
 }
@@ -574,7 +573,7 @@ static void vmbus_bus_exit(void)
 	/* Remove the root device */
 	vmbus_dev_rm(dev_ctx);
 
-	vmbus_cleanup(NULL);
+	vmbus_cleanup();
 
 	/* Unregister the root bus device */
 	device_unregister(&dev_ctx->device);
