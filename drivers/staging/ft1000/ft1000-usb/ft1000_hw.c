@@ -534,49 +534,52 @@ void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer,
 //-----------------------------------------------------------------------
 int dsp_reload(struct ft1000_device *ft1000dev)
 {
-    u16 status;
-    u16 tempword;
-    u32 templong;
+	u16 status;
+	u16 tempword;
+	u32 templong;
 
 	struct ft1000_info *pft1000info;
 
-    pft1000info = netdev_priv(ft1000dev->net);
+	pft1000info = netdev_priv(ft1000dev->net);
 
-    pft1000info->CardReady = 0;
+	pft1000info->CardReady = 0;
 
-    // Program Interrupt Mask register
-    status = ft1000_write_register (ft1000dev, 0xffff, FT1000_REG_SUP_IMASK);
+	/* Program Interrupt Mask register */
+	status = ft1000_write_register(ft1000dev, 0xffff, FT1000_REG_SUP_IMASK);
 
-    status = ft1000_read_register (ft1000dev, &tempword, FT1000_REG_RESET);
-    tempword |= ASIC_RESET_BIT;
-    status = ft1000_write_register (ft1000dev, tempword, FT1000_REG_RESET);
-    msleep(1000);
-    status = ft1000_read_register (ft1000dev, &tempword, FT1000_REG_RESET);
-    DEBUG("Reset Register = 0x%x\n", tempword);
+	status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
+	tempword |= ASIC_RESET_BIT;
+	status = ft1000_write_register(ft1000dev, tempword, FT1000_REG_RESET);
+	msleep(1000);
+	status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_RESET);
+	DEBUG("Reset Register = 0x%x\n", tempword);
 
-    // Toggle DSP reset
-    card_reset_dsp (ft1000dev, 1);
-    msleep(1000);
-    card_reset_dsp (ft1000dev, 0);
-    msleep(1000);
+	/* Toggle DSP reset */
+	card_reset_dsp(ft1000dev, 1);
+	msleep(1000);
+	card_reset_dsp(ft1000dev, 0);
+	msleep(1000);
 
-    status = ft1000_write_register (ft1000dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
+	status =
+	    ft1000_write_register(ft1000dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
 
-    // Let's check for FEFE
-    status = ft1000_read_dpram32 (ft1000dev, FT1000_MAG_DPRAM_FEFE_INDX, (u8 *)&templong, 4);
-    DEBUG("templong (fefe) = 0x%8x\n", templong);
+	/* Let's check for FEFE */
+	status =
+	    ft1000_read_dpram32(ft1000dev, FT1000_MAG_DPRAM_FEFE_INDX,
+				(u8 *) &templong, 4);
+	DEBUG("templong (fefe) = 0x%8x\n", templong);
 
-    // call codeloader
-    status = scram_dnldr(ft1000dev, pFileStart, FileLength);
+	/* call codeloader */
+	status = scram_dnldr(ft1000dev, pFileStart, FileLength);
 
 	if (status != STATUS_SUCCESS)
 		return -EIO;
 
-    msleep(1000);
+	msleep(1000);
 
-    DEBUG("dsp_reload returned\n");
+	DEBUG("dsp_reload returned\n");
+
 	return 0;
-
 }
 
 //---------------------------------------------------------------------------
