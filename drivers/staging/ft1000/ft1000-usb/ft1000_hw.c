@@ -688,10 +688,10 @@ static int ft1000_reset_card(struct net_device *dev)
 #ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops ftnet_ops =
 {
-.ndo_open = &ft1000_open,
-.ndo_stop = &ft1000_close,
-.ndo_start_xmit = &ft1000_start_xmit,
-.ndo_get_stats = &ft1000_netdev_stats,
+	.ndo_open = &ft1000_open,
+	.ndo_stop = &ft1000_close,
+	.ndo_start_xmit = &ft1000_start_xmit,
+	.ndo_get_stats = &ft1000_netdev_stats,
 };
 #endif
 
