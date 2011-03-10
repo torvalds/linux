@@ -1203,37 +1203,35 @@ static int ft1000_copy_up_pkt (struct urb *urb)
 //---------------------------------------------------------------------------
 static int ft1000_submit_rx_urb(struct ft1000_info *info)
 {
-    int result;
-    struct ft1000_device *pFt1000Dev = info->pFt1000Dev;
+	int result;
+	struct ft1000_device *pFt1000Dev = info->pFt1000Dev;
 
+	//DEBUG ("ft1000_submit_rx_urb entered: sizeof rx_urb is %d\n", sizeof(*pFt1000Dev->rx_urb));
+	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
+		DEBUG("network driver is closed, return\n");
+		//usb_kill_urb(pFt1000Dev->rx_urb); //mbelian
+		return -ENODEV;
+	}
 
-    //DEBUG ("ft1000_submit_rx_urb entered: sizeof rx_urb is %d\n", sizeof(*pFt1000Dev->rx_urb));
-    if ( pFt1000Dev->status & FT1000_STATUS_CLOSING)
-    {
-        DEBUG("network driver is closed, return\n");
-        //usb_kill_urb(pFt1000Dev->rx_urb); //mbelian
-	return -ENODEV;
-    }
+	usb_fill_bulk_urb(pFt1000Dev->rx_urb,
+			  pFt1000Dev->dev,
+			  usb_rcvbulkpipe(pFt1000Dev->dev,
+					  pFt1000Dev->bulk_in_endpointAddr),
+			  pFt1000Dev->rx_buf, MAX_BUF_SIZE,
+			  (usb_complete_t) ft1000_copy_up_pkt, info);
 
-    usb_fill_bulk_urb(pFt1000Dev->rx_urb,
-            pFt1000Dev->dev,
-            usb_rcvbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_in_endpointAddr),
-            pFt1000Dev->rx_buf,
-            MAX_BUF_SIZE,
-            (usb_complete_t)ft1000_copy_up_pkt,
-            info);
+	result = usb_submit_urb(pFt1000Dev->rx_urb, GFP_ATOMIC);
 
-
-    if((result = usb_submit_urb(pFt1000Dev->rx_urb, GFP_ATOMIC)))
-    {
-        printk("ft1000_submit_rx_urb: submitting rx_urb %d failed\n", result);
-	return result;
-    }
-
-    //DEBUG("ft1000_submit_rx_urb exit: result=%d\n", result);
+	if (result) {
+		pr_err("ft1000_submit_rx_urb: submitting rx_urb %d failed\n",
+		       result);
+		return result;
+	}
+	//DEBUG("ft1000_submit_rx_urb exit: result=%d\n", result);
 
 	return 0;
 }
+
 
 //---------------------------------------------------------------------------
 // Function:    ft1000_open
