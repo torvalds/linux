@@ -208,26 +208,14 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 {
-	struct tmio_mmc_data *pdata = host->pdata;
 	struct resource *res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
 
-	/*
-	 * Testing on sh-mobile showed that SDIO IRQs are unmasked when
-	 * CTL_CLK_AND_WAIT_CTL gets written, so we have to disable the
-	 * device IRQ here and restore the SDIO IRQ mask before
-	 * re-enabling the device IRQ.
-	 */
-	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
-		disable_irq(host->irq);
 	/* implicit BUG_ON(!res) */
 	if (resource_size(res) > 0x100) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
 		msleep(10);
 	}
-	if (pdata->flags & TMIO_MMC_SDIO_IRQ) {
-		tmio_mmc_enable_sdio_irq(host->mmc, host->sdio_irq_enabled);
-		enable_irq(host->irq);
-	}
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~0x0100 &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 	msleep(10);
@@ -235,23 +223,16 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
-	struct tmio_mmc_data *pdata = host->pdata;
 	struct resource *res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 	msleep(10);
-	/* see comment in tmio_mmc_clk_stop above */
-	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
-		disable_irq(host->irq);
+
 	/* implicit BUG_ON(!res) */
 	if (resource_size(res) > 0x100) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
 		msleep(10);
-	}
-	if (pdata->flags & TMIO_MMC_SDIO_IRQ) {
-		tmio_mmc_enable_sdio_irq(host->mmc, host->sdio_irq_enabled);
-		enable_irq(host->irq);
 	}
 }
 
