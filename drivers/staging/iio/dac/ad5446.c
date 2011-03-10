@@ -269,6 +269,27 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.left_shift = 0,
 		.store_sample = ad5542_store_sample,
 	},
+	[ID_AD5601] = {
+		.bits = 8,
+		.storagebits = 16,
+		.left_shift = 6,
+		.store_sample = ad5542_store_sample,
+		.store_pwr_down = ad5620_store_pwr_down,
+	},
+	[ID_AD5611] = {
+		.bits = 10,
+		.storagebits = 16,
+		.left_shift = 4,
+		.store_sample = ad5542_store_sample,
+		.store_pwr_down = ad5620_store_pwr_down,
+	},
+	[ID_AD5621] = {
+		.bits = 12,
+		.storagebits = 16,
+		.left_shift = 2,
+		.store_sample = ad5542_store_sample,
+		.store_pwr_down = ad5620_store_pwr_down,
+	},
 	[ID_AD5620_2500] = {
 		.bits = 12,
 		.storagebits = 16,
@@ -424,6 +445,9 @@ static const struct spi_device_id ad5446_id[] = {
 	{"ad5542a", ID_AD5542A},
 	{"ad5543", ID_AD5543},
 	{"ad5553", ID_AD5553},
+	{"ad5601", ID_AD5601},
+	{"ad5611", ID_AD5611},
+	{"ad5621", ID_AD5621},
 	{"ad5620-2500", ID_AD5620_2500}, /* AD5620/40/60: */
 	{"ad5620-1250", ID_AD5620_1250}, /* part numbers may look differently */
 	{"ad5640-2500", ID_AD5640_2500},
