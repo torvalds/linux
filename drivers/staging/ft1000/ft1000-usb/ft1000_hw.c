@@ -848,38 +848,34 @@ err_net:
 // Notes:
 //
 //---------------------------------------------------------------------------
-int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf)
+int reg_ft1000_netdev(struct ft1000_device *ft1000dev,
+		      struct usb_interface *intf)
 {
-    struct net_device *netdev;
+	struct net_device *netdev;
 	struct ft1000_info *pInfo;
 	int rc;
 
-    netdev = ft1000dev->net;
-    pInfo = netdev_priv(ft1000dev->net);
-    DEBUG("Enter reg_ft1000_netdev...\n");
+	netdev = ft1000dev->net;
+	pInfo = netdev_priv(ft1000dev->net);
+	DEBUG("Enter reg_ft1000_netdev...\n");
 
+	ft1000_read_register(ft1000dev, &pInfo->AsicID, FT1000_REG_ASIC_ID);
 
-    ft1000_read_register(ft1000dev, &pInfo->AsicID, FT1000_REG_ASIC_ID);
+	usb_set_intfdata(intf, pInfo);
+	SET_NETDEV_DEV(netdev, &intf->dev);
 
-    usb_set_intfdata(intf, pInfo);
-    SET_NETDEV_DEV(netdev, &intf->dev);
+	rc = register_netdev(netdev);
+	if (rc) {
+		DEBUG("reg_ft1000_netdev: could not register network device\n");
+		free_netdev(netdev);
+		return rc;
+	}
 
-    rc = register_netdev(netdev);
-    if (rc)
-    {
-        DEBUG("reg_ft1000_netdev: could not register network device\n");
-        free_netdev(netdev);
-	return rc;
-    }
+	ft1000_create_dev(ft1000dev);
 
+	DEBUG("reg_ft1000_netdev returned\n");
 
-    //Create character device, implemented by Jim
-    ft1000_create_dev(ft1000dev);
-
-    DEBUG ("reg_ft1000_netdev returned\n");
-
-    pInfo->CardReady = 1;
-
+	pInfo->CardReady = 1;
 
 	return 0;
 }
