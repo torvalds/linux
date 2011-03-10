@@ -2643,9 +2643,9 @@ static void print_lat_fmt(void *data, int size __unused)
 		printf(".");
 
 	if (lock_depth < 0)
-		printf(".");
+		printf(". ");
 	else
-		printf("%d", lock_depth);
+		printf("%d ", lock_depth);
 }
 
 #define TRACE_GRAPH_INDENT	2
@@ -2821,17 +2821,12 @@ static void print_graph_nested(struct event *event, void *data)
 
 static void
 pretty_print_func_ent(void *data, int size, struct event *event,
-		      int cpu, int pid, const char *comm __unused,
-		      unsigned long secs, unsigned long usecs)
+		      int cpu, int pid)
 {
 	struct format_field *field;
 	struct record *rec;
 	void *copy_data;
 	unsigned long val;
-
-	printf("%5lu.%06lu |  ", secs, usecs);
-
-	printf(" | ");
 
 	if (latency_format) {
 		print_lat_fmt(data, size);
@@ -2865,18 +2860,12 @@ out_free:
 }
 
 static void
-pretty_print_func_ret(void *data, int size __unused, struct event *event,
-		      int cpu __unused, int pid __unused, const char *comm __unused,
-		      unsigned long secs, unsigned long usecs)
+pretty_print_func_ret(void *data, int size __unused, struct event *event)
 {
 	unsigned long long rettime, calltime;
 	unsigned long long duration, depth;
 	struct format_field *field;
 	int i;
-
-	printf("%5lu.%06lu |  ", secs, usecs);
-
-	printf(" | ");
 
 	if (latency_format) {
 		print_lat_fmt(data, size);
@@ -2915,30 +2904,20 @@ pretty_print_func_ret(void *data, int size __unused, struct event *event,
 
 static void
 pretty_print_func_graph(void *data, int size, struct event *event,
-			int cpu, int pid, const char *comm,
-			unsigned long secs, unsigned long usecs)
+			int cpu, int pid)
 {
 	if (event->flags & EVENT_FL_ISFUNCENT)
-		pretty_print_func_ent(data, size, event,
-				      cpu, pid, comm, secs, usecs);
+		pretty_print_func_ent(data, size, event, cpu, pid);
 	else if (event->flags & EVENT_FL_ISFUNCRET)
-		pretty_print_func_ret(data, size, event,
-				      cpu, pid, comm, secs, usecs);
+		pretty_print_func_ret(data, size, event);
 	printf("\n");
 }
 
-void print_event(int cpu, void *data, int size, unsigned long long nsecs,
-		  char *comm)
+void print_trace_event(int cpu, void *data, int size)
 {
 	struct event *event;
-	unsigned long secs;
-	unsigned long usecs;
 	int type;
 	int pid;
-
-	secs = nsecs / NSECS_PER_SEC;
-	nsecs -= secs * NSECS_PER_SEC;
-	usecs = nsecs / NSECS_PER_USEC;
 
 	type = trace_parse_common_type(data);
 
@@ -2951,17 +2930,10 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 	pid = trace_parse_common_pid(data);
 
 	if (event->flags & (EVENT_FL_ISFUNCENT | EVENT_FL_ISFUNCRET))
-		return pretty_print_func_graph(data, size, event, cpu,
-					       pid, comm, secs, usecs);
+		return pretty_print_func_graph(data, size, event, cpu, pid);
 
-	if (latency_format) {
-		printf("%8.8s-%-5d %3d",
-		       comm, pid, cpu);
+	if (latency_format)
 		print_lat_fmt(data, size);
-	} else
-		printf("%16s-%-5d [%03d]", comm, pid,  cpu);
-
-	printf(" %5lu.%06lu: %s: ", secs, usecs, event->name);
 
 	if (event->flags & EVENT_FL_FAILED) {
 		printf("EVENT '%s' FAILED TO PARSE\n",
@@ -2970,7 +2942,6 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 	}
 
 	pretty_print(data, size, event);
-	printf("\n");
 }
 
 static void print_fields(struct print_flag_sym *field)

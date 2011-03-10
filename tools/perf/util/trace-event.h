@@ -177,8 +177,7 @@ void print_printk(void);
 
 int parse_ftrace_file(char *buf, unsigned long size);
 int parse_event_file(char *buf, unsigned long size, char *sys);
-void print_event(int cpu, void *data, int size, unsigned long long nsecs,
-		  char *comm);
+void print_trace_event(int cpu, void *data, int size);
 
 extern int file_bigendian;
 extern int host_bigendian;

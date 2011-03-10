@@ -20,18 +20,42 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
 
+static void print_sample_start(struct perf_sample *sample,
+			       struct thread *thread)
+{
+	int type;
+	struct event *event;
+	const char *evname = NULL;
+	unsigned long secs;
+	unsigned long usecs;
+	unsigned long long nsecs = sample->time;
+
+	if (latency_format)
+		printf("%8.8s-%-5d %3d", thread->comm, sample->tid, sample->cpu);
+	else
+		printf("%16s-%-5d [%03d]", thread->comm, sample->tid, sample->cpu);
+
+	secs = nsecs / NSECS_PER_SEC;
+	nsecs -= secs * NSECS_PER_SEC;
+	usecs = nsecs / NSECS_PER_USEC;
+	printf(" %5lu.%06lu: ", secs, usecs);
+
+	type = trace_parse_common_type(sample->raw_data);
+	event = trace_find_event(type);
+	if (event)
+		evname = event->name;
+
+	printf("%s: ", evname ? evname : "(unknown)");
+}
+
 static void process_event(union perf_event *event __unused,
 			  struct perf_sample *sample,
 			  struct perf_session *session __unused,
 			  struct thread *thread)
 {
-	/*
-	 * FIXME: better resolve from pid from the struct trace_entry
-	 * field, although it should be the same than this perf
-	 * event pid
-	 */
-	print_event(sample->cpu, sample->raw_data, sample->raw_size,
-		    sample->time, thread->comm);
+	print_sample_start(sample, thread);
+	print_trace_event(sample->cpu, sample->raw_data, sample->raw_size);
+	printf("\n");
 }
 
 static int default_start_script(const char *script __unused,
