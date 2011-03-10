@@ -41,8 +41,18 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
-	evsel->id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
-	return evsel->id != NULL ? 0 : -ENOMEM;
+	evsel->sample_id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
+	if (evsel->sample_id == NULL)
+		return -ENOMEM;
+
+	evsel->id = zalloc(ncpus * nthreads * sizeof(u64));
+	if (evsel->id == NULL) {
+		xyarray__delete(evsel->sample_id);
+		evsel->sample_id = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
@@ -60,7 +70,9 @@ void perf_evsel__free_fd(struct perf_evsel *evsel)
 
 void perf_evsel__free_id(struct perf_evsel *evsel)
 {
-	xyarray__delete(evsel->id);
+	xyarray__delete(evsel->sample_id);
+	evsel->sample_id = NULL;
+	free(evsel->id);
 	evsel->id = NULL;
 }
 
@@ -79,7 +91,8 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	xyarray__delete(evsel->fd);
-	xyarray__delete(evsel->id);
+	xyarray__delete(evsel->sample_id);
+	free(evsel->id);
 }
 
 void perf_evsel__delete(struct perf_evsel *evsel)

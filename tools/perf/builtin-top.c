@@ -883,7 +883,6 @@ try_again:
 static int __cmd_top(void)
 {
 	pthread_t thread;
-	struct perf_evsel *first;
 	int ret __used;
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
@@ -900,8 +899,8 @@ static int __cmd_top(void)
 		perf_event__synthesize_threads(perf_event__process, session);
 
 	start_counters(top.evlist);
-	first = list_entry(top.evlist->entries.next, struct perf_evsel, node);
-	perf_session__set_sample_type(session, first->attr.sample_type);
+	session->evlist = top.evlist;
+	perf_session__update_sample_type(session);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(top.evlist->pollfd, top.evlist->nr_fds, 100);

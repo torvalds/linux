@@ -9,13 +9,6 @@
 
 #include <linux/bitmap.h>
 
-struct perf_header_attr {
-	struct perf_event_attr attr;
-	int ids, size;
-	u64 *id;
-	off_t id_offset;
-};
-
 enum {
 	HEADER_TRACE_INFO = 1,
 	HEADER_BUILD_ID,
@@ -51,9 +44,7 @@ int perf_file_header__read(struct perf_file_header *self,
 
 struct perf_header {
 	int			frozen;
-	int			attrs, size;
 	bool			needs_swap;
-	struct perf_header_attr **attr;
 	s64			attr_offset;
 	u64			data_offset;
 	u64			data_size;
@@ -62,29 +53,19 @@ struct perf_header {
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
-int perf_header__init(struct perf_header *self);
-void perf_header__exit(struct perf_header *self);
-
 struct perf_evlist;
 
-int perf_header__read(struct perf_session *session, int fd);
-int perf_header__write(struct perf_header *self, struct perf_evlist *evlist,
-		       int fd, bool at_exit);
+int perf_session__read_header(struct perf_session *session, int fd);
+int perf_session__write_header(struct perf_session *session,
+			       struct perf_evlist *evlist,
+			       int fd, bool at_exit);
 int perf_header__write_pipe(int fd);
-
-int perf_header__add_attr(struct perf_header *self,
-			  struct perf_header_attr *attr);
 
 int perf_header__push_event(u64 id, const char *name);
 char *perf_header__find_event(u64 id);
 
-struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr);
-void perf_header_attr__delete(struct perf_header_attr *self);
-
-int perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
-
-u64 perf_header__sample_type(struct perf_header *header);
-bool perf_header__sample_id_all(const struct perf_header *header);
+u64 perf_evlist__sample_type(struct perf_evlist *evlist);
+bool perf_evlist__sample_id_all(const struct perf_evlist *evlist);
 void perf_header__set_feat(struct perf_header *self, int feat);
 void perf_header__clear_feat(struct perf_header *self, int feat);
 bool perf_header__has_feat(const struct perf_header *self, int feat);
@@ -101,9 +82,8 @@ int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
 int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 				perf_event__handler_t process,
 				struct perf_session *session);
-int perf_event__synthesize_attrs(struct perf_header *self,
-				 perf_event__handler_t process,
-				 struct perf_session *session);
+int perf_session__synthesize_attrs(struct perf_session *session,
+				   perf_event__handler_t process);
 int perf_event__process_attr(union perf_event *event, struct perf_session *session);
 
 int perf_event__synthesize_event_type(u64 event_id, char *name,

@@ -38,8 +38,8 @@ void perf_evlist__delete(struct perf_evlist *evlist);
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);
 int perf_evlist__add_default(struct perf_evlist *evlist);
 
-void perf_evlist__id_hash(struct perf_evlist *evlist, struct perf_evsel *evsel,
-			  int cpu, int thread, u64 id);
+void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
+			 int cpu, int thread, u64 id);
 
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
 void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);

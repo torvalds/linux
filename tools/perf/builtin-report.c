@@ -70,8 +70,8 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 		 * FIXME: Propagate this back, but at least we're in a builtin,
 		 * where exit() is allowed. ;-)
 		 */
-		ui__warning("Invalid %s file, contains samples with id not in "
-			    "its header!\n", input_name);
+		ui__warning("Invalid %s file, contains samples with id %" PRIu64 " not in "
+			    "its header!\n", input_name, sample->id);
 		exit_browser(0);
 		exit(1);
 	}

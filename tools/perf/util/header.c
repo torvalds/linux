@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 
 #include "evlist.h"
+#include "evsel.h"
 #include "util.h"
 #include "header.h"
 #include "../perf.h"
@@ -18,89 +19,6 @@
 #include "debug.h"
 
 static bool no_buildid_cache = false;
-
-/*
- * Create new perf.data header attribute:
- */
-struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr)
-{
-	struct perf_header_attr *self = malloc(sizeof(*self));
-
-	if (self != NULL) {
-		self->attr = *attr;
-		self->ids  = 0;
-		self->size = 1;
-		self->id   = malloc(sizeof(u64));
-		if (self->id == NULL) {
-			free(self);
-			self = NULL;
-		}
-	}
-
-	return self;
-}
-
-void perf_header_attr__delete(struct perf_header_attr *self)
-{
-	free(self->id);
-	free(self);
-}
-
-int perf_header_attr__add_id(struct perf_header_attr *self, u64 id)
-{
-	int pos = self->ids;
-
-	self->ids++;
-	if (self->ids > self->size) {
-		int nsize = self->size * 2;
-		u64 *nid = realloc(self->id, nsize * sizeof(u64));
-
-		if (nid == NULL)
-			return -1;
-
-		self->size = nsize;
-		self->id = nid;
-	}
-	self->id[pos] = id;
-	return 0;
-}
-
-int perf_header__init(struct perf_header *self)
-{
-	self->size = 1;
-	self->attr = malloc(sizeof(void *));
-	return self->attr == NULL ? -ENOMEM : 0;
-}
-
-void perf_header__exit(struct perf_header *self)
-{
-	int i;
-	for (i = 0; i < self->attrs; ++i)
-                perf_header_attr__delete(self->attr[i]);
-	free(self->attr);
-}
-
-int perf_header__add_attr(struct perf_header *self,
-			  struct perf_header_attr *attr)
-{
-	if (self->frozen)
-		return -1;
-
-	if (self->attrs == self->size) {
-		int nsize = self->size * 2;
-		struct perf_header_attr **nattr;
-
-		nattr = realloc(self->attr, nsize * sizeof(void *));
-		if (nattr == NULL)
-			return -1;
-
-		self->size = nsize;
-		self->attr = nattr;
-	}
-
-	self->attr[self->attrs++] = attr;
-	return 0;
-}
 
 static int event_count;
 static struct perf_trace_event_type *events;
@@ -515,33 +433,41 @@ int perf_header__write_pipe(int fd)
 	return 0;
 }
 
-int perf_header__write(struct perf_header *self, struct perf_evlist *evlist,
-		       int fd, bool at_exit)
+int perf_session__write_header(struct perf_session *session,
+			       struct perf_evlist *evlist,
+			       int fd, bool at_exit)
 {
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
-	struct perf_header_attr	*attr;
-	int i, err;
+	struct perf_header *self = &session->header;
+	struct perf_evsel *attr, *pair = NULL;
+	int err;
 
 	lseek(fd, sizeof(f_header), SEEK_SET);
 
-	for (i = 0; i < self->attrs; i++) {
-		attr = self->attr[i];
+	if (session->evlist != evlist)
+		pair = list_entry(session->evlist->entries.next, struct perf_evsel, node);
 
+	list_for_each_entry(attr, &evlist->entries, node) {
 		attr->id_offset = lseek(fd, 0, SEEK_CUR);
 		err = do_write(fd, attr->id, attr->ids * sizeof(u64));
 		if (err < 0) {
+out_err_write:
 			pr_debug("failed to write perf header\n");
 			return err;
 		}
+		if (session->evlist != evlist) {
+			err = do_write(fd, pair->id, pair->ids * sizeof(u64));
+			if (err < 0)
+				goto out_err_write;
+			attr->ids += pair->ids;
+			pair = list_entry(pair->node.next, struct perf_evsel, node);
+		}
 	}
-
 
 	self->attr_offset = lseek(fd, 0, SEEK_CUR);
 
-	for (i = 0; i < self->attrs; i++) {
-		attr = self->attr[i];
-
+	list_for_each_entry(attr, &evlist->entries, node) {
 		f_attr = (struct perf_file_attr){
 			.attr = attr->attr,
 			.ids  = {
@@ -580,7 +506,7 @@ int perf_header__write(struct perf_header *self, struct perf_evlist *evlist,
 		.attr_size = sizeof(f_attr),
 		.attrs = {
 			.offset = self->attr_offset,
-			.size   = self->attrs * sizeof(f_attr),
+			.size   = evlist->nr_entries * sizeof(f_attr),
 		},
 		.data = {
 			.offset = self->data_offset,
@@ -861,13 +787,17 @@ static int perf_header__read_pipe(struct perf_session *session, int fd)
 	return 0;
 }
 
-int perf_header__read(struct perf_session *session, int fd)
+int perf_session__read_header(struct perf_session *session, int fd)
 {
 	struct perf_header *self = &session->header;
 	struct perf_file_header	f_header;
 	struct perf_file_attr	f_attr;
 	u64			f_id;
 	int nr_attrs, nr_ids, i, j;
+
+	session->evlist = perf_evlist__new(NULL, NULL);
+	if (session->evlist == NULL)
+		return -ENOMEM;
 
 	if (session->fd_pipe)
 		return perf_header__read_pipe(session, fd);
@@ -881,33 +811,39 @@ int perf_header__read(struct perf_session *session, int fd)
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
 
 	for (i = 0; i < nr_attrs; i++) {
-		struct perf_header_attr *attr;
+		struct perf_evsel *evsel;
 		off_t tmp;
 
 		if (perf_header__getbuffer64(self, fd, &f_attr, sizeof(f_attr)))
 			goto out_errno;
 
 		tmp = lseek(fd, 0, SEEK_CUR);
+		evsel = perf_evsel__new(&f_attr.attr, i);
 
-		attr = perf_header_attr__new(&f_attr.attr);
-		if (attr == NULL)
-			 return -ENOMEM;
+		if (evsel == NULL)
+			goto out_delete_evlist;
+		/*
+		 * Do it before so that if perf_evsel__alloc_id fails, this
+		 * entry gets purged too at perf_evlist__delete().
+		 */
+		perf_evlist__add(session->evlist, evsel);
 
 		nr_ids = f_attr.ids.size / sizeof(u64);
+		/*
+		 * We don't have the cpu and thread maps on the header, so
+		 * for allocating the perf_sample_id table we fake 1 cpu and
+		 * hattr->ids threads.
+		 */
+		if (perf_evsel__alloc_id(evsel, 1, nr_ids))
+			goto out_delete_evlist;
+
 		lseek(fd, f_attr.ids.offset, SEEK_SET);
 
 		for (j = 0; j < nr_ids; j++) {
 			if (perf_header__getbuffer64(self, fd, &f_id, sizeof(f_id)))
 				goto out_errno;
 
-			if (perf_header_attr__add_id(attr, f_id) < 0) {
-				perf_header_attr__delete(attr);
-				return -ENOMEM;
-			}
-		}
-		if (perf_header__add_attr(self, attr) < 0) {
-			perf_header_attr__delete(attr);
-			return -ENOMEM;
+			perf_evlist__id_add(session->evlist, evsel, 0, j, f_id);
 		}
 
 		lseek(fd, tmp, SEEK_SET);
@@ -932,37 +868,38 @@ int perf_header__read(struct perf_session *session, int fd)
 	return 0;
 out_errno:
 	return -errno;
+
+out_delete_evlist:
+	perf_evlist__delete(session->evlist);
+	session->evlist = NULL;
+	return -ENOMEM;
 }
 
-u64 perf_header__sample_type(struct perf_header *header)
+u64 perf_evlist__sample_type(struct perf_evlist *evlist)
 {
+	struct perf_evsel *pos;
 	u64 type = 0;
-	int i;
 
-	for (i = 0; i < header->attrs; i++) {
-		struct perf_header_attr *attr = header->attr[i];
-
+	list_for_each_entry(pos, &evlist->entries, node) {
 		if (!type)
-			type = attr->attr.sample_type;
-		else if (type != attr->attr.sample_type)
+			type = pos->attr.sample_type;
+		else if (type != pos->attr.sample_type)
 			die("non matching sample_type");
 	}
 
 	return type;
 }
 
-bool perf_header__sample_id_all(const struct perf_header *header)
+bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
 {
 	bool value = false, first = true;
-	int i;
+	struct perf_evsel *pos;
 
-	for (i = 0; i < header->attrs; i++) {
-		struct perf_header_attr *attr = header->attr[i];
-
+	list_for_each_entry(pos, &evlist->entries, node) {
 		if (first) {
-			value = attr->attr.sample_id_all;
+			value = pos->attr.sample_id_all;
 			first = false;
-		} else if (value != attr->attr.sample_id_all)
+		} else if (value != pos->attr.sample_id_all)
 			die("non matching sample_id_all");
 	}
 
@@ -1000,16 +937,13 @@ int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 	return err;
 }
 
-int perf_event__synthesize_attrs(struct perf_header *self,
-				 perf_event__handler_t process,
-				 struct perf_session *session)
+int perf_session__synthesize_attrs(struct perf_session *session,
+				   perf_event__handler_t process)
 {
-	struct perf_header_attr	*attr;
-	int i, err = 0;
+	struct perf_evsel *attr;
+	int err = 0;
 
-	for (i = 0; i < self->attrs; i++) {
-		attr = self->attr[i];
-
+	list_for_each_entry(attr, &session->evlist->entries, node) {
 		err = perf_event__synthesize_attr(&attr->attr, attr->ids,
 						  attr->id, process, session);
 		if (err) {
@@ -1024,27 +958,36 @@ int perf_event__synthesize_attrs(struct perf_header *self,
 int perf_event__process_attr(union perf_event *event,
 			     struct perf_session *session)
 {
-	struct perf_header_attr *attr;
 	unsigned int i, ids, n_ids;
+	struct perf_evsel *evsel;
 
-	attr = perf_header_attr__new(&event->attr.attr);
-	if (attr == NULL)
+	if (session->evlist == NULL) {
+		session->evlist = perf_evlist__new(NULL, NULL);
+		if (session->evlist == NULL)
+			return -ENOMEM;
+	}
+
+	evsel = perf_evsel__new(&event->attr.attr,
+				session->evlist->nr_entries);
+	if (evsel == NULL)
 		return -ENOMEM;
+
+	perf_evlist__add(session->evlist, evsel);
 
 	ids = event->header.size;
 	ids -= (void *)&event->attr.id - (void *)event;
 	n_ids = ids / sizeof(u64);
+	/*
+	 * We don't have the cpu and thread maps on the header, so
+	 * for allocating the perf_sample_id table we fake 1 cpu and
+	 * hattr->ids threads.
+	 */
+	if (perf_evsel__alloc_id(evsel, 1, n_ids))
+		return -ENOMEM;
 
 	for (i = 0; i < n_ids; i++) {
-		if (perf_header_attr__add_id(attr, event->attr.id[i]) < 0) {
-			perf_header_attr__delete(attr);
-			return -ENOMEM;
-		}
-	}
-
-	if (perf_header__add_attr(&session->header, attr) < 0) {
-		perf_header_attr__delete(attr);
-		return -ENOMEM;
+		perf_evlist__id_add(session->evlist, evsel, 0, i,
+				    event->attr.id[i]);
 	}
 
 	perf_session__update_sample_type(session);

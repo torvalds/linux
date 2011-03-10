@@ -13,46 +13,6 @@
 #include "sort.h"
 #include "util.h"
 
-static int perf_session__read_evlist(struct perf_session *session)
-{
-	int i, j;
-
-	session->evlist = perf_evlist__new(NULL, NULL);
-	if (session->evlist == NULL)
-		return -ENOMEM;
-
-	for (i = 0; i < session->header.attrs; ++i) {
-		struct perf_header_attr *hattr = session->header.attr[i];
-		struct perf_evsel *evsel = perf_evsel__new(&hattr->attr, i);
-
-		if (evsel == NULL)
-			goto out_delete_evlist;
-		/*
-		 * Do it before so that if perf_evsel__alloc_id fails, this
-		 * entry gets purged too at perf_evlist__delete().
-		 */
-		perf_evlist__add(session->evlist, evsel);
-		/*
-		 * We don't have the cpu and thread maps on the header, so
-		 * for allocating the perf_sample_id table we fake 1 cpu and
-		 * hattr->ids threads.
-		 */
-		if (perf_evsel__alloc_id(evsel, 1, hattr->ids))
-			goto out_delete_evlist;
-
-		for (j = 0; j < hattr->ids; ++j)
-			perf_evlist__id_hash(session->evlist, evsel, 0, j,
-					     hattr->id[j]);
-	}
-
-	return 0;
-
-out_delete_evlist:
-	perf_evlist__delete(session->evlist);
-	session->evlist = NULL;
-	return -ENOMEM;
-}
-
 static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;
@@ -61,7 +21,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		self->fd_pipe = true;
 		self->fd = STDIN_FILENO;
 
-		if (perf_header__read(self, self->fd) < 0)
+		if (perf_session__read_header(self, self->fd) < 0)
 			pr_err("incompatible file format");
 
 		return 0;
@@ -93,13 +53,8 @@ static int perf_session__open(struct perf_session *self, bool force)
 		goto out_close;
 	}
 
-	if (perf_header__read(self, self->fd) < 0) {
+	if (perf_session__read_header(self, self->fd) < 0) {
 		pr_err("incompatible file format");
-		goto out_close;
-	}
-
-	if (perf_session__read_evlist(self) < 0) {
-		pr_err("Not enough memory to read the event selector list\n");
 		goto out_close;
 	}
 
@@ -139,21 +94,10 @@ out:
        session->id_hdr_size = size;
 }
 
-void perf_session__set_sample_id_all(struct perf_session *session, bool value)
-{
-	session->sample_id_all = value;
-	perf_session__id_header_size(session);
-}
-
-void perf_session__set_sample_type(struct perf_session *session, u64 type)
-{
-	session->sample_type = type;
-}
-
 void perf_session__update_sample_type(struct perf_session *self)
 {
-	self->sample_type = perf_header__sample_type(&self->header);
-	self->sample_id_all = perf_header__sample_id_all(&self->header);
+	self->sample_type = perf_evlist__sample_type(self->evlist);
+	self->sample_id_all = perf_evlist__sample_id_all(self->evlist);
 	perf_session__id_header_size(self);
 }
 
@@ -182,9 +126,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	if (self == NULL)
 		goto out;
 
-	if (perf_header__init(&self->header) < 0)
-		goto out_free;
-
 	memcpy(self->filename, filename, len);
 	self->threads = RB_ROOT;
 	INIT_LIST_HEAD(&self->dead_threads);
@@ -208,6 +149,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
 			goto out_delete;
+		perf_session__update_sample_type(self);
 	} else if (mode == O_WRONLY) {
 		/*
 		 * In O_RDONLY mode this will be performed when reading the
@@ -217,8 +159,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 			goto out_delete;
 	}
 
-	perf_session__update_sample_type(self);
-
 	if (ops && ops->ordering_requires_timestamps &&
 	    ops->ordered_samples && !self->sample_id_all) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
@@ -227,9 +167,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 
 out:
 	return self;
-out_free:
-	free(self);
-	return NULL;
 out_delete:
 	perf_session__delete(self);
 	return NULL;
@@ -260,7 +197,6 @@ static void perf_session__delete_threads(struct perf_session *self)
 
 void perf_session__delete(struct perf_session *self)
 {
-	perf_header__exit(&self->header);
 	perf_session__destroy_kernel_maps(self);
 	perf_session__delete_dead_threads(self);
 	perf_session__delete_threads(self);
