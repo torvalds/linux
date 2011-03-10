@@ -449,6 +449,7 @@ static const struct i2c_device_id bmp085_id[] = {
 	{ "bmp085", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, bmp085_id);
 
 static struct i2c_driver bmp085_driver = {
 	.driver = {

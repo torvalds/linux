@@ -1398,7 +1398,7 @@ i915_gem_get_gtt_alignment(struct drm_i915_gem_object *obj)
  * Return the required GTT alignment for an object, only taking into account
  * unfenced tiled surface requirements.
  */
-static uint32_t
+uint32_t
 i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
