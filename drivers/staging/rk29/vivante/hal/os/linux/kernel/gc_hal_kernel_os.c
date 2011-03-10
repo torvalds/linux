@@ -5932,35 +5932,41 @@ gckOS_SetGPUPower(
     struct clk * clk_aclk_ddr_gpu = clk_get(NULL, "aclk_ddr_gpu");
     struct clk * clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
     static int lastpower = 0;
+    static int lastclock = 0;
 
     //printk("---------- gckOS_SetGPUPower Clock=%d Power=%d \n", Clock, Power);
 
-    if(Clock) {
-        printk("gpu: clk_enable... ");
-        clk_enable(clk_hclk_gpu);
-        clk_enable(clk_aclk_gpu);
-        clk_enable(clk_aclk_ddr_gpu);
-        clk_enable(clk_gpu);
-        printk("done!\n");
-    } else {
-        printk("gpu: clk_disable... ");
-        clk_disable(clk_gpu);
-        clk_disable(clk_aclk_gpu);
-        clk_disable(clk_aclk_ddr_gpu);
-        clk_disable(clk_hclk_gpu);
-        printk("done!\n");
+    if(lastclock!=Clock) 
+    {
+        if(Clock) {
+            printk("gpu: clk_enable... ");
+            clk_enable(clk_hclk_gpu);
+            clk_enable(clk_aclk_gpu);
+            clk_enable(clk_aclk_ddr_gpu);
+            clk_enable(clk_gpu);
+            printk("done!\n");
+        } else {
+            printk("gpu: clk_disable... ");
+            clk_disable(clk_gpu);
+            clk_disable(clk_aclk_gpu);
+            clk_disable(clk_aclk_ddr_gpu);
+            clk_disable(clk_hclk_gpu);
+            printk("done!\n");
+        }
     }
+    lastclock = Clock;
 
-    if(Power) {
-        if(lastpower != Power) {
+    if(lastpower!=Power)
+    {
+        if(Power) {
             printk("gpu: power on... ");
             pmu_set_power_domain(PD_GPU, true);
             printk("done!\n");
+        } else {
+            //printk("gpu: power off... ");
+            //pmu_set_power_domain(PD_GPU, false);
+            //printk("done!\n");
         }
-    } else {
-        //printk("gpu: power off... ");
-        //pmu_set_power_domain(PD_GPU, false);
-        //printk("done!\n");
     }
     lastpower = Power;
 

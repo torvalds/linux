@@ -526,6 +526,8 @@ static int drv_init(void)
     	    	  "Entering drv_init\n");
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+
+    printk("%s : gpu clk_enable... ", __func__);
     // clk_gpu_ahb
     clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
     if(!IS_ERR(clk_hclk_gpu))    clk_enable(clk_hclk_gpu);
@@ -566,22 +568,32 @@ static int drv_init(void)
         return -EAGAIN;
     }
     clk_enable(clk_gpu);
+    printk("done!\n");
 
     // enable ram clock gate
     writel(readl(RK29_GRF_BASE+0xc0) & ~0x100000, RK29_GRF_BASE+0xc0);
     
 #if 1
-    printk("%s : gpu reset... ", __func__);
     mdelay(2);
+    printk("%s : gpu reset... ", __func__);
     cru_set_soft_reset(SOFT_RST_GPU, true);
     cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
     mdelay(1);
     cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
     cru_set_soft_reset(SOFT_RST_GPU, false);
-    mdelay(2);
     printk("done!\n");
+    mdelay(2);
 #endif
-    
+
+    printk("%s : gpu clk_disable...  ", __func__);
+    mdelay(1);
+    clk_disable(clk_gpu);
+    clk_disable(clk_aclk_gpu);
+    clk_disable(clk_get(NULL, "aclk_ddr_gpu"));
+    clk_disable(clk_hclk_gpu);
+    mdelay(1);
+    printk("done!\n");
+
 #endif
 
 	if (showArgs)
