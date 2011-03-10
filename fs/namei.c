@@ -401,9 +401,11 @@ static int nameidata_drop_rcu(struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
 	struct dentry *dentry = nd->path.dentry;
+	int want_root = 0;
 
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
-	if (nd->root.mnt) {
+	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
+		want_root = 1;
 		spin_lock(&fs->lock);
 		if (nd->root.mnt != fs->root.mnt ||
 				nd->root.dentry != fs->root.dentry)
@@ -414,7 +416,7 @@ static int nameidata_drop_rcu(struct nameidata *nd)
 		goto err;
 	BUG_ON(nd->inode != dentry->d_inode);
 	spin_unlock(&dentry->d_lock);
-	if (nd->root.mnt) {
+	if (want_root) {
 		path_get(&nd->root);
 		spin_unlock(&fs->lock);
 	}
@@ -427,7 +429,7 @@ static int nameidata_drop_rcu(struct nameidata *nd)
 err:
 	spin_unlock(&dentry->d_lock);
 err_root:
-	if (nd->root.mnt)
+	if (want_root)
 		spin_unlock(&fs->lock);
 	return -ECHILD;
 }
@@ -454,9 +456,11 @@ static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry
 {
 	struct fs_struct *fs = current->fs;
 	struct dentry *parent = nd->path.dentry;
+	int want_root = 0;
 
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
-	if (nd->root.mnt) {
+	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
+		want_root = 1;
 		spin_lock(&fs->lock);
 		if (nd->root.mnt != fs->root.mnt ||
 				nd->root.dentry != fs->root.dentry)
@@ -476,7 +480,7 @@ static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry
 	parent->d_count++;
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&parent->d_lock);
-	if (nd->root.mnt) {
+	if (want_root) {
 		path_get(&nd->root);
 		spin_unlock(&fs->lock);
 	}
@@ -490,7 +494,7 @@ err:
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&parent->d_lock);
 err_root:
-	if (nd->root.mnt)
+	if (want_root)
 		spin_unlock(&fs->lock);
 	return -ECHILD;
 }
@@ -501,7 +505,8 @@ static inline int nameidata_dentry_drop_rcu_maybe(struct nameidata *nd, struct d
 	if (nd->flags & LOOKUP_RCU) {
 		if (unlikely(nameidata_dentry_drop_rcu(nd, dentry))) {
 			nd->flags &= ~LOOKUP_RCU;
-			nd->root.mnt = NULL;
+			if (!(nd->flags & LOOKUP_ROOT))
+				nd->root.mnt = NULL;
 			rcu_read_unlock();
 			br_read_unlock(vfsmount_lock);
 			return -ECHILD;
@@ -525,7 +530,8 @@ static int nameidata_drop_rcu_last(struct nameidata *nd)
 
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 	nd->flags &= ~LOOKUP_RCU;
-	nd->root.mnt = NULL;
+	if (!(nd->flags & LOOKUP_ROOT))
+		nd->root.mnt = NULL;
 	spin_lock(&dentry->d_lock);
 	if (!__d_rcu_to_refcount(dentry, nd->seq))
 		goto err_unlock;
@@ -1053,7 +1059,8 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 
 failed:
 	nd->flags &= ~LOOKUP_RCU;
-	nd->root.mnt = NULL;
+	if (!(nd->flags & LOOKUP_ROOT))
+		nd->root.mnt = NULL;
 	rcu_read_unlock();
 	br_read_unlock(vfsmount_lock);
 	return -ECHILD;
@@ -1310,7 +1317,8 @@ static void terminate_walk(struct nameidata *nd)
 		path_put(&nd->path);
 	} else {
 		nd->flags &= ~LOOKUP_RCU;
-		nd->root.mnt = NULL;
+		if (!(nd->flags & LOOKUP_ROOT))
+			nd->root.mnt = NULL;
 		rcu_read_unlock();
 		br_read_unlock(vfsmount_lock);
 	}
@@ -1477,6 +1485,25 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED;
 	nd->depth = 0;
+	if (flags & LOOKUP_ROOT) {
+		struct inode *inode = nd->root.dentry->d_inode;
+		if (!inode->i_op->lookup)
+			return -ENOTDIR;
+		retval = inode_permission(inode, MAY_EXEC);
+		if (retval)
+			return retval;
+		nd->path = nd->root;
+		nd->inode = inode;
+		if (flags & LOOKUP_RCU) {
+			br_read_lock(vfsmount_lock);
+			rcu_read_lock();
+			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
+		} else {
+			path_get(&nd->path);
+		}
+		return 0;
+	}
+
 	nd->root.mnt = NULL;
 
 	if (*name=='/') {
@@ -1587,7 +1614,7 @@ static int path_lookupat(int dfd, const char *name,
 	if (base)
 		fput(base);
 
-	if (nd->root.mnt) {
+	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
 		path_put(&nd->root);
 		nd->root.mnt = NULL;
 	}
@@ -1638,46 +1665,10 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    const char *name, unsigned int flags,
 		    struct nameidata *nd)
 {
-	int result;
-
-	/* same as do_path_lookup */
-	nd->last_type = LAST_ROOT;
-	nd->flags = flags | LOOKUP_JUMPED;
-	nd->depth = 0;
-
-	nd->path.dentry = dentry;
-	nd->path.mnt = mnt;
-	path_get(&nd->path);
-	nd->root = nd->path;
-	path_get(&nd->root);
-	nd->inode = nd->path.dentry->d_inode;
-
-	current->total_link_count = 0;
-
-	result = link_path_walk(name, nd);
-	if (!result)
-		result = handle_reval_path(nd);
-	if (result == -ESTALE) {
-		/* nd->path had been dropped */
-		current->total_link_count = 0;
-		nd->path.dentry = dentry;
-		nd->path.mnt = mnt;
-		nd->inode = dentry->d_inode;
-		path_get(&nd->path);
-		nd->flags = flags | LOOKUP_JUMPED | LOOKUP_REVAL;
-
-		result = link_path_walk(name, nd);
-		if (!result)
-			result = handle_reval_path(nd);
-	}
-	if (unlikely(!result && !audit_dummy_context() && nd->path.dentry &&
-				nd->inode))
-		audit_inode(name, nd->path.dentry);
-
-	path_put(&nd->root);
-	nd->root.mnt = NULL;
-
-	return result;
+	nd->root.dentry = dentry;
+	nd->root.mnt = mnt;
+	/* the first argument of do_path_lookup() is ignored with LOOKUP_ROOT */
+	return do_path_lookup(AT_FDCWD, name, flags | LOOKUP_ROOT, nd);
 }
 
 static struct dentry *__lookup_hash(struct qstr *name,
@@ -2320,7 +2311,7 @@ static struct file *path_openat(int dfd, const char *pathname,
 		path_put(&link);
 	}
 out:
-	if (nd.root.mnt)
+	if (nd.root.mnt && !(nd.flags & LOOKUP_ROOT))
 		path_put(&nd.root);
 	if (base)
 		fput(base);
