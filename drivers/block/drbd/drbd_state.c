@@ -47,20 +47,18 @@ static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_st
 static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
 				       const char **warn_sync_abort);
 
-int conn_all_vols_unconf(struct drbd_tconn *tconn)
+bool conn_all_vols_unconf(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
-	int minor, uncfg = 1;
+	int minor;
 
 	idr_for_each_entry(&tconn->volumes, mdev, minor) {
-		uncfg &= (mdev->state.disk == D_DISKLESS &&
-			  mdev->state.conn == C_STANDALONE &&
-			  mdev->state.role == R_SECONDARY);
-		if (!uncfg)
-			break;
+		if (mdev->state.disk != D_DISKLESS ||
+		    mdev->state.conn != C_STANDALONE ||
+		    mdev->state.role != R_SECONDARY)
+			return false;
 	}
-
-	return uncfg;
+	return true;
 }
 
 /**

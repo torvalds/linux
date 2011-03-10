@@ -91,7 +91,7 @@ conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_s
 		   enum chg_state_flags flags);
 
 extern void drbd_resume_al(struct drbd_conf *mdev);
-extern int conn_all_vols_unconf(struct drbd_tconn *tconn);
+extern bool conn_all_vols_unconf(struct drbd_tconn *tconn);
 
 /**
  * drbd_request_state() - Reqest a state change
