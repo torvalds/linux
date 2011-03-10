@@ -40,6 +40,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <linux/magic.h>
 
 
 #define NILFS_INODE_BMAP_SIZE	7
@@ -242,7 +243,6 @@ struct nilfs_super_block {
 #define NILFS_USER_INO		11	/* Fisrt user's file inode number */
 
 #define NILFS_SB_OFFSET_BYTES	1024	/* byte offset of nilfs superblock */
-#define NILFS_SUPER_MAGIC	0x3434	/* NILFS filesystem  magic number */
 
 #define NILFS_SEG_MIN_BLOCKS	16	/* Minimum number of blocks in
 					   a full segment */
