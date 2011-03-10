@@ -681,14 +681,6 @@ static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base)
 }
 
 /*
- * Initialize the high resolution related parts of a hrtimer
- */
-static inline void hrtimer_init_timer_hres(struct hrtimer *timer)
-{
-}
-
-
-/*
  * When High resolution timers are active, try to reprogram. Note, that in case
  * the state has HRTIMER_STATE_CALLBACK set, no reprogramming and no expiry
  * check happens. The timer gets enqueued into the rbtree. The reprogramming
@@ -759,7 +751,6 @@ static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
 	return 0;
 }
 static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base) { }
-static inline void hrtimer_init_timer_hres(struct hrtimer *timer) { }
 
 #endif /* CONFIG_HIGH_RES_TIMERS */
 
@@ -1141,7 +1132,6 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 
 	base = hrtimer_clockid_to_base(clock_id);
 	timer->base = &cpu_base->clock_base[base];
-	hrtimer_init_timer_hres(timer);
 	timerqueue_init(&timer->node);
 
 #ifdef CONFIG_TIMER_STATS
