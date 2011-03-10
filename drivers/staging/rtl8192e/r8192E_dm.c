@@ -95,16 +95,14 @@ static void dm_fsync_timer_callback(unsigned long data);
  * Prepare SW resource for HW dynamic mechanism.
  * This function is only invoked at driver intialization once.
  */
-void init_hal_dm(struct net_device *dev)
+void init_hal_dm(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
 	// Undecorated Smoothed Signal Strength, it can utilized to dynamic mechanism.
 	priv->undecorated_smoothed_pwdb = -1;
 
 	//Initial TX Power Control for near/far range , add by amy 2008/05/15, porting from windows code.
 	dm_init_dynamic_txpower(priv);
-	init_rate_adaptive(dev);
+	init_rate_adaptive(priv);
 	//dm_initialize_txpower_tracking(dev);
 	dm_dig_init(priv);
 	dm_init_edca_turbo(priv);
@@ -116,16 +114,13 @@ void init_hal_dm(struct net_device *dev)
 
 }
 
-void deinit_hal_dm(struct net_device *dev)
+void deinit_hal_dm(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-
 	dm_deInit_fsync(priv);
 }
 
-void hal_dm_watchdog(struct net_device *dev)
+void hal_dm_watchdog(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	/*Add by amy 2008/05/15 ,porting from windows code.*/
 	dm_check_rate_adaptive(priv);
@@ -154,11 +149,9 @@ void hal_dm_watchdog(struct net_device *dev)
   *	01/16/2008	MHC		RF_Type is assigned in ReadAdapterInfo(). We must call
   *						the function after making sure RF_Type.
   */
-void init_rate_adaptive(struct net_device * dev)
+void init_rate_adaptive(struct r8192_priv *priv)
 {
-
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	prate_adaptive			pra = (prate_adaptive)&priv->rate_adaptive;
+	prate_adaptive pra = &priv->rate_adaptive;
 
 	pra->ratr_state = DM_RATR_STA_MAX;
 	pra->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;

@@ -2292,7 +2292,7 @@ static void rtl8192_read_eeprom_info(struct r8192_priv *priv)
 
 	// 2008/01/16 MH We can only know RF type in the function. So we have to init
 	// DIG RATR table again.
-	init_rate_adaptive(dev);
+	init_rate_adaptive(priv);
 
 	//1 Make a copy for following variables and we can change them if we want
 
@@ -2408,7 +2408,7 @@ static short rtl8192_init(struct r8192_priv *priv)
 	rtl8192_get_eeprom_size(priv);
 	rtl8192_read_eeprom_info(priv);
 	rtl8192_get_channel_map(priv);
-	init_hal_dm(dev);
+	init_hal_dm(priv);
 	init_timer(&priv->watch_dog_timer);
 	priv->watch_dog_timer.data = (unsigned long)priv;
 	priv->watch_dog_timer.function = watch_dog_timer_callback;
@@ -3228,7 +3228,6 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,watch_dog_wq);
-	struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
 	bool bBusyTraffic = false;
@@ -3239,7 +3238,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 
 	if(!priv->up)
 		return;
-	hal_dm_watchdog(dev);
+	hal_dm_watchdog(priv);
 #ifdef ENABLE_IPS
 	if(ieee->actscanning == false){
 		if((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state == IEEE80211_NOLINK) &&
@@ -3452,7 +3451,7 @@ int rtl8192_down(struct net_device *dev)
 
 	rtl8192_irq_disable(priv);
 	rtl8192_cancel_deferred_work(priv);
-	deinit_hal_dm(dev);
+	deinit_hal_dm(priv);
 	del_timer_sync(&priv->watch_dog_timer);
 
 	ieee80211_softmac_stop_protocol(priv->ieee80211,true);

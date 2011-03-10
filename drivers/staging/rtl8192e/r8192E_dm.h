@@ -212,12 +212,12 @@ typedef struct tag_Tx_Config_Cmd_Format
 extern dig_t dm_digtable;
 extern DRxPathSel DM_RxPathSelTable;
 
-void init_hal_dm(struct net_device *dev);
-void deinit_hal_dm(struct net_device *dev);
+void init_hal_dm(struct r8192_priv *priv);
+void deinit_hal_dm(struct r8192_priv *priv);
 
-void hal_dm_watchdog(struct net_device *dev);
+void hal_dm_watchdog(struct r8192_priv *priv);
 
-void init_rate_adaptive(struct net_device *dev);
+void init_rate_adaptive(struct r8192_priv *priv);
 void dm_txpower_trackingcallback(struct work_struct *work);
 void dm_rf_pathcheck_workitemcallback(struct work_struct *work);
 void dm_initialize_txpower_tracking(struct r8192_priv *priv);
