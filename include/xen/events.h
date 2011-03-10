@@ -68,9 +68,7 @@ int xen_set_callback_via(uint64_t via);
 void xen_evtchn_do_upcall(struct pt_regs *regs);
 void xen_hvm_evtchn_do_upcall(void);
 
-/* Allocate an irq for a physical interrupt, given a gsi.  "Legacy"
- * GSIs are identity mapped; others are dynamically allocated as
- * usual. */
+/* Allocate an irq for a physical interrupt, given a gsi. */
 int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
 int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
 

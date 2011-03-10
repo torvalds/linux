@@ -583,13 +583,9 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
 	return xen_map_pirq_gsi(gsi, gsi, shareable, name);
 }
 
-/* xen_map_pirq_gsi might allocate irqs from the top down, as a
- * consequence don't assume that the irq number returned has a low value
- * or can be used as a pirq number unless you know otherwise.
- *
- * One notable exception is when xen_map_pirq_gsi is called passing an
- * hardware gsi as argument, in that case the irq number returned
- * matches the gsi number passed as second argument.
+/*
+ * Do not make any assumptions regarding the relationship between the
+ * IRQ number returned here and the Xen pirq argument.
  *
  * Note: We don't assign an event channel until the irq actually started
  * up.  Return an existing irq if we've already got one for the gsi.
