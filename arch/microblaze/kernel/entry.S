@@ -998,10 +998,13 @@ ENTRY(_reset)
 	/* in current MMU branch you don't care what is here - it is
 	 * used from bootloader site - but this is correct for FS-BOOT */
 	brai	0x70
-	nop
+	.org	0x8
 	brai	TOPHYS(_user_exception); /* syscall handler */
+	.org	0x10
 	brai	TOPHYS(_interrupt);	/* Interrupt handler */
+	.org	0x18
 	brai	TOPHYS(_debug_exception);	/* debug trap handler */
+	.org	0x20
 	brai	TOPHYS(_hw_exception_handler);	/* HW exception handler */
 
 .section .rodata,"a"
