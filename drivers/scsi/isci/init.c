@@ -229,12 +229,28 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	return 0;
 }
 
-static void isci_unregister_sas_ha(struct isci_host *isci_host)
+static ssize_t isci_show_id(struct device *dev, struct device_attribute *attr, char *buf)
 {
+	struct Scsi_Host *shost = container_of(dev, typeof(*shost), shost_dev);
+	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+	struct isci_host *ihost = container_of(sas_ha, typeof(*ihost), sas_ha);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ihost->id);
+}
+
+static DEVICE_ATTR(isci_id, S_IRUGO, isci_show_id, NULL);
+
+static void isci_unregister(struct isci_host *isci_host)
+{
+	struct Scsi_Host *shost;
+
 	if (!isci_host)
 		return;
 
-	sas_unregister_ha(&(isci_host->sas_ha));
+	shost = isci_host->shost;
+	device_remove_file(&shost->shost_dev, &dev_attr_isci_id);
+
+	sas_unregister_ha(&isci_host->sas_ha);
 
 	sas_remove_host(isci_host->shost);
 	scsi_remove_host(isci_host->shost);
@@ -477,8 +493,14 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	if (err)
 		goto err_shost_remove;
 
+	err = device_create_file(&shost->shost_dev, &dev_attr_isci_id);
+	if (err)
+		goto err_unregister_ha;
+
 	return isci_host;
 
+ err_unregister_ha:
+	sas_unregister_ha(&(isci_host->sas_ha));
  err_shost_remove:
 	scsi_remove_host(shost);
  err_shost:
@@ -640,7 +662,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 
  err_host_alloc:
 	for_each_isci_host(i, isci_host, pdev)
-		isci_unregister_sas_ha(isci_host);
+		isci_unregister(isci_host);
 	return err;
 }
 
@@ -650,7 +672,7 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 	int i;
 
 	for_each_isci_host(i, isci_host, pdev) {
-		isci_unregister_sas_ha(isci_host);
+		isci_unregister(isci_host);
 		isci_host_deinit(isci_host);
 		scic_controller_disable_interrupts(isci_host->core_controller);
 	}
