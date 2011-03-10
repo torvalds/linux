@@ -1388,6 +1388,19 @@ static bool cb_del_ampdu_pkt(void *p, int arg_a)
 }
 
 /*
+ * callback function that helps invalidating ampdu packets in a DMA queue
+ */
+static void dma_cb_fn_ampdu(void *txi, void *arg_a)
+{
+	struct ieee80211_sta *sta = arg_a;
+	struct ieee80211_tx_info *tx_info = (struct ieee80211_tx_info *)txi;
+
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
+	    (tx_info->control.sta == sta || sta == NULL))
+		tx_info->control.sta = NULL;
+}
+
+/*
  * When a remote party is no longer available for ampdu communication, any
  * pending tx ampdu packets in the driver have to be flushed.
  */
@@ -1405,4 +1418,5 @@ void wlc_ampdu_flush(struct wlc_info *wlc,
 		pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
 			    (int)&ampdu_pars);
 	}
+	wlc_inval_dma_pkts(wlc->hw, sta, dma_cb_fn_ampdu);
 }

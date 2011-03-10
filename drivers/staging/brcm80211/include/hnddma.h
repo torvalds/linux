@@ -202,5 +202,6 @@ extern const di_fcn_t dma64proc;
  * This info is needed by DMA_ALLOC_CONSISTENT in dma attach
  */
 extern uint dma_addrwidth(si_t *sih, void *dmaregs);
-
+void dma_walk_packets(struct hnddma_pub *dmah, void (*callback_fnc)
+		      (void *pkt, void *arg_a), void *arg_a);
 #endif				/* _hnddma_h_ */

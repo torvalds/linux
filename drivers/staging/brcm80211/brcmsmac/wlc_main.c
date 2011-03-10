@@ -8477,3 +8477,21 @@ void wlc_associate_upd(struct wlc_info *wlc, bool state)
 	wlc->pub->associated = state;
 	wlc->cfg->associated = state;
 }
+
+/*
+ * When a remote STA/AP is removed by Mac80211, or when it can no longer accept
+ * AMPDU traffic, packets pending in hardware have to be invalidated so that
+ * when later on hardware releases them, they can be handled appropriately.
+ */
+void wlc_inval_dma_pkts(struct wlc_hw_info *hw,
+			       struct ieee80211_sta *sta,
+			       void (*dma_callback_fn))
+{
+	struct hnddma_pub *dmah;
+	int i;
+	for (i = 0; i < NFIFO; i++) {
+		dmah = hw->di[i];
+		if (dmah != NULL)
+			dma_walk_packets(dmah, dma_callback_fn, sta);
+	}
+}

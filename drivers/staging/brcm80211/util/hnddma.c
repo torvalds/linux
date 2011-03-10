@@ -1800,3 +1800,27 @@ uint dma_addrwidth(si_t *sih, void *dmaregs)
 	return DMADDRWIDTH_64;
 }
 
+/*
+ * Mac80211 initiated actions sometimes require packets in the DMA queue to be
+ * modified. The modified portion of the packet is not under control of the DMA
+ * engine. This function calls a caller-supplied function for each packet in
+ * the caller specified dma chain.
+ */
+void dma_walk_packets(struct hnddma_pub *dmah, void (*callback_fnc)
+		      (void *pkt, void *arg_a), void *arg_a)
+{
+	dma_info_t *di = (dma_info_t *) dmah;
+	uint i =   di->txin;
+	uint end = di->txout;
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *tx_info;
+
+	while (i != end) {
+		skb = (struct sk_buff *)di->txp[i];
+		if (skb != NULL) {
+			tx_info = (struct ieee80211_tx_info *)skb->cb;
+			(callback_fnc)(tx_info, arg_a);
+		}
+		i = NEXTTXD(i);
+	}
+}
