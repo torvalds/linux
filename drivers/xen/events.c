@@ -1143,10 +1143,14 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 	struct evtchn_bind_vcpu bind_vcpu;
 	int evtchn = evtchn_from_irq(irq);
 
-	/* events delivered via platform PCI interrupts are always
-	 * routed to vcpu 0 */
-	if (!VALID_EVTCHN(evtchn) ||
-		(xen_hvm_domain() && !xen_have_vector_callback))
+	if (!VALID_EVTCHN(evtchn))
+		return -1;
+
+	/*
+	 * Events delivered via platform PCI interrupts are always
+	 * routed to vcpu 0 and hence cannot be rebound.
+	 */
+	if (xen_hvm_domain() && !xen_have_vector_callback)
 		return -1;
 
 	/* Send future instances of this interrupt to other vcpu. */
