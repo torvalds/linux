@@ -608,7 +608,8 @@ static void init_forechannel_attrs(struct nfsd4_channel_attrs *new, struct nfsd4
 	u32 maxrpc = nfsd_serv->sv_max_mesg;
 
 	new->maxreqs = numslots;
-	new->maxresp_cached = slotsize + NFSD_MIN_HDR_SEQ_SZ;
+	new->maxresp_cached = min_t(u32, req->maxresp_cached,
+					slotsize + NFSD_MIN_HDR_SEQ_SZ);
 	new->maxreq_sz = min_t(u32, req->maxreq_sz, maxrpc);
 	new->maxresp_sz = min_t(u32, req->maxresp_sz, maxrpc);
 	new->maxops = min_t(u32, req->maxops, NFSD_MAX_OPS_PER_COMPOUND);
