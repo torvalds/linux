@@ -423,14 +423,7 @@ static int xen_allocate_irq_dynamic(void)
 		first = get_nr_irqs_gsi();
 #endif
 
-retry:
 	irq = irq_alloc_desc_from(first, -1);
-
-	if (irq == -ENOMEM && first > NR_IRQS_LEGACY) {
-		printk(KERN_ERR "Out of dynamic IRQ space and eating into GSI space. You should increase nr_irqs\n");
-		first = max(NR_IRQS_LEGACY, first - NR_IRQS_LEGACY);
-		goto retry;
-	}
 
 	if (irq < 0)
 		panic("No available IRQ to bind to: increase nr_irqs!\n");
