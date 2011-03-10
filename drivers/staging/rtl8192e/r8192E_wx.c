@@ -1006,7 +1006,7 @@ static int r8192_wx_adapter_power_status(struct net_device *dev,
 	} else {
 		//LZM for PS-Poll AID issue. 090429
 		if(priv->ieee80211->state == IEEE80211_LINKED)
-			LeisurePSLeave(dev);
+			LeisurePSLeave(priv->ieee80211);
 
 		priv->ps_force = true;
 		pPSC->bLeisurePs = false;

@@ -1133,12 +1133,12 @@ RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress,
 void IPSEnter(struct r8192_priv *priv);
 void IPSLeave(struct r8192_priv *priv);
 void IPSLeave_wq(struct work_struct *work);
-void ieee80211_ips_leave_wq(struct net_device *dev);
-void ieee80211_ips_leave(struct net_device *dev);
+void ieee80211_ips_leave_wq(struct ieee80211_device *ieee80211);
+void ieee80211_ips_leave(struct ieee80211_device *ieee80211);
 #endif
 #ifdef ENABLE_LPS
-void LeisurePSEnter(struct net_device *dev);
-void LeisurePSLeave(struct net_device *dev);
+void LeisurePSEnter(struct ieee80211_device *ieee80211);
+void LeisurePSLeave(struct ieee80211_device *ieee80211);
 #endif
 
 bool NicIFEnableNIC(struct r8192_priv *priv);

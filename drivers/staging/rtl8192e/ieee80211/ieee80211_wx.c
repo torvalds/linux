@@ -463,7 +463,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
 
 	if (ieee->set_security)
-		ieee->set_security(dev, &sec);
+		ieee->set_security(ieee, &sec);
 
 	/* Do not reset port if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
@@ -696,7 +696,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 #endif
 done:
         if (ieee->set_security)
-                ieee->set_security(ieee->dev, &sec);
+		ieee->set_security(ieee, &sec);
 
 	 if (ieee->reset_on_keychange &&
             ieee->iw_mode != IW_MODE_INFRA &&

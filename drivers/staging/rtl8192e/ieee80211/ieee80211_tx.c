@@ -935,7 +935,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE){
 			ieee80211_softmac_xmit(txb, ieee);
 		}else{
-			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
+			if ((*ieee->hard_start_xmit)(txb, ieee) == 0) {
 				stats->tx_packets++;
 				stats->tx_bytes += txb->payload_size;
 				return 0;

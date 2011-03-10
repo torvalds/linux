@@ -609,7 +609,7 @@ void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
 #ifdef ENABLE_IPS
 	if(ieee->ieee80211_ips_leave_wq != NULL)
-		ieee->ieee80211_ips_leave_wq(ieee->dev);
+		ieee->ieee80211_ips_leave_wq(ieee);
 #endif
 
 #ifdef ENABLE_DOT11D
@@ -1408,7 +1408,7 @@ void ieee80211_associate_procedure_wq(struct work_struct *work)
 	ieee->sync_scan_hurryup = 1;
 #ifdef ENABLE_IPS
 	if(ieee->ieee80211_ips_leave != NULL)
-        	ieee->ieee80211_ips_leave(ieee->dev);
+		ieee->ieee80211_ips_leave(ieee);
 #endif
 
 	down(&ieee->wx_sem);
@@ -2522,7 +2522,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	if (ieee->state == IEEE80211_NOLINK){
 #ifdef ENABLE_IPS
 		if(ieee->ieee80211_ips_leave_wq != NULL)
-			ieee->ieee80211_ips_leave_wq(ieee->dev);
+			ieee->ieee80211_ips_leave_wq(ieee);
 #endif
 		ieee->actscanning = true;
 		ieee80211_rtl_start_scan(ieee);
@@ -2933,7 +2933,7 @@ static int ieee80211_wpa_set_auth_algs(struct ieee80211_device *ieee, int value)
 
 
 	if (ieee->set_security)
-		ieee->set_security(ieee->dev, &sec);
+		ieee->set_security(ieee, &sec);
 
 	return ret;
 }
@@ -2981,7 +2981,7 @@ static int ieee80211_wpa_set_param(struct ieee80211_device *ieee, u8 name, u32 v
 			sec.level = SEC_LEVEL_1;
 		}
 		if (ieee->set_security)
-			ieee->set_security(ieee->dev, &sec);
+			ieee->set_security(ieee, &sec);
 		break;
 	}
 
@@ -3147,7 +3147,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 	}
  done:
 	if (ieee->set_security)
-		ieee->set_security(ieee->dev, &sec);
+		ieee->set_security(ieee, &sec);
 
 	/* Do not reset port if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping

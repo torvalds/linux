@@ -1803,7 +1803,7 @@ struct ieee80211_device {
 	u8  LPSDelayCnt;
 	bool bIsAggregateFrame;
 	bool polling;
-	void (*LeisurePSLeave)(struct net_device *dev);
+	void (*LeisurePSLeave)(struct ieee80211_device *ieee);
 #endif
 
 #ifdef ENABLE_IPS
@@ -1811,10 +1811,10 @@ struct ieee80211_device {
 	bool wx_set_enc;
 	struct semaphore ips_sem;
 	struct work_struct ips_leave_wq;
-        void (*ieee80211_ips_leave_wq) (struct net_device *dev);
-        void (*ieee80211_ips_leave)(struct net_device *dev);
+        void (*ieee80211_ips_leave_wq) (struct ieee80211_device *ieee);
+        void (*ieee80211_ips_leave)(struct ieee80211_device *ieee);
 #endif
-	void (*SetHwRegHandler)(struct net_device *dev,u8 variable,u8* val);
+	void (*SetHwRegHandler)(struct ieee80211_device *ieee, u8 variable, u8 *val);
 	u8   (*rtllib_ap_sec_type)(struct ieee80211_device *ieee);
 
 	//hw security related
@@ -2099,7 +2099,7 @@ struct ieee80211_device {
         struct workqueue_struct *wq;
 
 	/* Callback functions */
-	void (*set_security)(struct net_device *dev,
+	void (*set_security)(struct ieee80211_device *ieee,
 			     struct ieee80211_security *sec);
 
 	/* Used to TX data frame by using txb structs.
@@ -2107,7 +2107,7 @@ struct ieee80211_device {
 	 * is set the flag IEEE_SOFTMAC_TX_QUEUE
 	 */
 	int (*hard_start_xmit)(struct ieee80211_txb *txb,
-			       struct net_device *dev);
+			       struct ieee80211_device *ieee);
 
 	int (*reset_port)(struct net_device *dev);
         int (*is_queue_full) (struct net_device * dev, int pri);

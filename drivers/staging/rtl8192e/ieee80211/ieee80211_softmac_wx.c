@@ -70,7 +70,7 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 		}
 #endif
 		ieee->current_network.channel = fwrq->m;
-		ieee->set_chan(ieee->dev, ieee->current_network.channel);
+		ieee->set_chan(ieee, ieee->current_network.channel);
 
 		if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 			if(ieee->state == IEEE80211_LINKED){
@@ -307,7 +307,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 #ifdef ENABLE_LPS
 	if (ieee->LeisurePSLeave) {
-		ieee->LeisurePSLeave(ieee->dev);
+		ieee->LeisurePSLeave(ieee);
 	}
 
 	/* notify AP to be in PS mode */
@@ -334,14 +334,14 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	if (b40M) {
 		printk("Scan in 20M, back to 40M\n");
 		if (chan_offset == HT_EXTCHNL_OFFSET_UPPER)
-			ieee->set_chan(ieee->dev, chan + 2);
+			ieee->set_chan(ieee, chan + 2);
 		else if (chan_offset == HT_EXTCHNL_OFFSET_LOWER)
-			ieee->set_chan(ieee->dev, chan - 2);
+			ieee->set_chan(ieee, chan - 2);
 		else
-			ieee->set_chan(ieee->dev, chan);
+			ieee->set_chan(ieee, chan);
 		ieee->SetBWModeHandler(ieee->dev, bandwidth, chan_offset);
 	} else {
-		ieee->set_chan(ieee->dev, chan);
+		ieee->set_chan(ieee, chan);
 	}
 
 	ieee->InitialGainHandler(ieee->dev,IG_Restore);

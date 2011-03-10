@@ -271,10 +271,9 @@ u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
 	}
 }
 
-void
-rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
+void rtl8192e_SetHwReg(struct ieee80211_device *ieee80211, u8 variable, u8 *val)
 {
-	struct r8192_priv* priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 
 	switch(variable)
 	{
@@ -748,13 +747,12 @@ void PHY_SetRtl8192eRfOff(struct r8192_priv *priv)
 
 static void rtl8192_halt_adapter(struct r8192_priv *priv, bool reset)
 {
-	struct net_device *dev = priv->ieee80211->dev;
 	int i;
 	u8 OpMode;
 	u32 ulRegRead;
 
 	OpMode = RT_OP_MODE_NO_LINK;
-	priv->ieee80211->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &OpMode);
+	priv->ieee80211->SetHwRegHandler(priv->ieee80211, HW_VAR_MEDIA_STATUS, &OpMode);
 
 	if (!priv->ieee80211->bSupportRemoteWakeUp) {
 		/*
@@ -3071,9 +3069,9 @@ bool MgntActSet_802_11_PowerSaveMode(struct r8192_priv *priv, u8 rtPsMode)
 }
 
 /* Enter the leisure power save mode. */
-void LeisurePSEnter(struct net_device *dev)
+void LeisurePSEnter(struct ieee80211_device *ieee80211)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	if(!((priv->ieee80211->iw_mode == IW_MODE_INFRA) &&
@@ -3101,9 +3099,9 @@ void LeisurePSEnter(struct net_device *dev)
 
 
 /* Leave leisure power save mode. */
-void LeisurePSLeave(struct net_device *dev)
+void LeisurePSLeave(struct ieee80211_device *ieee80211)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 	PRT_POWER_SAVE_CONTROL pPSC = &priv->PowerSaveControl;
 
 	if (pPSC->bLeisurePs)
@@ -3181,9 +3179,9 @@ void IPSLeave_wq(struct work_struct *work)
 	up(&priv->ieee80211->ips_sem);
 }
 
-void ieee80211_ips_leave_wq(struct net_device *dev)
+void ieee80211_ips_leave_wq(struct ieee80211_device *ieee80211)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 	RT_RF_POWER_STATE	rtState;
 	rtState = priv->eRFPowerState;
 
@@ -3202,12 +3200,12 @@ void ieee80211_ips_leave_wq(struct net_device *dev)
 	}
 }
 //added by amy 090331 end
-void ieee80211_ips_leave(struct net_device *dev)
+void ieee80211_ips_leave(struct ieee80211_device *ieee80211)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	down(&priv->ieee80211->ips_sem);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
+	down(&ieee80211->ips_sem);
 	IPSLeave(priv);
-	up(&priv->ieee80211->ips_sem);
+	up(&ieee80211->ips_sem);
 }
 #endif
 
@@ -3283,11 +3281,11 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 			// LeisurePS only work in infra mode.
 			if(bEnterPS)
 			{
-				LeisurePSEnter(dev);
+				LeisurePSEnter(priv->ieee80211);
 			}
 			else
 			{
-				LeisurePSLeave(dev);
+				LeisurePSLeave(priv->ieee80211);
 			}
 #endif
 
@@ -3295,7 +3293,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 		else
 		{
 #ifdef ENABLE_LPS
-			LeisurePSLeave(dev);
+			LeisurePSLeave(priv->ieee80211);
 #endif
 		}
 
@@ -3449,7 +3447,7 @@ int rtl8192_down(struct net_device *dev)
 #ifdef ENABLE_LPS
 	//LZM for PS-Poll AID issue. 090429
 	if(priv->ieee80211->state == IEEE80211_LINKED)
-		LeisurePSLeave(dev);
+		LeisurePSLeave(priv->ieee80211);
 #endif
 
 	priv->up=0;

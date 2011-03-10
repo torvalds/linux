@@ -1341,7 +1341,7 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 						(ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2) )
 					{
 						if(ieee->LeisurePSLeave)
-							ieee->LeisurePSLeave(dev);
+							ieee->LeisurePSLeave(ieee);
 					}
 				}
 			}
