@@ -55,7 +55,7 @@ struct auth_domain *unix_domain_find(char *name)
 	while(1) {
 		if (rv) {
 			if (new && rv != &new->h)
-				svcauth_unix_domain_release(new);
+				svcauth_unix_domain_release(&new->h);
 
 			if (rv->flavour != &svcauth_unix) {
 				auth_domain_put(rv);
