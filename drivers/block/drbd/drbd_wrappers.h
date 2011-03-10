@@ -45,24 +45,6 @@ static inline void drbd_generic_make_request(struct drbd_conf *mdev,
 		generic_make_request(bio);
 }
 
-static inline void drbd_plug_device(struct drbd_conf *mdev)
-{
-	struct request_queue *q;
-	q = bdev_get_queue(mdev->this_bdev);
-
-	spin_lock_irq(q->queue_lock);
-
-/* XXX the check on !blk_queue_plugged is redundant,
- * implicitly checked in blk_plug_device */
-
-	if (!blk_queue_plugged(q)) {
-		blk_plug_device(q);
-		del_timer(&q->unplug_timer);
-		/* unplugging should not happen automatically... */
-	}
-	spin_unlock_irq(q->queue_lock);
-}
-
 static inline int drbd_crypto_is_hash(struct crypto_tfm *tfm)
 {
         return (crypto_tfm_alg_type(tfm) & CRYPTO_ALG_TYPE_HASH_MASK)

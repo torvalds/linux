@@ -196,7 +196,6 @@ typedef void (request_fn_proc) (struct request_queue *q);
 typedef int (make_request_fn) (struct request_queue *q, struct bio *bio);
 typedef int (prep_rq_fn) (struct request_queue *, struct request *);
 typedef void (unprep_rq_fn) (struct request_queue *, struct request *);
-typedef void (unplug_fn) (struct request_queue *);
 
 struct bio_vec;
 struct bvec_merge_data {
@@ -279,7 +278,6 @@ struct request_queue
 	make_request_fn		*make_request_fn;
 	prep_rq_fn		*prep_rq_fn;
 	unprep_rq_fn		*unprep_rq_fn;
-	unplug_fn		*unplug_fn;
 	merge_bvec_fn		*merge_bvec_fn;
 	softirq_done_fn		*softirq_done_fn;
 	rq_timed_out_fn		*rq_timed_out_fn;
@@ -291,14 +289,6 @@ struct request_queue
 	 */
 	sector_t		end_sector;
 	struct request		*boundary_rq;
-
-	/*
-	 * Auto-unplugging state
-	 */
-	struct timer_list	unplug_timer;
-	int			unplug_thresh;	/* After this many requests */
-	unsigned long		unplug_delay;	/* After this many jiffies */
-	struct work_struct	unplug_work;
 
 	/*
 	 * Delayed queue handling
@@ -399,14 +389,13 @@ struct request_queue
 #define QUEUE_FLAG_ASYNCFULL	4	/* write queue has been filled */
 #define QUEUE_FLAG_DEAD		5	/* queue being torn down */
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
-#define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
-#define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
-#define QUEUE_FLAG_BIDI		9	/* queue supports bidi requests */
-#define QUEUE_FLAG_NOMERGES    10	/* disable merge attempts */
-#define QUEUE_FLAG_SAME_COMP   11	/* force complete on same CPU */
-#define QUEUE_FLAG_FAIL_IO     12	/* fake timeout */
-#define QUEUE_FLAG_STACKABLE   13	/* supports request stacking */
-#define QUEUE_FLAG_NONROT      14	/* non-rotational device (SSD) */
+#define QUEUE_FLAG_ELVSWITCH	7	/* don't use elevator, just do FIFO */
+#define QUEUE_FLAG_BIDI		8	/* queue supports bidi requests */
+#define QUEUE_FLAG_NOMERGES     9	/* disable merge attempts */
+#define QUEUE_FLAG_SAME_COMP   10	/* force complete on same CPU */
+#define QUEUE_FLAG_FAIL_IO     11	/* fake timeout */
+#define QUEUE_FLAG_STACKABLE   12	/* supports request stacking */
+#define QUEUE_FLAG_NONROT      13	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
 #define QUEUE_FLAG_IO_STAT     15	/* do IO stats */
 #define QUEUE_FLAG_DISCARD     16	/* supports DISCARD */
@@ -484,7 +473,6 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	__clear_bit(flag, &q->queue_flags);
 }
 
-#define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
@@ -679,9 +667,6 @@ extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 extern void blk_rq_unprep_clone(struct request *rq);
 extern int blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
-extern void blk_plug_device(struct request_queue *);
-extern void blk_plug_device_unlocked(struct request_queue *);
-extern int blk_remove_plug(struct request_queue *);
 extern void blk_delay_queue(struct request_queue *, unsigned long);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
 extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
@@ -726,7 +711,6 @@ extern int blk_execute_rq(struct request_queue *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
-extern void blk_unplug(struct request_queue *q);
 
 static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 {
@@ -863,7 +847,6 @@ extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bd
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);
-extern void generic_unplug_device(struct request_queue *);
 extern long nr_blockdev_pages(void);
 
 int blk_get_queue(struct request_queue *);

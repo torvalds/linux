@@ -800,7 +800,6 @@ out:
 	if (nr_disp) {
 		while((bio = bio_list_pop(&bio_list_on_stack)))
 			generic_make_request(bio);
-		blk_unplug(q);
 	}
 	return nr_disp;
 }

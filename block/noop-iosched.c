@@ -39,13 +39,6 @@ static void noop_add_request(struct request_queue *q, struct request *rq)
 	list_add_tail(&rq->queuelist, &nd->queue);
 }
 
-static int noop_queue_empty(struct request_queue *q)
-{
-	struct noop_data *nd = q->elevator->elevator_data;
-
-	return list_empty(&nd->queue);
-}
-
 static struct request *
 noop_former_request(struct request_queue *q, struct request *rq)
 {
@@ -90,7 +83,6 @@ static struct elevator_type elevator_noop = {
 		.elevator_merge_req_fn		= noop_merged_requests,
 		.elevator_dispatch_fn		= noop_dispatch,
 		.elevator_add_req_fn		= noop_add_request,
-		.elevator_queue_empty_fn	= noop_queue_empty,
 		.elevator_former_req_fn		= noop_former_request,
 		.elevator_latter_req_fn		= noop_latter_request,
 		.elevator_init_fn		= noop_init_queue,

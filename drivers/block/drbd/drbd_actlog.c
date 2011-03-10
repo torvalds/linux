@@ -689,8 +689,6 @@ void drbd_al_to_on_disk_bm(struct drbd_conf *mdev)
 		}
 	}
 
-	drbd_blk_run_queue(bdev_get_queue(mdev->ldev->md_bdev));
-
 	/* always (try to) flush bitmap to stable storage */
 	drbd_md_flush(mdev);
 

@@ -895,11 +895,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 {
 	struct request *req;
 
-	while (!blk_queue_plugged(q)) {
-		req = blk_peek_request(q);
-		if (!req)
-			break;
-
+	while ((req = blk_peek_request(q)) != NULL) {
 		if (req->cmd_type == REQ_TYPE_FS) {
 			struct i2o_block_delayed_request *dreq;
 			struct i2o_block_request *ireq = req->special;

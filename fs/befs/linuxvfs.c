@@ -75,7 +75,6 @@ static const struct inode_operations befs_dir_inode_operations = {
 
 static const struct address_space_operations befs_aops = {
 	.readpage	= befs_readpage,
-	.sync_page	= block_sync_page,
 	.bmap		= befs_bmap,
 };
 

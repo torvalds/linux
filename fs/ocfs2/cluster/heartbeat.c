@@ -367,11 +367,7 @@ static inline void o2hb_bio_wait_dec(struct o2hb_bio_wait_ctxt *wc,
 static void o2hb_wait_on_io(struct o2hb_region *reg,
 			    struct o2hb_bio_wait_ctxt *wc)
 {
-	struct address_space *mapping = reg->hr_bdev->bd_inode->i_mapping;
-
-	blk_run_address_space(mapping);
 	o2hb_bio_wait_dec(wc, 1);
-
 	wait_for_completion(&wc->wc_io_complete);
 }
 

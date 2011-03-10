@@ -807,8 +807,6 @@ void dm_requeue_unmapped_request(struct request *clone)
 	dm_unprep_request(rq);
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (elv_queue_empty(q))
-		blk_plug_device(q);
 	blk_requeue_request(q, rq);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
@@ -1613,10 +1611,10 @@ static void dm_request_fn(struct request_queue *q)
 	 * number of in-flight I/Os after the queue is stopped in
 	 * dm_suspend().
 	 */
-	while (!blk_queue_plugged(q) && !blk_queue_stopped(q)) {
+	while (!blk_queue_stopped(q)) {
 		rq = blk_peek_request(q);
 		if (!rq)
-			goto plug_and_out;
+			goto delay_and_out;
 
 		/* always use block 0 to find the target for flushes for now */
 		pos = 0;
@@ -1627,7 +1625,7 @@ static void dm_request_fn(struct request_queue *q)
 		BUG_ON(!dm_target_is_valid(ti));
 
 		if (ti->type->busy && ti->type->busy(ti))
-			goto plug_and_out;
+			goto delay_and_out;
 
 		blk_start_request(rq);
 		clone = rq->special;
@@ -1647,11 +1645,8 @@ requeued:
 	BUG_ON(!irqs_disabled());
 	spin_lock(q->queue_lock);
 
-plug_and_out:
-	if (!elv_queue_empty(q))
-		/* Some requests still remain, retry later */
-		blk_plug_device(q);
-
+delay_and_out:
+	blk_delay_queue(q, HZ / 10);
 out:
 	dm_table_put(map);
 
@@ -1678,20 +1673,6 @@ static int dm_lld_busy(struct request_queue *q)
 	dm_table_put(map);
 
 	return r;
-}
-
-static void dm_unplug_all(struct request_queue *q)
-{
-	struct mapped_device *md = q->queuedata;
-	struct dm_table *map = dm_get_live_table(md);
-
-	if (map) {
-		if (dm_request_based(md))
-			generic_unplug_device(q);
-
-		dm_table_unplug_all(map);
-		dm_table_put(map);
-	}
 }
 
 static int dm_any_congested(void *congested_data, int bdi_bits)
@@ -1817,7 +1798,6 @@ static void dm_init_md_queue(struct mapped_device *md)
 	md->queue->backing_dev_info.congested_data = md;
 	blk_queue_make_request(md->queue, dm_request);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
-	md->queue->unplug_fn = dm_unplug_all;
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
 	blk_queue_flush(md->queue, REQ_FLUSH | REQ_FUA);
 }
@@ -2263,8 +2243,6 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 	int r = 0;
 	DECLARE_WAITQUEUE(wait, current);
 
-	dm_unplug_all(md->queue);
-
 	add_wait_queue(&md->wait, &wait);
 
 	while (1) {
@@ -2539,7 +2517,6 @@ int dm_resume(struct mapped_device *md)
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
 
-	dm_table_unplug_all(map);
 	r = 0;
 out:
 	dm_table_put(map);

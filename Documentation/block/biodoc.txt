@@ -963,11 +963,6 @@ elevator_dispatch_fn*		fills the dispatch queue with ready requests.
 
 elevator_add_req_fn*		called to add a new request into the scheduler
 
-elevator_queue_empty_fn		returns true if the merge queue is empty.
-				Drivers shouldn't use this, but rather check
-				if elv_next_request is NULL (without losing the
-				request if one exists!)
-
 elevator_former_req_fn
 elevator_latter_req_fn		These return the request before or after the
 				one specified in disk sort order. Used by the

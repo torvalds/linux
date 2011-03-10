@@ -1520,7 +1520,6 @@ static int blkdev_releasepage(struct page *page, gfp_t wait)
 static const struct address_space_operations def_blk_aops = {
 	.readpage	= blkdev_readpage,
 	.writepage	= blkdev_writepage,
-	.sync_page	= block_sync_page,
 	.write_begin	= blkdev_write_begin,
 	.write_end	= blkdev_write_end,
 	.writepages	= generic_writepages,

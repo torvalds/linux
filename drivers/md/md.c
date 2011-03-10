@@ -4812,7 +4812,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		__md_stop_writes(mddev);
 		md_stop(mddev);
 		mddev->queue->merge_bvec_fn = NULL;
-		mddev->queue->unplug_fn = NULL;
 		mddev->queue->backing_dev_info.congested_fn = NULL;
 
 		/* tell userspace to handle 'inactive' */
@@ -6669,8 +6668,6 @@ EXPORT_SYMBOL_GPL(md_allow_write);
 
 void md_unplug(mddev_t *mddev)
 {
-	if (mddev->queue)
-		blk_unplug(mddev->queue);
 	if (mddev->plug)
 		mddev->plug->unplug_fn(mddev->plug);
 }
@@ -6853,7 +6850,6 @@ void md_do_sync(mddev_t *mddev)
 		     >= mddev->resync_max - mddev->curr_resync_completed
 			    )) {
 			/* time to update curr_resync_completed */
-			md_unplug(mddev);
 			wait_event(mddev->recovery_wait,
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed = j;
@@ -6929,7 +6925,6 @@ void md_do_sync(mddev_t *mddev)
 		 * about not overloading the IO subsystem. (things like an
 		 * e2fsck being done on the RAID array should execute fast)
 		 */
-		md_unplug(mddev);
 		cond_resched();
 
 		currspeed = ((unsigned long)(io_sectors-mddev->resync_mark_cnt))/2
@@ -6948,8 +6943,6 @@ void md_do_sync(mddev_t *mddev)
 	 * this also signals 'finished resyncing' to md_stop
 	 */
  out:
-	md_unplug(mddev);
-
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	/* tell personality that we are finished */

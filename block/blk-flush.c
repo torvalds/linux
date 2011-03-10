@@ -194,7 +194,6 @@ static void flush_end_io(struct request *flush_rq, int error)
 {
 	struct request_queue *q = flush_rq->q;
 	struct list_head *running = &q->flush_queue[q->flush_running_idx];
-	bool was_empty = elv_queue_empty(q);
 	bool queued = false;
 	struct request *rq, *n;
 
@@ -213,7 +212,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 	}
 
 	/* after populating an empty queue, kick it to avoid stall */
-	if (queued && was_empty)
+	if (queued)
 		__blk_run_queue(q);
 }
 

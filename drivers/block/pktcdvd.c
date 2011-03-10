@@ -1606,8 +1606,6 @@ static int kcdrwd(void *foobar)
 					min_sleep_time = pkt->sleep_time;
 			}
 
-			generic_unplug_device(bdev_get_queue(pd->bdev));
-
 			VPRINTK("kcdrwd: sleeping\n");
 			residue = schedule_timeout(min_sleep_time);
 			VPRINTK("kcdrwd: wake up\n");

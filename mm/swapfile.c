@@ -95,39 +95,6 @@ __try_to_reclaim_swap(struct swap_info_struct *si, unsigned long offset)
 }
 
 /*
- * We need this because the bdev->unplug_fn can sleep and we cannot
- * hold swap_lock while calling the unplug_fn. And swap_lock
- * cannot be turned into a mutex.
- */
-static DECLARE_RWSEM(swap_unplug_sem);
-
-void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
-{
-	swp_entry_t entry;
-
-	down_read(&swap_unplug_sem);
-	entry.val = page_private(page);
-	if (PageSwapCache(page)) {
-		struct block_device *bdev = swap_info[swp_type(entry)]->bdev;
-		struct backing_dev_info *bdi;
-
-		/*
-		 * If the page is removed from swapcache from under us (with a
-		 * racy try_to_unuse/swapoff) we need an additional reference
-		 * count to avoid reading garbage from page_private(page) above.
-		 * If the WARN_ON triggers during a swapoff it maybe the race
-		 * condition and it's harmless. However if it triggers without
-		 * swapoff it signals a problem.
-		 */
-		WARN_ON(page_count(page) <= 1);
-
-		bdi = bdev->bd_inode->i_mapping->backing_dev_info;
-		blk_run_backing_dev(bdi, page);
-	}
-	up_read(&swap_unplug_sem);
-}
-
-/*
  * swapon tell device that all the old swap contents can be discarded,
  * to allow the swap device to optimize its wear-levelling.
  */
@@ -1642,10 +1609,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		spin_unlock(&swap_lock);
 		goto out_dput;
 	}
-
-	/* wait for any unplug function to finish */
-	down_write(&swap_unplug_sem);
-	up_write(&swap_unplug_sem);
 
 	destroy_swap_extents(p);
 	if (p->flags & SWP_CONTINUED)
