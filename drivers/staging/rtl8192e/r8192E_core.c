@@ -102,7 +102,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work);
 static void rtl8192_irq_rx_tasklet(unsigned long arg);
 static void rtl8192_irq_tx_tasklet(unsigned long arg);
 static void rtl8192_prepare_beacon(unsigned long arg);
-static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
+static irqreturn_t rtl8192_interrupt(int irq, void *param);
 static void rtl819xE_tx_cmd(struct r8192_priv *priv, struct sk_buff *skb);
 static void rtl8192_update_ratr_table(struct r8192_priv *priv);
 static void rtl8192_restart(struct work_struct *work);
@@ -2412,7 +2412,7 @@ static short rtl8192_init(struct r8192_priv *priv)
 	init_timer(&priv->watch_dog_timer);
 	priv->watch_dog_timer.data = (unsigned long)priv;
 	priv->watch_dog_timer.function = watch_dog_timer_callback;
-        if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED, dev->name, dev)) {
+        if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED, dev->name, priv)) {
 		printk("Error allocating IRQ %d",dev->irq);
 		return -1;
 	}else{
@@ -4640,8 +4640,8 @@ fail:
 	if(dev){
 
 		if (priv->irq) {
-			free_irq(dev->irq, dev);
-			dev->irq=0;
+			free_irq(priv->irq, priv);
+			priv->irq = 0;
 		}
 		free_ieee80211(dev);
 	}
@@ -4702,9 +4702,9 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 			rtl8192_free_tx_ring(priv, i);
 
 		if (priv->irq) {
-			printk("Freeing irq %d\n",dev->irq);
-			free_irq(dev->irq, dev);
-			priv->irq=0;
+			printk("Freeing irq %d\n", priv->irq);
+			free_irq(priv->irq, priv);
+			priv->irq = 0;
 		}
 
 		if (priv->mem_start) {
@@ -4754,10 +4754,10 @@ static void __exit rtl8192_pci_module_exit(void)
 	ieee80211_rtl_exit();
 }
 
-static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
+static irqreturn_t rtl8192_interrupt(int irq, void *param)
 {
-	struct net_device *dev = (struct net_device *) netdev;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = param;
+	struct net_device *dev = priv->ieee80211->dev;
 	unsigned long flags;
 	u32 inta;
 	irqreturn_t ret = IRQ_HANDLED;
