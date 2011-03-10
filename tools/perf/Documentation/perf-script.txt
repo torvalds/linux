@@ -115,7 +115,21 @@ OPTIONS
 -f::
 --fields
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace
+        comm, tid, pid, time, cpu, event, trace, sym
+
+-k::
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
+
+-G::
+--hide-call-graph::
+        When printing symbols do not display call chain.
 
 SEE ALSO
 --------

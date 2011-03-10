@@ -19,6 +19,7 @@ static bool			debug_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
+static bool			no_callchain;
 
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
@@ -28,6 +29,7 @@ enum perf_output_field {
 	PERF_OUTPUT_CPU             = 1U << 4,
 	PERF_OUTPUT_EVNAME          = 1U << 5,
 	PERF_OUTPUT_TRACE           = 1U << 6,
+	PERF_OUTPUT_SYM             = 1U << 7,
 };
 
 struct output_option {
@@ -41,6 +43,7 @@ struct output_option {
 	{.str = "cpu",   .field = PERF_OUTPUT_CPU},
 	{.str = "event", .field = PERF_OUTPUT_EVNAME},
 	{.str = "trace", .field = PERF_OUTPUT_TRACE},
+	{.str = "sym",   .field = PERF_OUTPUT_SYM},
 };
 
 /* default set to maintain compatibility with current format */
@@ -65,6 +68,8 @@ static void print_sample_start(struct perf_sample *sample,
 	if (PRINT_FIELD(COMM)) {
 		if (latency_format)
 			printf("%8.8s ", thread->comm);
+		else if (PRINT_FIELD(SYM) && symbol_conf.use_callchain)
+			printf("%s ", thread->comm);
 		else
 			printf("%16s ", thread->comm);
 	}
@@ -111,6 +116,14 @@ static void process_event(union perf_event *event __unused,
 	if (PRINT_FIELD(TRACE))
 		print_trace_event(sample->cpu, sample->raw_data,
 				  sample->raw_size);
+
+	if (PRINT_FIELD(SYM)) {
+		if (!symbol_conf.use_callchain)
+			printf(" ");
+		else
+			printf("\n");
+		perf_session__print_symbols(event, sample, session);
+	}
 
 	printf("\n");
 }
@@ -190,7 +203,10 @@ static int process_sample_event(union perf_event *event,
 
 static struct perf_event_ops event_ops = {
 	.sample		 = process_sample_event,
+	.mmap		 = perf_event__process_mmap,
 	.comm		 = perf_event__process_comm,
+	.exit		 = perf_event__process_task,
+	.fork		 = perf_event__process_task,
 	.attr		 = perf_event__process_attr,
 	.event_type	 = perf_event__process_event_type,
 	.tracing_data	 = perf_event__process_tracing_data,
@@ -722,8 +738,16 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
+		   "file", "kallsyms pathname"),
+	OPT_BOOLEAN('G', "hide-call-graph", &no_callchain,
+		    "When printing symbols do not display call chain"),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields. Options: comm,tid,pid,time,cpu,event,trace",
+		     "comma separated output fields. Options: comm,tid,pid,time,cpu,event,trace,sym",
 		     parse_output_fields),
 
 	OPT_END()
@@ -904,6 +928,11 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	session = perf_session__new(input_name, O_RDONLY, 0, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (!no_callchain && (session->sample_type & PERF_SAMPLE_CALLCHAIN))
+		symbol_conf.use_callchain = true;
+	else
+		symbol_conf.use_callchain = false;
 
 	if (strcmp(input_name, "-") &&
 	    !perf_session__has_traces(session, "record -R"))
