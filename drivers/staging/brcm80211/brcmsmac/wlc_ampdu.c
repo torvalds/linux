@@ -900,13 +900,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 
 	tx_info = IEEE80211_SKB_CB(p);
 	ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
-	ASSERT(scb);
-	ASSERT(scb->magic == SCB_MAGIC);
 	ASSERT(txs->status & TX_STATUS_AMPDU);
-	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
-	ASSERT(scb_ampdu);
-	ini = SCB_AMPDU_INI(scb_ampdu, p->priority);
-	ASSERT(ini->scb == scb);
 
 	/* BMAC_NOTE: For the split driver, second level txstatus comes later
 	 * So if the ACK was received then wait for the second level else just
@@ -930,7 +924,33 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		s2 = R_REG(&wlc->regs->frmtxstatus2);
 	}
 
-	wlc_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
+	if (likely(scb)) {
+		ASSERT(scb->magic == SCB_MAGIC);
+		scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
+		ASSERT(scb_ampdu);
+		ini = SCB_AMPDU_INI(scb_ampdu, p->priority);
+		ASSERT(ini->scb == scb);
+		wlc_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
+	} else {
+		/* loop through all pkts and free */
+		u8 queue = txs->frameid & TXFID_QUEUE_MASK;
+		d11txh_t *txh;
+		u16 mcl;
+		while (p) {
+			tx_info = IEEE80211_SKB_CB(p);
+			txh = (d11txh_t *) p->data;
+			mcl = le16_to_cpu(txh->MacTxControlLow);
+			ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
+			pkt_buf_free_skb(p);
+			/* break out if last packet of ampdu */
+			if (((mcl & TXC_AMPDU_MASK) >> TXC_AMPDU_SHIFT) ==
+			    TXC_AMPDU_LAST)
+				break;
+			p = GETNEXTTXP(wlc, queue);
+			ASSERT(p != NULL);
+		}
+		wlc_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
+	}
 	wlc_ampdu_txflowcontrol(wlc, scb_ampdu, ini);
 }
 
