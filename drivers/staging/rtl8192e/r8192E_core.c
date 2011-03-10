@@ -4310,15 +4310,15 @@ static void rtl8192_tx_resume(struct r8192_priv *priv)
 	struct ieee80211_device *ieee = priv->ieee80211;
 	struct net_device *dev = priv->ieee80211->dev;
 	struct sk_buff *skb;
-	int queue_index;
+	int i;
 
-	for(queue_index = BK_QUEUE; queue_index < TXCMD_QUEUE;queue_index++) {
-		while((!skb_queue_empty(&ieee->skb_waitQ[queue_index]))&&
-				(priv->ieee80211->check_nic_enough_desc(dev,queue_index) > 0)) {
+	for (i = BK_QUEUE; i < TXCMD_QUEUE; i++) {
+		while ((!skb_queue_empty(&ieee->skb_waitQ[i])) &&
+		       (priv->ieee80211->check_nic_enough_desc(dev, i) > 0)) {
 			/* 1. dequeue the packet from the wait queue */
-			skb = skb_dequeue(&ieee->skb_waitQ[queue_index]);
+			skb = skb_dequeue(&ieee->skb_waitQ[i]);
 			/* 2. tx the packet directly */
-			ieee->softmac_data_hard_start_xmit(skb,dev,0/* rate useless now*/);
+			ieee->softmac_data_hard_start_xmit(skb, dev, 0);
 		}
 	}
 }
