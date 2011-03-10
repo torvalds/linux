@@ -880,7 +880,6 @@ struct ieee_ibss_seq {
  *       information for frames received.  Not setting these will not cause
  *       any adverse affects. */
 struct ieee80211_rx_stats {
-#if 1
 	u32 mac_time[2];
 	s8 rssi;
 	u8 signal;
@@ -895,7 +894,6 @@ struct ieee80211_rx_stats {
 	u32 beacon_time;
 	u8 nic_type;
 	u16       Length;
-	//      u8        DataRate;      // In 0.5 Mbps
 	u8        SignalQuality; // in 0-100 index.
 	s32       RecvSignalPower; // Real power in dBm for this packet, no beautification and aggregation.
 	s8        RxPower; // in dBm Translate from PWdB
@@ -924,26 +922,16 @@ struct ieee80211_rx_stats {
 	bool      bIsAMPDU;
 	bool      bFirstMPDU;
 	bool      bContainHTC;
-	bool      RxIs40MHzPacket;
 	u32       RxPWDBAll;
 	u8        RxMIMOSignalStrength[4];        // in 0~100 index
 	s8        RxMIMOSignalQuality[2];
 	bool      bPacketMatchBSSID;
 	bool      bIsCCK;
 	bool      bPacketToSelf;
-	//added by amy
 	u8*       virtual_address;
-	u16          packetlength;              // Total packet length: Must equal to sum of all FragLength
-	u16          fraglength;                        // FragLength should equal to PacketLength in non-fragment case
-	u16          fragoffset;                        // Data offset for this fragment
-	u16          ntotalfrag;
-	bool      	  bisrxaggrsubframe;
 	bool		  bPacketBeacon;	//cosa add for rssi
 	bool		  bToSelfBA;		//cosa add for rssi
 	char 	  cck_adc_pwdb[4];	//cosa add for rx path selection
-	u16		  Seq_Num;
-#endif
-
 };
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least

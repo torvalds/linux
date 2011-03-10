@@ -3742,8 +3742,7 @@ static void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct 
 	sc = le16_to_cpu(hdr->seq_ctl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	seq = WLAN_GET_SEQ_SEQ(sc);
-	//cosa add 04292008 to record the sequence number
-	pcurrent_stats->Seq_Num = seq;
+
 	//
 	// Check whether we should take the previous packet into accounting
 	//
@@ -4248,7 +4247,6 @@ rtl8192_record_rxdesc_forlateruse(
 {
 	ptarget_stats->bIsAMPDU = psrc_stats->bIsAMPDU;
 	ptarget_stats->bFirstMPDU = psrc_stats->bFirstMPDU;
-	//ptarget_stats->Seq_Num = psrc_stats->Seq_Num;
 }
 
 
@@ -4486,8 +4484,6 @@ static void rtl8192_rx(struct r8192_priv *priv)
                 if((stats.RxBufShift + stats.RxDrvInfoSize) > 0)
                     stats.bShift = 1;
 
-                stats.RxIs40MHzPacket = pDrvInfo->BW;
-
                 /* ???? */
                 TranslateRxSignalStuff819xpci(priv, skb, &stats, pdesc, pDrvInfo);
 
@@ -4508,11 +4504,6 @@ static void rtl8192_rx(struct r8192_priv *priv)
                     /* unicast packet */
                     unicast_packet = true;
                 }
-
-                stats.packetlength = stats.Length-4;
-                stats.fraglength = stats.packetlength;
-                stats.fragoffset = 0;
-                stats.ntotalfrag = 1;
 
                 if(!ieee80211_rtl_rx(priv->ieee80211, skb, &stats)){
                     dev_kfree_skb_any(skb);
