@@ -9,7 +9,7 @@
  * AB8500 peripheral regulators
  *
  * AB8500 supports the following regulators:
- *   VAUX1/2/3, VINTCORE, VTVOUT, VAUDIO, VAMIC1/2, VDMIC, VANA
+ *   VAUX1/2/3, VINTCORE, VTVOUT, VUSB, VAUDIO, VAMIC1/2, VDMIC, VANA
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -431,6 +431,21 @@ static struct ab8500_regulator_info
 		.update_reg		= 0x80,
 		.update_mask		= 0x82,
 		.update_val_enable	= 0x02,
+	},
+	[AB8500_LDO_USB] = {
+		.desc = {
+			.name           = "LDO-USB",
+			.ops            = &ab8500_regulator_fixed_ops,
+			.type           = REGULATOR_VOLTAGE,
+			.id             = AB8500_LDO_USB,
+			.owner          = THIS_MODULE,
+			.n_voltages     = 1,
+		},
+		.fixed_uV               = 3300000,
+		.update_bank            = 0x03,
+		.update_reg             = 0x82,
+		.update_mask            = 0x03,
+		.update_val_enable      = 0x01,
 	},
 	[AB8500_LDO_AUDIO] = {
 		.desc = {
