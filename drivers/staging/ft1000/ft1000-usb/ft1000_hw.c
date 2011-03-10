@@ -634,54 +634,53 @@ static void ft1000_reset_asic(struct net_device *dev)
 //              TRUE  (card reset successful)
 //
 //---------------------------------------------------------------------------
-static int ft1000_reset_card (struct net_device *dev)
+static int ft1000_reset_card(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-    struct ft1000_device *ft1000dev = info->pFt1000Dev;
-    u16 tempword;
+	struct ft1000_device *ft1000dev = info->pFt1000Dev;
+	u16 tempword;
 	struct prov_record *ptr;
 
-    DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
+	DEBUG("ft1000_hw:ft1000_reset_card called.....\n");
 
-    info->fCondResetPend = 1;
-    info->CardReady = 0;
-    info->fProvComplete = 0;
+	info->fCondResetPend = 1;
+	info->CardReady = 0;
+	info->fProvComplete = 0;
 
-    // Make sure we free any memory reserve for provisioning
-    while (list_empty(&info->prov_list) == 0) {
-        DEBUG("ft1000_hw:ft1000_reset_card:deleting provisioning record\n");
-	ptr = list_entry(info->prov_list.next, struct prov_record, list);
-        list_del(&ptr->list);
-        kfree(ptr->pprov_data);
-        kfree(ptr);
-    }
+	/* Make sure we free any memory reserve for provisioning */
+	while (list_empty(&info->prov_list) == 0) {
+		DEBUG("ft1000_reset_card:deleting provisioning record\n");
+		ptr =
+		    list_entry(info->prov_list.next, struct prov_record, list);
+		list_del(&ptr->list);
+		kfree(ptr->pprov_data);
+		kfree(ptr);
+	}
 
-    DEBUG("ft1000_hw:ft1000_reset_card: reset asic\n");
-    //reset ASIC
-    ft1000_reset_asic(dev);
+	DEBUG("ft1000_hw:ft1000_reset_card: reset asic\n");
+	ft1000_reset_asic(dev);
 
-    info->DSPResetNum++;
+	info->DSPResetNum++;
 
-    DEBUG("ft1000_hw:ft1000_reset_card: call dsp_reload\n");
-    dsp_reload(ft1000dev);
+	DEBUG("ft1000_hw:ft1000_reset_card: call dsp_reload\n");
+	dsp_reload(ft1000dev);
 
-    DEBUG("dsp reload successful\n");
+	DEBUG("dsp reload successful\n");
 
+	mdelay(10);
 
-    mdelay(10);
+	/* Initialize DSP heartbeat area */
+	ft1000_write_dpram16(ft1000dev, FT1000_MAG_HI_HO, ho_mag,
+			     FT1000_MAG_HI_HO_INDX);
+	ft1000_read_dpram16(ft1000dev, FT1000_MAG_HI_HO, (u8 *) &tempword,
+			    FT1000_MAG_HI_HO_INDX);
+	DEBUG("ft1000_hw:ft1000_reset_card:hi_ho value = 0x%x\n", tempword);
 
-    // Initialize DSP heartbeat area to ho
-    ft1000_write_dpram16(ft1000dev, FT1000_MAG_HI_HO, ho_mag, FT1000_MAG_HI_HO_INDX);
-    ft1000_read_dpram16(ft1000dev, FT1000_MAG_HI_HO, (u8 *)&tempword, FT1000_MAG_HI_HO_INDX);
-    DEBUG("ft1000_hw:ft1000_reset_card:hi_ho value = 0x%x\n", tempword);
+	info->CardReady = 1;
 
+	info->fCondResetPend = 0;
 
-
-    info->CardReady = 1;
-
-    info->fCondResetPend = 0;
-    return TRUE;
-
+	return TRUE;
 }
 
 
