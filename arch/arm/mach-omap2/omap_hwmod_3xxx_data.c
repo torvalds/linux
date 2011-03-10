@@ -491,8 +491,6 @@ static struct omap_hwmod_ocp_if *am35xx_usbhsotg_slaves[] = {
 /* Slave interfaces on the L4_CORE interconnect */
 static struct omap_hwmod_ocp_if *omap3xxx_l4_core_slaves[] = {
 	&omap3xxx_l3_main__l4_core,
-	&omap3_l4_core__sr1,
-	&omap3_l4_core__sr2,
 };
 
 /* Master interfaces on the L4_CORE interconnect */
@@ -503,6 +501,8 @@ static struct omap_hwmod_ocp_if *omap3xxx_l4_core_masters[] = {
 	&omap3_l4_core__i2c1,
 	&omap3_l4_core__i2c2,
 	&omap3_l4_core__i2c3,
+	&omap3_l4_core__sr1,
+	&omap3_l4_core__sr2,
 };
 
 /* L4 CORE */
