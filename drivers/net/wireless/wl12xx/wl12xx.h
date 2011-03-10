@@ -207,13 +207,29 @@ struct wl1271_partition_set {
 
 struct wl1271;
 
-#define WL12XX_NUM_FW_VER 5
+enum {
+	FW_VER_CHIP,
+	FW_VER_IF_TYPE,
+	FW_VER_MAJOR,
+	FW_VER_SUBTYPE,
+	FW_VER_MINOR,
 
-/* FIXME: I'm not sure about this structure name */
+	NUM_FW_VER
+};
+
+#define FW_VER_CHIP_WL127X 6
+#define FW_VER_CHIP_WL128X 7
+
+#define FW_VER_IF_TYPE_STA 1
+#define FW_VER_IF_TYPE_AP  2
+
+#define FW_VER_MINOR_1_SPARE_STA_MIN 58
+#define FW_VER_MINOR_1_SPARE_AP_MIN  47
+
 struct wl1271_chip {
 	u32 id;
 	char fw_ver_str[ETHTOOL_BUSINFO_LEN];
-	unsigned int fw_ver[WL12XX_NUM_FW_VER];
+	unsigned int fw_ver[NUM_FW_VER];
 };
 
 struct wl1271_stats {
@@ -593,5 +609,11 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 /* Each RX/TX transaction requires an end-of-transaction transfer */
 #define WL12XX_QUIRK_END_OF_TRANSACTION	BIT(0)
+
+/*
+ * Older firmwares use 2 spare TX blocks
+ * (for STA < 6.1.3.50.58 or for AP < 6.2.0.0.47)
+ */
+#define WL12XX_QUIRK_USE_2_SPARE_BLOCKS BIT(1)
 
 #endif

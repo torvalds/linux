@@ -135,6 +135,12 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	u32 len;
 	u32 total_blocks;
 	int id, ret = -EBUSY;
+	u32 spare_blocks;
+
+	if (unlikely(wl->quirks & WL12XX_QUIRK_USE_2_SPARE_BLOCKS))
+		spare_blocks = 2;
+	else
+		spare_blocks = 1;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
 		return -EAGAIN;
@@ -152,7 +158,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 		len = total_len;
 
 	total_blocks = (len + TX_HW_BLOCK_SIZE - 1) / TX_HW_BLOCK_SIZE +
-		TX_HW_BLOCK_SPARE;
+		spare_blocks;
 
 	if (total_blocks <= wl->tx_blocks_available) {
 		desc = (struct wl1271_tx_hw_descr *)skb_push(
@@ -162,7 +168,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 		if (wl->chip.id == CHIP_ID_1283_PG20) {
 			desc->wl128x_mem.total_mem_blocks = total_blocks;
 		} else {
-			desc->wl127x_mem.extra_blocks = TX_HW_BLOCK_SPARE;
+			desc->wl127x_mem.extra_blocks = spare_blocks;
 			desc->wl127x_mem.total_mem_blocks = total_blocks;
 		}
 
