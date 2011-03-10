@@ -172,18 +172,6 @@ static int vmbus_dev_add(struct hv_device *dev, void *info)
 	return ret;
 }
 
-/*
- * vmbus_dev_rm - Callback when the root bus device is removed
- */
-static int vmbus_dev_rm(struct hv_device *dev)
-{
-	int ret = 0;
-
-	vmbus_release_unattached_channels();
-	vmbus_disconnect();
-	on_each_cpu(hv_synic_cleanup, NULL, 1);
-	return ret;
-}
 
 /*
  * vmbus_cleanup - Perform any cleanup when the driver is removed
@@ -568,8 +556,9 @@ static void vmbus_bus_exit(void)
 
 	struct hv_device *dev_ctx = &vmbus_drv.device_ctx;
 
-	/* Remove the root device */
-	vmbus_dev_rm(dev_ctx);
+	vmbus_release_unattached_channels();
+	vmbus_disconnect();
+	on_each_cpu(hv_synic_cleanup, NULL, 1);
 
 	vmbus_cleanup();
 
