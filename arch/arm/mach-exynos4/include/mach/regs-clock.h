@@ -160,7 +160,9 @@
 #define S5P_CLKDIV_BUS_GPLR_SHIFT	(4)
 #define S5P_CLKDIV_BUS_GPLR_MASK	(0x7 << S5P_CLKDIV_BUS_GPLR_SHIFT)
 
-/* Compatibility defines */
+/* Compatibility defines and inclusion */
+
+#include <mach/regs-pmu.h>
 
 #define S5P_EPLL_CON			S5P_EPLL_CON0
 

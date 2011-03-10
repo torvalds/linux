@@ -17,6 +17,11 @@
 
 #define S5P_PMUREG(x)			(S5P_VA_PMU + (x))
 
+#define S5P_MIPI_DPHY_CONTROL(n)	S5P_PMUREG(0x0710 + (n) * 4)
+#define S5P_MIPI_DPHY_ENABLE		(1 << 0)
+#define S5P_MIPI_DPHY_SRESETN		(1 << 1)
+#define S5P_MIPI_DPHY_MRESETN		(1 << 2)
+
 #define S5P_PMU_CAM_CONF		S5P_PMUREG(0x3C00)
 #define S5P_PMU_TV_CONF			S5P_PMUREG(0x3C20)
 #define S5P_PMU_MFC_CONF		S5P_PMUREG(0x3C40)
