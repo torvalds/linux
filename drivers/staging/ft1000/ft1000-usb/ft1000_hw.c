@@ -467,7 +467,7 @@ static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
 }
 
 //---------------------------------------------------------------------------
-// Function:    CardSendCommand
+// Function:    card_send_command
 //
 // Parameters:  ft1000_device  - device structure
 //              ptempbuffer - command buffer
@@ -481,17 +481,17 @@ static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int size)
+void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer, int size)
 {
     unsigned short temp;
     unsigned char *commandbuf;
 
-    DEBUG("CardSendCommand: enter CardSendCommand... size=%d\n", size);
+    DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
 
     commandbuf =(unsigned char*) kmalloc(size+2, GFP_KERNEL);
     memcpy((void*)commandbuf+2, (void*)ptempbuffer, size);
 
-    //DEBUG("CardSendCommand: Command Send\n");
+    //DEBUG("card_send_command: Command Send\n");
 
     ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
 
@@ -509,18 +509,18 @@ void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int siz
     }
 
 
-    //DEBUG("CardSendCommand: write dpram ... size=%d\n", size);
+    //DEBUG("card_send_command: write dpram ... size=%d\n", size);
     ft1000_write_dpram32(ft1000dev, 0,commandbuf, size);
     msleep(1);
-    //DEBUG("CardSendCommand: write into doorbell ...\n");
+    //DEBUG("card_send_command: write into doorbell ...\n");
     ft1000_write_register(ft1000dev,  FT1000_DB_DPRAM_TX ,FT1000_REG_DOORBELL) ;
     msleep(1);
 
     ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
-    //DEBUG("CardSendCommand: read doorbell ...temp=%x\n", temp);
+    //DEBUG("card_send_command: read doorbell ...temp=%x\n", temp);
     if ( (temp & 0x0100) == 0)
     {
-       //DEBUG("CardSendCommand: Message sent\n");
+       //DEBUG("card_send_command: Message sent\n");
     }
 
 }
@@ -1811,7 +1811,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                   *pmsg++ = convert.wrd;
                   *pmsg++ = htons(info->DrvErrNum);
 
-                  CardSendCommand (dev, (unsigned char*)&tempbuffer[0], (u16)(0x0012 + PSEUDOSZ));
+                  card_send_command (dev, (unsigned char*)&tempbuffer[0], (u16)(0x0012 + PSEUDOSZ));
                   info->DrvErrNum = 0;
               }
               info->DrvMsgPend = 0;

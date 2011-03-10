@@ -581,7 +581,7 @@ extern spinlock_t free_buff_lock;   // lock to arbitrate free buffer list for re
 
 int ft1000_create_dev(struct ft1000_device *dev);
 void ft1000_destroy_dev(struct net_device *dev);
-extern void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int size);
+extern void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer, int size);
 
 struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist);
 void ft1000_free_buffer(struct dpram_blk *pdpram_blk, struct list_head *plist);
