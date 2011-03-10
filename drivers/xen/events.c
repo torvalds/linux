@@ -107,19 +107,9 @@ static struct irq_info *irq_info;
 static int *pirq_to_irq;
 
 static int *evtchn_to_irq;
-struct cpu_evtchn_s {
-	unsigned long bits[NR_EVENT_CHANNELS/BITS_PER_LONG];
-};
 
-static __initdata struct cpu_evtchn_s init_evtchn_mask = {
-	.bits[0 ... (NR_EVENT_CHANNELS/BITS_PER_LONG)-1] = ~0ul,
-};
-static struct cpu_evtchn_s *cpu_evtchn_mask_p = &init_evtchn_mask;
-
-static inline unsigned long *cpu_evtchn_mask(int cpu)
-{
-	return cpu_evtchn_mask_p[cpu].bits;
-}
+static DEFINE_PER_CPU(unsigned long [NR_EVENT_CHANNELS/BITS_PER_LONG],
+		      cpu_evtchn_mask);
 
 /* Xen will never allocate port zero for any purpose. */
 #define VALID_EVTCHN(chn)	((chn) != 0)
@@ -257,7 +247,7 @@ static inline unsigned long active_evtchns(unsigned int cpu,
 					   unsigned int idx)
 {
 	return (sh->evtchn_pending[idx] &
-		cpu_evtchn_mask(cpu)[idx] &
+		per_cpu(cpu_evtchn_mask, cpu)[idx] &
 		~sh->evtchn_mask[idx]);
 }
 
@@ -270,8 +260,8 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	cpumask_copy(irq_to_desc(irq)->irq_data.affinity, cpumask_of(cpu));
 #endif
 
-	clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
-	set_bit(chn, cpu_evtchn_mask(cpu));
+	clear_bit(chn, per_cpu(cpu_evtchn_mask, cpu_from_irq(irq)));
+	set_bit(chn, per_cpu(cpu_evtchn_mask, cpu));
 
 	irq_info[irq].cpu = cpu;
 }
@@ -289,8 +279,8 @@ static void init_evtchn_cpu_bindings(void)
 #endif
 
 	for_each_possible_cpu(i)
-		memset(cpu_evtchn_mask(i),
-		       (i == 0) ? ~0 : 0, sizeof(struct cpu_evtchn_s));
+		memset(per_cpu(cpu_evtchn_mask, i),
+		       (i == 0) ? ~0 : 0, sizeof(*per_cpu(cpu_evtchn_mask, i)));
 
 }
 
@@ -925,7 +915,7 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 {
 	struct shared_info *sh = HYPERVISOR_shared_info;
 	int cpu = smp_processor_id();
-	unsigned long *cpu_evtchn = cpu_evtchn_mask(cpu);
+	unsigned long *cpu_evtchn = per_cpu(cpu_evtchn_mask, cpu);
 	int i;
 	unsigned long flags;
 	static DEFINE_SPINLOCK(debug_lock);
@@ -1462,8 +1452,6 @@ void __init xen_init_IRQ(void)
 {
 	int i;
 
-	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
-				    GFP_KERNEL);
 	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
 
 	/* We are using nr_irqs as the maximum number of pirq available but
