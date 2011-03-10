@@ -481,50 +481,46 @@ static void card_reset_dsp(struct ft1000_device *ft1000dev, bool value)
 // Notes:
 //
 //---------------------------------------------------------------------------
-void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer, int size)
+void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer,
+		       int size)
 {
-    unsigned short temp;
-    unsigned char *commandbuf;
+	unsigned short temp;
+	unsigned char *commandbuf;
 
-    DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
+	DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
 
-    commandbuf =(unsigned char*) kmalloc(size+2, GFP_KERNEL);
-    memcpy((void*)commandbuf+2, (void*)ptempbuffer, size);
+	commandbuf = (unsigned char *)kmalloc(size + 2, GFP_KERNEL);
+	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
 
-    //DEBUG("card_send_command: Command Send\n");
+	//DEBUG("card_send_command: Command Send\n");
 
-    ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
 
-    if (temp & 0x0100)
-    {
-       msleep(10);
-    }
+	if (temp & 0x0100)
+		msleep(10);
 
-    // check for odd word
-    size = size + 2;
-    if (size % 4)
-    {
-       // Must force to be 32 bit aligned
-       size += 4 - (size % 4);
-    }
+	/* check for odd word */
+	size = size + 2;
 
+	/* Must force to be 32 bit aligned */
+	if (size % 4)
+		size += 4 - (size % 4);
 
-    //DEBUG("card_send_command: write dpram ... size=%d\n", size);
-    ft1000_write_dpram32(ft1000dev, 0,commandbuf, size);
-    msleep(1);
-    //DEBUG("card_send_command: write into doorbell ...\n");
-    ft1000_write_register(ft1000dev,  FT1000_DB_DPRAM_TX ,FT1000_REG_DOORBELL) ;
-    msleep(1);
+	//DEBUG("card_send_command: write dpram ... size=%d\n", size);
+	ft1000_write_dpram32(ft1000dev, 0, commandbuf, size);
+	msleep(1);
+	//DEBUG("card_send_command: write into doorbell ...\n");
+	ft1000_write_register(ft1000dev, FT1000_DB_DPRAM_TX,
+			      FT1000_REG_DOORBELL);
+	msleep(1);
 
-    ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
-    //DEBUG("card_send_command: read doorbell ...temp=%x\n", temp);
-    if ( (temp & 0x0100) == 0)
-    {
-       //DEBUG("card_send_command: Message sent\n");
-    }
+	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	//DEBUG("card_send_command: read doorbell ...temp=%x\n", temp);
+	if ((temp & 0x0100) == 0) {
+		//DEBUG("card_send_command: Message sent\n");
+	}
 
 }
-
 
 //--------------------------------------------------------------------------
 //
