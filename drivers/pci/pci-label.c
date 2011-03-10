@@ -29,7 +29,6 @@
 #include <linux/nls.h>
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 #include "pci.h"
 
