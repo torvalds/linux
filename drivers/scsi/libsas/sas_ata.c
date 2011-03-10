@@ -802,6 +802,19 @@ int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 		if (!list_empty(&sata_q)) {
 			ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata cmd error handler\n");
 			ata_scsi_cmd_error_handler(shost, ap, &sata_q);
+			/*
+			 * ata's error handler may leave the cmd on the list
+			 * so make sure they don't remain on a stack list
+			 * about to go out of scope.
+			 *
+			 * This looks strange, since the commands are
+			 * now part of no list, but the next error
+			 * action will be ata_port_error_handler()
+			 * which takes no list and sweeps them up
+			 * anyway from the ata tag array.
+			 */
+			while (!list_empty(&sata_q))
+				list_del_init(sata_q.next);
 		}
 	} while (ap);
 
