@@ -1288,6 +1288,42 @@ static int _idle(struct omap_hwmod *oh)
 }
 
 /**
+ * omap_hwmod_set_ocp_autoidle - set the hwmod's OCP autoidle bit
+ * @oh: struct omap_hwmod *
+ * @autoidle: desired AUTOIDLE bitfield value (0 or 1)
+ *
+ * Sets the IP block's OCP autoidle bit in hardware, and updates our
+ * local copy. Intended to be used by drivers that require
+ * direct manipulation of the AUTOIDLE bits.
+ * Returns -EINVAL if @oh is null or is not in the ENABLED state, or passes
+ * along the return value from _set_module_autoidle().
+ *
+ * Any users of this function should be scrutinized carefully.
+ */
+int omap_hwmod_set_ocp_autoidle(struct omap_hwmod *oh, u8 autoidle)
+{
+	u32 v;
+	int retval = 0;
+	unsigned long flags;
+
+	if (!oh || oh->_state != _HWMOD_STATE_ENABLED)
+		return -EINVAL;
+
+	spin_lock_irqsave(&oh->_lock, flags);
+
+	v = oh->_sysc_cache;
+
+	retval = _set_module_autoidle(oh, autoidle, &v);
+
+	if (!retval)
+		_write_sysconfig(v, oh);
+
+	spin_unlock_irqrestore(&oh->_lock, flags);
+
+	return retval;
+}
+
+/**
  * _shutdown - shutdown an omap_hwmod
  * @oh: struct omap_hwmod *
  *
