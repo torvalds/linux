@@ -173,15 +173,6 @@ static int vmbus_dev_add(struct hv_device *dev, void *info)
 }
 
 
-/*
- * vmbus_cleanup - Perform any cleanup when the driver is removed
- */
-static void vmbus_cleanup(void)
-{
-
-	hv_cleanup();
-}
-
 struct onmessage_work_context {
 	struct work_struct work;
 	struct hv_message msg;
@@ -560,7 +551,7 @@ static void vmbus_bus_exit(void)
 	vmbus_disconnect();
 	on_each_cpu(hv_synic_cleanup, NULL, 1);
 
-	vmbus_cleanup();
+	hv_cleanup();
 
 	/* Unregister the root bus device */
 	device_unregister(&dev_ctx->device);
