@@ -20,6 +20,20 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
 
+static void process_event(union perf_event *event __unused,
+			  struct perf_sample *sample,
+			  struct perf_session *session __unused,
+			  struct thread *thread)
+{
+	/*
+	 * FIXME: better resolve from pid from the struct trace_entry
+	 * field, although it should be the same than this perf
+	 * event pid
+	 */
+	print_event(sample->cpu, sample->raw_data, sample->raw_size,
+		    sample->time, thread->comm);
+}
+
 static int default_start_script(const char *script __unused,
 				int argc __unused,
 				const char **argv __unused)
@@ -40,7 +54,7 @@ static int default_generate_script(const char *outfile __unused)
 static struct scripting_ops default_scripting_ops = {
 	.start_script		= default_start_script,
 	.stop_script		= default_stop_script,
-	.process_event		= print_event,
+	.process_event		= process_event,
 	.generate_script	= default_generate_script,
 };
 
@@ -86,14 +100,7 @@ static int process_sample_event(union perf_event *event,
 			last_timestamp = sample->time;
 			return 0;
 		}
-		/*
-		 * FIXME: better resolve from pid from the struct trace_entry
-		 * field, although it should be the same than this perf
-		 * event pid
-		 */
-		scripting_ops->process_event(sample->cpu, sample->raw_data,
-					     sample->raw_size,
-					     sample->time, thread->comm);
+		scripting_ops->process_event(event, sample, session, thread);
 	}
 
 	session->hists.stats.total_period += sample->period;

@@ -245,9 +245,10 @@ static inline struct event *find_cache_event(int type)
 	return event;
 }
 
-static void perl_process_event(int cpu, void *data,
-			       int size __unused,
-			       unsigned long long nsecs, char *comm)
+static void perl_process_event(union perf_event *pevent __unused,
+			       struct perf_sample *sample,
+			       struct perf_session *session __unused,
+			       struct thread *thread)
 {
 	struct format_field *field;
 	static char handler[256];
@@ -256,6 +257,10 @@ static void perl_process_event(int cpu, void *data,
 	struct event *event;
 	int type;
 	int pid;
+	int cpu = sample->cpu;
+	void *data = sample->raw_data;
+	unsigned long long nsecs = sample->time;
+	char *comm = thread->comm;
 
 	dSP;
 
