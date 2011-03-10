@@ -1439,91 +1439,96 @@ static bool ft1000_receive_cmd(struct ft1000_device *dev, u16 *pbuffer,
 	}
 }
 
-
 static int ft1000_dsp_prov(void *arg)
 {
-    struct ft1000_device *dev = (struct ft1000_device *)arg;
+	struct ft1000_device *dev = (struct ft1000_device *)arg;
 	struct ft1000_info *info = netdev_priv(dev->net);
-    u16 tempword;
-    u16 len;
-    u16 i=0;
+	u16 tempword;
+	u16 len;
+	u16 i = 0;
 	struct prov_record *ptr;
 	struct pseudo_hdr *ppseudo_hdr;
-    u16 *pmsg;
-    u16 status;
-    u16 TempShortBuf [256];
+	u16 *pmsg;
+	u16 status;
+	u16 TempShortBuf[256];
 
-    DEBUG("*** DspProv Entered\n");
+	DEBUG("*** DspProv Entered\n");
 
-    while (list_empty(&info->prov_list) == 0)
-    {
-	DEBUG("DSP Provisioning List Entry\n");
+	while (list_empty(&info->prov_list) == 0) {
+		DEBUG("DSP Provisioning List Entry\n");
 
-        // Check if doorbell is available
-        DEBUG("check if doorbell is cleared\n");
-        status = ft1000_read_register (dev, &tempword, FT1000_REG_DOORBELL);
-        if (status)
-	{
-		DEBUG("ft1000_dsp_prov::ft1000_read_register error\n");
-            break;
-        }
+		/* Check if doorbell is available */
+		DEBUG("check if doorbell is cleared\n");
+		status =
+		    ft1000_read_register(dev, &tempword, FT1000_REG_DOORBELL);
+		if (status) {
+			DEBUG("ft1000_dsp_prov::ft1000_read_register error\n");
+			break;
+		}
 
-        while (tempword & FT1000_DB_DPRAM_TX) {
-            mdelay(10);
-            i++;
-            if (i==10) {
-               DEBUG("FT1000:ft1000_dsp_prov:message drop\n");
-               return STATUS_FAILURE;
-            }
-            ft1000_read_register(dev, &tempword, FT1000_REG_DOORBELL);
-        }
+		while (tempword & FT1000_DB_DPRAM_TX) {
+			mdelay(10);
+			i++;
+			if (i == 10) {
+				DEBUG("FT1000:ft1000_dsp_prov:message drop\n");
+				return STATUS_FAILURE;
+			}
+			ft1000_read_register(dev, &tempword,
+					     FT1000_REG_DOORBELL);
+		}
 
-        if ( !(tempword & FT1000_DB_DPRAM_TX) ) {
-            DEBUG("*** Provision Data Sent to DSP\n");
+		if (!(tempword & FT1000_DB_DPRAM_TX)) {
+			DEBUG("*** Provision Data Sent to DSP\n");
 
-            // Send provisioning data
-		ptr = list_entry(info->prov_list.next, struct prov_record, list);
-            len = *(u16 *)ptr->pprov_data;
-            len = htons(len);
-            len += PSEUDOSZ;
+			/* Send provisioning data */
+			ptr =
+			    list_entry(info->prov_list.next, struct prov_record,
+				       list);
+			len = *(u16 *) ptr->pprov_data;
+			len = htons(len);
+			len += PSEUDOSZ;
 
-            pmsg = (u16 *)ptr->pprov_data;
-		ppseudo_hdr = (struct pseudo_hdr *)pmsg;
-            // Insert slow queue sequence number
-            ppseudo_hdr->seq_num = info->squeseqnum++;
-            ppseudo_hdr->portsrc = 0;
-            // Calculate new checksum
-            ppseudo_hdr->checksum = *pmsg++;
-            //DEBUG("checksum = 0x%x\n", ppseudo_hdr->checksum);
-            for (i=1; i<7; i++) {
-                ppseudo_hdr->checksum ^= *pmsg++;
-                //DEBUG("checksum = 0x%x\n", ppseudo_hdr->checksum);
-            }
+			pmsg = (u16 *) ptr->pprov_data;
+			ppseudo_hdr = (struct pseudo_hdr *)pmsg;
+			/* Insert slow queue sequence number */
+			ppseudo_hdr->seq_num = info->squeseqnum++;
+			ppseudo_hdr->portsrc = 0;
+			/* Calculate new checksum */
+			ppseudo_hdr->checksum = *pmsg++;
+			//DEBUG("checksum = 0x%x\n", ppseudo_hdr->checksum);
+			for (i = 1; i < 7; i++) {
+				ppseudo_hdr->checksum ^= *pmsg++;
+				//DEBUG("checksum = 0x%x\n", ppseudo_hdr->checksum);
+			}
 
-            TempShortBuf[0] = 0;
-            TempShortBuf[1] = htons (len);
-            memcpy(&TempShortBuf[2], ppseudo_hdr, len);
+			TempShortBuf[0] = 0;
+			TempShortBuf[1] = htons(len);
+			memcpy(&TempShortBuf[2], ppseudo_hdr, len);
 
-            status = ft1000_write_dpram32 (dev, 0, (u8 *)&TempShortBuf[0], (unsigned short)(len+2));
-            status = ft1000_write_register (dev, FT1000_DB_DPRAM_TX, FT1000_REG_DOORBELL);
+			status =
+			    ft1000_write_dpram32(dev, 0,
+						 (u8 *) &TempShortBuf[0],
+						 (unsigned short)(len + 2));
+			status =
+			    ft1000_write_register(dev, FT1000_DB_DPRAM_TX,
+						  FT1000_REG_DOORBELL);
 
-            list_del(&ptr->list);
-            kfree(ptr->pprov_data);
-            kfree(ptr);
-        }
-        msleep(10);
-    }
+			list_del(&ptr->list);
+			kfree(ptr->pprov_data);
+			kfree(ptr);
+		}
+		msleep(10);
+	}
 
-    DEBUG("DSP Provisioning List Entry finished\n");
+	DEBUG("DSP Provisioning List Entry finished\n");
 
-    msleep(100);
+	msleep(100);
 
-    info->fProvComplete = 1;
-    info->CardReady = 1;
-    return STATUS_SUCCESS;
+	info->fProvComplete = 1;
+	info->CardReady = 1;
 
+	return STATUS_SUCCESS;
 }
-
 
 static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 	struct ft1000_info *info = netdev_priv(dev->net);
