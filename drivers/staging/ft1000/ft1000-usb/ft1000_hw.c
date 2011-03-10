@@ -1238,27 +1238,26 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static int ft1000_open (struct net_device *dev)
+static int ft1000_open(struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
-    struct timeval tv; //mbelian
+	struct timeval tv;	//mbelian
 	int ret;
 
-    DEBUG("ft1000_open is called for card %d\n", pInfo->CardNumber);
-    //DEBUG("ft1000_open: dev->addr=%x, dev->addr_len=%d\n", dev->addr, dev->addr_len);
+	DEBUG("ft1000_open is called for card %d\n", pInfo->CardNumber);
+	//DEBUG("ft1000_open: dev->addr=%x, dev->addr_len=%d\n", dev->addr, dev->addr_len);
 
-	pInfo->stats.rx_bytes = 0; //mbelian
-	pInfo->stats.tx_bytes = 0; //mbelian
-	pInfo->stats.rx_packets = 0; //mbelian
-	pInfo->stats.tx_packets = 0; //mbelian
+	pInfo->stats.rx_bytes = 0;	//mbelian
+	pInfo->stats.tx_bytes = 0;	//mbelian
+	pInfo->stats.rx_packets = 0;	//mbelian
+	pInfo->stats.tx_packets = 0;	//mbelian
 	do_gettimeofday(&tv);
-    pInfo->ConTm = tv.tv_sec;
-	pInfo->ProgConStat = 0; //mbelian
+	pInfo->ConTm = tv.tv_sec;
+	pInfo->ProgConStat = 0;	//mbelian
 
+	netif_start_queue(dev);
 
-    netif_start_queue(dev);
-
-    netif_carrier_on(dev); //mbelian
+	netif_carrier_on(dev);	//mbelian
 
 	ret = ft1000_submit_rx_urb(pInfo);
 
