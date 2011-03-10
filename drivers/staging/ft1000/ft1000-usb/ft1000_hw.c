@@ -593,32 +593,33 @@ int dsp_reload(struct ft1000_device *ft1000dev)
 //     none
 //
 //---------------------------------------------------------------------------
-static void ft1000_reset_asic (struct net_device *dev)
+static void ft1000_reset_asic(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-    struct ft1000_device *ft1000dev = info->pFt1000Dev;
-    u16 tempword;
+	struct ft1000_device *ft1000dev = info->pFt1000Dev;
+	u16 tempword;
 
-    DEBUG("ft1000_hw:ft1000_reset_asic called\n");
+	DEBUG("ft1000_hw:ft1000_reset_asic called\n");
 
-    info->ASICResetNum++;
+	info->ASICResetNum++;
 
-    // Let's use the register provided by the Magnemite ASIC to reset the
-    // ASIC and DSP.
-    ft1000_write_register(ft1000dev,  (DSP_RESET_BIT | ASIC_RESET_BIT), FT1000_REG_RESET );
+	/* Let's use the register provided by the Magnemite ASIC to reset the
+	 * ASIC and DSP.
+	 */
+	ft1000_write_register(ft1000dev, (DSP_RESET_BIT | ASIC_RESET_BIT),
+			      FT1000_REG_RESET);
 
-    mdelay(1);
+	mdelay(1);
 
-    // set watermark to -1 in order to not generate an interrrupt
-    ft1000_write_register(ft1000dev, 0xffff, FT1000_REG_MAG_WATERMARK);
+	/* set watermark to -1 in order to not generate an interrrupt */
+	ft1000_write_register(ft1000dev, 0xffff, FT1000_REG_MAG_WATERMARK);
 
-    // clear interrupts
-    ft1000_read_register (ft1000dev, &tempword, FT1000_REG_SUP_ISR);
-    DEBUG("ft1000_hw: interrupt status register = 0x%x\n",tempword);
-    ft1000_write_register (ft1000dev,  tempword, FT1000_REG_SUP_ISR);
-    ft1000_read_register (ft1000dev, &tempword, FT1000_REG_SUP_ISR);
-    DEBUG("ft1000_hw: interrupt status register = 0x%x\n",tempword);
-
+	/* clear interrupts */
+	ft1000_read_register(ft1000dev, &tempword, FT1000_REG_SUP_ISR);
+	DEBUG("ft1000_hw: interrupt status register = 0x%x\n", tempword);
+	ft1000_write_register(ft1000dev, tempword, FT1000_REG_SUP_ISR);
+	ft1000_read_register(ft1000dev, &tempword, FT1000_REG_SUP_ISR);
+	DEBUG("ft1000_hw: interrupt status register = 0x%x\n", tempword);
 }
 
 
