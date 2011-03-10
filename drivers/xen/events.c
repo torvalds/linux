@@ -568,9 +568,9 @@ static int find_irq_by_gsi(unsigned gsi)
 	return -1;
 }
 
-int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
+int xen_allocate_pirq_gsi(unsigned gsi)
 {
-	return xen_map_pirq_gsi(gsi, gsi, shareable, name);
+	return gsi;
 }
 
 /*
@@ -580,7 +580,8 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
  * Note: We don't assign an event channel until the irq actually started
  * up.  Return an existing irq if we've already got one for the gsi.
  */
-int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
+int xen_bind_pirq_gsi_to_irq(unsigned gsi,
+			     unsigned pirq, int shareable, char *name)
 {
 	int irq = -1;
 	struct physdev_irq irq_op;

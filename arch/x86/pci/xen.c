@@ -50,7 +50,7 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 		name = "ioapic-level";
 	}
 
-	irq = xen_map_pirq_gsi(map_irq.pirq, gsi, shareable, name);
+	irq = xen_bind_pirq_gsi_to_irq(gsi, map_irq.pirq, shareable, name);
 
 	printk(KERN_DEBUG "xen: --> irq=%d, pirq=%d\n", irq, map_irq.pirq);
 
@@ -237,6 +237,7 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 {
 	int rc;
 	int share = 1;
+	int pirq;
 	u8 gsi;
 
 	rc = pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &gsi);
@@ -246,13 +247,21 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 		return rc;
 	}
 
+	rc = xen_allocate_pirq_gsi(gsi);
+	if (rc < 0) {
+		dev_warn(&dev->dev, "Xen PCI: failed to allocate a PIRQ for GSI%d: %d\n",
+			 gsi, rc);
+		return rc;
+	}
+	pirq = rc;
+
 	if (gsi < NR_IRQS_LEGACY)
 		share = 0;
 
-	rc = xen_allocate_pirq(gsi, share, "pcifront");
+	rc = xen_bind_pirq_gsi_to_irq(gsi, pirq, share, "pcifront");
 	if (rc < 0) {
-		dev_warn(&dev->dev, "Xen PCI: failed to register GSI%d: %d\n",
-			 gsi, rc);
+		dev_warn(&dev->dev, "Xen PCI: failed to bind GSI%d (PIRQ%d) to IRQ: %d\n",
+			 gsi, pirq, rc);
 		return rc;
 	}
 
@@ -309,7 +318,7 @@ int __init pci_xen_hvm_init(void)
 #ifdef CONFIG_XEN_DOM0
 static int xen_register_pirq(u32 gsi, int triggering)
 {
-	int rc, irq;
+	int rc, pirq, irq = -1;
 	struct physdev_map_pirq map_irq;
 	int shareable = 0;
 	char *name;
@@ -325,17 +334,20 @@ static int xen_register_pirq(u32 gsi, int triggering)
 		name = "ioapic-level";
 	}
 
-	irq = xen_allocate_pirq(gsi, shareable, name);
+	pirq = xen_allocate_pirq_gsi(gsi);
+	if (pirq < 0)
+		goto out;
 
-	printk(KERN_DEBUG "xen: --> irq=%d\n", irq);
-
+	irq = xen_bind_pirq_gsi_to_irq(gsi, pirq, shareable, name);
 	if (irq < 0)
 		goto out;
+
+	printk(KERN_DEBUG "xen: --> pirq=%d -> irq=%d\n", pirq, irq);
 
 	map_irq.domid = DOMID_SELF;
 	map_irq.type = MAP_PIRQ_TYPE_GSI;
 	map_irq.index = gsi;
-	map_irq.pirq = irq;
+	map_irq.pirq = pirq;
 
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
 	if (rc) {
@@ -422,13 +434,18 @@ static int __init pci_xen_initial_domain(void)
 
 void __init xen_setup_pirqs(void)
 {
-	int irq;
+	int pirq, irq;
 
 	pci_xen_initial_domain();
 
 	if (0 == nr_ioapics) {
-		for (irq = 0; irq < NR_IRQS_LEGACY; irq++)
-			xen_allocate_pirq(irq, 0, "xt-pic");
+		for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
+			pirq = xen_allocate_pirq_gsi(irq);
+			if (WARN(pirq < 0,
+				 "Could not allocate PIRQ for legacy interrupt\n"))
+				break;
+			irq = xen_bind_pirq_gsi_to_irq(irq, pirq, 0, "xt-pic");
+		}
 		return;
 	}
 
