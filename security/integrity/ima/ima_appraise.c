@@ -169,3 +169,60 @@ void ima_inode_post_setattr(struct dentry *dentry)
 		rc = inode->i_op->removexattr(dentry, XATTR_NAME_IMA);
 	return;
 }
+
+/*
+ * ima_protect_xattr - protect 'security.ima'
+ *
+ * Ensure that not just anyone can modify or remove 'security.ima'.
+ */
+static int ima_protect_xattr(struct dentry *dentry, const char *xattr_name,
+			     const void *xattr_value, size_t xattr_value_len)
+{
+	if (strcmp(xattr_name, XATTR_NAME_IMA) == 0) {
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		return 1;
+	}
+	return 0;
+}
+
+static void ima_reset_appraise_flags(struct inode *inode)
+{
+	struct integrity_iint_cache *iint;
+
+	if (!ima_initialized || !ima_appraise || !S_ISREG(inode->i_mode))
+		return;
+
+	iint = integrity_iint_find(inode);
+	if (!iint)
+		return;
+
+	iint->flags &= ~(IMA_COLLECTED | IMA_APPRAISED | IMA_MEASURED);
+	return;
+}
+
+int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
+		       const void *xattr_value, size_t xattr_value_len)
+{
+	int result;
+
+	result = ima_protect_xattr(dentry, xattr_name, xattr_value,
+				   xattr_value_len);
+	if (result == 1) {
+		ima_reset_appraise_flags(dentry->d_inode);
+		result = 0;
+	}
+	return result;
+}
+
+int ima_inode_removexattr(struct dentry *dentry, const char *xattr_name)
+{
+	int result;
+
+	result = ima_protect_xattr(dentry, xattr_name, NULL, 0);
+	if (result == 1) {
+		ima_reset_appraise_flags(dentry->d_inode);
+		result = 0;
+	}
+	return result;
+}
