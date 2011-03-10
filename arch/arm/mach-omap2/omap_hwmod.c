@@ -2218,3 +2218,29 @@ u32 omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 
 	return ret;
 }
+
+/**
+ * omap_hwmod_no_setup_reset - prevent a hwmod from being reset upon setup
+ * @oh: struct omap_hwmod *
+ *
+ * Prevent the hwmod @oh from being reset during the setup process.
+ * Intended for use by board-*.c files on boards with devices that
+ * cannot tolerate being reset.  Must be called before the hwmod has
+ * been set up.  Returns 0 upon success or negative error code upon
+ * failure.
+ */
+int omap_hwmod_no_setup_reset(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return -EINVAL;
+
+	if (oh->_state != _HWMOD_STATE_REGISTERED) {
+		pr_err("omap_hwmod: %s: cannot prevent setup reset; in wrong state\n",
+			oh->name);
+		return -EINVAL;
+	}
+
+	oh->flags |= HWMOD_INIT_NO_RESET;
+
+	return 0;
+}
