@@ -988,7 +988,7 @@ ENTRY(_switch_to)
 	nop
 
 ENTRY(_reset)
-	brai	0x70; /* Jump back to FS-boot */
+	brai	0; /* Jump to reset vector */
 
 	/* These are compiled and loaded into high memory, then
 	 * copied into place in mach_early_setup */
