@@ -857,95 +857,6 @@ cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 		cifsi->server_eof = end_of_write;
 }
 
-ssize_t cifs_user_write(struct file *file, const char __user *write_data,
-	size_t write_size, loff_t *poffset)
-{
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int rc = 0;
-	unsigned int bytes_written = 0;
-	unsigned int total_written;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
-	int xid;
-	struct cifsFileInfo *open_file;
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-
-	/* cFYI(1, " write %d bytes to offset %lld of %s", write_size,
-	   *poffset, file->f_path.dentry->d_name.name); */
-
-	if (file->private_data == NULL)
-		return -EBADF;
-
-	open_file = file->private_data;
-	pTcon = tlink_tcon(open_file->tlink);
-
-	rc = generic_write_checks(file, poffset, &write_size, 0);
-	if (rc)
-		return rc;
-
-	xid = GetXid();
-
-	for (total_written = 0; write_size > total_written;
-	     total_written += bytes_written) {
-		rc = -EAGAIN;
-		while (rc == -EAGAIN) {
-			if (file->private_data == NULL) {
-				/* file has been closed on us */
-				FreeXid(xid);
-			/* if we have gotten here we have written some data
-			   and blocked, and the file has been freed on us while
-			   we blocked so return what we managed to write */
-				return total_written;
-			}
-			if (open_file->invalidHandle) {
-				/* we could deadlock if we called
-				   filemap_fdatawait from here so tell
-				   reopen_file not to flush data to server
-				   now */
-				rc = cifs_reopen_file(open_file, false);
-				if (rc != 0)
-					break;
-			}
-
-			rc = CIFSSMBWrite(xid, pTcon,
-				open_file->netfid,
-				min_t(const int, cifs_sb->wsize,
-				      write_size - total_written),
-				*poffset, &bytes_written,
-				NULL, write_data + total_written, 0);
-		}
-		if (rc || (bytes_written == 0)) {
-			if (total_written)
-				break;
-			else {
-				FreeXid(xid);
-				return rc;
-			}
-		} else {
-			cifs_update_eof(cifsi, *poffset, bytes_written);
-			*poffset += bytes_written;
-		}
-	}
-
-	cifs_stats_bytes_written(pTcon, total_written);
-
-/* Do not update local mtime - server will set its actual value on write
- *	inode->i_ctime = inode->i_mtime =
- * 		current_fs_time(inode->i_sb);*/
-	if (total_written > 0) {
-		spin_lock(&inode->i_lock);
-		if (*poffset > inode->i_size)
-			i_size_write(inode, *poffset);
-		spin_unlock(&inode->i_lock);
-	}
-	mark_inode_dirty_sync(inode);
-
-	FreeXid(xid);
-	return total_written;
-}
-
 static ssize_t cifs_write(struct cifsFileInfo *open_file,
 			  const char *write_data, size_t write_size,
 			  loff_t *poffset)
@@ -1741,7 +1652,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	return total_written;
 }
 
-static ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
+ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
 	ssize_t written;
@@ -1864,17 +1775,7 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 	return total_read;
 }
 
-ssize_t cifs_user_read(struct file *file, char __user *read_data,
-		       size_t read_size, loff_t *poffset)
-{
-	struct iovec iov;
-	iov.iov_base = read_data;
-	iov.iov_len = read_size;
-
-	return cifs_iovec_read(file, &iov, 1, poffset);
-}
-
-static ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
+ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
 			       unsigned long nr_segs, loff_t pos)
 {
 	ssize_t read;

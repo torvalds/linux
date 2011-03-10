@@ -80,12 +80,12 @@ extern const struct file_operations cifs_file_strict_nobrl_ops;
 extern int cifs_open(struct inode *inode, struct file *file);
 extern int cifs_close(struct inode *inode, struct file *file);
 extern int cifs_closedir(struct inode *inode, struct file *file);
-extern ssize_t cifs_user_read(struct file *file, char __user *read_data,
-			      size_t read_size, loff_t *poffset);
+extern ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos);
 extern ssize_t cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
 				 unsigned long nr_segs, loff_t pos);
-extern ssize_t cifs_user_write(struct file *file, const char __user *write_data,
-			       size_t write_size, loff_t *poffset);
+extern ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
+				unsigned long nr_segs, loff_t pos);
 extern ssize_t cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 				  unsigned long nr_segs, loff_t pos);
 extern int cifs_lock(struct file *, int, struct file_lock *);

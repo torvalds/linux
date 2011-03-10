@@ -760,10 +760,11 @@ const struct file_operations cifs_file_strict_ops = {
 };
 
 const struct file_operations cifs_file_direct_ops = {
-	/* no aio, no readv -
-	   BB reevaluate whether they can be done with directio, no cache */
-	.read = cifs_user_read,
-	.write = cifs_user_write,
+	/* BB reevaluate whether they can be done with directio, no cache */
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.aio_read = cifs_user_readv,
+	.aio_write = cifs_user_writev,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -815,10 +816,11 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 };
 
 const struct file_operations cifs_file_direct_nobrl_ops = {
-	/* no mmap, no aio, no readv -
-	   BB reevaluate whether they can be done with directio, no cache */
-	.read = cifs_user_read,
-	.write = cifs_user_write,
+	/* BB reevaluate whether they can be done with directio, no cache */
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.aio_read = cifs_user_readv,
+	.aio_write = cifs_user_writev,
 	.open = cifs_open,
 	.release = cifs_close,
 	.fsync = cifs_fsync,
