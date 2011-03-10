@@ -929,37 +929,31 @@ static void ft1000_usb_transmit_complete(struct urb *urb)
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
+static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 {
 	struct ft1000_info *pInfo = netdev_priv(netdev);
-    struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
-
+	struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
 
 	int count, ret;
-    u8 *t;
+	u8 *t;
 	struct pseudo_hdr hdr;
 
-    if (!pInfo->CardReady)
-    {
+	if (!pInfo->CardReady) {
+		DEBUG("ft1000_copy_down_pkt::Card Not Ready\n");
+		return -ENODEV;
+	}
 
-        DEBUG("ft1000_copy_down_pkt::Card Not Ready\n");
-	return -ENODEV;
-
-    }
-
-
-    //DEBUG("ft1000_copy_down_pkt() entered, len = %d\n", len);
+	//DEBUG("ft1000_copy_down_pkt() entered, len = %d\n", len);
 
 	count = sizeof(struct pseudo_hdr) + len;
-    if(count > MAX_BUF_SIZE)
-    {
-        DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
-    	DEBUG("size = %d\n", count);
-	return -EINVAL;
-    }
+	if (count > MAX_BUF_SIZE) {
+		DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
+		DEBUG("size = %d\n", count);
+		return -EINVAL;
+	}
 
-    if ( count % 4)
-        count = count + (4- (count %4) );
+	if (count % 4)
+		count = count + (4 - (count % 4));
 
 	memset(&hdr, 0, sizeof(struct pseudo_hdr));
 
@@ -972,45 +966,44 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
 	hdr.control = 0x00;
 
 	hdr.checksum = hdr.length ^ hdr.source ^ hdr.destination ^
-			hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^
-			hdr.control;
+	    hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^ hdr.control;
 
 	memcpy(&pFt1000Dev->tx_buf[0], &hdr, sizeof(hdr));
 	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
 
-    netif_stop_queue(netdev);
+	netif_stop_queue(netdev);
 
-    //DEBUG ("ft1000_copy_down_pkt: count = %d\n", count);
+	//DEBUG ("ft1000_copy_down_pkt: count = %d\n", count);
 
-    usb_fill_bulk_urb(pFt1000Dev->tx_urb,
-                      pFt1000Dev->dev,
-                      usb_sndbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_out_endpointAddr),
-                      pFt1000Dev->tx_buf,
-                      count,
-                      ft1000_usb_transmit_complete,
-                      (void*)pFt1000Dev);
+	usb_fill_bulk_urb(pFt1000Dev->tx_urb,
+			  pFt1000Dev->dev,
+			  usb_sndbulkpipe(pFt1000Dev->dev,
+					  pFt1000Dev->bulk_out_endpointAddr),
+			  pFt1000Dev->tx_buf, count,
+			  ft1000_usb_transmit_complete, (void *)pFt1000Dev);
 
-    t = (u8 *)pFt1000Dev->tx_urb->transfer_buffer;
-    //DEBUG("transfer_length=%d\n", pFt1000Dev->tx_urb->transfer_buffer_length);
-    /*for (i=0; i<count; i++ )
-    {
-       DEBUG("%x    ", *t++ );
-    }*/
-
+	t = (u8 *) pFt1000Dev->tx_urb->transfer_buffer;
+	//DEBUG("transfer_length=%d\n", pFt1000Dev->tx_urb->transfer_buffer_length);
+	/*for (i=0; i<count; i++ )
+	   {
+	   DEBUG("%x    ", *t++ );
+	   } */
 
 	ret = usb_submit_urb(pFt1000Dev->tx_urb, GFP_ATOMIC);
+
 	if (ret) {
 		DEBUG("ft1000 failed tx_urb %d\n", ret);
 		return ret;
 	} else {
 		pInfo->stats.tx_packets++;
-		pInfo->stats.tx_bytes += (len+14);
+		pInfo->stats.tx_bytes += (len + 14);
 	}
 
-    //DEBUG("ft1000_copy_down_pkt() exit\n");
+	//DEBUG("ft1000_copy_down_pkt() exit\n");
 
 	return 0;
 }
+
 
 //---------------------------------------------------------------------------
 // Function:    ft1000_start_xmit
