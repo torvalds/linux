@@ -139,13 +139,6 @@ static const struct hv_guid device_id = {
 
 static struct hv_device *vmbus_device; /* vmbus root device */
 
-/*
- * vmbus_child_dev_add - Registers the child device with the vmbus
- */
-int vmbus_child_dev_add(struct hv_device *child_dev)
-{
-	return vmbus_child_device_register(child_dev);
-}
 
 /*
  * vmbus_dev_add - Callback when the root bus device is added
@@ -662,7 +655,7 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 }
 
 /*
- * vmbus_child_device_register - Register the child device on the specified bus
+ * vmbus_child_device_register - Register the child device
  */
 int vmbus_child_device_register(struct hv_device *child_device_obj)
 {
