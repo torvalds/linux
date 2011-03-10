@@ -120,6 +120,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  */
 struct idr minors;
 struct list_head drbd_tconns;  /* list of struct drbd_tconn */
+DEFINE_MUTEX(drbd_cfg_mutex);
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
@@ -2238,14 +2239,14 @@ struct drbd_tconn *conn_by_name(const char *name)
 	if (!name || !name[0])
 		return NULL;
 
-	write_lock_irq(&global_state_lock);
+	mutex_lock(&drbd_cfg_mutex);
 	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
 		if (!strcmp(tconn->name, name))
 			goto found;
 	}
 	tconn = NULL;
 found:
-	write_unlock_irq(&global_state_lock);
+	mutex_unlock(&drbd_cfg_mutex);
 	return tconn;
 }
 
@@ -2285,9 +2286,9 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
 	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
 	drbd_thread_init(tconn, &tconn->asender, drbd_asender, "asender");
 
-	write_lock_irq(&global_state_lock);
-	list_add(&tconn->all_tconn, &drbd_tconns);
-	write_unlock_irq(&global_state_lock);
+	mutex_lock(&drbd_cfg_mutex);
+	list_add_tail(&tconn->all_tconn, &drbd_tconns);
+	mutex_unlock(&drbd_cfg_mutex);
 
 	return tconn;
 
@@ -2302,9 +2303,9 @@ fail:
 
 void drbd_free_tconn(struct drbd_tconn *tconn)
 {
-	write_lock_irq(&global_state_lock);
+	mutex_lock(&drbd_cfg_mutex);
 	list_del(&tconn->all_tconn);
-	write_unlock_irq(&global_state_lock);
+	mutex_unlock(&drbd_cfg_mutex);
 	idr_destroy(&tconn->volumes);
 
 	free_cpumask_var(tconn->cpu_mask);

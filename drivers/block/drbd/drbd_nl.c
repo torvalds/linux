@@ -1544,6 +1544,10 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 
 	new_my_addr = (struct sockaddr *)&new_conf->my_addr;
 	new_peer_addr = (struct sockaddr *)&new_conf->peer_addr;
+
+	/* No need to take drbd_cfg_mutex here.  All reconfiguration is
+	 * strictly serialized on genl_lock(). We are protected against
+	 * concurrent reconfiguration/addition/deletion */
 	list_for_each_entry(oconn, &drbd_tconns, all_tconn) {
 		if (oconn == tconn)
 			continue;
@@ -2187,6 +2191,24 @@ int drbd_adm_outdate(struct sk_buff *skb, struct genl_info *info)
 	return drbd_adm_simple_request_state(skb, info, NS(disk, D_OUTDATED));
 }
 
+int nla_put_drbd_cfg_context(struct sk_buff *skb, const char *conn_name, unsigned vnr)
+{
+	struct nlattr *nla;
+	nla = nla_nest_start(skb, DRBD_NLA_CFG_CONTEXT);
+	if (!nla)
+		goto nla_put_failure;
+	if (vnr != VOLUME_UNSPECIFIED)
+		NLA_PUT_U32(skb, T_ctx_volume, vnr);
+	NLA_PUT_STRING(skb, T_ctx_conn_name, conn_name);
+	nla_nest_end(skb, nla);
+	return 0;
+
+nla_put_failure:
+	if (nla)
+		nla_nest_cancel(skb, nla);
+	return -EMSGSIZE;
+}
+
 int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		const struct sib_info *sib)
 {
@@ -2215,12 +2237,8 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 
 	/* We need to add connection name and volume number information still.
 	 * Minor number is in drbd_genlmsghdr. */
-	nla = nla_nest_start(skb, DRBD_NLA_CFG_CONTEXT);
-	if (!nla)
+	if (nla_put_drbd_cfg_context(skb, mdev->tconn->name, mdev->vnr))
 		goto nla_put_failure;
-	NLA_PUT_U32(skb, T_ctx_volume, mdev->vnr);
-	NLA_PUT_STRING(skb, T_ctx_conn_name, mdev->tconn->name);
-	nla_nest_end(skb, nla);
 
 	if (got_ldev)
 		if (disk_conf_to_skb(skb, &mdev->ldev->dc, exclude_sensitive))
@@ -2307,41 +2325,100 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct drbd_conf *mdev;
 	struct drbd_genlmsghdr *dh;
-	int minor = cb->args[0];
+	struct drbd_tconn *pos = (struct drbd_tconn*)cb->args[0];
+	struct drbd_tconn *tconn = NULL;
+	struct drbd_tconn *tmp;
+	unsigned volume = cb->args[1];
 
-	/* Open coded deferred single idr_for_each_entry iteration.
+	/* Open coded, deferred, iteration:
+	 * list_for_each_entry_safe(tconn, tmp, &drbd_tconns, all_tconn) {
+	 *	idr_for_each_entry(&tconn->volumes, mdev, i) {
+	 *	  ...
+	 *	}
+	 * }
+	 * where tconn is cb->args[0];
+	 * and i is cb->args[1];
+	 *
 	 * This may miss entries inserted after this dump started,
 	 * or entries deleted before they are reached.
-	 * But we need to make sure the mdev won't disappear while
-	 * we are looking at it. */
+	 *
+	 * We need to make sure the mdev won't disappear while
+	 * we are looking at it, and revalidate our iterators
+	 * on each iteration.
+	 */
 
+	/* synchronize with drbd_new_tconn/drbd_free_tconn */
+	mutex_lock(&drbd_cfg_mutex);
+	/* synchronize with drbd_delete_device */
 	rcu_read_lock();
-	mdev = idr_get_next(&minors, &minor);
-	if (mdev) {
+next_tconn:
+	/* revalidate iterator position */
+	list_for_each_entry(tmp, &drbd_tconns, all_tconn) {
+		if (pos == NULL) {
+			/* first iteration */
+			pos = tmp;
+			tconn = pos;
+			break;
+		}
+		if (tmp == pos) {
+			tconn = pos;
+			break;
+		}
+	}
+	if (tconn) {
+		mdev = idr_get_next(&tconn->volumes, &volume);
+		if (!mdev) {
+			/* No more volumes to dump on this tconn.
+			 * Advance tconn iterator. */
+			pos = list_entry(tconn->all_tconn.next,
+					struct drbd_tconn, all_tconn);
+			/* But, did we dump any volume on this tconn yet? */
+			if (volume != 0) {
+				tconn = NULL;
+				volume = 0;
+				goto next_tconn;
+			}
+		}
+
 		dh = genlmsg_put(skb, NETLINK_CB(cb->skb).pid,
 				cb->nlh->nlmsg_seq, &drbd_genl_family,
 				NLM_F_MULTI, DRBD_ADM_GET_STATUS);
 		if (!dh)
-			goto errout;
+			goto out;
 
-		D_ASSERT(mdev->minor == minor);
+		if (!mdev) {
+			/* this is a tconn without a single volume */
+			dh->minor = -1U;
+			dh->ret_code = NO_ERROR;
+			if (nla_put_drbd_cfg_context(skb, tconn->name, VOLUME_UNSPECIFIED))
+				genlmsg_cancel(skb, dh);
+			else
+				genlmsg_end(skb, dh);
+			goto out;
+		}
 
-		dh->minor = minor;
+		D_ASSERT(mdev->vnr == volume);
+		D_ASSERT(mdev->tconn == tconn);
+
+		dh->minor = mdev_to_minor(mdev);
 		dh->ret_code = NO_ERROR;
 
 		if (nla_put_status_info(skb, mdev, NULL)) {
 			genlmsg_cancel(skb, dh);
-			goto errout;
+			goto out;
 		}
 		genlmsg_end(skb, dh);
         }
 
-errout:
+out:
 	rcu_read_unlock();
-	/* where to start idr_get_next with the next iteration */
-        cb->args[0] = minor+1;
+	mutex_unlock(&drbd_cfg_mutex);
+	/* where to start the next iteration */
+        cb->args[0] = (long)pos;
+        cb->args[1] = (pos == tconn) ? volume + 1 : 0;
 
-	/* No more minors found: empty skb. Which will terminate the dump. */
+	/* No more tconns/volumes/minors found results in an empty skb.
+	 * Which will terminate the dump. */
         return skb->len;
 }
 
