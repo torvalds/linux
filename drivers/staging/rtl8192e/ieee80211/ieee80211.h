@@ -47,25 +47,6 @@
 #define IWEVCUSTOM 0x8c02
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#ifndef __bitwise
-#define __bitwise __attribute__((bitwise))
-#endif
-typedef __u16  __le16;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,27))
-struct iw_spy_data{
-	/* --- Standard spy support --- */
-	int 			spy_number;
-	u_char 			spy_address[IW_MAX_SPY][ETH_ALEN];
-	struct iw_quality	spy_stat[IW_MAX_SPY];
-	/* --- Enhanced spy support (event) */
-	struct iw_quality	spy_thr_low; /* Low threshold */
-	struct iw_quality	spy_thr_high; /* High threshold */
-	u_char			spy_thr_under[IW_MAX_SPY];
-};
-#endif
-#endif
-
 #ifndef container_of
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -370,12 +351,10 @@ enum	_ReasonCode{
 #define ieee80211_wx_get_scan		ieee80211_wx_get_scan_rsl
 #define ieee80211_wx_set_encode		ieee80211_wx_set_encode_rsl
 #define ieee80211_wx_get_encode		ieee80211_wx_get_encode_rsl
-#if WIRELESS_EXT >= 18
 #define ieee80211_wx_set_mlme		ieee80211_wx_set_mlme_rsl
 #define ieee80211_wx_set_auth		ieee80211_wx_set_auth_rsl
 #define ieee80211_wx_set_encode_ext	ieee80211_wx_set_encode_ext_rsl
 #define ieee80211_wx_get_encode_ext	ieee80211_wx_get_encode_ext_rsl
-#endif
 
 
 typedef struct ieee_param {
@@ -407,15 +386,6 @@ typedef struct ieee_param {
 	} u;
 }ieee_param;
 
-
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
 
 // linux under 2.6.9 release may not support it, so modify it for common use
 #define MSECS(t) msecs_to_jiffies(t)
@@ -1286,7 +1256,7 @@ typedef union _frameqos {
 #define QOS_OUI_PARAM_SUB_TYPE          1
 #define QOS_VERSION_1                   1
 #define QOS_AIFSN_MIN_VALUE             2
-#if 1
+
 struct ieee80211_qos_information_element {
         u8 elementID;
         u8 length;
@@ -1361,7 +1331,7 @@ struct ieee80211_wmm_tspec_elem {
 	u16 surp_band_allow;
 	u16 medium_time;
 }__attribute__((packed));
-#endif
+
 enum eap_type {
 	EAP_PACKET = 0,
 	EAPOL_START,
@@ -1483,15 +1453,13 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define MAX_RECEIVE_BUFFER_SIZE 9100
 
 //UP Mapping to AC, using in MgntQuery_SequenceNumber() and maybe for DSCP
-//#define UP2AC(up)	((up<3) ? ((up==0)?1:0) : (up>>1))
-#if 1
 #define UP2AC(up) (		   \
 	((up) < 1) ? WME_AC_BE : \
 	((up) < 3) ? WME_AC_BK : \
 	((up) < 4) ? WME_AC_BE : \
 	((up) < 6) ? WME_AC_VI : \
 	WME_AC_VO)
-#endif
+
 //AC Mapping to UP, using in Tx part for selecting the corresponding TX queue
 #define AC2UP(_ac)	(       \
 	((_ac) == WME_AC_VO) ? 6 : \
@@ -1545,12 +1513,7 @@ struct ieee80211_network {
 	/* Ensure null-terminated for any debug msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
-#if 1
         struct ieee80211_qos_data qos_data;
-#else
-       // Qos related. Added by Annie, 2005-11-01.
-        BSS_QOS   BssQos;
-#endif
 
 	//added by amy for LEAP
 	bool	bWithAironetIE;
@@ -1617,7 +1580,6 @@ struct ieee80211_network {
 	struct list_head list;
 };
 
-#if 1
 enum ieee80211_state {
 
 	/* the card is not linked at all */
@@ -1656,17 +1618,6 @@ enum ieee80211_state {
 	IEEE80211_LINKED_SCANNING,
 
 };
-#else
-enum ieee80211_state {
-        IEEE80211_UNINITIALIZED = 0,
-        IEEE80211_INITIALIZED,
-        IEEE80211_ASSOCIATING,
-        IEEE80211_ASSOCIATED,
-        IEEE80211_AUTHENTICATING,
-        IEEE80211_AUTHENTICATED,
-        IEEE80211_SHUTDOWN
-};
-#endif
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
@@ -1905,12 +1856,8 @@ struct ieee80211_device {
 	struct list_head		Rx_TS_Pending_List;
 	struct list_head		Rx_TS_Unused_List;
 	RX_TS_RECORD		RxTsRecord[TOTAL_TS_NUM];
-//#ifdef TO_DO_LIST
 	RX_REORDER_ENTRY	RxReorderEntry[128];
 	struct list_head		RxReorder_Unused_List;
-//#endif
-	// Qos related. Added by Annie, 2005-11-01.
-//	PSTA_QOS			pStaQos;
 	u8				ForcedPriority;		// Force per-packet priority 1~7. (default: 0, not to force it.)
 
 
@@ -2096,7 +2043,6 @@ struct ieee80211_device {
 	struct sk_buff *mgmt_queue_ring[MGMT_QUEUE_NUM];
 	int mgmt_queue_head;
 	int mgmt_queue_tail;
-//{ added for rtl819x
 #define IEEE80211_QUEUE_LIMIT 128
 	u8 AsocRetryCount;
 	unsigned int hw_header;
@@ -2464,7 +2410,6 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *key);
-#if WIRELESS_EXT >= 18
 int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
                             struct iw_request_info *info,
                             union iwreq_data* wrqu, char *extra);
@@ -2477,7 +2422,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
                                struct iw_request_info *info,
                                union iwreq_data *wrqu, char *extra);
-#endif
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len);
 
 /* ieee80211_softmac.c */
