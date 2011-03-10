@@ -210,40 +210,34 @@ u32 read_cam(struct r8192_priv *priv, u8 addr)
 
 u8 read_nic_byte(struct r8192_priv *priv, int x)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-        return 0xff&readb((u8*)dev->mem_start +x);
+        return 0xff & readb(priv->mem_start + x);
 }
 
 u32 read_nic_dword(struct r8192_priv *priv, int x)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-        return readl((u8*)dev->mem_start +x);
+        return readl(priv->mem_start + x);
 }
 
 u16 read_nic_word(struct r8192_priv *priv, int x)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-        return readw((u8*)dev->mem_start +x);
+        return readw(priv->mem_start + x);
 }
 
 void write_nic_byte(struct r8192_priv *priv, int x,u8 y)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-        writeb(y,(u8*)dev->mem_start +x);
+        writeb(y, priv->mem_start + x);
 	udelay(20);
 }
 
 void write_nic_dword(struct r8192_priv *priv, int x,u32 y)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-        writel(y,(u8*)dev->mem_start +x);
+        writel(y, priv->mem_start + x);
 	udelay(20);
 }
 
 void write_nic_word(struct r8192_priv *priv, int x,u16 y)
 {
-	struct net_device *dev = priv->ieee80211->dev;
-        writew(y,(u8*)dev->mem_start +x);
+        writew(y, priv->mem_start + x);
 	udelay(20);
 }
 
@@ -4568,7 +4562,6 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *id)
 {
-	unsigned long ioaddr = 0;
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv= NULL;
 	u8 unit = 0;
@@ -4619,16 +4612,15 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 		goto fail;
 	}
 
-
-	ioaddr = (unsigned long)ioremap_nocache( pmem_start, pmem_len);
-	if( ioaddr == (unsigned long)NULL ){
+	priv->mem_start = ioremap_nocache(pmem_start, pmem_len);
+	if (!priv->mem_start) {
 		RT_TRACE(COMP_ERR,"ioremap failed!\n");
-	       // release_mem_region( pmem_start, pmem_len );
 		goto fail1;
 	}
 
-	dev->mem_start = ioaddr; // shared mem start
-	dev->mem_end = ioaddr + pci_resource_len(pdev, 0); // shared mem end
+	dev->mem_start = (unsigned long) priv->mem_start;
+	dev->mem_end = (unsigned long) (priv->mem_start +
+					pci_resource_len(pdev, 0));
 
         /* We disable the RETRY_TIMEOUT register (0x41) to keep
          * PCI Tx retries from interfering with C3 CPU state */
@@ -4670,8 +4662,8 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 fail1:
 
-	if( dev->mem_start != (unsigned long)NULL ){
-		iounmap( (void *)dev->mem_start );
+	if (priv->mem_start) {
+		iounmap(priv->mem_start);
 		release_mem_region( pci_resource_start(pdev, 1),
 				    pci_resource_len(pdev, 1) );
 	}
@@ -4747,8 +4739,8 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 			priv->irq=0;
 		}
 
-		if( dev->mem_start != (unsigned long)NULL ){
-			iounmap( (void *)dev->mem_start );
+		if (priv->mem_start) {
+			iounmap(priv->mem_start);
 			release_mem_region( pci_resource_start(pdev, 1),
 					    pci_resource_len(pdev, 1) );
 		}

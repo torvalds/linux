@@ -868,6 +868,8 @@ struct rtl8192_tx_ring {
 typedef struct r8192_priv
 {
 	struct pci_dev *pdev;
+	u8 *mem_start;
+
 	/* maintain info from eeprom */
 	short epromtype;
 	u16 eeprom_vid;
