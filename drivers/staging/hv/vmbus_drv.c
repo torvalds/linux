@@ -258,7 +258,7 @@ static void vmbus_on_msg_dpc(unsigned long data)
 /*
  * vmbus_on_isr - ISR routine
  */
-static int vmbus_on_isr(struct hv_driver *drv)
+static int vmbus_on_isr(void)
 {
 	int ret = 0;
 	int cpu = smp_processor_id();
@@ -989,8 +989,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {
 	int ret;
 
-	/* Call to bus driver to handle interrupt */
-	ret = vmbus_on_isr(NULL);
+	ret = vmbus_on_isr();
 
 	/* Schedules a dpc if necessary */
 	if (ret > 0) {
