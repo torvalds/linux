@@ -107,7 +107,6 @@ struct irq_info
 #define PIRQ_NEEDS_EOI	(1 << 0)
 #define PIRQ_SHAREABLE	(1 << 1)
 
-static struct irq_info *irq_info;
 static int *pirq_to_irq;
 
 static int *evtchn_to_irq;
@@ -125,7 +124,7 @@ static struct irq_chip xen_pirq_chip;
 /* Get info for IRQ */
 static struct irq_info *info_for_irq(unsigned irq)
 {
-	return &irq_info[irq];
+	return get_irq_data(irq);
 }
 
 /* Constructors for packed IRQ information. */
@@ -309,7 +308,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	clear_bit(chn, per_cpu(cpu_evtchn_mask, cpu_from_irq(irq)));
 	set_bit(chn, per_cpu(cpu_evtchn_mask, cpu));
 
-	irq_info[irq].cpu = cpu;
+	info_for_irq(irq)->cpu = cpu;
 }
 
 static void init_evtchn_cpu_bindings(void)
@@ -328,7 +327,6 @@ static void init_evtchn_cpu_bindings(void)
 	for_each_possible_cpu(i)
 		memset(per_cpu(cpu_evtchn_mask, i),
 		       (i == 0) ? ~0 : 0, sizeof(*per_cpu(cpu_evtchn_mask, i)));
-
 }
 
 static inline void clear_evtchn(int port)
@@ -411,9 +409,13 @@ static void xen_irq_init(unsigned irq)
 	/* By default all event channels notify CPU#0. */
 	cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
 
-	info = &irq_info[irq];
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (info == NULL)
+		panic("Unable to allocate metadata for IRQ%d\n", irq);
 
 	info->type = IRQT_UNBOUND;
+
+	set_irq_data(irq, info);
 
 	list_add_tail(&info->list, &xen_irq_list_head);
 }
@@ -481,11 +483,13 @@ static int xen_allocate_irq_gsi(unsigned gsi)
 
 static void xen_free_irq(unsigned irq)
 {
-	struct irq_info *info = &irq_info[irq];
-
-	info->type = IRQT_UNBOUND;
+	struct irq_info *info = get_irq_data(irq);
 
 	list_del(&info->list);
+
+	set_irq_data(irq, NULL);
+
+	kfree(info);
 
 	/* Legacy IRQ descriptors are managed by the arch. */
 	if (irq < NR_IRQS_LEGACY)
@@ -649,10 +653,9 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 
 	spin_lock(&irq_mapping_update_lock);
 
-	if ((pirq > nr_irqs) || (gsi > nr_irqs)) {
-		printk(KERN_WARNING "xen_map_pirq_gsi: %s %s is incorrect!\n",
-			pirq > nr_irqs ? "pirq" :"",
-			gsi > nr_irqs ? "gsi" : "");
+	if (pirq > nr_irqs) {
+		printk(KERN_WARNING "xen_map_pirq_gsi: pirq %d > nr_irqs %d!\n",
+		       pirq, nr_irqs);
 		goto out;
 	}
 
@@ -889,7 +892,7 @@ static void unbind_from_irq(unsigned int irq)
 		evtchn_to_irq[evtchn] = -1;
 	}
 
-	BUG_ON(irq_info[irq].type == IRQT_UNBOUND);
+	BUG_ON(info_for_irq(irq)->type == IRQT_UNBOUND);
 
 	xen_free_irq(irq);
 
@@ -1508,8 +1511,6 @@ void xen_callback_vector(void) {}
 void __init xen_init_IRQ(void)
 {
 	int i;
-
-	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
 
 	/* We are using nr_irqs as the maximum number of pirq available but
 	 * that number is actually chosen by Xen and we don't know exactly
