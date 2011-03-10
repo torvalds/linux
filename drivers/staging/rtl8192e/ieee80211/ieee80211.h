@@ -1538,8 +1538,6 @@ typedef struct _bss_ht{
 	u16					ht_info_len;
 
 	HT_SPEC_VER			ht_spec_ver;
-	//HT_CAPABILITY_ELE			bdHTCapEle;
-	//HT_INFORMATION_ELE		bdHTInfoEle;
 
 	bool				aggregation;
 	bool				long_slot_time;
@@ -1881,12 +1879,10 @@ struct ieee80211_device {
 	u8   (*rtllib_ap_sec_type)(struct ieee80211_device *ieee);
 
 	//hw security related
-//	u8 hwsec_support; //support?
 	u8 hwsec_active;  //hw security active.
 	bool is_silent_reset;
 	bool is_roaming;
 	bool ieee_up;
-	//added by amy
 	bool bSupportRemoteWakeUp;
 	bool actscanning;
 	bool beinretry;
@@ -1895,8 +1891,6 @@ struct ieee80211_device {
 
 	//11n HT below
 	PRT_HIGH_THROUGHPUT	pHTInfo;
-	//struct timer_list		SwBwTimer;
-//	spinlock_t chnlop_spinlock;
 	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
@@ -1912,8 +1906,6 @@ struct ieee80211_device {
 	u8 	bTxUseDriverAssingedRate;
 	atomic_t	atm_chnlop;
 	atomic_t	atm_swbw;
-//	u8	HTHighestOperaRate;
-//	u8 	HTCurrentOperaRate;
 
 	// 802.11e and WMM Traffic Stream Info (TX)
 	struct list_head		Tx_TS_Admit_List;
@@ -2153,9 +2145,7 @@ struct ieee80211_device {
 
 	//added by amy for AP roaming
 	RT_LINK_DETECT_T	LinkDetectInfo;
-        //added by amy for ps
-	//RT_POWER_SAVE_CONTROL	PowerSaveControl;
-//}
+
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
 	struct  tx_pending_t tx_pending;
 
@@ -2173,12 +2163,6 @@ struct ieee80211_device {
 
         struct work_struct wx_sync_scan_wq;
         struct workqueue_struct *wq;
-        // Qos related. Added by Annie, 2005-11-01.
-        //STA_QOS  StaQos;
-
-        //u32 STA_EDCA_PARAM[4];
-	//CHANNEL_ACCESS_SETTING ChannelAccessSetting;
-
 
 	/* Callback functions */
 	void (*set_security)(struct net_device *dev,
@@ -2269,45 +2253,15 @@ struct ieee80211_device {
 
 	/* power save mode related */
 	void (*sta_wake_up) (struct net_device *dev);
-//	void (*ps_request_tx_ack) (struct net_device *dev);
 	void (*enter_sleep_state) (struct net_device *dev, u32 th, u32 tl);
 	short (*ps_is_queue_empty) (struct net_device *dev);
-#if 0
-	/* Typical STA methods */
-        int (*handle_auth) (struct net_device * dev,
-                            struct ieee80211_auth * auth);
-        int (*handle_deauth) (struct net_device * dev,
-                              struct ieee80211_deauth * auth);
-        int (*handle_action) (struct net_device * dev,
-                              struct ieee80211_action * action,
-                              struct ieee80211_rx_stats * stats);
-        int (*handle_disassoc) (struct net_device * dev,
-                                struct ieee80211_disassoc * assoc);
-#endif
         int (*handle_beacon) (struct net_device * dev, struct ieee80211_beacon * beacon, struct ieee80211_network * network);
-#if 0
-        int (*handle_probe_response) (struct net_device * dev,
-                                      struct ieee80211_probe_response * resp,
-                                      struct ieee80211_network * network);
-        int (*handle_probe_request) (struct net_device * dev,
-                                     struct ieee80211_probe_request * req,
-                                     struct ieee80211_rx_stats * stats);
-#endif
         int (*handle_assoc_response) (struct net_device * dev, struct ieee80211_assoc_response_frame * resp, struct ieee80211_network * network);
-
-#if 0
-        /* Typical AP methods */
-        int (*handle_assoc_request) (struct net_device * dev);
-        int (*handle_reassoc_request) (struct net_device * dev,
-                                       struct ieee80211_reassoc_request * req);
-#endif
 
 	/* check whether Tx hw resouce available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
 	//added by wb for HT related
-//	void (*SwChnlByTimerHandler)(struct net_device *dev, int channel);
 	void (*SetBWModeHandler)(struct net_device *dev, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);
-//	void (*UpdateHalRATRTableHandler)(struct net_device* dev, u8* pMcsRate);
 	bool (*GetNmodeSupportBySecCfg)(struct net_device* dev);
 	void (*SetWirelessMode)(struct net_device* dev, u8 wireless_mode);
 	bool (*GetHalfNmodeSupportByAPsHandler)(struct net_device* dev);
