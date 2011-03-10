@@ -1213,7 +1213,7 @@ static int retrigger_dynirq(struct irq_data *data)
 	return ret;
 }
 
-static void restore_cpu_pirqs(void)
+static void restore_pirqs(void)
 {
 	int pirq, rc, irq, gsi;
 	struct physdev_map_pirq map_irq;
@@ -1375,7 +1375,7 @@ void xen_irq_resume(void)
 		restore_cpu_ipis(cpu);
 	}
 
-	restore_cpu_pirqs();
+	restore_pirqs();
 }
 
 static struct irq_chip xen_dynamic_chip __read_mostly = {
