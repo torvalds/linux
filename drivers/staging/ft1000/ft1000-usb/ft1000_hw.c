@@ -712,7 +712,7 @@ static const struct net_device_ops ftnet_ops =
 //---------------------------------------------------------------------------
 u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 {
-    struct net_device *netdev;
+	struct net_device *netdev;
 	struct ft1000_info *pInfo = NULL;
 	struct dpram_blk *pdpram_blk;
 	int i, ret_val;
@@ -720,27 +720,23 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 	char card_nr[2];
 	unsigned long gCardIndex = 0;
 
-    DEBUG("Enter init_ft1000_netdev...\n");
-
+	DEBUG("Enter init_ft1000_netdev...\n");
 
 	netdev = alloc_etherdev(sizeof(struct ft1000_info));
-    if (!netdev )
-    {
-        DEBUG("init_ft1000_netdev: can not allocate network device\n");
-	return -ENOMEM;
-    }
+	if (!netdev) {
+		DEBUG("init_ft1000_netdev: can not allocate network device\n");
+		return -ENOMEM;
+	}
 
 	pInfo = netdev_priv(netdev);
 
-    //DEBUG("init_ft1000_netdev: gFt1000Info=%x, netdev=%x, ft1000dev=%x\n", gFt1000Info, netdev, ft1000dev);
-
 	memset(pInfo, 0, sizeof(struct ft1000_info));
 
-    dev_alloc_name(netdev, netdev->name);
+	dev_alloc_name(netdev, netdev->name);
 
-        DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
+	DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
 
-	if ( strncmp(netdev->name,"eth", 3) == 0) {
+	if (strncmp(netdev->name, "eth", 3) == 0) {
 		card_nr[0] = netdev->name[3];
 		card_nr[1] = '\0';
 		ret_val = strict_strtoul(card_nr, 10, &gCardIndex);
@@ -749,88 +745,82 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 			goto err_net;
 		}
 
-            pInfo->CardNumber = gCardIndex;
-            DEBUG("card number = %d\n", pInfo->CardNumber);
-        }
-        else {
-            printk(KERN_ERR "ft1000: Invalid device name\n");
+		pInfo->CardNumber = gCardIndex;
+		DEBUG("card number = %d\n", pInfo->CardNumber);
+	} else {
+		printk(KERN_ERR "ft1000: Invalid device name\n");
 		ret_val = -ENXIO;
 		goto err_net;
-        }
+	}
 
-    memset(&pInfo->stats, 0, sizeof(struct net_device_stats) );
+	memset(&pInfo->stats, 0, sizeof(struct net_device_stats));
 
-   spin_lock_init(&pInfo->dpram_lock);
-    pInfo->pFt1000Dev = ft1000dev;
-    pInfo->DrvErrNum = 0;
-    pInfo->ASICResetNum = 0;
-    pInfo->registered = 1;
-    pInfo->ft1000_reset = ft1000_reset;
-    pInfo->mediastate = 0;
-    pInfo->fifo_cnt = 0;
-    pInfo->DeviceCreated = FALSE;
-    pInfo->CurrentInterruptEnableMask = ISR_DEFAULT_MASK;
-    pInfo->InterruptsEnabled = FALSE;
-    pInfo->CardReady = 0;
-    pInfo->DSP_TIME[0] = 0;
-    pInfo->DSP_TIME[1] = 0;
-    pInfo->DSP_TIME[2] = 0;
-    pInfo->DSP_TIME[3] = 0;
-    pInfo->fAppMsgPend = 0;
-    pInfo->fCondResetPend = 0;
+	spin_lock_init(&pInfo->dpram_lock);
+	pInfo->pFt1000Dev = ft1000dev;
+	pInfo->DrvErrNum = 0;
+	pInfo->ASICResetNum = 0;
+	pInfo->registered = 1;
+	pInfo->ft1000_reset = ft1000_reset;
+	pInfo->mediastate = 0;
+	pInfo->fifo_cnt = 0;
+	pInfo->DeviceCreated = FALSE;
+	pInfo->CurrentInterruptEnableMask = ISR_DEFAULT_MASK;
+	pInfo->InterruptsEnabled = FALSE;
+	pInfo->CardReady = 0;
+	pInfo->DSP_TIME[0] = 0;
+	pInfo->DSP_TIME[1] = 0;
+	pInfo->DSP_TIME[2] = 0;
+	pInfo->DSP_TIME[3] = 0;
+	pInfo->fAppMsgPend = 0;
+	pInfo->fCondResetPend = 0;
 	pInfo->usbboot = 0;
 	pInfo->dspalive = 0;
 	memset(&pInfo->tempbuf[0], 0, sizeof(pInfo->tempbuf));
 
-    INIT_LIST_HEAD(&pInfo->prov_list);
+	INIT_LIST_HEAD(&pInfo->prov_list);
 
 	INIT_LIST_HEAD(&pInfo->nodes.list);
-//mbelian
+
 #ifdef HAVE_NET_DEVICE_OPS
 	netdev->netdev_ops = &ftnet_ops;
 #else
-    netdev->hard_start_xmit = &ft1000_start_xmit;
-    netdev->get_stats = &ft1000_netdev_stats;
-    netdev->open = &ft1000_open;
-    netdev->stop = &ft1000_close;
+	netdev->hard_start_xmit = &ft1000_start_xmit;
+	netdev->get_stats = &ft1000_netdev_stats;
+	netdev->open = &ft1000_open;
+	netdev->stop = &ft1000_close;
 #endif
 
-    ft1000dev->net = netdev;
+	ft1000dev->net = netdev;
 
+	DEBUG("Initialize free_buff_lock and freercvpool\n");
+	spin_lock_init(&free_buff_lock);
 
+	/* initialize a list of buffers to be use for queuing
+	 * up receive command data
+	 */
+	INIT_LIST_HEAD(&freercvpool);
 
-//init free_buff_lock, freercvpool, numofmsgbuf, pdpram_blk
-//only init once per card
-//Jim
-    	  DEBUG("Initialize free_buff_lock and freercvpool\n");
-        spin_lock_init(&free_buff_lock);
-
-        // initialize a list of buffers to be use for queuing up receive command data
-        INIT_LIST_HEAD (&freercvpool);
-
-        // create list of free buffers
-        for (i=0; i<NUM_OF_FREE_BUFFERS; i++) {
-            // Get memory for DPRAM_DATA link list
+	/* create list of free buffers */
+	for (i = 0; i < NUM_OF_FREE_BUFFERS; i++) {
+		/* Get memory for DPRAM_DATA link list */
 		pdpram_blk = kmalloc(sizeof(struct dpram_blk), GFP_KERNEL);
 		if (pdpram_blk == NULL) {
 			ret_val = -ENOMEM;
 			goto err_free;
 		}
-            // Get a block of memory to store command data
-            pdpram_blk->pbuffer = kmalloc ( MAX_CMD_SQSIZE, GFP_KERNEL );
+		/* Get a block of memory to store command data */
+		pdpram_blk->pbuffer = kmalloc(MAX_CMD_SQSIZE, GFP_KERNEL);
 		if (pdpram_blk->pbuffer == NULL) {
 			ret_val = -ENOMEM;
 			kfree(pdpram_blk);
 			goto err_free;
 		}
-            // link provisioning data
-            list_add_tail (&pdpram_blk->list, &freercvpool);
-        }
-        numofmsgbuf = NUM_OF_FREE_BUFFERS;
-
+		/* link provisioning data */
+		list_add_tail(&pdpram_blk->list, &freercvpool);
+	}
+	numofmsgbuf = NUM_OF_FREE_BUFFERS;
 
 	return 0;
-
 
 err_free:
 	list_for_each_safe(cur, tmp, &freercvpool) {
@@ -843,8 +833,6 @@ err_net:
 	free_netdev(netdev);
 	return ret_val;
 }
-
-
 
 //---------------------------------------------------------------------------
 // Function:    reg_ft1000_netdev
