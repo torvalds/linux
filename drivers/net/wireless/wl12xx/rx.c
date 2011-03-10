@@ -48,18 +48,14 @@ static void wl1271_rx_status(struct wl1271 *wl,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
-	enum ieee80211_band desc_band;
-
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
-	status->band = wl->band;
-
 	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
-		desc_band = IEEE80211_BAND_2GHZ;
+		status->band = IEEE80211_BAND_2GHZ;
 	else
-		desc_band = IEEE80211_BAND_5GHZ;
+		status->band = IEEE80211_BAND_5GHZ;
 
-	status->rate_idx = wl1271_rate_to_idx(desc->rate, desc_band);
+	status->rate_idx = wl1271_rate_to_idx(desc->rate, status->band);
 
 #ifdef CONFIG_WL12XX_HT
 	/* 11n support */
@@ -76,7 +72,8 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	 */
 	wl->noise = desc->rssi - (desc->snr >> 1);
 
-	status->freq = ieee80211_channel_to_frequency(desc->channel, desc_band);
+	status->freq = ieee80211_channel_to_frequency(desc->channel,
+						      status->band);
 
 	if (desc->flags & WL1271_RX_DESC_ENCRYPT_MASK) {
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
