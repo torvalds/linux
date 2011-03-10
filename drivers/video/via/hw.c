@@ -1677,40 +1677,36 @@ static u32 vx855_encode_pll(struct pll_config pll)
 u32 viafb_get_clk_value(int clk)
 {
 	u32 value = 0;
-	int i = 0;
+	int i, best = 0;
 
-	while (i < NUM_TOTAL_PLL_TABLE && clk != pll_value[i].clk)
-		i++;
+	for (i = 1; i < ARRAY_SIZE(pll_value); i++) {
+		if (abs(pll_value[i].clk - clk)
+			< abs(pll_value[best].clk - clk))
+			best = i;
+	}
 
-	if (i == NUM_TOTAL_PLL_TABLE) {
-		printk(KERN_WARNING "viafb_get_clk_value: PLL lookup failed!");
-	} else {
-		switch (viaparinfo->chip_info->gfx_chip_name) {
-		case UNICHROME_CLE266:
-		case UNICHROME_K400:
-			value = cle266_encode_pll(pll_value[i].cle266_pll);
-			break;
-
-		case UNICHROME_K800:
-		case UNICHROME_PM800:
-		case UNICHROME_CN700:
-			value = k800_encode_pll(pll_value[i].k800_pll);
-			break;
-
-		case UNICHROME_CX700:
-		case UNICHROME_CN750:
-		case UNICHROME_K8M890:
-		case UNICHROME_P4M890:
-		case UNICHROME_P4M900:
-		case UNICHROME_VX800:
-			value = k800_encode_pll(pll_value[i].cx700_pll);
-			break;
-
-		case UNICHROME_VX855:
-		case UNICHROME_VX900:
-			value = vx855_encode_pll(pll_value[i].vx855_pll);
-			break;
-		}
+	switch (viaparinfo->chip_info->gfx_chip_name) {
+	case UNICHROME_CLE266:
+	case UNICHROME_K400:
+		value = cle266_encode_pll(pll_value[best].cle266_pll);
+		break;
+	case UNICHROME_K800:
+	case UNICHROME_PM800:
+	case UNICHROME_CN700:
+		value = k800_encode_pll(pll_value[best].k800_pll);
+		break;
+	case UNICHROME_CX700:
+	case UNICHROME_CN750:
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M890:
+	case UNICHROME_P4M900:
+	case UNICHROME_VX800:
+		value = k800_encode_pll(pll_value[best].cx700_pll);
+		break;
+	case UNICHROME_VX855:
+	case UNICHROME_VX900:
+		value = vx855_encode_pll(pll_value[best].vx855_pll);
+		break;
 	}
 
 	return value;
