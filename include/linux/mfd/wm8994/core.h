@@ -88,6 +88,8 @@ int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
 		    unsigned short mask, unsigned short val);
 int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 		     int count, u16 *buf);
+int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
+		     int count, u16 *buf);
 
 
 /* Helper to save on boilerplate */

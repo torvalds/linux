@@ -138,6 +138,29 @@ int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
 EXPORT_SYMBOL_GPL(wm8994_reg_write);
 
 /**
+ * wm8994_bulk_write: Write multiple WM8994 registers
+ *
+ * @wm8994: Device to write to
+ * @reg: First register
+ * @count: Number of registers
+ * @buf: Buffer to write from.
+ */
+int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
+		      int count, u16 *buf)
+{
+	int ret;
+
+	mutex_lock(&wm8994->io_lock);
+
+	ret = wm8994_write(wm8994, reg, count * 2, buf);
+
+	mutex_unlock(&wm8994->io_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm8994_bulk_write);
+
+/**
  * wm8994_set_bits: Set the value of a bitfield in a WM8994 register
  *
  * @wm8994: Device to write to.
