@@ -171,7 +171,7 @@ static int bq20z75_read_word_data(struct i2c_client *client, u8 address)
 	}
 
 	if (ret < 0) {
-		dev_warn(&client->dev,
+		dev_dbg(&client->dev,
 			"%s: i2c read at address 0x%x failed\n",
 			__func__, address);
 		return ret;
@@ -199,7 +199,7 @@ static int bq20z75_write_word_data(struct i2c_client *client, u8 address,
 	}
 
 	if (ret < 0) {
-		dev_warn(&client->dev,
+		dev_dbg(&client->dev,
 			"%s: i2c write to address 0x%x failed\n",
 			__func__, address);
 		return ret;
@@ -223,6 +223,7 @@ static int bq20z75_get_battery_presence_and_health(
 			val->intval = 1;
 		else
 			val->intval = 0;
+		bq20z75_device->is_present = val->intval;
 		return ret;
 	}
 
@@ -232,17 +233,16 @@ static int bq20z75_get_battery_presence_and_health(
 	ret = bq20z75_write_word_data(client,
 		bq20z75_data[REG_MANUFACTURER_DATA].addr,
 		MANUFACTURER_ACCESS_STATUS);
-	if (ret < 0)
-		return ret;
-
-
-	ret = bq20z75_read_word_data(client,
-		bq20z75_data[REG_MANUFACTURER_DATA].addr);
 	if (ret < 0) {
 		if (psp == POWER_SUPPLY_PROP_PRESENT)
 			val->intval = 0; /* battery removed */
 		return ret;
 	}
+
+	ret = bq20z75_read_word_data(client,
+		bq20z75_data[REG_MANUFACTURER_DATA].addr);
+	if (ret < 0)
+		return ret;
 
 	if (ret < bq20z75_data[REG_MANUFACTURER_DATA].min_value ||
 	    ret > bq20z75_data[REG_MANUFACTURER_DATA].max_value) {
@@ -455,6 +455,8 @@ static int bq20z75_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_HEALTH:
 		ret = bq20z75_get_battery_presence_and_health(client, psp, val);
+		if (psp == POWER_SUPPLY_PROP_PRESENT)
+			return 0;
 		break;
 
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
@@ -516,9 +518,16 @@ done:
 	}
 
 	dev_dbg(&client->dev,
-		"%s: property = %d, value = %d\n", __func__, psp, val->intval);
+		"%s: property = %d, value = %x\n", __func__, psp, val->intval);
 
-	return ret;
+	if (ret && bq20z75_device->is_present)
+		return ret;
+
+	/* battery not present, so return NODATA for properties */
+	if (ret)
+		return -ENODATA;
+
+	return 0;
 }
 
 static irqreturn_t bq20z75_irq(int irq, void *devid)
@@ -643,13 +652,14 @@ static int __devexit bq20z75_remove(struct i2c_client *client)
 static int bq20z75_suspend(struct i2c_client *client,
 	pm_message_t state)
 {
+	struct bq20z75_info *bq20z75_device = i2c_get_clientdata(client);
 	s32 ret;
 
 	/* write to manufacturer access with sleep command */
 	ret = bq20z75_write_word_data(client,
 		bq20z75_data[REG_MANUFACTURER_DATA].addr,
 		MANUFACTURER_ACCESS_SLEEP);
-	if (ret < 0)
+	if (bq20z75_device->is_present && ret < 0)
 		return ret;
 
 	return 0;
