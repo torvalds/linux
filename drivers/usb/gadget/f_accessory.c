@@ -216,14 +216,25 @@ static struct usb_request *req_get(struct acc_dev *dev, struct list_head *head)
 	return req;
 }
 
+static void acc_set_disconnected(struct acc_dev *dev)
+{
+	dev->online = 0;
+	dev->disconnected = 1;
+
+	/* clear all accessory strings */
+	memset(dev->manufacturer, 0, sizeof(dev->manufacturer));
+	memset(dev->model, 0, sizeof(dev->model));
+	memset(dev->description, 0, sizeof(dev->description));
+	memset(dev->version, 0, sizeof(dev->version));
+	memset(dev->uri, 0, sizeof(dev->uri));
+}
+
 static void acc_complete_in(struct usb_ep *ep, struct usb_request *req)
 {
 	struct acc_dev *dev = _acc_dev;
 
-	if (req->status != 0) {
-		dev->online = 0;
-		dev->disconnected = 1;
-	}
+	if (req->status != 0)
+		acc_set_disconnected(dev);
 
 	req_put(dev, &dev->tx_idle, req);
 
@@ -235,10 +246,8 @@ static void acc_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct acc_dev *dev = _acc_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0) {
-		dev->online = 0;
-		dev->disconnected = 1;
-	}
+	if (req->status != 0)
+		acc_set_disconnected(dev);
 
 	wake_up(&dev->read_wq);
 }
@@ -706,7 +715,7 @@ static void acc_function_disable(struct usb_function *f)
 	struct usb_composite_dev	*cdev = dev->cdev;
 
 	DBG(cdev, "acc_function_disable\n");
-	dev->online = 0;
+	acc_set_disconnected(dev);
 	usb_ep_disable(dev->ep_in);
 	usb_ep_disable(dev->ep_out);
 
