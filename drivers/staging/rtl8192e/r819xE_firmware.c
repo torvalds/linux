@@ -39,7 +39,6 @@ void firmware_init_param(struct r8192_priv *priv)
 static bool fw_download_code(struct r8192_priv *priv, u8 *code_virtual_address,
 			     u32 buffer_len)
 {
-	struct net_device *dev = priv->ieee80211->dev;
 	bool rt_status = true;
 	u16 frag_threshold;
 	u16 frag_length, frag_offset = 0;
@@ -69,7 +68,6 @@ static bool fw_download_code(struct r8192_priv *priv, u8 *code_virtual_address,
 		 * descriptor info add 4 to avoid packet appending overflow.
 		 */
 		skb  = dev_alloc_skb(frag_length + 4);
-		memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;

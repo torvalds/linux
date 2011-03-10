@@ -38,7 +38,6 @@ RT_STATUS cmpk_message_handle_tx(
 	u32	packettype,
 	u32	buffer_len)
 {
-	struct net_device *dev = priv->ieee80211->dev;
 	RT_STATUS 	    rt_status = RT_STATUS_SUCCESS;
 	u16		    frag_threshold;
 	u16		    frag_length = 0, frag_offset = 0;
@@ -75,7 +74,6 @@ RT_STATUS cmpk_message_handle_tx(
                 goto Failed;
             }
 
-            memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
             tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
             tcb_desc->queue_index = TXCMD_QUEUE;
             tcb_desc->bCmdOrInit = packettype;

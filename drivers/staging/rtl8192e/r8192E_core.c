@@ -830,8 +830,6 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb,
 		return;
 	}
 
-	memcpy(skb->cb, &ieee80211->dev, sizeof(ieee80211->dev));
-
 	skb_push(skb, priv->ieee80211->tx_headroom);
 	ret = rtl8192_tx(priv, skb);
 	if (ret != 0) {
@@ -865,7 +863,6 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct ieee80211_device 
 		}
         }
 
-        memcpy(skb->cb, &ieee80211->dev, sizeof(ieee80211->dev));
 	if (queue_index == TXCMD_QUEUE) {
 		rtl819xE_tx_cmd(priv, skb);
 		ret = 0;
