@@ -1022,60 +1022,55 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 * packet, u16 len)
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
-    struct ft1000_device *pFt1000Dev= pInfo->pFt1000Dev;
-    u8 *pdata;
-    int maxlen, pipe;
+	struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
+	u8 *pdata;
+	int maxlen, pipe;
 
+	//DEBUG(" ft1000_start_xmit() entered\n");
 
-    //DEBUG(" ft1000_start_xmit() entered\n");
+	if (skb == NULL) {
+		DEBUG("ft1000_hw: ft1000_start_xmit:skb == NULL!!!\n");
+		return NETDEV_TX_OK;
+	}
 
-    if ( skb == NULL )
-    {
-        DEBUG ("ft1000_hw: ft1000_start_xmit:skb == NULL!!!\n" );
-	return NETDEV_TX_OK;
-    }
+	if (pFt1000Dev->status & FT1000_STATUS_CLOSING) {
+		DEBUG("network driver is closed, return\n");
+		goto err;
+	}
+	//DEBUG("ft1000_start_xmit 1:length of packet = %d\n", skb->len);
+	pipe =
+	    usb_sndbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_out_endpointAddr);
+	maxlen = usb_maxpacket(pFt1000Dev->dev, pipe, usb_pipeout(pipe));
+	//DEBUG("ft1000_start_xmit 2: pipe=%d dev->maxpacket  = %d\n", pipe, maxlen);
 
-    if ( pFt1000Dev->status & FT1000_STATUS_CLOSING)
-    {
-        DEBUG("network driver is closed, return\n");
-	goto err;
-    }
+	pdata = (u8 *) skb->data;
+	/*for (i=0; i<skb->len; i++)
+	   DEBUG("skb->data[%d]=%x    ", i, *(skb->data+i));
 
-    //DEBUG("ft1000_start_xmit 1:length of packet = %d\n", skb->len);
-    pipe = usb_sndbulkpipe(pFt1000Dev->dev, pFt1000Dev->bulk_out_endpointAddr);
-    maxlen = usb_maxpacket(pFt1000Dev->dev, pipe, usb_pipeout(pipe));
-    //DEBUG("ft1000_start_xmit 2: pipe=%d dev->maxpacket  = %d\n", pipe, maxlen);
+	   DEBUG("\n"); */
 
-    pdata = (u8 *)skb->data;
-    /*for (i=0; i<skb->len; i++)
-        DEBUG("skb->data[%d]=%x    ", i, *(skb->data+i));
+	if (pInfo->mediastate == 0) {
+		/* Drop packet is mediastate is down */
+		DEBUG("ft1000_hw:ft1000_start_xmit:mediastate is down\n");
+		goto err;
+	}
 
-    DEBUG("\n");*/
-
-
-    if (pInfo->mediastate == 0)
-    {
-        /* Drop packet is mediastate is down */
-        DEBUG("ft1000_hw:ft1000_start_xmit:mediastate is down\n");
-	goto err;
-    }
-
-    if ( (skb->len < ENET_HEADER_SIZE) || (skb->len > ENET_MAX_SIZE) )
-    {
-        /* Drop packet which has invalid size */
-        DEBUG("ft1000_hw:ft1000_start_xmit:invalid ethernet length\n");
-	goto err;
-    }
+	if ((skb->len < ENET_HEADER_SIZE) || (skb->len > ENET_MAX_SIZE)) {
+		/* Drop packet which has invalid size */
+		DEBUG("ft1000_hw:ft1000_start_xmit:invalid ethernet length\n");
+		goto err;
+	}
 //mbelian
-	ft1000_copy_down_pkt(dev, (pdata+ENET_HEADER_SIZE-2),
-				skb->len - ENET_HEADER_SIZE + 2);
+	ft1000_copy_down_pkt(dev, (pdata + ENET_HEADER_SIZE - 2),
+			     skb->len - ENET_HEADER_SIZE + 2);
 
 err:
 	dev_kfree_skb(skb);
-    //DEBUG(" ft1000_start_xmit() exit\n");
+	//DEBUG(" ft1000_start_xmit() exit\n");
 
 	return NETDEV_TX_OK;
 }
+
 
 //---------------------------------------------------------------------------
 //
