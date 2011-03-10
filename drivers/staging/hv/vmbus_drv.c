@@ -42,7 +42,6 @@
 
 /* Main vmbus driver data structure */
 struct vmbus_driver_context {
-	struct hv_driver drv_obj;
 
 	struct bus_type bus;
 	struct tasklet_struct msg_dpc;
@@ -458,7 +457,6 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 static int vmbus_bus_init(void)
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &vmbus_drv;
-	struct hv_driver *driver = &vmbus_drv.drv_obj;
 	struct hv_device *dev_ctx = &vmbus_drv.device_ctx;
 	int ret;
 	unsigned int vector;
@@ -474,13 +472,6 @@ static int vmbus_bus_init(void)
 			sizeof(struct vmbus_channel_packet_page_buffer),
 			sizeof(struct vmbus_channel_packet_multipage_buffer));
 
-	driver->name = driver_name;
-	memcpy(&driver->dev_type, &device_type, sizeof(struct hv_guid));
-
-	/* Setup dispatch table */
-	driver->dev_add	= vmbus_dev_add;
-	driver->dev_rm	= vmbus_dev_rm;
-	driver->cleanup	= vmbus_cleanup;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
@@ -490,22 +481,16 @@ static int vmbus_bus_init(void)
 		goto cleanup;
 	}
 
-	/* Sanity checks */
-	if (!driver->dev_add) {
-		DPRINT_ERR(VMBUS_DRV, "OnDeviceAdd() routine not set");
-		ret = -1;
-		goto cleanup;
-	}
 
-	vmbus_drv_ctx->bus.name = driver->name;
+	vmbus_drv_ctx->bus.name = driver_name;
 
 	/* Initialize the bus context */
 	tasklet_init(&vmbus_drv_ctx->msg_dpc, vmbus_msg_dpc,
-		     (unsigned long)driver);
+		     (unsigned long)NULL);
 	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_event_dpc,
-		     (unsigned long)driver);
+		     (unsigned long)NULL);
 
-	/* Now, register the bus driver with LDM */
+	/* Now, register the bus  with LDM */
 	ret = bus_register(&vmbus_drv_ctx->bus);
 	if (ret) {
 		ret = -1;
@@ -514,7 +499,7 @@ static int vmbus_bus_init(void)
 
 	/* Get the interrupt resource */
 	ret = request_irq(vmbus_irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
-			  driver->name, NULL);
+			  driver_name, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "ERROR - Unable to request IRQ %d",
@@ -529,10 +514,10 @@ static int vmbus_bus_init(void)
 
 	DPRINT_INFO(VMBUS_DRV, "irq 0x%x vector 0x%x", vmbus_irq, vector);
 
-	/* Call to bus driver to add the root device */
+	/* Add the root device */
 	memset(dev_ctx, 0, sizeof(struct hv_device));
 
-	ret = driver->dev_add(dev_ctx, &vector);
+	ret = vmbus_dev_add(dev_ctx, &vector);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV,
 			   "ERROR - Unable to add vmbus root device");
@@ -555,7 +540,7 @@ static int vmbus_bus_init(void)
 	/* Setup the device dispatch table */
 	dev_ctx->device.release = vmbus_bus_release;
 
-	/* Setup the bus as root device */
+	/* register the  root device */
 	ret = device_register(&dev_ctx->device);
 	if (ret) {
 		DPRINT_ERR(VMBUS_DRV,
@@ -582,17 +567,14 @@ cleanup:
  */
 static void vmbus_bus_exit(void)
 {
-	struct hv_driver *driver = &vmbus_drv.drv_obj;
 	struct vmbus_driver_context *vmbus_drv_ctx = &vmbus_drv;
 
 	struct hv_device *dev_ctx = &vmbus_drv.device_ctx;
 
 	/* Remove the root device */
-	if (driver->dev_rm)
-		driver->dev_rm(dev_ctx);
+	vmbus_dev_rm(dev_ctx);
 
-	if (driver->cleanup)
-		driver->cleanup(driver);
+	vmbus_cleanup(NULL);
 
 	/* Unregister the root bus device */
 	device_unregister(&dev_ctx->device);
@@ -1026,11 +1008,10 @@ static void vmbus_event_dpc(unsigned long data)
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {
-	struct hv_driver *driver = &vmbus_drv.drv_obj;
 	int ret;
 
 	/* Call to bus driver to handle interrupt */
-	ret = vmbus_on_isr(driver);
+	ret = vmbus_on_isr(NULL);
 
 	/* Schedules a dpc if necessary */
 	if (ret > 0) {
