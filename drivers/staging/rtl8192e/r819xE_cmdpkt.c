@@ -104,7 +104,7 @@ RT_STATUS cmpk_message_handle_tx(
                 *seg_ptr++ = ((i+3)<frag_length)?code_virtual_address[i+0]:0;
             }
             skb_put(skb, i);
-            priv->ieee80211->softmac_hard_start_xmit(skb,dev);
+            priv->ieee80211->softmac_hard_start_xmit(skb, priv->ieee80211);
 
             code_virtual_address += frag_length;
             frag_offset += frag_length;

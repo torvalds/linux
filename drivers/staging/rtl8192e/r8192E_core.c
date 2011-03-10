@@ -96,8 +96,8 @@ static struct pci_driver rtl8192_pci_driver = {
 #endif
 };
 
-static void rtl8192_start_beacon(struct net_device *dev);
-static void rtl8192_stop_beacon(struct net_device *dev);
+static void rtl8192_start_beacon(struct ieee80211_device *ieee80211);
+static void rtl8192_stop_beacon(struct ieee80211_device *ieee80211);
 static void rtl819x_watchdog_wqcallback(struct work_struct *work);
 static void rtl8192_irq_rx_tasklet(unsigned long arg);
 static void rtl8192_irq_tx_tasklet(unsigned long arg);
@@ -648,16 +648,16 @@ static void rtl8192_update_msr(struct r8192_priv *priv)
 	write_nic_byte(priv, MSR, msr);
 }
 
-static void rtl8192_set_chan(struct net_device *dev,short ch)
+static void rtl8192_set_chan(struct ieee80211_device *ieee80211, short ch)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 
 	priv->chan = ch;
 
 	/* need to implement rf set channel here WB */
 
 	if (priv->rf_set_chan)
-		priv->rf_set_chan(dev, priv->chan);
+		priv->rf_set_chan(ieee80211, priv->chan);
 }
 
 static void rtl8192_rx_enable(struct r8192_priv *priv)
@@ -803,11 +803,11 @@ static void rtl8192_halt_adapter(struct r8192_priv *priv, bool reset)
 	skb_queue_purge(&priv->skb_queue);
 }
 
-static void rtl8192_data_hard_stop(struct net_device *dev)
+static void rtl8192_data_hard_stop(struct ieee80211_device *ieee80211)
 {
 }
 
-static void rtl8192_data_hard_resume(struct net_device *dev)
+static void rtl8192_data_hard_resume(struct ieee80211_device *ieee80211)
 {
 }
 
@@ -815,9 +815,10 @@ static void rtl8192_data_hard_resume(struct net_device *dev)
  * this function TX data frames when the ieee80211 stack requires this.
  * It checks also if we need to stop the ieee tx queue, eventually do it
  */
-static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, int rate)
+static void rtl8192_hard_data_xmit(struct sk_buff *skb,
+				   struct ieee80211_device *ieee80211, int rate)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 	int ret;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
@@ -831,7 +832,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 		return;
 	}
 
-	memcpy(skb->cb, &dev, sizeof(dev));
+	memcpy(skb->cb, &ieee80211->dev, sizeof(ieee80211->dev));
 
 	skb_push(skb, priv->ieee80211->tx_headroom);
 	ret = rtl8192_tx(priv, skb);
@@ -851,9 +852,9 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
  * If the ring is full packet are dropped (for data frame the queue
  * is stopped before this can happen).
  */
-static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
+static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct ieee80211_device *ieee80211)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 	int ret;
         cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
         u8 queue_index = tcb_desc->queue_index;
@@ -866,7 +867,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 		}
         }
 
-        memcpy(skb->cb, &dev, sizeof(dev));
+        memcpy(skb->cb, &ieee80211->dev, sizeof(ieee80211->dev));
 	if (queue_index == TXCMD_QUEUE) {
 		rtl819xE_tx_cmd(priv, skb);
 		ret = 0;
@@ -876,7 +877,7 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 		tcb_desc->bTxDisableRateFallBack = 1;
 		tcb_desc->bTxUseDriverAssingedRate = 1;
 		tcb_desc->bTxEnableFwCalcDur = 1;
-		skb_push(skb, priv->ieee80211->tx_headroom);
+		skb_push(skb, ieee80211->tx_headroom);
 		ret = rtl8192_tx(priv, skb);
 		if (ret != 0) {
 			kfree_skb(skb);
@@ -918,7 +919,7 @@ static void rtl8192_tx_isr(struct r8192_priv *priv, int prio)
 	}
 }
 
-static void rtl8192_stop_beacon(struct net_device *dev)
+static void rtl8192_stop_beacon(struct ieee80211_device *ieee80211)
 {
 }
 
@@ -1927,8 +1928,8 @@ static void rtl8192_init_priv_variable(struct r8192_priv *priv)
 	priv->ieee80211->modulation = IEEE80211_CCK_MODULATION | IEEE80211_OFDM_MODULATION;
 	priv->ieee80211->host_encrypt = 1;
 	priv->ieee80211->host_decrypt = 1;
-	priv->ieee80211->start_send_beacons = rtl8192_start_beacon;//+by david 081107
-	priv->ieee80211->stop_send_beacons = rtl8192_stop_beacon;//+by david 081107
+	priv->ieee80211->start_send_beacons = rtl8192_start_beacon;
+	priv->ieee80211->stop_send_beacons = rtl8192_stop_beacon;
 	priv->ieee80211->softmac_hard_start_xmit = rtl8192_hard_start_xmit;
 	priv->ieee80211->set_chan = rtl8192_set_chan;
 	priv->ieee80211->link_change = rtl8192_link_change;
@@ -2853,9 +2854,9 @@ static void rtl8192_prepare_beacon(unsigned long arg)
  * rtl8192_beacon_tx_enable(). rtl8192_beacon_tx_disable() might
  * be used to stop beacon transmission
  */
-static void rtl8192_start_beacon(struct net_device *dev)
+static void rtl8192_start_beacon(struct ieee80211_device *ieee80211)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
 	struct ieee80211_network *net = &priv->ieee80211->current_network;
 	u16 BcnTimeCfg = 0;
         u16 BcnCW = 6;
@@ -4306,7 +4307,7 @@ static void rtl8192_tx_resume(struct r8192_priv *priv)
 			/* 1. dequeue the packet from the wait queue */
 			skb = skb_dequeue(&ieee->skb_waitQ[i]);
 			/* 2. tx the packet directly */
-			ieee->softmac_data_hard_start_xmit(skb, dev, 0);
+			ieee->softmac_data_hard_start_xmit(skb, ieee, 0);
 		}
 	}
 }

@@ -316,7 +316,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 #endif
 
 	if (ieee->data_hard_stop)
-		ieee->data_hard_stop(ieee->dev);
+		ieee->data_hard_stop(ieee);
 
 	ieee80211_stop_send_beacons(ieee);
 
@@ -360,7 +360,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
 	}
 	if (ieee->data_hard_resume)
-		ieee->data_hard_resume(ieee->dev);
+		ieee->data_hard_resume(ieee);
 
 	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		ieee80211_start_send_beacons(ieee);
@@ -479,7 +479,7 @@ out:
 	{
 		if(prev == 0 && ieee->raw_tx){
 			if (ieee->data_hard_resume)
-				ieee->data_hard_resume(ieee->dev);
+				ieee->data_hard_resume(ieee);
 
 			netif_carrier_on(ieee->dev);
 		}

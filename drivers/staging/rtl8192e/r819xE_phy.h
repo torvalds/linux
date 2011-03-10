@@ -117,7 +117,7 @@ void rtl8192_phy_updateInitGain(struct r8192_priv *priv);
 u8 rtl8192_phy_ConfigRFWithHeaderFile(struct r8192_priv *priv,
 					RF90_RADIO_PATH_E eRFPath);
 
-u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel);
+u8 rtl8192_phy_SwChnl(struct ieee80211_device *ieee80211, u8 channel);
 
 void rtl8192_SetBWMode(struct net_device *dev,
 		HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);

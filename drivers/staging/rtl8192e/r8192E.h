@@ -916,8 +916,8 @@ typedef struct r8192_priv
 	struct semaphore rf_sem; //used to lock rf write operation added by wb, modified by david
 	u8 rf_type; /* 0 means 1T2R, 1 means 2T4R */
 
-	short (*rf_set_sens)(struct net_device *dev,short sens);
-	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
+	short (*rf_set_sens)(struct net_device *dev, short sens);
+	u8 (*rf_set_chan)(struct ieee80211_device *ieee80211, u8 ch);
 	short promisc;
 	/* stats */
 	struct Stats stats;

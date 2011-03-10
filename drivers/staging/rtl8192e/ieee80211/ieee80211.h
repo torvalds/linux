@@ -2124,7 +2124,7 @@ struct ieee80211_device {
 	 * This fucntion can't sleep.
 	 */
 	int (*softmac_hard_start_xmit)(struct sk_buff *skb,
-			       struct net_device *dev);
+			       struct ieee80211_device *ieee80211);
 
 	/* used instead of hard_start_xmit (not softmac_hard_start_xmit)
 	 * if the IEEE_SOFTMAC_TX_QUEUE feature is used to TX data
@@ -2133,22 +2133,22 @@ struct ieee80211_device {
 	 * This function can't sleep.
 	 */
 	void (*softmac_data_hard_start_xmit)(struct sk_buff *skb,
-			       struct net_device *dev,int rate);
+			       struct ieee80211_device *ieee80211, int rate);
 
 	/* stops the HW queue for DATA frames. Useful to avoid
 	 * waste time to TX data frame when we are reassociating
 	 * This function can sleep.
 	 */
-	void (*data_hard_stop)(struct net_device *dev);
+	void (*data_hard_stop)(struct ieee80211_device *ieee80211);
 
 	/* OK this is complementar to data_poll_hard_stop */
-	void (*data_hard_resume)(struct net_device *dev);
+	void (*data_hard_resume)(struct ieee80211_device *ieee80211);
 
 	/* ask to the driver to retune the radio .
 	 * This function can sleep. the driver should ensure
 	 * the radio has been swithced before return.
 	 */
-	void (*set_chan)(struct net_device *dev,short ch);
+	void (*set_chan)(struct ieee80211_device *ieee80211, short ch);
 
 	/* These are not used if the ieee stack takes care of
 	 * scanning (IEEE_SOFTMAC_SCAN feature set).
@@ -2182,8 +2182,8 @@ struct ieee80211_device {
 	 * stop_send_bacons is NOT guaranteed to be called only
 	 * after start_send_beacons.
 	 */
-	void (*start_send_beacons) (struct net_device *dev);
-	void (*stop_send_beacons) (struct net_device *dev);
+	void (*start_send_beacons) (struct ieee80211_device *dev);
+	void (*stop_send_beacons) (struct ieee80211_device *dev);
 
 	/* power save mode related */
 	void (*sta_wake_up) (struct net_device *dev);

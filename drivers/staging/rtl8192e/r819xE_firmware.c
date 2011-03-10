@@ -96,7 +96,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		}
 		tcb_desc->txbuf_size = (u16)i;
 		skb_put(skb, i);
-		priv->ieee80211->softmac_hard_start_xmit(skb, dev);
+		priv->ieee80211->softmac_hard_start_xmit(skb, priv->ieee80211);
 
 		code_virtual_address += frag_length;
 		frag_offset += frag_length;

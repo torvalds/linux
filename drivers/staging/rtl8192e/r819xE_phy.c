@@ -1850,9 +1850,10 @@ void rtl8192_SwChnl_WorkItem(struct r8192_priv *priv)
  *  return:  return code show if workitem is scheduled(1:pass, 0:fail)
  *    Note:  Delay may be required for RF configuration
  * ***************************************************************************/
-u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
+u8 rtl8192_phy_SwChnl(struct ieee80211_device *ieee80211, u8 channel)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(ieee80211->dev);
+
 	RT_TRACE(COMP_PHY, "=====>%s()\n", __FUNCTION__);
         if(!priv->up)
 		return false;

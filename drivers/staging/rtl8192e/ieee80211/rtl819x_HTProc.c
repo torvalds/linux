@@ -1716,15 +1716,15 @@ void HTSetConnectBwModeCallback(struct ieee80211_device* ieee)
 	if(pHTInfo->bCurBW40MHz)
 	{
 		if(pHTInfo->CurSTAExtChnlOffset==HT_EXTCHNL_OFFSET_UPPER)
-			ieee->set_chan(ieee->dev, ieee->current_network.channel+2);
+			ieee->set_chan(ieee, ieee->current_network.channel+2);
 		else if(pHTInfo->CurSTAExtChnlOffset==HT_EXTCHNL_OFFSET_LOWER)
-			ieee->set_chan(ieee->dev, ieee->current_network.channel-2);
+			ieee->set_chan(ieee, ieee->current_network.channel-2);
 		else
-			ieee->set_chan(ieee->dev, ieee->current_network.channel);
+			ieee->set_chan(ieee, ieee->current_network.channel);
 
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40, pHTInfo->CurSTAExtChnlOffset);
 	} else {
-		ieee->set_chan(ieee->dev, ieee->current_network.channel);
+		ieee->set_chan(ieee, ieee->current_network.channel);
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 

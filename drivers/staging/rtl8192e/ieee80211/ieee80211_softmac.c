@@ -243,7 +243,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 				ieee->seq_ctrl[0]++;
 
 			/* avoid watchdog triggers */
-			ieee->softmac_data_hard_start_xmit(skb,ieee->dev,ieee->basic_rate);
+			ieee->softmac_data_hard_start_xmit(skb, ieee, ieee->basic_rate);
 		}
 
 		spin_unlock_irqrestore(&ieee->lock, flags);
@@ -268,7 +268,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			 * */
 			skb_queue_tail(&ieee->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
-			ieee->softmac_hard_start_xmit(skb,ieee->dev);
+			ieee->softmac_hard_start_xmit(skb, ieee);
 		}
 		spin_unlock(&ieee->mgmt_tx_lock);
 	}
@@ -297,7 +297,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 			ieee->seq_ctrl[0]++;
 
 		/* avoid watchdog triggers */
-		ieee->softmac_data_hard_start_xmit(skb,ieee->dev,ieee->basic_rate);
+		ieee->softmac_data_hard_start_xmit(skb, ieee, ieee->basic_rate);
 
 	}else{
 
@@ -308,7 +308,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 		else
 			ieee->seq_ctrl[0]++;
 
-		ieee->softmac_hard_start_xmit(skb,ieee->dev);
+		ieee->softmac_hard_start_xmit(skb, ieee);
 
 	}
 }
@@ -448,7 +448,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 
 		if (ieee->state == IEEE80211_LINKED)
 			goto out;
-		ieee->set_chan(ieee->dev, ch);
+		ieee->set_chan(ieee, ch);
 #ifdef ENABLE_DOT11D
 		if(channel_map[ch] == 1)
 #endif
@@ -517,7 +517,7 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 #endif
 	if (ieee->scanning == 0 )
 		goto out;
-	ieee->set_chan(ieee->dev, ieee->current_network.channel);
+	ieee->set_chan(ieee, ieee->current_network.channel);
 #ifdef ENABLE_DOT11D
 	if(channel_map[ieee->current_network.channel] == 1)
 #endif
@@ -568,7 +568,7 @@ void ieee80211_beacons_stop(struct ieee80211_device *ieee)
 void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
 {
 	if(ieee->stop_send_beacons)
-		ieee->stop_send_beacons(ieee->dev);
+		ieee->stop_send_beacons(ieee);
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_stop(ieee);
 }
@@ -577,7 +577,7 @@ void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
 void ieee80211_start_send_beacons(struct ieee80211_device *ieee)
 {
 	if(ieee->start_send_beacons)
-		ieee->start_send_beacons(ieee->dev);
+		ieee->start_send_beacons(ieee);
 	if(ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_start(ieee);
 }
@@ -1390,7 +1390,7 @@ void ieee80211_associate_complete_wq(struct work_struct *work)
 	}
 
 	if (ieee->data_hard_resume)
-		ieee->data_hard_resume(ieee->dev);
+		ieee->data_hard_resume(ieee);
 	netif_carrier_on(ieee->dev);
 }
 
@@ -1414,7 +1414,7 @@ void ieee80211_associate_procedure_wq(struct work_struct *work)
 	down(&ieee->wx_sem);
 
 	if (ieee->data_hard_stop)
-		ieee->data_hard_stop(ieee->dev);
+		ieee->data_hard_stop(ieee);
 
 	ieee80211_stop_scan(ieee);
 	printk("===>%s(), chan:%d\n", __FUNCTION__, ieee->current_network.channel);
@@ -2221,7 +2221,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 		}else{
 			ieee->softmac_data_hard_start_xmit(
 					txb->fragments[i],
-					ieee->dev,ieee->rate);
+					ieee, ieee->rate);
 		}
 	}
 
@@ -2244,7 +2244,7 @@ void ieee80211_resume_tx(struct ieee80211_device *ieee)
 
 			ieee->softmac_data_hard_start_xmit(
 				ieee->tx_pending.txb->fragments[i],
-				ieee->dev,ieee->rate);
+				ieee, ieee->rate);
 			ieee->stats.tx_packets++;
 		}
 	}
@@ -2294,7 +2294,7 @@ void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 			else
 				ieee->seq_ctrl[0]++;
 
-			ieee->softmac_data_hard_start_xmit(skb,ieee->dev,ieee->basic_rate);
+			ieee->softmac_data_hard_start_xmit(skb, ieee, ieee->basic_rate);
 		}
 	}
 	if (!ieee->queue_stop && ieee->tx_pending.txb)
@@ -2348,13 +2348,13 @@ void ieee80211_start_master_bss(struct ieee80211_device *ieee)
 
 	memcpy(ieee->current_network.bssid, ieee->dev->dev_addr, ETH_ALEN);
 
-	ieee->set_chan(ieee->dev, ieee->current_network.channel);
+	ieee->set_chan(ieee, ieee->current_network.channel);
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
 	notify_wx_assoc_event(ieee);
 
 	if (ieee->data_hard_resume)
-		ieee->data_hard_resume(ieee->dev);
+		ieee->data_hard_resume(ieee);
 
 	netif_carrier_on(ieee->dev);
 }
@@ -2364,7 +2364,7 @@ void ieee80211_start_monitor_mode(struct ieee80211_device *ieee)
 	if(ieee->raw_tx){
 
 		if (ieee->data_hard_resume)
-			ieee->data_hard_resume(ieee->dev);
+			ieee->data_hard_resume(ieee);
 
 		netif_carrier_on(ieee->dev);
 	}
@@ -2467,7 +2467,7 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 
 	ieee->state = IEEE80211_LINKED;
 
-	ieee->set_chan(ieee->dev, ieee->current_network.channel);
+	ieee->set_chan(ieee, ieee->current_network.channel);
 	ieee->link_change(ieee->dev);
 
 	notify_wx_assoc_event(ieee);
@@ -2475,7 +2475,7 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 	ieee80211_start_send_beacons(ieee);
 
 	if (ieee->data_hard_resume)
-		ieee->data_hard_resume(ieee->dev);
+		ieee->data_hard_resume(ieee);
 	netif_carrier_on(ieee->dev);
 
 	up(&ieee->wx_sem);
@@ -2540,7 +2540,7 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 			ieee80211_reset_queue(ieee);
 
 	if (ieee->data_hard_stop)
-			ieee->data_hard_stop(ieee->dev);
+		ieee->data_hard_stop(ieee);
 #ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
