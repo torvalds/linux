@@ -592,7 +592,7 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
  */
 int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 {
-	int irq = 0;
+	int irq = -1;
 	struct physdev_irq irq_op;
 
 	spin_lock(&irq_mapping_update_lock);
