@@ -54,11 +54,13 @@ enum hrtimer_restart {
  * 0x00		inactive
  * 0x01		enqueued into rbtree
  * 0x02		callback function running
+ * 0x04		timer is migrated to another cpu
  *
  * Special cases:
  * 0x03		callback function running and enqueued
  *		(was requeued on another CPU)
- * 0x09		timer was migrated on CPU hotunplug
+ * 0x05		timer was migrated on CPU hotunplug
+ *
  * The "callback function running and enqueued" status is only possible on
  * SMP. It happens for example when a posix timer expired and the callback
  * queued a signal. Between dropping the lock which protects the posix timer
@@ -67,8 +69,11 @@ enum hrtimer_restart {
  * as otherwise the timer could be removed before the softirq code finishes the
  * the handling of the timer.
  *
- * The HRTIMER_STATE_ENQUEUED bit is always or'ed to the current state to
- * preserve the HRTIMER_STATE_CALLBACK bit in the above scenario.
+ * The HRTIMER_STATE_ENQUEUED bit is always or'ed to the current state
+ * to preserve the HRTIMER_STATE_CALLBACK in the above scenario. This
+ * also affects HRTIMER_STATE_MIGRATE where the preservation is not
+ * necessary. HRTIMER_STATE_MIGRATE is cleared after the timer is
+ * enqueued on the new cpu.
  *
  * All state transitions are protected by cpu_base->lock.
  */
@@ -376,8 +381,9 @@ extern int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp);
 extern ktime_t hrtimer_get_next_event(void);
 
 /*
- * A timer is active, when it is enqueued into the rbtree or the callback
- * function is running.
+ * A timer is active, when it is enqueued into the rbtree or the
+ * callback function is running or it's in the state of being migrated
+ * to another cpu.
  */
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
