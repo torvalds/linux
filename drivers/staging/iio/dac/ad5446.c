@@ -295,8 +295,10 @@ static int ad5446_remove(struct spi_device *spi)
 static const struct spi_device_id ad5446_id[] = {
 	{"ad5444", ID_AD5444},
 	{"ad5446", ID_AD5446},
-	{"ad5542a", ID_AD5542A},
 	{"ad5512a", ID_AD5512A},
+	{"ad5542a", ID_AD5542A},
+	{"ad5543", ID_AD5543},
+	{"ad5553", ID_AD5553},
 	{"ad5620-2500", ID_AD5620_2500}, /* AD5620/40/60: */
 	{"ad5620-1250", ID_AD5620_1250}, /* part numbers may look differently */
 	{"ad5640-2500", ID_AD5640_2500},
