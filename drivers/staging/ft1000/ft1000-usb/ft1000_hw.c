@@ -1325,39 +1325,40 @@ Jim
 //              TRUE  (device is present)
 //
 //---------------------------------------------------------------------------
-static int ft1000_chkcard (struct ft1000_device *dev) {
-    u16 tempword;
-    u16 status;
+static int ft1000_chkcard(struct ft1000_device *dev)
+{
+	u16 tempword;
+	u16 status;
 	struct ft1000_info *info = netdev_priv(dev->net);
 
-    if (info->fCondResetPend)
-    {
-        DEBUG("ft1000_hw:ft1000_chkcard:Card is being reset, return FALSE\n");
-        return TRUE;
-    }
-
-    // Mask register is used to check for device presence since it is never
-    // set to zero.
-    status = ft1000_read_register(dev, &tempword, FT1000_REG_SUP_IMASK);
-    //DEBUG("ft1000_hw:ft1000_chkcard: read FT1000_REG_SUP_IMASK = %x\n", tempword);
-    if (tempword == 0) {
-        DEBUG("ft1000_hw:ft1000_chkcard: IMASK = 0 Card not detected\n");
-        return FALSE;
-    }
-
-    // The system will return the value of 0xffff for the version register
-    // if the device is not present.
-    status = ft1000_read_register(dev, &tempword, FT1000_REG_ASIC_ID);
-    //DEBUG("ft1000_hw:ft1000_chkcard: read FT1000_REG_ASIC_ID = %x\n", tempword);
-    if (tempword != 0x1b01 ){
-	dev->status |= FT1000_STATUS_CLOSING; //mbelian
-        DEBUG("ft1000_hw:ft1000_chkcard: Version = 0xffff Card not detected\n");
-        return FALSE;
-    }
-    return TRUE;
+	if (info->fCondResetPend) {
+		DEBUG
+		    ("ft1000_hw:ft1000_chkcard:Card is being reset, return FALSE\n");
+		return TRUE;
+	}
+	/* Mask register is used to check for device presence since it is never
+	 * set to zero.
+	 */
+	status = ft1000_read_register(dev, &tempword, FT1000_REG_SUP_IMASK);
+	//DEBUG("ft1000_hw:ft1000_chkcard: read FT1000_REG_SUP_IMASK = %x\n", tempword);
+	if (tempword == 0) {
+		DEBUG
+		    ("ft1000_hw:ft1000_chkcard: IMASK = 0 Card not detected\n");
+		return FALSE;
+	}
+	/* The system will return the value of 0xffff for the version register
+	 * if the device is not present.
+	 */
+	status = ft1000_read_register(dev, &tempword, FT1000_REG_ASIC_ID);
+	//DEBUG("ft1000_hw:ft1000_chkcard: read FT1000_REG_ASIC_ID = %x\n", tempword);
+	if (tempword != 0x1b01) {
+		dev->status |= FT1000_STATUS_CLOSING;	//mbelian
+		DEBUG
+		    ("ft1000_hw:ft1000_chkcard: Version = 0xffff Card not detected\n");
+		return FALSE;
+	}
+	return TRUE;
 }
-
-
 
 //---------------------------------------------------------------------------
 //
