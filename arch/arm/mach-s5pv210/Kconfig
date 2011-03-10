@@ -53,6 +53,11 @@ config S5PV210_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
+config S5PV210_SETUP_FIMC
+	bool
+	help
+	  Common setup code for the camera interfaces.
+
 menu "S5PC110 Machines"
 
 config MACH_AQUILA

@@ -76,6 +76,11 @@ config EXYNOS4_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
+config EXYNOS4_SETUP_FIMC
+	bool
+	help
+	  Common setup code for the camera interfaces.
+
 # machine support
 
 menu "EXYNOS4 Machines"
