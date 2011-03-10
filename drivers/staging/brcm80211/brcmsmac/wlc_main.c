@@ -354,7 +354,7 @@ bool wlc_stay_awake(struct wlc_info *wlc)
 bool wlc_ps_allowed(struct wlc_info *wlc)
 {
 	int idx;
-	wlc_bsscfg_t *cfg;
+	struct wlc_bsscfg *cfg;
 
 	/* disallow PS when one of the following global conditions meets */
 	if (!wlc->pub->associated || !wlc->PMenabled || wlc->PM_override)
@@ -437,7 +437,7 @@ void wlc_init(struct wlc_info *wlc)
 	d11regs_t *regs;
 	chanspec_t chanspec;
 	int i;
-	wlc_bsscfg_t *bsscfg;
+	struct wlc_bsscfg *bsscfg;
 	bool mute = false;
 
 	WL_TRACE("wl%d: wlc_init\n", wlc->pub->unit);
@@ -630,7 +630,7 @@ bool wlc_ps_check(struct wlc_info *wlc)
 
 		if (hps != ((tmp & MCTL_HPS) != 0)) {
 			int idx;
-			wlc_bsscfg_t *cfg;
+			struct wlc_bsscfg *cfg;
 			WL_ERROR("wl%d: hps not sync, sw %d, maccontrol 0x%x\n",
 				 wlc->pub->unit, hps, tmp);
 			FOREACH_BSS(wlc, idx, cfg) {
@@ -688,7 +688,7 @@ void wlc_set_ps_ctrl(struct wlc_info *wlc)
  * Write this BSS config's MAC address to core.
  * Updates RXE match engine.
  */
-int wlc_set_mac(wlc_bsscfg_t *cfg)
+int wlc_set_mac(struct wlc_bsscfg *cfg)
 {
 	int err = 0;
 	struct wlc_info *wlc = cfg->wlc;
@@ -706,7 +706,7 @@ int wlc_set_mac(wlc_bsscfg_t *cfg)
 /* Write the BSS config's BSSID address to core (set_bssid in d11procs.tcl).
  * Updates RXE match engine.
  */
-void wlc_set_bssid(wlc_bsscfg_t *cfg)
+void wlc_set_bssid(struct wlc_bsscfg *cfg)
 {
 	struct wlc_info *wlc = cfg->wlc;
 
@@ -728,7 +728,7 @@ void wlc_set_bssid(wlc_bsscfg_t *cfg)
 void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot)
 {
 	int idx;
-	wlc_bsscfg_t *cfg;
+	struct wlc_bsscfg *cfg;
 
 	ASSERT(wlc->band->gmode);
 
@@ -786,7 +786,7 @@ void wlc_set_home_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 {
 	if (wlc->home_chanspec != chanspec) {
 		int idx;
-		wlc_bsscfg_t *cfg;
+		struct wlc_bsscfg *cfg;
 
 		wlc->home_chanspec = chanspec;
 
@@ -1313,7 +1313,7 @@ static void WLBANDINITFN(wlc_bsinit) (struct wlc_info *wlc)
 static void WLBANDINITFN(wlc_setband) (struct wlc_info *wlc, uint bandunit)
 {
 	int idx;
-	wlc_bsscfg_t *cfg;
+	struct wlc_bsscfg *cfg;
 
 	ASSERT(NBANDS(wlc) > 1);
 	ASSERT(!wlc->bandlocked);
@@ -1439,7 +1439,7 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 
 }
 
-void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
+void wlc_edcf_setparams(struct wlc_bsscfg *cfg, bool suspend)
 {
 	struct wlc_info *wlc = cfg->wlc;
 	uint aci, i, j;
@@ -2450,7 +2450,7 @@ static void wlc_watchdog(void *arg)
 {
 	struct wlc_info *wlc = (struct wlc_info *) arg;
 	int i;
-	wlc_bsscfg_t *cfg;
+	struct wlc_bsscfg *cfg;
 
 	WL_TRACE("wl%d: wlc_watchdog\n", wlc->pub->unit);
 
@@ -2566,7 +2566,7 @@ int wlc_up(struct wlc_info *wlc)
 			if (!mboolisset
 			    (wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE)) {
 				int idx;
-				wlc_bsscfg_t *bsscfg;
+				struct wlc_bsscfg *bsscfg;
 				mboolset(wlc->pub->radio_disabled,
 					 WL_RADIO_HW_DISABLE);
 
@@ -3065,7 +3065,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	bool ta_ok;
 	uint band;
 	rw_reg_t *r;
-	wlc_bsscfg_t *bsscfg;
+	struct wlc_bsscfg *bsscfg;
 	wlc_bss_info_t *current_bss;
 
 	/* update bsscfg pointer */
@@ -4506,7 +4506,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 	    int val_size, struct wlc_if *wlcif)
 {
 	struct wlc_info *wlc = hdl;
-	wlc_bsscfg_t *bsscfg;
+	struct wlc_bsscfg *bsscfg;
 	int err = 0;
 	s32 int_val = 0;
 	s32 int_val2 = 0;
@@ -5277,7 +5277,8 @@ void BCMFASTPATH wlc_send_q(struct wlc_info *wlc, struct wlc_txq_info *qi)
  * for MC frames so is used as part of the sequence number.
  */
 static inline u16
-bcmc_fid_generate(struct wlc_info *wlc, wlc_bsscfg_t *bsscfg, d11txh_t *txh)
+bcmc_fid_generate(struct wlc_info *wlc, struct wlc_bsscfg *bsscfg,
+		  d11txh_t *txh)
 {
 	u16 frameid;
 
@@ -6378,7 +6379,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs)
 {
-	wlc_bsscfg_t *cfg = wlc->cfg;
+	struct wlc_bsscfg *cfg = wlc->cfg;
 
 	wlc->pub->_cnt->tbtt++;
 
@@ -6514,7 +6515,7 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 		/* delay the cleanup to wl_down in IBSS case */
 		if ((R_REG(&regs->phydebug) & PDBG_RFD)) {
 			int idx;
-			wlc_bsscfg_t *bsscfg;
+			struct wlc_bsscfg *bsscfg;
 			FOREACH_BSS(wlc, idx, bsscfg) {
 				if (!BSSCFG_STA(bsscfg) || !bsscfg->enable
 				    || !bsscfg->BSS)
@@ -7629,7 +7630,7 @@ wlc_compute_bcntsfoff(struct wlc_info *wlc, ratespec_t rspec,
  */
 static void
 wlc_bcn_prb_template(struct wlc_info *wlc, u16 type, ratespec_t bcn_rspec,
-		     wlc_bsscfg_t *cfg, u16 *buf, int *len)
+		     struct wlc_bsscfg *cfg, u16 *buf, int *len)
 {
 	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 	cck_phy_hdr_t *plcp;
@@ -7696,7 +7697,7 @@ int wlc_get_header_len()
  * template updated.
  * Otherwise, it updates the hardware template.
  */
-void wlc_bss_update_beacon(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
+void wlc_bss_update_beacon(struct wlc_info *wlc, struct wlc_bsscfg *cfg)
 {
 	int len = BCN_TMPL_LEN;
 
@@ -7750,7 +7751,7 @@ void wlc_bss_update_beacon(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 void wlc_update_beacon(struct wlc_info *wlc)
 {
 	int idx;
-	wlc_bsscfg_t *bsscfg;
+	struct wlc_bsscfg *bsscfg;
 
 	/* update AP or IBSS beacons */
 	FOREACH_BSS(wlc, idx, bsscfg) {
@@ -7760,7 +7761,7 @@ void wlc_update_beacon(struct wlc_info *wlc)
 }
 
 /* Write ssid into shared memory */
-void wlc_shm_ssid_upd(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
+void wlc_shm_ssid_upd(struct wlc_info *wlc, struct wlc_bsscfg *cfg)
 {
 	u8 *ssidptr = cfg->SSID;
 	u16 base = M_SSID;
@@ -7779,7 +7780,7 @@ void wlc_shm_ssid_upd(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 void wlc_update_probe_resp(struct wlc_info *wlc, bool suspend)
 {
 	int idx;
-	wlc_bsscfg_t *bsscfg;
+	struct wlc_bsscfg *bsscfg;
 
 	/* update AP or IBSS probe responses */
 	FOREACH_BSS(wlc, idx, bsscfg) {
@@ -7789,7 +7790,8 @@ void wlc_update_probe_resp(struct wlc_info *wlc, bool suspend)
 }
 
 void
-wlc_bss_update_probe_resp(struct wlc_info *wlc, wlc_bsscfg_t *cfg, bool suspend)
+wlc_bss_update_probe_resp(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
+			  bool suspend)
 {
 	u16 prb_resp[BCN_TMPL_LEN / 2];
 	int len = BCN_TMPL_LEN;
@@ -7867,7 +7869,7 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 void wlc_reprate_init(struct wlc_info *wlc)
 {
 	int i;
-	wlc_bsscfg_t *bsscfg;
+	struct wlc_bsscfg *bsscfg;
 
 	FOREACH_BSS(wlc, i, bsscfg) {
 		wlc_bsscfg_reprate_init(bsscfg);
@@ -7875,7 +7877,7 @@ void wlc_reprate_init(struct wlc_info *wlc)
 }
 
 /* per bsscfg init tx reported rate mechanism */
-void wlc_bsscfg_reprate_init(wlc_bsscfg_t *bsscfg)
+void wlc_bsscfg_reprate_init(struct wlc_bsscfg *bsscfg)
 {
 	bsscfg->txrspecidx = 0;
 	memset((char *)bsscfg->txrspec, 0, sizeof(bsscfg->txrspec));

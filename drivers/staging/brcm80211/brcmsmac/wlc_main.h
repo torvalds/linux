@@ -621,11 +621,12 @@ struct wlc_info {
 	u16 tx_prec_map;	/* Precedence map based on HW FIFO space */
 	u16 fifo2prec_map[NFIFO];	/* pointer to fifo2_prec map based on WME */
 
-	/* BSS Configurations */
-	wlc_bsscfg_t *bsscfg[WLC_MAXBSSCFG];	/* set of BSS configurations, idx 0 is default and
-						 * always valid
-						 */
-	wlc_bsscfg_t *cfg;	/* the primary bsscfg (can be AP or STA) */
+	/*
+	 * BSS Configurations set of BSS configurations, idx 0 is default and
+	 * always valid
+	 */
+	struct wlc_bsscfg *bsscfg[WLC_MAXBSSCFG];
+	struct wlc_bsscfg *cfg;	/* the primary bsscfg (can be AP or STA) */
 	u8 stas_associated;	/* count of ASSOCIATED STA bsscfgs */
 	u8 aps_associated;	/* count of UP AP bsscfgs */
 	u8 block_datafifo;	/* prohibit posting frames to data fifos */
@@ -846,7 +847,7 @@ extern bool wlc_valid_rate(struct wlc_info *wlc, ratespec_t rate, int band,
 extern void wlc_ap_upd(struct wlc_info *wlc);
 
 /* helper functions */
-extern void wlc_shm_ssid_upd(struct wlc_info *wlc, wlc_bsscfg_t *cfg);
+extern void wlc_shm_ssid_upd(struct wlc_info *wlc, struct wlc_bsscfg *cfg);
 extern int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config);
 
 extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
@@ -884,7 +885,7 @@ extern void wlc_dump_ie(struct wlc_info *wlc, bcm_tlv_t *ie,
 
 extern bool wlc_ps_check(struct wlc_info *wlc);
 extern void wlc_reprate_init(struct wlc_info *wlc);
-extern void wlc_bsscfg_reprate_init(wlc_bsscfg_t *bsscfg);
+extern void wlc_bsscfg_reprate_init(struct wlc_bsscfg *bsscfg);
 extern void wlc_uint64_sub(u32 *a_high, u32 *a_low, u32 b_high,
 			   u32 b_low);
 extern u32 wlc_calc_tbtt_offset(u32 bi, u32 tsf_h, u32 tsf_l);
@@ -903,8 +904,8 @@ extern void wlc_bss_update_beacon(struct wlc_info *wlc,
 				  struct wlc_bsscfg *bsscfg);
 
 extern void wlc_update_probe_resp(struct wlc_info *wlc, bool suspend);
-extern void wlc_bss_update_probe_resp(struct wlc_info *wlc, wlc_bsscfg_t *cfg,
-				      bool suspend);
+extern void wlc_bss_update_probe_resp(struct wlc_info *wlc,
+				      struct wlc_bsscfg *cfg, bool suspend);
 
 extern bool wlc_ismpc(struct wlc_info *wlc);
 extern bool wlc_is_non_delay_mpc(struct wlc_info *wlc);
@@ -936,14 +937,15 @@ extern void wlc_print_ies(struct wlc_info *wlc, u8 *ies, uint ies_len);
 extern int wlc_set_nmode(struct wlc_info *wlc, s32 nmode);
 extern void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode);
 extern void wlc_mimops_action_ht_send(struct wlc_info *wlc,
-				      wlc_bsscfg_t *bsscfg, u8 mimops_mode);
+				      struct wlc_bsscfg *bsscfg,
+				      u8 mimops_mode);
 
 extern void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot);
-extern void wlc_set_bssid(wlc_bsscfg_t *cfg);
-extern void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend);
+extern void wlc_set_bssid(struct wlc_bsscfg *cfg);
+extern void wlc_edcf_setparams(struct wlc_bsscfg *cfg, bool suspend);
 
 extern void wlc_set_ratetable(struct wlc_info *wlc);
-extern int wlc_set_mac(wlc_bsscfg_t *cfg);
+extern int wlc_set_mac(struct wlc_bsscfg *cfg);
 extern void wlc_beacon_phytxctl_txant_upd(struct wlc_info *wlc,
 					  ratespec_t bcn_rate);
 extern void wlc_mod_prb_rsp_rate_table(struct wlc_info *wlc, uint frame_len);

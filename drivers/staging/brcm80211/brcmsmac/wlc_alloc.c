@@ -120,11 +120,11 @@ static void wlc_pub_mfree(struct wlc_pub *pub)
 	kfree(pub);
 }
 
-static wlc_bsscfg_t *wlc_bsscfg_malloc(uint unit)
+static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit)
 {
-	wlc_bsscfg_t *cfg;
+	struct wlc_bsscfg *cfg;
 
-	cfg = (wlc_bsscfg_t *) wlc_calloc(unit, sizeof(wlc_bsscfg_t));
+	cfg = (struct wlc_bsscfg *) wlc_calloc(unit, sizeof(struct wlc_bsscfg));
 	if (cfg == NULL)
 		goto fail;
 
@@ -140,7 +140,7 @@ static wlc_bsscfg_t *wlc_bsscfg_malloc(uint unit)
 	return NULL;
 }
 
-static void wlc_bsscfg_mfree(wlc_bsscfg_t *cfg)
+static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg)
 {
 	if (cfg == NULL)
 		return;
@@ -150,7 +150,7 @@ static void wlc_bsscfg_mfree(wlc_bsscfg_t *cfg)
 	kfree(cfg);
 }
 
-void wlc_bsscfg_ID_assign(struct wlc_info *wlc, wlc_bsscfg_t *bsscfg)
+void wlc_bsscfg_ID_assign(struct wlc_info *wlc, struct wlc_bsscfg *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;

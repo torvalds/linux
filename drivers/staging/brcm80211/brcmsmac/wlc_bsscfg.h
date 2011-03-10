@@ -31,7 +31,7 @@ typedef struct wlc_bsscfg wlc_bsscfg_t;
 #define BCN_TEMPLATE_COUNT 	2
 
 /* Iterator for "associated" STA bss configs:
-   (struct wlc_info *wlc, int idx, wlc_bsscfg_t *cfg) */
+   (struct wlc_info *wlc, int idx, struct wlc_bsscfg *cfg) */
 #define FOREACH_AS_STA(wlc, idx, cfg) \
 	for (idx = 0; (int) idx < WLC_MAXBSSCFG; idx++) \
 		if ((cfg = (wlc)->bsscfg[idx]) && BSSCFG_STA(cfg) && cfg->associated)
@@ -125,7 +125,8 @@ struct wlc_bsscfg {
 #define HWBCN_ENAB(cfg)		(((cfg)->flags & WLC_BSSCFG_HW_BCN) != 0)
 #define HWPRB_ENAB(cfg)		(((cfg)->flags & WLC_BSSCFG_HW_PRB) != 0)
 
-extern void wlc_bsscfg_ID_assign(struct wlc_info *wlc, wlc_bsscfg_t * bsscfg);
+extern void wlc_bsscfg_ID_assign(struct wlc_info *wlc,
+				 struct wlc_bsscfg *bsscfg);
 
 /* Extend N_ENAB to per-BSS */
 #define BSS_N_ENAB(wlc, cfg) \
