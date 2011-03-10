@@ -56,7 +56,6 @@ static int vmbus_probe(struct device *device);
 static int vmbus_remove(struct device *device);
 static void vmbus_shutdown(struct device *device);
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env);
-static void vmbus_event_dpc(unsigned long data);
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id);
 
@@ -485,7 +484,7 @@ static int vmbus_bus_init(void)
 	/* Initialize the bus context */
 	tasklet_init(&vmbus_drv_ctx->msg_dpc, vmbus_on_msg_dpc,
 		     (unsigned long)NULL);
-	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_event_dpc,
+	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_on_event,
 		     (unsigned long)NULL);
 
 	/* Now, register the bus  with LDM */
@@ -985,14 +984,6 @@ static void vmbus_device_release(struct device *device)
 }
 
 
-/*
- * vmbus_event_dpc - Tasklet routine to handle hypervisor events
- */
-static void vmbus_event_dpc(unsigned long data)
-{
-	/* Call to bus driver to handle interrupt */
-	vmbus_on_event();
-}
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {

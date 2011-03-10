@@ -129,7 +129,7 @@ int vmbus_post_msg(void *buffer, size_t buflen);
 
 int vmbus_set_event(u32 child_relid);
 
-void vmbus_on_event(void);
+void vmbus_on_event(unsigned long data);
 
 
 #endif /* _VMBUS_PRIVATE_H_ */

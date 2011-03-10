@@ -285,7 +285,7 @@ static void process_chn_event(void *context)
 /*
  * vmbus_on_event - Handler for events
  */
-void vmbus_on_event(void)
+void vmbus_on_event(unsigned long data)
 {
 	int dword;
 	int maxdword = MAX_NUM_CHANNELS_SUPPORTED >> 5;
