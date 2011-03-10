@@ -519,6 +519,47 @@ static void __init overo_init_led(void)
 static inline void __init overo_init_led(void) { return; }
 #endif
 
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button gpio_buttons[] = {
+	{
+		.code			= BTN_0,
+		.gpio			= 23,
+		.desc			= "button0",
+		.wakeup			= 1,
+	},
+	{
+		.code			= BTN_1,
+		.gpio			= 14,
+		.desc			= "button1",
+		.wakeup			= 1,
+	},
+};
+
+static struct gpio_keys_platform_data gpio_keys_pdata = {
+	.buttons	= gpio_buttons,
+	.nbuttons	= ARRAY_SIZE(gpio_buttons),
+};
+
+static struct platform_device gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_keys_pdata,
+	},
+};
+
+static void __init overo_init_keys(void)
+{
+	platform_device_register(&gpio_keys_device);
+}
+
+#else
+static inline void __init overo_init_keys(void) { return; }
+#endif
+
 static int overo_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
@@ -701,6 +742,7 @@ static void __init overo_init(void)
 	overo_init_smsc911x();
 	overo_display_init();
 	overo_init_led();
+	overo_init_keys();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
