@@ -1,4 +1,4 @@
-/*drivers/rtc/rtc-HYM8563.c - driver for HYM8563
+/* drivers/rtc/rtc-HYM8563.c - driver for HYM8563
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *
@@ -11,26 +11,31 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+//#define DEBUG
+#define pr_fmt(fmt) "rtc: %s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
+#include <linux/wakelock.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include "rtc-HYM8563.h"
 
-#if 0
-#define DBG(x...)	printk(KERN_INFO x)
-#else
-#define DBG(x...)
-#endif
 #define RTC_SPEED 	100 * 1000
 
 struct hym8563 {
-	int irq_num;
+	int irq;
 	struct i2c_client *client;
-	struct work_struct work;	
+	struct work_struct work;
+	struct mutex mutex;
+	struct rtc_device *rtc;
+	int exiting;
+	struct rtc_wkalrm alarm;
+	struct wake_lock wake_lock;
 };
 
 static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
@@ -50,9 +55,11 @@ static int hym8563_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[
 /*the init of the hym8563 at first time */
 static int hym8563_init_device(struct i2c_client *client)	
 {
+	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 	u8 regs[2];
 	int sr;
 
+	mutex_lock(&hym8563->mutex);
 	regs[0]=0;
 	hym8563_i2c_set_regs(client, RTC_CTL1, regs, 1);		
 	
@@ -67,9 +74,8 @@ static int hym8563_init_device(struct i2c_client *client)
 	hym8563_i2c_read_regs(client, RTC_CTL2, regs, 1);
 
 	sr = hym8563_i2c_read_regs(client, RTC_CTL2, regs, 1);
-	if(sr<0)
-	{
-		DBG("----hym8563_init err");
+	if (sr < 0) {
+		pr_err("read CTL2 err\n");
 	}
 	
 	if(regs[0] & (AF|TF))
@@ -77,16 +83,20 @@ static int hym8563_init_device(struct i2c_client *client)
 		regs[0] &= ~(AF|TF);
 		hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
 	}
+	mutex_unlock(&hym8563->mutex);
 	return 0;
 }
 
 static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 {
+	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 	u8 i,regs[HYM8563_RTC_SECTION_LEN] = { 0, };
     
-    for(i=0;i<HYM8563_RTC_SECTION_LEN;i++){
+	mutex_lock(&hym8563->mutex);
+	for (i = 0; i < HYM8563_RTC_SECTION_LEN; i++) {
 		hym8563_i2c_read_regs(client, RTC_SEC+i, &regs[i], 1);
 	}	
+	mutex_unlock(&hym8563->mutex);
 	
 	tm->tm_sec = bcd2bin(regs[0x00] & 0x7F);
 	tm->tm_min = bcd2bin(regs[0x01] & 0x7F);
@@ -99,22 +109,20 @@ static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 	
 	tm->tm_year = bcd2bin(regs[0x06] & 0xFF);
 	if(regs[5] & 0x80)
-        tm->tm_year += 1900;
-    else
-        tm->tm_year += 2000;
+		tm->tm_year += 1900;
+	else
+		tm->tm_year += 2000;
 		
 	tm->tm_yday = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);	
 	tm->tm_year -= 1900;			//inorder to cooperate the systerm time	
 	if(tm->tm_year < 0)
 		tm->tm_year = 0;	
 	tm->tm_isdst = 0;	
-	DBG("%s [%d]tm_wday=%d \n",__FUNCTION__,__LINE__,tm->tm_wday);
-	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm->tm_sec);
-	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm->tm_min);
-	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm->tm_hour);
-	DBG("%s [%d]tm_mday=%d \n",__FUNCTION__,__LINE__,tm->tm_mday);
-	DBG("%s [%d]tm_mon=%d \n",__FUNCTION__,__LINE__,tm->tm_mon);
-	DBG("%s [%d]tm_year=%d \n",__FUNCTION__,__LINE__,tm->tm_year);
+
+	pr_debug("%4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec);
+
 	return 0;
 }
 
@@ -125,17 +133,15 @@ static int hym8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int hym8563_set_time(struct i2c_client *client, struct rtc_time *tm)	
 {
+	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 	u8 regs[HYM8563_RTC_SECTION_LEN] = { 0, };
 	u8 mon_day,i;
 	u8 ret = 0;
-	
-	DBG("%s [%d]tm_wday=%d \n",__FUNCTION__,__LINE__,tm->tm_wday);
-	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm->tm_sec);
-	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm->tm_min);
-	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm->tm_hour);
-	DBG("%s [%d]tm_mday=%d \n",__FUNCTION__,__LINE__,tm->tm_mday);
-	DBG("%s [%d]tm_mon=%d \n",__FUNCTION__,__LINE__,tm->tm_mon);
-	DBG("%s [%d]tm_year=%d \n",__FUNCTION__,__LINE__,tm->tm_year);
+
+	pr_debug("%4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec);
+
 	mon_day = rtc_month_days((tm->tm_mon), tm->tm_year + 1900);
 	
 	if(tm->tm_sec >= 60 || tm->tm_sec < 0 )		//set  sec
@@ -174,9 +180,11 @@ static int hym8563_set_time(struct i2c_client *client, struct rtc_time *tm)
 	regs[0x04] = bin2bcd(tm->tm_wday);		//set  the  weekday
 	regs[0x05] = (regs[0x05] & 0x80)| (bin2bcd(tm->tm_mon + 1) & 0x7F);		//set  the  month
 	
+	mutex_lock(&hym8563->mutex);
 	for(i=0;i<HYM8563_RTC_SECTION_LEN;i++){
 		ret = hym8563_i2c_set_regs(client, RTC_SEC+i, &regs[i], 1);
 	}
+	mutex_unlock(&hym8563->mutex);
 
 	return 0;
 }
@@ -189,51 +197,77 @@ static int hym8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static int hym8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 	u8 regs[4] = { 0, };
 	
+	pr_debug("enter\n");
+	mutex_lock(&hym8563->mutex);
 	hym8563_i2c_read_regs(client, RTC_A_MIN, regs, 4);
 	regs[0] = 0x0;
 	hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
+	mutex_unlock(&hym8563->mutex);
 	return 0;
 }
 
-static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *tm)
+static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {	
 	struct i2c_client *client = to_i2c_client(dev);
+	struct hym8563 *hym8563 = i2c_get_clientdata(client);
+	struct rtc_time now, *tm = &alarm->time;
 	u8 regs[4] = { 0, };
 	u8 mon_day;
-	
+
+	pr_debug("%4d-%02d-%02d(%d) %02d:%02d:%02d enabled %d\n",
+		1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec, alarm->enabled);
+
+	hym8563_read_datetime(client, &now);
+	if (alarm->enabled && now.tm_year == tm->tm_year &&
+	    now.tm_mon == tm->tm_mon && now.tm_mday == tm->tm_mday &&
+	    now.tm_hour == tm->tm_hour && now.tm_min == tm->tm_min &&
+	    tm->tm_sec > now.tm_sec) {
+		long timeout = tm->tm_sec - now.tm_sec + 1;
+		pr_info("stay awake %lds\n", timeout);
+		wake_lock_timeout(&hym8563->wake_lock, timeout * HZ);
+	}
+
+	mutex_lock(&hym8563->mutex);
+	hym8563->alarm = *alarm;
+
 	regs[0] = 0x0;
 	hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
-	mon_day = rtc_month_days((tm->time.tm_mon), tm->time.tm_year + 1900);
+	mon_day = rtc_month_days(tm->tm_mon, tm->tm_year + 1900);
 	hym8563_i2c_read_regs(client, RTC_A_MIN, regs, 4);
 	
-	if(tm->time.tm_min >= 60 || tm->time.tm_min < 0 )		//set  min	
+	if (tm->tm_min >= 60 || tm->tm_min < 0)		//set  min
 		regs[0x00] = bin2bcd(0x00) & 0x7f;
 	else
-		regs[0x00] = bin2bcd(tm->time.tm_min) & 0x7f;
-	if(tm->time.tm_hour >= 24 || tm->time.tm_hour < 0 )		//set  hour
+		regs[0x00] = bin2bcd(tm->tm_min) & 0x7f;
+	if (tm->tm_hour >= 24 || tm->tm_hour < 0)	//set  hour
 		regs[0x01] = bin2bcd(0x00) & 0x7f;
 	else
-		regs[0x01] = bin2bcd(tm->time.tm_hour) & 0x7f;
-	regs[0x03] = bin2bcd (tm->time.tm_wday) & 0x7f;	
-		
-	if((tm->time.tm_mday) > mon_day)				//if the input month day is bigger than the biggest day of this month, set the biggest day 
+		regs[0x01] = bin2bcd(tm->tm_hour) & 0x7f;
+	regs[0x03] = bin2bcd (tm->tm_wday) & 0x7f;
+
+	/* if the input month day is bigger than the biggest day of this month, set the biggest day */
+	if (tm->tm_mday > mon_day)
 		regs[0x02] = bin2bcd(mon_day) & 0x7f;
-	else if((tm->time.tm_mday) > 0)
-		regs[0x02] = bin2bcd(tm->time.tm_mday) & 0x7f;
-	else if((tm->time.tm_mday) <= 0)
+	else if (tm->tm_mday > 0)
+		regs[0x02] = bin2bcd(tm->tm_mday) & 0x7f;
+	else if (tm->tm_mday <= 0)
 		regs[0x02] = bin2bcd(0x01) & 0x7f;
 
 	hym8563_i2c_set_regs(client, RTC_A_MIN, regs, 4);	
 	hym8563_i2c_read_regs(client, RTC_A_MIN, regs, 4);	
 	hym8563_i2c_read_regs(client, RTC_CTL2, regs, 1);
-	if(tm->enabled == 1)
+	if (alarm->enabled == 1)
 		regs[0] |= AIE;
 	else
 		regs[0] &= 0x0;
 	hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
 	hym8563_i2c_read_regs(client, RTC_CTL2, regs, 1);
+
+	mutex_unlock(&hym8563->mutex);
 	return 0;
 }
 
@@ -294,33 +328,51 @@ static int hym8563_rtc_proc(struct device *dev, struct seq_file *seq)
 static irqreturn_t hym8563_wakeup_irq(int irq, void *dev_id)
 {	
 	struct hym8563 *hym8563 = (struct hym8563 *)dev_id;
-	DBG("Enter::%s %d\n",__FUNCTION__,__LINE__);
+	pr_debug("enter\n");
 	disable_irq_nosync(irq);
 	schedule_work(&hym8563->work);
 	return IRQ_HANDLED;
 }
+
 static void hym8563_work_func(struct work_struct *work)
 {	
 	struct hym8563 *hym8563 = container_of(work, struct hym8563, work);
 	struct i2c_client *client = hym8563->client;
+	struct rtc_time now;
 	u8 data;
-	DBG("Enter::%s %d\n",__FUNCTION__,__LINE__);
+
+	pr_debug("enter\n");
+
+	mutex_lock(&hym8563->mutex);
 	hym8563_i2c_read_regs(client, RTC_CTL2, &data, 1);
 	data &= ~AF;
 	hym8563_i2c_set_regs(client, RTC_CTL2, &data, 1);
-	enable_irq(hym8563->irq_num);
+	mutex_unlock(&hym8563->mutex);
+
+	hym8563_read_datetime(client, &now);
+
+	mutex_lock(&hym8563->mutex);
+	if (hym8563->alarm.enabled && hym8563->alarm.time.tm_sec > now.tm_sec) {
+		long timeout = hym8563->alarm.time.tm_sec - now.tm_sec + 1;
+		pr_info("stay awake %lds\n", timeout);
+		wake_lock_timeout(&hym8563->wake_lock, timeout * HZ);
+	}
+
+	if (!hym8563->exiting)
+		enable_irq(hym8563->irq);
+	mutex_unlock(&hym8563->mutex);
 }
 
 static const struct rtc_class_ops hym8563_rtc_ops = {
 	.read_time	= hym8563_rtc_read_time,
 	.set_time	= hym8563_rtc_set_time,
-	.read_alarm = hym8563_rtc_read_alarm,
+	.read_alarm	= hym8563_rtc_read_alarm,
 	.set_alarm	= hym8563_rtc_set_alarm,
 	.ioctl 		= hym8563_rtc_ioctl,
 	.proc		= hym8563_rtc_proc
 };
 
-static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_device_id *id)
+static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
 	u8 reg = 0;
@@ -351,7 +403,14 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 		rtc = NULL;
 		goto exit;
 	}
+
 	hym8563->client = client;
+	hym8563->rtc = rtc;
+	mutex_init(&hym8563->mutex);
+	wake_lock_init(&hym8563->wake_lock, WAKE_LOCK_SUSPEND, "rtc_hym8563");
+	INIT_WORK(&hym8563->work, hym8563_work_func);
+	i2c_set_clientdata(client, hym8563);
+
 	hym8563_init_device(client);
 
 	// check power down 
@@ -375,28 +434,41 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 		goto exit;
 	}
 	
-	hym8563->irq_num = gpio_to_irq(client->irq);
+	hym8563->irq = gpio_to_irq(client->irq);
 	gpio_pull_updown(client->irq,GPIOPullUp);
-	if (request_irq(hym8563->irq_num, hym8563_wakeup_irq, IRQF_TRIGGER_FALLING, client->dev.driver->name, hym8563) < 0)
+	if (request_irq(hym8563->irq, hym8563_wakeup_irq, IRQF_TRIGGER_FALLING, client->dev.driver->name, hym8563) < 0)
 	{
 		printk("unable to request rtc irq\n");
 		goto exit;
 	}	
-	enable_irq_wake(hym8563->irq_num);
-	INIT_WORK(&hym8563->work, hym8563_work_func);
+	enable_irq_wake(hym8563->irq);
 	return 0;
 
 exit:
 	if (rtc)
 		rtc_device_unregister(rtc);
+	if (hym8563)
+		kfree(hym8563);
 	return rc;
 }
 
 static int __devexit hym8563_remove(struct i2c_client *client)
 {
-	struct rtc_device *rtc = i2c_get_clientdata(client);
+	struct hym8563 *hym8563 = i2c_get_clientdata(client);
 
-	rtc_device_unregister(rtc);
+	if (hym8563->irq > 0) {
+		mutex_lock(&hym8563->mutex);
+		hym8563->exiting = 1;
+		mutex_unlock(&hym8563->mutex);
+
+		free_irq(hym8563->irq, hym8563);
+		cancel_work_sync(&hym8563->work);
+	}
+
+	rtc_device_unregister(hym8563->rtc);
+	wake_lock_destroy(&hym8563->wake_lock);
+	kfree(hym8563);
+	hym8563 = NULL;
 
 	return 0;
 }
