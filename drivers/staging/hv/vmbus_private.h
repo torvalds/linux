@@ -108,8 +108,7 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 					 struct vmbus_channel *channel);
 
 int vmbus_child_dev_add(struct hv_device *device);
-int vmbus_child_device_register(struct hv_device *root_device_obj,
-				struct hv_device *child_device_obj);
+int vmbus_child_device_register(struct hv_device *child_device_obj);
 void vmbus_child_device_unregister(struct hv_device *device_obj);
 
 /* static void */

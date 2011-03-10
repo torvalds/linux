@@ -144,7 +144,7 @@ static struct hv_device *vmbus_device; /* vmbus root device */
  */
 int vmbus_child_dev_add(struct hv_device *child_dev)
 {
-	return vmbus_child_device_register(vmbus_device, child_dev);
+	return vmbus_child_device_register(child_dev);
 }
 
 /*
@@ -664,8 +664,7 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 /*
  * vmbus_child_device_register - Register the child device on the specified bus
  */
-int vmbus_child_device_register(struct hv_device *root_device_obj,
-				struct hv_device *child_device_obj)
+int vmbus_child_device_register(struct hv_device *child_device_obj)
 {
 	int ret = 0;
 
@@ -680,7 +679,7 @@ int vmbus_child_device_register(struct hv_device *root_device_obj,
 
 	/* The new device belongs to this bus */
 	child_device_obj->device.bus = &vmbus_drv.bus; /* device->dev.bus; */
-	child_device_obj->device.parent = &root_device_obj->device;
+	child_device_obj->device.parent = &vmbus_device->device;
 	child_device_obj->device.release = vmbus_device_release;
 
 	/*
