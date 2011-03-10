@@ -220,6 +220,8 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 		drbd_msg_put_info("over-determined configuration context mismatch");
 		return ERR_INVALID_REQUEST;
 	}
+	if (adm_ctx.mdev && !adm_ctx.tconn)
+		adm_ctx.tconn = adm_ctx.mdev->tconn;
 	return NO_ERROR;
 
 fail:
@@ -2643,10 +2645,15 @@ int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info)
 
 	mdev = adm_ctx.mdev;
 	if (mdev->state.disk == D_DISKLESS &&
-	    mdev->state.conn == C_STANDALONE &&
+	    /* no need to be mdev->state.conn == C_STANDALONE &&
+	     * we may want to delete a minor from a live replication group.
+	     */
 	    mdev->state.role == R_SECONDARY) {
 		drbd_delete_device(mdev_to_minor(mdev));
 		retcode = NO_ERROR;
+		/* if this was the last volume of this connection,
+		 * this will terminate all threads */
+		conn_reconfig_done(adm_ctx.tconn);
 	} else
 		retcode = ERR_MINOR_CONFIGURED;
 out:
