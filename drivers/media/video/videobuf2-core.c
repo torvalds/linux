@@ -227,7 +227,7 @@ static void __vb2_free_mem(struct vb2_queue *q)
  * and return the queue to an uninitialized state. Might be called even if the
  * queue has already been freed.
  */
-static int __vb2_queue_free(struct vb2_queue *q)
+static void __vb2_queue_free(struct vb2_queue *q)
 {
 	unsigned int buffer;
 
@@ -251,8 +251,6 @@ static int __vb2_queue_free(struct vb2_queue *q)
 
 	q->num_buffers = 0;
 	q->memory = 0;
-
-	return 0;
 }
 
 /**
@@ -505,9 +503,7 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 			return -EBUSY;
 		}
 
-		ret = __vb2_queue_free(q);
-		if (ret != 0)
-			return ret;
+		__vb2_queue_free(q);
 
 		/*
 		 * In case of REQBUFS(0) return immediately without calling
