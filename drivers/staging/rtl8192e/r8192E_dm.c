@@ -422,7 +422,6 @@ static const u8 CCKSwingTable_Ch14[CCK_Table_length][8] = {
 #define		FW_Busy_Flag				0x13f
 static void dm_TXPowerTrackingCallback_TSSI(struct r8192_priv *priv)
 {
-	struct net_device *dev = priv->ieee80211->dev;
 	bool						bHighpowerstate, viviflag = FALSE;
 	DCMD_TXCMD_T			tx_cmd;
 	u8					powerlevelOFDM24G;
@@ -452,7 +451,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct r8192_priv *priv)
 	tx_cmd.Op		= TXCMD_SET_TX_PWR_TRACKING;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= Value;
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
+	cmpk_message_handle_tx(priv, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 	mdelay(1);
 
 	for(i = 0;i <= 30; i++)

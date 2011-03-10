@@ -33,14 +33,13 @@
  * run time. We do not support message more than one segment now.
  */
 RT_STATUS cmpk_message_handle_tx(
-	struct net_device *dev,
+	struct r8192_priv *priv,
 	u8*	code_virtual_address,
 	u32	packettype,
 	u32	buffer_len)
 {
-
+	struct net_device *dev = priv->ieee80211->dev;
 	RT_STATUS 	    rt_status = RT_STATUS_SUCCESS;
-	struct r8192_priv   *priv = ieee80211_priv(dev);
 	u16		    frag_threshold;
 	u16		    frag_length = 0, frag_offset = 0;
 	rt_firmware	    *pfirmware = priv->pFirmware;
@@ -115,12 +114,8 @@ Failed:
 	return rt_status;
 }
 
-static void
-cmpk_count_txstatistic(
-	struct net_device *dev,
-	cmpk_txfb_t	*pstx_fb)
+static void cmpk_count_txstatistic(struct r8192_priv *priv, cmpk_txfb_t *pstx_fb)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 #ifdef ENABLE_PS
 	RT_RF_POWER_STATE	rtState;
 
@@ -163,19 +158,15 @@ cmpk_count_txstatistic(
  * refer to chapter "TX Feedback Element". We have to read 20 bytes
  * in the command packet.
  */
-static void
-cmpk_handle_tx_feedback(
-	struct net_device *dev,
-	u8	*	pmsg)
+static void cmpk_handle_tx_feedback(struct r8192_priv *priv, u8 *pmsg)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	cmpk_txfb_t		rx_tx_fb;	/* */
 
 	priv->stats.txfeedback++;
 
 	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
 	/* Use tx feedback info to count TX statistics. */
-	cmpk_count_txstatistic(dev, &rx_tx_fb);
+	cmpk_count_txstatistic(priv, &rx_tx_fb);
 }
 
 
@@ -185,13 +176,9 @@ cmpk_handle_tx_feedback(
  * ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
  * Please refer to chapter "Interrupt Status Element".
  */
-static	void
-cmpk_handle_interrupt_status(
-	struct net_device *dev,
-	u8*	pmsg)
+static void cmpk_handle_interrupt_status(struct r8192_priv *priv, u8 *pmsg)
 {
 	cmpk_intr_sta_t		rx_intr_status;	/* */
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
 
@@ -244,10 +231,7 @@ cmpk_handle_interrupt_status(
  * ws-06-0063-rtl8190-command-packet-specification. Please
  * refer to chapter "Beacon State Element".
  */
-static	void
-cmpk_handle_query_config_rx(
-	struct net_device *dev,
-	u8*	   pmsg)
+static void cmpk_handle_query_config_rx(struct r8192_priv *priv, u8 *pmsg)
 {
 	cmpk_query_cfg_t	rx_query_cfg;	/* */
 
@@ -277,10 +261,8 @@ cmpk_handle_query_config_rx(
  * Count aggregated tx status from firmwar of one type rx command
  * packet element id = RX_TX_STATUS.
  */
-static	void	cmpk_count_tx_status(	struct net_device *dev,
-									cmpk_tx_status_t 	*pstx_status)
+static void cmpk_count_tx_status(struct r8192_priv *priv, cmpk_tx_status_t *pstx_status)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 
 #ifdef ENABLE_PS
 
@@ -309,25 +291,19 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
  * Firmware add a new tx feedback status to reduce rx command
  * packet buffer operation load.
  */
-static	void
-cmpk_handle_tx_status(
-	struct net_device *dev,
-	u8*	   pmsg)
+static void cmpk_handle_tx_status(struct r8192_priv *priv, u8 *pmsg)
 {
 	cmpk_tx_status_t	rx_tx_sts;	/* */
 
 	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(cmpk_tx_status_t));
 	/* 2. Use tx feedback info to count TX statistics. */
-	cmpk_count_tx_status(dev, &rx_tx_sts);
+	cmpk_count_tx_status(priv, &rx_tx_sts);
 
 }
 
 
 /* Firmware add a new tx rate history */
-static	void
-cmpk_handle_tx_rate_history(
-	struct net_device *dev,
-	u8*	   pmsg)
+static void cmpk_handle_tx_rate_history(struct r8192_priv *priv, u8 *pmsg)
 {
 	u8				i;
 	u16				length = sizeof(cmpk_tx_rahis_t);
@@ -369,7 +345,7 @@ cmpk_handle_tx_rate_history(
  * command packet now. Please refer to document
  * ws-06-0063-rtl8190-command-packet-specification.
  */
-u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats)
+u32 cmpk_message_handle_rx(struct r8192_priv *priv, struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
 	int			total_length;
@@ -414,28 +390,28 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 			case RX_TX_FEEDBACK:
 
         			RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_TX_FEEDBACK\n");
-				cmpk_handle_tx_feedback (dev, pcmd_buff);
+				cmpk_handle_tx_feedback(priv, pcmd_buff);
 				cmd_length = CMPK_RX_TX_FB_SIZE;
 				break;
 
 			case RX_INTERRUPT_STATUS:
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_INTERRUPT_STATUS\n");
-				cmpk_handle_interrupt_status(dev, pcmd_buff);
+				cmpk_handle_interrupt_status(priv, pcmd_buff);
 				cmd_length = sizeof(cmpk_intr_sta_t);
 				break;
 
 			case BOTH_QUERY_CONFIG:
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():BOTH_QUERY_CONFIG\n");
-				cmpk_handle_query_config_rx(dev, pcmd_buff);
+				cmpk_handle_query_config_rx(priv, pcmd_buff);
 				cmd_length = CMPK_BOTH_QUERY_CONFIG_SIZE;
 				break;
 
 			case RX_TX_STATUS:
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_TX_STATUS\n");
-				cmpk_handle_tx_status(dev, pcmd_buff);
+				cmpk_handle_tx_status(priv, pcmd_buff);
 				cmd_length = CMPK_RX_TX_STS_SIZE;
 				break;
 
@@ -451,7 +427,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 				//DbgPrint(" rx tx rate history\r\n");
 
 			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():RX_TX_HISTORY\n");
-				cmpk_handle_tx_rate_history(dev, pcmd_buff);
+				cmpk_handle_tx_rate_history(priv, pcmd_buff);
 				cmd_length = CMPK_TX_RAHIS_SIZE;
 				break;
 
