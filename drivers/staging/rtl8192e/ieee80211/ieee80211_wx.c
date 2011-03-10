@@ -472,7 +472,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	 * the callbacks structures used to initialize the 802.11 stack. */
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
-	    ieee->reset_port && ieee->reset_port(dev)) {
+	    ieee->reset_port && ieee->reset_port(ieee)) {
 		printk(KERN_DEBUG "%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
@@ -700,7 +700,7 @@ done:
 
 	 if (ieee->reset_on_keychange &&
             ieee->iw_mode != IW_MODE_INFRA &&
-            ieee->reset_port && ieee->reset_port(dev)) {
+            ieee->reset_port && ieee->reset_port(ieee)) {
                 IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
                 return -EINVAL;
         }

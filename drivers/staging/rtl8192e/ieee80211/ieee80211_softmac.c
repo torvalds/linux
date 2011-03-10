@@ -3157,7 +3157,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port &&
-	    ieee->reset_port(ieee->dev)) {
+	    ieee->reset_port(ieee)) {
 		printk("reset_port failed\n");
 		param->u.crypt.err = IEEE_CRYPT_ERR_CARD_CONF_FAILED;
 		return -EINVAL;

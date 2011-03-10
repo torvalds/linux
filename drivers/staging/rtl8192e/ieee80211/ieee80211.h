@@ -2109,12 +2109,12 @@ struct ieee80211_device {
 	int (*hard_start_xmit)(struct ieee80211_txb *txb,
 			       struct ieee80211_device *ieee);
 
-	int (*reset_port)(struct net_device *dev);
-        int (*is_queue_full) (struct net_device * dev, int pri);
+	int (*reset_port)(struct ieee80211_device *ieee);
+        int (*is_queue_full) (struct ieee80211_device *ieee, int pri);
 
-        int (*handle_management) (struct net_device * dev,
+        int (*handle_management) (struct ieee80211_device *ieee,
                                   struct ieee80211_network * network, u16 type);
-        int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
+        int (*is_qos_active) (struct ieee80211_device *ieee, struct sk_buff *skb);
 
 	/* Softmac-generated frames (mamagement) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
