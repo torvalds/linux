@@ -56,7 +56,6 @@ static int vmbus_probe(struct device *device);
 static int vmbus_remove(struct device *device);
 static void vmbus_shutdown(struct device *device);
 static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env);
-static void vmbus_msg_dpc(unsigned long data);
 static void vmbus_event_dpc(unsigned long data);
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id);
@@ -214,7 +213,7 @@ static void vmbus_onmessage_work(struct work_struct *work)
 /*
  * vmbus_on_msg_dpc - DPC routine to handle messages from the hypervisior
  */
-static void vmbus_on_msg_dpc(struct hv_driver *drv)
+static void vmbus_on_msg_dpc(unsigned long data)
 {
 	int cpu = smp_processor_id();
 	void *page_addr = hv_context.synic_message_page[cpu];
@@ -484,7 +483,7 @@ static int vmbus_bus_init(void)
 	vmbus_drv_ctx->bus.name = driver_name;
 
 	/* Initialize the bus context */
-	tasklet_init(&vmbus_drv_ctx->msg_dpc, vmbus_msg_dpc,
+	tasklet_init(&vmbus_drv_ctx->msg_dpc, vmbus_on_msg_dpc,
 		     (unsigned long)NULL);
 	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_event_dpc,
 		     (unsigned long)NULL);
@@ -985,16 +984,6 @@ static void vmbus_device_release(struct device *device)
 	/* !!DO NOT REFERENCE device_ctx anymore at this point!! */
 }
 
-/*
- * vmbus_msg_dpc - Tasklet routine to handle hypervisor messages
- */
-static void vmbus_msg_dpc(unsigned long data)
-{
-	struct hv_driver *driver = (struct hv_driver *)data;
-
-	/* Call to bus driver to handle interrupt */
-	vmbus_on_msg_dpc(driver);
-}
 
 /*
  * vmbus_event_dpc - Tasklet routine to handle hypervisor events
