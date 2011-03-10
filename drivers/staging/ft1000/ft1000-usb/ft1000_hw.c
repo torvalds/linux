@@ -1281,24 +1281,23 @@ static int ft1000_open(struct net_device *dev)
 int ft1000_close(struct net_device *net)
 {
 	struct ft1000_info *pInfo = netdev_priv(net);
-    struct ft1000_device *ft1000dev = pInfo->pFt1000Dev;
+	struct ft1000_device *ft1000dev = pInfo->pFt1000Dev;
 
-    //DEBUG ("ft1000_close: netdev->refcnt=%d\n", net->refcnt);
+	//DEBUG ("ft1000_close: netdev->refcnt=%d\n", net->refcnt);
 
-    ft1000dev->status |= FT1000_STATUS_CLOSING;
-    
-    //DEBUG("ft1000_close: calling usb_kill_urb \n");
+	ft1000dev->status |= FT1000_STATUS_CLOSING;
 
-    DEBUG("ft1000_close: pInfo=%p, ft1000dev=%p\n", pInfo, ft1000dev);
-    netif_carrier_off(net);//mbelian
-    netif_stop_queue(net);
-    //DEBUG("ft1000_close: netif_stop_queue called\n");
-    ft1000dev->status &= ~FT1000_STATUS_CLOSING;
+	//DEBUG("ft1000_close: calling usb_kill_urb \n");
 
-   pInfo->ProgConStat = 0xff; //mbelian
+	DEBUG("ft1000_close: pInfo=%p, ft1000dev=%p\n", pInfo, ft1000dev);
+	netif_carrier_off(net);	//mbelian
+	netif_stop_queue(net);
+	//DEBUG("ft1000_close: netif_stop_queue called\n");
+	ft1000dev->status &= ~FT1000_STATUS_CLOSING;
 
+	pInfo->ProgConStat = 0xff;	//mbelian
 
-    return 0;
+	return 0;
 }
 
 static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
