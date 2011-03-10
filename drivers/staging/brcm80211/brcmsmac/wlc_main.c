@@ -6613,7 +6613,8 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	tx_info = IEEE80211_SKB_CB(p);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 
-	scb = (struct scb *)tx_info->control.sta->drv_priv;
+	if (tx_info->control.sta)
+		scb = (struct scb *)tx_info->control.sta->drv_priv;
 
 	if (N_ENAB(wlc->pub)) {
 		u8 *plcp = (u8 *) (txh + 1);
