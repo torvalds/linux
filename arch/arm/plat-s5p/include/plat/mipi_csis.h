@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Samsung Electronics
+ * Copyright (C) 2010-2011 Samsung Electronics Co., Ltd.
  *
  * S5P series MIPI CSI slave device support
  *
@@ -8,11 +8,11 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef PLAT_S5P_CSIS_H_
-#define PLAT_S5P_CSIS_H_ __FILE__
+#ifndef PLAT_S5P_MIPI_CSIS_H_
+#define PLAT_S5P_MIPI_CSIS_H_ __FILE__
 
 /**
- * struct s5p_platform_mipi_csis - platform data for MIPI-CSIS
+ * struct s5p_platform_mipi_csis - platform data for S5P MIPI-CSIS driver
  * @clk_rate: bus clock frequency
  * @lanes: number of data lanes used
  * @alignment: data alignment in bits
@@ -25,4 +25,4 @@ struct s5p_platform_mipi_csis {
 	u8 hs_settle;
 };
 
-#endif /* PLAT_S5P_CSIS_H_ */
+#endif /* PLAT_S5P_MIPI_CSIS_H_ */
