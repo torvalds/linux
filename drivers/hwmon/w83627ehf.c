@@ -1899,9 +1899,10 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 				else
 					data->in6_skip = 1;
 			}
+			data->temp_label = nct6776_temp_label;
+		} else {
+			data->temp_label = nct6775_temp_label;
 		}
-
-		data->temp_label = nct6776_temp_label;
 	} else if (sio_data->kind == w83667hg_b) {
 		u8 reg;
 
