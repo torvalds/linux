@@ -406,7 +406,7 @@ static void xen_irq_init(unsigned irq)
 	list_add_tail(&info->list, &xen_irq_list_head);
 }
 
-static int xen_allocate_irq_dynamic(void)
+static int __must_check xen_allocate_irq_dynamic(void)
 {
 	int first = 0;
 	int irq;
@@ -425,15 +425,12 @@ static int xen_allocate_irq_dynamic(void)
 
 	irq = irq_alloc_desc_from(first, -1);
 
-	if (irq < 0)
-		panic("No available IRQ to bind to: increase nr_irqs!\n");
-
 	xen_irq_init(irq);
 
 	return irq;
 }
 
-static int xen_allocate_irq_gsi(unsigned gsi)
+static int __must_check xen_allocate_irq_gsi(unsigned gsi)
 {
 	int irq;
 
@@ -451,9 +448,6 @@ static int xen_allocate_irq_gsi(unsigned gsi)
 		irq = gsi;
 	else
 		irq = irq_alloc_desc_at(gsi, -1);
-
-	if (irq < 0)
-		panic("Unable to allocate to IRQ%d (%d)\n", gsi, irq);
 
 	xen_irq_init(irq);
 
@@ -640,6 +634,8 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	}
 
 	irq = xen_allocate_irq_gsi(gsi);
+	if (irq < 0)
+		goto out;
 
 	set_irq_chip_and_handler_name(irq, &xen_pirq_chip,
 				      handle_level_irq, name);
@@ -771,6 +767,8 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 
 	if (irq == -1) {
 		irq = xen_allocate_irq_dynamic();
+		if (irq == -1)
+			goto out;
 
 		set_irq_chip_and_handler_name(irq, &xen_dynamic_chip,
 					      handle_fasteoi_irq, "event");
@@ -778,6 +776,7 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		xen_irq_info_evtchn_init(irq, evtchn);
 	}
 
+out:
 	spin_unlock(&irq_mapping_update_lock);
 
 	return irq;
@@ -829,6 +828,8 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 
 	if (irq == -1) {
 		irq = xen_allocate_irq_dynamic();
+		if (irq == -1)
+			goto out;
 
 		set_irq_chip_and_handler_name(irq, &xen_percpu_chip,
 					      handle_percpu_irq, "virq");
@@ -845,6 +846,7 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 
+out:
 	spin_unlock(&irq_mapping_update_lock);
 
 	return irq;
@@ -897,6 +899,8 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 	int retval;
 
 	irq = bind_evtchn_to_irq(evtchn);
+	if (irq < 0)
+		return irq;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
 	if (retval != 0) {
 		unbind_from_irq(irq);
@@ -915,6 +919,8 @@ int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 	int retval;
 
 	irq = bind_virq_to_irq(virq, cpu);
+	if (irq < 0)
+		return irq;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
 	if (retval != 0) {
 		unbind_from_irq(irq);
