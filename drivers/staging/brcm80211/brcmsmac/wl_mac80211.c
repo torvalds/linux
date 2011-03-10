@@ -648,6 +648,9 @@ wl_ops_ampdu_action(struct ieee80211_hw *hw,
 		break;
 
 	case IEEE80211_AMPDU_TX_STOP:
+		WL_LOCK(wl);
+		wlc_ampdu_flush(wl->wlc, sta, tid);
+		WL_UNLOCK(wl);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:

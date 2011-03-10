@@ -1363,3 +1363,46 @@ void wlc_ampdu_shm_upd(struct ampdu_info *ampdu)
 		wlc_write_shm(wlc, M_WATCHDOG_8TU, WATCHDOG_8TU_DEF);
 	}
 }
+
+struct cb_del_ampdu_pars {
+	struct ieee80211_sta *sta;
+	u16 tid;
+};
+
+/*
+ * callback function that helps flushing ampdu packets from a priority queue
+ */
+static bool cb_del_ampdu_pkt(void *p, int arg_a)
+{
+	struct sk_buff *mpdu = (struct sk_buff *)p;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(mpdu);
+	struct cb_del_ampdu_pars *ampdu_pars =
+				 (struct cb_del_ampdu_pars *)arg_a;
+	bool rc;
+
+	rc = tx_info->flags & IEEE80211_TX_CTL_AMPDU ? true : false;
+	rc = rc && (tx_info->control.sta == NULL || ampdu_pars->sta == NULL ||
+		    tx_info->control.sta == ampdu_pars->sta);
+	rc = rc && ((u8)(mpdu->priority) == ampdu_pars->tid);
+	return rc;
+}
+
+/*
+ * When a remote party is no longer available for ampdu communication, any
+ * pending tx ampdu packets in the driver have to be flushed.
+ */
+void wlc_ampdu_flush(struct wlc_info *wlc,
+		     struct ieee80211_sta *sta, u16 tid)
+{
+	struct wlc_txq_info *qi = wlc->active_queue;
+	struct pktq *pq = &qi->q;
+	int prec;
+	struct cb_del_ampdu_pars ampdu_pars;
+
+	ampdu_pars.sta = sta;
+	ampdu_pars.tid = tid;
+	for (prec = 0; prec < pq->num_prec; prec++) {
+		pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
+			    (int)&ampdu_pars);
+	}
+}
