@@ -460,13 +460,17 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
  * will be accessed by a particular initiator (e.g., if a module will
  * be accessed by the IVA, there should be a sleepdep between the IVA
  * initiator and the module).  Only applies to modules in smart-idle
- * mode.  Returns -EINVAL upon error or passes along
- * clkdm_add_sleepdep() value upon success.
+ * mode.  If the clockdomain is marked as not needing autodeps, return
+ * 0 without doing anything.  Otherwise, returns -EINVAL upon error or
+ * passes along clkdm_add_sleepdep() value upon success.
  */
 static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
 	if (!oh->_clk)
 		return -EINVAL;
+
+	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+		return 0;
 
 	return clkdm_add_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
 }
@@ -480,13 +484,17 @@ static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  * be accessed by a particular initiator (e.g., if a module will not
  * be accessed by the IVA, there should be no sleepdep between the IVA
  * initiator and the module).  Only applies to modules in smart-idle
- * mode.  Returns -EINVAL upon error or passes along
- * clkdm_del_sleepdep() value upon success.
+ * mode.  If the clockdomain is marked as not needing autodeps, return
+ * 0 without doing anything.  Returns -EINVAL upon error or passes
+ * along clkdm_del_sleepdep() value upon success.
  */
 static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
 	if (!oh->_clk)
 		return -EINVAL;
+
+	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+		return 0;
 
 	return clkdm_del_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
 }
