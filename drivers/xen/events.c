@@ -56,6 +56,8 @@
  */
 static DEFINE_SPINLOCK(irq_mapping_update_lock);
 
+static LIST_HEAD(xen_irq_list_head);
+
 /* IRQ <-> VIRQ mapping. */
 static DEFINE_PER_CPU(int [NR_VIRQS], virq_to_irq) = {[0 ... NR_VIRQS-1] = -1};
 
@@ -85,7 +87,9 @@ enum xen_irq_type {
  */
 struct irq_info
 {
+	struct list_head list;
 	enum xen_irq_type type;	/* type */
+	unsigned irq;
 	unsigned short evtchn;	/* event channel */
 	unsigned short cpu;	/* cpu bound */
 
@@ -135,6 +139,7 @@ static void xen_irq_info_common_init(struct irq_info *info,
 	BUG_ON(info->type != IRQT_UNBOUND && info->type != type);
 
 	info->type = type;
+	info->irq = irq;
 	info->evtchn = evtchn;
 	info->cpu = cpu;
 
@@ -311,10 +316,11 @@ static void init_evtchn_cpu_bindings(void)
 {
 	int i;
 #ifdef CONFIG_SMP
-	struct irq_desc *desc;
+	struct irq_info *info;
 
 	/* By default all event channels notify CPU#0. */
-	for_each_irq_desc(i, desc) {
+	list_for_each_entry(info, &xen_irq_list_head, list) {
+		struct irq_desc *desc = irq_to_desc(info->irq);
 		cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
 	}
 #endif
@@ -397,6 +403,21 @@ static void unmask_evtchn(int port)
 	put_cpu();
 }
 
+static void xen_irq_init(unsigned irq)
+{
+	struct irq_info *info;
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	/* By default all event channels notify CPU#0. */
+	cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
+
+	info = &irq_info[irq];
+
+	info->type = IRQT_UNBOUND;
+
+	list_add_tail(&info->list, &xen_irq_list_head);
+}
+
 static int xen_allocate_irq_dynamic(void)
 {
 	int first = 0;
@@ -426,6 +447,8 @@ retry:
 	if (irq < 0)
 		panic("No available IRQ to bind to: increase nr_irqs!\n");
 
+	xen_irq_init(irq);
+
 	return irq;
 }
 
@@ -444,18 +467,25 @@ static int xen_allocate_irq_gsi(unsigned gsi)
 
 	/* Legacy IRQ descriptors are already allocated by the arch. */
 	if (gsi < NR_IRQS_LEGACY)
-		return gsi;
+		irq = gsi;
+	else
+		irq = irq_alloc_desc_at(gsi, -1);
 
-	irq = irq_alloc_desc_at(gsi, -1);
 	if (irq < 0)
 		panic("Unable to allocate to IRQ%d (%d)\n", gsi, irq);
+
+	xen_irq_init(irq);
 
 	return irq;
 }
 
 static void xen_free_irq(unsigned irq)
 {
-	irq_info[irq].type = IRQT_UNBOUND;
+	struct irq_info *info = &irq_info[irq];
+
+	info->type = IRQT_UNBOUND;
+
+	list_del(&info->list);
 
 	/* Legacy IRQ descriptors are managed by the arch. */
 	if (irq < NR_IRQS_LEGACY)
@@ -586,16 +616,14 @@ static void ack_pirq(struct irq_data *data)
 
 static int find_irq_by_gsi(unsigned gsi)
 {
-	int irq;
+	struct irq_info *info;
 
-	for (irq = 0; irq < nr_irqs; irq++) {
-		struct irq_info *info = info_for_irq(irq);
-
-		if (info == NULL || info->type != IRQT_PIRQ)
+	list_for_each_entry(info, &xen_irq_list_head, list) {
+		if (info->type != IRQT_PIRQ)
 			continue;
 
-		if (gsi_from_irq(irq) == gsi)
-			return irq;
+		if (info->u.pirq.gsi == gsi)
+			return info->irq;
 	}
 
 	return -1;
@@ -1374,7 +1402,8 @@ void xen_poll_irq(int irq)
 
 void xen_irq_resume(void)
 {
-	unsigned int cpu, irq, evtchn;
+	unsigned int cpu, evtchn;
+	struct irq_info *info;
 
 	init_evtchn_cpu_bindings();
 
@@ -1383,8 +1412,8 @@ void xen_irq_resume(void)
 		mask_evtchn(evtchn);
 
 	/* No IRQ <-> event-channel mappings. */
-	for (irq = 0; irq < nr_irqs; irq++)
-		irq_info[irq].evtchn = 0; /* zap event-channel binding */
+	list_for_each_entry(info, &xen_irq_list_head, list)
+		info->evtchn = 0; /* zap event-channel binding */
 
 	for (evtchn = 0; evtchn < NR_EVENT_CHANNELS; evtchn++)
 		evtchn_to_irq[evtchn] = -1;
