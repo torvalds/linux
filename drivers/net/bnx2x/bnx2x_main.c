@@ -2092,8 +2092,9 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 		bnx2x_calc_vn_weight_sum(bp);
 
 		/* calculate and set min-max rate for each vn */
-		for (vn = VN_0; vn < E1HVN_MAX; vn++)
-			bnx2x_init_vn_minmax(bp, vn);
+		if (bp->port.pmf)
+			for (vn = VN_0; vn < E1HVN_MAX; vn++)
+				bnx2x_init_vn_minmax(bp, vn);
 
 		/* always enable rate shaping and fairness */
 		bp->cmng.flags.cmng_enables |=
@@ -2162,13 +2163,6 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 
-	/* indicate link status only if link status actually changed */
-	if (prev_link_status != bp->link_vars.link_status)
-		bnx2x_link_report(bp);
-
-	if (IS_MF(bp))
-		bnx2x_link_sync_notify(bp);
-
 	if (bp->link_vars.link_up && bp->link_vars.line_speed) {
 		int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
 
@@ -2180,6 +2174,13 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			DP(NETIF_MSG_IFUP,
 			   "single function mode without fairness\n");
 	}
+
+	if (IS_MF(bp))
+		bnx2x_link_sync_notify(bp);
+
+	/* indicate link status only if link status actually changed */
+	if (prev_link_status != bp->link_vars.link_status)
+		bnx2x_link_report(bp);
 }
 
 void bnx2x__link_status_update(struct bnx2x *bp)

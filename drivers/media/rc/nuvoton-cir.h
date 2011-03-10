@@ -305,8 +305,11 @@ struct nvt_dev {
 #define CIR_WAKE_IRFIFOSTS_RX_EMPTY	0x20
 #define CIR_WAKE_IRFIFOSTS_RX_FULL	0x10
 
-/* CIR Wake FIFO buffer is 67 bytes long */
-#define CIR_WAKE_FIFO_LEN		67
+/*
+ * The CIR Wake FIFO buffer is 67 bytes long, but the stock remote wakes
+ * the system comparing only 65 bytes (fails with this set to 67)
+ */
+#define CIR_WAKE_FIFO_CMP_BYTES		65
 /* CIR Wake byte comparison tolerance */
 #define CIR_WAKE_CMP_TOLERANCE		5
 

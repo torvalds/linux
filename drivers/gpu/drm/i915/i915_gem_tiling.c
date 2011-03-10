@@ -184,7 +184,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 static bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 {
-	int tile_width, tile_height;
+	int tile_width;
 
 	/* Linear is always fine */
 	if (tiling_mode == I915_TILING_NONE)
@@ -214,20 +214,6 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 				return false;
 		}
 	}
-
-	if (IS_GEN2(dev) ||
-	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
-		tile_height = 32;
-	else
-		tile_height = 8;
-	/* i8xx is strange: It has 2 interleaved rows of tiles, so needs an even
-	 * number of tile rows. */
-	if (IS_GEN2(dev))
-		tile_height *= 2;
-
-	/* Size needs to be aligned to a full tile row */
-	if (size & (tile_height * stride - 1))
-		return false;
 
 	/* 965+ just needs multiples of tile width */
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -363,14 +349,27 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			(obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end &&
 			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
-		obj->tiling_changed = true;
-		obj->tiling_mode = args->tiling_mode;
-		obj->stride = args->stride;
+		/* Rebind if we need a change of alignment */
+		if (!obj->map_and_fenceable) {
+			u32 unfenced_alignment =
+				i915_gem_get_unfenced_gtt_alignment(obj);
+			if (obj->gtt_offset & (unfenced_alignment - 1))
+				ret = i915_gem_object_unbind(obj);
+		}
+
+		if (ret == 0) {
+			obj->tiling_changed = true;
+			obj->tiling_mode = args->tiling_mode;
+			obj->stride = args->stride;
+		}
 	}
+	/* we have to maintain this existing ABI... */
+	args->stride = obj->stride;
+	args->tiling_mode = obj->tiling_mode;
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
 }
 
 /**

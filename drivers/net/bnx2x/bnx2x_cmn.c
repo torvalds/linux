@@ -993,6 +993,23 @@ void bnx2x_free_skbs(struct bnx2x *bp)
 	bnx2x_free_rx_skbs(bp);
 }
 
+void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value)
+{
+	/* load old values */
+	u32 mf_cfg = bp->mf_config[BP_VN(bp)];
+
+	if (value != bnx2x_extract_max_cfg(bp, mf_cfg)) {
+		/* leave all but MAX value */
+		mf_cfg &= ~FUNC_MF_CFG_MAX_BW_MASK;
+
+		/* set new MAX value */
+		mf_cfg |= (value << FUNC_MF_CFG_MAX_BW_SHIFT)
+				& FUNC_MF_CFG_MAX_BW_MASK;
+
+		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, mf_cfg);
+	}
+}
+
 static void bnx2x_free_msix_irqs(struct bnx2x *bp)
 {
 	int i, offset = 1;
@@ -1497,6 +1514,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* Clear UC lists configuration */
 	bnx2x_invalidate_uc_list(bp);
+
+	if (bp->pending_max) {
+		bnx2x_update_max_mf_config(bp, bp->pending_max);
+		bp->pending_max = 0;
+	}
 
 	if (bp->port.pmf)
 		bnx2x_initial_phy_init(bp, load_mode);

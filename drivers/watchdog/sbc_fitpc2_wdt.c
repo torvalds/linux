@@ -201,11 +201,14 @@ static struct miscdevice fitpc2_wdt_miscdev = {
 static int __init fitpc2_wdt_init(void)
 {
 	int err;
+	const char *brd_name;
 
-	if (!strstr(dmi_get_system_info(DMI_BOARD_NAME), "SBC-FITPC2"))
+	brd_name = dmi_get_system_info(DMI_BOARD_NAME);
+
+	if (!brd_name || !strstr(brd_name, "SBC-FITPC2"))
 		return -ENODEV;
 
-	pr_info("%s found\n", dmi_get_system_info(DMI_BOARD_NAME));
+	pr_info("%s found\n", brd_name);
 
 	if (!request_region(COMMAND_PORT, 1, WATCHDOG_NAME)) {
 		pr_err("I/O address 0x%04x already in use\n", COMMAND_PORT);
