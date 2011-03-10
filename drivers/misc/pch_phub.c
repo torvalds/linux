@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/if_ether.h>
 #include <linux/ctype.h>
+#include <linux/dmi.h>
 
 #define PHUB_STATUS 0x00		/* Status Register offset */
 #define PHUB_CONTROL 0x04		/* Control Register offset */
@@ -46,6 +47,13 @@
 #define PCH_MINOR_NOS 1
 #define CLKCFG_CAN_50MHZ 0x12000000
 #define CLKCFG_CANCLK_MASK 0xFF000000
+#define CLKCFG_UART_MASK			0xFFFFFF
+
+/* CM-iTC */
+#define CLKCFG_UART_48MHZ			(1 << 16)
+#define CLKCFG_BAUDDIV				(2 << 20)
+#define CLKCFG_PLL2VCO				(8 << 9)
+#define CLKCFG_UARTCLKSEL			(1 << 18)
 
 /* Macros for ML7213 */
 #define PCI_VENDOR_ID_ROHM			0x10db
@@ -617,6 +625,14 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 					       (unsigned int)CLKCFG_REG_OFFSET,
 					       CLKCFG_CAN_50MHZ,
 					       CLKCFG_CANCLK_MASK);
+
+		/* quirk for CM-iTC board */
+		if (strstr(dmi_get_system_info(DMI_BOARD_NAME), "CM-iTC"))
+			pch_phub_read_modify_write_reg(chip,
+						(unsigned int)CLKCFG_REG_OFFSET,
+						CLKCFG_UART_48MHZ | CLKCFG_BAUDDIV |
+						CLKCFG_PLL2VCO | CLKCFG_UARTCLKSEL,
+						CLKCFG_UART_MASK);
 
 		/* set the prefech value */
 		iowrite32(0x000affaa, chip->pch_phub_base_address + 0x14);

@@ -21,6 +21,7 @@
 #include <linux/serial_core.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/dmi.h>
 
 #include <linux/dmaengine.h>
 #include <linux/pch_dma.h>
@@ -1404,14 +1405,18 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	if (!rxbuf)
 		goto init_port_free_txbuf;
 
+	base_baud = 1843200; /* 1.8432MHz */
+
+	/* quirk for CM-iTC board */
+	if (strstr(dmi_get_system_info(DMI_BOARD_NAME), "CM-iTC"))
+		base_baud = 192000000; /* 192.0MHz */
+
 	switch (port_type) {
 	case PORT_UNKNOWN:
 		fifosize = 256; /* EG20T/ML7213: UART0 */
-		base_baud = 1843200; /* 1.8432MHz */
 		break;
 	case PORT_8250:
 		fifosize = 64; /* EG20T:UART1~3  ML7213: UART1~2*/
-		base_baud = 1843200; /* 1.8432MHz */
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid Port Type(=%d)\n", port_type);
