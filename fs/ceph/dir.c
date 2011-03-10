@@ -993,7 +993,7 @@ static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *dir;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	dir = dentry->d_parent->d_inode;
