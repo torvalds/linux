@@ -193,18 +193,20 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			u32 *itag, u32 mark)
 {
 	struct in_device *in_dev;
-	struct flowi fl = {
-		.fl4_dst = src,
-		.fl4_src = dst,
-		.fl4_tos = tos,
-		.mark = mark,
-		.iif = oif
-	};
+	struct flowi fl;
 	struct fib_result res;
 	int no_addr, rpf, accept_local;
 	bool dev_match;
 	int ret;
 	struct net *net;
+
+	fl.oif = 0;
+	fl.iif = oif;
+	fl.mark = mark;
+	fl.fl4_dst = src;
+	fl.fl4_src = dst;
+	fl.fl4_tos = tos;
+	fl.fl4_scope = RT_SCOPE_UNIVERSE;
 
 	no_addr = rpf = accept_local = 0;
 	in_dev = __in_dev_get_rcu(dev);
