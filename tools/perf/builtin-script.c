@@ -20,6 +20,38 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
 
+enum perf_output_field {
+	PERF_OUTPUT_COMM            = 1U << 0,
+	PERF_OUTPUT_TID             = 1U << 1,
+	PERF_OUTPUT_PID             = 1U << 2,
+	PERF_OUTPUT_TIME            = 1U << 3,
+	PERF_OUTPUT_CPU             = 1U << 4,
+	PERF_OUTPUT_EVNAME          = 1U << 5,
+	PERF_OUTPUT_TRACE           = 1U << 6,
+};
+
+struct output_option {
+	const char *str;
+	enum perf_output_field field;
+} all_output_options[] = {
+	{.str = "comm",  .field = PERF_OUTPUT_COMM},
+	{.str = "tid",   .field = PERF_OUTPUT_TID},
+	{.str = "pid",   .field = PERF_OUTPUT_PID},
+	{.str = "time",  .field = PERF_OUTPUT_TIME},
+	{.str = "cpu",   .field = PERF_OUTPUT_CPU},
+	{.str = "event", .field = PERF_OUTPUT_EVNAME},
+	{.str = "trace", .field = PERF_OUTPUT_TRACE},
+};
+
+/* default set to maintain compatibility with current format */
+static u64 output_fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+			   PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+			   PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE;
+
+static bool output_set_by_user;
+
+#define PRINT_FIELD(x)  (output_fields & PERF_OUTPUT_##x)
+
 static void print_sample_start(struct perf_sample *sample,
 			       struct thread *thread)
 {
@@ -28,24 +60,45 @@ static void print_sample_start(struct perf_sample *sample,
 	const char *evname = NULL;
 	unsigned long secs;
 	unsigned long usecs;
-	unsigned long long nsecs = sample->time;
+	unsigned long long nsecs;
 
-	if (latency_format)
-		printf("%8.8s-%-5d %3d", thread->comm, sample->tid, sample->cpu);
-	else
-		printf("%16s-%-5d [%03d]", thread->comm, sample->tid, sample->cpu);
+	if (PRINT_FIELD(COMM)) {
+		if (latency_format)
+			printf("%8.8s ", thread->comm);
+		else
+			printf("%16s ", thread->comm);
+	}
 
-	secs = nsecs / NSECS_PER_SEC;
-	nsecs -= secs * NSECS_PER_SEC;
-	usecs = nsecs / NSECS_PER_USEC;
-	printf(" %5lu.%06lu: ", secs, usecs);
+	if (PRINT_FIELD(PID) && PRINT_FIELD(TID))
+		printf("%5d/%-5d ", sample->pid, sample->tid);
+	else if (PRINT_FIELD(PID))
+		printf("%5d ", sample->pid);
+	else if (PRINT_FIELD(TID))
+		printf("%5d ", sample->tid);
 
-	type = trace_parse_common_type(sample->raw_data);
-	event = trace_find_event(type);
-	if (event)
-		evname = event->name;
+	if (PRINT_FIELD(CPU)) {
+		if (latency_format)
+			printf("%3d ", sample->cpu);
+		else
+			printf("[%03d] ", sample->cpu);
+	}
 
-	printf("%s: ", evname ? evname : "(unknown)");
+	if (PRINT_FIELD(TIME)) {
+		nsecs = sample->time;
+		secs = nsecs / NSECS_PER_SEC;
+		nsecs -= secs * NSECS_PER_SEC;
+		usecs = nsecs / NSECS_PER_USEC;
+		printf("%5lu.%06lu: ", secs, usecs);
+	}
+
+	if (PRINT_FIELD(EVNAME)) {
+		type = trace_parse_common_type(sample->raw_data);
+		event = trace_find_event(type);
+		if (event)
+			evname = event->name;
+
+		printf("%s: ", evname ? evname : "(unknown)");
+	}
 }
 
 static void process_event(union perf_event *event __unused,
@@ -54,7 +107,11 @@ static void process_event(union perf_event *event __unused,
 			  struct thread *thread)
 {
 	print_sample_start(sample, thread);
-	print_trace_event(sample->cpu, sample->raw_data, sample->raw_size);
+
+	if (PRINT_FIELD(TRACE))
+		print_trace_event(sample->cpu, sample->raw_data,
+				  sample->raw_size);
+
 	printf("\n");
 }
 
@@ -309,6 +366,48 @@ static int parse_scriptname(const struct option *opt __used,
 	script_name = strdup(script);
 
 	return 0;
+}
+
+static int parse_output_fields(const struct option *opt __used,
+			    const char *arg, int unset __used)
+{
+	char *tok;
+	int i, imax = sizeof(all_output_options) / sizeof(struct output_option);
+	int rc = 0;
+	char *str = strdup(arg);
+
+	if (!str)
+		return -ENOMEM;
+
+	tok = strtok(str, ",");
+	if (!tok) {
+		fprintf(stderr, "Invalid field string.");
+		return -EINVAL;
+	}
+
+	output_fields = 0;
+	while (1) {
+		for (i = 0; i < imax; ++i) {
+			if (strcmp(tok, all_output_options[i].str) == 0) {
+				output_fields |= all_output_options[i].field;
+				break;
+			}
+		}
+		if (i == imax) {
+			fprintf(stderr, "Invalid field requested.");
+			rc = -EINVAL;
+			break;
+		}
+
+		tok = strtok(NULL, ",");
+		if (!tok)
+			break;
+	}
+
+	output_set_by_user = true;
+
+	free(str);
+	return rc;
 }
 
 /* Helper function for filesystems that return a dent->d_type DT_UNKNOWN */
@@ -623,6 +722,9 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
+	OPT_CALLBACK('f', "fields", NULL, "str",
+		     "comma separated output fields. Options: comm,tid,pid,time,cpu,event,trace",
+		     parse_output_fields),
 
 	OPT_END()
 };
@@ -809,8 +911,15 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 
 	if (generate_script_lang) {
 		struct stat perf_stat;
+		int input;
 
-		int input = open(input_name, O_RDONLY);
+		if (output_set_by_user) {
+			fprintf(stderr,
+				"custom fields not supported for generated scripts");
+			return -1;
+		}
+
+		input = open(input_name, O_RDONLY);
 		if (input < 0) {
 			perror("failed to open file");
 			exit(-1);

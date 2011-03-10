@@ -112,6 +112,11 @@ OPTIONS
 --debug-mode::
         Do various checks like samples ordering and lost events.
 
+-f::
+--fields
+        Comma separated list of fields to print. Options are:
+        comm, tid, pid, time, cpu, event, trace
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
