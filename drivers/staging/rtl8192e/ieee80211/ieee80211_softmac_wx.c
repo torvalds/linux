@@ -321,7 +321,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	ieee80211_stop_send_beacons(ieee);
 
 	ieee->state = IEEE80211_LINKED_SCANNING;
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 	ieee->InitialGainHandler(ieee->dev,IG_Backup);
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
@@ -346,7 +346,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 	ieee->InitialGainHandler(ieee->dev,IG_Restore);
 	ieee->state = IEEE80211_LINKED;
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 
 #ifdef ENABLE_LPS
 	/* Notify AP that I wake up again */

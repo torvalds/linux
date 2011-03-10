@@ -2165,16 +2165,16 @@ struct ieee80211_device {
 	 * The fucntion start_scan should initiate the background
 	 * scanning and can't sleep.
 	 */
-	void (*scan_syncro)(struct net_device *dev);
-	void (*start_scan)(struct net_device *dev);
-	void (*stop_scan)(struct net_device *dev);
+	void (*scan_syncro)(struct ieee80211_device *ieee80211);
+	void (*start_scan)(struct ieee80211_device *ieee80211);
+	void (*stop_scan)(struct ieee80211_device *ieee80211);
 
 	/* indicate the driver that the link state is changed
 	 * for example it may indicate the card is associated now.
 	 * Driver might be interested in this to apply RX filter
 	 * rules or simply light the LINK led
 	 */
-	void (*link_change)(struct net_device *dev);
+	void (*link_change)(struct ieee80211_device *ieee80211);
 
 	/* these two function indicates to the HW when to start
 	 * and stop to send beacons. This is used when the

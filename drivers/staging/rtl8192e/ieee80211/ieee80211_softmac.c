@@ -601,7 +601,7 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
 		ieee80211_softmac_stop_scan(ieee);
 	else
-		ieee->stop_scan(ieee->dev);
+		ieee->stop_scan(ieee);
 }
 
 /* called with ieee->lock held */
@@ -627,7 +627,7 @@ void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 			queue_delayed_work(ieee->wq, &ieee->softmac_scan_wq, 0);
 		}
 	}else
-		ieee->start_scan(ieee->dev);
+		ieee->start_scan(ieee);
 
 }
 
@@ -647,7 +647,7 @@ void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
 		ieee80211_softmac_scan_syncro(ieee);
 	else
-		ieee->scan_syncro(ieee->dev);
+		ieee->scan_syncro(ieee);
 
 }
 
@@ -1378,7 +1378,7 @@ void ieee80211_associate_complete_wq(struct work_struct *work)
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
 	}
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 	if(ieee->is_silent_reset == 0){
 		printk("============>normal associate\n");
 	notify_wx_assoc_event(ieee);
@@ -2350,7 +2350,7 @@ void ieee80211_start_master_bss(struct ieee80211_device *ieee)
 
 	ieee->set_chan(ieee, ieee->current_network.channel);
 	ieee->state = IEEE80211_LINKED;
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 	notify_wx_assoc_event(ieee);
 
 	if (ieee->data_hard_resume)
@@ -2468,7 +2468,7 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 	ieee->state = IEEE80211_LINKED;
 
 	ieee->set_chan(ieee, ieee->current_network.channel);
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 
 	notify_wx_assoc_event(ieee);
 
@@ -2546,7 +2546,7 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 		Dot11d_Reset(ieee);
 #endif
 	ieee->is_set_key = false;
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 	if (ieee->state == IEEE80211_LINKED ||
 	    ieee->state == IEEE80211_ASSOCIATING) {
 		ieee->state = IEEE80211_NOLINK;

@@ -1464,10 +1464,9 @@ static void rtl8192_pci_resetdescring(struct r8192_priv *priv)
     }
 }
 
-static void rtl8192_link_change(struct net_device *dev)
+static void rtl8192_link_change(struct ieee80211_device *ieee)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct r8192_priv *priv = ieee80211_priv(ieee->dev);
 
 	if (ieee->state == IEEE80211_LINKED)
 	{
@@ -3322,7 +3321,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 				RemovePeerTS(priv->ieee80211,priv->ieee80211->current_network.bssid);
 				ieee->is_roaming = true;
 				ieee->is_set_key = false;
-				ieee->link_change(dev);
+				ieee->link_change(ieee);
 				queue_work(ieee->wq, &ieee->associate_procedure_wq);
 			}
 		}
