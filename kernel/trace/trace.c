@@ -779,6 +779,11 @@ __acquires(kernel_lock)
 		tracing_reset_online_cpus(tr);
 
 		current_trace = type;
+
+		/* If we expanded the buffers, make sure the max is expanded too */
+		if (ring_buffer_expanded && type->use_max_tr)
+			ring_buffer_resize(max_tr.buffer, trace_buf_size);
+
 		/* the test is responsible for initializing and enabling */
 		pr_info("Testing tracer %s: ", type->name);
 		ret = type->selftest(type, tr);
@@ -790,6 +795,10 @@ __acquires(kernel_lock)
 		}
 		/* Only reset on passing, to avoid touching corrupted buffers */
 		tracing_reset_online_cpus(tr);
+
+		/* Shrink the max buffer again */
+		if (ring_buffer_expanded && type->use_max_tr)
+			ring_buffer_resize(max_tr.buffer, 1);
 
 		printk(KERN_CONT "PASSED\n");
 	}
