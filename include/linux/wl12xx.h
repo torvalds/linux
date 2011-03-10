@@ -24,12 +24,24 @@
 #ifndef _LINUX_WL12XX_H
 #define _LINUX_WL12XX_H
 
-/* The board reference clock values */
+/* Reference clock values */
 enum {
 	WL12XX_REFCLOCK_19 = 0,	/* 19.2 MHz */
 	WL12XX_REFCLOCK_26 = 1,	/* 26 MHz */
 	WL12XX_REFCLOCK_38 = 2,	/* 38.4 MHz */
 	WL12XX_REFCLOCK_54 = 3,	/* 54 MHz */
+};
+
+/* TCXO clock values */
+enum {
+	WL12XX_TCXOCLOCK_19_2	= 0, /* 19.2MHz */
+	WL12XX_TCXOCLOCK_26	= 1, /* 26 MHz */
+	WL12XX_TCXOCLOCK_38_4	= 2, /* 38.4MHz */
+	WL12XX_TCXOCLOCK_52	= 3, /* 52 MHz */
+	WL12XX_TCXOCLOCK_16_368	= 4, /* 16.368 MHz */
+	WL12XX_TCXOCLOCK_32_736	= 5, /* 32.736 MHz */
+	WL12XX_TCXOCLOCK_16_8	= 6, /* 16.8 MHz */
+	WL12XX_TCXOCLOCK_33_6	= 7, /* 33.6 MHz */
 };
 
 struct wl12xx_platform_data {
@@ -38,6 +50,7 @@ struct wl12xx_platform_data {
 	int irq;
 	bool use_eeprom;
 	int board_ref_clock;
+	int board_tcxo_clock;
 };
 
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
