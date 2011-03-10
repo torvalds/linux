@@ -200,7 +200,8 @@ char * __init xen_memory_setup(void)
 			 * used as potential resource for I/O address (happens
 			 * when 'allocate_resource' is called).
 			 */
-			if (delta && end < 0x100000000UL)
+			if (delta &&
+				(xen_initial_domain() && end < 0x100000000ULL))
 				e820_add_region(end, delta, E820_UNUSABLE);
 		}
 
