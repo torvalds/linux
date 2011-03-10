@@ -1085,108 +1085,99 @@ err:
 //              SUCCESS
 //
 //---------------------------------------------------------------------------
-static int ft1000_copy_up_pkt (struct urb *urb)
+static int ft1000_copy_up_pkt(struct urb *urb)
 {
 	struct ft1000_info *info = urb->context;
-    struct ft1000_device *ft1000dev = info->pFt1000Dev;
-    struct net_device *net = ft1000dev->net;
+	struct ft1000_device *ft1000dev = info->pFt1000Dev;
+	struct net_device *net = ft1000dev->net;
 
-    u16 tempword;
-    u16 len;
-    u16 lena; //mbelian
-    struct sk_buff *skb;
-    u16 i;
-    u8 *pbuffer=NULL;
-    u8 *ptemp=NULL;
-    u16 *chksum;
+	u16 tempword;
+	u16 len;
+	u16 lena;		//mbelian
+	struct sk_buff *skb;
+	u16 i;
+	u8 *pbuffer = NULL;
+	u8 *ptemp = NULL;
+	u16 *chksum;
 
+	//DEBUG("ft1000_copy_up_pkt entered\n");
 
-    //DEBUG("ft1000_copy_up_pkt entered\n");
+	if (ft1000dev->status & FT1000_STATUS_CLOSING) {
+		DEBUG("network driver is closed, return\n");
+		return STATUS_SUCCESS;
+	}
+	// Read length
+	len = urb->transfer_buffer_length;
+	lena = urb->actual_length;	//mbelian
+	//DEBUG("ft1000_copy_up_pkt: transfer_buffer_length=%d, actual_buffer_len=%d\n",
+	//       urb->transfer_buffer_length, urb->actual_length);
 
-    if ( ft1000dev->status & FT1000_STATUS_CLOSING)
-    {
-        DEBUG("network driver is closed, return\n");
-        return STATUS_SUCCESS;
-    }
+	chksum = (u16 *) ft1000dev->rx_buf;
 
-    // Read length
-    len = urb->transfer_buffer_length;
-    lena = urb->actual_length; //mbelian
-    //DEBUG("ft1000_copy_up_pkt: transfer_buffer_length=%d, actual_buffer_len=%d\n",
-      //       urb->transfer_buffer_length, urb->actual_length);
+	tempword = *chksum++;
+	for (i = 1; i < 7; i++)
+		tempword ^= *chksum++;
 
-    chksum = (u16 *)ft1000dev->rx_buf;
+	if (tempword != *chksum) {
+		info->stats.rx_errors++;
+		ft1000_submit_rx_urb(info);
+		return STATUS_FAILURE;
+	}
 
-    tempword = *chksum++;
-    for (i=1; i<7; i++)
-    {
-        tempword ^= *chksum++;
-    }
+	//DEBUG("ft1000_copy_up_pkt: checksum is correct %x\n", *chksum);
 
-    if  (tempword != *chksum)
-    {
-        info->stats.rx_errors ++;
-        ft1000_submit_rx_urb(info);
-        return STATUS_FAILURE;
-    }
+	skb = dev_alloc_skb(len + 12 + 2);
 
+	if (skb == NULL) {
+		DEBUG("ft1000_copy_up_pkt: No Network buffers available\n");
+		info->stats.rx_errors++;
+		ft1000_submit_rx_urb(info);
+		return STATUS_FAILURE;
+	}
 
-    //DEBUG("ft1000_copy_up_pkt: checksum is correct %x\n", *chksum);
+	pbuffer = (u8 *) skb_put(skb, len + 12);
 
-    skb = dev_alloc_skb(len+12+2);
+	/* subtract the number of bytes read already */
+	ptemp = pbuffer;
 
-    if (skb == NULL)
-    {
-        DEBUG("ft1000_copy_up_pkt: No Network buffers available\n");
-        info->stats.rx_errors++;
-        ft1000_submit_rx_urb(info);
-        return STATUS_FAILURE;
-    }
+	/* fake MAC address */
+	*pbuffer++ = net->dev_addr[0];
+	*pbuffer++ = net->dev_addr[1];
+	*pbuffer++ = net->dev_addr[2];
+	*pbuffer++ = net->dev_addr[3];
+	*pbuffer++ = net->dev_addr[4];
+	*pbuffer++ = net->dev_addr[5];
+	*pbuffer++ = 0x00;
+	*pbuffer++ = 0x07;
+	*pbuffer++ = 0x35;
+	*pbuffer++ = 0xff;
+	*pbuffer++ = 0xff;
+	*pbuffer++ = 0xfe;
 
-    pbuffer = (u8 *)skb_put(skb, len+12);
+	memcpy(pbuffer, ft1000dev->rx_buf + sizeof(struct pseudo_hdr),
+	       len - sizeof(struct pseudo_hdr));
 
-    //subtract the number of bytes read already
-    ptemp = pbuffer;
+	//DEBUG("ft1000_copy_up_pkt: Data passed to Protocol layer\n");
+	/*for (i=0; i<len+12; i++)
+	   {
+	   DEBUG("ft1000_copy_up_pkt: Protocol Data: 0x%x\n ", *ptemp++);
+	   } */
 
-    // fake MAC address
-    *pbuffer++ = net->dev_addr[0];
-    *pbuffer++ = net->dev_addr[1];
-    *pbuffer++ = net->dev_addr[2];
-    *pbuffer++ = net->dev_addr[3];
-    *pbuffer++ = net->dev_addr[4];
-    *pbuffer++ = net->dev_addr[5];
-    *pbuffer++ = 0x00;
-    *pbuffer++ = 0x07;
-    *pbuffer++ = 0x35;
-    *pbuffer++ = 0xff;
-    *pbuffer++ = 0xff;
-    *pbuffer++ = 0xfe;
+	skb->dev = net;
 
+	skb->protocol = eth_type_trans(skb, net);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	netif_rx(skb);
 
+	info->stats.rx_packets++;
+	/* Add on 12 bytes for MAC address which was removed */
+	info->stats.rx_bytes += (lena + 12);	//mbelian
 
-
-	memcpy(pbuffer, ft1000dev->rx_buf+sizeof(struct pseudo_hdr), len-sizeof(struct pseudo_hdr));
-
-    //DEBUG("ft1000_copy_up_pkt: Data passed to Protocol layer\n");
-    /*for (i=0; i<len+12; i++)
-    {
-        DEBUG("ft1000_copy_up_pkt: Protocol Data: 0x%x\n ", *ptemp++);
-    }*/
-
-    skb->dev = net;
-
-    skb->protocol = eth_type_trans(skb, net);
-    skb->ip_summed = CHECKSUM_UNNECESSARY;
-    netif_rx(skb);
-
-    info->stats.rx_packets++;
-    // Add on 12 bytes for MAC address which was removed
-    info->stats.rx_bytes += (lena+12); //mbelian
-
-    ft1000_submit_rx_urb(info);
-    //DEBUG("ft1000_copy_up_pkt exited\n");
-    return SUCCESS;
+	ft1000_submit_rx_urb(info);
+	//DEBUG("ft1000_copy_up_pkt exited\n");
+	return SUCCESS;
 }
+
 
 //---------------------------------------------------------------------------
 //
