@@ -368,8 +368,7 @@ static int proc_get_stats_ap(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
 {
-	struct net_device *dev = data;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = data;
 	struct ieee80211_device *ieee = priv->ieee80211;
 	struct ieee80211_network *target;
 	int len = 0;
@@ -398,8 +397,7 @@ static int proc_get_registers(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
 {
-	struct net_device *dev = data;
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct r8192_priv *priv = data;
 	int len = 0;
 	int i,n;
 	int max=0xff;
@@ -451,8 +449,7 @@ static int proc_get_stats_tx(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
 {
-	struct net_device *dev = data;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = data;
 
 	int len = 0;
 
@@ -477,7 +474,7 @@ static int proc_get_stats_tx(char *page, char **start,
 		priv->stats.txbeaconokint,
 		priv->stats.txbeaconerr,
 		priv->stats.txcmdpktokint,
-		netif_queue_stopped(dev),
+		netif_queue_stopped(priv->ieee80211->dev),
 		priv->stats.txoverflow,
 		priv->ieee80211->stats.tx_packets,
 		priv->ieee80211->stats.tx_bytes);
@@ -492,9 +489,7 @@ static int proc_get_stats_rx(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
 {
-	struct net_device *dev = data;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
+	struct r8192_priv *priv = data;
 	int len = 0;
 
 	len += snprintf(page + len, count - len,
@@ -553,7 +548,7 @@ static void rtl8192_proc_init_one(struct r8192_priv *priv)
 		return;
 	}
 	e = create_proc_read_entry("stats-rx", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_rx, dev);
+				   priv->dir_dev, proc_get_stats_rx, priv);
 
 	if (!e) {
 		RT_TRACE(COMP_ERR,"Unable to initialize "
@@ -563,7 +558,7 @@ static void rtl8192_proc_init_one(struct r8192_priv *priv)
 
 
 	e = create_proc_read_entry("stats-tx", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_tx, dev);
+				   priv->dir_dev, proc_get_stats_tx, priv);
 
 	if (!e) {
 		RT_TRACE(COMP_ERR, "Unable to initialize "
@@ -572,7 +567,7 @@ static void rtl8192_proc_init_one(struct r8192_priv *priv)
 	}
 
 	e = create_proc_read_entry("stats-ap", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_ap, dev);
+				   priv->dir_dev, proc_get_stats_ap, priv);
 
 	if (!e) {
 		RT_TRACE(COMP_ERR, "Unable to initialize "
@@ -581,7 +576,7 @@ static void rtl8192_proc_init_one(struct r8192_priv *priv)
 	}
 
 	e = create_proc_read_entry("registers", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_registers, dev);
+				   priv->dir_dev, proc_get_registers, priv);
 	if (!e) {
 		RT_TRACE(COMP_ERR, "Unable to initialize "
 		      "/proc/net/rtl8192/%s/registers\n",
