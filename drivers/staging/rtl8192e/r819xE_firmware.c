@@ -25,9 +25,8 @@ enum opt_rst_type {
 	OPT_FIRMWARE_RESET = 1,
 };
 
-void firmware_init_param(struct net_device *dev)
+void firmware_init_param(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	rt_firmware *pfirmware = priv->pFirmware;
 
 	pfirmware->cmdpacket_frag_thresold =
@@ -37,10 +36,10 @@ void firmware_init_param(struct net_device *dev)
 /*
  * segment the img and use the ptr and length to remember info on each segment
  */
-static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
+static bool fw_download_code(struct r8192_priv *priv, u8 *code_virtual_address,
 			     u32 buffer_len)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct net_device *dev = priv->ieee80211->dev;
 	bool rt_status = true;
 	u16 frag_threshold;
 	u16 frag_length, frag_offset = 0;
@@ -52,7 +51,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	cb_desc *tcb_desc;
 	u8 bLastIniPkt;
 
-	firmware_init_param(dev);
+	firmware_init_param(priv);
 
 	/* Fragmentation might be required */
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
@@ -113,9 +112,8 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
  * register.  Switch to CPU register in the begin and switch
  * back before return
  */
-static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
+static bool CPUcheck_maincodeok_turnonCPU(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	unsigned long timeout;
 	bool rt_status = true;
 	u32 CPU_status = 0;
@@ -166,9 +164,8 @@ CPUCheckMainCodeOKAndTurnOnCPU_Fail:
 	return rt_status;
 }
 
-static bool CPUcheck_firmware_ready(struct net_device *dev)
+static bool CPUcheck_firmware_ready(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	unsigned long timeout;
 	bool rt_status = true;
 	u32 CPU_status = 0;
@@ -197,9 +194,8 @@ CPUCheckFirmwareReady_Fail:
 
 }
 
-bool init_firmware(struct net_device *dev)
+bool init_firmware(struct r8192_priv *priv)
 {
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool rt_status = true;
 	u32 file_length = 0;
 	u8 *mapped_file = NULL;
@@ -289,7 +285,7 @@ bool init_firmware(struct net_device *dev)
 		 * 3. each skb_buff packet data content will already include
 		 *    the firmware info and Tx descriptor info
 		 */
-		rt_status = fw_download_code(dev, mapped_file, file_length);
+		rt_status = fw_download_code(priv, mapped_file, file_length);
 		if (rt_status != TRUE)
 			goto download_firmware_fail;
 
@@ -314,7 +310,7 @@ bool init_firmware(struct net_device *dev)
 			pfirmware->firmware_status = FW_STATUS_2_MOVE_MAIN_CODE;
 
 			/* Check Put Code OK and Turn On CPU */
-			rt_status = CPUcheck_maincodeok_turnonCPU(dev);
+			rt_status = CPUcheck_maincodeok_turnonCPU(priv);
 			if (rt_status != TRUE) {
 				RT_TRACE(COMP_FIRMWARE,
 					"CPUcheck_maincodeok_turnonCPU fail!\n");
@@ -329,7 +325,7 @@ bool init_firmware(struct net_device *dev)
 			pfirmware->firmware_status = FW_STATUS_4_MOVE_DATA_CODE;
 			mdelay(1);
 
-			rt_status = CPUcheck_firmware_ready(dev);
+			rt_status = CPUcheck_firmware_ready(priv);
 			if (rt_status != TRUE) {
 				RT_TRACE(COMP_FIRMWARE,
 					"CPUcheck_firmware_ready fail(%d)!\n",

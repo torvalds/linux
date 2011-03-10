@@ -2713,7 +2713,7 @@ static RT_STATUS rtl8192_adapter_start(struct r8192_priv *priv)
 
 	//Firmware download
 	RT_TRACE(COMP_INIT, "Load Firmware!\n");
-	bfirmwareok = init_firmware(dev);
+	bfirmwareok = init_firmware(priv);
 	if(bfirmwareok != true) {
 		rtStatus = RT_STATUS_FAILURE;
 		return rtStatus;
