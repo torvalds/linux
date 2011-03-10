@@ -2971,38 +2971,31 @@ static RESET_TYPE RxCheckStuck(struct r8192_priv *priv)
 	return RESET_TYPE_NORESET;
 }
 
-static RESET_TYPE
-rtl819x_ifcheck_resetornot(struct r8192_priv *priv)
+static RESET_TYPE rtl819x_check_reset(struct r8192_priv *priv)
 {
-	RESET_TYPE	TxResetType = RESET_TYPE_NORESET;
-	RESET_TYPE	RxResetType = RESET_TYPE_NORESET;
-	RT_RF_POWER_STATE 	rfState;
+	RESET_TYPE RxResetType = RESET_TYPE_NORESET;
+	RT_RF_POWER_STATE rfState;
 
 	rfState = priv->eRFPowerState;
 
-	if( rfState != eRfOff &&
-		/*ADAPTER_TEST_STATUS_FLAG(Adapter, ADAPTER_STATUS_FW_DOWNLOAD_FAILURE)) &&*/
-		(priv->ieee80211->iw_mode != IW_MODE_ADHOC))
-	{
-		// If driver is in the status of firmware download failure , driver skips RF initialization and RF is
-		// in turned off state. Driver should check whether Rx stuck and do silent reset. And
-		// if driver is in firmware download failure status, driver should initialize RF in the following
-		// silent reset procedure Emily, 2008.01.21
-
-		// Driver should not check RX stuck in IBSS mode because it is required to
-		// set Check BSSID in order to send beacon, however, if check BSSID is
-		// set, STA cannot hear any packet a all. Emily, 2008.04.12
+	if (rfState != eRfOff && (priv->ieee80211->iw_mode != IW_MODE_ADHOC)) {
+		/*
+		 * If driver is in the status of firmware download failure,
+		 * driver skips RF initialization and RF is in turned off state.
+		 * Driver should check whether Rx stuck and do silent reset. And
+		 * if driver is in firmware download failure status, driver
+		 * should initialize RF in the following silent reset procedure
+		 *
+		 * Driver should not check RX stuck in IBSS mode because it is
+		 * required to set Check BSSID in order to send beacon, however,
+		 * if check BSSID is set, STA cannot hear any packet a all.
+		 */
 		RxResetType = RxCheckStuck(priv);
 	}
 
-	RT_TRACE(COMP_RESET,"%s(): TxResetType is %d, RxResetType is %d\n",__FUNCTION__,TxResetType,RxResetType);
-	if(TxResetType==RESET_TYPE_NORMAL || RxResetType==RESET_TYPE_NORMAL)
-		return RESET_TYPE_NORMAL;
-	else if(TxResetType==RESET_TYPE_SILENT || RxResetType==RESET_TYPE_SILENT)
-		return RESET_TYPE_SILENT;
-	else
-		return RESET_TYPE_NORESET;
+	RT_TRACE(COMP_RESET, "%s():  RxResetType is %d\n", __FUNCTION__, RxResetType);
 
+	return RxResetType;
 }
 
 #ifdef ENABLE_IPS
@@ -3341,7 +3334,7 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	if (priv->watchdog_check_reset_cnt++ >= 3 && !ieee->is_roaming && 
 	    priv->watchdog_last_time != 1)
 	{
-		ResetType = rtl819x_ifcheck_resetornot(priv);
+		ResetType = rtl819x_check_reset(priv);
 		priv->watchdog_check_reset_cnt = 3;
 	}
 	if(!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_NORMAL)
