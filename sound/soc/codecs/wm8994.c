@@ -1922,6 +1922,8 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 					    WM8994_VMID_BUF_ENA |
 					    WM8994_VMID_RAMP_MASK, 0);
 
+			wm8994->cur_fw = NULL;
+
 			pm_runtime_put(codec->dev);
 		}
 		break;
@@ -3136,6 +3138,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 			free_irq(wm8994->micdet_irq, wm8994);
 		break;
 	}
+	if (wm8994->mbc)
+		release_firmware(wm8994->mbc);
 	kfree(wm8994->retune_mobile_texts);
 	kfree(wm8994->drc_texts);
 	kfree(wm8994);

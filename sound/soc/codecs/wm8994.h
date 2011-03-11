@@ -10,6 +10,7 @@
 #define _WM8994_H
 
 #include <sound/soc.h>
+#include <linux/firmware.h>
 
 #include "wm_hubs.h"
 
@@ -114,6 +115,9 @@ struct wm8994_priv {
 
 	unsigned int aif1clk_disable:1;
 	unsigned int aif2clk_disable:1;
+
+	const struct firmware *cur_fw;
+	const struct firmware *mbc;
 };
 
 #endif
