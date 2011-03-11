@@ -119,8 +119,8 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
-						int newval)
+static inline int futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
+						int oldval, int newval)
 {
 	struct __get_user asm_ret;
 
@@ -128,7 +128,8 @@ static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
 		return -EFAULT;
 
 	asm_ret = futex_cmpxchg(uaddr, oldval, newval);
-	return asm_ret.err ? asm_ret.err : asm_ret.val;
+	*uval = asm_ret.val;
+	return asm_ret.err;
 }
 
 #ifndef __tilegx__

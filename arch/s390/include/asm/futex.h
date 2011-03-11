@@ -39,13 +39,13 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr,
+static inline int futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
 						int oldval, int newval)
 {
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	return uaccess.futex_atomic_cmpxchg(uaddr, oldval, newval);
+	return uaccess.futex_atomic_cmpxchg(uval, uaddr, oldval, newval);
 }
 
 #endif /* __KERNEL__ */

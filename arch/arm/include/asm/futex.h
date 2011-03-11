@@ -88,9 +88,10 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 }
 
 static inline int
-futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
+			      int oldval, int newval)
 {
-	int val;
+	int ret = 0, val;
 
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
@@ -99,24 +100,25 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	 * call sites. */
 
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
-	"1:	" T(ldr) "	%0, [%3]\n"
-	"	teq	%0, %1\n"
+	"1:	" T(ldr) "	%1, [%4]\n"
+	"	teq	%1, %2\n"
 	"	it	eq	@ explicit IT needed for the 2b label\n"
-	"2:	" T(streq) "	%2, [%3]\n"
+	"2:	" T(streq) "	%3, [%4]\n"
 	"3:\n"
 	"	.pushsection __ex_table,\"a\"\n"
 	"	.align	3\n"
 	"	.long	1b, 4f, 2b, 4f\n"
 	"	.popsection\n"
 	"	.pushsection .fixup,\"ax\"\n"
-	"4:	mov	%0, %4\n"
+	"4:	mov	%0, %5\n"
 	"	b	3b\n"
 	"	.popsection"
-	: "=&r" (val)
+	: "+r" (ret), "=&r" (val)
 	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
 	: "cc", "memory");
 
-	return val;
+	*uval = val;
+	return ret;
 }
 
 #endif /* !SMP */

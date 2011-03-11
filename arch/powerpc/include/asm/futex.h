@@ -82,35 +82,37 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 }
 
 static inline int
-futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
+			      int oldval, int newval)
 {
-	int prev;
+	int ret = 0, prev;
 
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
         __asm__ __volatile__ (
         PPC_RELEASE_BARRIER
-"1:     lwarx   %0,0,%2         # futex_atomic_cmpxchg_inatomic\n\
-        cmpw    0,%0,%3\n\
+"1:     lwarx   %1,0,%3         # futex_atomic_cmpxchg_inatomic\n\
+        cmpw    0,%1,%4\n\
         bne-    3f\n"
-        PPC405_ERR77(0,%2)
-"2:     stwcx.  %4,0,%2\n\
+        PPC405_ERR77(0,%3)
+"2:     stwcx.  %5,0,%3\n\
         bne-    1b\n"
         PPC_ACQUIRE_BARRIER
 "3:	.section .fixup,\"ax\"\n\
-4:	li	%0,%5\n\
+4:	li	%0,%6\n\
 	b	3b\n\
 	.previous\n\
 	.section __ex_table,\"a\"\n\
 	.align 3\n\
 	" PPC_LONG "1b,4b,2b,4b\n\
 	.previous" \
-        : "=&r" (prev), "+m" (*uaddr)
+        : "+r" (ret), "=&r" (prev), "+m" (*uaddr)
         : "r" (uaddr), "r" (oldval), "r" (newval), "i" (-EFAULT)
         : "cc", "memory");
 
-        return prev;
+	*uval = prev;
+        return ret;
 }
 
 #endif /* __KERNEL__ */

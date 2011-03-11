@@ -88,7 +88,8 @@ static inline int atomic_futex_op_xchg_xor(int oparg, int __user *uaddr,
 	return ret;
 }
 
-static inline int atomic_futex_op_cmpxchg_inatomic(int __user *uaddr,
+static inline int atomic_futex_op_cmpxchg_inatomic(int *uval,
+						   int __user *uaddr,
 						   int oldval, int newval)
 {
 	unsigned long flags;
@@ -102,10 +103,8 @@ static inline int atomic_futex_op_cmpxchg_inatomic(int __user *uaddr,
 
 	local_irq_restore(flags);
 
-	if (ret)
-		return ret;
-
-	return prev;
+	*uval = prev;
+	return ret;
 }
 
 #endif /* __ASM_SH_FUTEX_IRQ_H */

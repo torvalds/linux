@@ -354,26 +354,29 @@ int futex_atomic_op_pt(int op, int __user *uaddr, int oparg, int *old)
 	return ret;
 }
 
-static int __futex_atomic_cmpxchg_pt(int __user *uaddr, int oldval, int newval)
+static int __futex_atomic_cmpxchg_pt(int *uval, int __user *uaddr,
+				     int oldval, int newval)
 {
 	int ret;
 
 	asm volatile("0: cs   %1,%4,0(%5)\n"
-		     "1: lr   %0,%1\n"
+		     "1: la   %0,0\n"
 		     "2:\n"
 		     EX_TABLE(0b,2b) EX_TABLE(1b,2b)
 		     : "=d" (ret), "+d" (oldval), "=m" (*uaddr)
 		     : "0" (-EFAULT), "d" (newval), "a" (uaddr), "m" (*uaddr)
 		     : "cc", "memory" );
+	*uval = oldval;
 	return ret;
 }
 
-int futex_atomic_cmpxchg_pt(int __user *uaddr, int oldval, int newval)
+int futex_atomic_cmpxchg_pt(int *uval, int __user *uaddr,
+			    int oldval, int newval)
 {
 	int ret;
 
 	if (segment_eq(get_fs(), KERNEL_DS))
-		return __futex_atomic_cmpxchg_pt(uaddr, oldval, newval);
+		return __futex_atomic_cmpxchg_pt(uval, uaddr, oldval, newval);
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (int __user *) __dat_user_addr((unsigned long) uaddr);
 	if (!uaddr) {
@@ -382,7 +385,7 @@ int futex_atomic_cmpxchg_pt(int __user *uaddr, int oldval, int newval)
 	}
 	get_page(virt_to_page(uaddr));
 	spin_unlock(&current->mm->page_table_lock);
-	ret = __futex_atomic_cmpxchg_pt(uaddr, oldval, newval);
+	ret = __futex_atomic_cmpxchg_pt(uval, uaddr, oldval, newval);
 	put_page(virt_to_page(uaddr));
 	return ret;
 }

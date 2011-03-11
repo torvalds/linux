@@ -84,7 +84,7 @@ struct uaccess_ops {
 	size_t (*strnlen_user)(size_t, const char __user *);
 	size_t (*strncpy_from_user)(size_t, const char __user *, char *);
 	int (*futex_atomic_op)(int op, int __user *, int oparg, int *old);
-	int (*futex_atomic_cmpxchg)(int __user *, int old, int new);
+	int (*futex_atomic_cmpxchg)(int *, int __user *, int old, int new);
 };
 
 extern struct uaccess_ops uaccess;

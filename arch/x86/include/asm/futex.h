@@ -109,9 +109,10 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
-						int newval)
+static inline int futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
+						int oldval, int newval)
 {
+	int ret = 0;
 
 #if defined(CONFIG_X86_32) && !defined(CONFIG_X86_BSWAP)
 	/* Real i386 machines have no cmpxchg instruction */
@@ -122,18 +123,19 @@ static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	asm volatile("1:\t" LOCK_PREFIX "cmpxchgl %3, %1\n"
+	asm volatile("1:\t" LOCK_PREFIX "cmpxchgl %4, %2\n"
 		     "2:\t.section .fixup, \"ax\"\n"
-		     "3:\tmov     %2, %0\n"
+		     "3:\tmov     %3, %0\n"
 		     "\tjmp     2b\n"
 		     "\t.previous\n"
 		     _ASM_EXTABLE(1b, 3b)
-		     : "=a" (oldval), "+m" (*uaddr)
-		     : "i" (-EFAULT), "r" (newval), "0" (oldval)
+		     : "+r" (ret), "=a" (oldval), "+m" (*uaddr)
+		     : "i" (-EFAULT), "r" (newval), "1" (oldval)
 		     : "memory"
 	);
 
-	return oldval;
+	*uval = oldval;
+	return ret;
 }
 
 #endif
