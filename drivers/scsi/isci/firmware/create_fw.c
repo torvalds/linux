@@ -44,7 +44,7 @@ void set_binary_values(struct isci_orom *isci_orom)
 
 	/* setting OROM signature */
 	strncpy(isci_orom->hdr.signature, sig, strlen(sig));
-	isci_orom->hdr.version = 0x10;
+	isci_orom->hdr.version = version;
 	isci_orom->hdr.total_block_length = sizeof(struct isci_orom);
 	isci_orom->hdr.hdr_length = sizeof(struct sci_bios_oem_param_block_hdr);
 	isci_orom->hdr.num_elements = num_elements;
@@ -65,6 +65,15 @@ void set_binary_values(struct isci_orom *isci_orom)
 				(__u32)(sas_addr[ctrl_idx][phy_idx] >> 32);
 			isci_orom->ctrl[ctrl_idx].phys[phy_idx].sas_address.low =
 				(__u32)(sas_addr[ctrl_idx][phy_idx]);
+
+			isci_orom->ctrl[ctrl_idx].phys[phy_idx].afe_tx_amp_control0 =
+				afe_tx_amp_control0;
+			isci_orom->ctrl[ctrl_idx].phys[phy_idx].afe_tx_amp_control1 =
+				afe_tx_amp_control1;
+			isci_orom->ctrl[ctrl_idx].phys[phy_idx].afe_tx_amp_control2 =
+				afe_tx_amp_control2;
+			isci_orom->ctrl[ctrl_idx].phys[phy_idx].afe_tx_amp_control3 =
+				afe_tx_amp_control3;
 		}
 	}
 }

@@ -466,6 +466,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	struct isci_host *isci_host;
 	const struct firmware *fw = NULL;
 	struct isci_orom *orom;
+	char *source = "(platform)";
 
 	check_si_rev(pdev);
 
@@ -480,6 +481,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		orom = isci_request_oprom(pdev);
 
 	if (!orom) {
+		source = "(firmware)";
 		orom = isci_request_firmware(pdev, fw);
 		if (!orom) {
 			/* TODO convert this to WARN_TAINT_ONCE once the
@@ -496,9 +498,9 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 
 	if (orom)
 		dev_info(&pdev->dev,
-			 "OEM SAS parameters (version: %u.%u) loaded\n",
+			 "OEM SAS parameters (version: %u.%u) loaded %s\n",
 			 (orom->hdr.version & 0xf0) >> 4,
-			 (orom->hdr.version & 0xf));
+			 (orom->hdr.version & 0xf), source);
 
 	pci_info->orom = orom;
 

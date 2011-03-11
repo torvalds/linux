@@ -138,10 +138,7 @@ enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem_params,
 	    scu_index > orom->hdr.num_elements || !oem_params)
 		return -EINVAL;
 
-	memcpy(oem_params,
-	       &orom->ctrl[scu_index],
-	       sizeof(struct scic_sds_oem_params));
-
+	oem_params->sds1 = orom->ctrl[scu_index];
 	return 0;
 }
 

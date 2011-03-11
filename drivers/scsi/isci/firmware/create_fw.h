@@ -25,14 +25,37 @@ static const int num_elements = 2;
  * if there is a port/phy on which you do not wish to override the default
  * values, use the value assigned to UNINIT_PARAM (255).
  */
+
 /* discovery mode type (port auto config mode by default ) */
+
+/*
+ * if there is a port/phy on which you do not wish to override the default
+ * values, use the value "0000000000000000". SAS address of zero's is
+ * considered invalid and will not be used.
+ */
 #ifdef MPC
 static const int mode_type = SCIC_PORT_MANUAL_CONFIGURATION_MODE;
 static const __u8 phy_mask[2][4] = { {1, 2, 4, 8},
 				     {1, 2, 4, 8} };
+static const unsigned long long sas_addr[2][4] = { { 0x5FCFFFFFF0000001ULL,
+						     0x5FCFFFFFF0000002ULL,
+						     0x5FCFFFFFF0000003ULL,
+						     0x5FCFFFFFF0000004ULL },
+						   { 0x5FCFFFFFF0000005ULL,
+						     0x5FCFFFFFF0000006ULL,
+						     0x5FCFFFFFF0000007ULL,
+						     0x5FCFFFFFF0000008ULL } };
 #else	/* APC (default) */
 static const int mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
 static const __u8 phy_mask[2][4];
+static const unsigned long long sas_addr[2][4] = { { 0x5FCFFFFF00000001ULL,
+						     0x5FCFFFFF00000001ULL,
+						     0x5FCFFFFF00000001ULL,
+						     0x5FCFFFFF00000001ULL },
+						   { 0x5FCFFFFF00000002ULL,
+						     0x5FCFFFFF00000002ULL,
+						     0x5FCFFFFF00000002ULL,
+						     0x5FCFFFFF00000002ULL } };
 #endif
 
 /* Maximum number of concurrent device spin up */
@@ -47,22 +70,8 @@ static const unsigned int afe_tx_amp_control1 = 0x000e7c03;
 static const unsigned int afe_tx_amp_control2 = 0x000e7c03;
 static const unsigned int afe_tx_amp_control3 = 0x000e7c03;
 
-/*
- * if there is a port/phy on which you do not wish to override the default
- * values, use the value "0000000000000000". SAS address of zero's is
- * considered invalid and will not be used.
- */
-static const unsigned long long sas_addr[2][4] = { { 0x5FCFFFFFF0000000ULL,
-						     0x5FCFFFFFF1000000ULL,
-						     0x5FCFFFFFF2000000ULL,
-						     0x5FCFFFFFF3000000ULL },
-						   { 0x5FCFFFFFF4000000ULL,
-						     0x5FCFFFFFF5000000ULL,
-						     0x5FCFFFFFF6000000ULL,
-						     0x5FCFFFFFF7000000ULL } };
-
 static const char blob_name[] = "isci_firmware.bin";
 static const char sig[] = "ISCUOEMB";
-static const unsigned char version = 1;
+static const unsigned char version = 0x10;
 
 #endif

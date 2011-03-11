@@ -418,7 +418,7 @@ int isci_host_init(struct isci_host *isci_host)
 	int err = 0, i;
 	enum sci_status status;
 	struct scic_sds_controller *controller;
-	union scic_oem_parameters scic_oem_params;
+	union scic_oem_parameters oem;
 	union scic_user_parameters scic_user_params;
 	struct isci_pci_info *pci_info = to_pci_info(isci_host->pdev);
 
@@ -435,6 +435,7 @@ int isci_host_init(struct isci_host *isci_host)
 	}
 
 	isci_host->core_controller = controller;
+	sci_object_set_association(isci_host->core_controller, isci_host);
 	spin_lock_init(&isci_host->state_lock);
 	spin_lock_init(&isci_host->scic_lock);
 	spin_lock_init(&isci_host->queue_lock);
@@ -457,12 +458,6 @@ int isci_host_init(struct isci_host *isci_host)
 	isci_host->sas_ha.dev = &isci_host->pdev->dev;
 	isci_host->sas_ha.lldd_ha = isci_host;
 
-	/*----------- SCIC controller Initialization Stuff ------------------
-	 * set association host adapter struct in core controller.
-	 */
-	sci_object_set_association(isci_host->core_controller,
-				   (void *)isci_host);
-
 	/*
 	 * grab initial values stored in the controller object for OEM and USER
 	 * parameters
@@ -477,11 +472,11 @@ int isci_host_init(struct isci_host *isci_host)
 		return -ENODEV;
 	}
 
-	scic_oem_parameters_get(controller, &scic_oem_params);
+	scic_oem_parameters_get(controller, &oem);
 
 	/* grab any OEM parameters specified in orom */
 	if (pci_info->orom) {
-		status = isci_parse_oem_parameters(&scic_oem_params,
+		status = isci_parse_oem_parameters(&oem,
 						   pci_info->orom,
 						   isci_host->id);
 		if (status != SCI_SUCCESS) {
@@ -489,15 +484,14 @@ int isci_host_init(struct isci_host *isci_host)
 				 "parsing firmware oem parameters failed\n");
 			return -EINVAL;
 		}
-	} else {
-		status = scic_oem_parameters_set(isci_host->core_controller,
-						 &scic_oem_params);
-		if (status != SCI_SUCCESS) {
-			dev_warn(&isci_host->pdev->dev,
-				 "%s: scic_oem_parameters_set failed\n",
-				 __func__);
-			return -ENODEV;
-		}
+	}
+
+	status = scic_oem_parameters_set(isci_host->core_controller, &oem);
+	if (status != SCI_SUCCESS) {
+		dev_warn(&isci_host->pdev->dev,
+				"%s: scic_oem_parameters_set failed\n",
+				__func__);
+		return -ENODEV;
 	}
 
 	tasklet_init(&isci_host->completion_tasklet,

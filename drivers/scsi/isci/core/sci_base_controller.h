@@ -289,8 +289,6 @@ static inline void sci_base_controller_construct(
 	u32 mde_count,
 	struct sci_base_memory_descriptor_list *next_mdl)
 {
-	scic_base->parent.private = NULL;
-
 	sci_base_state_machine_construct(
 		&scic_base->state_machine,
 		&scic_base->parent,
