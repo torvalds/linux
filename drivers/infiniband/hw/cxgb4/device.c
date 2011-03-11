@@ -368,7 +368,6 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 static void c4iw_remove(struct c4iw_dev *dev)
 {
 	PDBG("%s c4iw_dev %p\n", __func__,  dev);
-	cancel_delayed_work_sync(&dev->db_drop_task);
 	list_del(&dev->entry);
 	if (dev->registered)
 		c4iw_unregister_device(dev);
