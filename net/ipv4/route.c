@@ -2047,7 +2047,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 	unsigned hash;
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	if (res->fi && res->fi->fib_nhs > 1 && fl->oif == 0)
+	if (res->fi && res->fi->fib_nhs > 1)
 		fib_select_multipath(fl, res);
 #endif
 
