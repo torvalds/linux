@@ -311,11 +311,6 @@ static irqreturn_t prcm_interrupt_handler (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void restore_control_register(u32 val)
-{
-	__asm__ __volatile__ ("mcr p15, 0, %0, c1, c0, 0" : : "r" (val));
-}
-
 /* Function to restore the table entry that was modified for enabling MMU */
 static void restore_table_entry(void)
 {
@@ -337,7 +332,7 @@ static void restore_table_entry(void)
 	control_reg_value = __raw_readl(scratchpad_address
 					+ OMAP343X_CONTROL_REG_VALUE_OFFSET);
 	/* This will enable caches and prediction */
-	restore_control_register(control_reg_value);
+	set_cr(control_reg_value);
 }
 
 void omap_sram_idle(void)
@@ -695,21 +690,6 @@ static void __init prcm_setup_regs(void)
 	u32 omap3630_grpsel_uart4_mask = cpu_is_omap3630() ?
 					OMAP3630_GRPSEL_UART4_MASK : 0;
 
-
-	/* XXX Reset all wkdeps. This should be done when initializing
-	 * powerdomains */
-	omap2_prm_write_mod_reg(0, OMAP3430_IVA2_MOD, PM_WKDEP);
-	omap2_prm_write_mod_reg(0, MPU_MOD, PM_WKDEP);
-	omap2_prm_write_mod_reg(0, OMAP3430_DSS_MOD, PM_WKDEP);
-	omap2_prm_write_mod_reg(0, OMAP3430_NEON_MOD, PM_WKDEP);
-	omap2_prm_write_mod_reg(0, OMAP3430_CAM_MOD, PM_WKDEP);
-	omap2_prm_write_mod_reg(0, OMAP3430_PER_MOD, PM_WKDEP);
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
-		omap2_prm_write_mod_reg(0, OMAP3430ES2_SGX_MOD, PM_WKDEP);
-		omap2_prm_write_mod_reg(0, OMAP3430ES2_USBHOST_MOD, PM_WKDEP);
-	} else
-		omap2_prm_write_mod_reg(0, GFX_MOD, PM_WKDEP);
-
 	/*
 	 * Enable interface clock autoidle for all modules.
 	 * Note that in the long run this should be done by clockfw
@@ -928,8 +908,7 @@ void omap3_pm_off_mode_enable(int enable)
 				pwrst->pwrdm == core_pwrdm &&
 				state == PWRDM_POWER_OFF) {
 			pwrst->next_state = PWRDM_POWER_RET;
-			WARN_ONCE(1,
-				"%s: Core OFF disabled due to errata i583\n",
+			pr_warn("%s: Core OFF disabled due to errata i583\n",
 				__func__);
 		} else {
 			pwrst->next_state = state;

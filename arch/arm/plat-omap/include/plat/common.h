@@ -56,10 +56,6 @@ struct omap_globals {
 	unsigned long   prm;            /* Power and Reset Management */
 	unsigned long   cm;             /* Clock Management */
 	unsigned long   cm2;
-	unsigned long	uart1_phys;
-	unsigned long	uart2_phys;
-	unsigned long	uart3_phys;
-	unsigned long	uart4_phys;
 };
 
 void omap2_set_globals_242x(void);

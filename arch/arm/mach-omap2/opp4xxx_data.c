@@ -22,6 +22,7 @@
 #include <plat/cpu.h>
 
 #include "omap_opp_data.h"
+#include "pm.h"
 
 static struct omap_opp_def __initdata omap44xx_opp_def_list[] = {
 	/* MPU OPP1 - OPP50 */
@@ -42,7 +43,7 @@ static struct omap_opp_def __initdata omap44xx_opp_def_list[] = {
 /**
  * omap4_opp_init() - initialize omap4 opp table
  */
-static int __init omap4_opp_init(void)
+int __init omap4_opp_init(void)
 {
 	int r = -ENODEV;
 
