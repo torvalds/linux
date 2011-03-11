@@ -238,7 +238,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	speed |= (cmd->speed_hi << 16);
 
 	if (IS_MF_SI(bp)) {
-		u32 param = 0, part;
+		u32 part;
 		u32 line_speed = bp->link_vars.line_speed;
 
 		/* use 10G if no link detected */
@@ -251,24 +251,22 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				       REQ_BC_VER_4_SET_MF_BW);
 			return -EINVAL;
 		}
+
 		part = (speed * 100) / line_speed;
+
 		if (line_speed < speed || !part) {
 			BNX2X_DEV_INFO("Speed setting should be in a range "
 				       "from 1%% to 100%% "
 				       "of actual line speed\n");
 			return -EINVAL;
 		}
-		/* load old values */
-		param = bp->mf_config[BP_VN(bp)];
 
-		/* leave only MIN value */
-		param &= FUNC_MF_CFG_MIN_BW_MASK;
+		if (bp->state != BNX2X_STATE_OPEN)
+			/* store value for following "load" */
+			bp->pending_max = part;
+		else
+			bnx2x_update_max_mf_config(bp, part);
 
-		/* set new MAX value */
-		param |= (part << FUNC_MF_CFG_MAX_BW_SHIFT)
-				  & FUNC_MF_CFG_MAX_BW_MASK;
-
-		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, param);
 		return 0;
 	}
 

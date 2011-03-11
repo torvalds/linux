@@ -1211,6 +1211,7 @@ struct bnx2x {
 	/* DCBX Negotation results */
 	struct dcbx_features			dcbx_local_feat;
 	u32					dcbx_error;
+	u32					pending_max;
 };
 
 /**
@@ -1616,8 +1617,8 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 /* CMNG constants, as derived from system spec calculations */
 /* default MIN rate in case VNIC min rate is configured to zero - 100Mbps */
 #define DEF_MIN_RATE					100
-/* resolution of the rate shaping timer - 100 usec */
-#define RS_PERIODIC_TIMEOUT_USEC			100
+/* resolution of the rate shaping timer - 400 usec */
+#define RS_PERIODIC_TIMEOUT_USEC			400
 /* number of bytes in single QM arbitration cycle -
  * coefficient for calculating the fairness timer */
 #define QM_ARB_BYTES					160000
