@@ -750,23 +750,6 @@ static int ivtv_s_register(struct file *file, void *fh, struct v4l2_dbg_register
 }
 #endif
 
-static int ivtv_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
-{
-	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-
-	*p = v4l2_prio_max(&itv->prio);
-
-	return 0;
-}
-
-static int ivtv_s_priority(struct file *file, void *fh, enum v4l2_priority prio)
-{
-	struct ivtv_open_id *id = fh;
-	struct ivtv *itv = id->itv;
-
-	return v4l2_prio_change(&itv->prio, &id->prio, prio);
-}
-
 static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vcap)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
@@ -1800,6 +1783,21 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
+	if (!valid_prio) {
+		switch (cmd) {
+		case VIDEO_PLAY:
+		case VIDEO_STOP:
+		case VIDEO_FREEZE:
+		case VIDEO_CONTINUE:
+		case VIDEO_COMMAND:
+		case VIDEO_SELECT_SOURCE:
+		case AUDIO_SET_MUTE:
+		case AUDIO_CHANNEL_SELECT:
+		case AUDIO_BILINGUAL_CHANNEL_SELECT:
+			return -EBUSY;
+		}
+	}
+
 	switch (cmd) {
 	case VIDIOC_INT_RESET: {
 		u32 val = *(u32 *)arg;
@@ -1837,29 +1835,7 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
-	struct ivtv_open_id *id = fh2id(filp->private_data);
 	long ret;
-
-	/* check priority */
-	switch (cmd) {
-	case VIDIOC_S_CTRL:
-	case VIDIOC_S_STD:
-	case VIDIOC_S_INPUT:
-	case VIDIOC_S_OUTPUT:
-	case VIDIOC_S_TUNER:
-	case VIDIOC_S_FREQUENCY:
-	case VIDIOC_S_FMT:
-	case VIDIOC_S_CROP:
-	case VIDIOC_S_AUDIO:
-	case VIDIOC_S_AUDOUT:
-	case VIDIOC_S_EXT_CTRLS:
-	case VIDIOC_S_FBUF:
-	case VIDIOC_S_PRIORITY:
-	case VIDIOC_OVERLAY:
-		ret = v4l2_prio_check(&itv->prio, id->prio);
-		if (ret)
-			return ret;
-	}
 
 	if (ivtv_debug & IVTV_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
@@ -1885,8 +1861,6 @@ long ivtv_v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {
 	.vidioc_querycap    		    = ivtv_querycap,
-	.vidioc_g_priority  		    = ivtv_g_priority,
-	.vidioc_s_priority  		    = ivtv_s_priority,
 	.vidioc_s_audio     		    = ivtv_s_audio,
 	.vidioc_g_audio     		    = ivtv_g_audio,
 	.vidioc_enumaudio   		    = ivtv_enumaudio,
