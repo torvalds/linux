@@ -674,7 +674,7 @@ static int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 				struct task_struct *task, int set_waiters)
 {
 	int lock_taken, ret, ownerdied = 0;
-	u32 uval, newval, curval;
+	u32 uval, newval, curval, vpid = task_pid_vnr(task);
 
 retry:
 	ret = lock_taken = 0;
@@ -684,7 +684,7 @@ retry:
 	 * (by doing a 0 -> TID atomic cmpxchg), while holding all
 	 * the locks. It will most likely not succeed.
 	 */
-	newval = task_pid_vnr(task);
+	newval = vpid;
 	if (set_waiters)
 		newval |= FUTEX_WAITERS;
 
@@ -696,7 +696,7 @@ retry:
 	/*
 	 * Detect deadlocks.
 	 */
-	if ((unlikely((curval & FUTEX_TID_MASK) == task_pid_vnr(task))))
+	if ((unlikely((curval & FUTEX_TID_MASK) == vpid)))
 		return -EDEADLK;
 
 	/*
@@ -723,7 +723,7 @@ retry:
 	 */
 	if (unlikely(ownerdied || !(curval & FUTEX_TID_MASK))) {
 		/* Keep the OWNER_DIED bit */
-		newval = (curval & ~FUTEX_TID_MASK) | task_pid_vnr(task);
+		newval = (curval & ~FUTEX_TID_MASK) | vpid;
 		ownerdied = 0;
 		lock_taken = 1;
 	}
@@ -2047,9 +2047,9 @@ static int futex_unlock_pi(u32 __user *uaddr, unsigned int flags)
 {
 	struct futex_hash_bucket *hb;
 	struct futex_q *this, *next;
-	u32 uval;
 	struct plist_head *head;
 	union futex_key key = FUTEX_KEY_INIT;
+	u32 uval, vpid = task_pid_vnr(current);
 	int ret;
 
 retry:
@@ -2058,7 +2058,7 @@ retry:
 	/*
 	 * We release only a lock we actually own:
 	 */
-	if ((uval & FUTEX_TID_MASK) != task_pid_vnr(current))
+	if ((uval & FUTEX_TID_MASK) != vpid)
 		return -EPERM;
 
 	ret = get_futex_key(uaddr, flags & FLAGS_SHARED, &key);
@@ -2074,7 +2074,7 @@ retry:
 	 * anyone else up:
 	 */
 	if (!(uval & FUTEX_OWNER_DIED))
-		uval = cmpxchg_futex_value_locked(uaddr, task_pid_vnr(current), 0);
+		uval = cmpxchg_futex_value_locked(uaddr, vpid, 0);
 
 
 	if (unlikely(uval == -EFAULT))
@@ -2083,7 +2083,7 @@ retry:
 	 * Rare case: we managed to release the lock atomically,
 	 * no need to wake anyone else up:
 	 */
-	if (unlikely(uval == task_pid_vnr(current)))
+	if (unlikely(uval == vpid))
 		goto out_unlock;
 
 	/*
