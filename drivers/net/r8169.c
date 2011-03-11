@@ -1258,16 +1258,7 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 		giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
 
 		/* The 8100e/8101e/8102e do Fast Ethernet only. */
-		if (tp->mac_version != RTL_GIGA_MAC_VER_07 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_08 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_09 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_10 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_13 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_14 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_15 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_16 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_29 &&
-		    tp->mac_version != RTL_GIGA_MAC_VER_30) {
+		if (tp->mii.supports_gmii) {
 			if (adv & ADVERTISED_1000baseT_Half)
 				giga_ctrl |= ADVERTISE_1000HALF;
 			if (adv & ADVERTISED_1000baseT_Full)
