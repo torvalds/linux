@@ -1035,7 +1035,8 @@ static int scan_check_cb(struct ubifs_info *c,
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
 	struct ubifs_lp_stats *lst = &data->lst;
-	int cat, lnum = lp->lnum, is_idx = 0, used = 0, free, dirty;
+	int cat, lnum = lp->lnum, is_idx = 0, used = 0, free, dirty, ret;
+	void *buf = NULL;
 
 	cat = lp->flags & LPROPS_CAT_MASK;
 	if (cat != LPROPS_UNCAT) {
@@ -1093,7 +1094,13 @@ static int scan_check_cb(struct ubifs_info *c,
 		}
 	}
 
-	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf, 0);
+	buf = __vmalloc(c->leb_size, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubifs_err("cannot allocate memory to scan LEB %d", lnum);
+		goto out;
+	}
+
+	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
 		/*
 		 * After an unclean unmount, empty and freeable LEBs
@@ -1105,7 +1112,8 @@ static int scan_check_cb(struct ubifs_info *c,
 			lst->empty_lebs += 1;
 			lst->total_free += c->leb_size;
 			lst->total_dark += ubifs_calc_dark(c, c->leb_size);
-			return LPT_SCAN_CONTINUE;
+			ret = LPT_SCAN_CONTINUE;
+			goto exit;
 		}
 
 		if (lp->free + lp->dirty == c->leb_size &&
@@ -1115,10 +1123,12 @@ static int scan_check_cb(struct ubifs_info *c,
 			lst->total_free  += lp->free;
 			lst->total_dirty += lp->dirty;
 			lst->total_dark  +=  ubifs_calc_dark(c, c->leb_size);
-			return LPT_SCAN_CONTINUE;
+			ret = LPT_SCAN_CONTINUE;
+			goto exit;
 		}
 		data->err = PTR_ERR(sleb);
-		return LPT_SCAN_STOP;
+		ret = LPT_SCAN_STOP;
+		goto exit;
 	}
 
 	is_idx = -1;
@@ -1236,7 +1246,10 @@ static int scan_check_cb(struct ubifs_info *c,
 	}
 
 	ubifs_scan_destroy(sleb);
-	return LPT_SCAN_CONTINUE;
+	ret = LPT_SCAN_CONTINUE;
+exit:
+	vfree(buf);
+	return ret;
 
 out_print:
 	ubifs_err("bad accounting of LEB %d: free %d, dirty %d flags %#x, "
@@ -1246,6 +1259,7 @@ out_print:
 out_destroy:
 	ubifs_scan_destroy(sleb);
 out:
+	vfree(buf);
 	data->err = -EINVAL;
 	return LPT_SCAN_STOP;
 }
