@@ -952,8 +952,6 @@ static void __devinit pxafb_overlay_init(struct pxafb_info *fbi)
 	/* mask all IU/BS/EOF/SOF interrupts */
 	lcd_writel(fbi, LCCR5, ~0);
 
-	/* place overlay(s) on top of base */
-	fbi->lccr0 |= LCCR0_OUC;
 	pr_info("PXA Overlay driver loaded successfully!\n");
 }
 
@@ -1842,6 +1840,12 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 	fbi->task_state		= (u_char)-1;
 
 	pxafb_decode_mach_info(fbi, inf);
+
+#ifdef CONFIG_FB_PXA_OVERLAY
+	/* place overlay(s) on top of base */
+	if (pxafb_overlay_supported())
+		fbi->lccr0 |= LCCR0_OUC;
+#endif
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, pxafb_task);
