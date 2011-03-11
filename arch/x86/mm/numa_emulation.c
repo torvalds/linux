@@ -301,7 +301,7 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	const u64 max_addr = max_pfn << PAGE_SHIFT;
 	u8 *phys_dist = NULL;
 	size_t phys_size = numa_dist_cnt * numa_dist_cnt * sizeof(phys_dist[0]);
-	int dfl_phys_nid;
+	int max_emu_nid, dfl_phys_nid;
 	int i, j, ret;
 
 	if (!emu_cmdline)
@@ -358,12 +358,17 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 					node_distance(i, j);
 	}
 
-	/* determine the default phys nid to use for unmapped nodes */
+	/*
+	 * Determine the max emulated nid and the default phys nid to use
+	 * for unmapped nodes.
+	 */
+	max_emu_nid = 0;
 	dfl_phys_nid = NUMA_NO_NODE;
 	for (i = 0; i < ARRAY_SIZE(emu_nid_to_phys); i++) {
 		if (emu_nid_to_phys[i] != NUMA_NO_NODE) {
-			dfl_phys_nid = emu_nid_to_phys[i];
-			break;
+			max_emu_nid = i;
+			if (dfl_phys_nid == NUMA_NO_NODE)
+				dfl_phys_nid = emu_nid_to_phys[i];
 		}
 	}
 	if (dfl_phys_nid == NUMA_NO_NODE) {
@@ -393,14 +398,10 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 		if (emu_nid_to_phys[i] == NUMA_NO_NODE)
 			emu_nid_to_phys[i] = dfl_phys_nid;
 
-	/*
-	 * Transform distance table.  numa_set_distance() ignores all
-	 * out-of-bound distances.  Just call it for every possible node
-	 * combination.
-	 */
+	/* transform distance table */
 	numa_reset_distance();
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		for (j = 0; j < MAX_NUMNODES; j++) {
+	for (i = 0; i < max_emu_nid + 1; i++) {
+		for (j = 0; j < max_emu_nid + 1; j++) {
 			int physi = emu_nid_to_phys[i];
 			int physj = emu_nid_to_phys[j];
 			int dist;
