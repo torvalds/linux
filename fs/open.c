@@ -959,6 +959,20 @@ struct file *filp_open(const char *filename, int flags, int mode)
 }
 EXPORT_SYMBOL(filp_open);
 
+struct file *file_open_root(struct dentry *dentry, struct vfsmount *mnt,
+			    const char *filename, int flags)
+{
+	struct open_flags op;
+	int lookup = build_open_flags(flags, 0, &op);
+	if (flags & O_CREAT)
+		return ERR_PTR(-EINVAL);
+	if (!filename && (flags & O_DIRECTORY))
+		if (!dentry->d_inode->i_op->lookup)
+			return ERR_PTR(-ENOTDIR);
+	return do_file_open_root(dentry, mnt, filename, &op, lookup);
+}
+EXPORT_SYMBOL(file_open_root);
+
 long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 {
 	struct open_flags op;

@@ -1487,11 +1487,13 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	nd->depth = 0;
 	if (flags & LOOKUP_ROOT) {
 		struct inode *inode = nd->root.dentry->d_inode;
-		if (!inode->i_op->lookup)
-			return -ENOTDIR;
-		retval = inode_permission(inode, MAY_EXEC);
-		if (retval)
-			return retval;
+		if (*name) {
+			if (!inode->i_op->lookup)
+				return -ENOTDIR;
+			retval = inode_permission(inode, MAY_EXEC);
+			if (retval)
+				return retval;
+		}
 		nd->path = nd->root;
 		nd->inode = inode;
 		if (flags & LOOKUP_RCU) {
@@ -1937,7 +1939,7 @@ int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	return error;
 }
 
-int may_open(struct path *path, int acc_mode, int flag)
+static int may_open(struct path *path, int acc_mode, int flag)
 {
 	struct dentry *dentry = path->dentry;
 	struct inode *inode = dentry->d_inode;
@@ -2250,11 +2252,10 @@ exit:
 }
 
 static struct file *path_openat(int dfd, const char *pathname,
-		const struct open_flags *op, int flags)
+		struct nameidata *nd, const struct open_flags *op, int flags)
 {
 	struct file *base = NULL;
 	struct file *filp;
-	struct nameidata nd;
 	struct path path;
 	int count = 0;
 	int error;
@@ -2264,27 +2265,27 @@ static struct file *path_openat(int dfd, const char *pathname,
 		return ERR_PTR(-ENFILE);
 
 	filp->f_flags = op->open_flag;
-	nd.intent.open.file = filp;
-	nd.intent.open.flags = open_to_namei_flags(op->open_flag);
-	nd.intent.open.create_mode = op->mode;
+	nd->intent.open.file = filp;
+	nd->intent.open.flags = open_to_namei_flags(op->open_flag);
+	nd->intent.open.create_mode = op->mode;
 
-	error = path_init(dfd, pathname, flags | LOOKUP_PARENT, &nd, &base);
+	error = path_init(dfd, pathname, flags | LOOKUP_PARENT, nd, &base);
 	if (unlikely(error))
 		goto out_filp;
 
 	current->total_link_count = 0;
-	error = link_path_walk(pathname, &nd);
+	error = link_path_walk(pathname, nd);
 	if (unlikely(error))
 		goto out_filp;
 
-	filp = do_last(&nd, &path, op, pathname);
+	filp = do_last(nd, &path, op, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path link = path;
 		struct inode *linki = link.dentry->d_inode;
 		void *cookie;
-		if (!(nd.flags & LOOKUP_FOLLOW) || count++ == 32) {
-			path_put_conditional(&path, &nd);
-			path_put(&nd.path);
+		if (!(nd->flags & LOOKUP_FOLLOW) || count++ == 32) {
+			path_put_conditional(&path, nd);
+			path_put(&nd->path);
 			filp = ERR_PTR(-ELOOP);
 			break;
 		}
@@ -2299,23 +2300,23 @@ static struct file *path_openat(int dfd, const char *pathname,
 		 * have to putname() it when we are done. Procfs-like symlinks
 		 * just set LAST_BIND.
 		 */
-		nd.flags |= LOOKUP_PARENT;
-		nd.flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		error = __do_follow_link(&link, &nd, &cookie);
+		nd->flags |= LOOKUP_PARENT;
+		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
+		error = __do_follow_link(&link, nd, &cookie);
 		if (unlikely(error))
 			filp = ERR_PTR(error);
 		else
-			filp = do_last(&nd, &path, op, pathname);
+			filp = do_last(nd, &path, op, pathname);
 		if (!IS_ERR(cookie) && linki->i_op->put_link)
-			linki->i_op->put_link(link.dentry, &nd, cookie);
+			linki->i_op->put_link(link.dentry, nd, cookie);
 		path_put(&link);
 	}
 out:
-	if (nd.root.mnt && !(nd.flags & LOOKUP_ROOT))
-		path_put(&nd.root);
+	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT))
+		path_put(&nd->root);
 	if (base)
 		fput(base);
-	release_open_intent(&nd);
+	release_open_intent(nd);
 	return filp;
 
 out_filp:
@@ -2326,14 +2327,37 @@ out_filp:
 struct file *do_filp_open(int dfd, const char *pathname,
 		const struct open_flags *op, int flags)
 {
+	struct nameidata nd;
 	struct file *filp;
 
-	filp = path_openat(dfd, pathname, op, flags | LOOKUP_RCU);
+	filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
-		filp = path_openat(dfd, pathname, op, flags);
+		filp = path_openat(dfd, pathname, &nd, op, flags);
 	if (unlikely(filp == ERR_PTR(-ESTALE)))
-		filp = path_openat(dfd, pathname, op, flags | LOOKUP_REVAL);
+		filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_REVAL);
 	return filp;
+}
+
+struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
+		const char *name, const struct open_flags *op, int flags)
+{
+	struct nameidata nd;
+	struct file *file;
+
+	nd.root.mnt = mnt;
+	nd.root.dentry = dentry;
+
+	flags |= LOOKUP_ROOT;
+
+	if (dentry->d_inode->i_op->follow_link)
+		return ERR_PTR(-ELOOP);
+
+	file = path_openat(-1, name, &nd, op, flags | LOOKUP_RCU);
+	if (unlikely(file == ERR_PTR(-ECHILD)))
+		file = path_openat(-1, name, &nd, op, flags);
+	if (unlikely(file == ERR_PTR(-ESTALE)))
+		file = path_openat(-1, name, &nd, op, flags | LOOKUP_REVAL);
+	return file;
 }
 
 /**
