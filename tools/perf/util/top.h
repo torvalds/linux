@@ -16,7 +16,6 @@ struct sym_entry {
 	struct list_head	node;
 	unsigned long		snap_count;
 	double			weight;
-	int			skip;
 	struct map		*map;
 	unsigned long		count[0];
 };

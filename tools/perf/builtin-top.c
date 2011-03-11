@@ -676,7 +676,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 	for (i = 0; skip_symbols[i]; i++) {
 		if (!strcmp(skip_symbols[i], name)) {
-			syme->skip = 1;
+			sym->ignore = true;
 			break;
 		}
 	}
@@ -779,7 +779,7 @@ static void perf_event__process_sample(const union perf_event *event,
 	}
 
 	syme = symbol__priv(al.sym);
-	if (!syme->skip) {
+	if (!al.sym->ignore) {
 		struct perf_evsel *evsel;
 
 		evsel = perf_evlist__id2evsel(top.evlist, sample->id);

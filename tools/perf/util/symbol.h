@@ -48,12 +48,17 @@ char *strxfrchar(char *s, char from, char to);
 
 #define BUILD_ID_SIZE 20
 
+/** struct symbol - symtab entry
+ *
+ * @ignore - resolvable but tools ignore it (e.g. idle routines)
+ */
 struct symbol {
 	struct rb_node	rb_node;
 	u64		start;
 	u64		end;
 	u16		namelen;
 	u8		binding;
+	bool		ignore;
 	char		name[0];
 };
 
