@@ -1194,16 +1194,14 @@ bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 	if (sc->sc_flags & SC_OP_INVALID)
 		return true;
 
-	/* Stop beacon queue */
-	ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+	ath9k_hw_abort_tx_dma(ah);
 
-	/* Stop data queues */
+	/* Check if any queue remains active */
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i)) {
-			txq = &sc->tx.txq[i];
-			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
-			npend += ath9k_hw_numtxpending(ah, txq->axq_qnum);
-		}
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+
+		npend += ath9k_hw_numtxpending(ah, sc->tx.txq[i].axq_qnum);
 	}
 
 	if (npend)
