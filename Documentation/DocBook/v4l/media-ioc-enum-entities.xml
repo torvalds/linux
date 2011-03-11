@@ -63,9 +63,9 @@
     <structfield>group_id</structfield> value are considered as logically
     grouped. Groups are used to report
     <itemizedlist>
-      <listitem>ALSA, VBI and video nodes that carry the same media
-      stream</listitem>
-      <listitem>lens and flash controllers associated with a sensor</listitem>
+      <listitem><para>ALSA, VBI and video nodes that carry the same media
+      stream</para></listitem>
+      <listitem><para>lens and flash controllers associated with a sensor</para></listitem>
     </itemizedlist>
     </para>
 

@@ -63,22 +63,22 @@
       <para>Those formats transfer pixel data as red, green and blue components.
       The format code is made of the following information.
       <itemizedlist>
-	<listitem>The red, green and blue components order code, as encoded in a
-	pixel sample. Possible values are RGB and BGR.</listitem>
-	<listitem>The number of bits per component, for each component. The values
-	can be different for all components. Common values are 555 and 565.
+	<listitem><para>The red, green and blue components order code, as encoded in a
+	pixel sample. Possible values are RGB and BGR.</para></listitem>
+	<listitem><para>The number of bits per component, for each component. The values
+	can be different for all components. Common values are 555 and 565.</para>
 	</listitem>
-	<listitem>The number of bus samples per pixel. Pixels that are wider than
+	<listitem><para>The number of bus samples per pixel. Pixels that are wider than
 	the bus width must be transferred in multiple samples. Common values are
-	1 and 2.</listitem>
-	<listitem>The bus width.</listitem>
-	<listitem>For formats where the total number of bits per pixel is smaller
+	1 and 2.</para></listitem>
+	<listitem><para>The bus width.</para></listitem>
+	<listitem><para>For formats where the total number of bits per pixel is smaller
 	than the number of bus samples per pixel times the bus width, a padding
 	value stating if the bytes are padded in their most high order bits
-	(PADHI) or low order bits (PADLO).</listitem>
-	<listitem>For formats where the number of bus samples per pixel is larger
+	(PADHI) or low order bits (PADLO).</para></listitem>
+	<listitem><para>For formats where the number of bus samples per pixel is larger
 	than 1, an endianness value stating if the pixel is transferred MSB first
-	(BE) or LSB first (LE).</listitem>
+	(BE) or LSB first (LE).</para></listitem>
       </itemizedlist>
       </para>
 
@@ -347,26 +347,26 @@
       <para>Those formats transfer pixel data as red, green and blue components.
       The format code is made of the following information.
       <itemizedlist>
-	<listitem>The red, green and blue components order code, as encoded in a
+	<listitem><para>The red, green and blue components order code, as encoded in a
 	pixel sample. The possible values are shown in <xref
-	linkend="bayer-patterns" />.</listitem>
-	<listitem>The number of bits per pixel component. All components are
-	transferred on the same number of bits. Common values are 8, 10 and 12.
+	linkend="bayer-patterns" />.</para></listitem>
+	<listitem><para>The number of bits per pixel component. All components are
+	transferred on the same number of bits. Common values are 8, 10 and 12.</para>
 	</listitem>
-	<listitem>If the pixel components are DPCM-compressed, a mention of the
-	DPCM compression and the number of bits per compressed pixel component.
+	<listitem><para>If the pixel components are DPCM-compressed, a mention of the
+	DPCM compression and the number of bits per compressed pixel component.</para>
 	</listitem>
-	<listitem>The number of bus samples per pixel. Pixels that are wider than
+	<listitem><para>The number of bus samples per pixel. Pixels that are wider than
 	the bus width must be transferred in multiple samples. Common values are
-	1 and 2.</listitem>
-	<listitem>The bus width.</listitem>
-	<listitem>For formats where the total number of bits per pixel is smaller
+	1 and 2.</para></listitem>
+	<listitem><para>The bus width.</para></listitem>
+	<listitem><para>For formats where the total number of bits per pixel is smaller
 	than the number of bus samples per pixel times the bus width, a padding
 	value stating if the bytes are padded in their most high order bits
-	(PADHI) or low order bits (PADLO).</listitem>
-	<listitem>For formats where the number of bus samples per pixel is larger
+	(PADHI) or low order bits (PADLO).</para></listitem>
+	<listitem><para>For formats where the number of bus samples per pixel is larger
 	than 1, an endianness value stating if the pixel is transferred MSB first
-	(BE) or LSB first (LE).</listitem>
+	(BE) or LSB first (LE).</para></listitem>
       </itemizedlist>
       </para>
 
@@ -824,19 +824,19 @@
       <para>Those data formats transfer pixel data as (possibly downsampled) Y, U
       and V components. The format code is made of the following information.
       <itemizedlist>
-	<listitem>The Y, U and V components order code, as transferred on the
-	bus. Possible values are YUYV, UYVY, YVYU and VYUY.</listitem>
-	<listitem>The number of bits per pixel component. All components are
-	transferred on the same number of bits. Common values are 8, 10 and 12.
+	<listitem><para>The Y, U and V components order code, as transferred on the
+	bus. Possible values are YUYV, UYVY, YVYU and VYUY.</para></listitem>
+	<listitem><para>The number of bits per pixel component. All components are
+	transferred on the same number of bits. Common values are 8, 10 and 12.</para>
 	</listitem>
-	<listitem>The number of bus samples per pixel. Pixels that are wider than
+	<listitem><para>The number of bus samples per pixel. Pixels that are wider than
 	the bus width must be transferred in multiple samples. Common values are
-	1, 1.5 (encoded as 1_5) and 2.</listitem>
-	<listitem>The bus width. When the bus width is larger than the number of
+	1, 1.5 (encoded as 1_5) and 2.</para></listitem>
+	<listitem><para>The bus width. When the bus width is larger than the number of
 	bits per pixel component, several components are packed in a single bus
 	sample. The components are ordered as specified by the order code, with
 	components on the left of the code transferred in the high order bits.
-	Common values are 8 and 16.
+	Common values are 8 and 16.</para>
 	</listitem>
       </itemizedlist>
       </para>

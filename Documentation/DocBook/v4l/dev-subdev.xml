@@ -23,9 +23,9 @@
   driver and the V4L2 device driver support this, sub-devices will feature a
   character device node on which ioctls can be called to
   <itemizedlist>
-    <listitem>query, read and write sub-devices controls</listitem>
-    <listitem>subscribe and unsubscribe to events and retrieve them</listitem>
-    <listitem>negotiate image formats on individual pads</listitem>
+    <listitem><para>query, read and write sub-devices controls</para></listitem>
+    <listitem><para>subscribe and unsubscribe to events and retrieve them</para></listitem>
+    <listitem><para>negotiate image formats on individual pads</para></listitem>
   </itemizedlist>
   </para>
 
@@ -67,14 +67,14 @@
   <section id="pad-level-formats">
     <title>Pad-level Formats</title>
 
-    <warning>Pad-level formats are only applicable to very complex device that
+    <warning><para>Pad-level formats are only applicable to very complex device that
     need to expose low-level format configuration to user space. Generic V4L2
     applications do <emphasis>not</emphasis> need to use the API described in
-    this section.</warning>
+    this section.</para></warning>
 
-    <note>For the purpose of this section, the term
+    <note><para>For the purpose of this section, the term
     <wordasword>format</wordasword> means the combination of media bus data
-    format, frame width and frame height.</note>
+    format, frame width and frame height.</para></note>
 
     <para>Image formats are typically negotiated on video capture and output
     devices using the <link linkend="crop">cropping and scaling</link> ioctls.
@@ -84,8 +84,8 @@
 
     <para>For complex devices, such as often found in embedded systems,
     identical image sizes at the output of a pipeline can be achieved using
-    different hardware configurations. One such exemple is shown on
-    <xref linkend="pipeline-scaling" xrefstyle="template: Figure %n" />, where
+    different hardware configurations. One such example is shown on
+    <xref linkend="pipeline-scaling" />, where
     image scaling can be performed on both the video sensor and the host image
     processing hardware.</para>
 
@@ -168,13 +168,13 @@
       modify formats as required by the device. However, they should comply with
       the following rules when possible:
       <itemizedlist>
-        <listitem>Formats should be propagated from sink pads to source pads.
+        <listitem><para>Formats should be propagated from sink pads to source pads.
 	Modifying a format on a source pad should not modify the format on any
-	sink pad.</listitem>
-        <listitem>Sub-devices that scale frames using variable scaling factors
+	sink pad.</para></listitem>
+        <listitem><para>Sub-devices that scale frames using variable scaling factors
 	should reset the scale factors to default values when sink pads formats
 	are modified. If the 1:1 scaling ratio is supported, this means that
-	source pads formats should be reset to the sink pads formats.</listitem>
+	source pads formats should be reset to the sink pads formats.</para></listitem>
       </itemizedlist>
       </para>
 
@@ -185,9 +185,9 @@
       guaranteed to be compatible. Drivers are free to accept different formats
       matching device requirements as being compatible.</para>
 
-      <para><xref linkend="sample-pipeline-config" xrefstyle="template:Table %n"/>
+      <para><xref linkend="sample-pipeline-config" />
       shows a sample configuration sequence for the pipeline described in
-      <xref linkend="pipeline-scaling" xrefstyle="template:Figure %n"/> (table
+      <xref linkend="pipeline-scaling" /> (table
       columns list entity names and pad numbers).</para>
 
       <table pgwide="0" frame="none" id="sample-pipeline-config">
@@ -248,19 +248,19 @@
 
       <para>
       <orderedlist>
-	<listitem>Initial state. The sensor output is set to its native 3MP
+	<listitem><para>Initial state. The sensor output is set to its native 3MP
 	resolution. Resolutions on the host frontend and scaler input and output
-	pads are undefined.</listitem>
-	<listitem>The application configures the frontend input pad resolution to
+	pads are undefined.</para></listitem>
+	<listitem><para>The application configures the frontend input pad resolution to
 	2048x1536. The driver propagates the format to the frontend output pad.
 	Note that the propagated output format can be different, as in this case,
 	than the input format, as the hardware might need to crop pixels (for
-	instance when converting a Bayer filter pattern to RGB or YUV).</listitem>
-	<listitem>The application configures the scaler input pad resolution to
+	instance when converting a Bayer filter pattern to RGB or YUV).</para></listitem>
+	<listitem><para>The application configures the scaler input pad resolution to
 	2046x1534 to match the frontend output resolution. The driver propagates
-	the format to the scaler output pad.</listitem>
-	<listitem>The application configures the scaler output pad resolution to
-	1280x960.</listitem>
+	the format to the scaler output pad.</para></listitem>
+	<listitem><para>The application configures the scaler output pad resolution to
+	1280x960.</para></listitem>
       </orderedlist>
       </para>
 
