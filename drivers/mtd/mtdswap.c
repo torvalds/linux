@@ -331,7 +331,7 @@ static int mtdswap_read_oob(struct mtdswap_dev *d, loff_t from,
 
 	if (ops->oobretlen < ops->ooblen) {
 		dev_warn(d->dev, "Read OOB return short read (%zd bytes not "
-			"%d) for block at %08llx\n",
+			"%zd) for block at %08llx\n",
 			ops->oobretlen, ops->ooblen, from);
 		return -EIO;
 	}
@@ -421,7 +421,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 
 	if (ops.oobretlen != ops.ooblen) {
 		dev_warn(d->dev, "Short OOB write for block at %08llx: "
-			"%zd not %d\n",
+			"%zd not %zd\n",
 			offset, ops.oobretlen, ops.ooblen);
 		return ret;
 	}
@@ -705,13 +705,13 @@ retry:
 	}
 
 	if (ret < 0) {
-		dev_err(d->dev, "Write to MTD device failed: %d (%d written)",
+		dev_err(d->dev, "Write to MTD device failed: %d (%zd written)",
 			ret, retlen);
 		goto err;
 	}
 
 	if (retlen != PAGE_SIZE) {
-		dev_err(d->dev, "Short write to MTD device: %d written",
+		dev_err(d->dev, "Short write to MTD device: %zd written",
 			retlen);
 		ret = -EIO;
 		goto err;
@@ -758,7 +758,7 @@ retry:
 	}
 
 	if (retlen != PAGE_SIZE) {
-		dev_err(d->dev, "Short read: %d (block %u)\n", retlen,
+		dev_err(d->dev, "Short read: %zd (block %u)\n", retlen,
 		       oldblock);
 		ret = -EIO;
 		goto read_error;
@@ -1188,7 +1188,7 @@ retry:
 	}
 
 	if (retlen != PAGE_SIZE) {
-		dev_err(d->dev, "Short read %d\n", retlen);
+		dev_err(d->dev, "Short read %zd\n", retlen);
 		return -EIO;
 	}
 
@@ -1304,7 +1304,7 @@ static int mtdswap_show(struct seq_file *s, void *data)
 	seq_printf(s, "discarded pages count: %llu\n", d->discard_page_count);
 
 	seq_printf(s, "\n");
-	seq_printf(s, "total pages: %lu\n", pages);
+	seq_printf(s, "total pages: %u\n", pages);
 	seq_printf(s, "pages mapped: %u\n", mapped);
 
 	return 0;
@@ -1458,7 +1458,7 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	oinfo = mtd->ecclayout;
 	if (!mtd->oobsize || !oinfo || oinfo->oobavail < MTDSWAP_OOBSIZE) {
 		printk(KERN_ERR "%s: Not enough free bytes in OOB, "
-			"%d available, %u needed.\n",
+			"%d available, %lu needed.\n",
 			MTDSWAP_PREFIX, oinfo->oobavail, MTDSWAP_OOBSIZE);
 		return;
 	}
