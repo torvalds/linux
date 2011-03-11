@@ -275,6 +275,12 @@ static unsigned long save_sp;
 #define PORT0_NORMAL_PRIO        	(0)
 #define PORT0_HIGH_PRIO             	(2)
 
+#define VCODEC_PRIO(n)                   (((n)&0x3)<<8)
+#define GPU_PRIO(n)                      (((n)&0x3)<<6)
+#define LCD_PRIO(n)                      (((n)&0x3)<<4)
+#define PERI_PRIO(n)                     (((n)&0x3)<<2)
+#define CPU_PRIO(n)                      (((n)&0x3)<<0)
+
 /* DDR Controller register struct */
 typedef volatile struct DDR_REG_Tag
 {
@@ -483,7 +489,9 @@ void __sramfunc EnterDDRSelfRefresh(void)
     pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
     pDDR_Reg->CCR |= FLUSH;    //flush
     delayus(10);
-    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x2<<27) | (0x1<<31));  //enter Self Refresh
+    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x2<<27) | (0x1<<31));  //enter Self Refresh
+    delayus(10);
+    pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1f<<19);  //reset DLL
     delayus(10);
 }
 
@@ -497,46 +505,30 @@ Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr 
 -------------------------------------------------------------------*/
 void __sramfunc ExitDDRSelfRefresh(void)
 {
-
-    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit
+	  pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1f<<19);  //de-reset DLL
+    delayus(10);     
+    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit
     delayus(10); //wait for exit self refresh dll lock
-    pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1F<<19);  //reset DLL
-    delayus(10);
-    pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1F<<19);
-    delayus(100); 
-    //pDDR_Reg->CCR |= DTT;
-    delayus(100);
+    while(1)
+    {
+        pDDR_Reg->DRR |= RD;  //auto refresh
+        pDDR_Reg->CCR |= DTT;
+        delayus(1000);
+        pDDR_Reg->DRR &= ~RD;
+        if(pDDR_Reg->CSR & (0x1<<20))
+        {
+        	  pDDR_Reg->CSR &=  ~(0x1<<20);
+        }
+        else
+        {
+            break;
+        }
+    }
     pDDR_Reg->CCR |= HOSTEN;  //enable host port
-}
-
-
-/*-------------------------------------------------------------------
-Name    : PLLGetAHBFreq
-Desc    :  get DDR frequency
-Params  :
-Return  : DDR frequency,  min is KHz
-Notes   :
--------------------------------------------------------------------*/
-static u32 PLLGetDDRFreq(void)  // ??????????????? need to check it by huangtao , Is DPLL only used by DDR?
-{
-    u32 nr;
-    u32 nf;
-    u32 no;
-    u32 div;
-    
-    nr = (((pSCU_Reg->CRU_DPLL_CON) >> 10) & 0x1F) + 1;
-    nf = (((pSCU_Reg->CRU_DPLL_CON) >> 3) & 0x7F) + 1;
-    no = (0x1 << (((pSCU_Reg->CRU_DPLL_CON) >> 1) & 0x3));
-    div = ((pSCU_Reg->CRU_CLKSEL_CON[7] >> 26) & 0x7);
-    div = 0x1 << div;
-    
-    return ((24000*nf)/(nr*no*div));
 }
 
 static void DDRPreUpdateRef(u32 MHz)
 {
-    u32 tmp;
-    
     tRFPRD = ((59*MHz) >> 3) & 0x3FFF;  // 62/8 = 7.75us
 }
 
@@ -688,30 +680,10 @@ static void DDRPreUpdateTiming(u32 MHz)
 
 static void __sramfunc StopDDR(u32 oldMHz, u32 newMHz)
 {
-    u32 value;
-    u32 memType = (pDDR_Reg->DCR & 0x3);
-    u32 cl;
+    pDDR_Reg->CCR |= FLUSH;    //flush
+    delayus(10);
+    pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
 
-    if(memType == DDRII)
-    {
-        cl = GetDDRCL(newMHz);
-
-        pDDR_Reg->CCR |= FLUSH;    //flush
-        delayus(10);
-        pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
-        
-        value = pDDR_Reg->TPR[0];
-        value &= ~((0xF<<8)|(0xF<<12));
-        pDDR_Reg->TPR[0] = value | TRP(cl) | TRCD(cl);
-        value = pDDR_Reg->TPR3;
-        value &= ~((0xF<<3)|(0xF<<7)|(0xF<<11));
-        pDDR_Reg->TPR3 = value | CL(cl) | CWL(cl-1) | WR(cl);
-        //set mode register cl
-        pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x5<<27) | (0x1<<31));  //precharge-all
-        value = pDDR_Reg->MR;
-        value &= ~((0x7<<4)|(0x7<<9));
-        pDDR_Reg->MR = value | DDR_CL(cl) | DDR2_WR(cl);        
-    }
     EnterDDRSelfRefresh();
     if(oldMHz < newMHz)  //升频
     {
@@ -725,8 +697,12 @@ static void __sramfunc StopDDR(u32 oldMHz, u32 newMHz)
     }
 }
 
-static void __sramfunc ResumeDDR(void)
+static void __sramfunc ResumeDDR(u32 newMHz)
 {
+		u32 value;
+    u32 memType = (pDDR_Reg->DCR & 0x3);
+    u32 cl;
+    
     if(bFreqRaise)  //升频
     {
         DDRUpdateRef();
@@ -736,6 +712,23 @@ static void __sramfunc ResumeDDR(void)
         DDRUpdateTiming();
     }
     ExitDDRSelfRefresh();
+    
+    if(memType == DDRII)
+    {
+        cl = GetDDRCL(newMHz);
+
+        value = pDDR_Reg->TPR[0];
+        value &= ~((0xF<<8)|(0xF<<12));
+        pDDR_Reg->TPR[0] = value | TRP(cl) | TRCD(cl);
+        value = pDDR_Reg->TPR3;
+        value &= ~((0xF<<3)|(0xF<<7)|(0xF<<11));
+        pDDR_Reg->TPR3 = value | CL(cl) | CWL(cl-1) | WR(cl);
+        //set mode register cl
+        pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x5<<27) | (0x1<<31));  //precharge-all
+        value = pDDR_Reg->MR;
+        value &= ~((0x7<<4)|(0x7<<9));
+        pDDR_Reg->MR = value | DDR_CL(cl) | DDR2_WR(cl);        
+    }
 }
 
 /*-------------------------------------------------------------------
@@ -747,11 +740,14 @@ Notes   :
 -------------------------------------------------------------------*/
 void __sramfunc PLLSetAUXFreq(u32 freq)
 {
+		u32 value;
+		
     // ddr slow
-    pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
-    pSCU_Reg->CRU_MODE_CON |= 0x0<<6;
+    value = pSCU_Reg->CRU_MODE_CON;
+    value &=~(0x3<<6);
+    pSCU_Reg->CRU_MODE_CON = value;
 
-   delayus(10);
+    delayus(10);
     
     pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15); //power down pll
     delayus(1);  //delay at least 500ns
@@ -767,13 +763,13 @@ void __sramfunc PLLSetAUXFreq(u32 freq)
             pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (43<<3) | (1<<1);  //high band 264
             break;
         case 333:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | ((56)<<3) | (1<<1);  //high band
+            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | ((54)<<3) | (1<<1);  //high band 330
             break;
         case 400:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | ((66)<<3) | (1<<1);  //high band
+            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | ((66)<<3) | (1<<1);  //high band 402
             break;
         case 533:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (43<<3) | (0<<1);  //high band
+            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (43<<3) | (0<<1);  //high band 528
             break;
     }
 	
@@ -782,20 +778,23 @@ void __sramfunc PLLSetAUXFreq(u32 freq)
     delayus(2000); // 7.2us*140=1.008ms
 
     // ddr pll normal
-    pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
-    pSCU_Reg->CRU_MODE_CON |= 0x1<<6;
+    value = pSCU_Reg->CRU_MODE_CON;
+    value &=~(0x3<<6);
+    value |= 0x1<<6;
+    pSCU_Reg->CRU_MODE_CON = value;
 
-    // ddr_pll_clk: clk_ddr=1:1 	
-    pSCU_Reg->CRU_CLKSEL_CON[7] &=~(0x1F<<24);
-    pSCU_Reg->CRU_CLKSEL_CON[7] |= (0x0 <<26)| (0x0<<24);
-
+    // ddr_pll_clk: clk_ddr=1:1 
+    value = pSCU_Reg->CRU_CLKSEL_CON[7];
+    value &=~(0x1F<<24);
+    value |= (0x0 <<26)| (0x0<<24);
+    pSCU_Reg->CRU_CLKSEL_CON[7] = value;
 }
 
 
 static void __sramfunc DDR_ChangePrior(void)
 {
-	// 2_Display(0) > 1_PERI(1) & 3_GPU(1) > 4_VCODEC(2) & 0_CPU(2)
-       pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | 0x246;
+	// 4_VCODEC(2) 3_GPU(1) 2_LCD(0) 1_PERI(1) 0_CPU(2)
+       pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | VCODEC_PRIO(2) | GPU_PRIO(1) | LCD_PRIO(0) | PERI_PRIO(1) | CPU_PRIO(2);
 }
 
 //这个函数的前提条件是:
@@ -808,7 +807,7 @@ void __sramfunc ChangeDDRFreqInSram(u32 oldMHz, u32 newMHz)
 {
     StopDDR(oldMHz, newMHz);
     PLLSetAUXFreq(newMHz);
-    ResumeDDR();
+    ResumeDDR(newMHz);
 }
 
 void __sramfunc DDRDLLSetMode(eDDRDLLMode_t DLLmode, u32 freq)
@@ -876,16 +875,16 @@ DDR_CONFIG_T    ddrConfig[3][10] = {
     },
     {
         // x32
+        {14, 4, 10, (DIO_32 | DSIZE_2Gb)},
         {13, 4, 10, (DIO_32 | DSIZE_1Gb)},
         {13, 4, 9,  (DIO_32 | DSIZE_512Mb)},
         {12, 4, 9,  (DIO_32 | DSIZE_256Mb)},
         // x16
+        {14, 4, 11, (DIO_16 | DSIZE_2Gb)},
         {14, 4, 10, (DIO_16 | DSIZE_1Gb)},
         {13, 4, 10, (DIO_16 | DSIZE_512Mb)},
         {13, 4, 9,  (DIO_16 | DSIZE_256Mb)},
         {12, 4, 9,  (DIO_16 | DSIZE_128Mb)},
-        {0,  0, 0,  0},
-        {0,  0, 0,  0},
         {0,  0, 0,  0},
     }
 };
@@ -1031,11 +1030,10 @@ void __sramfunc DDR_EnterSelfRefresh(void)
 {
     EnterDDRSelfRefresh();
 #if 1
-    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x7<<18);  //close DDR PHY clock  / DDR CPU AXI clock / DDR REG AXI clock
+    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock  / DDR CPU AXI clock / DDR REG AXI clock
     delayus(10);
     // ddr slow
     pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
-    pSCU_Reg->CRU_MODE_CON |= 0x0<<6;
     delayus(10);	
     pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15);  //power down DPLL
     delayus(10);  //delay at least 500ns
@@ -1052,15 +1050,18 @@ Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr 
 -------------------------------------------------------------------*/
 void __sramfunc DDR_ExitSelfRefresh(void)
 {
+		u32 value;
 #if 1
      pSCU_Reg->CRU_DPLL_CON &= ~(0x1 << 15);  //power on DPLL   
     //   while(!(pGRF_Reg->GRF_SOC_CON[0] & (1<<28)));
      delayus(200); // 7.2us*140=1.008ms // 锁定pll
     // ddr pll normal
-    pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
-    pSCU_Reg->CRU_MODE_CON |= 0x1<<6; 
+    value = pSCU_Reg->CRU_MODE_CON;
+    value &=~(0x3<<6);
+    value |= 0x1<<6;
+    pSCU_Reg->CRU_MODE_CON = value;
     delayus(10);	
-    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x7<<18);  //enable DDR PHY clock / DDR CPU AXI clock / DDR REG AXI clock
+    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);  //enable DDR PHY clock / DDR CPU AXI clock / DDR REG AXI clock
     delayus(10);    
 #endif
     ExitDDRSelfRefresh();
