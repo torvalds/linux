@@ -1260,6 +1260,7 @@ struct xhci_hcd {
  * There are no reports of xHCI host controllers that display this issue.
  */
 #define XHCI_STATE_DYING	(1 << 0)
+#define XHCI_STATE_HALTED	(1 << 1)
 	/* Statistics */
 	int			error_bitmask;
 	unsigned int		quirks;
