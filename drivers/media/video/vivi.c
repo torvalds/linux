@@ -31,6 +31,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 #include <media/v4l2-common.h>
 
 #define VIVI_MODULE_NAME "vivi"
@@ -199,7 +200,6 @@ struct vivi_dev {
 	enum v4l2_field		   field;
 	unsigned int		   field_count;
 
-	unsigned int		   open_count;
 	u8 			   bars[9][3];
 	u8 			   line[MAX_WIDTH * 4];
 };
@@ -996,15 +996,6 @@ static int vivi_s_ctrl(struct v4l2_ctrl *ctrl)
 	File operations for the device
    ------------------------------------------------------------------*/
 
-static int vivi_open(struct file *file)
-{
-	struct vivi_dev *dev = video_drvdata(file);
-
-	dprintk(dev, 1, "%s, %p\n", __func__, file);
-	dev->open_count++;
-	return 0;
-}
-
 static ssize_t
 vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
@@ -1033,9 +1024,9 @@ static int vivi_close(struct file *file)
 	dprintk(dev, 1, "close called (dev=%s), file %p\n",
 		video_device_node_name(vdev), file);
 
-	if (--dev->open_count == 0)
+	if (v4l2_fh_is_singular_file(file))
 		vb2_queue_release(&dev->vb_vidq);
-	return 0;
+	return v4l2_fh_release(file);
 }
 
 static int vivi_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1128,7 +1119,7 @@ static const struct v4l2_ctrl_config vivi_ctrl_string = {
 
 static const struct v4l2_file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
-	.open		= vivi_open,
+	.open		= v4l2_fh_open,
 	.release        = vivi_close,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
