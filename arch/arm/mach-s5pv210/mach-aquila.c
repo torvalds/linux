@@ -39,6 +39,7 @@
 #include <plat/fb.h>
 #include <plat/fimc-core.h>
 #include <plat/sdhci.h>
+#include <plat/s5p-time.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define AQUILA_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -646,6 +647,7 @@ static void __init aquila_map_io(void)
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(aquila_uartcfgs, ARRAY_SIZE(aquila_uartcfgs));
+	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
 
 static void __init aquila_machine_init(void)
@@ -680,5 +682,5 @@ MACHINE_START(AQUILA, "Aquila")
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= aquila_map_io,
 	.init_machine	= aquila_machine_init,
-	.timer		= &s3c24xx_timer,
+	.timer		= &s5p_timer,
 MACHINE_END

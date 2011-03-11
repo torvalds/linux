@@ -45,6 +45,7 @@
 #include <plat/pll.h>
 #include <plat/adc.h>
 #include <plat/ts.h>
+#include <plat/s5p-time.h>
 
 #define SMDK6450_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -198,6 +199,7 @@ static void __init smdk6450_map_io(void)
 	s5p_init_io(NULL, 0, S5P64X0_SYS_ID);
 	s3c24xx_init_clocks(19200000);
 	s3c24xx_init_uarts(smdk6450_uartcfgs, ARRAY_SIZE(smdk6450_uartcfgs));
+	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
 
 static void __init smdk6450_machine_init(void)
@@ -221,5 +223,5 @@ MACHINE_START(SMDK6450, "SMDK6450")
 	.init_irq	= s5p6450_init_irq,
 	.map_io		= smdk6450_map_io,
 	.init_machine	= smdk6450_machine_init,
-	.timer		= &s3c24xx_timer,
+	.timer		= &s5p_timer,
 MACHINE_END
