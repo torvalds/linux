@@ -834,6 +834,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	rcu_read_unlock();
 
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED))
+		ieee80211_recalc_ps(local, -1);
+
 	return 0;
 }
 
