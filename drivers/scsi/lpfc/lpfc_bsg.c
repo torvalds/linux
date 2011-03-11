@@ -2479,16 +2479,18 @@ lpfc_bsg_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 
 	from = (uint8_t *)dd_data->context_un.mbox.mb;
 	job = dd_data->context_un.mbox.set_job;
-	size = job->reply_payload.payload_len;
-	job->reply->reply_payload_rcv_len =
-		sg_copy_from_buffer(job->reply_payload.sg_list,
-				job->reply_payload.sg_cnt,
-				from, size);
-	job->reply->result = 0;
+	if (job) {
+		size = job->reply_payload.payload_len;
+		job->reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(job->reply_payload.sg_list,
+					job->reply_payload.sg_cnt,
+					from, size);
+		job->reply->result = 0;
 
+		job->dd_data = NULL;
+		job->job_done(job);
+	}
 	dd_data->context_un.mbox.set_job = NULL;
-	job->dd_data = NULL;
-	job->job_done(job);
 	/* need to hold the lock until we call job done to hold off
 	 * the timeout handler returning to the midlayer while
 	 * we are stillprocessing the job
