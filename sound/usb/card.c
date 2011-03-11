@@ -586,6 +586,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
 	struct list_head *p;
 	struct snd_usb_stream *as;
+	struct usb_mixer_interface *mixer;
 
 	if (chip == (void *)-1L)
 		return 0;
@@ -596,6 +597,10 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 			as = list_entry(p, struct snd_usb_stream, list);
 			snd_pcm_suspend_all(as->pcm);
 		}
+
+		list_for_each_entry(mixer, &chip->mixer_list, list) {
+			snd_usb_mixer_inactivate(mixer);
+		}
 	}
 
 	return 0;
@@ -604,6 +609,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 static int usb_audio_resume(struct usb_interface *intf)
 {
 	struct snd_usb_audio *chip = usb_get_intfdata(intf);
+	struct usb_mixer_interface *mixer;
 
 	if (chip == (void *)-1L)
 		return 0;
@@ -611,8 +617,10 @@ static int usb_audio_resume(struct usb_interface *intf)
 		return 0;
 	/*
 	 * ALSA leaves material resumption to user space
-	 * we just notify
+	 * we just notify and restart the mixers
 	 */
+	list_for_each_entry(mixer, &chip->mixer_list, list)
+		snd_usb_mixer_activate(mixer);
 
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D0);
 

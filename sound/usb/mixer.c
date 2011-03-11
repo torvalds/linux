@@ -2075,8 +2075,9 @@ static void snd_usb_mixer_interrupt(struct urb *urb)
 {
 	struct usb_mixer_interface *mixer = urb->context;
 	int len = urb->actual_length;
+	int ustatus = urb->status;
 
-	if (urb->status != 0)
+	if (ustatus != 0)
 		goto requeue;
 
 	if (mixer->protocol == UAC_VERSION_1) {
@@ -2117,10 +2118,30 @@ static void snd_usb_mixer_interrupt(struct urb *urb)
 	}
 
 requeue:
-	if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
+	if (ustatus != -ENOENT && ustatus != -ECONNRESET && ustatus != -ESHUTDOWN) {
 		urb->dev = mixer->chip->dev;
 		usb_submit_urb(urb, GFP_ATOMIC);
 	}
+}
+
+/* stop any bus activity of a mixer */
+void snd_usb_mixer_inactivate(struct usb_mixer_interface *mixer)
+{
+	usb_kill_urb(mixer->urb);
+	usb_kill_urb(mixer->rc_urb);
+}
+
+int snd_usb_mixer_activate(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	if (mixer->urb) {
+		err = usb_submit_urb(mixer->urb, GFP_NOIO);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 /* create the handler for the optional status interrupt endpoint */
