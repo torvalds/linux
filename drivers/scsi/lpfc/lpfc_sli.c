@@ -6311,7 +6311,6 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
-			sgl->word2 = cpu_to_le32(sgl->word2);
 			/* swap the size field back to the cpu so we
 			 * can assign it to the sgl.
 			 */
@@ -6331,6 +6330,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				bf_set(lpfc_sli4_sge_offset, sgl, offset);
 				offset += bde.tus.f.bdeSize;
 			}
+			sgl->word2 = cpu_to_le32(sgl->word2);
 			bpl++;
 			sgl++;
 		}
@@ -6576,9 +6576,9 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		numBdes = iocbq->iocb.un.genreq64.bdl.bdeSize /
 			sizeof(struct ulp_bde64);
 		for (i = 0; i < numBdes; i++) {
-			if (bpl[i].tus.f.bdeFlags != BUFF_TYPE_BDE_64)
-				break;
 			bde.tus.w = le32_to_cpu(bpl[i].tus.w);
+			if (bde.tus.f.bdeFlags != BUFF_TYPE_BDE_64)
+				break;
 			xmit_len += bde.tus.f.bdeSize;
 		}
 		/* word3 iocb=IO_TAG wqe=request_payload_len */
@@ -6668,15 +6668,15 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		xritag = 0;
 	break;
 	case CMD_XMIT_BLS_RSP64_CX:
-		/* As BLS ABTS-ACC WQE is very different from other WQEs,
+		/* As BLS ABTS RSP WQE is very different from other WQEs,
 		 * we re-construct this WQE here based on information in
 		 * iocbq from scratch.
 		 */
 		memset(wqe, 0, sizeof(union lpfc_wqe));
 		/* OX_ID is invariable to who sent ABTS to CT exchange */
 		bf_set(xmit_bls_rsp64_oxid, &wqe->xmit_bls_rsp,
-		       bf_get(lpfc_abts_oxid, &iocbq->iocb.un.bls_acc));
-		if (bf_get(lpfc_abts_orig, &iocbq->iocb.un.bls_acc) ==
+		       bf_get(lpfc_abts_oxid, &iocbq->iocb.un.bls_rsp));
+		if (bf_get(lpfc_abts_orig, &iocbq->iocb.un.bls_rsp) ==
 		    LPFC_ABTS_UNSOL_INT) {
 			/* ABTS sent by initiator to CT exchange, the
 			 * RX_ID field will be filled with the newly
@@ -6690,7 +6690,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 			 * RX_ID from ABTS.
 			 */
 			bf_set(xmit_bls_rsp64_rxid, &wqe->xmit_bls_rsp,
-			       bf_get(lpfc_abts_rxid, &iocbq->iocb.un.bls_acc));
+			       bf_get(lpfc_abts_rxid, &iocbq->iocb.un.bls_rsp));
 		}
 		bf_set(xmit_bls_rsp64_seqcnthi, &wqe->xmit_bls_rsp, 0xffff);
 		bf_set(wqe_xmit_bls_pt, &wqe->xmit_bls_rsp.wqe_dest, 0x1);
@@ -6701,6 +6701,15 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		       LPFC_WQE_LENLOC_NONE);
 		/* Overwrite the pre-set comnd type with OTHER_COMMAND */
 		command_type = OTHER_COMMAND;
+		if (iocbq->iocb.un.xseq64.w5.hcsw.Rctl == FC_RCTL_BA_RJT) {
+			bf_set(xmit_bls_rsp64_rjt_vspec, &wqe->xmit_bls_rsp,
+			       bf_get(lpfc_vndr_code, &iocbq->iocb.un.bls_rsp));
+			bf_set(xmit_bls_rsp64_rjt_expc, &wqe->xmit_bls_rsp,
+			       bf_get(lpfc_rsn_expln, &iocbq->iocb.un.bls_rsp));
+			bf_set(xmit_bls_rsp64_rjt_rsnc, &wqe->xmit_bls_rsp,
+			       bf_get(lpfc_rsn_code, &iocbq->iocb.un.bls_rsp));
+		}
+
 	break;
 	case CMD_XRI_ABORTED_CX:
 	case CMD_CREATE_XRI_CR: /* Do we expect to use this? */
@@ -6749,7 +6758,8 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 
 	if (piocb->sli4_xritag == NO_XRI) {
 		if (piocb->iocb.ulpCommand == CMD_ABORT_XRI_CN ||
-		    piocb->iocb.ulpCommand == CMD_CLOSE_XRI_CN)
+		    piocb->iocb.ulpCommand == CMD_CLOSE_XRI_CN ||
+		    piocb->iocb.ulpCommand == CMD_XMIT_BLS_RSP64_CX)
 			sglq = NULL;
 		else {
 			if (pring->txq_cnt) {
@@ -11740,6 +11750,7 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	static char *rctl_names[] = FC_RCTL_NAMES_INIT;
 	char *type_names[] = FC_TYPE_NAMES_INIT;
 	struct fc_vft_header *fc_vft_hdr;
+	uint32_t *header = (uint32_t *) fc_hdr;
 
 	switch (fc_hdr->fh_r_ctl) {
 	case FC_RCTL_DD_UNCAT:		/* uncategorized information */
@@ -11788,10 +11799,15 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	default:
 		goto drop;
 	}
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"2538 Received frame rctl:%s type:%s\n",
+			"2538 Received frame rctl:%s type:%s "
+			"Frame Data:%08x %08x %08x %08x %08x %08x\n",
 			rctl_names[fc_hdr->fh_r_ctl],
-			type_names[fc_hdr->fh_type]);
+			type_names[fc_hdr->fh_type],
+			be32_to_cpu(header[0]), be32_to_cpu(header[1]),
+			be32_to_cpu(header[2]), be32_to_cpu(header[3]),
+			be32_to_cpu(header[4]), be32_to_cpu(header[5]));
 	return 0;
 drop:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
@@ -12088,17 +12104,17 @@ lpfc_sli4_abort_partial_seq(struct lpfc_vport *vport,
 }
 
 /**
- * lpfc_sli4_seq_abort_acc_cmpl - Accept seq abort iocb complete handler
+ * lpfc_sli4_seq_abort_rsp_cmpl - BLS ABORT RSP seq abort iocb complete handler
  * @phba: Pointer to HBA context object.
  * @cmd_iocbq: pointer to the command iocbq structure.
  * @rsp_iocbq: pointer to the response iocbq structure.
  *
- * This function handles the sequence abort accept iocb command complete
+ * This function handles the sequence abort response iocb command complete
  * event. It properly releases the memory allocated to the sequence abort
  * accept iocb.
  **/
 static void
-lpfc_sli4_seq_abort_acc_cmpl(struct lpfc_hba *phba,
+lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
 			     struct lpfc_iocbq *cmd_iocbq,
 			     struct lpfc_iocbq *rsp_iocbq)
 {
@@ -12107,15 +12123,15 @@ lpfc_sli4_seq_abort_acc_cmpl(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_seq_abort_acc - Accept sequence abort
+ * lpfc_sli4_seq_abort_rsp - bls rsp to sequence abort
  * @phba: Pointer to HBA context object.
  * @fc_hdr: pointer to a FC frame header.
  *
- * This function sends a basic accept to a previous unsol sequence abort
+ * This function sends a basic response to a previous unsol sequence abort
  * event after aborting the sequence handling.
  **/
 static void
-lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
+lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 			struct fc_frame_header *fc_hdr)
 {
 	struct lpfc_iocbq *ctiocb = NULL;
@@ -12123,6 +12139,7 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 	uint16_t oxid, rxid;
 	uint32_t sid, fctl;
 	IOCB_t *icmd;
+	int rc;
 
 	if (!lpfc_is_link_up(phba))
 		return;
@@ -12143,7 +12160,7 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 		+ phba->sli4_hba.max_cfg_param.xri_base))
 		lpfc_set_rrq_active(phba, ndlp, rxid, oxid, 0);
 
-	/* Allocate buffer for acc iocb */
+	/* Allocate buffer for rsp iocb */
 	ctiocb = lpfc_sli_get_iocbq(phba);
 	if (!ctiocb)
 		return;
@@ -12168,32 +12185,54 @@ lpfc_sli4_seq_abort_acc(struct lpfc_hba *phba,
 
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->vport = phba->pport;
-	ctiocb->iocb_cmpl = lpfc_sli4_seq_abort_acc_cmpl;
+	ctiocb->iocb_cmpl = lpfc_sli4_seq_abort_rsp_cmpl;
+	ctiocb->sli4_xritag = NO_XRI;
+
+	/* If the oxid maps to the FCP XRI range or if it is out of range,
+	 * send a BLS_RJT.  The driver no longer has that exchange.
+	 * Override the IOCB for a BA_RJT.
+	 */
+	if (oxid > (phba->sli4_hba.max_cfg_param.max_xri +
+		    phba->sli4_hba.max_cfg_param.xri_base) ||
+	    oxid > (lpfc_sli4_get_els_iocb_cnt(phba) +
+		    phba->sli4_hba.max_cfg_param.xri_base)) {
+		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
+		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);
+		bf_set(lpfc_rsn_expln, &icmd->un.bls_rsp, FC_BA_RJT_INV_XID);
+		bf_set(lpfc_rsn_code, &icmd->un.bls_rsp, FC_BA_RJT_UNABLE);
+	}
 
 	if (fctl & FC_FC_EX_CTX) {
 		/* ABTS sent by responder to CT exchange, construction
 		 * of BA_ACC will use OX_ID from ABTS for the XRI_TAG
 		 * field and RX_ID from ABTS for RX_ID field.
 		 */
-		bf_set(lpfc_abts_orig, &icmd->un.bls_acc, LPFC_ABTS_UNSOL_RSP);
-		bf_set(lpfc_abts_rxid, &icmd->un.bls_acc, rxid);
-		ctiocb->sli4_xritag = oxid;
+		bf_set(lpfc_abts_orig, &icmd->un.bls_rsp, LPFC_ABTS_UNSOL_RSP);
+		bf_set(lpfc_abts_rxid, &icmd->un.bls_rsp, rxid);
 	} else {
 		/* ABTS sent by initiator to CT exchange, construction
 		 * of BA_ACC will need to allocate a new XRI as for the
 		 * XRI_TAG and RX_ID fields.
 		 */
-		bf_set(lpfc_abts_orig, &icmd->un.bls_acc, LPFC_ABTS_UNSOL_INT);
-		bf_set(lpfc_abts_rxid, &icmd->un.bls_acc, NO_XRI);
-		ctiocb->sli4_xritag = NO_XRI;
+		bf_set(lpfc_abts_orig, &icmd->un.bls_rsp, LPFC_ABTS_UNSOL_INT);
+		bf_set(lpfc_abts_rxid, &icmd->un.bls_rsp, NO_XRI);
 	}
-	bf_set(lpfc_abts_oxid, &icmd->un.bls_acc, oxid);
+	bf_set(lpfc_abts_oxid, &icmd->un.bls_rsp, oxid);
 
-	/* Xmit CT abts accept on exchange <xid> */
+	/* Xmit CT abts response on exchange <xid> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"1200 Xmit CT ABTS ACC on exchange x%x Data: x%x\n",
-			CMD_XMIT_BLS_RSP64_CX, phba->link_state);
-	lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
+			"1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
+			icmd->un.xseq64.w5.hcsw.Rctl, oxid, phba->link_state);
+
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
+	if (rc == IOCB_ERROR) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+				"2925 Failed to issue CT ABTS RSP x%x on "
+				"xri x%x, Data x%x\n",
+				icmd->un.xseq64.w5.hcsw.Rctl, oxid,
+				phba->link_state);
+		lpfc_sli_release_iocbq(phba, ctiocb);
+	}
 }
 
 /**
@@ -12241,7 +12280,7 @@ lpfc_sli4_handle_unsol_abort(struct lpfc_vport *vport,
 			lpfc_in_buf_free(phba, &dmabuf->dbuf);
 	}
 	/* Send basic accept (BA_ACC) to the abort requester */
-	lpfc_sli4_seq_abort_acc(phba, &fc_hdr);
+	lpfc_sli4_seq_abort_rsp(phba, &fc_hdr);
 }
 
 /**
