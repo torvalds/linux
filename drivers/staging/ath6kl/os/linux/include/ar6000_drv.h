@@ -550,7 +550,7 @@ typedef struct ar6_softc {
     bool                  arNetQueueStopped;
     bool                  arRawIfInit;
     int                     arDeviceIndex;
-    COMMON_CREDIT_STATE_INFO arCreditStateInfo;
+    struct common_credit_state_info arCreditStateInfo;
     bool                  arWMIControlEpFull;
     bool                  dbgLogFetchInProgress;
     u8                 log_buffer[DBGLOG_HOST_LOG_BUFFER_SIZE];

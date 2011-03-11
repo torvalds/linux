@@ -29,12 +29,12 @@
 /* structure that is the state information for the default credit distribution callback
  * drivers should instantiate (zero-init as well) this structure in their driver instance
  * and pass it as a context to the HTC credit distribution functions */
-typedef struct _COMMON_CREDIT_STATE_INFO {
+struct common_credit_state_info {
     int TotalAvailableCredits;      /* total credits in the system at startup */
     int CurrentFreeCredits;         /* credits available in the pool that have not been
                                        given out to endpoints */
     HTC_ENDPOINT_CREDIT_DIST *pLowestPriEpDist;  /* pointer to the lowest priority endpoint dist struct */
-} COMMON_CREDIT_STATE_INFO;
+};
 
 typedef struct {
     s32 (*setupTransport)(void *ar);
@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 /* OS-independent APIs */
-int ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, COMMON_CREDIT_STATE_INFO *pCredInfo);
+int ar6000_setup_credit_dist(HTC_HANDLE HTCHandle, struct common_credit_state_info *pCredInfo);
 
 int ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
 
