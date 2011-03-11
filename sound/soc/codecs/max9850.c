@@ -118,7 +118,7 @@ static int max9850_hw_params(struct snd_pcm_substream *substream,
 	u64 lrclk_div;
 	u8 sf, da;
 
-	if(!max9850->sysclk)
+	if (!max9850->sysclk)
 		return -EINVAL;
 
 	/* lrclk_div = 2^22 * rate / iclk with iclk = mclk / sf */
