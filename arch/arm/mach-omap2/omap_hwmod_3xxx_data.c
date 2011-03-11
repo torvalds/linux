@@ -23,7 +23,6 @@
 #include <plat/i2c.h>
 #include <plat/gpio.h>
 #include <plat/mmc.h>
-#include <plat/smartreflex.h>
 #include <plat/mcbsp.h>
 #include <plat/mcspi.h>
 #include <plat/dmtimer.h>
