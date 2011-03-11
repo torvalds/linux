@@ -537,7 +537,7 @@ int DevWaitForPendingRecv(struct ar6k_device *pDev,u32 TimeoutInMs,bool *pbIsRec
 }
 
 void DevDumpRegisters(struct ar6k_device               *pDev,
-                      AR6K_IRQ_PROC_REGISTERS   *pIrqProcRegs,
+                      struct ar6k_irq_proc_registers   *pIrqProcRegs,
                       struct ar6k_irq_enable_registers *pIrqEnableRegs)
 {
 

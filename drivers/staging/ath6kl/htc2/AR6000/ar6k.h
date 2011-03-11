@@ -43,7 +43,7 @@
 //#define MBOXHW_UNIT_TEST 1
 
 #include "athstartpack.h"
-typedef PREPACK struct _AR6K_IRQ_PROC_REGISTERS {
+PREPACK struct ar6k_irq_proc_registers {
     u8 host_int_status;
     u8 cpu_int_status;
     u8 error_int_status;
@@ -54,9 +54,9 @@ typedef PREPACK struct _AR6K_IRQ_PROC_REGISTERS {
     u8 gmbox_rx_avail;
     u32 rx_lookahead[2];
     u32 rx_gmbox_lookahead_alias[2];
-} POSTPACK AR6K_IRQ_PROC_REGISTERS;
+} POSTPACK;
 
-#define AR6K_IRQ_PROC_REGS_SIZE sizeof(AR6K_IRQ_PROC_REGISTERS)
+#define AR6K_IRQ_PROC_REGS_SIZE sizeof(struct ar6k_irq_proc_registers)
 
 PREPACK struct ar6k_irq_enable_registers {
     u8 int_status_enable;
@@ -108,7 +108,7 @@ struct ar6k_gmbox_info {
 struct ar6k_device {
     A_MUTEX_T                   Lock;
     u8 _Pad1[A_CACHE_LINE_PAD];
-    AR6K_IRQ_PROC_REGISTERS     IrqProcRegisters;   /* cache-line safe with pads around */
+    struct ar6k_irq_proc_registers     IrqProcRegisters;   /* cache-line safe with pads around */
     u8 _Pad2[A_CACHE_LINE_PAD];
     struct ar6k_irq_enable_registers   IrqEnableRegisters; /* cache-line safe with pads around */
     u8 _Pad3[A_CACHE_LINE_PAD];
@@ -159,7 +159,7 @@ int DevDsrHandler(void *context);
 int DevCheckPendingRecvMsgsAsync(void *context);
 void     DevAsyncIrqProcessComplete(struct ar6k_device *pDev);
 void     DevDumpRegisters(struct ar6k_device               *pDev,
-                          AR6K_IRQ_PROC_REGISTERS   *pIrqProcRegs,
+                          struct ar6k_irq_proc_registers   *pIrqProcRegs,
                           struct ar6k_irq_enable_registers *pIrqEnableRegs);
 
 #define DEV_STOP_RECV_ASYNC true

@@ -331,7 +331,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
             }
         } else {
                 /* standard interrupt table handling.... */
-            AR6K_IRQ_PROC_REGISTERS *pReg = (AR6K_IRQ_PROC_REGISTERS *)pPacket->pBuffer;
+            struct ar6k_irq_proc_registers *pReg = (struct ar6k_irq_proc_registers *)pPacket->pBuffer;
             u8 host_int_status;
 
             host_int_status = pReg->host_int_status & pDev->IrqEnableRegisters.int_status_enable;
@@ -748,7 +748,7 @@ void DumpAR6KDevState(struct ar6k_device *pDev)
 {
     int                    status;
     struct ar6k_irq_enable_registers   regs;
-    AR6K_IRQ_PROC_REGISTERS     procRegs;
+    struct ar6k_irq_proc_registers     procRegs;
 
     LOCK_AR6K(pDev);
         /* copy into our temp area */

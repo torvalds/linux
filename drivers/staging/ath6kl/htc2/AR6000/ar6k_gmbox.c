@@ -638,7 +638,7 @@ int DevGMboxRecvLookAheadPeek(struct ar6k_device *pDev, u8 *pLookAheadBuffer, in
 {
 
     int                    status = 0;
-    AR6K_IRQ_PROC_REGISTERS     procRegs;
+    struct ar6k_irq_proc_registers     procRegs;
     int                         maxCopy;
   
     do {
