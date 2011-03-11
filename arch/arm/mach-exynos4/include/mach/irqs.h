@@ -131,6 +131,7 @@
 #define IRQ_MCT_L0		COMBINER_IRQ(51, 0)
 
 #define IRQ_WDT			COMBINER_IRQ(53, 0)
+#define IRQ_MCT_G0		COMBINER_IRQ(53, 4)
 
 #define MAX_COMBINER_NR		54
 
