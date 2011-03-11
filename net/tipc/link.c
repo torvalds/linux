@@ -2423,9 +2423,6 @@ static int link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 	else
 		destaddr = msg_destnode(inmsg);
 
-	if (msg_routed(inmsg))
-		msg_set_prevnode(inmsg, tipc_own_addr);
-
 	/* Prepare reusable fragment header: */
 
 	tipc_msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,

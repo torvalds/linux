@@ -192,8 +192,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE %u", msg_type(msg));
 		}
-		if (msg_routed(msg) && !msg_non_seq(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):",
 				    msg_reroute_cnt(msg));
@@ -210,8 +208,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN:%x", msg_type(msg));
 		}
-		if (msg_routed(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):",
 				    msg_reroute_cnt(msg));
@@ -232,8 +228,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));
 		}
-		if (msg_routed(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):", msg_reroute_cnt(msg));
 		break;

@@ -421,13 +421,6 @@ static inline int msg_is_dest(struct tipc_msg *m, u32 d)
 	return msg_short(m) || (msg_destnode(m) == d);
 }
 
-static inline u32 msg_routed(struct tipc_msg *m)
-{
-	if (likely(msg_short(m)))
-		return 0;
-	return (msg_destnode(m) ^ msg_orignode(m)) >> 11;
-}
-
 static inline u32 msg_nametype(struct tipc_msg *m)
 {
 	return msg_word(m, 8);
