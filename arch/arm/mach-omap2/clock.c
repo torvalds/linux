@@ -261,10 +261,11 @@ void omap2_clk_disable(struct clk *clk)
 
 	pr_debug("clock: %s: disabling in hardware\n", clk->name);
 
-	clk->ops->disable(clk);
+	if (clk->ops && clk->ops->disable)
+		clk->ops->disable(clk);
 
 	if (clk->clkdm)
-		omap2_clkdm_clk_disable(clk->clkdm, clk);
+		clkdm_clk_disable(clk->clkdm, clk);
 
 	if (clk->parent)
 		omap2_clk_disable(clk->parent);
@@ -304,7 +305,7 @@ int omap2_clk_enable(struct clk *clk)
 	}
 
 	if (clk->clkdm) {
-		ret = omap2_clkdm_clk_enable(clk->clkdm, clk);
+		ret = clkdm_clk_enable(clk->clkdm, clk);
 		if (ret) {
 			WARN(1, "clock: %s: could not enable clockdomain %s: "
 			     "%d\n", clk->name, clk->clkdm->name, ret);
@@ -312,17 +313,20 @@ int omap2_clk_enable(struct clk *clk)
 		}
 	}
 
-	ret = clk->ops->enable(clk);
-	if (ret) {
-		WARN(1, "clock: %s: could not enable: %d\n", clk->name, ret);
-		goto oce_err3;
+	if (clk->ops && clk->ops->enable) {
+		ret = clk->ops->enable(clk);
+		if (ret) {
+			WARN(1, "clock: %s: could not enable: %d\n",
+			     clk->name, ret);
+			goto oce_err3;
+		}
 	}
 
 	return 0;
 
 oce_err3:
 	if (clk->clkdm)
-		omap2_clkdm_clk_disable(clk->clkdm, clk);
+		clkdm_clk_disable(clk->clkdm, clk);
 oce_err2:
 	if (clk->parent)
 		omap2_clk_disable(clk->parent);
@@ -373,10 +377,16 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 const struct clkops clkops_omap3_noncore_dpll_ops = {
 	.enable		= omap3_noncore_dpll_enable,
 	.disable	= omap3_noncore_dpll_disable,
+	.allow_idle	= omap3_dpll_allow_idle,
+	.deny_idle	= omap3_dpll_deny_idle,
+};
+
+const struct clkops clkops_omap3_core_dpll_ops = {
+	.allow_idle	= omap3_dpll_allow_idle,
+	.deny_idle	= omap3_dpll_deny_idle,
 };
 
 #endif
-
 
 /*
  * OMAP2+ clock reset and init functions

@@ -16,6 +16,10 @@
 
 #include <linux/err.h>
 
+#include "vc.h"
+#include "vp.h"
+
+/* XXX document */
 #define VOLTSCALE_VPFORCEUPDATE		1
 #define VOLTSCALE_VCBYPASS		2
 
@@ -27,36 +31,22 @@
 #define OMAP3_VOLTOFFSET	0xff
 #define OMAP3_VOLTSETUP2	0xff
 
-/* Voltage value defines */
-#define OMAP3430_VDD_MPU_OPP1_UV		975000
-#define OMAP3430_VDD_MPU_OPP2_UV		1075000
-#define OMAP3430_VDD_MPU_OPP3_UV		1200000
-#define OMAP3430_VDD_MPU_OPP4_UV		1270000
-#define OMAP3430_VDD_MPU_OPP5_UV		1350000
-
-#define OMAP3430_VDD_CORE_OPP1_UV		975000
-#define OMAP3430_VDD_CORE_OPP2_UV		1050000
-#define OMAP3430_VDD_CORE_OPP3_UV		1150000
-
-#define OMAP3630_VDD_MPU_OPP50_UV		1012500
-#define OMAP3630_VDD_MPU_OPP100_UV		1200000
-#define OMAP3630_VDD_MPU_OPP120_UV		1325000
-#define OMAP3630_VDD_MPU_OPP1G_UV		1375000
-
-#define OMAP3630_VDD_CORE_OPP50_UV		1000000
-#define OMAP3630_VDD_CORE_OPP100_UV		1200000
-
-#define OMAP4430_VDD_MPU_OPP50_UV		930000
-#define OMAP4430_VDD_MPU_OPP100_UV		1100000
-#define OMAP4430_VDD_MPU_OPPTURBO_UV		1260000
-#define OMAP4430_VDD_MPU_OPPNITRO_UV		1350000
-
-#define OMAP4430_VDD_IVA_OPP50_UV		930000
-#define OMAP4430_VDD_IVA_OPP100_UV		1100000
-#define OMAP4430_VDD_IVA_OPPTURBO_UV		1260000
-
-#define OMAP4430_VDD_CORE_OPP50_UV		930000
-#define OMAP4430_VDD_CORE_OPP100_UV		1100000
+/**
+ * struct omap_vfsm_instance_data - per-voltage manager FSM register/bitfield
+ * data
+ * @voltsetup_mask: SETUP_TIME* bitmask in the PRM_VOLTSETUP* register
+ * @voltsetup_reg: register offset of PRM_VOLTSETUP from PRM base
+ * @voltsetup_shift: SETUP_TIME* field shift in the PRM_VOLTSETUP* register
+ *
+ * XXX What about VOLTOFFSET/VOLTCTRL?
+ * XXX It is not necessary to have both a _mask and a _shift for the same
+ *     bitfield - remove one!
+ */
+struct omap_vfsm_instance_data {
+	u32 voltsetup_mask;
+	u8 voltsetup_reg;
+	u8 voltsetup_shift;
+};
 
 /**
  * struct voltagedomain - omap voltage domain global structure.
@@ -113,6 +103,42 @@ struct omap_volt_pmic_info {
 	u8 (*uv_to_vsel) (unsigned long uV);
 };
 
+/**
+ * omap_vdd_info - Per Voltage Domain info
+ *
+ * @volt_data		: voltage table having the distinct voltages supported
+ *			  by the domain and other associated per voltage data.
+ * @pmic_info		: pmic specific parameters which should be populted by
+ *			  the pmic drivers.
+ * @vp_data		: the register values, shifts, masks for various
+ *			  vp registers
+ * @vp_rt_data          : VP data derived at runtime, not predefined
+ * @vc_data		: structure containing various various vc registers,
+ *			  shifts, masks etc.
+ * @vfsm                : voltage manager FSM data
+ * @voltdm		: pointer to the voltage domain structure
+ * @debug_dir		: debug directory for this voltage domain.
+ * @curr_volt		: current voltage for this vdd.
+ * @vp_enabled		: flag to keep track of whether vp is enabled or not
+ * @volt_scale		: API to scale the voltage of the vdd.
+ */
+struct omap_vdd_info {
+	struct omap_volt_data *volt_data;
+	struct omap_volt_pmic_info *pmic_info;
+	struct omap_vp_instance_data *vp_data;
+	struct omap_vp_runtime_data vp_rt_data;
+	struct omap_vc_instance_data *vc_data;
+	const struct omap_vfsm_instance_data *vfsm;
+	struct voltagedomain voltdm;
+	struct dentry *debug_dir;
+	u32 curr_volt;
+	bool vp_enabled;
+	u32 (*read_reg) (u16 mod, u8 offset);
+	void (*write_reg) (u32 val, u16 mod, u8 offset);
+	int (*volt_scale) (struct omap_vdd_info *vdd,
+		unsigned long target_volt);
+};
+
 unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm);
 void omap_vp_enable(struct voltagedomain *voltdm);
 void omap_vp_disable(struct voltagedomain *voltdm);
@@ -125,6 +151,9 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		unsigned long volt);
 unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm);
 struct dentry *omap_voltage_get_dbgdir(struct voltagedomain *voltdm);
+int __init omap_voltage_early_init(s16 prm_mod, s16 prm_irqst_mod,
+				   struct omap_vdd_info *omap_vdd_array[],
+				   u8 omap_vdd_count);
 #ifdef CONFIG_PM
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 		struct omap_volt_pmic_info *pmic_info);

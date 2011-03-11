@@ -23,7 +23,6 @@
 #include <plat/i2c.h>
 #include <plat/gpio.h>
 #include <plat/mmc.h>
-#include <plat/smartreflex.h>
 #include <plat/mcbsp.h>
 #include <plat/mcspi.h>
 #include <plat/dmtimer.h>
@@ -491,26 +490,12 @@ static struct omap_hwmod_ocp_if *am35xx_usbhsotg_slaves[] = {
 /* Slave interfaces on the L4_CORE interconnect */
 static struct omap_hwmod_ocp_if *omap3xxx_l4_core_slaves[] = {
 	&omap3xxx_l3_main__l4_core,
-	&omap3_l4_core__sr1,
-	&omap3_l4_core__sr2,
-};
-
-/* Master interfaces on the L4_CORE interconnect */
-static struct omap_hwmod_ocp_if *omap3xxx_l4_core_masters[] = {
-	&omap3xxx_l4_core__l4_wkup,
-	&omap3_l4_core__uart1,
-	&omap3_l4_core__uart2,
-	&omap3_l4_core__i2c1,
-	&omap3_l4_core__i2c2,
-	&omap3_l4_core__i2c3,
 };
 
 /* L4 CORE */
 static struct omap_hwmod omap3xxx_l4_core_hwmod = {
 	.name		= "l4_core",
 	.class		= &l4_hwmod_class,
-	.masters	= omap3xxx_l4_core_masters,
-	.masters_cnt	= ARRAY_SIZE(omap3xxx_l4_core_masters),
 	.slaves		= omap3xxx_l4_core_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l4_core_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
@@ -522,18 +507,10 @@ static struct omap_hwmod_ocp_if *omap3xxx_l4_per_slaves[] = {
 	&omap3xxx_l3_main__l4_per,
 };
 
-/* Master interfaces on the L4_PER interconnect */
-static struct omap_hwmod_ocp_if *omap3xxx_l4_per_masters[] = {
-	&omap3_l4_per__uart3,
-	&omap3_l4_per__uart4,
-};
-
 /* L4 PER */
 static struct omap_hwmod omap3xxx_l4_per_hwmod = {
 	.name		= "l4_per",
 	.class		= &l4_hwmod_class,
-	.masters	= omap3xxx_l4_per_masters,
-	.masters_cnt	= ARRAY_SIZE(omap3xxx_l4_per_masters),
 	.slaves		= omap3xxx_l4_per_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l4_per_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
@@ -545,16 +522,10 @@ static struct omap_hwmod_ocp_if *omap3xxx_l4_wkup_slaves[] = {
 	&omap3xxx_l4_core__l4_wkup,
 };
 
-/* Master interfaces on the L4_WKUP interconnect */
-static struct omap_hwmod_ocp_if *omap3xxx_l4_wkup_masters[] = {
-};
-
 /* L4 WKUP */
 static struct omap_hwmod omap3xxx_l4_wkup_hwmod = {
 	.name		= "l4_wkup",
 	.class		= &l4_hwmod_class,
-	.masters	= omap3xxx_l4_wkup_masters,
-	.masters_cnt	= ARRAY_SIZE(omap3xxx_l4_wkup_masters),
 	.slaves		= omap3xxx_l4_wkup_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l4_wkup_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
@@ -1268,7 +1239,8 @@ static struct omap_hwmod_class_sysconfig omap3xxx_wd_timer_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_EMUFREE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY),
+			   SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
+			   SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
@@ -1280,7 +1252,7 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 	.syss_offs	= 0x10,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE),
+			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
@@ -1312,6 +1284,11 @@ static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
 	.slaves		= omap3xxx_wd_timer2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_wd_timer2_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+	/*
+	 * XXX: Use software supervised mode, HW supervised smartidle seems to
+	 * block CORE power domain idle transitions. Maybe a HW bug in wdt2?
+	 */
+	.flags		= HWMOD_SWSUP_SIDLE,
 };
 
 /* UART common */
@@ -1322,7 +1299,7 @@ static struct omap_hwmod_class_sysconfig uart_sysc = {
 	.syss_offs	= 0x58,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE),
+			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
@@ -2128,7 +2105,8 @@ static struct omap_hwmod_class_sysconfig omap3xxx_gpio_sysc = {
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
+			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
@@ -2382,7 +2360,8 @@ static struct omap_hwmod_class_sysconfig omap3xxx_dma_sysc = {
 	.syss_offs	= 0x0028,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_MIDLEMODE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_EMUFREE | SYSC_HAS_AUTOIDLE),
+			   SYSC_HAS_EMUFREE | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
 			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
 	.sysc_fields	= &omap_hwmod_sysc_type1,

@@ -2,7 +2,7 @@
  * OMAP powerdomain control
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Written by Paul Walmsley
  * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
@@ -937,4 +937,45 @@ u32 pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
 		 pwrdm->name, count);
 
 	return count;
+}
+
+/**
+ * pwrdm_can_ever_lose_context - can this powerdomain ever lose context?
+ * @pwrdm: struct powerdomain *
+ *
+ * Given a struct powerdomain * @pwrdm, returns 1 if the powerdomain
+ * can lose either memory or logic context or if @pwrdm is invalid, or
+ * returns 0 otherwise.  This function is not concerned with how the
+ * powerdomain registers are programmed (i.e., to go off or not); it's
+ * concerned with whether it's ever possible for this powerdomain to
+ * go off while some other part of the chip is active.  This function
+ * assumes that every powerdomain can go to either ON or INACTIVE.
+ */
+bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
+{
+	int i;
+
+	if (IS_ERR_OR_NULL(pwrdm)) {
+		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
+			 __func__);
+		return 1;
+	}
+
+	if (pwrdm->pwrsts & PWRSTS_OFF)
+		return 1;
+
+	if (pwrdm->pwrsts & PWRSTS_RET) {
+		if (pwrdm->pwrsts_logic_ret & PWRSTS_OFF)
+			return 1;
+
+		for (i = 0; i < pwrdm->banks; i++)
+			if (pwrdm->pwrsts_mem_ret[i] & PWRSTS_OFF)
+				return 1;
+	}
+
+	for (i = 0; i < pwrdm->banks; i++)
+		if (pwrdm->pwrsts_mem_on[i] & PWRSTS_OFF)
+			return 1;
+
+	return 0;
 }

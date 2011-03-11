@@ -35,7 +35,6 @@
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <plat/cpu.h>
-#include <plat/voltage.h>
 
 struct omap_device;
 
@@ -125,6 +124,7 @@ struct omap_hwmod_dma_info {
  * struct omap_hwmod_rst_info - IPs reset lines use by hwmod
  * @name: name of the reset line (module local name)
  * @rst_shift: Offset of the reset bit
+ * @st_shift: Offset of the reset status bit (OMAP2/3 only)
  *
  * @name should be something short, e.g., "cpu0" or "rst". It is defined
  * locally to the hwmod.
@@ -132,6 +132,7 @@ struct omap_hwmod_dma_info {
 struct omap_hwmod_rst_info {
 	const char	*name;
 	u8		rst_shift;
+	u8		st_shift;
 };
 
 /**
@@ -377,7 +378,7 @@ struct omap_hwmod_omap4_prcm {
  * HWMOD_INIT_NO_IDLE: don't idle this module at boot - important for SDRAM
  *     controller, etc. XXX probably belongs outside the main hwmod file
  *     XXX Should be HWMOD_SETUP_NO_IDLE
- * HWMOD_NO_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
+ * HWMOD_NO_OCP_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
@@ -561,6 +562,7 @@ int omap_hwmod_enable_clocks(struct omap_hwmod *oh);
 int omap_hwmod_disable_clocks(struct omap_hwmod *oh);
 
 int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode);
+int omap_hwmod_set_ocp_autoidle(struct omap_hwmod *oh, u8 autoidle);
 
 int omap_hwmod_reset(struct omap_hwmod *oh);
 void omap_hwmod_ocp_barrier(struct omap_hwmod *oh);
@@ -594,6 +596,8 @@ int omap_hwmod_for_each_by_class(const char *classname,
 
 int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state);
 u32 omap_hwmod_get_context_loss_count(struct omap_hwmod *oh);
+
+int omap_hwmod_no_setup_reset(struct omap_hwmod *oh);
 
 /*
  * Chip variant-specific hwmod init routines - XXX should be converted

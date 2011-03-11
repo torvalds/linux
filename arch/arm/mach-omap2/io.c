@@ -356,15 +356,15 @@ void __init omap2_init_common_infrastructure(void)
 
 	if (cpu_is_omap242x()) {
 		omap2xxx_powerdomains_init();
-		omap2_clockdomains_init();
+		omap2xxx_clockdomains_init();
 		omap2420_hwmod_init();
 	} else if (cpu_is_omap243x()) {
 		omap2xxx_powerdomains_init();
-		omap2_clockdomains_init();
+		omap2xxx_clockdomains_init();
 		omap2430_hwmod_init();
 	} else if (cpu_is_omap34xx()) {
 		omap3xxx_powerdomains_init();
-		omap2_clockdomains_init();
+		omap3xxx_clockdomains_init();
 		omap3xxx_hwmod_init();
 	} else if (cpu_is_omap44xx()) {
 		omap44xx_powerdomains_init();

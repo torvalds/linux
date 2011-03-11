@@ -370,7 +370,7 @@ static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle,
 	}
 
 	autoidle_shift = oh->class->sysc->sysc_fields->autoidle_shift;
-	autoidle_mask = (0x3 << autoidle_shift);
+	autoidle_mask = (0x1 << autoidle_shift);
 
 	*v &= ~autoidle_mask;
 	*v |= autoidle << autoidle_shift;
@@ -457,13 +457,17 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
  * will be accessed by a particular initiator (e.g., if a module will
  * be accessed by the IVA, there should be a sleepdep between the IVA
  * initiator and the module).  Only applies to modules in smart-idle
- * mode.  Returns -EINVAL upon error or passes along
- * clkdm_add_sleepdep() value upon success.
+ * mode.  If the clockdomain is marked as not needing autodeps, return
+ * 0 without doing anything.  Otherwise, returns -EINVAL upon error or
+ * passes along clkdm_add_sleepdep() value upon success.
  */
 static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
 	if (!oh->_clk)
 		return -EINVAL;
+
+	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+		return 0;
 
 	return clkdm_add_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
 }
@@ -477,13 +481,17 @@ static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  * be accessed by a particular initiator (e.g., if a module will not
  * be accessed by the IVA, there should be no sleepdep between the IVA
  * initiator and the module).  Only applies to modules in smart-idle
- * mode.  Returns -EINVAL upon error or passes along
- * clkdm_del_sleepdep() value upon success.
+ * mode.  If the clockdomain is marked as not needing autodeps, return
+ * 0 without doing anything.  Returns -EINVAL upon error or passes
+ * along clkdm_del_sleepdep() value upon success.
  */
 static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
 	if (!oh->_clk)
 		return -EINVAL;
+
+	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+		return 0;
 
 	return clkdm_del_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
 }
@@ -921,7 +929,7 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -967,25 +975,29 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 }
 
 /**
- * _lookup_hardreset - return the register bit shift for this hwmod/reset line
+ * _lookup_hardreset - fill register bit info for this hwmod/reset line
  * @oh: struct omap_hwmod *
  * @name: name of the reset line in the context of this hwmod
+ * @ohri: struct omap_hwmod_rst_info * that this function will fill in
  *
  * Return the bit position of the reset line that match the
  * input name. Return -ENOENT if not found.
  */
-static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name)
+static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name,
+			    struct omap_hwmod_rst_info *ohri)
 {
 	int i;
 
 	for (i = 0; i < oh->rst_lines_cnt; i++) {
 		const char *rst_line = oh->rst_lines[i].name;
 		if (!strcmp(rst_line, name)) {
-			u8 shift = oh->rst_lines[i].rst_shift;
-			pr_debug("omap_hwmod: %s: _lookup_hardreset: %s: %d\n",
-				 oh->name, rst_line, shift);
+			ohri->rst_shift = oh->rst_lines[i].rst_shift;
+			ohri->st_shift = oh->rst_lines[i].st_shift;
+			pr_debug("omap_hwmod: %s: %s: %s: rst %d st %d\n",
+				 oh->name, __func__, rst_line, ohri->rst_shift,
+				 ohri->st_shift);
 
-			return shift;
+			return 0;
 		}
 	}
 
@@ -1004,21 +1016,22 @@ static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 {
-	u8 shift;
+	struct omap_hwmod_rst_info ohri;
+	u8 ret;
 
 	if (!oh)
 		return -EINVAL;
 
-	shift = _lookup_hardreset(oh, name);
-	if (IS_ERR_VALUE(shift))
-		return shift;
+	ret = _lookup_hardreset(oh, name, &ohri);
+	if (IS_ERR_VALUE(ret))
+		return ret;
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
 		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
-						  shift);
+						  ohri.rst_shift);
 	else if (cpu_is_omap44xx())
 		return omap4_prm_assert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						  shift);
+						  ohri.rst_shift);
 	else
 		return -EINVAL;
 }
@@ -1035,29 +1048,34 @@ static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 {
-	u8 shift;
-	int r;
+	struct omap_hwmod_rst_info ohri;
+	int ret;
 
 	if (!oh)
 		return -EINVAL;
 
-	shift = _lookup_hardreset(oh, name);
-	if (IS_ERR_VALUE(shift))
-		return shift;
+	ret = _lookup_hardreset(oh, name, &ohri);
+	if (IS_ERR_VALUE(ret))
+		return ret;
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		r = omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
-						 shift);
-	else if (cpu_is_omap44xx())
-		r = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						 shift);
-	else
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		ret = omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
+						   ohri.rst_shift,
+						   ohri.st_shift);
+	} else if (cpu_is_omap44xx()) {
+		if (ohri.st_shift)
+			pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
+			       oh->name, name);
+		ret = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
+						   ohri.rst_shift);
+	} else {
 		return -EINVAL;
+	}
 
-	if (r == -EBUSY)
+	if (ret == -EBUSY)
 		pr_warning("omap_hwmod: %s: failed to hardreset\n", oh->name);
 
-	return r;
+	return ret;
 }
 
 /**
@@ -1070,21 +1088,22 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 {
-	u8 shift;
+	struct omap_hwmod_rst_info ohri;
+	u8 ret;
 
 	if (!oh)
 		return -EINVAL;
 
-	shift = _lookup_hardreset(oh, name);
-	if (IS_ERR_VALUE(shift))
-		return shift;
+	ret = _lookup_hardreset(oh, name, &ohri);
+	if (IS_ERR_VALUE(ret))
+		return ret;
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
-						       shift);
+						       ohri.st_shift);
 	} else if (cpu_is_omap44xx()) {
 		return omap4_prm_is_hardreset_asserted(oh->prcm.omap4.rstctrl_reg,
-						       shift);
+						       ohri.rst_shift);
 	} else {
 		return -EINVAL;
 	}
@@ -1280,6 +1299,42 @@ static int _idle(struct omap_hwmod *oh)
 	oh->_state = _HWMOD_STATE_IDLE;
 
 	return 0;
+}
+
+/**
+ * omap_hwmod_set_ocp_autoidle - set the hwmod's OCP autoidle bit
+ * @oh: struct omap_hwmod *
+ * @autoidle: desired AUTOIDLE bitfield value (0 or 1)
+ *
+ * Sets the IP block's OCP autoidle bit in hardware, and updates our
+ * local copy. Intended to be used by drivers that require
+ * direct manipulation of the AUTOIDLE bits.
+ * Returns -EINVAL if @oh is null or is not in the ENABLED state, or passes
+ * along the return value from _set_module_autoidle().
+ *
+ * Any users of this function should be scrutinized carefully.
+ */
+int omap_hwmod_set_ocp_autoidle(struct omap_hwmod *oh, u8 autoidle)
+{
+	u32 v;
+	int retval = 0;
+	unsigned long flags;
+
+	if (!oh || oh->_state != _HWMOD_STATE_ENABLED)
+		return -EINVAL;
+
+	spin_lock_irqsave(&oh->_lock, flags);
+
+	v = oh->_sysc_cache;
+
+	retval = _set_module_autoidle(oh, autoidle, &v);
+
+	if (!retval)
+		_write_sysconfig(v, oh);
+
+	spin_unlock_irqrestore(&oh->_lock, flags);
+
+	return retval;
 }
 
 /**
@@ -2285,4 +2340,30 @@ u32 omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 		ret = pwrdm_get_context_loss_count(pwrdm);
 
 	return ret;
+}
+
+/**
+ * omap_hwmod_no_setup_reset - prevent a hwmod from being reset upon setup
+ * @oh: struct omap_hwmod *
+ *
+ * Prevent the hwmod @oh from being reset during the setup process.
+ * Intended for use by board-*.c files on boards with devices that
+ * cannot tolerate being reset.  Must be called before the hwmod has
+ * been set up.  Returns 0 upon success or negative error code upon
+ * failure.
+ */
+int omap_hwmod_no_setup_reset(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return -EINVAL;
+
+	if (oh->_state != _HWMOD_STATE_REGISTERED) {
+		pr_err("omap_hwmod: %s: cannot prevent setup reset; in wrong state\n",
+			oh->name);
+		return -EINVAL;
+	}
+
+	oh->flags |= HWMOD_INIT_NO_RESET;
+
+	return 0;
 }
