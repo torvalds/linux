@@ -146,6 +146,7 @@ static const char * scsi_debug_version_date = "20100324";
 /* when 1==SCSI_DEBUG_OPT_MEDIUM_ERR, a medium error is simulated at this
  * sector on read commands: */
 #define OPT_MEDIUM_ERR_ADDR   0x1234 /* that's sector 4660 in decimal */
+#define OPT_MEDIUM_ERR_NUM    10     /* number of consecutive medium errs */
 
 /* If REPORT LUNS has luns >= 256 it can choose "flat space" (value 1)
  * or "peripheral device" addressing (value 0) */
@@ -1807,15 +1808,15 @@ static int resp_read(struct scsi_cmnd *SCpnt, unsigned long long lba,
 		return ret;
 
 	if ((SCSI_DEBUG_OPT_MEDIUM_ERR & scsi_debug_opts) &&
-	    (lba <= OPT_MEDIUM_ERR_ADDR) &&
+	    (lba <= (OPT_MEDIUM_ERR_ADDR + OPT_MEDIUM_ERR_NUM - 1)) &&
 	    ((lba + num) > OPT_MEDIUM_ERR_ADDR)) {
 		/* claim unrecoverable read error */
-		mk_sense_buffer(devip, MEDIUM_ERROR, UNRECOVERED_READ_ERR,
-				0);
+		mk_sense_buffer(devip, MEDIUM_ERROR, UNRECOVERED_READ_ERR, 0);
 		/* set info field and valid bit for fixed descriptor */
 		if (0x70 == (devip->sense_buff[0] & 0x7f)) {
 			devip->sense_buff[0] |= 0x80;	/* Valid bit */
-			ret = OPT_MEDIUM_ERR_ADDR;
+			ret = (lba < OPT_MEDIUM_ERR_ADDR)
+			      ? OPT_MEDIUM_ERR_ADDR : (int)lba;
 			devip->sense_buff[3] = (ret >> 24) & 0xff;
 			devip->sense_buff[4] = (ret >> 16) & 0xff;
 			devip->sense_buff[5] = (ret >> 8) & 0xff;
