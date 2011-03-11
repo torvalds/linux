@@ -96,13 +96,13 @@ xfs_alert_tag(
 {
 	struct va_format	vaf;
 	va_list			args;
-	int			panic = 0;
-	int			 r;
+	int			do_panic = 0;
+	int			r;
 
 	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
 		xfs_printk(KERN_ALERT, mp,
 			"XFS: Transforming an alert into a BUG.");
-		panic = 1;
+		do_panic = 1;
 	}
 
 	va_start(args, fmt);
@@ -113,7 +113,7 @@ xfs_alert_tag(
 	r = __xfs_printk(KERN_ALERT, mp, &vaf);
 	va_end(args);
 
-	BUG_ON(panic);
+	BUG_ON(do_panic);
 
 	return r;
 }
