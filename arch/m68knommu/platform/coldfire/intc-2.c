@@ -7,7 +7,10 @@
  * family, the 5270, 5271, 5274, 5275, and the 528x family which have two such
  * controllers, and the 547x and 548x families which have only one of them.
  *
- * (C) Copyright 2009, Greg Ungerer <gerg@snapgear.com>
+ * The external 7 fixed interrupts are part the the Edge Port unit of these
+ * ColdFire parts. They can be configured as level or edge triggered.
+ *
+ * (C) Copyright 2009-2011, Greg Ungerer <gerg@snapgear.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -29,6 +32,14 @@
  */
 #define MCFSIM_ICR_LEVEL(l)	((l)<<3)	/* Level l intr */
 #define MCFSIM_ICR_PRI(p)	(p)		/* Priority p intr */
+
+/*
+ *	The EDGE Port interrupts are the fixed 7 external interrupts.
+ *	They need some special treatment, for example they need to be acked.
+ */
+#define	EINT0	64	/* Is not actually used, but spot reserved for it */
+#define	EINT1	65	/* EDGE Port interrupt 1 */
+#define	EINT7	71	/* EDGE Port interrupt 7 */
 
 #ifdef MCFICM_INTC1
 #define NR_VECS	128
@@ -76,9 +87,17 @@ static void intc_irq_unmask(struct irq_data *d)
 	__raw_writel(val & ~imrbit, imraddr);
 }
 
-static int intc_irq_set_type(struct irq_data *d, unsigned int type)
+/*
+ *	Only the external (or EDGE Port) interrupts need to be acknowledged
+ *	here, as part of the IRQ handler. They only really need to be ack'ed
+ *	if they are in edge triggered mode, but there is no harm in doing it
+ *	for all types.
+ */
+static void intc_irq_ack(struct irq_data *d)
 {
-	return 0;
+	unsigned int irq = d->irq;
+
+	__raw_writeb(0x1 << (irq - EINT0), MCFEPORT_EPFR);
 }
 
 /*
@@ -104,7 +123,54 @@ static unsigned int intc_irq_startup(struct irq_data *d)
 	if (__raw_readb(icraddr) == 0)
 		__raw_writeb(intc_intpri--, icraddr);
 
+	irq = d->irq;
+	if ((irq >= EINT1) && (irq <= EINT7)) {
+		u8 v;
+
+		irq -= EINT0;
+
+		/* Set EPORT line as input */
+		v = __raw_readb(MCFEPORT_EPDDR);
+		__raw_writeb(v & ~(0x1 << irq), MCFEPORT_EPDDR);
+
+		/* Set EPORT line as interrupt source */
+		v = __raw_readb(MCFEPORT_EPIER);
+		__raw_writeb(v | (0x1 << irq), MCFEPORT_EPIER);
+	}
+
 	intc_irq_unmask(d);
+	return 0;
+}
+
+static int intc_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	unsigned int irq = d->irq;
+	u16 pa, tb;
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+		tb = 0x1;
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		tb = 0x2;
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		tb = 0x3;
+		break;
+	default:
+		/* Level triggered */
+		tb = 0;
+		break;
+	}
+
+	if (tb)
+		set_irq_handler(irq, handle_edge_irq);
+
+	irq -= EINT0;
+	pa = __raw_readw(MCFEPORT_EPPAR);
+	pa = (pa & ~(0x3 << (irq * 2))) | (tb << (irq * 2));
+	__raw_writew(pa, MCFEPORT_EPPAR);
+	
 	return 0;
 }
 
@@ -113,6 +179,14 @@ static struct irq_chip intc_irq_chip = {
 	.irq_startup	= intc_irq_startup,
 	.irq_mask	= intc_irq_mask,
 	.irq_unmask	= intc_irq_unmask,
+};
+
+static struct irq_chip intc_irq_chip_edge_port = {
+	.name		= "CF-INTC-EP",
+	.irq_startup	= intc_irq_startup,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
+	.irq_ack	= intc_irq_ack,
 	.irq_set_type	= intc_irq_set_type,
 };
 
@@ -129,7 +203,10 @@ void __init init_IRQ(void)
 #endif
 
 	for (irq = MCFINT_VECBASE; (irq < MCFINT_VECBASE + NR_VECS); irq++) {
-		set_irq_chip(irq, &intc_irq_chip);
+		if ((irq >= EINT1) && (irq <=EINT7))
+			set_irq_chip(irq, &intc_irq_chip_edge_port);
+		else
+			set_irq_chip(irq, &intc_irq_chip);
 		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
 		set_irq_handler(irq, handle_level_irq);
 	}

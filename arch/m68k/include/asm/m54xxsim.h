@@ -50,6 +50,16 @@
 #define MCFGPIO_IRQ_VECBASE	-1
 
 /*
+ *	EDGE Port support.
+ */
+#define	MCFEPORT_EPPAR		(MCF_MBAR + 0xf00)	/* Pin assignment */
+#define	MCFEPORT_EPDDR		(MCF_MBAR + 0xf04)	/* Data direction */
+#define	MCFEPORT_EPIER		(MCF_MBAR + 0xf05)	/* Interrupt enable */
+#define	MCFEPORT_EPDR		(MCF_MBAR + 0xf08)	/* Port data (w) */
+#define	MCFEPORT_EPPDR		(MCF_MBAR + 0xf09)	/* Port data (r) */
+#define	MCFEPORT_EPFR		(MCF_MBAR + 0xf0c)	/* Flags */
+
+/*
  *	Some PSC related definitions
  */
 #define MCF_PAR_PSC(x)		(0x000A4F-((x)&0x3))
