@@ -1230,6 +1230,12 @@ struct iwl_rxon_context {
 	} ht;
 };
 
+enum iwl_scan_type {
+	IWL_SCAN_NORMAL,
+	IWL_SCAN_RADIO_RESET,
+	IWL_SCAN_OFFCH_TX,
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1290,7 +1296,7 @@ struct iwl_priv {
 	enum ieee80211_band scan_band;
 	struct cfg80211_scan_request *scan_request;
 	struct ieee80211_vif *scan_vif;
-	bool is_internal_short_scan;
+	enum iwl_scan_type scan_type;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 
@@ -1504,6 +1510,10 @@ struct iwl_priv {
 			struct delayed_work hw_roc_work;
 			enum nl80211_channel_type hw_roc_chantype;
 			int hw_roc_duration;
+
+			struct sk_buff *offchan_tx_skb;
+			int offchan_tx_timeout;
+			struct ieee80211_channel *offchan_tx_chan;
 		} _agn;
 #endif
 	};
