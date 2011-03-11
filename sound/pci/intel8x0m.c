@@ -1109,7 +1109,7 @@ struct ich_reg_info {
 static int __devinit snd_intel8x0m_create(struct snd_card *card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
-					 struct intel8x0m ** r_intel8x0)
+					 struct intel8x0m **r_intel8x0m)
 {
 	struct intel8x0m *chip;
 	int err;
@@ -1125,7 +1125,7 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 	};
 	struct ich_reg_info *tbl;
 
-	*r_intel8x0 = NULL;
+	*r_intel8x0m = NULL;
 
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
@@ -1238,7 +1238,7 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 
 	snd_card_set_dev(card, &pci->dev);
 
-	*r_intel8x0 = chip;
+	*r_intel8x0m = chip;
 	return 0;
 }
 
