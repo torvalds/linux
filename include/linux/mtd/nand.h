@@ -140,6 +140,7 @@ typedef enum {
 	NAND_ECC_HW,
 	NAND_ECC_HW_SYNDROME,
 	NAND_ECC_HW_OOB_FIRST,
+	NAND_ECC_SOFT_BCH,
 } nand_ecc_modes_t;
 
 /*
@@ -339,6 +340,7 @@ struct nand_hw_control {
  * @prepad:	padding information for syndrome based ecc generators
  * @postpad:	padding information for syndrome based ecc generators
  * @layout:	ECC layout control struct pointer
+ * @priv:	pointer to private ecc control data
  * @hwctl:	function to control hardware ecc generator. Must only
  *		be provided if an hardware ECC is available
  * @calculate:	function for ecc calculation or readback from ecc hardware
@@ -362,6 +364,7 @@ struct nand_ecc_ctrl {
 	int prepad;
 	int postpad;
 	struct nand_ecclayout	*layout;
+	void *priv;
 	void (*hwctl)(struct mtd_info *mtd, int mode);
 	int (*calculate)(struct mtd_info *mtd, const uint8_t *dat,
 			uint8_t *ecc_code);
