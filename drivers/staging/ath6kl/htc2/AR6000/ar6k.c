@@ -585,7 +585,7 @@ void DevDumpRegisters(struct ar6k_device               *pDev,
 }
 
 
-#define DEV_GET_VIRT_DMA_INFO(p)  ((DEV_SCATTER_DMA_VIRTUAL_INFO *)((p)->HIFPrivate[0]))
+#define DEV_GET_VIRT_DMA_INFO(p)  ((struct dev_scatter_dma_virtual_info *)((p)->HIFPrivate[0]))
 
 static HIF_SCATTER_REQ *DevAllocScatterReq(HIF_DEVICE *Context)
 {
@@ -754,10 +754,10 @@ static int DevSetupVirtualScatterSupport(struct ar6k_device *pDev)
     int                     status = 0;
     int                          bufferSize, sgreqSize;
     int                          i;
-    DEV_SCATTER_DMA_VIRTUAL_INFO *pVirtualInfo;
+    struct dev_scatter_dma_virtual_info *pVirtualInfo;
     HIF_SCATTER_REQ              *pReq;
 
-    bufferSize = sizeof(DEV_SCATTER_DMA_VIRTUAL_INFO) +
+    bufferSize = sizeof(struct dev_scatter_dma_virtual_info) +
                 2 * (A_GET_CACHE_LINE_BYTES()) + AR6K_MAX_TRANSFER_SIZE_PER_SCATTER;
 
     sgreqSize = sizeof(HIF_SCATTER_REQ) +
@@ -775,8 +775,8 @@ static int DevSetupVirtualScatterSupport(struct ar6k_device *pDev)
         A_MEMZERO(pReq, sgreqSize);
 
             /* the virtual DMA starts after the scatter request struct */
-        pVirtualInfo = (DEV_SCATTER_DMA_VIRTUAL_INFO *)((u8 *)pReq + sgreqSize);
-        A_MEMZERO(pVirtualInfo, sizeof(DEV_SCATTER_DMA_VIRTUAL_INFO));
+        pVirtualInfo = (struct dev_scatter_dma_virtual_info *)((u8 *)pReq + sgreqSize);
+        A_MEMZERO(pVirtualInfo, sizeof(struct dev_scatter_dma_virtual_info));
 
         pVirtualInfo->pVirtDmaBuffer = &pVirtualInfo->DataArea[0];
             /* align buffer to cache line in case host controller can actually DMA this */

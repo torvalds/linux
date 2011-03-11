@@ -322,10 +322,10 @@ int DoMboxHWTest(struct ar6k_device *pDev);
 #endif
 
     /* completely virtual */
-typedef struct _DEV_SCATTER_DMA_VIRTUAL_INFO {
+struct dev_scatter_dma_virtual_info {
     u8 *pVirtDmaBuffer;      /* dma-able buffer - CPU accessible address */
     u8 DataArea[1];      /* start of data area */
-} DEV_SCATTER_DMA_VIRTUAL_INFO;
+};
 
 
 
