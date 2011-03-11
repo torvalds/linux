@@ -262,12 +262,11 @@ int si470x_vidioc_querycap(struct file *file, void *priv,
  **************************************************************************/
 
 /*
- * si470x_i2c_interrupt_work - rds processing function
+ * si470x_i2c_interrupt - interrupt handler
  */
-static void si470x_i2c_interrupt_work(struct work_struct *work)
+static irqreturn_t si470x_i2c_interrupt(int irq, void *dev_id)
 {
-	struct si470x_device *radio = container_of(work,
-			struct si470x_device, radio_work);
+	struct si470x_device *radio = dev_id;
 	unsigned char regnr;
 	unsigned char blocknum;
 	unsigned short bler; /* rds block errors */
@@ -278,26 +277,26 @@ static void si470x_i2c_interrupt_work(struct work_struct *work)
 	/* check Seek/Tune Complete */
 	retval = si470x_get_register(radio, STATUSRSSI);
 	if (retval < 0)
-		return;
+		goto end;
 
 	if (radio->registers[STATUSRSSI] & STATUSRSSI_STC)
 		complete(&radio->completion);
 
 	/* safety checks */
 	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
-		return;
+		goto end;
 
 	/* Update RDS registers */
 	for (regnr = 1; regnr < RDS_REGISTER_NUM; regnr++) {
 		retval = si470x_get_register(radio, STATUSRSSI + regnr);
 		if (retval < 0)
-			return;
+			goto end;
 	}
 
 	/* get rds blocks */
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_RDSR) == 0)
 		/* No RDS group ready, better luck next time */
-		return;
+		goto end;
 
 	for (blocknum = 0; blocknum < 4; blocknum++) {
 		switch (blocknum) {
@@ -351,19 +350,8 @@ static void si470x_i2c_interrupt_work(struct work_struct *work)
 
 	if (radio->wr_index != radio->rd_index)
 		wake_up_interruptible(&radio->read_queue);
-}
 
-
-/*
- * si470x_i2c_interrupt - interrupt handler
- */
-static irqreturn_t si470x_i2c_interrupt(int irq, void *dev_id)
-{
-	struct si470x_device *radio = dev_id;
-
-	if (!work_pending(&radio->radio_work))
-		schedule_work(&radio->radio_work);
-
+end:
 	return IRQ_HANDLED;
 }
 
@@ -385,7 +373,6 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 		goto err_initial;
 	}
 
-	INIT_WORK(&radio->radio_work, si470x_i2c_interrupt_work);
 	radio->users = 0;
 	radio->client = client;
 	mutex_init(&radio->lock);
@@ -454,7 +441,7 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 	radio->stci_enabled = true;
 	init_completion(&radio->completion);
 
-	retval = request_irq(client->irq, si470x_i2c_interrupt,
+	retval = request_threaded_irq(client->irq, NULL, si470x_i2c_interrupt,
 			IRQF_TRIGGER_FALLING, DRIVER_NAME, radio);
 	if (retval) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
@@ -492,7 +479,6 @@ static __devexit int si470x_i2c_remove(struct i2c_client *client)
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
 	free_irq(client->irq, radio);
-	cancel_work_sync(&radio->radio_work);
 	video_unregister_device(radio->videodev);
 	kfree(radio);
 

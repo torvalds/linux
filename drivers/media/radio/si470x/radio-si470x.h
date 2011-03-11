@@ -182,7 +182,6 @@ struct si470x_device {
 
 #if defined(CONFIG_I2C_SI470X) || defined(CONFIG_I2C_SI470X_MODULE)
 	struct i2c_client *client;
-	struct work_struct radio_work;
 #endif
 };
 
