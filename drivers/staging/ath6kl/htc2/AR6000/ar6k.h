@@ -65,9 +65,9 @@ typedef PREPACK struct _AR6K_IRQ_ENABLE_REGISTERS {
     u8 counter_int_status_enable;
 } POSTPACK AR6K_IRQ_ENABLE_REGISTERS;
 
-typedef PREPACK struct _AR6K_GMBOX_CTRL_REGISTERS {
+PREPACK struct ar6k_gmbox_ctrl_registers {
     u8 int_status_enable;
-} POSTPACK AR6K_GMBOX_CTRL_REGISTERS;
+} POSTPACK;
 
 #include "athendpack.h"
 
@@ -139,7 +139,7 @@ struct ar6k_device {
     int                             MaxSendBundleSize;
     AR6K_GMBOX_INFO                 GMboxInfo;
     bool                          GMboxEnabled;
-    AR6K_GMBOX_CTRL_REGISTERS       GMboxControlRegisters;
+    struct ar6k_gmbox_ctrl_registers       GMboxControlRegisters;
     int                             RecheckIRQStatusCnt;
 };
 
