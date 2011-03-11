@@ -49,7 +49,7 @@ interleaved. Height of the buffer is aligned to 32.
 	  <title>Memory layout of macroblocks in <constant>V4L2_PIX_FMT_NV12
 </constant> format pixel image - extreme case</title>
 	<para>
-	<figure id="nv12mt">
+	<figure id="nv12mt_ex">
 	    <title>Example <constant>V4L2_PIX_FMT_NV12MT</constant> memory
 layout of macroblocks</title>
 	    <mediaobject>
