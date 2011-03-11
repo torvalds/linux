@@ -162,7 +162,6 @@ struct pwrdm_ops {
 	int	(*pwrdm_wait_transition)(struct powerdomain *pwrdm);
 };
 
-void pwrdm_fw_init(void);
 void pwrdm_init(struct powerdomain **pwrdm_list, struct pwrdm_ops *custom_funcs);
 
 struct powerdomain *pwrdm_lookup(const char *name);

@@ -78,7 +78,7 @@ static struct powerdomain core_24xx_pwrdm = {
  * 2430-specific powerdomains
  */
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 
 /* XXX 2430 KILLDOMAINWKUP bit?  No current users apparently */
 
@@ -97,7 +97,7 @@ static struct powerdomain mdm_pwrdm = {
 	},
 };
 
-#endif     /* CONFIG_ARCH_OMAP2430 */
+#endif     /* CONFIG_SOC_OMAP2430 */
 
 /* As powerdomains are added or removed above, this list must also be changed */
 static struct powerdomain *powerdomains_omap2xxx[] __initdata = {
@@ -111,7 +111,7 @@ static struct powerdomain *powerdomains_omap2xxx[] __initdata = {
 	&core_24xx_pwrdm,
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 	&mdm_pwrdm,
 #endif
 	NULL

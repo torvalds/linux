@@ -134,7 +134,7 @@ static inline void omap_enable_channel_irq(int lch);
 
 #ifdef CONFIG_ARCH_OMAP15XX
 /* Returns 1 if the DMA module is in OMAP1510-compatible mode, 0 otherwise */
-int omap_dma_in_1510_mode(void)
+static int omap_dma_in_1510_mode(void)
 {
 	return enable_1510_mode;
 }

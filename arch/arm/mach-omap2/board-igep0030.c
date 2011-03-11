@@ -142,7 +142,7 @@ static void __init igep3_flash_init(void) {}
 #endif
 
 static struct regulator_consumer_supply igep3_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep3_vmmc1 = {
@@ -160,7 +160,7 @@ static struct regulator_init_data igep3_vmmc1 = {
 };
 
 static struct regulator_consumer_supply igep3_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_init_data igep3_vio = {
 	.constraints = {
@@ -178,7 +178,7 @@ static struct regulator_init_data igep3_vio = {
 };
 
 static struct regulator_consumer_supply igep3_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_init_data igep3_vmmc2 = {
 	.constraints	= {
@@ -331,12 +331,11 @@ static struct platform_device *igep3_devices[] __initdata = {
 	&igep3_vwlan_device,
 };
 
-static void __init igep3_init_irq(void)
+static void __init igep3_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(m65kxxxxam_sdrc_params,
 				  m65kxxxxam_sdrc_params);
-	omap_init_irq();
 }
 
 static struct twl4030_platform_data igep3_twl4030_pdata = {
@@ -452,7 +451,8 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_irq	= igep3_init_irq,
+	.init_early	= igep3_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= igep3_init,
 	.timer		= &omap_timer,
 MACHINE_END

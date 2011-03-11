@@ -124,7 +124,7 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 			(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE)) {
 			sleep_switch = LOWPOWERSTATE_SWITCH;
 		} else {
-			omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
+			clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
 			pwrdm_wait_transition(pwrdm);
 			sleep_switch = FORCEWAKEUP_SWITCH;
 		}
@@ -140,9 +140,9 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
 		if (pwrdm->pwrdm_clkdms[0]->flags & CLKDM_CAN_ENABLE_AUTO)
-			omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+			clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		else
-			omap2_clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
+			clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		pwrdm_set_lowpwrstchange(pwrdm);

@@ -200,6 +200,9 @@ static struct pca953x_platform_data am3517evm_gpio_expander_info_0 = {
 };
 static struct i2c_board_info __initdata am3517evm_i2c2_boardinfo[] = {
 	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1A),
+	},
+	{
 		I2C_BOARD_INFO("tca6416", 0x21),
 		.platform_data = &am3517evm_gpio_expander_info_0,
 	},
@@ -378,37 +381,23 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 	.default_device	= &am3517_evm_lcd_device,
 };
 
-static struct platform_device am3517_evm_dss_device = {
-	.name		= "omapdss",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &am3517_evm_dss_data,
-	},
-};
-
 /*
  * Board initialization
  */
-static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
-};
-
-static struct platform_device *am3517_evm_devices[] __initdata = {
-	&am3517_evm_dss_device,
-};
-
-static void __init am3517_evm_init_irq(void)
+static void __init am3517_evm_init_early(void)
 {
-	omap_board_config = am3517_evm_config;
-	omap_board_config_size = ARRAY_SIZE(am3517_evm_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-	omap_init_irq();
 }
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type         = MUSB_INTERFACE_ULPI,
 	.mode                   = MUSB_OTG,
 	.power                  = 500,
+	.set_phy_power		= am35x_musb_phy_power,
+	.clear_irq		= am35x_musb_clear_irq,
+	.set_mode		= am35x_musb_set_mode,
+	.reset			= am35x_musb_reset,
 };
 
 static __init void am3517_evm_musb_init(void)
@@ -490,14 +479,17 @@ static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
 	platform_device_register(&am3517_hecc_device);
 }
 
+static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
+};
+
 static void __init am3517_evm_init(void)
 {
+	omap_board_config = am3517_evm_config;
+	omap_board_config_size = ARRAY_SIZE(am3517_evm_config);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 
 	am3517_evm_i2c_init();
-	platform_add_devices(am3517_evm_devices,
-				ARRAY_SIZE(am3517_evm_devices));
-
+	omap_display_init(&am3517_evm_dss_data);
 	omap_serial_init();
 
 	/* Configure GPIO for EHCI port */
@@ -521,9 +513,10 @@ static void __init am3517_evm_init(void)
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= am3517_evm_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= am3517_evm_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= am3517_evm_init,
 	.timer		= &omap_timer,
 MACHINE_END

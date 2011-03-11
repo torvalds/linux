@@ -40,7 +40,7 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2420)
+#if defined(CONFIG_SOC_OMAP2420)
 
 static struct omap_globals omap242x_globals = {
 	.class	= OMAP242X_CLASS,
@@ -61,7 +61,7 @@ void __init omap2_set_globals_242x(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2430)
+#if defined(CONFIG_SOC_OMAP2430)
 
 static struct omap_globals omap243x_globals = {
 	.class	= OMAP243X_CLASS,
@@ -107,6 +107,27 @@ void __init omap3_map_io(void)
 {
 	omap2_set_globals_3xxx();
 	omap34xx_map_common_io();
+}
+
+/*
+ * Adjust TAP register base such that omap3_check_revision accesses the correct
+ * TI816X register for checking device ID (it adds 0x204 to tap base while
+ * TI816X DEVICE ID register is at offset 0x600 from control base).
+ */
+#define TI816X_TAP_BASE		(TI816X_CTRL_BASE + \
+				TI816X_CONTROL_DEVICE_ID - 0x204)
+
+static struct omap_globals ti816x_globals = {
+	.class  = OMAP343X_CLASS,
+	.tap    = OMAP2_L4_IO_ADDRESS(TI816X_TAP_BASE),
+	.ctrl   = TI816X_CTRL_BASE,
+	.prm    = TI816X_PRCM_BASE,
+	.cm     = TI816X_PRCM_BASE,
+};
+
+void __init omap2_set_globals_ti816x(void)
+{
+	__omap2_set_globals(&ti816x_globals);
 }
 #endif
 

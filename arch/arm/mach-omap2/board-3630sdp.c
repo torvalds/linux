@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/mtd/nand.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -69,14 +70,11 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 static struct omap_board_config_kernel sdp_config[] __initdata = {
 };
 
-static void __init omap_sdp_init_irq(void)
+static void __init omap_sdp_init_early(void)
 {
-	omap_board_config = sdp_config;
-	omap_board_config_size = ARRAY_SIZE(sdp_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
 				  h8mbx00u0mer0em_sdrc_params);
-	omap_init_irq();
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -206,19 +204,22 @@ static struct flash_partitions sdp_flash_partitions[] = {
 static void __init omap_sdp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
+	omap_board_config = sdp_config;
+	omap_board_config_size = ARRAY_SIZE(sdp_config);
 	zoom_peripherals_init();
 	zoom_display_init();
 	board_smc91x_init();
-	board_flash_init(sdp_flash_partitions, chip_sel_sdp);
+	board_flash_init(sdp_flash_partitions, chip_sel_sdp, NAND_BUSWIDTH_16);
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);
 }
 
 MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_sdp_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap_sdp_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap_timer,
 MACHINE_END
