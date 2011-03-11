@@ -14,7 +14,12 @@ struct reginfo
 {
     u16 reg;
     u16 val;
+	u16 reg_len;
+	u16 rev;
 };
+
+#define WORD_LEN             0x04
+#define BYTE_LEN             0x02
 
 #define SEQUENCE_INIT        0x00
 #define SEQUENCE_NORMAL      0x01
