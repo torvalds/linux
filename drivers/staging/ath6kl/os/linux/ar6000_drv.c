@@ -2011,7 +2011,7 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
 #else
         // FIXME: workaround to reset BT's UART baud rate to default
         if (NULL != ar->exitCallback) {
-            AR3K_CONFIG_INFO ar3kconfig;
+            struct ar3k_config_info ar3kconfig;
             int status;
 
             A_MEMZERO(&ar3kconfig,sizeof(ar3kconfig));

@@ -100,7 +100,7 @@ typedef struct {
 #define HCI_GET_OP_CODE(p)          (((u16)((p)[1])) << 8) | ((u16)((p)[0]))
 
 extern unsigned int setupbtdev;
-AR3K_CONFIG_INFO      ar3kconfig;
+struct ar3k_config_info      ar3kconfig;
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 AR6K_HCI_BRIDGE_INFO *g_pHcidevInfo;
@@ -222,7 +222,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
     AR6K_HCI_BRIDGE_INFO *pHcidevInfo = (AR6K_HCI_BRIDGE_INFO *)pContext;
     int              status;
     u32 address, hci_uart_pwr_mgmt_params;
-//    AR3K_CONFIG_INFO      ar3kconfig;
+//    struct ar3k_config_info      ar3kconfig;
     
     pHcidevInfo->pHCIDev = HCIHandle;
     
@@ -667,7 +667,7 @@ int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
 void ar6000_set_default_ar3kconfig(AR_SOFTC_T *ar, void *ar3kconfig)
 {
     AR6K_HCI_BRIDGE_INFO *pHcidevInfo = (AR6K_HCI_BRIDGE_INFO *)ar->hcidev_info;
-    AR3K_CONFIG_INFO *config = (AR3K_CONFIG_INFO *)ar3kconfig;
+    struct ar3k_config_info *config = (struct ar3k_config_info *)ar3kconfig;
 
     config->pHCIDev = pHcidevInfo->pHCIDev;
     config->pHCIProps = &pHcidevInfo->HCIProps;

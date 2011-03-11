@@ -38,7 +38,7 @@ extern "C" {
 #define AR3K_CONFIG_FLAG_SET_AR6K_SCALE_STEP        (1 << 3)
 
 
-typedef struct {
+struct ar3k_config_info {
     u32 Flags;           /* config flags */
     void                     *pHCIDev;        /* HCI bridge device     */
     HCI_TRANSPORT_PROPERTIES *pHCIProps;      /* HCI bridge props      */
@@ -52,9 +52,9 @@ typedef struct {
     u16 IdleTimeout;     /* TLPM idle timeout */
     u16 WakeupTimeout;   /* TLPM wakeup timeout */
     u8 bdaddr[6];       /* Bluetooth device address */
-} AR3K_CONFIG_INFO;
+};
                                                                                         
-int AR3KConfigure(AR3K_CONFIG_INFO *pConfigInfo);
+int AR3KConfigure(struct ar3k_config_info *pConfigInfo);
 
 int AR3KConfigureExit(void *config);
 

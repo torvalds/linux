@@ -43,10 +43,10 @@ typedef struct {
 
     PSCmdPacket *HciCmdList;
     u32 num_packets;
-    AR3K_CONFIG_INFO *dev;
+    struct ar3k_config_info *dev;
 }HciCommandListParam;
 
-int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
+int SendHCICommandWaitCommandComplete(struct ar3k_config_info *pConfig,
                                            u8 *pHCICommand,
                                            int              CmdLength,
                                            u8 **ppEventBuffer,
@@ -56,8 +56,8 @@ u32 Rom_Version;
 u32 Build_Version;
 extern bool BDADDR;
 
-int getDeviceType(AR3K_CONFIG_INFO *pConfig, u32 *code);
-int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig);
+int getDeviceType(struct ar3k_config_info *pConfig, u32 *code);
+int ReadVersionInfo(struct ar3k_config_info *pConfig);
 #ifndef HCI_TRANSPORT_SDIO
 
 DECLARE_WAIT_QUEUE_HEAD(PsCompleteEvent);
@@ -70,7 +70,7 @@ int PSHciWritepacket(struct hci_dev*,u8* Data, u32 len);
 extern char *bdaddr;
 #endif /* HCI_TRANSPORT_SDIO */
 
-int write_bdaddr(AR3K_CONFIG_INFO *pConfig,u8 *bdaddr,int type);
+int write_bdaddr(struct ar3k_config_info *pConfig,u8 *bdaddr,int type);
 
 int PSSendOps(void *arg);
 
@@ -91,7 +91,7 @@ void Hci_log(u8 * log_string,u8 *data,u32 len)
 
 
 
-int AthPSInitialize(AR3K_CONFIG_INFO *hdev)
+int AthPSInitialize(struct ar3k_config_info *hdev)
 {
     int status = 0;
     if(hdev == NULL) {
@@ -147,7 +147,7 @@ int PSSendOps(void *arg)
     u8 *path = NULL;
     u8 *config_path = NULL;
     u8 config_bdaddr[MAX_BDADDR_FORMAT_LENGTH];
-    AR3K_CONFIG_INFO *hdev = (AR3K_CONFIG_INFO*)arg;
+    struct ar3k_config_info *hdev = (struct ar3k_config_info*)arg;
     struct device *firmwareDev = NULL;
     status = 0;
     HciCmdList = NULL;
@@ -389,7 +389,7 @@ complete:
  *  with a HCI Command Complete event.
  *  For HCI SDIO transport, this will be internally defined. 
  */
-int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
+int SendHCICommandWaitCommandComplete(struct ar3k_config_info *pConfig,
                                            u8 *pHCICommand,
                                            int              CmdLength,
                                            u8 **ppEventBuffer,
@@ -481,7 +481,7 @@ int str2ba(unsigned char *str_bdaddr,unsigned char *bdaddr)
 	return 0; 
 }
 
-int write_bdaddr(AR3K_CONFIG_INFO *pConfig,u8 *bdaddr,int type)
+int write_bdaddr(struct ar3k_config_info *pConfig,u8 *bdaddr,int type)
 {
 	u8 bdaddr_cmd[] = { 0x0B, 0xFC, 0x0A, 0x01, 0x01, 
 							0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -516,7 +516,7 @@ int write_bdaddr(AR3K_CONFIG_INFO *pConfig,u8 *bdaddr,int type)
     return result;
 
 }
-int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
+int ReadVersionInfo(struct ar3k_config_info *pConfig)
 {
     u8 hciCommand[] =  {0x1E,0xfc,0x00};
     u8 *event;
@@ -531,7 +531,7 @@ int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig)
    }
     return result;
 }
-int getDeviceType(AR3K_CONFIG_INFO *pConfig, u32 *code)
+int getDeviceType(struct ar3k_config_info *pConfig, u32 *code)
 {
     u8 hciCommand[] =  {0x05,0xfc,0x05,0x00,0x00,0x00,0x00,0x04};
     u8 *event;

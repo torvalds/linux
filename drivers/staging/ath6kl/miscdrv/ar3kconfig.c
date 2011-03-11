@@ -47,9 +47,9 @@
 #define HCI_MAX_EVT_RECV_LENGTH             257
 #define EXIT_MIN_BOOT_COMMAND_STATUS_OFFSET  5
 
-int AthPSInitialize(AR3K_CONFIG_INFO *hdev);
+int AthPSInitialize(struct ar3k_config_info *hdev);
 
-static int SendHCICommand(AR3K_CONFIG_INFO *pConfig,
+static int SendHCICommand(struct ar3k_config_info *pConfig,
                                u8 *pBuffer,
                                int              Length)
 {
@@ -84,7 +84,7 @@ static int SendHCICommand(AR3K_CONFIG_INFO *pConfig,
     return status;
 }
 
-static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
+static int RecvHCIEvent(struct ar3k_config_info *pConfig,
                              u8 *pBuffer,
                              int              *pLength)
 {
@@ -122,7 +122,7 @@ static int RecvHCIEvent(AR3K_CONFIG_INFO *pConfig,
     return status;
 } 
     
-int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
+int SendHCICommandWaitCommandComplete(struct ar3k_config_info *pConfig,
                                            u8 *pHCICommand,
                                            int              CmdLength,
                                            u8 **ppEventBuffer,
@@ -209,7 +209,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
     return status;    
 }
 
-static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
+static int AR3KConfigureHCIBaud(struct ar3k_config_info *pConfig)
 {
     int    status = 0;
     u8 hciBaudChangeCommand[] =  {0x0c,0xfc,0x2,0,0};
@@ -274,7 +274,7 @@ static int AR3KConfigureHCIBaud(AR3K_CONFIG_INFO *pConfig)
     return status;
 }
 
-static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
+static int AR3KExitMinBoot(struct ar3k_config_info *pConfig)
 {
     int  status;
     char exitMinBootCmd[] = {0x25,0xFC,0x0c,0x03,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -310,7 +310,7 @@ static int AR3KExitMinBoot(AR3K_CONFIG_INFO *pConfig)
     return status;                                              
 }
                                  
-static int AR3KConfigureSendHCIReset(AR3K_CONFIG_INFO *pConfig)
+static int AR3KConfigureSendHCIReset(struct ar3k_config_info *pConfig)
 {
     int status = 0;
     u8 hciResetCommand[] = {0x03,0x0c,0x0};
@@ -334,7 +334,7 @@ static int AR3KConfigureSendHCIReset(AR3K_CONFIG_INFO *pConfig)
     return status;
 }
 
-static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
+static int AR3KEnableTLPM(struct ar3k_config_info *pConfig)
 {
     int  status;
     /* AR3K vendor specific command for Host Wakeup Config */
@@ -453,7 +453,7 @@ static int AR3KEnableTLPM(AR3K_CONFIG_INFO *pConfig)
     return status;                                              
 }
 
-int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
+int AR3KConfigure(struct ar3k_config_info *pConfig)
 {
     int        status = 0;
         
@@ -524,7 +524,7 @@ int AR3KConfigure(AR3K_CONFIG_INFO *pConfig)
 int AR3KConfigureExit(void *config)
 {
     int        status = 0;
-    AR3K_CONFIG_INFO *pConfig = (AR3K_CONFIG_INFO *)config;
+    struct ar3k_config_info *pConfig = (struct ar3k_config_info *)config;
         
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("AR3K Config: Cleaning up AR3K ...\n"));
                                 
