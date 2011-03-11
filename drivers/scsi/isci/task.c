@@ -67,39 +67,36 @@
 #include "task.h"
 
 /**
-* isci_task_complete_for_upper_layer() - This function completes the request
-*    to the upper layer driver in the case where an I/O needs to be completed
-*    back in the submit path.
-* @host: This parameter is a pointer to the host on which the the request
-*    should be queued (either as an error or success).
-* @task: This parameter is the completed request.
-* @response: This parameter is the response code for the completed task.
-* @status: This parameter is the status code for the completed task.
+* isci_task_refuse() - complete the request to the upper layer driver in
+*     the case where an I/O needs to be completed back in the submit path.
+* @ihost: host on which the the request was queued
+* @task: request to complete
+* @response: response code for the completed task.
+* @status: status code for the completed task.
 *
-* none.
 */
-static void isci_task_complete_for_upper_layer(struct sas_task *task,
-					       enum service_response response,
-					       enum exec_status status,
-					       enum isci_completion_selection task_notification_selection)
-{
-	unsigned long    flags = 0;
-	struct Scsi_Host *host = NULL;
+static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
+			     enum service_response response,
+			     enum exec_status status)
 
-	task_notification_selection
-		= isci_task_set_completion_status(task, response, status,
-						  task_notification_selection);
+{
+	enum isci_completion_selection disposition;
+
+	disposition = isci_perform_normal_io_completion;
+	disposition = isci_task_set_completion_status(task, response, status,
+						      disposition);
 
 	/* Tasks aborted specifically by a call to the lldd_abort_task
-	* function should not be completed to the host in the regular path.
-	*/
-	switch (task_notification_selection) {
+	 * function should not be completed to the host in the regular path.
+	 */
+	switch (disposition) {
 		case isci_perform_normal_io_completion:
 			/* Normal notification (task_done) */
-			dev_dbg(task->dev->port->ha->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: Normal - task = %p, response=%d, status=%d\n",
 				__func__, task, response, status);
 
+			task->lldd_task = NULL;
 			if (dev_is_sata(task->dev)) {
 				/* Since we are still in the submit path, and since
 				* libsas takes the host lock on behalf of SATA
@@ -107,50 +104,46 @@ static void isci_task_complete_for_upper_layer(struct sas_task *task,
 				* before we can call back and report the I/O
 				* submission error.
 				*/
-				if (task->dev
-				    && task->dev->port
-				    && task->dev->port->ha) {
+				unsigned long flags;
 
-					host = task->dev->port->ha->core.shost;
-					raw_local_irq_save(flags);
-					spin_unlock(host->host_lock);
-				}
+				raw_local_irq_save(flags);
+				spin_unlock(ihost->shost->host_lock);
 				task->task_done(task);
-				if (host) {
-					spin_lock(host->host_lock);
-					raw_local_irq_restore(flags);
-				}
+				spin_lock(ihost->shost->host_lock);
+				raw_local_irq_restore(flags);
 			} else
 				task->task_done(task);
-
-			task->lldd_task = NULL;
 			break;
 
 		case isci_perform_aborted_io_completion:
 			/* No notification because this request is already in the
 			* abort path.
 			*/
-			dev_warn(task->dev->port->ha->dev,
+			dev_warn(&ihost->pdev->dev,
 				 "%s: Aborted - task = %p, response=%d, status=%d\n",
 				 __func__, task, response, status);
 			break;
 
 		case isci_perform_error_io_completion:
 			/* Use sas_task_abort */
-			dev_warn(task->dev->port->ha->dev,
+			dev_warn(&ihost->pdev->dev,
 				 "%s: Error - task = %p, response=%d, status=%d\n",
 				 __func__, task, response, status);
 			sas_task_abort(task);
 			break;
 
 		default:
-			dev_warn(task->dev->port->ha->dev,
+			dev_warn(&ihost->pdev->dev,
 				 "%s: isci task notification default case!",
 				 __func__);
 			sas_task_abort(task);
 			break;
 	}
 }
+
+#define for_each_sas_task(num, task) \
+	for (; num > 0; num--,\
+	     task = list_entry(task->list.next, struct sas_task, list))
 
 /**
  * isci_task_execute_task() - This function is one of the SAS Domain Template
@@ -164,7 +157,7 @@ static void isci_task_complete_for_upper_layer(struct sas_task *task,
  */
 int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 {
-	struct isci_host *isci_host;
+	struct isci_host *ihost = task->dev->port->ha->lldd_ha;
 	struct isci_request *request = NULL;
 	struct isci_remote_device *device;
 	unsigned long flags;
@@ -172,59 +165,22 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	enum sci_status status;
 	enum isci_status device_status;
 
-	dev_dbg(task->dev->port->ha->dev, "%s: num=%d\n", __func__, num);
-
-	if ((task->dev == NULL) || (task->dev->port == NULL)) {
-
-		/* Indicate SAS_TASK_UNDELIVERED, so that the scsi midlayer
-		 * removes the target.
-		 */
-		isci_task_complete_for_upper_layer(
-			task,
-			SAS_TASK_UNDELIVERED,
-			SAS_DEVICE_UNKNOWN,
-			isci_perform_normal_io_completion
-			);
-		return 0;  /* The I/O was accepted (and failed). */
-	}
-	isci_host = isci_host_from_sas_ha(task->dev->port->ha);
+	dev_dbg(&ihost->pdev->dev, "%s: num=%d\n", __func__, num);
 
 	/* Check if we have room for more tasks */
-	ret = isci_host_can_queue(isci_host, num);
+	ret = isci_host_can_queue(ihost, num);
 
 	if (ret) {
-		dev_warn(task->dev->port->ha->dev, "%s: queue full\n", __func__);
+		dev_warn(&ihost->pdev->dev, "%s: queue full\n", __func__);
 		return ret;
 	}
 
-	do {
-		dev_dbg(task->dev->port->ha->dev,
+	for_each_sas_task(num, task) {
+		dev_dbg(&ihost->pdev->dev,
 			"task = %p, num = %d; dev = %p; cmd = %p\n",
 			    task, num, task->dev, task->uldd_task);
 
-		if ((task->dev == NULL) || (task->dev->port == NULL)) {
-			dev_warn(task->dev->port->ha->dev,
-				 "%s: task %p's port or dev == NULL!\n",
-				 __func__, task);
-
-			/* Indicate SAS_TASK_UNDELIVERED, so that the scsi
-			 * midlayer removes the target.
-			 */
-			isci_task_complete_for_upper_layer(
-				task,
-				SAS_TASK_UNDELIVERED,
-				SAS_DEVICE_UNKNOWN,
-				isci_perform_normal_io_completion
-				);
-			/* We don't have a valid host reference, so we
-			 * can't control the host queueing condition.
-			 */
-			goto next_task;
-		}
-
 		device = isci_dev_from_domain_dev(task->dev);
-
-		isci_host = isci_host_from_sas_ha(task->dev->port->ha);
 
 		if (device)
 			device_status = device->status;
@@ -239,34 +195,28 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 		if (device_status != isci_ready_for_io) {
 
 			/* Forces a retry from scsi mid layer. */
-			dev_warn(task->dev->port->ha->dev,
+			dev_warn(&ihost->pdev->dev,
 				 "%s: task %p: isci_host->status = %d, "
 				 "device = %p; device_status = 0x%x\n\n",
 				 __func__,
 				 task,
-				 isci_host_get_state(isci_host),
+				 isci_host_get_state(ihost),
 				 device, device_status);
 
 			if (device_status == isci_ready) {
 				/* Indicate QUEUE_FULL so that the scsi midlayer
 				* retries.
 				*/
-				isci_task_complete_for_upper_layer(
-					task,
-					SAS_TASK_COMPLETE,
-					SAS_QUEUE_FULL,
-					isci_perform_normal_io_completion
-					);
+				isci_task_refuse(ihost, task,
+						 SAS_TASK_COMPLETE,
+						 SAS_QUEUE_FULL);
 			} else {
 				/* Else, the device is going down. */
-				isci_task_complete_for_upper_layer(
-					task,
-					SAS_TASK_UNDELIVERED,
-					SAS_DEVICE_UNKNOWN,
-					isci_perform_normal_io_completion
-					);
+				isci_task_refuse(ihost, task,
+						 SAS_TASK_UNDELIVERED,
+						 SAS_DEVICE_UNKNOWN);
 			}
-			isci_host_can_dequeue(isci_host, 1);
+			isci_host_can_dequeue(ihost, 1);
 		} else {
 			/* There is a device and it's ready for I/O. */
 			spin_lock_irqsave(&task->task_state_lock, flags);
@@ -276,12 +226,9 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 				spin_unlock_irqrestore(&task->task_state_lock,
 						       flags);
 
-				isci_task_complete_for_upper_layer(
-					task,
-					SAS_TASK_UNDELIVERED,
-					SAM_STAT_TASK_ABORTED,
-					isci_perform_normal_io_completion
-					);
+				isci_task_refuse(ihost, task,
+						 SAS_TASK_UNDELIVERED,
+						 SAM_STAT_TASK_ABORTED);
 
 				/* The I/O was aborted. */
 
@@ -290,7 +237,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 				spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 				/* build and send the request. */
-				status = isci_request_execute(isci_host, task, &request,
+				status = isci_request_execute(ihost, task, &request,
 							      gfp_flags);
 
 				if (status != SCI_SUCCESS) {
@@ -307,19 +254,14 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 					* SAS_TASK_UNDELIVERED next time
 					* through.
 					*/
-					isci_task_complete_for_upper_layer(
-						task,
-						SAS_TASK_COMPLETE,
-						SAS_QUEUE_FULL,
-						isci_perform_normal_io_completion
-						);
-					isci_host_can_dequeue(isci_host, 1);
+					isci_task_refuse(ihost, task,
+							 SAS_TASK_COMPLETE,
+							 SAS_QUEUE_FULL);
+					isci_host_can_dequeue(ihost, 1);
 				}
 			}
 		}
-next_task:
-		task = list_entry(task->list.next, struct sas_task, list);
-	} while (--num > 0);
+	}
 	return 0;
 }
 
