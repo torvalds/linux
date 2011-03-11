@@ -359,7 +359,6 @@ void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 			struct omap_device_pad *pad = hmux->pads_dynamic[i];
 			int val = -EINVAL;
 
-			pad->flags |= OMAP_DEVICE_PAD_IDLE;
 			val = pad->idle;
 			omap_mux_write(pad->partition, val,
 					pad->mux->reg_offset);
@@ -369,25 +368,18 @@ void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 	}
 
 	/* Runtime enabling of dynamic pads */
-	if ((state == _HWMOD_STATE_ENABLED) && hmux->pads_dynamic) {
-		int idled = 0;
-
+	if ((state == _HWMOD_STATE_ENABLED) && hmux->pads_dynamic
+					&& hmux->enabled) {
 		for (i = 0; i < hmux->nr_pads_dynamic; i++) {
 			struct omap_device_pad *pad = hmux->pads_dynamic[i];
 			int val = -EINVAL;
 
-			if (!(pad->flags & OMAP_DEVICE_PAD_IDLE))
-				continue;
-
-			pad->flags &= ~OMAP_DEVICE_PAD_IDLE;
 			val = pad->enable;
 			omap_mux_write(pad->partition, val,
 					pad->mux->reg_offset);
-			idled++;
 		}
 
-		if (idled)
-			return;
+		return;
 	}
 
 	/* Enabling or disabling of all pads */
@@ -404,7 +396,6 @@ void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 					pad->name, val);
 			break;
 		case _HWMOD_STATE_DISABLED:
-		default:
 			/* Use safe mode unless OMAP_DEVICE_PAD_REMUX */
 			if (flags & OMAP_DEVICE_PAD_REMUX)
 				val = pad->off;
@@ -412,6 +403,10 @@ void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 				val = OMAP_MUX_MODE7;
 			pr_debug("%s: Disabling %s %x\n", __func__,
 					pad->name, val);
+			break;
+		default:
+			/* Nothing to be done */
+			break;
 		};
 
 		if (val >= 0) {

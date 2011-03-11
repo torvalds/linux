@@ -159,7 +159,6 @@ struct omap_board_mux {
 	u16	value;
 };
 
-#define OMAP_DEVICE_PAD_IDLE		BIT(7)	/* Not needed for board-*.c */
 #define OMAP_DEVICE_PAD_REMUX		BIT(1)	/* Dynamically remux a pad,
 						   needs enable, idle and off
 						   values */
