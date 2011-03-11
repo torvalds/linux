@@ -3408,12 +3408,19 @@ static void hub_events(void)
 			}
 			
 			if (portchange & USB_PORT_STAT_C_OVERCURRENT) {
-				dev_err (hub_dev,
-					"over-current change on port %d\n",
-					i);
+				u16 status = 0;
+				u16 unused;
+
+				dev_dbg(hub_dev, "over-current change on port "
+					"%d\n", i);
 				clear_port_feature(hdev, i,
 					USB_PORT_FEAT_C_OVER_CURRENT);
+				msleep(100);	/* Cool down */
 				hub_power_on(hub, true);
+				hub_port_status(hub, i, &status, &unused);
+				if (status & USB_PORT_STAT_OVERCURRENT)
+					dev_err(hub_dev, "over-current "
+						"condition on port %d\n", i);
 			}
 
 			if (portchange & USB_PORT_STAT_C_RESET) {
@@ -3445,10 +3452,17 @@ static void hub_events(void)
 					hub->limited_power = 0;
 			}
 			if (hubchange & HUB_CHANGE_OVERCURRENT) {
-				dev_dbg (hub_dev, "overcurrent change\n");
-				msleep(500);	/* Cool down */
+				u16 status = 0;
+				u16 unused;
+
+				dev_dbg(hub_dev, "over-current change\n");
 				clear_hub_feature(hdev, C_HUB_OVER_CURRENT);
+				msleep(500);	/* Cool down */
                         	hub_power_on(hub, true);
+				hub_hub_status(hub, &status, &unused);
+				if (status & HUB_STATUS_OVERCURRENT)
+					dev_err(hub_dev, "over-current "
+						"condition\n");
 			}
 		}
 
