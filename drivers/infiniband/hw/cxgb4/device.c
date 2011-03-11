@@ -87,17 +87,22 @@ static int dump_qp(int id, void *p, void *data)
 		return 1;
 
 	if (qp->ep)
-		cc = snprintf(qpd->buf + qpd->pos, space, "qp id %u state %u "
+		cc = snprintf(qpd->buf + qpd->pos, space,
+			     "qp sq id %u rq id %u state %u onchip %u "
 			     "ep tid %u state %u %pI4:%u->%pI4:%u\n",
-			     qp->wq.sq.qid, (int)qp->attr.state,
+			     qp->wq.sq.qid, qp->wq.rq.qid, (int)qp->attr.state,
+			     qp->wq.sq.flags & T4_SQ_ONCHIP,
 			     qp->ep->hwtid, (int)qp->ep->com.state,
 			     &qp->ep->com.local_addr.sin_addr.s_addr,
 			     ntohs(qp->ep->com.local_addr.sin_port),
 			     &qp->ep->com.remote_addr.sin_addr.s_addr,
 			     ntohs(qp->ep->com.remote_addr.sin_port));
 	else
-		cc = snprintf(qpd->buf + qpd->pos, space, "qp id %u state %u\n",
-			      qp->wq.sq.qid, (int)qp->attr.state);
+		cc = snprintf(qpd->buf + qpd->pos, space,
+			     "qp sq id %u rq id %u state %u onchip %u\n",
+			      qp->wq.sq.qid, qp->wq.rq.qid,
+			      (int)qp->attr.state,
+			      qp->wq.sq.flags & T4_SQ_ONCHIP);
 	if (cc < space)
 		qpd->pos += cc;
 	return 0;
