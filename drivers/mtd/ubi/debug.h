@@ -38,6 +38,11 @@
 	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
 	       current->pid, __func__, ##__VA_ARGS__)
 
+#define dbg_do_msg(typ, fmt, ...) do {                       \
+	if (ubi_msg_flags & typ)                             \
+		dbg_msg(fmt, ##__VA_ARGS__);                 \
+} while (0)
+
 #define ubi_dbg_dump_stack() dump_stack()
 
 struct ubi_ec_hdr;
@@ -57,43 +62,42 @@ void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
 
+extern unsigned int ubi_msg_flags;
+
+/*
+ * Debugging message type flags (must match msg_type_names in debug.c).
+ *
+ * UBI_MSG_GEN: general messages
+ * UBI_MSG_EBA: journal messages
+ * UBI_MSG_WL: mount messages
+ * UBI_MSG_IO: commit messages
+ * UBI_MSG_BLD: LEB find messages
+ */
+enum {
+	UBI_MSG_GEN  = 0x1,
+	UBI_MSG_EBA  = 0x2,
+	UBI_MSG_WL   = 0x4,
+	UBI_MSG_IO   = 0x8,
+	UBI_MSG_BLD  = 0x10,
+};
+
 #define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
 		print_hex_dump(l, ps, pt, r, g, b, len, a)
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG
 /* General debugging messages */
-#define dbg_gen(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_gen(fmt, ...) ({})
-#endif
+#define dbg_gen(fmt, ...) dbg_do_msg(UBI_MSG_GEN, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_EBA
 /* Messages from the eraseblock association sub-system */
-#define dbg_eba(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_eba(fmt, ...) ({})
-#endif
+#define dbg_eba(fmt, ...) dbg_do_msg(UBI_MSG_EBA, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_WL
 /* Messages from the wear-leveling sub-system */
-#define dbg_wl(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_wl(fmt, ...) ({})
-#endif
+#define dbg_wl(fmt, ...) dbg_do_msg(UBI_MSG_WL, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_IO
 /* Messages from the input/output sub-system */
-#define dbg_io(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_io(fmt, ...) ({})
-#endif
+#define dbg_io(fmt, ...) dbg_do_msg(UBI_MSG_IO, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_MTD_UBI_DEBUG_MSG_BLD
 /* Initialization and build messages */
-#define dbg_bld(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#else
-#define dbg_bld(fmt, ...) ({})
-#endif
+#define dbg_bld(fmt, ...) dbg_do_msg(UBI_MSG_BLD, fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);

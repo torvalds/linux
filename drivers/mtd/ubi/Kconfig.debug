@@ -10,11 +10,6 @@ config MTD_UBI_DEBUG
 
 if MTD_UBI_DEBUG
 
-config MTD_UBI_DEBUG_MSG
-	bool "UBI debugging messages"
-	help
-	  This option enables UBI debugging messages.
-
 config MTD_UBI_DEBUG_PARANOID
 	bool "Extra self-checks"
 	help
@@ -44,30 +39,5 @@ config MTD_UBI_DEBUG_EMULATE_ERASE_FAILURES
 	help
 	  This option emulates erase failures with probability 1/100. Useful for
 	  debugging and testing how UBI handlines errors.
-
-comment "Additional UBI debugging messages"
-
-config MTD_UBI_DEBUG_MSG_BLD
-	bool "Additional UBI initialization and build messages"
-	help
-	  This option enables detailed UBI initialization and device build
-	  debugging messages.
-
-config MTD_UBI_DEBUG_MSG_EBA
-	bool "Eraseblock association unit messages"
-	help
-	  This option enables debugging messages from the UBI eraseblock
-	  association unit.
-
-config MTD_UBI_DEBUG_MSG_WL
-	bool "Wear-leveling unit messages"
-	help
-	  This option enables debugging messages from the UBI wear-leveling
-	  unit.
-
-config MTD_UBI_DEBUG_MSG_IO
-	bool "Input/output unit messages"
-	help
-	  This option enables debugging messages from the UBI input/output unit.
 
 endif # MTD_UBI_DEBUG
