@@ -69,6 +69,13 @@ static void wm8958_mbc_apply(struct snd_soc_codec *codec, int mbc, int start)
 		if (reg & WM8958_DSP2_ENA)
 			return;
 
+		/* If neither AIFnCLK is not yet enabled postpone */
+		if (!(snd_soc_read(codec, WM8994_AIF1_CLOCKING_1)
+		      & WM8994_AIF1CLK_ENA_MASK) &&
+		    !(snd_soc_read(codec, WM8994_AIF2_CLOCKING_1)
+		      & WM8994_AIF2CLK_ENA_MASK))
+			return;
+
 		/* Switch the clock over to the appropriate AIF */
 		snd_soc_update_bits(codec, WM8994_CLOCKING_1,
 				    WM8958_DSP2CLK_SRC | WM8958_DSP2CLK_ENA,
@@ -120,32 +127,18 @@ int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	int mbc;
-
-	switch (w->shift) {
-	case 13:
-	case 12:
-		mbc = 2;
-		break;
-	case 11:
-	case 10:
-		mbc = 1;
-		break;
-	case 9:
-	case 8:
-		mbc = 0;
-		break;
-	default:
-		BUG();
-		return -EINVAL;
-	}
+	int i;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		wm8958_mbc_apply(codec, mbc, 1);
+	case SND_SOC_DAPM_PRE_PMU:
+		for (i = 0; i < 3; i++)
+			wm8958_mbc_apply(codec, i, 1);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		wm8958_mbc_apply(codec, mbc, 0);
+	case SND_SOC_DAPM_PRE_PMD:
+		for (i = 0; i < 3; i++)
+			wm8958_mbc_apply(codec, i, 0);
 		break;
 	}
 

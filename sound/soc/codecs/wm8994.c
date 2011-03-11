@@ -759,6 +759,9 @@ static int late_enable_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
+	/* We may also have postponed startup of DSP, handle that. */
+	wm8958_aif_ev(w, kcontrol, event);
+
 	return 0;
 }
 
