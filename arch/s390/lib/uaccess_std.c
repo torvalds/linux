@@ -255,7 +255,7 @@ size_t strncpy_from_user_std(size_t size, const char __user *src, char *dst)
 		: "0" (-EFAULT), "d" (oparg), "a" (uaddr),		\
 		  "m" (*uaddr) : "cc");
 
-int futex_atomic_op_std(int op, int __user *uaddr, int oparg, int *old)
+int futex_atomic_op_std(int op, u32 __user *uaddr, int oparg, int *old)
 {
 	int oldval = 0, newval, ret;
 
@@ -287,8 +287,8 @@ int futex_atomic_op_std(int op, int __user *uaddr, int oparg, int *old)
 	return ret;
 }
 
-int futex_atomic_cmpxchg_std(int *uval, int __user *uaddr,
-			     int oldval, int newval)
+int futex_atomic_cmpxchg_std(u32 *uval, u32 __user *uaddr,
+			     u32 oldval, u32 newval)
 {
 	int ret;
 

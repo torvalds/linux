@@ -3,7 +3,7 @@
 
 #include <asm/system.h>
 
-static inline int atomic_futex_op_xchg_set(int oparg, int __user *uaddr,
+static inline int atomic_futex_op_xchg_set(int oparg, u32 __user *uaddr,
 					   int *oldval)
 {
 	unsigned long flags;
@@ -20,7 +20,7 @@ static inline int atomic_futex_op_xchg_set(int oparg, int __user *uaddr,
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_add(int oparg, int __user *uaddr,
+static inline int atomic_futex_op_xchg_add(int oparg, u32 __user *uaddr,
 					   int *oldval)
 {
 	unsigned long flags;
@@ -37,7 +37,7 @@ static inline int atomic_futex_op_xchg_add(int oparg, int __user *uaddr,
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_or(int oparg, int __user *uaddr,
+static inline int atomic_futex_op_xchg_or(int oparg, u32 __user *uaddr,
 					  int *oldval)
 {
 	unsigned long flags;
@@ -54,7 +54,7 @@ static inline int atomic_futex_op_xchg_or(int oparg, int __user *uaddr,
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_and(int oparg, int __user *uaddr,
+static inline int atomic_futex_op_xchg_and(int oparg, u32 __user *uaddr,
 					   int *oldval)
 {
 	unsigned long flags;
@@ -71,7 +71,7 @@ static inline int atomic_futex_op_xchg_and(int oparg, int __user *uaddr,
 	return ret;
 }
 
-static inline int atomic_futex_op_xchg_xor(int oparg, int __user *uaddr,
+static inline int atomic_futex_op_xchg_xor(int oparg, u32 __user *uaddr,
 					   int *oldval)
 {
 	unsigned long flags;
@@ -88,12 +88,13 @@ static inline int atomic_futex_op_xchg_xor(int oparg, int __user *uaddr,
 	return ret;
 }
 
-static inline int atomic_futex_op_cmpxchg_inatomic(int *uval,
-						   int __user *uaddr,
-						   int oldval, int newval)
+static inline int atomic_futex_op_cmpxchg_inatomic(u32 *uval,
+						   u32 __user *uaddr,
+						   u32 oldval, u32 newval)
 {
 	unsigned long flags;
-	int ret, prev = 0;
+	int ret;
+	u32 prev = 0;
 
 	local_irq_save(flags);
 

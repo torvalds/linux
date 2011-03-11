@@ -302,7 +302,7 @@ fault:
 		     : "0" (-EFAULT), "d" (oparg), "a" (uaddr),		\
 		       "m" (*uaddr) : "cc" );
 
-static int __futex_atomic_op_pt(int op, int __user *uaddr, int oparg, int *old)
+static int __futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 {
 	int oldval = 0, newval, ret;
 
@@ -335,7 +335,7 @@ static int __futex_atomic_op_pt(int op, int __user *uaddr, int oparg, int *old)
 	return ret;
 }
 
-int futex_atomic_op_pt(int op, int __user *uaddr, int oparg, int *old)
+int futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 {
 	int ret;
 
@@ -354,8 +354,8 @@ int futex_atomic_op_pt(int op, int __user *uaddr, int oparg, int *old)
 	return ret;
 }
 
-static int __futex_atomic_cmpxchg_pt(int *uval, int __user *uaddr,
-				     int oldval, int newval)
+static int __futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
+				     u32 oldval, u32 newval)
 {
 	int ret;
 
@@ -370,8 +370,8 @@ static int __futex_atomic_cmpxchg_pt(int *uval, int __user *uaddr,
 	return ret;
 }
 
-int futex_atomic_cmpxchg_pt(int *uval, int __user *uaddr,
-			    int oldval, int newval)
+int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
+			    u32 oldval, u32 newval)
 {
 	int ret;
 

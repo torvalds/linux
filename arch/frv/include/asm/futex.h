@@ -7,11 +7,11 @@
 #include <asm/errno.h>
 #include <asm/uaccess.h>
 
-extern int futex_atomic_op_inuser(int encoded_op, int __user *uaddr);
+extern int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr);
 
 static inline int
-futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
-			      int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+			      u32 oldval, u32 newval)
 {
 	return -ENOSYS;
 }

@@ -75,7 +75,7 @@
 }
 
 static inline int
-futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
+futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -85,7 +85,7 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
+	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	pagefault_disable();
@@ -132,12 +132,13 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 }
 
 static inline int
-futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
-			      int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+			      u32 oldval, u32 newval)
 {
-	int ret = 0, val;
+	int ret = 0;
+	u32 val;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {

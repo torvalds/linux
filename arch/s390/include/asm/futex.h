@@ -7,7 +7,7 @@
 #include <linux/uaccess.h>
 #include <asm/errno.h>
 
-static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
+static inline int futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -18,7 +18,7 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
+	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	pagefault_disable();
@@ -39,10 +39,10 @@ static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-static inline int futex_atomic_cmpxchg_inatomic(int *uval, int __user *uaddr,
-						int oldval, int newval)
+static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
+						u32 oldval, u32 newval)
 {
-	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
+	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	return uaccess.futex_atomic_cmpxchg(uval, uaddr, oldval, newval);
