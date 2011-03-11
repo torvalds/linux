@@ -675,6 +675,7 @@ static void __init cm_t35_init_early(void)
 			     mt46h32m32lf6_sdrc_params);
 }
 
+#ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* nCS and IRQ for CM-T35 ethernet */
 	OMAP3_MUX(GPMC_NCS5, OMAP_MUX_MODE0),
@@ -772,6 +773,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#endif
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_ULPI,

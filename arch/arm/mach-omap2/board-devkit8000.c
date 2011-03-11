@@ -625,6 +625,7 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+#ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* nCS and IRQ for Devkit8000 ethernet */
 	OMAP3_MUX(GPMC_NCS6, OMAP_MUX_MODE0),
@@ -778,6 +779,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#endif
 
 static void __init devkit8000_init(void)
 {

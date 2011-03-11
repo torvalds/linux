@@ -260,6 +260,7 @@ static void __init cm_t3517_init_early(void)
 	omap2_init_common_devices(NULL, NULL);
 }
 
+#ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* GPIO186 - Green LED */
 	OMAP3_MUX(SYS_CLKOUT2, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
@@ -285,6 +286,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#endif
 
 static void __init cm_t3517_init(void)
 {
