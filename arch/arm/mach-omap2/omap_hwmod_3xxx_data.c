@@ -1312,6 +1312,11 @@ static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
 	.slaves		= omap3xxx_wd_timer2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_wd_timer2_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
+	/*
+	 * XXX: Use software supervised mode, HW supervised smartidle seems to
+	 * block CORE power domain idle transitions. Maybe a HW bug in wdt2?
+	 */
+	.flags		= HWMOD_SWSUP_SIDLE,
 };
 
 /* UART common */
