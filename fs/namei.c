@@ -589,29 +589,6 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return dentry;
 }
 
-static inline struct dentry *
-do_revalidate_rcu(struct dentry *dentry, struct nameidata *nd)
-{
-	int status = d_revalidate(dentry, nd);
-	if (likely(status > 0))
-		return dentry;
-	if (status == -ECHILD) {
-		if (nameidata_dentry_drop_rcu(nd, dentry))
-			return ERR_PTR(-ECHILD);
-		return do_revalidate(dentry, nd);
-	}
-	if (status < 0)
-		return ERR_PTR(status);
-	/* Don't d_invalidate in rcu-walk mode */
-	if (nameidata_dentry_drop_rcu(nd, dentry))
-		return ERR_PTR(-ECHILD);
-	if (!d_invalidate(dentry)) {
-		dput(dentry);
-		dentry = NULL;
-	}
-	return dentry;
-}
-
 /*
  * handle_reval_path - force revalidation of a dentry
  *
@@ -1213,7 +1190,8 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 {
 	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry, *parent = nd->path.dentry;
-	struct inode *dir;
+	int need_reval = 1;
+	int status = 1;
 	int err;
 
 	/*
@@ -1223,48 +1201,74 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 	 */
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned seq;
-
 		*inode = nd->inode;
 		dentry = __d_lookup_rcu(parent, name, &seq, inode);
-		if (!dentry) {
-			if (nameidata_drop_rcu(nd))
-				return -ECHILD;
-			goto need_lookup;
-		}
+		if (!dentry)
+			goto unlazy;
+
 		/* Memory barrier in read_seqcount_begin of child is enough */
 		if (__read_seqcount_retry(&parent->d_seq, nd->seq))
 			return -ECHILD;
-
 		nd->seq = seq;
+
 		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
-			dentry = do_revalidate_rcu(dentry, nd);
-			if (!dentry)
-				goto need_lookup;
-			if (IS_ERR(dentry))
-				goto fail;
-			if (!(nd->flags & LOOKUP_RCU))
-				goto done;
+			status = d_revalidate(dentry, nd);
+			if (unlikely(status <= 0)) {
+				if (status != -ECHILD)
+					need_reval = 0;
+				goto unlazy;
+			}
 		}
 		path->mnt = mnt;
 		path->dentry = dentry;
 		if (likely(__follow_mount_rcu(nd, path, inode, false)))
 			return 0;
-		if (nameidata_drop_rcu(nd))
-			return -ECHILD;
-		/* fallthru */
+unlazy:
+		if (dentry) {
+			if (nameidata_dentry_drop_rcu(nd, dentry))
+				return -ECHILD;
+		} else {
+			if (nameidata_drop_rcu(nd))
+				return -ECHILD;
+		}
+	} else {
+		dentry = __d_lookup(parent, name);
 	}
-	dentry = __d_lookup(parent, name);
-	if (!dentry)
-		goto need_lookup;
-found:
-	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
-		dentry = do_revalidate(dentry, nd);
-		if (!dentry)
-			goto need_lookup;
-		if (IS_ERR(dentry))
-			goto fail;
+
+retry:
+	if (unlikely(!dentry)) {
+		struct inode *dir = parent->d_inode;
+		BUG_ON(nd->inode != dir);
+
+		mutex_lock(&dir->i_mutex);
+		dentry = d_lookup(parent, name);
+		if (likely(!dentry)) {
+			dentry = d_alloc_and_lookup(parent, name, nd);
+			if (IS_ERR(dentry)) {
+				mutex_unlock(&dir->i_mutex);
+				return PTR_ERR(dentry);
+			}
+			/* known good */
+			need_reval = 0;
+			status = 1;
+		}
+		mutex_unlock(&dir->i_mutex);
 	}
-done:
+	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE) && need_reval)
+		status = d_revalidate(dentry, nd);
+	if (unlikely(status <= 0)) {
+		if (status < 0) {
+			dput(dentry);
+			return status;
+		}
+		if (!d_invalidate(dentry)) {
+			dput(dentry);
+			dentry = NULL;
+			need_reval = 1;
+			goto retry;
+		}
+	}
+
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd->flags);
@@ -1274,39 +1278,6 @@ done:
 	}
 	*inode = path->dentry->d_inode;
 	return 0;
-
-need_lookup:
-	dir = parent->d_inode;
-	BUG_ON(nd->inode != dir);
-
-	mutex_lock(&dir->i_mutex);
-	/*
-	 * First re-do the cached lookup just in case it was created
-	 * while we waited for the directory semaphore, or the first
-	 * lookup failed due to an unrelated rename.
-	 *
-	 * This could use version numbering or similar to avoid unnecessary
-	 * cache lookups, but then we'd have to do the first lookup in the
-	 * non-racy way. However in the common case here, everything should
-	 * be hot in cache, so would it be a big win?
-	 */
-	dentry = d_lookup(parent, name);
-	if (likely(!dentry)) {
-		dentry = d_alloc_and_lookup(parent, name, nd);
-		mutex_unlock(&dir->i_mutex);
-		if (IS_ERR(dentry))
-			goto fail;
-		goto done;
-	}
-	/*
-	 * Uhhuh! Nasty case: the cache was re-populated while
-	 * we waited on the semaphore. Need to revalidate.
-	 */
-	mutex_unlock(&dir->i_mutex);
-	goto found;
-
-fail:
-	return PTR_ERR(dentry);
 }
 
 static inline int may_lookup(struct nameidata *nd)
