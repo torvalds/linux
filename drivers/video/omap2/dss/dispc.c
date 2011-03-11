@@ -1008,6 +1008,20 @@ void dispc_set_burst_size(enum omap_plane plane,
 	enable_clocks(0);
 }
 
+void dispc_enable_gamma_table(bool enable)
+{
+	/*
+	 * This is partially implemented to support only disabling of
+	 * the gamma table.
+	 */
+	if (enable) {
+		DSSWARN("Gamma table enabling for TV not yet supported");
+		return;
+	}
+
+	REG_FLD_MOD(DISPC_CONFIG, enable, 9, 9);
+}
+
 static void _dispc_set_vid_color_conv(enum omap_plane plane, bool enable)
 {
 	u32 val;
