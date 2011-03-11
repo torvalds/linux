@@ -171,7 +171,7 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root)
 {
 	struct sym_entry *syme, *n;
 	float sum_ksamples = 0.0;
-	int snap = !top->display_weighted ? top->sym_counter : 0, j;
+	int snap = !top->display_weighted ? top->sym_evsel->idx : 0, j;
 
 	/* Sort the active symbols */
 	pthread_mutex_lock(&top->active_symbols_lock);
