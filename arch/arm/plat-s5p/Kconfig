@@ -37,6 +37,11 @@ config S5P_GPIO_INT
 	help
 	  Common code for the GPIO interrupts (other than external interrupts.)
 
+config S5P_HRT
+	bool
+	help
+	  Use the High Resolution timer support
+
 comment "System MMU"
 
 config S5P_SYSTEM_MMU
