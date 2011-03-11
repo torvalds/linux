@@ -10,18 +10,30 @@
 #include <linux/in6.h>
 #include <asm/atomic.h>
 
-struct flowi {
-	int	flowi_oif;
-	int	flowi_iif;
-	__u32	flowi_mark;
-	__u8	flowi_tos;
-	__u8	flowi_scope;
-	__u8	flowi_proto;
-	__u8	flowi_flags;
+struct flowi_common {
+	int	flowic_oif;
+	int	flowic_iif;
+	__u32	flowic_mark;
+	__u8	flowic_tos;
+	__u8	flowic_scope;
+	__u8	flowic_proto;
+	__u8	flowic_flags;
 #define FLOWI_FLAG_ANYSRC		0x01
 #define FLOWI_FLAG_PRECOW_METRICS	0x02
 #define FLOWI_FLAG_CAN_SLEEP		0x04
-	__u32	flowi_secid;
+	__u32	flowic_secid;
+};
+
+struct flowi {
+	struct flowi_common	__fl_common;
+#define flowi_oif		__fl_common.flowic_oif
+#define flowi_iif		__fl_common.flowic_iif
+#define flowi_mark		__fl_common.flowic_mark
+#define flowi_tos		__fl_common.flowic_tos
+#define flowi_scope		__fl_common.flowic_scope
+#define flowi_proto		__fl_common.flowic_proto
+#define flowi_flags		__fl_common.flowic_flags
+#define flowi_secid		__fl_common.flowic_secid
 
 	union {
 		struct {
