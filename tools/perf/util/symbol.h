@@ -137,7 +137,7 @@ struct dso {
 	u8		 annotate_warned:1;
 	u8		 sname_alloc:1;
 	u8		 lname_alloc:1;
-	unsigned char	 origin;
+	unsigned char	 symtab_type;
 	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
@@ -188,18 +188,18 @@ size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf_symbols_by_name(struct dso *self, enum map_type type, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
 
-enum dso_origin {
-	DSO__ORIG_KERNEL = 0,
-	DSO__ORIG_GUEST_KERNEL,
-	DSO__ORIG_JAVA_JIT,
-	DSO__ORIG_BUILD_ID_CACHE,
-	DSO__ORIG_FEDORA,
-	DSO__ORIG_UBUNTU,
-	DSO__ORIG_BUILDID,
-	DSO__ORIG_DSO,
-	DSO__ORIG_GUEST_KMODULE,
-	DSO__ORIG_KMODULE,
-	DSO__ORIG_NOT_FOUND,
+enum symtab_type {
+	SYMTAB__KALLSYMS = 0,
+	SYMTAB__GUEST_KALLSYMS,
+	SYMTAB__JAVA_JIT,
+	SYMTAB__BUILD_ID_CACHE,
+	SYMTAB__FEDORA_DEBUGINFO,
+	SYMTAB__UBUNTU_DEBUGINFO,
+	SYMTAB__BUILDID_DEBUGINFO,
+	SYMTAB__SYSTEM_PATH_DSO,
+	SYMTAB__GUEST_KMODULE,
+	SYMTAB__SYSTEM_PATH_KMODULE,
+	SYMTAB__NOT_FOUND,
 };
 
 char dso__symtab_origin(const struct dso *self);

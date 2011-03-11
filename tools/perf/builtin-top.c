@@ -152,7 +152,7 @@ static int parse_source(struct sym_entry *syme)
 	/*
 	 * We can't annotate with just /proc/kallsyms
 	 */
-	if (map->dso->origin == DSO__ORIG_KERNEL) {
+	if (map->dso->symtab_type == SYMTAB__KALLSYMS) {
 		pr_err("Can't annotate %s: No vmlinux file was found in the "
 		       "path\n", sym->name);
 		sleep(1);
@@ -769,7 +769,7 @@ static void perf_event__process_sample(const union perf_event *event,
 			struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
 
 			pr_err("Can't annotate %s", sym->name);
-			if (top.sym_filter_entry->map->dso->origin == DSO__ORIG_KERNEL) {
+			if (top.sym_filter_entry->map->dso->symtab_type == SYMTAB__KALLSYMS) {
 				pr_err(": No vmlinux file was found in the path:\n");
 				machine__fprintf_vmlinux_path(machine, stderr);
 			} else
