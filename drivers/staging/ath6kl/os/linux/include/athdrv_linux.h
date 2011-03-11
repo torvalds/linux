@@ -625,7 +625,7 @@ typedef enum {
  * arguments:
  * UINT32 cmd (AR6000_XIOCTL_USER_SETKEYS)
  * UINT32 keyOpCtrl
- * uses AR6000_USER_SETKEYS_INFO
+ * uses struct ar6000_user_setkeys_info
  */
 #define AR6000_XIOCTL_USER_SETKEYS                      58
 #endif /* USER_KEYS */
@@ -1098,10 +1098,9 @@ typedef struct targetStats_cmd_t {
 #define AR6000_XIOCTL_USER_SETKEYS_RSC_CTRL    1
 #define AR6000_USER_SETKEYS_RSC_UNCHANGED     0x00000002
 
-typedef struct {
+struct ar6000_user_setkeys_info {
     u32 keyOpCtrl;  /* Bit Map of Key Mgmt Ctrl Flags */
-} AR6000_USER_SETKEYS_INFO;
-
+}; /* XXX: unused !? */
 
 /* used by AR6000_XIOCTL_GPIO_OUTPUT_SET */
 struct ar6000_gpio_output_set_cmd_s {
