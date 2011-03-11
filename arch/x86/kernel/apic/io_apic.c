@@ -1242,32 +1242,28 @@ static inline int IO_APIC_irq_trigger(int irq)
 
 static void ioapic_register_intr(unsigned int irq, unsigned long trigger)
 {
+	struct irq_chip *chip = &ioapic_chip;
+	irq_flow_handler_t hdl;
+	bool fasteoi;
 
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-	    trigger == IOAPIC_LEVEL)
+	    trigger == IOAPIC_LEVEL) {
 		irq_set_status_flags(irq, IRQ_LEVEL);
-	else
+		fasteoi = true;
+	} else {
 		irq_clear_status_flags(irq, IRQ_LEVEL);
+		fasteoi = false;
+	}
 
 	if (irq_remapped(irq_get_chip_data(irq))) {
 		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
-		if (trigger)
-			irq_set_chip_and_handler_name(irq, &ir_ioapic_chip,
-						      handle_fasteoi_irq,
-						      "fasteoi");
-		else
-			irq_set_chip_and_handler_name(irq, &ir_ioapic_chip,
-						      handle_edge_irq, "edge");
-		return;
+		chip = &ir_ioapic_chip;
+		fasteoi = trigger != 0;
 	}
 
-	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-	    trigger == IOAPIC_LEVEL)
-		irq_set_chip_and_handler_name(irq, &ioapic_chip,
-					      handle_fasteoi_irq, "fasteoi");
-	else
-		irq_set_chip_and_handler_name(irq, &ioapic_chip,
-					      handle_edge_irq, "edge");
+	hdl = fasteoi ? handle_fasteoi_irq : handle_edge_irq;
+	irq_set_chip_and_handler_name(irq, chip, hdl,
+				      fasteoi ? "fasteoi" : "edge");
 }
 
 static int setup_ioapic_entry(int apic_id, int irq,
@@ -3264,6 +3260,7 @@ static int msi_alloc_irte(struct pci_dev *dev, int irq, int nvec)
 
 static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 {
+	struct irq_chip *chip = &msi_chip;
 	struct msi_msg msg;
 	int ret;
 
@@ -3276,11 +3273,10 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 
 	if (irq_remapped(irq_get_chip_data(irq))) {
 		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
-		irq_set_chip_and_handler_name(irq, &msi_ir_chip,
-					      handle_edge_irq, "edge");
-	} else
-		irq_set_chip_and_handler_name(irq, &msi_chip,
-					      handle_edge_irq, "edge");
+		chip = &msi_ir_chip;
+	}
+
+	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
 
 	dev_printk(KERN_DEBUG, &dev->dev, "irq %d for MSI/MSI-X\n", irq);
 
@@ -3457,6 +3453,7 @@ static struct irq_chip hpet_msi_type = {
 
 int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 {
+	struct irq_chip *chip = &hpet_msi_type;
 	struct msi_msg msg;
 	int ret;
 
@@ -3479,12 +3476,9 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 	hpet_msi_write(irq_get_handler_data(irq), &msg);
 	irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 	if (irq_remapped(irq_get_chip_data(irq)))
-		irq_set_chip_and_handler_name(irq, &ir_hpet_msi_type,
-					      handle_edge_irq, "edge");
-	else
-		irq_set_chip_and_handler_name(irq, &hpet_msi_type,
-					      handle_edge_irq, "edge");
+		chip = &ir_hpet_msi_type;
 
+	irq_set_chip_and_handler_name(irq, chip, handle_edge_irq, "edge");
 	return 0;
 }
 #endif
