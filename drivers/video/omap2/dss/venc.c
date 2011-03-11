@@ -769,10 +769,16 @@ static struct platform_driver omap_venchw_driver = {
 
 int venc_init_platform_driver(void)
 {
+	if (cpu_is_omap44xx())
+		return 0;
+
 	return platform_driver_register(&omap_venchw_driver);
 }
 
 void venc_uninit_platform_driver(void)
 {
+	if (cpu_is_omap44xx())
+		return;
+
 	return platform_driver_unregister(&omap_venchw_driver);
 }
