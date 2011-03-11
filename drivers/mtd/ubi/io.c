@@ -783,9 +783,8 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			if (verbose)
 				ubi_warn("no EC header found at PEB %d, "
 					 "only 0xFF bytes", pnum);
-			else if (UBI_IO_DEBUG)
-				dbg_msg("no EC header found at PEB %d, "
-					"only 0xFF bytes", pnum);
+			dbg_bld("no EC header found at PEB %d, "
+				"only 0xFF bytes", pnum);
 			if (!read_err)
 				return UBI_IO_FF;
 			else
@@ -800,9 +799,9 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_EC_HDR_MAGIC);
 			ubi_dbg_dump_ec_hdr(ec_hdr);
-		} else if (UBI_IO_DEBUG)
-			dbg_msg("bad magic number at PEB %d: %08x instead of "
-				"%08x", pnum, magic, UBI_EC_HDR_MAGIC);
+		}
+		dbg_bld("bad magic number at PEB %d: %08x instead of "
+			"%08x", pnum, magic, UBI_EC_HDR_MAGIC);
 		return UBI_IO_BAD_HDR;
 	}
 
@@ -814,9 +813,9 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad EC header CRC at PEB %d, calculated "
 				 "%#08x, read %#08x", pnum, crc, hdr_crc);
 			ubi_dbg_dump_ec_hdr(ec_hdr);
-		} else if (UBI_IO_DEBUG)
-			dbg_msg("bad EC header CRC at PEB %d, calculated "
-				"%#08x, read %#08x", pnum, crc, hdr_crc);
+		}
+		dbg_bld("bad EC header CRC at PEB %d, calculated "
+			"%#08x, read %#08x", pnum, crc, hdr_crc);
 
 		if (!read_err)
 			return UBI_IO_BAD_HDR;
@@ -1039,9 +1038,8 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			if (verbose)
 				ubi_warn("no VID header found at PEB %d, "
 					 "only 0xFF bytes", pnum);
-			else if (UBI_IO_DEBUG)
-				dbg_msg("no VID header found at PEB %d, "
-					"only 0xFF bytes", pnum);
+			dbg_bld("no VID header found at PEB %d, "
+				"only 0xFF bytes", pnum);
 			if (!read_err)
 				return UBI_IO_FF;
 			else
@@ -1052,9 +1050,9 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad magic number at PEB %d: %08x instead of "
 				 "%08x", pnum, magic, UBI_VID_HDR_MAGIC);
 			ubi_dbg_dump_vid_hdr(vid_hdr);
-		} else if (UBI_IO_DEBUG)
-			dbg_msg("bad magic number at PEB %d: %08x instead of "
-				"%08x", pnum, magic, UBI_VID_HDR_MAGIC);
+		}
+		dbg_bld("bad magic number at PEB %d: %08x instead of "
+			"%08x", pnum, magic, UBI_VID_HDR_MAGIC);
 		return UBI_IO_BAD_HDR;
 	}
 
@@ -1066,9 +1064,9 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			ubi_warn("bad CRC at PEB %d, calculated %#08x, "
 				 "read %#08x", pnum, crc, hdr_crc);
 			ubi_dbg_dump_vid_hdr(vid_hdr);
-		} else if (UBI_IO_DEBUG)
-			dbg_msg("bad CRC at PEB %d, calculated %#08x, "
-				"read %#08x", pnum, crc, hdr_crc);
+		}
+		dbg_bld("bad CRC at PEB %d, calculated %#08x, "
+			"read %#08x", pnum, crc, hdr_crc);
 		if (!read_err)
 			return UBI_IO_BAD_HDR;
 		else

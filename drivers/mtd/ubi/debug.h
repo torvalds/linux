@@ -91,10 +91,8 @@ void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_BLD
 /* Initialization and build messages */
 #define dbg_bld(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
-#define UBI_IO_DEBUG 1
 #else
 #define dbg_bld(fmt, ...) ({})
-#define UBI_IO_DEBUG 0
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
@@ -177,7 +175,6 @@ static inline int ubi_dbg_is_erase_failure(void)
 #define ubi_dbg_dump_flash(ubi, pnum, offset, len) ({})
 #define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  ({})
 
-#define UBI_IO_DEBUG               0
 #define DBG_DISABLE_BGT            0
 #define ubi_dbg_is_bitflip()       0
 #define ubi_dbg_is_write_failure() 0
