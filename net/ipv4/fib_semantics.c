@@ -1210,7 +1210,7 @@ int fib_sync_up(struct net_device *dev)
  * The algorithm is suboptimal, but it provides really
  * fair weighted route distribution.
  */
-void fib_select_multipath(const struct flowi *flp, struct fib_result *res)
+void fib_select_multipath(struct fib_result *res)
 {
 	struct fib_info *fi = res->fi;
 	int w;

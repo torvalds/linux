@@ -2048,7 +2048,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi && res->fi->fib_nhs > 1)
-		fib_select_multipath(fl, res);
+		fib_select_multipath(res);
 #endif
 
 	/* create a routing cache entry */
@@ -2598,7 +2598,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res.fi->fib_nhs > 1 && fl.oif == 0)
-		fib_select_multipath(&fl, &res);
+		fib_select_multipath(&res);
 	else
 #endif
 	if (!res.prefixlen && res.type == RTN_UNICAST && !fl.oif)
