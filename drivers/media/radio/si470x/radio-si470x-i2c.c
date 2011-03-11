@@ -197,8 +197,9 @@ int si470x_fops_open(struct file *file)
 		if (retval < 0)
 			goto done;
 
-		/* enable RDS interrupt */
+		/* enable RDS / STC interrupt */
 		radio->registers[SYSCONFIG1] |= SYSCONFIG1_RDSIEN;
+		radio->registers[SYSCONFIG1] |= SYSCONFIG1_STCIEN;
 		radio->registers[SYSCONFIG1] &= ~SYSCONFIG1_GPIO2;
 		radio->registers[SYSCONFIG1] |= 0x1 << 2;
 		retval = si470x_set_register(radio, SYSCONFIG1);
@@ -274,12 +275,20 @@ static void si470x_i2c_interrupt_work(struct work_struct *work)
 	unsigned char tmpbuf[3];
 	int retval = 0;
 
+	/* check Seek/Tune Complete */
+	retval = si470x_get_register(radio, STATUSRSSI);
+	if (retval < 0)
+		return;
+
+	if (radio->registers[STATUSRSSI] & STATUSRSSI_STC)
+		complete(&radio->completion);
+
 	/* safety checks */
 	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
 		return;
 
 	/* Update RDS registers */
-	for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++) {
+	for (regnr = 1; regnr < RDS_REGISTER_NUM; regnr++) {
 		retval = si470x_get_register(radio, STATUSRSSI + regnr);
 		if (retval < 0)
 			return;
@@ -440,6 +449,10 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 	radio->wr_index = 0;
 	radio->rd_index = 0;
 	init_waitqueue_head(&radio->read_queue);
+
+	/* mark Seek/Tune Complete Interrupt enabled */
+	radio->stci_enabled = true;
+	init_completion(&radio->completion);
 
 	retval = request_irq(client->irq, si470x_i2c_interrupt,
 			IRQF_TRIGGER_FALLING, DRIVER_NAME, radio);

@@ -158,6 +158,9 @@ struct si470x_device {
 	unsigned int rd_index;
 	unsigned int wr_index;
 
+	struct completion completion;
+	bool stci_enabled;		/* Seek/Tune Complete Interrupt */
+
 #if defined(CONFIG_USB_SI470X) || defined(CONFIG_USB_SI470X_MODULE)
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
