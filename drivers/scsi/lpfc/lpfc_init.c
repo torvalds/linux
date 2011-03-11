@@ -507,7 +507,10 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	phba->hba_flag &= ~HBA_ERATT_HANDLED;
 
 	/* Enable appropriate host interrupts */
-	status = readl(phba->HCregaddr);
+	if (lpfc_readl(phba->HCregaddr, &status)) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EIO;
+	}
 	status |= HC_MBINT_ENA | HC_ERINT_ENA | HC_LAINT_ENA;
 	if (psli->num_rings > 0)
 		status |= HC_R0INT_ENA;
@@ -1222,7 +1225,10 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	/* Wait for the ER1 bit to clear.*/
 	while (phba->work_hs & HS_FFER1) {
 		msleep(100);
-		phba->work_hs = readl(phba->HSregaddr);
+		if (lpfc_readl(phba->HSregaddr, &phba->work_hs)) {
+			phba->work_hs = UNPLUG_ERR ;
+			break;
+		}
 		/* If driver is unloading let the worker thread continue */
 		if (phba->pport->load_flag & FC_UNLOADING) {
 			phba->work_hs = 0;
@@ -5386,13 +5392,16 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 	int i, port_error = 0;
 	uint32_t if_type;
 
+	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
+	memset(&reg_data, 0, sizeof(reg_data));
 	if (!phba->sli4_hba.PSMPHRregaddr)
 		return -ENODEV;
 
 	/* Wait up to 30 seconds for the SLI Port POST done and ready */
 	for (i = 0; i < 3000; i++) {
-		portsmphr_reg.word0 = readl(phba->sli4_hba.PSMPHRregaddr);
-		if (bf_get(lpfc_port_smphr_perr, &portsmphr_reg)) {
+		if (lpfc_readl(phba->sli4_hba.PSMPHRregaddr,
+			&portsmphr_reg.word0) ||
+			(bf_get(lpfc_port_smphr_perr, &portsmphr_reg))) {
 			/* Port has a fatal POST error, break out */
 			port_error = -ENODEV;
 			break;
@@ -5473,9 +5482,9 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			break;
 		case LPFC_SLI_INTF_IF_TYPE_2:
 			/* Final checks.  The port status should be clean. */
-			reg_data.word0 =
-				readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
-			if (bf_get(lpfc_sliport_status_err, &reg_data)) {
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+				&reg_data.word0) ||
+				bf_get(lpfc_sliport_status_err, &reg_data)) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
@@ -6761,9 +6770,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			 * the loop again.
 			 */
 			for (rdy_chk = 0; rdy_chk < 1000; rdy_chk++) {
-				reg_data.word0 =
-					readl(phba->sli4_hba.u.if_type2.
-					      STATUSregaddr);
+				if (lpfc_readl(phba->sli4_hba.u.if_type2.
+					      STATUSregaddr, &reg_data.word0)) {
+					rc = -ENODEV;
+					break;
+				}
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
 				if (bf_get(lpfc_sliport_status_rn, &reg_data)) {
@@ -6784,8 +6795,11 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			}
 
 			/* Detect any port errors. */
-			reg_data.word0 = readl(phba->sli4_hba.u.if_type2.
-					       STATUSregaddr);
+			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+				 &reg_data.word0)) {
+				rc = -ENODEV;
+				break;
+			}
 			if ((bf_get(lpfc_sliport_status_err, &reg_data)) ||
 			    (rdy_chk >= 1000)) {
 				phba->work_status[0] = readl(

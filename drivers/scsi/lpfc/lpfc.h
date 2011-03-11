@@ -897,7 +897,18 @@ lpfc_worker_wake_up(struct lpfc_hba *phba)
 	return;
 }
 
-static inline void
+static inline int
+lpfc_readl(void __iomem *addr, uint32_t *data)
+{
+	uint32_t temp;
+	temp = readl(addr);
+	if (temp == 0xffffffff)
+		return -EIO;
+	*data = temp;
+	return 0;
+}
+
+static inline int
 lpfc_sli_read_hs(struct lpfc_hba *phba)
 {
 	/*
@@ -906,15 +917,17 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 	 */
 	phba->sli.slistat.err_attn_event++;
 
-	/* Save status info */
-	phba->work_hs = readl(phba->HSregaddr);
-	phba->work_status[0] = readl(phba->MBslimaddr + 0xa8);
-	phba->work_status[1] = readl(phba->MBslimaddr + 0xac);
+	/* Save status info and check for unplug error */
+	if (lpfc_readl(phba->HSregaddr, &phba->work_hs) ||
+		lpfc_readl(phba->MBslimaddr + 0xa8, &phba->work_status[0]) ||
+		lpfc_readl(phba->MBslimaddr + 0xac, &phba->work_status[1])) {
+		return -EIO;
+	}
 
 	/* Clear chip Host Attention error bit */
 	writel(HA_ERATT, phba->HAregaddr);
 	readl(phba->HAregaddr); /* flush */
 	phba->pport->stopped = 1;
 
-	return;
+	return 0;
 }

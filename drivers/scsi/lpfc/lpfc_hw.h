@@ -1344,7 +1344,7 @@ typedef struct {		/* FireFly BIU registers */
 #define HS_FFER1       0x80000000	/* Bit 31 */
 #define HS_CRIT_TEMP   0x00000100	/* Bit 8  */
 #define HS_FFERM       0xFF000100	/* Mask for error bits 31:24 and 8 */
-
+#define UNPLUG_ERR     0x00000001	/* Indicate pci hot unplug */
 /* Host Control Register */
 
 #define HC_REG_OFFSET  12	/* Byte offset from register base address */
