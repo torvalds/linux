@@ -1742,7 +1742,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned int val, val_mask;
+	unsigned int val;
 	int connect, change;
 	struct snd_soc_dapm_update update;
 
@@ -1750,13 +1750,13 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 
 	if (invert)
 		val = max - val;
-	val_mask = mask << shift;
+	mask = mask << shift;
 	val = val << shift;
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 
-	change = snd_soc_test_bits(widget->codec, reg, val_mask, val);
+	change = snd_soc_test_bits(widget->codec, reg, mask, val);
 	if (change) {
 		if (val)
 			/* new connection */
