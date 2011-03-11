@@ -373,6 +373,7 @@ void ath_beacon_tasklet(unsigned long data)
 			ath_dbg(common, ATH_DBG_BSTUCK,
 				"missed %u consecutive beacons\n",
 				sc->beacon.bmisscnt);
+			ath9k_hw_stop_dma_queue(ah, sc->beacon.beaconq);
 			ath9k_hw_bstuck_nfcal(ah);
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
 			ath_dbg(common, ATH_DBG_BSTUCK,
@@ -450,16 +451,6 @@ void ath_beacon_tasklet(unsigned long data)
 		sc->beacon.updateslot = OK;
 	}
 	if (bfaddr != 0) {
-		/*
-		 * Stop any current dma and put the new frame(s) on the queue.
-		 * This should never fail since we check above that no frames
-		 * are still pending on the queue.
-		 */
-		if (!ath9k_hw_stoptxdma(ah, sc->beacon.beaconq)) {
-			ath_err(common, "beacon queue %u did not stop?\n",
-				sc->beacon.beaconq);
-		}
-
 		/* NB: cabq traffic should already be queued and primed */
 		ath9k_hw_puttxbuf(ah, sc->beacon.beaconq, bfaddr);
 		ath9k_hw_txstart(ah, sc->beacon.beaconq);
@@ -780,7 +771,7 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 		ah->imask &= ~ATH9K_INT_SWBA;
 		ath9k_hw_set_interrupts(ah, ah->imask);
 		tasklet_kill(&sc->bcon_tasklet);
-		ath9k_hw_stoptxdma(ah, sc->beacon.beaconq);
+		ath9k_hw_stop_dma_queue(ah, sc->beacon.beaconq);
 	}
 	ath9k_ps_restore(sc);
 }
