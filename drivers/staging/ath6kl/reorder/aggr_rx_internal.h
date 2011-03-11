@@ -100,7 +100,7 @@ typedef struct {
     u32 num_bar;            /* num of resets of seq_num, via BAR */
 }RXTID_STATS;
 
-typedef struct {
+struct aggr_info {
     u8 aggr_sz;            /* config value of aggregation size */
     u8 timerScheduled;
     A_TIMER             timer;              /* timer for returning held up pkts in re-order que */    
@@ -111,6 +111,6 @@ typedef struct {
     A_NETBUF_QUEUE_T    freeQ;              /* pre-allocated buffers - for A_MSDU slicing */
     RXTID_STATS         stat[NUM_OF_TIDS];  /* Tid based statistics */
     PACKET_LOG          pkt_log;            /* Log info of the packets */
-}AGGR_INFO;
+};
 
 #endif /* __AGGR_RX_INTERNAL_H__ */
