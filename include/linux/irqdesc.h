@@ -109,6 +109,11 @@ static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
+static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
+{
+	return &desc->irq_data;
+}
+
 static inline struct irq_chip *irq_desc_get_chip(struct irq_desc *desc)
 {
 	return desc->irq_data.chip;
