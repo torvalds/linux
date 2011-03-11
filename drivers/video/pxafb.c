@@ -1648,7 +1648,8 @@ pxafb_freq_transition(struct notifier_block *nb, unsigned long val, void *data)
 
 	switch (val) {
 	case CPUFREQ_PRECHANGE:
-		set_ctrlr_state(fbi, C_DISABLE_CLKCHANGE);
+		if (!fbi->overlay[0].usage && !fbi->overlay[1].usage)
+			set_ctrlr_state(fbi, C_DISABLE_CLKCHANGE);
 		break;
 
 	case CPUFREQ_POSTCHANGE:
