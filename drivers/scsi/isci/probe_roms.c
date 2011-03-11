@@ -61,6 +61,11 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 
 	len = pci_biosrom_size(pdev);
 	rom = devm_kzalloc(&pdev->dev, sizeof(*rom), GFP_KERNEL);
+	if (!rom) {
+		dev_warn(&pdev->dev,
+			 "Unable to allocate memory for orom\n");
+		return NULL;
+	}
 
 	for (i = 0; i < len && rom; i += ISCI_OEM_SIG_SIZE) {
 		memcpy_fromio(oem_sig, oprom + i, ISCI_OEM_SIG_SIZE);
@@ -181,7 +186,11 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
 {
 	struct efi_variable *evar;
 	efi_status_t status;
-	struct isci_orom *orom = NULL;
+	struct isci_orom *rom = NULL;
+	struct isci_oem_hdr *oem_hdr;
+	u8 *tmp, sum;
+	int j;
+	size_t copy_len;
 
 	evar = devm_kzalloc(&pdev->dev,
 			    sizeof(struct efi_variable),
@@ -191,6 +200,16 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
 			 "Unable to allocate memory for EFI var\n");
 		return NULL;
 	}
+
+	rom = devm_kzalloc(&pdev->dev, sizeof(*rom), GFP_KERNEL);
+	if (!rom) {
+		dev_warn(&pdev->dev,
+			 "Unable to allocate memory for orom\n");
+		return NULL;
+	}
+
+	for (j = 0; j < strlen(ISCI_EFI_VAR_NAME) + 1; j++)
+		evar->VariableName[j] = ISCI_EFI_VAR_NAME[j];
 
 	evar->DataSize = 1024;
 	evar->VendorGuid = ISCI_EFI_VENDOR_GUID;
@@ -205,19 +224,48 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
 	else
 		status = EFI_NOT_FOUND;
 
-	if (status == EFI_SUCCESS)
-		orom = (struct isci_orom *)evar->Data;
-	else
+	if (status != EFI_SUCCESS) {
 		dev_warn(&pdev->dev,
 			 "Unable to obtain EFI variable for OEM parms\n");
+		return NULL;
+	}
 
-	if (orom && memcmp(orom->hdr.signature, ISCI_ROM_SIG,
-			   strlen(ISCI_ROM_SIG)) != 0)
+	oem_hdr = (struct isci_oem_hdr *)evar->Data;
+
+	if (memcmp(oem_hdr->sig, ISCI_OEM_SIG, ISCI_OEM_SIG_SIZE) != 0) {
 		dev_warn(&pdev->dev,
-			 "Verifying OROM signature failed\n");
+			 "Invalid OEM header signature\n");
+		return NULL;
+	}
 
-	if (!orom)
-		devm_kfree(&pdev->dev, evar);
+	/* calculate checksum */
+	tmp = (u8 *)oem_hdr;
+	for (j = 0, sum = 0; j < sizeof(oem_hdr); j++, tmp++)
+		sum += *tmp;
 
-	return orom;
+	tmp = (u8 *)rom;
+	for (j = 0; j < sizeof(*rom); j++, tmp++)
+		sum += *tmp;
+
+	if (sum != 0) {
+		dev_warn(&pdev->dev,
+			 "OEM table checksum failed\n");
+		return NULL;
+	}
+
+	copy_len = min(evar->DataSize,
+		       min(oem_hdr->len - sizeof(*oem_hdr),
+			   sizeof(*rom)));
+
+	memcpy(rom, (char *)evar->Data + sizeof(*oem_hdr), copy_len);
+
+	if (memcmp(rom->hdr.signature,
+		   ISCI_ROM_SIG,
+		   ISCI_ROM_SIG_SIZE) != 0) {
+		dev_warn(&pdev->dev,
+			 "Invalid OEM table signature\n");
+		return NULL;
+	}
+
+	return rom;
 }

@@ -100,7 +100,7 @@ struct isci_oem_hdr {
 	EFI_GUID(0x193dfefa, 0xa445, 0x4302, 0x99, 0xd8, 0xef, 0x3a, 0xad, \
 			0x1a, 0x04, 0xc6)
 #define ISCI_EFI_ATTRIBUTES	0
-#define ISCI_EFI_VAR_NAME	"RST_SCU_OEM"
+#define ISCI_EFI_VAR_NAME	"RstScuO"
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
  * defined by the OEM configuration parameters providing no PHY_MASK parameters
