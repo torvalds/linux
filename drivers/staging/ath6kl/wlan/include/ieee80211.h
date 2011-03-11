@@ -68,7 +68,7 @@
 
 
 #define IEEE80211_ADDR_EQ(addr1, addr2)     \
-    (A_MEMCMP(addr1, addr2, IEEE80211_ADDR_LEN) == 0)
+    (memcmp(addr1, addr2, IEEE80211_ADDR_LEN) == 0)
 
 #define IEEE80211_ADDR_COPY(dst,src)    memcpy(dst,src,IEEE80211_ADDR_LEN)
 

@@ -877,7 +877,7 @@ static ATH_DEBUG_MODULE_DBG_INFO *FindModule(char *module_name)
 
     while (pInfo != NULL) {
             /* TODO: need to use something other than strlen */
-        if (A_MEMCMP(pInfo->ModuleName,module_name,strlen(module_name)) == 0) {
+        if (memcmp(pInfo->ModuleName,module_name,strlen(module_name)) == 0) {
             break;
         }
         pInfo = pInfo->pNext;
@@ -916,7 +916,7 @@ void a_dump_module_debug_info_by_name(char *module_name)
         return;
     }
 
-    if (A_MEMCMP(module_name,"all",3) == 0) {
+    if (memcmp(module_name,"all",3) == 0) {
             /* dump all */
         while (pInfo != NULL) {
             a_dump_module_debug_info(pInfo);

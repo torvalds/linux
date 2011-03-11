@@ -305,7 +305,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
     if(ar->arConnected == true &&
        ar->arSsidLen == sme->ssid_len &&
-       !A_MEMCMP(ar->arSsid, sme->ssid, ar->arSsidLen)) {
+       !memcmp(ar->arSsid, sme->ssid, ar->arSsidLen)) {
         reconnect_flag = true;
         status = wmi_reconnect_cmd(ar->arWmi,
                                    ar->arReqBssid,
@@ -318,7 +318,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
         }
         return 0;
     } else if(ar->arSsidLen == sme->ssid_len &&
-              !A_MEMCMP(ar->arSsid, sme->ssid, ar->arSsidLen)) {
+              !memcmp(ar->arSsid, sme->ssid, ar->arSsidLen)) {
 	    ar6000_disconnect(ar);
     }
 
@@ -332,7 +332,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     if(sme->bssid){
-        if(A_MEMCMP(&sme->bssid, bcast_mac, AR6000_ETH_ADDR_LEN)) {
+        if(memcmp(&sme->bssid, bcast_mac, AR6000_ETH_ADDR_LEN)) {
             memcpy(ar->arReqBssid, sme->bssid, sizeof(ar->arReqBssid));
         }
     }
@@ -1321,7 +1321,7 @@ ar6k_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     if(ibss_param->bssid) {
-        if(A_MEMCMP(&ibss_param->bssid, bcast_mac, AR6000_ETH_ADDR_LEN)) {
+        if(memcmp(&ibss_param->bssid, bcast_mac, AR6000_ETH_ADDR_LEN)) {
             memcpy(ar->arReqBssid, ibss_param->bssid, sizeof(ar->arReqBssid));
         }
     }

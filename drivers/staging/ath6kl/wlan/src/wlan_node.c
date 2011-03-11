@@ -334,7 +334,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
     while (bss != NULL)
     {
         nextBss = bss->ni_list_next;
-        if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
+        if (memcmp(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
                /*
                 * free up all but the current bss - if set
@@ -357,7 +357,7 @@ wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt)
     while (bss != NULL)
     {
         nextBss = bss->ni_list_next;
-        if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
+        if (memcmp(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
 
             if (((now - bss->ni_tstamp) > timeoutValue)  || --bss->ni_actcnt == 0)
@@ -391,7 +391,7 @@ wlan_node_timeout (A_ATH_TIMER arg)
     while (bss != NULL)
     {
         nextBss = bss->ni_list_next;
-        if (A_MEMCMP(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
+        if (memcmp(myBssid, bss->ni_macaddr, sizeof(myBssid)) != 0)
         {
 
             if ((now - bss->ni_tstamp) > timeoutValue)
@@ -539,7 +539,7 @@ wlan_node_remove(struct ieee80211_node_table *nt, u8 *bssid)
     {
         nextBss = bss->ni_list_next;
 
-        if (A_MEMCMP(bssid, bss->ni_macaddr, 6) == 0)
+        if (memcmp(bssid, bss->ni_macaddr, 6) == 0)
         {
             wlan_node_remove_core (nt, bss);
             IEEE80211_NODE_UNLOCK(nt);

@@ -77,7 +77,6 @@
 #define A_CPU2BE32(x)      htonl(x)
 
 #define A_MEMZERO(addr, len)            memset(addr, 0, len)
-#define A_MEMCMP(addr1, addr2, len)     memcmp((addr1), (addr2), (len))
 #define A_MALLOC(size)                  kmalloc((size), GFP_KERNEL)
 #define A_MALLOC_NOWAIT(size)           kmalloc((size), GFP_ATOMIC)
 #define A_FREE(addr)                    kfree(addr)
@@ -364,7 +363,6 @@ static inline void *A_ALIGN_TO_CACHE_LINE(void *ptr) {
 #define POSTPACK                __ATTRIB_PACK
 
 #define A_MEMZERO(addr, len)            memset((addr), 0, (len))
-#define A_MEMCMP(addr1, addr2, len)     memcmp((addr1), (addr2), (len))
 #define A_MALLOC(size)                  malloc(size)
 #define A_FREE(addr)                    free(addr)
 

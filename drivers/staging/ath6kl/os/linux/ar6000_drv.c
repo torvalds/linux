@@ -4291,7 +4291,7 @@ ar6000_connect_event(AR_SOFTC_T *ar, u16 channel, u8 *bssid,
 
     if(ar->arNetworkType & AP_NETWORK) {
         struct net_device *dev = ar->arNetDev;
-        if(A_MEMCMP(dev->dev_addr, bssid, ATH_MAC_LEN)==0) {
+        if(memcmp(dev->dev_addr, bssid, ATH_MAC_LEN)==0) {
             ar->arACS = channel;
             ik = &ar->ap_mode_bkey;
 
@@ -4605,7 +4605,7 @@ u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, u16 reason)
         }
     } else {
         for(i=0; i < AP_MAX_NUM_STA; i++) {
-            if(A_MEMCMP(ar->sta_list[i].mac, mac, ATH_MAC_LEN)==0) {
+            if(memcmp(ar->sta_list[i].mac, mac, ATH_MAC_LEN)==0) {
                 A_PRINTF("DEL STA %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x "
                 " aid=%d REASON=%d\n", mac[0], mac[1], mac[2],
                  mac[3], mac[4], mac[5], ar->sta_list[i].aid, reason);
@@ -6281,7 +6281,7 @@ ap_set_wapi_key(struct ar6_softc *ar, void *ikey)
     KEY_USAGE   keyUsage = 0;
     int    status;
 
-    if (A_MEMCMP(ik->ik_macaddr, bcast_mac, IEEE80211_ADDR_LEN) == 0) {
+    if (memcmp(ik->ik_macaddr, bcast_mac, IEEE80211_ADDR_LEN) == 0) {
         keyUsage = GROUP_USAGE;
     } else {
         keyUsage = PAIRWISE_USAGE;

@@ -555,7 +555,7 @@ ar6000_ioctl_set_badAp(struct net_device *dev, struct ifreq *rq)
         return -EIO;
     }
 
-    if (A_MEMCMP(cmd.bssid, null_mac, AR6000_ETH_ADDR_LEN) == 0) {
+    if (memcmp(cmd.bssid, null_mac, AR6000_ETH_ADDR_LEN) == 0) {
         /*
          * This is a delete badAP.
          */
@@ -3127,7 +3127,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                                       sizeof(adhocBssid)))
             {
                 ret = -EFAULT;
-            } else if (A_MEMCMP(adhocBssid.bssid, bcast_mac,
+            } else if (memcmp(adhocBssid.bssid, bcast_mac,
                                 AR6000_ETH_ADDR_LEN) == 0)
             {
                 ret = -EFAULT;
@@ -4714,7 +4714,7 @@ u8 mac_cmp_wild(u8 *mac, u8 *new_mac, u8 wild, u8 new_wild)
         if((wild & 1<<i) && (new_wild & 1<<i)) continue;
         if(mac[i] != new_mac[i]) return 1;
     }
-    if((A_MEMCMP(new_mac, null_mac, 6)==0) && new_wild &&
+    if((memcmp(new_mac, null_mac, 6)==0) && new_wild &&
         (wild != new_wild)) {
         return 1;
     }

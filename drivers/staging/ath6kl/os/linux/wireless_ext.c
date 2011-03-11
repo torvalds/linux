@@ -504,7 +504,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
 
     if (ar->arNextMode == AP_NETWORK) {
         /* SSID change for AP network - Will take effect on commit */
-        if(A_MEMCMP(ar->arSsid,ssid,32) != 0) {
+        if(memcmp(ar->arSsid,ssid,32) != 0) {
              ar->arSsidLen = data->length - 1;
             memcpy(ar->arSsid, ssid, ar->arSsidLen);
             ar->ap_profile_flag = 1; /* There is a change in profile */
@@ -581,7 +581,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
         (!data->flags)))
     {
         if ((!data->flags) ||
-            (A_MEMCMP(ar->arSsid, ssid, ar->arSsidLen) != 0) ||
+            (memcmp(ar->arSsid, ssid, ar->arSsidLen) != 0) ||
             (ar->arSsidLen != (data->length - 1)))
         {
             /*
@@ -1618,7 +1618,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     keyLen = erq->length - sizeof(struct iw_encode_ext);
     memcpy(wapiKeyRsc, ext->tx_seq, sizeof(wapiKeyRsc));
 
-    if (A_MEMCMP(ext->addr.sa_data, broadcastMac, sizeof(broadcastMac)) == 0) {
+    if (memcmp(ext->addr.sa_data, broadcastMac, sizeof(broadcastMac)) == 0) {
         keyUsage |= GROUP_USAGE;
         PN = (u32 *)wapiKeyRsc;
         for (i = 0; i < 4; i++) {
@@ -2315,7 +2315,7 @@ ar6000_ioctl_siwap(struct net_device *dev,
         return -EIO;
     }
 
-    if (A_MEMCMP(&ap_addr->sa_data, bcast_mac, AR6000_ETH_ADDR_LEN) == 0) {
+    if (memcmp(&ap_addr->sa_data, bcast_mac, AR6000_ETH_ADDR_LEN) == 0) {
         A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     } else {
         memcpy(ar->arReqBssid, &ap_addr->sa_data,  sizeof(ar->arReqBssid));
