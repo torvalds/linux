@@ -49,12 +49,17 @@ struct perf_evsel {
 	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
-	struct xyarray		*id;
+	struct xyarray		*sample_id;
+	u64			*id;
 	struct perf_counts	*counts;
 	int			idx;
+	int			ids;
 	struct hists		hists;
 	char			*name;
-	void			*priv;
+	union {
+		void		*priv;
+		off_t		id_offset;
+	};
 	struct cgroup_sel	*cgrp;
 };
 

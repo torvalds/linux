@@ -19,7 +19,7 @@
 #include <linux/hash.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
-#define SID(e, x, y) xyarray__entry(e->id, x, y)
+#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
 
 void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		       struct thread_map *threads)
@@ -106,8 +106,9 @@ void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 	evlist->nr_fds++;
 }
 
-void perf_evlist__id_hash(struct perf_evlist *evlist, struct perf_evsel *evsel,
-			  int cpu, int thread, u64 id)
+static void perf_evlist__id_hash(struct perf_evlist *evlist,
+				 struct perf_evsel *evsel,
+				 int cpu, int thread, u64 id)
 {
 	int hash;
 	struct perf_sample_id *sid = SID(evsel, cpu, thread);
@@ -118,9 +119,16 @@ void perf_evlist__id_hash(struct perf_evlist *evlist, struct perf_evsel *evsel,
 	hlist_add_head(&sid->node, &evlist->heads[hash]);
 }
 
-static int perf_evlist__id_hash_fd(struct perf_evlist *evlist,
-				   struct perf_evsel *evsel,
-				   int cpu, int thread, int fd)
+void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
+			 int cpu, int thread, u64 id)
+{
+	perf_evlist__id_hash(evlist, evsel, cpu, thread, id);
+	evsel->id[evsel->ids++] = id;
+}
+
+static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
+				  struct perf_evsel *evsel,
+				  int cpu, int thread, int fd)
 {
 	u64 read_data[4] = { 0, };
 	int id_idx = 1; /* The first entry is the counter value */
@@ -134,7 +142,7 @@ static int perf_evlist__id_hash_fd(struct perf_evlist *evlist,
 	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
 		++id_idx;
 
-	perf_evlist__id_hash(evlist, evsel, cpu, thread, read_data[id_idx]);
+	perf_evlist__id_add(evlist, evsel, cpu, thread, read_data[id_idx]);
 	return 0;
 }
 
@@ -292,7 +300,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-		    evsel->id == NULL &&
+		    evsel->sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, cpus->nr, threads->nr) < 0)
 			return -ENOMEM;
 
@@ -308,7 +316,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
 					goto out_unmap;
 
 				if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-				    perf_evlist__id_hash_fd(evlist, evsel, cpu, thread, fd) < 0)
+				    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
 					goto out_unmap;
 			}
 		}

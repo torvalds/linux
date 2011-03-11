@@ -31,7 +31,6 @@
 #include <sys/mman.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
-#define SID(e, x, y) xyarray__entry(e->id, x, y)
 
 enum write_mode_t {
 	WRITE_FORCE,
@@ -40,7 +39,6 @@ enum write_mode_t {
 
 static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
-static u64			sample_type;
 
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
@@ -160,54 +158,6 @@ static void sig_atexit(void)
 	kill(getpid(), signr);
 }
 
-static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int nr)
-{
-	struct perf_header_attr *h_attr;
-
-	if (nr < session->header.attrs) {
-		h_attr = session->header.attr[nr];
-	} else {
-		h_attr = perf_header_attr__new(a);
-		if (h_attr != NULL)
-			if (perf_header__add_attr(&session->header, h_attr) < 0) {
-				perf_header_attr__delete(h_attr);
-				h_attr = NULL;
-			}
-	}
-
-	return h_attr;
-}
-
-static void create_counter(struct perf_evsel *evsel, int cpu)
-{
-	struct perf_event_attr *attr = &evsel->attr;
-	struct perf_header_attr *h_attr;
-	struct perf_sample_id *sid;
-	int thread_index;
-
-	for (thread_index = 0; thread_index < evsel_list->threads->nr; thread_index++) {
-		h_attr = get_header_attr(attr, evsel->idx);
-		if (h_attr == NULL)
-			die("nomem\n");
-
-		if (!file_new) {
-			if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
-				fprintf(stderr, "incompatible append\n");
-				exit(-1);
-			}
-		}
-
-		sid = SID(evsel, cpu, thread_index);
-		if (perf_header_attr__add_id(h_attr, sid->id) < 0) {
-			pr_warning("Not enough memory to add id\n");
-			exit(-1);
-		}
-	}
-
-	if (!sample_type)
-		sample_type = attr->sample_type;
-}
-
 static void config_attr(struct perf_evsel *evsel, struct perf_evlist *evlist)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -278,10 +228,28 @@ static void config_attr(struct perf_evsel *evsel, struct perf_evlist *evlist)
 	}
 }
 
+static bool perf_evlist__equal(struct perf_evlist *evlist,
+			       struct perf_evlist *other)
+{
+	struct perf_evsel *pos, *pair;
+
+	if (evlist->nr_entries != other->nr_entries)
+		return false;
+
+	pair = list_entry(other->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (memcmp(&pos->attr, &pair->attr, sizeof(pos->attr) != 0))
+			return false;
+		pair = list_entry(pair->node.next, struct perf_evsel, node);
+	}
+
+	return true;
+}
+
 static void open_counters(struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos;
-	int cpu;
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct perf_event_attr *attr = &pos->attr;
@@ -364,10 +332,16 @@ try_again:
 	if (perf_evlist__mmap(evlist, mmap_pages, false) < 0)
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 
-	for (cpu = 0; cpu < evsel_list->cpus->nr; ++cpu) {
-		list_for_each_entry(pos, &evlist->entries, node)
-			create_counter(pos, cpu);
-	}
+	if (file_new)
+		session->evlist = evlist;
+	else {
+		if (!perf_evlist__equal(session->evlist, evlist)) {
+			fprintf(stderr, "incompatible append\n");
+			exit(-1);
+		}
+ 	}
+
+	perf_session__update_sample_type(session);
 }
 
 static int process_buildids(void)
@@ -390,7 +364,7 @@ static void atexit_header(void)
 
 		if (!no_buildid)
 			process_buildids();
-		perf_header__write(&session->header, evsel_list, output, true);
+		perf_session__write_header(session, evsel_list, output, true);
 		perf_session__delete(session);
 		perf_evlist__delete(evsel_list);
 		symbol__exit();
@@ -524,7 +498,7 @@ static int __cmd_record(int argc, const char **argv)
 		perf_header__set_feat(&session->header, HEADER_BUILD_ID);
 
 	if (!file_new) {
-		err = perf_header__read(session, output);
+		err = perf_session__read_header(session, output);
 		if (err < 0)
 			goto out_delete_session;
 	}
@@ -588,8 +562,6 @@ static int __cmd_record(int argc, const char **argv)
 
 	open_counters(evsel_list);
 
-	perf_session__set_sample_type(session, sample_type);
-
 	/*
 	 * perf_session__delete(session) will be called at atexit_header()
 	 */
@@ -600,20 +572,17 @@ static int __cmd_record(int argc, const char **argv)
 		if (err < 0)
 			return err;
 	} else if (file_new) {
-		err = perf_header__write(&session->header, evsel_list,
-					 output, false);
+		err = perf_session__write_header(session, evsel_list,
+						 output, false);
 		if (err < 0)
 			return err;
 	}
 
 	post_processing_offset = lseek(output, 0, SEEK_CUR);
 
-	perf_session__set_sample_id_all(session, sample_id_all_avail);
-
 	if (pipe_output) {
-		err = perf_event__synthesize_attrs(&session->header,
-						   process_synthesized_event,
-						   session);
+		err = perf_session__synthesize_attrs(session,
+						     process_synthesized_event);
 		if (err < 0) {
 			pr_err("Couldn't synthesize attrs.\n");
 			return err;
