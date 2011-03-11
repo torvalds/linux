@@ -77,7 +77,7 @@ static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
 static int DevGMboxCounterEnableDisable(struct ar6k_device *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
     int                  status = 0;
-    AR6K_IRQ_ENABLE_REGISTERS regs;
+    struct ar6k_irq_enable_registers regs;
     HTC_PACKET                *pIOPacket = NULL;  
     
     LOCK_AR6K(pDev);

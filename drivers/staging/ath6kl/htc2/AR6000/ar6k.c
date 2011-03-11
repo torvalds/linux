@@ -219,7 +219,7 @@ int DevSetup(struct ar6k_device *pDev)
 int DevEnableInterrupts(struct ar6k_device *pDev)
 {
     int                  status;
-    AR6K_IRQ_ENABLE_REGISTERS regs;
+    struct ar6k_irq_enable_registers regs;
 
     LOCK_AR6K(pDev);
 
@@ -278,7 +278,7 @@ int DevEnableInterrupts(struct ar6k_device *pDev)
 
 int DevDisableInterrupts(struct ar6k_device *pDev)
 {
-    AR6K_IRQ_ENABLE_REGISTERS regs;
+    struct ar6k_irq_enable_registers regs;
 
     LOCK_AR6K(pDev);
         /* Disable all interrupts */
@@ -407,7 +407,7 @@ static int DevDoEnableDisableRecvNormal(struct ar6k_device *pDev, bool EnableRec
 {
     int                  status = 0;
     HTC_PACKET                *pIOPacket = NULL;
-    AR6K_IRQ_ENABLE_REGISTERS regs;
+    struct ar6k_irq_enable_registers regs;
 
         /* take the lock to protect interrupt enable shadows */
     LOCK_AR6K(pDev);
@@ -538,7 +538,7 @@ int DevWaitForPendingRecv(struct ar6k_device *pDev,u32 TimeoutInMs,bool *pbIsRec
 
 void DevDumpRegisters(struct ar6k_device               *pDev,
                       AR6K_IRQ_PROC_REGISTERS   *pIrqProcRegs,
-                      AR6K_IRQ_ENABLE_REGISTERS *pIrqEnableRegs)
+                      struct ar6k_irq_enable_registers *pIrqEnableRegs)
 {
 
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY, ("\n<------- Register Table -------->\n"));

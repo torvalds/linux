@@ -58,12 +58,12 @@ typedef PREPACK struct _AR6K_IRQ_PROC_REGISTERS {
 
 #define AR6K_IRQ_PROC_REGS_SIZE sizeof(AR6K_IRQ_PROC_REGISTERS)
 
-typedef PREPACK struct _AR6K_IRQ_ENABLE_REGISTERS {
+PREPACK struct ar6k_irq_enable_registers {
     u8 int_status_enable;
     u8 cpu_int_status_enable;
     u8 error_status_enable;
     u8 counter_int_status_enable;
-} POSTPACK AR6K_IRQ_ENABLE_REGISTERS;
+} POSTPACK;
 
 PREPACK struct ar6k_gmbox_ctrl_registers {
     u8 int_status_enable;
@@ -71,7 +71,7 @@ PREPACK struct ar6k_gmbox_ctrl_registers {
 
 #include "athendpack.h"
 
-#define AR6K_IRQ_ENABLE_REGS_SIZE sizeof(AR6K_IRQ_ENABLE_REGISTERS)
+#define AR6K_IRQ_ENABLE_REGS_SIZE sizeof(struct ar6k_irq_enable_registers)
 
 #define AR6K_REG_IO_BUFFER_SIZE     32
 #define AR6K_MAX_REG_IO_BUFFERS     8
@@ -110,7 +110,7 @@ struct ar6k_device {
     u8 _Pad1[A_CACHE_LINE_PAD];
     AR6K_IRQ_PROC_REGISTERS     IrqProcRegisters;   /* cache-line safe with pads around */
     u8 _Pad2[A_CACHE_LINE_PAD];
-    AR6K_IRQ_ENABLE_REGISTERS   IrqEnableRegisters; /* cache-line safe with pads around */
+    struct ar6k_irq_enable_registers   IrqEnableRegisters; /* cache-line safe with pads around */
     u8 _Pad3[A_CACHE_LINE_PAD];
     void                        *HIFDevice;
     u32 BlockSize;
@@ -160,7 +160,7 @@ int DevCheckPendingRecvMsgsAsync(void *context);
 void     DevAsyncIrqProcessComplete(struct ar6k_device *pDev);
 void     DevDumpRegisters(struct ar6k_device               *pDev,
                           AR6K_IRQ_PROC_REGISTERS   *pIrqProcRegs,
-                          AR6K_IRQ_ENABLE_REGISTERS *pIrqEnableRegs);
+                          struct ar6k_irq_enable_registers *pIrqEnableRegs);
 
 #define DEV_STOP_RECV_ASYNC true
 #define DEV_STOP_RECV_SYNC  false

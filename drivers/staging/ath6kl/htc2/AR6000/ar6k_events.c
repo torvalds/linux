@@ -747,7 +747,7 @@ int DevDsrHandler(void *context)
 void DumpAR6KDevState(struct ar6k_device *pDev)
 {
     int                    status;
-    AR6K_IRQ_ENABLE_REGISTERS   regs;
+    struct ar6k_irq_enable_registers   regs;
     AR6K_IRQ_PROC_REGISTERS     procRegs;
 
     LOCK_AR6K(pDev);
