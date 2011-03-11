@@ -574,7 +574,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(tegra->emc_clk);
-	clk_set_rate(tegra->emc_clk, 400000000);
+	clk_set_rate(tegra->emc_clk, 300000000);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
