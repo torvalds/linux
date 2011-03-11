@@ -819,8 +819,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 	if (ret < 0) {
 		/* This is bad; the host is not responding to commands and it's
 		 * not allowing itself to be halted.  At least interrupts are
-		 * disabled, so we can set HC_STATE_HALT and notify the
-		 * USB core.  But if we call usb_hc_died(), it will attempt to
+		 * disabled. If we call usb_hc_died(), it will attempt to
 		 * disconnect all device drivers under this host.  Those
 		 * disconnect() methods will wait for all URBs to be unlinked,
 		 * so we must complete them.
@@ -865,7 +864,6 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 		}
 	}
 	spin_unlock(&xhci->lock);
-	xhci_to_hcd(xhci)->state = HC_STATE_HALT;
 	xhci_dbg(xhci, "Calling usb_hc_died()\n");
 	usb_hc_died(xhci_to_hcd(xhci));
 	xhci_dbg(xhci, "xHCI host controller is dead.\n");
@@ -2113,7 +2111,6 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		xhci_warn(xhci, "WARNING: Host System Error\n");
 		xhci_halt(xhci);
 hw_died:
-		xhci_to_hcd(xhci)->state = HC_STATE_HALT;
 		spin_unlock(&xhci->lock);
 		return -ESHUTDOWN;
 	}

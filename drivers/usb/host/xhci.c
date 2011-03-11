@@ -95,7 +95,6 @@ void xhci_quiesce(struct xhci_hcd *xhci)
  * HC will complete any current and actively pipelined transactions, and
  * should halt within 16 ms of the run/stop bit being cleared.
  * Read HC Halted bit in the status register to see when the HC is finished.
- * XXX: shouldn't we set HC_STATE_HALT here somewhere?
  */
 int xhci_halt(struct xhci_hcd *xhci)
 {
@@ -134,7 +133,7 @@ int xhci_start(struct xhci_hcd *xhci)
 }
 
 /*
- * Reset a halted HC, and set the internal HC state to HC_STATE_HALT.
+ * Reset a halted HC.
  *
  * This resets pipelines, timers, counters, state machines, etc.
  * Transactions will be terminated immediately, and operational registers
@@ -156,8 +155,6 @@ int xhci_reset(struct xhci_hcd *xhci)
 	command = xhci_readl(xhci, &xhci->op_regs->command);
 	command |= CMD_RESET;
 	xhci_writel(xhci, command, &xhci->op_regs->command);
-	/* XXX: Why does EHCI set this here?  Shouldn't other code do this? */
-	xhci_to_hcd(xhci)->state = HC_STATE_HALT;
 
 	ret = handshake(xhci, &xhci->op_regs->command,
 			CMD_RESET, 0, 250 * 1000);
