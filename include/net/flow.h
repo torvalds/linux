@@ -24,6 +24,30 @@ struct flowi_common {
 	__u32	flowic_secid;
 };
 
+union flowi_uli {
+	struct {
+		__be16	sport;
+		__be16	dport;
+	} ports;
+
+	struct {
+		__u8	type;
+		__u8	code;
+	} icmpt;
+
+	struct {
+		__le16	sport;
+		__le16	dport;
+	} dnports;
+
+	__be32		spi;
+	__be32		gre_key;
+
+	struct {
+		__u8	type;
+	} mht;
+};
+
 struct flowi {
 	struct flowi_common	__fl_common;
 #define flowi_oif		__fl_common.flowic_oif
@@ -64,29 +88,7 @@ struct flowi {
 #define fl4_tos		flowi_tos
 #define fl4_scope	flowi_scope
 
-	union {
-		struct {
-			__be16	sport;
-			__be16	dport;
-		} ports;
-
-		struct {
-			__u8	type;
-			__u8	code;
-		} icmpt;
-
-		struct {
-			__le16	sport;
-			__le16	dport;
-		} dnports;
-
-		__be32		spi;
-		__be32		gre_key;
-
-		struct {
-			__u8	type;
-		} mht;
-	} uli_u;
+	union flowi_uli uli_u;
 #define fl_ip_sport	uli_u.ports.sport
 #define fl_ip_dport	uli_u.ports.dport
 #define fl_icmp_type	uli_u.icmpt.type
