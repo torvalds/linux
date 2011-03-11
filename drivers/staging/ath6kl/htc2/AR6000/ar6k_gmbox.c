@@ -93,7 +93,7 @@ static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE
             ~(COUNTER_INT_STATUS_ENABLE_BIT_SET(1 << AR6K_GMBOX_CREDIT_COUNTER));    
     }
         /* copy into our temp area */
-    A_MEMCPY(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+    memcpy(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
 
     UNLOCK_AR6K(pDev);
 
@@ -110,7 +110,7 @@ static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE
             }
 
                 /* copy values to write to our async I/O buffer */
-            A_MEMCPY(pIOPacket->pBuffer,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+            memcpy(pIOPacket->pBuffer,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
 
                 /* stick in our completion routine when the I/O operation completes */
             pIOPacket->Completion = DevGMboxIRQActionAsyncHandler;
@@ -216,7 +216,7 @@ int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool A
             }
 
                 /* copy values to write to our async I/O buffer */
-            A_MEMCPY(pIOPacket->pBuffer,GMboxIntControl,sizeof(GMboxIntControl));
+            memcpy(pIOPacket->pBuffer,GMboxIntControl,sizeof(GMboxIntControl));
 
                 /* stick in our completion routine when the I/O operation completes */
             pIOPacket->Completion = DevGMboxIRQActionAsyncHandler;
@@ -667,7 +667,7 @@ int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLoo
         
         if (procRegs.gmbox_rx_avail > 0) {
             int bytes = procRegs.gmbox_rx_avail > maxCopy ? maxCopy : procRegs.gmbox_rx_avail;
-            A_MEMCPY(pLookAheadBuffer,&procRegs.rx_gmbox_lookahead_alias[0],bytes);
+            memcpy(pLookAheadBuffer,&procRegs.rx_gmbox_lookahead_alias[0],bytes);
             *pLookAheadBytes = bytes;
         }
         

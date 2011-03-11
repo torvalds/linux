@@ -346,7 +346,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
             }
 
 #ifdef HTC_CAPTURE_LAST_FRAME
-            A_MEMCPY(target->LastTrailer, (pBuf + HTC_HDR_LENGTH + payloadLen - temp), temp);
+            memcpy(target->LastTrailer, (pBuf + HTC_HDR_LENGTH + payloadLen - temp), temp);
             target->LastTrailerLength = temp;
 #endif
                 /* trim length by trailer bytes */
@@ -372,7 +372,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
 #endif
     } else {
 #ifdef HTC_CAPTURE_LAST_FRAME
-        A_MEMCPY(&target->LastFrameHdr,pBuf,sizeof(HTC_FRAME_HDR));
+        memcpy(&target->LastFrameHdr,pBuf,sizeof(HTC_FRAME_HDR));
 #endif
         if (AR_DEBUG_LVL_CHECK(ATH_DEBUG_RECV)) {
             if (pPacket->ActualLength > 0) {
@@ -1155,7 +1155,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
     }
         
         /* on first entry copy the lookaheads into our temp array for processing */
-    A_MEMCPY(lookAheads, MsgLookAheads, (sizeof(u32)) * NumLookAheads);
+    memcpy(lookAheads, MsgLookAheads, (sizeof(u32)) * NumLookAheads);
             
     while (true) {
         

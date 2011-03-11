@@ -70,7 +70,7 @@
 #define IEEE80211_ADDR_EQ(addr1, addr2)     \
     (A_MEMCMP(addr1, addr2, IEEE80211_ADDR_LEN) == 0)
 
-#define IEEE80211_ADDR_COPY(dst,src)    A_MEMCPY(dst,src,IEEE80211_ADDR_LEN)
+#define IEEE80211_ADDR_COPY(dst,src)    memcpy(dst,src,IEEE80211_ADDR_LEN)
 
 #define IEEE80211_KEYBUF_SIZE 16
 #define IEEE80211_MICBUF_SIZE (8+8)  /* space for both tx and rx */

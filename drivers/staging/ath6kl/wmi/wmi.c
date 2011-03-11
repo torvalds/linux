@@ -422,8 +422,8 @@ wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf)
     /*
      * Save mac fields and length to be inserted later
      */
-    A_MEMCPY(macHdr.dstMac, datap, ATH_MAC_LEN);
-    A_MEMCPY(macHdr.srcMac, datap + ATH_MAC_LEN, ATH_MAC_LEN);
+    memcpy(macHdr.dstMac, datap, ATH_MAC_LEN);
+    memcpy(macHdr.srcMac, datap + ATH_MAC_LEN, ATH_MAC_LEN);
     macHdr.typeOrLen = A_CPU2BE16(A_NETBUF_LEN(osbuf) - sizeof(ATH_MAC_HDR) +
                                   sizeof(ATH_LLC_SNAP_HDR));
 
@@ -435,7 +435,7 @@ wmi_dix_2_dot3(struct wmi_t *wmip, void *osbuf)
     }
     datap = A_NETBUF_DATA(osbuf);
 
-    A_MEMCPY(datap, &macHdr, sizeof (ATH_MAC_HDR));
+    memcpy(datap, &macHdr, sizeof (ATH_MAC_HDR));
 
     llcHdr = (ATH_LLC_SNAP_HDR *)(datap + sizeof(ATH_MAC_HDR));
     llcHdr->dsap      = 0xAA;
@@ -484,7 +484,7 @@ int wmi_meta_add(struct wmi_t *wmip, void *osbuf, u8 *pVersion,void *pTxMetaS)
             		return A_NO_MEMORY;
         	}
          	pV2 = (WMI_TX_META_V2 *)A_NETBUF_DATA(osbuf);
-         	A_MEMCPY(pV2,(WMI_TX_META_V2 *)pTxMetaS,sizeof(WMI_TX_META_V2));
+         	memcpy(pV2,(WMI_TX_META_V2 *)pTxMetaS,sizeof(WMI_TX_META_V2));
 		return (0);
     		}
 #endif
@@ -654,8 +654,8 @@ wmi_dot11_hdr_add (struct wmi_t *wmip, void *osbuf, NETWORK_TYPE mode)
     /*
      * Save mac fields and length to be inserted later
      */
-    A_MEMCPY(macHdr.dstMac, datap, ATH_MAC_LEN);
-    A_MEMCPY(macHdr.srcMac, datap + ATH_MAC_LEN, ATH_MAC_LEN);
+    memcpy(macHdr.dstMac, datap, ATH_MAC_LEN);
+    memcpy(macHdr.srcMac, datap + ATH_MAC_LEN, ATH_MAC_LEN);
     macHdr.typeOrLen = A_CPU2BE16(A_NETBUF_LEN(osbuf) - sizeof(ATH_MAC_HDR) +
                                   sizeof(ATH_LLC_SNAP_HDR));
 
@@ -730,7 +730,7 @@ wmi_dot11_hdr_remove(struct wmi_t *wmip, void *osbuf)
     type = pwh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
     subtype = pwh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
-    A_MEMCPY((u8 *)&wh, datap, sizeof(struct ieee80211_frame));
+    memcpy((u8 *)&wh, datap, sizeof(struct ieee80211_frame));
 
     /* strip off the 802.11 hdr*/
     if (subtype == IEEE80211_FC0_SUBTYPE_QOS) {
@@ -772,7 +772,7 @@ wmi_dot11_hdr_remove(struct wmi_t *wmip, void *osbuf)
     A_NETBUF_PUSH(osbuf, sizeof(ATH_MAC_HDR));
     datap = A_NETBUF_DATA(osbuf);
 
-    A_MEMCPY (datap, &macHdr, sizeof(ATH_MAC_HDR));
+    memcpy (datap, &macHdr, sizeof(ATH_MAC_HDR));
 
     return 0;
 }
@@ -791,7 +791,7 @@ wmi_dot3_2_dix(void *osbuf)
     A_ASSERT(osbuf != NULL);
     datap = A_NETBUF_DATA(osbuf);
 
-    A_MEMCPY(&macHdr, datap, sizeof(ATH_MAC_HDR));
+    memcpy(&macHdr, datap, sizeof(ATH_MAC_HDR));
     llcHdr = (ATH_LLC_SNAP_HDR *)(datap + sizeof(ATH_MAC_HDR));
     macHdr.typeOrLen = llcHdr->etherType;
 
@@ -801,7 +801,7 @@ wmi_dot3_2_dix(void *osbuf)
 
     datap = A_NETBUF_DATA(osbuf);
 
-    A_MEMCPY(datap, &macHdr, sizeof (ATH_MAC_HDR));
+    memcpy(datap, &macHdr, sizeof (ATH_MAC_HDR));
 
     return (0);
 }
@@ -999,7 +999,7 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
             */
             WMI_BSS_INFO_HDR2 bih2;
             WMI_BSS_INFO_HDR *bih;
-            A_MEMCPY(&bih2, datap, sizeof(WMI_BSS_INFO_HDR2));
+            memcpy(&bih2, datap, sizeof(WMI_BSS_INFO_HDR2));
 
             A_NETBUF_PUSH(osbuf, 4);
             datap = A_NETBUF_DATA(osbuf);
@@ -1011,7 +1011,7 @@ wmi_control_rx(struct wmi_t *wmip, void *osbuf)
             bih->snr = bih2.snr;
             bih->rssi = bih2.snr - 95;
             bih->ieMask = bih2.ieMask;
-            A_MEMCPY(bih->bssid, bih2.bssid, ATH_MAC_LEN);
+            memcpy(bih->bssid, bih2.bssid, ATH_MAC_LEN);
 
             status = wmi_bssInfo_event_rx(wmip, datap, len);
             A_WMI_SEND_GENERIC_EVENT_TO_APP(wmip->wmi_devt, id, datap, len);
@@ -1275,7 +1275,7 @@ wmi_connect_event_rx(struct wmi_t *wmip, u8 *datap, int len)
         ev->bssid[0], ev->bssid[1], ev->bssid[2],
         ev->bssid[3], ev->bssid[4], ev->bssid[5]));
 
-    A_MEMCPY(wmip->wmi_bssid, ev->bssid, ATH_MAC_LEN);
+    memcpy(wmip->wmi_bssid, ev->bssid, ATH_MAC_LEN);
 
     /* initialize pointer to start of assoc rsp IEs */
     pie = ev->assocInfo + ev->beaconIeLen + ev->assocReqLen +
@@ -1538,7 +1538,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, u8 *datap, int len)
 
         /* copy the first 14 bytes such as
          * time-stamp(8), beacon-interval(2), cap-info(2), ssid-id(1), ssid-len(1). */
-        A_MEMCPY(ni_buf, buf, SSID_IE_LEN_INDEX + 1);
+        memcpy(ni_buf, buf, SSID_IE_LEN_INDEX + 1);
 
         ni_buf[SSID_IE_LEN_INDEX] = cached_ssid_len;
         ni_buf += (SSID_IE_LEN_INDEX + 1);
@@ -1547,7 +1547,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, u8 *datap, int len)
         buf_len -= (SSID_IE_LEN_INDEX + 1);
 
         /* copy the cached ssid */
-        A_MEMCPY(ni_buf, cached_ssid_buf, cached_ssid_len);
+        memcpy(ni_buf, cached_ssid_buf, cached_ssid_len);
         ni_buf += cached_ssid_len;
 
         buf += beacon_ssid_len;
@@ -1557,10 +1557,10 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, u8 *datap, int len)
             buf_len -= (cached_ssid_len - beacon_ssid_len);
 
         /* now copy the rest of bytes */
-        A_MEMCPY(ni_buf, buf, buf_len);
+        memcpy(ni_buf, buf, buf_len);
     }
     else
-        A_MEMCPY(bss->ni_buf, buf, len);
+        memcpy(bss->ni_buf, buf, len);
 
     bss->ni_framelen = len;
     if (wlan_parse_beacon(bss->ni_buf, len, &bss->ni_cie) != 0) {
@@ -1614,7 +1614,7 @@ wmi_opt_frame_event_rx(struct wmi_t *wmip, u8 *datap, int len)
     bss->ni_snr        = bih->snr;
     bss->ni_cie.ie_chan = bih->channel;
     A_ASSERT(bss->ni_buf != NULL);
-    A_MEMCPY(bss->ni_buf, buf, len);
+    memcpy(bss->ni_buf, buf, len);
     wlan_setup_node(&wmip->wmi_scan_table, bss, bih->bssid);
 
     return 0;
@@ -2446,7 +2446,7 @@ wmi_connect_cmd(struct wmi_t *wmip, NETWORK_TYPE netType,
 
     if (ssidLength)
     {
-        A_MEMCPY(cc->ssid, ssid, ssidLength);
+        memcpy(cc->ssid, ssid, ssidLength);
     }
 
     cc->ssidLength          = ssidLength;
@@ -2461,7 +2461,7 @@ wmi_connect_cmd(struct wmi_t *wmip, NETWORK_TYPE netType,
     cc->ctrl_flags          = ctrl_flags;
 
     if (bssid != NULL) {
-        A_MEMCPY(cc->bssid, bssid, ATH_MAC_LEN);
+        memcpy(cc->bssid, bssid, ATH_MAC_LEN);
     }
 
     wmip->wmi_pair_crypto_type  = pairwiseCrypto;
@@ -2490,7 +2490,7 @@ wmi_reconnect_cmd(struct wmi_t *wmip, u8 *bssid, u16 channel)
     cc->channel = channel;
 
     if (bssid != NULL) {
-        A_MEMCPY(cc->bssid, bssid, ATH_MAC_LEN);
+        memcpy(cc->bssid, bssid, ATH_MAC_LEN);
     }
 
     return (wmi_cmd_send(wmip, osbuf, WMI_RECONNECT_CMDID, NO_SYNC_WMIFLAG));
@@ -2547,7 +2547,7 @@ wmi_startscan_cmd(struct wmi_t *wmip, WMI_SCAN_TYPE scanType,
     sc->forceScanInterval = forceScanInterval;
     sc->numChannels = numChan;
     if (numChan) {
-        A_MEMCPY(sc->channelList, channelList, numChan * sizeof(u16));
+        memcpy(sc->channelList, channelList, numChan * sizeof(u16));
     }
 
     return (wmi_cmd_send(wmip, osbuf, WMI_START_SCAN_CMDID, NO_SYNC_WMIFLAG));
@@ -2650,7 +2650,7 @@ wmi_probedSsid_cmd(struct wmi_t *wmip, u8 index, u8 flag,
     cmd->entryIndex = index;
     cmd->flag       = flag;
     cmd->ssidLength = ssidLength;
-    A_MEMCPY(cmd->ssid, ssid, ssidLength);
+    memcpy(cmd->ssid, ssid, ssidLength);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_PROBED_SSID_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -2720,7 +2720,7 @@ wmi_associnfo_cmd(struct wmi_t *wmip, u8 ieType,
     A_MEMZERO(cmd, cmdLen);
     cmd->ieType = ieType;
     cmd->bufferSize = ieLen;
-    A_MEMCPY(cmd->assocInfo, ieInfo, ieLen);
+    memcpy(cmd->assocInfo, ieInfo, ieLen);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_ASSOC_INFO_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -2880,18 +2880,18 @@ wmi_addKey_cmd(struct wmi_t *wmip, u8 keyIndex, CRYPTO_TYPE keyType,
     cmd->keyType  = keyType;
     cmd->keyUsage = keyUsage;
     cmd->keyLength = keyLength;
-    A_MEMCPY(cmd->key, keyMaterial, keyLength);
+    memcpy(cmd->key, keyMaterial, keyLength);
 #ifdef WAPI_ENABLE
     if (NULL != keyRSC && key_op_ctrl != KEY_OP_INIT_WAPIPN) {
 #else
     if (NULL != keyRSC) {
 #endif // WAPI_ENABLE
-        A_MEMCPY(cmd->keyRSC, keyRSC, sizeof(cmd->keyRSC));
+        memcpy(cmd->keyRSC, keyRSC, sizeof(cmd->keyRSC));
     }
     cmd->key_op_ctrl = key_op_ctrl;
 
     if(macAddr) {
-        A_MEMCPY(cmd->key_macaddr,macAddr,IEEE80211_ADDR_LEN);
+        memcpy(cmd->key_macaddr,macAddr,IEEE80211_ADDR_LEN);
     }
 
     return (wmi_cmd_send(wmip, osbuf, WMI_ADD_CIPHER_KEY_CMDID, sync_flag));
@@ -2912,7 +2912,7 @@ wmi_add_krk_cmd(struct wmi_t *wmip, u8 *krk)
 
     cmd = (WMI_ADD_KRK_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, sizeof(*cmd));
-    A_MEMCPY(cmd->krk, krk, WMI_KRK_LEN);
+    memcpy(cmd->krk, krk, WMI_KRK_LEN);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_ADD_KRK_CMDID, NO_SYNC_WMIFLAG));
 }
@@ -2971,9 +2971,9 @@ wmi_setPmkid_cmd(struct wmi_t *wmip, u8 *bssid, u8 *pmkId,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
 
     cmd = (WMI_SET_PMKID_CMD *)(A_NETBUF_DATA(osbuf));
-    A_MEMCPY(cmd->bssid, bssid, sizeof(cmd->bssid));
+    memcpy(cmd->bssid, bssid, sizeof(cmd->bssid));
     if (set == true) {
-        A_MEMCPY(cmd->pmkid, pmkId, sizeof(cmd->pmkid));
+        memcpy(cmd->pmkid, pmkId, sizeof(cmd->pmkid));
         cmd->enable = PMKID_ENABLE;
     } else {
         A_MEMZERO(cmd->pmkid, sizeof(cmd->pmkid));
@@ -3045,7 +3045,7 @@ wmi_set_pmkid_list_cmd(struct wmi_t *wmip,
     cmd->numPMKID = pmkInfo->numPMKID;
 
     for (i = 0; i < cmd->numPMKID; i++) {
-        A_MEMCPY(&cmd->pmkidList[i], &pmkInfo->pmkidList[i],
+        memcpy(&cmd->pmkidList[i], &pmkInfo->pmkidList[i],
                  WMI_PMKID_LEN);
     }
 
@@ -3258,7 +3258,7 @@ wmi_create_pstream_cmd(struct wmi_t *wmip, WMI_CREATE_PSTREAM_CMD *params)
 
     cmd = (WMI_CREATE_PSTREAM_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, sizeof(*cmd));
-    A_MEMCPY(cmd, params, sizeof(*cmd));
+    memcpy(cmd, params, sizeof(*cmd));
 
         /* this is an implicitly created Fat pipe */
     if ((u32)params->tsid == (u32)WMI_IMPLICIT_PSTREAM) {
@@ -3625,7 +3625,7 @@ wmi_set_channelParams_cmd(struct wmi_t *wmip, u8 scanParam,
     cmd->scanParam   = scanParam;
     cmd->phyMode     = mode;
     cmd->numChannels = numChan;
-    A_MEMCPY(cmd->channelList, channelList, numChan * sizeof(u16));
+    memcpy(cmd->channelList, channelList, numChan * sizeof(u16));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_CHANNEL_PARAMS_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -3724,7 +3724,7 @@ wmi_set_ip_cmd(struct wmi_t *wmip, WMI_SET_IP_CMD *ipCmd)
 
     A_NETBUF_PUT(osbuf, sizeof(WMI_SET_IP_CMD));
     cmd = (WMI_SET_IP_CMD *)(A_NETBUF_DATA(osbuf));
-    A_MEMCPY(cmd, ipCmd, sizeof(WMI_SET_IP_CMD));
+    memcpy(cmd, ipCmd, sizeof(WMI_SET_IP_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_IP_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -3756,7 +3756,7 @@ wmi_set_host_sleep_mode_cmd(struct wmi_t *wmip,
 
     cmd = (WMI_SET_HOST_SLEEP_MODE_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, hostModeCmd, sizeof(WMI_SET_HOST_SLEEP_MODE_CMD));
+    memcpy(cmd, hostModeCmd, sizeof(WMI_SET_HOST_SLEEP_MODE_CMD));
 
     if(hostModeCmd->asleep) {
         /*
@@ -3811,7 +3811,7 @@ wmi_set_wow_mode_cmd(struct wmi_t *wmip,
 
     cmd = (WMI_SET_WOW_MODE_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, wowModeCmd, sizeof(WMI_SET_WOW_MODE_CMD));
+    memcpy(cmd, wowModeCmd, sizeof(WMI_SET_WOW_MODE_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_WOW_MODE_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -3837,7 +3837,7 @@ wmi_get_wow_list_cmd(struct wmi_t *wmip,
 
     cmd = (WMI_GET_WOW_LIST_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, wowListCmd, sizeof(WMI_GET_WOW_LIST_CMD));
+    memcpy(cmd, wowListCmd, sizeof(WMI_GET_WOW_LIST_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_GET_WOW_LIST_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -3885,10 +3885,10 @@ int wmi_add_wow_pattern_cmd(struct wmi_t *wmip,
     cmd->filter_offset = addWowCmd->filter_offset;
     cmd->filter_size = addWowCmd->filter_size;
 
-    A_MEMCPY(cmd->filter, pattern, addWowCmd->filter_size);
+    memcpy(cmd->filter, pattern, addWowCmd->filter_size);
 
     filter_mask = (u8 *)(cmd->filter + cmd->filter_size);
-    A_MEMCPY(filter_mask, mask, addWowCmd->filter_size);
+    memcpy(filter_mask, mask, addWowCmd->filter_size);
 
 
     return (wmi_cmd_send(wmip, osbuf, WMI_ADD_WOW_PATTERN_CMDID,
@@ -3914,7 +3914,7 @@ wmi_del_wow_pattern_cmd(struct wmi_t *wmip,
 
     cmd = (WMI_DEL_WOW_PATTERN_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, delWowCmd, sizeof(WMI_DEL_WOW_PATTERN_CMD));
+    memcpy(cmd, delWowCmd, sizeof(WMI_DEL_WOW_PATTERN_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_DEL_WOW_PATTERN_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -4026,7 +4026,7 @@ wmi_set_lq_threshold_params(struct wmi_t *wmip,
 
     cmd = (WMI_LQ_THRESHOLD_PARAMS_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, lqCmd, sizeof(WMI_LQ_THRESHOLD_PARAMS_CMD));
+    memcpy(cmd, lqCmd, sizeof(WMI_LQ_THRESHOLD_PARAMS_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_LQ_THRESHOLD_PARAMS_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -4129,7 +4129,7 @@ wmi_addBadAp_cmd(struct wmi_t *wmip, u8 apIndex, u8 *bssid)
 
     cmd = (WMI_ADD_BAD_AP_CMD *)(A_NETBUF_DATA(osbuf));
     cmd->badApIndex = apIndex;
-    A_MEMCPY(cmd->bssid, bssid, sizeof(cmd->bssid));
+    memcpy(cmd->bssid, bssid, sizeof(cmd->bssid));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_ADD_BAD_AP_CMDID, SYNC_BEFORE_WMIFLAG));
 }
@@ -4244,7 +4244,7 @@ wmi_set_roam_ctrl_cmd(struct wmi_t *wmip, WMI_SET_ROAM_CTRL_CMD *p,
     cmd = (WMI_SET_ROAM_CTRL_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
 
-    A_MEMCPY(cmd, p, size);
+    memcpy(cmd, p, size);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_ROAM_CTRL_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -4276,7 +4276,7 @@ wmi_set_powersave_timers_cmd(struct wmi_t *wmip,
     cmd = (WMI_POWERSAVE_TIMERS_POLICY_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
 
-    A_MEMCPY(cmd, pCmd, size);
+    memcpy(cmd, pCmd, size);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_POWERSAVE_TIMERS_POLICY_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -4482,7 +4482,7 @@ void
 wmi_get_current_bssid(struct wmi_t *wmip, u8 *bssid)
 {
     if (bssid != NULL) {
-        A_MEMCPY(bssid, wmip->wmi_bssid, ATH_MAC_LEN);
+        memcpy(bssid, wmip->wmi_bssid, ATH_MAC_LEN);
     }
 }
 
@@ -4530,9 +4530,9 @@ wmi_opt_tx_frame_cmd(struct wmi_t *wmip,
     cmd->frmType    = frmType;
     cmd->optIEDataLen   = optIEDataLen;
     //cmd->optIEData     = (u8 *)((int)cmd + sizeof(*cmd));
-    A_MEMCPY(cmd->bssid, bssid, sizeof(cmd->bssid));
-    A_MEMCPY(cmd->dstAddr, dstMacAddr, sizeof(cmd->dstAddr));
-    A_MEMCPY(&cmd->optIEData[0], optIEData, optIEDataLen);
+    memcpy(cmd->bssid, bssid, sizeof(cmd->bssid));
+    memcpy(cmd->dstAddr, dstMacAddr, sizeof(cmd->dstAddr));
+    memcpy(&cmd->optIEData[0], optIEData, optIEDataLen);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_OPT_TX_FRAME_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -4858,7 +4858,7 @@ wmi_set_country(struct wmi_t *wmip, A_UCHAR *countryCode)
 
     cmd = (WMI_AP_SET_COUNTRY_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, sizeof(*cmd));
-    A_MEMCPY(cmd->countryCode,countryCode,3);
+    memcpy(cmd->countryCode,countryCode,3);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_AP_SET_COUNTRY_CMDID,
             NO_SYNC_WMIFLAG));
@@ -4884,7 +4884,7 @@ wmi_test_cmd(struct wmi_t *wmip, u8 *buf, u32 len)
     }
     A_NETBUF_PUT(osbuf, len);
     data = A_NETBUF_DATA(osbuf);
-    A_MEMCPY(data, buf, len);
+    memcpy(data, buf, len);
 
     return(wmi_cmd_send(wmip, osbuf, WMI_TEST_CMDID,
          NO_SYNC_WMIFLAG));
@@ -4972,7 +4972,7 @@ wmi_set_bt_params_cmd(struct wmi_t *wmip, WMI_SET_BT_PARAMS_CMD* cmd)
 
     alloc_cmd = (WMI_SET_BT_PARAMS_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-    A_MEMCPY(alloc_cmd, cmd, sizeof(*cmd));
+    memcpy(alloc_cmd, cmd, sizeof(*cmd));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BT_PARAMS_CMDID,
             NO_SYNC_WMIFLAG));
@@ -4991,7 +4991,7 @@ wmi_set_btcoex_fe_ant_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_FE_ANT_CMD * cmd)
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
     alloc_cmd = (WMI_SET_BTCOEX_FE_ANT_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_FE_ANT_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_FE_ANT_CMD));
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_FE_ANT_CMDID,
                          NO_SYNC_WMIFLAG));
 
@@ -5012,7 +5012,7 @@ wmi_set_btcoex_colocated_bt_dev_cmd(struct wmi_t *wmip,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
     alloc_cmd = (WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-    A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
+    memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD));
     A_PRINTF("colocated bt = %d\n", alloc_cmd->btcoexCoLocatedBTdev);
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -5033,7 +5033,7 @@ wmi_set_btcoex_btinquiry_page_config_cmd(struct wmi_t *wmip,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
     alloc_cmd = (WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD));
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMDID,
                          NO_SYNC_WMIFLAG));
 
@@ -5053,7 +5053,7 @@ wmi_set_btcoex_sco_config_cmd(struct wmi_t *wmip,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
     alloc_cmd = (WMI_SET_BTCOEX_SCO_CONFIG_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_SCO_CONFIG_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_SCO_CONFIG_CMD));
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_SCO_CONFIG_CMDID ,
                          NO_SYNC_WMIFLAG));
 
@@ -5073,7 +5073,7 @@ wmi_set_btcoex_a2dp_config_cmd(struct wmi_t *wmip,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
     alloc_cmd = (WMI_SET_BTCOEX_A2DP_CONFIG_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_A2DP_CONFIG_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_A2DP_CONFIG_CMD));
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_A2DP_CONFIG_CMDID ,
                          NO_SYNC_WMIFLAG));
 
@@ -5093,7 +5093,7 @@ wmi_set_btcoex_aclcoex_config_cmd(struct wmi_t *wmip,
     A_NETBUF_PUT(osbuf, sizeof(*cmd));
     alloc_cmd = (WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD));
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMDID ,
                          NO_SYNC_WMIFLAG));
 
@@ -5112,7 +5112,7 @@ wmi_set_btcoex_debug_cmd(struct wmi_t *wmip, WMI_SET_BTCOEX_DEBUG_CMD * cmd)
 	A_NETBUF_PUT(osbuf, sizeof(*cmd));
 	alloc_cmd = (WMI_SET_BTCOEX_DEBUG_CMD *)(A_NETBUF_DATA(osbuf));
 	A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_DEBUG_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_DEBUG_CMD));
 	return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_DEBUG_CMDID ,
 							 NO_SYNC_WMIFLAG));
 
@@ -5132,7 +5132,7 @@ wmi_set_btcoex_bt_operating_status_cmd(struct wmi_t * wmip,
 	A_NETBUF_PUT(osbuf, sizeof(*cmd));
 	alloc_cmd = (WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD *)(A_NETBUF_DATA(osbuf));
 	A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD));
 	return (wmi_cmd_send(wmip, osbuf, WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMDID ,
 								 NO_SYNC_WMIFLAG));
 
@@ -5151,7 +5151,7 @@ wmi_get_btcoex_config_cmd(struct wmi_t * wmip, WMI_GET_BTCOEX_CONFIG_CMD * cmd)
 	A_NETBUF_PUT(osbuf, sizeof(*cmd));
 	alloc_cmd = (WMI_GET_BTCOEX_CONFIG_CMD *)(A_NETBUF_DATA(osbuf));
 	A_MEMZERO(alloc_cmd, sizeof(*cmd));
-	A_MEMCPY(alloc_cmd,cmd,sizeof(WMI_GET_BTCOEX_CONFIG_CMD));
+	memcpy(alloc_cmd,cmd,sizeof(WMI_GET_BTCOEX_CONFIG_CMD));
 	return (wmi_cmd_send(wmip, osbuf, WMI_GET_BTCOEX_CONFIG_CMDID ,
 							 NO_SYNC_WMIFLAG));
 
@@ -5225,7 +5225,7 @@ wmi_set_params_cmd(struct wmi_t *wmip, u32 opcode, u32 length, char *buffer)
     A_MEMZERO(cmd, sizeof(*cmd));
     cmd->opcode = opcode;
     cmd->length = length;
-    A_MEMCPY(cmd->buffer, buffer, length);
+    memcpy(cmd->buffer, buffer, length);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_PARAMS_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -5324,7 +5324,7 @@ wmi_set_appie_cmd(struct wmi_t *wmip, u8 mgmtFrmType, u8 ieLen,
 
     cmd->mgmtFrmType = mgmtFrmType;
     cmd->ieLen = ieLen;
-    A_MEMCPY(cmd->ieInfo, ieInfo, ieLen);
+    memcpy(cmd->ieInfo, ieInfo, ieLen);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_APPIE_CMDID, NO_SYNC_WMIFLAG));
 }
@@ -5344,7 +5344,7 @@ wmi_set_halparam_cmd(struct wmi_t *wmip, u8 *cmd, u16 dataLen)
 
     data = A_NETBUF_DATA(osbuf);
 
-    A_MEMCPY(data, cmd, dataLen);
+    memcpy(data, cmd, dataLen);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_WHALPARAM_CMDID, NO_SYNC_WMIFLAG));
 }
@@ -5933,7 +5933,7 @@ wmi_send_rssi_threshold_params(struct wmi_t *wmip,
 
     cmd = (WMI_RSSI_THRESHOLD_PARAMS_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, rssiCmd, sizeof(WMI_RSSI_THRESHOLD_PARAMS_CMD));
+    memcpy(cmd, rssiCmd, sizeof(WMI_RSSI_THRESHOLD_PARAMS_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_RSSI_THRESHOLD_PARAMS_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -5956,7 +5956,7 @@ wmi_send_snr_threshold_params(struct wmi_t *wmip,
     A_NETBUF_PUT(osbuf, size);
     cmd = (WMI_SNR_THRESHOLD_PARAMS_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cmd, size);
-    A_MEMCPY(cmd, snrCmd, sizeof(WMI_SNR_THRESHOLD_PARAMS_CMD));
+    memcpy(cmd, snrCmd, sizeof(WMI_SNR_THRESHOLD_PARAMS_CMD));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SNR_THRESHOLD_PARAMS_CMDID,
                             NO_SYNC_WMIFLAG));
@@ -5977,7 +5977,7 @@ wmi_set_target_event_report_cmd(struct wmi_t *wmip, WMI_SET_TARGET_EVENT_REPORT_
 
     alloc_cmd = (WMI_SET_TARGET_EVENT_REPORT_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(alloc_cmd, sizeof(*cmd));
-    A_MEMCPY(alloc_cmd, cmd, sizeof(*cmd));
+    memcpy(alloc_cmd, cmd, sizeof(*cmd));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_TARGET_EVENT_REPORT_CMDID,
             NO_SYNC_WMIFLAG));
@@ -6089,7 +6089,7 @@ wmi_ap_profile_commit(struct wmi_t *wmip, WMI_CONNECT_CMD *p)
     cm = (WMI_CONNECT_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(cm, sizeof(*cm));
 
-    A_MEMCPY(cm,p,sizeof(*cm));
+    memcpy(cm,p,sizeof(*cm));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_AP_CONFIG_COMMIT_CMDID, NO_SYNC_WMIFLAG));
 }
@@ -6171,7 +6171,7 @@ wmi_ap_acl_mac_list(struct wmi_t *wmip, WMI_AP_ACL_MAC_CMD *acl)
     A_NETBUF_PUT(osbuf, sizeof(WMI_AP_ACL_MAC_CMD));
     a = (WMI_AP_ACL_MAC_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(a, sizeof(*a));
-    A_MEMCPY(a,acl,sizeof(*acl));
+    memcpy(a,acl,sizeof(*acl));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_AP_ACL_MAC_LIST_CMDID, NO_SYNC_WMIFLAG));
 }
@@ -6199,7 +6199,7 @@ wmi_ap_set_mlme(struct wmi_t *wmip, u8 cmd, u8 *mac, u16 reason)
     A_MEMZERO(mlme, sizeof(*mlme));
 
     mlme->cmd = cmd;
-    A_MEMCPY(mlme->mac, mac, ATH_MAC_LEN);
+    memcpy(mlme->mac, mac, ATH_MAC_LEN);
     mlme->reason = reason;
 
     return (wmi_cmd_send(wmip, osbuf, WMI_AP_SET_MLME_CMDID, NO_SYNC_WMIFLAG));
@@ -6392,7 +6392,7 @@ wmi_set_ht_cap_cmd(struct wmi_t *wmip, WMI_SET_HT_CAP_CMD *cmd)
 
     htCap = (WMI_SET_HT_CAP_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(htCap, sizeof(*htCap));
-    A_MEMCPY(htCap, cmd, sizeof(*htCap));
+    memcpy(htCap, cmd, sizeof(*htCap));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_HT_CAP_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -6434,7 +6434,7 @@ wmi_set_tx_select_rates_cmd(struct wmi_t *wmip, u32 *pMaskArray)
     A_NETBUF_PUT(osbuf, sizeof(*pData));
 
     pData = (WMI_SET_TX_SELECT_RATES_CMD *)(A_NETBUF_DATA(osbuf));
-    A_MEMCPY(pData, pMaskArray, sizeof(*pData));
+    memcpy(pData, pMaskArray, sizeof(*pData));
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_TX_SELECT_RATES_CMDID,
                          NO_SYNC_WMIFLAG));
@@ -6456,7 +6456,7 @@ wmi_send_hci_cmd(struct wmi_t *wmip, u8 *buf, u16 sz)
     cmd = (WMI_HCI_CMD *)(A_NETBUF_DATA(osbuf));
 
     cmd->cmd_buf_sz = sz;
-    A_MEMCPY(cmd->buf, buf, sz);
+    memcpy(cmd->buf, buf, sz);
     return (wmi_cmd_send(wmip, osbuf, WMI_HCI_CMD_CMDID, NO_SYNC_WMIFLAG));
 }
 
@@ -6604,7 +6604,7 @@ wmi_set_pmk_cmd(struct wmi_t *wmip, u8 *pmk)
     p = (WMI_SET_PMK_CMD *)(A_NETBUF_DATA(osbuf));
     A_MEMZERO(p, sizeof(*p));
 
-    A_MEMCPY(p->pmk, pmk, WMI_PMK_LEN);
+    memcpy(p->pmk, pmk, WMI_PMK_LEN);
 
     return (wmi_cmd_send(wmip, osbuf, WMI_SET_PMK_CMDID, NO_SYNC_WMIFLAG));
 }

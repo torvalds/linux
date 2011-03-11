@@ -226,7 +226,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
     
     pHcidevInfo->pHCIDev = HCIHandle;
     
-    A_MEMCPY(&pHcidevInfo->HCIProps,pProps,sizeof(*pProps));
+    memcpy(&pHcidevInfo->HCIProps,pProps,sizeof(*pProps));
     
     AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE,("HCI ready (hci:0x%lX, headroom:%d, tailroom:%d blockpad:%d) \n", 
             (unsigned long)HCIHandle, 
@@ -778,7 +778,7 @@ static int bt_send_frame(struct sk_buff *skb)
         bt_cb(txSkb)->pkt_type = bt_cb(skb)->pkt_type;
         txSkb->dev = (void *)pHcidevInfo->pBtStackHCIDev;
         skb_reserve(txSkb, TX_PACKET_RSV_OFFSET + pHcidevInfo->HCIProps.HeadRoom);
-        A_MEMCPY(txSkb->data, skb->data, skb->len);
+        memcpy(txSkb->data, skb->data, skb->len);
         skb_put(txSkb,skb->len);
         
         pPacket = AllocHTCStruct(pHcidevInfo);        

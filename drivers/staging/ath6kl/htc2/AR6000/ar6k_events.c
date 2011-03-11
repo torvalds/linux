@@ -752,7 +752,7 @@ void DumpAR6KDevState(AR6K_DEVICE *pDev)
 
     LOCK_AR6K(pDev);
         /* copy into our temp area */
-    A_MEMCPY(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+    memcpy(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
     UNLOCK_AR6K(pDev);
 
         /* load the register table from the device */

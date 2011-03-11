@@ -397,7 +397,7 @@ aggr_slice_amsdu(AGGR_INFO *p_aggr, RXTID *rxtid, void **osbuf)
             break;
         }
 
-        A_MEMCPY(A_NETBUF_DATA(new_buf), framep, frame_8023_len);
+        memcpy(A_NETBUF_DATA(new_buf), framep, frame_8023_len);
         A_NETBUF_PUT(new_buf, frame_8023_len);
         if (wmi_dot3_2_dix(new_buf) != 0) {
             A_PRINTF("dot3_2_dix err..\n");

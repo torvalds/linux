@@ -116,7 +116,7 @@ wlan_setup_node(struct ieee80211_node_table *nt, bss_t *ni,
     int hash;
     u32 timeoutValue = 0;
 
-    A_MEMCPY(ni->ni_macaddr, macaddr, IEEE80211_ADDR_LEN);
+    memcpy(ni->ni_macaddr, macaddr, IEEE80211_ADDR_LEN);
     hash = IEEE80211_NODE_HASH (macaddr);
     ieee80211_node_initref (ni);     /* mark referenced */
 

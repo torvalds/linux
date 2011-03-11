@@ -231,11 +231,11 @@ BMIReadMemory(HIF_DEVICE *device,
     {
         rxlen = (remaining < BMI_DATASZ_MAX) ? remaining : BMI_DATASZ_MAX;
         offset = 0;
-        A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+        memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
         offset += sizeof(cid);
-        A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+        memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
         offset += sizeof(address);
-        A_MEMCPY(&(pBMICmdBuf[offset]), &rxlen, sizeof(rxlen));
+        memcpy(&(pBMICmdBuf[offset]), &rxlen, sizeof(rxlen));
         offset += sizeof(length);
 
         status = bmiBufferSend(device, pBMICmdBuf, offset);
@@ -248,7 +248,7 @@ BMIReadMemory(HIF_DEVICE *device,
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
             return A_ERROR;
         }
-        A_MEMCPY(&buffer[length - remaining], pBMICmdBuf, rxlen);
+        memcpy(&buffer[length - remaining], pBMICmdBuf, rxlen);
         remaining -= rxlen; address += rxlen;
     }
 
@@ -300,13 +300,13 @@ BMIWriteMemory(HIF_DEVICE *device,
             txlen = (BMI_DATASZ_MAX - header);
         }
         offset = 0;
-        A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+        memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
         offset += sizeof(cid);
-        A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+        memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
         offset += sizeof(address);
-        A_MEMCPY(&(pBMICmdBuf[offset]), &txlen, sizeof(txlen));
+        memcpy(&(pBMICmdBuf[offset]), &txlen, sizeof(txlen));
         offset += sizeof(txlen);
-        A_MEMCPY(&(pBMICmdBuf[offset]), src, txlen);
+        memcpy(&(pBMICmdBuf[offset]), src, txlen);
         offset += txlen;
         status = bmiBufferSend(device, pBMICmdBuf, offset);
         if (status) {
@@ -345,11 +345,11 @@ BMIExecute(HIF_DEVICE *device,
     cid = BMI_EXECUTE;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+    memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
-    A_MEMCPY(&(pBMICmdBuf[offset]), param, sizeof(*param));
+    memcpy(&(pBMICmdBuf[offset]), param, sizeof(*param));
     offset += sizeof(*param);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -363,7 +363,7 @@ BMIExecute(HIF_DEVICE *device,
         return A_ERROR;
     }
 
-    A_MEMCPY(param, pBMICmdBuf, sizeof(*param));
+    memcpy(param, pBMICmdBuf, sizeof(*param));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Execute: Exit (param: %d)\n", *param));
     return 0;
@@ -392,9 +392,9 @@ BMISetAppStart(HIF_DEVICE *device,
     cid = BMI_SET_APP_START;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+    memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -430,9 +430,9 @@ BMIReadSOCRegister(HIF_DEVICE *device,
     cid = BMI_READ_SOC_REGISTER;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+    memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
 
     status = bmiBufferSend(device, pBMICmdBuf, offset);
@@ -446,7 +446,7 @@ BMIReadSOCRegister(HIF_DEVICE *device,
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
     }
-    A_MEMCPY(param, pBMICmdBuf, sizeof(*param));
+    memcpy(param, pBMICmdBuf, sizeof(*param));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Read SOC Register: Exit (value: %d)\n", *param));
     return 0;
@@ -476,11 +476,11 @@ BMIWriteSOCRegister(HIF_DEVICE *device,
     cid = BMI_WRITE_SOC_REGISTER;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+    memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &param, sizeof(param));
+    memcpy(&(pBMICmdBuf[offset]), &param, sizeof(param));
     offset += sizeof(param);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -521,15 +521,15 @@ BMIrompatchInstall(HIF_DEVICE *device,
     cid = BMI_ROMPATCH_INSTALL;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &ROM_addr, sizeof(ROM_addr));
+    memcpy(&(pBMICmdBuf[offset]), &ROM_addr, sizeof(ROM_addr));
     offset += sizeof(ROM_addr);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &RAM_addr, sizeof(RAM_addr));
+    memcpy(&(pBMICmdBuf[offset]), &RAM_addr, sizeof(RAM_addr));
     offset += sizeof(RAM_addr);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &nbytes, sizeof(nbytes));
+    memcpy(&(pBMICmdBuf[offset]), &nbytes, sizeof(nbytes));
     offset += sizeof(nbytes);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &do_activate, sizeof(do_activate));
+    memcpy(&(pBMICmdBuf[offset]), &do_activate, sizeof(do_activate));
     offset += sizeof(do_activate);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -542,7 +542,7 @@ BMIrompatchInstall(HIF_DEVICE *device,
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read from the device\n"));
         return A_ERROR;
     }
-    A_MEMCPY(rompatch_id, pBMICmdBuf, sizeof(*rompatch_id));
+    memcpy(rompatch_id, pBMICmdBuf, sizeof(*rompatch_id));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI rompatch Install: (rompatch_id=%d)\n", *rompatch_id));
     return 0;
@@ -571,9 +571,9 @@ BMIrompatchUninstall(HIF_DEVICE *device,
     cid = BMI_ROMPATCH_UNINSTALL;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &rompatch_id, sizeof(rompatch_id));
+    memcpy(&(pBMICmdBuf[offset]), &rompatch_id, sizeof(rompatch_id));
     offset += sizeof(rompatch_id);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -611,12 +611,12 @@ _BMIrompatchChangeActivation(HIF_DEVICE *device,
     cid = do_activate ? BMI_ROMPATCH_ACTIVATE : BMI_ROMPATCH_DEACTIVATE;
 
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &rompatch_count, sizeof(rompatch_count));
+    memcpy(&(pBMICmdBuf[offset]), &rompatch_count, sizeof(rompatch_count));
     offset += sizeof(rompatch_count);
     length = rompatch_count * sizeof(*rompatch_list);
-    A_MEMCPY(&(pBMICmdBuf[offset]), rompatch_list, length);
+    memcpy(&(pBMICmdBuf[offset]), rompatch_list, length);
     offset += length;
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -676,11 +676,11 @@ BMILZData(HIF_DEVICE *device,
         txlen = (remaining < (BMI_DATASZ_MAX - header)) ?
                                        remaining : (BMI_DATASZ_MAX - header);
         offset = 0;
-        A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+        memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
         offset += sizeof(cid);
-        A_MEMCPY(&(pBMICmdBuf[offset]), &txlen, sizeof(txlen));
+        memcpy(&(pBMICmdBuf[offset]), &txlen, sizeof(txlen));
         offset += sizeof(txlen);
-        A_MEMCPY(&(pBMICmdBuf[offset]), &buffer[length - remaining], txlen);
+        memcpy(&(pBMICmdBuf[offset]), &buffer[length - remaining], txlen);
         offset += txlen;
         status = bmiBufferSend(device, pBMICmdBuf, offset);
         if (status) {
@@ -717,9 +717,9 @@ BMILZStreamStart(HIF_DEVICE *device,
 
     cid = BMI_LZ_STREAM_START;
     offset = 0;
-    A_MEMCPY(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
+    memcpy(&(pBMICmdBuf[offset]), &cid, sizeof(cid));
     offset += sizeof(cid);
-    A_MEMCPY(&(pBMICmdBuf[offset]), &address, sizeof(address));
+    memcpy(&(pBMICmdBuf[offset]), &address, sizeof(address));
     offset += sizeof(address);
     status = bmiBufferSend(device, pBMICmdBuf, offset);
     if (status) {
@@ -972,7 +972,7 @@ BMIFastDownload(HIF_DEVICE *device, u32 address, A_UCHAR *buffer, u32 length)
 
     if (unalignedBytes) {
             /* copy the last word into a zero padded buffer */
-        A_MEMCPY(&lastWord, &buffer[lastWordOffset], unalignedBytes);
+        memcpy(&lastWord, &buffer[lastWordOffset], unalignedBytes);
     }
 
     status = BMILZData(device, buffer, lastWordOffset);

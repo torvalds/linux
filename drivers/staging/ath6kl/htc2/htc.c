@@ -130,7 +130,7 @@ HTC_HANDLE HTCCreate(void *hif_handle, HTC_INIT_INFO *pInfo)
         target->Device.MessagePendingCallback = HTCRecvMessagePendingHandler;
         target->EpWaitingForBuffers = ENDPOINT_MAX;
 
-        A_MEMCPY(&target->HTCInitInfo,pInfo,sizeof(HTC_INIT_INFO));
+        memcpy(&target->HTCInitInfo,pInfo,sizeof(HTC_INIT_INFO));
         
         ResetEndpointStates(target);
           
@@ -556,7 +556,7 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
     if (sample) {
         A_ASSERT(pStats != NULL);
             /* return the stats to the caller */
-        A_MEMCPY(pStats, &target->EndPoint[Endpoint].EndPointStats, sizeof(HTC_ENDPOINT_STATS));
+        memcpy(pStats, &target->EndPoint[Endpoint].EndPointStats, sizeof(HTC_ENDPOINT_STATS));
     }
 
     if (clearStats) {

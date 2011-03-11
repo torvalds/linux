@@ -215,7 +215,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 			bt_cb(txSkb)->pkt_type = bt_cb(skb)->pkt_type;
 			txSkb->dev = (void *)pHciPalInfo->hdev;
 			skb_reserve(txSkb, TX_PACKET_RSV_OFFSET + WMI_MAX_TX_META_SZ + sizeof(WMI_DATA_HDR));
-			A_MEMCPY(txSkb->data, skb->data, skb->len);
+			memcpy(txSkb->data, skb->data, skb->len);
 			skb_put(txSkb,skb->len);
 			/* Add WMI packet type */
 			osbuf = (void *)txSkb;

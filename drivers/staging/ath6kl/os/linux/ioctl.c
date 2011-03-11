@@ -281,7 +281,7 @@ ar6000_ioctl_set_country(struct net_device *dev, struct ifreq *rq)
     ar->ap_profile_flag = 1; /* There is a change in profile */
 
     ret = wmi_set_country(ar->arWmi, cmd.countryCode);
-    A_MEMCPY(ar->ap_country_code, cmd.countryCode, 3);
+    memcpy(ar->ap_country_code, cmd.countryCode, 3);
 
     switch (ret) {
         case 0:
@@ -430,7 +430,7 @@ ar6000_ioctl_set_rssi_threshold(struct net_device *dev, struct ifreq *rq)
     cmd.weight = rssiParams.weight;
     cmd.pollTime = rssiParams.pollTime;
 
-    A_MEMCPY(ar->rssi_map, &rssiParams.tholds, sizeof(ar->rssi_map));
+    memcpy(ar->rssi_map, &rssiParams.tholds, sizeof(ar->rssi_map));
     /*
      *  only 6 elements, so use bubble sorting, in ascending order
      */
@@ -702,8 +702,8 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
     buf[1] = ar->tcmdRxRssi;
     buf[2] = ar->tcmdRxcrcErrPkt;
     buf[3] = ar->tcmdRxsecErrPkt;
-    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(u32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
-    A_MEMCPY(((A_UCHAR *)buf)+(4*sizeof(u32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
+    memcpy(((A_UCHAR *)buf)+(4*sizeof(u32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
+    memcpy(((A_UCHAR *)buf)+(4*sizeof(u32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
 
     if (!ret && copy_to_user(rq->ifr_data, buf, sizeof(buf))) {
         ret = -EFAULT;
@@ -732,8 +732,8 @@ ar6000_tcmd_rx_report_event(void *devt, u8 *results, int len)
     ar->tcmdRxReport = 1;
     A_MEMZERO(ar->tcmdRateCnt,  sizeof(ar->tcmdRateCnt));
     A_MEMZERO(ar->tcmdRateCntShortGuard,  sizeof(ar->tcmdRateCntShortGuard));
-    A_MEMCPY(ar->tcmdRateCnt, rx_rep->u.report.rateCnt, sizeof(ar->tcmdRateCnt));
-    A_MEMCPY(ar->tcmdRateCntShortGuard, rx_rep->u.report.rateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
+    memcpy(ar->tcmdRateCnt, rx_rep->u.report.rateCnt, sizeof(ar->tcmdRateCnt));
+    memcpy(ar->tcmdRateCntShortGuard, rx_rep->u.report.rateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
 
     wake_up(&arEvent);
 }
@@ -1523,7 +1523,7 @@ ar6000_create_acl_data_osbuf(struct net_device *dev, u8 *userdata, void **p_osbu
 
         /* Real copy to osbuf */
         acl = (HCI_ACL_DATA_PKT *)(datap);
-        A_MEMCPY(acl, tmp_space, hdr_size);
+        memcpy(acl, tmp_space, hdr_size);
         if (a_copy_from_user(acl->data, userdata + hdr_size, acl->data_len)) {
             ret = A_EFAULT;
             break;
@@ -1770,7 +1770,7 @@ ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
          (0 == memcmp(ik->ik_macaddr, bcast_mac, IEEE80211_ADDR_LEN)) ) {
         keyUsage = GROUP_USAGE;
         if(ar->arNextMode == AP_NETWORK) {
-            A_MEMCPY(&ar->ap_mode_bkey, ik,
+            memcpy(&ar->ap_mode_bkey, ik,
                      sizeof(struct ieee80211req_key));
 #ifdef WAPI_ENABLE
             if(ar->arPairwiseCrypto == WAPI_CRYPT) {
@@ -1779,13 +1779,13 @@ ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
 #endif
         }
 #ifdef USER_KEYS
-        A_MEMCPY(&ar->user_saved_keys.bcast_ik, ik,
+        memcpy(&ar->user_saved_keys.bcast_ik, ik,
                  sizeof(struct ieee80211req_key));
 #endif
     } else {
         keyUsage = PAIRWISE_USAGE;
 #ifdef USER_KEYS
-        A_MEMCPY(&ar->user_saved_keys.ucast_ik, ik,
+        memcpy(&ar->user_saved_keys.ucast_ik, ik,
                  sizeof(struct ieee80211req_key));
 #endif
 #ifdef WAPI_ENABLE
@@ -1827,7 +1827,7 @@ ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
 
             A_MEMZERO(ar->arWepKeyList[index].arKey,
                             sizeof(ar->arWepKeyList[index].arKey));
-            A_MEMCPY(ar->arWepKeyList[index].arKey, ik->ik_keydata, ik->ik_keylen);
+            memcpy(ar->arWepKeyList[index].arKey, ik->ik_keydata, ik->ik_keylen);
             ar->arWepKeyList[index].arKeyLen = ik->ik_keylen;
 
             if(ik->ik_flags & IEEE80211_KEY_DEFAULT){
@@ -3133,7 +3133,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ret = -EFAULT;
             } else {
 
-                A_MEMCPY(ar->arReqBssid, adhocBssid.bssid, sizeof(ar->arReqBssid));
+                memcpy(ar->arReqBssid, adhocBssid.bssid, sizeof(ar->arReqBssid));
         }
             break;
         }
@@ -4114,7 +4114,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 ap_get_sta_t temp;
                 A_MEMZERO(&temp, sizeof(temp));
                 for(i=0;i<AP_MAX_NUM_STA;i++) {
-                    A_MEMCPY(temp.sta[i].mac, ar->sta_list[i].mac, ATH_MAC_LEN);
+                    memcpy(temp.sta[i].mac, ar->sta_list[i].mac, ATH_MAC_LEN);
                     temp.sta[i].aid = ar->sta_list[i].aid;
                     temp.sta[i].keymgmt = ar->sta_list[i].keymgmt;
                     temp.sta[i].ucipher = ar->sta_list[i].ucipher;
@@ -4526,7 +4526,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_AP_GET_COUNTRY:
         {
             WMI_AP_SET_COUNTRY_CMD cty;
-            A_MEMCPY(cty.countryCode, ar->ap_country_code, 3);
+            memcpy(cty.countryCode, ar->ap_country_code, 3);
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
@@ -4743,7 +4743,7 @@ u8 acl_add_del_mac(WMI_AP_ACL *a, WMI_AP_ACL_MAC_CMD *acl)
         if((already_avail >= 0) || (free_slot == -1))
             return 0;
 
-        A_MEMCPY(a->acl_mac[free_slot], acl->mac, ATH_MAC_LEN);
+        memcpy(a->acl_mac[free_slot], acl->mac, ATH_MAC_LEN);
         a->index = a->index | (1 << free_slot);
         acl->index = free_slot;
         a->wildcard[free_slot] = acl->wildcard;

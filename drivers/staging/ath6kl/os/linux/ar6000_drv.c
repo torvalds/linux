@@ -2280,7 +2280,7 @@ ar6000_init_control_info(AR_SOFTC_T *ar)
         ar->ap_profile_flag = 0;
         A_NETBUF_QUEUE_INIT(&ar->mcastpsq);
 
-        A_MEMCPY(ar->ap_country_code, DEF_AP_COUNTRY_CODE, 3);
+        memcpy(ar->ap_country_code, DEF_AP_COUNTRY_CODE, 3);
         ar->ap_wmode = DEF_AP_WMODE_G;
         ar->ap_dtim_period = DEF_AP_DTIM;
         ar->ap_beacon_interval = DEF_BEACON_INTERVAL;
@@ -2875,7 +2875,7 @@ ar6000_channelList_rx(void *devt, s8 numChan, u16 *chanList)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
 
-    A_MEMCPY(ar->arChannelList, chanList, numChan * sizeof (u16));
+    memcpy(ar->arChannelList, chanList, numChan * sizeof (u16));
     ar->arNumChannels = numChan;
 
     wake_up(&arEvent);
@@ -2914,7 +2914,7 @@ u8 ar6000_ibss_map_epid(struct sk_buff *skb, struct net_device *dev, u32 *mapNo)
         A_ASSERT(ar->arNodeNum <= MAX_NODE_NUM);
     }
 
-    A_MEMCPY(ar->arNodeMap[eptMap].macAddress, macHdr->dstMac, IEEE80211_ADDR_LEN);
+    memcpy(ar->arNodeMap[eptMap].macAddress, macHdr->dstMac, IEEE80211_ADDR_LEN);
 
     for (i = ENDPOINT_2; i <= ENDPOINT_5; i ++) {
         if (!ar->arTxPending[i]) {
@@ -3118,7 +3118,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
                     break;
                 }
                 A_NETBUF_PUT(newbuf, len);
-                A_MEMCPY(A_NETBUF_DATA(newbuf), A_NETBUF_DATA(skb), len);
+                memcpy(A_NETBUF_DATA(newbuf), A_NETBUF_DATA(skb), len);
                 A_NETBUF_FREE(skb);
                 skb = newbuf;
                 /* fall through and assemble header */
@@ -4239,7 +4239,7 @@ ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
     AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
     struct net_device *dev = ar->arNetDev;
 
-    A_MEMCPY(dev->dev_addr, datap, AR6000_ETH_ADDR_LEN);
+    memcpy(dev->dev_addr, datap, AR6000_ETH_ADDR_LEN);
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("mac address = %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
         dev->dev_addr[0], dev->dev_addr[1],
         dev->dev_addr[2], dev->dev_addr[3],
@@ -4260,8 +4260,8 @@ add_new_sta(AR_SOFTC_T *ar, u8 *mac, u16 aid, u8 *wpaie,
 {
     u8 free_slot=aid-1;
 
-        A_MEMCPY(ar->sta_list[free_slot].mac, mac, ATH_MAC_LEN);
-        A_MEMCPY(ar->sta_list[free_slot].wpa_ie, wpaie, ielen);
+        memcpy(ar->sta_list[free_slot].mac, mac, ATH_MAC_LEN);
+        memcpy(ar->sta_list[free_slot].wpa_ie, wpaie, ielen);
         ar->sta_list[free_slot].aid = aid;
         ar->sta_list[free_slot].keymgmt = keymgmt;
         ar->sta_list[free_slot].ucipher = ucipher;
@@ -4383,7 +4383,7 @@ skip_key:
 
         /* Send event to application */
         A_MEMZERO(&wrqu, sizeof(wrqu));
-        A_MEMCPY(wrqu.addr.sa_data, bssid, ATH_MAC_LEN);
+        memcpy(wrqu.addr.sa_data, bssid, ATH_MAC_LEN);
         wireless_send_event(ar->arNetDev, IWEVREGISTERED, &wrqu, NULL);
         /* In case the queue is stopped when we switch modes, this will
          * wake it up
@@ -4400,7 +4400,7 @@ skip_key:
                                 assocInfo);
 #endif /* ATH6K_CONFIG_CFG80211 */
 
-    A_MEMCPY(ar->arBssid, bssid, sizeof(ar->arBssid));
+    memcpy(ar->arBssid, bssid, sizeof(ar->arBssid));
     ar->arBssChannel = channel;
 
     A_PRINTF("AR6000 connected event on freq %d ", channel);
@@ -4543,7 +4543,7 @@ skip_key:
     reconnect_flag = 0;
 
     A_MEMZERO(&wrqu, sizeof(wrqu));
-    A_MEMCPY(wrqu.addr.sa_data, bssid, IEEE80211_ADDR_LEN);
+    memcpy(wrqu.addr.sa_data, bssid, IEEE80211_ADDR_LEN);
     wrqu.addr.sa_family = ARPHRD_ETHER;
     wireless_send_event(ar->arNetDev, SIOCGIWAP, &wrqu, NULL);
     if ((ar->arNetworkType == ADHOC_NETWORK) && ar->arIbssPsEnable) {
@@ -4653,7 +4653,7 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
         if(!IS_MAC_BCAST(bssid)) {
             /* Send event to application */
             A_MEMZERO(&wrqu, sizeof(wrqu));
-            A_MEMCPY(wrqu.addr.sa_data, bssid, ATH_MAC_LEN);
+            memcpy(wrqu.addr.sa_data, bssid, ATH_MAC_LEN);
             wireless_send_event(ar->arNetDev, IWEVEXPIRED, &wrqu, NULL);
         }
 
@@ -4826,7 +4826,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
      */
     *((short *)buf) = WMI_HCI_EVENT_EVENTID;
     buf += sizeof(int);
-    A_MEMCPY(buf, cmd->buf, cmd->evt_buf_sz);
+    memcpy(buf, cmd->buf, cmd->evt_buf_sz);
 
     if(ar6k_pal_config_g.fpar6k_pal_recv_pkt)
     {
@@ -4880,7 +4880,7 @@ ar6000_neighborReport_event(AR_SOFTC_T *ar, int numAps, WMI_NEIGHBOR_INFO *info)
         A_MEMZERO(pmkcand, sizeof(struct iw_pmkid_cand));
         pmkcand->index = i;
         pmkcand->flags = info->bssFlags;
-        A_MEMCPY(pmkcand->bssid.sa_data, info->bssid, ATH_MAC_LEN);
+        memcpy(pmkcand->bssid.sa_data, info->bssid, ATH_MAC_LEN);
         wrqu.data.length = sizeof(struct iw_pmkid_cand);
         wireless_send_event(ar->arNetDev, IWEVPMKIDCAND, &wrqu, (char *)pmkcand);
         A_FREE(pmkcand);
@@ -5302,9 +5302,9 @@ ar6000_bssInfo_event_rx(AR_SOFTC_T *ar, u8 *datap, int len)
     if ((skb = A_NETBUF_ALLOC_RAW(len)) != NULL) {
 
         A_NETBUF_PUT(skb, len);
-        A_MEMCPY(A_NETBUF_DATA(skb), datap, len);
+        memcpy(A_NETBUF_DATA(skb), datap, len);
         skb->dev = ar->arNetDev;
-        A_MEMCPY(skb_mac_header(skb), A_NETBUF_DATA(skb), 6);
+        memcpy(skb_mac_header(skb), A_NETBUF_DATA(skb), 6);
         skb->ip_summed = CHECKSUM_NONE;
         skb->pkt_type = PACKET_OTHERHOST;
         skb->protocol = __constant_htons(0x0019);
@@ -5468,19 +5468,19 @@ ar6000_btcoex_config_event(struct ar6_softc *ar,  u8 *ptr, u32 len)
 
     switch (pBtcoexConfig->btProfileType) {
         case WMI_BTCOEX_BT_PROFILE_SCO:
-            A_MEMCPY(&pArbtcoexConfig->info.scoConfigCmd, &pBtcoexConfig->info.scoConfigCmd,
+            memcpy(&pArbtcoexConfig->info.scoConfigCmd, &pBtcoexConfig->info.scoConfigCmd,
                                         sizeof(WMI_SET_BTCOEX_SCO_CONFIG_CMD));
             break;
         case WMI_BTCOEX_BT_PROFILE_A2DP:
-            A_MEMCPY(&pArbtcoexConfig->info.a2dpConfigCmd, &pBtcoexConfig->info.a2dpConfigCmd,
+            memcpy(&pArbtcoexConfig->info.a2dpConfigCmd, &pBtcoexConfig->info.a2dpConfigCmd,
                                         sizeof(WMI_SET_BTCOEX_A2DP_CONFIG_CMD));
             break;
         case WMI_BTCOEX_BT_PROFILE_ACLCOEX:
-            A_MEMCPY(&pArbtcoexConfig->info.aclcoexConfig, &pBtcoexConfig->info.aclcoexConfig,
+            memcpy(&pArbtcoexConfig->info.aclcoexConfig, &pBtcoexConfig->info.aclcoexConfig,
                                         sizeof(WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD));
             break;
         case WMI_BTCOEX_BT_PROFILE_INQUIRY_PAGE:
-           A_MEMCPY(&pArbtcoexConfig->info.btinquiryPageConfigCmd, &pBtcoexConfig->info.btinquiryPageConfigCmd,
+           memcpy(&pArbtcoexConfig->info.btinquiryPageConfigCmd, &pBtcoexConfig->info.btinquiryPageConfigCmd,
                                         sizeof(WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD));
             break;
     }
@@ -5497,7 +5497,7 @@ ar6000_btcoex_stats_event(struct ar6_softc *ar,  u8 *ptr, u32 len)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("AR6000 BTCOEX CONFIG EVENT \n"));
 
-    A_MEMCPY(&ar->arBtcoexStats, pBtcoexStats, sizeof(WMI_BTCOEX_STATS_EVENT));
+    memcpy(&ar->arBtcoexStats, pBtcoexStats, sizeof(WMI_BTCOEX_STATS_EVENT));
 
     if (ar->statsUpdatePending) {
          ar->statsUpdatePending = false;
@@ -5596,8 +5596,8 @@ void ar6000_send_event_to_app(AR_SOFTC_T *ar, u16 eventId,
     }
 
     A_MEMZERO(buf, size);
-    A_MEMCPY(buf, &eventId, EVENT_ID_LEN);
-    A_MEMCPY(buf+EVENT_ID_LEN, datap, len);
+    memcpy(buf, &eventId, EVENT_ID_LEN);
+    memcpy(buf+EVENT_ID_LEN, datap, len);
 
     //AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("event ID = %d,len = %d\n",*(u16 *)buf, size));
     A_MEMZERO(&wrqu, sizeof(wrqu));
@@ -5641,8 +5641,8 @@ void ar6000_send_generic_event_to_app(AR_SOFTC_T *ar, u16 eventId,
     }
 
     A_MEMZERO(buf, size);
-    A_MEMCPY(buf, &eventId, EVENT_ID_LEN);
-    A_MEMCPY(buf+EVENT_ID_LEN, datap, len);
+    memcpy(buf, &eventId, EVENT_ID_LEN);
+    memcpy(buf+EVENT_ID_LEN, datap, len);
 
     A_MEMZERO(&wrqu, sizeof(wrqu));
     wrqu.data.length = size;
@@ -5989,7 +5989,7 @@ void ap_wapi_rekey_event(AR_SOFTC_T *ar, u8 type, u8 *mac)
 
     strcpy(buf, "WAPI_REKEY");
     buf[10] = type;
-    A_MEMCPY(&buf[11], mac, ATH_MAC_LEN);
+    memcpy(&buf[11], mac, ATH_MAC_LEN);
 
     A_MEMZERO(&wrqu, sizeof(wrqu));
     wrqu.data.length = 10+1+ATH_MAC_LEN;
@@ -6121,7 +6121,7 @@ ar6000_ap_mode_profile_commit(struct ar6_softc *ar)
 
     A_MEMZERO(&p,sizeof(p));
     p.ssidLength = ar->arSsidLen;
-    A_MEMCPY(p.ssid,ar->arSsid,p.ssidLength);
+    memcpy(p.ssid,ar->arSsid,p.ssidLength);
     p.channel = ar->arChannelHint;
     p.networkType = ar->arNetworkType;
 
@@ -6238,7 +6238,7 @@ ar6000_ap_mode_get_wpa_ie(struct ar6_softc *ar, struct ieee80211req_wpaie *wpaie
     A_MEMZERO(wpaie->rsn_ie, IEEE80211_MAX_IE);
 
     if(conn) {
-        A_MEMCPY(wpaie->wpa_ie, conn->wpa_ie, IEEE80211_MAX_IE);
+        memcpy(wpaie->wpa_ie, conn->wpa_ie, IEEE80211_MAX_IE);
     }
 
     return 0;
@@ -6453,7 +6453,7 @@ int ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     arApNetDev = dev;
 
     /* Copy the MAC address */
-    A_MEMCPY(dev->dev_addr, ar->arNetDev->dev_addr, AR6000_ETH_ADDR_LEN);
+    memcpy(dev->dev_addr, ar->arNetDev->dev_addr, AR6000_ETH_ADDR_LEN);
 
     return 0;
 }

@@ -120,7 +120,7 @@ int
 a_netbuf_push_data(void *bufPtr, char *srcPtr, s32 len)
 {
     skb_push((struct sk_buff *) bufPtr, len);
-    A_MEMCPY(((struct sk_buff *)bufPtr)->data, srcPtr, len);
+    memcpy(((struct sk_buff *)bufPtr)->data, srcPtr, len);
 
     return 0;
 }
@@ -147,7 +147,7 @@ a_netbuf_put_data(void *bufPtr, char *srcPtr, s32 len)
     char *start = (char*)(((struct sk_buff *)bufPtr)->data +
         ((struct sk_buff *)bufPtr)->len);
     skb_put((struct sk_buff *)bufPtr, len);
-    A_MEMCPY(start, srcPtr, len);
+    memcpy(start, srcPtr, len);
 
     return 0;
 }
@@ -184,7 +184,7 @@ a_netbuf_trim_data(void *bufPtr, char *dstPtr, s32 len)
     char *start = (char*)(((struct sk_buff *)bufPtr)->data +
         (((struct sk_buff *)bufPtr)->len - len));
     
-    A_MEMCPY(dstPtr, start, len);
+    memcpy(dstPtr, start, len);
     skb_trim((struct sk_buff *)bufPtr, ((struct sk_buff *)bufPtr)->len - len);
 
     return 0;
@@ -217,7 +217,7 @@ a_netbuf_pull(void *bufPtr, s32 len)
 int
 a_netbuf_pull_data(void *bufPtr, char *dstPtr, s32 len)
 {
-    A_MEMCPY(dstPtr, ((struct sk_buff *)bufPtr)->data, len);
+    memcpy(dstPtr, ((struct sk_buff *)bufPtr)->data, len);
     skb_pull((struct sk_buff *)bufPtr, len);
 
     return 0;

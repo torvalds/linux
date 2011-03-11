@@ -112,7 +112,7 @@ ar6000_scan_node(void *arg, bss_t *ni)
         A_MEMZERO(&iwe, sizeof(iwe));
         iwe.cmd = SIOCGIWAP;
         iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-        A_MEMCPY(iwe.u.ap_addr.sa_data, ni->ni_macaddr, 6);
+        memcpy(iwe.u.ap_addr.sa_data, ni->ni_macaddr, 6);
         current_ev = IWE_STREAM_ADD_EVENT(param->info, current_ev, end_buf,
                                           &iwe, IW_EV_ADDR_LEN);
     }
@@ -506,7 +506,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
         /* SSID change for AP network - Will take effect on commit */
         if(A_MEMCMP(ar->arSsid,ssid,32) != 0) {
              ar->arSsidLen = data->length - 1;
-            A_MEMCPY(ar->arSsid, ssid, ar->arSsidLen);
+            memcpy(ar->arSsid, ssid, ar->arSsidLen);
             ar->ap_profile_flag = 1; /* There is a change in profile */
         }
         return 0;
@@ -641,7 +641,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
     }
 
     ar->arSsidLen = data->length - 1;
-    A_MEMCPY(ar->arSsid, ssid, ar->arSsidLen);
+    memcpy(ar->arSsid, ssid, ar->arSsidLen);
 
     if (ar6000_connect_to_ap(ar)!= 0) {
         up(&ar->arSem);
@@ -675,7 +675,7 @@ ar6000_ioctl_giwessid(struct net_device *dev,
 
     data->flags = 1;
     data->length = ar->arSsidLen;
-    A_MEMCPY(essid, ar->arSsid, ar->arSsidLen);
+    memcpy(essid, ar->arSsid, ar->arSsidLen);
 
     return 0;
 }
@@ -1080,7 +1080,7 @@ ar6000_ioctl_siwencode(struct net_device *dev,
 
             A_MEMZERO(ar->arWepKeyList[index].arKey,
                       sizeof(ar->arWepKeyList[index].arKey));
-            A_MEMCPY(ar->arWepKeyList[index].arKey, keybuf, erq->length);
+            memcpy(ar->arWepKeyList[index].arKey, keybuf, erq->length);
             ar->arWepKeyList[index].arKeyLen = erq->length;
             ar->arDot11AuthMode       = auth;
         } else {
@@ -1158,14 +1158,14 @@ ar6000_ioctl_giwencode(struct net_device *dev,
                 erq->length = wk->arKeyLen;
             }
             if (wk->arKeyLen) {
-                A_MEMCPY(key, wk->arKey, erq->length);
+                memcpy(key, wk->arKey, erq->length);
             }
         } else {
             erq->flags &= ~IW_ENCODE_DISABLED;
             if (ar->user_saved_keys.keyOk) {
                 erq->length = ar->user_saved_keys.ucast_ik.ik_keylen;
                 if (erq->length) {
-                    A_MEMCPY(key, ar->user_saved_keys.ucast_ik.ik_keydata, erq->length);
+                    memcpy(key, ar->user_saved_keys.ucast_ik.ik_keydata, erq->length);
                 }
             } else {
                 erq->length = 1;    // not really printing any key but let iwconfig know enc is on
@@ -1616,7 +1616,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
     }
     keyData = (u8 *)(ext + 1);
     keyLen = erq->length - sizeof(struct iw_encode_ext);
-    A_MEMCPY(wapiKeyRsc, ext->tx_seq, sizeof(wapiKeyRsc));
+    memcpy(wapiKeyRsc, ext->tx_seq, sizeof(wapiKeyRsc));
 
     if (A_MEMCMP(ext->addr.sa_data, broadcastMac, sizeof(broadcastMac)) == 0) {
         keyUsage |= GROUP_USAGE;
@@ -1737,7 +1737,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
                 if (!ar->arConnected) {
                     A_MEMZERO(ar->arWepKeyList[index].arKey,
                           sizeof(ar->arWepKeyList[index].arKey));
-                    A_MEMCPY(ar->arWepKeyList[index].arKey, keyData, keyLen);
+                    memcpy(ar->arWepKeyList[index].arKey, keyData, keyLen);
                     ar->arWepKeyList[index].arKeyLen = keyLen;
 
                     return 0;
@@ -1778,7 +1778,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
         }
 
         if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-            A_MEMCPY(keyRsc, ext->rx_seq, sizeof(keyRsc));
+            memcpy(keyRsc, ext->rx_seq, sizeof(keyRsc));
         } else {
             A_MEMZERO(keyRsc, sizeof(keyRsc));
         }
@@ -2318,7 +2318,7 @@ ar6000_ioctl_siwap(struct net_device *dev,
     if (A_MEMCMP(&ap_addr->sa_data, bcast_mac, AR6000_ETH_ADDR_LEN) == 0) {
         A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     } else {
-        A_MEMCPY(ar->arReqBssid, &ap_addr->sa_data,  sizeof(ar->arReqBssid));
+        memcpy(ar->arReqBssid, &ap_addr->sa_data,  sizeof(ar->arReqBssid));
     }
 
     return 0;
@@ -2344,7 +2344,7 @@ ar6000_ioctl_giwap(struct net_device *dev,
     }
 
     if (ar->arNetworkType == AP_NETWORK) {
-        A_MEMCPY(&ap_addr->sa_data, dev->dev_addr, ATH_MAC_LEN);
+        memcpy(&ap_addr->sa_data, dev->dev_addr, ATH_MAC_LEN);
         ap_addr->sa_family = ARPHRD_ETHER;
         return 0;
     }
@@ -2353,7 +2353,7 @@ ar6000_ioctl_giwap(struct net_device *dev,
         return -EINVAL;
     }
 
-    A_MEMCPY(&ap_addr->sa_data, ar->arBssid, sizeof(ar->arBssid));
+    memcpy(&ap_addr->sa_data, ar->arBssid, sizeof(ar->arBssid));
     ap_addr->sa_family = ARPHRD_ETHER;
 
     return 0;

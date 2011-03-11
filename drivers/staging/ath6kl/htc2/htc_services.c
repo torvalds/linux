@@ -83,7 +83,7 @@ int HTCSendSetupComplete(HTC_TARGET *target)
                 setupFlags |= HTC_SETUP_COMPLETE_FLAGS_ENABLE_BUNDLE_RECV; 
                 pSetupCompleteEx->MaxMsgsPerBundledRecv = target->MaxMsgPerBundle;
             }    
-            A_MEMCPY(&pSetupCompleteEx->SetupFlags, &setupFlags, sizeof(pSetupCompleteEx->SetupFlags));            
+            memcpy(&pSetupCompleteEx->SetupFlags, &setupFlags, sizeof(pSetupCompleteEx->SetupFlags));            
             SET_HTC_PACKET_INFO_TX(pSendPacket,
                                    NULL,
                                    (u8 *)pSetupCompleteEx,
@@ -166,7 +166,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
             if ((pConnectReq->pMetaData != NULL) &&
                 (pConnectReq->MetaDataLength <= HTC_SERVICE_META_DATA_MAX_LENGTH)) {
                     /* copy meta data into message buffer (after header ) */
-                A_MEMCPY((u8 *)pConnectMsg + sizeof(HTC_CONNECT_SERVICE_MSG),
+                memcpy((u8 *)pConnectMsg + sizeof(HTC_CONNECT_SERVICE_MSG),
                          pConnectReq->pMetaData,
                          pConnectReq->MetaDataLength);
                 pConnectMsg->ServiceMetaLength = pConnectReq->MetaDataLength;
@@ -224,7 +224,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
                     /* caller supplied a buffer and the target responded with data */
                 int copyLength = min((int)pConnectResp->BufferLength, (int)pResponseMsg->ServiceMetaLength);
                     /* copy the meta data */
-                A_MEMCPY(pConnectResp->pMetaData,
+                memcpy(pConnectResp->pMetaData,
                          ((u8 *)pResponseMsg) + sizeof(HTC_CONNECT_SERVICE_RESPONSE_MSG),
                          copyLength);
                 pConnectResp->ActualLength = copyLength;

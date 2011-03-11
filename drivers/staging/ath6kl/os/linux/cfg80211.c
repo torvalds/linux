@@ -324,7 +324,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
     A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
     ar->arSsidLen = sme->ssid_len;
-    A_MEMCPY(ar->arSsid, sme->ssid, sme->ssid_len);
+    memcpy(ar->arSsid, sme->ssid, sme->ssid_len);
 
     if(sme->channel){
         ar->arChannelHint = sme->channel->center_freq;
@@ -333,7 +333,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     if(sme->bssid){
         if(A_MEMCMP(&sme->bssid, bcast_mac, AR6000_ETH_ADDR_LEN)) {
-            A_MEMCPY(ar->arReqBssid, sme->bssid, sizeof(ar->arReqBssid));
+            memcpy(ar->arReqBssid, sme->bssid, sizeof(ar->arReqBssid));
         }
     }
 
@@ -365,7 +365,7 @@ ar6k_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
         key = &ar->keys[sme->key_idx];
         key->key_len = sme->key_len;
-        A_MEMCPY(key->key, sme->key, key->key_len);
+        memcpy(key->key, sme->key, key->key_len);
         key->cipher = ar->arPairwiseCrypto;
         ar->arDefTxKeyIndex = sme->key_idx;
 
@@ -493,7 +493,7 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, u16 channel,
             if(ptr_ie_buf) {
                 *ptr_ie_buf++ = WLAN_EID_SSID;
                 *ptr_ie_buf++ = ar->arSsidLen;
-                A_MEMCPY(ptr_ie_buf, ar->arSsid, ar->arSsidLen);
+                memcpy(ptr_ie_buf, ar->arSsid, ar->arSsidLen);
                 ptr_ie_buf +=ar->arSsidLen;
 
                 *ptr_ie_buf++ = WLAN_EID_IBSS_PARAMS;
@@ -511,11 +511,11 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, u16 channel,
             if(WEP_CRYPT == ar->arPairwiseCrypto) {
                 capability |= IEEE80211_CAPINFO_PRIVACY;
             }
-            A_MEMCPY(source_mac, ar->arNetDev->dev_addr, ATH_MAC_LEN);
+            memcpy(source_mac, ar->arNetDev->dev_addr, ATH_MAC_LEN);
             ptr_ie_buf = ie_buf;
         } else {
             capability = *(u16 *)(&assocInfo[beaconIeLen]);
-            A_MEMCPY(source_mac, bssid, ATH_MAC_LEN);
+            memcpy(source_mac, bssid, ATH_MAC_LEN);
             ptr_ie_buf = assocReqIe;
             ie_buf_len = assocReqLen;
         }
@@ -534,12 +534,12 @@ ar6k_cfg80211_connect_event(AR_SOFTC_T *ar, u16 channel,
         A_MEMZERO(ieeemgmtbuf, size);
         mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
         mgmt->frame_control = (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
-        A_MEMCPY(mgmt->da, bcast_mac, ATH_MAC_LEN);
-        A_MEMCPY(mgmt->sa, source_mac, ATH_MAC_LEN);
-        A_MEMCPY(mgmt->bssid, bssid, ATH_MAC_LEN);
+        memcpy(mgmt->da, bcast_mac, ATH_MAC_LEN);
+        memcpy(mgmt->sa, source_mac, ATH_MAC_LEN);
+        memcpy(mgmt->bssid, bssid, ATH_MAC_LEN);
         mgmt->u.beacon.beacon_int = beaconInterval;
         mgmt->u.beacon.capab_info = capability;
-        A_MEMCPY(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
+        memcpy(mgmt->u.beacon.variable, ptr_ie_buf, ie_buf_len);
 
         ibss_channel = ieee80211_get_channel(ar->wdev->wiphy, (int)channel);
 
@@ -712,10 +712,10 @@ ar6k_cfg80211_scan_node(void *arg, bss_t *ni)
        cfg80211 needs it, for time being just filling the da, sa and bssid fields alone.
     */
     mgmt = (struct ieee80211_mgmt *)ieeemgmtbuf;
-    A_MEMCPY(mgmt->da, bcast_mac, ATH_MAC_LEN);
-    A_MEMCPY(mgmt->sa, ni->ni_macaddr, ATH_MAC_LEN);
-    A_MEMCPY(mgmt->bssid, ni->ni_macaddr, ATH_MAC_LEN);
-    A_MEMCPY(ieeemgmtbuf + offsetof(struct ieee80211_mgmt, u),
+    memcpy(mgmt->da, bcast_mac, ATH_MAC_LEN);
+    memcpy(mgmt->sa, ni->ni_macaddr, ATH_MAC_LEN);
+    memcpy(mgmt->bssid, ni->ni_macaddr, ATH_MAC_LEN);
+    memcpy(ieeemgmtbuf + offsetof(struct ieee80211_mgmt, u),
              ni->ni_buf, ni->ni_framelen);
 
     freq    = cie->ie_chan;
@@ -862,9 +862,9 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
             return -EINVAL;
 
         key->key_len = params->key_len;
-        A_MEMCPY(key->key, params->key, key->key_len);
+        memcpy(key->key, params->key, key->key_len);
         key->seq_len = params->seq_len;
-        A_MEMCPY(key->seq, params->seq, key->seq_len);
+        memcpy(key->seq, params->seq, key->seq_len);
         key->cipher = params->cipher;
     }
 
@@ -1307,7 +1307,7 @@ ar6k_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
     }
 
     ar->arSsidLen = ibss_param->ssid_len;
-    A_MEMCPY(ar->arSsid, ibss_param->ssid, ar->arSsidLen);
+    memcpy(ar->arSsid, ibss_param->ssid, ar->arSsidLen);
 
     if(ibss_param->channel) {
         ar->arChannelHint = ibss_param->channel->center_freq;
@@ -1322,7 +1322,7 @@ ar6k_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
     A_MEMZERO(ar->arReqBssid, sizeof(ar->arReqBssid));
     if(ibss_param->bssid) {
         if(A_MEMCMP(&ibss_param->bssid, bcast_mac, AR6000_ETH_ADDR_LEN)) {
-            A_MEMCPY(ar->arReqBssid, ibss_param->bssid, sizeof(ar->arReqBssid));
+            memcpy(ar->arReqBssid, ibss_param->bssid, sizeof(ar->arReqBssid));
         }
     }
 

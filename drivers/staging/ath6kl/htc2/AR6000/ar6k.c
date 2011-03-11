@@ -254,7 +254,7 @@ int DevEnableInterrupts(AR6K_DEVICE *pDev)
         COUNTER_INT_STATUS_ENABLE_BIT_SET(AR6K_TARGET_DEBUG_INTR_MASK);
 
         /* copy into our temp area */
-    A_MEMCPY(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+    memcpy(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
 
     UNLOCK_AR6K(pDev);
 
@@ -287,7 +287,7 @@ int DevDisableInterrupts(AR6K_DEVICE *pDev)
     pDev->IrqEnableRegisters.error_status_enable = 0;
     pDev->IrqEnableRegisters.counter_int_status_enable = 0;
         /* copy into our temp area */
-    A_MEMCPY(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+    memcpy(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
 
     UNLOCK_AR6K(pDev);
 
@@ -419,7 +419,7 @@ static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, bool EnableRecv, bool
     }
 
         /* copy into our temp area */
-    A_MEMCPY(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
+    memcpy(&regs,&pDev->IrqEnableRegisters,AR6K_IRQ_ENABLE_REGS_SIZE);
     UNLOCK_AR6K(pDev);
 
     do {
@@ -435,7 +435,7 @@ static int DevDoEnableDisableRecvNormal(AR6K_DEVICE *pDev, bool EnableRecv, bool
             }
 
                 /* copy values to write to our async I/O buffer */
-            A_MEMCPY(pIOPacket->pBuffer,&regs,AR6K_IRQ_ENABLE_REGS_SIZE);
+            memcpy(pIOPacket->pBuffer,&regs,AR6K_IRQ_ENABLE_REGS_SIZE);
 
                 /* stick in our completion routine when the I/O operation completes */
             pIOPacket->Completion = DevDoEnableDisableRecvAsyncHandler;
@@ -635,10 +635,10 @@ int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
 
         if (FromDMA) {
                 /* from DMA buffer */
-            A_MEMCPY(pReq->ScatterList[i].pBuffer, pDMABuffer , length);
+            memcpy(pReq->ScatterList[i].pBuffer, pDMABuffer , length);
         } else {
                 /* to DMA buffer */
-            A_MEMCPY(pDMABuffer, pReq->ScatterList[i].pBuffer, length);
+            memcpy(pDMABuffer, pReq->ScatterList[i].pBuffer, length);
         }
 
         pDMABuffer += length;
