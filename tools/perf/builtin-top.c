@@ -782,7 +782,6 @@ static void perf_event__process_sample(const union perf_event *event,
 	if (!syme->skip) {
 		struct perf_evsel *evsel;
 
-		syme->origin = origin;
 		evsel = perf_evlist__id2evsel(top.evlist, sample->id);
 		assert(evsel != NULL);
 		syme->count[evsel->idx]++;

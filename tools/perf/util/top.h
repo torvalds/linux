@@ -17,7 +17,6 @@ struct sym_entry {
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
-	u8			origin;
 	struct map		*map;
 	unsigned long		count[0];
 };

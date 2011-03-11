@@ -184,9 +184,9 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root)
 		if (syme->snap_count != 0) {
 
 			if ((top->hide_user_symbols &&
-			     syme->origin == PERF_RECORD_MISC_USER) ||
+			     syme->map->dso->kernel == DSO_TYPE_USER) ||
 			    (top->hide_kernel_symbols &&
-			     syme->origin == PERF_RECORD_MISC_KERNEL)) {
+			     syme->map->dso->kernel == DSO_TYPE_KERNEL)) {
 				perf_top__remove_active_sym(top, syme);
 				continue;
 			}
