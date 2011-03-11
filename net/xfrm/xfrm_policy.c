@@ -50,8 +50,7 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
-static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
-			  const struct flowi *fl, int family);
+static int xfrm_bundle_ok(struct xfrm_dst *xdst, int family);
 
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
@@ -2223,7 +2222,7 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 
 static int stale_bundle(struct dst_entry *dst)
 {
-	return !xfrm_bundle_ok(NULL, (struct xfrm_dst *)dst, NULL, AF_UNSPEC);
+	return !xfrm_bundle_ok((struct xfrm_dst *)dst, AF_UNSPEC);
 }
 
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
@@ -2295,8 +2294,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
  * still valid.
  */
 
-static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
-			  const struct flowi *fl, int family)
+static int xfrm_bundle_ok(struct xfrm_dst *first, int family)
 {
 	struct dst_entry *dst = &first->u.dst;
 	struct xfrm_dst *last;
@@ -2305,26 +2303,12 @@ static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 	if (!dst_check(dst->path, ((struct xfrm_dst *)dst)->path_cookie) ||
 	    (dst->dev && !netif_running(dst->dev)))
 		return 0;
-#ifdef CONFIG_XFRM_SUB_POLICY
-	if (fl) {
-		if (first->origin && !flow_cache_uli_match(first->origin, fl))
-			return 0;
-		if (first->partner &&
-		    !xfrm_selector_match(first->partner, fl, family))
-			return 0;
-	}
-#endif
 
 	last = NULL;
 
 	do {
 		struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 
-		if (fl && !xfrm_selector_match(&dst->xfrm->sel, fl, family))
-			return 0;
-		if (fl && pol &&
-		    !security_xfrm_state_pol_flow_match(dst->xfrm, pol, fl))
-			return 0;
 		if (dst->xfrm->km.state != XFRM_STATE_VALID)
 			return 0;
 		if (xdst->xfrm_genid != dst->xfrm->genid)
