@@ -36,9 +36,11 @@
 		struct dw_dma_slave *__slave = (private);	\
 		int dms = __slave ? __slave->dst_master : 0;	\
 		int sms = __slave ? __slave->src_master : 1;	\
+		u8 smsize = __slave ? __slave->src_msize : DW_DMA_MSIZE_16; \
+		u8 dmsize = __slave ? __slave->dst_msize : DW_DMA_MSIZE_16; \
 								\
-		(DWC_CTLL_DST_MSIZE(0)				\
-		 | DWC_CTLL_SRC_MSIZE(0)			\
+		(DWC_CTLL_DST_MSIZE(dmsize)			\
+		 | DWC_CTLL_SRC_MSIZE(smsize)			\
 		 | DWC_CTLL_LLP_D_EN				\
 		 | DWC_CTLL_LLP_S_EN				\
 		 | DWC_CTLL_DMS(dms)				\
@@ -47,14 +49,13 @@
 
 /*
  * This is configuration-dependent and usually a funny size like 4095.
- * Let's round it down to the nearest power of two.
  *
  * Note that this is a transfer count, i.e. if we transfer 32-bit
- * words, we can do 8192 bytes per descriptor.
+ * words, we can do 16380 bytes per descriptor.
  *
  * This parameter is also system-specific.
  */
-#define DWC_MAX_COUNT	2048U
+#define DWC_MAX_COUNT	4095U
 
 /*
  * Number of descriptors to allocate for each channel. This should be
@@ -85,11 +86,6 @@ static struct device *chan2parent(struct dma_chan *chan)
 static struct dw_desc *dwc_first_active(struct dw_dma_chan *dwc)
 {
 	return list_entry(dwc->active_list.next, struct dw_desc, desc_node);
-}
-
-static struct dw_desc *dwc_first_queued(struct dw_dma_chan *dwc)
-{
-	return list_entry(dwc->queue.next, struct dw_desc, desc_node);
 }
 
 static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
@@ -204,6 +200,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	dma_async_tx_callback		callback;
 	void				*param;
 	struct dma_async_tx_descriptor	*txd = &desc->txd;
+	struct dw_desc			*child;
 
 	dev_vdbg(chan2dev(&dwc->chan), "descriptor %u complete\n", txd->cookie);
 
@@ -212,6 +209,12 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	param = txd->callback_param;
 
 	dwc_sync_desc_for_cpu(dwc, desc);
+
+	/* async_tx_ack */
+	list_for_each_entry(child, &desc->tx_list, desc_node)
+		async_tx_ack(&child->txd);
+	async_tx_ack(&desc->txd);
+
 	list_splice_init(&desc->tx_list, &dwc->free_list);
 	list_move(&desc->desc_node, &dwc->free_list);
 
@@ -262,10 +265,11 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 * Submit queued descriptors ASAP, i.e. before we go through
 	 * the completed ones.
 	 */
-	if (!list_empty(&dwc->queue))
-		dwc_dostart(dwc, dwc_first_queued(dwc));
 	list_splice_init(&dwc->active_list, &list);
-	list_splice_init(&dwc->queue, &dwc->active_list);
+	if (!list_empty(&dwc->queue)) {
+		list_move(dwc->queue.next, &dwc->active_list);
+		dwc_dostart(dwc, dwc_first_active(dwc));
+	}
 
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		dwc_descriptor_complete(dwc, desc);
@@ -325,8 +329,8 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		cpu_relax();
 
 	if (!list_empty(&dwc->queue)) {
-		dwc_dostart(dwc, dwc_first_queued(dwc));
-		list_splice_init(&dwc->queue, &dwc->active_list);
+		list_move(dwc->queue.next, &dwc->active_list);
+		dwc_dostart(dwc, dwc_first_active(dwc));
 	}
 }
 
@@ -352,7 +356,7 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 */
 	bad_desc = dwc_first_active(dwc);
 	list_del_init(&bad_desc->desc_node);
-	list_splice_init(&dwc->queue, dwc->active_list.prev);
+	list_move(dwc->queue.next, dwc->active_list.prev);
 
 	/* Clear the error flag and try to restart the controller */
 	dma_writel(dw, CLEAR.ERROR, dwc->mask);
@@ -547,8 +551,8 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	if (list_empty(&dwc->active_list)) {
 		dev_vdbg(chan2dev(tx->chan), "tx_submit: started %u\n",
 				desc->txd.cookie);
-		dwc_dostart(dwc, desc);
 		list_add_tail(&desc->desc_node, &dwc->active_list);
+		dwc_dostart(dwc, dwc_first_active(dwc));
 	} else {
 		dev_vdbg(chan2dev(tx->chan), "tx_submit: queued %u\n",
 				desc->txd.cookie);
@@ -587,7 +591,9 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	 * We can be a lot more clever here, but this should take care
 	 * of the most common optimization.
 	 */
-	if (!((src | dest  | len) & 3))
+	if (!((src | dest  | len) & 7))
+		src_width = dst_width = 3;
+	else if (!((src | dest  | len) & 3))
 		src_width = dst_width = 2;
 	else if (!((src | dest | len) & 1))
 		src_width = dst_width = 1;
@@ -679,7 +685,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_DST_WIDTH(reg_width)
 				| DWC_CTLL_DST_FIX
 				| DWC_CTLL_SRC_INC
-				| DWC_CTLL_FC_M2P);
+				| DWC_CTLL_FC(dws->fc));
 		reg = dws->tx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
@@ -724,7 +730,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_SRC_WIDTH(reg_width)
 				| DWC_CTLL_DST_INC
 				| DWC_CTLL_SRC_FIX
-				| DWC_CTLL_FC_P2M);
+				| DWC_CTLL_FC(dws->fc));
 
 		reg = dws->rx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
@@ -840,7 +846,9 @@ dwc_tx_status(struct dma_chan *chan,
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret != DMA_SUCCESS) {
+		spin_lock_bh(&dwc->lock);
 		dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
+		spin_unlock_bh(&dwc->lock);
 
 		last_complete = dwc->completed;
 		last_used = chan->cookie;
@@ -895,8 +903,11 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
 
 		cfghi = dws->cfg_hi;
-		cfglo = dws->cfg_lo;
+		cfglo = dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
 	}
+
+	cfglo |= DWC_CFGL_CH_PRIOR(dwc->priority);
+
 	channel_writel(dwc, CFG_LO, cfglo);
 	channel_writel(dwc, CFG_HI, cfghi);
 
@@ -1137,7 +1148,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 					| DWC_CTLL_SRC_WIDTH(reg_width)
 					| DWC_CTLL_DST_FIX
 					| DWC_CTLL_SRC_INC
-					| DWC_CTLL_FC_M2P
+					| DWC_CTLL_FC(dws->fc)
 					| DWC_CTLL_INT_EN);
 			break;
 		case DMA_FROM_DEVICE:
@@ -1148,7 +1159,7 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 					| DWC_CTLL_DST_WIDTH(reg_width)
 					| DWC_CTLL_DST_INC
 					| DWC_CTLL_SRC_FIX
-					| DWC_CTLL_FC_P2M
+					| DWC_CTLL_FC(dws->fc)
 					| DWC_CTLL_INT_EN);
 			break;
 		default:
@@ -1313,7 +1324,17 @@ static int __init dw_probe(struct platform_device *pdev)
 		dwc->chan.device = &dw->dma;
 		dwc->chan.cookie = dwc->completed = 1;
 		dwc->chan.chan_id = i;
-		list_add_tail(&dwc->chan.device_node, &dw->dma.channels);
+		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
+			list_add_tail(&dwc->chan.device_node,
+					&dw->dma.channels);
+		else
+			list_add(&dwc->chan.device_node, &dw->dma.channels);
+
+		/* 7 is highest priority & 0 is lowest. */
+		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
+			dwc->priority = 7 - i;
+		else
+			dwc->priority = i;
 
 		dwc->ch_regs = &__dw_regs(dw)->CHAN[i];
 		spin_lock_init(&dwc->lock);
@@ -1455,7 +1476,7 @@ static int __init dw_init(void)
 {
 	return platform_driver_probe(&dw_driver, dw_probe);
 }
-module_init(dw_init);
+subsys_initcall(dw_init);
 
 static void __exit dw_exit(void)
 {
