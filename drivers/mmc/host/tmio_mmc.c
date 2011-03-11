@@ -219,9 +219,9 @@ static char *tmio_mmc_kmap_atomic(struct scatterlist *sg, unsigned long *flags)
 	return kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
 }
 
-static void tmio_mmc_kunmap_atomic(void *virt, unsigned long *flags)
+static void tmio_mmc_kunmap_atomic(struct scatterlist *sg, unsigned long *flags, void *virt)
 {
-	kunmap_atomic(virt, KM_BIO_SRC_IRQ);
+	kunmap_atomic(virt - sg->offset, KM_BIO_SRC_IRQ);
 	local_irq_restore(*flags);
 }
 
@@ -510,7 +510,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 
 	host->sg_off += count;
 
-	tmio_mmc_kunmap_atomic(sg_virt, &flags);
+	tmio_mmc_kunmap_atomic(host->sg_ptr, &flags, sg_virt);
 
 	if (host->sg_off == host->sg_ptr->length)
 		tmio_mmc_next_sg(host);
@@ -770,7 +770,7 @@ static void tmio_check_bounce_buffer(struct tmio_mmc_host *host)
 		unsigned long flags;
 		void *sg_vaddr = tmio_mmc_kmap_atomic(host->sg_orig, &flags);
 		memcpy(sg_vaddr, host->bounce_buf, host->bounce_sg.length);
-		tmio_mmc_kunmap_atomic(sg_vaddr, &flags);
+		tmio_mmc_kunmap_atomic(host->sg_orig, &flags, sg_vaddr);
 	}
 }
 
@@ -897,7 +897,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 		void *sg_vaddr = tmio_mmc_kmap_atomic(sg, &flags);
 		sg_init_one(&host->bounce_sg, host->bounce_buf, sg->length);
 		memcpy(host->bounce_buf, sg_vaddr, host->bounce_sg.length);
-		tmio_mmc_kunmap_atomic(sg_vaddr, &flags);
+		tmio_mmc_kunmap_atomic(sg, &flags, sg_vaddr);
 		host->sg_ptr = &host->bounce_sg;
 		sg = host->sg_ptr;
 	}
