@@ -860,7 +860,8 @@ static int pwc_enum_frameintervals(struct file *file, void *fh,
 	return 0;
 }
 
-static long pwc_default(struct file *file, void *fh, int cmd, void *arg)
+static long pwc_default(struct file *file, void *fh, bool valid_prio,
+			int cmd, void *arg)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 

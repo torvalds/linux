@@ -395,7 +395,8 @@ static int sync(struct camera_data *cam, int frame_nr)
  *
  *****************************************************************************/
 
-static long cpia2_default(struct file *file, void *fh, int cmd, void *arg)
+static long cpia2_default(struct file *file, void *fh, bool valid_prio,
+			  int cmd, void *arg)
 {
 	struct camera_data *cam = video_drvdata(file);
 	__u32 gpio_val;
