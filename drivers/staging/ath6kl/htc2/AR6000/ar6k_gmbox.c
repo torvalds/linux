@@ -54,14 +54,14 @@
 
 
     /* external APIs for allocating and freeing internal I/O packets to handle ASYNC I/O */ 
-extern void AR6KFreeIOPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket);
-extern HTC_PACKET *AR6KAllocIOPacket(AR6K_DEVICE *pDev);
+extern void AR6KFreeIOPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket);
+extern HTC_PACKET *AR6KAllocIOPacket(struct ar6k_device *pDev);
 
 
 /* callback when our fetch to enable/disable completes */
 static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
 {
-    AR6K_DEVICE *pDev = (AR6K_DEVICE *)Context;
+    struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGMboxIRQActionAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
@@ -74,7 +74,7 @@ static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("-DevGMboxIRQActionAsyncHandler \n"));
 }
 
-static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
+static int DevGMboxCounterEnableDisable(struct ar6k_device *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
     int                  status = 0;
     AR6K_IRQ_ENABLE_REGISTERS regs;
@@ -155,7 +155,7 @@ static int DevGMboxCounterEnableDisable(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE
 }
 
 
-int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
+int DevGMboxIRQAction(struct ar6k_device *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
     int      status = 0;
     HTC_PACKET    *pIOPacket = NULL;   
@@ -261,7 +261,7 @@ int DevGMboxIRQAction(AR6K_DEVICE *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool A
     return status;
 }
 
-void DevCleanupGMbox(AR6K_DEVICE *pDev)
+void DevCleanupGMbox(struct ar6k_device *pDev)
 {
     if (pDev->GMboxEnabled) {
         pDev->GMboxEnabled = false;
@@ -269,7 +269,7 @@ void DevCleanupGMbox(AR6K_DEVICE *pDev)
     }
 }
 
-int DevSetupGMbox(AR6K_DEVICE *pDev)
+int DevSetupGMbox(struct ar6k_device *pDev)
 {
     int    status = 0;
     u8 muxControl[4];
@@ -322,7 +322,7 @@ int DevSetupGMbox(AR6K_DEVICE *pDev)
     return status;
 }
 
-int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
+int DevCheckGMboxInterrupts(struct ar6k_device *pDev)
 {
     int status = 0;
     u8 counter_int_status;
@@ -396,7 +396,7 @@ int DevCheckGMboxInterrupts(AR6K_DEVICE *pDev)
 }
 
 
-int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 WriteLength)
+int DevGMboxWrite(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 WriteLength)
 {
     u32 paddedLength;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
@@ -433,7 +433,7 @@ int DevGMboxWrite(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 WriteLength)
     return status;
 }
 
-int DevGMboxRead(AR6K_DEVICE *pDev, HTC_PACKET *pPacket, u32 ReadLength)
+int DevGMboxRead(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 ReadLength)
 {
     
     u32 paddedLength;
@@ -518,7 +518,7 @@ static int ProcessCreditCounterReadBuffer(u8 *pBuffer, int Length)
 /* callback when our fetch to enable/disable completes */
 static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
 {
-    AR6K_DEVICE *pDev = (AR6K_DEVICE *)Context;
+    struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("+DevGMboxReadCreditsAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
 
@@ -539,7 +539,7 @@ static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("-DevGMboxReadCreditsAsyncHandler \n"));
 }
 
-int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, bool AsyncMode, int *pCredits)
+int DevGMboxReadCreditCounter(struct ar6k_device *pDev, bool AsyncMode, int *pCredits)
 {
     int    status = 0;
     HTC_PACKET  *pIOPacket = NULL;  
@@ -602,7 +602,7 @@ int DevGMboxReadCreditCounter(AR6K_DEVICE *pDev, bool AsyncMode, int *pCredits)
     return status;
 }
 
-int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
+int DevGMboxReadCreditSize(struct ar6k_device *pDev, int *pCreditSize)
 {
     int    status;
     u8 buffer[4];
@@ -626,7 +626,7 @@ int DevGMboxReadCreditSize(AR6K_DEVICE *pDev, int *pCreditSize)
     return status;
 }
 
-void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
+void DevNotifyGMboxTargetFailure(struct ar6k_device *pDev)
 {
         /* Target ASSERTED!!! */
     if (pDev->GMboxInfo.pTargetFailureCallback != NULL) {
@@ -634,7 +634,7 @@ void DevNotifyGMboxTargetFailure(AR6K_DEVICE *pDev)
     }
 }
 
-int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLookAheadBytes)
+int DevGMboxRecvLookAheadPeek(struct ar6k_device *pDev, u8 *pLookAheadBuffer, int *pLookAheadBytes)
 {
 
     int                    status = 0;
@@ -676,7 +676,7 @@ int DevGMboxRecvLookAheadPeek(AR6K_DEVICE *pDev, u8 *pLookAheadBuffer, int *pLoo
     return status; 
 }
 
-int DevGMboxSetTargetInterrupt(AR6K_DEVICE *pDev, int Signal, int AckTimeoutMS)
+int DevGMboxSetTargetInterrupt(struct ar6k_device *pDev, int Signal, int AckTimeoutMS)
 {
     int status = 0;
     int      i;

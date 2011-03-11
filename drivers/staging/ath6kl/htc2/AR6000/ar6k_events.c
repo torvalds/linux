@@ -33,10 +33,10 @@
 #include "htc_packet.h"
 #include "ar6k.h"
 
-extern void AR6KFreeIOPacket(AR6K_DEVICE *pDev, HTC_PACKET *pPacket);
-extern HTC_PACKET *AR6KAllocIOPacket(AR6K_DEVICE *pDev);
+extern void AR6KFreeIOPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket);
+extern HTC_PACKET *AR6KAllocIOPacket(struct ar6k_device *pDev);
 
-static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev);
+static int DevServiceDebugInterrupt(struct ar6k_device *pDev);
 
 #define DELAY_PER_INTERVAL_MS 10  /* 10 MS delay per polling interval */
 
@@ -59,7 +59,7 @@ int DevRWCompletionHandler(void *context, int status)
 }
 
 /* mailbox recv message polling */
-int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
+int DevPollMboxMsgRecv(struct ar6k_device *pDev,
                             u32 *pLookAhead,
                             int          TimeoutMS)
 {
@@ -152,7 +152,7 @@ int DevPollMboxMsgRecv(AR6K_DEVICE *pDev,
     return status;
 }
 
-static int DevServiceCPUInterrupt(AR6K_DEVICE *pDev)
+static int DevServiceCPUInterrupt(struct ar6k_device *pDev)
 {
     int status;
     u8 cpu_int_status;
@@ -192,7 +192,7 @@ static int DevServiceCPUInterrupt(AR6K_DEVICE *pDev)
 }
 
 
-static int DevServiceErrorInterrupt(AR6K_DEVICE *pDev)
+static int DevServiceErrorInterrupt(struct ar6k_device *pDev)
 {
     int status;
     u8 error_int_status;
@@ -245,7 +245,7 @@ static int DevServiceErrorInterrupt(AR6K_DEVICE *pDev)
     return status;
 }
 
-static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev)
+static int DevServiceDebugInterrupt(struct ar6k_device *pDev)
 {
     u32 dummy;
     int status;
@@ -275,7 +275,7 @@ static int DevServiceDebugInterrupt(AR6K_DEVICE *pDev)
     return status;
 }
 
-static int DevServiceCounterInterrupt(AR6K_DEVICE *pDev)
+static int DevServiceCounterInterrupt(struct ar6k_device *pDev)
 {
     u8 counter_int_status;
 
@@ -302,7 +302,7 @@ static int DevServiceCounterInterrupt(AR6K_DEVICE *pDev)
 /* callback when our fetch to get interrupt status registers completes */
 static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
 {
-    AR6K_DEVICE *pDev = (AR6K_DEVICE *)Context;
+    struct ar6k_device *pDev = (struct ar6k_device *)Context;
     u32 lookAhead = 0;
     bool      otherInts = false;
 
@@ -390,7 +390,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
  * recv messages, this starts off a series of async requests to read interrupt registers  */
 int DevCheckPendingRecvMsgsAsync(void *context)
 {
-    AR6K_DEVICE  *pDev = (AR6K_DEVICE *)context;
+    struct ar6k_device  *pDev = (struct ar6k_device *)context;
     int      status = 0;
     HTC_PACKET   *pIOPacket;
 
@@ -460,14 +460,14 @@ int DevCheckPendingRecvMsgsAsync(void *context)
    return status;
 }
 
-void DevAsyncIrqProcessComplete(AR6K_DEVICE *pDev)
+void DevAsyncIrqProcessComplete(struct ar6k_device *pDev)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_IRQ,("DevAsyncIrqProcessComplete - forcing HIF IRQ ACK \n"));
     HIFAckInterrupt(pDev->HIFDevice);
 }
 
 /* process pending interrupts synchronously */
-static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProcessing)
+static int ProcessPendingIRQs(struct ar6k_device *pDev, bool *pDone, bool *pASyncProcessing)
 {
     int    status = 0;
     u8 host_int_status = 0;
@@ -683,7 +683,7 @@ static int ProcessPendingIRQs(AR6K_DEVICE *pDev, bool *pDone, bool *pASyncProces
 /* Synchronousinterrupt handler, this handler kicks off all interrupt processing.*/
 int DevDsrHandler(void *context)
 {
-    AR6K_DEVICE *pDev = (AR6K_DEVICE *)context;
+    struct ar6k_device *pDev = (struct ar6k_device *)context;
     int    status = 0;
     bool      done = false;
     bool      asyncProc = false;
@@ -744,7 +744,7 @@ int DevDsrHandler(void *context)
 }
 
 #ifdef ATH_DEBUG_MODULE
-void DumpAR6KDevState(AR6K_DEVICE *pDev)
+void DumpAR6KDevState(struct ar6k_device *pDev)
 {
     int                    status;
     AR6K_IRQ_ENABLE_REGISTERS   regs;

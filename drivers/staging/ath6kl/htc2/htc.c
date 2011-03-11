@@ -573,7 +573,7 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
 #endif
 }
 
-AR6K_DEVICE  *HTCGetAR6KDevice(void *HTCHandle)
+struct ar6k_device  *HTCGetAR6KDevice(void *HTCHandle)
 {
     HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     return &target->Device;

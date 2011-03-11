@@ -122,7 +122,7 @@ typedef struct _HTC_TARGET {
     A_MUTEX_T                   HTCLock;
     A_MUTEX_T                   HTCRxLock;
     A_MUTEX_T                   HTCTxLock;
-    AR6K_DEVICE                 Device;         /* AR6K - specific state */
+    struct ar6k_device                 Device;         /* AR6K - specific state */
     u32 OpStateFlags;
     u32 RecvStateFlags;
     HTC_ENDPOINT_ID             EpWaitingForBuffers;

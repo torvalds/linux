@@ -66,7 +66,7 @@ typedef struct {
     HTC_PACKET_QUEUE            SendQueue;         /* write queue holding HCI Command and ACL packets */
     HTC_PACKET_QUEUE            HCIACLRecvBuffers;  /* recv queue holding buffers for incomming ACL packets */
     HTC_PACKET_QUEUE            HCIEventBuffers;    /* recv queue holding buffers for incomming event packets */
-    AR6K_DEVICE                 *pDev;
+    struct ar6k_device                 *pDev;
     A_MUTEX_T                   HCIRxLock;
     A_MUTEX_T                   HCITxLock;
     int                         CreditsMax;
@@ -846,7 +846,7 @@ static void FlushRecvBuffers(GMBOX_PROTO_HCI_UART *pProt)
 
 /*** protocol module install entry point ***/
 
-int GMboxProtocolInstall(AR6K_DEVICE *pDev)
+int GMboxProtocolInstall(struct ar6k_device *pDev)
 {
     int                status = 0;
     GMBOX_PROTO_HCI_UART    *pProtocol = NULL;
@@ -889,7 +889,7 @@ int GMboxProtocolInstall(AR6K_DEVICE *pDev)
 }
 
 /*** protocol module uninstall entry point ***/
-void GMboxProtocolUninstall(AR6K_DEVICE *pDev)
+void GMboxProtocolUninstall(struct ar6k_device *pDev)
 {
     GMBOX_PROTO_HCI_UART *pProtocol = (GMBOX_PROTO_HCI_UART *)DEV_GMBOX_GET_PROTOCOL(pDev);
     
@@ -939,7 +939,7 @@ static int NotifyTransportReady(GMBOX_PROTO_HCI_UART  *pProt)
 HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_INFO *pInfo)
 {
     GMBOX_PROTO_HCI_UART  *pProtocol = NULL; 
-    AR6K_DEVICE           *pDev;
+    struct ar6k_device           *pDev;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HCI_TransportAttach \n"));
     
@@ -984,7 +984,7 @@ HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_I
 void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans)
 {
     GMBOX_PROTO_HCI_UART  *pProtocol = (GMBOX_PROTO_HCI_UART *)HciTrans; 
-    AR6K_DEVICE           *pDev = pProtocol->pDev;
+    struct ar6k_device           *pDev = pProtocol->pDev;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("+HCI_TransportDetach \n"));
     
