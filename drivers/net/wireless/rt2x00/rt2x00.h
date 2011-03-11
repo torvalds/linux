@@ -467,7 +467,6 @@ struct rt2x00lib_crypto {
 	const u8 *address;
 
 	u32 bssidx;
-	u32 aid;
 
 	u8 key[16];
 	u8 tx_mic[8];
@@ -662,6 +661,8 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_L2PAD,
 	DRIVER_REQUIRE_TXSTATUS_FIFO,
 	DRIVER_REQUIRE_TASKLET_CONTEXT,
+	DRIVER_REQUIRE_SW_SEQNO,
+	DRIVER_REQUIRE_HT_TX_DESC,
 
 	/*
 	 * Driver features
@@ -886,14 +887,13 @@ struct rt2x00_dev {
 	struct work_struct txdone_work;
 
 	/*
-	 * Data queue arrays for RX, TX and Beacon.
-	 * The Beacon array also contains the Atim queue
-	 * if that is supported by the device.
+	 * Data queue arrays for RX, TX, Beacon and ATIM.
 	 */
 	unsigned int data_queues;
 	struct data_queue *rx;
 	struct data_queue *tx;
 	struct data_queue *bcn;
+	struct data_queue *atim;
 
 	/*
 	 * Firmware image.
@@ -1063,12 +1063,24 @@ void rt2x00queue_map_txskb(struct queue_entry *entry);
 void rt2x00queue_unmap_skb(struct queue_entry *entry);
 
 /**
- * rt2x00queue_get_queue - Convert queue index to queue pointer
+ * rt2x00queue_get_tx_queue - Convert tx queue index to queue pointer
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @queue: rt2x00 queue index (see &enum data_queue_qid).
+ *
+ * Returns NULL for non tx queues.
  */
-struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
-					 const enum data_queue_qid queue);
+static inline struct data_queue *
+rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
+			 const enum data_queue_qid queue)
+{
+	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
+		return &rt2x00dev->tx[queue];
+
+	if (queue == QID_ATIM)
+		return rt2x00dev->atim;
+
+	return NULL;
+}
 
 /**
  * rt2x00queue_get_entry - Get queue entry where the given index points to.

@@ -869,33 +869,6 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 	}
 }
 
-void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_csa_notification *csa = &(pkt->u.csa_notif);
-	/*
-	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
-	 */
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	struct iwl_rxon_cmd *rxon = (void *)&ctx->active;
-
-	if (priv->switch_rxon.switch_in_progress) {
-		if (!le32_to_cpu(csa->status) &&
-		    (csa->channel == priv->switch_rxon.channel)) {
-			rxon->channel = csa->channel;
-			ctx->staging.channel = csa->channel;
-			IWL_DEBUG_11H(priv, "CSA notif: channel %d\n",
-			      le16_to_cpu(csa->channel));
-			iwl_chswitch_done(priv, true);
-		} else {
-			IWL_ERR(priv, "CSA notif (fail) : channel %d\n",
-			      le16_to_cpu(csa->channel));
-			iwl_chswitch_done(priv, false);
-		}
-	}
-}
-
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx)
@@ -1243,42 +1216,6 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 		return iwl_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
-}
-
-void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
-			   struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
-	IWL_DEBUG_RX(priv, "sleep mode: %d, src: %d\n",
-		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
-#endif
-}
-
-void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
-				      struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	u32 len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	IWL_DEBUG_RADIO(priv, "Dumping %d bytes of unhandled "
-			"notification for %s:\n", len,
-			get_cmd_string(pkt->hdr.cmd));
-	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw, len);
-}
-
-void iwl_rx_reply_error(struct iwl_priv *priv,
-			struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-
-	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
-		"seq 0x%04X ser 0x%08X\n",
-		le32_to_cpu(pkt->u.err_resp.error_type),
-		get_cmd_string(pkt->u.err_resp.cmd_id),
-		pkt->u.err_resp.cmd_id,
-		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
-		le32_to_cpu(pkt->u.err_resp.error_info));
 }
 
 void iwl_clear_isr_stats(struct iwl_priv *priv)

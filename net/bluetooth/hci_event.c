@@ -796,6 +796,29 @@ static void hci_cc_le_read_buffer_size(struct hci_dev *hdev,
 	hci_req_complete(hdev, HCI_OP_LE_READ_BUFFER_SIZE, rp->status);
 }
 
+static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_user_confirm_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_user_confirm_reply_complete(hdev->id, &rp->bdaddr,
+								rp->status);
+}
+
+static void hci_cc_user_confirm_neg_reply(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_rp_user_confirm_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_user_confirm_neg_reply_complete(hdev->id, &rp->bdaddr,
+								rp->status);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1401,8 +1424,10 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		if (!ev->status) {
 			conn->link_mode |= HCI_LM_AUTH;
 			conn->sec_level = conn->pending_sec_level;
-		} else
+		} else {
+			mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
 			conn->sec_level = BT_SECURITY_LOW;
+		}
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
 
@@ -1726,6 +1751,14 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:
 		hci_cc_le_read_buffer_size(hdev, skb);
+		break;
+
+	case HCI_OP_USER_CONFIRM_REPLY:
+		hci_cc_user_confirm_reply(hdev, skb);
+		break;
+
+	case HCI_OP_USER_CONFIRM_NEG_REPLY:
+		hci_cc_user_confirm_neg_reply(hdev, skb);
 		break;
 
 	default:
@@ -2362,6 +2395,21 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_ev_user_confirm_req *ev = (void *) skb->data;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		mgmt_user_confirm_request(hdev->id, &ev->bdaddr, ev->passkey);
+
+	hci_dev_unlock(hdev);
+}
+
 static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_simple_pair_complete *ev = (void *) skb->data;
@@ -2372,9 +2420,20 @@ static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn)
-		hci_conn_put(conn);
+	if (!conn)
+		goto unlock;
 
+	/* To avoid duplicate auth_failed events to user space we check
+	 * the HCI_CONN_AUTH_PEND flag which will be set if we
+	 * initiated the authentication. A traditional auth_complete
+	 * event gets always produced as initiator and is also mapped to
+	 * the mgmt_auth_failed event */
+	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->pend) && ev->status != 0)
+		mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
+
+	hci_conn_put(conn);
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -2578,6 +2637,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_IO_CAPA_REPLY:
 		hci_io_capa_reply_evt(hdev, skb);
+		break;
+
+	case HCI_EV_USER_CONFIRM_REQUEST:
+		hci_user_confirm_request_evt(hdev, skb);
 		break;
 
 	case HCI_EV_SIMPLE_PAIR_COMPLETE:

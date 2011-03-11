@@ -99,7 +99,7 @@ static void wl1271_debugfs_update_stats(struct wl1271 *wl)
 
 	mutex_lock(&wl->mutex);
 
-	ret = wl1271_ps_elp_wakeup(wl, false);
+	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 

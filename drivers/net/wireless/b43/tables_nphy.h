@@ -35,6 +35,31 @@ struct nphy_rf_control_override_rev3 {
 	u8 val_addr1;
 };
 
+struct nphy_gain_ctl_workaround_entry {
+	s8 lna1_gain[4];
+	s8 lna2_gain[4];
+	u8 gain_db[10];
+	u8 gain_bits[10];
+
+	u16 init_gain;
+	u16 rfseq_init[4];
+
+	u16 cliphi_gain;
+	u16 clipmd_gain;
+	u16 cliplo_gain;
+
+	u16 crsmin;
+	u16 crsminl;
+	u16 crsminu;
+
+	u16 nbclip;
+	u16 wlclip;
+};
+
+/* Get entry with workaround values for gain ctl. Does not return NULL. */
+struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
+	struct b43_wldev *dev, bool ghz5, bool ext_lna);
+
 /* Get the NPHY Channel Switch Table entry for a channel.
  * Returns NULL on failure to find an entry. */
 const struct b43_nphy_channeltab_entry_rev2 *

@@ -779,7 +779,7 @@ static int rt2400pci_init_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, TXCSR2, &reg);
 	rt2x00_set_field32(&reg, TXCSR2_TXD_SIZE, rt2x00dev->tx[0].desc_size);
 	rt2x00_set_field32(&reg, TXCSR2_NUM_TXD, rt2x00dev->tx[1].limit);
-	rt2x00_set_field32(&reg, TXCSR2_NUM_ATIM, rt2x00dev->bcn[1].limit);
+	rt2x00_set_field32(&reg, TXCSR2_NUM_ATIM, rt2x00dev->atim->limit);
 	rt2x00_set_field32(&reg, TXCSR2_NUM_PRIO, rt2x00dev->tx[0].limit);
 	rt2x00pci_register_write(rt2x00dev, TXCSR2, reg);
 
@@ -795,13 +795,13 @@ static int rt2400pci_init_queues(struct rt2x00_dev *rt2x00dev)
 			   entry_priv->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR5, reg);
 
-	entry_priv = rt2x00dev->bcn[1].entries[0].priv_data;
+	entry_priv = rt2x00dev->atim->entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR4, &reg);
 	rt2x00_set_field32(&reg, TXCSR4_ATIM_RING_REGISTER,
 			   entry_priv->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, TXCSR4, reg);
 
-	entry_priv = rt2x00dev->bcn[0].entries[0].priv_data;
+	entry_priv = rt2x00dev->bcn->entries[0].priv_data;
 	rt2x00pci_register_read(rt2x00dev, TXCSR6, &reg);
 	rt2x00_set_field32(&reg, TXCSR6_BEACON_RING_REGISTER,
 			   entry_priv->desc_dma);
@@ -1131,19 +1131,21 @@ static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->signal);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, txdesc->u.plcp.signal);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_REGNUM, 5);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_BUSY, 1);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->service);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, txdesc->u.plcp.service);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_REGNUM, 6);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_BUSY, 1);
 	rt2x00_desc_write(txd, 3, word);
 
 	rt2x00_desc_read(txd, 4, &word);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW, txdesc->length_low);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_REGNUM, 8);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_BUSY, 1);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_REGNUM, 7);
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_BUSY, 1);
 	rt2x00_desc_write(txd, 4, word);
@@ -1164,7 +1166,7 @@ static void rt2400pci_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_RTS,
 			   test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_desc_write(txd, 0, word);
@@ -1276,7 +1278,7 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 static void rt2400pci_txdone(struct rt2x00_dev *rt2x00dev,
 			     const enum data_queue_qid queue_idx)
 {
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	struct data_queue *queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 	struct queue_entry_priv_pci *entry_priv;
 	struct queue_entry *entry;
 	struct txdone_entry_desc txdesc;
@@ -1315,27 +1317,25 @@ static void rt2400pci_txdone(struct rt2x00_dev *rt2x00dev,
 static void rt2400pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 				       struct rt2x00_field32 irq_field)
 {
-	unsigned long flags;
 	u32 reg;
 
 	/*
 	 * Enable a single interrupt. The interrupt mask register
 	 * access needs locking.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
 	rt2x00_set_field32(&reg, irq_field, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt2400pci_txstatus_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
 	u32 reg;
-	unsigned long flags;
 
 	/*
 	 * Handle all tx queues.
@@ -1347,7 +1347,7 @@ static void rt2400pci_txstatus_tasklet(unsigned long data)
 	/*
 	 * Enable all TXDONE interrupts again.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
 	rt2x00_set_field32(&reg, CSR8_TXDONE_TXRING, 0);
@@ -1355,7 +1355,7 @@ static void rt2400pci_txstatus_tasklet(unsigned long data)
 	rt2x00_set_field32(&reg, CSR8_TXDONE_PRIORING, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt2400pci_tbtt_tasklet(unsigned long data)
@@ -1376,7 +1376,6 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
 	u32 reg, mask;
-	unsigned long flags;
 
 	/*
 	 * Get the interrupt sources & saved to local variable.
@@ -1418,13 +1417,13 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	 * Disable all interrupts for which a tasklet was scheduled right now,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, CSR8, &reg);
 	reg |= mask;
 	rt2x00pci_register_write(rt2x00dev, CSR8, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock(&rt2x00dev->irqmask_lock);
 
 
 
@@ -1641,6 +1640,7 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_SW_SEQNO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

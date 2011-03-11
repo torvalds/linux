@@ -7,13 +7,16 @@ rtlwifi-objs	:=		\
 		efuse.o		\
 		ps.o		\
 		rc.o		\
-		regd.o		\
-		usb.o
+		regd.o
 
 rtl8192c_common-objs +=		\
 
-ifeq ($(CONFIG_PCI),y)
+ifneq ($(CONFIG_PCI),)
 rtlwifi-objs	+= pci.o
+endif
+
+ifneq ($(CONFIG_USB),)
+rtlwifi-objs	+= usb.o
 endif
 
 obj-$(CONFIG_RTL8192C_COMMON)	+= rtl8192c/

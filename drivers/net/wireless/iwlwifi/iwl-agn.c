@@ -424,60 +424,6 @@ int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 	return 0;
 }
 
-/******************************************************************************
- *
- * Generic RX handler implementations
- *
- ******************************************************************************/
-static void iwl_rx_reply_alive(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_alive_resp *palive;
-	struct delayed_work *pwork;
-
-	palive = &pkt->u.alive_frame;
-
-	IWL_DEBUG_INFO(priv, "Alive ucode status 0x%08X revision "
-		       "0x%01X 0x%01X\n",
-		       palive->is_valid, palive->ver_type,
-		       palive->ver_subtype);
-
-	if (palive->ver_subtype == INITIALIZE_SUBTYPE) {
-		IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
-		memcpy(&priv->card_alive_init,
-		       &pkt->u.alive_frame,
-		       sizeof(struct iwl_init_alive_resp));
-		pwork = &priv->init_alive_start;
-	} else {
-		IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
-		memcpy(&priv->card_alive, &pkt->u.alive_frame,
-		       sizeof(struct iwl_alive_resp));
-		pwork = &priv->alive_start;
-	}
-
-	/* We delay the ALIVE response by 5ms to
-	 * give the HW RF Kill time to activate... */
-	if (palive->is_valid == UCODE_VALID_OK)
-		queue_delayed_work(priv->workqueue, pwork,
-				   msecs_to_jiffies(5));
-	else {
-		IWL_WARN(priv, "%s uCode did not respond OK.\n",
-			(palive->ver_subtype == INITIALIZE_SUBTYPE) ?
-			"init" : "runtime");
-		/*
-		 * If fail to load init uCode,
-		 * let's try to load the init uCode again.
-		 * We should not get into this situation, but if it
-		 * does happen, we should not move on and loading "runtime"
-		 * without proper calibrate the device.
-		 */
-		if (palive->ver_subtype == INITIALIZE_SUBTYPE)
-			priv->ucode_type = UCODE_NONE;
-		queue_work(priv->workqueue, &priv->restart);
-	}
-}
-
 static void iwl_bg_beacon_update(struct work_struct *work)
 {
 	struct iwl_priv *priv =
@@ -712,83 +658,6 @@ static void iwl_bg_ucode_trace(unsigned long data)
 	}
 }
 
-static void iwlagn_rx_beacon_notif(struct iwl_priv *priv,
-				   struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwlagn_beacon_notif *beacon = (void *)pkt->u.raw;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u16 status = le16_to_cpu(beacon->beacon_notify_hdr.status.status);
-	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
-
-	IWL_DEBUG_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
-		"tsf:0x%.8x%.8x rate:%d\n",
-		status & TX_STATUS_MSK,
-		beacon->beacon_notify_hdr.failure_frame,
-		le32_to_cpu(beacon->ibss_mgr_status),
-		le32_to_cpu(beacon->high_tsf),
-		le32_to_cpu(beacon->low_tsf), rate);
-#endif
-
-	priv->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
-
-	if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
-		queue_work(priv->workqueue, &priv->beacon_update);
-}
-
-/* Handle notification from uCode that card's power state is changing
- * due to software, hardware, or critical temperature RFKILL */
-static void iwl_rx_card_state_notif(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
-	unsigned long status = priv->status;
-
-	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s CT:%s\n",
-			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
-			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
-			  (flags & CT_CARD_DISABLED) ?
-			  "Reached" : "Not reached");
-
-	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
-		     CT_CARD_DISABLED)) {
-
-		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
-			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-
-		iwl_write_direct32(priv, HBUS_TARG_MBX_C,
-					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
-
-		if (!(flags & RXON_CARD_DISABLED)) {
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
-				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			iwl_write_direct32(priv, HBUS_TARG_MBX_C,
-					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
-		}
-		if (flags & CT_CARD_DISABLED)
-			iwl_tt_enter_ct_kill(priv);
-	}
-	if (!(flags & CT_CARD_DISABLED))
-		iwl_tt_exit_ct_kill(priv);
-
-	if (flags & HW_CARD_DISABLED)
-		set_bit(STATUS_RF_KILL_HW, &priv->status);
-	else
-		clear_bit(STATUS_RF_KILL_HW, &priv->status);
-
-
-	if (!(flags & RXON_CARD_DISABLED))
-		iwl_scan_cancel(priv);
-
-	if ((test_bit(STATUS_RF_KILL_HW, &status) !=
-	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
-		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
-			test_bit(STATUS_RF_KILL_HW, &priv->status));
-	else
-		wake_up_interruptible(&priv->wait_command_queue);
-}
-
 static void iwl_bg_tx_flush(struct work_struct *work)
 {
 	struct iwl_priv *priv =
@@ -805,51 +674,6 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 		IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
 		iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
 	}
-}
-
-/**
- * iwl_setup_rx_handlers - Initialize Rx handler callbacks
- *
- * Setup the RX handlers for each of the reply types sent from the uCode
- * to the host.
- *
- * This function chains into the hardware specific files for them to setup
- * any hardware specific handlers as well.
- */
-static void iwl_setup_rx_handlers(struct iwl_priv *priv)
-{
-	priv->rx_handlers[REPLY_ALIVE] = iwl_rx_reply_alive;
-	priv->rx_handlers[REPLY_ERROR] = iwl_rx_reply_error;
-	priv->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = iwl_rx_csa;
-	priv->rx_handlers[SPECTRUM_MEASURE_NOTIFICATION] =
-			iwl_rx_spectrum_measure_notif;
-	priv->rx_handlers[PM_SLEEP_NOTIFICATION] = iwl_rx_pm_sleep_notif;
-	priv->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
-	    iwl_rx_pm_debug_statistics_notif;
-	priv->rx_handlers[BEACON_NOTIFICATION] = iwlagn_rx_beacon_notif;
-
-	/*
-	 * The same handler is used for both the REPLY to a discrete
-	 * statistics request from the host as well as for the periodic
-	 * statistics notifications (after received beacons) from the uCode.
-	 */
-	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl_reply_statistics;
-	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl_rx_statistics;
-
-	iwl_setup_rx_scan_handlers(priv);
-
-	/* status change handler */
-	priv->rx_handlers[CARD_STATE_NOTIFICATION] = iwl_rx_card_state_notif;
-
-	priv->rx_handlers[MISSED_BEACONS_NOTIFICATION] =
-	    iwl_rx_missed_beacon_notif;
-	/* Rx handlers */
-	priv->rx_handlers[REPLY_RX_PHY_CMD] = iwlagn_rx_reply_rx_phy;
-	priv->rx_handlers[REPLY_RX_MPDU_CMD] = iwlagn_rx_reply_rx;
-	/* block ack */
-	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwlagn_rx_reply_compressed_ba;
-	/* Set up hardware specific Rx handlers */
-	priv->cfg->ops->lib->rx_handler_setup(priv);
 }
 
 /**
@@ -3912,6 +3736,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 		IWL_DELAY_NEXT_FORCE_RF_RESET;
 	priv->force_reset[IWL_FW_RESET].reset_duration =
 		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
+
+	priv->rx_statistics_jiffies = jiffies;
 
 	/* Choose which receivers/antennas to use */
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
