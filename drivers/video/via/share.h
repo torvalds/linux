@@ -627,77 +627,6 @@
 #define M2048x1536_R60_HSP      NEGATIVE
 #define M2048x1536_R60_VSP      POSITIVE
 
-/* define PLL index: */
-#define CLK_25_175M     25175000
-#define CLK_26_880M     26880000
-#define CLK_29_581M     29581000
-#define CLK_31_500M     31500000
-#define CLK_31_728M     31728000
-#define CLK_32_668M     32688000
-#define CLK_36_000M     36000000
-#define CLK_40_000M     40000000
-#define CLK_41_291M     41291000
-#define CLK_43_163M     43163000
-#define CLK_45_250M     45250000	/* 45.46MHz */
-#define CLK_46_000M     46000000
-#define CLK_46_996M     46996000
-#define CLK_48_000M     48000000
-#define CLK_48_875M     48875000
-#define CLK_49_500M     49500000
-#define CLK_52_406M     52406000
-#define CLK_52_977M     52977000
-#define CLK_56_250M     56250000
-#define CLK_57_275M     57275000
-#define CLK_60_466M     60466000
-#define CLK_61_500M     61500000
-#define CLK_65_000M     65000000
-#define CLK_65_178M     65178000
-#define CLK_66_750M     66750000	/* 67.116MHz */
-#define CLK_68_179M     68179000
-#define CLK_69_924M     69924000
-#define CLK_70_159M     70159000
-#define CLK_72_000M     72000000
-#define CLK_74_270M     74270000
-#define CLK_78_750M     78750000
-#define CLK_80_136M     80136000
-#define CLK_83_375M     83375000
-#define CLK_83_950M     83950000
-#define CLK_84_750M     84750000	/* 84.537Mhz */
-#define CLK_85_860M     85860000
-#define CLK_88_750M     88750000
-#define CLK_94_500M     94500000
-#define CLK_97_750M     97750000
-#define CLK_101_000M    101000000
-#define CLK_106_500M    106500000
-#define CLK_108_000M    108000000
-#define CLK_113_309M    113309000
-#define CLK_118_840M    118840000
-#define CLK_119_000M    119000000
-#define CLK_121_750M    121750000	/* 121.704MHz */
-#define CLK_125_104M    125104000
-#define CLK_135_000M    135000000
-#define CLK_136_700M    136700000
-#define CLK_138_400M    138400000
-#define CLK_146_760M    146760000
-#define CLK_148_500M    148500000
-
-#define CLK_153_920M    153920000
-#define CLK_156_000M    156000000
-#define CLK_157_500M    157500000
-#define CLK_162_000M    162000000
-#define CLK_187_000M    187000000
-#define CLK_193_295M    193295000
-#define CLK_202_500M    202500000
-#define CLK_204_000M    204000000
-#define CLK_218_500M    218500000
-#define CLK_234_000M    234000000
-#define CLK_267_250M    267250000
-#define CLK_297_500M    297500000
-#define CLK_74_481M     74481000
-#define CLK_172_798M    172798000
-#define CLK_122_614M    122614000
-
-
 /* Definition CRTC Timing Index */
 #define H_TOTAL_INDEX               0
 #define H_ADDR_INDEX                1
@@ -753,7 +682,6 @@ struct display_timing {
 
 struct crt_mode_table {
 	int refresh_rate;
-	unsigned long clk;
 	int h_sync_polarity;
 	int v_sync_polarity;
 	struct display_timing crtc;

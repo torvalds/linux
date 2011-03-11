@@ -612,7 +612,7 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	int set_vres = plvds_setting_info->v_active;
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
-	u32 pll_D_N;
+	u32 pll_D_N, clock;
 	struct display_timing mode_crt_reg, panel_crt_reg;
 	struct crt_mode_table *panel_crt_table = NULL;
 	struct VideoModeTable *vmode_tbl = viafb_get_mode(panel_hres,
@@ -627,7 +627,9 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
 		viafb_init_lvds_vt1636(plvds_setting_info, plvds_chip_info);
-	plvds_setting_info->vclk = panel_crt_table->clk;
+	clock = panel_crt_reg.hor_total * panel_crt_reg.ver_total
+		* panel_crt_table->refresh_rate;
+	plvds_setting_info->vclk = clock;
 	if (set_iga == IGA1) {
 		/* IGA1 doesn't have LCD scaling, so set it as centering. */
 		viafb_load_crtc_timing(lcd_centering_timging
@@ -662,7 +664,7 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 
 	fill_lcd_format();
 
-	pll_D_N = viafb_get_clk_value(panel_crt_table[0].clk);
+	pll_D_N = viafb_get_clk_value(clock);
 	DEBUG_MSG(KERN_INFO "PLL=0x%x", pll_D_N);
 	viafb_set_vclock(pll_D_N, set_iga);
 	lcd_patch_skew(plvds_setting_info, plvds_chip_info);

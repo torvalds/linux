@@ -2030,7 +2030,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	int i;
 	int index = 0;
 	int h_addr, v_addr;
-	u32 pll_D_N;
+	u32 pll_D_N, clock;
 
 	for (i = 0; i < video_mode->mode_array; i++) {
 		index = i;
@@ -2083,7 +2083,9 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	    && (viaparinfo->chip_info->gfx_chip_name != UNICHROME_K400))
 		viafb_load_FIFO_reg(set_iga, h_addr, v_addr);
 
-	pll_D_N = viafb_get_clk_value(crt_table[index].clk);
+	clock = crt_reg.hor_total * crt_reg.ver_total
+		* crt_table[index].refresh_rate;
+	pll_D_N = viafb_get_clk_value(clock);
 	DEBUG_MSG(KERN_INFO "PLL=%x", pll_D_N);
 	viafb_set_vclock(pll_D_N, set_iga);
 
