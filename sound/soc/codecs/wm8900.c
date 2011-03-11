@@ -675,8 +675,8 @@ static void wm8900_set_hw(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8900_REG_ROUT1CTL, 0x130);
 
 	//for recorder
-	snd_soc_write(codec, WM8900_REG_POWER1, 0x001D);
-	snd_soc_write(codec, WM8900_REG_POWER2, 0xC03F);
+	snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
+	snd_soc_write(codec, WM8900_REG_POWER2, 0xC1AF);
 
 	snd_soc_write(codec, WM8900_REG_LADC_DV, 0x01C0);
 	snd_soc_write(codec, WM8900_REG_RADC_DV, 0x01C0);
