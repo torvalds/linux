@@ -2309,8 +2309,8 @@ skip_cache:
 		struct in_device *in_dev = __in_dev_get_rcu(dev);
 
 		if (in_dev) {
-			int our = ip_check_mc(in_dev, daddr, saddr,
-					      ip_hdr(skb)->protocol);
+			int our = ip_check_mc_rcu(in_dev, daddr, saddr,
+						  ip_hdr(skb)->protocol);
 			if (our
 #ifdef CONFIG_IP_MROUTE
 				||
@@ -2368,8 +2368,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		fi = NULL;
 	} else if (type == RTN_MULTICAST) {
 		flags |= RTCF_MULTICAST | RTCF_LOCAL;
-		if (!ip_check_mc(in_dev, oldflp->fl4_dst, oldflp->fl4_src,
-				 oldflp->proto))
+		if (!ip_check_mc_rcu(in_dev, oldflp->fl4_dst, oldflp->fl4_src,
+				     oldflp->proto))
 			flags &= ~RTCF_LOCAL;
 		/* If multicast route do not exist use
 		 * default one, but do not gateway in this case.
