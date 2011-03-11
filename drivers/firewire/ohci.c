@@ -3309,7 +3309,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
  fail_disable:
 	pci_disable_device(dev);
  fail_free:
-	kfree(&ohci->card);
+	kfree(ohci);
 	pmac_ohci_off(dev);
  fail:
 	if (err == -ENOMEM)
@@ -3353,7 +3353,7 @@ static void pci_remove(struct pci_dev *dev)
 	pci_iounmap(dev, ohci->registers);
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
-	kfree(&ohci->card);
+	kfree(ohci);
 	pmac_ohci_off(dev);
 
 	fw_notify("Removed fw-ohci device.\n");
