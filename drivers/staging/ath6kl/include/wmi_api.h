@@ -111,7 +111,7 @@ int wmi_connect_cmd(struct wmi_t *wmip,
                          CRYPTO_TYPE groupCrypto,
                          u8 groupCryptoLen,
                          int ssidLength,
-                         A_UCHAR *ssid,
+                         u8 *ssid,
                          u8 *bssid,
                          u16 channel,
                          u32 ctrl_flags);
@@ -134,7 +134,7 @@ int wmi_scanparams_cmd(struct wmi_t *wmip, u16 fg_start_sec,
                             u16 maxact_scan_per_ssid);
 int wmi_bssfilter_cmd(struct wmi_t *wmip, u8 filter, u32 ieMask);
 int wmi_probedSsid_cmd(struct wmi_t *wmip, u8 index, u8 flag,
-                            u8 ssidLength, A_UCHAR *ssid);
+                            u8 ssidLength, u8 *ssid);
 int wmi_listeninterval_cmd(struct wmi_t *wmip, u16 listenInterval, u16 listenBeacons);
 int wmi_bmisstime_cmd(struct wmi_t *wmip, u16 bmisstime, u16 bmissbeacons);
 int wmi_associnfo_cmd(struct wmi_t *wmip, u8 ieType,
@@ -284,7 +284,7 @@ int wmi_set_reassocmode_cmd(struct wmi_t *wmip, u8 mode);
 int wmi_set_qos_supp_cmd(struct wmi_t *wmip,u8 status);
 int wmi_set_wmm_cmd(struct wmi_t *wmip, WMI_WMM_STATUS status);
 int wmi_set_wmm_txop(struct wmi_t *wmip, WMI_TXOP_CFG txEnable);
-int wmi_set_country(struct wmi_t *wmip, A_UCHAR *countryCode);
+int wmi_set_country(struct wmi_t *wmip, u8 *countryCode);
 
 int wmi_get_keepalive_configured(struct wmi_t *wmip);
 u8 wmi_get_keepalive_cmd(struct wmi_t *wmip);
@@ -322,7 +322,7 @@ int
 wmi_mcast_filter_cmd(struct wmi_t *wmip, u8 enable);
 
 bss_t *
-wmi_find_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
+wmi_find_Ssidnode (struct wmi_t *wmip, u8 *pSsid,
                    u32 ssidLength, bool bIsWPA2, bool bMatchSSID);
 
 
@@ -429,7 +429,7 @@ u16 wmi_ieee2freq (int chan);
 u32 wmi_freq2ieee (u16 freq);
 
 bss_t *
-wmi_find_matching_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
+wmi_find_matching_Ssidnode (struct wmi_t *wmip, u8 *pSsid,
                    u32 ssidLength,
                    u32 dot11AuthMode, u32 authMode,
                    u32 pairwiseCryptoType, u32 grpwiseCryptoTyp);

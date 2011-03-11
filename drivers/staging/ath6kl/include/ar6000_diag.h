@@ -33,11 +33,11 @@ ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
 
 int
 ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
-                    A_UCHAR *data, u32 length);
+                    u8 *data, u32 length);
 
 int
 ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, u32 address,
-                     A_UCHAR *data, u32 length);
+                     u8 *data, u32 length);
 
 int
 ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval);

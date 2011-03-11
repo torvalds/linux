@@ -702,8 +702,8 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
     buf[1] = ar->tcmdRxRssi;
     buf[2] = ar->tcmdRxcrcErrPkt;
     buf[3] = ar->tcmdRxsecErrPkt;
-    memcpy(((A_UCHAR *)buf)+(4*sizeof(u32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
-    memcpy(((A_UCHAR *)buf)+(4*sizeof(u32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
+    memcpy(((u8 *)buf)+(4*sizeof(u32)), ar->tcmdRateCnt, sizeof(ar->tcmdRateCnt));
+    memcpy(((u8 *)buf)+(4*sizeof(u32))+(TCMD_MAX_RATES *sizeof(u16)), ar->tcmdRateCntShortGuard, sizeof(ar->tcmdRateCntShortGuard));
 
     if (!ret && copy_to_user(rq->ifr_data, buf, sizeof(buf))) {
         ret = -EFAULT;

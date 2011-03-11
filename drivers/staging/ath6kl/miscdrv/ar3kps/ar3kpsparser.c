@@ -127,13 +127,13 @@ tPsTagEntry PsTagEntry[RAMPS_MAX_PS_TAGS_PER_FILE];
 tRamPatch   RamPatch[MAX_NUM_PATCH_ENTRY];
 
 
-int AthParseFilesUnified(A_UCHAR *srcbuffer,u32 srclen, int FileFormat);
-char AthReadChar(A_UCHAR *buffer, u32 len,u32 *pos);
-char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,u32 len,u32 *pos);
-static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index);
+int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat);
+char AthReadChar(u8 *buffer, u32 len,u32 *pos);
+char *AthGetLine(char *buffer, int maxlen, u8 *srcbuffer,u32 len,u32 *pos);
+static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index);
 
 /* Function to reads the next character from the input buffer */
-char AthReadChar(A_UCHAR *buffer, u32 len,u32 *pos)
+char AthReadChar(u8 *buffer, u32 len,u32 *pos)
 {
     char Ch;
     if(buffer == NULL || *pos >=len )
@@ -315,7 +315,7 @@ unsigned int uReadDataInSection(char *pCharLine, ST_PS_DATA_FORMAT stPS_DataForm
         return (0x0FFF);
     }
 }
-int AthParseFilesUnified(A_UCHAR *srcbuffer,u32 srclen, int FileFormat)
+int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
 {
    char *Buffer;
    char *pCharLine;
@@ -558,7 +558,7 @@ int AthParseFilesUnified(A_UCHAR *srcbuffer,u32 srclen, int FileFormat)
 /********************/
 
 
-int GetNextTwoChar(A_UCHAR *srcbuffer,u32 len, u32 *pos, char *buffer)
+int GetNextTwoChar(u8 *srcbuffer,u32 len, u32 *pos, char *buffer)
 {
     unsigned char ch;
 
@@ -579,7 +579,7 @@ int GetNextTwoChar(A_UCHAR *srcbuffer,u32 len, u32 *pos, char *buffer)
     return 0;
 }
 
-int AthDoParsePatch(A_UCHAR *patchbuffer, u32 patchlen)
+int AthDoParsePatch(u8 *patchbuffer, u32 patchlen)
 {
 
     char Byte[3];
@@ -659,7 +659,7 @@ int AthDoParsePatch(A_UCHAR *patchbuffer, u32 patchlen)
 
 
 /********************/
-int AthDoParsePS(A_UCHAR *srcbuffer, u32 srclen)
+int AthDoParsePS(u8 *srcbuffer, u32 srclen)
 {
     int status;
     int i;
@@ -713,7 +713,7 @@ int AthDoParsePS(A_UCHAR *srcbuffer, u32 srclen)
 
     return status;
 }
-char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,u32 len,u32 *pos)
+char *AthGetLine(char *buffer, int maxlen, u8 *srcbuffer,u32 len,u32 *pos)
 {
 
     int count;
@@ -751,7 +751,7 @@ char *AthGetLine(char *buffer, int maxlen, A_UCHAR *srcbuffer,u32 len,u32 *pos)
     return buffer;
 }
 
-static void LoadHeader(A_UCHAR *HCI_PS_Command,A_UCHAR opcode,int length,int index){
+static void LoadHeader(u8 *HCI_PS_Command,u8 opcode,int length,int index){
 
         HCI_PS_Command[0]= 0x0B;
         HCI_PS_Command[1]= 0xFC;
@@ -833,9 +833,9 @@ int AthCreateCommandList(PSCmdPacket **HciPacketList, u32 *numPackets)
 ////////////////////////
 
 /////////////
-static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index)
+static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index)
 {
-    A_UCHAR *HCI_PS_Command;
+    u8 *HCI_PS_Command;
     u32 Length;
     int i,j;
     
@@ -846,7 +846,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatch
 
          for(i=0;i< Param1;i++){
 
-             HCI_PS_Command = (A_UCHAR *) A_MALLOC(RamPatch[i].Len+HCI_COMMAND_HEADER);
+             HCI_PS_Command = (u8 *) A_MALLOC(RamPatch[i].Len+HCI_COMMAND_HEADER);
              AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Allocated Buffer Size %d\n",RamPatch[i].Len+HCI_COMMAND_HEADER));
                  if(HCI_PS_Command == NULL){
                      AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("MALLOC Failed\r\n"));
@@ -871,7 +871,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatch
 
          Length = 0;
          i= 0;
-         HCI_PS_Command = (A_UCHAR *) A_MALLOC(Length+HCI_COMMAND_HEADER);
+         HCI_PS_Command = (u8 *) A_MALLOC(Length+HCI_COMMAND_HEADER);
          if(HCI_PS_Command == NULL){
              AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("MALLOC Failed\r\n"));
             return A_ERROR;
@@ -888,7 +888,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatch
     case PS_RESET:
                         Length = 0x06;
                         i=0;
-                        HCI_PS_Command = (A_UCHAR *) A_MALLOC(Length+HCI_COMMAND_HEADER);
+                        HCI_PS_Command = (u8 *) A_MALLOC(Length+HCI_COMMAND_HEADER);
                         if(HCI_PS_Command == NULL){
                                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("MALLOC Failed\r\n"));
                                 return A_ERROR;
@@ -909,7 +909,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatch
                                 if(PsTagEntry[i].TagId ==1)
                                         BDADDR = true;
 
-                                HCI_PS_Command = (A_UCHAR *) A_MALLOC(PsTagEntry[i].TagLen+HCI_COMMAND_HEADER);
+                                HCI_PS_Command = (u8 *) A_MALLOC(PsTagEntry[i].TagLen+HCI_COMMAND_HEADER);
                                 if(HCI_PS_Command == NULL){
                                         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("MALLOC Failed\r\n"));
                                         return A_ERROR;
@@ -936,7 +936,7 @@ static int AthPSCreateHCICommand(A_UCHAR Opcode, u32 Param1,PSCmdPacket *PSPatch
 
                         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("VALUE of CRC:%d At index %d\r\n",Param1,*index));
 
-                        HCI_PS_Command = (A_UCHAR *) A_MALLOC(Length+HCI_COMMAND_HEADER);
+                        HCI_PS_Command = (u8 *) A_MALLOC(Length+HCI_COMMAND_HEADER);
                         if(HCI_PS_Command == NULL){
                                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("MALLOC Failed\r\n"));
                                 return A_ERROR;

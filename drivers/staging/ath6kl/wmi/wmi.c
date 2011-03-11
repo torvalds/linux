@@ -1421,8 +1421,8 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, u8 *datap, int len)
     WMI_BSS_INFO_HDR *bih;
     u8 *buf;
     u32 nodeCachingAllowed = 1;
-    A_UCHAR cached_ssid_len = 0;
-    A_UCHAR cached_ssid_buf[IEEE80211_NWID_LEN] = {0};
+    u8 cached_ssid_len = 0;
+    u8 cached_ssid_buf[IEEE80211_NWID_LEN] = {0};
     u8 beacon_ssid_len = 0;
 
     if (len <= sizeof(WMI_BSS_INFO_HDR)) {
@@ -1477,7 +1477,7 @@ wmi_bssInfo_event_rx(struct wmi_t *wmip, u8 *datap, int len)
          * so cache the probe-resp-ssid if already present. */
         if ((true == is_probe_ssid) && (BEACON_FTYPE == bih->frameType))
         {
-            A_UCHAR *ie_ssid;
+            u8 *ie_ssid;
 
             ie_ssid = bss->ni_cie.ie_ssid;
             if(ie_ssid && (ie_ssid[1] <= IEEE80211_NWID_LEN) && (ie_ssid[2] != 0))
@@ -2420,7 +2420,7 @@ wmi_connect_cmd(struct wmi_t *wmip, NETWORK_TYPE netType,
                 DOT11_AUTH_MODE dot11AuthMode, AUTH_MODE authMode,
                 CRYPTO_TYPE pairwiseCrypto, u8 pairwiseCryptoLen,
                 CRYPTO_TYPE groupCrypto, u8 groupCryptoLen,
-                int ssidLength, A_UCHAR *ssid,
+                int ssidLength, u8 *ssid,
                 u8 *bssid, u16 channel, u32 ctrl_flags)
 {
     void *osbuf;
@@ -2616,7 +2616,7 @@ wmi_bssfilter_cmd(struct wmi_t *wmip, u8 filter, u32 ieMask)
 
 int
 wmi_probedSsid_cmd(struct wmi_t *wmip, u8 index, u8 flag,
-                   u8 ssidLength, A_UCHAR *ssid)
+                   u8 ssidLength, u8 *ssid)
 {
     void *osbuf;
     WMI_PROBED_SSID_CMD *cmd;
@@ -4844,7 +4844,7 @@ wmi_set_wmm_txop(struct wmi_t *wmip, WMI_TXOP_CFG cfg)
 }
 
 int
-wmi_set_country(struct wmi_t *wmip, A_UCHAR *countryCode)
+wmi_set_country(struct wmi_t *wmip, u8 *countryCode)
 {
     void *osbuf;
     WMI_AP_SET_COUNTRY_CMD *cmd;
@@ -5374,7 +5374,7 @@ wmi_set_nodeage(struct wmi_t *wmip, u32 nodeAge)
 }
 
 bss_t *
-wmi_find_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
+wmi_find_Ssidnode (struct wmi_t *wmip, u8 *pSsid,
                    u32 ssidLength, bool bIsWPA2, bool bMatchSSID)
 {
     bss_t *node = NULL;
@@ -6652,7 +6652,7 @@ wmi_SGI_cmd(struct wmi_t *wmip, u32 sgiMask, u8 sgiPERThreshold)
 }
 
 bss_t *
-wmi_find_matching_Ssidnode (struct wmi_t *wmip, A_UCHAR *pSsid,
+wmi_find_matching_Ssidnode (struct wmi_t *wmip, u8 *pSsid,
                    u32 ssidLength,
                    u32 dot11AuthMode, u32 authMode,
                    u32 pairwiseCryptoType, u32 grpwiseCryptoTyp)

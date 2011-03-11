@@ -62,20 +62,20 @@ int ReadVersionInfo(AR3K_CONFIG_INFO *pConfig);
 
 DECLARE_WAIT_QUEUE_HEAD(PsCompleteEvent);
 DECLARE_WAIT_QUEUE_HEAD(HciEvent);
-A_UCHAR *HciEventpacket;
+u8 *HciEventpacket;
 rwlock_t syncLock;
 wait_queue_t Eventwait;
 
-int PSHciWritepacket(struct hci_dev*,A_UCHAR* Data, u32 len);
+int PSHciWritepacket(struct hci_dev*,u8* Data, u32 len);
 extern char *bdaddr;
 #endif /* HCI_TRANSPORT_SDIO */
 
-int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type);
+int write_bdaddr(AR3K_CONFIG_INFO *pConfig,u8 *bdaddr,int type);
 
 int PSSendOps(void *arg);
 
 #ifdef BT_PS_DEBUG
-void Hci_log(A_UCHAR * log_string,A_UCHAR *data,u32 len)
+void Hci_log(u8 * log_string,u8 *data,u32 len)
 {
     int i;
     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("%s : ",log_string));
@@ -139,14 +139,14 @@ int PSSendOps(void *arg)
     u8 *event;
     u8 *bufferToFree;
     struct hci_dev *device;
-    A_UCHAR *buffer;
+    u8 *buffer;
     u32 len;
     u32 DevType;
-    A_UCHAR *PsFileName;
-    A_UCHAR *patchFileName;
-    A_UCHAR *path = NULL;
-    A_UCHAR *config_path = NULL;
-    A_UCHAR config_bdaddr[MAX_BDADDR_FORMAT_LENGTH];
+    u8 *PsFileName;
+    u8 *patchFileName;
+    u8 *path = NULL;
+    u8 *config_path = NULL;
+    u8 config_bdaddr[MAX_BDADDR_FORMAT_LENGTH];
     AR3K_CONFIG_INFO *hdev = (AR3K_CONFIG_INFO*)arg;
     struct device *firmwareDev = NULL;
     status = 0;
@@ -162,12 +162,12 @@ int PSSendOps(void *arg)
     /* First verify if the controller is an FPGA or ASIC, so depending on the device type the PS file to be written will be different.
      */
 
-    path =(A_UCHAR *)A_MALLOC(MAX_FW_PATH_LEN);
+    path =(u8 *)A_MALLOC(MAX_FW_PATH_LEN);
     if(path == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Malloc failed to allocate %d bytes for path\n", MAX_FW_PATH_LEN));
         goto complete;
     }
-    config_path = (A_UCHAR *) A_MALLOC(MAX_FW_PATH_LEN);
+    config_path = (u8 *) A_MALLOC(MAX_FW_PATH_LEN);
     if(config_path == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Malloc failed to allocate %d bytes for config_path\n", MAX_FW_PATH_LEN));
         goto complete;
@@ -214,7 +214,7 @@ int PSSendOps(void *arg)
         status = 1;
         goto complete;
     }
-    buffer = (A_UCHAR *)A_MALLOC(firmware->size);
+    buffer = (u8 *)A_MALLOC(firmware->size);
     if(buffer != NULL) {
     /* Copy the read file to a local Dynamic buffer */
         memcpy(buffer,firmware->data,firmware->size);
@@ -248,7 +248,7 @@ int PSSendOps(void *arg)
         if(NULL == firmware || firmware->size == 0) {
             status = 0;
         } else {
-            buffer = (A_UCHAR *)A_MALLOC(firmware->size);
+            buffer = (u8 *)A_MALLOC(firmware->size);
             if(buffer != NULL) {
                 /* Copy the read file to a local Dynamic buffer */
                 memcpy(buffer,firmware->data,firmware->size);
@@ -419,7 +419,7 @@ int SendHCICommandWaitCommandComplete(AR3K_CONFIG_INFO *pConfig,
 }
 #endif /* HCI_TRANSPORT_SDIO */
 
-int ReadPSEvent(A_UCHAR* Data){
+int ReadPSEvent(u8* Data){
     AR_DEBUG_PRINTF(ATH_DEBUG_ERR,(" PS Event %x %x %x\n",Data[4],Data[5],Data[3]));
                                 
     if(Data[4] == 0xFC && Data[5] == 0x00)
@@ -481,9 +481,9 @@ int str2ba(unsigned char *str_bdaddr,unsigned char *bdaddr)
 	return 0; 
 }
 
-int write_bdaddr(AR3K_CONFIG_INFO *pConfig,A_UCHAR *bdaddr,int type)
+int write_bdaddr(AR3K_CONFIG_INFO *pConfig,u8 *bdaddr,int type)
 {
-	A_UCHAR bdaddr_cmd[] = { 0x0B, 0xFC, 0x0A, 0x01, 0x01, 
+	u8 bdaddr_cmd[] = { 0x0B, 0xFC, 0x0A, 0x01, 0x01, 
 							0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
     u8 *event;

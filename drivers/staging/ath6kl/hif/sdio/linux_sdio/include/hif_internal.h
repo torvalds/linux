@@ -54,7 +54,7 @@ typedef struct bus_request {
     struct bus_request *inusenext;  /* link list of in use requests */
     struct semaphore sem_req;
     u32 address;               /* request data */
-    A_UCHAR *buffer;
+    u8 *buffer;
     u32 length;
     u32 request;
     void *context;

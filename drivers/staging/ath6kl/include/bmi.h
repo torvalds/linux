@@ -52,13 +52,13 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info);
 int
 BMIReadMemory(HIF_DEVICE *device,
               u32 address,
-              A_UCHAR *buffer,
+              u8 *buffer,
               u32 length);
 
 int
 BMIWriteMemory(HIF_DEVICE *device,
                u32 address,
-               A_UCHAR *buffer,
+               u8 *buffer,
                u32 length);
 
 int
@@ -108,23 +108,23 @@ BMILZStreamStart(HIF_DEVICE *device,
 
 int
 BMILZData(HIF_DEVICE *device,
-          A_UCHAR *buffer,
+          u8 *buffer,
           u32 length);
 
 int
 BMIFastDownload(HIF_DEVICE *device,
                 u32 address,
-                A_UCHAR *buffer,
+                u8 *buffer,
                 u32 length);
 
 int
 BMIRawWrite(HIF_DEVICE *device,
-            A_UCHAR *buffer,
+            u8 *buffer,
             u32 length);
 
 int
 BMIRawRead(HIF_DEVICE *device, 
-           A_UCHAR *buffer, 
+           u8 *buffer, 
            u32 length,
            bool want_timeout);
 

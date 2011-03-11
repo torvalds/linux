@@ -491,7 +491,7 @@ int DevEnableRecv(AR6K_DEVICE *pDev, bool AsyncMode)
 int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPending)
 {
     int    status          = 0;
-    A_UCHAR     host_int_status = 0x0;
+    u8     host_int_status = 0x0;
     u32 counter         = 0x0;
 
     if(TimeoutInMs < 100)
@@ -507,7 +507,7 @@ int DevWaitForPendingRecv(AR6K_DEVICE *pDev,u32 TimeoutInMs,bool *pbIsRecvPendin
         status = HIFReadWrite(pDev->HIFDevice,
                               HOST_INT_STATUS_ADDRESS,
                              &host_int_status,
-                              sizeof(A_UCHAR),
+                              sizeof(u8),
                               HIF_RD_SYNC_BYTE_INC,
                               NULL);
         if (status)

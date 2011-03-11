@@ -53,7 +53,7 @@ char *p_mac = NULL;
 // static variables
 //
 
-static A_UCHAR eeprom_data[EEPROM_SZ];
+static u8 eeprom_data[EEPROM_SZ];
 static u32 sys_sleep_reg;
 static HIF_DEVICE *p_bmi_device;
 
@@ -143,14 +143,14 @@ BMI_write_reg(u32 address, u32 value)
 inline void
 BMI_read_mem(u32 address, u32 *pvalue)
 {
-    BMIReadMemory(p_bmi_device, address, (A_UCHAR*)(pvalue), 4);
+    BMIReadMemory(p_bmi_device, address, (u8*)(pvalue), 4);
 }
 
 /* Write a word to a Target memory. */
 inline void
 BMI_write_mem(u32 address, u8 *p_data, u32 sz)
 {
-    BMIWriteMemory(p_bmi_device, address, (A_UCHAR*)(p_data), sz); 
+    BMIWriteMemory(p_bmi_device, address, (u8*)(p_data), sz); 
 }
 
 /*

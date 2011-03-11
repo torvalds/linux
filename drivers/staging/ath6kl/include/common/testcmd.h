@@ -142,7 +142,7 @@ typedef PREPACK struct {
             u16 rateCntShortGuard[TCMD_MAX_RATES];
         } POSTPACK report;
         struct PREPACK TCMD_CONT_RX_MAC {
-            A_UCHAR    addr[ATH_MAC_LEN];
+            u8    addr[ATH_MAC_LEN];
         } POSTPACK mac;
         struct PREPACK TCMD_CONT_RX_ANT_SWITCH_TABLE {
             u32 antswitch1;

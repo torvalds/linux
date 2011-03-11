@@ -45,7 +45,6 @@ typedef u_int32_t    A_UINT32;
 typedef u_int64_t    A_UINT64;
 
 typedef char            A_CHAR;
-typedef unsigned char   A_UCHAR;
 typedef unsigned long   A_ATH_TIMER;
 
 

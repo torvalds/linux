@@ -416,7 +416,7 @@ ar6000_set_host_app_area(AR_SOFTC_T *ar)
     address = TARG_VTOP(ar->arTargetType, data);
     host_app_area.wmi_protocol_ver = WMI_PROTOCOL_VERSION;
     if (ar6000_WriteDataDiag(ar->arHifDevice, address,
-                             (A_UCHAR *)&host_app_area,
+                             (u8 *)&host_app_area,
                              sizeof(struct host_app_area_s)) != 0)
     {
         return A_ERROR;
@@ -433,7 +433,7 @@ u32 dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
 
     address = TARG_VTOP(ar->arTargetType, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dbglog_hdr));
     if ((status = ar6000_ReadDataDiag(ar->arHifDevice, address,
-                                      (A_UCHAR *)&param, 4)) != 0)
+                                      (u8 *)&param, 4)) != 0)
     {
         param = 0;
     }
@@ -550,13 +550,13 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
         address = TARG_VTOP(ar->arTargetType, debug_hdr_ptr);
         length = 4 /* sizeof(dbuf) */ + 4 /* sizeof(dropped) */;
         A_MEMZERO(data, sizeof(data));
-        ar6000_ReadDataDiag(ar->arHifDevice, address, (A_UCHAR *)data, length);
+        ar6000_ReadDataDiag(ar->arHifDevice, address, (u8 *)data, length);
         address = TARG_VTOP(ar->arTargetType, data[0] /* dbuf */);
         firstbuf = address;
         dropped = data[1]; /* dropped */
         length = 4 /* sizeof(next) */ + 4 /* sizeof(buffer) */ + 4 /* sizeof(bufsize) */ + 4 /* sizeof(length) */ + 4 /* sizeof(count) */ + 4 /* sizeof(free) */;
         A_MEMZERO(data, sizeof(data));
-        ar6000_ReadDataDiag(ar->arHifDevice, address, (A_UCHAR *)&data, length);
+        ar6000_ReadDataDiag(ar->arHifDevice, address, (u8 *)&data, length);
 
         do {
             address = TARG_VTOP(ar->arTargetType, data[1] /* buffer*/);
@@ -567,7 +567,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
                     ar->log_cnt = 0;
                 }
                 if(0 != ar6000_ReadDataDiag(ar->arHifDevice, address,
-                                    (A_UCHAR *)&ar->log_buffer[ar->log_cnt], length))
+                                    (u8 *)&ar->log_buffer[ar->log_cnt], length))
                 {
                     break;
                 }
@@ -582,7 +582,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
             length = 4 /* sizeof(next) */ + 4 /* sizeof(buffer) */ + 4 /* sizeof(bufsize) */ + 4 /* sizeof(length) */ + 4 /* sizeof(count) */ + 4 /* sizeof(free) */;
             A_MEMZERO(data, sizeof(data));
             if(0 != ar6000_ReadDataDiag(ar->arHifDevice, address,
-                                (A_UCHAR *)&data, length))
+                                (u8 *)&data, length))
             {
                 break;
             }
@@ -816,7 +816,7 @@ ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
 
     if (index == MAX_AR6000) return 0;
 
-    if ((BMIRawRead(ar->arHifDevice, (A_UCHAR*)buf, count, true)) != 0) {
+    if ((BMIRawRead(ar->arHifDevice, (u8*)buf, count, true)) != 0) {
         return 0;
     }
 
@@ -843,7 +843,7 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
 
     if (index == MAX_AR6000) return 0;
 
-    if ((BMIRawWrite(ar->arHifDevice, (A_UCHAR*)buf, count)) != 0) {
+    if ((BMIRawWrite(ar->arHifDevice, (u8*)buf, count)) != 0) {
         return 0;
     }
 
@@ -900,7 +900,7 @@ ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar)
 #define AR6002_MAC_ADDRESS_OFFSET     0x0A
 #define AR6003_MAC_ADDRESS_OFFSET     0x16
 static
-void calculate_crc(u32 TargetType, A_UCHAR *eeprom_data)
+void calculate_crc(u32 TargetType, u8 *eeprom_data)
 {
     u16 *ptr_crc;
     u16 *ptr16_eeprom;
@@ -916,12 +916,12 @@ void calculate_crc(u32 TargetType, A_UCHAR *eeprom_data)
     else if (TargetType == TARGET_TYPE_AR6003)
     {
         eeprom_size = 1024;
-        ptr_crc = (u16 *)((A_UCHAR *)eeprom_data + 0x04);
+        ptr_crc = (u16 *)((u8 *)eeprom_data + 0x04);
     }
     else
     {
         eeprom_size = 768;
-        ptr_crc = (u16 *)((A_UCHAR *)eeprom_data + 0x04);
+        ptr_crc = (u16 *)((u8 *)eeprom_data + 0x04);
     }
 
 
@@ -941,17 +941,17 @@ void calculate_crc(u32 TargetType, A_UCHAR *eeprom_data)
 }
 
 static void 
-ar6000_softmac_update(AR_SOFTC_T *ar, A_UCHAR *eeprom_data, size_t size)
+ar6000_softmac_update(AR_SOFTC_T *ar, u8 *eeprom_data, size_t size)
 {
     const char *source = "random generated";
     const struct firmware *softmac_entry;
-    A_UCHAR *ptr_mac;
+    u8 *ptr_mac;
     switch (ar->arTargetType) {
     case TARGET_TYPE_AR6002:
-        ptr_mac = (u8 *)((A_UCHAR *)eeprom_data + AR6002_MAC_ADDRESS_OFFSET);
+        ptr_mac = (u8 *)((u8 *)eeprom_data + AR6002_MAC_ADDRESS_OFFSET);
         break;
     case TARGET_TYPE_AR6003:
-        ptr_mac = (u8 *)((A_UCHAR *)eeprom_data + AR6003_MAC_ADDRESS_OFFSET);
+        ptr_mac = (u8 *)((u8 *)eeprom_data + AR6003_MAC_ADDRESS_OFFSET);
         break;
     default:
 	AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Invalid Target Type\n"));
@@ -1097,7 +1097,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
 
 #ifdef SOFTMAC_FILE_USED
     if (file==AR6K_BOARD_DATA_FILE && fw_entry->data) {
-        ar6000_softmac_update(ar, (A_UCHAR *)fw_entry->data, fw_entry->size);
+        ar6000_softmac_update(ar, (u8 *)fw_entry->data, fw_entry->size);
     }
 #endif 
 
@@ -1117,14 +1117,14 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
                           (((ar)->arTargetType == TARGET_TYPE_AR6003) ? AR6003_BOARD_DATA_SZ : 0));
         
         /* Determine where in Target RAM to write Board Data */
-        bmifn(BMIReadMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data), (A_UCHAR *)&board_ext_address, 4));
+        bmifn(BMIReadMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data), (u8 *)&board_ext_address, 4));
         AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("Board extended Data download address: 0x%x\n", board_ext_address));
 
         /* check whether the target has allocated memory for extended board data and file contains extended board data */
         if ((board_ext_address) && (fw_entry->size == (board_data_size + board_ext_data_size))) {
             u32 param;
 
-            status = BMIWriteMemory(ar->arHifDevice, board_ext_address, (A_UCHAR *)(fw_entry->data + board_data_size), board_ext_data_size);
+            status = BMIWriteMemory(ar->arHifDevice, board_ext_address, (u8 *)(fw_entry->data + board_data_size), board_ext_data_size);
 
             if (status) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI operation failed: %d\n", __LINE__));
@@ -1134,15 +1134,15 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
 
             /* Record the fact that extended board Data IS initialized */
             param = 1;
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data_initialized), (A_UCHAR *)&param, 4));
+            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data_initialized), (u8 *)&param, 4));
         }
         fw_entry_size = board_data_size;
     }
 
     if (compressed) {
-        status = BMIFastDownload(ar->arHifDevice, address, (A_UCHAR *)fw_entry->data, fw_entry_size);
+        status = BMIFastDownload(ar->arHifDevice, address, (u8 *)fw_entry->data, fw_entry_size);
     } else {
-        status = BMIWriteMemory(ar->arHifDevice, address, (A_UCHAR *)fw_entry->data, fw_entry_size);
+        status = BMIWriteMemory(ar->arHifDevice, address, (u8 *)fw_entry->data, fw_entry_size);
     }
 
     if (status) {
@@ -1163,13 +1163,13 @@ ar6000_update_bdaddr(AR_SOFTC_T *ar)
             u32 address;
 
            if (BMIReadMemory(ar->arHifDevice,
-		HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (A_UCHAR *)&address, 4) != 0)
+		HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (u8 *)&address, 4) != 0)
            {
     	      	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for hi_board_data failed\n"));
            	return A_ERROR;
            }
 
-           if (BMIReadMemory(ar->arHifDevice, address + BDATA_BDADDR_OFFSET, (A_UCHAR *)ar->bdaddr, 6) != 0)
+           if (BMIReadMemory(ar->arHifDevice, address + BDATA_BDADDR_OFFSET, (u8 *)ar->bdaddr, 6) != 0)
            {
     	    	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for BD address failed\n"));
            	return A_ERROR;
@@ -1234,7 +1234,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 
         param = 0;
         if (ar->arTargetType == TARGET_TYPE_AR6002) {
-            bmifn(BMIReadMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_ext_clk_detected), (A_UCHAR *)&param, 4));
+            bmifn(BMIReadMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_ext_clk_detected), (u8 *)&param, 4));
         }
 
         /* LPO_CAL.ENABLE = 1 if no external clk is detected */
@@ -1267,7 +1267,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
         if (ar->arTargetType == TARGET_TYPE_AR6003) {
             /* hi_ext_clk_detected = 0 */
             param = 0;
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_ext_clk_detected), (A_UCHAR *)&param, 4));
+            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_ext_clk_detected), (u8 *)&param, 4));
 
             /* CLOCK_CONTROL &= ~LF_CLK32 */
             address = RTC_BASE_ADDRESS + CLOCK_CONTROL_ADDRESS;
@@ -1280,7 +1280,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
         /* Transfer Board Data from Target EEPROM to Target RAM */
         if (ar->arTargetType == TARGET_TYPE_AR6003) {
             /* Determine where in Target RAM to write Board Data */
-            bmifn(BMIReadMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (A_UCHAR *)&address, 4));
+            bmifn(BMIReadMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data), (u8 *)&address, 4));
             AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("Board Data download address: 0x%x\n", address));
 
             /* Write EEPROM data to Target RAM */
@@ -1290,7 +1290,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 
             /* Record the fact that Board Data IS initialized */
             param = 1;
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data_initialized), (A_UCHAR *)&param, 4));
+            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_data_initialized), (u8 *)&param, 4));
 
             /* Transfer One time Programmable data */
             AR6K_DATA_DOWNLOAD_ADDRESS(address, ar->arVersion.target_ver);
@@ -1325,7 +1325,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
         }
 
         param = address;
-        bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dset_list_head), (A_UCHAR *)&param, 4));
+        bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dset_list_head), (u8 *)&param, 4));
 
         if (ar->arTargetType == TARGET_TYPE_AR6003) {
             if (ar->arVersion.target_ver == AR6003_REV1_VERSION) {
@@ -1335,7 +1335,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
                 /* Reserve 6.5K of RAM */
                 param = 6656;
             }
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_end_RAM_reserve_sz), (A_UCHAR *)&param, 4));
+            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_end_RAM_reserve_sz), (u8 *)&param, 4));
         }
 
         /* Restore system sleep */
@@ -1352,7 +1352,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 #define CONFIG_AR600x_DEBUG_UART_TX_PIN 8
 #endif
             param = CONFIG_AR600x_DEBUG_UART_TX_PIN;
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dbg_uart_txpin), (A_UCHAR *)&param, 4));
+            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_dbg_uart_txpin), (u8 *)&param, 4));
 
 #if (CONFIG_AR600x_DEBUG_UART_TX_PIN == 23)
             {
@@ -1367,7 +1367,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 #ifdef ATH6KL_CONFIG_GPIO_BT_RESET
 #define CONFIG_AR600x_BT_RESET_PIN	0x16
             param = CONFIG_AR600x_BT_RESET_PIN;
-            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_hci_uart_support_pins), (A_UCHAR *)&param, 4));
+            bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_hci_uart_support_pins), (u8 *)&param, 4));
 #endif /* ATH6KL_CONFIG_GPIO_BT_RESET */
 
             /* Configure UART flow control polarity */
@@ -1378,7 +1378,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 #if (CONFIG_ATH6KL_BT_UART_FC_POLARITY == 1)
             if (ar->arVersion.target_ver == AR6003_REV2_VERSION) {
                 param = ((CONFIG_ATH6KL_BT_UART_FC_POLARITY << 1) & 0x2);
-                bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_hci_uart_pwr_mgmt_params), (A_UCHAR *)&param, 4));
+                bmifn(BMIWriteMemory(ar->arHifDevice, HOST_INTEREST_ITEM_ADDRESS(ar, hi_hci_uart_pwr_mgmt_params), (u8 *)&param, 4));
             }
 #endif /* CONFIG_ATH6KL_BT_UART_FC_POLARITY */
         }
@@ -1405,7 +1405,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         param = 1;
         if (BMIWriteMemory(ar->arHifDevice,
                            HOST_INTEREST_ITEM_ADDRESS(ar, hi_serial_enable),
-                           (A_UCHAR *)&param,
+                           (u8 *)&param,
                            4)!= 0)
         {
              AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for enableuartprint failed \n"));
@@ -1418,7 +1418,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
     param = HTC_PROTOCOL_VERSION;
     if (BMIWriteMemory(ar->arHifDevice,
                        HOST_INTEREST_ITEM_ADDRESS(ar, hi_app_host_interest),
-                       (A_UCHAR *)&param,
+                       (u8 *)&param,
                        4)!= 0)
     {
          AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for htc version failed \n"));
@@ -1437,7 +1437,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4)!= 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for enabletimerwar failed \n"));
@@ -1448,7 +1448,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for enabletimerwar failed \n"));
@@ -1463,7 +1463,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4)!= 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for setting fwmode failed \n"));
@@ -1474,7 +1474,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for setting fwmode failed \n"));
@@ -1489,7 +1489,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
         if (BMIReadMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4)!= 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIReadMemory for disabling debug logs failed\n"));
@@ -1500,7 +1500,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
 
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_option_flag),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for HI_OPTION_DISABLE_DBGLOG\n"));
@@ -1522,7 +1522,7 @@ ar6000_configure_target(AR_SOFTC_T *ar)
         param = AR6003_BOARD_EXT_DATA_ADDRESS; 
         if (BMIWriteMemory(ar->arHifDevice,
             HOST_INTEREST_ITEM_ADDRESS(ar, hi_board_ext_data),
-            (A_UCHAR *)&param,
+            (u8 *)&param,
             4) != 0)
         {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("BMIWriteMemory for hi_board_ext_data failed \n"));

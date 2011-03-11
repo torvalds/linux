@@ -537,7 +537,7 @@ typedef PREPACK struct {
     u8 groupCryptoType;
     u8 groupCryptoLen;
     u8 ssidLength;
-    A_UCHAR     ssid[WMI_MAX_SSID_LEN];
+    u8     ssid[WMI_MAX_SSID_LEN];
     u16 channel;
     u8 bssid[ATH_MAC_LEN];
     u32 ctrl_flags;
@@ -3031,7 +3031,7 @@ typedef PREPACK struct {
 #define WMI_DISABLE_REGULATORY_CODE "FF"
 
 typedef PREPACK struct {
-    A_UCHAR countryCode[3];
+    u8 countryCode[3];
 } POSTPACK WMI_AP_SET_COUNTRY_CMD;
 
 typedef PREPACK struct {

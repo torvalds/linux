@@ -401,7 +401,7 @@ void     HIFDetachHTC(HIF_DEVICE *device);
 int
 HIFReadWrite(HIF_DEVICE    *device,
              u32 address,
-             A_UCHAR       *buffer,
+             u8       *buffer,
              u32 length,
              u32 request,
              void          *context);

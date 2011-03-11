@@ -553,7 +553,7 @@ typedef struct ar6_softc {
     COMMON_CREDIT_STATE_INFO arCreditStateInfo;
     bool                  arWMIControlEpFull;
     bool                  dbgLogFetchInProgress;
-    A_UCHAR                 log_buffer[DBGLOG_HOST_LOG_BUFFER_SIZE];
+    u8                 log_buffer[DBGLOG_HOST_LOG_BUFFER_SIZE];
     u32 log_cnt;
     u32 dbglog_init_done;
     u32 arConnectCtrlFlags;

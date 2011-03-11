@@ -43,12 +43,12 @@ static bool bmiDone;
 
 int
 bmiBufferSend(HIF_DEVICE *device,
-              A_UCHAR *buffer,
+              u8 *buffer,
               u32 length);
 
 int
 bmiBufferReceive(HIF_DEVICE *device,
-                 A_UCHAR *buffer,
+                 u8 *buffer,
                  u32 length,
                  bool want_timeout);
 

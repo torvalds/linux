@@ -48,13 +48,6 @@
 
 /* Helper data type declaration */
 
-#ifndef u32 #define A_UCHAR                 unsigned char
-#define u32 unsigned long
-#define u16 unsigned short
-#define u8 unsigned char
-#define bool                  unsigned char
-#endif /* u32 */
-
 #define ATH_DEBUG_ERR          (1 << 0)
 #define ATH_DEBUG_WARN         (1 << 1)
 #define ATH_DEBUG_INFO         (1 << 2)
@@ -98,15 +91,15 @@
 
 typedef struct PSCmdPacket
 {
-    A_UCHAR *Hcipacket;
+    u8 *Hcipacket;
     int packetLen;
 } PSCmdPacket;
 
 /* Parses a Patch information buffer and store it in global structure */
-int AthDoParsePatch(A_UCHAR *, u32 );
+int AthDoParsePatch(u8 *, u32 );
 
 /* parses a PS information buffer and stores it in a global structure */
-int AthDoParsePS(A_UCHAR *, u32 );
+int AthDoParsePS(u8 *, u32 );
 
 /* 
  *  Uses the output of Both AthDoParsePS and AthDoParsePatch APIs to form HCI command array with

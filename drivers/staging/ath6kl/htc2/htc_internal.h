@@ -178,7 +178,7 @@ void        HTCFlushSendPkts(HTC_TARGET *target);
 #ifdef ATH_DEBUG_MODULE
 void        DumpCreditDist(HTC_ENDPOINT_CREDIT_DIST *pEPDist);
 void        DumpCreditDistStates(HTC_TARGET *target);
-void 		DebugDumpBytes(A_UCHAR *buffer, u16 length, char *pDescription);
+void 		DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
 #endif
 
 static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {

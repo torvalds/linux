@@ -309,7 +309,7 @@ typedef PREPACK struct {
     u8 ssidLength; /* 0 - 32 */
     u8 probe;      /* != 0 : issue probe req at start */
     u8 reserved;   /* alignment */
-    A_UCHAR     ssid[WMI_MAX_SSID_LEN];    
+    u8     ssid[WMI_MAX_SSID_LEN];    
     u8 bssid[ATH_MAC_LEN];
 } POSTPACK WMI_THIN_JOIN_CMD;
 

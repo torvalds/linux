@@ -67,9 +67,9 @@
 #define AR3K_CONFIG_INFO        struct hci_dev
 extern wait_queue_head_t HciEvent;
 extern wait_queue_t Eventwait;
-extern A_UCHAR *HciEventpacket;
+extern u8 *HciEventpacket;
 #endif /* #ifndef HCI_TRANSPORT_SDIO */
 
 int AthPSInitialize(AR3K_CONFIG_INFO *hdev);
-int ReadPSEvent(A_UCHAR* Data);
+int ReadPSEvent(u8* Data);
 #endif /* __AR3KPSCONFIG_H */

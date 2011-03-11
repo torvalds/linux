@@ -123,7 +123,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
          * 3 byte write to bytes 1,2,3 has no effect since we are writing the same values again */
     status = HIFReadWrite(hifDevice,
                           RegisterAddr,
-                          (A_UCHAR *)(&Address),
+                          (u8 *)(&Address),
                           4,
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
@@ -152,7 +152,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
          * last to initiate the access cycle */
     status = HIFReadWrite(hifDevice,
                           RegisterAddr+1,  /* write upper 3 bytes */
-                          ((A_UCHAR *)(&Address))+1,
+                          ((u8 *)(&Address))+1,
                           sizeof(u32)-1,
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
@@ -166,7 +166,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
         /* write the LSB of the register, this initiates the operation */
     status = HIFReadWrite(hifDevice,
                           RegisterAddr,
-                          (A_UCHAR *)(&Address),
+                          (u8 *)(&Address),
                           sizeof(u8),
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
@@ -203,7 +203,7 @@ ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
         /* read the data */
     status = HIFReadWrite(hifDevice,
                           WINDOW_DATA_ADDRESS,
-                          (A_UCHAR *)data,
+                          (u8 *)data,
                           sizeof(u32),
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
@@ -228,7 +228,7 @@ ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
         /* set write data */
     status = HIFReadWrite(hifDevice,
                           WINDOW_DATA_ADDRESS,
-                          (A_UCHAR *)data,
+                          (u8 *)data,
                           sizeof(u32),
                           HIF_WR_SYNC_BYTE_INC,
                           NULL);
@@ -245,7 +245,7 @@ ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
 
 int
 ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
-                    A_UCHAR *data, u32 length)
+                    u8 *data, u32 length)
 {
     u32 count;
     int status = 0;
@@ -263,7 +263,7 @@ ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
 
 int
 ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, u32 address,
-                    A_UCHAR *data, u32 length)
+                    u8 *data, u32 length)
 {
     u32 count;
     int status = 0;
@@ -283,8 +283,8 @@ int
 ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval)
 {
     int status;
-    A_UCHAR vals[4];
-    A_UCHAR register_selection[4];
+    u8 vals[4];
+    u8 register_selection[4];
 
     register_selection[0] = register_selection[1] = register_selection[2] = register_selection[3] = (regsel & 0xff);
     status = HIFReadWrite(hifDevice,
@@ -301,7 +301,7 @@ ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval)
 
     status = HIFReadWrite(hifDevice,
                           CPU_DBG_ADDRESS,
-                          (A_UCHAR *)vals,
+                          (u8 *)vals,
                           sizeof(vals),
                           HIF_RD_SYNC_BYTE_INC,
                           NULL);
@@ -489,7 +489,7 @@ ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, u32 TargetType)
 
     if (BMIReadMemory(hifDevice,
             HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_board_data),
-            (A_UCHAR *)&eepHeaderAddr,
+            (u8 *)&eepHeaderAddr,
             4)!= 0)
     {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMIReadMemory for reading board data address failed \n"));
@@ -595,7 +595,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, u32 TargetType)
             /* fetch register dump data */
         status = ar6000_ReadDataDiag(hifDevice,
                                      regDumpArea,
-                                     (A_UCHAR *)&regDumpValues[0],
+                                     (u8 *)&regDumpValues[0],
                                      regDumpCount * (sizeof(u32)));
 
         if (status) {
@@ -654,7 +654,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
             /* set the host interest area for the block size */
         status = BMIWriteMemory(hifDevice,
                                 HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_mbox_io_block_sz),
-                                (A_UCHAR *)&blocksizes[1],
+                                (u8 *)&blocksizes[1],
                                 4);
 
         if (status) {
@@ -669,7 +669,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
                 /* set the host interest area for the mbox ISR yield limit */
             status = BMIWriteMemory(hifDevice,
                                     HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_mbox_isr_yield_limit),
-                                    (A_UCHAR *)&MboxIsrYieldValue,
+                                    (u8 *)&MboxIsrYieldValue,
                                     4);
 
             if (status) {
@@ -796,7 +796,7 @@ ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
 
 #endif /* CONFIG_AR6002_REV1_FORCE_HOST */
 
-void DebugDumpBytes(A_UCHAR *buffer, u16 length, char *pDescription)
+void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription)
 {
     char stream[60];
     char byteOffsetStr[10];
@@ -1015,7 +1015,7 @@ int ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
             /* set hci bridge flags */
         status = BMIWriteMemory(hifDevice,
                                 HOST_INTEREST_ITEM_ADDRESS(TargetType, hi_hci_bridge_flags),
-                                (A_UCHAR *)&Flags,
+                                (u8 *)&Flags,
                                 4);
 
 

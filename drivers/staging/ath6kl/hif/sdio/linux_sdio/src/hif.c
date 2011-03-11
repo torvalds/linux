@@ -155,7 +155,7 @@ int HIFInit(OSDRV_CALLBACKS *callbacks)
 static int
 __HIFReadWrite(HIF_DEVICE *device,
              u32 address,
-             A_UCHAR *buffer,
+             u8 *buffer,
              u32 length,
              u32 request,
              void *context)
@@ -332,7 +332,7 @@ void AddToAsyncList(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 int
 HIFReadWrite(HIF_DEVICE *device,
              u32 address,
-             A_UCHAR *buffer,
+             u8 *buffer,
              u32 length,
              u32 request,
              void *context)

@@ -55,7 +55,7 @@ very simple.
 
 static bool pendingEventsFuncCheck = false;
 static u32 *pBMICmdCredits;
-static A_UCHAR *pBMICmdBuf;
+static u8 *pBMICmdBuf;
 #define MAX_BMI_CMDBUF_SZ (BMI_DATASZ_MAX + \
                        sizeof(u32) /* cmd */ + \
                        sizeof(u32) /* addr */ + \
@@ -84,7 +84,7 @@ BMIInit(void)
     }
 
     if (!pBMICmdBuf) {
-        pBMICmdBuf = (A_UCHAR *)A_MALLOC_NOWAIT(MAX_BMI_CMDBUF_SZ);
+        pBMICmdBuf = (u8 *)A_MALLOC_NOWAIT(MAX_BMI_CMDBUF_SZ);
         A_ASSERT(pBMICmdBuf);
     }
     
@@ -120,7 +120,7 @@ BMIDone(HIF_DEVICE *device)
     bmiDone = true;
     cid = BMI_DONE;
 
-    status = bmiBufferSend(device, (A_UCHAR *)&cid, sizeof(cid));
+    status = bmiBufferSend(device, (u8 *)&cid, sizeof(cid));
     if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
@@ -155,13 +155,13 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
     AR_DEBUG_PRINTF(ATH_DEBUG_BMI, ("BMI Get Target Info: Enter (device: 0x%p)\n", device));
     cid = BMI_GET_TARGET_INFO;
 
-    status = bmiBufferSend(device, (A_UCHAR *)&cid, sizeof(cid));
+    status = bmiBufferSend(device, (u8 *)&cid, sizeof(cid));
     if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to write to the device\n"));
         return A_ERROR;
     }
 
-    status = bmiBufferReceive(device, (A_UCHAR *)&targ_info->target_ver,
+    status = bmiBufferReceive(device, (u8 *)&targ_info->target_ver,
                                                 sizeof(targ_info->target_ver), true);
     if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Version from the device\n"));
@@ -170,7 +170,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 
     if (targ_info->target_ver == TARGET_VERSION_SENTINAL) {
         /* Determine how many bytes are in the Target's targ_info */
-        status = bmiBufferReceive(device, (A_UCHAR *)&targ_info->target_info_byte_count,
+        status = bmiBufferReceive(device, (u8 *)&targ_info->target_info_byte_count,
                                             sizeof(targ_info->target_info_byte_count), true);
         if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Info Byte Count from the device\n"));
@@ -185,7 +185,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 
         /* Read the remainder of the targ_info */
         status = bmiBufferReceive(device,
-                        ((A_UCHAR *)targ_info)+sizeof(targ_info->target_info_byte_count),
+                        ((u8 *)targ_info)+sizeof(targ_info->target_info_byte_count),
                         sizeof(*targ_info)-sizeof(targ_info->target_info_byte_count), true);
         if (status) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to read Target Info (%d bytes) from the device\n",
@@ -203,7 +203,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 int
 BMIReadMemory(HIF_DEVICE *device,
               u32 address,
-              A_UCHAR *buffer,
+              u8 *buffer,
               u32 length)
 {
     u32 cid;
@@ -259,7 +259,7 @@ BMIReadMemory(HIF_DEVICE *device,
 int
 BMIWriteMemory(HIF_DEVICE *device,
                u32 address,
-               A_UCHAR *buffer,
+               u8 *buffer,
                u32 length)
 {
     u32 cid;
@@ -267,8 +267,8 @@ BMIWriteMemory(HIF_DEVICE *device,
     u32 offset;
     u32 remaining, txlen;
     const u32 header = sizeof(cid) + sizeof(address) + sizeof(length);
-    A_UCHAR alignedBuffer[BMI_DATASZ_MAX];
-    A_UCHAR *src;
+    u8 alignedBuffer[BMI_DATASZ_MAX];
+    u8 *src;
 
     A_ASSERT(BMI_COMMAND_FITS(BMI_DATASZ_MAX + header));
     memset (pBMICmdBuf, 0, BMI_DATASZ_MAX + header);
@@ -647,7 +647,7 @@ BMIrompatchDeactivate(HIF_DEVICE *device,
 
 int
 BMILZData(HIF_DEVICE *device,
-          A_UCHAR *buffer,
+          u8 *buffer,
           u32 length)
 {
     u32 cid;
@@ -735,7 +735,7 @@ BMILZStreamStart(HIF_DEVICE *device,
 /* BMI Access routines */
 int
 bmiBufferSend(HIF_DEVICE *device,
-              A_UCHAR *buffer,
+              u8 *buffer,
               u32 length)
 {
     int status;
@@ -783,7 +783,7 @@ bmiBufferSend(HIF_DEVICE *device,
 
 int
 bmiBufferReceive(HIF_DEVICE *device,
-                 A_UCHAR *buffer,
+                 u8 *buffer,
                  u32 length,
                  bool want_timeout)
 {
@@ -958,7 +958,7 @@ bmiBufferReceive(HIF_DEVICE *device,
 }
 
 int
-BMIFastDownload(HIF_DEVICE *device, u32 address, A_UCHAR *buffer, u32 length)
+BMIFastDownload(HIF_DEVICE *device, u32 address, u8 *buffer, u32 length)
 {
     int status = A_ERROR;
     u32 lastWord = 0;
@@ -998,13 +998,13 @@ BMIFastDownload(HIF_DEVICE *device, u32 address, A_UCHAR *buffer, u32 length)
 }
 
 int
-BMIRawWrite(HIF_DEVICE *device, A_UCHAR *buffer, u32 length)
+BMIRawWrite(HIF_DEVICE *device, u8 *buffer, u32 length)
 {
     return bmiBufferSend(device, buffer, length);
 }
 
 int
-BMIRawRead(HIF_DEVICE *device, A_UCHAR *buffer, u32 length, bool want_timeout)
+BMIRawRead(HIF_DEVICE *device, u8 *buffer, u32 length, bool want_timeout)
 {
     return bmiBufferReceive(device, buffer, length, want_timeout);
 }

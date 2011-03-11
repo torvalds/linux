@@ -124,7 +124,7 @@ enum searchType {
  * instance of table).
  */
 typedef PREPACK struct dbMasterTable_t {    /* Hold ptrs to Table data structures */
-    A_UCHAR     numOfEntries;
+    u8     numOfEntries;
     char entrySize;      /* Entry size per table row */
     char searchType;     /* Index based access or key based */
     char reserved[3];    /* for alignment */

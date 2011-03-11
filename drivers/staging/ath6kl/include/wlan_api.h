@@ -108,7 +108,7 @@ void
 wlan_refresh_inactive_nodes (struct ieee80211_node_table *nt);
 
 bss_t *
-wlan_find_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
+wlan_find_Ssidnode (struct ieee80211_node_table *nt, u8 *pSsid,
                     u32 ssidLength, bool bIsWPA2, bool bMatchSSID);
 
 void
@@ -117,7 +117,7 @@ wlan_node_return (struct ieee80211_node_table *nt, bss_t *ni);
 bss_t *wlan_node_remove(struct ieee80211_node_table *nt, u8 *bssid);
 
 bss_t *
-wlan_find_matching_Ssidnode (struct ieee80211_node_table *nt, A_UCHAR *pSsid,
+wlan_find_matching_Ssidnode (struct ieee80211_node_table *nt, u8 *pSsid,
                     u32 ssidLength, u32 dot11AuthMode, u32 authMode,
                    u32 pairwiseCryptoType, u32 grpwiseCryptoTyp);
 
