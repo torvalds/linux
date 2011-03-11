@@ -89,12 +89,12 @@ typedef PREPACK struct _AR6K_GMBOX_CTRL_REGISTERS {
 #define AR6K_MIN_TRANSFER_SIZE_PER_SCATTER      4*1024
 
 /* buffers for ASYNC I/O */
-typedef struct AR6K_ASYNC_REG_IO_BUFFER {
+struct ar6k_async_reg_io_buffer {
     HTC_PACKET    HtcPacket;   /* we use an HTC packet as a wrapper for our async register-based I/O */
     u8 _Pad1[A_CACHE_LINE_PAD];
     u8 Buffer[AR6K_REG_IO_BUFFER_SIZE];  /* cache-line safe with pads around */
     u8 _Pad2[A_CACHE_LINE_PAD];
-} AR6K_ASYNC_REG_IO_BUFFER;
+};
 
 typedef struct _AR6K_GMBOX_INFO { 
     void        *pProtocolContext;
@@ -119,7 +119,7 @@ typedef struct _AR6K_DEVICE {
     HIF_PENDING_EVENTS_FUNC     GetPendingEventsFunc;
     void                        *HTCContext;
     HTC_PACKET_QUEUE            RegisterIOList;
-    AR6K_ASYNC_REG_IO_BUFFER    RegIOBuffers[AR6K_MAX_REG_IO_BUFFERS];
+    struct ar6k_async_reg_io_buffer    RegIOBuffers[AR6K_MAX_REG_IO_BUFFERS];
     void                        (*TargetFailureCallback)(void *Context);
     int                    (*MessagePendingCallback)(void *Context,
                                                           u32 LookAheads[],
