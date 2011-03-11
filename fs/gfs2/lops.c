@@ -80,7 +80,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	mark_buffer_dirty(bh);
 	clear_buffer_pinned(bh);
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ail_lock);
 	if (bd->bd_ail) {
 		list_del(&bd->bd_ail_st_list);
 		brelse(bh);
@@ -91,10 +91,11 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	}
 	bd->bd_ail = ai;
 	list_add(&bd->bd_ail_st_list, &ai->ai_ail1_list);
+	spin_unlock(&sdp->sd_ail_lock);
+
 	if (test_and_clear_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags))
 		gfs2_glock_schedule_for_reclaim(bd->bd_gl);
 	trace_gfs2_pin(bd, 0);
-	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
 	atomic_dec(&sdp->sd_log_pinned);
 }

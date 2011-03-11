@@ -99,6 +99,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_waitqueue_head(&sdp->sd_log_waitq);
 	init_waitqueue_head(&sdp->sd_logd_waitq);
+	spin_lock_init(&sdp->sd_ail_lock);
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 

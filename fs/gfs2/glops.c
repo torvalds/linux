@@ -56,20 +56,26 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	BUG_ON(current->journal_info);
 	current->journal_info = &tr;
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ail_lock);
 	while (!list_empty(head)) {
 		bd = list_entry(head->next, struct gfs2_bufdata,
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
 		gfs2_remove_from_ail(bd);
+		spin_unlock(&sdp->sd_ail_lock);
+
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
 		bd->bd_blkno = bh->b_blocknr;
+		gfs2_log_lock(sdp);
 		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
 		gfs2_trans_add_revoke(sdp, bd);
+		gfs2_log_unlock(sdp);
+
+		spin_lock(&sdp->sd_ail_lock);
 	}
 	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_ail_lock);
 
 	gfs2_trans_end(sdp);
 	gfs2_log_flush(sdp, NULL);

@@ -651,6 +651,7 @@ struct gfs2_sbd {
 	unsigned int sd_log_flush_head;
 	u64 sd_log_flush_wrapped;
 
+	spinlock_t sd_ail_lock;
 	struct list_head sd_ail1_list;
 	struct list_head sd_ail2_list;
 	u64 sd_ail_sync_gen;
