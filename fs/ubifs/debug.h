@@ -27,7 +27,6 @@
 
 /**
  * ubifs_debug_info - per-FS debugging information.
- * @buf: a buffer of LEB size, used for various purposes
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
@@ -54,7 +53,6 @@
  * dfs_dump_tnc: "dump TNC" debugfs knob
  */
 struct ubifs_debug_info {
-	void *buf;
 	struct ubifs_zbranch old_zroot;
 	int old_zroot_level;
 	unsigned long long old_zroot_sqnum;

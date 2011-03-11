@@ -2701,16 +2701,8 @@ int ubifs_debugging_init(struct ubifs_info *c)
 	if (!c->dbg)
 		return -ENOMEM;
 
-	c->dbg->buf = vmalloc(c->leb_size);
-	if (!c->dbg->buf)
-		goto out;
-
 	failure_mode_init(c);
 	return 0;
-
-out:
-	kfree(c->dbg);
-	return -ENOMEM;
 }
 
 /**
@@ -2720,7 +2712,6 @@ out:
 void ubifs_debugging_exit(struct ubifs_info *c)
 {
 	failure_mode_exit(c);
-	vfree(c->dbg->buf);
 	kfree(c->dbg);
 }
 
