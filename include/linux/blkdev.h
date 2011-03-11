@@ -1297,15 +1297,18 @@ static inline long nr_blockdev_pages(void)
 	return 0;
 }
 
-static inline void blk_start_plug(struct list_head *list)
+struct blk_plug {
+};
+
+static inline void blk_start_plug(struct blk_plug *plug)
 {
 }
 
-static inline void blk_finish_plug(struct list_head *list)
+static inline void blk_finish_plug(struct blk_plug *plug)
 {
 }
 
-static inline void blk_flush_plug(struct task_struct *tsk)
+static inline void blk_flush_plug(struct task_struct *task)
 {
 }
 
