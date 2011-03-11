@@ -1713,6 +1713,17 @@ struct lpfc_pde6 {
 #define pde6_apptagval_WORD	word2
 };
 
+struct lpfc_pde7 {
+	uint32_t word0;
+#define pde7_type_SHIFT		24
+#define pde7_type_MASK		0x000000ff
+#define pde7_type_WORD		word0
+#define pde7_rsvd0_SHIFT	0
+#define pde7_rsvd0_MASK		0x00ffffff
+#define pde7_rsvd0_WORD		word0
+	uint32_t addrHigh;
+	uint32_t addrLow;
+};
 
 /* Structure for MB Command LOAD_SM and DOWN_LOAD */
 

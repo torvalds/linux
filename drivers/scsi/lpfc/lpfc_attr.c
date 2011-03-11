@@ -685,7 +685,7 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
  * -EIO reset not configured or error posting the event
  * zero for success
  **/
-static int
+int
 lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
@@ -746,7 +746,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 	int status = -EINVAL;
 
 	if (strncmp(buf, "selective", sizeof("selective") - 1) == 0)
-		status = lpfc_selective_reset(phba);
+		status = phba->lpfc_selective_reset(phba);
 
 	if (status == 0)
 		return strlen(buf);

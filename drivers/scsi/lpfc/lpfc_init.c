@@ -4474,6 +4474,7 @@ lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
 	phba->lpfc_hba_init_link = lpfc_hba_init_link;
 	phba->lpfc_hba_down_link = lpfc_hba_down_link;
+	phba->lpfc_selective_reset = lpfc_selective_reset;
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_hba_down_post = lpfc_hba_down_post_s3;
