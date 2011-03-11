@@ -616,7 +616,6 @@ struct rtl8169_private {
 	u16 intr_event;
 	u16 napi_event;
 	u16 intr_mask;
-	int phy_1000_ctrl_reg;
 
 	struct mdio_ops {
 		void (*write)(void __iomem *, int, int);
@@ -1288,8 +1287,6 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 			bmcr |= BMCR_FULLDPLX;
 	}
 
-	tp->phy_1000_ctrl_reg = giga_ctrl;
-
 	rtl_writephy(tp, MII_BMCR, bmcr);
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_02 ||
@@ -1315,10 +1312,14 @@ static int rtl8169_set_speed(struct net_device *dev,
 	int ret;
 
 	ret = tp->set_speed(dev, autoneg, speed, duplex, advertising);
+	if (ret < 0)
+		goto out;
 
-	if (netif_running(dev) && (tp->phy_1000_ctrl_reg & ADVERTISE_1000FULL))
+	if (netif_running(dev) && (autoneg == AUTONEG_ENABLE) &&
+	    (advertising & ADVERTISED_1000baseT_Full)) {
 		mod_timer(&tp->timer, jiffies + RTL8169_PHY_TIMEOUT);
-
+	}
+out:
 	return ret;
 }
 
@@ -1327,6 +1328,8 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	unsigned long flags;
 	int ret;
+
+	del_timer_sync(&tp->timer);
 
 	spin_lock_irqsave(&tp->lock, flags);
 	ret = rtl8169_set_speed(dev, cmd->autoneg, ethtool_cmd_speed(cmd),
@@ -2691,9 +2694,6 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 
 	assert(tp->mac_version > RTL_GIGA_MAC_VER_01);
 
-	if (!(tp->phy_1000_ctrl_reg & ADVERTISE_1000FULL))
-		return;
-
 	spin_lock_irq(&tp->lock);
 
 	if (tp->phy_reset_pending(tp)) {
@@ -2716,28 +2716,6 @@ out_mod_timer:
 	mod_timer(timer, jiffies + timeout);
 out_unlock:
 	spin_unlock_irq(&tp->lock);
-}
-
-static inline void rtl8169_delete_timer(struct net_device *dev)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct timer_list *timer = &tp->timer;
-
-	if (tp->mac_version <= RTL_GIGA_MAC_VER_01)
-		return;
-
-	del_timer_sync(timer);
-}
-
-static inline void rtl8169_request_timer(struct net_device *dev)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-	struct timer_list *timer = &tp->timer;
-
-	if (tp->mac_version <= RTL_GIGA_MAC_VER_01)
-		return;
-
-	mod_timer(timer, jiffies + RTL8169_PHY_TIMEOUT);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -3396,8 +3374,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		tp->phy_reset_pending = rtl8169_tbi_reset_pending;
 		tp->link_ok = rtl8169_tbi_link_ok;
 		tp->do_ioctl = rtl_tbi_ioctl;
-
-		tp->phy_1000_ctrl_reg = ADVERTISE_1000FULL; /* Implied by TBI */
 	} else {
 		tp->set_speed = rtl8169_set_speed_xmii;
 		tp->get_settings = rtl8169_gset_xmii;
@@ -3592,8 +3568,6 @@ static int rtl8169_open(struct net_device *dev)
 	rtl_pll_power_up(tp);
 
 	rtl_hw_start(dev);
-
-	rtl8169_request_timer(dev);
 
 	tp->saved_wolopts = 0;
 	pm_runtime_put_noidle(&pdev->dev);
@@ -5147,7 +5121,7 @@ static void rtl8169_down(struct net_device *dev)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 
-	rtl8169_delete_timer(dev);
+	del_timer_sync(&tp->timer);
 
 	netif_stop_queue(dev);
 
