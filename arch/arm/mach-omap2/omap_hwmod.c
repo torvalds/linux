@@ -1244,7 +1244,9 @@ static int _enable(struct omap_hwmod *oh)
 		_deassert_hardreset(oh, oh->rst_lines[0].name);
 
 	/* Mux pins for device runtime if populated */
-	if (oh->mux)
+	if (oh->mux && (!oh->mux->enabled ||
+			((oh->_state == _HWMOD_STATE_IDLE) &&
+			 oh->mux->pads_dynamic)))
 		omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
 
 	_add_initiator_dep(oh, mpu_oh);
@@ -1293,7 +1295,7 @@ static int _idle(struct omap_hwmod *oh)
 	_disable_clocks(oh);
 
 	/* Mux pins for device idle if populated */
-	if (oh->mux)
+	if (oh->mux && oh->mux->pads_dynamic)
 		omap_hwmod_mux(oh->mux, _HWMOD_STATE_IDLE);
 
 	oh->_state = _HWMOD_STATE_IDLE;

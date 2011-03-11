@@ -90,6 +90,9 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
 struct omap_hwmod_mux_info {
 	int				nr_pads;
 	struct omap_device_pad		*pads;
+	int				nr_pads_dynamic;
+	struct omap_device_pad		**pads_dynamic;
+	bool				enabled;
 };
 
 /**
