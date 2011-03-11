@@ -202,6 +202,7 @@ config USB_LIBUSUAL
 config USB_STORAGE_ENE_UB6250
 	tristate "USB ENE card reader support"
 	depends on USB && SCSI
+	depends on USB_STORAGE
 	---help---
 	  Say Y here if you wish to control a ENE SD Card reader.
 	  To use SM/MS card, please build driver/staging/keucr/keucr.ko
