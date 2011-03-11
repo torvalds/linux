@@ -33,7 +33,7 @@
 #include "bmi_internal.h"
 
 #ifdef ATH_DEBUG_MODULE
-static ATH_DEBUG_MASK_DESCRIPTION bmi_debug_desc[] = {
+static struct ath_debug_mask_description bmi_debug_desc[] = {
     { ATH_DEBUG_BMI , "BMI Tracing"},
 };
 

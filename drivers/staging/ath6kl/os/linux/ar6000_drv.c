@@ -60,7 +60,7 @@ u8 null_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 #define  ATH_DEBUG_HTC_RAW       ATH_DEBUG_MAKE_MODULE_MASK(5)
 #define  ATH_DEBUG_HCI_BRIDGE    ATH_DEBUG_MAKE_MODULE_MASK(6)
 
-static ATH_DEBUG_MASK_DESCRIPTION driver_debug_desc[] = {
+static struct ath_debug_mask_description driver_debug_desc[] = {
     { ATH_DEBUG_DBG_LOG      , "Target Debug Logs"},
     { ATH_DEBUG_WLAN_CONNECT , "WLAN connect"},
     { ATH_DEBUG_WLAN_SCAN    , "WLAN scan"},

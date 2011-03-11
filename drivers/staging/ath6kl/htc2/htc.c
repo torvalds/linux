@@ -23,7 +23,7 @@
 #include "htc_internal.h"
 
 #ifdef ATH_DEBUG_MODULE
-static ATH_DEBUG_MASK_DESCRIPTION g_HTCDebugDescription[] = {
+static struct ath_debug_mask_description g_HTCDebugDescription[] = {
     { ATH_DEBUG_SEND , "Send"},
     { ATH_DEBUG_RECV , "Recv"},
     { ATH_DEBUG_SYNC , "Sync"},

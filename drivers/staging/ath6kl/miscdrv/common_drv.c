@@ -834,7 +834,7 @@ void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription)
 void a_dump_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo)
 {
     int                         i;
-    ATH_DEBUG_MASK_DESCRIPTION *pDesc;
+    struct ath_debug_mask_description *pDesc;
 
     if (pInfo == NULL) {
         return;

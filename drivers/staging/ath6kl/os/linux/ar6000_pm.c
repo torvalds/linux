@@ -44,7 +44,7 @@ extern void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, b
 #define  ATH_DEBUG_PM       ATH_DEBUG_MAKE_MODULE_MASK(0)
 
 #ifdef DEBUG
-static ATH_DEBUG_MASK_DESCRIPTION pm_debug_desc[] = {
+static struct ath_debug_mask_description pm_debug_desc[] = {
     { ATH_DEBUG_PM     , "System power management"},
 };
 

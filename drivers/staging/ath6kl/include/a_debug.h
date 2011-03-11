@@ -95,7 +95,7 @@ void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
  *   #define ATH_DEBUG_BMI  ATH_DEBUG_MAKE_MODULE_MASK(0)
  *
  *   #ifdef DEBUG
- *   static ATH_DEBUG_MASK_DESCRIPTION bmi_debug_desc[] = {
+ *   static struct ath_debug_mask_description bmi_debug_desc[] = {
  *       { ATH_DEBUG_BMI , "BMI Tracing"},   <== description of the module specific mask
  *   };
  *
@@ -118,10 +118,10 @@ void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
 #define ATH_DEBUG_MAX_MASK_DESC_LENGTH   32
 #define ATH_DEBUG_MAX_MOD_DESC_LENGTH    64
 
-typedef struct {
+struct ath_debug_mask_description {
     u32 Mask;
     char Description[ATH_DEBUG_MAX_MASK_DESC_LENGTH];
-} ATH_DEBUG_MASK_DESCRIPTION;
+};
 
 #define ATH_DEBUG_INFO_FLAGS_REGISTERED (1 << 0)
 
@@ -132,10 +132,10 @@ typedef struct  _ATH_DEBUG_MODULE_DBG_INFO{
     u32 Flags;
     u32 CurrentMask;
     int                         MaxDescriptions;
-    ATH_DEBUG_MASK_DESCRIPTION  *pMaskDescriptions; /* pointer to array of descriptions */
+    struct ath_debug_mask_description  *pMaskDescriptions; /* pointer to array of descriptions */
 } ATH_DEBUG_MODULE_DBG_INFO;
 
-#define ATH_DEBUG_DESCRIPTION_COUNT(d)  (int)((sizeof((d))) / (sizeof(ATH_DEBUG_MASK_DESCRIPTION)))
+#define ATH_DEBUG_DESCRIPTION_COUNT(d)  (int)((sizeof((d))) / (sizeof(struct ath_debug_mask_description)))
 
 #define GET_ATH_MODULE_DEBUG_VAR_NAME(s) _XGET_ATH_MODULE_NAME_DEBUG_(s)
 #define GET_ATH_MODULE_DEBUG_VAR_MASK(s) _XGET_ATH_MODULE_NAME_DEBUG_(s).CurrentMask
