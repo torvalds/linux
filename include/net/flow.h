@@ -14,13 +14,19 @@ struct flowi {
 	int	oif;
 	int	iif;
 	__u32	mark;
+	__u8	tos;
+	__u8	scope;
+	__u8	proto;
+	__u8	flags;
+#define FLOWI_FLAG_ANYSRC		0x01
+#define FLOWI_FLAG_PRECOW_METRICS	0x02
+#define FLOWI_FLAG_CAN_SLEEP		0x04
+	__u32	secid;
 
 	union {
 		struct {
 			__be32			daddr;
 			__be32			saddr;
-			__u8			tos;
-			__u8			scope;
 		} ip4_u;
 		
 		struct {
@@ -43,14 +49,9 @@ struct flowi {
 #define fl6_flowlabel	nl_u.ip6_u.flowlabel
 #define fl4_dst		nl_u.ip4_u.daddr
 #define fl4_src		nl_u.ip4_u.saddr
-#define fl4_tos		nl_u.ip4_u.tos
-#define fl4_scope	nl_u.ip4_u.scope
+#define fl4_tos		tos
+#define fl4_scope	scope
 
-	__u8	proto;
-	__u8	flags;
-#define FLOWI_FLAG_ANYSRC		0x01
-#define FLOWI_FLAG_PRECOW_METRICS	0x02
-#define FLOWI_FLAG_CAN_SLEEP		0x04
 	union {
 		struct {
 			__be16	sport;
@@ -81,7 +82,6 @@ struct flowi {
 #define fl_ipsec_spi	uli_u.spi
 #define fl_mh_type	uli_u.mht.type
 #define fl_gre_key	uli_u.gre_key
-	__u32           secid;	/* used by xfrm; see secid.txt */
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
 #define FLOW_DIR_IN	0
