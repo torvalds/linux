@@ -2014,3 +2014,42 @@ err:
 					attribs_cmd.dma);
 	return status;
 }
+
+/* Uses mbox */
+int be_cmd_check_native_mode(struct be_adapter *adapter)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_func_cap *req;
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+		OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP, sizeof(*req));
+
+	req->valid_cap_flags = cpu_to_le32(CAPABILITY_SW_TIMESTAMPS |
+				CAPABILITY_BE3_NATIVE_ERX_API);
+	req->cap_flags = cpu_to_le32(CAPABILITY_BE3_NATIVE_ERX_API);
+
+	status = be_mbox_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_set_func_cap *resp = embedded_payload(wrb);
+		adapter->be3_native = le32_to_cpu(resp->cap_flags) &
+					CAPABILITY_BE3_NATIVE_ERX_API;
+	}
+err:
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}

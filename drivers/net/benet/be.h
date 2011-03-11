@@ -67,7 +67,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 }
 
 /* Number of bytes of an RX frame that are copied to skb->data */
-#define BE_HDR_LEN 		64
+#define BE_HDR_LEN		((u16) 64)
 #define BE_MAX_JUMBO_FRAME_SIZE	9018
 #define BE_MIN_MTU		256
 
@@ -211,10 +211,30 @@ struct be_rx_stats {
 	u32 rx_fps;		/* Rx frags per second */
 };
 
+struct be_rx_compl_info {
+	u32 rss_hash;
+	u16 vid;
+	u16 pkt_size;
+	u16 rxq_idx;
+	u16 mac_id;
+	u8 vlanf;
+	u8 num_rcvd;
+	u8 err;
+	u8 ipf;
+	u8 tcpf;
+	u8 udpf;
+	u8 ip_csum;
+	u8 l4_csum;
+	u8 ipv6;
+	u8 vtm;
+	u8 pkt_type;
+};
+
 struct be_rx_obj {
 	struct be_adapter *adapter;
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	struct be_rx_compl_info rxcp;
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
 	struct be_eq_obj rx_eq;
 	struct be_rx_stats stats;
@@ -312,6 +332,7 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion flash_compl;
 
+	bool be3_native;
 	bool sriov_enabled;
 	struct be_vf_cfg vf_cfg[BE_MAX_VF];
 	u8 is_virtfn;

@@ -301,10 +301,10 @@ struct be_eth_rx_d {
 
 /* RX Compl Queue Descriptor */
 
-/* Pseudo amap definition for eth_rx_compl in which each bit of the
- * actual structure is defined as a byte: used to calculate
+/* Pseudo amap definition for BE2 and BE3 legacy mode eth_rx_compl in which
+ * each bit of the actual structure is defined as a byte: used to calculate
  * offset/shift/mask of each field */
-struct amap_eth_rx_compl {
+struct amap_eth_rx_compl_v0 {
 	u8 vlan_tag[16];	/* dword 0 */
 	u8 pktsize[14];		/* dword 0 */
 	u8 port;		/* dword 0 */
@@ -331,6 +331,41 @@ struct amap_eth_rx_compl {
 	u8 rsvd1[23];		/* dword 2 */
 	u8 lro_pkt;		/* dword 2 */
 	u8 rsvd2[2];		/* dword 2 */
+	u8 valid;		/* dword 2 */
+	u8 rsshash[32];		/* dword 3 */
+} __packed;
+
+/* Pseudo amap definition for BE3 native mode eth_rx_compl in which
+ * each bit of the actual structure is defined as a byte: used to calculate
+ * offset/shift/mask of each field */
+struct amap_eth_rx_compl_v1 {
+	u8 vlan_tag[16];	/* dword 0 */
+	u8 pktsize[14];		/* dword 0 */
+	u8 vtp;			/* dword 0 */
+	u8 ip_opt;		/* dword 0 */
+	u8 err;			/* dword 1 */
+	u8 rsshp;		/* dword 1 */
+	u8 ipf;			/* dword 1 */
+	u8 tcpf;		/* dword 1 */
+	u8 udpf;		/* dword 1 */
+	u8 ipcksm;		/* dword 1 */
+	u8 l4_cksm;		/* dword 1 */
+	u8 ip_version;		/* dword 1 */
+	u8 macdst[7];		/* dword 1 */
+	u8 rsvd0;		/* dword 1 */
+	u8 fragndx[10];		/* dword 1 */
+	u8 ct[2];		/* dword 1 */
+	u8 sw;			/* dword 1 */
+	u8 numfrags[3];		/* dword 1 */
+	u8 rss_flush;		/* dword 2 */
+	u8 cast_enc[2];		/* dword 2 */
+	u8 vtm;			/* dword 2 */
+	u8 rss_bank;		/* dword 2 */
+	u8 port[2];		/* dword 2 */
+	u8 vntagp;		/* dword 2 */
+	u8 header_len[8];	/* dword 2 */
+	u8 header_split[2];	/* dword 2 */
+	u8 rsvd1[13];		/* dword 2 */
 	u8 valid;		/* dword 2 */
 	u8 rsshash[32];		/* dword 3 */
 } __packed;

@@ -25,9 +25,9 @@ MODULE_DESCRIPTION(DRV_DESC " " DRV_VER);
 MODULE_AUTHOR("ServerEngines Corporation");
 MODULE_LICENSE("GPL");
 
-static unsigned int rx_frag_size = 2048;
+static ushort rx_frag_size = 2048;
 static unsigned int num_vfs;
-module_param(rx_frag_size, uint, S_IRUGO);
+module_param(rx_frag_size, ushort, S_IRUGO);
 module_param(num_vfs, uint, S_IRUGO);
 MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 MODULE_PARM_DESC(num_vfs, "Number of PCI VFs to initialize");
@@ -851,31 +851,26 @@ static void be_rx_rate_update(struct be_rx_obj *rxo)
 }
 
 static void be_rx_stats_update(struct be_rx_obj *rxo,
-		u32 pktsize, u16 numfrags, u8 pkt_type)
+		struct be_rx_compl_info *rxcp)
 {
 	struct be_rx_stats *stats = &rxo->stats;
 
 	stats->rx_compl++;
-	stats->rx_frags += numfrags;
-	stats->rx_bytes += pktsize;
+	stats->rx_frags += rxcp->num_rcvd;
+	stats->rx_bytes += rxcp->pkt_size;
 	stats->rx_pkts++;
-	if (pkt_type == BE_MULTICAST_PACKET)
+	if (rxcp->pkt_type == BE_MULTICAST_PACKET)
 		stats->rx_mcast_pkts++;
+	if (rxcp->err)
+		stats->rxcp_err++;
 }
 
-static inline bool csum_passed(struct be_eth_rx_compl *rxcp)
+static inline bool csum_passed(struct be_rx_compl_info *rxcp)
 {
-	u8 l4_cksm, ipv6, ipcksm, tcpf, udpf;
-
-	l4_cksm = AMAP_GET_BITS(struct amap_eth_rx_compl, l4_cksm, rxcp);
-	ipcksm = AMAP_GET_BITS(struct amap_eth_rx_compl, ipcksm, rxcp);
-	ipv6 = AMAP_GET_BITS(struct amap_eth_rx_compl, ip_version, rxcp);
-	tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl, tcpf, rxcp);
-	udpf = AMAP_GET_BITS(struct amap_eth_rx_compl, udpf, rxcp);
-
 	/* L4 checksum is not reliable for non TCP/UDP packets.
 	 * Also ignore ipcksm for ipv6 pkts */
-	return (tcpf || udpf) && l4_cksm && (ipcksm || ipv6);
+	return (rxcp->tcpf || rxcp->udpf) && rxcp->l4_csum &&
+				(rxcp->ip_csum || rxcp->ipv6);
 }
 
 static struct be_rx_page_info *
@@ -903,20 +898,17 @@ get_rx_page_info(struct be_adapter *adapter,
 /* Throwaway the data in the Rx completion */
 static void be_rx_compl_discard(struct be_adapter *adapter,
 		struct be_rx_obj *rxo,
-		struct be_eth_rx_compl *rxcp)
+		struct be_rx_compl_info *rxcp)
 {
 	struct be_queue_info *rxq = &rxo->q;
 	struct be_rx_page_info *page_info;
-	u16 rxq_idx, i, num_rcvd;
-
-	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
-	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
+	u16 i, num_rcvd = rxcp->num_rcvd;
 
 	for (i = 0; i < num_rcvd; i++) {
-		page_info = get_rx_page_info(adapter, rxo, rxq_idx);
+		page_info = get_rx_page_info(adapter, rxo, rxcp->rxq_idx);
 		put_page(page_info->page);
 		memset(page_info, 0, sizeof(*page_info));
-		index_inc(&rxq_idx, rxq->len);
+		index_inc(&rxcp->rxq_idx, rxq->len);
 	}
 }
 
@@ -925,30 +917,23 @@ static void be_rx_compl_discard(struct be_adapter *adapter,
  * indicated by rxcp.
  */
 static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
-			struct sk_buff *skb, struct be_eth_rx_compl *rxcp,
-			u16 num_rcvd)
+			struct sk_buff *skb, struct be_rx_compl_info *rxcp)
 {
 	struct be_queue_info *rxq = &rxo->q;
 	struct be_rx_page_info *page_info;
-	u16 rxq_idx, i, j;
-	u32 pktsize, hdr_len, curr_frag_len, size;
+	u16 i, j;
+	u16 hdr_len, curr_frag_len, remaining;
 	u8 *start;
-	u8 pkt_type;
 
-	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
-	pktsize = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
-	pkt_type = AMAP_GET_BITS(struct amap_eth_rx_compl, cast_enc, rxcp);
-
-	page_info = get_rx_page_info(adapter, rxo, rxq_idx);
-
+	page_info = get_rx_page_info(adapter, rxo, rxcp->rxq_idx);
 	start = page_address(page_info->page) + page_info->page_offset;
 	prefetch(start);
 
 	/* Copy data in the first descriptor of this completion */
-	curr_frag_len = min(pktsize, rx_frag_size);
+	curr_frag_len = min(rxcp->pkt_size, rx_frag_size);
 
 	/* Copy the header portion into skb_data */
-	hdr_len = min((u32)BE_HDR_LEN, curr_frag_len);
+	hdr_len = min(BE_HDR_LEN, curr_frag_len);
 	memcpy(skb->data, start, hdr_len);
 	skb->len = curr_frag_len;
 	if (curr_frag_len <= BE_HDR_LEN) { /* tiny packet */
@@ -967,19 +952,17 @@ static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
 	}
 	page_info->page = NULL;
 
-	if (pktsize <= rx_frag_size) {
-		BUG_ON(num_rcvd != 1);
-		goto done;
+	if (rxcp->pkt_size <= rx_frag_size) {
+		BUG_ON(rxcp->num_rcvd != 1);
+		return;
 	}
 
 	/* More frags present for this completion */
-	size = pktsize;
-	for (i = 1, j = 0; i < num_rcvd; i++) {
-		size -= curr_frag_len;
-		index_inc(&rxq_idx, rxq->len);
-		page_info = get_rx_page_info(adapter, rxo, rxq_idx);
-
-		curr_frag_len = min(size, rx_frag_size);
+	index_inc(&rxcp->rxq_idx, rxq->len);
+	remaining = rxcp->pkt_size - curr_frag_len;
+	for (i = 1, j = 0; i < rxcp->num_rcvd; i++) {
+		page_info = get_rx_page_info(adapter, rxo, rxcp->rxq_idx);
+		curr_frag_len = min(remaining, rx_frag_size);
 
 		/* Coalesce all frags from the same physical page in one slot */
 		if (page_info->page_offset == 0) {
@@ -998,25 +981,19 @@ static void skb_fill_rx_data(struct be_adapter *adapter, struct be_rx_obj *rxo,
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
 
+		remaining -= curr_frag_len;
+		index_inc(&rxcp->rxq_idx, rxq->len);
 		page_info->page = NULL;
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
-
-done:
-	be_rx_stats_update(rxo, pktsize, num_rcvd, pkt_type);
 }
 
 /* Process the RX completion indicated by rxcp when GRO is disabled */
 static void be_rx_compl_process(struct be_adapter *adapter,
 			struct be_rx_obj *rxo,
-			struct be_eth_rx_compl *rxcp)
+			struct be_rx_compl_info *rxcp)
 {
 	struct sk_buff *skb;
-	u32 vlanf, vid;
-	u16 num_rcvd;
-	u8 vtm;
-
-	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 
 	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
 	if (unlikely(!skb)) {
@@ -1026,7 +1003,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 		return;
 	}
 
-	skb_fill_rx_data(adapter, rxo, skb, rxcp, num_rcvd);
+	skb_fill_rx_data(adapter, rxo, skb, rxcp);
 
 	if (likely(adapter->rx_csum && csum_passed(rxcp)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1036,26 +1013,12 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 
-	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
-	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
-
-	/* vlanf could be wrongly set in some cards.
-	 * ignore if vtm is not set */
-	if ((adapter->function_mode & 0x400) && !vtm)
-		vlanf = 0;
-
-	if ((adapter->pvid == vlanf) && !adapter->vlan_tag[vlanf])
-		vlanf = 0;
-
-	if (unlikely(vlanf)) {
+	if (unlikely(rxcp->vlanf)) {
 		if (!adapter->vlan_grp || adapter->vlans_added == 0) {
 			kfree_skb(skb);
 			return;
 		}
-		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		if (!lancer_chip(adapter))
-			vid = swab16(vid);
-		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, vid);
+		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, rxcp->vid);
 	} else {
 		netif_receive_skb(skb);
 	}
@@ -1064,31 +1027,14 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 /* Process the RX completion indicated by rxcp when GRO is enabled */
 static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		struct be_rx_obj *rxo,
-		struct be_eth_rx_compl *rxcp)
+		struct be_rx_compl_info *rxcp)
 {
 	struct be_rx_page_info *page_info;
 	struct sk_buff *skb = NULL;
 	struct be_queue_info *rxq = &rxo->q;
 	struct be_eq_obj *eq_obj =  &rxo->rx_eq;
-	u32 num_rcvd, pkt_size, remaining, vlanf, curr_frag_len;
-	u16 i, rxq_idx = 0, vid, j;
-	u8 vtm;
-	u8 pkt_type;
-
-	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
-	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
-	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
-	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
-	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
-	pkt_type = AMAP_GET_BITS(struct amap_eth_rx_compl, cast_enc, rxcp);
-
-	/* vlanf could be wrongly set in some cards.
-	 * ignore if vtm is not set */
-	if ((adapter->function_mode & 0x400) && !vtm)
-		vlanf = 0;
-
-	if ((adapter->pvid == vlanf) && !adapter->vlan_tag[vlanf])
-		vlanf = 0;
+	u16 remaining, curr_frag_len;
+	u16 i, j;
 
 	skb = napi_get_frags(&eq_obj->napi);
 	if (!skb) {
@@ -1096,9 +1042,9 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		return;
 	}
 
-	remaining = pkt_size;
-	for (i = 0, j = -1; i < num_rcvd; i++) {
-		page_info = get_rx_page_info(adapter, rxo, rxq_idx);
+	remaining = rxcp->pkt_size;
+	for (i = 0, j = -1; i < rxcp->num_rcvd; i++) {
+		page_info = get_rx_page_info(adapter, rxo, rxcp->rxq_idx);
 
 		curr_frag_len = min(remaining, rx_frag_size);
 
@@ -1116,54 +1062,107 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		skb_shinfo(skb)->frags[j].size += curr_frag_len;
 
 		remaining -= curr_frag_len;
-		index_inc(&rxq_idx, rxq->len);
+		index_inc(&rxcp->rxq_idx, rxq->len);
 		memset(page_info, 0, sizeof(*page_info));
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
 
 	skb_shinfo(skb)->nr_frags = j + 1;
-	skb->len = pkt_size;
-	skb->data_len = pkt_size;
-	skb->truesize += pkt_size;
+	skb->len = rxcp->pkt_size;
+	skb->data_len = rxcp->pkt_size;
+	skb->truesize += rxcp->pkt_size;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	if (likely(!vlanf)) {
+	if (likely(!rxcp->vlanf))
 		napi_gro_frags(&eq_obj->napi);
-	} else {
-		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		if (!lancer_chip(adapter))
-			vid = swab16(vid);
-
-		if (!adapter->vlan_grp || adapter->vlans_added == 0)
-			return;
-
-		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, vid);
-	}
-
-	be_rx_stats_update(rxo, pkt_size, num_rcvd, pkt_type);
+	else
+		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, rxcp->vid);
 }
 
-static struct be_eth_rx_compl *be_rx_compl_get(struct be_rx_obj *rxo)
+static void be_parse_rx_compl_v1(struct be_adapter *adapter,
+				struct be_eth_rx_compl *compl,
+				struct be_rx_compl_info *rxcp)
 {
-	struct be_eth_rx_compl *rxcp = queue_tail_node(&rxo->cq);
+	rxcp->pkt_size =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, pktsize, compl);
+	rxcp->vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtp, compl);
+	rxcp->err = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, err, compl);
+	rxcp->tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, tcpf, compl);
+	rxcp->ip_csum =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, ipcksm, compl);
+	rxcp->l4_csum =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, l4_cksm, compl);
+	rxcp->ipv6 =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, ip_version, compl);
+	rxcp->rxq_idx =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, fragndx, compl);
+	rxcp->num_rcvd =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, numfrags, compl);
+	rxcp->pkt_type =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, cast_enc, compl);
+	rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtm, compl);
+	rxcp->vid = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vlan_tag, compl);
+}
 
-	if (rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] == 0)
+static void be_parse_rx_compl_v0(struct be_adapter *adapter,
+				struct be_eth_rx_compl *compl,
+				struct be_rx_compl_info *rxcp)
+{
+	rxcp->pkt_size =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, pktsize, compl);
+	rxcp->vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtp, compl);
+	rxcp->err = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, err, compl);
+	rxcp->tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, tcpf, compl);
+	rxcp->ip_csum =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, ipcksm, compl);
+	rxcp->l4_csum =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, l4_cksm, compl);
+	rxcp->ipv6 =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, ip_version, compl);
+	rxcp->rxq_idx =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, fragndx, compl);
+	rxcp->num_rcvd =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, numfrags, compl);
+	rxcp->pkt_type =
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, cast_enc, compl);
+	rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtm, compl);
+	rxcp->vid = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vlan_tag, compl);
+}
+
+static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
+{
+	struct be_eth_rx_compl *compl = queue_tail_node(&rxo->cq);
+	struct be_rx_compl_info *rxcp = &rxo->rxcp;
+	struct be_adapter *adapter = rxo->adapter;
+
+	/* For checking the valid bit it is Ok to use either definition as the
+	 * valid bit is at the same position in both v0 and v1 Rx compl */
+	if (compl->dw[offsetof(struct amap_eth_rx_compl_v1, valid) / 32] == 0)
 		return NULL;
 
 	rmb();
-	be_dws_le_to_cpu(rxcp, sizeof(*rxcp));
+	be_dws_le_to_cpu(compl, sizeof(*compl));
+
+	if (adapter->be3_native)
+		be_parse_rx_compl_v1(adapter, compl, rxcp);
+	else
+		be_parse_rx_compl_v0(adapter, compl, rxcp);
+
+	/* vlanf could be wrongly set in some cards. ignore if vtm is not set */
+	if ((adapter->function_mode & 0x400) && !rxcp->vtm)
+		rxcp->vlanf = 0;
+
+	if (!lancer_chip(adapter))
+		rxcp->vid = swab16(rxcp->vid);
+
+	if ((adapter->pvid == rxcp->vid) && !adapter->vlan_tag[rxcp->vid])
+		rxcp->vlanf = 0;
+
+	/* As the compl has been parsed, reset it; we wont touch it again */
+	compl->dw[offsetof(struct amap_eth_rx_compl_v1, valid) / 32] = 0;
 
 	queue_tail_inc(&rxo->cq);
 	return rxcp;
-}
-
-/* To reset the valid bit, we need to reset the whole word as
- * when walking the queue the valid entries are little-endian
- * and invalid entries are host endian
- */
-static inline void be_rx_compl_reset(struct be_eth_rx_compl *rxcp)
-{
-	rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] = 0;
 }
 
 static inline struct page *be_alloc_pages(u32 size, gfp_t gfp)
@@ -1342,13 +1341,12 @@ static void be_rx_q_clean(struct be_adapter *adapter, struct be_rx_obj *rxo)
 	struct be_rx_page_info *page_info;
 	struct be_queue_info *rxq = &rxo->q;
 	struct be_queue_info *rx_cq = &rxo->cq;
-	struct be_eth_rx_compl *rxcp;
+	struct be_rx_compl_info *rxcp;
 	u16 tail;
 
 	/* First cleanup pending rx completions */
 	while ((rxcp = be_rx_compl_get(rxo)) != NULL) {
 		be_rx_compl_discard(adapter, rxo, rxcp);
-		be_rx_compl_reset(rxcp);
 		be_cq_notify(adapter, rx_cq->id, false, 1);
 	}
 
@@ -1697,15 +1695,9 @@ static irqreturn_t be_msix_tx_mcc(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static inline bool do_gro(struct be_rx_obj *rxo,
-			struct be_eth_rx_compl *rxcp, u8 err)
+static inline bool do_gro(struct be_rx_compl_info *rxcp)
 {
-	int tcp_frame = AMAP_GET_BITS(struct amap_eth_rx_compl, tcpf, rxcp);
-
-	if (err)
-		rxo->stats.rxcp_err++;
-
-	return (tcp_frame && !err) ? true : false;
+	return (rxcp->tcpf && !rxcp->err) ? true : false;
 }
 
 static int be_poll_rx(struct napi_struct *napi, int budget)
@@ -1714,10 +1706,8 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 	struct be_rx_obj *rxo = container_of(rx_eq, struct be_rx_obj, rx_eq);
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_queue_info *rx_cq = &rxo->cq;
-	struct be_eth_rx_compl *rxcp;
+	struct be_rx_compl_info *rxcp;
 	u32 work_done;
-	u16 num_rcvd;
-	u8 err;
 
 	rxo->stats.rx_polls++;
 	for (work_done = 0; work_done < budget; work_done++) {
@@ -1725,18 +1715,14 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 		if (!rxcp)
 			break;
 
-		err = AMAP_GET_BITS(struct amap_eth_rx_compl, err, rxcp);
-		num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags,
-								rxcp);
 		/* Ignore flush completions */
-		if (num_rcvd) {
-			if (do_gro(rxo, rxcp, err))
+		if (rxcp->num_rcvd) {
+			if (do_gro(rxcp))
 				be_rx_compl_process_gro(adapter, rxo, rxcp);
 			else
 				be_rx_compl_process(adapter, rxo, rxcp);
 		}
-
-		be_rx_compl_reset(rxcp);
+		be_rx_stats_update(rxo, rxcp);
 	}
 
 	/* Refill the queue */
@@ -2868,6 +2854,7 @@ static int be_get_config(struct be_adapter *adapter)
 	if (status)
 		return status;
 
+	be_cmd_check_native_mode(adapter);
 	return 0;
 }
 
