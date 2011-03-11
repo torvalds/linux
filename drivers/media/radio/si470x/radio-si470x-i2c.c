@@ -504,8 +504,9 @@ static __devexit int si470x_i2c_remove(struct i2c_client *client)
 /*
  * si470x_i2c_suspend - suspend the device
  */
-static int si470x_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
+static int si470x_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
 	/* power down */
@@ -520,8 +521,9 @@ static int si470x_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 /*
  * si470x_i2c_resume - resume the device
  */
-static int si470x_i2c_resume(struct i2c_client *client)
+static int si470x_i2c_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
 	/* power up : need 110ms */
@@ -532,9 +534,8 @@ static int si470x_i2c_resume(struct i2c_client *client)
 
 	return 0;
 }
-#else
-#define si470x_i2c_suspend	NULL
-#define si470x_i2c_resume	NULL
+
+static SIMPLE_DEV_PM_OPS(si470x_i2c_pm, si470x_i2c_suspend, si470x_i2c_resume);
 #endif
 
 
@@ -545,11 +546,12 @@ static struct i2c_driver si470x_i2c_driver = {
 	.driver = {
 		.name		= "si470x",
 		.owner		= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm		= &si470x_i2c_pm,
+#endif
 	},
 	.probe			= si470x_i2c_probe,
 	.remove			= __devexit_p(si470x_i2c_remove),
-	.suspend		= si470x_i2c_suspend,
-	.resume			= si470x_i2c_resume,
 	.id_table		= si470x_i2c_id,
 };
 
