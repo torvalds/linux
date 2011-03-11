@@ -96,14 +96,14 @@ struct ar6k_async_reg_io_buffer {
     u8 _Pad2[A_CACHE_LINE_PAD];
 };
 
-typedef struct _AR6K_GMBOX_INFO { 
+struct ar6k_gmbox_info { 
     void        *pProtocolContext;
     int    (*pMessagePendingCallBack)(void *pContext, u8 LookAheadBytes[], int ValidBytes);
     int    (*pCreditsPendingCallback)(void *pContext, int NumCredits,  bool CreditIRQEnabled);
     void        (*pTargetFailureCallback)(void *pContext, int Status);
     void        (*pStateDumpCallback)(void *pContext);
     bool      CreditCountIRQEnabled;
-} AR6K_GMBOX_INFO; 
+}; 
 
 struct ar6k_device {
     A_MUTEX_T                   Lock;
@@ -137,7 +137,7 @@ struct ar6k_device {
     bool                          ScatterIsVirtual;
     int                             MaxRecvBundleSize;
     int                             MaxSendBundleSize;
-    AR6K_GMBOX_INFO                 GMboxInfo;
+    struct ar6k_gmbox_info                 GMboxInfo;
     bool                          GMboxEnabled;
     struct ar6k_gmbox_ctrl_registers       GMboxControlRegisters;
     int                             RecheckIRQStatusCnt;
