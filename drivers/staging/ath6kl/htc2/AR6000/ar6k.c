@@ -1017,10 +1017,10 @@ static u32 g_BlockSizes[AR6K_MAILBOXES];
 
 #define BUFFER_PROC_LIST_DEPTH 4
 
-typedef struct _BUFFER_PROC_LIST{
+struct buffer_proc_list {
     u8 *pBuffer;
     u32 length;
-}BUFFER_PROC_LIST;
+};
 
 
 #define PUSH_BUFF_PROC_ENTRY(pList,len,pCurrpos) \
@@ -1032,7 +1032,7 @@ typedef struct _BUFFER_PROC_LIST{
 }
 
 /* a simple and crude way to send different "message" sizes */
-static void AssembleBufferList(BUFFER_PROC_LIST *pList)
+static void AssembleBufferList(struct buffer_proc_list *pList)
 {
     u8 *pBuffer = g_Buffer;
 
@@ -1095,7 +1095,7 @@ static bool CheckBuffers(void)
 {
     int      i;
     bool   success = true;
-    BUFFER_PROC_LIST checkList[BUFFER_PROC_LIST_DEPTH];
+    struct buffer_proc_list checkList[BUFFER_PROC_LIST_DEPTH];
 
         /* assemble the list */
     AssembleBufferList(checkList);
@@ -1117,7 +1117,7 @@ static bool CheckBuffers(void)
 static u16 GetEndMarker(void)
 {
     u8 *pBuffer;
-    BUFFER_PROC_LIST checkList[BUFFER_PROC_LIST_DEPTH];
+    struct buffer_proc_list checkList[BUFFER_PROC_LIST_DEPTH];
 
         /* fill up buffers with the normal counting pattern */
     InitBuffers(FILL_COUNTING);
@@ -1138,7 +1138,7 @@ static int SendBuffers(struct ar6k_device *pDev, int mbox)
 {
     int         status = 0;
     u32 request = HIF_WR_SYNC_BLOCK_INC;
-    BUFFER_PROC_LIST sendList[BUFFER_PROC_LIST_DEPTH];
+    struct buffer_proc_list sendList[BUFFER_PROC_LIST_DEPTH];
     int              i;
     int              totalBytes = 0;
     int              paddedLength;
@@ -1229,7 +1229,7 @@ static int RecvBuffers(struct ar6k_device *pDev, int mbox)
 {
     int         status = 0;
     u32 request = HIF_RD_SYNC_BLOCK_INC;
-    BUFFER_PROC_LIST recvList[BUFFER_PROC_LIST_DEPTH];
+    struct buffer_proc_list recvList[BUFFER_PROC_LIST_DEPTH];
     int              curBuffer;
     int              credits;
     int              i;
