@@ -769,21 +769,6 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 }
 
 /*
- * Routing table message data
- */
-
-
-static inline u32 msg_remote_node(struct tipc_msg *m)
-{
-	return msg_word(m, msg_hdr_sz(m)/4);
-}
-
-static inline void msg_set_remote_node(struct tipc_msg *m, u32 a)
-{
-	msg_set_word(m, msg_hdr_sz(m)/4, a);
-}
-
-/*
  * Segmentation message types
  */
 

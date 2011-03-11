@@ -1746,10 +1746,6 @@ deliver:
 						tipc_node_unlock(n_ptr);
 						tipc_link_recv_bundle(buf);
 						continue;
-					case ROUTE_DISTRIBUTOR:
-						tipc_node_unlock(n_ptr);
-						buf_discard(buf);
-						continue;
 					case NAME_DISTRIBUTOR:
 						tipc_node_unlock(n_ptr);
 						tipc_named_recv(buf);
@@ -1775,6 +1771,10 @@ deliver:
 								goto deliver;
 							goto protocol_check;
 						}
+						break;
+					default:
+						buf_discard(buf);
+						buf = NULL;
 						break;
 					}
 				}
