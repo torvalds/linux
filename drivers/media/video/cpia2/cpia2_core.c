@@ -519,22 +519,16 @@ int cpia2_do_command(struct camera_data *cam,
  *  cpia2_send_command
  *
  *****************************************************************************/
+
+#define DIR(cmd) ((cmd->direction == TRANSFER_WRITE) ? "Write" : "Read")
+#define BINDEX(cmd) (cmd->req_mode & 0x03)
+
 int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 {
 	u8 count;
 	u8 start;
-	u8 block_index;
 	u8 *buffer;
 	int retval;
-	const char* dir;
-
-	if (cmd->direction == TRANSFER_WRITE) {
-		dir = "Write";
-	} else {
-		dir = "Read";
-	}
-
-	block_index = cmd->req_mode & 0x03;
 
 	switch (cmd->req_mode & 0x0c) {
 	case CAMERAACCESS_TYPE_RANDOM:
@@ -542,32 +536,32 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		start = 0;
 		buffer = (u8 *) & cmd->buffer;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Random: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Random: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	case CAMERAACCESS_TYPE_BLOCK:
 		count = cmd->reg_count;
 		start = cmd->start;
 		buffer = cmd->buffer.block_data;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Block: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Block: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	case CAMERAACCESS_TYPE_MASK:
 		count = cmd->reg_count * sizeof(struct cpia2_reg_mask);
 		start = 0;
 		buffer = (u8 *) & cmd->buffer;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Mask: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Mask: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	case CAMERAACCESS_TYPE_REPEAT:	/* For patch blocks only */
 		count = cmd->reg_count;
 		start = cmd->start;
 		buffer = cmd->buffer.block_data;
 		if (debugs_on & DEBUG_REG)
-			DBG("%s Repeat: Register block %s\n", dir,
-			    block_name[block_index]);
+			DBG("%s Repeat: Register block %s\n", DIR(cmd),
+			    block_name[BINDEX(cmd)]);
 		break;
 	default:
 		LOG("%s: invalid request mode\n",__func__);
@@ -584,10 +578,10 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		for (i = 0; i < cmd->reg_count; i++) {
 			if((cmd->req_mode & 0x0c) == CAMERAACCESS_TYPE_BLOCK)
 				KINFO("%s Block: [0x%02X] = 0x%02X\n",
-				    dir, start + i, buffer[i]);
+				    DIR(cmd), start + i, buffer[i]);
 			if((cmd->req_mode & 0x0c) == CAMERAACCESS_TYPE_RANDOM)
 				KINFO("%s Random: [0x%02X] = 0x%02X\n",
-				    dir, cmd->buffer.registers[i].index,
+				    DIR(cmd), cmd->buffer.registers[i].index,
 				    cmd->buffer.registers[i].value);
 		}
 	}
