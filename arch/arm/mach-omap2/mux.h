@@ -186,6 +186,12 @@ struct omap_device_pad {
 
 struct omap_hwmod_mux_info;
 
+#define OMAP_MUX_STATIC(signal, mode)					\
+{									\
+	.name	= (signal),						\
+	.enable	= (mode),						\
+}
+
 #if defined(CONFIG_OMAP_MUX)
 
 /**
