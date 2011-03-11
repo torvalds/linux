@@ -70,23 +70,6 @@ MODULE_FIRMWARE(FIRMWARE_R520);
 
 void r100_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
-	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
-	u32 tmp;
-
-	/* make sure flip is at vb rather than hb */
-	tmp = RREG32(RADEON_CRTC_OFFSET_CNTL + radeon_crtc->crtc_offset);
-	tmp &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
-	/* make sure pending bit is asserted */
-	tmp |= RADEON_CRTC_GUI_TRIG_OFFSET_LEFT_EN;
-	WREG32(RADEON_CRTC_OFFSET_CNTL + radeon_crtc->crtc_offset, tmp);
-
-	/* set pageflip to happen as late as possible in the vblank interval.
-	 * same field for crtc1/2
-	 */
-	tmp = RREG32(RADEON_CRTC_GEN_CNTL);
-	tmp &= ~RADEON_CRTC_VSTAT_MODE_MASK;
-	WREG32(RADEON_CRTC_GEN_CNTL, tmp);
-
 	/* enable the pflip int */
 	radeon_irq_kms_pflip_irq_get(rdev, crtc);
 }
