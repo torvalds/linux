@@ -522,8 +522,16 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	case CXGB4_STATE_START_RECOVERY:
 		printk(KERN_INFO MOD "%s: Fatal Error\n",
 		       pci_name(dev->rdev.lldi.pdev));
-		if (dev->registered)
+		dev->rdev.flags |= T4_FATAL_ERROR;
+		if (dev->registered) {
+			struct ib_event event;
+
+			memset(&event, 0, sizeof event);
+			event.event  = IB_EVENT_DEVICE_FATAL;
+			event.device = &dev->ibdev;
+			ib_dispatch_event(&event);
 			c4iw_unregister_device(dev);
+		}
 		break;
 	case CXGB4_STATE_DETACH:
 		printk(KERN_INFO MOD "%s: Detach\n",
