@@ -125,6 +125,7 @@ struct omap_hwmod_dma_info {
  * struct omap_hwmod_rst_info - IPs reset lines use by hwmod
  * @name: name of the reset line (module local name)
  * @rst_shift: Offset of the reset bit
+ * @st_shift: Offset of the reset status bit (OMAP2/3 only)
  *
  * @name should be something short, e.g., "cpu0" or "rst". It is defined
  * locally to the hwmod.
@@ -132,6 +133,7 @@ struct omap_hwmod_dma_info {
 struct omap_hwmod_rst_info {
 	const char	*name;
 	u8		rst_shift;
+	u8		st_shift;
 };
 
 /**
@@ -377,7 +379,7 @@ struct omap_hwmod_omap4_prcm {
  * HWMOD_INIT_NO_IDLE: don't idle this module at boot - important for SDRAM
  *     controller, etc. XXX probably belongs outside the main hwmod file
  *     XXX Should be HWMOD_SETUP_NO_IDLE
- * HWMOD_NO_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
+ * HWMOD_NO_OCP_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
