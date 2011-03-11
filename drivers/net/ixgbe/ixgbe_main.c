@@ -6217,6 +6217,7 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			       (flow_tx ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
+			ixgbe_check_vf_rate_limit(adapter);
 		} else {
 			/* Force detection of hung controller */
 			for (i = 0; i < adapter->num_tx_queues; i++) {

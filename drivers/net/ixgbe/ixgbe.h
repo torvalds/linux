@@ -118,6 +118,7 @@ struct vf_data_storage {
 	bool pf_set_mac;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
+	u16 tx_rate;
 };
 
 /* wrapper around a pointer to a socket buffer,
@@ -468,6 +469,7 @@ struct ixgbe_adapter {
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
+	int vf_rate_link_speed;
 };
 
 enum ixbge_state_t {
