@@ -331,7 +331,7 @@ static struct tegra_dc_out stingray_disp1_out = {
 
 static struct tegra_dc_platform_data stingray_disp1_pdata = {
 	.flags		= TEGRA_DC_FLAG_ENABLED,
-	.emc_clk_rate	= 400000000,
+	.emc_clk_rate	= 300000000,
 	.default_out	= &stingray_disp1_out,
 	.fb		= &stingray_fb_data,
 };
