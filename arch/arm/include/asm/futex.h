@@ -95,7 +95,8 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	pagefault_disable();	/* implies preempt_disable() */
+	/* Note that preemption is disabled by futex_atomic_cmpxchg_inatomic
+	 * call sites. */
 
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
 	"1:	" T(ldr) "	%0, [%3]\n"
@@ -114,8 +115,6 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	: "=&r" (val)
 	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
 	: "cc", "memory");
-
-	pagefault_enable();	/* subsumes preempt_enable() */
 
 	return val;
 }
