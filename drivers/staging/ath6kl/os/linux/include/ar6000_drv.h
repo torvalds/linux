@@ -625,11 +625,11 @@ typedef struct ar6_softc {
 } AR_SOFTC_T;
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
-typedef struct {
+struct ar_virtual_interface {
     struct net_device       *arNetDev;    /* net_device pointer */
     AR_SOFTC_T              *arDev;       /* ar device pointer */
     struct net_device       *arStaNetDev; /* net_device pointer */
-} AR_VIRTUAL_INTERFACE_T;
+};
 #endif /* CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT */
 
 #ifdef ATH6K_CONFIG_CFG80211
@@ -645,7 +645,7 @@ static inline void *ar6k_priv(struct net_device *dev)
 
     if (arApNetDev == dev) {
         /* return arDev saved in virtual interface context */
-        AR_VIRTUAL_INTERFACE_T *arVirDev;
+        struct ar_virtual_interface *arVirDev;
         arVirDev = netdev_priv(dev);
         return arVirDev->arDev;   
     } else {

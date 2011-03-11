@@ -6402,10 +6402,10 @@ static void DoHTCSendPktsTest(AR_SOFTC_T *ar, int MapNo, HTC_ENDPOINT_ID eid, st
 
 int ar6000_start_ap_interface(AR_SOFTC_T *ar)
 {
-    AR_VIRTUAL_INTERFACE_T *arApDev;
+    struct ar_virtual_interface *arApDev;
 
     /* Change net_device to point to AP instance */
-    arApDev = (AR_VIRTUAL_INTERFACE_T *)ar->arApDev;
+    arApDev = (struct ar_virtual_interface *)ar->arApDev;
     ar->arNetDev = arApDev->arNetDev;
 
     return 0;
@@ -6413,10 +6413,10 @@ int ar6000_start_ap_interface(AR_SOFTC_T *ar)
 
 int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
 {
-    AR_VIRTUAL_INTERFACE_T *arApDev;
+    struct ar_virtual_interface *arApDev;
 
     /* Change net_device to point to sta instance */
-    arApDev = (AR_VIRTUAL_INTERFACE_T *)ar->arApDev;
+    arApDev = (struct ar_virtual_interface *)ar->arApDev;
     if (arApDev) {
         ar->arNetDev = arApDev->arStaNetDev;
     }
@@ -6428,9 +6428,9 @@ int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
 int ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
 {
     struct net_device *dev;
-    AR_VIRTUAL_INTERFACE_T *arApDev;
+    struct ar_virtual_interface *arApDev;
 
-    dev = alloc_etherdev(sizeof(AR_VIRTUAL_INTERFACE_T));
+    dev = alloc_etherdev(sizeof(struct ar_virtual_interface));
     if (dev == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_create_ap_interface: can't alloc etherdev\n"));
         return A_ERROR;
