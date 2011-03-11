@@ -21,6 +21,8 @@
 #include <plat/clock.h>
 #include <plat/exynos4.h>
 #include <plat/sdhci.h>
+#include <plat/devs.h>
+#include <plat/fimc-core.h>
 
 #include <mach/regs-irq.h>
 
@@ -120,6 +122,11 @@ void __init exynos4_map_io(void)
 	exynos4_default_sdhci1();
 	exynos4_default_sdhci2();
 	exynos4_default_sdhci3();
+
+	s3c_fimc_setname(0, "exynos4-fimc");
+	s3c_fimc_setname(1, "exynos4-fimc");
+	s3c_fimc_setname(2, "exynos4-fimc");
+	s3c_fimc_setname(3, "exynos4-fimc");
 }
 
 void __init exynos4_init_clocks(int xtal)

@@ -136,6 +136,7 @@ extern struct platform_device samsung_device_keypad;
 extern struct platform_device s5p_device_fimc0;
 extern struct platform_device s5p_device_fimc1;
 extern struct platform_device s5p_device_fimc2;
+extern struct platform_device s5p_device_fimc3;
 
 extern struct platform_device s5p_device_mipi_csis0;
 extern struct platform_device s5p_device_mipi_csis1;
