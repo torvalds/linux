@@ -452,7 +452,6 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_writel(xhci, temp, &xhci->ir_set->irq_control);
 
 	/* Set the HCD state before we enable the irqs */
-	hcd->state = HC_STATE_RUNNING;
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_EIE);
 	xhci_dbg(xhci, "// Enable interrupts, cmd = 0x%x.\n",

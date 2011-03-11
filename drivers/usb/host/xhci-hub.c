@@ -732,7 +732,6 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	(void) xhci_readl(xhci, &xhci->op_regs->command);
 
 	xhci->next_statechange = jiffies + msecs_to_jiffies(5);
-	hcd->state = HC_STATE_RUNNING;
 	/* re-enable irqs */
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= CMD_EIE;
