@@ -798,8 +798,8 @@ static int perf_file_section__process(struct perf_file_section *self,
 				      int feat, int fd)
 {
 	if (lseek(fd, self->offset, SEEK_SET) == (off_t)-1) {
-		pr_debug("Failed to lseek to %Ld offset for feature %d, "
-			 "continuing...\n", self->offset, feat);
+		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
+			  "%d, continuing...\n", self->offset, feat);
 		return 0;
 	}
 

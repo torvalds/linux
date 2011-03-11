@@ -2710,6 +2710,8 @@ static int cxgb_open(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
+	netif_carrier_off(dev);
+
 	if (!(adapter->flags & FULL_INIT_DONE)) {
 		err = cxgb_up(adapter);
 		if (err < 0)
@@ -3661,7 +3663,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi->xact_addr_filt = -1;
 		pi->rx_offload = RX_CSO;
 		pi->port_id = i;
-		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
 		netdev->features |= NETIF_F_SG | TSO_FLAGS;

@@ -236,6 +236,7 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	if (status == 1) {
 		netif_carrier_on(net);
 		netif_wake_queue(net);
+		netif_notify_peers(net);
 	} else {
 		netif_carrier_off(net);
 		netif_stop_queue(net);
@@ -358,7 +359,6 @@ static int netvsc_probe(struct device *device)
 
 	/* Set initial state */
 	netif_carrier_off(net);
-	netif_stop_queue(net);
 
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = device_ctx;

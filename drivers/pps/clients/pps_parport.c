@@ -163,7 +163,7 @@ static void parport_attach(struct parport *port)
 	}
 
 	device->pardev = parport_register_device(port, KBUILD_MODNAME,
-			NULL, NULL, parport_irq, 0, device);
+			NULL, NULL, parport_irq, PARPORT_FLAG_EXCL, device);
 	if (!device->pardev) {
 		pr_err("couldn't register with %s\n", port->name);
 		goto err_free;

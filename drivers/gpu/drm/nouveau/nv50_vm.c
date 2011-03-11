@@ -45,11 +45,6 @@ nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 	}
 
 	if (phys & 1) {
-		if (dev_priv->vram_sys_base) {
-			phys += dev_priv->vram_sys_base;
-			phys |= 0x30;
-		}
-
 		if (coverage <= 32 * 1024 * 1024)
 			phys |= 0x60;
 		else if (coverage <= 64 * 1024 * 1024)
@@ -174,7 +169,11 @@ nv50_vm_flush(struct nouveau_vm *vm)
 void
 nv50_vm_flush_engine(struct drm_device *dev, int engine)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	spin_lock(&dev_priv->ramin_lock);
 	nv_wr32(dev, 0x100c80, (engine << 16) | 1);
 	if (!nv_wait(dev, 0x100c80, 0x00000001, 0x00000000))
 		NV_ERROR(dev, "vm flush timeout: engine %d\n", engine);
+	spin_unlock(&dev_priv->ramin_lock);
 }

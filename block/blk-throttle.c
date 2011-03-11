@@ -20,6 +20,11 @@ static int throtl_quantum = 32;
 /* Throttling is performed over 100ms slice and after that slice is renewed */
 static unsigned long throtl_slice = HZ/10;	/* 100 ms */
 
+/* A workqueue to queue throttle related work */
+static struct workqueue_struct *kthrotld_workqueue;
+static void throtl_schedule_delayed_work(struct throtl_data *td,
+				unsigned long delay);
+
 struct throtl_rb_root {
 	struct rb_root rb;
 	struct rb_node *left;
@@ -168,7 +173,15 @@ static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
 	 * tree of blkg (instead of traversing through hash list all
 	 * the time.
 	 */
-	tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
+
+	/*
+	 * This is the common case when there are no blkio cgroups.
+ 	 * Avoid lookup in this case
+ 	 */
+	if (blkcg == &blkio_root_cgroup)
+		tg = &td->root_tg;
+	else
+		tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
 
 	/* Fill in device details for root group */
 	if (tg && !tg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
@@ -337,10 +350,9 @@ static void throtl_schedule_next_dispatch(struct throtl_data *td)
 	update_min_dispatch_time(st);
 
 	if (time_before_eq(st->min_disptime, jiffies))
-		throtl_schedule_delayed_work(td->queue, 0);
+		throtl_schedule_delayed_work(td, 0);
 	else
-		throtl_schedule_delayed_work(td->queue,
-				(st->min_disptime - jiffies));
+		throtl_schedule_delayed_work(td, (st->min_disptime - jiffies));
 }
 
 static inline void
@@ -807,10 +819,10 @@ void blk_throtl_work(struct work_struct *work)
 }
 
 /* Call with queue lock held */
-void throtl_schedule_delayed_work(struct request_queue *q, unsigned long delay)
+static void
+throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 {
 
-	struct throtl_data *td = q->td;
 	struct delayed_work *dwork = &td->throtl_work;
 
 	if (total_nr_queued(td) > 0) {
@@ -819,12 +831,11 @@ void throtl_schedule_delayed_work(struct request_queue *q, unsigned long delay)
 		 * Cancel that and schedule a new one.
 		 */
 		__cancel_delayed_work(dwork);
-		kblockd_schedule_delayed_work(q, dwork, delay);
+		queue_delayed_work(kthrotld_workqueue, dwork, delay);
 		throtl_log(td, "schedule work. delay=%lu jiffies=%lu",
 				delay, jiffies);
 	}
 }
-EXPORT_SYMBOL(throtl_schedule_delayed_work);
 
 static void
 throtl_destroy_tg(struct throtl_data *td, struct throtl_grp *tg)
@@ -912,7 +923,7 @@ static void throtl_update_blkio_group_read_bps(void *key,
 	smp_mb__after_atomic_inc();
 
 	/* Schedule a work now to process the limit change */
-	throtl_schedule_delayed_work(td->queue, 0);
+	throtl_schedule_delayed_work(td, 0);
 }
 
 static void throtl_update_blkio_group_write_bps(void *key,
@@ -926,7 +937,7 @@ static void throtl_update_blkio_group_write_bps(void *key,
 	smp_mb__before_atomic_inc();
 	atomic_inc(&td->limits_changed);
 	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td->queue, 0);
+	throtl_schedule_delayed_work(td, 0);
 }
 
 static void throtl_update_blkio_group_read_iops(void *key,
@@ -940,7 +951,7 @@ static void throtl_update_blkio_group_read_iops(void *key,
 	smp_mb__before_atomic_inc();
 	atomic_inc(&td->limits_changed);
 	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td->queue, 0);
+	throtl_schedule_delayed_work(td, 0);
 }
 
 static void throtl_update_blkio_group_write_iops(void *key,
@@ -954,7 +965,7 @@ static void throtl_update_blkio_group_write_iops(void *key,
 	smp_mb__before_atomic_inc();
 	atomic_inc(&td->limits_changed);
 	smp_mb__after_atomic_inc();
-	throtl_schedule_delayed_work(td->queue, 0);
+	throtl_schedule_delayed_work(td, 0);
 }
 
 void throtl_shutdown_timer_wq(struct request_queue *q)
@@ -1127,6 +1138,10 @@ void blk_throtl_exit(struct request_queue *q)
 
 static int __init throtl_init(void)
 {
+	kthrotld_workqueue = alloc_workqueue("kthrotld", WQ_MEM_RECLAIM, 0);
+	if (!kthrotld_workqueue)
+		panic("Failed to create kthrotld\n");
+
 	blkio_policy_register(&blkio_policy_throtl);
 	return 0;
 }

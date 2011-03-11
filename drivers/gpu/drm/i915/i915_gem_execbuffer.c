@@ -772,8 +772,8 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 	if (from == NULL || to == from)
 		return 0;
 
-	/* XXX gpu semaphores are currently causing hard hangs on SNB mobile */
-	if (INTEL_INFO(obj->base.dev)->gen < 6 || IS_MOBILE(obj->base.dev))
+	/* XXX gpu semaphores are implicated in various hard hangs on SNB */
+	if (INTEL_INFO(obj->base.dev)->gen < 6 || !i915_semaphores)
 		return i915_gem_object_wait_rendering(obj, true);
 
 	idx = intel_ring_sync_index(from, to);
@@ -1175,7 +1175,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 
 	seqno = i915_gem_next_request_seqno(dev, ring);
-	for (i = 0; i < I915_NUM_RINGS-1; i++) {
+	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++) {
 		if (seqno < ring->sync_seqno[i]) {
 			/* The GPU can not handle its semaphore value wrapping,
 			 * so every billion or so execbuffers, we need to stall

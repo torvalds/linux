@@ -285,6 +285,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "P4S800"),
 		},
 	},
+	{	/* Handle problems with rebooting on VersaLogic Menlow boards */
+		.callback = set_bios_reboot,
+		.ident = "VersaLogic Menlow based board",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "VersaLogic Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "VersaLogic Menlow board"),
+		},
+	},
 	{ }
 };
 

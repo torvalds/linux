@@ -1011,6 +1011,10 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	destroy_workqueue(hdev->workqueue);
 
+	hci_dev_lock_bh(hdev);
+	hci_blacklist_clear(hdev);
+	hci_dev_unlock_bh(hdev);
+
 	__hci_dev_put(hdev);
 
 	return 0;

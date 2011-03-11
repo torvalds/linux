@@ -76,7 +76,7 @@ static inline unsigned int rp5c01_read(struct rp5c01_priv *priv,
 static inline void rp5c01_write(struct rp5c01_priv *priv, unsigned int val,
 				unsigned int reg)
 {
-	return __raw_writel(val, &priv->regs[reg]);
+	__raw_writel(val, &priv->regs[reg]);
 }
 
 static void rp5c01_lock(struct rp5c01_priv *priv)

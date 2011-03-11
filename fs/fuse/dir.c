@@ -1283,8 +1283,11 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	if (err)
 		return err;
 
-	if ((attr->ia_valid & ATTR_OPEN) && fc->atomic_o_trunc)
-		return 0;
+	if (attr->ia_valid & ATTR_OPEN) {
+		if (fc->atomic_o_trunc)
+			return 0;
+		file = NULL;
+	}
 
 	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;

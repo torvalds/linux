@@ -265,13 +265,13 @@ static void ec_tx_done(struct sk_buff *skb, int result)
 static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			  struct msghdr *msg, size_t len)
 {
-	struct sock *sk = sock->sk;
 	struct sockaddr_ec *saddr=(struct sockaddr_ec *)msg->msg_name;
 	struct net_device *dev;
 	struct ec_addr addr;
 	int err;
 	unsigned char port, cb;
 #if defined(CONFIG_ECONET_AUNUDP) || defined(CONFIG_ECONET_NATIVE)
+	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	struct ec_cb *eb;
 #endif
@@ -488,10 +488,10 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 error_free_buf:
 	vfree(userbuf);
+error:
 #else
 	err = -EPROTOTYPE;
 #endif
-	error:
 	mutex_unlock(&econet_mutex);
 
 	return err;

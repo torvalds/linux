@@ -72,22 +72,17 @@ extern void io_dpc(unsigned long ref_data);
 /*
  *  ======== io_mbox_msg ========
  *  Purpose:
- *      Main interrupt handler for the shared memory Bridge channel manager.
- *      Calls the Bridge's chnlsm_isr to determine if this interrupt is ours,
- *      then schedules a DPC to dispatch I/O.
+ *	Main message handler for the shared memory Bridge channel manager.
+ *	Determine if this message is ours, then schedules a DPC to
+ *	dispatch I/O.
  *  Parameters:
- *      ref_data:   Pointer to the channel manager object for this board.
- *                  Set in an initial call to ISR_Install().
+ *	self:	Pointer to its own notifier_block struct.
+ *	len:	Length of message.
+ *	msg:	Message code received.
  *  Returns:
- *      TRUE if interrupt handled; FALSE otherwise.
- *  Requires:
- *      Must be in locked memory if executing in kernel mode.
- *      Must only call functions which are in locked memory if Kernel mode.
- *      Must only call asynchronous services.
- *      Interrupts are disabled and EOI for this interrupt has been sent.
- *  Ensures:
+ *	NOTIFY_OK if handled; NOTIFY_BAD otherwise.
  */
-void io_mbox_msg(u32 msg);
+int io_mbox_msg(struct notifier_block *self, unsigned long len, void *msg);
 
 /*
  *  ======== io_request_chnl ========

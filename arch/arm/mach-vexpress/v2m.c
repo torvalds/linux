@@ -19,6 +19,7 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
+#include <asm/hardware/sp810.h>
 
 #include <mach/motherboard.h>
 
@@ -50,7 +51,15 @@ void __init v2m_map_io(struct map_desc *tile, size_t num)
 
 static void __init v2m_timer_init(void)
 {
+	u32 scctrl;
+
 	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
+
+	/* Select 1MHz TIMCLK as the reference clock for SP804 timers */
+	scctrl = readl(MMIO_P2V(V2M_SYSCTL + SCCTRL));
+	scctrl |= SCCTRL_TIMEREN0SEL_TIMCLK;
+	scctrl |= SCCTRL_TIMEREN1SEL_TIMCLK;
+	writel(scctrl, MMIO_P2V(V2M_SYSCTL + SCCTRL));
 
 	writel(0, MMIO_P2V(V2M_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(V2M_TIMER1) + TIMER_CTRL);

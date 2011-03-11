@@ -312,11 +312,9 @@ void be_link_status_update(struct be_adapter *adapter, bool link_up)
 	if (adapter->link_up != link_up) {
 		adapter->link_speed = -1;
 		if (link_up) {
-			netif_start_queue(netdev);
 			netif_carrier_on(netdev);
 			printk(KERN_INFO "%s: Link up\n", netdev->name);
 		} else {
-			netif_stop_queue(netdev);
 			netif_carrier_off(netdev);
 			printk(KERN_INFO "%s: Link down\n", netdev->name);
 		}
@@ -2628,8 +2626,6 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netif_napi_add(netdev, &adapter->tx_eq.napi, be_poll_tx_mcc,
 		BE_NAPI_WEIGHT);
-
-	netif_stop_queue(netdev);
 }
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)

@@ -1254,6 +1254,7 @@ struct btrfs_root {
 #define BTRFS_MOUNT_SPACE_CACHE		(1 << 12)
 #define BTRFS_MOUNT_CLEAR_CACHE		(1 << 13)
 #define BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED (1 << 14)
+#define BTRFS_MOUNT_ENOSPC_DEBUG	 (1 << 15)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -2218,6 +2219,8 @@ int btrfs_error_unpin_extent_range(struct btrfs_root *root,
 				   u64 start, u64 end);
 int btrfs_error_discard_extent(struct btrfs_root *root, u64 bytenr,
 			       u64 num_bytes);
+int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, u64 type);
 
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,

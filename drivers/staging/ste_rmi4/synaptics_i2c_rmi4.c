@@ -986,12 +986,6 @@ static int __devinit synaptics_rmi4_probe
 	input_set_abs_params(rmi4_data->input_dev, ABS_MT_TOUCH_MAJOR, 0,
 						MAX_TOUCH_MAJOR, 0, 0);
 
-	retval = input_register_device(rmi4_data->input_dev);
-	if (retval) {
-		dev_err(&client->dev, "%s:input register failed\n", __func__);
-		goto err_input_register;
-	}
-
 	/* Clear interrupts */
 	synaptics_rmi4_i2c_block_read(rmi4_data,
 			rmi4_data->fn01_data_base_addr + 1, intr_status,
@@ -1003,15 +997,20 @@ static int __devinit synaptics_rmi4_probe
 	if (retval) {
 		dev_err(&client->dev, "%s:Unable to get attn irq %d\n",
 				__func__, platformdata->irq_number);
-		goto err_request_irq;
+		goto err_unset_clientdata;
+	}
+
+	retval = input_register_device(rmi4_data->input_dev);
+	if (retval) {
+		dev_err(&client->dev, "%s:input register failed\n", __func__);
+		goto err_free_irq;
 	}
 
 	return retval;
 
-err_request_irq:
+err_free_irq:
 	free_irq(platformdata->irq_number, rmi4_data);
-	input_unregister_device(rmi4_data->input_dev);
-err_input_register:
+err_unset_clientdata:
 	i2c_set_clientdata(client, NULL);
 err_query_dev:
 	if (platformdata->regulator_en) {

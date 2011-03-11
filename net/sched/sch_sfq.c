@@ -402,10 +402,8 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		q->tail = slot;
 		slot->allot = q->scaled_quantum;
 	}
-	if (++sch->q.qlen <= q->limit) {
-		qdisc_bstats_update(sch, skb);
+	if (++sch->q.qlen <= q->limit)
 		return NET_XMIT_SUCCESS;
-	}
 
 	sfq_drop(sch);
 	return NET_XMIT_CN;
@@ -445,6 +443,7 @@ next_slot:
 	}
 	skb = slot_dequeue_head(slot);
 	sfq_dec(q, a);
+	qdisc_bstats_update(sch, skb);
 	sch->q.qlen--;
 	sch->qstats.backlog -= qdisc_pkt_len(skb);
 

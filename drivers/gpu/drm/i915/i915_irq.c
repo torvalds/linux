@@ -274,24 +274,35 @@ int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	return ret;
 }
 
-int i915_get_vblank_timestamp(struct drm_device *dev, int crtc,
+int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 			      int *max_error,
 			      struct timeval *vblank_time,
 			      unsigned flags)
 {
-	struct drm_crtc *drmcrtc;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
 
-	if (crtc < 0 || crtc >= dev->num_crtcs) {
-		DRM_ERROR("Invalid crtc %d\n", crtc);
+	if (pipe < 0 || pipe >= dev_priv->num_pipe) {
+		DRM_ERROR("Invalid crtc %d\n", pipe);
 		return -EINVAL;
 	}
 
 	/* Get drm_crtc to timestamp: */
-	drmcrtc = intel_get_crtc_for_pipe(dev, crtc);
+	crtc = intel_get_crtc_for_pipe(dev, pipe);
+	if (crtc == NULL) {
+		DRM_ERROR("Invalid crtc %d\n", pipe);
+		return -EINVAL;
+	}
+
+	if (!crtc->enabled) {
+		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
+		return -EBUSY;
+	}
 
 	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
-						     vblank_time, flags, drmcrtc);
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
+						     vblank_time, flags,
+						     crtc);
 }
 
 /*
@@ -304,6 +315,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
+
+	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
 		if (encoder->hot_plug)
@@ -348,8 +361,12 @@ static void notify_ring(struct drm_device *dev,
 			struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 seqno = ring->get_seqno(ring);
+	u32 seqno;
 
+	if (ring->obj == NULL)
+		return;
+
+	seqno = ring->get_seqno(ring);
 	trace_i915_gem_request_complete(dev, seqno);
 
 	ring->irq_seqno = seqno;
@@ -831,6 +848,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		i++;
 	error->pinned_bo_count = i - error->active_bo_count;
 
+	error->active_bo = NULL;
+	error->pinned_bo = NULL;
 	if (i) {
 		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
 					   GFP_ATOMIC);
@@ -1179,18 +1198,18 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 				intel_finish_page_flip_plane(dev, 1);
 		}
 
-		if (pipea_stats & vblank_status) {
+		if (pipea_stats & vblank_status &&
+		    drm_handle_vblank(dev, 0)) {
 			vblank++;
-			drm_handle_vblank(dev, 0);
 			if (!dev_priv->flip_pending_is_done) {
 				i915_pageflip_stall_check(dev, 0);
 				intel_finish_page_flip(dev, 0);
 			}
 		}
 
-		if (pipeb_stats & vblank_status) {
+		if (pipeb_stats & vblank_status &&
+		    drm_handle_vblank(dev, 1)) {
 			vblank++;
-			drm_handle_vblank(dev, 1);
 			if (!dev_priv->flip_pending_is_done) {
 				i915_pageflip_stall_check(dev, 1);
 				intel_finish_page_flip(dev, 1);
@@ -1278,12 +1297,12 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	if (master_priv->sarea_priv)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
-	ret = -ENODEV;
 	if (ring->irq_get(ring)) {
 		DRM_WAIT_ON(ret, ring->irq_queue, 3 * DRM_HZ,
 			    READ_BREADCRUMB(dev_priv) >= irq_nr);
 		ring->irq_put(ring);
-	}
+	} else if (wait_for(READ_BREADCRUMB(dev_priv) >= irq_nr, 3000))
+		ret = -EBUSY;
 
 	if (ret == -EBUSY) {
 		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",
@@ -1632,9 +1651,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	} else {
 		hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			       SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
-		hotplug_mask |= SDE_AUX_MASK | SDE_FDI_MASK | SDE_TRANS_MASK;
-		I915_WRITE(FDI_RXA_IMR, 0);
-		I915_WRITE(FDI_RXB_IMR, 0);
+		hotplug_mask |= SDE_AUX_MASK;
 	}
 
 	dev_priv->pch_irq_mask = ~hotplug_mask;

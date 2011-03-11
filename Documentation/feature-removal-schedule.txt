@@ -603,3 +603,19 @@ Why:	The adm9240, w83792d and w83793 hardware monitoring drivers have
 Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
+
+What:	noswapaccount kernel command line parameter
+When:	2.6.40
+Why:	The original implementation of memsw feature enabled by
+	CONFIG_CGROUP_MEM_RES_CTLR_SWAP could be disabled by the noswapaccount
+	kernel parameter (introduced in 2.6.29-rc1). Later on, this decision
+	turned out to be not ideal because we cannot have the feature compiled
+	in and disabled by default and let only interested to enable it
+	(e.g. general distribution kernels might need it). Therefore we have
+	added swapaccount[=0|1] parameter (introduced in 2.6.37) which provides
+	the both possibilities. If we remove noswapaccount we will have
+	less command line parameters with the same functionality and we
+	can also cleanup the parameter handling a bit ().
+Who:	Michal Hocko <mhocko@suse.cz>
+
+----------------------------

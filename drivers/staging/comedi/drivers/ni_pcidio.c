@@ -1354,3 +1354,7 @@ static void __exit driver_pcidio_cleanup_module(void)
 
 module_init(driver_pcidio_init_module);
 module_exit(driver_pcidio_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

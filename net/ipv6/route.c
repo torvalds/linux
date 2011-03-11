@@ -72,8 +72,6 @@
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
 
-#define CLONE_OFFLINK_ROUTE 0
-
 static struct rt6_info * ip6_rt_copy(struct rt6_info *ort);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
 static unsigned int	 ip6_default_advmss(const struct dst_entry *dst);
@@ -115,6 +113,11 @@ static struct dst_ops ip6_dst_ops_template = {
 	.local_out		=	__ip6_local_out,
 };
 
+static unsigned int ip6_blackhole_default_mtu(const struct dst_entry *dst)
+{
+	return 0;
+}
+
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
@@ -124,6 +127,8 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.protocol		=	cpu_to_be16(ETH_P_IPV6),
 	.destroy		=	ip6_dst_destroy,
 	.check			=	ip6_dst_check,
+	.default_mtu		=	ip6_blackhole_default_mtu,
+	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 };
 
@@ -196,7 +201,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 		in6_dev_put(idev);
 	}
 	if (peer) {
-		BUG_ON(!(rt->rt6i_flags & RTF_CACHE));
 		rt->rt6i_peer = NULL;
 		inet_putpeer(peer);
 	}
@@ -205,9 +209,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 void rt6_bind_peer(struct rt6_info *rt, int create)
 {
 	struct inet_peer *peer;
-
-	if (WARN_ON(!(rt->rt6i_flags & RTF_CACHE)))
-		return;
 
 	peer = inet_getpeer_v6(&rt->rt6i_dst.addr, create);
 	if (peer && cmpxchg(&rt->rt6i_peer, NULL, peer) != NULL)
@@ -738,13 +739,8 @@ restart:
 
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP))
 		nrt = rt6_alloc_cow(rt, &fl->fl6_dst, &fl->fl6_src);
-	else {
-#if CLONE_OFFLINK_ROUTE
+	else
 		nrt = rt6_alloc_clone(rt, &fl->fl6_dst);
-#else
-		goto out2;
-#endif
-	}
 
 	dst_release(&rt->dst);
 	rt = nrt ? : net->ipv6.ip6_null_entry;
@@ -2561,14 +2557,16 @@ static
 int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write,
 			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = current->nsproxy->net_ns;
-	int delay = net->ipv6.sysctl.flush_delay;
-	if (write) {
-		proc_dointvec(ctl, write, buffer, lenp, ppos);
-		fib6_run_gc(delay <= 0 ? ~0UL : (unsigned long)delay, net);
-		return 0;
-	} else
+	struct net *net;
+	int delay;
+	if (!write)
 		return -EINVAL;
+
+	net = (struct net *)ctl->extra1;
+	delay = net->ipv6.sysctl.flush_delay;
+	proc_dointvec(ctl, write, buffer, lenp, ppos);
+	fib6_run_gc(delay <= 0 ? ~0UL : (unsigned long)delay, net);
+	return 0;
 }
 
 ctl_table ipv6_route_table_template[] = {
@@ -2655,6 +2653,7 @@ struct ctl_table * __net_init ipv6_route_sysctl_init(struct net *net)
 
 	if (table) {
 		table[0].data = &net->ipv6.sysctl.flush_delay;
+		table[0].extra1 = net;
 		table[1].data = &net->ipv6.ip6_dst_ops.gc_thresh;
 		table[2].data = &net->ipv6.sysctl.ip6_rt_max_size;
 		table[3].data = &net->ipv6.sysctl.ip6_rt_gc_min_interval;

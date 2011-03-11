@@ -284,7 +284,7 @@ static int __init apbt_clockevent_register(void)
 	memcpy(&adev->evt, &apbt_clockevent, sizeof(struct clock_event_device));
 
 	if (mrst_timer_options == MRST_TIMER_LAPIC_APBT) {
-		apbt_clockevent.rating = APBT_CLOCKEVENT_RATING - 100;
+		adev->evt.rating = APBT_CLOCKEVENT_RATING - 100;
 		global_clock_event = &adev->evt;
 		printk(KERN_DEBUG "%s clockevent registered as global\n",
 		       global_clock_event->name);

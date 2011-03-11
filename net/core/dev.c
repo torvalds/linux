@@ -749,7 +749,8 @@ EXPORT_SYMBOL(dev_get_by_index);
  *	@ha: hardware address
  *
  *	Search for an interface by MAC address. Returns NULL if the device
- *	is not found or a pointer to the device. The caller must hold RCU
+ *	is not found or a pointer to the device.
+ *	The caller must hold RCU or RTNL.
  *	The returned device has not had its ref count increased
  *	and the caller must therefore be careful about locking
  *
@@ -1279,10 +1280,13 @@ static int __dev_close_many(struct list_head *head)
 
 static int __dev_close(struct net_device *dev)
 {
+	int retval;
 	LIST_HEAD(single);
 
 	list_add(&dev->unreg_list, &single);
-	return __dev_close_many(&single);
+	retval = __dev_close_many(&single);
+	list_del(&single);
+	return retval;
 }
 
 int dev_close_many(struct list_head *head)
@@ -1324,7 +1328,7 @@ int dev_close(struct net_device *dev)
 
 	list_add(&dev->unreg_list, &single);
 	dev_close_many(&single);
-
+	list_del(&single);
 	return 0;
 }
 EXPORT_SYMBOL(dev_close);
@@ -2562,7 +2566,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 
 	map = rcu_dereference(rxqueue->rps_map);
 	if (map) {
-		if (map->len == 1) {
+		if (map->len == 1 &&
+		    !rcu_dereference_raw(rxqueue->rps_flow_table)) {
 			tcpu = map->cpus[0];
 			if (cpu_online(tcpu))
 				cpu = tcpu;
@@ -3423,6 +3428,8 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 	__skb_pull(skb, skb_headlen(skb));
 	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
 	skb->vlan_tci = 0;
+	skb->dev = napi->dev;
+	skb->skb_iif = 0;
 
 	napi->skb = skb;
 }
@@ -5059,6 +5066,7 @@ static void rollback_registered(struct net_device *dev)
 
 	list_add(&dev->unreg_list, &single);
 	rollback_registered_many(&single);
+	list_del(&single);
 }
 
 unsigned long netdev_fix_features(unsigned long features, const char *name)
@@ -5656,18 +5664,6 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev_net_set(dev, &init_net);
 
-	dev->num_tx_queues = txqs;
-	dev->real_num_tx_queues = txqs;
-	if (netif_alloc_netdev_queues(dev))
-		goto free_pcpu;
-
-#ifdef CONFIG_RPS
-	dev->num_rx_queues = rxqs;
-	dev->real_num_rx_queues = rxqs;
-	if (netif_alloc_rx_queues(dev))
-		goto free_pcpu;
-#endif
-
 	dev->gso_max_size = GSO_MAX_SIZE;
 
 	INIT_LIST_HEAD(&dev->ethtool_ntuple_list.list);
@@ -5677,8 +5673,25 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->link_watch_list);
 	dev->priv_flags = IFF_XMIT_DST_RELEASE;
 	setup(dev);
+
+	dev->num_tx_queues = txqs;
+	dev->real_num_tx_queues = txqs;
+	if (netif_alloc_netdev_queues(dev))
+		goto free_all;
+
+#ifdef CONFIG_RPS
+	dev->num_rx_queues = rxqs;
+	dev->real_num_rx_queues = rxqs;
+	if (netif_alloc_rx_queues(dev))
+		goto free_all;
+#endif
+
 	strcpy(dev->name, name);
 	return dev;
+
+free_all:
+	free_netdev(dev);
+	return NULL;
 
 free_pcpu:
 	free_percpu(dev->pcpu_refcnt);
@@ -6207,6 +6220,7 @@ static void __net_exit default_device_exit_batch(struct list_head *net_list)
 		}
 	}
 	unregister_netdevice_many(&dev_kill_list);
+	list_del(&dev_kill_list);
 	rtnl_unlock();
 }
 

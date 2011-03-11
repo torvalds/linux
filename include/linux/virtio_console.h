@@ -7,7 +7,8 @@
  * This header, excluding the #ifdef __KERNEL__ part, is BSD licensed so
  * anyone can use the definitions to implement compatible drivers/servers.
  *
- * Copyright (C) Red Hat, Inc., 2009, 2010
+ * Copyright (C) Red Hat, Inc., 2009, 2010, 2011
+ * Copyright (C) Amit Shah <amit.shah@redhat.com>, 2009, 2010, 2011
  */
 
 /* Feature bits */

@@ -315,7 +315,7 @@ void __init config_atari(void)
 		ATARIHW_SET(SCC_DMA);
 		printk("SCC_DMA ");
 	}
-	if (scc_test(&scc.cha_a_ctrl)) {
+	if (scc_test(&atari_scc.cha_a_ctrl)) {
 		ATARIHW_SET(SCC);
 		printk("SCC ");
 	}

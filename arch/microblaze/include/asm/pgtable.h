@@ -411,20 +411,19 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 static inline unsigned long pte_update(pte_t *p, unsigned long clr,
 				unsigned long set)
 {
-	unsigned long old, tmp, msr;
+	unsigned long flags, old, tmp;
 
-	__asm__ __volatile__("\
-	msrclr	%2, 0x2\n\
-	nop\n\
-	lw	%0, %4, r0\n\
-	andn	%1, %0, %5\n\
-	or	%1, %1, %6\n\
-	sw	%1, %4, r0\n\
-	mts     rmsr, %2\n\
-	nop"
-	: "=&r" (old), "=&r" (tmp), "=&r" (msr), "=m" (*p)
-	: "r" ((unsigned long)(p + 1) - 4), "r" (clr), "r" (set), "m" (*p)
-	: "cc");
+	raw_local_irq_save(flags);
+
+	__asm__ __volatile__(	"lw	%0, %2, r0	\n"
+				"andn	%1, %0, %3	\n"
+				"or	%1, %1, %4	\n"
+				"sw	%1, %2, r0	\n"
+			: "=&r" (old), "=&r" (tmp)
+			: "r" ((unsigned long)(p + 1) - 4), "r" (clr), "r" (set)
+			: "cc");
+
+	raw_local_irq_restore(flags);
 
 	return old;
 }

@@ -141,6 +141,12 @@ SECTIONS {
 		*(__param)
 		__stop___param = .;
 
+		/* Built-in module versions */
+		. = ALIGN(4) ;
+		__start___modver = .;
+		*(__modver)
+		__stop___modver = .;
+
 		. = ALIGN(4) ;
 		_etext = . ;
 	} > TEXT

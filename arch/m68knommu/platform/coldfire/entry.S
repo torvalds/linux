@@ -138,7 +138,6 @@ Luser_return:
 	andl	#-THREAD_SIZE,%d1	/* at base of kernel stack */
 	movel	%d1,%a0
 	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
-	andl	#0xefff,%d1
 	jne	Lwork_to_do		/* still work to do */
 
 Lreturn:

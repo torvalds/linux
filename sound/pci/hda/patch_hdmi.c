@@ -642,6 +642,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			hdmi_ai->ver		= 0x01;
 			hdmi_ai->len		= 0x0a;
 			hdmi_ai->CC02_CT47	= channels - 1;
+			hdmi_ai->CA		= ca;
 			hdmi_checksum_audio_infoframe(hdmi_ai);
 		} else if (spec->sink_eld[i].conn_type == 1) { /* DisplayPort */
 			struct dp_audio_infoframe *dp_ai;
@@ -651,6 +652,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			dp_ai->len		= 0x1b;
 			dp_ai->ver		= 0x11 << 2;
 			dp_ai->CC02_CT47	= channels - 1;
+			dp_ai->CA		= ca;
 		} else {
 			snd_printd("HDMI: unknown connection type at pin %d\n",
 				   pin_nid);
@@ -1632,6 +1634,9 @@ static struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x10de0012, .name = "GPU 12 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de0013, .name = "GPU 13 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de0014, .name = "GPU 14 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+{ .id = 0x10de0015, .name = "GPU 15 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+{ .id = 0x10de0016, .name = "GPU 16 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+/* 17 is known to be absent */
 { .id = 0x10de0018, .name = "GPU 18 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de0019, .name = "GPU 19 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de001a, .name = "GPU 1a HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
@@ -1674,6 +1679,8 @@ MODULE_ALIAS("snd-hda-codec-id:10de0011");
 MODULE_ALIAS("snd-hda-codec-id:10de0012");
 MODULE_ALIAS("snd-hda-codec-id:10de0013");
 MODULE_ALIAS("snd-hda-codec-id:10de0014");
+MODULE_ALIAS("snd-hda-codec-id:10de0015");
+MODULE_ALIAS("snd-hda-codec-id:10de0016");
 MODULE_ALIAS("snd-hda-codec-id:10de0018");
 MODULE_ALIAS("snd-hda-codec-id:10de0019");
 MODULE_ALIAS("snd-hda-codec-id:10de001a");

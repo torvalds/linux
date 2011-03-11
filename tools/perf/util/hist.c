@@ -585,6 +585,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 {
 	struct sort_entry *se;
 	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
+	u64 nr_events;
 	const char *sep = symbol_conf.field_sep;
 	int ret;
 
@@ -593,6 +594,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 
 	if (pair_hists) {
 		period = self->pair ? self->pair->period : 0;
+		nr_events = self->pair ? self->pair->nr_events : 0;
 		total = pair_hists->stats.total_period;
 		period_sys = self->pair ? self->pair->period_sys : 0;
 		period_us = self->pair ? self->pair->period_us : 0;
@@ -600,6 +602,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 		period_guest_us = self->pair ? self->pair->period_guest_us : 0;
 	} else {
 		period = self->period;
+		nr_events = self->nr_events;
 		total = session_total;
 		period_sys = self->period_sys;
 		period_us = self->period_us;
@@ -636,13 +639,13 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 			}
 		}
 	} else
-		ret = snprintf(s, size, sep ? "%lld" : "%12lld ", period);
+		ret = snprintf(s, size, sep ? "%" PRIu64 : "%12" PRIu64 " ", period);
 
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
-			ret += snprintf(s + ret, size - ret, "%c%lld", *sep, period);
+			ret += snprintf(s + ret, size - ret, "%c%" PRIu64, *sep, nr_events);
 		else
-			ret += snprintf(s + ret, size - ret, "%11lld", period);
+			ret += snprintf(s + ret, size - ret, "%11" PRIu64, nr_events);
 	}
 
 	if (pair_hists) {
@@ -971,7 +974,7 @@ int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
 	sym_size = sym->end - sym->start;
 	offset = ip - sym->start;
 
-	pr_debug3("%s: ip=%#Lx\n", __func__, self->ms.map->unmap_ip(self->ms.map, ip));
+	pr_debug3("%s: ip=%#" PRIx64 "\n", __func__, self->ms.map->unmap_ip(self->ms.map, ip));
 
 	if (offset >= sym_size)
 		return 0;
@@ -980,8 +983,9 @@ int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
 	h->sum++;
 	h->ip[offset]++;
 
-	pr_debug3("%#Lx %s: period++ [ip: %#Lx, %#Lx] => %Ld\n", self->ms.sym->start,
-		  self->ms.sym->name, ip, ip - self->ms.sym->start, h->ip[offset]);
+	pr_debug3("%#" PRIx64 " %s: period++ [ip: %#" PRIx64 ", %#" PRIx64
+		  "] => %" PRIu64 "\n", self->ms.sym->start, self->ms.sym->name,
+		  ip, ip - self->ms.sym->start, h->ip[offset]);
 	return 0;
 }
 
@@ -1132,7 +1136,7 @@ fallback:
 		goto out_free_filename;
 	}
 
-	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
+	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 filename, sym->name, map->unmap_ip(map, sym->start),
 		 map->unmap_ip(map, sym->end));
 
@@ -1142,7 +1146,7 @@ fallback:
 		 dso, dso->long_name, sym, sym->name);
 
 	snprintf(command, sizeof(command),
-		 "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS -C %s|grep -v %s|expand",
+		 "objdump --start-address=0x%016" PRIx64 " --stop-address=0x%016" PRIx64 " -dS -C %s|grep -v %s|expand",
 		 map__rip_2objdump(map, sym->start),
 		 map__rip_2objdump(map, sym->end),
 		 symfs_filename, filename);

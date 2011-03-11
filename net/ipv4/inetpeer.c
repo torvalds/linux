@@ -475,7 +475,7 @@ static int cleanup_once(unsigned long ttl)
 struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 {
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
-	struct inet_peer_base *base = family_to_base(AF_INET);
+	struct inet_peer_base *base = family_to_base(daddr->family);
 	struct inet_peer *p;
 
 	/* Look up for the address quickly, lockless.

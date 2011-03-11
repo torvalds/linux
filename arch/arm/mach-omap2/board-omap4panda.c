@@ -409,8 +409,6 @@ static void __init omap4_panda_init(void)
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
 	omap_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);
-	/* OMAP4 Panda uses internal transceiver so register nop transceiver */
-	usb_nop_xceiv_register();
 	omap4_ehci_init();
 	usb_musb_init(&musb_board_data);
 }
