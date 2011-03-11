@@ -761,7 +761,7 @@ static int overlayfb_check_var(struct fb_var_screeninfo *var,
 	int xpos, ypos, pfor, bpp;
 
 	xpos = NONSTD_TO_XPOS(var->nonstd);
-	ypos = NONSTD_TO_XPOS(var->nonstd);
+	ypos = NONSTD_TO_YPOS(var->nonstd);
 	pfor = NONSTD_TO_PFOR(var->nonstd);
 
 	bpp = pxafb_var_to_bpp(var);
@@ -842,7 +842,7 @@ static int overlayfb_set_par(struct fb_info *info)
 
 	bpp  = pxafb_var_to_bpp(var);
 	xpos = NONSTD_TO_XPOS(var->nonstd);
-	ypos = NONSTD_TO_XPOS(var->nonstd);
+	ypos = NONSTD_TO_YPOS(var->nonstd);
 	pfor = NONSTD_TO_PFOR(var->nonstd);
 
 	ofb->control[0] = OVLxC1_PPL(var->xres) | OVLxC1_LPO(var->yres) |
