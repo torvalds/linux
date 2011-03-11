@@ -32,6 +32,8 @@ struct btrfs_ioctl_vol_args {
 
 #define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
+#define BTRFS_FSID_SIZE 16
+#define BTRFS_UUID_SIZE 16
 
 #define BTRFS_SUBVOL_NAME_MAX 4039
 struct btrfs_ioctl_vol_args_v2 {
@@ -77,6 +79,33 @@ struct btrfs_scrub_progress {
 					 * full (64k) bio failed, but the re-
 					 * check succeeded for each 4k piece.
 					 * Intermittent error. */
+};
+
+struct btrfs_ioctl_scrub_args {
+	__u64 devid;				/* in */
+	__u64 start;				/* in */
+	__u64 end;				/* in */
+	__u64 flags;				/* in */
+	struct btrfs_scrub_progress progress;	/* out */
+	/* pad to 1k */
+	__u64 unused[(1024-32-sizeof(struct btrfs_scrub_progress))/8];
+};
+
+#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+struct btrfs_ioctl_dev_info_args {
+	__u64 devid;				/* in/out */
+	__u8 uuid[BTRFS_UUID_SIZE];		/* in/out */
+	__u64 bytes_used;			/* out */
+	__u64 total_bytes;			/* out */
+	__u64 unused[379];			/* pad to 4k */
+	__u8 path[BTRFS_DEVICE_PATH_NAME_MAX];	/* out */
+};
+
+struct btrfs_ioctl_fs_info_args {
+	__u64 max_id;				/* out */
+	__u64 num_devices;			/* out */
+	__u8 fsid[BTRFS_FSID_SIZE];		/* out */
+	__u64 reserved[124];			/* pad to 1k */
 };
 
 #define BTRFS_INO_LOOKUP_PATH_MAX 4080
@@ -240,4 +269,13 @@ struct btrfs_ioctl_space_args {
 				   struct btrfs_ioctl_vol_args_v2)
 #define BTRFS_IOC_SUBVOL_GETFLAGS _IOW(BTRFS_IOCTL_MAGIC, 25, __u64)
 #define BTRFS_IOC_SUBVOL_SETFLAGS _IOW(BTRFS_IOCTL_MAGIC, 26, __u64)
+#define BTRFS_IOC_SCRUB _IOWR(BTRFS_IOCTL_MAGIC, 27, \
+			      struct btrfs_ioctl_scrub_args)
+#define BTRFS_IOC_SCRUB_CANCEL _IO(BTRFS_IOCTL_MAGIC, 28)
+#define BTRFS_IOC_SCRUB_PROGRESS _IOWR(BTRFS_IOCTL_MAGIC, 29, \
+				       struct btrfs_ioctl_scrub_args)
+#define BTRFS_IOC_DEV_INFO _IOWR(BTRFS_IOCTL_MAGIC, 30, \
+				 struct btrfs_ioctl_dev_info_args)
+#define BTRFS_IOC_FS_INFO _IOR(BTRFS_IOCTL_MAGIC, 31, \
+			       struct btrfs_ioctl_fs_info_args)
 #endif
