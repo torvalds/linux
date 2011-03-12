@@ -431,6 +431,31 @@ static struct mpu3050_platform_data mpu3050_data = {
 };
 #endif
 
+#if defined (CONFIG_BATTERY_BQ27510)
+ 
+#define DC_CHECK_PIN RK29_PIN4_PA1
+#define LI_LION_BAT_NUM 2
+static int bq27510_init_dc_check_pin(void)
+{ 
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0)
+	{      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27510 init dc check pin request error\n");      
+    return -EIO;    
+	} 
+	gpio_direction_input(DC_CHECK_PIN); 
+	return 0;
+}
+struct bq27510_platform_data bq27510_info = 
+{ 
+		.init_dc_check_pin = bq27510_init_dc_check_pin, 
+    .dc_check_pin =  DC_CHECK_PIN, 
+    .bat_num = LI_LION_BAT_NUM,
+};
+ 
+#endif
+
+
 /*****************************************************************************************
 * TI TPS65910 voltage regulator devices 
 ******************************************************************************************/
@@ -510,7 +535,7 @@ static struct regulator_init_data rk29_regulator_vaux1 = {
 	.constraints = {
 		.min_uV = 2800000,
 		.max_uV = 2800000,
-		.valid_modes_mask = REGULATOR_MODE_STANDBY,
+		.valid_modes_mask = REGULATOR_MODE_NORMAL,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = true,
 	},
@@ -590,7 +615,7 @@ static struct regulator_init_data rk29_regulator_vmmc = {
 	.constraints = {
 		.min_uV = 3000000,
 		.max_uV = 3000000,
-		.valid_modes_mask = REGULATOR_MODE_STANDBY,
+		.valid_modes_mask = REGULATOR_MODE_NORMAL,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = true,
 	},
@@ -631,7 +656,7 @@ static struct regulator_init_data rk29_regulator_vdig1 = {
 	.constraints = {
 		.min_uV = 2700000,
 		.max_uV = 2700000,
-		.valid_modes_mask = REGULATOR_MODE_STANDBY,
+		.valid_modes_mask = REGULATOR_MODE_NORMAL,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = true,
 	},
@@ -778,7 +803,6 @@ struct tps65910_platform_data rk29_tps65910_data = {
 	.vpll		= &rk29_regulator_vpll,
 	.board_tps65910_config = rk29_tps65910_config,
 };
-
 #endif /* CONFIG_TPS65910_CORE */
 
 
@@ -884,6 +908,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "bq27510",
 		.addr           = 0x55,
 		.flags			= 0,
+		.platform_data  = &bq27510_info,
 	},
 #endif
 #if defined (CONFIG_RTC_HYM8563)
@@ -983,7 +1008,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #endif
 #if defined (CONFIG_TPS65910_CORE)
 	{
-        .type           = "tps65910",
+        .type           = "tps659102",
         .addr           = TPS65910_I2C_ID0,
         .flags          = 0,
         .irq            = TPS65910_HOST_IRQ,
@@ -2285,7 +2310,7 @@ static void __init machine_rk29_board_init(void)
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
         
-        rk29sdk_init_wifi_mem();
+    rk29sdk_init_wifi_mem();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,

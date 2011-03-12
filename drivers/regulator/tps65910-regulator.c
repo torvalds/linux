@@ -250,6 +250,8 @@ static int tps65910reg_enable(struct regulator_dev *rdev)
 	}
 	val |= TPS65910_REG_OHP;
 
+	DBG("%s: enable regulator id=%d\n", __FUNCTION__, info->id);
+
 	return tps65910reg_write(info, TPS65910_I2C_ID0, offset, val);
 }
 
@@ -271,6 +273,8 @@ static int tps65910reg_disable(struct regulator_dev *rdev)
 		return -EIO;
 	}
 	val &= TPS65910_REG_OFF_00;
+
+	DBG("%s: disable regulator id=%d\n", __FUNCTION__, info->id);
 
 	return tps65910reg_write(info, TPS65910_I2C_ID0, offset, val);
 }
@@ -655,20 +659,20 @@ static struct regulator_ops tps65910_fixed_ops = {
  */
 static struct tps65910reg_info tps65910_regs[] = {
 		
-	TPS65910_ADJUSTABLE_LDO(VDD1, TPS65910_VDD1, 950, 1400, 1500),
-	TPS65910_FIXED_LDO(VDD2, TPS65910_VDD2, 1200, 1500),
-	TPS65910_FIXED_LDO(VIO, TPS65910_VIO, 3300, 3300),
+	TPS65910_ADJUSTABLE_LDO(VDD1, TPS65910_VDD1, 950, 1400, 4),
+	TPS65910_FIXED_LDO(VDD2, TPS65910_VDD2, 1200, 4),
+	TPS65910_FIXED_LDO(VIO, TPS65910_VIO, 3300, 1),
 	
-	TPS65910_FIXED_LDO(VDD3, TPS65910_VDD3, 5000, 200),
+	TPS65910_FIXED_LDO(VDD3, TPS65910_VDD3, 5000, 0),
 	
-	TPS65910_FIXED_LDO(VDIG1, TPS65910_VDIG1, 2700, 2700),
-	TPS65910_FIXED_LDO(VDIG2, TPS65910_VDIG2, 1200, 1800),
-	TPS65910_FIXED_LDO(VAUX33, TPS65910_VAUX33, 3300, 3300),
-	TPS65910_FIXED_LDO(VMMC, TPS65910_VMMC, 3000, 3300),
-	TPS65910_FIXED_LDO(VAUX1, TPS65910_VAUX1, 2800, 3300),
-	TPS65910_FIXED_LDO(VAUX2, TPS65910_VAUX1, 2900, 3300),
-	TPS65910_FIXED_LDO(VDAC, TPS65910_VDAC, 1800, 2850),
-	TPS65910_FIXED_LDO(VPLL, TPS65910_VPLL, 2500, 2500),
+	TPS65910_FIXED_LDO(VDIG1, TPS65910_VDIG1, 2700, 7),
+	TPS65910_FIXED_LDO(VDIG2, TPS65910_VDIG2, 1200, 2),
+	TPS65910_FIXED_LDO(VAUX33, TPS65910_VAUX33, 3300, 2),
+	TPS65910_FIXED_LDO(VMMC, TPS65910_VMMC, 3000, 7),
+	TPS65910_FIXED_LDO(VAUX1, TPS65910_VAUX1, 2800, 7),
+	TPS65910_FIXED_LDO(VAUX2, TPS65910_VAUX1, 2900, 6),
+	TPS65910_FIXED_LDO(VDAC, TPS65910_VDAC, 1800, 6),
+	TPS65910_FIXED_LDO(VPLL, TPS65910_VPLL, 2500, 2),
 };
 
 static int tps65910_regulator_probe(struct platform_device *pdev)
@@ -679,8 +683,6 @@ static int tps65910_regulator_probe(struct platform_device *pdev)
 	struct regulation_constraints   *c;
 	struct regulator_dev            *rdev;
 
-	
-	DBG("%s\n", __FUNCTION__);
 	for (i = 0, info = NULL; i < ARRAY_SIZE(tps65910_regs); i++) {
 		if (tps65910_regs[i].desc.id != pdev->id)
 			continue;
@@ -706,11 +708,11 @@ static int tps65910_regulator_probe(struct platform_device *pdev)
 		| REGULATOR_CHANGE_STATUS;
 
 	switch (pdev->id) {
-	case TPS65910_REG_VDD1:
 	case TPS65910_REG_VIO:
+	case TPS65910_REG_VDD1:
 	case TPS65910_REG_VDD2:
-	case TPS65910_REG_VPLL:
 	case TPS65910_REG_VDIG2:
+	case TPS65910_REG_VPLL:
 		c->always_on = true;
 		break;
 	default:
@@ -724,6 +726,9 @@ static int tps65910_regulator_probe(struct platform_device *pdev)
 				info->desc.name, PTR_ERR(rdev));
 		return PTR_ERR(rdev);
 	}
+	//	cwz add for init status, for regulator disable
+	rdev->use_count = 1;
+	
 	platform_set_drvdata(pdev, rdev);
 
 	DBG("%s: reguloter register OK.\n", __FUNCTION__);
@@ -736,6 +741,8 @@ static int __devexit tps65910_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
+
+MODULE_ALIAS("platform:tps65910_regulator");
 static struct platform_driver tps65910_regulator_driver = {
 	.probe          = tps65910_regulator_probe,
 	.remove         = tps65910_regulator_remove,

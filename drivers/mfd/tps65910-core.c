@@ -44,7 +44,7 @@
 #define TPS65910_SPEED 	400 * 1000
 
 
-#define DRIVER_NAME			"tps65910"
+#define DRIVER_NAME			"tps659102"
 
 #if defined(CONFIG_GPIO_TPS65910)
 #define tps65910_has_gpio()  		true
@@ -374,6 +374,7 @@ struct device *add_regulator_linked(int num, struct regulator_init_data *pdata,
 		pdata->consumer_supplies = consumers;
 		pdata->num_consumer_supplies = num_consumers;
 	}
+	
 	return add_numbered_child(TPS65910_GENERAL, "tps65910_regulator", num,
 			pdata, sizeof(*pdata), false, TPS65910_HOST_IRQ);
 }
@@ -391,6 +392,8 @@ add_children(struct tps65910_platform_data *pdata, unsigned long features)
 	struct device   *child;
 
 	struct platform_device  *pdev = NULL;
+
+	DBG("cwz add_children: tps65910 add children.\n");
 
 	if (tps65910_has_gpio() && (pdata->gpio != NULL)) {
 
@@ -419,7 +422,6 @@ add_children(struct tps65910_platform_data *pdata, unsigned long features)
 	}
 
 	if (tps65910_has_regulator()) {
-
 		child = add_regulator(TPS65910_VIO, pdata->vio);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
@@ -468,11 +470,10 @@ add_children(struct tps65910_platform_data *pdata, unsigned long features)
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
+	
 	return 0;
-
 err:
 	return -1;
-
 }
 
 static int tps65910_remove(struct i2c_client *client)
@@ -721,7 +722,20 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 		seq_printf(s, "Get VCORE=%d(uV).\n", uV);
 	}
 }
-#endif	
+#endif
+
+#if 1
+{
+    struct regulator *vldo;
+	
+	vldo = regulator_get(NULL, "vmmc");
+	if (vldo > NULL)
+	{		
+		seq_printf(s, "Disable VMMC.\n");
+		regulator_disable(vldo);
+	}
+}
+#endif
 	return 0;
 }
 

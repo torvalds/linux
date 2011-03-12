@@ -561,7 +561,7 @@ static const struct i2c_device_id bq27510_id[] = {
 
 static struct i2c_driver bq27510_battery_driver = {
 	.driver = {
-		.name = "bq27510-battery",
+		.name = "bq27510",
 	},
 	.probe = bq27510_battery_probe,
 	.remove = bq27510_battery_remove,
