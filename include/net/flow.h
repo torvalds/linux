@@ -112,6 +112,21 @@ struct flowi {
 #define fl6_gre_key	u.ip6.uli.gre_key
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
+static inline struct flowi *flowi4_to_flowi(struct flowi4 *fl4)
+{
+	return container_of(fl4, struct flowi, u.ip4);
+}
+
+static inline struct flowi *flowi6_to_flowi(struct flowi6 *fl6)
+{
+	return container_of(fl6, struct flowi, u.ip6);
+}
+
+static inline struct flowi *flowidn_to_flowi(struct flowidn *fldn)
+{
+	return container_of(fldn, struct flowi, u.dn);
+}
+
 #define FLOW_DIR_IN	0
 #define FLOW_DIR_OUT	1
 #define FLOW_DIR_FWD	2
