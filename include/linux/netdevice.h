@@ -390,7 +390,55 @@ enum gro_result {
 };
 typedef enum gro_result gro_result_t;
 
-typedef struct sk_buff *rx_handler_func_t(struct sk_buff *skb);
+/*
+ * enum rx_handler_result - Possible return values for rx_handlers.
+ * @RX_HANDLER_CONSUMED: skb was consumed by rx_handler, do not process it
+ * further.
+ * @RX_HANDLER_ANOTHER: Do another round in receive path. This is indicated in
+ * case skb->dev was changed by rx_handler.
+ * @RX_HANDLER_EXACT: Force exact delivery, no wildcard.
+ * @RX_HANDLER_PASS: Do nothing, passe the skb as if no rx_handler was called.
+ *
+ * rx_handlers are functions called from inside __netif_receive_skb(), to do
+ * special processing of the skb, prior to delivery to protocol handlers.
+ *
+ * Currently, a net_device can only have a single rx_handler registered. Trying
+ * to register a second rx_handler will return -EBUSY.
+ *
+ * To register a rx_handler on a net_device, use netdev_rx_handler_register().
+ * To unregister a rx_handler on a net_device, use
+ * netdev_rx_handler_unregister().
+ *
+ * Upon return, rx_handler is expected to tell __netif_receive_skb() what to
+ * do with the skb.
+ *
+ * If the rx_handler consumed to skb in some way, it should return
+ * RX_HANDLER_CONSUMED. This is appropriate when the rx_handler arranged for
+ * the skb to be delivered in some other ways.
+ *
+ * If the rx_handler changed skb->dev, to divert the skb to another
+ * net_device, it should return RX_HANDLER_ANOTHER. The rx_handler for the
+ * new device will be called if it exists.
+ *
+ * If the rx_handler consider the skb should be ignored, it should return
+ * RX_HANDLER_EXACT. The skb will only be delivered to protocol handlers that
+ * are registred on exact device (ptype->dev == skb->dev).
+ *
+ * If the rx_handler didn't changed skb->dev, but want the skb to be normally
+ * delivered, it should return RX_HANDLER_PASS.
+ *
+ * A device without a registered rx_handler will behave as if rx_handler
+ * returned RX_HANDLER_PASS.
+ */
+
+enum rx_handler_result {
+	RX_HANDLER_CONSUMED,
+	RX_HANDLER_ANOTHER,
+	RX_HANDLER_EXACT,
+	RX_HANDLER_PASS,
+};
+typedef enum rx_handler_result rx_handler_result_t;
+typedef rx_handler_result_t rx_handler_func_t(struct sk_buff **pskb);
 
 extern void __napi_schedule(struct napi_struct *n);
 

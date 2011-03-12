@@ -3070,6 +3070,8 @@ out:
  *	on a failure.
  *
  *	The caller must hold the rtnl_mutex.
+ *
+ *	For a general description of rx_handler, see enum rx_handler_result.
  */
 int netdev_rx_handler_register(struct net_device *dev,
 			       rx_handler_func_t *rx_handler,
@@ -3129,6 +3131,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	rx_handler_func_t *rx_handler;
 	struct net_device *orig_dev;
 	struct net_device *null_or_dev;
+	bool deliver_exact = false;
 	int ret = NET_RX_DROP;
 	__be16 type;
 
@@ -3181,18 +3184,22 @@ ncls:
 
 	rx_handler = rcu_dereference(skb->dev->rx_handler);
 	if (rx_handler) {
-		struct net_device *prev_dev;
-
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
-		prev_dev = skb->dev;
-		skb = rx_handler(skb);
-		if (!skb)
+		switch (rx_handler(&skb)) {
+		case RX_HANDLER_CONSUMED:
 			goto out;
-		if (skb->dev != prev_dev)
+		case RX_HANDLER_ANOTHER:
 			goto another_round;
+		case RX_HANDLER_EXACT:
+			deliver_exact = true;
+		case RX_HANDLER_PASS:
+			break;
+		default:
+			BUG();
+		}
 	}
 
 	if (vlan_tx_tag_present(skb)) {
@@ -3210,7 +3217,7 @@ ncls:
 	vlan_on_bond_hook(skb);
 
 	/* deliver only exact match when indicated */
-	null_or_dev = skb->deliver_no_wcard ? skb->dev : NULL;
+	null_or_dev = deliver_exact ? skb->dev : NULL;
 
 	type = skb->protocol;
 	list_for_each_entry_rcu(ptype,
