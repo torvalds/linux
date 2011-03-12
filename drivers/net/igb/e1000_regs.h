@@ -342,6 +342,9 @@
 #define E1000_IPCNFG  0x0E38  /* Internal PHY Configuration */
 #define E1000_EEER    0x0E30  /* Energy Efficient Ethernet */
 
+/* Thermal Sensor Register */
+#define E1000_THSTAT    0x08110 /* Thermal Sensor Status */
+
 /* OS2BMC Registers */
 #define E1000_B2OSPC    0x08FE0 /* BMC2OS packets sent by BMC */
 #define E1000_B2OGPRC   0x04158 /* BMC2OS packets received by host */

@@ -3550,7 +3550,7 @@ static void igb_watchdog_task(struct work_struct *work)
                                                    watchdog_task);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
-	u32 link;
+	u32 link, ctrl_ext, thstat;
 	int i;
 
 	link = igb_has_link(adapter);
@@ -3574,6 +3574,25 @@ static void igb_watchdog_task(struct work_struct *work)
 			       ((ctrl & E1000_CTRL_RFCE) ?  "RX" :
 			       ((ctrl & E1000_CTRL_TFCE) ?  "TX" : "None")));
 
+			/* check for thermal sensor event on i350,
+			 * copper only */
+			if (hw->mac.type == e1000_i350) {
+				thstat = rd32(E1000_THSTAT);
+				ctrl_ext = rd32(E1000_CTRL_EXT);
+				if ((hw->phy.media_type ==
+				     e1000_media_type_copper) && !(ctrl_ext &
+				     E1000_CTRL_EXT_LINK_MODE_SGMII)) {
+					if (thstat &
+					    E1000_THSTAT_LINK_THROTTLE) {
+						printk(KERN_INFO "igb: %s The "
+						       "network adapter link "
+						       "speed was downshifted "
+						       "because it "
+						       "overheated.\n",
+						       netdev->name);
+					}
+				}
+			}
 			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
@@ -3599,6 +3618,22 @@ static void igb_watchdog_task(struct work_struct *work)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
+			/* check for thermal sensor event on i350
+			 * copper only*/
+			if (hw->mac.type == e1000_i350) {
+				thstat = rd32(E1000_THSTAT);
+				ctrl_ext = rd32(E1000_CTRL_EXT);
+				if ((hw->phy.media_type ==
+				     e1000_media_type_copper) && !(ctrl_ext &
+				     E1000_CTRL_EXT_LINK_MODE_SGMII)) {
+					if (thstat & E1000_THSTAT_PWR_DOWN) {
+						printk(KERN_ERR "igb: %s The "
+						"network adapter was stopped "
+						"because it overheated.\n",
+						netdev->name);
+					}
+				}
+			}
 			/* Links status message must follow this format */
 			printk(KERN_INFO "igb: %s NIC Link is Down\n",
 			       netdev->name);
