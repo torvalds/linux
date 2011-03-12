@@ -65,6 +65,14 @@ struct flowi4 {
 
 struct flowi6 {
 	struct flowi_common	__fl_common;
+#define flowi6_oif		__fl_common.flowic_oif
+#define flowi6_iif		__fl_common.flowic_iif
+#define flowi6_mark		__fl_common.flowic_mark
+#define flowi6_tos		__fl_common.flowic_tos
+#define flowi6_scope		__fl_common.flowic_scope
+#define flowi6_proto		__fl_common.flowic_proto
+#define flowi6_flags		__fl_common.flowic_flags
+#define flowi6_secid		__fl_common.flowic_secid
 	struct in6_addr		daddr;
 	struct in6_addr		saddr;
 	__be32			flowlabel;
