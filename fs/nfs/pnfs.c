@@ -982,6 +982,14 @@ pnfs_set_layoutcommit(struct nfs_write_data *wdata)
 }
 EXPORT_SYMBOL_GPL(pnfs_set_layoutcommit);
 
+/*
+ * For the LAYOUT4_NFSV4_1_FILES layout type, NFS_DATA_SYNC WRITEs and
+ * NFS_UNSTABLE WRITEs with a COMMIT to data servers must store enough
+ * data to disk to allow the server to recover the data if it crashes.
+ * LAYOUTCOMMIT is only needed when the NFL4_UFLG_COMMIT_THRU_MDS flag
+ * is off, and a COMMIT is sent to a data server, or
+ * if WRITEs to a data server return NFS_DATA_SYNC.
+ */
 int
 pnfs_layoutcommit_inode(struct inode *inode, int sync)
 {
@@ -994,10 +1002,18 @@ pnfs_layoutcommit_inode(struct inode *inode, int sync)
 
 	dprintk("--> %s inode %lu\n", __func__, inode->i_ino);
 
+	if (!test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags))
+		return 0;
+
 	/* Note kzalloc ensures data->res.seq_res.sr_slot == NULL */
 	data = kzalloc(sizeof(*data), GFP_NOFS);
-	spin_lock(&inode->i_lock);
+	if (!data) {
+		mark_inode_dirty_sync(inode);
+		status = -ENOMEM;
+		goto out;
+	}
 
+	spin_lock(&inode->i_lock);
 	if (!test_and_clear_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
 		spin_unlock(&inode->i_lock);
 		kfree(data);
@@ -1014,16 +1030,8 @@ pnfs_layoutcommit_inode(struct inode *inode, int sync)
 	lseg->pls_end_pos = 0;
 	lseg->pls_lc_cred = NULL;
 
-	if (!data) {
-		put_lseg(lseg);
-		spin_unlock(&inode->i_lock);
-		put_rpccred(cred);
-		status = -ENOMEM;
-		goto out;
-	} else {
-		memcpy(&data->args.stateid.data, nfsi->layout->plh_stateid.data,
-			sizeof(nfsi->layout->plh_stateid.data));
-	}
+	memcpy(&data->args.stateid.data, nfsi->layout->plh_stateid.data,
+		sizeof(nfsi->layout->plh_stateid.data));
 	spin_unlock(&inode->i_lock);
 
 	data->args.inode = inode;
