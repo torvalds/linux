@@ -23,7 +23,7 @@
 #ifdef CONFIG_HARDIRQS_SW_RESEND
 
 /* Bitmap to handle software resend of interrupts: */
-static DECLARE_BITMAP(irqs_resend, NR_IRQS);
+static DECLARE_BITMAP(irqs_resend, IRQ_BITMAP_BITS);
 
 /*
  * Run software resends of IRQ's

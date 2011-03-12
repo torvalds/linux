@@ -996,10 +996,10 @@ static int ptrace_gethbpregs(struct task_struct *tsk, long num,
 		while (!(arch_ctrl.len & 0x1))
 			arch_ctrl.len >>= 1;
 
-		if (idx & 0x1)
-			reg = encode_ctrl_reg(arch_ctrl);
-		else
+		if (num & 0x1)
 			reg = bp->attr.bp_addr;
+		else
+			reg = encode_ctrl_reg(arch_ctrl);
 	}
 
 put:

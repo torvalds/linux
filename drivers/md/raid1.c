@@ -593,7 +593,10 @@ static int flush_pending_writes(conf_t *conf)
 	if (conf->pending_bio_list.head) {
 		struct bio *bio;
 		bio = bio_list_get(&conf->pending_bio_list);
+		/* Only take the spinlock to quiet a warning */
+		spin_lock(conf->mddev->queue->queue_lock);
 		blk_remove_plug(conf->mddev->queue);
+		spin_unlock(conf->mddev->queue->queue_lock);
 		spin_unlock_irq(&conf->device_lock);
 		/* flush any pending bitmap writes to
 		 * disk before proceeding w/ I/O */
@@ -959,7 +962,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		atomic_inc(&r1_bio->remaining);
 		spin_lock_irqsave(&conf->device_lock, flags);
 		bio_list_add(&conf->pending_bio_list, mbio);
-		blk_plug_device(mddev->queue);
+		blk_plug_device_unlocked(mddev->queue);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	r1_bio_write_done(r1_bio, bio->bi_vcnt, behind_pages, behind_pages != NULL);
@@ -2021,7 +2024,6 @@ static int run(mddev_t *mddev)
 	if (IS_ERR(conf))
 		return PTR_ERR(conf);
 
-	mddev->queue->queue_lock = &conf->device_lock;
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);

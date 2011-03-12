@@ -1193,7 +1193,7 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlattr **tb,
 			goto err;
 	}
 
-	if (ieee[DCB_ATTR_IEEE_PFC] && ops->ieee_setets) {
+	if (ieee[DCB_ATTR_IEEE_PFC] && ops->ieee_setpfc) {
 		struct ieee_pfc *pfc = nla_data(ieee[DCB_ATTR_IEEE_PFC]);
 		err = ops->ieee_setpfc(netdev, pfc);
 		if (err)
