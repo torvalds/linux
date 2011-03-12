@@ -98,12 +98,7 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		spin_lock(&dest->dst_lock);
 		if (!(rt = (struct rtable *)
 		      __ip_vs_dst_check(dest, rtos))) {
-			struct flowi fl = {
-				.fl4_dst = dest->addr.ip,
-				.fl4_tos = rtos,
-			};
-
-			rt = ip_route_output_key(net, &fl);
+			rt = ip_route_output(net, dest->addr.ip, 0, rtos, 0);
 			if (IS_ERR(rt)) {
 				spin_unlock(&dest->dst_lock);
 				IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
@@ -117,12 +112,7 @@ __ip_vs_get_out_rt(struct sk_buff *skb, struct ip_vs_dest *dest,
 		}
 		spin_unlock(&dest->dst_lock);
 	} else {
-		struct flowi fl = {
-			.fl4_dst = daddr,
-			.fl4_tos = rtos,
-		};
-
-		rt = ip_route_output_key(net, &fl);
+		rt = ip_route_output(net, daddr, 0, rtos, 0);
 		if (IS_ERR(rt)) {
 			IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
 				     &daddr);

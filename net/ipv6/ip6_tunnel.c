@@ -536,7 +536,6 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	int err;
 	struct sk_buff *skb2;
 	struct iphdr *eiph;
-	struct flowi fl;
 	struct rtable *rt;
 
 	err = ip6_tnl_err(skb, IPPROTO_IPIP, opt, &rel_type, &rel_code,
@@ -578,11 +577,10 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	eiph = ip_hdr(skb2);
 
 	/* Try to guess incoming interface */
-	memset(&fl, 0, sizeof(fl));
-	fl.fl4_dst = eiph->saddr;
-	fl.fl4_tos = RT_TOS(eiph->tos);
-	fl.proto = IPPROTO_IPIP;
-	rt = ip_route_output_key(dev_net(skb->dev), &fl);
+	rt = ip_route_output_ports(dev_net(skb->dev), NULL,
+				   eiph->saddr, 0,
+				   0, 0,
+				   IPPROTO_IPIP, RT_TOS(eiph->tos), 0);
 	if (IS_ERR(rt))
 		goto out;
 
@@ -592,10 +590,11 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (rt->rt_flags & RTCF_LOCAL) {
 		ip_rt_put(rt);
 		rt = NULL;
-		fl.fl4_dst = eiph->daddr;
-		fl.fl4_src = eiph->saddr;
-		fl.fl4_tos = eiph->tos;
-		rt = ip_route_output_key(dev_net(skb->dev), &fl);
+		rt = ip_route_output_ports(dev_net(skb->dev), NULL,
+					   eiph->daddr, eiph->saddr,
+					   0, 0,
+					   IPPROTO_IPIP,
+					   RT_TOS(eiph->tos), 0);
 		if (IS_ERR(rt) ||
 		    rt->dst.dev->type != ARPHRD_TUNNEL) {
 			if (!IS_ERR(rt))

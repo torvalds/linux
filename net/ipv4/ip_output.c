@@ -339,26 +339,19 @@ int ip_queue_xmit(struct sk_buff *skb)
 		if(opt && opt->srr)
 			daddr = opt->faddr;
 
-		{
-			struct flowi fl = { .oif = sk->sk_bound_dev_if,
-					    .mark = sk->sk_mark,
-					    .fl4_dst = daddr,
-					    .fl4_src = inet->inet_saddr,
-					    .fl4_tos = RT_CONN_FLAGS(sk),
-					    .proto = sk->sk_protocol,
-					    .flags = inet_sk_flowi_flags(sk),
-					    .fl_ip_sport = inet->inet_sport,
-					    .fl_ip_dport = inet->inet_dport };
-
-			/* If this fails, retransmit mechanism of transport layer will
-			 * keep trying until route appears or the connection times
-			 * itself out.
-			 */
-			security_sk_classify_flow(sk, &fl);
-			rt = ip_route_output_flow(sock_net(sk), &fl, sk);
-			if (IS_ERR(rt))
-				goto no_route;
-		}
+		/* If this fails, retransmit mechanism of transport layer will
+		 * keep trying until route appears or the connection times
+		 * itself out.
+		 */
+		rt = ip_route_output_ports(sock_net(sk), sk,
+					   daddr, inet->inet_saddr,
+					   inet->inet_dport,
+					   inet->inet_sport,
+					   sk->sk_protocol,
+					   RT_CONN_FLAGS(sk),
+					   sk->sk_bound_dev_if);
+		if (IS_ERR(rt))
+			goto no_route;
 		sk_setup_caps(sk, &rt->dst);
 	}
 	skb_dst_set_noref(skb, &rt->dst);

@@ -36,28 +36,13 @@ static void rxrpc_destroy_peer(struct work_struct *work);
 static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 {
 	struct rtable *rt;
-	struct flowi fl;
 
 	peer->if_mtu = 1500;
 
-	memset(&fl, 0, sizeof(fl));
-
-	switch (peer->srx.transport.family) {
-	case AF_INET:
-		fl.oif = 0;
-		fl.proto = IPPROTO_UDP,
-		fl.fl4_dst = peer->srx.transport.sin.sin_addr.s_addr;
-		fl.fl4_src = 0;
-		fl.fl4_tos = 0;
-		/* assume AFS.CM talking to AFS.FS */
-		fl.fl_ip_sport = htons(7001);
-		fl.fl_ip_dport = htons(7000);
-		break;
-	default:
-		BUG();
-	}
-
-	rt = ip_route_output_key(&init_net, &fl);
+	rt = ip_route_output_ports(&init_net, NULL,
+				   peer->srx.transport.sin.sin_addr.s_addr, 0,
+				   htons(7000), htons(7001),
+				   IPPROTO_UDP, 0, 0);
 	if (IS_ERR(rt)) {
 		_leave(" [route err %ld]", PTR_ERR(rt));
 		return;

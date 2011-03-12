@@ -132,6 +132,54 @@ static inline struct rtable *ip_route_output_key(struct net *net, struct flowi *
 	return ip_route_output_flow(net, flp, NULL);
 }
 
+static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
+					     __be32 saddr, u8 tos, int oif)
+{
+	struct flowi fl = {
+		.oif = oif,
+		.fl4_dst = daddr,
+		.fl4_src = saddr,
+		.fl4_tos = tos,
+	};
+	return ip_route_output_key(net, &fl);
+}
+
+static inline struct rtable *ip_route_output_ports(struct net *net, struct sock *sk,
+						   __be32 daddr, __be32 saddr,
+						   __be16 dport, __be16 sport,
+						   __u8 proto, __u8 tos, int oif)
+{
+	struct flowi fl = {
+		.oif = oif,
+		.flags = sk ? inet_sk_flowi_flags(sk) : 0,
+		.mark = sk ? sk->sk_mark : 0,
+		.fl4_dst = daddr,
+		.fl4_src = saddr,
+		.fl4_tos = tos,
+		.proto = proto,
+		.fl_ip_dport = dport,
+		.fl_ip_sport = sport,
+	};
+	if (sk)
+		security_sk_classify_flow(sk, &fl);
+	return ip_route_output_flow(net, &fl, sk);
+}
+
+static inline struct rtable *ip_route_output_gre(struct net *net,
+						 __be32 daddr, __be32 saddr,
+						 __be32 gre_key, __u8 tos, int oif)
+{
+	struct flowi fl = {
+		.oif = oif,
+		.fl4_dst = daddr,
+		.fl4_src = saddr,
+		.fl4_tos = tos,
+		.proto = IPPROTO_GRE,
+		.fl_gre_key = gre_key,
+	};
+	return ip_route_output_key(net, &fl);
+}
+
 extern int ip_route_input_common(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin, bool noref);
 

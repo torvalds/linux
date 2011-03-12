@@ -1611,25 +1611,19 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 #endif
 
 	if (vif->flags & VIFF_TUNNEL) {
-		struct flowi fl = {
-			.oif = vif->link,
-			.fl4_dst = vif->remote,
-			.fl4_src = vif->local,
-			.fl4_tos = RT_TOS(iph->tos),
-			.proto = IPPROTO_IPIP
-		};
-		rt = ip_route_output_key(net, &fl);
+		rt = ip_route_output_ports(net, NULL,
+					   vif->remote, vif->local,
+					   0, 0,
+					   IPPROTO_IPIP,
+					   RT_TOS(iph->tos), vif->link);
 		if (IS_ERR(rt))
 			goto out_free;
 		encap = sizeof(struct iphdr);
 	} else {
-		struct flowi fl = {
-			.oif = vif->link,
-			.fl4_dst = iph->daddr,
-			.fl4_tos = RT_TOS(iph->tos),
-			.proto = IPPROTO_IPIP
-		};
-		rt = ip_route_output_key(net, &fl);
+		rt = ip_route_output_ports(net, NULL, iph->daddr, 0,
+					   0, 0,
+					   IPPROTO_IPIP,
+					   RT_TOS(iph->tos), vif->link);
 		if (IS_ERR(rt))
 			goto out_free;
 	}

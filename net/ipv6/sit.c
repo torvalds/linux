@@ -732,17 +732,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		dst = addr6->s6_addr32[3];
 	}
 
-	{
-		struct flowi fl = { .fl4_dst = dst,
-				    .fl4_src = tiph->saddr,
-				    .fl4_tos = RT_TOS(tos),
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		rt = ip_route_output_key(dev_net(dev), &fl);
-		if (IS_ERR(rt)) {
-			dev->stats.tx_carrier_errors++;
-			goto tx_error_icmp;
-		}
+	rt = ip_route_output_ports(dev_net(dev), NULL,
+				   dst, tiph->saddr,
+				   0, 0,
+				   IPPROTO_IPV6, RT_TOS(tos),
+				   tunnel->parms.link);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error_icmp;
 	}
 	if (rt->rt_type != RTN_UNICAST) {
 		ip_rt_put(rt);
@@ -858,12 +855,12 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct flowi fl = { .fl4_dst = iph->daddr,
-				    .fl4_src = iph->saddr,
-				    .fl4_tos = RT_TOS(iph->tos),
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		struct rtable *rt = ip_route_output_key(dev_net(dev), &fl);
+		struct rtable *rt = ip_route_output_ports(dev_net(dev), NULL,
+							  iph->daddr, iph->saddr,
+							  0, 0,
+							  IPPROTO_IPV6,
+							  RT_TOS(iph->tos),
+							  tunnel->parms.link);
 
 		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;

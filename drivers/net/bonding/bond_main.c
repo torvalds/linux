@@ -2676,7 +2676,6 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 	__be32 *targets = bond->params.arp_targets;
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
-	struct flowi fl;
 	struct rtable *rt;
 
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
@@ -2695,15 +2694,12 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		 * determine which VLAN interface would be used, so we
 		 * can tag the ARP with the proper VLAN tag.
 		 */
-		memset(&fl, 0, sizeof(fl));
-		fl.fl4_dst = targets[i];
-		fl.fl4_tos = RTO_ONLINK;
-
-		rt = ip_route_output_key(dev_net(bond->dev), &fl);
+		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
+				     RTO_ONLINK, 0);
 		if (IS_ERR(rt)) {
 			if (net_ratelimit()) {
 				pr_warning("%s: no route to arp_ip_target %pI4\n",
-					   bond->dev->name, &fl.fl4_dst);
+					   bond->dev->name, &targets[i]);
 			}
 			continue;
 		}
@@ -2739,7 +2735,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 		if (net_ratelimit()) {
 			pr_warning("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
-				   bond->dev->name, &fl.fl4_dst,
+				   bond->dev->name, &targets[i],
 				   rt->dst.dev ? rt->dst.dev->name : "NULL");
 		}
 		ip_rt_put(rt);

@@ -183,17 +183,11 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 {
 	__be32 src_ip = src_in->sin_addr.s_addr;
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
-	struct flowi fl;
 	struct rtable *rt;
 	struct neighbour *neigh;
 	int ret;
 
-	memset(&fl, 0, sizeof fl);
-	fl.nl_u.ip4_u.daddr = dst_ip;
-	fl.nl_u.ip4_u.saddr = src_ip;
-	fl.oif = addr->bound_dev_if;
-
-	rt = ip_route_output_key(&init_net, &fl);
+	rt = ip_route_output(&init_net, dst_ip, src_ip, 0, addr->bound_dev_if);
 	if (IS_ERR(rt)) {
 		ret = PTR_ERR(rt);
 		goto out;

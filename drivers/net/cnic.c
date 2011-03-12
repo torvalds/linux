@@ -3407,20 +3407,14 @@ static int cnic_get_v4_route(struct sockaddr_in *dst_addr,
 			     struct dst_entry **dst)
 {
 #if defined(CONFIG_INET)
-	struct flowi fl;
-	int err;
 	struct rtable *rt;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.nl_u.ip4_u.daddr = dst_addr->sin_addr.s_addr;
-
-	rt = ip_route_output_key(&init_net, &fl);
-	err = 0;
-	if (!IS_ERR(rt))
+	rt = ip_route_output(&init_net, dst_addr->sin_addr.s_addr, 0, 0, 0);
+	if (!IS_ERR(rt)) {
 		*dst = &rt->dst;
-	else
-		err = PTR_ERR(rt);
-	return err;
+		return 0;
+	}
+	return PTR_ERR(rt);
 #else
 	return -ENETUNREACH;
 #endif
