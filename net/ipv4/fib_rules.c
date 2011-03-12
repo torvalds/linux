@@ -106,14 +106,15 @@ errout:
 static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct fib4_rule *r = (struct fib4_rule *) rule;
-	__be32 daddr = fl->fl4_dst;
-	__be32 saddr = fl->fl4_src;
+	struct flowi4 *fl4 = &fl->u.ip4;
+	__be32 daddr = fl4->daddr;
+	__be32 saddr = fl4->saddr;
 
 	if (((saddr ^ r->src) & r->srcmask) ||
 	    ((daddr ^ r->dst) & r->dstmask))
 		return 0;
 
-	if (r->tos && (r->tos != fl->fl4_tos))
+	if (r->tos && (r->tos != fl4->flowi4_tos))
 		return 0;
 
 	return 1;

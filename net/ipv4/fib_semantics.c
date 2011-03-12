@@ -560,16 +560,16 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 		}
 		rcu_read_lock();
 		{
-			struct flowi fl = {
-				.fl4_dst = nh->nh_gw,
-				.fl4_scope = cfg->fc_scope + 1,
-				.flowi_oif = nh->nh_oif,
+			struct flowi4 fl4 = {
+				.daddr = nh->nh_gw,
+				.flowi4_scope = cfg->fc_scope + 1,
+				.flowi4_oif = nh->nh_oif,
 			};
 
 			/* It is not necessary, but requires a bit of thinking */
-			if (fl.fl4_scope < RT_SCOPE_LINK)
-				fl.fl4_scope = RT_SCOPE_LINK;
-			err = fib_lookup(net, &fl.u.ip4, &res);
+			if (fl4.flowi4_scope < RT_SCOPE_LINK)
+				fl4.flowi4_scope = RT_SCOPE_LINK;
+			err = fib_lookup(net, &fl4, &res);
 			if (err) {
 				rcu_read_unlock();
 				return err;
