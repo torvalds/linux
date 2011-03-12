@@ -95,9 +95,17 @@ struct flowi6 {
 
 struct flowidn {
 	struct flowi_common	__fl_common;
+#define flowidn_oif		__fl_common.flowic_oif
+#define flowidn_iif		__fl_common.flowic_iif
+#define flowidn_mark		__fl_common.flowic_mark
+#define flowidn_scope		__fl_common.flowic_scope
+#define flowidn_proto		__fl_common.flowic_proto
+#define flowidn_flags		__fl_common.flowic_flags
 	__le16			daddr;
 	__le16			saddr;
 	union flowi_uli		uli;
+#define fld_sport		uli.ports.sport
+#define fld_dport		uli.ports.dport
 };
 
 struct flowi {
@@ -115,10 +123,6 @@ struct flowi {
 #define flowi_proto	u.__fl_common.flowic_proto
 #define flowi_flags	u.__fl_common.flowic_flags
 #define flowi_secid	u.__fl_common.flowic_secid
-#define fld_scope	flowi_scope
-
-#define fld_dst		u.dn.daddr
-#define fld_src		u.dn.saddr
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
 static inline struct flowi *flowi4_to_flowi(struct flowi4 *fl4)
