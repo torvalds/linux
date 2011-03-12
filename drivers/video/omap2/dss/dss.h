@@ -173,6 +173,16 @@ struct dsi_clock_info {
 	bool use_sys_clk;
 };
 
+/* HDMI PLL structure */
+struct hdmi_pll_info {
+	u16 regn;
+	u16 regm;
+	u32 regmf;
+	u16 regm2;
+	u16 regsd;
+	u16 dcofreq;
+};
+
 struct seq_file;
 struct platform_device;
 
@@ -443,6 +453,30 @@ static inline void venc_uninit_platform_driver(void)
 {
 }
 #endif
+
+/* HDMI */
+#ifdef CONFIG_OMAP4_DSS_HDMI
+int hdmi_init_platform_driver(void);
+void hdmi_uninit_platform_driver(void);
+int hdmi_init_display(struct omap_dss_device *dssdev);
+#else
+static inline int hdmi_init_display(struct omap_dss_device *dssdev)
+{
+	return 0;
+}
+static inline int hdmi_init_platform_driver(void)
+{
+	return 0;
+}
+static inline void hdmi_uninit_platform_driver(void)
+{
+}
+#endif
+int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev);
+void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev);
+void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev);
+int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
+					struct omap_video_timings *timings);
 
 /* RFBI */
 #ifdef CONFIG_OMAP2_DSS_RFBI
