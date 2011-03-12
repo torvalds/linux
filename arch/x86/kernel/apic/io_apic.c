@@ -1240,7 +1240,8 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 #endif
 
-static void ioapic_register_intr(unsigned int irq, unsigned long trigger)
+static void ioapic_register_intr(unsigned int irq, struct irq_cfg *cfg,
+				 unsigned long trigger)
 {
 	struct irq_chip *chip = &ioapic_chip;
 	irq_flow_handler_t hdl;
@@ -1255,7 +1256,7 @@ static void ioapic_register_intr(unsigned int irq, unsigned long trigger)
 		fasteoi = false;
 	}
 
-	if (irq_remapped(irq_get_chip_data(irq))) {
+	if (irq_remapped(cfg)) {
 		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 		chip = &ir_ioapic_chip;
 		fasteoi = trigger != 0;
@@ -1361,7 +1362,7 @@ static void setup_ioapic_irq(int apic_id, int pin, unsigned int irq,
 		return;
 	}
 
-	ioapic_register_intr(irq, trigger);
+	ioapic_register_intr(irq, cfg, trigger);
 	if (irq < legacy_pic->nr_legacy_irqs)
 		legacy_pic->mask(irq);
 
@@ -3088,7 +3089,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 
 	dest = apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
-	if (irq_remapped(irq_get_chip_data(irq))) {
+	if (irq_remapped(cfg)) {
 		struct irte irte;
 		int ir_index;
 		u16 sub_handle;
