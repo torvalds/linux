@@ -259,6 +259,19 @@ struct ath5k_softc {
 	struct survey_info	survey;		/* collected survey info */
 };
 
+struct ath5k_vif_iter_data {
+	const u8	*hw_macaddr;
+	u8		mask[ETH_ALEN];
+	u8		active_mac[ETH_ALEN]; /* first active MAC */
+	bool		need_set_hw_addr;
+	bool		found_active;
+	bool		any_assoc;
+	enum nl80211_iftype opmode;
+	int n_stas;
+};
+void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif);
+
+
 #define ath5k_hw_hasbssidmask(_ah) \
 	(ath5k_hw_get_capability(_ah, AR5K_CAP_BSSIDMASK, 0, NULL) == 0)
 #define ath5k_hw_hasveol(_ah) \

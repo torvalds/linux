@@ -190,10 +190,7 @@ void iwlagn_rx_replenish_now(struct iwl_priv *priv);
 void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rxq_stop(struct iwl_priv *priv);
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
-void iwlagn_rx_reply_rx(struct iwl_priv *priv,
-		     struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
-			 struct iwl_rx_mem_buffer *rxb);
+void iwl_setup_rx_handlers(struct iwl_priv *priv);
 
 /* tx */
 void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
@@ -242,14 +239,6 @@ static inline bool iwl_is_tx_success(u32 status)
 }
 
 u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
-
-/* rx */
-void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb);
-void iwl_rx_statistics(struct iwl_priv *priv,
-		       struct iwl_rx_mem_buffer *rxb);
-void iwl_reply_statistics(struct iwl_priv *priv,
-			  struct iwl_rx_mem_buffer *rxb);
 
 /* scan */
 int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);

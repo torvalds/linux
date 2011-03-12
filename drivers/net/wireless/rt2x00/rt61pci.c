@@ -1898,10 +1898,12 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->signal);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->service);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW, txdesc->length_low);
-	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH, txdesc->length_high);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SIGNAL, txdesc->u.plcp.signal);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_SERVICE, txdesc->u.plcp.service);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_LOW,
+			   txdesc->u.plcp.length_low);
+	rt2x00_set_field32(&word, TXD_W2_PLCP_LENGTH_HIGH,
+			   txdesc->u.plcp.length_high);
 	rt2x00_desc_write(txd, 2, word);
 
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags)) {
@@ -1946,7 +1948,7 @@ static void rt61pci_write_tx_desc(struct queue_entry *entry,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
 			   (txdesc->rate_mode == RATE_MODE_OFDM));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->u.plcp.ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC,
@@ -2190,7 +2192,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		 * queue identication number.
 		 */
 		type = rt2x00_get_field32(reg, STA_CSR4_PID_TYPE);
-		queue = rt2x00queue_get_queue(rt2x00dev, type);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, type);
 		if (unlikely(!queue))
 			continue;
 
@@ -2261,39 +2263,37 @@ static void rt61pci_wakeup(struct rt2x00_dev *rt2x00dev)
 static void rt61pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 				     struct rt2x00_field32 irq_field)
 {
-	unsigned long flags;
 	u32 reg;
 
 	/*
 	 * Enable a single interrupt. The interrupt mask register
 	 * access needs locking.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, irq_field, 0);
 	rt2x00pci_register_write(rt2x00dev, INT_MASK_CSR, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt61pci_enable_mcu_interrupt(struct rt2x00_dev *rt2x00dev,
 					 struct rt2x00_field32 irq_field)
 {
-	unsigned long flags;
 	u32 reg;
 
 	/*
 	 * Enable a single MCU interrupt. The interrupt mask register
 	 * access needs locking.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, MCU_INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, irq_field, 0);
 	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt61pci_txstatus_tasklet(unsigned long data)
@@ -2331,7 +2331,6 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	struct rt2x00_dev *rt2x00dev = dev_instance;
 	u32 reg_mcu, mask_mcu;
 	u32 reg, mask;
-	unsigned long flags;
 
 	/*
 	 * Get the interrupt sources & saved to local variable.
@@ -2376,7 +2375,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	 * Disable all interrupts for which a tasklet was scheduled right now,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock(&rt2x00dev->irqmask_lock);
 
 	rt2x00pci_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	reg |= mask;
@@ -2386,7 +2385,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	reg |= mask_mcu;
 	rt2x00pci_register_write(rt2x00dev, MCU_INT_MASK_CSR, reg);
 
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock(&rt2x00dev->irqmask_lock);
 
 	return IRQ_HANDLED;
 }
@@ -2917,7 +2916,7 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	if (queue_idx >= 4)
 		return 0;
 
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 
 	/* Update WMM TXOP register */
 	offset = AC_TXOP_CSR0 + (sizeof(u32) * (!!(queue_idx & 2)));

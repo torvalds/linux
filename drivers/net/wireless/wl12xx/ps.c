@@ -69,7 +69,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	}
 }
 
-int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
+int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 {
 	DECLARE_COMPLETION_ONSTACK(compl);
 	unsigned long flags;
@@ -87,7 +87,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 	 * the completion variable in one entity.
 	 */
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	if (work_pending(&wl->irq_work) || chip_awake)
+	if (test_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
 		pending = true;
 	else
 		wl->elp_compl = &compl;
@@ -149,7 +149,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_ACTIVE_MODE:
 	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
-		ret = wl1271_ps_elp_wakeup(wl, false);
+		ret = wl1271_ps_elp_wakeup(wl);
 		if (ret < 0)
 			return ret;
 

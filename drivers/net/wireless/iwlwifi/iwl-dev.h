@@ -1261,8 +1261,8 @@ struct iwl_priv {
 	/* track IBSS manager (last beacon) status */
 	u32 ibss_manager;
 
-	/* storing the jiffies when the plcp error rate is received */
-	unsigned long plcp_jiffies;
+	/* jiffies when last recovery from statistics was performed */
+	unsigned long rx_statistics_jiffies;
 
 	/* force reset */
 	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];

@@ -415,6 +415,17 @@ struct hci_cp_io_capability_reply {
 	__u8     authentication;
 } __packed;
 
+#define HCI_OP_USER_CONFIRM_REPLY		0x042c
+struct hci_cp_user_confirm_reply {
+	bdaddr_t bdaddr;
+} __packed;
+struct hci_rp_user_confirm_reply {
+	__u8     status;
+	bdaddr_t bdaddr;
+} __packed;
+
+#define HCI_OP_USER_CONFIRM_NEG_REPLY	0x042d
+
 #define HCI_OP_IO_CAPABILITY_NEG_REPLY	0x0434
 struct hci_cp_io_capability_neg_reply {
 	bdaddr_t bdaddr;
@@ -934,6 +945,12 @@ struct hci_ev_io_capa_reply {
 	__u8     capability;
 	__u8     oob_data;
 	__u8     authentication;
+} __packed;
+
+#define HCI_EV_USER_CONFIRM_REQUEST	0x33
+struct hci_ev_user_confirm_req {
+	bdaddr_t	bdaddr;
+	__le32		passkey;
 } __packed;
 
 #define HCI_EV_SIMPLE_PAIR_COMPLETE	0x36

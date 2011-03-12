@@ -116,13 +116,13 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto exit_fail;
 
 	/*
-	 * Determine which queue to put packet on.
+	 * Use the ATIM queue if appropriate and present.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM &&
 	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
-		queue = rt2x00queue_get_queue(rt2x00dev, QID_ATIM);
-	else
-		queue = rt2x00queue_get_queue(rt2x00dev, qid);
+		qid = QID_ATIM;
+
+	queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
 	if (unlikely(!queue)) {
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
@@ -149,7 +149,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			goto exit_fail;
 	}
 
-	if (rt2x00queue_write_tx_frame(queue, skb, false))
+	if (unlikely(rt2x00queue_write_tx_frame(queue, skb, false)))
 		goto exit_fail;
 
 	if (rt2x00queue_threshold(queue))
@@ -190,7 +190,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, QID_BEACON);
+	struct data_queue *queue = rt2x00dev->bcn;
 	struct queue_entry *entry = NULL;
 	unsigned int i;
 
@@ -518,11 +518,9 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	crypto.cmd = cmd;
 
-	if (sta) {
-		/* some drivers need the AID */
-		crypto.aid = sta->aid;
+	if (sta)
 		crypto.address = sta->addr;
-	} else
+	else
 		crypto.address = bcast_addr;
 
 	if (crypto.cipher == CIPHER_TKIP)
@@ -692,7 +690,7 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct data_queue *queue;
 
-	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	queue = rt2x00queue_get_tx_queue(rt2x00dev, queue_idx);
 	if (unlikely(!queue))
 		return -EINVAL;
 

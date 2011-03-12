@@ -168,5 +168,6 @@ void wl1271_unregister_hw(struct wl1271 *wl);
 int wl1271_init_ieee80211(struct wl1271 *wl);
 struct ieee80211_hw *wl1271_alloc_hw(void);
 int wl1271_free_hw(struct wl1271 *wl);
+irqreturn_t wl1271_irq(int irq, void *data);
 
 #endif

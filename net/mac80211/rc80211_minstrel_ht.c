@@ -415,10 +415,8 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		mi->sample_count--;
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
+	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 		mi->sample_packets += info->status.ampdu_len;
-		minstrel_next_sample_idx(mi);
-	}
 
 	for (i = 0; !last; i++) {
 		last = (i == IEEE80211_TX_MAX_RATES - 1) ||
@@ -519,9 +517,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		rate->count = mr->retry_count;
 
 	rate->flags = IEEE80211_TX_RC_MCS | group->flags;
-	if (txrc->short_preamble)
-		rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
-	if (txrc->rts || rtscts)
+	if (rtscts)
 		rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 	rate->idx = index % MCS_GROUP_RATES + (group->streams - 1) * MCS_GROUP_RATES;
 }
@@ -553,13 +549,14 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	sample_idx = sample_table[mg->column][mg->index];
 	mr = &mg->rates[sample_idx];
 	sample_idx += mi->sample_group * MCS_GROUP_RATES;
+	minstrel_next_sample_idx(mi);
 
 	/*
 	 * When not using MRR, do not sample if the probability is already
 	 * higher than 95% to avoid wasting airtime
 	 */
 	if (!mp->has_mrr && (mr->probability > MINSTREL_FRAC(95, 100)))
-		goto next;
+		return -1;
 
 	/*
 	 * Make sure that lower rates get sampled only occasionally,
@@ -568,17 +565,13 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (minstrel_get_duration(sample_idx) >
 	    minstrel_get_duration(mi->max_tp_rate)) {
 		if (mr->sample_skipped < 20)
-			goto next;
+			return -1;
 
 		if (mi->sample_slow++ > 2)
-			goto next;
+			return -1;
 	}
 
 	return sample_idx;
-
-next:
-	minstrel_next_sample_idx(mi);
-	return -1;
 }
 
 static void

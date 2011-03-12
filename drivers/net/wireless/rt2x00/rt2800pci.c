@@ -493,12 +493,12 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
 
-       if (rt2x00_rt(rt2x00dev, RT5390)) {
-               rt2800_register_read(rt2x00dev, AUX_CTRL, &reg);
-               rt2x00_set_field32(&reg, AUX_CTRL_FORCE_PCIE_CLK, 1);
-               rt2x00_set_field32(&reg, AUX_CTRL_WAKE_PCIE_EN, 1);
-               rt2800_register_write(rt2x00dev, AUX_CTRL, reg);
-       }
+	if (rt2x00_rt(rt2x00dev, RT5390)) {
+		rt2800_register_read(rt2x00dev, AUX_CTRL, &reg);
+		rt2x00_set_field32(&reg, AUX_CTRL_FORCE_PCIE_CLK, 1);
+		rt2x00_set_field32(&reg, AUX_CTRL_WAKE_PCIE_EN, 1);
+		rt2800_register_write(rt2x00dev, AUX_CTRL, reg);
+	}
 
 	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
@@ -726,7 +726,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 
 	while (kfifo_get(&rt2x00dev->txstatus_fifo, &status)) {
 		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
-		if (qid >= QID_RX) {
+		if (unlikely(qid >= QID_RX)) {
 			/*
 			 * Unknown queue, this shouldn't happen. Just drop
 			 * this tx status.
@@ -736,7 +736,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		queue = rt2x00queue_get_queue(rt2x00dev, qid);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
 		if (unlikely(queue == NULL)) {
 			/*
 			 * The queue is NULL, this shouldn't happen. Stop
@@ -747,7 +747,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		if (rt2x00queue_empty(queue)) {
+		if (unlikely(rt2x00queue_empty(queue))) {
 			/*
 			 * The queue is empty. Stop processing here
 			 * and drop the tx status.
@@ -765,18 +765,17 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 static void rt2800pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 				       struct rt2x00_field32 irq_field)
 {
-	unsigned long flags;
 	u32 reg;
 
 	/*
 	 * Enable a single interrupt. The interrupt mask register
 	 * access needs locking.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock_irq(&rt2x00dev->irqmask_lock);
 	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	rt2x00_set_field32(&reg, irq_field, 1);
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
 static void rt2800pci_txstatus_tasklet(unsigned long data)
@@ -836,7 +835,7 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 *
 	 * Furthermore we don't disable the TX_FIFO_STATUS
 	 * interrupt here but leave it enabled so that the TX_STA_FIFO
-	 * can also be read while the interrupt thread gets executed.
+	 * can also be read while the tx status tasklet gets executed.
 	 *
 	 * Since we have only one producer and one consumer we don't
 	 * need to lock the kfifo.
@@ -862,7 +861,6 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
 	u32 reg, mask;
-	unsigned long flags;
 
 	/* Read status and ACK all interrupts */
 	rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
@@ -905,11 +903,11 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 	 * Disable all interrupts for which a tasklet was scheduled right now,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
-	spin_lock_irqsave(&rt2x00dev->irqmask_lock, flags);
+	spin_lock(&rt2x00dev->irqmask_lock);
 	rt2800_register_read(rt2x00dev, INT_MASK_CSR, &reg);
 	reg &= mask;
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
-	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
+	spin_unlock(&rt2x00dev->irqmask_lock);
 
 	return IRQ_HANDLED;
 }
@@ -979,6 +977,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_HT_TX_DESC, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1135,7 +1134,7 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x3593), PCI_DEVICE_DATA(&rt2800pci_ops) },
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
-       { PCI_DEVICE(0x1814, 0x5390), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x5390), PCI_DEVICE_DATA(&rt2800pci_ops) },
 #endif
 	{ 0, }
 };
