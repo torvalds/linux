@@ -195,7 +195,11 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	mac->arc_subsystem_valid =
 		(rd32(E1000_FWSM) & E1000_FWSM_MODE_MASK)
 			? true : false;
-
+	/* enable EEE on i350 parts */
+	if (mac->type == e1000_i350)
+		dev_spec->eee_disable = false;
+	else
+		dev_spec->eee_disable = true;
 	/* physical interface link setup */
 	mac->ops.setup_physical_interface =
 		(hw->phy.media_type == e1000_media_type_copper)
@@ -1754,6 +1758,46 @@ u16 igb_rxpbs_adjust_82580(u32 data)
 	return ret_val;
 }
 
+/**
+ *  igb_set_eee_i350 - Enable/disable EEE support
+ *  @hw: pointer to the HW structure
+ *
+ *  Enable/disable EEE based on setting in dev_spec structure.
+ *
+ **/
+s32 igb_set_eee_i350(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u32 ipcnfg, eeer, ctrl_ext;
+
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	if ((hw->mac.type != e1000_i350) ||
+	    (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK))
+		goto out;
+	ipcnfg = rd32(E1000_IPCNFG);
+	eeer = rd32(E1000_EEER);
+
+	/* enable or disable per user setting */
+	if (!(hw->dev_spec._82575.eee_disable)) {
+		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN |
+			E1000_IPCNFG_EEE_100M_AN);
+		eeer |= (E1000_EEER_TX_LPI_EN |
+			E1000_EEER_RX_LPI_EN |
+			E1000_EEER_LPI_FC);
+
+	} else {
+		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |
+			E1000_IPCNFG_EEE_100M_AN);
+		eeer &= ~(E1000_EEER_TX_LPI_EN |
+			E1000_EEER_RX_LPI_EN |
+			E1000_EEER_LPI_FC);
+	}
+	wr32(E1000_IPCNFG, ipcnfg);
+	wr32(E1000_EEER, eeer);
+out:
+
+	return ret_val;
+}
 static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.init_hw              = igb_init_hw_82575,
 	.check_for_link       = igb_check_for_link_82575,
