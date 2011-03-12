@@ -157,8 +157,8 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct sock 
 		.fl4_src = saddr,
 		.fl4_tos = tos,
 		.flowi_proto = proto,
-		.fl_ip_dport = dport,
-		.fl_ip_sport = sport,
+		.fl4_dport = dport,
+		.fl4_sport = sport,
 	};
 	if (sk)
 		security_sk_classify_flow(sk, &fl);
@@ -175,7 +175,7 @@ static inline struct rtable *ip_route_output_gre(struct net *net,
 		.fl4_src = saddr,
 		.fl4_tos = tos,
 		.flowi_proto = IPPROTO_GRE,
-		.fl_gre_key = gre_key,
+		.fl4_gre_key = gre_key,
 	};
 	return ip_route_output_key(net, &fl);
 }
@@ -228,14 +228,16 @@ static inline struct rtable *ip_route_connect(__be32 dst, __be32 src, u32 tos,
 					      __be16 sport, __be16 dport,
 					      struct sock *sk, bool can_sleep)
 {
-	struct flowi fl = { .flowi_oif = oif,
-			    .flowi_mark = sk->sk_mark,
-			    .fl4_dst = dst,
-			    .fl4_src = src,
-			    .fl4_tos = tos,
-			    .flowi_proto = protocol,
-			    .fl_ip_sport = sport,
-			    .fl_ip_dport = dport };
+	struct flowi fl = {
+		.flowi_oif = oif,
+		.flowi_mark = sk->sk_mark,
+		.fl4_dst = dst,
+		.fl4_src = src,
+		.fl4_tos = tos,
+		.flowi_proto = protocol,
+		.fl4_sport = sport,
+		.fl4_dport = dport,
+	};
 	struct net *net = sock_net(sk);
 	struct rtable *rt;
 
@@ -264,15 +266,16 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 					       __be16 dport, struct sock *sk)
 {
 	if (sport != orig_sport || dport != orig_dport) {
-		struct flowi fl = { .flowi_oif = rt->rt_oif,
-				    .flowi_mark = rt->rt_mark,
-				    .fl4_dst = rt->rt_key_dst,
-				    .fl4_src = rt->rt_key_src,
-				    .fl4_tos = rt->rt_tos,
-				    .flowi_proto = protocol,
-				    .fl_ip_sport = sport,
-				    .fl_ip_dport = dport };
-
+		struct flowi fl = {
+			.flowi_oif = rt->rt_oif,
+			.flowi_mark = rt->rt_mark,
+			.fl4_dst = rt->rt_key_dst,
+			.fl4_src = rt->rt_key_src,
+			.fl4_tos = rt->rt_tos,
+			.flowi_proto = protocol,
+			.fl4_sport = sport,
+			.fl4_dport = dport
+		};
 		if (inet_sk(sk)->transparent)
 			fl.flowi_flags |= FLOWI_FLAG_ANYSRC;
 		if (protocol == IPPROTO_TCP)

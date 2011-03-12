@@ -89,13 +89,20 @@ struct flowi {
 #define fl4_scope	flowi_scope
 
 	union flowi_uli uli_u;
-#define fl_ip_sport	uli_u.ports.sport
-#define fl_ip_dport	uli_u.ports.dport
-#define fl_icmp_type	uli_u.icmpt.type
-#define fl_icmp_code	uli_u.icmpt.code
-#define fl_ipsec_spi	uli_u.spi
-#define fl_mh_type	uli_u.mht.type
-#define fl_gre_key	uli_u.gre_key
+#define fl4_sport	uli_u.ports.sport
+#define fl4_dport	uli_u.ports.dport
+#define fl4_icmp_type	uli_u.icmpt.type
+#define fl4_icmp_code	uli_u.icmpt.code
+#define fl4_ipsec_spi	uli_u.spi
+#define fl4_mh_type	uli_u.mht.type
+#define fl4_gre_key	uli_u.gre_key
+#define fl6_sport	uli_u.ports.sport
+#define fl6_dport	uli_u.ports.dport
+#define fl6_icmp_type	uli_u.icmpt.type
+#define fl6_icmp_code	uli_u.icmpt.code
+#define fl6_ipsec_spi	uli_u.spi
+#define fl6_mh_type	uli_u.mht.type
+#define fl6_gre_key	uli_u.gre_key
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
 #define FLOW_DIR_IN	0

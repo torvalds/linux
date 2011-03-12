@@ -353,8 +353,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			.fl4_tos = RT_CONN_FLAGS(sk),
 			.flowi_proto = IPPROTO_TCP,
 			.flowi_flags = inet_sk_flowi_flags(sk),
-			.fl_ip_sport = th->dest,
-			.fl_ip_dport = th->source,
+			.fl4_sport = th->dest,
+			.fl4_dport = th->source,
 		};
 		security_req_classify_flow(req, &fl);
 		rt = ip_route_output_key(sock_net(sk), &fl);

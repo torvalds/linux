@@ -800,7 +800,7 @@ static inline bool addr_match(const void *token1, const void *token2,
 }
 
 static __inline__
-__be16 xfrm_flowi_sport(const struct flowi *fl)
+__be16 xfrm_flowi_sport(const struct flowi *fl, const union flowi_uli *uli)
 {
 	__be16 port;
 	switch(fl->flowi_proto) {
@@ -808,17 +808,17 @@ __be16 xfrm_flowi_sport(const struct flowi *fl)
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:
 	case IPPROTO_SCTP:
-		port = fl->fl_ip_sport;
+		port = uli->ports.sport;
 		break;
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		port = htons(fl->fl_icmp_type);
+		port = htons(uli->icmpt.type);
 		break;
 	case IPPROTO_MH:
-		port = htons(fl->fl_mh_type);
+		port = htons(uli->mht.type);
 		break;
 	case IPPROTO_GRE:
-		port = htons(ntohl(fl->fl_gre_key) >> 16);
+		port = htons(ntohl(uli->gre_key) >> 16);
 		break;
 	default:
 		port = 0;	/*XXX*/
@@ -827,7 +827,7 @@ __be16 xfrm_flowi_sport(const struct flowi *fl)
 }
 
 static __inline__
-__be16 xfrm_flowi_dport(const struct flowi *fl)
+__be16 xfrm_flowi_dport(const struct flowi *fl, const union flowi_uli *uli)
 {
 	__be16 port;
 	switch(fl->flowi_proto) {
@@ -835,14 +835,14 @@ __be16 xfrm_flowi_dport(const struct flowi *fl)
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:
 	case IPPROTO_SCTP:
-		port = fl->fl_ip_dport;
+		port = uli->ports.dport;
 		break;
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
-		port = htons(fl->fl_icmp_code);
+		port = htons(uli->icmpt.code);
 		break;
 	case IPPROTO_GRE:
-		port = htons(ntohl(fl->fl_gre_key) & 0xffff);
+		port = htons(ntohl(uli->gre_key) & 0xffff);
 		break;
 	default:
 		port = 0;	/*XXX*/

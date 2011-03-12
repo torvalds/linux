@@ -248,8 +248,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		       (saddr ? saddr : &np->saddr));
 	fl.flowi_oif = sk->sk_bound_dev_if;
 	fl.flowi_mark = sk->sk_mark;
-	fl.fl_ip_dport = usin->sin6_port;
-	fl.fl_ip_sport = inet->inet_sport;
+	fl.fl6_dport = usin->sin6_port;
+	fl.fl6_sport = inet->inet_sport;
 
 	final_p = fl6_update_dst(&fl, np->opt, &final);
 
@@ -401,8 +401,8 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 			fl.flowi_oif = sk->sk_bound_dev_if;
 			fl.flowi_mark = sk->sk_mark;
-			fl.fl_ip_dport = inet->inet_dport;
-			fl.fl_ip_sport = inet->inet_sport;
+			fl.fl6_dport = inet->inet_dport;
+			fl.fl6_sport = inet->inet_sport;
 			security_skb_classify_flow(skb, &fl);
 
 			dst = ip6_dst_lookup_flow(sk, &fl, NULL, false);
@@ -493,8 +493,8 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	fl.fl6_flowlabel = 0;
 	fl.flowi_oif = treq->iif;
 	fl.flowi_mark = sk->sk_mark;
-	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-	fl.fl_ip_sport = inet_rsk(req)->loc_port;
+	fl.fl6_dport = inet_rsk(req)->rmt_port;
+	fl.fl6_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, &fl);
 
 	opt = np->opt;
@@ -1057,8 +1057,8 @@ static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 
 	fl.flowi_proto = IPPROTO_TCP;
 	fl.flowi_oif = inet6_iif(skb);
-	fl.fl_ip_dport = t1->dest;
-	fl.fl_ip_sport = t1->source;
+	fl.fl6_dport = t1->dest;
+	fl.fl6_sport = t1->source;
 	security_skb_classify_flow(skb, &fl);
 
 	/* Pass a socket to ip6_dst_lookup either it is for RST

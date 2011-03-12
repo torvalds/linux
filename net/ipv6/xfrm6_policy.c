@@ -158,8 +158,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 			     pskb_may_pull(skb, nh + offset + 4 - skb->data))) {
 				__be16 *ports = (__be16 *)exthdr;
 
-				fl->fl_ip_sport = ports[!!reverse];
-				fl->fl_ip_dport = ports[!reverse];
+				fl->fl6_sport = ports[!!reverse];
+				fl->fl6_dport = ports[!reverse];
 			}
 			fl->flowi_proto = nexthdr;
 			return;
@@ -168,8 +168,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 			if (!onlyproto && pskb_may_pull(skb, nh + offset + 2 - skb->data)) {
 				u8 *icmp = (u8 *)exthdr;
 
-				fl->fl_icmp_type = icmp[0];
-				fl->fl_icmp_code = icmp[1];
+				fl->fl6_icmp_type = icmp[0];
+				fl->fl6_icmp_code = icmp[1];
 			}
 			fl->flowi_proto = nexthdr;
 			return;
@@ -180,7 +180,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 				struct ip6_mh *mh;
 				mh = (struct ip6_mh *)exthdr;
 
-				fl->fl_mh_type = mh->ip6mh_type;
+				fl->fl6_mh_type = mh->ip6mh_type;
 			}
 			fl->flowi_proto = nexthdr;
 			return;
@@ -191,7 +191,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 		case IPPROTO_ESP:
 		case IPPROTO_COMP:
 		default:
-			fl->fl_ipsec_spi = 0;
+			fl->fl6_ipsec_spi = 0;
 			fl->flowi_proto = nexthdr;
 			return;
 		}

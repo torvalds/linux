@@ -448,8 +448,8 @@ void icmpv6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info)
 	if (saddr)
 		ipv6_addr_copy(&fl.fl6_src, saddr);
 	fl.flowi_oif = iif;
-	fl.fl_icmp_type = type;
-	fl.fl_icmp_code = code;
+	fl.fl6_icmp_type = type;
+	fl.fl6_icmp_code = code;
 	security_skb_classify_flow(skb, &fl);
 
 	sk = icmpv6_xmit_lock(net);
@@ -544,7 +544,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (saddr)
 		ipv6_addr_copy(&fl.fl6_src, saddr);
 	fl.flowi_oif = skb->dev->ifindex;
-	fl.fl_icmp_type = ICMPV6_ECHO_REPLY;
+	fl.fl6_icmp_type = ICMPV6_ECHO_REPLY;
 	security_skb_classify_flow(skb, &fl);
 
 	sk = icmpv6_xmit_lock(net);
@@ -794,8 +794,8 @@ void icmpv6_flow_init(struct sock *sk, struct flowi *fl,
 	ipv6_addr_copy(&fl->fl6_src, saddr);
 	ipv6_addr_copy(&fl->fl6_dst, daddr);
 	fl->flowi_proto	 	= IPPROTO_ICMPV6;
-	fl->fl_icmp_type	= type;
-	fl->fl_icmp_code	= 0;
+	fl->fl6_icmp_type	= type;
+	fl->fl6_icmp_code	= 0;
 	fl->flowi_oif		= oif;
 	security_sk_classify_flow(sk, fl);
 }

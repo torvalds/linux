@@ -151,8 +151,8 @@ ipv4_connected:
 	ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 	fl.flowi_oif = sk->sk_bound_dev_if;
 	fl.flowi_mark = sk->sk_mark;
-	fl.fl_ip_dport = inet->inet_dport;
-	fl.fl_ip_sport = inet->inet_sport;
+	fl.fl6_dport = inet->inet_dport;
+	fl.fl6_sport = inet->inet_sport;
 
 	if (!fl.flowi_oif && (addr_type&IPV6_ADDR_MULTICAST))
 		fl.flowi_oif = np->mcast_oif;
@@ -261,7 +261,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	serr->ee.ee_info = info;
 	serr->ee.ee_data = 0;
 	serr->addr_offset = (u8 *)&iph->daddr - skb_network_header(skb);
-	serr->port = fl->fl_ip_dport;
+	serr->port = fl->fl6_dport;
 
 	__skb_pull(skb, skb_tail_pointer(skb) - skb->data);
 	skb_reset_transport_header(skb);

@@ -476,16 +476,16 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 
 	memset(&fl, 0x0, sizeof(struct flowi));
 	fl.fl4_dst  = daddr->v4.sin_addr.s_addr;
-	fl.fl_ip_dport = daddr->v4.sin_port;
+	fl.fl4_dport = daddr->v4.sin_port;
 	fl.flowi_proto = IPPROTO_SCTP;
 	if (asoc) {
 		fl.fl4_tos = RT_CONN_FLAGS(asoc->base.sk);
 		fl.flowi_oif = asoc->base.sk->sk_bound_dev_if;
-		fl.fl_ip_sport = htons(asoc->base.bind_addr.port);
+		fl.fl4_sport = htons(asoc->base.bind_addr.port);
 	}
 	if (saddr) {
 		fl.fl4_src = saddr->v4.sin_addr.s_addr;
-		fl.fl_ip_sport = saddr->v4.sin_port;
+		fl.fl4_sport = saddr->v4.sin_port;
 	}
 
 	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
@@ -534,7 +534,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
-			fl.fl_ip_sport = laddr->a.v4.sin_port;
+			fl.fl4_sport = laddr->a.v4.sin_port;
 			rt = ip_route_output_key(&init_net, &fl);
 			if (!IS_ERR(rt)) {
 				dst = &rt->dst;

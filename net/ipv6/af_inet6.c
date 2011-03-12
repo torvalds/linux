@@ -661,8 +661,8 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		fl.fl6_flowlabel = np->flow_label;
 		fl.flowi_oif = sk->sk_bound_dev_if;
 		fl.flowi_mark = sk->sk_mark;
-		fl.fl_ip_dport = inet->inet_dport;
-		fl.fl_ip_sport = inet->inet_sport;
+		fl.fl6_dport = inet->inet_dport;
+		fl.fl6_sport = inet->inet_sport;
 		security_sk_classify_flow(sk, &fl);
 
 		final_p = fl6_update_dst(&fl, np->opt, &final);

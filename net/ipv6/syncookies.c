@@ -240,8 +240,8 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
 		fl.flowi_oif = sk->sk_bound_dev_if;
 		fl.flowi_mark = sk->sk_mark;
-		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
+		fl.fl6_dport = inet_rsk(req)->rmt_port;
+		fl.fl6_sport = inet_sk(sk)->inet_sport;
 		security_req_classify_flow(req, &fl);
 
 		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);

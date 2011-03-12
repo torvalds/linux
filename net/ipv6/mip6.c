@@ -215,7 +215,7 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	int err = 0;
 
 	if (unlikely(fl->flowi_proto == IPPROTO_MH &&
-		     fl->fl_mh_type <= IP6_MH_TYPE_MAX))
+		     fl->fl6_mh_type <= IP6_MH_TYPE_MAX))
 		goto out;
 
 	if (likely(opt->dsthao)) {
@@ -241,10 +241,10 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	sel.prefixlen_s = 128;
 	sel.family = AF_INET6;
 	sel.proto = fl->flowi_proto;
-	sel.dport = xfrm_flowi_dport(fl);
+	sel.dport = xfrm_flowi_dport(fl, &fl->uli_u);
 	if (sel.dport)
 		sel.dport_mask = htons(~0);
-	sel.sport = xfrm_flowi_sport(fl);
+	sel.sport = xfrm_flowi_sport(fl, &fl->uli_u);
 	if (sel.sport)
 		sel.sport_mask = htons(~0);
 	sel.ifindex = fl->flowi_oif;
