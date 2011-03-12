@@ -89,28 +89,6 @@ MODULE_DESCRIPTION("sysfs interface to EFI Variables");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(EFIVARS_VERSION);
 
-struct efivar_operations {
-	efi_get_variable_t *get_variable;
-	efi_get_next_variable_t *get_next_variable;
-	efi_set_variable_t *set_variable;
-};
-
-struct efivars {
-	/*
-	 * ->lock protects two things:
-	 * 1) ->list - adds, removals, reads, writes
-	 * 2) ops.[gs]et_variable() calls.
-	 * It must not be held when creating sysfs entries or calling kmalloc.
-	 * ops.get_next_variable() is only called from register_efivars(),
-	 * which is protected by the BKL, so that path is safe.
-	 */
-	spinlock_t lock;
-	struct list_head list;
-	struct kset *kset;
-	struct bin_attribute *new_var, *del_var;
-	const struct efivar_operations *ops;
-};
-
 /*
  * The maximum size of VariableName + Data = 1024
  * Therefore, it's reasonable to save that much
@@ -706,7 +684,7 @@ out_free:
 	return error;
 }
 
-static void unregister_efivars(struct efivars *efivars)
+void unregister_efivars(struct efivars *efivars)
 {
 	struct efivar_entry *entry, *n;
 
@@ -724,10 +702,11 @@ static void unregister_efivars(struct efivars *efivars)
 	kfree(efivars->del_var);
 	kset_unregister(efivars->kset);
 }
+EXPORT_SYMBOL_GPL(unregister_efivars);
 
-static int register_efivars(struct efivars *efivars,
-			    const struct efivar_operations *ops,
-			    struct kobject *parent_kobj)
+int register_efivars(struct efivars *efivars,
+		     const struct efivar_operations *ops,
+		     struct kobject *parent_kobj)
 {
 	efi_status_t status = EFI_NOT_FOUND;
 	efi_guid_t vendor_guid;
@@ -789,6 +768,7 @@ out:
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(register_efivars);
 
 static struct efivars __efivars;
 static struct efivar_operations ops;
@@ -810,7 +790,7 @@ efivars_init(void)
 	       EFIVARS_DATE);
 
 	if (!efi_enabled)
-		return -ENODEV;
+		return 0;
 
 	/* For now we'll register the efi directory at /sys/firmware/efi */
 	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
