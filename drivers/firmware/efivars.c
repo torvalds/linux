@@ -95,7 +95,7 @@ struct efivars {
 	 * 1) ->list - adds, removals, reads, writes
 	 * 2) efi.[gs]et_variable() calls.
 	 * It must not be held when creating sysfs entries or calling kmalloc.
-	 * efi.get_next_variable() is only called from efivars_init(),
+	 * efi.get_next_variable() is only called from register_efivars(),
 	 * which is protected by the BKL, so that path is safe.
 	 */
 	spinlock_t lock;
@@ -699,28 +699,33 @@ out_free:
 	return error;
 }
 
-static struct efivars __efivars;
+static void unregister_efivars(struct efivars *efivars)
+{
+	struct efivar_entry *entry, *n;
 
-/*
- * For now we register the efi subsystem with the firmware subsystem
- * and the vars subsystem with the efi subsystem.  In the future, it
- * might make sense to split off the efi subsystem into its own
- * driver, but for now only efivars will register with it, so just
- * include it here.
- */
+	list_for_each_entry_safe(entry, n, &efivars->list, list) {
+		spin_lock(&efivars->lock);
+		list_del(&entry->list);
+		spin_unlock(&efivars->lock);
+		efivar_unregister(entry);
+	}
+	if (efivars->new_var)
+		sysfs_remove_bin_file(&efivars->kset->kobj, efivars->new_var);
+	if (efivars->del_var)
+		sysfs_remove_bin_file(&efivars->kset->kobj, efivars->del_var);
+	kfree(efivars->new_var);
+	kfree(efivars->del_var);
+	kset_unregister(efivars->kset);
+}
 
-static int __init
-efivars_init(void)
+static int register_efivars(struct efivars *efivars,
+			    struct kobject *parent_kobj)
 {
 	efi_status_t status = EFI_NOT_FOUND;
 	efi_guid_t vendor_guid;
 	efi_char16_t *variable_name;
 	unsigned long variable_name_size = 1024;
-	struct efivars *efivars = &__efivars;
 	int error = 0;
-
-	if (!efi_enabled)
-		return -ENODEV;
 
 	variable_name = kzalloc(variable_name_size, GFP_KERNEL);
 	if (!variable_name) {
@@ -728,25 +733,14 @@ efivars_init(void)
 		return -ENOMEM;
 	}
 
-	printk(KERN_INFO "EFI Variables Facility v%s %s\n", EFIVARS_VERSION,
-	       EFIVARS_DATE);
-
-	/* For now we'll register the efi directory at /sys/firmware/efi */
-	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
-	if (!efi_kobj) {
-		printk(KERN_ERR "efivars: Firmware registration failed.\n");
-		error = -ENOMEM;
-		goto out_free;
-	}
-
 	spin_lock_init(&efivars->lock);
 	INIT_LIST_HEAD(&efivars->list);
 
-	efivars->kset = kset_create_and_add("vars", NULL, efi_kobj);
+	efivars->kset = kset_create_and_add("vars", NULL, parent_kobj);
 	if (!efivars->kset) {
 		printk(KERN_ERR "efivars: Subsystem registration failed.\n");
 		error = -ENOMEM;
-		goto out_firmware_unregister;
+		goto out;
 	}
 
 	/*
@@ -778,21 +772,54 @@ efivars_init(void)
 	} while (status != EFI_NOT_FOUND);
 
 	error = create_efivars_bin_attributes(efivars);
+	if (error)
+		unregister_efivars(efivars);
+
+out:
+	kfree(variable_name);
+
+	return error;
+}
+
+static struct efivars __efivars;
+
+/*
+ * For now we register the efi subsystem with the firmware subsystem
+ * and the vars subsystem with the efi subsystem.  In the future, it
+ * might make sense to split off the efi subsystem into its own
+ * driver, but for now only efivars will register with it, so just
+ * include it here.
+ */
+
+static int __init
+efivars_init(void)
+{
+	int error = 0;
+
+	printk(KERN_INFO "EFI Variables Facility v%s %s\n", EFIVARS_VERSION,
+	       EFIVARS_DATE);
+
+	if (!efi_enabled)
+		return -ENODEV;
+
+	/* For now we'll register the efi directory at /sys/firmware/efi */
+	efi_kobj = kobject_create_and_add("efi", firmware_kobj);
+	if (!efi_kobj) {
+		printk(KERN_ERR "efivars: Firmware registration failed.\n");
+		return -ENOMEM;
+	}
+
+	error = register_efivars(&__efivars, efi_kobj);
 
 	/* Don't forget the systab entry */
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
-	if (error)
-		printk(KERN_ERR "efivars: Sysfs attribute export failed with error %d.\n", error);
-	else
-		goto out_free;
-
-	kset_unregister(efivars->kset);
-
-out_firmware_unregister:
-	kobject_put(efi_kobj);
-
-out_free:
-	kfree(variable_name);
+	if (error) {
+		printk(KERN_ERR
+		       "efivars: Sysfs attribute export failed with error %d.\n",
+		       error);
+		unregister_efivars(&__efivars);
+		kobject_put(efi_kobj);
+	}
 
 	return error;
 }
@@ -800,22 +827,7 @@ out_free:
 static void __exit
 efivars_exit(void)
 {
-	struct efivars *efivars = &__efivars;
-	struct efivar_entry *entry, *n;
-
-	list_for_each_entry_safe(entry, n, &efivars->list, list) {
-		spin_lock(&efivars->lock);
-		list_del(&entry->list);
-		spin_unlock(&efivars->lock);
-		efivar_unregister(entry);
-	}
-	if (efivars->new_var)
-		sysfs_remove_bin_file(&efivars->kset->kobj, efivars->new_var);
-	if (efivars->del_var)
-		sysfs_remove_bin_file(&efivars->kset->kobj, efivars->del_var);
-	kfree(efivars->new_var);
-	kfree(efivars->del_var);
-	kset_unregister(efivars->kset);
+	unregister_efivars(&__efivars);
 	kobject_put(efi_kobj);
 }
 
