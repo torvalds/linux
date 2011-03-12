@@ -266,6 +266,9 @@ struct bonding {
 #endif /* CONFIG_DEBUG_FS */
 };
 
+#define bond_slave_get_rcu(dev) \
+	((struct slave *) rcu_dereference(dev->rx_handler_data))
+
 /**
  * Returns NULL if the net_device does not belong to any of the bond's slaves
  *
