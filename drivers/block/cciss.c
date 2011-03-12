@@ -193,7 +193,7 @@ static int __devinit cciss_find_cfg_addrs(struct pci_dev *pdev,
 	u64 *cfg_offset);
 static int __devinit cciss_pci_find_memory_BAR(struct pci_dev *pdev,
 	unsigned long *memory_bar);
-
+static inline u32 cciss_tag_discard_error_bits(ctlr_info_t *h, u32 tag);
 
 /* performant mode helper functions */
 static void  calc_bucket_map(int *bucket, int num_buckets, int nsgs,
@@ -1012,8 +1012,8 @@ static void cmd_special_free(ctlr_info_t *h, CommandList_struct *c)
 	temp64.val32.upper = c->ErrDesc.Addr.upper;
 	pci_free_consistent(h->pdev, sizeof(ErrorInfo_struct),
 			    c->err_info, (dma_addr_t) temp64.val);
-	pci_free_consistent(h->pdev, sizeof(CommandList_struct),
-			    c, (dma_addr_t) c->busaddr);
+	pci_free_consistent(h->pdev, sizeof(CommandList_struct), c,
+		(dma_addr_t) cciss_tag_discard_error_bits(h, (u32) c->busaddr));
 }
 
 static inline ctlr_info_t *get_host(struct gendisk *disk)
