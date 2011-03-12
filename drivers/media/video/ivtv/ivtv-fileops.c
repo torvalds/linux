@@ -980,6 +980,7 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		/* Try to claim this stream */
 		if (ivtv_claim_stream(item, item->type)) {
 			/* No, it's already in use */
+			v4l2_fh_exit(&item->fh);
 			kfree(item);
 			return -EBUSY;
 		}
