@@ -452,7 +452,7 @@ static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_EEC, flup);
 
 	status = ixgbe_poll_flash_update_done_X540(hw);
-	if (status)
+	if (status == 0)
 		hw_dbg(hw, "Flash update complete\n");
 	else
 		hw_dbg(hw, "Flash update time out\n");
@@ -466,11 +466,10 @@ static s32 ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 		}
 
 		status = ixgbe_poll_flash_update_done_X540(hw);
-		if (status)
+		if (status == 0)
 			hw_dbg(hw, "Flash update complete\n");
 		else
 			hw_dbg(hw, "Flash update time out\n");
-
 	}
 out:
 	return status;
