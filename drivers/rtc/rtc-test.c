@@ -50,24 +50,9 @@ static int test_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static int test_rtc_ioctl(struct device *dev, unsigned int cmd,
-	unsigned long arg)
+static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
-	/* We do support interrupts, they're generated
-	 * using the sysfs interface.
-	 */
-	switch (cmd) {
-	case RTC_PIE_ON:
-	case RTC_PIE_OFF:
-	case RTC_UIE_ON:
-	case RTC_UIE_OFF:
-	case RTC_AIE_ON:
-	case RTC_AIE_OFF:
-		return 0;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
+	return 0;
 }
 
 static const struct rtc_class_ops test_rtc_ops = {
@@ -76,7 +61,7 @@ static const struct rtc_class_ops test_rtc_ops = {
 	.read_alarm = test_rtc_read_alarm,
 	.set_alarm = test_rtc_set_alarm,
 	.set_mmss = test_rtc_set_mmss,
-	.ioctl = test_rtc_ioctl,
+	.alarm_irq_enable = test_rtc_alarm_irq_enable,
 };
 
 static ssize_t test_irq_show(struct device *dev,

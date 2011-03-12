@@ -1468,15 +1468,13 @@ static void work_stop(void)
 
 static int work_start(void)
 {
-	recv_workqueue = alloc_workqueue("dlm_recv", WQ_MEM_RECLAIM |
-					 WQ_HIGHPRI | WQ_FREEZEABLE, 0);
+	recv_workqueue = create_singlethread_workqueue("dlm_recv");
 	if (!recv_workqueue) {
 		log_print("can't start dlm_recv");
 		return -ENOMEM;
 	}
 
-	send_workqueue = alloc_workqueue("dlm_send", WQ_MEM_RECLAIM |
-					 WQ_HIGHPRI | WQ_FREEZEABLE, 0);
+	send_workqueue = create_singlethread_workqueue("dlm_send");
 	if (!send_workqueue) {
 		log_print("can't start dlm_send");
 		destroy_workqueue(recv_workqueue);

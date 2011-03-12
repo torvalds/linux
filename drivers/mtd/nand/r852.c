@@ -930,7 +930,7 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	init_completion(&dev->dma_done);
 
-	dev->card_workqueue = create_freezeable_workqueue(DRV_NAME);
+	dev->card_workqueue = create_freezable_workqueue(DRV_NAME);
 
 	if (!dev->card_workqueue)
 		goto error9;

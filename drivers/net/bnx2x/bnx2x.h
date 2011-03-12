@@ -22,7 +22,7 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.62.00-5"
+#define DRV_MODULE_VERSION      "1.62.00-6"
 #define DRV_MODULE_RELDATE      "2011/01/30"
 #define BNX2X_BC_VER            0x040200
 
@@ -1613,19 +1613,23 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_BTR			4
 #define MAX_SPQ_PENDING			8
 
-
-/* CMNG constants
-   derived from lab experiments, and not from system spec calculations !!! */
-#define DEF_MIN_RATE			100
+/* CMNG constants, as derived from system spec calculations */
+/* default MIN rate in case VNIC min rate is configured to zero - 100Mbps */
+#define DEF_MIN_RATE					100
 /* resolution of the rate shaping timer - 100 usec */
-#define RS_PERIODIC_TIMEOUT_USEC	100
-/* resolution of fairness algorithm in usecs -
-   coefficient for calculating the actual t fair */
-#define T_FAIR_COEF			10000000
+#define RS_PERIODIC_TIMEOUT_USEC			100
 /* number of bytes in single QM arbitration cycle -
-   coefficient for calculating the fairness timer */
-#define QM_ARB_BYTES			40000
-#define FAIR_MEM			2
+ * coefficient for calculating the fairness timer */
+#define QM_ARB_BYTES					160000
+/* resolution of Min algorithm 1:100 */
+#define MIN_RES						100
+/* how many bytes above threshold for the minimal credit of Min algorithm*/
+#define MIN_ABOVE_THRESH				32768
+/* Fairness algorithm integration time coefficient -
+ * for calculating the actual Tfair */
+#define T_FAIR_COEF	((MIN_ABOVE_THRESH +  QM_ARB_BYTES) * 8 * MIN_RES)
+/* Memory of fairness algorithm . 2 cycles */
+#define FAIR_MEM					2
 
 
 #define ATTN_NIG_FOR_FUNC		(1L << 8)

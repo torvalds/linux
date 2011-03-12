@@ -848,6 +848,7 @@ struct ext4_inode_info {
 	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
+	atomic_t i_aiodio_unwritten; /* Nr. of inflight conversions pending */
 
 	spinlock_t i_block_reservation_lock;
 
@@ -2118,6 +2119,15 @@ static inline void set_bitmap_uptodate(struct buffer_head *bh)
 }
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
+
+/* For ioend & aio unwritten conversion wait queues */
+#define EXT4_WQ_HASH_SZ		37
+#define ext4_ioend_wq(v)   (&ext4__ioend_wq[((unsigned long)(v)) %\
+					    EXT4_WQ_HASH_SZ])
+#define ext4_aio_mutex(v)  (&ext4__aio_mutex[((unsigned long)(v)) %\
+					     EXT4_WQ_HASH_SZ])
+extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
+extern struct mutex ext4__aio_mutex[EXT4_WQ_HASH_SZ];
 
 #endif	/* __KERNEL__ */
 

@@ -36,7 +36,6 @@ MODULE_DESCRIPTION("ISDN4Linux: Driver for HYSDN cards");
 MODULE_AUTHOR("Werner Cornelius");
 MODULE_LICENSE("GPL");
 
-static char *hysdn_init_revision = "$Revision: 1.6.6.6 $";
 static int cardmax;		/* number of found cards */
 hysdn_card *card_root = NULL;	/* pointer to first card */
 static hysdn_card *card_last = NULL;	/* pointer to first card */
@@ -48,25 +47,6 @@ static hysdn_card *card_last = NULL;	/* pointer to first card */
 /* image becomes smaller and the driver code is only loaded when needed.    */
 /* Additionally newer versions may be activated without rebooting.          */
 /****************************************************************************/
-
-/******************************************************/
-/* extract revision number from string for log output */
-/******************************************************/
-char *
-hysdn_getrev(const char *revision)
-{
-	char *rev;
-	char *p;
-
-	if ((p = strchr(revision, ':'))) {
-		rev = p + 2;
-		p = strchr(rev, '$');
-		*--p = 0;
-	} else
-		rev = "???";
-	return rev;
-}
-
 
 /****************************************************************************/
 /* init_module is called once when the module is loaded to do all necessary */
@@ -175,13 +155,9 @@ static int hysdn_have_procfs;
 static int __init
 hysdn_init(void)
 {
-	char tmp[50];
 	int rc;
 
-	strcpy(tmp, hysdn_init_revision);
-	printk(KERN_NOTICE "HYSDN: module Rev: %s loaded\n", hysdn_getrev(tmp));
-	strcpy(tmp, hysdn_net_revision);
-	printk(KERN_NOTICE "HYSDN: network interface Rev: %s \n", hysdn_getrev(tmp));
+	printk(KERN_NOTICE "HYSDN: module loaded\n");
 
 	rc = pci_register_driver(&hysdn_pci_driver);
 	if (rc)

@@ -19,6 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>

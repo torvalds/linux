@@ -71,6 +71,7 @@ struct wm8994 {
 	u16 irq_masks_cache[WM8994_NUM_IRQ_REGS];
 
 	/* Used over suspend/resume */
+	bool suspended;
 	u16 ldo_regs[WM8994_NUM_LDO_REGS];
 	u16 gpio_regs[WM8994_NUM_GPIO_REGS];
 

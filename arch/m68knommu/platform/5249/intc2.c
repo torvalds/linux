@@ -50,8 +50,10 @@ static int __init mcf_intc2_init(void)
 	int irq;
 
 	/* GPIO interrupt sources */
-	for (irq = MCFINTC2_GPIOIRQ0; (irq <= MCFINTC2_GPIOIRQ7); irq++)
+	for (irq = MCFINTC2_GPIOIRQ0; (irq <= MCFINTC2_GPIOIRQ7); irq++) {
 		irq_desc[irq].chip = &intc2_irq_gpio_chip;
+		set_irq_handler(irq, handle_edge_irq);
+	}
 
 	return 0;
 }

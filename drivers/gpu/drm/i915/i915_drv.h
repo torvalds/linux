@@ -956,8 +956,10 @@ extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
 extern unsigned int i915_powersave;
+extern unsigned int i915_semaphores;
 extern unsigned int i915_lvds_downclock;
 extern unsigned int i915_panel_use_ssc;
+extern unsigned int i915_enable_rc6;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
 extern int i915_resume(struct drm_device *dev);
@@ -1176,6 +1178,9 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 void i915_gem_free_all_phys_object(struct drm_device *dev);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
+uint32_t
+i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj);
+
 /* i915_gem_gtt.c */
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 int __must_check i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);
@@ -1352,20 +1357,30 @@ __i915_write(64, q)
  * must be set to prevent GT core from power down and stale values being
  * returned.
  */
-void __gen6_force_wake_get(struct drm_i915_private *dev_priv);
-void __gen6_force_wake_put (struct drm_i915_private *dev_priv);
-static inline u32 i915_safe_read(struct drm_i915_private *dev_priv, u32 reg)
+void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
+void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
+void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
+
+static inline u32 i915_gt_read(struct drm_i915_private *dev_priv, u32 reg)
 {
 	u32 val;
 
 	if (dev_priv->info->gen >= 6) {
-		__gen6_force_wake_get(dev_priv);
+		__gen6_gt_force_wake_get(dev_priv);
 		val = I915_READ(reg);
-		__gen6_force_wake_put(dev_priv);
+		__gen6_gt_force_wake_put(dev_priv);
 	} else
 		val = I915_READ(reg);
 
 	return val;
+}
+
+static inline void i915_gt_write(struct drm_i915_private *dev_priv,
+				u32 reg, u32 val)
+{
+	if (dev_priv->info->gen >= 6)
+		__gen6_gt_wait_for_fifo(dev_priv);
+	I915_WRITE(reg, val);
 }
 
 static inline void

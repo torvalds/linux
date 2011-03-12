@@ -124,6 +124,7 @@ static s32 e1000_set_phy_type(struct e1000_hw *hw)
 	case M88E1000_I_PHY_ID:
 	case M88E1011_I_PHY_ID:
 	case M88E1111_I_PHY_ID:
+	case M88E1118_E_PHY_ID:
 		hw->phy_type = e1000_phy_m88;
 		break;
 	case IGP01E1000_I_PHY_ID:
@@ -3222,7 +3223,8 @@ static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
 		break;
 	case e1000_ce4100:
 		if ((hw->phy_id == RTL8211B_PHY_ID) ||
-		    (hw->phy_id == RTL8201N_PHY_ID))
+		    (hw->phy_id == RTL8201N_PHY_ID) ||
+		    (hw->phy_id == M88E1118_E_PHY_ID))
 			match = true;
 		break;
 	case e1000_82541:

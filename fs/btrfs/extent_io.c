@@ -1433,12 +1433,13 @@ int extent_clear_unlock_delalloc(struct inode *inode,
  */
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end, u64 max_bytes,
-		     unsigned long bits)
+		     unsigned long bits, int contig)
 {
 	struct rb_node *node;
 	struct extent_state *state;
 	u64 cur_start = *start;
 	u64 total_bytes = 0;
+	u64 last = 0;
 	int found = 0;
 
 	if (search_end <= cur_start) {
@@ -1463,7 +1464,9 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		state = rb_entry(node, struct extent_state, rb_node);
 		if (state->start > search_end)
 			break;
-		if (state->end >= cur_start && (state->state & bits)) {
+		if (contig && found && state->start > last + 1)
+			break;
+		if (state->end >= cur_start && (state->state & bits) == bits) {
 			total_bytes += min(search_end, state->end) + 1 -
 				       max(cur_start, state->start);
 			if (total_bytes >= max_bytes)
@@ -1472,6 +1475,9 @@ u64 count_range_bits(struct extent_io_tree *tree,
 				*start = state->start;
 				found = 1;
 			}
+			last = state->end;
+		} else if (contig && found) {
+			break;
 		}
 		node = rb_next(node);
 		if (!node)
@@ -1946,6 +1952,7 @@ void set_page_extent_mapped(struct page *page)
 
 static void set_page_extent_head(struct page *page, unsigned long len)
 {
+	WARN_ON(!PagePrivate(page));
 	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
 }
 
@@ -2821,9 +2828,17 @@ int try_release_extent_state(struct extent_map_tree *map,
 		 * at this point we can safely clear everything except the
 		 * locked bit and the nodatasum bit
 		 */
-		clear_extent_bit(tree, start, end,
+		ret = clear_extent_bit(tree, start, end,
 				 ~(EXTENT_LOCKED | EXTENT_NODATASUM),
 				 0, 0, NULL, mask);
+
+		/* if clear_extent_bit failed for enomem reasons,
+		 * we can't allow the release to continue.
+		 */
+		if (ret < 0)
+			ret = 0;
+		else
+			ret = 1;
 	}
 	return ret;
 }
@@ -2903,6 +2918,46 @@ out:
 	return sector;
 }
 
+/*
+ * helper function for fiemap, which doesn't want to see any holes.
+ * This maps until we find something past 'last'
+ */
+static struct extent_map *get_extent_skip_holes(struct inode *inode,
+						u64 offset,
+						u64 last,
+						get_extent_t *get_extent)
+{
+	u64 sectorsize = BTRFS_I(inode)->root->sectorsize;
+	struct extent_map *em;
+	u64 len;
+
+	if (offset >= last)
+		return NULL;
+
+	while(1) {
+		len = last - offset;
+		if (len == 0)
+			break;
+		len = (len + sectorsize - 1) & ~(sectorsize - 1);
+		em = get_extent(inode, NULL, 0, offset, len, 0);
+		if (!em || IS_ERR(em))
+			return em;
+
+		/* if this isn't a hole return it */
+		if (!test_bit(EXTENT_FLAG_VACANCY, &em->flags) &&
+		    em->block_start != EXTENT_MAP_HOLE) {
+			return em;
+		}
+
+		/* this is a hole, advance to the next extent */
+		offset = extent_map_end(em);
+		free_extent_map(em);
+		if (offset >= last)
+			break;
+	}
+	return NULL;
+}
+
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent)
 {
@@ -2912,16 +2967,19 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	u32 flags = 0;
 	u32 found_type;
 	u64 last;
+	u64 last_for_get_extent = 0;
 	u64 disko = 0;
+	u64 isize = i_size_read(inode);
 	struct btrfs_key found_key;
 	struct extent_map *em = NULL;
 	struct extent_state *cached_state = NULL;
 	struct btrfs_path *path;
 	struct btrfs_file_extent_item *item;
 	int end = 0;
-	u64 em_start = 0, em_len = 0;
+	u64 em_start = 0;
+	u64 em_len = 0;
+	u64 em_end = 0;
 	unsigned long emflags;
-	int hole = 0;
 
 	if (len == 0)
 		return -EINVAL;
@@ -2931,6 +2989,10 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		return -ENOMEM;
 	path->leave_spinning = 1;
 
+	/*
+	 * lookup the last file extent.  We're not using i_size here
+	 * because there might be preallocation past i_size
+	 */
 	ret = btrfs_lookup_file_extent(NULL, BTRFS_I(inode)->root,
 				       path, inode->i_ino, -1, 0);
 	if (ret < 0) {
@@ -2944,18 +3006,38 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	btrfs_item_key_to_cpu(path->nodes[0], &found_key, path->slots[0]);
 	found_type = btrfs_key_type(&found_key);
 
-	/* No extents, just return */
+	/* No extents, but there might be delalloc bits */
 	if (found_key.objectid != inode->i_ino ||
 	    found_type != BTRFS_EXTENT_DATA_KEY) {
-		btrfs_free_path(path);
-		return 0;
+		/* have to trust i_size as the end */
+		last = (u64)-1;
+		last_for_get_extent = isize;
+	} else {
+		/*
+		 * remember the start of the last extent.  There are a
+		 * bunch of different factors that go into the length of the
+		 * extent, so its much less complex to remember where it started
+		 */
+		last = found_key.offset;
+		last_for_get_extent = last + 1;
 	}
-	last = found_key.offset;
 	btrfs_free_path(path);
+
+	/*
+	 * we might have some extents allocated but more delalloc past those
+	 * extents.  so, we trust isize unless the start of the last extent is
+	 * beyond isize
+	 */
+	if (last < isize) {
+		last = (u64)-1;
+		last_for_get_extent = isize;
+	}
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, start, start + len, 0,
 			 &cached_state, GFP_NOFS);
-	em = get_extent(inode, NULL, 0, off, max - off, 0);
+
+	em = get_extent_skip_holes(inode, off, last_for_get_extent,
+				   get_extent);
 	if (!em)
 		goto out;
 	if (IS_ERR(em)) {
@@ -2964,19 +3046,14 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	}
 
 	while (!end) {
-		hole = 0;
-		off = em->start + em->len;
+		off = extent_map_end(em);
 		if (off >= max)
 			end = 1;
 
-		if (em->block_start == EXTENT_MAP_HOLE) {
-			hole = 1;
-			goto next;
-		}
-
 		em_start = em->start;
 		em_len = em->len;
-
+		em_end = extent_map_end(em);
+		emflags = em->flags;
 		disko = 0;
 		flags = 0;
 
@@ -2995,37 +3072,29 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
 
-next:
-		emflags = em->flags;
 		free_extent_map(em);
 		em = NULL;
-		if (!end) {
-			em = get_extent(inode, NULL, 0, off, max - off, 0);
-			if (!em)
-				goto out;
-			if (IS_ERR(em)) {
-				ret = PTR_ERR(em);
-				goto out;
-			}
-			emflags = em->flags;
-		}
-
-		if (test_bit(EXTENT_FLAG_VACANCY, &emflags)) {
+		if ((em_start >= last) || em_len == (u64)-1 ||
+		   (last == (u64)-1 && isize <= em_end)) {
 			flags |= FIEMAP_EXTENT_LAST;
 			end = 1;
 		}
 
-		if (em_start == last) {
+		/* now scan forward to see if this is really the last extent. */
+		em = get_extent_skip_holes(inode, off, last_for_get_extent,
+					   get_extent);
+		if (IS_ERR(em)) {
+			ret = PTR_ERR(em);
+			goto out;
+		}
+		if (!em) {
 			flags |= FIEMAP_EXTENT_LAST;
 			end = 1;
 		}
-
-		if (!hole) {
-			ret = fiemap_fill_next_extent(fieinfo, em_start, disko,
-						em_len, flags);
-			if (ret)
-				goto out_free;
-		}
+		ret = fiemap_fill_next_extent(fieinfo, em_start, disko,
+					      em_len, flags);
+		if (ret)
+			goto out_free;
 	}
 out_free:
 	free_extent_map(em);
@@ -3194,7 +3263,13 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		}
 		if (!PageUptodate(p))
 			uptodate = 0;
-		unlock_page(p);
+
+		/*
+		 * see below about how we avoid a nasty race with release page
+		 * and why we unlock later
+		 */
+		if (i != 0)
+			unlock_page(p);
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
@@ -3218,9 +3293,26 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	atomic_inc(&eb->refs);
 	spin_unlock(&tree->buffer_lock);
 	radix_tree_preload_end();
+
+	/*
+	 * there is a race where release page may have
+	 * tried to find this extent buffer in the radix
+	 * but failed.  It will tell the VM it is safe to
+	 * reclaim the, and it will clear the page private bit.
+	 * We must make sure to set the page private bit properly
+	 * after the extent buffer is in the radix tree so
+	 * it doesn't get lost
+	 */
+	set_page_extent_mapped(eb->first_page);
+	set_page_extent_head(eb->first_page, eb->len);
+	if (!page0)
+		unlock_page(eb->first_page);
 	return eb;
 
 free_eb:
+	if (eb->first_page && !page0)
+		unlock_page(eb->first_page);
+
 	if (!atomic_dec_and_test(&eb->refs))
 		return exists;
 	btrfs_release_extent_buffer(eb);
@@ -3271,10 +3363,11 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			continue;
 
 		lock_page(page);
+		WARN_ON(!PagePrivate(page));
+
+		set_page_extent_mapped(page);
 		if (i == 0)
 			set_page_extent_head(page, eb->len);
-		else
-			set_page_private(page, EXTENT_PAGE_PRIVATE);
 
 		clear_page_dirty_for_io(page);
 		spin_lock_irq(&page->mapping->tree_lock);
@@ -3464,6 +3557,13 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
+
+		WARN_ON(!PagePrivate(page));
+
+		set_page_extent_mapped(page);
+		if (i == 0)
+			set_page_extent_head(page, eb->len);
+
 		if (inc_all_pages)
 			page_cache_get(page);
 		if (!PageUptodate(page)) {

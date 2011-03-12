@@ -13,6 +13,9 @@
 #ifndef __ASM_ARM_ARCH_SYSMMU_H
 #define __ASM_ARM_ARCH_SYSMMU_H __FILE__
 
+#define S5PV310_SYSMMU_TOTAL_IPNUM	16
+#define S5P_SYSMMU_TOTAL_IPNUM		S5PV310_SYSMMU_TOTAL_IPNUM
+
 enum s5pv310_sysmmu_ips {
 	SYSMMU_MDMA,
 	SYSMMU_SSS,
@@ -32,7 +35,7 @@ enum s5pv310_sysmmu_ips {
 	SYSMMU_MFC_R,
 };
 
-static char *sysmmu_ips_name[S5P_SYSMMU_TOTAL_IPNUM] = {
+static char *sysmmu_ips_name[S5PV310_SYSMMU_TOTAL_IPNUM] = {
 	"SYSMMU_MDMA"	,
 	"SYSMMU_SSS"	,
 	"SYSMMU_FIMC0"	,

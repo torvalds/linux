@@ -359,10 +359,14 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-	if (page->private == EXTENT_PAGE_PRIVATE)
+	if (page->private == EXTENT_PAGE_PRIVATE) {
+		WARN_ON(1);
 		goto out;
-	if (!page->private)
+	}
+	if (!page->private) {
+		WARN_ON(1);
 		goto out;
+	}
 	len = page->private >> 2;
 	WARN_ON(len == 0);
 

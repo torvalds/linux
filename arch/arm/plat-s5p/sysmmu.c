@@ -16,8 +16,6 @@
 #include <mach/regs-sysmmu.h>
 #include <mach/sysmmu.h>
 
-#include <plat/sysmmu.h>
-
 struct sysmmu_controller s5p_sysmmu_cntlrs[S5P_SYSMMU_TOTAL_IPNUM];
 
 void s5p_sysmmu_register(struct sysmmu_controller *sysmmuconp)
@@ -123,7 +121,7 @@ static int s5p_sysmmu_set_tablebase(sysmmu_ips ips)
 		: "=r" (pg) : : "cc");		\
 		pg &= ~0x3fff;
 
-	sysmmu_debug("CP15 TTBR0 : 0x%x\n", pg);
+	printk(KERN_INFO "%s: CP15 TTBR0 : 0x%x\n", __func__, pg);
 
 	/* Set sysmmu page table base address */
 	__raw_writel(pg, sysmmuconp->regs + S5P_PT_BASE_ADDR);
