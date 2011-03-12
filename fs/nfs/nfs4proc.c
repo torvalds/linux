@@ -5671,7 +5671,7 @@ static const struct rpc_call_ops nfs4_layoutcommit_ops = {
 };
 
 int
-nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int sync)
+nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTCOMMIT],
@@ -5699,7 +5699,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int sync)
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-	if (!sync)
+	if (sync == false)
 		goto out;
 	status = nfs4_wait_for_completion_rpc_task(task);
 	if (status != 0)

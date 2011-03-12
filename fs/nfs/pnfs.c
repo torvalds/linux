@@ -991,7 +991,7 @@ EXPORT_SYMBOL_GPL(pnfs_set_layoutcommit);
  * if WRITEs to a data server return NFS_DATA_SYNC.
  */
 int
-pnfs_layoutcommit_inode(struct inode *inode, int sync)
+pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
 	struct nfs4_layoutcommit_data *data;
 	struct nfs_inode *nfsi = NFS_I(inode);

@@ -155,7 +155,7 @@ void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
 void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
-int pnfs_layoutcommit_inode(struct inode *inode, int sync);
+int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 
 static inline int lo_fail_bit(u32 iomode)
 {
@@ -328,7 +328,7 @@ static inline void pnfs_clear_request_commit(struct nfs_page *req)
 {
 }
 
-static inline int pnfs_layoutcommit_inode(struct inode *inode, int sync)
+static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
 	return 0;
 }

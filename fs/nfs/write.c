@@ -1566,10 +1566,12 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 	ret = nfs_commit_unstable_pages(inode, wbc);
 	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
-		int status, sync = wbc->sync_mode;
+		int status;
+		bool sync = true;
 
-		if (wbc->nonblocking || wbc->for_background)
-				sync = 0;
+		if (wbc->sync_mode == WB_SYNC_NONE || wbc->nonblocking ||
+		    wbc->for_background)
+			sync = false;
 
 		status = pnfs_layoutcommit_inode(inode, sync);
 		if (status < 0)
