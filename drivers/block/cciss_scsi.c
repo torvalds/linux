@@ -226,13 +226,6 @@ scsi_cmd_stack_setup(ctlr_info_t *h, struct cciss_scsi_adapter_data_t *sa)
 		return -ENOMEM;
 	}
 
-	stk->elem = kmalloc(sizeof(stk->elem[0]) * stk->nelems, GFP_KERNEL);
-	if (!stk->elem) {
-		pci_free_consistent(h->pdev, size, stk->pool,
-		stk->cmd_pool_handle);
-		return -1;
-	}
-
 	for (i=0; i<CMD_STACK_SIZE; i++) {
 		stk->elem[i] = &stk->pool[i];
 		stk->elem[i]->busaddr = (__u32) (stk->cmd_pool_handle + 
@@ -262,8 +255,6 @@ scsi_cmd_stack_free(ctlr_info_t *h)
 	pci_free_consistent(h->pdev, size, stk->pool, stk->cmd_pool_handle);
 	stk->pool = NULL;
 	cciss_free_sg_chain_blocks(sa->cmd_sg_list, CMD_STACK_SIZE);
-	kfree(stk->elem);
-	stk->elem = NULL;
 }
 
 #if 0
