@@ -1863,7 +1863,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		break;
 	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
-		new_slave->state = BOND_STATE_ACTIVE;
+		bond_set_active_slave(new_slave);
 		bond_set_slave_inactive_flags(new_slave);
 		bond_select_active_slave(bond);
 		break;
@@ -1871,7 +1871,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		pr_debug("This slave is always active in trunk mode\n");
 
 		/* always active in trunk mode */
-		new_slave->state = BOND_STATE_ACTIVE;
+		bond_set_active_slave(new_slave);
 
 		/* In trunking mode there is little meaning to curr_active_slave
 		 * anyway (it holds no special properties of the bond device),
@@ -1909,7 +1909,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
-		new_slave->state == BOND_STATE_ACTIVE ? "n active" : " backup",
+		bond_is_active_slave(new_slave) ? "n active" : " backup",
 		new_slave->link != BOND_LINK_DOWN ? "n up" : " down");
 
 	/* enslave is successful */
@@ -2007,7 +2007,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	pr_info("%s: releasing %s interface %s\n",
 		bond_dev->name,
-		(slave->state == BOND_STATE_ACTIVE) ? "active" : "backup",
+		bond_is_active_slave(slave) ? "active" : "backup",
 		slave_dev->name);
 
 	oldcurrent = bond->curr_active_slave;
@@ -2348,7 +2348,7 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 			res = 0;
 			strcpy(info->slave_name, slave->dev->name);
 			info->link = slave->link;
-			info->state = slave->state;
+			info->state = bond_slave_state(slave);
 			info->link_failure_count = slave->link_failure_count;
 			break;
 		}
@@ -2387,7 +2387,7 @@ static int bond_miimon_inspect(struct bonding *bond)
 					bond->dev->name,
 					(bond->params.mode ==
 					 BOND_MODE_ACTIVEBACKUP) ?
-					((slave->state == BOND_STATE_ACTIVE) ?
+					(bond_is_active_slave(slave) ?
 					 "active " : "backup ") : "",
 					slave->dev->name,
 					bond->params.downdelay * bond->params.miimon);
@@ -2478,13 +2478,13 @@ static void bond_miimon_commit(struct bonding *bond)
 
 			if (bond->params.mode == BOND_MODE_8023AD) {
 				/* prevent it from being the active one */
-				slave->state = BOND_STATE_BACKUP;
+				bond_set_backup_slave(slave);
 			} else if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
 				/* make it immediately active */
-				slave->state = BOND_STATE_ACTIVE;
+				bond_set_active_slave(slave);
 			} else if (slave != bond->primary_slave) {
 				/* prevent it from being the active one */
-				slave->state = BOND_STATE_BACKUP;
+				bond_set_backup_slave(slave);
 			}
 
 			bond_update_speed_duplex(slave);
@@ -2858,7 +2858,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	memcpy(&tip, arp_ptr, 4);
 
 	pr_debug("bond_arp_rcv: %s %s/%d av %d sv %d sip %pI4 tip %pI4\n",
-		 bond->dev->name, slave->dev->name, slave->state,
+		 bond->dev->name, slave->dev->name, bond_slave_state(slave),
 		 bond->params.arp_validate, slave_do_arp_validate(bond, slave),
 		 &sip, &tip);
 
@@ -2870,7 +2870,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	 * the active, through one switch, the router, then the other
 	 * switch before reaching the backup.
 	 */
-	if (slave->state == BOND_STATE_ACTIVE)
+	if (bond_is_active_slave(slave))
 		bond_validate_arp(bond, slave, sip, tip);
 	else
 		bond_validate_arp(bond, slave, tip, sip);
@@ -2932,7 +2932,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 				slave->dev->last_rx + delta_in_ticks)) {
 
 				slave->link  = BOND_LINK_UP;
-				slave->state = BOND_STATE_ACTIVE;
+				bond_set_active_slave(slave);
 
 				/* primary_slave has no meaning in round-robin
 				 * mode. the window of a slave being up and
@@ -2965,7 +2965,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 				slave->dev->last_rx + 2 * delta_in_ticks)) {
 
 				slave->link  = BOND_LINK_DOWN;
-				slave->state = BOND_STATE_BACKUP;
+				bond_set_backup_slave(slave);
 
 				if (slave->link_failure_count < UINT_MAX)
 					slave->link_failure_count++;
@@ -3059,7 +3059,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 * gives each slave a chance to tx/rx traffic
 		 * before being taken out
 		 */
-		if (slave->state == BOND_STATE_BACKUP &&
+		if (!bond_is_active_slave(slave) &&
 		    !bond->current_arp_slave &&
 		    !time_in_range(jiffies,
 			slave_last_rx(bond, slave) - delta_in_ticks,
@@ -3076,7 +3076,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 *    the bond has an IP address)
 		 */
 		trans_start = dev_trans_start(slave->dev);
-		if ((slave->state == BOND_STATE_ACTIVE) &&
+		if (bond_is_active_slave(slave) &&
 		    (!time_in_range(jiffies,
 			trans_start - delta_in_ticks,
 			trans_start + 2 * delta_in_ticks) ||
@@ -4140,7 +4140,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	bond_for_each_slave_from(bond, slave, i, start_at) {
 		if (IS_UP(slave->dev) &&
 		    (slave->link == BOND_LINK_UP) &&
-		    (slave->state == BOND_STATE_ACTIVE)) {
+		    bond_is_active_slave(slave)) {
 			res = bond_dev_queue_xmit(bond, skb, slave->dev);
 			break;
 		}
@@ -4217,7 +4217,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 	bond_for_each_slave_from(bond, slave, i, start_at) {
 		if (IS_UP(slave->dev) &&
 		    (slave->link == BOND_LINK_UP) &&
-		    (slave->state == BOND_STATE_ACTIVE)) {
+		    bond_is_active_slave(slave)) {
 			res = bond_dev_queue_xmit(bond, skb, slave->dev);
 			break;
 		}
@@ -4258,7 +4258,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 	bond_for_each_slave_from(bond, slave, i, start_at) {
 		if (IS_UP(slave->dev) &&
 		    (slave->link == BOND_LINK_UP) &&
-		    (slave->state == BOND_STATE_ACTIVE)) {
+		    bond_is_active_slave(slave)) {
 			if (tx_dev) {
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (!skb2) {

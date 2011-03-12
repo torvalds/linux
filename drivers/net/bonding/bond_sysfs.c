@@ -1582,7 +1582,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 	}
 
 	bond_for_each_slave(bond, slave, i) {
-		if (slave->state == BOND_STATE_BACKUP) {
+		if (!bond_is_active_slave(slave)) {
 			if (new_value)
 				slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
 			else

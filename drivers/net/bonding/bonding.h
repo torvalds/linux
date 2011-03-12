@@ -55,7 +55,7 @@
 		    (((slave)->dev->flags & IFF_UP)  && \
 		     netif_running((slave)->dev)     && \
 		     ((slave)->link == BOND_LINK_UP) && \
-		     ((slave)->state == BOND_STATE_ACTIVE))
+		     bond_is_active_slave(slave))
 
 
 #define USES_PRIMARY(mode)				\
@@ -192,7 +192,8 @@ struct slave {
 	unsigned long last_arp_rx;
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
-	s8     state;   /* one of BOND_STATE_XXXX */
+	u8     backup;	/* indicates backup slave. Value corresponds with
+			   BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
 	u32    original_mtu;
 	u32    link_failure_count;
 	u8     perm_hwaddr[ETH_ALEN];
@@ -304,6 +305,26 @@ static inline bool bond_is_lb(const struct bonding *bond)
 		bond->params.mode == BOND_MODE_ALB);
 }
 
+static inline void bond_set_active_slave(struct slave *slave)
+{
+	slave->backup = 0;
+}
+
+static inline void bond_set_backup_slave(struct slave *slave)
+{
+	slave->backup = 1;
+}
+
+static inline int bond_slave_state(struct slave *slave)
+{
+	return slave->backup;
+}
+
+static inline bool bond_is_active_slave(struct slave *slave)
+{
+	return !bond_slave_state(slave);
+}
+
 #define BOND_PRI_RESELECT_ALWAYS	0
 #define BOND_PRI_RESELECT_BETTER	1
 #define BOND_PRI_RESELECT_FAILURE	2
@@ -321,7 +342,7 @@ static inline bool bond_is_lb(const struct bonding *bond)
 static inline int slave_do_arp_validate(struct bonding *bond,
 					struct slave *slave)
 {
-	return bond->params.arp_validate & (1 << slave->state);
+	return bond->params.arp_validate & (1 << bond_slave_state(slave));
 }
 
 static inline unsigned long slave_last_rx(struct bonding *bond,
@@ -353,14 +374,14 @@ static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
 	struct bonding *bond = netdev_priv(slave->dev->master);
 	if (!bond_is_lb(bond))
-		slave->state = BOND_STATE_BACKUP;
+		bond_set_backup_slave(slave);
 	if (!bond->params.all_slaves_active)
 		slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
 }
 
 static inline void bond_set_slave_active_flags(struct slave *slave)
 {
-	slave->state = BOND_STATE_ACTIVE;
+	bond_set_active_slave(slave);
 	slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
 }
 
