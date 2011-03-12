@@ -75,15 +75,13 @@ static int __ip_vs_addr_is_local_v6(struct net *net,
 				    const struct in6_addr *addr)
 {
 	struct rt6_info *rt;
-	struct flowi fl = {
-		.flowi_oif = 0,
-		.fl6_dst = *addr,
-		.fl6_src = { .s6_addr32 = {0, 0, 0, 0} },
+	struct flowi6 fl6 = {
+		.daddr = *addr,
 	};
 
-	rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl);
+	rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl6);
 	if (rt && rt->rt6i_dev && (rt->rt6i_dev->flags & IFF_LOOPBACK))
-			return 1;
+		return 1;
 
 	return 0;
 }

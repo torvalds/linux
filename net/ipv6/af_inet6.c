@@ -652,22 +652,22 @@ int inet6_sk_rebuild_header(struct sock *sk)
 	if (dst == NULL) {
 		struct inet_sock *inet = inet_sk(sk);
 		struct in6_addr *final_p, final;
-		struct flowi fl;
+		struct flowi6 fl6;
 
-		memset(&fl, 0, sizeof(fl));
-		fl.flowi_proto = sk->sk_protocol;
-		ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
-		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
-		fl.fl6_flowlabel = np->flow_label;
-		fl.flowi_oif = sk->sk_bound_dev_if;
-		fl.flowi_mark = sk->sk_mark;
-		fl.fl6_dport = inet->inet_dport;
-		fl.fl6_sport = inet->inet_sport;
-		security_sk_classify_flow(sk, &fl);
+		memset(&fl6, 0, sizeof(fl6));
+		fl6.flowi6_proto = sk->sk_protocol;
+		ipv6_addr_copy(&fl6.daddr, &np->daddr);
+		ipv6_addr_copy(&fl6.saddr, &np->saddr);
+		fl6.flowlabel = np->flow_label;
+		fl6.flowi6_oif = sk->sk_bound_dev_if;
+		fl6.flowi6_mark = sk->sk_mark;
+		fl6.uli.ports.dport = inet->inet_dport;
+		fl6.uli.ports.sport = inet->inet_sport;
+		security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
-		final_p = fl6_update_dst(&fl, np->opt, &final);
+		final_p = fl6_update_dst(&fl6, np->opt, &final);
 
-		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
 		if (IS_ERR(dst)) {
 			sk->sk_route_caps = 0;
 			sk->sk_err_soft = -PTR_ERR(dst);

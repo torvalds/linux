@@ -143,18 +143,18 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct net *net = pick_net(skb);
 	struct dst_entry *dst;
-	struct flowi fl;
+	struct flowi6 fl6;
 
-	memset(&fl, 0, sizeof(fl));
+	memset(&fl6, 0, sizeof(fl6));
 	if (info->priv) {
 		if (info->priv->oif == -1)
 			return false;
-		fl.flowi_oif = info->priv->oif;
+		fl6.flowi6_oif = info->priv->oif;
 	}
-	fl.fl6_dst = info->gw.in6;
-	fl.fl6_flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
+	fl6.daddr = info->gw.in6;
+	fl6.flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
 			   (iph->flow_lbl[1] << 8) | iph->flow_lbl[2];
-	dst = ip6_route_output(net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst == NULL)
 		return false;
 

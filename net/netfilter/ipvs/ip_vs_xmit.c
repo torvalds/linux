@@ -198,27 +198,27 @@ __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
 			struct in6_addr *ret_saddr, int do_xfrm)
 {
 	struct dst_entry *dst;
-	struct flowi fl = {
-		.fl6_dst = *daddr,
+	struct flowi6 fl6 = {
+		.daddr = *daddr,
 	};
 
-	dst = ip6_route_output(net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error)
 		goto out_err;
 	if (!ret_saddr)
 		return dst;
-	if (ipv6_addr_any(&fl.fl6_src) &&
+	if (ipv6_addr_any(&fl6.saddr) &&
 	    ipv6_dev_get_saddr(net, ip6_dst_idev(dst)->dev,
-			       &fl.fl6_dst, 0, &fl.fl6_src) < 0)
+			       &fl6.daddr, 0, &fl6.saddr) < 0)
 		goto out_err;
 	if (do_xfrm) {
-		dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 		if (IS_ERR(dst)) {
 			dst = NULL;
 			goto out_err;
 		}
 	}
-	ipv6_addr_copy(ret_saddr, &fl.fl6_src);
+	ipv6_addr_copy(ret_saddr, &fl6.saddr);
 	return dst;
 
 out_err:

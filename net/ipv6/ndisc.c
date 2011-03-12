@@ -511,7 +511,7 @@ void ndisc_send_skb(struct sk_buff *skb,
 		    const struct in6_addr *saddr,
 		    struct icmp6hdr *icmp6h)
 {
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
@@ -521,7 +521,7 @@ void ndisc_send_skb(struct sk_buff *skb,
 
 	type = icmp6h->icmp6_type;
 
-	icmpv6_flow_init(sk, &fl, type, saddr, daddr, dev->ifindex);
+	icmpv6_flow_init(sk, &fl6, type, saddr, daddr, dev->ifindex);
 
 	dst = icmp6_dst_alloc(dev, neigh, daddr);
 	if (!dst) {
@@ -529,7 +529,7 @@ void ndisc_send_skb(struct sk_buff *skb,
 		return;
 	}
 
-	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 	if (IS_ERR(dst)) {
 		kfree_skb(skb);
 		return;
@@ -1515,7 +1515,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	struct rt6_info *rt;
 	struct dst_entry *dst;
 	struct inet6_dev *idev;
-	struct flowi fl;
+	struct flowi6 fl6;
 	u8 *opt;
 	int rd_len;
 	int err;
@@ -1535,14 +1535,14 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		return;
 	}
 
-	icmpv6_flow_init(sk, &fl, NDISC_REDIRECT,
+	icmpv6_flow_init(sk, &fl6, NDISC_REDIRECT,
 			 &saddr_buf, &ipv6_hdr(skb)->saddr, dev->ifindex);
 
-	dst = ip6_route_output(net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst == NULL)
 		return;
 
-	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 	if (IS_ERR(dst))
 		return;
 

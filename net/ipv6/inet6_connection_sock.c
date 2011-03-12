@@ -61,20 +61,20 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *final_p, final;
 	struct dst_entry *dst;
-	struct flowi fl;
+	struct flowi6 fl6;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.flowi_proto = IPPROTO_TCP;
-	ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-	final_p = fl6_update_dst(&fl, np->opt, &final);
-	ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
-	fl.flowi_oif = sk->sk_bound_dev_if;
-	fl.flowi_mark = sk->sk_mark;
-	fl.fl6_dport = inet_rsk(req)->rmt_port;
-	fl.fl6_sport = inet_rsk(req)->loc_port;
-	security_req_classify_flow(req, &fl);
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_proto = IPPROTO_TCP;
+	ipv6_addr_copy(&fl6.daddr, &treq->rmt_addr);
+	final_p = fl6_update_dst(&fl6, np->opt, &final);
+	ipv6_addr_copy(&fl6.saddr, &treq->loc_addr);
+	fl6.flowi6_oif = sk->sk_bound_dev_if;
+	fl6.flowi6_mark = sk->sk_mark;
+	fl6.uli.ports.dport = inet_rsk(req)->rmt_port;
+	fl6.uli.ports.sport = inet_rsk(req)->loc_port;
+	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
 
-	dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
 	if (IS_ERR(dst))
 		return NULL;
 
@@ -208,28 +208,28 @@ int inet6_csk_xmit(struct sk_buff *skb)
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 	struct in6_addr *final_p, final;
 
-	memset(&fl, 0, sizeof(fl));
-	fl.flowi_proto = sk->sk_protocol;
-	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
-	ipv6_addr_copy(&fl.fl6_src, &np->saddr);
-	fl.fl6_flowlabel = np->flow_label;
-	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
-	fl.flowi_oif = sk->sk_bound_dev_if;
-	fl.flowi_mark = sk->sk_mark;
-	fl.fl6_sport = inet->inet_sport;
-	fl.fl6_dport = inet->inet_dport;
-	security_sk_classify_flow(sk, &fl);
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_proto = sk->sk_protocol;
+	ipv6_addr_copy(&fl6.daddr, &np->daddr);
+	ipv6_addr_copy(&fl6.saddr, &np->saddr);
+	fl6.flowlabel = np->flow_label;
+	IP6_ECN_flow_xmit(sk, fl6.flowlabel);
+	fl6.flowi6_oif = sk->sk_bound_dev_if;
+	fl6.flowi6_mark = sk->sk_mark;
+	fl6.uli.ports.sport = inet->inet_sport;
+	fl6.uli.ports.dport = inet->inet_dport;
+	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
-	final_p = fl6_update_dst(&fl, np->opt, &final);
+	final_p = fl6_update_dst(&fl6, np->opt, &final);
 
 	dst = __inet6_csk_dst_check(sk, np->dst_cookie);
 
 	if (dst == NULL) {
-		dst = ip6_dst_lookup_flow(sk, &fl, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
 
 		if (IS_ERR(dst)) {
 			sk->sk_err_soft = -PTR_ERR(dst);
@@ -244,9 +244,9 @@ int inet6_csk_xmit(struct sk_buff *skb)
 	skb_dst_set(skb, dst_clone(dst));
 
 	/* Restore final destination back after routing done */
-	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
+	ipv6_addr_copy(&fl6.daddr, &np->daddr);
 
-	return ip6_xmit(sk, skb, &fl, np->opt);
+	return ip6_xmit(sk, skb, &fl6, np->opt);
 }
 
 EXPORT_SYMBOL_GPL(inet6_csk_xmit);

@@ -1396,7 +1396,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	struct inet6_dev *idev;
 	struct net *net = dev_net(skb->dev);
 	int err;
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 
 	rcu_read_lock();
@@ -1419,11 +1419,11 @@ static void mld_sendpack(struct sk_buff *skb)
 		goto err_out;
 	}
 
-	icmpv6_flow_init(net->ipv6.igmp_sk, &fl, ICMPV6_MLD2_REPORT,
+	icmpv6_flow_init(net->ipv6.igmp_sk, &fl6, ICMPV6_MLD2_REPORT,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 	err = 0;
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -1731,7 +1731,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
 		     IPV6_TLV_PADN, 0 };
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 
 	if (type == ICMPV6_MGM_REDUCTION)
@@ -1791,11 +1791,11 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		goto err_out;
 	}
 
-	icmpv6_flow_init(sk, &fl, type,
+	icmpv6_flow_init(sk, &fl6, type,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	dst = xfrm_lookup(net, dst, &fl, NULL, 0);
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto err_out;

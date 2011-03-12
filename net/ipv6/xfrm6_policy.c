@@ -39,8 +39,7 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos,
 	if (saddr)
 		memcpy(&fl6.saddr, saddr, sizeof(fl6.saddr));
 
-	dst = ip6_route_output(net, NULL,
-			       flowi6_to_flowi(&fl6));
+	dst = ip6_route_output(net, NULL, &fl6);
 
 	err = dst->error;
 	if (dst->error) {

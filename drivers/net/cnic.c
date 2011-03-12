@@ -3424,14 +3424,14 @@ static int cnic_get_v6_route(struct sockaddr_in6 *dst_addr,
 			     struct dst_entry **dst)
 {
 #if defined(CONFIG_IPV6) || (defined(CONFIG_IPV6_MODULE) && defined(MODULE))
-	struct flowi fl;
+	struct flowi6 fl6;
 
-	memset(&fl, 0, sizeof(fl));
-	ipv6_addr_copy(&fl.fl6_dst, &dst_addr->sin6_addr);
-	if (ipv6_addr_type(&fl.fl6_dst) & IPV6_ADDR_LINKLOCAL)
-		fl.flowi_oif = dst_addr->sin6_scope_id;
+	memset(&fl6, 0, sizeof(fl6));
+	ipv6_addr_copy(&fl6.daddr, &dst_addr->sin6_addr);
+	if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
+		fl6.flowi6_oif = dst_addr->sin6_scope_id;
 
-	*dst = ip6_route_output(&init_net, NULL, &fl);
+	*dst = ip6_route_output(&init_net, NULL, &fl6);
 	if (*dst)
 		return 0;
 #endif
