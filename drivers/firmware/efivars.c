@@ -89,16 +89,21 @@ MODULE_DESCRIPTION("sysfs interface to EFI Variables");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(EFIVARS_VERSION);
 
-/*
- * efivars_lock protects two things:
- * 1) efivar_list - adds, removals, reads, writes
- * 2) efi.[gs]et_variable() calls.
- * It must not be held when creating sysfs entries or calling kmalloc.
- * efi.get_next_variable() is only called from efivars_init(),
- * which is protected by the BKL, so that path is safe.
- */
-static DEFINE_SPINLOCK(efivars_lock);
-static LIST_HEAD(efivar_list);
+struct efivars {
+	/*
+	 * ->lock protects two things:
+	 * 1) ->list - adds, removals, reads, writes
+	 * 2) efi.[gs]et_variable() calls.
+	 * It must not be held when creating sysfs entries or calling kmalloc.
+	 * efi.get_next_variable() is only called from efivars_init(),
+	 * which is protected by the BKL, so that path is safe.
+	 */
+	spinlock_t lock;
+	struct list_head list;
+	struct kset *kset;
+};
+static struct efivars __efivars;
+static struct efivars *efivars = &__efivars;
 
 /*
  * The maximum size of VariableName + Data = 1024
@@ -174,14 +179,14 @@ get_var_data(struct efi_variable *var)
 {
 	efi_status_t status;
 
-	spin_lock(&efivars_lock);
+	spin_lock(&efivars->lock);
 	var->DataSize = 1024;
 	status = efi.get_variable(var->VariableName,
 				&var->VendorGuid,
 				&var->Attributes,
 				&var->DataSize,
 				var->Data);
-	spin_unlock(&efivars_lock);
+	spin_unlock(&efivars->lock);
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: get_variable() failed 0x%lx!\n",
 			status);
@@ -291,14 +296,14 @@ efivar_store_raw(struct efivar_entry *entry, const char *buf, size_t count)
 		return -EINVAL;
 	}
 
-	spin_lock(&efivars_lock);
+	spin_lock(&efivars->lock);
 	status = efi.set_variable(new_var->VariableName,
 					&new_var->VendorGuid,
 					new_var->Attributes,
 					new_var->DataSize,
 					new_var->Data);
 
-	spin_unlock(&efivars_lock);
+	spin_unlock(&efivars->lock);
 
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: set_variable() failed: status=%lx\n",
@@ -415,12 +420,12 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	spin_lock(&efivars_lock);
+	spin_lock(&efivars->lock);
 
 	/*
 	 * Does this variable already exist?
 	 */
-	list_for_each_entry_safe(search_efivar, n, &efivar_list, list) {
+	list_for_each_entry_safe(search_efivar, n, &efivars->list, list) {
 		strsize1 = utf8_strsize(search_efivar->var.VariableName, 1024);
 		strsize2 = utf8_strsize(new_var->VariableName, 1024);
 		if (strsize1 == strsize2 &&
@@ -433,7 +438,7 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 		}
 	}
 	if (found) {
-		spin_unlock(&efivars_lock);
+		spin_unlock(&efivars->lock);
 		return -EINVAL;
 	}
 
@@ -447,10 +452,10 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: set_variable() failed: status=%lx\n",
 			status);
-		spin_unlock(&efivars_lock);
+		spin_unlock(&efivars->lock);
 		return -EIO;
 	}
-	spin_unlock(&efivars_lock);
+	spin_unlock(&efivars->lock);
 
 	/* Create the entry in sysfs.  Locking is not required here */
 	status = efivar_create_sysfs_entry(utf8_strsize(new_var->VariableName,
@@ -474,12 +479,12 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	spin_lock(&efivars_lock);
+	spin_lock(&efivars->lock);
 
 	/*
 	 * Does this variable already exist?
 	 */
-	list_for_each_entry_safe(search_efivar, n, &efivar_list, list) {
+	list_for_each_entry_safe(search_efivar, n, &efivars->list, list) {
 		strsize1 = utf8_strsize(search_efivar->var.VariableName, 1024);
 		strsize2 = utf8_strsize(del_var->VariableName, 1024);
 		if (strsize1 == strsize2 &&
@@ -492,7 +497,7 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 		}
 	}
 	if (!found) {
-		spin_unlock(&efivars_lock);
+		spin_unlock(&efivars->lock);
 		return -EINVAL;
 	}
 	/* force the Attributes/DataSize to 0 to ensure deletion */
@@ -508,12 +513,12 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	if (status != EFI_SUCCESS) {
 		printk(KERN_WARNING "efivars: set_variable() failed: status=%lx\n",
 			status);
-		spin_unlock(&efivars_lock);
+		spin_unlock(&efivars->lock);
 		return -EIO;
 	}
 	list_del(&search_efivar->list);
 	/* We need to release this lock before unregistering. */
-	spin_unlock(&efivars_lock);
+	spin_unlock(&efivars->lock);
 	efivar_unregister(search_efivar);
 
 	/* It's dead Jim.... */
@@ -572,8 +577,6 @@ static struct attribute_group efi_subsys_attr_group = {
 	.attrs = efi_subsys_attrs,
 };
 
-
-static struct kset *vars_kset;
 static struct kobject *efi_kobj;
 
 /*
@@ -582,7 +585,7 @@ static struct kobject *efi_kobj;
  *    variable_name_size = number of bytes required to hold
  *                         variable_name (not counting the NULL
  *                         character at the end.
- *    efivars_lock is not held on entry or exit.
+ *    efivars->lock is not held on entry or exit.
  * Returns 1 on failure, 0 on success
  */
 static int
@@ -618,7 +621,7 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	*(short_name + strlen(short_name)) = '-';
 	efi_guid_unparse(vendor_guid, short_name + strlen(short_name));
 
-	new_efivar->kobj.kset = vars_kset;
+	new_efivar->kobj.kset = efivars->kset;
 	i = kobject_init_and_add(&new_efivar->kobj, &efivar_ktype, NULL,
 				 "%s", short_name);
 	if (i) {
@@ -631,9 +634,9 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	kfree(short_name);
 	short_name = NULL;
 
-	spin_lock(&efivars_lock);
-	list_add(&new_efivar->list, &efivar_list);
-	spin_unlock(&efivars_lock);
+	spin_lock(&efivars->lock);
+	list_add(&new_efivar->list, &efivars->list);
+	spin_unlock(&efivars->lock);
 
 	return 0;
 }
@@ -674,8 +677,11 @@ efivars_init(void)
 		goto out_free;
 	}
 
-	vars_kset = kset_create_and_add("vars", NULL, efi_kobj);
-	if (!vars_kset) {
+	spin_lock_init(&efivars->lock);
+	INIT_LIST_HEAD(&efivars->list);
+
+	efivars->kset = kset_create_and_add("vars", NULL, efi_kobj);
+	if (!efivars->kset) {
 		printk(KERN_ERR "efivars: Subsystem registration failed.\n");
 		error = -ENOMEM;
 		goto out_firmware_unregister;
@@ -712,12 +718,12 @@ efivars_init(void)
 	 * Now add attributes to allow creation of new vars
 	 * and deletion of existing ones...
 	 */
-	error = sysfs_create_bin_file(&vars_kset->kobj,
+	error = sysfs_create_bin_file(&efivars->kset->kobj,
 				      &var_subsys_attr_new_var);
 	if (error)
 		printk(KERN_ERR "efivars: unable to create new_var sysfs file"
 			" due to error %d\n", error);
-	error = sysfs_create_bin_file(&vars_kset->kobj,
+	error = sysfs_create_bin_file(&efivars->kset->kobj,
 				      &var_subsys_attr_del_var);
 	if (error)
 		printk(KERN_ERR "efivars: unable to create del_var sysfs file"
@@ -730,7 +736,7 @@ efivars_init(void)
 	else
 		goto out_free;
 
-	kset_unregister(vars_kset);
+	kset_unregister(efivars->kset);
 
 out_firmware_unregister:
 	kobject_put(efi_kobj);
@@ -746,14 +752,14 @@ efivars_exit(void)
 {
 	struct efivar_entry *entry, *n;
 
-	list_for_each_entry_safe(entry, n, &efivar_list, list) {
-		spin_lock(&efivars_lock);
+	list_for_each_entry_safe(entry, n, &efivars->list, list) {
+		spin_lock(&efivars->lock);
 		list_del(&entry->list);
-		spin_unlock(&efivars_lock);
+		spin_unlock(&efivars->lock);
 		efivar_unregister(entry);
 	}
 
-	kset_unregister(vars_kset);
+	kset_unregister(efivars->kset);
 	kobject_put(efi_kobj);
 }
 
