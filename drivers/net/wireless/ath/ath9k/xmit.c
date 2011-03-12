@@ -166,7 +166,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		fi = get_frame_info(bf->bf_mpdu);
 		if (fi->retries) {
 			ath_tx_update_baw(sc, tid, fi->seqno);
-			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 1);
 		} else {
 			ath_tx_send_normal(sc, txq, NULL, &bf_head);
 		}
