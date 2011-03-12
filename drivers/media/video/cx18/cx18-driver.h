@@ -50,6 +50,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
@@ -405,11 +406,22 @@ struct cx18_stream {
 };
 
 struct cx18_open_id {
+	struct v4l2_fh fh;
 	u32 open_id;
 	int type;
 	enum v4l2_priority prio;
 	struct cx18 *cx;
 };
+
+static inline struct cx18_open_id *fh2id(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct cx18_open_id, fh);
+}
+
+static inline struct cx18_open_id *file2id(struct file *file)
+{
+	return fh2id(file->private_data);
+}
 
 /* forward declaration of struct defined in cx18-cards.h */
 struct cx18_card;

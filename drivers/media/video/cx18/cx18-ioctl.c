@@ -148,7 +148,7 @@ u16 cx18_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
@@ -173,7 +173,7 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	struct v4l2_vbi_format *vbifmt = &fmt->fmt.vbi;
 
 	vbifmt->sampling_rate = 27000000;
@@ -192,7 +192,7 @@ static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_format *fmt)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
 
 	/* sane, V4L2 spec compliant, defaults */
@@ -221,7 +221,7 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
@@ -252,7 +252,7 @@ static int cx18_try_fmt_vbi_cap(struct file *file, void *fh,
 static int cx18_try_fmt_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_format *fmt)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
 
 	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
@@ -271,7 +271,7 @@ static int cx18_try_fmt_sliced_vbi_cap(struct file *file, void *fh,
 static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
@@ -303,7 +303,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 				struct v4l2_format *fmt)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 
@@ -337,7 +337,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_format *fmt)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
@@ -372,7 +372,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 static int cx18_g_chip_ident(struct file *file, void *fh,
 				struct v4l2_dbg_chip_ident *chip)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	int err = 0;
 
 	chip->ident = V4L2_IDENT_NONE;
@@ -442,7 +442,7 @@ static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
 static int cx18_g_register(struct file *file, void *fh,
 				struct v4l2_dbg_register *reg)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (v4l2_chip_match_host(&reg->match))
 		return cx18_cxc(cx, VIDIOC_DBG_G_REGISTER, reg);
@@ -454,7 +454,7 @@ static int cx18_g_register(struct file *file, void *fh,
 static int cx18_s_register(struct file *file, void *fh,
 				struct v4l2_dbg_register *reg)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (v4l2_chip_match_host(&reg->match))
 		return cx18_cxc(cx, VIDIOC_DBG_S_REGISTER, reg);
@@ -466,7 +466,7 @@ static int cx18_s_register(struct file *file, void *fh,
 
 static int cx18_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = file2id(file)->cx;
 
 	*p = v4l2_prio_max(&cx->prio);
 	return 0;
@@ -474,7 +474,7 @@ static int cx18_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
 
 static int cx18_s_priority(struct file *file, void *fh, enum v4l2_priority prio)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = file2id(file);
 	struct cx18 *cx = id->cx;
 
 	return v4l2_prio_change(&cx->prio, &id->prio, prio);
@@ -483,7 +483,7 @@ static int cx18_s_priority(struct file *file, void *fh, enum v4l2_priority prio)
 static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
@@ -496,14 +496,14 @@ static int cx18_querycap(struct file *file, void *fh,
 
 static int cx18_enumaudio(struct file *file, void *fh, struct v4l2_audio *vin)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	return cx18_get_audio_input(cx, vin->index, vin);
 }
 
 static int cx18_g_audio(struct file *file, void *fh, struct v4l2_audio *vin)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	vin->index = cx->audio_input;
 	return cx18_get_audio_input(cx, vin->index, vin);
@@ -511,7 +511,7 @@ static int cx18_g_audio(struct file *file, void *fh, struct v4l2_audio *vin)
 
 static int cx18_s_audio(struct file *file, void *fh, struct v4l2_audio *vout)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (vout->index >= cx->nof_audio_inputs)
 		return -EINVAL;
@@ -522,7 +522,7 @@ static int cx18_s_audio(struct file *file, void *fh, struct v4l2_audio *vout)
 
 static int cx18_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	/* set it to defaults from our table */
 	return cx18_get_input(cx, vin->index, vin);
@@ -531,7 +531,7 @@ static int cx18_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
 static int cx18_cropcap(struct file *file, void *fh,
 			struct v4l2_cropcap *cropcap)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -546,7 +546,7 @@ static int cx18_cropcap(struct file *file, void *fh,
 
 static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 
@@ -562,7 +562,7 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 
 static int cx18_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -590,7 +590,7 @@ static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,
 
 static int cx18_g_input(struct file *file, void *fh, unsigned int *i)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	*i = cx->active_input;
 	return 0;
@@ -598,7 +598,7 @@ static int cx18_g_input(struct file *file, void *fh, unsigned int *i)
 
 int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 
@@ -633,7 +633,7 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 static int cx18_g_frequency(struct file *file, void *fh,
 				struct v4l2_frequency *vf)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (vf->tuner != 0)
 		return -EINVAL;
@@ -644,7 +644,7 @@ static int cx18_g_frequency(struct file *file, void *fh,
 
 int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 
@@ -664,7 +664,7 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 
 static int cx18_g_std(struct file *file, void *fh, v4l2_std_id *std)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	*std = cx->std;
 	return 0;
@@ -672,7 +672,7 @@ static int cx18_g_std(struct file *file, void *fh, v4l2_std_id *std)
 
 int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 
@@ -713,7 +713,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 
 static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
 
@@ -730,7 +730,7 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 
 static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	if (vt->index != 0)
 		return -EINVAL;
@@ -751,7 +751,7 @@ static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 static int cx18_g_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_sliced_vbi_cap *cap)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	int set = cx->is_50hz ? V4L2_SLICED_VBI_625 : V4L2_SLICED_VBI_525;
 	int f, l;
 
@@ -872,7 +872,7 @@ static int cx18_process_idx_data(struct cx18_stream *s, struct cx18_mdl *mdl,
 static int cx18_g_enc_index(struct file *file, void *fh,
 				struct v4l2_enc_idx *idx)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	struct cx18_stream *s = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
 	s32 tmp;
 	struct cx18_mdl *mdl;
@@ -919,7 +919,7 @@ static int cx18_g_enc_index(struct file *file, void *fh,
 static int cx18_encoder_cmd(struct file *file, void *fh,
 				struct v4l2_encoder_cmd *enc)
 {
-	struct cx18_open_id *id = fh;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	u32 h;
 
@@ -980,7 +980,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 static int cx18_try_encoder_cmd(struct file *file, void *fh,
 				struct v4l2_encoder_cmd *enc)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
@@ -1012,7 +1012,7 @@ static int cx18_try_encoder_cmd(struct file *file, void *fh,
 
 static int cx18_log_status(struct file *file, void *fh)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 	struct v4l2_input vidin;
 	struct v4l2_audio audin;
 	int i;
@@ -1060,7 +1060,7 @@ static int cx18_log_status(struct file *file, void *fh)
 static long cx18_default(struct file *file, void *fh, bool valid_prio,
 							int cmd, void *arg)
 {
-	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct cx18 *cx = fh2id(fh)->cx;
 
 	switch (cmd) {
 	case VIDIOC_INT_RESET: {
@@ -1082,7 +1082,7 @@ long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 		    unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
-	struct cx18_open_id *id = filp->private_data;
+	struct cx18_open_id *id = file2id(filp);
 	struct cx18 *cx = id->cx;
 	long res;
 

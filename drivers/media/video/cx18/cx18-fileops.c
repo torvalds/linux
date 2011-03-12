@@ -585,7 +585,7 @@ start_failed:
 ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 		loff_t *pos)
 {
-	struct cx18_open_id *id = filp->private_data;
+	struct cx18_open_id *id = file2id(filp);
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];
 	int rc;
@@ -602,7 +602,7 @@ ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 
 unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 {
-	struct cx18_open_id *id = filp->private_data;
+	struct cx18_open_id *id = file2id(filp);
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];
 	int eof = test_bit(CX18_F_S_STREAMOFF, &s->s_flags);
@@ -676,13 +676,16 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end)
 
 int cx18_v4l2_close(struct file *filp)
 {
-	struct cx18_open_id *id = filp->private_data;
+	struct v4l2_fh *fh = filp->private_data;
+	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];
 
 	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
 
 	v4l2_prio_close(&cx->prio, id->prio);
+	v4l2_fh_del(fh);
+	v4l2_fh_exit(fh);
 
 	/* Easy case first: this stream was never claimed by us */
 	if (s->id != id->open_id) {
@@ -728,22 +731,25 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	CX18_DEBUG_FILE("open %s\n", s->name);
 
 	/* Allocate memory */
-	item = kmalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
+	item = kzalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
 	if (NULL == item) {
 		CX18_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
+	v4l2_fh_init(&item->fh, s->video_dev);
+
 	item->cx = cx;
 	item->type = s->type;
 	v4l2_prio_open(&cx->prio, &item->prio);
 
 	item->open_id = cx->open_id++;
-	filp->private_data = item;
+	filp->private_data = &item->fh;
 
 	if (item->type == CX18_ENC_STREAM_TYPE_RAD) {
 		/* Try to claim this stream */
 		if (cx18_claim_stream(item, item->type)) {
 			/* No, it's already in use */
+			v4l2_fh_exit(&item->fh);
 			kfree(item);
 			return -EBUSY;
 		}
@@ -753,6 +759,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 				/* switching to radio while capture is
 				   in progress is not polite */
 				cx18_release_stream(s);
+				v4l2_fh_exit(&item->fh);
 				kfree(item);
 				return -EBUSY;
 			}
@@ -769,6 +776,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 		/* Done! Unmute and continue. */
 		cx18_unmute(cx);
 	}
+	v4l2_fh_add(&item->fh);
 	return 0;
 }
 
