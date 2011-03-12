@@ -62,18 +62,18 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct net *net = pick_net(skb);
 	struct rtable *rt;
-	struct flowi fl;
+	struct flowi4 fl4;
 
-	memset(&fl, 0, sizeof(fl));
+	memset(&fl4, 0, sizeof(fl4));
 	if (info->priv) {
 		if (info->priv->oif == -1)
 			return false;
-		fl.flowi_oif = info->priv->oif;
+		fl4.flowi4_oif = info->priv->oif;
 	}
-	fl.fl4_dst = info->gw.ip;
-	fl.fl4_tos = RT_TOS(iph->tos);
-	fl.fl4_scope = RT_SCOPE_UNIVERSE;
-	rt = ip_route_output_key(net, &fl);
+	fl4.daddr = info->gw.ip;
+	fl4.flowi4_tos = RT_TOS(iph->tos);
+	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
+	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
 		return false;
 

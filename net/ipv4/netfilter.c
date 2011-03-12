@@ -16,7 +16,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt;
-	struct flowi fl = {};
+	struct flowi4 fl4 = {};
 	unsigned long orefdst;
 	unsigned int hh_len;
 	unsigned int type;
@@ -31,14 +31,14 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
 	if (addr_type == RTN_LOCAL) {
-		fl.fl4_dst = iph->daddr;
+		fl4.daddr = iph->daddr;
 		if (type == RTN_LOCAL)
-			fl.fl4_src = iph->saddr;
-		fl.fl4_tos = RT_TOS(iph->tos);
-		fl.flowi_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
-		fl.flowi_mark = skb->mark;
-		fl.flowi_flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
-		rt = ip_route_output_key(net, &fl);
+			fl4.saddr = iph->saddr;
+		fl4.flowi4_tos = RT_TOS(iph->tos);
+		fl4.flowi4_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
+		fl4.flowi4_mark = skb->mark;
+		fl4.flowi4_flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
+		rt = ip_route_output_key(net, &fl4);
 		if (IS_ERR(rt))
 			return -1;
 
@@ -48,8 +48,8 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	} else {
 		/* non-local src, find valid iif to satisfy
 		 * rp-filter when calling ip_route_input. */
-		fl.fl4_dst = iph->saddr;
-		rt = ip_route_output_key(net, &fl);
+		fl4.daddr = iph->saddr;
+		rt = ip_route_output_key(net, &fl4);
 		if (IS_ERR(rt))
 			return -1;
 
@@ -68,10 +68,10 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 
 #ifdef CONFIG_XFRM
 	if (!(IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED) &&
-	    xfrm_decode_session(skb, &fl, AF_INET) == 0) {
+	    xfrm_decode_session(skb, flowi4_to_flowi(&fl4), AF_INET) == 0) {
 		struct dst_entry *dst = skb_dst(skb);
 		skb_dst_set(skb, NULL);
-		dst = xfrm_lookup(net, dst, &fl, skb->sk, 0);
+		dst = xfrm_lookup(net, dst, flowi4_to_flowi(&fl4), skb->sk, 0);
 		if (IS_ERR(dst))
 			return -1;
 		skb_dst_set(skb, dst);
@@ -223,7 +223,7 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 
 static int nf_ip_route(struct dst_entry **dst, struct flowi *fl)
 {
-	struct rtable *rt = ip_route_output_key(&init_net, fl);
+	struct rtable *rt = ip_route_output_key(&init_net, &fl->u.ip4);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 	*dst = &rt->dst;

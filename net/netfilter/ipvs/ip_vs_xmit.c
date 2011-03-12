@@ -165,14 +165,14 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 			return 0;
 		refdst_drop(orefdst);
 	} else {
-		struct flowi fl = {
-			.fl4_dst = iph->daddr,
-			.fl4_src = iph->saddr,
-			.fl4_tos = RT_TOS(iph->tos),
-			.flowi_mark = skb->mark,
+		struct flowi4 fl4 = {
+			.daddr = iph->daddr,
+			.saddr = iph->saddr,
+			.flowi4_tos = RT_TOS(iph->tos),
+			.flowi4_mark = skb->mark,
 		};
 
-		rt = ip_route_output_key(net, &fl);
+		rt = ip_route_output_key(net, &fl4);
 		if (IS_ERR(rt))
 			return 0;
 		if (!(rt->rt_flags & RTCF_LOCAL)) {

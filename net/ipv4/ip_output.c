@@ -1474,18 +1474,18 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	}
 
 	{
-		struct flowi fl = {
-			.flowi_oif = arg->bound_dev_if,
-			.fl4_dst = daddr,
-			.fl4_src = rt->rt_spec_dst,
-			.fl4_tos = RT_TOS(ip_hdr(skb)->tos),
-			.fl4_sport = tcp_hdr(skb)->dest,
-			.fl4_dport = tcp_hdr(skb)->source,
-			.flowi_proto = sk->sk_protocol,
-			.flowi_flags = ip_reply_arg_flowi_flags(arg),
+		struct flowi4 fl4 = {
+			.flowi4_oif = arg->bound_dev_if,
+			.daddr = daddr,
+			.saddr = rt->rt_spec_dst,
+			.flowi4_tos = RT_TOS(ip_hdr(skb)->tos),
+			.uli.ports.sport = tcp_hdr(skb)->dest,
+			.uli.ports.dport = tcp_hdr(skb)->source,
+			.flowi4_proto = sk->sk_protocol,
+			.flowi4_flags = ip_reply_arg_flowi_flags(arg),
 		};
-		security_skb_classify_flow(skb, &fl);
-		rt = ip_route_output_key(sock_net(sk), &fl);
+		security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
+		rt = ip_route_output_key(sock_net(sk), &fl4);
 		if (IS_ERR(rt))
 			return;
 	}

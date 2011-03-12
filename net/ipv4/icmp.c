@@ -353,14 +353,14 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 			daddr = icmp_param->replyopts.faddr;
 	}
 	{
-		struct flowi fl = {
-			.fl4_dst = daddr,
-			.fl4_src = rt->rt_spec_dst,
-			.fl4_tos = RT_TOS(ip_hdr(skb)->tos),
-			.flowi_proto = IPPROTO_ICMP,
+		struct flowi4 fl4 = {
+			.daddr = daddr,
+			.saddr = rt->rt_spec_dst,
+			.flowi4_tos = RT_TOS(ip_hdr(skb)->tos),
+			.flowi4_proto = IPPROTO_ICMP,
 		};
-		security_skb_classify_flow(skb, &fl);
-		rt = ip_route_output_key(net, &fl);
+		security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));
+		rt = ip_route_output_key(net, &fl4);
 		if (IS_ERR(rt))
 			goto out_unlock;
 	}
@@ -378,30 +378,31 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 					int type, int code,
 					struct icmp_bxm *param)
 {
-	struct flowi fl = {
-		.fl4_dst = (param->replyopts.srr ?
-			    param->replyopts.faddr : iph->saddr),
-		.fl4_src = saddr,
-		.fl4_tos = RT_TOS(tos),
-		.flowi_proto = IPPROTO_ICMP,
-		.fl4_icmp_type = type,
-		.fl4_icmp_code = code,
+	struct flowi4 fl4 = {
+		.daddr = (param->replyopts.srr ?
+			  param->replyopts.faddr : iph->saddr),
+		.saddr = saddr,
+		.flowi4_tos = RT_TOS(tos),
+		.flowi4_proto = IPPROTO_ICMP,
+		.uli.icmpt.type = type,
+		.uli.icmpt.code = code,
 	};
 	struct rtable *rt, *rt2;
 	int err;
 
-	security_skb_classify_flow(skb_in, &fl);
-	rt = __ip_route_output_key(net, &fl);
+	security_skb_classify_flow(skb_in, flowi4_to_flowi(&fl4));
+	rt = __ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
 		return rt;
 
 	/* No need to clone since we're just using its address. */
 	rt2 = rt;
 
-	if (!fl.fl4_src)
-		fl.fl4_src = rt->rt_src;
+	if (!fl4.saddr)
+		fl4.saddr = rt->rt_src;
 
-	rt = (struct rtable *) xfrm_lookup(net, &rt->dst, &fl, NULL, 0);
+	rt = (struct rtable *) xfrm_lookup(net, &rt->dst,
+					   flowi4_to_flowi(&fl4), NULL, 0);
 	if (!IS_ERR(rt)) {
 		if (rt != rt2)
 			return rt;
@@ -410,27 +411,27 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 	} else
 		return rt;
 
-	err = xfrm_decode_session_reverse(skb_in, &fl, AF_INET);
+	err = xfrm_decode_session_reverse(skb_in, flowi4_to_flowi(&fl4), AF_INET);
 	if (err)
 		goto relookup_failed;
 
-	if (inet_addr_type(net, fl.fl4_src) == RTN_LOCAL) {
-		rt2 = __ip_route_output_key(net, &fl);
+	if (inet_addr_type(net, fl4.saddr) == RTN_LOCAL) {
+		rt2 = __ip_route_output_key(net, &fl4);
 		if (IS_ERR(rt2))
 			err = PTR_ERR(rt2);
 	} else {
-		struct flowi fl2 = {};
+		struct flowi4 fl4_2 = {};
 		unsigned long orefdst;
 
-		fl2.fl4_dst = fl.fl4_src;
-		rt2 = ip_route_output_key(net, &fl2);
+		fl4_2.daddr = fl4.saddr;
+		rt2 = ip_route_output_key(net, &fl4_2);
 		if (IS_ERR(rt2)) {
 			err = PTR_ERR(rt2);
 			goto relookup_failed;
 		}
 		/* Ugh! */
 		orefdst = skb_in->_skb_refdst; /* save old refdst */
-		err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,
+		err = ip_route_input(skb_in, fl4.daddr, fl4.saddr,
 				     RT_TOS(tos), rt2->dst.dev);
 
 		dst_release(&rt2->dst);
@@ -441,7 +442,9 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 	if (err)
 		goto relookup_failed;
 
-	rt2 = (struct rtable *) xfrm_lookup(net, &rt2->dst, &fl, NULL, XFRM_LOOKUP_ICMP);
+	rt2 = (struct rtable *) xfrm_lookup(net, &rt2->dst,
+					    flowi4_to_flowi(&fl4), NULL,
+					    XFRM_LOOKUP_ICMP);
 	if (!IS_ERR(rt2)) {
 		dst_release(&rt->dst);
 		rt = rt2;

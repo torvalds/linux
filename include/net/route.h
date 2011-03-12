@@ -122,12 +122,12 @@ extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
 				       __be32 src, struct net_device *dev);
 extern void		rt_cache_flush(struct net *net, int how);
 extern void		rt_cache_flush_batch(struct net *net);
-extern struct rtable *__ip_route_output_key(struct net *, const struct flowi *flp);
-extern struct rtable *ip_route_output_flow(struct net *, struct flowi *flp,
+extern struct rtable *__ip_route_output_key(struct net *, const struct flowi4 *flp);
+extern struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
 					   struct sock *sk);
 extern struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig);
 
-static inline struct rtable *ip_route_output_key(struct net *net, struct flowi *flp)
+static inline struct rtable *ip_route_output_key(struct net *net, struct flowi4 *flp)
 {
 	return ip_route_output_flow(net, flp, NULL);
 }
@@ -135,13 +135,13 @@ static inline struct rtable *ip_route_output_key(struct net *net, struct flowi *
 static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
 					     __be32 saddr, u8 tos, int oif)
 {
-	struct flowi fl = {
-		.flowi_oif = oif,
-		.fl4_dst = daddr,
-		.fl4_src = saddr,
-		.fl4_tos = tos,
+	struct flowi4 fl4 = {
+		.flowi4_oif = oif,
+		.daddr = daddr,
+		.saddr = saddr,
+		.flowi4_tos = tos,
 	};
-	return ip_route_output_key(net, &fl);
+	return ip_route_output_key(net, &fl4);
 }
 
 static inline struct rtable *ip_route_output_ports(struct net *net, struct sock *sk,
@@ -149,35 +149,35 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct sock 
 						   __be16 dport, __be16 sport,
 						   __u8 proto, __u8 tos, int oif)
 {
-	struct flowi fl = {
-		.flowi_oif = oif,
-		.flowi_flags = sk ? inet_sk_flowi_flags(sk) : 0,
-		.flowi_mark = sk ? sk->sk_mark : 0,
-		.fl4_dst = daddr,
-		.fl4_src = saddr,
-		.fl4_tos = tos,
-		.flowi_proto = proto,
-		.fl4_dport = dport,
-		.fl4_sport = sport,
+	struct flowi4 fl4 = {
+		.flowi4_oif = oif,
+		.flowi4_flags = sk ? inet_sk_flowi_flags(sk) : 0,
+		.flowi4_mark = sk ? sk->sk_mark : 0,
+		.daddr = daddr,
+		.saddr = saddr,
+		.flowi4_tos = tos,
+		.flowi4_proto = proto,
+		.uli.ports.dport = dport,
+		.uli.ports.sport = sport,
 	};
 	if (sk)
-		security_sk_classify_flow(sk, &fl);
-	return ip_route_output_flow(net, &fl, sk);
+		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+	return ip_route_output_flow(net, &fl4, sk);
 }
 
 static inline struct rtable *ip_route_output_gre(struct net *net,
 						 __be32 daddr, __be32 saddr,
 						 __be32 gre_key, __u8 tos, int oif)
 {
-	struct flowi fl = {
-		.flowi_oif = oif,
-		.fl4_dst = daddr,
-		.fl4_src = saddr,
-		.fl4_tos = tos,
-		.flowi_proto = IPPROTO_GRE,
-		.fl4_gre_key = gre_key,
+	struct flowi4 fl4 = {
+		.flowi4_oif = oif,
+		.daddr = daddr,
+		.saddr = saddr,
+		.flowi4_tos = tos,
+		.flowi4_proto = IPPROTO_GRE,
+		.uli.gre_key = gre_key,
 	};
-	return ip_route_output_key(net, &fl);
+	return ip_route_output_key(net, &fl4);
 }
 
 extern int ip_route_input_common(struct sk_buff *skb, __be32 dst, __be32 src,
@@ -228,36 +228,36 @@ static inline struct rtable *ip_route_connect(__be32 dst, __be32 src, u32 tos,
 					      __be16 sport, __be16 dport,
 					      struct sock *sk, bool can_sleep)
 {
-	struct flowi fl = {
-		.flowi_oif = oif,
-		.flowi_mark = sk->sk_mark,
-		.fl4_dst = dst,
-		.fl4_src = src,
-		.fl4_tos = tos,
-		.flowi_proto = protocol,
-		.fl4_sport = sport,
-		.fl4_dport = dport,
+	struct flowi4 fl4 = {
+		.flowi4_oif = oif,
+		.flowi4_mark = sk->sk_mark,
+		.daddr = dst,
+		.saddr = src,
+		.flowi4_tos = tos,
+		.flowi4_proto = protocol,
+		.uli.ports.sport = sport,
+		.uli.ports.dport = dport,
 	};
 	struct net *net = sock_net(sk);
 	struct rtable *rt;
 
 	if (inet_sk(sk)->transparent)
-		fl.flowi_flags |= FLOWI_FLAG_ANYSRC;
+		fl4.flowi4_flags |= FLOWI_FLAG_ANYSRC;
 	if (protocol == IPPROTO_TCP)
-		fl.flowi_flags |= FLOWI_FLAG_PRECOW_METRICS;
+		fl4.flowi4_flags |= FLOWI_FLAG_PRECOW_METRICS;
 	if (can_sleep)
-		fl.flowi_flags |= FLOWI_FLAG_CAN_SLEEP;
+		fl4.flowi4_flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	if (!dst || !src) {
-		rt = __ip_route_output_key(net, &fl);
+		rt = __ip_route_output_key(net, &fl4);
 		if (IS_ERR(rt))
 			return rt;
-		fl.fl4_dst = rt->rt_dst;
-		fl.fl4_src = rt->rt_src;
+		fl4.daddr = rt->rt_dst;
+		fl4.saddr = rt->rt_src;
 		ip_rt_put(rt);
 	}
-	security_sk_classify_flow(sk, &fl);
-	return ip_route_output_flow(net, &fl, sk);
+	security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+	return ip_route_output_flow(net, &fl4, sk);
 }
 
 static inline struct rtable *ip_route_newports(struct rtable *rt,
@@ -266,23 +266,23 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 					       __be16 dport, struct sock *sk)
 {
 	if (sport != orig_sport || dport != orig_dport) {
-		struct flowi fl = {
-			.flowi_oif = rt->rt_oif,
-			.flowi_mark = rt->rt_mark,
-			.fl4_dst = rt->rt_key_dst,
-			.fl4_src = rt->rt_key_src,
-			.fl4_tos = rt->rt_tos,
-			.flowi_proto = protocol,
-			.fl4_sport = sport,
-			.fl4_dport = dport
+		struct flowi4 fl4 = {
+			.flowi4_oif = rt->rt_oif,
+			.flowi4_mark = rt->rt_mark,
+			.daddr = rt->rt_key_dst,
+			.saddr = rt->rt_key_src,
+			.flowi4_tos = rt->rt_tos,
+			.flowi4_proto = protocol,
+			.uli.ports.sport = sport,
+			.uli.ports.dport = dport
 		};
 		if (inet_sk(sk)->transparent)
-			fl.flowi_flags |= FLOWI_FLAG_ANYSRC;
+			fl4.flowi4_flags |= FLOWI_FLAG_ANYSRC;
 		if (protocol == IPPROTO_TCP)
-			fl.flowi_flags |= FLOWI_FLAG_PRECOW_METRICS;
+			fl4.flowi4_flags |= FLOWI_FLAG_PRECOW_METRICS;
 		ip_rt_put(rt);
-		security_sk_classify_flow(sk, &fl);
-		return ip_route_output_flow(sock_net(sk), &fl, sk);
+		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+		return ip_route_output_flow(sock_net(sk), &fl4, sk);
 	}
 	return rt;
 }

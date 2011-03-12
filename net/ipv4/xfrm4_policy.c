@@ -22,16 +22,16 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 					  const xfrm_address_t *saddr,
 					  const xfrm_address_t *daddr)
 {
-	struct flowi fl = {
-		.fl4_dst = daddr->a4,
-		.fl4_tos = tos,
+	struct flowi4 fl4 = {
+		.daddr = daddr->a4,
+		.flowi4_tos = tos,
 	};
 	struct rtable *rt;
 
 	if (saddr)
-		fl.fl4_src = saddr->a4;
+		fl4.saddr = saddr->a4;
 
-	rt = __ip_route_output_key(net, &fl);
+	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt))
 		return &rt->dst;
 

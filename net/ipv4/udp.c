@@ -908,22 +908,22 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		rt = (struct rtable *)sk_dst_check(sk, 0);
 
 	if (rt == NULL) {
-		struct flowi fl = {
-			.flowi_oif = ipc.oif,
-			.flowi_mark = sk->sk_mark,
-			.fl4_dst = faddr,
-			.fl4_src = saddr,
-			.fl4_tos = tos,
-			.flowi_proto = sk->sk_protocol,
-			.flowi_flags = (inet_sk_flowi_flags(sk) |
-				     FLOWI_FLAG_CAN_SLEEP),
-			.fl4_sport = inet->inet_sport,
-			.fl4_dport = dport,
+		struct flowi4 fl4 = {
+			.flowi4_oif = ipc.oif,
+			.flowi4_mark = sk->sk_mark,
+			.daddr = faddr,
+			.saddr = saddr,
+			.flowi4_tos = tos,
+			.flowi4_proto = sk->sk_protocol,
+			.flowi4_flags = (inet_sk_flowi_flags(sk) |
+					 FLOWI_FLAG_CAN_SLEEP),
+			.uli.ports.sport = inet->inet_sport,
+			.uli.ports.dport = dport,
 		};
 		struct net *net = sock_net(sk);
 
-		security_sk_classify_flow(sk, &fl);
-		rt = ip_route_output_flow(net, &fl, sk);
+		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
+		rt = ip_route_output_flow(net, &fl4, sk);
 		if (IS_ERR(rt)) {
 			err = PTR_ERR(rt);
 			rt = NULL;

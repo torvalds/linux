@@ -2626,7 +2626,7 @@ out:
 	return rth;
 }
 
-struct rtable *__ip_route_output_key(struct net *net, const struct flowi *flp)
+struct rtable *__ip_route_output_key(struct net *net, const struct flowi4 *flp4)
 {
 	struct rtable *rth;
 	unsigned int hash;
@@ -2634,17 +2634,17 @@ struct rtable *__ip_route_output_key(struct net *net, const struct flowi *flp)
 	if (!rt_caching(net))
 		goto slow_output;
 
-	hash = rt_hash(flp->fl4_dst, flp->fl4_src, flp->flowi_oif, rt_genid(net));
+	hash = rt_hash(flp4->daddr, flp4->saddr, flp4->flowi4_oif, rt_genid(net));
 
 	rcu_read_lock_bh();
 	for (rth = rcu_dereference_bh(rt_hash_table[hash].chain); rth;
 		rth = rcu_dereference_bh(rth->dst.rt_next)) {
-		if (rth->rt_key_dst == flp->fl4_dst &&
-		    rth->rt_key_src == flp->fl4_src &&
+		if (rth->rt_key_dst == flp4->daddr &&
+		    rth->rt_key_src == flp4->saddr &&
 		    rt_is_output_route(rth) &&
-		    rth->rt_oif == flp->flowi_oif &&
-		    rth->rt_mark == flp->flowi_mark &&
-		    !((rth->rt_tos ^ flp->fl4_tos) &
+		    rth->rt_oif == flp4->flowi4_oif &&
+		    rth->rt_mark == flp4->flowi4_mark &&
+		    !((rth->rt_tos ^ flp4->flowi4_tos) &
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
@@ -2658,7 +2658,7 @@ struct rtable *__ip_route_output_key(struct net *net, const struct flowi *flp)
 	rcu_read_unlock_bh();
 
 slow_output:
-	return ip_route_output_slow(net, &flp->u.ip4);
+	return ip_route_output_slow(net, flp4);
 }
 EXPORT_SYMBOL_GPL(__ip_route_output_key);
 
@@ -2733,20 +2733,22 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 	return rt ? &rt->dst : ERR_PTR(-ENOMEM);
 }
 
-struct rtable *ip_route_output_flow(struct net *net, struct flowi *flp,
+struct rtable *ip_route_output_flow(struct net *net, struct flowi4 *flp4,
 				    struct sock *sk)
 {
-	struct rtable *rt = __ip_route_output_key(net, flp);
+	struct rtable *rt = __ip_route_output_key(net, flp4);
 
 	if (IS_ERR(rt))
 		return rt;
 
-	if (flp->flowi_proto) {
-		if (!flp->fl4_src)
-			flp->fl4_src = rt->rt_src;
-		if (!flp->fl4_dst)
-			flp->fl4_dst = rt->rt_dst;
-		rt = (struct rtable *) xfrm_lookup(net, &rt->dst, flp, sk, 0);
+	if (flp4->flowi4_proto) {
+		if (!flp4->saddr)
+			flp4->saddr = rt->rt_src;
+		if (!flp4->daddr)
+			flp4->daddr = rt->rt_dst;
+		rt = (struct rtable *) xfrm_lookup(net, &rt->dst,
+						   flowi4_to_flowi(flp4),
+						   sk, 0);
 	}
 
 	return rt;
@@ -2920,7 +2922,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			.flowi4_oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
 			.flowi4_mark = mark,
 		};
-		rt = ip_route_output_key(net, flowi4_to_flowi(&fl4));
+		rt = ip_route_output_key(net, &fl4);
 
 		err = 0;
 		if (IS_ERR(rt))

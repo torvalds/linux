@@ -345,19 +345,19 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 * no easy way to do this.
 	 */
 	{
-		struct flowi fl = {
-			.flowi_mark = sk->sk_mark,
-			.fl4_dst = ((opt && opt->srr) ?
-				    opt->faddr : ireq->rmt_addr),
-			.fl4_src = ireq->loc_addr,
-			.fl4_tos = RT_CONN_FLAGS(sk),
-			.flowi_proto = IPPROTO_TCP,
-			.flowi_flags = inet_sk_flowi_flags(sk),
-			.fl4_sport = th->dest,
-			.fl4_dport = th->source,
+		struct flowi4 fl4 = {
+			.flowi4_mark = sk->sk_mark,
+			.daddr = ((opt && opt->srr) ?
+				  opt->faddr : ireq->rmt_addr),
+			.saddr = ireq->loc_addr,
+			.flowi4_tos = RT_CONN_FLAGS(sk),
+			.flowi4_proto = IPPROTO_TCP,
+			.flowi4_flags = inet_sk_flowi_flags(sk),
+			.uli.ports.sport = th->dest,
+			.uli.ports.dport = th->source,
 		};
-		security_req_classify_flow(req, &fl);
-		rt = ip_route_output_key(sock_net(sk), &fl);
+		security_req_classify_flow(req, flowi4_to_flowi(&fl4));
+		rt = ip_route_output_key(sock_net(sk), &fl4);
 		if (IS_ERR(rt)) {
 			reqsk_free(req);
 			goto out;
