@@ -59,23 +59,27 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 static inline int
 __xfrm4_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 {
-	return  addr_match(&fl->fl4_dst, &sel->daddr, sel->prefixlen_d) &&
-		addr_match(&fl->fl4_src, &sel->saddr, sel->prefixlen_s) &&
-		!((xfrm_flowi_dport(fl, &fl->u.ip4.uli) ^ sel->dport) & sel->dport_mask) &&
-		!((xfrm_flowi_sport(fl, &fl->u.ip4.uli) ^ sel->sport) & sel->sport_mask) &&
-		(fl->flowi_proto == sel->proto || !sel->proto) &&
-		(fl->flowi_oif == sel->ifindex || !sel->ifindex);
+	const struct flowi4 *fl4 = &fl->u.ip4;
+
+	return  addr_match(&fl4->daddr, &sel->daddr, sel->prefixlen_d) &&
+		addr_match(&fl4->saddr, &sel->saddr, sel->prefixlen_s) &&
+		!((xfrm_flowi_dport(fl, &fl4->uli) ^ sel->dport) & sel->dport_mask) &&
+		!((xfrm_flowi_sport(fl, &fl4->uli) ^ sel->sport) & sel->sport_mask) &&
+		(fl4->flowi4_proto == sel->proto || !sel->proto) &&
+		(fl4->flowi4_oif == sel->ifindex || !sel->ifindex);
 }
 
 static inline int
 __xfrm6_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 {
-	return  addr_match(&fl->fl6_dst, &sel->daddr, sel->prefixlen_d) &&
-		addr_match(&fl->fl6_src, &sel->saddr, sel->prefixlen_s) &&
-		!((xfrm_flowi_dport(fl, &fl->u.ip6.uli) ^ sel->dport) & sel->dport_mask) &&
-		!((xfrm_flowi_sport(fl, &fl->u.ip6.uli) ^ sel->sport) & sel->sport_mask) &&
-		(fl->flowi_proto == sel->proto || !sel->proto) &&
-		(fl->flowi_oif == sel->ifindex || !sel->ifindex);
+	const struct flowi6 *fl6 = &fl->u.ip6;
+
+	return  addr_match(&fl6->daddr, &sel->daddr, sel->prefixlen_d) &&
+		addr_match(&fl6->saddr, &sel->saddr, sel->prefixlen_s) &&
+		!((xfrm_flowi_dport(fl, &fl6->uli) ^ sel->dport) & sel->dport_mask) &&
+		!((xfrm_flowi_sport(fl, &fl6->uli) ^ sel->sport) & sel->sport_mask) &&
+		(fl6->flowi6_proto == sel->proto || !sel->proto) &&
+		(fl6->flowi6_oif == sel->ifindex || !sel->ifindex);
 }
 
 int xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,

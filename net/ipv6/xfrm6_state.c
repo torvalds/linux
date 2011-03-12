@@ -22,19 +22,21 @@
 static void
 __xfrm6_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 {
+	const struct flowi6 *fl6 = &fl->u.ip6;
+
 	/* Initialize temporary selector matching only
 	 * to current session. */
-	ipv6_addr_copy((struct in6_addr *)&sel->daddr, &fl->fl6_dst);
-	ipv6_addr_copy((struct in6_addr *)&sel->saddr, &fl->fl6_src);
-	sel->dport = xfrm_flowi_dport(fl, &fl->u.ip6.uli);
+	ipv6_addr_copy((struct in6_addr *)&sel->daddr, &fl6->daddr);
+	ipv6_addr_copy((struct in6_addr *)&sel->saddr, &fl6->saddr);
+	sel->dport = xfrm_flowi_dport(fl, &fl6->uli);
 	sel->dport_mask = htons(0xffff);
-	sel->sport = xfrm_flowi_sport(fl, &fl->u.ip6.uli);
+	sel->sport = xfrm_flowi_sport(fl, &fl6->uli);
 	sel->sport_mask = htons(0xffff);
 	sel->family = AF_INET6;
 	sel->prefixlen_d = 128;
 	sel->prefixlen_s = 128;
-	sel->proto = fl->flowi_proto;
-	sel->ifindex = fl->flowi_oif;
+	sel->proto = fl6->flowi6_proto;
+	sel->ifindex = fl6->flowi6_oif;
 }
 
 static void

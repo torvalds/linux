@@ -23,17 +23,19 @@ static int xfrm4_init_flags(struct xfrm_state *x)
 static void
 __xfrm4_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 {
-	sel->daddr.a4 = fl->fl4_dst;
-	sel->saddr.a4 = fl->fl4_src;
-	sel->dport = xfrm_flowi_dport(fl, &fl->u.ip4.uli);
+	const struct flowi4 *fl4 = &fl->u.ip4;
+
+	sel->daddr.a4 = fl4->daddr;
+	sel->saddr.a4 = fl4->saddr;
+	sel->dport = xfrm_flowi_dport(fl, &fl4->uli);
 	sel->dport_mask = htons(0xffff);
-	sel->sport = xfrm_flowi_sport(fl, &fl->u.ip4.uli);
+	sel->sport = xfrm_flowi_sport(fl, &fl4->uli);
 	sel->sport_mask = htons(0xffff);
 	sel->family = AF_INET;
 	sel->prefixlen_d = 32;
 	sel->prefixlen_s = 32;
-	sel->proto = fl->flowi_proto;
-	sel->ifindex = fl->flowi_oif;
+	sel->proto = fl4->flowi4_proto;
+	sel->ifindex = fl4->flowi4_oif;
 }
 
 static void

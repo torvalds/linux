@@ -30,15 +30,17 @@ static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos,
 					  const xfrm_address_t *saddr,
 					  const xfrm_address_t *daddr)
 {
-	struct flowi fl = {};
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 	int err;
 
-	memcpy(&fl.fl6_dst, daddr, sizeof(fl.fl6_dst));
+	memset(&fl6, 0, sizeof(fl6));
+	memcpy(&fl6.daddr, daddr, sizeof(fl6.daddr));
 	if (saddr)
-		memcpy(&fl.fl6_src, saddr, sizeof(fl.fl6_src));
+		memcpy(&fl6.saddr, saddr, sizeof(fl6.saddr));
 
-	dst = ip6_route_output(net, NULL, &fl);
+	dst = ip6_route_output(net, NULL,
+			       flowi6_to_flowi(&fl6));
 
 	err = dst->error;
 	if (dst->error) {
@@ -120,6 +122,7 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 static inline void
 _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 {
+	struct flowi6 *fl6 = &fl->u.ip6;
 	int onlyproto = 0;
 	u16 offset = skb_network_header_len(skb);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -127,11 +130,11 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	const unsigned char *nh = skb_network_header(skb);
 	u8 nexthdr = nh[IP6CB(skb)->nhoff];
 
-	memset(fl, 0, sizeof(struct flowi));
-	fl->flowi_mark = skb->mark;
+	memset(fl6, 0, sizeof(struct flowi6));
+	fl6->flowi6_mark = skb->mark;
 
-	ipv6_addr_copy(&fl->fl6_dst, reverse ? &hdr->saddr : &hdr->daddr);
-	ipv6_addr_copy(&fl->fl6_src, reverse ? &hdr->daddr : &hdr->saddr);
+	ipv6_addr_copy(&fl6->daddr, reverse ? &hdr->saddr : &hdr->daddr);
+	ipv6_addr_copy(&fl6->saddr, reverse ? &hdr->daddr : &hdr->saddr);
 
 	while (nh + offset + 1 < skb->data ||
 	       pskb_may_pull(skb, nh + offset + 1 - skb->data)) {
@@ -158,20 +161,20 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 			     pskb_may_pull(skb, nh + offset + 4 - skb->data))) {
 				__be16 *ports = (__be16 *)exthdr;
 
-				fl->fl6_sport = ports[!!reverse];
-				fl->fl6_dport = ports[!reverse];
+				fl6->uli.ports.sport = ports[!!reverse];
+				fl6->uli.ports.dport = ports[!reverse];
 			}
-			fl->flowi_proto = nexthdr;
+			fl6->flowi6_proto = nexthdr;
 			return;
 
 		case IPPROTO_ICMPV6:
 			if (!onlyproto && pskb_may_pull(skb, nh + offset + 2 - skb->data)) {
 				u8 *icmp = (u8 *)exthdr;
 
-				fl->fl6_icmp_type = icmp[0];
-				fl->fl6_icmp_code = icmp[1];
+				fl6->uli.icmpt.type = icmp[0];
+				fl6->uli.icmpt.code = icmp[1];
 			}
-			fl->flowi_proto = nexthdr;
+			fl6->flowi6_proto = nexthdr;
 			return;
 
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
@@ -180,9 +183,9 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 				struct ip6_mh *mh;
 				mh = (struct ip6_mh *)exthdr;
 
-				fl->fl6_mh_type = mh->ip6mh_type;
+				fl6->uli.mht.type = mh->ip6mh_type;
 			}
-			fl->flowi_proto = nexthdr;
+			fl6->flowi6_proto = nexthdr;
 			return;
 #endif
 
@@ -191,8 +194,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 		case IPPROTO_ESP:
 		case IPPROTO_COMP:
 		default:
-			fl->fl6_ipsec_spi = 0;
-			fl->flowi_proto = nexthdr;
+			fl6->uli.spi = 0;
+			fl6->flowi6_proto = nexthdr;
 			return;
 		}
 	}

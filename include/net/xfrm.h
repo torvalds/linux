@@ -1142,9 +1142,9 @@ xfrm_address_t *xfrm_flowi_daddr(const struct flowi *fl, unsigned short family)
 {
 	switch (family){
 	case AF_INET:
-		return (xfrm_address_t *)&fl->fl4_dst;
+		return (xfrm_address_t *)&fl->u.ip4.daddr;
 	case AF_INET6:
-		return (xfrm_address_t *)&fl->fl6_dst;
+		return (xfrm_address_t *)&fl->u.ip6.daddr;
 	}
 	return NULL;
 }
@@ -1154,9 +1154,9 @@ xfrm_address_t *xfrm_flowi_saddr(const struct flowi *fl, unsigned short family)
 {
 	switch (family){
 	case AF_INET:
-		return (xfrm_address_t *)&fl->fl4_src;
+		return (xfrm_address_t *)&fl->u.ip4.saddr;
 	case AF_INET6:
-		return (xfrm_address_t *)&fl->fl6_src;
+		return (xfrm_address_t *)&fl->u.ip6.saddr;
 	}
 	return NULL;
 }
@@ -1168,12 +1168,12 @@ void xfrm_flowi_addr_get(const struct flowi *fl,
 {
 	switch(family) {
 	case AF_INET:
-		memcpy(&saddr->a4, &fl->fl4_src, sizeof(saddr->a4));
-		memcpy(&daddr->a4, &fl->fl4_dst, sizeof(daddr->a4));
+		memcpy(&saddr->a4, &fl->u.ip4.saddr, sizeof(saddr->a4));
+		memcpy(&daddr->a4, &fl->u.ip4.daddr, sizeof(daddr->a4));
 		break;
 	case AF_INET6:
-		ipv6_addr_copy((struct in6_addr *)&saddr->a6, &fl->fl6_src);
-		ipv6_addr_copy((struct in6_addr *)&daddr->a6, &fl->fl6_dst);
+		ipv6_addr_copy((struct in6_addr *)&saddr->a6, &fl->u.ip6.saddr);
+		ipv6_addr_copy((struct in6_addr *)&daddr->a6, &fl->u.ip6.daddr);
 		break;
 	}
 }
@@ -1221,12 +1221,12 @@ xfrm_state_addr_flow_check(const struct xfrm_state *x, const struct flowi *fl,
 	switch (family) {
 	case AF_INET:
 		return __xfrm4_state_addr_check(x,
-						(const xfrm_address_t *)&fl->fl4_dst,
-						(const xfrm_address_t *)&fl->fl4_src);
+						(const xfrm_address_t *)&fl->u.ip4.daddr,
+						(const xfrm_address_t *)&fl->u.ip4.saddr);
 	case AF_INET6:
 		return __xfrm6_state_addr_check(x,
-						(const xfrm_address_t *)&fl->fl6_dst,
-						(const xfrm_address_t *)&fl->fl6_src);
+						(const xfrm_address_t *)&fl->u.ip6.daddr,
+						(const xfrm_address_t *)&fl->u.ip6.saddr);
 	}
 	return 0;
 }
