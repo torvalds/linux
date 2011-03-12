@@ -49,9 +49,9 @@
 
 char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
-	"Intel(R) 82599 Virtual Function";
+	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
-#define DRV_VERSION "1.1.0-k0"
+#define DRV_VERSION "2.0.0-k2"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2010 Intel Corporation.";

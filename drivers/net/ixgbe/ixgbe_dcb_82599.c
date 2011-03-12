@@ -85,7 +85,8 @@ s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,
 				      u16 *refill,
 				      u16 *max,
 				      u8 *bwg_id,
-				      u8 *prio_type)
+				      u8 *prio_type,
+				      u8 *prio_tc)
 {
 	u32    reg           = 0;
 	u32    credit_refill = 0;
@@ -102,7 +103,7 @@ s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,
 	/* Map all traffic classes to their UP, 1 to 1 */
 	reg = 0;
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-		reg |= (i << (i * IXGBE_RTRUP2TC_UP_SHIFT));
+		reg |= (prio_tc[i] << (i * IXGBE_RTRUP2TC_UP_SHIFT));
 	IXGBE_WRITE_REG(hw, IXGBE_RTRUP2TC, reg);
 
 	/* Configure traffic class credits and priority */
@@ -194,7 +195,8 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 					   u16 *refill,
 					   u16 *max,
 					   u8 *bwg_id,
-					   u8 *prio_type)
+					   u8 *prio_type,
+					   u8 *prio_tc)
 {
 	u32 reg;
 	u8 i;
@@ -211,7 +213,7 @@ s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
 	/* Map all traffic classes to their UP, 1 to 1 */
 	reg = 0;
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-		reg |= (i << (i * IXGBE_RTTUP2TC_UP_SHIFT));
+		reg |= (prio_tc[i] << (i * IXGBE_RTTUP2TC_UP_SHIFT));
 	IXGBE_WRITE_REG(hw, IXGBE_RTTUP2TC, reg);
 
 	/* Configure traffic class credits and priority */
@@ -251,13 +253,6 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en)
 {
 	u32 i, reg, rx_pba_size;
 
-	/* If PFC is disabled globally then fall back to LFC. */
-	if (!pfc_en) {
-		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-			hw->mac.ops.fc_enable(hw, i);
-		goto out;
-	}
-
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
 		int enabled = pfc_en & (1 << i);
@@ -276,28 +271,33 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en)
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), reg);
 	}
 
-	/* Configure pause time (2 TCs per register) */
-	reg = hw->fc.pause_time | (hw->fc.pause_time << 16);
-	for (i = 0; i < (MAX_TRAFFIC_CLASS / 2); i++)
-		IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
+	if (pfc_en) {
+		/* Configure pause time (2 TCs per register) */
+		reg = hw->fc.pause_time | (hw->fc.pause_time << 16);
+		for (i = 0; i < (MAX_TRAFFIC_CLASS / 2); i++)
+			IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
 
-	/* Configure flow control refresh threshold value */
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
+		/* Configure flow control refresh threshold value */
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
 
-	/* Enable Transmit PFC */
-	reg = IXGBE_FCCFG_TFCE_PRIORITY;
-	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, reg);
 
-	/*
-	 * Enable Receive PFC
-	 * We will always honor XOFF frames we receive when
-	 * we are in PFC mode.
-	 */
-	reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
-	reg &= ~IXGBE_MFLCN_RFCE;
-	reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
-	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
-out:
+		reg = IXGBE_FCCFG_TFCE_PRIORITY;
+		IXGBE_WRITE_REG(hw, IXGBE_FCCFG, reg);
+		/*
+		 * Enable Receive PFC
+		 * We will always honor XOFF frames we receive when
+		 * we are in PFC mode.
+		 */
+		reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
+		reg &= ~IXGBE_MFLCN_RFCE;
+		reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
+		IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
+
+	} else {
+		for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+			hw->mac.ops.fc_enable(hw, i);
+	}
+
 	return 0;
 }
 
@@ -424,15 +424,16 @@ static s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw)
  */
 s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw,
 			      u8 rx_pba, u8 pfc_en, u16 *refill,
-			      u16 *max, u8 *bwg_id, u8 *prio_type)
+			      u16 *max, u8 *bwg_id, u8 *prio_type, u8 *prio_tc)
 {
 	ixgbe_dcb_config_packet_buffers_82599(hw, rx_pba);
 	ixgbe_dcb_config_82599(hw);
-	ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max, bwg_id, prio_type);
+	ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max, bwg_id,
+					  prio_type, prio_tc);
 	ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
 					       bwg_id, prio_type);
 	ixgbe_dcb_config_tx_data_arbiter_82599(hw, refill, max,
-					       bwg_id, prio_type);
+					       bwg_id, prio_type, prio_tc);
 	ixgbe_dcb_config_pfc_82599(hw, pfc_en);
 	ixgbe_dcb_config_tc_stats_82599(hw);
 

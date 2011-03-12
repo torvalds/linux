@@ -336,6 +336,8 @@ struct e1000_nvm_operations {
 	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
 	void (*release)(struct e1000_hw *);
 	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
+	s32  (*update)(struct e1000_hw *);
+	s32  (*validate)(struct e1000_hw *);
 };
 
 struct e1000_info {
@@ -422,7 +424,6 @@ struct e1000_phy_info {
 
 struct e1000_nvm_info {
 	struct e1000_nvm_operations ops;
-
 	enum e1000_nvm_type type;
 	enum e1000_nvm_override override;
 
@@ -488,6 +489,7 @@ struct e1000_mbx_info {
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
+	bool eee_disable;
 };
 
 struct e1000_hw {

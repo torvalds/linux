@@ -402,49 +402,89 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
  **/
 s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 {
-	s32 status = IXGBE_NOT_IMPLEMENTED;
+	s32 status = 0;
 	u32 time_out;
 	u32 max_time_out = 10;
-	u16 autoneg_reg;
+	u16 autoneg_reg = IXGBE_MII_AUTONEG_REG;
+	bool autoneg = false;
+	ixgbe_link_speed speed;
 
-	/*
-	 * Set advertisement settings in PHY based on autoneg_advertised
-	 * settings. If autoneg_advertised = 0, then advertise default values
-	 * tnx devices cannot be "forced" to a autoneg 10G and fail.  But can
-	 * for a 1G.
-	 */
-	hw->phy.ops.read_reg(hw, MDIO_AN_ADVERTISE, MDIO_MMD_AN, &autoneg_reg);
+	ixgbe_get_copper_link_capabilities_generic(hw, &speed, &autoneg);
 
-	if (hw->phy.autoneg_advertised == IXGBE_LINK_SPEED_1GB_FULL)
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL) {
+		/* Set or unset auto-negotiation 10G advertisement */
+		hw->phy.ops.read_reg(hw, MDIO_AN_10GBT_CTRL,
+				     MDIO_MMD_AN,
+				     &autoneg_reg);
+
 		autoneg_reg &= ~MDIO_AN_10GBT_CTRL_ADV10G;
-	else
-		autoneg_reg |= MDIO_AN_10GBT_CTRL_ADV10G;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
+			autoneg_reg |= MDIO_AN_10GBT_CTRL_ADV10G;
 
-	hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE, MDIO_MMD_AN, autoneg_reg);
+		hw->phy.ops.write_reg(hw, MDIO_AN_10GBT_CTRL,
+				      MDIO_MMD_AN,
+				      autoneg_reg);
+	}
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
+		/* Set or unset auto-negotiation 1G advertisement */
+		hw->phy.ops.read_reg(hw,
+				     IXGBE_MII_AUTONEG_VENDOR_PROVISION_1_REG,
+				     MDIO_MMD_AN,
+				     &autoneg_reg);
+
+		autoneg_reg &= ~IXGBE_MII_1GBASE_T_ADVERTISE;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
+			autoneg_reg |= IXGBE_MII_1GBASE_T_ADVERTISE;
+
+		hw->phy.ops.write_reg(hw,
+				      IXGBE_MII_AUTONEG_VENDOR_PROVISION_1_REG,
+				      MDIO_MMD_AN,
+				      autoneg_reg);
+	}
+
+	if (speed & IXGBE_LINK_SPEED_100_FULL) {
+		/* Set or unset auto-negotiation 100M advertisement */
+		hw->phy.ops.read_reg(hw, MDIO_AN_ADVERTISE,
+				     MDIO_MMD_AN,
+				     &autoneg_reg);
+
+		autoneg_reg &= ~ADVERTISE_100FULL;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_100_FULL)
+			autoneg_reg |= ADVERTISE_100FULL;
+
+		hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE,
+				      MDIO_MMD_AN,
+				      autoneg_reg);
+	}
 
 	/* Restart PHY autonegotiation and wait for completion */
-	hw->phy.ops.read_reg(hw, MDIO_CTRL1, MDIO_MMD_AN, &autoneg_reg);
+	hw->phy.ops.read_reg(hw, MDIO_CTRL1,
+			     MDIO_MMD_AN, &autoneg_reg);
 
 	autoneg_reg |= MDIO_AN_CTRL1_RESTART;
 
-	hw->phy.ops.write_reg(hw, MDIO_CTRL1, MDIO_MMD_AN, autoneg_reg);
+	hw->phy.ops.write_reg(hw, MDIO_CTRL1,
+			      MDIO_MMD_AN, autoneg_reg);
 
 	/* Wait for autonegotiation to finish */
 	for (time_out = 0; time_out < max_time_out; time_out++) {
 		udelay(10);
 		/* Restart PHY autonegotiation and wait for completion */
-		status = hw->phy.ops.read_reg(hw, MDIO_STAT1, MDIO_MMD_AN,
-		                              &autoneg_reg);
+		status = hw->phy.ops.read_reg(hw, MDIO_STAT1,
+					      MDIO_MMD_AN,
+					      &autoneg_reg);
 
 		autoneg_reg &= MDIO_AN_STAT1_COMPLETE;
 		if (autoneg_reg == MDIO_AN_STAT1_COMPLETE) {
-			status = 0;
 			break;
 		}
 	}
 
-	if (time_out == max_time_out)
+	if (time_out == max_time_out) {
 		status = IXGBE_ERR_LINK_SETUP;
+		hw_dbg(hw, "ixgbe_setup_phy_link_generic: time out");
+	}
 
 	return status;
 }
@@ -472,6 +512,9 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
 
 	if (speed & IXGBE_LINK_SPEED_1GB_FULL)
 		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+	if (speed & IXGBE_LINK_SPEED_100_FULL)
+		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_100_FULL;
 
 	/* Setup link based on the new speed settings */
 	hw->phy.ops.setup_link(hw);
@@ -508,6 +551,180 @@ s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
 		if (speed_ability & MDIO_PMA_SPEED_100)
 			*speed |= IXGBE_LINK_SPEED_100_FULL;
 	}
+
+	return status;
+}
+
+/**
+ *  ixgbe_check_phy_link_tnx - Determine link and speed status
+ *  @hw: pointer to hardware structure
+ *
+ *  Reads the VS1 register to determine if link is up and the current speed for
+ *  the PHY.
+ **/
+s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
+			     bool *link_up)
+{
+	s32 status = 0;
+	u32 time_out;
+	u32 max_time_out = 10;
+	u16 phy_link = 0;
+	u16 phy_speed = 0;
+	u16 phy_data = 0;
+
+	/* Initialize speed and link to default case */
+	*link_up = false;
+	*speed = IXGBE_LINK_SPEED_10GB_FULL;
+
+	/*
+	 * Check current speed and link status of the PHY register.
+	 * This is a vendor specific register and may have to
+	 * be changed for other copper PHYs.
+	 */
+	for (time_out = 0; time_out < max_time_out; time_out++) {
+		udelay(10);
+		status = hw->phy.ops.read_reg(hw,
+					      MDIO_STAT1,
+					      MDIO_MMD_VEND1,
+					      &phy_data);
+		phy_link = phy_data &
+			    IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS;
+		phy_speed = phy_data &
+			    IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS;
+		if (phy_link == IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS) {
+			*link_up = true;
+			if (phy_speed ==
+			    IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS)
+				*speed = IXGBE_LINK_SPEED_1GB_FULL;
+			break;
+		}
+	}
+
+	return status;
+}
+
+/**
+ *	ixgbe_setup_phy_link_tnx - Set and restart autoneg
+ *	@hw: pointer to hardware structure
+ *
+ *	Restart autonegotiation and PHY and waits for completion.
+ **/
+s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
+{
+	s32 status = 0;
+	u32 time_out;
+	u32 max_time_out = 10;
+	u16 autoneg_reg = IXGBE_MII_AUTONEG_REG;
+	bool autoneg = false;
+	ixgbe_link_speed speed;
+
+	ixgbe_get_copper_link_capabilities_generic(hw, &speed, &autoneg);
+
+	if (speed & IXGBE_LINK_SPEED_10GB_FULL) {
+		/* Set or unset auto-negotiation 10G advertisement */
+		hw->phy.ops.read_reg(hw, MDIO_AN_10GBT_CTRL,
+				     MDIO_MMD_AN,
+				     &autoneg_reg);
+
+		autoneg_reg &= ~MDIO_AN_10GBT_CTRL_ADV10G;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
+			autoneg_reg |= MDIO_AN_10GBT_CTRL_ADV10G;
+
+		hw->phy.ops.write_reg(hw, MDIO_AN_10GBT_CTRL,
+				      MDIO_MMD_AN,
+				      autoneg_reg);
+	}
+
+	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
+		/* Set or unset auto-negotiation 1G advertisement */
+		hw->phy.ops.read_reg(hw, IXGBE_MII_AUTONEG_XNP_TX_REG,
+				     MDIO_MMD_AN,
+				     &autoneg_reg);
+
+		autoneg_reg &= ~IXGBE_MII_1GBASE_T_ADVERTISE_XNP_TX;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
+			autoneg_reg |= IXGBE_MII_1GBASE_T_ADVERTISE_XNP_TX;
+
+		hw->phy.ops.write_reg(hw, IXGBE_MII_AUTONEG_XNP_TX_REG,
+				      MDIO_MMD_AN,
+				      autoneg_reg);
+	}
+
+	if (speed & IXGBE_LINK_SPEED_100_FULL) {
+		/* Set or unset auto-negotiation 100M advertisement */
+		hw->phy.ops.read_reg(hw, MDIO_AN_ADVERTISE,
+				     MDIO_MMD_AN,
+				     &autoneg_reg);
+
+		autoneg_reg &= ~ADVERTISE_100FULL;
+		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_100_FULL)
+			autoneg_reg |= ADVERTISE_100FULL;
+
+		hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE,
+				      MDIO_MMD_AN,
+				      autoneg_reg);
+	}
+
+	/* Restart PHY autonegotiation and wait for completion */
+	hw->phy.ops.read_reg(hw, MDIO_CTRL1,
+			     MDIO_MMD_AN, &autoneg_reg);
+
+	autoneg_reg |= MDIO_AN_CTRL1_RESTART;
+
+	hw->phy.ops.write_reg(hw, MDIO_CTRL1,
+			      MDIO_MMD_AN, autoneg_reg);
+
+	/* Wait for autonegotiation to finish */
+	for (time_out = 0; time_out < max_time_out; time_out++) {
+		udelay(10);
+		/* Restart PHY autonegotiation and wait for completion */
+		status = hw->phy.ops.read_reg(hw, MDIO_STAT1,
+					      MDIO_MMD_AN,
+					      &autoneg_reg);
+
+		autoneg_reg &= MDIO_AN_STAT1_COMPLETE;
+		if (autoneg_reg == MDIO_AN_STAT1_COMPLETE)
+			break;
+	}
+
+	if (time_out == max_time_out) {
+		status = IXGBE_ERR_LINK_SETUP;
+		hw_dbg(hw, "ixgbe_setup_phy_link_tnx: time out");
+	}
+
+	return status;
+}
+
+/**
+ *  ixgbe_get_phy_firmware_version_tnx - Gets the PHY Firmware Version
+ *  @hw: pointer to hardware structure
+ *  @firmware_version: pointer to the PHY Firmware Version
+ **/
+s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
+				       u16 *firmware_version)
+{
+	s32 status = 0;
+
+	status = hw->phy.ops.read_reg(hw, TNX_FW_REV,
+				      MDIO_MMD_VEND1,
+				      firmware_version);
+
+	return status;
+}
+
+/**
+ *  ixgbe_get_phy_firmware_version_generic - Gets the PHY Firmware Version
+ *  @hw: pointer to hardware structure
+ *  @firmware_version: pointer to the PHY Firmware Version
+ **/
+s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
+					   u16 *firmware_version)
+{
+	s32 status = 0;
+
+	status = hw->phy.ops.read_reg(hw, AQ_FW_REV,
+				      MDIO_MMD_VEND1,
+				      firmware_version);
 
 	return status;
 }
@@ -1474,86 +1691,6 @@ static void ixgbe_i2c_bus_clear(struct ixgbe_hw *hw)
 
 	/* Put the i2c bus back to default state */
 	ixgbe_i2c_stop(hw);
-}
-
-/**
- *  ixgbe_check_phy_link_tnx - Determine link and speed status
- *  @hw: pointer to hardware structure
- *
- *  Reads the VS1 register to determine if link is up and the current speed for
- *  the PHY.
- **/
-s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                             bool *link_up)
-{
-	s32 status = 0;
-	u32 time_out;
-	u32 max_time_out = 10;
-	u16 phy_link = 0;
-	u16 phy_speed = 0;
-	u16 phy_data = 0;
-
-	/* Initialize speed and link to default case */
-	*link_up = false;
-	*speed = IXGBE_LINK_SPEED_10GB_FULL;
-
-	/*
-	 * Check current speed and link status of the PHY register.
-	 * This is a vendor specific register and may have to
-	 * be changed for other copper PHYs.
-	 */
-	for (time_out = 0; time_out < max_time_out; time_out++) {
-		udelay(10);
-		status = hw->phy.ops.read_reg(hw,
-		                        IXGBE_MDIO_VENDOR_SPECIFIC_1_STATUS,
-					MDIO_MMD_VEND1,
-		                        &phy_data);
-		phy_link = phy_data &
-		           IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS;
-		phy_speed = phy_data &
-		            IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS;
-		if (phy_link == IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS) {
-			*link_up = true;
-			if (phy_speed ==
-			    IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS)
-				*speed = IXGBE_LINK_SPEED_1GB_FULL;
-			break;
-		}
-	}
-
-	return status;
-}
-
-/**
- *  ixgbe_get_phy_firmware_version_tnx - Gets the PHY Firmware Version
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to the PHY Firmware Version
- **/
-s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
-                                       u16 *firmware_version)
-{
-	s32 status = 0;
-
-	status = hw->phy.ops.read_reg(hw, TNX_FW_REV, MDIO_MMD_VEND1,
-	                              firmware_version);
-
-	return status;
-}
-
-/**
- *  ixgbe_get_phy_firmware_version_generic - Gets the PHY Firmware Version
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to the PHY Firmware Version
-**/
-s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
-                                           u16 *firmware_version)
-{
-	s32 status = 0;
-
-	status = hw->phy.ops.read_reg(hw, AQ_FW_REV, MDIO_MMD_VEND1,
-	                              firmware_version);
-
-	return status;
 }
 
 /**

@@ -64,7 +64,7 @@ s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame)
 			val = min_credit;
 		refill[i] = val;
 
-		max[i] = (bw[i] * MAX_CREDIT)/100;
+		max[i] = bw[i] ? (bw[i] * MAX_CREDIT)/100 : min_credit;
 	}
 	return 0;
 }
@@ -246,6 +246,8 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	u8 bwgid[MAX_TRAFFIC_CLASS];
 	u16 refill[MAX_TRAFFIC_CLASS];
 	u16 max[MAX_TRAFFIC_CLASS];
+	/* CEE does not define a priority to tc mapping so map 1:1 */
+	u8 prio_tc[MAX_TRAFFIC_CLASS] = {0, 1, 2, 3, 4, 5, 6, 7};
 
 	/* Unpack CEE standard containers */
 	ixgbe_dcb_unpack_pfc(dcb_config, &pfc_en);
@@ -264,7 +266,7 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	case ixgbe_mac_X540:
 		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config->rx_pba_cfg,
 						pfc_en, refill, max, bwgid,
-						ptype);
+						ptype, prio_tc);
 		break;
 	default:
 		break;
@@ -292,30 +294,9 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
 }
 
 s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
-			    u16 *refill, u16 *max, u8 *bwg_id, u8 *tsa)
+			    u16 *refill, u16 *max, u8 *bwg_id,
+			    u8 *prio_type, u8 *prio_tc)
 {
-	int i;
-	u8 prio_type[IEEE_8021QAZ_MAX_TCS];
-
-	/* Map TSA onto CEE prio type */
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		switch (tsa[i]) {
-		case IEEE_8021QAZ_TSA_STRICT:
-			prio_type[i] = 2;
-			break;
-		case IEEE_8021QAZ_TSA_ETS:
-			prio_type[i] = 0;
-			break;
-		default:
-			/* Hardware only supports priority strict or
-			 * ETS transmission selection algorithms if
-			 * we receive some other value from dcbnl
-			 * throw an error
-			 */
-			return -EINVAL;
-		}
-	}
-
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		ixgbe_dcb_config_rx_arbiter_82598(hw, refill, max,
@@ -328,11 +309,11 @@ s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
 		ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max,
-						  bwg_id, prio_type);
+						  bwg_id, prio_type, prio_tc);
 		ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
 						       bwg_id, prio_type);
-		ixgbe_dcb_config_tx_data_arbiter_82599(hw, refill, max,
-						       bwg_id, prio_type);
+		ixgbe_dcb_config_tx_data_arbiter_82599(hw, refill, max, bwg_id,
+						       prio_type, prio_tc);
 		break;
 	default:
 		break;

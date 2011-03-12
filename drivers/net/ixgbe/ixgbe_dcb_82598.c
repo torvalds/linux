@@ -233,21 +233,27 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw, u8 pfc_en)
 	u32 reg, rx_pba_size;
 	u8  i;
 
-	if (!pfc_en)
-		goto out;
+	if (pfc_en) {
+		/* Enable Transmit Priority Flow Control */
+		reg = IXGBE_READ_REG(hw, IXGBE_RMCS);
+		reg &= ~IXGBE_RMCS_TFCE_802_3X;
+		/* correct the reporting of our flow control status */
+		reg |= IXGBE_RMCS_TFCE_PRIORITY;
+		IXGBE_WRITE_REG(hw, IXGBE_RMCS, reg);
 
-	/* Enable Transmit Priority Flow Control */
-	reg = IXGBE_READ_REG(hw, IXGBE_RMCS);
-	reg &= ~IXGBE_RMCS_TFCE_802_3X;
-	/* correct the reporting of our flow control status */
-	reg |= IXGBE_RMCS_TFCE_PRIORITY;
-	IXGBE_WRITE_REG(hw, IXGBE_RMCS, reg);
+		/* Enable Receive Priority Flow Control */
+		reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+		reg &= ~IXGBE_FCTRL_RFCE;
+		reg |= IXGBE_FCTRL_RPFCE;
+		IXGBE_WRITE_REG(hw, IXGBE_FCTRL, reg);
 
-	/* Enable Receive Priority Flow Control */
-	reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
-	reg &= ~IXGBE_FCTRL_RFCE;
-	reg |= IXGBE_FCTRL_RPFCE;
-	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, reg);
+		/* Configure pause time */
+		for (i = 0; i < (MAX_TRAFFIC_CLASS >> 1); i++)
+			IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), 0x68006800);
+
+		/* Configure flow control refresh threshold value */
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTV, 0x3400);
+	}
 
 	/*
 	 * Configure flow control thresholds and enable priority flow control
@@ -273,14 +279,6 @@ s32 ixgbe_dcb_config_pfc_82598(struct ixgbe_hw *hw, u8 pfc_en)
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(i), reg);
 	}
 
-	/* Configure pause time */
-	for (i = 0; i < (MAX_TRAFFIC_CLASS >> 1); i++)
-		IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), 0x68006800);
-
-	/* Configure flow control refresh threshold value */
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, 0x3400);
-
-out:
 	return 0;
 }
 

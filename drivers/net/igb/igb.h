@@ -333,6 +333,12 @@ struct igb_adapter {
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
 #define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
+#define IGB_FLAG_DMAC              (1 << 4)
+
+/* DMA Coalescing defines */
+#define IGB_MIN_TXPBSIZE           20408
+#define IGB_TX_BUF_4096            4096
+#define IGB_DMCTLX_DCFLUSH_DIS     0x80000000  /* Disable DMA Coal Flush */
 
 #define IGB_82576_TSYNC_SHIFT 19
 #define IGB_82580_TSYNC_SHIFT 24

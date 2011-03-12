@@ -287,7 +287,34 @@
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
 #define E1000_TCTL_RTLC   0x01000000    /* Re-transmit on late collision */
 
-/* Transmit Arbitration Count */
+/* DMA Coalescing register fields */
+#define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coalescing
+							* Watchdog Timer */
+#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coalescing Receive
+							* Threshold */
+#define E1000_DMACR_DMACTHR_SHIFT       16
+#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe
+							* transactions */
+#define E1000_DMACR_DMAC_LX_SHIFT       28
+#define E1000_DMACR_DMAC_EN             0x80000000 /* Enable DMA Coalescing */
+
+#define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coalescing Transmit
+							* Threshold */
+
+#define E1000_DMCTLX_TTLX_MASK          0x00000FFF /* Time to LX request */
+
+#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Receive Traffic Rate
+							* Threshold */
+#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rcv packet rate in
+							* current window */
+
+#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rcv Traffic
+							* Current Cnt */
+
+#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* Flow ctrl Rcv Threshold
+							* High val */
+#define E1000_FCRTC_RTH_COAL_SHIFT      4
+#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
@@ -566,6 +593,8 @@
 #define NVM_INIT_CONTROL3_PORT_A   0x0024
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
+#define NVM_COMPATIBILITY_REG_3    0x0003
+#define NVM_COMPATIBILITY_BIT_MASK 0x8000
 
 #define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
 #define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */
@@ -600,6 +629,7 @@
 /* NVM Commands - SPI */
 #define NVM_MAX_RETRY_SPI          5000 /* Max wait of 5ms, for RDY signal */
 #define NVM_WRITE_OPCODE_SPI       0x02 /* NVM write opcode */
+#define NVM_READ_OPCODE_SPI        0x03 /* NVM read opcode */
 #define NVM_A8_OPCODE_SPI          0x08 /* opcode bit-3 = address bit-8 */
 #define NVM_WREN_OPCODE_SPI        0x06 /* NVM set Write Enable latch */
 #define NVM_RDSR_OPCODE_SPI        0x05 /* NVM read Status register */
@@ -757,6 +787,13 @@
 #define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
 #define E1000_MDIC_DEST      0x80000000
+
+/* Energy Efficient Ethernet */
+#define E1000_IPCNFG_EEE_1G_AN       0x00000008  /* EEE Enable 1G AN */
+#define E1000_IPCNFG_EEE_100M_AN     0x00000004  /* EEE Enable 100M AN */
+#define E1000_EEER_TX_LPI_EN         0x00010000  /* EEE Tx LPI Enable */
+#define E1000_EEER_RX_LPI_EN         0x00020000  /* EEE Rx LPI Enable */
+#define E1000_EEER_LPI_FC            0x00040000  /* EEE Enable on FC */
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000
