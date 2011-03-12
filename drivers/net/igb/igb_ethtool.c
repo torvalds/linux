@@ -721,7 +721,7 @@ static int igb_set_eeprom(struct net_device *netdev,
 	/* Update the checksum over the first part of the EEPROM if needed
 	 * and flush shadow RAM for 82573 controllers */
 	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG)))
-		igb_update_nvm_checksum(hw);
+		hw->nvm.ops.update(hw);
 
 	kfree(eeprom_buff);
 	return ret_val;

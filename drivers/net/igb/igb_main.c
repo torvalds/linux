@@ -1884,7 +1884,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	hw->mac.ops.reset_hw(hw);
 
 	/* make sure the NVM is good */
-	if (igb_validate_nvm_checksum(hw) < 0) {
+	if (hw->nvm.ops.validate(hw) < 0) {
 		dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
 		err = -EIO;
 		goto err_eeprom;

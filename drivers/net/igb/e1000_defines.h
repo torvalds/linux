@@ -566,6 +566,8 @@
 #define NVM_INIT_CONTROL3_PORT_A   0x0024
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
+#define NVM_COMPATIBILITY_REG_3    0x0003
+#define NVM_COMPATIBILITY_BIT_MASK 0x8000
 
 #define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
 #define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */
@@ -600,6 +602,7 @@
 /* NVM Commands - SPI */
 #define NVM_MAX_RETRY_SPI          5000 /* Max wait of 5ms, for RDY signal */
 #define NVM_WRITE_OPCODE_SPI       0x02 /* NVM write opcode */
+#define NVM_READ_OPCODE_SPI        0x03 /* NVM read opcode */
 #define NVM_A8_OPCODE_SPI          0x08 /* opcode bit-3 = address bit-8 */
 #define NVM_WREN_OPCODE_SPI        0x06 /* NVM set Write Enable latch */
 #define NVM_RDSR_OPCODE_SPI        0x05 /* NVM read Status register */
