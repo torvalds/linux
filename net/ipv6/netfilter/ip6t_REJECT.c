@@ -93,8 +93,8 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	fl6.flowi6_proto = IPPROTO_TCP;
 	ipv6_addr_copy(&fl6.saddr, &oip6h->daddr);
 	ipv6_addr_copy(&fl6.daddr, &oip6h->saddr);
-	fl6.uli.ports.sport = otcph.dest;
-	fl6.uli.ports.dport = otcph.source;
+	fl6.fl6_sport = otcph.dest;
+	fl6.fl6_dport = otcph.source;
 	security_skb_classify_flow(oldskb, flowi6_to_flowi(&fl6));
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst == NULL || dst->error) {

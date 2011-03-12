@@ -693,8 +693,8 @@ static int rawv6_probe_proto_opt(struct flowi6 *fl6, struct msghdr *msg)
 				code = iov->iov_base;
 
 			if (type && code) {
-				if (get_user(fl6->uli.icmpt.type, type) ||
-				    get_user(fl6->uli.icmpt.code, code))
+				if (get_user(fl6->fl6_icmp_type, type) ||
+				    get_user(fl6->fl6_icmp_code, code))
 					return -EFAULT;
 				probed = 1;
 			}
@@ -705,7 +705,7 @@ static int rawv6_probe_proto_opt(struct flowi6 *fl6, struct msghdr *msg)
 			/* check if type field is readable or not. */
 			if (iov->iov_len > 2 - len) {
 				u8 __user *p = iov->iov_base;
-				if (get_user(fl6->uli.mht.type, &p[2 - len]))
+				if (get_user(fl6->fl6_mh_type, &p[2 - len]))
 					return -EFAULT;
 				probed = 1;
 			} else

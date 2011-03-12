@@ -899,8 +899,8 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 	 * Create a UDP header
 	 */
 	uh = udp_hdr(skb);
-	uh->source = fl6->uli.ports.sport;
-	uh->dest = fl6->uli.ports.dport;
+	uh->source = fl6->fl6_sport;
+	uh->dest = fl6->fl6_dport;
 	uh->len = htons(up->len);
 	uh->check = 0;
 
@@ -1036,7 +1036,7 @@ do_udp_sendmsg:
 		if (sin6->sin6_port == 0)
 			return -EINVAL;
 
-		fl6.uli.ports.dport = sin6->sin6_port;
+		fl6.fl6_dport = sin6->sin6_port;
 		daddr = &sin6->sin6_addr;
 
 		if (np->sndflow) {
@@ -1065,7 +1065,7 @@ do_udp_sendmsg:
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
 
-		fl6.uli.ports.dport = inet->inet_dport;
+		fl6.fl6_dport = inet->inet_dport;
 		daddr = &np->daddr;
 		fl6.flowlabel = np->flow_label;
 		connected = 1;
@@ -1112,7 +1112,7 @@ do_udp_sendmsg:
 		fl6.daddr.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl6.saddr) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl6.saddr, &np->saddr);
-	fl6.uli.ports.sport = inet->inet_sport;
+	fl6.fl6_sport = inet->inet_sport;
 
 	final_p = fl6_update_dst(&fl6, opt, &final);
 	if (final_p)

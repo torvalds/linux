@@ -84,6 +84,13 @@ struct flowi6 {
 	struct in6_addr		saddr;
 	__be32			flowlabel;
 	union flowi_uli		uli;
+#define fl6_sport		uli.ports.sport
+#define fl6_dport		uli.ports.dport
+#define fl6_icmp_type		uli.icmpt.type
+#define fl6_icmp_code		uli.icmpt.code
+#define fl6_ipsec_spi		uli.spi
+#define fl6_mh_type		uli.mht.type
+#define fl6_gre_key		uli.gre_key
 };
 
 struct flowidn {
@@ -112,16 +119,6 @@ struct flowi {
 
 #define fld_dst		u.dn.daddr
 #define fld_src		u.dn.saddr
-#define fl6_dst		u.ip6.daddr
-#define fl6_src		u.ip6.saddr
-#define fl6_flowlabel	u.ip6.flowlabel
-#define fl6_sport	u.ip6.uli.ports.sport
-#define fl6_dport	u.ip6.uli.ports.dport
-#define fl6_icmp_type	u.ip6.uli.icmpt.type
-#define fl6_icmp_code	u.ip6.uli.icmpt.code
-#define fl6_ipsec_spi	u.ip6.uli.spi
-#define fl6_mh_type	u.ip6.uli.mht.type
-#define fl6_gre_key	u.ip6.uli.gre_key
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
 static inline struct flowi *flowi4_to_flowi(struct flowi4 *fl4)

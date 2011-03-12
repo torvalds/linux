@@ -216,7 +216,7 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	int err = 0;
 
 	if (unlikely(fl6->flowi6_proto == IPPROTO_MH &&
-		     fl6->uli.mht.type <= IP6_MH_TYPE_MAX))
+		     fl6->fl6_mh_type <= IP6_MH_TYPE_MAX))
 		goto out;
 
 	if (likely(opt->dsthao)) {

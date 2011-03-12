@@ -70,8 +70,8 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 	ipv6_addr_copy(&fl6.saddr, &treq->loc_addr);
 	fl6.flowi6_oif = sk->sk_bound_dev_if;
 	fl6.flowi6_mark = sk->sk_mark;
-	fl6.uli.ports.dport = inet_rsk(req)->rmt_port;
-	fl6.uli.ports.sport = inet_rsk(req)->loc_port;
+	fl6.fl6_dport = inet_rsk(req)->rmt_port;
+	fl6.fl6_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
 
 	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
@@ -220,8 +220,8 @@ int inet6_csk_xmit(struct sk_buff *skb)
 	IP6_ECN_flow_xmit(sk, fl6.flowlabel);
 	fl6.flowi6_oif = sk->sk_bound_dev_if;
 	fl6.flowi6_mark = sk->sk_mark;
-	fl6.uli.ports.sport = inet->inet_sport;
-	fl6.uli.ports.dport = inet->inet_dport;
+	fl6.fl6_sport = inet->inet_sport;
+	fl6.fl6_dport = inet->inet_dport;
 	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
 	final_p = fl6_update_dst(&fl6, np->opt, &final);
