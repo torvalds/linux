@@ -104,7 +104,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 					"msi-x" : "msi", &irq, &pirq, XEN_ALLOC_IRQ);
 			if (irq < 0)
 				goto error;
-			ret = set_irq_msi(irq, msidesc);
+			ret = irq_set_msi_desc(irq, msidesc);
 			if (ret < 0)
 				goto error_while;
 			printk(KERN_DEBUG "xen: msi already setup: msi --> irq=%d"
@@ -117,7 +117,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			goto error;
 		printk(KERN_DEBUG "xen: msi --> irq=%d, pirq=%d\n", irq, pirq);
 		xen_msi_compose_msg(dev, pirq, &msg);
-		ret = set_irq_msi(irq, msidesc);
+		ret = irq_set_msi_desc(irq, msidesc);
 		if (ret < 0)
 			goto error_while;
 		write_msi_msg(irq, &msg);
@@ -165,7 +165,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			goto free;
 		}
 
-		ret = set_irq_msi(irq, msidesc);
+		ret = irq_set_msi_desc(irq, msidesc);
 		if (ret)
 			goto error_while;
 		i++;
@@ -210,7 +210,7 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (irq < 0)
 			return -1;
 
-		ret = set_irq_msi(irq, msidesc);
+		ret = irq_set_msi_desc(irq, msidesc);
 		if (ret)
 			goto error;
 	}

@@ -606,7 +606,7 @@ static void __init visws_pre_intr_init(void)
 			chip = &cobalt_irq_type;
 
 		if (chip)
-			set_irq_chip(i, chip);
+			irq_set_chip(i, chip);
 	}
 
 	setup_irq(CO_IRQ_8259, &master_action);

@@ -110,7 +110,7 @@ void __init init_ISA_irqs(void)
 	legacy_pic->init(0);
 
 	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++)
-		set_irq_chip_and_handler_name(i, chip, handle_level_irq, name);
+		irq_set_chip_and_handler_name(i, chip, handle_level_irq, name);
 }
 
 void __init init_IRQ(void)
