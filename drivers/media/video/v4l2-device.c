@@ -37,6 +37,7 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	spin_lock_init(&v4l2_dev->lock);
 	mutex_init(&v4l2_dev->ioctl_lock);
 	v4l2_prio_init(&v4l2_dev->prio);
+	kref_init(&v4l2_dev->ref);
 	v4l2_dev->dev = dev;
 	if (dev == NULL) {
 		/* If dev == NULL, then name must be filled in by the caller */
@@ -53,6 +54,21 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register);
+
+static void v4l2_device_release(struct kref *ref)
+{
+	struct v4l2_device *v4l2_dev =
+		container_of(ref, struct v4l2_device, ref);
+
+	if (v4l2_dev->release)
+		v4l2_dev->release(v4l2_dev);
+}
+
+int v4l2_device_put(struct v4l2_device *v4l2_dev)
+{
+	return kref_put(&v4l2_dev->ref, v4l2_device_release);
+}
+EXPORT_SYMBOL_GPL(v4l2_device_put);
 
 int v4l2_device_set_name(struct v4l2_device *v4l2_dev, const char *basename,
 						atomic_t *instance)

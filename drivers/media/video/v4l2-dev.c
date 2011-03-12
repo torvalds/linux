@@ -143,6 +143,7 @@ static inline void video_put(struct video_device *vdev)
 static void v4l2_device_release(struct device *cd)
 {
 	struct video_device *vdev = to_video_device(cd);
+	struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
 
 	mutex_lock(&videodev_lock);
 	if (video_device[vdev->minor] != vdev) {
@@ -169,6 +170,10 @@ static void v4l2_device_release(struct device *cd)
 	/* Release video_device and perform other
 	   cleanups as needed. */
 	vdev->release(vdev);
+
+	/* Decrease v4l2_device refcount */
+	if (v4l2_dev)
+		v4l2_device_put(v4l2_dev);
 }
 
 static struct class video_class = {
@@ -676,6 +681,11 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	if (nr != -1 && nr != vdev->num && warn_if_nr_in_use)
 		printk(KERN_WARNING "%s: requested %s%d, got %s\n", __func__,
 			name_base, nr, video_device_node_name(vdev));
+
+	/* Increase v4l2_device refcount */
+	if (vdev->v4l2_dev)
+		v4l2_device_get(vdev->v4l2_dev);
+
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Part 5: Register the entity. */
 	if (vdev->v4l2_dev && vdev->v4l2_dev->mdev) {

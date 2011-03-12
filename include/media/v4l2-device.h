@@ -60,7 +60,18 @@ struct v4l2_device {
 	struct v4l2_prio_state prio;
 	/* BKL replacement mutex. Temporary solution only. */
 	struct mutex ioctl_lock;
+	/* Keep track of the references to this struct. */
+	struct kref ref;
+	/* Release function that is called when the ref count goes to 0. */
+	void (*release)(struct v4l2_device *v4l2_dev);
 };
+
+static inline void v4l2_device_get(struct v4l2_device *v4l2_dev)
+{
+	kref_get(&v4l2_dev->ref);
+}
+
+int v4l2_device_put(struct v4l2_device *v4l2_dev);
 
 /* Initialize v4l2_dev and make dev->driver_data point to v4l2_dev.
    dev may be NULL in rare cases (ISA devices). In that case you
