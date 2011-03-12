@@ -477,10 +477,10 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	memset(&fl, 0x0, sizeof(struct flowi));
 	fl.fl4_dst  = daddr->v4.sin_addr.s_addr;
 	fl.fl_ip_dport = daddr->v4.sin_port;
-	fl.proto = IPPROTO_SCTP;
+	fl.flowi_proto = IPPROTO_SCTP;
 	if (asoc) {
 		fl.fl4_tos = RT_CONN_FLAGS(asoc->base.sk);
-		fl.oif = asoc->base.sk->sk_bound_dev_if;
+		fl.flowi_oif = asoc->base.sk->sk_bound_dev_if;
 		fl.fl_ip_sport = htons(asoc->base.bind_addr.port);
 	}
 	if (saddr) {

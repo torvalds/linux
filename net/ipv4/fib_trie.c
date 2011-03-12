@@ -1379,7 +1379,7 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 
 				if (nh->nh_flags & RTNH_F_DEAD)
 					continue;
-				if (flp->oif && flp->oif != nh->nh_oif)
+				if (flp->flowi_oif && flp->flowi_oif != nh->nh_oif)
 					continue;
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS

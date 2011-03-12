@@ -154,10 +154,10 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			   for now.
 			 */
 			memset(&fl, 0, sizeof(fl));
-			fl.proto = IPPROTO_DCCP;
+			fl.flowi_proto = IPPROTO_DCCP;
 			ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 			ipv6_addr_copy(&fl.fl6_src, &np->saddr);
-			fl.oif = sk->sk_bound_dev_if;
+			fl.flowi_oif = sk->sk_bound_dev_if;
 			fl.fl_ip_dport = inet->inet_dport;
 			fl.fl_ip_sport = inet->inet_sport;
 			security_sk_classify_flow(sk, &fl);
@@ -248,11 +248,11 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 	struct dst_entry *dst;
 
 	memset(&fl, 0, sizeof(fl));
-	fl.proto = IPPROTO_DCCP;
+	fl.flowi_proto = IPPROTO_DCCP;
 	ipv6_addr_copy(&fl.fl6_dst, &ireq6->rmt_addr);
 	ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
 	fl.fl6_flowlabel = 0;
-	fl.oif = ireq6->iif;
+	fl.flowi_oif = ireq6->iif;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, &fl);
@@ -321,8 +321,8 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	ipv6_addr_copy(&fl.fl6_dst, &rxip6h->saddr);
 	ipv6_addr_copy(&fl.fl6_src, &rxip6h->daddr);
 
-	fl.proto = IPPROTO_DCCP;
-	fl.oif = inet6_iif(rxskb);
+	fl.flowi_proto = IPPROTO_DCCP;
+	fl.flowi_oif = inet6_iif(rxskb);
 	fl.fl_ip_dport = dccp_hdr(skb)->dccph_dport;
 	fl.fl_ip_sport = dccp_hdr(skb)->dccph_sport;
 	security_skb_classify_flow(rxskb, &fl);
@@ -530,11 +530,11 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		struct flowi fl;
 
 		memset(&fl, 0, sizeof(fl));
-		fl.proto = IPPROTO_DCCP;
+		fl.flowi_proto = IPPROTO_DCCP;
 		ipv6_addr_copy(&fl.fl6_dst, &ireq6->rmt_addr);
 		final_p = fl6_update_dst(&fl, opt, &final);
 		ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
-		fl.oif = sk->sk_bound_dev_if;
+		fl.flowi_oif = sk->sk_bound_dev_if;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_rsk(req)->loc_port;
 		security_sk_classify_flow(sk, &fl);
@@ -953,10 +953,10 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (!ipv6_addr_any(&np->rcv_saddr))
 		saddr = &np->rcv_saddr;
 
-	fl.proto = IPPROTO_DCCP;
+	fl.flowi_proto = IPPROTO_DCCP;
 	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 	ipv6_addr_copy(&fl.fl6_src, saddr ? saddr : &np->saddr);
-	fl.oif = sk->sk_bound_dev_if;
+	fl.flowi_oif = sk->sk_bound_dev_if;
 	fl.fl_ip_dport = usin->sin6_port;
 	fl.fl_ip_sport = inet->inet_sport;
 	security_sk_classify_flow(sk, &fl);

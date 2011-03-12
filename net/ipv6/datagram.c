@@ -146,16 +146,16 @@ ipv4_connected:
 	 *	destination cache for it.
 	 */
 
-	fl.proto = sk->sk_protocol;
+	fl.flowi_proto = sk->sk_protocol;
 	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 	ipv6_addr_copy(&fl.fl6_src, &np->saddr);
-	fl.oif = sk->sk_bound_dev_if;
-	fl.mark = sk->sk_mark;
+	fl.flowi_oif = sk->sk_bound_dev_if;
+	fl.flowi_mark = sk->sk_mark;
 	fl.fl_ip_dport = inet->inet_dport;
 	fl.fl_ip_sport = inet->inet_sport;
 
-	if (!fl.oif && (addr_type&IPV6_ADDR_MULTICAST))
-		fl.oif = np->mcast_oif;
+	if (!fl.flowi_oif && (addr_type&IPV6_ADDR_MULTICAST))
+		fl.flowi_oif = np->mcast_oif;
 
 	security_sk_classify_flow(sk, &fl);
 
@@ -299,7 +299,7 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi *fl, u32 mtu)
 	mtu_info->ip6m_addr.sin6_family = AF_INET6;
 	mtu_info->ip6m_addr.sin6_port = 0;
 	mtu_info->ip6m_addr.sin6_flowinfo = 0;
-	mtu_info->ip6m_addr.sin6_scope_id = fl->oif;
+	mtu_info->ip6m_addr.sin6_scope_id = fl->flowi_oif;
 	ipv6_addr_copy(&mtu_info->ip6m_addr.sin6_addr, &ipv6_hdr(skb)->daddr);
 
 	__skb_pull(skb, skb_tail_pointer(skb) - skb->data);
@@ -629,16 +629,16 @@ int datagram_send_ctl(struct net *net,
 			src_info = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 
 			if (src_info->ipi6_ifindex) {
-				if (fl->oif && src_info->ipi6_ifindex != fl->oif)
+				if (fl->flowi_oif && src_info->ipi6_ifindex != fl->flowi_oif)
 					return -EINVAL;
-				fl->oif = src_info->ipi6_ifindex;
+				fl->flowi_oif = src_info->ipi6_ifindex;
 			}
 
 			addr_type = __ipv6_addr_type(&src_info->ipi6_addr);
 
 			rcu_read_lock();
-			if (fl->oif) {
-				dev = dev_get_by_index_rcu(net, fl->oif);
+			if (fl->flowi_oif) {
+				dev = dev_get_by_index_rcu(net, fl->flowi_oif);
 				if (!dev) {
 					rcu_read_unlock();
 					return -ENODEV;

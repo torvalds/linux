@@ -436,9 +436,9 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net *net = dev_net(dev);
 	struct mr_table *mrt;
 	struct flowi fl = {
-		.oif		= dev->ifindex,
-		.iif		= skb->skb_iif,
-		.mark		= skb->mark,
+		.flowi_oif	= dev->ifindex,
+		.flowi_iif	= skb->skb_iif,
+		.flowi_mark	= skb->mark,
 	};
 	int err;
 
@@ -1793,9 +1793,9 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct rtable *rt)
 		.fl4_dst = rt->rt_key_dst,
 		.fl4_src = rt->rt_key_src,
 		.fl4_tos = rt->rt_tos,
-		.oif = rt->rt_oif,
-		.iif = rt->rt_iif,
-		.mark = rt->rt_mark,
+		.flowi_oif = rt->rt_oif,
+		.flowi_iif = rt->rt_iif,
+		.flowi_mark = rt->rt_mark,
 	};
 	struct mr_table *mrt;
 	int err;

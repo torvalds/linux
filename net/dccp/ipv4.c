@@ -465,14 +465,15 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 					   struct sk_buff *skb)
 {
 	struct rtable *rt;
-	struct flowi fl = { .oif = skb_rtable(skb)->rt_iif,
-			    .fl4_dst = ip_hdr(skb)->saddr,
-			    .fl4_src = ip_hdr(skb)->daddr,
-			    .fl4_tos = RT_CONN_FLAGS(sk),
-			    .proto = sk->sk_protocol,
-			    .fl_ip_sport = dccp_hdr(skb)->dccph_dport,
-			    .fl_ip_dport = dccp_hdr(skb)->dccph_sport
-			  };
+	struct flowi fl = {
+		.flowi_oif = skb_rtable(skb)->rt_iif,
+		.fl4_dst = ip_hdr(skb)->saddr,
+		.fl4_src = ip_hdr(skb)->daddr,
+		.fl4_tos = RT_CONN_FLAGS(sk),
+		.flowi_proto = sk->sk_protocol,
+		.fl_ip_sport = dccp_hdr(skb)->dccph_dport,
+		.fl_ip_dport = dccp_hdr(skb)->dccph_sport,
+	};
 
 	security_skb_classify_flow(skb, &fl);
 	rt = ip_route_output_flow(net, &fl, sk);

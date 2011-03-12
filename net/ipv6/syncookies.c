@@ -234,12 +234,12 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		struct in6_addr *final_p, final;
 		struct flowi fl;
 		memset(&fl, 0, sizeof(fl));
-		fl.proto = IPPROTO_TCP;
+		fl.flowi_proto = IPPROTO_TCP;
 		ipv6_addr_copy(&fl.fl6_dst, &ireq6->rmt_addr);
 		final_p = fl6_update_dst(&fl, np->opt, &final);
 		ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
-		fl.oif = sk->sk_bound_dev_if;
-		fl.mark = sk->sk_mark;
+		fl.flowi_oif = sk->sk_bound_dev_if;
+		fl.flowi_mark = sk->sk_mark;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
 		security_req_classify_flow(req, &fl);

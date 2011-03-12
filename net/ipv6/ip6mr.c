@@ -618,8 +618,8 @@ static int pim6_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	struct mr6_table *mrt;
 	struct flowi fl = {
-		.iif	= skb->dev->ifindex,
-		.mark	= skb->mark,
+		.flowi_iif	= skb->dev->ifindex,
+		.flowi_mark = skb->mark,
 	};
 	int reg_vif_num;
 
@@ -688,9 +688,9 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb,
 	struct net *net = dev_net(dev);
 	struct mr6_table *mrt;
 	struct flowi fl = {
-		.oif		= dev->ifindex,
-		.iif		= skb->skb_iif,
-		.mark		= skb->mark,
+		.flowi_oif		= dev->ifindex,
+		.flowi_iif		= skb->skb_iif,
+		.flowi_mark	= skb->mark,
 	};
 	int err;
 
@@ -1548,9 +1548,9 @@ struct sock *mroute6_socket(struct net *net, struct sk_buff *skb)
 {
 	struct mr6_table *mrt;
 	struct flowi fl = {
-		.iif	= skb->skb_iif,
-		.oif	= skb->dev->ifindex,
-		.mark	= skb->mark,
+		.flowi_iif	= skb->skb_iif,
+		.flowi_oif	= skb->dev->ifindex,
+		.flowi_mark= skb->mark,
 	};
 
 	if (ip6mr_fib_lookup(net, &fl, &mrt) < 0)
@@ -1916,7 +1916,7 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 	ipv6h = ipv6_hdr(skb);
 
 	fl = (struct flowi) {
-		.oif = vif->link,
+		.flowi_oif = vif->link,
 		.fl6_dst = ipv6h->daddr,
 	};
 
@@ -2044,8 +2044,8 @@ int ip6_mr_input(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	struct mr6_table *mrt;
 	struct flowi fl = {
-		.iif	= skb->dev->ifindex,
-		.mark	= skb->mark,
+		.flowi_iif	= skb->dev->ifindex,
+		.flowi_mark= skb->mark,
 	};
 	int err;
 

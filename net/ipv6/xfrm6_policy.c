@@ -128,7 +128,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u8 nexthdr = nh[IP6CB(skb)->nhoff];
 
 	memset(fl, 0, sizeof(struct flowi));
-	fl->mark = skb->mark;
+	fl->flowi_mark = skb->mark;
 
 	ipv6_addr_copy(&fl->fl6_dst, reverse ? &hdr->saddr : &hdr->daddr);
 	ipv6_addr_copy(&fl->fl6_src, reverse ? &hdr->daddr : &hdr->saddr);
@@ -161,7 +161,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 				fl->fl_ip_sport = ports[!!reverse];
 				fl->fl_ip_dport = ports[!reverse];
 			}
-			fl->proto = nexthdr;
+			fl->flowi_proto = nexthdr;
 			return;
 
 		case IPPROTO_ICMPV6:
@@ -171,7 +171,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 				fl->fl_icmp_type = icmp[0];
 				fl->fl_icmp_code = icmp[1];
 			}
-			fl->proto = nexthdr;
+			fl->flowi_proto = nexthdr;
 			return;
 
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
@@ -182,7 +182,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 				fl->fl_mh_type = mh->ip6mh_type;
 			}
-			fl->proto = nexthdr;
+			fl->flowi_proto = nexthdr;
 			return;
 #endif
 
@@ -192,7 +192,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 		case IPPROTO_COMP:
 		default:
 			fl->fl_ipsec_spi = 0;
-			fl->proto = nexthdr;
+			fl->flowi_proto = nexthdr;
 			return;
 		}
 	}

@@ -90,7 +90,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	}
 
 	memset(&fl, 0, sizeof(fl));
-	fl.proto = IPPROTO_TCP;
+	fl.flowi_proto = IPPROTO_TCP;
 	ipv6_addr_copy(&fl.fl6_src, &oip6h->daddr);
 	ipv6_addr_copy(&fl.fl6_dst, &oip6h->saddr);
 	fl.fl_ip_sport = otcph.dest;

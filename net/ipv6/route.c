@@ -608,7 +608,7 @@ static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 	fn = fib6_lookup(&table->tb6_root, &fl->fl6_dst, &fl->fl6_src);
 restart:
 	rt = fn->leaf;
-	rt = rt6_device_match(net, rt, &fl->fl6_src, fl->oif, flags);
+	rt = rt6_device_match(net, rt, &fl->fl6_src, fl->flowi_oif, flags);
 	BACKTRACK(net, &fl->fl6_src);
 out:
 	dst_use(&rt->dst, jiffies);
@@ -621,7 +621,7 @@ struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 			    const struct in6_addr *saddr, int oif, int strict)
 {
 	struct flowi fl = {
-		.oif = oif,
+		.flowi_oif = oif,
 		.fl6_dst = *daddr,
 	};
 	struct dst_entry *dst;
@@ -825,7 +825,7 @@ out2:
 static struct rt6_info *ip6_pol_route_input(struct net *net, struct fib6_table *table,
 					    struct flowi *fl, int flags)
 {
-	return ip6_pol_route(net, table, fl->iif, fl, flags);
+	return ip6_pol_route(net, table, fl->flowi_iif, fl, flags);
 }
 
 void ip6_route_input(struct sk_buff *skb)
@@ -834,12 +834,12 @@ void ip6_route_input(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct flowi fl = {
-		.iif = skb->dev->ifindex,
+		.flowi_iif = skb->dev->ifindex,
 		.fl6_dst = iph->daddr,
 		.fl6_src = iph->saddr,
 		.fl6_flowlabel = (* (__be32 *) iph)&IPV6_FLOWINFO_MASK,
-		.mark = skb->mark,
-		.proto = iph->nexthdr,
+		.flowi_mark = skb->mark,
+		.flowi_proto = iph->nexthdr,
 	};
 
 	if (rt6_need_strict(&iph->daddr) && skb->dev->type != ARPHRD_PIMREG)
@@ -851,7 +851,7 @@ void ip6_route_input(struct sk_buff *skb)
 static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table *table,
 					     struct flowi *fl, int flags)
 {
-	return ip6_pol_route(net, table, fl->oif, fl, flags);
+	return ip6_pol_route(net, table, fl->flowi_oif, fl, flags);
 }
 
 struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
@@ -1484,7 +1484,7 @@ restart:
 			continue;
 		if (!(rt->rt6i_flags & RTF_GATEWAY))
 			continue;
-		if (fl->oif != rt->rt6i_dev->ifindex)
+		if (fl->flowi_oif != rt->rt6i_dev->ifindex)
 			continue;
 		if (!ipv6_addr_equal(&rdfl->gateway, &rt->rt6i_gateway))
 			continue;
@@ -1511,7 +1511,7 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 	struct net *net = dev_net(dev);
 	struct ip6rd_flowi rdfl = {
 		.fl = {
-			.oif = dev->ifindex,
+			.flowi_oif = dev->ifindex,
 			.fl6_dst = *dest,
 			.fl6_src = *src,
 		},
@@ -2413,7 +2413,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void
 		iif = nla_get_u32(tb[RTA_IIF]);
 
 	if (tb[RTA_OIF])
-		fl.oif = nla_get_u32(tb[RTA_OIF]);
+		fl.flowi_oif = nla_get_u32(tb[RTA_OIF]);
 
 	if (iif) {
 		struct net_device *dev;

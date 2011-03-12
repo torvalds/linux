@@ -182,7 +182,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	struct in6_addr *first_hop = &fl->fl6_dst;
 	struct dst_entry *dst = skb_dst(skb);
 	struct ipv6hdr *hdr;
-	u8  proto = fl->proto;
+	u8  proto = fl->flowi_proto;
 	int seg_len = skb->len;
 	int hlimit = -1;
 	int tclass = 0;
@@ -908,7 +908,7 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 #ifdef CONFIG_IPV6_SUBTREES
 	    ip6_rt_check(&rt->rt6i_src, &fl->fl6_src, np->saddr_cache) ||
 #endif
-	    (fl->oif && fl->oif != dst->dev->ifindex)) {
+	    (fl->flowi_oif && fl->flowi_oif != dst->dev->ifindex)) {
 		dst_release(dst);
 		dst = NULL;
 	}
@@ -1026,7 +1026,7 @@ struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 	if (final_dst)
 		ipv6_addr_copy(&fl->fl6_dst, final_dst);
 	if (can_sleep)
-		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
+		fl->flowi_flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	return xfrm_lookup(sock_net(sk), dst, fl, sk, 0);
 }
@@ -1062,7 +1062,7 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi *fl,
 	if (final_dst)
 		ipv6_addr_copy(&fl->fl6_dst, final_dst);
 	if (can_sleep)
-		fl->flags |= FLOWI_FLAG_CAN_SLEEP;
+		fl->flowi_flags |= FLOWI_FLAG_CAN_SLEEP;
 
 	return xfrm_lookup(sock_net(sk), dst, fl, sk, 0);
 }
@@ -1517,7 +1517,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	struct ipv6_txoptions *opt = np->cork.opt;
 	struct rt6_info *rt = (struct rt6_info *)inet->cork.dst;
 	struct flowi *fl = &inet->cork.fl;
-	unsigned char proto = fl->proto;
+	unsigned char proto = fl->flowi_proto;
 	int err = 0;
 
 	if ((skb = __skb_dequeue(&sk->sk_write_queue)) == NULL)

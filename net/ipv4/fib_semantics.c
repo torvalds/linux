@@ -563,7 +563,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			struct flowi fl = {
 				.fl4_dst = nh->nh_gw,
 				.fl4_scope = cfg->fc_scope + 1,
-				.oif = nh->nh_oif,
+				.flowi_oif = nh->nh_oif,
 			};
 
 			/* It is not necessary, but requires a bit of thinking */

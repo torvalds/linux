@@ -35,9 +35,9 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 		if (type == RTN_LOCAL)
 			fl.fl4_src = iph->saddr;
 		fl.fl4_tos = RT_TOS(iph->tos);
-		fl.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
-		fl.mark = skb->mark;
-		fl.flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
+		fl.flowi_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
+		fl.flowi_mark = skb->mark;
+		fl.flowi_flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
 		rt = ip_route_output_key(net, &fl);
 		if (IS_ERR(rt))
 			return -1;

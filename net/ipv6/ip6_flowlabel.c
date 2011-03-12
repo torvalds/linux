@@ -358,7 +358,7 @@ fl_create(struct net *net, struct in6_flowlabel_req *freq, char __user *optval,
 
 		msg.msg_controllen = olen;
 		msg.msg_control = (void*)(fl->opt+1);
-		flowi.oif = 0;
+		flowi.flowi_oif = 0;
 
 		err = datagram_send_ctl(net, &msg, &flowi, fl->opt, &junk,
 					&junk, &junk);

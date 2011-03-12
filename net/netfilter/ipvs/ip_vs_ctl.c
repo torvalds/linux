@@ -76,7 +76,7 @@ static int __ip_vs_addr_is_local_v6(struct net *net,
 {
 	struct rt6_info *rt;
 	struct flowi fl = {
-		.oif = 0,
+		.flowi_oif = 0,
 		.fl6_dst = *addr,
 		.fl6_src = { .s6_addr32 = {0, 0, 0, 0} },
 	};

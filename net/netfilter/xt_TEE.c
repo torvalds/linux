@@ -68,7 +68,7 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	if (info->priv) {
 		if (info->priv->oif == -1)
 			return false;
-		fl.oif = info->priv->oif;
+		fl.flowi_oif = info->priv->oif;
 	}
 	fl.fl4_dst = info->gw.ip;
 	fl.fl4_tos = RT_TOS(iph->tos);
@@ -149,7 +149,7 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	if (info->priv) {
 		if (info->priv->oif == -1)
 			return false;
-		fl.oif = info->priv->oif;
+		fl.flowi_oif = info->priv->oif;
 	}
 	fl.fl6_dst = info->gw.in6;
 	fl.fl6_flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |

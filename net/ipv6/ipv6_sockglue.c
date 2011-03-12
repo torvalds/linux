@@ -448,8 +448,8 @@ sticky_done:
 		int junk;
 
 		fl.fl6_flowlabel = 0;
-		fl.oif = sk->sk_bound_dev_if;
-		fl.mark = sk->sk_mark;
+		fl.flowi_oif = sk->sk_bound_dev_if;
+		fl.flowi_mark = sk->sk_mark;
 
 		if (optlen == 0)
 			goto update;

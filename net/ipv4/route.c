@@ -1701,9 +1701,9 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 			.fl4_dst = rt->rt_key_dst,
 			.fl4_src = rt->rt_key_src,
 			.fl4_tos = rt->rt_tos,
-			.oif = rt->rt_oif,
-			.iif = rt->rt_iif,
-			.mark = rt->rt_mark,
+			.flowi_oif = rt->rt_oif,
+			.flowi_iif = rt->rt_iif,
+			.flowi_mark = rt->rt_mark,
 		};
 
 		rcu_read_lock();
@@ -1766,7 +1766,7 @@ static void rt_init_metrics(struct rtable *rt, const struct flowi *oldflp,
 	/* If a peer entry exists for this destination, we must hook
 	 * it up in order to get at cached metrics.
 	 */
-	if (oldflp && (oldflp->flags & FLOWI_FLAG_PRECOW_METRICS))
+	if (oldflp && (oldflp->flowi_flags & FLOWI_FLAG_PRECOW_METRICS))
 		create = 1;
 
 	rt->peer = peer = inet_getpeer_v4(rt->rt_dst, create);
@@ -2057,9 +2057,9 @@ static int ip_mkroute_input(struct sk_buff *skb,
 		return err;
 
 	/* put it into the cache */
-	hash = rt_hash(daddr, saddr, fl->iif,
+	hash = rt_hash(daddr, saddr, fl->flowi_iif,
 		       rt_genid(dev_net(rth->dst.dev)));
-	rth = rt_intern_hash(hash, rth, skb, fl->iif);
+	rth = rt_intern_hash(hash, rth, skb, fl->flowi_iif);
 	if (IS_ERR(rth))
 		return PTR_ERR(rth);
 	return 0;
@@ -2118,9 +2118,9 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	/*
 	 *	Now we are ready to route packet.
 	 */
-	fl.oif = 0;
-	fl.iif = dev->ifindex;
-	fl.mark = skb->mark;
+	fl.flowi_oif = 0;
+	fl.flowi_iif = dev->ifindex;
+	fl.flowi_mark = skb->mark;
 	fl.fl4_dst = daddr;
 	fl.fl4_src = saddr;
 	fl.fl4_tos = tos;
@@ -2205,8 +2205,8 @@ local_input:
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
 	rth->rt_type	= res.type;
-	hash = rt_hash(daddr, saddr, fl.iif, rt_genid(net));
-	rth = rt_intern_hash(hash, rth, skb, fl.iif);
+	hash = rt_hash(daddr, saddr, fl.flowi_iif, rt_genid(net));
+	rth = rt_intern_hash(hash, rth, skb, fl.flowi_iif);
 	err = 0;
 	if (IS_ERR(rth))
 		err = PTR_ERR(rth);
@@ -2369,7 +2369,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	} else if (type == RTN_MULTICAST) {
 		flags |= RTCF_MULTICAST | RTCF_LOCAL;
 		if (!ip_check_mc_rcu(in_dev, oldflp->fl4_dst, oldflp->fl4_src,
-				     oldflp->proto))
+				     oldflp->flowi_proto))
 			flags &= ~RTCF_LOCAL;
 		/* If multicast route do not exist use
 		 * default one, but do not gateway in this case.
@@ -2387,8 +2387,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_key_dst	= oldflp->fl4_dst;
 	rth->rt_tos	= tos;
 	rth->rt_key_src	= oldflp->fl4_src;
-	rth->rt_oif	= oldflp->oif;
-	rth->rt_mark    = oldflp->mark;
+	rth->rt_oif	= oldflp->flowi_oif;
+	rth->rt_mark    = oldflp->flowi_mark;
 	rth->rt_dst	= fl->fl4_dst;
 	rth->rt_src	= fl->fl4_src;
 	rth->rt_iif	= 0;
@@ -2452,9 +2452,9 @@ static struct rtable *ip_route_output_slow(struct net *net,
 	res.r		= NULL;
 #endif
 
-	fl.oif = oldflp->oif;
-	fl.iif = net->loopback_dev->ifindex;
-	fl.mark = oldflp->mark;
+	fl.flowi_oif = oldflp->flowi_oif;
+	fl.flowi_iif = net->loopback_dev->ifindex;
+	fl.flowi_mark = oldflp->flowi_mark;
 	fl.fl4_dst = oldflp->fl4_dst;
 	fl.fl4_src = oldflp->fl4_src;
 	fl.fl4_tos = tos & IPTOS_RT_MASK;
@@ -2477,7 +2477,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 		      of another iface. --ANK
 		 */
 
-		if (oldflp->oif == 0 &&
+		if (oldflp->flowi_oif == 0 &&
 		    (ipv4_is_multicast(oldflp->fl4_dst) ||
 		     ipv4_is_lbcast(oldflp->fl4_dst))) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
@@ -2500,11 +2500,11 @@ static struct rtable *ip_route_output_slow(struct net *net,
 			   Luckily, this hack is good workaround.
 			 */
 
-			fl.oif = dev_out->ifindex;
+			fl.flowi_oif = dev_out->ifindex;
 			goto make_route;
 		}
 
-		if (!(oldflp->flags & FLOWI_FLAG_ANYSRC)) {
+		if (!(oldflp->flowi_flags & FLOWI_FLAG_ANYSRC)) {
 			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
 			if (!__ip_dev_find(net, oldflp->fl4_src, false))
 				goto out;
@@ -2512,8 +2512,8 @@ static struct rtable *ip_route_output_slow(struct net *net,
 	}
 
 
-	if (oldflp->oif) {
-		dev_out = dev_get_by_index_rcu(net, oldflp->oif);
+	if (oldflp->flowi_oif) {
+		dev_out = dev_get_by_index_rcu(net, oldflp->flowi_oif);
 		rth = ERR_PTR(-ENODEV);
 		if (dev_out == NULL)
 			goto out;
@@ -2545,7 +2545,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 		if (!fl.fl4_dst)
 			fl.fl4_dst = fl.fl4_src = htonl(INADDR_LOOPBACK);
 		dev_out = net->loopback_dev;
-		fl.oif = net->loopback_dev->ifindex;
+		fl.flowi_oif = net->loopback_dev->ifindex;
 		res.type = RTN_LOCAL;
 		flags |= RTCF_LOCAL;
 		goto make_route;
@@ -2553,7 +2553,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 
 	if (fib_lookup(net, &fl, &res)) {
 		res.fi = NULL;
-		if (oldflp->oif) {
+		if (oldflp->flowi_oif) {
 			/* Apparently, routing tables are wrong. Assume,
 			   that the destination is on link.
 
@@ -2590,25 +2590,25 @@ static struct rtable *ip_route_output_slow(struct net *net,
 				fl.fl4_src = fl.fl4_dst;
 		}
 		dev_out = net->loopback_dev;
-		fl.oif = dev_out->ifindex;
+		fl.flowi_oif = dev_out->ifindex;
 		res.fi = NULL;
 		flags |= RTCF_LOCAL;
 		goto make_route;
 	}
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	if (res.fi->fib_nhs > 1 && fl.oif == 0)
+	if (res.fi->fib_nhs > 1 && fl.flowi_oif == 0)
 		fib_select_multipath(&res);
 	else
 #endif
-	if (!res.prefixlen && res.type == RTN_UNICAST && !fl.oif)
+	if (!res.prefixlen && res.type == RTN_UNICAST && !fl.flowi_oif)
 		fib_select_default(&res);
 
 	if (!fl.fl4_src)
 		fl.fl4_src = FIB_RES_PREFSRC(res);
 
 	dev_out = FIB_RES_DEV(res);
-	fl.oif = dev_out->ifindex;
+	fl.flowi_oif = dev_out->ifindex;
 
 
 make_route:
@@ -2616,9 +2616,9 @@ make_route:
 	if (!IS_ERR(rth)) {
 		unsigned int hash;
 
-		hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src, oldflp->oif,
+		hash = rt_hash(oldflp->fl4_dst, oldflp->fl4_src, oldflp->flowi_oif,
 			       rt_genid(dev_net(dev_out)));
-		rth = rt_intern_hash(hash, rth, NULL, oldflp->oif);
+		rth = rt_intern_hash(hash, rth, NULL, oldflp->flowi_oif);
 	}
 
 out:
@@ -2634,7 +2634,7 @@ struct rtable *__ip_route_output_key(struct net *net, const struct flowi *flp)
 	if (!rt_caching(net))
 		goto slow_output;
 
-	hash = rt_hash(flp->fl4_dst, flp->fl4_src, flp->oif, rt_genid(net));
+	hash = rt_hash(flp->fl4_dst, flp->fl4_src, flp->flowi_oif, rt_genid(net));
 
 	rcu_read_lock_bh();
 	for (rth = rcu_dereference_bh(rt_hash_table[hash].chain); rth;
@@ -2642,8 +2642,8 @@ struct rtable *__ip_route_output_key(struct net *net, const struct flowi *flp)
 		if (rth->rt_key_dst == flp->fl4_dst &&
 		    rth->rt_key_src == flp->fl4_src &&
 		    rt_is_output_route(rth) &&
-		    rth->rt_oif == flp->oif &&
-		    rth->rt_mark == flp->mark &&
+		    rth->rt_oif == flp->flowi_oif &&
+		    rth->rt_mark == flp->flowi_mark &&
 		    !((rth->rt_tos ^ flp->fl4_tos) &
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
@@ -2741,7 +2741,7 @@ struct rtable *ip_route_output_flow(struct net *net, struct flowi *flp,
 	if (IS_ERR(rt))
 		return rt;
 
-	if (flp->proto) {
+	if (flp->flowi_proto) {
 		if (!flp->fl4_src)
 			flp->fl4_src = rt->rt_src;
 		if (!flp->fl4_dst)
@@ -2917,8 +2917,8 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			.fl4_dst = dst,
 			.fl4_src = src,
 			.fl4_tos = rtm->rtm_tos,
-			.oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
-			.mark = mark,
+			.flowi_oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
+			.flowi_mark = mark,
 		};
 		rt = ip_route_output_key(net, &fl);
 

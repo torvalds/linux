@@ -908,16 +908,17 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		rt = (struct rtable *)sk_dst_check(sk, 0);
 
 	if (rt == NULL) {
-		struct flowi fl = { .oif = ipc.oif,
-				    .mark = sk->sk_mark,
-				    .fl4_dst = faddr,
-				    .fl4_src = saddr,
-				    .fl4_tos = tos,
-				    .proto = sk->sk_protocol,
-				    .flags = (inet_sk_flowi_flags(sk) |
-					      FLOWI_FLAG_CAN_SLEEP),
-				    .fl_ip_sport = inet->inet_sport,
-				    .fl_ip_dport = dport
+		struct flowi fl = {
+			.flowi_oif = ipc.oif,
+			.flowi_mark = sk->sk_mark,
+			.fl4_dst = faddr,
+			.fl4_src = saddr,
+			.fl4_tos = tos,
+			.flowi_proto = sk->sk_protocol,
+			.flowi_flags = (inet_sk_flowi_flags(sk) |
+				     FLOWI_FLAG_CAN_SLEEP),
+			.fl_ip_sport = inet->inet_sport,
+			.fl_ip_dport = dport,
 		};
 		struct net *net = sock_net(sk);
 

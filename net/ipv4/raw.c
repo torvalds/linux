@@ -418,7 +418,7 @@ static int raw_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 		if (!iov)
 			continue;
 
-		switch (fl->proto) {
+		switch (fl->flowi_proto) {
 		case IPPROTO_ICMP:
 			/* check if one-byte field is readable or not. */
 			if (iov->iov_base && iov->iov_len < 1)
@@ -548,14 +548,14 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 
 	{
-		struct flowi fl = { .oif = ipc.oif,
-				    .mark = sk->sk_mark,
+		struct flowi fl = { .flowi_oif = ipc.oif,
+				    .flowi_mark = sk->sk_mark,
 				    .fl4_dst = daddr,
 				    .fl4_src = saddr,
 				    .fl4_tos = tos,
-				    .proto = inet->hdrincl ? IPPROTO_RAW :
+				    .flowi_proto = inet->hdrincl ? IPPROTO_RAW :
 							     sk->sk_protocol,
-				    .flags = FLOWI_FLAG_CAN_SLEEP,
+				    .flowi_flags = FLOWI_FLAG_CAN_SLEEP,
 		};
 		if (!inet->hdrincl) {
 			err = raw_probe_proto_opt(&fl, msg);

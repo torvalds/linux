@@ -73,9 +73,9 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	rt->rt_key_dst = fl->fl4_dst;
 	rt->rt_key_src = fl->fl4_src;
 	rt->rt_tos = fl->fl4_tos;
-	rt->rt_iif = fl->iif;
-	rt->rt_oif = fl->oif;
-	rt->rt_mark = fl->mark;
+	rt->rt_iif = fl->flowi_iif;
+	rt->rt_oif = fl->flowi_oif;
+	rt->rt_mark = fl->flowi_mark;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
@@ -104,7 +104,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));
-	fl->mark = skb->mark;
+	fl->flowi_mark = skb->mark;
 
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
 		switch (iph->protocol) {
@@ -173,7 +173,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 			break;
 		}
 	}
-	fl->proto = iph->protocol;
+	fl->flowi_proto = iph->protocol;
 	fl->fl4_dst = reverse ? iph->saddr : iph->daddr;
 	fl->fl4_src = reverse ? iph->daddr : iph->saddr;
 	fl->fl4_tos = iph->tos;

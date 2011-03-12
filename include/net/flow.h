@@ -11,17 +11,17 @@
 #include <asm/atomic.h>
 
 struct flowi {
-	int	oif;
-	int	iif;
-	__u32	mark;
-	__u8	tos;
-	__u8	scope;
-	__u8	proto;
-	__u8	flags;
+	int	flowi_oif;
+	int	flowi_iif;
+	__u32	flowi_mark;
+	__u8	flowi_tos;
+	__u8	flowi_scope;
+	__u8	flowi_proto;
+	__u8	flowi_flags;
 #define FLOWI_FLAG_ANYSRC		0x01
 #define FLOWI_FLAG_PRECOW_METRICS	0x02
 #define FLOWI_FLAG_CAN_SLEEP		0x04
-	__u32	secid;
+	__u32	flowi_secid;
 
 	union {
 		struct {
@@ -49,8 +49,8 @@ struct flowi {
 #define fl6_flowlabel	nl_u.ip6_u.flowlabel
 #define fl4_dst		nl_u.ip4_u.daddr
 #define fl4_src		nl_u.ip4_u.saddr
-#define fl4_tos		tos
-#define fl4_scope	scope
+#define fl4_tos		flowi_tos
+#define fl4_scope	flowi_scope
 
 	union {
 		struct {
@@ -116,7 +116,7 @@ extern atomic_t flow_cache_genid;
 static inline int flow_cache_uli_match(const struct flowi *fl1,
 				       const struct flowi *fl2)
 {
-	return (fl1->proto == fl2->proto &&
+	return (fl1->flowi_proto == fl2->flowi_proto &&
 		!memcmp(&fl1->uli_u, &fl2->uli_u, sizeof(fl1->uli_u)));
 }
 

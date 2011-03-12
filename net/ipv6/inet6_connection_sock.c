@@ -64,12 +64,12 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
 	struct flowi fl;
 
 	memset(&fl, 0, sizeof(fl));
-	fl.proto = IPPROTO_TCP;
+	fl.flowi_proto = IPPROTO_TCP;
 	ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
 	final_p = fl6_update_dst(&fl, np->opt, &final);
 	ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
-	fl.oif = sk->sk_bound_dev_if;
-	fl.mark = sk->sk_mark;
+	fl.flowi_oif = sk->sk_bound_dev_if;
+	fl.flowi_mark = sk->sk_mark;
 	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
 	fl.fl_ip_sport = inet_rsk(req)->loc_port;
 	security_req_classify_flow(req, &fl);
@@ -213,13 +213,13 @@ int inet6_csk_xmit(struct sk_buff *skb)
 	struct in6_addr *final_p, final;
 
 	memset(&fl, 0, sizeof(fl));
-	fl.proto = sk->sk_protocol;
+	fl.flowi_proto = sk->sk_protocol;
 	ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 	ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 	fl.fl6_flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
-	fl.oif = sk->sk_bound_dev_if;
-	fl.mark = sk->sk_mark;
+	fl.flowi_oif = sk->sk_bound_dev_if;
+	fl.flowi_mark = sk->sk_mark;
 	fl.fl_ip_sport = inet->inet_sport;
 	fl.fl_ip_dport = inet->inet_dport;
 	security_sk_classify_flow(sk, &fl);

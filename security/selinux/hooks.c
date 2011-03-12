@@ -4306,7 +4306,7 @@ static void selinux_secmark_refcount_dec(void)
 static void selinux_req_classify_flow(const struct request_sock *req,
 				      struct flowi *fl)
 {
-	fl->secid = req->secid;
+	fl->flowi_secid = req->secid;
 }
 
 static int selinux_tun_dev_create(void)

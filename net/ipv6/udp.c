@@ -915,7 +915,7 @@ static int udp_v6_push_pending_frames(struct sock *sk)
 
 	/* add protocol-dependent pseudo-header */
 	uh->check = csum_ipv6_magic(&fl->fl6_src, &fl->fl6_dst,
-				    up->len, fl->proto, csum   );
+				    up->len, fl->flowi_proto, csum);
 	if (uh->check == 0)
 		uh->check = CSUM_MANGLED_0;
 
@@ -1060,7 +1060,7 @@ do_udp_sendmsg:
 		if (addr_len >= sizeof(struct sockaddr_in6) &&
 		    sin6->sin6_scope_id &&
 		    ipv6_addr_type(daddr)&IPV6_ADDR_LINKLOCAL)
-			fl.oif = sin6->sin6_scope_id;
+			fl.flowi_oif = sin6->sin6_scope_id;
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
@@ -1071,13 +1071,13 @@ do_udp_sendmsg:
 		connected = 1;
 	}
 
-	if (!fl.oif)
-		fl.oif = sk->sk_bound_dev_if;
+	if (!fl.flowi_oif)
+		fl.flowi_oif = sk->sk_bound_dev_if;
 
-	if (!fl.oif)
-		fl.oif = np->sticky_pktinfo.ipi6_ifindex;
+	if (!fl.flowi_oif)
+		fl.flowi_oif = np->sticky_pktinfo.ipi6_ifindex;
 
-	fl.mark = sk->sk_mark;
+	fl.flowi_mark = sk->sk_mark;
 
 	if (msg->msg_controllen) {
 		opt = &opt_space;
@@ -1105,7 +1105,7 @@ do_udp_sendmsg:
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);
 	opt = ipv6_fixup_options(&opt_space, opt);
 
-	fl.proto = sk->sk_protocol;
+	fl.flowi_proto = sk->sk_protocol;
 	if (!ipv6_addr_any(daddr))
 		ipv6_addr_copy(&fl.fl6_dst, daddr);
 	else
@@ -1118,8 +1118,8 @@ do_udp_sendmsg:
 	if (final_p)
 		connected = 0;
 
-	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst)) {
-		fl.oif = np->mcast_oif;
+	if (!fl.flowi_oif && ipv6_addr_is_multicast(&fl.fl6_dst)) {
+		fl.flowi_oif = np->mcast_oif;
 		connected = 0;
 	}
 

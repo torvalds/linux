@@ -239,7 +239,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	memset(&fl, 0, sizeof fl);
 	ipv6_addr_copy(&fl.fl6_dst, &dst_in->sin6_addr);
 	ipv6_addr_copy(&fl.fl6_src, &src_in->sin6_addr);
-	fl.oif = addr->bound_dev_if;
+	fl.flowi_oif = addr->bound_dev_if;
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if ((ret = dst->error))

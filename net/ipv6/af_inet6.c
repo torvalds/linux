@@ -655,12 +655,12 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		struct flowi fl;
 
 		memset(&fl, 0, sizeof(fl));
-		fl.proto = sk->sk_protocol;
+		fl.flowi_proto = sk->sk_protocol;
 		ipv6_addr_copy(&fl.fl6_dst, &np->daddr);
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 		fl.fl6_flowlabel = np->flow_label;
-		fl.oif = sk->sk_bound_dev_if;
-		fl.mark = sk->sk_mark;
+		fl.flowi_oif = sk->sk_bound_dev_if;
+		fl.flowi_mark = sk->sk_mark;
 		fl.fl_ip_dport = inet->inet_dport;
 		fl.fl_ip_sport = inet->inet_sport;
 		security_sk_classify_flow(sk, &fl);

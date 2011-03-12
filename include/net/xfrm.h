@@ -803,7 +803,7 @@ static __inline__
 __be16 xfrm_flowi_sport(const struct flowi *fl)
 {
 	__be16 port;
-	switch(fl->proto) {
+	switch(fl->flowi_proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:
@@ -830,7 +830,7 @@ static __inline__
 __be16 xfrm_flowi_dport(const struct flowi *fl)
 {
 	__be16 port;
-	switch(fl->proto) {
+	switch(fl->flowi_proto) {
 	case IPPROTO_TCP:
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:

@@ -169,7 +169,7 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 			.fl4_dst = iph->daddr,
 			.fl4_src = iph->saddr,
 			.fl4_tos = RT_TOS(iph->tos),
-			.mark = skb->mark,
+			.flowi_mark = skb->mark,
 		};
 
 		rt = ip_route_output_key(net, &fl);

@@ -353,10 +353,12 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 			daddr = icmp_param->replyopts.faddr;
 	}
 	{
-		struct flowi fl = { .fl4_dst= daddr,
-				    .fl4_src = rt->rt_spec_dst,
-				    .fl4_tos = RT_TOS(ip_hdr(skb)->tos),
-				    .proto = IPPROTO_ICMP };
+		struct flowi fl = {
+			.fl4_dst = daddr,
+			.fl4_src = rt->rt_spec_dst,
+			.fl4_tos = RT_TOS(ip_hdr(skb)->tos),
+			.flowi_proto = IPPROTO_ICMP,
+		};
 		security_skb_classify_flow(skb, &fl);
 		rt = ip_route_output_key(net, &fl);
 		if (IS_ERR(rt))
@@ -381,7 +383,7 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 			    param->replyopts.faddr : iph->saddr),
 		.fl4_src = saddr,
 		.fl4_tos = RT_TOS(tos),
-		.proto = IPPROTO_ICMP,
+		.flowi_proto = IPPROTO_ICMP,
 		.fl_icmp_type = type,
 		.fl_icmp_code = code,
 	};

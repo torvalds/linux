@@ -205,7 +205,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 
 	memset(&fl, 0, sizeof(fl));
 
-	fl.proto = sk->sk_protocol;
+	fl.flowi_proto = sk->sk_protocol;
 
 	/* Fill in the dest address from the route entry passed with the skb
 	 * and the source address from the transport.
@@ -216,9 +216,9 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	fl.fl6_flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
 	if (ipv6_addr_type(&fl.fl6_src) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = transport->saddr.v6.sin6_scope_id;
+		fl.flowi_oif = transport->saddr.v6.sin6_scope_id;
 	else
-		fl.oif = sk->sk_bound_dev_if;
+		fl.flowi_oif = sk->sk_bound_dev_if;
 
 	if (np->opt && np->opt->srcrt) {
 		struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
@@ -250,7 +250,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &daddr->v6.sin6_addr);
 	if (ipv6_addr_type(&daddr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = daddr->v6.sin6_scope_id;
+		fl.flowi_oif = daddr->v6.sin6_scope_id;
 
 
 	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl.fl6_dst);

@@ -356,16 +356,18 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct ip_options *opt = inet_rsk(req)->opt;
-	struct flowi fl = { .oif = sk->sk_bound_dev_if,
-			    .mark = sk->sk_mark,
-			    .fl4_dst = ((opt && opt->srr) ?
-					  opt->faddr : ireq->rmt_addr),
-			    .fl4_src = ireq->loc_addr,
-			    .fl4_tos = RT_CONN_FLAGS(sk),
-			    .proto = sk->sk_protocol,
-			    .flags = inet_sk_flowi_flags(sk),
-			    .fl_ip_sport = inet_sk(sk)->inet_sport,
-			    .fl_ip_dport = ireq->rmt_port };
+	struct flowi fl = {
+		.flowi_oif = sk->sk_bound_dev_if,
+		.flowi_mark = sk->sk_mark,
+		.fl4_dst = ((opt && opt->srr) ?
+			    opt->faddr : ireq->rmt_addr),
+		.fl4_src = ireq->loc_addr,
+		.fl4_tos = RT_CONN_FLAGS(sk),
+		.flowi_proto = sk->sk_protocol,
+		.flowi_flags = inet_sk_flowi_flags(sk),
+		.fl_ip_sport = inet_sk(sk)->inet_sport,
+		.fl_ip_dport = ireq->rmt_port,
+	};
 	struct net *net = sock_net(sk);
 
 	security_req_classify_flow(req, &fl);

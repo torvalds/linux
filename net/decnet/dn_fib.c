@@ -223,7 +223,7 @@ static int dn_fib_check_nh(const struct rtmsg *r, struct dn_fib_info *fi, struct
 
 		memset(&fl, 0, sizeof(fl));
 		fl.fld_dst = nh->nh_gw;
-		fl.oif = nh->nh_oif;
+		fl.flowi_oif = nh->nh_oif;
 		fl.fld_scope = r->rtm_scope + 1;
 
 		if (fl.fld_scope < RT_SCOPE_LINK)
@@ -424,7 +424,7 @@ int dn_fib_semantic_match(int type, struct dn_fib_info *fi, const struct flowi *
 				for_nexthops(fi) {
 					if (nh->nh_flags & RTNH_F_DEAD)
 						continue;
-					if (!fl->oif || fl->oif == nh->nh_oif)
+					if (!fl->flowi_oif || fl->flowi_oif == nh->nh_oif)
 						break;
 				}
 				if (nhsel < fi->fib_nhs) {

@@ -92,11 +92,11 @@ try_again:
 	}
 
 	memset(&fl, 0, sizeof(fl));
-	fl.oif = sk->sk_bound_dev_if;
+	fl.flowi_oif = sk->sk_bound_dev_if;
 	fl.fld_src = dn_saddr2dn(&scp->addr);
 	fl.fld_dst = dn_saddr2dn(&scp->peer);
 	dn_sk_ports_copy(&fl, scp);
-	fl.proto = DNPROTO_NSP;
+	fl.flowi_proto = DNPROTO_NSP;
 	if (dn_route_output_sock(&sk->sk_dst_cache, &fl, sk, 0) == 0) {
 		dst = sk_dst_get(sk);
 		sk->sk_route_caps = dst->dev->features;

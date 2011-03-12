@@ -200,9 +200,9 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	int ret;
 	struct net *net;
 
-	fl.oif = 0;
-	fl.iif = oif;
-	fl.mark = mark;
+	fl.flowi_oif = 0;
+	fl.flowi_iif = oif;
+	fl.flowi_mark = mark;
 	fl.fl4_dst = src;
 	fl.fl4_src = dst;
 	fl.fl4_tos = tos;
@@ -215,7 +215,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 		rpf = IN_DEV_RPFILTER(in_dev);
 		accept_local = IN_DEV_ACCEPT_LOCAL(in_dev);
 		if (mark && !IN_DEV_SRC_VMARK(in_dev))
-			fl.mark = 0;
+			fl.flowi_mark = 0;
 	}
 
 	if (in_dev == NULL)
@@ -253,7 +253,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 		goto last_resort;
 	if (rpf == 1)
 		goto e_rpf;
-	fl.oif = dev->ifindex;
+	fl.flowi_oif = dev->ifindex;
 
 	ret = 0;
 	if (fib_lookup(net, &fl, &res) == 0) {
@@ -797,7 +797,7 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 
 	struct fib_result       res;
 	struct flowi            fl = {
-		.mark = frn->fl_mark,
+		.flowi_mark = frn->fl_mark,
 		.fl4_dst = frn->fl_addr,
 		.fl4_tos = frn->fl_tos,
 		.fl4_scope = frn->fl_scope,

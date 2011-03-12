@@ -33,8 +33,8 @@ __xfrm6_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 	sel->family = AF_INET6;
 	sel->prefixlen_d = 128;
 	sel->prefixlen_s = 128;
-	sel->proto = fl->proto;
-	sel->ifindex = fl->oif;
+	sel->proto = fl->flowi_proto;
+	sel->ifindex = fl->flowi_oif;
 }
 
 static void

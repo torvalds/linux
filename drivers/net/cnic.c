@@ -3429,7 +3429,7 @@ static int cnic_get_v6_route(struct sockaddr_in6 *dst_addr,
 	memset(&fl, 0, sizeof(fl));
 	ipv6_addr_copy(&fl.fl6_dst, &dst_addr->sin6_addr);
 	if (ipv6_addr_type(&fl.fl6_dst) & IPV6_ADDR_LINKLOCAL)
-		fl.oif = dst_addr->sin6_scope_id;
+		fl.flowi_oif = dst_addr->sin6_scope_id;
 
 	*dst = ip6_route_output(&init_net, NULL, &fl);
 	if (*dst)

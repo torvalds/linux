@@ -63,8 +63,8 @@ __xfrm4_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 		addr_match(&fl->fl4_src, &sel->saddr, sel->prefixlen_s) &&
 		!((xfrm_flowi_dport(fl) ^ sel->dport) & sel->dport_mask) &&
 		!((xfrm_flowi_sport(fl) ^ sel->sport) & sel->sport_mask) &&
-		(fl->proto == sel->proto || !sel->proto) &&
-		(fl->oif == sel->ifindex || !sel->ifindex);
+		(fl->flowi_proto == sel->proto || !sel->proto) &&
+		(fl->flowi_oif == sel->ifindex || !sel->ifindex);
 }
 
 static inline int
@@ -74,8 +74,8 @@ __xfrm6_selector_match(const struct xfrm_selector *sel, const struct flowi *fl)
 		addr_match(&fl->fl6_src, &sel->saddr, sel->prefixlen_s) &&
 		!((xfrm_flowi_dport(fl) ^ sel->dport) & sel->dport_mask) &&
 		!((xfrm_flowi_sport(fl) ^ sel->sport) & sel->sport_mask) &&
-		(fl->proto == sel->proto || !sel->proto) &&
-		(fl->oif == sel->ifindex || !sel->ifindex);
+		(fl->flowi_proto == sel->proto || !sel->proto) &&
+		(fl->flowi_oif == sel->ifindex || !sel->ifindex);
 }
 
 int xfrm_selector_match(const struct xfrm_selector *sel, const struct flowi *fl,
@@ -876,13 +876,13 @@ static int xfrm_policy_match(const struct xfrm_policy *pol,
 	int match, ret = -ESRCH;
 
 	if (pol->family != family ||
-	    (fl->mark & pol->mark.m) != pol->mark.v ||
+	    (fl->flowi_mark & pol->mark.m) != pol->mark.v ||
 	    pol->type != type)
 		return ret;
 
 	match = xfrm_selector_match(sel, fl, family);
 	if (match)
-		ret = security_xfrm_policy_lookup(pol->security, fl->secid,
+		ret = security_xfrm_policy_lookup(pol->security, fl->flowi_secid,
 						  dir);
 
 	return ret;
@@ -1012,7 +1012,7 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir,
 				goto out;
 			}
 			err = security_xfrm_policy_lookup(pol->security,
-						      fl->secid,
+						      fl->flowi_secid,
 						      policy_to_flow_dir(dir));
 			if (!err)
 				xfrm_pol_hold(pol);
@@ -1848,7 +1848,7 @@ restart:
 
 			return make_blackhole(net, family, dst_orig);
 		}
-		if (fl->flags & FLOWI_FLAG_CAN_SLEEP) {
+		if (fl->flowi_flags & FLOWI_FLAG_CAN_SLEEP) {
 			DECLARE_WAITQUEUE(wait, current);
 
 			add_wait_queue(&net->xfrm.km_waitq, &wait);
@@ -1990,7 +1990,7 @@ int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 		return -EAFNOSUPPORT;
 
 	afinfo->decode_session(skb, fl, reverse);
-	err = security_xfrm_decode_session(skb, &fl->secid);
+	err = security_xfrm_decode_session(skb, &fl->flowi_secid);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }

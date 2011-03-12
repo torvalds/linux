@@ -214,7 +214,7 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	struct timeval stamp;
 	int err = 0;
 
-	if (unlikely(fl->proto == IPPROTO_MH &&
+	if (unlikely(fl->flowi_proto == IPPROTO_MH &&
 		     fl->fl_mh_type <= IP6_MH_TYPE_MAX))
 		goto out;
 
@@ -240,14 +240,14 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	       sizeof(sel.saddr));
 	sel.prefixlen_s = 128;
 	sel.family = AF_INET6;
-	sel.proto = fl->proto;
+	sel.proto = fl->flowi_proto;
 	sel.dport = xfrm_flowi_dport(fl);
 	if (sel.dport)
 		sel.dport_mask = htons(~0);
 	sel.sport = xfrm_flowi_sport(fl);
 	if (sel.sport)
 		sel.sport_mask = htons(~0);
-	sel.ifindex = fl->oif;
+	sel.ifindex = fl->flowi_oif;
 
 	err = km_report(net, IPPROTO_DSTOPTS, &sel,
 			(hao ? (xfrm_address_t *)&hao->addr : NULL));

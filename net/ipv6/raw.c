@@ -588,9 +588,9 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi *fl,
 
 	csum = csum_ipv6_magic(&fl->fl6_src,
 				   &fl->fl6_dst,
-				   total_len, fl->proto, tmp_csum);
+				   total_len, fl->flowi_proto, tmp_csum);
 
-	if (csum == 0 && fl->proto == IPPROTO_UDP)
+	if (csum == 0 && fl->flowi_proto == IPPROTO_UDP)
 		csum = CSUM_MANGLED_0;
 
 	if (skb_store_bits(skb, offset, &csum, 2))
@@ -679,7 +679,7 @@ static int rawv6_probe_proto_opt(struct flowi *fl, struct msghdr *msg)
 		if (!iov)
 			continue;
 
-		switch (fl->proto) {
+		switch (fl->flowi_proto) {
 		case IPPROTO_ICMPV6:
 			/* check if one-byte field is readable or not. */
 			if (iov->iov_base && iov->iov_len < 1)
@@ -758,7 +758,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	 */
 	memset(&fl, 0, sizeof(fl));
 
-	fl.mark = sk->sk_mark;
+	fl.flowi_mark = sk->sk_mark;
 
 	if (sin6) {
 		if (addr_len < SIN6_LEN_RFC2133)
@@ -800,7 +800,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (addr_len >= sizeof(struct sockaddr_in6) &&
 		    sin6->sin6_scope_id &&
 		    ipv6_addr_type(daddr)&IPV6_ADDR_LINKLOCAL)
-			fl.oif = sin6->sin6_scope_id;
+			fl.flowi_oif = sin6->sin6_scope_id;
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
 			return -EDESTADDRREQ;
@@ -810,8 +810,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		fl.fl6_flowlabel = np->flow_label;
 	}
 
-	if (fl.oif == 0)
-		fl.oif = sk->sk_bound_dev_if;
+	if (fl.flowi_oif == 0)
+		fl.flowi_oif = sk->sk_bound_dev_if;
 
 	if (msg->msg_controllen) {
 		opt = &opt_space;
@@ -838,7 +838,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		opt = fl6_merge_options(&opt_space, flowlabel, opt);
 	opt = ipv6_fixup_options(&opt_space, opt);
 
-	fl.proto = proto;
+	fl.flowi_proto = proto;
 	err = rawv6_probe_proto_opt(&fl, msg);
 	if (err)
 		goto out;
@@ -852,8 +852,8 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	final_p = fl6_update_dst(&fl, opt, &final);
 
-	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst))
-		fl.oif = np->mcast_oif;
+	if (!fl.flowi_oif && ipv6_addr_is_multicast(&fl.fl6_dst))
+		fl.flowi_oif = np->mcast_oif;
 	security_sk_classify_flow(sk, &fl);
 
 	dst = ip6_dst_lookup_flow(sk, &fl, final_p, true);
