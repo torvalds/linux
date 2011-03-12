@@ -50,7 +50,12 @@
 #endif
 #include "igb.h"
 
-#define DRV_VERSION "2.4.13-k2"
+#define MAJ 3
+#define MIN 0
+#define BUILD 6
+#define KFIX 2
+#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
+__stringify(BUILD) "-k" __stringify(KFIX)
 char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
