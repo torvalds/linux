@@ -252,8 +252,12 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 {
 	struct kvec iov = {buf, len};
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
-	return kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	r = kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 /*
@@ -264,13 +268,17 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 		     size_t kvlen, size_t len, int more)
 {
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
 	if (more)
 		msg.msg_flags |= MSG_MORE;
 	else
 		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
 
-	return kernel_sendmsg(sock, &msg, iov, kvlen, len);
+	r = kernel_sendmsg(sock, &msg, iov, kvlen, len);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 
@@ -847,6 +855,8 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		    (msg->pages || msg->pagelist || msg->bio || in_trail))
 			kunmap(page);
 
+		if (ret == -EAGAIN)
+			ret = 0;
 		if (ret <= 0)
 			goto out;
 
@@ -1737,16 +1747,12 @@ more_kvec:
 	if (con->out_skip) {
 		ret = write_partial_skip(con);
 		if (ret <= 0)
-			goto done;
-		if (ret < 0) {
-			dout("try_write write_partial_skip err %d\n", ret);
-			goto done;
-		}
+			goto out;
 	}
 	if (con->out_kvec_left) {
 		ret = write_partial_kvec(con);
 		if (ret <= 0)
-			goto done;
+			goto out;
 	}
 
 	/* msg pages? */
@@ -1761,11 +1767,11 @@ more_kvec:
 		if (ret == 1)
 			goto more_kvec;  /* we need to send the footer, too! */
 		if (ret == 0)
-			goto done;
+			goto out;
 		if (ret < 0) {
 			dout("try_write write_partial_msg_pages err %d\n",
 			     ret);
-			goto done;
+			goto out;
 		}
 	}
 
@@ -1789,10 +1795,9 @@ do_next:
 	/* Nothing to do! */
 	clear_bit(WRITE_PENDING, &con->state);
 	dout("try_write nothing else to write.\n");
-done:
 	ret = 0;
 out:
-	dout("try_write done on %p\n", con);
+	dout("try_write done on %p ret %d\n", con, ret);
 	return ret;
 }
 
@@ -1821,19 +1826,17 @@ more:
 			dout("try_read connecting\n");
 			ret = read_partial_banner(con);
 			if (ret <= 0)
-				goto done;
-			if (process_banner(con) < 0) {
-				ret = -1;
 				goto out;
-			}
+			ret = process_banner(con);
+			if (ret < 0)
+				goto out;
 		}
 		ret = read_partial_connect(con);
 		if (ret <= 0)
-			goto done;
-		if (process_connect(con) < 0) {
-			ret = -1;
 			goto out;
-		}
+		ret = process_connect(con);
+		if (ret < 0)
+			goto out;
 		goto more;
 	}
 
@@ -1848,7 +1851,7 @@ more:
 		dout("skipping %d / %d bytes\n", skip, -con->in_base_pos);
 		ret = ceph_tcp_recvmsg(con->sock, buf, skip);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		con->in_base_pos += ret;
 		if (con->in_base_pos)
 			goto more;
@@ -1859,7 +1862,7 @@ more:
 		 */
 		ret = ceph_tcp_recvmsg(con->sock, &con->in_tag, 1);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		dout("try_read got tag %d\n", (int)con->in_tag);
 		switch (con->in_tag) {
 		case CEPH_MSGR_TAG_MSG:
@@ -1870,7 +1873,7 @@ more:
 			break;
 		case CEPH_MSGR_TAG_CLOSE:
 			set_bit(CLOSED, &con->state);   /* fixme */
-			goto done;
+			goto out;
 		default:
 			goto bad_tag;
 		}
@@ -1882,13 +1885,12 @@ more:
 			case -EBADMSG:
 				con->error_msg = "bad crc";
 				ret = -EIO;
-				goto out;
+				break;
 			case -EIO:
 				con->error_msg = "io error";
-				goto out;
-			default:
-				goto done;
+				break;
 			}
+			goto out;
 		}
 		if (con->in_tag == CEPH_MSGR_TAG_READY)
 			goto more;
@@ -1898,15 +1900,13 @@ more:
 	if (con->in_tag == CEPH_MSGR_TAG_ACK) {
 		ret = read_partial_ack(con);
 		if (ret <= 0)
-			goto done;
+			goto out;
 		process_ack(con);
 		goto more;
 	}
 
-done:
-	ret = 0;
 out:
-	dout("try_read done on %p\n", con);
+	dout("try_read done on %p ret %d\n", con, ret);
 	return ret;
 
 bad_tag:

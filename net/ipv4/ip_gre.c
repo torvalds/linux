@@ -775,6 +775,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			.fl4_dst = dst,
 			.fl4_src = tiph->saddr,
 			.fl4_tos = RT_TOS(tos),
+			.proto = IPPROTO_GRE,
 			.fl_gre_key = tunnel->parms.o_key
 		};
 		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
