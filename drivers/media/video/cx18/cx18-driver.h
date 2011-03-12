@@ -409,7 +409,6 @@ struct cx18_open_id {
 	struct v4l2_fh fh;
 	u32 open_id;
 	int type;
-	enum v4l2_priority prio;
 	struct cx18 *cx;
 };
 
@@ -605,7 +604,6 @@ struct cx18 {
 				   uninitialized value in the stream->id. */
 
 	u32 base_addr;
-	struct v4l2_prio_state prio;
 
 	u8 card_rev;
 	void __iomem *enc_mem, *reg_mem;

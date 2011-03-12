@@ -277,10 +277,6 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	int ret;
 	int w, h;
 
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
-
 	ret = cx18_try_fmt_vid_cap(file, fh, fmt);
 	if (ret)
 		return ret;
@@ -306,10 +302,6 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
 	int ret;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	/*
 	 * Changing the Encoder's Raw VBI parameters won't have any effect
@@ -341,10 +333,6 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	struct cx18 *cx = id->cx;
 	int ret;
 	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	cx18_try_fmt_sliced_vbi_cap(file, fh, fmt);
 
@@ -464,22 +452,6 @@ static int cx18_s_register(struct file *file, void *fh,
 }
 #endif
 
-static int cx18_g_priority(struct file *file, void *fh, enum v4l2_priority *p)
-{
-	struct cx18 *cx = file2id(file)->cx;
-
-	*p = v4l2_prio_max(&cx->prio);
-	return 0;
-}
-
-static int cx18_s_priority(struct file *file, void *fh, enum v4l2_priority prio)
-{
-	struct cx18_open_id *id = file2id(file);
-	struct cx18 *cx = id->cx;
-
-	return v4l2_prio_change(&cx->prio, &id->prio, prio);
-}
-
 static int cx18_querycap(struct file *file, void *fh,
 				struct v4l2_capability *vcap)
 {
@@ -548,11 +520,6 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
-	int ret;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -600,11 +567,6 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
-	int ret;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	if (inp >= cx->nof_inputs)
 		return -EINVAL;
@@ -646,11 +608,6 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
-	int ret;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	if (vf->tuner != 0)
 		return -EINVAL;
@@ -674,11 +631,6 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
-	int ret;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	if ((*std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
@@ -715,11 +667,6 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 {
 	struct cx18_open_id *id = fh2id(fh);
 	struct cx18 *cx = id->cx;
-	int ret;
-
-	ret = v4l2_prio_check(&cx->prio, id->prio);
-	if (ret)
-		return ret;
 
 	if (vt->index != 0)
 		return -EINVAL;
@@ -1088,8 +1035,6 @@ long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 
 	mutex_lock(&cx->serialize_lock);
 
-	/* FIXME - consolidate v4l2_prio_check()'s here */
-
 	if (cx18_debug & CX18_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
 	res = video_ioctl2(filp, cmd, arg);
@@ -1100,8 +1045,6 @@ long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_querycap                = cx18_querycap,
-	.vidioc_g_priority              = cx18_g_priority,
-	.vidioc_s_priority              = cx18_s_priority,
 	.vidioc_s_audio                 = cx18_s_audio,
 	.vidioc_g_audio                 = cx18_g_audio,
 	.vidioc_enumaudio               = cx18_enumaudio,

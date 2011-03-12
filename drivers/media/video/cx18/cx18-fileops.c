@@ -683,7 +683,6 @@ int cx18_v4l2_close(struct file *filp)
 
 	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
 
-	v4l2_prio_close(&cx->prio, id->prio);
 	v4l2_fh_del(fh);
 	v4l2_fh_exit(fh);
 
@@ -740,7 +739,6 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 
 	item->cx = cx;
 	item->type = s->type;
-	v4l2_prio_open(&cx->prio, &item->prio);
 
 	item->open_id = cx->open_id++;
 	filp->private_data = &item->fh;
