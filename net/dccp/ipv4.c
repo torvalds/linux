@@ -471,8 +471,8 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 		.saddr = ip_hdr(skb)->daddr,
 		.flowi4_tos = RT_CONN_FLAGS(sk),
 		.flowi4_proto = sk->sk_protocol,
-		.uli.ports.sport = dccp_hdr(skb)->dccph_dport,
-		.uli.ports.dport = dccp_hdr(skb)->dccph_sport,
+		.fl4_sport = dccp_hdr(skb)->dccph_dport,
+		.fl4_dport = dccp_hdr(skb)->dccph_sport,
 	};
 
 	security_skb_classify_flow(skb, flowi4_to_flowi(&fl4));

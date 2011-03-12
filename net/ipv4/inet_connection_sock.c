@@ -365,8 +365,8 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 		.flowi4_tos = RT_CONN_FLAGS(sk),
 		.flowi4_proto = sk->sk_protocol,
 		.flowi4_flags = inet_sk_flowi_flags(sk),
-		.uli.ports.sport = inet_sk(sk)->inet_sport,
-		.uli.ports.dport = ireq->rmt_port,
+		.fl4_sport = inet_sk(sk)->inet_sport,
+		.fl4_dport = ireq->rmt_port,
 	};
 	struct net *net = sock_net(sk);
 

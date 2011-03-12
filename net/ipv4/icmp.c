@@ -384,8 +384,8 @@ static struct rtable *icmp_route_lookup(struct net *net, struct sk_buff *skb_in,
 		.saddr = saddr,
 		.flowi4_tos = RT_TOS(tos),
 		.flowi4_proto = IPPROTO_ICMP,
-		.uli.icmpt.type = type,
-		.uli.icmpt.code = code,
+		.fl4_icmp_type = type,
+		.fl4_icmp_code = code,
 	};
 	struct rtable *rt, *rt2;
 	int err;

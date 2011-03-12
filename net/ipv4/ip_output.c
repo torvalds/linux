@@ -1479,8 +1479,8 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 			.daddr = daddr,
 			.saddr = rt->rt_spec_dst,
 			.flowi4_tos = RT_TOS(ip_hdr(skb)->tos),
-			.uli.ports.sport = tcp_hdr(skb)->dest,
-			.uli.ports.dport = tcp_hdr(skb)->source,
+			.fl4_sport = tcp_hdr(skb)->dest,
+			.fl4_dport = tcp_hdr(skb)->source,
 			.flowi4_proto = sk->sk_protocol,
 			.flowi4_flags = ip_reply_arg_flowi_flags(arg),
 		};

@@ -56,7 +56,7 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		    t->dst.protonum == IPPROTO_UDPLITE ||
 		    t->dst.protonum == IPPROTO_DCCP ||
 		    t->dst.protonum == IPPROTO_SCTP)
-			fl4->uli.ports.dport = t->dst.u.tcp.port;
+			fl4->fl4_dport = t->dst.u.tcp.port;
 	}
 
 	statusbit ^= IPS_NAT_MASK;
@@ -68,7 +68,7 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		    t->dst.protonum == IPPROTO_UDPLITE ||
 		    t->dst.protonum == IPPROTO_DCCP ||
 		    t->dst.protonum == IPPROTO_SCTP)
-			fl4->uli.ports.sport = t->src.u.tcp.port;
+			fl4->fl4_sport = t->src.u.tcp.port;
 	}
 }
 #endif

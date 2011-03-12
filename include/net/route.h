@@ -157,8 +157,8 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct sock 
 		.saddr = saddr,
 		.flowi4_tos = tos,
 		.flowi4_proto = proto,
-		.uli.ports.dport = dport,
-		.uli.ports.sport = sport,
+		.fl4_dport = dport,
+		.fl4_sport = sport,
 	};
 	if (sk)
 		security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
@@ -175,7 +175,7 @@ static inline struct rtable *ip_route_output_gre(struct net *net,
 		.saddr = saddr,
 		.flowi4_tos = tos,
 		.flowi4_proto = IPPROTO_GRE,
-		.uli.gre_key = gre_key,
+		.fl4_gre_key = gre_key,
 	};
 	return ip_route_output_key(net, &fl4);
 }
@@ -235,8 +235,8 @@ static inline struct rtable *ip_route_connect(__be32 dst, __be32 src, u32 tos,
 		.saddr = src,
 		.flowi4_tos = tos,
 		.flowi4_proto = protocol,
-		.uli.ports.sport = sport,
-		.uli.ports.dport = dport,
+		.fl4_sport = sport,
+		.fl4_dport = dport,
 	};
 	struct net *net = sock_net(sk);
 	struct rtable *rt;
@@ -273,8 +273,8 @@ static inline struct rtable *ip_route_newports(struct rtable *rt,
 			.saddr = rt->rt_key_src,
 			.flowi4_tos = rt->rt_tos,
 			.flowi4_proto = protocol,
-			.uli.ports.sport = sport,
-			.uli.ports.dport = dport
+			.fl4_sport = sport,
+			.fl4_dport = dport
 		};
 		if (inet_sk(sk)->transparent)
 			fl4.flowi4_flags |= FLOWI_FLAG_ANYSRC;

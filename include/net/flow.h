@@ -61,6 +61,13 @@ struct flowi4 {
 	__be32			daddr;
 	__be32			saddr;
 	union flowi_uli		uli;
+#define fl4_sport		uli.ports.sport
+#define fl4_dport		uli.ports.dport
+#define fl4_icmp_type		uli.icmpt.type
+#define fl4_icmp_code		uli.icmpt.code
+#define fl4_ipsec_spi		uli.spi
+#define fl4_mh_type		uli.mht.type
+#define fl4_gre_key		uli.gre_key
 };
 
 struct flowi6 {
@@ -101,8 +108,6 @@ struct flowi {
 #define flowi_proto	u.__fl_common.flowic_proto
 #define flowi_flags	u.__fl_common.flowic_flags
 #define flowi_secid	u.__fl_common.flowic_secid
-#define fl4_tos		flowi_tos
-#define fl4_scope	flowi_scope
 #define fld_scope	flowi_scope
 
 #define fld_dst		u.dn.daddr
@@ -110,15 +115,6 @@ struct flowi {
 #define fl6_dst		u.ip6.daddr
 #define fl6_src		u.ip6.saddr
 #define fl6_flowlabel	u.ip6.flowlabel
-#define fl4_dst		u.ip4.daddr
-#define fl4_src		u.ip4.saddr
-#define fl4_sport	u.ip4.uli.ports.sport
-#define fl4_dport	u.ip4.uli.ports.dport
-#define fl4_icmp_type	u.ip4.uli.icmpt.type
-#define fl4_icmp_code	u.ip4.uli.icmpt.code
-#define fl4_ipsec_spi	u.ip4.uli.spi
-#define fl4_mh_type	u.ip4.uli.mht.type
-#define fl4_gre_key	u.ip4.uli.gre_key
 #define fl6_sport	u.ip6.uli.ports.sport
 #define fl6_dport	u.ip6.uli.ports.dport
 #define fl6_icmp_type	u.ip6.uli.icmpt.type

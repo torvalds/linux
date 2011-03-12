@@ -778,7 +778,7 @@ static int udp_push_pending_frames(struct sock *sk)
 	if (!skb)
 		goto out;
 
-	err = udp_send_skb(skb, fl4->daddr, fl4->uli.ports.dport);
+	err = udp_send_skb(skb, fl4->daddr, fl4->fl4_dport);
 
 out:
 	up->len = 0;
@@ -918,8 +918,8 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			.flowi4_proto = sk->sk_protocol,
 			.flowi4_flags = (inet_sk_flowi_flags(sk) |
 					 FLOWI_FLAG_CAN_SLEEP),
-			.uli.ports.sport = inet->inet_sport,
-			.uli.ports.dport = dport,
+			.fl4_sport = inet->inet_sport,
+			.fl4_dport = dport,
 		};
 		struct net *net = sock_net(sk);
 
@@ -976,8 +976,8 @@ back_from_confirm:
 	fl4 = &inet->cork.fl.u.ip4;
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
-	fl4->uli.ports.dport = dport;
-	fl4->uli.ports.sport = inet->inet_sport;
+	fl4->fl4_dport = dport;
+	fl4->fl4_sport = inet->inet_sport;
 	up->pending = AF_INET;
 
 do_append_data:

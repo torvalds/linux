@@ -433,8 +433,8 @@ static int raw_probe_proto_opt(struct flowi4 *fl4, struct msghdr *msg)
 				code = iov->iov_base;
 
 			if (type && code) {
-				if (get_user(fl4->uli.icmpt.type, type) ||
-				    get_user(fl4->uli.icmpt.code, code))
+				if (get_user(fl4->fl4_icmp_type, type) ||
+				    get_user(fl4->fl4_icmp_code, code))
 					return -EFAULT;
 				probed = 1;
 			}
