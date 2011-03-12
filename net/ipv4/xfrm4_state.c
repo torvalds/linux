@@ -25,9 +25,9 @@ __xfrm4_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 {
 	sel->daddr.a4 = fl->fl4_dst;
 	sel->saddr.a4 = fl->fl4_src;
-	sel->dport = xfrm_flowi_dport(fl, &fl->uli_u);
+	sel->dport = xfrm_flowi_dport(fl, &fl->u.ip4.uli);
 	sel->dport_mask = htons(0xffff);
-	sel->sport = xfrm_flowi_sport(fl, &fl->uli_u);
+	sel->sport = xfrm_flowi_sport(fl, &fl->u.ip4.uli);
 	sel->sport_mask = htons(0xffff);
 	sel->family = AF_INET;
 	sel->prefixlen_d = 32;

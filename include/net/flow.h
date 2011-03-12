@@ -48,61 +48,68 @@ union flowi_uli {
 	} mht;
 };
 
-struct flowi {
+struct flowi4 {
 	struct flowi_common	__fl_common;
-#define flowi_oif		__fl_common.flowic_oif
-#define flowi_iif		__fl_common.flowic_iif
-#define flowi_mark		__fl_common.flowic_mark
-#define flowi_tos		__fl_common.flowic_tos
-#define flowi_scope		__fl_common.flowic_scope
-#define flowi_proto		__fl_common.flowic_proto
-#define flowi_flags		__fl_common.flowic_flags
-#define flowi_secid		__fl_common.flowic_secid
+	__be32			daddr;
+	__be32			saddr;
+	union flowi_uli		uli;
+};
 
+struct flowi6 {
+	struct flowi_common	__fl_common;
+	struct in6_addr		daddr;
+	struct in6_addr		saddr;
+	__be32			flowlabel;
+	union flowi_uli		uli;
+};
+
+struct flowidn {
+	struct flowi_common	__fl_common;
+	__le16			daddr;
+	__le16			saddr;
+	union flowi_uli		uli;
+};
+
+struct flowi {
 	union {
-		struct {
-			__be32			daddr;
-			__be32			saddr;
-		} ip4_u;
-		
-		struct {
-			struct in6_addr		daddr;
-			struct in6_addr		saddr;
-			__be32			flowlabel;
-		} ip6_u;
-
-		struct {
-			__le16			daddr;
-			__le16			saddr;
-			__u8			scope;
-		} dn_u;
-	} nl_u;
-#define fld_dst		nl_u.dn_u.daddr
-#define fld_src		nl_u.dn_u.saddr
-#define fld_scope	nl_u.dn_u.scope
-#define fl6_dst		nl_u.ip6_u.daddr
-#define fl6_src		nl_u.ip6_u.saddr
-#define fl6_flowlabel	nl_u.ip6_u.flowlabel
-#define fl4_dst		nl_u.ip4_u.daddr
-#define fl4_src		nl_u.ip4_u.saddr
+		struct flowi_common	__fl_common;
+		struct flowi4		ip4;
+		struct flowi6		ip6;
+		struct flowidn		dn;
+	} u;
+#define flowi_oif	u.__fl_common.flowic_oif
+#define flowi_iif	u.__fl_common.flowic_iif
+#define flowi_mark	u.__fl_common.flowic_mark
+#define flowi_tos	u.__fl_common.flowic_tos
+#define flowi_scope	u.__fl_common.flowic_scope
+#define flowi_proto	u.__fl_common.flowic_proto
+#define flowi_flags	u.__fl_common.flowic_flags
+#define flowi_secid	u.__fl_common.flowic_secid
 #define fl4_tos		flowi_tos
 #define fl4_scope	flowi_scope
+#define fld_scope	flowi_scope
 
-	union flowi_uli uli_u;
-#define fl4_sport	uli_u.ports.sport
-#define fl4_dport	uli_u.ports.dport
-#define fl4_icmp_type	uli_u.icmpt.type
-#define fl4_icmp_code	uli_u.icmpt.code
-#define fl4_ipsec_spi	uli_u.spi
-#define fl4_mh_type	uli_u.mht.type
-#define fl4_gre_key	uli_u.gre_key
-#define fl6_sport	uli_u.ports.sport
-#define fl6_dport	uli_u.ports.dport
-#define fl6_icmp_type	uli_u.icmpt.type
-#define fl6_icmp_code	uli_u.icmpt.code
-#define fl6_ipsec_spi	uli_u.spi
-#define fl6_mh_type	uli_u.mht.type
-#define fl6_gre_key	uli_u.gre_key
+#define fld_dst		u.dn.daddr
+#define fld_src		u.dn.saddr
+#define fl6_dst		u.ip6.daddr
+#define fl6_src		u.ip6.saddr
+#define fl6_flowlabel	u.ip6.flowlabel
+#define fl4_dst		u.ip4.daddr
+#define fl4_src		u.ip4.saddr
+#define fl4_sport	u.ip4.uli.ports.sport
+#define fl4_dport	u.ip4.uli.ports.dport
+#define fl4_icmp_type	u.ip4.uli.icmpt.type
+#define fl4_icmp_code	u.ip4.uli.icmpt.code
+#define fl4_ipsec_spi	u.ip4.uli.spi
+#define fl4_mh_type	u.ip4.uli.mht.type
+#define fl4_gre_key	u.ip4.uli.gre_key
+#define fl6_sport	u.ip6.uli.ports.sport
+#define fl6_dport	u.ip6.uli.ports.dport
+#define fl6_icmp_type	u.ip6.uli.icmpt.type
+#define fl6_icmp_code	u.ip6.uli.icmpt.code
+#define fl6_ipsec_spi	u.ip6.uli.spi
+#define fl6_mh_type	u.ip6.uli.mht.type
+#define fl6_gre_key	u.ip6.uli.gre_key
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 
 #define FLOW_DIR_IN	0
@@ -133,12 +140,5 @@ extern struct flow_cache_object *flow_cache_lookup(
 
 extern void flow_cache_flush(void);
 extern atomic_t flow_cache_genid;
-
-static inline int flow_cache_uli_match(const struct flowi *fl1,
-				       const struct flowi *fl2)
-{
-	return (fl1->flowi_proto == fl2->flowi_proto &&
-		!memcmp(&fl1->uli_u, &fl2->uli_u, sizeof(fl1->uli_u)));
-}
 
 #endif
