@@ -53,7 +53,7 @@ u32 fib_rules_tclass(const struct fib_result *res)
 }
 #endif
 
-int fib_lookup(struct net *net, struct flowi *flp, struct fib_result *res)
+int fib_lookup(struct net *net, struct flowi4 *flp, struct fib_result *res)
 {
 	struct fib_lookup_arg arg = {
 		.result = res,
@@ -61,7 +61,7 @@ int fib_lookup(struct net *net, struct flowi *flp, struct fib_result *res)
 	};
 	int err;
 
-	err = fib_rules_lookup(net->ipv4.rules_ops, flp, 0, &arg);
+	err = fib_rules_lookup(net->ipv4.rules_ops, flowi4_to_flowi(flp), 0, &arg);
 	res->r = arg.rule;
 
 	return err;
@@ -95,7 +95,7 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 	if (!tbl)
 		goto errout;
 
-	err = fib_table_lookup(tbl, flp, (struct fib_result *) arg->result, arg->flags);
+	err = fib_table_lookup(tbl, &flp->u.ip4, (struct fib_result *) arg->result, arg->flags);
 	if (err > 0)
 		err = -EAGAIN;
 errout:

@@ -1341,7 +1341,7 @@ err:
 
 /* should be called with rcu_read_lock */
 static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
-		      t_key key,  const struct flowi *flp,
+		      t_key key,  const struct flowi4 *flp,
 		      struct fib_result *res, int fib_flags)
 {
 	struct leaf_info *li;
@@ -1360,9 +1360,9 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 			struct fib_info *fi = fa->fa_info;
 			int nhsel, err;
 
-			if (fa->fa_tos && fa->fa_tos != flp->fl4_tos)
+			if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
 				continue;
-			if (fa->fa_scope < flp->fl4_scope)
+			if (fa->fa_scope < flp->flowi4_scope)
 				continue;
 			fib_alias_accessed(fa);
 			err = fib_props[fa->fa_type].error;
@@ -1379,7 +1379,7 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 
 				if (nh->nh_flags & RTNH_F_DEAD)
 					continue;
-				if (flp->flowi_oif && flp->flowi_oif != nh->nh_oif)
+				if (flp->flowi4_oif && flp->flowi4_oif != nh->nh_oif)
 					continue;
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -1406,7 +1406,7 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 	return 1;
 }
 
-int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
+int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		     struct fib_result *res, int fib_flags)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
@@ -1414,7 +1414,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
 	struct rt_trie_node *n;
 	struct tnode *pn;
 	unsigned int pos, bits;
-	t_key key = ntohl(flp->fl4_dst);
+	t_key key = ntohl(flp->daddr);
 	unsigned int chopped_off;
 	t_key cindex = 0;
 	unsigned int current_prefix_length = KEYLENGTH;

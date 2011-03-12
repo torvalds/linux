@@ -158,7 +158,7 @@ static inline unsigned __inet_dev_addr_type(struct net *net,
 	if (local_table) {
 		ret = RTN_UNICAST;
 		rcu_read_lock();
-		if (!fib_table_lookup(local_table, &fl, &res, FIB_LOOKUP_NOREF)) {
+		if (!fib_table_lookup(local_table, &fl.u.ip4, &res, FIB_LOOKUP_NOREF)) {
 			if (!dev || dev == res.fi->fib_dev)
 				ret = res.type;
 		}
@@ -222,7 +222,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 		goto e_inval;
 
 	net = dev_net(dev);
-	if (fib_lookup(net, &fl, &res))
+	if (fib_lookup(net, &fl.u.ip4, &res))
 		goto last_resort;
 	if (res.type != RTN_UNICAST) {
 		if (res.type != RTN_LOCAL || !accept_local)
@@ -256,7 +256,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	fl.flowi_oif = dev->ifindex;
 
 	ret = 0;
-	if (fib_lookup(net, &fl, &res) == 0) {
+	if (fib_lookup(net, &fl.u.ip4, &res) == 0) {
 		if (res.type == RTN_UNICAST) {
 			*spec_dst = FIB_RES_PREFSRC(res);
 			ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
@@ -813,7 +813,7 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb)
 
 		frn->tb_id = tb->tb_id;
 		rcu_read_lock();
-		frn->err = fib_table_lookup(tb, &fl, &res, FIB_LOOKUP_NOREF);
+		frn->err = fib_table_lookup(tb, &fl.u.ip4, &res, FIB_LOOKUP_NOREF);
 
 		if (!frn->err) {
 			frn->prefixlen = res.prefixlen;

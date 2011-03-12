@@ -1707,7 +1707,7 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 		};
 
 		rcu_read_lock();
-		if (fib_lookup(dev_net(rt->dst.dev), &fl, &res) == 0)
+		if (fib_lookup(dev_net(rt->dst.dev), &fl.u.ip4, &res) == 0)
 			src = FIB_RES_PREFSRC(res);
 		else
 			src = inet_select_addr(rt->dst.dev, rt->rt_gateway,
@@ -2125,7 +2125,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	fl.fl4_src = saddr;
 	fl.fl4_tos = tos;
 	fl.fl4_scope = RT_SCOPE_UNIVERSE;
-	err = fib_lookup(net, &fl, &res);
+	err = fib_lookup(net, &fl.u.ip4, &res);
 	if (err != 0) {
 		if (!IN_DEV_FORWARD(in_dev))
 			goto e_hostunreach;
@@ -2551,7 +2551,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 		goto make_route;
 	}
 
-	if (fib_lookup(net, &fl, &res)) {
+	if (fib_lookup(net, &fl.u.ip4, &res)) {
 		res.fi = NULL;
 		if (oldflp->flowi_oif) {
 			/* Apparently, routing tables are wrong. Assume,

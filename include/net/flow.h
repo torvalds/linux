@@ -50,6 +50,14 @@ union flowi_uli {
 
 struct flowi4 {
 	struct flowi_common	__fl_common;
+#define flowi4_oif		__fl_common.flowic_oif
+#define flowi4_iif		__fl_common.flowic_iif
+#define flowi4_mark		__fl_common.flowic_mark
+#define flowi4_tos		__fl_common.flowic_tos
+#define flowi4_scope		__fl_common.flowic_scope
+#define flowi4_proto		__fl_common.flowic_proto
+#define flowi4_flags		__fl_common.flowic_flags
+#define flowi4_secid		__fl_common.flowic_secid
 	__be32			daddr;
 	__be32			saddr;
 	union flowi_uli		uli;

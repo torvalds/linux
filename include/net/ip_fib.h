@@ -155,7 +155,7 @@ struct fib_table {
 	unsigned char	tb_data[0];
 };
 
-extern int fib_table_lookup(struct fib_table *tb, const struct flowi *flp,
+extern int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 			    struct fib_result *res, int fib_flags);
 extern int fib_table_insert(struct fib_table *, struct fib_config *);
 extern int fib_table_delete(struct fib_table *, struct fib_config *);
@@ -186,7 +186,7 @@ static inline struct fib_table *fib_new_table(struct net *net, u32 id)
 	return fib_get_table(net, id);
 }
 
-static inline int fib_lookup(struct net *net, const struct flowi *flp,
+static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 			     struct fib_result *res)
 {
 	struct fib_table *table;
@@ -209,7 +209,7 @@ extern void __net_exit fib4_rules_exit(struct net *net);
 extern u32 fib_rules_tclass(const struct fib_result *res);
 #endif
 
-extern int fib_lookup(struct net *n, struct flowi *flp, struct fib_result *res);
+extern int fib_lookup(struct net *n, struct flowi4 *flp, struct fib_result *res);
 
 extern struct fib_table *fib_new_table(struct net *net, u32 id);
 extern struct fib_table *fib_get_table(struct net *net, u32 id);
