@@ -1674,7 +1674,58 @@ void igb_reset(struct igb_adapter *adapter)
 
 	if (hw->mac.ops.init_hw(hw))
 		dev_err(&pdev->dev, "Hardware Error\n");
+	if (hw->mac.type > e1000_82580) {
+		if (adapter->flags & IGB_FLAG_DMAC) {
+			u32 reg;
 
+			/*
+			 * DMA Coalescing high water mark needs to be higher
+			 * than * the * Rx threshold.  The Rx threshold is
+			 * currently * pba - 6, so we * should use a high water
+			 * mark of pba * - 4. */
+			hwm = (pba - 4) << 10;
+
+			reg = (((pba-6) << E1000_DMACR_DMACTHR_SHIFT)
+			       & E1000_DMACR_DMACTHR_MASK);
+
+			/* transition to L0x or L1 if available..*/
+			reg |= (E1000_DMACR_DMAC_EN | E1000_DMACR_DMAC_LX_MASK);
+
+			/* watchdog timer= +-1000 usec in 32usec intervals */
+			reg |= (1000 >> 5);
+			wr32(E1000_DMACR, reg);
+
+			/* no lower threshold to disable coalescing(smart fifb)
+			 * -UTRESH=0*/
+			wr32(E1000_DMCRTRH, 0);
+
+			/* set hwm to PBA -  2 * max frame size */
+			wr32(E1000_FCRTC, hwm);
+
+			/*
+			 * This sets the time to wait before requesting tran-
+			 * sition to * low power state to number of usecs needed
+			 * to receive 1 512 * byte frame at gigabit line rate
+			 */
+			reg = rd32(E1000_DMCTLX);
+			reg |= IGB_DMCTLX_DCFLUSH_DIS;
+
+			/* Delay 255 usec before entering Lx state. */
+			reg |= 0xFF;
+			wr32(E1000_DMCTLX, reg);
+
+			/* free space in Tx packet buffer to wake from DMAC */
+			wr32(E1000_DMCTXTH,
+			     (IGB_MIN_TXPBSIZE -
+			     (IGB_TX_BUF_4096 + adapter->max_frame_size))
+			     >> 6);
+
+			/* make low power state decision controlled by DMAC */
+			reg = rd32(E1000_PCIEMISC);
+			reg |= E1000_PCIEMISC_LX_DECISION;
+			wr32(E1000_PCIEMISC, reg);
+		} /* end if IGB_FLAG_DMAC set */
+	}
 	if (hw->mac.type == e1000_82580) {
 		u32 reg = rd32(E1000_PCIEMISC);
 		wr32(E1000_PCIEMISC,
@@ -2157,6 +2208,9 @@ static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
 			random_ether_addr(mac_addr);
 			igb_set_vf_mac(adapter, i, mac_addr);
 		}
+		/* DMA Coalescing is not supported in IOV mode. */
+		if (adapter->flags & IGB_FLAG_DMAC)
+			adapter->flags &= ~IGB_FLAG_DMAC;
 	}
 #endif /* CONFIG_PCI_IOV */
 }
@@ -2330,6 +2384,9 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	/* Explicitly disable IRQ since the NIC can be in any state. */
 	igb_irq_disable(adapter);
+
+	if (hw->mac.type == e1000_i350)
+		adapter->flags &= ~IGB_FLAG_DMAC;
 
 	set_bit(__IGB_DOWN, &adapter->state);
 	return 0;

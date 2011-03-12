@@ -287,7 +287,34 @@
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
 #define E1000_TCTL_RTLC   0x01000000    /* Re-transmit on late collision */
 
-/* Transmit Arbitration Count */
+/* DMA Coalescing register fields */
+#define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coalescing
+							* Watchdog Timer */
+#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coalescing Receive
+							* Threshold */
+#define E1000_DMACR_DMACTHR_SHIFT       16
+#define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe
+							* transactions */
+#define E1000_DMACR_DMAC_LX_SHIFT       28
+#define E1000_DMACR_DMAC_EN             0x80000000 /* Enable DMA Coalescing */
+
+#define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coalescing Transmit
+							* Threshold */
+
+#define E1000_DMCTLX_TTLX_MASK          0x00000FFF /* Time to LX request */
+
+#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Receive Traffic Rate
+							* Threshold */
+#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rcv packet rate in
+							* current window */
+
+#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rcv Traffic
+							* Current Cnt */
+
+#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* Flow ctrl Rcv Threshold
+							* High val */
+#define E1000_FCRTC_RTH_COAL_SHIFT      4
+#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400

@@ -2009,6 +2009,12 @@ static int igb_set_coalesce(struct net_device *netdev,
 	if ((adapter->flags & IGB_FLAG_QUEUE_PAIRS) && ec->tx_coalesce_usecs)
 		return -EINVAL;
 
+	/* If ITR is disabled, disable DMAC */
+	if (ec->rx_coalesce_usecs == 0) {
+		if (adapter->flags & IGB_FLAG_DMAC)
+			adapter->flags &= ~IGB_FLAG_DMAC;
+	}
+
 	/* convert to rate of irq's per second */
 	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3)
 		adapter->rx_itr_setting = ec->rx_coalesce_usecs;
