@@ -209,7 +209,7 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 			.step = 1,
 #define AUTOGAIN_DEF 1
 			.default_value = AUTOGAIN_DEF,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_UPDATE
 		},
 		.set = sd_setautogain,
 	},
@@ -1008,7 +1008,8 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum = atomic_read(&sd->avg_lum);
 
-	if (avg_lum == -1 || !sd->ctrls[AUTOGAIN].val)
+	if ((gspca_dev->ctrl_dis & (1 << AUTOGAIN)) ||
+	    avg_lum == -1 || !sd->ctrls[AUTOGAIN].val)
 		return;
 
 	if (sd->autogain_ignore_frames > 0) {
@@ -1062,6 +1063,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->bridge = id->driver_info & 0xff;
 
 	gspca_dev->ctrl_dis = sensor_data[sd->sensor].ctrl_dis;
+#if AUTOGAIN_DEF
+	if (!(gspca_dev->ctrl_dis & (1 << AUTOGAIN)))
+		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
+#endif
 
 	cam = &gspca_dev->cam;
 	cam->ctrls = sd->ctrls;
@@ -1399,6 +1404,11 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 			setgain(gspca_dev);
 		}
 	}
+
+	if (sd->ctrls[AUTOGAIN].val)
+		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
+	else
+		gspca_dev->ctrl_inac = 0;
 
 	return 0;
 }
