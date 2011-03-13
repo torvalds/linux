@@ -2354,21 +2354,16 @@ that used it. It was originally scheduled for removal in 2.6.35.
       </orderedlist>
     </section>
     <section>
-      <title>V4L2 in Linux 2.6.38</title>
+      <title>V4L2 in Linux 2.6.39</title>
       <orderedlist>
+        <listitem>
+          <para>The old VIDIOC_*_OLD symbols and V4L1 support were removed.</para>
+        </listitem>
         <listitem>
           <para>Multi-planar API added. Does not affect the compatibility of
           current drivers and applications. See
           <link linkend="planar-apis">multi-planar API</link>
           for details.</para>
-        </listitem>
-      </orderedlist>
-    </section>
-    <section>
-      <title>V4L2 in Linux 2.6.39</title>
-      <orderedlist>
-        <listitem>
-          <para>The old VIDIOC_*_OLD symbols and V4L1 support were removed.</para>
         </listitem>
       </orderedlist>
     </section>

@@ -130,17 +130,8 @@ applications. -->
       <revision>
 	<revnumber>2.6.39</revnumber>
 	<date>2011-03-01</date>
-	<authorinitials>mcc</authorinitials>
-	<revremark>Removed VIDIOC_*_OLD from videodev2.h header and update it to reflect latest changes.
-	</revremark>
-      </revision>
-
-      <revision>
-	<revnumber>2.6.38</revnumber>
-	<date>2011-01-16</date>
-	<authorinitials>po</authorinitials>
-	<revremark>Added the <link linkend="planar-apis">multi-planar API</link>.
-	</revremark>
+	<authorinitials>mcc, po</authorinitials>
+	<revremark>Removed VIDIOC_*_OLD from videodev2.h header and update it to reflect latest changes. Added the <link linkend="planar-apis">multi-planar API</link>.</revremark>
       </revision>
 
       <revision>
