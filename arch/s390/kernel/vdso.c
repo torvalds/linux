@@ -347,7 +347,7 @@ int in_gate_area(struct task_struct *task, unsigned long addr)
 	return 0;
 }
 
-struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
+struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 {
 	return NULL;
 }

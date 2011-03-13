@@ -126,7 +126,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 		return mm;
 	down_read(&mm->mmap_sem);
 
-	tail_vma = get_gate_vma(priv->task);
+	tail_vma = get_gate_vma(priv->task->mm);
 	priv->tail_vma = tail_vma;
 
 	/* Start with last addr hint */
@@ -277,7 +277,8 @@ static int show_map(struct seq_file *m, void *v)
 	show_map_vma(m, vma);
 
 	if (m->count < m->size)  /* vma is copied successfully */
-		m->version = (vma != get_gate_vma(task))? vma->vm_start: 0;
+		m->version = (vma != get_gate_vma(task->mm))
+			? vma->vm_start : 0;
 	return 0;
 }
 
@@ -436,7 +437,8 @@ static int show_smap(struct seq_file *m, void *v)
 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
 
 	if (m->count < m->size)  /* vma is copied successfully */
-		m->version = (vma != get_gate_vma(task)) ? vma->vm_start : 0;
+		m->version = (vma != get_gate_vma(task->mm))
+			? vma->vm_start : 0;
 	return 0;
 }
 
