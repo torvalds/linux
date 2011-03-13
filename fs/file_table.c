@@ -305,6 +305,8 @@ struct file *fget_raw(unsigned int fd)
 	return file;
 }
 
+EXPORT_SYMBOL(fget_raw);
+
 /*
  * Lightweight file lookup - no refcnt increment if fd table isn't shared.
  *
