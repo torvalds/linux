@@ -311,7 +311,7 @@ static void handle_rx(struct vhost_net *net)
 	/* TODO: check that we are running from vhost_worker? */
 	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
 
-	if (!sock || skb_queue_empty(&sock->sk->sk_receive_queue))
+	if (!sock)
 		return;
 
 	mutex_lock(&vq->mutex);
