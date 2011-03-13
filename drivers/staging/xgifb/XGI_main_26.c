@@ -2265,34 +2265,10 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		/* Mapping Max FB Size for 315 Init */
 		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
 		if ((xgifb_mode_idx < 0) || ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
-#ifdef LINUXBIOS
-			printk("XGIfb: XGIInit() ...");
-			/* XGIInitNewt for LINUXBIOS only */
-			if (XGIInitNew(&XGIhw_ext))
-				printk("OK\n");
-			else
-				printk("Fail\n");
-#endif
-
 			outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
 
 		}
 	}
-#ifdef LINUXBIOS
-	else {
-		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
-		if ((xgifb_mode_idx < 0) || ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
-
-			outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
-
-			/* yilin Because no VBIOS DRAM Sizing, Dram size will error. */
-			/* Set SR13 ,14 temporarily for UDtech */
-			outXGIIDXREG(XGISR, 0x13, 0x45);
-			outXGIIDXREG(XGISR, 0x14, 0x51);
-
-		}
-	}
-#endif
 	if (XGIfb_get_dram_size()) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
 		ret = -ENODEV;
@@ -2459,7 +2435,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		XGIfb_detectedpdc = 0;
 
 		XGIfb_detectedlcda = 0xff;
-#ifndef LINUXBIOS
 
 		/* TW: Try to find about LCDA */
 
@@ -2491,8 +2466,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			}
 
 		}
-
-#endif
 
 		if (xgifb_mode_idx >= 0)
 			xgifb_mode_idx = XGIfb_validate_mode(xgifb_mode_idx);

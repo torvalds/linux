@@ -9,8 +9,6 @@
 #include "vb_struct.h"
 #include "vb_def.h"
 
-//#define LINUXBIOS   /* turn this on when compiling for LINUXBIOS */
-
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while(0)
 
 #define VER_MAJOR                 0
