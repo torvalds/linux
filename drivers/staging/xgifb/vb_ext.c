@@ -18,7 +18,7 @@ static unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
 {
 	unsigned short flag;
 
-	flag = XGINew_GetReg1(pVBInfo->Part4Port, 0x01);
+	flag = xgifb_reg_get(pVBInfo->Part4Port, 0x01);
 
 	if (flag > 0x0B0)
 		return 0; /* 301b */
@@ -40,7 +40,7 @@ static unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx, 
 		XGI_LongWait(pVBInfo);
 
 	tempch = (tempcx & 0x7F00) >> 8;
-	temp = XGINew_GetReg1(pVBInfo->Part4Port, 0x03);
+	temp = xgifb_reg_get(pVBInfo->Part4Port, 0x03);
 	temp = temp ^ (0x0E);
 	temp &= tempch;
 
@@ -114,7 +114,7 @@ static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 	unsigned short tempax, tempbx, temp;
 	/* unsigned short return_flag; */
 
-	tempax = XGINew_GetReg1(pVBInfo->P3c4, 0x1A);
+	tempax = xgifb_reg_get(pVBInfo->P3c4, 0x1A);
 	tempbx = tempax & 0x1E;
 
 	if (tempax == 0)
@@ -124,7 +124,7 @@ static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 		if (!(tempax & 0x10)) {
 			if (pVBInfo->IF_DEF_LVDS == 1) {
 				tempbx = 0;
-				temp = XGINew_GetReg1(pVBInfo->P3c4, 0x38);
+				temp = xgifb_reg_get(pVBInfo->P3c4, 0x38);
 				if (temp & 0x40)
 					tempbx |= 0x08;
 				if (temp & 0x20)
@@ -132,7 +132,7 @@ static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 				if (temp & 0x01)
 					tempbx |= 0x01;
 
-				temp = XGINew_GetReg1(pVBInfo->P3c4, 0x39);
+				temp = xgifb_reg_get(pVBInfo->P3c4, 0x39);
 				if (temp & 0x80)
 					tempbx |= 0x04;
 			 } else {
@@ -159,7 +159,7 @@ static unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceEx
 	unsigned short flag;
 
 	if (XGI_BridgeIsOn(pVBInfo) == 0) {
-		flag = XGINew_GetReg1(pVBInfo->Part1Port, 0x0);
+		flag = xgifb_reg_get(pVBInfo->Part1Port, 0x0);
 
 		if (flag & 0x050)
 			return 1;
@@ -188,7 +188,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 		XGI_LongWait(pVBInfo);
 
 	tempch = (tempcx & 0xFF00) >> 8;
-	temp = XGINew_GetReg1(pVBInfo->Part4Port, 0x03);
+	temp = xgifb_reg_get(pVBInfo->Part4Port, 0x03);
 	temp = temp ^ (0x0E);
 	temp &= tempch;
 
@@ -208,7 +208,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 		XGI_LongWait(pVBInfo);
 
 	tempch = (tempcx & 0xFF00) >> 8;
-	temp = XGINew_GetReg1(pVBInfo->Part4Port, 0x03);
+	temp = xgifb_reg_get(pVBInfo->Part4Port, 0x03);
 	temp = temp ^ (0x0E);
 	temp &= tempch;
 
@@ -227,7 +227,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 			XGI_LongWait(pVBInfo);
 
 		tempch = (tempcx & 0xFF00) >> 8;
-		temp = XGINew_GetReg1(pVBInfo->Part4Port, 0x03);
+		temp = xgifb_reg_get(pVBInfo->Part4Port, 0x03);
 		temp = temp ^ (0x0E);
 		temp &= tempch;
 
@@ -245,8 +245,8 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 
 	if (pVBInfo->IF_DEF_LVDS == 1) {
-		tempax = XGINew_GetReg1(pVBInfo->P3c4, 0x1A); /* ynlai 02/27/2002 */
-		tempbx = XGINew_GetReg1(pVBInfo->P3c4, 0x1B);
+		tempax = xgifb_reg_get(pVBInfo->P3c4, 0x1A); /* ynlai 02/27/2002 */
+		tempbx = xgifb_reg_get(pVBInfo->P3c4, 0x1B);
 		tempax = ((tempax & 0xFE) >> 1) | (tempbx << 8);
 		if (tempax == 0x00) { /* Get Panel id from DDC */
 			temp = XGINew_GetLCDDDCInfo(HwDeviceExtension, pVBInfo);
@@ -266,14 +266,14 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, tempbx, temp);
 	} else { /* for 301 */
 		if (pVBInfo->VBInfo & SetCRT2ToHiVisionTV) { /* for HiVision */
-			tempax = XGINew_GetReg1(pVBInfo->P3c4, 0x38);
+			tempax = xgifb_reg_get(pVBInfo->P3c4, 0x38);
 			temp = tempax & 0x01;
-			tempax = XGINew_GetReg1(pVBInfo->P3c4, 0x3A);
+			tempax = xgifb_reg_get(pVBInfo->P3c4, 0x3A);
 			temp = temp | (tempax & 0x02);
 			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, 0xA0, temp);
 		} else {
 			if (XGI_BridgeIsOn(pVBInfo)) {
-				P2reg0 = XGINew_GetReg1(pVBInfo->Part2Port, 0x00);
+				P2reg0 = xgifb_reg_get(pVBInfo->Part2Port, 0x00);
 				if (!XGINew_BridgeIsEnable(HwDeviceExtension, pVBInfo)) {
 					SenseModeNo = 0x2e;
 					/* xgifb_reg_set(pVBInfo->P3d4, 0x30, 0x41); */

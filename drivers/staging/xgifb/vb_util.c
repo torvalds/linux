@@ -15,7 +15,7 @@ void xgifb_reg_set(unsigned long port, unsigned short index,
 	outb(data, port + 1);
 }
 
-unsigned char XGINew_GetReg1(unsigned long port, unsigned short index)
+unsigned char xgifb_reg_get(unsigned long port, unsigned short index)
 {
 	unsigned char data;
 
@@ -29,7 +29,7 @@ void XGINew_SetRegANDOR(unsigned long Port, unsigned short Index,
 {
 	unsigned short temp;
 
-	temp = XGINew_GetReg1(Port, Index); /* XGINew_Part1Port index 02 */
+	temp = xgifb_reg_get(Port, Index); /* XGINew_Part1Port index 02 */
 	temp = (temp & (DataAND)) | DataOR;
 	xgifb_reg_set(Port, Index, temp);
 }
@@ -39,7 +39,7 @@ void XGINew_SetRegAND(unsigned long Port, unsigned short Index,
 {
 	unsigned short temp;
 
-	temp = XGINew_GetReg1(Port, Index); /* XGINew_Part1Port index 02 */
+	temp = xgifb_reg_get(Port, Index); /* XGINew_Part1Port index 02 */
 	temp &= DataAND;
 	xgifb_reg_set(Port, Index, temp);
 }
@@ -49,7 +49,7 @@ void XGINew_SetRegOR(unsigned long Port, unsigned short Index,
 {
 	unsigned short temp;
 
-	temp = XGINew_GetReg1(Port, Index); /* XGINew_Part1Port index 02 */
+	temp = xgifb_reg_get(Port, Index); /* XGINew_Part1Port index 02 */
 	temp |= DataOR;
 	xgifb_reg_set(Port, Index, temp);
 }
