@@ -1457,8 +1457,8 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = pinnacle_hybrid_pro_analog,
 		} },
 	},
-	[EM2882_BOARD_PINNACLE_HYBRID_PRO] = {
-		.name         = "Pinnacle Hybrid Pro (2)",
+	[EM2882_BOARD_PINNACLE_HYBRID_PRO_330E] = {
+		.name         = "Pinnacle Hybrid Pro (330e)",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
@@ -1872,7 +1872,7 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x2304, 0x021a),
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2304, 0x0226),
-			.driver_info = EM2882_BOARD_PINNACLE_HYBRID_PRO },
+			.driver_info = EM2882_BOARD_PINNACLE_HYBRID_PRO_330E },
 	{ USB_DEVICE(0x2304, 0x0227),
 			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
 	{ USB_DEVICE(0x0413, 0x6023),
@@ -2238,7 +2238,6 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
-		/* djh - Not sure which demod we need here */
 		ctl->demod = XC3028_FE_DEFAULT;
 		break;
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
