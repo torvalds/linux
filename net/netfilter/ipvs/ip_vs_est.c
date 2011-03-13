@@ -184,13 +184,14 @@ void ip_vs_kill_estimator(struct net *net, struct ip_vs_stats *stats)
 void ip_vs_zero_estimator(struct ip_vs_stats *stats)
 {
 	struct ip_vs_estimator *est = &stats->est;
+	struct ip_vs_stats_user *u = &stats->ustats;
 
-	/* set counters zero, caller must hold the stats->lock lock */
-	est->last_inbytes = 0;
-	est->last_outbytes = 0;
-	est->last_conns = 0;
-	est->last_inpkts = 0;
-	est->last_outpkts = 0;
+	/* reset counters, caller must hold the stats->lock lock */
+	est->last_inbytes = u->inbytes;
+	est->last_outbytes = u->outbytes;
+	est->last_conns = u->conns;
+	est->last_inpkts = u->inpkts;
+	est->last_outpkts = u->outpkts;
 	est->cps = 0;
 	est->inpps = 0;
 	est->outpps = 0;

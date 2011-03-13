@@ -711,13 +711,51 @@ static void ip_vs_trash_cleanup(struct net *net)
 	}
 }
 
+static void
+ip_vs_copy_stats(struct ip_vs_stats_user *dst, struct ip_vs_stats *src)
+{
+#define IP_VS_SHOW_STATS_COUNTER(c) dst->c = src->ustats.c - src->ustats0.c
+#define IP_VS_SHOW_STATS_RATE(r) dst->r = src->ustats.r
+
+	spin_lock_bh(&src->lock);
+
+	IP_VS_SHOW_STATS_COUNTER(conns);
+	IP_VS_SHOW_STATS_COUNTER(inpkts);
+	IP_VS_SHOW_STATS_COUNTER(outpkts);
+	IP_VS_SHOW_STATS_COUNTER(inbytes);
+	IP_VS_SHOW_STATS_COUNTER(outbytes);
+
+	IP_VS_SHOW_STATS_RATE(cps);
+	IP_VS_SHOW_STATS_RATE(inpps);
+	IP_VS_SHOW_STATS_RATE(outpps);
+	IP_VS_SHOW_STATS_RATE(inbps);
+	IP_VS_SHOW_STATS_RATE(outbps);
+
+	spin_unlock_bh(&src->lock);
+}
 
 static void
 ip_vs_zero_stats(struct ip_vs_stats *stats)
 {
 	spin_lock_bh(&stats->lock);
 
-	memset(&stats->ustats, 0, sizeof(stats->ustats));
+	/* get current counters as zero point, rates are zeroed */
+
+#define IP_VS_ZERO_STATS_COUNTER(c) stats->ustats0.c = stats->ustats.c
+#define IP_VS_ZERO_STATS_RATE(r) stats->ustats.r = 0
+
+	IP_VS_ZERO_STATS_COUNTER(conns);
+	IP_VS_ZERO_STATS_COUNTER(inpkts);
+	IP_VS_ZERO_STATS_COUNTER(outpkts);
+	IP_VS_ZERO_STATS_COUNTER(inbytes);
+	IP_VS_ZERO_STATS_COUNTER(outbytes);
+
+	IP_VS_ZERO_STATS_RATE(cps);
+	IP_VS_ZERO_STATS_RATE(inpps);
+	IP_VS_ZERO_STATS_RATE(outpps);
+	IP_VS_ZERO_STATS_RATE(inbps);
+	IP_VS_ZERO_STATS_RATE(outbps);
+
 	ip_vs_zero_estimator(stats);
 
 	spin_unlock_bh(&stats->lock);
@@ -1963,7 +2001,7 @@ static const struct file_operations ip_vs_info_fops = {
 static int ip_vs_stats_show(struct seq_file *seq, void *v)
 {
 	struct net *net = seq_file_single_net(seq);
-	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats;
+	struct ip_vs_stats_user show;
 
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
@@ -1971,22 +2009,18 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq,
 		   "   Conns  Packets  Packets            Bytes            Bytes\n");
 
-	spin_lock_bh(&tot_stats->lock);
-	seq_printf(seq, "%8X %8X %8X %16LX %16LX\n\n", tot_stats->ustats.conns,
-		   tot_stats->ustats.inpkts, tot_stats->ustats.outpkts,
-		   (unsigned long long) tot_stats->ustats.inbytes,
-		   (unsigned long long) tot_stats->ustats.outbytes);
+	ip_vs_copy_stats(&show, &net_ipvs(net)->tot_stats);
+	seq_printf(seq, "%8X %8X %8X %16LX %16LX\n\n", show.conns,
+		   show.inpkts, show.outpkts,
+		   (unsigned long long) show.inbytes,
+		   (unsigned long long) show.outbytes);
 
 /*                 01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
 		   " Conns/s   Pkts/s   Pkts/s          Bytes/s          Bytes/s\n");
-	seq_printf(seq,"%8X %8X %8X %16X %16X\n",
-			tot_stats->ustats.cps,
-			tot_stats->ustats.inpps,
-			tot_stats->ustats.outpps,
-			tot_stats->ustats.inbps,
-			tot_stats->ustats.outbps);
-	spin_unlock_bh(&tot_stats->lock);
+	seq_printf(seq, "%8X %8X %8X %16X %16X\n",
+			show.cps, show.inpps, show.outpps,
+			show.inbps, show.outbps);
 
 	return 0;
 }
@@ -2296,14 +2330,6 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	return ret;
 }
 
-
-static void
-ip_vs_copy_stats(struct ip_vs_stats_user *dst, struct ip_vs_stats *src)
-{
-	spin_lock_bh(&src->lock);
-	memcpy(dst, &src->ustats, sizeof(*dst));
-	spin_unlock_bh(&src->lock);
-}
 
 static void
 ip_vs_copy_service(struct ip_vs_service_entry *dst, struct ip_vs_service *src)
@@ -2691,31 +2717,29 @@ static const struct nla_policy ip_vs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
 				 struct ip_vs_stats *stats)
 {
+	struct ip_vs_stats_user ustats;
 	struct nlattr *nl_stats = nla_nest_start(skb, container_type);
 	if (!nl_stats)
 		return -EMSGSIZE;
 
-	spin_lock_bh(&stats->lock);
+	ip_vs_copy_stats(&ustats, stats);
 
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CONNS, stats->ustats.conns);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPKTS, stats->ustats.inpkts);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPKTS, stats->ustats.outpkts);
-	NLA_PUT_U64(skb, IPVS_STATS_ATTR_INBYTES, stats->ustats.inbytes);
-	NLA_PUT_U64(skb, IPVS_STATS_ATTR_OUTBYTES, stats->ustats.outbytes);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CPS, stats->ustats.cps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPPS, stats->ustats.inpps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPPS, stats->ustats.outpps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INBPS, stats->ustats.inbps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTBPS, stats->ustats.outbps);
-
-	spin_unlock_bh(&stats->lock);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CONNS, ustats.conns);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPKTS, ustats.inpkts);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPKTS, ustats.outpkts);
+	NLA_PUT_U64(skb, IPVS_STATS_ATTR_INBYTES, ustats.inbytes);
+	NLA_PUT_U64(skb, IPVS_STATS_ATTR_OUTBYTES, ustats.outbytes);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CPS, ustats.cps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPPS, ustats.inpps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPPS, ustats.outpps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INBPS, ustats.inbps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTBPS, ustats.outbps);
 
 	nla_nest_end(skb, nl_stats);
 
 	return 0;
 
 nla_put_failure:
-	spin_unlock_bh(&stats->lock);
 	nla_nest_cancel(skb, nl_stats);
 	return -EMSGSIZE;
 }
