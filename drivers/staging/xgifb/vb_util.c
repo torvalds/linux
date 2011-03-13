@@ -40,15 +40,6 @@ unsigned char XGINew_GetReg1(unsigned long port, unsigned short index)
 	return data;
 }
 
-unsigned char XGINew_GetReg2(unsigned long port)
-{
-	unsigned char data;
-
-	data = inb(port);
-
-	return data;
-}
-
 unsigned long XGINew_GetReg3(unsigned long port)
 {
 	unsigned long data;

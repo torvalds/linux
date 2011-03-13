@@ -321,15 +321,15 @@ static void XGI_SetATTRegs(unsigned short ModeNo, unsigned short StandTableIndex
 			}
 		}
 
-		XGINew_GetReg2(pVBInfo->P3da); /* reset 3da */
+		inb(pVBInfo->P3da); /* reset 3da */
 		XGINew_SetReg3(pVBInfo->P3c0, i); /* set index */
 		XGINew_SetReg3(pVBInfo->P3c0, ARdata); /* set data */
 	}
 
-	XGINew_GetReg2(pVBInfo->P3da); /* reset 3da */
+	inb(pVBInfo->P3da); /* reset 3da */
 	XGINew_SetReg3(pVBInfo->P3c0, 0x14); /* set index */
 	XGINew_SetReg3(pVBInfo->P3c0, 0x00); /* set data */
-	XGINew_GetReg2(pVBInfo->P3da); /* Enable Attribute */
+	inb(pVBInfo->P3da); /* Enable Attribute */
 	XGINew_SetReg3(pVBInfo->P3c0, 0x20);
 }
 
@@ -968,7 +968,7 @@ static void XGI_SetXG21LCD(struct vb_device_info *pVBInfo,
 	XGINew_SetRegAND(pVBInfo->P3c4, 0x35, ~0x80);
 
 	if (ModeNo <= 0x13) {
-		b3CC = (unsigned char) XGINew_GetReg2(XGI_P3cc);
+		b3CC = (unsigned char) inb(XGI_P3cc);
 		if (b3CC & 0x40)
 			XGINew_SetRegOR(pVBInfo->P3c4, 0x30, 0x20); /* Hsync polarity */
 		if (b3CC & 0x80)
@@ -1016,7 +1016,7 @@ static void XGI_SetXG27LCD(struct vb_device_info *pVBInfo,
 	XGINew_SetRegAND(pVBInfo->P3c4, 0x35, ~0x80); /* Vsync polarity */
 
 	if (ModeNo <= 0x13) {
-		b3CC = (unsigned char) XGINew_GetReg2(XGI_P3cc);
+		b3CC = (unsigned char) inb(XGI_P3cc);
 		if (b3CC & 0x40)
 			XGINew_SetRegOR(pVBInfo->P3c4, 0x30, 0x20); /* Hsync polarity */
 		if (b3CC & 0x80)
@@ -1355,7 +1355,7 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 					}
 				}
 			} else { /* for CRT2 */
-				VCLKIndex = (unsigned char) XGINew_GetReg2(
+				VCLKIndex = (unsigned char) inb(
 						(pVBInfo->P3ca + 0x02)); /* Port 3cch */
 				VCLKIndex = ((VCLKIndex >> 2) & 0x03);
 				if (ModeNo > 0x13) {
@@ -3204,7 +3204,7 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 
 	}
 
-	tempal = (unsigned char) XGINew_GetReg2((pVBInfo->P3ca + 0x02));
+	tempal = (unsigned char) inb((pVBInfo->P3ca + 0x02));
 	tempal = tempal >> 2;
 	tempal &= 0x03;
 
@@ -4190,18 +4190,18 @@ void XGI_DisplayOff(struct xgi_hw_device_info *pXGIHWDE,
 
 static void XGI_WaitDisply(struct vb_device_info *pVBInfo)
 {
-	while ((XGINew_GetReg2(pVBInfo->P3da) & 0x01))
+	while ((inb(pVBInfo->P3da) & 0x01))
 		break;
 
-	while (!(XGINew_GetReg2(pVBInfo->P3da) & 0x01))
+	while (!(inb(pVBInfo->P3da) & 0x01))
 		break;
 }
 
 #if 0
 static void XGI_WaitDisplay(struct vb_device_info *pVBInfo)
 {
-	while (!(XGINew_GetReg2(pVBInfo->P3da) & 0x01));
-	while (XGINew_GetReg2(pVBInfo->P3da) & 0x01);
+	while (!(inb(pVBInfo->P3da) & 0x01));
+	while (inb(pVBInfo->P3da) & 0x01);
 }
 #endif
 
@@ -6469,7 +6469,7 @@ static void XGI_SetXG21LVDSPara(unsigned short ModeNo, unsigned short ModeIdInde
 	temp = (unsigned char) ((pVBInfo->XG21_LVDSCapList[lvdstableindex].LVDS_Capability
 					& (LCDPolarity << 8)) >> 8);
 	temp &= LCDPolarity;
-	Miscdata = (unsigned char) XGINew_GetReg2(pVBInfo->P3cc);
+	Miscdata = (unsigned char) inb(pVBInfo->P3cc);
 
 	XGINew_SetReg3(pVBInfo->P3c2, (Miscdata & 0x3F) | temp);
 
@@ -6628,14 +6628,14 @@ static void XGI_SetXG21LVDSPara(unsigned short ModeNo, unsigned short ModeIdInde
 	}
 
 	if (!(modeflag & Charx8Dot)) {
-		XGINew_GetReg2(pVBInfo->P3da); /* reset 3da */
+		inb(pVBInfo->P3da); /* reset 3da */
 		XGINew_SetReg3(pVBInfo->P3c0, 0x13); /* set index */
 		XGINew_SetReg3(pVBInfo->P3c0, 0x00); /* set data, panning = 0, shift left 1 dot*/
 
-		XGINew_GetReg2(pVBInfo->P3da); /* Enable Attribute */
+		inb(pVBInfo->P3da); /* Enable Attribute */
 		XGINew_SetReg3(pVBInfo->P3c0, 0x20);
 
-		XGINew_GetReg2(pVBInfo->P3da); /* reset 3da */
+		inb(pVBInfo->P3da); /* reset 3da */
 	}
 
 }
@@ -6654,7 +6654,7 @@ static void XGI_SetXG27LVDSPara(unsigned short ModeNo, unsigned short ModeIdInde
 	temp = (unsigned char) ((pVBInfo->XG21_LVDSCapList[lvdstableindex].LVDS_Capability
 					& (LCDPolarity << 8)) >> 8);
 	temp &= LCDPolarity;
-	Miscdata = (unsigned char) XGINew_GetReg2(pVBInfo->P3cc);
+	Miscdata = (unsigned char) inb(pVBInfo->P3cc);
 
 	XGINew_SetReg3(pVBInfo->P3c2, (Miscdata & 0x3F) | temp);
 
@@ -6812,14 +6812,14 @@ static void XGI_SetXG27LVDSPara(unsigned short ModeNo, unsigned short ModeIdInde
 	}
 
 	if (!(modeflag & Charx8Dot)) {
-		XGINew_GetReg2(pVBInfo->P3da); /* reset 3da */
+		inb(pVBInfo->P3da); /* reset 3da */
 		XGINew_SetReg3(pVBInfo->P3c0, 0x13); /* set index */
 		XGINew_SetReg3(pVBInfo->P3c0, 0x00); /* set data, panning = 0, shift left 1 dot*/
 
-		XGINew_GetReg2(pVBInfo->P3da); /* Enable Attribute */
+		inb(pVBInfo->P3da); /* Enable Attribute */
 		XGINew_SetReg3(pVBInfo->P3c0, 0x20);
 
-		XGINew_GetReg2(pVBInfo->P3da); /* reset 3da */
+		inb(pVBInfo->P3da); /* reset 3da */
 	}
 
 }
@@ -7716,12 +7716,12 @@ void XGI_LongWait(struct vb_device_info *pVBInfo)
 
 	if (!(i & 0xC0)) {
 		for (i = 0; i < 0xFFFF; i++) {
-			if (!(XGINew_GetReg2(pVBInfo->P3da) & 0x08))
+			if (!(inb(pVBInfo->P3da) & 0x08))
 				break;
 		}
 
 		for (i = 0; i < 0xFFFF; i++) {
-			if ((XGINew_GetReg2(pVBInfo->P3da) & 0x08))
+			if ((inb(pVBInfo->P3da) & 0x08))
 				break;
 		}
 	}
@@ -7735,7 +7735,7 @@ static void XGI_VBLongWait(struct vb_device_info *pVBInfo)
 		temp = 0;
 		for (i = 0; i < 3; i++) {
 			for (j = 0; j < 100; j++) {
-				tempal = XGINew_GetReg2(pVBInfo->P3da);
+				tempal = inb(pVBInfo->P3da);
 				if (temp & 0x01) { /* VBWaitMode2 */
 					if ((tempal & 0x08))
 						continue;
@@ -8013,7 +8013,7 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	mdelay(1);
 
 	XGI_WaitDisply(pVBInfo);
-	temp = XGINew_GetReg2(pVBInfo->P3c2);
+	temp = inb(pVBInfo->P3c2);
 
 	if (temp & 0x10)
 		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, 0xDF, 0x20);
@@ -8230,13 +8230,13 @@ static void XGI_SetCRT1Group(struct xgi_hw_device_info *HwDeviceExtension,
 		if ((ModeNo == 0x00) | (ModeNo == 0x01)) {
 			XGINew_SetReg1(pVBInfo->P3c4, 0x2B, 0x4E);
 			XGINew_SetReg1(pVBInfo->P3c4, 0x2C, 0xE9);
-			b3CC = (unsigned char) XGINew_GetReg2(XGINew_P3cc);
+			b3CC = (unsigned char) inb(XGINew_P3cc);
 			XGINew_SetReg3(XGINew_P3cc, (b3CC |= 0x0C));
 		} else if ((ModeNo == 0x04) | (ModeNo == 0x05) | (ModeNo
 				== 0x0D)) {
 			XGINew_SetReg1(pVBInfo->P3c4, 0x2B, 0x1B);
 			XGINew_SetReg1(pVBInfo->P3c4, 0x2C, 0xE3);
-			b3CC = (unsigned char) XGINew_GetReg2(XGINew_P3cc);
+			b3CC = (unsigned char) inb(XGINew_P3cc);
 			XGINew_SetReg3(XGINew_P3cc, (b3CC |= 0x0C));
 		}
 	}
