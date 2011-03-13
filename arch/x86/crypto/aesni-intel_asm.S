@@ -1612,6 +1612,7 @@ _zero_cipher_left_encrypt:
         movdqa SHUF_MASK(%rip), %xmm10
 	PSHUFB_XMM %xmm10, %xmm0
 
+
 	ENCRYPT_SINGLE_BLOCK	%xmm0, %xmm1        # Encrypt(K, Yn)
 	sub $16, %r11
 	add %r13, %r11
@@ -1634,7 +1635,9 @@ _zero_cipher_left_encrypt:
 	# GHASH computation for the last <16 byte block
 	sub	%r13, %r11
 	add	$16, %r11
-	PSHUFB_XMM %xmm10, %xmm1
+
+	movdqa SHUF_MASK(%rip), %xmm10
+	PSHUFB_XMM %xmm10, %xmm0
 
 	# shuffle xmm0 back to output as ciphertext
 
