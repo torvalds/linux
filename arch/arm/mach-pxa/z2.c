@@ -139,8 +139,7 @@ static unsigned long z2_pin_config[] = {
 	GPIO1_GPIO,		/* Power button */
 	GPIO37_GPIO,		/* Headphone detect */
 	GPIO98_GPIO,		/* Lid switch */
-	GPIO14_GPIO,		/* WiFi Reset */
-	GPIO15_GPIO,		/* WiFi Power */
+	GPIO14_GPIO,		/* WiFi Power */
 	GPIO24_GPIO,		/* WiFi CS */
 	GPIO36_GPIO,		/* WiFi IRQ */
 	GPIO88_GPIO,		/* LCD CS */
@@ -512,26 +511,16 @@ static int z2_lbs_spi_setup(struct spi_device *spi)
 {
 	int ret = 0;
 
-	ret = gpio_request(GPIO15_ZIPITZ2_WIFI_POWER, "WiFi Power");
+	ret = gpio_request(GPIO14_ZIPITZ2_WIFI_POWER, "WiFi Power");
 	if (ret)
 		goto err;
 
-	ret = gpio_direction_output(GPIO15_ZIPITZ2_WIFI_POWER, 1);
+	ret = gpio_direction_output(GPIO14_ZIPITZ2_WIFI_POWER, 1);
 	if (ret)
 		goto err2;
 
-	ret = gpio_request(GPIO14_ZIPITZ2_WIFI_RESET, "WiFi Reset");
-	if (ret)
-		goto err2;
-
-	ret = gpio_direction_output(GPIO14_ZIPITZ2_WIFI_RESET, 0);
-	if (ret)
-		goto err3;
-
-	/* Reset the card */
+	/* Wait until card is powered on */
 	mdelay(180);
-	gpio_set_value(GPIO14_ZIPITZ2_WIFI_RESET, 1);
-	mdelay(20);
 
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_2,
@@ -540,22 +529,18 @@ static int z2_lbs_spi_setup(struct spi_device *spi)
 
 	return 0;
 
-err3:
-	gpio_free(GPIO14_ZIPITZ2_WIFI_RESET);
 err2:
-	gpio_free(GPIO15_ZIPITZ2_WIFI_POWER);
+	gpio_free(GPIO14_ZIPITZ2_WIFI_POWER);
 err:
 	return ret;
 };
 
 static int z2_lbs_spi_teardown(struct spi_device *spi)
 {
-	gpio_set_value(GPIO14_ZIPITZ2_WIFI_RESET, 0);
-	gpio_set_value(GPIO15_ZIPITZ2_WIFI_POWER, 0);
-	gpio_free(GPIO14_ZIPITZ2_WIFI_RESET);
-	gpio_free(GPIO15_ZIPITZ2_WIFI_POWER);
-	return 0;
+	gpio_set_value(GPIO14_ZIPITZ2_WIFI_POWER, 0);
+	gpio_free(GPIO14_ZIPITZ2_WIFI_POWER);
 
+	return 0;
 };
 
 static struct pxa2xx_spi_chip z2_lbs_chip_info = {
