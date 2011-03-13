@@ -35,6 +35,9 @@
 #include "drxd.h"
 #include "drxd_firm.h"
 
+#define DRX_FW_FILENAME_A2 "drxd-a2-1.1.fw"
+#define DRX_FW_FILENAME_B1 "drxd-b1-1.1.fw"
+
 #define CHK_ERROR(s) if( (status = s)<0 ) break
 #define CHUNK_SIZE 48
 
@@ -854,6 +857,26 @@ static int ReadIFAgc(struct drxd_state *state, u32 *pValue)
 	return status;
 }
 
+static int load_firmware(struct drxd_state *state, const char *fw_name)
+{
+	const struct firmware *fw;
+
+	if (request_firmware(&fw, fw_name, state->dev) < 0) {
+		printk(KERN_ERR "drxd: firmware load failure [%s]\n", fw_name);
+		return -EIO;
+	}
+
+	state->microcode = kzalloc(fw->size, GFP_KERNEL);
+	if (state->microcode == NULL) {
+		printk(KERN_ERR "drxd: firmware load failure: nomemory\n");
+		return -ENOMEM;
+	}
+
+	memcpy(state->microcode, fw->data, fw->size);
+	state->microcode_length = fw->size;
+	return 0;
+}
+
 static int DownloadMicrocode(struct drxd_state *state,
 			     const u8 *pMCImage, u32 Length)
 {
@@ -1450,8 +1473,8 @@ static int SetDeviceTypeId(struct drxd_state *state)
 	    state->m_InitCE   = DRXD_InitCEA2;
 	    state->m_InitEQ   = DRXD_InitEQA2;
 	    state->m_InitEC   = DRXD_InitECA2;
-	    state->microcode = DRXD_A2_microcode;
-	    state->microcode_length = DRXD_A2_microcode_length;
+	    if (load_firmware(state, DRX_FW_FILENAME_A2))
+		    return -EIO;
     } else {
 	    state->m_ResetCEFR = NULL;
 	    state->m_InitFE_1 = DRXD_InitFEB1_1;
@@ -1460,8 +1483,8 @@ static int SetDeviceTypeId(struct drxd_state *state)
 	    state->m_InitCE   = DRXD_InitCEB1;
 	    state->m_InitEQ   = DRXD_InitEQB1;
 	    state->m_InitEC   = DRXD_InitECB1;
-	    state->microcode = DRXD_B1_microcode;
-	    state->microcode_length = DRXD_B1_microcode_length;
+	    if (load_firmware(state, DRX_FW_FILENAME_B1))
+		    return -EIO;
     }
     if (state->diversity) {
 	    state->m_InitDiversityFront = DRXD_InitDiversityFront;
