@@ -3711,6 +3711,22 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 	return buf - old_buf;
 }
 
+/**
+ * @access_remote_vm - access another process' address space
+ * @mm:		the mm_struct of the target address space
+ * @addr:	start address to access
+ * @buf:	source or destination buffer
+ * @len:	number of bytes to transfer
+ * @write:	whether the access is a write
+ *
+ * The caller must hold a reference on @mm.
+ */
+int access_remote_vm(struct mm_struct *mm, unsigned long addr,
+		void *buf, int len, int write)
+{
+	return __access_remote_vm(NULL, mm, addr, buf, len, write);
+}
+
 /*
  * Access another process' address space.
  * Source/target buffer must be kernel space,
