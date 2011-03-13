@@ -1305,10 +1305,8 @@ void speakup_deallocate(struct vc_data *vc)
 	int vc_num;
 
 	vc_num = vc->vc_num;
-	if (speakup_console[vc_num] != NULL) {
-		kfree(speakup_console[vc_num]);
-		speakup_console[vc_num] = NULL;
-	}
+	kfree(speakup_console[vc_num]);
+	speakup_console[vc_num] = NULL;
 }
 
 static u_char is_cursor;
