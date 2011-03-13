@@ -342,7 +342,7 @@ int in_gate_area_no_task(unsigned long addr)
 	return 0;
 }
 
-int in_gate_area(struct task_struct *task, unsigned long addr)
+int in_gate_area(struct mm_struct *mm, unsigned long addr)
 {
 	return 0;
 }
