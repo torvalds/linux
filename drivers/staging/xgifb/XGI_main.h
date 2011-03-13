@@ -303,7 +303,6 @@ static u32 pseudo_palette[17];
 static int XGIfb_off = 0;
 static int XGIfb_crt1off = 0;
 static int XGIfb_forcecrt1 = -1;
-static int XGIvga_enabled = 0;
 static int XGIfb_userom = 0;
 //static int XGIfb_useoem = -1;
 

@@ -2163,7 +2163,6 @@ done:
 static int __devinit xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
-	u16 reg16;
 	u8 reg, reg1;
 	u8 CR48, CR38;
 	int ret;
@@ -2180,9 +2179,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	xgi_video_info.chip_id = pdev->device;
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &xgi_video_info.revision_id);
-	pci_read_config_word(pdev, PCI_COMMAND, &reg16);
 	XGIhw_ext.jChipRevision = xgi_video_info.revision_id;
-	XGIvga_enabled = reg16 & 0x01;
 
 	xgi_video_info.pcibus = pdev->bus->number;
 	xgi_video_info.pcislot = PCI_SLOT(pdev->devfn);
@@ -2261,10 +2258,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	}
 	XGIhw_ext.pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
 
-	if (!XGIvga_enabled) {
-		/* Mapping Max FB Size for 315 Init */
-		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
-	}
 	if (XGIfb_get_dram_size()) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
 		ret = -ENODEV;
