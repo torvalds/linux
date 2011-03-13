@@ -276,6 +276,17 @@ config DVB_DRX397XD
 	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
+config DVB_DRXD
+	tristate "Micronas DRXD driver"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
+	  Note: this driver was based on vendor driver reference code (released
+	  under the GPL) as opposed to the existing drx397xd driver, which
+	  was written via reverse engineering.
+
 config DVB_L64781
 	tristate "LSI L64781"
 	depends on DVB_CORE && I2C
