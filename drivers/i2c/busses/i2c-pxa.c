@@ -966,8 +966,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 	struct pxa_i2c *i2c = dev_id;
 	u32 isr = readl(_ISR(i2c));
 
-	isr &= VALID_INT_SOURCE;
-	if (!isr)
+	if (!(isr & VALID_INT_SOURCE))
 		return IRQ_NONE;
 
 	if (i2c_debug > 2 && 0) {
@@ -984,7 +983,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 	/*
 	 * Always clear all pending IRQs.
 	 */
-	writel(isr, _ISR(i2c));
+	writel(isr & VALID_INT_SOURCE, _ISR(i2c));
 
 	if (isr & ISR_SAD)
 		i2c_pxa_slave_start(i2c, isr);
