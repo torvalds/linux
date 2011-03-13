@@ -2662,6 +2662,9 @@ int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 {
 	struct drxd_state *state=fe->demodulator_priv;
 
+	if (state->config.disable_i2c_gate_ctrl == 1)
+		return 0;
+
 	return DRX_ConfigureI2CBridge(state, onoff);
 }
 

@@ -291,6 +291,7 @@ static struct drxd_config em28xx_drxd = {
 	.demoda_address = 0x00, .pll_address = 0x00,
 	.pll_type = DRXD_PLL_NONE, .clock = 12000, .insert_rs_byte = 1,
 	.pll_set = NULL, .osc_deviation = NULL, .IF = 42800000,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 static int mt352_terratec_xs_init(struct dvb_frontend *fe)

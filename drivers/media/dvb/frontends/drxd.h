@@ -44,6 +44,10 @@ struct drxd_config
 	u8 demoda_address;
 	u8 demod_revision;
 
+	/* If the tuner is not behind an i2c gate, be sure to flip this bit
+	   or else the i2c bus could get wedged */
+	u8 disable_i2c_gate_ctrl;
+
 	u32 IF;
 	int (*pll_set)       (void *priv, void *priv_params,
 			      u8 pll_addr, u8 demoda_addr, s32 *off);
