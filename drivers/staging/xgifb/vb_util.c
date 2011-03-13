@@ -6,20 +6,7 @@
 #include <asm/io.h>
 #include <linux/types.h>
 
-void XGINew_SetReg1(unsigned long, unsigned short, unsigned short);
-void XGINew_SetReg2(unsigned long, unsigned short, unsigned short);
-void XGINew_SetReg3(unsigned long, unsigned short);
-void XGINew_SetReg4(unsigned long, unsigned long);
-unsigned char XGINew_GetReg1(unsigned long, unsigned short);
-unsigned char XGINew_GetReg2(unsigned long);
-unsigned long XGINew_GetReg3(unsigned long);
-void XGINew_ClearDAC(unsigned char *);
-void XGINew_SetRegANDOR(unsigned long Port, unsigned short Index,
-		unsigned short DataAND, unsigned short DataOR);
-void XGINew_SetRegOR(unsigned long Port, unsigned short Index,
-		unsigned short DataOR);
-void XGINew_SetRegAND(unsigned long Port, unsigned short Index,
-		unsigned short DataAND);
+#include "vb_util.h"
 
 /* --------------------------------------------------------------------- */
 /* Function : XGINew_SetReg1 */
