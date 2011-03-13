@@ -1098,8 +1098,7 @@ static void qt_close(struct usb_serial_port *port)
 
 	if (qt_port->write_urb) {
 		/* if this urb had a transfer buffer already (old tx) free it */
-		if (qt_port->write_urb->transfer_buffer != NULL)
-			kfree(qt_port->write_urb->transfer_buffer);
+		kfree(qt_port->write_urb->transfer_buffer);
 		usb_free_urb(qt_port->write_urb);
 	}
 
