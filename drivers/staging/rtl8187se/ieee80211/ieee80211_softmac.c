@@ -2605,8 +2605,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	cancel_delayed_work(&ieee->GPIOChangeRFWorkItem);
 
 	destroy_workqueue(ieee->wq);
-	if(NULL != ieee->pDot11dInfo)
-		kfree(ieee->pDot11dInfo);
+	kfree(ieee->pDot11dInfo);
 	up(&ieee->wx_sem);
 }
 
