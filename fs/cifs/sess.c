@@ -404,8 +404,8 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
 		we must set the MIC field of the AUTHENTICATE_MESSAGE */
 	ses->ntlmssp->server_flags = le32_to_cpu(pblob->NegotiateFlags);
-	tioffset = cpu_to_le16(pblob->TargetInfoArray.BufferOffset);
-	tilen = cpu_to_le16(pblob->TargetInfoArray.Length);
+	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
+	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);
 	if (tilen) {
 		ses->auth_key.response = kmalloc(tilen, GFP_KERNEL);
 		if (!ses->auth_key.response) {
