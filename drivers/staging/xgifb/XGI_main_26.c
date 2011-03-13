@@ -2321,7 +2321,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 					for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
 						if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
 								(XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
-							XGINew_SetReg1(XGI_Pr.P3d4, 0x36, m);
+							xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
 						}
 					}
 				}

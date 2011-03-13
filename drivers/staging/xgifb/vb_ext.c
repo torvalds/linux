@@ -31,7 +31,7 @@ static unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx, 
 	unsigned short temp, i, tempch;
 
 	temp = tempbx & 0xFF;
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x11, temp);
+	xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 	temp = (tempbx & 0xFF00) >> 8;
 	temp |= (tempcx & 0x00FF);
 	XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
@@ -143,7 +143,7 @@ static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 
 		tempbx = tempbx >> 1;
 		temp = tempbx & 0x00F;
-		XGINew_SetReg1(pVBInfo->P3d4, 0x36, temp);
+		xgifb_reg_set(pVBInfo->P3d4, 0x36, temp);
 		tempbx--;
 		tempbx = PanelTypeTable[tempbx];
 
@@ -179,7 +179,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 	tempcx = 0x0604;
 
 	temp = tempbx & 0xFF;
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x11, temp);
+	xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 	temp = (tempbx & 0xFF00) >> 8;
 	temp |= (tempcx & 0x00FF);
 	XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
@@ -199,7 +199,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 
 	tempcx = 0x0804;
 	temp = tempbx & 0xFF;
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x11, temp);
+	xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 	temp = (tempbx & 0xFF00) >> 8;
 	temp |= (tempcx & 0x00FF);
 	XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
@@ -218,7 +218,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 		tempbx = 0x3FF;
 		tempcx = 0x0804;
 		temp = tempbx & 0xFF;
-		XGINew_SetReg1(pVBInfo->Part4Port, 0x11, temp);
+		xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 		temp = (tempbx & 0xFF00) >> 8;
 		temp |= (tempcx & 0x00FF);
 		XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
@@ -276,7 +276,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 				P2reg0 = XGINew_GetReg1(pVBInfo->Part2Port, 0x00);
 				if (!XGINew_BridgeIsEnable(HwDeviceExtension, pVBInfo)) {
 					SenseModeNo = 0x2e;
-					/* XGINew_SetReg1(pVBInfo->P3d4, 0x30, 0x41); */
+					/* xgifb_reg_set(pVBInfo->P3d4, 0x30, 0x41); */
 					/* XGISetModeNew(HwDeviceExtension, 0x2e); // ynlai InitMode */
 
 					temp = XGI_SearchModeID(SenseModeNo, &ModeIdIndex, pVBInfo);
@@ -295,7 +295,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 					for (i = 0; i < 20; i++)
 						XGI_LongWait(pVBInfo);
 				}
-				XGINew_SetReg1(pVBInfo->Part2Port, 0x00, 0x1c);
+				xgifb_reg_set(pVBInfo->Part2Port, 0x00, 0x1c);
 				tempax = 0;
 				tempbx = *pVBInfo->pRGBSenseData;
 
@@ -366,7 +366,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 			XGINew_Sense(tempbx, tempcx, pVBInfo);
 
 			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~0xDF, tempax);
-			XGINew_SetReg1(pVBInfo->Part2Port, 0x00, P2reg0);
+			xgifb_reg_set(pVBInfo->Part2Port, 0x00, P2reg0);
 
 			if (!(P2reg0 & 0x20)) {
 				pVBInfo->VBInfo = DisableCRT2Display;

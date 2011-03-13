@@ -8,13 +8,7 @@
 
 #include "vb_util.h"
 
-/* --------------------------------------------------------------------- */
-/* Function : XGINew_SetReg1 */
-/* Input : */
-/* Output : */
-/* Description : SR CRTC GR */
-/* --------------------------------------------------------------------- */
-void XGINew_SetReg1(unsigned long port, unsigned short index,
+void xgifb_reg_set(unsigned long port, unsigned short index,
 		unsigned short data)
 {
 	outb(index, port);
@@ -37,7 +31,7 @@ void XGINew_SetRegANDOR(unsigned long Port, unsigned short Index,
 
 	temp = XGINew_GetReg1(Port, Index); /* XGINew_Part1Port index 02 */
 	temp = (temp & (DataAND)) | DataOR;
-	XGINew_SetReg1(Port, Index, temp);
+	xgifb_reg_set(Port, Index, temp);
 }
 
 void XGINew_SetRegAND(unsigned long Port, unsigned short Index,
@@ -47,7 +41,7 @@ void XGINew_SetRegAND(unsigned long Port, unsigned short Index,
 
 	temp = XGINew_GetReg1(Port, Index); /* XGINew_Part1Port index 02 */
 	temp &= DataAND;
-	XGINew_SetReg1(Port, Index, temp);
+	xgifb_reg_set(Port, Index, temp);
 }
 
 void XGINew_SetRegOR(unsigned long Port, unsigned short Index,
@@ -57,5 +51,5 @@ void XGINew_SetRegOR(unsigned long Port, unsigned short Index,
 
 	temp = XGINew_GetReg1(Port, Index); /* XGINew_Part1Port index 02 */
 	temp |= DataOR;
-	XGINew_SetReg1(Port, Index, temp);
+	xgifb_reg_set(Port, Index, temp);
 }

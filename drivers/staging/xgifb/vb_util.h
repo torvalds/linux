@@ -1,6 +1,6 @@
 #ifndef _VBUTIL_
 #define _VBUTIL_
-extern   void     XGINew_SetReg1(unsigned long, unsigned short, unsigned short);
+extern void xgifb_reg_set(unsigned long, unsigned short, unsigned short);
 extern    unsigned char     XGINew_GetReg1(unsigned long, unsigned short);
 extern   void     XGINew_SetRegOR(unsigned long Port,unsigned short Index,unsigned short DataOR);
 extern   void     XGINew_SetRegAND(unsigned long Port,unsigned short Index,unsigned short DataAND);
