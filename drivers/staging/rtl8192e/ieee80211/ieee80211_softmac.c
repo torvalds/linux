@@ -2818,11 +2818,8 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 {
 	down(&ieee->wx_sem);
 #ifdef ENABLE_DOT11D
-	if(NULL != ieee->pDot11dInfo)
-	{
-		kfree(ieee->pDot11dInfo);
-		ieee->pDot11dInfo = NULL;
-	}
+	kfree(ieee->pDot11dInfo);
+	ieee->pDot11dInfo = NULL;
 #endif
 	del_timer_sync(&ieee->associate_timer);
 
