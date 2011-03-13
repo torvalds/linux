@@ -38,6 +38,7 @@
 #include "tda1002x.h"
 #include "tda18271.h"
 #include "s921.h"
+#include "drxd.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -285,12 +286,12 @@ static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
 	.if2 = 45600,
 };
 
-#ifdef EM28XX_DRX397XD_SUPPORT
-/* [TODO] djh - not sure yet what the device config needs to contain */
-static struct drx397xD_config em28xx_drx397xD_with_xc3028 = {
-	.demod_address = (0xe0 >> 1),
+static struct drxd_config em28xx_drxd = {
+	.index = 0, .demod_address = 0x70, .demod_revision = 0xa2,
+	.demoda_address = 0x00, .pll_address = 0x00,
+	.pll_type = DRXD_PLL_NONE, .clock = 12000, .insert_rs_byte = 1,
+	.pll_set = NULL, .osc_deviation = NULL, .IF = 42800000,
 };
-#endif
 
 static int mt352_terratec_xs_init(struct dvb_frontend *fe)
 {
@@ -588,18 +589,13 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
-#ifdef EM28XX_DRX397XD_SUPPORT
-		/* We don't have the config structure properly populated, so
-		   this is commented out for now */
-		dvb->frontend = dvb_attach(drx397xD_attach,
-					   &em28xx_drx397xD_with_xc3028,
-					   &dev->i2c_adap);
+		dvb->frontend = dvb_attach(drxd_attach, &em28xx_drxd, NULL,
+					   &dev->i2c_adap, &dev->udev->dev);
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
 		}
 		break;
-#endif
 	case EM2870_BOARD_REDDO_DVB_C_USB_BOX:
 		/* Philips CU1216L NIM (Philips TDA10023 + Infineon TUA6034) */
 		dvb->frontend = dvb_attach(tda10023_attach,
