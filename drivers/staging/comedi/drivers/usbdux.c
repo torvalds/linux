@@ -2265,12 +2265,8 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 			usbduxsub_unlink_OutURBs(usbduxsub_tmp);
 		}
 		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
-			if (usbduxsub_tmp->urbOut[i]->transfer_buffer) {
-				kfree(usbduxsub_tmp->
-				      urbOut[i]->transfer_buffer);
-				usbduxsub_tmp->urbOut[i]->transfer_buffer =
-				    NULL;
-			}
+			kfree(usbduxsub_tmp->urbOut[i]->transfer_buffer);
+			usbduxsub_tmp->urbOut[i]->transfer_buffer = NULL;
 			if (usbduxsub_tmp->urbOut[i]) {
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
 				usb_free_urb(usbduxsub_tmp->urbOut[i]);

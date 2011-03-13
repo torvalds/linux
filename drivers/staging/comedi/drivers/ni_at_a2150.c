@@ -479,8 +479,7 @@ static int a2150_detach(struct comedi_device *dev)
 	if (devpriv) {
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
-		if (devpriv->dma_buffer)
-			kfree(devpriv->dma_buffer);
+		kfree(devpriv->dma_buffer);
 	}
 
 	return 0;
