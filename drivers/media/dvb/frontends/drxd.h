@@ -38,6 +38,7 @@ struct drxd_config
 #define DRXD_PLL_MT3X0823 2
 
 	u32 clock;
+	u8 insert_rs_byte;
 
 	u8 demod_address;
 	u8 demoda_address;

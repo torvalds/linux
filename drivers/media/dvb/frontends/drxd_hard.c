@@ -2449,7 +2449,7 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	state->tuner_mirrors=0;
 
 	/* modify MPEG output attributes */
-	state->insert_rs_byte = 0;
+	state->insert_rs_byte = state->config.insert_rs_byte;
 	state->enable_parallel = (ulSerialMode != 1);
 
 	/* Timing div, 250ns/Psys */
