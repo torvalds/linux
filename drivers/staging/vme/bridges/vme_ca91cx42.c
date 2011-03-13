@@ -516,8 +516,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	if (existing_size != 0) {
 		iounmap(image->kern_base);
 		image->kern_base = NULL;
-		if (image->bus_resource.name != NULL)
-			kfree(image->bus_resource.name);
+		kfree(image->bus_resource.name);
 		release_resource(&image->bus_resource);
 		memset(&image->bus_resource, 0, sizeof(struct resource));
 	}
