@@ -5641,6 +5641,10 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 		unsigned char *ularray;
 
 		ularray = kmalloc(bus->ramsize, GFP_ATOMIC);
+		if (!ularray) {
+			bcmerror = BCME_NOMEM;
+			goto err;
+		}
 		/* Upload image to verify downloaded contents. */
 		offset = 0;
 		memset(ularray, 0xaa, bus->ramsize);
@@ -5652,7 +5656,7 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 				DHD_ERROR(("%s: error %d on reading %d membytes"
 					" at 0x%08x\n",
 					__func__, bcmerror, MEMBLOCK, offset));
-				goto err;
+				goto free;
 			}
 
 			offset += MEMBLOCK;
@@ -5666,7 +5670,7 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 				DHD_ERROR(("%s: error %d on reading %d membytes at 0x%08x\n",
 				__func__, bcmerror,
 				sizeof(dlarray) - offset, offset));
-				goto err;
+				goto free;
 			}
 		}
 
@@ -5674,11 +5678,11 @@ static int dhdsdio_download_code_array(struct dhd_bus *bus)
 			DHD_ERROR(("%s: Downloaded image is corrupted.\n",
 				   __func__));
 			ASSERT(0);
-			goto err;
+			goto free;
 		} else
 			DHD_ERROR(("%s: Download/Upload/Compare succeeded.\n",
 				__func__));
-
+free:
 		kfree(ularray);
 	}
 #endif				/* DHD_DEBUG */
