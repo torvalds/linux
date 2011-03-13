@@ -828,8 +828,7 @@ out_err:
 	free_chirp_list(&pchnl->io_requests);
 	free_chirp_list(&pchnl->free_packets_list);
 
-	if (sync_event)
-		kfree(sync_event);
+	kfree(sync_event);
 
 	if (pchnl->ntfy_obj) {
 		ntfy_delete(pchnl->ntfy_obj);

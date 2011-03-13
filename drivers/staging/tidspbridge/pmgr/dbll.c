@@ -272,8 +272,7 @@ void dbll_delete(struct dbll_tar_obj *target)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_target);
 
-	if (zl_target != NULL)
-		kfree(zl_target);
+	kfree(zl_target);
 
 }
 
