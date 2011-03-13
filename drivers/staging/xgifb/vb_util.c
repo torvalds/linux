@@ -21,11 +21,6 @@ void XGINew_SetReg1(unsigned long port, unsigned short index,
 	outb(data, port + 1);
 }
 
-void XGINew_SetReg3(unsigned long port, unsigned short data)
-{
-	outb(data, port);
-}
-
 void XGINew_SetReg4(unsigned long port, unsigned long data)
 {
 	outl(data, port);

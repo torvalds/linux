@@ -1313,7 +1313,7 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	}
 	printk("2");
 
-	XGINew_SetReg3((pVBInfo->BaseAddr + 0x12), 0x67); /* 3c2 <- 67 ,ynlai */
+	outb(0x67, (pVBInfo->BaseAddr + 0x12)); /* 3c2 <- 67 ,ynlai */
 
 	pVBInfo->ISXPDOS = 0;
 	printk("3");
