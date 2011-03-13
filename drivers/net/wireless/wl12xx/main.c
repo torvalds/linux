@@ -3132,7 +3132,8 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 
 #ifdef CONFIG_WL12XX_HT
 #define WL12XX_HT_CAP { \
-	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20, \
+	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | \
+	       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT), \
 	.ht_supported = true, \
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K, \
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8, \
