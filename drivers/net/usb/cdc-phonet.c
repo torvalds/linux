@@ -392,7 +392,6 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	pnd = netdev_priv(dev);
 	SET_NETDEV_DEV(dev, &intf->dev);
-	netif_stop_queue(dev);
 
 	pnd->dev = dev;
 	pnd->usb = usb_get_dev(usbdev);
