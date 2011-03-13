@@ -309,12 +309,12 @@ struct gpio_led z2_gpio_leds[] = {
 	.active_low		= 1,
 }, {
 	.name			= "z2:green:charged",
-	.default_trigger	= "none",
+	.default_trigger	= "mmc0",
 	.gpio			= GPIO85_ZIPITZ2_LED_CHARGED,
 	.active_low		= 1,
 }, {
 	.name			= "z2:amber:charging",
-	.default_trigger	= "none",
+	.default_trigger	= "Z2-charging-or-full",
 	.gpio			= GPIO83_ZIPITZ2_LED_CHARGING,
 	.active_low		= 1,
 },
