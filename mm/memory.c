@@ -3505,7 +3505,7 @@ struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 #endif
 }
 
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 #ifdef AT_SYSINFO_EHDR
 	if ((addr >= FIXADDR_USER_START) && (addr < FIXADDR_USER_END))

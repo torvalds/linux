@@ -337,7 +337,7 @@ static int __init vdso_init(void)
 }
 arch_initcall(vdso_init);
 
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return 0;
 }

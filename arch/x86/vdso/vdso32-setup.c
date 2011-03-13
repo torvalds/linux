@@ -435,7 +435,7 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 	return vma && addr >= vma->vm_start && addr < vma->vm_end;
 }
 
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return 0;
 }

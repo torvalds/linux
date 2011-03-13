@@ -881,11 +881,11 @@ int in_gate_area(struct mm_struct *mm, unsigned long addr)
 }
 
 /*
- * Use this when you have no reliable task/vma, typically from interrupt
- * context. It is less reliable than using the task's vma and may give
- * false positives:
+ * Use this when you have no reliable mm, typically from interrupt
+ * context. It is less reliable than using a task's mm and may give
+ * false positives.
  */
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return (addr >= VSYSCALL_START) && (addr < VSYSCALL_END);
 }

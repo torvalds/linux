@@ -104,7 +104,7 @@ int in_gate_area(struct mm_struct *mm, unsigned long address)
 	return 0;
 }
 
-int in_gate_area_no_task(unsigned long address)
+int in_gate_area_no_mm(unsigned long address)
 {
 	return 0;
 }

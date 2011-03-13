@@ -1963,7 +1963,7 @@ error:
 	return -ENOMEM;
 }
 
-int in_gate_area_no_task(unsigned long addr)
+int in_gate_area_no_mm(unsigned long addr)
 {
 	return 0;
 }
