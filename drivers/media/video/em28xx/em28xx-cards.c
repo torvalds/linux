@@ -1463,6 +1463,8 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
+		.has_dvb      = 1,
+		.dvb_gpio     = hauppauge_wintv_hvr_900R2_digital,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -2238,6 +2240,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
 		ctl->demod = XC3028_FE_DEFAULT;
 		break;
 	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:

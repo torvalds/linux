@@ -590,6 +590,7 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
+	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
 		dvb->frontend = dvb_attach(drxd_attach, &em28xx_drxd, NULL,
 					   &dev->i2c_adap, &dev->udev->dev);
 		if (attach_xc3028(0x61, dev) < 0) {
