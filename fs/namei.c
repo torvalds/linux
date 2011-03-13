@@ -785,15 +785,10 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
  * Without that kind of total limit, nasty chains of consecutive
  * symlinks can cause almost arbitrarily long lookups. 
  */
-static inline int do_follow_link(struct inode *inode, struct path *path, struct nameidata *nd)
+static inline int do_follow_link(struct path *path, struct nameidata *nd)
 {
 	void *cookie;
 	int err = -ELOOP;
-
-	/* We drop rcu-walk here */
-	if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
-		return -ECHILD;
-	BUG_ON(inode != path->dentry->d_inode);
 
 	if (current->link_count >= MAX_NESTED_LINKS)
 		goto loop;
@@ -1337,6 +1332,39 @@ static void terminate_walk(struct nameidata *nd)
 	}
 }
 
+static inline int walk_component(struct nameidata *nd, struct path *path,
+		struct qstr *name, int type, int follow)
+{
+	struct inode *inode;
+	int err;
+	/*
+	 * "." and ".." are special - ".." especially so because it has
+	 * to be able to know about the current root directory and
+	 * parent relationships.
+	 */
+	if (unlikely(type != LAST_NORM))
+		return handle_dots(nd, type);
+	err = do_lookup(nd, name, path, &inode);
+	if (unlikely(err)) {
+		terminate_walk(nd);
+		return err;
+	}
+	if (!inode) {
+		path_to_nameidata(path, nd);
+		terminate_walk(nd);
+		return -ENOENT;
+	}
+	if (unlikely(inode->i_op->follow_link) && follow) {
+		if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
+			return -ECHILD;
+		BUG_ON(inode != path->dentry->d_inode);
+		return 1;
+	}
+	path_to_nameidata(path, nd);
+	nd->inode = inode;
+	return 0;
+}
+
 /*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
@@ -1361,7 +1389,6 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
-		struct inode *inode;
 		unsigned long hash;
 		struct qstr this;
 		unsigned int c;
@@ -1414,34 +1441,16 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		if (!*name)
 			goto last_with_slashes;
 
-		/*
-		 * "." and ".." are special - ".." especially so because it has
-		 * to be able to know about the current root directory and
-		 * parent relationships.
-		 */
-		if (unlikely(type != LAST_NORM)) {
-			if (handle_dots(nd, type))
-				return -ECHILD;
-			continue;
-		}
+		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
+		if (err < 0)
+			return err;
 
-		/* This does the actual lookups.. */
-		err = do_lookup(nd, &this, &next, &inode);
-		if (err)
-			break;
-
-		if (inode && inode->i_op->follow_link) {
-			err = do_follow_link(inode, &next, nd);
+		if (err) {
+			err = do_follow_link(&next, nd);
 			if (err)
 				return err;
 			nd->inode = nd->path.dentry->d_inode;
-		} else {
-			path_to_nameidata(&next, nd);
-			nd->inode = inode;
 		}
-		err = -ENOENT;
-		if (!nd->inode)
-			break;
 		err = -ENOTDIR; 
 		if (!nd->inode->i_op->lookup)
 			break;
@@ -1453,35 +1462,26 @@ last_with_slashes:
 last_component:
 		/* Clear LOOKUP_CONTINUE iff it was previously unset */
 		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
-		if (lookup_flags & LOOKUP_PARENT)
-			goto lookup_parent;
-		if (unlikely(type != LAST_NORM))
-			return handle_dots(nd, type);
-		err = do_lookup(nd, &this, &next, &inode);
-		if (err)
-			break;
-		if (inode && unlikely(inode->i_op->follow_link) &&
-		    (lookup_flags & LOOKUP_FOLLOW)) {
-			err = do_follow_link(inode, &next, nd);
+		if (lookup_flags & LOOKUP_PARENT) {
+			nd->last = this;
+			nd->last_type = type;
+			return 0;
+		}
+		err = walk_component(nd, &next, &this, type,
+					lookup_flags & LOOKUP_FOLLOW);
+		if (err < 0)
+			return err;
+		if (err) {
+			err = do_follow_link(&next, nd);
 			if (err)
 				return err;
 			nd->inode = nd->path.dentry->d_inode;
-		} else {
-			path_to_nameidata(&next, nd);
-			nd->inode = inode;
 		}
-		err = -ENOENT;
-		if (!nd->inode)
-			break;
 		if (lookup_flags & LOOKUP_DIRECTORY) {
 			err = -ENOTDIR; 
 			if (!nd->inode->i_op->lookup)
 				break;
 		}
-		return 0;
-lookup_parent:
-		nd->last = this;
-		nd->last_type = type;
 		return 0;
 	}
 	terminate_walk(nd);
@@ -2068,7 +2068,6 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	int want_write = 0;
 	int acc_mode = op->acc_mode;
 	struct file *filp;
-	struct inode *inode;
 	int error;
 
 	nd->flags &= ~LOOKUP_PARENT;
@@ -2111,24 +2110,12 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (open_flag & O_PATH && !(nd->flags & LOOKUP_FOLLOW))
 			symlink_ok = 1;
 		/* we _can_ be in RCU mode here */
-		error = do_lookup(nd, &nd->last, path, &inode);
-		if (error) {
-			terminate_walk(nd);
+		error = walk_component(nd, path, &nd->last, LAST_NORM,
+					!symlink_ok);
+		if (error < 0)
 			return ERR_PTR(error);
-		}
-		if (!inode) {
-			path_to_nameidata(path, nd);
-			terminate_walk(nd);
-			return ERR_PTR(-ENOENT);
-		}
-		if (unlikely(inode->i_op->follow_link && !symlink_ok)) {
-			/* We drop rcu-walk here */
-			if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
-				return ERR_PTR(-ECHILD);
+		if (error) /* symlink */
 			return NULL;
-		}
-		path_to_nameidata(path, nd);
-		nd->inode = inode;
 		/* sayonara */
 		if (nd->flags & LOOKUP_RCU) {
 			if (nameidata_drop_rcu_last(nd))
@@ -2137,7 +2124,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 		error = -ENOTDIR;
 		if (nd->flags & LOOKUP_DIRECTORY) {
-			if (!inode->i_op->lookup)
+			if (!nd->inode->i_op->lookup)
 				goto exit;
 		}
 		audit_inode(pathname, nd->path.dentry);
