@@ -1,9 +1,9 @@
 /*
  *		sonix sn9c102 (bayer) library
- *		Copyright (C) 2003 2004 Michel Xhaard mxhaard@magic.fr
- * Add Pas106 Stefano Mozzi (C) 2004
  *
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2009-2011 Jean-François Moine <http://moinejf.free.fr>
+ * Copyright (C) 2003 2004 Michel Xhaard mxhaard@magic.fr
+ * Add Pas106 Stefano Mozzi (C) 2004
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ all:
 #include <linux/input.h>
 #include "gspca.h"
 
-MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
+MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA/SN9C102 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -531,7 +531,7 @@ static const __u8 tas5130_sensor_init[][8] = {
 	{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10},
 };
 
-static struct sensor_data sensor_data[] = {
+static const struct sensor_data sensor_data[] = {
 SENS(initHv7131d, hv7131d_sensor_init, F_GAIN, NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initHv7131r, hv7131r_sensor_init, 0, NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, ov6650_sensor_init, F_GAIN|F_SIF, 0, 0x60),
