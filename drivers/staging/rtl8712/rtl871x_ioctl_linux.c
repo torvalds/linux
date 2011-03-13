@@ -1873,8 +1873,7 @@ static int r871x_mp_ioctl_hdl(struct net_device *dev,
 		goto _r871x_mp_ioctl_hdl_exit;
 	}
 _r871x_mp_ioctl_hdl_exit:
-	if (pparmbuf != NULL)
-		kfree(pparmbuf);
+	kfree(pparmbuf);
 	return ret;
 }
 
