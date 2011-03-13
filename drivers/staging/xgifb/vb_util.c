@@ -21,22 +21,6 @@ void XGINew_SetReg1(unsigned long port, unsigned short index,
 	outb(data, port + 1);
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGINew_SetReg2 */
-/* Input : */
-/* Output : */
-/* Description : AR( 3C0 ) */
-/* --------------------------------------------------------------------- */
-/*
-void XGINew_SetReg2(unsigned long port, unsigned short index, unsigned short data)
-{
-	InPortByte((P unsigned char)port + 0x3da - 0x3c0) ;
-	OutPortByte(XGINew_P3c0, index);
-	OutPortByte(XGINew_P3c0, data);
-	OutPortByte(XGINew_P3c0, 0x20);
-}
-*/
-
 void XGINew_SetReg3(unsigned long port, unsigned short data)
 {
 	outb(data, port);
@@ -103,21 +87,3 @@ void XGINew_SetRegOR(unsigned long Port, unsigned short Index,
 	temp |= DataOR;
 	XGINew_SetReg1(Port, Index, temp);
 }
-
-#if 0
-void NewDelaySeconds(int seconds)
-{
-	int i;
-
-	for (i = 0; i < seconds; i++) {
-
-	}
-}
-
-void Newdebugcode(unsigned char code)
-{
-	/* OutPortByte(0x80, code); */
-	/* OutPortByte(0x300, code); */
-	/* NewDelaySeconds(0x3); */
-}
-#endif

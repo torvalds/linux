@@ -1,7 +1,5 @@
 #ifndef _VBUTIL_
 #define _VBUTIL_
-extern   void     NewDelaySeconds( int );
-extern   void     Newdebugcode(unsigned char);
 extern   void     XGINew_SetReg1(unsigned long, unsigned short, unsigned short);
 extern   void     XGINew_SetReg3(unsigned long, unsigned short);
 extern    unsigned char     XGINew_GetReg1(unsigned long, unsigned short);
