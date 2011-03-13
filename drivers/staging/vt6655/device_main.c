@@ -3064,8 +3064,7 @@ else {
 }
 
 error1:
-  if(buffer)
-  	 kfree(buffer);
+  kfree(buffer);
 
   if(filp_close(filp,NULL))
        printk("Config_FileOperation:close file fail\n");
