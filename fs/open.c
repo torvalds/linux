@@ -573,13 +573,15 @@ SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
 {
 	struct path path;
 	int error = -EINVAL;
-	int follow;
+	int lookup_flags;
 
-	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
 		goto out;
 
-	follow = (flag & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
-	error = user_path_at(dfd, filename, follow, &path);
+	lookup_flags = (flag & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	if (flag & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+	error = user_path_at(dfd, filename, lookup_flags, &path);
 	if (error)
 		goto out;
 	error = mnt_want_write(path.mnt);
