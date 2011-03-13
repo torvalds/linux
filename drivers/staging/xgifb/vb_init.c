@@ -71,7 +71,7 @@ static unsigned char XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceE
 	} else if (HwDeviceExtension->jChipType == XG21) {
 		XGINew_SetRegAND(pVBInfo->P3d4, 0xB4, ~0x02); /* Independent GPIO control */
 		udelay(800);
-		XGINew_SetRegOR(pVBInfo->P3d4, 0x4A, 0x80); /* Enable GPIOH read */
+		xgifb_reg_or(pVBInfo->P3d4, 0x4A, 0x80); /* Enable GPIOH read */
 		temp = xgifb_reg_get(pVBInfo->P3d4, 0x48); /* GPIOF 0:DVI 1:DVO */
 		/* HOTPLUG_SUPPORT */
 		/* for current XG20 & XG21, GPIOH is floating, driver will fix DDR temporarily */
@@ -80,7 +80,7 @@ static unsigned char XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceE
 		else
 			data = 0; /* DDR */
 		/* ~HOTPLUG_SUPPORT */
-		XGINew_SetRegOR(pVBInfo->P3d4, 0xB4, 0x02);
+		xgifb_reg_or(pVBInfo->P3d4, 0xB4, 0x02);
 		return data;
 	} else {
 		data = xgifb_reg_get(pVBInfo->P3d4, 0x97) & 0x01;
@@ -462,7 +462,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 	temp3 = temp & 0x80;
 	xgifb_reg_set(P3d4, 0x45, temp1); /* CR45 */
 	xgifb_reg_set(P3d4, 0x99, temp2); /* CR99 */
-	XGINew_SetRegOR(P3d4, 0x40, temp3); /* CR40_D[7] */
+	xgifb_reg_or(P3d4, 0x40, temp3); /* CR40_D[7] */
 	xgifb_reg_set(P3d4, 0x41, pVBInfo->CR40[0][XGINew_RAMType]); /* CR41 */
 
 	if (HwDeviceExtension->jChipType == XG27)
@@ -1196,7 +1196,7 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 #if 1
 	if ((pVideoMemory[0x65] & 0x01)) { /* For XG21 LVDS */
 		pVBInfo->IF_DEF_LVDS = 1;
-		XGINew_SetRegOR(pVBInfo->P3d4, 0x32, LCDSense);
+		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0); /* LVDS on chip */
 	} else {
 #endif
@@ -1204,7 +1204,7 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0xC0;
 		if (Temp == 0xC0) { /* DVI & DVO GPIOA/B pull high */
 			XGINew_SenseLCD(HwDeviceExtension, pVBInfo);
-			XGINew_SetRegOR(pVBInfo->P3d4, 0x32, LCDSense);
+			xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x4A, ~0x20, 0x20); /* Enable read GPIOF */
 			Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0x04;
 			if (!Temp)
@@ -1236,7 +1236,7 @@ static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
 	} else {
 		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0); /* TMDS/DVO setting */
 	}
-	XGINew_SetRegOR(pVBInfo->P3d4, 0x32, LCDSense);
+	xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 
 }
 

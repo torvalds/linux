@@ -44,7 +44,7 @@ void XGINew_SetRegAND(unsigned long Port, unsigned short Index,
 	xgifb_reg_set(Port, Index, temp);
 }
 
-void XGINew_SetRegOR(unsigned long Port, unsigned short Index,
+void xgifb_reg_or(unsigned long Port, unsigned short Index,
 		unsigned short DataOR)
 {
 	unsigned short temp;

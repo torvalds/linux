@@ -309,7 +309,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 				}
 
 				if (pVBInfo->VBType & VB_XGI301C)
-					XGINew_SetRegOR(pVBInfo->Part4Port, 0x0d, 0x04);
+					xgifb_reg_or(pVBInfo->Part4Port, 0x0d, 0x04);
 
 				if (XGINew_SenseHiTV(HwDeviceExtension, pVBInfo)) { /* add by kuku for Multi-adapter sense HiTV */
 					tempax |= HiTVSense;
