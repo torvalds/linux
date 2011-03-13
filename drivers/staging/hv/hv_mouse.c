@@ -684,6 +684,7 @@ static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	if (ret != 0) {
 		pr_err("unable to open channel: %d", ret);
+		FreeInputDevice(inputDevice);
 		return -1;
 	}
 
@@ -695,6 +696,7 @@ static int MousevscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 		pr_err("unable to connect channel: %d", ret);
 
 		vmbus_close(Device->channel);
+		FreeInputDevice(inputDevice);
 		return ret;
 	}
 
