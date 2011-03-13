@@ -37,7 +37,7 @@
 #define SIO_F71858FG_LD_HWM	0x02	/* Hardware monitor logical device */
 #define SIO_F71882FG_LD_HWM	0x04	/* Hardware monitor logical device */
 #define SIO_UNLOCK_KEY		0x87	/* Key to enable Super-I/O */
-#define SIO_LOCK_KEY		0xAA	/* Key to diasble Super-I/O */
+#define SIO_LOCK_KEY		0xAA	/* Key to disable Super-I/O */
 
 #define SIO_REG_LDSEL		0x07	/* Logical device select */
 #define SIO_REG_DEVID		0x20	/* Device ID (2 bytes) */
