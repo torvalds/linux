@@ -109,8 +109,7 @@ FIRMWAREbDownload(
 	result = TRUE;
 
 out:
-	if (pBuffer)
-		kfree(pBuffer);
+	kfree(pBuffer);
 
 	spin_lock_irq(&pDevice->lock);
 	return result;
