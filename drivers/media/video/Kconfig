@@ -835,6 +835,12 @@ config SOC_CAMERA_MT9M111
 	help
 	  This driver supports MT9M111 and MT9M112 cameras from Micron
 
+config SOC_CAMERA_MT9M112
+	tristate "mt9m112 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9M112 cameras from Micron
+
 config SOC_CAMERA_MT9T031
 	tristate "mt9t031 support"
 	depends on SOC_CAMERA && I2C
