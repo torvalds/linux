@@ -105,7 +105,7 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBI
 	XGINew_SetReg1(P3c4, 0x16, 0x80);
 
 	if (*pVBInfo->pXGINew_DRAMTypeDefinition != 0x0C) { /* Samsung F Die */
-		DelayUS(3000); /* Delay 67 x 3 Delay15us */
+		mdelay(3);
 		XGINew_SetReg1(P3c4, 0x18, 0x00);
 		XGINew_SetReg1(P3c4, 0x19, 0x20);
 		XGINew_SetReg1(P3c4, 0x16, 0x00);
@@ -117,7 +117,7 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4, struct vb_device_info *pVBI
 	XGINew_SetReg1(P3c4, 0x19, 0x01);
 	XGINew_SetReg1(P3c4, 0x16, pVBInfo->SR16[0]);
 	XGINew_SetReg1(P3c4, 0x16, pVBInfo->SR16[1]);
-	DelayUS(1000);
+	mdelay(1);
 	XGINew_SetReg1(P3c4, 0x1B, 0x03);
 	DelayUS(500);
 	XGINew_SetReg1(P3c4, 0x18, pVBInfo->SR15[2][XGINew_RAMType]); /* SR18 */
@@ -292,7 +292,7 @@ static void XGINew_DDR1x_MRS_XG20(unsigned long P3c4, struct vb_device_info *pVB
 	XGINew_SetReg1(P3c4, 0x19, 0x01);
 	XGINew_SetReg1(P3c4, 0x16, 0x03);
 	XGINew_SetReg1(P3c4, 0x16, 0x83);
-	DelayUS(1000);
+	mdelay(1);
 	XGINew_SetReg1(P3c4, 0x1B, 0x03);
 	DelayUS(500);
 	/* XGINew_SetReg1(P3c4, 0x18, 0x31); */
