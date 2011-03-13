@@ -6280,47 +6280,6 @@ static void XGI_SetGroup5(unsigned short ModeNo, unsigned short ModeIdIndex,
 	return;
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_BacklightByDrv */
-/* Input : */
-/* Output : 1 -> Skip backlight control */
-/* Description : */
-/* --------------------------------------------------------------------- */
-static unsigned char XGI_BacklightByDrv(struct vb_device_info *pVBInfo)
-{
-	unsigned char tempah;
-
-	tempah = (unsigned char) XGINew_GetReg1(pVBInfo->P3d4, 0x3A);
-	if (tempah & BacklightControlBit)
-		return 1;
-	else
-		return 0;
-}
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_FirePWDDisable */
-/* Input : */
-/* Output : */
-/* Description : Turn off VDD & Backlight : Fire disable procedure */
-/* --------------------------------------------------------------------- */
-/*
-void XGI_FirePWDDisable(struct vb_device_info *pVBInfo)
-{
-	XGINew_SetRegANDOR(pVBInfo->Part1Port, 0x26, 0x00, 0xFC);
-}
-*/
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_FirePWDEnable */
-/* Input : */
-/* Output : */
-/* Description : Turn on VDD & Backlight : Fire enable procedure */
-/* --------------------------------------------------------------------- */
-static void XGI_FirePWDEnable(struct vb_device_info *pVBInfo)
-{
-	XGINew_SetRegANDOR(pVBInfo->Part1Port, 0x26, 0x03, 0xFC);
-}
-
 static void XGI_EnableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
@@ -6332,54 +6291,6 @@ static void XGI_DisableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
 {
 
 	XGINew_SetRegANDOR(pVBInfo->P3d4, 0x63, 0xBF, 0x00);
-}
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetPanelDelay */
-/* Input : */
-/* Output : */
-/* Description : */
-/* I/P : bl : 1 ; T1 : the duration between CPL on and signal on */
-/* : bl : 2 ; T2 : the duration signal on and Vdd on */
-/* : bl : 3 ; T3 : the duration between CPL off and signal off */
-/* : bl : 4 ; T4 : the duration signal off and Vdd off */
-/* --------------------------------------------------------------------- */
-static void XGI_SetPanelDelay(unsigned short tempbl, struct vb_device_info *pVBInfo)
-{
-	unsigned short index;
-
-	index = XGI_GetLCDCapPtr(pVBInfo);
-
-	if (tempbl == 1)
-		mdelay(pVBInfo->LCDCapList[index].PSC_S1);
-
-	if (tempbl == 2)
-		mdelay(pVBInfo->LCDCapList[index].PSC_S2);
-
-	if (tempbl == 3)
-		mdelay(pVBInfo->LCDCapList[index].PSC_S3);
-
-	if (tempbl == 4)
-		mdelay(pVBInfo->LCDCapList[index].PSC_S4);
-}
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetPanelPower */
-/* Input : */
-/* Output : */
-/* Description : */
-/* I/O : ah = 0011b = 03h ; Backlight on, Power on */
-/* = 0111b = 07h ; Backlight on, Power off */
-/* = 1011b = 0Bh ; Backlight off, Power on */
-/* = 1111b = 0Fh ; Backlight off, Power off */
-/* --------------------------------------------------------------------- */
-static void XGI_SetPanelPower(unsigned short tempah, unsigned short tempbl,
-		struct vb_device_info *pVBInfo)
-{
-	if (pVBInfo->VBType & (VB_XGI301LV | VB_XGI302LV | VB_XGI301C))
-		XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x26, tempbl, tempah);
-	else
-		XGINew_SetRegANDOR(pVBInfo->P3c4, 0x11, tempbl, tempah);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -6951,29 +6862,6 @@ static unsigned char XGI_IsLCDON(struct vb_device_info *pVBInfo)
 	return 0;
 }
 
-static void XGI_EnablePWD(struct vb_device_info *pVBInfo)
-{
-	unsigned short index, temp;
-
-	index = XGI_GetLCDCapPtr(pVBInfo);
-	temp = pVBInfo->LCDCapList[index].PWD_2B;
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x2B, temp);
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x2C,
-			pVBInfo->LCDCapList[index].PWD_2C);
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x2D,
-			pVBInfo->LCDCapList[index].PWD_2D);
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x2E,
-			pVBInfo->LCDCapList[index].PWD_2E);
-	XGINew_SetReg1(pVBInfo->Part4Port, 0x2F,
-			pVBInfo->LCDCapList[index].PWD_2F);
-	XGINew_SetRegOR(pVBInfo->Part4Port, 0x27, 0x80); /* enable PWD */
-}
-
-static void XGI_DisablePWD(struct vb_device_info *pVBInfo)
-{
-	XGINew_SetRegAND(pVBInfo->Part4Port, 0x27, 0x7F); /* disable PWD */
-}
-
 /* --------------------------------------------------------------------- */
 /* Function : XGI_DisableChISLCD */
 /* Input : */
@@ -7031,36 +6919,10 @@ static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo)
 void XGI_DisableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short tempax, tempbx, tempah = 0, tempbl = 0;
+	unsigned short tempah = 0;
 
 	if (pVBInfo->SetFlag == Win9xDOSMode)
 		return;
-
-	if (HwDeviceExtension->jChipType < XG40) {
-		if ((!(pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)))
-				|| (XGI_DisableChISLCD(pVBInfo))) {
-			if (!XGI_IsLCDON(pVBInfo)) {
-				if (pVBInfo->LCDInfo & SetPWDEnable)
-					XGI_EnablePWD(pVBInfo);
-				else {
-					pVBInfo->LCDInfo &= ~SetPWDEnable;
-					XGI_DisablePWD(pVBInfo);
-					if (pVBInfo->VBType & (VB_XGI301LV
-							| VB_XGI302LV
-							| VB_XGI301C)) {
-						tempbx = 0xFE; /* not 01h */
-						tempax = 0;
-					} else {
-						tempbx = 0xF7; /* not 08h */
-						tempax = 0x08;
-					}
-					XGI_SetPanelPower(tempax, tempbx,
-							pVBInfo);
-					XGI_SetPanelDelay(3, pVBInfo);
-				}
-			} /* end if (!XGI_IsLCDON(pVBInfo)) */
-		}
-	}
 
 	/*
 	if (CH7017) {
@@ -7154,28 +7016,6 @@ void XGI_DisableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		if (pVBInfo->VBInfo & (DisableCRT2Display | SetCRT2ToLCDA
 				| SetSimuScanMode))
 			XGI_DisplayOff(HwDeviceExtension, pVBInfo);
-	}
-
-	if (HwDeviceExtension->jChipType < XG40) {
-		if (!(pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA))
-				|| (XGI_DisableChISLCD(pVBInfo))
-				|| (XGI_IsLCDON(pVBInfo))) {
-			if (pVBInfo->LCDInfo & SetPWDEnable) {
-				if (pVBInfo->LCDInfo & SetPWDEnable)
-					XGI_BacklightByDrv(pVBInfo);
-				else {
-					XGI_SetPanelDelay(4, pVBInfo);
-					if (pVBInfo->VBType & VB_XGI301LV) {
-						tempbl = 0xFD;
-						tempah = 0x00;
-					} else {
-						tempbl = 0xFB;
-						tempah = 0x04;
-					}
-				}
-			}
-			XGI_SetPanelPower(tempah, tempbl, pVBInfo);
-		}
 	}
 }
 
@@ -8220,7 +8060,7 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short tempbl, tempah;
+	unsigned short tempah;
 
 	if (pVBInfo->SetFlag == Win9xDOSMode) {
 		if (pVBInfo->VBType & (VB_XGI301B | VB_XGI302B | VB_XGI301LV
@@ -8231,32 +8071,6 @@ void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 			/* LVDS or CH7017 */
 			return;
 	}
-
-	if (HwDeviceExtension->jChipType < XG40) {
-		if (!XGI_DisableChISLCD(pVBInfo)) {
-			if ((XGI_EnableChISLCD(pVBInfo)) || (pVBInfo->VBInfo
-					& (SetCRT2ToLCD | SetCRT2ToLCDA))) {
-				if (pVBInfo->LCDInfo & SetPWDEnable) {
-					XGI_EnablePWD(pVBInfo);
-				} else {
-					pVBInfo->LCDInfo &= (~SetPWDEnable);
-					if (pVBInfo->VBType & (VB_XGI301LV
-							| VB_XGI302LV
-							| VB_XGI301C)) {
-						tempbl = 0xFD;
-						tempah = 0x02;
-					} else {
-						tempbl = 0xFB;
-						tempah = 0x00;
-					}
-
-					XGI_SetPanelPower(tempah, tempbl,
-							pVBInfo);
-					XGI_SetPanelDelay(1, pVBInfo);
-				}
-			}
-		}
-	} /* Not 340 */
 
 	if (pVBInfo->VBType & (VB_XGI301B | VB_XGI302B | VB_XGI301LV
 			| VB_XGI302LV | VB_XGI301C)) {
@@ -8376,32 +8190,6 @@ void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		XGINew_SetRegAND(pVBInfo->Part1Port, 0x00, 0x7F);
 		XGI_DisplayOn(HwDeviceExtension, pVBInfo);
 	} /* End of VB */
-
-	if (HwDeviceExtension->jChipType < XG40) {
-		if (!XGI_EnableChISLCD(pVBInfo)) {
-			if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-				if (XGI_BacklightByDrv(pVBInfo))
-					return;
-			} else
-				return;
-		}
-
-		if (pVBInfo->LCDInfo & SetPWDEnable) {
-			XGI_FirePWDEnable(pVBInfo);
-			return;
-		}
-
-		XGI_SetPanelDelay(2, pVBInfo);
-
-		if (pVBInfo->VBType & (VB_XGI301LV | VB_XGI302LV | VB_XGI301C)) {
-			tempah = 0x01;
-			tempbl = 0xFE; /* turn on backlght */
-		} else {
-			tempbl = 0xF7;
-			tempah = 0x00;
-		}
-		XGI_SetPanelPower(tempah, tempbl, pVBInfo);
-	}
 }
 
 static void XGI_SetCRT1Group(struct xgi_hw_device_info *HwDeviceExtension,

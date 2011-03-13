@@ -1409,9 +1409,7 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 	 if (HwDeviceExtension->jChipType >= XG40)
 	 XGINew_RAMType = (int)XGINew_GetXG20DRAMType(HwDeviceExtension, pVBInfo);
-
-	 if (HwDeviceExtension->jChipType < XG40)
-	 XGINew_SetMemoryClock(HwDeviceExtension, pVBInfo);  */
+	*/
 
 	printk("11");
 
@@ -1494,9 +1492,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 				XGINew_SetReg1(pVBInfo->P3d4, 0x48, 0x20); /* CR48 */
 		}
 		printk("14");
-
-		if (HwDeviceExtension->jChipType < XG40)
-			XGINew_SetReg1(pVBInfo->P3d4, 0x49, pVBInfo->CR49[0]);
 	} /* != XG20 */
 
 	/* Set PCI */
@@ -1552,8 +1547,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	} /* != XG20 */
 	printk("18");
 
-	if (HwDeviceExtension->jChipType < XG40)
-		XGINew_SetReg1(pVBInfo->P3d4, 0x83, 0x00);
 	printk("181");
 
 	printk("182");
