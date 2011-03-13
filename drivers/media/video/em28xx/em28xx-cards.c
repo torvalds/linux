@@ -100,6 +100,13 @@ static struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
 	{ -1,			-1,	-1,		-1},
 };
 
+/* Board Hauppauge WinTV HVR 900 (R2) digital */
+static struct em28xx_reg_seq hauppauge_wintv_hvr_900R2_digital[] = {
+	{EM28XX_R08_GPIO,	0x2e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x0c,	0x0f,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
 /* Boards - EM2880 MSI DIGIVOX AD and EM2880_BOARD_MSI_DIGIVOX_AD_II */
 static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
 	{EM28XX_R08_GPIO,       0x69,   ~EM_GPIO_4,	 10},
@@ -860,7 +867,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
 		.has_dvb      = 1,
-		.dvb_gpio     = hauppauge_wintv_hvr_900_digital,
+		.dvb_gpio     = hauppauge_wintv_hvr_900R2_digital,
 		.ir_codes     = RC_MAP_HAUPPAUGE,
 		.decoder      = EM28XX_TVP5150,
 		.input        = { {
