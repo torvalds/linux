@@ -22383,8 +22383,7 @@ wlc_phy_gen_load_samples_nphy(phy_info_t *pi, u32 f_kHz, u16 max_val,
 
 	wlc_phy_loadsampletable_nphy(pi, tone_buf, num_samps);
 
-	if (tone_buf != NULL)
-		kfree(tone_buf);
+	kfree(tone_buf);
 
 	return num_samps;
 }
@@ -22431,8 +22430,7 @@ wlc_phy_loadsampletable_nphy(phy_info_t *pi, cs32 *tone_buf,
 	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_SAMPLEPLAY, num_samps, 0, 32,
 				 data_buf);
 
-	if (data_buf != NULL)
-		kfree(data_buf);
+	kfree(data_buf);
 
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, false);

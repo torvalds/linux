@@ -1527,8 +1527,7 @@ static int otp_read_pci(si_t *sih, u16 *buf, uint bufsz)
 
 	memcpy(buf, otp, bufsz);
 
-	if (otp)
-		kfree(otp);
+	kfree(otp);
 
 	/* Check CRC */
 	if (buf[0] == 0xffff) {

@@ -996,8 +996,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 			   __func__, arg, rc));
 
 fail:
-	if (arg_org)
-		kfree(arg_org);
+	kfree(arg_org);
 }
 
 void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
@@ -1132,11 +1131,9 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 			   __func__, arg));
 
 fail:
-	if (arg_org)
-		kfree(arg_org);
+	kfree(arg_org);
 
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 }
 
 void dhd_arp_offload_set(dhd_pub_t *dhd, int arp_mode)

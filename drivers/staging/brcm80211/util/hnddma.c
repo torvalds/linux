@@ -559,21 +559,17 @@ static void _dma_detach(dma_info_t *di)
 				    (di->rxdpaorig));
 
 	/* free packet pointer vectors */
-	if (di->txp)
-		kfree((void *)di->txp);
-	if (di->rxp)
-		kfree((void *)di->rxp);
+	kfree(di->txp);
+	kfree(di->rxp);
 
 	/* free tx packet DMA handles */
-	if (di->txp_dmah)
-		kfree(di->txp_dmah);
+	kfree(di->txp_dmah);
 
 	/* free rx packet DMA handles */
-	if (di->rxp_dmah)
-		kfree(di->rxp_dmah);
+	kfree(di->rxp_dmah);
 
 	/* free our private info structure */
-	kfree((void *)di);
+	kfree(di);
 
 }
 

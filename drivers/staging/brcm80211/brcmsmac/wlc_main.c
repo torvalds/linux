@@ -2160,10 +2160,8 @@ uint wlc_detach(struct wlc_info *wlc)
 
 
 #ifdef BCMDBG
-	if (wlc->country_ie_override) {
-		kfree(wlc->country_ie_override);
-		wlc->country_ie_override = NULL;
-	}
+	kfree(wlc->country_ie_override);
+	wlc->country_ie_override = NULL;
 #endif				/* BCMDBG */
 
 	{

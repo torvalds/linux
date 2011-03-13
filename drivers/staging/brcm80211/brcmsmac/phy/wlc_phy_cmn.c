@@ -759,8 +759,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 	return &pi->pubpi_ro;
 
  err:
-	if (pi)
-		kfree(pi);
+	kfree(pi);
 	return NULL;
 }
 

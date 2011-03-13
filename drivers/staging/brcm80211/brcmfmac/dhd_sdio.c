@@ -1930,10 +1930,8 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 #endif				/* DHD_DEBUG */
 
 done:
-	if (mbuffer)
-		kfree(mbuffer);
-	if (str)
-		kfree(str);
+	kfree(mbuffer);
+	kfree(str);
 
 	return bcmerror;
 }
@@ -1962,8 +1960,7 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus)
 		ret = dhdsdio_membytes(bus, false, start, databuf, read_size);
 		if (ret) {
 			DHD_ERROR(("%s: Error membytes %d\n", __func__, ret));
-			if (buf)
-				kfree(buf);
+			kfree(buf);
 			return -1;
 		}
 		printk(".");
@@ -2081,8 +2078,7 @@ int dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
 	}
 
 	/* Free the old ones and replace with passed variables */
-	if (bus->vars)
-		kfree(bus->vars);
+	kfree(bus->vars);
 
 	bus->vars = kmalloc(len, GFP_ATOMIC);
 	bus->varsz = bus->vars ? len : 0;
@@ -5541,10 +5537,8 @@ static void dhdsdio_release_malloc(dhd_bus_t *bus)
 		bus->rxlen = 0;
 	}
 
-	if (bus->databuf) {
-		kfree(bus->databuf);
-		bus->databuf = NULL;
-	}
+	kfree(bus->databuf);
+	bus->databuf = NULL;
 }
 
 static void dhdsdio_release_dongle(dhd_bus_t *bus)
@@ -5732,8 +5726,7 @@ static int dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 	}
 
 err:
-	if (memblock)
-		kfree(memblock);
+	kfree(memblock);
 
 	if (image)
 		dhd_os_close_image(image);
@@ -5872,8 +5865,7 @@ static int dhdsdio_download_nvram(struct dhd_bus *bus)
 	}
 
 err:
-	if (memblock)
-		kfree(memblock);
+	kfree(memblock);
 
 	if (image)
 		dhd_os_close_image(image);

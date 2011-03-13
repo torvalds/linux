@@ -1777,8 +1777,7 @@ done:
 			bcmerror = -EFAULT;
 	}
 
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 
 	if (bcmerror > 0)
 		bcmerror = 0;

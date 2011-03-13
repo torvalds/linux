@@ -415,8 +415,7 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 	return 0;
 
 fail:
-	if (cdc != NULL)
-		kfree(cdc);
+	kfree(cdc);
 	return BCME_NOMEM;
 }
 

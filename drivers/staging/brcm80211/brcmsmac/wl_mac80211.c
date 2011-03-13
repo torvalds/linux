@@ -1379,8 +1379,7 @@ static void wl_free(struct wl_info *wl)
 	for (t = wl->timers; t; t = next) {
 		next = t->next;
 #ifdef BCMDBG
-		if (t->name)
-			kfree(t->name);
+		kfree(t->name);
 #endif
 		kfree(t);
 	}
@@ -1716,8 +1715,7 @@ void wl_free_timer(struct wl_info *wl, struct wl_timer *t)
 	if (wl->timers == t) {
 		wl->timers = wl->timers->next;
 #ifdef BCMDBG
-		if (t->name)
-			kfree(t->name);
+		kfree(t->name);
 #endif
 		kfree(t);
 		return;
@@ -1729,8 +1727,7 @@ void wl_free_timer(struct wl_info *wl, struct wl_timer *t)
 		if (tmp->next == t) {
 			tmp->next = t->next;
 #ifdef BCMDBG
-			if (t->name)
-				kfree(t->name);
+			kfree(t->name);
 #endif
 			kfree(t);
 			return;
