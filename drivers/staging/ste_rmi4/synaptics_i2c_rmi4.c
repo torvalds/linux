@@ -764,8 +764,10 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 								(pdata,	rfi,
 								&rmi_fd,
 								intr_count);
-					if (retval < 0)
+					if (retval < 0) {
+						kfree(rfi);
 						return retval;
+					}
 				}
 				break;
 			}
