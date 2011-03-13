@@ -1384,11 +1384,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 1;
 
  rx_dropped:
-	if (rxb != NULL)
-	{
-		kfree(rxb);
-		rxb = NULL;
-	}
+	kfree(rxb);
+	rxb = NULL;
 	stats->rx_dropped++;
 
 	/* Returning 0 indicates to caller that we have not handled the SKB--

@@ -2755,11 +2755,8 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
 {
 	down(&ieee->wx_sem);
-	if(NULL != ieee->pDot11dInfo)
-	{
-		kfree(ieee->pDot11dInfo);
-		ieee->pDot11dInfo = NULL;
-	}
+	kfree(ieee->pDot11dInfo);
+	ieee->pDot11dInfo = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);
