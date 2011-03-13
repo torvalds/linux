@@ -241,8 +241,7 @@ void RTMPFreeAdapter(struct rt_rtmp_adapter *pAd)
 
 	os_cookie = (struct os_cookie *)pAd->OS_Cookie;
 
-	if (pAd->BeaconBuf)
-		kfree(pAd->BeaconBuf);
+	kfree(pAd->BeaconBuf);
 
 	NdisFreeSpinLock(&pAd->MgmtRingLock);
 
@@ -264,8 +263,7 @@ void RTMPFreeAdapter(struct rt_rtmp_adapter *pAd)
 	release_firmware(pAd->firmware);
 
 	vfree(pAd);		/* pci_free_consistent(os_cookie->pci_dev,sizeof(struct rt_rtmp_adapter),pAd,os_cookie->pAd_pa); */
-	if (os_cookie)
-		kfree(os_cookie);
+	kfree(os_cookie);
 }
 
 BOOLEAN OS_Need_Clone_Packet(void)
