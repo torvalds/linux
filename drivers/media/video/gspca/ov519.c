@@ -1,7 +1,7 @@
 /**
  * OV519 driver
  *
- * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2008-2011 Jean-François Moine <moinejf@free.fr>
  * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the ov51x-jpeg package, which itself
@@ -61,10 +61,12 @@ static int i2c_detect_tries = 10;
 enum e_ctrl {
 	BRIGHTNESS,
 	CONTRAST,
+	EXPOSURE,
 	COLORS,
 	HFLIP,
 	VFLIP,
 	AUTOBRIGHT,
+	AUTOGAIN,
 	FREQ,
 	NCTRL		/* number of controls */
 };
@@ -142,9 +144,11 @@ enum sensors {
 /* V4L2 controls supported by the driver */
 static void setbrightness(struct gspca_dev *gspca_dev);
 static void setcontrast(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
 static void setcolors(struct gspca_dev *gspca_dev);
 static void sethvflip(struct gspca_dev *gspca_dev);
 static void setautobright(struct gspca_dev *gspca_dev);
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static void setfreq(struct gspca_dev *gspca_dev);
 static void setfreq_i(struct sd *sd);
 
@@ -172,6 +176,18 @@ static const struct ctrl sd_ctrls[] = {
 		.default_value = 127,
 	    },
 	    .set_control = setcontrast,
+	},
+[EXPOSURE] = {
+	    {
+		.id      = V4L2_CID_EXPOSURE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Exposure",
+		.minimum = 0,
+		.maximum = 255,
+		.step    = 1,
+		.default_value = 127,
+	    },
+	    .set_control = setexposure,
 	},
 [COLORS] = {
 	    {
@@ -222,6 +238,19 @@ static const struct ctrl sd_ctrls[] = {
 	    },
 	    .set_control = setautobright,
 	},
+[AUTOGAIN] = {
+	    {
+		.id      = V4L2_CID_AUTOGAIN,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Auto Gain",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 1,
+		.flags	 = V4L2_CTRL_FLAG_UPDATE
+	    },
+	    .set = sd_setautogain,
+	},
 [FREQ] = {
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -238,50 +267,78 @@ static const struct ctrl sd_ctrls[] = {
 
 /* table of the disabled controls */
 static const unsigned ctrl_dis[] = {
-[SEN_OV2610] =		(1 << NCTRL) - 1,	/* no control */
+[SEN_OV2610] =		((1 << NCTRL) - 1)	/* no control */
+			^ ((1 << EXPOSURE)	/* but exposure */
+			 | (1 << AUTOGAIN)),	/* and autogain */
 
-[SEN_OV2610AE] =	(1 << NCTRL) - 1,	/* no control */
+[SEN_OV2610AE] =	((1 << NCTRL) - 1)	/* no control */
+			^ ((1 << EXPOSURE)	/* but exposure */
+			 | (1 << AUTOGAIN)),	/* and autogain */
 
 [SEN_OV3610] =		(1 << NCTRL) - 1,	/* no control */
 
 [SEN_OV6620] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV6630] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV66308AF] =	(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7610] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7620] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7620AE] =	(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7640] =		(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << AUTOBRIGHT) |
-			(1 << CONTRAST),
+			(1 << CONTRAST) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7648] =		(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << AUTOBRIGHT) |
-			(1 << CONTRAST),
+			(1 << CONTRAST) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
-[SEN_OV7660] =		(1 << AUTOBRIGHT),
+[SEN_OV7660] =		(1 << AUTOBRIGHT) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7670] =		(1 << COLORS) |
-			(1 << AUTOBRIGHT),
+			(1 << AUTOBRIGHT) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV76BE] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV8610] =		(1 << HFLIP) |
 			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
 			(1 << FREQ),
 };
 
@@ -3201,6 +3258,13 @@ static void ov519_set_fr(struct sd *sd)
 	ov518_i2c_w(sd, OV7670_R11_CLKRC, clock);
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	i2c_w_mask(sd, 0x13, sd->ctrls[AUTOGAIN].val ? 0x05 : 0x00, 0x05);
+}
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
@@ -4189,12 +4253,16 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		setcontrast(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << BRIGHTNESS)))
 		setbrightness(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << EXPOSURE)))
+		setexposure(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << COLORS)))
 		setcolors(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & ((1 << HFLIP) | (1 << VFLIP))))
 		sethvflip(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << AUTOBRIGHT)))
 		setautobright(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << AUTOGAIN)))
+		setautogain(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << FREQ)))
 		setfreq_i(sd);
 
@@ -4608,6 +4676,14 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void setexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->ctrls[AUTOGAIN].val)
+		i2c_w(sd, 0x10, sd->ctrls[EXPOSURE].val);
+}
+
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -4664,6 +4740,22 @@ static void setautobright(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	i2c_w_mask(sd, 0x2d, sd->ctrls[AUTOBRIGHT].val ? 0x10 : 0x00, 0x10);
+}
+
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->ctrls[AUTOGAIN].val = val;
+	if (val) {
+		gspca_dev->ctrl_inac |= (1 << EXPOSURE);
+	} else {
+		gspca_dev->ctrl_inac &= ~(1 << EXPOSURE);
+		sd->ctrls[EXPOSURE].val = i2c_r(sd, 0x10);
+	}
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
+	return gspca_dev->usb_err;
 }
 
 static void setfreq_i(struct sd *sd)
