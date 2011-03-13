@@ -1428,12 +1428,12 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 		temp1 &= 0x02;
 		if (temp1 == 0x02) {
 			XGINew_SetReg4(0xcf8, 0x80000000);
-			ChipsetID = XGINew_GetReg3(0x0cfc);
+			ChipsetID = inl(0x0cfc);
 			XGINew_SetReg4(0xcf8, 0x8000002C);
-			VendorID = XGINew_GetReg3(0x0cfc);
+			VendorID = inl(0x0cfc);
 			VendorID &= 0x0000FFFF;
 			XGINew_SetReg4(0xcf8, 0x8001002C);
-			GraphicVendorID = XGINew_GetReg3(0x0cfc);
+			GraphicVendorID = inl(0x0cfc);
 			GraphicVendorID &= 0x0000FFFF;
 
 			if (ChipsetID == 0x7301039)
@@ -1468,7 +1468,7 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 		/* Set AGP customize registers (in SetDefAGPRegs) End */
 		/* [Hsuan]2004/12/14 AGP Input Delay Adjustment on 850 */
 		/*        XGINew_SetReg4(0xcf8 , 0x80000000); */
-		/*        ChipsetID = XGINew_GetReg3(0x0cfc); */
+		/*        ChipsetID = inl(0x0cfc); */
 		/*        if (ChipsetID == 0x25308086) */
 		/*            XGINew_SetReg1(pVBInfo->P3d4, 0x77, 0xF0); */
 
