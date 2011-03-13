@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Samsung Electronics
  *
- * Author: Pawel Osciak <p.osciak@samsung.com>
+ * Author: Pawel Osciak <pawel@osciak.com>
  *	   Marek Szyprowski <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify

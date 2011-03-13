@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Samsung Electronics
  *
- * Author: Pawel Osciak <p.osciak@samsung.com>
+ * Author: Pawel Osciak <pawel@osciak.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -181,5 +181,5 @@ void vb2_dma_contig_cleanup_ctx(void *alloc_ctx)
 EXPORT_SYMBOL_GPL(vb2_dma_contig_cleanup_ctx);
 
 MODULE_DESCRIPTION("DMA-contig memory handling routines for videobuf2");
-MODULE_AUTHOR("Pawel Osciak");
+MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
 MODULE_LICENSE("GPL");

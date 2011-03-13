@@ -5,7 +5,7 @@
  * source and destination.
  *
  * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
- * Pawel Osciak, <p.osciak@samsung.com>
+ * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 #include <media/v4l2-mem2mem.h>
 
 MODULE_DESCRIPTION("Mem to mem device framework for videobuf");
-MODULE_AUTHOR("Pawel Osciak, <p.osciak@samsung.com>");
+MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
 
 static bool debug;

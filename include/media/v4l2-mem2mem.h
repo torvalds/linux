@@ -5,7 +5,7 @@
  * and destination.
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
- * Pawel Osciak, <p.osciak@samsung.com>
+ * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Samsung Electronics
  *
- * Author: Pawel Osciak <p.osciak@samsung.com>
+ * Author: Pawel Osciak <pawel@osciak.com>
  *	   Marek Szyprowski <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -231,5 +231,5 @@ const struct vm_operations_struct vb2_common_vm_ops = {
 EXPORT_SYMBOL_GPL(vb2_common_vm_ops);
 
 MODULE_DESCRIPTION("common memory handling routines for videobuf2");
-MODULE_AUTHOR("Pawel Osciak");
+MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
 MODULE_LICENSE("GPL");

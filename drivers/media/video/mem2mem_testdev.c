@@ -8,7 +8,7 @@
  * operation (via the mem2mem framework).
  *
  * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
- * Pawel Osciak, <p.osciak@samsung.com>
+ * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,7 @@
 #define MEM2MEM_TEST_MODULE_NAME "mem2mem-testdev"
 
 MODULE_DESCRIPTION("Virtual device for mem2mem framework testing");
-MODULE_AUTHOR("Pawel Osciak, <p.osciak@samsung.com>");
+MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
 
 

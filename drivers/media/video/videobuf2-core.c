@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Samsung Electronics
  *
- * Author: Pawel Osciak <p.osciak@samsung.com>
+ * Author: Pawel Osciak <pawel@osciak.com>
  *	   Marek Szyprowski <m.szyprowski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1810,5 +1810,5 @@ size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
 EXPORT_SYMBOL_GPL(vb2_write);
 
 MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
-MODULE_AUTHOR("Pawel Osciak, Marek Szyprowski");
+MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");
 MODULE_LICENSE("GPL");
