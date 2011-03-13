@@ -220,13 +220,6 @@ static void acc_set_disconnected(struct acc_dev *dev)
 {
 	dev->online = 0;
 	dev->disconnected = 1;
-
-	/* clear all accessory strings */
-	memset(dev->manufacturer, 0, sizeof(dev->manufacturer));
-	memset(dev->model, 0, sizeof(dev->model));
-	memset(dev->description, 0, sizeof(dev->description));
-	memset(dev->version, 0, sizeof(dev->version));
-	memset(dev->uri, 0, sizeof(dev->uri));
 }
 
 static void acc_complete_in(struct usb_ep *ep, struct usb_request *req)
@@ -657,6 +650,13 @@ static int acc_function_setup(struct usb_function *f,
 			if (b_request == ACCESSORY_GET_PROTOCOL) {
 				*((u16 *)cdev->req->buf) = PROTOCOL_VERSION;
 				value = sizeof(u16);
+
+				/* clear any strings left over from a previous session */
+				memset(dev->manufacturer, 0, sizeof(dev->manufacturer));
+				memset(dev->model, 0, sizeof(dev->model));
+				memset(dev->description, 0, sizeof(dev->description));
+				memset(dev->version, 0, sizeof(dev->version));
+				memset(dev->uri, 0, sizeof(dev->uri));
 			}
 		}
 	}
