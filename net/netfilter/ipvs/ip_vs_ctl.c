@@ -802,7 +802,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	spin_unlock(&dest->dst_lock);
 
 	if (add)
-		ip_vs_new_estimator(svc->net, &dest->stats);
+		ip_vs_start_estimator(svc->net, &dest->stats);
 
 	write_lock_bh(&__ip_vs_svc_lock);
 
@@ -1008,7 +1008,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	ip_vs_kill_estimator(net, &dest->stats);
+	ip_vs_stop_estimator(net, &dest->stats);
 
 	/*
 	 *  Remove it from the d-linked list with the real services.
@@ -1201,7 +1201,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	else if (svc->port == 0)
 		atomic_inc(&ipvs->nullsvc_counter);
 
-	ip_vs_new_estimator(net, &svc->stats);
+	ip_vs_start_estimator(net, &svc->stats);
 
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
@@ -1353,7 +1353,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	if (svc->af == AF_INET)
 		ipvs->num_services--;
 
-	ip_vs_kill_estimator(svc->net, &svc->stats);
+	ip_vs_stop_estimator(svc->net, &svc->stats);
 
 	/* Unbind scheduler */
 	old_sched = svc->scheduler;
@@ -3585,7 +3585,7 @@ int __net_init __ip_vs_control_init(struct net *net)
 		goto err_dup;
 	}
 #endif
-	ip_vs_new_estimator(net, &ipvs->tot_stats);
+	ip_vs_start_estimator(net, &ipvs->tot_stats);
 	ipvs->sysctl_tbl = tbl;
 	/* Schedule defense work */
 	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
@@ -3603,7 +3603,7 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_trash_cleanup(net);
-	ip_vs_kill_estimator(net, &ipvs->tot_stats);
+	ip_vs_stop_estimator(net, &ipvs->tot_stats);
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
 #ifdef CONFIG_SYSCTL
