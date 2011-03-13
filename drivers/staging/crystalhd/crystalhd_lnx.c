@@ -559,7 +559,7 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	rc = pci_enable_device(pdev);
 	if (rc) {
 		BCMLOG_ERR("Failed to enable PCI device\n");
-		return rc;
+		goto err;
 	}
 
 	snprintf(pinfo->name, sizeof(pinfo->name), "crystalhd_pci_e:%d:%d:%d",
@@ -570,7 +570,8 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	if (rc) {
 		BCMLOG_ERR("Failed to setup memory regions.\n");
 		pci_disable_device(pdev);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto err;
 	}
 
 	pinfo->present	= 1;
@@ -585,7 +586,8 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	if (rc) {
 		BCMLOG_ERR("_enable_int err:%d\n", rc);
 		pci_disable_device(pdev);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err;
 	}
 
 	/* Set dma mask... */
@@ -598,14 +600,16 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	} else {
 		BCMLOG_ERR("Unabled to setup DMA %d\n", rc);
 		pci_disable_device(pdev);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err;
 	}
 
 	sts = crystalhd_setup_cmd_context(&pinfo->cmds, pinfo);
 	if (sts != BC_STS_SUCCESS) {
 		BCMLOG_ERR("cmd setup :%d\n", sts);
 		pci_disable_device(pdev);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err;
 	}
 
 	pci_set_master(pdev);
@@ -615,6 +619,10 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	g_adp_info = pinfo;
 
 	return 0;
+
+err:
+	kfree(pinfo);
+	return rc;
 }
 
 #ifdef CONFIG_PM
