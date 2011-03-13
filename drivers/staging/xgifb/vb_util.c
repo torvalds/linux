@@ -34,7 +34,7 @@ void xgifb_reg_and_or(unsigned long Port, unsigned short Index,
 	xgifb_reg_set(Port, Index, temp);
 }
 
-void XGINew_SetRegAND(unsigned long Port, unsigned short Index,
+void xgifb_reg_and(unsigned long Port, unsigned short Index,
 		unsigned short DataAND)
 {
 	unsigned short temp;

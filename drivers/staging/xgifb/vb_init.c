@@ -69,7 +69,7 @@ static unsigned char XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceE
 			data = 1; /* DDRII */
 		return data;
 	} else if (HwDeviceExtension->jChipType == XG21) {
-		XGINew_SetRegAND(pVBInfo->P3d4, 0xB4, ~0x02); /* Independent GPIO control */
+		xgifb_reg_and(pVBInfo->P3d4, 0xB4, ~0x02); /* Independent GPIO control */
 		udelay(800);
 		xgifb_reg_or(pVBInfo->P3d4, 0x4A, 0x80); /* Enable GPIOH read */
 		temp = xgifb_reg_get(pVBInfo->P3d4, 0x48); /* GPIOF 0:DVI 1:DVO */
@@ -1211,7 +1211,7 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 				xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0x80); /* TMDS on chip */
 			else
 				xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0); /* Only DVO on chip */
-			XGINew_SetRegAND(pVBInfo->P3d4, 0x4A, ~0x20); /* Disable read GPIOF */
+			xgifb_reg_and(pVBInfo->P3d4, 0x4A, ~0x20); /* Disable read GPIOF */
 		}
 #if 1
 	}
