@@ -1212,9 +1212,9 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 	} else if ((pix->width < usr_w) && (pix->height < usr_h)) {
 		if (((usr_w>>1) < pix->width) && ((usr_h>>1) < pix->height)) {
 			if (is_capture) {
-				vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3) <= pcdev->vipmem_size);
+				vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3) > pcdev->vipmem_size);
 			} else {
-				vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3)*4 <= pcdev->vipmem_size);
+				vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3)*4 > pcdev->vipmem_size);
 			}
 			if (vipmem_is_overflow == false) {
 				pix->width = usr_w;
