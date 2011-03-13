@@ -244,8 +244,8 @@ int MS_CardInit(struct us_data *us)
 	result = MS_STATUS_SUCCESS;
 
 exit:
-	if (PageBuffer1)		kfree(PageBuffer1);
-    	if (PageBuffer0)		kfree(PageBuffer0);
+	kfree(PageBuffer1);
+    	kfree(PageBuffer0);
 
 	printk("MS_CardInit end\n");
 	return result;
@@ -280,7 +280,7 @@ int MS_LibCheckDisableBlock(struct us_data *us, WORD PhyBlock)
 	} while(1);
 
 exit:
-	if (PageBuf)	kfree(PageBuf);
+	kfree(PageBuf);
 	return result;
 }
 
@@ -324,17 +324,11 @@ void MS_LibFreeWriteBuf(struct us_data *us)
 //----- MS_LibFreeLogicalMap() ---------------------------------------
 int MS_LibFreeLogicalMap(struct us_data *us)
 {
-	if (us->MS_Lib.Phy2LogMap)
-	{
-		kfree(us->MS_Lib.Phy2LogMap);
-		us->MS_Lib.Phy2LogMap = NULL;
-	}
+	kfree(us->MS_Lib.Phy2LogMap);
+	us->MS_Lib.Phy2LogMap = NULL;
 
-	if (us->MS_Lib.Log2PhyMap)
-	{
-		kfree(us->MS_Lib.Log2PhyMap);
-		us->MS_Lib.Log2PhyMap = NULL;
-	}
+	kfree(us->MS_Lib.Log2PhyMap);
+	us->MS_Lib.Log2PhyMap = NULL;
 
     return 0;
 }
@@ -470,7 +464,7 @@ int MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock, BYTE *PageData)
 
 exit:
 	if (result)		MS_LibFreeLogicalMap(us);
-	if (PageBuffer)	kfree(PageBuffer);
+	kfree(PageBuffer);
 
 	result = 0;
 	return result;
