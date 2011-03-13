@@ -675,6 +675,37 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	return 1;
 }
 
+static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
+{
+	struct input_dev *input = wacom->input;
+	unsigned char *data = wacom->data;
+	int contact_with_no_pen_down_count = 0;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		int p = data[1] & (1 << i);
+		bool touch = p && !wacom->shared->stylus_in_proximity;
+
+		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
+		if (touch) {
+			int x = le16_to_cpup((__le16 *)&data[i * 2 + 2]) & 0x7fff;
+			int y = le16_to_cpup((__le16 *)&data[i * 2 + 6]) & 0x7fff;
+
+			input_report_abs(input, ABS_MT_POSITION_X, x);
+			input_report_abs(input, ABS_MT_POSITION_Y, y);
+			contact_with_no_pen_down_count++;
+		}
+	}
+
+	/* keep touch state for pen event */
+	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
+
+	input_mt_report_pointer_emulation(input, true);
+
+	return 1;
+}
+
 static int wacom_tpc_single_touch(struct wacom_wac *wacom, size_t len)
 {
 	char *data = wacom->data;
@@ -749,6 +780,8 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 	if (len == WACOM_PKGLEN_TPC1FG || data[0] == WACOM_REPORT_TPC1FG)
 		return wacom_tpc_single_touch(wacom, len);
+	else if (data[0] == WACOM_REPORT_TPC2FG)
+		return wacom_tpc_mt_touch(wacom);
 	else if (data[0] == WACOM_REPORT_PENABLED)
 		return wacom_tpc_pen(wacom);
 
@@ -975,7 +1008,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 {
 
 	/* touch device found but size is not defined. use default */
-	if (features->device_type == BTN_TOOL_DOUBLETAP && !features->x_max) {
+	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
 		features->x_max = 1023;
 		features->y_max = 1023;
 	}
@@ -987,7 +1020,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* quirks for bamboo touch */
 	if (features->type == BAMBOO_PT &&
-	    features->device_type == BTN_TOOL_TRIPLETAP) {
+	    features->device_type == BTN_TOOL_DOUBLETAP) {
 		features->x_max <<= 5;
 		features->y_max <<= 5;
 		features->x_fuzz <<= 5;
@@ -1123,28 +1156,30 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case TABLETPC2FG:
-		if (features->device_type == BTN_TOOL_TRIPLETAP) {
-			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
-			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		if (features->device_type == BTN_TOOL_DOUBLETAP) {
+
+			input_mt_init_slots(input_dev, 2);
+			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+					0, MT_TOOL_MAX, 0, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+					0, features->x_max, 0, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+					0, features->y_max, 0, 0);
 		}
 		/* fall through */
 
 	case TABLETPC:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
-		if (features->device_type == BTN_TOOL_DOUBLETAP ||
-		    features->device_type == BTN_TOOL_TRIPLETAP) {
+		if (features->device_type != BTN_TOOL_PEN) {
 			input_abs_set_res(input_dev, ABS_X,
 				wacom_calculate_touch_res(features->x_max,
 							features->x_phy));
 			input_abs_set_res(input_dev, ABS_Y,
 				wacom_calculate_touch_res(features->y_max,
 							features->y_phy));
-		}
-
-		if (features->device_type != BTN_TOOL_PEN)
 			break;  /* no need to process stylus stuff */
-
+		}
 		/* fall through */
 
 	case PL:
@@ -1162,7 +1197,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case BAMBOO_PT:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
-		if (features->device_type == BTN_TOOL_TRIPLETAP) {
+		if (features->device_type == BTN_TOOL_DOUBLETAP) {
 			__set_bit(BTN_LEFT, input_dev->keybit);
 			__set_bit(BTN_FORWARD, input_dev->keybit);
 			__set_bit(BTN_BACK, input_dev->keybit);
