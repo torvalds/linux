@@ -591,10 +591,10 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		if (t->tx_buf) {
 			t->tx_dma = dma_map_single(&spi->dev, (void *)t->tx_buf,
-						dspi->wcount, DMA_TO_DEVICE);
+						t->len, DMA_TO_DEVICE);
 			if (dma_mapping_error(&spi->dev, t->tx_dma)) {
 				dev_dbg(sdev, "Unable to DMA map %d bytes"
-						"TX buffer\n", dspi->wcount);
+						"TX buffer\n", t->len);
 				return -ENOMEM;
 			}
 		}
@@ -624,7 +624,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		if (t->rx_buf) {
 			rx_buf = t->rx_buf;
-			rx_buf_count = dspi->rcount;
+			rx_buf_count = t->len;
 		} else {
 			rx_buf = dspi->rx_tmp_buf;
 			rx_buf_count = sizeof(dspi->rx_tmp_buf);
@@ -636,7 +636,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 			dev_dbg(sdev, "Couldn't DMA map a %d bytes RX buffer\n",
 								rx_buf_count);
 			if (t->tx_buf)
-				dma_unmap_single(NULL, t->tx_dma, dspi->wcount,
+				dma_unmap_single(NULL, t->tx_dma, t->len,
 								DMA_TO_DEVICE);
 			return -ENOMEM;
 		}
@@ -675,7 +675,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	if (spicfg->io_type == SPI_IO_TYPE_DMA) {
 
 		if (t->tx_buf)
-			dma_unmap_single(NULL, t->tx_dma, dspi->wcount,
+			dma_unmap_single(NULL, t->tx_dma, t->len,
 								DMA_TO_DEVICE);
 
 		dma_unmap_single(NULL, t->rx_dma, rx_buf_count,
