@@ -24,7 +24,7 @@ unsigned char xgifb_reg_get(unsigned long port, unsigned short index)
 	return data;
 }
 
-void XGINew_SetRegANDOR(unsigned long Port, unsigned short Index,
+void xgifb_reg_and_or(unsigned long Port, unsigned short Index,
 		unsigned short DataAND, unsigned short DataOR)
 {
 	unsigned short temp;

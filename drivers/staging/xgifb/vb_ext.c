@@ -34,7 +34,7 @@ static unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx, 
 	xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 	temp = (tempbx & 0xFF00) >> 8;
 	temp |= (tempcx & 0x00FF);
-	XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
+	xgifb_reg_and_or(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
 
 	for (i = 0; i < 10; i++)
 		XGI_LongWait(pVBInfo);
@@ -87,7 +87,7 @@ static unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExt
 		default:
 			break;
 		}
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x36, 0xF0, temp);
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x36, 0xF0, temp);
 		return 1;
 	}
 }
@@ -148,7 +148,7 @@ static unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 		tempbx = PanelTypeTable[tempbx];
 
 		temp = (tempbx & 0xFF00) >> 8;
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~(LCDSyncBit
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x37, ~(LCDSyncBit
 				| LCDRGB18Bit), temp);
 		return 1;
 	}
@@ -182,7 +182,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 	xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 	temp = (tempbx & 0xFF00) >> 8;
 	temp |= (tempcx & 0x00FF);
-	XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
+	xgifb_reg_and_or(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
 
 	for (i = 0; i < 10; i++)
 		XGI_LongWait(pVBInfo);
@@ -202,7 +202,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 	xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 	temp = (tempbx & 0xFF00) >> 8;
 	temp |= (tempcx & 0x00FF);
-	XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
+	xgifb_reg_and_or(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
 
 	for (i = 0; i < 10; i++)
 		XGI_LongWait(pVBInfo);
@@ -221,7 +221,7 @@ static unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtensi
 		xgifb_reg_set(pVBInfo->Part4Port, 0x11, temp);
 		temp = (tempbx & 0xFF00) >> 8;
 		temp |= (tempcx & 0x00FF);
-		XGINew_SetRegANDOR(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
+		xgifb_reg_and_or(pVBInfo->Part4Port, 0x10, ~0x1F, temp);
 
 		for (i = 0; i < 10; i++)
 			XGI_LongWait(pVBInfo);
@@ -251,8 +251,8 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 		if (tempax == 0x00) { /* Get Panel id from DDC */
 			temp = XGINew_GetLCDDDCInfo(HwDeviceExtension, pVBInfo);
 			if (temp == 1) { /* LCD connect */
-				XGINew_SetRegANDOR(pVBInfo->P3d4, 0x39, 0xFF, 0x01); /* set CR39 bit0="1" */
-				XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, 0xEF, 0x00); /* clean CR37 bit4="0" */
+				xgifb_reg_and_or(pVBInfo->P3d4, 0x39, 0xFF, 0x01); /* set CR39 bit0="1" */
+				xgifb_reg_and_or(pVBInfo->P3d4, 0x37, 0xEF, 0x00); /* clean CR37 bit4="0" */
 				temp = LCDSense;
 			} else { /* LCD don't connect */
 				temp = 0;
@@ -263,14 +263,14 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 		}
 
 		tempbx = ~(LCDSense | AVIDEOSense | SVIDEOSense);
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, tempbx, temp);
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x32, tempbx, temp);
 	} else { /* for 301 */
 		if (pVBInfo->VBInfo & SetCRT2ToHiVisionTV) { /* for HiVision */
 			tempax = xgifb_reg_get(pVBInfo->P3c4, 0x38);
 			temp = tempax & 0x01;
 			tempax = xgifb_reg_get(pVBInfo->P3c4, 0x3A);
 			temp = temp | (tempax & 0x02);
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, 0xA0, temp);
+			xgifb_reg_and_or(pVBInfo->P3d4, 0x32, 0xA0, temp);
 		} else {
 			if (XGI_BridgeIsOn(pVBInfo)) {
 				P2reg0 = xgifb_reg_get(pVBInfo->Part2Port, 0x00);
@@ -291,7 +291,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 					XGI_SetCRT2Group301(SenseModeNo, HwDeviceExtension, pVBInfo);
 					XGI_SetCRT2ModeRegs(0x2e, HwDeviceExtension, pVBInfo);
 					/* XGI_DisableBridge( HwDeviceExtension, pVBInfo ) ; */
-					XGINew_SetRegANDOR(pVBInfo->P3c4, 0x01, 0xDF, 0x20); /* Display Off 0212 */
+					xgifb_reg_and_or(pVBInfo->P3c4, 0x01, 0xDF, 0x20); /* Display Off 0212 */
 					for (i = 0; i < 20; i++)
 						XGI_LongWait(pVBInfo);
 				}
@@ -365,7 +365,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_
 			tempcx = 0;
 			XGINew_Sense(tempbx, tempcx, pVBInfo);
 
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~0xDF, tempax);
+			xgifb_reg_and_or(pVBInfo->P3d4, 0x32, ~0xDF, tempax);
 			xgifb_reg_set(pVBInfo->Part2Port, 0x00, P2reg0);
 
 			if (!(P2reg0 & 0x20)) {

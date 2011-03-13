@@ -421,7 +421,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 
 	temp3 = 0;
 	for (k = 0; k < 4; k++) {
-		XGINew_SetRegANDOR(P3d4, 0x6E, 0xFC, temp3); /* CR6E_D[1:0] select channel */
+		xgifb_reg_and_or(P3d4, 0x6E, 0xFC, temp3); /* CR6E_D[1:0] select channel */
 		temp2 = 0;
 		for (i = 0; i < 8; i++) {
 			temp = pVBInfo->CR6F[XGINew_RAMType][8 * k + i]; /* CR6F DQ fine tune delay */
@@ -516,7 +516,7 @@ static void XGINew_SetDRAMSizingType(int index,
 	unsigned short data;
 
 	data = DRAMTYPE_TABLE[index][4];
-	XGINew_SetRegANDOR(pVBInfo->P3c4, 0x13, 0x80, data);
+	xgifb_reg_and_or(pVBInfo->P3c4, 0x13, 0x80, data);
 	udelay(15);
 	/* should delay 50 ns */
 }
@@ -1197,20 +1197,20 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 	if ((pVideoMemory[0x65] & 0x01)) { /* For XG21 LVDS */
 		pVBInfo->IF_DEF_LVDS = 1;
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0); /* LVDS on chip */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0); /* LVDS on chip */
 	} else {
 #endif
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x4A, ~0x03, 0x03); /* Enable GPIOA/B read  */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03); /* Enable GPIOA/B read  */
 		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0xC0;
 		if (Temp == 0xC0) { /* DVI & DVO GPIOA/B pull high */
 			XGINew_SenseLCD(HwDeviceExtension, pVBInfo);
 			xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
-			XGINew_SetRegANDOR(pVBInfo->P3d4, 0x4A, ~0x20, 0x20); /* Enable read GPIOF */
+			xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x20, 0x20); /* Enable read GPIOF */
 			Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0x04;
 			if (!Temp)
-				XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0x80); /* TMDS on chip */
+				xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0x80); /* TMDS on chip */
 			else
-				XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0); /* Only DVO on chip */
+				xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0); /* Only DVO on chip */
 			XGINew_SetRegAND(pVBInfo->P3d4, 0x4A, ~0x20); /* Disable read GPIOF */
 		}
 #if 1
@@ -1225,16 +1225,16 @@ static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
 
 	pVBInfo->IF_DEF_LVDS = 0;
 	bCR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
-	XGINew_SetRegANDOR(pVBInfo->P3d4, 0x4A, ~0x07, 0x07); /* Enable GPIOA/B/C read  */
+	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x07, 0x07); /* Enable GPIOA/B/C read  */
 	Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0x07;
 	xgifb_reg_set(pVBInfo->P3d4, 0x4A, bCR4A);
 
 	if (Temp <= 0x02) {
 		pVBInfo->IF_DEF_LVDS = 1;
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0); /* LVDS setting */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0); /* LVDS setting */
 		xgifb_reg_set(pVBInfo->P3d4, 0x30, 0x21);
 	} else {
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0); /* TMDS/DVO setting */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xA0); /* TMDS/DVO setting */
 	}
 	xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 
@@ -1245,7 +1245,7 @@ static unsigned char GetXG21FPBits(struct vb_device_info *pVBInfo)
 	unsigned char CR38, CR4A, temp;
 
 	CR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
-	XGINew_SetRegANDOR(pVBInfo->P3d4, 0x4A, ~0x10, 0x10); /* enable GPIOE read */
+	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x10, 0x10); /* enable GPIOE read */
 	CR38 = xgifb_reg_get(pVBInfo->P3d4, 0x38);
 	temp = 0;
 	if ((CR38 & 0xE0) > 0x80) {
@@ -1264,7 +1264,7 @@ static unsigned char GetXG27FPBits(struct vb_device_info *pVBInfo)
 	unsigned char CR4A, temp;
 
 	CR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
-	XGINew_SetRegANDOR(pVBInfo->P3d4, 0x4A, ~0x03, 0x03); /* enable GPIOA/B/C read */
+	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03); /* enable GPIOA/B/C read */
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x48);
 	if (temp <= 2)
 		temp &= 0x03;
@@ -1490,7 +1490,7 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	if (HwDeviceExtension->jChipType < XG20) { /* kuku 2004/06/25 */
 		/* Set VB */
 		XGI_UnLockCRT2(HwDeviceExtension, pVBInfo);
-		XGINew_SetRegANDOR(pVBInfo->Part0Port, 0x3F, 0xEF, 0x00); /* alan, disable VideoCapture */
+		xgifb_reg_and_or(pVBInfo->Part0Port, 0x3F, 0xEF, 0x00); /* alan, disable VideoCapture */
 		xgifb_reg_set(pVBInfo->Part1Port, 0x00, 0x00);
 		temp1 = (unsigned char) xgifb_reg_get(pVBInfo->P3d4, 0x7B); /* chk if BCLK>=100MHz */
 		temp = (unsigned char) ((temp1 >> 4) & 0x0F);
@@ -1551,16 +1551,16 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	if (HwDeviceExtension->jChipType == XG21) {
 		printk("186");
 
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
 		temp = GetXG21FPBits(pVBInfo);
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~0x01, temp);
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x37, ~0x01, temp);
 		printk("187");
 
 	}
 	if (HwDeviceExtension->jChipType == XG27) {
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x32, ~Monitor1Sense, Monitor1Sense); /* Z9 default has CRT */
 		temp = GetXG27FPBits(pVBInfo);
-		XGINew_SetRegANDOR(pVBInfo->P3d4, 0x37, ~0x03, temp);
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x37, ~0x03, temp);
 	}
 	printk("19");
 
