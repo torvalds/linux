@@ -436,12 +436,12 @@ static struct gpio_keys_button z2_pxa_buttons[] = {
 		.type		= EV_KEY,
 	},
 	{
-		.code		= KEY_CLOSE,
+		.code		= SW_LID,
 		.gpio		= GPIO98_ZIPITZ2_LID_BUTTON,
-		.active_low	= 0,
-		.desc		= "Lid Button",
-		.wakeup		= 0
-		.type		= EV_KEY,
+		.active_low	= 1,
+		.desc		= "Lid Switch",
+		.wakeup		= 0,
+		.type		= EV_SW,
 	},
 };
 
