@@ -66,17 +66,17 @@ enum pxa_i2c_types {
 static struct pxa_reg_layout pxa_reg_layout[] = {
 	[REGS_PXA2XX] = {
 		.ibmr =	0x00,
-		.idbr =	0x10,
-		.icr =	0x20,
-		.isr =	0x30,
-		.isar =	0x40,
-	},
-	[REGS_PXA3XX] = {
-		.ibmr =	0x00,
 		.idbr =	0x08,
 		.icr =	0x10,
 		.isr =	0x18,
 		.isar =	0x20,
+	},
+	[REGS_PXA3XX] = {
+		.ibmr =	0x00,
+		.idbr =	0x04,
+		.icr =	0x08,
+		.isr =	0x0c,
+		.isar =	0x10,
 	},
 	[REGS_CE4100] = {
 		.ibmr =	0x14,
