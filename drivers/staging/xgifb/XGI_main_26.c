@@ -1502,10 +1502,7 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	fix->line_length = xgi_video_info.video_linelength;
 	fix->mmio_start = xgi_video_info.mmio_base;
 	fix->mmio_len = xgi_video_info.mmio_size;
-	if (xgi_video_info.chip >= XG40)
-		fix->accel = FB_ACCEL_XGI_XABRE;
-	else
-		fix->accel = FB_ACCEL_XGI_GLAMOUR_2;
+	fix->accel = FB_ACCEL_XGI_XABRE;
 
 	DEBUGPRN("end of get_fix");
 	return 0;

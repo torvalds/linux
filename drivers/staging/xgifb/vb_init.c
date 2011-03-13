@@ -1382,13 +1382,8 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 	printk("8");
 
-	if ((HwDeviceExtension->jChipType >= XG20) || (HwDeviceExtension->jChipType >= XG40)) {
-		for (i = 0x31; i <= 0x3B; i++)
-			XGINew_SetReg1(pVBInfo->P3c4, i, 0);
-	} else {
-		for (i = 0x31; i <= 0x3D; i++)
-			XGINew_SetReg1(pVBInfo->P3c4, i, 0);
-	}
+	for (i = 0x31; i <= 0x3B; i++)
+		XGINew_SetReg1(pVBInfo->P3c4, i, 0);
 	printk("9");
 
 	if (HwDeviceExtension->jChipType == XG42) /* [Hsuan] 2004/08/20 Auto over driver for XG42 */
@@ -1407,7 +1402,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 	/* 3.SetMemoryClock
 
-	 if (HwDeviceExtension->jChipType >= XG40)
 	 XGINew_RAMType = (int)XGINew_GetXG20DRAMType(HwDeviceExtension, pVBInfo);
 	*/
 
@@ -1467,30 +1461,28 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 
 		printk("13");
 
-		if (HwDeviceExtension->jChipType >= XG40) {
-			/* Set AGP customize registers (in SetDefAGPRegs) Start */
-			for (i = 0x47; i <= 0x4C; i++)
-				XGINew_SetReg1(pVBInfo->P3d4, i, pVBInfo->AGPReg[i - 0x47]);
+		/* Set AGP customize registers (in SetDefAGPRegs) Start */
+		for (i = 0x47; i <= 0x4C; i++)
+			XGINew_SetReg1(pVBInfo->P3d4, i, pVBInfo->AGPReg[i - 0x47]);
 
-			for (i = 0x70; i <= 0x71; i++)
-				XGINew_SetReg1(pVBInfo->P3d4, i, pVBInfo->AGPReg[6 + i - 0x70]);
+		for (i = 0x70; i <= 0x71; i++)
+			XGINew_SetReg1(pVBInfo->P3d4, i, pVBInfo->AGPReg[6 + i - 0x70]);
 
-			for (i = 0x74; i <= 0x77; i++)
-				XGINew_SetReg1(pVBInfo->P3d4, i, pVBInfo->AGPReg[8 + i - 0x74]);
-			/* Set AGP customize registers (in SetDefAGPRegs) End */
-			/* [Hsuan]2004/12/14 AGP Input Delay Adjustment on 850 */
-			/*        XGINew_SetReg4(0xcf8 , 0x80000000); */
-			/*        ChipsetID = XGINew_GetReg3(0x0cfc); */
-			/*        if (ChipsetID == 0x25308086) */
-			/*            XGINew_SetReg1(pVBInfo->P3d4, 0x77, 0xF0); */
+		for (i = 0x74; i <= 0x77; i++)
+			XGINew_SetReg1(pVBInfo->P3d4, i, pVBInfo->AGPReg[8 + i - 0x74]);
+		/* Set AGP customize registers (in SetDefAGPRegs) End */
+		/* [Hsuan]2004/12/14 AGP Input Delay Adjustment on 850 */
+		/*        XGINew_SetReg4(0xcf8 , 0x80000000); */
+		/*        ChipsetID = XGINew_GetReg3(0x0cfc); */
+		/*        if (ChipsetID == 0x25308086) */
+		/*            XGINew_SetReg1(pVBInfo->P3d4, 0x77, 0xF0); */
 
-			HwDeviceExtension->pQueryVGAConfigSpace(HwDeviceExtension, 0x50, 0, &Temp); /* Get */
-			Temp >>= 20;
-			Temp &= 0xF;
+		HwDeviceExtension->pQueryVGAConfigSpace(HwDeviceExtension, 0x50, 0, &Temp); /* Get */
+		Temp >>= 20;
+		Temp &= 0xF;
 
-			if (Temp == 1)
-				XGINew_SetReg1(pVBInfo->P3d4, 0x48, 0x20); /* CR48 */
-		}
+		if (Temp == 1)
+			XGINew_SetReg1(pVBInfo->P3d4, 0x48, 0x20); /* CR48 */
 		printk("14");
 	} /* != XG20 */
 
@@ -1529,7 +1521,6 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	printk("17");
 
 	/*
-	 if (HwDeviceExtension->jChipType >= XG40)
 	 SetPowerConsume (HwDeviceExtension, pVBInfo->P3c4);	*/
 
 	if (HwDeviceExtension->jChipType < XG20) { /* kuku 2004/06/25 */
@@ -1578,16 +1569,13 @@ unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 	}
 	printk("19");
 
-	if (HwDeviceExtension->jChipType >= XG40) {
-		if (HwDeviceExtension->jChipType >= XG40)
-			XGINew_RAMType = (int) XGINew_GetXG20DRAMType(HwDeviceExtension, pVBInfo);
+	XGINew_RAMType = (int) XGINew_GetXG20DRAMType(HwDeviceExtension, pVBInfo);
 
-		XGINew_SetDRAMDefaultRegister340(HwDeviceExtension, pVBInfo->P3d4, pVBInfo);
+	XGINew_SetDRAMDefaultRegister340(HwDeviceExtension, pVBInfo->P3d4, pVBInfo);
 
-		printk("20");
-		XGINew_SetDRAMSize_340(HwDeviceExtension, pVBInfo);
-		printk("21");
-	} /* XG40 */
+	printk("20");
+	XGINew_SetDRAMSize_340(HwDeviceExtension, pVBInfo);
+	printk("21");
 
 	printk("22");
 

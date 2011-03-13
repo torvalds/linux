@@ -74,18 +74,8 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	/* XGINew_UBLCDDataTable = (struct XGI_LCDDataTablStruct *) XGI_LCDDataTable; */
 	/* XGINew_UBTVDataTable = (XGI_TVDataTablStruct *) XGI_TVDataTable; */
 
-	if (ChipType >= XG40) {
-		pVBInfo->MCLKData
-			= (struct XGI_MCLKDataStruct *) XGI340New_MCLKData;
-		pVBInfo->ECLKData
-			= (struct XGI_ECLKDataStruct *) XGI340_ECLKData;
-	} else {
-		pVBInfo->MCLKData
-			= (struct XGI_MCLKDataStruct *) XGI330New_MCLKData;
-		pVBInfo->ECLKData
-			= (struct XGI_ECLKDataStruct *) XGI330_ECLKData;
-	}
-
+	pVBInfo->MCLKData = (struct XGI_MCLKDataStruct *) XGI340New_MCLKData;
+	pVBInfo->ECLKData = (struct XGI_ECLKDataStruct *) XGI340_ECLKData;
 	pVBInfo->VCLKData = (struct XGI_VCLKDataStruct *) XGI_VCLKData;
 	pVBInfo->VBVCLKData = (struct XGI_VBVCLKDataStruct *) XGI_VBVCLKData;
 	pVBInfo->ScreenOffset = XGI330_ScreenOffset;
@@ -3291,15 +3281,7 @@ static void XGI_UpdateModeInfo(struct xgi_hw_device_info *HwDeviceExtension,
 		if (!(temp & 0x20)) {
 			temp = XGINew_GetReg1(pVBInfo->P3d4, 0x17);
 			if (temp & 0x80) {
-				if ((HwDeviceExtension->jChipType >= XG20)
-						|| (HwDeviceExtension->jChipType
-								>= XG40))
-					temp = XGINew_GetReg1(pVBInfo->P3d4,
-							0x53);
-				else
-					temp = XGINew_GetReg1(pVBInfo->P3d4,
-							0x63);
-
+				temp = XGINew_GetReg1(pVBInfo->P3d4, 0x53);
 				if (!(temp & 0x40))
 					tempcl |= ActiveCRT1;
 			}
@@ -3377,7 +3359,7 @@ void XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension,
 	/*
 	if ( HwDeviceExtension->jChipType >= XG20 ) {
 		pVBInfo->Set_VGAType = XG20;
-	} else if (HwDeviceExtension->jChipType >= XG40) {
+	} else {
 		pVBInfo->Set_VGAType = VGA_XGI340;
 	}
 	*/
@@ -8330,14 +8312,10 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 		pVBInfo->IF_DEF_HiVision = 0;
 		pVBInfo->IF_DEF_CRT2Monitor = 0;
 		pVBInfo->VBType = 0; /*set VBType default 0*/
-	} else if (HwDeviceExtension->jChipType >= XG40) {
-		pVBInfo->IF_DEF_YPbPr = 1;
-		pVBInfo->IF_DEF_HiVision = 1;
-		pVBInfo->IF_DEF_CRT2Monitor = 1;
 	} else {
 		pVBInfo->IF_DEF_YPbPr = 1;
 		pVBInfo->IF_DEF_HiVision = 1;
-		pVBInfo->IF_DEF_CRT2Monitor = 0;
+		pVBInfo->IF_DEF_CRT2Monitor = 1;
 	}
 
 	pVBInfo->P3c4 = pVBInfo->BaseAddr + 0x14;

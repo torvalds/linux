@@ -383,13 +383,7 @@ unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension, str
 	/* unsigned short SoftSetting ; */
 	unsigned short temp;
 
-	if ((HwDeviceExtension->jChipType >= XG20) || (HwDeviceExtension->jChipType >= XG40))
-		temp = 0;
-	else
-		temp = XGINew_GetPanelID(pVBInfo);
-
-	if (!temp)
-		temp = XGINew_GetLCDDDCInfo(HwDeviceExtension, pVBInfo);
+	temp = XGINew_GetLCDDDCInfo(HwDeviceExtension, pVBInfo);
 
 	return temp;
 }
