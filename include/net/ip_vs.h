@@ -1179,6 +1179,8 @@ extern void ip_vs_estimator_cleanup(void);
 extern void ip_vs_new_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_kill_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);
+extern void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
+				 struct ip_vs_stats *stats);
 
 /*
  *	Various IPVS packet transmitters (from ip_vs_xmit.c)

@@ -715,7 +715,6 @@ static void
 ip_vs_copy_stats(struct ip_vs_stats_user *dst, struct ip_vs_stats *src)
 {
 #define IP_VS_SHOW_STATS_COUNTER(c) dst->c = src->ustats.c - src->ustats0.c
-#define IP_VS_SHOW_STATS_RATE(r) dst->r = src->ustats.r
 
 	spin_lock_bh(&src->lock);
 
@@ -725,11 +724,7 @@ ip_vs_copy_stats(struct ip_vs_stats_user *dst, struct ip_vs_stats *src)
 	IP_VS_SHOW_STATS_COUNTER(inbytes);
 	IP_VS_SHOW_STATS_COUNTER(outbytes);
 
-	IP_VS_SHOW_STATS_RATE(cps);
-	IP_VS_SHOW_STATS_RATE(inpps);
-	IP_VS_SHOW_STATS_RATE(outpps);
-	IP_VS_SHOW_STATS_RATE(inbps);
-	IP_VS_SHOW_STATS_RATE(outbps);
+	ip_vs_read_estimator(dst, src);
 
 	spin_unlock_bh(&src->lock);
 }
@@ -742,19 +737,12 @@ ip_vs_zero_stats(struct ip_vs_stats *stats)
 	/* get current counters as zero point, rates are zeroed */
 
 #define IP_VS_ZERO_STATS_COUNTER(c) stats->ustats0.c = stats->ustats.c
-#define IP_VS_ZERO_STATS_RATE(r) stats->ustats.r = 0
 
 	IP_VS_ZERO_STATS_COUNTER(conns);
 	IP_VS_ZERO_STATS_COUNTER(inpkts);
 	IP_VS_ZERO_STATS_COUNTER(outpkts);
 	IP_VS_ZERO_STATS_COUNTER(inbytes);
 	IP_VS_ZERO_STATS_COUNTER(outbytes);
-
-	IP_VS_ZERO_STATS_RATE(cps);
-	IP_VS_ZERO_STATS_RATE(inpps);
-	IP_VS_ZERO_STATS_RATE(outpps);
-	IP_VS_ZERO_STATS_RATE(inbps);
-	IP_VS_ZERO_STATS_RATE(outbps);
 
 	ip_vs_zero_estimator(stats);
 
@@ -2043,6 +2031,7 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 	struct net *net = seq_file_single_net(seq);
 	struct ip_vs_stats *tot_stats = &net_ipvs(net)->tot_stats;
 	struct ip_vs_cpu_stats *cpustats = tot_stats->cpustats;
+	struct ip_vs_stats_user rates;
 	int i;
 
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
@@ -2069,22 +2058,26 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 	}
 
 	spin_lock_bh(&tot_stats->lock);
+
 	seq_printf(seq, "  ~ %8X %8X %8X %16LX %16LX\n\n",
 		   tot_stats->ustats.conns, tot_stats->ustats.inpkts,
 		   tot_stats->ustats.outpkts,
 		   (unsigned long long) tot_stats->ustats.inbytes,
 		   (unsigned long long) tot_stats->ustats.outbytes);
 
+	ip_vs_read_estimator(&rates, tot_stats);
+
+	spin_unlock_bh(&tot_stats->lock);
+
 /*                 01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
 		   "     Conns/s   Pkts/s   Pkts/s          Bytes/s          Bytes/s\n");
 	seq_printf(seq, "    %8X %8X %8X %16X %16X\n",
-			tot_stats->ustats.cps,
-			tot_stats->ustats.inpps,
-			tot_stats->ustats.outpps,
-			tot_stats->ustats.inbps,
-			tot_stats->ustats.outbps);
-	spin_unlock_bh(&tot_stats->lock);
+			rates.cps,
+			rates.inpps,
+			rates.outpps,
+			rates.inbps,
+			rates.outbps);
 
 	return 0;
 }

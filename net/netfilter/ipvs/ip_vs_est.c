@@ -117,27 +117,22 @@ static void estimation_timer(unsigned long arg)
 		rate = (n_conns - e->last_conns) << 9;
 		e->last_conns = n_conns;
 		e->cps += ((long)rate - (long)e->cps) >> 2;
-		s->ustats.cps = (e->cps + 0x1FF) >> 10;
 
 		rate = (n_inpkts - e->last_inpkts) << 9;
 		e->last_inpkts = n_inpkts;
 		e->inpps += ((long)rate - (long)e->inpps) >> 2;
-		s->ustats.inpps = (e->inpps + 0x1FF) >> 10;
 
 		rate = (n_outpkts - e->last_outpkts) << 9;
 		e->last_outpkts = n_outpkts;
 		e->outpps += ((long)rate - (long)e->outpps) >> 2;
-		s->ustats.outpps = (e->outpps + 0x1FF) >> 10;
 
 		rate = (n_inbytes - e->last_inbytes) << 4;
 		e->last_inbytes = n_inbytes;
 		e->inbps += ((long)rate - (long)e->inbps) >> 2;
-		s->ustats.inbps = (e->inbps + 0xF) >> 5;
 
 		rate = (n_outbytes - e->last_outbytes) << 4;
 		e->last_outbytes = n_outbytes;
 		e->outbps += ((long)rate - (long)e->outbps) >> 2;
-		s->ustats.outbps = (e->outbps + 0xF) >> 5;
 		spin_unlock(&s->lock);
 	}
 	spin_unlock(&ipvs->est_lock);
@@ -150,21 +145,6 @@ void ip_vs_new_estimator(struct net *net, struct ip_vs_stats *stats)
 	struct ip_vs_estimator *est = &stats->est;
 
 	INIT_LIST_HEAD(&est->list);
-
-	est->last_conns = stats->ustats.conns;
-	est->cps = stats->ustats.cps<<10;
-
-	est->last_inpkts = stats->ustats.inpkts;
-	est->inpps = stats->ustats.inpps<<10;
-
-	est->last_outpkts = stats->ustats.outpkts;
-	est->outpps = stats->ustats.outpps<<10;
-
-	est->last_inbytes = stats->ustats.inbytes;
-	est->inbps = stats->ustats.inbps<<5;
-
-	est->last_outbytes = stats->ustats.outbytes;
-	est->outbps = stats->ustats.outbps<<5;
 
 	spin_lock_bh(&ipvs->est_lock);
 	list_add(&est->list, &ipvs->est_list);
@@ -197,6 +177,19 @@ void ip_vs_zero_estimator(struct ip_vs_stats *stats)
 	est->outpps = 0;
 	est->inbps = 0;
 	est->outbps = 0;
+}
+
+/* Get decoded rates */
+void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
+			  struct ip_vs_stats *stats)
+{
+	struct ip_vs_estimator *e = &stats->est;
+
+	dst->cps = (e->cps + 0x1FF) >> 10;
+	dst->inpps = (e->inpps + 0x1FF) >> 10;
+	dst->outpps = (e->outpps + 0x1FF) >> 10;
+	dst->inbps = (e->inbps + 0xF) >> 5;
+	dst->outbps = (e->outbps + 0xF) >> 5;
 }
 
 static int __net_init __ip_vs_estimator_init(struct net *net)
