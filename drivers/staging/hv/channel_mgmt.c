@@ -829,8 +829,7 @@ int vmbus_request_offers(void)
 
 
 cleanup:
-	if (msginfo)
-		kfree(msginfo);
+	kfree(msginfo);
 
 	return ret;
 }

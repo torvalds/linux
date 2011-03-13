@@ -402,15 +402,11 @@ static void MousevscOnReceiveDeviceInfo(struct mousevsc_dev *InputDevice, struct
 	return;
 
 Cleanup:
-	if (InputDevice->HidDesc) {
-		kfree(InputDevice->HidDesc);
-		InputDevice->HidDesc = NULL;
-	}
+	kfree(InputDevice->HidDesc);
+	InputDevice->HidDesc = NULL;
 
-	if (InputDevice->ReportDesc) {
-		kfree(InputDevice->ReportDesc);
-		InputDevice->ReportDesc = NULL;
-	}
+	kfree(InputDevice->ReportDesc);
+	InputDevice->ReportDesc = NULL;
 
 	InputDevice->DeviceInfoStatus = -1;
 	InputDevice->device_wait_condition = 1;

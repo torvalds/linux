@@ -186,9 +186,7 @@ Cleanup:
 		vmbus_connection.monitor_pages = NULL;
 	}
 
-	if (msginfo) {
-		kfree(msginfo);
-	}
+	kfree(msginfo);
 
 	return ret;
 }
