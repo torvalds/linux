@@ -182,8 +182,6 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	*/
 	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
-	if (HwDeviceExtension->jChipType < XGI_315H)
-		ClockIndex &= 0x3F;
 
 	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
 
@@ -857,12 +855,6 @@ static int XGIfb_validate_mode(int myindex)
 		case 1024:
 			if (xgi_video_info.TV_type == TVMODE_NTSC) {
 				if (XGIbios_mode[myindex].bpp == 32)
-					return -1;
-			}
-			/* TW: LVDS/CHRONTEL only supports < 800 (1024 on 650/Ch7019) */
-			if (xgi_video_info.hasVB == HASVB_LVDS_CHRONTEL
-					|| xgi_video_info.hasVB	== HASVB_CHRONTEL) {
-				if (xgi_video_info.chip < XGI_315H)
 					return -1;
 			}
 			break;
@@ -1684,24 +1676,11 @@ static void XGIfb_detect_VB(void)
 		xgi_video_info.TV_plug = TVPLUG_SCART;
 
 	if (xgi_video_info.TV_type == 0) {
-		/* TW: PAL/NTSC changed for 650 */
-		if ((xgi_video_info.chip <= XGI_315PRO) || (xgi_video_info.chip
-				>= XGI_330)) {
-
-			inXGIIDXREG(XGICR, 0x38, temp);
-			if (temp & 0x10)
-				xgi_video_info.TV_type = TVMODE_PAL;
-			else
-				xgi_video_info.TV_type = TVMODE_NTSC;
-
-		} else {
-
-			inXGIIDXREG(XGICR, 0x79, temp);
-			if (temp & 0x20)
-				xgi_video_info.TV_type = TVMODE_PAL;
-			else
-				xgi_video_info.TV_type = TVMODE_NTSC;
-		}
+		inXGIIDXREG(XGICR, 0x38, temp);
+		if (temp & 0x10)
+			xgi_video_info.TV_type = TVMODE_PAL;
+		else
+			xgi_video_info.TV_type = TVMODE_NTSC;
 	}
 
 	/* TW: Copy forceCRT1 option to CRT1off if option is given */

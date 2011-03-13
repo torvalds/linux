@@ -27,23 +27,6 @@
 #endif
 
 enum XGI_CHIP_TYPE {
-    XGI_VGALegacy = 0,
-    XGI_300,
-    XGI_630,
-    XGI_730,
-    XGI_540,
-    XGI_315H,
-    XGI_315,
-    XGI_315PRO,
-    XGI_550,
-    XGI_640,
-    XGI_740,
-    XGI_650,
-    XGI_650M,
-    XGI_330 = 16,
-    XGI_660,
-    XGI_661,
-    XGI_760,
     XG40 = 32,
     XG41,
     XG42,
@@ -51,7 +34,6 @@ enum XGI_CHIP_TYPE {
     XG20 = 48,
     XG21,
     XG27,
-    MAX_XGI_CHIP
 };
 
 enum xgi_tvtype {
