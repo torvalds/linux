@@ -1459,7 +1459,6 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2882_BOARD_PINNACLE_HYBRID_PRO_330E] = {
 		.name         = "Pinnacle Hybrid Pro (330e)",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
