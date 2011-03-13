@@ -929,10 +929,8 @@ static void bt_cleanup_hci(struct ar6k_hci_bridge_info *pHcidevInfo)
         }          
     }   
     
-    if (pHcidevInfo->pBtStackHCIDev != NULL) {
-        kfree(pHcidevInfo->pBtStackHCIDev);
-        pHcidevInfo->pBtStackHCIDev = NULL;
-    }  
+    kfree(pHcidevInfo->pBtStackHCIDev);
+    pHcidevInfo->pBtStackHCIDev = NULL;  
 }
 
 static int bt_register_hci(struct ar6k_hci_bridge_info *pHcidevInfo)

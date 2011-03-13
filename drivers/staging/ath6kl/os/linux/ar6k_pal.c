@@ -260,10 +260,8 @@ static void bt_cleanup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
 		}          
 	}
 
-	if (pHciPalInfo->hdev != NULL) {
-		kfree(pHciPalInfo->hdev);
-		pHciPalInfo->hdev = NULL;
-	}
+	kfree(pHciPalInfo->hdev);
+	pHciPalInfo->hdev = NULL;
 }
 
 /*********************************************************

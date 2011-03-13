@@ -1214,9 +1214,7 @@ delHifDevice(HIF_DEVICE * device)
 {
     AR_DEBUG_ASSERT(device!= NULL);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: delHifDevice; 0x%p\n", device));
-    if (device->dma_buffer != NULL) {
-        kfree(device->dma_buffer);
-    }
+    kfree(device->dma_buffer);
     kfree(device);
 }
 

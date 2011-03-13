@@ -120,9 +120,7 @@ int logger_write(const enum logidx index,
     }
     set_fs(oldfs);
 out_free_message:
-    if (msg) {
-        kfree(msg);
-    }
+    kfree(msg);
     return ret;
 }
 #endif
