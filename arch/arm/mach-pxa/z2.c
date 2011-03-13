@@ -204,7 +204,7 @@ static struct platform_pwm_backlight_data z2_backlight_data[] = {
 		/* Keypad Backlight */
 		.pwm_id		= 1,
 		.max_brightness	= 1023,
-		.dft_brightness	= 512,
+		.dft_brightness	= 0,
 		.pwm_period_ns	= 1260320,
 	},
 	[1] = {
