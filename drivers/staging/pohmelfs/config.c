@@ -601,11 +601,9 @@ void pohmelfs_config_exit(void)
 
 		list_del(&g->group_entry);
 
-		if (g->hash_string)
-			kfree(g->hash_string);
+		kfree(g->hash_string);
 
-		if (g->cipher_string)
-			kfree(g->cipher_string);
+		kfree(g->cipher_string);
 
 		kfree(g);
 	}
