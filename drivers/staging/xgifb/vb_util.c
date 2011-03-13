@@ -8,46 +8,43 @@
 
 #include "vb_util.h"
 
-void xgifb_reg_set(unsigned long port, unsigned short index,
-		unsigned short data)
+void xgifb_reg_set(unsigned long port, u8 index, u8 data)
 {
 	outb(index, port);
 	outb(data, port + 1);
 }
 
-unsigned char xgifb_reg_get(unsigned long port, unsigned short index)
+u8 xgifb_reg_get(unsigned long port, u8 index)
 {
-	unsigned char data;
+	u8 data;
 
 	outb(index, port);
 	data = inb(port + 1);
 	return data;
 }
 
-void xgifb_reg_and_or(unsigned long Port, unsigned short Index,
-		unsigned short DataAND, unsigned short DataOR)
+void xgifb_reg_and_or(unsigned long Port, u8 Index,
+		unsigned DataAND, unsigned DataOR)
 {
-	unsigned short temp;
+	u8 temp;
 
 	temp = xgifb_reg_get(Port, Index); /* XGINew_Part1Port index 02 */
 	temp = (temp & (DataAND)) | DataOR;
 	xgifb_reg_set(Port, Index, temp);
 }
 
-void xgifb_reg_and(unsigned long Port, unsigned short Index,
-		unsigned short DataAND)
+void xgifb_reg_and(unsigned long Port, u8 Index, unsigned DataAND)
 {
-	unsigned short temp;
+	u8 temp;
 
 	temp = xgifb_reg_get(Port, Index); /* XGINew_Part1Port index 02 */
 	temp &= DataAND;
 	xgifb_reg_set(Port, Index, temp);
 }
 
-void xgifb_reg_or(unsigned long Port, unsigned short Index,
-		unsigned short DataOR)
+void xgifb_reg_or(unsigned long Port, u8 Index, unsigned DataOR)
 {
-	unsigned short temp;
+	u8 temp;
 
 	temp = xgifb_reg_get(Port, Index); /* XGINew_Part1Port index 02 */
 	temp |= DataOR;
