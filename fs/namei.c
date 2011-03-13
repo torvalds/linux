@@ -766,8 +766,14 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 		error = 0;
 		if (s)
 			error = __vfs_follow_link(nd, s);
-		else if (nd->last_type == LAST_BIND)
+		else if (nd->last_type == LAST_BIND) {
 			nd->flags |= LOOKUP_JUMPED;
+			if (nd->path.dentry->d_inode->i_op->follow_link) {
+				/* stepped on a _really_ weird one */
+				path_put(&nd->path);
+				error = -ELOOP;
+			}
+		}
 	}
 	return error;
 }
@@ -1954,6 +1960,10 @@ static int may_open(struct path *path, int acc_mode, int flag)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
+	/* O_PATH? */
+	if (!acc_mode)
+		return 0;
+
 	if (!inode)
 		return -ENOENT;
 
@@ -2056,7 +2066,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	int open_flag = op->open_flag;
 	int will_truncate = open_flag & O_TRUNC;
 	int want_write = 0;
-	int skip_perm = 0;
+	int acc_mode = op->acc_mode;
 	struct file *filp;
 	struct inode *inode;
 	int error;
@@ -2095,8 +2105,11 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	}
 
 	if (!(open_flag & O_CREAT)) {
+		int symlink_ok = 0;
 		if (nd->last.name[nd->last.len])
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+		if (open_flag & O_PATH && !(nd->flags & LOOKUP_FOLLOW))
+			symlink_ok = 1;
 		/* we _can_ be in RCU mode here */
 		error = do_lookup(nd, &nd->last, path, &inode);
 		if (error) {
@@ -2108,7 +2121,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			terminate_walk(nd);
 			return ERR_PTR(-ENOENT);
 		}
-		if (unlikely(inode->i_op->follow_link)) {
+		if (unlikely(inode->i_op->follow_link && !symlink_ok)) {
 			/* We drop rcu-walk here */
 			if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
 				return ERR_PTR(-ECHILD);
@@ -2175,7 +2188,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		/* Don't check for write permission, don't truncate */
 		open_flag &= ~O_TRUNC;
 		will_truncate = 0;
-		skip_perm = 1;
+		acc_mode = MAY_OPEN;
 		error = security_path_mknod(&nd->path, dentry, mode, 0);
 		if (error)
 			goto exit_mutex_unlock;
@@ -2225,7 +2238,7 @@ ok:
 		want_write = 1;
 	}
 common:
-	error = may_open(&nd->path, skip_perm ? 0 : op->acc_mode, open_flag);
+	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
 		goto exit;
 	filp = nameidata_to_filp(nd);
@@ -2358,7 +2371,7 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 
 	flags |= LOOKUP_ROOT;
 
-	if (dentry->d_inode->i_op->follow_link)
+	if (dentry->d_inode->i_op->follow_link && op->intent & LOOKUP_OPEN)
 		return ERR_PTR(-ELOOP);
 
 	file = path_openat(-1, name, &nd, op, flags | LOOKUP_RCU);
