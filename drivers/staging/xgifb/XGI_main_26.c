@@ -2264,10 +2264,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (!XGIvga_enabled) {
 		/* Mapping Max FB Size for 315 Init */
 		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
-		if ((xgifb_mode_idx < 0) || ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
-			outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
-
-		}
 	}
 	if (XGIfb_get_dram_size()) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
