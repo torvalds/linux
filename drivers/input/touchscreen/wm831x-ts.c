@@ -225,7 +225,10 @@ static __devinit int wm831x_ts_probe(struct platform_device *pdev)
 	else
 		wm831x_ts->pd_irq = platform_get_irq_byname(pdev, "TCHPD");
 
-	wm831x_ts->pressure = pdata && pdata->pressure;
+	if (pdata)
+		wm831x_ts->pressure = pdata->pressure;
+	else
+		wm831x_ts->pressure = true;
 
 	/* Five wire touchscreens can't report pressure */
 	if (pdata && pdata->fivewire) {
