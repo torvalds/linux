@@ -1544,7 +1544,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 	} else {
 		struct dentry *dentry;
 
-		file = fget_light(dfd, &fput_needed);
+		file = fget_raw_light(dfd, &fput_needed);
 		retval = -EBADF;
 		if (!file)
 			goto out_fail;

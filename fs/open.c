@@ -669,11 +669,16 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 					int (*open)(struct inode *, struct file *),
 					const struct cred *cred)
 {
+	static const struct file_operations empty_fops = {};
 	struct inode *inode;
 	int error;
 
 	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
+
+	if (unlikely(f->f_flags & O_PATH))
+		f->f_mode = FMODE_PATH;
+
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
 		error = __get_file_write_access(inode, mnt);
@@ -687,8 +692,14 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	f->f_path.dentry = dentry;
 	f->f_path.mnt = mnt;
 	f->f_pos = 0;
-	f->f_op = fops_get(inode->i_fop);
 	file_sb_list_add(f, inode->i_sb);
+
+	if (unlikely(f->f_mode & FMODE_PATH)) {
+		f->f_op = &empty_fops;
+		return f;
+	}
+
+	f->f_op = fops_get(inode->i_fop);
 
 	error = security_dentry_open(f, cred);
 	if (error)
@@ -911,9 +922,18 @@ static inline int build_open_flags(int flags, int mode, struct open_flags *op)
 	if (flags & __O_SYNC)
 		flags |= O_DSYNC;
 
-	op->open_flag = flags;
+	/*
+	 * If we have O_PATH in the open flag. Then we
+	 * cannot have anything other than the below set of flags
+	 */
+	if (flags & O_PATH) {
+		flags &= O_DIRECTORY | O_NOFOLLOW | O_PATH;
+		acc_mode = 0;
+	} else {
+		acc_mode = MAY_OPEN | ACC_MODE(flags);
+	}
 
-	acc_mode = MAY_OPEN | ACC_MODE(flags);
+	op->open_flag = flags;
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flags & O_TRUNC)
@@ -926,7 +946,8 @@ static inline int build_open_flags(int flags, int mode, struct open_flags *op)
 
 	op->acc_mode = acc_mode;
 
-	op->intent = LOOKUP_OPEN;
+	op->intent = flags & O_PATH ? 0 : LOOKUP_OPEN;
+
 	if (flags & O_CREAT) {
 		op->intent |= LOOKUP_CREATE;
 		if (flags & O_EXCL)
@@ -1053,8 +1074,10 @@ int filp_close(struct file *filp, fl_owner_t id)
 	if (filp->f_op && filp->f_op->flush)
 		retval = filp->f_op->flush(filp, id);
 
-	dnotify_flush(filp, id);
-	locks_remove_posix(filp, id);
+	if (likely(!(filp->f_mode & FMODE_PATH))) {
+		dnotify_flush(filp, id);
+		locks_remove_posix(filp, id);
+	}
 	fput(filp);
 	return retval;
 }
