@@ -302,9 +302,7 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 		bottom2	= CDBCR;
 	}
 
-	/* mem_ops->cookie must not be NULL */
-	phys_addr_top = (dma_addr_t)icd->vb2_vidq.mem_ops->cookie(pcdev->
-						active->planes[0].mem_priv);
+	phys_addr_top = vb2_dma_contig_plane_paddr(pcdev->active, 0);
 
 	ceu_write(pcdev, top1, phys_addr_top);
 	if (V4L2_FIELD_NONE != pcdev->field) {
