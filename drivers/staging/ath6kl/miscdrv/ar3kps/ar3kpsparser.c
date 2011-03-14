@@ -100,10 +100,10 @@ typedef struct tRamPatch
 
 
 
-typedef struct ST_PS_DATA_FORMAT {
+struct st_ps_data_format {
    enum eType   eDataType;
    bool    bIsArray;
-}ST_PS_DATA_FORMAT;
+};
 
 typedef struct ST_READ_STATUS {
     unsigned uTagID;
@@ -146,7 +146,7 @@ char AthReadChar(u8 *buffer, u32 len,u32 *pos)
     }
 }
 /* PS parser helper function */
-unsigned int uGetInputDataFormat(char *pCharLine, ST_PS_DATA_FORMAT *pstFormat)
+unsigned int uGetInputDataFormat(char *pCharLine, struct st_ps_data_format *pstFormat)
 {
     if(pCharLine[0] != '[') {
         pstFormat->eDataType = eHex;
@@ -286,7 +286,7 @@ unsigned int uGetInputDataFormat(char *pCharLine, ST_PS_DATA_FORMAT *pstFormat)
     }
 }
 
-unsigned int uReadDataInSection(char *pCharLine, ST_PS_DATA_FORMAT stPS_DataFormat)
+unsigned int uReadDataInSection(char *pCharLine, struct st_ps_data_format stPS_DataFormat)
 {
     char *pTokenPtr = pCharLine;
 
@@ -327,7 +327,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
 
 
    int uReadCount;
-   ST_PS_DATA_FORMAT stPS_DataFormat;
+   struct st_ps_data_format stPS_DataFormat;
    ST_READ_STATUS   stReadStatus = {0, 0, 0,0};
    pos = 0;
    Buffer = NULL;
