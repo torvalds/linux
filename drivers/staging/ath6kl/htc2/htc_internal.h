@@ -69,15 +69,15 @@ struct htc_endpoint {
     HTC_ENDPOINT_ID             Id;
     HTC_SERVICE_ID              ServiceID;      /* service ID this endpoint is bound to
                                                    non-zero value means this endpoint is in use */
-    HTC_PACKET_QUEUE            TxQueue;        /* HTC frame buffer TX queue */
-    HTC_PACKET_QUEUE            RxBuffers;      /* HTC frame buffer RX list */
+    struct htc_packet_queue            TxQueue;        /* HTC frame buffer TX queue */
+    struct htc_packet_queue            RxBuffers;      /* HTC frame buffer RX list */
     struct htc_endpoint_credit_dist    CreditDist;     /* credit distribution structure (exposed to driver layer) */
     struct htc_ep_callbacks            EpCallBacks;    /* callbacks associated with this endpoint */
     int                         MaxTxQueueDepth;   /* max depth of the TX queue before we need to
                                                       call driver's full handler */
     int                         MaxMsgLength;        /* max length of endpoint message */
     int                         TxProcessCount;  /* reference count to continue tx processing */
-    HTC_PACKET_QUEUE            RecvIndicationQueue;    /* recv packets ready to be indicated */
+    struct htc_packet_queue            RecvIndicationQueue;    /* recv packets ready to be indicated */
     int                         RxProcessCount;         /* reference count to allow single processing context */
     struct  _HTC_TARGET         *target;                /* back pointer to target */
     u8 SeqNo;                  /* TX seq no (helpful) for debugging */
@@ -112,8 +112,8 @@ typedef struct _HTC_TARGET {
     struct htc_endpoint                EndPoint[ENDPOINT_MAX];
     struct htc_control_buffer          HTCControlBuffers[NUM_CONTROL_BUFFERS];
     struct htc_endpoint_credit_dist   *EpCreditDistributionListHead;
-    HTC_PACKET_QUEUE            ControlBufferTXFreeList;
-    HTC_PACKET_QUEUE            ControlBufferRXFreeList;
+    struct htc_packet_queue            ControlBufferTXFreeList;
+    struct htc_packet_queue            ControlBufferRXFreeList;
     HTC_CREDIT_DIST_CALLBACK    DistributeCredits;
     HTC_CREDIT_INIT_CALLBACK    InitCredits;
     void                       *pCredDistContext;
@@ -165,8 +165,8 @@ typedef struct _HTC_TARGET {
 void        HTCControlTxComplete(void *Context, struct htc_packet *pPacket);
 void        HTCControlRecv(void *Context, struct htc_packet *pPacket);
 int    HTCWaitforControlMessage(HTC_TARGET *target, struct htc_packet **ppControlPacket);
-struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
-void        HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, HTC_PACKET_QUEUE *pList);
+struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target, struct htc_packet_queue *pList);
+void        HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, struct htc_packet_queue *pList);
 int    HTCIssueSend(HTC_TARGET *target, struct htc_packet *pPacket);
 void        HTCRecvCompleteHandler(void *Context, struct htc_packet *pPacket);
 int    HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched);

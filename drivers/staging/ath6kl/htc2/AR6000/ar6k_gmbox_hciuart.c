@@ -63,9 +63,9 @@ struct gmbox_proto_hci_uart {
     u32 RecvStateFlags;
     u32 SendStateFlags;
     HCI_TRANSPORT_PACKET_TYPE   WaitBufferType;
-    HTC_PACKET_QUEUE            SendQueue;         /* write queue holding HCI Command and ACL packets */
-    HTC_PACKET_QUEUE            HCIACLRecvBuffers;  /* recv queue holding buffers for incomming ACL packets */
-    HTC_PACKET_QUEUE            HCIEventBuffers;    /* recv queue holding buffers for incomming event packets */
+    struct htc_packet_queue            SendQueue;         /* write queue holding HCI Command and ACL packets */
+    struct htc_packet_queue            HCIACLRecvBuffers;  /* recv queue holding buffers for incomming ACL packets */
+    struct htc_packet_queue            HCIEventBuffers;    /* recv queue holding buffers for incomming event packets */
     struct ar6k_device                 *pDev;
     A_MUTEX_T                   HCIRxLock;
     A_MUTEX_T                   HCITxLock;
@@ -366,7 +366,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
             LOCK_HCI_RX(pProt);
     
         } else {
-            HTC_PACKET_QUEUE *pQueue;
+            struct htc_packet_queue *pQueue;
                 /* user is using a refill handler that can refill multiple HTC buffers */
             
                 /* select buffer queue */
@@ -483,7 +483,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
         
             /* check if we need to refill recv buffers */        
         if ((pProt->HCIConfig.pHCIPktRecvRefill != NULL) && !recvRefillCalled) {           
-            HTC_PACKET_QUEUE *pQueue;
+            struct htc_packet_queue *pQueue;
             int              watermark;
 
             if (pktType == HCI_ACL_TYPE) {
@@ -514,7 +514,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
     
         /* see if we need to recycle the recv buffer */    
     if (status && (pPacket != NULL)) {
-        HTC_PACKET_QUEUE queue;
+        struct htc_packet_queue queue;
         
         if (A_EPROTO == status) {
             DebugDumpBytes(pPacket->pBuffer, totalRecvLength, "Bad HCI-UART Recv packet");    
@@ -797,7 +797,7 @@ static int HCITrySend(struct gmbox_proto_hci_uart *pProt, struct htc_packet *pPa
 static void FlushSendQueue(struct gmbox_proto_hci_uart *pProt)
 {
     struct htc_packet          *pPacket;
-    HTC_PACKET_QUEUE    discardQueue;
+    struct htc_packet_queue    discardQueue;
     
     INIT_HTC_PACKET_QUEUE(&discardQueue);
     
@@ -820,7 +820,7 @@ static void FlushSendQueue(struct gmbox_proto_hci_uart *pProt)
 
 static void FlushRecvBuffers(struct gmbox_proto_hci_uart *pProt)
 {
-    HTC_PACKET_QUEUE discardQueue;
+    struct htc_packet_queue discardQueue;
     struct htc_packet *pPacket;
     
     INIT_HTC_PACKET_QUEUE(&discardQueue);
@@ -1001,7 +1001,7 @@ void HCI_TransportDetach(HCI_TRANSPORT_HANDLE HciTrans)
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("-HCI_TransportAttach \n"));
 }
 
-int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue)
+int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, struct htc_packet_queue *pQueue)
 {
     struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans; 
     int              status = 0;

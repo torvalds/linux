@@ -79,7 +79,7 @@ struct ar6k_hci_bridge_info {
     struct hci_dev          *pBtStackHCIDev;   /* BT Stack HCI dev */
     bool                  HciNormalMode;     /* Actual HCI mode enabled (non-TEST)*/
     bool                  HciRegistered;     /* HCI device registered with stack */
-    HTC_PACKET_QUEUE        HTCPacketStructHead;
+    struct htc_packet_queue        HTCPacketStructHead;
     u8 *pHTCStructAlloc;
     spinlock_t              BridgeLock;
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
@@ -163,7 +163,7 @@ static void RefillRecvBuffers(struct ar6k_hci_bridge_info      *pHcidevInfo,
 {
     int                 length, i;
     void                *osBuf = NULL;
-    HTC_PACKET_QUEUE    queue;
+    struct htc_packet_queue    queue;
     struct htc_packet          *pPacket;
 
     INIT_HTC_PACKET_QUEUE(&queue);

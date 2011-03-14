@@ -44,7 +44,7 @@ typedef enum _HTC_SEND_QUEUE_RESULT {
 }
 
 static void DoSendCompletion(struct htc_endpoint       *pEndpoint,
-                             HTC_PACKET_QUEUE   *pQueueToIndicate)
+                             struct htc_packet_queue   *pQueueToIndicate)
 {           
     do {
                 
@@ -105,7 +105,7 @@ static void HTCSendPktCompletionHandler(void *Context, struct htc_packet *pPacke
 {
     HTC_TARGET      *target = (HTC_TARGET *)Context;
     struct htc_endpoint    *pEndpoint = &target->EndPoint[pPacket->Endpoint];
-    HTC_PACKET_QUEUE container;
+    struct htc_packet_queue container;
     
     CompleteSentPacket(target,pEndpoint,pPacket);
     INIT_HTC_PACKET_QUEUE_AND_ADD(&container,pPacket);
@@ -148,7 +148,7 @@ int HTCIssueSend(HTC_TARGET *target, struct htc_packet *pPacket)
     /* get HTC send packets from the TX queue on an endpoint */
 static INLINE void GetHTCSendPackets(HTC_TARGET        *target, 
                                      struct htc_endpoint      *pEndpoint, 
-                                     HTC_PACKET_QUEUE  *pQueue)
+                                     struct htc_packet_queue  *pQueue)
 {
     int          creditsRequired;
     int          remainder;
@@ -271,7 +271,7 @@ static void HTCAsyncSendScatterCompletion(struct hif_scatter_req *pScatterReq)
     struct htc_endpoint        *pEndpoint = (struct htc_endpoint *)pScatterReq->Context;
     HTC_TARGET          *target = (HTC_TARGET *)pEndpoint->target;
     int            status = 0;
-    HTC_PACKET_QUEUE    sendCompletes;
+    struct htc_packet_queue    sendCompletes;
     
     INIT_HTC_PACKET_QUEUE(&sendCompletes);
           
@@ -310,7 +310,7 @@ static void HTCAsyncSendScatterCompletion(struct hif_scatter_req *pScatterReq)
      *    - we drop below the minimum number of messages for a bundle 
      * */
 static void HTCIssueSendBundle(struct htc_endpoint      *pEndpoint, 
-                               HTC_PACKET_QUEUE  *pQueue, 
+                               struct htc_packet_queue  *pQueue, 
                                int               *pBundlesSent, 
                                int               *pTotalBundlesPkts)
 {
@@ -479,9 +479,9 @@ static void HTCIssueSendBundle(struct htc_endpoint      *pEndpoint,
  * this function returns the result of the attempt to send a queue of HTC packets */
 static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
                                         struct htc_endpoint     *pEndpoint,
-                                        HTC_PACKET_QUEUE *pCallersSendQueue)
+                                        struct htc_packet_queue *pCallersSendQueue)
 {
-    HTC_PACKET_QUEUE      sendQueue; /* temp queue to hold packets at various stages */
+    struct htc_packet_queue      sendQueue; /* temp queue to hold packets at various stages */
     struct htc_packet            *pPacket;
     int                   bundlesSent;
     int                   pktsInBundles;
@@ -668,7 +668,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
     return HTC_SEND_QUEUE_OK;
 }
 
-int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
+int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, struct htc_packet_queue *pPktQueue)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint;
@@ -711,7 +711,7 @@ int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 /* HTC API - HTCSendPkt */
 int HTCSendPkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket)
 {
-    HTC_PACKET_QUEUE queue;
+    struct htc_packet_queue queue;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,
                     ("+-HTCSendPkt: Enter endPointId: %d, buffer: 0x%lX, length: %d \n",
@@ -841,8 +841,8 @@ void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEnt
 static void HTCFlushEndpointTX(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_TX_TAG Tag)
 {
     struct htc_packet          *pPacket;
-    HTC_PACKET_QUEUE    discardQueue;
-    HTC_PACKET_QUEUE    container;
+    struct htc_packet_queue    discardQueue;
+    struct htc_packet_queue    container;
 
         /* initialize the discard queue */
     INIT_HTC_PACKET_QUEUE(&discardQueue);

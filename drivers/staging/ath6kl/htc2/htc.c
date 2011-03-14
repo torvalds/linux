@@ -43,14 +43,14 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(htc,
 static void HTCReportFailure(void *Context);
 static void ResetEndpointStates(HTC_TARGET *target);
 
-void HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, HTC_PACKET_QUEUE *pList)
+void HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, struct htc_packet_queue *pList)
 {
     LOCK_HTC(target);
     HTC_PACKET_ENQUEUE(pList,pPacket);
     UNLOCK_HTC(target);
 }
 
-struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target,  HTC_PACKET_QUEUE *pList)
+struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target,  struct htc_packet_queue *pList)
 {
     struct htc_packet *pPacket;
 

@@ -317,7 +317,7 @@ static void ar6000_rx(void *Context, struct htc_packet *pPacket);
 
 static void ar6000_rx_refill(void *Context,HTC_ENDPOINT_ID Endpoint);
 
-static void ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPackets);
+static void ar6000_tx_complete(void *Context, struct htc_packet_queue *pPackets);
 
 static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, struct htc_packet *pPacket);
 
@@ -3461,7 +3461,7 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, struct htc_packe
 
 
 static void
-ar6000_tx_complete(void *Context, HTC_PACKET_QUEUE *pPacketQueue)
+ar6000_tx_complete(void *Context, struct htc_packet_queue *pPacketQueue)
 {
     AR_SOFTC_T     *ar = (AR_SOFTC_T *)Context;
     u32 mapNo = 0;
@@ -3992,7 +3992,7 @@ ar6000_rx_refill(void *Context, HTC_ENDPOINT_ID Endpoint)
     int         RxBuffers;
     int         buffersToRefill;
     struct htc_packet  *pPacket;
-    HTC_PACKET_QUEUE queue;
+    struct htc_packet_queue queue;
 
     buffersToRefill = (int)AR6000_MAX_RX_BUFFERS -
                                     HTCGetNumRecvBuffers(ar->arHtcTarget, Endpoint);
@@ -6323,7 +6323,7 @@ static void DoHTCSendPktsTest(AR_SOFTC_T *ar, int MapNo, HTC_ENDPOINT_ID eid, st
     struct sk_buff   *new_skb;
     int    i;
     int    pkts = 0;
-    HTC_PACKET_QUEUE pktQueue;
+    struct htc_packet_queue pktQueue;
     EPPING_HEADER    *eppingHdr;
 
     eppingHdr = A_NETBUF_DATA(dupskb);

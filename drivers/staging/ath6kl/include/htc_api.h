@@ -51,21 +51,21 @@ struct htc_init_info {
 /* per service connection send completion */
 typedef void   (*HTC_EP_SEND_PKT_COMPLETE)(void *,struct htc_packet *);
 /* per service connection callback when a plurality of packets have been sent
- * The HTC_PACKET_QUEUE is a temporary queue object (e.g. freed on return from the callback)
+ * The struct htc_packet_queue is a temporary queue object (e.g. freed on return from the callback)
  * to hold a list of completed send packets.
  * If the handler cannot fully traverse the packet queue before returning, it should
  * transfer the items of the queue into the caller's private queue using:
  *   HTC_PACKET_ENQUEUE() */
-typedef void   (*HTC_EP_SEND_PKT_COMP_MULTIPLE)(void *,HTC_PACKET_QUEUE *);
+typedef void   (*HTC_EP_SEND_PKT_COMP_MULTIPLE)(void *,struct htc_packet_queue *);
 /* per service connection pkt received */
 typedef void   (*HTC_EP_RECV_PKT)(void *,struct htc_packet *);
 /* per service connection callback when a plurality of packets are received
- * The HTC_PACKET_QUEUE is a temporary queue object (e.g. freed on return from the callback)
+ * The struct htc_packet_queue is a temporary queue object (e.g. freed on return from the callback)
  * to hold a list of recv packets.
  * If the handler cannot fully traverse the packet queue before returning, it should
  * transfer the items of the queue into the caller's private queue using:
  *   HTC_PACKET_ENQUEUE() */
-typedef void   (*HTC_EP_RECV_PKT_MULTIPLE)(void *,HTC_PACKET_QUEUE *);
+typedef void   (*HTC_EP_RECV_PKT_MULTIPLE)(void *,struct htc_packet_queue *);
 
 /* Optional per service connection receive buffer re-fill callback,
  * On some OSes (like Linux) packets are allocated from a global pool and indicated up
@@ -502,7 +502,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle);
   @return: 0
   @notes:  Caller must initialize each packet using SET_HTC_PACKET_INFO_TX() macro.
            The queue must only contain packets directed at the same endpoint.
-           Caller supplies a pointer to an HTC_PACKET_QUEUE structure holding the TX packets in FIFO order.
+           Caller supplies a pointer to an struct htc_packet_queue structure holding the TX packets in FIFO order.
            This API will remove the packets from the pkt queue and place them into the HTC Tx Queue
            and bundle messages where possible.
            The caller may allocate the pkt queue on the stack to hold the packets.           
@@ -511,7 +511,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle);
   @example:
   @see also: HTCFlushEndpoint
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
+int    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, struct htc_packet_queue *pPktQueue);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Add multiple receive packets to HTC
@@ -523,14 +523,14 @@ int    HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
   @notes:  user must supply HTC packets for capturing incomming HTC frames.  The caller
            must initialize each HTC packet using the SET_HTC_PACKET_INFO_RX_REFILL()
            macro. The queue must only contain recv packets for the same endpoint.
-           Caller supplies a pointer to an HTC_PACKET_QUEUE structure holding the recv packet.
+           Caller supplies a pointer to an struct htc_packet_queue structure holding the recv packet.
            This API will remove the packets from the pkt queue and place them into internal
            recv packet list.
            The caller may allocate the pkt queue on the stack to hold the packets.           
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue);
+int    HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, struct htc_packet_queue *pPktQueue);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Check if an endpoint is marked active

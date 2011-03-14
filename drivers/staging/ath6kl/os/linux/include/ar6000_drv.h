@@ -586,7 +586,7 @@ typedef struct ar6_softc {
     u16 ap_beacon_interval;
     u16 arRTS;
     u16 arACS; /* AP mode - Auto Channel Selection */
-    HTC_PACKET_QUEUE        amsdu_rx_buffer_queue;
+    struct htc_packet_queue        amsdu_rx_buffer_queue;
     bool                  bIsDestroyProgress; /* flag to indicate ar6k destroy is in progress */
     A_TIMER                 disconnect_timer;
     u8 rxMetaVersion;

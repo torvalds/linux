@@ -51,7 +51,7 @@
 #endif
 
 static void DoRecvCompletion(struct htc_endpoint     *pEndpoint,
-                             HTC_PACKET_QUEUE *pQueueToIndicate)
+                             struct htc_packet_queue *pQueueToIndicate)
 {           
     
     do {
@@ -434,7 +434,7 @@ static INLINE void HTCAsyncRecvCheckMorePackets(HTC_TARGET  *target,
     /* unload the recv completion queue */
 static INLINE void DrainRecvIndicationQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint)
 {
-    HTC_PACKET_QUEUE     recvCompletions;
+    struct htc_packet_queue     recvCompletions;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV, ("+DrainRecvIndicationQueue \n"));
                 
@@ -690,7 +690,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                                          u32 LookAheads[],
                                          int              Messages,                                        
                                          struct htc_endpoint     *pEndpoint, 
-                                         HTC_PACKET_QUEUE *pQueue)
+                                         struct htc_packet_queue *pQueue)
 {
     int         status = 0;
     struct htc_packet      *pPacket;
@@ -889,7 +889,7 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
     HTC_TARGET          *target = (HTC_TARGET *)pScatterReq->Context;
     int            status;
     bool              partialBundle = false;
-    HTC_PACKET_QUEUE    localRecvQueue;
+    struct htc_packet_queue    localRecvQueue;
     bool              procError = false;
            
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+HTCAsyncRecvScatterCompletion  TotLen: %d  Entries: %d\n",
@@ -985,8 +985,8 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
 }
 
 static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
-                                         HTC_PACKET_QUEUE  *pRecvPktQueue, 
-                                         HTC_PACKET_QUEUE  *pSyncCompletionQueue,
+                                         struct htc_packet_queue  *pRecvPktQueue, 
+                                         struct htc_packet_queue  *pSyncCompletionQueue,
                                          int               *pNumPacketsFetched,
                                          bool             PartialBundle)
 {
@@ -1126,7 +1126,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
     bool          asyncProc = false;
     u32 lookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int             pktsFetched;
-    HTC_PACKET_QUEUE recvPktQueue, syncCompletedPktsQueue;
+    struct htc_packet_queue recvPktQueue, syncCompletedPktsQueue;
     bool          partialBundle;
     HTC_ENDPOINT_ID id;
     int             totalFetched = 0;
@@ -1283,7 +1283,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
              
              /* unload sync completion queue */      
         while (!HTC_QUEUE_EMPTY(&syncCompletedPktsQueue)) {
-            HTC_PACKET_QUEUE    container;
+            struct htc_packet_queue    container;
            
             pPacket = HTC_PACKET_DEQUEUE(&syncCompletedPktsQueue);
             A_ASSERT(pPacket != NULL);
@@ -1385,7 +1385,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
     return status;
 }
 
-int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
+int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, struct htc_packet_queue *pPktQueue)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint;
@@ -1457,7 +1457,7 @@ int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 /* Makes a buffer available to the HTC module */
 int HTCAddReceivePkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket)
 {
-    HTC_PACKET_QUEUE queue;
+    struct htc_packet_queue queue;
     INIT_HTC_PACKET_QUEUE_AND_ADD(&queue,pPacket); 
     return HTCAddReceivePktMultiple(HTCHandle, &queue);       
 }
@@ -1486,10 +1486,10 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle)
     }
 }
 
-static void HTCFlushRxQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_PACKET_QUEUE *pQueue)
+static void HTCFlushRxQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint, struct htc_packet_queue *pQueue)
 {
     struct htc_packet  *pPacket;
-    HTC_PACKET_QUEUE container;
+    struct htc_packet_queue container;
     
     LOCK_HTC_RX(target);
 

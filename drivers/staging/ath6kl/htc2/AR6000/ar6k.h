@@ -118,7 +118,7 @@ struct ar6k_device {
     struct hif_device_mbox_info        MailBoxInfo;
     HIF_PENDING_EVENTS_FUNC     GetPendingEventsFunc;
     void                        *HTCContext;
-    HTC_PACKET_QUEUE            RegisterIOList;
+    struct htc_packet_queue            RegisterIOList;
     struct ar6k_async_reg_io_buffer    RegIOBuffers[AR6K_MAX_REG_IO_BUFFERS];
     void                        (*TargetFailureCallback)(void *Context);
     int                    (*MessagePendingCallback)(void *Context,

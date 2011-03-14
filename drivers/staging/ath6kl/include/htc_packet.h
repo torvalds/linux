@@ -139,10 +139,10 @@ struct htc_packet {
 }
 
 /* HTC Packet Queueing Macros */
-typedef struct _HTC_PACKET_QUEUE {
+struct htc_packet_queue {
     struct dl_list     QueueHead;
     int         Depth;    
-} HTC_PACKET_QUEUE;
+};
  
 /* initialize queue */
 #define INIT_HTC_PACKET_QUEUE(pQ)   \
@@ -165,7 +165,7 @@ typedef struct _HTC_PACKET_QUEUE {
 /* test if a queue is empty */
 #define HTC_QUEUE_EMPTY(pQ)       ((pQ)->Depth == 0)
 /* get packet at head without removing it */
-static INLINE struct htc_packet *HTC_GET_PKT_AT_HEAD(HTC_PACKET_QUEUE *queue)   {
+static INLINE struct htc_packet *HTC_GET_PKT_AT_HEAD(struct htc_packet_queue *queue)   {
     if (queue->Depth == 0) {
         return NULL; 
     }  
@@ -179,7 +179,7 @@ static INLINE struct htc_packet *HTC_GET_PKT_AT_HEAD(HTC_PACKET_QUEUE *queue)   
 }
 
 /* dequeue an HTC packet from the head of the queue */
-static INLINE struct htc_packet *HTC_PACKET_DEQUEUE(HTC_PACKET_QUEUE *queue) {
+static INLINE struct htc_packet *HTC_PACKET_DEQUEUE(struct htc_packet_queue *queue) {
     struct dl_list    *pItem = DL_ListRemoveItemFromHead(&queue->QueueHead);
     if (pItem != NULL) {
         queue->Depth--;
@@ -189,7 +189,7 @@ static INLINE struct htc_packet *HTC_PACKET_DEQUEUE(HTC_PACKET_QUEUE *queue) {
 }
 
 /* dequeue an HTC packet from the tail of the queue */
-static INLINE struct htc_packet *HTC_PACKET_DEQUEUE_TAIL(HTC_PACKET_QUEUE *queue) {
+static INLINE struct htc_packet *HTC_PACKET_DEQUEUE_TAIL(struct htc_packet_queue *queue) {
     struct dl_list    *pItem = DL_ListRemoveItemFromTail(&queue->QueueHead);
     if (pItem != NULL) {
         queue->Depth--;
