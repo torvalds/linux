@@ -192,8 +192,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE %u", msg_type(msg));
 		}
-		if (msg_routed(msg) && !msg_non_seq(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):",
 				    msg_reroute_cnt(msg));
@@ -210,8 +208,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN:%x", msg_type(msg));
 		}
-		if (msg_routed(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):",
 				    msg_reroute_cnt(msg));
@@ -232,13 +228,10 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));
 		}
-		if (msg_routed(msg))
-			tipc_printf(buf, "ROUT:");
 		if (msg_reroute_cnt(msg))
 			tipc_printf(buf, "REROUTED(%u):", msg_reroute_cnt(msg));
 		break;
 	case LINK_PROTOCOL:
-		tipc_printf(buf, "PROT:TIM(%u):", msg_timestamp(msg));
 		switch (msg_type(msg)) {
 		case STATE_MSG:
 			tipc_printf(buf, "STATE:");
@@ -270,33 +263,6 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		case ORIGINAL_MSG:
 			tipc_printf(buf, "ORIG:");
 			tipc_printf(buf, "EXP(%u)", msg_msgcnt(msg));
-			break;
-		default:
-			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));
-		}
-		break;
-	case ROUTE_DISTRIBUTOR:
-		tipc_printf(buf, "ROUTING_MNG:");
-		switch (msg_type(msg)) {
-		case EXT_ROUTING_TABLE:
-			tipc_printf(buf, "EXT_TBL:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case LOCAL_ROUTING_TABLE:
-			tipc_printf(buf, "LOCAL_TBL:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case SLAVE_ROUTING_TABLE:
-			tipc_printf(buf, "DP_TBL:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case ROUTE_ADDITION:
-			tipc_printf(buf, "ADD:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
-			break;
-		case ROUTE_REMOVAL:
-			tipc_printf(buf, "REMOVE:");
-			tipc_printf(buf, "TO:%x:", msg_remote_node(msg));
 			break;
 		default:
 			tipc_printf(buf, "UNKNOWN TYPE:%x", msg_type(msg));

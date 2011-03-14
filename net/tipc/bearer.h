@@ -70,7 +70,6 @@ struct tipc_bearer;
  * @disable_bearer: routine which disables a bearer
  * @addr2str: routine which converts bearer's address to string form
  * @bcast_addr: media address used in broadcasting
- * @bcast: non-zero if media supports broadcasting [currently mandatory]
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
@@ -87,7 +86,6 @@ struct media {
 	char *(*addr2str)(struct tipc_media_addr *a,
 			  char *str_buf, int str_size);
 	struct tipc_media_addr bcast_addr;
-	int bcast;
 	u32 priority;
 	u32 tolerance;
 	u32 window;
@@ -105,7 +103,6 @@ struct media {
  * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
  * @priority: default link priority for bearer
- * @detect_scope: network address mask used during automatic link creation
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @links: list of non-congested links associated with bearer
@@ -128,7 +125,6 @@ struct tipc_bearer {
 	spinlock_t lock;
 	struct media *media;
 	u32 priority;
-	u32 detect_scope;
 	u32 identity;
 	struct link_req *link_req;
 	struct list_head links;
@@ -167,7 +163,7 @@ void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 int  tipc_block_bearer(const char *name);
 void tipc_continue(struct tipc_bearer *tb_ptr);
 
-int tipc_enable_bearer(const char *bearer_name, u32 bcast_scope, u32 priority);
+int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
 
 /*

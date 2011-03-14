@@ -293,19 +293,35 @@ static void link_set_timer(struct link *l_ptr, u32 time)
 
 /**
  * tipc_link_create - create a new link
+ * @n_ptr: pointer to associated node
  * @b_ptr: pointer to associated bearer
- * @peer: network address of node at other end of link
  * @media_addr: media address to use when sending messages over link
  *
  * Returns pointer to link.
  */
 
-struct link *tipc_link_create(struct tipc_bearer *b_ptr, const u32 peer,
+struct link *tipc_link_create(struct tipc_node *n_ptr,
+			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr)
 {
 	struct link *l_ptr;
 	struct tipc_msg *msg;
 	char *if_name;
+	char addr_string[16];
+	u32 peer = n_ptr->addr;
+
+	if (n_ptr->link_cnt >= 2) {
+		tipc_addr_string_fill(addr_string, n_ptr->addr);
+		err("Attempt to establish third link to %s\n", addr_string);
+		return NULL;
+	}
+
+	if (n_ptr->links[b_ptr->identity]) {
+		tipc_addr_string_fill(addr_string, n_ptr->addr);
+		err("Attempt to establish second link on <%s> to %s\n",
+		    b_ptr->name, addr_string);
+		return NULL;
+	}
 
 	l_ptr = kzalloc(sizeof(*l_ptr), GFP_ATOMIC);
 	if (!l_ptr) {
@@ -322,6 +338,7 @@ struct link *tipc_link_create(struct tipc_bearer *b_ptr, const u32 peer,
 		tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
 		/* note: peer i/f is appended to link name by reset/activate */
 	memcpy(&l_ptr->media_addr, media_addr, sizeof(*media_addr));
+	l_ptr->owner = n_ptr;
 	l_ptr->checkpoint = 1;
 	l_ptr->b_ptr = b_ptr;
 	link_set_supervision_props(l_ptr, b_ptr->media->tolerance);
@@ -345,11 +362,7 @@ struct link *tipc_link_create(struct tipc_bearer *b_ptr, const u32 peer,
 
 	link_reset_statistics(l_ptr);
 
-	l_ptr->owner = tipc_node_attach_link(l_ptr);
-	if (!l_ptr->owner) {
-		kfree(l_ptr);
-		return NULL;
-	}
+	tipc_node_attach_link(n_ptr, l_ptr);
 
 	k_init_timer(&l_ptr->timer, (Handler)link_timeout, (unsigned long)l_ptr);
 	list_add_tail(&l_ptr->link_list, &b_ptr->links);
@@ -548,7 +561,7 @@ void tipc_link_reset(struct link *l_ptr)
 	tipc_node_link_down(l_ptr->owner, l_ptr);
 	tipc_bearer_remove_dest(l_ptr->b_ptr, l_ptr->addr);
 
-	if (was_active_link && tipc_node_has_active_links(l_ptr->owner) &&
+	if (was_active_link && tipc_node_active_links(l_ptr->owner) &&
 	    l_ptr->owner->permit_changeover) {
 		l_ptr->reset_checkpoint = checkpoint;
 		l_ptr->exp_msg_count = START_CHANGEOVER;
@@ -1733,10 +1746,6 @@ deliver:
 						tipc_node_unlock(n_ptr);
 						tipc_link_recv_bundle(buf);
 						continue;
-					case ROUTE_DISTRIBUTOR:
-						tipc_node_unlock(n_ptr);
-						buf_discard(buf);
-						continue;
 					case NAME_DISTRIBUTOR:
 						tipc_node_unlock(n_ptr);
 						tipc_named_recv(buf);
@@ -1762,6 +1771,10 @@ deliver:
 								goto deliver;
 							goto protocol_check;
 						}
+						break;
+					default:
+						buf_discard(buf);
+						buf = NULL;
 						break;
 					}
 				}
@@ -1898,6 +1911,7 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg = l_ptr->pmsg;
 	u32 msg_size = sizeof(l_ptr->proto_msg);
+	int r_flag;
 
 	if (link_blocked(l_ptr))
 		return;
@@ -1954,10 +1968,8 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		msg_set_max_pkt(msg, l_ptr->max_pkt_target);
 	}
 
-	if (tipc_node_has_redundant_links(l_ptr->owner))
-		msg_set_redundant_link(msg);
-	else
-		msg_clear_redundant_link(msg);
+	r_flag = (l_ptr->owner->working_links > tipc_link_is_up(l_ptr));
+	msg_set_redundant_link(msg, r_flag);
 	msg_set_linkprio(msg, l_ptr->priority);
 
 	/* Ensure sequence number will not fit : */
@@ -1977,7 +1989,6 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
 		return;
 	}
-	msg_set_timestamp(msg, jiffies_to_msecs(jiffies));
 
 	/* Message can be sent */
 
@@ -2065,7 +2076,7 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
 
 		/* Synchronize broadcast sequence numbers */
-		if (!tipc_node_has_redundant_links(l_ptr->owner))
+		if (!tipc_node_redundant_links(l_ptr->owner))
 			l_ptr->owner->bclink.last_in = mod(msg_last_bcast(msg));
 		break;
 	case STATE_MSG:
@@ -2411,9 +2422,6 @@ static int link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 		destaddr = l_ptr->addr;
 	else
 		destaddr = msg_destnode(inmsg);
-
-	if (msg_routed(inmsg))
-		msg_set_prevnode(inmsg, tipc_own_addr);
 
 	/* Prepare reusable fragment header: */
 

@@ -75,12 +75,12 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 					  u32 dest_domain,
 					  struct tipc_bearer *b_ptr)
 {
-	struct sk_buff *buf = tipc_buf_acquire(DSC_H_SIZE);
+	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE);
 	struct tipc_msg *msg;
 
 	if (buf) {
 		msg = buf_msg(buf);
-		tipc_msg_init(msg, LINK_CONFIG, type, DSC_H_SIZE, dest_domain);
+		tipc_msg_init(msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
 		msg_set_non_seq(msg, 1);
 		msg_set_dest_domain(msg, dest_domain);
 		msg_set_bc_netid(msg, tipc_net_id);
@@ -119,17 +119,21 @@ static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 
 void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 {
+	struct tipc_node *n_ptr;
 	struct link *link;
-	struct tipc_media_addr media_addr;
+	struct tipc_media_addr media_addr, *addr;
+	struct sk_buff *rbuf;
 	struct tipc_msg *msg = buf_msg(buf);
 	u32 dest = msg_dest_domain(msg);
 	u32 orig = msg_prevnode(msg);
 	u32 net_id = msg_bc_netid(msg);
 	u32 type = msg_type(msg);
+	int link_fully_up;
 
 	msg_get_media_addr(msg, &media_addr);
 	buf_discard(buf);
 
+	/* Validate discovery message from requesting node */
 	if (net_id != tipc_net_id)
 		return;
 	if (!tipc_addr_domain_valid(dest))
@@ -143,57 +147,70 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
-	if (in_own_cluster(orig)) {
-		/* Always accept link here */
-		struct sk_buff *rbuf;
-		struct tipc_media_addr *addr;
-		struct tipc_node *n_ptr = tipc_node_find(orig);
-		int link_fully_up;
+	if (!in_own_cluster(orig))
+		return;
 
-		if (n_ptr == NULL) {
-			n_ptr = tipc_node_create(orig);
-			if (!n_ptr)
-				return;
-		}
-		spin_lock_bh(&n_ptr->lock);
-
-		/* Don't talk to neighbor during cleanup after last session */
-
-		if (n_ptr->cleanup_required) {
-			spin_unlock_bh(&n_ptr->lock);
+	/* Locate structure corresponding to requesting node */
+	n_ptr = tipc_node_find(orig);
+	if (!n_ptr) {
+		n_ptr = tipc_node_create(orig);
+		if (!n_ptr)
 			return;
-		}
+	}
+	tipc_node_lock(n_ptr);
 
-		link = n_ptr->links[b_ptr->identity];
+	/* Don't talk to neighbor during cleanup after last session */
+	if (n_ptr->cleanup_required) {
+		tipc_node_unlock(n_ptr);
+		return;
+	}
+
+	link = n_ptr->links[b_ptr->identity];
+
+	/* Create a link endpoint for this bearer, if necessary */
+	if (!link) {
+		link = tipc_link_create(n_ptr, b_ptr, &media_addr);
 		if (!link) {
-			link = tipc_link_create(b_ptr, orig, &media_addr);
-			if (!link) {
-				spin_unlock_bh(&n_ptr->lock);
-				return;
-			}
-		}
-		addr = &link->media_addr;
-		if (memcmp(addr, &media_addr, sizeof(*addr))) {
-			if (tipc_link_is_up(link) || (!link->started)) {
-				disc_dupl_alert(b_ptr, orig, &media_addr);
-				spin_unlock_bh(&n_ptr->lock);
-				return;
-			}
-			warn("Resetting link <%s>, peer interface address changed\n",
-			     link->name);
-			memcpy(addr, &media_addr, sizeof(*addr));
-			tipc_link_reset(link);
-		}
-		link_fully_up = link_working_working(link);
-		spin_unlock_bh(&n_ptr->lock);
-		if ((type == DSC_RESP_MSG) || link_fully_up)
+			tipc_node_unlock(n_ptr);
 			return;
+		}
+	}
+
+	/*
+	 * Ensure requesting node's media address is correct
+	 *
+	 * If media address doesn't match and the link is working, reject the
+	 * request (must be from a duplicate node).
+	 *
+	 * If media address doesn't match and the link is not working, accept
+	 * the new media address and reset the link to ensure it starts up
+	 * cleanly.
+	 */
+	addr = &link->media_addr;
+	if (memcmp(addr, &media_addr, sizeof(*addr))) {
+		if (tipc_link_is_up(link) || (!link->started)) {
+			disc_dupl_alert(b_ptr, orig, &media_addr);
+			tipc_node_unlock(n_ptr);
+			return;
+		}
+		warn("Resetting link <%s>, peer interface address changed\n",
+		     link->name);
+		memcpy(addr, &media_addr, sizeof(*addr));
+		tipc_link_reset(link);
+	}
+
+	/* Accept discovery message & send response, if necessary */
+	link_fully_up = link_working_working(link);
+
+	if ((type == DSC_REQ_MSG) && !link_fully_up && !b_ptr->blocked) {
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, orig, b_ptr);
-		if (rbuf != NULL) {
+		if (rbuf) {
 			b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
 			buf_discard(rbuf);
 		}
 	}
+
+	tipc_node_unlock(n_ptr);
 }
 
 /**
