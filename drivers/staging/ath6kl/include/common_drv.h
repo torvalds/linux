@@ -41,11 +41,11 @@ struct hci_transport_callbacks {
     void (*cleanupTransport)(void *ar);
 };
 
-typedef struct {
+struct hci_transport_misc_handles {
    void *netDevice;
    void *hifDevice;
    void *htcHandle;
-} HCI_TRANSPORT_MISC_HANDLES;
+};
 
 /* HTC TX packet tagging definitions */
 #define AR6K_CONTROL_PKT_TAG    HTC_TX_PACKET_TAG_USER_DEFINED

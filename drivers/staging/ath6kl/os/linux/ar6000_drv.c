@@ -2723,7 +2723,7 @@ int ar6000_init(struct net_device *dev)
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
         if (setuphci && (NULL != ar6kHciTransCallbacks.setupTransport)) {
-            HCI_TRANSPORT_MISC_HANDLES hciHandles;
+            struct hci_transport_misc_handles hciHandles;
 
             hciHandles.netDevice = ar->arNetDev;
             hciHandles.hifDevice = ar->arHifDevice;

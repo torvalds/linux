@@ -83,7 +83,7 @@ struct ar6k_hci_bridge_info {
     u8 *pHTCStructAlloc;
     spinlock_t              BridgeLock;
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-    HCI_TRANSPORT_MISC_HANDLES    HCITransHdl; 
+    struct hci_transport_misc_handles    HCITransHdl; 
 #else
     AR_SOFTC_T              *ar;
 #endif /* EXPORT_HCI_BRIDGE_INTERFACE */
@@ -488,7 +488,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
         A_MEMZERO(pHcidevInfo, sizeof(struct ar6k_hci_bridge_info));
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
         g_pHcidevInfo = pHcidevInfo;
-        pHcidevInfo->HCITransHdl = *(HCI_TRANSPORT_MISC_HANDLES *)ar;
+        pHcidevInfo->HCITransHdl = *(struct hci_transport_misc_handles *)ar;
 #else
         ar->hcidev_info = pHcidevInfo;
         pHcidevInfo->ar = ar;
