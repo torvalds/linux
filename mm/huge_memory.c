@@ -1762,6 +1762,10 @@ static void collapse_huge_page(struct mm_struct *mm,
 #ifndef CONFIG_NUMA
 	VM_BUG_ON(!*hpage);
 	new_page = *hpage;
+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+		up_read(&mm->mmap_sem);
+		return;
+	}
 #else
 	VM_BUG_ON(*hpage);
 	/*
@@ -1781,12 +1785,12 @@ static void collapse_huge_page(struct mm_struct *mm,
 		*hpage = ERR_PTR(-ENOMEM);
 		return;
 	}
-#endif
 	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
 		up_read(&mm->mmap_sem);
 		put_page(new_page);
 		return;
 	}
+#endif
 
 	/* after allocating the hugepage upgrade to mmap_sem write mode */
 	up_read(&mm->mmap_sem);
