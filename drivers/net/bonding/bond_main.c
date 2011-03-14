@@ -1347,8 +1347,6 @@ static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
 
 	read_lock(&bond->lock);
 	bond_for_each_slave(bond, slave, i) {
-		if (!IS_UP(slave->dev))
-			continue;
 		err = slave_enable_netpoll(slave);
 		if (err) {
 			__bond_netpoll_cleanup(bond);
