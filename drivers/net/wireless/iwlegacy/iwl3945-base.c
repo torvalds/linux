@@ -3960,8 +3960,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * "the hard way", rather than using device's scan.
 	 */
 	if (iwl3945_mod_params.disable_hw_scan) {
-		dev_printk(KERN_DEBUG, &(pdev->dev),
-			"sw scan support is deprecated\n");
+		IWL_DEBUG_INFO(priv, "Disabling hw_scan\n");
 		iwl3945_hw_ops.hw_scan = NULL;
 	}
 
@@ -4280,8 +4279,7 @@ MODULE_PARM_DESC(swcrypto,
 		"using software crypto (default 1 [software])");
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan,
 		int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan,
-		"disable hardware scanning (default 0) (deprecated)");
+MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 module_param_named(debug, iwlegacy_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
