@@ -34,6 +34,7 @@
 #define ACCESSORY_STRING_DESCRIPTION    2
 #define ACCESSORY_STRING_VERSION        3
 #define ACCESSORY_STRING_URI            4
+#define ACCESSORY_STRING_SERIAL         5
 
 /* Control request for retrieving device's protocol version (currently 1)
  *
@@ -75,5 +76,6 @@
 #define ACCESSORY_GET_STRING_DESCRIPTION    _IOW('M', 3, char[256])
 #define ACCESSORY_GET_STRING_VERSION        _IOW('M', 4, char[256])
 #define ACCESSORY_GET_STRING_URI            _IOW('M', 5, char[256])
+#define ACCESSORY_GET_STRING_SERIAL         _IOW('M', 6, char[256])
 
 #endif /* __LINUX_USB_F_ACCESSORY_H */

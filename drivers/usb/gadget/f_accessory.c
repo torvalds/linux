@@ -71,6 +71,7 @@ struct acc_dev {
 	char description[ACC_STRING_SIZE];
 	char version[ACC_STRING_SIZE];
 	char uri[ACC_STRING_SIZE];
+	char serial[ACC_STRING_SIZE];
 
 	/* for acc_complete_set_string */
 	int string_index;
@@ -272,6 +273,9 @@ static void acc_complete_set_string(struct usb_ep *ep, struct usb_request *req)
 		break;
 	case ACCESSORY_STRING_URI:
 		string_dest = dev->uri;
+		break;
+	case ACCESSORY_STRING_SERIAL:
+		string_dest = dev->serial;
 		break;
 	}
 	if (string_dest) {
@@ -505,6 +509,9 @@ static long acc_ioctl(struct file *fp, unsigned code, unsigned long value)
 	case ACCESSORY_GET_STRING_URI:
 		src = dev->uri;
 		break;
+	case ACCESSORY_GET_STRING_SERIAL:
+		src = dev->serial;
+		break;
 	}
 	if (!src)
 		return -EINVAL;
@@ -658,6 +665,7 @@ static int acc_function_setup(struct usb_function *f,
 				memset(dev->description, 0, sizeof(dev->description));
 				memset(dev->version, 0, sizeof(dev->version));
 				memset(dev->uri, 0, sizeof(dev->uri));
+				memset(dev->serial, 0, sizeof(dev->serial));
 			}
 		}
 	}
