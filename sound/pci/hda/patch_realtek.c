@@ -14056,7 +14056,6 @@ static int patch_alc268(struct hda_codec *codec)
 	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
-		int i;
 
 		spec->capsrc_nids = alc268_capsrc_nids;
 		/* get type */
