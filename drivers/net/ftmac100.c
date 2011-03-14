@@ -80,7 +80,8 @@ struct ftmac100 {
 	struct mii_if_info mii;
 };
 
-static int ftmac100_alloc_rx_page(struct ftmac100 *priv, struct ftmac100_rxdes *rxdes);
+static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
+				  struct ftmac100_rxdes *rxdes, gfp_t gfp);
 
 /******************************************************************************
  * internal functions (hardware register access)
@@ -441,7 +442,7 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 	skb->truesize += length;
 	__pskb_pull_tail(skb, min(length, 64));
 
-	ftmac100_alloc_rx_page(priv, rxdes);
+	ftmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
 
 	ftmac100_rx_pointer_advance(priv);
 
@@ -659,13 +660,14 @@ static int ftmac100_xmit(struct ftmac100 *priv, struct sk_buff *skb,
 /******************************************************************************
  * internal functions (buffer)
  *****************************************************************************/
-static int ftmac100_alloc_rx_page(struct ftmac100 *priv, struct ftmac100_rxdes *rxdes)
+static int ftmac100_alloc_rx_page(struct ftmac100 *priv,
+				  struct ftmac100_rxdes *rxdes, gfp_t gfp)
 {
 	struct net_device *netdev = priv->netdev;
 	struct page *page;
 	dma_addr_t map;
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(gfp);
 	if (!page) {
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to allocate rx page\n");
@@ -736,7 +738,7 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftmac100_rxdes *rxdes = &priv->descs->rxdes[i];
 
-		if (ftmac100_alloc_rx_page(priv, rxdes))
+		if (ftmac100_alloc_rx_page(priv, rxdes, GFP_KERNEL))
 			goto err;
 	}
 
