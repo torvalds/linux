@@ -156,12 +156,6 @@ struct mtdswap_oobdata {
 #define MTDSWAP_ERASE_RETRIES	3 /* Before marking erase block bad */
 #define MTDSWAP_IO_RETRIES	3
 
-#ifdef CONFIG_MTD_SWAP_STRICT
-#define MTDSWAP_STRICT		1
-#else
-#define MTDSWAP_STRICT		0
-#endif
-
 enum {
 	MTDSWAP_SCANNED_CLEAN,
 	MTDSWAP_SCANNED_DIRTY,
@@ -575,7 +569,7 @@ retry:
 
 	ret = mtd->erase(mtd, &erase);
 	if (ret) {
-		if (retries++ < MTDSWAP_ERASE_RETRIES && !MTDSWAP_STRICT) {
+		if (retries++ < MTDSWAP_ERASE_RETRIES) {
 			dev_warn(d->dev,
 				"erase of erase block %#llx on %s failed",
 				erase.addr, mtd->name);

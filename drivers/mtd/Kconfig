@@ -335,14 +335,6 @@ config MTD_SWAP
 	  The driver provides wear leveling by storing erase counter into the
 	  OOB.
 
-config MTD_SWAP_STRICT
-       bool "Strict erase error handling"
-       depends on MTD_SWAP
-       help
-	 Enables strict tolerance on failed erasures, marking erase blocks bad
-	 right after the first failed operation. With non-strict mode the
-	 erase operation is retried.
-
 source "drivers/mtd/chips/Kconfig"
 
 source "drivers/mtd/maps/Kconfig"
