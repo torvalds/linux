@@ -204,20 +204,20 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 	}
 
 	/* some more paranoia, if the request was over-determined */
+	if (adm_ctx.mdev && adm_ctx.tconn &&
+	    adm_ctx.mdev->tconn != adm_ctx.tconn) {
+		pr_warning("request: minor=%u, conn=%s; but that minor belongs to connection %s\n",
+				adm_ctx.minor, adm_ctx.conn_name, adm_ctx.mdev->tconn->name);
+		drbd_msg_put_info("minor exists in different connection");
+		return ERR_INVALID_REQUEST;
+	}
 	if (adm_ctx.mdev &&
 	    adm_ctx.volume != VOLUME_UNSPECIFIED &&
 	    adm_ctx.volume != adm_ctx.mdev->vnr) {
 		pr_warning("request: minor=%u, volume=%u; but that minor is volume %u in %s\n",
 				adm_ctx.minor, adm_ctx.volume,
 				adm_ctx.mdev->vnr, adm_ctx.mdev->tconn->name);
-		drbd_msg_put_info("over-determined configuration context mismatch");
-		return ERR_INVALID_REQUEST;
-	}
-	if (adm_ctx.mdev && adm_ctx.tconn &&
-	    adm_ctx.mdev->tconn != adm_ctx.tconn) {
-		pr_warning("request: minor=%u, conn=%s; but that minor belongs to connection %s\n",
-				adm_ctx.minor, adm_ctx.conn_name, adm_ctx.mdev->tconn->name);
-		drbd_msg_put_info("over-determined configuration context mismatch");
+		drbd_msg_put_info("minor exists as different volume");
 		return ERR_INVALID_REQUEST;
 	}
 	if (adm_ctx.mdev && !adm_ctx.tconn)
