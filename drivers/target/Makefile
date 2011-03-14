@@ -12,7 +12,8 @@ target_core_mod-y		:= target_core_configfs.o \
 				   target_core_transport.o \
 				   target_core_cdb.o \
 				   target_core_ua.o \
-				   target_core_rd.o
+				   target_core_rd.o \
+				   target_core_stat.o
 
 obj-$(CONFIG_TARGET_CORE)	+= target_core_mod.o
 
