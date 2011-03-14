@@ -190,7 +190,7 @@ EXPORT_SYMBOL(xt_unregister_matches);
 struct xt_match *xt_find_match(u8 af, const char *name, u8 revision)
 {
 	struct xt_match *m;
-	int err = 0;
+	int err = -ENOENT;
 
 	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
 		return ERR_PTR(-EINTR);
@@ -235,7 +235,7 @@ EXPORT_SYMBOL_GPL(xt_request_find_match);
 struct xt_target *xt_find_target(u8 af, const char *name, u8 revision)
 {
 	struct xt_target *t;
-	int err = 0;
+	int err = -ENOENT;
 
 	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
 		return ERR_PTR(-EINTR);
