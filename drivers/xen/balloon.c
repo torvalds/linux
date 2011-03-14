@@ -1,6 +1,4 @@
 /******************************************************************************
- * balloon.c
- *
  * Xen balloon driver - enables returning/claiming memory to/from Xen.
  *
  * Copyright (c) 2003, B Dragovic
@@ -33,7 +31,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
@@ -42,13 +39,11 @@
 #include <linux/highmem.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
-#include <linux/sysdev.h>
 #include <linux/gfp.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
 #include <asm/tlb.h>
 #include <asm/e820.h>
 
@@ -58,13 +53,9 @@
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
-#include <xen/xenbus.h>
+#include <xen/balloon.h>
 #include <xen/features.h>
 #include <xen/page.h>
-
-#define PAGES2KB(_p) ((_p)<<(PAGE_SHIFT-10))
-
-#define BALLOON_CLASS_NAME "xen_memory"
 
 /*
  * balloon_process() state:
@@ -80,28 +71,11 @@ enum bp_state {
 	BP_ECANCELED
 };
 
-#define RETRY_UNLIMITED	0
-
-struct balloon_stats {
-	/* We aim for 'current allocation' == 'target allocation'. */
-	unsigned long current_pages;
-	unsigned long target_pages;
-	/* Number of pages in high- and low-memory balloons. */
-	unsigned long balloon_low;
-	unsigned long balloon_high;
-	unsigned long schedule_delay;
-	unsigned long max_schedule_delay;
-	unsigned long retry_count;
-	unsigned long max_retry_count;
-};
 
 static DEFINE_MUTEX(balloon_mutex);
 
-static struct sys_device balloon_sysdev;
-
-static int register_balloon(struct sys_device *sysdev);
-
-static struct balloon_stats balloon_stats;
+struct balloon_stats balloon_stats;
+EXPORT_SYMBOL_GPL(balloon_stats);
 
 /* We increase/decrease in batches which fit in a page */
 static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
@@ -384,51 +358,13 @@ static void balloon_process(struct work_struct *work)
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
-static void balloon_set_new_target(unsigned long target)
+void balloon_set_new_target(unsigned long target)
 {
 	/* No need for lock. Not read-modify-write updates. */
 	balloon_stats.target_pages = target;
 	schedule_delayed_work(&balloon_worker, 0);
 }
-
-static struct xenbus_watch target_watch =
-{
-	.node = "memory/target"
-};
-
-/* React to a change in the target key */
-static void watch_target(struct xenbus_watch *watch,
-			 const char **vec, unsigned int len)
-{
-	unsigned long long new_target;
-	int err;
-
-	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
-	if (err != 1) {
-		/* This is ok (for domain0 at least) - so just return */
-		return;
-	}
-
-	/* The given memory/target value is in KiB, so it needs converting to
-	 * pages. PAGE_SHIFT converts bytes to pages, hence PAGE_SHIFT - 10.
-	 */
-	balloon_set_new_target(new_target >> (PAGE_SHIFT - 10));
-}
-
-static int balloon_init_watcher(struct notifier_block *notifier,
-				unsigned long event,
-				void *data)
-{
-	int err;
-
-	err = register_xenbus_watch(&target_watch);
-	if (err)
-		printk(KERN_ERR "Failed to set balloon watcher\n");
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block xenstore_notifier;
+EXPORT_SYMBOL_GPL(balloon_set_new_target);
 
 static int __init balloon_init(void)
 {
@@ -438,7 +374,7 @@ static int __init balloon_init(void)
 	if (!xen_pv_domain())
 		return -ENODEV;
 
-	pr_info("xen_balloon: Initialising balloon driver.\n");
+	pr_info("xen/balloon: Initialising balloon driver.\n");
 
 	balloon_stats.current_pages = min(xen_start_info->nr_pages, max_pfn);
 	balloon_stats.target_pages  = balloon_stats.current_pages;
@@ -449,8 +385,6 @@ static int __init balloon_init(void)
 	balloon_stats.max_schedule_delay = 32;
 	balloon_stats.retry_count = 1;
 	balloon_stats.max_retry_count = RETRY_UNLIMITED;
-
-	register_balloon(&balloon_sysdev);
 
 	/*
 	 * Initialise the balloon with excess memory space.  We need
@@ -472,160 +406,9 @@ static int __init balloon_init(void)
 		__balloon_append(page);
 	}
 
-	target_watch.callback = watch_target;
-	xenstore_notifier.notifier_call = balloon_init_watcher;
-
-	register_xenstore_notifier(&xenstore_notifier);
-
 	return 0;
 }
 
 subsys_initcall(balloon_init);
-
-static void balloon_exit(void)
-{
-    /* XXX - release balloon here */
-    return;
-}
-
-module_exit(balloon_exit);
-
-#define BALLOON_SHOW(name, format, args...)				\
-	static ssize_t show_##name(struct sys_device *dev,		\
-				   struct sysdev_attribute *attr,	\
-				   char *buf)				\
-	{								\
-		return sprintf(buf, format, ##args);			\
-	}								\
-	static SYSDEV_ATTR(name, S_IRUGO, show_##name, NULL)
-
-BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(balloon_stats.current_pages));
-BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_low));
-BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(balloon_stats.balloon_high));
-
-static SYSDEV_ULONG_ATTR(schedule_delay, 0444, balloon_stats.schedule_delay);
-static SYSDEV_ULONG_ATTR(max_schedule_delay, 0644, balloon_stats.max_schedule_delay);
-static SYSDEV_ULONG_ATTR(retry_count, 0444, balloon_stats.retry_count);
-static SYSDEV_ULONG_ATTR(max_retry_count, 0644, balloon_stats.max_retry_count);
-
-static ssize_t show_target_kb(struct sys_device *dev, struct sysdev_attribute *attr,
-			      char *buf)
-{
-	return sprintf(buf, "%lu\n", PAGES2KB(balloon_stats.target_pages));
-}
-
-static ssize_t store_target_kb(struct sys_device *dev,
-			       struct sysdev_attribute *attr,
-			       const char *buf,
-			       size_t count)
-{
-	char *endchar;
-	unsigned long long target_bytes;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	target_bytes = simple_strtoull(buf, &endchar, 0) * 1024;
-
-	balloon_set_new_target(target_bytes >> PAGE_SHIFT);
-
-	return count;
-}
-
-static SYSDEV_ATTR(target_kb, S_IRUGO | S_IWUSR,
-		   show_target_kb, store_target_kb);
-
-
-static ssize_t show_target(struct sys_device *dev, struct sysdev_attribute *attr,
-			      char *buf)
-{
-	return sprintf(buf, "%llu\n",
-		       (unsigned long long)balloon_stats.target_pages
-		       << PAGE_SHIFT);
-}
-
-static ssize_t store_target(struct sys_device *dev,
-			    struct sysdev_attribute *attr,
-			    const char *buf,
-			    size_t count)
-{
-	char *endchar;
-	unsigned long long target_bytes;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	target_bytes = memparse(buf, &endchar);
-
-	balloon_set_new_target(target_bytes >> PAGE_SHIFT);
-
-	return count;
-}
-
-static SYSDEV_ATTR(target, S_IRUGO | S_IWUSR,
-		   show_target, store_target);
-
-
-static struct sysdev_attribute *balloon_attrs[] = {
-	&attr_target_kb,
-	&attr_target,
-	&attr_schedule_delay.attr,
-	&attr_max_schedule_delay.attr,
-	&attr_retry_count.attr,
-	&attr_max_retry_count.attr
-};
-
-static struct attribute *balloon_info_attrs[] = {
-	&attr_current_kb.attr,
-	&attr_low_kb.attr,
-	&attr_high_kb.attr,
-	NULL
-};
-
-static struct attribute_group balloon_info_group = {
-	.name = "info",
-	.attrs = balloon_info_attrs,
-};
-
-static struct sysdev_class balloon_sysdev_class = {
-	.name = BALLOON_CLASS_NAME,
-};
-
-static int register_balloon(struct sys_device *sysdev)
-{
-	int i, error;
-
-	error = sysdev_class_register(&balloon_sysdev_class);
-	if (error)
-		return error;
-
-	sysdev->id = 0;
-	sysdev->cls = &balloon_sysdev_class;
-
-	error = sysdev_register(sysdev);
-	if (error) {
-		sysdev_class_unregister(&balloon_sysdev_class);
-		return error;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(balloon_attrs); i++) {
-		error = sysdev_create_file(sysdev, balloon_attrs[i]);
-		if (error)
-			goto fail;
-	}
-
-	error = sysfs_create_group(&sysdev->kobj, &balloon_info_group);
-	if (error)
-		goto fail;
-
-	return 0;
-
- fail:
-	while (--i >= 0)
-		sysdev_remove_file(sysdev, balloon_attrs[i]);
-	sysdev_unregister(sysdev);
-	sysdev_class_unregister(&balloon_sysdev_class);
-	return error;
-}
 
 MODULE_LICENSE("GPL");
