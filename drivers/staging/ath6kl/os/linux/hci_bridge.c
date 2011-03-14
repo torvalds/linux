@@ -270,7 +270,7 @@ static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
         ar3kconfig.pHCIDev = pHcidevInfo->pHCIDev;
         ar3kconfig.pHCIProps = &pHcidevInfo->HCIProps;
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-        ar3kconfig.pHIFDevice = (HIF_DEVICE *)(pHcidevInfo->HCITransHdl.hifDevice);
+        ar3kconfig.pHIFDevice = (struct hif_device *)(pHcidevInfo->HCITransHdl.hifDevice);
 #else
         ar3kconfig.pHIFDevice = pHcidevInfo->ar->arHifDevice;
 #endif
@@ -868,7 +868,7 @@ static int bt_setup_hci(struct ar6k_hci_bridge_info *pHcidevInfo)
         A_MEMZERO(&osDevInfo,sizeof(osDevInfo));
             /* get the underlying OS device */
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
-        status = ar6000_get_hif_dev((HIF_DEVICE *)(pHcidevInfo->HCITransHdl.hifDevice), 
+        status = ar6000_get_hif_dev((struct hif_device *)(pHcidevInfo->HCITransHdl.hifDevice), 
                                     &osDevInfo);
 #else
         status = HIFConfigureDevice(pHcidevInfo->ar->arHifDevice, 

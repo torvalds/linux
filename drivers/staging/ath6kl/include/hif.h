@@ -38,7 +38,7 @@ extern "C" {
 
 
 typedef struct htc_callbacks HTC_CALLBACKS;
-typedef struct hif_device HIF_DEVICE;
+struct hif_device;
 
 /*
  * direction - Direction of transfer (HIF_READ/HIF_WRITE).
@@ -301,9 +301,9 @@ struct hif_scatter_req {
     struct hif_scatter_item    ScatterList[1];     /* start of scatter list */
 };
 
-typedef struct hif_scatter_req * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);
-typedef void ( *HIF_FREE_SCATTER_REQUEST)(HIF_DEVICE *device, struct hif_scatter_req *request);
-typedef int ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, struct hif_scatter_req *request);
+typedef struct hif_scatter_req * ( *HIF_ALLOCATE_SCATTER_REQUEST)(struct hif_device *device);
+typedef void ( *HIF_FREE_SCATTER_REQUEST)(struct hif_device *device, struct hif_scatter_req *request);
+typedef int ( *HIF_READWRITE_SCATTER)(struct hif_device *device, struct hif_scatter_req *request);
 
 struct hif_device_scatter_support_info {
         /* information returned from HIF layer */
@@ -354,14 +354,14 @@ struct hif_pending_events_info {
 
     /* function to get pending events , some HIF modules use special mechanisms
      * to detect packet available and other interrupts */
-typedef int ( *HIF_PENDING_EVENTS_FUNC)(HIF_DEVICE              *device,
+typedef int ( *HIF_PENDING_EVENTS_FUNC)(struct hif_device              *device,
                                              struct hif_pending_events_info *pEvents,
                                              void                    *AsyncContext);
 
 #define HIF_MASK_RECV    true
 #define HIF_UNMASK_RECV  false
     /* function to mask recv events */
-typedef int ( *HIF_MASK_UNMASK_RECV_EVENT)(HIF_DEVICE  *device,
+typedef int ( *HIF_MASK_UNMASK_RECV_EVENT)(struct hif_device  *device,
                                                 bool      Mask,
                                                 void        *AsyncContext);
 
@@ -376,14 +376,14 @@ int HIFInit(OSDRV_CALLBACKS *callbacks);
 /* This API claims the HIF device and provides a context for handling removal.
  * The device removal callback is only called when the OSDRV layer claims
  * a device.  The claimed context must be non-NULL */
-void HIFClaimDevice(HIF_DEVICE *device, void *claimedContext);
+void HIFClaimDevice(struct hif_device *device, void *claimedContext);
 /* release the claimed device */
-void HIFReleaseDevice(HIF_DEVICE *device);
+void HIFReleaseDevice(struct hif_device *device);
 
 /* This API allows the HTC layer to attach to the HIF device */
-int HIFAttachHTC(HIF_DEVICE *device, HTC_CALLBACKS *callbacks);
+int HIFAttachHTC(struct hif_device *device, HTC_CALLBACKS *callbacks);
 /* This API detaches the HTC layer from the HIF device */
-void     HIFDetachHTC(HIF_DEVICE *device);
+void     HIFDetachHTC(struct hif_device *device);
 
 /*
  * This API is used to provide the read/write interface over the specific bus
@@ -398,7 +398,7 @@ void     HIFDetachHTC(HIF_DEVICE *device);
  * request - Characterizes the attributes of the command.
  */
 int
-HIFReadWrite(HIF_DEVICE    *device,
+HIFReadWrite(struct hif_device    *device,
              u32 address,
              u8       *buffer,
              u32 length,
@@ -409,7 +409,7 @@ HIFReadWrite(HIF_DEVICE    *device,
  * This can be initiated from the unload driver context when the OSDRV layer has no more use for
  * the device.
  */
-void HIFShutDownDevice(HIF_DEVICE *device);
+void HIFShutDownDevice(struct hif_device *device);
 
 /*
  * This should translate to an acknowledgment to the bus driver indicating that
@@ -418,11 +418,11 @@ void HIFShutDownDevice(HIF_DEVICE *device);
  * This should prevent the bus driver from raising an interrupt unless the
  * previous one has been serviced and acknowledged using the previous API.
  */
-void HIFAckInterrupt(HIF_DEVICE *device);
+void HIFAckInterrupt(struct hif_device *device);
 
-void HIFMaskInterrupt(HIF_DEVICE *device);
+void HIFMaskInterrupt(struct hif_device *device);
 
-void HIFUnMaskInterrupt(HIF_DEVICE *device);
+void HIFUnMaskInterrupt(struct hif_device *device);
  
 #ifdef THREAD_X
 /*
@@ -441,14 +441,14 @@ int HIFRWCompleteEventNotify(void);
 #endif
 
 int
-HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
+HIFConfigureDevice(struct hif_device *device, HIF_DEVICE_CONFIG_OPCODE opcode,
                    void *config, u32 configLen);
 
 /* 
  * This API wait for the remaining MBOX messages to be drained
  * This should be moved to HTC AR6K layer
  */
-int hifWaitForPendingRecv(HIF_DEVICE *device);
+int hifWaitForPendingRecv(struct hif_device *device);
 
 #ifdef __cplusplus
 }

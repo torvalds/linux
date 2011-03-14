@@ -55,7 +55,7 @@ char *p_mac = NULL;
 
 static u8 eeprom_data[EEPROM_SZ];
 static u32 sys_sleep_reg;
-static HIF_DEVICE *p_bmi_device;
+static struct hif_device *p_bmi_device;
 
 //
 // Functions
@@ -158,7 +158,7 @@ BMI_write_mem(u32 address, u8 *p_data, u32 sz)
  * so we can access the EEPROM.
  */
 static void
-enable_SI(HIF_DEVICE *p_device)
+enable_SI(struct hif_device *p_device)
 {
     u32 regval;
 
@@ -361,7 +361,7 @@ commit_4bytes(int offset, u32 data)
 }
 /* ATHENV */
 #ifdef ANDROID_ENV
-void eeprom_ar6000_transfer(HIF_DEVICE *device, char *fake_file, char *p_mac)
+void eeprom_ar6000_transfer(struct hif_device *device, char *fake_file, char *p_mac)
 {
     u32 first_word;
     u32 board_data_addr;

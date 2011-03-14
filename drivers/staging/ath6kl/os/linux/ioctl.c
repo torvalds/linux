@@ -1865,7 +1865,7 @@ ar6000_ioctl_setkey(struct ar6_softc *ar, struct ieee80211req_key *ik)
 int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
     struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
-    HIF_DEVICE *hifDevice = ar->arHifDevice;
+    struct hif_device *hifDevice = ar->arHifDevice;
     int ret = 0, param;
     unsigned int address = 0;
     unsigned int length = 0;

@@ -1233,7 +1233,7 @@ int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
 int HCI_TransportSetBaudRate(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud)
 {
     struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;
-    HIF_DEVICE *pHIFDevice = (HIF_DEVICE *)(pProt->pDev->HIFDevice);
+    struct hif_device *pHIFDevice = (struct hif_device *)(pProt->pDev->HIFDevice);
     u32 scaledBaud, scratchAddr;
     int status = 0;
 

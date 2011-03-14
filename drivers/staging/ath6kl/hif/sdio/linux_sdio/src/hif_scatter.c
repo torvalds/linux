@@ -48,7 +48,7 @@
             (((address) & 0x1FFFF) << 9)        | \
             ((bytes_blocks) & 0x1FF)
             
-static void FreeScatterReq(HIF_DEVICE *device, struct hif_scatter_req *pReq)
+static void FreeScatterReq(struct hif_device *device, struct hif_scatter_req *pReq)
 {   
     unsigned long flag;
 
@@ -60,7 +60,7 @@ static void FreeScatterReq(HIF_DEVICE *device, struct hif_scatter_req *pReq)
         
 }
 
-static struct hif_scatter_req *AllocScatterReq(HIF_DEVICE *device) 
+static struct hif_scatter_req *AllocScatterReq(struct hif_device *device) 
 {
     struct dl_list       *pItem; 
     unsigned long flag;
@@ -79,7 +79,7 @@ static struct hif_scatter_req *AllocScatterReq(HIF_DEVICE *device)
 }
 
     /* called by async task to perform the operation synchronously using direct MMC APIs  */
-int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
+int DoHifReadWriteScatter(struct hif_device *device, BUS_REQUEST *busrequest)
 {
     int                     i;
     u8 rw;
@@ -199,7 +199,7 @@ int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest)
 }
 
     /* callback to issue a read-write scatter request */
-static int HifReadWriteScatter(HIF_DEVICE *device, struct hif_scatter_req *pReq)
+static int HifReadWriteScatter(struct hif_device *device, struct hif_scatter_req *pReq)
 {
     int             status = A_EINVAL;
     u32 request = pReq->Request;
@@ -275,7 +275,7 @@ static int HifReadWriteScatter(HIF_DEVICE *device, struct hif_scatter_req *pReq)
 }
 
     /* setup of HIF scatter resources */
-int SetupHIFScatterSupport(HIF_DEVICE *device, struct hif_device_scatter_support_info *pInfo)
+int SetupHIFScatterSupport(struct hif_device *device, struct hif_device_scatter_support_info *pInfo)
 {
     int              status = A_ERROR;
     int                   i;
@@ -356,7 +356,7 @@ int SetupHIFScatterSupport(HIF_DEVICE *device, struct hif_device_scatter_support
 }
 
     /* clean up scatter support */
-void CleanupHIFScatterResources(HIF_DEVICE *device)
+void CleanupHIFScatterResources(struct hif_device *device)
 {
     struct hif_scatter_req_priv    *pReqPriv;
     struct hif_scatter_req         *pReq;

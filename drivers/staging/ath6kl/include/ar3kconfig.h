@@ -42,7 +42,7 @@ struct ar3k_config_info {
     u32 Flags;           /* config flags */
     void                     *pHCIDev;        /* HCI bridge device     */
     struct hci_transport_properties *pHCIProps;      /* HCI bridge props      */
-    HIF_DEVICE               *pHIFDevice;     /* HIF layer device      */
+    struct hif_device               *pHIFDevice;     /* HIF layer device      */
     
     u32 AR3KBaudRate;    /* AR3K operational baud rate */
     u16 AR6KScale;       /* AR6K UART scale value */

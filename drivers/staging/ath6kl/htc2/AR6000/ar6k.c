@@ -587,7 +587,7 @@ void DevDumpRegisters(struct ar6k_device               *pDev,
 
 #define DEV_GET_VIRT_DMA_INFO(p)  ((struct dev_scatter_dma_virtual_info *)((p)->HIFPrivate[0]))
 
-static struct hif_scatter_req *DevAllocScatterReq(HIF_DEVICE *Context)
+static struct hif_scatter_req *DevAllocScatterReq(struct hif_device *Context)
 {
     struct dl_list *pItem;
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
@@ -600,7 +600,7 @@ static struct hif_scatter_req *DevAllocScatterReq(HIF_DEVICE *Context)
     return NULL;
 }
 
-static void DevFreeScatterReq(HIF_DEVICE *Context, struct hif_scatter_req *pReq)
+static void DevFreeScatterReq(struct hif_device *Context, struct hif_scatter_req *pReq)
 {
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
     LOCK_AR6K(pDev);
@@ -664,7 +664,7 @@ static void DevReadWriteScatterAsyncHandler(void *Context, struct htc_packet *pP
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("-DevReadWriteScatterAsyncHandler \n"));
 }
 
-static int DevReadWriteScatter(HIF_DEVICE *Context, struct hif_scatter_req *pReq)
+static int DevReadWriteScatter(struct hif_device *Context, struct hif_scatter_req *pReq)
 {
     struct ar6k_device     *pDev = (struct ar6k_device *)Context;
     int        status = 0;
@@ -739,7 +739,7 @@ static void DevCleanupVirtualScatterSupport(struct ar6k_device *pDev)
     struct hif_scatter_req *pReq;
 
     while (1) {
-        pReq = DevAllocScatterReq((HIF_DEVICE *)pDev);
+        pReq = DevAllocScatterReq((struct hif_device *)pDev);
         if (NULL == pReq) {
             break;
         }
@@ -787,7 +787,7 @@ static int DevSetupVirtualScatterSupport(struct ar6k_device *pDev)
         pReq->ScatterMethod = HIF_SCATTER_DMA_BOUNCE;
         pReq->pScatterBounceBuffer = pVirtualInfo->pVirtDmaBuffer;
             /* free request to the list */
-        DevFreeScatterReq((HIF_DEVICE *)pDev,pReq);
+        DevFreeScatterReq((struct hif_device *)pDev,pReq);
     }
 
     if (status) {

@@ -121,8 +121,8 @@ struct USER_SAVEDKEYS {
 #define DBG_DEFAULTS    (DBG_ERROR|DBG_WARNING)
 
 
-int ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
-int ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data);
+int ar6000_ReadRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data);
+int ar6000_WriteRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data);
 
 #ifdef __cplusplus
 extern "C" {

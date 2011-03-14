@@ -83,7 +83,7 @@ static u8 custDataAR6003[AR6003_CUST_DATA_SIZE];
 #ifdef USE_4BYTE_REGISTER_ACCESS
 
     /* set the window address register (using 4-byte register access ). */
-int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32 Address)
+int ar6000_SetAddressWindowRegister(struct hif_device *hifDevice, u32 RegisterAddr, u32 Address)
 {
     int status;
     u8 addrValue[4];
@@ -144,7 +144,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
 #else
 
     /* set the window address register */
-int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32 Address)
+int ar6000_SetAddressWindowRegister(struct hif_device *hifDevice, u32 RegisterAddr, u32 Address)
 {
     int status;
 
@@ -187,7 +187,7 @@ int ar6000_SetAddressWindowRegister(HIF_DEVICE *hifDevice, u32 RegisterAddr, u32
  * No cooperation from the Target is required for this.
  */
 int
-ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
+ar6000_ReadRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data)
 {
     int status;
 
@@ -221,7 +221,7 @@ ar6000_ReadRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
  * No cooperation from the Target is required for this.
  */
 int
-ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
+ar6000_WriteRegDiag(struct hif_device *hifDevice, u32 *address, u32 *data)
 {
     int status;
 
@@ -244,7 +244,7 @@ ar6000_WriteRegDiag(HIF_DEVICE *hifDevice, u32 *address, u32 *data)
     }
 
 int
-ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
+ar6000_ReadDataDiag(struct hif_device *hifDevice, u32 address,
                     u8 *data, u32 length)
 {
     u32 count;
@@ -262,7 +262,7 @@ ar6000_ReadDataDiag(HIF_DEVICE *hifDevice, u32 address,
 }
 
 int
-ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, u32 address,
+ar6000_WriteDataDiag(struct hif_device *hifDevice, u32 address,
                     u8 *data, u32 length)
 {
     u32 count;
@@ -280,7 +280,7 @@ ar6000_WriteDataDiag(HIF_DEVICE *hifDevice, u32 address,
 }
 
 int
-ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval)
+ar6k_ReadTargetRegister(struct hif_device *hifDevice, int regsel, u32 *regval)
 {
     int status;
     u8 vals[4];
@@ -316,7 +316,7 @@ ar6k_ReadTargetRegister(HIF_DEVICE *hifDevice, int regsel, u32 *regval)
 }
 
 void
-ar6k_FetchTargetRegs(HIF_DEVICE *hifDevice, u32 *targregs)
+ar6k_FetchTargetRegs(struct hif_device *hifDevice, u32 *targregs)
 {
     int i;
     u32 val;
@@ -330,7 +330,7 @@ ar6k_FetchTargetRegs(HIF_DEVICE *hifDevice, u32 *targregs)
 
 #if 0
 static int
-_do_write_diag(HIF_DEVICE *hifDevice, u32 addr, u32 value)
+_do_write_diag(struct hif_device *hifDevice, u32 addr, u32 value)
 {
     int status;
 
@@ -358,7 +358,7 @@ _do_write_diag(HIF_DEVICE *hifDevice, u32 addr, u32 value)
  */
 #if 0
 static int
-_delay_until_target_alive(HIF_DEVICE *hifDevice, s32 wait_msecs, u32 TargetType)
+_delay_until_target_alive(struct hif_device *hifDevice, s32 wait_msecs, u32 TargetType)
 {
     s32 actual_wait;
     s32 i;
@@ -399,7 +399,7 @@ _delay_until_target_alive(HIF_DEVICE *hifDevice, s32 wait_msecs, u32 TargetType)
 #define AR6002_RESET_CONTROL_ADDRESS 0x00004000
 #define AR6003_RESET_CONTROL_ADDRESS 0x00004000
 /* reset device */
-int ar6000_reset_device(HIF_DEVICE *hifDevice, u32 TargetType, bool waitForCompletion, bool coldReset)
+int ar6000_reset_device(struct hif_device *hifDevice, u32 TargetType, bool waitForCompletion, bool coldReset)
 {
     int status = 0;
     u32 address;
@@ -481,7 +481,7 @@ int ar6000_reset_device(HIF_DEVICE *hifDevice, u32 TargetType, bool waitForCompl
 
 /* This should be called in BMI phase after firmware is downloaded */
 void
-ar6000_copy_cust_data_from_target(HIF_DEVICE *hifDevice, u32 TargetType)
+ar6000_copy_cust_data_from_target(struct hif_device *hifDevice, u32 TargetType)
 {
     u32 eepHeaderAddr;
     u8 AR6003CustDataShadow[AR6003_CUST_DATA_SIZE+4];
@@ -552,7 +552,7 @@ u8 *ar6000_get_cust_data_buffer(u32 TargetType)
 #endif
 
 
-void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, u32 TargetType)
+void ar6000_dump_target_assert_info(struct hif_device *hifDevice, u32 TargetType)
 {
     u32 address;
     u32 regDumpArea = 0;
@@ -624,7 +624,7 @@ void ar6000_dump_target_assert_info(HIF_DEVICE *hifDevice, u32 TargetType)
 
 /* set HTC/Mbox operational parameters, this can only be called when the target is in the
  * BMI phase */
-int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
+int ar6000_set_htc_params(struct hif_device *hifDevice,
                                u32 TargetType,
                                u32 MboxIsrYieldValue,
                                u8 HtcControlBuffers)
@@ -684,7 +684,7 @@ int ar6000_set_htc_params(HIF_DEVICE *hifDevice,
 }
 
 
-static int prepare_ar6002(HIF_DEVICE *hifDevice, u32 TargetVersion)
+static int prepare_ar6002(struct hif_device *hifDevice, u32 TargetVersion)
 {
     int status = 0;
 
@@ -693,7 +693,7 @@ static int prepare_ar6002(HIF_DEVICE *hifDevice, u32 TargetVersion)
     return status;
 }
 
-static int prepare_ar6003(HIF_DEVICE *hifDevice, u32 TargetVersion)
+static int prepare_ar6003(struct hif_device *hifDevice, u32 TargetVersion)
 {
     int status = 0;
 
@@ -703,7 +703,7 @@ static int prepare_ar6003(HIF_DEVICE *hifDevice, u32 TargetVersion)
 }
 
 /* this function assumes the caller has already initialized the BMI APIs */
-int ar6000_prepare_target(HIF_DEVICE *hifDevice,
+int ar6000_prepare_target(struct hif_device *hifDevice,
                                u32 TargetType,
                                u32 TargetVersion)
 {
@@ -725,7 +725,7 @@ int ar6000_prepare_target(HIF_DEVICE *hifDevice,
  * TBDXXX: Remove this function when REV 1.x is desupported.
  */
 int
-ar6002_REV1_reset_force_host (HIF_DEVICE *hifDevice)
+ar6002_REV1_reset_force_host (struct hif_device *hifDevice)
 {
     s32 i;
     struct forceROM_s {
@@ -998,7 +998,7 @@ void a_module_debug_support_cleanup(void)
 }
 
     /* can only be called during bmi init stage */
-int ar6000_set_hci_bridge_flags(HIF_DEVICE *hifDevice,
+int ar6000_set_hci_bridge_flags(struct hif_device *hifDevice,
                                      u32 TargetType,
                                      u32 Flags)
 {

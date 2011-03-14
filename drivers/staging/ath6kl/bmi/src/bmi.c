@@ -106,7 +106,7 @@ BMICleanup(void)
 }
 
 int
-BMIDone(HIF_DEVICE *device)
+BMIDone(struct hif_device *device)
 {
     int status;
     u32 cid;
@@ -142,7 +142,7 @@ BMIDone(HIF_DEVICE *device)
 }
 
 int
-BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
+BMIGetTargetInfo(struct hif_device *device, struct bmi_target_info *targ_info)
 {
     int status;
     u32 cid;
@@ -201,7 +201,7 @@ BMIGetTargetInfo(HIF_DEVICE *device, struct bmi_target_info *targ_info)
 }
 
 int
-BMIReadMemory(HIF_DEVICE *device,
+BMIReadMemory(struct hif_device *device,
               u32 address,
               u8 *buffer,
               u32 length)
@@ -257,7 +257,7 @@ BMIReadMemory(HIF_DEVICE *device,
 }
 
 int
-BMIWriteMemory(HIF_DEVICE *device,
+BMIWriteMemory(struct hif_device *device,
                u32 address,
                u8 *buffer,
                u32 length)
@@ -322,7 +322,7 @@ BMIWriteMemory(HIF_DEVICE *device,
 }
 
 int
-BMIExecute(HIF_DEVICE *device,
+BMIExecute(struct hif_device *device,
            u32 address,
            u32 *param)
 {
@@ -370,7 +370,7 @@ BMIExecute(HIF_DEVICE *device,
 }
 
 int
-BMISetAppStart(HIF_DEVICE *device,
+BMISetAppStart(struct hif_device *device,
                u32 address)
 {
     u32 cid;
@@ -407,7 +407,7 @@ BMISetAppStart(HIF_DEVICE *device,
 }
 
 int
-BMIReadSOCRegister(HIF_DEVICE *device,
+BMIReadSOCRegister(struct hif_device *device,
                    u32 address,
                    u32 *param)
 {
@@ -453,7 +453,7 @@ BMIReadSOCRegister(HIF_DEVICE *device,
 }
 
 int
-BMIWriteSOCRegister(HIF_DEVICE *device,
+BMIWriteSOCRegister(struct hif_device *device,
                     u32 address,
                     u32 param)
 {
@@ -493,7 +493,7 @@ BMIWriteSOCRegister(HIF_DEVICE *device,
 }
 
 int
-BMIrompatchInstall(HIF_DEVICE *device,
+BMIrompatchInstall(struct hif_device *device,
                    u32 ROM_addr,
                    u32 RAM_addr,
                    u32 nbytes,
@@ -549,7 +549,7 @@ BMIrompatchInstall(HIF_DEVICE *device,
 }
 
 int
-BMIrompatchUninstall(HIF_DEVICE *device,
+BMIrompatchUninstall(struct hif_device *device,
                      u32 rompatch_id)
 {
     u32 cid;
@@ -586,7 +586,7 @@ BMIrompatchUninstall(HIF_DEVICE *device,
 }
 
 static int
-_BMIrompatchChangeActivation(HIF_DEVICE *device,
+_BMIrompatchChangeActivation(struct hif_device *device,
                              u32 rompatch_count,
                              u32 *rompatch_list,
                              u32 do_activate)
@@ -630,7 +630,7 @@ _BMIrompatchChangeActivation(HIF_DEVICE *device,
 }
 
 int
-BMIrompatchActivate(HIF_DEVICE *device,
+BMIrompatchActivate(struct hif_device *device,
                     u32 rompatch_count,
                     u32 *rompatch_list)
 {
@@ -638,7 +638,7 @@ BMIrompatchActivate(HIF_DEVICE *device,
 }
 
 int
-BMIrompatchDeactivate(HIF_DEVICE *device,
+BMIrompatchDeactivate(struct hif_device *device,
                       u32 rompatch_count,
                       u32 *rompatch_list)
 {
@@ -646,7 +646,7 @@ BMIrompatchDeactivate(HIF_DEVICE *device,
 }
 
 int
-BMILZData(HIF_DEVICE *device,
+BMILZData(struct hif_device *device,
           u8 *buffer,
           u32 length)
 {
@@ -696,7 +696,7 @@ BMILZData(HIF_DEVICE *device,
 }
 
 int
-BMILZStreamStart(HIF_DEVICE *device,
+BMILZStreamStart(struct hif_device *device,
                  u32 address)
 {
     u32 cid;
@@ -734,7 +734,7 @@ BMILZStreamStart(HIF_DEVICE *device,
 
 /* BMI Access routines */
 int
-bmiBufferSend(HIF_DEVICE *device,
+bmiBufferSend(struct hif_device *device,
               u8 *buffer,
               u32 length)
 {
@@ -782,7 +782,7 @@ bmiBufferSend(HIF_DEVICE *device,
 }
 
 int
-bmiBufferReceive(HIF_DEVICE *device,
+bmiBufferReceive(struct hif_device *device,
                  u8 *buffer,
                  u32 length,
                  bool want_timeout)
@@ -958,7 +958,7 @@ bmiBufferReceive(HIF_DEVICE *device,
 }
 
 int
-BMIFastDownload(HIF_DEVICE *device, u32 address, u8 *buffer, u32 length)
+BMIFastDownload(struct hif_device *device, u32 address, u8 *buffer, u32 length)
 {
     int status = A_ERROR;
     u32 lastWord = 0;
@@ -998,13 +998,13 @@ BMIFastDownload(HIF_DEVICE *device, u32 address, u8 *buffer, u32 length)
 }
 
 int
-BMIRawWrite(HIF_DEVICE *device, u8 *buffer, u32 length)
+BMIRawWrite(struct hif_device *device, u8 *buffer, u32 length)
 {
     return bmiBufferSend(device, buffer, length);
 }
 
 int
-BMIRawRead(HIF_DEVICE *device, u8 *buffer, u32 length, bool want_timeout)
+BMIRawRead(struct hif_device *device, u8 *buffer, u32 length, bool want_timeout)
 {
     return bmiBufferReceive(device, buffer, length, want_timeout);
 }
