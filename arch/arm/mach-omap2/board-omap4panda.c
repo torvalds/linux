@@ -40,6 +40,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
+#include <plat/panel-generic-dpi.h>
 #include "timer-gp.h"
 
 #include "hsmmc.h"
@@ -435,6 +436,17 @@ static struct i2c_board_info __initdata omap4_panda_i2c_boardinfo[] = {
 		.platform_data = &omap4_panda_twldata,
 	},
 };
+
+/*
+ * Display monitor features are burnt in their EEPROM as EDID data. The EEPROM
+ * is connected as I2C slave device, and can be accessed at address 0x50
+ */
+static struct i2c_board_info __initdata panda_i2c_eeprom[] = {
+	{
+		I2C_BOARD_INFO("eeprom", 0x50),
+	},
+};
+
 static int __init omap4_panda_i2c_init(void)
 {
 	/*
@@ -444,7 +456,12 @@ static int __init omap4_panda_i2c_init(void)
 	omap_register_i2c_bus(1, 400, omap4_panda_i2c_boardinfo,
 			ARRAY_SIZE(omap4_panda_i2c_boardinfo));
 	omap_register_i2c_bus(2, 400, NULL, 0);
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	/*
+	 * Bus 3 is attached to the DVI port where devices like the pico DLP
+	 * projector don't work reliably with 400kHz
+	 */
+	omap_register_i2c_bus(3, 100, panda_i2c_eeprom,
+					ARRAY_SIZE(panda_i2c_eeprom));
 	omap_register_i2c_bus(4, 400, NULL, 0);
 	return 0;
 }
@@ -464,11 +481,114 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP4_MUX(SDMMC5_DAT1, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
 	OMAP4_MUX(SDMMC5_DAT2, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
 	OMAP4_MUX(SDMMC5_DAT3, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* gpio 0 - TFP410 PD */
+	OMAP4_MUX(KPD_COL1, OMAP_PIN_OUTPUT | OMAP_MUX_MODE3),
+	/* dispc2_data23 */
+	OMAP4_MUX(USBB2_ULPITLL_STP, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data22 */
+	OMAP4_MUX(USBB2_ULPITLL_DIR, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data21 */
+	OMAP4_MUX(USBB2_ULPITLL_NXT, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data20 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT0, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data19 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT1, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data18 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT2, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data15 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT3, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data14 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT4, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data13 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT5, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data12 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT6, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data11 */
+	OMAP4_MUX(USBB2_ULPITLL_DAT7, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data10 */
+	OMAP4_MUX(DPM_EMU3, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data9 */
+	OMAP4_MUX(DPM_EMU4, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data16 */
+	OMAP4_MUX(DPM_EMU5, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data17 */
+	OMAP4_MUX(DPM_EMU6, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_hsync */
+	OMAP4_MUX(DPM_EMU7, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_pclk */
+	OMAP4_MUX(DPM_EMU8, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_vsync */
+	OMAP4_MUX(DPM_EMU9, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_de */
+	OMAP4_MUX(DPM_EMU10, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data8 */
+	OMAP4_MUX(DPM_EMU11, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data7 */
+	OMAP4_MUX(DPM_EMU12, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data6 */
+	OMAP4_MUX(DPM_EMU13, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data5 */
+	OMAP4_MUX(DPM_EMU14, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data4 */
+	OMAP4_MUX(DPM_EMU15, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data3 */
+	OMAP4_MUX(DPM_EMU16, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data2 */
+	OMAP4_MUX(DPM_EMU17, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data1 */
+	OMAP4_MUX(DPM_EMU18, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
+	/* dispc2_data0 */
+	OMAP4_MUX(DPM_EMU19, OMAP_PIN_OUTPUT | OMAP_MUX_MODE5),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
 #define board_mux	NULL
 #endif
+
+/* Display DVI */
+#define PANDA_DVI_TFP410_POWER_DOWN_GPIO	0
+
+static int omap4_panda_enable_dvi(struct omap_dss_device *dssdev)
+{
+	gpio_set_value(dssdev->reset_gpio, 1);
+	return 0;
+}
+
+static void omap4_panda_disable_dvi(struct omap_dss_device *dssdev)
+{
+	gpio_set_value(dssdev->reset_gpio, 0);
+}
+
+/* Using generic display panel */
+static struct panel_generic_dpi_data omap4_dvi_panel = {
+	.name			= "generic",
+	.platform_enable	= omap4_panda_enable_dvi,
+	.platform_disable	= omap4_panda_disable_dvi,
+};
+
+struct omap_dss_device omap4_panda_dvi_device = {
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.name			= "dvi",
+	.driver_name		= "generic_dpi_panel",
+	.data			= &omap4_dvi_panel,
+	.phy.dpi.data_lines	= 24,
+	.reset_gpio		= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
+	.channel		= OMAP_DSS_CHANNEL_LCD2,
+};
+
+int __init omap4_panda_dvi_init(void)
+{
+	int r;
+
+	/* Requesting TFP410 DVI GPIO and disabling it, at bootup */
+	r = gpio_request_one(omap4_panda_dvi_device.reset_gpio,
+				GPIOF_OUT_INIT_LOW, "DVI PD");
+	if (r)
+		pr_err("Failed to get DVI powerdown GPIO\n");
+
+	return r;
+}
+
 
 static void omap4_panda_hdmi_mux_init(void)
 {
@@ -525,17 +645,24 @@ static struct omap_dss_device  omap4_panda_hdmi_device = {
 };
 
 static struct omap_dss_device *omap4_panda_dss_devices[] = {
+	&omap4_panda_dvi_device,
 	&omap4_panda_hdmi_device,
 };
 
 static struct omap_dss_board_info omap4_panda_dss_data = {
 	.num_devices	= ARRAY_SIZE(omap4_panda_dss_devices),
 	.devices	= omap4_panda_dss_devices,
-	.default_device	= &omap4_panda_hdmi_device,
+	.default_device	= &omap4_panda_dvi_device,
 };
 
 void omap4_panda_display_init(void)
 {
+	int r;
+
+	r = omap4_panda_dvi_init();
+	if (r)
+		pr_err("error initializing panda DVI\n");
+
 	omap4_panda_hdmi_mux_init();
 	omap_display_init(&omap4_panda_dss_data);
 }
