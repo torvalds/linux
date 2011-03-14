@@ -118,7 +118,10 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		pr_info("%s is being created...\n", ifname);
 		rv = bond_create(net, ifname);
 		if (rv) {
-			pr_info("Bond creation failed.\n");
+			if (rv == -EEXIST)
+				pr_info("%s already exists.\n", ifname);
+			else
+				pr_info("%s creation failed.\n", ifname);
 			res = rv;
 		}
 	} else if (command[0] == '-') {
