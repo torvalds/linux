@@ -23,6 +23,7 @@
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "originator.h"
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/udp.h>
@@ -203,28 +204,25 @@ void gw_election(struct bat_priv *bat_priv)
 
 void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
 {
-	struct gw_node *curr_gateway_tmp;
+	struct orig_node *curr_gw_orig;
 	uint8_t gw_tq_avg, orig_tq_avg;
 
+	curr_gw_orig = gw_get_selected(bat_priv);
+	if (!curr_gw_orig)
+		goto deselect;
+
 	rcu_read_lock();
-	curr_gateway_tmp = rcu_dereference(bat_priv->curr_gw);
-	if (!curr_gateway_tmp)
-		goto out_rcu;
-
-	if (!curr_gateway_tmp->orig_node)
-		goto deselect_rcu;
-
-	if (!curr_gateway_tmp->orig_node->router)
+	if (!curr_gw_orig->router)
 		goto deselect_rcu;
 
 	/* this node already is the gateway */
-	if (curr_gateway_tmp->orig_node == orig_node)
+	if (curr_gw_orig == orig_node)
 		goto out_rcu;
 
 	if (!orig_node->router)
 		goto out_rcu;
 
-	gw_tq_avg = curr_gateway_tmp->orig_node->router->tq_avg;
+	gw_tq_avg = curr_gw_orig->router->tq_avg;
 	rcu_read_unlock();
 
 	orig_tq_avg = orig_node->router->tq_avg;
@@ -255,6 +253,9 @@ deselect_rcu:
 deselect:
 	gw_deselect(bat_priv);
 out:
+	if (curr_gw_orig)
+		orig_node_free_ref(curr_gw_orig);
+
 	return;
 }
 
