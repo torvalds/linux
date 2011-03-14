@@ -51,8 +51,10 @@ static void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	/* If this buffer is in the AIL and it has already been written
 	 * to in-place disk block, remove it from the AIL.
 	 */
+	spin_lock(&sdp->sd_ail_lock);
 	if (bd->bd_ail)
 		list_move(&bd->bd_ail_st_list, &bd->bd_ail->ai_ail2_list);
+	spin_unlock(&sdp->sd_ail_lock);
 	get_bh(bh);
 	atomic_inc(&sdp->sd_log_pinned);
 	trace_gfs2_pin(bd, 1);

@@ -67,7 +67,7 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
  * @mapping: The associated mapping (maybe NULL)
  * @bd: The gfs2_bufdata to remove
  *
- * The log lock _must_ be held when calling this function
+ * The ail lock _must_ be held when calling this function
  *
  */
 
