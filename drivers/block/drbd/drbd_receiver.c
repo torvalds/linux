@@ -4648,41 +4648,6 @@ static int got_skip(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-struct asender_cmd {
-	size_t pkt_size;
-	int (*process)(struct drbd_conf *mdev, enum drbd_packet cmd);
-};
-
-static struct asender_cmd *get_asender_cmd(int cmd)
-{
-	static struct asender_cmd asender_tbl[] = {
-		/* anything missing from this table is in
-		 * the drbd_cmd_handler (drbd_default_handler) table,
-		 * see the beginning of drbdd() */
-	[P_PING]	    = { sizeof(struct p_header), got_Ping },
-	[P_PING_ACK]	    = { sizeof(struct p_header), got_PingAck },
-	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
-	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
-	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply},
-	[P_OV_RESULT]	    = { sizeof(struct p_block_ack), got_OVResult },
-	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
-	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
-	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
-	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
-	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
-	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
-	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
-	};
-
-	if (cmd >= ARRAY_SIZE(asender_tbl) || !asender_tbl[cmd].process)
-		return NULL;
-	return &asender_tbl[cmd];
-}
-
 static int _drbd_process_done_ee(int vnr, void *p, void *data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *)p;
@@ -4718,6 +4683,31 @@ static int tconn_process_done_ee(struct drbd_tconn *tconn)
 
 	return 0;
 }
+
+struct asender_cmd {
+	size_t pkt_size;
+	int (*process)(struct drbd_conf *, enum drbd_packet);
+};
+
+static struct asender_cmd asender_tbl[] = {
+	[P_PING]	    = { sizeof(struct p_header), got_Ping },
+	[P_PING_ACK]	    = { sizeof(struct p_header), got_PingAck },
+	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
+	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
+	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
+	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
+	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
+	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
+	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply},
+	[P_OV_RESULT]	    = { sizeof(struct p_block_ack), got_OVResult },
+	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
+	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
+	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
+	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
+	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
+	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
+	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
+};
 
 int drbd_asender(struct drbd_thread *thi)
 {
@@ -4803,8 +4793,8 @@ int drbd_asender(struct drbd_thread *thi)
 		if (received == expect && cmd == NULL) {
 			if (!decode_header(tconn, h, &pi))
 				goto reconnect;
-			cmd = get_asender_cmd(pi.cmd);
-			if (unlikely(cmd == NULL)) {
+			cmd = &asender_tbl[pi.cmd];
+			if (pi.cmd >= ARRAY_SIZE(asender_tbl) || !cmd) {
 				conn_err(tconn, "unknown command %d on meta (l: %d)\n",
 					pi.cmd, pi.size);
 				goto disconnect;
@@ -4823,7 +4813,7 @@ int drbd_asender(struct drbd_thread *thi)
 
 			/* the idle_timeout (ping-int)
 			 * has been restored in got_PingAck() */
-			if (cmd == get_asender_cmd(P_PING_ACK))
+			if (cmd == &asender_tbl[P_PING_ACK])
 				ping_timeout_active = 0;
 
 			buf	 = h;
