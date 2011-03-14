@@ -199,15 +199,10 @@ static enum bp_state update_schedule(enum bp_state state)
 		return BP_DONE;
 	}
 
-	pr_info("xen_balloon: Retry count: %lu/%lu\n", balloon_stats.retry_count,
-			balloon_stats.max_retry_count);
-
 	++balloon_stats.retry_count;
 
 	if (balloon_stats.max_retry_count != RETRY_UNLIMITED &&
 			balloon_stats.retry_count > balloon_stats.max_retry_count) {
-		pr_info("xen_balloon: Retry count limit exceeded\n"
-			"xen_balloon: Balloon operation canceled\n");
 		balloon_stats.schedule_delay = 1;
 		balloon_stats.retry_count = 1;
 		return BP_ECANCELED;
@@ -260,10 +255,8 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 	set_xen_guest_handle(reservation.extent_start, frame_list);
 	reservation.nr_extents = nr_pages;
 	rc = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
-	if (rc <= 0) {
-		pr_info("xen_balloon: %s: Cannot allocate memory\n", __func__);
+	if (rc <= 0)
 		return BP_EAGAIN;
-	}
 
 	for (i = 0; i < rc; i++) {
 		page = balloon_retrieve();
@@ -313,7 +306,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages)
 
 	for (i = 0; i < nr_pages; i++) {
 		if ((page = alloc_page(GFP_BALLOON)) == NULL) {
-			pr_info("xen_balloon: %s: Cannot allocate memory\n", __func__);
 			nr_pages = i;
 			state = BP_EAGAIN;
 			break;
@@ -456,7 +448,7 @@ static int __init balloon_init(void)
 	balloon_stats.schedule_delay = 1;
 	balloon_stats.max_schedule_delay = 32;
 	balloon_stats.retry_count = 1;
-	balloon_stats.max_retry_count = 16;
+	balloon_stats.max_retry_count = RETRY_UNLIMITED;
 
 	register_balloon(&balloon_sysdev);
 
