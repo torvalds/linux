@@ -276,9 +276,8 @@ struct hif_scatter_item {
     void        *pCallerContexts[2];  /* space for caller to insert a context associated with this item */
 };
 
-struct _HIF_SCATTER_REQ;
-
-typedef void ( *HIF_SCATTER_COMP_CB)(struct _HIF_SCATTER_REQ *);
+struct hif_scatter_req;
+typedef void ( *HIF_SCATTER_COMP_CB)(struct hif_scatter_req *);
 
 typedef enum _HIF_SCATTER_METHOD {
     HIF_SCATTER_NONE = 0,
@@ -286,7 +285,7 @@ typedef enum _HIF_SCATTER_METHOD {
     HIF_SCATTER_DMA_BOUNCE,            /* Uses SG DMA but HIF layer uses an internal bounce buffer */    
 } HIF_SCATTER_METHOD;
 
-typedef struct _HIF_SCATTER_REQ {
+struct hif_scatter_req {
     struct dl_list             ListLink;           /* link management */
     u32 Address;            /* address for the read/write operation */
     u32 Request;            /* request flags */
@@ -300,11 +299,11 @@ typedef struct _HIF_SCATTER_REQ {
     void                *HIFPrivate[4];     /* HIF private area */
     u8 *pScatterBounceBuffer;  /* bounce buffer for upper layers to copy to/from */
     struct hif_scatter_item    ScatterList[1];     /* start of scatter list */
-} HIF_SCATTER_REQ;
+};
 
-typedef HIF_SCATTER_REQ * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);
-typedef void ( *HIF_FREE_SCATTER_REQUEST)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
-typedef int ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
+typedef struct hif_scatter_req * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);
+typedef void ( *HIF_FREE_SCATTER_REQUEST)(HIF_DEVICE *device, struct hif_scatter_req *request);
+typedef int ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, struct hif_scatter_req *request);
 
 struct hif_device_scatter_support_info {
         /* information returned from HIF layer */

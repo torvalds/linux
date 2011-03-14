@@ -879,7 +879,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
     return status; 
 }
 
-static void HTCAsyncRecvScatterCompletion(HIF_SCATTER_REQ *pScatterReq)
+static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
 {
     int                 i;    
     HTC_PACKET          *pPacket;
@@ -991,7 +991,7 @@ static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
                                          bool             PartialBundle)
 {
     int        status = 0;
-    HIF_SCATTER_REQ *pScatterReq;
+    struct hif_scatter_req *pScatterReq;
     int             i, totalLength;
     int             pktsToScatter;
     HTC_PACKET      *pPacket;

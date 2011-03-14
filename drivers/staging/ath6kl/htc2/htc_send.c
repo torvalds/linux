@@ -264,7 +264,7 @@ static INLINE void GetHTCSendPackets(HTC_TARGET        *target,
      
 }
 
-static void HTCAsyncSendScatterCompletion(HIF_SCATTER_REQ *pScatterReq)
+static void HTCAsyncSendScatterCompletion(struct hif_scatter_req *pScatterReq)
 {
     int                 i;    
     HTC_PACKET          *pPacket;
@@ -316,7 +316,7 @@ static void HTCIssueSendBundle(HTC_ENDPOINT      *pEndpoint,
 {
     int                 pktsToScatter;
     unsigned int        scatterSpaceRemaining;
-    HIF_SCATTER_REQ     *pScatterReq = NULL;
+    struct hif_scatter_req     *pScatterReq = NULL;
     int                 i, packetsInScatterReq;
     unsigned int        transferLength;
     HTC_PACKET          *pPacket;

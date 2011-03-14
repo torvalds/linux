@@ -99,7 +99,7 @@ void AddToAsyncList(HIF_DEVICE *device, BUS_REQUEST *busrequest);
 #define MAX_SCATTER_REQ_TRANSFER_SIZE    32*1024
 
 struct hif_scatter_req_priv {
-    HIF_SCATTER_REQ     *pHifScatterReq;  /* HIF scatter request with allocated entries */   
+    struct hif_scatter_req     *pHifScatterReq;  /* HIF scatter request with allocated entries */   
     HIF_DEVICE          *device;          /* this device */
     BUS_REQUEST         *busrequest;      /* request associated with request */
         /* scatter list for linux */    

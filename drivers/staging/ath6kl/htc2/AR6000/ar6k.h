@@ -272,7 +272,7 @@ static INLINE int DevRecvPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket, u
  *  
  */
   
-int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA);
+int DevCopyScatterListToFromDMABuffer(struct hif_scatter_req *pReq, bool FromDMA);
     
     /* copy any READ data back into scatter list */        
 #define DEV_FINISH_SCATTER_OPERATION(pR)				\
@@ -287,7 +287,7 @@ do {									\
 } while (0)
     
     /* copy any WRITE data to bounce buffer */
-static INLINE int DEV_PREPARE_SCATTER_OPERATION(HIF_SCATTER_REQ *pReq)  {
+static INLINE int DEV_PREPARE_SCATTER_OPERATION(struct hif_scatter_req *pReq)  {
     if ((pReq->Request & HIF_WRITE) && (pReq->ScatterMethod == HIF_SCATTER_DMA_BOUNCE)) {
         return DevCopyScatterListToFromDMABuffer(pReq,TO_DMA_BUFFER);    
     } else {
@@ -315,7 +315,7 @@ int DevCleanupMsgBundling(struct ar6k_device *pDev);
 #define DEV_SCATTER_WRITE false
 #define DEV_SCATTER_ASYNC true
 #define DEV_SCATTER_SYNC  false
-int DevSubmitScatterRequest(struct ar6k_device *pDev, HIF_SCATTER_REQ *pScatterReq, bool Read, bool Async);
+int DevSubmitScatterRequest(struct ar6k_device *pDev, struct hif_scatter_req *pScatterReq, bool Read, bool Async);
 
 #ifdef MBOXHW_UNIT_TEST
 int DoMboxHWTest(struct ar6k_device *pDev);

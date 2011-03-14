@@ -587,7 +587,7 @@ void DevDumpRegisters(struct ar6k_device               *pDev,
 
 #define DEV_GET_VIRT_DMA_INFO(p)  ((struct dev_scatter_dma_virtual_info *)((p)->HIFPrivate[0]))
 
-static HIF_SCATTER_REQ *DevAllocScatterReq(HIF_DEVICE *Context)
+static struct hif_scatter_req *DevAllocScatterReq(HIF_DEVICE *Context)
 {
     struct dl_list *pItem;
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
@@ -595,12 +595,12 @@ static HIF_SCATTER_REQ *DevAllocScatterReq(HIF_DEVICE *Context)
     pItem = DL_ListRemoveItemFromHead(&pDev->ScatterReqHead);
     UNLOCK_AR6K(pDev);
     if (pItem != NULL) {
-        return A_CONTAINING_STRUCT(pItem, HIF_SCATTER_REQ, ListLink);
+        return A_CONTAINING_STRUCT(pItem, struct hif_scatter_req, ListLink);
     }
     return NULL;
 }
 
-static void DevFreeScatterReq(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
+static void DevFreeScatterReq(HIF_DEVICE *Context, struct hif_scatter_req *pReq)
 {
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
     LOCK_AR6K(pDev);
@@ -608,7 +608,7 @@ static void DevFreeScatterReq(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
     UNLOCK_AR6K(pDev);
 }
 
-int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
+int DevCopyScatterListToFromDMABuffer(struct hif_scatter_req *pReq, bool FromDMA)
 {
     u8 *pDMABuffer = NULL;
     int             i, remaining;
@@ -651,7 +651,7 @@ int DevCopyScatterListToFromDMABuffer(HIF_SCATTER_REQ *pReq, bool FromDMA)
 static void DevReadWriteScatterAsyncHandler(void *Context, HTC_PACKET *pPacket)
 {
     struct ar6k_device     *pDev = (struct ar6k_device *)Context;
-    HIF_SCATTER_REQ *pReq = (HIF_SCATTER_REQ *)pPacket->pPktContext;
+    struct hif_scatter_req *pReq = (struct hif_scatter_req *)pPacket->pPktContext;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+DevReadWriteScatterAsyncHandler: (dev: 0x%lX)\n", (unsigned long)pDev));
     
@@ -664,7 +664,7 @@ static void DevReadWriteScatterAsyncHandler(void *Context, HTC_PACKET *pPacket)
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("-DevReadWriteScatterAsyncHandler \n"));
 }
 
-static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
+static int DevReadWriteScatter(HIF_DEVICE *Context, struct hif_scatter_req *pReq)
 {
     struct ar6k_device     *pDev = (struct ar6k_device *)Context;
     int        status = 0;
@@ -736,7 +736,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, HIF_SCATTER_REQ *pReq)
 
 static void DevCleanupVirtualScatterSupport(struct ar6k_device *pDev)
 {
-    HIF_SCATTER_REQ *pReq;
+    struct hif_scatter_req *pReq;
 
     while (1) {
         pReq = DevAllocScatterReq((HIF_DEVICE *)pDev);
@@ -755,17 +755,17 @@ static int DevSetupVirtualScatterSupport(struct ar6k_device *pDev)
     int                          bufferSize, sgreqSize;
     int                          i;
     struct dev_scatter_dma_virtual_info *pVirtualInfo;
-    HIF_SCATTER_REQ              *pReq;
+    struct hif_scatter_req              *pReq;
 
     bufferSize = sizeof(struct dev_scatter_dma_virtual_info) +
                 2 * (A_GET_CACHE_LINE_BYTES()) + AR6K_MAX_TRANSFER_SIZE_PER_SCATTER;
 
-    sgreqSize = sizeof(HIF_SCATTER_REQ) +
+    sgreqSize = sizeof(struct hif_scatter_req) +
                     (AR6K_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(struct hif_scatter_item));
 
     for (i = 0; i < AR6K_SCATTER_REQS; i++) {
             /* allocate the scatter request, buffer info and the actual virtual buffer itself */
-        pReq = (HIF_SCATTER_REQ *)A_MALLOC(sgreqSize + bufferSize);
+        pReq = (struct hif_scatter_req *)A_MALLOC(sgreqSize + bufferSize);
 
         if (NULL == pReq) {
             status = A_NO_MEMORY;
@@ -885,7 +885,7 @@ int DevSetupMsgBundling(struct ar6k_device *pDev, int MaxMsgsPerTransfer)
     return status;
 }
 
-int DevSubmitScatterRequest(struct ar6k_device *pDev, HIF_SCATTER_REQ *pScatterReq, bool Read, bool Async)
+int DevSubmitScatterRequest(struct ar6k_device *pDev, struct hif_scatter_req *pScatterReq, bool Read, bool Async)
 {
     int status;
 
