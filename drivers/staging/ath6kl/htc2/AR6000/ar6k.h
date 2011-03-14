@@ -133,7 +133,7 @@ struct ar6k_device {
     bool                          DSRCanYield;
     int                             CurrentDSRRecvCount;
     HIF_DEVICE_SCATTER_SUPPORT_INFO HifScatterInfo;
-    DL_LIST                         ScatterReqHead; 
+    struct dl_list                         ScatterReqHead; 
     bool                          ScatterIsVirtual;
     int                             MaxRecvBundleSize;
     int                             MaxSendBundleSize;

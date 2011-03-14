@@ -62,7 +62,7 @@ static void FreeScatterReq(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
 
 static HIF_SCATTER_REQ *AllocScatterReq(HIF_DEVICE *device) 
 {
-    DL_LIST       *pItem; 
+    struct dl_list       *pItem; 
     unsigned long flag;
 
     spin_lock_irqsave(&device->lock, flag);

@@ -69,7 +69,7 @@ typedef struct _HTC_RX_PACKET_INFO {
 
 /* wrapper around endpoint-specific packets */
 typedef struct _HTC_PACKET {
-    DL_LIST         ListLink;       /* double link */
+    struct dl_list         ListLink;       /* double link */
     void            *pPktContext;   /* caller's per packet specific context */
 
     u8 *pBufferStart;  /* the true buffer start , the caller can
@@ -140,7 +140,7 @@ typedef struct _HTC_PACKET {
 
 /* HTC Packet Queueing Macros */
 typedef struct _HTC_PACKET_QUEUE {
-    DL_LIST     QueueHead;
+    struct dl_list     QueueHead;
     int         Depth;    
 } HTC_PACKET_QUEUE;
  
@@ -180,7 +180,7 @@ static INLINE HTC_PACKET *HTC_GET_PKT_AT_HEAD(HTC_PACKET_QUEUE *queue)   {
 
 /* dequeue an HTC packet from the head of the queue */
 static INLINE HTC_PACKET *HTC_PACKET_DEQUEUE(HTC_PACKET_QUEUE *queue) {
-    DL_LIST    *pItem = DL_ListRemoveItemFromHead(&queue->QueueHead);
+    struct dl_list    *pItem = DL_ListRemoveItemFromHead(&queue->QueueHead);
     if (pItem != NULL) {
         queue->Depth--;
         return A_CONTAINING_STRUCT(pItem, HTC_PACKET, ListLink);
@@ -190,7 +190,7 @@ static INLINE HTC_PACKET *HTC_PACKET_DEQUEUE(HTC_PACKET_QUEUE *queue) {
 
 /* dequeue an HTC packet from the tail of the queue */
 static INLINE HTC_PACKET *HTC_PACKET_DEQUEUE_TAIL(HTC_PACKET_QUEUE *queue) {
-    DL_LIST    *pItem = DL_ListRemoveItemFromTail(&queue->QueueHead);
+    struct dl_list    *pItem = DL_ListRemoveItemFromTail(&queue->QueueHead);
     if (pItem != NULL) {
         queue->Depth--;
         return A_CONTAINING_STRUCT(pItem, HTC_PACKET, ListLink);

@@ -589,7 +589,7 @@ void DevDumpRegisters(struct ar6k_device               *pDev,
 
 static HIF_SCATTER_REQ *DevAllocScatterReq(HIF_DEVICE *Context)
 {
-    DL_LIST *pItem;
+    struct dl_list *pItem;
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
     LOCK_AR6K(pDev);
     pItem = DL_ListRemoveItemFromHead(&pDev->ScatterReqHead);

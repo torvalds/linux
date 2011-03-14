@@ -77,7 +77,7 @@ struct hif_device {
     void     *claimedContext;
     HTC_CALLBACKS htcCallbacks;
     u8 *dma_buffer;
-    DL_LIST      ScatterReqHead;                /* scatter request list head */
+    struct dl_list      ScatterReqHead;                /* scatter request list head */
     bool       scatter_enabled;               /* scatter enabled flag */
     bool   is_suspend;
     bool   is_disabled;

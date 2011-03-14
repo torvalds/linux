@@ -287,7 +287,7 @@ typedef enum _HIF_SCATTER_METHOD {
 } HIF_SCATTER_METHOD;
 
 typedef struct _HIF_SCATTER_REQ {
-    DL_LIST             ListLink;           /* link management */
+    struct dl_list             ListLink;           /* link management */
     u32 Address;            /* address for the read/write operation */
     u32 Request;            /* request flags */
     u32 TotalLength;        /* total length of entire transfer */
