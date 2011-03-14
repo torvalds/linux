@@ -252,7 +252,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
     do {
         /* note, we cannot assume the alignment of pBuffer, so we use the safe macros to
          * retrieve 16 bit fields */
-        payloadLen = A_GET_UINT16_FIELD(pBuf, HTC_FRAME_HDR, PayloadLen);
+        payloadLen = A_GET_UINT16_FIELD(pBuf, struct htc_frame_hdr, PayloadLen);
         
         ((u8 *)&lookAhead)[0] = pBuf[0];
         ((u8 *)&lookAhead)[1] = pBuf[1];
@@ -277,10 +277,10 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
                 break;    
             }
             
-            if (pPacket->Endpoint != A_GET_UINT8_FIELD(pBuf, HTC_FRAME_HDR, EndpointID)) {
+            if (pPacket->Endpoint != A_GET_UINT8_FIELD(pBuf, struct htc_frame_hdr, EndpointID)) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
                     ("Refreshed HDR endpoint (%d) does not match expected endpoint (%d) \n", 
-                    A_GET_UINT8_FIELD(pBuf, HTC_FRAME_HDR, EndpointID), pPacket->Endpoint));
+                    A_GET_UINT8_FIELD(pBuf, struct htc_frame_hdr, EndpointID), pPacket->Endpoint));
                 status = A_EPROTO;
                 break;      
             }   
@@ -294,9 +294,9 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
                         (unsigned long)pPacket, pPacket->PktInfo.AsRx.HTCRxFlags));
 #ifdef ATH_DEBUG_MODULE
              DebugDumpBytes((u8 *)&pPacket->PktInfo.AsRx.ExpectedHdr,4,"Expected Message LookAhead");
-             DebugDumpBytes(pBuf,sizeof(HTC_FRAME_HDR),"Current Frame Header");
+             DebugDumpBytes(pBuf,sizeof(struct htc_frame_hdr),"Current Frame Header");
 #ifdef HTC_CAPTURE_LAST_FRAME
-            DebugDumpBytes((u8 *)&target->LastFrameHdr,sizeof(HTC_FRAME_HDR),"Last Frame Header");
+            DebugDumpBytes((u8 *)&target->LastFrameHdr,sizeof(struct htc_frame_hdr),"Last Frame Header");
             if (target->LastTrailerLength != 0) {
                 DebugDumpBytes(target->LastTrailer,
                                target->LastTrailerLength,
@@ -309,13 +309,13 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
         }
 
             /* get flags */
-        temp = A_GET_UINT8_FIELD(pBuf, HTC_FRAME_HDR, Flags);
+        temp = A_GET_UINT8_FIELD(pBuf, struct htc_frame_hdr, Flags);
 
         if (temp & HTC_FLAGS_RECV_TRAILER) {
             /* this packet has a trailer */
 
                 /* extract the trailer length in control byte 0 */
-            temp = A_GET_UINT8_FIELD(pBuf, HTC_FRAME_HDR, ControlBytes[0]);
+            temp = A_GET_UINT8_FIELD(pBuf, struct htc_frame_hdr, ControlBytes[0]);
 
             if ((temp < sizeof(HTC_RECORD_HDR)) || (temp > payloadLen)) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
@@ -372,7 +372,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
 #endif
     } else {
 #ifdef HTC_CAPTURE_LAST_FRAME
-        memcpy(&target->LastFrameHdr,pBuf,sizeof(HTC_FRAME_HDR));
+        memcpy(&target->LastFrameHdr,pBuf,sizeof(struct htc_frame_hdr));
 #endif
         if (AR_DEBUG_LVL_CHECK(ATH_DEBUG_RECV)) {
             if (pPacket->ActualLength > 0) {
@@ -500,7 +500,7 @@ static INLINE void SetRxPacketIndicationFlags(u32 LookAhead,
                                               struct htc_endpoint  *pEndpoint, 
                                               HTC_PACKET    *pPacket)
 {
-    HTC_FRAME_HDR *pHdr = (HTC_FRAME_HDR *)&LookAhead;
+    struct htc_frame_hdr *pHdr = (struct htc_frame_hdr *)&LookAhead;
         /* check to see if the "next" packet is from the same endpoint of the
            completing packet */
     if (pHdr->EndpointID == pPacket->Endpoint) {
@@ -592,7 +592,7 @@ int HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket)
     int        status;
     u32 lookAhead;
     HTC_PACKET      *pPacket = NULL;
-    HTC_FRAME_HDR   *pHdr;
+    struct htc_frame_hdr   *pHdr;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+HTCWaitforControlMessage \n"));
 
@@ -613,7 +613,7 @@ int HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket)
                 ("HTCWaitforControlMessage : lookAhead : 0x%X \n", lookAhead));
 
             /* check the lookahead */
-        pHdr = (HTC_FRAME_HDR *)&lookAhead;
+        pHdr = (struct htc_frame_hdr *)&lookAhead;
 
         if (pHdr->EndpointID != ENDPOINT_0) {
                 /* unexpected endpoint number, should be zero */
@@ -694,7 +694,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
 {
     int         status = 0;
     HTC_PACKET      *pPacket;
-    HTC_FRAME_HDR   *pHdr;
+    struct htc_frame_hdr   *pHdr;
     int              i,j;
     int              numMessages;
     int              fullLength;
@@ -705,7 +705,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                         
     for (i = 0; i < Messages; i++) {   
          
-        pHdr = (HTC_FRAME_HDR *)&LookAheads[i];
+        pHdr = (struct htc_frame_hdr *)&LookAheads[i];
 
         if (pHdr->EndpointID >= ENDPOINT_MAX) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Invalid Endpoint in look-ahead: %d \n",pHdr->EndpointID));
@@ -751,7 +751,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                 ("HTC header indicates :%d messages can be fetched as a bundle \n",numMessages));           
         }
      
-        fullLength = DEV_CALC_RECV_PADDED_LEN(&target->Device,pHdr->PayloadLen + sizeof(HTC_FRAME_HDR));
+        fullLength = DEV_CALC_RECV_PADDED_LEN(&target->Device,pHdr->PayloadLen + sizeof(struct htc_frame_hdr));
             
             /* get packet buffers for each message, if there was a bundle detected in the header,
              * use pHdr as a template to fetch all packets in the bundle */        
@@ -1170,7 +1170,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
         }
    
             /* first lookahead sets the expected endpoint IDs for all packets in a bundle */
-        id = ((HTC_FRAME_HDR *)&lookAheads[0])->EndpointID;
+        id = ((struct htc_frame_hdr *)&lookAheads[0])->EndpointID;
         pEndpoint = &target->EndPoint[id];
         
         if (id >= ENDPOINT_MAX) {

@@ -66,7 +66,7 @@
  */
 
 /* HTC frame header */
-typedef PREPACK struct _HTC_FRAME_HDR{
+PREPACK struct htc_frame_hdr {
         /* do not remove or re-arrange these fields, these are minimally required
          * to take advantage of 4-byte lookaheads in some hardware implementations */
     u8 EndpointID;
@@ -79,7 +79,7 @@ typedef PREPACK struct _HTC_FRAME_HDR{
     
     /* message payload starts after the header */
     
-} POSTPACK HTC_FRAME_HDR;
+} POSTPACK;
 
 /* frame header flags */
 
@@ -94,9 +94,9 @@ typedef PREPACK struct _HTC_FRAME_HDR{
 #define HTC_FLAGS_RECV_BUNDLE_CNT_MASK (0xF0)  /* bits 7..4  */
 #define HTC_FLAGS_RECV_BUNDLE_CNT_SHIFT 4
 
-#define HTC_HDR_LENGTH  (sizeof(HTC_FRAME_HDR))
+#define HTC_HDR_LENGTH  (sizeof(struct htc_frame_hdr))
 #define HTC_MAX_TRAILER_LENGTH   255
-#define HTC_MAX_PAYLOAD_LENGTH   (4096 - sizeof(HTC_FRAME_HDR))
+#define HTC_MAX_PAYLOAD_LENGTH   (4096 - sizeof(struct htc_frame_hdr))
 
 /* HTC control message IDs */
 

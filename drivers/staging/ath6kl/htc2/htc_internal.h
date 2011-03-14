@@ -128,7 +128,7 @@ typedef struct _HTC_TARGET {
     HTC_ENDPOINT_ID             EpWaitingForBuffers;
     bool                      TargetFailure;
 #ifdef HTC_CAPTURE_LAST_FRAME
-    HTC_FRAME_HDR               LastFrameHdr;  /* useful for debugging */
+    struct htc_frame_hdr               LastFrameHdr;  /* useful for debugging */
     u8 LastTrailer[256];
     u8 LastTrailerLength;
 #endif
@@ -203,11 +203,11 @@ static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
     u8 *pHdrBuf;                               \
     (pP)->pBuffer -= HTC_HDR_LENGTH;                \
     pHdrBuf = (pP)->pBuffer;                        \
-    A_SET_UINT16_FIELD(pHdrBuf,HTC_FRAME_HDR,PayloadLen,(u16)(pP)->ActualLength);  \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,Flags,(sendflags));                         \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,EndpointID, (u8)(pP)->Endpoint); \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,ControlBytes[0], (u8)(ctrl0));   \
-    A_SET_UINT8_FIELD(pHdrBuf,HTC_FRAME_HDR,ControlBytes[1], (u8)(ctrl1));   \
+    A_SET_UINT16_FIELD(pHdrBuf,struct htc_frame_hdr,PayloadLen,(u16)(pP)->ActualLength);  \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,Flags,(sendflags));                         \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,EndpointID, (u8)(pP)->Endpoint); \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,ControlBytes[0], (u8)(ctrl0));   \
+    A_SET_UINT8_FIELD(pHdrBuf,struct htc_frame_hdr,ControlBytes[1], (u8)(ctrl1));   \
 }
 
 #define HTC_UNPREPARE_SEND_PKT(pP)     \

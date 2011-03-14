@@ -30,7 +30,7 @@
 #endif
 
     /* alignment to 4-bytes */
-#define EPPING_ALIGNMENT_PAD  (((sizeof(HTC_FRAME_HDR) + 3) & (~0x3)) - sizeof(HTC_FRAME_HDR))
+#define EPPING_ALIGNMENT_PAD  (((sizeof(struct htc_frame_hdr) + 3) & (~0x3)) - sizeof(struct htc_frame_hdr))
 
 #ifndef A_OFFSETOF
 #define A_OFFSETOF(type,field) (int)(&(((type *)NULL)->field))
