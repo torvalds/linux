@@ -1326,16 +1326,22 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 {
 	int err, i;
 	size_t read;
+	void *buf1;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
-	mutex_lock(&ubi->dbg_buf_mutex);
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, ubi->dbg_peb_buf);
+	buf1 = __vmalloc(len, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	if (!buf1) {
+		ubi_err("cannot allocate memory to check writes");
+		return 0;
+	}
+
+	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf1);
 	if (err && err != -EUCLEAN)
-		goto out_unlock;
+		goto out_free;
 
 	for (i = 0; i < len; i++) {
 		uint8_t c = ((uint8_t *)buf)[i];
-		uint8_t c1 = ((uint8_t *)ubi->dbg_peb_buf)[i];
+		uint8_t c1 = ((uint8_t *)buf1)[i];
 		int dump_len;
 
 		if (c == c1)
@@ -1352,17 +1358,17 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 		ubi_msg("hex dump of the read buffer from %d to %d",
 			i, i + dump_len);
 		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
-			       ubi->dbg_peb_buf + i, dump_len, 1);
+			       buf1 + i, dump_len, 1);
 		ubi_dbg_dump_stack();
 		err = -EINVAL;
-		goto out_unlock;
+		goto out_free;
 	}
-	mutex_unlock(&ubi->dbg_buf_mutex);
 
+	vfree(buf1);
 	return 0;
 
-out_unlock:
-	mutex_unlock(&ubi->dbg_buf_mutex);
+out_free:
+	vfree(buf1);
 	return err;
 }
 
