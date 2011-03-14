@@ -67,10 +67,11 @@ struct osbuf_hold_q {
 
 
 #if 0
-typedef struct {
+/* XXX: unused ? */
+struct window_snapshot {
     u16 seqno_st;
     u16 seqno_end;
-}WINDOW_SNAPSHOT;
+};
 #endif
 
 struct rxtid {
@@ -82,7 +83,7 @@ struct rxtid {
     u32 hold_q_sz;  /* Num of frames that can be held in hold q */
     struct osbuf_hold_q        *hold_q;    /* Hold q for re-order */
 #if 0    
-    WINDOW_SNAPSHOT     old_win;    /* Sliding window snapshot - for timeout */
+    struct window_snapshot     old_win;    /* Sliding window snapshot - for timeout */
 #endif    
     A_NETBUF_QUEUE_T    q;          /* q head for enqueuing frames for dispatch */
     A_MUTEX_T           lock;
