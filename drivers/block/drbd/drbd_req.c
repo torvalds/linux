@@ -214,8 +214,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 {
 	const unsigned long s = req->rq_state;
 	struct drbd_conf *mdev = req->mdev;
-	/* only WRITES may end up here without a master bio (on barrier ack) */
-	int rw = req->master_bio ? bio_data_dir(req->master_bio) : WRITE;
+	int rw = req->rq_state & RQ_WRITE ? WRITE : READ;
 
 	/* we must not complete the master bio, while it is
 	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
@@ -230,7 +229,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		return;
 	if (s & RQ_NET_PENDING)
 		return;
-	if (s & RQ_LOCAL_PENDING)
+	if (s & RQ_LOCAL_PENDING && !(s & RQ_LOCAL_ABORTED))
 		return;
 
 	if (req->master_bio) {
@@ -276,6 +275,9 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		m->bio = req->master_bio;
 		req->master_bio = NULL;
 	}
+
+	if (s & RQ_LOCAL_PENDING)
+		return;
 
 	if ((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE)) {
 		/* this is disconnected (local only) operation,
@@ -429,7 +431,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case completed_ok:
-		if (bio_data_dir(req->master_bio) == WRITE)
+		if (req->rq_state & RQ_WRITE)
 			mdev->writ_cnt += req->size>>9;
 		else
 			mdev->read_cnt += req->size>>9;
@@ -439,6 +441,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		_req_may_be_done_not_susp(req, m);
 		put_ldev(mdev);
+		break;
+
+	case abort_disk_io:
+		req->rq_state |= RQ_LOCAL_ABORTED;
+		if (req->rq_state & RQ_WRITE)
+			_req_may_be_done_not_susp(req, m);
+		else
+			goto goto_queue_for_net_read;
 		break;
 
 	case write_completed_with_error:
@@ -468,6 +478,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		__drbd_chk_io_error(mdev, false);
 		put_ldev(mdev);
+
+	goto_queue_for_net_read:
 
 		/* no point in retrying if there is no good remote data,
 		 * or we have no connection. */

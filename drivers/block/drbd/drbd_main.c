@@ -368,6 +368,12 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 		}
 		tmp = b->next;
 
+		if (what == abort_disk_io) {
+			/* Only walk the TL, leave barrier objects in place */
+			b = tmp;
+			continue;
+		}
+
 		if (n_writes) {
 			if (what == resend) {
 				b->n_writes = n_writes;
@@ -1564,6 +1570,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		 * so it is safe to dreference ldev here. */
 		eh = mdev->ldev->dc.on_io_error;
 		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
+
+		/* Immediately allow completion of all application IO, that waits
+		   for completion from the local disk. */
+		tl_restart(mdev, abort_disk_io);
 
 		/* current state still has to be D_FAILED,
 		 * there is only one way out: to D_DISKLESS,
