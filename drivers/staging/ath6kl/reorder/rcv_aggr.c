@@ -272,7 +272,7 @@ static void
 aggr_deque_frms(struct aggr_info *p_aggr, u8 tid, u16 seq_no, u8 order)
 {
     RXTID *rxtid;
-    OSBUF_HOLD_Q *node;
+    struct osbuf_hold_q *node;
     u16 idx, idx_end, seq_end;
     RXTID_STATS *stats;
 
@@ -433,7 +433,7 @@ aggr_process_recv_frm(void *cntxt, u8 tid, u16 seq_no, bool is_amsdu, void **osb
     RXTID_STATS *stats;
     u16 idx, st, cur, end;
     u16 *log_idx;
-    OSBUF_HOLD_Q *node;
+    struct osbuf_hold_q *node;
     PACKET_LOG *log;
 
     A_ASSERT(p_aggr);

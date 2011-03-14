@@ -48,7 +48,7 @@
 #define AGGR_GET_RXTID(_p, _x)    (&(_p->RxTid[(_x)]))
 
 /* Hold q is a function of win_sz, which is negotiated per tid */
-#define HOLD_Q_SZ(_x)   (TID_WINDOW_SZ((_x))*sizeof(OSBUF_HOLD_Q))
+#define HOLD_Q_SZ(_x)   (TID_WINDOW_SZ((_x))*sizeof(struct osbuf_hold_q))
 /* AGGR_RX_TIMEOUT value is important as a (too) small value can cause frames to be 
  * delivered out of order and a (too) large value can cause undesirable latency in
  * certain situations. */
@@ -59,11 +59,11 @@ typedef enum {
     CONTIGUOUS_SEQNO = 1,
 }DELIVERY_ORDER;
 
-typedef struct {
+struct osbuf_hold_q {
     void        *osbuf;
     bool      is_amsdu;
     u16 seq_no;
-}OSBUF_HOLD_Q;
+};
 
 
 #if 0
@@ -80,7 +80,7 @@ typedef struct {
     u16 win_sz;     /* negotiated window size */
     u16 seq_next;   /* Next seq no, in current window */
     u32 hold_q_sz;  /* Num of frames that can be held in hold q */
-    OSBUF_HOLD_Q        *hold_q;    /* Hold q for re-order */
+    struct osbuf_hold_q        *hold_q;    /* Hold q for re-order */
 #if 0    
     WINDOW_SNAPSHOT     old_win;    /* Sliding window snapshot - for timeout */
 #endif    
