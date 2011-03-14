@@ -239,7 +239,7 @@ struct t10_alua_lu_gp {
 } ____cacheline_aligned;
 
 struct t10_alua_lu_gp_member {
-	int lu_gp_assoc:1;
+	bool lu_gp_assoc;
 	atomic_t lu_gp_mem_ref_cnt;
 	spinlock_t lu_gp_mem_lock;
 	struct t10_alua_lu_gp *lu_gp;
@@ -271,7 +271,7 @@ struct t10_alua_tg_pt_gp {
 } ____cacheline_aligned;
 
 struct t10_alua_tg_pt_gp_member {
-	int tg_pt_gp_assoc:1;
+	bool tg_pt_gp_assoc;
 	atomic_t tg_pt_gp_mem_ref_cnt;
 	spinlock_t tg_pt_gp_mem_lock;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
@@ -336,7 +336,7 @@ struct t10_pr_registration {
 	int pr_res_type;
 	int pr_res_scope;
 	/* Used for fabric initiator WWPNs using a ISID */
-	int isid_present_at_reg:1;
+	bool isid_present_at_reg;
 	u32 pr_res_mapped_lun;
 	u32 pr_aptpl_target_lun;
 	u32 pr_res_generation;
@@ -418,7 +418,7 @@ struct se_transport_task {
 	unsigned long long	t_task_lba;
 	int			t_tasks_failed;
 	int			t_tasks_fua;
-	int			t_tasks_bidi:1;
+	bool			t_tasks_bidi;
 	u32			t_task_cdbs;
 	u32			t_tasks_check;
 	u32			t_tasks_no;
@@ -470,7 +470,7 @@ struct se_task {
 	u8		task_flags;
 	int		task_error_status;
 	int		task_state_flags;
-	int		task_padded_sg:1;
+	bool		task_padded_sg;
 	unsigned long long	task_lba;
 	u32		task_no;
 	u32		task_sectors;
@@ -583,7 +583,7 @@ struct se_ua {
 struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
 	/* Used to signal demo mode created ACL, disabled by default */
-	int			dynamic_node_acl:1;
+	bool			dynamic_node_acl;
 	u32			queue_depth;
 	u32			acl_index;
 	u64			num_cmds;
@@ -632,7 +632,7 @@ struct se_lun_acl {
 }  ____cacheline_aligned;
 
 struct se_dev_entry {
-	int			def_pr_registered:1;
+	bool			def_pr_registered;
 	/* See transport_lunflags_table */
 	u32			lun_flags;
 	u32			deve_cmds;
