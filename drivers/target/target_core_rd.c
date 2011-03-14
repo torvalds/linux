@@ -253,13 +253,15 @@ static struct se_device *rd_create_virtdevice(
 	struct se_dev_limits dev_limits;
 	struct rd_dev *rd_dev = p;
 	struct rd_host *rd_host = hba->hba_ptr;
-	int dev_flags = 0;
+	int dev_flags = 0, ret = -EINVAL;
 	char prod[16], rev[4];
 
 	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
 
-	if (rd_build_device_space(rd_dev) < 0)
+	if (rd_build_device_space(rd_dev) < 0) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	snprintf(prod, 16, "RAMDISK-%s", (rd_dev->rd_direct) ? "DR" : "MCP");
 	snprintf(rev, 4, "%s", (rd_dev->rd_direct) ? RD_DR_VERSION :
@@ -292,7 +294,7 @@ static struct se_device *rd_create_virtdevice(
 
 fail:
 	rd_release_device_space(rd_dev);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static struct se_device *rd_DIRECT_create_virtdevice(

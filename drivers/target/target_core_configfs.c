@@ -1827,7 +1827,9 @@ static ssize_t target_core_store_dev_enable(
 		return -EINVAL;
 
 	dev = t->create_virtdevice(hba, se_dev, se_dev->se_dev_su_ptr);
-	if (!(dev) || IS_ERR(dev))
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	else if (!dev)
 		return -EINVAL;
 
 	se_dev->se_dev_ptr = dev;

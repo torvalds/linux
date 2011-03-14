@@ -134,7 +134,7 @@ static struct se_device *fd_create_virtdevice(
 	mm_segment_t old_fs;
 	struct file *file;
 	struct inode *inode = NULL;
-	int dev_flags = 0, flags;
+	int dev_flags = 0, flags, ret = -EINVAL;
 
 	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
 
@@ -146,6 +146,7 @@ static struct se_device *fd_create_virtdevice(
 	if (IS_ERR(dev_p)) {
 		printk(KERN_ERR "getname(%s) failed: %lu\n",
 			fd_dev->fd_dev_name, IS_ERR(dev_p));
+		ret = PTR_ERR(dev_p);
 		goto fail;
 	}
 #if 0
@@ -165,8 +166,12 @@ static struct se_device *fd_create_virtdevice(
 		flags |= O_SYNC;
 
 	file = filp_open(dev_p, flags, 0600);
-
-	if (IS_ERR(file) || !file || !file->f_dentry) {
+	if (IS_ERR(file)) {
+		printk(KERN_ERR "filp_open(%s) failed\n", dev_p);
+		ret = PTR_ERR(file);
+		goto fail;
+	}
+	if (!file || !file->f_dentry) {
 		printk(KERN_ERR "filp_open(%s) failed\n", dev_p);
 		goto fail;
 	}
@@ -241,7 +246,7 @@ fail:
 		fd_dev->fd_file = NULL;
 	}
 	putname(dev_p);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 /*	fd_free_device(): (Part of se_subsystem_api_t template)
