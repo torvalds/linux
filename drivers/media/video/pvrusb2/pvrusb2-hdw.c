@@ -2850,15 +2850,23 @@ static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw)
 			PVR2_TRACE_ERROR_LEGS,
 			"WARNING: Failed to identify any viable standards");
 	}
+
+	/* Set up the dynamic control for this standard */
 	hdw->std_enum_names = kmalloc(sizeof(char *)*(std_cnt+1),GFP_KERNEL);
-	hdw->std_enum_names[0] = "none";
-	for (idx = 0; idx < std_cnt; idx++) {
-		hdw->std_enum_names[idx+1] =
-			newstd[idx].name;
+	if (hdw->std_enum_names) {
+		hdw->std_enum_names[0] = "none";
+		for (idx = 0; idx < std_cnt; idx++)
+			hdw->std_enum_names[idx+1] = newstd[idx].name;
+		hdw->std_info_enum.def.type_enum.value_names =
+						hdw->std_enum_names;
+		hdw->std_info_enum.def.type_enum.count = std_cnt+1;
+	} else {
+		pvr2_trace(
+			PVR2_TRACE_ERROR_LEGS,
+			"WARNING: Failed to alloc memory for names");
+		hdw->std_info_enum.def.type_enum.value_names = NULL;
+		hdw->std_info_enum.def.type_enum.count = 0;
 	}
-	// Set up the dynamic control for this standard
-	hdw->std_info_enum.def.type_enum.value_names = hdw->std_enum_names;
-	hdw->std_info_enum.def.type_enum.count = std_cnt+1;
 	hdw->std_defs = newstd;
 	hdw->std_enum_cnt = std_cnt+1;
 	hdw->std_enum_cur = 0;
