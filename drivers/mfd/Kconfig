@@ -322,7 +322,7 @@ config MFD_MAX8997
 	  Say yes here to support for Maxim Semiconductor MAX8998/8966.
 	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,
 	  MUIC controls on chip.
-	  This driver provies common support for accessing the device,
+	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
