@@ -95,6 +95,9 @@
   Dmitry Pervushin  : dpervushin@ru.mvista.com
                     : PNX010X platform support
 
+  Domenico Andreoli : cavokz@gmail.com
+                    : QQ2440 platform support
+
 */
 
 /* Always include 'config.h' first in case the user wants to turn on
@@ -176,6 +179,10 @@ static unsigned int cs8900_irq_map[] = {IRQ_IXDP2351_CS8900, 0, 0, 0};
 #elif defined(CONFIG_ARCH_IXDP2X01)
 static unsigned int netcard_portlist[] __used __initdata = {IXDP2X01_CS8900_VIRT_BASE, 0};
 static unsigned int cs8900_irq_map[] = {IRQ_IXDP2X01_CS8900, 0, 0, 0};
+#elif defined(CONFIG_MACH_QQ2440)
+#include <mach/qq2440.h>
+static unsigned int netcard_portlist[] __used __initdata = { QQ2440_CS8900_VIRT_BASE + 0x300, 0 };
+static unsigned int cs8900_irq_map[] = { QQ2440_CS8900_IRQ, 0, 0, 0 };
 #elif defined(CONFIG_MACH_MX31ADS)
 #include <mach/board-mx31ads.h>
 static unsigned int netcard_portlist[] __used __initdata = {
@@ -520,6 +527,10 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 		}
 #endif
 		lp->force = g_cs89x0_media__force;
+#endif
+
+#if defined(CONFIG_MACH_QQ2440)
+		lp->force |= FORCE_RJ45 | FORCE_FULL;
 #endif
         }
 
