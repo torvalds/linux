@@ -78,7 +78,7 @@ static void *vb2_dma_contig_cookie(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 
-	return (void *)buf->paddr;
+	return &buf->paddr;
 }
 
 static void *vb2_dma_contig_vaddr(void *buf_priv)
