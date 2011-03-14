@@ -59,11 +59,11 @@ typedef struct _HTC_TX_PACKET_INFO {
 #define HTC_TX_PACKET_TAG_INTERNAL     1                                /* internal tags start here */
 #define HTC_TX_PACKET_TAG_USER_DEFINED (HTC_TX_PACKET_TAG_INTERNAL + 9) /* user-defined tags start here */
 
-typedef struct _HTC_RX_PACKET_INFO {
+struct htc_rx_packet_info {
     u32 ExpectedHdr;        /* HTC internal use */
     u32 HTCRxFlags;         /* HTC internal use */
     u32 IndicationFlags;    /* indication flags set on each RX packet indication */
-} HTC_RX_PACKET_INFO;
+};
 
 #define HTC_RX_FLAGS_INDICATE_MORE_PKTS  (1 << 0)   /* more packets on this endpoint are being fetched */
 
@@ -92,7 +92,7 @@ struct htc_packet {
     int        Status;         /* completion status */
     union {
         HTC_TX_PACKET_INFO  AsTx;   /* Tx Packet specific info */
-        HTC_RX_PACKET_INFO  AsRx;   /* Rx Packet specific info */
+        struct htc_rx_packet_info  AsRx;   /* Rx Packet specific info */
     } PktInfo;
 
     /* the following fields are for internal HTC use */
