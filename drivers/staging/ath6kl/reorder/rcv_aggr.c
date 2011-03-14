@@ -37,7 +37,7 @@ extern int
 wmi_dot3_2_dix(void *osbuf);
 
 static void
-aggr_slice_amsdu(struct aggr_info *p_aggr, RXTID *rxtid, void **osbuf);
+aggr_slice_amsdu(struct aggr_info *p_aggr, struct rxtid *rxtid, void **osbuf);
 
 static void
 aggr_timeout(A_ATH_TIMER arg);
@@ -55,7 +55,7 @@ void *
 aggr_init(ALLOC_NETBUFS netbuf_allocator)
 {
     struct aggr_info   *p_aggr = NULL;
-    RXTID *rxtid;
+    struct rxtid *rxtid;
     u8 i;
     int status = 0;
 
@@ -103,7 +103,7 @@ aggr_init(ALLOC_NETBUFS netbuf_allocator)
 static void
 aggr_delete_tid_state(struct aggr_info *p_aggr, u8 tid)
 {
-    RXTID *rxtid;
+    struct rxtid *rxtid;
     RXTID_STATS *stats;
 
     A_ASSERT(tid < NUM_OF_TIDS && p_aggr);
@@ -134,7 +134,7 @@ void
 aggr_module_destroy(void *cntxt)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
-    RXTID *rxtid;
+    struct rxtid *rxtid;
     u8 i, k;
     A_PRINTF("%s(): aggr = %p\n",_A_FUNCNAME_, p_aggr);
     A_ASSERT(p_aggr);
@@ -204,7 +204,7 @@ void
 aggr_recv_addba_req_evt(void *cntxt, u8 tid, u16 seq_no, u8 win_sz)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
-    RXTID *rxtid;
+    struct rxtid *rxtid;
     RXTID_STATS *stats;
 
     A_ASSERT(p_aggr);
@@ -256,7 +256,7 @@ void
 aggr_recv_delba_req_evt(void *cntxt, u8 tid)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
-    RXTID *rxtid;
+    struct rxtid *rxtid;
 
     A_ASSERT(p_aggr);
     A_PRINTF("%s(): tid %d\n", _A_FUNCNAME_, tid);
@@ -271,7 +271,7 @@ aggr_recv_delba_req_evt(void *cntxt, u8 tid)
 static void
 aggr_deque_frms(struct aggr_info *p_aggr, u8 tid, u16 seq_no, u8 order)
 {
-    RXTID *rxtid;
+    struct rxtid *rxtid;
     struct osbuf_hold_q *node;
     u16 idx, idx_end, seq_end;
     RXTID_STATS *stats;
@@ -356,7 +356,7 @@ aggr_get_osbuf(struct aggr_info *p_aggr)
 
 
 static void
-aggr_slice_amsdu(struct aggr_info *p_aggr, RXTID *rxtid, void **osbuf)
+aggr_slice_amsdu(struct aggr_info *p_aggr, struct rxtid *rxtid, void **osbuf)
 {
     void *new_buf;
     u16 frame_8023_len, payload_8023_len, mac_hdr_len, amsdu_len;
@@ -429,7 +429,7 @@ void
 aggr_process_recv_frm(void *cntxt, u8 tid, u16 seq_no, bool is_amsdu, void **osbuf)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
-    RXTID *rxtid;
+    struct rxtid *rxtid;
     RXTID_STATS *stats;
     u16 idx, st, cur, end;
     u16 *log_idx;
@@ -577,7 +577,7 @@ aggr_timeout(A_ATH_TIMER arg)
 {
     u8 i,j;
     struct aggr_info *p_aggr = (struct aggr_info *)arg;
-    RXTID   *rxtid;
+    struct rxtid   *rxtid;
     RXTID_STATS *stats;
     /*
      * If the q for which the timer was originally started has
@@ -643,7 +643,7 @@ void
 aggr_dump_stats(void *cntxt, PACKET_LOG **log_buf)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
-    RXTID   *rxtid;
+    struct rxtid   *rxtid;
     RXTID_STATS *stats;
     u8 i;
 

@@ -73,7 +73,7 @@ typedef struct {
 }WINDOW_SNAPSHOT;
 #endif
 
-typedef struct {
+struct rxtid {
     bool              aggr;       /* is it ON or OFF */
     bool              progress;   /* true when frames have arrived after a timer start */
     bool              timerMon;   /* true if the timer started for the sake of this TID */
@@ -86,7 +86,7 @@ typedef struct {
 #endif    
     A_NETBUF_QUEUE_T    q;          /* q head for enqueuing frames for dispatch */
     A_MUTEX_T           lock;
-}RXTID;
+};
 
 typedef struct {
     u32 num_into_aggr;      /* hitting at the input of this module */
@@ -106,7 +106,7 @@ struct aggr_info {
     A_TIMER             timer;              /* timer for returning held up pkts in re-order que */    
     void                *dev;               /* dev handle */
     RX_CALLBACK         rx_fn;              /* callback function to return frames; to upper layer */
-    RXTID               RxTid[NUM_OF_TIDS]; /* Per tid window */
+    struct rxtid               RxTid[NUM_OF_TIDS]; /* Per tid window */
     ALLOC_NETBUFS       netbuf_allocator;   /* OS netbuf alloc fn */
     A_NETBUF_QUEUE_T    freeQ;              /* pre-allocated buffers - for A_MSDU slicing */
     RXTID_STATS         stat[NUM_OF_TIDS];  /* Tid based statistics */
