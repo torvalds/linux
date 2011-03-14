@@ -23,8 +23,10 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+#include <mach/usb.h>
 
 #include "devices-db8500.h"
+#include "ste-dma40-db8500.h"
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_uart_io_desc[] __initdata = {
@@ -154,6 +156,28 @@ static void __init db8500_add_gpios(void)
 			 IRQ_DB8500_GPIO0, &pdata);
 }
 
+static int usb_db8500_rx_dma_cfg[] = {
+	DB8500_DMA_DEV38_USB_OTG_IEP_1_9,
+	DB8500_DMA_DEV37_USB_OTG_IEP_2_10,
+	DB8500_DMA_DEV36_USB_OTG_IEP_3_11,
+	DB8500_DMA_DEV19_USB_OTG_IEP_4_12,
+	DB8500_DMA_DEV18_USB_OTG_IEP_5_13,
+	DB8500_DMA_DEV17_USB_OTG_IEP_6_14,
+	DB8500_DMA_DEV16_USB_OTG_IEP_7_15,
+	DB8500_DMA_DEV39_USB_OTG_IEP_8
+};
+
+static int usb_db8500_tx_dma_cfg[] = {
+	DB8500_DMA_DEV38_USB_OTG_OEP_1_9,
+	DB8500_DMA_DEV37_USB_OTG_OEP_2_10,
+	DB8500_DMA_DEV36_USB_OTG_OEP_3_11,
+	DB8500_DMA_DEV19_USB_OTG_OEP_4_12,
+	DB8500_DMA_DEV18_USB_OTG_OEP_5_13,
+	DB8500_DMA_DEV17_USB_OTG_OEP_6_14,
+	DB8500_DMA_DEV16_USB_OTG_OEP_7_15,
+	DB8500_DMA_DEV39_USB_OTG_OEP_8
+};
+
 /*
  * This function is called from the board init
  */
@@ -164,6 +188,7 @@ void __init u8500_init_devices(void)
 
 	db8500_add_rtc();
 	db8500_add_gpios();
+	db8500_add_usb(usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
 	platform_device_register_simple("cpufreq-u8500", -1, NULL, 0);
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
