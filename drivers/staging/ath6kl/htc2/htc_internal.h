@@ -132,7 +132,7 @@ typedef struct _HTC_TARGET {
     u8 LastTrailer[256];
     u8 LastTrailerLength;
 #endif
-    HTC_INIT_INFO               HTCInitInfo;
+    struct htc_init_info               HTCInitInfo;
     u8 HTCTargetVersion;
     int                         MaxMsgPerBundle;       /* max messages per bundle for HTC */
     bool                      SendBundlingEnabled;   /* run time enable for send bundling (dynamic) */

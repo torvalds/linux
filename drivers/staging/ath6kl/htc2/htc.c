@@ -90,7 +90,7 @@ static void HTCCleanup(HTC_TARGET *target)
 }
 
 /* registered target arrival callback from the HIF layer */
-HTC_HANDLE HTCCreate(void *hif_handle, HTC_INIT_INFO *pInfo)
+HTC_HANDLE HTCCreate(void *hif_handle, struct htc_init_info *pInfo)
 {
     HTC_TARGET              *target = NULL;
     int                 status = 0;
@@ -130,7 +130,7 @@ HTC_HANDLE HTCCreate(void *hif_handle, HTC_INIT_INFO *pInfo)
         target->Device.MessagePendingCallback = HTCRecvMessagePendingHandler;
         target->EpWaitingForBuffers = ENDPOINT_MAX;
 
-        memcpy(&target->HTCInitInfo,pInfo,sizeof(HTC_INIT_INFO));
+        memcpy(&target->HTCInitInfo,pInfo,sizeof(struct htc_init_info));
         
         ResetEndpointStates(target);
           

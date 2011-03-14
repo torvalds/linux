@@ -1599,7 +1599,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     void *ar_netif;
     AR_SOFTC_T *ar;
     int device_index = 0;
-    HTC_INIT_INFO  htcInfo;
+    struct htc_init_info  htcInfo;
 #ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;
 #endif /* ATH6K_CONFIG_CFG80211 */

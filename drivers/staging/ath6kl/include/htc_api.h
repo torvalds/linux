@@ -43,10 +43,10 @@ typedef void *HTC_HANDLE;
 
 typedef u16 HTC_SERVICE_ID;
 
-typedef struct _HTC_INIT_INFO {
+struct htc_init_info {
     void   *pContext;           /* context for target failure notification */
     void   (*TargetFailure)(void *Instance, int Status);
-} HTC_INIT_INFO;
+};
 
 /* per service connection send completion */
 typedef void   (*HTC_EP_SEND_PKT_COMPLETE)(void *,HTC_PACKET *);
@@ -269,7 +269,7 @@ struct htc_endpoint_stats {
   @example:
   @see also: HTCDestroy
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-HTC_HANDLE HTCCreate(void *HifDevice, HTC_INIT_INFO *pInfo);
+HTC_HANDLE HTCCreate(void *HifDevice, struct htc_init_info *pInfo);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Get the underlying HIF device handle
   @function name: HTCGetHifDevice
