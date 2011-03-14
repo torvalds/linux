@@ -90,7 +90,7 @@ PREPACK struct ar6k_gmbox_ctrl_registers {
 
 /* buffers for ASYNC I/O */
 struct ar6k_async_reg_io_buffer {
-    HTC_PACKET    HtcPacket;   /* we use an HTC packet as a wrapper for our async register-based I/O */
+    struct htc_packet    HtcPacket;   /* we use an HTC packet as a wrapper for our async register-based I/O */
     u8 _Pad1[A_CACHE_LINE_PAD];
     u8 Buffer[AR6K_REG_IO_BUFFER_SIZE];  /* cache-line safe with pads around */
     u8 _Pad2[A_CACHE_LINE_PAD];
@@ -176,7 +176,7 @@ int DevWaitForPendingRecv(struct ar6k_device *pDev,u32 TimeoutInMs,bool *pbIsRec
 #define DEV_CALC_SEND_PADDED_LEN(pDev, length) DEV_CALC_RECV_PADDED_LEN(pDev,length)
 #define DEV_IS_LEN_BLOCK_ALIGNED(pDev, length) (((length) % (pDev)->BlockSize) == 0)
 
-static INLINE int DevSendPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 SendLength) {
+static INLINE int DevSendPacket(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 SendLength) {
     u32 paddedLength;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
     int status;
@@ -219,7 +219,7 @@ static INLINE int DevSendPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket, u
     return status;
 }
                     
-static INLINE int DevRecvPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 RecvLength) {
+static INLINE int DevRecvPacket(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 RecvLength) {
     u32 paddedLength;
     int status;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
@@ -378,8 +378,8 @@ struct ar6k_device  *HTCGetAR6KDevice(void *HTCHandle);
 
 #define DEV_GMBOX_GET_PROTOCOL(pDev)  (pDev)->GMboxInfo.pProtocolContext
 
-int DevGMboxWrite(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 WriteLength);
-int DevGMboxRead(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 ReadLength);
+int DevGMboxWrite(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 WriteLength);
+int DevGMboxRead(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 ReadLength);
 
 #define PROC_IO_ASYNC true
 #define PROC_IO_SYNC  false

@@ -100,7 +100,7 @@ struct htc_endpoint {
 #define NUM_CONTROL_RX_BUFFERS  (NUM_CONTROL_BUFFERS - NUM_CONTROL_TX_BUFFERS)
 
 struct htc_control_buffer {
-    HTC_PACKET    HtcPacket;
+    struct htc_packet    HtcPacket;
     u8 *Buffer;
 };
 
@@ -162,13 +162,13 @@ typedef struct _HTC_TARGET {
 }
 
 /* internal HTC functions */
-void        HTCControlTxComplete(void *Context, HTC_PACKET *pPacket);
-void        HTCControlRecv(void *Context, HTC_PACKET *pPacket);
-int    HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket);
-HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
-void        HTCFreeControlBuffer(HTC_TARGET *target, HTC_PACKET *pPacket, HTC_PACKET_QUEUE *pList);
-int    HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket);
-void        HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket);
+void        HTCControlTxComplete(void *Context, struct htc_packet *pPacket);
+void        HTCControlRecv(void *Context, struct htc_packet *pPacket);
+int    HTCWaitforControlMessage(HTC_TARGET *target, struct htc_packet **ppControlPacket);
+struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target, HTC_PACKET_QUEUE *pList);
+void        HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, HTC_PACKET_QUEUE *pList);
+int    HTCIssueSend(HTC_TARGET *target, struct htc_packet *pPacket);
+void        HTCRecvCompleteHandler(void *Context, struct htc_packet *pPacket);
 int    HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched);
 void        HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint);
 int    HTCSendSetupComplete(HTC_TARGET *target);
@@ -181,8 +181,8 @@ void        DumpCreditDistStates(HTC_TARGET *target);
 void 		DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
 #endif
 
-static INLINE HTC_PACKET *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
-    HTC_PACKET *pPacket = HTCAllocControlBuffer(target,&target->ControlBufferTXFreeList);
+static INLINE struct htc_packet *HTC_ALLOC_CONTROL_TX(HTC_TARGET *target) {
+    struct htc_packet *pPacket = HTCAllocControlBuffer(target,&target->ControlBufferTXFreeList);
     if (pPacket != NULL) {
             /* set payload pointer area with some headroom */
         pPacket->pBuffer = pPacket->pBufferStart + HTC_HDR_LENGTH;

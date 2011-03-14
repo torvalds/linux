@@ -42,9 +42,9 @@ typedef enum
     ENDPOINT_MAX,
 } HTC_ENDPOINT_ID;
 
-struct _HTC_PACKET;
+struct htc_packet;
 
-typedef void (* HTC_PACKET_COMPLETION)(void *,struct _HTC_PACKET *);
+typedef void (* HTC_PACKET_COMPLETION)(void *,struct htc_packet *);
 
 typedef u16 HTC_TX_TAG;
 
@@ -68,7 +68,7 @@ typedef struct _HTC_RX_PACKET_INFO {
 #define HTC_RX_FLAGS_INDICATE_MORE_PKTS  (1 << 0)   /* more packets on this endpoint are being fetched */
 
 /* wrapper around endpoint-specific packets */
-typedef struct _HTC_PACKET {
+struct htc_packet {
     struct dl_list         ListLink;       /* double link */
     void            *pPktContext;   /* caller's per packet specific context */
 
@@ -98,7 +98,7 @@ typedef struct _HTC_PACKET {
     /* the following fields are for internal HTC use */
     HTC_PACKET_COMPLETION Completion;   /* completion */
     void                  *pContext;    /* HTC private completion context */
-} HTC_PACKET;
+};
 
 
 
@@ -165,11 +165,11 @@ typedef struct _HTC_PACKET_QUEUE {
 /* test if a queue is empty */
 #define HTC_QUEUE_EMPTY(pQ)       ((pQ)->Depth == 0)
 /* get packet at head without removing it */
-static INLINE HTC_PACKET *HTC_GET_PKT_AT_HEAD(HTC_PACKET_QUEUE *queue)   {
+static INLINE struct htc_packet *HTC_GET_PKT_AT_HEAD(HTC_PACKET_QUEUE *queue)   {
     if (queue->Depth == 0) {
         return NULL; 
     }  
-    return A_CONTAINING_STRUCT((DL_LIST_GET_ITEM_AT_HEAD(&queue->QueueHead)),HTC_PACKET,ListLink);
+    return A_CONTAINING_STRUCT((DL_LIST_GET_ITEM_AT_HEAD(&queue->QueueHead)),struct htc_packet,ListLink);
 }
 /* remove a packet from a queue, where-ever it is in the queue */
 #define HTC_PACKET_REMOVE(pQ,p)     \
@@ -179,21 +179,21 @@ static INLINE HTC_PACKET *HTC_GET_PKT_AT_HEAD(HTC_PACKET_QUEUE *queue)   {
 }
 
 /* dequeue an HTC packet from the head of the queue */
-static INLINE HTC_PACKET *HTC_PACKET_DEQUEUE(HTC_PACKET_QUEUE *queue) {
+static INLINE struct htc_packet *HTC_PACKET_DEQUEUE(HTC_PACKET_QUEUE *queue) {
     struct dl_list    *pItem = DL_ListRemoveItemFromHead(&queue->QueueHead);
     if (pItem != NULL) {
         queue->Depth--;
-        return A_CONTAINING_STRUCT(pItem, HTC_PACKET, ListLink);
+        return A_CONTAINING_STRUCT(pItem, struct htc_packet, ListLink);
     }
     return NULL;
 }
 
 /* dequeue an HTC packet from the tail of the queue */
-static INLINE HTC_PACKET *HTC_PACKET_DEQUEUE_TAIL(HTC_PACKET_QUEUE *queue) {
+static INLINE struct htc_packet *HTC_PACKET_DEQUEUE_TAIL(HTC_PACKET_QUEUE *queue) {
     struct dl_list    *pItem = DL_ListRemoveItemFromTail(&queue->QueueHead);
     if (pItem != NULL) {
         queue->Depth--;
-        return A_CONTAINING_STRUCT(pItem, HTC_PACKET, ListLink);
+        return A_CONTAINING_STRUCT(pItem, struct htc_packet, ListLink);
     }
     return NULL;
 }
@@ -220,7 +220,7 @@ static INLINE HTC_PACKET *HTC_PACKET_DEQUEUE_TAIL(HTC_PACKET_QUEUE *queue) {
 }
     
 #define HTC_PACKET_QUEUE_ITERATE_ALLOW_REMOVE(pQ, pPTemp) \
-    ITERATE_OVER_LIST_ALLOW_REMOVE(&(pQ)->QueueHead,(pPTemp), HTC_PACKET, ListLink) 
+    ITERATE_OVER_LIST_ALLOW_REMOVE(&(pQ)->QueueHead,(pPTemp), struct htc_packet, ListLink) 
 
 #define HTC_PACKET_QUEUE_ITERATE_END ITERATE_END
         

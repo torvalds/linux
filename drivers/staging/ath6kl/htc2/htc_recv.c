@@ -69,7 +69,7 @@ static void DoRecvCompletion(struct htc_endpoint     *pEndpoint,
                                                      pQueueToIndicate);
             INIT_HTC_PACKET_QUEUE(pQueueToIndicate);        
         } else {
-            HTC_PACKET *pPacket;  
+            struct htc_packet *pPacket;  
             /* using legacy EpRecv */         
             do {
                 pPacket = HTC_PACKET_DEQUEUE(pQueueToIndicate);
@@ -227,7 +227,7 @@ static INLINE int HTCProcessTrailer(HTC_TARGET *target,
 /* process a received message (i.e. strip off header, process any trailer data)
  * note : locks must be released when this function is called */
 static int HTCProcessRecvHeader(HTC_TARGET *target,
-                                     HTC_PACKET *pPacket, 
+                                     struct htc_packet *pPacket, 
                                      u32 *pNextLookAheads,
                                      int        *pNumLookAheads)
 {
@@ -498,7 +498,7 @@ static INLINE void DrainRecvIndicationQueue(HTC_TARGET *target, struct htc_endpo
    /* note: this function can be called with the RX lock held */     
 static INLINE void SetRxPacketIndicationFlags(u32 LookAhead,
                                               struct htc_endpoint  *pEndpoint, 
-                                              HTC_PACKET    *pPacket)
+                                              struct htc_packet    *pPacket)
 {
     struct htc_frame_hdr *pHdr = (struct htc_frame_hdr *)&LookAhead;
         /* check to see if the "next" packet is from the same endpoint of the
@@ -515,7 +515,7 @@ static INLINE void SetRxPacketIndicationFlags(u32 LookAhead,
      
 /* asynchronous completion handler for recv packet fetching, when the device layer
  * completes a read request, it will call this completion handler */
-void HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket)
+void HTCRecvCompleteHandler(void *Context, struct htc_packet *pPacket)
 {
     HTC_TARGET      *target = (HTC_TARGET *)Context;
     struct htc_endpoint    *pEndpoint;
@@ -587,11 +587,11 @@ void HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket)
 /* synchronously wait for a control message from the target,
  * This function is used at initialization time ONLY.  At init messages
  * on ENDPOINT 0 are expected. */
-int HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket)
+int HTCWaitforControlMessage(HTC_TARGET *target, struct htc_packet **ppControlPacket)
 {
     int        status;
     u32 lookAhead;
-    HTC_PACKET      *pPacket = NULL;
+    struct htc_packet      *pPacket = NULL;
     struct htc_frame_hdr   *pHdr;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+HTCWaitforControlMessage \n"));
@@ -693,7 +693,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                                          HTC_PACKET_QUEUE *pQueue)
 {
     int         status = 0;
-    HTC_PACKET      *pPacket;
+    struct htc_packet      *pPacket;
     struct htc_frame_hdr   *pHdr;
     int              i,j;
     int              numMessages;
@@ -882,7 +882,7 @@ static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
 static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
 {
     int                 i;    
-    HTC_PACKET          *pPacket;
+    struct htc_packet          *pPacket;
     struct htc_endpoint        *pEndpoint;
     u32 lookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int                 numLookAheads = 0;
@@ -909,7 +909,7 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
     
     INIT_HTC_PACKET_QUEUE(&localRecvQueue);
         
-    pPacket = (HTC_PACKET *)pScatterReq->ScatterList[0].pCallerContexts[0];
+    pPacket = (struct htc_packet *)pScatterReq->ScatterList[0].pCallerContexts[0];
         /* note: all packets in a scatter req are for the same endpoint ! */
     pEndpoint = &target->EndPoint[pPacket->Endpoint];
          
@@ -917,7 +917,7 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
         /* **** NOTE: DO NOT HOLD ANY LOCKS here, HTCProcessRecvHeader can take the TX lock
          * as it processes credit reports */
     for (i = 0; i < pScatterReq->ValidScatterEntries; i++) {
-        pPacket = (HTC_PACKET *)pScatterReq->ScatterList[i].pCallerContexts[0];
+        pPacket = (struct htc_packet *)pScatterReq->ScatterList[i].pCallerContexts[0];
         A_ASSERT(pPacket != NULL);       
             /* reset count, we are only interested in the look ahead in the last packet when we
              * break out of this loop */
@@ -994,7 +994,7 @@ static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
     struct hif_scatter_req *pScatterReq;
     int             i, totalLength;
     int             pktsToScatter;
-    HTC_PACKET      *pPacket;
+    struct htc_packet      *pPacket;
     bool          asyncMode = (pSyncCompletionQueue == NULL) ? true : false;
     int             scatterSpaceRemaining = DEV_GET_MAX_BUNDLE_RECV_LENGTH(&target->Device);
         
@@ -1121,7 +1121,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
 {
     HTC_TARGET      *target = (HTC_TARGET *)Context;
     int         status = 0;
-    HTC_PACKET      *pPacket;
+    struct htc_packet      *pPacket;
     struct htc_endpoint    *pEndpoint;
     bool          asyncProc = false;
     u32 lookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
@@ -1391,7 +1391,7 @@ int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
     struct htc_endpoint    *pEndpoint;
     bool          unblockRecv = false;
     int        status = 0;
-    HTC_PACKET      *pFirstPacket;
+    struct htc_packet      *pFirstPacket;
 
     pFirstPacket = HTC_GET_PKT_AT_HEAD(pPktQueue);
     
@@ -1415,7 +1415,7 @@ int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
         LOCK_HTC_RX(target);
 
         if (HTC_STOPPING(target)) {
-            HTC_PACKET *pPacket;
+            struct htc_packet *pPacket;
             
             UNLOCK_HTC_RX(target);
             
@@ -1455,7 +1455,7 @@ int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 }
 
 /* Makes a buffer available to the HTC module */
-int HTCAddReceivePkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
+int HTCAddReceivePkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket)
 {
     HTC_PACKET_QUEUE queue;
     INIT_HTC_PACKET_QUEUE_AND_ADD(&queue,pPacket); 
@@ -1488,7 +1488,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle)
 
 static void HTCFlushRxQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_PACKET_QUEUE *pQueue)
 {
-    HTC_PACKET  *pPacket;
+    struct htc_packet  *pPacket;
     HTC_PACKET_QUEUE container;
     
     LOCK_HTC_RX(target);

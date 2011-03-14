@@ -63,8 +63,8 @@ a_netbuf_alloc(int size)
 {
     struct sk_buff *skb;
     size += 2 * (A_GET_CACHE_LINE_BYTES()); /* add some cacheline space at front and back of buffer */
-    skb = dev_alloc_skb(AR6000_DATA_OFFSET + sizeof(HTC_PACKET) + size);
-    skb_reserve(skb, AR6000_DATA_OFFSET + sizeof(HTC_PACKET) + A_GET_CACHE_LINE_BYTES());    
+    skb = dev_alloc_skb(AR6000_DATA_OFFSET + sizeof(struct htc_packet) + size);
+    skb_reserve(skb, AR6000_DATA_OFFSET + sizeof(struct htc_packet) + A_GET_CACHE_LINE_BYTES());    
     return ((void *)skb);
 }
 

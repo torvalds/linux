@@ -43,16 +43,16 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(htc,
 static void HTCReportFailure(void *Context);
 static void ResetEndpointStates(HTC_TARGET *target);
 
-void HTCFreeControlBuffer(HTC_TARGET *target, HTC_PACKET *pPacket, HTC_PACKET_QUEUE *pList)
+void HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, HTC_PACKET_QUEUE *pList)
 {
     LOCK_HTC(target);
     HTC_PACKET_ENQUEUE(pList,pPacket);
     UNLOCK_HTC(target);
 }
 
-HTC_PACKET *HTCAllocControlBuffer(HTC_TARGET *target,  HTC_PACKET_QUEUE *pList)
+struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target,  HTC_PACKET_QUEUE *pList)
 {
-    HTC_PACKET *pPacket;
+    struct htc_packet *pPacket;
 
     LOCK_HTC(target);
     pPacket = HTC_PACKET_DEQUEUE(pList);
@@ -171,7 +171,7 @@ HTC_HANDLE HTCCreate(void *hif_handle, struct htc_init_info *pInfo)
 
             /* carve up buffers/packets for control messages */
         for (i = 0; i < NUM_CONTROL_RX_BUFFERS; i++) {
-            HTC_PACKET *pControlPacket;
+            struct htc_packet *pControlPacket;
             pControlPacket = &target->HTCControlBuffers[i].HtcPacket;
             SET_HTC_PACKET_INFO_RX_REFILL(pControlPacket,
                                           target,
@@ -182,7 +182,7 @@ HTC_HANDLE HTCCreate(void *hif_handle, struct htc_init_info *pInfo)
         }
 
         for (;i < NUM_CONTROL_BUFFERS;i++) {
-             HTC_PACKET *pControlPacket;
+             struct htc_packet *pControlPacket;
              pControlPacket = &target->HTCControlBuffers[i].HtcPacket;
              INIT_HTC_PACKET_INFO(pControlPacket,
                                   target->HTCControlBuffers[i].Buffer,
@@ -226,7 +226,7 @@ int HTCWaitTarget(HTC_HANDLE HTCHandle)
 {
     HTC_TARGET              *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     int                 status;
-    HTC_PACKET              *pPacket = NULL;
+    struct htc_packet              *pPacket = NULL;
     HTC_READY_EX_MSG        *pRdyMsg;
 
     HTC_SERVICE_CONNECT_REQ  connect;
@@ -372,7 +372,7 @@ int HTCWaitTarget(HTC_HANDLE HTCHandle)
 int HTCStart(HTC_HANDLE HTCHandle)
 {
     HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
-    HTC_PACKET *pPacket;
+    struct htc_packet *pPacket;
     int   status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("HTCStart Enter\n"));

@@ -362,7 +362,7 @@ typedef struct {
     int currPtr;
     int length;
     unsigned char data[HTC_RAW_BUFFER_SIZE];
-    HTC_PACKET    HTCPacket;
+    struct htc_packet    HTCPacket;
 } raw_htc_buffer;
 
 #ifdef CONFIG_HOST_TCMD_SUPPORT
@@ -410,7 +410,7 @@ struct ar_node_mapping {
 
 struct ar_cookie {
     unsigned long          arc_bp[2];    /* Must be first field */
-    HTC_PACKET             HtcPkt;       /* HTC packet wrapper */
+    struct htc_packet             HtcPkt;       /* HTC packet wrapper */
     struct ar_cookie *arc_list_next;
 };
 

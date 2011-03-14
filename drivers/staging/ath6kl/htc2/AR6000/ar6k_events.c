@@ -33,8 +33,8 @@
 #include "htc_packet.h"
 #include "ar6k.h"
 
-extern void AR6KFreeIOPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket);
-extern HTC_PACKET *AR6KAllocIOPacket(struct ar6k_device *pDev);
+extern void AR6KFreeIOPacket(struct ar6k_device *pDev, struct htc_packet *pPacket);
+extern struct htc_packet *AR6KAllocIOPacket(struct ar6k_device *pDev);
 
 static int DevServiceDebugInterrupt(struct ar6k_device *pDev);
 
@@ -43,7 +43,7 @@ static int DevServiceDebugInterrupt(struct ar6k_device *pDev);
 /* completion routine for ALL HIF layer async I/O */
 int DevRWCompletionHandler(void *context, int status)
 {
-    HTC_PACKET *pPacket = (HTC_PACKET *)context;
+    struct htc_packet *pPacket = (struct htc_packet *)context;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,
                 ("+DevRWCompletionHandler (Pkt:0x%lX) , Status: %d \n",
@@ -300,7 +300,7 @@ static int DevServiceCounterInterrupt(struct ar6k_device *pDev)
 }
 
 /* callback when our fetch to get interrupt status registers completes */
-static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevGetEventAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
     u32 lookAhead = 0;
@@ -392,7 +392,7 @@ int DevCheckPendingRecvMsgsAsync(void *context)
 {
     struct ar6k_device  *pDev = (struct ar6k_device *)context;
     int      status = 0;
-    HTC_PACKET   *pIOPacket;
+    struct htc_packet   *pIOPacket;
 
     /* this is called in an ASYNC only context, we may NOT block, sleep or call any apis that can
      * cause us to switch contexts */

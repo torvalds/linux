@@ -40,16 +40,16 @@ int DevDisableInterrupts(struct ar6k_device *pDev);
 
 static void DevCleanupVirtualScatterSupport(struct ar6k_device *pDev);
 
-void AR6KFreeIOPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket)
+void AR6KFreeIOPacket(struct ar6k_device *pDev, struct htc_packet *pPacket)
 {
     LOCK_AR6K(pDev);
     HTC_PACKET_ENQUEUE(&pDev->RegisterIOList,pPacket);
     UNLOCK_AR6K(pDev);
 }
 
-HTC_PACKET *AR6KAllocIOPacket(struct ar6k_device *pDev)
+struct htc_packet *AR6KAllocIOPacket(struct ar6k_device *pDev)
 {
-    HTC_PACKET *pPacket;
+    struct htc_packet *pPacket;
 
     LOCK_AR6K(pDev);
     pPacket = HTC_PACKET_DEQUEUE(&pDev->RegisterIOList);
@@ -113,7 +113,7 @@ int DevSetup(struct ar6k_device *pDev)
 
             /* carve up register I/O packets (these are for ASYNC register I/O ) */
         for (i = 0; i < AR6K_MAX_REG_IO_BUFFERS; i++) {
-            HTC_PACKET *pIOPacket;
+            struct htc_packet *pIOPacket;
             pIOPacket = &pDev->RegIOBuffers[i].HtcPacket;
             SET_HTC_PACKET_INFO_RX_REFILL(pIOPacket,
                                           pDev,
@@ -337,7 +337,7 @@ int DevMaskInterrupts(struct ar6k_device *pDev)
 }
 
 /* callback when our fetch to enable/disable completes */
-static void DevDoEnableDisableRecvAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevDoEnableDisableRecvAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
@@ -358,7 +358,7 @@ static void DevDoEnableDisableRecvAsyncHandler(void *Context, HTC_PACKET *pPacke
 static int DevDoEnableDisableRecvOverride(struct ar6k_device *pDev, bool EnableRecv, bool AsyncMode)
 {
     int                  status = 0;
-    HTC_PACKET                *pIOPacket = NULL;
+    struct htc_packet                *pIOPacket = NULL;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC,("DevDoEnableDisableRecvOverride: Enable:%d Mode:%d\n",
             EnableRecv,AsyncMode));
@@ -406,7 +406,7 @@ static int DevDoEnableDisableRecvOverride(struct ar6k_device *pDev, bool EnableR
 static int DevDoEnableDisableRecvNormal(struct ar6k_device *pDev, bool EnableRecv, bool AsyncMode)
 {
     int                  status = 0;
-    HTC_PACKET                *pIOPacket = NULL;
+    struct htc_packet                *pIOPacket = NULL;
     struct ar6k_irq_enable_registers regs;
 
         /* take the lock to protect interrupt enable shadows */
@@ -648,7 +648,7 @@ int DevCopyScatterListToFromDMABuffer(struct hif_scatter_req *pReq, bool FromDMA
     return 0;
 }
 
-static void DevReadWriteScatterAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevReadWriteScatterAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
     struct ar6k_device     *pDev = (struct ar6k_device *)Context;
     struct hif_scatter_req *pReq = (struct hif_scatter_req *)pPacket->pPktContext;
@@ -668,7 +668,7 @@ static int DevReadWriteScatter(HIF_DEVICE *Context, struct hif_scatter_req *pReq
 {
     struct ar6k_device     *pDev = (struct ar6k_device *)Context;
     int        status = 0;
-    HTC_PACKET      *pIOPacket = NULL;
+    struct htc_packet      *pIOPacket = NULL;
     u32 request = pReq->Request;
 
     do {

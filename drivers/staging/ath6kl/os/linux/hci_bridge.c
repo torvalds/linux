@@ -139,16 +139,16 @@ static inline void FreeBtOsBuf(struct ar6k_hci_bridge_info *pHcidevInfo, void *o
     }
 }
 
-static void FreeHTCStruct(struct ar6k_hci_bridge_info *pHcidevInfo, HTC_PACKET *pPacket)
+static void FreeHTCStruct(struct ar6k_hci_bridge_info *pHcidevInfo, struct htc_packet *pPacket)
 {
     LOCK_BRIDGE(pHcidevInfo);
     HTC_PACKET_ENQUEUE(&pHcidevInfo->HTCPacketStructHead,pPacket);
     UNLOCK_BRIDGE(pHcidevInfo);  
 }
 
-static HTC_PACKET * AllocHTCStruct(struct ar6k_hci_bridge_info *pHcidevInfo)
+static struct htc_packet * AllocHTCStruct(struct ar6k_hci_bridge_info *pHcidevInfo)
 {
-    HTC_PACKET  *pPacket = NULL;
+    struct htc_packet  *pPacket = NULL;
     LOCK_BRIDGE(pHcidevInfo);
     pPacket = HTC_PACKET_DEQUEUE(&pHcidevInfo->HTCPacketStructHead);
     UNLOCK_BRIDGE(pHcidevInfo);  
@@ -164,7 +164,7 @@ static void RefillRecvBuffers(struct ar6k_hci_bridge_info      *pHcidevInfo,
     int                 length, i;
     void                *osBuf = NULL;
     HTC_PACKET_QUEUE    queue;
-    HTC_PACKET          *pPacket;
+    struct htc_packet          *pPacket;
 
     INIT_HTC_PACKET_QUEUE(&queue);
     
@@ -347,7 +347,7 @@ static void ar6000_hci_transport_removed(void *pContext)
     pHcidevInfo->pHCIDev = NULL;
 }
 
-static void ar6000_hci_send_complete(void *pContext, HTC_PACKET *pPacket)
+static void ar6000_hci_send_complete(void *pContext, struct htc_packet *pPacket)
 {
     struct ar6k_hci_bridge_info *pHcidevInfo = (struct ar6k_hci_bridge_info *)pContext;
     void                 *osbuf = pPacket->pPktContext;
@@ -365,7 +365,7 @@ static void ar6000_hci_send_complete(void *pContext, HTC_PACKET *pPacket)
     
 }
 
-static void ar6000_hci_pkt_recv(void *pContext, HTC_PACKET *pPacket)
+static void ar6000_hci_pkt_recv(void *pContext, struct htc_packet *pPacket)
 {
     struct ar6k_hci_bridge_info *pHcidevInfo = (struct ar6k_hci_bridge_info *)pContext;
     struct sk_buff       *skb;
@@ -447,7 +447,7 @@ static void  ar6000_hci_pkt_refill(void *pContext, HCI_TRANSPORT_PACKET_TYPE Typ
     
 }
 
-static HCI_SEND_FULL_ACTION  ar6000_hci_pkt_send_full(void *pContext, HTC_PACKET *pPacket)
+static HCI_SEND_FULL_ACTION  ar6000_hci_pkt_send_full(void *pContext, struct htc_packet *pPacket)
 {
     struct ar6k_hci_bridge_info    *pHcidevInfo = (struct ar6k_hci_bridge_info *)pContext;
     HCI_SEND_FULL_ACTION    action = HCI_SEND_FULL_KEEP;
@@ -472,7 +472,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
     struct hci_transport_config_info config;
     int                  status = 0;
     int                       i;
-    HTC_PACKET                *pPacket;
+    struct htc_packet                *pPacket;
     struct ar6k_hci_bridge_info      *pHcidevInfo;
         
        
@@ -509,14 +509,14 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
             AR_DEBUG_PRINTF(ATH_DEBUG_HCI_BRIDGE, ("HCI Bridge: running in test mode... \n"));     
         }
         
-        pHcidevInfo->pHTCStructAlloc = (u8 *)A_MALLOC((sizeof(HTC_PACKET)) * NUM_HTC_PACKET_STRUCTS);
+        pHcidevInfo->pHTCStructAlloc = (u8 *)A_MALLOC((sizeof(struct htc_packet)) * NUM_HTC_PACKET_STRUCTS);
         
         if (NULL == pHcidevInfo->pHTCStructAlloc) {
             status = A_NO_MEMORY;
             break;    
         }
         
-        pPacket = (HTC_PACKET *)pHcidevInfo->pHTCStructAlloc;
+        pPacket = (struct htc_packet *)pHcidevInfo->pHTCStructAlloc;
         for (i = 0; i < NUM_HTC_PACKET_STRUCTS; i++,pPacket++) {
             FreeHTCStruct(pHcidevInfo,pPacket);                
         }
@@ -604,7 +604,7 @@ int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
     int              status = 0;
     int              length;
     EPPING_HEADER    *pHeader;
-    HTC_PACKET       *pPacket;   
+    struct htc_packet       *pPacket;   
     HTC_TX_TAG       htc_tag = AR6K_DATA_PKT_TAG;
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
     struct ar6k_hci_bridge_info *pHcidevInfo = g_pHcidevInfo;
@@ -711,7 +711,7 @@ static int bt_send_frame(struct sk_buff *skb)
     struct hci_dev             *hdev = (struct hci_dev *)skb->dev;
     HCI_TRANSPORT_PACKET_TYPE  type;
     struct ar6k_hci_bridge_info       *pHcidevInfo;
-    HTC_PACKET                 *pPacket;
+    struct htc_packet                 *pPacket;
     int                   status = 0;
     struct sk_buff             *txSkb = NULL;
     

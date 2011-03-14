@@ -49,7 +49,7 @@ struct htc_init_info {
 };
 
 /* per service connection send completion */
-typedef void   (*HTC_EP_SEND_PKT_COMPLETE)(void *,HTC_PACKET *);
+typedef void   (*HTC_EP_SEND_PKT_COMPLETE)(void *,struct htc_packet *);
 /* per service connection callback when a plurality of packets have been sent
  * The HTC_PACKET_QUEUE is a temporary queue object (e.g. freed on return from the callback)
  * to hold a list of completed send packets.
@@ -58,7 +58,7 @@ typedef void   (*HTC_EP_SEND_PKT_COMPLETE)(void *,HTC_PACKET *);
  *   HTC_PACKET_ENQUEUE() */
 typedef void   (*HTC_EP_SEND_PKT_COMP_MULTIPLE)(void *,HTC_PACKET_QUEUE *);
 /* per service connection pkt received */
-typedef void   (*HTC_EP_RECV_PKT)(void *,HTC_PACKET *);
+typedef void   (*HTC_EP_RECV_PKT)(void *,struct htc_packet *);
 /* per service connection callback when a plurality of packets are received
  * The HTC_PACKET_QUEUE is a temporary queue object (e.g. freed on return from the callback)
  * to hold a list of recv packets.
@@ -94,7 +94,7 @@ typedef void   (*HTC_EP_RECV_REFILL)(void *, HTC_ENDPOINT_ID Endpoint);
  * amount of "committed" memory used to receive packets.
  *  
  * */
-typedef HTC_PACKET *(*HTC_EP_RECV_ALLOC)(void *, HTC_ENDPOINT_ID Endpoint, int Length);
+typedef struct htc_packet *(*HTC_EP_RECV_ALLOC)(void *, HTC_ENDPOINT_ID Endpoint, int Length);
 
 typedef enum _HTC_SEND_FULL_ACTION {
     HTC_SEND_FULL_KEEP = 0,  /* packet that overflowed should be kept in the queue */
@@ -114,7 +114,7 @@ typedef enum _HTC_SEND_FULL_ACTION {
  * closed loop mechanism will prevent the network stack from overunning the NIC
  * The packet to keep or drop is passed for inspection to the registered handler the handler
  * must ONLY inspect the packet, it may not free or reclaim the packet. */
-typedef HTC_SEND_FULL_ACTION (*HTC_EP_SEND_QUEUE_FULL)(void *, HTC_PACKET *pPacket);
+typedef HTC_SEND_FULL_ACTION (*HTC_EP_SEND_QUEUE_FULL)(void *, struct htc_packet *pPacket);
 
 struct htc_ep_callbacks {
     void                     *pContext;     /* context for each callback */
@@ -348,7 +348,7 @@ int    HTCStart(HTC_HANDLE HTCHandle);
   @example:
   @see also:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HTCAddReceivePkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
+int    HTCAddReceivePkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Connect to an HTC service
   @function name: HTCConnectService
@@ -377,7 +377,7 @@ int    HTCConnectService(HTC_HANDLE HTCHandle,
   @example:
   @see also: HTCFlushEndpoint
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket);
+int    HTCSendPkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Stop HTC service communications
   @function name: HTCStop

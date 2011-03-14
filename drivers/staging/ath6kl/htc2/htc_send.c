@@ -62,7 +62,7 @@ static void DoSendCompletion(struct htc_endpoint       *pEndpoint,
                 /* all packets are now owned by the callback, reset queue to be safe */
             INIT_HTC_PACKET_QUEUE(pQueueToIndicate);                                                      
         } else {
-            HTC_PACKET *pPacket;  
+            struct htc_packet *pPacket;  
             /* using legacy EpTxComplete */         
             do {
                 pPacket = HTC_PACKET_DEQUEUE(pQueueToIndicate);
@@ -77,7 +77,7 @@ static void DoSendCompletion(struct htc_endpoint       *pEndpoint,
 }
 
 /* do final completion on sent packet */
-static INLINE void CompleteSentPacket(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_PACKET *pPacket)
+static INLINE void CompleteSentPacket(HTC_TARGET *target, struct htc_endpoint *pEndpoint, struct htc_packet *pPacket)
 {
     pPacket->Completion = NULL;  
     
@@ -101,7 +101,7 @@ static INLINE void CompleteSentPacket(HTC_TARGET *target, struct htc_endpoint *p
 
 /* our internal send packet completion handler when packets are submited to the AR6K device
  * layer */
-static void HTCSendPktCompletionHandler(void *Context, HTC_PACKET *pPacket)
+static void HTCSendPktCompletionHandler(void *Context, struct htc_packet *pPacket)
 {
     HTC_TARGET      *target = (HTC_TARGET *)Context;
     struct htc_endpoint    *pEndpoint = &target->EndPoint[pPacket->Endpoint];
@@ -113,7 +113,7 @@ static void HTCSendPktCompletionHandler(void *Context, HTC_PACKET *pPacket)
     DO_EP_TX_COMPLETION(pEndpoint,&container);
 }
 
-int HTCIssueSend(HTC_TARGET *target, HTC_PACKET *pPacket)
+int HTCIssueSend(HTC_TARGET *target, struct htc_packet *pPacket)
 {
     int status;
     bool   sync = false;
@@ -153,7 +153,7 @@ static INLINE void GetHTCSendPackets(HTC_TARGET        *target,
     int          creditsRequired;
     int          remainder;
     u8 sendFlags;
-    HTC_PACKET   *pPacket;
+    struct htc_packet   *pPacket;
     unsigned int transferLength;
 
     /****** NOTE : the TX lock is held when this function is called *****************/
@@ -267,7 +267,7 @@ static INLINE void GetHTCSendPackets(HTC_TARGET        *target,
 static void HTCAsyncSendScatterCompletion(struct hif_scatter_req *pScatterReq)
 {
     int                 i;    
-    HTC_PACKET          *pPacket;
+    struct htc_packet          *pPacket;
     struct htc_endpoint        *pEndpoint = (struct htc_endpoint *)pScatterReq->Context;
     HTC_TARGET          *target = (HTC_TARGET *)pEndpoint->target;
     int            status = 0;
@@ -287,7 +287,7 @@ static void HTCAsyncSendScatterCompletion(struct hif_scatter_req *pScatterReq)
     
         /* walk through the scatter list and process */
     for (i = 0; i < pScatterReq->ValidScatterEntries; i++) {
-        pPacket = (HTC_PACKET *)(pScatterReq->ScatterList[i].pCallerContexts[0]);
+        pPacket = (struct htc_packet *)(pScatterReq->ScatterList[i].pCallerContexts[0]);
         A_ASSERT(pPacket != NULL);
         pPacket->Status = status;
         CompleteSentPacket(target,pEndpoint,pPacket);
@@ -319,7 +319,7 @@ static void HTCIssueSendBundle(struct htc_endpoint      *pEndpoint,
     struct hif_scatter_req     *pScatterReq = NULL;
     int                 i, packetsInScatterReq;
     unsigned int        transferLength;
-    HTC_PACKET          *pPacket;
+    struct htc_packet          *pPacket;
     bool              done = false;
     int                 bundlesSent = 0;
     int                 totalPktsInBundle = 0;
@@ -450,7 +450,7 @@ static void HTCIssueSendBundle(struct htc_endpoint      *pEndpoint,
             if (packetsInScatterReq > 0) {
                     /* work backwards to requeue requests */
                 for (i = (packetsInScatterReq - 1); i >= 0; i--) {
-                    pPacket = (HTC_PACKET *)(pScatterReq->ScatterList[i].pCallerContexts[0]);
+                    pPacket = (struct htc_packet *)(pScatterReq->ScatterList[i].pCallerContexts[0]);
                     if (pPacket != NULL) {
                             /* undo any prep */
                         HTC_UNPREPARE_SEND_PKT(pPacket);
@@ -482,7 +482,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
                                         HTC_PACKET_QUEUE *pCallersSendQueue)
 {
     HTC_PACKET_QUEUE      sendQueue; /* temp queue to hold packets at various stages */
-    HTC_PACKET            *pPacket;
+    struct htc_packet            *pPacket;
     int                   bundlesSent;
     int                   pktsInBundles;
     int                   overflow;
@@ -546,7 +546,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
             
                 /* the caller's queue has all the packets that won't fit*/                
                 /* walk through the caller's queue and indicate each one to the send full handler */            
-            ITERATE_OVER_LIST_ALLOW_REMOVE(&pCallersSendQueue->QueueHead, pPacket, HTC_PACKET, ListLink) {            
+            ITERATE_OVER_LIST_ALLOW_REMOVE(&pCallersSendQueue->QueueHead, pPacket, struct htc_packet, ListLink) {            
                 
                 AR_DEBUG_PRINTF(ATH_DEBUG_SEND, (" Indicating overflowed TX packet: 0x%lX \n", 
                                             (unsigned long)pPacket));    
@@ -672,7 +672,7 @@ int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint;
-    HTC_PACKET      *pPacket;
+    struct htc_packet      *pPacket;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND, ("+HTCSendPktsMultiple: Queue: 0x%lX, Pkts %d \n",
                     (unsigned long)pPktQueue, HTC_PACKET_QUEUE_DEPTH(pPktQueue)));
@@ -709,7 +709,7 @@ int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 }
 
 /* HTC API - HTCSendPkt */
-int HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
+int HTCSendPkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket)
 {
     HTC_PACKET_QUEUE queue;
     
@@ -840,7 +840,7 @@ void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEnt
 /* flush endpoint TX queue */
 static void HTCFlushEndpointTX(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_TX_TAG Tag)
 {
-    HTC_PACKET          *pPacket;
+    struct htc_packet          *pPacket;
     HTC_PACKET_QUEUE    discardQueue;
     HTC_PACKET_QUEUE    container;
 
@@ -850,7 +850,7 @@ static void HTCFlushEndpointTX(HTC_TARGET *target, struct htc_endpoint *pEndpoin
     LOCK_HTC_TX(target);
 
         /* interate from the front of the TX queue and flush out packets */
-    ITERATE_OVER_LIST_ALLOW_REMOVE(&pEndpoint->TxQueue.QueueHead, pPacket, HTC_PACKET, ListLink) {
+    ITERATE_OVER_LIST_ALLOW_REMOVE(&pEndpoint->TxQueue.QueueHead, pPacket, struct htc_packet, ListLink) {
 
             /* check for removal */
         if ((HTC_TX_PACKET_TAG_ALL == Tag) || (Tag == pPacket->PktInfo.AsTx.Tag)) {

@@ -53,18 +53,18 @@ static int SendHCICommand(struct ar3k_config_info *pConfig,
                                u8 *pBuffer,
                                int              Length)
 {
-    HTC_PACKET  *pPacket = NULL;
+    struct htc_packet  *pPacket = NULL;
     int    status = 0;
        
     do {   
         
-        pPacket = (HTC_PACKET *)A_MALLOC(sizeof(HTC_PACKET));     
+        pPacket = (struct htc_packet *)A_MALLOC(sizeof(struct htc_packet));     
         if (NULL == pPacket) {
             status = A_NO_MEMORY;
             break;    
         }       
         
-        A_MEMZERO(pPacket,sizeof(HTC_PACKET));      
+        A_MEMZERO(pPacket,sizeof(struct htc_packet));      
         SET_HTC_PACKET_INFO_TX(pPacket,
                                NULL,
                                pBuffer, 
@@ -89,18 +89,18 @@ static int RecvHCIEvent(struct ar3k_config_info *pConfig,
                              int              *pLength)
 {
     int    status = 0;
-    HTC_PACKET  *pRecvPacket = NULL;
+    struct htc_packet  *pRecvPacket = NULL;
     
     do {
                  
-        pRecvPacket = (HTC_PACKET *)A_MALLOC(sizeof(HTC_PACKET));
+        pRecvPacket = (struct htc_packet *)A_MALLOC(sizeof(struct htc_packet));
         if (NULL == pRecvPacket) {
             status = A_NO_MEMORY;
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Failed to alloc HTC struct \n"));
             break;    
         }     
         
-        A_MEMZERO(pRecvPacket,sizeof(HTC_PACKET)); 
+        A_MEMZERO(pRecvPacket,sizeof(struct htc_packet)); 
          
         SET_HTC_PACKET_INFO_RX_REFILL(pRecvPacket,NULL,pBuffer,*pLength,HCI_EVENT_TYPE);
         

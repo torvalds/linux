@@ -26,7 +26,7 @@
 #ifdef HTC_RAW_INTERFACE
 
 static void
-ar6000_htc_raw_read_cb(void *Context, HTC_PACKET *pPacket)
+ar6000_htc_raw_read_cb(void *Context, struct htc_packet *pPacket)
 {
     AR_SOFTC_T        *ar = (AR_SOFTC_T *)Context;
     raw_htc_buffer    *busy;
@@ -70,7 +70,7 @@ ar6000_htc_raw_read_cb(void *Context, HTC_PACKET *pPacket)
 }
 
 static void
-ar6000_htc_raw_write_cb(void *Context, HTC_PACKET *pPacket)
+ar6000_htc_raw_write_cb(void *Context, struct htc_packet *pPacket)
 {
     AR_SOFTC_T          *ar = (AR_SOFTC_T  *)Context;
     raw_htc_buffer      *free;

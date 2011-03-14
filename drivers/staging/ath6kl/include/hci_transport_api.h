@@ -43,9 +43,9 @@ typedef HTC_ENDPOINT_ID HCI_TRANSPORT_PACKET_TYPE;
 #define HCI_SET_PACKET_TYPE(pP,s)  (pP)->Endpoint = (s)
 
 /* callback when an HCI packet was completely sent */
-typedef void   (*HCI_TRANSPORT_SEND_PKT_COMPLETE)(void *, HTC_PACKET *);
+typedef void   (*HCI_TRANSPORT_SEND_PKT_COMPLETE)(void *, struct htc_packet *);
 /* callback when an HCI packet is received */
-typedef void   (*HCI_TRANSPORT_RECV_PKT)(void *, HTC_PACKET *);
+typedef void   (*HCI_TRANSPORT_RECV_PKT)(void *, struct htc_packet *);
 /* Optional receive buffer re-fill callback,
  * On some OSes (like Linux) packets are allocated from a global pool and indicated up
  * to the network stack.  The driver never gets the packets back from the OS.  For these OSes
@@ -68,7 +68,7 @@ typedef void   (*HCI_TRANSPORT_RECV_REFILL)(void *, HCI_TRANSPORT_PACKET_TYPE Ty
  * NOTE*** This callback is mutually exclusive with the the refill callback above.
  *
  * */
-typedef HTC_PACKET *(*HCI_TRANSPORT_RECV_ALLOC)(void *, HCI_TRANSPORT_PACKET_TYPE Type, int Length);
+typedef struct htc_packet *(*HCI_TRANSPORT_RECV_ALLOC)(void *, HCI_TRANSPORT_PACKET_TYPE Type, int Length);
 
 typedef enum _HCI_SEND_FULL_ACTION {
     HCI_SEND_FULL_KEEP = 0,  /* packet that overflowed should be kept in the queue */
@@ -77,7 +77,7 @@ typedef enum _HCI_SEND_FULL_ACTION {
 
 /* callback when an HCI send queue exceeds the caller's MaxSendQueueDepth threshold,
  * the callback must return the send full action to take (either DROP or KEEP) */
-typedef HCI_SEND_FULL_ACTION  (*HCI_TRANSPORT_SEND_FULL)(void *, HTC_PACKET *);
+typedef HCI_SEND_FULL_ACTION  (*HCI_TRANSPORT_SEND_FULL)(void *, struct htc_packet *);
 
 struct hci_transport_properties {
     int    HeadRoom;      /* number of bytes in front of HCI packet for header space */
@@ -166,7 +166,7 @@ int    HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUE
   @example:
   @see also: 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-int    HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, bool Synchronous);
+int    HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, struct htc_packet *pPacket, bool Synchronous);
 
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -223,7 +223,7 @@ int    HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, bool E
   @see also: HCI_TransportEnableDisableAsyncRecv
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 int    HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
-                                          HTC_PACKET           *pPacket,
+                                          struct htc_packet           *pPacket,
                                           int                  MaxPollMS);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

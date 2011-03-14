@@ -99,7 +99,7 @@ do {								\
     (p)->HCIConfig.pHCISendComplete((p)->HCIConfig.pContext, (pt));                            \
 }
     
-static int HCITrySend(struct gmbox_proto_hci_uart *pProt, HTC_PACKET *pPacket, bool Synchronous);
+static int HCITrySend(struct gmbox_proto_hci_uart *pProt, struct htc_packet *pPacket, bool Synchronous);
 
 static void HCIUartCleanup(struct gmbox_proto_hci_uart *pProtocol)
 {
@@ -312,7 +312,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
     HCI_TRANSPORT_PACKET_TYPE   pktType = HCI_PACKET_INVALID;
     bool                      recvRefillCalled = false;
     bool                      blockRecv = false;
-    HTC_PACKET                  *pPacket = NULL;
+    struct htc_packet                  *pPacket = NULL;
     
     /** caller guarantees that this is a fully block-able context (synch I/O is allowed) */
     
@@ -532,7 +532,7 @@ static int HCIUartMessagePending(void *pContext, u8 LookAheadBytes[], int ValidB
     return status;
 }
 
-static void HCISendPacketCompletion(void *Context, HTC_PACKET *pPacket)
+static void HCISendPacketCompletion(void *Context, struct htc_packet *pPacket)
 {
     struct gmbox_proto_hci_uart *pProt = (struct gmbox_proto_hci_uart *)Context;
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+HCISendPacketCompletion (pPacket:0x%lX) \n",(unsigned long)pPacket));
@@ -579,7 +579,7 @@ static int SeekCreditsSynch(struct gmbox_proto_hci_uart *pProt)
     return status;
 }
 
-static int HCITrySend(struct gmbox_proto_hci_uart *pProt, HTC_PACKET *pPacket, bool Synchronous)
+static int HCITrySend(struct gmbox_proto_hci_uart *pProt, struct htc_packet *pPacket, bool Synchronous)
 {   
     int    status = 0;
     int         transferLength;
@@ -796,7 +796,7 @@ static int HCITrySend(struct gmbox_proto_hci_uart *pProt, HTC_PACKET *pPacket, b
 
 static void FlushSendQueue(struct gmbox_proto_hci_uart *pProt)
 {
-    HTC_PACKET          *pPacket;
+    struct htc_packet          *pPacket;
     HTC_PACKET_QUEUE    discardQueue;
     
     INIT_HTC_PACKET_QUEUE(&discardQueue);
@@ -821,7 +821,7 @@ static void FlushSendQueue(struct gmbox_proto_hci_uart *pProt)
 static void FlushRecvBuffers(struct gmbox_proto_hci_uart *pProt)
 {
     HTC_PACKET_QUEUE discardQueue;
-    HTC_PACKET *pPacket;
+    struct htc_packet *pPacket;
     
     INIT_HTC_PACKET_QUEUE(&discardQueue);
     
@@ -1006,7 +1006,7 @@ int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE 
     struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans; 
     int              status = 0;
     bool                unblockRecv = false;
-    HTC_PACKET            *pPacket;
+    struct htc_packet            *pPacket;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("+HCI_TransportAddReceivePkt \n"));
     
@@ -1069,7 +1069,7 @@ int HCI_TransportAddReceivePkts(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE 
     return 0;
 }
 
-int HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, bool Synchronous)
+int HCI_TransportSendPkt(HCI_TRANSPORT_HANDLE HciTrans, struct htc_packet *pPacket, bool Synchronous)
 {
     struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;  
     
@@ -1159,7 +1159,7 @@ int HCI_TransportEnableDisableAsyncRecv(HCI_TRANSPORT_HANDLE HciTrans, bool Enab
 }
 
 int HCI_TransportRecvHCIEventSync(HCI_TRANSPORT_HANDLE HciTrans,
-                                       HTC_PACKET           *pPacket,
+                                       struct htc_packet           *pPacket,
                                        int                  MaxPollMS)
 {
     struct gmbox_proto_hci_uart  *pProt = (struct gmbox_proto_hci_uart *)HciTrans;

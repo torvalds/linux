@@ -54,12 +54,12 @@
 
 
     /* external APIs for allocating and freeing internal I/O packets to handle ASYNC I/O */ 
-extern void AR6KFreeIOPacket(struct ar6k_device *pDev, HTC_PACKET *pPacket);
-extern HTC_PACKET *AR6KAllocIOPacket(struct ar6k_device *pDev);
+extern void AR6KFreeIOPacket(struct ar6k_device *pDev, struct htc_packet *pPacket);
+extern struct htc_packet *AR6KAllocIOPacket(struct ar6k_device *pDev);
 
 
 /* callback when our fetch to enable/disable completes */
-static void DevGMboxIRQActionAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevGMboxIRQActionAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
@@ -78,7 +78,7 @@ static int DevGMboxCounterEnableDisable(struct ar6k_device *pDev, GMBOX_IRQ_ACTI
 {
     int                  status = 0;
     struct ar6k_irq_enable_registers regs;
-    HTC_PACKET                *pIOPacket = NULL;  
+    struct htc_packet                *pIOPacket = NULL;  
     
     LOCK_AR6K(pDev);
     
@@ -158,7 +158,7 @@ static int DevGMboxCounterEnableDisable(struct ar6k_device *pDev, GMBOX_IRQ_ACTI
 int DevGMboxIRQAction(struct ar6k_device *pDev, GMBOX_IRQ_ACTION_TYPE IrqAction, bool AsyncMode)
 {
     int      status = 0;
-    HTC_PACKET    *pIOPacket = NULL;   
+    struct htc_packet    *pIOPacket = NULL;   
     u8 GMboxIntControl[4];
 
     if (GMBOX_CREDIT_IRQ_ENABLE == IrqAction) {
@@ -396,7 +396,7 @@ int DevCheckGMboxInterrupts(struct ar6k_device *pDev)
 }
 
 
-int DevGMboxWrite(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 WriteLength)
+int DevGMboxWrite(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 WriteLength)
 {
     u32 paddedLength;
     bool   sync = (pPacket->Completion == NULL) ? true : false;
@@ -433,7 +433,7 @@ int DevGMboxWrite(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 WriteLength
     return status;
 }
 
-int DevGMboxRead(struct ar6k_device *pDev, HTC_PACKET *pPacket, u32 ReadLength)
+int DevGMboxRead(struct ar6k_device *pDev, struct htc_packet *pPacket, u32 ReadLength)
 {
     
     u32 paddedLength;
@@ -516,7 +516,7 @@ static int ProcessCreditCounterReadBuffer(u8 *pBuffer, int Length)
    
 
 /* callback when our fetch to enable/disable completes */
-static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
+static void DevGMboxReadCreditsAsyncHandler(void *Context, struct htc_packet *pPacket)
 {
     struct ar6k_device *pDev = (struct ar6k_device *)Context;
 
@@ -542,7 +542,7 @@ static void DevGMboxReadCreditsAsyncHandler(void *Context, HTC_PACKET *pPacket)
 int DevGMboxReadCreditCounter(struct ar6k_device *pDev, bool AsyncMode, int *pCredits)
 {
     int    status = 0;
-    HTC_PACKET  *pIOPacket = NULL;  
+    struct htc_packet  *pIOPacket = NULL;  
     
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND,("+DevGMboxReadCreditCounter (%s) \n", AsyncMode ? "ASYNC" : "SYNC"));
                                             

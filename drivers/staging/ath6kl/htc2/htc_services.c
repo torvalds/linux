@@ -22,7 +22,7 @@
 //==============================================================================
 #include "htc_internal.h"
 
-void HTCControlTxComplete(void *Context, HTC_PACKET *pPacket)
+void HTCControlTxComplete(void *Context, struct htc_packet *pPacket)
 {
         /* not implemented
          * we do not send control TX frames during normal runtime, only during setup  */
@@ -30,7 +30,7 @@ void HTCControlTxComplete(void *Context, HTC_PACKET *pPacket)
 }
 
     /* callback when a control message arrives on this endpoint */
-void HTCControlRecv(void *Context, HTC_PACKET *pPacket)
+void HTCControlRecv(void *Context, struct htc_packet *pPacket)
 {
     AR_DEBUG_ASSERT(pPacket->Endpoint == ENDPOINT_0);
 
@@ -59,7 +59,7 @@ void HTCControlRecv(void *Context, HTC_PACKET *pPacket)
 
 int HTCSendSetupComplete(HTC_TARGET *target)
 {
-    HTC_PACKET             *pSendPacket = NULL;
+    struct htc_packet             *pSendPacket = NULL;
     int                status;
 
     do {
@@ -127,8 +127,8 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
 {
     HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     int                            status = 0;
-    HTC_PACKET                          *pRecvPacket = NULL;
-    HTC_PACKET                          *pSendPacket = NULL;
+    struct htc_packet                          *pRecvPacket = NULL;
+    struct htc_packet                          *pSendPacket = NULL;
     HTC_CONNECT_SERVICE_RESPONSE_MSG    *pResponseMsg;
     HTC_CONNECT_SERVICE_MSG             *pConnectMsg;
     HTC_ENDPOINT_ID                     assignedEndpoint = ENDPOINT_MAX;
