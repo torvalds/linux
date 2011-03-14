@@ -1827,7 +1827,8 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach,
 		if (!forcedetach) {
 			if (__ratelimit(&drbd_ratelimit_state))
 				dev_err(DEV, "Local IO failed in %s.\n", where);
-			_drbd_set_state(_NS(mdev, disk, D_INCONSISTENT), CS_HARD, NULL);
+			if (mdev->state.disk > D_INCONSISTENT)
+				_drbd_set_state(_NS(mdev, disk, D_INCONSISTENT), CS_HARD, NULL);
 			break;
 		}
 		/* NOTE fall through to detach case if forcedetach set */
