@@ -47,8 +47,6 @@
 #define HIF_MBOX2_BLOCK_SIZE               HIF_MBOX_BLOCK_SIZE
 #define HIF_MBOX3_BLOCK_SIZE               HIF_MBOX_BLOCK_SIZE
 
-struct _HIF_SCATTER_REQ_PRIV;
-
 typedef struct bus_request {
     struct bus_request *next;       /* link list of available requests */
     struct bus_request *inusenext;  /* link list of in use requests */
@@ -59,7 +57,7 @@ typedef struct bus_request {
     u32 request;
     void *context;
     int status;
-    struct _HIF_SCATTER_REQ_PRIV *pScatterReq;      /* this request is a scatter request */
+    struct hif_scatter_req_priv *pScatterReq;      /* this request is a scatter request */
 } BUS_REQUEST;
 
 struct hif_device {
@@ -100,13 +98,13 @@ void AddToAsyncList(HIF_DEVICE *device, BUS_REQUEST *busrequest);
 #define MAX_SCATTER_ENTRIES_PER_REQ      16
 #define MAX_SCATTER_REQ_TRANSFER_SIZE    32*1024
 
-typedef struct _HIF_SCATTER_REQ_PRIV {
+struct hif_scatter_req_priv {
     HIF_SCATTER_REQ     *pHifScatterReq;  /* HIF scatter request with allocated entries */   
     HIF_DEVICE          *device;          /* this device */
     BUS_REQUEST         *busrequest;      /* request associated with request */
         /* scatter list for linux */    
     struct scatterlist  sgentries[MAX_SCATTER_ENTRIES_PER_REQ];   
-} HIF_SCATTER_REQ_PRIV;
+};
 
 #define ATH_DEBUG_SCATTER  ATH_DEBUG_MAKE_MODULE_MASK(0)
 
