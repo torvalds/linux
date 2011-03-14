@@ -1588,12 +1588,23 @@ out_fail:
 	return retval;
 }
 
+static inline int lookup_last(struct nameidata *nd, struct path *path)
+{
+	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
+		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
+
+	nd->flags &= ~LOOKUP_PARENT;
+	return walk_component(nd, path, &nd->last, nd->last_type,
+					nd->flags & LOOKUP_FOLLOW);
+}
+
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
 static int path_lookupat(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	struct file *base = NULL;
-	int retval;
+	struct path path;
+	int err;
 
 	/*
 	 * Path walking is largely split up into 2 different synchronisation
@@ -1609,23 +1620,55 @@ static int path_lookupat(int dfd, const char *name,
 	 * be handled by restarting a traditional ref-walk (which will always
 	 * be able to complete).
 	 */
-	retval = path_init(dfd, name, flags, nd, &base);
+	err = path_init(dfd, name, flags | LOOKUP_PARENT, nd, &base);
 
-	if (unlikely(retval))
-		return retval;
+	if (unlikely(err))
+		return err;
 
 	current->total_link_count = 0;
-	retval = link_path_walk(name, nd);
+	err = link_path_walk(name, nd);
+
+	if (!err && !(flags & LOOKUP_PARENT)) {
+		int count = 0;
+		err = lookup_last(nd, &path);
+		while (err > 0) {
+			void *cookie;
+			struct path link = path;
+			struct inode *inode = link.dentry->d_inode;
+
+			if (count++ > 32) {
+				path_put_conditional(&path, nd);
+				path_put(&nd->path);
+				err = -ELOOP;
+				break;
+			}
+			cond_resched();
+			nd->flags |= LOOKUP_PARENT;
+			err = __do_follow_link(&link, nd, &cookie);
+			if (!err)
+				err = lookup_last(nd, &path);
+			if (!IS_ERR(cookie) && inode->i_op->put_link)
+				inode->i_op->put_link(link.dentry, nd, cookie);
+			path_put(&link);
+		}
+	}
 
 	if (nd->flags & LOOKUP_RCU) {
 		/* went all way through without dropping RCU */
-		BUG_ON(retval);
+		BUG_ON(err);
 		if (nameidata_drop_rcu_last(nd))
-			retval = -ECHILD;
+			err = -ECHILD;
 	}
 
-	if (!retval)
-		retval = handle_reval_path(nd);
+	if (!err)
+		err = handle_reval_path(nd);
+
+	if (!err && nd->flags & LOOKUP_DIRECTORY) {
+		if (!nd->inode->i_op->lookup) {
+			path_put(&nd->path);
+			return -ENOTDIR;
+		}
+	}
 
 	if (base)
 		fput(base);
@@ -1634,7 +1677,7 @@ static int path_lookupat(int dfd, const char *name,
 		path_put(&nd->root);
 		nd->root.mnt = NULL;
 	}
-	return retval;
+	return err;
 }
 
 static int do_path_lookup(int dfd, const char *name,
