@@ -3976,7 +3976,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #endif /* ATH_DEBUG_MODULE */
 #ifdef HTC_EP_STAT_PROFILING
                 {
-                    HTC_ENDPOINT_STATS stats;
+                    struct htc_endpoint_stats stats;
                     int i;
 
                     for (i = 0; i < 5; i++) {

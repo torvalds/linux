@@ -83,7 +83,7 @@ struct htc_endpoint {
     u8 SeqNo;                  /* TX seq no (helpful) for debugging */
     u32 LocalConnectionFlags;   /* local connection flags */
 #ifdef HTC_EP_STAT_PROFILING
-    HTC_ENDPOINT_STATS          EndPointStats;          /* endpoint statistics */
+    struct htc_endpoint_stats          EndPointStats;          /* endpoint statistics */
 #endif
 };
 

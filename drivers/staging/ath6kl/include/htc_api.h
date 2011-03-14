@@ -231,7 +231,7 @@ typedef enum _HTC_ENDPOINT_STAT_ACTION {
 } HTC_ENDPOINT_STAT_ACTION;
 
     /* endpoint statistics */
-typedef struct _HTC_ENDPOINT_STATS {
+struct htc_endpoint_stats {
     u32 TxCreditLowIndications;  /* number of times the host set the credit-low flag in a send message on
                                         this endpoint */
     u32 TxIssued;               /* running count of total TX packets issued */
@@ -255,7 +255,7 @@ typedef struct _HTC_ENDPOINT_STATS {
     u32 RxBundleIndFromHdr;     /* count of the number of bundle indications from the HTC header */
     u32 RxAllocThreshHit;       /* count of the number of times the recv allocation threshhold was hit */
     u32 RxAllocThreshBytes;     /* total number of bytes */
-} HTC_ENDPOINT_STATS;
+};
 
 /* ------ Function Prototypes ------ */
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -472,7 +472,7 @@ void        HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
 bool       HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
                                       HTC_ENDPOINT_ID          Endpoint,
                                       HTC_ENDPOINT_STAT_ACTION Action,
-                                      HTC_ENDPOINT_STATS       *pStats);
+                                      struct htc_endpoint_stats       *pStats);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Unblock HTC message reception

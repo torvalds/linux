@@ -524,7 +524,7 @@ static void HTCReportFailure(void *Context)
 bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
                                 HTC_ENDPOINT_ID          Endpoint,
                                 HTC_ENDPOINT_STAT_ACTION Action,
-                                HTC_ENDPOINT_STATS       *pStats)
+                                struct htc_endpoint_stats       *pStats)
 {
 
 #ifdef HTC_EP_STAT_PROFILING
@@ -556,12 +556,12 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
     if (sample) {
         A_ASSERT(pStats != NULL);
             /* return the stats to the caller */
-        memcpy(pStats, &target->EndPoint[Endpoint].EndPointStats, sizeof(HTC_ENDPOINT_STATS));
+        memcpy(pStats, &target->EndPoint[Endpoint].EndPointStats, sizeof(struct htc_endpoint_stats));
     }
 
     if (clearStats) {
             /* reset stats */
-        A_MEMZERO(&target->EndPoint[Endpoint].EndPointStats, sizeof(HTC_ENDPOINT_STATS));
+        A_MEMZERO(&target->EndPoint[Endpoint].EndPointStats, sizeof(struct htc_endpoint_stats));
     }
 
     UNLOCK_HTC_RX(target);
