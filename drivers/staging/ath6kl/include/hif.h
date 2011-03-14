@@ -223,10 +223,10 @@ typedef enum {
  * 
  */
 
-typedef struct {
+struct hif_mbox_properties {
     u32 ExtendedAddress;  /* extended address for larger writes */
     u32 ExtendedSize;
-} HIF_MBOX_PROPERTIES;
+};
 
 #define HIF_MBOX_FLAG_NO_BUNDLING   (1 << 0)   /* do not allow bundling over the mailbox */
 
@@ -240,7 +240,7 @@ struct hif_device_mbox_info {
                                    and ARRAY of 32-bit words */
     
         /* the following describe extended mailbox properties */
-    HIF_MBOX_PROPERTIES MboxProp[4];
+    struct hif_mbox_properties MboxProp[4];
         /* if the HIF supports the GMbox extended address region it can report it
          * here, some interfaces cannot support the GMBOX address range and not set this */
     u32 GMboxAddress;
