@@ -642,7 +642,7 @@ static int __init blkif_init(void)
 	if (!xen_pv_domain())
 		return -ENODEV;
 
-	blkbk = (struct xen_blkbk *)vmalloc(sizeof(struct xen_blkbk));
+	blkbk = (struct xen_blkbk *)kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);
 	if (!blkbk) {
 		printk(KERN_ALERT "%s: out of memory!\n", __func__);
 		return -ENOMEM;
@@ -652,9 +652,10 @@ static int __init blkif_init(void)
 
 	blkbk->pending_reqs          = kmalloc(sizeof(blkbk->pending_reqs[0]) *
 					blkif_reqs, GFP_KERNEL);
-	blkbk->pending_grant_handles = vzalloc(sizeof(blkbk->pending_grant_handles[0]) *
-					mmap_pages);
-	blkbk->pending_pages         = vzalloc(sizeof(blkbk->pending_pages[0]) * mmap_pages);
+	blkbk->pending_grant_handles = kzalloc(sizeof(blkbk->pending_grant_handles[0]) *
+					mmap_pages, GFP_KERNEL);
+	blkbk->pending_pages         = kzalloc(sizeof(blkbk->pending_pages[0]) *
+					mmap_pages, GFP_KERNEL);
 
 	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles || !blkbk->pending_pages) {
 		rc = -ENOMEM;
@@ -663,7 +664,7 @@ static int __init blkif_init(void)
 
 	for (i = 0; i < mmap_pages; i++) {
 		blkbk->pending_grant_handles[i] = BLKBACK_INVALID_HANDLE;
-		blkbk->pending_pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
+		blkbk->pending_pages[i] = alloc_page(GFP_KERNEL);
 		if (blkbk->pending_pages[i] == NULL) {
 			rc = -ENOMEM;
 			goto out_of_memory;
@@ -692,13 +693,13 @@ static int __init blkif_init(void)
 	printk(KERN_ERR "%s: out of memory\n", __func__);
  failed_init:
 	kfree(blkbk->pending_reqs);
-	vfree(blkbk->pending_grant_handles);
+	kfree(blkbk->pending_grant_handles);
 	for (i = 0; i < mmap_pages; i++) {
 		if (blkbk->pending_pages[i])
 			__free_page(blkbk->pending_pages[i]);
 	}
-	vfree(blkbk->pending_pages);
-	vfree(blkbk);
+	kfree(blkbk->pending_pages);
+	kfree(blkbk);
 	blkbk = NULL;
 	return rc;
 }
