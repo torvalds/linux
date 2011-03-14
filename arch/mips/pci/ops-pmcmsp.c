@@ -308,7 +308,7 @@ static struct resource pci_mem_resource = {
  *  RETURNS:     PCIBIOS_SUCCESSFUL  - success
  *
  ****************************************************************************/
-static int bpci_interrupt(int irq, void *dev_id)
+static irqreturn_t bpci_interrupt(int irq, void *dev_id)
 {
 	struct msp_pci_regs *preg = (void *)PCI_BASE_REG;
 	unsigned int stat = preg->if_status;
@@ -326,7 +326,7 @@ static int bpci_interrupt(int irq, void *dev_id)
 	/* write to clear all asserted interrupts */
 	preg->if_status = stat;
 
-	return PCIBIOS_SUCCESSFUL;
+	return IRQ_HANDLED;
 }
 
 /*****************************************************************************

@@ -81,7 +81,7 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = cpu_rate/2;
 }
 
-unsigned int __init get_c0_compare_int(void)
+unsigned int __cpuinit get_c0_compare_int(void)
 {
 	return MSP_INT_VPE0_TIMER;
 }
