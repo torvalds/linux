@@ -571,6 +571,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 		unsigned long tx_reg, rx_reg;
 		struct edmacc_param param;
 		void *rx_buf;
+		int b, c;
 
 		dma = &dspi->dma;
 
@@ -599,14 +600,30 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 			}
 		}
 
+		/*
+		 * If number of words is greater than 65535, then we need
+		 * to configure a 3 dimension transfer.  Use the BCNTRLD
+		 * feature to allow for transfers that aren't even multiples
+		 * of 65535 (or any other possible b size) by first transferring
+		 * the remainder amount then grabbing the next N blocks of
+		 * 65535 words.
+		 */
+
+		c = dspi->wcount / (SZ_64K - 1);	/* N 65535 Blocks */
+		b = dspi->wcount - c * (SZ_64K - 1);	/* Remainder */
+		if (b)
+			c++;
+		else
+			b = SZ_64K - 1;
+
 		param.opt = TCINTEN | EDMA_TCC(dma->tx_channel);
 		param.src = t->tx_buf ? t->tx_dma : tx_reg;
-		param.a_b_cnt = dspi->wcount << 16 | data_type;
+		param.a_b_cnt = b << 16 | data_type;
 		param.dst = tx_reg;
 		param.src_dst_bidx = t->tx_buf ? data_type : 0;
-		param.link_bcntrld = 0xffff;
-		param.src_dst_cidx = 0;
-		param.ccnt = 1;
+		param.link_bcntrld = 0xffffffff;
+		param.src_dst_cidx = t->tx_buf ? data_type : 0;
+		param.ccnt = c;
 		edma_write_slot(dma->tx_channel, &param);
 		edma_link(dma->tx_channel, dma->dummy_param_slot);
 
@@ -643,12 +660,12 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		param.opt = TCINTEN | EDMA_TCC(dma->rx_channel);
 		param.src = rx_reg;
-		param.a_b_cnt = dspi->rcount << 16 | data_type;
+		param.a_b_cnt = b << 16 | data_type;
 		param.dst = t->rx_dma;
 		param.src_dst_bidx = (t->rx_buf ? data_type : 0) << 16;
-		param.link_bcntrld = 0xffff;
-		param.src_dst_cidx = 0;
-		param.ccnt = 1;
+		param.link_bcntrld = 0xffffffff;
+		param.src_dst_cidx = (t->rx_buf ? data_type : 0) << 16;
+		param.ccnt = c;
 		edma_write_slot(dma->rx_channel, &param);
 
 		if (pdata->cshold_bug)
