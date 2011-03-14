@@ -270,11 +270,11 @@ struct hif_device_irq_yield_params {
 };
 
 
-typedef struct _HIF_SCATTER_ITEM {
+struct hif_scatter_item {
     u8 *pBuffer;             /* CPU accessible address of buffer */
     int          Length;              /* length of transfer to/from this buffer */
     void        *pCallerContexts[2];  /* space for caller to insert a context associated with this item */
-} HIF_SCATTER_ITEM;
+};
 
 struct _HIF_SCATTER_REQ;
 
@@ -299,7 +299,7 @@ typedef struct _HIF_SCATTER_REQ {
     HIF_SCATTER_METHOD  ScatterMethod;        /* scatter method handled by HIF */  
     void                *HIFPrivate[4];     /* HIF private area */
     u8 *pScatterBounceBuffer;  /* bounce buffer for upper layers to copy to/from */
-    HIF_SCATTER_ITEM    ScatterList[1];     /* start of scatter list */
+    struct hif_scatter_item    ScatterList[1];     /* start of scatter list */
 } HIF_SCATTER_REQ;
 
 typedef HIF_SCATTER_REQ * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);

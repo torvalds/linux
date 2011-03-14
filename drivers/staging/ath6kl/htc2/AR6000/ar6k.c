@@ -761,7 +761,7 @@ static int DevSetupVirtualScatterSupport(struct ar6k_device *pDev)
                 2 * (A_GET_CACHE_LINE_BYTES()) + AR6K_MAX_TRANSFER_SIZE_PER_SCATTER;
 
     sgreqSize = sizeof(HIF_SCATTER_REQ) +
-                    (AR6K_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(HIF_SCATTER_ITEM));
+                    (AR6K_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(struct hif_scatter_item));
 
     for (i = 0; i < AR6K_SCATTER_REQS; i++) {
             /* allocate the scatter request, buffer info and the actual virtual buffer itself */

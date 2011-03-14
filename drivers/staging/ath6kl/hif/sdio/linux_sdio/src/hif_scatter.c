@@ -306,7 +306,7 @@ int SetupHIFScatterSupport(HIF_DEVICE *device, struct hif_device_scatter_support
             pReqPriv->device = device;      
                 /* allocate the scatter request */
             pReqPriv->pHifScatterReq = (HIF_SCATTER_REQ *)A_MALLOC(sizeof(HIF_SCATTER_REQ) + 
-                                         (MAX_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(HIF_SCATTER_ITEM))); 
+                                         (MAX_SCATTER_ENTRIES_PER_REQ - 1) * (sizeof(struct hif_scatter_item))); 
            
             if (NULL == pReqPriv->pHifScatterReq) {
                 A_FREE(pReqPriv);
