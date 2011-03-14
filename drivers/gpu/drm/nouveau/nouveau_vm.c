@@ -314,18 +314,7 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 		vm->spg_shift = 12;
 		vm->lpg_shift = 17;
 		pgt_bits = 27;
-
-		/* Should be 4096 everywhere, this is a hack that's
-		 * currently necessary to avoid an elusive bug that
-		 * causes corruption when mixing small/large pages
-		 */
-		if (length < (1ULL << 40))
-			block = 4096;
-		else {
-			block = (1 << pgt_bits);
-			if (length < block)
-				block = length;
-		}
+		block = 4096;
 	} else {
 		kfree(vm);
 		return -ENOSYS;

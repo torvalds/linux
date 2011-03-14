@@ -27,6 +27,9 @@
 #include "drmP.h"
 #include "drm.h"
 
+#include <linux/ktime.h>
+#include <linux/hrtimer.h>
+
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
 #include "nouveau_dma.h"
@@ -229,7 +232,8 @@ int
 __nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 {
 	unsigned long timeout = jiffies + (3 * DRM_HZ);
-	unsigned long sleep_time = jiffies + 1;
+	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
+	ktime_t t;
 	int ret = 0;
 
 	while (1) {
@@ -243,8 +247,13 @@ __nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 
 		__set_current_state(intr ? TASK_INTERRUPTIBLE
 			: TASK_UNINTERRUPTIBLE);
-		if (lazy && time_after_eq(jiffies, sleep_time))
-			schedule_timeout(1);
+		if (lazy) {
+			t = ktime_set(0, sleep_time);
+			schedule_hrtimeout(&t, HRTIMER_MODE_REL);
+			sleep_time *= 2;
+			if (sleep_time > NSEC_PER_MSEC)
+				sleep_time = NSEC_PER_MSEC;
+		}
 
 		if (intr && signal_pending(current)) {
 			ret = -ERESTARTSYS;

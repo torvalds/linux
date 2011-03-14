@@ -550,11 +550,11 @@ nv86_graph_tlb_flush(struct drm_device *dev)
 
 static struct nouveau_enum nv50_mp_exec_error_names[] =
 {
-	{ 3, "STACK_UNDERFLOW" },
-	{ 4, "QUADON_ACTIVE" },
-	{ 8, "TIMEOUT" },
-	{ 0x10, "INVALID_OPCODE" },
-	{ 0x40, "BREAKPOINT" },
+	{ 3, "STACK_UNDERFLOW", NULL },
+	{ 4, "QUADON_ACTIVE", NULL },
+	{ 8, "TIMEOUT", NULL },
+	{ 0x10, "INVALID_OPCODE", NULL },
+	{ 0x40, "BREAKPOINT", NULL },
 	{}
 };
 
@@ -582,47 +582,47 @@ static struct nouveau_bitfield nv50_graph_trap_ccache[] = {
 
 /* There must be a *lot* of these. Will take some time to gather them up. */
 struct nouveau_enum nv50_data_error_names[] = {
-	{ 0x00000003, "INVALID_QUERY_OR_TEXTURE" },
-	{ 0x00000004, "INVALID_VALUE" },
-	{ 0x00000005, "INVALID_ENUM" },
-	{ 0x00000008, "INVALID_OBJECT" },
-	{ 0x00000009, "READ_ONLY_OBJECT" },
-	{ 0x0000000a, "SUPERVISOR_OBJECT" },
-	{ 0x0000000b, "INVALID_ADDRESS_ALIGNMENT" },
-	{ 0x0000000c, "INVALID_BITFIELD" },
-	{ 0x0000000d, "BEGIN_END_ACTIVE" },
-	{ 0x0000000e, "SEMANTIC_COLOR_BACK_OVER_LIMIT" },
-	{ 0x0000000f, "VIEWPORT_ID_NEEDS_GP" },
-	{ 0x00000010, "RT_DOUBLE_BIND" },
-	{ 0x00000011, "RT_TYPES_MISMATCH" },
-	{ 0x00000012, "RT_LINEAR_WITH_ZETA" },
-	{ 0x00000015, "FP_TOO_FEW_REGS" },
-	{ 0x00000016, "ZETA_FORMAT_CSAA_MISMATCH" },
-	{ 0x00000017, "RT_LINEAR_WITH_MSAA" },
-	{ 0x00000018, "FP_INTERPOLANT_START_OVER_LIMIT" },
-	{ 0x00000019, "SEMANTIC_LAYER_OVER_LIMIT" },
-	{ 0x0000001a, "RT_INVALID_ALIGNMENT" },
-	{ 0x0000001b, "SAMPLER_OVER_LIMIT" },
-	{ 0x0000001c, "TEXTURE_OVER_LIMIT" },
-	{ 0x0000001e, "GP_TOO_MANY_OUTPUTS" },
-	{ 0x0000001f, "RT_BPP128_WITH_MS8" },
-	{ 0x00000021, "Z_OUT_OF_BOUNDS" },
-	{ 0x00000023, "XY_OUT_OF_BOUNDS" },
-	{ 0x00000027, "CP_MORE_PARAMS_THAN_SHARED" },
-	{ 0x00000028, "CP_NO_REG_SPACE_STRIPED" },
-	{ 0x00000029, "CP_NO_REG_SPACE_PACKED" },
-	{ 0x0000002a, "CP_NOT_ENOUGH_WARPS" },
-	{ 0x0000002b, "CP_BLOCK_SIZE_MISMATCH" },
-	{ 0x0000002c, "CP_NOT_ENOUGH_LOCAL_WARPS" },
-	{ 0x0000002d, "CP_NOT_ENOUGH_STACK_WARPS" },
-	{ 0x0000002e, "CP_NO_BLOCKDIM_LATCH" },
-	{ 0x00000031, "ENG2D_FORMAT_MISMATCH" },
-	{ 0x0000003f, "PRIMITIVE_ID_NEEDS_GP" },
-	{ 0x00000044, "SEMANTIC_VIEWPORT_OVER_LIMIT" },
-	{ 0x00000045, "SEMANTIC_COLOR_FRONT_OVER_LIMIT" },
-	{ 0x00000046, "LAYER_ID_NEEDS_GP" },
-	{ 0x00000047, "SEMANTIC_CLIP_OVER_LIMIT" },
-	{ 0x00000048, "SEMANTIC_PTSZ_OVER_LIMIT" },
+	{ 0x00000003, "INVALID_QUERY_OR_TEXTURE", NULL },
+	{ 0x00000004, "INVALID_VALUE", NULL },
+	{ 0x00000005, "INVALID_ENUM", NULL },
+	{ 0x00000008, "INVALID_OBJECT", NULL },
+	{ 0x00000009, "READ_ONLY_OBJECT", NULL },
+	{ 0x0000000a, "SUPERVISOR_OBJECT", NULL },
+	{ 0x0000000b, "INVALID_ADDRESS_ALIGNMENT", NULL },
+	{ 0x0000000c, "INVALID_BITFIELD", NULL },
+	{ 0x0000000d, "BEGIN_END_ACTIVE", NULL },
+	{ 0x0000000e, "SEMANTIC_COLOR_BACK_OVER_LIMIT", NULL },
+	{ 0x0000000f, "VIEWPORT_ID_NEEDS_GP", NULL },
+	{ 0x00000010, "RT_DOUBLE_BIND", NULL },
+	{ 0x00000011, "RT_TYPES_MISMATCH", NULL },
+	{ 0x00000012, "RT_LINEAR_WITH_ZETA", NULL },
+	{ 0x00000015, "FP_TOO_FEW_REGS", NULL },
+	{ 0x00000016, "ZETA_FORMAT_CSAA_MISMATCH", NULL },
+	{ 0x00000017, "RT_LINEAR_WITH_MSAA", NULL },
+	{ 0x00000018, "FP_INTERPOLANT_START_OVER_LIMIT", NULL },
+	{ 0x00000019, "SEMANTIC_LAYER_OVER_LIMIT", NULL },
+	{ 0x0000001a, "RT_INVALID_ALIGNMENT", NULL },
+	{ 0x0000001b, "SAMPLER_OVER_LIMIT", NULL },
+	{ 0x0000001c, "TEXTURE_OVER_LIMIT", NULL },
+	{ 0x0000001e, "GP_TOO_MANY_OUTPUTS", NULL },
+	{ 0x0000001f, "RT_BPP128_WITH_MS8", NULL },
+	{ 0x00000021, "Z_OUT_OF_BOUNDS", NULL },
+	{ 0x00000023, "XY_OUT_OF_BOUNDS", NULL },
+	{ 0x00000027, "CP_MORE_PARAMS_THAN_SHARED", NULL },
+	{ 0x00000028, "CP_NO_REG_SPACE_STRIPED", NULL },
+	{ 0x00000029, "CP_NO_REG_SPACE_PACKED", NULL },
+	{ 0x0000002a, "CP_NOT_ENOUGH_WARPS", NULL },
+	{ 0x0000002b, "CP_BLOCK_SIZE_MISMATCH", NULL },
+	{ 0x0000002c, "CP_NOT_ENOUGH_LOCAL_WARPS", NULL },
+	{ 0x0000002d, "CP_NOT_ENOUGH_STACK_WARPS", NULL },
+	{ 0x0000002e, "CP_NO_BLOCKDIM_LATCH", NULL },
+	{ 0x00000031, "ENG2D_FORMAT_MISMATCH", NULL },
+	{ 0x0000003f, "PRIMITIVE_ID_NEEDS_GP", NULL },
+	{ 0x00000044, "SEMANTIC_VIEWPORT_OVER_LIMIT", NULL },
+	{ 0x00000045, "SEMANTIC_COLOR_FRONT_OVER_LIMIT", NULL },
+	{ 0x00000046, "LAYER_ID_NEEDS_GP", NULL },
+	{ 0x00000047, "SEMANTIC_CLIP_OVER_LIMIT", NULL },
+	{ 0x00000048, "SEMANTIC_PTSZ_OVER_LIMIT", NULL },
 	{}
 };
 
@@ -702,7 +702,6 @@ nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
 		tps++;
 		switch (type) {
 		case 6: /* texture error... unknown for now */
-			nv50_fb_vm_trap(dev, display, name);
 			if (display) {
 				NV_ERROR(dev, "magic set %d:\n", i);
 				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
@@ -725,7 +724,6 @@ nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
 			uint32_t e1c = nv_rd32(dev, ustatus_addr + 0x14);
 			uint32_t e20 = nv_rd32(dev, ustatus_addr + 0x18);
 			uint32_t e24 = nv_rd32(dev, ustatus_addr + 0x1c);
-			nv50_fb_vm_trap(dev, display, name);
 			/* 2d engine destination */
 			if (ustatus & 0x00000010) {
 				if (display) {
@@ -1068,6 +1066,7 @@ nv50_graph_isr(struct drm_device *dev)
 			NV_INFO(dev, "PGRAPH - ch %d (0x%010llx) subc %d "
 				     "class 0x%04x mthd 0x%04x data 0x%08x\n",
 				chid, inst, subc, class, mthd, data);
+			nv50_fb_vm_trap(dev, 1);
 		}
 	}
 
