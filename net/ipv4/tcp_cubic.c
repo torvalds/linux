@@ -52,6 +52,7 @@ static int tcp_friendliness __read_mostly = 1;
 static int hystart __read_mostly = 1;
 static int hystart_detect __read_mostly = HYSTART_ACK_TRAIN | HYSTART_DELAY;
 static int hystart_low_window __read_mostly = 16;
+static int hystart_ack_delta __read_mostly = 2;
 
 static u32 cube_rtt_scale __read_mostly;
 static u32 beta_scale __read_mostly;
@@ -75,6 +76,8 @@ MODULE_PARM_DESC(hystart_detect, "hyrbrid slow start detection mechanisms"
 		 " 1: packet-train 2: delay 3: both packet-train and delay");
 module_param(hystart_low_window, int, 0644);
 MODULE_PARM_DESC(hystart_low_window, "lower bound cwnd for hybrid slow start");
+module_param(hystart_ack_delta, int, 0644);
+MODULE_PARM_DESC(hystart_ack_delta, "spacing between ack's indicating train (msecs)");
 
 /* BIC TCP Parameters */
 struct bictcp {
@@ -343,7 +346,7 @@ static void hystart_update(struct sock *sk, u32 delay)
 
 		/* first detection parameter - ack-train detection */
 		if ((s32)(curr_jiffies - ca->last_jiffies) <=
-		    msecs_to_jiffies(2)) {
+		    msecs_to_jiffies(hystart_ack_delta)) {
 			ca->last_jiffies = curr_jiffies;
 			if ((s32) (curr_jiffies - ca->round_start) >
 			    ca->delay_min >> 4)
