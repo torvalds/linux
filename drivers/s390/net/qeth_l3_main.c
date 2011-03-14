@@ -3392,6 +3392,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
 				card->dev->dev_id = card->info.unique_id &
 							 0xffff;
+			if (!card->info.guestlan)
+				card->dev->features |= NETIF_F_GRO;
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
 		card->dev = alloc_netdev(0, "hsi%d", ether_setup);
@@ -3430,6 +3432,9 @@ static int qeth_l3_probe_device(struct ccwgroup_device *gdev)
 	card->discipline.output_handler = (qdio_handler_t *)
 		qeth_qdio_output_handler;
 	card->discipline.recover = qeth_l3_recover;
+	if ((card->info.type == QETH_CARD_TYPE_OSD) ||
+	    (card->info.type == QETH_CARD_TYPE_OSX))
+		card->options.checksum_type = HW_CHECKSUMMING;
 	return 0;
 }
 

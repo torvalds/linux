@@ -225,7 +225,8 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 /*****************************************************************************/
 #define QETH_MAX_QUEUES 4
 #define QETH_IN_BUF_SIZE_DEFAULT 65536
-#define QETH_IN_BUF_COUNT_DEFAULT 16
+#define QETH_IN_BUF_COUNT_DEFAULT 64
+#define QETH_IN_BUF_COUNT_HSDEFAULT 128
 #define QETH_IN_BUF_COUNT_MIN 8
 #define QETH_IN_BUF_COUNT_MAX 128
 #define QETH_MAX_BUFFER_ELEMENTS(card) ((card)->qdio.in_buf_size >> 12)
