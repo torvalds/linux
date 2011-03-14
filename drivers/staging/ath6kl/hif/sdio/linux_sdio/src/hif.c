@@ -723,7 +723,7 @@ HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
             if (!device->scatter_enabled) {
                 return A_ENOTSUP;    
             }
-            status = SetupHIFScatterSupport(device, (HIF_DEVICE_SCATTER_SUPPORT_INFO *)config);
+            status = SetupHIFScatterSupport(device, (struct hif_device_scatter_support_info *)config);
             if (status) {
                 device->scatter_enabled = false;
             }

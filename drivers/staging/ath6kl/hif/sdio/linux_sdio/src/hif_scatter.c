@@ -275,7 +275,7 @@ static int HifReadWriteScatter(HIF_DEVICE *device, HIF_SCATTER_REQ *pReq)
 }
 
     /* setup of HIF scatter resources */
-int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo)
+int SetupHIFScatterSupport(HIF_DEVICE *device, struct hif_device_scatter_support_info *pInfo)
 {
     int              status = A_ERROR;
     int                   i;

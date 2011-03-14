@@ -110,13 +110,13 @@ typedef struct _HIF_SCATTER_REQ_PRIV {
 
 #define ATH_DEBUG_SCATTER  ATH_DEBUG_MAKE_MODULE_MASK(0)
 
-int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo);
+int SetupHIFScatterSupport(HIF_DEVICE *device, struct hif_device_scatter_support_info *pInfo);
 void CleanupHIFScatterResources(HIF_DEVICE *device);
 int DoHifReadWriteScatter(HIF_DEVICE *device, BUS_REQUEST *busrequest);
 
 #else  // HIF_LINUX_MMC_SCATTER_SUPPORT
 
-static inline int SetupHIFScatterSupport(HIF_DEVICE *device, HIF_DEVICE_SCATTER_SUPPORT_INFO *pInfo)
+static inline int SetupHIFScatterSupport(HIF_DEVICE *device, struct hif_device_scatter_support_info *pInfo)
 {
     return A_ENOTSUP;
 }

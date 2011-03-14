@@ -132,7 +132,7 @@ struct ar6k_device {
     struct hif_device_irq_yield_params     HifIRQYieldParams;
     bool                          DSRCanYield;
     int                             CurrentDSRRecvCount;
-    HIF_DEVICE_SCATTER_SUPPORT_INFO HifScatterInfo;
+    struct hif_device_scatter_support_info HifScatterInfo;
     struct dl_list                         ScatterReqHead; 
     bool                          ScatterIsVirtual;
     int                             MaxRecvBundleSize;

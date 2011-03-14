@@ -203,7 +203,7 @@ typedef enum {
  *   
  *   HIF_CONFIGURE_QUERY_SCATTER_REQUEST_SUPPORT
  *   input : none
- *   output : HIF_DEVICE_SCATTER_SUPPORT_INFO
+ *   output : struct hif_device_scatter_support_info
  *   note:  This query checks if the HIF layer implements the SCATTER request interface.  Scatter requests
  *   allows upper layers to submit mailbox I/O operations using a list of buffers.  This is useful for
  *   multi-message transfers that can better utilize the bus interconnect.
@@ -306,14 +306,14 @@ typedef HIF_SCATTER_REQ * ( *HIF_ALLOCATE_SCATTER_REQUEST)(HIF_DEVICE *device);
 typedef void ( *HIF_FREE_SCATTER_REQUEST)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
 typedef int ( *HIF_READWRITE_SCATTER)(HIF_DEVICE *device, HIF_SCATTER_REQ *request);
 
-typedef struct _HIF_DEVICE_SCATTER_SUPPORT_INFO {
+struct hif_device_scatter_support_info {
         /* information returned from HIF layer */
     HIF_ALLOCATE_SCATTER_REQUEST    pAllocateReqFunc;
     HIF_FREE_SCATTER_REQUEST        pFreeReqFunc;
     HIF_READWRITE_SCATTER           pReadWriteScatterFunc;    
     int                             MaxScatterEntries;
     int                             MaxTransferSizePerScatterReq;
-} HIF_DEVICE_SCATTER_SUPPORT_INFO;
+};
                       
 struct hif_device_os_device_info {
     void    *pOSDevice;
