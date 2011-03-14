@@ -125,6 +125,11 @@ struct cee_pfc {
 	__u8    tcs_supported;
 };
 
+/* IEEE 802.1Qaz std supported values */
+#define IEEE_8021QAZ_APP_SEL_ETHERTYPE	1
+#define IEEE_8021QAZ_APP_SEL_STREAM	2
+#define IEEE_8021QAZ_APP_SEL_DGRAM	3
+#define IEEE_8021QAZ_APP_SEL_ANY	4
 
 /* This structure contains the IEEE 802.1Qaz APP managed object. This
  * object is also used for the CEE std as well. There is no difference
