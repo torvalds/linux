@@ -49,7 +49,7 @@ typedef struct ar6k_hci_pal_info_s{
 #define HCI_NORMAL_MODE (1)
 #define HCI_REGISTERED (1<<1)
 	struct hci_dev *hdev;            /* BT Stack HCI dev */
-	AR_SOFTC_T *ar;
+	struct ar6_softc *ar;
 
 }ar6k_hci_pal_info_t;
 
@@ -122,7 +122,7 @@ static int btpal_send_frame(struct sk_buff *skb)
 	ar6k_hci_pal_info_t *pHciPalInfo;
 	int status = 0;
 	struct sk_buff *txSkb = NULL;
-	AR_SOFTC_T *ar;
+	struct ar6_softc *ar;
 
 	if (!hdev) {
 		PRIN_LOG("HCI PAL: btpal_send_frame - no device\n");
@@ -313,7 +313,7 @@ static int bt_setup_hci_pal(ar6k_hci_pal_info_t *pHciPalInfo)
  *********************************************/
 void ar6k_cleanup_hci_pal(void *ar_p)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar_p;
+	struct ar6_softc *ar = (struct ar6_softc *)ar_p;
 	ar6k_hci_pal_info_t *pHciPalInfo = (ar6k_hci_pal_info_t *)ar->hcipal_info;
 
 	if (pHciPalInfo != NULL) {
@@ -405,7 +405,7 @@ int ar6k_setup_hci_pal(void *ar_p)
 	int status = 0;
 	ar6k_hci_pal_info_t *pHciPalInfo;
 	ar6k_pal_config_t ar6k_pal_config;
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar_p;
+	struct ar6_softc *ar = (struct ar6_softc *)ar_p;
 
 	do {
 

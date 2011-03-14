@@ -466,7 +466,7 @@ typedef struct ar6_raw_htc {
     bool                  read_buffer_available[HTC_RAW_STREAM_NUM_MAX];
 } AR_RAW_HTC_T;
 
-typedef struct ar6_softc {
+struct ar6_softc {
     struct net_device       *arNetDev;    /* net_device pointer */
     void                    *arWmi;
     int                     arTxPending[ENDPOINT_MAX];
@@ -622,12 +622,12 @@ typedef struct ar6_softc {
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
     void                    *arApDev;
 #endif
-} AR_SOFTC_T;
+};
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
 struct ar_virtual_interface {
     struct net_device       *arNetDev;    /* net_device pointer */
-    AR_SOFTC_T              *arDev;       /* ar device pointer */
+    struct ar6_softc              *arDev;       /* ar device pointer */
     struct net_device       *arStaNetDev; /* net_device pointer */
 };
 #endif /* CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT */
@@ -704,11 +704,11 @@ struct ar_giwscan_param {
 int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int ar6000_ioctl_dispatcher(struct net_device *dev, struct ifreq *rq, int cmd);
 void ar6000_gpio_init(void);
-void ar6000_init_profile_info(AR_SOFTC_T *ar);
-void ar6000_install_static_wep_keys(AR_SOFTC_T *ar);
+void ar6000_init_profile_info(struct ar6_softc *ar);
+void ar6000_install_static_wep_keys(struct ar6_softc *ar);
 int ar6000_init(struct net_device *dev);
-int ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar);
-void ar6000_TxDataCleanup(AR_SOFTC_T *ar);
+int ar6000_dbglog_get_debug_logs(struct ar6_softc *ar);
+void ar6000_TxDataCleanup(struct ar6_softc *ar);
 int ar6000_acl_data_tx(struct sk_buff *skb, struct net_device *dev);
 void ar6000_restart_endpoint(struct net_device *dev);
 void ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs);
@@ -719,12 +719,12 @@ void ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbgl
 #define __user
 #endif
 
-int ar6000_htc_raw_open(AR_SOFTC_T *ar);
-int ar6000_htc_raw_close(AR_SOFTC_T *ar);
-ssize_t ar6000_htc_raw_read(AR_SOFTC_T *ar,
+int ar6000_htc_raw_open(struct ar6_softc *ar);
+int ar6000_htc_raw_close(struct ar6_softc *ar);
+ssize_t ar6000_htc_raw_read(struct ar6_softc *ar,
                             HTC_RAW_STREAM_ID StreamID,
                             char __user *buffer, size_t count);
-ssize_t ar6000_htc_raw_write(AR_SOFTC_T *ar,
+ssize_t ar6000_htc_raw_write(struct ar6_softc *ar,
                              HTC_RAW_STREAM_ID StreamID,
                              char __user *buffer, size_t count);
 
@@ -733,22 +733,22 @@ ssize_t ar6000_htc_raw_write(AR_SOFTC_T *ar,
 /* AP mode */
 /*TODO: These routines should be moved to a file that is common across OS */
 sta_t *
-ieee80211_find_conn(AR_SOFTC_T *ar, u8 *node_addr);
+ieee80211_find_conn(struct ar6_softc *ar, u8 *node_addr);
 
 sta_t *
-ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, u8 aid);
+ieee80211_find_conn_for_aid(struct ar6_softc *ar, u8 aid);
 
-u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, u16 reason);
+u8 remove_sta(struct ar6_softc *ar, u8 *mac, u16 reason);
 
 /* HCI support */
 
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
-int ar6000_setup_hci(AR_SOFTC_T *ar);
-void     ar6000_cleanup_hci(AR_SOFTC_T *ar);
-void     ar6000_set_default_ar3kconfig(AR_SOFTC_T *ar, void *ar3kconfig);
+int ar6000_setup_hci(struct ar6_softc *ar);
+void     ar6000_cleanup_hci(struct ar6_softc *ar);
+void     ar6000_set_default_ar3kconfig(struct ar6_softc *ar, void *ar3kconfig);
 
 /* HCI bridge testing */
-int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb);
+int hci_test_send(struct ar6_softc *ar, struct sk_buff *skb);
 #endif
 
 ATH_DEBUG_DECLARE_EXTERN(htc);

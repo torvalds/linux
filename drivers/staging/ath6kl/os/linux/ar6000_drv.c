@@ -281,7 +281,7 @@ static void ar6000_cleanup_module(void);
 int ar6000_init(struct net_device *dev);
 static int ar6000_open(struct net_device *dev);
 static int ar6000_close(struct net_device *dev);
-static void ar6000_init_control_info(AR_SOFTC_T *ar);
+static void ar6000_init_control_info(struct ar6_softc *ar);
 static int ar6000_data_tx(struct sk_buff *skb, struct net_device *dev);
 
 void ar6000_destroy(struct net_device *dev, unsigned int unregister);
@@ -292,7 +292,7 @@ static struct iw_statistics *ar6000_get_iwstats(struct net_device * dev);
 
 static void disconnect_timer_handler(unsigned long ptr);
 
-void read_rssi_compensation_param(AR_SOFTC_T *ar);
+void read_rssi_compensation_param(struct ar6_softc *ar);
 
     /* for android builds we call external APIs that handle firmware download and configuration */
 #ifdef ANDROID_ENV
@@ -309,7 +309,7 @@ static int ar6000_avail_ev(void *context, void *hif_handle);
 
 static int ar6000_unavail_ev(void *context, void *hif_handle);
 
-int ar6000_configure_target(AR_SOFTC_T *ar);
+int ar6000_configure_target(struct ar6_softc *ar);
 
 static void ar6000_target_failure(void *Instance, int Status);
 
@@ -329,9 +329,9 @@ static void ar6000_deliver_frames_to_nw_stack(void * dev, void *osbuf);
 
 static struct htc_packet *ar6000_alloc_amsdu_rxbuf(void *Context, HTC_ENDPOINT_ID Endpoint, int Length);
 
-static void ar6000_refill_amsdu_rxbufs(AR_SOFTC_T *ar, int Count);
+static void ar6000_refill_amsdu_rxbufs(struct ar6_softc *ar, int Count);
 
-static void ar6000_cleanup_amsdu_rxbufs(AR_SOFTC_T *ar);
+static void ar6000_cleanup_amsdu_rxbufs(struct ar6_softc *ar);
 
 static ssize_t
 ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
@@ -344,17 +344,17 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
                        char *buf, loff_t pos, size_t count);
 
 static int
-ar6000_sysfs_bmi_init(AR_SOFTC_T *ar);
+ar6000_sysfs_bmi_init(struct ar6_softc *ar);
 
 /* HCI PAL callback function declarations */
-int ar6k_setup_hci_pal(AR_SOFTC_T *ar);
-void  ar6k_cleanup_hci_pal(AR_SOFTC_T *ar);
+int ar6k_setup_hci_pal(struct ar6_softc *ar);
+void  ar6k_cleanup_hci_pal(struct ar6_softc *ar);
 
 static void
-ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar);
+ar6000_sysfs_bmi_deinit(struct ar6_softc *ar);
 
 int
-ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode);
+ar6000_sysfs_bmi_get_config(struct ar6_softc *ar, u32 mode);
 
 /*
  * Static variables
@@ -364,13 +364,13 @@ struct net_device *ar6000_devices[MAX_AR6000];
 static int is_netdev_registered;
 extern struct iw_handler_def ath_iw_handler_def;
 DECLARE_WAIT_QUEUE_HEAD(arEvent);
-static void ar6000_cookie_init(AR_SOFTC_T *ar);
-static void ar6000_cookie_cleanup(AR_SOFTC_T *ar);
-static void ar6000_free_cookie(AR_SOFTC_T *ar, struct ar_cookie * cookie);
-static struct ar_cookie *ar6000_alloc_cookie(AR_SOFTC_T *ar);
+static void ar6000_cookie_init(struct ar6_softc *ar);
+static void ar6000_cookie_cleanup(struct ar6_softc *ar);
+static void ar6000_free_cookie(struct ar6_softc *ar, struct ar_cookie * cookie);
+static struct ar_cookie *ar6000_alloc_cookie(struct ar6_softc *ar);
 
 #ifdef USER_KEYS
-static int ar6000_reinstall_keys(AR_SOFTC_T *ar,u8 key_op_ctrl);
+static int ar6000_reinstall_keys(struct ar6_softc *ar,u8 key_op_ctrl);
 #endif
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
@@ -403,7 +403,7 @@ static struct net_device_ops ar6000_netdev_ops = {
 #define REPORT_DEBUG_LOGS_TO_APP
 
 int
-ar6000_set_host_app_area(AR_SOFTC_T *ar)
+ar6000_set_host_app_area(struct ar6_softc *ar)
 {
     u32 address, data;
     struct host_app_area_s host_app_area;
@@ -425,7 +425,7 @@ ar6000_set_host_app_area(AR_SOFTC_T *ar)
     return 0;
 }
 
-u32 dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
+u32 dbglog_get_debug_hdr_ptr(struct ar6_softc *ar)
 {
     u32 param;
     u32 address;
@@ -446,7 +446,7 @@ u32 dbglog_get_debug_hdr_ptr(AR_SOFTC_T *ar)
  * data stuctures over the diagnostic window.
  */
 void
-ar6000_dbglog_init_done(AR_SOFTC_T *ar)
+ar6000_dbglog_init_done(struct ar6_softc *ar)
 {
     ar->dbglog_init_done = true;
 }
@@ -518,7 +518,7 @@ dbglog_parse_debug_logs(s8 *datap, u32 len)
 }
 
 int
-ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
+ar6000_dbglog_get_debug_logs(struct ar6_softc *ar)
 {
     u32 data[8]; /* Should be able to accomodate struct dbglog_buf_s */
     u32 address;
@@ -596,7 +596,7 @@ ar6000_dbglog_get_debug_logs(AR_SOFTC_T *ar)
 }
 
 void
-ar6000_dbglog_event(AR_SOFTC_T *ar, u32 dropped,
+ar6000_dbglog_event(struct ar6_softc *ar, u32 dropped,
                     s8 *buffer, u32 length)
 {
 #ifdef REPORT_DEBUG_LOGS_TO_APP
@@ -738,10 +738,10 @@ aptcTimerHandler(unsigned long arg)
 {
     u32 numbytes;
     u32 throughput;
-    AR_SOFTC_T *ar;
+    struct ar6_softc *ar;
     int status;
 
-    ar = (AR_SOFTC_T *)arg;
+    ar = (struct ar6_softc *)arg;
     A_ASSERT(ar != NULL);
     A_ASSERT(!timer_pending(&aptcTimer));
 
@@ -802,12 +802,12 @@ ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
                       char *buf, loff_t pos, size_t count)
 {
     int index;
-    AR_SOFTC_T *ar;
+    struct ar6_softc *ar;
     struct hif_device_os_device_info   *osDevInfo;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Read %d bytes\n", (u32)count));
     for (index=0; index < MAX_AR6000; index++) {
-        ar = (AR_SOFTC_T *)ar6k_priv(ar6000_devices[index]);
+        ar = (struct ar6_softc *)ar6k_priv(ar6000_devices[index]);
         osDevInfo = &ar->osDevInfo;
         if (kobj == (&(((struct device *)osDevInfo->pOSDevice)->kobj))) {
             break;
@@ -829,12 +829,12 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
                        char *buf, loff_t pos, size_t count)
 {
     int index;
-    AR_SOFTC_T *ar;
+    struct ar6_softc *ar;
     struct hif_device_os_device_info   *osDevInfo;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Write %d bytes\n", (u32)count));
     for (index=0; index < MAX_AR6000; index++) {
-        ar = (AR_SOFTC_T *)ar6k_priv(ar6000_devices[index]);
+        ar = (struct ar6_softc *)ar6k_priv(ar6000_devices[index]);
         osDevInfo = &ar->osDevInfo;
         if (kobj == (&(((struct device *)osDevInfo->pOSDevice)->kobj))) {
             break;
@@ -851,7 +851,7 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
 }
 
 static int
-ar6000_sysfs_bmi_init(AR_SOFTC_T *ar)
+ar6000_sysfs_bmi_init(struct ar6_softc *ar)
 {
     int status;
 
@@ -880,7 +880,7 @@ ar6000_sysfs_bmi_init(AR_SOFTC_T *ar)
 }
 
 static void
-ar6000_sysfs_bmi_deinit(AR_SOFTC_T *ar)
+ar6000_sysfs_bmi_deinit(struct ar6_softc *ar)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Deleting sysfs entry\n"));
 
@@ -941,7 +941,7 @@ void calculate_crc(u32 TargetType, u8 *eeprom_data)
 }
 
 static void 
-ar6000_softmac_update(AR_SOFTC_T *ar, u8 *eeprom_data, size_t size)
+ar6000_softmac_update(struct ar6_softc *ar, u8 *eeprom_data, size_t size)
 {
     const char *source = "random generated";
     const struct firmware *softmac_entry;
@@ -992,7 +992,7 @@ ar6000_softmac_update(AR_SOFTC_T *ar, u8 *eeprom_data, size_t size)
 #endif /* SOFTMAC_FILE_USED */
 
 static int
-ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool compressed)
+ar6000_transfer_bin_file(struct ar6_softc *ar, AR6K_BIN_FILE file, u32 address, bool compressed)
 {
     int status;
     const char *filename;
@@ -1156,7 +1156,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, u32 address, bool c
 #endif /* INIT_MODE_DRV_ENABLED */
 
 int
-ar6000_update_bdaddr(AR_SOFTC_T *ar)
+ar6000_update_bdaddr(struct ar6_softc *ar)
 {
 
         if (setupbtdev != 0) {
@@ -1183,7 +1183,7 @@ return 0;
 }
 
 int
-ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
+ar6000_sysfs_bmi_get_config(struct ar6_softc *ar, u32 mode)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Requesting device specific configuration\n"));
 
@@ -1398,7 +1398,7 @@ ar6000_sysfs_bmi_get_config(AR_SOFTC_T *ar, u32 mode)
 }
 
 int
-ar6000_configure_target(AR_SOFTC_T *ar)
+ar6000_configure_target(struct ar6_softc *ar)
 {
     u32 param;
     if (enableuartprint) {
@@ -1597,7 +1597,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     int i;
     struct net_device *dev;
     void *ar_netif;
-    AR_SOFTC_T *ar;
+    struct ar6_softc *ar;
     int device_index = 0;
     struct htc_init_info  htcInfo;
 #ifdef ATH6K_CONFIG_CFG80211
@@ -1638,7 +1638,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     }
     ar_netif = wdev_priv(wdev);
 #else
-    dev = alloc_etherdev(sizeof(AR_SOFTC_T));
+    dev = alloc_etherdev(sizeof(struct ar6_softc));
     if (dev == NULL) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000_available: can't alloc etherdev\n"));
         return A_ERROR;
@@ -1652,8 +1652,8 @@ ar6000_avail_ev(void *context, void *hif_handle)
         return A_ERROR;
     }
 
-    A_MEMZERO(ar_netif, sizeof(AR_SOFTC_T));
-    ar = (AR_SOFTC_T *)ar_netif;
+    A_MEMZERO(ar_netif, sizeof(struct ar6_softc));
+    ar = (struct ar6_softc *)ar_netif;
 
 #ifdef ATH6K_CONFIG_CFG80211
     ar->wdev = wdev;
@@ -1854,7 +1854,7 @@ avail_ev_failed :
 
 static void ar6000_target_failure(void *Instance, int Status)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)Instance;
+    struct ar6_softc *ar = (struct ar6_softc *)Instance;
     WMI_TARGET_ERROR_REPORT_EVENT errEvent;
     static bool sip = false;
 
@@ -1890,7 +1890,7 @@ static void ar6000_target_failure(void *Instance, int Status)
 static int
 ar6000_unavail_ev(void *context, void *hif_handle)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
+    struct ar6_softc *ar = (struct ar6_softc *)context;
         /* NULL out it's entry in the global list */
     ar6000_devices[ar->arDeviceIndex] = NULL;
     ar6000_destroy(ar->arNetDev, 1);
@@ -1902,7 +1902,7 @@ void
 ar6000_restart_endpoint(struct net_device *dev)
 {
     int status = 0;
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     BMIInit();
     do {
@@ -1936,7 +1936,7 @@ ar6000_restart_endpoint(struct net_device *dev)
 void
 ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     /* Stop the transmit queues */
     netif_stop_queue(dev);
@@ -2074,7 +2074,7 @@ ar6000_stop_endpoint(struct net_device *dev, bool keepprofile, bool getdbglogs)
 void
 ar6000_destroy(struct net_device *dev, unsigned int unregister)
 {
-    AR_SOFTC_T *ar;
+    struct ar6_softc *ar;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("+ar6000_destroy \n"));
     
@@ -2159,7 +2159,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
 static void disconnect_timer_handler(unsigned long ptr)
 {
     struct net_device *dev = (struct net_device *)ptr;
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     A_UNTIMEOUT(&ar->disconnect_timer);
 
@@ -2170,7 +2170,7 @@ static void disconnect_timer_handler(unsigned long ptr)
 static void ar6000_detect_error(unsigned long ptr)
 {
     struct net_device *dev = (struct net_device *)ptr;
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_TARGET_ERROR_REPORT_EVENT errEvent;
 
     AR6000_SPIN_LOCK(&ar->arLock, 0);
@@ -2209,7 +2209,7 @@ static void ar6000_detect_error(unsigned long ptr)
     A_TIMEOUT_MS(&ar->arHBChallengeResp.timer, ar->arHBChallengeResp.frequency * 1000, 0);
 }
 
-void ar6000_init_profile_info(AR_SOFTC_T *ar)
+void ar6000_init_profile_info(struct ar6_softc *ar)
 {
     ar->arSsidLen            = 0;
     A_MEMZERO(ar->arSsid, sizeof(ar->arSsid));
@@ -2239,7 +2239,7 @@ void ar6000_init_profile_info(AR_SOFTC_T *ar)
 }
 
 static void
-ar6000_init_control_info(AR_SOFTC_T *ar)
+ar6000_init_control_info(struct ar6_softc *ar)
 {
     ar->arWmiEnabled         = false;
     ar6000_init_profile_info(ar);
@@ -2291,7 +2291,7 @@ static int
 ar6000_open(struct net_device *dev)
 {
     unsigned long  flags;
-    AR_SOFTC_T    *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc    *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     spin_lock_irqsave(&ar->arLock, flags);
 
@@ -2317,7 +2317,7 @@ static int
 ar6000_close(struct net_device *dev)
 {
 #ifdef ATH6K_CONFIG_CFG80211
-    AR_SOFTC_T    *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc    *ar = (struct ar6_softc *)ar6k_priv(dev);
 #endif /* ATH6K_CONFIG_CFG80211 */
     netif_stop_queue(dev);
 
@@ -2338,7 +2338,7 @@ ar6000_close(struct net_device *dev)
 }
 
 /* connect to a service */
-static int ar6000_connectservice(AR_SOFTC_T               *ar,
+static int ar6000_connectservice(struct ar6_softc               *ar,
                                       struct htc_service_connect_req  *pConnect,
                                       char *pDesc)
 {
@@ -2390,7 +2390,7 @@ static int ar6000_connectservice(AR_SOFTC_T               *ar,
     return status;
 }
 
-void ar6000_TxDataCleanup(AR_SOFTC_T *ar)
+void ar6000_TxDataCleanup(struct ar6_softc *ar)
 {
         /* flush all the data (non-control) streams
          * we only flush packets that are tagged as data, we leave any control packets that
@@ -2412,20 +2412,20 @@ void ar6000_TxDataCleanup(AR_SOFTC_T *ar)
 HTC_ENDPOINT_ID
 ar6000_ac2_endpoint_id ( void * devt, u8 ac)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *) devt;
+    struct ar6_softc *ar = (struct ar6_softc *) devt;
     return(arAc2EndpointID(ar, ac));
 }
 
 u8 ar6000_endpoint_id2_ac(void * devt, HTC_ENDPOINT_ID ep )
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *) devt;
+    struct ar6_softc *ar = (struct ar6_softc *) devt;
     return(arEndpoint2Ac(ar, ep ));
 }
 
 /*
  * This function applies WLAN specific configuration defined in wlan_config.h
  */
-int ar6000_target_config_wlan_params(AR_SOFTC_T *ar)
+int ar6000_target_config_wlan_params(struct ar6_softc *ar)
 {
     int status = 0;
 #if defined(INIT_MODE_DRV_ENABLED) && defined(ENABLE_COEXISTENCE)
@@ -2546,7 +2546,7 @@ int ar6000_target_config_wlan_params(AR_SOFTC_T *ar)
 /* This function does one time initialization for the lifetime of the device */
 int ar6000_init(struct net_device *dev)
 {
-    AR_SOFTC_T *ar;
+    struct ar6_softc *ar;
     int    status;
     s32 timeleft;
     s16 i;
@@ -2845,7 +2845,7 @@ ar6000_init_done:
 void
 ar6000_bitrate_rx(void *devt, s32 rateKbps)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     ar->arBitRate = rateKbps;
     wake_up(&arEvent);
@@ -2854,7 +2854,7 @@ ar6000_bitrate_rx(void *devt, s32 rateKbps)
 void
 ar6000_ratemask_rx(void *devt, u32 ratemask)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     ar->arRateMask = ratemask;
     wake_up(&arEvent);
@@ -2863,7 +2863,7 @@ ar6000_ratemask_rx(void *devt, u32 ratemask)
 void
 ar6000_txPwr_rx(void *devt, u8 txPwr)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     ar->arTxPwr = txPwr;
     wake_up(&arEvent);
@@ -2873,7 +2873,7 @@ ar6000_txPwr_rx(void *devt, u8 txPwr)
 void
 ar6000_channelList_rx(void *devt, s8 numChan, u16 *chanList)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     memcpy(ar->arChannelList, chanList, numChan * sizeof (u16));
     ar->arNumChannels = numChan;
@@ -2883,7 +2883,7 @@ ar6000_channelList_rx(void *devt, s8 numChan, u16 *chanList)
 
 u8 ar6000_ibss_map_epid(struct sk_buff *skb, struct net_device *dev, u32 *mapNo)
 {
-    AR_SOFTC_T      *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc      *ar = (struct ar6_softc *)ar6k_priv(dev);
     u8 *datap;
     ATH_MAC_HDR     *macHdr;
     u32 i, eptMap;
@@ -2952,14 +2952,14 @@ static void ar6000_dump_skb(struct sk_buff *skb)
 #endif
 
 #ifdef HTC_TEST_SEND_PKTS
-static void DoHTCSendPktsTest(AR_SOFTC_T *ar, int MapNo, HTC_ENDPOINT_ID eid, struct sk_buff *skb);
+static void DoHTCSendPktsTest(struct ar6_softc *ar, int MapNo, HTC_ENDPOINT_ID eid, struct sk_buff *skb);
 #endif
 
 static int
 ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 {
 #define AC_NOT_MAPPED   99
-    AR_SOFTC_T        *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc        *ar = (struct ar6_softc *)ar6k_priv(dev);
     u8 ac = AC_NOT_MAPPED;
     HTC_ENDPOINT_ID    eid = ENDPOINT_UNUSED;
     u32 mapNo = 0;
@@ -3281,7 +3281,7 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
 int
 ar6000_acl_data_tx(struct sk_buff *skb, struct net_device *dev)
 {
-    AR_SOFTC_T        *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc        *ar = (struct ar6_softc *)ar6k_priv(dev);
     struct ar_cookie *cookie;
     HTC_ENDPOINT_ID    eid = ENDPOINT_UNUSED;
 
@@ -3337,7 +3337,7 @@ tvsub(register struct timeval *out, register struct timeval *in)
 }
 
 void
-applyAPTCHeuristics(AR_SOFTC_T *ar)
+applyAPTCHeuristics(struct ar6_softc *ar)
 {
     u32 duration;
     u32 numbytes;
@@ -3378,7 +3378,7 @@ applyAPTCHeuristics(AR_SOFTC_T *ar)
 
 static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, struct htc_packet *pPacket)
 {
-    AR_SOFTC_T     *ar = (AR_SOFTC_T *)Context;
+    struct ar6_softc     *ar = (struct ar6_softc *)Context;
     HTC_SEND_FULL_ACTION    action = HTC_SEND_FULL_KEEP;
     bool                  stopNet = false;
     HTC_ENDPOINT_ID         Endpoint = HTC_GET_ENDPOINT_FROM_PKT(pPacket);
@@ -3463,7 +3463,7 @@ static HTC_SEND_FULL_ACTION ar6000_tx_queue_full(void *Context, struct htc_packe
 static void
 ar6000_tx_complete(void *Context, struct htc_packet_queue *pPacketQueue)
 {
-    AR_SOFTC_T     *ar = (AR_SOFTC_T *)Context;
+    struct ar6_softc     *ar = (struct ar6_softc *)Context;
     u32 mapNo = 0;
     int        status;
     struct ar_cookie * ar_cookie;
@@ -3599,7 +3599,7 @@ ar6000_tx_complete(void *Context, struct htc_packet_queue *pPacketQueue)
 }
 
 sta_t *
-ieee80211_find_conn(AR_SOFTC_T *ar, u8 *node_addr)
+ieee80211_find_conn(struct ar6_softc *ar, u8 *node_addr)
 {
     sta_t *conn = NULL;
     u8 i, max_conn;
@@ -3623,7 +3623,7 @@ ieee80211_find_conn(AR_SOFTC_T *ar, u8 *node_addr)
     return conn;
 }
 
-sta_t *ieee80211_find_conn_for_aid(AR_SOFTC_T *ar, u8 aid)
+sta_t *ieee80211_find_conn_for_aid(struct ar6_softc *ar, u8 aid)
 {
     sta_t *conn = NULL;
     u8 ctr;
@@ -3644,7 +3644,7 @@ int pktcount;
 static void
 ar6000_rx(void *Context, struct htc_packet *pPacket)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)Context;
+    struct ar6_softc *ar = (struct ar6_softc *)Context;
     struct sk_buff *skb = (struct sk_buff *)pPacket->pPktContext;
     int minHdrLen;
     u8 containsDot11Hdr = 0;
@@ -3942,7 +3942,7 @@ ar6000_deliver_frames_to_nw_stack(void *dev, void *osbuf)
         skb->dev = dev;
         if ((skb->dev->flags & IFF_UP) == IFF_UP) {
 #ifdef CONFIG_PM 
-            ar6000_check_wow_status((AR_SOFTC_T *)ar6k_priv(dev), skb, false);
+            ar6000_check_wow_status((struct ar6_softc *)ar6k_priv(dev), skb, false);
 #endif /* CONFIG_PM */
             skb->protocol = eth_type_trans(skb, skb->dev);
         /*
@@ -3987,7 +3987,7 @@ ar6000_deliver_frames_to_bt_stack(void *dev, void *osbuf)
 static void
 ar6000_rx_refill(void *Context, HTC_ENDPOINT_ID Endpoint)
 {
-    AR_SOFTC_T  *ar = (AR_SOFTC_T *)Context;
+    struct ar6_softc  *ar = (struct ar6_softc *)Context;
     void        *osBuf;
     int         RxBuffers;
     int         buffersToRefill;
@@ -4029,7 +4029,7 @@ ar6000_rx_refill(void *Context, HTC_ENDPOINT_ID Endpoint)
 }
 
   /* clean up our amsdu buffer list */
-static void ar6000_cleanup_amsdu_rxbufs(AR_SOFTC_T *ar)
+static void ar6000_cleanup_amsdu_rxbufs(struct ar6_softc *ar)
 {
     struct htc_packet  *pPacket;
     void        *osBuf;
@@ -4058,7 +4058,7 @@ static void ar6000_cleanup_amsdu_rxbufs(AR_SOFTC_T *ar)
 
 
     /* refill the amsdu buffer list */
-static void ar6000_refill_amsdu_rxbufs(AR_SOFTC_T *ar, int Count)
+static void ar6000_refill_amsdu_rxbufs(struct ar6_softc *ar, int Count)
 {
     struct htc_packet  *pPacket;
     void        *osBuf;
@@ -4093,7 +4093,7 @@ static void ar6000_refill_amsdu_rxbufs(AR_SOFTC_T *ar, int Count)
 static struct htc_packet *ar6000_alloc_amsdu_rxbuf(void *Context, HTC_ENDPOINT_ID Endpoint, int Length)
 {
     struct htc_packet  *pPacket = NULL;
-    AR_SOFTC_T  *ar = (AR_SOFTC_T *)Context;
+    struct ar6_softc  *ar = (struct ar6_softc *)Context;
     int         refillCount = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_WLAN_RX,("ar6000_alloc_amsdu_rxbuf: eid=%d, Length:%d\n",Endpoint,Length));
@@ -4142,14 +4142,14 @@ ar6000_set_multicast_list(struct net_device *dev)
 static struct net_device_stats *
 ar6000_get_stats(struct net_device *dev)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     return &ar->arNetStats;
 }
 
 static struct iw_statistics *
 ar6000_get_iwstats(struct net_device * dev)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     TARGET_STATS *pStats = &ar->arTargetStats;
     struct iw_statistics * pIwStats = &ar->arIwStats;
     int rtnllocked;
@@ -4236,7 +4236,7 @@ err_exit:
 void
 ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
     struct net_device *dev = ar->arNetDev;
 
     memcpy(dev->dev_addr, datap, AR6000_ETH_ADDR_LEN);
@@ -4255,7 +4255,7 @@ ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
 }
 
 void
-add_new_sta(AR_SOFTC_T *ar, u8 *mac, u16 aid, u8 *wpaie,
+add_new_sta(struct ar6_softc *ar, u8 *mac, u16 aid, u8 *wpaie,
             u8 ielen, u8 keymgmt, u8 ucipher, u8 auth)
 {
     u8 free_slot=aid-1;
@@ -4271,7 +4271,7 @@ add_new_sta(AR_SOFTC_T *ar, u8 *mac, u16 aid, u8 *wpaie,
 }
 
 void
-ar6000_connect_event(AR_SOFTC_T *ar, u16 channel, u8 *bssid,
+ar6000_connect_event(struct ar6_softc *ar, u16 channel, u8 *bssid,
                      u16 listenInterval, u16 beaconInterval,
                      NETWORK_TYPE networkType, u8 beaconIeLen,
                      u8 assocReqLen, u8 assocRespLen,
@@ -4557,14 +4557,14 @@ skip_key:
 
 }
 
-void ar6000_set_numdataendpts(AR_SOFTC_T *ar, u32 num)
+void ar6000_set_numdataendpts(struct ar6_softc *ar, u32 num)
 {
     A_ASSERT(num <= (HTC_MAILBOX_NUM_MAX - 1));
     ar->arNumDataEndPts = num;
 }
 
 void
-sta_cleanup(AR_SOFTC_T *ar, u8 i)
+sta_cleanup(struct ar6_softc *ar, u8 i)
 {
     struct sk_buff *skb;
 
@@ -4587,7 +4587,7 @@ sta_cleanup(AR_SOFTC_T *ar, u8 i)
 
 }
 
-u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, u16 reason)
+u8 remove_sta(struct ar6_softc *ar, u8 *mac, u16 reason)
 {
     u8 i, removed=0;
 
@@ -4620,7 +4620,7 @@ u8 remove_sta(AR_SOFTC_T *ar, u8 *mac, u16 reason)
 }
 
 void
-ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
+ar6000_disconnect_event(struct ar6_softc *ar, u8 reason, u8 *bssid,
                         u8 assocRespLen, u8 *assocInfo, u16 protocolReasonStatus)
 {
     u8 i;
@@ -4768,7 +4768,7 @@ ar6000_disconnect_event(AR_SOFTC_T *ar, u8 reason, u8 *bssid,
 }
 
 void
-ar6000_regDomain_event(AR_SOFTC_T *ar, u32 regCode)
+ar6000_regDomain_event(struct ar6_softc *ar, u32 regCode)
 {
     A_PRINTF("AR6000 Reg Code = 0x%x\n", regCode);
     ar->arRegCode = regCode;
@@ -4776,7 +4776,7 @@ ar6000_regDomain_event(AR_SOFTC_T *ar, u32 regCode)
 
 #ifdef ATH_AR6K_11N_SUPPORT
 void
-ar6000_aggr_rcv_addba_req_evt(AR_SOFTC_T *ar, WMI_ADDBA_REQ_EVENT *evt)
+ar6000_aggr_rcv_addba_req_evt(struct ar6_softc *ar, WMI_ADDBA_REQ_EVENT *evt)
 {
     if(evt->status == 0) {
         aggr_recv_addba_req_evt(ar->aggr_cntxt, evt->tid, evt->st_seq_no, evt->win_sz);
@@ -4784,7 +4784,7 @@ ar6000_aggr_rcv_addba_req_evt(AR_SOFTC_T *ar, WMI_ADDBA_REQ_EVENT *evt)
 }
 
 void
-ar6000_aggr_rcv_addba_resp_evt(AR_SOFTC_T *ar, WMI_ADDBA_RESP_EVENT *evt)
+ar6000_aggr_rcv_addba_resp_evt(struct ar6_softc *ar, WMI_ADDBA_RESP_EVENT *evt)
 {
     A_PRINTF("ADDBA RESP. tid %d status %d, sz %d\n", evt->tid, evt->status, evt->amsdu_sz);
     if(evt->status == 0) {
@@ -4792,7 +4792,7 @@ ar6000_aggr_rcv_addba_resp_evt(AR_SOFTC_T *ar, WMI_ADDBA_RESP_EVENT *evt)
 }
 
 void
-ar6000_aggr_rcv_delba_req_evt(AR_SOFTC_T *ar, WMI_DELBA_EVENT *evt)
+ar6000_aggr_rcv_delba_req_evt(struct ar6_softc *ar, WMI_DELBA_EVENT *evt)
 {
     aggr_recv_delba_req_evt(ar->aggr_cntxt, evt->tid);
 }
@@ -4849,7 +4849,7 @@ ar6000_hci_event_rcv_evt(struct ar6_softc *ar, WMI_HCI_EVENT *cmd)
 }
 
 void
-ar6000_neighborReport_event(AR_SOFTC_T *ar, int numAps, WMI_NEIGHBOR_INFO *info)
+ar6000_neighborReport_event(struct ar6_softc *ar, int numAps, WMI_NEIGHBOR_INFO *info)
 {
 #if WIRELESS_EXT >= 18
     struct iw_pmkid_cand *pmkcand;
@@ -4897,7 +4897,7 @@ ar6000_neighborReport_event(AR_SOFTC_T *ar, int numAps, WMI_NEIGHBOR_INFO *info)
 }
 
 void
-ar6000_tkip_micerr_event(AR_SOFTC_T *ar, u8 keyid, bool ismcast)
+ar6000_tkip_micerr_event(struct ar6_softc *ar, u8 keyid, bool ismcast)
 {
     static const char *tag = "MLME-MICHAELMICFAILURE.indication";
     char buf[128];
@@ -4934,7 +4934,7 @@ ar6000_tkip_micerr_event(AR_SOFTC_T *ar, u8 keyid, bool ismcast)
 }
 
 void
-ar6000_scanComplete_event(AR_SOFTC_T *ar, int status)
+ar6000_scanComplete_event(struct ar6_softc *ar, int status)
 {
 
 #ifdef ATH6K_CONFIG_CFG80211
@@ -4957,7 +4957,7 @@ ar6000_scanComplete_event(AR_SOFTC_T *ar, int status)
 }
 
 void
-ar6000_targetStats_event(AR_SOFTC_T *ar,  u8 *ptr, u32 len)
+ar6000_targetStats_event(struct ar6_softc *ar,  u8 *ptr, u32 len)
 {
     u8 ac;
 
@@ -5082,7 +5082,7 @@ ar6000_targetStats_event(AR_SOFTC_T *ar,  u8 *ptr, u32 len)
 }
 
 void
-ar6000_rssiThreshold_event(AR_SOFTC_T *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold, s16 rssi)
+ar6000_rssiThreshold_event(struct ar6_softc *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold, s16 rssi)
 {
     USER_RSSI_THOLD userRssiThold;
 
@@ -5103,7 +5103,7 @@ ar6000_rssiThreshold_event(AR_SOFTC_T *ar,  WMI_RSSI_THRESHOLD_VAL newThreshold,
 
 
 void
-ar6000_hbChallengeResp_event(AR_SOFTC_T *ar, u32 cookie, u32 source)
+ar6000_hbChallengeResp_event(struct ar6_softc *ar, u32 cookie, u32 source)
 {
     if (source == APP_HB_CHALLENGE) {
         /* Report it to the app in case it wants a positive acknowledgement */
@@ -5119,7 +5119,7 @@ ar6000_hbChallengeResp_event(AR_SOFTC_T *ar, u32 cookie, u32 source)
 
 
 void
-ar6000_reportError_event(AR_SOFTC_T *ar, WMI_TARGET_ERROR_VAL errorVal)
+ar6000_reportError_event(struct ar6_softc *ar, WMI_TARGET_ERROR_VAL errorVal)
 {
 	static const char * const errString[] = {
 		[WMI_TARGET_PM_ERR_FAIL]    "WMI_TARGET_PM_ERR_FAIL",
@@ -5154,7 +5154,7 @@ ar6000_reportError_event(AR_SOFTC_T *ar, WMI_TARGET_ERROR_VAL errorVal)
 
 
 void
-ar6000_cac_event(AR_SOFTC_T *ar, u8 ac, u8 cacIndication,
+ar6000_cac_event(struct ar6_softc *ar, u8 ac, u8 cacIndication,
                  u8 statusCode, u8 *tspecSuggestion)
 {
     WMM_TSPEC_IE    *tspecIe;
@@ -5177,7 +5177,7 @@ ar6000_cac_event(AR_SOFTC_T *ar, u8 ac, u8 cacIndication,
 }
 
 void
-ar6000_channel_change_event(AR_SOFTC_T *ar, u16 oldChannel,
+ar6000_channel_change_event(struct ar6_softc *ar, u16 oldChannel,
                             u16 newChannel)
 {
     A_PRINTF("Channel Change notification\nOld Channel: %d, New Channel: %d\n",
@@ -5191,7 +5191,7 @@ ar6000_channel_change_event(AR_SOFTC_T *ar, u16 oldChannel,
 } while(0)
 
 void
-ar6000_roam_tbl_event(AR_SOFTC_T *ar, WMI_TARGET_ROAM_TBL *pTbl)
+ar6000_roam_tbl_event(struct ar6_softc *ar, WMI_TARGET_ROAM_TBL *pTbl)
 {
     u8 i;
 
@@ -5270,7 +5270,7 @@ ar6000_display_roam_time(WMI_TARGET_ROAM_TIME *p)
 }
 
 void
-ar6000_roam_data_event(AR_SOFTC_T *ar, WMI_TARGET_ROAM_DATA *p)
+ar6000_roam_data_event(struct ar6_softc *ar, WMI_TARGET_ROAM_DATA *p)
 {
     switch (p->roamDataType) {
         case ROAM_DATA_TIME:
@@ -5282,7 +5282,7 @@ ar6000_roam_data_event(AR_SOFTC_T *ar, WMI_TARGET_ROAM_DATA *p)
 }
 
 void
-ar6000_bssInfo_event_rx(AR_SOFTC_T *ar, u8 *datap, int len)
+ar6000_bssInfo_event_rx(struct ar6_softc *ar, u8 *datap, int len)
 {
     struct sk_buff *skb;
     WMI_BSS_INFO_HDR *bih = (WMI_BSS_INFO_HDR *)datap;
@@ -5317,7 +5317,7 @@ u32 wmiSendCmdNum;
 int
 ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 {
-    AR_SOFTC_T       *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc       *ar = (struct ar6_softc *)devt;
     int         status = 0;
     struct ar_cookie *cookie = NULL;
     int i;
@@ -5396,7 +5396,7 @@ ar6000_control_tx(void *devt, void *osbuf, HTC_ENDPOINT_ID eid)
 /* indicate tx activity or inactivity on a WMI stream */
 void ar6000_indicate_tx_activity(void *devt, u8 TrafficClass, bool Active)
 {
-    AR_SOFTC_T  *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc  *ar = (struct ar6_softc *)devt;
     HTC_ENDPOINT_ID eid ;
     int i;
 
@@ -5510,7 +5510,7 @@ module_exit(ar6000_cleanup_module);
 
 /* Init cookie queue */
 static void
-ar6000_cookie_init(AR_SOFTC_T *ar)
+ar6000_cookie_init(struct ar6_softc *ar)
 {
     u32 i;
 
@@ -5526,7 +5526,7 @@ ar6000_cookie_init(AR_SOFTC_T *ar)
 
 /* cleanup cookie queue */
 static void
-ar6000_cookie_cleanup(AR_SOFTC_T *ar)
+ar6000_cookie_cleanup(struct ar6_softc *ar)
 {
     /* It is gone .... */
     ar->arCookieList = NULL;
@@ -5535,7 +5535,7 @@ ar6000_cookie_cleanup(AR_SOFTC_T *ar)
 
 /* Init cookie queue */
 static void
-ar6000_free_cookie(AR_SOFTC_T *ar, struct ar_cookie * cookie)
+ar6000_free_cookie(struct ar6_softc *ar, struct ar_cookie * cookie)
 {
     /* Insert first */
     A_ASSERT(ar != NULL);
@@ -5548,7 +5548,7 @@ ar6000_free_cookie(AR_SOFTC_T *ar, struct ar_cookie * cookie)
 
 /* cleanup cookie queue */
 static struct ar_cookie *
-ar6000_alloc_cookie(AR_SOFTC_T  *ar)
+ar6000_alloc_cookie(struct ar6_softc  *ar)
 {
     struct ar_cookie   *cookie;
 
@@ -5569,7 +5569,7 @@ ar6000_alloc_cookie(AR_SOFTC_T  *ar)
  * the event ID and event content.
  */
 #define EVENT_ID_LEN   2
-void ar6000_send_event_to_app(AR_SOFTC_T *ar, u16 eventId,
+void ar6000_send_event_to_app(struct ar6_softc *ar, u16 eventId,
                               u8 *datap, int len)
 {
 
@@ -5614,7 +5614,7 @@ void ar6000_send_event_to_app(AR_SOFTC_T *ar, u16 eventId,
  * to the application. The buf which is sent to application
  * includes the event ID and event content.
  */
-void ar6000_send_generic_event_to_app(AR_SOFTC_T *ar, u16 eventId,
+void ar6000_send_generic_event_to_app(struct ar6_softc *ar, u16 eventId,
                                       u8 *datap, int len)
 {
 
@@ -5666,7 +5666,7 @@ void
 ar6000_snrThresholdEvent_rx(void *devt, WMI_SNR_THRESHOLD_VAL newThreshold, u8 snr)
 {
     WMI_SNR_THRESHOLD_EVENT event;
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     event.range = newThreshold;
     event.snr = snr;
@@ -5721,7 +5721,7 @@ ar6000_get_driver_cfg(struct net_device *dev,
 void
 ar6000_keepalive_rx(void *devt, u8 configured)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
 
     ar->arKeepaliveConfigured = configured;
     wake_up(&arEvent);
@@ -5750,7 +5750,7 @@ ar6000_pmkid_list_event(void *devt, u8 numPMKID, WMI_PMKID *pmkidList,
     }
 }
 
-void ar6000_pspoll_event(AR_SOFTC_T *ar,u8 aid)
+void ar6000_pspoll_event(struct ar6_softc *ar,u8 aid)
 {
     sta_t *conn=NULL;
     bool isPsqEmpty = false;
@@ -5790,7 +5790,7 @@ void ar6000_pspoll_event(AR_SOFTC_T *ar,u8 aid)
     }
 }
 
-void ar6000_dtimexpiry_event(AR_SOFTC_T *ar)
+void ar6000_dtimexpiry_event(struct ar6_softc *ar)
 {
     bool isMcastQueued = false;
     struct sk_buff *skb = NULL;
@@ -5836,7 +5836,7 @@ void ar6000_dtimexpiry_event(AR_SOFTC_T *ar)
 }
 
 void
-read_rssi_compensation_param(AR_SOFTC_T *ar)
+read_rssi_compensation_param(struct ar6_softc *ar)
 {
     u8 *cust_data_ptr;
 
@@ -5907,7 +5907,7 @@ s32 rssi_compensation_calc_tcmd(u32 freq, s32 rssi, u32 totalPkt)
     return rssi;
 }
 
-s16 rssi_compensation_calc(AR_SOFTC_T *ar, s16 rssi)
+s16 rssi_compensation_calc(struct ar6_softc *ar, s16 rssi)
 {
     if (ar->arBssChannel > 5000)
     {
@@ -5935,7 +5935,7 @@ s16 rssi_compensation_calc(AR_SOFTC_T *ar, s16 rssi)
     return rssi;
 }
 
-s16 rssi_compensation_reverse_calc(AR_SOFTC_T *ar, s16 rssi, bool Above)
+s16 rssi_compensation_reverse_calc(struct ar6_softc *ar, s16 rssi, bool Above)
 {
     s16 i;
 
@@ -5980,7 +5980,7 @@ s16 rssi_compensation_reverse_calc(AR_SOFTC_T *ar, s16 rssi, bool Above)
 }
 
 #ifdef WAPI_ENABLE
-void ap_wapi_rekey_event(AR_SOFTC_T *ar, u8 type, u8 *mac)
+void ap_wapi_rekey_event(struct ar6_softc *ar, u8 type, u8 *mac)
 {
     union iwreq_data wrqu;
     char buf[20];
@@ -6002,7 +6002,7 @@ void ap_wapi_rekey_event(AR_SOFTC_T *ar, u8 type, u8 *mac)
 #ifdef USER_KEYS
 static int
 
-ar6000_reinstall_keys(AR_SOFTC_T *ar, u8 key_op_ctrl)
+ar6000_reinstall_keys(struct ar6_softc *ar, u8 key_op_ctrl)
 {
     int status = 0;
     struct ieee80211req_key *uik = &ar->user_saved_keys.ucast_ik;
@@ -6316,7 +6316,7 @@ void ar6000_peer_event(
 
 #ifdef HTC_TEST_SEND_PKTS
 #define HTC_TEST_DUPLICATE 8
-static void DoHTCSendPktsTest(AR_SOFTC_T *ar, int MapNo, HTC_ENDPOINT_ID eid, struct sk_buff *dupskb)
+static void DoHTCSendPktsTest(struct ar6_softc *ar, int MapNo, HTC_ENDPOINT_ID eid, struct sk_buff *dupskb)
 {
     struct ar_cookie *cookie;
     struct ar_cookie *cookieArray[HTC_TEST_DUPLICATE];
@@ -6400,7 +6400,7 @@ static void DoHTCSendPktsTest(AR_SOFTC_T *ar, int MapNo, HTC_ENDPOINT_ID eid, st
  * AP mode.
  */
 
-int ar6000_start_ap_interface(AR_SOFTC_T *ar)
+int ar6000_start_ap_interface(struct ar6_softc *ar)
 {
     struct ar_virtual_interface *arApDev;
 
@@ -6411,7 +6411,7 @@ int ar6000_start_ap_interface(AR_SOFTC_T *ar)
     return 0;
 }
 
-int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
+int ar6000_stop_ap_interface(struct ar6_softc *ar)
 {
     struct ar_virtual_interface *arApDev;
 
@@ -6425,7 +6425,7 @@ int ar6000_stop_ap_interface(AR_SOFTC_T *ar)
 }
 
 
-int ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
+int ar6000_create_ap_interface(struct ar6_softc *ar, char *ap_ifname)
 {
     struct net_device *dev;
     struct ar_virtual_interface *arApDev;
@@ -6458,7 +6458,7 @@ int ar6000_create_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     return 0;
 }
 
-int ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
+int ar6000_add_ap_interface(struct ar6_softc *ar, char *ap_ifname)
 {
     /* Interface already added, need not proceed further */
     if (ar->arApDev != NULL) {
@@ -6475,7 +6475,7 @@ int ar6000_add_ap_interface(AR_SOFTC_T *ar, char *ap_ifname)
     return ar6000_start_ap_interface(ar);
 }
 
-int ar6000_remove_ap_interface(AR_SOFTC_T *ar)
+int ar6000_remove_ap_interface(struct ar6_softc *ar)
 {
     if (arApNetDev) {
         ar6000_stop_ap_interface(ar);

@@ -416,7 +416,7 @@ ar6000_ioctl_giwscan(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_point *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     struct ar_giwscan_param param;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
@@ -461,7 +461,7 @@ ar6000_ioctl_siwessid(struct net_device *dev,
                      struct iw_request_info *info,
                      struct iw_point *data, char *ssid)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     int status;
     u8 arNetworkType;
     u8 prevMode = ar->arNetworkType;
@@ -658,7 +658,7 @@ ar6000_ioctl_giwessid(struct net_device *dev,
                      struct iw_request_info *info,
                      struct iw_point *data, char *essid)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -681,7 +681,7 @@ ar6000_ioctl_giwessid(struct net_device *dev,
 }
 
 
-void ar6000_install_static_wep_keys(AR_SOFTC_T *ar)
+void ar6000_install_static_wep_keys(struct ar6_softc *ar)
 {
     u8 index;
     u8 keyUsage;
@@ -712,7 +712,7 @@ ar6000_ioctl_siwrate(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *rrq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     u32 kbps;
     s8 rate_idx;
 
@@ -749,7 +749,7 @@ ar6000_ioctl_giwrate(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *rrq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     int ret = 0;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
@@ -812,7 +812,7 @@ ar6000_ioctl_siwtxpow(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_param *rrq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     u8 dbM;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
@@ -854,7 +854,7 @@ ar6000_ioctl_giwtxpow(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_param *rrq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     int ret = 0;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
@@ -924,7 +924,7 @@ ar6000_ioctl_siwretry(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_param *rrq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -965,7 +965,7 @@ ar6000_ioctl_giwretry(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_param *rrq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -1006,7 +1006,7 @@ ar6000_ioctl_siwencode(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *keybuf)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     int index;
     s32 auth = 0;
 
@@ -1122,7 +1122,7 @@ ar6000_ioctl_giwencode(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *key)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     u8 keyIndex;
     struct ar_wep_key *wk;
 
@@ -1192,7 +1192,7 @@ ar6000_ioctl_siwgenie(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
 #ifdef WAPI_ENABLE
     u8 *ie = erq->pointer;
@@ -1228,7 +1228,7 @@ ar6000_ioctl_giwgenie(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -1247,7 +1247,7 @@ ar6000_ioctl_siwauth(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_param *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     bool profChanged;
     u16 param;
@@ -1418,7 +1418,7 @@ ar6000_ioctl_giwauth(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_param *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     u16 param;
     s32 ret;
 
@@ -1546,7 +1546,7 @@ ar6000_ioctl_siwpmksa(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     s32 ret;
     int status;
     struct iw_pmksa *pmksa;
@@ -1591,7 +1591,7 @@ static int ar6000_set_wapi_key(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
     KEY_USAGE   keyUsage = 0;
     s32 keyLen;
@@ -1653,7 +1653,7 @@ ar6000_ioctl_siwencodeext(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     s32 index;
     struct iw_encode_ext *ext;
     KEY_USAGE keyUsage;
@@ -1827,7 +1827,7 @@ ar6000_ioctl_giwencodeext(struct net_device *dev,
               struct iw_request_info *info,
               struct iw_point *erq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (ar->arWlanState == WLAN_DISABLED) {
         return -EIO;
@@ -1850,7 +1850,7 @@ static int ar6000_ioctl_siwpower(struct net_device *dev,
                  union iwreq_data *wrqu, char *extra)
 {
 #ifndef ATH6K_CONFIG_OTA_MODE
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_POWER_MODE power_mode;
 
     if (ar->arWmiReady == false) {
@@ -1876,7 +1876,7 @@ static int ar6000_ioctl_giwpower(struct net_device *dev,
                  struct iw_request_info *info,
                  union iwreq_data *wrqu, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_POWER_MODE power_mode;
 
     if (ar->arWmiReady == false) {
@@ -1907,7 +1907,7 @@ ar6000_ioctl_giwname(struct net_device *dev,
            char *name, char *extra)
 {
     u8 capability;
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -1961,7 +1961,7 @@ ar6000_ioctl_siwfreq(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_freq *freq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2006,7 +2006,7 @@ ar6000_ioctl_giwfreq(struct net_device *dev,
                 struct iw_request_info *info,
                 struct iw_freq *freq, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2046,7 +2046,7 @@ ar6000_ioctl_siwmode(struct net_device *dev,
             struct iw_request_info *info,
             __u32 *mode, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2117,7 +2117,7 @@ ar6000_ioctl_giwmode(struct net_device *dev,
             struct iw_request_info *info,
             __u32 *mode, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2177,7 +2177,7 @@ ar6000_ioctl_giwrange(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_point *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     struct iw_range *range = (struct iw_range *) extra;
     int i, ret = 0;
 
@@ -2300,7 +2300,7 @@ ar6000_ioctl_siwap(struct net_device *dev,
               struct iw_request_info *info,
               struct sockaddr *ap_addr, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2332,7 +2332,7 @@ ar6000_ioctl_giwap(struct net_device *dev,
               struct iw_request_info *info,
               struct sockaddr *ap_addr, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2368,7 +2368,7 @@ ar6000_ioctl_siwmlme(struct net_device *dev,
             struct iw_request_info *info,
             struct iw_point *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);
@@ -2460,7 +2460,7 @@ ar6000_ioctl_siwscan(struct net_device *dev,
 #define ACT_DWELLTIME_DEFAULT   105
 #define HOME_TXDRAIN_TIME       100
 #define SCAN_INT                HOME_TXDRAIN_TIME + ACT_DWELLTIME_DEFAULT
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     int ret = 0;
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
@@ -2588,7 +2588,7 @@ ar6000_ioctl_siwcommit(struct net_device *dev,
                      struct iw_request_info *info,
                      struct iw_point *data, char *extra)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (is_iwioctl_allowed(ar->arNextMode, info->cmd) != 0) {
         A_PRINTF("wext_ioctl: cmd=0x%x not allowed in this mode\n", info->cmd);

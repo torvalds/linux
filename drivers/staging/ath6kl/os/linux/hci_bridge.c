@@ -85,7 +85,7 @@ struct ar6k_hci_bridge_info {
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
     struct hci_transport_misc_handles    HCITransHdl; 
 #else
-    AR_SOFTC_T              *ar;
+    struct ar6_softc              *ar;
 #endif /* EXPORT_HCI_BRIDGE_INTERFACE */
 };
 
@@ -120,10 +120,10 @@ int ar6000_setup_hci(void *ar);
 void     ar6000_cleanup_hci(void *ar);
 int hci_test_send(void *ar, struct sk_buff *skb);
 #else
-int ar6000_setup_hci(AR_SOFTC_T *ar);
-void     ar6000_cleanup_hci(AR_SOFTC_T *ar);
+int ar6000_setup_hci(struct ar6_softc *ar);
+void     ar6000_cleanup_hci(struct ar6_softc *ar);
 /* HCI bridge testing */
-int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb);
+int hci_test_send(struct ar6_softc *ar, struct sk_buff *skb);
 #endif /* EXPORT_HCI_BRIDGE_INTERFACE */
 
 #define LOCK_BRIDGE(dev)   spin_lock_bh(&(dev)->BridgeLock)
@@ -466,7 +466,7 @@ static HCI_SEND_FULL_ACTION  ar6000_hci_pkt_send_full(void *pContext, struct htc
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 int ar6000_setup_hci(void *ar)
 #else
-int ar6000_setup_hci(AR_SOFTC_T *ar)
+int ar6000_setup_hci(struct ar6_softc *ar)
 #endif
 {
     struct hci_transport_config_info config;
@@ -563,7 +563,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 void  ar6000_cleanup_hci(void *ar)
 #else
-void  ar6000_cleanup_hci(AR_SOFTC_T *ar)
+void  ar6000_cleanup_hci(struct ar6_softc *ar)
 #endif
 {
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
@@ -598,7 +598,7 @@ void  ar6000_cleanup_hci(AR_SOFTC_T *ar)
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 int hci_test_send(void *ar, struct sk_buff *skb)
 #else
-int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
+int hci_test_send(struct ar6_softc *ar, struct sk_buff *skb)
 #endif
 {
     int              status = 0;
@@ -664,7 +664,7 @@ int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
     return status;
 }
 
-void ar6000_set_default_ar3kconfig(AR_SOFTC_T *ar, void *ar3kconfig)
+void ar6000_set_default_ar3kconfig(struct ar6_softc *ar, void *ar3kconfig)
 {
     struct ar6k_hci_bridge_info *pHcidevInfo = (struct ar6k_hci_bridge_info *)ar->hcidev_info;
     struct ar3k_config_info *config = (struct ar3k_config_info *)ar3kconfig;
@@ -1080,7 +1080,7 @@ static void bt_free_buffer(struct ar6k_hci_bridge_info *pHcidevInfo, struct sk_b
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 int ar6000_setup_hci(void *ar)
 #else
-int ar6000_setup_hci(AR_SOFTC_T *ar)
+int ar6000_setup_hci(struct ar6_softc *ar)
 #endif
 {
     return 0;
@@ -1089,14 +1089,14 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 void ar6000_cleanup_hci(void *ar)
 #else
-void ar6000_cleanup_hci(AR_SOFTC_T *ar)
+void ar6000_cleanup_hci(struct ar6_softc *ar)
 #endif
 {
     return;    
 }
 
 #ifndef EXPORT_HCI_BRIDGE_INTERFACE
-void ar6000_set_default_ar3kconfig(AR_SOFTC_T *ar, void *ar3kconfig)
+void ar6000_set_default_ar3kconfig(struct ar6_softc *ar, void *ar3kconfig)
 {
     return;
 }
@@ -1105,7 +1105,7 @@ void ar6000_set_default_ar3kconfig(AR_SOFTC_T *ar, void *ar3kconfig)
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 int hci_test_send(void *ar, struct sk_buff *skb)
 #else
-int hci_test_send(AR_SOFTC_T *ar, struct sk_buff *skb)
+int hci_test_send(struct ar6_softc *ar, struct sk_buff *skb)
 #endif
 {
     return -EOPNOTSUPP;

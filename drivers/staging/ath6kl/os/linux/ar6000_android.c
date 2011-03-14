@@ -334,7 +334,7 @@ void android_module_exit(void)
 }
 
 #ifdef CONFIG_PM
-void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
+void android_ar6k_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent)
 {
     if (
 #ifdef CONFIG_HAS_EARLYSUSPEND

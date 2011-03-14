@@ -37,7 +37,7 @@ extern unsigned int wmitimeout;
 extern wait_queue_head_t arEvent;
 
 #ifdef ANDROID_ENV
-extern void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent);
+extern void android_ar6k_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent);
 #endif
 #undef ATH_MODULE_NAME
 #define ATH_MODULE_NAME pm
@@ -57,10 +57,10 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(pm,
 
 #endif /* DEBUG */
 
-int ar6000_exit_cut_power_state(AR_SOFTC_T *ar);
+int ar6000_exit_cut_power_state(struct ar6_softc *ar);
 
 #ifdef CONFIG_PM
-static void ar6k_send_asleep_event_to_app(AR_SOFTC_T *ar, bool asleep)
+static void ar6k_send_asleep_event_to_app(struct ar6_softc *ar, bool asleep)
 {
     char buf[128];
     union iwreq_data wrqu;
@@ -71,7 +71,7 @@ static void ar6k_send_asleep_event_to_app(AR_SOFTC_T *ar, bool asleep)
     wireless_send_event(ar->arNetDev, IWEVCUSTOM, &wrqu, buf);
 }
 
-static void ar6000_wow_resume(AR_SOFTC_T *ar)
+static void ar6000_wow_resume(struct ar6_softc *ar)
 {
     if (ar->arWowState!= WLAN_WOW_STATE_NONE) {
         u16 fg_start_period = (ar->scParams.fg_start_period==0) ? 1 : ar->scParams.fg_start_period;
@@ -110,7 +110,7 @@ static void ar6000_wow_resume(AR_SOFTC_T *ar)
     ar->arWlanPowerState = WLAN_POWER_STATE_ON;
 }
 
-static void ar6000_wow_suspend(AR_SOFTC_T *ar)
+static void ar6000_wow_suspend(struct ar6_softc *ar)
 {
 #define WOW_LIST_ID 1
     if (ar->arNetworkType != AP_NETWORK) {
@@ -214,7 +214,7 @@ static void ar6000_wow_suspend(AR_SOFTC_T *ar)
 int ar6000_suspend_ev(void *context)
 {
     int status = 0;
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
+    struct ar6_softc *ar = (struct ar6_softc *)context;
     s16 pmmode = ar->arSuspendConfig;
 wow_not_connected:
     switch (pmmode) {
@@ -250,7 +250,7 @@ wow_not_connected:
 
 int ar6000_resume_ev(void *context)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
+    struct ar6_softc *ar = (struct ar6_softc *)context;
     u16 powerState = ar->arWlanPowerState;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: enter previous state %d wowState %d\n", __func__, powerState, ar->arWowState));
@@ -273,7 +273,7 @@ int ar6000_resume_ev(void *context)
     return 0;
 }
 
-void ar6000_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
+void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent)
 {
     if (ar->arWowState!=WLAN_WOW_STATE_NONE) {
         if (ar->arWowState==WLAN_WOW_STATE_SUSPENDING) {
@@ -292,7 +292,7 @@ void ar6000_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, bool isEvent)
 
 int ar6000_power_change_ev(void *context, u32 config)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)context;
+    struct ar6_softc *ar = (struct ar6_softc *)context;
     int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_PM, ("%s: power change event callback %d \n", __func__, config));

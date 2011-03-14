@@ -28,7 +28,7 @@
 static void
 ar6000_htc_raw_read_cb(void *Context, struct htc_packet *pPacket)
 {
-    AR_SOFTC_T        *ar = (AR_SOFTC_T *)Context;
+    struct ar6_softc        *ar = (struct ar6_softc *)Context;
     raw_htc_buffer    *busy;
     HTC_RAW_STREAM_ID streamID; 
     AR_RAW_HTC_T *arRaw = ar->arRawHtc;
@@ -72,7 +72,7 @@ ar6000_htc_raw_read_cb(void *Context, struct htc_packet *pPacket)
 static void
 ar6000_htc_raw_write_cb(void *Context, struct htc_packet *pPacket)
 {
-    AR_SOFTC_T          *ar = (AR_SOFTC_T  *)Context;
+    struct ar6_softc          *ar = (struct ar6_softc  *)Context;
     raw_htc_buffer      *free;
     HTC_RAW_STREAM_ID   streamID;
     AR_RAW_HTC_T *arRaw = ar->arRawHtc;
@@ -111,7 +111,7 @@ ar6000_htc_raw_write_cb(void *Context, struct htc_packet *pPacket)
 }
 
 /* connect to a service */
-static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
+static int ar6000_connect_raw_service(struct ar6_softc        *ar,
                                            HTC_RAW_STREAM_ID StreamID)
 {
     int                 status;
@@ -166,7 +166,7 @@ static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
     return status;
 }
 
-int ar6000_htc_raw_open(AR_SOFTC_T *ar)
+int ar6000_htc_raw_open(struct ar6_softc *ar)
 {
     int status;
     int streamID, endPt, count2;
@@ -272,7 +272,7 @@ int ar6000_htc_raw_open(AR_SOFTC_T *ar)
     return 0;
 }
 
-int ar6000_htc_raw_close(AR_SOFTC_T *ar)
+int ar6000_htc_raw_close(struct ar6_softc *ar)
 {
     A_PRINTF("ar6000_htc_raw_close called \n");
     HTCStop(ar->arHtcTarget);
@@ -286,7 +286,7 @@ int ar6000_htc_raw_close(AR_SOFTC_T *ar)
 }
 
 raw_htc_buffer *
-get_filled_buffer(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID)
+get_filled_buffer(struct ar6_softc *ar, HTC_RAW_STREAM_ID StreamID)
 {
     int count;
     raw_htc_buffer *busy;
@@ -308,7 +308,7 @@ get_filled_buffer(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID)
     return busy;
 }
 
-ssize_t ar6000_htc_raw_read(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID, 
+ssize_t ar6000_htc_raw_read(struct ar6_softc *ar, HTC_RAW_STREAM_ID StreamID, 
                             char __user *buffer, size_t length)
 {
     int readPtr;
@@ -368,7 +368,7 @@ ssize_t ar6000_htc_raw_read(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID,
 }
 
 static raw_htc_buffer *
-get_free_buffer(AR_SOFTC_T *ar, HTC_ENDPOINT_ID StreamID)
+get_free_buffer(struct ar6_softc *ar, HTC_ENDPOINT_ID StreamID)
 {
     int count;
     raw_htc_buffer *free;
@@ -390,7 +390,7 @@ get_free_buffer(AR_SOFTC_T *ar, HTC_ENDPOINT_ID StreamID)
     return free;
 }
 
-ssize_t ar6000_htc_raw_write(AR_SOFTC_T *ar, HTC_RAW_STREAM_ID StreamID,
+ssize_t ar6000_htc_raw_write(struct ar6_softc *ar, HTC_RAW_STREAM_ID StreamID,
                      char __user *buffer, size_t length)
 {
     int writePtr;

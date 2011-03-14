@@ -39,7 +39,7 @@ extern int loghci;
 static int
 ar6000_ioctl_get_roam_tbl(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -55,7 +55,7 @@ ar6000_ioctl_get_roam_tbl(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_get_roam_data(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     if (ar->arWmiReady == false) {
         return -EIO;
@@ -74,7 +74,7 @@ ar6000_ioctl_get_roam_data(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_roam_ctrl(struct net_device *dev, char *userdata)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_ROAM_CTRL_CMD cmd;
     u8 size = sizeof(cmd);
 
@@ -107,7 +107,7 @@ ar6000_ioctl_set_roam_ctrl(struct net_device *dev, char *userdata)
 static int
 ar6000_ioctl_set_powersave_timers(struct net_device *dev, char *userdata)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_POWERSAVE_TIMERS_POLICY_CMD cmd;
     u8 size = sizeof(cmd);
 
@@ -133,7 +133,7 @@ ar6000_ioctl_set_powersave_timers(struct net_device *dev, char *userdata)
 static int
 ar6000_ioctl_set_qos_supp(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_QOS_SUPP_CMD cmd;
     int ret;
 
@@ -168,7 +168,7 @@ ar6000_ioctl_set_qos_supp(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_wmm(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_WMM_CMD cmd;
     int ret;
 
@@ -209,7 +209,7 @@ ar6000_ioctl_set_wmm(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_txop(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_WMM_TXOP_CMD cmd;
     int ret;
 
@@ -244,7 +244,7 @@ ar6000_ioctl_set_txop(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_get_rd(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     int ret = 0;
 
     if ((dev->flags & IFF_UP) != IFF_UP || ar->arWmiReady == false) {
@@ -261,7 +261,7 @@ ar6000_ioctl_get_rd(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_country(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_AP_SET_COUNTRY_CMD cmd;
     int ret;
 
@@ -301,7 +301,7 @@ ar6000_ioctl_set_country(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_get_power_mode(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_POWER_MODE_CMD power_mode;
     int ret = 0;
 
@@ -321,7 +321,7 @@ ar6000_ioctl_get_power_mode(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_channelParams(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_CHANNEL_PARAMS_CMD cmd, *cmdp;
     int ret = 0;
 
@@ -382,7 +382,7 @@ static int
 ar6000_ioctl_set_snr_threshold(struct net_device *dev, struct ifreq *rq)
 {
 
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SNR_THRESHOLD_PARAMS_CMD cmd;
     int ret = 0;
 
@@ -414,7 +414,7 @@ ar6000_ioctl_set_rssi_threshold(struct net_device *dev, struct ifreq *rq)
     thold2.rssi = tmpThold.rssi;        \
 } while (0)
 
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_RSSI_THRESHOLD_PARAMS_CMD cmd;
     USER_RSSI_PARAMS rssiParams;
     s32 i, j;
@@ -491,7 +491,7 @@ static int
 ar6000_ioctl_set_lq_threshold(struct net_device *dev, struct ifreq *rq)
 {
 
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_LQ_THRESHOLD_PARAMS_CMD cmd;
     int ret = 0;
 
@@ -514,7 +514,7 @@ ar6000_ioctl_set_lq_threshold(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_probedSsid(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_PROBED_SSID_CMD cmd;
     int ret = 0;
 
@@ -538,7 +538,7 @@ ar6000_ioctl_set_probedSsid(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_badAp(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_ADD_BAD_AP_CMD cmd;
     int ret = 0;
 
@@ -574,7 +574,7 @@ ar6000_ioctl_set_badAp(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_create_qos(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_CREATE_PSTREAM_CMD cmd;
     int ret;
 
@@ -607,7 +607,7 @@ ar6000_ioctl_create_qos(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_delete_qos(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_DELETE_PSTREAM_CMD cmd;
     int ret = 0;
 
@@ -637,7 +637,7 @@ ar6000_ioctl_delete_qos(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_get_qos_queue(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     struct ar6000_queuereq qreq;
     int ret = 0;
 
@@ -665,7 +665,7 @@ static int
 ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
                                  struct ifreq *rq, u8 *data, u32 len)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     u32 buf[4+TCMD_MAX_RATES];
     int ret = 0;
 
@@ -717,7 +717,7 @@ ar6000_ioctl_tcmd_get_rx_report(struct net_device *dev,
 void
 ar6000_tcmd_rx_report_event(void *devt, u8 *results, int len)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)devt;
+    struct ar6_softc *ar = (struct ar6_softc *)devt;
     TCMD_CONT_RX * rx_rep = (TCMD_CONT_RX *)results;
 
     if (enablerssicompensation) {
@@ -742,7 +742,7 @@ ar6000_tcmd_rx_report_event(void *devt, u8 *results, int len)
 static int
 ar6000_ioctl_set_error_report_bitmask(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_TARGET_ERROR_REPORT_BITMASK cmd;
     int ret = 0;
 
@@ -762,7 +762,7 @@ ar6000_ioctl_set_error_report_bitmask(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_clear_target_stats(struct net_device *dev)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     TARGET_STATS *pStats = &ar->arTargetStats;
     int ret = 0;
 
@@ -778,7 +778,7 @@ ar6000_clear_target_stats(struct net_device *dev)
 static int
 ar6000_ioctl_get_target_stats(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     TARGET_STATS_CMD cmd;
     TARGET_STATS *pStats = &ar->arTargetStats;
     int ret = 0;
@@ -829,7 +829,7 @@ ar6000_ioctl_get_target_stats(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_get_ap_stats(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     u32 action; /* Allocating only the desired space on the frame. Declaring is as a WMI_AP_MODE_STAT variable results in exceeding the compiler imposed limit on the maximum frame size */
     WMI_AP_MODE_STAT *pStats = &ar->arAPStats;
     int ret = 0;
@@ -888,7 +888,7 @@ ar6000_ioctl_get_ap_stats(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_access_params(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_ACCESS_PARAMS_CMD cmd;
     int ret = 0;
 
@@ -914,7 +914,7 @@ ar6000_ioctl_set_access_params(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_ioctl_set_disconnect_timeout(struct net_device *dev, struct ifreq *rq)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_DISC_TIMEOUT_CMD cmd;
     int ret = 0;
 
@@ -939,7 +939,7 @@ ar6000_ioctl_set_disconnect_timeout(struct net_device *dev, struct ifreq *rq)
 static int
 ar6000_xioctl_set_voice_pkt_size(struct net_device *dev, char *userdata)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_VOICE_PKT_SIZE_CMD cmd;
     int ret = 0;
 
@@ -965,7 +965,7 @@ ar6000_xioctl_set_voice_pkt_size(struct net_device *dev, char *userdata)
 static int
 ar6000_xioctl_set_max_sp_len(struct net_device *dev, char *userdata)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_MAX_SP_LEN_CMD cmd;
     int ret = 0;
 
@@ -991,7 +991,7 @@ ar6000_xioctl_set_max_sp_len(struct net_device *dev, char *userdata)
 static int
 ar6000_xioctl_set_bt_status_cmd(struct net_device *dev, char *userdata)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_BT_STATUS_CMD cmd;
     int ret = 0;
 
@@ -1016,7 +1016,7 @@ ar6000_xioctl_set_bt_status_cmd(struct net_device *dev, char *userdata)
 static int
 ar6000_xioctl_set_bt_params_cmd(struct net_device *dev, char *userdata)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_BT_PARAMS_CMD cmd;
     int ret = 0;
 
@@ -1041,7 +1041,7 @@ ar6000_xioctl_set_bt_params_cmd(struct net_device *dev, char *userdata)
 static int
 ar6000_xioctl_set_btcoex_fe_ant_cmd(struct net_device * dev, char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_FE_ANT_CMD cmd;
     int ret = 0;
 
@@ -1065,7 +1065,7 @@ ar6000_xioctl_set_btcoex_fe_ant_cmd(struct net_device * dev, char *userdata)
 static int
 ar6000_xioctl_set_btcoex_colocated_bt_dev_cmd(struct net_device * dev, char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_COLOCATED_BT_DEV_CMD cmd;
     int ret = 0;
 
@@ -1090,7 +1090,7 @@ ar6000_xioctl_set_btcoex_colocated_bt_dev_cmd(struct net_device * dev, char *use
 static int
 ar6000_xioctl_set_btcoex_btinquiry_page_config_cmd(struct net_device * dev,  char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMD cmd;
     int ret = 0;
 
@@ -1115,7 +1115,7 @@ ar6000_xioctl_set_btcoex_btinquiry_page_config_cmd(struct net_device * dev,  cha
 static int
 ar6000_xioctl_set_btcoex_sco_config_cmd(struct net_device * dev, char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_SCO_CONFIG_CMD cmd;
     int ret = 0;
 
@@ -1141,7 +1141,7 @@ static int
 ar6000_xioctl_set_btcoex_a2dp_config_cmd(struct net_device * dev,
 														char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_A2DP_CONFIG_CMD cmd;
     int ret = 0;
 
@@ -1166,7 +1166,7 @@ ar6000_xioctl_set_btcoex_a2dp_config_cmd(struct net_device * dev,
 static int
 ar6000_xioctl_set_btcoex_aclcoex_config_cmd(struct net_device * dev, char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMD cmd;
     int ret = 0;
 
@@ -1191,7 +1191,7 @@ ar6000_xioctl_set_btcoex_aclcoex_config_cmd(struct net_device * dev, char *userd
 static int
 ar60000_xioctl_set_btcoex_debug_cmd(struct net_device * dev, char *userdata)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 	WMI_SET_BTCOEX_DEBUG_CMD cmd;
     int ret = 0;
 
@@ -1216,7 +1216,7 @@ ar60000_xioctl_set_btcoex_debug_cmd(struct net_device * dev, char *userdata)
 static int
 ar6000_xioctl_set_btcoex_bt_operating_status_cmd(struct net_device * dev, char *userdata)
 {
-     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+     struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
      WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMD cmd;
      int ret = 0;
 
@@ -1242,7 +1242,7 @@ ar6000_xioctl_get_btcoex_config_cmd(struct net_device * dev, char *userdata,
 											struct ifreq *rq)
 {
 
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     AR6000_BTCOEX_CONFIG btcoexConfig;
     WMI_BTCOEX_CONFIG_EVENT *pbtcoexConfigEv = &ar->arBtcoexConfig;
 
@@ -1285,7 +1285,7 @@ ar6000_xioctl_get_btcoex_config_cmd(struct net_device * dev, char *userdata,
 static int
 ar6000_xioctl_get_btcoex_stats_cmd(struct net_device * dev, char *userdata, struct ifreq *rq)
 {
-	AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+	struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     AR6000_BTCOEX_STATS btcoexStats;
     WMI_BTCOEX_STATS_EVENT *pbtcoexStats = &ar->arBtcoexStats;
     int ret = 0;
@@ -1332,7 +1332,7 @@ ar6000_xioctl_get_btcoex_stats_cmd(struct net_device * dev, char *userdata, stru
 static int
 ar6000_xioctl_set_excess_tx_retry_thres_cmd(struct net_device * dev, char * userdata)
 {
-    AR_SOFTC_T     *ar     = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc     *ar     = (struct ar6_softc *)ar6k_priv(dev);
     WMI_SET_EXCESS_TX_RETRY_THRES_CMD cmd;
     int ret = 0;
 
@@ -1414,7 +1414,7 @@ ar6000_gpio_output_set(struct net_device *dev,
                        u32 enable_mask,
                        u32 disable_mask)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     gpio_ack_received = false;
     return wmi_gpio_output_set(ar->arWmi,
@@ -1424,7 +1424,7 @@ ar6000_gpio_output_set(struct net_device *dev,
 static int
 ar6000_gpio_input_get(struct net_device *dev)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     *((volatile bool *)&gpio_data_available) = false;
     return wmi_gpio_input_get(ar->arWmi);
@@ -1435,7 +1435,7 @@ ar6000_gpio_register_set(struct net_device *dev,
                          u32 gpioreg_id,
                          u32 value)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     gpio_ack_received = false;
     return wmi_gpio_register_set(ar->arWmi, gpioreg_id, value);
@@ -1445,7 +1445,7 @@ static int
 ar6000_gpio_register_get(struct net_device *dev,
                          u32 gpioreg_id)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     *((volatile bool *)&gpio_data_available) = false;
     return wmi_gpio_register_get(ar->arWmi, gpioreg_id);
@@ -1455,7 +1455,7 @@ static int
 ar6000_gpio_intr_ack(struct net_device *dev,
                      u32 ack_mask)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     gpio_intr_available = false;
     return wmi_gpio_intr_ack(ar->arWmi, ack_mask);
@@ -1469,7 +1469,7 @@ static bool prof_count_available; /* Requested GPIO data available */
 static int
 prof_count_get(struct net_device *dev)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
     *((volatile bool *)&prof_count_available) = false;
     return wmi_prof_count_get_cmd(ar->arWmi);
@@ -1541,7 +1541,7 @@ ar6000_create_acl_data_osbuf(struct net_device *dev, u8 *userdata, void **p_osbu
 
 
 int
-ar6000_ioctl_ap_setparam(AR_SOFTC_T *ar, int param, int value)
+ar6000_ioctl_ap_setparam(struct ar6_softc *ar, int param, int value)
 {
     int ret=0;
 
@@ -1621,7 +1621,7 @@ ar6000_ioctl_ap_setparam(AR_SOFTC_T *ar, int param, int value)
 }
 
 int
-ar6000_ioctl_setparam(AR_SOFTC_T *ar, int param, int value)
+ar6000_ioctl_setparam(struct ar6_softc *ar, int param, int value)
 {
     bool profChanged = false;
     int ret=0;
@@ -1757,7 +1757,7 @@ ar6000_ioctl_setparam(AR_SOFTC_T *ar, int param, int value)
 }
 
 int
-ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
+ar6000_ioctl_setkey(struct ar6_softc *ar, struct ieee80211req_key *ik)
 {
     KEY_USAGE keyUsage;
     int status;
@@ -1864,7 +1864,7 @@ ar6000_ioctl_setkey(AR_SOFTC_T *ar, struct ieee80211req_key *ik)
 
 int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-    AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+    struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
     HIF_DEVICE *hifDevice = ar->arHifDevice;
     int ret = 0, param;
     unsigned int address = 0;
@@ -3141,7 +3141,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_SET_OPT_MODE:
         {
         WMI_SET_OPT_MODE_CMD optModeCmd;
-            AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+            struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
 
             if (ar->arWmiReady == false) {
                 ret = -EIO;
@@ -3242,7 +3242,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case IEEE80211_IOCTL_SETAUTHALG:
         {
-            AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+            struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
             struct ieee80211req_authalg req;
 
             if (ar->arWmiReady == false) {
@@ -3417,7 +3417,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         case AR6000_XIOCTL_WMI_GETFIXRATES:
         {
             WMI_FIX_RATES_CMD getFixRatesCmd;
-            AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+            struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
             int ret = 0;
 
             if (ar->bIsDestroyProgress) {
@@ -3627,7 +3627,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
         }
         case AR6000_XIOCTL_WMI_GET_KEEPALIVE:
         {
-            AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(dev);
+            struct ar6_softc *ar = (struct ar6_softc *)ar6k_priv(dev);
             WMI_GET_KEEPALIVE_CMD getKeepAlive;
             int ret = 0;
             if (ar->bIsDestroyProgress) {
