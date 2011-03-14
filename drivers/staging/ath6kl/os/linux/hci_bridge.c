@@ -1119,7 +1119,7 @@ static int __init
 hcibridge_init_module(void)
 {
     int status;
-    HCI_TRANSPORT_CALLBACKS hciTransCallbacks;
+    struct hci_transport_callbacks hciTransCallbacks;
 
     hciTransCallbacks.setupTransport = ar6000_setup_hci;
     hciTransCallbacks.cleanupTransport = ar6000_cleanup_hci;

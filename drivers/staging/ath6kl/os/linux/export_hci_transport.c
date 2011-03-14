@@ -49,9 +49,9 @@ int    (*_HCI_TransportRecvHCIEventSync)(HCI_TRANSPORT_HANDLE HciTrans,
 int    (*_HCI_TransportSetBaudRate)(HCI_TRANSPORT_HANDLE HciTrans, u32 Baud);
 int    (*_HCI_TransportEnablePowerMgmt)(HCI_TRANSPORT_HANDLE HciTrans, bool Enable);
 
-extern HCI_TRANSPORT_CALLBACKS ar6kHciTransCallbacks;
+extern struct hci_transport_callbacks ar6kHciTransCallbacks;
 
-int ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks)
+int ar6000_register_hci_transport(struct hci_transport_callbacks *hciTransCallbacks)
 {
     ar6kHciTransCallbacks = *hciTransCallbacks;
 

@@ -36,10 +36,10 @@ struct common_credit_state_info {
     HTC_ENDPOINT_CREDIT_DIST *pLowestPriEpDist;  /* pointer to the lowest priority endpoint dist struct */
 };
 
-typedef struct {
+struct hci_transport_callbacks {
     s32 (*setupTransport)(void *ar);
     void (*cleanupTransport)(void *ar);
-} HCI_TRANSPORT_CALLBACKS;
+};
 
 typedef struct {
    void *netDevice;

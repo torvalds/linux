@@ -61,7 +61,7 @@ extern int    (*_HCI_TransportEnablePowerMgmt)(HCI_TRANSPORT_HANDLE HciTrans, bo
             _HCI_TransportEnablePowerMgmt((HciTrans), (Enable))
 
 
-extern int ar6000_register_hci_transport(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks);
+extern int ar6000_register_hci_transport(struct hci_transport_callbacks *hciTransCallbacks);
 
 extern int ar6000_get_hif_dev(HIF_DEVICE *device, void *config);
 

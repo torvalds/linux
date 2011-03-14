@@ -114,7 +114,7 @@ APTC_TRAFFIC_RECORD aptcTR;
 
 #ifdef EXPORT_HCI_BRIDGE_INTERFACE
 // callbacks registered by HCI transport driver
-HCI_TRANSPORT_CALLBACKS ar6kHciTransCallbacks = { NULL };
+struct hci_transport_callbacks ar6kHciTransCallbacks = { NULL };
 #endif
 
 unsigned int processDot11Hdr = 0;

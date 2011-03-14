@@ -455,10 +455,10 @@ void ar6k_cleanup_hci_pal(void *ar_p)
  * Register init and callback function with ar6k
  * when PAL driver is a separate kernel module.
  ****************************************************/
-int ar6k_register_hci_pal(HCI_TRANSPORT_CALLBACKS *hciTransCallbacks);
+int ar6k_register_hci_pal(struct hci_transport_callbacks *hciTransCallbacks);
 static int __init pal_init_module(void)
 {
-	HCI_TRANSPORT_CALLBACKS hciTransCallbacks;
+	struct hci_transport_callbacks hciTransCallbacks;
 
 	hciTransCallbacks.setupTransport = ar6k_setup_hci_pal;
 	hciTransCallbacks.cleanupTransport = ar6k_cleanup_hci_pal;
