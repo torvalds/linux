@@ -75,7 +75,7 @@ extern unsigned int hciuartstep;
 
 struct ar6k_hci_bridge_info {
     void                    *pHCIDev;          /* HCI bridge device */
-    HCI_TRANSPORT_PROPERTIES HCIProps;         /* HCI bridge props */
+    struct hci_transport_properties HCIProps;         /* HCI bridge props */
     struct hci_dev          *pBtStackHCIDev;   /* BT Stack HCI dev */
     bool                  HciNormalMode;     /* Actual HCI mode enabled (non-TEST)*/
     bool                  HciRegistered;     /* HCI device registered with stack */
@@ -216,7 +216,7 @@ static void RefillRecvBuffers(struct ar6k_hci_bridge_info      *pHcidevInfo,
         (((ar)->arTargetType == TARGET_TYPE_AR6002) ? AR6002_HOST_INTEREST_ITEM_ADDRESS(item) : \
         (((ar)->arTargetType == TARGET_TYPE_AR6003) ? AR6003_HOST_INTEREST_ITEM_ADDRESS(item) : 0))
 static int ar6000_hci_transport_ready(HCI_TRANSPORT_HANDLE     HCIHandle,
-                                           HCI_TRANSPORT_PROPERTIES *pProps, 
+                                           struct hci_transport_properties *pProps, 
                                            void                     *pContext)
 {
     struct ar6k_hci_bridge_info *pHcidevInfo = (struct ar6k_hci_bridge_info *)pContext;

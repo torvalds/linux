@@ -910,7 +910,7 @@ void GMboxProtocolUninstall(struct ar6k_device *pDev)
 
 static int NotifyTransportReady(struct gmbox_proto_hci_uart  *pProt)
 {
-    HCI_TRANSPORT_PROPERTIES props;
+    struct hci_transport_properties props;
     int                 status = 0;
     
     do {

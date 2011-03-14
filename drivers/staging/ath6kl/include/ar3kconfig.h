@@ -41,7 +41,7 @@ extern "C" {
 struct ar3k_config_info {
     u32 Flags;           /* config flags */
     void                     *pHCIDev;        /* HCI bridge device     */
-    HCI_TRANSPORT_PROPERTIES *pHCIProps;      /* HCI bridge props      */
+    struct hci_transport_properties *pHCIProps;      /* HCI bridge props      */
     HIF_DEVICE               *pHIFDevice;     /* HIF layer device      */
     
     u32 AR3KBaudRate;    /* AR3K operational baud rate */

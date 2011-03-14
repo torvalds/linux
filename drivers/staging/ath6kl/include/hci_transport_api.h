@@ -79,11 +79,11 @@ typedef enum _HCI_SEND_FULL_ACTION {
  * the callback must return the send full action to take (either DROP or KEEP) */
 typedef HCI_SEND_FULL_ACTION  (*HCI_TRANSPORT_SEND_FULL)(void *, HTC_PACKET *);
 
-typedef struct {
+struct hci_transport_properties {
     int    HeadRoom;      /* number of bytes in front of HCI packet for header space */
     int    TailRoom;      /* number of bytes at the end of the HCI packet for tail space */
     int    IOBlockPad;    /* I/O block padding required (always a power of 2) */
-} HCI_TRANSPORT_PROPERTIES;
+};
 
 struct hci_transport_config_info {
     int      ACLRecvBufferWaterMark;     /* low watermark to trigger recv refill */
@@ -91,7 +91,7 @@ struct hci_transport_config_info {
     int      MaxSendQueueDepth;          /* max number of packets in the single send queue */
     void     *pContext;                  /* context for all callbacks */
     void     (*TransportFailure)(void *pContext, int Status); /* transport failure callback */
-    int (*TransportReady)(HCI_TRANSPORT_HANDLE, HCI_TRANSPORT_PROPERTIES *,void *pContext); /* transport is ready */
+    int (*TransportReady)(HCI_TRANSPORT_HANDLE, struct hci_transport_properties *,void *pContext); /* transport is ready */
     void     (*TransportRemoved)(void *pContext);                  /* transport was removed */
         /* packet processing callbacks */
     HCI_TRANSPORT_SEND_PKT_COMPLETE    pHCISendComplete;
