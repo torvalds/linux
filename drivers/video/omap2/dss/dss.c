@@ -256,7 +256,7 @@ void dss_dump_clocks(struct seq_file *s)
 
 		seq_printf(s, "dpll4_ck %lu\n", dpll4_ck_rate);
 
-		if (cpu_is_omap3630())
+		if (cpu_is_omap3630() || cpu_is_omap44xx())
 			seq_printf(s, "%s (%s) = %lu / %lu  = %lu\n",
 					fclk_name, fclk_real_name,
 					dpll4_ck_rate,
@@ -394,9 +394,12 @@ int dss_calc_clock_rates(struct dss_clock_info *cinfo)
 {
 	if (dss.dpll4_m4_ck) {
 		unsigned long prate;
+		u16 fck_div_max = 16;
 
-		if (cinfo->fck_div > (cpu_is_omap3630() ? 32 : 16) ||
-				cinfo->fck_div == 0)
+		if (cpu_is_omap3630() || cpu_is_omap44xx())
+			fck_div_max = 32;
+
+		if (cinfo->fck_div > fck_div_max || cinfo->fck_div == 0)
 			return -EINVAL;
 
 		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
@@ -442,7 +445,7 @@ int dss_get_clock_div(struct dss_clock_info *cinfo)
 
 		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
 
-		if (cpu_is_omap3630())
+		if (cpu_is_omap3630() || cpu_is_omap44xx())
 			cinfo->fck_div = prate / (cinfo->fck);
 		else
 			cinfo->fck_div = prate / (cinfo->fck / 2);
@@ -471,7 +474,7 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 
 	unsigned long fck, max_dss_fck;
 
-	u16 fck_div;
+	u16 fck_div, fck_div_max = 16;
 
 	int match = 0;
 	int min_fck_per_pck;
@@ -504,7 +507,7 @@ retry:
 	memset(&best_dss, 0, sizeof(best_dss));
 	memset(&best_dispc, 0, sizeof(best_dispc));
 
-	if (cpu_is_omap24xx()) {
+	if (dss.dpll4_m4_ck == NULL) {
 		struct dispc_clock_info cur_dispc;
 		/* XXX can we change the clock on omap2? */
 		fck = dss_clk_get_rate(DSS_CLK_FCK);
@@ -519,12 +522,14 @@ retry:
 		best_dispc = cur_dispc;
 
 		goto found;
-	} else if (cpu_is_omap34xx()) {
-		for (fck_div = (cpu_is_omap3630() ? 32 : 16);
-					fck_div > 0; --fck_div) {
+	} else {
+		if (cpu_is_omap3630() || cpu_is_omap44xx())
+			fck_div_max = 32;
+
+		for (fck_div = fck_div_max; fck_div > 0; --fck_div) {
 			struct dispc_clock_info cur_dispc;
 
-			if (cpu_is_omap3630())
+			if (fck_div_max == 32)
 				fck = prate / fck_div;
 			else
 				fck = prate / fck_div * 2;
@@ -552,8 +557,6 @@ retry:
 					goto found;
 			}
 		}
-	} else {
-		BUG();
 	}
 
 found:
@@ -679,6 +682,13 @@ static int dss_init(void)
 #endif
 	if (cpu_is_omap34xx()) {
 		dpll4_m4_ck = clk_get(NULL, "dpll4_m4_ck");
+		if (IS_ERR(dpll4_m4_ck)) {
+			DSSERR("Failed to get dpll4_m4_ck\n");
+			r = PTR_ERR(dpll4_m4_ck);
+			goto fail1;
+		}
+	} else if (cpu_is_omap44xx()) {
+		dpll4_m4_ck = clk_get(NULL, "dpll_per_m5x2_ck");
 		if (IS_ERR(dpll4_m4_ck)) {
 			DSSERR("Failed to get dpll4_m4_ck\n");
 			r = PTR_ERR(dpll4_m4_ck);
