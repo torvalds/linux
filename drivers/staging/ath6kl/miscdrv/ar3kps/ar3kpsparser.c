@@ -130,7 +130,7 @@ tRamPatch   RamPatch[MAX_NUM_PATCH_ENTRY];
 int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat);
 char AthReadChar(u8 *buffer, u32 len,u32 *pos);
 char *AthGetLine(char *buffer, int maxlen, u8 *srcbuffer,u32 len,u32 *pos);
-static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index);
+static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,struct ps_cmd_packet *PSPatchPacket,u32 *index);
 
 /* Function to reads the next character from the input buffer */
 char AthReadChar(u8 *buffer, u32 len,u32 *pos)
@@ -764,7 +764,7 @@ static void LoadHeader(u8 *HCI_PS_Command,u8 opcode,int length,int index){
 
 /////////////////////////
 //
-int AthCreateCommandList(PSCmdPacket **HciPacketList, u32 *numPackets)
+int AthCreateCommandList(struct ps_cmd_packet **HciPacketList, u32 *numPackets)
 {
 
     u8 count;
@@ -785,8 +785,8 @@ int AthCreateCommandList(PSCmdPacket **HciPacketList, u32 *numPackets)
         if(Patch_Count > 0) {
             NumcmdEntry++; /* Patch Enable Command */
         }
-           AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Num Cmd Entries %d Size  %d  \r\n",NumcmdEntry,(u32)sizeof(PSCmdPacket) * NumcmdEntry));
-        (*HciPacketList) = A_MALLOC(sizeof(PSCmdPacket) * NumcmdEntry);
+           AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("Num Cmd Entries %d Size  %d  \r\n",NumcmdEntry,(u32)sizeof(struct ps_cmd_packet) * NumcmdEntry));
+        (*HciPacketList) = A_MALLOC(sizeof(struct ps_cmd_packet) * NumcmdEntry);
     if(NULL == *HciPacketList) {
                AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("memory allocation failed  \r\n"));
         }
@@ -833,7 +833,7 @@ int AthCreateCommandList(PSCmdPacket **HciPacketList, u32 *numPackets)
 ////////////////////////
 
 /////////////
-static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,PSCmdPacket *PSPatchPacket,u32 *index)
+static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,struct ps_cmd_packet *PSPatchPacket,u32 *index)
 {
     u8 *HCI_PS_Command;
     u32 Length;
@@ -955,7 +955,7 @@ static int AthPSCreateHCICommand(u8 Opcode, u32 Param1,PSCmdPacket *PSPatchPacke
     }
     return 0;
 }
-int AthFreeCommandList(PSCmdPacket **HciPacketList, u32 numPackets)
+int AthFreeCommandList(struct ps_cmd_packet **HciPacketList, u32 numPackets)
 {
     int i;
     if(*HciPacketList == NULL) {

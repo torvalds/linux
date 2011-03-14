@@ -89,11 +89,11 @@
 
 
 
-typedef struct PSCmdPacket
+struct ps_cmd_packet
 {
     u8 *Hcipacket;
     int packetLen;
-} PSCmdPacket;
+};
 
 /* Parses a Patch information buffer and store it in global structure */
 int AthDoParsePatch(u8 *, u32 );
@@ -112,8 +112,8 @@ int AthDoParsePS(u8 *, u32 );
  *  PS Tag Command(s)
  *
  */  
-int AthCreateCommandList(PSCmdPacket **, u32 *);
+int AthCreateCommandList(struct ps_cmd_packet **, u32 *);
 
 /* Cleanup the dynamically allicated HCI command list */
-int AthFreeCommandList(PSCmdPacket **HciPacketList, u32 numPackets);
+int AthFreeCommandList(struct ps_cmd_packet **HciPacketList, u32 numPackets);
 #endif /* __AR3KPSPARSER_H */

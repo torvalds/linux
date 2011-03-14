@@ -41,7 +41,7 @@
  */
 typedef struct {
 
-    PSCmdPacket *HciCmdList;
+    struct ps_cmd_packet *HciCmdList;
     u32 num_packets;
     struct ar3k_config_info *dev;
 }HciCommandListParam;
@@ -133,7 +133,7 @@ int PSSendOps(void *arg)
 {
     int i;
     int status = 0;
-    PSCmdPacket *HciCmdList; /* List storing the commands */
+    struct ps_cmd_packet *HciCmdList; /* List storing the commands */
     const struct firmware* firmware;
     u32 numCmds;
     u8 *event;
