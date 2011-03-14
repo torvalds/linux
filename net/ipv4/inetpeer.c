@@ -399,7 +399,7 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 	write_sequnlock_bh(&base->lock);
 
 	if (do_free)
-		call_rcu_bh(&p->rcu, inetpeer_free_rcu);
+		call_rcu(&p->rcu, inetpeer_free_rcu);
 	else
 		/* The node is used again.  Decrease the reference counter
 		 * back.  The loop "cleanup -> unlink_from_unused
