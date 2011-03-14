@@ -104,7 +104,7 @@ static void
 aggr_delete_tid_state(struct aggr_info *p_aggr, u8 tid)
 {
     struct rxtid *rxtid;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
 
     A_ASSERT(tid < NUM_OF_TIDS && p_aggr);
 
@@ -127,7 +127,7 @@ aggr_delete_tid_state(struct aggr_info *p_aggr, u8 tid)
         rxtid->hold_q = NULL;
     }
 
-    A_MEMZERO(stats, sizeof(RXTID_STATS));
+    A_MEMZERO(stats, sizeof(struct rxtid_stats));
 }
 
 void
@@ -190,7 +190,7 @@ void
 aggr_process_bar(void *cntxt, u8 tid, u16 seq_no)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
 
     A_ASSERT(p_aggr);
     stats = AGGR_GET_RXTID_STATS(p_aggr, tid);
@@ -205,7 +205,7 @@ aggr_recv_addba_req_evt(void *cntxt, u8 tid, u16 seq_no, u8 win_sz)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
     struct rxtid *rxtid;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
 
     A_ASSERT(p_aggr);
     rxtid = AGGR_GET_RXTID(p_aggr, tid);
@@ -274,7 +274,7 @@ aggr_deque_frms(struct aggr_info *p_aggr, u8 tid, u16 seq_no, u8 order)
     struct rxtid *rxtid;
     struct osbuf_hold_q *node;
     u16 idx, idx_end, seq_end;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
 
     A_ASSERT(p_aggr);
     rxtid = AGGR_GET_RXTID(p_aggr, tid);
@@ -430,7 +430,7 @@ aggr_process_recv_frm(void *cntxt, u8 tid, u16 seq_no, bool is_amsdu, void **osb
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
     struct rxtid *rxtid;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
     u16 idx, st, cur, end;
     u16 *log_idx;
     struct osbuf_hold_q *node;
@@ -578,7 +578,7 @@ aggr_timeout(A_ATH_TIMER arg)
     u8 i,j;
     struct aggr_info *p_aggr = (struct aggr_info *)arg;
     struct rxtid   *rxtid;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
     /*
      * If the q for which the timer was originally started has
      * not progressed then it is necessary to dequeue all the
@@ -644,7 +644,7 @@ aggr_dump_stats(void *cntxt, PACKET_LOG **log_buf)
 {
     struct aggr_info *p_aggr = (struct aggr_info *)cntxt;
     struct rxtid   *rxtid;
-    RXTID_STATS *stats;
+    struct rxtid_stats *stats;
     u8 i;
 
     *log_buf = &p_aggr->pkt_log;

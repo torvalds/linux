@@ -88,7 +88,7 @@ struct rxtid {
     A_MUTEX_T           lock;
 };
 
-typedef struct {
+struct rxtid_stats {
     u32 num_into_aggr;      /* hitting at the input of this module */
     u32 num_dups;           /* duplicate */
     u32 num_oow;            /* out of window */
@@ -98,7 +98,7 @@ typedef struct {
     u32 num_timeouts;       /* num of timeouts, during which frames delivered */
     u32 num_hole;           /* frame not present, when window moved over */
     u32 num_bar;            /* num of resets of seq_num, via BAR */
-}RXTID_STATS;
+};
 
 struct aggr_info {
     u8 aggr_sz;            /* config value of aggregation size */
@@ -109,7 +109,7 @@ struct aggr_info {
     struct rxtid               RxTid[NUM_OF_TIDS]; /* Per tid window */
     ALLOC_NETBUFS       netbuf_allocator;   /* OS netbuf alloc fn */
     A_NETBUF_QUEUE_T    freeQ;              /* pre-allocated buffers - for A_MSDU slicing */
-    RXTID_STATS         stat[NUM_OF_TIDS];  /* Tid based statistics */
+    struct rxtid_stats         stat[NUM_OF_TIDS];  /* Tid based statistics */
     PACKET_LOG          pkt_log;            /* Log info of the packets */
 };
 
