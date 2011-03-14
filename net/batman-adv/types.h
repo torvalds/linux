@@ -67,7 +67,7 @@ struct hard_iface {
 struct orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
-	struct neigh_node *router;
+	struct neigh_node __rcu *router; /* rcu protected pointer */
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
 	unsigned long last_valid;
@@ -83,7 +83,7 @@ struct orig_node {
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
 	struct list_head frag_list;
-	spinlock_t neigh_list_lock; /* protects neighbor list */
+	spinlock_t neigh_list_lock; /* protects neigh_list and router */
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct hlist_node hash_entry;

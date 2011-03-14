@@ -98,6 +98,7 @@ void gw_election(struct bat_priv *bat_priv)
 {
 	struct hlist_node *node;
 	struct gw_node *gw_node, *curr_gw, *curr_gw_tmp = NULL;
+	struct neigh_node *router;
 	uint8_t max_tq = 0;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	int down, up;
@@ -133,10 +134,11 @@ void gw_election(struct bat_priv *bat_priv)
 	}
 
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
-		if (!gw_node->orig_node->router)
+		if (gw_node->deleted)
 			continue;
 
-		if (gw_node->deleted)
+		router = orig_node_get_router(gw_node->orig_node);
+		if (!router)
 			continue;
 
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
@@ -144,15 +146,14 @@ void gw_election(struct bat_priv *bat_priv)
 			gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags,
 					     &down, &up);
 
-			tmp_gw_factor = (gw_node->orig_node->router->tq_avg *
-					 gw_node->orig_node->router->tq_avg *
+			tmp_gw_factor = (router->tq_avg * router->tq_avg *
 					 down * 100 * 100) /
 					 (TQ_LOCAL_WINDOW_SIZE *
 					 TQ_LOCAL_WINDOW_SIZE * 64);
 
 			if ((tmp_gw_factor > max_gw_factor) ||
 			    ((tmp_gw_factor == max_gw_factor) &&
-			     (gw_node->orig_node->router->tq_avg > max_tq)))
+			     (router->tq_avg > max_tq)))
 				curr_gw_tmp = gw_node;
 			break;
 
@@ -164,19 +165,25 @@ void gw_election(struct bat_priv *bat_priv)
 			  *     soon as a better gateway appears which has
 			  *     $routing_class more tq points)
 			  **/
-			if (gw_node->orig_node->router->tq_avg > max_tq)
+			if (router->tq_avg > max_tq)
 				curr_gw_tmp = gw_node;
 			break;
 		}
 
-		if (gw_node->orig_node->router->tq_avg > max_tq)
-			max_tq = gw_node->orig_node->router->tq_avg;
+		if (router->tq_avg > max_tq)
+			max_tq = router->tq_avg;
 
 		if (tmp_gw_factor > max_gw_factor)
 			max_gw_factor = tmp_gw_factor;
+
+		neigh_node_free_ref(router);
 	}
 
 	if (curr_gw != curr_gw_tmp) {
+		router = orig_node_get_router(curr_gw_tmp->orig_node);
+		if (!router)
+			goto out;
+
 		if ((curr_gw) && (!curr_gw_tmp))
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Removing selected gateway - "
@@ -187,45 +194,47 @@ void gw_election(struct bat_priv *bat_priv)
 				"(gw_flags: %i, tq: %i)\n",
 				curr_gw_tmp->orig_node->orig,
 				curr_gw_tmp->orig_node->gw_flags,
-				curr_gw_tmp->orig_node->router->tq_avg);
+				router->tq_avg);
 		else
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Changing route to gateway %pM "
 				"(gw_flags: %i, tq: %i)\n",
 				curr_gw_tmp->orig_node->orig,
 				curr_gw_tmp->orig_node->gw_flags,
-				curr_gw_tmp->orig_node->router->tq_avg);
+				router->tq_avg);
 
+		neigh_node_free_ref(router);
 		gw_select(bat_priv, curr_gw_tmp);
 	}
 
+out:
 	rcu_read_unlock();
 }
 
 void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
 {
 	struct orig_node *curr_gw_orig;
+	struct neigh_node *router_gw = NULL, *router_orig = NULL;
 	uint8_t gw_tq_avg, orig_tq_avg;
 
 	curr_gw_orig = gw_get_selected(bat_priv);
 	if (!curr_gw_orig)
 		goto deselect;
 
-	rcu_read_lock();
-	if (!curr_gw_orig->router)
-		goto deselect_rcu;
+	router_gw = orig_node_get_router(curr_gw_orig);
+	if (!router_gw)
+		goto deselect;
 
 	/* this node already is the gateway */
 	if (curr_gw_orig == orig_node)
-		goto out_rcu;
+		goto out;
 
-	if (!orig_node->router)
-		goto out_rcu;
+	router_orig = orig_node_get_router(orig_node);
+	if (!router_orig)
+		goto out;
 
-	gw_tq_avg = curr_gw_orig->router->tq_avg;
-	rcu_read_unlock();
-
-	orig_tq_avg = orig_node->router->tq_avg;
+	gw_tq_avg = router_gw->tq_avg;
+	orig_tq_avg = router_orig->tq_avg;
 
 	/* the TQ value has to be better */
 	if (orig_tq_avg < gw_tq_avg)
@@ -243,18 +252,16 @@ void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
 		"Restarting gateway selection: better gateway found (tq curr: "
 		"%i, tq new: %i)\n",
 		gw_tq_avg, orig_tq_avg);
-	goto deselect;
 
-out_rcu:
-	rcu_read_unlock();
-	goto out;
-deselect_rcu:
-	rcu_read_unlock();
 deselect:
 	gw_deselect(bat_priv);
 out:
 	if (curr_gw_orig)
 		orig_node_free_ref(curr_gw_orig);
+	if (router_gw)
+		neigh_node_free_ref(router_gw);
+	if (router_orig)
+		neigh_node_free_ref(router_orig);
 
 	return;
 }
@@ -362,13 +369,21 @@ void gw_node_purge(struct bat_priv *bat_priv)
 	spin_unlock_bh(&bat_priv->gw_list_lock);
 }
 
+/**
+ * fails if orig_node has no router
+ */
 static int _write_buffer_text(struct bat_priv *bat_priv,
 			      struct seq_file *seq, struct gw_node *gw_node)
 {
 	struct gw_node *curr_gw;
-	int down, up, ret;
+	struct neigh_node *router;
+	int down, up, ret = -1;
 
 	gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
+
+	router = orig_node_get_router(gw_node->orig_node);
+	if (!router)
+		goto out;
 
 	rcu_read_lock();
 	curr_gw = rcu_dereference(bat_priv->curr_gw);
@@ -376,9 +391,8 @@ static int _write_buffer_text(struct bat_priv *bat_priv,
 	ret = seq_printf(seq, "%s %pM (%3i) %pM [%10s]: %3i - %i%s/%i%s\n",
 		       (curr_gw == gw_node ? "=>" : "  "),
 		       gw_node->orig_node->orig,
-		       gw_node->orig_node->router->tq_avg,
-		       gw_node->orig_node->router->addr,
-		       gw_node->orig_node->router->if_incoming->net_dev->name,
+		       router->tq_avg, router->addr,
+		       router->if_incoming->net_dev->name,
 		       gw_node->orig_node->gw_flags,
 		       (down > 2048 ? down / 1024 : down),
 		       (down > 2048 ? "MBit" : "KBit"),
@@ -386,6 +400,8 @@ static int _write_buffer_text(struct bat_priv *bat_priv,
 		       (up > 2048 ? "MBit" : "KBit"));
 
 	rcu_read_unlock();
+	neigh_node_free_ref(router);
+out:
 	return ret;
 }
 
@@ -423,10 +439,10 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 		if (gw_node->deleted)
 			continue;
 
-		if (!gw_node->orig_node->router)
+		/* fails if orig_node has no router */
+		if (_write_buffer_text(bat_priv, seq, gw_node) < 0)
 			continue;
 
-		_write_buffer_text(bat_priv, seq, gw_node);
 		gw_count++;
 	}
 	rcu_read_unlock();

@@ -70,6 +70,21 @@ void neigh_node_free_ref(struct neigh_node *neigh_node)
 		call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
 }
 
+/* increases the refcounter of a found router */
+struct neigh_node *orig_node_get_router(struct orig_node *orig_node)
+{
+	struct neigh_node *router;
+
+	rcu_read_lock();
+	router = rcu_dereference(orig_node->router);
+
+	if (router && !atomic_inc_not_zero(&router->refcount))
+		router = NULL;
+
+	rcu_read_unlock();
+	return router;
+}
+
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
 				   uint8_t *neigh,
@@ -390,7 +405,7 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
-	struct neigh_node *neigh_node;
+	struct neigh_node *neigh_node, *neigh_node_tmp;
 	int batman_count = 0;
 	int last_seen_secs;
 	int last_seen_msecs;
@@ -421,37 +436,41 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-			if (!orig_node->router)
+			neigh_node = orig_node_get_router(orig_node);
+			if (!neigh_node)
 				continue;
 
-			if (orig_node->router->tq_avg == 0)
-				continue;
+			if (neigh_node->tq_avg == 0)
+				goto next;
 
 			last_seen_secs = jiffies_to_msecs(jiffies -
 						orig_node->last_valid) / 1000;
 			last_seen_msecs = jiffies_to_msecs(jiffies -
 						orig_node->last_valid) % 1000;
 
-			neigh_node = orig_node->router;
 			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
 				   orig_node->orig, last_seen_secs,
 				   last_seen_msecs, neigh_node->tq_avg,
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
-			hlist_for_each_entry_rcu(neigh_node, node_tmp,
+			hlist_for_each_entry_rcu(neigh_node_tmp, node_tmp,
 						 &orig_node->neigh_list, list) {
-				seq_printf(seq, " %pM (%3i)", neigh_node->addr,
-						neigh_node->tq_avg);
+				seq_printf(seq, " %pM (%3i)",
+					   neigh_node_tmp->addr,
+					   neigh_node_tmp->tq_avg);
 			}
 
 			seq_printf(seq, "\n");
 			batman_count++;
+
+next:
+			neigh_node_free_ref(neigh_node);
 		}
 		rcu_read_unlock();
 	}
 
-	if ((batman_count == 0))
+	if (batman_count == 0)
 		seq_printf(seq, "No batman nodes in range ...\n");
 
 	return 0;
