@@ -458,10 +458,10 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			    struct mem_cgroup *mem, nodemask_t *nodemask,
 			    const char *message)
 {
-	struct task_struct *victim = p;
+	struct task_struct *victim;
 	struct task_struct *child;
-	struct task_struct *t = p;
-	unsigned int victim_points = 0;
+	struct task_struct *t;
+	unsigned int victim_points;
 
 	if (printk_ratelimit())
 		dump_header(p, gfp_mask, order, mem, nodemask);
@@ -487,10 +487,15 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 * parent.  This attempts to lose the minimal amount of work done while
 	 * still freeing memory.
 	 */
+	victim_points = oom_badness(p, mem, nodemask, totalpages);
+	victim = p;
+	t = p;
 	do {
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
 
+			if (child->mm == t->mm)
+				continue;
 			/*
 			 * oom_badness() returns 0 if the thread is unkillable
 			 */
