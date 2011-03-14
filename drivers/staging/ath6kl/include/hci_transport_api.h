@@ -85,7 +85,7 @@ typedef struct {
     int    IOBlockPad;    /* I/O block padding required (always a power of 2) */
 } HCI_TRANSPORT_PROPERTIES;
 
-typedef struct _HCI_TRANSPORT_CONFIG_INFO {
+struct hci_transport_config_info {
     int      ACLRecvBufferWaterMark;     /* low watermark to trigger recv refill */
     int      EventRecvBufferWaterMark;   /* low watermark to trigger recv refill */  
     int      MaxSendQueueDepth;          /* max number of packets in the single send queue */
@@ -99,7 +99,7 @@ typedef struct _HCI_TRANSPORT_CONFIG_INFO {
     HCI_TRANSPORT_RECV_REFILL          pHCIPktRecvRefill;
     HCI_TRANSPORT_RECV_ALLOC           pHCIPktRecvAlloc;
     HCI_TRANSPORT_SEND_FULL            pHCISendFull;
-} HCI_TRANSPORT_CONFIG_INFO;
+};
 
 /* ------ Function Prototypes ------ */
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -113,7 +113,7 @@ typedef struct _HCI_TRANSPORT_CONFIG_INFO {
   @example:
   @see also: HCI_TransportDetach
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_INFO *pInfo);
+HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, struct hci_transport_config_info *pInfo);
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Detach from the HCI transport module

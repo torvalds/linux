@@ -469,7 +469,7 @@ int ar6000_setup_hci(void *ar)
 int ar6000_setup_hci(AR_SOFTC_T *ar)
 #endif
 {
-    HCI_TRANSPORT_CONFIG_INFO config;
+    struct hci_transport_config_info config;
     int                  status = 0;
     int                       i;
     HTC_PACKET                *pPacket;
@@ -521,7 +521,7 @@ int ar6000_setup_hci(AR_SOFTC_T *ar)
             FreeHTCStruct(pHcidevInfo,pPacket);                
         }
         
-        A_MEMZERO(&config,sizeof(HCI_TRANSPORT_CONFIG_INFO));        
+        A_MEMZERO(&config,sizeof(struct hci_transport_config_info));        
         config.ACLRecvBufferWaterMark = MAX_ACL_RECV_BUFS / 2;
         config.EventRecvBufferWaterMark = MAX_EVT_RECV_BUFS / 2;
         config.MaxSendQueueDepth = MAX_HCI_WRITE_QUEUE_DEPTH;

@@ -57,7 +57,7 @@
 #define BTPWRSAV_TIMEOUT_MS       1  
 
 struct gmbox_proto_hci_uart {
-    HCI_TRANSPORT_CONFIG_INFO   HCIConfig;
+    struct hci_transport_config_info   HCIConfig;
     bool                      HCIAttached;
     bool                      HCIStopped;
     u32 RecvStateFlags;
@@ -936,7 +936,7 @@ static int NotifyTransportReady(struct gmbox_proto_hci_uart  *pProt)
 
 /***********  HCI UART protocol implementation ************************************************/
 
-HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_INFO *pInfo)
+HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, struct hci_transport_config_info *pInfo)
 {
     struct gmbox_proto_hci_uart  *pProtocol = NULL; 
     struct ar6k_device           *pDev;
@@ -961,7 +961,7 @@ HCI_TRANSPORT_HANDLE HCI_TransportAttach(void *HTCHandle, HCI_TRANSPORT_CONFIG_I
             break;    
         }
         
-        memcpy(&pProtocol->HCIConfig, pInfo, sizeof(HCI_TRANSPORT_CONFIG_INFO));
+        memcpy(&pProtocol->HCIConfig, pInfo, sizeof(struct hci_transport_config_info));
         
         A_ASSERT(pProtocol->HCIConfig.pHCIPktRecv != NULL);
         A_ASSERT(pProtocol->HCIConfig.pHCISendComplete != NULL);

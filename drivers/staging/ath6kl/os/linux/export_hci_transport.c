@@ -36,7 +36,7 @@
 #include "AR6002/hw4.0/hw/uart_reg.h"
 #include "AR6002/hw4.0/hw/rtc_wlan_reg.h"
 
-HCI_TRANSPORT_HANDLE (*_HCI_TransportAttach)(void *HTCHandle, HCI_TRANSPORT_CONFIG_INFO *pInfo);
+HCI_TRANSPORT_HANDLE (*_HCI_TransportAttach)(void *HTCHandle, struct hci_transport_config_info *pInfo);
 void (*_HCI_TransportDetach)(HCI_TRANSPORT_HANDLE HciTrans);
 int    (*_HCI_TransportAddReceivePkts)(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET_QUEUE *pQueue);
 int    (*_HCI_TransportSendPkt)(HCI_TRANSPORT_HANDLE HciTrans, HTC_PACKET *pPacket, bool Synchronous);

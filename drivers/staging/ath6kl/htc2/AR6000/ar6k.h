@@ -361,7 +361,7 @@ static INLINE int DevSetupGMbox(struct ar6k_device *pDev) {
 #ifdef ATH_AR6K_ENABLE_GMBOX
 
     /* GMBOX protocol modules must expose each of these internal APIs */
-HCI_TRANSPORT_HANDLE GMboxAttachProtocol(struct ar6k_device *pDev, HCI_TRANSPORT_CONFIG_INFO *pInfo);
+HCI_TRANSPORT_HANDLE GMboxAttachProtocol(struct ar6k_device *pDev, struct hci_transport_config_info *pInfo);
 int             GMboxProtocolInstall(struct ar6k_device *pDev);
 void                 GMboxProtocolUninstall(struct ar6k_device *pDev);
 
