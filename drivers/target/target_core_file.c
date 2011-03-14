@@ -536,15 +536,26 @@ static ssize_t fd_set_configfs_dev_params(
 		token = match_token(ptr, tokens, args);
 		switch (token) {
 		case Opt_fd_dev_name:
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
 			snprintf(fd_dev->fd_dev_name, FD_MAX_DEV_NAME,
-					"%s", match_strdup(&args[0]));
+					"%s", arg_p);
+			kfree(arg_p);
 			printk(KERN_INFO "FILEIO: Referencing Path: %s\n",
 					fd_dev->fd_dev_name);
 			fd_dev->fbd_flags |= FBDF_HAS_PATH;
 			break;
 		case Opt_fd_dev_size:
 			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
 			ret = strict_strtoull(arg_p, 0, &fd_dev->fd_dev_size);
+			kfree(arg_p);
 			if (ret < 0) {
 				printk(KERN_ERR "strict_strtoull() failed for"
 						" fd_dev_size=\n");
