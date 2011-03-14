@@ -4208,7 +4208,7 @@ void bnx2x_update_coalesce(struct bnx2x *bp)
 
 	for_each_eth_queue(bp, i)
 		bnx2x_update_coalesce_sb(bp, bp->fp[i].fw_sb_id,
-					 bp->rx_ticks, bp->tx_ticks);
+					 bp->tx_ticks, bp->rx_ticks);
 }
 
 static void bnx2x_init_sp_ring(struct bnx2x *bp)
