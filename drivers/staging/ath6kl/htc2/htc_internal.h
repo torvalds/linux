@@ -65,7 +65,7 @@ extern "C" {
 
 #define HTC_SCATTER_REQ_FLAGS_PARTIAL_BUNDLE  (1 << 0)
 
-typedef struct _HTC_ENDPOINT {
+struct htc_endpoint {
     HTC_ENDPOINT_ID             Id;
     HTC_SERVICE_ID              ServiceID;      /* service ID this endpoint is bound to
                                                    non-zero value means this endpoint is in use */
@@ -85,7 +85,7 @@ typedef struct _HTC_ENDPOINT {
 #ifdef HTC_EP_STAT_PROFILING
     HTC_ENDPOINT_STATS          EndPointStats;          /* endpoint statistics */
 #endif
-} HTC_ENDPOINT;
+};
 
 #ifdef HTC_EP_STAT_PROFILING
 #define INC_HTC_EP_STAT(p,stat,count) (p)->EndPointStats.stat += (count);
@@ -109,7 +109,7 @@ struct htc_control_buffer {
 
 /* our HTC target state */
 typedef struct _HTC_TARGET {
-    HTC_ENDPOINT                EndPoint[ENDPOINT_MAX];
+    struct htc_endpoint                EndPoint[ENDPOINT_MAX];
     struct htc_control_buffer          HTCControlBuffers[NUM_CONTROL_BUFFERS];
     HTC_ENDPOINT_CREDIT_DIST   *EpCreditDistributionListHead;
     HTC_PACKET_QUEUE            ControlBufferTXFreeList;

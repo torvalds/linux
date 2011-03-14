@@ -438,7 +438,7 @@ int HTCStart(HTC_HANDLE HTCHandle)
 
 static void ResetEndpointStates(HTC_TARGET *target)
 {
-    HTC_ENDPOINT        *pEndpoint;
+    struct htc_endpoint        *pEndpoint;
     int                  i;
 
     for (i = ENDPOINT_0; i < ENDPOINT_MAX; i++) {

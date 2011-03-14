@@ -132,7 +132,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
     HTC_CONNECT_SERVICE_RESPONSE_MSG    *pResponseMsg;
     HTC_CONNECT_SERVICE_MSG             *pConnectMsg;
     HTC_ENDPOINT_ID                     assignedEndpoint = ENDPOINT_MAX;
-    HTC_ENDPOINT                        *pEndpoint;
+    struct htc_endpoint                        *pEndpoint;
     unsigned int                        maxMsgSize = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("+HTCConnectService, target:0x%lX SvcID:0x%X \n",

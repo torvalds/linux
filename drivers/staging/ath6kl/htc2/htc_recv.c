@@ -50,7 +50,7 @@
 #define HTC_RX_STAT_PROFILE(t,ep,lookAhead)
 #endif
 
-static void DoRecvCompletion(HTC_ENDPOINT     *pEndpoint,
+static void DoRecvCompletion(struct htc_endpoint     *pEndpoint,
                              HTC_PACKET_QUEUE *pQueueToIndicate)
 {           
     
@@ -432,7 +432,7 @@ static INLINE void HTCAsyncRecvCheckMorePackets(HTC_TARGET  *target,
 }      
 
     /* unload the recv completion queue */
-static INLINE void DrainRecvIndicationQueue(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint)
+static INLINE void DrainRecvIndicationQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint)
 {
     HTC_PACKET_QUEUE     recvCompletions;
     
@@ -497,7 +497,7 @@ static INLINE void DrainRecvIndicationQueue(HTC_TARGET *target, HTC_ENDPOINT *pE
    
    /* note: this function can be called with the RX lock held */     
 static INLINE void SetRxPacketIndicationFlags(u32 LookAhead,
-                                              HTC_ENDPOINT  *pEndpoint, 
+                                              struct htc_endpoint  *pEndpoint, 
                                               HTC_PACKET    *pPacket)
 {
     HTC_FRAME_HDR *pHdr = (HTC_FRAME_HDR *)&LookAhead;
@@ -518,7 +518,7 @@ static INLINE void SetRxPacketIndicationFlags(u32 LookAhead,
 void HTCRecvCompleteHandler(void *Context, HTC_PACKET *pPacket)
 {
     HTC_TARGET      *target = (HTC_TARGET *)Context;
-    HTC_ENDPOINT    *pEndpoint;
+    struct htc_endpoint    *pEndpoint;
     u32 nextLookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int             numLookAheads = 0;
     int        status;
@@ -689,7 +689,7 @@ int HTCWaitforControlMessage(HTC_TARGET *target, HTC_PACKET **ppControlPacket)
 static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
                                          u32 LookAheads[],
                                          int              Messages,                                        
-                                         HTC_ENDPOINT     *pEndpoint, 
+                                         struct htc_endpoint     *pEndpoint, 
                                          HTC_PACKET_QUEUE *pQueue)
 {
     int         status = 0;
@@ -883,7 +883,7 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
 {
     int                 i;    
     HTC_PACKET          *pPacket;
-    HTC_ENDPOINT        *pEndpoint;
+    struct htc_endpoint        *pEndpoint;
     u32 lookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int                 numLookAheads = 0;
     HTC_TARGET          *target = (HTC_TARGET *)pScatterReq->Context;
@@ -1102,7 +1102,7 @@ static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
     return status;
 }
 
-static INLINE void CheckRecvWaterMark(HTC_ENDPOINT    *pEndpoint)
+static INLINE void CheckRecvWaterMark(struct htc_endpoint    *pEndpoint)
 {  
         /* see if endpoint is using a refill watermark 
          * ** no need to use a lock here, since we are only inspecting...
@@ -1122,7 +1122,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
     HTC_TARGET      *target = (HTC_TARGET *)Context;
     int         status = 0;
     HTC_PACKET      *pPacket;
-    HTC_ENDPOINT    *pEndpoint;
+    struct htc_endpoint    *pEndpoint;
     bool          asyncProc = false;
     u32 lookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int             pktsFetched;
@@ -1388,7 +1388,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
 int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 {
     HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
-    HTC_ENDPOINT    *pEndpoint;
+    struct htc_endpoint    *pEndpoint;
     bool          unblockRecv = false;
     int        status = 0;
     HTC_PACKET      *pFirstPacket;
@@ -1486,7 +1486,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle)
     }
 }
 
-static void HTCFlushRxQueue(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint, HTC_PACKET_QUEUE *pQueue)
+static void HTCFlushRxQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_PACKET_QUEUE *pQueue)
 {
     HTC_PACKET  *pPacket;
     HTC_PACKET_QUEUE container;
@@ -1512,7 +1512,7 @@ static void HTCFlushRxQueue(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint, HTC_PAC
     UNLOCK_HTC_RX(target);
 }
 
-static void HTCFlushEndpointRX(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint)
+static void HTCFlushEndpointRX(HTC_TARGET *target, struct htc_endpoint *pEndpoint)
 {
         /* flush any recv indications not already made */
     HTCFlushRxQueue(target,pEndpoint,&pEndpoint->RecvIndicationQueue);
@@ -1522,7 +1522,7 @@ static void HTCFlushEndpointRX(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint)
 
 void HTCFlushRecvBuffers(HTC_TARGET *target)
 {
-    HTC_ENDPOINT    *pEndpoint;
+    struct htc_endpoint    *pEndpoint;
     int             i;
 
     for (i = ENDPOINT_0; i < ENDPOINT_MAX; i++) {
