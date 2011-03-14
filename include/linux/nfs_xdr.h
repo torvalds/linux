@@ -1051,6 +1051,7 @@ struct nfs_write_data {
 
 struct nfs_access_entry;
 struct nfs_client;
+struct rpc_timeout;
 
 /*
  * RPC procedure vector for NFSv2/NFSv3 demuxing
