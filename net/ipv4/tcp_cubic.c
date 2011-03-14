@@ -270,6 +270,13 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 		ca->cnt = 100 * cwnd;              /* very small increment*/
 	}
 
+	/*
+	 * The initial growth of cubic function may be too conservative
+	 * when the available bandwidth is still unknown.
+	 */
+	if (ca->loss_cwnd == 0 && ca->cnt > 20)
+		ca->cnt = 20;	/* increase cwnd 5% per RTT */
+
 	/* TCP Friendly */
 	if (tcp_friendliness) {
 		u32 scale = beta_scale;
