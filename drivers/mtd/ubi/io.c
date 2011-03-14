@@ -1387,35 +1387,40 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 {
 	size_t read;
 	int err;
+	void *buf;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
-	mutex_lock(&ubi->dbg_buf_mutex);
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, ubi->dbg_peb_buf);
+	buf = __vmalloc(len, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubi_err("cannot allocate memory to check for 0xFFs");
+		return 0;
+	}
+
+	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
 	if (err && err != -EUCLEAN) {
 		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
 			"read %zd bytes", err, len, pnum, offset, read);
 		goto error;
 	}
 
-	err = ubi_check_pattern(ubi->dbg_peb_buf, 0xFF, len);
+	err = ubi_check_pattern(buf, 0xFF, len);
 	if (err == 0) {
 		ubi_err("flash region at PEB %d:%d, length %d does not "
 			"contain all 0xFF bytes", pnum, offset, len);
 		goto fail;
 	}
-	mutex_unlock(&ubi->dbg_buf_mutex);
 
+	vfree(buf);
 	return 0;
 
 fail:
 	ubi_err("paranoid check failed for PEB %d", pnum);
 	ubi_msg("hex dump of the %d-%d region", offset, offset + len);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
-		       ubi->dbg_peb_buf, len, 1);
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 	err = -EINVAL;
 error:
 	ubi_dbg_dump_stack();
-	mutex_unlock(&ubi->dbg_buf_mutex);
+	vfree(buf);
 	return err;
 }
 
