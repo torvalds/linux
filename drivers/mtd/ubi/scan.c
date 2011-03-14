@@ -88,7 +88,7 @@
 #include <linux/random.h>
 #include "ubi.h"
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+#ifdef CONFIG_MTD_UBI_DEBUG
 static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
 #else
 #define paranoid_check_si(ubi, si) 0
@@ -1329,7 +1329,7 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
 	kfree(si);
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+#ifdef CONFIG_MTD_UBI_DEBUG
 
 /**
  * paranoid_check_si - check the scanning information.
@@ -1346,6 +1346,9 @@ static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 	struct ubi_scan_volume *sv;
 	struct ubi_scan_leb *seb, *last_seb;
 	uint8_t *buf;
+
+	if (!(ubi_chk_flags & UBI_CHK_GEN))
+		return 0;
 
 	/*
 	 * At first, check that scanning information is OK.
@@ -1599,4 +1602,4 @@ out:
 	return -EINVAL;
 }
 
-#endif /* CONFIG_MTD_UBI_DEBUG_PARANOID */
+#endif /* CONFIG_MTD_UBI_DEBUG */

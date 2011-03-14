@@ -10,12 +10,6 @@ config MTD_UBI_DEBUG
 
 if MTD_UBI_DEBUG
 
-config MTD_UBI_DEBUG_PARANOID
-	bool "Extra self-checks"
-	help
-	  This option enables extra checks in UBI code. Note this slows UBI down
-	  significantly.
-
 config MTD_UBI_DEBUG_DISABLE_BGT
 	bool "Do not enable the UBI background thread"
 	help

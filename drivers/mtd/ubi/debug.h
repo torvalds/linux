@@ -99,14 +99,22 @@ enum {
 /* Initialization and build messages */
 #define dbg_bld(fmt, ...) dbg_do_msg(UBI_MSG_BLD, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+extern unsigned int ubi_chk_flags;
+
+/*
+ * Debugging check flags.
+ *
+ * UBI_CHK_GEN: general checks
+ * UBI_CHK_IO: check writes and erases
+ */
+enum {
+	UBI_CHK_GEN = 0x1,
+	UBI_CHK_IO  = 0x2,
+};
+
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			int offset, int len);
-#else
-#define ubi_dbg_check_all_ff(ubi, pnum, offset, len) 0
-#define ubi_dbg_check_write(ubi, buf, pnum, offset, len) 0
-#endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_DISABLE_BGT
 #define DBG_DISABLE_BGT 1

@@ -91,7 +91,7 @@
 #include <linux/slab.h>
 #include "ubi.h"
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+#ifdef CONFIG_MTD_UBI_DEBUG
 static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum);
 static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum);
 static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
@@ -1126,7 +1126,7 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 	return err;
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
+#ifdef CONFIG_MTD_UBI_DEBUG
 
 /**
  * paranoid_check_not_bad - ensure that a physical eraseblock is not bad.
@@ -1139,6 +1139,9 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
 {
 	int err;
+
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
 
 	err = ubi_io_is_bad(ubi, pnum);
 	if (!err)
@@ -1163,6 +1166,9 @@ static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 {
 	int err;
 	uint32_t magic;
+
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
 
 	magic = be32_to_cpu(ec_hdr->magic);
 	if (magic != UBI_EC_HDR_MAGIC) {
@@ -1198,6 +1204,9 @@ static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 	int err;
 	uint32_t crc, hdr_crc;
 	struct ubi_ec_hdr *ec_hdr;
+
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
 
 	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_NOFS);
 	if (!ec_hdr)
@@ -1240,6 +1249,9 @@ static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 	int err;
 	uint32_t magic;
 
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
+
 	magic = be32_to_cpu(vid_hdr->magic);
 	if (magic != UBI_VID_HDR_MAGIC) {
 		ubi_err("bad VID header magic %#08x at PEB %d, must be %#08x",
@@ -1277,6 +1289,9 @@ static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 	uint32_t crc, hdr_crc;
 	struct ubi_vid_hdr *vid_hdr;
 	void *p;
+
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
@@ -1326,6 +1341,9 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 	size_t read;
 	void *buf1;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
+
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
 
 	buf1 = __vmalloc(len, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
 	if (!buf1) {
@@ -1388,6 +1406,9 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 	void *buf;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
+	if (!(ubi_chk_flags & UBI_CHK_IO))
+		return 0;
+
 	buf = __vmalloc(len, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
 		ubi_err("cannot allocate memory to check for 0xFFs");
@@ -1422,4 +1443,4 @@ error:
 	return err;
 }
 
-#endif /* CONFIG_MTD_UBI_DEBUG_PARANOID */
+#endif /* CONFIG_MTD_UBI_DEBUG */
