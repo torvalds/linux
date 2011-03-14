@@ -3875,9 +3875,6 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), receive_skip },
 	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
 	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), receive_req_state },
-	/* anything missing from this table is in
-	 * the asender_tbl, see get_asender_cmd */
-	[P_MAX_CMD]	    = { 0, 0, NULL },
 };
 
 /* All handler functions that expect a sub-header get that sub-heder in
@@ -3899,7 +3896,8 @@ static void drbdd(struct drbd_tconn *tconn)
 		if (!drbd_recv_header(tconn, &pi))
 			goto err_out;
 
-		if (unlikely(pi.cmd >= P_MAX_CMD || !drbd_cmd_handler[pi.cmd].function)) {
+		if (unlikely(pi.cmd >= ARRAY_SIZE(drbd_cmd_handler) ||
+		    !drbd_cmd_handler[pi.cmd].function)) {
 			conn_err(tconn, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
 			goto err_out;
 		}
@@ -4678,9 +4676,9 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
 	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), got_RqSReply },
 	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_MAX_CMD]	    = { 0, NULL },
 	};
-	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)
+
+	if (cmd >= ARRAY_SIZE(asender_tbl) || !asender_tbl[cmd].process)
 		return NULL;
 	return &asender_tbl[cmd];
 }
