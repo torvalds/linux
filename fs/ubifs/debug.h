@@ -171,7 +171,7 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 #define dbg_rcvry(fmt, ...) dbg_do_msg(UBIFS_MSG_RCVRY, fmt, ##__VA_ARGS__)
 
 /*
- * Debugging message type flags (must match msg_type_names in debug.c).
+ * Debugging message type flags.
  *
  * UBIFS_MSG_GEN: general messages
  * UBIFS_MSG_JNL: journal messages
@@ -204,7 +204,7 @@ enum {
 };
 
 /*
- * Debugging check flags (must match chk_names in debug.c).
+ * Debugging check flags.
  *
  * UBIFS_CHK_GEN: general checks
  * UBIFS_CHK_TNC: check TNC
@@ -225,7 +225,7 @@ enum {
 };
 
 /*
- * Special testing flags (must match tst_names in debug.c).
+ * Special testing flags.
  *
  * UBIFS_TST_FORCE_IN_THE_GAPS: force the use of in-the-gaps method
  * UBIFS_TST_RCVRY: failure mode for recovery testing
