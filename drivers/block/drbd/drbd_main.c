@@ -495,7 +495,7 @@ static int cl_wide_st_chg(struct drbd_conf *mdev,
 		 ((os.role != R_PRIMARY && ns.role == R_PRIMARY) ||
 		  (os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
 		  (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S) ||
-		  (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))) ||
+		  (os.disk != D_FAILED && ns.disk == D_FAILED))) ||
 		(os.conn >= C_CONNECTED && ns.conn == C_DISCONNECTING) ||
 		(os.conn == C_CONNECTED && ns.conn == C_VERIFY_S);
 }

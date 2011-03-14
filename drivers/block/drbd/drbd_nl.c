@@ -1337,17 +1337,32 @@ static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 {
 	enum drbd_ret_code retcode;
 	int ret;
+	struct detach dt = {};
+
+	if (!detach_from_tags(mdev, nlp->tag_list, &dt)) {
+		reply->ret_code = ERR_MANDATORY_TAG;
+		goto out;
+	}
+
+	if (dt.detach_force) {
+		drbd_force_state(mdev, NS(disk, D_FAILED));
+		reply->ret_code = SS_SUCCESS;
+		goto out;
+	}
+
 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
 	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
 	/* D_FAILED will transition to DISKLESS. */
 	ret = wait_event_interruptible(mdev->misc_wait,
 			mdev->state.disk != D_FAILED);
 	drbd_resume_io(mdev);
+
 	if ((int)retcode == (int)SS_IS_DISKLESS)
 		retcode = SS_NOTHING_TO_DO;
 	if (ret)
 		retcode = ERR_INTR;
 	reply->ret_code = retcode;
+out:
 	return 0;
 }
 
