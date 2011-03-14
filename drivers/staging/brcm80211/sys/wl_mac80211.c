@@ -263,9 +263,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 	switch (type) {
 	case NL80211_CHAN_HT20:
 	case NL80211_CHAN_NO_HT:
-		WL_LOCK(wl);
 		err = wlc_set(wl->wlc, WLC_SET_CHANNEL, chan->hw_value);
-		WL_UNLOCK(wl);
 		break;
 	case NL80211_CHAN_HT40MINUS:
 	case NL80211_CHAN_HT40PLUS:
@@ -285,6 +283,7 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 	int err = 0;
 	int new_int;
 
+	WL_LOCK(wl);
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
 		WL_NONE("%s: Setting listen interval to %d\n",
 			__func__, conf->listen_interval);
@@ -341,6 +340,7 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
  config_out:
+	WL_UNLOCK(wl);
 	return err;
 }
 
@@ -459,13 +459,21 @@ wl_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 static void wl_ops_sw_scan_start(struct ieee80211_hw *hw)
 {
+	struct wl_info *wl = hw->priv;
 	WL_NONE("Scan Start\n");
+	WL_LOCK(wl);
+	wlc_scan_start(wl->wlc);
+	WL_UNLOCK(wl);
 	return;
 }
 
 static void wl_ops_sw_scan_complete(struct ieee80211_hw *hw)
 {
+	struct wl_info *wl = hw->priv;
 	WL_NONE("Scan Complete\n");
+	WL_LOCK(wl);
+	wlc_scan_stop(wl->wlc);
+	WL_UNLOCK(wl);
 	return;
 }
 

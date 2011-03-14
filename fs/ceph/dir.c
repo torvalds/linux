@@ -60,6 +60,7 @@ int ceph_init_dentry(struct dentry *dentry)
 	}
 	di->dentry = dentry;
 	di->lease_session = NULL;
+	di->parent_inode = igrab(dentry->d_parent->d_inode);
 	dentry->d_fsdata = di;
 	dentry->d_time = jiffies;
 	ceph_dentry_lru_add(dentry);
@@ -1033,7 +1034,7 @@ static void ceph_dentry_release(struct dentry *dentry)
 	u64 snapid = CEPH_NOSNAP;
 
 	if (!IS_ROOT(dentry)) {
-		parent_inode = dentry->d_parent->d_inode;
+		parent_inode = di->parent_inode;
 		if (parent_inode)
 			snapid = ceph_snap(parent_inode);
 	}
@@ -1058,6 +1059,8 @@ static void ceph_dentry_release(struct dentry *dentry)
 		kmem_cache_free(ceph_dentry_cachep, di);
 		dentry->d_fsdata = NULL;
 	}
+	if (parent_inode)
+		iput(parent_inode);
 }
 
 static int ceph_snapdir_d_revalidate(struct dentry *dentry,

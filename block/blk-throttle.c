@@ -168,7 +168,15 @@ static struct throtl_grp * throtl_find_alloc_tg(struct throtl_data *td,
 	 * tree of blkg (instead of traversing through hash list all
 	 * the time.
 	 */
-	tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
+
+	/*
+	 * This is the common case when there are no blkio cgroups.
+ 	 * Avoid lookup in this case
+ 	 */
+	if (blkcg == &blkio_root_cgroup)
+		tg = &td->root_tg;
+	else
+		tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
 
 	/* Fill in device details for root group */
 	if (tg && !tg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {

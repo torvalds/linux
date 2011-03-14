@@ -133,11 +133,12 @@ unsigned long decompress_kernel(void)
 	unsigned long output_addr;
 	unsigned char *output;
 
-	check_ipl_parmblock((void *) 0, (unsigned long) output + SZ__bss_start);
+	output_addr = ((unsigned long) &_end + HEAP_SIZE + 4095UL) & -4096UL;
+	check_ipl_parmblock((void *) 0, output_addr + SZ__bss_start);
 	memset(&_bss, 0, &_ebss - &_bss);
 	free_mem_ptr = (unsigned long)&_end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
-	output = (unsigned char *) ((free_mem_end_ptr + 4095UL) & -4096UL);
+	output = (unsigned char *) output_addr;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*

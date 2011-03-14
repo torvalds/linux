@@ -605,7 +605,7 @@ static void __init omap_mux_dbg_create_entry(
 	list_for_each_entry(e, &partition->muxmodes, node) {
 		struct omap_mux *m = &e->mux;
 
-		(void)debugfs_create_file(m->muxnames[0], S_IWUGO, mux_dbg_dir,
+		(void)debugfs_create_file(m->muxnames[0], S_IWUSR, mux_dbg_dir,
 					  m, &omap_mux_dbg_signal_fops);
 	}
 }
@@ -1000,6 +1000,7 @@ int __init omap_mux_init(const char *name, u32 flags,
 	if (!partition->base) {
 		pr_err("%s: Could not ioremap mux partition at 0x%08x\n",
 			__func__, partition->phys);
+		kfree(partition);
 		return -ENODEV;
 	}
 

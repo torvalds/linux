@@ -8461,3 +8461,16 @@ static void wlc_txq_free(struct wlc_info *wlc, struct osl_info *osh,
 
 	kfree(qi);
 }
+
+/*
+ * Flag 'scan in progress' to withold dynamic phy calibration
+ */
+void wlc_scan_start(struct wlc_info *wlc)
+{
+	wlc_phy_hold_upd(wlc->band->pi, PHY_HOLD_FOR_SCAN, true);
+}
+
+void wlc_scan_stop(struct wlc_info *wlc)
+{
+	wlc_phy_hold_upd(wlc->band->pi, PHY_HOLD_FOR_SCAN, false);
+}

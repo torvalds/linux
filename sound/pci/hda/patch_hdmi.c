@@ -642,6 +642,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			hdmi_ai->ver		= 0x01;
 			hdmi_ai->len		= 0x0a;
 			hdmi_ai->CC02_CT47	= channels - 1;
+			hdmi_ai->CA		= ca;
 			hdmi_checksum_audio_infoframe(hdmi_ai);
 		} else if (spec->sink_eld[i].conn_type == 1) { /* DisplayPort */
 			struct dp_audio_infoframe *dp_ai;
@@ -651,6 +652,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			dp_ai->len		= 0x1b;
 			dp_ai->ver		= 0x11 << 2;
 			dp_ai->CC02_CT47	= channels - 1;
+			dp_ai->CA		= ca;
 		} else {
 			snd_printd("HDMI: unknown connection type at pin %d\n",
 				   pin_nid);

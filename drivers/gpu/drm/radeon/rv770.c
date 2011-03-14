@@ -321,7 +321,11 @@ static int rv770_cp_load_microcode(struct radeon_device *rdev)
 		return -EINVAL;
 
 	r700_cp_stop(rdev);
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (15 << 8) | (3 << 0));
+	WREG32(CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       BUF_SWAP_32BIT |
+#endif
+	       RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
 
 	/* Reset cp */
 	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);

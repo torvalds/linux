@@ -793,6 +793,11 @@ static void avivo_get_fb_div(struct radeon_pll *pll,
 	tmp *= target_clock;
 	*fb_div = tmp / pll->reference_freq;
 	*frac_fb_div = tmp % pll->reference_freq;
+
+        if (*fb_div > pll->max_feedback_div)
+		*fb_div = pll->max_feedback_div;
+        else if (*fb_div < pll->min_feedback_div)
+                *fb_div = pll->min_feedback_div;
 }
 
 static u32 avivo_get_post_div(struct radeon_pll *pll,
@@ -825,6 +830,11 @@ static u32 avivo_get_post_div(struct radeon_pll *pll,
 		if (!tmp)
 			post_div--;
 	}
+
+	if (post_div > pll->max_post_div)
+		post_div = pll->max_post_div;
+	else if (post_div < pll->min_post_div)
+		post_div = pll->min_post_div;
 
 	return post_div;
 }
@@ -961,7 +971,7 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 		max_fractional_feed_div = pll->max_frac_feedback_div;
 	}
 
-	for (post_div = min_post_div; post_div <= max_post_div; ++post_div) {
+	for (post_div = max_post_div; post_div >= min_post_div; --post_div) {
 		uint32_t ref_div;
 
 		if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))

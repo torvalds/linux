@@ -484,7 +484,7 @@ static int decode_cb_sequence4res(struct xdr_stream *xdr,
 out:
 	return status;
 out_default:
-	return nfs_cb_stat_to_errno(status);
+	return nfs_cb_stat_to_errno(nfserr);
 }
 
 /*
@@ -564,11 +564,9 @@ static int nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp,
 	if (unlikely(status))
 		goto out;
 	if (unlikely(nfserr != NFS4_OK))
-		goto out_default;
+		status = nfs_cb_stat_to_errno(nfserr);
 out:
 	return status;
-out_default:
-	return nfs_cb_stat_to_errno(status);
 }
 
 /*

@@ -359,6 +359,10 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
 	if (rc)
 		return rc;
 
+	/* enable signing if server requires it */
+	if (server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+		in_buf->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
+
 	mutex_lock(&server->srv_mutex);
 	mid = AllocMidQEntry(in_buf, server);
 	if (mid == NULL) {
@@ -452,6 +456,9 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 		}
 	case MID_RETRY_NEEDED:
 		rc = -EAGAIN;
+		break;
+	case MID_RESPONSE_MALFORMED:
+		rc = -EIO;
 		break;
 	default:
 		cERROR(1, "%s: invalid mid state mid=%d state=%d", __func__,

@@ -780,8 +780,7 @@ static int omap_sr_autocomp_show(void *data, u64 *val)
 	struct omap_sr *sr_info = (struct omap_sr *) data;
 
 	if (!sr_info) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, sr_info->voltdm->name);
+		pr_warning("%s: omap_sr struct not found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -795,8 +794,7 @@ static int omap_sr_autocomp_store(void *data, u64 val)
 	struct omap_sr *sr_info = (struct omap_sr *) data;
 
 	if (!sr_info) {
-		pr_warning("%s: omap_sr struct for sr_%s not found\n",
-			__func__, sr_info->voltdm->name);
+		pr_warning("%s: omap_sr struct not found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -834,7 +832,8 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "%s: platform data missing\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_free_devinfo;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -901,7 +900,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		return PTR_ERR(dbg_dir);
 	}
 
-	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
+	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR, dbg_dir,
 				(void *)sr_info, &pm_sr_fops);
 	(void) debugfs_create_x32("errweight", S_IRUGO, dbg_dir,
 			&sr_info->err_weight);
@@ -940,7 +939,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		strcpy(name, "volt_");
 		sprintf(volt_name, "%d", volt_data[i].volt_nominal);
 		strcat(name, volt_name);
-		(void) debugfs_create_x32(name, S_IRUGO | S_IWUGO, nvalue_dir,
+		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 	}
 
@@ -966,7 +965,7 @@ static int __devexit omap_sr_remove(struct platform_device *pdev)
 	}
 
 	sr_info = _sr_lookup(pdata->voltdm);
-	if (!sr_info) {
+	if (IS_ERR(sr_info)) {
 		dev_warn(&pdev->dev, "%s: omap_sr struct not found\n",
 			__func__);
 		return -EINVAL;

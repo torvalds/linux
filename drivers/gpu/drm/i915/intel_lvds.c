@@ -231,6 +231,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 	struct drm_encoder *tmp_encoder;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	int pipe;
 
 	/* Should never happen!! */
 	if (INTEL_INFO(dev)->gen < 4 && intel_crtc->pipe == 0) {
@@ -261,12 +262,6 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		return true;
 	}
 
-	/* Make sure pre-965s set dither correctly */
-	if (INTEL_INFO(dev)->gen < 4) {
-		if (dev_priv->lvds_dither)
-			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-	}
-
 	/* Native modes don't need fitting */
 	if (adjusted_mode->hdisplay == mode->hdisplay &&
 	    adjusted_mode->vdisplay == mode->vdisplay)
@@ -283,8 +278,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	I915_WRITE(BCLRPAT_A, 0);
-	I915_WRITE(BCLRPAT_B, 0);
+	for_each_pipe(pipe)
+		I915_WRITE(BCLRPAT(pipe), 0);
 
 	switch (intel_lvds->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -374,10 +369,16 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
+	/* If not enabling scaling, be consistent and always use 0. */
 	if ((pfit_control & PFIT_ENABLE) == 0) {
 		pfit_control = 0;
 		pfit_pgm_ratios = 0;
 	}
+
+	/* Make sure pre-965 set dither correctly */
+	if (INTEL_INFO(dev)->gen < 4 && dev_priv->lvds_dither)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
 	if (pfit_control != intel_lvds->pfit_control ||
 	    pfit_pgm_ratios != intel_lvds->pfit_pgm_ratios) {
 		intel_lvds->pfit_control = pfit_control;
@@ -474,6 +475,10 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
 
+	status = intel_panel_detect(dev);
+	if (status != connector_status_unknown)
+		return status;
+
 	/* ACPI lid methods were generally unreliable in this generation, so
 	 * don't even bother.
 	 */
@@ -496,7 +501,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 		return drm_add_edid_modes(connector, intel_lvds->edid);
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
-	if (mode == 0)
+	if (mode == NULL)
 		return 0;
 
 	drm_mode_probed_add(connector, mode);

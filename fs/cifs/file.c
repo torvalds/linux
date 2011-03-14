@@ -1662,10 +1662,10 @@ static ssize_t
 cifs_iovec_write(struct file *file, const struct iovec *iov,
 		 unsigned long nr_segs, loff_t *poffset)
 {
-	size_t total_written = 0;
-	unsigned int written = 0;
-	unsigned long num_pages, npages;
-	size_t copied, len, cur_len, i;
+	unsigned int written;
+	unsigned long num_pages, npages, i;
+	size_t copied, len, cur_len;
+	ssize_t total_written = 0;
 	struct kvec *to_send;
 	struct page **pages;
 	struct iov_iter it;
@@ -1821,7 +1821,8 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 {
 	int rc;
 	int xid;
-	unsigned int total_read, bytes_read = 0;
+	ssize_t total_read;
+	unsigned int bytes_read = 0;
 	size_t len, cur_len;
 	int iov_offset = 0;
 	struct cifs_sb_info *cifs_sb;

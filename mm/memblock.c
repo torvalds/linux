@@ -137,8 +137,6 @@ static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
 
 	BUG_ON(0 == size);
 
-	size = memblock_align_up(size, align);
-
 	/* Pump up max_addr */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
 		end = memblock.current_limit;

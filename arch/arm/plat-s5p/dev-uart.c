@@ -28,7 +28,7 @@
 static struct resource s5p_uart0_resource[] = {
 	[0] = {
 		.start	= S5P_PA_UART0,
-		.end	= S5P_PA_UART0 + S5P_SZ_UART,
+		.end	= S5P_PA_UART0 + S5P_SZ_UART - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -51,7 +51,7 @@ static struct resource s5p_uart0_resource[] = {
 static struct resource s5p_uart1_resource[] = {
 	[0] = {
 		.start	= S5P_PA_UART1,
-		.end	= S5P_PA_UART1 + S5P_SZ_UART,
+		.end	= S5P_PA_UART1 + S5P_SZ_UART - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -74,7 +74,7 @@ static struct resource s5p_uart1_resource[] = {
 static struct resource s5p_uart2_resource[] = {
 	[0] = {
 		.start	= S5P_PA_UART2,
-		.end	= S5P_PA_UART2 + S5P_SZ_UART,
+		.end	= S5P_PA_UART2 + S5P_SZ_UART - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -98,7 +98,7 @@ static struct resource s5p_uart3_resource[] = {
 #if CONFIG_SERIAL_SAMSUNG_UARTS > 3
 	[0] = {
 		.start	= S5P_PA_UART3,
-		.end	= S5P_PA_UART3 + S5P_SZ_UART,
+		.end	= S5P_PA_UART3 + S5P_SZ_UART - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -123,7 +123,7 @@ static struct resource s5p_uart4_resource[] = {
 #if CONFIG_SERIAL_SAMSUNG_UARTS > 4
 	[0] = {
 		.start	= S5P_PA_UART4,
-		.end	= S5P_PA_UART4 + S5P_SZ_UART,
+		.end	= S5P_PA_UART4 + S5P_SZ_UART - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -148,7 +148,7 @@ static struct resource s5p_uart5_resource[] = {
 #if CONFIG_SERIAL_SAMSUNG_UARTS > 5
 	[0] = {
 		.start	= S5P_PA_UART5,
-		.end	= S5P_PA_UART5 + S5P_SZ_UART,
+		.end	= S5P_PA_UART5 + S5P_SZ_UART - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {

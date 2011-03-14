@@ -599,7 +599,7 @@ cfq_group_slice(struct cfq_data *cfqd, struct cfq_group *cfqg)
 }
 
 static inline unsigned
-cfq_scaled_group_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+cfq_scaled_cfqq_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	unsigned slice = cfq_prio_to_slice(cfqd, cfqq);
 	if (cfqd->cfq_latency) {
@@ -631,7 +631,7 @@ cfq_scaled_group_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 static inline void
 cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
-	unsigned slice = cfq_scaled_group_slice(cfqd, cfqq);
+	unsigned slice = cfq_scaled_cfqq_slice(cfqd, cfqq);
 
 	cfqq->slice_start = jiffies;
 	cfqq->slice_end = jiffies + slice;
@@ -1671,7 +1671,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 */
 	if (timed_out) {
 		if (cfq_cfqq_slice_new(cfqq))
-			cfqq->slice_resid = cfq_scaled_group_slice(cfqd, cfqq);
+			cfqq->slice_resid = cfq_scaled_cfqq_slice(cfqd, cfqq);
 		else
 			cfqq->slice_resid = cfqq->slice_end - jiffies;
 		cfq_log_cfqq(cfqd, cfqq, "resid=%ld", cfqq->slice_resid);
@@ -3431,6 +3431,10 @@ static void cfq_update_hw_tag(struct cfq_data *cfqd)
 static bool cfq_should_wait_busy(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	struct cfq_io_context *cic = cfqd->active_cic;
+
+	/* If the queue already has requests, don't wait */
+	if (!RB_EMPTY_ROOT(&cfqq->sort_list))
+		return false;
 
 	/* If there are other queues in the group, don't wait */
 	if (cfqq->cfqg->nr_cfqq > 1)

@@ -128,12 +128,7 @@ MODULE_ALIAS("platform:" MUSB_DRIVER_NAME);
 
 static inline struct musb *dev_to_musb(struct device *dev)
 {
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
-	/* usbcore insists dev->driver_data is a "struct hcd *" */
-	return hcd_to_musb(dev_get_drvdata(dev));
-#else
 	return dev_get_drvdata(dev);
-#endif
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1869,6 +1864,7 @@ allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&musb->out_bulk);
 
 	hcd->uses_new_polling = 1;
+	hcd->has_tt = 1;
 
 	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
@@ -1876,10 +1872,9 @@ allocate_instance(struct device *dev,
 	musb = kzalloc(sizeof *musb, GFP_KERNEL);
 	if (!musb)
 		return NULL;
-	dev_set_drvdata(dev, musb);
 
 #endif
-
+	dev_set_drvdata(dev, musb);
 	musb->mregs = mbase;
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
@@ -2191,7 +2186,7 @@ static int __init musb_probe(struct platform_device *pdev)
 	void __iomem	*base;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem || irq == 0)
+	if (!iomem || irq <= 0)
 		return -ENODEV;
 
 	base = ioremap(iomem->start, resource_size(iomem));
