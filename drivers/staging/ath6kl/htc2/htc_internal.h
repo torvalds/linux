@@ -99,10 +99,10 @@ typedef struct _HTC_ENDPOINT {
 #define NUM_CONTROL_TX_BUFFERS  2
 #define NUM_CONTROL_RX_BUFFERS  (NUM_CONTROL_BUFFERS - NUM_CONTROL_TX_BUFFERS)
 
-typedef struct HTC_CONTROL_BUFFER {
+struct htc_control_buffer {
     HTC_PACKET    HtcPacket;
     u8 *Buffer;
-} HTC_CONTROL_BUFFER;
+};
 
 #define HTC_RECV_WAIT_BUFFERS        (1 << 0)
 #define HTC_OP_STATE_STOPPING        (1 << 0)
@@ -110,7 +110,7 @@ typedef struct HTC_CONTROL_BUFFER {
 /* our HTC target state */
 typedef struct _HTC_TARGET {
     HTC_ENDPOINT                EndPoint[ENDPOINT_MAX];
-    HTC_CONTROL_BUFFER          HTCControlBuffers[NUM_CONTROL_BUFFERS];
+    struct htc_control_buffer          HTCControlBuffers[NUM_CONTROL_BUFFERS];
     HTC_ENDPOINT_CREDIT_DIST   *EpCreditDistributionListHead;
     HTC_PACKET_QUEUE            ControlBufferTXFreeList;
     HTC_PACKET_QUEUE            ControlBufferRXFreeList;
