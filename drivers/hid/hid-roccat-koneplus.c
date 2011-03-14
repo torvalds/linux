@@ -460,7 +460,7 @@ static struct device_attribute koneplus_attributes[] = {
 
 static struct bin_attribute koneplus_bin_attributes[] = {
 	{
-		.attr = { .name = "sensor", .mode = 0220 },
+		.attr = { .name = "sensor", .mode = 0660 },
 		.size = sizeof(struct koneplus_sensor),
 		.read = koneplus_sysfs_read_sensor,
 		.write = koneplus_sysfs_write_sensor
