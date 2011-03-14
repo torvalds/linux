@@ -15,10 +15,13 @@
 
 #ifndef __ASM_ARCH_RK29_UNCOMPRESS_H
 
-#include "hardware.h"
+#include <mach/rk29_iomap.h>
 
 static void putc(int c)
 {
+	while (!(*(volatile u32 *) (RK29_UART1_PHYS + 0x14) & (1 << 5)))
+		barrier();
+	*(volatile u32 *) (RK29_UART1_PHYS) = c;
 }
 
 static inline void flush(void)
