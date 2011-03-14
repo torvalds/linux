@@ -129,7 +129,7 @@ struct ar6k_device {
     HIF_DEVICE_IRQ_PROCESSING_MODE  HifIRQProcessingMode;
     HIF_MASK_UNMASK_RECV_EVENT      HifMaskUmaskRecvEvent;
     bool                          HifAttached;
-    HIF_DEVICE_IRQ_YIELD_PARAMS     HifIRQYieldParams;
+    struct hif_device_irq_yield_params     HifIRQYieldParams;
     bool                          DSRCanYield;
     int                             CurrentDSRRecvCount;
     HIF_DEVICE_SCATTER_SUPPORT_INFO HifScatterInfo;

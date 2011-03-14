@@ -190,7 +190,7 @@ typedef enum {
  *   HIF_DEVICE_GET_IRQ_YIELD_PARAMS
  * 
  *   input : none
- *   output : HIF_DEVICE_IRQ_YIELD_PARAMS
+ *   output : struct hif_device_irq_yield_params
  *   note: This query checks if the HIF layer wishes to impose a processing yield count for the DSR handler.
  *   The DSR callback handler will exit after a fixed number of RX packets or events are processed.  
  *   This query is only made if the device reports an IRQ processing mode of HIF_DEVICE_IRQ_SYNC_ONLY. 
@@ -265,9 +265,9 @@ typedef enum {
                             */
 } HIF_DEVICE_POWER_CHANGE_TYPE;
 
-typedef struct {
+struct hif_device_irq_yield_params {
     int     RecvPacketYieldCount; /* max number of packets to force DSR to return */
-} HIF_DEVICE_IRQ_YIELD_PARAMS;
+};
 
 
 typedef struct _HIF_SCATTER_ITEM {
