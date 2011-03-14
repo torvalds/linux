@@ -1134,15 +1134,13 @@ static void bitmap_clear_bits(struct btrfs_block_group_cache *block_group,
 			      struct btrfs_free_space *info, u64 offset,
 			      u64 bytes)
 {
-	unsigned long start, end;
-	unsigned long i;
+	unsigned long start, count;
 
 	start = offset_to_bit(info->offset, block_group->sectorsize, offset);
-	end = start + bytes_to_bits(bytes, block_group->sectorsize);
-	BUG_ON(end > BITS_PER_BITMAP);
+	count = bytes_to_bits(bytes, block_group->sectorsize);
+	BUG_ON(start + count > BITS_PER_BITMAP);
 
-	for (i = start; i < end; i++)
-		clear_bit(i, info->bitmap);
+	bitmap_clear(info->bitmap, start, count);
 
 	info->bytes -= bytes;
 	block_group->free_space -= bytes;
@@ -1152,15 +1150,13 @@ static void bitmap_set_bits(struct btrfs_block_group_cache *block_group,
 			    struct btrfs_free_space *info, u64 offset,
 			    u64 bytes)
 {
-	unsigned long start, end;
-	unsigned long i;
+	unsigned long start, count;
 
 	start = offset_to_bit(info->offset, block_group->sectorsize, offset);
-	end = start + bytes_to_bits(bytes, block_group->sectorsize);
-	BUG_ON(end > BITS_PER_BITMAP);
+	count = bytes_to_bits(bytes, block_group->sectorsize);
+	BUG_ON(start + count > BITS_PER_BITMAP);
 
-	for (i = start; i < end; i++)
-		set_bit(i, info->bitmap);
+	bitmap_set(info->bitmap, start, count);
 
 	info->bytes += bytes;
 	block_group->free_space += bytes;
