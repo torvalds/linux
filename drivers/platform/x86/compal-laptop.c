@@ -275,7 +275,7 @@ static int set_backlight_level(int level)
 
 	ec_write(BACKLIGHT_LEVEL_ADDR, level);
 
-	return 1;
+	return 0;
 }
 
 static int get_backlight_level(void)
@@ -763,7 +763,7 @@ static int dmi_check_cb(const struct dmi_system_id *id)
 	printk(KERN_INFO DRIVER_NAME": Identified laptop model '%s'\n",
 		id->ident);
 	extra_features = false;
-	return 0;
+	return 1;
 }
 
 static int dmi_check_cb_extra(const struct dmi_system_id *id)
@@ -772,7 +772,7 @@ static int dmi_check_cb_extra(const struct dmi_system_id *id)
 		"enabling extra features\n",
 		id->ident);
 	extra_features = true;
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id __initdata compal_dmi_table[] = {
