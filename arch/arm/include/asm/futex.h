@@ -97,9 +97,6 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
 		return -EFAULT;
 
-	/* Note that preemption is disabled by futex_atomic_cmpxchg_inatomic
-	 * call sites. */
-
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
 	"1:	" T(ldr) "	%1, [%4]\n"
 	"	teq	%1, %2\n"
