@@ -231,3 +231,10 @@ config USB_ISIGHTFW
 	  driver beforehand. Tools for doing so are available at
 	  http://bersace03.free.fr
 
+config USB_OOBWAKE
+	boolean "USB Out-of-Band Wakeup"
+	depends on USB
+	help
+	  This driver provides a simple mechanism to support USB wakeups
+	  from gpios.  This is needed in cases where the usb host or
+	  device doesn't properly support remote wakeups.
