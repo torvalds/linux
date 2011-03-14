@@ -342,9 +342,11 @@ static void hystart_update(struct sock *sk, u32 delay)
 		u32 curr_jiffies = jiffies;
 
 		/* first detection parameter - ack-train detection */
-		if (curr_jiffies - ca->last_jiffies <= msecs_to_jiffies(2)) {
+		if ((s32)(curr_jiffies - ca->last_jiffies) <=
+		    msecs_to_jiffies(2)) {
 			ca->last_jiffies = curr_jiffies;
-			if (curr_jiffies - ca->round_start >= ca->delay_min>>4)
+			if ((s32) (curr_jiffies - ca->round_start) >
+			    ca->delay_min >> 4)
 				ca->found |= HYSTART_ACK_TRAIN;
 		}
 
