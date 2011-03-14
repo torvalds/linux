@@ -472,18 +472,12 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	 * So this callback only sets the rcode if it hasn't already
 	 * been set and only does the cleanup if the transaction
 	 * failed and we didn't already get a status write.
-	 *
-	 * Here we treat RCODE_CANCELLED like RCODE_COMPLETE because some
-	 * OXUF936QSE firmwares occasionally respond after Split_Timeout and
-	 * complete the ORB just fine.  Note, we also get RCODE_CANCELLED
-	 * from sbp2_cancel_orbs() if fw_cancel_transaction() == 0.
 	 */
 	spin_lock_irqsave(&card->lock, flags);
 
 	if (orb->rcode == -1)
 		orb->rcode = rcode;
-
-	if (orb->rcode != RCODE_COMPLETE && orb->rcode != RCODE_CANCELLED) {
+	if (orb->rcode != RCODE_COMPLETE) {
 		list_del(&orb->link);
 		spin_unlock_irqrestore(&card->lock, flags);
 
@@ -532,7 +526,8 @@ static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 
 	list_for_each_entry_safe(orb, next, &list, link) {
 		retval = 0;
-		fw_cancel_transaction(device->card, &orb->t);
+		if (fw_cancel_transaction(device->card, &orb->t) == 0)
+			continue;
 
 		orb->rcode = RCODE_CANCELLED;
 		orb->callback(orb, NULL);
