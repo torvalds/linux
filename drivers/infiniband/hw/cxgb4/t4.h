@@ -269,11 +269,8 @@ struct t4_swsqe {
 
 static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
 	return pgprot_writecombine(prot);
-#elif defined(CONFIG_PPC64)
-	return __pgprot((pgprot_val(prot) | _PAGE_NO_CACHE) &
-			~(pgprot_t)_PAGE_GUARDED);
 #else
 	return pgprot_noncached(prot);
 #endif
