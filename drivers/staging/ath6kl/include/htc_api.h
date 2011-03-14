@@ -139,7 +139,7 @@ struct htc_ep_callbacks {
 };
 
 /* service connection information */
-typedef struct _HTC_SERVICE_CONNECT_REQ {
+struct htc_service_connect_req {
     HTC_SERVICE_ID   ServiceID;                 /* service ID to connect to */
     u16 ConnectionFlags;           /* connection flags, see htc protocol definition */
     u8 *pMetaData;                 /* ptr to optional service-specific meta-data */
@@ -148,7 +148,7 @@ typedef struct _HTC_SERVICE_CONNECT_REQ {
     int              MaxSendQueueDepth;         /* maximum depth of any send queue */
     u32 LocalConnectionFlags;      /* HTC flags for the host-side (local) connection */
     unsigned int     MaxSendMsgSize;            /* override max message size in send direction */
-} HTC_SERVICE_CONNECT_REQ;
+};
 
 #define HTC_LOCAL_CONN_FLAGS_ENABLE_SEND_BUNDLE_PADDING (1 << 0)  /* enable send bundle padding for this endpoint */
 
@@ -362,7 +362,7 @@ int    HTCAddReceivePkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket);
   @see also: HTCStart
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 int    HTCConnectService(HTC_HANDLE HTCHandle,
-                              HTC_SERVICE_CONNECT_REQ  *pReq,
+                              struct htc_service_connect_req  *pReq,
                               HTC_SERVICE_CONNECT_RESP *pResp);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Send an HTC packet

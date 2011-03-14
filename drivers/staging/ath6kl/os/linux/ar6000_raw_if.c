@@ -117,7 +117,7 @@ static int ar6000_connect_raw_service(AR_SOFTC_T        *ar,
     int                 status;
     HTC_SERVICE_CONNECT_RESP response;
     u8 streamNo;
-    HTC_SERVICE_CONNECT_REQ  connect;
+    struct htc_service_connect_req  connect;
     
     do {      
         

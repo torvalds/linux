@@ -2339,7 +2339,7 @@ ar6000_close(struct net_device *dev)
 
 /* connect to a service */
 static int ar6000_connectservice(AR_SOFTC_T               *ar,
-                                      HTC_SERVICE_CONNECT_REQ  *pConnect,
+                                      struct htc_service_connect_req  *pConnect,
                                       char *pDesc)
 {
     int                 status;
@@ -2605,7 +2605,7 @@ int ar6000_init(struct net_device *dev)
     }
 
     do {
-        HTC_SERVICE_CONNECT_REQ connect;
+        struct htc_service_connect_req connect;
 
             /* the reason we have to wait for the target here is that the driver layer
              * has to init BMI in order to set the host block size,

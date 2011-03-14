@@ -229,7 +229,7 @@ int HTCWaitTarget(HTC_HANDLE HTCHandle)
     struct htc_packet              *pPacket = NULL;
     HTC_READY_EX_MSG        *pRdyMsg;
 
-    HTC_SERVICE_CONNECT_REQ  connect;
+    struct htc_service_connect_req  connect;
     HTC_SERVICE_CONNECT_RESP resp;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("HTCWaitTarget - Enter (target:0x%lX) \n", (unsigned long)target));

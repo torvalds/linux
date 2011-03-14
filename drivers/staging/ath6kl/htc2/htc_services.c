@@ -122,7 +122,7 @@ int HTCSendSetupComplete(HTC_TARGET *target)
 
 
 int HTCConnectService(HTC_HANDLE               HTCHandle,
-                           HTC_SERVICE_CONNECT_REQ  *pConnectReq,
+                           struct htc_service_connect_req  *pConnectReq,
                            HTC_SERVICE_CONNECT_RESP *pConnectResp)
 {
     HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
