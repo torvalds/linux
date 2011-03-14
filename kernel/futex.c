@@ -2458,9 +2458,20 @@ retry:
 		 * userspace.
 		 */
 		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
-		if (futex_atomic_cmpxchg_inatomic(&nval, uaddr, uval, mval))
-			return -1;
-
+		/*
+		 * We are not holding a lock here, but we want to have
+		 * the pagefault_disable/enable() protection because
+		 * we want to handle the fault gracefully. If the
+		 * access fails we try to fault in the futex with R/W
+		 * verification via get_user_pages. get_user() above
+		 * does not guarantee R/W access. If that fails we
+		 * give up and leave the futex locked.
+		 */
+		if (cmpxchg_futex_value_locked(&nval, uaddr, uval, mval)) {
+			if (fault_in_user_writeable(uaddr))
+				return -1;
+			goto retry;
+		}
 		if (nval != uval)
 			goto retry;
 
