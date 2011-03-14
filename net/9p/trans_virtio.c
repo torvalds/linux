@@ -262,7 +262,6 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio request\n");
 
-req_retry:
 	req->status = REQ_STATUS_SENT;
 
 	if (req->tc->pbuf_size && (req->tc->pubuf && P9_IS_USER_CONTEXT)) {
@@ -295,6 +294,7 @@ req_retry:
 		}
 	}
 
+req_retry_pinned:
 	spin_lock_irqsave(&chan->lock, flags);
 
 	/* Handle out VirtIO ring buffers */
@@ -355,7 +355,7 @@ req_retry:
 				return err;
 
 			P9_DPRINTK(P9_DEBUG_TRANS, "9p:Retry virtio request\n");
-			goto req_retry;
+			goto req_retry_pinned;
 		} else {
 			spin_unlock_irqrestore(&chan->lock, flags);
 			P9_DPRINTK(P9_DEBUG_TRANS,
