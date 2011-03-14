@@ -100,7 +100,7 @@ static int ppp_async_send(struct ppp_channel *chan, struct sk_buff *skb);
 static int ppp_async_push(struct asyncppp *ap);
 static void ppp_async_flush_output(struct asyncppp *ap);
 static void ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-			    char *flags, int count);
+			    char *flags, int count, struct sk_buff *skbuf);
 static int ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd,
 			   unsigned long arg);
 static void ppp_async_process(unsigned long arg);
@@ -344,12 +344,18 @@ ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
 		  char *cflags, int count)
 {
 	struct asyncppp *ap = ap_get(tty);
+	struct sk_buff *skb;
 	unsigned long flags;
 
 	if (!ap)
 		return;
+
+	skb = __dev_alloc_skb(ap->mru + PPP_HDRLEN + 2, GFP_KERNEL);
+	if (!skb)
+		return;
+
 	spin_lock_irqsave(&ap->recv_lock, flags);
-	ppp_async_input(ap, buf, cflags, count);
+	ppp_async_input(ap, buf, cflags, count, skb);
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
 	if (!skb_queue_empty(&ap->rqueue))
 		tasklet_schedule(&ap->tsk);
@@ -831,7 +837,7 @@ process_input_packet(struct asyncppp *ap)
 
 static void
 ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-		char *flags, int count)
+		char *flags, int count, struct sk_buff *skbuf)
 {
 	struct sk_buff *skb;
 	int c, i, j, n, s, f;
@@ -873,9 +879,14 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 			/* stuff the chars in the skb */
 			skb = ap->rpkt;
 			if (!skb) {
-				skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
-				if (!skb)
-					goto nomem;
+				if (skbuf) {
+					skb = skbuf;
+					skbuf = NULL;
+				} else {
+					skb = dev_alloc_skb(ap->mru + PPP_HDRLEN + 2);
+					if (!skb)
+						goto nomem;
+				}
  				ap->rpkt = skb;
  			}
  			if (skb->len == 0) {
@@ -925,11 +936,13 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 			flags += n;
 		count -= n;
 	}
+	kfree(skbuf);
 	return;
 
  nomem:
 	printk(KERN_ERR "PPPasync: no memory (input pkt)\n");
 	ap->state |= SC_TOSS;
+	kfree(skbuf);
 }
 
 /*
