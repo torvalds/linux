@@ -48,12 +48,12 @@ typedef void (* HTC_PACKET_COMPLETION)(void *,struct htc_packet *);
 
 typedef u16 HTC_TX_TAG;
 
-typedef struct _HTC_TX_PACKET_INFO {
+struct htc_tx_packet_info {
     HTC_TX_TAG    Tag;            /* tag used to selective flush packets */
     int           CreditsUsed;    /* number of credits used for this TX packet (HTC internal) */
     u8 SendFlags;      /* send flags (HTC internal) */
     int           SeqNo;          /* internal seq no for debugging (HTC internal) */
-} HTC_TX_PACKET_INFO;
+};
 
 #define HTC_TX_PACKET_TAG_ALL          0    /* a tag of zero is reserved and used to flush ALL packets */
 #define HTC_TX_PACKET_TAG_INTERNAL     1                                /* internal tags start here */
@@ -91,7 +91,7 @@ struct htc_packet {
     HTC_ENDPOINT_ID Endpoint;       /* endpoint that this packet was sent/recv'd from */
     int        Status;         /* completion status */
     union {
-        HTC_TX_PACKET_INFO  AsTx;   /* Tx Packet specific info */
+        struct htc_tx_packet_info  AsTx;   /* Tx Packet specific info */
         struct htc_rx_packet_info  AsRx;   /* Rx Packet specific info */
     } PktInfo;
 
