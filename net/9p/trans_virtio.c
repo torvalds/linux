@@ -141,33 +141,33 @@ static void req_done(struct virtqueue *vq)
 
 	P9_DPRINTK(P9_DEBUG_TRANS, ": request done\n");
 
-	do {
+	while (1) {
 		spin_lock_irqsave(&chan->lock, flags);
 		rc = virtqueue_get_buf(chan->vq, &len);
 
-		if (rc != NULL) {
-			chan->ring_bufs_avail = 1;
+		if (rc == NULL) {
 			spin_unlock_irqrestore(&chan->lock, flags);
-			/* Wakeup if anyone waiting for VirtIO ring space. */
-			wake_up(chan->vc_wq);
-			P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
-			P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n",
-					rc->tag);
-			req = p9_tag_lookup(chan->client, rc->tag);
-			req->status = REQ_STATUS_RCVD;
-			if (req->tc->private) {
-				struct trans_rpage_info *rp = req->tc->private;
-				/*Release pages */
-				p9_release_req_pages(rp);
-				if (rp->rp_alloc)
-					kfree(rp);
-				req->tc->private = NULL;
-			}
-			p9_client_cb(chan->client, req);
-		} else {
-			spin_unlock_irqrestore(&chan->lock, flags);
+			break;
 		}
-	} while (rc != NULL);
+
+		chan->ring_bufs_avail = 1;
+		spin_unlock_irqrestore(&chan->lock, flags);
+		/* Wakeup if anyone waiting for VirtIO ring space. */
+		wake_up(chan->vc_wq);
+		P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
+		P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n", rc->tag);
+		req = p9_tag_lookup(chan->client, rc->tag);
+		if (req->tc->private) {
+			struct trans_rpage_info *rp = req->tc->private;
+			/*Release pages */
+			p9_release_req_pages(rp);
+			if (rp->rp_alloc)
+				kfree(rp);
+			req->tc->private = NULL;
+		}
+		req->status = REQ_STATUS_RCVD;
+		p9_client_cb(chan->client, req);
+	}
 }
 
 /**
