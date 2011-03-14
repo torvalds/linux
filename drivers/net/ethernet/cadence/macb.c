@@ -856,6 +856,21 @@ static u32 macb_dbw(struct macb *bp)
 	}
 }
 
+/*
+ * Configure the receive DMA engine to use the correct receive buffer size.
+ * This is a configurable parameter for GEM.
+ */
+static void macb_configure_dma(struct macb *bp)
+{
+	u32 dmacfg;
+
+	if (macb_is_gem(bp)) {
+		dmacfg = gem_readl(bp, DMACFG) & ~GEM_BF(RXBS, -1L);
+		dmacfg |= GEM_BF(RXBS, RX_BUFFER_SIZE / 64);
+		gem_writel(bp, DMACFG, dmacfg);
+	}
+}
+
 static void macb_init_hw(struct macb *bp)
 {
 	u32 config;
@@ -873,6 +888,8 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(NBC);	/* No BroadCast */
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
+
+	macb_configure_dma(bp);
 
 	/* Initialize TX and RX buffers */
 	macb_writel(bp, RBQP, bp->rx_ring_dma);
