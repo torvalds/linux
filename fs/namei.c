@@ -136,7 +136,7 @@ static int do_getname(const char __user *filename, char *page)
 	return retval;
 }
 
-char * getname(const char __user * filename)
+static char *getname_flags(const char __user * filename, int flags)
 {
 	char *tmp, *result;
 
@@ -147,12 +147,19 @@ char * getname(const char __user * filename)
 
 		result = tmp;
 		if (retval < 0) {
-			__putname(tmp);
-			result = ERR_PTR(retval);
+			if (retval != -ENOENT || !(flags & LOOKUP_EMPTY)) {
+				__putname(tmp);
+				result = ERR_PTR(retval);
+			}
 		}
 	}
 	audit_getname(result);
 	return result;
+}
+
+char *getname(const char __user * filename)
+{
+	return getname_flags(filename, 0);
 }
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -1544,13 +1551,15 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 
 		dentry = file->f_path.dentry;
 
-		retval = -ENOTDIR;
-		if (!S_ISDIR(dentry->d_inode->i_mode))
-			goto fput_fail;
+		if (*name) {
+			retval = -ENOTDIR;
+			if (!S_ISDIR(dentry->d_inode->i_mode))
+				goto fput_fail;
 
-		retval = file_permission(file, MAY_EXEC);
-		if (retval)
-			goto fput_fail;
+			retval = file_permission(file, MAY_EXEC);
+			if (retval)
+				goto fput_fail;
+		}
 
 		nd->path = file->f_path;
 		if (flags & LOOKUP_RCU) {
@@ -1759,7 +1768,7 @@ int user_path_at(int dfd, const char __user *name, unsigned flags,
 		 struct path *path)
 {
 	struct nameidata nd;
-	char *tmp = getname(name);
+	char *tmp = getname_flags(name, flags);
 	int err = PTR_ERR(tmp);
 	if (!IS_ERR(tmp)) {
 
