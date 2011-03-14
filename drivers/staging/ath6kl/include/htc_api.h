@@ -116,7 +116,7 @@ typedef enum _HTC_SEND_FULL_ACTION {
  * must ONLY inspect the packet, it may not free or reclaim the packet. */
 typedef HTC_SEND_FULL_ACTION (*HTC_EP_SEND_QUEUE_FULL)(void *, HTC_PACKET *pPacket);
 
-typedef struct _HTC_EP_CALLBACKS {
+struct htc_ep_callbacks {
     void                     *pContext;     /* context for each callback */
     HTC_EP_SEND_PKT_COMPLETE EpTxComplete;  /* tx completion callback for connected endpoint */
     HTC_EP_RECV_PKT          EpRecv;        /* receive callback for connected endpoint */
@@ -136,7 +136,7 @@ typedef struct _HTC_EP_CALLBACKS {
                                                        when the recv queue drops below this value 
                                                        if set to 0, the refill is only called when packets 
                                                        are empty */
-} HTC_EP_CALLBACKS;
+};
 
 /* service connection information */
 typedef struct _HTC_SERVICE_CONNECT_REQ {
@@ -144,7 +144,7 @@ typedef struct _HTC_SERVICE_CONNECT_REQ {
     u16 ConnectionFlags;           /* connection flags, see htc protocol definition */
     u8 *pMetaData;                 /* ptr to optional service-specific meta-data */
     u8 MetaDataLength;            /* optional meta data length */
-    HTC_EP_CALLBACKS EpCallbacks;               /* endpoint callbacks */
+    struct htc_ep_callbacks EpCallbacks;               /* endpoint callbacks */
     int              MaxSendQueueDepth;         /* maximum depth of any send queue */
     u32 LocalConnectionFlags;      /* HTC flags for the host-side (local) connection */
     unsigned int     MaxSendMsgSize;            /* override max message size in send direction */

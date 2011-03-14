@@ -72,7 +72,7 @@ struct htc_endpoint {
     HTC_PACKET_QUEUE            TxQueue;        /* HTC frame buffer TX queue */
     HTC_PACKET_QUEUE            RxBuffers;      /* HTC frame buffer RX list */
     struct htc_endpoint_credit_dist    CreditDist;     /* credit distribution structure (exposed to driver layer) */
-    HTC_EP_CALLBACKS            EpCallBacks;    /* callbacks associated with this endpoint */
+    struct htc_ep_callbacks            EpCallBacks;    /* callbacks associated with this endpoint */
     int                         MaxTxQueueDepth;   /* max depth of the TX queue before we need to
                                                       call driver's full handler */
     int                         MaxMsgLength;        /* max length of endpoint message */
