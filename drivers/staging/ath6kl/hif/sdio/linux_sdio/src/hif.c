@@ -710,9 +710,9 @@ HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
                 ((u32 *)config)[count] = HIF_MBOX_START_ADDR(count);
             }
             
-            if (configLen >= sizeof(HIF_DEVICE_MBOX_INFO)) {    
+            if (configLen >= sizeof(struct hif_device_mbox_info)) {    
                 SetExtendedMboxWindowInfo((u16)device->func->device,
-                                          (HIF_DEVICE_MBOX_INFO *)config);
+                                          (struct hif_device_mbox_info *)config);
             }
                         
             break;

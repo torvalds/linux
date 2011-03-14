@@ -115,7 +115,7 @@ struct ar6k_device {
     void                        *HIFDevice;
     u32 BlockSize;
     u32 BlockMask;
-    HIF_DEVICE_MBOX_INFO        MailBoxInfo;
+    struct hif_device_mbox_info        MailBoxInfo;
     HIF_PENDING_EVENTS_FUNC     GetPendingEventsFunc;
     void                        *HTCContext;
     HTC_PACKET_QUEUE            RegisterIOList;

@@ -153,7 +153,7 @@ typedef enum {
  *
  *   HIF_DEVICE_GET_MBOX_ADDR
  *   input : none
- *   output : HIF_DEVICE_MBOX_INFO
+ *   output : struct hif_device_mbox_info
  *   notes: 
  *
  *   HIF_DEVICE_GET_PENDING_EVENTS_FUNC
@@ -235,7 +235,7 @@ typedef enum _MBOX_BUF_IF_TYPE {
     MBOX_BUS_IF_SPI = 1,    
 } MBOX_BUF_IF_TYPE;
 
-typedef struct {
+struct hif_device_mbox_info {
     u32 MboxAddresses[4];  /* must be first element for legacy HIFs that return the address in
                                    and ARRAY of 32-bit words */
     
@@ -247,7 +247,7 @@ typedef struct {
     u32 GMboxSize;
     u32 Flags;             /* flags to describe mbox behavior or usage */
     MBOX_BUF_IF_TYPE MboxBusIFType;   /* mailbox bus interface type */
-} HIF_DEVICE_MBOX_INFO;
+};
 
 typedef enum {
     HIF_DEVICE_IRQ_SYNC_ONLY,   /* for HIF implementations that require the DSR to process all
