@@ -77,7 +77,7 @@ static void DoSendCompletion(struct htc_endpoint       *pEndpoint,
 }
 
 /* do final completion on sent packet */
-static INLINE void CompleteSentPacket(HTC_TARGET *target, struct htc_endpoint *pEndpoint, struct htc_packet *pPacket)
+static INLINE void CompleteSentPacket(struct htc_target *target, struct htc_endpoint *pEndpoint, struct htc_packet *pPacket)
 {
     pPacket->Completion = NULL;  
     
@@ -103,7 +103,7 @@ static INLINE void CompleteSentPacket(HTC_TARGET *target, struct htc_endpoint *p
  * layer */
 static void HTCSendPktCompletionHandler(void *Context, struct htc_packet *pPacket)
 {
-    HTC_TARGET      *target = (HTC_TARGET *)Context;
+    struct htc_target      *target = (struct htc_target *)Context;
     struct htc_endpoint    *pEndpoint = &target->EndPoint[pPacket->Endpoint];
     struct htc_packet_queue container;
     
@@ -113,7 +113,7 @@ static void HTCSendPktCompletionHandler(void *Context, struct htc_packet *pPacke
     DO_EP_TX_COMPLETION(pEndpoint,&container);
 }
 
-int HTCIssueSend(HTC_TARGET *target, struct htc_packet *pPacket)
+int HTCIssueSend(struct htc_target *target, struct htc_packet *pPacket)
 {
     int status;
     bool   sync = false;
@@ -146,7 +146,7 @@ int HTCIssueSend(HTC_TARGET *target, struct htc_packet *pPacket)
 }
 
     /* get HTC send packets from the TX queue on an endpoint */
-static INLINE void GetHTCSendPackets(HTC_TARGET        *target, 
+static INLINE void GetHTCSendPackets(struct htc_target        *target, 
                                      struct htc_endpoint      *pEndpoint, 
                                      struct htc_packet_queue  *pQueue)
 {
@@ -269,7 +269,7 @@ static void HTCAsyncSendScatterCompletion(struct hif_scatter_req *pScatterReq)
     int                 i;    
     struct htc_packet          *pPacket;
     struct htc_endpoint        *pEndpoint = (struct htc_endpoint *)pScatterReq->Context;
-    HTC_TARGET          *target = (HTC_TARGET *)pEndpoint->target;
+    struct htc_target          *target = (struct htc_target *)pEndpoint->target;
     int            status = 0;
     struct htc_packet_queue    sendCompletes;
     
@@ -323,7 +323,7 @@ static void HTCIssueSendBundle(struct htc_endpoint      *pEndpoint,
     bool              done = false;
     int                 bundlesSent = 0;
     int                 totalPktsInBundle = 0;
-    HTC_TARGET          *target = pEndpoint->target;
+    struct htc_target          *target = pEndpoint->target;
     int                 creditRemainder = 0;
     int                 creditPad;
     
@@ -477,7 +477,7 @@ static void HTCIssueSendBundle(struct htc_endpoint      *pEndpoint,
 /*
  * if there are no credits, the packet(s) remains in the queue.
  * this function returns the result of the attempt to send a queue of HTC packets */
-static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
+static HTC_SEND_QUEUE_RESULT HTCTrySend(struct htc_target       *target,
                                         struct htc_endpoint     *pEndpoint,
                                         struct htc_packet_queue *pCallersSendQueue)
 {
@@ -670,7 +670,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
 
 int  HTCSendPktsMultiple(HTC_HANDLE HTCHandle, struct htc_packet_queue *pPktQueue)
 {
-    HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint;
     struct htc_packet      *pPacket;
 
@@ -721,7 +721,7 @@ int HTCSendPkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket)
 }
 
 /* check TX queues to drain because of credit distribution update */
-static INLINE void HTCCheckEndpointTxQueues(HTC_TARGET *target)
+static INLINE void HTCCheckEndpointTxQueues(struct htc_target *target)
 {
     struct htc_endpoint                *pEndpoint;
     struct htc_endpoint_credit_dist    *pDistItem;
@@ -753,7 +753,7 @@ static INLINE void HTCCheckEndpointTxQueues(HTC_TARGET *target)
 }
 
 /* process credit reports and call distribution function */
-void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint)
+void HTCProcessCreditRpt(struct htc_target *target, HTC_CREDIT_REPORT *pRpt, int NumEntries, HTC_ENDPOINT_ID FromEndpoint)
 {
     int             i;
     struct htc_endpoint    *pEndpoint;
@@ -838,7 +838,7 @@ void HTCProcessCreditRpt(HTC_TARGET *target, HTC_CREDIT_REPORT *pRpt, int NumEnt
 }
 
 /* flush endpoint TX queue */
-static void HTCFlushEndpointTX(HTC_TARGET *target, struct htc_endpoint *pEndpoint, HTC_TX_TAG Tag)
+static void HTCFlushEndpointTX(struct htc_target *target, struct htc_endpoint *pEndpoint, HTC_TX_TAG Tag)
 {
     struct htc_packet          *pPacket;
     struct htc_packet_queue    discardQueue;
@@ -899,7 +899,7 @@ void DumpCreditDist(struct htc_endpoint_credit_dist *pEPDist)
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY, ("----------------------------------------------------\n"));
 }
 
-void DumpCreditDistStates(HTC_TARGET *target)
+void DumpCreditDistStates(struct htc_target *target)
 {
     struct htc_endpoint_credit_dist *pEPList = target->EpCreditDistributionListHead;
 
@@ -917,7 +917,7 @@ void DumpCreditDistStates(HTC_TARGET *target)
 }
 
 /* flush all send packets from all endpoint queues */
-void HTCFlushSendPkts(HTC_TARGET *target)
+void HTCFlushSendPkts(struct htc_target *target)
 {
     struct htc_endpoint    *pEndpoint;
     int             i;
@@ -941,7 +941,7 @@ void HTCFlushSendPkts(HTC_TARGET *target)
 /* HTC API to flush an endpoint's TX queue*/
 void HTCFlushEndpoint(HTC_HANDLE HTCHandle, HTC_ENDPOINT_ID Endpoint, HTC_TX_TAG Tag)
 {
-    HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint = &target->EndPoint[Endpoint];
 
     if (pEndpoint->ServiceID == 0) {
@@ -958,7 +958,7 @@ void HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
                                HTC_ENDPOINT_ID Endpoint,
                                bool          Active)
 {
-    HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint = &target->EndPoint[Endpoint];
     bool          doDist = false;
 
@@ -1008,7 +1008,7 @@ void HTCIndicateActivityChange(HTC_HANDLE      HTCHandle,
 bool HTCIsEndpointActive(HTC_HANDLE      HTCHandle,
                            HTC_ENDPOINT_ID Endpoint)
 {
-    HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint = &target->EndPoint[Endpoint];
 
     if (pEndpoint->ServiceID == 0) {

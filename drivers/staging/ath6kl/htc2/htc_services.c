@@ -36,7 +36,7 @@ void HTCControlRecv(void *Context, struct htc_packet *pPacket)
 
     if (pPacket->Status == A_ECANCELED) {
         /* this is a flush operation, return the control packet back to the pool */
-        HTC_FREE_CONTROL_RX((HTC_TARGET*)Context,pPacket);    
+        HTC_FREE_CONTROL_RX((struct htc_target*)Context,pPacket);    
         return;
     }  
     
@@ -54,10 +54,10 @@ void HTCControlRecv(void *Context, struct htc_packet *pPacket)
 #endif
     }
 
-    HTC_RECYCLE_RX_PKT((HTC_TARGET*)Context,pPacket,&((HTC_TARGET*)Context)->EndPoint[0]);
+    HTC_RECYCLE_RX_PKT((struct htc_target*)Context,pPacket,&((struct htc_target*)Context)->EndPoint[0]);
 }
 
-int HTCSendSetupComplete(HTC_TARGET *target)
+int HTCSendSetupComplete(struct htc_target *target)
 {
     struct htc_packet             *pSendPacket = NULL;
     int                status;
@@ -125,7 +125,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
                            struct htc_service_connect_req  *pConnectReq,
                            struct htc_service_connect_resp *pConnectResp)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     int                            status = 0;
     struct htc_packet                          *pRecvPacket = NULL;
     struct htc_packet                          *pSendPacket = NULL;
@@ -307,7 +307,7 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
     return status;
 }
 
-static void AddToEndpointDistList(HTC_TARGET *target, struct htc_endpoint_credit_dist *pEpDist)
+static void AddToEndpointDistList(struct htc_target *target, struct htc_endpoint_credit_dist *pEpDist)
 {
     struct htc_endpoint_credit_dist *pCurEntry,*pLastEntry;
 
@@ -408,7 +408,7 @@ void HTCSetCreditDistribution(HTC_HANDLE               HTCHandle,
                               HTC_SERVICE_ID           ServicePriorityOrder[],
                               int                      ListLength)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     int i;
     int ep;
 

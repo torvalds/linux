@@ -41,16 +41,16 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(htc,
 #endif
 
 static void HTCReportFailure(void *Context);
-static void ResetEndpointStates(HTC_TARGET *target);
+static void ResetEndpointStates(struct htc_target *target);
 
-void HTCFreeControlBuffer(HTC_TARGET *target, struct htc_packet *pPacket, struct htc_packet_queue *pList)
+void HTCFreeControlBuffer(struct htc_target *target, struct htc_packet *pPacket, struct htc_packet_queue *pList)
 {
     LOCK_HTC(target);
     HTC_PACKET_ENQUEUE(pList,pPacket);
     UNLOCK_HTC(target);
 }
 
-struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target,  struct htc_packet_queue *pList)
+struct htc_packet *HTCAllocControlBuffer(struct htc_target *target,  struct htc_packet_queue *pList)
 {
     struct htc_packet *pPacket;
 
@@ -62,7 +62,7 @@ struct htc_packet *HTCAllocControlBuffer(HTC_TARGET *target,  struct htc_packet_
 }
 
 /* cleanup the HTC instance */
-static void HTCCleanup(HTC_TARGET *target)
+static void HTCCleanup(struct htc_target *target)
 {
     s32 i;
 
@@ -92,7 +92,7 @@ static void HTCCleanup(HTC_TARGET *target)
 /* registered target arrival callback from the HIF layer */
 HTC_HANDLE HTCCreate(void *hif_handle, struct htc_init_info *pInfo)
 {
-    HTC_TARGET              *target = NULL;
+    struct htc_target              *target = NULL;
     int                 status = 0;
     int                      i;
     u32 ctrl_bufsz;
@@ -105,13 +105,13 @@ HTC_HANDLE HTCCreate(void *hif_handle, struct htc_init_info *pInfo)
     do {
 
             /* allocate target memory */
-        if ((target = (HTC_TARGET *)A_MALLOC(sizeof(HTC_TARGET))) == NULL) {
+        if ((target = (struct htc_target *)A_MALLOC(sizeof(struct htc_target))) == NULL) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("Unable to allocate memory\n"));
             status = A_ERROR;
             break;
         }
 
-        A_MEMZERO(target, sizeof(HTC_TARGET));
+        A_MEMZERO(target, sizeof(struct htc_target));
         A_MUTEX_INIT(&target->HTCLock);
         A_MUTEX_INIT(&target->HTCRxLock);
         A_MUTEX_INIT(&target->HTCTxLock);
@@ -206,7 +206,7 @@ HTC_HANDLE HTCCreate(void *hif_handle, struct htc_init_info *pInfo)
 
 void  HTCDestroy(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("+HTCDestroy ..  Destroying :0x%lX \n",(unsigned long)target));
     HTCCleanup(target);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("-HTCDestroy \n"));
@@ -216,7 +216,7 @@ void  HTCDestroy(HTC_HANDLE HTCHandle)
  * HIF requests */
 void *HTCGetHifDevice(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     return target->Device.HIFDevice;
 }
 
@@ -224,7 +224,7 @@ void *HTCGetHifDevice(HTC_HANDLE HTCHandle)
  * this operation is fully synchronous and the message is polled for */
 int HTCWaitTarget(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET              *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target              *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     int                 status;
     struct htc_packet              *pPacket = NULL;
     HTC_READY_EX_MSG        *pRdyMsg;
@@ -371,7 +371,7 @@ int HTCWaitTarget(HTC_HANDLE HTCHandle)
 /* Start HTC, enable interrupts and let the target know host has finished setup */
 int HTCStart(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_packet *pPacket;
     int   status;
 
@@ -436,7 +436,7 @@ int HTCStart(HTC_HANDLE HTCHandle)
     return status;
 }
 
-static void ResetEndpointStates(HTC_TARGET *target)
+static void ResetEndpointStates(struct htc_target *target)
 {
     struct htc_endpoint        *pEndpoint;
     int                  i;
@@ -463,7 +463,7 @@ static void ResetEndpointStates(HTC_TARGET *target)
 /* stop HTC communications, i.e. stop interrupt reception, and flush all queued buffers */
 void HTCStop(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRC, ("+HTCStop \n"));
 
     LOCK_HTC(target);
@@ -496,7 +496,7 @@ void HTCStop(HTC_HANDLE HTCHandle)
 #ifdef ATH_DEBUG_MODULE
 void HTCDumpCreditStates(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
 
     LOCK_HTC_TX(target);
 
@@ -511,7 +511,7 @@ void HTCDumpCreditStates(HTC_HANDLE HTCHandle)
  * which uses a mechanism to report errors from the target (i.e. special interrupts) */
 static void HTCReportFailure(void *Context)
 {
-    HTC_TARGET *target = (HTC_TARGET *)Context;
+    struct htc_target *target = (struct htc_target *)Context;
 
     target->TargetFailure = true;
 
@@ -528,7 +528,7 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
 {
 
 #ifdef HTC_EP_STAT_PROFILING
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     bool     clearStats = false;
     bool     sample = false;
 
@@ -575,7 +575,7 @@ bool HTCGetEndpointStatistics(HTC_HANDLE               HTCHandle,
 
 struct ar6k_device  *HTCGetAR6KDevice(void *HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     return &target->Device;
 }
 

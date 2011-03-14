@@ -83,7 +83,7 @@ static void DoRecvCompletion(struct htc_endpoint     *pEndpoint,
 
 }
 
-static INLINE int HTCProcessTrailer(HTC_TARGET *target,
+static INLINE int HTCProcessTrailer(struct htc_target *target,
                                          u8 *pBuffer,
                                          int         Length,
                                          u32 *pNextLookAheads,
@@ -226,7 +226,7 @@ static INLINE int HTCProcessTrailer(HTC_TARGET *target,
 
 /* process a received message (i.e. strip off header, process any trailer data)
  * note : locks must be released when this function is called */
-static int HTCProcessRecvHeader(HTC_TARGET *target,
+static int HTCProcessRecvHeader(struct htc_target *target,
                                      struct htc_packet *pPacket, 
                                      u32 *pNextLookAheads,
                                      int        *pNumLookAheads)
@@ -385,7 +385,7 @@ static int HTCProcessRecvHeader(HTC_TARGET *target,
     return status;
 }
 
-static INLINE void HTCAsyncRecvCheckMorePackets(HTC_TARGET  *target, 
+static INLINE void HTCAsyncRecvCheckMorePackets(struct htc_target  *target, 
                                                 u32 NextLookAheads[],
                                                 int         NumLookAheads,
                                                 bool      CheckMoreMsgs)
@@ -432,7 +432,7 @@ static INLINE void HTCAsyncRecvCheckMorePackets(HTC_TARGET  *target,
 }      
 
     /* unload the recv completion queue */
-static INLINE void DrainRecvIndicationQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint)
+static INLINE void DrainRecvIndicationQueue(struct htc_target *target, struct htc_endpoint *pEndpoint)
 {
     struct htc_packet_queue     recvCompletions;
     
@@ -517,7 +517,7 @@ static INLINE void SetRxPacketIndicationFlags(u32 LookAhead,
  * completes a read request, it will call this completion handler */
 void HTCRecvCompleteHandler(void *Context, struct htc_packet *pPacket)
 {
-    HTC_TARGET      *target = (HTC_TARGET *)Context;
+    struct htc_target      *target = (struct htc_target *)Context;
     struct htc_endpoint    *pEndpoint;
     u32 nextLookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int             numLookAheads = 0;
@@ -587,7 +587,7 @@ void HTCRecvCompleteHandler(void *Context, struct htc_packet *pPacket)
 /* synchronously wait for a control message from the target,
  * This function is used at initialization time ONLY.  At init messages
  * on ENDPOINT 0 are expected. */
-int HTCWaitforControlMessage(HTC_TARGET *target, struct htc_packet **ppControlPacket)
+int HTCWaitforControlMessage(struct htc_target *target, struct htc_packet **ppControlPacket)
 {
     int        status;
     u32 lookAhead;
@@ -686,7 +686,7 @@ int HTCWaitforControlMessage(HTC_TARGET *target, struct htc_packet **ppControlPa
     return status;
 }
 
-static int AllocAndPrepareRxPackets(HTC_TARGET       *target,
+static int AllocAndPrepareRxPackets(struct htc_target       *target,
                                          u32 LookAheads[],
                                          int              Messages,                                        
                                          struct htc_endpoint     *pEndpoint, 
@@ -886,7 +886,7 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
     struct htc_endpoint        *pEndpoint;
     u32 lookAheads[HTC_HOST_MAX_MSG_PER_BUNDLE];
     int                 numLookAheads = 0;
-    HTC_TARGET          *target = (HTC_TARGET *)pScatterReq->Context;
+    struct htc_target          *target = (struct htc_target *)pScatterReq->Context;
     int            status;
     bool              partialBundle = false;
     struct htc_packet_queue    localRecvQueue;
@@ -984,7 +984,7 @@ static void HTCAsyncRecvScatterCompletion(struct hif_scatter_req *pScatterReq)
     AR_DEBUG_PRINTF(ATH_DEBUG_RECV,("-HTCAsyncRecvScatterCompletion \n"));
 }
 
-static int HTCIssueRecvPacketBundle(HTC_TARGET        *target,
+static int HTCIssueRecvPacketBundle(struct htc_target        *target,
                                          struct htc_packet_queue  *pRecvPktQueue, 
                                          struct htc_packet_queue  *pSyncCompletionQueue,
                                          int               *pNumPacketsFetched,
@@ -1119,7 +1119,7 @@ static INLINE void CheckRecvWaterMark(struct htc_endpoint    *pEndpoint)
 /* callback when device layer or lookahead report parsing detects a pending message */
 int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLookAheads, bool *pAsyncProc, int *pNumPktsFetched)
 {
-    HTC_TARGET      *target = (HTC_TARGET *)Context;
+    struct htc_target      *target = (struct htc_target *)Context;
     int         status = 0;
     struct htc_packet      *pPacket;
     struct htc_endpoint    *pEndpoint;
@@ -1387,7 +1387,7 @@ int HTCRecvMessagePendingHandler(void *Context, u32 MsgLookAheads[], int NumLook
 
 int HTCAddReceivePktMultiple(HTC_HANDLE HTCHandle, struct htc_packet_queue *pPktQueue)
 {
-    HTC_TARGET      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target      *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     struct htc_endpoint    *pEndpoint;
     bool          unblockRecv = false;
     int        status = 0;
@@ -1464,7 +1464,7 @@ int HTCAddReceivePkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket)
 
 void HTCUnblockRecv(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
     bool      unblockRecv = false;
 
     LOCK_HTC_RX(target);
@@ -1486,7 +1486,7 @@ void HTCUnblockRecv(HTC_HANDLE HTCHandle)
     }
 }
 
-static void HTCFlushRxQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint, struct htc_packet_queue *pQueue)
+static void HTCFlushRxQueue(struct htc_target *target, struct htc_endpoint *pEndpoint, struct htc_packet_queue *pQueue)
 {
     struct htc_packet  *pPacket;
     struct htc_packet_queue container;
@@ -1512,7 +1512,7 @@ static void HTCFlushRxQueue(HTC_TARGET *target, struct htc_endpoint *pEndpoint, 
     UNLOCK_HTC_RX(target);
 }
 
-static void HTCFlushEndpointRX(HTC_TARGET *target, struct htc_endpoint *pEndpoint)
+static void HTCFlushEndpointRX(struct htc_target *target, struct htc_endpoint *pEndpoint)
 {
         /* flush any recv indications not already made */
     HTCFlushRxQueue(target,pEndpoint,&pEndpoint->RecvIndicationQueue);
@@ -1520,7 +1520,7 @@ static void HTCFlushEndpointRX(HTC_TARGET *target, struct htc_endpoint *pEndpoin
     HTCFlushRxQueue(target,pEndpoint,&pEndpoint->RxBuffers);
 }
 
-void HTCFlushRecvBuffers(HTC_TARGET *target)
+void HTCFlushRecvBuffers(struct htc_target *target)
 {
     struct htc_endpoint    *pEndpoint;
     int             i;
@@ -1538,7 +1538,7 @@ void HTCFlushRecvBuffers(HTC_TARGET *target)
 
 void HTCEnableRecv(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
 
     if (!HTC_STOPPING(target)) {
             /* re-enable */
@@ -1548,7 +1548,7 @@ void HTCEnableRecv(HTC_HANDLE HTCHandle)
 
 void HTCDisableRecv(HTC_HANDLE HTCHandle)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
 
     if (!HTC_STOPPING(target)) {
             /* disable */
@@ -1559,7 +1559,7 @@ void HTCDisableRecv(HTC_HANDLE HTCHandle)
 int HTCGetNumRecvBuffers(HTC_HANDLE      HTCHandle,
                          HTC_ENDPOINT_ID Endpoint)
 {
-    HTC_TARGET *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);    
+    struct htc_target *target = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);    
     return HTC_PACKET_QUEUE_DEPTH(&(target->EndPoint[Endpoint].RxBuffers));
 }
 
@@ -1568,7 +1568,7 @@ int HTCWaitForPendingRecv(HTC_HANDLE   HTCHandle,
                                bool      *pbIsRecvPending)
 {
     int    status  = 0;
-    HTC_TARGET *target  = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
+    struct htc_target *target  = GET_HTC_TARGET_FROM_HANDLE(HTCHandle);
 
     status = DevWaitForPendingRecv(&target->Device,
                                     TimeoutInMs,
