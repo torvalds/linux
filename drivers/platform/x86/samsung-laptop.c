@@ -496,7 +496,7 @@ static int __init dmi_check_cb(const struct dmi_system_id *id)
 {
 	pr_info("found laptop model '%s'\n",
 		id->ident);
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id __initdata samsung_dmi_table[] = {
