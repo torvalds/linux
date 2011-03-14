@@ -393,8 +393,7 @@ static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
 
 	/* Allocate general purpose ioctl pool. */
 	for (i = 0; i < CHD_IODATA_POOL_SZ; i++) {
-		/* FIXME: jarod: why atomic? */
-		temp = kzalloc(sizeof(struct crystalhd_ioctl_data), GFP_ATOMIC);
+		temp = kzalloc(sizeof(struct crystalhd_ioctl_data), GFP_KERNEL);
 		if (!temp) {
 			BCMLOG_ERR("ioctl data pool kzalloc failed\n");
 			rc = -ENOMEM;
@@ -549,8 +548,7 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	       pdev->vendor, pdev->device, pdev->subsystem_vendor,
 	       pdev->subsystem_device);
 
-	/* FIXME: jarod: why atomic? */
-	pinfo = kzalloc(sizeof(struct crystalhd_adp), GFP_ATOMIC);
+	pinfo = kzalloc(sizeof(struct crystalhd_adp), GFP_KERNEL);
 	if (!pinfo) {
 		BCMLOG_ERR("Failed to allocate memory\n");
 		return -ENOMEM;
