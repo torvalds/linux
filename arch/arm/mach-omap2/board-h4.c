@@ -299,7 +299,6 @@ static void __init omap_h4_init_early(void)
 static void __init omap_h4_init_irq(void)
 {
 	omap_init_irq();
-	h4_init_flash();
 }
 
 static struct at24_platform_data m24c01 = {
@@ -372,6 +371,7 @@ static void __init omap_h4_init(void)
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
+	h4_init_flash();
 }
 
 static void __init omap_h4_map_io(void)

@@ -982,17 +982,18 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_mem;
 	}
-	obj->regbase = ioremap(res->start, resource_size(res));
-	if (!obj->regbase) {
-		err = -ENOMEM;
-		goto err_mem;
-	}
 
 	res = request_mem_region(res->start, resource_size(res),
 				 dev_name(&pdev->dev));
 	if (!res) {
 		err = -EIO;
 		goto err_mem;
+	}
+
+	obj->regbase = ioremap(res->start, resource_size(res));
+	if (!obj->regbase) {
+		err = -ENOMEM;
+		goto err_ioremap;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1023,8 +1024,9 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 err_pgd:
 	free_irq(irq, obj);
 err_irq:
-	release_mem_region(res->start, resource_size(res));
 	iounmap(obj->regbase);
+err_ioremap:
+	release_mem_region(res->start, resource_size(res));
 err_mem:
 	clk_put(obj->clk);
 err_clk:
