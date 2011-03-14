@@ -730,7 +730,7 @@ HIFConfigureDevice(HIF_DEVICE *device, HIF_DEVICE_CONFIG_OPCODE opcode,
             break; 
         case HIF_DEVICE_GET_OS_DEVICE:
                 /* pass back a pointer to the SDIO function's "dev" struct */
-            ((HIF_DEVICE_OS_DEVICE_INFO *)config)->pOSDevice = &device->func->dev;
+            ((struct hif_device_os_device_info *)config)->pOSDevice = &device->func->dev;
             break; 
         case HIF_DEVICE_POWER_STATE_CHANGE:
             status = PowerStateChangeNotify(device, *(HIF_DEVICE_POWER_CHANGE_TYPE *)config);

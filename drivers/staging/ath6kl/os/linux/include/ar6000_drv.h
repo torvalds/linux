@@ -596,7 +596,7 @@ typedef struct ar6_softc {
 	WMI_BTCOEX_CONFIG_EVENT arBtcoexConfig;
 	WMI_BTCOEX_STATS_EVENT  arBtcoexStats;
     s32 (*exitCallback)(void *config);  /* generic callback at AR6K exit */
-    HIF_DEVICE_OS_DEVICE_INFO   osDevInfo;
+    struct hif_device_os_device_info   osDevInfo;
 #ifdef ATH6K_CONFIG_CFG80211
     struct wireless_dev *wdev;
     struct cfg80211_scan_request    *scan_request;

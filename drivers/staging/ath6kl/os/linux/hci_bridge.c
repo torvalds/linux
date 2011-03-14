@@ -857,7 +857,7 @@ static int bt_setup_hci(struct ar6k_hci_bridge_info *pHcidevInfo)
 {
     int                    status = 0;
     struct hci_dev              *pHciDev = NULL;
-    HIF_DEVICE_OS_DEVICE_INFO   osDevInfo;
+    struct hif_device_os_device_info   osDevInfo;
     
     if (!setupbtdev) {
         return 0;

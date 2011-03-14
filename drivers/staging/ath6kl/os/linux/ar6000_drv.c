@@ -803,7 +803,7 @@ ar6000_sysfs_bmi_read(struct file *fp, struct kobject *kobj,
 {
     int index;
     AR_SOFTC_T *ar;
-    HIF_DEVICE_OS_DEVICE_INFO   *osDevInfo;
+    struct hif_device_os_device_info   *osDevInfo;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Read %d bytes\n", (u32)count));
     for (index=0; index < MAX_AR6000; index++) {
@@ -830,7 +830,7 @@ ar6000_sysfs_bmi_write(struct file *fp, struct kobject *kobj,
 {
     int index;
     AR_SOFTC_T *ar;
-    HIF_DEVICE_OS_DEVICE_INFO   *osDevInfo;
+    struct hif_device_os_device_info   *osDevInfo;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Write %d bytes\n", (u32)count));
     for (index=0; index < MAX_AR6000; index++) {
@@ -856,13 +856,13 @@ ar6000_sysfs_bmi_init(AR_SOFTC_T *ar)
     int status;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO,("BMI: Creating sysfs entry\n"));
-    A_MEMZERO(&ar->osDevInfo, sizeof(HIF_DEVICE_OS_DEVICE_INFO));
+    A_MEMZERO(&ar->osDevInfo, sizeof(struct hif_device_os_device_info));
 
     /* Get the underlying OS device */
     status = HIFConfigureDevice(ar->arHifDevice,
                                 HIF_DEVICE_GET_OS_DEVICE,
                                 &ar->osDevInfo,
-                                sizeof(HIF_DEVICE_OS_DEVICE_INFO));
+                                sizeof(struct hif_device_os_device_info));
 
     if (status) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI: Failed to get OS device info from HIF\n"));
@@ -1604,7 +1604,7 @@ ar6000_avail_ev(void *context, void *hif_handle)
     struct wireless_dev *wdev;
 #endif /* ATH6K_CONFIG_CFG80211 */
     int init_status = 0;
-    HIF_DEVICE_OS_DEVICE_INFO osDevInfo;
+    struct hif_device_os_device_info osDevInfo;
 
     memset(&osDevInfo, 0, sizeof(osDevInfo));
     if (HIFConfigureDevice(hif_handle, HIF_DEVICE_GET_OS_DEVICE,

@@ -211,7 +211,7 @@ typedef enum {
  * 
  *   HIF_DEVICE_GET_OS_DEVICE
  *   intput : none
- *   output : HIF_DEVICE_OS_DEVICE_INFO;
+ *   output : struct hif_device_os_device_info;
  *   note: On some operating systems, the HIF layer has a parent device object for the bus.  This object
  *         may be required to register certain types of logical devices.
  * 
@@ -315,9 +315,9 @@ typedef struct _HIF_DEVICE_SCATTER_SUPPORT_INFO {
     int                             MaxTransferSizePerScatterReq;
 } HIF_DEVICE_SCATTER_SUPPORT_INFO;
                       
-typedef struct {
+struct hif_device_os_device_info {
     void    *pOSDevice;
-} HIF_DEVICE_OS_DEVICE_INFO;
+};
                       
 #define HIF_MAX_DEVICES                 1
 

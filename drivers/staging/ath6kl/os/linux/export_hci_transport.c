@@ -76,8 +76,8 @@ ar6000_get_hif_dev(HIF_DEVICE *device, void *config)
 
     status = HIFConfigureDevice(device,
                                 HIF_DEVICE_GET_OS_DEVICE,
-                                (HIF_DEVICE_OS_DEVICE_INFO *)config, 
-                                sizeof(HIF_DEVICE_OS_DEVICE_INFO));
+                                (struct hif_device_os_device_info *)config, 
+                                sizeof(struct hif_device_os_device_info));
     return status;
 }
 
