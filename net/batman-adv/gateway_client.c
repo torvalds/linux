@@ -42,7 +42,7 @@ static void gw_node_free_ref(struct gw_node *gw_node)
 		call_rcu(&gw_node->rcu, gw_node_free_rcu);
 }
 
-void *gw_get_selected(struct bat_priv *bat_priv)
+struct orig_node *gw_get_selected(struct bat_priv *bat_priv)
 {
 	struct gw_node *curr_gateway_tmp;
 	struct orig_node *orig_node = NULL;
