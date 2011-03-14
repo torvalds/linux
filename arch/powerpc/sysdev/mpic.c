@@ -147,6 +147,16 @@ static u32 mpic_infos[][MPIC_IDX_END] = {
 
 #endif /* CONFIG_MPIC_WEIRD */
 
+static inline unsigned int mpic_processor_id(struct mpic *mpic)
+{
+	unsigned int cpu = 0;
+
+	if (mpic->flags & MPIC_PRIMARY)
+		cpu = hard_smp_processor_id();
+
+	return cpu;
+}
+
 /*
  * Register accessor functions
  */
@@ -210,19 +220,14 @@ static inline void _mpic_ipi_write(struct mpic *mpic, unsigned int ipi, u32 valu
 
 static inline u32 _mpic_cpu_read(struct mpic *mpic, unsigned int reg)
 {
-	unsigned int cpu = 0;
+	unsigned int cpu = mpic_processor_id(mpic);
 
-	if (mpic->flags & MPIC_PRIMARY)
-		cpu = hard_smp_processor_id();
 	return _mpic_read(mpic->reg_type, &mpic->cpuregs[cpu], reg);
 }
 
 static inline void _mpic_cpu_write(struct mpic *mpic, unsigned int reg, u32 value)
 {
-	unsigned int cpu = 0;
-
-	if (mpic->flags & MPIC_PRIMARY)
-		cpu = hard_smp_processor_id();
+	unsigned int cpu = mpic_processor_id(mpic);
 
 	_mpic_write(mpic->reg_type, &mpic->cpuregs[cpu], reg, value);
 }
@@ -1012,13 +1017,8 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	 * is done here.
 	 */
 	if (!mpic_is_ipi(mpic, hw) && (mpic->flags & MPIC_NO_RESET)) {
-		unsigned int cpu = 0;
-
-		if (mpic->flags & MPIC_PRIMARY)
-			cpu = hard_smp_processor_id();
-
 		mpic_set_vector(virq, hw);
-		mpic_set_destination(virq, cpu);
+		mpic_set_destination(virq, mpic_processor_id(mpic));
 		mpic_irq_set_priority(virq, 8);
 	}
 
@@ -1362,10 +1362,7 @@ void __init mpic_init(struct mpic *mpic)
 
 	mpic_pasemi_msi_init(mpic);
 
-	if (mpic->flags & MPIC_PRIMARY)
-		cpu = hard_smp_processor_id();
-	else
-		cpu = 0;
+	cpu = mpic_processor_id(mpic);
 
 	if (!(mpic->flags & MPIC_NO_RESET)) {
 		for (i = 0; i < mpic->num_sources; i++) {
