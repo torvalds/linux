@@ -105,13 +105,13 @@ struct st_ps_data_format {
    bool    bIsArray;
 };
 
-typedef struct ST_READ_STATUS {
+struct st_read_status {
     unsigned uTagID;
     unsigned uSection;
     unsigned uLineCount;
     unsigned uCharCount;
     unsigned uByteCount;
-}ST_READ_STATUS;
+};
 
 
 /* Stores the number of PS Tags */
@@ -328,7 +328,7 @@ int AthParseFilesUnified(u8 *srcbuffer,u32 srclen, int FileFormat)
 
    int uReadCount;
    struct st_ps_data_format stPS_DataFormat;
-   ST_READ_STATUS   stReadStatus = {0, 0, 0,0};
+   struct st_read_status   stReadStatus = {0, 0, 0,0};
    pos = 0;
    Buffer = NULL;
 
