@@ -74,7 +74,7 @@ int DevPollMboxMsgRecv(struct ar6k_device *pDev,
 
         if (pDev->GetPendingEventsFunc != NULL) {
 
-            HIF_PENDING_EVENTS_INFO events;
+            struct hif_pending_events_info events;
 
 #ifdef THREAD_X
 			events.Polling =1;
@@ -319,7 +319,7 @@ static void DevGetEventAsyncHandler(void *Context, HTC_PACKET *pPacket)
 
         if (pDev->GetPendingEventsFunc != NULL) {
                 /* the HIF layer collected the information for us */
-            HIF_PENDING_EVENTS_INFO *pEvents = (HIF_PENDING_EVENTS_INFO *)pPacket->pBuffer;
+            struct hif_pending_events_info *pEvents = (struct hif_pending_events_info *)pPacket->pBuffer;
             if (pEvents->Events & HIF_RECV_MSG_AVAIL) {
                 lookAhead = pEvents->LookAhead;
                 if (0 == lookAhead) {
@@ -439,7 +439,7 @@ int DevCheckPendingRecvMsgsAsync(void *context)
         if (pDev->GetPendingEventsFunc) {
                 /* HIF layer has it's own mechanism, pass the IO to it.. */
             status = pDev->GetPendingEventsFunc(pDev->HIFDevice,
-                                                (HIF_PENDING_EVENTS_INFO *)pIOPacket->pBuffer,
+                                                (struct hif_pending_events_info *)pIOPacket->pBuffer,
                                                 pIOPacket);
 
         } else {
@@ -490,7 +490,7 @@ static int ProcessPendingIRQs(struct ar6k_device *pDev, bool *pDone, bool *pASyn
             }
 
             if (pDev->GetPendingEventsFunc != NULL) {
-                HIF_PENDING_EVENTS_INFO events;
+                struct hif_pending_events_info events;
 
 #ifdef THREAD_X
             events.Polling= 0;

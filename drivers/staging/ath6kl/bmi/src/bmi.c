@@ -790,7 +790,7 @@ bmiBufferReceive(HIF_DEVICE *device,
     int status;
     u32 address;
     u32 mboxAddress[HTC_MAILBOX_NUM_MAX];
-    HIF_PENDING_EVENTS_INFO     hifPendingEvents;
+    struct hif_pending_events_info     hifPendingEvents;
     static HIF_PENDING_EVENTS_FUNC getPendingEventsFunc = NULL;
     
     if (!pendingEventsFuncCheck) {

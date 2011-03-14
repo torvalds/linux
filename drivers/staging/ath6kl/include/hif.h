@@ -343,7 +343,7 @@ typedef struct osdrv_callbacks {
                                            needs to read the register table to figure out what */
 #define HIF_RECV_MSG_AVAIL   (1 << 1)   /* pending recv packet */
 
-typedef struct _HIF_PENDING_EVENTS_INFO {
+struct hif_pending_events_info {
     u32 Events;
     u32 LookAhead;
     u32 AvailableRecvBytes;
@@ -351,12 +351,12 @@ typedef struct _HIF_PENDING_EVENTS_INFO {
     u32 Polling;
     u32 INT_CAUSE_REG;
 #endif
-} HIF_PENDING_EVENTS_INFO;
+};
 
     /* function to get pending events , some HIF modules use special mechanisms
      * to detect packet available and other interrupts */
 typedef int ( *HIF_PENDING_EVENTS_FUNC)(HIF_DEVICE              *device,
-                                             HIF_PENDING_EVENTS_INFO *pEvents,
+                                             struct hif_pending_events_info *pEvents,
                                              void                    *AsyncContext);
 
 #define HIF_MASK_RECV    true
