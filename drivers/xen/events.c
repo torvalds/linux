@@ -752,7 +752,7 @@ int xen_irq_from_pirq(unsigned pirq)
 	}
 	irq = -1;
 out:
-	spin_lock(&irq_mapping_update_lock);
+	spin_unlock(&irq_mapping_update_lock);
 
 	return irq;
 }
