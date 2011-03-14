@@ -3075,7 +3075,7 @@ static struct config_item_type target_core_cit = {
 
 /* Stop functions for struct config_item_type target_core_hba_cit */
 
-static int target_core_init_configfs(void)
+static int __init target_core_init_configfs(void)
 {
 	struct config_group *target_cg, *hba_cg = NULL, *alua_cg = NULL;
 	struct config_group *lu_gp_cg = NULL;
@@ -3207,7 +3207,7 @@ out_global:
 	return -1;
 }
 
-static void target_core_exit_configfs(void)
+static void __exit target_core_exit_configfs(void)
 {
 	struct configfs_subsystem *subsys;
 	struct config_group *hba_cg, *alua_cg, *lu_gp_cg;
