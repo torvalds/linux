@@ -153,14 +153,14 @@ struct htc_service_connect_req {
 #define HTC_LOCAL_CONN_FLAGS_ENABLE_SEND_BUNDLE_PADDING (1 << 0)  /* enable send bundle padding for this endpoint */
 
 /* service connection response information */
-typedef struct _HTC_SERVICE_CONNECT_RESP {
+struct htc_service_connect_resp {
     u8 *pMetaData;         /* caller supplied buffer to optional meta-data */
     u8 BufferLength;       /* length of caller supplied buffer */
     u8 ActualLength;       /* actual length of meta data */
     HTC_ENDPOINT_ID Endpoint;           /* endpoint to communicate over */
     unsigned int    MaxMsgLength;       /* max length of all messages over this endpoint */
     u8 ConnectRespCode;    /* connect response code from target */
-} HTC_SERVICE_CONNECT_RESP;
+};
 
 /* endpoint distribution structure */
 struct htc_endpoint_credit_dist {
@@ -363,7 +363,7 @@ int    HTCAddReceivePkt(HTC_HANDLE HTCHandle, struct htc_packet *pPacket);
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 int    HTCConnectService(HTC_HANDLE HTCHandle,
                               struct htc_service_connect_req  *pReq,
-                              HTC_SERVICE_CONNECT_RESP *pResp);
+                              struct htc_service_connect_resp *pResp);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   @desc: Send an HTC packet
   @function name: HTCSendPkt

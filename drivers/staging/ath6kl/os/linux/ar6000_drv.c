@@ -2343,7 +2343,7 @@ static int ar6000_connectservice(AR_SOFTC_T               *ar,
                                       char *pDesc)
 {
     int                 status;
-    HTC_SERVICE_CONNECT_RESP response;
+    struct htc_service_connect_resp response;
 
     do {
 
