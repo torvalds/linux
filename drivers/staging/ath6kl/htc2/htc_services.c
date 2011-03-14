@@ -307,9 +307,9 @@ int HTCConnectService(HTC_HANDLE               HTCHandle,
     return status;
 }
 
-static void AddToEndpointDistList(HTC_TARGET *target, HTC_ENDPOINT_CREDIT_DIST *pEpDist)
+static void AddToEndpointDistList(HTC_TARGET *target, struct htc_endpoint_credit_dist *pEpDist)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEntry,*pLastEntry;
+    struct htc_endpoint_credit_dist *pCurEntry,*pLastEntry;
 
     if (NULL == target->EpCreditDistributionListHead) {
         target->EpCreditDistributionListHead = pEpDist;
@@ -336,10 +336,10 @@ static void AddToEndpointDistList(HTC_TARGET *target, HTC_ENDPOINT_CREDIT_DIST *
 
 /* default credit init callback */
 static void HTCDefaultCreditInit(void                     *Context,
-                                 HTC_ENDPOINT_CREDIT_DIST *pEPList,
+                                 struct htc_endpoint_credit_dist *pEPList,
                                  int                      TotalCredits)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEpDist;
+    struct htc_endpoint_credit_dist *pCurEpDist;
     int                      totalEps = 0;
     int                      creditsPerEndpoint;
 
@@ -379,10 +379,10 @@ static void HTCDefaultCreditInit(void                     *Context,
 
 /* default credit distribution callback, NOTE, this callback holds the TX lock */
 void HTCDefaultCreditDist(void                     *Context,
-                          HTC_ENDPOINT_CREDIT_DIST *pEPDistList,
+                          struct htc_endpoint_credit_dist *pEPDistList,
                           HTC_CREDIT_DIST_REASON   Reason)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEpDist;
+    struct htc_endpoint_credit_dist *pCurEpDist;
 
     if (Reason == HTC_CREDIT_DIST_SEND_COMPLETE) {
         pCurEpDist = pEPDistList;

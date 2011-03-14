@@ -42,14 +42,14 @@
 #endif
 
 static void RedistributeCredits(struct common_credit_state_info *pCredInfo,
-                                HTC_ENDPOINT_CREDIT_DIST *pEPDistList);
+                                struct htc_endpoint_credit_dist *pEPDistList);
 
 static void SeekCredits(struct common_credit_state_info *pCredInfo,
-                        HTC_ENDPOINT_CREDIT_DIST *pEPDistList);
+                        struct htc_endpoint_credit_dist *pEPDistList);
 
 /* reduce an ep's credits back to a set limit */
 static INLINE void ReduceCredits(struct common_credit_state_info *pCredInfo,
-                                HTC_ENDPOINT_CREDIT_DIST  *pEpDist,
+                                struct htc_endpoint_credit_dist  *pEpDist,
                                 int                       Limit)
 {
     int credits;
@@ -81,10 +81,10 @@ static INLINE void ReduceCredits(struct common_credit_state_info *pCredInfo,
  * This function is called in the context of HTCStart() to setup initial (application-specific)
  * credit distributions */
 static void ar6000_credit_init(void                     *Context,
-                               HTC_ENDPOINT_CREDIT_DIST *pEPList,
+                               struct htc_endpoint_credit_dist *pEPList,
                                int                      TotalCredits)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEpDist;
+    struct htc_endpoint_credit_dist *pCurEpDist;
     int                      count;
     struct common_credit_state_info *pCredInfo = (struct common_credit_state_info *)Context;
 
@@ -175,10 +175,10 @@ static void ar6000_credit_init(void                     *Context,
  *
  */
 static void ar6000_credit_distribute(void                     *Context,
-                                     HTC_ENDPOINT_CREDIT_DIST *pEPDistList,
+                                     struct htc_endpoint_credit_dist *pEPDistList,
                                      HTC_CREDIT_DIST_REASON   Reason)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEpDist;
+    struct htc_endpoint_credit_dist *pCurEpDist;
     struct common_credit_state_info *pCredInfo = (struct common_credit_state_info *)Context;
 
     switch (Reason) {
@@ -244,9 +244,9 @@ static void ar6000_credit_distribute(void                     *Context,
 
 /* redistribute credits based on activity change */
 static void RedistributeCredits(struct common_credit_state_info *pCredInfo,
-                                HTC_ENDPOINT_CREDIT_DIST *pEPDistList)
+                                struct htc_endpoint_credit_dist *pEPDistList)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEpDist = pEPDistList;
+    struct htc_endpoint_credit_dist *pCurEpDist = pEPDistList;
 
         /* walk through the list and remove credits from inactive endpoints */
     while (pCurEpDist != NULL) {
@@ -284,9 +284,9 @@ static void RedistributeCredits(struct common_credit_state_info *pCredInfo,
 
 /* HTC has an endpoint that needs credits, pEPDist is the endpoint in question */
 static void SeekCredits(struct common_credit_state_info *pCredInfo,
-                        HTC_ENDPOINT_CREDIT_DIST *pEPDist)
+                        struct htc_endpoint_credit_dist *pEPDist)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pCurEpDist;
+    struct htc_endpoint_credit_dist *pCurEpDist;
     int                      credits = 0;
     int                      need;
 

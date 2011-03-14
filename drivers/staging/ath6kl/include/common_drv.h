@@ -33,7 +33,7 @@ struct common_credit_state_info {
     int TotalAvailableCredits;      /* total credits in the system at startup */
     int CurrentFreeCredits;         /* credits available in the pool that have not been
                                        given out to endpoints */
-    HTC_ENDPOINT_CREDIT_DIST *pLowestPriEpDist;  /* pointer to the lowest priority endpoint dist struct */
+    struct htc_endpoint_credit_dist *pLowestPriEpDist;  /* pointer to the lowest priority endpoint dist struct */
 };
 
 struct hci_transport_callbacks {

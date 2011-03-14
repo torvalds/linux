@@ -71,7 +71,7 @@ struct htc_endpoint {
                                                    non-zero value means this endpoint is in use */
     HTC_PACKET_QUEUE            TxQueue;        /* HTC frame buffer TX queue */
     HTC_PACKET_QUEUE            RxBuffers;      /* HTC frame buffer RX list */
-    HTC_ENDPOINT_CREDIT_DIST    CreditDist;     /* credit distribution structure (exposed to driver layer) */
+    struct htc_endpoint_credit_dist    CreditDist;     /* credit distribution structure (exposed to driver layer) */
     HTC_EP_CALLBACKS            EpCallBacks;    /* callbacks associated with this endpoint */
     int                         MaxTxQueueDepth;   /* max depth of the TX queue before we need to
                                                       call driver's full handler */
@@ -111,7 +111,7 @@ struct htc_control_buffer {
 typedef struct _HTC_TARGET {
     struct htc_endpoint                EndPoint[ENDPOINT_MAX];
     struct htc_control_buffer          HTCControlBuffers[NUM_CONTROL_BUFFERS];
-    HTC_ENDPOINT_CREDIT_DIST   *EpCreditDistributionListHead;
+    struct htc_endpoint_credit_dist   *EpCreditDistributionListHead;
     HTC_PACKET_QUEUE            ControlBufferTXFreeList;
     HTC_PACKET_QUEUE            ControlBufferRXFreeList;
     HTC_CREDIT_DIST_CALLBACK    DistributeCredits;
@@ -176,7 +176,7 @@ void        HTCFlushRecvBuffers(HTC_TARGET *target);
 void        HTCFlushSendPkts(HTC_TARGET *target);
 
 #ifdef ATH_DEBUG_MODULE
-void        DumpCreditDist(HTC_ENDPOINT_CREDIT_DIST *pEPDist);
+void        DumpCreditDist(struct htc_endpoint_credit_dist *pEPDist);
 void        DumpCreditDistStates(HTC_TARGET *target);
 void 		DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
 #endif

@@ -724,7 +724,7 @@ int HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
 static INLINE void HTCCheckEndpointTxQueues(HTC_TARGET *target)
 {
     struct htc_endpoint                *pEndpoint;
-    HTC_ENDPOINT_CREDIT_DIST    *pDistItem;
+    struct htc_endpoint_credit_dist    *pDistItem;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND, ("+HTCCheckEndpointTxQueues \n"));
     pDistItem = target->EpCreditDistributionListHead;
@@ -879,7 +879,7 @@ static void HTCFlushEndpointTX(HTC_TARGET *target, struct htc_endpoint *pEndpoin
 
 }
 
-void DumpCreditDist(HTC_ENDPOINT_CREDIT_DIST *pEPDist)
+void DumpCreditDist(struct htc_endpoint_credit_dist *pEPDist)
 {
     AR_DEBUG_PRINTF(ATH_DEBUG_ANY, ("--- EP : %d  ServiceID: 0x%X    --------------\n",
                         pEPDist->Endpoint, pEPDist->ServiceID));
@@ -901,7 +901,7 @@ void DumpCreditDist(HTC_ENDPOINT_CREDIT_DIST *pEPDist)
 
 void DumpCreditDistStates(HTC_TARGET *target)
 {
-    HTC_ENDPOINT_CREDIT_DIST *pEPList = target->EpCreditDistributionListHead;
+    struct htc_endpoint_credit_dist *pEPList = target->EpCreditDistributionListHead;
 
     while (pEPList != NULL) {
         DumpCreditDist(pEPList);

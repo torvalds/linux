@@ -163,9 +163,9 @@ typedef struct _HTC_SERVICE_CONNECT_RESP {
 } HTC_SERVICE_CONNECT_RESP;
 
 /* endpoint distribution structure */
-typedef struct _HTC_ENDPOINT_CREDIT_DIST {
-    struct _HTC_ENDPOINT_CREDIT_DIST *pNext;
-    struct _HTC_ENDPOINT_CREDIT_DIST *pPrev;
+struct htc_endpoint_credit_dist {
+    struct htc_endpoint_credit_dist *pNext;
+    struct htc_endpoint_credit_dist *pPrev;
     HTC_SERVICE_ID      ServiceID;          /* Service ID (set by HTC) */
     HTC_ENDPOINT_ID     Endpoint;           /* endpoint for this distribution struct (set by HTC) */
     u32 DistFlags;          /* distribution flags, distribution function can
@@ -195,7 +195,7 @@ typedef struct _HTC_ENDPOINT_CREDIT_DIST {
                                                or HTC_CREDIT_DIST_SEND_COMPLETE is indicated on an endpoint
                                                that has non-zero credits to recover
                                               */
-} HTC_ENDPOINT_CREDIT_DIST;
+};
 
 #define HTC_EP_ACTIVE                            ((u32) (1u << 31))
 
@@ -216,11 +216,11 @@ typedef enum _HTC_CREDIT_DIST_REASON {
 } HTC_CREDIT_DIST_REASON;
 
 typedef void (*HTC_CREDIT_DIST_CALLBACK)(void                     *Context,
-                                         HTC_ENDPOINT_CREDIT_DIST *pEPList,
+                                         struct htc_endpoint_credit_dist *pEPList,
                                          HTC_CREDIT_DIST_REASON   Reason);
 
 typedef void (*HTC_CREDIT_INIT_CALLBACK)(void *Context,
-                                         HTC_ENDPOINT_CREDIT_DIST *pEPList,
+                                         struct htc_endpoint_credit_dist *pEPList,
                                          int                      TotalCredits);
 
     /* endpoint statistics action */
