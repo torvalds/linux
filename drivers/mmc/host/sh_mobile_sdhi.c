@@ -23,51 +23,30 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
-#include <linux/mfd/core.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/sh_dma.h>
+
+#include "tmio_mmc.h"
 
 struct sh_mobile_sdhi {
 	struct clk *clk;
 	struct tmio_mmc_data mmc_data;
-	struct mfd_cell cell_mmc;
 	struct sh_dmae_slave param_tx;
 	struct sh_dmae_slave param_rx;
 	struct tmio_mmc_dma dma_priv;
 };
 
-static struct resource sh_mobile_sdhi_resources[] = {
-	{
-		.start = 0x000,
-		.end   = 0x1ff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = 0,
-		.end   = 0,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct mfd_cell sh_mobile_sdhi_cell = {
-	.name          = "tmio-mmc",
-	.num_resources = ARRAY_SIZE(sh_mobile_sdhi_resources),
-	.resources     = sh_mobile_sdhi_resources,
-};
-
-static void sh_mobile_sdhi_set_pwr(struct platform_device *tmio, int state)
+static void sh_mobile_sdhi_set_pwr(struct platform_device *pdev, int state)
 {
-	struct platform_device *pdev = to_platform_device(tmio->dev.parent);
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 
 	if (p && p->set_pwr)
 		p->set_pwr(pdev, state);
 }
 
-static int sh_mobile_sdhi_get_cd(struct platform_device *tmio)
+static int sh_mobile_sdhi_get_cd(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(tmio->dev.parent);
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 
 	if (p && p->get_cd)
@@ -81,20 +60,9 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-	struct resource *mem;
+	struct tmio_mmc_host *host;
 	char clk_name[8];
-	int ret, irq;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
-		dev_err(&pdev->dev, "missing MEM resource\n");
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		dev_err(&pdev->dev, "missing IRQ resource\n");
-
-	if (!mem || (irq < 0))
-		return -EINVAL;
+	int ret;
 
 	priv = kzalloc(sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
 	if (priv == NULL) {
@@ -109,8 +77,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk)) {
 		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
 		ret = PTR_ERR(priv->clk);
-		kfree(priv);
-		return ret;
+		goto eclkget;
 	}
 
 	clk_enable(priv->clk);
@@ -123,6 +90,15 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->flags = p->tmio_flags;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
+
+		if (p->dma_slave_tx >= 0 && p->dma_slave_rx >= 0) {
+			priv->param_tx.slave_id = p->dma_slave_tx;
+			priv->param_rx.slave_id = p->dma_slave_rx;
+			priv->dma_priv.chan_priv_tx = &priv->param_tx;
+			priv->dma_priv.chan_priv_rx = &priv->param_rx;
+			priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
+			mmc_data->dma = &priv->dma_priv;
+		}
 	}
 
 	/*
@@ -136,36 +112,30 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_SDIO_IRQ;
 
-	if (p && p->dma_slave_tx >= 0 && p->dma_slave_rx >= 0) {
-		priv->param_tx.slave_id = p->dma_slave_tx;
-		priv->param_rx.slave_id = p->dma_slave_rx;
-		priv->dma_priv.chan_priv_tx = &priv->param_tx;
-		priv->dma_priv.chan_priv_rx = &priv->param_rx;
-		priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
-		mmc_data->dma = &priv->dma_priv;
-	}
+	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
+	if (ret < 0)
+		goto eprobe;
 
-	memcpy(&priv->cell_mmc, &sh_mobile_sdhi_cell, sizeof(priv->cell_mmc));
-	priv->cell_mmc.mfd_data = mmc_data;
+	pr_info("%s at 0x%08lx irq %d\n", mmc_hostname(host->mmc),
+		(unsigned long)host->ctl, host->irq);
 
-	platform_set_drvdata(pdev, priv);
+	return ret;
 
-	ret = mfd_add_devices(&pdev->dev, pdev->id,
-			      &priv->cell_mmc, 1, mem, irq);
-	if (ret) {
-		clk_disable(priv->clk);
-		clk_put(priv->clk);
-		kfree(priv);
-	}
-
+eprobe:
+	clk_disable(priv->clk);
+	clk_put(priv->clk);
+eclkget:
+	kfree(priv);
 	return ret;
 }
 
 static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 {
-	struct sh_mobile_sdhi *priv = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
 
-	mfd_remove_devices(&pdev->dev);
+	tmio_mmc_host_remove(host);
 	clk_disable(priv->clk);
 	clk_put(priv->clk);
 	kfree(priv);
@@ -198,3 +168,4 @@ module_exit(sh_mobile_sdhi_exit);
 MODULE_DESCRIPTION("SuperH Mobile SDHI driver");
 MODULE_AUTHOR("Magnus Damm");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:sh_mobile_sdhi");
