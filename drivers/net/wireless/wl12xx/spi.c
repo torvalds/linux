@@ -355,7 +355,8 @@ static struct wl1271_if_operations spi_ops = {
 	.power		= wl1271_spi_set_power,
 	.dev		= wl1271_spi_wl_to_dev,
 	.enable_irq	= wl1271_spi_enable_interrupts,
-	.disable_irq	= wl1271_spi_disable_interrupts
+	.disable_irq	= wl1271_spi_disable_interrupts,
+	.set_block_size = NULL,
 };
 
 static int __devinit wl1271_probe(struct spi_device *spi)
