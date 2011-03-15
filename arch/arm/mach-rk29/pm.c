@@ -335,7 +335,7 @@ static void rk29_idle(void)
 			u32 mode_con = cru_readl(CRU_MODE_CON);
 			cru_writel((mode_con & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
 			arch_idle();
-			cru_writel((mode_con & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_NORMAL, CRU_MODE_CON);
+			cru_writel(mode_con, CRU_MODE_CON);
 		} else {
 			arch_idle();
 		}
