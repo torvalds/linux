@@ -1176,12 +1176,10 @@ extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 			  enum drbd_packet cmd, struct p_header *h, size_t size,
 			  unsigned msg_flags);
-extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
+extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
 			 enum drbd_packet cmd, struct p_header *h, size_t size);
 extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
 			  char *data, size_t size);
-#define USE_DATA_SOCKET 1
-#define USE_META_SOCKET 0
 extern int drbd_send_sync_param(struct drbd_conf *mdev);
 extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			u32 set_size);
@@ -1929,29 +1927,29 @@ static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 	return _conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
 }
 
-static inline int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
+static inline int drbd_send_cmd(struct drbd_conf *mdev, struct drbd_socket *sock,
 				enum drbd_packet cmd, struct p_header *h, size_t size)
 {
-	return !conn_send_cmd(mdev->tconn, mdev->vnr, use_data_socket, cmd, h, size);
+	return !conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size);
 }
 
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 				      enum drbd_packet cmd)
 {
 	struct p_header h;
-	return drbd_send_cmd(mdev, USE_DATA_SOCKET, cmd, &h, sizeof(h));
+	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping(struct drbd_tconn *tconn)
 {
 	struct p_header h;
-	return !conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING, &h, sizeof(h));
+	return !conn_send_cmd(tconn, 0, &tconn->meta, P_PING, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
 {
 	struct p_header h;
-	return !conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
+	return !conn_send_cmd(tconn, 0, &tconn->meta, P_PING_ACK, &h, sizeof(h));
 }
 
 static inline int drbd_send_state_req(struct drbd_conf *mdev,
