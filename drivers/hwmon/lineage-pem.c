@@ -345,9 +345,7 @@ static ssize_t pem_show_fan(struct device *dev, struct device_attribute *da,
 /* Voltages */
 static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, pem_show_data, NULL,
 			  PEM_DATA_VOUT_LSB);
-static SENSOR_DEVICE_ATTR_2(in1_min_alarm, S_IRUGO, pem_show_bool, NULL,
-			    PEM_DATA_ALARM_2, ALRM2_OV_LOW);
-static SENSOR_DEVICE_ATTR_2(in1_max_alarm, S_IRUGO, pem_show_bool, NULL,
+static SENSOR_DEVICE_ATTR_2(in1_alarm, S_IRUGO, pem_show_bool, NULL,
 			    PEM_DATA_ALARM_1, ALRM1_VOUT_OUT_LIMIT);
 static SENSOR_DEVICE_ATTR_2(in1_crit_alarm, S_IRUGO, pem_show_bool, NULL,
 			    PEM_DATA_ALARM_1, ALRM1_OV_VOLT_SHUTDOWN);
@@ -395,8 +393,7 @@ static SENSOR_DEVICE_ATTR_2(temp1_fault, S_IRUGO, pem_show_bool, NULL,
 
 static struct attribute *pem_attributes[] = {
 	&sensor_dev_attr_in1_input.dev_attr.attr,
-	&sensor_dev_attr_in1_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_in1_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_in1_alarm.dev_attr.attr,
 	&sensor_dev_attr_in1_crit_alarm.dev_attr.attr,
 	&sensor_dev_attr_in2_alarm.dev_attr.attr,
 
