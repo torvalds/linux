@@ -1027,14 +1027,13 @@ out_touch:
 }
 
 /*
- * When a dentry is released, clear the dir I_COMPLETE if it was part
- * of the current dir gen or if this is in the snapshot namespace.
+ * Release our ceph_dentry_info.
  */
-static void ceph_dentry_release(struct dentry *dentry)
+static void ceph_d_release(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
-	dout("dentry_release %p\n", dentry);
+	dout("d_release %p\n", dentry);
 	if (di) {
 		ceph_dentry_lru_del(dentry);
 		if (di->lease_session)
@@ -1259,14 +1258,14 @@ const struct inode_operations ceph_dir_iops = {
 
 const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
-	.d_release = ceph_dentry_release,
+	.d_release = ceph_d_release,
 };
 
 const struct dentry_operations ceph_snapdir_dentry_ops = {
 	.d_revalidate = ceph_snapdir_d_revalidate,
-	.d_release = ceph_dentry_release,
+	.d_release = ceph_d_release,
 };
 
 const struct dentry_operations ceph_snap_dentry_ops = {
-	.d_release = ceph_dentry_release,
+	.d_release = ceph_d_release,
 };
