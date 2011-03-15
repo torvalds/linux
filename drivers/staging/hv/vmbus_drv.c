@@ -40,6 +40,8 @@
 #define VMBUS_IRQ		0x5
 #define VMBUS_IRQ_VECTOR	IRQ5_VECTOR
 
+struct pci_dev *hv_pci_dev;
+
 /* Main vmbus driver data structure */
 struct vmbus_driver_context {
 
@@ -977,36 +979,24 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	}
 }
 
-static struct dmi_system_id __initdata microsoft_hv_dmi_table[] = {
-	{
-		.ident = "Hyper-V",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
-			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
-		},
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(dmi, microsoft_hv_dmi_table);
 
-static int __init vmbus_init(void)
+
+static int __devinit hv_pci_probe(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
 {
-	DPRINT_INFO(VMBUS_DRV,
-		"Vmbus initializing.... current log level 0x%x (%x,%x)",
-		vmbus_loglevel, HIWORD(vmbus_loglevel), LOWORD(vmbus_loglevel));
-	/* Todo: it is used for loglevel, to be ported to new kernel. */
+	int err;
 
-	if (!dmi_check_system(microsoft_hv_dmi_table))
-		return -ENODEV;
+	hv_pci_dev = pdev;
 
-	return vmbus_bus_init();
-}
+	err = pci_enable_device(pdev);
+	if (err)
+		return err;
 
-static void __exit vmbus_exit(void)
-{
-	vmbus_bus_exit();
-	/* Todo: it is used for loglevel, to be ported to new kernel. */
+	err = vmbus_bus_init();
+	if (err)
+		pci_disable_device(pdev);
+
+	return err;
 }
 
 /*
@@ -1021,10 +1011,29 @@ static const struct pci_device_id microsoft_hv_pci_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, microsoft_hv_pci_table);
 
+static struct pci_driver hv_bus_driver = {
+	.name =           "hv_bus",
+	.probe =          hv_pci_probe,
+	.id_table =       microsoft_hv_pci_table,
+};
+
+static int __init hv_pci_init(void)
+{
+	return pci_register_driver(&hv_bus_driver);
+}
+
+static void __exit hv_pci_exit(void)
+{
+	vmbus_bus_exit();
+	pci_unregister_driver(&hv_bus_driver);
+}
+
+
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 module_param(vmbus_irq, int, S_IRUGO);
 module_param(vmbus_loglevel, int, S_IRUGO);
 
-module_init(vmbus_init);
-module_exit(vmbus_exit);
+module_init(hv_pci_init);
+module_exit(hv_pci_exit);
