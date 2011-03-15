@@ -529,12 +529,6 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 }
 #endif
 
-static void inet6_ifa_finish_destroy_rcu(struct rcu_head *head)
-{
-	struct inet6_ifaddr *ifp = container_of(head, struct inet6_ifaddr, rcu);
-	kfree(ifp);
-}
-
 /* Nobody refers to this ifaddr, destroy it */
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 {
@@ -555,7 +549,7 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 	}
 	dst_release(&ifp->rt->dst);
 
-	call_rcu(&ifp->rcu, inet6_ifa_finish_destroy_rcu);
+	kfree_rcu(ifp, rcu);
 }
 
 static void
