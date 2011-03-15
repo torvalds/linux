@@ -2800,7 +2800,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		}
 	}
 
-	if (mdev->tconn->net_conf->dry_run || test_bit(CONN_DRY_RUN, &mdev->flags)) {
+	if (mdev->tconn->net_conf->dry_run || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
 		if (hg == 0)
 			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
 		else
@@ -2869,10 +2869,10 @@ static int receive_protocol(struct drbd_conf *mdev, enum drbd_packet cmd,
 	cf		= be32_to_cpu(p->conn_flags);
 	p_want_lose = cf & CF_WANT_LOSE;
 
-	clear_bit(CONN_DRY_RUN, &mdev->flags);
+	clear_bit(CONN_DRY_RUN, &mdev->tconn->flags);
 
 	if (cf & CF_DRY_RUN)
-		set_bit(CONN_DRY_RUN, &mdev->flags);
+		set_bit(CONN_DRY_RUN, &mdev->tconn->flags);
 
 	if (p_proto != mdev->tconn->net_conf->wire_protocol) {
 		dev_err(DEV, "incompatible communication protocols\n");
@@ -3439,7 +3439,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 				peer_state.disk = D_DISKLESS;
 				real_peer_disk = D_DISKLESS;
 			} else {
-				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
+				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->tconn->flags))
 					return false;
 				D_ASSERT(os.conn == C_WF_REPORT_PARAMS);
 				conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);

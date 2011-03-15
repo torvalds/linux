@@ -791,7 +791,6 @@ enum {
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
 				 * the peer, if it changed there as well. */
-	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
@@ -915,6 +914,7 @@ enum {
 				 * but worker thread is still handling the cleanup.
 				 * reconfiguring (nl_disk_conf, nl_net_conf) is dissalowed,
 				 * while this is set. */
+	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */
