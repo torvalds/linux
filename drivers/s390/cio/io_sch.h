@@ -10,7 +10,12 @@
 struct io_subchannel_private {
 	union orb orb;		/* operation request block */
 	struct ccw1 sense_ccw;	/* static ccw for sense command */
-} __attribute__ ((aligned(8)));
+	struct {
+		unsigned int suspend:1;	/* allow suspend */
+		unsigned int prefetch:1;/* deny prefetch */
+		unsigned int inter:1;	/* suppress intermediate interrupts */
+	} __packed options;
+} __aligned(8);
 
 #define to_io_private(n) ((struct io_subchannel_private *)n->private)
 #define sch_get_cdev(n) (dev_get_drvdata(&n->dev))

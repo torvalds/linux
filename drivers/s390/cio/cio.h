@@ -84,13 +84,6 @@ struct subchannel {
 		SUBCHANNEL_TYPE_MSG = 2,
 		SUBCHANNEL_TYPE_ADM = 3,
 	} st;			/* subchannel type */
-
-	struct {
-		unsigned int suspend:1; /* allow suspend */
-		unsigned int prefetch:1;/* deny prefetch */
-		unsigned int inter:1;   /* suppress intermediate interrupts */
-	} __attribute__ ((packed)) options;
-
 	__u8 vpm;		/* verified path mask */
 	__u8 lpm;		/* logical path mask */
 	__u8 opm;               /* operational path mask */
@@ -118,7 +111,6 @@ extern int cio_start (struct subchannel *, struct ccw1 *, __u8);
 extern int cio_start_key (struct subchannel *, struct ccw1 *, __u8, __u8);
 extern int cio_cancel (struct subchannel *);
 extern int cio_set_options (struct subchannel *, int);
-extern int cio_get_options (struct subchannel *);
 extern int cio_update_schib(struct subchannel *sch);
 extern int cio_commit_config(struct subchannel *sch);
 
