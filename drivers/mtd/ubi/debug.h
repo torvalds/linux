@@ -116,13 +116,34 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			int offset, int len);
 
-#ifdef CONFIG_MTD_UBI_DEBUG_DISABLE_BGT
-#define DBG_DISABLE_BGT 1
-#else
-#define DBG_DISABLE_BGT 0
-#endif
+extern unsigned int ubi_tst_flags;
 
-#ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_BITFLIPS
+/*
+ * Special testing flags.
+ *
+ * UBIFS_TST_DISABLE_BGT: disable the background thread
+ * UBI_TST_EMULATE_BITFLIPS: emulate bit-flips
+ * UBI_TST_EMULATE_WRITE_FAILURES: emulate write failures
+ * UBI_TST_EMULATE_ERASE_FAILURES: emulate erase failures
+ */
+enum {
+	UBI_TST_DISABLE_BGT            = 0x1,
+	UBI_TST_EMULATE_BITFLIPS       = 0x2,
+	UBI_TST_EMULATE_WRITE_FAILURES = 0x4,
+	UBI_TST_EMULATE_ERASE_FAILURES = 0x8,
+};
+
+/**
+ * ubi_dbg_is_bgt_disabled - if the background thread is disabled.
+ *
+ * Returns non-zero if the UBI background thread is disabled for testing
+ * purposes.
+ */
+static inline int ubi_dbg_is_bgt_disabled(void)
+{
+	return ubi_tst_flags & UBI_TST_DISABLE_BGT;
+}
+
 /**
  * ubi_dbg_is_bitflip - if it is time to emulate a bit-flip.
  *
@@ -130,13 +151,11 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
  */
 static inline int ubi_dbg_is_bitflip(void)
 {
-	return !(random32() % 200);
+	if (ubi_tst_flags & UBI_TST_EMULATE_BITFLIPS)
+		return !(random32() % 200);
+	return 0;
 }
-#else
-#define ubi_dbg_is_bitflip() 0
-#endif
 
-#ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_WRITE_FAILURES
 /**
  * ubi_dbg_is_write_failure - if it is time to emulate a write failure.
  *
@@ -145,13 +164,11 @@ static inline int ubi_dbg_is_bitflip(void)
  */
 static inline int ubi_dbg_is_write_failure(void)
 {
-	return !(random32() % 500);
+	if (ubi_tst_flags & UBI_TST_EMULATE_WRITE_FAILURES)
+		return !(random32() % 500);
+	return 0;
 }
-#else
-#define ubi_dbg_is_write_failure() 0
-#endif
 
-#ifdef CONFIG_MTD_UBI_DEBUG_EMULATE_ERASE_FAILURES
 /**
  * ubi_dbg_is_erase_failure - if its time to emulate an erase failure.
  *
@@ -160,11 +177,10 @@ static inline int ubi_dbg_is_write_failure(void)
  */
 static inline int ubi_dbg_is_erase_failure(void)
 {
+	if (ubi_tst_flags & UBI_TST_EMULATE_ERASE_FAILURES)
 		return !(random32() % 400);
+	return 0;
 }
-#else
-#define ubi_dbg_is_erase_failure() 0
-#endif
 
 #else
 
@@ -187,7 +203,7 @@ static inline int ubi_dbg_is_erase_failure(void)
 #define ubi_dbg_dump_flash(ubi, pnum, offset, len) ({})
 #define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  ({})
 
-#define DBG_DISABLE_BGT            0
+#define ubi_dbg_is_bgt_disabled()  0
 #define ubi_dbg_is_bitflip()       0
 #define ubi_dbg_is_write_failure() 0
 #define ubi_dbg_is_erase_failure() 0
