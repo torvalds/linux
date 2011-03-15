@@ -48,7 +48,6 @@ struct hv_bus {
 };
 
 
-static irqreturn_t vmbus_isr(int irq, void *dev_id);
 
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
@@ -90,6 +89,7 @@ static struct device_attribute vmbus_device_attrs[] = {
 	__ATTR(in_write_bytes_avail, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR_NULL
 };
+
 
 /*
  * vmbus_uevent - add uevent for our device
@@ -416,6 +416,28 @@ static int vmbus_on_isr(void)
 
 	return ret;
 }
+
+
+static irqreturn_t vmbus_isr(int irq, void *dev_id)
+{
+	int ret;
+
+	ret = vmbus_on_isr();
+
+	/* Schedules a dpc if necessary */
+	if (ret > 0) {
+		if (test_bit(0, (unsigned long *)&ret))
+			tasklet_schedule(&hv_bus.msg_dpc);
+
+		if (test_bit(1, (unsigned long *)&ret))
+			tasklet_schedule(&hv_bus.event_dpc);
+
+		return IRQ_HANDLED;
+	} else {
+		return IRQ_NONE;
+	}
+}
+
 
 static void get_channel_info(struct hv_device *device,
 			     struct hv_device_info *info)
@@ -834,29 +856,6 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
 		    &device_obj->device);
 }
-
-
-
-static irqreturn_t vmbus_isr(int irq, void *dev_id)
-{
-	int ret;
-
-	ret = vmbus_on_isr();
-
-	/* Schedules a dpc if necessary */
-	if (ret > 0) {
-		if (test_bit(0, (unsigned long *)&ret))
-			tasklet_schedule(&hv_bus.msg_dpc);
-
-		if (test_bit(1, (unsigned long *)&ret))
-			tasklet_schedule(&hv_bus.event_dpc);
-
-		return IRQ_HANDLED;
-	} else {
-		return IRQ_NONE;
-	}
-}
-
 
 
 static int __devinit hv_pci_probe(struct pci_dev *pdev,
