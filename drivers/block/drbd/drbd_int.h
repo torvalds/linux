@@ -1022,6 +1022,7 @@ struct drbd_conf {
 	struct drbd_tl_epoch *newest_tle;
 	struct drbd_tl_epoch *oldest_tle;
 	struct list_head out_of_sequence_requests;
+	struct list_head barrier_acked_requests;
 	struct hlist_head *tl_hash;
 	unsigned int tl_hash_s;
 

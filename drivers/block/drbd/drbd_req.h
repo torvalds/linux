@@ -105,6 +105,7 @@ enum drbd_req_event {
 	read_completed_with_error,
 	read_ahead_completed_with_error,
 	write_completed_with_error,
+	abort_disk_io,
 	completed_ok,
 	resend,
 	fail_frozen_disk_io,

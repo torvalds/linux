@@ -208,6 +208,7 @@ static int tl_init(struct drbd_conf *mdev)
 	mdev->oldest_tle = b;
 	mdev->newest_tle = b;
 	INIT_LIST_HEAD(&mdev->out_of_sequence_requests);
+	INIT_LIST_HEAD(&mdev->barrier_acked_requests);
 
 	mdev->tl_hash = NULL;
 	mdev->tl_hash_s = 0;
@@ -311,7 +312,7 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 	   These have been list_move'd to the out_of_sequence_requests list in
 	   _req_mod(, barrier_acked) above.
 	   */
-	list_del_init(&b->requests);
+	list_splice_init(&b->requests, &mdev->barrier_acked_requests);
 
 	nob = b->next;
 	if (test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
@@ -343,7 +344,7 @@ bail:
  * @what:       The action/event to perform with all request objects
  *
  * @what might be one of connection_lost_while_pending, resend, fail_frozen_disk_io,
- * restart_frozen_disk_io.
+ * restart_frozen_disk_io, abort_disk_io.
  */
 static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 {
@@ -410,6 +411,24 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 		}
 		b = tmp;
 		list_splice(&carry_reads, &b->requests);
+	}
+
+	/* Actions operating on the disk state, also want to work on
+	   requests that got barrier acked. */
+	switch (what) {
+	case abort_disk_io:
+	case fail_frozen_disk_io:
+	case restart_frozen_disk_io:
+		list_for_each_safe(le, tle, &mdev->barrier_acked_requests) {
+			req = list_entry(le, struct drbd_request, tl_requests);
+			_req_mod(req, what);
+		}
+
+	case connection_lost_while_pending:
+	case resend:
+		break;
+	default:
+		dev_err(DEV, "what = %d in _tl_restart()\n", what);
 	}
 }
 
