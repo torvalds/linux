@@ -769,21 +769,17 @@ int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
 		   size_t size)
 {
 	struct p_header80 h;
-	int ok;
+	int err;
 
 	prepare_header80(&h, cmd, size);
-
-	if (drbd_get_data_sock(tconn))
-		return 0;
-
-	ok = (sizeof(h) ==
-		drbd_send(tconn, tconn->data.socket, &h, sizeof(h), 0));
-	ok = ok && (size ==
-		drbd_send(tconn, tconn->data.socket, data, size, 0));
-
-	drbd_put_data_sock(tconn);
-
-	return ok;
+	err = drbd_get_data_sock(tconn);
+	if (!err) {
+		err = drbd_send_all(tconn, tconn->data.socket, &h, sizeof(h), 0);
+		if (!err)
+			err = drbd_send_all(tconn, tconn->data.socket, data, size, 0);
+		drbd_put_data_sock(tconn);
+	}
+	return err;
 }
 
 int drbd_send_sync_param(struct drbd_conf *mdev)
@@ -882,7 +878,7 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 	if (tconn->agreed_pro_version >= 87)
 		strcpy(p->integrity_alg, tconn->net_conf->integrity_alg);
 
-	rv = conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size - sizeof(struct p_header));
+	rv = !conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size - sizeof(struct p_header));
 	kfree(p);
 	return rv;
 }
