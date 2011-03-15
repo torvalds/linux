@@ -85,6 +85,9 @@
 #define IRQ_RTC_ALARM		COMBINER_IRQ(23, 0)
 #define IRQ_RTC_TIC		COMBINER_IRQ(23, 1)
 
+#define IRQ_GPIO_XB		COMBINER_IRQ(24, 0)
+#define IRQ_GPIO_XA		COMBINER_IRQ(24, 1)
+
 #define IRQ_UART0		COMBINER_IRQ(26, 0)
 #define IRQ_UART1		COMBINER_IRQ(26, 1)
 #define IRQ_UART2		COMBINER_IRQ(26, 2)
@@ -145,8 +148,13 @@
 #define S5P_EINT_BASE1		(S5P_IRQ_EINT_BASE + 0)
 #define S5P_EINT_BASE2		(S5P_IRQ_EINT_BASE + 16)
 
-/* Set the default NR_IRQS */
+/* optional GPIO interrupts */
+#define S5P_GPIOINT_BASE	(S5P_IRQ_EINT_BASE + 32)
+#define IRQ_GPIO1_NR_GROUPS	16
+#define IRQ_GPIO2_NR_GROUPS	9
+#define IRQ_GPIO_END		(S5P_GPIOINT_BASE + S5P_GPIOINT_COUNT)
 
-#define NR_IRQS			(S5P_IRQ_EINT_BASE + 32)
+/* Set the default NR_IRQS */
+#define NR_IRQS			(IRQ_GPIO_END)
 
 #endif /* __ASM_ARCH_IRQS_H */

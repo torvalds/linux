@@ -304,6 +304,7 @@ static __init int exynos4_gpiolib_init(void)
 {
 	struct s3c_gpio_chip *chip;
 	int i;
+	int group = 0;
 	int nr_chips;
 
 	/* GPIO part 1 */
@@ -312,8 +313,11 @@ static __init int exynos4_gpiolib_init(void)
 	nr_chips = ARRAY_SIZE(exynos4_gpio_part1_4bit);
 
 	for (i = 0; i < nr_chips; i++, chip++) {
-		if (chip->config == NULL)
+		if (chip->config == NULL) {
 			chip->config = &gpio_cfg;
+			/* Assign the GPIO interrupt group */
+			chip->group = group++;
+		}
 		if (chip->base == NULL)
 			chip->base = S5P_VA_GPIO1 + (i) * 0x20;
 	}
@@ -326,8 +330,11 @@ static __init int exynos4_gpiolib_init(void)
 	nr_chips = ARRAY_SIZE(exynos4_gpio_part2_4bit);
 
 	for (i = 0; i < nr_chips; i++, chip++) {
-		if (chip->config == NULL)
+		if (chip->config == NULL) {
 			chip->config = &gpio_cfg;
+			/* Assign the GPIO interrupt group */
+			chip->group = group++;
+		}
 		if (chip->base == NULL)
 			chip->base = S5P_VA_GPIO2 + (i) * 0x20;
 	}
@@ -340,13 +347,18 @@ static __init int exynos4_gpiolib_init(void)
 	nr_chips = ARRAY_SIZE(exynos4_gpio_part3_4bit);
 
 	for (i = 0; i < nr_chips; i++, chip++) {
-		if (chip->config == NULL)
+		if (chip->config == NULL) {
 			chip->config = &gpio_cfg;
+			/* Assign the GPIO interrupt group */
+			chip->group = group++;
+		}
 		if (chip->base == NULL)
 			chip->base = S5P_VA_GPIO3 + (i) * 0x20;
 	}
 
 	samsung_gpiolib_add_4bit_chips(exynos4_gpio_part3_4bit, nr_chips);
+	s5p_register_gpioint_bank(IRQ_GPIO_XA, 0, IRQ_GPIO1_NR_GROUPS);
+	s5p_register_gpioint_bank(IRQ_GPIO_XB, IRQ_GPIO1_NR_GROUPS, IRQ_GPIO2_NR_GROUPS);
 
 	return 0;
 }
