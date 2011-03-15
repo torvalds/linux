@@ -1804,6 +1804,8 @@ restart:
 				goto no_transform;
 			}
 
+			dst_hold(&xdst->u.dst);
+
 			spin_lock_bh(&xfrm_policy_sk_bundle_lock);
 			xdst->u.dst.next = xfrm_policy_sk_bundles;
 			xfrm_policy_sk_bundles = &xdst->u.dst;
