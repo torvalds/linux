@@ -96,11 +96,6 @@ nla_put_failure:
 	goto done;
 }
 
-static void tcf_police_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct tcf_police, tcf_rcu));
-}
-
 static void tcf_police_destroy(struct tcf_police *p)
 {
 	unsigned int h = tcf_hash(p->tcf_index, POL_TAB_MASK);
@@ -121,7 +116,7 @@ static void tcf_police_destroy(struct tcf_police *p)
 			 * gen_estimator est_timer() might access p->tcf_lock
 			 * or bstats, wait a RCU grace period before freeing p
 			 */
-			call_rcu(&p->tcf_rcu, tcf_police_free_rcu);
+			kfree_rcu(p, tcf_rcu);
 			return;
 		}
 	}
