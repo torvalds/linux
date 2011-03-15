@@ -1692,7 +1692,7 @@ static void xennet_get_ethtool_stats(struct net_device *dev,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(xennet_stats); i++)
-		data[i] = *(int *)(np + xennet_stats[i].offset);
+		data[i] = *(unsigned long *)(np + xennet_stats[i].offset);
 }
 
 static void xennet_get_strings(struct net_device *dev, u32 stringset, u8 * data)
