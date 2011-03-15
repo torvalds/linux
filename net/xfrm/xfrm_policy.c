@@ -2175,7 +2175,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 	struct net *net = dev_net(skb->dev);
 	struct flowi fl;
 	struct dst_entry *dst;
-	int res = 0;
+	int res = 1;
 
 	if (xfrm_decode_session(skb, &fl, family) < 0) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMFWDHDRERROR);
@@ -2186,7 +2186,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 
 	dst = xfrm_lookup(net, skb_dst(skb), &fl, NULL, 0);
 	if (IS_ERR(dst)) {
-		res = 1;
+		res = 0;
 		dst = NULL;
 	}
 	skb_dst_set(skb, dst);
