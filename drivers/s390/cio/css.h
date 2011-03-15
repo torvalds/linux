@@ -97,11 +97,6 @@ struct css_driver {
 
 #define to_cssdriver(n) container_of(n, struct css_driver, drv)
 
-/*
- * all css_drivers have the css_bus_type
- */
-extern struct bus_type css_bus_type;
-
 extern int css_driver_register(struct css_driver *);
 extern void css_driver_unregister(struct css_driver *);
 
@@ -136,7 +131,6 @@ struct channel_subsystem {
 };
 #define to_css(dev) container_of(dev, struct channel_subsystem, device)
 
-extern struct bus_type css_bus_type;
 extern struct channel_subsystem *channel_subsystems[];
 
 /* Helper functions to build lists for the slow path. */
