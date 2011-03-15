@@ -224,13 +224,14 @@ enum {
 };
 
 /*
- * UBI set property ioctl constants
+ * UBI set volume property ioctl constants.
  *
- * @UBI_VOL_PROP_DIRECT_WRITE: allow / disallow user to directly write and
- *                             erase individual eraseblocks on dynamic volumes
+ * @UBI_VOL_PROP_DIRECT_WRITE: allow (any non-zero value) or disallow (value 0)
+ *                             user to directly write and erase individual
+ *                             eraseblocks on dynamic volumes
  */
 enum {
-       UBI_VOL_PROP_DIRECT_WRITE = 1,
+	UBI_VOL_PROP_DIRECT_WRITE = 1,
 };
 
 /**
@@ -398,7 +399,7 @@ struct ubi_map_req {
 
 
 /**
- * struct ubi_set_vol_prop_req - a data structure used to set an ubi volume
+ * struct ubi_set_vol_prop_req - a data structure used to set an UBI volume
  *                               property.
  * @property: property to set (%UBI_VOL_PROP_DIRECT_WRITE)
  * @padding: reserved for future, not used, has to be zeroed
