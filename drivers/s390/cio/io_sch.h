@@ -18,7 +18,9 @@ struct io_subchannel_private {
 	} __packed options;
 } __aligned(8);
 
-#define to_io_private(n) ((struct io_subchannel_private *)n->private)
+#define to_io_private(n) ((struct io_subchannel_private *) \
+			  dev_get_drvdata(&(n)->dev))
+#define set_io_private(n, p) (dev_set_drvdata(&(n)->dev, p))
 
 static inline struct ccw_device *sch_get_cdev(struct subchannel *sch)
 {
