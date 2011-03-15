@@ -2964,9 +2964,15 @@ struct iwl3945_scan_cmd {
 	u8 data[0];
 } __packed;
 
+enum iwl_scan_flags {
+	/* BIT(0) currently unused */
+	IWL_SCAN_FLAGS_ACTION_FRAME_TX	= BIT(1),
+	/* bits 2-7 reserved */
+};
+
 struct iwl_scan_cmd {
 	__le16 len;
-	u8 reserved0;
+	u8 scan_flags;		/* scan flags: see enum iwl_scan_flags */
 	u8 channel_count;	/* # channels in channel list */
 	__le16 quiet_time;	/* dwell only this # millisecs on quiet channel
 				 * (only for active scan) */

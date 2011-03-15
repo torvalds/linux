@@ -943,6 +943,7 @@ ath5k_txq_setup(struct ath5k_softc *sc,
 		spin_lock_init(&txq->lock);
 		txq->setup = true;
 		txq->txq_len = 0;
+		txq->txq_max = ATH5K_TXQ_LEN_MAX;
 		txq->txq_poll_mark = false;
 		txq->txq_stuck = 0;
 	}
@@ -1534,7 +1535,7 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		goto drop_packet;
 	}
 
-	if (txq->txq_len >= ATH5K_TXQ_LEN_MAX)
+	if (txq->txq_len >= txq->txq_max)
 		ieee80211_stop_queue(hw, txq->qnum);
 
 	spin_lock_irqsave(&sc->txbuflock, flags);

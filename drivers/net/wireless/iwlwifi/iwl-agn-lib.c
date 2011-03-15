@@ -1115,6 +1115,18 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 	return added;
 }
 
+static int iwl_fill_offch_tx(struct iwl_priv *priv, void *data, size_t maxlen)
+{
+	struct sk_buff *skb = priv->_agn.offchan_tx_skb;
+
+	if (skb->len < maxlen)
+		maxlen = skb->len;
+
+	memcpy(data, skb->data, maxlen);
+
+	return maxlen;
+}
+
 int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
@@ -1157,17 +1169,25 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
-	if (iwl_is_any_associated(priv)) {
+	if (priv->scan_type != IWL_SCAN_OFFCH_TX &&
+	    iwl_is_any_associated(priv)) {
 		u16 interval = 0;
 		u32 extra;
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
-		if (priv->is_internal_short_scan)
+		switch (priv->scan_type) {
+		case IWL_SCAN_OFFCH_TX:
+			WARN_ON(1);
+			break;
+		case IWL_SCAN_RADIO_RESET:
 			interval = 0;
-		else
+			break;
+		case IWL_SCAN_NORMAL:
 			interval = vif->bss_conf.beacon_int;
+			break;
+		}
 
 		scan->suspend_time = 0;
 		scan->max_out_time = cpu_to_le32(200 * 1024);
@@ -1180,29 +1200,41 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		scan->suspend_time = cpu_to_le32(scan_suspend_time);
 		IWL_DEBUG_SCAN(priv, "suspend_time 0x%X beacon interval %d\n",
 			       scan_suspend_time, interval);
+	} else if (priv->scan_type == IWL_SCAN_OFFCH_TX) {
+		scan->suspend_time = 0;
+		scan->max_out_time =
+			cpu_to_le32(1024 * priv->_agn.offchan_tx_timeout);
 	}
 
-	if (priv->is_internal_short_scan) {
+	switch (priv->scan_type) {
+	case IWL_SCAN_RADIO_RESET:
 		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
-	} else if (priv->scan_request->n_ssids) {
-		int i, p = 0;
-		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
-		for (i = 0; i < priv->scan_request->n_ssids; i++) {
-			/* always does wildcard anyway */
-			if (!priv->scan_request->ssids[i].ssid_len)
-				continue;
-			scan->direct_scan[p].id = WLAN_EID_SSID;
-			scan->direct_scan[p].len =
-				priv->scan_request->ssids[i].ssid_len;
-			memcpy(scan->direct_scan[p].ssid,
-			       priv->scan_request->ssids[i].ssid,
-			       priv->scan_request->ssids[i].ssid_len);
-			n_probes++;
-			p++;
-		}
-		is_active = true;
-	} else
-		IWL_DEBUG_SCAN(priv, "Start passive scan.\n");
+		break;
+	case IWL_SCAN_NORMAL:
+		if (priv->scan_request->n_ssids) {
+			int i, p = 0;
+			IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
+			for (i = 0; i < priv->scan_request->n_ssids; i++) {
+				/* always does wildcard anyway */
+				if (!priv->scan_request->ssids[i].ssid_len)
+					continue;
+				scan->direct_scan[p].id = WLAN_EID_SSID;
+				scan->direct_scan[p].len =
+					priv->scan_request->ssids[i].ssid_len;
+				memcpy(scan->direct_scan[p].ssid,
+				       priv->scan_request->ssids[i].ssid,
+				       priv->scan_request->ssids[i].ssid_len);
+				n_probes++;
+				p++;
+			}
+			is_active = true;
+		} else
+			IWL_DEBUG_SCAN(priv, "Start passive scan.\n");
+		break;
+	case IWL_SCAN_OFFCH_TX:
+		IWL_DEBUG_SCAN(priv, "Start offchannel TX scan.\n");
+		break;
+	}
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = ctx->bcast_sta_id;
@@ -1300,38 +1332,77 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
 	scan->rx_chain = cpu_to_le16(rx_chain);
-	if (!priv->is_internal_short_scan) {
+	switch (priv->scan_type) {
+	case IWL_SCAN_NORMAL:
 		cmd_len = iwl_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
 					vif->addr,
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
-	} else {
+		break;
+	case IWL_SCAN_RADIO_RESET:
 		/* use bcast addr, will not be transmitted but must be valid */
 		cmd_len = iwl_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
 					iwl_bcast_addr, NULL, 0,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
-
+		break;
+	case IWL_SCAN_OFFCH_TX:
+		cmd_len = iwl_fill_offch_tx(priv, scan->data,
+					    IWL_MAX_SCAN_SIZE
+					     - sizeof(*scan)
+					     - sizeof(struct iwl_scan_channel));
+		scan->scan_flags |= IWL_SCAN_FLAGS_ACTION_FRAME_TX;
+		break;
+	default:
+		BUG();
 	}
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
 			       RXON_FILTER_BCON_AWARE_MSK);
 
-	if (priv->is_internal_short_scan) {
+	switch (priv->scan_type) {
+	case IWL_SCAN_RADIO_RESET:
 		scan->channel_count =
 			iwl_get_single_channel_for_scan(priv, vif, band,
-				(void *)&scan->data[le16_to_cpu(
-				scan->tx_cmd.len)]);
-	} else {
+				(void *)&scan->data[cmd_len]);
+		break;
+	case IWL_SCAN_NORMAL:
 		scan->channel_count =
 			iwl_get_channels_for_scan(priv, vif, band,
 				is_active, n_probes,
-				(void *)&scan->data[le16_to_cpu(
-				scan->tx_cmd.len)]);
+				(void *)&scan->data[cmd_len]);
+		break;
+	case IWL_SCAN_OFFCH_TX: {
+		struct iwl_scan_channel *scan_ch;
+
+		scan->channel_count = 1;
+
+		scan_ch = (void *)&scan->data[cmd_len];
+		scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
+		scan_ch->channel =
+			cpu_to_le16(priv->_agn.offchan_tx_chan->hw_value);
+		scan_ch->active_dwell =
+			cpu_to_le16(priv->_agn.offchan_tx_timeout);
+		scan_ch->passive_dwell = 0;
+
+		/* Set txpower levels to defaults */
+		scan_ch->dsp_atten = 110;
+
+		/* NOTE: if we were doing 6Mb OFDM for scans we'd use
+		 * power level:
+		 * scan_ch->tx_gain = ((1 << 5) | (2 << 3)) | 3;
+		 */
+		if (priv->_agn.offchan_tx_chan->band == IEEE80211_BAND_5GHZ)
+			scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
+		else
+			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
+		}
+		break;
 	}
+
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
 		return -EIO;

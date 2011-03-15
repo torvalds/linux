@@ -667,6 +667,7 @@ static const u32 ar9485_1_0_pcie_phy_clkreq_enable_L1[][2] = {
 
 static const u32 ar9485_1_0_soc_preamble[][2] = {
 	/*   Addr     allmodes */
+	{0x00004090, 0x00aa10aa},
 	{0x000040a4, 0x00a0c9c9},
 	{0x00007048, 0x00000004},
 };
@@ -1708,6 +1709,7 @@ static const u32 ar9485_1_1_pcie_phy_clkreq_disable_L1[][2] = {
 static const u32 ar9485_1_1_soc_preamble[][2] = {
 	/* Addr        allmodes */
 	{0x00004014, 0xba280400},
+	{0x00004090, 0x00aa10aa},
 	{0x000040a4, 0x00a0c9c9},
 	{0x00007010, 0x00000022},
 	{0x00007020, 0x00000000},

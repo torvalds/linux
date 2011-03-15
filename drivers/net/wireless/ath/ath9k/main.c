@@ -2128,56 +2128,42 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 
 static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 {
-#define ATH_FLUSH_TIMEOUT	60 /* ms */
 	struct ath_softc *sc = hw->priv;
-	struct ath_txq *txq = NULL;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	int i, j, npend = 0;
+	int timeout = 200; /* ms */
+	int i, j;
 
+	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (!ATH_TXQ_SETUP(sc, i))
-			continue;
-		txq = &sc->tx.txq[i];
+	if (drop)
+		timeout = 1;
 
-		if (!drop) {
-			for (j = 0; j < ATH_FLUSH_TIMEOUT; j++) {
-				if (!ath9k_has_pending_frames(sc, txq))
-					break;
-				usleep_range(1000, 2000);
-			}
+	for (j = 0; j < timeout; j++) {
+		int npend = 0;
+
+		if (j)
+			usleep_range(1000, 2000);
+
+		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+			if (!ATH_TXQ_SETUP(sc, i))
+				continue;
+
+			npend += ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
 		}
 
-		if (drop || ath9k_has_pending_frames(sc, txq)) {
-			ath_dbg(common, ATH_DBG_QUEUE, "Drop frames from hw queue:%d\n",
-				txq->axq_qnum);
-			spin_lock_bh(&txq->axq_lock);
-			txq->txq_flush_inprogress = true;
-			spin_unlock_bh(&txq->axq_lock);
-
-			ath9k_ps_wakeup(sc);
-			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
-			npend = ath9k_hw_numtxpending(ah, txq->axq_qnum);
-			ath9k_ps_restore(sc);
-			if (npend)
-				break;
-
-			ath_draintxq(sc, txq, false);
-			txq->txq_flush_inprogress = false;
-		}
+		if (!npend)
+		    goto out;
 	}
 
-	if (npend) {
+	if (!ath_drain_all_txq(sc, false))
 		ath_reset(sc, false);
-		txq->txq_flush_inprogress = false;
-	}
 
+out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
 	mutex_unlock(&sc->mutex);
+	ath9k_ps_restore(sc);
 }
 
 struct ieee80211_ops ath9k_ops = {
