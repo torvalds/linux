@@ -180,8 +180,10 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 	os = mdev->state;
 	ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
-	if (rv < SS_SUCCESS)
+	if (rv < SS_SUCCESS) {
+		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 		goto abort;
+	}
 
 	if (cl_wide_st_chg(mdev, os, ns)) {
 		rv = is_valid_state(mdev, ns);
