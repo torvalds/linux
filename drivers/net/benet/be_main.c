@@ -1088,6 +1088,7 @@ static void be_parse_rx_compl_v1(struct be_adapter *adapter,
 	rxcp->vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtp, compl);
 	rxcp->err = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, err, compl);
 	rxcp->tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, tcpf, compl);
+	rxcp->udpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, udpf, compl);
 	rxcp->ip_csum =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, ipcksm, compl);
 	rxcp->l4_csum =
@@ -1113,6 +1114,7 @@ static void be_parse_rx_compl_v0(struct be_adapter *adapter,
 	rxcp->vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtp, compl);
 	rxcp->err = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, err, compl);
 	rxcp->tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, tcpf, compl);
+	rxcp->udpf = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, udpf, compl);
 	rxcp->ip_csum =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, ipcksm, compl);
 	rxcp->l4_csum =
