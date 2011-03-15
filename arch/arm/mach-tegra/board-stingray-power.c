@@ -698,7 +698,6 @@ static struct platform_device mdm_ctrl_platform_device = {
 };
 
 static struct wrigley_ctrl_platform_data wrigley_ctrl_pdata = {
-	.gpio_host_wake = TEGRA_GPIO_PW3,
 	.gpio_disable = TEGRA_GPIO_PG0,
 	.gpio_reset = TEGRA_GPIO_PI6,
 	.gpio_force_flash = TEGRA_GPIO_PT5,
@@ -735,7 +734,6 @@ static void mdm_ctrl_register(void)
 static void wrigley_ctrl_register(void)
 {
 	tegra_gpio_enable(wrigley_ctrl_pdata.gpio_reset);
-	tegra_gpio_enable(wrigley_ctrl_pdata.gpio_host_wake);
 	tegra_gpio_enable(wrigley_ctrl_pdata.gpio_disable);
 	tegra_gpio_enable(wrigley_ctrl_pdata.gpio_force_flash);
 	platform_device_register(&wrigley_ctrl_pdev);
