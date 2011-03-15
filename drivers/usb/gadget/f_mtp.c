@@ -504,6 +504,7 @@ requeue_req:
 	ret = wait_event_interruptible(dev->read_wq, dev->rx_done);
 	if (ret < 0) {
 		r = ret;
+		usb_ep_dequeue(dev->ep_out, req);
 		goto done;
 	}
 	if (dev->state == STATE_BUSY) {
