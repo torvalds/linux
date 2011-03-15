@@ -194,7 +194,7 @@ void generic_smp_call_function_interrupt(void)
 	 */
 	list_for_each_entry_rcu(data, &call_function.queue, csd.list) {
 		int refs;
-		void (*func) (void *info);
+		smp_call_func_t func;
 
 		/*
 		 * Since we walk the list without any locks, we might
@@ -214,17 +214,17 @@ void generic_smp_call_function_interrupt(void)
 		if (atomic_read(&data->refs) == 0)
 			continue;
 
-		func = data->csd.func;			/* for later warn */
-		data->csd.func(data->csd.info);
+		func = data->csd.func;		/* save for later warn */
+		func(data->csd.info);
 
 		/*
-		 * If the cpu mask is not still set then it enabled interrupts,
-		 * we took another smp interrupt, and executed the function
-		 * twice on this cpu.  In theory that copy decremented refs.
+		 * If the cpu mask is not still set then func enabled
+		 * interrupts (BUG), and this cpu took another smp call
+		 * function interrupt and executed func(info) twice
+		 * on this cpu.  That nested execution decremented refs.
 		 */
 		if (!cpumask_test_and_clear_cpu(cpu, data->cpumask)) {
-			WARN(1, "%pS enabled interrupts and double executed\n",
-			     func);
+			WARN(1, "%pf enabled interrupts and double executed\n", func);
 			continue;
 		}
 
