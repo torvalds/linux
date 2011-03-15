@@ -193,6 +193,7 @@ static struct cpcap_audio_platform_data cpcap_audio_pdata = {
 	.state = &stingray_cpcap_audio_state,
 	.speaker_gpio = TEGRA_GPIO_PR3,
 	.headset_gpio = -1,
+	.spdif_gpio = TEGRA_GPIO_PD4,
 	.bluetooth_bypass = init_dac2,
 };
 
@@ -1145,6 +1146,15 @@ static void __init tegra_stingray_init(void)
 		pr_info("Disabling core dvfs on P1 hardware\n");
 		tegra_dvfs_rail_disable_by_name("vdd_core");
 	}
+
+	/* disable spdif GPIO for now */
+	/* spdif line is turned on but never used, this causes pops
+	   on a speaker dock connected to HDMI monitor, later version
+	   h/w with spdif audio out will need this pin */
+	tegra_gpio_enable(TEGRA_GPIO_PD4);
+	gpio_request(TEGRA_GPIO_PD4, "spdif_enable");
+	gpio_direction_output(TEGRA_GPIO_PD4, 0);
+	gpio_export(TEGRA_GPIO_PD4, false);
 
 	/* Enable 4329 Power GPIO */
 	tegra_gpio_enable(TEGRA_GPIO_PU4);
