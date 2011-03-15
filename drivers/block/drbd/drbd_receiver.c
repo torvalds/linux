@@ -4135,25 +4135,25 @@ static int drbd_send_handshake(struct drbd_tconn *tconn)
 {
 	/* ASSERT current == mdev->tconn->receiver ... */
 	struct p_handshake *p = &tconn->data.sbuf.handshake;
-	int ok;
+	int err;
 
 	if (mutex_lock_interruptible(&tconn->data.mutex)) {
 		conn_err(tconn, "interrupted during initial handshake\n");
-		return 0; /* interrupted. not ok. */
+		return -EINTR;
 	}
 
 	if (tconn->data.socket == NULL) {
 		mutex_unlock(&tconn->data.mutex);
-		return 0;
+		return -EIO;
 	}
 
 	memset(p, 0, sizeof(*p));
 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-	ok = !_conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
+	err = _conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
 			     &p->head, sizeof(*p), 0);
 	mutex_unlock(&tconn->data.mutex);
-	return ok;
+	return err;
 }
 
 /*
@@ -4169,10 +4169,10 @@ static int drbd_do_handshake(struct drbd_tconn *tconn)
 	struct p_handshake *p = &tconn->data.rbuf.handshake;
 	const int expect = sizeof(struct p_handshake) - sizeof(struct p_header80);
 	struct packet_info pi;
-	int rv;
+	int err, rv;
 
-	rv = drbd_send_handshake(tconn);
-	if (!rv)
+	err = drbd_send_handshake(tconn);
+	if (err)
 		return 0;
 
 	rv = drbd_recv_header(tconn, &pi);
