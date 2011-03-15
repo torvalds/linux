@@ -2303,9 +2303,7 @@ fail:
 
 void drbd_free_tconn(struct drbd_tconn *tconn)
 {
-	mutex_lock(&drbd_cfg_mutex);
 	list_del(&tconn->all_tconn);
-	mutex_unlock(&drbd_cfg_mutex);
 	idr_destroy(&tconn->volumes);
 
 	free_cpumask_var(tconn->cpu_mask);
