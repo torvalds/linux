@@ -228,11 +228,15 @@ static unsigned int calculate_syt(struct amdtp_out_stream *s,
 		syt_offset = s->last_syt_offset - TICKS_PER_CYCLE;
 	s->last_syt_offset = syt_offset;
 
-	syt_offset += TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
-	syt = (cycle + syt_offset / TICKS_PER_CYCLE) << 12;
-	syt += syt_offset % TICKS_PER_CYCLE;
+	if (syt_offset < TICKS_PER_CYCLE) {
+		syt_offset += TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
+		syt = (cycle + syt_offset / TICKS_PER_CYCLE) << 12;
+		syt += syt_offset % TICKS_PER_CYCLE;
 
-	return syt & 0xffff;
+		return syt & 0xffff;
+	} else {
+		return 0xffff; /* no info */
+	}
 }
 
 static void amdtp_write_s32(struct amdtp_out_stream *s,
