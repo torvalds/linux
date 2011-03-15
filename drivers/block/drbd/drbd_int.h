@@ -1926,7 +1926,7 @@ static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 				  enum drbd_packet cmd, struct p_header *h, size_t size,
 				  unsigned msg_flags)
 {
-	return _conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
+	return !_conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
 }
 
 static inline int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,

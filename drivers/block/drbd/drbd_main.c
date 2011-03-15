@@ -723,17 +723,14 @@ int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 		   enum drbd_packet cmd, struct p_header *h, size_t size,
 		   unsigned msg_flags)
 {
-	int sent, ok;
+	int err;
 
 	_prepare_header(tconn, vnr, h, cmd, size - sizeof(struct p_header));
-
-	sent = drbd_send(tconn, sock, h, size, msg_flags);
-
-	ok = (sent == size);
-	if (!ok && !signal_pending(current))
-		conn_warn(tconn, "short sent %s size=%d sent=%d\n",
-			  cmdname(cmd), (int)size, sent);
-	return ok;
+	err = drbd_send_all(tconn, sock, h, size, msg_flags);
+	if (err && !signal_pending(current))
+		conn_warn(tconn, "short send %s size=%d\n",
+			  cmdname(cmd), (int)size);
+	return err;
 }
 
 /* don't pass the socket. we may only look at it
@@ -756,7 +753,7 @@ int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
 	/* drbd_disconnect() could have called drbd_free_sock()
 	 * while we were waiting in down()... */
 	if (likely(sock != NULL))
-		ok = _conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
+		ok = !_conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
 
 	if (use_data_socket)
 		mutex_unlock(&tconn->data.mutex);

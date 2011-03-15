@@ -711,7 +711,7 @@ static int drbd_send_fp(struct drbd_tconn *tconn, struct socket *sock, enum drbd
 {
 	struct p_header *h = &tconn->data.sbuf.header;
 
-	return _conn_send_cmd(tconn, 0, sock, cmd, h, sizeof(*h), 0);
+	return !_conn_send_cmd(tconn, 0, sock, cmd, h, sizeof(*h), 0);
 }
 
 static enum drbd_packet drbd_recv_fp(struct drbd_tconn *tconn, struct socket *sock)
@@ -4150,8 +4150,8 @@ static int drbd_send_handshake(struct drbd_tconn *tconn)
 	memset(p, 0, sizeof(*p));
 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-	ok = _conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
-			    &p->head, sizeof(*p), 0);
+	ok = !_conn_send_cmd(tconn, 0, tconn->data.socket, P_HAND_SHAKE,
+			     &p->head, sizeof(*p), 0);
 	mutex_unlock(&tconn->data.mutex);
 	return ok;
 }
