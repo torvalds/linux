@@ -148,7 +148,10 @@ static struct css_device_id chsc_subchannel_ids[] = {
 MODULE_DEVICE_TABLE(css, chsc_subchannel_ids);
 
 static struct css_driver chsc_subchannel_driver = {
-	.owner = THIS_MODULE,
+	.drv = {
+		.owner = THIS_MODULE,
+		.name = "chsc_subchannel",
+	},
 	.subchannel_type = chsc_subchannel_ids,
 	.irq = chsc_subchannel_irq,
 	.probe = chsc_subchannel_probe,
@@ -158,7 +161,6 @@ static struct css_driver chsc_subchannel_driver = {
 	.freeze = chsc_subchannel_freeze,
 	.thaw = chsc_subchannel_restore,
 	.restore = chsc_subchannel_restore,
-	.name = "chsc_subchannel",
 };
 
 static int __init chsc_init_dbfs(void)

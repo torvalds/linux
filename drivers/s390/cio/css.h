@@ -63,7 +63,6 @@ struct subchannel;
 struct chp_link;
 /**
  * struct css_driver - device driver for subchannels
- * @owner: owning module
  * @subchannel_type: subchannel type supported by this driver
  * @drv: embedded device driver structure
  * @irq: called on interrupts
@@ -78,10 +77,8 @@ struct chp_link;
  * @thaw: undo work done in @freeze
  * @restore: callback for restoring after hibernation
  * @settle: wait for asynchronous work to finish
- * @name: name of the device driver
  */
 struct css_driver {
-	struct module *owner;
 	struct css_device_id *subchannel_type;
 	struct device_driver drv;
 	void (*irq)(struct subchannel *);
@@ -96,7 +93,6 @@ struct css_driver {
 	int (*thaw) (struct subchannel *);
 	int (*restore)(struct subchannel *);
 	int (*settle)(void);
-	const char *name;
 };
 
 #define to_cssdriver(n) container_of(n, struct css_driver, drv)
