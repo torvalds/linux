@@ -117,9 +117,12 @@ int cmp_connection_init(struct cmp_connection *c,
 	if (ipcr_index >= (impr & IMPR_PLUGS_MASK))
 		return -EINVAL;
 
+	err = fw_iso_resources_init(&c->resources, unit);
+	if (err < 0)
+		return err;
+
 	c->connected = false;
 	mutex_init(&c->mutex);
-	fw_iso_resources_init(&c->resources, unit);
 	c->last_pcr_value = cpu_to_be32(0x80000000);
 	c->pcr_index = ipcr_index;
 	c->max_speed = (impr & IMPR_SPEED_MASK) >> IMPR_SPEED_SHIFT;

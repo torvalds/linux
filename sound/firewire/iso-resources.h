@@ -24,11 +24,11 @@ struct fw_iso_resources {
 	unsigned int bandwidth_overhead;
 	int generation; /* in which allocation is valid */
 	bool allocated;
-	__be32 buffer[2];
+	__be32 *buffer;
 };
 
-void fw_iso_resources_init(struct fw_iso_resources *r,
-			   struct fw_unit *unit);
+int fw_iso_resources_init(struct fw_iso_resources *r,
+			  struct fw_unit *unit);
 void fw_iso_resources_destroy(struct fw_iso_resources *r);
 
 int fw_iso_resources_allocate(struct fw_iso_resources *r,

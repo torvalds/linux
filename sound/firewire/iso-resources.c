@@ -11,6 +11,7 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include "iso-resources.h"
 
@@ -22,12 +23,18 @@
  * If the device does not support all channel numbers, change @r->channels_mask
  * after calling this function.
  */
-void fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
+int fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
 {
+	r->buffer = kmalloc(2 * 4, GFP_KERNEL);
+	if (!r->buffer)
+		return -ENOMEM;
+
 	r->channels_mask = ~0uLL;
 	r->unit = fw_unit_get(unit);
 	mutex_init(&r->mutex);
 	r->allocated = false;
+
+	return 0;
 }
 
 /**
@@ -37,6 +44,7 @@ void fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
 void fw_iso_resources_destroy(struct fw_iso_resources *r)
 {
 	WARN_ON(r->allocated);
+	kfree(r->buffer);
 	mutex_destroy(&r->mutex);
 	fw_unit_put(r->unit);
 }
