@@ -60,11 +60,15 @@
 #define MXT_PROCG_NOISE		22
 #define MXT_PROCI_ONETOUCH	24
 #define MXT_PROCI_TWOTOUCH	27
+#define MXT_PROCI_GRIP		40
+#define MXT_PROCI_PALM		41
 #define MXT_SPT_COMMSCONFIG	18
 #define MXT_SPT_GPIOPWM		19
 #define MXT_SPT_SELFTEST	25
 #define MXT_SPT_CTECONFIG	28
 #define MXT_SPT_USERDATA	38
+#define MXT_SPT_DIGITIZER	43
+#define MXT_SPT_MESSAGECOUNT	44
 
 /* MXT_GEN_COMMAND field */
 #define MXT_COMMAND_RESET	0
@@ -258,6 +262,8 @@ static bool mxt_object_readable(unsigned int type)
 	case MXT_PROCG_NOISE:
 	case MXT_PROCI_ONETOUCH:
 	case MXT_PROCI_TWOTOUCH:
+	case MXT_PROCI_GRIP:
+	case MXT_PROCI_PALM:
 	case MXT_SPT_COMMSCONFIG:
 	case MXT_SPT_GPIOPWM:
 	case MXT_SPT_SELFTEST:
@@ -282,6 +288,8 @@ static bool mxt_object_writable(unsigned int type)
 	case MXT_PROCG_NOISE:
 	case MXT_PROCI_ONETOUCH:
 	case MXT_PROCI_TWOTOUCH:
+	case MXT_PROCI_GRIP:
+	case MXT_PROCI_PALM:
 	case MXT_SPT_GPIOPWM:
 	case MXT_SPT_SELFTEST:
 	case MXT_SPT_CTECONFIG:
