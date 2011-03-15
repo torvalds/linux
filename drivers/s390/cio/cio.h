@@ -92,7 +92,6 @@ struct subchannel {
 	struct chsc_ssd_info ssd_info;	/* subchannel description */
 	struct device dev;	/* entry in device tree */
 	struct css_driver *driver;
-	void *private; /* private per subchannel type data */
 	enum sch_todo todo;
 	struct work_struct todo_work;
 	struct schib_config config;
