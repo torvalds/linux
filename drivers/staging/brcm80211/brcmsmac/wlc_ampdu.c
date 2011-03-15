@@ -687,7 +687,10 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			WL_NONE("sendampdu: sgi %d, is40 %d, mcs %d\n",
 				sgi, is40, mcs);
 
-			maxlen = 64 * 1024;	/* XXX Fix me to honor real max_rxlen */
+			/* XXX Fix me to honor real max_rxlen */
+			/* can fix this as soon as ampdu_action() in mac80211.h
+			 * gets extra u8buf_size par */
+			maxlen = 64 * 1024;
 
 			if (is40)
 				mimo_ctlchbw =
