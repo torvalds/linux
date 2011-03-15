@@ -47,7 +47,6 @@ struct hv_bus {
 	struct tasklet_struct event_dpc;
 };
 
-static void vmbus_shutdown(struct device *device);
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id);
 
@@ -274,6 +273,28 @@ static int vmbus_remove(struct device *child_device)
 	}
 
 	return 0;
+}
+
+
+/*
+ * vmbus_shutdown - Shutdown a vmbus device
+ */
+static void vmbus_shutdown(struct device *child_device)
+{
+	struct hv_driver *drv;
+
+
+	/* The device may not be attached yet */
+	if (!child_device->driver)
+		return;
+
+	drv = drv_to_hv_drv(child_device->driver);
+
+	/* Let the specific open-source driver handles the removal if it can */
+	if (drv->driver.shutdown)
+		drv->driver.shutdown(child_device);
+
+	return;
 }
 
 /* The one and only one */
@@ -802,27 +823,6 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
 
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
 		    &device_obj->device);
-}
-
-/*
- * vmbus_shutdown - Shutdown a vmbus device
- */
-static void vmbus_shutdown(struct device *child_device)
-{
-	struct hv_driver *drv;
-
-
-	/* The device may not be attached yet */
-	if (!child_device->driver)
-		return;
-
-	drv = drv_to_hv_drv(child_device->driver);
-
-	/* Let the specific open-source driver handles the removal if it can */
-	if (drv->driver.shutdown)
-		drv->driver.shutdown(child_device);
-
-	return;
 }
 
 
