@@ -2073,9 +2073,11 @@ static __always_inline void slab_free(struct kmem_cache *s,
 
 #ifndef CONFIG_CMPXCHG_LOCAL
 	local_irq_save(flags);
+
+#else
+redo:
 #endif
 
-redo:
 	/*
 	 * Determine the currently cpus per cpu slab.
 	 * The cpu may change afterward. However that does not matter since
