@@ -1448,51 +1448,12 @@ static u32
 si_pmu1_cpuclk0(si_t *sih, chipcregs_t *cc)
 {
 	u32 tmp, m1div;
-#ifdef BCMDBG
-	u32 ndiv_int, ndiv_frac, p2div, p1div, fvco;
-	u32 fref;
-#endif
 	u32 FVCO = si_pmu1_pllfvco0(sih);
 
 	/* Read m1div from pllcontrol[1] */
 	W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL1);
 	tmp = R_REG(&cc->pllcontrol_data);
 	m1div = (tmp & PMU1_PLL0_PC1_M1DIV_MASK) >> PMU1_PLL0_PC1_M1DIV_SHIFT;
-
-#ifdef BCMDBG
-	/* Read p2div/p1div from pllcontrol[0] */
-	W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL0);
-	tmp = R_REG(&cc->pllcontrol_data);
-	p2div = (tmp & PMU1_PLL0_PC0_P2DIV_MASK) >> PMU1_PLL0_PC0_P2DIV_SHIFT;
-	p1div = (tmp & PMU1_PLL0_PC0_P1DIV_MASK) >> PMU1_PLL0_PC0_P1DIV_SHIFT;
-
-	/* Calculate fvco based on xtal freq and ndiv and pdiv */
-	W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL2);
-	tmp = R_REG(&cc->pllcontrol_data);
-	ndiv_int =
-	    (tmp & PMU1_PLL0_PC2_NDIV_INT_MASK) >> PMU1_PLL0_PC2_NDIV_INT_SHIFT;
-
-	W_REG(&cc->pllcontrol_addr, PMU1_PLL0_PLLCTL3);
-	tmp = R_REG(&cc->pllcontrol_data);
-	ndiv_frac =
-	    (tmp & PMU1_PLL0_PC3_NDIV_FRAC_MASK) >>
-	    PMU1_PLL0_PC3_NDIV_FRAC_SHIFT;
-
-	fref = si_pmu1_alpclk0(sih, cc) / 1000;
-
-	fvco = (fref * ndiv_int) << 8;
-	fvco += (fref * (ndiv_frac >> 12)) >> 4;
-	fvco += (fref * (ndiv_frac & 0xfff)) >> 12;
-	fvco >>= 8;
-	fvco *= p2div;
-	fvco /= p1div;
-	fvco /= 1000;
-	fvco *= 1000;
-
-	PMU_MSG(("si_pmu1_cpuclk0: ndiv_int %u ndiv_frac %u p2div %u p1div %u fvco %u\n", ndiv_int, ndiv_frac, p2div, p1div, fvco));
-
-	FVCO = fvco;
-#endif				/* BCMDBG */
 
 	/* Return ARM/SB clock */
 	return FVCO / m1div * 1000;
