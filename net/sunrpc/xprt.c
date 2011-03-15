@@ -964,7 +964,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, int size, int max_req)
 	xprt = kzalloc(size, GFP_KERNEL);
 	if (xprt == NULL)
 		goto out;
-	kref_init(&xprt->kref);
+	atomic_set(&xprt->count, 1);
 
 	xprt->max_reqs = max_req;
 	xprt->slot = kcalloc(max_req, sizeof(struct rpc_rqst), GFP_KERNEL);
@@ -1144,13 +1144,11 @@ found:
 
 /**
  * xprt_destroy - destroy an RPC transport, killing off all requests.
- * @kref: kref for the transport to destroy
+ * @xprt: transport to destroy
  *
  */
-static void xprt_destroy(struct kref *kref)
+static void xprt_destroy(struct rpc_xprt *xprt)
 {
-	struct rpc_xprt *xprt = container_of(kref, struct rpc_xprt, kref);
-
 	dprintk("RPC:       destroying transport %p\n", xprt);
 	xprt->shutdown = 1;
 	del_timer_sync(&xprt->timer);
@@ -1174,7 +1172,8 @@ static void xprt_destroy(struct kref *kref)
  */
 void xprt_put(struct rpc_xprt *xprt)
 {
-	kref_put(&xprt->kref, xprt_destroy);
+	if (atomic_dec_and_test(&xprt->count))
+		xprt_destroy(xprt);
 }
 
 /**
@@ -1184,6 +1183,7 @@ void xprt_put(struct rpc_xprt *xprt)
  */
 struct rpc_xprt *xprt_get(struct rpc_xprt *xprt)
 {
-	kref_get(&xprt->kref);
-	return xprt;
+	if (atomic_inc_not_zero(&xprt->count))
+		return xprt;
+	return NULL;
 }
