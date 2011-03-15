@@ -2922,7 +2922,7 @@ static int receive_protocol(struct drbd_conf *mdev, enum drbd_packet cmd,
 	return true;
 
 disconnect:
-	drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+	conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 	return false;
 }
 
@@ -3101,7 +3101,7 @@ disconnect:
 	crypto_free_hash(csums_tfm);
 	/* but free the verify_tfm again, if csums_tfm did not work out */
 	crypto_free_hash(verify_tfm);
-	drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+	conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 	return false;
 }
 
@@ -3161,7 +3161,7 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packet cmd,
 		   mdev->state.disk >= D_OUTDATED &&
 		   mdev->state.conn < C_CONNECTED) {
 			dev_err(DEV, "The peer's disk size is too small!\n");
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+			conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 			mdev->ldev->dc.disk_size = my_usize;
 			put_ldev(mdev);
 			return false;
@@ -3237,7 +3237,7 @@ static int receive_uuids(struct drbd_conf *mdev, enum drbd_packet cmd,
 	    (mdev->ed_uuid & ~((u64)1)) != (p_uuid[UI_CURRENT] & ~((u64)1))) {
 		dev_err(DEV, "Can only connect to data with current UUID=%016llX\n",
 		    (unsigned long long)mdev->ed_uuid);
-		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+		conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		return false;
 	}
 
@@ -3442,7 +3442,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
 					return false;
 				D_ASSERT(os.conn == C_WF_REPORT_PARAMS);
-				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+				conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 				return false;
 			}
 		}
@@ -3467,7 +3467,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 		tl_clear(mdev->tconn);
 		drbd_uuid_new_current(mdev);
 		clear_bit(NEW_CUR_UUID, &mdev->flags);
-		drbd_force_state(mdev, NS2(conn, C_PROTOCOL_ERROR, susp, 0));
+		conn_request_state(mdev->tconn, NS2(conn, C_PROTOCOL_ERROR, susp, 0), CS_HARD);
 		return false;
 	}
 	rv = _drbd_set_state(mdev, ns, cs_flags, NULL);
@@ -3475,7 +3475,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (rv < SS_SUCCESS) {
-		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+		conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		return false;
 	}
 
@@ -3648,7 +3648,7 @@ decode_bitmap_c(struct drbd_conf *mdev,
 	 * during all our tests. */
 
 	dev_err(DEV, "receive_bitmap_c: unknown encoding %u\n", p->encoding);
-	drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
+	conn_request_state(mdev->tconn, NS(conn, C_PROTOCOL_ERROR), CS_HARD);
 	return -EIO;
 }
 

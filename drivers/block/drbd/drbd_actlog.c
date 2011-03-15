@@ -769,7 +769,7 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 				dump_stack();
 
 				lc_put(mdev->resync, &ext->lce);
-				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+				conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 				return;
 			}
 		} else {

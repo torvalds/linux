@@ -1290,12 +1290,6 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 	ok = drbd_send_drequest(mdev, P_DATA_REQUEST, req->i.sector, req->i.size,
 				(unsigned long)req);
 
-	if (!ok) {
-		/* ?? we set C_TIMEOUT or C_BROKEN_PIPE in drbd_send();
-		 * so this is probably redundant */
-		if (mdev->state.conn >= C_CONNECTED)
-			drbd_force_state(mdev, NS(conn, C_NETWORK_FAILURE));
-	}
 	req_mod(req, ok ? HANDED_OVER_TO_NETWORK : SEND_FAILED);
 
 	return ok;
@@ -1510,7 +1504,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 			if (r > 0) {
 				dev_info(DEV, "before-resync-target handler returned %d, "
 					 "dropping connection.\n", r);
-				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+				conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 				return;
 			}
 		} else /* C_SYNC_SOURCE */ {
@@ -1523,7 +1517,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 				} else {
 					dev_info(DEV, "before-resync-source handler returned %d, "
 						 "dropping connection.\n", r);
-					drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+					conn_request_state(mdev->tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 					return;
 				}
 			}
