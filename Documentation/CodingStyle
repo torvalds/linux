@@ -659,7 +659,7 @@ There are a number of driver model diagnostic macros in <linux/device.h>
 which you should use to make sure messages are matched to the right device
 and driver, and are tagged with the right level:  dev_err(), dev_warn(),
 dev_info(), and so forth.  For messages that aren't associated with a
-particular device, <linux/kernel.h> defines pr_debug() and pr_info().
+particular device, <linux/printk.h> defines pr_debug() and pr_info().
 
 Coming up with good debugging messages can be quite a challenge; and once
 you have them, they can be a huge help for remote troubleshooting.  Such
@@ -818,7 +818,4 @@ language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
 
 Kernel CodingStyle, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/
-
---
-Last updated on 2007-July-13.
 
