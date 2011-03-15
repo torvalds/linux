@@ -421,23 +421,42 @@ void smp_call_function_many(const struct cpumask *mask,
 
 	data = &__get_cpu_var(cfd_data);
 	csd_lock(&data->csd);
+
+	/* This BUG_ON verifies our reuse assertions and can be removed */
 	BUG_ON(atomic_read(&data->refs) || !cpumask_empty(data->cpumask));
+
+	/*
+	 * The global call function queue list add and delete are protected
+	 * by a lock, but the list is traversed without any lock, relying
+	 * on the rcu list add and delete to allow safe concurrent traversal.
+	 * We reuse the call function data without waiting for any grace
+	 * period after some other cpu removes it from the global queue.
+	 * This means a cpu might find our data block as it is being
+	 * filled out.
+	 *
+	 * We hold off the interrupt handler on the other cpu by
+	 * ordering our writes to the cpu mask vs our setting of the
+	 * refs counter.  We assert only the cpu owning the data block
+	 * will set a bit in cpumask, and each bit will only be cleared
+	 * by the subject cpu.  Each cpu must first find its bit is
+	 * set and then check that refs is set indicating the element is
+	 * ready to be processed, otherwise it must skip the entry.
+	 *
+	 * On the previous iteration refs was set to 0 by another cpu.
+	 * To avoid the use of transitivity, set the counter to 0 here
+	 * so the wmb will pair with the rmb in the interrupt handler.
+	 */
+	atomic_set(&data->refs, 0);	/* convert 3rd to 1st party write */
 
 	data->csd.func = func;
 	data->csd.info = info;
+
+	/* Ensure 0 refs is visible before mask.  Also orders func and info */
+	smp_wmb();
+
+	/* We rely on the "and" being processed before the store */
 	cpumask_and(data->cpumask, mask, cpu_online_mask);
 	cpumask_clear_cpu(this_cpu, data->cpumask);
-
-	/*
-	 * We reuse the call function data without waiting for any grace
-	 * period after some other cpu removes it from the global queue.
-	 * This means a cpu might find our data block as it is writen.
-	 * The interrupt handler waits until it sees refs filled out
-	 * while its cpu mask bit is set; here we may only clear our
-	 * own cpu mask bit, and must wait to set refs until we are sure
-	 * previous writes are complete and we have obtained the lock to
-	 * add the element to the queue.
-	 */
 
 	spin_lock_irqsave(&call_function.lock, flags);
 	/*
@@ -447,8 +466,9 @@ void smp_call_function_many(const struct cpumask *mask,
 	 */
 	list_add_rcu(&data->csd.list, &call_function.queue);
 	/*
-	 * We rely on the wmb() in list_add_rcu to order the writes
-	 * to func, data, and cpumask before this write to refs.
+	 * We rely on the wmb() in list_add_rcu to complete our writes
+	 * to the cpumask before this write to refs, which indicates
+	 * data is on the list and is ready to be processed.
 	 */
 	atomic_set(&data->refs, cpumask_weight(data->cpumask));
 	spin_unlock_irqrestore(&call_function.lock, flags);
