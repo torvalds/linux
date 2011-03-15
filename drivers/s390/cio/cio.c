@@ -630,11 +630,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 	irb = (struct irb *)&S390_lowcore.irb;
 	do {
 		kstat_cpu(smp_processor_id()).irqs[IO_INTERRUPT]++;
-		/*
-		 * Non I/O-subchannel thin interrupts are processed differently
-		 */
-		if (tpi_info->adapter_IO == 1 &&
-		    tpi_info->int_type == IO_INTERRUPT_TYPE) {
+		if (tpi_info->adapter_IO) {
 			do_adapter_IO(tpi_info->isc);
 			continue;
 		}

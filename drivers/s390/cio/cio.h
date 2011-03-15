@@ -105,8 +105,6 @@ struct subchannel {
 	struct schib_config config;
 } __attribute__ ((aligned(8)));
 
-#define IO_INTERRUPT_TYPE	   0 /* I/O interrupt type */
-
 #define to_subchannel(n) container_of(n, struct subchannel, dev)
 
 extern int cio_validate_subchannel (struct subchannel *, struct subchannel_id);
