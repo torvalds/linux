@@ -864,7 +864,7 @@ int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 
 	dss_sys_clk = dss_clk_get_rate(DSS_CLK_SYSCK);
 
-	max_dss_fck = dss_feat_get_max_dss_fck();
+	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 
 	if (req_pck == dsi.cache_req_pck &&
 			dsi.cache_cinfo.clkin == dss_sys_clk) {

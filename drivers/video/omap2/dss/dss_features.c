@@ -33,6 +33,10 @@ struct dss_reg_field {
 	u8 start, end;
 };
 
+struct dss_param_range {
+	int min, max;
+};
+
 struct omap_dss_features {
 	const struct dss_reg_field *reg_fields;
 	const int num_reg_fields;
@@ -41,10 +45,10 @@ struct omap_dss_features {
 
 	const int num_mgrs;
 	const int num_ovls;
-	const unsigned long max_dss_fck;
 	const enum omap_display_type *supported_displays;
 	const enum omap_color_mode *supported_color_modes;
 	const char * const *clksrc_names;
+	const struct dss_param_range *dss_params;
 };
 
 /* This struct is assigned to one of the below during initialization */
@@ -179,6 +183,18 @@ static const char * const omap4_dss_clk_source_names[] = {
 	[DSS_CLK_SRC_FCK]			= "DSS_FCLK",
 };
 
+static const struct dss_param_range omap2_dss_param_range[] = {
+	[FEAT_PARAM_DSS_FCK]	= { 0, 173000000 },
+};
+
+static const struct dss_param_range omap3_dss_param_range[] = {
+	[FEAT_PARAM_DSS_FCK]	= { 0, 173000000 },
+};
+
+static const struct dss_param_range omap4_dss_param_range[] = {
+	[FEAT_PARAM_DSS_FCK]	= { 0, 186000000 },
+};
+
 /* OMAP2 DSS Features */
 static struct omap_dss_features omap2_dss_features = {
 	.reg_fields = omap2_dss_reg_fields,
@@ -191,10 +207,10 @@ static struct omap_dss_features omap2_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.max_dss_fck = 173000000,
 	.supported_displays = omap2_dss_supported_displays,
 	.supported_color_modes = omap2_dss_supported_color_modes,
 	.clksrc_names = omap2_dss_clk_source_names,
+	.dss_params = omap2_dss_param_range,
 };
 
 /* OMAP3 DSS Features */
@@ -210,10 +226,10 @@ static struct omap_dss_features omap3430_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.max_dss_fck = 173000000,
 	.supported_displays = omap3430_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.clksrc_names = omap3_dss_clk_source_names,
+	.dss_params = omap3_dss_param_range,
 };
 
 static struct omap_dss_features omap3630_dss_features = {
@@ -229,10 +245,10 @@ static struct omap_dss_features omap3630_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.max_dss_fck = 173000000,
 	.supported_displays = omap3630_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.clksrc_names = omap3_dss_clk_source_names,
+	.dss_params = omap3_dss_param_range,
 };
 
 /* OMAP4 DSS Features */
@@ -247,10 +263,10 @@ static struct omap_dss_features omap4_dss_features = {
 
 	.num_mgrs = 3,
 	.num_ovls = 3,
-	.max_dss_fck = 186000000,
 	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.clksrc_names = omap4_dss_clk_source_names,
+	.dss_params = omap4_dss_param_range,
 };
 
 /* Functions returning values related to a DSS feature */
@@ -264,10 +280,14 @@ int dss_feat_get_num_ovls(void)
 	return omap_current_dss_features->num_ovls;
 }
 
-/* Max supported DSS FCK in Hz */
-unsigned long dss_feat_get_max_dss_fck(void)
+unsigned long dss_feat_get_param_min(enum dss_range_param param)
 {
-	return omap_current_dss_features->max_dss_fck;
+	return omap_current_dss_features->dss_params[param].min;
+}
+
+unsigned long dss_feat_get_param_max(enum dss_range_param param)
+{
+	return omap_current_dss_features->dss_params[param].max;
 }
 
 enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel)
