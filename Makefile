@@ -1022,7 +1022,7 @@ hdr-dst = $(if $(KBUILD_HEADERS), dst=include/asm-$(hdr-arch), dst=include/asm)
 
 PHONY += __headers
 __headers: include/linux/version.h scripts_basic FORCE
-	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+	$(Q)$(MAKE) $(build)=scripts build_unifdef
 
 PHONY += headers_install_all
 headers_install_all:
