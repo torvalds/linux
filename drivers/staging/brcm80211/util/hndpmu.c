@@ -34,7 +34,6 @@
 
 /* debug-only definitions */
 /* #define BCMDBG_FORCEHT */
-/* #define CHIPC_UART_ALWAYS_ON */
 #else
 #define	PMU_MSG(args)
 #endif				/* BCMDBG */
@@ -2510,11 +2509,6 @@ void si_pmu_chip_init(si_t *sih)
 	uint origidx;
 
 	ASSERT(sih->cccaps & CC_CAP_PMU);
-
-#ifdef CHIPC_UART_ALWAYS_ON
-	si_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, clk_ctl_st),
-		   CCS_FORCEALP, CCS_FORCEALP);
-#endif				/* CHIPC_UART_ALWAYS_ON */
 
 	/* Gate off SPROM clock and chip select signals */
 	si_pmu_sprom_enable(sih, false);
