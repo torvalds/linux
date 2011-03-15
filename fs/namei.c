@@ -1467,19 +1467,13 @@ last_component:
 			nd->last_type = type;
 			return 0;
 		}
-		err = walk_component(nd, &next, &this, type,
-					lookup_flags & LOOKUP_FOLLOW);
+		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
 		if (err < 0)
 			return err;
 		if (err) {
 			err = do_follow_link(&next, nd);
 			if (err)
 				return err;
-		}
-		if (lookup_flags & LOOKUP_DIRECTORY) {
-			err = -ENOTDIR; 
-			if (!nd->inode->i_op->lookup)
-				break;
 		}
 		return 0;
 	}
