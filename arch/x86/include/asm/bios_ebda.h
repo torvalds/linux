@@ -4,11 +4,14 @@
 #include <asm/io.h>
 
 /*
- * there is a real-mode segmented pointer pointing to the
- * 4K EBDA area at 0x40E.
+ * Returns physical address of EBDA.  Returns 0 if there is no EBDA.
  */
 static inline unsigned int get_bios_ebda(void)
 {
+	/*
+	 * There is a real-mode segmented pointer pointing to the
+	 * 4K EBDA area at 0x40E.
+	 */
 	unsigned int address = *(unsigned short *)phys_to_virt(0x40E);
 	address <<= 4;
 	return address;	/* 0 means none */
