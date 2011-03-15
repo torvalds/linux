@@ -34,6 +34,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <plat/display.h>
 
 #include <plat/board.h>
 #include <plat/common.h>
@@ -49,6 +50,8 @@
 #define GPIO_HUB_NRESET		62
 #define GPIO_WIFI_PMENA		43
 #define GPIO_WIFI_IRQ		53
+#define HDMI_GPIO_HPD 60 /* Hot plug pin for HDMI */
+#define HDMI_GPIO_LS_OE 41 /* Level shifter for HDMI */
 
 /* wl127x BT, FM, GPS connectivity chip */
 static int wl1271_gpios[] = {46, -1, -1};
@@ -467,6 +470,76 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
+static void omap4_panda_hdmi_mux_init(void)
+{
+	/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
+	omap_mux_init_signal("hdmi_hpd",
+			OMAP_PIN_INPUT_PULLUP);
+	omap_mux_init_signal("hdmi_cec",
+			OMAP_PIN_INPUT_PULLUP);
+	/* PAD0_HDMI_DDC_SCL_PAD1_HDMI_DDC_SDA */
+	omap_mux_init_signal("hdmi_ddc_scl",
+			OMAP_PIN_INPUT_PULLUP);
+	omap_mux_init_signal("hdmi_ddc_sda",
+			OMAP_PIN_INPUT_PULLUP);
+}
+
+static int omap4_panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
+{
+	int status;
+
+	status = gpio_request_one(HDMI_GPIO_HPD, GPIOF_OUT_INIT_HIGH,
+							"hdmi_gpio_hpd");
+	if (status) {
+		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_HPD);
+		return status;
+	}
+	status = gpio_request_one(HDMI_GPIO_LS_OE, GPIOF_OUT_INIT_HIGH,
+							"hdmi_gpio_ls_oe");
+	if (status) {
+		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_LS_OE);
+		goto error1;
+	}
+
+	return 0;
+
+error1:
+	gpio_free(HDMI_GPIO_HPD);
+
+	return status;
+}
+
+static void omap4_panda_panel_disable_hdmi(struct omap_dss_device *dssdev)
+{
+	gpio_free(HDMI_GPIO_LS_OE);
+	gpio_free(HDMI_GPIO_HPD);
+}
+
+static struct omap_dss_device  omap4_panda_hdmi_device = {
+	.name = "hdmi",
+	.driver_name = "hdmi_panel",
+	.type = OMAP_DISPLAY_TYPE_HDMI,
+	.platform_enable = omap4_panda_panel_enable_hdmi,
+	.platform_disable = omap4_panda_panel_disable_hdmi,
+	.channel = OMAP_DSS_CHANNEL_DIGIT,
+};
+
+static struct omap_dss_device *omap4_panda_dss_devices[] = {
+	&omap4_panda_hdmi_device,
+};
+
+static struct omap_dss_board_info omap4_panda_dss_data = {
+	.num_devices	= ARRAY_SIZE(omap4_panda_dss_devices),
+	.devices	= omap4_panda_dss_devices,
+	.default_device	= &omap4_panda_hdmi_device,
+};
+
+void omap4_panda_display_init(void)
+{
+	omap4_panda_hdmi_mux_init();
+	omap_display_init(&omap4_panda_dss_data);
+}
+
 static void __init omap4_panda_init(void)
 {
 	int package = OMAP_PACKAGE_CBS;
@@ -485,6 +558,7 @@ static void __init omap4_panda_init(void)
 	omap4_twl6030_hsmmc_init(mmc);
 	omap4_ehci_init();
 	usb_musb_init(&musb_board_data);
+	omap4_panda_display_init();
 }
 
 static void __init omap4_panda_map_io(void)
