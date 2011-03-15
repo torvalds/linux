@@ -4564,6 +4564,7 @@ static void rtl8169_reset_task(struct work_struct *work)
 	struct rtl8169_private *tp =
 		container_of(work, struct rtl8169_private, task.work);
 	struct net_device *dev = tp->dev;
+	int i;
 
 	rtnl_lock();
 
@@ -4572,19 +4573,15 @@ static void rtl8169_reset_task(struct work_struct *work)
 
 	rtl8169_wait_for_quiescence(dev);
 
-	rtl8169_rx_interrupt(dev, tp, tp->mmio_addr, ~(u32)0);
+	for (i = 0; i < NUM_RX_DESC; i++)
+		rtl8169_mark_to_asic(tp->RxDescArray + i, rx_buf_sz);
+
 	rtl8169_tx_clear(tp);
 
-	if (tp->dirty_rx == tp->cur_rx) {
-		rtl8169_init_ring_indexes(tp);
-		rtl_hw_start(dev);
-		netif_wake_queue(dev);
-		rtl8169_check_link_status(dev, tp, tp->mmio_addr);
-	} else {
-		if (net_ratelimit())
-			netif_emerg(tp, intr, dev, "Rx buffers shortage\n");
-		rtl8169_schedule_work(dev, rtl8169_reset_task);
-	}
+	rtl8169_init_ring_indexes(tp);
+	rtl_hw_start(dev);
+	netif_wake_queue(dev);
+	rtl8169_check_link_status(dev, tp, tp->mmio_addr);
 
 out_unlock:
 	rtnl_unlock();
@@ -4889,20 +4886,12 @@ static struct sk_buff *rtl8169_try_rx_copy(void *data,
 	return skb;
 }
 
-/*
- * Warning : rtl8169_rx_interrupt() might be called :
- * 1) from NAPI (softirq) context
- *	(polling = 1 : we should call netif_receive_skb())
- * 2) from process context (rtl8169_reset_task())
- *	(polling = 0 : we must call netif_rx() instead)
- */
 static int rtl8169_rx_interrupt(struct net_device *dev,
 				struct rtl8169_private *tp,
 				void __iomem *ioaddr, u32 budget)
 {
 	unsigned int cur_rx, rx_left;
 	unsigned int count;
-	int polling = (budget != ~(u32)0) ? 1 : 0;
 
 	cur_rx = tp->cur_rx;
 	rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
@@ -4962,10 +4951,7 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 
 			rtl8169_rx_vlan_tag(desc, skb);
 
-			if (likely(polling))
-				napi_gro_receive(&tp->napi, skb);
-			else
-				netif_rx(skb);
+			napi_gro_receive(&tp->napi, skb);
 
 			dev->stats.rx_bytes += pkt_size;
 			dev->stats.rx_packets++;
