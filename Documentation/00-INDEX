@@ -328,8 +328,6 @@ sysrq.txt
 	- info on the magic SysRq key.
 telephony/
 	- directory with info on telephony (e.g. voice over IP) support.
-time_interpolators.txt
-	- info on time interpolators.
 uml/
 	- directory with information about User Mode Linux.
 unicode.txt
@@ -346,8 +344,6 @@ vm/
 	- directory with info on the Linux vm code.
 volatile-considered-harmful.txt
 	- Why the "volatile" type class should not be used
-voyager.txt
-	- guide to running Linux on the Voyager architecture.
 w1/
 	- directory with documents regarding the 1-wire (w1) subsystem.
 watchdog/
