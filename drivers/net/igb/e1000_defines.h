@@ -51,6 +51,7 @@
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_1000BASE_KX  0x00400000
 #define E1000_CTRL_EXT_LINK_MODE_SGMII   0x00800000
+#define E1000_CTRL_EXT_LINK_MODE_GMII   0x00000000
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_IRCA           0x00000001
 /* Interrupt delay cancellation */
@@ -787,6 +788,10 @@
 #define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
 #define E1000_MDIC_DEST      0x80000000
+
+/* Thermal Sensor */
+#define E1000_THSTAT_PWR_DOWN       0x00000001 /* Power Down Event */
+#define E1000_THSTAT_LINK_THROTTLE  0x00000002 /* Link Speed Throttle Event */
 
 /* Energy Efficient Ethernet */
 #define E1000_IPCNFG_EEE_1G_AN       0x00000008  /* EEE Enable 1G AN */
