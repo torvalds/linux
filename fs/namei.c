@@ -779,40 +779,6 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 	return error;
 }
 
-/*
- * This limits recursive symlink follows to 8, while
- * limiting consecutive symlinks to 40.
- *
- * Without that kind of total limit, nasty chains of consecutive
- * symlinks can cause almost arbitrarily long lookups. 
- */
-static inline int do_follow_link(struct path *path, struct nameidata *nd)
-{
-	void *cookie;
-	int err = -ELOOP;
-
-	if (current->link_count >= MAX_NESTED_LINKS)
-		goto loop;
-	if (current->total_link_count >= 40)
-		goto loop;
-	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
-	cond_resched();
-	current->link_count++;
-	current->total_link_count++;
-	nd->depth++;
-	err = __do_follow_link(path, nd, &cookie);
-	if (!IS_ERR(cookie) && path->dentry->d_inode->i_op->put_link)
-		path->dentry->d_inode->i_op->put_link(path->dentry, nd, cookie);
-	path_put(path);
-	current->link_count--;
-	nd->depth--;
-	return err;
-loop:
-	path_put_conditional(path, nd);
-	path_put(&nd->path);
-	return err;
-}
-
 static int follow_up_rcu(struct path *path)
 {
 	struct vfsmount *parent;
@@ -1367,6 +1333,52 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 }
 
 /*
+ * This limits recursive symlink follows to 8, while
+ * limiting consecutive symlinks to 40.
+ *
+ * Without that kind of total limit, nasty chains of consecutive
+ * symlinks can cause almost arbitrarily long lookups.
+ */
+static inline int nested_symlink(struct path *path, struct nameidata *nd)
+{
+	int res;
+
+	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
+	if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
+		path_put_conditional(path, nd);
+		path_put(&nd->path);
+		return -ELOOP;
+	}
+
+	nd->depth++;
+	current->link_count++;
+
+	do {
+		struct path link = *path;
+		void *cookie;
+		if (unlikely(current->total_link_count >= 40)) {
+			path_put_conditional(path, nd);
+			path_put(&nd->path);
+			res = -ELOOP;
+			break;
+		}
+		cond_resched();
+		current->total_link_count++;
+		res = __do_follow_link(&link, nd, &cookie);
+		if (!res)
+			res = walk_component(nd, path, &nd->last,
+					     nd->last_type, LOOKUP_FOLLOW);
+		if (!IS_ERR(cookie) && link.dentry->d_inode->i_op->put_link)
+			link.dentry->d_inode->i_op->put_link(link.dentry, nd, cookie);
+		path_put(&link);
+	} while (res > 0);
+
+	current->link_count--;
+	nd->depth--;
+	return res;
+}
+
+/*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
  * the final dentry. We expect 'base' to be positive and a directory.
@@ -1384,9 +1396,6 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		name++;
 	if (!*name)
 		return 0;
-
-	if (nd->depth)
-		lookup_flags = LOOKUP_FOLLOW | (nd->flags & LOOKUP_CONTINUE);
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
@@ -1440,14 +1449,14 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			goto last_component;
 		while (*++name == '/');
 		if (!*name)
-			goto last_with_slashes;
+			goto last_component;
 
 		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
 		if (err < 0)
 			return err;
 
 		if (err) {
-			err = do_follow_link(&next, nd);
+			err = nested_symlink(&next, nd);
 			if (err)
 				return err;
 		}
@@ -1457,24 +1466,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		continue;
 		/* here ends the main loop */
 
-last_with_slashes:
-		lookup_flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 last_component:
 		/* Clear LOOKUP_CONTINUE iff it was previously unset */
 		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
-		if (lookup_flags & LOOKUP_PARENT) {
-			nd->last = this;
-			nd->last_type = type;
-			return 0;
-		}
-		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
-		if (err < 0)
-			return err;
-		if (err) {
-			err = do_follow_link(&next, nd);
-			if (err)
-				return err;
-		}
+		nd->last = this;
+		nd->last_type = type;
 		return 0;
 	}
 	terminate_walk(nd);
