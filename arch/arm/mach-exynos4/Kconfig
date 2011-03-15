@@ -129,6 +129,7 @@ config MACH_ARMLEX4210
 	select S3C_DEV_HSMMC3
 	select EXYNOS4_DEV_SYSMMU
 	select EXYNOS4_SETUP_SDHCI
+	select SATA_AHCI_PLATFORM
 	help
 	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
 

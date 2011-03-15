@@ -158,6 +158,7 @@ static struct platform_device *armlex4210_devices[] __initdata = {
 	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
 	&armlex4210_smsc911x,
+	&exynos4_device_ahci,
 };
 
 static void __init armlex4210_smsc911x_init(void)

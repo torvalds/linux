@@ -432,6 +432,12 @@ static struct clk init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_lcd1_ctrl,
 		.ctrlbit	= (1 << 0),
 	}, {
+		.name		= "sataphy",
+		.id		= -1,
+		.parent		= &clk_aclk_133.clk,
+		.enable		= exynos4_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 3),
+	}, {
 		.name		= "hsmmc",
 		.id		= 0,
 		.parent		= &clk_aclk_133.clk,
@@ -464,6 +470,7 @@ static struct clk init_clocks_off[] = {
 	}, {
 		.name		= "sata",
 		.id		= -1,
+		.parent		= &clk_aclk_133.clk,
 		.enable		= exynos4_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 10),
 	}, {
