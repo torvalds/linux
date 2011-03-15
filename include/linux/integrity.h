@@ -12,6 +12,13 @@
 
 #include <linux/fs.h>
 
+enum integrity_status {
+	INTEGRITY_PASS = 0,
+	INTEGRITY_FAIL,
+	INTEGRITY_NOLABEL,
+	INTEGRITY_UNKNOWN,
+};
+
 #ifdef CONFIG_INTEGRITY
 extern int integrity_inode_alloc(struct inode *inode);
 extern void integrity_inode_free(struct inode *inode);
