@@ -637,3 +637,12 @@ Why:	The original implementation of memsw feature enabled by
 Who:	Michal Hocko <mhocko@suse.cz>
 
 ----------------------------
+
+What:	ipt_addrtype match include file
+When:	2012
+Why:	superseded by xt_addrtype
+Who:	Florian Westphal <fw@strlen.de>
+Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
+>>>>>>> 2f5dc63123905a89d4260ab8ee08d19ec104db04
+
+----------------------------

@@ -680,6 +680,16 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 	atomic_dec(&dest->refcnt);
 }
 
+static int expire_quiescent_template(struct netns_ipvs *ipvs,
+				     struct ip_vs_dest *dest)
+{
+#ifdef CONFIG_SYSCTL
+	return ipvs->sysctl_expire_quiescent_template &&
+		(atomic_read(&dest->weight) == 0);
+#else
+	return 0;
+#endif
+}
 
 /*
  *	Checking if the destination of a connection template is available.
@@ -696,8 +706,7 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 	 */
 	if ((dest == NULL) ||
 	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
-	    (ipvs->sysctl_expire_quiescent_template &&
-	     (atomic_read(&dest->weight) == 0))) {
+	    expire_quiescent_template(ipvs, dest)) {
 		IP_VS_DBG_BUF(9, "check_template: dest not available for "
 			      "protocol %s s:%s:%d v:%s:%d "
 			      "-> d:%s:%d\n",
