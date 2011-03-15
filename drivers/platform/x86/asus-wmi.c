@@ -946,7 +946,8 @@ static int read_brightness_max(struct asus_wmi *asus)
 static int read_brightness(struct backlight_device *bd)
 {
 	struct asus_wmi *asus = bl_get_data(bd);
-	u32 retval, err;
+	u32 retval;
+	int err;
 
 	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_BRIGHTNESS, &retval);
 
