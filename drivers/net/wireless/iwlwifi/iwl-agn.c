@@ -2537,7 +2537,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv);
 static void __iwl_down(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	int exit_pending = test_bit(STATUS_EXIT_PENDING, &priv->status);
+	int exit_pending;
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
 
