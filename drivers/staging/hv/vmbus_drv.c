@@ -47,7 +47,6 @@ struct hv_bus {
 	struct tasklet_struct event_dpc;
 };
 
-static int vmbus_match(struct device *device, struct device_driver *driver);
 static int vmbus_probe(struct device *device);
 static int vmbus_remove(struct device *device);
 static void vmbus_shutdown(struct device *device);
@@ -170,6 +169,31 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 		return ret;
 
 	return 0;
+}
+
+
+/*
+ * vmbus_match - Attempt to match the specified device to the specified driver
+ */
+static int vmbus_match(struct device *device, struct device_driver *driver)
+{
+	int match = 0;
+	struct hv_driver *drv = drv_to_hv_drv(driver);
+	struct hv_device *device_ctx = device_to_hv_device(device);
+
+	/* We found our driver ? */
+	if (memcmp(&device_ctx->dev_type, &drv->dev_type,
+		   sizeof(struct hv_guid)) == 0) {
+
+		device_ctx->drv = drv->priv;
+		DPRINT_INFO(VMBUS_DRV,
+			    "device object (%p) set to driver object (%p)",
+			    &device_ctx,
+			    device_ctx->drv);
+
+		match = 1;
+	}
+	return match;
 }
 
 /* The one and only one */
@@ -700,29 +724,6 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
 		    &device_obj->device);
 }
 
-/*
- * vmbus_match - Attempt to match the specified device to the specified driver
- */
-static int vmbus_match(struct device *device, struct device_driver *driver)
-{
-	int match = 0;
-	struct hv_driver *drv = drv_to_hv_drv(driver);
-	struct hv_device *device_ctx = device_to_hv_device(device);
-
-	/* We found our driver ? */
-	if (memcmp(&device_ctx->dev_type, &drv->dev_type,
-		   sizeof(struct hv_guid)) == 0) {
-
-		device_ctx->drv = drv->priv;
-		DPRINT_INFO(VMBUS_DRV,
-			    "device object (%p) set to driver object (%p)",
-			    &device_ctx,
-			    device_ctx->drv);
-
-		match = 1;
-	}
-	return match;
-}
 
 /*
  * vmbus_probe_failed_cb - Callback when a driver probe failed in vmbus_probe()
