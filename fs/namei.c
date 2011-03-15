@@ -737,13 +737,30 @@ static inline void path_to_nameidata(const struct path *path,
 	nd->path.dentry = path->dentry;
 }
 
+static inline void put_link(struct nameidata *nd, struct path *link, void *cookie)
+{
+	struct inode *inode = link->dentry->d_inode;
+	if (!IS_ERR(cookie) && inode->i_op->put_link)
+		inode->i_op->put_link(link->dentry, nd, cookie);
+	path_put(link);
+}
+
 static __always_inline int
-__do_follow_link(const struct path *link, struct nameidata *nd, void **p)
+follow_link(struct path *link, struct nameidata *nd, void **p)
 {
 	int error;
 	struct dentry *dentry = link->dentry;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
+
+	if (unlikely(current->total_link_count >= 40)) {
+		*p = ERR_PTR(-ELOOP); /* no ->put_link(), please */
+		path_put_conditional(link, nd);
+		path_put(&nd->path);
+		return -ELOOP;
+	}
+	cond_resched();
+	current->total_link_count++;
 
 	touch_atime(link->mnt, dentry);
 	nd_set_link(nd, NULL);
@@ -1356,21 +1373,12 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 	do {
 		struct path link = *path;
 		void *cookie;
-		if (unlikely(current->total_link_count >= 40)) {
-			path_put_conditional(path, nd);
-			path_put(&nd->path);
-			res = -ELOOP;
-			break;
-		}
-		cond_resched();
-		current->total_link_count++;
-		res = __do_follow_link(&link, nd, &cookie);
+
+		res = follow_link(&link, nd, &cookie);
 		if (!res)
 			res = walk_component(nd, path, &nd->last,
 					     nd->last_type, LOOKUP_FOLLOW);
-		if (!IS_ERR(cookie) && link.dentry->d_inode->i_op->put_link)
-			link.dentry->d_inode->i_op->put_link(link.dentry, nd, cookie);
-		path_put(&link);
+		put_link(nd, &link, cookie);
 	} while (res > 0);
 
 	current->link_count--;
@@ -1619,27 +1627,15 @@ static int path_lookupat(int dfd, const char *name,
 	err = link_path_walk(name, nd);
 
 	if (!err && !(flags & LOOKUP_PARENT)) {
-		int count = 0;
 		err = lookup_last(nd, &path);
 		while (err > 0) {
 			void *cookie;
 			struct path link = path;
-			struct inode *inode = link.dentry->d_inode;
-
-			if (count++ > 32) {
-				path_put_conditional(&path, nd);
-				path_put(&nd->path);
-				err = -ELOOP;
-				break;
-			}
-			cond_resched();
 			nd->flags |= LOOKUP_PARENT;
-			err = __do_follow_link(&link, nd, &cookie);
+			err = follow_link(&link, nd, &cookie);
 			if (!err)
 				err = lookup_last(nd, &path);
-			if (!IS_ERR(cookie) && inode->i_op->put_link)
-				inode->i_op->put_link(link.dentry, nd, cookie);
-			path_put(&link);
+			put_link(nd, &link, cookie);
 		}
 	}
 
@@ -2298,7 +2294,6 @@ static struct file *path_openat(int dfd, const char *pathname,
 	struct file *base = NULL;
 	struct file *filp;
 	struct path path;
-	int count = 0;
 	int error;
 
 	filp = get_empty_filp();
@@ -2322,35 +2317,21 @@ static struct file *path_openat(int dfd, const char *pathname,
 	filp = do_last(nd, &path, op, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path link = path;
-		struct inode *linki = link.dentry->d_inode;
 		void *cookie;
-		if (!(nd->flags & LOOKUP_FOLLOW) || count++ == 32) {
+		if (!(nd->flags & LOOKUP_FOLLOW)) {
 			path_put_conditional(&path, nd);
 			path_put(&nd->path);
 			filp = ERR_PTR(-ELOOP);
 			break;
 		}
-		/*
-		 * This is subtle. Instead of calling do_follow_link() we do
-		 * the thing by hands. The reason is that this way we have zero
-		 * link_count and path_walk() (called from ->follow_link)
-		 * honoring LOOKUP_PARENT.  After that we have the parent and
-		 * last component, i.e. we are in the same situation as after
-		 * the first path_walk().  Well, almost - if the last component
-		 * is normal we get its copy stored in nd->last.name and we will
-		 * have to putname() it when we are done. Procfs-like symlinks
-		 * just set LAST_BIND.
-		 */
 		nd->flags |= LOOKUP_PARENT;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		error = __do_follow_link(&link, nd, &cookie);
+		error = follow_link(&link, nd, &cookie);
 		if (unlikely(error))
 			filp = ERR_PTR(error);
 		else
 			filp = do_last(nd, &path, op, pathname);
-		if (!IS_ERR(cookie) && linki->i_op->put_link)
-			linki->i_op->put_link(link.dentry, nd, cookie);
-		path_put(&link);
+		put_link(nd, &link, cookie);
 	}
 out:
 	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT))
