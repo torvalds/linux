@@ -769,7 +769,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 {
 	struct p_rs_param_95 *p;
 	struct socket *sock;
-	int size, rv;
+	int size, err;
 	const int apv = mdev->tconn->agreed_pro_version;
 
 	size = apv <= 87 ? sizeof(struct p_rs_param)
@@ -813,13 +813,13 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 		if (apv >= 89)
 			strcpy(p->csums_alg, mdev->tconn->net_conf->csums_alg);
 
-		rv = !_drbd_send_cmd(mdev, sock, cmd, &p->head, size, 0);
+		err = _drbd_send_cmd(mdev, sock, cmd, &p->head, size, 0);
 	} else
-		rv = 0; /* not ok */
+		err = -EIO;
 
 	mutex_unlock(&mdev->tconn->data.mutex);
 
-	return rv;
+	return err;
 }
 
 int drbd_send_protocol(struct drbd_tconn *tconn)
