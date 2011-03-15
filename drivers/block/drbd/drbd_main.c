@@ -974,7 +974,7 @@ int drbd_send_state(struct drbd_conf *mdev)
 {
 	struct socket *sock;
 	struct p_state p;
-	int ok = 0;
+	int err = -EIO;
 
 	mutex_lock(&mdev->tconn->data.mutex);
 
@@ -982,11 +982,11 @@ int drbd_send_state(struct drbd_conf *mdev)
 	sock = mdev->tconn->data.socket;
 
 	if (likely(sock != NULL))
-		ok = !_drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
+		err = _drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
 
 	mutex_unlock(&mdev->tconn->data.mutex);
 
-	return ok;
+	return err;
 }
 
 int _conn_send_state_req(struct drbd_tconn *tconn, int vnr, enum drbd_packet cmd,
