@@ -1595,6 +1595,7 @@ extern void _drbd_wait_ee_list_empty(struct drbd_conf *mdev,
 extern void drbd_set_recv_tcq(struct drbd_conf *mdev, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_conf *mdev, struct list_head *to_be_freed);
 extern void conn_flush_workqueue(struct drbd_tconn *tconn);
+extern int drbd_connected(int vnr, void *p, void *data);
 static inline void drbd_flush_workqueue(struct drbd_conf *mdev)
 {
 	conn_flush_workqueue(mdev->tconn);

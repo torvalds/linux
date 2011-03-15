@@ -2410,6 +2410,11 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	}
 	add_disk(disk);
 
+	/* inherit the connection state */
+	mdev->state.conn = tconn->cstate;
+	if (mdev->state.conn == C_WF_REPORT_PARAMS)
+		drbd_connected(vnr, mdev, tconn);
+
 	return NO_ERROR;
 
 out_idr_remove_vol:

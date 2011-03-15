@@ -432,8 +432,8 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns)
 	if (ns.conn == C_DISCONNECTING && os.conn == C_UNCONNECTED)
 		rv = SS_IN_TRANSIENT_STATE;
 
-	if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
-		rv = SS_IN_TRANSIENT_STATE;
+	/* if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
+	   rv = SS_IN_TRANSIENT_STATE; */
 
 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
 		rv = SS_NEED_CONNECTION;

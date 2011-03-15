@@ -744,8 +744,9 @@ static int drbd_socket_okay(struct socket **sock)
 		return false;
 	}
 }
-
-static int drbd_connected(int vnr, void *p, void *data)
+/* Gets called if a connection is established, or if a new minor gets created
+   in a connection */
+int drbd_connected(int vnr, void *p, void *data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *)p;
 	int ok = 1;
