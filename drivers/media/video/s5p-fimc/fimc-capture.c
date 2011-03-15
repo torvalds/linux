@@ -527,7 +527,7 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	if (vb2_is_streaming(&fimc->vid_cap.vbq) || fimc_capture_active(fimc))
+	if (vb2_is_busy(&fimc->vid_cap.vbq) || fimc_capture_active(fimc))
 		return -EBUSY;
 
 	frame = &ctx->d_frame;

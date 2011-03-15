@@ -758,7 +758,7 @@ static void fimc_unlock(struct vb2_queue *vq)
 	mutex_unlock(&ctx->fimc_dev->lock);
 }
 
-struct vb2_ops fimc_qops = {
+static struct vb2_ops fimc_qops = {
 	.queue_setup	 = fimc_queue_setup,
 	.buf_prepare	 = fimc_buf_prepare,
 	.buf_queue	 = fimc_buf_queue,
@@ -965,7 +965,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *priv,
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 
-	if (vb2_is_streaming(vq)) {
+	if (vb2_is_busy(vq)) {
 		v4l2_err(&fimc->m2m.v4l2_dev, "queue (%d) busy\n", f->type);
 		return -EBUSY;
 	}
