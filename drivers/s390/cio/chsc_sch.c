@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 
 static void chsc_subchannel_irq(struct subchannel *sch)
 {
-	struct chsc_private *private = sch->private;
+	struct chsc_private *private = dev_get_drvdata(&sch->dev);
 	struct chsc_request *request = private->request;
 	struct irb *irb = (struct irb *)&S390_lowcore.irb;
 
@@ -80,13 +80,14 @@ static int chsc_subchannel_probe(struct subchannel *sch)
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
+	dev_set_drvdata(&sch->dev, private);
 	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 	if (ret) {
 		CHSC_MSG(0, "Failed to enable 0.%x.%04x: %d\n",
 			 sch->schid.ssid, sch->schid.sch_no, ret);
+		dev_set_drvdata(&sch->dev, NULL);
 		kfree(private);
 	} else {
-		sch->private = private;
 		if (dev_get_uevent_suppress(&sch->dev)) {
 			dev_set_uevent_suppress(&sch->dev, 0);
 			kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
@@ -100,8 +101,8 @@ static int chsc_subchannel_remove(struct subchannel *sch)
 	struct chsc_private *private;
 
 	cio_disable_subchannel(sch);
-	private = sch->private;
-	sch->private = NULL;
+	private = dev_get_drvdata(&sch->dev);
+	dev_set_drvdata(&sch->dev, NULL);
 	if (private->request) {
 		complete(&private->request->completion);
 		put_device(&sch->dev);
@@ -241,7 +242,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 	chsc_area->header.key = PAGE_DEFAULT_KEY >> 4;
 	while ((sch = chsc_get_next_subchannel(sch))) {
 		spin_lock(sch->lock);
-		private = sch->private;
+		private = dev_get_drvdata(&sch->dev);
 		if (private->request) {
 			spin_unlock(sch->lock);
 			ret = -EBUSY;
