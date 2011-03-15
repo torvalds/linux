@@ -1543,10 +1543,6 @@ void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 		break;
 	}
 
-#ifdef BCMDBG_FORCEHT
-	OR_REG(&cc->clk_ctl_st, CCS_FORCEHT);
-#endif
-
 	/* Return to original core */
 	si_setcoreidx(sih, origidx);
 }
