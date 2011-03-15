@@ -1122,10 +1122,6 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 		reiserfs_write_unlock(dir->i_sb);
 		return -EMLINK;
 	}
-	if (inode->i_nlink == 0) {
-		reiserfs_write_unlock(dir->i_sb);
-		return -ENOENT;
-	}
 
 	/* inc before scheduling so reiserfs_unlink knows we are here */
 	inc_nlink(inode);

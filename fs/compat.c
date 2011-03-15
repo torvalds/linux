@@ -262,35 +262,19 @@ static int put_compat_statfs(struct compat_statfs __user *ubuf, struct kstatfs *
  */
 asmlinkage long compat_sys_statfs(const char __user *pathname, struct compat_statfs __user *buf)
 {
-	struct path path;
-	int error;
-
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct kstatfs tmp;
-		error = vfs_statfs(&path, &tmp);
-		if (!error)
-			error = put_compat_statfs(buf, &tmp);
-		path_put(&path);
-	}
+	struct kstatfs tmp;
+	int error = user_statfs(pathname, &tmp);
+	if (!error)
+		error = put_compat_statfs(buf, &tmp);
 	return error;
 }
 
 asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user *buf)
 {
-	struct file * file;
 	struct kstatfs tmp;
-	int error;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = vfs_statfs(&file->f_path, &tmp);
+	int error = fd_statfs(fd, &tmp);
 	if (!error)
 		error = put_compat_statfs(buf, &tmp);
-	fput(file);
-out:
 	return error;
 }
 
@@ -329,41 +313,29 @@ static int put_compat_statfs64(struct compat_statfs64 __user *ubuf, struct kstat
 
 asmlinkage long compat_sys_statfs64(const char __user *pathname, compat_size_t sz, struct compat_statfs64 __user *buf)
 {
-	struct path path;
-	int error;
-
-	if (sz != sizeof(*buf))
-		return -EINVAL;
-
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct kstatfs tmp;
-		error = vfs_statfs(&path, &tmp);
-		if (!error)
-			error = put_compat_statfs64(buf, &tmp);
-		path_put(&path);
-	}
-	return error;
-}
-
-asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct compat_statfs64 __user *buf)
-{
-	struct file * file;
 	struct kstatfs tmp;
 	int error;
 
 	if (sz != sizeof(*buf))
 		return -EINVAL;
 
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = vfs_statfs(&file->f_path, &tmp);
+	error = user_statfs(pathname, &tmp);
 	if (!error)
 		error = put_compat_statfs64(buf, &tmp);
-	fput(file);
-out:
+	return error;
+}
+
+asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct compat_statfs64 __user *buf)
+{
+	struct kstatfs tmp;
+	int error;
+
+	if (sz != sizeof(*buf))
+		return -EINVAL;
+
+	error = fd_statfs(fd, &tmp);
+	if (!error)
+		error = put_compat_statfs64(buf, &tmp);
 	return error;
 }
 
@@ -2312,3 +2284,16 @@ asmlinkage long compat_sys_timerfd_gettime(int ufd,
 }
 
 #endif /* CONFIG_TIMERFD */
+
+#ifdef CONFIG_FHANDLE
+/*
+ * Exactly like fs/open.c:sys_open_by_handle_at(), except that it
+ * doesn't set the O_LARGEFILE flag.
+ */
+asmlinkage long
+compat_sys_open_by_handle_at(int mountdirfd,
+			     struct file_handle __user *handle, int flags)
+{
+	return do_handle_open(mountdirfd, handle, flags);
+}
+#endif

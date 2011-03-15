@@ -4379,7 +4379,7 @@ static int ocfs2_user_path_parent(const char __user *path,
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 
-	error = path_lookup(s, LOOKUP_PARENT, nd);
+	error = kern_path_parent(s, nd);
 	if (error)
 		putname(s);
 	else

@@ -850,7 +850,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		 * Get the parent directory, calculate the hash for last
 		 * component.
 		 */
-		err = path_lookup(sunaddr->sun_path, LOOKUP_PARENT, &nd);
+		err = kern_path_parent(sunaddr->sun_path, &nd);
 		if (err)
 			goto out_mknod_parent;
 
