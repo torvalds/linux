@@ -396,7 +396,6 @@ static void __exit
 police_cleanup_module(void)
 {
 	tcf_unregister_action(&act_police_ops);
-	rcu_barrier(); /* Wait for completion of call_rcu()'s (tcf_police_free_rcu) */
 }
 
 module_init(police_init_module);
