@@ -404,7 +404,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	LIST_HEAD(work_list);
 	LIST_HEAD(reclaimed);
 	struct drbd_peer_request *peer_req, *t;
-	int ok = (mdev->state.conn >= C_WF_REPORT_PARAMS);
+	int ok = 1;
 
 	spin_lock_irq(&mdev->tconn->req_lock);
 	reclaim_net_ee(mdev, &reclaimed);
@@ -4667,37 +4667,27 @@ static int got_skip(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int _drbd_process_done_ee(int vnr, void *p, void *data)
-{
-	struct drbd_conf *mdev = (struct drbd_conf *)p;
-	return !drbd_process_done_ee(mdev);
-}
-
-static int _check_ee_empty(int vnr, void *p, void *data)
-{
-	struct drbd_conf *mdev = (struct drbd_conf *)p;
-	struct drbd_tconn *tconn = mdev->tconn;
-	int not_empty;
-
-	spin_lock_irq(&tconn->req_lock);
-	not_empty = !list_empty(&mdev->done_ee);
-	spin_unlock_irq(&tconn->req_lock);
-
-	return not_empty;
-}
-
 static int tconn_process_done_ee(struct drbd_tconn *tconn)
 {
-	int not_empty, err;
+	struct drbd_conf *mdev;
+	int i, not_empty = 0;
 
 	do {
 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
 		flush_signals(current);
-		err = idr_for_each(&tconn->volumes, _drbd_process_done_ee, NULL);
-		if (err)
-			return err;
+		idr_for_each_entry(&tconn->volumes, mdev, i) {
+			if (!drbd_process_done_ee(mdev))
+				return 1; /* error */
+		}
 		set_bit(SIGNAL_ASENDER, &tconn->flags);
-		not_empty = idr_for_each(&tconn->volumes, _check_ee_empty, NULL);
+
+		spin_lock_irq(&tconn->req_lock);
+		idr_for_each_entry(&tconn->volumes, mdev, i) {
+			not_empty = !list_empty(&mdev->done_ee);
+			if (not_empty)
+				break;
+		}
+		spin_unlock_irq(&tconn->req_lock);
 	} while (not_empty);
 
 	return 0;
@@ -4759,8 +4749,10 @@ int drbd_asender(struct drbd_thread *thi)
 		   much to send */
 		if (!tconn->net_conf->no_cork)
 			drbd_tcp_cork(tconn->meta.socket);
-		if (tconn_process_done_ee(tconn))
+		if (tconn_process_done_ee(tconn)) {
+			conn_err(tconn, "tconn_process_done_ee() failed\n");
 			goto reconnect;
+		}
 		/* but unconditionally uncork unless disabled */
 		if (!tconn->net_conf->no_cork)
 			drbd_tcp_uncork(tconn->meta.socket);
