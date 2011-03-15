@@ -61,9 +61,9 @@ static char *states[] = {
 	NULL,
 };
 
-static int dack_mode;
+static int dack_mode = 1;
 module_param(dack_mode, int, 0644);
-MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=0)");
+MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=1)");
 
 int c4iw_max_read_depth = 8;
 module_param(c4iw_max_read_depth, int, 0644);
@@ -482,6 +482,7 @@ static int send_connect(struct c4iw_ep *ep)
 	       TX_CHAN(ep->tx_chan) |
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos) |
+	       ULP_MODE(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ(rcv_win>>10);
 	opt2 = RX_CHANNEL(0) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
@@ -1274,6 +1275,7 @@ static void accept_cr(struct c4iw_ep *ep, __be32 peer_ip, struct sk_buff *skb,
 	       TX_CHAN(ep->tx_chan) |
 	       SMAC_SEL(ep->smac_idx) |
 	       DSCP(ep->tos) |
+	       ULP_MODE(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ(rcv_win>>10);
 	opt2 = RX_CHANNEL(0) |
 	       RSS_QUEUE_VALID | RSS_QUEUE(ep->rss_qid);
