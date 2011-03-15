@@ -912,6 +912,58 @@ TRACE_EVENT(drv_offchannel_tx,
 	)
 );
 
+TRACE_EVENT(drv_set_ringparam,
+	TP_PROTO(struct ieee80211_local *local, u32 tx, u32 rx),
+
+	TP_ARGS(local, tx, rx),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, tx)
+		__field(u32, rx)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->tx = tx;
+		__entry->rx = rx;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " tx:%d rx %d",
+		LOCAL_PR_ARG, __entry->tx, __entry->rx
+	)
+);
+
+TRACE_EVENT(drv_get_ringparam,
+	TP_PROTO(struct ieee80211_local *local, u32 *tx, u32 *tx_max,
+		 u32 *rx, u32 *rx_max),
+
+	TP_ARGS(local, tx, tx_max, rx, rx_max),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, tx)
+		__field(u32, tx_max)
+		__field(u32, rx)
+		__field(u32, rx_max)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->tx = *tx;
+		__entry->tx_max = *tx_max;
+		__entry->rx = *rx;
+		__entry->rx_max = *rx_max;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " tx:%d tx_max %d rx %d rx_max %d",
+		LOCAL_PR_ARG,
+		__entry->tx, __entry->tx_max, __entry->rx, __entry->rx_max
+	)
+);
+
 DEFINE_EVENT(local_only_evt, drv_offchannel_tx_cancel_wait,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)

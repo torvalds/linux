@@ -166,7 +166,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		fi = get_frame_info(bf->bf_mpdu);
 		if (fi->retries) {
 			ath_tx_update_baw(sc, tid, fi->seqno);
-			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 1);
 		} else {
 			ath_tx_send_normal(sc, txq, NULL, &bf_head);
 		}
@@ -1194,16 +1194,14 @@ bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 	if (sc->sc_flags & SC_OP_INVALID)
 		return true;
 
-	/* Stop beacon queue */
-	ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+	ath9k_hw_abort_tx_dma(ah);
 
-	/* Stop data queues */
+	/* Check if any queue remains active */
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i)) {
-			txq = &sc->tx.txq[i];
-			ath9k_hw_stoptxdma(ah, txq->axq_qnum);
-			npend += ath9k_hw_numtxpending(ah, txq->axq_qnum);
-		}
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+
+		npend += ath9k_hw_numtxpending(ah, sc->tx.txq[i].axq_qnum);
 	}
 
 	if (npend)
@@ -2014,8 +2012,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		spin_lock_bh(&txq->axq_lock);
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			if (sc->sc_flags & SC_OP_TXAGGR &&
-			    !txq->txq_flush_inprogress)
+			if (sc->sc_flags & SC_OP_TXAGGR)
 				ath_txq_schedule(sc, txq);
 			spin_unlock_bh(&txq->axq_lock);
 			break;
@@ -2096,7 +2093,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (sc->sc_flags & SC_OP_TXAGGR && !txq->txq_flush_inprogress)
+		if (sc->sc_flags & SC_OP_TXAGGR)
 			ath_txq_schedule(sc, txq);
 		spin_unlock_bh(&txq->axq_lock);
 	}
@@ -2267,18 +2264,17 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		spin_lock_bh(&txq->axq_lock);
 
-		if (!txq->txq_flush_inprogress) {
-			if (!list_empty(&txq->txq_fifo_pending)) {
-				INIT_LIST_HEAD(&bf_head);
-				bf = list_first_entry(&txq->txq_fifo_pending,
-						      struct ath_buf, list);
-				list_cut_position(&bf_head,
-						  &txq->txq_fifo_pending,
-						  &bf->bf_lastbf->list);
-				ath_tx_txqaddbuf(sc, txq, &bf_head);
-			} else if (sc->sc_flags & SC_OP_TXAGGR)
-				ath_txq_schedule(sc, txq);
-		}
+		if (!list_empty(&txq->txq_fifo_pending)) {
+			INIT_LIST_HEAD(&bf_head);
+			bf = list_first_entry(&txq->txq_fifo_pending,
+					      struct ath_buf, list);
+			list_cut_position(&bf_head,
+					  &txq->txq_fifo_pending,
+					  &bf->bf_lastbf->list);
+			ath_tx_txqaddbuf(sc, txq, &bf_head);
+		} else if (sc->sc_flags & SC_OP_TXAGGR)
+			ath_txq_schedule(sc, txq);
+
 		spin_unlock_bh(&txq->axq_lock);
 	}
 }

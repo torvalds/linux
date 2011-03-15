@@ -2937,6 +2937,91 @@ static void iwl_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
+static int iwl_mac_offchannel_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
+				 struct ieee80211_channel *chan,
+				 enum nl80211_channel_type channel_type,
+				 unsigned int wait)
+{
+	struct iwl_priv *priv = hw->priv;
+	int ret;
+
+	/* Not supported if we don't have PAN */
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN))) {
+		ret = -EOPNOTSUPP;
+		goto free;
+	}
+
+	/* Not supported on pre-P2P firmware */
+	if (!(priv->contexts[IWL_RXON_CTX_PAN].interface_modes &
+					BIT(NL80211_IFTYPE_P2P_CLIENT))) {
+		ret = -EOPNOTSUPP;
+		goto free;
+	}
+
+	mutex_lock(&priv->mutex);
+
+	if (!priv->contexts[IWL_RXON_CTX_PAN].is_active) {
+		/*
+		 * If the PAN context is free, use the normal
+		 * way of doing remain-on-channel offload + TX.
+		 */
+		ret = 1;
+		goto out;
+	}
+
+	/* TODO: queue up if scanning? */
+	if (test_bit(STATUS_SCANNING, &priv->status) ||
+	    priv->_agn.offchan_tx_skb) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * max_scan_ie_len doesn't include the blank SSID or the header,
+	 * so need to add that again here.
+	 */
+	if (skb->len > hw->wiphy->max_scan_ie_len + 24 + 2) {
+		ret = -ENOBUFS;
+		goto out;
+	}
+
+	priv->_agn.offchan_tx_skb = skb;
+	priv->_agn.offchan_tx_timeout = wait;
+	priv->_agn.offchan_tx_chan = chan;
+
+	ret = iwl_scan_initiate(priv, priv->contexts[IWL_RXON_CTX_PAN].vif,
+				IWL_SCAN_OFFCH_TX, chan->band);
+	if (ret)
+		priv->_agn.offchan_tx_skb = NULL;
+ out:
+	mutex_unlock(&priv->mutex);
+ free:
+	if (ret < 0)
+		kfree_skb(skb);
+
+	return ret;
+}
+
+static int iwl_mac_offchannel_tx_cancel_wait(struct ieee80211_hw *hw)
+{
+	struct iwl_priv *priv = hw->priv;
+	int ret;
+
+	mutex_lock(&priv->mutex);
+
+	if (!priv->_agn.offchan_tx_skb)
+		return -EINVAL;
+
+	priv->_agn.offchan_tx_skb = NULL;
+
+	ret = iwl_scan_cancel_timeout(priv, 200);
+	if (ret)
+		ret = -EIO;
+	mutex_unlock(&priv->mutex);
+
+	return ret;
+}
+
 /*****************************************************************************
  *
  * mac80211 entry point functions
@@ -3815,6 +3900,8 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.tx_last_beacon = iwl_mac_tx_last_beacon,
 	.remain_on_channel = iwl_mac_remain_on_channel,
 	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
+	.offchannel_tx = iwl_mac_offchannel_tx,
+	.offchannel_tx_cancel_wait = iwl_mac_offchannel_tx_cancel_wait,
 };
 
 static void iwl_hw_detect(struct iwl_priv *priv)

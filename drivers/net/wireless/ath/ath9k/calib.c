@@ -262,7 +262,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * since 250us often results in NF load timeout and causes deaf
 	 * condition during stress testing 12/12/2009
 	 */
-	for (j = 0; j < 1000; j++) {
+	for (j = 0; j < 10000; j++) {
 		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
 		     AR_PHY_AGC_CONTROL_NF) == 0)
 			break;
@@ -278,7 +278,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * here, the baseband nf cal will just be capped by our present
 	 * noisefloor until the next calibration timer.
 	 */
-	if (j == 1000) {
+	if (j == 10000) {
 		ath_dbg(common, ATH_DBG_ANY,
 			"Timeout while waiting for nf to load: AR_PHY_AGC_CONTROL=0x%x\n",
 			REG_READ(ah, AR_PHY_AGC_CONTROL));

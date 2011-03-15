@@ -834,6 +834,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	rcu_read_unlock();
 
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED))
+		ieee80211_recalc_ps(local, -1);
+
 	return 0;
 }
 
@@ -2008,6 +2012,21 @@ static int ieee80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant)
 	return drv_get_antenna(local, tx_ant, rx_ant);
 }
 
+static int ieee80211_set_ringparam(struct wiphy *wiphy, u32 tx, u32 rx)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	return drv_set_ringparam(local, tx, rx);
+}
+
+static void ieee80211_get_ringparam(struct wiphy *wiphy,
+				    u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	drv_get_ringparam(local, tx, tx_max, rx, rx_max);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -2065,4 +2084,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.mgmt_frame_register = ieee80211_mgmt_frame_register,
 	.set_antenna = ieee80211_set_antenna,
 	.get_antenna = ieee80211_get_antenna,
+	.set_ringparam = ieee80211_set_ringparam,
+	.get_ringparam = ieee80211_get_ringparam,
 };
