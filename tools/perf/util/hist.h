@@ -29,6 +29,7 @@ struct events_stats {
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
 	u32 nr_unknown_events;
 	u32 nr_invalid_chains;
+	u32 nr_unknown_id;
 };
 
 enum hist_column {

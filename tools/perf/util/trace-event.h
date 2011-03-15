@@ -280,6 +280,7 @@ struct scripting_ops {
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
+			       struct perf_evsel *evsel,
 			       struct perf_session *session,
 			       struct thread *thread);
 	int (*generate_script) (const char *outfile);

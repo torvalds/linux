@@ -280,6 +280,15 @@ static int process_event_synth_stub(union perf_event *event __used,
 	return 0;
 }
 
+static int process_event_sample_stub(union perf_event *event __used,
+				     struct perf_sample *sample __used,
+				     struct perf_evsel *evsel __used,
+				     struct perf_session *session __used)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 static int process_event_stub(union perf_event *event __used,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
@@ -303,7 +312,7 @@ static int process_finished_round(union perf_event *event,
 static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 {
 	if (handler->sample == NULL)
-		handler->sample = process_event_stub;
+		handler->sample = process_event_sample_stub;
 	if (handler->mmap == NULL)
 		handler->mmap = process_event_stub;
 	if (handler->comm == NULL)
@@ -698,12 +707,19 @@ static int perf_session_deliver_event(struct perf_session *session,
 				      struct perf_event_ops *ops,
 				      u64 file_offset)
 {
+	struct perf_evsel *evsel;
+
 	dump_event(session, event, file_offset, sample);
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		dump_sample(session, event, sample);
-		return ops->sample(event, sample, session);
+		evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+		if (evsel == NULL) {
+			++session->hists.stats.nr_unknown_id;
+			return -1;
+		}
+		return ops->sample(event, sample, evsel, session);
 	case PERF_RECORD_MMAP:
 		return ops->mmap(event, sample, session);
 	case PERF_RECORD_COMM:
@@ -843,6 +859,11 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 			    "If that is not the case, consider "
 			    "reporting to linux-kernel@vger.kernel.org.\n\n",
 			    session->hists.stats.nr_unknown_events);
+	}
+
+	if (session->hists.stats.nr_unknown_id != 0) {
+		ui__warning("%u samples with id not present in the header\n",
+			    session->hists.stats.nr_unknown_id);
 	}
 
  	if (session->hists.stats.nr_invalid_chains != 0) {
