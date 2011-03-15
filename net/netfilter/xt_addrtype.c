@@ -16,6 +16,12 @@
 #include <linux/ip.h>
 #include <net/route.h>
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#include <net/ipv6.h>
+#include <net/ip6_route.h>
+#include <net/ip6_fib.h>
+#endif
+
 #include <linux/netfilter/xt_addrtype.h>
 #include <linux/netfilter/x_tables.h>
 
@@ -23,6 +29,73 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_DESCRIPTION("Xtables: address type match");
 MODULE_ALIAS("ipt_addrtype");
+MODULE_ALIAS("ip6t_addrtype");
+
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+static u32 xt_addrtype_rt6_to_type(const struct rt6_info *rt)
+{
+	u32 ret;
+
+	if (!rt)
+		return XT_ADDRTYPE_UNREACHABLE;
+
+	if (rt->rt6i_flags & RTF_REJECT)
+		ret = XT_ADDRTYPE_UNREACHABLE;
+	else
+		ret = 0;
+
+	if (rt->rt6i_flags & RTF_LOCAL)
+		ret |= XT_ADDRTYPE_LOCAL;
+	if (rt->rt6i_flags & RTF_ANYCAST)
+		ret |= XT_ADDRTYPE_ANYCAST;
+	return ret;
+}
+
+static bool match_type6(struct net *net, const struct net_device *dev,
+				const struct in6_addr *addr, u16 mask)
+{
+	int addr_type = ipv6_addr_type(addr);
+
+	if ((mask & XT_ADDRTYPE_MULTICAST) &&
+	    !(addr_type & IPV6_ADDR_MULTICAST))
+		return false;
+	if ((mask & XT_ADDRTYPE_UNICAST) && !(addr_type & IPV6_ADDR_UNICAST))
+		return false;
+	if ((mask & XT_ADDRTYPE_UNSPEC) && addr_type != IPV6_ADDR_ANY)
+		return false;
+
+	if ((XT_ADDRTYPE_LOCAL | XT_ADDRTYPE_ANYCAST |
+	     XT_ADDRTYPE_UNREACHABLE) & mask) {
+		struct rt6_info *rt;
+		u32 type;
+		int ifindex = dev ? dev->ifindex : 0;
+
+		rt = rt6_lookup(net, addr, NULL, ifindex, !!dev);
+
+		type = xt_addrtype_rt6_to_type(rt);
+
+		dst_release(&rt->dst);
+		return !!(mask & type);
+	}
+	return true;
+}
+
+static bool
+addrtype_mt6(struct net *net, const struct net_device *dev,
+	const struct sk_buff *skb, const struct xt_addrtype_info_v1 *info)
+{
+	const struct ipv6hdr *iph = ipv6_hdr(skb);
+	bool ret = true;
+
+	if (info->source)
+		ret &= match_type6(net, dev, &iph->saddr, info->source) ^
+		       (info->flags & XT_ADDRTYPE_INVERT_SOURCE);
+	if (ret && info->dest)
+		ret &= match_type6(net, dev, &iph->daddr, info->dest) ^
+		       !!(info->flags & XT_ADDRTYPE_INVERT_DEST);
+	return ret;
+}
+#endif
 
 static inline bool match_type(struct net *net, const struct net_device *dev,
 			      __be32 addr, u_int16_t mask)
@@ -53,7 +126,7 @@ addrtype_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct xt_addrtype_info_v1 *info = par->matchinfo;
-	const struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph;
 	const struct net_device *dev = NULL;
 	bool ret = true;
 
@@ -62,6 +135,11 @@ addrtype_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 	else if (info->flags & XT_ADDRTYPE_LIMIT_IFACE_OUT)
 		dev = par->out;
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+	if (par->family == NFPROTO_IPV6)
+		return addrtype_mt6(net, dev, skb, info);
+#endif
+	iph = ip_hdr(skb);
 	if (info->source)
 		ret &= match_type(net, dev, iph->saddr, info->source) ^
 		       (info->flags & XT_ADDRTYPE_INVERT_SOURCE);
@@ -98,6 +176,22 @@ static int addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
 		return -EINVAL;
 	}
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+	if (par->family == NFPROTO_IPV6) {
+		if ((info->source | info->dest) & XT_ADDRTYPE_BLACKHOLE) {
+			pr_err("ipv6 BLACKHOLE matching not supported\n");
+			return -EINVAL;
+		}
+		if ((info->source | info->dest) >= XT_ADDRTYPE_PROHIBIT) {
+			pr_err("ipv6 PROHIBT (THROW, NAT ..) matching not supported\n");
+			return -EINVAL;
+		}
+		if ((info->source | info->dest) & XT_ADDRTYPE_BROADCAST) {
+			pr_err("ipv6 does not support BROADCAST matching\n");
+			return -EINVAL;
+		}
+	}
+#endif
 	return 0;
 }
 
@@ -111,7 +205,7 @@ static struct xt_match addrtype_mt_reg[] __read_mostly = {
 	},
 	{
 		.name		= "addrtype",
-		.family		= NFPROTO_IPV4,
+		.family		= NFPROTO_UNSPEC,
 		.revision	= 1,
 		.match		= addrtype_mt_v1,
 		.checkentry	= addrtype_mt_checkentry_v1,
