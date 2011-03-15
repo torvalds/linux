@@ -768,7 +768,8 @@ __do_follow_link(const struct path *link, struct nameidata *nd, void **p)
 			error = __vfs_follow_link(nd, s);
 		else if (nd->last_type == LAST_BIND) {
 			nd->flags |= LOOKUP_JUMPED;
-			if (nd->path.dentry->d_inode->i_op->follow_link) {
+			nd->inode = nd->path.dentry->d_inode;
+			if (nd->inode->i_op->follow_link) {
 				/* stepped on a _really_ weird one */
 				path_put(&nd->path);
 				error = -ELOOP;
@@ -1449,7 +1450,6 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			err = do_follow_link(&next, nd);
 			if (err)
 				return err;
-			nd->inode = nd->path.dentry->d_inode;
 		}
 		err = -ENOTDIR; 
 		if (!nd->inode->i_op->lookup)
@@ -1475,7 +1475,6 @@ last_component:
 			err = do_follow_link(&next, nd);
 			if (err)
 				return err;
-			nd->inode = nd->path.dentry->d_inode;
 		}
 		if (lookup_flags & LOOKUP_DIRECTORY) {
 			err = -ENOTDIR; 
