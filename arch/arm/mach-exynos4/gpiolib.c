@@ -199,6 +199,55 @@ static struct s3c_gpio_chip exynos4_gpio_part2_4bit[] = {
 			.label	= "GPL2",
 		},
 	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY0(0),
+			.ngpio	= EXYNOS4_GPIO_Y0_NR,
+			.label	= "GPY0",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY1(0),
+			.ngpio	= EXYNOS4_GPIO_Y1_NR,
+			.label	= "GPY1",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY2(0),
+			.ngpio	= EXYNOS4_GPIO_Y2_NR,
+			.label	= "GPY2",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY3(0),
+			.ngpio	= EXYNOS4_GPIO_Y3_NR,
+			.label	= "GPY3",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY4(0),
+			.ngpio	= EXYNOS4_GPIO_Y4_NR,
+			.label	= "GPY4",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY5(0),
+			.ngpio	= EXYNOS4_GPIO_Y5_NR,
+			.label	= "GPY5",
+		},
+	}, {
+		.config	= &gpio_cfg_noint,
+		.chip	= {
+			.base	= EXYNOS4_GPY6(0),
+			.ngpio	= EXYNOS4_GPIO_Y6_NR,
+			.label	= "GPY6",
+		},
+	}, {
 		.base	= (S5P_VA_GPIO2 + 0xC00),
 		.config	= &gpio_cfg_noint,
 		.irq_base = IRQ_EINT(0),
