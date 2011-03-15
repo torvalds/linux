@@ -1932,7 +1932,7 @@ static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 static inline int drbd_send_cmd(struct drbd_conf *mdev, int use_data_socket,
 				enum drbd_packet cmd, struct p_header *h, size_t size)
 {
-	return conn_send_cmd(mdev->tconn, mdev->vnr, use_data_socket, cmd, h, size);
+	return !conn_send_cmd(mdev->tconn, mdev->vnr, use_data_socket, cmd, h, size);
 }
 
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
@@ -1945,13 +1945,13 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 static inline int drbd_send_ping(struct drbd_tconn *tconn)
 {
 	struct p_header h;
-	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING, &h, sizeof(h));
+	return !conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
 {
 	struct p_header h;
-	return conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
+	return !conn_send_cmd(tconn, 0, USE_META_SOCKET, P_PING_ACK, &h, sizeof(h));
 }
 
 static inline int drbd_send_state_req(struct drbd_conf *mdev,

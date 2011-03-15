@@ -739,8 +739,8 @@ int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
 int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
 		  enum drbd_packet cmd, struct p_header *h, size_t size)
 {
-	int ok = 0;
 	struct socket *sock;
+	int err = -EIO;
 
 	if (use_data_socket) {
 		mutex_lock(&tconn->data.mutex);
@@ -753,13 +753,13 @@ int conn_send_cmd(struct drbd_tconn *tconn, int vnr, int use_data_socket,
 	/* drbd_disconnect() could have called drbd_free_sock()
 	 * while we were waiting in down()... */
 	if (likely(sock != NULL))
-		ok = !_conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
+		err = _conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
 
 	if (use_data_socket)
 		mutex_unlock(&tconn->data.mutex);
 	else
 		mutex_unlock(&tconn->meta.mutex);
-	return ok;
+	return err;
 }
 
 int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
@@ -1011,7 +1011,7 @@ int _conn_send_state_req(struct drbd_tconn *tconn, int vnr, enum drbd_packet cmd
 	p.mask    = cpu_to_be32(mask.i);
 	p.val     = cpu_to_be32(val.i);
 
-	return conn_send_cmd(tconn, vnr, USE_DATA_SOCKET, cmd, &p.head, sizeof(p));
+	return !conn_send_cmd(tconn, vnr, USE_DATA_SOCKET, cmd, &p.head, sizeof(p));
 }
 
 int drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode)
@@ -1030,7 +1030,7 @@ int conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode)
 
 	p.retcode    = cpu_to_be32(retcode);
 
-	return conn_send_cmd(tconn, 0, USE_META_SOCKET, cmd, &p.head, sizeof(p));
+	return !conn_send_cmd(tconn, 0, USE_META_SOCKET, cmd, &p.head, sizeof(p));
 }
 
 int fill_bitmap_rle_bits(struct drbd_conf *mdev,
