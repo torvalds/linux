@@ -40,6 +40,26 @@ static inline void ds1286_rtc_write(struct ds1286_priv *priv, u8 data, int reg)
 	__raw_writel(data, &priv->rtcregs[reg]);
 }
 
+
+static int ds1286_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct ds1286_priv *priv = dev_get_drvdata(dev);
+	unsigned long flags;
+	unsigned char val;
+
+	/* Allow or mask alarm interrupts */
+	spin_lock_irqsave(&priv->lock, flags);
+	val = ds1286_rtc_read(priv, RTC_CMD);
+	if (enabled)
+		val &=  ~RTC_TDM;
+	else
+		val |=  RTC_TDM;
+	ds1286_rtc_write(priv, val, RTC_CMD);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 #ifdef CONFIG_RTC_INTF_DEV
 
 static int ds1286_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
@@ -49,22 +69,6 @@ static int ds1286_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 	unsigned char val;
 
 	switch (cmd) {
-	case RTC_AIE_OFF:
-		/* Mask alarm int. enab. bit	*/
-		spin_lock_irqsave(&priv->lock, flags);
-		val = ds1286_rtc_read(priv, RTC_CMD);
-		val |=  RTC_TDM;
-		ds1286_rtc_write(priv, val, RTC_CMD);
-		spin_unlock_irqrestore(&priv->lock, flags);
-		break;
-	case RTC_AIE_ON:
-		/* Allow alarm interrupts.	*/
-		spin_lock_irqsave(&priv->lock, flags);
-		val = ds1286_rtc_read(priv, RTC_CMD);
-		val &=  ~RTC_TDM;
-		ds1286_rtc_write(priv, val, RTC_CMD);
-		spin_unlock_irqrestore(&priv->lock, flags);
-		break;
 	case RTC_WIE_OFF:
 		/* Mask watchdog int. enab. bit	*/
 		spin_lock_irqsave(&priv->lock, flags);
@@ -316,12 +320,13 @@ static int ds1286_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 }
 
 static const struct rtc_class_ops ds1286_ops = {
-	.ioctl   	= ds1286_ioctl,
-	.proc   	= ds1286_proc,
+	.ioctl		= ds1286_ioctl,
+	.proc		= ds1286_proc,
 	.read_time	= ds1286_read_time,
 	.set_time	= ds1286_set_time,
 	.read_alarm	= ds1286_read_alarm,
 	.set_alarm	= ds1286_set_alarm,
+	.alarm_irq_enable = ds1286_alarm_irq_enable,
 };
 
 static int __devinit ds1286_probe(struct platform_device *pdev)

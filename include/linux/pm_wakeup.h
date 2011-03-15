@@ -109,11 +109,6 @@ static inline bool device_can_wakeup(struct device *dev)
 	return dev->power.can_wakeup;
 }
 
-static inline bool device_may_wakeup(struct device *dev)
-{
-	return false;
-}
-
 static inline struct wakeup_source *wakeup_source_create(const char *name)
 {
 	return NULL;
@@ -134,24 +129,32 @@ static inline void wakeup_source_unregister(struct wakeup_source *ws) {}
 
 static inline int device_wakeup_enable(struct device *dev)
 {
-	return -EINVAL;
+	dev->power.should_wakeup = true;
+	return 0;
 }
 
 static inline int device_wakeup_disable(struct device *dev)
 {
+	dev->power.should_wakeup = false;
+	return 0;
+}
+
+static inline int device_set_wakeup_enable(struct device *dev, bool enable)
+{
+	dev->power.should_wakeup = enable;
 	return 0;
 }
 
 static inline int device_init_wakeup(struct device *dev, bool val)
 {
-	dev->power.can_wakeup = val;
-	return val ? -EINVAL : 0;
+	device_set_wakeup_capable(dev, val);
+	device_set_wakeup_enable(dev, val);
+	return 0;
 }
 
-
-static inline int device_set_wakeup_enable(struct device *dev, bool enable)
+static inline bool device_may_wakeup(struct device *dev)
 {
-	return -EINVAL;
+	return dev->power.can_wakeup && dev->power.should_wakeup;
 }
 
 static inline void __pm_stay_awake(struct wakeup_source *ws) {}

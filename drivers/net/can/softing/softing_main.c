@@ -633,6 +633,7 @@ static const struct net_device_ops softing_netdev_ops = {
 };
 
 static const struct can_bittiming_const softing_btr_const = {
+	.name = "softing",
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,

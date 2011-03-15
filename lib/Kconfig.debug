@@ -805,7 +805,7 @@ config ARCH_WANT_FRAME_POINTERS
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
 	depends on DEBUG_KERNEL && \
-		(CRIS || M68K || M68KNOMMU || FRV || UML || \
+		(CRIS || M68K || FRV || UML || \
 		 AVR32 || SUPERH || BLACKFIN || MN10300) || \
 		ARCH_WANT_FRAME_POINTERS
 	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS

@@ -83,8 +83,6 @@ struct nfs4_delegation {
 	atomic_t		dl_count;       /* ref count */
 	struct nfs4_client	*dl_client;
 	struct nfs4_file	*dl_file;
-	struct file		*dl_vfs_file;
-	struct file_lock	*dl_flock;
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
@@ -379,6 +377,9 @@ struct nfs4_file {
 	 */
 	atomic_t		fi_readers;
 	atomic_t		fi_writers;
+	struct file		*fi_deleg_file;
+	struct file_lock	*fi_lease;
+	atomic_t		fi_delegees;
 	struct inode		*fi_inode;
 	u32                     fi_id;      /* used with stateowner->so_id 
 					     * for stateid_hashtbl hash */

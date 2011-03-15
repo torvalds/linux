@@ -1660,7 +1660,7 @@ static void encode_create_session(struct xdr_stream *xdr,
 
 	p = reserve_space(xdr, 20 + 2*28 + 20 + len + 12);
 	*p++ = cpu_to_be32(OP_CREATE_SESSION);
-	p = xdr_encode_hyper(p, clp->cl_ex_clid);
+	p = xdr_encode_hyper(p, clp->cl_clientid);
 	*p++ = cpu_to_be32(clp->cl_seqid);			/*Sequence id */
 	*p++ = cpu_to_be32(args->flags);			/*flags */
 
@@ -4694,7 +4694,7 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(!p))
 		goto out_overflow;
-	xdr_decode_hyper(p, &clp->cl_ex_clid);
+	xdr_decode_hyper(p, &clp->cl_clientid);
 	p = xdr_inline_decode(xdr, 12);
 	if (unlikely(!p))
 		goto out_overflow;

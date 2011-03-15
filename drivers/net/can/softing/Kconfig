@@ -18,7 +18,7 @@ config CAN_SOFTING
 config CAN_SOFTING_CS
 	tristate "Softing Gmbh CAN pcmcia cards"
 	depends on PCMCIA
-	select CAN_SOFTING
+	depends on CAN_SOFTING
 	---help---
 	  Support for PCMCIA cards from Softing Gmbh & some cards
 	  from Vector Gmbh.

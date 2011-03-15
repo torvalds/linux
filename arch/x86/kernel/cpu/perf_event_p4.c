@@ -770,9 +770,14 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 		return 1;
 	}
 
-	/* it might be unflagged overflow */
-	rdmsrl(hwc->event_base + hwc->idx, v);
-	if (!(v & ARCH_P4_CNTRVAL_MASK))
+	/*
+	 * In some circumstances the overflow might issue an NMI but did
+	 * not set P4_CCCR_OVF bit. Because a counter holds a negative value
+	 * we simply check for high bit being set, if it's cleared it means
+	 * the counter has reached zero value and continued counting before
+	 * real NMI signal was received:
+	 */
+	if (!(v & ARCH_P4_UNFLAGGED_BIT))
 		return 1;
 
 	return 0;

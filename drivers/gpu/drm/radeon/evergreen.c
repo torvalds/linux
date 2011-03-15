@@ -1192,7 +1192,11 @@ void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_ring_write(rdev, 1);
 	/* FIXME: implement */
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	radeon_ring_write(rdev, ib->gpu_addr & 0xFFFFFFFC);
+	radeon_ring_write(rdev,
+#ifdef __BIG_ENDIAN
+			  (2 << 0) |
+#endif
+			  (ib->gpu_addr & 0xFFFFFFFC));
 	radeon_ring_write(rdev, upper_32_bits(ib->gpu_addr) & 0xFF);
 	radeon_ring_write(rdev, ib->length_dw);
 }
@@ -1207,7 +1211,11 @@ static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 		return -EINVAL;
 
 	r700_cp_stop(rdev);
-	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (15 << 8) | (3 << 0));
+	WREG32(CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       BUF_SWAP_32BIT |
+#endif
+	       RB_NO_UPDATE | RB_BLKSZ(15) | RB_BUFSZ(3));
 
 	fw_data = (const __be32 *)rdev->pfp_fw->data;
 	WREG32(CP_PFP_UCODE_ADDR, 0);
@@ -1326,7 +1334,11 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_WPTR, 0);
 
 	/* set the wb address wether it's enabled or not */
-	WREG32(CP_RB_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB_RPTR_ADDR,
+#ifdef __BIG_ENDIAN
+	       RB_RPTR_SWAP(2) |
+#endif
+	       ((rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC));
 	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
 
@@ -2182,7 +2194,6 @@ int evergreen_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	}
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r700_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
@@ -2627,8 +2638,8 @@ restart_ih:
 	while (rptr != wptr) {
 		/* wptr/rptr are in bytes! */
 		ring_index = rptr / 4;
-		src_id =  rdev->ih.ring[ring_index] & 0xff;
-		src_data = rdev->ih.ring[ring_index + 1] & 0xfffffff;
+		src_id =  le32_to_cpu(rdev->ih.ring[ring_index]) & 0xff;
+		src_data = le32_to_cpu(rdev->ih.ring[ring_index + 1]) & 0xfffffff;
 
 		switch (src_id) {
 		case 1: /* D1 vblank/vline */
@@ -2922,7 +2933,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* XXX: ontario has problems blitting to gart at the moment */
 	if (rdev->family == CHIP_PALM) {
 		rdev->asic->copy = NULL;
-		rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	}
 
 	/* allocate wb buffer */

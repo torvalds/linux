@@ -866,8 +866,9 @@ static int popen(struct atm_vcc *vcc)
 	}
 
 	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
-	if (!skb && net_ratelimit()) {
-		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
+	if (!skb) {
+		if (net_ratelimit())
+			dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
 		return -ENOMEM;
 	}
 	header = (void *)skb_put(skb, sizeof(*header));

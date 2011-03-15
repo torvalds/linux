@@ -364,14 +364,12 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 		    tpm_protected_ordinal_duration[ordinal &
 						   TPM_PROTECTED_ORDINAL_MASK];
 
-	if (duration_idx != TPM_UNDEFINED) {
+	if (duration_idx != TPM_UNDEFINED)
 		duration = chip->vendor.duration[duration_idx];
-		/* if duration is 0, it's because chip->vendor.duration wasn't */
-		/* filled yet, so we set the lowest timeout just to give enough */
-		/* time for tpm_get_timeouts() to succeed */
-		return (duration <= 0 ? HZ : duration);
-	} else
+	if (duration <= 0)
 		return 2 * 60 * HZ;
+	else
+		return duration;
 }
 EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
 
@@ -577,11 +575,9 @@ duration:
 	if (rc)
 		return;
 
-	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
-	    be32_to_cpu(tpm_cmd.header.out.length)
-	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 3 * sizeof(u32))
+	if (be32_to_cpu(tpm_cmd.header.out.return_code)
+	    != 3 * sizeof(u32))
 		return;
-
 	duration_cap = &tpm_cmd.params.getcap_out.cap.duration;
 	chip->vendor.duration[TPM_SHORT] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_short));
@@ -940,18 +936,6 @@ ssize_t tpm_show_caps_1_2(struct device * dev,
 	return str - buf;
 }
 EXPORT_SYMBOL_GPL(tpm_show_caps_1_2);
-
-ssize_t tpm_show_timeouts(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d %d %d\n",
-	               jiffies_to_usecs(chip->vendor.duration[TPM_SHORT]),
-	               jiffies_to_usecs(chip->vendor.duration[TPM_MEDIUM]),
-	               jiffies_to_usecs(chip->vendor.duration[TPM_LONG]));
-}
-EXPORT_SYMBOL_GPL(tpm_show_timeouts);
 
 ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)

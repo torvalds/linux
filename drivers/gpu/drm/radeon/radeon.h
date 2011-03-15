@@ -345,7 +345,6 @@ struct radeon_mc {
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
-	u64			active_vram_size;
 	u64			gtt_size;
 	u64			gtt_start;
 	u64			gtt_end;
@@ -1448,6 +1447,7 @@ extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *m
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
+extern void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size);
 
 /* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
 extern bool r600_card_posted(struct radeon_device *rdev);
