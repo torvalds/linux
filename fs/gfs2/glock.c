@@ -1723,7 +1723,7 @@ static inline struct gfs2_glock *glock_hash_chain(unsigned hash)
 
 static inline struct gfs2_glock *glock_hash_next(struct gfs2_glock *gl)
 {
-	return hlist_bl_entry(rcu_dereference_raw(gl->gl_list.next),
+	return hlist_bl_entry(rcu_dereference(gl->gl_list.next),
 			      struct gfs2_glock, gl_list);
 }
 
