@@ -75,11 +75,9 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
 int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
 
 #ifdef CONFIG_PCI_MSI
-/* Allocate an irq and a pirq to be used with MSIs. */
-#define XEN_ALLOC_PIRQ (1 << 0)
-#define XEN_ALLOC_IRQ  (1 << 1)
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc_mask);
-int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type);
+int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc);
+int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
+			     int pirq, int vector, const char *name);
 #endif
 
 /* De-allocates the above mentioned physical interrupt. */
