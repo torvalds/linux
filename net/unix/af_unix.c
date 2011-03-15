@@ -1124,7 +1124,7 @@ restart:
 
 	/* Latch our state.
 
-	   It is tricky place. We need to grab write lock and cannot
+	   It is tricky place. We need to grab our state lock and cannot
 	   drop lock on peer. It is dangerous because deadlock is
 	   possible. Connect to self case and simultaneous
 	   attempt to connect are eliminated by checking socket

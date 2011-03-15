@@ -3350,7 +3350,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 						 net_invalid_timestamp()))
 					rtt_us = ktime_us_delta(ktime_get_real(),
 								last_ackt);
-				else if (ca_seq_rtt > 0)
+				else if (ca_seq_rtt >= 0)
 					rtt_us = jiffies_to_usecs(ca_seq_rtt);
 			}
 

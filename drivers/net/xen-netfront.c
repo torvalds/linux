@@ -122,7 +122,7 @@ struct netfront_info {
 	struct mmu_update rx_mmu[NET_RX_RING_SIZE];
 
 	/* Statistics */
-	int rx_gso_checksum_fixup;
+	unsigned long rx_gso_checksum_fixup;
 };
 
 struct netfront_rx_info {
@@ -1692,7 +1692,7 @@ static void xennet_get_ethtool_stats(struct net_device *dev,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(xennet_stats); i++)
-		data[i] = *(int *)(np + xennet_stats[i].offset);
+		data[i] = *(unsigned long *)(np + xennet_stats[i].offset);
 }
 
 static void xennet_get_strings(struct net_device *dev, u32 stringset, u8 * data)

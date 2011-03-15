@@ -375,12 +375,12 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	if (p->state != BR_STATE_BLOCKING)
 		return;
 
-	if (br->forward_delay == 0) {
+	if (br->stp_enabled == BR_NO_STP || br->forward_delay == 0) {
 		p->state = BR_STATE_FORWARDING;
 		br_topology_change_detection(br);
 		del_timer(&p->forward_delay_timer);
 	}
-	else if (p->br->stp_enabled == BR_KERNEL_STP)
+	else if (br->stp_enabled == BR_KERNEL_STP)
 		p->state = BR_STATE_LISTENING;
 	else
 		p->state = BR_STATE_LEARNING;
