@@ -17,6 +17,8 @@
  * Authors:
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
+ *
+ * 3/9/2011: K. Y. Srinivasan	- Significant restructuring and cleanup
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -35,10 +37,6 @@
 #include "channel.h"
 #include "vmbus_private.h"
 
-
-/* FIXME! We need to do this dynamically for PIC and APIC system */
-#define VMBUS_IRQ		0x5
-#define VMBUS_IRQ_VECTOR	IRQ5_VECTOR
 
 struct pci_dev *hv_pci_dev;
 
@@ -69,7 +67,6 @@ EXPORT_SYMBOL(vmbus_loglevel);
 	/* (ALL_MODULES << 16 | DEBUG_LVL_ENTEREXIT); */
 	/* (((VMBUS | VMBUS_DRV)<<16) | DEBUG_LVL_ENTEREXIT); */
 
-static int vmbus_irq = VMBUS_IRQ;
 
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct device_attribute vmbus_device_attrs[] = {
@@ -369,7 +366,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
  *	- get the irq resource
  *	- retrieve the channel offers
  */
-static int vmbus_bus_init(void)
+static int vmbus_bus_init(struct pci_dev *pdev)
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &vmbus_drv;
 	int ret;
@@ -412,21 +409,23 @@ static int vmbus_bus_init(void)
 	}
 
 	/* Get the interrupt resource */
-	ret = request_irq(vmbus_irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
-			  driver_name, NULL);
+	ret = request_irq(pdev->irq, vmbus_isr,
+			  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+			  driver_name, pdev);
 
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "ERROR - Unable to request IRQ %d",
-			   vmbus_irq);
+			   pdev->irq);
 
 		bus_unregister(&vmbus_drv_ctx->bus);
 
 		ret = -1;
 		goto cleanup;
 	}
-	vector = VMBUS_IRQ_VECTOR;
 
-	DPRINT_INFO(VMBUS_DRV, "irq 0x%x vector 0x%x", vmbus_irq, vector);
+	vector = IRQ0_VECTOR + pdev->irq;
+	DPRINT_INFO(VMBUS_DRV, "irq 0x%x vector 0x%x", pdev->irq,
+			vector);
 
 	/*
 	 * Notify the hypervisor of our irq and
@@ -435,7 +434,7 @@ static int vmbus_bus_init(void)
 	on_each_cpu(hv_synic_init, (void *)&vector, 1);
 	ret = vmbus_connect();
 	if (ret) {
-		free_irq(vmbus_irq, NULL);
+		free_irq(pdev->irq, pdev);
 		bus_unregister(&vmbus_drv_ctx->bus);
 		goto cleanup;
 	}
@@ -466,7 +465,7 @@ static void vmbus_bus_exit(void)
 
 	bus_unregister(&vmbus_drv_ctx->bus);
 
-	free_irq(vmbus_irq, NULL);
+	free_irq(hv_pci_dev->irq, hv_pci_dev);
 
 	tasklet_kill(&vmbus_drv_ctx->msg_dpc);
 	tasklet_kill(&vmbus_drv_ctx->event_dpc);
@@ -878,7 +877,7 @@ static int __devinit hv_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	err = vmbus_bus_init();
+	err = vmbus_bus_init(pdev);
 	if (err)
 		pci_disable_device(pdev);
 
@@ -918,7 +917,6 @@ static void __exit hv_pci_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
-module_param(vmbus_irq, int, S_IRUGO);
 module_param(vmbus_loglevel, int, S_IRUGO);
 
 module_init(hv_pci_init);
