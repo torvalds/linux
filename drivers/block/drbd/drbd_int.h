@@ -1930,14 +1930,14 @@ static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 static inline int drbd_send_cmd(struct drbd_conf *mdev, struct drbd_socket *sock,
 				enum drbd_packet cmd, struct p_header *h, size_t size)
 {
-	return !conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size);
+	return conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size);
 }
 
 static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 				      enum drbd_packet cmd)
 {
 	struct p_header h;
-	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
+	return !drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping(struct drbd_tconn *tconn)
