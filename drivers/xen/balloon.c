@@ -128,14 +128,17 @@ static void balloon_append(struct page *page)
 }
 
 /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
-static struct page *balloon_retrieve(void)
+static struct page *balloon_retrieve(bool prefer_highmem)
 {
 	struct page *page;
 
 	if (list_empty(&ballooned_pages))
 		return NULL;
 
-	page = list_entry(ballooned_pages.next, struct page, lru);
+	if (prefer_highmem)
+		page = list_entry(ballooned_pages.prev, struct page, lru);
+	else
+		page = list_entry(ballooned_pages.next, struct page, lru);
 	list_del(&page->lru);
 
 	if (PageHighMem(page)) {
@@ -233,7 +236,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 		return BP_EAGAIN;
 
 	for (i = 0; i < rc; i++) {
-		page = balloon_retrieve();
+		page = balloon_retrieve(false);
 		BUG_ON(page == NULL);
 
 		pfn = page_to_pfn(page);
@@ -263,7 +266,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 	return BP_DONE;
 }
 
-static enum bp_state decrease_reservation(unsigned long nr_pages)
+static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 {
 	enum bp_state state = BP_DONE;
 	unsigned long  pfn, i;
@@ -279,7 +282,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages)
 		nr_pages = ARRAY_SIZE(frame_list);
 
 	for (i = 0; i < nr_pages; i++) {
-		if ((page = alloc_page(GFP_BALLOON)) == NULL) {
+		if ((page = alloc_page(gfp)) == NULL) {
 			nr_pages = i;
 			state = BP_EAGAIN;
 			break;
@@ -340,7 +343,7 @@ static void balloon_process(struct work_struct *work)
 			state = increase_reservation(credit);
 
 		if (credit < 0)
-			state = decrease_reservation(-credit);
+			state = decrease_reservation(-credit, GFP_BALLOON);
 
 		state = update_schedule(state);
 
@@ -365,6 +368,64 @@ void balloon_set_new_target(unsigned long target)
 	schedule_delayed_work(&balloon_worker, 0);
 }
 EXPORT_SYMBOL_GPL(balloon_set_new_target);
+
+/**
+ * alloc_xenballooned_pages - get pages that have been ballooned out
+ * @nr_pages: Number of pages to get
+ * @pages: pages returned
+ * @return 0 on success, error otherwise
+ */
+int alloc_xenballooned_pages(int nr_pages, struct page** pages)
+{
+	int pgno = 0;
+	struct page* page;
+	mutex_lock(&balloon_mutex);
+	while (pgno < nr_pages) {
+		page = balloon_retrieve(true);
+		if (page) {
+			pages[pgno++] = page;
+		} else {
+			enum bp_state st;
+			st = decrease_reservation(nr_pages - pgno, GFP_HIGHUSER);
+			if (st != BP_DONE)
+				goto out_undo;
+		}
+	}
+	mutex_unlock(&balloon_mutex);
+	return 0;
+ out_undo:
+	while (pgno)
+		balloon_append(pages[--pgno]);
+	/* Free the memory back to the kernel soon */
+	schedule_delayed_work(&balloon_worker, 0);
+	mutex_unlock(&balloon_mutex);
+	return -ENOMEM;
+}
+EXPORT_SYMBOL(alloc_xenballooned_pages);
+
+/**
+ * free_xenballooned_pages - return pages retrieved with get_ballooned_pages
+ * @nr_pages: Number of pages
+ * @pages: pages to return
+ */
+void free_xenballooned_pages(int nr_pages, struct page** pages)
+{
+	int i;
+
+	mutex_lock(&balloon_mutex);
+
+	for (i = 0; i < nr_pages; i++) {
+		if (pages[i])
+			balloon_append(pages[i]);
+	}
+
+	/* The balloon may be too large now. Shrink it if needed. */
+	if (current_target() != balloon_stats.current_pages)
+		schedule_delayed_work(&balloon_worker, 0);
+
+	mutex_unlock(&balloon_mutex);
+}
+EXPORT_SYMBOL(free_xenballooned_pages);
 
 static int __init balloon_init(void)
 {
