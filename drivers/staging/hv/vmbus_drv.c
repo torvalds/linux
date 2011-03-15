@@ -47,7 +47,6 @@ struct hv_bus {
 	struct tasklet_struct event_dpc;
 };
 
-static int vmbus_remove(struct device *device);
 static void vmbus_shutdown(struct device *device);
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id);
@@ -246,6 +245,35 @@ static int vmbus_probe(struct device *child_device)
 		ret = -1;
 	}
 	return ret;
+}
+
+/*
+ * vmbus_remove - Remove a vmbus device
+ */
+static int vmbus_remove(struct device *child_device)
+{
+	int ret;
+	struct hv_driver *drv;
+
+
+	if (child_device->driver) {
+		drv = drv_to_hv_drv(child_device->driver);
+
+		/*
+		 * Let the specific open-source driver handles the removal if
+		 * it can
+		 */
+		if (drv->driver.remove) {
+			ret = drv->driver.remove(child_device);
+		} else {
+			DPRINT_ERR(VMBUS_DRV,
+				   "remove() method not set for driver - %s",
+				   child_device->driver->name);
+			ret = -1;
+		}
+	}
+
+	return 0;
 }
 
 /* The one and only one */
@@ -774,35 +802,6 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
 
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
 		    &device_obj->device);
-}
-
-/*
- * vmbus_remove - Remove a vmbus device
- */
-static int vmbus_remove(struct device *child_device)
-{
-	int ret;
-	struct hv_driver *drv;
-
-
-	if (child_device->driver) {
-		drv = drv_to_hv_drv(child_device->driver);
-
-		/*
-		 * Let the specific open-source driver handles the removal if
-		 * it can
-		 */
-		if (drv->driver.remove) {
-			ret = drv->driver.remove(child_device);
-		} else {
-			DPRINT_ERR(VMBUS_DRV,
-				   "remove() method not set for driver - %s",
-				   child_device->driver->name);
-			ret = -1;
-		}
-	}
-
-	return 0;
 }
 
 /*
