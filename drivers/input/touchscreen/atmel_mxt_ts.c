@@ -60,11 +60,11 @@
 #define MXT_PROCG_NOISE		22
 #define MXT_PROCI_ONETOUCH	24
 #define MXT_PROCI_TWOTOUCH	27
-#define MXT_SPT_COMMSCONFIG	18	/* firmware ver 21 over */
+#define MXT_SPT_COMMSCONFIG	18
 #define MXT_SPT_GPIOPWM		19
 #define MXT_SPT_SELFTEST	25
 #define MXT_SPT_CTECONFIG	28
-#define MXT_SPT_USERDATA	38	/* firmware ver 21 over */
+#define MXT_SPT_USERDATA	38
 
 /* MXT_GEN_COMMAND field */
 #define MXT_COMMAND_RESET	0
@@ -115,7 +115,7 @@
 #define MXT_TOUCH_XEDGEDIST	27
 #define MXT_TOUCH_YEDGECTRL	28
 #define MXT_TOUCH_YEDGEDIST	29
-#define MXT_TOUCH_JUMPLIMIT	30	/* firmware ver 22 over */
+#define MXT_TOUCH_JUMPLIMIT	30
 
 /* MXT_PROCI_GRIPFACE field */
 #define MXT_GRIPFACE_CTRL	0
@@ -157,7 +157,7 @@
 #define MXT_CTE_MODE		2
 #define MXT_CTE_IDLEGCAFDEPTH	3
 #define MXT_CTE_ACTVGCAFDEPTH	4
-#define MXT_CTE_VOLTAGE		5	/* firmware ver 21 over */
+#define MXT_CTE_VOLTAGE		5
 
 #define MXT_VOLTAGE_DEFAULT	2700000
 #define MXT_VOLTAGE_STEP	10000
@@ -686,7 +686,7 @@ static void mxt_handle_pdata(struct mxt_data *data)
 			MXT_TOUCH_YRANGE_MSB, (pdata->y_size - 1) >> 8);
 
 	/* Set touchscreen voltage */
-	if (data->info.version >= MXT_VER_21 && pdata->voltage) {
+	if (pdata->voltage) {
 		if (pdata->voltage < MXT_VOLTAGE_DEFAULT) {
 			voltage = (MXT_VOLTAGE_DEFAULT - pdata->voltage) /
 				MXT_VOLTAGE_STEP;
@@ -951,18 +951,7 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-	unsigned int version;
 	int error;
-
-	if (sscanf(buf, "%u", &version) != 1) {
-		dev_err(dev, "Invalid values\n");
-		return -EINVAL;
-	}
-
-	if (data->info.version < MXT_VER_21 || version < MXT_VER_21) {
-		dev_err(dev, "FW update supported starting with version 21\n");
-		return -EINVAL;
-	}
 
 	disable_irq(data->irq);
 
