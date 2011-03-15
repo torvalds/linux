@@ -3130,12 +3130,6 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packet cmd,
 	p_size = be64_to_cpu(p->d_size);
 	p_usize = be64_to_cpu(p->u_size);
 
-	if (p_size == 0 && mdev->state.disk == D_DISKLESS) {
-		dev_err(DEV, "some backing storage is needed\n");
-		drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-		return false;
-	}
-
 	/* just store the peer's disk size for now.
 	 * we still need to figure out whether we accept that. */
 	mdev->p_size = p_size;
