@@ -561,18 +561,18 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	/* Set volume property command */
-	case UBI_IOCSETPROP:
+	case UBI_IOCSETVOLPROP:
 	{
-		struct ubi_set_prop_req req;
+		struct ubi_set_vol_prop_req req;
 
 		err = copy_from_user(&req, argp,
-				sizeof(struct ubi_set_prop_req));
+				     sizeof(struct ubi_set_vol_prop_req));
 		if (err) {
 			err = -EFAULT;
 			break;
 		}
 		switch (req.property) {
-		case UBI_PROP_DIRECT_WRITE:
+		case UBI_VOL_PROP_DIRECT_WRITE:
 			mutex_lock(&ubi->device_mutex);
 			desc->vol->direct_writes = !!req.value;
 			mutex_unlock(&ubi->device_mutex);

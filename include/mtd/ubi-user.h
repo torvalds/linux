@@ -131,7 +131,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * To set an UBI volume property the %UBI_IOCSETPROP ioctl command should be
- * used. A pointer to a &struct ubi_set_prop_req object is expected to be
+ * used. A pointer to a &struct ubi_set_vol_prop_req object is expected to be
  * passed. The object describes which property should be set, and to which value
  * it should be set.
  */
@@ -186,7 +186,8 @@
 /* Check if LEB is mapped command */
 #define UBI_IOCEBISMAP _IOR(UBI_VOL_IOC_MAGIC, 5, __s32)
 /* Set an UBI volume property */
-#define UBI_IOCSETPROP _IOW(UBI_VOL_IOC_MAGIC, 6, struct ubi_set_prop_req)
+#define UBI_IOCSETVOLPROP _IOW(UBI_VOL_IOC_MAGIC, 6, \
+			       struct ubi_set_vol_prop_req)
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
@@ -225,11 +226,11 @@ enum {
 /*
  * UBI set property ioctl constants
  *
- * @UBI_PROP_DIRECT_WRITE: allow / disallow user to directly write and
- *                         erase individual eraseblocks on dynamic volumes
+ * @UBI_VOL_PROP_DIRECT_WRITE: allow / disallow user to directly write and
+ *                             erase individual eraseblocks on dynamic volumes
  */
 enum {
-       UBI_PROP_DIRECT_WRITE = 1,
+       UBI_VOL_PROP_DIRECT_WRITE = 1,
 };
 
 /**
@@ -397,13 +398,13 @@ struct ubi_map_req {
 
 
 /**
- * struct ubi_set_prop_req - a data structure used to set an ubi volume
- *                           property.
- * @property: property to set (%UBI_PROP_DIRECT_WRITE)
+ * struct ubi_set_vol_prop_req - a data structure used to set an ubi volume
+ *                               property.
+ * @property: property to set (%UBI_VOL_PROP_DIRECT_WRITE)
  * @padding: reserved for future, not used, has to be zeroed
  * @value: value to set
  */
-struct ubi_set_prop_req {
+struct ubi_set_vol_prop_req {
        __u8  property;
        __u8  padding[7];
        __u64 value;
