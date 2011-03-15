@@ -1343,7 +1343,7 @@ static int show_call(struct seq_file *m, void *data)
 	else
 		seq_printf(m, "%#x(%#x, %#x) = t:%d\n", asus->debug.method_id,
 			   asus->debug.dev_id, asus->debug.ctrl_param,
-			   obj->type);
+			   obj ? obj->type : -1);
 
 	kfree(obj);
 
