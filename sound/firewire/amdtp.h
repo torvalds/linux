@@ -56,7 +56,7 @@ struct amdtp_out_stream {
 
 	struct snd_pcm_substream *pcm;
 
-	unsigned int packet_counter;
+	int packet_index;
 	unsigned int data_block_counter;
 
 	unsigned int data_block_state;
@@ -108,6 +108,18 @@ static inline void amdtp_out_stream_set_midi(struct amdtp_out_stream *s,
 					     unsigned int midi_ports)
 {
 	s->midi_ports = midi_ports;
+}
+
+/**
+ * amdtp_out_streaming_error - check for streaming error
+ * @s: the AMDTP output stream
+ *
+ * If this function returns true, the stream's packet queue has stopped due to
+ * an asynchronous error.
+ */
+static inline bool amdtp_out_streaming_error(struct amdtp_out_stream *s)
+{
+	return s->packet_index < 0;
 }
 
 /**

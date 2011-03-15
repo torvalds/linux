@@ -283,6 +283,9 @@ static int fwspk_prepare(struct snd_pcm_substream *substream)
 
 	mutex_lock(&fwspk->mutex);
 
+	if (amdtp_out_streaming_error(&fwspk->stream))
+		fwspk_stop_stream(fwspk);
+
 	if (!fwspk->stream_running) {
 		err = cmp_connection_establish(&fwspk->connection,
 			amdtp_out_stream_get_max_payload(&fwspk->stream));

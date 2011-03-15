@@ -47,6 +47,7 @@ int amdtp_out_stream_init(struct amdtp_out_stream *s, struct fw_unit *unit,
 	s->flags = flags;
 	s->context = ERR_PTR(-1);
 	mutex_init(&s->mutex);
+	s->packet_index = 0;
 
 	return 0;
 }
@@ -316,15 +317,19 @@ static void amdtp_fill_midi(struct amdtp_out_stream *s,
 static void queue_out_packet(struct amdtp_out_stream *s, unsigned int cycle)
 {
 	__be32 *buffer;
-	unsigned int data_blocks, syt, ptr;
+	unsigned int index, data_blocks, syt, ptr;
 	struct snd_pcm_substream *pcm;
 	struct fw_iso_packet packet;
 	int err;
 
+	if (s->packet_index < 0)
+		return;
+	index = s->packet_index;
+
 	data_blocks = calculate_data_blocks(s);
 	syt = calculate_syt(s, cycle);
 
-	buffer = s->buffer.packets[s->packet_counter].buffer;
+	buffer = s->buffer.packets[index].buffer;
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << 16) |
 				s->data_block_counter);
@@ -343,20 +348,24 @@ static void queue_out_packet(struct amdtp_out_stream *s, unsigned int cycle)
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 
 	packet.payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
-	packet.interrupt = IS_ALIGNED(s->packet_counter + 1,
-				      INTERRUPT_INTERVAL);
+	packet.interrupt = IS_ALIGNED(index + 1, INTERRUPT_INTERVAL);
 	packet.skip = 0;
 	packet.tag = TAG_CIP;
 	packet.sy = 0;
 	packet.header_length = 0;
 
 	err = fw_iso_context_queue(s->context, &packet, &s->buffer.iso_buffer,
-				   s->buffer.packets[s->packet_counter].offset);
-	if (err < 0)
+				   s->buffer.packets[index].offset);
+	if (err < 0) {
 		dev_err(&s->unit->device, "queueing error: %d\n", err);
+		s->packet_index = -1;
+		amdtp_out_stream_pcm_abort(s);
+		return;
+	}
 
-	if (++s->packet_counter >= QUEUE_LENGTH)
-		s->packet_counter = 0;
+	if (++index >= QUEUE_LENGTH)
+		index = 0;
+	s->packet_index = index;
 
 	if (pcm) {
 		ptr = s->pcm_buffer_pointer + data_blocks;
@@ -398,13 +407,13 @@ static int queue_initial_skip_packets(struct amdtp_out_stream *s)
 	int err;
 
 	for (i = 0; i < QUEUE_LENGTH; ++i) {
-		skip_packet.interrupt = IS_ALIGNED(s->packet_counter + 1,
+		skip_packet.interrupt = IS_ALIGNED(s->packet_index + 1,
 						   INTERRUPT_INTERVAL);
 		err = fw_iso_context_queue(s->context, &skip_packet, NULL, 0);
 		if (err < 0)
 			return err;
-		if (++s->packet_counter >= QUEUE_LENGTH)
-			s->packet_counter = 0;
+		if (++s->packet_index >= QUEUE_LENGTH)
+			s->packet_index = 0;
 	}
 
 	return 0;
@@ -469,7 +478,7 @@ int amdtp_out_stream_start(struct amdtp_out_stream *s, int channel, int speed)
 
 	amdtp_out_stream_update(s);
 
-	s->packet_counter = 0;
+	s->packet_index = 0;
 	s->data_block_counter = 0;
 	err = queue_initial_skip_packets(s);
 	if (err < 0)
