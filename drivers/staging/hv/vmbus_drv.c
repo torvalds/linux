@@ -50,8 +50,6 @@ struct hv_bus {
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id);
 
-static void vmbus_device_release(struct device *device);
-
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf);
@@ -295,6 +293,18 @@ static void vmbus_shutdown(struct device *child_device)
 		drv->driver.shutdown(child_device);
 
 	return;
+}
+
+
+/*
+ * vmbus_device_release - Final callback release of the vmbus child device
+ */
+static void vmbus_device_release(struct device *device)
+{
+	struct hv_device *device_ctx = device_to_hv_device(device);
+
+	kfree(device_ctx);
+
 }
 
 /* The one and only one */
@@ -823,19 +833,6 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
 
 	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
 		    &device_obj->device);
-}
-
-
-/*
- * vmbus_device_release - Final callback release of the vmbus child device
- */
-static void vmbus_device_release(struct device *device)
-{
-	struct hv_device *device_ctx = device_to_hv_device(device);
-
-	kfree(device_ctx);
-
-	/* !!DO NOT REFERENCE device_ctx anymore at this point!! */
 }
 
 
