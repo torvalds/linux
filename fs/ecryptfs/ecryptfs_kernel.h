@@ -269,6 +269,7 @@ struct ecryptfs_crypt_stat {
 #define ECRYPTFS_ENCFN_USE_MOUNT_FNEK 0x00000800
 #define ECRYPTFS_ENCFN_USE_FEK        0x00001000
 #define ECRYPTFS_UNLINK_SIGS          0x00002000
+#define ECRYPTFS_I_SIZE_INITIALIZED   0x00004000
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
@@ -628,6 +629,7 @@ struct ecryptfs_open_req {
 int ecryptfs_interpose(struct dentry *hidden_dentry,
 		       struct dentry *this_dentry, struct super_block *sb,
 		       u32 flags);
+void ecryptfs_i_size_init(const char *page_virt, struct inode *inode);
 int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 					struct dentry *lower_dentry,
 					struct inode *ecryptfs_dir_inode);
