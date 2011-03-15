@@ -3690,6 +3690,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		       "wanted %lu %lu\n", (unsigned long long)eb->start,
 		       eb->len, start, min_len);
 		WARN_ON(1);
+		return -EINVAL;
 	}
 
 	p = extent_buffer_page(eb, i);
