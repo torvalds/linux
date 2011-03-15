@@ -167,7 +167,9 @@ static int wm831x_ts_input_open(struct input_dev *idev)
 	struct wm831x *wm831x = wm831x_ts->wm831x;
 
 	wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
-			WM831X_TCH_ENA, WM831X_TCH_ENA);
+			WM831X_TCH_ENA | WM831X_TCH_CVT_ENA |
+			WM831X_TCH_X_ENA | WM831X_TCH_Y_ENA |
+			WM831X_TCH_Z_ENA, WM831X_TCH_ENA);
 
 	wm831x_set_bits(wm831x, WM831X_TOUCH_CONTROL_1,
 			WM831X_TCH_CVT_ENA, WM831X_TCH_CVT_ENA);
