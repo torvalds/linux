@@ -1328,7 +1328,7 @@ static int probe_point_lazy_walker(const char *fname, int lineno,
 	 * Continue if no error, because the lazy pattern will match
 	 * to other lines
 	 */
-	return ret < 0 ?: 0;
+	return ret < 0 ? ret : 0;
 }
 
 /* Find probe points from lazy pattern  */
