@@ -5938,21 +5938,23 @@ gckOS_SetGPUPower(
 
     if(lastclock!=Clock) 
     {
+        mdelay(10);
         if(Clock) {
             printk("gpu: clk_enable... ");
-            clk_enable(clk_hclk_gpu);
+            clk_enable(clk_gpu);
             clk_enable(clk_aclk_gpu);
             clk_enable(clk_aclk_ddr_gpu);
-            clk_enable(clk_gpu);
+            clk_enable(clk_hclk_gpu);
             printk("done!\n");
         } else {
             printk("gpu: clk_disable... ");
-            clk_disable(clk_gpu);
-            clk_disable(clk_aclk_gpu);
-            clk_disable(clk_aclk_ddr_gpu);
             clk_disable(clk_hclk_gpu);
+            clk_disable(clk_aclk_ddr_gpu);
+            clk_disable(clk_aclk_gpu);
+            clk_disable(clk_gpu);
             printk("done!\n");
         }
+        mdelay(10);
     }
     lastclock = Clock;
 

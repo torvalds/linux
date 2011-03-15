@@ -726,8 +726,11 @@ static void drv_exit(void)
     unregister_chrdev(major, DRV_NAME);
 #endif
 
+    mdelay(50); 
     gckGALDEVICE_Stop(galDevice);
+    mdelay(50); 
     gckGALDEVICE_Destroy(galDevice);
+    mdelay(50); 
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
     printk("gpu: %s clk_disable... ", __func__);
@@ -765,6 +768,8 @@ static void gpu_early_suspend(struct early_suspend *h)
     
     printk("Enter %s \n", __func__);
 
+    mdelay(50); //Wait for gpu finish
+
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_SUSPEND);
 
 	if (gcmIS_ERROR(status))
@@ -783,6 +788,8 @@ static void gpu_early_resume(struct early_suspend *h)
     printk("Enter %s \n", __func__);
 
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_IDLE);
+
+	mdelay(50);
 
 	if (gcmIS_ERROR(status))
 	{
@@ -865,6 +872,8 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 
 	device = platform_get_drvdata(dev);
 
+	mdelay(50); //Wait for gpu finish
+
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_SUSPEND);
 
 	if (gcmIS_ERROR(status))
@@ -888,6 +897,8 @@ static int __devinit gpu_resume(struct platform_device *dev)
 	device = platform_get_drvdata(dev);
 
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_IDLE);
+
+	mdelay(50);
 
 	if (gcmIS_ERROR(status))
 	{
