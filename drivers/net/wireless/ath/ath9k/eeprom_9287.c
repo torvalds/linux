@@ -392,6 +392,8 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 							   numXpdGain);
 			}
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			if (i == 0) {
 				if (!ath9k_hw_ar9287_get_eeprom(ah,
 							EEP_OL_PWRCTRL)) {
@@ -442,6 +444,7 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 					regOffset += 4;
 				}
 			}
+			REGWRITE_BUFFER_FLUSH(ah);
 		}
 	}
 
@@ -757,6 +760,8 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	/* OFDM power per rate */
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		  ATH9K_POW_SM(ratesArray[rate18mb], 24)
@@ -840,6 +845,7 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rateDupOfdm], 8)
 			  | ATH9K_POW_SM(ratesArray[rateDupCck], 0));
 	}
+	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 static void ath9k_hw_ar9287_set_addac(struct ath_hw *ah,

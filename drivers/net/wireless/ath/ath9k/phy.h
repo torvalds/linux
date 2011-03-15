@@ -40,10 +40,12 @@
 
 #define REG_WRITE_RF_ARRAY(iniarray, regData, regWr) do {               \
 		int r;							\
+		ENABLE_REGWRITE_BUFFER(ah);				\
 		for (r = 0; r < ((iniarray)->ia_rows); r++) {		\
 			REG_WRITE(ah, INI_RA((iniarray), r, 0), (regData)[r]); \
 			DO_DELAY(regWr);				\
 		}							\
+		REGWRITE_BUFFER_FLUSH(ah);				\
 	} while (0)
 
 #define ANTSWAP_AB 0x0001

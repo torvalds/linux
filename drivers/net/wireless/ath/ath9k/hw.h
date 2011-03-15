@@ -99,18 +99,22 @@
 #define REG_CLR_BIT(_a, _r, _f) \
 	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~(_f))
 
-#define DO_DELAY(x) do {			\
-		if ((++(x) % 64) == 0)          \
-			udelay(1);		\
+#define DO_DELAY(x) do {					\
+		if (((++(x) % 64) == 0) &&			\
+		    (ath9k_hw_common(ah)->bus_ops->ath_bus_type	\
+			!= ATH_USB))				\
+			udelay(1);				\
 	} while (0)
 
 #define REG_WRITE_ARRAY(iniarray, column, regWr) do {                   \
 		int r;							\
+		ENABLE_REGWRITE_BUFFER(ah);				\
 		for (r = 0; r < ((iniarray)->ia_rows); r++) {		\
 			REG_WRITE(ah, INI_RA((iniarray), (r), 0),	\
 				  INI_RA((iniarray), r, (column)));	\
 			DO_DELAY(regWr);				\
 		}							\
+		REGWRITE_BUFFER_FLUSH(ah);				\
 	} while (0)
 
 #define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0

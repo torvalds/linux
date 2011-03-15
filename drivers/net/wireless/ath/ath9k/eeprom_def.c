@@ -799,6 +799,8 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 							   pwr_table_offset,
 							   &diff);
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 				if (OLC_FOR_AR9280_20_LATER) {
 					REG_WRITE(ah,
@@ -847,6 +849,7 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 
 				regOffset += 4;
 			}
+			REGWRITE_BUFFER_FLUSH(ah);
 		}
 	}
 
@@ -1205,6 +1208,8 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 		}
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		  ATH9K_POW_SM(ratesArray[rate18mb], 24)
 		  | ATH9K_POW_SM(ratesArray[rate12mb], 16)
@@ -1291,6 +1296,8 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_POWER_TX_SUB,
 		  ATH9K_POW_SM(pModal->pwrDecreaseFor3Chain, 6)
 		  | ATH9K_POW_SM(pModal->pwrDecreaseFor2Chain, 0));
+
+	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 static u16 ath9k_hw_def_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
