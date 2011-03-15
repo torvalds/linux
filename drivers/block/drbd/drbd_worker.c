@@ -1209,7 +1209,7 @@ int w_send_barrier(struct drbd_work *w, int cancel)
 	if (cancel)
 		return 1;
 
-	if (!drbd_get_data_sock(mdev->tconn))
+	if (drbd_get_data_sock(mdev->tconn))
 		return 0;
 	p->barrier = b->br_number;
 	/* inc_ap_pending was done where this was queued.

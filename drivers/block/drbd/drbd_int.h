@@ -1115,24 +1115,15 @@ static inline struct drbd_conf *vnr_to_mdev(struct drbd_tconn *tconn, int vnr)
 	return (struct drbd_conf *)idr_find(&tconn->volumes, vnr);
 }
 
-/* returns 1 if it was successful,
- * returns 0 if there was no data socket.
- * so wherever you are going to use the data.socket, e.g. do
- * if (!drbd_get_data_sock(mdev->tconn))
- *	return 0;
- *	CODE();
- * drbd_get_data_sock(mdev->tconn);
- */
 static inline int drbd_get_data_sock(struct drbd_tconn *tconn)
 {
 	mutex_lock(&tconn->data.mutex);
-	/* drbd_disconnect() could have called drbd_free_sock()
-	 * while we were waiting in down()... */
-	if (unlikely(tconn->data.socket == NULL)) {
+	if (!tconn->data.socket) {
+		/* Disconnected.  */
 		mutex_unlock(&tconn->data.mutex);
-		return 0;
+		return -EIO;
 	}
-	return 1;
+	return 0;
 }
 
 static inline void drbd_put_data_sock(struct drbd_tconn *tconn)
