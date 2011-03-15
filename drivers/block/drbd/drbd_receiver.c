@@ -3794,25 +3794,38 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 	return ok;
 }
 
-static int receive_skip(struct drbd_conf *mdev, enum drbd_packet cmd,
-			unsigned int data_size)
+static int _tconn_receive_skip(struct drbd_tconn *tconn, unsigned int data_size)
 {
 	/* TODO zero copy sink :) */
 	static char sink[128];
 	int size, want, r;
 
-	dev_warn(DEV, "skipping unknown optional packet type %d, l: %d!\n",
-		 cmd, data_size);
-
 	size = data_size;
 	while (size > 0) {
 		want = min_t(int, size, sizeof(sink));
-		r = drbd_recv(mdev->tconn, sink, want);
-		if (!expect(r > 0))
+		r = drbd_recv(tconn, sink, want);
+		if (r <= 0)
 			break;
 		size -= r;
 	}
 	return size == 0;
+}
+
+static int receive_skip(struct drbd_conf *mdev, enum drbd_packet cmd,
+			unsigned int data_size)
+{
+	dev_warn(DEV, "skipping unknown optional packet type %d, l: %d!\n",
+		 cmd, data_size);
+
+	return _tconn_receive_skip(mdev->tconn, data_size);
+}
+
+static int tconn_receive_skip(struct drbd_tconn *tconn, enum drbd_packet cmd, unsigned int data_size)
+{
+	conn_warn(tconn, "skipping packet for non existing volume type %d, l: %d!\n",
+		  cmd, data_size);
+
+	return _tconn_receive_skip(tconn, data_size);
 }
 
 static int receive_UnplugRemote(struct drbd_conf *mdev, enum drbd_packet cmd,
@@ -3890,6 +3903,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 static void drbdd(struct drbd_tconn *tconn)
 {
 	struct p_header *header = &tconn->data.rbuf.header;
+	struct drbd_conf *mdev;
 	struct packet_info pi;
 	size_t shs; /* sub header size */
 	int rv;
@@ -3920,7 +3934,10 @@ static void drbdd(struct drbd_tconn *tconn)
 			}
 		}
 
-		rv = drbd_cmd_handler[pi.cmd].function(vnr_to_mdev(tconn, pi.vnr), pi.cmd, pi.size - shs);
+		mdev = vnr_to_mdev(tconn, pi.vnr);
+		rv = mdev ?
+			drbd_cmd_handler[pi.cmd].function(mdev, pi.cmd, pi.size - shs) :
+			tconn_receive_skip(tconn, pi.cmd, pi.size - shs);
 
 		if (unlikely(!rv)) {
 			conn_err(tconn, "error receiving %s, l: %d!\n",
