@@ -266,7 +266,7 @@ static void p2m_init(unsigned long *p2m)
  * - After resume we're called from within stop_machine, but the mfn
  *   tree should alreay be completely allocated.
  */
-void xen_build_mfn_list_list(void)
+void __ref xen_build_mfn_list_list(void)
 {
 	unsigned long pfn;
 
@@ -654,7 +654,7 @@ int m2p_add_override(unsigned long mfn, struct page *page)
 {
 	unsigned long flags;
 	unsigned long pfn;
-	unsigned long address;
+	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
 
@@ -688,7 +688,7 @@ int m2p_remove_override(struct page *page)
 	unsigned long flags;
 	unsigned long mfn;
 	unsigned long pfn;
-	unsigned long address;
+	unsigned long uninitialized_var(address);
 	unsigned level;
 	pte_t *ptep = NULL;
 
