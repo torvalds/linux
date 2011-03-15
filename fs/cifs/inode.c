@@ -1691,12 +1691,18 @@ cifs_invalidate_mapping(struct inode *inode)
 
 	cifs_i->invalid_mapping = false;
 
-	/* write back any cached data */
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
+		/* write back any cached data */
 		rc = filemap_write_and_wait(inode->i_mapping);
 		mapping_set_error(inode->i_mapping, rc);
+		rc = invalidate_inode_pages2(inode->i_mapping);
+		if (rc) {
+			cERROR(1, "%s: could not invalidate inode %p", __func__,
+			       inode);
+			cifs_i->invalid_mapping = true;
+		}
 	}
-	invalidate_remote_inode(inode);
+
 	cifs_fscache_reset_inode_cookie(inode);
 }
 
