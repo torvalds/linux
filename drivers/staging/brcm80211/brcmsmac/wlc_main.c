@@ -6949,11 +6949,6 @@ wlc_recvctl(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p)
 #if defined(BCMDBG)
 	struct sk_buff *skb = p;
 #endif				/* BCMDBG */
-	/* Todo:
-	 * Cache plcp for first MPDU of AMPD and use chacched version for INTERMEDIATE.
-	 * Test for INTERMEDIATE  like so:
-	 * if (!(plcp[0] | plcp[1] | plcp[2]))
-	 */
 
 	memset(&rx_status, 0, sizeof(rx_status));
 	prep_mac80211_status(wlc, rxh, p, &rx_status);
