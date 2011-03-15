@@ -1092,7 +1092,33 @@ static int ceph_snapdir_d_revalidate(struct dentry *dentry,
 	return 1;
 }
 
+/*
+ * When the VFS prunes a dentry from the cache, we need to clear the
+ * complete flag on the parent directory.
+ *
+ * Called under dentry->d_lock.
+ */
+static void ceph_d_prune(struct dentry *dentry)
+{
+	struct ceph_dentry_info *di;
 
+	dout("d_release %p\n", dentry);
+
+	/* do we have a valid parent? */
+	if (!dentry->d_parent || IS_ROOT(dentry))
+		return;
+
+	/* if we are not hashed, we don't affect D_COMPLETE */
+	if (d_unhashed(dentry))
+		return;
+
+	/*
+	 * we hold d_lock, so d_parent is stable, and d_fsdata is never
+	 * cleared until d_release
+	 */
+	di = ceph_dentry(dentry->d_parent);
+	clear_bit(CEPH_D_COMPLETE, &di->flags);
+}
 
 /*
  * read() on a dir.  This weird interface hack only works if mounted
@@ -1306,6 +1332,7 @@ const struct inode_operations ceph_dir_iops = {
 const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
 	.d_release = ceph_d_release,
+	.d_prune = ceph_d_prune,
 };
 
 const struct dentry_operations ceph_snapdir_dentry_ops = {
@@ -1315,4 +1342,5 @@ const struct dentry_operations ceph_snapdir_dentry_ops = {
 
 const struct dentry_operations ceph_snap_dentry_ops = {
 	.d_release = ceph_d_release,
+	.d_prune = ceph_d_prune,
 };
