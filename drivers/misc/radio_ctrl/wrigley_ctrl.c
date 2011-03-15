@@ -57,10 +57,6 @@ struct wrigley_info {
 	unsigned int reset_gpio;
 	char reset_name[GPIO_MAX_NAME];
 
-	unsigned int host_wake_gpio;
-	char host_wake_name[GPIO_MAX_NAME];
-	struct wake_lock wake_lock;
-
 	bool boot_flash;
 	enum wrigley_status status;
 
@@ -212,15 +208,6 @@ static ssize_t wrigley_command(struct radio_dev *rdev, char *cmd)
 	return -EINVAL;
 }
 
-static irqreturn_t wrigley_host_wake_isr(int irq, void *data)
-{
-	struct wrigley_info *info = (struct wrigley_info *) data;
-	pr_debug("%s: take wakelock\n", __func__);
-	wake_lock_timeout(&info->wake_lock, HZ / 2);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t wrigley_reset_fn(int irq, void *data)
 {
 	struct wrigley_info *info = (struct wrigley_info *) data;
@@ -242,7 +229,7 @@ static int __devinit wrigley_probe(struct platform_device *pdev)
 {
 	struct wrigley_ctrl_platform_data *pdata = pdev->dev.platform_data;
 	struct wrigley_info *info;
-	int reset_irq, host_wake_irq, err = 0;
+	int reset_irq, err = 0;
 
 	pr_info("%s: %s\n", __func__, dev_name(&pdev->dev));
 
@@ -258,40 +245,6 @@ static int __devinit wrigley_probe(struct platform_device *pdev)
 	info->rdev.name = dev_name(&pdev->dev);
 	info->rdev.status = wrigley_status_show;
 	info->rdev.command = wrigley_command;
-
-	wake_lock_init(&info->wake_lock, WAKE_LOCK_SUSPEND,
-			dev_name(&pdev->dev));
-
-	/* host wake */
-	pr_debug("%s: setup host_wake\n", __func__);
-	info->host_wake_gpio = pdata->gpio_host_wake;
-	snprintf(info->host_wake_name, GPIO_MAX_NAME, "%s-%s",
-		dev_name(&pdev->dev), "host-wake");
-	err = gpio_request(info->host_wake_gpio, info->host_wake_name);
-	if (err) {
-		pr_err("%s: error requesting host wake gpio\n", __func__);
-		goto err_host_wake;
-	}
-	gpio_direction_input(info->host_wake_gpio);
-
-	host_wake_irq = gpio_to_irq(info->host_wake_gpio);
-	err = request_irq(host_wake_irq, wrigley_host_wake_isr,
-		IRQ_TYPE_EDGE_FALLING, info->host_wake_name, info);
-	if (err) {
-		pr_err("%s: error requesting host wake irq\n", __func__);
-		gpio_free(info->host_wake_gpio);
-		goto err_host_wake;
-	}
-
-	err = enable_irq_wake(host_wake_irq);
-	if (err) {
-		pr_err("%s: request host_wake irq (%d) %s failed\n",
-			__func__, host_wake_irq, info->host_wake_name);
-		free_irq(host_wake_irq, info);
-		gpio_free(info->host_wake_gpio);
-		goto err_host_wake;
-	}
-	gpio_export(info->host_wake_gpio, false);
 
 	/* disable */
 	pr_debug("%s: setup wrigley_disable\n", __func__);
@@ -369,11 +322,6 @@ err_flash:
 err_reset:
 	gpio_free(info->disable_gpio);
 err_disable:
-	disable_irq_wake(host_wake_irq);
-	free_irq(host_wake_irq, info);
-	gpio_free(info->host_wake_gpio);
-err_host_wake:
-	wake_lock_destroy(&info->wake_lock);
 	platform_set_drvdata(pdev, NULL);
 	kfree(info);
 err_exit:
@@ -404,12 +352,6 @@ static int __devexit wrigley_remove(struct platform_device *pdev)
 
 	/* disable */
 	gpio_free(info->disable_gpio);
-
-	/* host_wake */
-	disable_irq_wake(gpio_to_irq(info->host_wake_gpio));
-	free_irq(gpio_to_irq(info->host_wake_gpio), info);
-	gpio_free(info->host_wake_gpio);
-	wake_lock_destroy(&info->wake_lock);
 
 	platform_set_drvdata(pdev, NULL);
 	kfree(info);

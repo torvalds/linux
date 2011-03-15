@@ -19,7 +19,6 @@
 #define __LINUX_WRIGLEY_CTRL_H__
 
 struct wrigley_ctrl_platform_data {
-	unsigned int gpio_host_wake;
 	unsigned int gpio_disable;
 	unsigned int gpio_reset;
 	unsigned int gpio_force_flash;
