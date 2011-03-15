@@ -162,7 +162,7 @@ static int count_them(struct net *net,
 
 	if (addit) {
 		/* save the new connection in our list */
-		conn = kzalloc(sizeof(*conn), GFP_ATOMIC);
+		conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
 		if (conn == NULL)
 			return -ENOMEM;
 		conn->tuple = *tuple;
