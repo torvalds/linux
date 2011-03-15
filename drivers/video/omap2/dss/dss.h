@@ -126,12 +126,6 @@ enum dss_clk_source {
 						 * OMAP4: DSS_FCLK */
 };
 
-/* Correlates clock source name and dss_clk_source member */
-struct dss_clk_source_name {
-	enum dss_clk_source clksrc;
-	const char *clksrc_name;
-};
-
 struct dss_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fck;

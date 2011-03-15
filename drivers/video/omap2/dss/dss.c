@@ -82,10 +82,10 @@ static struct {
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
 } dss;
 
-static const struct dss_clk_source_name dss_generic_clk_source_names[] = {
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "DSI_PLL_HSDIV_DISPC" },
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "DSI_PLL_HSDIV_DSI" },
-	{ DSS_CLK_SRC_FCK, "DSS_FCK" },
+static const char * const dss_generic_clk_source_names[] = {
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI_PLL_HSDIV_DISPC",
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "DSI_PLL_HSDIV_DSI",
+	[DSS_CLK_SRC_FCK]			= "DSS_FCK",
 };
 
 static void dss_clk_enable_all_no_ctx(void);
@@ -232,7 +232,7 @@ void dss_sdi_disable(void)
 
 const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src)
 {
-	return dss_generic_clk_source_names[clk_src].clksrc_name;
+	return dss_generic_clk_source_names[clk_src];
 }
 
 void dss_dump_clocks(struct seq_file *s)

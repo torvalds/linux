@@ -30,7 +30,6 @@
 
 /* Defines a generic omap register field */
 struct dss_reg_field {
-	enum dss_feat_reg_field id;
 	u8 start, end;
 };
 
@@ -45,43 +44,43 @@ struct omap_dss_features {
 	const unsigned long max_dss_fck;
 	const enum omap_display_type *supported_displays;
 	const enum omap_color_mode *supported_color_modes;
-	const struct dss_clk_source_name *clksrc_names;
+	const char * const *clksrc_names;
 };
 
 /* This struct is assigned to one of the below during initialization */
 static struct omap_dss_features *omap_current_dss_features;
 
 static const struct dss_reg_field omap2_dss_reg_fields[] = {
-	{ FEAT_REG_FIRHINC, 11, 0 },
-	{ FEAT_REG_FIRVINC, 27, 16 },
-	{ FEAT_REG_FIFOLOWTHRESHOLD, 8, 0 },
-	{ FEAT_REG_FIFOHIGHTHRESHOLD, 24, 16 },
-	{ FEAT_REG_FIFOSIZE, 8, 0 },
-	{ FEAT_REG_HORIZONTALACCU, 9, 0 },
-	{ FEAT_REG_VERTICALACCU, 25, 16 },
-	{ FEAT_REG_DISPC_CLK_SWITCH, 0, 0 },
+	[FEAT_REG_FIRHINC]		= { 11, 0 },
+	[FEAT_REG_FIRVINC]		= { 27, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 8, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]	= { 24, 16 },
+	[FEAT_REG_FIFOSIZE]		= { 8, 0 },
+	[FEAT_REG_HORIZONTALACCU]	= { 9, 0 },
+	[FEAT_REG_VERTICALACCU]		= { 25, 16 },
+	[FEAT_REG_DISPC_CLK_SWITCH]	= { 0, 0 },
 };
 
 static const struct dss_reg_field omap3_dss_reg_fields[] = {
-	{ FEAT_REG_FIRHINC, 12, 0 },
-	{ FEAT_REG_FIRVINC, 28, 16 },
-	{ FEAT_REG_FIFOLOWTHRESHOLD, 11, 0 },
-	{ FEAT_REG_FIFOHIGHTHRESHOLD, 27, 16 },
-	{ FEAT_REG_FIFOSIZE, 10, 0 },
-	{ FEAT_REG_HORIZONTALACCU, 9, 0 },
-	{ FEAT_REG_VERTICALACCU, 25, 16 },
-	{ FEAT_REG_DISPC_CLK_SWITCH, 0, 0 },
+	[FEAT_REG_FIRHINC]		= { 12, 0 },
+	[FEAT_REG_FIRVINC]		= { 28, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 11, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]	= { 27, 16 },
+	[FEAT_REG_FIFOSIZE]		= { 10, 0 },
+	[FEAT_REG_HORIZONTALACCU]	= { 9, 0 },
+	[FEAT_REG_VERTICALACCU]		= { 25, 16 },
+	[FEAT_REG_DISPC_CLK_SWITCH]	= { 0, 0 },
 };
 
 static const struct dss_reg_field omap4_dss_reg_fields[] = {
-	{ FEAT_REG_FIRHINC, 12, 0 },
-	{ FEAT_REG_FIRVINC, 28, 16 },
-	{ FEAT_REG_FIFOLOWTHRESHOLD, 15, 0 },
-	{ FEAT_REG_FIFOHIGHTHRESHOLD, 31, 16 },
-	{ FEAT_REG_FIFOSIZE, 15, 0 },
-	{ FEAT_REG_HORIZONTALACCU, 10, 0 },
-	{ FEAT_REG_VERTICALACCU, 26, 16 },
-	{ FEAT_REG_DISPC_CLK_SWITCH, 9, 8 },
+	[FEAT_REG_FIRHINC]		= { 12, 0 },
+	[FEAT_REG_FIRVINC]		= { 28, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 15, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]	= { 31, 16 },
+	[FEAT_REG_FIFOSIZE]		= { 15, 0 },
+	[FEAT_REG_HORIZONTALACCU]	= { 10, 0 },
+	[FEAT_REG_VERTICALACCU]		= { 26, 16 },
+	[FEAT_REG_DISPC_CLK_SWITCH]	= { 9, 8 },
 };
 
 static const enum omap_display_type omap2_dss_supported_displays[] = {
@@ -162,22 +161,22 @@ static const enum omap_color_mode omap3_dss_supported_color_modes[] = {
 	OMAP_DSS_COLOR_RGBA32 | OMAP_DSS_COLOR_RGBX32,
 };
 
-static const struct dss_clk_source_name omap2_dss_clk_source_names[] = {
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "N/A" },
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "N/A" },
-	{ DSS_CLK_SRC_FCK, "DSS_FCLK1" },
+static const char * const omap2_dss_clk_source_names[] = {
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "N/A",
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "N/A",
+	[DSS_CLK_SRC_FCK]			= "DSS_FCLK1",
 };
 
-static const struct dss_clk_source_name omap3_dss_clk_source_names[] = {
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "DSI1_PLL_FCLK" },
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "DSI2_PLL_FCLK" },
-	{ DSS_CLK_SRC_FCK, "DSS1_ALWON_FCLK" },
+static const char * const omap3_dss_clk_source_names[] = {
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI1_PLL_FCLK",
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "DSI2_PLL_FCLK",
+	[DSS_CLK_SRC_FCK]			= "DSS1_ALWON_FCLK",
 };
 
-static const struct dss_clk_source_name omap4_dss_clk_source_names[] = {
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC, "PLL1_CLK1" },
-	{ DSS_CLK_SRC_DSI_PLL_HSDIV_DSI, "PLL1_CLK2" },
-	{ DSS_CLK_SRC_FCK, "DSS_FCLK" },
+static const char * const omap4_dss_clk_source_names[] = {
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "PLL1_CLK1",
+	[DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]		= "PLL1_CLK2",
+	[DSS_CLK_SRC_FCK]			= "DSS_FCLK",
 };
 
 /* OMAP2 DSS Features */
@@ -290,7 +289,7 @@ bool dss_feat_color_mode_supported(enum omap_plane plane,
 
 const char *dss_feat_get_clk_source_name(enum dss_clk_source id)
 {
-	return omap_current_dss_features->clksrc_names[id].clksrc_name;
+	return omap_current_dss_features->clksrc_names[id];
 }
 
 /* DSS has_feature check */
