@@ -40,6 +40,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <plat/pxa27x_keypad.h>
+#include <mach/pm.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -677,6 +678,20 @@ static void __init z2_pmic_init(void)
 static inline void z2_pmic_init(void) {}
 #endif
 
+#ifdef CONFIG_PM
+static void z2_power_off(void)
+{
+	/* We're using deep sleep as poweroff, so clear PSPR to ensure that
+	 * bootloader will jump to its entry point in resume handler
+	 */
+	PSPR = 0x0;
+	local_irq_disable();
+	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+}
+#else
+#define z2_power_off   NULL
+#endif
+
 /******************************************************************************
  * Machine init
  ******************************************************************************/
@@ -698,6 +713,8 @@ static void __init z2_init(void)
 	z2_leds_init();
 	z2_keys_init();
 	z2_pmic_init();
+
+	pm_power_off = z2_power_off;
 }
 
 MACHINE_START(ZIPIT2, "Zipit Z2")
