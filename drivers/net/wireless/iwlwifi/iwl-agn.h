@@ -133,10 +133,6 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 				    u16 byte_cnt);
 void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 				   struct iwl_tx_queue *txq);
-int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
-			  int tx_fifo, int sta_id, int tid, u16 ssn_idx);
-int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-			   u16 ssn_idx, u8 tx_fifo);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);

@@ -171,11 +171,6 @@ struct iwl_lib_ops {
 			     struct iwl_tx_queue *txq);
 	int (*txq_init)(struct iwl_priv *priv,
 			struct iwl_tx_queue *txq);
-	/* aggregations */
-	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
-			      int sta_id, int tid, u16 ssn_idx);
-	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id, u16 ssn_idx,
-			       u8 tx_fifo);
 	/* setup Rx handler */
 	void (*rx_handler_setup)(struct iwl_priv *priv);
 	/* setup deferred work */
