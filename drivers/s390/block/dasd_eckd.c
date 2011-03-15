@@ -2648,6 +2648,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		dasd_sfree_request(cqr, startdev);
 		return ERR_PTR(-EAGAIN);
 	}
+	len_to_track_end = 0;
 	/*
 	 * A tidaw can address 4k of memory, but must not cross page boundaries
 	 * We can let the block layer handle this by setting
