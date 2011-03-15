@@ -185,14 +185,6 @@ struct dsi_reg { u16 idx; };
 #define DSI_DT_RX_SHORT_READ_1		0x21
 #define DSI_DT_RX_SHORT_READ_2		0x22
 
-#define FINT_MAX 2100000
-#define FINT_MIN 750000
-#define REGN_MAX (1 << 7)
-#define REGM_MAX ((1 << 11) - 1)
-#define REGM_DISPC_MAX (1 << 4)
-#define REGM_DSI_MAX (1 << 4)
-#define LP_DIV_MAX ((1 << 13) - 1)
-
 enum fifo_size {
 	DSI_FIFO_SIZE_0		= 0,
 	DSI_FIFO_SIZE_32	= 1,
@@ -277,6 +269,11 @@ static struct
 	spinlock_t irq_stats_lock;
 	struct dsi_irq_stats irq_stats;
 #endif
+	/* DSI PLL Parameter Ranges */
+	unsigned long regm_max, regn_max;
+	unsigned long  regm_dispc_max, regm_dsi_max;
+	unsigned long  fint_min, fint_max;
+	unsigned long lpdiv_max;
 } dsi;
 
 #ifdef DEBUG
@@ -751,7 +748,7 @@ static int dsi_set_lp_clk_divisor(struct omap_dss_device *dssdev)
 
 	lp_clk_div = dssdev->phy.dsi.div.lp_clk_div;
 
-	if (lp_clk_div == 0 || lp_clk_div > LP_DIV_MAX)
+	if (lp_clk_div == 0 || lp_clk_div > dsi.lpdiv_max)
 		return -EINVAL;
 
 	dsi_fclk = dsi_fclk_rate();
@@ -801,16 +798,16 @@ static int dsi_pll_power(enum dsi_pll_power_state state)
 static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
 		struct dsi_clock_info *cinfo)
 {
-	if (cinfo->regn == 0 || cinfo->regn > REGN_MAX)
+	if (cinfo->regn == 0 || cinfo->regn > dsi.regn_max)
 		return -EINVAL;
 
-	if (cinfo->regm == 0 || cinfo->regm > REGM_MAX)
+	if (cinfo->regm == 0 || cinfo->regm > dsi.regm_max)
 		return -EINVAL;
 
-	if (cinfo->regm_dispc > REGM_DISPC_MAX)
+	if (cinfo->regm_dispc > dsi.regm_dispc_max)
 		return -EINVAL;
 
-	if (cinfo->regm_dsi > REGM_DSI_MAX)
+	if (cinfo->regm_dsi > dsi.regm_dsi_max)
 		return -EINVAL;
 
 	if (cinfo->use_sys_clk) {
@@ -829,7 +826,7 @@ static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
 
 	cinfo->fint = cinfo->clkin / (cinfo->regn * (cinfo->highfreq ? 2 : 1));
 
-	if (cinfo->fint > FINT_MAX || cinfo->fint < FINT_MIN)
+	if (cinfo->fint > dsi.fint_max || cinfo->fint < dsi.fint_min)
 		return -EINVAL;
 
 	cinfo->clkin4ddr = 2 * cinfo->regm * cinfo->fint;
@@ -899,17 +896,17 @@ retry:
 	/* no highfreq: 0.75MHz < Fint = clkin / regn < 2.1MHz */
 	/* highfreq: 0.75MHz < Fint = clkin / (2*regn) < 2.1MHz */
 	/* To reduce PLL lock time, keep Fint high (around 2 MHz) */
-	for (cur.regn = 1; cur.regn < REGN_MAX; ++cur.regn) {
+	for (cur.regn = 1; cur.regn < dsi.regn_max; ++cur.regn) {
 		if (cur.highfreq == 0)
 			cur.fint = cur.clkin / cur.regn;
 		else
 			cur.fint = cur.clkin / (2 * cur.regn);
 
-		if (cur.fint > FINT_MAX || cur.fint < FINT_MIN)
+		if (cur.fint > dsi.fint_max || cur.fint < dsi.fint_min)
 			continue;
 
 		/* DSIPHY(MHz) = (2 * regm / regn) * (clkin / (highfreq + 1)) */
-		for (cur.regm = 1; cur.regm < REGM_MAX; ++cur.regm) {
+		for (cur.regm = 1; cur.regm < dsi.regm_max; ++cur.regm) {
 			unsigned long a, b;
 
 			a = 2 * cur.regm * (cur.clkin/1000);
@@ -921,7 +918,7 @@ retry:
 
 			/* dsi_pll_hsdiv_dispc_clk(MHz) =
 			 * DSIPHY(MHz) / regm_dispc  < 173MHz/186Mhz */
-			for (cur.regm_dispc = 1; cur.regm_dispc < REGM_DISPC_MAX;
+			for (cur.regm_dispc = 1; cur.regm_dispc < dsi.regm_dispc_max;
 					++cur.regm_dispc) {
 				struct dispc_clock_info cur_dispc;
 				cur.dsi_pll_hsdiv_dispc_clk =
@@ -994,6 +991,8 @@ int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo)
 	int r = 0;
 	u32 l;
 	int f;
+	u8 regn_start, regn_end, regm_start, regm_end;
+	u8 regm_dispc_start, regm_dispc_end, regm_dsi_start, regm_dsi_end;
 
 	DSSDBGF();
 
@@ -1038,19 +1037,30 @@ int dsi_pll_set_clock_div(struct dsi_clock_info *cinfo)
 		dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI),
 		cinfo->dsi_pll_hsdiv_dsi_clk);
 
+	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGN, &regn_start, &regn_end);
+	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGM, &regm_start, &regm_end);
+	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGM_DISPC, &regm_dispc_start,
+			&regm_dispc_end);
+	dss_feat_get_reg_field(FEAT_REG_DSIPLL_REGM_DSI, &regm_dsi_start,
+			&regm_dsi_end);
+
 	REG_FLD_MOD(DSI_PLL_CONTROL, 0, 0, 0); /* DSI_PLL_AUTOMODE = manual */
 
 	l = dsi_read_reg(DSI_PLL_CONFIGURATION1);
 	l = FLD_MOD(l, 1, 0, 0);		/* DSI_PLL_STOPMODE */
-	l = FLD_MOD(l, cinfo->regn - 1, 7, 1);	/* DSI_PLL_REGN */
-	l = FLD_MOD(l, cinfo->regm, 18, 8);	/* DSI_PLL_REGM */
+	/* DSI_PLL_REGN */
+	l = FLD_MOD(l, cinfo->regn - 1, regn_start, regn_end);
+	/* DSI_PLL_REGM */
+	l = FLD_MOD(l, cinfo->regm, regm_start, regm_end);
+	/* DSI_CLOCK_DIV */
 	l = FLD_MOD(l, cinfo->regm_dispc > 0 ? cinfo->regm_dispc - 1 : 0,
-			22, 19);		/* DSI_CLOCK_DIV */
+			regm_dispc_start, regm_dispc_end);
+	/* DSIPROTO_CLOCK_DIV */
 	l = FLD_MOD(l, cinfo->regm_dsi > 0 ? cinfo->regm_dsi - 1 : 0,
-			26, 23);		/* DSIPROTO_CLOCK_DIV */
+			regm_dsi_start, regm_dsi_end);
 	dsi_write_reg(DSI_PLL_CONFIGURATION1, l);
 
-	BUG_ON(cinfo->fint < 750000 || cinfo->fint > 2100000);
+	BUG_ON(cinfo->fint < dsi.fint_min || cinfo->fint > dsi.fint_max);
 	if (cinfo->fint < 1000000)
 		f = 0x3;
 	else if (cinfo->fint < 1250000)
@@ -3333,6 +3343,17 @@ void dsi_wait_pll_hsdiv_dsi_active(void)
 			dss_feat_get_clk_source_name(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI));
 }
 
+static void dsi_calc_clock_param_ranges(void)
+{
+	dsi.regn_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGN);
+	dsi.regm_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM);
+	dsi.regm_dispc_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_DISPC);
+	dsi.regm_dsi_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_REGM_DSI);
+	dsi.fint_min = dss_feat_get_param_min(FEAT_PARAM_DSIPLL_FINT);
+	dsi.fint_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_FINT);
+	dsi.lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
+}
+
 static int dsi_init(struct platform_device *pdev)
 {
 	u32 rev;
@@ -3396,6 +3417,8 @@ static int dsi_init(struct platform_device *pdev)
 		dsi.vc[i].dssdev = NULL;
 		dsi.vc[i].vc_id = 0;
 	}
+
+	dsi_calc_clock_param_ranges();
 
 	enable_clocks(1);
 

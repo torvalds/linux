@@ -55,36 +55,48 @@ struct omap_dss_features {
 static struct omap_dss_features *omap_current_dss_features;
 
 static const struct dss_reg_field omap2_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]		= { 11, 0 },
-	[FEAT_REG_FIRVINC]		= { 27, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 8, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]	= { 24, 16 },
-	[FEAT_REG_FIFOSIZE]		= { 8, 0 },
-	[FEAT_REG_HORIZONTALACCU]	= { 9, 0 },
-	[FEAT_REG_VERTICALACCU]		= { 25, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]	= { 0, 0 },
+	[FEAT_REG_FIRHINC]			= { 11, 0 },
+	[FEAT_REG_FIRVINC]			= { 27, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 8, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 24, 16 },
+	[FEAT_REG_FIFOSIZE]			= { 8, 0 },
+	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
+	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
+	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
+	[FEAT_REG_DSIPLL_REGN]			= { 0, 0 },
+	[FEAT_REG_DSIPLL_REGM]			= { 0, 0 },
+	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 0, 0 },
+	[FEAT_REG_DSIPLL_REGM_DSI]		= { 0, 0 },
 };
 
 static const struct dss_reg_field omap3_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]		= { 12, 0 },
-	[FEAT_REG_FIRVINC]		= { 28, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 11, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]	= { 27, 16 },
-	[FEAT_REG_FIFOSIZE]		= { 10, 0 },
-	[FEAT_REG_HORIZONTALACCU]	= { 9, 0 },
-	[FEAT_REG_VERTICALACCU]		= { 25, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]	= { 0, 0 },
+	[FEAT_REG_FIRHINC]			= { 12, 0 },
+	[FEAT_REG_FIRVINC]			= { 28, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 11, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 27, 16 },
+	[FEAT_REG_FIFOSIZE]			= { 10, 0 },
+	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
+	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
+	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
+	[FEAT_REG_DSIPLL_REGN]			= { 7, 1 },
+	[FEAT_REG_DSIPLL_REGM]			= { 18, 8 },
+	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 22, 19 },
+	[FEAT_REG_DSIPLL_REGM_DSI]		= { 26, 23 },
 };
 
 static const struct dss_reg_field omap4_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]		= { 12, 0 },
-	[FEAT_REG_FIRVINC]		= { 28, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 15, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]	= { 31, 16 },
-	[FEAT_REG_FIFOSIZE]		= { 15, 0 },
-	[FEAT_REG_HORIZONTALACCU]	= { 10, 0 },
-	[FEAT_REG_VERTICALACCU]		= { 26, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]	= { 9, 8 },
+	[FEAT_REG_FIRHINC]			= { 12, 0 },
+	[FEAT_REG_FIRVINC]			= { 28, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 15, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 31, 16 },
+	[FEAT_REG_FIFOSIZE]			= { 15, 0 },
+	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
+	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
+	[FEAT_REG_DISPC_CLK_SWITCH]		= { 9, 8 },
+	[FEAT_REG_DSIPLL_REGN]			= { 8, 1 },
+	[FEAT_REG_DSIPLL_REGM]			= { 20, 9 },
+	[FEAT_REG_DSIPLL_REGM_DISPC]		= { 25, 21 },
+	[FEAT_REG_DSIPLL_REGM_DSI]		= { 30, 26 },
 };
 
 static const enum omap_display_type omap2_dss_supported_displays[] = {
@@ -184,15 +196,33 @@ static const char * const omap4_dss_clk_source_names[] = {
 };
 
 static const struct dss_param_range omap2_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]	= { 0, 173000000 },
+	[FEAT_PARAM_DSS_FCK]			= { 0, 173000000 },
+	[FEAT_PARAM_DSIPLL_REGN]		= { 0, 0 },
+	[FEAT_PARAM_DSIPLL_REGM]		= { 0, 0 },
+	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, 0 },
+	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, 0 },
+	[FEAT_PARAM_DSIPLL_FINT]		= { 0, 0 },
+	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, 0 },
 };
 
 static const struct dss_param_range omap3_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]	= { 0, 173000000 },
+	[FEAT_PARAM_DSS_FCK]			= { 0, 173000000 },
+	[FEAT_PARAM_DSIPLL_REGN]		= { 0, (1 << 7) - 1 },
+	[FEAT_PARAM_DSIPLL_REGM]		= { 0, (1 << 11) - 1 },
+	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, (1 << 4) - 1 },
+	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, (1 << 4) - 1 },
+	[FEAT_PARAM_DSIPLL_FINT]		= { 750000, 2100000 },
+	[FEAT_PARAM_DSIPLL_LPDIV]		= { 1, (1 << 13) - 1},
 };
 
 static const struct dss_param_range omap4_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]	= { 0, 186000000 },
+	[FEAT_PARAM_DSS_FCK]			= { 0, 186000000 },
+	[FEAT_PARAM_DSIPLL_REGN]		= { 0, (1 << 8) - 1 },
+	[FEAT_PARAM_DSIPLL_REGM]		= { 0, (1 << 12) - 1 },
+	[FEAT_PARAM_DSIPLL_REGM_DISPC]		= { 0, (1 << 5) - 1 },
+	[FEAT_PARAM_DSIPLL_REGM_DSI]		= { 0, (1 << 5) - 1 },
+	[FEAT_PARAM_DSIPLL_FINT]		= { 500000, 2500000 },
+	[FEAT_PARAM_DSIPLL_LPDIV]		= { 0, (1 << 13) - 1 },
 };
 
 /* OMAP2 DSS Features */
