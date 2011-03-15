@@ -230,24 +230,32 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 		      int block, int len)
 {
 	unsigned char start = block * EDID_LENGTH;
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= DDC_ADDR,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= &start,
-		}, {
-			.addr	= DDC_ADDR,
-			.flags	= I2C_M_RD,
-			.len	= len,
-			.buf	= buf,
-		}
-	};
+	int ret, retries = 5;
 
-	if (i2c_transfer(adapter, msgs, 2) == 2)
-		return 0;
+	/* The core i2c driver will automatically retry the transfer if the
+	 * adapter reports EAGAIN. However, we find that bit-banging transfers
+	 * are susceptible to errors under a heavily loaded machine and
+	 * generate spurious NAKs and timeouts. Retrying the transfer
+	 * of the individual block a few times seems to overcome this.
+	 */
+	do {
+		struct i2c_msg msgs[] = {
+			{
+				.addr	= DDC_ADDR,
+				.flags	= 0,
+				.len	= 1,
+				.buf	= &start,
+			}, {
+				.addr	= DDC_ADDR,
+				.flags	= I2C_M_RD,
+				.len	= len,
+				.buf	= buf,
+			}
+		};
+		ret = i2c_transfer(adapter, msgs, 2);
+	} while (ret != 2 && --retries);
 
-	return -1;
+	return ret == 2 ? 0 : -1;
 }
 
 static u8 *
