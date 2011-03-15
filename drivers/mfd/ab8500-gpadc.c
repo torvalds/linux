@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/mfd/ab8500.h>
 #include <linux/mfd/abx500.h>
-#include <linux/mfd/ab8500/ab8500-gpadc.h>
+#include <linux/mfd/ab8500/gpadc.h>
 
 /*
  * GPADC register offsets
