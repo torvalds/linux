@@ -44,7 +44,6 @@ struct xt_connlimit_data {
 };
 
 static u_int32_t connlimit_rnd __read_mostly;
-static bool connlimit_rnd_inited __read_mostly;
 
 static inline unsigned int connlimit_iphash(__be32 addr)
 {
@@ -226,9 +225,13 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 	unsigned int i;
 	int ret;
 
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
+	if (unlikely(!connlimit_rnd)) {
+		u_int32_t rand;
+
+		do {
+			get_random_bytes(&rand, sizeof(rand));
+		} while (!rand);
+		cmpxchg(&connlimit_rnd, 0, rand);
 	}
 	ret = nf_ct_l3proto_try_module_get(par->family);
 	if (ret < 0) {
