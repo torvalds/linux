@@ -190,6 +190,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		XFRM_SKB_CB(skb)->seq.input.low = seq;
 		XFRM_SKB_CB(skb)->seq.input.hi = seq_hi;
 
+		skb_dst_force(skb);
+
 		nexthdr = x->type->input(x, skb);
 
 		if (nexthdr == -EINPROGRESS)
