@@ -142,10 +142,10 @@ static struct nvme_cmd_info *nvme_cmd_info(struct nvme_queue *nvmeq)
 }
 
 /**
- * alloc_cmdid - Allocate a Command ID
- * @param nvmeq The queue that will be used for this command
- * @param ctx A pointer that will be passed to the handler
- * @param handler The ID of the handler to call
+ * alloc_cmdid() - Allocate a Command ID
+ * @nvmeq: The queue that will be used for this command
+ * @ctx: A pointer that will be passed to the handler
+ * @handler: The ID of the handler to call
  *
  * Allocate a Command ID for a queue.  The data passed in will
  * be passed to the completion handler.  This is implemented by using
@@ -234,7 +234,7 @@ static void put_nvmeq(struct nvme_queue *nvmeq)
 }
 
 /**
- * nvme_submit_cmd: Copy a command into a queue and ring the doorbell
+ * nvme_submit_cmd() - Copy a command into a queue and ring the doorbell
  * @nvmeq: The queue to use
  * @cmd: The command to send
  *
