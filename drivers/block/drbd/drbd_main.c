@@ -1640,7 +1640,7 @@ int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req)
 	p.sector  = cpu_to_be64(req->i.sector);
 	p.blksize = cpu_to_be32(req->i.size);
 
-	return !drbd_send_cmd(mdev, &mdev->tconn->data, P_OUT_OF_SYNC, &p.head, sizeof(p));
+	return drbd_send_cmd(mdev, &mdev->tconn->data, P_OUT_OF_SYNC, &p.head, sizeof(p));
 }
 
 /*

@@ -1241,7 +1241,7 @@ int w_send_oos(struct drbd_work *w, int cancel)
 		return 1;
 	}
 
-	ok = drbd_send_oos(mdev, req);
+	ok = !drbd_send_oos(mdev, req);
 	req_mod(req, OOS_HANDED_TO_NETWORK);
 
 	return ok;
