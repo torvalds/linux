@@ -568,10 +568,10 @@ Cpu highest frequency is 1.2 GHz
 void __sramlocalfunc delayus(uint32_t us)
 {	
      uint32_t count;
-     if(cpu_freq == 600)
-         count = us * 150;//533;
+     if(cpu_freq == 24)
+         count = us * 6;//533;
      else
-        count = us*6;
+        count = us*200;
      while(count--)  // 3 cycles
 	 	barrier();
 
@@ -1015,8 +1015,10 @@ void __sramfunc ddr_change_freq(uint32_t nMHz)
 
     local_irq_save(flags);
     //ddr_print("%s enter\n", __func__);
-    cpu_freq = clk_get_rate(clk_get(NULL,"core"));
-    cpu_freq = cpu_freq/1000000;
+    if((pSCU_Reg->CRU_MODE_CON & 0x03) == 0x03)
+        cpu_freq = 24;
+    else 
+        cpu_freq = clk_get_rate(clk_get(NULL,"core"))/1000000;
     
     ret = ddr_set_pll(nMHz, 0);
     ddr_get_parameter(ret);
