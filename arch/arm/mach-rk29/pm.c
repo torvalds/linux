@@ -49,7 +49,6 @@ extern void ddr_resume(void);
 static void inline printch(char byte)
 {
 	unsigned long flags;
-	unsigned int delay;
 	u32 gate1, gate2;
 
 	local_irq_save(flags);
