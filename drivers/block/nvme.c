@@ -182,7 +182,8 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 	return (cmdid < 0) ? -EINTR : cmdid;
 }
 
-/* If you need more than four handlers, you'll need to change how
+/*
+ * If you need more than four handlers, you'll need to change how
  * alloc_cmdid and nvme_process_cq work.  Consider using a special
  * CMD_CTX value instead, if that works for your situation.
  */
@@ -1066,7 +1067,8 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	prps = nvme_setup_prps(dev, &c.common, sg, length);
 
 	nvmeq = get_nvmeq(ns);
-	/* Since nvme_submit_sync_cmd sleeps, we can't keep preemption
+	/*
+	 * Since nvme_submit_sync_cmd sleeps, we can't keep preemption
 	 * disabled.  We may be preempted at any point, and be rescheduled
 	 * to a different CPU.  That will cause cacheline bouncing, but no
 	 * additional races since q_lock already protects against other CPUs.
