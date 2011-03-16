@@ -1462,7 +1462,8 @@ rpcrdma_map_one(struct rpcrdma_ia *ia, struct rpcrdma_mr_seg *seg, int writing)
 	if (ib_dma_mapping_error(ia->ri_id->device, seg->mr_dma)) {
 		dprintk("RPC:       %s: mr_dma %llx mr_offset %p mr_dma_len %zu\n",
 			__func__,
-			seg->mr_dma, seg->mr_offset, seg->mr_dmalen);
+			(unsigned long long)seg->mr_dma,
+			seg->mr_offset, seg->mr_dmalen);
 	}
 }
 
