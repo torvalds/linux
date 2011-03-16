@@ -2336,7 +2336,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 			s, data ? data->fscache_uniq : NULL, NULL);
 	}
 
-	mntroot = nfs_get_root(s, mntfh);
+	mntroot = nfs_get_root(s, mntfh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -2450,7 +2450,7 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs_get_root(s, data->fh);
+	mntroot = nfs_get_root(s, data->fh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -2718,7 +2718,7 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 			s, data ? data->fscache_uniq : NULL, NULL);
 	}
 
-	mntroot = nfs4_get_root(s, mntfh);
+	mntroot = nfs4_get_root(s, mntfh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -3033,7 +3033,7 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs4_get_root(s, data->fh);
+	mntroot = nfs4_get_root(s, data->fh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;
@@ -3120,7 +3120,7 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 		nfs_fscache_get_super_cookie(s, NULL, data);
 	}
 
-	mntroot = nfs4_get_root(s, mntfh);
+	mntroot = nfs4_get_root(s, mntfh, dev_name);
 	if (IS_ERR(mntroot)) {
 		error = PTR_ERR(mntroot);
 		goto error_splat_super;

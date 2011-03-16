@@ -75,7 +75,8 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 /*
  * get an NFS2/NFS3 root dentry from the root filehandle
  */
-struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
+struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh,
+			    const char *devname)
 {
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fsinfo fsinfo;
@@ -169,7 +170,8 @@ out:
 /*
  * get an NFS4 root dentry from the root filehandle
  */
-struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
+struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh,
+			     const char *devname)
 {
 	struct nfs_server *server = NFS_SB(sb);
 	struct nfs_fattr *fattr = NULL;

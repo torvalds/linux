@@ -254,9 +254,11 @@ extern char *nfs_path(const char *base,
 extern struct vfsmount *nfs_d_automount(struct path *path);
 
 /* getroot.c */
-extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *);
+extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *,
+				   const char *);
 #ifdef CONFIG_NFS_V4
-extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *);
+extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *,
+				    const char *);
 
 extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh);
 #endif
