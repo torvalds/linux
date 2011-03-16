@@ -1379,30 +1379,32 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 static int drbd_drain_block(struct drbd_conf *mdev, int data_size)
 {
 	struct page *page;
-	int rr, rv = 1;
+	int rr, err = 0;
 	void *data;
 
 	if (!data_size)
-		return true;
+		return 0;
 
 	page = drbd_pp_alloc(mdev, 1, 1);
 
 	data = kmap(page);
 	while (data_size) {
-		rr = drbd_recv(mdev->tconn, data, min_t(int, data_size, PAGE_SIZE));
-		if (rr != min_t(int, data_size, PAGE_SIZE)) {
-			rv = 0;
+		unsigned int len = min_t(int, data_size, PAGE_SIZE);
+
+		rr = drbd_recv(mdev->tconn, data, len);
+		if (rr != len) {
 			if (!signal_pending(current))
 				dev_warn(DEV,
 					"short read receiving data: read %d expected %d\n",
-					rr, min_t(int, data_size, PAGE_SIZE));
+					rr, len);
+			err = (rr < 0) ? rr : -EIO;
 			break;
 		}
 		data_size -= rr;
 	}
 	kunmap(page);
 	drbd_pp_free(mdev, page, 0);
-	return rv;
+	return err;
 }
 
 static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
@@ -1593,7 +1595,7 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
 		if (__ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "Can not write resync data to local disk.\n");
 
-		ok = drbd_drain_block(mdev, data_size);
+		ok = !drbd_drain_block(mdev, data_size);
 
 		drbd_send_ack_dp(mdev, P_NEG_ACK, p, data_size);
 	}
@@ -1979,7 +1981,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packet cmd,
 		err = wait_for_and_update_peer_seq(mdev, peer_seq);
 		drbd_send_ack_dp(mdev, P_NEG_ACK, p, data_size);
 		atomic_inc(&mdev->current_epoch->epoch_size);
-		return drbd_drain_block(mdev, data_size) && err == 0;
+		return !drbd_drain_block(mdev, data_size) && err == 0;
 	}
 
 	/*
@@ -2188,7 +2190,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
 			    "no local data.\n");
 
 		/* drain possibly payload */
-		return drbd_drain_block(mdev, digest_size);
+		return !drbd_drain_block(mdev, digest_size);
 	}
 
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
