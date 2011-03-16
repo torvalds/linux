@@ -249,7 +249,7 @@ static struct i2c_adapter ocores_adapter = {
 static int ocores_i2c_of_probe(struct platform_device* pdev,
 				struct ocores_i2c* i2c)
 {
-	__be32* val;
+	const __be32* val;
 
 	val = of_get_property(pdev->dev.of_node, "regstep", NULL);
 	if (!val) {

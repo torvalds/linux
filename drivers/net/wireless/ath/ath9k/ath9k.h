@@ -21,7 +21,6 @@
 #include <linux/device.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
-#include <linux/pm_qos_params.h>
 
 #include "debug.h"
 #include "common.h"
@@ -56,8 +55,6 @@ struct ath_node;
 	} while (0)
 
 #define A_MAX(a, b) ((a) > (b) ? (a) : (b))
-
-#define ATH9K_PM_QOS_DEFAULT_VALUE	55
 
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
@@ -633,8 +630,6 @@ struct ath_softc {
 	struct ath_descdma txsdma;
 
 	struct ath_ant_comb ant_comb;
-
-	struct pm_qos_request_list pm_qos_req;
 };
 
 struct ath_wiphy {
@@ -666,7 +661,6 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 extern struct ieee80211_ops ath9k_ops;
 extern int ath9k_modparam_nohwcrypt;
 extern int led_blink;
-extern int ath9k_pm_qos_value;
 extern bool is_ath9k_unloaded;
 
 irqreturn_t ath_isr(int irq, void *dev);

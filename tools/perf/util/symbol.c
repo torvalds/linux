@@ -1836,7 +1836,7 @@ int dso__load_vmlinux(struct dso *self, struct map *map,
 	int err = -1, fd;
 	char symfs_vmlinux[PATH_MAX];
 
-	snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s/%s",
+	snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s%s",
 		 symbol_conf.symfs, vmlinux);
 	fd = open(symfs_vmlinux, O_RDONLY);
 	if (fd < 0)
