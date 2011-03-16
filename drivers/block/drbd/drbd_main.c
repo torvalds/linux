@@ -917,7 +917,7 @@ void drbd_print_uuids(struct drbd_conf *mdev, const char *text)
 	}
 }
 
-int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
+void drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 {
 	struct p_rs_uuid p;
 	u64 uuid;
@@ -930,7 +930,7 @@ int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 	drbd_md_sync(mdev);
 	p.uuid = cpu_to_be64(uuid);
 
-	return !drbd_send_cmd(mdev, &mdev->tconn->data, P_SYNC_UUID, &p.head, sizeof(p));
+	drbd_send_cmd(mdev, &mdev->tconn->data, P_SYNC_UUID, &p.head, sizeof(p));
 }
 
 int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags)
