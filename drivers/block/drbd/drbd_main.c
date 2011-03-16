@@ -1473,12 +1473,15 @@ static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
 	int i;
 	/* hint all but last page with MSG_MORE */
 	__bio_for_each_segment(bvec, bio, i, 0) {
-		if (_drbd_no_send_page(mdev, bvec->bv_page,
-				       bvec->bv_offset, bvec->bv_len,
-				       i == bio->bi_vcnt -1 ? 0 : MSG_MORE))
-			return 0;
+		int err;
+
+		err = _drbd_no_send_page(mdev, bvec->bv_page,
+					 bvec->bv_offset, bvec->bv_len,
+					 i == bio->bi_vcnt - 1 ? 0 : MSG_MORE);
+		if (err)
+			return err;
 	}
-	return 1;
+	return 0;
 }
 
 static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
@@ -1487,12 +1490,15 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 	int i;
 	/* hint all but last page with MSG_MORE */
 	__bio_for_each_segment(bvec, bio, i, 0) {
-		if (_drbd_send_page(mdev, bvec->bv_page,
-				    bvec->bv_offset, bvec->bv_len,
-				    i == bio->bi_vcnt -1 ? 0 : MSG_MORE))
-			return 0;
+		int err;
+
+		err = _drbd_send_page(mdev, bvec->bv_page,
+				      bvec->bv_offset, bvec->bv_len,
+				      i == bio->bi_vcnt - 1 ? 0 : MSG_MORE);
+		if (err)
+			return err;
 	}
-	return 1;
+	return 0;
 }
 
 static int _drbd_send_zc_ee(struct drbd_conf *mdev,
@@ -1576,9 +1582,9 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		 * receiving side, we sure have detected corruption elsewhere.
 		 */
 		if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A || dgs)
-			ok = _drbd_send_bio(mdev, req->master_bio);
+			ok = !_drbd_send_bio(mdev, req->master_bio);
 		else
-			ok = _drbd_send_zc_bio(mdev, req->master_bio);
+			ok = !_drbd_send_zc_bio(mdev, req->master_bio);
 
 		/* double check digest, sometimes buffers have been modified in flight. */
 		if (dgs > 0 && dgs <= 64) {
