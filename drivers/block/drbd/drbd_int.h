@@ -1937,7 +1937,7 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 				      enum drbd_packet cmd)
 {
 	struct p_header h;
-	return !drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
+	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
 }
 
 static inline int drbd_send_ping(struct drbd_tconn *tconn)

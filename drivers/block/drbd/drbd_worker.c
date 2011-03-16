@@ -1227,7 +1227,7 @@ int w_send_write_hint(struct drbd_work *w, int cancel)
 	struct drbd_conf *mdev = w->mdev;
 	if (cancel)
 		return 1;
-	return drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
+	return !drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
 }
 
 int w_send_oos(struct drbd_work *w, int cancel)
