@@ -36,6 +36,7 @@
 #include "control.h"
 
 #include "voltage.h"
+#include "powerdomain.h"
 
 #include "vc.h"
 #include "vp.h"
@@ -1085,11 +1086,90 @@ static struct voltagedomain *_voltdm_lookup(const char *name)
 	return voltdm;
 }
 
+/**
+ * voltdm_add_pwrdm - add a powerdomain to a voltagedomain
+ * @voltdm: struct voltagedomain * to add the powerdomain to
+ * @pwrdm: struct powerdomain * to associate with a voltagedomain
+ *
+ * Associate the powerdomain @pwrdm with a voltagedomain @voltdm.  This
+ * enables the use of voltdm_for_each_pwrdm().  Returns -EINVAL if
+ * presented with invalid pointers; -ENOMEM if memory could not be allocated;
+ * or 0 upon success.
+ */
+int voltdm_add_pwrdm(struct voltagedomain *voltdm, struct powerdomain *pwrdm)
+{
+	if (!voltdm || !pwrdm)
+		return -EINVAL;
+
+	pr_debug("voltagedomain: associating powerdomain %s with voltagedomain "
+		 "%s\n", pwrdm->name, voltdm->name);
+
+	list_add(&pwrdm->voltdm_node, &voltdm->pwrdm_list);
+
+	return 0;
+}
+
+/**
+ * voltdm_for_each_pwrdm - call function for each pwrdm in a voltdm
+ * @voltdm: struct voltagedomain * to iterate over
+ * @fn: callback function *
+ *
+ * Call the supplied function @fn for each powerdomain in the
+ * voltagedomain @voltdm.  Returns -EINVAL if presented with invalid
+ * pointers; or passes along the last return value of the callback
+ * function, which should be 0 for success or anything else to
+ * indicate failure.
+ */
+int voltdm_for_each_pwrdm(struct voltagedomain *voltdm,
+			  int (*fn)(struct voltagedomain *voltdm,
+				    struct powerdomain *pwrdm))
+{
+	struct powerdomain *pwrdm;
+	int ret = 0;
+
+	if (!fn)
+		return -EINVAL;
+
+	list_for_each_entry(pwrdm, &voltdm->pwrdm_list, voltdm_node)
+		ret = (*fn)(voltdm, pwrdm);
+
+	return ret;
+}
+
+/**
+ * voltdm_for_each - call function on each registered voltagedomain
+ * @fn: callback function *
+ *
+ * Call the supplied function @fn for each registered voltagedomain.
+ * The callback function @fn can return anything but 0 to bail out
+ * early from the iterator.  Returns the last return value of the
+ * callback function, which should be 0 for success or anything else
+ * to indicate failure; or -EINVAL if the function pointer is null.
+ */
+int voltdm_for_each(int (*fn)(struct voltagedomain *voltdm, void *user),
+		    void *user)
+{
+	struct voltagedomain *temp_voltdm;
+	int ret = 0;
+
+	if (!fn)
+		return -EINVAL;
+
+	list_for_each_entry(temp_voltdm, &voltdm_list, node) {
+		ret = (*fn)(temp_voltdm, user);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 static int _voltdm_register(struct voltagedomain *voltdm)
 {
 	if (!voltdm || !voltdm->name)
 		return -EINVAL;
 
+	INIT_LIST_HEAD(&voltdm->pwrdm_list);
 	list_add(&voltdm->node, &voltdm_list);
 
 	pr_debug("voltagedomain: registered %s\n", voltdm->name);

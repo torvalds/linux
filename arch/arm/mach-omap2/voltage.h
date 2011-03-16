@@ -19,6 +19,8 @@
 #include "vc.h"
 #include "vp.h"
 
+struct powerdomain;
+
 /* XXX document */
 #define VOLTSCALE_VPFORCEUPDATE		1
 #define VOLTSCALE_VCBYPASS		2
@@ -55,12 +57,14 @@ struct omap_vfsm_instance_data {
  * @name: Name of the voltage domain which can be used as a unique identifier.
  * @scalable: Whether or not this voltage domain is scalable
  * @node: list_head linking all voltage domains
+ * @pwrdm_list: list_head linking all powerdomains in this voltagedomain
  * @vdd: to be removed
  */
 struct voltagedomain {
 	char *name;
 	bool scalable;
 	struct list_head node;
+	struct list_head pwrdm_list;
 	struct omap_vdd_info *vdd;
 };
 
@@ -187,4 +191,9 @@ extern void omap44xx_voltagedomains_init(void);
 struct voltagedomain *voltdm_lookup(const char *name);
 void voltdm_init(struct voltagedomain **voltdm_list);
 int voltdm_add_pwrdm(struct voltagedomain *voltdm, struct powerdomain *pwrdm);
+int voltdm_for_each(int (*fn)(struct voltagedomain *voltdm, void *user),
+		    void *user);
+int voltdm_for_each_pwrdm(struct voltagedomain *voltdm,
+			  int (*fn)(struct voltagedomain *voltdm,
+				    struct powerdomain *pwrdm));
 #endif
