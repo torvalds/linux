@@ -376,12 +376,13 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 	cmd->prp2 = cpu_to_le64(prp_dma);
 	i = 0;
 	for (;;) {
-		if (i == PAGE_SIZE / 8 - 1) {
+		if (i == PAGE_SIZE / 8) {
 			__le64 *old_prp_list = prp_list;
 			prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 			prps->list[prp_page++] = prp_list;
-			old_prp_list[i] = cpu_to_le64(prp_dma);
-			i = 0;
+			prp_list[0] = old_prp_list[i - 1];
+			old_prp_list[i - 1] = cpu_to_le64(prp_dma);
+			i = 1;
 		}
 		prp_list[i++] = cpu_to_le64(dma_addr);
 		dma_len -= PAGE_SIZE;
