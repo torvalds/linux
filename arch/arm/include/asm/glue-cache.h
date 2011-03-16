@@ -109,7 +109,7 @@
 # define MULTI_CACHE 1
 #endif
 
-#if defined(CONFIG_CPU_V6)
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
 //# ifdef _CACHE
 #  define MULTI_CACHE 1
 //# else

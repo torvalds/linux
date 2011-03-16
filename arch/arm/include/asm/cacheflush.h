@@ -187,7 +187,8 @@ extern void copy_to_user_page(struct vm_area_struct *, struct page *,
  * Optimized __flush_icache_all for the common cases. Note that UP ARMv7
  * will fall through to use __flush_icache_all_generic.
  */
-#if (defined(CONFIG_CPU_V7) && defined(CONFIG_CPU_V6)) ||		\
+#if (defined(CONFIG_CPU_V7) && \
+     (defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K))) || \
 	defined(CONFIG_SMP_ON_UP)
 #define __flush_icache_preferred	__cpuc_flush_icache_all
 #elif __LINUX_ARM_ARCH__ >= 7 && defined(CONFIG_SMP)
