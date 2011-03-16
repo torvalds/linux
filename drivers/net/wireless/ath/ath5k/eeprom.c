@@ -72,7 +72,6 @@ static int
 ath5k_eeprom_init_header(struct ath5k_hw *ah)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	int ret;
 	u16 val;
 	u32 cksum, offset, eep_max = AR5K_EEPROM_INFO_MAX;
 
@@ -192,7 +191,7 @@ static int ath5k_eeprom_read_ants(struct ath5k_hw *ah, u32 *offset,
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 o = *offset;
 	u16 val;
-	int ret, i = 0;
+	int i = 0;
 
 	AR5K_EEPROM_READ(o++, val);
 	ee->ee_switch_settling[mode]	= (val >> 8) & 0x7f;
@@ -252,7 +251,6 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 o = *offset;
 	u16 val;
-	int ret;
 
 	ee->ee_n_piers[mode] = 0;
 	AR5K_EEPROM_READ(o++, val);
@@ -515,7 +513,6 @@ ath5k_eeprom_read_freq_list(struct ath5k_hw *ah, int *offset, int max,
 	int o = *offset;
 	int i = 0;
 	u8 freq1, freq2;
-	int ret;
 	u16 val;
 
 	ee->ee_n_piers[mode] = 0;
@@ -551,7 +548,7 @@ ath5k_eeprom_init_11a_pcal_freq(struct ath5k_hw *ah, int offset)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	struct ath5k_chan_pcal_info *pcal = ee->ee_pwr_cal_a;
-	int i, ret;
+	int i;
 	u16 val;
 	u8 mask;
 
@@ -970,7 +967,6 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
 	u32 offset;
 	u8 i, c;
 	u16 val;
-	int ret;
 	u8 pd_gains = 0;
 
 	/* Count how many curves we have and
@@ -1228,7 +1224,7 @@ ath5k_eeprom_read_pcal_info_2413(struct ath5k_hw *ah, int mode)
 	struct ath5k_chan_pcal_info *chinfo;
 	u8 *pdgain_idx = ee->ee_pdc_to_idx[mode];
 	u32 offset;
-	int idx, i, ret;
+	int idx, i;
 	u16 val;
 	u8 pd_gains = 0;
 
@@ -1419,7 +1415,7 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
 	u8 *rate_target_pwr_num;
 	u32 offset;
 	u16 val;
-	int ret, i;
+	int i;
 
 	offset = AR5K_EEPROM_TARGET_PWRSTART(ee->ee_misc1);
 	rate_target_pwr_num = &ee->ee_rate_target_pwr_num[mode];
@@ -1593,7 +1589,7 @@ ath5k_eeprom_read_ctl_info(struct ath5k_hw *ah)
 	struct ath5k_edge_power *rep;
 	unsigned int fmask, pmask;
 	unsigned int ctl_mode;
-	int ret, i, j;
+	int i, j;
 	u32 offset;
 	u16 val;
 
@@ -1733,16 +1729,12 @@ int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 	u8 mac_d[ETH_ALEN] = {};
 	u32 total, offset;
 	u16 data;
-	int octet, ret;
+	int octet;
 
-	ret = ath5k_hw_nvram_read(ah, 0x20, &data);
-	if (ret)
-		return ret;
+	AR5K_EEPROM_READ(0x20, data);
 
 	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
-		ret = ath5k_hw_nvram_read(ah, offset, &data);
-		if (ret)
-			return ret;
+		AR5K_EEPROM_READ(offset, data);
 
 		total += data;
 		mac_d[octet + 1] = data & 0xff;

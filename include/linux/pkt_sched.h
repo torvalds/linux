@@ -247,6 +247,35 @@ struct tc_gred_sopt {
 	__u16		pad1;
 };
 
+/* CHOKe section */
+
+enum {
+	TCA_CHOKE_UNSPEC,
+	TCA_CHOKE_PARMS,
+	TCA_CHOKE_STAB,
+	__TCA_CHOKE_MAX,
+};
+
+#define TCA_CHOKE_MAX (__TCA_CHOKE_MAX - 1)
+
+struct tc_choke_qopt {
+	__u32		limit;		/* Hard queue length (packets)	*/
+	__u32		qth_min;	/* Min average threshold (packets) */
+	__u32		qth_max;	/* Max average threshold (packets) */
+	unsigned char   Wlog;		/* log(W)		*/
+	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
+	unsigned char   Scell_log;	/* cell size for idle damping */
+	unsigned char	flags;		/* see RED flags */
+};
+
+struct tc_choke_xstats {
+	__u32		early;          /* Early drops */
+	__u32		pdrop;          /* Drops due to queue limits */
+	__u32		other;          /* Drops due to drop() calls */
+	__u32		marked;         /* Marked packets */
+	__u32		matched;	/* Drops due to flow match */
+};
+
 /* HTB section */
 #define TC_HTB_NUMPRIO		8
 #define TC_HTB_MAXDEPTH		8
@@ -435,6 +464,7 @@ enum {
 	TCA_NETEM_DELAY_DIST,
 	TCA_NETEM_REORDER,
 	TCA_NETEM_CORRUPT,
+	TCA_NETEM_LOSS,
 	__TCA_NETEM_MAX,
 };
 
@@ -465,7 +495,33 @@ struct tc_netem_corrupt {
 	__u32	correlation;
 };
 
+enum {
+	NETEM_LOSS_UNSPEC,
+	NETEM_LOSS_GI,		/* General Intuitive - 4 state model */
+	NETEM_LOSS_GE,		/* Gilbert Elliot models */
+	__NETEM_LOSS_MAX
+};
+#define NETEM_LOSS_MAX (__NETEM_LOSS_MAX - 1)
+
+/* State transition probablities for 4 state model */
+struct tc_netem_gimodel {
+	__u32	p13;
+	__u32	p31;
+	__u32	p32;
+	__u32	p14;
+	__u32	p23;
+};
+
+/* Gilbert-Elliot models */
+struct tc_netem_gemodel {
+	__u32 p;
+	__u32 r;
+	__u32 h;
+	__u32 k1;
+};
+
 #define NETEM_DIST_SCALE	8192
+#define NETEM_DIST_MAX		16384
 
 /* DRR */
 
@@ -480,5 +536,56 @@ enum {
 struct tc_drr_stats {
 	__u32	deficit;
 };
+
+/* MQPRIO */
+#define TC_QOPT_BITMASK 15
+#define TC_QOPT_MAX_QUEUE 16
+
+struct tc_mqprio_qopt {
+	__u8	num_tc;
+	__u8	prio_tc_map[TC_QOPT_BITMASK + 1];
+	__u8	hw;
+	__u16	count[TC_QOPT_MAX_QUEUE];
+	__u16	offset[TC_QOPT_MAX_QUEUE];
+};
+
+/* SFB */
+
+enum {
+	TCA_SFB_UNSPEC,
+	TCA_SFB_PARMS,
+	__TCA_SFB_MAX,
+};
+
+#define TCA_SFB_MAX (__TCA_SFB_MAX - 1)
+
+/*
+ * Note: increment, decrement are Q0.16 fixed-point values.
+ */
+struct tc_sfb_qopt {
+	__u32 rehash_interval;	/* delay between hash move, in ms */
+	__u32 warmup_time;	/* double buffering warmup time in ms (warmup_time < rehash_interval) */
+	__u32 max;		/* max len of qlen_min */
+	__u32 bin_size;		/* maximum queue length per bin */
+	__u32 increment;	/* probability increment, (d1 in Blue) */
+	__u32 decrement;	/* probability decrement, (d2 in Blue) */
+	__u32 limit;		/* max SFB queue length */
+	__u32 penalty_rate;	/* inelastic flows are rate limited to 'rate' pps */
+	__u32 penalty_burst;
+};
+
+struct tc_sfb_xstats {
+	__u32 earlydrop;
+	__u32 penaltydrop;
+	__u32 bucketdrop;
+	__u32 queuedrop;
+	__u32 childdrop; /* drops in child qdisc */
+	__u32 marked;
+	__u32 maxqlen;
+	__u32 maxprob;
+	__u32 avgprob;
+};
+
+#define SFB_MAX_PROB 0xFFFF
 
 #endif

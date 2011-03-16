@@ -19,13 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/phy.h>
-
-#define	PHY_ID_KSZ9021			0x00221611
-#define	PHY_ID_KS8737			0x00221720
-#define	PHY_ID_KS8041			0x00221510
-#define	PHY_ID_KS8051			0x00221550
-/* both for ks8001 Rev. A/B, and for ks8721 Rev 3. */
-#define	PHY_ID_KS8001			0x0022161A
+#include <linux/micrel_phy.h>
 
 /* general Interrupt control/status reg in vendor specific block. */
 #define MII_KSZPHY_INTCS			0x1B
@@ -46,6 +40,7 @@
 #define KSZPHY_CTRL_INT_ACTIVE_HIGH		(1 << 9)
 #define KSZ9021_CTRL_INT_ACTIVE_HIGH		(1 << 14)
 #define KS8737_CTRL_INT_ACTIVE_HIGH		(1 << 14)
+#define KSZ8051_RMII_50MHZ_CLK			(1 << 7)
 
 static int kszphy_ack_interrupt(struct phy_device *phydev)
 {
@@ -106,6 +101,19 @@ static int kszphy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int ks8051_config_init(struct phy_device *phydev)
+{
+	int regval;
+
+	if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK) {
+		regval = phy_read(phydev, MII_KSZPHY_CTRL);
+		regval |= KSZ8051_RMII_50MHZ_CLK;
+		phy_write(phydev, MII_KSZPHY_CTRL, regval);
+	}
+
+	return 0;
+}
+
 static struct phy_driver ks8737_driver = {
 	.phy_id		= PHY_ID_KS8737,
 	.phy_id_mask	= 0x00fffff0,
@@ -142,7 +150,7 @@ static struct phy_driver ks8051_driver = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= ks8051_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,

@@ -28,6 +28,80 @@
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netfilter/nf_conntrack.h>
 #endif
+#include <net/net_namespace.h>		/* Netw namespace */
+
+/*
+ * Generic access of ipvs struct
+ */
+static inline struct netns_ipvs *net_ipvs(struct net* net)
+{
+	return net->ipvs;
+}
+/*
+ * Get net ptr from skb in traffic cases
+ * use skb_sknet when call is from userland (ioctl or netlink)
+ */
+static inline struct net *skb_net(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_NS
+#ifdef CONFIG_IP_VS_DEBUG
+	/*
+	 * This is used for debug only.
+	 * Start with the most likely hit
+	 * End with BUG
+	 */
+	if (likely(skb->dev && skb->dev->nd_net))
+		return dev_net(skb->dev);
+	if (skb_dst(skb)->dev)
+		return dev_net(skb_dst(skb)->dev);
+	WARN(skb->sk, "Maybe skb_sknet should be used in %s() at line:%d\n",
+		      __func__, __LINE__);
+	if (likely(skb->sk && skb->sk->sk_net))
+		return sock_net(skb->sk);
+	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
+		__func__, __LINE__);
+	BUG();
+#else
+	return dev_net(skb->dev ? : skb_dst(skb)->dev);
+#endif
+#else
+	return &init_net;
+#endif
+}
+
+static inline struct net *skb_sknet(const struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_NS
+#ifdef CONFIG_IP_VS_DEBUG
+	/* Start with the most likely hit */
+	if (likely(skb->sk && skb->sk->sk_net))
+		return sock_net(skb->sk);
+	WARN(skb->dev, "Maybe skb_net should be used instead in %s() line:%d\n",
+		       __func__, __LINE__);
+	if (likely(skb->dev && skb->dev->nd_net))
+		return dev_net(skb->dev);
+	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
+		__func__, __LINE__);
+	BUG();
+#else
+	return sock_net(skb->sk);
+#endif
+#else
+	return &init_net;
+#endif
+}
+/*
+ * This one needed for single_open_net since net is stored directly in
+ * private not as a struct i.e. seq_file_net cant be used.
+ */
+static inline struct net *seq_file_single_net(struct seq_file *seq)
+{
+#ifdef CONFIG_NET_NS
+	return (struct net *)seq->private;
+#else
+	return &init_net;
+#endif
+}
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
@@ -258,6 +332,23 @@ struct ip_vs_seq {
 						   before last resized pkt */
 };
 
+/*
+ * counters per cpu
+ */
+struct ip_vs_counters {
+	__u32		conns;		/* connections scheduled */
+	__u32		inpkts;		/* incoming packets */
+	__u32		outpkts;	/* outgoing packets */
+	__u64		inbytes;	/* incoming bytes */
+	__u64		outbytes;	/* outgoing bytes */
+};
+/*
+ * Stats per cpu
+ */
+struct ip_vs_cpu_stats {
+	struct ip_vs_counters   ustats;
+	struct u64_stats_sync   syncp;
+};
 
 /*
  *	IPVS statistics objects
@@ -279,10 +370,11 @@ struct ip_vs_estimator {
 };
 
 struct ip_vs_stats {
-	struct ip_vs_stats_user	ustats;         /* statistics */
+	struct ip_vs_stats_user	ustats;		/* statistics */
 	struct ip_vs_estimator	est;		/* estimator */
-
-	spinlock_t              lock;           /* spin lock */
+	struct ip_vs_cpu_stats	*cpustats;	/* per cpu counters */
+	spinlock_t		lock;		/* spin lock */
+	struct ip_vs_stats_user	ustats0;	/* reset values */
 };
 
 struct dst_entry;
@@ -290,6 +382,7 @@ struct iphdr;
 struct ip_vs_conn;
 struct ip_vs_app;
 struct sk_buff;
+struct ip_vs_proto_data;
 
 struct ip_vs_protocol {
 	struct ip_vs_protocol	*next;
@@ -297,21 +390,22 @@ struct ip_vs_protocol {
 	u16			protocol;
 	u16			num_states;
 	int			dont_defrag;
-	atomic_t		appcnt;		/* counter of proto app incs */
-	int			*timeout_table;	/* protocol timeout table */
 
 	void (*init)(struct ip_vs_protocol *pp);
 
 	void (*exit)(struct ip_vs_protocol *pp);
 
+	void (*init_netns)(struct net *net, struct ip_vs_proto_data *pd);
+
+	void (*exit_netns)(struct net *net, struct ip_vs_proto_data *pd);
+
 	int (*conn_schedule)(int af, struct sk_buff *skb,
-			     struct ip_vs_protocol *pp,
+			     struct ip_vs_proto_data *pd,
 			     int *verdict, struct ip_vs_conn **cpp);
 
 	struct ip_vs_conn *
 	(*conn_in_get)(int af,
 		       const struct sk_buff *skb,
-		       struct ip_vs_protocol *pp,
 		       const struct ip_vs_iphdr *iph,
 		       unsigned int proto_off,
 		       int inverse);
@@ -319,7 +413,6 @@ struct ip_vs_protocol {
 	struct ip_vs_conn *
 	(*conn_out_get)(int af,
 			const struct sk_buff *skb,
-			struct ip_vs_protocol *pp,
 			const struct ip_vs_iphdr *iph,
 			unsigned int proto_off,
 			int inverse);
@@ -337,11 +430,11 @@ struct ip_vs_protocol {
 
 	int (*state_transition)(struct ip_vs_conn *cp, int direction,
 				const struct sk_buff *skb,
-				struct ip_vs_protocol *pp);
+				struct ip_vs_proto_data *pd);
 
-	int (*register_app)(struct ip_vs_app *inc);
+	int (*register_app)(struct net *net, struct ip_vs_app *inc);
 
-	void (*unregister_app)(struct ip_vs_app *inc);
+	void (*unregister_app)(struct net *net, struct ip_vs_app *inc);
 
 	int (*app_conn_bind)(struct ip_vs_conn *cp);
 
@@ -350,14 +443,26 @@ struct ip_vs_protocol {
 			     int offset,
 			     const char *msg);
 
-	void (*timeout_change)(struct ip_vs_protocol *pp, int flags);
-
-	int (*set_state_timeout)(struct ip_vs_protocol *pp, char *sname, int to);
+	void (*timeout_change)(struct ip_vs_proto_data *pd, int flags);
 };
 
-extern struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto);
+/*
+ * protocol data per netns
+ */
+struct ip_vs_proto_data {
+	struct ip_vs_proto_data	*next;
+	struct ip_vs_protocol	*pp;
+	int			*timeout_table;	/* protocol timeout table */
+	atomic_t		appcnt;		/* counter of proto app incs. */
+	struct tcp_states_t	*tcp_state_table;
+};
+
+extern struct ip_vs_protocol   *ip_vs_proto_get(unsigned short proto);
+extern struct ip_vs_proto_data *ip_vs_proto_data_get(struct net *net,
+						     unsigned short proto);
 
 struct ip_vs_conn_param {
+	struct net			*net;
 	const union nf_inet_addr	*caddr;
 	const union nf_inet_addr	*vaddr;
 	__be16				cport;
@@ -374,17 +479,20 @@ struct ip_vs_conn_param {
  *	IP_VS structure allocated for each dynamically scheduled connection
  */
 struct ip_vs_conn {
-	struct list_head        c_list;         /* hashed list heads */
-
+	struct hlist_node	c_list;         /* hashed list heads */
+#ifdef CONFIG_NET_NS
+	struct net              *net;           /* Name space */
+#endif
 	/* Protocol, addresses and port numbers */
-	u16                      af;		/* address family */
-	union nf_inet_addr       caddr;          /* client address */
-	union nf_inet_addr       vaddr;          /* virtual address */
-	union nf_inet_addr       daddr;          /* destination address */
-	volatile __u32           flags;          /* status flags */
-	__be16                   cport;
-	__be16                   vport;
-	__be16                   dport;
+	u16                     af;             /* address family */
+	__be16                  cport;
+	__be16                  vport;
+	__be16                  dport;
+	__u32                   fwmark;         /* Fire wall mark from skb */
+	union nf_inet_addr      caddr;          /* client address */
+	union nf_inet_addr      vaddr;          /* virtual address */
+	union nf_inet_addr      daddr;          /* destination address */
+	volatile __u32          flags;          /* status flags */
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
 
 	/* counter and timer */
@@ -422,10 +530,38 @@ struct ip_vs_conn {
 	struct ip_vs_seq        in_seq;         /* incoming seq. struct */
 	struct ip_vs_seq        out_seq;        /* outgoing seq. struct */
 
+	const struct ip_vs_pe	*pe;
 	char			*pe_data;
 	__u8			pe_data_len;
 };
 
+/*
+ *  To save some memory in conn table when name space is disabled.
+ */
+static inline struct net *ip_vs_conn_net(const struct ip_vs_conn *cp)
+{
+#ifdef CONFIG_NET_NS
+	return cp->net;
+#else
+	return &init_net;
+#endif
+}
+static inline void ip_vs_conn_net_set(struct ip_vs_conn *cp, struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	cp->net = net;
+#endif
+}
+
+static inline int ip_vs_conn_net_eq(const struct ip_vs_conn *cp,
+				    struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	return cp->net == net;
+#else
+	return 1;
+#endif
+}
 
 /*
  *	Extended internal versions of struct ip_vs_service_user and
@@ -485,6 +621,7 @@ struct ip_vs_service {
 	unsigned		flags;	  /* service status flags */
 	unsigned		timeout;  /* persistent timeout in ticks */
 	__be32			netmask;  /* grouping granularity */
+	struct net		*net;
 
 	struct list_head	destinations;  /* real server d-linked list */
 	__u32			num_dests;     /* number of servers */
@@ -510,8 +647,8 @@ struct ip_vs_dest {
 	struct list_head	d_list;   /* for table with all the dests */
 
 	u16			af;		/* address family */
-	union nf_inet_addr	addr;		/* IP address of the server */
 	__be16			port;		/* port number of the server */
+	union nf_inet_addr	addr;		/* IP address of the server */
 	volatile unsigned	flags;		/* dest status flags */
 	atomic_t		conn_flags;	/* flags to copy to conn */
 	atomic_t		weight;		/* server weight */
@@ -538,8 +675,8 @@ struct ip_vs_dest {
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
 	__u16			protocol;	/* which protocol (TCP/UDP) */
-	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__be16			vport;		/* virtual port number */
+	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__u32			vfwmark;	/* firewall mark of service */
 };
 
@@ -651,6 +788,171 @@ struct ip_vs_app {
 	void (*timeout_change)(struct ip_vs_app *app, int flags);
 };
 
+/* IPVS in network namespace */
+struct netns_ipvs {
+	int			gen;		/* Generation */
+	/*
+	 *	Hash table: for real service lookups
+	 */
+	#define IP_VS_RTAB_BITS 4
+	#define IP_VS_RTAB_SIZE (1 << IP_VS_RTAB_BITS)
+	#define IP_VS_RTAB_MASK (IP_VS_RTAB_SIZE - 1)
+
+	struct list_head	rs_table[IP_VS_RTAB_SIZE];
+	/* ip_vs_app */
+	struct list_head	app_list;
+	struct mutex		app_mutex;
+	struct lock_class_key	app_key;	/* mutex debuging */
+
+	/* ip_vs_proto */
+	#define IP_VS_PROTO_TAB_SIZE	32	/* must be power of 2 */
+	struct ip_vs_proto_data *proto_data_table[IP_VS_PROTO_TAB_SIZE];
+	/* ip_vs_proto_tcp */
+#ifdef CONFIG_IP_VS_PROTO_TCP
+	#define	TCP_APP_TAB_BITS	4
+	#define	TCP_APP_TAB_SIZE	(1 << TCP_APP_TAB_BITS)
+	#define	TCP_APP_TAB_MASK	(TCP_APP_TAB_SIZE - 1)
+	struct list_head	tcp_apps[TCP_APP_TAB_SIZE];
+	spinlock_t		tcp_app_lock;
+#endif
+	/* ip_vs_proto_udp */
+#ifdef CONFIG_IP_VS_PROTO_UDP
+	#define	UDP_APP_TAB_BITS	4
+	#define	UDP_APP_TAB_SIZE	(1 << UDP_APP_TAB_BITS)
+	#define	UDP_APP_TAB_MASK	(UDP_APP_TAB_SIZE - 1)
+	struct list_head	udp_apps[UDP_APP_TAB_SIZE];
+	spinlock_t		udp_app_lock;
+#endif
+	/* ip_vs_proto_sctp */
+#ifdef CONFIG_IP_VS_PROTO_SCTP
+	#define SCTP_APP_TAB_BITS	4
+	#define SCTP_APP_TAB_SIZE	(1 << SCTP_APP_TAB_BITS)
+	#define SCTP_APP_TAB_MASK	(SCTP_APP_TAB_SIZE - 1)
+	/* Hash table for SCTP application incarnations	 */
+	struct list_head	sctp_apps[SCTP_APP_TAB_SIZE];
+	spinlock_t		sctp_app_lock;
+#endif
+	/* ip_vs_conn */
+	atomic_t		conn_count;      /*  connection counter */
+
+	/* ip_vs_ctl */
+	struct ip_vs_stats		tot_stats;  /* Statistics & est. */
+
+	int			num_services;    /* no of virtual services */
+
+	rwlock_t		rs_lock;         /* real services table */
+	/* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
+	struct lock_class_key	ctl_key;	/* ctl_mutex debuging */
+	/* Trash for destinations */
+	struct list_head	dest_trash;
+	/* Service counters */
+	atomic_t		ftpsvc_counter;
+	atomic_t		nullsvc_counter;
+
+#ifdef CONFIG_SYSCTL
+	/* 1/rate drop and drop-entry variables */
+	struct delayed_work	defense_work;   /* Work handler */
+	int			drop_rate;
+	int			drop_counter;
+	atomic_t		dropentry;
+	/* locks in ctl.c */
+	spinlock_t		dropentry_lock;  /* drop entry handling */
+	spinlock_t		droppacket_lock; /* drop packet handling */
+	spinlock_t		securetcp_lock;  /* state and timeout tables */
+
+	/* sys-ctl struct */
+	struct ctl_table_header	*sysctl_hdr;
+	struct ctl_table	*sysctl_tbl;
+#endif
+
+	/* sysctl variables */
+	int			sysctl_amemthresh;
+	int			sysctl_am_droprate;
+	int			sysctl_drop_entry;
+	int			sysctl_drop_packet;
+	int			sysctl_secure_tcp;
+#ifdef CONFIG_IP_VS_NFCT
+	int			sysctl_conntrack;
+#endif
+	int			sysctl_snat_reroute;
+	int			sysctl_sync_ver;
+	int			sysctl_cache_bypass;
+	int			sysctl_expire_nodest_conn;
+	int			sysctl_expire_quiescent_template;
+	int			sysctl_sync_threshold[2];
+	int			sysctl_nat_icmp_send;
+
+	/* ip_vs_lblc */
+	int			sysctl_lblc_expiration;
+	struct ctl_table_header	*lblc_ctl_header;
+	struct ctl_table	*lblc_ctl_table;
+	/* ip_vs_lblcr */
+	int			sysctl_lblcr_expiration;
+	struct ctl_table_header	*lblcr_ctl_header;
+	struct ctl_table	*lblcr_ctl_table;
+	/* ip_vs_est */
+	struct list_head	est_list;	/* estimator list */
+	spinlock_t		est_lock;
+	struct timer_list	est_timer;	/* Estimation timer */
+	/* ip_vs_sync */
+	struct list_head	sync_queue;
+	spinlock_t		sync_lock;
+	struct ip_vs_sync_buff  *sync_buff;
+	spinlock_t		sync_buff_lock;
+	struct sockaddr_in	sync_mcast_addr;
+	struct task_struct	*master_thread;
+	struct task_struct	*backup_thread;
+	int			send_mesg_maxlen;
+	int			recv_mesg_maxlen;
+	volatile int		sync_state;
+	volatile int		master_syncid;
+	volatile int		backup_syncid;
+	/* multicast interface name */
+	char			master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
+	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
+	/* net name space ptr */
+	struct net		*net;            /* Needed by timer routines */
+};
+
+#define DEFAULT_SYNC_THRESHOLD	3
+#define DEFAULT_SYNC_PERIOD	50
+#define DEFAULT_SYNC_VER	1
+
+#ifdef CONFIG_SYSCTL
+
+static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_threshold[0];
+}
+
+static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_threshold[1];
+}
+
+static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_ver;
+}
+
+#else
+
+static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_THRESHOLD;
+}
+
+static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_PERIOD;
+}
+
+static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_VER;
+}
+
+#endif
 
 /*
  *      IPVS core functions
@@ -674,13 +976,14 @@ enum {
 	IP_VS_DIR_LAST,
 };
 
-static inline void ip_vs_conn_fill_param(int af, int protocol,
+static inline void ip_vs_conn_fill_param(struct net *net, int af, int protocol,
 					 const union nf_inet_addr *caddr,
 					 __be16 cport,
 					 const union nf_inet_addr *vaddr,
 					 __be16 vport,
 					 struct ip_vs_conn_param *p)
 {
+	p->net = net;
 	p->af = af;
 	p->protocol = protocol;
 	p->caddr = caddr;
@@ -695,7 +998,6 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p);
 struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
-					    struct ip_vs_protocol *pp,
 					    const struct ip_vs_iphdr *iph,
 					    unsigned int proto_off,
 					    int inverse);
@@ -703,7 +1005,6 @@ struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
-					     struct ip_vs_protocol *pp,
 					     const struct ip_vs_iphdr *iph,
 					     unsigned int proto_off,
 					     int inverse);
@@ -719,14 +1020,14 @@ extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p,
 				  const union nf_inet_addr *daddr,
 				  __be16 dport, unsigned flags,
-				  struct ip_vs_dest *dest);
+				  struct ip_vs_dest *dest, __u32 fwmark);
 extern void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 
 extern const char * ip_vs_state_name(__u16 proto, int state);
 
-extern void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp);
+extern void ip_vs_tcp_conn_listen(struct net *net, struct ip_vs_conn *cp);
 extern int ip_vs_check_template(struct ip_vs_conn *ct);
-extern void ip_vs_random_dropentry(void);
+extern void ip_vs_random_dropentry(struct net *net);
 extern int ip_vs_conn_init(void);
 extern void ip_vs_conn_cleanup(void);
 
@@ -796,12 +1097,12 @@ ip_vs_control_add(struct ip_vs_conn *cp, struct ip_vs_conn *ctl_cp)
  *      (from ip_vs_app.c)
  */
 #define IP_VS_APP_MAX_PORTS  8
-extern int register_ip_vs_app(struct ip_vs_app *app);
-extern void unregister_ip_vs_app(struct ip_vs_app *app);
+extern int register_ip_vs_app(struct net *net, struct ip_vs_app *app);
+extern void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app);
 extern int ip_vs_bind_app(struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
 extern void ip_vs_unbind_app(struct ip_vs_conn *cp);
-extern int
-register_ip_vs_app_inc(struct ip_vs_app *app, __u16 proto, __u16 port);
+extern int register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app,
+				  __u16 proto, __u16 port);
 extern int ip_vs_app_inc_get(struct ip_vs_app *inc);
 extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
@@ -814,15 +1115,27 @@ void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe);
 void ip_vs_unbind_pe(struct ip_vs_service *svc);
 int register_ip_vs_pe(struct ip_vs_pe *pe);
 int unregister_ip_vs_pe(struct ip_vs_pe *pe);
-extern struct ip_vs_pe *ip_vs_pe_get(const char *name);
-extern void ip_vs_pe_put(struct ip_vs_pe *pe);
+struct ip_vs_pe *ip_vs_pe_getbyname(const char *name);
+struct ip_vs_pe *__ip_vs_pe_getbyname(const char *pe_name);
+
+static inline void ip_vs_pe_get(const struct ip_vs_pe *pe)
+{
+	if (pe && pe->module)
+		__module_get(pe->module);
+}
+
+static inline void ip_vs_pe_put(const struct ip_vs_pe *pe)
+{
+	if (pe && pe->module)
+		module_put(pe->module);
+}
 
 /*
  *	IPVS protocol functions (from ip_vs_proto.c)
  */
 extern int ip_vs_protocol_init(void);
 extern void ip_vs_protocol_cleanup(void);
-extern void ip_vs_protocol_timeout_change(int flags);
+extern void ip_vs_protocol_timeout_change(struct netns_ipvs *ipvs, int flags);
 extern int *ip_vs_create_timeout_table(int *table, int size);
 extern int
 ip_vs_set_state_timeout(int *table, int num, const char *const *names,
@@ -852,26 +1165,23 @@ extern struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name);
 extern void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler);
 extern struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
-	       struct ip_vs_protocol *pp, int *ignored);
+	       struct ip_vs_proto_data *pd, int *ignored);
 extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
-			struct ip_vs_protocol *pp);
+			struct ip_vs_proto_data *pd);
+
+extern void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg);
 
 
 /*
  *      IPVS control data and functions (from ip_vs_ctl.c)
  */
-extern int sysctl_ip_vs_cache_bypass;
-extern int sysctl_ip_vs_expire_nodest_conn;
-extern int sysctl_ip_vs_expire_quiescent_template;
-extern int sysctl_ip_vs_sync_threshold[2];
-extern int sysctl_ip_vs_nat_icmp_send;
-extern int sysctl_ip_vs_conntrack;
-extern int sysctl_ip_vs_snat_reroute;
 extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
+extern int sysctl_ip_vs_sync_ver;
 
+extern void ip_vs_sync_switch_mode(struct net *net, int mode);
 extern struct ip_vs_service *
-ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
+ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
 		  const union nf_inet_addr *vaddr, __be16 vport);
 
 static inline void ip_vs_service_put(struct ip_vs_service *svc)
@@ -880,7 +1190,7 @@ static inline void ip_vs_service_put(struct ip_vs_service *svc)
 }
 
 extern struct ip_vs_dest *
-ip_vs_lookup_real_service(int af, __u16 protocol,
+ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
 			  const union nf_inet_addr *daddr, __be16 dport);
 
 extern int ip_vs_use_count_inc(void);
@@ -888,8 +1198,9 @@ extern void ip_vs_use_count_dec(void);
 extern int ip_vs_control_init(void);
 extern void ip_vs_control_cleanup(void);
 extern struct ip_vs_dest *
-ip_vs_find_dest(int af, const union nf_inet_addr *daddr, __be16 dport,
-		const union nf_inet_addr *vaddr, __be16 vport, __u16 protocol);
+ip_vs_find_dest(struct net *net, int af, const union nf_inet_addr *daddr,
+		__be16 dport, const union nf_inet_addr *vaddr, __be16 vport,
+		__u16 protocol, __u32 fwmark);
 extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
 
@@ -897,14 +1208,12 @@ extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
  *      IPVS sync daemon data and function prototypes
  *      (from ip_vs_sync.c)
  */
-extern volatile int ip_vs_sync_state;
-extern volatile int ip_vs_master_syncid;
-extern volatile int ip_vs_backup_syncid;
-extern char ip_vs_master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
-extern char ip_vs_backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
-extern int start_sync_thread(int state, char *mcast_ifn, __u8 syncid);
-extern int stop_sync_thread(int state);
-extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
+extern int start_sync_thread(struct net *net, int state, char *mcast_ifn,
+			     __u8 syncid);
+extern int stop_sync_thread(struct net *net, int state);
+extern void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp);
+extern int ip_vs_sync_init(void);
+extern void ip_vs_sync_cleanup(void);
 
 
 /*
@@ -912,9 +1221,11 @@ extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
  */
 extern int ip_vs_estimator_init(void);
 extern void ip_vs_estimator_cleanup(void);
-extern void ip_vs_new_estimator(struct ip_vs_stats *stats);
-extern void ip_vs_kill_estimator(struct ip_vs_stats *stats);
+extern void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats);
+extern void ip_vs_stop_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);
+extern void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
+				 struct ip_vs_stats *stats);
 
 /*
  *	Various IPVS packet transmitters (from ip_vs_xmit.c)
@@ -947,21 +1258,25 @@ extern int ip_vs_icmp_xmit_v6
  int offset);
 #endif
 
+#ifdef CONFIG_SYSCTL
 /*
  *	This is a simple mechanism to ignore packets when
  *	we are loaded. Just set ip_vs_drop_rate to 'n' and
  *	we start to drop 1/rate of the packets
  */
-extern int ip_vs_drop_rate;
-extern int ip_vs_drop_counter;
 
-static __inline__ int ip_vs_todrop(void)
+static inline int ip_vs_todrop(struct netns_ipvs *ipvs)
 {
-	if (!ip_vs_drop_rate) return 0;
-	if (--ip_vs_drop_counter > 0) return 0;
-	ip_vs_drop_counter = ip_vs_drop_rate;
+	if (!ipvs->drop_rate)
+		return 0;
+	if (--ipvs->drop_counter > 0)
+		return 0;
+	ipvs->drop_counter = ipvs->drop_rate;
 	return 1;
 }
+#else
+static inline int ip_vs_todrop(struct netns_ipvs *ipvs) { return 0; }
+#endif
 
 /*
  *      ip_vs_fwd_tag returns the forwarding tag of the connection
@@ -1031,7 +1346,7 @@ static inline void ip_vs_notrack(struct sk_buff *skb)
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
 	if (!ct || !nf_ct_is_untracked(ct)) {
 		nf_reset(skb);
@@ -1047,9 +1362,13 @@ static inline void ip_vs_notrack(struct sk_buff *skb)
  *      Netfilter connection tracking
  *      (from ip_vs_nfct.c)
  */
-static inline int ip_vs_conntrack_enabled(void)
+static inline int ip_vs_conntrack_enabled(struct netns_ipvs *ipvs)
 {
-	return sysctl_ip_vs_conntrack;
+#ifdef CONFIG_SYSCTL
+	return ipvs->sysctl_conntrack;
+#else
+	return 0;
+#endif
 }
 
 extern void ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp,
@@ -1062,7 +1381,7 @@ extern void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp);
 
 #else
 
-static inline int ip_vs_conntrack_enabled(void)
+static inline int ip_vs_conntrack_enabled(struct netns_ipvs *ipvs)
 {
 	return 0;
 }
@@ -1083,6 +1402,20 @@ static inline void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 }
 /* CONFIG_IP_VS_NFCT */
 #endif
+
+static inline unsigned int
+ip_vs_dest_conn_overhead(struct ip_vs_dest *dest)
+{
+	/*
+	 * We think the overhead of processing active connections is 256
+	 * times higher than that of inactive connections in average. (This
+	 * 256 times might not be accurate, we will change it later) We
+	 * use the following formula to estimate the overhead now:
+	 *		  dest->activeconns*256 + dest->inactconns
+	 */
+	return (atomic_read(&dest->activeconns) << 8) +
+		atomic_read(&dest->inactconns);
+}
 
 #endif /* __KERNEL__ */
 

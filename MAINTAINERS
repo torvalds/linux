@@ -1231,7 +1231,7 @@ ATHEROS AR9170 WIRELESS DRIVER
 M:	Christian Lamparter <chunkeey@web.de>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/ar9170
-S:	Maintained
+S:	Obsolete
 F:	drivers/net/wireless/ath/ar9170/
 
 CARL9170 LINUX COMMUNITY WIRELESS DRIVER
@@ -1727,6 +1727,7 @@ S:	Maintained
 F:	Documentation/zh_CN/
 
 CISCO VIC ETHERNET NIC DRIVER
+M:	Christian Benvenuti <benve@cisco.com>
 M:	Vasanthy Kolluri <vkolluri@cisco.com>
 M:	Roopa Prabhu <roprabhu@cisco.com>
 M:	David Wang <dwang2@cisco.com>
@@ -5169,6 +5170,7 @@ RALINK RT2X00 WIRELESS LAN DRIVER
 P:	rt2x00 project
 M:	Ivo van Doorn <IvDoorn@gmail.com>
 M:	Gertjan van Wingerde <gwingerde@gmail.com>
+M:	Helmut Schaa <helmut.schaa@googlemail.com>
 L:	linux-wireless@vger.kernel.org
 L:	users@rt2x00.serialmonkey.com (moderated for non-subscribers)
 W:	http://rt2x00.serialmonkey.com/
@@ -6092,13 +6094,11 @@ F:	sound/soc/codecs/twl4030*
 TIPC NETWORK LAYER
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
-L:	tipc-discussion@lists.sourceforge.net
+L:	netdev@vger.kernel.org (core kernel code)
+L:	tipc-discussion@lists.sourceforge.net (user apps, general discussion)
 W:	http://tipc.sourceforge.net/
-W:	http://tipc.cslab.ericsson.net/
-T:	git git://tipc.cslab.ericsson.net/pub/git/tipc.git
 S:	Maintained
 F:	include/linux/tipc*.h
-F:	include/net/tipc/
 F:	net/tipc/
 
 TILE ARCHITECTURE

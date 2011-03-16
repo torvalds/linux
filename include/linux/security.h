@@ -1626,7 +1626,7 @@ struct security_operations {
 	int (*xfrm_policy_lookup) (struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 	int (*xfrm_state_pol_flow_match) (struct xfrm_state *x,
 					  struct xfrm_policy *xp,
-					  struct flowi *fl);
+					  const struct flowi *fl);
 	int (*xfrm_decode_session) (struct sk_buff *skb, u32 *secid, int ckall);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
@@ -2767,7 +2767,8 @@ int security_xfrm_state_delete(struct xfrm_state *x);
 void security_xfrm_state_free(struct xfrm_state *x);
 int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
-				       struct xfrm_policy *xp, struct flowi *fl);
+				       struct xfrm_policy *xp,
+				       const struct flowi *fl);
 int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid);
 void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl);
 
@@ -2819,7 +2820,7 @@ static inline int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_s
 }
 
 static inline int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
-			struct xfrm_policy *xp, struct flowi *fl)
+			struct xfrm_policy *xp, const struct flowi *fl)
 {
 	return 1;
 }

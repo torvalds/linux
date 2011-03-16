@@ -246,7 +246,7 @@ static inline void __enable_port(struct port *port)
  */
 static inline int __port_is_enabled(struct port *port)
 {
-	return port->slave->state == BOND_STATE_ACTIVE;
+	return bond_is_active_slave(port->slave);
 }
 
 /**

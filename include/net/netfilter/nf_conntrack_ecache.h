@@ -23,12 +23,17 @@ struct nf_conntrack_ecache {
 static inline struct nf_conntrack_ecache *
 nf_ct_ecache_find(const struct nf_conn *ct)
 {
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	return nf_ct_ext_find(ct, NF_CT_EXT_ECACHE);
+#else
+	return NULL;
+#endif
 }
 
 static inline struct nf_conntrack_ecache *
 nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
 {
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *e;
 
@@ -45,6 +50,9 @@ nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
 		e->expmask = expmask;
 	}
 	return e;
+#else
+	return NULL;
+#endif
 };
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
@@ -59,7 +67,7 @@ struct nf_ct_event_notifier {
 	int (*fcn)(unsigned int events, struct nf_ct_event *item);
 };
 
-extern struct nf_ct_event_notifier *nf_conntrack_event_cb;
+extern struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
 extern int nf_conntrack_register_notifier(struct nf_ct_event_notifier *nb);
 extern void nf_conntrack_unregister_notifier(struct nf_ct_event_notifier *nb);
 
@@ -156,7 +164,7 @@ struct nf_exp_event_notifier {
 	int (*fcn)(unsigned int events, struct nf_exp_event *item);
 };
 
-extern struct nf_exp_event_notifier *nf_expect_event_cb;
+extern struct nf_exp_event_notifier __rcu *nf_expect_event_cb;
 extern int nf_ct_expect_register_notifier(struct nf_exp_event_notifier *nb);
 extern void nf_ct_expect_unregister_notifier(struct nf_exp_event_notifier *nb);
 

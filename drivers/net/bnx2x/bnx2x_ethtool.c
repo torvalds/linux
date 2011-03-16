@@ -1617,7 +1617,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	/* prepare the loopback packet */
 	pkt_size = (((bp->dev->mtu < ETH_MAX_PACKET_SIZE) ?
 		     bp->dev->mtu : ETH_MAX_PACKET_SIZE) + ETH_HLEN);
-	skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+	skb = netdev_alloc_skb(bp->dev, fp_rx->rx_buf_size);
 	if (!skb) {
 		rc = -ENOMEM;
 		goto test_loopback_exit;
@@ -2131,6 +2131,59 @@ static int bnx2x_phys_id(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+			   void *rules __always_unused)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = BNX2X_NUM_ETH_QUEUES(bp);
+		return 0;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int bnx2x_get_rxfh_indir(struct net_device *dev,
+				struct ethtool_rxfh_indir *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	size_t copy_size =
+		min_t(size_t, indir->size, TSTORM_INDIRECTION_TABLE_SIZE);
+
+	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
+		return -EOPNOTSUPP;
+
+	indir->size = TSTORM_INDIRECTION_TABLE_SIZE;
+	memcpy(indir->ring_index, bp->rx_indir_table,
+	       copy_size * sizeof(bp->rx_indir_table[0]));
+	return 0;
+}
+
+static int bnx2x_set_rxfh_indir(struct net_device *dev,
+				const struct ethtool_rxfh_indir *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	size_t i;
+
+	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
+		return -EOPNOTSUPP;
+
+	/* Validate size and indices */
+	if (indir->size != TSTORM_INDIRECTION_TABLE_SIZE)
+		return -EINVAL;
+	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
+		if (indir->ring_index[i] >= BNX2X_NUM_ETH_QUEUES(bp))
+			return -EINVAL;
+
+	memcpy(bp->rx_indir_table, indir->ring_index,
+	       indir->size * sizeof(bp->rx_indir_table[0]));
+	bnx2x_push_indir_table(bp);
+	return 0;
+}
+
 static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_settings		= bnx2x_get_settings,
 	.set_settings		= bnx2x_set_settings,
@@ -2167,6 +2220,9 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_strings		= bnx2x_get_strings,
 	.phys_id		= bnx2x_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
+	.get_rxnfc		= bnx2x_get_rxnfc,
+	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
+	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
 };
 
 void bnx2x_set_ethtool_ops(struct net_device *netdev)

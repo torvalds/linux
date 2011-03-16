@@ -51,6 +51,7 @@
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
 #include <linux/slab.h>
+#include <linux/hash.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -91,6 +92,71 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_BROADCAST] 	= { .type = NLA_U32 },
 	[IFA_LABEL]     	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
 };
+
+/* inet_addr_hash's shifting is dependent upon this IN4_ADDR_HSIZE
+ * value.  So if you change this define, make appropriate changes to
+ * inet_addr_hash as well.
+ */
+#define IN4_ADDR_HSIZE	256
+static struct hlist_head inet_addr_lst[IN4_ADDR_HSIZE];
+static DEFINE_SPINLOCK(inet_addr_hash_lock);
+
+static inline unsigned int inet_addr_hash(struct net *net, __be32 addr)
+{
+	u32 val = (__force u32) addr ^ hash_ptr(net, 8);
+
+	return ((val ^ (val >> 8) ^ (val >> 16) ^ (val >> 24)) &
+		(IN4_ADDR_HSIZE - 1));
+}
+
+static void inet_hash_insert(struct net *net, struct in_ifaddr *ifa)
+{
+	unsigned int hash = inet_addr_hash(net, ifa->ifa_local);
+
+	spin_lock(&inet_addr_hash_lock);
+	hlist_add_head_rcu(&ifa->hash, &inet_addr_lst[hash]);
+	spin_unlock(&inet_addr_hash_lock);
+}
+
+static void inet_hash_remove(struct in_ifaddr *ifa)
+{
+	spin_lock(&inet_addr_hash_lock);
+	hlist_del_init_rcu(&ifa->hash);
+	spin_unlock(&inet_addr_hash_lock);
+}
+
+/**
+ * __ip_dev_find - find the first device with a given source address.
+ * @net: the net namespace
+ * @addr: the source address
+ * @devref: if true, take a reference on the found device
+ *
+ * If a caller uses devref=false, it should be protected by RCU, or RTNL
+ */
+struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
+{
+	unsigned int hash = inet_addr_hash(net, addr);
+	struct net_device *result = NULL;
+	struct in_ifaddr *ifa;
+	struct hlist_node *node;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(ifa, node, &inet_addr_lst[hash], hash) {
+		struct net_device *dev = ifa->ifa_dev->dev;
+
+		if (!net_eq(dev_net(dev), net))
+			continue;
+		if (ifa->ifa_local == addr) {
+			result = dev;
+			break;
+		}
+	}
+	if (result && devref)
+		dev_hold(result);
+	rcu_read_unlock();
+	return result;
+}
+EXPORT_SYMBOL(__ip_dev_find);
 
 static void rtmsg_ifa(int event, struct in_ifaddr *, struct nlmsghdr *, u32);
 
@@ -265,6 +331,7 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 			}
 
 			if (!do_promote) {
+				inet_hash_remove(ifa);
 				*ifap1 = ifa->ifa_next;
 
 				rtmsg_ifa(RTM_DELADDR, ifa, nlh, pid);
@@ -281,6 +348,7 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 	/* 2. Unlink it */
 
 	*ifap = ifa1->ifa_next;
+	inet_hash_remove(ifa1);
 
 	/* 3. Announce address deletion */
 
@@ -367,6 +435,8 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 
 	ifa->ifa_next = *ifap;
 	*ifap = ifa;
+
+	inet_hash_insert(dev_net(in_dev->dev), ifa);
 
 	/* Send message first, then call notifier.
 	   Notifier will trigger FIB update, so that
@@ -521,6 +591,7 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh)
 	if (tb[IFA_ADDRESS] == NULL)
 		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
+	INIT_HLIST_NODE(&ifa->hash);
 	ifa->ifa_prefixlen = ifm->ifa_prefixlen;
 	ifa->ifa_mask = inet_make_mask(ifm->ifa_prefixlen);
 	ifa->ifa_flags = ifm->ifa_flags;
@@ -728,6 +799,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		if (!ifa) {
 			ret = -ENOBUFS;
 			ifa = inet_alloc_ifa();
+			INIT_HLIST_NODE(&ifa->hash);
 			if (!ifa)
 				break;
 			if (colon)
@@ -1084,6 +1156,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			struct in_ifaddr *ifa = inet_alloc_ifa();
 
 			if (ifa) {
+				INIT_HLIST_NODE(&ifa->hash);
 				ifa->ifa_local =
 				  ifa->ifa_address = htonl(INADDR_LOOPBACK);
 				ifa->ifa_prefixlen = 8;
@@ -1720,6 +1793,11 @@ static struct rtnl_af_ops inet_af_ops = {
 
 void __init devinet_init(void)
 {
+	int i;
+
+	for (i = 0; i < IN4_ADDR_HSIZE; i++)
+		INIT_HLIST_HEAD(&inet_addr_lst[i]);
+
 	register_pernet_subsys(&devinet_ops);
 
 	register_gifconf(PF_INET, inet_gifconf);

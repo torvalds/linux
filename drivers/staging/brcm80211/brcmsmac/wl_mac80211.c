@@ -74,9 +74,6 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev);
 static void wl_release_fw(struct wl_info *wl);
 
 /* local prototypes */
-static int wl_start(struct sk_buff *skb, struct wl_info *wl);
-static int wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw,
-			struct sk_buff *skb);
 static void wl_dpc(unsigned long data);
 static irqreturn_t wl_isr(int irq, void *dev_id);
 
@@ -111,7 +108,6 @@ module_param(phymsglevel, int, 0);
 #define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
 
 /* MAC80211 callback functions */
-static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 static int wl_ops_start(struct ieee80211_hw *hw);
 static void wl_ops_stop(struct ieee80211_hw *hw);
 static int wl_ops_add_interface(struct ieee80211_hw *hw,
@@ -152,21 +148,19 @@ static int wl_ops_ampdu_action(struct ieee80211_hw *hw,
 			       u8 buf_size);
 static void wl_ops_rfkill_poll(struct ieee80211_hw *hw);
 
-static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	int status;
 	struct wl_info *wl = hw->priv;
 
 	WL_LOCK(wl);
 	if (!wl->pub->up) {
 		WL_ERROR("ops->tx called while down\n");
-		status = -ENETDOWN;
+		kfree_skb(skb);
 		goto done;
 	}
-	status = wl_start(skb, wl);
+	wlc_sendpkt_mac80211(wl->wlc, skb, hw);
  done:
 	WL_UNLOCK(wl);
-	return status;
 }
 
 static int wl_ops_start(struct ieee80211_hw *hw)
@@ -1393,25 +1387,6 @@ static void wl_free(struct wl_info *wl)
 		iounmap((void *)wl->regsva);
 	}
 	wl->regsva = NULL;
-}
-
-/*
- * transmit a packet
- * precondition: perimeter lock has been acquired
- */
-static int BCMFASTPATH wl_start(struct sk_buff *skb, struct wl_info *wl)
-{
-	if (!wl)
-		return -ENETDOWN;
-
-	return wl_start_int(wl, WL_TO_HW(wl), skb);
-}
-
-static int BCMFASTPATH
-wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	wlc_sendpkt_mac80211(wl->wlc, skb, hw);
-	return NETDEV_TX_OK;
 }
 
 /*

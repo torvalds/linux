@@ -674,29 +674,34 @@ struct rose_route *rose_route_free_lci(unsigned int lci, struct rose_neigh *neig
  *	Find a neighbour or a route given a ROSE address.
  */
 struct rose_neigh *rose_get_neigh(rose_address *addr, unsigned char *cause,
-	unsigned char *diagnostic, int new)
+	unsigned char *diagnostic, int route_frame)
 {
 	struct rose_neigh *res = NULL;
 	struct rose_node *node;
 	int failed = 0;
 	int i;
 
-	if (!new) spin_lock_bh(&rose_node_list_lock);
+	if (!route_frame) spin_lock_bh(&rose_node_list_lock);
 	for (node = rose_node_list; node != NULL; node = node->next) {
 		if (rosecmpm(addr, &node->address, node->mask) == 0) {
 			for (i = 0; i < node->count; i++) {
-				if (new) {
-					if (node->neighbour[i]->restarted) {
-						res = node->neighbour[i];
-						goto out;
-					}
+				if (node->neighbour[i]->restarted) {
+					res = node->neighbour[i];
+					goto out;
 				}
-				else {
+			}
+		}
+	}
+	if (!route_frame) { /* connect request */
+		for (node = rose_node_list; node != NULL; node = node->next) {
+			if (rosecmpm(addr, &node->address, node->mask) == 0) {
+				for (i = 0; i < node->count; i++) {
 					if (!rose_ftimer_running(node->neighbour[i])) {
 						res = node->neighbour[i];
+						failed = 0;
 						goto out;
-					} else
-						failed = 1;
+					}
+					failed = 1;
 				}
 			}
 		}
@@ -711,8 +716,7 @@ struct rose_neigh *rose_get_neigh(rose_address *addr, unsigned char *cause,
 	}
 
 out:
-	if (!new) spin_unlock_bh(&rose_node_list_lock);
-
+	if (!route_frame) spin_unlock_bh(&rose_node_list_lock);
 	return res;
 }
 

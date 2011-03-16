@@ -1593,9 +1593,14 @@ dm9000_probe(struct platform_device *pdev)
 			ndev->dev_addr[i] = ior(db, i+DM9000_PAR);
 	}
 
-	if (!is_valid_ether_addr(ndev->dev_addr))
+	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please "
 			 "set using ifconfig\n", ndev->name);
+
+		random_ether_addr(ndev->dev_addr);
+		mac_src = "random";
+	}
+
 
 	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);

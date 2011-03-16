@@ -899,7 +899,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	struct ieee80211_local *local = sdata->local;
 	int sent, buffered;
 
-	drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
+	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
+		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
 	if (!skb_queue_empty(&sta->ps_tx_buf))
 		sta_info_clear_tim_bit(sta);

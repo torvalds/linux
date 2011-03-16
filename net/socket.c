@@ -240,17 +240,19 @@ static struct kmem_cache *sock_inode_cachep __read_mostly;
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
 	struct socket_alloc *ei;
+	struct socket_wq *wq;
 
 	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	ei->socket.wq = kmalloc(sizeof(struct socket_wq), GFP_KERNEL);
-	if (!ei->socket.wq) {
+	wq = kmalloc(sizeof(*wq), GFP_KERNEL);
+	if (!wq) {
 		kmem_cache_free(sock_inode_cachep, ei);
 		return NULL;
 	}
-	init_waitqueue_head(&ei->socket.wq->wait);
-	ei->socket.wq->fasync_list = NULL;
+	init_waitqueue_head(&wq->wait);
+	wq->fasync_list = NULL;
+	RCU_INIT_POINTER(ei->socket.wq, wq);
 
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
@@ -273,9 +275,11 @@ static void wq_free_rcu(struct rcu_head *head)
 static void sock_destroy_inode(struct inode *inode)
 {
 	struct socket_alloc *ei;
+	struct socket_wq *wq;
 
 	ei = container_of(inode, struct socket_alloc, vfs_inode);
-	call_rcu(&ei->socket.wq->rcu, wq_free_rcu);
+	wq = rcu_dereference_protected(ei->socket.wq, 1);
+	call_rcu(&wq->rcu, wq_free_rcu);
 	kmem_cache_free(sock_inode_cachep, ei);
 }
 
@@ -524,7 +528,7 @@ void sock_release(struct socket *sock)
 		module_put(owner);
 	}
 
-	if (sock->wq->fasync_list)
+	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
 		printk(KERN_ERR "sock_release: fasync list not empty!\n");
 
 	percpu_sub(sockets_in_use, 1);
@@ -1108,15 +1112,16 @@ static int sock_fasync(int fd, struct file *filp, int on)
 {
 	struct socket *sock = filp->private_data;
 	struct sock *sk = sock->sk;
+	struct socket_wq *wq;
 
 	if (sk == NULL)
 		return -EINVAL;
 
 	lock_sock(sk);
+	wq = rcu_dereference_protected(sock->wq, sock_owned_by_user(sk));
+	fasync_helper(fd, filp, on, &wq->fasync_list);
 
-	fasync_helper(fd, filp, on, &sock->wq->fasync_list);
-
-	if (!sock->wq->fasync_list)
+	if (!wq->fasync_list)
 		sock_reset_flag(sk, SOCK_FASYNC);
 	else
 		sock_set_flag(sk, SOCK_FASYNC);
@@ -2643,7 +2648,8 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
-		err = dev_ioctl(net, cmd, &kifr);
+		err = dev_ioctl(net, cmd,
+				(struct ifreq __user __force *) &kifr);
 		set_fs(old_fs);
 
 		return err;
@@ -2752,7 +2758,7 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	err = dev_ioctl(net, cmd, (void __user *)&ifr);
+	err = dev_ioctl(net, cmd, (void  __user __force *)&ifr);
 	set_fs(old_fs);
 
 	if (cmd == SIOCGIFMAP && !err) {
@@ -2857,7 +2863,8 @@ static int routing_ioctl(struct net *net, struct socket *sock,
 		ret |= __get_user(rtdev, &(ur4->rt_dev));
 		if (rtdev) {
 			ret |= copy_from_user(devname, compat_ptr(rtdev), 15);
-			r4.rt_dev = devname; devname[15] = 0;
+			r4.rt_dev = (char __user __force *)devname;
+			devname[15] = 0;
 		} else
 			r4.rt_dev = NULL;
 

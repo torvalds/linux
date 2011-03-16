@@ -961,7 +961,7 @@ struct ipw_country_channel_info {
 struct ipw_country_info {
 	u8 id;
 	u8 length;
-	u8 country_str[3];
+	u8 country_str[IEEE80211_COUNTRY_STRING_LEN];
 	struct ipw_country_channel_info groups[7];
 } __packed;
 

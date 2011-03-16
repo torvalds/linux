@@ -625,6 +625,19 @@ static int vlan_dev_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type)
 		rc = ops->ndo_fcoe_get_wwn(real_dev, wwn, type);
 	return rc;
 }
+
+static int vlan_dev_fcoe_ddp_target(struct net_device *dev, u16 xid,
+				    struct scatterlist *sgl, unsigned int sgc)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	const struct net_device_ops *ops = real_dev->netdev_ops;
+	int rc = 0;
+
+	if (ops->ndo_fcoe_ddp_target)
+		rc = ops->ndo_fcoe_ddp_target(real_dev, xid, sgl, sgc);
+
+	return rc;
+}
 #endif
 
 static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
@@ -858,6 +871,7 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_fcoe_enable	= vlan_dev_fcoe_enable,
 	.ndo_fcoe_disable	= vlan_dev_fcoe_disable,
 	.ndo_fcoe_get_wwn	= vlan_dev_fcoe_get_wwn,
+	.ndo_fcoe_ddp_target	= vlan_dev_fcoe_ddp_target,
 #endif
 };
 

@@ -183,20 +183,15 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 {
 	__be32 src_ip = src_in->sin_addr.s_addr;
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
-	struct flowi fl;
 	struct rtable *rt;
 	struct neighbour *neigh;
 	int ret;
 
-	memset(&fl, 0, sizeof fl);
-	fl.nl_u.ip4_u.daddr = dst_ip;
-	fl.nl_u.ip4_u.saddr = src_ip;
-	fl.oif = addr->bound_dev_if;
-
-	ret = ip_route_output_key(&init_net, &rt, &fl);
-	if (ret)
+	rt = ip_route_output(&init_net, dst_ip, src_ip, 0, addr->bound_dev_if);
+	if (IS_ERR(rt)) {
+		ret = PTR_ERR(rt);
 		goto out;
-
+	}
 	src_in->sin_family = AF_INET;
 	src_in->sin_addr.s_addr = rt->rt_src;
 
@@ -236,28 +231,28 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 struct sockaddr_in6 *dst_in,
 			 struct rdma_dev_addr *addr)
 {
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct neighbour *neigh;
 	struct dst_entry *dst;
 	int ret;
 
-	memset(&fl, 0, sizeof fl);
-	ipv6_addr_copy(&fl.fl6_dst, &dst_in->sin6_addr);
-	ipv6_addr_copy(&fl.fl6_src, &src_in->sin6_addr);
-	fl.oif = addr->bound_dev_if;
+	memset(&fl6, 0, sizeof fl6);
+	ipv6_addr_copy(&fl6.daddr, &dst_in->sin6_addr);
+	ipv6_addr_copy(&fl6.saddr, &src_in->sin6_addr);
+	fl6.flowi6_oif = addr->bound_dev_if;
 
-	dst = ip6_route_output(&init_net, NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl6);
 	if ((ret = dst->error))
 		goto put;
 
-	if (ipv6_addr_any(&fl.fl6_src)) {
+	if (ipv6_addr_any(&fl6.saddr)) {
 		ret = ipv6_dev_get_saddr(&init_net, ip6_dst_idev(dst)->dev,
-					 &fl.fl6_dst, 0, &fl.fl6_src);
+					 &fl6.daddr, 0, &fl6.saddr);
 		if (ret)
 			goto put;
 
 		src_in->sin6_family = AF_INET6;
-		ipv6_addr_copy(&src_in->sin6_addr, &fl.fl6_src);
+		ipv6_addr_copy(&src_in->sin6_addr, &fl6.saddr);
 	}
 
 	if (dst->dev->flags & IFF_LOOPBACK) {

@@ -412,7 +412,7 @@ static void prl_list_destroy_rcu(struct rcu_head *head)
 
 	p = container_of(head, struct ip_tunnel_prl_entry, rcu_head);
 	do {
-		n = p->next;
+		n = rcu_dereference_protected(p->next, 1);
 		kfree(p);
 		p = n;
 	} while (p);
@@ -421,15 +421,17 @@ static void prl_list_destroy_rcu(struct rcu_head *head)
 static int
 ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 {
-	struct ip_tunnel_prl_entry *x, **p;
+	struct ip_tunnel_prl_entry *x;
+	struct ip_tunnel_prl_entry __rcu **p;
 	int err = 0;
 
 	ASSERT_RTNL();
 
 	if (a && a->addr != htonl(INADDR_ANY)) {
-		for (p = &t->prl; *p; p = &(*p)->next) {
-			if ((*p)->addr == a->addr) {
-				x = *p;
+		for (p = &t->prl;
+		     (x = rtnl_dereference(*p)) != NULL;
+		     p = &x->next) {
+			if (x->addr == a->addr) {
 				*p = x->next;
 				call_rcu(&x->rcu_head, prl_entry_destroy_rcu);
 				t->prl_count--;
@@ -438,9 +440,9 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 		}
 		err = -ENXIO;
 	} else {
-		if (t->prl) {
+		x = rtnl_dereference(t->prl);
+		if (x) {
 			t->prl_count = 0;
-			x = t->prl;
 			call_rcu(&x->rcu_head, prl_list_destroy_rcu);
 			t->prl = NULL;
 		}
@@ -730,16 +732,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		dst = addr6->s6_addr32[3];
 	}
 
-	{
-		struct flowi fl = { .fl4_dst = dst,
-				    .fl4_src = tiph->saddr,
-				    .fl4_tos = RT_TOS(tos),
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			dev->stats.tx_carrier_errors++;
-			goto tx_error_icmp;
-		}
+	rt = ip_route_output_ports(dev_net(dev), NULL,
+				   dst, tiph->saddr,
+				   0, 0,
+				   IPPROTO_IPV6, RT_TOS(tos),
+				   tunnel->parms.link);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error_icmp;
 	}
 	if (rt->rt_type != RTN_UNICAST) {
 		ip_rt_put(rt);
@@ -855,13 +855,14 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct flowi fl = { .fl4_dst = iph->daddr,
-				    .fl4_src = iph->saddr,
-				    .fl4_tos = RT_TOS(iph->tos),
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		struct rtable *rt;
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		struct rtable *rt = ip_route_output_ports(dev_net(dev), NULL,
+							  iph->daddr, iph->saddr,
+							  0, 0,
+							  IPPROTO_IPV6,
+							  RT_TOS(iph->tos),
+							  tunnel->parms.link);
+
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
@@ -1179,7 +1180,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 	dev_hold(dev);
-	sitn->tunnels_wc[0]	= tunnel;
+	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 	return 0;
 }
 
@@ -1196,11 +1197,12 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 	for (prio = 1; prio < 4; prio++) {
 		int h;
 		for (h = 0; h < HASH_SIZE; h++) {
-			struct ip_tunnel *t = sitn->tunnels[prio][h];
+			struct ip_tunnel *t;
 
+			t = rtnl_dereference(sitn->tunnels[prio][h]);
 			while (t != NULL) {
 				unregister_netdevice_queue(t->dev, head);
-				t = t->next;
+				t = rtnl_dereference(t->next);
 			}
 		}
 	}

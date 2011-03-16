@@ -4983,7 +4983,7 @@ static int sky2_suspend(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sky2_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);

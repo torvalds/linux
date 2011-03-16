@@ -54,6 +54,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_82580_SERDES             0x1510
 #define E1000_DEV_ID_82580_SGMII              0x1511
 #define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
+#define E1000_DEV_ID_82580_QUAD_FIBER         0x1527
 #define E1000_DEV_ID_DH89XXCC_SGMII           0x0438
 #define E1000_DEV_ID_DH89XXCC_SERDES          0x043A
 #define E1000_DEV_ID_DH89XXCC_BACKPLANE       0x043C
@@ -247,6 +248,10 @@ struct e1000_hw_stats {
 	u64 scvpc;
 	u64 hrmpc;
 	u64 doosync;
+	u64 o2bgptc;
+	u64 o2bspc;
+	u64 b2ospc;
+	u64 b2ogprc;
 };
 
 struct e1000_phy_stats {
@@ -331,6 +336,8 @@ struct e1000_nvm_operations {
 	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
 	void (*release)(struct e1000_hw *);
 	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
+	s32  (*update)(struct e1000_hw *);
+	s32  (*validate)(struct e1000_hw *);
 };
 
 struct e1000_info {
@@ -417,7 +424,6 @@ struct e1000_phy_info {
 
 struct e1000_nvm_info {
 	struct e1000_nvm_operations ops;
-
 	enum e1000_nvm_type type;
 	enum e1000_nvm_override override;
 
@@ -483,6 +489,7 @@ struct e1000_mbx_info {
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
+	bool eee_disable;
 };
 
 struct e1000_hw {

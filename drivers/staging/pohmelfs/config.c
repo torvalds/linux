@@ -525,7 +525,7 @@ static void pohmelfs_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *n
 {
 	int err;
 
-	if (!cap_raised(nsp->eff_cap, CAP_SYS_ADMIN))
+	if (!cap_raised(current_cap(), CAP_SYS_ADMIN))
 		return;
 
 	switch (msg->flags) {

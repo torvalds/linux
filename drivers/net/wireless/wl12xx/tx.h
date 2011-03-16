@@ -29,6 +29,7 @@
 #define TX_HW_BLOCK_SIZE                 252
 
 #define TX_HW_MGMT_PKT_LIFETIME_TU       2000
+#define TX_HW_AP_MODE_PKT_LIFETIME_TU    8000
 /* The chipset reference driver states, that the "aid" value 1
  * is for infra-BSS, but is still always used */
 #define TX_HW_DEFAULT_AID                1
@@ -52,8 +53,6 @@
 #define TX_HW_RESULT_QUEUE_LEN_MASK      0xf
 
 #define WL1271_TX_ALIGN_TO 4
-#define WL1271_TX_ALIGN(len) (((len) + WL1271_TX_ALIGN_TO - 1) & \
-			     ~(WL1271_TX_ALIGN_TO - 1))
 #define WL1271_TKIP_IV_SPACE 4
 
 struct wl1271_tx_hw_descr {
@@ -77,8 +76,12 @@ struct wl1271_tx_hw_descr {
 	u8 id;
 	/* The packet TID value (as User-Priority) */
 	u8 tid;
-	/* Identifier of the remote STA in IBSS, 1 in infra-BSS */
-	u8 aid;
+	union {
+		/* STA - Identifier of the remote STA in IBSS, 1 in infra-BSS */
+		u8 aid;
+		/* AP - host link ID (HLID) */
+		u8 hlid;
+	} __packed;
 	u8 reserved;
 } __packed;
 
@@ -146,5 +149,9 @@ void wl1271_tx_reset(struct wl1271 *wl);
 void wl1271_tx_flush(struct wl1271 *wl);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set);
+u32 wl1271_tx_min_rate_get(struct wl1271 *wl);
+u8 wl1271_tx_get_hlid(struct sk_buff *skb);
+void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid);
+void wl1271_handle_tx_low_watermark(struct wl1271 *wl);
 
 #endif

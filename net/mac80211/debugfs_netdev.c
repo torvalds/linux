@@ -36,7 +36,7 @@ static ssize_t ieee80211_if_read(
 		ret = (*format)(sdata, buf, sizeof(buf));
 	read_unlock(&dev_base_lock);
 
-	if (ret != -EINVAL)
+	if (ret >= 0)
 		ret = simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 
 	return ret;
@@ -81,6 +81,8 @@ static ssize_t ieee80211_if_fmt_##name(					\
 		IEEE80211_IF_FMT(name, field, "%d\n")
 #define IEEE80211_IF_FMT_HEX(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%#x\n")
+#define IEEE80211_IF_FMT_LHEX(name, field)				\
+		IEEE80211_IF_FMT(name, field, "%#lx\n")
 #define IEEE80211_IF_FMT_SIZE(name, field)				\
 		IEEE80211_IF_FMT(name, field, "%zd\n")
 
@@ -145,6 +147,9 @@ IEEE80211_IF_FILE(rc_rateidx_mask_2ghz, rc_rateidx_mask[IEEE80211_BAND_2GHZ],
 		  HEX);
 IEEE80211_IF_FILE(rc_rateidx_mask_5ghz, rc_rateidx_mask[IEEE80211_BAND_5GHZ],
 		  HEX);
+IEEE80211_IF_FILE(flags, flags, HEX);
+IEEE80211_IF_FILE(state, state, LHEX);
+IEEE80211_IF_FILE(channel_type, vif.bss_conf.channel_type, DEC);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -216,6 +221,104 @@ static ssize_t ieee80211_if_parse_smps(struct ieee80211_sub_if_data *sdata,
 
 __IEEE80211_IF_FILE_W(smps);
 
+static ssize_t ieee80211_if_fmt_tkip_mic_test(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	return -EOPNOTSUPP;
+}
+
+static int hwaddr_aton(const char *txt, u8 *addr)
+{
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++) {
+		int a, b;
+
+		a = hex_to_bin(*txt++);
+		if (a < 0)
+			return -1;
+		b = hex_to_bin(*txt++);
+		if (b < 0)
+			return -1;
+		*addr++ = (a << 4) | b;
+		if (i < 5 && *txt++ != ':')
+			return -1;
+	}
+
+	return 0;
+}
+
+static ssize_t ieee80211_if_parse_tkip_mic_test(
+	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
+{
+	struct ieee80211_local *local = sdata->local;
+	u8 addr[ETH_ALEN];
+	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
+	__le16 fc;
+
+	/*
+	 * Assume colon-delimited MAC address with possible white space
+	 * following.
+	 */
+	if (buflen < 3 * ETH_ALEN - 1)
+		return -EINVAL;
+	if (hwaddr_aton(buf, addr) < 0)
+		return -EINVAL;
+
+	if (!ieee80211_sdata_running(sdata))
+		return -ENOTCONN;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24 + 100);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	hdr = (struct ieee80211_hdr *) skb_put(skb, 24);
+	memset(hdr, 0, 24);
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
+		/* DA BSSID SA */
+		memcpy(hdr->addr1, addr, ETH_ALEN);
+		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		memcpy(hdr->addr3, sdata->vif.addr, ETH_ALEN);
+		break;
+	case NL80211_IFTYPE_STATION:
+		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
+		/* BSSID SA DA */
+		if (sdata->vif.bss_conf.bssid == NULL) {
+			dev_kfree_skb(skb);
+			return -ENOTCONN;
+		}
+		memcpy(hdr->addr1, sdata->vif.bss_conf.bssid, ETH_ALEN);
+		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		memcpy(hdr->addr3, addr, ETH_ALEN);
+		break;
+	default:
+		dev_kfree_skb(skb);
+		return -EOPNOTSUPP;
+	}
+	hdr->frame_control = fc;
+
+	/*
+	 * Add some length to the test frame to make it look bit more valid.
+	 * The exact contents does not matter since the recipient is required
+	 * to drop this because of the Michael MIC failure.
+	 */
+	memset(skb_put(skb, 50), 0, 50);
+
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_TKIP_MIC_FAILURE;
+
+	ieee80211_tx_skb(sdata, skb);
+
+	return buflen;
+}
+
+__IEEE80211_IF_FILE_W(tkip_mic_test);
+
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
@@ -283,6 +386,9 @@ IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -291,22 +397,30 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(last_beacon);
 	DEBUGFS_ADD(ave_beacon);
 	DEBUGFS_ADD_MODE(smps, 0600);
+	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
 	DEBUGFS_ADD(num_sta_ps);
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
+	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
@@ -316,12 +430,18 @@ static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
 }
 
 #ifdef CONFIG_MAC80211_MESH
