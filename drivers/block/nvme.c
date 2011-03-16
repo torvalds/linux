@@ -245,7 +245,6 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 {
 	unsigned long flags;
 	u16 tail;
-	/* XXX: Need to check tail isn't going to overrun head */
 	spin_lock_irqsave(&nvmeq->q_lock, flags);
 	tail = nvmeq->sq_tail;
 	memcpy(&nvmeq->sq_cmds[tail], cmd, sizeof(*cmd));

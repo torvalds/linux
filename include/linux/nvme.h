@@ -323,7 +323,6 @@ struct nvme_command {
 	};
 };
 
-/* XXX: Sync with spec */
 enum {
 	NVME_SC_SUCCESS			= 0x0,
 	NVME_SC_INVALID_OPCODE		= 0x1,
