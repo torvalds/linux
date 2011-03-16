@@ -43,7 +43,6 @@
 #define RTC_DEF_TRIM		0
 
 static const unsigned long RTC_FREQ = 1024;
-static unsigned long timer_freq;
 static struct rtc_time rtc_alarm;
 static DEFINE_SPINLOCK(sa1100_rtc_lock);
 
@@ -156,114 +155,11 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sa1100_irq_set_freq(struct device *dev, int freq)
-{
-	if (freq < 1 || freq > timer_freq) {
-		return -EINVAL;
-	} else {
-		struct rtc_device *rtc = (struct rtc_device *)dev;
-
-		rtc->irq_freq = freq;
-
-		return 0;
-	}
-}
-
-static int rtc_timer1_count;
-
-static int sa1100_irq_set_state(struct device *dev, int enabled)
-{
-	spin_lock_irq(&sa1100_rtc_lock);
-	if (enabled) {
-		struct rtc_device *rtc = (struct rtc_device *)dev;
-
-		OSMR1 = timer_freq / rtc->irq_freq + OSCR;
-		OIER |= OIER_E1;
-		rtc_timer1_count = 1;
-	} else {
-		OIER &= ~OIER_E1;
-	}
-	spin_unlock_irq(&sa1100_rtc_lock);
-
-	return 0;
-}
-
-static inline int sa1100_timer1_retrigger(struct rtc_device *rtc)
-{
-	unsigned long diff;
-	unsigned long period = timer_freq / rtc->irq_freq;
-
-	spin_lock_irq(&sa1100_rtc_lock);
-
-	do {
-		OSMR1 += period;
-		diff = OSMR1 - OSCR;
-		/* If OSCR > OSMR1, diff is a very large number (unsigned
-		 * math). This means we have a lost interrupt. */
-	} while (diff > period);
-	OIER |= OIER_E1;
-
-	spin_unlock_irq(&sa1100_rtc_lock);
-
-	return 0;
-}
-
-static irqreturn_t timer1_interrupt(int irq, void *dev_id)
-{
-	struct platform_device *pdev = to_platform_device(dev_id);
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	/*
-	 * If we match for the first time, rtc_timer1_count will be 1.
-	 * Otherwise, we wrapped around (very unlikely but
-	 * still possible) so compute the amount of missed periods.
-	 * The match reg is updated only when the data is actually retrieved
-	 * to avoid unnecessary interrupts.
-	 */
-	OSSR = OSSR_M1;	/* clear match on timer1 */
-
-	rtc_update_irq(rtc, rtc_timer1_count, RTC_PF | RTC_IRQF);
-
-	if (rtc_timer1_count == 1)
-		rtc_timer1_count =
-			(rtc->irq_freq * ((1 << 30) / (timer_freq >> 2)));
-
-	/* retrigger. */
-	sa1100_timer1_retrigger(rtc);
-
-	return IRQ_HANDLED;
-}
-
-static int sa1100_rtc_read_callback(struct device *dev, int data)
-{
-	if (data & RTC_PF) {
-		struct rtc_device *rtc = (struct rtc_device *)dev;
-
-		/* interpolate missed periods and set match for the next */
-		unsigned long period = timer_freq / rtc->irq_freq;
-		unsigned long oscr = OSCR;
-		unsigned long osmr1 = OSMR1;
-		unsigned long missed = (oscr - osmr1)/period;
-		data += missed << 8;
-		OSSR = OSSR_M1;	/* clear match on timer 1 */
-		OSMR1 = osmr1 + (missed + 1)*period;
-		/* Ensure we didn't miss another match in the mean time.
-		 * Here we compare (match - OSCR) 8 instead of 0 --
-		 * see comment in pxa_timer_interrupt() for explanation.
-		 */
-		while ((signed long)((osmr1 = OSMR1) - OSCR) <= 8) {
-			data += 0x100;
-			OSSR = OSSR_M1;	/* clear match on timer 1 */
-			OSMR1 = osmr1 + period;
-		}
-	}
-	return data;
-}
-
 static int sa1100_rtc_open(struct device *dev)
 {
 	int ret;
-	struct rtc_device *rtc = (struct rtc_device *)dev;
+	struct platform_device *plat_dev = to_platform_device(dev);
+	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
 
 	ret = request_irq(IRQ_RTC1Hz, sa1100_rtc_interrupt, IRQF_DISABLED,
 		"rtc 1Hz", dev);
@@ -277,19 +173,11 @@ static int sa1100_rtc_open(struct device *dev)
 		dev_err(dev, "IRQ %d already in use.\n", IRQ_RTCAlrm);
 		goto fail_ai;
 	}
-	ret = request_irq(IRQ_OST1, timer1_interrupt, IRQF_DISABLED,
-		"rtc timer", dev);
-	if (ret) {
-		dev_err(dev, "IRQ %d already in use.\n", IRQ_OST1);
-		goto fail_pi;
-	}
 	rtc->max_user_freq = RTC_FREQ;
-	sa1100_irq_set_freq(dev, RTC_FREQ);
+	rtc_irq_set_freq(rtc, NULL, RTC_FREQ);
 
 	return 0;
 
- fail_pi:
-	free_irq(IRQ_RTCAlrm, dev);
  fail_ai:
 	free_irq(IRQ_RTC1Hz, dev);
  fail_ui:
@@ -304,28 +192,8 @@ static void sa1100_rtc_release(struct device *dev)
 	OSSR = OSSR_M1;
 	spin_unlock_irq(&sa1100_rtc_lock);
 
-	free_irq(IRQ_OST1, dev);
 	free_irq(IRQ_RTCAlrm, dev);
 	free_irq(IRQ_RTC1Hz, dev);
-}
-
-
-static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
-		unsigned long arg)
-{
-	switch (cmd) {
-	case RTC_UIE_OFF:
-		spin_lock_irq(&sa1100_rtc_lock);
-		RTSR &= ~RTSR_HZE;
-		spin_unlock_irq(&sa1100_rtc_lock);
-		return 0;
-	case RTC_UIE_ON:
-		spin_lock_irq(&sa1100_rtc_lock);
-		RTSR |= RTSR_HZE;
-		spin_unlock_irq(&sa1100_rtc_lock);
-		return 0;
-	}
-	return -ENOIOCTLCMD;
 }
 
 static int sa1100_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -386,39 +254,26 @@ static int sa1100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	struct rtc_device *rtc = (struct rtc_device *)dev;
-
-	seq_printf(seq, "trim/divider\t: 0x%08x\n", (u32) RTTR);
-	seq_printf(seq, "update_IRQ\t: %s\n",
-			(RTSR & RTSR_HZE) ? "yes" : "no");
-	seq_printf(seq, "periodic_IRQ\t: %s\n",
-			(OIER & OIER_E1) ? "yes" : "no");
-	seq_printf(seq, "periodic_freq\t: %d\n", rtc->irq_freq);
-	seq_printf(seq, "RTSR\t\t: 0x%08x\n", (u32)RTSR);
+	seq_printf(seq, "trim/divider\t\t: 0x%08x\n", (u32) RTTR);
+	seq_printf(seq, "RTSR\t\t\t: 0x%08x\n", (u32)RTSR);
 
 	return 0;
 }
 
 static const struct rtc_class_ops sa1100_rtc_ops = {
 	.open = sa1100_rtc_open,
-	.read_callback = sa1100_rtc_read_callback,
 	.release = sa1100_rtc_release,
-	.ioctl = sa1100_rtc_ioctl,
 	.read_time = sa1100_rtc_read_time,
 	.set_time = sa1100_rtc_set_time,
 	.read_alarm = sa1100_rtc_read_alarm,
 	.set_alarm = sa1100_rtc_set_alarm,
 	.proc = sa1100_rtc_proc,
-	.irq_set_freq = sa1100_irq_set_freq,
-	.irq_set_state = sa1100_irq_set_state,
 	.alarm_irq_enable = sa1100_rtc_alarm_irq_enable,
 };
 
 static int sa1100_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
-
-	timer_freq = get_clock_tick_rate();
 
 	/*
 	 * According to the manual we should be able to let RTTR be zero
@@ -444,11 +299,6 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	platform_set_drvdata(pdev, rtc);
-
-	/* Set the irq_freq */
-	/*TODO: Find out who is messing with this value after we initialize
-	 * it here.*/
-	rtc->irq_freq = RTC_FREQ;
 
 	/* Fix for a nasty initialization problem the in SA11xx RTSR register.
 	 * See also the comments in sa1100_rtc_interrupt().
