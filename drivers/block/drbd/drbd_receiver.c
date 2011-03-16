@@ -765,7 +765,7 @@ int drbd_connected(int vnr, void *p, void *data)
 
 	ok &= !drbd_send_sync_param(mdev);
 	ok &= drbd_send_sizes(mdev, 0, 0);
-	ok &= drbd_send_uuids(mdev);
+	ok &= !drbd_send_uuids(mdev);
 	ok &= !drbd_send_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);

@@ -872,7 +872,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 	int i;
 
 	if (!get_ldev_if_state(mdev, D_NEGOTIATING))
-		return 1;
+		return 0;
 
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		p.uuid[i] = mdev->ldev ? cpu_to_be64(mdev->ldev->md.uuid[i]) : 0;
@@ -886,7 +886,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 
 	put_ldev(mdev);
 
-	return !drbd_send_cmd(mdev, &mdev->tconn->data, P_UUIDS, &p.head, sizeof(p));
+	return drbd_send_cmd(mdev, &mdev->tconn->data, P_UUIDS, &p.head, sizeof(p));
 }
 
 int drbd_send_uuids(struct drbd_conf *mdev)
