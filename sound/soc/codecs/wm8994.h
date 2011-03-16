@@ -116,6 +116,7 @@ struct wm8994_priv {
 	unsigned int aif1clk_disable:1;
 	unsigned int aif2clk_disable:1;
 
+	int dsp_active;
 	const struct firmware *cur_fw;
 	const struct firmware *mbc;
 };
