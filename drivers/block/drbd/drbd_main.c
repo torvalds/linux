@@ -998,13 +998,13 @@ int _conn_send_state_req(struct drbd_tconn *tconn, int vnr, enum drbd_packet cmd
 	return conn_send_cmd(tconn, vnr, &tconn->data, cmd, &p.head, sizeof(p));
 }
 
-int drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode)
+void drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode)
 {
 	struct p_req_state_reply p;
 
 	p.retcode    = cpu_to_be32(retcode);
 
-	return !drbd_send_cmd(mdev, &mdev->tconn->meta, P_STATE_CHG_REPLY, &p.head, sizeof(p));
+	drbd_send_cmd(mdev, &mdev->tconn->meta, P_STATE_CHG_REPLY, &p.head, sizeof(p));
 }
 
 int conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode)
