@@ -158,9 +158,9 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 {
 	if (c->x86 == 0x06) {
 		if (cpu_has(c, X86_FEATURE_EST))
-			printk(KERN_WARNING PFX "Warning: EST-capable CPU "
-			       "detected. The acpi-cpufreq module offers "
-			       "voltage scaling in addition of frequency "
+			printk_once(KERN_WARNING PFX "Warning: EST-capable "
+			       "CPU detected. The acpi-cpufreq module offers "
+			       "voltage scaling in addition to frequency "
 			       "scaling. You should use that instead of "
 			       "p4-clockmod, if possible.\n");
 		switch (c->x86_model) {

@@ -144,7 +144,7 @@ void __hw_addr_del_multiple(struct netdev_hw_addr_list *to_list,
 
 	list_for_each_entry(ha, &from_list->list, list) {
 		type = addr_type ? addr_type : ha->type;
-		__hw_addr_del(to_list, ha->addr, addr_len, addr_type);
+		__hw_addr_del(to_list, ha->addr, addr_len, type);
 	}
 }
 EXPORT_SYMBOL(__hw_addr_del_multiple);

@@ -233,6 +233,14 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
+
+	/* It's not possible punch hole on append only file */
+	if (mode & FALLOC_FL_PUNCH_HOLE && IS_APPEND(inode))
+		return -EPERM;
+
+	if (IS_IMMUTABLE(inode))
+		return -EPERM;
+
 	/*
 	 * Revalidate the write permissions, in case security policy has
 	 * changed since the files were opened.

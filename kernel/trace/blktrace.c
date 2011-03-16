@@ -1827,21 +1827,5 @@ void blk_fill_rwbs(char *rwbs, u32 rw, int bytes)
 	rwbs[i] = '\0';
 }
 
-void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
-{
-	int rw = rq->cmd_flags & 0x03;
-	int bytes;
-
-	if (rq->cmd_flags & REQ_DISCARD)
-		rw |= REQ_DISCARD;
-
-	if (rq->cmd_flags & REQ_SECURE)
-		rw |= REQ_SECURE;
-
-	bytes = blk_rq_bytes(rq);
-
-	blk_fill_rwbs(rwbs, rw, bytes);
-}
-
 #endif /* CONFIG_EVENT_TRACING */
 

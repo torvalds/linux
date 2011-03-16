@@ -870,6 +870,23 @@ static int dib7070p_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int stk7700p_pid_filter(struct dvb_usb_adapter *adapter, int index,
+		u16 pid, int onoff)
+{
+	struct dib0700_state *st = adapter->dev->priv;
+	if (st->is_dib7000pc)
+		return dib7000p_pid_filter(adapter->fe, index, pid, onoff);
+	return dib7000m_pid_filter(adapter->fe, index, pid, onoff);
+}
+
+static int stk7700p_pid_filter_ctrl(struct dvb_usb_adapter *adapter, int onoff)
+{
+	struct dib0700_state *st = adapter->dev->priv;
+	if (st->is_dib7000pc)
+		return dib7000p_pid_filter_ctrl(adapter->fe, onoff);
+	return dib7000m_pid_filter_ctrl(adapter->fe, onoff);
+}
+
 static int stk70x0p_pid_filter(struct dvb_usb_adapter *adapter, int index, u16 pid, int onoff)
 {
     return dib7000p_pid_filter(adapter->fe, index, pid, onoff);
@@ -1875,8 +1892,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{
 				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 				.pid_filter_count = 32,
-				.pid_filter       = stk70x0p_pid_filter,
-				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.pid_filter       = stk7700p_pid_filter,
+				.pid_filter_ctrl  = stk7700p_pid_filter_ctrl,
 				.frontend_attach  = stk7700p_frontend_attach,
 				.tuner_attach     = stk7700p_tuner_attach,
 
