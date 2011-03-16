@@ -16,8 +16,6 @@ struct sym_entry {
 	struct list_head	node;
 	unsigned long		snap_count;
 	double			weight;
-	int			skip;
-	u8			origin;
 	struct map		*map;
 	unsigned long		count[0];
 };
@@ -41,7 +39,7 @@ struct perf_top {
 	u64		   exact_samples;
 	u64		   guest_us_samples, guest_kernel_samples;
 	int		   print_entries, count_filter, delay_secs;
-	int		   display_weighted, freq, rb_entries, sym_counter;
+	int		   display_weighted, freq, rb_entries;
 	pid_t		   target_pid, target_tid;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	const char	   *cpu_list;

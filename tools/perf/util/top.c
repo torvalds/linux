@@ -171,7 +171,7 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root)
 {
 	struct sym_entry *syme, *n;
 	float sum_ksamples = 0.0;
-	int snap = !top->display_weighted ? top->sym_counter : 0, j;
+	int snap = !top->display_weighted ? top->sym_evsel->idx : 0, j;
 
 	/* Sort the active symbols */
 	pthread_mutex_lock(&top->active_symbols_lock);
@@ -184,9 +184,9 @@ float perf_top__decay_samples(struct perf_top *top, struct rb_root *root)
 		if (syme->snap_count != 0) {
 
 			if ((top->hide_user_symbols &&
-			     syme->origin == PERF_RECORD_MISC_USER) ||
+			     syme->map->dso->kernel == DSO_TYPE_USER) ||
 			    (top->hide_kernel_symbols &&
-			     syme->origin == PERF_RECORD_MISC_KERNEL)) {
+			     syme->map->dso->kernel == DSO_TYPE_KERNEL)) {
 				perf_top__remove_active_sym(top, syme);
 				continue;
 			}
