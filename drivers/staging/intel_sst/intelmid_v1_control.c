@@ -72,9 +72,9 @@ enum _reg_v2 {
 
 };
 /**
- * mx_init_card - initilize the sound card
+ * mx_init_card - initialize the sound card
  *
- * This initilizes the audio paths to know values in case of this sound card
+ * This initializes the audio paths to know values in case of this sound card
  */
 static int mx_init_card(void)
 {

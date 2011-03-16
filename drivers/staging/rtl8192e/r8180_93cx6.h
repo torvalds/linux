@@ -38,4 +38,4 @@
 #define EPROM_TXPW1 0x3d
 
 /* Reads a 16 bits word. */
-u32 eprom_read(struct net_device *dev, u32 addr);
+u32 eprom_read(struct r8192_priv *priv, u32 addr);

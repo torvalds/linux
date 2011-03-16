@@ -134,7 +134,7 @@ int pohmelfs_copy_config(struct pohmelfs_sb *psb)
 		goto out_unlock;
 
 	/*
-	 * Run over all entries in given config group and try to crate and
+	 * Run over all entries in given config group and try to create and
 	 * initialize those, which do not exist in superblock list.
 	 * Skip all existing entries.
 	 */
@@ -601,11 +601,9 @@ void pohmelfs_config_exit(void)
 
 		list_del(&g->group_entry);
 
-		if (g->hash_string)
-			kfree(g->hash_string);
+		kfree(g->hash_string);
 
-		if (g->cipher_string)
-			kfree(g->cipher_string);
+		kfree(g->cipher_string);
 
 		kfree(g);
 	}

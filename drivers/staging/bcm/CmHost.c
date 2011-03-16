@@ -1,6 +1,6 @@
 /************************************************************
 *			CMHOST.C
-*	This file contains the routines for handling Connnection
+*	This file contains the routines for handling Connection
 *	Management.
 ************************************************************/
 
@@ -974,11 +974,7 @@ static VOID CopyToAdapter( register PMINI_ADAPTER Adapter,		/**<Pointer to the A
 			!(psfLocalSet->u8RequesttransmissionPolicy &
 				MASK_DISABLE_HEADER_SUPPRESSION);
 
-	if(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication)
-	{
-		kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
-		Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = NULL;
-	}
+	kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
 	Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = pstAddIndication;
 
 	//Re Sort the SF list in PackInfo according to Traffic Priority
@@ -1971,10 +1967,7 @@ INT AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 
 INT FreeAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 {
-	if(Adapter->caDsxReqResp)
-	{
-		kfree(Adapter->caDsxReqResp);
-	}
+	kfree(Adapter->caDsxReqResp);
 	return 0;
 
 }

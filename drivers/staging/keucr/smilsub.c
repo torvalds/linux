@@ -79,7 +79,7 @@ int Check_D_FailBlock(BYTE *redundant)
 		return(SUCCESS);
 	if (!*redundant)
 		return(ERROR);
-	if (Bit_D_Count(*redundant)<7)
+	if (hweight8(*redundant)<7)
 		return(ERROR);
 
 	return(SUCCESS);
@@ -100,7 +100,7 @@ int Check_D_DataStatus(BYTE *redundant)
 	else
 		ErrXDCode = NO_ERROR;
 
-	if (Bit_D_Count(*redundant)<5)
+	if (hweight8(*redundant)<5)
 		return(ERROR);
 
 	return(SUCCESS);
@@ -120,14 +120,14 @@ int Load_D_LogBlockAddr(BYTE *redundant)
 		if ((addr1 &0xF000)==0x1000)
 		{ Media.LogBlock=(addr1 &0x0FFF)/2; return(SUCCESS); }
 
-	if (Bit_D_CountWord((WORD)(addr1^addr2))!=0x01) return(ERROR);
+	if (hweight16((WORD)(addr1^addr2))!=0x01) return(ERROR);
 
 	if ((addr1 &0xF000)==0x1000)
-		if (!(Bit_D_CountWord(addr1) &0x01))
+		if (!(hweight16(addr1) &0x01))
 		{ Media.LogBlock=(addr1 &0x0FFF)/2; return(SUCCESS); }
 
 	if ((addr2 &0xF000)==0x1000)
-		if (!(Bit_D_CountWord(addr2) &0x01))
+		if (!(hweight16(addr2) &0x01))
 		{ Media.LogBlock=(addr2 &0x0FFF)/2; return(SUCCESS); }
 
 	return(ERROR);
@@ -151,7 +151,7 @@ void Set_D_LogBlockAddr(BYTE *redundant)
 	*(redundant+REDT_DATA) =0xFF;
 	addr=Media.LogBlock*2+0x1000;
 
-	if ((Bit_D_CountWord(addr)%2))
+	if ((hweight16(addr)%2))
 		addr++;
 
 	*(redundant+REDT_ADDR1H)=*(redundant+REDT_ADDR2H)=(BYTE)(addr/0x0100);
@@ -1482,54 +1482,40 @@ BYTE _Check_D_DevCode(BYTE dcode)
 //----- Check_D_ReadError() ----------------------------------------------
 int Check_D_ReadError(BYTE *redundant)
 {
-    // Driver 不做 ECC Check
-    return(SUCCESS);
-    if (!StringCmp((char *)(redundant+0x0D),(char *)EccBuf,3))
-        if (!StringCmp((char *)(redundant+0x08),(char *)(EccBuf+0x03),3))
-            return(SUCCESS);
-
-    return(ERROR);
+	return SUCCESS;
 }
 
 //----- Check_D_Correct() ----------------------------------------------
 int Check_D_Correct(BYTE *buf,BYTE *redundant)
 {
-    // Driver 不做 ECC Check
-    return(SUCCESS);
-    if (StringCmp((char *)(redundant+0x0D),(char *)EccBuf,3))
-        if (_Correct_D_SwECC(buf,redundant+0x0D,EccBuf))
-            return(ERROR);
-
-    buf+=0x100;
-    if (StringCmp((char *)(redundant+0x08),(char *)(EccBuf+0x03),3))
-        if (_Correct_D_SwECC(buf,redundant+0x08,EccBuf+0x03))
-            return(ERROR);
-
-    return(SUCCESS);
+	return SUCCESS;
 }
 
 //----- Check_D_CISdata() ----------------------------------------------
 int Check_D_CISdata(BYTE *buf, BYTE *redundant)
 {
-    BYTE cis[]={0x01,0x03,0xD9,0x01,0xFF,0x18,0x02,0xDF,0x01,0x20};
+	BYTE cis[] = {0x01, 0x03, 0xD9, 0x01, 0xFF, 0x18, 0x02,
+		      0xDF, 0x01, 0x20};
 
-    if (!IsSSFDCCompliance && !IsXDCompliance)
-        return(SUCCESS);             // 目前為強制 SUCCESS [Arnold 02-08-23] SSFDC 測試, 不能強制 SUCCESS
+	int cis_len = sizeof(cis);
 
-    if (!StringCmp((char *)(redundant+0x0D),(char *)EccBuf,3))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	if (!IsSSFDCCompliance && !IsXDCompliance)
+		return SUCCESS;
 
-    if (!_Correct_D_SwECC(buf,redundant+0x0D,EccBuf))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	if (!memcmp(redundant + 0x0D, EccBuf, 3))
+		return memcmp(buf, cis, cis_len);
 
-    buf+=0x100;
-    if (!StringCmp((char *)(redundant+0x08),(char *)(EccBuf+0x03),3))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	if (!_Correct_D_SwECC(buf, redundant + 0x0D, EccBuf))
+		return memcmp(buf, cis, cis_len);
 
-    if (!_Correct_D_SwECC(buf,redundant+0x08,EccBuf+0x03))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	buf += 0x100;
+	if (!memcmp(redundant + 0x08, EccBuf + 0x03, 3))
+		return memcmp(buf, cis, cis_len);
 
-    return(ERROR);
+	if (!_Correct_D_SwECC(buf, redundant + 0x08, EccBuf + 0x03))
+		return memcmp(buf, cis, cis_len);
+
+	return ERROR;
 }
 
 //----- Set_D_RightECC() ----------------------------------------------
@@ -1563,51 +1549,7 @@ void Set_D_RightECC(BYTE *redundant)
 //    StringCopy((char *)(redundant+0x08),(char *)(EccBuf+0x03),3);
 //}
 */
-//Common Subroutine
-char Bit_D_Count(BYTE cdata)
-{
-    WORD bitcount=0;
 
-    while(cdata) {
-        bitcount+=(WORD)(cdata &0x01);
-        cdata /=2;
-    }
-
-    return((char)bitcount);
-}
-
-//-----
-char Bit_D_CountWord(WORD cdata)
-{
-    WORD bitcount=0;
-
-    while(cdata) {
-        bitcount+=(cdata &0x01);
-        cdata /=2;
-    }
-
-    return((char)bitcount);
-}
-
-void StringCopy(char *stringA, char *stringB, int count)
-{
-    int i;
-
-    for(i=0; i<count; i++)
-        *stringA++ = *stringB++;
-}
-
-//-----
-int StringCmp(char *stringA, char *stringB, int count)
-{
-    int i;
-
-    for (i=0;i<count;i++)
-        if (*stringA++ != *stringB++)
-            return(ERROR);
-
-    return(SUCCESS);
-}
 /*
 //----- SM_ReadBlock() ---------------------------------------------
 int SM_ReadBlock(PFDO_DEVICE_EXTENSION fdoExt, BYTE *buf,BYTE *redundant)

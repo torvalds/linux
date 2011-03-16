@@ -31,7 +31,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "rtl871x_byteorder.h"
-#include "farray.h"
 #include "usb_osintf.h"
 
 #define FWBUFF_ALIGN_SZ 512
@@ -40,12 +39,26 @@
 static u32 rtl871x_open_fw(struct _adapter *padapter, void **pphfwfile_hdl,
 		    const u8 **ppmappedfw)
 {
-	u32 len;
+	int rc;
+	const char firmware_file[] = "rtlwifi/rtl8712u.bin";
+	const struct firmware **praw = (const struct firmware **)
+				       (pphfwfile_hdl);
+	struct dvobj_priv *pdvobjpriv = (struct dvobj_priv *)
+					(&padapter->dvobjpriv);
+	struct usb_device *pusbdev = pdvobjpriv->pusbdev;
 
-	*ppmappedfw = f_array;
-	len = sizeof(f_array);
-	return len;
+	printk(KERN_INFO "r8712u: Loading firmware from \"%s\"\n",
+	       firmware_file);
+	rc = request_firmware(praw, firmware_file, &pusbdev->dev);
+	if (rc < 0) {
+		printk(KERN_ERR "r8712u: Unable to load firmware\n");
+		printk(KERN_ERR "r8712u: Install latest linux-firmware\n");
+		return 0;
+	}
+	*ppmappedfw = (u8 *)((*praw)->data);
+	return (*praw)->size;
 }
+MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
 static void fill_fwpriv(struct _adapter *padapter, struct fw_priv *pfwpriv)
 {

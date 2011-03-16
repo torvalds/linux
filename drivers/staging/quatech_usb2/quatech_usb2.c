@@ -1221,7 +1221,7 @@ static void qt2_throttle(struct tty_struct *tty)
 	}
 	/* Send command to box to stop receiving stuff. This will stop this
 	 * particular UART from filling the endpoint - in the multiport case the
-	 * FPGA UART will handle any flow control implmented, but for the single
+	 * FPGA UART will handle any flow control implemented, but for the single
 	 * port it's handed differently and we just quit submitting urbs
 	 */
 	if (serial->dev->descriptor.idProduct != QUATECH_SSU2_100)

@@ -80,6 +80,7 @@ static struct ignore_entry ignore_ids[] = {
 #	include "unusual_alauda.h"
 #	include "unusual_cypress.h"
 #	include "unusual_datafab.h"
+#	include "unusual_ene_ub6250.h"
 #	include "unusual_freecom.h"
 #	include "unusual_isd200.h"
 #	include "unusual_jumpshot.h"

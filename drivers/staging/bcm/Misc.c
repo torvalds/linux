@@ -498,13 +498,12 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
 	if(Adapter->LinkStatus == SYNC_UP_REQUEST && Adapter->AutoSyncup)
 	{
-		pstLinkRequest=kmalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
 		if(!pstLinkRequest)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
 		}
-		memset(pstLinkRequest,0,sizeof(LINK_REQUEST));
 		//sync up request...
 		Adapter->LinkStatus = WAIT_FOR_SYNC;// current link status
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Requesting For SyncUp...");
@@ -516,13 +515,12 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 	}
 	else if(Adapter->LinkStatus == PHY_SYNC_ACHIVED && Adapter->AutoLinkUp)
 	{
-		pstLinkRequest=kmalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
+		pstLinkRequest = kzalloc(sizeof(LINK_REQUEST), GFP_ATOMIC);
 		if(!pstLinkRequest)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Can not allocate memory for Link request!");
 			return;
 		}
-		memset(pstLinkRequest,0,sizeof(LINK_REQUEST));
 		//LINK_UP_REQUEST
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Requesting For LinkUp...");
 		pstLinkRequest->szData[0]=LINK_UP_REQ_PAYLOAD;

@@ -161,7 +161,9 @@ int handle_help(struct vc_data *vc, u_char type, u_char ch, u_short key)
 		}
 	cur_item = letter_offsets[ch-'a'];
 	} else if (type == KT_CUR) {
-		if (ch == 0 && (cur_item + 1) <= MSG_FUNCNAMES_END)
+		if (ch == 0
+		    && (MSG_FUNCNAMES_START + cur_item + 1) <=
+		    MSG_FUNCNAMES_END)
 			cur_item++;
 		else if (ch == 3 && cur_item > 0)
 			cur_item--;

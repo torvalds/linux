@@ -352,12 +352,12 @@ PD Record codes
 typedef struct hfa384x_bytestr {
 	u16 len;
 	u8 data[0];
-} __attribute__ ((packed)) hfa384x_bytestr_t;
+} __packed hfa384x_bytestr_t;
 
 typedef struct hfa384x_bytestr32 {
 	u16 len;
 	u8 data[32];
-} __attribute__ ((packed)) hfa384x_bytestr32_t;
+} __packed hfa384x_bytestr32_t;
 
 /*--------------------------------------------------------------------
 Configuration Record Structures:
@@ -370,7 +370,7 @@ typedef struct hfa384x_compident {
 	u16 variant;
 	u16 major;
 	u16 minor;
-} __attribute__ ((packed)) hfa384x_compident_t;
+} __packed hfa384x_compident_t;
 
 typedef struct hfa384x_caplevel {
 	u16 role;
@@ -378,7 +378,7 @@ typedef struct hfa384x_caplevel {
 	u16 variant;
 	u16 bottom;
 	u16 top;
-} __attribute__ ((packed)) hfa384x_caplevel_t;
+} __packed hfa384x_caplevel_t;
 
 /*-- Configuration Record: cnfAuthentication --*/
 #define HFA384x_CNFAUTHENTICATION_OPENSYSTEM	0x0001
@@ -397,26 +397,26 @@ typedef struct hfa384x_HostScanRequest_data {
 	u16 channelList;
 	u16 txRate;
 	hfa384x_bytestr32_t ssid;
-} __attribute__ ((packed)) hfa384x_HostScanRequest_data_t;
+} __packed hfa384x_HostScanRequest_data_t;
 
 /*-- Configuration Record: JoinRequest (data portion only) --*/
 typedef struct hfa384x_JoinRequest_data {
 	u8 bssid[WLAN_BSSID_LEN];
 	u16 channel;
-} __attribute__ ((packed)) hfa384x_JoinRequest_data_t;
+} __packed hfa384x_JoinRequest_data_t;
 
 /*-- Configuration Record: authenticateStation (data portion only) --*/
 typedef struct hfa384x_authenticateStation_data {
 	u8 address[ETH_ALEN];
 	u16 status;
 	u16 algorithm;
-} __attribute__ ((packed)) hfa384x_authenticateStation_data_t;
+} __packed hfa384x_authenticateStation_data_t;
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
 typedef struct hfa384x_WPAData {
 	u16 datalen;
 	u8 data[0];		/* max 80 */
-} __attribute__ ((packed)) hfa384x_WPAData_t;
+} __packed hfa384x_WPAData_t;
 
 /*--------------------------------------------------------------------
 Information Record Structures: NIC Information
@@ -428,7 +428,7 @@ typedef struct hfa384x_downloadbuffer {
 	u16 page;
 	u16 offset;
 	u16 len;
-} __attribute__ ((packed)) hfa384x_downloadbuffer_t;
+} __packed hfa384x_downloadbuffer_t;
 
 /*--------------------------------------------------------------------
 Information Record Structures: NIC Information
@@ -441,14 +441,14 @@ typedef struct hfa384x_commsquality {
 	u16 CQ_currBSS;
 	u16 ASL_currBSS;
 	u16 ANL_currFC;
-} __attribute__ ((packed)) hfa384x_commsquality_t;
+} __packed hfa384x_commsquality_t;
 
 /*-- Information Record: dmbcommsquality --*/
 typedef struct hfa384x_dbmcommsquality {
 	u16 CQdbm_currBSS;
 	u16 ASLdbm_currBSS;
 	u16 ANLdbm_currFC;
-} __attribute__ ((packed)) hfa384x_dbmcommsquality_t;
+} __packed hfa384x_dbmcommsquality_t;
 
 /*--------------------------------------------------------------------
 FRAME STRUCTURES: Communication Frames
@@ -481,7 +481,7 @@ typedef struct hfa384x_tx_frame {
 	u8 dest_addr[6];
 	u8 src_addr[6];
 	u16 data_length;	/* big endian format */
-} __attribute__ ((packed)) hfa384x_tx_frame_t;
+} __packed hfa384x_tx_frame_t;
 /*--------------------------------------------------------------------
 Communication Frames: Field Masks for Transmit Frames
 --------------------------------------------------------------------*/
@@ -543,7 +543,7 @@ typedef struct hfa384x_rx_frame {
 	u8 dest_addr[6];
 	u8 src_addr[6];
 	u16 data_length;	/* IEEE? (big endian) format */
-} __attribute__ ((packed)) hfa384x_rx_frame_t;
+} __packed hfa384x_rx_frame_t;
 /*--------------------------------------------------------------------
 Communication Frames: Field Masks for Receive Frames
 --------------------------------------------------------------------*/
@@ -607,7 +607,7 @@ typedef struct hfa384x_CommTallies16 {
 	u16 rxdiscardswepundecr;
 	u16 rxmsginmsgfrag;
 	u16 rxmsginbadmsgfrag;
-} __attribute__ ((packed)) hfa384x_CommTallies16_t;
+} __packed hfa384x_CommTallies16_t;
 
 typedef struct hfa384x_CommTallies32 {
 	u32 txunicastframes;
@@ -631,7 +631,7 @@ typedef struct hfa384x_CommTallies32 {
 	u32 rxdiscardswepundecr;
 	u32 rxmsginmsgfrag;
 	u32 rxmsginbadmsgfrag;
-} __attribute__ ((packed)) hfa384x_CommTallies32_t;
+} __packed hfa384x_CommTallies32_t;
 
 /*--  Inquiry Frame, Diagnose: Scan Results & Subfields--*/
 typedef struct hfa384x_ScanResultSub {
@@ -644,13 +644,13 @@ typedef struct hfa384x_ScanResultSub {
 	hfa384x_bytestr32_t ssid;
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
-} __attribute__ ((packed)) hfa384x_ScanResultSub_t;
+} __packed hfa384x_ScanResultSub_t;
 
 typedef struct hfa384x_ScanResult {
 	u16 rsvd;
 	u16 scanreason;
 	hfa384x_ScanResultSub_t result[HFA384x_SCANRESULT_MAX];
-} __attribute__ ((packed)) hfa384x_ScanResult_t;
+} __packed hfa384x_ScanResult_t;
 
 /*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
 typedef struct hfa384x_ChInfoResultSub {
@@ -658,7 +658,7 @@ typedef struct hfa384x_ChInfoResultSub {
 	u16 anl;
 	u16 pnl;
 	u16 active;
-} __attribute__ ((packed)) hfa384x_ChInfoResultSub_t;
+} __packed hfa384x_ChInfoResultSub_t;
 
 #define HFA384x_CHINFORESULT_BSSACTIVE	BIT(0)
 #define HFA384x_CHINFORESULT_PCFACTIVE	BIT(1)
@@ -666,7 +666,7 @@ typedef struct hfa384x_ChInfoResultSub {
 typedef struct hfa384x_ChInfoResult {
 	u16 scanchannels;
 	hfa384x_ChInfoResultSub_t result[HFA384x_CHINFORESULT_MAX];
-} __attribute__ ((packed)) hfa384x_ChInfoResult_t;
+} __packed hfa384x_ChInfoResult_t;
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
 typedef struct hfa384x_HScanResultSub {
@@ -680,13 +680,13 @@ typedef struct hfa384x_HScanResultSub {
 	u8 supprates[10];	/* 802.11 info element */
 	u16 proberesp_rate;
 	u16 atim;
-} __attribute__ ((packed)) hfa384x_HScanResultSub_t;
+} __packed hfa384x_HScanResultSub_t;
 
 typedef struct hfa384x_HScanResult {
 	u16 nresult;
 	u16 rsvd;
 	hfa384x_HScanResultSub_t result[HFA384x_HSCANRESULT_MAX];
-} __attribute__ ((packed)) hfa384x_HScanResult_t;
+} __packed hfa384x_HScanResult_t;
 
 /*--  Unsolicited Frame, MAC Mgmt: LinkStatus --*/
 
@@ -700,7 +700,7 @@ typedef struct hfa384x_HScanResult {
 
 typedef struct hfa384x_LinkStatus {
 	u16 linkstatus;
-} __attribute__ ((packed)) hfa384x_LinkStatus_t;
+} __packed hfa384x_LinkStatus_t;
 
 /*--  Unsolicited Frame, MAC Mgmt: AssociationStatus (--*/
 
@@ -715,25 +715,25 @@ typedef struct hfa384x_AssocStatus {
 	u8 old_ap_addr[ETH_ALEN];
 	u16 reason;
 	u16 reserved;
-} __attribute__ ((packed)) hfa384x_AssocStatus_t;
+} __packed hfa384x_AssocStatus_t;
 
 /*--  Unsolicited Frame, MAC Mgmt: AuthRequest (AP Only) --*/
 
 typedef struct hfa384x_AuthRequest {
 	u8 sta_addr[ETH_ALEN];
 	u16 algorithm;
-} __attribute__ ((packed)) hfa384x_AuthReq_t;
+} __packed hfa384x_AuthReq_t;
 
 /*--  Unsolicited Frame, MAC Mgmt: PSUserCount (AP Only) --*/
 
 typedef struct hfa384x_PSUserCount {
 	u16 usercnt;
-} __attribute__ ((packed)) hfa384x_PSUserCount_t;
+} __packed hfa384x_PSUserCount_t;
 
 typedef struct hfa384x_KeyIDChanged {
 	u8 sta_addr[ETH_ALEN];
 	u16 keyid;
-} __attribute__ ((packed)) hfa384x_KeyIDChanged_t;
+} __packed hfa384x_KeyIDChanged_t;
 
 /*--  Collection of all Inf frames ---------------*/
 typedef union hfa384x_infodata {
@@ -747,13 +747,13 @@ typedef union hfa384x_infodata {
 	hfa384x_AuthReq_t authreq;
 	hfa384x_PSUserCount_t psusercnt;
 	hfa384x_KeyIDChanged_t keyidchanged;
-} __attribute__ ((packed)) hfa384x_infodata_t;
+} __packed hfa384x_infodata_t;
 
 typedef struct hfa384x_InfFrame {
 	u16 framelen;
 	u16 infotype;
 	hfa384x_infodata_t info;
-} __attribute__ ((packed)) hfa384x_InfFrame_t;
+} __packed hfa384x_InfFrame_t;
 
 /*--------------------------------------------------------------------
 USB Packet structures and constants.
@@ -785,7 +785,7 @@ USB Packet structures and constants.
 typedef struct hfa384x_usb_txfrm {
 	hfa384x_tx_frame_t desc;
 	u8 data[WLAN_DATA_MAXLEN];
-} __attribute__ ((packed)) hfa384x_usb_txfrm_t;
+} __packed hfa384x_usb_txfrm_t;
 
 typedef struct hfa384x_usb_cmdreq {
 	u16 type;
@@ -794,21 +794,21 @@ typedef struct hfa384x_usb_cmdreq {
 	u16 parm1;
 	u16 parm2;
 	u8 pad[54];
-} __attribute__ ((packed)) hfa384x_usb_cmdreq_t;
+} __packed hfa384x_usb_cmdreq_t;
 
 typedef struct hfa384x_usb_wridreq {
 	u16 type;
 	u16 frmlen;
 	u16 rid;
 	u8 data[HFA384x_RIDDATA_MAXLEN];
-} __attribute__ ((packed)) hfa384x_usb_wridreq_t;
+} __packed hfa384x_usb_wridreq_t;
 
 typedef struct hfa384x_usb_rridreq {
 	u16 type;
 	u16 frmlen;
 	u16 rid;
 	u8 pad[58];
-} __attribute__ ((packed)) hfa384x_usb_rridreq_t;
+} __packed hfa384x_usb_rridreq_t;
 
 typedef struct hfa384x_usb_wmemreq {
 	u16 type;
@@ -816,7 +816,7 @@ typedef struct hfa384x_usb_wmemreq {
 	u16 offset;
 	u16 page;
 	u8 data[HFA384x_USB_RWMEM_MAXLEN];
-} __attribute__ ((packed)) hfa384x_usb_wmemreq_t;
+} __packed hfa384x_usb_wmemreq_t;
 
 typedef struct hfa384x_usb_rmemreq {
 	u16 type;
@@ -824,7 +824,7 @@ typedef struct hfa384x_usb_rmemreq {
 	u16 offset;
 	u16 page;
 	u8 pad[56];
-} __attribute__ ((packed)) hfa384x_usb_rmemreq_t;
+} __packed hfa384x_usb_rmemreq_t;
 
 /*------------------------------------*/
 /* Response (bulk IN) packet contents */
@@ -832,12 +832,12 @@ typedef struct hfa384x_usb_rmemreq {
 typedef struct hfa384x_usb_rxfrm {
 	hfa384x_rx_frame_t desc;
 	u8 data[WLAN_DATA_MAXLEN];
-} __attribute__ ((packed)) hfa384x_usb_rxfrm_t;
+} __packed hfa384x_usb_rxfrm_t;
 
 typedef struct hfa384x_usb_infofrm {
 	u16 type;
 	hfa384x_InfFrame_t info;
-} __attribute__ ((packed)) hfa384x_usb_infofrm_t;
+} __packed hfa384x_usb_infofrm_t;
 
 typedef struct hfa384x_usb_statusresp {
 	u16 type;
@@ -845,7 +845,7 @@ typedef struct hfa384x_usb_statusresp {
 	u16 resp0;
 	u16 resp1;
 	u16 resp2;
-} __attribute__ ((packed)) hfa384x_usb_cmdresp_t;
+} __packed hfa384x_usb_cmdresp_t;
 
 typedef hfa384x_usb_cmdresp_t hfa384x_usb_wridresp_t;
 
@@ -854,7 +854,7 @@ typedef struct hfa384x_usb_rridresp {
 	u16 frmlen;
 	u16 rid;
 	u8 data[HFA384x_RIDDATA_MAXLEN];
-} __attribute__ ((packed)) hfa384x_usb_rridresp_t;
+} __packed hfa384x_usb_rridresp_t;
 
 typedef hfa384x_usb_cmdresp_t hfa384x_usb_wmemresp_t;
 
@@ -862,17 +862,17 @@ typedef struct hfa384x_usb_rmemresp {
 	u16 type;
 	u16 frmlen;
 	u8 data[HFA384x_USB_RWMEM_MAXLEN];
-} __attribute__ ((packed)) hfa384x_usb_rmemresp_t;
+} __packed hfa384x_usb_rmemresp_t;
 
 typedef struct hfa384x_usb_bufavail {
 	u16 type;
 	u16 frmlen;
-} __attribute__ ((packed)) hfa384x_usb_bufavail_t;
+} __packed hfa384x_usb_bufavail_t;
 
 typedef struct hfa384x_usb_error {
 	u16 type;
 	u16 errortype;
-} __attribute__ ((packed)) hfa384x_usb_error_t;
+} __packed hfa384x_usb_error_t;
 
 /*----------------------------------------------------------*/
 /* Unions for packaging all the known packet types together */
@@ -885,7 +885,7 @@ typedef union hfa384x_usbout {
 	hfa384x_usb_rridreq_t rridreq;
 	hfa384x_usb_wmemreq_t wmemreq;
 	hfa384x_usb_rmemreq_t rmemreq;
-} __attribute__ ((packed)) hfa384x_usbout_t;
+} __packed hfa384x_usbout_t;
 
 typedef union hfa384x_usbin {
 	u16 type;
@@ -900,7 +900,7 @@ typedef union hfa384x_usbin {
 	hfa384x_usb_bufavail_t bufavail;
 	hfa384x_usb_error_t usberror;
 	u8 boguspad[3000];
-} __attribute__ ((packed)) hfa384x_usbin_t;
+} __packed hfa384x_usbin_t;
 
 /*--------------------------------------------------------------------
 PD record structures.
@@ -908,15 +908,15 @@ PD record structures.
 
 typedef struct hfa384x_pdr_pcb_partnum {
 	u8 num[8];
-} __attribute__ ((packed)) hfa384x_pdr_pcb_partnum_t;
+} __packed hfa384x_pdr_pcb_partnum_t;
 
 typedef struct hfa384x_pdr_pcb_tracenum {
 	u8 num[8];
-} __attribute__ ((packed)) hfa384x_pdr_pcb_tracenum_t;
+} __packed hfa384x_pdr_pcb_tracenum_t;
 
 typedef struct hfa384x_pdr_nic_serial {
 	u8 num[12];
-} __attribute__ ((packed)) hfa384x_pdr_nic_serial_t;
+} __packed hfa384x_pdr_nic_serial_t;
 
 typedef struct hfa384x_pdr_mkk_measurements {
 	double carrier_freq;
@@ -934,138 +934,138 @@ typedef struct hfa384x_pdr_mkk_measurements {
 	double rx_spur_f2;
 	double rx_spur_l1;
 	double rx_spur_l2;
-} __attribute__ ((packed)) hfa384x_pdr_mkk_measurements_t;
+} __packed hfa384x_pdr_mkk_measurements_t;
 
 typedef struct hfa384x_pdr_nic_ramsize {
 	u8 size[12];		/* units of KB */
-} __attribute__ ((packed)) hfa384x_pdr_nic_ramsize_t;
+} __packed hfa384x_pdr_nic_ramsize_t;
 
 typedef struct hfa384x_pdr_mfisuprange {
 	u16 id;
 	u16 variant;
 	u16 bottom;
 	u16 top;
-} __attribute__ ((packed)) hfa384x_pdr_mfisuprange_t;
+} __packed hfa384x_pdr_mfisuprange_t;
 
 typedef struct hfa384x_pdr_cfisuprange {
 	u16 id;
 	u16 variant;
 	u16 bottom;
 	u16 top;
-} __attribute__ ((packed)) hfa384x_pdr_cfisuprange_t;
+} __packed hfa384x_pdr_cfisuprange_t;
 
 typedef struct hfa384x_pdr_nicid {
 	u16 id;
 	u16 variant;
 	u16 major;
 	u16 minor;
-} __attribute__ ((packed)) hfa384x_pdr_nicid_t;
+} __packed hfa384x_pdr_nicid_t;
 
 typedef struct hfa384x_pdr_refdac_measurements {
 	u16 value[0];
-} __attribute__ ((packed)) hfa384x_pdr_refdac_measurements_t;
+} __packed hfa384x_pdr_refdac_measurements_t;
 
 typedef struct hfa384x_pdr_vgdac_measurements {
 	u16 value[0];
-} __attribute__ ((packed)) hfa384x_pdr_vgdac_measurements_t;
+} __packed hfa384x_pdr_vgdac_measurements_t;
 
 typedef struct hfa384x_pdr_level_comp_measurements {
 	u16 value[0];
-} __attribute__ ((packed)) hfa384x_pdr_level_compc_measurements_t;
+} __packed hfa384x_pdr_level_compc_measurements_t;
 
 typedef struct hfa384x_pdr_mac_address {
 	u8 addr[6];
-} __attribute__ ((packed)) hfa384x_pdr_mac_address_t;
+} __packed hfa384x_pdr_mac_address_t;
 
 typedef struct hfa384x_pdr_mkk_callname {
 	u8 callname[8];
-} __attribute__ ((packed)) hfa384x_pdr_mkk_callname_t;
+} __packed hfa384x_pdr_mkk_callname_t;
 
 typedef struct hfa384x_pdr_regdomain {
 	u16 numdomains;
 	u16 domain[5];
-} __attribute__ ((packed)) hfa384x_pdr_regdomain_t;
+} __packed hfa384x_pdr_regdomain_t;
 
 typedef struct hfa384x_pdr_allowed_channel {
 	u16 ch_bitmap;
-} __attribute__ ((packed)) hfa384x_pdr_allowed_channel_t;
+} __packed hfa384x_pdr_allowed_channel_t;
 
 typedef struct hfa384x_pdr_default_channel {
 	u16 channel;
-} __attribute__ ((packed)) hfa384x_pdr_default_channel_t;
+} __packed hfa384x_pdr_default_channel_t;
 
 typedef struct hfa384x_pdr_privacy_option {
 	u16 available;
-} __attribute__ ((packed)) hfa384x_pdr_privacy_option_t;
+} __packed hfa384x_pdr_privacy_option_t;
 
 typedef struct hfa384x_pdr_temptype {
 	u16 type;
-} __attribute__ ((packed)) hfa384x_pdr_temptype_t;
+} __packed hfa384x_pdr_temptype_t;
 
 typedef struct hfa384x_pdr_refdac_setup {
 	u16 ch_value[14];
-} __attribute__ ((packed)) hfa384x_pdr_refdac_setup_t;
+} __packed hfa384x_pdr_refdac_setup_t;
 
 typedef struct hfa384x_pdr_vgdac_setup {
 	u16 ch_value[14];
-} __attribute__ ((packed)) hfa384x_pdr_vgdac_setup_t;
+} __packed hfa384x_pdr_vgdac_setup_t;
 
 typedef struct hfa384x_pdr_level_comp_setup {
 	u16 ch_value[14];
-} __attribute__ ((packed)) hfa384x_pdr_level_comp_setup_t;
+} __packed hfa384x_pdr_level_comp_setup_t;
 
 typedef struct hfa384x_pdr_trimdac_setup {
 	u16 trimidac;
 	u16 trimqdac;
-} __attribute__ ((packed)) hfa384x_pdr_trimdac_setup_t;
+} __packed hfa384x_pdr_trimdac_setup_t;
 
 typedef struct hfa384x_pdr_ifr_setting {
 	u16 value[3];
-} __attribute__ ((packed)) hfa384x_pdr_ifr_setting_t;
+} __packed hfa384x_pdr_ifr_setting_t;
 
 typedef struct hfa384x_pdr_rfr_setting {
 	u16 value[3];
-} __attribute__ ((packed)) hfa384x_pdr_rfr_setting_t;
+} __packed hfa384x_pdr_rfr_setting_t;
 
 typedef struct hfa384x_pdr_hfa3861_baseline {
 	u16 value[50];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_baseline_t;
+} __packed hfa384x_pdr_hfa3861_baseline_t;
 
 typedef struct hfa384x_pdr_hfa3861_shadow {
 	u32 value[32];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_shadow_t;
+} __packed hfa384x_pdr_hfa3861_shadow_t;
 
 typedef struct hfa384x_pdr_hfa3861_ifrf {
 	u32 value[20];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_ifrf_t;
+} __packed hfa384x_pdr_hfa3861_ifrf_t;
 
 typedef struct hfa384x_pdr_hfa3861_chcalsp {
 	u16 value[14];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_chcalsp_t;
+} __packed hfa384x_pdr_hfa3861_chcalsp_t;
 
 typedef struct hfa384x_pdr_hfa3861_chcali {
 	u16 value[17];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_chcali_t;
+} __packed hfa384x_pdr_hfa3861_chcali_t;
 
 typedef struct hfa384x_pdr_hfa3861_nic_config {
 	u16 config_bitmap;
-} __attribute__ ((packed)) hfa384x_pdr_nic_config_t;
+} __packed hfa384x_pdr_nic_config_t;
 
 typedef struct hfa384x_pdr_hfo_delay {
 	u8 hfo_delay;
-} __attribute__ ((packed)) hfa384x_hfo_delay_t;
+} __packed hfa384x_hfo_delay_t;
 
 typedef struct hfa384x_pdr_hfa3861_manf_testsp {
 	u16 value[30];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_manf_testsp_t;
+} __packed hfa384x_pdr_hfa3861_manf_testsp_t;
 
 typedef struct hfa384x_pdr_hfa3861_manf_testi {
 	u16 value[30];
-} __attribute__ ((packed)) hfa384x_pdr_hfa3861_manf_testi_t;
+} __packed hfa384x_pdr_hfa3861_manf_testi_t;
 
 typedef struct hfa384x_end_of_pda {
 	u16 crc;
-} __attribute__ ((packed)) hfa384x_pdr_end_of_pda_t;
+} __packed hfa384x_pdr_end_of_pda_t;
 
 typedef struct hfa384x_pdrec {
 	u16 len;		/* in words */
@@ -1107,7 +1107,7 @@ typedef struct hfa384x_pdrec {
 		hfa384x_pdr_end_of_pda_t end_of_pda;
 
 	} data;
-} __attribute__ ((packed)) hfa384x_pdrec_t;
+} __packed hfa384x_pdrec_t;
 
 #ifdef __KERNEL__
 /*--------------------------------------------------------------------

@@ -3,6 +3,7 @@ config VT6656
 	depends on USB && WLAN
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select FW_LOADER
 	---help---
 	This is a vendor-written driver for VIA VT6656.
 
