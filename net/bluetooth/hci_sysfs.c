@@ -216,13 +216,13 @@ static ssize_t show_type(struct device *dev, struct device_attribute *attr, char
 static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char name[249];
+	char name[HCI_MAX_NAME_LENGTH + 1];
 	int i;
 
-	for (i = 0; i < 248; i++)
+	for (i = 0; i < HCI_MAX_NAME_LENGTH; i++)
 		name[i] = hdev->dev_name[i];
 
-	name[248] = '\0';
+	name[HCI_MAX_NAME_LENGTH] = '\0';
 	return sprintf(buf, "%s\n", name);
 }
 

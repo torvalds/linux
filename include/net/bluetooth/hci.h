@@ -535,15 +535,17 @@ struct hci_cp_delete_stored_link_key {
 	__u8     delete_all;
 } __packed;
 
+#define HCI_MAX_NAME_LENGTH		248
+
 #define HCI_OP_WRITE_LOCAL_NAME		0x0c13
 struct hci_cp_write_local_name {
-	__u8     name[248];
+	__u8     name[HCI_MAX_NAME_LENGTH];
 } __packed;
 
 #define HCI_OP_READ_LOCAL_NAME		0x0c14
 struct hci_rp_read_local_name {
 	__u8     status;
-	__u8     name[248];
+	__u8     name[HCI_MAX_NAME_LENGTH];
 } __packed;
 
 #define HCI_OP_WRITE_CA_TIMEOUT		0x0c16
@@ -745,7 +747,7 @@ struct hci_ev_auth_complete {
 struct hci_ev_remote_name {
 	__u8     status;
 	bdaddr_t bdaddr;
-	__u8     name[248];
+	__u8     name[HCI_MAX_NAME_LENGTH];
 } __packed;
 
 #define HCI_EV_ENCRYPT_CHANGE		0x08
