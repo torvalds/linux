@@ -43,11 +43,11 @@ static int viafb_second_size;
 static int viafb_accel = 1;
 
 /* Added for specifying active devices.*/
-char *viafb_active_dev;
+static char *viafb_active_dev;
 
 /*Added for specify lcd output port*/
-char *viafb_lcd_port = "";
-char *viafb_dvi_port = "";
+static char *viafb_lcd_port = "";
+static char *viafb_dvi_port = "";
 
 static void retrieve_device_setting(struct viafb_ioctl_setting
 	*setting_info);
