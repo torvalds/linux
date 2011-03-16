@@ -456,7 +456,10 @@ static inline int rk29_pl330_submit(struct rk29_pl330_chan *ch,
 
 			ch->rqcfg.brst_len = bl;
 		} else {
-			ch->rqcfg.brst_len = 1;
+		    if(ch->id == DMACH_EMMC)
+		        ch->rqcfg.brst_len = 16;  //yk
+		    else
+			    ch->rqcfg.brst_len = 1;
 		}
 
 		ret = pl330_submit_req(ch->pl330_chan_id, r);
