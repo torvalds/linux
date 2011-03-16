@@ -1875,7 +1875,7 @@ static int mmc_test_seq_perf(struct mmc_test_card *test, int write,
 			     unsigned int tot_sz, int max_scatter)
 {
 	unsigned int dev_addr, i, cnt, sz, ssz;
-	struct timespec ts1, ts2, ts;
+	struct timespec ts1, ts2;
 	int ret;
 
 	sz = test->area.max_tfr;
@@ -1912,7 +1912,6 @@ static int mmc_test_seq_perf(struct mmc_test_card *test, int write,
 	}
 	getnstimeofday(&ts2);
 
-	ts = timespec_sub(ts2, ts1);
 	mmc_test_print_avg_rate(test, sz, cnt, &ts1, &ts2);
 
 	return 0;
