@@ -711,7 +711,7 @@ do_rest:
 	stack_start  = c_idle.idle->thread.sp;
 
 	/* start_ip had better be page-aligned! */
-	start_ip = setup_trampoline();
+	start_ip = trampoline_address();
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
@@ -720,6 +720,8 @@ do_rest:
 	 * This grunge runs the startup process for
 	 * the targeted processor.
 	 */
+
+	printk(KERN_DEBUG "smpboot cpu %d: start_ip = %lx\n", cpu, start_ip);
 
 	atomic_set(&init_deasserted, 0);
 
@@ -774,8 +776,8 @@ do_rest:
 			pr_debug("CPU%d: has booted.\n", cpu);
 		else {
 			boot_error = 1;
-			if (*((volatile unsigned char *)trampoline_base)
-					== 0xA5)
+			if (*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status)
+			    == 0xA5A5A5A5)
 				/* trampoline started but...? */
 				pr_err("CPU%d: Stuck ??\n", cpu);
 			else
@@ -801,7 +803,7 @@ do_rest:
 	}
 
 	/* mark "stuck" area as not stuck */
-	*((volatile unsigned long *)trampoline_base) = 0;
+	*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status) = 0;
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 		/*

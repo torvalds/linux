@@ -1414,7 +1414,7 @@ ENTRY(async_page_fault)
 	pushl_cfi $do_async_page_fault
 	jmp error_code
 	CFI_ENDPROC
-END(apf_page_fault)
+END(async_page_fault)
 #endif
 
 /*
