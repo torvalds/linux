@@ -25,8 +25,7 @@ static LIST_HEAD(nfs_automount_list);
 static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 
-static struct vfsmount *nfs_do_submount(struct super_block *sb,
-					struct dentry *dentry,
+static struct vfsmount *nfs_do_submount(struct dentry *dentry,
 					struct nfs_fh *fh,
 					struct nfs_fattr *fattr);
 
@@ -164,9 +163,9 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
-		mnt = nfs_do_refmount(path->mnt->mnt_sb, path->dentry);
+		mnt = nfs_do_refmount(path->dentry);
 	else
-		mnt = nfs_do_submount(path->mnt->mnt_sb, path->dentry, fh, fattr);
+		mnt = nfs_do_submount(path->dentry, fh, fattr);
 	if (IS_ERR(mnt))
 		goto out;
 
@@ -230,19 +229,17 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 
 /**
  * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
- * @sb - superblock of parent directory
  * @dentry - parent directory
  * @fh - filehandle for new root dentry
  * @fattr - attributes for new root inode
  *
  */
-static struct vfsmount *nfs_do_submount(struct super_block *sb,
-					struct dentry *dentry,
+static struct vfsmount *nfs_do_submount(struct dentry *dentry,
 					struct nfs_fh *fh,
 					struct nfs_fattr *fattr)
 {
 	struct nfs_clone_mount mountdata = {
-		.sb = sb,
+		.sb = dentry->d_sb,
 		.dentry = dentry,
 		.fh = fh,
 		.fattr = fattr,
@@ -262,7 +259,7 @@ static struct vfsmount *nfs_do_submount(struct super_block *sb,
 	mnt = (struct vfsmount *)devname;
 	if (IS_ERR(devname))
 		goto free_page;
-	mnt = nfs_do_clone_mount(NFS_SB(sb), devname, &mountdata);
+	mnt = nfs_do_clone_mount(NFS_SB(dentry->d_sb), devname, &mountdata);
 free_page:
 	free_page((unsigned long)page);
 out:

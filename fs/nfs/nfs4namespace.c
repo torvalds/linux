@@ -161,20 +161,18 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 
 /**
  * nfs_follow_referral - set up mountpoint when hitting a referral on moved error
- * @sb - superblock of parent directory
  * @dentry - parent directory
  * @locations - array of NFSv4 server location information
  *
  */
-static struct vfsmount *nfs_follow_referral(struct super_block *sb,
-					    struct dentry *dentry,
+static struct vfsmount *nfs_follow_referral(struct dentry *dentry,
 					    const struct nfs4_fs_locations *locations)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
 	struct nfs_clone_mount mountdata = {
-		.sb = sb,
+		.sb = dentry->d_sb,
 		.dentry = dentry,
-		.authflavor = NFS_SB(sb)->client->cl_auth->au_flavor,
+		.authflavor = NFS_SB(dentry->d_sb)->client->cl_auth->au_flavor,
 	};
 	char *page = NULL, *page2 = NULL;
 	int loc, error;
@@ -224,7 +222,7 @@ out:
  * @dentry - dentry of referral
  *
  */
-struct vfsmount *nfs_do_refmount(struct super_block *sb, struct dentry *dentry)
+struct vfsmount *nfs_do_refmount(struct dentry *dentry)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
 	struct dentry *parent;
@@ -257,7 +255,7 @@ struct vfsmount *nfs_do_refmount(struct super_block *sb, struct dentry *dentry)
 	    fs_locations->fs_path.ncomponents <= 0)
 		goto out_free;
 
-	mnt = nfs_follow_referral(sb, dentry, fs_locations);
+	mnt = nfs_follow_referral(dentry, fs_locations);
 out_free:
 	__free_page(page);
 	kfree(fs_locations);
