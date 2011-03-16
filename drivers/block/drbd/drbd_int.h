@@ -1955,7 +1955,7 @@ static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
 static inline int drbd_send_state_req(struct drbd_conf *mdev,
 				      union drbd_state mask, union drbd_state val)
 {
-	return !_conn_send_state_req(mdev->tconn, mdev->vnr, P_STATE_CHG_REQ, mask, val);
+	return _conn_send_state_req(mdev->tconn, mdev->vnr, P_STATE_CHG_REQ, mask, val);
 }
 
 static inline int conn_send_state_req(struct drbd_tconn *tconn,

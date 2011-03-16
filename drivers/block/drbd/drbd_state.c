@@ -197,7 +197,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 			goto abort;
 		}
 
-		if (!drbd_send_state_req(mdev, mask, val)) {
+		if (drbd_send_state_req(mdev, mask, val)) {
 			rv = SS_CW_FAILED_BY_PEER;
 			if (f & CS_VERBOSE)
 				print_st_err(mdev, os, ns, rv);
