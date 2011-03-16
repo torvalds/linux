@@ -1181,8 +1181,8 @@ extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *
 extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
 			  char *data, size_t size);
 extern int drbd_send_sync_param(struct drbd_conf *mdev);
-extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
-			u32 set_size);
+extern void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
+			    u32 set_size);
 extern int drbd_send_ack(struct drbd_conf *, enum drbd_packet,
 			 struct drbd_peer_request *);
 extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
