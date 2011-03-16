@@ -133,8 +133,8 @@ static void a2232_hungup(void *ptr);
 /* END GENERIC_SERIAL PROTOTYPES */
 
 /* Functions that the TTY driver struct expects */
-static int  a2232_ioctl(struct tty_struct *tty, struct file *file,
-										unsigned int cmd, unsigned long arg);
+static int  a2232_ioctl(struct tty_struct *tty,
+				unsigned int cmd, unsigned long arg);
 static void a2232_throttle(struct tty_struct *tty);
 static void a2232_unthrottle(struct tty_struct *tty);
 static int  a2232_open(struct tty_struct * tty, struct file * filp);
@@ -447,7 +447,7 @@ static void a2232_hungup(void *ptr)
 /*** END   OF REAL_DRIVER FUNCTIONS ***/
 
 /*** BEGIN  FUNCTIONS EXPECTED BY TTY DRIVER STRUCTS ***/
-static int a2232_ioctl(	struct tty_struct *tty, struct file *file,
+static int a2232_ioctl(	struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;

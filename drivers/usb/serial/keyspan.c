@@ -301,7 +301,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	keyspan_send_setup(port, 0);
 }
 
-static int keyspan_tiocmget(struct tty_struct *tty, struct file *file)
+static int keyspan_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_port_private *p_priv = usb_get_serial_port_data(port);
@@ -317,7 +317,7 @@ static int keyspan_tiocmget(struct tty_struct *tty, struct file *file)
 	return value;
 }
 
-static int keyspan_tiocmset(struct tty_struct *tty, struct file *file,
+static int keyspan_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

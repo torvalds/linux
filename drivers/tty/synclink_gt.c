@@ -154,7 +154,7 @@ static void flush_buffer(struct tty_struct *tty);
 static void tx_hold(struct tty_struct *tty);
 static void tx_release(struct tty_struct *tty);
 
-static int  ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
+static int  ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 static int  chars_in_buffer(struct tty_struct *tty);
 static void throttle(struct tty_struct * tty);
 static void unthrottle(struct tty_struct * tty);
@@ -512,9 +512,9 @@ static int  tx_abort(struct slgt_info *info);
 static int  rx_enable(struct slgt_info *info, int enable);
 static int  modem_input_wait(struct slgt_info *info,int arg);
 static int  wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr);
-static int  tiocmget(struct tty_struct *tty, struct file *file);
-static int  tiocmset(struct tty_struct *tty, struct file *file,
-		     unsigned int set, unsigned int clear);
+static int  tiocmget(struct tty_struct *tty);
+static int  tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear);
 static int set_break(struct tty_struct *tty, int break_state);
 static int  get_interface(struct slgt_info *info, int __user *if_mode);
 static int  set_interface(struct slgt_info *info, int if_mode);
@@ -1030,13 +1030,12 @@ static void tx_release(struct tty_struct *tty)
  * Arguments
  *
  * 	tty	pointer to tty instance data
- * 	file	pointer to associated file object for device
  * 	cmd	IOCTL command code
  * 	arg	command argument/context
  *
  * Return 0 if success, otherwise error code
  */
-static int ioctl(struct tty_struct *tty, struct file *file,
+static int ioctl(struct tty_struct *tty,
 		 unsigned int cmd, unsigned long arg)
 {
 	struct slgt_info *info = tty->driver_data;
@@ -1200,7 +1199,7 @@ static long set_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *ne
 	return 0;
 }
 
-static long slgt_compat_ioctl(struct tty_struct *tty, struct file *file,
+static long slgt_compat_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct slgt_info *info = tty->driver_data;
@@ -1239,7 +1238,7 @@ static long slgt_compat_ioctl(struct tty_struct *tty, struct file *file,
 	case MGSL_IOCSIF:
 	case MGSL_IOCSXSYNC:
 	case MGSL_IOCSXCTRL:
-		rc = ioctl(tty, file, cmd, arg);
+		rc = ioctl(tty, cmd, arg);
 		break;
 	}
 
@@ -3195,7 +3194,7 @@ static int modem_input_wait(struct slgt_info *info,int arg)
 /*
  *  return state of serial control and status signals
  */
-static int tiocmget(struct tty_struct *tty, struct file *file)
+static int tiocmget(struct tty_struct *tty)
 {
 	struct slgt_info *info = tty->driver_data;
 	unsigned int result;
@@ -3223,7 +3222,7 @@ static int tiocmget(struct tty_struct *tty, struct file *file)
  *		TIOCMSET = set/clear signal values
  * 	value	bit mask for command
  */
-static int tiocmset(struct tty_struct *tty, struct file *file,
+static int tiocmset(struct tty_struct *tty,
 		    unsigned int set, unsigned int clear)
 {
 	struct slgt_info *info = tty->driver_data;

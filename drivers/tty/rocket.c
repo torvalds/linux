@@ -1169,7 +1169,7 @@ static int sGetChanRI(CHANNEL_T * ChP)
  *  Returns the state of the serial modem control lines.  These next 2 functions 
  *  are the way kernel versions > 2.5 handle modem control lines rather than IOCTLs.
  */
-static int rp_tiocmget(struct tty_struct *tty, struct file *file)
+static int rp_tiocmget(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 	unsigned int control, result, ChanStatus;
@@ -1189,8 +1189,8 @@ static int rp_tiocmget(struct tty_struct *tty, struct file *file)
 /* 
  *  Sets the modem control lines
  */
-static int rp_tiocmset(struct tty_struct *tty, struct file *file,
-		    unsigned int set, unsigned int clear)
+static int rp_tiocmset(struct tty_struct *tty,
+				unsigned int set, unsigned int clear)
 {
 	struct r_port *info = tty->driver_data;
 
@@ -1326,7 +1326,7 @@ static int get_version(struct r_port *info, struct rocket_version __user *retver
 }
 
 /*  IOCTL call handler into the driver */
-static int rp_ioctl(struct tty_struct *tty, struct file *file,
+static int rp_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct r_port *info = tty->driver_data;

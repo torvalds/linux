@@ -1065,7 +1065,7 @@ static int isicom_send_break(struct tty_struct *tty, int length)
 	return 0;
 }
 
-static int isicom_tiocmget(struct tty_struct *tty, struct file *file)
+static int isicom_tiocmget(struct tty_struct *tty)
 {
 	struct isi_port *port = tty->driver_data;
 	/* just send the port status */
@@ -1082,8 +1082,8 @@ static int isicom_tiocmget(struct tty_struct *tty, struct file *file)
 		((status & ISI_RI ) ? TIOCM_RI  : 0);
 }
 
-static int isicom_tiocmset(struct tty_struct *tty, struct file *file,
-	unsigned int set, unsigned int clear)
+static int isicom_tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear)
 {
 	struct isi_port *port = tty->driver_data;
 	unsigned long flags;
@@ -1167,7 +1167,7 @@ static int isicom_get_serial_info(struct isi_port *port,
 	return 0;
 }
 
-static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
+static int isicom_ioctl(struct tty_struct *tty,
 	unsigned int cmd, unsigned long arg)
 {
 	struct isi_port *port = tty->driver_data;

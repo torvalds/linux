@@ -1094,7 +1094,7 @@ static int stl_setserial(struct tty_struct *tty, struct serial_struct __user *sp
 
 /*****************************************************************************/
 
-static int stl_tiocmget(struct tty_struct *tty, struct file *file)
+static int stl_tiocmget(struct tty_struct *tty)
 {
 	struct stlport	*portp;
 
@@ -1107,7 +1107,7 @@ static int stl_tiocmget(struct tty_struct *tty, struct file *file)
 	return stl_getsignals(portp);
 }
 
-static int stl_tiocmset(struct tty_struct *tty, struct file *file,
+static int stl_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
 	struct stlport	*portp;
@@ -1132,14 +1132,13 @@ static int stl_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int stl_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg)
+static int stl_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	struct stlport	*portp;
 	int		rc;
 	void __user *argp = (void __user *)arg;
 
-	pr_debug("stl_ioctl(tty=%p,file=%p,cmd=%x,arg=%lx)\n", tty, file, cmd,
-			arg);
+	pr_debug("stl_ioctl(tty=%p,cmd=%x,arg=%lx)\n", tty, cmd, arg);
 
 	portp = tty->driver_data;
 	if (portp == NULL)

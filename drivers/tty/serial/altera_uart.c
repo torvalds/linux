@@ -86,16 +86,12 @@ struct altera_uart {
 
 static u32 altera_uart_readl(struct uart_port *port, int reg)
 {
-	struct altera_uart_platform_uart *platp = port->private_data;
-
-	return readl(port->membase + (reg << platp->bus_shift));
+	return readl(port->membase + (reg << port->regshift));
 }
 
 static void altera_uart_writel(struct uart_port *port, u32 dat, int reg)
 {
-	struct altera_uart_platform_uart *platp = port->private_data;
-
-	writel(dat, port->membase + (reg << platp->bus_shift));
+	writel(dat, port->membase + (reg << port->regshift));
 }
 
 static unsigned int altera_uart_tx_empty(struct uart_port *port)
@@ -546,13 +542,17 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	if (!port->membase)
 		return -ENOMEM;
 
+	if (platp)
+		port->regshift = platp->bus_shift;
+	else
+		port->regshift = 0;
+
 	port->line = i;
 	port->type = PORT_ALTERA_UART;
 	port->iotype = SERIAL_IO_MEM;
 	port->uartclk = platp->uartclk;
 	port->ops = &altera_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
-	port->private_data = platp;
 
 	uart_add_one_port(&altera_uart_driver, port);
 
@@ -561,9 +561,15 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 
 static int __devexit altera_uart_remove(struct platform_device *pdev)
 {
-	struct uart_port *port = &altera_uart_ports[pdev->id].port;
+	struct uart_port *port;
+	int i = pdev->id;
 
+	if (i == -1)
+		i = 0;
+
+	port = &altera_uart_ports[i].port;
 	uart_remove_one_port(&altera_uart_driver, port);
+
 	return 0;
 }
 

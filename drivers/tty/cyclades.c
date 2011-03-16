@@ -2429,7 +2429,7 @@ static int get_lsr_info(struct cyclades_port *info, unsigned int __user *value)
 	return put_user(result, (unsigned long __user *)value);
 }
 
-static int cy_tiocmget(struct tty_struct *tty, struct file *file)
+static int cy_tiocmget(struct tty_struct *tty)
 {
 	struct cyclades_port *info = tty->driver_data;
 	struct cyclades_card *card;
@@ -2483,7 +2483,7 @@ end:
 }				/* cy_tiomget */
 
 static int
-cy_tiocmset(struct tty_struct *tty, struct file *file,
+cy_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct cyclades_port *info = tty->driver_data;
@@ -2680,7 +2680,7 @@ static int cy_cflags_changed(struct cyclades_port *info, unsigned long arg,
  * not recognized by the driver, it should return ENOIOCTLCMD.
  */
 static int
-cy_ioctl(struct tty_struct *tty, struct file *file,
+cy_ioctl(struct tty_struct *tty,
 	 unsigned int cmd, unsigned long arg)
 {
 	struct cyclades_port *info = tty->driver_data;

@@ -1514,8 +1514,6 @@ static void __devexit tty_exit(struct nozomi *dc)
 
 	DBG1(" ");
 
-	flush_scheduled_work();
-
 	for (i = 0; i < MAX_PORT; ++i) {
 		struct tty_struct *tty = tty_port_tty_get(&dc->port[i].port);
 		if (tty && list_empty(&tty->hangup_work.entry))
@@ -1750,7 +1748,7 @@ static int ntty_write_room(struct tty_struct *tty)
 }
 
 /* Gets io control parameters */
-static int ntty_tiocmget(struct tty_struct *tty, struct file *file)
+static int ntty_tiocmget(struct tty_struct *tty)
 {
 	const struct port *port = tty->driver_data;
 	const struct ctrl_dl *ctrl_dl = &port->ctrl_dl;
@@ -1767,8 +1765,8 @@ static int ntty_tiocmget(struct tty_struct *tty, struct file *file)
 }
 
 /* Sets io controls parameters */
-static int ntty_tiocmset(struct tty_struct *tty, struct file *file,
-	unsigned int set, unsigned int clear)
+static int ntty_tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear)
 {
 	struct nozomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
@@ -1824,7 +1822,7 @@ static int ntty_tiocgicount(struct tty_struct *tty,
 	return 0;
 }
 
-static int ntty_ioctl(struct tty_struct *tty, struct file *file,
+static int ntty_ioctl(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg)
 {
 	struct port *port = tty->driver_data;

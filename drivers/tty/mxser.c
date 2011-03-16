@@ -1320,7 +1320,7 @@ static int mxser_get_lsr_info(struct mxser_port *info,
 	return put_user(result, value);
 }
 
-static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
+static int mxser_tiocmget(struct tty_struct *tty)
 {
 	struct mxser_port *info = tty->driver_data;
 	unsigned char control, status;
@@ -1347,7 +1347,7 @@ static int mxser_tiocmget(struct tty_struct *tty, struct file *file)
 		    ((status & UART_MSR_CTS) ? TIOCM_CTS : 0);
 }
 
-static int mxser_tiocmset(struct tty_struct *tty, struct file *file,
+static int mxser_tiocmset(struct tty_struct *tty,
 		unsigned int set, unsigned int clear)
 {
 	struct mxser_port *info = tty->driver_data;
@@ -1655,7 +1655,7 @@ static int mxser_cflags_changed(struct mxser_port *info, unsigned long arg,
 	return ret;
 }
 
-static int mxser_ioctl(struct tty_struct *tty, struct file *file,
+static int mxser_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg)
 {
 	struct mxser_port *info = tty->driver_data;

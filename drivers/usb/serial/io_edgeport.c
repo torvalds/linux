@@ -216,11 +216,11 @@ static void edge_unthrottle(struct tty_struct *tty);
 static void edge_set_termios(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					struct ktermios *old_termios);
-static int  edge_ioctl(struct tty_struct *tty, struct file *file,
+static int  edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg);
 static void edge_break(struct tty_struct *tty, int break_state);
-static int  edge_tiocmget(struct tty_struct *tty, struct file *file);
-static int  edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int  edge_tiocmget(struct tty_struct *tty);
+static int  edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
 static int  edge_get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
@@ -1568,7 +1568,7 @@ static int get_lsr_info(struct edgeport_port *edge_port,
 	return 0;
 }
 
-static int edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1599,7 +1599,7 @@ static int edge_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int edge_tiocmget(struct tty_struct *tty, struct file *file)
+static int edge_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
@@ -1679,7 +1679,7 @@ static int get_serial_info(struct edgeport_port *edge_port,
  * SerialIoctl
  *	this function handles any ioctl calls to the driver
  *****************************************************************************/
-static int edge_ioctl(struct tty_struct *tty, struct file *file,
+static int edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

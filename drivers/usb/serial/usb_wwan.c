@@ -79,7 +79,7 @@ void usb_wwan_set_termios(struct tty_struct *tty,
 }
 EXPORT_SYMBOL(usb_wwan_set_termios);
 
-int usb_wwan_tiocmget(struct tty_struct *tty, struct file *file)
+int usb_wwan_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned int value;
@@ -98,7 +98,7 @@ int usb_wwan_tiocmget(struct tty_struct *tty, struct file *file)
 }
 EXPORT_SYMBOL(usb_wwan_tiocmget);
 
-int usb_wwan_tiocmset(struct tty_struct *tty, struct file *file,
+int usb_wwan_tiocmset(struct tty_struct *tty,
 		      unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -178,7 +178,7 @@ static int set_serial_info(struct usb_serial_port *port,
 	return retval;
 }
 
-int usb_wwan_ioctl(struct tty_struct *tty, struct file *file,
+int usb_wwan_ioctl(struct tty_struct *tty,
 		   unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

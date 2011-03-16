@@ -199,8 +199,8 @@ static void moxa_set_termios(struct tty_struct *, struct ktermios *);
 static void moxa_stop(struct tty_struct *);
 static void moxa_start(struct tty_struct *);
 static void moxa_hangup(struct tty_struct *);
-static int moxa_tiocmget(struct tty_struct *tty, struct file *file);
-static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
+static int moxa_tiocmget(struct tty_struct *tty);
+static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
 static void moxa_poll(unsigned long);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
@@ -287,7 +287,7 @@ static void moxa_low_water_check(void __iomem *ofsAddr)
  * TTY operations
  */
 
-static int moxa_ioctl(struct tty_struct *tty, struct file *file,
+static int moxa_ioctl(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg)
 {
 	struct moxa_port *ch = tty->driver_data;
@@ -1257,7 +1257,7 @@ static int moxa_chars_in_buffer(struct tty_struct *tty)
 	return chars;
 }
 
-static int moxa_tiocmget(struct tty_struct *tty, struct file *file)
+static int moxa_tiocmget(struct tty_struct *tty)
 {
 	struct moxa_port *ch = tty->driver_data;
 	int flag = 0, dtr, rts;
@@ -1277,7 +1277,7 @@ static int moxa_tiocmget(struct tty_struct *tty, struct file *file)
 	return flag;
 }
 
-static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
+static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear)
 {
 	struct moxa_port *ch;

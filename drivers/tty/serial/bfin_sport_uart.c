@@ -788,7 +788,7 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 		sport->port.mapbase = res->start;
 
 		sport->port.irq = platform_get_irq(pdev, 0);
-		if (sport->port.irq < 0) {
+		if ((int)sport->port.irq < 0) {
 			dev_err(&pdev->dev, "No sport RX/TX IRQ specified\n");
 			ret = -ENOENT;
 			goto out_error_unmap;

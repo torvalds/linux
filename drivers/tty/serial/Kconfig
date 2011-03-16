@@ -1319,6 +1319,18 @@ config SERIAL_MSM_CONSOLE
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_MSM_HS
+	tristate "MSM UART High Speed: Serial Driver"
+	depends on ARCH_MSM
+	select SERIAL_CORE
+	help
+	  If you have a machine based on MSM family of SoCs, you
+	  can enable its onboard high speed serial port by enabling
+	  this option.
+
+	  Choose M here to compile it as a module. The module will be
+	  called msm_serial_hs.
+
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
 	depends on ARM && ARCH_VT8500
@@ -1588,12 +1600,25 @@ config SERIAL_IFX6X60
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
 config SERIAL_PCH_UART
-	tristate "Intel EG20T PCH UART"
-	depends on PCI && DMADEVICES
+	tristate "Intel EG20T PCH UART/OKI SEMICONDUCTOR ML7213 IOH"
+	depends on PCI
 	select SERIAL_CORE
-	select PCH_DMA
 	help
 	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
 	  Enabling PCH_DMA, this PCH UART works as DMA mode.
+
+	  This driver also can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/
+	  Output Hub) which is for IVI(In-Vehicle Infotainment) use.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
+
+config SERIAL_MSM_SMD
+	bool "Enable tty device interface for some SMD ports"
+	default n
+	depends on MSM_SMD
+	help
+	  Enables userspace clients to read and write to some streaming SMD
+	  ports via tty device interface for MSM chipset.
+
 endmenu

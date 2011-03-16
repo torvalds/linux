@@ -1873,14 +1873,14 @@ static int sx_break(struct tty_struct *tty, int flag)
 	return 0;
 }
 
-static int sx_tiocmget(struct tty_struct *tty, struct file *file)
+static int sx_tiocmget(struct tty_struct *tty)
 {
 	struct sx_port *port = tty->driver_data;
 	return sx_getsignals(port);
 }
 
-static int sx_tiocmset(struct tty_struct *tty, struct file *file,
-		unsigned int set, unsigned int clear)
+static int sx_tiocmset(struct tty_struct *tty,
+					unsigned int set, unsigned int clear)
 {
 	struct sx_port *port = tty->driver_data;
 	int rts = -1, dtr = -1;
@@ -1899,7 +1899,7 @@ static int sx_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int sx_ioctl(struct tty_struct *tty, struct file *filp,
+static int sx_ioctl(struct tty_struct *tty,
 		unsigned int cmd, unsigned long arg)
 {
 	int rc;

@@ -1737,7 +1737,7 @@ static int sx_chars_in_buffer(struct tty_struct *tty)
 	return port->xmit_cnt;
 }
 
-static int sx_tiocmget(struct tty_struct *tty, struct file *file)
+static int sx_tiocmget(struct tty_struct *tty)
 {
 	struct specialix_port *port = tty->driver_data;
 	struct specialix_board *bp;
@@ -1778,7 +1778,7 @@ static int sx_tiocmget(struct tty_struct *tty, struct file *file)
 }
 
 
-static int sx_tiocmset(struct tty_struct *tty, struct file *file,
+static int sx_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct specialix_port *port = tty->driver_data;
@@ -1928,7 +1928,7 @@ static int sx_get_serial_info(struct specialix_port *port,
 }
 
 
-static int sx_ioctl(struct tty_struct *tty, struct file *filp,
+static int sx_ioctl(struct tty_struct *tty,
 				unsigned int cmd, unsigned long arg)
 {
 	struct specialix_port *port = tty->driver_data;

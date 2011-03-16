@@ -1308,7 +1308,7 @@ check_and_exit:
 	return startup(info);
 }				/* set_serial_info */
 
-static int cy_tiocmget(struct tty_struct *tty, struct file *file)
+static int cy_tiocmget(struct tty_struct *tty)
 {
 	struct cyclades_port *info = tty->driver_data;
 	int channel;
@@ -1331,8 +1331,7 @@ static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 }				/* cy_tiocmget */
 
 static int
-cy_tiocmset(struct tty_struct *tty, struct file *file,
-	    unsigned int set, unsigned int clear)
+cy_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 {
 	struct cyclades_port *info = tty->driver_data;
 	int channel;
@@ -1493,7 +1492,7 @@ get_default_timeout(struct cyclades_port *info, unsigned long __user * value)
 }
 
 static int
-cy_ioctl(struct tty_struct *tty, struct file *file,
+cy_ioctl(struct tty_struct *tty,
 	 unsigned int cmd, unsigned long arg)
 {
 	struct cyclades_port *info = tty->driver_data;

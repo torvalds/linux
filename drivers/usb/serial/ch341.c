@@ -432,7 +432,7 @@ out:
 	kfree(break_reg);
 }
 
-static int ch341_tiocmset(struct tty_struct *tty, struct file *file,
+static int ch341_tiocmset(struct tty_struct *tty,
 			  unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -553,8 +553,7 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	return 0;
 }
 
-/*static int ch341_ioctl(struct usb_serial_port *port, struct file *file,*/
-static int ch341_ioctl(struct tty_struct *tty, struct file *file,
+static int ch341_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -573,7 +572,7 @@ static int ch341_ioctl(struct tty_struct *tty, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
-static int ch341_tiocmget(struct tty_struct *tty, struct file *file)
+static int ch341_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ch341_private *priv = usb_get_serial_port_data(port);
