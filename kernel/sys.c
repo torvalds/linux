@@ -37,6 +37,7 @@
 #include <linux/ptrace.h>
 #include <linux/fs_struct.h>
 #include <linux/gfp.h>
+#include <linux/syscore_ops.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -298,6 +299,7 @@ void kernel_restart_prepare(char *cmd)
 	system_state = SYSTEM_RESTART;
 	device_shutdown();
 	sysdev_shutdown();
+	syscore_shutdown();
 }
 
 /**
@@ -336,6 +338,7 @@ void kernel_halt(void)
 {
 	kernel_shutdown_prepare(SYSTEM_HALT);
 	sysdev_shutdown();
+	syscore_shutdown();
 	printk(KERN_EMERG "System halted.\n");
 	kmsg_dump(KMSG_DUMP_HALT);
 	machine_halt();
@@ -355,6 +358,7 @@ void kernel_power_off(void)
 		pm_power_off_prepare();
 	disable_nonboot_cpus();
 	sysdev_shutdown();
+	syscore_shutdown();
 	printk(KERN_EMERG "Power down.\n");
 	kmsg_dump(KMSG_DUMP_POWEROFF);
 	machine_power_off();

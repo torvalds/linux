@@ -2446,7 +2446,7 @@ static struct pci_driver pch_gbe_pcidev = {
 	.id_table = pch_gbe_pcidev_id,
 	.probe = pch_gbe_probe,
 	.remove = pch_gbe_remove,
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 	.driver.pm = &pch_gbe_pm_ops,
 #endif
 	.shutdown = pch_gbe_shutdown,

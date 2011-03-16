@@ -146,7 +146,7 @@ static inline void scsi_netlink_exit(void) {}
 #endif
 
 /* scsi_pm.c */
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 extern const struct dev_pm_ops scsi_bus_pm_ops;
 #endif
 #ifdef CONFIG_PM_RUNTIME
