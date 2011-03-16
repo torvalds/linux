@@ -825,7 +825,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 int drbd_send_protocol(struct drbd_tconn *tconn)
 {
 	struct p_protocol *p;
-	int size, cf, rv;
+	int size, cf, err;
 
 	size = sizeof(struct p_protocol);
 
@@ -836,7 +836,7 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 	 * as that is blocked during handshake */
 	p = kmalloc(size, GFP_NOIO);
 	if (p == NULL)
-		return 0;
+		return -ENOMEM;
 
 	p->protocol      = cpu_to_be32(tconn->net_conf->wire_protocol);
 	p->after_sb_0p   = cpu_to_be32(tconn->net_conf->after_sb_0p);
@@ -853,7 +853,7 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 		else {
 			conn_err(tconn, "--dry-run is not supported by peer");
 			kfree(p);
-			return -1;
+			return -EOPNOTSUPP;
 		}
 	}
 	p->conn_flags    = cpu_to_be32(cf);
@@ -861,9 +861,9 @@ int drbd_send_protocol(struct drbd_tconn *tconn)
 	if (tconn->agreed_pro_version >= 87)
 		strcpy(p->integrity_alg, tconn->net_conf->integrity_alg);
 
-	rv = !conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size - sizeof(struct p_header));
+	err = conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size - sizeof(struct p_header));
 	kfree(p);
-	return rv;
+	return err;
 }
 
 int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)

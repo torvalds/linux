@@ -931,7 +931,7 @@ retry:
 
 	drbd_thread_start(&tconn->asender);
 
-	if (drbd_send_protocol(tconn) == -1)
+	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
 		return -1;
 
 	return !idr_for_each(&tconn->volumes, drbd_connected, tconn);
