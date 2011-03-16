@@ -77,6 +77,7 @@ static struct powerdomain *_pwrdm_lookup(const char *name)
 static int _pwrdm_register(struct powerdomain *pwrdm)
 {
 	int i;
+	struct voltagedomain *voltdm;
 
 	if (!pwrdm || !pwrdm->name)
 		return -EINVAL;
@@ -90,6 +91,14 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 
 	if (_pwrdm_lookup(pwrdm->name))
 		return -EEXIST;
+
+	voltdm = voltdm_lookup(pwrdm->voltdm.name);
+	if (!voltdm) {
+		pr_err("powerdomain: %s: voltagedomain %s does not exist\n",
+		       pwrdm->name, pwrdm->voltdm.name);
+		return -EINVAL;
+	}
+	pwrdm->voltdm.ptr = voltdm;
 
 	list_add(&pwrdm->node, &pwrdm_list);
 
@@ -424,6 +433,18 @@ int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
 		ret = (*fn)(pwrdm, pwrdm->pwrdm_clkdms[i]);
 
 	return ret;
+}
+
+/**
+ * pwrdm_get_voltdm - return a ptr to the voltdm that this pwrdm resides in
+ * @pwrdm: struct powerdomain *
+ *
+ * Return a pointer to the struct voltageomain that the specified powerdomain
+ * @pwrdm exists in.
+ */
+struct voltagedomain *pwrdm_get_voltdm(struct powerdomain *pwrdm)
+{
+	return pwrdm->voltdm.ptr;
 }
 
 /**
