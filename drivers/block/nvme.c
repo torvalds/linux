@@ -1364,7 +1364,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 	crt.features.prp1 = cpu_to_le64(dma_addr + 4096);
 	crt.features.fid = cpu_to_le32(NVME_FEAT_LBA_RANGE);
 
-	for (i = 0; i < nn; i++) {
+	for (i = 0; i <= nn; i++) {
 		cid.identify.nsid = cpu_to_le32(i);
 		res = nvme_submit_admin_cmd(dev, &cid, NULL);
 		if (res)
