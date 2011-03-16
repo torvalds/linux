@@ -724,7 +724,7 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 }
 #endif
 
-#if 1
+#if 0
 {
     struct regulator *vldo;
 	
