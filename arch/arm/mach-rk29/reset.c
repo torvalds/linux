@@ -13,6 +13,13 @@
 
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
+#include <mach/memory.h>
+#include <mach/sram.h>
+#include <linux/clk.h>
+
+#include <asm/delay.h>
+#include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel(v, RK29_CRU_BASE + offset); readl(RK29_CRU_BASE + offset); } while (0)
@@ -25,7 +32,34 @@ static inline void delay_500ns(void)
 		barrier();
 }
 
-static void pwm2gpiodefault(void)
+
+#if 0
+volatile int testflag;
+static void  __rk29_reset_to_maskrom(void)
+{
+	u32 reg;
+    asm("mrc    p15, 0, %0, c1, c0, 0\n\t"
+        "bic    %0, %0, #(1 << 13)  @set vector to 0x00000000\n\t"
+        "bic    %0, %0, #(1 << 0)   @disable mmu\n\t"
+        "bic    %0, %0, #(1 << 12)  @disable I CACHE\n\t"
+        "bic    %0, %0, #(1 << 2)   @disable D DACHE\n\t"
+        "bic    %0, %0, #(1 << 11)      @disable \n\t"
+        "bic    %0, %0, #(1 << 28)      @disable \n\t"
+        "mcr    p15, 0, %0, c1, c0, 0\n\t"
+    //      "mcr    p15, 0, %0, c8, c7, 0   @ invalidate whole TLB\n\t"
+    //      "mcr    p15, 0, %0, c7, c5, 6   @ invalidate BTC\n\t"
+        : "=r" (reg));
+
+    asm("b 1f\n\t"
+        ".align 5\n\t"
+        "1:\n\t"
+        "mcr    p15, 0, %0, c7, c10, 5\n\t"
+        "mcr    p15, 0, %0, c7, c10, 4\n\t"
+        "mov    pc, #0" : : "r" (reg));
+} 
+#endif
+
+static void  pwm2gpiodefault(void)
 {
 	#define     REG_FILE_BASE_ADDR         RK29_GRF_BASE
 	volatile unsigned int * pGRF_GPIO2L_IOMUX =  (volatile unsigned int *)(REG_FILE_BASE_ADDR + 0x58);
@@ -36,10 +70,26 @@ static void pwm2gpiodefault(void)
 	*pGRF_GPIO2L_IOMUX &= ~(0x3<<6);
 	// set gpio to input
 	*pGPIO2_DIR &= ~(0x1<<3);
+//	testflag =1;
 } 
 
 
-void rk29_arch_reset(int mode, const char *cmd)
+extern void __rb( void*  );
+void rb( void )
+{
+    void(*cb)(void* ) ;
+    
+    void * uart_base = (unsigned int *)ioremap( RK29_UART1_PHYS , RK29_UART1_SIZE );
+    local_irq_disable();
+    cb =  (void(*)(void* ))__pa(__rb);
+    __cpuc_flush_kern_all();
+    __cpuc_flush_user_all();
+    //printk("begin to jump to reboot,uart1 va=0x%p\n" , uart_base);
+    //while(testflag);    
+    cb( uart_base );
+}
+
+void  rk29_arch_reset(int mode, const char *cmd)
 {
 	u32 reg;
 
@@ -49,7 +99,6 @@ void rk29_arch_reset(int mode, const char *cmd)
 
 	local_irq_disable();
 	local_fiq_disable();
-	
 	pwm2gpiodefault();
 
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
@@ -90,27 +139,11 @@ void rk29_arch_reset(int mode, const char *cmd)
 	writel(0, RK29_CPU_AXI_BUS0_PHYS);
 	writel(0, RK29_AXI1_PHYS);
 
-	__cpuc_flush_kern_all();
-	__cpuc_flush_user_all();
+	//__cpuc_flush_kern_all();
+	//__cpuc_flush_user_all();
+	
+    rb();
 
-	asm("mrc	p15, 0, %0, c1, c0, 0\n\t"
-	    "bic	r0, %0, #(1 << 13)	@set vector to 0x00000000\n\t"
-	    "bic	r0, %0, #(1 << 0)	@disable mmu\n\t"
-	    "bic	r0, %0, #(1 << 12)	@disable I CACHE\n\t"
-	    "bic	r0, %0, #(1 << 2)	@disable D DACHE\n\t"
-	    "bic        r0, %0, #(1 << 11)      @disable \n\t"
-            "bic        r0, %0, #(1 << 28)      @disable \n\t"
-	    "mcr	p15, 0, %0, c1, c0, 0\n\t"
-//	    "mcr	p15, 0, %0, c8, c7, 0	@ invalidate whole TLB\n\t"
-//	    "mcr	p15, 0, %0, c7, c5, 6	@ invalidate BTC\n\t"
-	    : "=r" (reg));
-
-	asm("b 1f\n\t"
-	    ".align 5\n\t"
-	    "1:\n\t"
-	    "mcr	p15, 0, %0, c7, c10, 5\n\t"
-	    "mcr	p15, 0, %0, c7, c10, 4\n\t"
-	    "mov	pc, #0" : : "r" (reg));
 }
 
 
