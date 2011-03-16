@@ -77,6 +77,8 @@
 #include <asm/signal.h>
 #include <asm/asm-offsets.h>
 
+#undef DEBUG
+
 /* Helpful Macros */
 #define NUM_TO_REG(num)		r ## num
 
@@ -91,7 +93,7 @@
 		lwi	r6, r1, PT_R6;		\
 		lwi	r11, r1, PT_R11;	\
 		lwi	r31, r1, PT_R31;	\
-		lwi	r1, r0, TOPHYS(r0_ram + 0);
+		lwi	r1, r1, PT_R1;
 #endif /* CONFIG_MMU */
 
 #define LWREG_NOP			\
@@ -206,8 +208,8 @@
  *      |      .      |
  *      |      .      |
  *
- * NO_MMU kernel use the same r0_ram pointed space - look to vmlinux.lds.S
- * which is used for storing register values - old style was, that value were
+ * MMU kernel uses the same 'pt_pool_space' pointed space
+ * which is used for storing register values - noMMu style was, that values were
  * stored in stack but in case of failure you lost information about register.
  * Currently you can see register value in memory in specific place.
  * In compare to with previous solution the speed should be the same.
@@ -226,8 +228,22 @@
  */
 
 /* wrappers to restore state before coming to entry.S */
-
 #ifdef CONFIG_MMU
+.section .data
+.align 4
+pt_pool_space:
+	.space	PT_SIZE
+
+#ifdef DEBUG
+/* Create space for exception counting. */
+.section .data
+.global exception_debug_table
+.align 4
+exception_debug_table:
+	/* Look at exception vector table. There is 32 exceptions * word size */
+	.space	(32 * 4)
+#endif /* DEBUG */
+
 .section .rodata
 .align 4
 _MB_HW_ExceptionVectorTable:
@@ -287,10 +303,10 @@ _hw_exception_handler:
 #ifndef CONFIG_MMU
 	addik	r1, r1, -(EX_HANDLER_STACK_SIZ); /* Create stack frame */
 #else
-	swi	r1, r0, TOPHYS(r0_ram + 0); /* GET_SP */
+	swi	r1, r0, TOPHYS(pt_pool_space + PT_R1); /* GET_SP */
 	/* Save date to kernel memory. Here is the problem
 	 * when you came from user space */
-	ori	r1, r0, TOPHYS(r0_ram + 28);
+	ori	r1, r0, TOPHYS(pt_pool_space);
 #endif
 	swi	r3, r1, PT_R3
 	swi	r4, r1, PT_R4
@@ -329,12 +345,12 @@ not_in_delay_slot:
 
 #ifdef DEBUG
 /* counting which exception happen */
-	lwi	r5, r0, 0x200 + TOPHYS(r0_ram)
+	lwi	r5, r0, TOPHYS(exception_debug_table)
 	addi	r5, r5, 1
-	swi	r5, r0, 0x200 + TOPHYS(r0_ram)
-	lwi	r5, r6, 0x200 + TOPHYS(r0_ram)
+	swi	r5, r0, TOPHYS(exception_debug_table)
+	lwi	r5, r6, TOPHYS(exception_debug_table)
 	addi	r5, r5, 1
-	swi	r5, r6, 0x200 + TOPHYS(r0_ram)
+	swi	r5, r6, TOPHYS(exception_debug_table)
 #endif
 /* end */
 	/* Load the HW Exception vector */
@@ -474,7 +490,7 @@ ex_lw_tail:
 	/* Get the destination register number into r5 */
 	lbui	r5, r0, TOPHYS(ex_reg_op);
 	/* Form load_word jump table offset (lw_table + (8 * regnum)) */
-	la	r6, r0, TOPHYS(lw_table);
+	addik	r6, r0, TOPHYS(lw_table);
 	addk	r5, r5, r5;
 	addk	r5, r5, r5;
 	addk	r5, r5, r5;
@@ -485,7 +501,7 @@ ex_sw:
 	/* Get the destination register number into r5 */
 	lbui	r5, r0, TOPHYS(ex_reg_op);
 	/* Form store_word jump table offset (sw_table + (8 * regnum)) */
-	la	r6, r0, TOPHYS(sw_table);
+	addik	r6, r0, TOPHYS(sw_table);
 	add	r5, r5, r5;
 	add	r5, r5, r5;
 	add	r5, r5, r5;
@@ -896,7 +912,7 @@ ex_lw_vm:
 	beqid	r6, ex_lhw_vm;
 load1:	lbui	r5, r4, 0;	/* Exception address in r4 - delay slot */
 /* Load a word, byte-by-byte from destination address and save it in tmp space*/
-	la	r6, r0, ex_tmp_data_loc_0;
+	addik	r6, r0, ex_tmp_data_loc_0;
 	sbi	r5, r6, 0;
 load2:	lbui	r5, r4, 1;
 	sbi	r5, r6, 1;
@@ -910,7 +926,7 @@ load4:	lbui	r5, r4, 3;
 ex_lhw_vm:
 	/* Load a half-word, byte-by-byte from destination address and
 	 * save it in tmp space */
-	la	r6, r0, ex_tmp_data_loc_0;
+	addik	r6, r0, ex_tmp_data_loc_0;
 	sbi	r5, r6, 0;
 load5:	lbui	r5, r4, 1;
 	sbi	r5, r6, 1;
@@ -926,7 +942,7 @@ ex_sw_vm:
 	addik	r5, r8, sw_table_vm;
 	bra	r5;
 ex_sw_tail_vm:
-	la	r5, r0, ex_tmp_data_loc_0;
+	addik	r5, r0, ex_tmp_data_loc_0;
 	beqid	r6, ex_shw_vm;
 	swi	r3, r5, 0;	/* Get the word - delay slot */
 	/* Store the word, byte-by-byte into destination address */
@@ -969,7 +985,7 @@ ex_unaligned_fixup:
 	addik	r7, r0, SIGSEGV
 	/* call bad_page_fault for finding aligned fixup, fixup address is saved
 	 * in PT_PC which is used as return address from exception */
-	la	r15, r0, ret_from_exc-8 /* setup return address */
+	addik	r15, r0, ret_from_exc-8 /* setup return address */
 	brid	bad_page_fault
 	nop
 
