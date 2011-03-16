@@ -55,6 +55,9 @@ static int wm8994_retune_mobile_base[] = {
 
 static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 {
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = wm8994->control_data;
+
 	switch (reg) {
 	case WM8994_GPIO_1:
 	case WM8994_GPIO_2:
@@ -71,6 +74,15 @@ static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 	case WM8994_INTERRUPT_STATUS_2:
 	case WM8994_INTERRUPT_RAW_STATUS_2:
 		return 1;
+
+	case WM8958_DSP2_PROGRAM:
+	case WM8958_DSP2_CONFIG:
+	case WM8958_DSP2_EXECCONTROL:
+		if (control->type == WM8958)
+			return 1;
+		else
+			return 0;
+
 	default:
 		break;
 	}
