@@ -197,7 +197,7 @@ struct akm8975_platform_data {
 	int gpio_DRDY;
 };
 
-
+void __init rk29_setup_early_printk(void);
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
 

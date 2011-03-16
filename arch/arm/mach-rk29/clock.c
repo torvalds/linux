@@ -2270,9 +2270,7 @@ static void __init clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_ddr);
 	clk_enable_nolock(&clk_debug);
 	clk_enable_nolock(&clk_jtag);
-#ifdef CONFIG_DEBUG_LL
 	clk_enable_nolock(&clk_uart1);
-#endif
 }
 
 static int __init clk_disable_unused(void)
