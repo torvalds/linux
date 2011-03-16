@@ -137,7 +137,7 @@ ENTRY(startup_32)
 	movsl
 1:
 
-#ifdef CONFIG_OLPC_OPENFIRMWARE
+#ifdef CONFIG_OLPC
 	/* save OFW's pgdir table for later use when calling into OFW */
 	movl %cr3, %eax
 	movl %eax, pa(olpc_ofw_pgd)

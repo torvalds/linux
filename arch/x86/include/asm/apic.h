@@ -220,7 +220,6 @@ extern void enable_IR_x2apic(void);
 
 extern int get_physical_broadcast(void);
 
-extern void apic_disable(void);
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
 extern void connect_bsp_APIC(void);
@@ -228,7 +227,6 @@ extern void disconnect_bsp_APIC(int virt_wire_setup);
 extern void disable_local_APIC(void);
 extern void lapic_shutdown(void);
 extern int verify_local_APIC(void);
-extern void cache_APIC_registers(void);
 extern void sync_Arb_IDs(void);
 extern void init_bsp_APIC(void);
 extern void setup_local_APIC(void);
@@ -239,8 +237,7 @@ void register_lapic_address(unsigned long address);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
 extern int APIC_init_uniprocessor(void);
-extern void enable_NMI_through_LVT0(void);
-extern int apic_force_enable(void);
+extern int apic_force_enable(unsigned long addr);
 
 /*
  * On 32bit this is mach-xxx local
@@ -261,7 +258,6 @@ static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
 static inline void init_apic_mappings(void) { }
 static inline void disable_local_APIC(void) { }
-static inline void apic_disable(void) { }
 # define setup_boot_APIC_clock x86_init_noop
 # define setup_secondary_APIC_clock x86_init_noop
 #endif /* !CONFIG_X86_LOCAL_APIC */

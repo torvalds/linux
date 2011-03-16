@@ -25,6 +25,7 @@
 #include <asm/setup.h>
 #include <asm/i8259.h>
 #include <asm/traps.h>
+#include <asm/prom.h>
 
 /*
  * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
@@ -118,6 +119,12 @@ void __init init_ISA_irqs(void)
 void __init init_IRQ(void)
 {
 	int i;
+
+	/*
+	 * We probably need a better place for this, but it works for
+	 * now ...
+	 */
+	x86_add_irq_domains();
 
 	/*
 	 * On cpu 0, Assign IRQ0_VECTOR..IRQ15_VECTOR's to IRQ 0..15.
@@ -308,7 +315,7 @@ void __init native_init_IRQ(void)
 			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
 	}
 
-	if (!acpi_ioapic)
+	if (!acpi_ioapic && !of_ioapic)
 		setup_irq(2, &irq2);
 
 #ifdef CONFIG_X86_32

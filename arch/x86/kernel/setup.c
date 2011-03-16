@@ -113,6 +113,7 @@
 #endif
 #include <asm/mce.h>
 #include <asm/alternative.h>
+#include <asm/prom.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -453,16 +454,30 @@ static void __init parse_setup_data(void)
 		return;
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
-		data = early_memremap(pa_data, PAGE_SIZE);
+		u32 data_len, map_len;
+
+		map_len = max(PAGE_SIZE - (pa_data & ~PAGE_MASK),
+			      (u64)sizeof(struct setup_data));
+		data = early_memremap(pa_data, map_len);
+		data_len = data->len + sizeof(struct setup_data);
+		if (data_len > map_len) {
+			early_iounmap(data, map_len);
+			data = early_memremap(pa_data, data_len);
+			map_len = data_len;
+		}
+
 		switch (data->type) {
 		case SETUP_E820_EXT:
-			parse_e820_ext(data, pa_data);
+			parse_e820_ext(data);
+			break;
+		case SETUP_DTB:
+			add_dtb(pa_data);
 			break;
 		default:
 			break;
 		}
 		pa_data = data->next;
-		early_iounmap(data, PAGE_SIZE);
+		early_iounmap(data, map_len);
 	}
 }
 
@@ -1030,8 +1045,8 @@ void __init setup_arch(char **cmdline_p)
 	 * Read APIC and some other early information from ACPI tables.
 	 */
 	acpi_boot_init();
-
 	sfi_init();
+	x86_dtb_init();
 
 	/*
 	 * get boot-time SMP configuration:
@@ -1064,6 +1079,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 	x86_init.oem.banner();
+
+	x86_init.timers.wallclock_init();
 
 	mcheck_init();
 

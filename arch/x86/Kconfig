@@ -386,6 +386,8 @@ config X86_INTEL_CE
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	select X86_REBOOTFIXUPS
+	select OF
+	select OF_EARLY_FLATTREE
 	---help---
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
@@ -2070,9 +2072,10 @@ config SCx200HR_TIMER
 
 config OLPC
 	bool "One Laptop Per Child support"
+	depends on !X86_PAE
 	select GPIOLIB
-	select OLPC_OPENFIRMWARE
-	depends on !X86_64 && !X86_PAE
+	select OF
+	select OF_PROMTREE if PROC_DEVICETREE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
@@ -2082,21 +2085,6 @@ config OLPC_XO1
 	depends on OLPC && MFD_CS5535
 	---help---
 	  Add support for non-essential features of the OLPC XO-1 laptop.
-
-config OLPC_OPENFIRMWARE
-	bool "Support for OLPC's Open Firmware"
-	depends on !X86_64 && !X86_PAE
-	default n
-	select OF
-	help
-	  This option adds support for the implementation of Open Firmware
-	  that is used on the OLPC XO-1 Children's Machine.
-	  If unsure, say N here.
-
-config OLPC_OPENFIRMWARE_DT
-	bool
-	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
-	select OF_PROMTREE
 
 endif # X86_32
 
