@@ -70,7 +70,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn);
 static int drbd_disconnected(int vnr, void *p, void *data);
 
 static enum finish_epoch drbd_may_finish_epoch(struct drbd_conf *, struct drbd_epoch *, enum epoch_event);
-static int e_end_block(struct drbd_work *, int);
+static long e_end_block(struct drbd_work *, int);
 
 
 #define GFP_TRY	(__GFP_HIGHMEM | __GFP_NOWARN)
@@ -1461,7 +1461,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 
 /* e_end_resync_block() is called via
  * drbd_process_done_ee() by asender only */
-static int e_end_resync_block(struct drbd_work *w, int unused)
+static long e_end_resync_block(struct drbd_work *w, int unused)
 {
 	struct drbd_peer_request *peer_req =
 		container_of(w, struct drbd_peer_request, w);
@@ -1597,7 +1597,7 @@ static int receive_RSDataReply(struct drbd_conf *mdev, enum drbd_packet cmd,
 	return ok;
 }
 
-static int w_restart_write(struct drbd_work *w, int cancel)
+static long w_restart_write(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
 	struct drbd_conf *mdev = w->mdev;
@@ -1645,7 +1645,7 @@ static void restart_conflicting_writes(struct drbd_conf *mdev,
 /* e_end_block() is called via drbd_process_done_ee().
  * this means this function only runs in the asender thread
  */
-static int e_end_block(struct drbd_work *w, int cancel)
+static long e_end_block(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req =
 		container_of(w, struct drbd_peer_request, w);
@@ -1699,12 +1699,12 @@ static int e_send_ack(struct drbd_work *w, enum drbd_packet ack)
 	return ok;
 }
 
-static int e_send_discard_write(struct drbd_work *w, int unused)
+static long e_send_discard_write(struct drbd_work *w, int unused)
 {
 	return e_send_ack(w, P_DISCARD_WRITE);
 }
 
-static int e_send_retry_write(struct drbd_work *w, int unused)
+static long e_send_retry_write(struct drbd_work *w, int unused)
 {
 	struct drbd_tconn *tconn = w->mdev->tconn;
 

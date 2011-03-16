@@ -37,7 +37,7 @@ struct after_state_chg_work {
 	struct completion *done;
 };
 
-static int w_after_state_ch(struct drbd_work *w, int unused);
+static long w_after_state_ch(struct drbd_work *w, int unused);
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
 static void after_all_state_ch(struct drbd_tconn *tconn);
@@ -918,7 +918,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	return rv;
 }
 
-static int w_after_state_ch(struct drbd_work *w, int unused)
+static long w_after_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_state_chg_work *ascw =
 		container_of(w, struct after_state_chg_work, w);
@@ -1289,7 +1289,7 @@ static void after_all_state_ch(struct drbd_tconn *tconn)
 	}
 }
 
-static int w_after_conn_state_ch(struct drbd_work *w, int unused)
+static long w_after_conn_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_conn_state_chg_work *acscw =
 		container_of(w, struct after_conn_state_chg_work, w);

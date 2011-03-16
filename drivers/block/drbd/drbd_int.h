@@ -644,7 +644,7 @@ static inline enum drbd_thread_state get_t_state(struct drbd_thread *thi)
 }
 
 struct drbd_work;
-typedef int (*drbd_work_cb)(struct drbd_work *, int cancel);
+typedef long (*drbd_work_cb)(struct drbd_work *, int cancel);
 struct drbd_work {
 	struct list_head list;
 	drbd_work_cb cb;
@@ -1546,23 +1546,24 @@ extern void drbd_csum_bio(struct drbd_conf *, struct crypto_hash *, struct bio *
 extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *,
 			 struct drbd_peer_request *, void *);
 /* worker callbacks */
-extern int w_read_retry_remote(struct drbd_work *, int);
-extern int w_e_end_data_req(struct drbd_work *, int);
-extern int w_e_end_rsdata_req(struct drbd_work *, int);
-extern int w_e_end_csum_rs_req(struct drbd_work *, int);
-extern int w_e_end_ov_reply(struct drbd_work *, int);
-extern int w_e_end_ov_req(struct drbd_work *, int);
-extern int w_ov_finished(struct drbd_work *, int);
-extern int w_resync_timer(struct drbd_work *, int);
-extern int w_send_write_hint(struct drbd_work *, int);
-extern int w_send_dblock(struct drbd_work *, int);
-extern int w_send_barrier(struct drbd_work *, int);
-extern int w_send_read_req(struct drbd_work *, int);
-extern int w_prev_work_done(struct drbd_work *, int);
-extern int w_e_reissue(struct drbd_work *, int);
-extern int w_restart_disk_io(struct drbd_work *, int);
-extern int w_send_oos(struct drbd_work *, int);
-extern int w_start_resync(struct drbd_work *, int);
+extern long w_read_retry_remote(struct drbd_work *, int);
+extern long w_e_end_data_req(struct drbd_work *, int);
+extern long w_e_end_rsdata_req(struct drbd_work *, int);
+extern long w_e_end_csum_rs_req(struct drbd_work *, int);
+extern long w_e_end_ov_reply(struct drbd_work *, int);
+extern long w_e_end_ov_req(struct drbd_work *, int);
+extern long w_ov_finished(struct drbd_work *, int);
+extern long w_resync_timer(struct drbd_work *, int);
+extern long w_send_write_hint(struct drbd_work *, int);
+extern long w_make_resync_request(struct drbd_work *, int);
+extern long w_send_dblock(struct drbd_work *, int);
+extern long w_send_barrier(struct drbd_work *, int);
+extern long w_send_read_req(struct drbd_work *, int);
+extern long w_prev_work_done(struct drbd_work *, int);
+extern long w_e_reissue(struct drbd_work *, int);
+extern long w_restart_disk_io(struct drbd_work *, int);
+extern long w_send_oos(struct drbd_work *, int);
+extern long w_start_resync(struct drbd_work *, int);
 
 extern void resync_timer_fn(unsigned long data);
 extern void start_resync_timer_fn(unsigned long data);
