@@ -1288,10 +1288,10 @@ int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
 int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 		  struct drbd_peer_request *peer_req)
 {
-	return !_drbd_send_ack(mdev, cmd,
-			       cpu_to_be64(peer_req->i.sector),
-			       cpu_to_be32(peer_req->i.size),
-			       peer_req->block_id);
+	return _drbd_send_ack(mdev, cmd,
+			      cpu_to_be64(peer_req->i.sector),
+			      cpu_to_be32(peer_req->i.size),
+			      peer_req->block_id);
 }
 
 /* This function misuses the block_id field to signal if the blocks

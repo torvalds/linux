@@ -1473,12 +1473,12 @@ static int e_end_resync_block(struct drbd_work *w, int unused)
 
 	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
 		drbd_set_in_sync(mdev, sector, peer_req->i.size);
-		ok = drbd_send_ack(mdev, P_RS_WRITE_ACK, peer_req);
+		ok = !drbd_send_ack(mdev, P_RS_WRITE_ACK, peer_req);
 	} else {
 		/* Record failure to sync */
 		drbd_rs_failed_io(mdev, sector, peer_req->i.size);
 
-		ok  = drbd_send_ack(mdev, P_NEG_ACK, peer_req);
+		ok  = !drbd_send_ack(mdev, P_NEG_ACK, peer_req);
 	}
 	dec_unacked(mdev);
 
@@ -1659,11 +1659,11 @@ static int e_end_block(struct drbd_work *w, int cancel)
 				mdev->state.conn <= C_PAUSED_SYNC_T &&
 				peer_req->flags & EE_MAY_SET_IN_SYNC) ?
 				P_RS_WRITE_ACK : P_WRITE_ACK;
-			ok &= drbd_send_ack(mdev, pcmd, peer_req);
+			ok &= !drbd_send_ack(mdev, pcmd, peer_req);
 			if (pcmd == P_RS_WRITE_ACK)
 				drbd_set_in_sync(mdev, sector, peer_req->i.size);
 		} else {
-			ok  = drbd_send_ack(mdev, P_NEG_ACK, peer_req);
+			ok  = !drbd_send_ack(mdev, P_NEG_ACK, peer_req);
 			/* we expect it to be marked out of sync anyways...
 			 * maybe assert this?  */
 		}
@@ -1693,7 +1693,7 @@ static int e_send_ack(struct drbd_work *w, enum drbd_packet ack)
 		container_of(w, struct drbd_peer_request, w);
 	int ok;
 
-	ok = drbd_send_ack(mdev, ack, peer_req);
+	ok = !drbd_send_ack(mdev, ack, peer_req);
 	dec_unacked(mdev);
 
 	return ok;
