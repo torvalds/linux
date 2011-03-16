@@ -326,6 +326,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 		brelse(bh);
 	}
 	if (bd) {
+		spin_lock(&sdp->sd_ail_lock);
 		if (bd->bd_ail) {
 			gfs2_remove_from_ail(bd);
 			bh->b_private = NULL;
@@ -333,6 +334,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 			bd->bd_blkno = bh->b_blocknr;
 			gfs2_trans_add_revoke(sdp, bd);
 		}
+		spin_unlock(&sdp->sd_ail_lock);
 	}
 	clear_buffer_dirty(bh);
 	clear_buffer_uptodate(bh);

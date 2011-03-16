@@ -695,6 +695,7 @@ out:
 	if (error == 0)
 		return 0;
 
+	unlock_page(page);
 	page_cache_release(page);
 
 	gfs2_trans_end(sdp);
