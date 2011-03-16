@@ -221,9 +221,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	else
 		desc->life_time = cpu_to_le16(TX_HW_AP_MODE_PKT_LIFETIME_TU);
 
-	/* queue (we use same identifiers for tid's and ac's */
+	/* queue */
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
-	desc->tid = ac;
+	desc->tid = skb->priority;
 
 	if (skb->pkt_type == TX_PKT_TYPE_DUMMY_REQ) {
 		/*
