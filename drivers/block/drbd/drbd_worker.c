@@ -695,7 +695,7 @@ static int w_make_ov_request(struct drbd_work *w, int cancel)
 			size = (capacity-sector)<<9;
 
 		inc_rs_pending(mdev);
-		if (!drbd_send_ov_request(mdev, sector, size)) {
+		if (drbd_send_ov_request(mdev, sector, size)) {
 			dec_rs_pending(mdev);
 			return 0;
 		}

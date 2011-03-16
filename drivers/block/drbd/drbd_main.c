@@ -1342,15 +1342,13 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev, sector_t sector, int size,
 
 int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
 {
-	int ok;
 	struct p_block_req p;
 
 	p.sector   = cpu_to_be64(sector);
 	p.block_id = ID_SYNCER /* unused */;
 	p.blksize  = cpu_to_be32(size);
 
-	ok = !drbd_send_cmd(mdev, &mdev->tconn->data, P_OV_REQUEST, &p.head, sizeof(p));
-	return ok;
+	return drbd_send_cmd(mdev, &mdev->tconn->data, P_OV_REQUEST, &p.head, sizeof(p));
 }
 
 /* called on sndtimeo
