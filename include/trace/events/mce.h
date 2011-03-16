@@ -17,36 +17,36 @@ TRACE_EVENT(mce_record,
 	TP_STRUCT__entry(
 		__field(	u64,		mcgcap		)
 		__field(	u64,		mcgstatus	)
-		__field(	u8,		bank		)
 		__field(	u64,		status		)
 		__field(	u64,		addr		)
 		__field(	u64,		misc		)
 		__field(	u64,		ip		)
-		__field(	u8,		cs		)
 		__field(	u64,		tsc		)
 		__field(	u64,		walltime	)
 		__field(	u32,		cpu		)
 		__field(	u32,		cpuid		)
 		__field(	u32,		apicid		)
 		__field(	u32,		socketid	)
+		__field(	u8,		cs		)
+		__field(	u8,		bank		)
 		__field(	u8,		cpuvendor	)
 	),
 
 	TP_fast_assign(
 		__entry->mcgcap		= m->mcgcap;
 		__entry->mcgstatus	= m->mcgstatus;
-		__entry->bank		= m->bank;
 		__entry->status		= m->status;
 		__entry->addr		= m->addr;
 		__entry->misc		= m->misc;
 		__entry->ip		= m->ip;
-		__entry->cs		= m->cs;
 		__entry->tsc		= m->tsc;
 		__entry->walltime	= m->time;
 		__entry->cpu		= m->extcpu;
 		__entry->cpuid		= m->cpuid;
 		__entry->apicid		= m->apicid;
 		__entry->socketid	= m->socketid;
+		__entry->cs		= m->cs;
+		__entry->bank		= m->bank;
 		__entry->cpuvendor	= m->cpuvendor;
 	),
 
