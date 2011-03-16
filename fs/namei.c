@@ -753,9 +753,11 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 
+	if (link->mnt == nd->path.mnt)
+		mntget(link->mnt);
+
 	if (unlikely(current->total_link_count >= 40)) {
 		*p = ERR_PTR(-ELOOP); /* no ->put_link(), please */
-		path_put_conditional(link, nd);
 		path_put(&nd->path);
 		return -ELOOP;
 	}
@@ -764,9 +766,6 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 
 	touch_atime(link->mnt, dentry);
 	nd_set_link(nd, NULL);
-
-	if (link->mnt == nd->path.mnt)
-		mntget(link->mnt);
 
 	error = security_inode_follow_link(link->dentry, nd);
 	if (error) {
