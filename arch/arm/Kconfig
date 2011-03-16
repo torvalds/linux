@@ -63,6 +63,10 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 	depends on GENERIC_CLOCKEVENTS
 	default y if SMP
 
+config KTIME_SCALAR
+	bool
+	default y
+
 config HAVE_TCM
 	bool
 	select GENERIC_ALLOCATOR
@@ -177,11 +181,6 @@ config FIQ
 
 config ARCH_MTD_XIP
 	bool
-
-config ARM_L1_CACHE_SHIFT_6
-	bool
-	help
-	  Setting ARM L1 cache line size to 64 Bytes.
 
 config VECTORS_BASE
 	hex
@@ -1152,7 +1151,7 @@ config ARM_ERRATA_742231
 
 config PL310_ERRATA_588369
 	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
-	depends on CACHE_L2X0 && ARCH_OMAP4
+	depends on CACHE_L2X0
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
 	   Invalidate maintenance operations: by Physical Address
@@ -1161,8 +1160,7 @@ config PL310_ERRATA_588369
 	   clean operation followed immediately by an invalidate operation,
 	   both performing to the same memory location. This functionality
 	   is not correctly implemented in PL310 as clean lines are not
-	   invalidated as a result of these operations. Note that this errata
-	   uses Texas Instrument's secure monitor api.
+	   invalidated as a result of these operations.
 
 config ARM_ERRATA_720789
 	bool "ARM errata: TLBIASIDIS and TLBIMVAIS operations can broadcast a faulty ASID"
@@ -1175,6 +1173,17 @@ config ARM_ERRATA_720789
 	  invalidated are not, resulting in an incoherency in the system page
 	  tables. The workaround changes the TLB flushing routines to invalidate
 	  entries regardless of the ASID.
+
+config PL310_ERRATA_727915
+	bool "Background Clean & Invalidate by Way operation can cause data corruption"
+	depends on CACHE_L2X0
+	help
+	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
+	  operation (offset 0x7FC). This operation runs in background so that
+	  PL310 can handle normal accesses while it is in progress. Under very
+	  rare circumstances, due to this erratum, write data can be lost when
+	  PL310 treats a cacheable write transaction during a Clean &
+	  Invalidate by Way operation.
 
 config ARM_ERRATA_743622
 	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
@@ -1429,6 +1438,37 @@ config THUMB2_KERNEL
 	  ARM-Thumb syntax is needed.
 
 	  If unsure, say N.
+
+config THUMB2_AVOID_R_ARM_THM_JUMP11
+	bool "Work around buggy Thumb-2 short branch relocations in gas"
+	depends on THUMB2_KERNEL && MODULES
+	default y
+	help
+	  Various binutils versions can resolve Thumb-2 branches to
+	  locally-defined, preemptible global symbols as short-range "b.n"
+	  branch instructions.
+
+	  This is a problem, because there's no guarantee the final
+	  destination of the symbol, or any candidate locations for a
+	  trampoline, are within range of the branch.  For this reason, the
+	  kernel does not support fixing up the R_ARM_THM_JUMP11 (102)
+	  relocation in modules at all, and it makes little sense to add
+	  support.
+
+	  The symptom is that the kernel fails with an "unsupported
+	  relocation" error when loading some modules.
+
+	  Until fixed tools are available, passing
+	  -fno-optimize-sibling-calls to gcc should prevent gcc generating
+	  code which hits this problem, at the cost of a bit of extra runtime
+	  stack usage in some cases.
+
+	  The problem is described in more detail at:
+	      https://bugs.launchpad.net/binutils-linaro/+bug/725126
+
+	  Only Thumb-2 kernels are affected.
+
+	  Unless you are sure your tools don't have this problem, say Y.
 
 config ARM_ASM_UNIFIED
 	bool

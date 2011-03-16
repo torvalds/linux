@@ -105,6 +105,10 @@ AFLAGS_AUTOIT	:=$(call as-option,-Wa$(comma)-mimplicit-it=always,-Wa$(comma)-mau
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 CFLAGS_THUMB2	:=-mthumb $(AFLAGS_AUTOIT) $(AFLAGS_NOWARN)
 AFLAGS_THUMB2	:=$(CFLAGS_THUMB2) -Wa$(comma)-mthumb
+# Work around buggy relocation from gas if requested:
+ifeq ($(CONFIG_THUMB2_AVOID_R_ARM_THM_JUMP11),y)
+CFLAGS_MODULE	+=-fno-optimize-sibling-calls
+endif
 endif
 
 # Need -Uarm for gcc < 3.x
@@ -281,7 +285,7 @@ bzImage: zImage
 zImage Image xipImage bootpImage uImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
-zinstall install: vmlinux
+zinstall uinstall install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
 # We use MRPROPER_FILES and CLEAN_FILES now
@@ -302,6 +306,7 @@ define archhelp
   echo  '                  (supply initrd image via make variable INITRD=<path>)'
   echo  '  install       - Install uncompressed kernel'
   echo  '  zinstall      - Install compressed kernel'
+  echo  '  uinstall      - Install U-Boot wrapped compressed kernel'
   echo  '                  Install using (your) ~/bin/$(INSTALLKERNEL) or'
   echo  '                  (distribution) /sbin/$(INSTALLKERNEL) or'
   echo  '                  install to $$(INSTALL_PATH) and run lilo'

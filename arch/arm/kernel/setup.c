@@ -308,7 +308,44 @@ static void __init cacheid_init(void)
  * already provide the required functionality.
  */
 extern struct proc_info_list *lookup_processor_type(unsigned int);
-extern struct machine_desc *lookup_machine_type(unsigned int);
+
+static void __init early_print(const char *str, ...)
+{
+	extern void printascii(const char *);
+	char buf[256];
+	va_list ap;
+
+	va_start(ap, str);
+	vsnprintf(buf, sizeof(buf), str, ap);
+	va_end(ap);
+
+#ifdef CONFIG_DEBUG_LL
+	printascii(buf);
+#endif
+	printk("%s", buf);
+}
+
+static struct machine_desc * __init lookup_machine_type(unsigned int type)
+{
+	extern struct machine_desc __arch_info_begin[], __arch_info_end[];
+	struct machine_desc *p;
+
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+		if (type == p->nr)
+			return p;
+
+	early_print("\n"
+		"Error: unrecognized/unsupported machine ID (r1 = 0x%08x).\n\n"
+		"Available machine support:\n\nID (hex)\tNAME\n", type);
+
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+		early_print("%08x\t%s\n", p->nr, p->name);
+
+	early_print("\nPlease check your kernel config and/or bootloader.\n");
+
+	while (true)
+		/* can't use cpu_relax() here as it may require MMU setup */;
+}
 
 static void __init feat_v6_fixup(void)
 {
