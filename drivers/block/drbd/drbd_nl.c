@@ -1041,7 +1041,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (!adm_ctx.reply_skb)
 		return retcode;
 	if (retcode != NO_ERROR)
-		goto fail;
+		goto finish;
 
 	mdev = adm_ctx.mdev;
 	conn_reconfig_start(mdev->tconn);
@@ -1400,8 +1400,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  force_diskless:
 	drbd_force_state(mdev, NS(disk, D_FAILED));
 	drbd_md_sync(mdev);
-	conn_reconfig_done(mdev->tconn);
  fail:
+	conn_reconfig_done(mdev->tconn);
 	if (nbc) {
 		if (nbc->backing_bdev)
 			blkdev_put(nbc->backing_bdev,
@@ -1413,6 +1413,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	}
 	lc_destroy(resync_lru);
 
+ finish:
 	drbd_adm_finish(info, retcode);
 	return 0;
 }
