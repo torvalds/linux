@@ -1,6 +1,11 @@
 #ifdef CONFIG_SCHED_AUTOGROUP
 
 struct autogroup {
+	/*
+	 * reference doesn't mean how many thread attach to this
+	 * autogroup now. It just stands for the number of task
+	 * could use this autogroup.
+	 */
 	struct kref		kref;
 	struct task_group	*tg;
 	struct rw_semaphore	lock;
