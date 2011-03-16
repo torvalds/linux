@@ -37,7 +37,7 @@ struct after_state_chg_work {
 	struct completion *done;
 };
 
-static long w_after_state_ch(struct drbd_work *w, int unused);
+static int w_after_state_ch(struct drbd_work *w, int unused);
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
 static void after_all_state_ch(struct drbd_tconn *tconn);
@@ -918,7 +918,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	return rv;
 }
 
-static long w_after_state_ch(struct drbd_work *w, int unused)
+static int w_after_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_state_chg_work *ascw =
 		container_of(w, struct after_state_chg_work, w);
@@ -931,7 +931,7 @@ static long w_after_state_ch(struct drbd_work *w, int unused)
 	}
 	kfree(ascw);
 
-	return 1;
+	return 0;
 }
 
 static void abw_start_sync(struct drbd_conf *mdev, int rv)
@@ -1289,7 +1289,7 @@ static void after_all_state_ch(struct drbd_tconn *tconn)
 	}
 }
 
-static long w_after_conn_state_ch(struct drbd_work *w, int unused)
+static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_conn_state_chg_work *acscw =
 		container_of(w, struct after_conn_state_chg_work, w);
@@ -1306,7 +1306,7 @@ static long w_after_conn_state_ch(struct drbd_work *w, int unused)
 	//conn_err(tconn, STATE_FMT, STATE_ARGS("nms", nms));
 	after_all_state_ch(tconn);
 
-	return 1;
+	return 0;
 }
 
 static void print_conn_state_change(struct drbd_tconn *tconn, enum drbd_conns oc, enum drbd_conns nc)
