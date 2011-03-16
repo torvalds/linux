@@ -4272,6 +4272,9 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 		while (di_cur < di_total) {
 			struct btrfs_key location;
 
+			if (verify_dir_item(root, leaf, di))
+				break;
+
 			name_len = btrfs_dir_name_len(leaf, di);
 			if (name_len <= sizeof(tmp_name)) {
 				name_ptr = tmp_name;
