@@ -49,7 +49,7 @@
 #include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
-#define IWL1000_UCODE_API_MAX 3
+#define IWL1000_UCODE_API_MAX 5
 #define IWL100_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
