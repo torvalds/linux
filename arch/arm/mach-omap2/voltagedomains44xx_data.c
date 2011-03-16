@@ -42,9 +42,6 @@ static struct omap_vdd_info omap4_vdd_mpu_info = {
 	.vp_data = &omap4_vp_mpu_data,
 	.vc_data = &omap4_vc_mpu_data,
 	.vfsm = &omap4_vdd_mpu_vfsm_data,
-	.voltdm = {
-		.name = "mpu",
-	},
 };
 
 static const struct omap_vfsm_instance_data omap4_vdd_iva_vfsm_data = {
@@ -57,9 +54,6 @@ static struct omap_vdd_info omap4_vdd_iva_info = {
 	.vp_data = &omap4_vp_iva_data,
 	.vc_data = &omap4_vc_iva_data,
 	.vfsm = &omap4_vdd_iva_vfsm_data,
-	.voltdm = {
-		.name = "iva",
-	},
 };
 
 static const struct omap_vfsm_instance_data omap4_vdd_core_vfsm_data = {
@@ -72,24 +66,32 @@ static struct omap_vdd_info omap4_vdd_core_info = {
 	.vp_data = &omap4_vp_core_data,
 	.vc_data = &omap4_vc_core_data,
 	.vfsm = &omap4_vdd_core_vfsm_data,
-	.voltdm = {
-		.name = "core",
-	},
 };
 
-/* OMAP4 VDD structures */
-static struct omap_vdd_info *omap4_vdd_info[] = {
-	&omap4_vdd_mpu_info,
-	&omap4_vdd_iva_info,
-	&omap4_vdd_core_info,
+static struct voltagedomain omap4_voltdm_mpu = {
+	.name = "mpu",
+	.vdd = &omap4_vdd_mpu_info,
 };
 
-/* OMAP4 specific voltage init functions */
-static int __init omap44xx_voltage_early_init(void)
+static struct voltagedomain omap4_voltdm_iva = {
+	.name = "iva",
+	.vdd = &omap4_vdd_iva_info,
+};
+
+static struct voltagedomain omap4_voltdm_core = {
+	.name = "core",
+	.vdd = &omap4_vdd_core_info,
+};
+
+static struct voltagedomain *voltagedomains_omap4[] __initdata = {
+	&omap4_voltdm_mpu,
+	&omap4_voltdm_iva,
+	&omap4_voltdm_core,
+	NULL,
+};
+
+void __init omap44xx_voltagedomains_init(void)
 {
-	if (!cpu_is_omap44xx())
-		return 0;
-
 	/*
 	 * XXX Will depend on the process, validation, and binning
 	 * for the currently-running IC
@@ -98,7 +100,5 @@ static int __init omap44xx_voltage_early_init(void)
 	omap4_vdd_iva_info.volt_data = omap44xx_vdd_iva_volt_data;
 	omap4_vdd_core_info.volt_data = omap44xx_vdd_core_volt_data;
 
-	return omap_voltage_early_init(omap4_vdd_info,
-				       ARRAY_SIZE(omap4_vdd_info));
+	voltdm_init(voltagedomains_omap4);
 };
-core_initcall(omap44xx_voltage_early_init);

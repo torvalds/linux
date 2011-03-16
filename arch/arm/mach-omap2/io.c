@@ -38,6 +38,7 @@
 #include "io.h"
 
 #include <plat/omap-pm.h>
+#include "voltage.h"
 #include "powerdomain.h"
 
 #include "clockdomain.h"
@@ -349,10 +350,12 @@ void __init omap2_init_common_infrastructure(void)
 		omap243x_clockdomains_init();
 		omap2430_hwmod_init();
 	} else if (cpu_is_omap34xx()) {
+		omap3xxx_voltagedomains_init();
 		omap3xxx_powerdomains_init();
 		omap3xxx_clockdomains_init();
 		omap3xxx_hwmod_init();
 	} else if (cpu_is_omap44xx()) {
+		omap44xx_voltagedomains_init();
 		omap44xx_powerdomains_init();
 		omap44xx_clockdomains_init();
 		omap44xx_hwmod_init();

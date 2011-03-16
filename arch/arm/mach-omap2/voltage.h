@@ -31,6 +31,8 @@
 #define OMAP3_VOLTOFFSET	0xff
 #define OMAP3_VOLTSETUP2	0xff
 
+struct omap_vdd_info;
+
 /**
  * struct omap_vfsm_instance_data - per-voltage manager FSM register/bitfield
  * data
@@ -50,11 +52,14 @@ struct omap_vfsm_instance_data {
 
 /**
  * struct voltagedomain - omap voltage domain global structure.
- * @name:	Name of the voltage domain which can be used as a unique
- *		identifier.
+ * @name: Name of the voltage domain which can be used as a unique identifier.
+ * @node: list_head linking all voltage domains
+ * @vdd: to be removed
  */
 struct voltagedomain {
 	char *name;
+	struct list_head node;
+	struct omap_vdd_info *vdd;
 };
 
 /**
@@ -116,7 +121,6 @@ struct omap_volt_pmic_info {
  * @vc_data		: structure containing various various vc registers,
  *			  shifts, masks etc.
  * @vfsm                : voltage manager FSM data
- * @voltdm		: pointer to the voltage domain structure
  * @debug_dir		: debug directory for this voltage domain.
  * @curr_volt		: current voltage for this vdd.
  * @prm_irqst_mod       : PRM module id used for PRM IRQ status register access
@@ -130,7 +134,6 @@ struct omap_vdd_info {
 	struct omap_vp_runtime_data vp_rt_data;
 	struct omap_vc_instance_data *vc_data;
 	const struct omap_vfsm_instance_data *vfsm;
-	struct voltagedomain voltdm;
 	struct dentry *debug_dir;
 	u32 curr_volt;
 	bool vp_enabled;
@@ -139,7 +142,7 @@ struct omap_vdd_info {
 	u8 prm_irqst_reg;
 	u32 (*read_reg) (u16 mod, u8 offset);
 	void (*write_reg) (u32 val, u16 mod, u8 offset);
-	int (*volt_scale) (struct omap_vdd_info *vdd,
+	int (*volt_scale) (struct voltagedomain *voltdm,
 		unsigned long target_volt);
 };
 
@@ -155,16 +158,11 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		unsigned long volt);
 unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm);
 struct dentry *omap_voltage_get_dbgdir(struct voltagedomain *voltdm);
-int __init omap_voltage_early_init(struct omap_vdd_info *omap_vdd_array[],
-				   u8 omap_vdd_count);
 #ifdef CONFIG_PM
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 		struct omap_volt_pmic_info *pmic_info);
 void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		int voltscale_method);
-/* API to get the voltagedomain pointer */
-struct voltagedomain *omap_voltage_domain_lookup(char *name);
-
 int omap_voltage_late_init(void);
 #else
 static inline int omap_voltage_register_pmic(struct voltagedomain *voltdm,
@@ -178,10 +176,11 @@ static inline int omap_voltage_late_init(void)
 {
 	return -EINVAL;
 }
-static inline struct voltagedomain *omap_voltage_domain_lookup(char *name)
-{
-	return ERR_PTR(-EINVAL);
-}
 #endif
 
+extern void omap3xxx_voltagedomains_init(void);
+extern void omap44xx_voltagedomains_init(void);
+
+struct voltagedomain *voltdm_lookup(const char *name);
+void voltdm_init(struct voltagedomain **voltdm_list);
 #endif

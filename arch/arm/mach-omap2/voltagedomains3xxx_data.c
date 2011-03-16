@@ -43,9 +43,6 @@ static struct omap_vdd_info omap3_vdd1_info = {
 	.vp_data = &omap3_vp1_data,
 	.vc_data = &omap3_vc1_data,
 	.vfsm = &omap3_vdd1_vfsm_data,
-	.voltdm = {
-		.name = "mpu",
-	},
 };
 
 static const struct omap_vfsm_instance_data omap3_vdd2_vfsm_data = {
@@ -60,23 +57,26 @@ static struct omap_vdd_info omap3_vdd2_info = {
 	.vp_data = &omap3_vp2_data,
 	.vc_data = &omap3_vc2_data,
 	.vfsm = &omap3_vdd2_vfsm_data,
-	.voltdm = {
-		.name = "core",
-	},
 };
 
-/* OMAP3 VDD structures */
-static struct omap_vdd_info *omap3_vdd_info[] = {
-	&omap3_vdd1_info,
-	&omap3_vdd2_info,
+static struct voltagedomain omap3_voltdm_mpu = {
+	.name = "mpu",
+	.vdd = &omap3_vdd1_info,
 };
 
-/* OMAP3 specific voltage init functions */
-static int __init omap3xxx_voltage_early_init(void)
+static struct voltagedomain omap3_voltdm_core = {
+	.name = "core",
+	.vdd = &omap3_vdd2_info,
+};
+
+static struct voltagedomain *voltagedomains_omap3[] __initdata = {
+	&omap3_voltdm_mpu,
+	&omap3_voltdm_core,
+	NULL,
+};
+
+void __init omap3xxx_voltagedomains_init(void)
 {
-	if (!cpu_is_omap34xx())
-		return 0;
-
 	/*
 	 * XXX Will depend on the process, validation, and binning
 	 * for the currently-running IC
@@ -89,7 +89,5 @@ static int __init omap3xxx_voltage_early_init(void)
 		omap3_vdd2_info.volt_data = omap34xx_vddcore_volt_data;
 	}
 
-	return omap_voltage_early_init(omap3_vdd_info,
-				       ARRAY_SIZE(omap3_vdd_info));
+	voltdm_init(voltagedomains_omap3);
 };
-core_initcall(omap3xxx_voltage_early_init);

@@ -250,13 +250,13 @@ int __init omap4_twl_init(void)
 	if (!cpu_is_omap44xx())
 		return -ENODEV;
 
-	voltdm = omap_voltage_domain_lookup("mpu");
+	voltdm = voltdm_lookup("mpu");
 	omap_voltage_register_pmic(voltdm, &omap4_mpu_volt_info);
 
-	voltdm = omap_voltage_domain_lookup("iva");
+	voltdm = voltdm_lookup("iva");
 	omap_voltage_register_pmic(voltdm, &omap4_iva_volt_info);
 
-	voltdm = omap_voltage_domain_lookup("core");
+	voltdm = voltdm_lookup("core");
 	omap_voltage_register_pmic(voltdm, &omap4_core_volt_info);
 
 	return 0;
@@ -288,10 +288,10 @@ int __init omap3_twl_init(void)
 	if (!twl_sr_enable_autoinit)
 		omap3_twl_set_sr_bit(true);
 
-	voltdm = omap_voltage_domain_lookup("mpu");
+	voltdm = voltdm_lookup("mpu");
 	omap_voltage_register_pmic(voltdm, &omap3_mpu_volt_info);
 
-	voltdm = omap_voltage_domain_lookup("core");
+	voltdm = voltdm_lookup("core");
 	omap_voltage_register_pmic(voltdm, &omap3_core_volt_info);
 
 	return 0;
