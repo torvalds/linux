@@ -413,6 +413,32 @@ static void __iomem *smu_base(struct isci_host *isci_host)
 	return pcim_iomap_table(pdev)[SCI_SMU_BAR * 2] + SCI_SMU_BAR_SIZE * id;
 }
 
+static void isci_user_parameters_get(
+		struct isci_host *isci_host,
+		union scic_user_parameters *scic_user_params)
+{
+	struct scic_sds_user_parameters *u = &scic_user_params->sds1;
+	int i;
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		struct sci_phy_user_params *u_phy = &u->phys[i];
+
+		u_phy->max_speed_generation = phy_gen;
+
+		/* we are not exporting these for now */
+		u_phy->align_insertion_frequency = 0x7f;
+		u_phy->in_connection_align_insertion_frequency = 0xff;
+		u_phy->notify_enable_spin_up_insertion_frequency = 0x33;
+	}
+
+	u->stp_inactivity_timeout = stp_inactive_to;
+	u->ssp_inactivity_timeout = ssp_inactive_to;
+	u->stp_max_occupancy_timeout = stp_max_occ_to;
+	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
+	u->no_outbound_task_timeout = no_outbound_task_to;
+	u->max_number_concurrent_device_spin_up = max_concurr_spinup;
+}
+
 int isci_host_init(struct isci_host *isci_host)
 {
 	int err = 0, i;
@@ -462,7 +488,7 @@ int isci_host_init(struct isci_host *isci_host)
 	 * grab initial values stored in the controller object for OEM and USER
 	 * parameters
 	 */
-	scic_user_parameters_get(controller, &scic_user_params);
+	isci_user_parameters_get(isci_host, &scic_user_params);
 	status = scic_user_parameters_set(isci_host->core_controller,
 					  &scic_user_params);
 	if (status != SCI_SUCCESS) {
