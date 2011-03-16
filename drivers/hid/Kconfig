@@ -319,10 +319,10 @@ config HID_NTRIG
 	Support for N-Trig touch screen.
 
 config HID_ORTEK
-	tristate "Ortek WKB-2000 wireless keyboard and mouse trackpad"
+	tristate "Ortek PKB-1700/WKB-2000 wireless keyboard and mouse trackpad"
 	depends on USB_HID
 	---help---
-	Support for Ortek WKB-2000 wireless keyboard + mouse trackpad.
+	Support for Ortek PKB-1700/WKB-2000 wireless keyboard + mouse trackpad.
 
 config HID_PANTHERLORD
 	tristate "Pantherlord/GreenAsia game controller"

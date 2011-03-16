@@ -1,5 +1,5 @@
 /*
- *  HID driver for Ortek WKB-2000 (wireless keyboard + mouse trackpad).
+ *  HID driver for Ortek PKB-1700/WKB-2000 (wireless keyboard + mouse trackpad).
  *  Fixes LogicalMaximum error in USB report description, see
  *  http://bugzilla.kernel.org/show_bug.cgi?id=14787
  *
@@ -30,6 +30,7 @@ static __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 }
 
 static const struct hid_device_id ortek_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_PKB1700) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_WKB2000) },
 	{ }
 };
