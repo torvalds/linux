@@ -19,6 +19,7 @@
 #include <linux/if_arp.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_AUDIT.h>
+#include <linux/netfilter_bridge/ebtables.h>
 #include <net/ipv6.h>
 #include <net/ip.h>
 
@@ -168,6 +169,13 @@ errout:
 	return XT_CONTINUE;
 }
 
+static unsigned int
+audit_tg_ebt(struct sk_buff *skb, const struct xt_action_param *par)
+{
+	audit_tg(skb, par);
+	return EBT_CONTINUE;
+}
+
 static int audit_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_audit_info *info = par->targinfo;
@@ -181,23 +189,33 @@ static int audit_tg_check(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-static struct xt_target audit_tg_reg __read_mostly = {
-	.name		= "AUDIT",
-	.family		= NFPROTO_UNSPEC,
-	.target		= audit_tg,
-	.targetsize	= sizeof(struct xt_audit_info),
-	.checkentry	= audit_tg_check,
-	.me		= THIS_MODULE,
+static struct xt_target audit_tg_reg[] __read_mostly = {
+	{
+		.name		= "AUDIT",
+		.family		= NFPROTO_UNSPEC,
+		.target		= audit_tg,
+		.targetsize	= sizeof(struct xt_audit_info),
+		.checkentry	= audit_tg_check,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "AUDIT",
+		.family		= NFPROTO_BRIDGE,
+		.target		= audit_tg_ebt,
+		.targetsize	= sizeof(struct xt_audit_info),
+		.checkentry	= audit_tg_check,
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init audit_tg_init(void)
 {
-	return xt_register_target(&audit_tg_reg);
+	return xt_register_targets(audit_tg_reg, ARRAY_SIZE(audit_tg_reg));
 }
 
 static void __exit audit_tg_exit(void)
 {
-	xt_unregister_target(&audit_tg_reg);
+	xt_unregister_targets(audit_tg_reg, ARRAY_SIZE(audit_tg_reg));
 }
 
 module_init(audit_tg_init);
