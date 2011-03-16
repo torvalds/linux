@@ -1458,20 +1458,20 @@ static void bond_setup_by_slave(struct net_device *bond_dev,
  * ARP on active-backup slaves with arp_validate enabled.
  */
 static bool bond_should_deliver_exact_match(struct sk_buff *skb,
-					    struct net_device *slave_dev,
-					    struct net_device *bond_dev)
+					    struct slave *slave,
+					    struct bonding *bond)
 {
-	if (slave_dev->priv_flags & IFF_SLAVE_INACTIVE) {
-		if (slave_dev->priv_flags & IFF_SLAVE_NEEDARP &&
+	if (slave->dev->priv_flags & IFF_SLAVE_INACTIVE) {
+		if (slave_do_arp_validate(bond, slave) &&
 		    skb->protocol == __cpu_to_be16(ETH_P_ARP))
 			return false;
 
-		if (bond_dev->priv_flags & IFF_MASTER_ALB &&
+		if (bond->params.mode == BOND_MODE_ALB &&
 		    skb->pkt_type != PACKET_BROADCAST &&
 		    skb->pkt_type != PACKET_MULTICAST)
 				return false;
 
-		if (bond_dev->priv_flags & IFF_MASTER_8023AD &&
+		if (bond->params.mode == BOND_MODE_8023AD &&
 		    skb->protocol == __cpu_to_be16(ETH_P_SLOW))
 			return false;
 
@@ -1484,6 +1484,7 @@ static struct sk_buff *bond_handle_frame(struct sk_buff *skb)
 {
 	struct slave *slave;
 	struct net_device *bond_dev;
+	struct bonding *bond;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1494,17 +1495,19 @@ static struct sk_buff *bond_handle_frame(struct sk_buff *skb)
 	if (unlikely(!bond_dev))
 		return skb;
 
-	if (bond_dev->priv_flags & IFF_MASTER_ARPMON)
+	bond = netdev_priv(bond_dev);
+
+	if (bond->params.arp_interval)
 		slave->dev->last_rx = jiffies;
 
-	if (bond_should_deliver_exact_match(skb, slave->dev, bond_dev)) {
+	if (bond_should_deliver_exact_match(skb, slave, bond)) {
 		skb->deliver_no_wcard = 1;
 		return skb;
 	}
 
 	skb->dev = bond_dev;
 
-	if (bond_dev->priv_flags & IFF_MASTER_ALB &&
+	if (bond->params.mode == BOND_MODE_ALB &&
 	    bond_dev->priv_flags & IFF_BRIDGE_PORT &&
 	    skb->pkt_type == PACKET_HOST) {
 
@@ -2119,9 +2122,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	dev_set_mtu(slave_dev, slave->original_mtu);
 
-	slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
-				   IFF_SLAVE_INACTIVE | IFF_BONDING |
-				   IFF_SLAVE_NEEDARP);
+	slave_dev->priv_flags &= ~(IFF_SLAVE_INACTIVE | IFF_BONDING);
 
 	kfree(slave);
 
@@ -2232,8 +2233,7 @@ static int bond_release_all(struct net_device *bond_dev)
 			dev_set_mac_address(slave_dev, &addr);
 		}
 
-		slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
-					   IFF_SLAVE_INACTIVE);
+		slave_dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
 
 		kfree(slave);
 
@@ -4419,11 +4419,9 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 	case BOND_MODE_BROADCAST:
 		break;
 	case BOND_MODE_8023AD:
-		bond_set_master_3ad_flags(bond);
 		bond_set_xmit_hash_policy(bond);
 		break;
 	case BOND_MODE_ALB:
-		bond_set_master_alb_flags(bond);
 		/* FALLTHRU */
 	case BOND_MODE_TLB:
 		break;
@@ -4513,9 +4511,6 @@ static void bond_setup(struct net_device *bond_dev)
 	bond_dev->flags |= IFF_MASTER|IFF_MULTICAST;
 	bond_dev->priv_flags |= IFF_BONDING;
 	bond_dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
-
-	if (bond->params.arp_interval)
-		bond_dev->priv_flags |= IFF_MASTER_ARPMON;
 
 	/* At first, we block adding VLANs. That's the only way to
 	 * prevent problems that occur when adding VLANs over an

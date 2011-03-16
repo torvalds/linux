@@ -356,34 +356,12 @@ static inline void bond_set_slave_inactive_flags(struct slave *slave)
 		slave->state = BOND_STATE_BACKUP;
 	if (!bond->params.all_slaves_active)
 		slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
-	if (slave_do_arp_validate(bond, slave))
-		slave->dev->priv_flags |= IFF_SLAVE_NEEDARP;
 }
 
 static inline void bond_set_slave_active_flags(struct slave *slave)
 {
 	slave->state = BOND_STATE_ACTIVE;
-	slave->dev->priv_flags &= ~(IFF_SLAVE_INACTIVE | IFF_SLAVE_NEEDARP);
-}
-
-static inline void bond_set_master_3ad_flags(struct bonding *bond)
-{
-	bond->dev->priv_flags |= IFF_MASTER_8023AD;
-}
-
-static inline void bond_unset_master_3ad_flags(struct bonding *bond)
-{
-	bond->dev->priv_flags &= ~IFF_MASTER_8023AD;
-}
-
-static inline void bond_set_master_alb_flags(struct bonding *bond)
-{
-	bond->dev->priv_flags |= IFF_MASTER_ALB;
-}
-
-static inline void bond_unset_master_alb_flags(struct bonding *bond)
-{
-	bond->dev->priv_flags &= ~IFF_MASTER_ALB;
+	slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
 }
 
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
