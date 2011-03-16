@@ -1162,6 +1162,9 @@ static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
 			bio_list_add_head(&nvmeq->sq_cong, bio);
 			break;
 		}
+		if (bio_list_empty(&nvmeq->sq_cong))
+			remove_wait_queue(&nvmeq->sq_full,
+							&nvmeq->sq_cong_wait);
 	}
 }
 
