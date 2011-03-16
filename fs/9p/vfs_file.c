@@ -508,9 +508,12 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (!count)
 		goto out;
 
-	return v9fs_file_write_internal(filp->f_path.dentry->d_inode,
+	retval = v9fs_file_write_internal(filp->f_path.dentry->d_inode,
 					filp->private_data,
-					data, count, offset, 1);
+					data, count, &origin, 1);
+	/* update offset on successful write */
+	if (retval > 0)
+		*offset = origin;
 out:
 	return retval;
 }
