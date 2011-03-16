@@ -2002,13 +2002,15 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	int i;
 	int index = 0;
 	int h_addr, v_addr;
-	u32 pll_D_N, clock;
+	u32 pll_D_N, clock, refresh = viafb_refresh;
+
+	if (viafb_SAMM_ON && set_iga == IGA2)
+		refresh = viafb_refresh1;
 
 	for (i = 0; i < video_mode->mode_array; i++) {
 		index = i;
 
-		if (crt_table[i].refresh_rate == viaparinfo->
-			crt_setting_info->refresh_rate)
+		if (crt_table[i].refresh_rate == refresh)
 			break;
 	}
 
@@ -2019,7 +2021,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	if ((viafb_LCD_ON | viafb_DVI_ON)
 	    && video_mode->crtc[0].crtc.hor_addr == 640
 	    && video_mode->crtc[0].crtc.ver_addr == 480
-	    && viaparinfo->crt_setting_info->refresh_rate == 60) {
+	    && refresh == 60) {
 		/* The border is 8 pixels. */
 		crt_reg.hor_blank_start = crt_reg.hor_blank_start - 8;
 
@@ -2070,7 +2072,6 @@ void __devinit viafb_init_chip_info(int chip_type)
 	init_lvds_chip_info();
 
 	viaparinfo->crt_setting_info->iga_path = IGA1;
-	viaparinfo->crt_setting_info->refresh_rate = viafb_refresh;
 
 	/*Set IGA path for each device */
 	viafb_set_iga_path();
@@ -2083,13 +2084,9 @@ void __devinit viafb_init_chip_info(int chip_type)
 		viaparinfo->lvds_setting_info->lcd_mode;
 }
 
-void viafb_update_device_setting(int hres, int vres,
-	int bpp, int vmode_refresh, int flag)
+void viafb_update_device_setting(int hres, int vres, int bpp, int flag)
 {
 	if (flag == 0) {
-		viaparinfo->crt_setting_info->refresh_rate =
-			vmode_refresh;
-
 		viaparinfo->tmds_setting_info->h_active = hres;
 		viaparinfo->tmds_setting_info->v_active = vres;
 
