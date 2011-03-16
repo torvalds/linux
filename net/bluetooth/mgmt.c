@@ -183,6 +183,8 @@ static int read_controller_info(struct sock *sk, u16 index)
 
 	set_bit(HCI_MGMT, &hdev->flags);
 
+	memset(&rp, 0, sizeof(rp));
+
 	rp.type = hdev->dev_type;
 
 	rp.powered = test_bit(HCI_UP, &hdev->flags);
@@ -203,6 +205,8 @@ static int read_controller_info(struct sock *sk, u16 index)
 	put_unaligned_le16(hdev->manufacturer, &rp.manufacturer);
 	rp.hci_ver = hdev->hci_ver;
 	put_unaligned_le16(hdev->hci_rev, &rp.hci_rev);
+
+	memcpy(rp.name, hdev->dev_name, sizeof(hdev->dev_name));
 
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
