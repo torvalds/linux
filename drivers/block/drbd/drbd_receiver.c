@@ -409,7 +409,7 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	LIST_HEAD(work_list);
 	LIST_HEAD(reclaimed);
 	struct drbd_peer_request *peer_req, *t;
-	int ok = 1;
+	int err = 0;
 
 	spin_lock_irq(&mdev->tconn->req_lock);
 	reclaim_net_ee(mdev, &reclaimed);
@@ -424,13 +424,17 @@ static int drbd_process_done_ee(struct drbd_conf *mdev)
 	 * all ignore the last argument.
 	 */
 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
+		int err2;
+
 		/* list_del not necessary, next/prev members not touched */
-		ok = !peer_req->w.cb(&peer_req->w, !ok) && ok;
+		err2 = peer_req->w.cb(&peer_req->w, !!err);
+		if (!err)
+			err = err2;
 		drbd_free_ee(mdev, peer_req);
 	}
 	wake_up(&mdev->ee_wait);
 
-	return ok;
+	return err;
 }
 
 void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
@@ -4711,7 +4715,7 @@ static int tconn_process_done_ee(struct drbd_tconn *tconn)
 		clear_bit(SIGNAL_ASENDER, &tconn->flags);
 		flush_signals(current);
 		idr_for_each_entry(&tconn->volumes, mdev, i) {
-			if (!drbd_process_done_ee(mdev))
+			if (drbd_process_done_ee(mdev))
 				return 1; /* error */
 		}
 		set_bit(SIGNAL_ASENDER, &tconn->flags);
