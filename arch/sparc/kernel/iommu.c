@@ -255,10 +255,9 @@ static inline iopte_t *alloc_npages(struct device *dev, struct iommu *iommu,
 static int iommu_alloc_ctx(struct iommu *iommu)
 {
 	int lowest = iommu->ctx_lowest_free;
-	int sz = IOMMU_NUM_CTXS - lowest;
-	int n = find_next_zero_bit(iommu->ctx_bitmap, sz, lowest);
+	int n = find_next_zero_bit(iommu->ctx_bitmap, IOMMU_NUM_CTXS, lowest);
 
-	if (unlikely(n == sz)) {
+	if (unlikely(n == IOMMU_NUM_CTXS)) {
 		n = find_next_zero_bit(iommu->ctx_bitmap, lowest, 1);
 		if (unlikely(n == lowest)) {
 			printk(KERN_WARNING "IOMMU: Ran out of contexts.\n");

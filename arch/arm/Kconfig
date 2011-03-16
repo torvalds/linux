@@ -346,7 +346,7 @@ config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select CPU_SA110
 	select FOOTBRIDGE
-	select ARCH_USES_GETTIMEOFFSET
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
@@ -875,6 +875,16 @@ config PLAT_SPEAR
 	help
 	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
 
+config ARCH_VT8500
+	bool "VIA/WonderMedia 85xx"
+	select CPU_ARM926T
+	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_PWM
+	help
+	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 endchoice
 
 #
@@ -1006,6 +1016,8 @@ source "arch/arm/mach-ux500/Kconfig"
 source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-vexpress/Kconfig"
+
+source "arch/arm/mach-vt8500/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
@@ -1176,6 +1188,53 @@ config ARM_ERRATA_743622
 	  optimisation, preventing the defect from occurring. This has no
 	  visible impact on the overall performance or power consumption of the
 	  processor.
+
+config ARM_ERRATA_751472
+	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 751472 Cortex-A9 (prior
+	  to r3p0) erratum. An interrupted ICIALLUIS operation may prevent the
+	  completion of a following broadcasted operation if the second
+	  operation is received by a CPU before the ICIALLUIS has completed,
+	  potentially leading to corrupted entries in the cache or TLB.
+
+config ARM_ERRATA_753970
+	bool "ARM errata: cache sync operation may be faulty"
+	depends on CACHE_PL310
+	help
+	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
+
+	  Under some condition the effect of cache sync operation on
+	  the store buffer still remains when the operation completes.
+	  This means that the store buffer is always asked to drain and
+	  this prevents it from merging any further writes. The workaround
+	  is to replace the normal offset of cache sync operation (0x730)
+	  by another offset targeting an unmapped PL310 register 0x740.
+	  This has the same effect as the cache sync operation: store buffer
+	  drain and waiting for all buffers empty.
+
+config ARM_ERRATA_754322
+	bool "ARM errata: possible faulty MMU translations following an ASID switch"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 754322 Cortex-A9 (r2p*,
+	  r3p*) erratum. A speculative memory access may cause a page table walk
+	  which starts prior to an ASID switch but completes afterwards. This
+	  can populate the micro-TLB with a stale entry which may be hit with
+	  the new ASID. This workaround places two dsb instructions in the mm
+	  switching code so that no page table walks can cross the ASID switch.
+
+config ARM_ERRATA_754327
+	bool "ARM errata: no automatic Store Buffer drain"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 754327 Cortex-A9 (prior to
+	  r2p0) erratum. The Store Buffer does not have any automatic draining
+	  mechanism and therefore a livelock may occur if an external agent
+	  continuously polls a memory location waiting to observe an update.
+	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
+	  written polling loops from denying visibility of updates to memory.
 
 endmenu
 
@@ -1618,6 +1677,18 @@ config ZBOOT_ROM
 	help
 	  Say Y here if you intend to execute your compressed kernel image
 	  (zImage) directly from ROM or flash.  If unsure, say N.
+
+config ZBOOT_ROM_MMCIF
+	bool "Include MMCIF loader in zImage (EXPERIMENTAL)"
+	depends on ZBOOT_ROM && ARCH_SH7372 && EXPERIMENTAL
+	help
+	  Say Y here to include experimental MMCIF loading code in the
+	  ROM-able zImage. With this enabled it is possible to write the
+	  the ROM-able zImage kernel image to an MMC card and boot the
+	  kernel straight from the reset vector. At reset the processor
+	  Mask ROM will load the first part of the the ROM-able zImage
+	  which in turn loads the rest the kernel image to RAM using the
+	  MMCIF hardware block.
 
 config CMDLINE
 	string "Default kernel command string"
