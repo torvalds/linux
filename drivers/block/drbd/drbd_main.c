@@ -1308,15 +1308,13 @@ int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 		       sector_t sector, int size, u64 block_id)
 {
-	int ok;
 	struct p_block_req p;
 
 	p.sector   = cpu_to_be64(sector);
 	p.block_id = block_id;
 	p.blksize  = cpu_to_be32(size);
 
-	ok = !drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &p.head, sizeof(p));
-	return ok;
+	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &p.head, sizeof(p));
 }
 
 int drbd_send_drequest_csum(struct drbd_conf *mdev, sector_t sector, int size,

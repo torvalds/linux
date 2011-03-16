@@ -637,7 +637,7 @@ next_sector:
 			}
 		} else {
 			inc_rs_pending(mdev);
-			if (!drbd_send_drequest(mdev, P_RS_DATA_REQUEST,
+			if (drbd_send_drequest(mdev, P_RS_DATA_REQUEST,
 					       sector, size, ID_SYNCER)) {
 				dev_err(DEV, "drbd_send_drequest() failed, aborting...\n");
 				dec_rs_pending(mdev);
@@ -1287,8 +1287,8 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 		return 1;
 	}
 
-	ok = drbd_send_drequest(mdev, P_DATA_REQUEST, req->i.sector, req->i.size,
-				(unsigned long)req);
+	ok = !drbd_send_drequest(mdev, P_DATA_REQUEST, req->i.sector, req->i.size,
+				 (unsigned long)req);
 
 	req_mod(req, ok ? HANDED_OVER_TO_NETWORK : SEND_FAILED);
 
