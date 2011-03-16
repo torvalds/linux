@@ -674,7 +674,7 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 
 	irq_info[irq] = mk_pirq_info(0, pirq, 0, vector);
 	pirq_to_irq[pirq] = irq;
-	ret = set_irq_msi(irq, msidesc);
+	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
 out:

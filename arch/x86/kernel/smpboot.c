@@ -64,6 +64,7 @@
 #include <asm/mtrr.h>
 #include <asm/mwait.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
@@ -927,6 +928,14 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	return 0;
 }
 
+/**
+ * arch_disable_smp_support() - disables SMP support for x86 at runtime
+ */
+void arch_disable_smp_support(void)
+{
+	disable_ioapic_support();
+}
+
 /*
  * Fall back to non SMP mode after errors.
  *
@@ -1027,7 +1036,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 				"(tell your hw vendor)\n");
 		}
 		smpboot_clear_io_apic();
-		arch_disable_smp_support();
+		disable_ioapic_support();
 		return -1;
 	}
 

@@ -4,23 +4,23 @@
 
 #include "internals.h"
 
-void move_masked_irq(int irq)
+void irq_move_masked_irq(struct irq_data *idata)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_chip *chip = desc->irq_data.chip;
+	struct irq_desc *desc = irq_data_to_desc(idata);
+	struct irq_chip *chip = idata->chip;
 
-	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
+	if (likely(!irqd_is_setaffinity_pending(&desc->irq_data)))
 		return;
 
 	/*
 	 * Paranoia: cpu-local interrupts shouldn't be calling in here anyway.
 	 */
-	if (CHECK_IRQ_PER_CPU(desc->status)) {
+	if (!irqd_can_balance(&desc->irq_data)) {
 		WARN_ON(1);
 		return;
 	}
 
-	desc->status &= ~IRQ_MOVE_PENDING;
+	irqd_clr_move_pending(&desc->irq_data);
 
 	if (unlikely(cpumask_empty(desc->pending_mask)))
 		return;
@@ -53,15 +53,20 @@ void move_masked_irq(int irq)
 	cpumask_clear(desc->pending_mask);
 }
 
-void move_native_irq(int irq)
+void move_masked_irq(int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	irq_move_masked_irq(irq_get_irq_data(irq));
+}
+
+void irq_move_irq(struct irq_data *idata)
+{
+	struct irq_desc *desc = irq_data_to_desc(idata);
 	bool masked;
 
-	if (likely(!(desc->status & IRQ_MOVE_PENDING)))
+	if (likely(!irqd_is_setaffinity_pending(idata)))
 		return;
 
-	if (unlikely(desc->status & IRQ_DISABLED))
+	if (unlikely(desc->istate & IRQS_DISABLED))
 		return;
 
 	/*
@@ -69,10 +74,15 @@ void move_native_irq(int irq)
 	 * threaded interrupt with ONESHOT set, we can end up with an
 	 * interrupt storm.
 	 */
-	masked = desc->status & IRQ_MASKED;
+	masked = desc->istate & IRQS_MASKED;
 	if (!masked)
-		desc->irq_data.chip->irq_mask(&desc->irq_data);
-	move_masked_irq(irq);
+		idata->chip->irq_mask(idata);
+	irq_move_masked_irq(idata);
 	if (!masked)
-		desc->irq_data.chip->irq_unmask(&desc->irq_data);
+		idata->chip->irq_unmask(idata);
+}
+
+void move_native_irq(int irq)
+{
+	irq_move_irq(irq_get_irq_data(irq));
 }

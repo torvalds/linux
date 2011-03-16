@@ -8,6 +8,7 @@
  * For now it's included from <linux/irq.h>
  */
 
+struct irq_affinity_notify;
 struct proc_dir_entry;
 struct timer_rand_state;
 /**
@@ -18,13 +19,16 @@ struct timer_rand_state;
  * @handle_irq:		highlevel irq-events handler [if NULL, __do_IRQ()]
  * @action:		the irq action chain
  * @status:		status information
+ * @core_internal_state__do_not_mess_with_it: core internal status information
  * @depth:		disable-depth, for nested irq_disable() calls
  * @wake_depth:		enable depth, for multiple set_irq_wake() callers
  * @irq_count:		stats field to detect stalled irqs
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @lock:		locking for SMP
+ * @affinity_notify:	context for notification of affinity changes
  * @pending_mask:	pending rebalanced interrupts
+ * @threads_oneshot:	bitfield to handle shared oneshot threads
  * @threads_active:	number of irqaction threads currently running
  * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
  * @dir:		/proc/irq/ procfs entry
@@ -45,6 +49,7 @@ struct irq_desc {
 		struct {
 			unsigned int		irq;
 			unsigned int		node;
+			unsigned int		pad_do_not_even_think_about_it;
 			struct irq_chip		*chip;
 			void			*handler_data;
 			void			*chip_data;
@@ -59,9 +64,16 @@ struct irq_desc {
 	struct timer_rand_state *timer_rand_state;
 	unsigned int __percpu	*kstat_irqs;
 	irq_flow_handler_t	handle_irq;
+#ifdef CONFIG_IRQ_PREFLOW_FASTEOI
+	irq_preflow_handler_t	preflow_handler;
+#endif
 	struct irqaction	*action;	/* IRQ action list */
+#ifdef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+	unsigned int		status_use_accessors;
+#else
 	unsigned int		status;		/* IRQ status */
-
+#endif
+	unsigned int		core_internal_state__do_not_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
 	unsigned int		irq_count;	/* For detecting broken IRQs */
@@ -70,10 +82,12 @@ struct irq_desc {
 	raw_spinlock_t		lock;
 #ifdef CONFIG_SMP
 	const struct cpumask	*affinity_hint;
+	struct irq_affinity_notify *affinity_notify;
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_var_t		pending_mask;
 #endif
 #endif
+	unsigned long		threads_oneshot;
 	atomic_t		threads_active;
 	wait_queue_head_t       wait_for_threads;
 #ifdef CONFIG_PROC_FS
@@ -95,10 +109,51 @@ static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
-#define get_irq_desc_chip(desc)		((desc)->irq_data.chip)
-#define get_irq_desc_chip_data(desc)	((desc)->irq_data.chip_data)
-#define get_irq_desc_data(desc)		((desc)->irq_data.handler_data)
-#define get_irq_desc_msi(desc)		((desc)->irq_data.msi_desc)
+static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
+{
+	return &desc->irq_data;
+}
+
+static inline struct irq_chip *irq_desc_get_chip(struct irq_desc *desc)
+{
+	return desc->irq_data.chip;
+}
+
+static inline void *irq_desc_get_chip_data(struct irq_desc *desc)
+{
+	return desc->irq_data.chip_data;
+}
+
+static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
+{
+	return desc->irq_data.handler_data;
+}
+
+static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
+{
+	return desc->irq_data.msi_desc;
+}
+
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+static inline struct irq_chip *get_irq_desc_chip(struct irq_desc *desc)
+{
+	return irq_desc_get_chip(desc);
+}
+static inline void *get_irq_desc_data(struct irq_desc *desc)
+{
+	return irq_desc_get_handler_data(desc);
+}
+
+static inline void *get_irq_desc_chip_data(struct irq_desc *desc)
+{
+	return irq_desc_get_chip_data(desc);
+}
+
+static inline struct msi_desc *get_irq_desc_msi(struct irq_desc *desc)
+{
+	return irq_desc_get_msi_desc(desc);
+}
+#endif
 
 /*
  * Architectures call this to let the generic IRQ layer
@@ -123,6 +178,7 @@ static inline int irq_has_action(unsigned int irq)
 	return desc->action != NULL;
 }
 
+#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
 static inline int irq_balancing_disabled(unsigned int irq)
 {
 	struct irq_desc *desc;
@@ -130,6 +186,7 @@ static inline int irq_balancing_disabled(unsigned int irq)
 	desc = irq_to_desc(irq);
 	return desc->status & IRQ_NO_BALANCING_MASK;
 }
+#endif
 
 /* caller has locked the irq_desc and both params are valid */
 static inline void __set_irq_handler_unlocked(int irq,
@@ -140,6 +197,17 @@ static inline void __set_irq_handler_unlocked(int irq,
 	desc = irq_to_desc(irq);
 	desc->handle_irq = handler;
 }
+
+#ifdef CONFIG_IRQ_PREFLOW_FASTEOI
+static inline void
+__irq_set_preflow_handler(unsigned int irq, irq_preflow_handler_t handler)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	desc->preflow_handler = handler;
+}
+#endif
 #endif
 
 #endif
