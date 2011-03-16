@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/delay.h>
 #include "fcp.h"
 #include "lib.h"
 
