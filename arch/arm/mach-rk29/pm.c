@@ -7,6 +7,8 @@
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
+#include <linux/random.h> 
+#include <linux/crc32.h>
 #ifdef CONFIG_RK29_PWM_REGULATOR
 #include <linux/regulator/rk29-pwm-regulator.h>
 #endif
@@ -44,9 +46,11 @@ static inline void delay_300us(void)
 
 extern void ddr_suspend(void);
 extern void ddr_resume(void);
+extern void delayus(uint32_t us);
+extern void ddr_change_freq(uint32_t nMHz);
 
 #ifdef DEBUG
-static void inline printch(char byte)
+static void/* inline*/ __sramfunc printch(char byte)
 {
 	unsigned long flags;
 	u32 gate1, gate2;
@@ -79,7 +83,7 @@ static void inline printascii(const char *s)
 	}
 }
 
-static void inline printhex(unsigned int hex)
+static void /* inline*/ __sramfunc printhex(unsigned int hex)
 {
 	int i = 8;
 	printch('0');
@@ -132,11 +136,96 @@ static void __sramfunc rk29_set_core_voltage(int uV)
 	cru_writel(gate1, CRU_CLKGATE1_CON);
 }
 #endif /* CONFIG_RK29_PWM_REGULATOR */
+/*volatile __sramdata */int ddr_debug;
+module_param(ddr_debug, int, 0644);
+#if 1
+static int inline calc_crc32(u32 addr, size_t len)
+{
+     return crc32_le(~0,(const unsigned char *)addr,len);
+}
+void __sramfunc ddr_testmode(void)
+{    
+    int32_t g_crc1,g_crc2;
+    uint32_t nMHz;
+    uint32_t n = 0;
+    extern char _stext[], _etext[];
+    if(ddr_debug == 1)
+    {
+        for (;;)
+        {
+	        printch(' ');
+	        printch('8');
+	        printch('8');
+	        printch('8');
+	        printch(' ');
+            g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
+            nMHz = 333 + (random32()>>25);
+            if(nMHz > 402)
+                nMHz = 402;
+	        printhex(nMHz);
+	        printch(' ');
+	        printhex(n++);
+            //ddr_print("%s change freq to: %d MHz\n", __func__, nMHz);
+            ddr_change_freq(nMHz);
+            g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
+            if (g_crc1!=g_crc2)
+            {
+	            printch(' ');
+	            printch('f');
+	            printch('a');
+	            printch('i');
+	            printch('l');
+	        }
+               //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
+           //     printascii("change freq success\n");
+        }
+    }
+    else if(ddr_debug == 2)
+    {
+        for (;;)
+        {
+	        printch(' ');
+	        printch('9');
+	        printch('9');
+	        printch('9');
+	        printch(' ');
+            g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
+            nMHz = (random32()>>13);// 16.7s max
+            ddr_suspend();
+            delayus(nMHz);
+            ddr_resume();
+	        printhex(nMHz);
+	        printch(' ');
+	        printhex(n++);
+            g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
+            if (g_crc1!=g_crc2)
+            {
+	            printch(' ');
+	            printch('f');
+	            printch('a');
+	            printch('i');
+	            printch('l');
+	        }
+              // ddr_print("check image crc32 fail!, count:%d\n", n++);
+            //    printascii("self refresh fail\n");
+            //else
+               //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
+            //    printascii("self refresh success\n");
+        }
+    }
+    
+}
+#else
+void __sramfunc ddr_testmode(void)
+{}
 
+#endif 
 static void __sramfunc rk29_sram_suspend(void)
 {
 	u32 clksel0;
 
+    if(ddr_debug)
+        ddr_testmode();
 	printch('5');
 	ddr_suspend();
 
@@ -350,6 +439,7 @@ static int __init rk29_pm_init(void)
 
 	/* set idle function */
 	pm_idle = rk29_idle;
+	ddr_debug = 0;
 
 	return 0;
 }

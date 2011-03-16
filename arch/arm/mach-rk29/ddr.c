@@ -1,14 +1,14 @@
-/****************************************************************
-*    	CopyRight(C) 2010 by Rock-Chip Fuzhou
-*     All Rights Reserved
-*	File name	:ddr.c
-*	Description: ddr driver implement
-*	Author :hcy
-*	Create date :2011-01-04
-*	Change log:
-*	Current version:1.00   20110104 hcy 
-****************************************************************/
-
+/*
+ * arch/arm/mach-rk29/ddr.c
+ *
+ * Function Driver for DDR controller
+ *
+ * Copyright (C) 2011 Fuzhou Rockchip Electronics Co.,Ltd
+ * Author: 
+ * hcy@rock-chips.com
+ * yk@rock-chips.com
+ */
+ 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
@@ -19,6 +19,8 @@
 #include <linux/time.h>
 #include <linux/hrtimer.h>
 #include <linux/earlysuspend.h>
+#include <linux/random.h> 
+#include <linux/crc32.h>
 
 #include <mach/rk29_iomap.h>
 #include <mach/memory.h>
@@ -31,6 +33,8 @@
 
 
 #include <asm/io.h>
+
+#define ddr_print(x...) printk( "ddr init: " x )
 
 // save_sp  must be static global variable  
 
@@ -242,6 +246,25 @@ static unsigned long save_sp;
 #define DDR_CL(n)         (((n)&0x7)<<4)
 #define DDR2_WR(n)        ((((n)-1)&0x7)<<9)
 
+//mr0 for ddr3
+#define DDR3_BL8          (0)
+#define DDR3_BC4_8        (1)
+#define DDR3_BC4          (2)
+#define DDR3_BL(n)        (n)
+#define DDR3_CL(n)        ((((n-4)&0x7)<<4)|(((n-4)&0x8)>>1))
+#define DDR3_MR0_CL(n)    ((((n-4)&0x7)<<4)|(((n-4)&0x8)>>1))
+#define DDR3_MR0_WR(n)    (((n)&0x7)<<9)
+#define DDR3_MR0_DLL_RESET    (1<<8)
+#define DDR3_MR0_DLL_NOR   (0<<8)
+
+//mr1 for ddr3
+#define DDR3_MR1_AL(n)  ((n&0x7)<<3)
+#define DDR3_MR1_DIC(n) (((n&1)<<1)|((n&2)<<4))
+#define DDR3_MR1_RTT_NOM(n) (((n&1)<<2)|((n&2)<<5)|((n&4)<<7))
+
+//mr2 for ddr3
+#define DDR3_MR2_CWL(n) (((n-5)&0x7)<<3)
+
 //EMR;                    //Extended Mode Register      
 #define DDR2_STR_FULL     		(0)
 #define DDR2_STR_REDUCE   		(1<<1)
@@ -271,16 +294,45 @@ static unsigned long save_sp;
 #define INTRPT(n)                       (((n)&0x7)<<25)
 #define APQS                            		(1<<28)
 
+#define PLL_CLKR(i)	((((i) - 1) & 0x1f) << 10)
+
+#define PLL_CLKF(i)	((((i) - 1) & 0x7f) << 3)
+
+#define PLL_CLKOD(i)	(((i) & 0x03) << 1)
+
 //MMGCR;                  //Memory Manager General Configuration Register                
 #define PORT0_NORMAL_PRIO        	(0)
 #define PORT0_HIGH_PRIO             	(2)
 
-#define VCODEC_PRIO(n)                   (((n)&0x3)<<8)
-#define GPU_PRIO(n)                      (((n)&0x3)<<6)
-#define LCD_PRIO(n)                      (((n)&0x3)<<4)
-#define PERI_PRIO(n)                     (((n)&0x3)<<2)
-#define CPU_PRIO(n)                      (((n)&0x3)<<0)
+#define DDR3_800D   (0)     // 5-5-5
+#define DDR3_800E   (1)     // 6-6-6
+#define DDR3_1066E  (2)     // 6-6-6
+#define DDR3_1066F  (3)     // 7-7-7
+#define DDR3_1066G  (4)     // 8-8-8
+#define DDR3_1333F  (5)     // 7-7-7
+#define DDR3_1333G  (6)     // 8-8-8
+#define DDR3_1333H  (7)     // 9-9-9
+#define DDR3_1333J  (8)     // 10-10-10
+#define DDR3_1600G  (9)     // 8-8-8
+#define DDR3_1600H  (10)    // 9-9-9
+#define DDR3_1600J  (11)    // 10-10-10
+#define DDR3_1600K  (12)    // 11-11-11
+#define DDR3_1866J  (13)    // 10-10-10
+#define DDR3_1866K  (14)    // 11-11-11
+#define DDR3_1866L  (15)    // 12-12-12
+#define DDR3_1866M  (16)    // 13-13-13
+#define DDR3_2133K  (17)    // 11-11-11
+#define DDR3_2133L  (18)    // 12-12-12
+#define DDR3_2133M  (19)    // 13-13-13
+#define DDR3_2133N  (20)    // 14-14-14
+#define DDR3_DEFAULT (21)
+#define DDR3_NONE   (22)
 
+#ifdef CONFIG_RK29_DDR3_TYPE
+#define DDR3_TYPE CONFIG_RK29_DDR3_TYPE
+#else
+#define DDR3_TYPE   DDR3_DEFAULT//DDR3_NONE
+#endif
 /* DDR Controller register struct */
 typedef volatile struct DDR_REG_Tag
 {
@@ -352,487 +404,11 @@ typedef volatile struct tagCRU_REG
     volatile unsigned int CRU_SOFTRST_CON[3];
 } CRU_REG, *pCRU_REG;
 
-typedef enum tagDDRDLLMode
-{
-	DLL_BYPASS=0,
-	DLL_NORMAL
-}eDDRDLLMode_t;
+// controller base address
+#define pDDR_Reg 	    ((pDDR_REG_T)RK29_DDRC_BASE)
+#define pGRF_Reg        ((pREG_FILE)RK29_GRF_BASE)
+#define pSCU_Reg        ((pCRU_REG)RK29_CRU_BASE)
 
-
-#define pDDR_Reg 	((pDDR_REG_T)RK29_DDRC_BASE)
-
-#define pGRF_Reg       ((pREG_FILE)RK29_GRF_BASE)
-#define pSCU_Reg       ((pCRU_REG)RK29_CRU_BASE)
-
-//#define  read32(address)           (*((volatile unsigned int volatile*)(address)))
-//#define  write32(address, value)   (*((volatile unsigned int volatile*)(address)) = value)
-
-//u32 GetDDRCL(u32 newMHz);
-//void EnterDDRSelfRefresh(void);
-//void ExitDDRSelfRefresh(void);
-//void ChangeDDRFreqInSram(u32 oldMHz, u32 newMHz);
-
-
-static __sramdata u32 bFreqRaise;
-static __sramdata u32 capability;  // one chip cs capability
-
-//DDR2
-static __sramdata u32 tRFC;
-static __sramdata u32 tRFPRD;
-static __sramdata u32 tRTP;
-static __sramdata u32 tWTR;
-static __sramdata u32 tRAS;
-static __sramdata u32 tRRD;
-static __sramdata u32 tRC;
-static __sramdata u32 tFAW;
-//Mobile-DDR
-static __sramdata u32 tXS;
-static __sramdata u32 tXP;
-
-
-/****************************************************************************
-Internal sram us delay function
-Cpu highest frequency is 1.2 GHz
-1 cycle = 1/1.2 ns
-1 us = 1000 ns = 1000 * 1.2 cycles = 1200 cycles
-*****************************************************************************/
-void __sramfunc delayus(u32 us)
-{	
-     u32 count;
-     count = us * 533;
-     while(count--)  // 3 cycles
-	 	barrier();
-
-}
-
-void __sramfunc DDRUpdateRef(void)
-{
-    volatile u32 value = 0;
-
-    value = pDDR_Reg->DRR;
-    value &= ~(0xFFFF00);
-    pDDR_Reg->DRR = value | TRFPRD(tRFPRD);
-}
-
-
-void __sramfunc DDRUpdateTiming(void)
-{
-    u32 value;
-    u32 memType = (pDDR_Reg->DCR & 0x3);
-
-    value = pDDR_Reg->DRR;
-    value &= ~(0xFF);
-    pDDR_Reg->DRR = TRFC(tRFC) | value;
-    if(memType == DDRII)
-    {
-        value = pDDR_Reg->TPR[0];
-        value &= ~((0x7<<2)|(0x7<<5)|(0x1F<<16)|(0xF<<21)|(0x3F<<25));
-        pDDR_Reg->TPR[0] = value | TRTP(tRTP) | TWTR(tWTR) | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
-        value = pDDR_Reg->TPR[1];
-        value &= ~(0x3F<<3);
-        pDDR_Reg->TPR[1] = value | TFAW(tFAW);
-        value = pDDR_Reg->TPR[2];
-        value &= ~(0x1F<<10);
-        pDDR_Reg->TPR[2] = value | TXP(tXP);
-    }
-    else
-    {
-        value = pDDR_Reg->TPR[0];
-        value &= ~((0x1F<<16)|(0xF<<21)|(0x3F<<25));
-        pDDR_Reg->TPR[0] = value | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
-        value = pDDR_Reg->TPR[2];
-        value &= ~(0x7FFF);
-        pDDR_Reg->TPR[2] = value | TXS(tXS) | TXP(tXP);
-    }
-}
-
-
-u32 __sramfunc GetDDRCL(u32 newMHz)
-{
-    u32          memType = (pDDR_Reg->DCR & 0x3);
-
-    if(memType == DDRII)
-    {
-        if(newMHz <= 266)
-        {
-            return 4;
-        }
-        else if((newMHz > 266) && (newMHz <= 333))
-        {
-            return 5;
-        }
-        else if((newMHz > 333) && (newMHz <= 400))
-        {
-            return 6;
-        }
-        else // > 400MHz
-        {
-            return 7;
-        }
-    }
-    else
-    {
-        return 3;
-    }
-}
-
-/*-------------------------------------------------------------------
-Name    : EnterDDRSelfRefresh
-Desc    :   DDR enter self refresh
-Params  :
-Return  :
-Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
-             	2.  ddr enter sel-refresh code must not be in ddr 
--------------------------------------------------------------------*/
-void __sramfunc EnterDDRSelfRefresh(void)
-{    
-    pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
-    pDDR_Reg->CCR |= FLUSH;    //flush
-    delayus(10);
-    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x2<<27) | (0x1<<31));  //enter Self Refresh
-    delayus(10);
-    pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1f<<19);  //reset DLL
-    delayus(10);
-}
-
-/*-------------------------------------------------------------------
-Name   :   ExitDDRSelfRefresh
-Desc    :   DDR exit self refresh
-Params  :
-Return  :
-Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
-              2.  ddr enter sel-refresh code must not be in ddr 
--------------------------------------------------------------------*/
-void __sramfunc ExitDDRSelfRefresh(void)
-{
-	  pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1f<<19);  //de-reset DLL
-    delayus(10);     
-    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit
-    delayus(10); //wait for exit self refresh dll lock
-    while(1)
-    {
-        pDDR_Reg->DRR |= RD;  //auto refresh
-        pDDR_Reg->CCR |= DTT;
-        delayus(1000);
-        pDDR_Reg->DRR &= ~RD;
-        if(pDDR_Reg->CSR & (0x1<<20))
-        {
-        	  pDDR_Reg->CSR &=  ~(0x1<<20);
-        }
-        else
-        {
-            break;
-        }
-    }
-    pDDR_Reg->CCR |= HOSTEN;  //enable host port
-}
-
-static void DDRPreUpdateRef(u32 MHz)
-{
-    tRFPRD = ((59*MHz) >> 3) & 0x3FFF;  // 62/8 = 7.75us
-}
-
-static void DDRPreUpdateTiming(u32 MHz)
-{
-    u32 tmp;
-    u32 cl;
-    u32 memType = (pDDR_Reg->DCR & 0x3);
-
-    cl = GetDDRCL(MHz);
-    //时序
-    if(memType == DDRII)
-    {
-        if(capability <= 0x2000000)  // 256Mb
-        {
-            tmp = (75*MHz/1000) + ((((75*MHz)%1000) > 0) ? 1:0);
-        }
-        else if(capability <= 0x4000000) // 512Mb
-        {
-            tmp = (105*MHz/1000) + ((((105*MHz)%1000) > 0) ? 1:0);
-        }
-        else if(capability <= 0x8000000)  // 1Gb
-        {
-            tmp = (128*MHz/1000) + ((((128*MHz)%1000) > 0) ? 1:0);
-        }
-        else  // 4Gb
-        {
-            tmp = (328*MHz/1000) + ((((328*MHz)%1000) > 0) ? 1:0);
-        }
-        //tRFC = 75ns(256Mb)/105ns(512Mb)/127.5ns(1Gb)/327.5ns(4Gb)
-        tmp = (tmp > 0xFF) ? 0xFF : tmp;
-        tRFC = tmp;
-        // tRTP = 7.5ns
-        tmp = (8*MHz/1000) + ((((8*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 6) ? 6 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tRTP = tmp;
-        //tWTR = 10ns(DDR2-400), 7.5ns (DDR2-533/667/800)
-        if(MHz <= 200)
-        {
-            tmp = (10*MHz/1000) + ((((10*MHz)%1000) > 0) ? 1:0);
-        }
-        else
-        {
-            tmp = (8*MHz/1000) + ((((8*MHz)%1000) > 0) ? 1:0);
-        }
-        tmp = (tmp > 6) ? 6 : tmp;
-        tmp = (tmp < 1) ? 1 : tmp;
-        tWTR = tmp;
-        //tRAS_min = 45ns
-        tmp = (45*MHz/1000) + ((((45*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 31) ? 31 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tRAS = tmp;
-        // tRRD = 10ns
-        tmp = (10*MHz/1000) + ((((10*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 8) ? 8 : tmp;
-        tmp = (tmp < 1) ? 1 : tmp;
-        tRRD = tmp;
-        if(MHz <= 200)  //tRC = 65ns
-        {
-            tmp = (65*MHz/1000) + ((((65*MHz)%1000) > 0) ? 1:0);
-        }
-        else //tRC = 60ns
-        {
-            tmp = (60*MHz/1000) + ((((60*MHz)%1000) > 0) ? 1:0);
-        }
-        tmp = (tmp > 42) ? 42 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tRC = tmp;
-        //tFAW = 50ns
-        tmp = (50*MHz/1000) + ((((50*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 31) ? 31 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tFAW = tmp;
-        if(MHz <= 333)
-        {
-            tXP = 7;
-        }
-        else
-        {
-            tXP = 8;
-        }
-    }
-    else
-    {
-        if(capability <= 0x2000000)  // 128Mb,256Mb
-        {
-            // 128Mb,256Mb  tRFC=80ns
-            tmp = (80*MHz/1000) + ((((80*MHz)%1000) > 0) ? 1:0);
-        }
-        else if(capability <= 0x4000000) // 512Mb
-        {
-            // 512Mb  tRFC=110ns
-            tmp = (110*MHz/1000) + ((((110*MHz)%1000) > 0) ? 1:0);
-        }
-        else if(capability <= 0x8000000)  // 1Gb
-        {
-            // 1Gb tRFC=140ns
-            tmp = (140*MHz/1000) + ((((140*MHz)%1000) > 0) ? 1:0);
-        }
-        else  // 4Gb
-        {
-            // 大于1Gb没找到，按DDR2的 tRFC=328ns
-            tmp = (328*MHz/1000) + ((((328*MHz)%1000) > 0) ? 1:0);
-        }
-        //tRFC = 80ns(128Mb,256Mb)/110ns(512Mb)/140ns(1Gb)
-        tmp = (tmp > 0xFF) ? 0xFF : tmp;
-        tRFC = tmp;
-        if(MHz <= 100)  //tRAS_min = 50ns
-        {
-            tmp = (50*MHz/1000) + ((((50*MHz)%1000) > 0) ? 1:0);
-        }
-        else //tRAS_min = 45ns
-        {
-            tmp = (45*MHz/1000) + ((((45*MHz)%1000) > 0) ? 1:0);
-        }
-        tmp = (tmp > 31) ? 31 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tRAS = tmp;
-        // tRRD = 15ns
-        tmp = (15*MHz/1000) + ((((15*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 8) ? 8 : tmp;
-        tmp = (tmp < 1) ? 1 : tmp;
-        tRRD = tmp;
-        if(MHz <= 100)  //tRC = 80ns
-        {
-            tmp = (80*MHz/1000) + ((((80*MHz)%1000) > 0) ? 1:0);
-        }
-        else //tRC = 75ns
-        {
-            tmp = (75*MHz/1000) + ((((75*MHz)%1000) > 0) ? 1:0);
-        }
-        tmp = (tmp > 42) ? 42 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tRC = tmp;
-        //tXSR = 200 ns
-        tmp = (200*MHz/1000) + ((((200*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 1023) ? 1023 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tXS = tmp;
-        //tXP=25ns
-        tmp = (25*MHz/1000) + ((((25*MHz)%1000) > 0) ? 1:0);
-        tmp = (tmp > 31) ? 31 : tmp;
-        tmp = (tmp < 2) ? 2 : tmp;
-        tXP = tmp;
-    }
-}
-
-static void __sramfunc StopDDR(u32 oldMHz, u32 newMHz)
-{
-    pDDR_Reg->CCR |= FLUSH;    //flush
-    delayus(10);
-    pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
-
-    EnterDDRSelfRefresh();
-    if(oldMHz < newMHz)  //升频
-    {
-        DDRUpdateTiming();
-        bFreqRaise = 1;
-    }
-    else //降频
-    {
-        DDRUpdateRef();
-        bFreqRaise = 0;
-    }
-}
-
-static void __sramfunc ResumeDDR(u32 newMHz)
-{
-		u32 value;
-    u32 memType = (pDDR_Reg->DCR & 0x3);
-    u32 cl;
-    
-    if(bFreqRaise)  //升频
-    {
-        DDRUpdateRef();
-    }
-    else //降频
-    {
-        DDRUpdateTiming();
-    }
-    ExitDDRSelfRefresh();
-    
-    if(memType == DDRII)
-    {
-        cl = GetDDRCL(newMHz);
-
-        value = pDDR_Reg->TPR[0];
-        value &= ~((0xF<<8)|(0xF<<12));
-        pDDR_Reg->TPR[0] = value | TRP(cl) | TRCD(cl);
-        value = pDDR_Reg->TPR3;
-        value &= ~((0xF<<3)|(0xF<<7)|(0xF<<11));
-        pDDR_Reg->TPR3 = value | CL(cl) | CWL(cl-1) | WR(cl);
-        //set mode register cl
-        pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x5<<27) | (0x1<<31));  //precharge-all
-        value = pDDR_Reg->MR;
-        value &= ~((0x7<<4)|(0x7<<9));
-        pDDR_Reg->MR = value | DDR_CL(cl) | DDR2_WR(cl);        
-    }
-}
-
-/*-------------------------------------------------------------------
-Name    : PLLSetAUXFreq
-Desc    : 获取AUX频率
-Params  :
-Return  : AUX频率,  MHz 为单位
-Notes   :
--------------------------------------------------------------------*/
-void __sramfunc PLLSetAUXFreq(u32 freq)
-{
-		u32 value;
-		
-    // ddr slow
-    value = pSCU_Reg->CRU_MODE_CON;
-    value &=~(0x3<<6);
-    pSCU_Reg->CRU_MODE_CON = value;
-
-    delayus(10);
-    
-    pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15); //power down pll
-    delayus(1);  //delay at least 500ns
-    switch(freq)    //  实际频率要和系统确认 ?????????
-    {
-        case 136:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (44<<3) | (2<<1);  //high band 135
-            break;
-        case 200:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (66<<3) | (2<<1);  //high band 201
-            break;
-        case 266:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (43<<3) | (1<<1);  //high band 264
-            break;
-        case 333:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | ((54)<<3) | (1<<1);  //high band 330
-            break;
-        case 400:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | ((66)<<3) | (1<<1);  //high band 402
-            break;
-        case 533:
-            pSCU_Reg->CRU_DPLL_CON = (0x1<<16) | (0x1<<15) | (1<<10) | (43<<3) | (0<<1);  //high band 528
-            break;
-    }
-	
-    delayus(1);  //delay at least 500ns
-    pSCU_Reg->CRU_DPLL_CON &= ~(0x1<<15);
-    delayus(2000); // 7.2us*140=1.008ms
-
-    // ddr pll normal
-    value = pSCU_Reg->CRU_MODE_CON;
-    value &=~(0x3<<6);
-    value |= 0x1<<6;
-    pSCU_Reg->CRU_MODE_CON = value;
-
-    // ddr_pll_clk: clk_ddr=1:1 
-    value = pSCU_Reg->CRU_CLKSEL_CON[7];
-    value &=~(0x1F<<24);
-    value |= (0x0 <<26)| (0x0<<24);
-    pSCU_Reg->CRU_CLKSEL_CON[7] = value;
-}
-
-
-static void __sramfunc DDR_ChangePrior(void)
-{
-	// 4_VCODEC(2) 3_GPU(1) 2_LCD(0) 1_PERI(1) 0_CPU(2)
-       pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | VCODEC_PRIO(2) | GPU_PRIO(1) | LCD_PRIO(0) | PERI_PRIO(1) | CPU_PRIO(2);
-}
-
-//这个函数的前提条件是:
-// 1, 不能有DDR访问
-// 2, ChangeDDRFreq函数及函数中所调用到的所有函数都不放在DDR中
-// 3, 堆栈不放在DDR中
-// 4, 中断关闭，否则可能中断会引起访问DDR
-
-void __sramfunc ChangeDDRFreqInSram(u32 oldMHz, u32 newMHz)
-{
-    StopDDR(oldMHz, newMHz);
-    PLLSetAUXFreq(newMHz);
-    ResumeDDR(newMHz);
-}
-
-void __sramfunc DDRDLLSetMode(eDDRDLLMode_t DLLmode, u32 freq)
-{
-   if( DLLmode == DLL_BYPASS )
-   	{
-		pDDR_Reg->DLLCR09[0] |= 1<<28;
-		pDDR_Reg->DLLCR09[1] |= 1<<28;
-		pDDR_Reg->DLLCR09[2] |= 1<<28;
-		pDDR_Reg->DLLCR09[3] |= 1<<28;
-		pDDR_Reg->DLLCR09[4] |= 1<<28;
-	if(freq <= 100)
-	      pDDR_Reg->DLLCR &= ~(1<<23); 	
-	else if(freq <=200)
-	     pDDR_Reg->DLLCR |= 1<<23;
-   	}
-   else
-   	{
-	       pDDR_Reg->DLLCR09[0] &= ~(1<<28);
-		pDDR_Reg->DLLCR09[1] &= ~(1<<28);
-		pDDR_Reg->DLLCR09[2] &= ~(1<<28);
-		pDDR_Reg->DLLCR09[3] &= ~(1<<28);
-		pDDR_Reg->DLLCR09[4] &= ~(1<<28);   
-   	}   	
-}
 typedef struct DDR_CONFIG_Tag
 {
     u32 row;
@@ -840,6 +416,8 @@ typedef struct DDR_CONFIG_Tag
     u32 col;
     u32 config;
 }DDR_CONFIG_T;
+
+uint32_t ddrDataTraining[16];
 
 DDR_CONFIG_T    ddrConfig[3][10] = {
     //row, bank, col, config
@@ -874,6 +452,7 @@ DDR_CONFIG_T    ddrConfig[3][10] = {
         {13, 8, 10, (DIO_16 | DSIZE_512Mb)},
     },
     {
+    		//mobile DDR
         // x32
         {14, 4, 10, (DIO_32 | DSIZE_2Gb)},
         {13, 4, 10, (DIO_32 | DSIZE_1Gb)},
@@ -889,26 +468,685 @@ DDR_CONFIG_T    ddrConfig[3][10] = {
     }
 };
 
-/*-------------------------------------------------------------------
-Name    : DDR_Init
-Desc    :  ddr initialize
-Params  :
-Return  :
-Notes   : 
--------------------------------------------------------------------*/
-u32 ddrDataTraining[16];
-void DDR_Init(void)
+uint32_t __sramdata ddr3_cl_cwl[22][3]={
+/*   0~330           330~400         400~533        speed
+* tCK  >3             2.5~3          1.875~2.5
+*    cl<<16, cwl    cl<<16, cwl     cl<<16, cwl              */
+    {((5<<16)|5),   ((5<<16)|5),    0        }, //DDR3_800D
+    {((5<<16)|5),   ((6<<16)|5),    0        }, //DDR3_800E
+    
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_1066E
+    {((5<<16)|5),   ((6<<16)|5),    ((7<<16)|6) }, //DDR3_1066F
+    {((5<<16)|5),   ((6<<16)|5),    ((8<<16)|6) }, //DDR3_1066G
+    
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_1333F
+    {((5<<16)|5),   ((5<<16)|5),    ((7<<16)|6) }, //DDR3_1333G
+    {((5<<16)|5),   ((6<<16)|5),    ((7<<16)|6) }, //DDR3_1333H
+    {((5<<16)|5),   ((6<<16)|5),    ((8<<16)|6) }, //DDR3_1333J
+    
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_1600G
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_1600H
+    {((5<<16)|5),   ((5<<16)|5),    ((7<<16)|6) }, //DDR3_1600J
+    {((5<<16)|5),   ((6<<16)|5),    ((7<<16)|6) }, //DDR3_1600K
+    
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_1866J
+    {((5<<16)|5),   ((5<<16)|5),    ((7<<16)|6) }, //DDR3_1866K
+    {((6<<16)|5),   ((6<<16)|5),    ((7<<16)|6) }, //DDR3_1866L
+    {((6<<16)|5),   ((6<<16)|5),    ((8<<16)|6) }, //DDR3_1866M
+    
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_2133K
+    {((5<<16)|5),   ((5<<16)|5),    ((6<<16)|6) }, //DDR3_2133L
+    {((5<<16)|5),   ((5<<16)|5),    ((7<<16)|6) }, //DDR3_2133M
+    {((6<<16)|5),   ((6<<16)|5),    ((7<<16)|6) },  //DDR3_2133N
+
+    {((6<<16)|5),   ((6<<16)|5),    ((8<<16)|6) } //DDR3_DEFAULT
+
+}; 
+uint32_t __sramdata ddr3_tRC_tFAW[22]={
+/**    tRC    tFAW   */
+    ((50<<16)|50), //DDR3_800D
+    ((53<<16)|50), //DDR3_800E
+    
+    ((49<<16)|50), //DDR3_1066E
+    ((51<<16)|50), //DDR3_1066F
+    ((53<<16)|50), //DDR3_1066G
+    
+    ((47<<16)|45), //DDR3_1333F
+    ((48<<16)|45), //DDR3_1333G
+    ((50<<16)|45), //DDR3_1333H
+    ((51<<16)|45), //DDR3_1333J
+    
+    ((45<<16)|40), //DDR3_1600G
+    ((47<<16)|40), //DDR3_1600H
+    ((48<<16)|40), //DDR3_1600J
+    ((49<<16)|40), //DDR3_1600K
+    
+    ((45<<16)|35), //DDR3_1866J
+    ((46<<16)|35), //DDR3_1866K
+    ((47<<16)|35), //DDR3_1866L
+    ((48<<16)|35), //DDR3_1866M
+    
+    ((44<<16)|35), //DDR3_2133K
+    ((45<<16)|35), //DDR3_2133L
+    ((46<<16)|35), //DDR3_2133M
+    ((47<<16)|35), //DDR3_2133N
+    
+    ((53<<16)|50)  //DDR3_DEFAULT
+};
+static __sramdata uint32_t mem_type;
+static __sramdata uint32_t capability;  // one chip cs capability
+
+//DDR2
+static __sramdata uint32_t tRFC;
+static __sramdata uint32_t tRFPRD;
+static __sramdata uint32_t tRTP;
+static __sramdata uint32_t tWTR;
+static __sramdata uint32_t tRAS;
+static __sramdata uint32_t tRRD;
+static __sramdata uint32_t tRC;
+static __sramdata uint32_t tFAW;
+//Mobile-DDR
+static __sramdata uint32_t tXS;
+static __sramdata uint32_t tXP;
+//DDR3
+static __sramdata uint32_t tWR;
+static __sramdata uint32_t tWR_MR0;
+static __sramdata uint32_t cl;
+static __sramdata uint32_t cwl;
+
+static __sramdata uint32_t cpu_freq;
+
+
+
+/****************************************************************************
+Internal sram us delay function
+Cpu highest frequency is 1.2 GHz
+1 cycle = 1/1.2 ns
+1 us = 1000 ns = 1000 * 1.2 cycles = 1200 cycles
+*****************************************************************************/
+//static 
+void __sramlocalfunc delayus(uint32_t us)
+{	
+     uint32_t count;
+     if(cpu_freq == 600)
+         count = us * 150;//533;
+     else
+        count = us*6;
+     while(count--)  // 3 cycles
+	 	barrier();
+
+}
+
+static uint32_t __sramlocalfunc ddr_get_parameter(uint32_t nMHz)
 {
-    volatile u32 value = 0;
-	u32          addr;
-    u32          MHz;
+    uint32_t tmp;
+    uint32_t ret = 0;
+    if(nMHz>533)
+    {
+        ret = -1;
+        goto out;
+    }
+    if(mem_type == DDR3)
+    {
+        if(DDR3_TYPE == DDR3_NONE)
+        {
+            ret = -2;
+            goto out;
+        }
+        /* 
+         * tREFI, average periodic refresh interval, 7.8us max
+         */
+        tRFPRD = ((59*nMHz) >> 3) & 0x3FFF;  // 62/8 = 7.75us
+
+        if(capability <= 0x4000000)         // 512Mb 90ns
+        {
+            tmp = (90*nMHz+999)/1000;
+        }
+        else if(capability <= 0x8000000)    // 1Gb 110ns
+        {
+            tmp = (110*nMHz+999)/1000;
+        }
+        else if(capability <= 0x10000000)   // 2Gb 160ns
+        {
+            tmp = (160*nMHz+999)/1000;
+        }
+        else if(capability <= 0x20000000)   // 4Gb 300ns
+        {
+            tmp = (300*nMHz+999)/1000;
+        }
+        else    // 8Gb  350ns
+        {
+            tmp = (350*nMHz+999)/1000;
+        }
+        /*
+         * tRFC DRR[7:0]
+         */
+        if(tmp > 0xff)
+        {
+            ret = -2;
+            goto out;
+        }
+        else 
+            tRFC = tmp;
+        
+        /*
+         * tRTP = max(4nCK,7.5ns), TPR0[4:2], valid values are 2~6
+         * tWTR = max(4nCK,7.5ns), TPR0[7:5], valid values are 1~6
+         * clock must <533MHz, then tRTP=tWTR=4
+         */
+        tRTP = 4;
+        tWTR = 4;
+
+        /*
+         * tRAS = 33/37.5~9*tREFI, 
+         * TPR0[20:16], valid values are 2~31
+         */
+        tRAS = (38*nMHz+999)/1000;
+            
+        /*
+         * tRRD = max(4nCK, 7.5ns), DDR3-1066(1K), DDR3-1333(2K), DDR3-1600(2K)
+         *        max(4nCK, 10ns), DDR3-800(1K,2K), DDR3-1066(2K)
+         *        max(4nCK, 6ns), DDR3-1333(1K), DDR3-1600(1K)
+         *  
+         * TPR0[24:21], valid values are 1~8
+         */
+        tRRD = (10*nMHz+999)/1000;
+        
+        /*
+         * tRC  TPR0[30:25], valid values are 2~42
+         */
+        tRC = ((ddr3_tRC_tFAW[DDR3_TYPE]>>16)*nMHz+999)/1000;
+        
+        /*
+         * tFAW TPR1[8:3], valid values are 2~31
+         */
+        tFAW = ((ddr3_tRC_tFAW[DDR3_TYPE]&0x0ff)*nMHz+999)/1000;
+        
+        /*
+         * tXS TPR2[9:0], valid values are 2~1023
+         * MAX(tXS, tXSDLL) for DDR3, tXSDLL = tDLLK = 512CK
+         */
+        tXS = 512;
+        
+        /*
+         *       max(tXP, tXPDLL) for DDR3
+         * tXP = max(3nCK, 7.5ns), DDR3-800, DDR3-1066
+         *       max(3nCK, 6ns), DDR3-1333, DDR3-1600, DDR3-1866, DDR3-2133
+         * tXPDLL = max(10nCK, 24ns)
+         * TPR2[14:10], valid values are 2~31
+         */
+        if(nMHz <= 330)
+        {
+            tmp = 0;
+            tXP = 10;
+        }
+        else if(nMHz<=400)
+        {
+            tmp = 1;
+            tXP = 10;
+        }
+        else    // 533 MHz
+        {
+            tmp = 2;
+            tXP = 13;
+        }
+        
+        /*
+         * tWR TPR3[14:11], valid values are 2~12, 15ns
+         */
+        tWR = (15*nMHz+999)/1000;
+        if(tWR<9)
+            tWR_MR0 = tWR - 4;
+        else
+            tWR_MR0 = tWR>>1;
+
+        cl = ddr3_cl_cwl[DDR3_TYPE][tmp] >> 16;
+        cwl = ddr3_cl_cwl[DDR3_TYPE][tmp] & 0x0ff; 
+    }
+    else if(mem_type == DDRII)
+    {
+        /* 
+         * tREFI, average periodic refresh interval, 7.8us max
+         */
+        tRFPRD = ((59*nMHz) >> 3) & 0x3FFF;  // 62/8 = 7.75us
+        
+        if(capability <= 0x2000000)  // 256Mb
+        {
+            tmp = (75*nMHz/1000) + ((((75*nMHz)%1000) > 0) ? 1:0);
+        }
+        else if(capability <= 0x4000000) // 512Mb
+        {
+            tmp = (105*nMHz/1000) + ((((105*nMHz)%1000) > 0) ? 1:0);
+        }
+        else if(capability <= 0x8000000)  // 1Gb
+        {
+            tmp = (128*nMHz/1000) + ((((128*nMHz)%1000) > 0) ? 1:0);
+        }
+        else  // 4Gb
+        {
+            tmp = (328*nMHz/1000) + ((((328*nMHz)%1000) > 0) ? 1:0);
+        }
+        //tRFC = 75ns(256Mb)/105ns(512Mb)/127.5ns(1Gb)/327.5ns(4Gb)
+        tmp = (tmp > 0xFF) ? 0xFF : tmp;
+        tRFC = tmp;
+        // tRTP = 7.5ns
+        tmp = (8*nMHz/1000) + ((((8*nMHz)%1000) > 0) ? 1:0);
+        tmp = (tmp > 6) ? 6 : tmp;
+        tmp = (tmp < 2) ? 2 : tmp;
+        tRTP = tmp;
+        //tWTR = 10ns(DDR2-400), 7.5ns (DDR2-533/667/800)
+        if(nMHz <= 200)
+        {
+            tmp = (10*nMHz/1000) + ((((10*nMHz)%1000) > 0) ? 1:0);
+        }
+        else
+        {
+            tmp = (8*nMHz/1000) + ((((8*nMHz)%1000) > 0) ? 1:0);
+        }
+        tmp = (tmp > 6) ? 6 : tmp;
+        tmp = (tmp < 1) ? 1 : tmp;
+        tWTR = tmp;
+        //tRAS_min = 45ns
+        tmp = (45*nMHz/1000) + ((((45*nMHz)%1000) > 0) ? 1:0);
+        tmp = (tmp > 31) ? 31 : tmp;
+        tmp = (tmp < 2) ? 2 : tmp;
+        tRAS = tmp;
+        // tRRD = 10ns
+        tmp = (10*nMHz/1000) + ((((10*nMHz)%1000) > 0) ? 1:0);
+        tmp = (tmp > 8) ? 8 : tmp;
+        tmp = (tmp < 1) ? 1 : tmp;
+        tRRD = tmp;
+        if(nMHz <= 200)  //tRC = 65ns
+        {
+            tmp = (65*nMHz/1000) + ((((65*nMHz)%1000) > 0) ? 1:0);
+        }
+        else //tRC = 60ns
+        {
+            tmp = (60*nMHz/1000) + ((((60*nMHz)%1000) > 0) ? 1:0);
+        }
+        tmp = (tmp > 42) ? 42 : tmp;
+        tmp = (tmp < 2) ? 2 : tmp;
+        tRC = tmp;
+        //tFAW = 50ns
+        tmp = (50*nMHz/1000) + ((((50*nMHz)%1000) > 0) ? 1:0);
+        tmp = (tmp > 31) ? 31 : tmp;
+        tmp = (tmp < 2) ? 2 : tmp;
+        tFAW = tmp;
+        if(nMHz <= 333)
+        {
+            tXP = 7;
+        }
+        else
+        {
+            tXP = 8;
+        }
+	// don't need to modify tXS, tWR, tWR_MR0, cwl
+	
+        if(nMHz <= 266)
+        {
+            cl =  4;
+        }
+        else if((nMHz > 266) && (nMHz <= 333))
+        {
+            cl =  5;
+        }
+        else if((nMHz > 333) && (nMHz <= 400))
+        {
+            cl =  6;
+        }
+        else // > 400MHz
+        {
+            cl =  7;
+        } 
+        cwl = cl -1;
+    }
+    else
+    {
+    }
+out:
+    return ret;
+}
+static uint32_t __sramlocalfunc ddr_update_timing(void)
+{
+    uint32_t value;
+    if(mem_type == DDR3)
+    {
+        pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
+        value = pDDR_Reg->TPR[0];
+        value &= ~((0x7<<2)|(0x7<<5)|(0x1F<<16)|(0xF<<21)|(0x3F<<25));
+        pDDR_Reg->TPR[0] = value | TRTP(tRTP) | TWTR(tWTR) | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
+        value = pDDR_Reg->TPR[1];
+        value &= ~(0x3F<<3);
+        pDDR_Reg->TPR[1] = value | TFAW(tFAW);
+        // ddr3 tCKE should be tCKESR=tCKE+1nCK
+        pDDR_Reg->TPR[2] = TXS(tXS) | TXP(tXP) | TCKE(4);//0x198c8;//       
+        
+    }
+    else if(mem_type == DDRII)
+    {
+	      pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
+        value = pDDR_Reg->TPR[0];
+        value &= ~((0x7<<2)|(0x7<<5)|(0x1F<<16)|(0xF<<21)|(0x3F<<25));
+        pDDR_Reg->TPR[0] = value | TRTP(tRTP) | TWTR(tWTR) | TRAS(tRAS) | TRRD(tRRD) | TRC(tRC);
+        value = pDDR_Reg->TPR[1];
+        value &= ~(0x3F<<3);
+        pDDR_Reg->TPR[1] = value | TFAW(tFAW);
+        value = pDDR_Reg->TPR[2];
+        value &= ~(0x1F<<10);
+        pDDR_Reg->TPR[2] = value | TXP(tXP);
+    }
+    return 0;
+}
+
+static uint32_t __sramlocalfunc ddr_update_mr(void)
+{
+    uint32_t value;
+    value = pDDR_Reg->TPR[0];
+    value &= ~(0x0FF<<8);
+    pDDR_Reg->TPR[0] = value | TRP(cl) | TRCD(cl);
+    value = pDDR_Reg->TPR3;
+    value &= ~((0xF<<3)|(0xF<<7)|(0xF<<11));
+	
+    if(mem_type == DDR3)
+    {
+        pDDR_Reg->TPR3 = value | CL(cl) | CWL(cwl) | WR(tWR);
+        pDDR_Reg->MR = DDR3_BL8 | DDR3_CL(cl) | DDR3_MR0_WR(tWR_MR0)/*15 ns*/;
+        delayus(1);
+        pDDR_Reg->EMR2 = DDR3_MR2_CWL(cwl);
+    }
+    else if(mem_type == DDRII)
+    {
+        pDDR_Reg->TPR3 = value | CL(cl) | CWL(cwl) | WR(cl);
+        //set mode register cl
+        value = pDDR_Reg->MR;
+        value &= ~((0x7<<4)|(0x7<<9));
+        pDDR_Reg->MR = value | DDR_CL(cl) | DDR2_WR(cl);       
+    }
+    return 0;
+}
+static __sramdata uint32_t clkr;
+static __sramdata uint32_t clkf;
+static __sramdata uint32_t clkod;
+static __sramdata uint32_t pllband = 0;
+static uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
+{
+    uint32_t ret = 0;
+    uint32_t temp;
+    
+   // ddr_print("%s \n", __func__);
+    if(nMHz == 24)
+    {
+        ret = 24;
+        goto out;
+    }
+    
+    if(!set)
+    {
+        pllband = 0;
+        if (nMHz<38)
+        {
+            nMHz = 38;
+            clkr = 1;
+            clkod = 3;
+        }
+        else if(nMHz <= 75 )
+        {
+            clkr = 1;
+            clkod = 3;
+        }
+        else if (nMHz <= 150)
+        {
+            clkr = 2;
+            clkod = 2;
+        }
+        else if (nMHz <= 300)
+        {
+            clkr = 2;
+            clkod = 1;
+        }
+        else if(nMHz <= 600)
+        {
+            clkr = 2;
+            clkod = 0;
+        }
+        else
+        {
+            clkr = 2;
+            clkod = 0;
+            pllband = (0x01u<<16);
+        }
+        temp = nMHz*clkr*(1<<clkod);
+        clkf = temp/24;
+        //if(temp%24)
+        //    clkf += 1;
+        ret = ((24*clkf)>>(clkr-1))>>clkod;
+    }
+    else
+    {
+         // ddr slow
+        pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
+        
+        pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15); //power down pll
+        delayus(1);  //delay at least 500ns
+        pSCU_Reg->CRU_DPLL_CON = pllband | (0x1<<15) |(PLL_CLKR(clkr))|(PLL_CLKF(clkf))|(PLL_CLKOD(clkod));
+
+        delayus(1);  //delay at least 500ns
+        pSCU_Reg->CRU_DPLL_CON &= ~(0x1<<15);
+        delayus(2000); // 7.2us*140=1.008ms
+
+        // ddr pll normal
+        pSCU_Reg->CRU_MODE_CON |= 0x1<<6;
+
+        // ddr_pll_clk: clk_ddr=1:1 	
+        temp = pSCU_Reg->CRU_CLKSEL_CON[7];
+        temp &= ~(0x1F<<24);
+        pSCU_Reg->CRU_CLKSEL_CON[7] = temp;
+        delayus(1);
+    }
+out:
+    return ret;
+}
+
+
+void __sramlocalfunc ddr_selfrefresh_enter(void)
+{
+    /* 1. disables all host ports
+       2. Flushes the MCTL pipelines (including current automatically-scheduled refreshes)
+       3. Disables automatic scheduling of refreshes
+       4. Issues a Precharge All command
+       5. Waits for tRP clocks (programmable in TPR0 register)
+       6. Issues a Self-Refresh command
+       7. Clears the self-clearing bit DCR.EXE and waits for Mode Exit command
+     */
+    
+    //ddr_print("%s \n", __func__);
+    pDDR_Reg->CCR &= ~HOSTEN;  //disable host port
+    pDDR_Reg->CCR |= FLUSH;    //flush
+    delayus(10);
+    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x2<<27) | (0x1<<31));  //enter Self Refresh
+    delayus(1000); //wait for exit self refresh dll lock
+    pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1F<<19);  //reset DLL
+    delayus(10);
+}
+void __sramlocalfunc ddr_selfrefresh_exit(void)
+{
+    /* 1. Exits self-refresh when a Mode-Exit command is received
+       2. Waits for tXS clocks (programmable in TPR2 register)
+       3. Issues a Refresh command
+       4. Waits for tRFC clocks (programmable in DRR)
+       5. Clears the self-clearing bit DCR.EXE
+       6. Re-enables all host ports
+     */
+    pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1F<<19);
+    delayus(10); //wait for exit self refresh dll lock
+    pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit    
+    delayus(10);
+    ddr_update_mr();
+    delayus(10);
+
+    // SDRAM ZQ Calibration Short
+   // pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0xb<<27) | (0x1<<31)); 
+    //delayus(10); 
+
+refresh:
+    pDDR_Reg->DRR |= RD;
+    delayus(1);
+    pDDR_Reg->CCR |= DTT;
+    delayus(15);
+    //pDDR_Reg->DRR &= ~RD;
+    pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(8);
+    delayus(10);
+    pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
+    delayus(10);
+    if(pDDR_Reg->CSR & 0x100000)
+    {
+        pDDR_Reg->CSR &= ~0x100000;
+        goto refresh;
+    }
+    pDDR_Reg->CCR |= HOSTEN;  //enable host port
+}
+
+void __sramfunc ddr_change_freq(uint32_t nMHz)
+{
+    uint32_t ret;
+	volatile u32 n;	
+    unsigned long flags;
+    volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
+
+    local_irq_save(flags);
+    //ddr_print("%s enter\n", __func__);
+    cpu_freq = clk_get_rate(clk_get(NULL,"core"));
+    cpu_freq = cpu_freq/1000000;
+    
+    ret = ddr_set_pll(nMHz, 0);
+    ddr_get_parameter(ret);
+    //while(test);
+    /** 1. Make sure there is no host access */
+#if 1
+    flush_cache_all();
+    __cpuc_flush_kern_all();
+    __cpuc_flush_user_all();
+    DDR_SAVE_SP(save_sp);
+    n=temp[0];
+    barrier();
+    n=temp[1024];
+    barrier();
+    n=temp[1024*2];
+    barrier();
+    n=temp[1024*3];
+    barrier();
+    n= pDDR_Reg->CCR;
+    n= pSCU_Reg->CRU_SOFTRST_CON[0];
+    dsb();
+#endif
+    
+    /** 2. ddr enter self-refresh mode or precharge power-down mode */
+    ddr_selfrefresh_enter();
+    delayus(100);
+    /** 3. change frequence  */
+    ddr_set_pll(ret, 1);
+
+    /** 4. update timing&parameter  */
+    ddr_update_timing();
+
+    /** 5. Issues a Mode Exit command   */
+    ddr_selfrefresh_exit();
+	dsb(); 
+    
+    DDR_RESTORE_SP(save_sp);
+    local_irq_restore(flags);
+    //ddr_print("%s exit\n", __func__);
+}
+void __sramfunc ddr_suspend(void)
+{
+    uint32_t n;
+    volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
+
+    //cpu_freq = clk_get_rate(clk_get(NULL,"core"));
+    //cpu_freq = cpu_freq/1000000;
+    cpu_freq = 24;
+	
+    //while(test);
+    /** 1. Make sure there is no host access */
+    flush_cache_all();
+    __cpuc_flush_kern_all();
+    __cpuc_flush_user_all();
+
+    n=temp[0];
+    barrier();
+    n=temp[1024];
+    barrier();
+    n=temp[1024*2];
+    barrier();
+    n=temp[1024*3];
+    barrier();
+    n= pDDR_Reg->CCR;
+    n= pSCU_Reg->CRU_SOFTRST_CON[0];
+    dsb();
+
+    ddr_selfrefresh_enter();
+
+    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock  / DDR CPU AXI clock / DDR REG AXI clock
+    delayus(10);
+    // ddr slow
+    pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
+    delayus(10);	
+    pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15);  //power down DPLL
+    delayus(10);  //delay at least 500ns
+
+}
+void __sramfunc ddr_resume(void)
+{
+    uint32_t value;
+#if 1
+     pSCU_Reg->CRU_DPLL_CON &= ~(0x1 << 15);  //power on DPLL   
+    //   while(!(pGRF_Reg->GRF_SOC_CON[0] & (1<<28)));
+     delayus(200); // 7.2us*140=1.008ms // 锁定pll
+    // ddr pll normal
+    value = pSCU_Reg->CRU_MODE_CON;
+    value &=~(0x3<<6);
+    value |= 0x1<<6;
+    pSCU_Reg->CRU_MODE_CON = value;
+    delayus(10);	
+    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);  //enable DDR PHY clock / DDR CPU AXI clock / DDR REG AXI clock
+    delayus(10);    
+#endif
+
+    ddr_selfrefresh_exit();
+	dsb(); 
+}
+static void inline ddr_change_host_priority(void)
+{
+    /*
+        DMC AXI host N priority
+        00:higheset priority
+        01:second high priority
+        10:third high priority
+        
+        GRF_MEM_CON[1:0]: CPU       (host 0)
+                   [3:2]: PERI      (host 1)
+                   [5:4]: DISPLAY   (host 2)
+                   [7:6]: GPU       (host 3)
+                   [9:8]: VCODEC    (host 4)
+    */
+    pGRF_Reg->GRF_MEM_CON = (pGRF_Reg->GRF_MEM_CON & ~0x3FF) | ((2<<0)|(1<<2)|(0<<4)|(1<<6)|(2<<8));
+}
+static int __init ddr_probe(void)
+{
+    volatile uint32_t value = 0;
+	uint32_t          addr;
+    uint32_t          MHz;
     unsigned long Hz;
-    u32          memType = (pDDR_Reg->DCR & 0x3);  
-    u32          bw;
-    u32          col;
-    u32          row;
-    u32          bank;
-    u32          n;
+    uint32_t          bw;
+    uint32_t          col = 0;
+    uint32_t          row = 0;
+    uint32_t          bank = 0;
+    uint32_t          n;
+
+    ddr_print("%s \n", __func__);
+
+    mem_type = (pDDR_Reg->DCR & 0x3);
+//    ddr_debug = 0;
 
     // caculate aglined physical address 
     addr =  __pa((unsigned long)ddrDataTraining);
@@ -971,285 +1209,24 @@ void DDR_Init(void)
     }
     pDDR_Reg->DTAR = value;
 
-    if((memType == DDRII) || (memType == DDR3))
+    if((mem_type == DDRII) || (mem_type == DDR3))
     {
-        pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF)|AUTOPD;
+        pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF);// | AUTOPD;
     }
     else
     {
         pDDR_Reg->ALPMR = LPPERIOD_CLK_STOP(0xFF) | LPPERIOD_POWER_DOWN(0xFF) | AUTOCS | AUTOPD;
     }
-    DDR_ChangePrior();
+    ddr_change_host_priority();
     value = (((pDDR_Reg->DCR >> 7) & 0x7)+1) >> ((pDDR_Reg->DCR >> 2) & 0x3);
     capability = 0x800000 << (((pDDR_Reg->DCR >> 4) & 0x7) + value + ((pDDR_Reg->DCR >> 11) & 0x3));
 
     Hz = clk_get_rate(clk_get(NULL,"ddr"));
-    MHz = Hz/1000000;   //PLLGetDDRFreq()/1000;
-    printk("DDR_Init: freq=%dMHz\n", MHz);
-    if((memType == DDRII) || (memType == Mobile_DDR))
-    {
-    DDRPreUpdateRef(MHz);
-    DDRPreUpdateTiming(MHz);
-    DDRUpdateRef();
-    DDRUpdateTiming();
-    }
-	
-}
-
-/*-------------------------------------------------------------------
-Name    : DDR_ChangeFreq
-Desc    :  change ddr frequency 
-Params  :
-Return  :
-Notes   :  close interrupt before call it
-              open interrupt after call it
--------------------------------------------------------------------*/
-void DDR_ChangeFreq(u32 DDRoldMHz, u32 DDRnewMHz)
-{
-
-    DDRPreUpdateRef(DDRnewMHz);
-    DDRPreUpdateTiming(DDRnewMHz);	
-    DDR_SAVE_SP(save_sp);
-    flush_cache_all();      // 20100615,HSL@RK.
-    __cpuc_flush_user_all();
-    ChangeDDRFreqInSram(DDRoldMHz, DDRnewMHz);
-    DDR_RESTORE_SP(save_sp);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-
-/*-------------------------------------------------------------------
-Name    :  DDR_EnterSelfRefresh
-Desc    :   DDR enter self refresh call in ddr
-Params  :
-Return  :
-Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
-             	2.  ddr enter sel-refresh code must not be in ddr 
--------------------------------------------------------------------*/
-void __sramfunc DDR_EnterSelfRefresh(void)
-{
-    EnterDDRSelfRefresh();
-#if 1
-    pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock  / DDR CPU AXI clock / DDR REG AXI clock
-    delayus(10);
-    // ddr slow
-    pSCU_Reg->CRU_MODE_CON &=~(0x3<<6);
-    delayus(10);	
-    pSCU_Reg->CRU_DPLL_CON |= (0x1 << 15);  //power down DPLL
-    delayus(10);  //delay at least 500ns
-#endif
-}
-
-/*-------------------------------------------------------------------
-Name   :   DDR_ExitSelfRefresh
-Desc    :   DDR exit self refresh
-Params  :
-Return  :
-Notes   : 	1.  ddr enter sel-refresh must be after system enter idle ,after ddr enter sel-refresh must not access ddr 
-              2.  ddr enter sel-refresh code must not be in ddr 
--------------------------------------------------------------------*/
-void __sramfunc DDR_ExitSelfRefresh(void)
-{
-		u32 value;
-#if 1
-     pSCU_Reg->CRU_DPLL_CON &= ~(0x1 << 15);  //power on DPLL   
-    //   while(!(pGRF_Reg->GRF_SOC_CON[0] & (1<<28)));
-     delayus(200); // 7.2us*140=1.008ms // 锁定pll
-    // ddr pll normal
-    value = pSCU_Reg->CRU_MODE_CON;
-    value &=~(0x3<<6);
-    value |= 0x1<<6;
-    pSCU_Reg->CRU_MODE_CON = value;
-    delayus(10);	
-    pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);  //enable DDR PHY clock / DDR CPU AXI clock / DDR REG AXI clock
-    delayus(10);    
-#endif
-    ExitDDRSelfRefresh();
-
-}
- void preload_sram_addr(unsigned int vaddr)
-{
-	
-	__asm__(
-		"mcr p15,0,%0,c8,c5,1 \n\t"
-		"mcr p15,0,%1,c10,c0,1 \n\t"
-		"mcr p15,0,%0,c10,c1,1 \n\t"
-		"mcr p15,0,%2,c10,c0,1\n\t"
-		::"r"(vaddr) , "r"(0x00000001), "r"(0x08400000));
-}
-// consider  cpu prefetch、mmu cache
-static void __sramfunc do_selfrefreshtest(void)
-{
-	volatile u32 n;	
-	//local_flush_tlb_all();
-	//preload_sram_addr(0xff400000);
-	flush_cache_all();      // 20100615,HSL@RK.
-	__cpuc_flush_kern_all();
-       __cpuc_flush_user_all();
-
-	
-    //  pSCU_Reg->CRU_CLKGATE_CON[1] |= 1<<6; // disable DDR Periph clock
-   //   pSCU_Reg->CRU_CLKGATE_CON[3] |= 1<<1 |1<<11|1<<13|1<<16; // disable DDR LCDC / DDR VPU / DDR GPU clock
-	  	
-#if 1
-volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
-n=temp[0];
-barrier();
-n=temp[1024];
-barrier();
-n=temp[1024*2];
-barrier();
-n=temp[1024*3];
-barrier();
-
-
-
-#endif
-	n= pDDR_Reg->CCR;
-	n= pSCU_Reg->CRU_SOFTRST_CON[0];
-       dsb();
-	  
-   	DDR_EnterSelfRefresh();
-   	DDR_ExitSelfRefresh();
-	dsb(); 
-}
-
-static void selfrefreshtest(void)
-{
-	DDR_SAVE_SP(save_sp);
-	do_selfrefreshtest();
-   	DDR_RESTORE_SP(save_sp);
-}
-
-static void changefreqtest(u32 DDRnewMHz)
-{
-    u32 MHz;
-    u32 value =0;
-    unsigned long Hz;
-
-    Hz = clk_get_rate(clk_get(NULL,"ddr"));
-    MHz =  Hz /1000000; // PLLGetDDRFreq()/1000;
-    DDRPreUpdateRef(DDRnewMHz);
-    DDRPreUpdateTiming(DDRnewMHz);	
-    DDR_SAVE_SP(save_sp);
-    flush_cache_all();      // 20100615,HSL@RK.
-    __cpuc_flush_user_all();
-    ChangeDDRFreqInSram(MHz, DDRnewMHz);
-    DDRDLLSetMode(DLL_BYPASS,DDRnewMHz);
-    DDR_RESTORE_SP(save_sp);
-}
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-
-
-static __sramdata u32 gfreq = 0;
-static void suspend(struct early_suspend *h)
-{
-	u32 MHz;
-       unsigned long Hz;
-       unsigned long flags;
-	  
-      local_irq_save(flags);   
-      Hz = clk_get_rate(clk_get(NULL,"ddr"));
-      MHz =  Hz /1000000; 
-      gfreq = MHz;
-
-      udelay(1000);
-	  
-      DDR_ChangeFreq(MHz,200);
-
-      local_irq_restore(flags);
-
-     //printk("enter ddr early suspend\n");
-}
-
-static void resume(struct early_suspend *h)
-{
-
-      unsigned long flags;
-	  
-      local_irq_save(flags);
-
-      udelay(1000);
-	  
-      DDR_ChangeFreq(200,333);
-	  
-      local_irq_restore(flags);
-	  
-      //printk("enter ddr early suspend resume \n");  
-}
-
-struct early_suspend early_suspend_info = {
-	.suspend = suspend,
-	.resume = resume,
-	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB +1,
-};
-#endif
-
-
-void __sramfunc ddr_suspend(void)
-{
-	volatile u32 n;	
-	flush_cache_all();      // 20100615,HSL@RK.
-	__cpuc_flush_kern_all();
-       __cpuc_flush_user_all();
-
-	
-    //  pSCU_Reg->CRU_CLKGATE_CON[1] |= 1<<6; // disable DDR Periph clock
-   //   pSCU_Reg->CRU_CLKGATE_CON[3] |= 1<<1 |1<<11|1<<13|1<<16; // disable DDR LCDC / DDR VPU / DDR GPU clock
-	  	
-#if 1
-	volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
-	n=temp[0];
-	barrier();
-	n=temp[1024];
-	barrier();
-	n=temp[1024*2];
-	barrier();
-	n=temp[1024*3];
-	barrier();
-
-#endif
-	n= pDDR_Reg->CCR;
-	n= pSCU_Reg->CRU_SOFTRST_CON[0];
-      //	flush_cache_all();      // 20100615,HSL@RK.
-	//__cpuc_flush_kern_all();
-       //__cpuc_flush_user_all();
-       //barrier();
-       dsb();//dmb();	  
-   	DDR_EnterSelfRefresh();
-}
-
-void __sramfunc ddr_resume(void)
-{
-#if 0
-	unsigned long flags;
-	  
-      local_irq_save(flags);
-      udelay(1000);	  
-      DDR_ChangeFreq(200,333);	  
-      local_irq_restore(flags);
-#else
-   	DDR_ExitSelfRefresh();
-	dsb(); 
-#endif
-}
-
-static int __init ddr_update_freq(void)
-{
-
-  DDR_Init();
-   
-#if 0 //#ifdef CONFIG_HAS_EARLYSUSPEND
-	register_early_suspend(&early_suspend_info);
-#endif
-
-
-   
+    MHz = Hz/1000000;
+    
+    ddr_change_freq(MHz);
+    ddr_print("ddr pll freq=%dMHz\n", MHz);
 
    return 0;
 }
-
-core_initcall_sync(ddr_update_freq);
-//late_initcall(ddr_update_freq);
-
+core_initcall_sync(ddr_probe);
