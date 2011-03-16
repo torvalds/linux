@@ -4412,32 +4412,37 @@ int drbdd_init(struct drbd_thread *thi)
 
 /* ********* acknowledge sender ******** */
 
+static int got_conn_RqSReply(struct drbd_tconn *tconn, enum drbd_packet cmd)
+{
+	struct p_req_state_reply *p = &tconn->meta.rbuf.req_state_reply;
+	int retcode = be32_to_cpu(p->retcode);
+
+	if (retcode >= SS_SUCCESS) {
+		set_bit(CONN_WD_ST_CHG_OKAY, &tconn->flags);
+	} else {
+		set_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags);
+		conn_err(tconn, "Requested state change failed by peer: %s (%d)\n",
+			 drbd_set_st_err_str(retcode), retcode);
+	}
+	wake_up(&tconn->ping_wait);
+
+	return true;
+}
+
 static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 {
 	struct p_req_state_reply *p = &mdev->tconn->meta.rbuf.req_state_reply;
-	struct drbd_tconn *tconn = mdev->tconn;
-
 	int retcode = be32_to_cpu(p->retcode);
 
-	if (cmd == P_STATE_CHG_REPLY) {
-		if (retcode >= SS_SUCCESS) {
-			set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
-		} else {
-			set_bit(CL_ST_CHG_FAIL, &mdev->flags);
-			dev_err(DEV, "Requested state change failed by peer: %s (%d)\n",
-				drbd_set_st_err_str(retcode), retcode);
-		}
-		wake_up(&mdev->state_wait);
-	} else /* conn == P_CONN_ST_CHG_REPLY */ {
-		if (retcode >= SS_SUCCESS) {
-			set_bit(CONN_WD_ST_CHG_OKAY, &tconn->flags);
-		} else {
-			set_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags);
-			conn_err(tconn, "Requested state change failed by peer: %s (%d)\n",
-				 drbd_set_st_err_str(retcode), retcode);
-		}
-		wake_up(&tconn->ping_wait);
+	if (retcode >= SS_SUCCESS) {
+		set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
+	} else {
+		set_bit(CL_ST_CHG_FAIL, &mdev->flags);
+		dev_err(DEV, "Requested state change failed by peer: %s (%d)\n",
+			drbd_set_st_err_str(retcode), retcode);
 	}
+	wake_up(&mdev->state_wait);
+
 	return true;
 }
 
@@ -4743,7 +4748,7 @@ static struct asender_cmd asender_tbl[] = {
 	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), MDEV, { got_IsInSync } },
 	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), MDEV, { got_skip } },
 	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), MDEV, { got_NegRSDReply } },
-	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), MDEV, { got_RqSReply } },
+	[P_CONN_ST_CHG_REPLY]={ sizeof(struct p_req_state_reply), CONN, {.conn_fn = got_conn_RqSReply}},
 	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
 };
 
