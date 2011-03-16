@@ -1188,6 +1188,38 @@ out:
 	return physical_layer;
 }
 
+/**
+ *  ixgbe_set_lan_id_multi_port_pcie_82598 - Set LAN id for PCIe multiple
+ *  port devices.
+ *  @hw: pointer to the HW structure
+ *
+ *  Calls common function and corrects issue with some single port devices
+ *  that enable LAN1 but not LAN0.
+ **/
+static void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw)
+{
+	struct ixgbe_bus_info *bus = &hw->bus;
+	u16 pci_gen = 0;
+	u16 pci_ctrl2 = 0;
+
+	ixgbe_set_lan_id_multi_port_pcie(hw);
+
+	/* check if LAN0 is disabled */
+	hw->eeprom.ops.read(hw, IXGBE_PCIE_GENERAL_PTR, &pci_gen);
+	if ((pci_gen != 0) && (pci_gen != 0xFFFF)) {
+
+		hw->eeprom.ops.read(hw, pci_gen + IXGBE_PCIE_CTRL2, &pci_ctrl2);
+
+		/* if LAN0 is completely disabled force function to 0 */
+		if ((pci_ctrl2 & IXGBE_PCIE_CTRL2_LAN_DISABLE) &&
+		    !(pci_ctrl2 & IXGBE_PCIE_CTRL2_DISABLE_SELECT) &&
+		    !(pci_ctrl2 & IXGBE_PCIE_CTRL2_DUMMY_ENABLE)) {
+
+			bus->func = 0;
+		}
+	}
+}
+
 static struct ixgbe_mac_operations mac_ops_82598 = {
 	.init_hw		= &ixgbe_init_hw_generic,
 	.reset_hw		= &ixgbe_reset_hw_82598,
@@ -1199,7 +1231,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.get_mac_addr		= &ixgbe_get_mac_addr_generic,
 	.stop_adapter		= &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
-	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
+	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie_82598,
 	.read_analog_reg8	= &ixgbe_read_analog_reg8_82598,
 	.write_analog_reg8	= &ixgbe_write_analog_reg8_82598,
 	.setup_link		= &ixgbe_setup_mac_link_82598,

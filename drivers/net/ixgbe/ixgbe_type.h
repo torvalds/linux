@@ -1616,6 +1616,11 @@
 #define IXGBE_FLUDONE_ATTEMPTS 20000
 #endif
 
+#define IXGBE_PCIE_CTRL2                 0x5   /* PCIe Control 2 Offset */
+#define IXGBE_PCIE_CTRL2_DUMMY_ENABLE    0x8   /* Dummy Function Enable */
+#define IXGBE_PCIE_CTRL2_LAN_DISABLE     0x2   /* LAN PCI Disable */
+#define IXGBE_PCIE_CTRL2_DISABLE_SELECT  0x1   /* LAN Disable Select */
+
 #define IXGBE_SAN_MAC_ADDR_PORT0_OFFSET  0x0
 #define IXGBE_SAN_MAC_ADDR_PORT1_OFFSET  0x3
 #define IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP  0x1
