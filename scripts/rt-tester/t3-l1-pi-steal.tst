@@ -19,8 +19,6 @@
 # lockintnowait	lock nr (0-7)
 # lockcont	lock nr (0-7)
 # unlock	lock nr (0-7)
-# lockbkl	lock nr (0-7)
-# unlockbkl	lock nr (0-7)
 # signal	thread to signal (0-7)
 # reset		0
 # resetevent	0
@@ -39,9 +37,6 @@
 # blocked	lock nr (0-7)
 # blockedwake	lock nr (0-7)
 # unlocked	lock nr (0-7)
-# lockedbkl	dont care
-# blockedbkl	dont care
-# unlockedbkl	dont care
 # opcodeeq	command opcode or number
 # opcodelt	number
 # opcodegt	number

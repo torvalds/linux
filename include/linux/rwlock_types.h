@@ -43,14 +43,6 @@ typedef struct {
 				RW_DEP_MAP_INIT(lockname) }
 #endif
 
-/*
- * RW_LOCK_UNLOCKED defeat lockdep state tracking and is hence
- * deprecated.
- *
- * Please use DEFINE_RWLOCK() or __RW_LOCK_UNLOCKED() as appropriate.
- */
-#define RW_LOCK_UNLOCKED	__RW_LOCK_UNLOCKED(old_style_rw_init)
-
 #define DEFINE_RWLOCK(x)	rwlock_t x = __RW_LOCK_UNLOCKED(x)
 
 #endif /* __LINUX_RWLOCK_TYPES_H */
