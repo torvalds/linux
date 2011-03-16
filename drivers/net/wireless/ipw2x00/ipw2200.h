@@ -1299,8 +1299,6 @@ struct ipw_priv {
 	u8 direct_scan_ssid[IW_ESSID_MAX_SIZE];
 	u8 direct_scan_ssid_len;
 
-	struct workqueue_struct *workqueue;
-
 	struct delayed_work adhoc_check;
 	struct work_struct associate;
 	struct work_struct disassociate;
