@@ -1,7 +1,6 @@
 /*
  *  HID driver for Ortek PKB-1700/WKB-2000 (wireless keyboard + mouse trackpad).
- *  Fixes LogicalMaximum error in USB report description, see
- *  http://bugzilla.kernel.org/show_bug.cgi?id=14787
+ *  Fixes LogicalMaximum error in HID report description.
  *
  *  Copyright (c) 2010 Johnathon Harris <jmharris@gmail.com>
  */
