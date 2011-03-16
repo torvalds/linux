@@ -1163,8 +1163,8 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 	else
 		ov_oos_print(mdev);
 
-	ok = drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size,
-			      eq ? ID_IN_SYNC : ID_OUT_OF_SYNC);
+	ok = !drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size,
+			       eq ? ID_IN_SYNC : ID_OUT_OF_SYNC);
 
 	dec_unacked(mdev);
 

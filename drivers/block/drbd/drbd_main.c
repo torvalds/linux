@@ -1299,10 +1299,10 @@ int drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 		     sector_t sector, int blksize, u64 block_id)
 {
-	return !_drbd_send_ack(mdev, cmd,
-			       cpu_to_be64(sector),
-			       cpu_to_be32(blksize),
-			       cpu_to_be64(block_id));
+	return _drbd_send_ack(mdev, cmd,
+			      cpu_to_be64(sector),
+			      cpu_to_be32(blksize),
+			      cpu_to_be64(block_id));
 }
 
 int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
