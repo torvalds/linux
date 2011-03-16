@@ -32,7 +32,6 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	ei->sysctl_entry = table;
 
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
-	inode->i_flags |= S_PRIVATE; /* tell selinux to ignore this inode */
 	inode->i_mode = table->mode;
 	if (!table->child) {
 		inode->i_mode |= S_IFREG;

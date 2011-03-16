@@ -63,6 +63,7 @@ extern const struct xattr_handler reiserfs_xattr_trusted_handler;
 extern const struct xattr_handler reiserfs_xattr_security_handler;
 #ifdef CONFIG_REISERFS_FS_SECURITY
 int reiserfs_security_init(struct inode *dir, struct inode *inode,
+			   const struct qstr *qstr,
 			   struct reiserfs_security_handle *sec);
 int reiserfs_security_write(struct reiserfs_transaction_handle *th,
 			    struct inode *inode,
@@ -130,6 +131,7 @@ static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 #ifndef CONFIG_REISERFS_FS_SECURITY
 static inline int reiserfs_security_init(struct inode *dir,
 					 struct inode *inode,
+					 const struct qstr *qstr,
 					 struct reiserfs_security_handle *sec)
 {
 	return 0;
