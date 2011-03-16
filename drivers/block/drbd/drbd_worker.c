@@ -1264,7 +1264,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 		return 1;
 	}
 
-	ok = drbd_send_dblock(mdev, req);
+	ok = !drbd_send_dblock(mdev, req);
 	req_mod(req, ok ? HANDED_OVER_TO_NETWORK : SEND_FAILED);
 
 	return ok;

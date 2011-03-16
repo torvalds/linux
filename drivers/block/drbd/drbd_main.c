@@ -1537,14 +1537,15 @@ static u32 bio_flags_to_wire(struct drbd_conf *mdev, unsigned long bi_rw)
  */
 int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 {
-	int ok = 1;
+	int err;
 	struct p_data p;
 	unsigned int dp_flags = 0;
 	void *dgb;
 	int dgs;
 
-	if (drbd_get_data_sock(mdev->tconn))
-		return 0;
+	err = drbd_get_data_sock(mdev->tconn);
+	if (err)
+		return err;
 
 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
@@ -1562,14 +1563,14 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 
 	p.dp_flags = cpu_to_be32(dp_flags);
 	set_bit(UNPLUG_REMOTE, &mdev->flags);
-	ok = (sizeof(p) ==
-		drbd_send(mdev->tconn, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0));
-	if (ok && dgs) {
+	err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, &p,
+			    sizeof(p), dgs ? MSG_MORE : 0);
+	if (!err && dgs) {
 		dgb = mdev->tconn->int_dig_out;
 		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, dgb);
-		ok = dgs == drbd_send(mdev->tconn, mdev->tconn->data.socket, dgb, dgs, 0);
+		err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
-	if (ok) {
+	if (!err) {
 		/* For protocol A, we have to memcpy the payload into
 		 * socket buffers, as we may complete right away
 		 * as soon as we handed it over to tcp, at which point the data
@@ -1582,9 +1583,9 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		 * receiving side, we sure have detected corruption elsewhere.
 		 */
 		if (mdev->tconn->net_conf->wire_protocol == DRBD_PROT_A || dgs)
-			ok = !_drbd_send_bio(mdev, req->master_bio);
+			err = _drbd_send_bio(mdev, req->master_bio);
 		else
-			ok = !_drbd_send_zc_bio(mdev, req->master_bio);
+			err = _drbd_send_zc_bio(mdev, req->master_bio);
 
 		/* double check digest, sometimes buffers have been modified in flight. */
 		if (dgs > 0 && dgs <= 64) {
@@ -1604,7 +1605,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 
 	drbd_put_data_sock(mdev->tconn);
 
-	return ok;
+	return err;
 }
 
 /* answer packet, used to send data back for read requests:
