@@ -1421,9 +1421,10 @@ static int _drbd_no_send_page(struct drbd_conf *mdev, struct page *page,
 static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 		    int offset, size_t size, unsigned msg_flags)
 {
+	struct socket *socket = mdev->tconn->data.socket;
 	mm_segment_t oldfs = get_fs();
-	int sent, ok;
 	int len = size;
+	int err = -EIO;
 
 	/* e.g. XFS meta- & log-data is in slab pages, which have a
 	 * page_count of 0 and/or have PageSlab() set.
@@ -1432,25 +1433,25 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 	 * __page_cache_release a page that would actually still be referenced
 	 * by someone, leading to some obscure delayed Oops somewhere else. */
 	if (disable_sendpage || (page_count(page) < 1) || PageSlab(page))
-		return !_drbd_no_send_page(mdev, page, offset, size, msg_flags);
+		return _drbd_no_send_page(mdev, page, offset, size, msg_flags);
 
 	msg_flags |= MSG_NOSIGNAL;
 	drbd_update_congested(mdev->tconn);
 	set_fs(KERNEL_DS);
 	do {
-		sent = mdev->tconn->data.socket->ops->sendpage(mdev->tconn->data.socket, page,
-							offset, len,
-							msg_flags);
-		if (sent == -EAGAIN) {
-			if (we_should_drop_the_connection(mdev->tconn,
-							  mdev->tconn->data.socket))
-				break;
-			else
-				continue;
-		}
+		int sent;
+
+		sent = socket->ops->sendpage(socket, page, offset, len, msg_flags);
 		if (sent <= 0) {
+			if (sent == -EAGAIN) {
+				if (we_should_drop_the_connection(mdev->tconn, socket))
+					break;
+				continue;
+			}
 			dev_warn(DEV, "%s: size=%d len=%d sent=%d\n",
 			     __func__, (int)size, len, sent);
+			if (sent < 0)
+				err = sent;
 			break;
 		}
 		len    -= sent;
@@ -1459,10 +1460,11 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 	set_fs(oldfs);
 	clear_bit(NET_CONGESTED, &mdev->tconn->flags);
 
-	ok = (len == 0);
-	if (likely(ok))
-		mdev->send_cnt += size>>9;
-	return ok;
+	if (len == 0) {
+		err = 0;
+		mdev->send_cnt += size >> 9;
+	}
+	return err;
 }
 
 static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
@@ -1485,9 +1487,9 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 	int i;
 	/* hint all but last page with MSG_MORE */
 	__bio_for_each_segment(bvec, bio, i, 0) {
-		if (!_drbd_send_page(mdev, bvec->bv_page,
-				     bvec->bv_offset, bvec->bv_len,
-				     i == bio->bi_vcnt -1 ? 0 : MSG_MORE))
+		if (_drbd_send_page(mdev, bvec->bv_page,
+				    bvec->bv_offset, bvec->bv_len,
+				    i == bio->bi_vcnt -1 ? 0 : MSG_MORE))
 			return 0;
 	}
 	return 1;
@@ -1502,8 +1504,8 @@ static int _drbd_send_zc_ee(struct drbd_conf *mdev,
 	/* hint all but last page with MSG_MORE */
 	page_chain_for_each(page) {
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
-		if (!_drbd_send_page(mdev, page, 0, l,
-				page_chain_next(page) ? MSG_MORE : 0))
+		if (_drbd_send_page(mdev, page, 0, l,
+				    page_chain_next(page) ? MSG_MORE : 0))
 			return 0;
 		len -= l;
 	}
