@@ -37,6 +37,7 @@ static const struct omap_vfsm_instance_data omap4_vdd_mpu_vfsm_data = {
 };
 
 static struct omap_vdd_info omap4_vdd_mpu_info = {
+	.prm_irqst_mod = OMAP4430_PRM_OCP_SOCKET_INST,
 	.vp_data = &omap4_vp_mpu_data,
 	.vc_data = &omap4_vc_mpu_data,
 	.vfsm = &omap4_vdd_mpu_vfsm_data,
@@ -50,6 +51,7 @@ static const struct omap_vfsm_instance_data omap4_vdd_iva_vfsm_data = {
 };
 
 static struct omap_vdd_info omap4_vdd_iva_info = {
+	.prm_irqst_mod = OMAP4430_PRM_OCP_SOCKET_INST,
 	.vp_data = &omap4_vp_iva_data,
 	.vc_data = &omap4_vc_iva_data,
 	.vfsm = &omap4_vdd_iva_vfsm_data,
@@ -63,6 +65,7 @@ static const struct omap_vfsm_instance_data omap4_vdd_core_vfsm_data = {
 };
 
 static struct omap_vdd_info omap4_vdd_core_info = {
+	.prm_irqst_mod = OMAP4430_PRM_OCP_SOCKET_INST,
 	.vp_data = &omap4_vp_core_data,
 	.vc_data = &omap4_vc_core_data,
 	.vfsm = &omap4_vdd_core_vfsm_data,
@@ -81,9 +84,6 @@ static struct omap_vdd_info *omap4_vdd_info[] = {
 /* OMAP4 specific voltage init functions */
 static int __init omap44xx_voltage_early_init(void)
 {
-	s16 prm_mod = OMAP4430_PRM_DEVICE_INST;
-	s16 prm_irqst_ocp_mod = OMAP4430_PRM_OCP_SOCKET_INST;
-
 	if (!cpu_is_omap44xx())
 		return 0;
 
@@ -95,8 +95,7 @@ static int __init omap44xx_voltage_early_init(void)
 	omap4_vdd_iva_info.volt_data = omap44xx_vdd_iva_volt_data;
 	omap4_vdd_core_info.volt_data = omap44xx_vdd_core_volt_data;
 
-	return omap_voltage_early_init(prm_mod, prm_irqst_ocp_mod,
-				       omap4_vdd_info,
+	return omap_voltage_early_init(omap4_vdd_info,
 				       ARRAY_SIZE(omap4_vdd_info));
 };
 core_initcall(omap44xx_voltage_early_init);

@@ -31,6 +31,7 @@
  * XXX This stuff presumably belongs in the vc3xxx.c or vc.c file.
  */
 static const struct omap_vc_common_data omap4_vc_common = {
+	.prm_mod = OMAP4430_PRM_DEVICE_INST,
 	.smps_sa_reg = OMAP4_PRM_VC_SMPS_SA_OFFSET,
 	.smps_volra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_VOL_OFFSET,
 	.bypass_val_reg = OMAP4_PRM_VC_VAL_BYPASS_OFFSET,

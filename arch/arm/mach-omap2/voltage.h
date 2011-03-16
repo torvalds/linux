@@ -119,6 +119,7 @@ struct omap_volt_pmic_info {
  * @voltdm		: pointer to the voltage domain structure
  * @debug_dir		: debug directory for this voltage domain.
  * @curr_volt		: current voltage for this vdd.
+ * @prm_irqst_mod       : PRM module id used for PRM IRQ status register access
  * @vp_enabled		: flag to keep track of whether vp is enabled or not
  * @volt_scale		: API to scale the voltage of the vdd.
  */
@@ -133,6 +134,8 @@ struct omap_vdd_info {
 	struct dentry *debug_dir;
 	u32 curr_volt;
 	bool vp_enabled;
+
+	s16 prm_irqst_mod;
 	u32 (*read_reg) (u16 mod, u8 offset);
 	void (*write_reg) (u32 val, u16 mod, u8 offset);
 	int (*volt_scale) (struct omap_vdd_info *vdd,
@@ -151,8 +154,7 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		unsigned long volt);
 unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm);
 struct dentry *omap_voltage_get_dbgdir(struct voltagedomain *voltdm);
-int __init omap_voltage_early_init(s16 prm_mod, s16 prm_irqst_mod,
-				   struct omap_vdd_info *omap_vdd_array[],
+int __init omap_voltage_early_init(struct omap_vdd_info *omap_vdd_array[],
 				   u8 omap_vdd_count);
 #ifdef CONFIG_PM
 int omap_voltage_register_pmic(struct voltagedomain *voltdm,

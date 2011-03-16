@@ -42,6 +42,7 @@
  * @vpconfig_vlimitto_vddmin_shift: VDDMIN field shift in PRM_VP*_VLIMITTO reg
  * @vpconfig_vlimitto_vddmax_shift: VDDMAX field shift in PRM_VP*_VLIMITTO reg
  * @vpconfig_vlimitto_timeout_shift: TIMEOUT field shift in PRM_VP*_VLIMITTO reg
+ * @prm_mod: PRM module id used for PRM register access
  *
  * XXX It it not necessary to have both a mask and a shift for the same
  *     bitfield - remove one
@@ -54,6 +55,7 @@ struct omap_vp_common_data {
 	u32 vpconfig_initvdd;
 	u32 vpconfig_forceupdate;
 	u32 vpconfig_vpenable;
+	s16 prm_mod;
 	u8 vpconfig_erroroffset_shift;
 	u8 vpconfig_errorgain_shift;
 	u8 vpconfig_initvoltage_shift;
