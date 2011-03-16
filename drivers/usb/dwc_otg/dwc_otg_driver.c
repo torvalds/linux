@@ -1229,6 +1229,10 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
     dwc_otg_disable_global_interrupts(core_if);
     rk28_usb_suspend(0);
+    del_timer(&otg_dev->pcd->check_vbus_timer); 
+	
+	DWC_PRINT("CRU_CLKGATE1_CON: 0x%08x\n",dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x60)));
+	DWC_PRINT("USB_PHY_CON1:     0x%08x\n",dwc_read_reg32((uint32_t *)(USB_GRF_CON)));
     return 0;
 }
 #else
@@ -1265,6 +1269,7 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     /* Clear any pending interrupts */
     dwc_write_reg32( &global_regs->gintsts, 0xeFFFFFFF); 
     dwc_otg_enable_global_interrupts(core_if);
+    mod_timer(&otg_dev->pcd->check_vbus_timer , jiffies + (HZ<<2));
 
 //sendwakeup:        
     if(core_if->usb_wakeup)
