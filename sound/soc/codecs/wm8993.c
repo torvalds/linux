@@ -242,7 +242,7 @@ struct wm8993_priv {
 	int fll_src;
 };
 
-static int wm8993_volatile(unsigned int reg)
+static int wm8993_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8993_SOFTWARE_RESET:

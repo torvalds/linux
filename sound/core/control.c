@@ -466,6 +466,52 @@ error:
 }
 
 /**
+ * snd_ctl_activate_id - activate/inactivate the control of the given id
+ * @card: the card instance
+ * @id: the control id to activate/inactivate
+ * @active: non-zero to activate
+ *
+ * Finds the control instance with the given id, and activate or
+ * inactivate the control together with notification, if changed.
+ *
+ * Returns 0 if unchanged, 1 if changed, or a negative error code on failure.
+ */
+int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id,
+			int active)
+{
+	struct snd_kcontrol *kctl;
+	struct snd_kcontrol_volatile *vd;
+	unsigned int index_offset;
+	int ret;
+
+	down_write(&card->controls_rwsem);
+	kctl = snd_ctl_find_id(card, id);
+	if (kctl == NULL) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+	index_offset = snd_ctl_get_ioff(kctl, &kctl->id);
+	vd = &kctl->vd[index_offset];
+	ret = 0;
+	if (active) {
+		if (!(vd->access & SNDRV_CTL_ELEM_ACCESS_INACTIVE))
+			goto unlock;
+		vd->access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+	} else {
+		if (vd->access & SNDRV_CTL_ELEM_ACCESS_INACTIVE)
+			goto unlock;
+		vd->access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
+	}
+	ret = 1;
+ unlock:
+	up_write(&card->controls_rwsem);
+	if (ret > 0)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, id);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_ctl_activate_id);
+
+/**
  * snd_ctl_rename_id - replace the id of a control on the card
  * @card: the card instance
  * @src_id: the old id
