@@ -221,12 +221,7 @@ static void cancel_cmdid_data(struct nvme_queue *nvmeq, int cmdid)
 
 static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
 {
-	int qid, cpu = get_cpu();
-	if (cpu < ns->dev->queue_count)
-		qid = cpu + 1;
-	else
-		qid = (cpu % rounddown_pow_of_two(ns->dev->queue_count)) + 1;
-	return ns->dev->queues[qid];
+	return ns->dev->queues[get_cpu() + 1];
 }
 
 static void put_nvmeq(struct nvme_queue *nvmeq)
@@ -1314,6 +1309,11 @@ static int __devinit nvme_setup_io_queues(struct nvme_dev *dev)
 		if (!dev->queues[i + 1])
 			return -ENOMEM;
 		dev->queue_count++;
+	}
+
+	for (; i < num_possible_cpus(); i++) {
+		int target = i % rounddown_pow_of_two(dev->queue_count - 1);
+		dev->queues[i + 1] = dev->queues[target + 1];
 	}
 
 	return 0;
