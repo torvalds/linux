@@ -449,32 +449,32 @@ int isci_request_execute(
 			list_add(&request->dev_node,
 				 &isci_device->reqs_in_process);
 
-			if (status ==
-				SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
-				/* Signal libsas that we need the SCSI error
-				 * handler thread to work on this I/O and that
-				 * we want a device reset.
-				 */
-				isci_request_signal_device_reset(request);
-
-				/* Change the status, since we are holding
-				 * the I/O until it is managed by the SCSI
-				 * error handler.
-				 */
-				status = SCI_SUCCESS;
-			}
-			else
+			if (status == SCI_SUCCESS) {
 				/* Save the tag for possible task mgmt later. */
 				request->io_tag = scic_io_request_get_io_tag(
 						     request->sci_request_handle);
-
-
+			}
 		} else
 			dev_warn(&isci_host->pdev->dev,
 				 "%s: failed request start\n",
 				 __func__);
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+
+		if (status ==
+		    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
+			/* Signal libsas that we need the SCSI error
+			* handler thread to work on this I/O and that
+			* we want a device reset.
+			*/
+			isci_request_signal_device_reset(request);
+
+			/* Change the status, since we are holding
+			* the I/O until it is managed by the SCSI
+			* error handler.
+			*/
+			status = SCI_SUCCESS;
+		}
 
 	} else
 		dev_warn(&isci_host->pdev->dev,
