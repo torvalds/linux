@@ -1500,16 +1500,19 @@ static int _drbd_send_zc_ee(struct drbd_conf *mdev,
 {
 	struct page *page = peer_req->pages;
 	unsigned len = peer_req->i.size;
+	int err;
 
 	/* hint all but last page with MSG_MORE */
 	page_chain_for_each(page) {
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
-		if (_drbd_send_page(mdev, page, 0, l,
-				    page_chain_next(page) ? MSG_MORE : 0))
-			return 0;
+
+		err = _drbd_send_page(mdev, page, 0, l,
+				      page_chain_next(page) ? MSG_MORE : 0);
+		if (err)
+			return err;
 		len -= l;
 	}
-	return 1;
+	return 0;
 }
 
 static u32 bio_flags_to_wire(struct drbd_conf *mdev, unsigned long bi_rw)
@@ -1634,7 +1637,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 		ok = dgs == drbd_send(mdev->tconn, mdev->tconn->data.socket, dgb, dgs, 0);
 	}
 	if (ok)
-		ok = _drbd_send_zc_ee(mdev, peer_req);
+		ok = !_drbd_send_zc_ee(mdev, peer_req);
 
 	drbd_put_data_sock(mdev->tconn);
 
