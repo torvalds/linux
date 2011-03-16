@@ -72,10 +72,6 @@
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
 
-#ifdef CONFIG_X86_32
-u8 apicid_2_node[MAX_APICID];
-#endif
-
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
@@ -138,62 +134,6 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 atomic_t init_deasserted;
-
-#if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
-/* which node each logical CPU is on */
-int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_to_node_map);
-
-/* set up a mapping between cpu and node. */
-static void map_cpu_to_node(int cpu, int node)
-{
-	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
-	cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = node;
-}
-
-/* undo a mapping between cpu and node. */
-static void unmap_cpu_to_node(int cpu)
-{
-	int node;
-
-	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
-	for (node = 0; node < MAX_NUMNODES; node++)
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = 0;
-}
-#else /* !(CONFIG_NUMA && CONFIG_X86_32) */
-#define map_cpu_to_node(cpu, node)	({})
-#define unmap_cpu_to_node(cpu)	({})
-#endif
-
-#ifdef CONFIG_X86_32
-static int boot_cpu_logical_apicid;
-
-u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly =
-					{ [0 ... NR_CPUS-1] = BAD_APICID };
-
-static void map_cpu_to_logical_apicid(void)
-{
-	int cpu = smp_processor_id();
-	int apicid = logical_smp_processor_id();
-	int node = apic->apicid_to_node(apicid);
-
-	if (!node_online(node))
-		node = first_online_node;
-
-	cpu_2_logical_apicid[cpu] = apicid;
-	map_cpu_to_node(cpu, node);
-}
-
-void numa_remove_cpu(int cpu)
-{
-	cpu_2_logical_apicid[cpu] = BAD_APICID;
-	unmap_cpu_to_node(cpu);
-}
-#else
-#define map_cpu_to_logical_apicid()  do {} while (0)
-#endif
 
 /*
  * Report back to the Boot Processor.
@@ -262,7 +202,6 @@ static void __cpuinit smp_callin(void)
 		apic->smp_callin_clear_local_apic();
 	setup_local_APIC();
 	end_local_APIC_setup();
-	map_cpu_to_logical_apicid();
 
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
@@ -397,6 +336,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 
 			if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
 				if (c->phys_proc_id == o->phys_proc_id &&
+				    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i) &&
 				    c->compute_unit_id == o->compute_unit_id)
 					link_thread_siblings(cpu, i);
 			} else if (c->phys_proc_id == o->phys_proc_id &&
@@ -951,7 +891,6 @@ static __init void disable_smp(void)
 		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	else
 		physid_set_mask_of_physid(0, &phys_cpu_present_map);
-	map_cpu_to_logical_apicid();
 	cpumask_set_cpu(0, cpu_sibling_mask(0));
 	cpumask_set_cpu(0, cpu_core_mask(0));
 }
@@ -1087,9 +1026,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	smp_store_cpu_info(0); /* Final full version of the data */
 	cpumask_copy(cpu_callin_mask, cpumask_of(0));
 	mb();
-#ifdef CONFIG_X86_32
-	boot_cpu_logical_apicid = logical_smp_processor_id();
-#endif
+
 	current_thread_info()->cpu = 0;  /* needed? */
 	for_each_possible_cpu(i) {
 		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
@@ -1129,8 +1066,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		enable_IO_APIC();
 
 	bsp_end_local_APIC_setup();
-
-	map_cpu_to_logical_apicid();
 
 	if (apic->setup_portio_remap)
 		apic->setup_portio_remap();

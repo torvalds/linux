@@ -9,23 +9,20 @@ struct amd_nb_bus_dev_range {
 	u8 dev_limit;
 };
 
-extern struct pci_device_id amd_nb_misc_ids[];
+extern const struct pci_device_id amd_nb_misc_ids[];
 extern const struct amd_nb_bus_dev_range amd_nb_bus_dev_ranges[];
 struct bootnode;
 
 extern int early_is_amd_nb(u32 value);
 extern int amd_cache_northbridges(void);
 extern void amd_flush_garts(void);
-extern int amd_numa_init(unsigned long start_pfn, unsigned long end_pfn);
-extern int amd_scan_nodes(void);
-
-#ifdef CONFIG_NUMA_EMU
-extern void amd_fake_nodes(const struct bootnode *nodes, int nr_nodes);
-extern void amd_get_nodes(struct bootnode *nodes);
-#endif
+extern int amd_numa_init(void);
+extern int amd_get_subcaches(int);
+extern int amd_set_subcaches(int, int);
 
 struct amd_northbridge {
 	struct pci_dev *misc;
+	struct pci_dev *link;
 };
 
 struct amd_northbridge_info {
@@ -37,6 +34,7 @@ extern struct amd_northbridge_info amd_northbridges;
 
 #define AMD_NB_GART			0x1
 #define AMD_NB_L3_INDEX_DISABLE		0x2
+#define AMD_NB_L3_PARTITIONING		0x4
 
 #ifdef CONFIG_AMD_NB
 
