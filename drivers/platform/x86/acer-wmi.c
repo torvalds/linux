@@ -22,6 +22,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -45,12 +47,6 @@
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("Acer Laptop WMI Extras Driver");
 MODULE_LICENSE("GPL");
-
-#define ACER_LOGPREFIX "acer-wmi: "
-#define ACER_ERR KERN_ERR ACER_LOGPREFIX
-#define ACER_NOTICE KERN_NOTICE ACER_LOGPREFIX
-#define ACER_INFO KERN_INFO ACER_LOGPREFIX
-#define ACER_WARNING KERN_WARNING ACER_LOGPREFIX
 
 /*
  * Magic Number
@@ -845,7 +841,7 @@ static void type_aa_dmi_decode(const struct dmi_header *header, void *dummy)
 	has_type_aa = true;
 	type_aa = (struct hotkey_function_type_aa *) header;
 
-	printk(ACER_INFO "Function bitmap for Communication Button: 0x%x\n",
+	pr_info("Function bitmap for Communication Button: 0x%x\n",
 		type_aa->commun_func_bitmap);
 
 	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_WIRELESS)
@@ -1037,7 +1033,7 @@ static int __devinit acer_backlight_init(struct device *dev)
 	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops,
 				       &props);
 	if (IS_ERR(bd)) {
-		printk(ACER_ERR "Could not register Acer backlight device\n");
+		pr_err("Could not register Acer backlight device\n");
 		acer_backlight_device = NULL;
 		return PTR_ERR(bd);
 	}
@@ -1084,8 +1080,7 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 8) {
-		printk(ACER_WARNING "Unknown buffer length %d\n",
-			obj->buffer.length);
+		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1094,7 +1089,7 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 	kfree(obj);
 
 	if (return_value.error_code || return_value.ec_return_value)
-		printk(ACER_WARNING "Get Device Status failed: "
+		pr_warning("Get Device Status failed: "
 			"0x%x - 0x%x\n", return_value.error_code,
 			return_value.ec_return_value);
 	else
@@ -1310,7 +1305,7 @@ static void acer_wmi_notify(u32 value, void *context)
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
-		printk(ACER_WARNING "bad event status 0x%x\n", status);
+		pr_warning("bad event status 0x%x\n", status);
 		return;
 	}
 
@@ -1319,14 +1314,12 @@ static void acer_wmi_notify(u32 value, void *context)
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		printk(ACER_WARNING "Unknown response received %d\n",
-			obj->type);
+		pr_warning("Unknown response received %d\n", obj->type);
 		kfree(obj);
 		return;
 	}
 	if (obj->buffer.length != 8) {
-		printk(ACER_WARNING "Unknown buffer length %d\n",
-			obj->buffer.length);
+		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return;
 	}
@@ -1338,11 +1331,11 @@ static void acer_wmi_notify(u32 value, void *context)
 	case WMID_HOTKEY_EVENT:
 		if (!sparse_keymap_report_event(acer_wmi_input_dev,
 				return_value.key_num, 1, true))
-			printk(ACER_WARNING "Unknown key number - 0x%x\n",
+			pr_warning("Unknown key number - 0x%x\n",
 				return_value.key_num);
 		break;
 	default:
-		printk(ACER_WARNING "Unknown function number - %d - %d\n",
+		pr_warning("Unknown function number - %d - %d\n",
 			return_value.function, return_value.key_num);
 		break;
 	}
@@ -1371,8 +1364,7 @@ wmid3_set_lm_mode(struct lm_input_params *params,
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 4) {
-		printk(ACER_WARNING "Unknown buffer length %d\n",
-		       obj->buffer.length);
+		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1397,11 +1389,11 @@ static int acer_wmi_enable_ec_raw(void)
 	status = wmid3_set_lm_mode(&params, &return_value);
 
 	if (return_value.error_code || return_value.ec_return_value)
-		printk(ACER_WARNING "Enabling EC raw mode failed: "
+		pr_warning("Enabling EC raw mode failed: "
 		       "0x%x - 0x%x\n", return_value.error_code,
 		       return_value.ec_return_value);
 	else
-		printk(ACER_INFO "Enabled EC raw mode");
+		pr_info("Enabled EC raw mode");
 
 	return status;
 }
@@ -1420,7 +1412,7 @@ static int acer_wmi_enable_lm(void)
 	status = wmid3_set_lm_mode(&params, &return_value);
 
 	if (return_value.error_code || return_value.ec_return_value)
-		printk(ACER_WARNING "Enabling Launch Manager failed: "
+		pr_warning("Enabling Launch Manager failed: "
 		       "0x%x - 0x%x\n", return_value.error_code,
 		       return_value.ec_return_value);
 
@@ -1650,7 +1642,7 @@ static int create_debugfs(void)
 {
 	interface->debug.root = debugfs_create_dir("acer-wmi", NULL);
 	if (!interface->debug.root) {
-		printk(ACER_ERR "Failed to create debugfs directory");
+		pr_err("Failed to create debugfs directory");
 		return -ENOMEM;
 	}
 
@@ -1671,11 +1663,10 @@ static int __init acer_wmi_init(void)
 {
 	int err;
 
-	printk(ACER_INFO "Acer Laptop ACPI-WMI Extras\n");
+	pr_info("Acer Laptop ACPI-WMI Extras\n");
 
 	if (dmi_check_system(acer_blacklist)) {
-		printk(ACER_INFO "Blacklisted hardware detected - "
-				"not loading\n");
+		pr_info("Blacklisted hardware detected - not loading\n");
 		return -ENODEV;
 	}
 
@@ -1692,12 +1683,11 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(WMID_GUID2) && interface) {
 		if (ACPI_FAILURE(WMID_set_capabilities())) {
-			printk(ACER_ERR "Unable to detect available WMID "
-					"devices\n");
+			pr_err("Unable to detect available WMID devices\n");
 			return -ENODEV;
 		}
 	} else if (!wmi_has_guid(WMID_GUID2) && interface) {
-		printk(ACER_ERR "No WMID device detection method found\n");
+		pr_err("No WMID device detection method found\n");
 		return -ENODEV;
 	}
 
@@ -1705,8 +1695,7 @@ static int __init acer_wmi_init(void)
 		interface = &AMW0_interface;
 
 		if (ACPI_FAILURE(AMW0_set_capabilities())) {
-			printk(ACER_ERR "Unable to detect available AMW0 "
-					"devices\n");
+			pr_err("Unable to detect available AMW0 devices\n");
 			return -ENODEV;
 		}
 	}
@@ -1715,8 +1704,7 @@ static int __init acer_wmi_init(void)
 		AMW0_find_mailled();
 
 	if (!interface) {
-		printk(ACER_INFO "No or unsupported WMI interface, unable to "
-				"load\n");
+		pr_err("No or unsupported WMI interface, unable to load\n");
 		return -ENODEV;
 	}
 
@@ -1724,22 +1712,22 @@ static int __init acer_wmi_init(void)
 
 	if (acpi_video_backlight_support() && has_cap(ACER_CAP_BRIGHTNESS)) {
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
-		printk(ACER_INFO "Brightness must be controlled by "
+		pr_info("Brightness must be controlled by "
 		       "generic video driver\n");
 	}
 
 	if (wmi_has_guid(WMID_GUID3)) {
 		if (ec_raw_mode) {
 			if (ACPI_FAILURE(acer_wmi_enable_ec_raw())) {
-				printk(ACER_ERR "Cannot enable EC raw mode\n");
+				pr_err("Cannot enable EC raw mode\n");
 				return -ENODEV;
 			}
 		} else if (ACPI_FAILURE(acer_wmi_enable_lm())) {
-			printk(ACER_ERR "Cannot enable Launch Manager mode\n");
+			pr_err("Cannot enable Launch Manager mode\n");
 			return -ENODEV;
 		}
 	} else if (ec_raw_mode) {
-		printk(ACER_INFO "No WMID EC raw mode enable method\n");
+		pr_info("No WMID EC raw mode enable method\n");
 	}
 
 	if (wmi_has_guid(ACERWMID_EVENT_GUID)) {
@@ -1750,7 +1738,7 @@ static int __init acer_wmi_init(void)
 
 	err = platform_driver_register(&acer_platform_driver);
 	if (err) {
-		printk(ACER_ERR "Unable to register platform driver.\n");
+		pr_err("Unable to register platform driver.\n");
 		goto error_platform_register;
 	}
 
@@ -1805,7 +1793,7 @@ static void __exit acer_wmi_exit(void)
 	platform_device_unregister(acer_platform_device);
 	platform_driver_unregister(&acer_platform_driver);
 
-	printk(ACER_INFO "Acer Laptop WMI Extras unloaded\n");
+	pr_info("Acer Laptop WMI Extras unloaded\n");
 	return;
 }
 
