@@ -2771,16 +2771,15 @@ static struct vfsmount *nfs_do_root_mount(struct file_system_type *fs_type,
 	return root_mnt;
 }
 
-static void nfs_fix_devname(const struct path *path, struct vfsmount *mnt)
+static void nfs_fix_devname(struct dentry *dentry, struct vfsmount *mnt)
 {
 	char *page = (char *) __get_free_page(GFP_KERNEL);
 	char *devname, *tmp;
+	char *dummy;
 
 	if (page == NULL)
 		return;
-	devname = nfs_path(path->mnt->mnt_devname,
-			path->mnt->mnt_root, path->dentry,
-			page, PAGE_SIZE);
+	devname = nfs_path(&dummy, dentry, page, PAGE_SIZE);
 	if (IS_ERR(devname))
 		goto out_freepage;
 	tmp = kstrdup(devname, GFP_KERNEL);
@@ -2894,7 +2893,7 @@ static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 	mnt_target->mnt_root = dget(nd->path.dentry);
 
 	/* Correct the device pathname */
-	nfs_fix_devname(&nd->path, mnt_target);
+	nfs_fix_devname(nd->path.dentry, mnt_target);
 
 	path_put(&nd->path);
 	kfree(nd);

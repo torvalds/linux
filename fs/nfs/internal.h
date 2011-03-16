@@ -163,10 +163,10 @@ static inline void nfs_fs_proc_exit(void)
 
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4
-extern struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry);
+extern struct vfsmount *nfs_do_refmount(struct super_block *sb, struct dentry *dentry);
 #else
 static inline
-struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry)
+struct vfsmount *nfs_do_refmount(struct super_block *sb, struct dentry *dentry)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -247,9 +247,7 @@ extern void nfs_sb_active(struct super_block *sb);
 extern void nfs_sb_deactive(struct super_block *sb);
 
 /* namespace.c */
-extern char *nfs_path(const char *base,
-		      const struct dentry *droot,
-		      const struct dentry *dentry,
+extern char *nfs_path(char **p, struct dentry *dentry,
 		      char *buffer, ssize_t buflen);
 extern struct vfsmount *nfs_d_automount(struct path *path);
 
@@ -290,12 +288,11 @@ extern int _nfs4_call_sync_session(struct nfs_server *server,
 /*
  * Determine the device name as a string
  */
-static inline char *nfs_devname(const struct vfsmount *mnt_parent,
-				const struct dentry *dentry,
+static inline char *nfs_devname(struct dentry *dentry,
 				char *buffer, ssize_t buflen)
 {
-	return nfs_path(mnt_parent->mnt_devname, mnt_parent->mnt_root,
-			dentry, buffer, buflen);
+	char *dummy;
+	return nfs_path(&dummy, dentry, buffer, buflen);
 }
 
 /*
