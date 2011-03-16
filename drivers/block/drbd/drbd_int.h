@@ -1534,7 +1534,6 @@ extern void drbd_csum_bio(struct drbd_conf *, struct crypto_hash *, struct bio *
 extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *,
 			 struct drbd_peer_request *, void *);
 /* worker callbacks */
-extern int w_req_cancel_conflict(struct drbd_work *, int);
 extern int w_read_retry_remote(struct drbd_work *, int);
 extern int w_e_end_data_req(struct drbd_work *, int);
 extern int w_e_end_rsdata_req(struct drbd_work *, int);
@@ -1543,7 +1542,6 @@ extern int w_e_end_ov_reply(struct drbd_work *, int);
 extern int w_e_end_ov_req(struct drbd_work *, int);
 extern int w_ov_finished(struct drbd_work *, int);
 extern int w_resync_timer(struct drbd_work *, int);
-extern int w_resume_next_sg(struct drbd_work *, int);
 extern int w_send_write_hint(struct drbd_work *, int);
 extern int w_send_dblock(struct drbd_work *, int);
 extern int w_send_barrier(struct drbd_work *, int);
