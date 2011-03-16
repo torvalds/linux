@@ -72,6 +72,7 @@
 #endif
 
 int boot_cpuid = 0;
+int __initdata boot_cpu_count;
 u64 ppc64_pft_size;
 
 /* Pick defaults since we might want to patch instructions
@@ -233,6 +234,7 @@ void early_setup_secondary(void)
 void smp_release_cpus(void)
 {
 	unsigned long *ptr;
+	int i;
 
 	DBG(" -> smp_release_cpus()\n");
 
@@ -245,7 +247,16 @@ void smp_release_cpus(void)
 	ptr  = (unsigned long *)((unsigned long)&__secondary_hold_spinloop
 			- PHYSICAL_START);
 	*ptr = __pa(generic_secondary_smp_init);
-	mb();
+
+	/* And wait a bit for them to catch up */
+	for (i = 0; i < 100000; i++) {
+		mb();
+		HMT_low();
+		if (boot_cpu_count == 0)
+			break;
+		udelay(1);
+	}
+	DBG("boot_cpu_count = %d\n", boot_cpu_count);
 
 	DBG(" <- smp_release_cpus()\n");
 }

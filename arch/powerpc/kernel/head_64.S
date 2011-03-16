@@ -242,23 +242,31 @@ generic_secondary_common_init:
 	ld	r23,0(r23)
 	ld	r23,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r23,0
-	beq	4f
+	beq	3f
 	ld	r23,0(r23)
 	mtctr	r23
 	bctrl
 
-3:	HMT_LOW
+3:	LOAD_REG_ADDR(r3, boot_cpu_count) /* Decrement boot_cpu_count */
+	lwarx	r4,0,r3
+	subi	r4,r4,1
+	stwcx.	r4,0,r3
+	bne	3b
+	isync
+
+4:	HMT_LOW
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
 					/* start.			 */
 #ifndef CONFIG_SMP
-	b	3b			/* Never go on non-SMP		 */
+	b	4b			/* Never go on non-SMP		 */
 #else
 	cmpwi	0,r23,0
-	beq	3b			/* Loop until told to go	 */
+	beq	4b			/* Loop until told to go	 */
 
 	sync				/* order paca.run and cur_cpu_spec */
+	isync				/* In case code patching happened */
 
-4:	/* Create a temp kernel stack for use before relocation is on.	*/
+	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 

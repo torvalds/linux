@@ -29,6 +29,7 @@
 #include <asm/percpu.h>
 
 extern int boot_cpuid;
+extern int boot_cpu_count;
 
 extern void cpu_die(void);
 

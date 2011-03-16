@@ -268,13 +268,12 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
-	static int logical_cpuid = 0;
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	const u32 *prop;
 	const u32 *intserv;
 	int i, nthreads;
 	unsigned long len;
-	int found = 0;
+	int found = -1;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -299,11 +298,8 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		 * booted proc.
 		 */
 		if (initial_boot_params && initial_boot_params->version >= 2) {
-			if (intserv[i] ==
-					initial_boot_params->boot_cpuid_phys) {
-				found = 1;
-				break;
-			}
+			if (intserv[i] == initial_boot_params->boot_cpuid_phys)
+				found = boot_cpu_count;
 		} else {
 			/*
 			 * Check if it's the boot-cpu, set it's hw index now,
@@ -311,23 +307,20 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 			 * off secondary threads.
 			 */
 			if (of_get_flat_dt_prop(node,
-					"linux,boot-cpu", NULL) != NULL) {
-				found = 1;
-				break;
-			}
+					"linux,boot-cpu", NULL) != NULL)
+				found = boot_cpu_count;
 		}
-
 #ifdef CONFIG_SMP
 		/* logical cpu id is always 0 on UP kernels */
-		logical_cpuid++;
+		boot_cpu_count++;
 #endif
 	}
 
-	if (found) {
-		DBG("boot cpu: logical %d physical %d\n", logical_cpuid,
+	if (found >= 0) {
+		DBG("boot cpu: logical %d physical %d\n", found,
 			intserv[i]);
-		boot_cpuid = logical_cpuid;
-		set_hard_smp_processor_id(boot_cpuid, intserv[i]);
+		boot_cpuid = found;
+		set_hard_smp_processor_id(found, intserv[i]);
 
 		/*
 		 * PAPR defines "logical" PVR values for cpus that
