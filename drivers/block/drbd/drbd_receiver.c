@@ -3331,15 +3331,35 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packet cmd,
 	mask = convert_state(mask);
 	val = convert_state(val);
 
-	if (cmd == P_CONN_ST_CHG_REQ) {
-		rv = conn_request_state(mdev->tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY);
-		conn_send_sr_reply(mdev->tconn, rv);
-	} else {
-		rv = drbd_change_state(mdev, CS_VERBOSE, mask, val);
-		drbd_send_sr_reply(mdev, rv);
-	}
+	rv = drbd_change_state(mdev, CS_VERBOSE, mask, val);
+	drbd_send_sr_reply(mdev, rv);
 
 	drbd_md_sync(mdev);
+
+	return true;
+}
+
+static int receive_req_conn_state(struct drbd_tconn *tconn, enum drbd_packet cmd,
+				  unsigned int data_size)
+{
+	struct p_req_state *p = &tconn->data.rbuf.req_state;
+	union drbd_state mask, val;
+	enum drbd_state_rv rv;
+
+	mask.i = be32_to_cpu(p->mask);
+	val.i = be32_to_cpu(p->val);
+
+	if (test_bit(DISCARD_CONCURRENT, &tconn->flags) &&
+	    mutex_is_locked(&tconn->cstate_mutex)) {
+		conn_send_sr_reply(tconn, SS_CONCURRENT_ST_CHG);
+		return true;
+	}
+
+	mask = convert_state(mask);
+	val = convert_state(val);
+
+	rv = conn_request_state(tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY);
+	conn_send_sr_reply(tconn, rv);
 
 	return true;
 }
@@ -3891,7 +3911,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), MDEV, { receive_DataRequest } },
 	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), MDEV, { receive_skip } },
 	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), MDEV, { receive_out_of_sync } },
-	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), MDEV, { receive_req_state } },
+	[P_CONN_ST_CHG_REQ] = { 0, sizeof(struct p_req_state), CONN, { .conn_fn = receive_req_conn_state } },
 };
 
 /* All handler functions that expect a sub-header get that sub-heder in
