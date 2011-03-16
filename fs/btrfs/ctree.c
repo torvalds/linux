@@ -732,122 +732,6 @@ static inline unsigned int leaf_data_end(struct btrfs_root *root,
 	return btrfs_item_offset_nr(leaf, nr - 1);
 }
 
-/*
- * extra debugging checks to make sure all the items in a key are
- * well formed and in the proper order
- */
-static int check_node(struct btrfs_root *root, struct btrfs_path *path,
-		      int level)
-{
-	struct extent_buffer *parent = NULL;
-	struct extent_buffer *node = path->nodes[level];
-	struct btrfs_disk_key parent_key;
-	struct btrfs_disk_key node_key;
-	int parent_slot;
-	int slot;
-	struct btrfs_key cpukey;
-	u32 nritems = btrfs_header_nritems(node);
-
-	if (path->nodes[level + 1])
-		parent = path->nodes[level + 1];
-
-	slot = path->slots[level];
-	BUG_ON(nritems == 0);
-	if (parent) {
-		parent_slot = path->slots[level + 1];
-		btrfs_node_key(parent, &parent_key, parent_slot);
-		btrfs_node_key(node, &node_key, 0);
-		BUG_ON(memcmp(&parent_key, &node_key,
-			      sizeof(struct btrfs_disk_key)));
-		BUG_ON(btrfs_node_blockptr(parent, parent_slot) !=
-		       btrfs_header_bytenr(node));
-	}
-	BUG_ON(nritems > BTRFS_NODEPTRS_PER_BLOCK(root));
-	if (slot != 0) {
-		btrfs_node_key_to_cpu(node, &cpukey, slot - 1);
-		btrfs_node_key(node, &node_key, slot);
-		BUG_ON(comp_keys(&node_key, &cpukey) <= 0);
-	}
-	if (slot < nritems - 1) {
-		btrfs_node_key_to_cpu(node, &cpukey, slot + 1);
-		btrfs_node_key(node, &node_key, slot);
-		BUG_ON(comp_keys(&node_key, &cpukey) >= 0);
-	}
-	return 0;
-}
-
-/*
- * extra checking to make sure all the items in a leaf are
- * well formed and in the proper order
- */
-static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
-		      int level)
-{
-	struct extent_buffer *leaf = path->nodes[level];
-	struct extent_buffer *parent = NULL;
-	int parent_slot;
-	struct btrfs_key cpukey;
-	struct btrfs_disk_key parent_key;
-	struct btrfs_disk_key leaf_key;
-	int slot = path->slots[0];
-
-	u32 nritems = btrfs_header_nritems(leaf);
-
-	if (path->nodes[level + 1])
-		parent = path->nodes[level + 1];
-
-	if (nritems == 0)
-		return 0;
-
-	if (parent) {
-		parent_slot = path->slots[level + 1];
-		btrfs_node_key(parent, &parent_key, parent_slot);
-		btrfs_item_key(leaf, &leaf_key, 0);
-
-		BUG_ON(memcmp(&parent_key, &leaf_key,
-		       sizeof(struct btrfs_disk_key)));
-		BUG_ON(btrfs_node_blockptr(parent, parent_slot) !=
-		       btrfs_header_bytenr(leaf));
-	}
-	if (slot != 0 && slot < nritems - 1) {
-		btrfs_item_key(leaf, &leaf_key, slot);
-		btrfs_item_key_to_cpu(leaf, &cpukey, slot - 1);
-		if (comp_keys(&leaf_key, &cpukey) <= 0) {
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d offset bad key\n", slot);
-			BUG_ON(1);
-		}
-		if (btrfs_item_offset_nr(leaf, slot - 1) !=
-		       btrfs_item_end_nr(leaf, slot)) {
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d offset bad\n", slot);
-			BUG_ON(1);
-		}
-	}
-	if (slot < nritems - 1) {
-		btrfs_item_key(leaf, &leaf_key, slot);
-		btrfs_item_key_to_cpu(leaf, &cpukey, slot + 1);
-		BUG_ON(comp_keys(&leaf_key, &cpukey) >= 0);
-		if (btrfs_item_offset_nr(leaf, slot) !=
-			btrfs_item_end_nr(leaf, slot + 1)) {
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_CRIT "slot %d offset bad\n", slot);
-			BUG_ON(1);
-		}
-	}
-	BUG_ON(btrfs_item_offset_nr(leaf, 0) +
-	       btrfs_item_size_nr(leaf, 0) != BTRFS_LEAF_DATA_SIZE(root));
-	return 0;
-}
-
-static noinline int check_block(struct btrfs_root *root,
-				struct btrfs_path *path, int level)
-{
-	return 0;
-	if (level == 0)
-		return check_leaf(root, path, level);
-	return check_node(root, path, level);
-}
 
 /*
  * search for key in the extent_buffer.  The items start at offset p,
@@ -1188,7 +1072,6 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		}
 	}
 	/* double check we haven't messed things up */
-	check_block(root, path, level);
 	if (orig_ptr !=
 	    btrfs_node_blockptr(path->nodes[level], path->slots[level]))
 		BUG();
@@ -1797,12 +1680,6 @@ cow_done:
 		 */
 		if (!cow)
 			btrfs_unlock_up_safe(p, level + 1);
-
-		ret = check_block(root, p, level);
-		if (ret) {
-			ret = -1;
-			goto done;
-		}
 
 		ret = bin_search(b, key, level, &slot);
 

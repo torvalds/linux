@@ -4754,6 +4754,11 @@ pin:
 		}
 	}
 out:
+	/*
+	 * Deleting the buffer, clear the corrupt flag since it doesn't matter
+	 * anymore.
+	 */
+	clear_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags);
 	btrfs_put_block_group(cache);
 }
 

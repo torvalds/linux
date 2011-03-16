@@ -323,12 +323,21 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	int num_copies = 0;
 	int mirror_num = 0;
 
+	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 	while (1) {
 		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
 					       btree_get_extent, mirror_num);
 		if (!ret &&
 		    !verify_parent_transid(io_tree, eb, parent_transid))
+			return ret;
+
+		/*
+		 * This buffer's crc is fine, but its contents are corrupted, so
+		 * there is no reason to read the other copies, they won't be
+		 * any less wrong.
+		 */
+		if (test_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags))
 			return ret;
 
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
@@ -419,6 +428,73 @@ static int check_tree_block_fsid(struct btrfs_root *root,
 	return ret;
 }
 
+#define CORRUPT(reason, eb, root, slot)				\
+	printk(KERN_CRIT "btrfs: corrupt leaf, %s: block=%llu,"	\
+	       "root=%llu, slot=%d\n", reason,			\
+	       (unsigned long long)btrfs_header_bytenr(eb),	\
+	       (unsigned long long)root->objectid, slot)
+
+static noinline int check_leaf(struct btrfs_root *root,
+			       struct extent_buffer *leaf)
+{
+	struct btrfs_key key;
+	struct btrfs_key leaf_key;
+	u32 nritems = btrfs_header_nritems(leaf);
+	int slot;
+
+	if (nritems == 0)
+		return 0;
+
+	/* Check the 0 item */
+	if (btrfs_item_offset_nr(leaf, 0) + btrfs_item_size_nr(leaf, 0) !=
+	    BTRFS_LEAF_DATA_SIZE(root)) {
+		CORRUPT("invalid item offset size pair", leaf, root, 0);
+		return -EIO;
+	}
+
+	/*
+	 * Check to make sure each items keys are in the correct order and their
+	 * offsets make sense.  We only have to loop through nritems-1 because
+	 * we check the current slot against the next slot, which verifies the
+	 * next slot's offset+size makes sense and that the current's slot
+	 * offset is correct.
+	 */
+	for (slot = 0; slot < nritems - 1; slot++) {
+		btrfs_item_key_to_cpu(leaf, &leaf_key, slot);
+		btrfs_item_key_to_cpu(leaf, &key, slot + 1);
+
+		/* Make sure the keys are in the right order */
+		if (btrfs_comp_cpu_keys(&leaf_key, &key) >= 0) {
+			CORRUPT("bad key order", leaf, root, slot);
+			return -EIO;
+		}
+
+		/*
+		 * Make sure the offset and ends are right, remember that the
+		 * item data starts at the end of the leaf and grows towards the
+		 * front.
+		 */
+		if (btrfs_item_offset_nr(leaf, slot) !=
+			btrfs_item_end_nr(leaf, slot + 1)) {
+			CORRUPT("slot offset bad", leaf, root, slot);
+			return -EIO;
+		}
+
+		/*
+		 * Check to make sure that we don't point outside of the leaf,
+		 * just incase all the items are consistent to eachother, but
+		 * all point outside of the leaf.
+		 */
+		if (btrfs_item_end_nr(leaf, slot) >
+		    BTRFS_LEAF_DATA_SIZE(root)) {
+			CORRUPT("slot end outside of leaf", leaf, root, slot);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_set_buffer_lockdep_class(struct extent_buffer *eb, int level)
 {
@@ -485,8 +561,20 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	btrfs_set_buffer_lockdep_class(eb, found_level);
 
 	ret = csum_tree_block(root, eb, 1);
-	if (ret)
+	if (ret) {
 		ret = -EIO;
+		goto err;
+	}
+
+	/*
+	 * If this is a leaf block and it is corrupt, set the corrupt bit so
+	 * that we don't try and read the other copies of this block, just
+	 * return -EIO.
+	 */
+	if (found_level == 0 && check_leaf(root, eb)) {
+		set_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
+		ret = -EIO;
+	}
 
 	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
 	end = eb->start + end - 1;
