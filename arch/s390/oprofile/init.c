@@ -133,7 +133,7 @@ static int oprofile_create_hwsampling_files(struct super_block *sb,
 	return 0;
 }
 
-int oprofile_hwsampler_init(struct oprofile_operations* ops)
+static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 {
 	if (hwsampler_setup())
 		return -ENODEV;
@@ -166,13 +166,13 @@ int oprofile_hwsampler_init(struct oprofile_operations* ops)
 	return 0;
 }
 
-void oprofile_hwsampler_exit(void)
+static void oprofile_hwsampler_exit(void)
 {
 	oprofile_timer_exit();
 	hwsampler_shutdown();
 }
 
-int __init oprofile_arch_init(struct oprofile_operations* ops)
+int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	ops->backtrace = s390_backtrace;
 

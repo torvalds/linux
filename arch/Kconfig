@@ -30,9 +30,6 @@ config OPROFILE_EVENT_MULTIPLEX
 config HAVE_OPROFILE
 	bool
 
-config HAVE_HWSAMPLER
-	bool
-
 config KPROBES
 	bool "Kprobes"
 	depends on MODULES
