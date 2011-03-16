@@ -1320,7 +1320,7 @@ int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 int drbd_send_drequest_csum(struct drbd_conf *mdev, sector_t sector, int size,
 			    void *digest, int digest_size, enum drbd_packet cmd)
 {
-	int ok;
+	int err;
 	struct p_block_req p;
 
 	prepare_header(mdev, &p.head, cmd, sizeof(p) - sizeof(struct p_header) + digest_size);
@@ -1329,13 +1329,11 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev, sector_t sector, int size,
 	p.blksize  = cpu_to_be32(size);
 
 	mutex_lock(&mdev->tconn->data.mutex);
-
-	ok = (sizeof(p) == drbd_send(mdev->tconn, mdev->tconn->data.socket, &p, sizeof(p), 0));
-	ok = ok && (digest_size == drbd_send(mdev->tconn, mdev->tconn->data.socket, digest, digest_size, 0));
-
+	err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, &p, sizeof(p), 0);
+	if (!err)
+		err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, digest, digest_size, 0);
 	mutex_unlock(&mdev->tconn->data.mutex);
-
-	return ok;
+	return err;
 }
 
 int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)

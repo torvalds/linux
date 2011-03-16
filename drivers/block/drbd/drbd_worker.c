@@ -324,9 +324,9 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 		drbd_free_ee(mdev, peer_req);
 		peer_req = NULL;
 		inc_rs_pending(mdev);
-		ok = drbd_send_drequest_csum(mdev, sector, size,
-					     digest, digest_size,
-					     P_CSUM_RS_REQUEST);
+		ok = !drbd_send_drequest_csum(mdev, sector, size,
+					      digest, digest_size,
+					      P_CSUM_RS_REQUEST);
 		kfree(digest);
 	} else {
 		dev_err(DEV, "kmalloc() of digest failed.\n");
@@ -1089,9 +1089,9 @@ int w_e_end_ov_req(struct drbd_work *w, int cancel)
 	drbd_free_ee(mdev, peer_req);
 	peer_req = NULL;
 	inc_rs_pending(mdev);
-	ok = drbd_send_drequest_csum(mdev, sector, size,
-				     digest, digest_size,
-				     P_OV_REPLY);
+	ok = !drbd_send_drequest_csum(mdev, sector, size,
+				      digest, digest_size,
+				      P_OV_REPLY);
 	if (!ok)
 		dec_rs_pending(mdev);
 	kfree(digest);
