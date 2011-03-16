@@ -87,6 +87,7 @@ struct l3g4200d_data {
 	int hw_initialized;
 	atomic_t enabled;
 	struct regulator *regulator;
+	struct delayed_work enable_work;
 };
 
 struct gyro_val {
@@ -265,8 +266,6 @@ static int l3g4200d_device_power_on(struct l3g4200d_data *gyro)
 	if (err < 0)
 		dev_err(&gyro->client->dev, "soft power on failed\n");
 
-	msleep(L3G4200D_PU_DELAY);
-
 	return 0;
 }
 
@@ -354,6 +353,16 @@ static int l3g4200d_flush_gyro_data(struct l3g4200d_data *gyro)
 	return -EIO;
 }
 
+static void l3g4200d_enable_work_func(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct l3g4200d_data *gyro =
+		container_of(dwork, struct l3g4200d_data, enable_work);
+
+	l3g4200d_flush_gyro_data(gyro);
+	enable_irq(gyro->client->irq);
+}
+
 static int l3g4200d_enable(struct l3g4200d_data *gyro)
 {
 	int err;
@@ -374,8 +383,8 @@ static int l3g4200d_enable(struct l3g4200d_data *gyro)
 
 		/* do not report noise at IC power-up
 		 * flush data before enabling irq */
-		l3g4200d_flush_gyro_data(gyro);
-		enable_irq(gyro->client->irq);
+		schedule_delayed_work(&gyro->enable_work,
+			msecs_to_jiffies(L3G4200D_PU_DELAY));
 	}
 	return 0;
 err0:
@@ -386,7 +395,8 @@ err0:
 static int l3g4200d_disable(struct l3g4200d_data *gyro)
 {
 	if (atomic_cmpxchg(&gyro->enabled, 1, 0)) {
-		disable_irq(gyro->client->irq);
+		if (!cancel_delayed_work_sync(&gyro->enable_work))
+			disable_irq(gyro->client->irq);
 		l3g4200d_device_power_off(gyro);
 		if (gyro->regulator) {
 			regulator_disable(gyro->regulator);
@@ -618,6 +628,7 @@ static int l3g4200d_probe(struct i2c_client *client,
 	/* As default, do not report information */
 	atomic_set(&gyro->enabled, 0);
 	gyro->hw_initialized = false;
+	INIT_DELAYED_WORK(&gyro->enable_work, l3g4200d_enable_work_func);
 
 	err = l3g4200d_input_init(gyro);
 	if (err < 0)
