@@ -3140,6 +3140,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	}
 	if (wm8994->mbc)
 		release_firmware(wm8994->mbc);
+	if (wm8994->mbc_vss)
+		release_firmware(wm8994->mbc_vss);
 	kfree(wm8994->retune_mobile_texts);
 	kfree(wm8994->drc_texts);
 	kfree(wm8994);

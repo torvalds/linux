@@ -84,6 +84,9 @@ struct wm8994_priv {
 	int lrclk_shared[2];
 
 	int mbc_ena[3];
+	int hpf1_ena[3];
+	int hpf2_ena[3];
+	int vss_ena[3];
 
 	/* Platform dependant DRC configuration */
 	const char **drc_texts;
@@ -100,6 +103,16 @@ struct wm8994_priv {
 	int mbc_cfg;
 	const char **mbc_texts;
 	struct soc_enum mbc_enum;
+
+	/* Platform dependant VSS configuration */
+	int vss_cfg;
+	const char **vss_texts;
+	struct soc_enum vss_enum;
+
+	/* Platform dependant VSS HPF configuration */
+	int vss_hpf_cfg;
+	const char **vss_hpf_texts;
+	struct soc_enum vss_hpf_enum;
 
 	struct wm8994_micdet micdet[2];
 
@@ -119,6 +132,7 @@ struct wm8994_priv {
 	int dsp_active;
 	const struct firmware *cur_fw;
 	const struct firmware *mbc;
+	const struct firmware *mbc_vss;
 };
 
 #endif
