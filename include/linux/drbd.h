@@ -300,7 +300,8 @@ enum drbd_state_rv {
 	SS_NOT_SUPPORTED = -17,      /* drbd-8.2 only */
 	SS_IN_TRANSIENT_STATE = -18,  /* Retry after the next state change */
 	SS_CONCURRENT_ST_CHG = -19,   /* Concurrent cluster side state change! */
-	SS_AFTER_LAST_ERROR = -20,    /* Keep this at bottom */
+	SS_O_VOL_PEER_PRI = -20,
+	SS_AFTER_LAST_ERROR = -21,    /* Keep this at bottom */
 };
 
 /* from drbd_strings.c */

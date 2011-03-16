@@ -329,6 +329,18 @@ static void print_state_change(struct drbd_conf *mdev, union drbd_state os, unio
 		dev_info(DEV, "%s\n", pb);
 }
 
+static bool vol_has_primary_peer(struct drbd_tconn *tconn)
+{
+	struct drbd_conf *mdev;
+	int minor;
+
+	idr_for_each_entry(&tconn->volumes, mdev, minor) {
+		if (mdev->state.peer == R_PRIMARY)
+			return true;
+	}
+	return false;
+}
+
 /**
  * is_valid_state() - Returns an SS_ error code if ns is not valid
  * @mdev:	DRBD device.
@@ -349,9 +361,12 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 	}
 
 	if (get_net_conf(mdev->tconn)) {
-		if (!mdev->tconn->net_conf->two_primaries &&
-		    ns.role == R_PRIMARY && ns.peer == R_PRIMARY)
-			rv = SS_TWO_PRIMARIES;
+		if (!mdev->tconn->net_conf->two_primaries && ns.role == R_PRIMARY) {
+			if (ns.peer == R_PRIMARY)
+				rv = SS_TWO_PRIMARIES;
+			else if (vol_has_primary_peer(mdev->tconn))
+				rv = SS_O_VOL_PEER_PRI;
+			}
 		put_net_conf(mdev->tconn);
 	}
 
