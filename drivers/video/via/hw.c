@@ -1162,14 +1162,14 @@ void via_odev_to_seq(struct seq_file *m, u32 odev)
 
 static void load_fix_bit_crtc_reg(void)
 {
+	viafb_unlock_crt();
+
 	/* always set to 1 */
 	viafb_write_reg_mask(CR03, VIACR, 0x80, BIT7);
 	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg(CR18, VIACR, 0xff);
 	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg_mask(CR07, VIACR, 0x10, BIT4);
-	/* line compare should set all bits = 1 (extend modes) */
-	viafb_write_reg_mask(CR09, VIACR, 0x40, BIT6);
 	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg_mask(CR35, VIACR, 0x10, BIT4);
 	/* line compare should set all bits = 1 (extend modes) */
@@ -1181,6 +1181,10 @@ static void load_fix_bit_crtc_reg(void)
 	viafb_write_reg(CR08, VIACR, 0x00);
 	/* extend mode always set to 0h */
 	viafb_write_reg(CR14, VIACR, 0x00);
+	viafb_write_reg_mask(CR09, VIACR, 0x40, 0xDF);
+	viafb_write_reg_mask(CR11, VIACR, 0x00, BIT4 + BIT5 + BIT6);
+
+	viafb_lock_crt();
 
 	/* If K8M800, enable Prefetch Mode. */
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_K800)
@@ -2033,8 +2037,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	v_addr = crt_reg.ver_addr;
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();
-		viafb_write_reg(CR09, VIACR, 0x00);	/*initial CR09=0 */
-		viafb_write_reg_mask(CR11, VIACR, 0x00, BIT4 + BIT5 + BIT6);
 		viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 	}
 
@@ -2047,7 +2049,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 		break;
 	}
 
-	load_fix_bit_crtc_reg();
 	viafb_lock_crt();
 	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
 	viafb_load_fetch_count_reg(h_addr, bpp_byte, set_iga);
@@ -2432,6 +2433,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		}
 	}
 
+	load_fix_bit_crtc_reg();
 	via_set_primary_pitch(viafbinfo->fix.line_length);
 	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
