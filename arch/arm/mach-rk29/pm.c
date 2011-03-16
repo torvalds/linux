@@ -61,9 +61,9 @@ static void inline printch(char byte)
 
 	writel(byte, RK29_UART1_BASE);
 
-	delay = (cru_readl(CRU_MODE_CON) & CRU_CPU_MODE_MASK) ? 10 : 1;
-	while (delay--)
-		delay_300us();
+	/* loop check LSR[6], Transmitter Empty bit */
+	while (!(readl(RK29_UART1_BASE + 0x14) & 0x40))
+		barrier();
 
 	cru_writel(gate2, CRU_CLKGATE2_CON);
 	cru_writel(gate1, CRU_CLKGATE1_CON);
@@ -150,7 +150,9 @@ static void __sramfunc rk29_sram_suspend(void)
 	/* set arm clk 24MHz/32 = 750KHz */
 	cru_writel(clksel0 | 0x1F, CRU_CLKSEL0_CON);
 
+	printch('8');
 	asm("wfi");
+	printch('8');
 
 	/* resume arm clk */
 	cru_writel(clksel0, CRU_CLKSEL0_CON);
