@@ -186,6 +186,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_PMAC_ADD			59
 #define OPCODE_COMMON_NTWK_PMAC_DEL			60
 #define OPCODE_COMMON_FUNCTION_RESET			61
+#define OPCODE_COMMON_MANAGE_FAT			68
 #define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
@@ -379,6 +380,24 @@ struct be_cmd_resp_cq_create {
 	u16 cq_id;
 	u16 rsvd0;
 } __packed;
+
+struct be_cmd_req_get_fat {
+	struct be_cmd_req_hdr hdr;
+	u32 fat_operation;
+	u32 read_log_offset;
+	u32 read_log_length;
+	u32 data_buffer_size;
+	u32 data_buffer[1];
+} __packed;
+
+struct be_cmd_resp_get_fat {
+	struct be_cmd_resp_hdr hdr;
+	u32 log_size;
+	u32 read_log_length;
+	u32 rsvd[2];
+	u32 data_buffer[1];
+} __packed;
+
 
 /******************** Create MCCQ ***************************/
 /* Pseudo amap definition in which each bit of the actual structure is defined
@@ -1148,4 +1167,6 @@ extern void be_detect_dump_ue(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);
 extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_check_native_mode(struct be_adapter *adapter);
+extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
+extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 
