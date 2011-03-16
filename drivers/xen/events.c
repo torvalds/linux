@@ -864,6 +864,21 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 	return irq;
 }
 
+static int bind_interdomain_evtchn_to_irq(unsigned int remote_domain,
+					  unsigned int remote_port)
+{
+	struct evtchn_bind_interdomain bind_interdomain;
+	int err;
+
+	bind_interdomain.remote_dom  = remote_domain;
+	bind_interdomain.remote_port = remote_port;
+
+	err = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
+					  &bind_interdomain);
+
+	return err ? : bind_evtchn_to_irq(bind_interdomain.local_port);
+}
+
 
 int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 {
@@ -958,6 +973,29 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 	return irq;
 }
 EXPORT_SYMBOL_GPL(bind_evtchn_to_irqhandler);
+
+int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
+					  unsigned int remote_port,
+					  irq_handler_t handler,
+					  unsigned long irqflags,
+					  const char *devname,
+					  void *dev_id)
+{
+	int irq, retval;
+
+	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
+	if (irq < 0)
+		return irq;
+
+	retval = request_irq(irq, handler, irqflags, devname, dev_id);
+	if (retval != 0) {
+		unbind_from_irq(irq);
+		return retval;
+	}
+
+	return irq;
+}
+EXPORT_SYMBOL_GPL(bind_interdomain_evtchn_to_irqhandler);
 
 int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 			    irq_handler_t handler,
