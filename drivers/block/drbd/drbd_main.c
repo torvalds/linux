@@ -1608,7 +1608,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 		    struct drbd_peer_request *peer_req)
 {
-	int ok;
+	int err;
 	struct p_data p;
 	void *dgb;
 	int dgs;
@@ -1627,21 +1627,22 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	 * This one may be interrupted by DRBD_SIG and/or DRBD_SIGKILL
 	 * in response to admin command or module unload.
 	 */
-	if (drbd_get_data_sock(mdev->tconn))
-		return 0;
-
-	ok = sizeof(p) == drbd_send(mdev->tconn, mdev->tconn->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0);
-	if (ok && dgs) {
+	err = drbd_get_data_sock(mdev->tconn);
+	if (err)
+		return err;
+	err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, &p,
+			    sizeof(p), dgs ? MSG_MORE : 0);
+	if (!err && dgs) {
 		dgb = mdev->tconn->int_dig_out;
 		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, dgb);
-		ok = dgs == drbd_send(mdev->tconn, mdev->tconn->data.socket, dgb, dgs, 0);
+		err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, dgb,
+				    dgs, 0);
 	}
-	if (ok)
-		ok = !_drbd_send_zc_ee(mdev, peer_req);
-
+	if (!err)
+		err = _drbd_send_zc_ee(mdev, peer_req);
 	drbd_put_data_sock(mdev->tconn);
 
-	return ok;
+	return err;
 }
 
 int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req)

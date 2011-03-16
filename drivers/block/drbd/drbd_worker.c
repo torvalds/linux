@@ -920,7 +920,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 	}
 
 	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
-		ok = drbd_send_block(mdev, P_DATA_REPLY, peer_req);
+		ok = !drbd_send_block(mdev, P_DATA_REPLY, peer_req);
 	} else {
 		if (__ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "Sending NegDReply. sector=%llus.\n",
@@ -966,7 +966,7 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 	} else if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
 		if (likely(mdev->state.pdsk >= D_INCONSISTENT)) {
 			inc_rs_pending(mdev);
-			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, peer_req);
+			ok = !drbd_send_block(mdev, P_RS_DATA_REPLY, peer_req);
 		} else {
 			if (__ratelimit(&drbd_ratelimit_state))
 				dev_err(DEV, "Not sending RSDataReply, "
@@ -1040,7 +1040,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 			peer_req->block_id = ID_SYNCER; /* By setting block_id, digest pointer becomes invalid! */
 			peer_req->flags &= ~EE_HAS_DIGEST; /* This peer request no longer has a digest pointer */
 			kfree(di);
-			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, peer_req);
+			ok = !drbd_send_block(mdev, P_RS_DATA_REPLY, peer_req);
 		}
 	} else {
 		ok = !drbd_send_ack(mdev, P_NEG_RS_DREPLY, peer_req);
