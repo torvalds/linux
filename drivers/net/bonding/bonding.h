@@ -192,8 +192,9 @@ struct slave {
 	unsigned long last_arp_rx;
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
-	u8     backup;	/* indicates backup slave. Value corresponds with
-			   BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
+	u8     backup:1,   /* indicates backup slave. Value corresponds with
+			      BOND_STATE_ACTIVE and BOND_STATE_BACKUP */
+	       inactive:1; /* indicates inactive slave */
 	u32    original_mtu;
 	u32    link_failure_count;
 	u8     perm_hwaddr[ETH_ALEN];
@@ -376,13 +377,18 @@ static inline void bond_set_slave_inactive_flags(struct slave *slave)
 	if (!bond_is_lb(bond))
 		bond_set_backup_slave(slave);
 	if (!bond->params.all_slaves_active)
-		slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+		slave->inactive = 1;
 }
 
 static inline void bond_set_slave_active_flags(struct slave *slave)
 {
 	bond_set_active_slave(slave);
-	slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+	slave->inactive = 0;
+}
+
+static inline bool bond_is_slave_inactive(struct slave *slave)
+{
+	return slave->inactive;
 }
 
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);

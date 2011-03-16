@@ -1461,7 +1461,7 @@ static bool bond_should_deliver_exact_match(struct sk_buff *skb,
 					    struct slave *slave,
 					    struct bonding *bond)
 {
-	if (slave->dev->priv_flags & IFF_SLAVE_INACTIVE) {
+	if (bond_is_slave_inactive(slave)) {
 		if (slave_do_arp_validate(bond, slave) &&
 		    skb->protocol == __cpu_to_be16(ETH_P_ARP))
 			return false;
@@ -2122,7 +2122,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	dev_set_mtu(slave_dev, slave->original_mtu);
 
-	slave_dev->priv_flags &= ~(IFF_SLAVE_INACTIVE | IFF_BONDING);
+	slave_dev->priv_flags &= ~IFF_BONDING;
 
 	kfree(slave);
 
@@ -2232,8 +2232,6 @@ static int bond_release_all(struct net_device *bond_dev)
 			addr.sa_family = slave_dev->type;
 			dev_set_mac_address(slave_dev, &addr);
 		}
-
-		slave_dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
 
 		kfree(slave);
 
