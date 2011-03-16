@@ -263,6 +263,8 @@ static match_table_t nfs_local_lock_tokens = {
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
+static int  nfs_show_devname(struct seq_file *, struct vfsmount *);
+static int  nfs_show_path(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
 static int nfs_get_sb(struct file_system_type *, int, const char *, void *, struct vfsmount *);
 static struct dentry *nfs_xdev_mount(struct file_system_type *fs_type,
@@ -296,6 +298,8 @@ static const struct super_operations nfs_sops = {
 	.evict_inode	= nfs_evict_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
+	.show_devname	= nfs_show_devname,
+	.show_path	= nfs_show_path,
 	.show_stats	= nfs_show_stats,
 	.remount_fs	= nfs_remount,
 };
@@ -366,6 +370,8 @@ static const struct super_operations nfs4_sops = {
 	.evict_inode	= nfs4_evict_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
+	.show_devname	= nfs_show_devname,
+	.show_path	= nfs_show_path,
 	.show_stats	= nfs_show_stats,
 	.remount_fs	= nfs_remount,
 };
@@ -723,6 +729,28 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 			rpc_peeraddr2str(nfss->nfs_client->cl_rpcclient,
 							RPC_DISPLAY_ADDR));
 
+	return 0;
+}
+
+static int nfs_show_devname(struct seq_file *m, struct vfsmount *mnt)
+{
+	char *page = (char *) __get_free_page(GFP_KERNEL);
+	char *devname, *dummy;
+	int err = 0;
+	if (!page)
+		return -ENOMEM;
+	devname = nfs_path(&dummy, mnt->mnt_root, page, PAGE_SIZE);
+	if (IS_ERR(devname))
+		err = PTR_ERR(devname);
+	else
+		seq_escape(m, devname, " \t\n\\");
+	free_page((unsigned long)page);
+	return err;
+}
+
+static int nfs_show_path(struct seq_file *m, struct vfsmount *mnt)
+{
+	seq_puts(m, "/");
 	return 0;
 }
 
