@@ -971,19 +971,21 @@ static int decode_header(struct drbd_tconn *tconn, struct p_header *h, struct pa
 static int drbd_recv_header(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	struct p_header *h = &tconn->data.rbuf.header;
-	int r;
+	int err;
 
-	r = drbd_recv(tconn, h, sizeof(*h));
-	if (unlikely(r != sizeof(*h))) {
+	err = drbd_recv(tconn, h, sizeof(*h));
+	if (unlikely(err != sizeof(*h))) {
 		if (!signal_pending(current))
-			conn_warn(tconn, "short read expecting header on sock: r=%d\n", r);
-		return false;
+			conn_warn(tconn, "short read expecting header on sock: r=%d\n", err);
+		if (err >= 0)
+			err = -EIO;
+		return err;
 	}
 
-	r = !decode_header(tconn, h, pi);
+	err = decode_header(tconn, h, pi);
 	tconn->last_received = jiffies;
 
-	return r;
+	return err;
 }
 
 static void drbd_flush(struct drbd_conf *mdev)
@@ -3790,7 +3792,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 				goto out;
 			break;
 		}
-		if (!drbd_recv_header(mdev->tconn, &pi))
+		if (drbd_recv_header(mdev->tconn, &pi))
 			goto out;
 		cmd = pi.cmd;
 		data_size = pi.size;
@@ -3941,7 +3943,7 @@ static void drbdd(struct drbd_tconn *tconn)
 
 	while (get_t_state(&tconn->receiver) == RUNNING) {
 		drbd_thread_current_set_cpu(&tconn->receiver);
-		if (!drbd_recv_header(tconn, &pi))
+		if (drbd_recv_header(tconn, &pi))
 			goto err_out;
 
 		if (unlikely(pi.cmd >= ARRAY_SIZE(drbd_cmd_handler) ||
@@ -4179,8 +4181,8 @@ static int drbd_do_handshake(struct drbd_tconn *tconn)
 	if (err)
 		return 0;
 
-	rv = drbd_recv_header(tconn, &pi);
-	if (!rv)
+	err = drbd_recv_header(tconn, &pi);
+	if (err)
 		return 0;
 
 	if (pi.cmd != P_HAND_SHAKE) {
@@ -4254,7 +4256,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 	unsigned int resp_size;
 	struct hash_desc desc;
 	struct packet_info pi;
-	int rv;
+	int err, rv;
 
 	desc.tfm = tconn->cram_hmac_tfm;
 	desc.flags = 0;
@@ -4273,9 +4275,11 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 	if (!rv)
 		goto fail;
 
-	rv = drbd_recv_header(tconn, &pi);
-	if (!rv)
+	err = drbd_recv_header(tconn, &pi);
+	if (err) {
+		rv = 0;
 		goto fail;
+	}
 
 	if (pi.cmd != P_AUTH_CHALLENGE) {
 		conn_err(tconn, "expected AuthChallenge packet, received: %s (0x%04x)\n",
@@ -4328,9 +4332,11 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 	if (!rv)
 		goto fail;
 
-	rv = drbd_recv_header(tconn, &pi);
-	if (!rv)
+	err = drbd_recv_header(tconn, &pi);
+	if (err) {
+		rv = 0;
 		goto fail;
+	}
 
 	if (pi.cmd != P_AUTH_RESPONSE) {
 		conn_err(tconn, "expected AuthResponse packet, received: %s (0x%04x)\n",
