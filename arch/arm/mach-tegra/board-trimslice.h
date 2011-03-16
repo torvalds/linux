@@ -1,10 +1,7 @@
 /*
- * arch/arm/mach-tegra/tegra2_dvfs.h
+ * arch/arm/mach-tegra/board-trimslice.h
  *
- * Copyright (C) 2010 Google, Inc.
- *
- * Author:
- *	Colin Cross <ccross@google.com>
+ * Copyright (C) 2011 CompuLab, Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -17,4 +14,9 @@
  *
  */
 
-extern struct dvfs tegra_dvfs_virtual_cpu_dvfs;
+#ifndef _MACH_TEGRA_BOARD_TRIMSLICE_H
+#define _MACH_TEGRA_BOARD_TRIMSLICE_H
+
+void trimslice_pinmux_init(void);
+
+#endif

@@ -1,11 +1,10 @@
 /*
- * arch/arm/mach-tegra/board.h
+ * arch/arm/mach-tegra/include/mach/suspend.h
  *
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
  *	Colin Cross <ccross@google.com>
- *	Erik Gilling <konkers@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -18,18 +17,22 @@
  *
  */
 
-#ifndef __MACH_TEGRA_BOARD_H
-#define __MACH_TEGRA_BOARD_H
 
-#include <linux/types.h>
+#ifndef _MACH_TEGRA_SUSPEND_H_
+#define _MACH_TEGRA_SUSPEND_H_
 
-void tegra_assert_system_reset(char mode, const char *cmd);
+void tegra_pinmux_suspend(void);
+void tegra_irq_suspend(void);
+void tegra_gpio_suspend(void);
+void tegra_clk_suspend(void);
+void tegra_dma_suspend(void);
+void tegra_timer_suspend(void);
 
-void __init tegra_init_early(void);
-void __init tegra_map_common_io(void);
-void __init tegra_init_irq(void);
-void __init tegra_init_clock(void);
-int __init tegra_pcie_init(bool init_port0, bool init_port1);
+void tegra_pinmux_resume(void);
+void tegra_irq_resume(void);
+void tegra_gpio_resume(void);
+void tegra_clk_resume(void);
+void tegra_dma_resume(void);
+void tegra_timer_resume(void);
 
-extern struct sys_timer tegra_timer;
-#endif
+#endif /* _MACH_TEGRA_SUSPEND_H_ */

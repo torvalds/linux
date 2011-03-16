@@ -1,10 +1,8 @@
 /*
- * arch/arm/mach-tegra/include/mach/clk.h
- *
- * Copyright (C) 2010 Google, Inc.
+ * Copyright (C) 2011 Google, Inc.
  *
  * Author:
- *	Erik Gilling <konkers@google.com>
+ *	Colin Cross <ccross@android.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -17,15 +15,13 @@
  *
  */
 
-#ifndef __MACH_CLK_H
-#define __MACH_CLK_H
+#define TEGRA_EMC_NUM_REGS 46
 
-struct clk;
+struct tegra_emc_table {
+	unsigned long rate;
+	u32 regs[TEGRA_EMC_NUM_REGS];
+};
 
-void tegra_periph_reset_deassert(struct clk *c);
-void tegra_periph_reset_assert(struct clk *c);
-
-unsigned long clk_get_rate_all_locked(struct clk *c);
-void tegra_sdmmc_tap_delay(struct clk *c, int delay);
-
-#endif
+int tegra_emc_set_rate(unsigned long rate);
+long tegra_emc_round_rate(unsigned long rate);
+void tegra_init_emc(const struct tegra_emc_table *table, int table_size);
