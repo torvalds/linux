@@ -4441,15 +4441,14 @@ static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_Ping(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_Ping(struct drbd_tconn *tconn, enum drbd_packet cmd)
 {
-	return drbd_send_ping_ack(mdev->tconn);
+	return drbd_send_ping_ack(tconn);
 
 }
 
-static int got_PingAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_PingAck(struct drbd_tconn *tconn, enum drbd_packet cmd)
 {
-	struct drbd_tconn *tconn = mdev->tconn;
 	/* restore idle timeout */
 	tconn->meta.socket->sk->sk_rcvtimeo = tconn->net_conf->ping_int*HZ;
 	if (!test_and_set_bit(GOT_PING_ACK, &tconn->flags))
@@ -4729,8 +4728,8 @@ struct asender_cmd {
 };
 
 static struct asender_cmd asender_tbl[] = {
-	[P_PING]	    = { sizeof(struct p_header), MDEV, { got_Ping } },
-	[P_PING_ACK]	    = { sizeof(struct p_header), MDEV, { got_PingAck } },
+	[P_PING]	    = { sizeof(struct p_header), CONN, { .conn_fn = got_Ping } },
+	[P_PING_ACK]	    = { sizeof(struct p_header), CONN, { .conn_fn = got_PingAck } },
 	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
 	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
 	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), MDEV, { got_BlockAck } },
