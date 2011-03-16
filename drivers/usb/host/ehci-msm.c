@@ -1,6 +1,6 @@
 /* ehci-msm.c - HSUSB Host Controller Driver Implementation
  *
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  *
  * Partly derived from ehci-fsl.c and ehci-hcd.c
  * Copyright (c) 2000-2004 by David Brownell
@@ -34,92 +34,6 @@
 
 static struct otg_transceiver *otg;
 
-/*
- * ehci_run defined in drivers/usb/host/ehci-hcd.c reset the controller and
- * the configuration settings in ehci_msm_reset vanish after controller is
- * reset. Resetting the controler in ehci_run seems to be un-necessary
- * provided HCD reset the controller before calling ehci_run. Most of the HCD
- * do but some are not. So this function is same as ehci_run but we don't
- * reset the controller here.
- */
-static int ehci_msm_run(struct usb_hcd *hcd)
-{
-	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
-	u32			temp;
-	u32			hcc_params;
-
-	hcd->uses_new_polling = 1;
-
-	ehci_writel(ehci, ehci->periodic_dma, &ehci->regs->frame_list);
-	ehci_writel(ehci, (u32)ehci->async->qh_dma, &ehci->regs->async_next);
-
-	/*
-	 * hcc_params controls whether ehci->regs->segment must (!!!)
-	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
-	 * streaming mappings for I/O buffers, like pci_map_single(),
-	 * can return segments above 4GB, if the device allows.
-	 *
-	 * NOTE:  the dma mask is visible through dma_supported(), so
-	 * drivers can pass this info along ... like NETIF_F_HIGHDMA,
-	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
-	 * host side drivers though.
-	 */
-	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
-	if (HCC_64BIT_ADDR(hcc_params))
-		ehci_writel(ehci, 0, &ehci->regs->segment);
-
-	/*
-	 * Philips, Intel, and maybe others need CMD_RUN before the
-	 * root hub will detect new devices (why?); NEC doesn't
-	 */
-	ehci->command &= ~(CMD_LRESET|CMD_IAAD|CMD_PSE|CMD_ASE|CMD_RESET);
-	ehci->command |= CMD_RUN;
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	dbg_cmd(ehci, "init", ehci->command);
-
-	/*
-	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
-	 * are explicitly handed to companion controller(s), so no TT is
-	 * involved with the root hub.  (Except where one is integrated,
-	 * and there's no companion controller unless maybe for USB OTG.)
-	 *
-	 * Turning on the CF flag will transfer ownership of all ports
-	 * from the companions to the EHCI controller.  If any of the
-	 * companions are in the middle of a port reset at the time, it
-	 * could cause trouble.  Write-locking ehci_cf_port_reset_rwsem
-	 * guarantees that no resets are in progress.  After we set CF,
-	 * a short delay lets the hardware catch up; new resets shouldn't
-	 * be started before the port switching actions could complete.
-	 */
-	down_write(&ehci_cf_port_reset_rwsem);
-	hcd->state = HC_STATE_RUNNING;
-	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
-	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
-	usleep_range(5000, 5500);
-	up_write(&ehci_cf_port_reset_rwsem);
-	ehci->last_periodic_enable = ktime_get_real();
-
-	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
-	ehci_info(ehci,
-		"USB %x.%x started, EHCI %x.%02x%s\n",
-		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
-		temp >> 8, temp & 0xff,
-		ignore_oc ? ", overcurrent ignored" : "");
-
-	ehci_writel(ehci, INTR_MASK,
-		    &ehci->regs->intr_enable); /* Turn On Interrupts */
-
-	/* GRR this is run-once init(), being done every time the HC starts.
-	 * So long as they're part of class devices, we can't do it init()
-	 * since the class device isn't created that early.
-	 */
-	create_debug_files(ehci);
-	create_companion_file(ehci);
-
-	return 0;
-}
-
 static int ehci_msm_reset(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -128,12 +42,18 @@ static int ehci_msm_reset(struct usb_hcd *hcd)
 	ehci->caps = USB_CAPLENGTH;
 	ehci->regs = USB_CAPLENGTH +
 		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+	dbg_hcs_params(ehci, "reset");
+	dbg_hcc_params(ehci, "reset");
 
 	/* cache the data to minimize the chip reads*/
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	hcd->has_tt = 1;
 	ehci->sbrn = HCD_USB2;
+
+	retval = ehci_halt(ehci);
+	if (retval)
+		return retval;
 
 	/* data structure init */
 	retval = ehci_init(hcd);
@@ -167,7 +87,7 @@ static struct hc_driver msm_hc_driver = {
 	.flags			= HCD_USB2 | HCD_MEMORY,
 
 	.reset			= ehci_msm_reset,
-	.start			= ehci_msm_run,
+	.start			= ehci_run,
 
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,

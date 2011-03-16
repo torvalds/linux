@@ -566,26 +566,10 @@ static struct s3c2410_platform_nand rx1950_nand_info = {
 	.sets = rx1950_nand_sets,
 };
 
-static void rx1950_udc_pullup(enum s3c2410_udc_cmd_e cmd)
-{
-	switch (cmd) {
-	case S3C2410_UDC_P_ENABLE:
-		gpio_direction_output(S3C2410_GPJ(5), 1);
-		break;
-	case S3C2410_UDC_P_DISABLE:
-		gpio_direction_output(S3C2410_GPJ(5), 0);
-		break;
-	case S3C2410_UDC_P_RESET:
-		break;
-	default:
-		break;
-	}
-}
-
 static struct s3c2410_udc_mach_info rx1950_udc_cfg __initdata = {
-	.udc_command = rx1950_udc_pullup,
 	.vbus_pin = S3C2410_GPG(5),
 	.vbus_pin_inverted = 1,
+	.pullup_pin = S3C2410_GPJ(5),
 };
 
 static struct s3c2410_ts_mach_info rx1950_ts_cfg __initdata = {
@@ -749,9 +733,6 @@ static void __init rx1950_init_machine(void)
 	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
 						S3C2410_MISCCR_USBSUSPND0 |
 						S3C2410_MISCCR_USBSUSPND1, 0x0);
-
-	WARN_ON(gpio_request(S3C2410_GPJ(5), "UDC pullup"));
-	gpio_direction_output(S3C2410_GPJ(5), 0);
 
 	/* mmc power is disabled by default */
 	WARN_ON(gpio_request(S3C2410_GPJ(1), "MMC power"));

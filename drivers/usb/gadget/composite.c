@@ -813,7 +813,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	 */
 	req->zero = 0;
 	req->complete = composite_setup_complete;
-	req->length = USB_BUFSIZ;
+	req->length = 0;
 	gadget->ep0->driver_data = cdev;
 
 	switch (ctrl->bRequest) {
@@ -887,7 +887,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	case USB_REQ_SET_INTERFACE:
 		if (ctrl->bRequestType != USB_RECIP_INTERFACE)
 			goto unknown;
-		if (!cdev->config || w_index >= MAX_CONFIG_INTERFACES)
+		if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
 			break;
 		f = cdev->config->interface[intf];
 		if (!f)
@@ -899,7 +899,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	case USB_REQ_GET_INTERFACE:
 		if (ctrl->bRequestType != (USB_DIR_IN|USB_RECIP_INTERFACE))
 			goto unknown;
-		if (!cdev->config || w_index >= MAX_CONFIG_INTERFACES)
+		if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
 			break;
 		f = cdev->config->interface[intf];
 		if (!f)
@@ -928,7 +928,7 @@ unknown:
 		 */
 		switch (ctrl->bRequestType & USB_RECIP_MASK) {
 		case USB_RECIP_INTERFACE:
-			if (!cdev->config || w_index >= MAX_CONFIG_INTERFACES)
+			if (!cdev->config || intf >= MAX_CONFIG_INTERFACES)
 				break;
 			f = cdev->config->interface[intf];
 			break;
@@ -1258,16 +1258,16 @@ static struct usb_gadget_driver composite_driver = {
  * while it was binding.  That would usually be done in order to wait for
  * some userspace participation.
  */
-extern int usb_composite_probe(struct usb_composite_driver *driver,
+int usb_composite_probe(struct usb_composite_driver *driver,
 			       int (*bind)(struct usb_composite_dev *cdev))
 {
 	if (!driver || !driver->dev || !bind || composite)
 		return -EINVAL;
 
-	if (!driver->iProduct)
-		driver->iProduct = driver->name;
 	if (!driver->name)
 		driver->name = "composite";
+	if (!driver->iProduct)
+		driver->iProduct = driver->name;
 	composite_driver.function =  (char *) driver->name;
 	composite_driver.driver.name = driver->name;
 	composite = driver;

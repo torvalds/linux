@@ -722,6 +722,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_PROPOX_JTAGCABLEII_PID) },
 	{ USB_DEVICE(OLIMEX_VID, OLIMEX_ARM_USB_OCD_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(OLIMEX_VID, OLIMEX_ARM_USB_OCD_H_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FIC_VID, FIC_NEO1973_DEBUG_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(FTDI_VID, FTDI_OOCDLINK_PID),
@@ -973,7 +975,7 @@ static __u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
 	int divisor3;
 
 	/* hi-speed baud rate is 10-bit sampling instead of 16-bit */
-	divisor3 = (base / 10 / baud) * 8;
+	divisor3 = base * 8 / (baud * 10);
 
 	divisor = divisor3 >> 3;
 	divisor |= (__u32)divfrac[divisor3 & 0x7] << 14;

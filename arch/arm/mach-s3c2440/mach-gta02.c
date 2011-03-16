@@ -455,28 +455,10 @@ static struct s3c2410_platform_nand __initdata gta02_nand_info = {
 };
 
 
-static void gta02_udc_command(enum s3c2410_udc_cmd_e cmd)
-{
-	switch (cmd) {
-	case S3C2410_UDC_P_ENABLE:
-		pr_debug("%s S3C2410_UDC_P_ENABLE\n", __func__);
-		gpio_direction_output(GTA02_GPIO_USB_PULLUP, 1);
-		break;
-	case S3C2410_UDC_P_DISABLE:
-		pr_debug("%s S3C2410_UDC_P_DISABLE\n", __func__);
-		gpio_direction_output(GTA02_GPIO_USB_PULLUP, 0);
-		break;
-	case S3C2410_UDC_P_RESET:
-		pr_debug("%s S3C2410_UDC_P_RESET\n", __func__);
-		/* FIXME: Do something here. */
-	}
-}
-
 /* Get PMU to set USB current limit accordingly. */
-static struct s3c2410_udc_mach_info gta02_udc_cfg = {
+static struct s3c2410_udc_mach_info gta02_udc_cfg __initdata = {
 	.vbus_draw	= gta02_udc_vbus_draw,
-	.udc_command	= gta02_udc_command,
-
+	.pullup_pin = GTA02_GPIO_USB_PULLUP,
 };
 
 /* USB */
