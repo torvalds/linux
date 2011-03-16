@@ -1264,19 +1264,19 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 /* dp->sector and dp->block_id already/still in network byte order,
  * data_size is payload size according to dp->head,
  * and may need to be corrected for digest size. */
-int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
-		     struct p_data *dp, int data_size)
+void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
+		      struct p_data *dp, int data_size)
 {
 	data_size -= (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_r_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
-	return !_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
-			       dp->block_id);
+	_drbd_send_ack(mdev, cmd, dp->sector, cpu_to_be32(data_size),
+		       dp->block_id);
 }
 
-int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
-		     struct p_block_req *rp)
+void drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
+		      struct p_block_req *rp)
 {
-	return !_drbd_send_ack(mdev, cmd, rp->sector, rp->blksize, rp->block_id);
+	_drbd_send_ack(mdev, cmd, rp->sector, rp->blksize, rp->block_id);
 }
 
 /**

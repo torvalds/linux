@@ -1185,10 +1185,10 @@ extern void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			    u32 set_size);
 extern int drbd_send_ack(struct drbd_conf *, enum drbd_packet,
 			 struct drbd_peer_request *);
-extern int drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
-			    struct p_block_req *rp);
-extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
-			    struct p_data *dp, int data_size);
+extern void drbd_send_ack_rp(struct drbd_conf *mdev, enum drbd_packet cmd,
+			     struct p_block_req *rp);
+extern void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
+			     struct p_data *dp, int data_size);
 extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 			    sector_t sector, int blksize, u64 block_id);
 extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
