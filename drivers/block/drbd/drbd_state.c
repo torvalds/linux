@@ -1438,7 +1438,7 @@ conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state v
 	spin_unlock_irq(&tconn->req_lock);
 	mutex_lock(&tconn->cstate_mutex);
 
-	if (!conn_send_state_req(tconn, mask, val)) {
+	if (conn_send_state_req(tconn, mask, val)) {
 		rv = SS_CW_FAILED_BY_PEER;
 		/* if (f & CS_VERBOSE)
 		   print_st_err(mdev, os, ns, rv); */
