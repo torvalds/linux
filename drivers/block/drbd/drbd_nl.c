@@ -252,43 +252,47 @@ static int drbd_adm_finish(struct genl_info *info, int retcode)
 	return 0;
 }
 
+static void setup_khelper_env(struct drbd_tconn *tconn, char **envp)
+{
+	char *afs;
+
+	if (get_net_conf(tconn)) {
+		switch (((struct sockaddr *)tconn->net_conf->peer_addr)->sa_family) {
+		case AF_INET6:
+			afs = "ipv6";
+			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI6",
+				 &((struct sockaddr_in6 *)tconn->net_conf->peer_addr)->sin6_addr);
+			break;
+		case AF_INET:
+			afs = "ipv4";
+			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
+				 &((struct sockaddr_in *)tconn->net_conf->peer_addr)->sin_addr);
+			break;
+		default:
+			afs = "ssocks";
+			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
+				 &((struct sockaddr_in *)tconn->net_conf->peer_addr)->sin_addr);
+		}
+		snprintf(envp[3], 20, "DRBD_PEER_AF=%s", afs);
+		put_net_conf(tconn);
+	}
+}
+
 int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 {
 	char *envp[] = { "HOME=/",
 			"TERM=linux",
 			"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
-			NULL, /* Will be set to address family */
-			NULL, /* Will be set to address */
+			 (char[20]) { }, /* address family */
+			 (char[60]) { }, /* address */
 			NULL };
-	char mb[12], af[20], ad[60], *afs;
+	char mb[12];
 	char *argv[] = {usermode_helper, cmd, mb, NULL };
 	struct sib_info sib;
 	int ret;
 
 	snprintf(mb, 12, "minor-%d", mdev_to_minor(mdev));
-
-	if (get_net_conf(mdev->tconn)) {
-		switch (((struct sockaddr *)mdev->tconn->net_conf->peer_addr)->sa_family) {
-		case AF_INET6:
-			afs = "ipv6";
-			snprintf(ad, 60, "DRBD_PEER_ADDRESS=%pI6",
-				 &((struct sockaddr_in6 *)mdev->tconn->net_conf->peer_addr)->sin6_addr);
-			break;
-		case AF_INET:
-			afs = "ipv4";
-			snprintf(ad, 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)mdev->tconn->net_conf->peer_addr)->sin_addr);
-			break;
-		default:
-			afs = "ssocks";
-			snprintf(ad, 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)mdev->tconn->net_conf->peer_addr)->sin_addr);
-		}
-		snprintf(af, 20, "DRBD_PEER_AF=%s", afs);
-		envp[3]=af;
-		envp[4]=ad;
-		put_net_conf(mdev->tconn);
-	}
+	setup_khelper_env(mdev->tconn, envp);
 
 	/* The helper may take some time.
 	 * write out any unsynced meta data changes now */
@@ -310,6 +314,49 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	sib.sib_reason = SIB_HELPER_POST;
 	sib.helper_exit_code = ret;
 	drbd_bcast_event(mdev, &sib);
+
+	if (ret < 0) /* Ignore any ERRNOs we got. */
+		ret = 0;
+
+	return ret;
+}
+
+static void conn_md_sync(struct drbd_tconn *tconn)
+{
+	struct drbd_conf *mdev;
+	int minor;
+
+	idr_for_each_entry(&tconn->volumes, mdev, minor)
+		drbd_md_sync(mdev);
+}
+
+int conn_khelper(struct drbd_tconn *tconn, char *cmd)
+{
+	char *envp[] = { "HOME=/",
+			"TERM=linux",
+			"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
+			 (char[20]) { }, /* address family */
+			 (char[60]) { }, /* address */
+			NULL };
+	char *argv[] = {usermode_helper, cmd, tconn->name, NULL };
+	int ret;
+
+	setup_khelper_env(tconn, envp);
+	conn_md_sync(tconn);
+
+	conn_info(tconn, "helper command: %s %s %s\n", usermode_helper, cmd, tconn->name);
+	/* TODO: conn_bcast_event() ?? */
+
+	ret = call_usermodehelper(usermode_helper, argv, envp, 1);
+	if (ret)
+		conn_warn(tconn, "helper command: %s %s %s exit code %u (0x%x)\n",
+			  usermode_helper, cmd, tconn->name,
+			  (ret >> 8) & 0xff, ret);
+	else
+		conn_info(tconn, "helper command: %s %s %s exit code %u (0x%x)\n",
+			  usermode_helper, cmd, tconn->name,
+			  (ret >> 8) & 0xff, ret);
+	/* TODO: conn_bcast_event() ?? */
 
 	if (ret < 0) /* Ignore any ERRNOs we got. */
 		ret = 0;
