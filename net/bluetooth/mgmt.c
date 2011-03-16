@@ -1256,6 +1256,45 @@ failed:
 	return err;
 }
 
+static int set_local_name(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
+{
+	struct mgmt_cp_set_local_name *mgmt_cp = (void *) data;
+	struct hci_cp_write_local_name hci_cp;
+	struct hci_dev *hdev;
+	struct pending_cmd *cmd;
+	int err;
+
+	BT_DBG("");
+
+	if (len != sizeof(*mgmt_cp))
+		return cmd_status(sk, index, MGMT_OP_SET_LOCAL_NAME, EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_SET_LOCAL_NAME, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_LOCAL_NAME, index, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	memcpy(hci_cp.name, mgmt_cp->name, sizeof(hci_cp.name));
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(hci_cp),
+								&hci_cp);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1350,6 +1389,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_USER_CONFIRM_NEG_REPLY:
 		err = user_confirm_reply(sk, index, buf + sizeof(*hdr), len, 0);
+		break;
+	case MGMT_OP_SET_LOCAL_NAME:
+		err = set_local_name(sk, index, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -1646,4 +1688,37 @@ int mgmt_auth_failed(u16 index, bdaddr_t *bdaddr, u8 status)
 	ev.status = status;
 
 	return mgmt_event(MGMT_EV_AUTH_FAILED, index, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_set_local_name_complete(u16 index, u8 *name, u8 status)
+{
+	struct pending_cmd *cmd;
+	struct mgmt_cp_set_local_name ev;
+	int err;
+
+	memset(&ev, 0, sizeof(ev));
+	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
+
+	cmd = mgmt_pending_find(MGMT_OP_SET_LOCAL_NAME, index);
+	if (!cmd)
+		goto send_event;
+
+	if (status) {
+		err = cmd_status(cmd->sk, index, MGMT_OP_SET_LOCAL_NAME, EIO);
+		goto failed;
+	}
+
+	err = cmd_complete(cmd->sk, index, MGMT_OP_SET_LOCAL_NAME, &ev,
+								sizeof(ev));
+	if (err < 0)
+		goto failed;
+
+send_event:
+	err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, index, &ev, sizeof(ev),
+							cmd ? cmd->sk : NULL);
+
+failed:
+	if (cmd)
+		mgmt_pending_remove(cmd);
+	return err;
 }
