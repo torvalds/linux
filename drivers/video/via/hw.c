@@ -2401,9 +2401,6 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 	viafb_write_reg_mask(0x15, VIASR, 0xA2, 0xA2);
 
-	/* Write CRTC */
-	viafb_fill_crtc_timing(crt_timing, vmode_tbl, video_bpp / 8, IGA1);
-
 	/* Write Graphic Controller */
 	for (i = 0; i < StdGR; i++)
 		via_write_reg(VIAGR, i, VPIT.GR[i]);
