@@ -743,8 +743,10 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 	struct list_head tmp;
 	struct address_space *mapping;
 	int err = 0, err2;
+	struct blk_plug plug;
 
 	INIT_LIST_HEAD(&tmp);
+	blk_start_plug(&plug);
 
 	spin_lock(lock);
 	while (!list_empty(list)) {
@@ -780,6 +782,10 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 			}
 		}
 	}
+
+	spin_unlock(lock);
+	blk_finish_plug(&plug);
+	spin_lock(lock);
 
 	while (!list_empty(&tmp)) {
 		bh = BH_ENTRY(tmp.prev);
