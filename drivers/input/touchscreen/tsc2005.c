@@ -366,7 +366,8 @@ static void tsc2005_enable(struct tsc2005 *ts)
 static ssize_t tsc2005_disable_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct tsc2005 *ts = dev_get_drvdata(dev);
+	struct spi_device *spi = to_spi_device(dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
 
 	return sprintf(buf, "%u\n", ts->disabled);
 }
@@ -375,7 +376,8 @@ static ssize_t tsc2005_disable_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct tsc2005 *ts = dev_get_drvdata(dev);
+	struct spi_device *spi = to_spi_device(dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
 	unsigned long res;
 	int i;
 
@@ -401,7 +403,8 @@ static ssize_t tsc2005_selftest_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct tsc2005 *ts = dev_get_drvdata(dev);
+	struct spi_device *spi = to_spi_device(dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
 	u16 temp_high;
 	u16 temp_high_orig;
 	u16 temp_high_test;
@@ -620,7 +623,7 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 	if (ts == NULL)
 		return -ENOMEM;
 
-	dev_set_drvdata(&spi->dev, ts);
+	spi_set_drvdata(spi, ts);
 	ts->spi = spi;
 	spi->dev.power.power_state = PMSG_ON;
 	spi->mode = SPI_MODE_0;
@@ -637,7 +640,7 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 
 static int __devexit tsc2005_remove(struct spi_device *spi)
 {
-	struct tsc2005 *ts = dev_get_drvdata(&spi->dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
 
 	mutex_lock(&ts->mutex);
 	tsc2005_disable(ts);
@@ -661,7 +664,8 @@ static int __devexit tsc2005_remove(struct spi_device *spi)
 #ifdef CONFIG_PM
 static int tsc2005_suspend(struct spi_device *spi, pm_message_t mesg)
 {
-	struct tsc2005 *ts = dev_get_drvdata(&spi->dev);
+	struct spi_device *spi = to_spi_device(dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
 
 	mutex_lock(&ts->mutex);
 	tsc2005_disable(ts);
@@ -672,7 +676,8 @@ static int tsc2005_suspend(struct spi_device *spi, pm_message_t mesg)
 
 static int tsc2005_resume(struct spi_device *spi)
 {
-	struct tsc2005 *ts = dev_get_drvdata(&spi->dev);
+	struct spi_device *spi = to_spi_device(dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
 
 	mutex_lock(&ts->mutex);
 	tsc2005_enable(ts);
