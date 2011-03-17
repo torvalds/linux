@@ -195,13 +195,6 @@ static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
 
 	/* important:  scrub old status before enabling IRQs */
 	switch (cmd) {
-	case RTC_AIE_OFF:	/* alarm off */
-		at91_sys_write(AT91_RTC_IDR, AT91_RTC_ALARM);
-		break;
-	case RTC_AIE_ON:	/* alarm on */
-		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
-		at91_sys_write(AT91_RTC_IER, AT91_RTC_ALARM);
-		break;
 	case RTC_UIE_OFF:	/* update off */
 		at91_sys_write(AT91_RTC_IDR, AT91_RTC_SECEV);
 		break;
@@ -217,6 +210,18 @@ static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
 	return ret;
 }
 
+static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	pr_debug("%s(): cmd=%08x\n", __func__, enabled);
+
+	if (enabled) {
+		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
+		at91_sys_write(AT91_RTC_IER, AT91_RTC_ALARM);
+	} else
+		at91_sys_write(AT91_RTC_IDR, AT91_RTC_ALARM);
+
+	return 0;
+}
 /*
  * Provide additional RTC information in /proc/driver/rtc
  */
@@ -270,6 +275,7 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.read_alarm	= at91_rtc_readalarm,
 	.set_alarm	= at91_rtc_setalarm,
 	.proc		= at91_rtc_proc,
+	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
 /*

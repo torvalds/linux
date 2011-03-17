@@ -2069,7 +2069,7 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 
 	fb_set_suspend(info, 1);
 
@@ -2097,14 +2097,14 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		par->lock_blank = 0;
 		atyfb_blank(FB_BLANK_UNBLANK, info);
 		fb_set_suspend(info, 0);
-		release_console_sem();
+		console_unlock();
 		return -EIO;
 	}
 #else
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 #endif
 
-	release_console_sem();
+	console_unlock();
 
 	pdev->dev.power.power_state = state;
 
@@ -2133,7 +2133,7 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 	if (pdev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 
 	/*
 	 * PCI state will have been restored by the core, so
@@ -2161,7 +2161,7 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 	par->lock_blank = 0;
 	atyfb_blank(FB_BLANK_UNBLANK, info);
 
-	release_console_sem();
+	console_unlock();
 
 	pdev->dev.power.power_state = PMSG_ON;
 

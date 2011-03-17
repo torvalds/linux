@@ -186,6 +186,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split = alloc_extent_map(GFP_NOFS);
 		if (!split2)
 			split2 = alloc_extent_map(GFP_NOFS);
+		BUG_ON(!split || !split2);
 
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, len);
@@ -793,8 +794,12 @@ again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = grab_cache_page(inode->i_mapping, index + i);
 		if (!pages[i]) {
-			err = -ENOMEM;
-			BUG_ON(1);
+			int c;
+			for (c = i - 1; c >= 0; c--) {
+				unlock_page(pages[c]);
+				page_cache_release(pages[c]);
+			}
+			return -ENOMEM;
 		}
 		wait_on_page_writeback(pages[i]);
 	}
@@ -946,6 +951,10 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
 		     (sizeof(struct page *)));
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* generic_write_checks can change our pos */
 	start_pos = pos;
@@ -984,8 +993,8 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		size_t write_bytes = min(iov_iter_count(&i),
 					 nrptrs * (size_t)PAGE_CACHE_SIZE -
 					 offset);
-		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
-					PAGE_CACHE_SHIFT;
+		size_t num_pages = (write_bytes + offset +
+				    PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(struct page *) * nrptrs);
@@ -1015,8 +1024,8 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 
 		copied = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, &i);
-		dirty_pages = (copied + PAGE_CACHE_SIZE - 1) >>
-					PAGE_CACHE_SHIFT;
+		dirty_pages = (copied + offset + PAGE_CACHE_SIZE - 1) >>
+				PAGE_CACHE_SHIFT;
 
 		if (num_pages > dirty_pages) {
 			if (copied > 0)

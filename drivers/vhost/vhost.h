@@ -173,9 +173,9 @@ static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
 {
 	unsigned acked_features;
 
-	acked_features =
-		rcu_dereference_index_check(dev->acked_features,
-					    lockdep_is_held(&dev->mutex));
+	/* TODO: check that we are running from vhost_worker or dev mutex is
+	 * held? */
+	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
 	return acked_features & (1 << bit);
 }
 

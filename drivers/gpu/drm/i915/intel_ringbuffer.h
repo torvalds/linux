@@ -14,22 +14,23 @@ struct  intel_hw_status_page {
 	struct		drm_i915_gem_object *obj;
 };
 
-#define I915_RING_READ(reg) i915_safe_read(dev_priv, reg)
+#define I915_RING_READ(reg) i915_gt_read(dev_priv, reg)
+#define I915_RING_WRITE(reg, val) i915_gt_write(dev_priv, reg, val)
 
 #define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL((ring)->mmio_base))
-#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL((ring)->mmio_base), val)
+#define I915_WRITE_TAIL(ring, val) I915_RING_WRITE(RING_TAIL((ring)->mmio_base), val)
 
 #define I915_READ_START(ring) I915_RING_READ(RING_START((ring)->mmio_base))
-#define I915_WRITE_START(ring, val) I915_WRITE(RING_START((ring)->mmio_base), val)
+#define I915_WRITE_START(ring, val) I915_RING_WRITE(RING_START((ring)->mmio_base), val)
 
 #define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD((ring)->mmio_base))
-#define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD((ring)->mmio_base), val)
+#define I915_WRITE_HEAD(ring, val) I915_RING_WRITE(RING_HEAD((ring)->mmio_base), val)
 
 #define I915_READ_CTL(ring) I915_RING_READ(RING_CTL((ring)->mmio_base))
-#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL((ring)->mmio_base), val)
+#define I915_WRITE_CTL(ring, val) I915_RING_WRITE(RING_CTL((ring)->mmio_base), val)
 
-#define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
 #define I915_READ_IMR(ring) I915_RING_READ(RING_IMR((ring)->mmio_base))
+#define I915_WRITE_IMR(ring, val) I915_RING_WRITE(RING_IMR((ring)->mmio_base), val)
 
 #define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID((ring)->mmio_base))
 #define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0((ring)->mmio_base))
@@ -165,5 +166,8 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
+
+/* DRI warts */
+int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

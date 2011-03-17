@@ -94,8 +94,8 @@ static int simtec_hermes_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link simtec_dai_aic33 = {
 	.name		= "tlv320aic33",
 	.stream_name	= "TLV320AIC33",
-	.codec_name	= "tlv320aic3x-codec.0-0x1a",
-	.cpu_dai_name	= "s3c24xx-i2s",
+	.codec_name	= "tlv320aic3x-codec.0-001a",
+	.cpu_dai_name	= "s3c24xx-iis",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.platform_name	= "samsung-audio",
 	.init		= simtec_hermes_init,

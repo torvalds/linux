@@ -277,10 +277,43 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	host->clock = clock;
 }
 
+/**
+ * sdhci_s3c_platform_8bit_width - support 8bit buswidth
+ * @host: The SDHCI host being queried
+ * @width: MMC_BUS_WIDTH_ macro for the bus width being requested
+ *
+ * We have 8-bit width support but is not a v3 controller.
+ * So we add platform_8bit_width() and support 8bit width.
+ */
+static int sdhci_s3c_platform_8bit_width(struct sdhci_host *host, int width)
+{
+	u8 ctrl;
+
+	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
+
+	switch (width) {
+	case MMC_BUS_WIDTH_8:
+		ctrl |= SDHCI_CTRL_8BITBUS;
+		ctrl &= ~SDHCI_CTRL_4BITBUS;
+		break;
+	case MMC_BUS_WIDTH_4:
+		ctrl |= SDHCI_CTRL_4BITBUS;
+		ctrl &= ~SDHCI_CTRL_8BITBUS;
+		break;
+	default:
+		break;
+	}
+
+	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+
+	return 0;
+}
+
 static struct sdhci_ops sdhci_s3c_ops = {
 	.get_max_clock		= sdhci_s3c_get_max_clk,
 	.set_clock		= sdhci_s3c_set_clock,
 	.get_min_clock		= sdhci_s3c_get_min_clock,
+	.platform_8bit_width	= sdhci_s3c_platform_8bit_width,
 };
 
 static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
@@ -472,6 +505,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 
 	if (pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
 		host->mmc->caps = MMC_CAP_NONREMOVABLE;
+
+	if (pdata->host_caps)
+		host->mmc->caps |= pdata->host_caps;
 
 	host->quirks |= (SDHCI_QUIRK_32BIT_DMA_ADDR |
 			 SDHCI_QUIRK_32BIT_DMA_SIZE);

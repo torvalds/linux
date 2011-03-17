@@ -1822,6 +1822,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 		*cookie ^= 2;
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
 		local->hw_roc_skb = skb;
+		local->hw_roc_skb_for_status = skb;
 		mutex_unlock(&local->mtx);
 
 		return 0;
@@ -1875,6 +1876,7 @@ static int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 		if (ret == 0) {
 			kfree_skb(local->hw_roc_skb);
 			local->hw_roc_skb = NULL;
+			local->hw_roc_skb_for_status = NULL;
 		}
 
 		mutex_unlock(&local->mtx);

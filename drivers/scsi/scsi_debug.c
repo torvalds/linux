@@ -1671,7 +1671,7 @@ static int do_device_access(struct scsi_cmnd *scmd,
 			    unsigned long long lba, unsigned int num, int write)
 {
 	int ret;
-	unsigned int block, rest = 0;
+	unsigned long long block, rest = 0;
 	int (*func)(struct scsi_cmnd *, unsigned char *, int);
 
 	func = write ? fetch_to_dev_buffer : fill_from_dev_buffer;

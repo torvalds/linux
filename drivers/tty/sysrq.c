@@ -46,7 +46,7 @@
 #include <asm/irq_regs.h>
 
 /* Whether we react on sysrq keys or just ignore them */
-static int __read_mostly sysrq_enabled = 1;
+static int __read_mostly sysrq_enabled = SYSRQ_DEFAULT_ENABLE;
 static bool __read_mostly sysrq_always_enabled;
 
 static bool sysrq_on(void)
@@ -571,6 +571,7 @@ struct sysrq_state {
 	unsigned int alt_use;
 	bool active;
 	bool need_reinject;
+	bool reinjecting;
 };
 
 static void sysrq_reinject_alt_sysrq(struct work_struct *work)
@@ -581,6 +582,10 @@ static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 	unsigned int alt_code = sysrq->alt_use;
 
 	if (sysrq->need_reinject) {
+		/* we do not want the assignment to be reordered */
+		sysrq->reinjecting = true;
+		mb();
+
 		/* Simulate press and release of Alt + SysRq */
 		input_inject_event(handle, EV_KEY, alt_code, 1);
 		input_inject_event(handle, EV_KEY, KEY_SYSRQ, 1);
@@ -589,6 +594,9 @@ static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 		input_inject_event(handle, EV_KEY, KEY_SYSRQ, 0);
 		input_inject_event(handle, EV_KEY, alt_code, 0);
 		input_inject_event(handle, EV_SYN, SYN_REPORT, 1);
+
+		mb();
+		sysrq->reinjecting = false;
 	}
 }
 
@@ -598,6 +606,13 @@ static bool sysrq_filter(struct input_handle *handle,
 	struct sysrq_state *sysrq = handle->private;
 	bool was_active = sysrq->active;
 	bool suppress;
+
+	/*
+	 * Do not filter anything if we are in the process of re-injecting
+	 * Alt+SysRq combination.
+	 */
+	if (sysrq->reinjecting)
+		return false;
 
 	switch (type) {
 
@@ -629,7 +644,7 @@ static bool sysrq_filter(struct input_handle *handle,
 				sysrq->alt_use = sysrq->alt;
 				/*
 				 * If nothing else will be pressed we'll need
-				 * to * re-inject Alt-SysRq keysroke.
+				 * to re-inject Alt-SysRq keysroke.
 				 */
 				sysrq->need_reinject = true;
 			}

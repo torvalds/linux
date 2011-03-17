@@ -174,7 +174,9 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
-#define MI_FLUSH_DW		MI_INSTR(0x26, 2) /* for GEN6 */
+#define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
+#define   MI_INVALIDATE_TLB	(1<<18)
+#define   MI_INVALIDATE_BSD	(1<<7)
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
@@ -512,6 +514,10 @@
 #define   GEN6_BLITTER_COMMAND_PARSER_MASTER_ERROR	(1 << 25)
 #define   GEN6_BLITTER_SYNC_STATUS			(1 << 24)
 #define   GEN6_BLITTER_USER_INTERRUPT			(1 << 22)
+
+#define GEN6_BLITTER_ECOSKPD	0x221d0
+#define   GEN6_BLITTER_LOCK_SHIFT			16
+#define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	0x12050
 #define   GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_MODIFY_MASK	(1 << 16)
@@ -1547,17 +1553,7 @@
 
 /* Backlight control */
 #define BLC_PWM_CTL		0x61254
-#define   BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
 #define BLC_PWM_CTL2		0x61250 /* 965+ only */
-#define   BLM_COMBINATION_MODE (1 << 30)
-/*
- * This is the most significant 15 bits of the number of backlight cycles in a
- * complete cycle of the modulated backlight control.
- *
- * The actual value is this field multiplied by two.
- */
-#define   BACKLIGHT_MODULATION_FREQ_MASK		(0x7fff << 17)
-#define   BLM_LEGACY_MODE				(1 << 16)
 /*
  * This is the number of cycles out of the backlight modulation cycle for which
  * the backlight is on.
@@ -2626,6 +2622,8 @@
 #define DISPLAY_PORT_PLL_BIOS_2         0x46014
 
 #define PCH_DSPCLK_GATE_D	0x42020
+# define DPFCUNIT_CLOCK_GATE_DISABLE		(1 << 9)
+# define DPFCRUNIT_CLOCK_GATE_DISABLE		(1 << 8)
 # define DPFDUNIT_CLOCK_GATE_DISABLE		(1 << 7)
 # define DPARBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
 
@@ -3262,6 +3260,8 @@
 
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_ACK				0x130090
+
+#define  GT_FIFO_FREE_ENTRIES			0x120008
 
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)

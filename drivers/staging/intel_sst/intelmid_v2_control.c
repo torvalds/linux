@@ -874,7 +874,10 @@ static int nc_set_selected_input_dev(u8 value)
 		sc_access[3].reg_addr = 0x109;
 		sc_access[3].mask = MASK6;
 		sc_access[3].value = 0x00;
-		num_val = 4;
+		sc_access[4].reg_addr = 0x104;
+		sc_access[4].value = 0x3C;
+		sc_access[4].mask = 0xff;
+		num_val = 5;
 		break;
 	default:
 		return -EINVAL;

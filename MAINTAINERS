@@ -885,7 +885,7 @@ S:	Supported
 
 ARM/QUALCOMM MSM MACHINE SUPPORT
 M:	David Brown <davidb@codeaurora.org>
-M:	Daniel Walker <dwalker@codeaurora.org>
+M:	Daniel Walker <dwalker@fifo99.com>
 M:	Bryan Huntsman <bryanh@codeaurora.org>
 L:	linux-arm-msm@vger.kernel.org
 F:	arch/arm/mach-msm/
@@ -978,6 +978,8 @@ S:	Maintained
 F:	arch/arm/plat-samsung/
 F:	arch/arm/plat-s3c24xx/
 F:	arch/arm/plat-s5p/
+F:	drivers/*/*s3c2410*
+F:	drivers/*/*/*s3c2410*
 
 ARM/S3C2410 ARM ARCHITECTURE
 M:	Ben Dooks <ben-linux@fluff.org>
@@ -1007,6 +1009,15 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-s5p*/
+
+ARM/SAMSUNG MOBILE MACHINE SUPPORT
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-s5pv210/mach-aquila.c
+F:	arch/arm/mach-s5pv210/mach-goni.c
+F:	arch/arm/mach-exynos4/mach-universal_c210.c
+F:	arch/arm/mach-exynos4/mach-nuri.c
 
 ARM/SAMSUNG S5P SERIES FIMC SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
@@ -1465,6 +1476,7 @@ F:	include/net/bluetooth/
 
 BONDING DRIVER
 M:	Jay Vosburgh <fubar@us.ibm.com>
+M:	Andy Gospodarek <andy@greyhouse.net>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
@@ -1689,6 +1701,13 @@ CHECKPATCH
 M:	Andy Whitcroft <apw@canonical.com>
 S:	Supported
 F:	scripts/checkpatch.pl
+
+CHINESE DOCUMENTATION
+M:	Harry Wei <harryxiyou@gmail.com>
+L:	xiyoulinuxkernelgroup@googlegroups.com
+L:	linux-kernel@zh-kernel.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/zh_CN/
 
 CISCO VIC ETHERNET NIC DRIVER
 M:	Vasanthy Kolluri <vkolluri@cisco.com>
@@ -2024,7 +2043,7 @@ F:	Documentation/scsi/dc395x.txt
 F:	drivers/scsi/dc395x.*
 
 DCCP PROTOCOL
-M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
+M:	Gerrit Renker <gerrit@erg.abdn.ac.uk>
 L:	dccp@vger.kernel.org
 W:	http://www.linuxfoundation.org/collaborate/workgroups/networking/dccp
 S:	Maintained
@@ -2124,6 +2143,7 @@ S:	Supported
 F:	fs/dlm/
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
+M:	Vinod Koul <vinod.koul@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
 S:	Supported
 F:	drivers/dma/
@@ -2772,6 +2792,15 @@ F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/linux/gigaset_dev.h
 
+GPIO SUBSYSTEM
+M:	Grant Likely <grant.likely@secretlab.ca>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.secretlab.ca/git/linux-2.6.git
+F:	Documentation/gpio/gpio.txt
+F:	drivers/gpio/
+F:	include/linux/gpio*
+
 GRETH 10/100/1G Ethernet MAC device driver
 M:	Kristoffer Glembo <kristoffer@gaisler.com>
 L:	netdev@vger.kernel.org
@@ -2861,7 +2890,6 @@ M:	Guenter Roeck <guenter.roeck@ericsson.com>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
-T:	quilt kernel.org/pub/linux/kernel/people/groeck/linux-staging/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -3139,6 +3167,12 @@ S:	Maintained
 F:	net/ieee802154/
 F:	drivers/ieee802154/
 
+IKANOS/ADI EAGLE ADSL USB DRIVER
+M:	Matthieu Castet <castet.matthieu@free.fr>
+M:	Stanislaw Gruszka <stf_xl@wp.pl>
+S:	Maintained
+F:	drivers/usb/atm/ueagle-atm.c
+
 INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
 M:	Mimi Zohar <zohar@us.ibm.com>
 S:	Supported
@@ -3327,7 +3361,6 @@ F:	drivers/net/wimax/i2400m/
 F:	include/linux/wimax/i2400m.h
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
-M:	Reinette Chatre <reinette.chatre@intel.com>
 M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
@@ -3496,7 +3529,7 @@ F:	drivers/hwmon/jc42.c
 F:	Documentation/hwmon/jc42
 
 JFS FILESYSTEM
-M:	Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+M:	Dave Kleikamp <shaggy@kernel.org>
 L:	jfs-discussion@lists.sourceforge.net
 W:	http://jfs.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
@@ -3673,6 +3706,28 @@ F:	include/linux/key.h
 F:	include/linux/key-type.h
 F:	include/keys/
 F:	security/keys/
+
+KEYS-TRUSTED
+M:	David Safford <safford@watson.ibm.com>
+M:	Mimi Zohar <zohar@us.ibm.com>
+L:	linux-security-module@vger.kernel.org
+L:	keyrings@linux-nfs.org
+S:	Supported
+F:	Documentation/keys-trusted-encrypted.txt
+F:	include/keys/trusted-type.h
+F:	security/keys/trusted.c
+F:	security/keys/trusted.h
+
+KEYS-ENCRYPTED
+M:	Mimi Zohar <zohar@us.ibm.com>
+M:	David Safford <safford@watson.ibm.com>
+L:	linux-security-module@vger.kernel.org
+L:	keyrings@linux-nfs.org
+S:	Supported
+F:	Documentation/keys-trusted-encrypted.txt
+F:	include/keys/encrypted-type.h
+F:	security/keys/encrypted.c
+F:	security/keys/encrypted.h
 
 KGDB / KDB /debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
@@ -4562,7 +4617,7 @@ F:	drivers/i2c/busses/i2c-ocores.c
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Grant Likely <grant.likely@secretlab.ca>
-L:	devicetree-discuss@lists.ozlabs.org
+L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
 W:	http://fdt.secretlab.ca
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
@@ -5126,6 +5181,7 @@ F:	drivers/char/random.c
 
 RAPIDIO SUBSYSTEM
 M:	Matt Porter <mporter@kernel.crashing.org>
+M:	Alexandre Bounine <alexandre.bounine@idt.com>
 S:	Maintained
 F:	drivers/rapidio/
 
@@ -5228,7 +5284,7 @@ S:	Maintained
 F:	drivers/net/wireless/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
-M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
+M:	Herton Ronaldo Krzesinski <herton@canonical.com>
 M:	Hin-Tak Leung <htl10@users.sourceforge.net>
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 L:	linux-wireless@vger.kernel.org
@@ -5522,12 +5578,11 @@ S:	Supported
 F:	drivers/scsi/be2iscsi/
 
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
-M:	Sathya Perla <sathyap@serverengines.com>
-M:	Subbu Seetharaman <subbus@serverengines.com>
-M:	Sarveshwar Bandi <sarveshwarb@serverengines.com>
-M:	Ajit Khaparde <ajitk@serverengines.com>
+M:	Sathya Perla <sathya.perla@emulex.com>
+M:	Subbu Seetharaman <subbu.seetharaman@emulex.com>
+M:	Ajit Khaparde <ajit.khaparde@emulex.com>
 L:	netdev@vger.kernel.org
-W:	http://www.serverengines.com
+W:	http://www.emulex.com
 S:	Supported
 F:	drivers/net/benet/
 
@@ -5587,18 +5642,20 @@ F:	include/linux/sfi*.h
 
 SIMTEC EB110ATX (Chalice CATS)
 P:	Ben Dooks
-M:	Vincent Sanders <support@simtec.co.uk>
+P:	Vincent Sanders <vince@simtec.co.uk>
+M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB110ATX/
 S:	Supported
 
 SIMTEC EB2410ITX (BAST)
 P:	Ben Dooks
-M:	Vincent Sanders <support@simtec.co.uk>
+P:	Vincent Sanders <vince@simtec.co.uk>
+M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB2410ITX/
 S:	Supported
-F:	arch/arm/mach-s3c2410/
-F:	drivers/*/*s3c2410*
-F:	drivers/*/*/*s3c2410*
+F:	arch/arm/mach-s3c2410/mach-bast.c
+F:	arch/arm/mach-s3c2410/bast-ide.c
+F:	arch/arm/mach-s3c2410/bast-irq.c
 
 TI DAVINCI MACHINE SUPPORT
 M:	Kevin Hilman <khilman@deeprootsystems.com>
@@ -6065,7 +6122,7 @@ S:	Maintained
 F:	security/tomoyo/
 
 TOPSTAR LAPTOP EXTRAS DRIVER
-M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
+M:	Herton Ronaldo Krzesinski <herton@canonical.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/topstar-laptop.c
@@ -6573,6 +6630,16 @@ S:	Maintained
 F:	drivers/char/virtio_console.c
 F:	include/linux/virtio_console.h
 
+VIRTIO CORE, NET AND BLOCK DRIVERS
+M:	Rusty Russell <rusty@rustcorp.com.au>
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/virtio/
+F:	drivers/net/virtio_net.c
+F:	drivers/block/virtio_blk.c
+F:	include/linux/virtio_*.h
+
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
@@ -6746,12 +6813,12 @@ S:	Maintained
 F:	drivers/net/wireless/wl1251/*
 
 WL1271 WIRELESS DRIVER
-M:	Luciano Coelho <luciano.coelho@nokia.com>
+M:	Luciano Coelho <coelho@ti.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org
+W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/luca/wl12xx.git
 S:	Maintained
-F:	drivers/net/wireless/wl12xx/wl1271*
+F:	drivers/net/wireless/wl12xx/
 F:	include/linux/wl12xx.h
 
 WL3501 WIRELESS PCMCIA CARD DRIVER

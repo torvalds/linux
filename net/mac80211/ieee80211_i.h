@@ -953,7 +953,7 @@ struct ieee80211_local {
 
 	struct ieee80211_channel *hw_roc_channel;
 	struct net_device *hw_roc_dev;
-	struct sk_buff *hw_roc_skb;
+	struct sk_buff *hw_roc_skb, *hw_roc_skb_for_status;
 	struct work_struct hw_roc_start, hw_roc_done;
 	enum nl80211_channel_type hw_roc_channel_type;
 	unsigned int hw_roc_duration;

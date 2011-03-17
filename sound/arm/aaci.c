@@ -50,7 +50,11 @@ static void aaci_ac97_select_codec(struct aaci *aaci, struct snd_ac97 *ac97)
 	if (v & SLFR_1RXV)
 		readl(aaci->base + AACI_SL1RX);
 
-	writel(maincr, aaci->base + AACI_MAINCR);
+	if (maincr != readl(aaci->base + AACI_MAINCR)) {
+		writel(maincr, aaci->base + AACI_MAINCR);
+		readl(aaci->base + AACI_MAINCR);
+		udelay(1);
+	}
 }
 
 /*
@@ -966,6 +970,8 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	 * disabling the channel doesn't clear the FIFO.
 	 */
 	writel(aaci->maincr & ~MAINCR_IE, aaci->base + AACI_MAINCR);
+	readl(aaci->base + AACI_MAINCR);
+	udelay(1);
 	writel(aaci->maincr, aaci->base + AACI_MAINCR);
 
 	/*
@@ -978,7 +984,8 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	return i;
 }
 
-static int __devinit aaci_probe(struct amba_device *dev, struct amba_id *id)
+static int __devinit aaci_probe(struct amba_device *dev,
+	const struct amba_id *id)
 {
 	struct aaci *aaci;
 	int ret, i;

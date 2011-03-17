@@ -169,9 +169,8 @@
  *	SW1	|	SW33
  *		| bit1 | bit2 | bit3 | bit4
  * -------------+------+------+------+-------
- * MMC0	  OFF	|  OFF |  ON  |  ON  |  X
- * MMC1	  ON	|  OFF |  ON  |  X   | ON
- * SDHI1  OFF	|  ON  |   X  |  OFF | ON
+ * MMC0   OFF	|  OFF |   X  |  ON  |  X       (Use MMCIF)
+ * SDHI1  OFF	|  ON  |   X  |  OFF |  X       (Use MFD_SH_MOBILE_SDHI)
  *
  */
 
@@ -304,7 +303,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.lcd_cfg = mackerel_lcdc_modes,
 		.num_cfg = ARRAY_SIZE(mackerel_lcdc_modes),
 		.interface_type		= RGB24,
-		.clock_divider		= 2,
+		.clock_divider		= 3,
 		.flags			= 0,
 		.lcd_size_cfg.width	= 152,
 		.lcd_size_cfg.height	= 91,

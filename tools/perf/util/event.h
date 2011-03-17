@@ -135,14 +135,16 @@ typedef union event_union {
 void event__print_totals(void);
 
 struct perf_session;
+struct thread_map;
 
 typedef int (*event__handler_synth_t)(event_t *event, 
 				      struct perf_session *session);
 typedef int (*event__handler_t)(event_t *event, struct sample_data *sample,
 				struct perf_session *session);
 
-int event__synthesize_thread(pid_t pid, event__handler_t process,
-			     struct perf_session *session);
+int event__synthesize_thread_map(struct thread_map *threads,
+				 event__handler_t process,
+				 struct perf_session *session);
 int event__synthesize_threads(event__handler_t process,
 			      struct perf_session *session);
 int event__synthesize_kernel_mmap(event__handler_t process,

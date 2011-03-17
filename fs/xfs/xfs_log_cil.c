@@ -543,7 +543,7 @@ xlog_cil_push(
 
 	error = xlog_write(log, &lvhdr, tic, &ctx->start_lsn, NULL, 0);
 	if (error)
-		goto out_abort;
+		goto out_abort_free_ticket;
 
 	/*
 	 * now that we've written the checkpoint into the log, strictly
@@ -569,8 +569,9 @@ restart:
 	}
 	spin_unlock(&cil->xc_cil_lock);
 
+	/* xfs_log_done always frees the ticket on error. */
 	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, 0);
-	if (error || commit_lsn == -1)
+	if (commit_lsn == -1)
 		goto out_abort;
 
 	/* attach all the transactions w/ busy extents to iclog */
@@ -600,6 +601,8 @@ out_free_ticket:
 	kmem_free(new_ctx);
 	return 0;
 
+out_abort_free_ticket:
+	xfs_log_ticket_put(tic);
 out_abort:
 	xlog_cil_committed(ctx, XFS_LI_ABORTED);
 	return XFS_ERROR(EIO);
@@ -622,7 +625,7 @@ out_abort:
  * background commit, returns without it held once background commits are
  * allowed again.
  */
-int
+void
 xfs_log_commit_cil(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
@@ -636,11 +639,6 @@ xfs_log_commit_cil(
 
 	if (flags & XFS_TRANS_RELEASE_LOG_RES)
 		log_flags = XFS_LOG_REL_PERM_RESERV;
-
-	if (XLOG_FORCED_SHUTDOWN(log)) {
-		xlog_cil_free_logvec(log_vector);
-		return XFS_ERROR(EIO);
-	}
 
 	/*
 	 * do all the hard work of formatting items (including memory
@@ -701,7 +699,6 @@ xfs_log_commit_cil(
 	 */
 	if (push)
 		xlog_cil_push(log, 0);
-	return 0;
 }
 
 /*

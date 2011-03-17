@@ -87,7 +87,6 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	if (q->q.qlen < dev->tx_queue_len) {
 		__skb_queue_tail(&q->q, skb);
-		qdisc_bstats_update(sch, skb);
 		return NET_XMIT_SUCCESS;
 	}
 
@@ -111,6 +110,8 @@ teql_dequeue(struct Qdisc* sch)
 			dat->m->slaves = sch;
 			netif_wake_queue(m);
 		}
+	} else {
+		qdisc_bstats_update(sch, skb);
 	}
 	sch->q.qlen = dat->q.qlen + dat_queue->qdisc->q.qlen;
 	return skb;

@@ -279,7 +279,7 @@ const char *__event_name(int type, u64 config)
 	static char buf[32];
 
 	if (type == PERF_TYPE_RAW) {
-		sprintf(buf, "raw 0x%llx", config);
+		sprintf(buf, "raw 0x%" PRIx64, config);
 		return buf;
 	}
 

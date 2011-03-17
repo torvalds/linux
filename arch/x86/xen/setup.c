@@ -179,8 +179,13 @@ char * __init xen_memory_setup(void)
 	e820.nr_map = 0;
 	xen_extra_mem_start = mem_end;
 	for (i = 0; i < memmap.nr_entries; i++) {
-		unsigned long long end = map[i].addr + map[i].size;
+		unsigned long long end;
 
+		/* Guard against non-page aligned E820 entries. */
+		if (map[i].type == E820_RAM)
+			map[i].size -= (map[i].size + map[i].addr) % PAGE_SIZE;
+
+		end = map[i].addr + map[i].size;
 		if (map[i].type == E820_RAM && end > mem_end) {
 			/* RAM off the end - may be partially included */
 			u64 delta = min(map[i].size, end - mem_end);
@@ -350,6 +355,7 @@ void __init xen_arch_setup(void)
 	boot_cpu_data.hlt_works_ok = 1;
 #endif
 	pm_idle = default_idle;
+	boot_option_idle_override = IDLE_HALT;
 
 	fiddle_vdso();
 }

@@ -1223,7 +1223,7 @@ static int wm8995_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 	else
 		val = 0;
 
-	return snd_soc_update_bits(codec, reg, mask, reg);
+	return snd_soc_update_bits(codec, reg, mask, val);
 }
 
 /* The size in bits of the FLL divide multiplied by 10

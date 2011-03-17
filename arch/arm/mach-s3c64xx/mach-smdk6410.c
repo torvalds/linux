@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/smsc911x.h>
 #include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
@@ -351,7 +352,7 @@ static struct regulator_init_data smdk6410_vddpll = {
 /* VDD_UH_MMC, LDO5 on J5 */
 static struct regulator_init_data smdk6410_vdduh_mmc = {
 	.constraints = {
-		.name = "PVDD_UH/PVDD_MMC",
+		.name = "PVDD_UH+PVDD_MMC",
 		.always_on = 1,
 	},
 };
@@ -417,7 +418,7 @@ static struct regulator_init_data smdk6410_vddaudio = {
 /* S3C64xx internal logic & PLL */
 static struct regulator_init_data wm8350_dcdc1_data = {
 	.constraints = {
-		.name = "PVDD_INT/PVDD_PLL",
+		.name = "PVDD_INT+PVDD_PLL",
 		.min_uV = 1200000,
 		.max_uV = 1200000,
 		.always_on = 1,
@@ -452,7 +453,7 @@ static struct regulator_consumer_supply wm8350_dcdc4_consumers[] = {
 
 static struct regulator_init_data wm8350_dcdc4_data = {
 	.constraints = {
-		.name = "PVDD_HI/PVDD_EXT/PVDD_SYS/PVCCM2MTV",
+		.name = "PVDD_HI+PVDD_EXT+PVDD_SYS+PVCCM2MTV",
 		.min_uV = 3000000,
 		.max_uV = 3000000,
 		.always_on = 1,
@@ -464,7 +465,7 @@ static struct regulator_init_data wm8350_dcdc4_data = {
 /* OTGi/1190-EV1 HPVDD & AVDD */
 static struct regulator_init_data wm8350_ldo4_data = {
 	.constraints = {
-		.name = "PVDD_OTGI/HPVDD/AVDD",
+		.name = "PVDD_OTGI+HPVDD+AVDD",
 		.min_uV = 1200000,
 		.max_uV = 1200000,
 		.apply_uV = 1,
@@ -552,7 +553,7 @@ static struct wm831x_backlight_pdata wm1192_backlight_pdata = {
 
 static struct regulator_init_data wm1192_dcdc3 = {
 	.constraints = {
-		.name = "PVDD_MEM/PVDD_GPS",
+		.name = "PVDD_MEM+PVDD_GPS",
 		.always_on = 1,
 	},
 };
@@ -563,7 +564,7 @@ static struct regulator_consumer_supply wm1192_ldo1_consumers[] = {
 
 static struct regulator_init_data wm1192_ldo1 = {
 	.constraints = {
-		.name = "PVDD_LCD/PVDD_EXT",
+		.name = "PVDD_LCD+PVDD_EXT",
 		.always_on = 1,
 	},
 	.consumer_supplies = wm1192_ldo1_consumers,
