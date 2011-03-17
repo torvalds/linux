@@ -15,18 +15,15 @@
 #include <linux/hid.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_HID_ROCCAT) || defined(CONFIG_HID_ROCCAT_MODULE)
-int roccat_connect(struct class *klass, struct hid_device *hid);
+#define ROCCATIOCGREPSIZE _IOR('H', 0xf1, int)
+
+#ifdef __KERNEL__
+
+int roccat_connect(struct class *klass, struct hid_device *hid,
+		int report_size);
 void roccat_disconnect(int minor);
-int roccat_report_event(int minor, u8 const *data, int len);
-#else
-static inline int roccat_connect(struct class *klass,
-		struct hid_device *hid) { return -1; }
-static inline void roccat_disconnect(int minor) {}
-static inline int roccat_report_event(int minor, u8 const *data, int len)
-{
-	return 0;
-}
+int roccat_report_event(int minor, u8 const *data);
+
 #endif
 
 #endif
