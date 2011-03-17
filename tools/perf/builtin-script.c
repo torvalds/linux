@@ -49,23 +49,52 @@ struct output_option {
 };
 
 /* default set to maintain compatibility with current format */
-static u64 output_fields[PERF_TYPE_MAX] = {
-	[PERF_TYPE_HARDWARE] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
-			       PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
-			       PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+static struct {
+	bool user_set;
+	u64 fields;
+	u64 invalid_fields;
+} output[PERF_TYPE_MAX] = {
 
-	[PERF_TYPE_SOFTWARE] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
-			       PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
-			       PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+	[PERF_TYPE_HARDWARE] = {
+		.user_set = false,
 
-	[PERF_TYPE_TRACEPOINT] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
-				 PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
-				 PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
+		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
+			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+		.invalid_fields = PERF_OUTPUT_TRACE,
+	},
+
+	[PERF_TYPE_SOFTWARE] = {
+		.user_set = false,
+
+		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
+			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+		.invalid_fields = PERF_OUTPUT_TRACE,
+	},
+
+	[PERF_TYPE_TRACEPOINT] = {
+		.user_set = false,
+
+		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
+				  PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
+				  PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
+	},
 };
 
-static bool output_set_by_user;
+static bool output_set_by_user(void)
+{
+	int j;
+	for (j = 0; j < PERF_TYPE_MAX; ++j) {
+		if (output[j].user_set)
+			return true;
+	}
+	return false;
+}
 
-#define PRINT_FIELD(x)  (output_fields[attr->type] & PERF_OUTPUT_##x)
+#define PRINT_FIELD(x)  (output[attr->type].fields & PERF_OUTPUT_##x)
 
 static int perf_session__check_attr(struct perf_session *session,
 				    struct perf_event_attr *attr)
@@ -168,7 +197,7 @@ static void process_event(union perf_event *event __unused,
 {
 	struct perf_event_attr *attr = &evsel->attr;
 
-	if (output_fields[attr->type] == 0)
+	if (output[attr->type].fields == 0)
 		return;
 
 	if (perf_session__check_attr(session, attr) < 0)
@@ -451,6 +480,7 @@ static int parse_output_fields(const struct option *opt __used,
 {
 	char *tok;
 	int i, imax = sizeof(all_output_options) / sizeof(struct output_option);
+	int j;
 	int rc = 0;
 	char *str = strdup(arg);
 	int type = -1;
@@ -458,52 +488,95 @@ static int parse_output_fields(const struct option *opt __used,
 	if (!str)
 		return -ENOMEM;
 
-	tok = strtok(str, ":");
-	if (!tok) {
-		fprintf(stderr,
-			"Invalid field string - not prepended with type.");
-		return -EINVAL;
-	}
-
-	/* first word should state which event type user
-	 * is specifying the fields
+	/* first word can state for which event type the user is specifying
+	 * the fields. If no type exists, the specified fields apply to all
+	 * event types found in the file minus the invalid fields for a type.
 	 */
-	if (!strcmp(tok, "hw"))
-		type = PERF_TYPE_HARDWARE;
-	else if (!strcmp(tok, "sw"))
-		type = PERF_TYPE_SOFTWARE;
-	else if (!strcmp(tok, "trace"))
-		type = PERF_TYPE_TRACEPOINT;
-	else {
-		fprintf(stderr, "Invalid event type in field string.");
-		return -EINVAL;
+	tok = strchr(str, ':');
+	if (tok) {
+		*tok = '\0';
+		tok++;
+		if (!strcmp(str, "hw"))
+			type = PERF_TYPE_HARDWARE;
+		else if (!strcmp(str, "sw"))
+			type = PERF_TYPE_SOFTWARE;
+		else if (!strcmp(str, "trace"))
+			type = PERF_TYPE_TRACEPOINT;
+		else {
+			fprintf(stderr, "Invalid event type in field string.\n");
+			return -EINVAL;
+		}
+
+		if (output[type].user_set)
+			pr_warning("Overriding previous field request for %s events.\n",
+				   event_type(type));
+
+		output[type].fields = 0;
+		output[type].user_set = true;
+
+	} else {
+		tok = str;
+		if (strlen(str) == 0) {
+			fprintf(stderr,
+				"Cannot set fields to 'none' for all event types.\n");
+			rc = -EINVAL;
+			goto out;
+		}
+
+		if (output_set_by_user())
+			pr_warning("Overriding previous field request for all events.\n");
+
+		for (j = 0; j < PERF_TYPE_MAX; ++j) {
+			output[j].fields = 0;
+			output[j].user_set = true;
+		}
 	}
 
-	output_fields[type] = 0;
-	while (1) {
-		tok = strtok(NULL, ",");
-		if (!tok)
-			break;
+	tok = strtok(tok, ",");
+	while (tok) {
 		for (i = 0; i < imax; ++i) {
-			if (strcmp(tok, all_output_options[i].str) == 0) {
-				output_fields[type] |= all_output_options[i].field;
+			if (strcmp(tok, all_output_options[i].str) == 0)
 				break;
-			}
 		}
 		if (i == imax) {
-			fprintf(stderr, "Invalid field requested.");
+			fprintf(stderr, "Invalid field requested.\n");
 			rc = -EINVAL;
-			break;
+			goto out;
+		}
+
+		if (type == -1) {
+			/* add user option to all events types for
+			 * which it is valid
+			 */
+			for (j = 0; j < PERF_TYPE_MAX; ++j) {
+				if (output[j].invalid_fields & all_output_options[i].field) {
+					pr_warning("\'%s\' not valid for %s events. Ignoring.\n",
+						   all_output_options[i].str, event_type(j));
+				} else
+					output[j].fields |= all_output_options[i].field;
+			}
+		} else {
+			if (output[type].invalid_fields & all_output_options[i].field) {
+				fprintf(stderr, "\'%s\' not valid for %s events.\n",
+					 all_output_options[i].str, event_type(type));
+
+				rc = -EINVAL;
+				goto out;
+			}
+			output[type].fields |= all_output_options[i].field;
+		}
+
+		tok = strtok(NULL, ",");
+	}
+
+	if (type >= 0) {
+		if (output[type].fields == 0) {
+			pr_debug("No fields requested for %s type. "
+				 "Events will not be displayed.\n", event_type(type));
 		}
 	}
 
-	if (output_fields[type] == 0) {
-		pr_debug("No fields requested for %s type. "
-			 "Events will not be displayed\n", event_type(type));
-	}
-
-	output_set_by_user = true;
-
+out:
 	free(str);
 	return rc;
 }
@@ -1020,7 +1093,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 		struct stat perf_stat;
 		int input;
 
-		if (output_set_by_user) {
+		if (output_set_by_user()) {
 			fprintf(stderr,
 				"custom fields not supported for generated scripts");
 			return -1;
