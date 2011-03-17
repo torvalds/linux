@@ -575,18 +575,8 @@ static inline void _ohci_writel (const struct ohci_hcd *ohci,
 #endif
 }
 
-#ifdef CONFIG_ARCH_LH7A404
-/* Marc Singer: at the time this code was written, the LH7A404
- * had a problem reading the USB host registers.  This
- * implementation of the ohci_readl function performs the read
- * twice as a work-around.
- */
-#define ohci_readl(o,r)		(_ohci_readl(o,r),_ohci_readl(o,r))
-#define ohci_writel(o,v,r)	_ohci_writel(o,v,r)
-#else
 #define ohci_readl(o,r)		_ohci_readl(o,r)
 #define ohci_writel(o,v,r)	_ohci_writel(o,v,r)
-#endif
 
 
 /*-------------------------------------------------------------------------*/

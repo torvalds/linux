@@ -227,15 +227,6 @@ choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
 
-config ARCH_AAEC2000
-	bool "Agilent AAEC-2000 based"
-	select CPU_ARM920T
-	select ARM_AMBA
-	select HAVE_CLK
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  This enables support for systems based on the Agilent AAEC-2000
-
 config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
@@ -811,17 +802,6 @@ config ARCH_TCC_926
 	help
 	  Support for Telechips TCC ARM926-based systems.
 
-config ARCH_LH7A40X
-	bool "Sharp LH7A40X"
-	select CPU_ARM922T
-	select ARCH_SPARSEMEM_ENABLE if !LH7A40X_CONTIGMEM
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Say Y here for systems based on one of the Sharp LH7A40X
-	  System on a Chip processors.  These CPUs include an ARM922T
-	  core with a wide array of integrated devices for
-	  hand-held and low-power applications.
-
 config ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on MMU
@@ -908,8 +888,6 @@ endchoice
 # Kconfigs may be included either alphabetically (according to the
 # plat- suffix) or along side the corresponding mach-* source.
 #
-source "arch/arm/mach-aaec2000/Kconfig"
-
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
@@ -947,8 +925,6 @@ source "arch/arm/mach-ixp23xx/Kconfig"
 source "arch/arm/mach-kirkwood/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
-
-source "arch/arm/mach-lh7a40x/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
 
