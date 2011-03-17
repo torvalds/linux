@@ -167,22 +167,6 @@ static int get_clk_range_index(u32 Clk)
 		return DPA_CLK_RANGE_150M;
 }
 
-static int get_lvds_dpa_setting_index(int panel_size_id,
-			     struct VT1636_DPA_SETTING *p_vt1636_dpasetting_tbl,
-			       int tbl_size)
-{
-	int i;
-
-	for (i = 0; i < tbl_size; i++) {
-		if (panel_size_id == p_vt1636_dpasetting_tbl->PanelSizeID)
-			return i;
-
-		p_vt1636_dpasetting_tbl++;
-	}
-
-	return 0;
-}
-
 static void set_dpa_vt1636(struct lvds_setting_information
 	*plvds_setting_info, struct lvds_chip_information *plvds_chip_info,
 		    struct VT1636_DPA_SETTING *p_vt1636_dpa_setting)
@@ -206,7 +190,9 @@ void viafb_vt1636_patch_skew_on_vt3324(
 	struct lvds_setting_information *plvds_setting_info,
 	struct lvds_chip_information *plvds_chip_info)
 {
-	int index, size;
+	struct VT1636_DPA_SETTING dpa = {0x00, 0x00}, dpa_16x12 = {0x0B, 0x03},
+		*pdpa;
+	int index;
 
 	DEBUG_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3324.\n");
 
@@ -216,19 +202,21 @@ void viafb_vt1636_patch_skew_on_vt3324(
 		    &GFX_DPA_SETTING_TBL_VT3324[index]);
 
 	/* LVDS Transmitter DPA settings: */
-	size = ARRAY_SIZE(VT1636_DPA_SETTING_TBL_VT3324);
-	index =
-	    get_lvds_dpa_setting_index(plvds_setting_info->lcd_panel_id,
-				       VT1636_DPA_SETTING_TBL_VT3324, size);
-	set_dpa_vt1636(plvds_setting_info, plvds_chip_info,
-		       &VT1636_DPA_SETTING_TBL_VT3324[index]);
+	if (plvds_setting_info->lcd_panel_hres == 1600 &&
+		plvds_setting_info->lcd_panel_vres == 1200)
+		pdpa = &dpa_16x12;
+	else
+		pdpa = &dpa;
+
+	set_dpa_vt1636(plvds_setting_info, plvds_chip_info, pdpa);
 }
 
 void viafb_vt1636_patch_skew_on_vt3327(
 	struct lvds_setting_information *plvds_setting_info,
 	struct lvds_chip_information *plvds_chip_info)
 {
-	int index, size;
+	struct VT1636_DPA_SETTING dpa = {0x00, 0x00};
+	int index;
 
 	DEBUG_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3327.\n");
 
@@ -238,12 +226,7 @@ void viafb_vt1636_patch_skew_on_vt3327(
 		    &GFX_DPA_SETTING_TBL_VT3327[index]);
 
 	/* LVDS Transmitter DPA settings: */
-	size = ARRAY_SIZE(VT1636_DPA_SETTING_TBL_VT3327);
-	index =
-	    get_lvds_dpa_setting_index(plvds_setting_info->lcd_panel_id,
-				       VT1636_DPA_SETTING_TBL_VT3327, size);
-	set_dpa_vt1636(plvds_setting_info, plvds_chip_info,
-		       &VT1636_DPA_SETTING_TBL_VT3327[index]);
+	set_dpa_vt1636(plvds_setting_info, plvds_chip_info, &dpa);
 }
 
 void viafb_vt1636_patch_skew_on_vt3364(
