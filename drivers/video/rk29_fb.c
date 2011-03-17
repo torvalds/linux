@@ -1782,7 +1782,6 @@ int fb1_open(struct fb_info *info, int user)
     par->addr_seted = 0;
     inf->video_mode = 1;
     wq_condition2 = 1;
-    memset(inf->fb0->screen_base, 0, inf->fb0->fix.smem_len);
     if(par->refcount) {
         printk(">>>>>> fb1 has opened! \n");
         return -EACCES;
