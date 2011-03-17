@@ -19,6 +19,10 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+/* platform device data structures */
+struct platform_device;
+struct i2c_client;
+
 /*spi*/
 struct spi_cs_gpio {
 	const char *name;
@@ -195,6 +199,38 @@ struct akm8975_platform_data {
 	char layouts[3][3];
 	char project_name[64];
 	int gpio_DRDY;
+};
+
+struct rk29_gpio_expander_info {
+	unsigned int gpio_num;// 初始化的pin 脚宏定义 如：rk29_PIN_PI0
+	unsigned int pin_type;//初始化的pin 为输入pin还是输出pin 如：GPIO_IN
+	unsigned int pin_value;//如果为 output pin 设置电平，如：GPIO_HIGH
+};
+
+struct tca6424_platform_data {
+	/*  the first extern gpio number in all of gpio groups */
+	unsigned int gpio_base;
+	unsigned int gpio_pin_num;
+	/*  the first gpio irq  number in all of irq source */
+
+	unsigned int gpio_irq_start;
+	unsigned int irq_pin_num;        //中断的个数
+	unsigned int tca6424_irq_pin;     //扩展IO的中断挂在哪个gpio
+	unsigned int expand_port_group;
+	unsigned int expand_port_pinnum;
+	unsigned int rk_irq_mode;
+	unsigned int rk_irq_gpio_pull_up_down;
+	
+	/* initial polarity inversion setting */
+	uint16_t	invert;
+	struct rk29_gpio_expander_info  *settinginfo;
+	int  settinginfolen;
+	void	*context;	/* param to setup/teardown */
+
+	int		(*setup)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
+	int		(*teardown)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
+	char	**names;
+	void    (*reseti2cpin)(void);
 };
 
 void __init rk29_setup_early_printk(void);

@@ -417,7 +417,7 @@ static struct mma8452_platform_data mma8452_info = {
 #endif
 
 #if defined(CONFIG_GPIO_WM831X)
-struct rk2818_gpio_expander_info  wm831x_gpio_settinginfo[] = {
+struct rk29_gpio_expander_info  wm831x_gpio_settinginfo[] = {
 	{
 		.gpio_num    		=WM831X_P01,// tp3
 		.pin_type           = GPIO_OUT,
@@ -1001,9 +1001,9 @@ static int wm831x_checkrange(int start,int num,int val)
 
 static int wm831x_init_pin_type(struct wm831x *wm831x)
 {
-#if 0
+#if 1
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
-	struct rk2818_gpio_expander_info *wm831x_gpio_settinginfo;
+	struct rk29_gpio_expander_info *wm831x_gpio_settinginfo;
 	uint16_t offset = 0;
 	uint16_t wm831x_settingpin_num = 0;
 	uint16_t ret = 0;
@@ -1403,6 +1403,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 
 #ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
+#if defined (CONFIG_MFD_WM831X_I2C)
+{
+	.type           = "wm8310",
+	.addr           = 0x34,
+	.flags          = 0,
+	.irq            = RK29_PIN4_PD0,
+	.platform_data = &wm831x_platdata,
+},	
+#endif
 #if defined (CONFIG_HANNSTAR_P1003)
     {
       .type           = "p1003_touch",
@@ -2678,6 +2687,18 @@ static struct spi_board_info board_spi_devices[] = {
 		.platform_data = &xpt2046_info,
 	},
 #endif
+
+#if defined(CONFIG_MFD_WM831X_SPI)
+	{
+		.modalias	= "wm8310",
+		.chip_select	= 1,
+		.max_speed_hz	= 12*1000*1000,
+		.bus_num	= 1,
+		.irq            = RK29_PIN4_PD0,
+		.platform_data = &wm831x_platdata,
+	},
+#endif
+
 };
 
 

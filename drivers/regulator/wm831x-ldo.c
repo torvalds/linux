@@ -835,8 +835,8 @@ static __devexit int wm831x_alive_ldo_shutdown(struct platform_device *pdev)	/*Z
 	//struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
 	struct regulator* ldo;
 
-	if (reboot_cmd_get())
-		return 0;
+	//if (reboot_cmd_get())
+	//	return 0;
 	printk("%s\n", __FUNCTION__);
 
 	ldo = regulator_get(NULL, "ldo1");
