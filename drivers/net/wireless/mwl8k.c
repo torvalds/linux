@@ -1518,6 +1518,33 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		     MWL8K_TXD_STATUS_OK_RETRY |		\
 		     MWL8K_TXD_STATUS_OK_MORE_RETRY))
 
+static int mwl8k_tid_queue_mapping(u8 tid)
+{
+	BUG_ON(tid > 7);
+
+	switch (tid) {
+	case 0:
+	case 3:
+		return IEEE80211_AC_BE;
+		break;
+	case 1:
+	case 2:
+		return IEEE80211_AC_BK;
+		break;
+	case 4:
+	case 5:
+		return IEEE80211_AC_VI;
+		break;
+	case 6:
+	case 7:
+		return IEEE80211_AC_VO;
+		break;
+	default:
+		return -1;
+		break;
+	}
+}
+
 /* The firmware will fill in the rate information
  * for each packet that gets queued in the hardware
  * in this structure
@@ -1745,6 +1772,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	u8 tid = 0;
 	struct mwl8k_ampdu_stream *stream = NULL;
 	bool start_ba_session = false;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
 	wh = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_data_qos(wh->frame_control))
@@ -1786,6 +1814,24 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 			qos |= MWL8K_QOS_ACK_POLICY_BLOCKACK;
 		else
 			qos |= MWL8K_QOS_ACK_POLICY_NORMAL;
+	}
+
+	/* Queue ADDBA request in the respective data queue.  While setting up
+	 * the ampdu stream, mac80211 queues further packets for that
+	 * particular ra/tid pair.  However, packets piled up in the hardware
+	 * for that ra/tid pair will still go out. ADDBA request and the
+	 * related data packets going out from different queues asynchronously
+	 * will cause a shift in the receiver window which might result in
+	 * ampdu packets getting dropped at the receiver after the stream has
+	 * been setup.
+	 */
+	if (unlikely(ieee80211_is_action(wh->frame_control) &&
+	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
+	    mgmt->u.action.u.addba_req.action_code == WLAN_ACTION_ADDBA_REQ &&
+	    priv->ap_fw)) {
+		u16 capab = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+		tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
+		index = mwl8k_tid_queue_mapping(tid);
 	}
 
 	txpriority = index;
