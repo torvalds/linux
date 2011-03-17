@@ -38,6 +38,7 @@
  * @voltage_mask: mask to control regulator voltage
  * @voltages: supported voltage table
  * @voltages_len: number of supported voltages for the regulator
+ * @delay: startup/set voltage delay in us
  */
 struct ab8500_regulator_info {
 	struct device		*dev;
@@ -55,6 +56,7 @@ struct ab8500_regulator_info {
 	u8 voltage_mask;
 	int const *voltages;
 	int voltages_len;
+	unsigned int delay;
 };
 
 /* voltage tables for the vauxn/vintcore supplies */
@@ -290,6 +292,29 @@ static int ab8500_regulator_set_voltage(struct regulator_dev *rdev,
 	return ret;
 }
 
+static int ab8500_regulator_enable_time(struct regulator_dev *rdev)
+{
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+
+	return info->delay;
+}
+
+static int ab8500_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
+					     unsigned int old_sel,
+					     unsigned int new_sel)
+{
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret;
+
+	/* If the regulator isn't on, it won't take time here */
+	ret = ab8500_regulator_is_enabled(rdev);
+	if (ret < 0)
+		return ret;
+	if (!ret)
+		return 0;
+	return info->delay;
+}
+
 static struct regulator_ops ab8500_regulator_ops = {
 	.enable		= ab8500_regulator_enable,
 	.disable	= ab8500_regulator_disable,
@@ -297,6 +322,8 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.get_voltage	= ab8500_regulator_get_voltage,
 	.set_voltage	= ab8500_regulator_set_voltage,
 	.list_voltage	= ab8500_list_voltage,
+	.enable_time	= ab8500_regulator_enable_time,
+	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
 static int ab8500_fixed_get_voltage(struct regulator_dev *rdev)
@@ -317,6 +344,8 @@ static struct regulator_ops ab8500_regulator_fixed_ops = {
 	.is_enabled	= ab8500_regulator_is_enabled,
 	.get_voltage	= ab8500_fixed_get_voltage,
 	.list_voltage	= ab8500_list_voltage,
+	.enable_time	= ab8500_regulator_enable_time,
+	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
 static struct ab8500_regulator_info
@@ -426,6 +455,7 @@ static struct ab8500_regulator_info
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
 		},
+		.delay			= 10000,
 		.fixed_uV		= 2000000,
 		.update_bank		= 0x03,
 		.update_reg		= 0x80,
