@@ -56,7 +56,6 @@
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
-static void hci_notify(struct hci_dev *hdev, int event);
 
 static DEFINE_RWLOCK(hci_task_lock);
 
