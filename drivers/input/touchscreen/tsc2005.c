@@ -702,7 +702,6 @@ static struct spi_driver tsc2005_driver = {
 
 static int __init tsc2005_init(void)
 {
-	printk(KERN_INFO "TSC2005 driver initializing\n");
 	return spi_register_driver(&tsc2005_driver);
 }
 module_init(tsc2005_init);
