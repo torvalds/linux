@@ -1,24 +1,23 @@
-/* A Bison parser, made by GNU Bison 2.3.  */
+
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
 /* Skeleton interface for Bison's Yacc-like parsers in C
-
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
-
-   This program is free software; you can redistribute it and/or modify
+   
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -29,9 +28,10 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-
+   
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
+
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -82,58 +82,16 @@
      FILENAME = 298
    };
 #endif
-/* Tokens.  */
-#define ASM_KEYW 258
-#define ATTRIBUTE_KEYW 259
-#define AUTO_KEYW 260
-#define BOOL_KEYW 261
-#define CHAR_KEYW 262
-#define CONST_KEYW 263
-#define DOUBLE_KEYW 264
-#define ENUM_KEYW 265
-#define EXTERN_KEYW 266
-#define EXTENSION_KEYW 267
-#define FLOAT_KEYW 268
-#define INLINE_KEYW 269
-#define INT_KEYW 270
-#define LONG_KEYW 271
-#define REGISTER_KEYW 272
-#define RESTRICT_KEYW 273
-#define SHORT_KEYW 274
-#define SIGNED_KEYW 275
-#define STATIC_KEYW 276
-#define STRUCT_KEYW 277
-#define TYPEDEF_KEYW 278
-#define UNION_KEYW 279
-#define UNSIGNED_KEYW 280
-#define VOID_KEYW 281
-#define VOLATILE_KEYW 282
-#define TYPEOF_KEYW 283
-#define EXPORT_SYMBOL_KEYW 284
-#define ASM_PHRASE 285
-#define ATTRIBUTE_PHRASE 286
-#define BRACE_PHRASE 287
-#define BRACKET_PHRASE 288
-#define EXPRESSION_PHRASE 289
-#define CHAR 290
-#define DOTS 291
-#define IDENT 292
-#define INT 293
-#define REAL 294
-#define STRING 295
-#define TYPE 296
-#define OTHER 297
-#define FILENAME 298
-
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef int YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
-# define YYSTYPE_IS_TRIVIAL 1
 #endif
 
 extern YYSTYPE yylval;
+
 
