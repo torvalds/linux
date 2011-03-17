@@ -411,13 +411,6 @@ static ssize_t tsc2005_selftest_show(struct device *dev,
 	u16 temp_high_test;
 	unsigned int result;
 
-	if (!ts->set_reset) {
-		dev_warn(&ts->spi->dev,
-			 "unable to selftest: no reset function\n");
-		result = 0;
-		goto out;
-	}
-
 	mutex_lock(&ts->mutex);
 
 	/*
@@ -451,10 +444,37 @@ static ssize_t tsc2005_selftest_show(struct device *dev,
 
 	mutex_unlock(&ts->mutex);
 
-out:
 	return sprintf(buf, "%u\n", result);
 }
+
 static DEVICE_ATTR(selftest, S_IRUGO, tsc2005_selftest_show, NULL);
+
+static struct attribute *tsc2005_attrs[] = {
+	&dev_attr_disable.attr,
+	&dev_attr_selftest.attr,
+	NULL
+};
+
+static mode_t tsc2005_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct spi_device *spi = to_spi_device(dev);
+	struct tsc2005 *ts = spi_get_drvdata(spi);
+	mode_t mode = attr->mode;
+
+	if (attr == &dev_attr_selftest.attr) {
+		if (!ts->set_reset)
+			mode = 0;
+	}
+
+	return mode;
+}
+
+static const struct attribute_group tsc2005_attr_group = {
+	.is_visible	= tsc2005_attr_is_visible,
+	.attrs		= tsc2005_attrs,
+};
 
 static void tsc2005_esd_timer(unsigned long data)
 {
@@ -494,16 +514,6 @@ static void tsc2005_esd_work(struct work_struct *work)
 out:
 	mutex_unlock(&ts->mutex);
 }
-
-static struct attribute *tsc2005_attrs[] = {
-	&dev_attr_disable.attr,
-	&dev_attr_selftest.attr,
-	NULL
-};
-
-static struct attribute_group tsc2005_attr_group = {
-	.attrs = tsc2005_attrs,
-};
 
 static void __devinit tsc2005_setup_spi_xfer(struct tsc2005 *ts)
 {
