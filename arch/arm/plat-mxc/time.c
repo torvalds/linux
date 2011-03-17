@@ -105,6 +105,11 @@ static void gpt_irq_acknowledge(void)
 		__raw_writel(V2_TSTAT_OF1, timer_base + V2_TSTAT);
 }
 
+static cycle_t dummy_get_cycles(struct clocksource *cs)
+{
+	return 0;
+}
+
 static cycle_t mx1_2_get_cycles(struct clocksource *cs)
 {
 	return __raw_readl(timer_base + MX1_2_TCN);
@@ -118,7 +123,7 @@ static cycle_t v2_get_cycles(struct clocksource *cs)
 static struct clocksource clocksource_mxc = {
 	.name 		= "mxc_timer1",
 	.rating		= 200,
-	.read		= mx1_2_get_cycles,
+	.read		= dummy_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -129,6 +134,8 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 
 	if (timer_is_v2())
 		clocksource_mxc.read = v2_get_cycles;
+	else
+		clocksource_mxc.read = mx1_2_get_cycles;
 
 	clocksource_register_hz(&clocksource_mxc, c);
 
