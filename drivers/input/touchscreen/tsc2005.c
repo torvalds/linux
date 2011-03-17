@@ -634,8 +634,10 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 	spi_setup(spi);
 
 	r = tsc2005_setup(ts, pdata);
-	if (r)
+	if (r) {
 		kfree(ts);
+		spi_set_drvdata(spi, NULL);
+	}
 	return r;
 }
 
@@ -659,6 +661,7 @@ static int __devexit tsc2005_remove(struct spi_device *spi)
 	input_unregister_device(ts->idev);
 	kfree(ts);
 
+	spi_set_drvdata(spi, NULL);
 	return 0;
 }
 
