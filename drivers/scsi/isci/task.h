@@ -306,7 +306,6 @@ isci_task_set_completion_status(
 	* is in the error path.
 	*/
 	if (task->task_state_flags & SAS_TASK_NEED_DEV_RESET) {
-
 		/* Fail the I/O to make sure it goes into the error path. */
 		response = SAS_TASK_UNDELIVERED;
 		status = SAM_STAT_TASK_ABORTED;
@@ -317,28 +316,25 @@ isci_task_set_completion_status(
 	task->task_status.stat = status;
 
 	switch (task_notification_selection) {
-
-		case isci_perform_aborted_io_completion:
-			/* This path can occur with task-managed requests as well as
-			* requests terminated because of LUN or device resets.
-			*/
-			/* Fall through to the normal case... */
-
-		case isci_perform_normal_io_completion:
-			/* Normal notification (task_done) */
-			isci_set_task_doneflags(task);
-			break;
-
-		default:
-			WARN_ON(FALSE);
-			/* Fall through to the error case... */
-
-		case isci_perform_error_io_completion:
-			/* Use sas_task_abort */
-			/* Leave SAS_TASK_STATE_DONE clear
-			*  Leave SAS_TASK_AT_INITIATOR set.
-			*/
-			break;
+	case isci_perform_aborted_io_completion:
+		/* This path can occur with task-managed requests as well as
+		 * requests terminated because of LUN or device resets.
+		 */
+		/* Fall through to the normal case... */
+	case isci_perform_normal_io_completion:
+		/* Normal notification (task_done) */
+		isci_set_task_doneflags(task);
+		break;
+	default:
+		WARN_ONCE(1, "unknown task_notification_selection: %d\n",
+			 task_notification_selection);
+		/* Fall through to the error case... */
+	case isci_perform_error_io_completion:
+		/* Use sas_task_abort */
+		/* Leave SAS_TASK_STATE_DONE clear
+		 * Leave SAS_TASK_AT_INITIATOR set.
+		 */
+		break;
 	}
 
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
