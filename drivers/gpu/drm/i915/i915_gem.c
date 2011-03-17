@@ -2581,8 +2581,23 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 		reg = &dev_priv->fence_regs[obj->fence_reg];
 		list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 
-		if (!obj->fenced_gpu_access && !obj->last_fenced_seqno)
-			pipelined = NULL;
+		if (obj->tiling_changed) {
+			ret = i915_gem_object_flush_fence(obj, pipelined);
+			if (ret)
+				return ret;
+
+			if (!obj->fenced_gpu_access && !obj->last_fenced_seqno)
+				pipelined = NULL;
+
+			if (pipelined) {
+				reg->setup_seqno =
+					i915_gem_next_request_seqno(pipelined);
+				obj->last_fenced_seqno = reg->setup_seqno;
+				obj->last_fenced_ring = pipelined;
+			}
+
+			goto update;
+		}
 
 		if (!pipelined) {
 			if (reg->setup_seqno) {
@@ -2601,31 +2616,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 			ret = i915_gem_object_flush_fence(obj, pipelined);
 			if (ret)
 				return ret;
-		} else if (obj->tiling_changed) {
-			if (obj->fenced_gpu_access) {
-				if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
-					ret = i915_gem_flush_ring(obj->ring,
-								  0, obj->base.write_domain);
-					if (ret)
-						return ret;
-				}
-
-				obj->fenced_gpu_access = false;
-			}
-		}
-
-		if (!obj->fenced_gpu_access && !obj->last_fenced_seqno)
-			pipelined = NULL;
-		BUG_ON(!pipelined && reg->setup_seqno);
-
-		if (obj->tiling_changed) {
-			if (pipelined) {
-				reg->setup_seqno =
-					i915_gem_next_request_seqno(pipelined);
-				obj->last_fenced_seqno = reg->setup_seqno;
-				obj->last_fenced_ring = pipelined;
-			}
-			goto update;
 		}
 
 		return 0;
