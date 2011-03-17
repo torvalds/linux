@@ -51,8 +51,12 @@
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 			      "Intel(R) 10 Gigabit PCI Express Network Driver";
-
-#define DRV_VERSION "3.2.9-k2"
+#define MAJ 3
+#define MIN 2
+#define BUILD 9
+#define KFIX 2
+#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
+	__stringify(BUILD) "-k" __stringify(KFIX)
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2011 Intel Corporation.";
