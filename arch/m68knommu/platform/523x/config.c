@@ -28,15 +28,15 @@
 
 static struct mcf_platform_uart m523x_uart_platform[] = {
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.mapbase	= MCFUART_BASE1,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.mapbase 	= MCFUART_BASE2,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0 + 1,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE3,
+		.mapbase 	= MCFUART_BASE3,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0 + 2,
 	},
 	{ },
@@ -50,8 +50,8 @@ static struct platform_device m523x_uart = {
 
 static struct resource m523x_fec_resources[] = {
 	{
-		.start		= MCF_MBAR + 0x1000,
-		.end		= MCF_MBAR + 0x1000 + 0x7ff,
+		.start		= MCFFEC_BASE,
+		.end		= MCFFEC_BASE + MCFFEC_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{

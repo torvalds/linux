@@ -27,15 +27,15 @@
 
 static struct mcf_platform_uart m520x_uart_platform[] = {
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.mapbase	= MCFUART_BASE1,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.mapbase 	= MCFUART_BASE2,
 		.irq		= MCFINT_VECBASE + MCFINT_UART1,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE3,
+		.mapbase 	= MCFUART_BASE3,
 		.irq		= MCFINT_VECBASE + MCFINT_UART2,
 	},
 	{ },
@@ -49,8 +49,8 @@ static struct platform_device m520x_uart = {
 
 static struct resource m520x_fec_resources[] = {
 	{
-		.start		= MCF_MBAR + 0x30000,
-		.end		= MCF_MBAR + 0x30000 + 0x7ff,
+		.start		= MCFFEC_BASE,
+		.end		= MCFFEC_BASE + MCFFEC_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -208,11 +208,11 @@ static void __init m520x_qspi_init(void)
 {
 	u16 par;
 	/* setup Port QS for QSPI with gpio CS control */
-	writeb(0x3f, MCF_IPSBAR + MCF_GPIO_PAR_QSPI);
+	writeb(0x3f, MCF_GPIO_PAR_QSPI);
 	/* make U1CTS and U2RTS gpio for cs_control */
-	par = readw(MCF_IPSBAR + MCF_GPIO_PAR_UART);
+	par = readw(MCF_GPIO_PAR_UART);
 	par &= 0x00ff;
-	writew(par, MCF_IPSBAR + MCF_GPIO_PAR_UART);
+	writew(par, MCF_GPIO_PAR_UART);
 }
 #endif /* defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE) */
 
@@ -234,23 +234,23 @@ static void __init m520x_uart_init_line(int line, int irq)
 
 	switch (line) {
 	case 0:
-		par = readw(MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		par = readw(MCF_GPIO_PAR_UART);
 		par |= MCF_GPIO_PAR_UART_PAR_UTXD0 |
 		       MCF_GPIO_PAR_UART_PAR_URXD0;
-		writew(par, MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		writew(par, MCF_GPIO_PAR_UART);
 		break;
 	case 1:
-		par = readw(MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		par = readw(MCF_GPIO_PAR_UART);
 		par |= MCF_GPIO_PAR_UART_PAR_UTXD1 |
 		       MCF_GPIO_PAR_UART_PAR_URXD1;
-		writew(par, MCF_IPSBAR + MCF_GPIO_PAR_UART);
+		writew(par, MCF_GPIO_PAR_UART);
 		break;
 	case 2:
-		par2 = readb(MCF_IPSBAR + MCF_GPIO_PAR_FECI2C);
+		par2 = readb(MCF_GPIO_PAR_FECI2C);
 		par2 &= ~0x0F;
 		par2 |= MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2 |
 			MCF_GPIO_PAR_FECI2C_PAR_SDA_URXD2;
-		writeb(par2, MCF_IPSBAR + MCF_GPIO_PAR_FECI2C);
+		writeb(par2, MCF_GPIO_PAR_FECI2C);
 		break;
 	}
 }
@@ -271,11 +271,11 @@ static void __init m520x_fec_init(void)
 	u8 v;
 
 	/* Set multi-function pins to ethernet mode */
-	v = readb(MCF_IPSBAR + MCF_GPIO_PAR_FEC);
-	writeb(v | 0xf0, MCF_IPSBAR + MCF_GPIO_PAR_FEC);
+	v = readb(MCF_GPIO_PAR_FEC);
+	writeb(v | 0xf0, MCF_GPIO_PAR_FEC);
 
-	v = readb(MCF_IPSBAR + MCF_GPIO_PAR_FECI2C);
-	writeb(v | 0x0f, MCF_IPSBAR + MCF_GPIO_PAR_FECI2C);
+	v = readb(MCF_GPIO_PAR_FECI2C);
+	writeb(v | 0x0f, MCF_GPIO_PAR_FECI2C);
 }
 
 /***************************************************************************/

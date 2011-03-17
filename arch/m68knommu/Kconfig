@@ -3,6 +3,7 @@ config M68K
 	default y
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config MMU
 	bool
@@ -78,6 +79,12 @@ config HAVE_CACHE_SPLIT
 config HAVE_CACHE_CB
 	bool
 
+config HAVE_MBAR
+	bool
+
+config HAVE_IPSBAR
+	bool
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -111,12 +118,14 @@ config M68360
 config M5206
 	bool "MCF5206"
 	select COLDFIRE_SW_A7
+	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5206 processor support.
 
 config M5206e
 	bool "MCF5206e"
 	select COLDFIRE_SW_A7
+	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5206e processor support.
 
@@ -131,30 +140,35 @@ config M523x
 	bool "MCF523x"
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
 	help
 	  Freescale Coldfire 5230/1/2/4/5 processor support
 
 config M5249
 	bool "MCF5249"
 	select COLDFIRE_SW_A7
+	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5249 processor support.
 
 config M5271
 	bool "MCF5271"
 	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
 	help
 	  Freescale (Motorola) ColdFire 5270/5271 processor support.
 
 config M5272
 	bool "MCF5272"
 	select COLDFIRE_SW_A7
+	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5272 processor support.
 
 config M5275
 	bool "MCF5275"
 	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
 	help
 	  Freescale (Motorola) ColdFire 5274/5275 processor support.
 
@@ -162,6 +176,7 @@ config M528x
 	bool "MCF528x"
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
 	help
 	  Motorola ColdFire 5280/5282 processor support.
 
@@ -169,6 +184,7 @@ config M5307
 	bool "MCF5307"
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
+	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5307 processor support.
 
@@ -182,18 +198,21 @@ config M5407
 	bool "MCF5407"
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
+	select HAVE_MBAR
 	help
 	  Motorola ColdFire 5407 processor support.
 
 config M547x
 	bool "MCF547x"
 	select HAVE_CACHE_CB
+	select HAVE_MBAR
 	help
 	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
 
 config M548x
 	bool "MCF548x"
 	select HAVE_CACHE_CB
+	select HAVE_MBAR
 	help
 	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
 
@@ -240,17 +259,6 @@ config CLOCK_FREQ
 	  use internal dividers. In general the kernel won't setup a PLL
 	  if it is fitted (there are some exceptions). This value will be
 	  specific to the exact CPU that you are using.
-
-config CLOCK_DIV
-	int "Set the core/bus clock divide ratio"
-	default "1"
-	depends on CLOCK_SET
-	help
-	  On many SoC style CPUs the master CPU clock is also used to drive 
-	  on-chip peripherals. The clock that is distributed to these
-	  peripherals is sometimes a fixed ratio of the master clock
-	  frequency. If so then set this to the divider ratio of the
-	  master clock to the peripheral clock. If not sure then select 1.
 
 config OLDMASK
 	bool "Old mask 5307 (1H55J) silicon"
@@ -500,6 +508,12 @@ config M5407C3
 	help
 	  Support for the Motorola M5407C3 board.
 
+config FIREBEE
+	bool "FireBee board support"
+	depends on M547x
+	help
+	  Support for the FireBee ColdFire 5475 based board.
+
 config CLEOPATRA
 	bool "Feith CLEOPATRA board support"
 	depends on (M5307 || M5407)
@@ -648,6 +662,28 @@ config VECTORBASE
 	  put at the start of RAM, but it doesn't have to be. On ColdFire
 	  platforms this address is programmed into the VBR register, thus
 	  actually setting the address to use.
+
+config MBAR
+	hex "Address of the MBAR (internal peripherals)"
+	default "0x10000000"
+	depends on HAVE_MBAR
+	help
+	  Define the address of the internal system peripherals. This value
+	  is set in the processors MBAR register. This is generally setup by
+	  the boot loader, and will not be written by the kernel. By far most
+	  ColdFire boards use the default 0x10000000 value, so if unsure then
+	  use this.
+
+config IPSBAR
+	hex "Address of the IPSBAR (internal peripherals)"
+	default "0x40000000"
+	depends on HAVE_IPSBAR
+	help
+	  Define the address of the internal system peripherals. This value
+	  is set in the processors IPSBAR register. This is generally setup by
+	  the boot loader, and will not be written by the kernel. By far most
+	  ColdFire boards use the default 0x40000000 value, so if unsure then
+	  use this.
 
 config KERNELBASE
 	hex "Address of the base of kernel code"

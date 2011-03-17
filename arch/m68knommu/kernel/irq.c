@@ -38,11 +38,13 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_puts(p, "           CPU0\n");
 
 	if (irq < NR_IRQS) {
-		ap = irq_desc[irq].action;
+		struct irq_desc *desc = irq_to_desc(irq);
+
+		ap = desc->action;
 		if (ap) {
 			seq_printf(p, "%3d: ", irq);
 			seq_printf(p, "%10u ", kstat_irqs(irq));
-			seq_printf(p, "%14s  ", irq_desc[irq].chip->name);
+			seq_printf(p, "%14s  ", get_irq_desc_chip(desc)->name);
 
 			seq_printf(p, "%s", ap->name);
 			for (ap = ap->next; ap; ap = ap->next)

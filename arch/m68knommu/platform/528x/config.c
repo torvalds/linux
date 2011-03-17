@@ -29,15 +29,15 @@
 
 static struct mcf_platform_uart m528x_uart_platform[] = {
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.mapbase	= MCFUART_BASE1,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.mapbase 	= MCFUART_BASE2,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0 + 1,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE3,
+		.mapbase 	= MCFUART_BASE3,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0 + 2,
 	},
 	{ },
@@ -51,8 +51,8 @@ static struct platform_device m528x_uart = {
 
 static struct resource m528x_fec_resources[] = {
 	{
-		.start		= MCF_MBAR + 0x1000,
-		.end		= MCF_MBAR + 0x1000 + 0x7ff,
+		.start		= MCFFEC_BASE,
+		.end		= MCFFEC_BASE + MCFFEC_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -227,9 +227,9 @@ static void __init m528x_uart_init_line(int line, int irq)
 
 	/* make sure PUAPAR is set for UART0 and UART1 */
 	if (line < 2) {
-		port = readb(MCF_MBAR + MCF5282_GPIO_PUAPAR);
+		port = readb(MCF5282_GPIO_PUAPAR);
 		port |= (0x03 << (line * 2));
-		writeb(port, MCF_MBAR + MCF5282_GPIO_PUAPAR);
+		writeb(port, MCF5282_GPIO_PUAPAR);
 	}
 }
 
