@@ -225,17 +225,6 @@ static void tsc2005_update_pen_state(struct tsc2005 *ts,
 		pressure);
 }
 
-static irqreturn_t tsc2005_irq_handler(int irq, void *dev_id)
-{
-	struct tsc2005 *ts = dev_id;
-
-	/* update the penup timer only if it's pending */
-	mod_timer_pending(&ts->penup_timer,
-			  jiffies + msecs_to_jiffies(TSC2005_PENUP_TIME_MS));
-
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t tsc2005_irq_thread(int irq, void *_ts)
 {
 	struct tsc2005 *ts = _ts;
@@ -596,8 +585,7 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 	input_set_abs_params(input_dev, ABS_Y, 0, max_y, fudge_y, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, max_p, fudge_p, 0);
 
-	error = request_threaded_irq(spi->irq,
-				     tsc2005_irq_handler, tsc2005_irq_thread,
+	error = request_threaded_irq(spi->irq, NULL, tsc2005_irq_thread,
 				     IRQF_TRIGGER_RISING, "tsc2005", ts);
 	if (error) {
 		dev_err(&spi->dev, "Failed to request irq, err: %d\n", error);
