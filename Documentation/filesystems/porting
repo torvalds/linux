@@ -394,3 +394,10 @@ file) you must return -EOPNOTSUPP if FALLOC_FL_PUNCH_HOLE is set in mode.
 Currently you can only have FALLOC_FL_PUNCH_HOLE with FALLOC_FL_KEEP_SIZE set,
 so the i_size should not change when hole punching, even when puching the end of
 a file off.
+
+--
+[mandatory]
+	->get_sb() is gone.  Switch to use of ->mount().  Typically it's just
+a matter of switching from calling get_sb_... to mount_... and changing the
+function type.  If you were doing it manually, just switch from setting ->mnt_root
+to some pointer to returning that pointer.  On errors return ERR_PTR(...).

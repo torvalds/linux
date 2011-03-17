@@ -978,7 +978,13 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 	int err = 0;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 
-	mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+	if (mnt->mnt_sb->s_op->show_devname) {
+		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
+		if (err)
+			goto out;
+	} else {
+		mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+	}
 	seq_putc(m, ' ');
 	seq_path(m, &mnt_path, " \t\n\\");
 	seq_putc(m, ' ');
@@ -1025,7 +1031,12 @@ static int show_mountinfo(struct seq_file *m, void *v)
 
 	seq_printf(m, "%i %i %u:%u ", mnt->mnt_id, mnt->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
-	seq_dentry(m, mnt->mnt_root, " \t\n\\");
+	if (sb->s_op->show_path)
+		err = sb->s_op->show_path(m, mnt);
+	else
+		seq_dentry(m, mnt->mnt_root, " \t\n\\");
+	if (err)
+		goto out;
 	seq_putc(m, ' ');
 	seq_path_root(m, &mnt_path, &root, " \t\n\\");
 	if (root.mnt != p->root.mnt || root.dentry != p->root.dentry) {
@@ -1060,7 +1071,12 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	seq_puts(m, " - ");
 	show_type(m, sb);
 	seq_putc(m, ' ');
-	mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+	if (sb->s_op->show_devname)
+		err = sb->s_op->show_devname(m, mnt);
+	else
+		mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+	if (err)
+		goto out;
 	seq_puts(m, sb->s_flags & MS_RDONLY ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
 	if (err)
@@ -1086,11 +1102,15 @@ static int show_vfsstat(struct seq_file *m, void *v)
 	int err = 0;
 
 	/* device */
-	if (mnt->mnt_devname) {
-		seq_puts(m, "device ");
-		mangle(m, mnt->mnt_devname);
-	} else
-		seq_puts(m, "no device");
+	if (mnt->mnt_sb->s_op->show_devname) {
+		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
+	} else {
+		if (mnt->mnt_devname) {
+			seq_puts(m, "device ");
+			mangle(m, mnt->mnt_devname);
+		} else
+			seq_puts(m, "no device");
+	}
 
 	/* mount point */
 	seq_puts(m, " mounted on ");
@@ -1104,7 +1124,8 @@ static int show_vfsstat(struct seq_file *m, void *v)
 	/* optional statistics */
 	if (mnt->mnt_sb->s_op->show_stats) {
 		seq_putc(m, ' ');
-		err = mnt->mnt_sb->s_op->show_stats(m, mnt);
+		if (!err)
+			err = mnt->mnt_sb->s_op->show_stats(m, mnt);
 	}
 
 	seq_putc(m, '\n');
