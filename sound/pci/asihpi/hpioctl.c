@@ -156,6 +156,11 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		goto out;
 	}
 
+	if (hm->h.adapter_index >= HPI_MAX_ADAPTERS) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	pa = &adapters[hm->h.adapter_index];
 	hr->h.size = res_max_size;
 	if (hm->h.object == HPI_OBJ_SUBSYSTEM) {
