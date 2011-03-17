@@ -122,12 +122,12 @@ static struct at24_platform_data board_eeprom = {
 };
 
 static struct i2c_board_info pcm043_i2c_devices[] = {
-       {
+	{
 		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
 		.platform_data = &board_eeprom,
 	}, {
 		I2C_BOARD_INFO("pcf8563", 0x51),
-	}
+	},
 };
 
 static struct platform_device *devices[] __initdata = {

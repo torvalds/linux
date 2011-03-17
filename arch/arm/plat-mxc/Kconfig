@@ -51,7 +51,6 @@ config ARCH_MX51
 endchoice
 
 source "arch/arm/mach-imx/Kconfig"
-source "arch/arm/mach-mx3/Kconfig"
 source "arch/arm/mach-mx5/Kconfig"
 
 endmenu

@@ -32,7 +32,7 @@
 #include <mach/mx31.h>
 #include <mach/common.h>
 
-#include "crm_regs.h"
+#include "crmregs-imx31.h"
 
 #define PRE_DIV_MIN_FREQ    10000000 /* Minimum Frequency after Predivider */
 
@@ -627,4 +627,3 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	return 0;
 }
-

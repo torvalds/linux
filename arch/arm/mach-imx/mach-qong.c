@@ -38,18 +38,18 @@
 #define QONG_FPGA_VERSION(major, minor, rev)	\
 	(((major & 0xF) << 12) | ((minor & 0xF) << 8) | (rev & 0xFF))
 
-#define QONG_FPGA_BASEADDR 		MX31_CS1_BASE_ADDR
-#define QONG_FPGA_PERIPH_SIZE 		(1 << 24)
+#define QONG_FPGA_BASEADDR		MX31_CS1_BASE_ADDR
+#define QONG_FPGA_PERIPH_SIZE		(1 << 24)
 
 #define QONG_FPGA_CTRL_BASEADDR		QONG_FPGA_BASEADDR
-#define QONG_FPGA_CTRL_SIZE 		0x10
+#define QONG_FPGA_CTRL_SIZE		0x10
 /* FPGA control registers */
 #define QONG_FPGA_CTRL_VERSION		0x00
 
 #define QONG_DNET_ID		1
 #define QONG_DNET_BASEADDR	\
 	(QONG_FPGA_BASEADDR + QONG_DNET_ID * QONG_FPGA_PERIPH_SIZE)
-#define QONG_DNET_SIZE 		0x00001000
+#define QONG_DNET_SIZE		0x00001000
 
 #define QONG_FPGA_IRQ		IOMUX_TO_IRQ(MX31_PIN_DTR_DCE1)
 
@@ -165,15 +165,15 @@ static struct platform_nand_data qong_nand_data = {
 		.options		= 0,
 	},
 	.ctrl = {
-		.cmd_ctrl 		= qong_nand_cmd_ctrl,
+		.cmd_ctrl		= qong_nand_cmd_ctrl,
 		.dev_ready		= qong_nand_device_ready,
 		.select_chip		= qong_nand_select_chip,
 	}
 };
 
 static struct resource qong_nand_resource = {
-	.start  	= MX31_CS3_BASE_ADDR,
-	.end    	= MX31_CS3_BASE_ADDR + SZ_32M - 1,
+	.start		= MX31_CS3_BASE_ADDR,
+	.end		= MX31_CS3_BASE_ADDR + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 

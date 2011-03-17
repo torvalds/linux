@@ -99,7 +99,7 @@ static unsigned int moboard_pins[] = {
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
-	.width  	= 2,
+	.width	= 2,
 };
 
 static struct resource mx31moboard_flash_resource = {
@@ -427,9 +427,9 @@ static int __init moboard_usbh2_init(void)
 
 static struct gpio_led mx31moboard_leds[] = {
 	{
-		.name 	= "coreboard-led-0:red:running",
+		.name	= "coreboard-led-0:red:running",
 		.default_trigger = "heartbeat",
-		.gpio 	= IOMUX_TO_GPIO(MX31_PIN_SVEN0),
+		.gpio	= IOMUX_TO_GPIO(MX31_PIN_SVEN0),
 	}, {
 		.name	= "coreboard-led-1:red",
 		.gpio	= IOMUX_TO_GPIO(MX31_PIN_STX0),
@@ -443,7 +443,7 @@ static struct gpio_led mx31moboard_leds[] = {
 };
 
 static struct gpio_led_platform_data mx31moboard_led_pdata = {
-	.num_leds 	= ARRAY_SIZE(mx31moboard_leds),
+	.num_leds	= ARRAY_SIZE(mx31moboard_leds),
 	.leds		= mx31moboard_leds,
 };
 

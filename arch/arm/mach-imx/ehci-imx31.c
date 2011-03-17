@@ -80,4 +80,3 @@ int mx31_initialize_usb_hw(int port, unsigned int flags)
 
 	return 0;
 }
-

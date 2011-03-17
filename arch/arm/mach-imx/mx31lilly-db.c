@@ -167,7 +167,7 @@ static const struct ipu_platform_data ipu_data __initconst = {
 
 static const struct fb_videomode fb_modedb = {
 	/* 640x480 TFT panel (IPS-056T) */
-	.name	   	= "CRT-VGA",
+	.name		= "CRT-VGA",
 	.refresh	= 64,
 	.xres		= 640,
 	.yres		= 480,
@@ -214,4 +214,3 @@ void __init mx31lilly_db_init(void)
 	imx31_add_mxc_mmc(0, &mmc_pdata);
 	mx31lilly_init_fb();
 }
-
