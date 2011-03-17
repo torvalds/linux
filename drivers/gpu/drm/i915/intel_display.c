@@ -1516,8 +1516,10 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	val |= PIPECONF_ENABLE;
-	I915_WRITE(reg, val);
+	if (val & PIPECONF_ENABLE)
+		return;
+
+	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1551,8 +1553,10 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	val &= ~PIPECONF_ENABLE;
-	I915_WRITE(reg, val);
+	if ((val & PIPECONF_ENABLE) == 0)
+		return;
+
+	I915_WRITE(reg, val & ~PIPECONF_ENABLE);
 	intel_wait_for_pipe_off(dev_priv->dev, pipe);
 }
 
@@ -1575,8 +1579,10 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	val |= DISPLAY_PLANE_ENABLE;
-	I915_WRITE(reg, val);
+	if (val & DISPLAY_PLANE_ENABLE)
+		return;
+
+	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1607,8 +1613,10 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	val &= ~DISPLAY_PLANE_ENABLE;
-	I915_WRITE(reg, val);
+	if ((val & DISPLAY_PLANE_ENABLE) == 0)
+		return;
+
+	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
 	intel_flush_display_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
