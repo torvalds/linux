@@ -5,7 +5,8 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2010 Adaptec, Inc.
+ *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,12 +53,16 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	unsigned long size, align;
 	const unsigned long fibsize = 4096;
 	const unsigned long printfbufsiz = 256;
+	unsigned long host_rrq_size = 0;
 	struct aac_init *init;
 	dma_addr_t phys;
 	unsigned long aac_max_hostphysmempages;
 
-	size = fibsize + sizeof(struct aac_init) + commsize + commalign + printfbufsiz;
-
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1)
+		host_rrq_size = (dev->scsi_host_ptr->can_queue
+			+ AAC_NUM_MGT_FIB) * sizeof(u32);
+	size = fibsize + sizeof(struct aac_init) + commsize +
+			commalign + printfbufsiz + host_rrq_size;
  
 	base = pci_alloc_consistent(dev->pdev, size, &phys);
 
@@ -70,8 +75,14 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	dev->comm_phys = phys;
 	dev->comm_size = size;
 	
-	dev->init = (struct aac_init *)(base + fibsize);
-	dev->init_pa = phys + fibsize;
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
+		dev->host_rrq = (u32 *)(base + fibsize);
+		dev->host_rrq_pa = phys + fibsize;
+		memset(dev->host_rrq, 0, host_rrq_size);
+	}
+
+	dev->init = (struct aac_init *)(base + fibsize + host_rrq_size);
+	dev->init_pa = phys + fibsize + host_rrq_size;
 
 	init = dev->init;
 
@@ -106,8 +117,13 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 
 	init->InitFlags = 0;
 	if (dev->comm_interface == AAC_COMM_MESSAGE) {
-		init->InitFlags = cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
+		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
 		dprintk((KERN_WARNING"aacraid: New Comm Interface enabled\n"));
+	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
+		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_6);
+		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_TYPE1_SUPPORTED);
+		dprintk((KERN_WARNING
+			"aacraid: New Comm Interface type1 enabled\n"));
 	}
 	init->InitFlags |= cpu_to_le32(INITFLAGS_DRIVER_USES_UTC_TIME |
 				       INITFLAGS_DRIVER_SUPPORTS_PM);
@@ -115,11 +131,18 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init->MaxIoSize = cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
 	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
 
+	init->MaxNumAif = cpu_to_le32(dev->max_num_aif);
+	init->HostRRQ_AddrHigh = (u32)((u64)dev->host_rrq_pa >> 32);
+	init->HostRRQ_AddrLow = (u32)(dev->host_rrq_pa & 0xffffffff);
+
+
 	/*
 	 * Increment the base address by the amount already used
 	 */
-	base = base + fibsize + sizeof(struct aac_init);
-	phys = (dma_addr_t)((ulong)phys + fibsize + sizeof(struct aac_init));
+	base = base + fibsize + host_rrq_size + sizeof(struct aac_init);
+	phys = (dma_addr_t)((ulong)phys + fibsize + host_rrq_size +
+		sizeof(struct aac_init));
+
 	/*
 	 *	Align the beginning of Headers to commalign
 	 */
@@ -314,15 +337,22 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		- sizeof(struct aac_write) + sizeof(struct sgentry))
 			/ sizeof(struct sgentry);
 	dev->comm_interface = AAC_COMM_PRODUCER;
-	dev->raw_io_64 = 0;
+	dev->raw_io_interface = dev->raw_io_64 = 0;
+
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0, status+0, status+1, status+2, NULL, NULL)) &&
 	 		(status[0] == 0x00000001)) {
 		if (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_64))
 			dev->raw_io_64 = 1;
-		if (dev->a_ops.adapter_comm &&
-		    (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM)))
-			dev->comm_interface = AAC_COMM_MESSAGE;
+		if (dev->a_ops.adapter_comm) {
+			if (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE1)) {
+				dev->comm_interface = AAC_COMM_MESSAGE_TYPE1;
+				dev->raw_io_interface = 1;
+			} else if (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM)) {
+				dev->comm_interface = AAC_COMM_MESSAGE;
+				dev->raw_io_interface = 1;
+			}
+		}
 		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&
 		    (status[2] > dev->base_size)) {
 			aac_adapter_ioremap(dev, 0);
@@ -350,10 +380,12 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		 *	status[3] & 0xFFFF	maximum number FIBs outstanding
 		 */
 		host->max_sectors = (status[1] >> 16) << 1;
-		dev->max_fib_size = status[1] & 0xFFFF;
+		/* Multiple of 32 for PMC */
+		dev->max_fib_size = status[1] & 0xFFE0;
 		host->sg_tablesize = status[2] >> 16;
 		dev->sg_tablesize = status[2] & 0xFFFF;
 		host->can_queue = (status[3] & 0xFFFF) - AAC_NUM_MGT_FIB;
+		dev->max_num_aif = status[4] & 0xFFFF;
 		/*
 		 *	NOTE:
 		 *	All these overrides are based on a fixed internal
