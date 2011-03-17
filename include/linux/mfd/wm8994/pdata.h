@@ -35,6 +35,7 @@ struct wm8994_ldo_pdata {
 #define WM8958_MBC_COMBINED_REGS 56
 #define WM8958_VSS_HPF_REGS 2
 #define WM8958_VSS_REGS 148
+#define WM8958_ENH_EQ_REGS 32
 
 /**
  * DRC configurations are specified with a label and a set of register
@@ -101,6 +102,17 @@ struct wm8958_vss_cfg {
 	u16 regs[WM8958_VSS_REGS];
 };
 
+/**
+ * Enhanced EQ configurations are specified with a label and array of
+ * values to write.  Configurations are expected to be generated using
+ * the multiband compressor configuration panel in WISCE - see
+ * http://www.wolfsonmicro.com/wisce/
+ */
+struct wm8958_enh_eq_cfg {
+	const char *name;
+	u16 regs[WM8958_ENH_EQ_REGS];
+};
+
 struct wm8994_pdata {
 	int gpio_base;
 
@@ -128,6 +140,9 @@ struct wm8994_pdata {
 
 	int num_vss_hpf_cfgs;
 	struct wm8958_vss_hpf_cfg *vss_hpf_cfgs;
+
+	int num_enh_eq_cfgs;
+	struct wm8958_enh_eq_cfg *enh_eq_cfgs;
 
         /* LINEOUT can be differential or single ended */
         unsigned int lineout1_diff:1;

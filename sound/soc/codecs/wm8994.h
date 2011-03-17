@@ -87,6 +87,7 @@ struct wm8994_priv {
 	int hpf1_ena[3];
 	int hpf2_ena[3];
 	int vss_ena[3];
+	int enh_eq_ena[3];
 
 	/* Platform dependant DRC configuration */
 	const char **drc_texts;
@@ -114,6 +115,11 @@ struct wm8994_priv {
 	const char **vss_hpf_texts;
 	struct soc_enum vss_hpf_enum;
 
+	/* Platform dependant enhanced EQ configuration */
+	int enh_eq_cfg;
+	const char **enh_eq_texts;
+	struct soc_enum enh_eq_enum;
+
 	struct wm8994_micdet micdet[2];
 
 	wm8958_micdet_cb jack_cb;
@@ -133,6 +139,7 @@ struct wm8994_priv {
 	const struct firmware *cur_fw;
 	const struct firmware *mbc;
 	const struct firmware *mbc_vss;
+	const struct firmware *enh_eq;
 };
 
 #endif
