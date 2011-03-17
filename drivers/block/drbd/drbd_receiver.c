@@ -565,6 +565,19 @@ static int drbd_recv(struct drbd_tconn *tconn, void *buf, size_t size)
 	return rv;
 }
 
+static int drbd_recv_all(struct drbd_tconn *tconn, void *buf, size_t size)
+{
+	int err;
+
+	err = drbd_recv(tconn, buf, size);
+	if (err != size) {
+		if (err >= 0)
+			err = -EIO;
+	} else
+		err = 0;
+	return err;
+}
+
 /* quoting tcp(7):
  *   On individual connections, the socket buffer size must be set prior to the
  *   listen(2) or connect(2) calls in order to have it take effect.
