@@ -1518,7 +1518,6 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	val = I915_READ(reg);
 	val |= PIPECONF_ENABLE;
 	I915_WRITE(reg, val);
-	POSTING_READ(reg);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1554,7 +1553,6 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 	val = I915_READ(reg);
 	val &= ~PIPECONF_ENABLE;
 	I915_WRITE(reg, val);
-	POSTING_READ(reg);
 	intel_wait_for_pipe_off(dev_priv->dev, pipe);
 }
 
@@ -1579,7 +1577,6 @@ static void intel_enable_plane(struct drm_i915_private *dev_priv,
 	val = I915_READ(reg);
 	val |= DISPLAY_PLANE_ENABLE;
 	I915_WRITE(reg, val);
-	POSTING_READ(reg);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
 
@@ -1612,7 +1609,6 @@ static void intel_disable_plane(struct drm_i915_private *dev_priv,
 	val = I915_READ(reg);
 	val &= ~DISPLAY_PLANE_ENABLE;
 	I915_WRITE(reg, val);
-	POSTING_READ(reg);
 	intel_flush_display_plane(dev_priv, plane);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
@@ -1769,7 +1765,6 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 			return;
 
 		I915_WRITE(DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		POSTING_READ(DPFC_CONTROL);
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
@@ -1861,7 +1856,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 			return;
 
 		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		POSTING_READ(ILK_DPFC_CONTROL);
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
@@ -5777,7 +5771,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		POSTING_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
 
 		dpll = I915_READ(dpll_reg);
@@ -5821,7 +5814,6 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		dpll = I915_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
 		dpll = I915_READ(dpll_reg);
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
