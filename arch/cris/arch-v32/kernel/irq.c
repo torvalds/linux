@@ -451,7 +451,7 @@ init_IRQ(void)
 
 	/* Point all IRQ's to bad handlers. */
 	for (i = FIRST_IRQ, j = 0; j < NR_IRQS; i++, j++) {
-		set_irq_chip_and_handler(j, &crisv32_irq_type,
+		irq_set_chip_and_handler(j, &crisv32_irq_type,
 					 handle_simple_irq);
 		set_exception_vector(i, interrupt[j]);
 	}
