@@ -565,7 +565,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 
 	data = read_part_sector(state, 0, &sect);
 	if (!data) {
-		ldm_crit ("Disk read failed.");
+		ldm_info ("Disk read failed.");
 		return false;
 	}
 
