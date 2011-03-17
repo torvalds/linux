@@ -701,6 +701,7 @@ int vt_ioctl(struct tty_struct *tty,
 		uival = ((kbd->kbdmode == VC_RAW) ? K_RAW :
 				 (kbd->kbdmode == VC_MEDIUMRAW) ? K_MEDIUMRAW :
 				 (kbd->kbdmode == VC_UNICODE) ? K_UNICODE :
+				 (kbd->kbdmode == VC_OFF) ? K_OFF :
 				 K_XLATE);
 		goto setint;
 
