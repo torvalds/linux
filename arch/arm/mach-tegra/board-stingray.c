@@ -81,6 +81,7 @@
 
 #define USB_MANUFACTURER_NAME           "Motorola"
 #define USB_PRODUCT_NAME                "MZ600"
+#define USB_PRODUCT_NAME_LTE            "MZ602"
 #define USB_PRODUCT_NAME_WIFI_ONLY      "MZ604"
 #define USB_PRODUCT_ID_BLAN             0x70A3
 #define USB_PRODUCT_ID_MTP              0x70A8
@@ -886,7 +887,11 @@ static void stingray_usb_init(void)
 			platform_data = &andusb_plat;
 		}
 
-		if (!stingray_hw_has_cdma())
+		if (stingray_hw_has_lte())
+			platform_data->product_name = USB_PRODUCT_NAME_LTE;
+		else if (stingray_hw_has_cdma())
+			platform_data->product_name = USB_PRODUCT_NAME;
+		else
 			platform_data->product_name = USB_PRODUCT_NAME_WIFI_ONLY;
 
 		platform_data->serial_number = usb_serial_num;
