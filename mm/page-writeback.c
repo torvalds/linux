@@ -1039,11 +1039,17 @@ static int __writepage(struct page *page, struct writeback_control *wbc,
 int generic_writepages(struct address_space *mapping,
 		       struct writeback_control *wbc)
 {
+	struct blk_plug plug;
+	int ret;
+
 	/* deal with chardevs and other special file */
 	if (!mapping->a_ops->writepage)
 		return 0;
 
-	return write_cache_pages(mapping, wbc, __writepage, mapping);
+	blk_start_plug(&plug);
+	ret = write_cache_pages(mapping, wbc, __writepage, mapping);
+	blk_finish_plug(&plug);
+	return ret;
 }
 
 EXPORT_SYMBOL(generic_writepages);
