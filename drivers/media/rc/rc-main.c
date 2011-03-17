@@ -850,7 +850,7 @@ static ssize_t store_protocols(struct device *device,
 			count++;
 		} else {
 			for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
-				if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
+				if (!strcasecmp(tmp, proto_names[i].name)) {
 					tmp += strlen(proto_names[i].name);
 					mask = proto_names[i].type;
 					break;

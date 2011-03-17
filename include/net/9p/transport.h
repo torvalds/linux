@@ -26,11 +26,19 @@
 #ifndef NET_9P_TRANSPORT_H
 #define NET_9P_TRANSPORT_H
 
+#define P9_TRANS_PREF_PAYLOAD_MASK 0x1
+
+/* Default. Add Payload to PDU before sending it down to transport layer */
+#define P9_TRANS_PREF_PAYLOAD_DEF  0x0
+/* Send pay load seperately to transport layer along with PDU.*/
+#define P9_TRANS_PREF_PAYLOAD_SEP  0x1
+
 /**
  * struct p9_trans_module - transport module interface
  * @list: used to maintain a list of currently available transports
  * @name: the human-readable name of the transport
  * @maxsize: transport provided maximum packet size
+ * @pref: Preferences of this transport
  * @def: set if this transport should be considered the default
  * @create: member function to create a new connection on this transport
  * @request: member function to issue a request to the transport
@@ -47,6 +55,7 @@ struct p9_trans_module {
 	struct list_head list;
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
+	int pref;               /* Preferences of this transport */
 	int def;		/* this transport should be default */
 	struct module *owner;
 	int (*create)(struct p9_client *, const char *, char *);

@@ -76,6 +76,10 @@ held by the proccess (struct file) */
 #define SEP_REQUEST_DAEMON_MAPPED 1
 #define SEP_REQUEST_DAEMON_UNMAPPED 0
 
+#define SEP_DEV_NAME "sep_sec_driver"
+#define SEP_DEV_SINGLETON "sep_sec_singleton_driver"
+#define SEP_DEV_DAEMON "sep_req_daemon_driver"
+
 /*--------------------------------------------------------
 	SHARED AREA  memory total size is 36K
 	it is divided is following:

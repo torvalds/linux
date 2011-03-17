@@ -164,7 +164,9 @@ int dst_discard(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard);
 
-void *dst_alloc(struct dst_ops *ops)
+const u32 dst_default_metrics[RTAX_MAX];
+
+void *dst_alloc(struct dst_ops *ops, int initial_ref)
 {
 	struct dst_entry *dst;
 
@@ -175,11 +177,12 @@ void *dst_alloc(struct dst_ops *ops)
 	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;
-	atomic_set(&dst->__refcnt, 0);
+	atomic_set(&dst->__refcnt, initial_ref);
 	dst->ops = ops;
 	dst->lastuse = jiffies;
 	dst->path = dst;
 	dst->input = dst->output = dst_discard;
+	dst_init_metrics(dst, dst_default_metrics, true);
 #if RT_CACHE_DEBUG >= 2
 	atomic_inc(&dst_total);
 #endif
@@ -281,6 +284,42 @@ void dst_release(struct dst_entry *dst)
 	}
 }
 EXPORT_SYMBOL(dst_release);
+
+u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
+{
+	u32 *p = kmalloc(sizeof(u32) * RTAX_MAX, GFP_ATOMIC);
+
+	if (p) {
+		u32 *old_p = __DST_METRICS_PTR(old);
+		unsigned long prev, new;
+
+		memcpy(p, old_p, sizeof(u32) * RTAX_MAX);
+
+		new = (unsigned long) p;
+		prev = cmpxchg(&dst->_metrics, old, new);
+
+		if (prev != old) {
+			kfree(p);
+			p = __DST_METRICS_PTR(prev);
+			if (prev & DST_METRICS_READ_ONLY)
+				p = NULL;
+		}
+	}
+	return p;
+}
+EXPORT_SYMBOL(dst_cow_metrics_generic);
+
+/* Caller asserts that dst_metrics_read_only(dst) is false.  */
+void __dst_destroy_metrics_generic(struct dst_entry *dst, unsigned long old)
+{
+	unsigned long prev, new;
+
+	new = (unsigned long) dst_default_metrics;
+	prev = cmpxchg(&dst->_metrics, old, new);
+	if (prev == old)
+		kfree(__DST_METRICS_PTR(old));
+}
+EXPORT_SYMBOL(__dst_destroy_metrics_generic);
 
 /**
  * skb_dst_set_noref - sets skb dst, without a reference

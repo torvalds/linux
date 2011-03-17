@@ -3228,7 +3228,7 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 					u32 num_clusters, unsigned int e_flags)
 {
 	int ret, delete, index, credits =  0;
-	u32 new_bit, new_len;
+	u32 new_bit, new_len, orig_num_clusters;
 	unsigned int set_len;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	handle_t *handle;
@@ -3260,6 +3260,8 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 		mlog_errno(ret);
 		goto out;
 	}
+
+	orig_num_clusters = num_clusters;
 
 	while (num_clusters) {
 		ret = ocfs2_get_refcount_rec(ref_ci, context->ref_root_bh,
@@ -3348,7 +3350,8 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 	 * in write-back mode.
 	 */
 	if (context->get_clusters == ocfs2_di_get_clusters) {
-		ret = ocfs2_cow_sync_writeback(sb, context, cpos, num_clusters);
+		ret = ocfs2_cow_sync_writeback(sb, context, cpos,
+					       orig_num_clusters);
 		if (ret)
 			mlog_errno(ret);
 	}
@@ -4325,7 +4328,8 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
-		error = ocfs2_init_security_and_acl(dir, new_orphan_inode);
+		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
+						    &new_dentry->d_name);
 		if (error)
 			mlog_errno(error);
 	}
@@ -4376,7 +4380,7 @@ static int ocfs2_user_path_parent(const char __user *path,
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 
-	error = path_lookup(s, LOOKUP_PARENT, nd);
+	error = kern_path_parent(s, nd);
 	if (error)
 		putname(s);
 	else

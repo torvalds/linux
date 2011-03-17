@@ -3,7 +3,7 @@ ifeq ("$(origin O)", "command line")
 endif
 
 # The default target of this Makefile is...
-all::
+all:
 
 ifneq ($(OUTPUT),)
 # check that the output directory actually exists
@@ -11,151 +11,11 @@ OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
 $(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
 endif
 
-# Define V=1 to have a more verbose compile.
-# Define V=2 to have an even more verbose compile.
-#
-# Define SNPRINTF_RETURNS_BOGUS if your are on a system which snprintf()
-# or vsnprintf() return -1 instead of number of characters which would
-# have been written to the final string if enough space had been available.
-#
-# Define FREAD_READS_DIRECTORIES if your are on a system which succeeds
-# when attempting to read from an fopen'ed directory.
-#
-# Define NO_OPENSSL environment variable if you do not have OpenSSL.
-# This also implies MOZILLA_SHA1.
-#
-# Define CURLDIR=/foo/bar if your curl header and library files are in
-# /foo/bar/include and /foo/bar/lib directories.
-#
-# Define EXPATDIR=/foo/bar if your expat header and library files are in
-# /foo/bar/include and /foo/bar/lib directories.
-#
-# Define NO_D_INO_IN_DIRENT if you don't have d_ino in your struct dirent.
-#
-# Define NO_D_TYPE_IN_DIRENT if your platform defines DT_UNKNOWN but lacks
-# d_type in struct dirent (latest Cygwin -- will be fixed soonish).
-#
-# Define NO_C99_FORMAT if your formatted IO functions (printf/scanf et.al.)
-# do not support the 'size specifiers' introduced by C99, namely ll, hh,
-# j, z, t. (representing long long int, char, intmax_t, size_t, ptrdiff_t).
-# some C compilers supported these specifiers prior to C99 as an extension.
-#
-# Define NO_STRCASESTR if you don't have strcasestr.
-#
-# Define NO_MEMMEM if you don't have memmem.
-#
-# Define NO_STRTOUMAX if you don't have strtoumax in the C library.
-# If your compiler also does not support long long or does not have
-# strtoull, define NO_STRTOULL.
-#
-# Define NO_SETENV if you don't have setenv in the C library.
-#
-# Define NO_UNSETENV if you don't have unsetenv in the C library.
-#
-# Define NO_MKDTEMP if you don't have mkdtemp in the C library.
-#
-# Define NO_SYS_SELECT_H if you don't have sys/select.h.
-#
-# Define NO_SYMLINK_HEAD if you never want .perf/HEAD to be a symbolic link.
-# Enable it on Windows.  By default, symrefs are still used.
-#
-# Define NO_SVN_TESTS if you want to skip time-consuming SVN interoperability
-# tests.  These tests take up a significant amount of the total test time
-# but are not needed unless you plan to talk to SVN repos.
-#
-# Define NO_FINK if you are building on Darwin/Mac OS X, have Fink
-# installed in /sw, but don't want PERF to link against any libraries
-# installed there.  If defined you may specify your own (or Fink's)
-# include directories and library directories by defining CFLAGS
-# and LDFLAGS appropriately.
-#
-# Define NO_DARWIN_PORTS if you are building on Darwin/Mac OS X,
-# have DarwinPorts installed in /opt/local, but don't want PERF to
-# link against any libraries installed there.  If defined you may
-# specify your own (or DarwinPort's) include directories and
-# library directories by defining CFLAGS and LDFLAGS appropriately.
-#
-# Define PPC_SHA1 environment variable when running make to make use of
-# a bundled SHA1 routine optimized for PowerPC.
-#
-# Define ARM_SHA1 environment variable when running make to make use of
-# a bundled SHA1 routine optimized for ARM.
-#
-# Define MOZILLA_SHA1 environment variable when running make to make use of
-# a bundled SHA1 routine coming from Mozilla. It is GPL'd and should be fast
-# on non-x86 architectures (e.g. PowerPC), while the OpenSSL version (default
-# choice) has very fast version optimized for i586.
-#
-# Define NEEDS_SSL_WITH_CRYPTO if you need -lcrypto with -lssl (Darwin).
-#
-# Define NEEDS_LIBICONV if linking with libc is not enough (Darwin).
-#
-# Define NEEDS_SOCKET if linking with libc is not enough (SunOS,
-# Patrick Mauritz).
-#
-# Define NO_MMAP if you want to avoid mmap.
-#
-# Define NO_PTHREADS if you do not have or do not want to use Pthreads.
-#
-# Define NO_PREAD if you have a problem with pread() system call (e.g.
-# cygwin.dll before v1.5.22).
-#
-# Define NO_FAST_WORKING_DIRECTORY if accessing objects in pack files is
-# generally faster on your platform than accessing the working directory.
-#
-# Define NO_TRUSTABLE_FILEMODE if your filesystem may claim to support
-# the executable mode bit, but doesn't really do so.
-#
-# Define NO_IPV6 if you lack IPv6 support and getaddrinfo().
-#
-# Define NO_SOCKADDR_STORAGE if your platform does not have struct
-# sockaddr_storage.
-#
-# Define NO_ICONV if your libc does not properly support iconv.
-#
-# Define OLD_ICONV if your library has an old iconv(), where the second
-# (input buffer pointer) parameter is declared with type (const char **).
-#
-# Define NO_DEFLATE_BOUND if your zlib does not have deflateBound.
-#
-# Define NO_R_TO_GCC_LINKER if your gcc does not like "-R/path/lib"
-# that tells runtime paths to dynamic libraries;
-# "-Wl,-rpath=/path/lib" is used instead.
-#
-# Define USE_NSEC below if you want perf to care about sub-second file mtimes
-# and ctimes. Note that you need recent glibc (at least 2.2.4) for this, and
-# it will BREAK YOUR LOCAL DIFFS! show-diff and anything using it will likely
-# randomly break unless your underlying filesystem supports those sub-second
-# times (my ext3 doesn't).
-#
-# Define USE_ST_TIMESPEC if your "struct stat" uses "st_ctimespec" instead of
-# "st_ctim"
-#
-# Define NO_NSEC if your "struct stat" does not have "st_ctim.tv_nsec"
-# available.  This automatically turns USE_NSEC off.
-#
-# Define USE_STDEV below if you want perf to care about the underlying device
-# change being considered an inode change from the update-index perspective.
-#
-# Define NO_ST_BLOCKS_IN_STRUCT_STAT if your platform does not have st_blocks
-# field that counts the on-disk footprint in 512-byte blocks.
+# Define V to have a more verbose compile.
 #
 # Define ASCIIDOC8 if you want to format documentation with AsciiDoc 8
 #
 # Define DOCBOOK_XSL_172 if you want to format man pages with DocBook XSL v1.72.
-#
-# Define NO_PERL_MAKEMAKER if you cannot use Makefiles generated by perl's
-# MakeMaker (e.g. using ActiveState under Cygwin).
-#
-# Define NO_PERL if you do not want Perl scripts or libraries at all.
-#
-# Define INTERNAL_QSORT to use Git's implementation of qsort(), which
-# is a simplified version of the merge sort used in glibc. This is
-# recommended if Git triggers O(n^2) behavior in your platform's qsort().
-#
-# Define NO_EXTERNAL_GREP if you don't want "perf grep" to ever call
-# your external grep (e.g., if your system lacks grep, if its grep is
-# broken, or spawning external process is slower than built-in grep perf has).
 #
 # Define LDFLAGS=-static to build a static binary.
 #
@@ -167,12 +27,7 @@ $(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
 -include $(OUTPUT)PERF-VERSION-FILE
 
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-uname_M := $(shell sh -c 'uname -m 2>/dev/null || echo not')
-uname_O := $(shell sh -c 'uname -o 2>/dev/null || echo not')
-uname_R := $(shell sh -c 'uname -r 2>/dev/null || echo not')
-uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
-uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
+uname_M := $(shell uname -m 2>/dev/null || echo not)
 
 ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 				  -e s/arm.*/arm/ -e s/sa110/arm/ \
@@ -190,8 +45,6 @@ ifeq ($(ARCH),x86_64)
 	ARCH_CFLAGS := -DARCH_X86_64
 	ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S
 endif
-
-# CFLAGS and LDFLAGS are for the users to override from the command line.
 
 #
 # Include saner warnings here, which can catch bugs:
@@ -270,21 +123,12 @@ CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar
 RM = rm -f
 MKDIR = mkdir
-TAR = tar
 FIND = find
 INSTALL = install
-RPMBUILD = rpmbuild
-PTHREAD_LIBS = -lpthread
 
 # sparse is architecture-neutral, which means that we need to tell it
 # explicitly what architecture to check for. Fix this up for yours..
 SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
-
-ifeq ($(V), 2)
-	QUIET_STDERR = ">/dev/null"
-else
-	QUIET_STDERR = ">/dev/null 2>&1"
-endif
 
 -include feature-tests.mak
 
@@ -310,49 +154,37 @@ BASIC_LDFLAGS =
 
 # Guard against environment variables
 BUILTIN_OBJS =
-BUILT_INS =
-COMPAT_CFLAGS =
-COMPAT_OBJS =
 LIB_H =
 LIB_OBJS =
-SCRIPT_PERL =
+PYRF_OBJS =
 SCRIPT_SH =
-TEST_PROGRAMS =
 
 SCRIPT_SH += perf-archive.sh
 
 grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
+$(OUTPUT)python/perf.so: $(PYRF_OBJS)
+	$(QUIET_GEN)python util/setup.py --quiet  build_ext --build-lib='$(OUTPUT)python' \
+						--build-temp='$(OUTPUT)python/temp'
 #
 # No Perl scripts right now:
 #
 
-# SCRIPT_PERL += perf-add--interactive.perl
-
-SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH)) \
-	  $(patsubst %.perl,%,$(SCRIPT_PERL))
-
-# Empty...
-EXTRA_PROGRAMS =
-
-# ... and all the rest that could be moved out of bindir to perfexecdir
-PROGRAMS += $(EXTRA_PROGRAMS)
+SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH))
 
 #
 # Single 'perf' binary right now:
 #
 PROGRAMS += $(OUTPUT)perf
 
-# List built-in command $C whose implementation cmd_$C() is not in
-# builtin-$C.o but is linked in as part of some other command.
-#
+LANG_BINDINGS =
 
 # what 'all' will build and 'install' will install, in perfexecdir
 ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS)
 
 # what 'all' will build but not install in perfexecdir
-OTHER_PROGRAMS = $(OUTPUT)perf$X
+OTHER_PROGRAMS = $(OUTPUT)perf
 
 # Set paths to tools early so that they can be used for version tests.
 ifndef SHELL_PATH
@@ -395,6 +227,7 @@ LIB_H += util/include/dwarf-regs.h
 LIB_H += util/include/asm/dwarf2.h
 LIB_H += util/include/asm/cpufeature.h
 LIB_H += perf.h
+LIB_H += util/annotate.h
 LIB_H += util/cache.h
 LIB_H += util/callchain.h
 LIB_H += util/build-id.h
@@ -402,6 +235,7 @@ LIB_H += util/debug.h
 LIB_H += util/debugfs.h
 LIB_H += util/event.h
 LIB_H += util/evsel.h
+LIB_H += util/evlist.h
 LIB_H += util/exec_cmd.h
 LIB_H += util/types.h
 LIB_H += util/levenshtein.h
@@ -416,6 +250,7 @@ LIB_H += util/help.h
 LIB_H += util/session.h
 LIB_H += util/strbuf.h
 LIB_H += util/strlist.h
+LIB_H += util/strfilter.h
 LIB_H += util/svghelper.h
 LIB_H += util/run-command.h
 LIB_H += util/sigchain.h
@@ -425,21 +260,26 @@ LIB_H += util/values.h
 LIB_H += util/sort.h
 LIB_H += util/hist.h
 LIB_H += util/thread.h
+LIB_H += util/thread_map.h
 LIB_H += util/trace-event.h
 LIB_H += util/probe-finder.h
 LIB_H += util/probe-event.h
 LIB_H += util/pstack.h
 LIB_H += util/cpumap.h
+LIB_H += util/top.h
 LIB_H += $(ARCH_INCLUDE)
+LIB_H += util/cgroup.h
 
 LIB_OBJS += $(OUTPUT)util/abspath.o
 LIB_OBJS += $(OUTPUT)util/alias.o
+LIB_OBJS += $(OUTPUT)util/annotate.o
 LIB_OBJS += $(OUTPUT)util/build-id.o
 LIB_OBJS += $(OUTPUT)util/config.o
 LIB_OBJS += $(OUTPUT)util/ctype.o
 LIB_OBJS += $(OUTPUT)util/debugfs.o
 LIB_OBJS += $(OUTPUT)util/environment.o
 LIB_OBJS += $(OUTPUT)util/event.o
+LIB_OBJS += $(OUTPUT)util/evlist.o
 LIB_OBJS += $(OUTPUT)util/evsel.o
 LIB_OBJS += $(OUTPUT)util/exec_cmd.o
 LIB_OBJS += $(OUTPUT)util/help.o
@@ -455,6 +295,8 @@ LIB_OBJS += $(OUTPUT)util/quote.o
 LIB_OBJS += $(OUTPUT)util/strbuf.o
 LIB_OBJS += $(OUTPUT)util/string.o
 LIB_OBJS += $(OUTPUT)util/strlist.o
+LIB_OBJS += $(OUTPUT)util/strfilter.o
+LIB_OBJS += $(OUTPUT)util/top.o
 LIB_OBJS += $(OUTPUT)util/usage.o
 LIB_OBJS += $(OUTPUT)util/wrapper.o
 LIB_OBJS += $(OUTPUT)util/sigchain.o
@@ -469,6 +311,7 @@ LIB_OBJS += $(OUTPUT)util/map.o
 LIB_OBJS += $(OUTPUT)util/pstack.o
 LIB_OBJS += $(OUTPUT)util/session.o
 LIB_OBJS += $(OUTPUT)util/thread.o
+LIB_OBJS += $(OUTPUT)util/thread_map.o
 LIB_OBJS += $(OUTPUT)util/trace-event-parse.o
 LIB_OBJS += $(OUTPUT)util/trace-event-read.o
 LIB_OBJS += $(OUTPUT)util/trace-event-info.o
@@ -480,6 +323,7 @@ LIB_OBJS += $(OUTPUT)util/probe-event.o
 LIB_OBJS += $(OUTPUT)util/util.o
 LIB_OBJS += $(OUTPUT)util/xyarray.o
 LIB_OBJS += $(OUTPUT)util/cpumap.o
+LIB_OBJS += $(OUTPUT)util/cgroup.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 
@@ -514,6 +358,20 @@ BUILTIN_OBJS += $(OUTPUT)builtin-inject.o
 
 PERFLIBS = $(LIB_FILE)
 
+# Files needed for the python binding, perf.so
+# pyrf is just an internal name needed for all those wrappers.
+# This has to be in sync with what is in the 'sources' variable in
+# tools/perf/util/setup.py
+
+PYRF_OBJS += $(OUTPUT)util/cpumap.o
+PYRF_OBJS += $(OUTPUT)util/ctype.o
+PYRF_OBJS += $(OUTPUT)util/evlist.o
+PYRF_OBJS += $(OUTPUT)util/evsel.o
+PYRF_OBJS += $(OUTPUT)util/python.o
+PYRF_OBJS += $(OUTPUT)util/thread_map.o
+PYRF_OBJS += $(OUTPUT)util/util.o
+PYRF_OBJS += $(OUTPUT)util/xyarray.o
+
 #
 # Platform specific tweaks
 #
@@ -534,22 +392,6 @@ endif # Dwarf support
 endif # NO_DWARF
 
 -include arch/$(ARCH)/Makefile
-
-ifeq ($(uname_S),Darwin)
-	ifndef NO_FINK
-		ifeq ($(shell test -d /sw/lib && echo y),y)
-			BASIC_CFLAGS += -I/sw/include
-			BASIC_LDFLAGS += -L/sw/lib
-		endif
-	endif
-	ifndef NO_DARWIN_PORTS
-		ifeq ($(shell test -d /opt/local/lib && echo y),y)
-			BASIC_CFLAGS += -I/opt/local/include
-			BASIC_LDFLAGS += -L/opt/local/lib
-		endif
-	endif
-	PTHREAD_LIBS =
-endif
 
 ifneq ($(OUTPUT),)
 	BASIC_CFLAGS += -I$(OUTPUT)
@@ -595,6 +437,7 @@ else
 		LIB_OBJS += $(OUTPUT)util/ui/browsers/annotate.o
 		LIB_OBJS += $(OUTPUT)util/ui/browsers/hists.o
 		LIB_OBJS += $(OUTPUT)util/ui/browsers/map.o
+		LIB_OBJS += $(OUTPUT)util/ui/browsers/top.o
 		LIB_OBJS += $(OUTPUT)util/ui/helpline.o
 		LIB_OBJS += $(OUTPUT)util/ui/progress.o
 		LIB_OBJS += $(OUTPUT)util/ui/util.o
@@ -604,6 +447,7 @@ else
 		LIB_H += util/ui/libslang.h
 		LIB_H += util/ui/progress.h
 		LIB_H += util/ui/util.h
+		LIB_H += util/ui/ui.h
 	endif
 endif
 
@@ -635,12 +479,14 @@ else
 	PYTHON_EMBED_CCOPTS = `python-config --cflags 2>/dev/null`
 	FLAGS_PYTHON_EMBED=$(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
 	ifneq ($(call try-cc,$(SOURCE_PYTHON_EMBED),$(FLAGS_PYTHON_EMBED)),y)
+		msg := $(warning No Python.h found, install python-dev[el] to have python support in 'perf script' and to build the python bindings)
 		BASIC_CFLAGS += -DNO_LIBPYTHON
 	else
                ALL_LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
                EXTLIBS += $(PYTHON_EMBED_LIBADD)
 		LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-python.o
 		LIB_OBJS += $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o
+		LANG_BINDINGS += $(OUTPUT)python/perf.so
 	endif
 endif
 
@@ -690,201 +536,13 @@ else
 	endif
 endif
 
-ifndef CC_LD_DYNPATH
-	ifdef NO_R_TO_GCC_LINKER
-		# Some gcc does not accept and pass -R to the linker to specify
-		# the runtime dynamic library path.
-		CC_LD_DYNPATH = -Wl,-rpath,
-	else
-		CC_LD_DYNPATH = -R
-	endif
-endif
-
-ifdef NEEDS_SOCKET
-	EXTLIBS += -lsocket
-endif
-ifdef NEEDS_NSL
-	EXTLIBS += -lnsl
-endif
-ifdef NO_D_TYPE_IN_DIRENT
-	BASIC_CFLAGS += -DNO_D_TYPE_IN_DIRENT
-endif
-ifdef NO_D_INO_IN_DIRENT
-	BASIC_CFLAGS += -DNO_D_INO_IN_DIRENT
-endif
-ifdef NO_ST_BLOCKS_IN_STRUCT_STAT
-	BASIC_CFLAGS += -DNO_ST_BLOCKS_IN_STRUCT_STAT
-endif
-ifdef USE_NSEC
-	BASIC_CFLAGS += -DUSE_NSEC
-endif
-ifdef USE_ST_TIMESPEC
-	BASIC_CFLAGS += -DUSE_ST_TIMESPEC
-endif
-ifdef NO_NSEC
-	BASIC_CFLAGS += -DNO_NSEC
-endif
-ifdef NO_C99_FORMAT
-	BASIC_CFLAGS += -DNO_C99_FORMAT
-endif
-ifdef SNPRINTF_RETURNS_BOGUS
-	COMPAT_CFLAGS += -DSNPRINTF_RETURNS_BOGUS
-	COMPAT_OBJS += $(OUTPUT)compat/snprintf.o
-endif
-ifdef FREAD_READS_DIRECTORIES
-	COMPAT_CFLAGS += -DFREAD_READS_DIRECTORIES
-	COMPAT_OBJS += $(OUTPUT)compat/fopen.o
-endif
-ifdef NO_SYMLINK_HEAD
-	BASIC_CFLAGS += -DNO_SYMLINK_HEAD
-endif
-ifdef NO_STRCASESTR
-	COMPAT_CFLAGS += -DNO_STRCASESTR
-	COMPAT_OBJS += $(OUTPUT)compat/strcasestr.o
-endif
-ifdef NO_STRTOUMAX
-	COMPAT_CFLAGS += -DNO_STRTOUMAX
-	COMPAT_OBJS += $(OUTPUT)compat/strtoumax.o
-endif
-ifdef NO_STRTOULL
-	COMPAT_CFLAGS += -DNO_STRTOULL
-endif
-ifdef NO_SETENV
-	COMPAT_CFLAGS += -DNO_SETENV
-	COMPAT_OBJS += $(OUTPUT)compat/setenv.o
-endif
-ifdef NO_MKDTEMP
-	COMPAT_CFLAGS += -DNO_MKDTEMP
-	COMPAT_OBJS += $(OUTPUT)compat/mkdtemp.o
-endif
-ifdef NO_UNSETENV
-	COMPAT_CFLAGS += -DNO_UNSETENV
-	COMPAT_OBJS += $(OUTPUT)compat/unsetenv.o
-endif
-ifdef NO_SYS_SELECT_H
-	BASIC_CFLAGS += -DNO_SYS_SELECT_H
-endif
-ifdef NO_MMAP
-	COMPAT_CFLAGS += -DNO_MMAP
-	COMPAT_OBJS += $(OUTPUT)compat/mmap.o
-else
-	ifdef USE_WIN32_MMAP
-		COMPAT_CFLAGS += -DUSE_WIN32_MMAP
-		COMPAT_OBJS += $(OUTPUT)compat/win32mmap.o
-	endif
-endif
-ifdef NO_PREAD
-	COMPAT_CFLAGS += -DNO_PREAD
-	COMPAT_OBJS += $(OUTPUT)compat/pread.o
-endif
-ifdef NO_FAST_WORKING_DIRECTORY
-	BASIC_CFLAGS += -DNO_FAST_WORKING_DIRECTORY
-endif
-ifdef NO_TRUSTABLE_FILEMODE
-	BASIC_CFLAGS += -DNO_TRUSTABLE_FILEMODE
-endif
-ifdef NO_IPV6
-	BASIC_CFLAGS += -DNO_IPV6
-endif
-ifdef NO_UINTMAX_T
-	BASIC_CFLAGS += -Duintmax_t=uint32_t
-endif
-ifdef NO_SOCKADDR_STORAGE
-ifdef NO_IPV6
-	BASIC_CFLAGS += -Dsockaddr_storage=sockaddr_in
-else
-	BASIC_CFLAGS += -Dsockaddr_storage=sockaddr_in6
-endif
-endif
-ifdef NO_INET_NTOP
-	LIB_OBJS += $(OUTPUT)compat/inet_ntop.o
-endif
-ifdef NO_INET_PTON
-	LIB_OBJS += $(OUTPUT)compat/inet_pton.o
-endif
-
-ifdef NO_ICONV
-	BASIC_CFLAGS += -DNO_ICONV
-endif
-
-ifdef OLD_ICONV
-	BASIC_CFLAGS += -DOLD_ICONV
-endif
-
-ifdef NO_DEFLATE_BOUND
-	BASIC_CFLAGS += -DNO_DEFLATE_BOUND
-endif
-
-ifdef PPC_SHA1
-	SHA1_HEADER = "ppc/sha1.h"
-	LIB_OBJS += $(OUTPUT)ppc/sha1.o ppc/sha1ppc.o
-else
-ifdef ARM_SHA1
-	SHA1_HEADER = "arm/sha1.h"
-	LIB_OBJS += $(OUTPUT)arm/sha1.o $(OUTPUT)arm/sha1_arm.o
-else
-ifdef MOZILLA_SHA1
-	SHA1_HEADER = "mozilla-sha1/sha1.h"
-	LIB_OBJS += $(OUTPUT)mozilla-sha1/sha1.o
-else
-	SHA1_HEADER = <openssl/sha.h>
-	EXTLIBS += $(LIB_4_CRYPTO)
-endif
-endif
-endif
-ifdef NO_PERL_MAKEMAKER
-	export NO_PERL_MAKEMAKER
-endif
-ifdef NO_HSTRERROR
-	COMPAT_CFLAGS += -DNO_HSTRERROR
-	COMPAT_OBJS += $(OUTPUT)compat/hstrerror.o
-endif
-ifdef NO_MEMMEM
-	COMPAT_CFLAGS += -DNO_MEMMEM
-	COMPAT_OBJS += $(OUTPUT)compat/memmem.o
-endif
-ifdef INTERNAL_QSORT
-	COMPAT_CFLAGS += -DINTERNAL_QSORT
-	COMPAT_OBJS += $(OUTPUT)compat/qsort.o
-endif
-ifdef RUNTIME_PREFIX
-	COMPAT_CFLAGS += -DRUNTIME_PREFIX
-endif
-
-ifdef DIR_HAS_BSD_GROUP_SEMANTICS
-	COMPAT_CFLAGS += -DDIR_HAS_BSD_GROUP_SEMANTICS
-endif
-ifdef NO_EXTERNAL_GREP
-	BASIC_CFLAGS += -DNO_EXTERNAL_GREP
-endif
-
-ifeq ($(PERL_PATH),)
-NO_PERL=NoThanks
-endif
-
-QUIET_SUBDIR0  = +$(MAKE) -C # space to separate -C and subdir
-QUIET_SUBDIR1  =
-
-ifneq ($(findstring $(MAKEFLAGS),w),w)
-PRINT_DIR = --no-print-directory
-else # "make -w"
-NO_SUBDIR = :
-endif
-
 ifneq ($(findstring $(MAKEFLAGS),s),s)
 ifndef V
 	QUIET_CC       = @echo '   ' CC $@;
 	QUIET_AR       = @echo '   ' AR $@;
 	QUIET_LINK     = @echo '   ' LINK $@;
 	QUIET_MKDIR    = @echo '   ' MKDIR $@;
-	QUIET_BUILT_IN = @echo '   ' BUILTIN $@;
 	QUIET_GEN      = @echo '   ' GEN $@;
-	QUIET_SUBDIR0  = +@subdir=
-	QUIET_SUBDIR1  = ;$(NO_SUBDIR) echo '   ' SUBDIR $$subdir; \
-			 $(MAKE) $(PRINT_DIR) -C $$subdir
-	export V
-	export QUIET_GEN
-	export QUIET_BUILT_IN
 endif
 endif
 
@@ -894,7 +552,6 @@ endif
 
 # Shell quote (do not use $(call) to accommodate ancient setups);
 
-SHA1_HEADER_SQ = $(subst ','\'',$(SHA1_HEADER))
 ETC_PERFCONFIG_SQ = $(subst ','\'',$(ETC_PERFCONFIG))
 
 DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
@@ -908,46 +565,36 @@ htmldir_SQ = $(subst ','\'',$(htmldir))
 prefix_SQ = $(subst ','\'',$(prefix))
 
 SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
-PERL_PATH_SQ = $(subst ','\'',$(PERL_PATH))
 
 LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive $(EXTLIBS)
-
-BASIC_CFLAGS += -DSHA1_HEADER='$(SHA1_HEADER_SQ)' \
-	$(COMPAT_CFLAGS)
-LIB_OBJS += $(COMPAT_OBJS)
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_CFLAGS += $(ARCH_CFLAGS)
 ALL_LDFLAGS += $(BASIC_LDFLAGS)
 
-export TAR INSTALL DESTDIR SHELL_PATH
+export INSTALL SHELL_PATH
 
 
 ### Build rules
 
 SHELL = $(SHELL_PATH)
 
-all:: shell_compatibility_test $(ALL_PROGRAMS) $(BUILT_INS) $(OTHER_PROGRAMS) $(OUTPUT)PERF-BUILD-OPTIONS
-ifneq (,$X)
-	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), test '$p' -ef '$p$X' || $(RM) '$p';)
-endif
-
-all::
+all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
 
 please_set_SHELL_PATH_to_a_more_modern_shell:
 	@$$(:)
 
 shell_compatibility_test: please_set_SHELL_PATH_to_a_more_modern_shell
 
-strip: $(PROGRAMS) $(OUTPUT)perf$X
-	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf$X
+strip: $(PROGRAMS) $(OUTPUT)perf
+	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf
 
 $(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -DPERF_VERSION='"$(PERF_VERSION)"' \
 		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
 		$(ALL_CFLAGS) -c $(filter %.c,$^) -o $@
 
-$(OUTPUT)perf$X: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS)
+$(OUTPUT)perf: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) $(OUTPUT)perf.o \
                $(BUILTIN_OBJS) $(LIBS) -o $@
 
@@ -963,39 +610,17 @@ $(OUTPUT)builtin-timechart.o: builtin-timechart.c $(OUTPUT)common-cmds.h $(OUTPU
 		'-DPERF_MAN_PATH="$(mandir_SQ)"' \
 		'-DPERF_INFO_PATH="$(infodir_SQ)"' $<
 
-$(BUILT_INS): $(OUTPUT)perf$X
-	$(QUIET_BUILT_IN)$(RM) $@ && \
-	ln perf$X $@ 2>/dev/null || \
-	ln -s perf$X $@ 2>/dev/null || \
-	cp perf$X $@
-
 $(OUTPUT)common-cmds.h: util/generate-cmdlist.sh command-list.txt
 
 $(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
 	$(QUIET_GEN). util/generate-cmdlist.sh > $@+ && mv $@+ $@
 
-$(patsubst %.sh,%,$(SCRIPT_SH)) : % : %.sh
-	$(QUIET_GEN)$(RM) $(OUTPUT)$@ $(OUTPUT)$@+ && \
-	sed -e '1s|#!.*/sh|#!$(SHELL_PATH_SQ)|' \
-	    -e 's|@SHELL_PATH@|$(SHELL_PATH_SQ)|' \
-	    -e 's|@@PERL@@|$(PERL_PATH_SQ)|g' \
-	    -e 's/@@PERF_VERSION@@/$(PERF_VERSION)/g' \
-	    -e 's/@@NO_CURL@@/$(NO_CURL)/g' \
-	    $@.sh > $(OUTPUT)$@+ && \
-	chmod +x $(OUTPUT)$@+ && \
-	mv $(OUTPUT)$@+ $(OUTPUT)$@
-
-configure: configure.ac
-	$(QUIET_GEN)$(RM) $@ $<+ && \
-	sed -e 's/@@PERF_VERSION@@/$(PERF_VERSION)/g' \
-	    $< > $<+ && \
-	autoconf -o $@ $<+ && \
-	$(RM) $<+
+$(SCRIPTS) : % : %.sh
+	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
 
 # These can record PERF_VERSION
 $(OUTPUT)perf.o perf.spec \
-	$(patsubst %.sh,%,$(SCRIPT_SH)) \
-	$(patsubst %.perl,%,$(SCRIPT_PERL)) \
+	$(SCRIPTS) \
 	: $(OUTPUT)PERF-VERSION-FILE
 
 $(OUTPUT)%.o: %.c $(OUTPUT)PERF-CFLAGS
@@ -1012,9 +637,6 @@ $(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
 		'-DPREFIX="$(prefix_SQ)"' \
 		$<
 
-$(OUTPUT)builtin-init-db.o: builtin-init-db.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DDEFAULT_PERF_TEMPLATE_DIR='"$(template_dir_SQ)"' $<
-
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
@@ -1022,6 +644,9 @@ $(OUTPUT)util/ui/browser.o: util/ui/browser.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
 $(OUTPUT)util/ui/browsers/annotate.o: util/ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
+
+$(OUTPUT)util/ui/browsers/top.o: util/ui/browsers/top.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
 $(OUTPUT)util/ui/browsers/hists.o: util/ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
@@ -1045,12 +670,11 @@ $(OUTPUT)util/scripting-engines/trace-event-python.o: util/scripting-engines/tra
 $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o: scripts/python/Perf-Trace-Util/Context.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs $<
 
-$(OUTPUT)perf-%$X: %.o $(PERFLIBS)
+$(OUTPUT)perf-%: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)
 
 $(LIB_OBJS) $(BUILTIN_OBJS): $(LIB_H)
-$(patsubst perf-%$X,%.o,$(PROGRAMS)): $(LIB_H) $(wildcard */*.h)
-builtin-revert.o wt-status.o: wt-status.h
+$(patsubst perf-%,%.o,$(PROGRAMS)): $(LIB_H) $(wildcard */*.h)
 
 # we compile into subdirectories. if the target directory is not the source directory, they might not exists. So
 # we depend the various files onto their directories.
@@ -1062,6 +686,36 @@ $(sort $(dir $(DIRECTORY_DEPS))):
 
 $(LIB_FILE): $(LIB_OBJS)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
+
+help:
+	@echo 'Perf make targets:'
+	@echo '  doc		- make *all* documentation (see below)'
+	@echo '  man		- make manpage documentation (access with man <foo>)'
+	@echo '  html		- make html documentation'
+	@echo '  info		- make GNU info documentation (access with info <foo>)'
+	@echo '  pdf		- make pdf documentation'
+	@echo '  TAGS		- use etags to make tag information for source browsing'
+	@echo '  tags		- use ctags to make tag information for source browsing'
+	@echo '  cscope	- use cscope to make interactive browsing database'
+	@echo ''
+	@echo 'Perf install targets:'
+	@echo '  NOTE: documentation build requires asciidoc, xmlto packages to be installed'
+	@echo '  HINT: use "make prefix=<path> <install target>" to install to a particular'
+	@echo '        path like make prefix=/usr/local install install-doc'
+	@echo '  install	- install compiled binaries'
+	@echo '  install-doc	- install *all* documentation'
+	@echo '  install-man	- install manpage documentation'
+	@echo '  install-html	- install html documentation'
+	@echo '  install-info	- install GNU info documentation'
+	@echo '  install-pdf	- install pdf documentation'
+	@echo ''
+	@echo '  quick-install-doc	- alias for quick-install-man'
+	@echo '  quick-install-man	- install the documentation quickly'
+	@echo '  quick-install-html	- install the html documentation quickly'
+	@echo ''
+	@echo 'Perf maintainer targets:'
+	@echo '  distclean		- alias to clean'
+	@echo '  clean			- clean all binary objects and build output'
 
 doc:
 	$(MAKE) -C Documentation all
@@ -1101,29 +755,11 @@ $(OUTPUT)PERF-CFLAGS: .FORCE-PERF-CFLAGS
 		echo "$$FLAGS" >$(OUTPUT)PERF-CFLAGS; \
             fi
 
-# We need to apply sq twice, once to protect from the shell
-# that runs $(OUTPUT)PERF-BUILD-OPTIONS, and then again to protect it
-# and the first level quoting from the shell that runs "echo".
-$(OUTPUT)PERF-BUILD-OPTIONS: .FORCE-PERF-BUILD-OPTIONS
-	@echo SHELL_PATH=\''$(subst ','\'',$(SHELL_PATH_SQ))'\' >$@
-	@echo TAR=\''$(subst ','\'',$(subst ','\'',$(TAR)))'\' >>$@
-	@echo NO_CURL=\''$(subst ','\'',$(subst ','\'',$(NO_CURL)))'\' >>$@
-	@echo NO_PERL=\''$(subst ','\'',$(subst ','\'',$(NO_PERL)))'\' >>$@
-
 ### Testing rules
-
-#
-# None right now:
-#
-# TEST_PROGRAMS += test-something$X
-
-all:: $(TEST_PROGRAMS)
 
 # GNU make supports exporting all variables by "export" without parameters.
 # However, the environment gets quite big, and some programs have problems
 # with that.
-
-export NO_SVN_TESTS
 
 check: $(OUTPUT)common-cmds.h
 	if sparse; \
@@ -1133,21 +769,10 @@ check: $(OUTPUT)common-cmds.h
 			sparse $(ALL_CFLAGS) $(SPARSE_FLAGS) $$i || exit; \
 		done; \
 	else \
-		echo 2>&1 "Did you mean 'make test'?"; \
 		exit 1; \
 	fi
 
-remove-dashes:
-	./fixup-builtins $(BUILT_INS) $(PROGRAMS) $(SCRIPTS)
-
 ### Installation rules
-
-ifneq ($(filter /%,$(firstword $(template_dir))),)
-template_instdir = $(template_dir)
-else
-template_instdir = $(prefix)/$(template_dir)
-endif
-export template_instdir
 
 ifneq ($(filter /%,$(firstword $(perfexecdir))),)
 perfexec_instdir = $(perfexecdir)
@@ -1155,11 +780,10 @@ else
 perfexec_instdir = $(prefix)/$(perfexecdir)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
-export perfexec_instdir
 
 install: all
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) $(OUTPUT)perf$X '$(DESTDIR_SQ)$(bindir_SQ)'
+	$(INSTALL) $(OUTPUT)perf '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'
 	$(INSTALL) $(OUTPUT)perf-archive -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
@@ -1171,14 +795,6 @@ install: all
 	$(INSTALL) scripts/python/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'
 	$(INSTALL) scripts/python/*.py -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python'
 	$(INSTALL) scripts/python/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/bin'
-
-ifdef BUILT_INS
-	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
-	$(INSTALL) $(BUILT_INS) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
-ifneq (,$X)
-	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) $(OUTPUT)perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
-endif
-endif
 
 install-doc:
 	$(MAKE) -C Documentation install
@@ -1204,104 +820,17 @@ quick-install-man:
 quick-install-html:
 	$(MAKE) -C Documentation quick-install-html
 
-
-### Maintainer's dist rules
-#
-# None right now
-#
-#
-# perf.spec: perf.spec.in
-#	sed -e 's/@@VERSION@@/$(PERF_VERSION)/g' < $< > $@+
-#	mv $@+ $@
-#
-# PERF_TARNAME=perf-$(PERF_VERSION)
-# dist: perf.spec perf-archive$(X) configure
-#	./perf-archive --format=tar \
-#		--prefix=$(PERF_TARNAME)/ HEAD^{tree} > $(PERF_TARNAME).tar
-#	@mkdir -p $(PERF_TARNAME)
-#	@cp perf.spec configure $(PERF_TARNAME)
-#	@echo $(PERF_VERSION) > $(PERF_TARNAME)/version
-#	$(TAR) rf $(PERF_TARNAME).tar \
-#		$(PERF_TARNAME)/perf.spec \
-#		$(PERF_TARNAME)/configure \
-#		$(PERF_TARNAME)/version
-#	@$(RM) -r $(PERF_TARNAME)
-#	gzip -f -9 $(PERF_TARNAME).tar
-#
-# htmldocs = perf-htmldocs-$(PERF_VERSION)
-# manpages = perf-manpages-$(PERF_VERSION)
-# dist-doc:
-#	$(RM) -r .doc-tmp-dir
-#	mkdir .doc-tmp-dir
-#	$(MAKE) -C Documentation WEBDOC_DEST=../.doc-tmp-dir install-webdoc
-#	cd .doc-tmp-dir && $(TAR) cf ../$(htmldocs).tar .
-#	gzip -n -9 -f $(htmldocs).tar
-#	:
-#	$(RM) -r .doc-tmp-dir
-#	mkdir -p .doc-tmp-dir/man1 .doc-tmp-dir/man5 .doc-tmp-dir/man7
-#	$(MAKE) -C Documentation DESTDIR=./ \
-#		man1dir=../.doc-tmp-dir/man1 \
-#		man5dir=../.doc-tmp-dir/man5 \
-#		man7dir=../.doc-tmp-dir/man7 \
-#		install
-#	cd .doc-tmp-dir && $(TAR) cf ../$(manpages).tar .
-#	gzip -n -9 -f $(manpages).tar
-#	$(RM) -r .doc-tmp-dir
-#
-# rpm: dist
-#	$(RPMBUILD) -ta $(PERF_TARNAME).tar.gz
-
 ### Cleaning rules
 
-distclean: clean
-#	$(RM) configure
-
 clean:
-	$(RM) *.o */*.o */*/*.o */*/*/*.o $(LIB_FILE)
-	$(RM) $(ALL_PROGRAMS) $(BUILT_INS) perf$X
-	$(RM) $(TEST_PROGRAMS)
+	$(RM) $(OUTPUT){*.o,*/*.o,*/*/*.o,*/*/*/*.o,$(LIB_FILE),perf-archive}
+	$(RM) $(ALL_PROGRAMS) perf
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope*
-	$(RM) -r autom4te.cache
-	$(RM) config.log config.mak.autogen config.mak.append config.status config.cache
-	$(RM) -r $(PERF_TARNAME) .doc-tmp-dir
-	$(RM) $(PERF_TARNAME).tar.gz perf-core_$(PERF_VERSION)-*.tar.gz
-	$(RM) $(htmldocs).tar.gz $(manpages).tar.gz
 	$(MAKE) -C Documentation/ clean
-	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS $(OUTPUT)PERF-BUILD-OPTIONS
+	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS
+	@python util/setup.py clean --build-lib='$(OUTPUT)python' \
+				   --build-temp='$(OUTPUT)python/temp'
 
 .PHONY: all install clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
 .PHONY: .FORCE-PERF-VERSION-FILE TAGS tags cscope .FORCE-PERF-CFLAGS
-.PHONY: .FORCE-PERF-BUILD-OPTIONS
-
-### Make sure built-ins do not have dups and listed in perf.c
-#
-check-builtins::
-	./check-builtins.sh
-
-### Test suite coverage testing
-#
-# None right now
-#
-# .PHONY: coverage coverage-clean coverage-build coverage-report
-#
-# coverage:
-#	$(MAKE) coverage-build
-#	$(MAKE) coverage-report
-#
-# coverage-clean:
-#	rm -f *.gcda *.gcno
-#
-# COVERAGE_CFLAGS = $(CFLAGS) -O0 -ftest-coverage -fprofile-arcs
-# COVERAGE_LDFLAGS = $(CFLAGS)  -O0 -lgcov
-#
-# coverage-build: coverage-clean
-#	$(MAKE) CFLAGS="$(COVERAGE_CFLAGS)" LDFLAGS="$(COVERAGE_LDFLAGS)" all
-#	$(MAKE) CFLAGS="$(COVERAGE_CFLAGS)" LDFLAGS="$(COVERAGE_LDFLAGS)" \
-#		-j1 test
-#
-# coverage-report:
-#	gcov -b *.c */*.c
-#	grep '^function.*called 0 ' *.c.gcov */*.c.gcov \
-#		| sed -e 's/\([^:]*\)\.gcov: *function \([^ ]*\) called.*/\1: \2/' \
-#		| tee coverage-untested-functions

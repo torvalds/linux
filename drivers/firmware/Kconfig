@@ -113,6 +113,17 @@ config DMIID
 	  information from userspace through /sys/class/dmi/id/ or if you want
 	  DMI-based module auto-loading.
 
+config DMI_SYSFS
+	tristate "DMI table support in sysfs"
+	depends on SYSFS && DMI
+	default n
+	help
+	  Say Y or M here to enable the exporting of the raw DMI table
+	  data via sysfs.  This is useful for consuming the data without
+	  requiring any access to /dev/mem at all.  Tables are found
+	  under /sys/firmware/dmi when this option is enabled and
+	  loaded.
+
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
 	depends on X86

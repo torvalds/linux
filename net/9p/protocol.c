@@ -114,6 +114,26 @@ pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 	return size - len;
 }
 
+static size_t
+pdu_write_urw(struct p9_fcall *pdu, const char *kdata, const char __user *udata,
+		size_t size)
+{
+	BUG_ON(pdu->size > P9_IOHDRSZ);
+	pdu->pubuf = (char __user *)udata;
+	pdu->pkbuf = (char *)kdata;
+	pdu->pbuf_size = size;
+	return 0;
+}
+
+static size_t
+pdu_write_readdir(struct p9_fcall *pdu, const char *kdata, size_t size)
+{
+	BUG_ON(pdu->size > P9_READDIRHDRSZ);
+	pdu->pkbuf = (char *)kdata;
+	pdu->pbuf_size = size;
+	return 0;
+}
+
 /*
 	b - int8_t
 	w - int16_t
@@ -445,6 +465,25 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					errcode = -EFAULT;
 			}
 			break;
+		case 'E':{
+				 int32_t cnt = va_arg(ap, int32_t);
+				 const char *k = va_arg(ap, const void *);
+				 const char *u = va_arg(ap, const void *);
+				 errcode = p9pdu_writef(pdu, proto_version, "d",
+						 cnt);
+				 if (!errcode && pdu_write_urw(pdu, k, u, cnt))
+					errcode = -EFAULT;
+			 }
+			 break;
+		case 'F':{
+				 int32_t cnt = va_arg(ap, int32_t);
+				 const char *k = va_arg(ap, const void *);
+				 errcode = p9pdu_writef(pdu, proto_version, "d",
+						 cnt);
+				 if (!errcode && pdu_write_readdir(pdu, k, cnt))
+					errcode = -EFAULT;
+			 }
+			 break;
 		case 'U':{
 				int32_t count = va_arg(ap, int32_t);
 				const char __user *udata =
@@ -579,6 +618,7 @@ EXPORT_SYMBOL(p9stat_read);
 
 int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type)
 {
+	pdu->id = type;
 	return p9pdu_writef(pdu, 0, "dbw", 0, type, tag);
 }
 
@@ -606,6 +646,10 @@ void p9pdu_reset(struct p9_fcall *pdu)
 {
 	pdu->offset = 0;
 	pdu->size = 0;
+	pdu->private = NULL;
+	pdu->pubuf = NULL;
+	pdu->pkbuf = NULL;
+	pdu->pbuf_size = 0;
 }
 
 int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,

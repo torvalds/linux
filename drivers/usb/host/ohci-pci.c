@@ -22,24 +22,6 @@
 #include <linux/io.h>
 
 
-/* constants used to work around PM-related transfer
- * glitches in some AMD 700 series southbridges
- */
-#define AB_REG_BAR	0xf0
-#define AB_INDX(addr)	((addr) + 0x00)
-#define AB_DATA(addr)	((addr) + 0x04)
-#define AX_INDXC	0X30
-#define AX_DATAC	0x34
-
-#define NB_PCIE_INDX_ADDR	0xe0
-#define NB_PCIE_INDX_DATA	0xe4
-#define PCIE_P_CNTL		0x10040
-#define BIF_NB			0x10002
-
-static struct pci_dev *amd_smbus_dev;
-static struct pci_dev *amd_hb_dev;
-static int amd_ohci_iso_count;
-
 /*-------------------------------------------------------------------------*/
 
 static int broken_suspend(struct usb_hcd *hcd)
@@ -168,15 +150,18 @@ static int ohci_quirk_nec(struct usb_hcd *hcd)
 static int ohci_quirk_amd700(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	u8 rev = 0;
+	struct pci_dev *amd_smbus_dev;
+	u8 rev;
 
-	if (!amd_smbus_dev)
-		amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI,
-				PCI_DEVICE_ID_ATI_SBX00_SMBUS, NULL);
+	if (usb_amd_find_chipset_info())
+		ohci->flags |= OHCI_QUIRK_AMD_PLL;
+
+	amd_smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI,
+			PCI_DEVICE_ID_ATI_SBX00_SMBUS, NULL);
 	if (!amd_smbus_dev)
 		return 0;
 
-	pci_read_config_byte(amd_smbus_dev, PCI_REVISION_ID, &rev);
+	rev = amd_smbus_dev->revision;
 
 	/* SB800 needs pre-fetch fix */
 	if ((rev >= 0x40) && (rev <= 0x4f)) {
@@ -184,19 +169,8 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 		ohci_dbg(ohci, "enabled AMD prefetch quirk\n");
 	}
 
-	if ((rev > 0x3b) || (rev < 0x30)) {
-		pci_dev_put(amd_smbus_dev);
-		amd_smbus_dev = NULL;
-		return 0;
-	}
-
-	amd_ohci_iso_count++;
-
-	if (!amd_hb_dev)
-		amd_hb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x9600, NULL);
-
-	ohci->flags |= OHCI_QUIRK_AMD_ISO;
-	ohci_dbg(ohci, "enabled AMD ISO transfers quirk\n");
+	pci_dev_put(amd_smbus_dev);
+	amd_smbus_dev = NULL;
 
 	return 0;
 }
@@ -213,74 +187,6 @@ static int ohci_quirk_nvidia_shutdown(struct usb_hcd *hcd)
 	ohci_dbg(ohci, "enabled nVidia shutdown quirk\n");
 
 	return 0;
-}
-
-/*
- * The hardware normally enables the A-link power management feature, which
- * lets the system lower the power consumption in idle states.
- *
- * Assume the system is configured to have USB 1.1 ISO transfers going
- * to or from a USB device.  Without this quirk, that stream may stutter
- * or have breaks occasionally.  For transfers going to speakers, this
- * makes a very audible mess...
- *
- * That audio playback corruption is due to the audio stream getting
- * interrupted occasionally when the link goes in lower power state
- * This USB quirk prevents the link going into that lower power state
- * during audio playback or other ISO operations.
- */
-static void quirk_amd_pll(int on)
-{
-	u32 addr;
-	u32 val;
-	u32 bit = (on > 0) ? 1 : 0;
-
-	pci_read_config_dword(amd_smbus_dev, AB_REG_BAR, &addr);
-
-	/* BIT names/meanings are NDA-protected, sorry ... */
-
-	outl(AX_INDXC, AB_INDX(addr));
-	outl(0x40, AB_DATA(addr));
-	outl(AX_DATAC, AB_INDX(addr));
-	val = inl(AB_DATA(addr));
-	val &= ~((1 << 3) | (1 << 4) | (1 << 9));
-	val |= (bit << 3) | ((!bit) << 4) | ((!bit) << 9);
-	outl(val, AB_DATA(addr));
-
-	if (amd_hb_dev) {
-		addr = PCIE_P_CNTL;
-		pci_write_config_dword(amd_hb_dev, NB_PCIE_INDX_ADDR, addr);
-
-		pci_read_config_dword(amd_hb_dev, NB_PCIE_INDX_DATA, &val);
-		val &= ~(1 | (1 << 3) | (1 << 4) | (1 << 9) | (1 << 12));
-		val |= bit | (bit << 3) | (bit << 12);
-		val |= ((!bit) << 4) | ((!bit) << 9);
-		pci_write_config_dword(amd_hb_dev, NB_PCIE_INDX_DATA, val);
-
-		addr = BIF_NB;
-		pci_write_config_dword(amd_hb_dev, NB_PCIE_INDX_ADDR, addr);
-
-		pci_read_config_dword(amd_hb_dev, NB_PCIE_INDX_DATA, &val);
-		val &= ~(1 << 8);
-		val |= bit << 8;
-		pci_write_config_dword(amd_hb_dev, NB_PCIE_INDX_DATA, val);
-	}
-}
-
-static void amd_iso_dev_put(void)
-{
-	amd_ohci_iso_count--;
-	if (amd_ohci_iso_count == 0) {
-		if (amd_smbus_dev) {
-			pci_dev_put(amd_smbus_dev);
-			amd_smbus_dev = NULL;
-		}
-		if (amd_hb_dev) {
-			pci_dev_put(amd_hb_dev);
-			amd_hb_dev = NULL;
-		}
-	}
-
 }
 
 static void sb800_prefetch(struct ohci_hcd *ohci, int on)

@@ -63,8 +63,6 @@
  *        write to gf
  */
 
-static struct workqueue_struct *ocfs2_quota_wq = NULL;
-
 static void qsync_work_fn(struct work_struct *work);
 
 static void ocfs2_global_disk2memdqb(struct dquot *dquot, void *dp)
@@ -400,8 +398,8 @@ int ocfs2_global_read_info(struct super_block *sb, int type)
 						OCFS2_QBLK_RESERVED_SPACE;
 	oinfo->dqi_gi.dqi_qtree_depth = qtree_depth(&oinfo->dqi_gi);
 	INIT_DELAYED_WORK(&oinfo->dqi_sync_work, qsync_work_fn);
-	queue_delayed_work(ocfs2_quota_wq, &oinfo->dqi_sync_work,
-			   msecs_to_jiffies(oinfo->dqi_syncms));
+	schedule_delayed_work(&oinfo->dqi_sync_work,
+			      msecs_to_jiffies(oinfo->dqi_syncms));
 
 out_err:
 	mlog_exit(status);
@@ -635,8 +633,8 @@ static void qsync_work_fn(struct work_struct *work)
 	struct super_block *sb = oinfo->dqi_gqinode->i_sb;
 
 	dquot_scan_active(sb, ocfs2_sync_dquot_helper, oinfo->dqi_type);
-	queue_delayed_work(ocfs2_quota_wq, &oinfo->dqi_sync_work,
-			   msecs_to_jiffies(oinfo->dqi_syncms));
+	schedule_delayed_work(&oinfo->dqi_sync_work,
+			      msecs_to_jiffies(oinfo->dqi_syncms));
 }
 
 /*
@@ -923,20 +921,3 @@ const struct dquot_operations ocfs2_quota_operations = {
 	.alloc_dquot	= ocfs2_alloc_dquot,
 	.destroy_dquot	= ocfs2_destroy_dquot,
 };
-
-int ocfs2_quota_setup(void)
-{
-	ocfs2_quota_wq = create_workqueue("o2quot");
-	if (!ocfs2_quota_wq)
-		return -ENOMEM;
-	return 0;
-}
-
-void ocfs2_quota_shutdown(void)
-{
-	if (ocfs2_quota_wq) {
-		flush_workqueue(ocfs2_quota_wq);
-		destroy_workqueue(ocfs2_quota_wq);
-		ocfs2_quota_wq = NULL;
-	}
-}

@@ -589,6 +589,20 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	DRM_INFO("radeon: ttm finalized\n");
 }
 
+/* this should only be called at bootup or when userspace
+ * isn't running */
+void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
+{
+	struct ttm_mem_type_manager *man;
+
+	if (!rdev->mman.initialized)
+		return;
+
+	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
+	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
+	man->size = size >> PAGE_SHIFT;
+}
+
 static struct vm_operations_struct radeon_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops = NULL;
 
@@ -787,9 +801,9 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 		radeon_mem_types_list[i].show = &radeon_mm_dump_table;
 		radeon_mem_types_list[i].driver_features = 0;
 		if (i == 0)
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_VRAM].priv;
+			radeon_mem_types_list[i].data = rdev->mman.bdev.man[TTM_PL_VRAM].priv;
 		else
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_TT].priv;
+			radeon_mem_types_list[i].data = rdev->mman.bdev.man[TTM_PL_TT].priv;
 
 	}
 	/* Add ttm page pool to debugfs */

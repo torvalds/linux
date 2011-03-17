@@ -71,8 +71,8 @@
 
 
 
-extern void btcoexDbgPulseWord(A_UINT32 gpioPinMask);
-extern void btcoexDbgPulse(A_UINT32 pin);
+extern void btcoexDbgPulseWord(u32 gpioPinMask);
+extern void btcoexDbgPulse(u32 pin);
 
 #ifdef CONFIG_BTCOEX_ENABLE_GPIO_DEBUG
 #define BTCOEX_DBG_PULSE_WORD(gpioPinMask)  (btcoexDbgPulseWord(gpioPinMask))

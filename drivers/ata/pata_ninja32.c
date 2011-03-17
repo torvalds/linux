@@ -165,7 +165,7 @@ static int ninja32_reinit_one(struct pci_dev *pdev)
 		return rc;
 	ninja32_program(host->iomap[0]);
 	ata_host_resume(host);
-	return 0;			
+	return 0;
 }
 #endif
 

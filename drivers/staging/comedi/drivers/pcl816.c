@@ -108,7 +108,7 @@ struct pcl816_board {
 	const char *name;	/*  board name */
 	int n_ranges;		/*  len of range list */
 	int n_aichan;		/*  num of A/D chans in diferencial mode */
-	unsigned int ai_ns_min;	/*  minimal alllowed delay between samples (in ns) */
+	unsigned int ai_ns_min;	/*  minimal allowed delay between samples (in ns) */
 	int n_aochan;		/*  num of D/A chans */
 	int n_dichan;		/*  num of DI chans */
 	int n_dochan;		/*  num of DO chans */

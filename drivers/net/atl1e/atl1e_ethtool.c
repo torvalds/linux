@@ -95,18 +95,18 @@ static int atl1e_set_settings(struct net_device *netdev,
 		ecmd->advertising = hw->autoneg_advertised |
 				    ADVERTISED_TP | ADVERTISED_Autoneg;
 
-		adv4 = hw->mii_autoneg_adv_reg & ~MII_AR_SPEED_MASK;
+		adv4 = hw->mii_autoneg_adv_reg & ~ADVERTISE_ALL;
 		adv9 = hw->mii_1000t_ctrl_reg & ~MII_AT001_CR_1000T_SPEED_MASK;
 		if (hw->autoneg_advertised & ADVERTISE_10_HALF)
-			adv4 |= MII_AR_10T_HD_CAPS;
+			adv4 |= ADVERTISE_10HALF;
 		if (hw->autoneg_advertised & ADVERTISE_10_FULL)
-			adv4 |= MII_AR_10T_FD_CAPS;
+			adv4 |= ADVERTISE_10FULL;
 		if (hw->autoneg_advertised & ADVERTISE_100_HALF)
-			adv4 |= MII_AR_100TX_HD_CAPS;
+			adv4 |= ADVERTISE_100HALF;
 		if (hw->autoneg_advertised & ADVERTISE_100_FULL)
-			adv4 |= MII_AR_100TX_FD_CAPS;
+			adv4 |= ADVERTISE_100FULL;
 		if (hw->autoneg_advertised & ADVERTISE_1000_FULL)
-			adv9 |= MII_AT001_CR_1000T_FD_CAPS;
+			adv9 |= ADVERTISE_1000FULL;
 
 		if (adv4 != hw->mii_autoneg_adv_reg ||
 				adv9 != hw->mii_1000t_ctrl_reg) {

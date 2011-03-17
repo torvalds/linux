@@ -26,11 +26,11 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/memory.h>
 #include <asm/setup.h>
 
 #include <mach/gpio.h>
 #include <mach/board.h>
-#include <mach/memory.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
 
@@ -85,7 +85,7 @@ static void __init msm7x30_map_io(void)
 MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
 #ifdef CONFIG_MSM_DEBUG_UART
 #endif
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
@@ -95,7 +95,7 @@ MACHINE_END
 MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
 #ifdef CONFIG_MSM_DEBUG_UART
 #endif
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
@@ -105,7 +105,7 @@ MACHINE_END
 MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
 #ifdef CONFIG_MSM_DEBUG_UART
 #endif
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,

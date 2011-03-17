@@ -128,9 +128,7 @@ struct device_driver {
 
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
 
-#if defined(CONFIG_OF)
 	const struct of_device_id	*of_match_table;
-#endif
 
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
@@ -422,6 +420,7 @@ struct device {
 	void		*platform_data;	/* Platform specific data, device
 					   core doesn't touch it */
 	struct dev_pm_info	power;
+	struct dev_power_domain	*pwr_domain;
 
 #ifdef CONFIG_NUMA
 	int		numa_node;	/* NUMA node this device is close to */
@@ -441,9 +440,9 @@ struct device {
 					     override */
 	/* arch specific additions */
 	struct dev_archdata	archdata;
-#ifdef CONFIG_OF
-	struct device_node	*of_node;
-#endif
+
+	struct device_node	*of_node; /* associated device tree node */
+	const struct of_device_id *of_match; /* matching of_device_id from driver */
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 

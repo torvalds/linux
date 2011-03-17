@@ -875,6 +875,11 @@ static struct platform_device sharpsl_rom_device = {
 	.dev.platform_data = &sharpsl_rom_data,
 };
 
+static struct platform_device wm9712_device = {
+	.name	= "wm9712-codec",
+	.id	= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
@@ -885,6 +890,7 @@ static struct platform_device *devices[] __initdata = {
 	&tosaled_device,
 	&tosa_bt_device,
 	&sharpsl_rom_device,
+	&wm9712_device,
 };
 
 static void tosa_poweroff(void)

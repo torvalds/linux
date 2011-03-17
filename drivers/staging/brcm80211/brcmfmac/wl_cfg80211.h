@@ -20,7 +20,6 @@
 #include <linux/wireless.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
-#include <proto/ethernet.h>
 #include <wlioctl.h>
 
 struct wl_conf;
@@ -28,23 +27,6 @@ struct wl_iface;
 struct wl_priv;
 struct wl_security;
 struct wl_ibss;
-
-#if defined(IL_BIGENDIAN)
-#include <bcmendian.h>
-#define htod32(i) (bcmswap32(i))
-#define htod16(i) (bcmswap16(i))
-#define dtoh32(i) (bcmswap32(i))
-#define dtoh16(i) (bcmswap16(i))
-#define htodchanspec(i) htod16(i)
-#define dtohchanspec(i) dtoh16(i)
-#else
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
-#endif
 
 #define WL_DBG_NONE	0
 #define WL_DBG_DBG 	(1 << 2)
@@ -316,7 +298,7 @@ struct wl_priv {
 						 cfg80211 layer */
 	struct wl_ie ie;	/* information element object for
 					 internal purpose */
-	struct ether_addr bssid;	/* bssid of currently engaged network */
+	u8 bssid[ETH_ALEN];	/* bssid of currently engaged network */
 	struct semaphore event_sync;	/* for synchronization of main event
 					 thread */
 	struct wl_profile *profile;	/* holding dongle profile */
@@ -366,7 +348,8 @@ static inline struct wl_bss_info *next_bss(struct wl_scan_results *list,
 {
 	return bss = bss ?
 		(struct wl_bss_info *)((unsigned long)bss +
-				       dtoh32(bss->length)) : list->bss_info;
+				       le32_to_cpu(bss->length)) :
+		list->bss_info;
 }
 
 #define for_each_bss(list, bss, __i)	\

@@ -28,7 +28,7 @@
  *	By default use timer1 as the system clock timer.
  */
 #define	FREQ	(MCF_BUSCLK / 16)
-#define	TA(a)	(MCF_MBAR + MCFTIMER_BASE1 + (a))
+#define	TA(a)	(MCFTIMER_BASE1 + (a))
 
 /*
  *	These provide the underlying interrupt vector support.
@@ -126,7 +126,7 @@ void hw_timer_init(void)
 /*
  *	By default use timer2 as the profiler clock timer.
  */
-#define	PA(a)	(MCF_MBAR + MCFTIMER_BASE2 + (a))
+#define	PA(a)	(MCFTIMER_BASE2 + (a))
 
 /*
  *	Choose a reasonably fast profile timer. Make it an odd value to

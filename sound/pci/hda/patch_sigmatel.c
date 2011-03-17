@@ -586,7 +586,12 @@ static hda_nid_t stac92hd83xxx_pin_nids[10] = {
 	0x0f, 0x10, 0x11, 0x1f, 0x20,
 };
 
-static hda_nid_t stac92hd88xxx_pin_nids[10] = {
+static hda_nid_t stac92hd87xxx_pin_nids[6] = {
+	0x0a, 0x0b, 0x0c, 0x0d,
+	0x0f, 0x11,
+};
+
+static hda_nid_t stac92hd88xxx_pin_nids[8] = {
 	0x0a, 0x0b, 0x0c, 0x0d,
 	0x0f, 0x11, 0x1f, 0x20,
 };
@@ -5430,12 +5435,13 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d76d1:
 	case 0x111d76d9:
+	case 0x111d76e5:
 		spec->dmic_nids = stac92hd87b_dmic_nids;
 		spec->num_dmics = stac92xx_connected_ports(codec,
 				stac92hd87b_dmic_nids,
 				STAC92HD87B_NUM_DMICS);
-		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
-		spec->pin_nids = stac92hd88xxx_pin_nids;
+		spec->num_pins = ARRAY_SIZE(stac92hd87xxx_pin_nids);
+		spec->pin_nids = stac92hd87xxx_pin_nids;
 		spec->mono_nid = 0;
 		spec->num_pwrs = 0;
 		break;
@@ -5443,6 +5449,7 @@ again:
 	case 0x111d7667:
 	case 0x111d7668:
 	case 0x111d7669:
+	case 0x111d76e3:
 		spec->num_dmics = stac92xx_connected_ports(codec,
 				stac92hd88xxx_dmic_nids,
 				STAC92HD88XXX_NUM_DMICS);
@@ -6387,6 +6394,8 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76cd, .name = "92HD89F2", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d76ce, .name = "92HD89F1", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d76e0, .name = "92HD91BXX", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76e3, .name = "92HD98BXX", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76e5, .name = "92HD99BXX", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76e7, .name = "92HD90BXX", .patch = patch_stac92hd83xxx},
 	{} /* terminator */
 };

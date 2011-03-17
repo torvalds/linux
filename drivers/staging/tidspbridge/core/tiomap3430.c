@@ -229,11 +229,11 @@ static struct notifier_block dsp_mbox_notifier = {
 
 static inline void flush_all(struct bridge_dev_context *dev_context)
 {
-	if (dev_context->dw_brd_state == BRD_DSP_HIBERNATION ||
-	    dev_context->dw_brd_state == BRD_HIBERNATION)
+	if (dev_context->brd_state == BRD_DSP_HIBERNATION ||
+	    dev_context->brd_state == BRD_HIBERNATION)
 		wake_dsp(dev_context, NULL);
 
-	hw_mmu_tlb_flush_all(dev_context->dw_dsp_mmu_base);
+	hw_mmu_tlb_flush_all(dev_context->dsp_mmu_base);
 }
 
 static void bad_page_dump(u32 pa, struct page *pg)
@@ -258,8 +258,6 @@ void bridge_drv_entry(struct bridge_drv_interface **drv_intf,
 {
 
 	DBC_REQUIRE(driver_file_name != NULL);
-
-	io_sm_init();		/* Initialization of io_sm module */
 
 	if (strcmp(driver_file_name, "UMA") == 0)
 		*drv_intf = &drv_interface_fxns;
@@ -308,7 +306,7 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 	dsp_clk_enable(DSP_CLK_IVA2);
 
 	/* set the device state to IDLE */
-	dev_context->dw_brd_state = BRD_IDLE;
+	dev_context->brd_state = BRD_IDLE;
 
 	return 0;
 }
@@ -325,16 +323,16 @@ static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
 	u32 offset;
-	u32 dsp_base_addr = dev_ctxt->dw_dsp_base_addr;
+	u32 dsp_base_addr = dev_ctxt->dsp_base_addr;
 
-	if (dsp_addr < dev_context->dw_dsp_start_add) {
+	if (dsp_addr < dev_context->dsp_start_add) {
 		status = -EPERM;
 		return status;
 	}
 	/* change here to account for the 3 bands of the DSP internal memory */
-	if ((dsp_addr - dev_context->dw_dsp_start_add) <
-	    dev_context->dw_internal_size) {
-		offset = dsp_addr - dev_context->dw_dsp_start_add;
+	if ((dsp_addr - dev_context->dsp_start_add) <
+	    dev_context->internal_size) {
+		offset = dsp_addr - dev_context->dsp_start_add;
 	} else {
 		status = read_ext_dsp_data(dev_context, host_buff, dsp_addr,
 					   ul_num_bytes, mem_type);
@@ -356,7 +354,7 @@ static int bridge_brd_set_state(struct bridge_dev_context *dev_ctxt,
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
 
-	dev_context->dw_brd_state = brd_state;
+	dev_context->brd_state = brd_state;
 	return status;
 }
 
@@ -398,17 +396,17 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	 * last dsp base image was loaded. The first entry is always
 	 * SHMMEM base. */
 	/* Get SHM_BEG - convert to byte address */
-	(void)dev_get_symbol(dev_context->hdev_obj, SHMBASENAME,
+	(void)dev_get_symbol(dev_context->dev_obj, SHMBASENAME,
 			     &ul_shm_base_virt);
 	ul_shm_base_virt *= DSPWORDSIZE;
 	DBC_ASSERT(ul_shm_base_virt != 0);
 	/* DSP Virtual address */
-	ul_tlb_base_virt = dev_context->atlb_entry[0].ul_dsp_va;
+	ul_tlb_base_virt = dev_context->atlb_entry[0].dsp_va;
 	DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 	ul_shm_offset_virt =
 	    ul_shm_base_virt - (ul_tlb_base_virt * DSPWORDSIZE);
 	/* Kernel logical address */
-	ul_shm_base = dev_context->atlb_entry[0].ul_gpp_va + ul_shm_offset_virt;
+	ul_shm_base = dev_context->atlb_entry[0].gpp_va + ul_shm_offset_virt;
 
 	DBC_ASSERT(ul_shm_base != 0);
 	/* 2nd wd is used as sync field */
@@ -454,9 +452,9 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		udelay(100);
 
 		/* Disbale the DSP MMU */
-		hw_mmu_disable(resources->dw_dmmu_base);
+		hw_mmu_disable(resources->dmmu_base);
 		/* Disable TWL */
-		hw_mmu_twl_disable(resources->dw_dmmu_base);
+		hw_mmu_twl_disable(resources->dmmu_base);
 
 		/* Only make TLB entry if both addresses are non-zero */
 		for (entry_ndx = 0; entry_ndx < BRDIOCTL_NUMOFMMUTLB;
@@ -468,20 +466,20 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 				.mixed_size = e->mixed_mode,
 			};
 
-			if (!e->ul_gpp_pa || !e->ul_dsp_va)
+			if (!e->gpp_pa || !e->dsp_va)
 				continue;
 
 			dev_dbg(bridge,
 					"MMU %d, pa: 0x%x, va: 0x%x, size: 0x%x",
 					itmp_entry_ndx,
-					e->ul_gpp_pa,
-					e->ul_dsp_va,
-					e->ul_size);
+					e->gpp_pa,
+					e->dsp_va,
+					e->size);
 
-			hw_mmu_tlb_add(dev_context->dw_dsp_mmu_base,
-					e->ul_gpp_pa,
-					e->ul_dsp_va,
-					e->ul_size,
+			hw_mmu_tlb_add(dev_context->dsp_mmu_base,
+					e->gpp_pa,
+					e->dsp_va,
+					e->size,
 					itmp_entry_ndx,
 					&map_attrs, 1, 1);
 
@@ -492,24 +490,24 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	/* Lock the above TLB entries and get the BIOS and load monitor timer
 	 * information */
 	if (!status) {
-		hw_mmu_num_locked_set(resources->dw_dmmu_base, itmp_entry_ndx);
-		hw_mmu_victim_num_set(resources->dw_dmmu_base, itmp_entry_ndx);
-		hw_mmu_ttb_set(resources->dw_dmmu_base,
+		hw_mmu_num_locked_set(resources->dmmu_base, itmp_entry_ndx);
+		hw_mmu_victim_num_set(resources->dmmu_base, itmp_entry_ndx);
+		hw_mmu_ttb_set(resources->dmmu_base,
 			       dev_context->pt_attrs->l1_base_pa);
-		hw_mmu_twl_enable(resources->dw_dmmu_base);
+		hw_mmu_twl_enable(resources->dmmu_base);
 		/* Enable the SmartIdle and AutoIdle bit for MMU_SYSCONFIG */
 
-		temp = __raw_readl((resources->dw_dmmu_base) + 0x10);
+		temp = __raw_readl((resources->dmmu_base) + 0x10);
 		temp = (temp & 0xFFFFFFEF) | 0x11;
-		__raw_writel(temp, (resources->dw_dmmu_base) + 0x10);
+		__raw_writel(temp, (resources->dmmu_base) + 0x10);
 
 		/* Let the DSP MMU run */
-		hw_mmu_enable(resources->dw_dmmu_base);
+		hw_mmu_enable(resources->dmmu_base);
 
 		/* Enable the BIOS clock */
-		(void)dev_get_symbol(dev_context->hdev_obj,
+		(void)dev_get_symbol(dev_context->dev_obj,
 				     BRIDGEINIT_BIOSGPTIMER, &ul_bios_gp_timer);
-		(void)dev_get_symbol(dev_context->hdev_obj,
+		(void)dev_get_symbol(dev_context->dev_obj,
 				     BRIDGEINIT_LOADMON_GPTIMER,
 				     &ul_load_monitor_timer);
 	}
@@ -538,7 +536,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 	if (!status) {
 		/* Set the DSP clock rate */
-		(void)dev_get_symbol(dev_context->hdev_obj,
+		(void)dev_get_symbol(dev_context->dev_obj,
 				     "_BRIDGEINIT_DSP_FREQ", &ul_dsp_clk_addr);
 		/*Set Autoidle Mode for IVA2 PLL */
 		(*pdata->dsp_cm_write)(1 << OMAP3430_AUTO_IVA2_DPLL_SHIFT,
@@ -568,18 +566,18 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	}
 	if (!status) {
 /*PM_IVA2GRPSEL_PER = 0xC0;*/
-		temp = readl(resources->dw_per_pm_base + 0xA8);
+		temp = readl(resources->per_pm_base + 0xA8);
 		temp = (temp & 0xFFFFFF30) | 0xC0;
-		writel(temp, resources->dw_per_pm_base + 0xA8);
+		writel(temp, resources->per_pm_base + 0xA8);
 
 /*PM_MPUGRPSEL_PER &= 0xFFFFFF3F; */
-		temp = readl(resources->dw_per_pm_base + 0xA4);
+		temp = readl(resources->per_pm_base + 0xA4);
 		temp = (temp & 0xFFFFFF3F);
-		writel(temp, resources->dw_per_pm_base + 0xA4);
+		writel(temp, resources->per_pm_base + 0xA4);
 /*CM_SLEEPDEP_PER |= 0x04; */
-		temp = readl(resources->dw_per_base + 0x44);
+		temp = readl(resources->per_base + 0x44);
 		temp = (temp & 0xFFFFFFFB) | 0x04;
-		writel(temp, resources->dw_per_base + 0x44);
+		writel(temp, resources->per_base + 0x44);
 
 /*CM_CLKSTCTRL_IVA2 = 0x00000003 -To Allow automatic transitions */
 		(*pdata->dsp_cm_write)(OMAP34XX_CLKSTCTRL_ENABLE_AUTO,
@@ -588,7 +586,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		/* Let DSP go */
 		dev_dbg(bridge, "%s Unreset\n", __func__);
 		/* Enable DSP MMU Interrupts */
-		hw_mmu_event_enable(resources->dw_dmmu_base,
+		hw_mmu_event_enable(resources->dmmu_base,
 				    HW_MMU_ALL_INTERRUPTS);
 		/* release the RST1, DSP starts executing now .. */
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST1_IVA2_MASK, 0,
@@ -609,7 +607,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		dsp_wdt_sm_set((void *)ul_shm_base);
 		dsp_wdt_enable(true);
 
-		status = dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
+		status = dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 		if (hio_mgr) {
 			io_sh_msetting(hio_mgr, SHM_OPPINFO, NULL);
 			/* Write the synchronization bit to indicate the
@@ -618,10 +616,10 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 			__raw_writel(0XCAFECAFE, dw_sync_addr);
 
 			/* update board state */
-			dev_context->dw_brd_state = BRD_RUNNING;
+			dev_context->brd_state = BRD_RUNNING;
 			/* (void)chnlsm_enable_interrupt(dev_context); */
 		} else {
-			dev_context->dw_brd_state = BRD_UNKNOWN;
+			dev_context->brd_state = BRD_UNKNOWN;
 		}
 	}
 	return status;
@@ -644,7 +642,7 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	struct omap_dsp_platform_data *pdata =
 		omap_dspbridge_dev->dev.platform_data;
 
-	if (dev_context->dw_brd_state == BRD_STOPPED)
+	if (dev_context->brd_state == BRD_STOPPED)
 		return status;
 
 	/* as per TRM, it is advised to first drive the IVA2 to 'Standby' mode,
@@ -669,10 +667,10 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	udelay(10);
 	/* Release the Ext Base virtual Address as the next DSP Program
 	 * may have a different load address */
-	if (dev_context->dw_dsp_ext_base_addr)
-		dev_context->dw_dsp_ext_base_addr = 0;
+	if (dev_context->dsp_ext_base_addr)
+		dev_context->dsp_ext_base_addr = 0;
 
-	dev_context->dw_brd_state = BRD_STOPPED;	/* update board state */
+	dev_context->brd_state = BRD_STOPPED;	/* update board state */
 
 	dsp_wdt_enable(false);
 
@@ -708,7 +706,7 @@ static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
 				    int *board_state)
 {
 	struct bridge_dev_context *dev_context = dev_ctxt;
-	*board_state = dev_context->dw_brd_state;
+	*board_state = dev_context->brd_state;
 	return 0;
 }
 
@@ -723,12 +721,12 @@ static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
 
-	if (dsp_addr < dev_context->dw_dsp_start_add) {
+	if (dsp_addr < dev_context->dsp_start_add) {
 		status = -EPERM;
 		return status;
 	}
-	if ((dsp_addr - dev_context->dw_dsp_start_add) <
-	    dev_context->dw_internal_size) {
+	if ((dsp_addr - dev_context->dsp_start_add) <
+	    dev_context->internal_size) {
 		status = write_dsp_data(dev_ctxt, host_buff, dsp_addr,
 					ul_num_bytes, mem_type);
 	} else {
@@ -766,24 +764,24 @@ static int bridge_dev_create(struct bridge_dev_context
 		goto func_end;
 	}
 
-	dev_context->dw_dsp_start_add = (u32) OMAP_GEM_BASE;
-	dev_context->dw_self_loop = (u32) NULL;
+	dev_context->dsp_start_add = (u32) OMAP_GEM_BASE;
+	dev_context->self_loop = (u32) NULL;
 	dev_context->dsp_per_clks = 0;
-	dev_context->dw_internal_size = OMAP_DSP_SIZE;
+	dev_context->internal_size = OMAP_DSP_SIZE;
 	/*  Clear dev context MMU table entries.
 	 *  These get set on bridge_io_on_loaded() call after program loaded. */
 	for (entry_ndx = 0; entry_ndx < BRDIOCTL_NUMOFMMUTLB; entry_ndx++) {
-		dev_context->atlb_entry[entry_ndx].ul_gpp_pa =
-		    dev_context->atlb_entry[entry_ndx].ul_dsp_va = 0;
+		dev_context->atlb_entry[entry_ndx].gpp_pa =
+		    dev_context->atlb_entry[entry_ndx].dsp_va = 0;
 	}
-	dev_context->dw_dsp_base_addr = (u32) MEM_LINEAR_ADDRESS((void *)
+	dev_context->dsp_base_addr = (u32) MEM_LINEAR_ADDRESS((void *)
 								 (config_param->
-								  dw_mem_base
+								  mem_base
 								  [3]),
 								 config_param->
-								 dw_mem_length
+								 mem_length
 								 [3]);
-	if (!dev_context->dw_dsp_base_addr)
+	if (!dev_context->dsp_base_addr)
 		status = -EPERM;
 
 	pt_attrs = kzalloc(sizeof(struct pg_table_attrs), GFP_KERNEL);
@@ -871,12 +869,12 @@ static int bridge_dev_create(struct bridge_dev_context
 		udelay(5);
 		/* MMU address is obtained from the host
 		 * resources struct */
-		dev_context->dw_dsp_mmu_base = resources->dw_dmmu_base;
+		dev_context->dsp_mmu_base = resources->dmmu_base;
 	}
 	if (!status) {
-		dev_context->hdev_obj = hdev_obj;
+		dev_context->dev_obj = hdev_obj;
 		/* Store current board state. */
-		dev_context->dw_brd_state = BRD_UNKNOWN;
+		dev_context->brd_state = BRD_UNKNOWN;
 		dev_context->resources = resources;
 		dsp_clk_enable(DSP_CLK_IVA2);
 		bridge_brd_stop(dev_context);
@@ -1003,12 +1001,12 @@ static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt)
 		host_res = dev_context->resources;
 		shm_size = drv_datap->shm_size;
 		if (shm_size >= 0x10000) {
-			if ((host_res->dw_mem_base[1]) &&
-			    (host_res->dw_mem_phys[1])) {
+			if ((host_res->mem_base[1]) &&
+			    (host_res->mem_phys[1])) {
 				mem_free_phys_mem((void *)
-						  host_res->dw_mem_base
+						  host_res->mem_base
 						  [1],
-						  host_res->dw_mem_phys
+						  host_res->mem_phys
 						  [1], shm_size);
 			}
 		} else {
@@ -1017,34 +1015,31 @@ static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt)
 				"mem_free_phys_mem\n", __func__,
 				status);
 		}
-		host_res->dw_mem_base[1] = 0;
-		host_res->dw_mem_phys[1] = 0;
+		host_res->mem_base[1] = 0;
+		host_res->mem_phys[1] = 0;
 
-		if (host_res->dw_mem_base[0])
-			iounmap((void *)host_res->dw_mem_base[0]);
-		if (host_res->dw_mem_base[2])
-			iounmap((void *)host_res->dw_mem_base[2]);
-		if (host_res->dw_mem_base[3])
-			iounmap((void *)host_res->dw_mem_base[3]);
-		if (host_res->dw_mem_base[4])
-			iounmap((void *)host_res->dw_mem_base[4]);
-		if (host_res->dw_dmmu_base)
-			iounmap(host_res->dw_dmmu_base);
-		if (host_res->dw_per_base)
-			iounmap(host_res->dw_per_base);
-		if (host_res->dw_per_pm_base)
-			iounmap((void *)host_res->dw_per_pm_base);
-		if (host_res->dw_core_pm_base)
-			iounmap((void *)host_res->dw_core_pm_base);
-		if (host_res->dw_sys_ctrl_base)
-			iounmap(host_res->dw_sys_ctrl_base);
+		if (host_res->mem_base[0])
+			iounmap((void *)host_res->mem_base[0]);
+		if (host_res->mem_base[2])
+			iounmap((void *)host_res->mem_base[2]);
+		if (host_res->mem_base[3])
+			iounmap((void *)host_res->mem_base[3]);
+		if (host_res->mem_base[4])
+			iounmap((void *)host_res->mem_base[4]);
+		if (host_res->dmmu_base)
+			iounmap(host_res->dmmu_base);
+		if (host_res->per_base)
+			iounmap(host_res->per_base);
+		if (host_res->per_pm_base)
+			iounmap((void *)host_res->per_pm_base);
+		if (host_res->core_pm_base)
+			iounmap((void *)host_res->core_pm_base);
 
-		host_res->dw_mem_base[0] = (u32) NULL;
-		host_res->dw_mem_base[2] = (u32) NULL;
-		host_res->dw_mem_base[3] = (u32) NULL;
-		host_res->dw_mem_base[4] = (u32) NULL;
-		host_res->dw_dmmu_base = NULL;
-		host_res->dw_sys_ctrl_base = NULL;
+		host_res->mem_base[0] = (u32) NULL;
+		host_res->mem_base[2] = (u32) NULL;
+		host_res->mem_base[3] = (u32) NULL;
+		host_res->mem_base[4] = (u32) NULL;
+		host_res->dmmu_base = NULL;
 
 		kfree(host_res);
 	}
@@ -1075,8 +1070,8 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 		status = read_ext_dsp_data(dev_ctxt, host_buf, src_addr,
 					   copy_bytes, mem_type);
 		if (!status) {
-			if (dest_addr < (dev_context->dw_dsp_start_add +
-					 dev_context->dw_internal_size)) {
+			if (dest_addr < (dev_context->dsp_start_add +
+					 dev_context->internal_size)) {
 				/* Write to Internal memory */
 				status = write_dsp_data(dev_ctxt, host_buf,
 							dest_addr, copy_bytes,
@@ -1109,8 +1104,8 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 	while (ul_remain_bytes > 0 && !status) {
 		ul_bytes =
 		    ul_remain_bytes > BUFFERSIZE ? BUFFERSIZE : ul_remain_bytes;
-		if (dsp_addr < (dev_context->dw_dsp_start_add +
-				 dev_context->dw_internal_size)) {
+		if (dsp_addr < (dev_context->dsp_start_add +
+				 dev_context->internal_size)) {
 			status =
 			    write_dsp_data(dev_ctxt, host_buff, dsp_addr,
 					   ul_bytes, mem_type);

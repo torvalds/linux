@@ -14,6 +14,7 @@
 
 #define	CPU_NAME		"COLDFIRE(m5206)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		MCF_CLK
 
 #include <asm/m52xxacr.h>
 
@@ -48,14 +49,14 @@
 #define	MCFSIM_SWIVR		0x42		/* SW Watchdog intr reg (r/w) */
 #define	MCFSIM_SWSR		0x43		/* SW Watchdog service (r/w) */
 
-#define	MCFSIM_DCRR		0x46		/* DRAM Refresh reg (r/w) */
-#define	MCFSIM_DCTR		0x4a		/* DRAM Timing reg (r/w) */
-#define	MCFSIM_DAR0		0x4c		/* DRAM 0 Address reg(r/w) */
-#define	MCFSIM_DMR0		0x50		/* DRAM 0 Mask reg (r/w) */
-#define	MCFSIM_DCR0		0x57		/* DRAM 0 Control reg (r/w) */
-#define	MCFSIM_DAR1		0x58		/* DRAM 1 Address reg (r/w) */
-#define	MCFSIM_DMR1		0x5c		/* DRAM 1 Mask reg (r/w) */
-#define	MCFSIM_DCR1		0x63		/* DRAM 1 Control reg (r/w) */
+#define	MCFSIM_DCRR		(MCF_MBAR + 0x46) /* DRAM Refresh reg (r/w) */
+#define	MCFSIM_DCTR		(MCF_MBAR + 0x4a) /* DRAM Timing reg (r/w) */
+#define	MCFSIM_DAR0		(MCF_MBAR + 0x4c) /* DRAM 0 Address reg(r/w) */
+#define	MCFSIM_DMR0		(MCF_MBAR + 0x50) /* DRAM 0 Mask reg (r/w) */
+#define	MCFSIM_DCR0		(MCF_MBAR + 0x57) /* DRAM 0 Control reg (r/w) */
+#define	MCFSIM_DAR1		(MCF_MBAR + 0x58) /* DRAM 1 Address reg (r/w) */
+#define	MCFSIM_DMR1		(MCF_MBAR + 0x5c) /* DRAM 1 Mask reg (r/w) */
+#define	MCFSIM_DCR1		(MCF_MBAR + 0x63) /* DRAM 1 Control reg (r/w) */
 
 #define	MCFSIM_CSAR0		0x64		/* CS 0 Address 0 reg (r/w) */
 #define	MCFSIM_CSMR0		0x68		/* CS 0 Mask 0 reg (r/w) */
@@ -89,8 +90,14 @@
 #define	MCFSIM_PAR		0xcb		/* Pin Assignment reg (r/w) */
 #endif
 
+#define	MCFTIMER_BASE1		(MCF_MBAR + 0x100)	/* Base of TIMER1 */
+#define	MCFTIMER_BASE2		(MCF_MBAR + 0x120)	/* Base of TIMER2 */
+
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x1c5)	/* Parallel Direction (r/w) */
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x1c9)	/* Parallel Port Value (r/w) */
+
+#define	MCFDMA_BASE0		(MCF_MBAR + 0x200)	/* Base address DMA 0 */
+#define	MCFDMA_BASE1		(MCF_MBAR + 0x240)	/* Base address DMA 1 */
 
 #if defined(CONFIG_NETtel)
 #define	MCFUART_BASE1		0x180		/* Base address of UART1 */

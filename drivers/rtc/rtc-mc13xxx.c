@@ -282,12 +282,6 @@ static irqreturn_t mc13xxx_rtc_update_handler(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int mc13xxx_rtc_update_irq_enable(struct device *dev,
-		unsigned int enabled)
-{
-	return mc13xxx_rtc_irq_enable(dev, enabled, MC13XXX_IRQ_1HZ);
-}
-
 static int mc13xxx_rtc_alarm_irq_enable(struct device *dev,
 		unsigned int enabled)
 {
@@ -300,7 +294,6 @@ static const struct rtc_class_ops mc13xxx_rtc_ops = {
 	.read_alarm = mc13xxx_rtc_read_alarm,
 	.set_alarm = mc13xxx_rtc_set_alarm,
 	.alarm_irq_enable = mc13xxx_rtc_alarm_irq_enable,
-	.update_irq_enable = mc13xxx_rtc_update_irq_enable,
 };
 
 static irqreturn_t mc13xxx_rtc_reset_handler(int irq, void *dev)

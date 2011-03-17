@@ -176,15 +176,15 @@ config USB_FSL_USB2
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config USB_GADGET_LH7A40X
-	boolean "LH7A40X"
-	depends on ARCH_LH7A40X
+config USB_GADGET_FUSB300
+	boolean "Faraday FUSB300 USB Peripheral Controller"
+	select USB_GADGET_DUALSPEED
 	help
-	   This driver provides USB Device Controller driver for LH7A40x
+	   Faraday usb device controller FUSB300 driver
 
-config USB_LH7A40X
+config USB_FUSB300
 	tristate
-	depends on USB_GADGET_LH7A40X
+	depends on USB_GADGET_FUSB300
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
@@ -540,7 +540,7 @@ config USB_GADGET_CI13XXX_MSM
 	boolean "MIPS USB CI13xxx for MSM"
 	depends on ARCH_MSM
 	select USB_GADGET_DUALSPEED
-	select USB_MSM_OTG_72K
+	select USB_MSM_OTG
 	help
 	  MSM SoC has chipidea USB controller.  This driver uses
 	  ci13xxx_udc core.

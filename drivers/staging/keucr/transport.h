@@ -92,10 +92,8 @@ extern void usb_stor_set_xfer_buf(struct us_data*, unsigned char *buffer, unsign
 // ENE scsi function
 extern void ENE_stor_invoke_transport(struct scsi_cmnd *, struct us_data*);
 extern int ENE_InitMedia(struct us_data*);
-extern int ENE_SDInit(struct us_data*);
 extern int ENE_MSInit(struct us_data*);
 extern int ENE_SMInit(struct us_data*);
-extern int ENE_ReadSDReg(struct us_data*, u8*);
 extern int ENE_SendScsiCmd(struct us_data*, BYTE, void*, int);
 extern int ENE_LoadBinCode(struct us_data*, BYTE);
 extern int ENE_Read_BYTE(struct us_data*, WORD index, void *buf);
@@ -104,7 +102,6 @@ extern int ENE_Write_Data(struct us_data*, void *buf, unsigned int length);
 extern void BuildSenseBuffer(struct scsi_cmnd *, int);
 
 // ENE scsi function
-extern int SD_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb);
 extern int MS_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb);
 extern int SM_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb);
 

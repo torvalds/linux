@@ -1400,7 +1400,7 @@ void Conv_Spare_Data_Log2Phy_Format(u8 *data)
 	const u32 PageSpareSize  = DeviceInfo.wPageSpareSize;
 
 	if (enable_ecc) {
-		for (i = spareFlagBytes - 1; i >= 0; i++)
+		for (i = spareFlagBytes - 1; i >= 0; i--)
 			data[PageSpareSize - spareFlagBytes + i] = data[i];
 	}
 }

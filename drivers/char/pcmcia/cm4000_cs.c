@@ -830,8 +830,7 @@ static void monitor_card(unsigned long p)
 			    test_bit(IS_ANY_T1, &dev->flags))) {
 				DEBUGP(4, dev, "Perform AUTOPPS\n");
 				set_bit(IS_AUTOPPS_ACT, &dev->flags);
-				ptsreq.protocol = ptsreq.protocol =
-				    (0x01 << dev->proto);
+				ptsreq.protocol = (0x01 << dev->proto);
 				ptsreq.flags = 0x01;
 				ptsreq.pts1 = 0x00;
 				ptsreq.pts2 = 0x00;

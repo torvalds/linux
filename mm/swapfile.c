@@ -1940,7 +1940,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 
 	error = -EINVAL;
 	if (S_ISBLK(inode->i_mode)) {
-		bdev = I_BDEV(inode);
+		bdev = bdgrab(I_BDEV(inode));
 		error = blkdev_get(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL,
 				   sys_swapon);
 		if (error < 0) {

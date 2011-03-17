@@ -377,8 +377,10 @@ static inline void handle_regs_int(struct urb *urb)
 	int_num = le16_to_cpu(*(__le16 *)(urb->transfer_buffer+2));
 	if (int_num == CR_INTERRUPT) {
 		struct zd_mac *mac = zd_hw_mac(zd_usb_to_hw(urb->context));
+		spin_lock(&mac->lock);
 		memcpy(&mac->intr_buffer, urb->transfer_buffer,
 				USB_MAX_EP_INT_BUFFER);
+		spin_unlock(&mac->lock);
 		schedule_work(&mac->process_intr);
 	} else if (intr->read_regs_enabled) {
 		intr->read_regs.length = len = urb->actual_length;
@@ -409,8 +411,10 @@ static void int_urb_complete(struct urb *urb)
 	case -ENOENT:
 	case -ECONNRESET:
 	case -EPIPE:
-		goto kfree;
+		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
+		return;
 	default:
+		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		goto resubmit;
 	}
 
@@ -441,12 +445,11 @@ static void int_urb_complete(struct urb *urb)
 resubmit:
 	r = usb_submit_urb(urb, GFP_ATOMIC);
 	if (r) {
-		dev_dbg_f(urb_dev(urb), "resubmit urb %p\n", urb);
-		goto kfree;
+		dev_dbg_f(urb_dev(urb), "error: resubmit urb %p err code %d\n",
+			  urb, r);
+		/* TODO: add worker to reset intr->urb */
 	}
 	return;
-kfree:
-	kfree(urb->transfer_buffer);
 }
 
 static inline int int_urb_interval(struct usb_device *udev)
@@ -477,9 +480,8 @@ static inline int usb_int_enabled(struct zd_usb *usb)
 int zd_usb_enable_int(struct zd_usb *usb)
 {
 	int r;
-	struct usb_device *udev;
+	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	struct zd_usb_interrupt *intr = &usb->intr;
-	void *transfer_buffer = NULL;
 	struct urb *urb;
 
 	dev_dbg_f(zd_usb_dev(usb), "\n");
@@ -500,20 +502,21 @@ int zd_usb_enable_int(struct zd_usb *usb)
 	intr->urb = urb;
 	spin_unlock_irq(&intr->lock);
 
-	/* TODO: make it a DMA buffer */
 	r = -ENOMEM;
-	transfer_buffer = kmalloc(USB_MAX_EP_INT_BUFFER, GFP_KERNEL);
-	if (!transfer_buffer) {
+	intr->buffer = usb_alloc_coherent(udev, USB_MAX_EP_INT_BUFFER,
+					  GFP_KERNEL, &intr->buffer_dma);
+	if (!intr->buffer) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"couldn't allocate transfer_buffer\n");
 		goto error_set_urb_null;
 	}
 
-	udev = zd_usb_to_usbdev(usb);
 	usb_fill_int_urb(urb, udev, usb_rcvintpipe(udev, EP_INT_IN),
-			 transfer_buffer, USB_MAX_EP_INT_BUFFER,
+			 intr->buffer, USB_MAX_EP_INT_BUFFER,
 			 int_urb_complete, usb,
 			 intr->interval);
+	urb->transfer_dma = intr->buffer_dma;
+	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	dev_dbg_f(zd_usb_dev(usb), "submit urb %p\n", intr->urb);
 	r = usb_submit_urb(urb, GFP_KERNEL);
@@ -525,7 +528,8 @@ int zd_usb_enable_int(struct zd_usb *usb)
 
 	return 0;
 error:
-	kfree(transfer_buffer);
+	usb_free_coherent(udev, USB_MAX_EP_INT_BUFFER,
+			  intr->buffer, intr->buffer_dma);
 error_set_urb_null:
 	spin_lock_irq(&intr->lock);
 	intr->urb = NULL;
@@ -539,8 +543,11 @@ out:
 void zd_usb_disable_int(struct zd_usb *usb)
 {
 	unsigned long flags;
+	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	struct zd_usb_interrupt *intr = &usb->intr;
 	struct urb *urb;
+	void *buffer;
+	dma_addr_t buffer_dma;
 
 	spin_lock_irqsave(&intr->lock, flags);
 	urb = intr->urb;
@@ -549,11 +556,18 @@ void zd_usb_disable_int(struct zd_usb *usb)
 		return;
 	}
 	intr->urb = NULL;
+	buffer = intr->buffer;
+	buffer_dma = intr->buffer_dma;
+	intr->buffer = NULL;
 	spin_unlock_irqrestore(&intr->lock, flags);
 
 	usb_kill_urb(urb);
 	dev_dbg_f(zd_usb_dev(usb), "urb %p killed\n", urb);
 	usb_free_urb(urb);
+
+	if (buffer)
+		usb_free_coherent(udev, USB_MAX_EP_INT_BUFFER,
+				  buffer, buffer_dma);
 }
 
 static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
@@ -601,6 +615,7 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 
 static void rx_urb_complete(struct urb *urb)
 {
+	int r;
 	struct zd_usb *usb;
 	struct zd_usb_rx *rx;
 	const u8 *buffer;
@@ -615,6 +630,7 @@ static void rx_urb_complete(struct urb *urb)
 	case -ENOENT:
 	case -ECONNRESET:
 	case -EPIPE:
+		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
 		return;
 	default:
 		dev_dbg_f(urb_dev(urb), "urb %p error %d\n", urb, urb->status);
@@ -625,6 +641,8 @@ static void rx_urb_complete(struct urb *urb)
 	length = urb->actual_length;
 	usb = urb->context;
 	rx = &usb->rx;
+
+	zd_usb_reset_rx_idle_timer(usb);
 
 	if (length%rx->usb_packet_size > rx->usb_packet_size-4) {
 		/* If there is an old first fragment, we don't care. */
@@ -654,7 +672,9 @@ static void rx_urb_complete(struct urb *urb)
 	}
 
 resubmit:
-	usb_submit_urb(urb, GFP_ATOMIC);
+	r = usb_submit_urb(urb, GFP_ATOMIC);
+	if (r)
+		dev_dbg_f(urb_dev(urb), "urb %p resubmit error %d\n", urb, r);
 }
 
 static struct urb *alloc_rx_urb(struct zd_usb *usb)
@@ -690,7 +710,7 @@ static void free_rx_urb(struct urb *urb)
 	usb_free_urb(urb);
 }
 
-int zd_usb_enable_rx(struct zd_usb *usb)
+static int __zd_usb_enable_rx(struct zd_usb *usb)
 {
 	int i, r;
 	struct zd_usb_rx *rx = &usb->rx;
@@ -742,7 +762,21 @@ error:
 	return r;
 }
 
-void zd_usb_disable_rx(struct zd_usb *usb)
+int zd_usb_enable_rx(struct zd_usb *usb)
+{
+	int r;
+	struct zd_usb_rx *rx = &usb->rx;
+
+	mutex_lock(&rx->setup_mutex);
+	r = __zd_usb_enable_rx(usb);
+	mutex_unlock(&rx->setup_mutex);
+
+	zd_usb_reset_rx_idle_timer(usb);
+
+	return r;
+}
+
+static void __zd_usb_disable_rx(struct zd_usb *usb)
 {
 	int i;
 	unsigned long flags;
@@ -769,6 +803,40 @@ void zd_usb_disable_rx(struct zd_usb *usb)
 	spin_unlock_irqrestore(&rx->lock, flags);
 }
 
+void zd_usb_disable_rx(struct zd_usb *usb)
+{
+	struct zd_usb_rx *rx = &usb->rx;
+
+	mutex_lock(&rx->setup_mutex);
+	__zd_usb_disable_rx(usb);
+	mutex_unlock(&rx->setup_mutex);
+
+	cancel_delayed_work_sync(&rx->idle_work);
+}
+
+static void zd_usb_reset_rx(struct zd_usb *usb)
+{
+	bool do_reset;
+	struct zd_usb_rx *rx = &usb->rx;
+	unsigned long flags;
+
+	mutex_lock(&rx->setup_mutex);
+
+	spin_lock_irqsave(&rx->lock, flags);
+	do_reset = rx->urbs != NULL;
+	spin_unlock_irqrestore(&rx->lock, flags);
+
+	if (do_reset) {
+		__zd_usb_disable_rx(usb);
+		__zd_usb_enable_rx(usb);
+	}
+
+	mutex_unlock(&rx->setup_mutex);
+
+	if (do_reset)
+		zd_usb_reset_rx_idle_timer(usb);
+}
+
 /**
  * zd_usb_disable_tx - disable transmission
  * @usb: the zd1211rw-private USB structure
@@ -779,19 +847,21 @@ void zd_usb_disable_tx(struct zd_usb *usb)
 {
 	struct zd_usb_tx *tx = &usb->tx;
 	unsigned long flags;
-	struct list_head *pos, *n;
+
+	atomic_set(&tx->enabled, 0);
+
+	/* kill all submitted tx-urbs */
+	usb_kill_anchored_urbs(&tx->submitted);
 
 	spin_lock_irqsave(&tx->lock, flags);
-	list_for_each_safe(pos, n, &tx->free_urb_list) {
-		list_del(pos);
-		usb_free_urb(list_entry(pos, struct urb, urb_list));
-	}
-	tx->enabled = 0;
+	WARN_ON(!skb_queue_empty(&tx->submitted_skbs));
+	WARN_ON(tx->submitted_urbs != 0);
 	tx->submitted_urbs = 0;
+	spin_unlock_irqrestore(&tx->lock, flags);
+
 	/* The stopped state is ignored, relying on ieee80211_wake_queues()
 	 * in a potentionally following zd_usb_enable_tx().
 	 */
-	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
 /**
@@ -807,60 +877,10 @@ void zd_usb_enable_tx(struct zd_usb *usb)
 	struct zd_usb_tx *tx = &usb->tx;
 
 	spin_lock_irqsave(&tx->lock, flags);
-	tx->enabled = 1;
+	atomic_set(&tx->enabled, 1);
 	tx->submitted_urbs = 0;
 	ieee80211_wake_queues(zd_usb_to_hw(usb));
 	tx->stopped = 0;
-	spin_unlock_irqrestore(&tx->lock, flags);
-}
-
-/**
- * alloc_tx_urb - provides an tx URB
- * @usb: a &struct zd_usb pointer
- *
- * Allocates a new URB. If possible takes the urb from the free list in
- * usb->tx.
- */
-static struct urb *alloc_tx_urb(struct zd_usb *usb)
-{
-	struct zd_usb_tx *tx = &usb->tx;
-	unsigned long flags;
-	struct list_head *entry;
-	struct urb *urb;
-
-	spin_lock_irqsave(&tx->lock, flags);
-	if (list_empty(&tx->free_urb_list)) {
-		urb = usb_alloc_urb(0, GFP_ATOMIC);
-		goto out;
-	}
-	entry = tx->free_urb_list.next;
-	list_del(entry);
-	urb = list_entry(entry, struct urb, urb_list);
-out:
-	spin_unlock_irqrestore(&tx->lock, flags);
-	return urb;
-}
-
-/**
- * free_tx_urb - frees a used tx URB
- * @usb: a &struct zd_usb pointer
- * @urb: URB to be freed
- *
- * Frees the transmission URB, which means to put it on the free URB
- * list.
- */
-static void free_tx_urb(struct zd_usb *usb, struct urb *urb)
-{
-	struct zd_usb_tx *tx = &usb->tx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&tx->lock, flags);
-	if (!tx->enabled) {
-		usb_free_urb(urb);
-		goto out;
-	}
-	list_add(&urb->urb_list, &tx->free_urb_list);
-out:
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
@@ -905,6 +925,16 @@ static void tx_urb_complete(struct urb *urb)
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	struct zd_usb *usb;
+	struct zd_usb_tx *tx;
+
+	skb = (struct sk_buff *)urb->context;
+	info = IEEE80211_SKB_CB(skb);
+	/*
+	 * grab 'usb' pointer before handing off the skb (since
+	 * it might be freed by zd_mac_tx_to_dev or mac80211)
+	 */
+	usb = &zd_hw_mac(info->rate_driver_data[0])->chip.usb;
+	tx = &usb->tx;
 
 	switch (urb->status) {
 	case 0:
@@ -922,20 +952,16 @@ static void tx_urb_complete(struct urb *urb)
 		goto resubmit;
 	}
 free_urb:
-	skb = (struct sk_buff *)urb->context;
-	/*
-	 * grab 'usb' pointer before handing off the skb (since
-	 * it might be freed by zd_mac_tx_to_dev or mac80211)
-	 */
-	info = IEEE80211_SKB_CB(skb);
-	usb = &zd_hw_mac(info->rate_driver_data[0])->chip.usb;
+	skb_unlink(skb, &usb->tx.submitted_skbs);
 	zd_mac_tx_to_dev(skb, urb->status);
-	free_tx_urb(usb, urb);
+	usb_free_urb(urb);
 	tx_dec_submitted_urbs(usb);
 	return;
 resubmit:
+	usb_anchor_urb(urb, &tx->submitted);
 	r = usb_submit_urb(urb, GFP_ATOMIC);
 	if (r) {
+		usb_unanchor_urb(urb);
 		dev_dbg_f(urb_dev(urb), "error resubmit urb %p %d\n", urb, r);
 		goto free_urb;
 	}
@@ -956,10 +982,17 @@ resubmit:
 int zd_usb_tx(struct zd_usb *usb, struct sk_buff *skb)
 {
 	int r;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct usb_device *udev = zd_usb_to_usbdev(usb);
 	struct urb *urb;
+	struct zd_usb_tx *tx = &usb->tx;
 
-	urb = alloc_tx_urb(usb);
+	if (!atomic_read(&tx->enabled)) {
+		r = -ENOENT;
+		goto out;
+	}
+
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		r = -ENOMEM;
 		goto out;
@@ -968,15 +1001,116 @@ int zd_usb_tx(struct zd_usb *usb, struct sk_buff *skb)
 	usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, EP_DATA_OUT),
 		          skb->data, skb->len, tx_urb_complete, skb);
 
+	info->rate_driver_data[1] = (void *)jiffies;
+	skb_queue_tail(&tx->submitted_skbs, skb);
+	usb_anchor_urb(urb, &tx->submitted);
+
 	r = usb_submit_urb(urb, GFP_ATOMIC);
-	if (r)
+	if (r) {
+		dev_dbg_f(zd_usb_dev(usb), "error submit urb %p %d\n", urb, r);
+		usb_unanchor_urb(urb);
+		skb_unlink(skb, &tx->submitted_skbs);
 		goto error;
+	}
 	tx_inc_submitted_urbs(usb);
 	return 0;
 error:
-	free_tx_urb(usb, urb);
+	usb_free_urb(urb);
 out:
 	return r;
+}
+
+static bool zd_tx_timeout(struct zd_usb *usb)
+{
+	struct zd_usb_tx *tx = &usb->tx;
+	struct sk_buff_head *q = &tx->submitted_skbs;
+	struct sk_buff *skb, *skbnext;
+	struct ieee80211_tx_info *info;
+	unsigned long flags, trans_start;
+	bool have_timedout = false;
+
+	spin_lock_irqsave(&q->lock, flags);
+	skb_queue_walk_safe(q, skb, skbnext) {
+		info = IEEE80211_SKB_CB(skb);
+		trans_start = (unsigned long)info->rate_driver_data[1];
+
+		if (time_is_before_jiffies(trans_start + ZD_TX_TIMEOUT)) {
+			have_timedout = true;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	return have_timedout;
+}
+
+static void zd_tx_watchdog_handler(struct work_struct *work)
+{
+	struct zd_usb *usb =
+		container_of(work, struct zd_usb, tx.watchdog_work.work);
+	struct zd_usb_tx *tx = &usb->tx;
+
+	if (!atomic_read(&tx->enabled) || !tx->watchdog_enabled)
+		goto out;
+	if (!zd_tx_timeout(usb))
+		goto out;
+
+	/* TX halted, try reset */
+	dev_warn(zd_usb_dev(usb), "TX-stall detected, reseting device...");
+
+	usb_queue_reset_device(usb->intf);
+
+	/* reset will stop this worker, don't rearm */
+	return;
+out:
+	queue_delayed_work(zd_workqueue, &tx->watchdog_work,
+			   ZD_TX_WATCHDOG_INTERVAL);
+}
+
+void zd_tx_watchdog_enable(struct zd_usb *usb)
+{
+	struct zd_usb_tx *tx = &usb->tx;
+
+	if (!tx->watchdog_enabled) {
+		dev_dbg_f(zd_usb_dev(usb), "\n");
+		queue_delayed_work(zd_workqueue, &tx->watchdog_work,
+				   ZD_TX_WATCHDOG_INTERVAL);
+		tx->watchdog_enabled = 1;
+	}
+}
+
+void zd_tx_watchdog_disable(struct zd_usb *usb)
+{
+	struct zd_usb_tx *tx = &usb->tx;
+
+	if (tx->watchdog_enabled) {
+		dev_dbg_f(zd_usb_dev(usb), "\n");
+		tx->watchdog_enabled = 0;
+		cancel_delayed_work_sync(&tx->watchdog_work);
+	}
+}
+
+static void zd_rx_idle_timer_handler(struct work_struct *work)
+{
+	struct zd_usb *usb =
+		container_of(work, struct zd_usb, rx.idle_work.work);
+	struct zd_mac *mac = zd_usb_to_mac(usb);
+
+	if (!test_bit(ZD_DEVICE_RUNNING, &mac->flags))
+		return;
+
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	/* 30 seconds since last rx, reset rx */
+	zd_usb_reset_rx(usb);
+}
+
+void zd_usb_reset_rx_idle_timer(struct zd_usb *usb)
+{
+	struct zd_usb_rx *rx = &usb->rx;
+
+	cancel_delayed_work(&rx->idle_work);
+	queue_delayed_work(zd_workqueue, &rx->idle_work, ZD_RX_IDLE_INTERVAL);
 }
 
 static inline void init_usb_interrupt(struct zd_usb *usb)
@@ -993,22 +1127,27 @@ static inline void init_usb_rx(struct zd_usb *usb)
 {
 	struct zd_usb_rx *rx = &usb->rx;
 	spin_lock_init(&rx->lock);
+	mutex_init(&rx->setup_mutex);
 	if (interface_to_usbdev(usb->intf)->speed == USB_SPEED_HIGH) {
 		rx->usb_packet_size = 512;
 	} else {
 		rx->usb_packet_size = 64;
 	}
 	ZD_ASSERT(rx->fragment_length == 0);
+	INIT_DELAYED_WORK(&rx->idle_work, zd_rx_idle_timer_handler);
 }
 
 static inline void init_usb_tx(struct zd_usb *usb)
 {
 	struct zd_usb_tx *tx = &usb->tx;
 	spin_lock_init(&tx->lock);
-	tx->enabled = 0;
+	atomic_set(&tx->enabled, 0);
 	tx->stopped = 0;
-	INIT_LIST_HEAD(&tx->free_urb_list);
+	skb_queue_head_init(&tx->submitted_skbs);
+	init_usb_anchor(&tx->submitted);
 	tx->submitted_urbs = 0;
+	tx->watchdog_enabled = 0;
+	INIT_DELAYED_WORK(&tx->watchdog_work, zd_tx_watchdog_handler);
 }
 
 void zd_usb_init(struct zd_usb *usb, struct ieee80211_hw *hw,
@@ -1017,6 +1156,7 @@ void zd_usb_init(struct zd_usb *usb, struct ieee80211_hw *hw,
 	memset(usb, 0, sizeof(*usb));
 	usb->intf = usb_get_intf(intf);
 	usb_set_intfdata(usb->intf, hw);
+	init_usb_anchor(&usb->submitted_cmds);
 	init_usb_interrupt(usb);
 	init_usb_tx(usb);
 	init_usb_rx(usb);
@@ -1240,6 +1380,7 @@ static void disconnect(struct usb_interface *intf)
 	ieee80211_unregister_hw(hw);
 
 	/* Just in case something has gone wrong! */
+	zd_usb_disable_tx(usb);
 	zd_usb_disable_rx(usb);
 	zd_usb_disable_int(usb);
 
@@ -1255,11 +1396,92 @@ static void disconnect(struct usb_interface *intf)
 	dev_dbg(&intf->dev, "disconnected\n");
 }
 
+static void zd_usb_resume(struct zd_usb *usb)
+{
+	struct zd_mac *mac = zd_usb_to_mac(usb);
+	int r;
+
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	r = zd_op_start(zd_usb_to_hw(usb));
+	if (r < 0) {
+		dev_warn(zd_usb_dev(usb), "Device resume failed "
+			 "with error code %d. Retrying...\n", r);
+		if (usb->was_running)
+			set_bit(ZD_DEVICE_RUNNING, &mac->flags);
+		usb_queue_reset_device(usb->intf);
+		return;
+	}
+
+	if (mac->type != NL80211_IFTYPE_UNSPECIFIED) {
+		r = zd_restore_settings(mac);
+		if (r < 0) {
+			dev_dbg(zd_usb_dev(usb),
+				"failed to restore settings, %d\n", r);
+			return;
+		}
+	}
+}
+
+static void zd_usb_stop(struct zd_usb *usb)
+{
+	dev_dbg_f(zd_usb_dev(usb), "\n");
+
+	zd_op_stop(zd_usb_to_hw(usb));
+
+	zd_usb_disable_tx(usb);
+	zd_usb_disable_rx(usb);
+	zd_usb_disable_int(usb);
+
+	usb->initialized = 0;
+}
+
+static int pre_reset(struct usb_interface *intf)
+{
+	struct ieee80211_hw *hw = usb_get_intfdata(intf);
+	struct zd_mac *mac;
+	struct zd_usb *usb;
+
+	if (!hw || intf->condition != USB_INTERFACE_BOUND)
+		return 0;
+
+	mac = zd_hw_mac(hw);
+	usb = &mac->chip.usb;
+
+	usb->was_running = test_bit(ZD_DEVICE_RUNNING, &mac->flags);
+
+	zd_usb_stop(usb);
+
+	mutex_lock(&mac->chip.mutex);
+	return 0;
+}
+
+static int post_reset(struct usb_interface *intf)
+{
+	struct ieee80211_hw *hw = usb_get_intfdata(intf);
+	struct zd_mac *mac;
+	struct zd_usb *usb;
+
+	if (!hw || intf->condition != USB_INTERFACE_BOUND)
+		return 0;
+
+	mac = zd_hw_mac(hw);
+	usb = &mac->chip.usb;
+
+	mutex_unlock(&mac->chip.mutex);
+
+	if (usb->was_running)
+		zd_usb_resume(usb);
+	return 0;
+}
+
 static struct usb_driver driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= usb_ids,
 	.probe		= probe,
 	.disconnect	= disconnect,
+	.pre_reset	= pre_reset,
+	.post_reset	= post_reset,
 };
 
 struct workqueue_struct *zd_workqueue;
@@ -1393,30 +1615,35 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 		return -EWOULDBLOCK;
 	}
 	if (!usb_int_enabled(usb)) {
-		 dev_dbg_f(zd_usb_dev(usb),
+		dev_dbg_f(zd_usb_dev(usb),
 			  "error: usb interrupt not enabled\n");
 		return -EWOULDBLOCK;
 	}
 
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	BUILD_BUG_ON(sizeof(struct usb_req_read_regs) + USB_MAX_IOREAD16_COUNT *
+		     sizeof(__le16) > sizeof(usb->req_buf));
+	BUG_ON(sizeof(struct usb_req_read_regs) + count * sizeof(__le16) >
+	       sizeof(usb->req_buf));
+
 	req_len = sizeof(struct usb_req_read_regs) + count * sizeof(__le16);
-	req = kmalloc(req_len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	req = (void *)usb->req_buf;
+
 	req->id = cpu_to_le16(USB_REQ_READ_REGS);
 	for (i = 0; i < count; i++)
 		req->addr[i] = cpu_to_le16((u16)addresses[i]);
 
 	udev = zd_usb_to_usbdev(usb);
 	prepare_read_regs_int(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-		         req, req_len, &actual_req_len, 1000 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto error;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_bulk_msg()\n"
+		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()\n"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
@@ -1424,7 +1651,7 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 	}
 
 	timeout = wait_for_completion_timeout(&usb->intr.read_regs.completion,
-	                                      msecs_to_jiffies(1000));
+					      msecs_to_jiffies(50));
 	if (!timeout) {
 		disable_read_regs_int(usb);
 		dev_dbg_f(zd_usb_dev(usb), "read timed out\n");
@@ -1434,17 +1661,106 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 
 	r = get_results(usb, values, req, count);
 error:
-	kfree(req);
 	return r;
 }
 
-int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
-	              unsigned int count)
+static void iowrite16v_urb_complete(struct urb *urb)
+{
+	struct zd_usb *usb = urb->context;
+
+	if (urb->status && !usb->cmd_error)
+		usb->cmd_error = urb->status;
+}
+
+static int zd_submit_waiting_urb(struct zd_usb *usb, bool last)
+{
+	int r = 0;
+	struct urb *urb = usb->urb_async_waiting;
+
+	if (!urb)
+		return 0;
+
+	usb->urb_async_waiting = NULL;
+
+	if (!last)
+		urb->transfer_flags |= URB_NO_INTERRUPT;
+
+	usb_anchor_urb(urb, &usb->submitted_cmds);
+	r = usb_submit_urb(urb, GFP_KERNEL);
+	if (r) {
+		usb_unanchor_urb(urb);
+		dev_dbg_f(zd_usb_dev(usb),
+			"error in usb_submit_urb(). Error number %d\n", r);
+		goto error;
+	}
+
+	/* fall-through with r == 0 */
+error:
+	usb_free_urb(urb);
+	return r;
+}
+
+void zd_usb_iowrite16v_async_start(struct zd_usb *usb)
+{
+	ZD_ASSERT(usb_anchor_empty(&usb->submitted_cmds));
+	ZD_ASSERT(usb->urb_async_waiting == NULL);
+	ZD_ASSERT(!usb->in_async);
+
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+
+	usb->in_async = 1;
+	usb->cmd_error = 0;
+	usb->urb_async_waiting = NULL;
+}
+
+int zd_usb_iowrite16v_async_end(struct zd_usb *usb, unsigned int timeout)
+{
+	int r;
+
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	ZD_ASSERT(usb->in_async);
+
+	/* Submit last iowrite16v URB */
+	r = zd_submit_waiting_urb(usb, true);
+	if (r) {
+		dev_dbg_f(zd_usb_dev(usb),
+			"error in zd_submit_waiting_usb(). "
+			"Error number %d\n", r);
+
+		usb_kill_anchored_urbs(&usb->submitted_cmds);
+		goto error;
+	}
+
+	if (timeout)
+		timeout = usb_wait_anchor_empty_timeout(&usb->submitted_cmds,
+							timeout);
+	if (!timeout) {
+		usb_kill_anchored_urbs(&usb->submitted_cmds);
+		if (usb->cmd_error == -ENOENT) {
+			dev_dbg_f(zd_usb_dev(usb), "timed out");
+			r = -ETIMEDOUT;
+			goto error;
+		}
+	}
+
+	r = usb->cmd_error;
+error:
+	usb->in_async = 0;
+	return r;
+}
+
+int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
+			    unsigned int count)
 {
 	int r;
 	struct usb_device *udev;
 	struct usb_req_write_regs *req = NULL;
-	int i, req_len, actual_req_len;
+	int i, req_len;
+	struct urb *urb;
+	struct usb_host_endpoint *ep;
+
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	ZD_ASSERT(usb->in_async);
 
 	if (count == 0)
 		return 0;
@@ -1460,11 +1776,23 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 		return -EWOULDBLOCK;
 	}
 
+	udev = zd_usb_to_usbdev(usb);
+
+	ep = usb_pipe_endpoint(udev, usb_sndintpipe(udev, EP_REGS_OUT));
+	if (!ep)
+		return -ENOENT;
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
 	req_len = sizeof(struct usb_req_write_regs) +
 		  count * sizeof(struct reg_data);
 	req = kmalloc(req_len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	if (!req) {
+		r = -ENOMEM;
+		goto error;
+	}
 
 	req->id = cpu_to_le16(USB_REQ_WRITE_REGS);
 	for (i = 0; i < count; i++) {
@@ -1473,27 +1801,42 @@ int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 		rw->value = cpu_to_le16(ioreqs[i].value);
 	}
 
-	udev = zd_usb_to_usbdev(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-		         req, req_len, &actual_req_len, 1000 /* ms */);
+	usb_fill_int_urb(urb, udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			 req, req_len, iowrite16v_urb_complete, usb,
+			 ep->desc.bInterval);
+	urb->transfer_flags |= URB_FREE_BUFFER | URB_SHORT_NOT_OK;
+
+	/* Submit previous URB */
+	r = zd_submit_waiting_urb(usb, false);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
-		goto error;
-	}
-	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg()"
-			" req_len %d != actual_req_len %d\n",
-			req_len, actual_req_len);
-		r = -EIO;
+			"error in zd_submit_waiting_usb(). "
+			"Error number %d\n", r);
 		goto error;
 	}
 
-	/* FALL-THROUGH with r == 0 */
+	/* Delay submit so that URB_NO_INTERRUPT flag can be set for all URBs
+	 * of currect batch except for very last.
+	 */
+	usb->urb_async_waiting = urb;
+	return 0;
 error:
-	kfree(req);
+	usb_free_urb(urb);
 	return r;
+}
+
+int zd_usb_iowrite16v(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
+			unsigned int count)
+{
+	int r;
+
+	zd_usb_iowrite16v_async_start(usb);
+	r = zd_usb_iowrite16v_async(usb, ioreqs, count);
+	if (r) {
+		zd_usb_iowrite16v_async_end(usb, 0);
+		return r;
+	}
+	return zd_usb_iowrite16v_async_end(usb, 50 /* ms */);
 }
 
 int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
@@ -1537,14 +1880,19 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"error %d: Couldn't read CR203\n", r);
-		goto out;
+		return r;
 	}
 	bit_value_template &= ~(RF_IF_LE|RF_CLK|RF_DATA);
 
+	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
+	BUILD_BUG_ON(sizeof(struct usb_req_rfwrite) +
+		     USB_MAX_RFWRITE_BIT_COUNT * sizeof(__le16) >
+		     sizeof(usb->req_buf));
+	BUG_ON(sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16) >
+	       sizeof(usb->req_buf));
+
 	req_len = sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16);
-	req = kmalloc(req_len, GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	req = (void *)usb->req_buf;
 
 	req->id = cpu_to_le16(USB_REQ_WRITE_RF);
 	/* 1: 3683a, but not used in ZYDAS driver */
@@ -1559,15 +1907,15 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	}
 
 	udev = zd_usb_to_usbdev(usb);
-	r = usb_bulk_msg(udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
-		         req, req_len, &actual_req_len, 1000 /* ms */);
+	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
+			      req, req_len, &actual_req_len, 50 /* ms */);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_bulk_msg(). Error number %d\n", r);
+			"error in usb_interrupt_msg(). Error number %d\n", r);
 		goto out;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_bulk_msg()"
+		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
@@ -1576,6 +1924,5 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 
 	/* FALL-THROUGH with r == 0 */
 out:
-	kfree(req);
 	return r;
 }

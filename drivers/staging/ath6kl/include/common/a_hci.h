@@ -242,161 +242,161 @@ typedef enum {
 
 /* Command pkt */
 typedef struct  hci_cmd_pkt_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     params[255];
+    u16 opcode;
+    u8 param_length;
+    u8 params[255];
 } POSTPACK HCI_CMD_PKT;
 
 #define ACL_DATA_HDR_SIZE   4   /* hdl_and flags + data_len */
 /* Data pkt */
 typedef struct  hci_acl_data_pkt_t {
-    A_UINT16    hdl_and_flags;
-    A_UINT16    data_len;
-    A_UINT8     data[Max80211_PAL_PDU_Size];
+    u16 hdl_and_flags;
+    u16 data_len;
+    u8 data[Max80211_PAL_PDU_Size];
 } POSTPACK HCI_ACL_DATA_PKT;
 
 /* Event pkt */
 typedef struct  hci_event_pkt_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     params[256];
+    u8 event_code;
+    u8 param_len;
+    u8 params[256];
 } POSTPACK HCI_EVENT_PKT;
 
 
 /*============== HCI Command definitions ======================= */
 typedef struct hci_cmd_phy_link_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
-    A_UINT8     link_key_len;
-    A_UINT8     link_key_type;
-    A_UINT8     link_key[LINK_KEY_LEN];
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
+    u8 link_key_len;
+    u8 link_key_type;
+    u8 link_key[LINK_KEY_LEN];
 } POSTPACK HCI_CMD_PHY_LINK;
 
 typedef struct  hci_cmd_write_rem_amp_assoc_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
-    A_UINT16    len_so_far;
-    A_UINT16    amp_assoc_remaining_len;
-    A_UINT8     amp_assoc_frag[AMP_ASSOC_MAX_FRAG_SZ];
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
+    u16 len_so_far;
+    u16 amp_assoc_remaining_len;
+    u8 amp_assoc_frag[AMP_ASSOC_MAX_FRAG_SZ];
 } POSTPACK HCI_CMD_WRITE_REM_AMP_ASSOC;
 
 
 typedef struct  hci_cmd_opcode_hdl_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT16    hdl;
+    u16 opcode;
+    u8 param_length;
+    u16 hdl;
 } POSTPACK HCI_CMD_READ_LINK_QUAL,
            HCI_CMD_FLUSH,
            HCI_CMD_READ_LINK_SUPERVISION_TIMEOUT;
 
 typedef struct  hci_cmd_read_local_amp_assoc_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
-    A_UINT16    len_so_far;
-    A_UINT16    max_rem_amp_assoc_len;
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
+    u16 len_so_far;
+    u16 max_rem_amp_assoc_len;
 } POSTPACK HCI_CMD_READ_LOCAL_AMP_ASSOC;
 
 
 typedef struct hci_cmd_set_event_mask_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT64    mask;
+    u16 opcode;
+    u8 param_length;
+    u64 mask;
 }POSTPACK HCI_CMD_SET_EVT_MASK, HCI_CMD_SET_EVT_MASK_PG_2;
 
 
 typedef struct  hci_cmd_enhanced_flush_t{
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT16    hdl;
-    A_UINT8     type;
+    u16 opcode;
+    u8 param_length;
+    u16 hdl;
+    u8 type;
 } POSTPACK HCI_CMD_ENHANCED_FLUSH;
 
 
 typedef struct  hci_cmd_write_timeout_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT16    timeout;
+    u16 opcode;
+    u8 param_length;
+    u16 timeout;
 } POSTPACK  HCI_CMD_WRITE_TIMEOUT;
 
 typedef struct  hci_cmd_write_link_supervision_timeout_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT16    hdl;
-    A_UINT16    timeout;
+    u16 opcode;
+    u8 param_length;
+    u16 hdl;
+    u16 timeout;
 } POSTPACK HCI_CMD_WRITE_LINK_SUPERVISION_TIMEOUT;
 
 typedef struct  hci_cmd_write_flow_control_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     mode;
+    u16 opcode;
+    u8 param_length;
+    u8 mode;
 } POSTPACK  HCI_CMD_WRITE_FLOW_CONTROL;
 
 typedef struct  location_data_cfg_t {
-    A_UINT8     reg_domain_aware;
-    A_UINT8     reg_domain[3];
-    A_UINT8     reg_options;
+    u8 reg_domain_aware;
+    u8 reg_domain[3];
+    u8 reg_options;
 } POSTPACK LOCATION_DATA_CFG;
 
 typedef struct  hci_cmd_write_location_data_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
+    u16 opcode;
+    u8 param_length;
     LOCATION_DATA_CFG   cfg;
 } POSTPACK  HCI_CMD_WRITE_LOCATION_DATA;
 
 
 typedef struct  flow_spec_t {
-    A_UINT8     id;
-    A_UINT8     service_type;
-    A_UINT16    max_sdu;
-    A_UINT32    sdu_inter_arrival_time;
-    A_UINT32    access_latency;
-    A_UINT32    flush_timeout;
+    u8 id;
+    u8 service_type;
+    u16 max_sdu;
+    u32 sdu_inter_arrival_time;
+    u32 access_latency;
+    u32 flush_timeout;
 } POSTPACK FLOW_SPEC;
 
 
 typedef struct  hci_cmd_create_logical_link_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
     FLOW_SPEC   tx_flow_spec;
     FLOW_SPEC   rx_flow_spec;
 } POSTPACK HCI_CMD_CREATE_LOGICAL_LINK;
 
 typedef struct  hci_cmd_flow_spec_modify_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT16    hdl;
+    u16 opcode;
+    u8 param_length;
+    u16 hdl;
     FLOW_SPEC   tx_flow_spec;
     FLOW_SPEC   rx_flow_spec;
 } POSTPACK HCI_CMD_FLOW_SPEC_MODIFY;
 
 typedef struct hci_cmd_logical_link_cancel_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
-    A_UINT8     tx_flow_spec_id;
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
+    u8 tx_flow_spec_id;
 } POSTPACK HCI_CMD_LOGICAL_LINK_CANCEL;
 
 typedef struct  hci_cmd_disconnect_logical_link_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT16    logical_link_hdl;
+    u16 opcode;
+    u8 param_length;
+    u16 logical_link_hdl;
 } POSTPACK HCI_CMD_DISCONNECT_LOGICAL_LINK;
 
 typedef struct  hci_cmd_disconnect_phy_link_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
 } POSTPACK HCI_CMD_DISCONNECT_PHY_LINK;
 
 typedef struct  hci_cmd_srm_t {
-    A_UINT16    opcode;
-    A_UINT8     param_length;
-    A_UINT8     phy_link_hdl;
-    A_UINT8     mode;
+    u16 opcode;
+    u8 param_length;
+    u8 phy_link_hdl;
+    u8 mode;
 } POSTPACK HCI_CMD_SHORT_RANGE_MODE;
 /*============== HCI Command definitions end ======================= */
 
@@ -406,175 +406,175 @@ typedef struct  hci_cmd_srm_t {
 
 /* Command complete event */
 typedef struct  hci_event_cmd_complete_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     num_hci_cmd_pkts;
-    A_UINT16    opcode;
-    A_UINT8     params[255];
+    u8 event_code;
+    u8 param_len;
+    u8 num_hci_cmd_pkts;
+    u16 opcode;
+    u8 params[255];
 } POSTPACK HCI_EVENT_CMD_COMPLETE;
 
 
 /* Command status event */
 typedef struct  hci_event_cmd_status_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT8     num_hci_cmd_pkts;
-    A_UINT16    opcode;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u8 num_hci_cmd_pkts;
+    u16 opcode;
 } POSTPACK HCI_EVENT_CMD_STATUS;
 
 /* Hardware Error event */
 typedef struct  hci_event_hw_err_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     hw_err_code;
+    u8 event_code;
+    u8 param_len;
+    u8 hw_err_code;
 } POSTPACK HCI_EVENT_HW_ERR;
 
 /* Flush occured event */
 /* Qos Violation event */
 typedef struct  hci_event_handle_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT16    handle;
+    u8 event_code;
+    u8 param_len;
+    u16 handle;
 } POSTPACK HCI_EVENT_FLUSH_OCCRD,
            HCI_EVENT_QOS_VIOLATION;
 
 /* Loopback command event */
 typedef struct hci_loopback_cmd_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     params[252];
+    u8 event_code;
+    u8 param_len;
+    u8 params[252];
 } POSTPACK HCI_EVENT_LOOPBACK_CMD;
 
 /* Data buffer overflow event */
 typedef struct  hci_data_buf_overflow_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     link_type;
+    u8 event_code;
+    u8 param_len;
+    u8 link_type;
 } POSTPACK  HCI_EVENT_DATA_BUF_OVERFLOW;
 
 /* Enhanced Flush complete event */
 typedef struct hci_enhanced_flush_complt_t{
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT16    hdl;
+    u8 event_code;
+    u8 param_len;
+    u16 hdl;
 } POSTPACK  HCI_EVENT_ENHANCED_FLUSH_COMPLT;
 
 /* Channel select event */
 typedef struct  hci_event_chan_select_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     phy_link_hdl;
+    u8 event_code;
+    u8 param_len;
+    u8 phy_link_hdl;
 } POSTPACK HCI_EVENT_CHAN_SELECT;
 
 /* Physical Link Complete event */
 typedef struct  hci_event_phy_link_complete_event_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT8     phy_link_hdl;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u8 phy_link_hdl;
 } POSTPACK HCI_EVENT_PHY_LINK_COMPLETE;
 
 /* Logical Link complete event */
 typedef struct hci_event_logical_link_complete_event_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT16    logical_link_hdl;
-    A_UINT8     phy_hdl;
-    A_UINT8     tx_flow_id;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u16 logical_link_hdl;
+    u8 phy_hdl;
+    u8 tx_flow_id;
 } POSTPACK HCI_EVENT_LOGICAL_LINK_COMPLETE_EVENT;
 
 /* Disconnect Logical Link complete event */
 typedef struct hci_event_disconnect_logical_link_event_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT16    logical_link_hdl;
-    A_UINT8     reason;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u16 logical_link_hdl;
+    u8 reason;
 } POSTPACK HCI_EVENT_DISCONNECT_LOGICAL_LINK_EVENT;
 
 /* Disconnect Physical Link complete event */
 typedef struct hci_event_disconnect_phy_link_complete_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT8     phy_link_hdl;
-    A_UINT8     reason;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u8 phy_link_hdl;
+    u8 reason;
 } POSTPACK HCI_EVENT_DISCONNECT_PHY_LINK_COMPLETE;
 
 typedef struct hci_event_physical_link_loss_early_warning_t{
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     phy_hdl;
-    A_UINT8     reason;
+    u8 event_code;
+    u8 param_len;
+    u8 phy_hdl;
+    u8 reason;
 } POSTPACK HCI_EVENT_PHY_LINK_LOSS_EARLY_WARNING;
 
 typedef struct hci_event_physical_link_recovery_t{
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     phy_hdl;
+    u8 event_code;
+    u8 param_len;
+    u8 phy_hdl;
 } POSTPACK HCI_EVENT_PHY_LINK_RECOVERY;
 
 
 /* Flow spec modify complete event */
 /* Flush event */
 typedef struct hci_event_status_handle_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT16    handle;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u16 handle;
 } POSTPACK HCI_EVENT_FLOW_SPEC_MODIFY,
            HCI_EVENT_FLUSH;
 
 
 /* Num of completed data blocks event */
 typedef struct hci_event_num_of_compl_data_blks_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT16    num_data_blks;
-    A_UINT8     num_handles;
-    A_UINT8     params[255];
+    u8 event_code;
+    u8 param_len;
+    u16 num_data_blks;
+    u8 num_handles;
+    u8 params[255];
 } POSTPACK HCI_EVENT_NUM_COMPL_DATA_BLKS;
 
 /* Short range mode change complete event */
 typedef struct  hci_srm_cmpl_t {
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT8     phy_link;
-    A_UINT8     state;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u8 phy_link;
+    u8 state;
 } POSTPACK HCI_EVENT_SRM_COMPL;
 
 typedef struct hci_event_amp_status_change_t{
-    A_UINT8     event_code;
-    A_UINT8     param_len;
-    A_UINT8     status;
-    A_UINT8     amp_status;
+    u8 event_code;
+    u8 param_len;
+    u8 status;
+    u8 amp_status;
 } POSTPACK HCI_EVENT_AMP_STATUS_CHANGE;
 
 /*============== Event definitions end =========================== */
 
 
 typedef struct  local_amp_info_resp_t {
-    A_UINT8     status;
-    A_UINT8     amp_status;
-    A_UINT32    total_bw;           /* kbps */
-    A_UINT32    max_guranteed_bw;   /* kbps */
-    A_UINT32    min_latency;
-    A_UINT32    max_pdu_size;
-    A_UINT8     amp_type;
-    A_UINT16    pal_capabilities;
-    A_UINT16    amp_assoc_len;
-    A_UINT32    max_flush_timeout;  /* in ms */
-    A_UINT32    be_flush_timeout;   /* in ms */
+    u8 status;
+    u8 amp_status;
+    u32 total_bw;           /* kbps */
+    u32 max_guranteed_bw;   /* kbps */
+    u32 min_latency;
+    u32 max_pdu_size;
+    u8 amp_type;
+    u16 pal_capabilities;
+    u16 amp_assoc_len;
+    u32 max_flush_timeout;  /* in ms */
+    u32 be_flush_timeout;   /* in ms */
 } POSTPACK  LOCAL_AMP_INFO;
 
 typedef struct  amp_assoc_cmd_resp_t{
-    A_UINT8     status;
-    A_UINT8     phy_hdl;
-    A_UINT16    amp_assoc_len;
-    A_UINT8     amp_assoc_frag[AMP_ASSOC_MAX_FRAG_SZ];
+    u8 status;
+    u8 phy_hdl;
+    u16 amp_assoc_len;
+    u8 amp_assoc_frag[AMP_ASSOC_MAX_FRAG_SZ];
 }POSTPACK AMP_ASSOC_CMD_RESP;
 
 
@@ -618,64 +618,64 @@ enum PAL_HCI_CMD_STATUS {
 /* Following are event return parameters.. part of HCI events 
  */
 typedef struct  timeout_read_t {
-    A_UINT8     status;
-    A_UINT16    timeout;
+    u8 status;
+    u16 timeout;
 }POSTPACK TIMEOUT_INFO;
 
 typedef struct  link_supervision_timeout_read_t {
-    A_UINT8     status;
-    A_UINT16    hdl;
-    A_UINT16    timeout;
+    u8 status;
+    u16 hdl;
+    u16 timeout;
 }POSTPACK LINK_SUPERVISION_TIMEOUT_INFO;
 
 typedef struct  status_hdl_t {
-    A_UINT8     status;
-    A_UINT16    hdl;
+    u8 status;
+    u16 hdl;
 }POSTPACK INFO_STATUS_HDL;
 
 typedef struct write_remote_amp_assoc_t{
-    A_UINT8     status;
-    A_UINT8     hdl;
+    u8 status;
+    u8 hdl;
 }POSTPACK WRITE_REMOTE_AMP_ASSOC_INFO;
 
 typedef struct  read_loc_info_t {
-    A_UINT8             status;
+    u8 status;
     LOCATION_DATA_CFG   loc;
 }POSTPACK READ_LOC_INFO;
 
 typedef struct  read_flow_ctrl_mode_t {
-    A_UINT8     status;
-    A_UINT8     mode;
+    u8 status;
+    u8 mode;
 }POSTPACK READ_FLWCTRL_INFO;
 
 typedef struct  read_data_blk_size_t {
-    A_UINT8     status;
-    A_UINT16    max_acl_data_pkt_len;
-    A_UINT16    data_block_len;
-    A_UINT16    total_num_data_blks;
+    u8 status;
+    u16 max_acl_data_pkt_len;
+    u16 data_block_len;
+    u16 total_num_data_blks;
 }POSTPACK READ_DATA_BLK_SIZE_INFO;
 
 /* Read Link quality info */
 typedef struct link_qual_t {
-    A_UINT8     status;
-    A_UINT16    hdl;
-    A_UINT8     link_qual;
+    u8 status;
+    u16 hdl;
+    u8 link_qual;
 } POSTPACK READ_LINK_QUAL_INFO,
             READ_RSSI_INFO;
 
 typedef struct ll_cancel_resp_t {
-    A_UINT8 status;
-    A_UINT8 phy_link_hdl;
-    A_UINT8 tx_flow_spec_id;
+    u8 status;
+    u8 phy_link_hdl;
+    u8 tx_flow_spec_id;
 } POSTPACK LL_CANCEL_RESP;
 
 typedef struct read_local_ver_info_t {
-    A_UINT8     status;
-    A_UINT8     hci_version;
-    A_UINT16    hci_revision;
-    A_UINT8     pal_version;
-    A_UINT16    manf_name;
-    A_UINT16    pal_sub_ver;
+    u8 status;
+    u8 hci_version;
+    u16 hci_revision;
+    u8 pal_version;
+    u16 manf_name;
+    u16 pal_sub_ver;
 } POSTPACK READ_LOCAL_VER_INFO;
 
 

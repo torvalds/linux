@@ -14,6 +14,9 @@
 #ifndef __MACH_HARDWARE_H
 #define __MACH_HARDWARE_H
 
+#include <plat/hardware.h>
+#include <mach/spear.h>
+
 /* Vitual to physical translation of statically mapped space */
 #define IO_ADDRESS(x)		(x | 0xF0000000)
 

@@ -158,7 +158,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 {
 	struct inode *inode;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	inode = entry->d_inode;
@@ -1283,8 +1283,11 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	if (err)
 		return err;
 
-	if ((attr->ia_valid & ATTR_OPEN) && fc->atomic_o_trunc)
-		return 0;
+	if (attr->ia_valid & ATTR_OPEN) {
+		if (fc->atomic_o_trunc)
+			return 0;
+		file = NULL;
+	}
 
 	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;

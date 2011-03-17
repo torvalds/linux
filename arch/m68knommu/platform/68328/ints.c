@@ -135,20 +135,20 @@ void process_int(int vec, struct pt_regs *fp)
 	}
 }
 
-static void intc_irq_unmask(unsigned int irq)
+static void intc_irq_unmask(struct irq_data *d)
 {
-	IMR &= ~(1<<irq);
+	IMR &= ~(1 << d->irq);
 }
 
-static void intc_irq_mask(unsigned int irq)
+static void intc_irq_mask(struct irq_data *d)
 {
-	IMR |= (1<<irq);
+	IMR |= (1 << d->irq);
 }
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "M68K-INTC",
-	.mask		= intc_irq_mask,
-	.unmask		= intc_irq_unmask,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
 };
 
 /*

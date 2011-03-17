@@ -104,8 +104,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	unsigned tsc, elapse;
 	irqreturn_t ret;
 
-	write_seqlock(&xtime_lock);
-
 	while (tsc = get_cycles(),
 	       elapse = tsc - mn10300_last_tsc, /* time elapsed since last
 						 * tick */
@@ -114,10 +112,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 		mn10300_last_tsc += MN10300_TSC_PER_HZ;
 
 		/* advance the kernel's time tracking system */
-		do_timer(1);
+		xtime_update(1);
 	}
-
-	write_sequnlock(&xtime_lock);
 
 	ret = local_timer_interrupt();
 #ifdef CONFIG_SMP

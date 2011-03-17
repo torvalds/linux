@@ -71,8 +71,7 @@ static int __init get_offset_from_cmdline(char *str)
 __setup("cache-sram-size=", get_size_from_cmdline);
 __setup("cache-sram-offset=", get_offset_from_cmdline);
 
-static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev,
-					  const struct of_device_id *match)
+static int __devinit mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 {
 	long rval;
 	unsigned int rem;
@@ -204,7 +203,7 @@ static struct of_device_id mpc85xx_l2ctlr_of_match[] = {
 	{},
 };
 
-static struct of_platform_driver mpc85xx_l2ctlr_of_platform_driver = {
+static struct platform_driver mpc85xx_l2ctlr_of_platform_driver = {
 	.driver	= {
 		.name		= "fsl-l2ctlr",
 		.owner		= THIS_MODULE,
@@ -216,12 +215,12 @@ static struct of_platform_driver mpc85xx_l2ctlr_of_platform_driver = {
 
 static __init int mpc85xx_l2ctlr_of_init(void)
 {
-	return of_register_platform_driver(&mpc85xx_l2ctlr_of_platform_driver);
+	return platform_driver_register(&mpc85xx_l2ctlr_of_platform_driver);
 }
 
 static void __exit mpc85xx_l2ctlr_of_exit(void)
 {
-	of_unregister_platform_driver(&mpc85xx_l2ctlr_of_platform_driver);
+	platform_driver_unregister(&mpc85xx_l2ctlr_of_platform_driver);
 }
 
 subsys_initcall(mpc85xx_l2ctlr_of_init);

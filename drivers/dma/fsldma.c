@@ -1281,8 +1281,7 @@ static void fsl_dma_chan_remove(struct fsldma_chan *chan)
 	kfree(chan);
 }
 
-static int __devinit fsldma_of_probe(struct platform_device *op,
-			const struct of_device_id *match)
+static int __devinit fsldma_of_probe(struct platform_device *op)
 {
 	struct fsldma_device *fdev;
 	struct device_node *child;
@@ -1414,20 +1413,13 @@ static struct of_platform_driver fsldma_of_driver = {
 
 static __init int fsldma_init(void)
 {
-	int ret;
-
 	pr_info("Freescale Elo / Elo Plus DMA driver\n");
-
-	ret = of_register_platform_driver(&fsldma_of_driver);
-	if (ret)
-		pr_err("fsldma: failed to register platform driver\n");
-
-	return ret;
+	return platform_driver_register(&fsldma_of_driver);
 }
 
 static void __exit fsldma_exit(void)
 {
-	of_unregister_platform_driver(&fsldma_of_driver);
+	platform_driver_unregister(&fsldma_of_driver);
 }
 
 subsys_initcall(fsldma_init);

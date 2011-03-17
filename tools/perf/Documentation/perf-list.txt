@@ -8,7 +8,7 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list'
+'perf list' [hw|sw|cache|tracepoint|event_glob]
 
 DESCRIPTION
 -----------
@@ -63,7 +63,26 @@ details. Some of them are referenced in the SEE ALSO section below.
 
 OPTIONS
 -------
-None
+
+Without options all known events will be listed.
+
+To limit the list use:
+
+. 'hw' or 'hardware' to list hardware events such as cache-misses, etc.
+
+. 'sw' or 'software' to list software events such as context switches, etc.
+
+. 'cache' or 'hwcache' to list hardware cache events such as L1-dcache-loads, etc.
+
+. 'tracepoint' to list all tracepoint events, alternatively use
+  'subsys_glob:event_glob' to filter by tracepoint subsystems such as sched,
+  block, etc.
+
+. If none of the above is matched, it will apply the supplied glob to all
+  events, printing the ones that match.
+
+One or more types can be used at the same time, listing the events for the
+types specified.
 
 SEE ALSO
 --------

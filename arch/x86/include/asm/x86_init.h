@@ -83,11 +83,13 @@ struct x86_init_paging {
  *				boot cpu
  * @tsc_pre_init:		platform function called before TSC init
  * @timer_init:			initialize the platform timer (default PIT/HPET)
+ * @wallclock_init:		init the wallclock device
  */
 struct x86_init_timers {
 	void (*setup_percpu_clockev)(void);
 	void (*tsc_pre_init)(void);
 	void (*timer_init)(void);
+	void (*wallclock_init)(void);
 };
 
 /**

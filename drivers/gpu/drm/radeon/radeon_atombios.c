@@ -88,7 +88,7 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 			/* some evergreen boards have bad data for this entry */
 			if (ASIC_IS_DCE4(rdev)) {
 				if ((i == 7) &&
-				    (gpio->usClkMaskRegisterIndex == 0x1936) &&
+				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1936) &&
 				    (gpio->sucI2cId.ucAccess == 0)) {
 					gpio->sucI2cId.ucAccess = 0x97;
 					gpio->ucDataMaskShift = 8;
@@ -101,7 +101,7 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 			/* some DCE3 boards have bad data for this entry */
 			if (ASIC_IS_DCE3(rdev)) {
 				if ((i == 4) &&
-				    (gpio->usClkMaskRegisterIndex == 0x1fda) &&
+				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1fda) &&
 				    (gpio->sucI2cId.ucAccess == 0x94))
 					gpio->sucI2cId.ucAccess = 0x14;
 			}
@@ -172,7 +172,7 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 			/* some evergreen boards have bad data for this entry */
 			if (ASIC_IS_DCE4(rdev)) {
 				if ((i == 7) &&
-				    (gpio->usClkMaskRegisterIndex == 0x1936) &&
+				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1936) &&
 				    (gpio->sucI2cId.ucAccess == 0)) {
 					gpio->sucI2cId.ucAccess = 0x97;
 					gpio->ucDataMaskShift = 8;
@@ -185,7 +185,7 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 			/* some DCE3 boards have bad data for this entry */
 			if (ASIC_IS_DCE3(rdev)) {
 				if ((i == 4) &&
-				    (gpio->usClkMaskRegisterIndex == 0x1fda) &&
+				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1fda) &&
 				    (gpio->sucI2cId.ucAccess == 0x94))
 					gpio->sucI2cId.ucAccess = 0x14;
 			}
@@ -252,7 +252,7 @@ static inline struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rd
 			pin = &gpio_info->asGPIO_Pin[i];
 			if (id == pin->ucGPIO_ID) {
 				gpio.id = pin->ucGPIO_ID;
-				gpio.reg = pin->usGpioPin_AIndex * 4;
+				gpio.reg = le16_to_cpu(pin->usGpioPin_AIndex) * 4;
 				gpio.mask = (1 << pin->ucGpioPinBitShift);
 				gpio.valid = true;
 				break;
@@ -1274,11 +1274,11 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 				      data_offset);
 		switch (crev) {
 		case 1:
-			if (igp_info->info.ulBootUpMemoryClock)
+			if (le32_to_cpu(igp_info->info.ulBootUpMemoryClock))
 				return true;
 			break;
 		case 2:
-			if (igp_info->info_2.ulBootUpSidePortClock)
+			if (le32_to_cpu(igp_info->info_2.ulBootUpSidePortClock))
 				return true;
 			break;
 		default:
@@ -1442,7 +1442,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 
 			for (i = 0; i < num_indices; i++) {
 				if ((ss_info->info.asSpreadSpectrum[i].ucClockIndication == id) &&
-				    (clock <= ss_info->info.asSpreadSpectrum[i].ulTargetClockRange)) {
+				    (clock <= le32_to_cpu(ss_info->info.asSpreadSpectrum[i].ulTargetClockRange))) {
 					ss->percentage =
 						le16_to_cpu(ss_info->info.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
 					ss->type = ss_info->info.asSpreadSpectrum[i].ucSpreadSpectrumMode;
@@ -1456,7 +1456,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 				sizeof(ATOM_ASIC_SS_ASSIGNMENT_V2);
 			for (i = 0; i < num_indices; i++) {
 				if ((ss_info->info_2.asSpreadSpectrum[i].ucClockIndication == id) &&
-				    (clock <= ss_info->info_2.asSpreadSpectrum[i].ulTargetClockRange)) {
+				    (clock <= le32_to_cpu(ss_info->info_2.asSpreadSpectrum[i].ulTargetClockRange))) {
 					ss->percentage =
 						le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
 					ss->type = ss_info->info_2.asSpreadSpectrum[i].ucSpreadSpectrumMode;
@@ -1470,7 +1470,7 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 				sizeof(ATOM_ASIC_SS_ASSIGNMENT_V3);
 			for (i = 0; i < num_indices; i++) {
 				if ((ss_info->info_3.asSpreadSpectrum[i].ucClockIndication == id) &&
-				    (clock <= ss_info->info_3.asSpreadSpectrum[i].ulTargetClockRange)) {
+				    (clock <= le32_to_cpu(ss_info->info_3.asSpreadSpectrum[i].ulTargetClockRange))) {
 					ss->percentage =
 						le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
 					ss->type = ss_info->info_3.asSpreadSpectrum[i].ucSpreadSpectrumMode;
@@ -1553,8 +1553,8 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		if (misc & ATOM_DOUBLE_CLOCK_MODE)
 			lvds->native_mode.flags |= DRM_MODE_FLAG_DBLSCAN;
 
-		lvds->native_mode.width_mm = lvds_info->info.sLCDTiming.usImageHSize;
-		lvds->native_mode.height_mm = lvds_info->info.sLCDTiming.usImageVSize;
+		lvds->native_mode.width_mm = le16_to_cpu(lvds_info->info.sLCDTiming.usImageHSize);
+		lvds->native_mode.height_mm = le16_to_cpu(lvds_info->info.sLCDTiming.usImageVSize);
 
 		/* set crtc values */
 		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
@@ -1569,13 +1569,13 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			lvds->linkb = false;
 
 		/* parse the lcd record table */
-		if (lvds_info->info.usModePatchTableOffset) {
+		if (le16_to_cpu(lvds_info->info.usModePatchTableOffset)) {
 			ATOM_FAKE_EDID_PATCH_RECORD *fake_edid_record;
 			ATOM_PANEL_RESOLUTION_PATCH_RECORD *panel_res_record;
 			bool bad_record = false;
 			u8 *record = (u8 *)(mode_info->atom_context->bios +
 					    data_offset +
-					    lvds_info->info.usModePatchTableOffset);
+					    le16_to_cpu(lvds_info->info.usModePatchTableOffset));
 			while (*record != ATOM_RECORD_END_TYPE) {
 				switch (*record) {
 				case LCD_MODE_PATCH_RECORD_MODE_TYPE:
@@ -2189,7 +2189,7 @@ static u16 radeon_atombios_get_default_vddc(struct radeon_device *rdev)
 		firmware_info =
 			(union firmware_info *)(mode_info->atom_context->bios +
 						data_offset);
-		vddc = firmware_info->info_14.usBootUpVDDCVoltage;
+		vddc = le16_to_cpu(firmware_info->info_14.usBootUpVDDCVoltage);
 	}
 
 	return vddc;
@@ -2284,7 +2284,7 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
 			VOLTAGE_SW;
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
-			clock_info->evergreen.usVDDC;
+			le16_to_cpu(clock_info->evergreen.usVDDC);
 	} else {
 		sclk = le16_to_cpu(clock_info->r600.usEngineClockLow);
 		sclk |= clock_info->r600.ucEngineClockHigh << 16;
@@ -2295,7 +2295,7 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
 			VOLTAGE_SW;
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
-			clock_info->r600.usVDDC;
+			le16_to_cpu(clock_info->r600.usVDDC);
 	}
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -2408,13 +2408,13 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	radeon_atombios_add_pplib_thermal_controller(rdev, &power_info->pplib.sThermalController);
 	state_array = (struct StateArray *)
 		(mode_info->atom_context->bios + data_offset +
-		 power_info->pplib.usStateArrayOffset);
+		 le16_to_cpu(power_info->pplib.usStateArrayOffset));
 	clock_info_array = (struct ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
-		 power_info->pplib.usClockInfoArrayOffset);
+		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
 	non_clock_info_array = (struct NonClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
-		 power_info->pplib.usNonClockInfoArrayOffset);
+		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) *
 				       state_array->ucNumEntries, GFP_KERNEL);
 	if (!rdev->pm.power_state)
@@ -2533,7 +2533,7 @@ uint32_t radeon_atom_get_engine_clock(struct radeon_device *rdev)
 	int index = GetIndexIntoMasterTable(COMMAND, GetEngineClock);
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-	return args.ulReturnEngineClock;
+	return le32_to_cpu(args.ulReturnEngineClock);
 }
 
 uint32_t radeon_atom_get_memory_clock(struct radeon_device *rdev)
@@ -2542,7 +2542,7 @@ uint32_t radeon_atom_get_memory_clock(struct radeon_device *rdev)
 	int index = GetIndexIntoMasterTable(COMMAND, GetMemoryClock);
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-	return args.ulReturnMemoryClock;
+	return le32_to_cpu(args.ulReturnMemoryClock);
 }
 
 void radeon_atom_set_engine_clock(struct radeon_device *rdev,
@@ -2551,7 +2551,7 @@ void radeon_atom_set_engine_clock(struct radeon_device *rdev,
 	SET_ENGINE_CLOCK_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetEngineClock);
 
-	args.ulTargetEngineClock = eng_clock;	/* 10 khz */
+	args.ulTargetEngineClock = cpu_to_le32(eng_clock);	/* 10 khz */
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
@@ -2565,7 +2565,7 @@ void radeon_atom_set_memory_clock(struct radeon_device *rdev,
 	if (rdev->flags & RADEON_IS_IGP)
 		return;
 
-	args.ulTargetMemoryClock = mem_clock;	/* 10 khz */
+	args.ulTargetMemoryClock = cpu_to_le32(mem_clock);	/* 10 khz */
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }

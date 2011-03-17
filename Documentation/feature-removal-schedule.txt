@@ -35,6 +35,17 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
+What:	AR9170USB
+When:	2.6.40
+
+Why:	This driver is deprecated and the firmware is no longer
+	maintained. The replacement driver "carl9170" has been
+	around for a while, so the devices are still supported.
+
+Who:	Christian Lamparter <chunkeey@googlemail.com>
+
+---------------------------
+
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -604,6 +615,13 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
+What:	xt_connlimit rev 0
+When:	2012
+Who:	Jan Engelhardt <jengelh@medozas.de>
+Files:	net/netfilter/xt_connlimit.c
+
+----------------------------
+
 What:	noswapaccount kernel command line parameter
 When:	2.6.40
 Why:	The original implementation of memsw feature enabled by
@@ -617,5 +635,13 @@ Why:	The original implementation of memsw feature enabled by
 	less command line parameters with the same functionality and we
 	can also cleanup the parameter handling a bit ().
 Who:	Michal Hocko <mhocko@suse.cz>
+
+----------------------------
+
+What:	ipt_addrtype match include file
+When:	2012
+Why:	superseded by xt_addrtype
+Who:	Florian Westphal <fw@strlen.de>
+Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
 
 ----------------------------

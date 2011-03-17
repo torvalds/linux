@@ -843,23 +843,6 @@ error:
 }
 EXPORT_SYMBOL(mount_bdev);
 
-int get_sb_bdev(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
-{
-	struct dentry *root;
-
-	root = mount_bdev(fs_type, flags, dev_name, data, fill_super);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	return 0;
-}
-
-EXPORT_SYMBOL(get_sb_bdev);
-
 void kill_block_super(struct super_block *sb)
 {
 	struct block_device *bdev = sb->s_bdev;
@@ -897,22 +880,6 @@ struct dentry *mount_nodev(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(mount_nodev);
 
-int get_sb_nodev(struct file_system_type *fs_type,
-	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
-{
-	struct dentry *root;
-
-	root = mount_nodev(fs_type, flags, data, fill_super);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	return 0;
-}
-EXPORT_SYMBOL(get_sb_nodev);
-
 static int compare_single(struct super_block *s, void *p)
 {
 	return 1;
@@ -943,22 +910,6 @@ struct dentry *mount_single(struct file_system_type *fs_type,
 }
 EXPORT_SYMBOL(mount_single);
 
-int get_sb_single(struct file_system_type *fs_type,
-	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
-{
-	struct dentry *root;
-	root = mount_single(fs_type, flags, data, fill_super);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	return 0;
-}
-
-EXPORT_SYMBOL(get_sb_single);
-
 struct vfsmount *
 vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
 {
@@ -988,19 +939,13 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 			goto out_free_secdata;
 	}
 
-	if (type->mount) {
-		root = type->mount(type, flags, name, data);
-		if (IS_ERR(root)) {
-			error = PTR_ERR(root);
-			goto out_free_secdata;
-		}
-		mnt->mnt_root = root;
-		mnt->mnt_sb = root->d_sb;
-	} else {
-		error = type->get_sb(type, flags, name, data, mnt);
-		if (error < 0)
-			goto out_free_secdata;
+	root = type->mount(type, flags, name, data);
+	if (IS_ERR(root)) {
+		error = PTR_ERR(root);
+		goto out_free_secdata;
 	}
+	mnt->mnt_root = root;
+	mnt->mnt_sb = root->d_sb;
 	BUG_ON(!mnt->mnt_sb);
 	WARN_ON(!mnt->mnt_sb->s_bdi);
 	mnt->mnt_sb->s_flags |= MS_BORN;

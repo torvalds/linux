@@ -451,26 +451,13 @@ static struct cxgbi_sock *cxgbi_sock_create(struct cxgbi_device *cdev)
 }
 
 static struct rtable *find_route_ipv4(__be32 saddr, __be32 daddr,
-					__be16 sport, __be16 dport, u8 tos)
+				      __be16 sport, __be16 dport, u8 tos)
 {
 	struct rtable *rt;
-	struct flowi fl = {
-		.oif = 0,
-		.nl_u = {
-			.ip4_u = {
-				.daddr = daddr,
-				.saddr = saddr,
-				.tos = tos }
-			},
-		.proto = IPPROTO_TCP,
-		.uli_u = {
-			.ports = {
-				.sport = sport,
-				.dport = dport }
-			}
-	};
 
-	if (ip_route_output_flow(&init_net, &rt, &fl, NULL, 0))
+	rt = ip_route_output_ports(&init_net, NULL, daddr, saddr,
+				   dport, sport, IPPROTO_TCP, tos, 0);
+	if (IS_ERR(rt))
 		return NULL;
 
 	return rt;

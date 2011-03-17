@@ -57,7 +57,7 @@ extern "C" {
     /* macro to make a module-specific masks */
 #define ATH_DEBUG_MAKE_MODULE_MASK(index)  (1 << (ATH_DEBUG_MODULE_MASK_SHIFT + (index)))
 
-void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription);
+void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription);
 
 /* Debug support on a per-module basis
  *
@@ -95,7 +95,7 @@ void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription);
  *   #define ATH_DEBUG_BMI  ATH_DEBUG_MAKE_MODULE_MASK(0)
  *
  *   #ifdef DEBUG
- *   static ATH_DEBUG_MASK_DESCRIPTION bmi_debug_desc[] = {
+ *   static struct ath_debug_mask_description bmi_debug_desc[] = {
  *       { ATH_DEBUG_BMI , "BMI Tracing"},   <== description of the module specific mask
  *   };
  *
@@ -118,24 +118,24 @@ void DebugDumpBytes(A_UCHAR *buffer, A_UINT16 length, char *pDescription);
 #define ATH_DEBUG_MAX_MASK_DESC_LENGTH   32
 #define ATH_DEBUG_MAX_MOD_DESC_LENGTH    64
 
-typedef struct {
-    A_UINT32 Mask;
-    A_CHAR   Description[ATH_DEBUG_MAX_MASK_DESC_LENGTH];
-} ATH_DEBUG_MASK_DESCRIPTION;
+struct ath_debug_mask_description {
+    u32 Mask;
+    char Description[ATH_DEBUG_MAX_MASK_DESC_LENGTH];
+};
 
 #define ATH_DEBUG_INFO_FLAGS_REGISTERED (1 << 0)
 
 typedef struct  _ATH_DEBUG_MODULE_DBG_INFO{
     struct _ATH_DEBUG_MODULE_DBG_INFO *pNext;
-    A_CHAR                      ModuleName[16];
-    A_CHAR                      ModuleDescription[ATH_DEBUG_MAX_MOD_DESC_LENGTH];
-    A_UINT32                    Flags;
-    A_UINT32                    CurrentMask;
+    char ModuleName[16];
+    char ModuleDescription[ATH_DEBUG_MAX_MOD_DESC_LENGTH];
+    u32 Flags;
+    u32 CurrentMask;
     int                         MaxDescriptions;
-    ATH_DEBUG_MASK_DESCRIPTION  *pMaskDescriptions; /* pointer to array of descriptions */
+    struct ath_debug_mask_description  *pMaskDescriptions; /* pointer to array of descriptions */
 } ATH_DEBUG_MODULE_DBG_INFO;
 
-#define ATH_DEBUG_DESCRIPTION_COUNT(d)  (int)((sizeof((d))) / (sizeof(ATH_DEBUG_MASK_DESCRIPTION)))
+#define ATH_DEBUG_DESCRIPTION_COUNT(d)  (int)((sizeof((d))) / (sizeof(struct ath_debug_mask_description)))
 
 #define GET_ATH_MODULE_DEBUG_VAR_NAME(s) _XGET_ATH_MODULE_NAME_DEBUG_(s)
 #define GET_ATH_MODULE_DEBUG_VAR_MASK(s) _XGET_ATH_MODULE_NAME_DEBUG_(s).CurrentMask
@@ -181,9 +181,9 @@ void a_register_module_debug_info(ATH_DEBUG_MODULE_DBG_INFO *pInfo);
 
 #endif
 
-A_STATUS a_get_module_mask(A_CHAR *module_name, A_UINT32 *pMask);
-A_STATUS a_set_module_mask(A_CHAR *module_name, A_UINT32 Mask);
-void a_dump_module_debug_info_by_name(A_CHAR *module_name);
+int a_get_module_mask(char *module_name, u32 *pMask);
+int a_set_module_mask(char *module_name, u32 Mask);
+void a_dump_module_debug_info_by_name(char *module_name);
 void a_module_debug_support_init(void);
 void a_module_debug_support_cleanup(void);
 

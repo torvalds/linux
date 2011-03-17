@@ -1659,6 +1659,11 @@ static int usb_runtime_suspend(struct device *dev)
 		return -EAGAIN;
 
 	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
+	/* The PM core reacts badly unless the return code is 0,
+	 * -EAGAIN, or -EBUSY, so always return -EBUSY on an error.
+	 */
+	if (status != 0)
+		return -EBUSY;
 	return status;
 }
 

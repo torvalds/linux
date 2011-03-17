@@ -153,7 +153,7 @@ void parse_proc_kallsyms(char *file, unsigned int size __unused)
 	char *next = NULL;
 	char *addr_str;
 	char ch;
-	int ret;
+	int ret __used;
 	int i;
 
 	line = strtok_r(file, "\n", &next);

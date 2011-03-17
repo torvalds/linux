@@ -34,8 +34,6 @@
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 
-#include <linux/smp_lock.h>	/* For the moment */
-
 #include <linux/kmod.h>
 #include <linux/nsproxy.h>
 
@@ -535,6 +533,19 @@ static int tty_ldisc_halt(struct tty_struct *tty)
 }
 
 /**
+ *	tty_ldisc_flush_works	-	flush all works of a tty
+ *	@tty: tty device to flush works for
+ *
+ *	Sync flush all works belonging to @tty.
+ */
+static void tty_ldisc_flush_works(struct tty_struct *tty)
+{
+	flush_work_sync(&tty->hangup_work);
+	flush_work_sync(&tty->SAK_work);
+	flush_delayed_work_sync(&tty->buf.work);
+}
+
+/**
  *	tty_ldisc_wait_idle	-	wait for the ldisc to become idle
  *	@tty: tty to wait for
  *
@@ -653,7 +664,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 	mutex_unlock(&tty->ldisc_mutex);
 
-	flush_scheduled_work();
+	tty_ldisc_flush_works(tty);
 
 	retval = tty_ldisc_wait_idle(tty);
 
@@ -905,7 +916,7 @@ void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 
 	tty_unlock();
 	tty_ldisc_halt(tty);
-	flush_scheduled_work();
+	tty_ldisc_flush_works(tty);
 	tty_lock();
 
 	mutex_lock(&tty->ldisc_mutex);

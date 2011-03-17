@@ -528,8 +528,7 @@ static const struct file_operations cpwd_fops = {
 	.llseek =		no_llseek,
 };
 
-static int __devinit cpwd_probe(struct platform_device *op,
-				const struct of_device_id *match)
+static int __devinit cpwd_probe(struct platform_device *op)
 {
 	struct device_node *options;
 	const char *str_prop;
@@ -646,7 +645,7 @@ static int __devexit cpwd_remove(struct platform_device *op)
 	struct cpwd *p = dev_get_drvdata(&op->dev);
 	int i;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < WD_NUMDEVS; i++) {
 		misc_deregister(&p->devs[i].misc);
 
 		if (!p->enabled) {
@@ -678,7 +677,7 @@ static const struct of_device_id cpwd_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cpwd_match);
 
-static struct of_platform_driver cpwd_driver = {
+static struct platform_driver cpwd_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -690,12 +689,12 @@ static struct of_platform_driver cpwd_driver = {
 
 static int __init cpwd_init(void)
 {
-	return of_register_platform_driver(&cpwd_driver);
+	return platform_driver_register(&cpwd_driver);
 }
 
 static void __exit cpwd_exit(void)
 {
-	of_unregister_platform_driver(&cpwd_driver);
+	platform_driver_unregister(&cpwd_driver);
 }
 
 module_init(cpwd_init);

@@ -115,13 +115,16 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 	struct file *file;
 	char *tmp = getname(library);
 	int error = PTR_ERR(tmp);
+	static const struct open_flags uselib_flags = {
+		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
+		.acc_mode = MAY_READ | MAY_EXEC | MAY_OPEN,
+		.intent = LOOKUP_OPEN
+	};
 
 	if (IS_ERR(tmp))
 		goto out;
 
-	file = do_filp_open(AT_FDCWD, tmp,
-				O_LARGEFILE | O_RDONLY | __FMODE_EXEC, 0,
-				MAY_READ | MAY_EXEC | MAY_OPEN);
+	file = do_filp_open(AT_FDCWD, tmp, &uselib_flags, LOOKUP_FOLLOW);
 	putname(tmp);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
@@ -721,10 +724,13 @@ struct file *open_exec(const char *name)
 {
 	struct file *file;
 	int err;
+	static const struct open_flags open_exec_flags = {
+		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
+		.acc_mode = MAY_EXEC | MAY_OPEN,
+		.intent = LOOKUP_OPEN
+	};
 
-	file = do_filp_open(AT_FDCWD, name,
-				O_LARGEFILE | O_RDONLY | __FMODE_EXEC, 0,
-				MAY_EXEC | MAY_OPEN);
+	file = do_filp_open(AT_FDCWD, name, &open_exec_flags, LOOKUP_FOLLOW);
 	if (IS_ERR(file))
 		goto out;
 

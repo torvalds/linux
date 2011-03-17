@@ -19,7 +19,6 @@
 #ifdef BRCM_FULLMAC
 #include <linux/netdevice.h>
 #endif
-#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmdevs.h>
@@ -54,12 +53,12 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx);
 
 static u32 sb_read_sbreg(si_info_t *sii, volatile u32 *sbr)
 {
-	return R_REG(sii->osh, sbr);
+	return R_REG(sbr);
 }
 
 static void sb_write_sbreg(si_info_t *sii, volatile u32 *sbr, u32 v)
 {
-	W_REG(sii->osh, sbr, v);
+	W_REG(sbr, v);
 }
 
 uint sb_coreid(si_t *sih)
@@ -178,8 +177,8 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 			w = (R_SBREG(sii, r) & ~mask) | val;
 			W_SBREG(sii, r, w);
 		} else {
-			w = (R_REG(sii->osh, r) & ~mask) | val;
-			W_REG(sii->osh, r, w);
+			w = (R_REG(r) & ~mask) | val;
+			W_REG(r, w);
 		}
 	}
 
@@ -187,7 +186,7 @@ uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 	if (regoff >= SBCONFIGOFF)
 		w = R_SBREG(sii, r);
 	else
-		w = R_REG(sii->osh, r);
+		w = R_REG(r);
 
 	if (!fast) {
 		/* restore core index */
@@ -246,7 +245,7 @@ static uint _sb_scan(si_info_t *sii, u32 sba, void *regs, uint bus, u32 sbba,
 				 total # cores in the chip */
 			if (((ccrev == 4) || (ccrev >= 6)))
 				numcores =
-				    (R_REG(sii->osh, &cc->chipid) & CID_CC_MASK)
+				    (R_REG(&cc->chipid) & CID_CC_MASK)
 				    >> CID_CC_SHIFT;
 			else {
 				/* Older chips */
@@ -368,94 +367,6 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx)
 	return regs;
 }
 
-/* traverse all cores to find and clear source of serror */
-static void sb_serr_clear(si_info_t *sii)
-{
-	sbconfig_t *sb;
-	uint origidx;
-	uint i, intr_val = 0;
-	void *corereg = NULL;
-
-	INTR_OFF(sii, intr_val);
-	origidx = si_coreidx(&sii->pub);
-
-	for (i = 0; i < sii->numcores; i++) {
-		corereg = sb_setcoreidx(&sii->pub, i);
-		if (NULL != corereg) {
-			sb = REGS2SB(corereg);
-			if ((R_SBREG(sii, &sb->sbtmstatehigh)) & SBTMH_SERR) {
-				AND_SBREG(sii, &sb->sbtmstatehigh, ~SBTMH_SERR);
-				SI_ERROR(("sb_serr_clear: SError core 0x%x\n",
-				sb_coreid(&sii->pub)));
-			}
-		}
-	}
-
-	sb_setcoreidx(&sii->pub, origidx);
-	INTR_RESTORE(sii, intr_val);
-}
-
-/*
- * Check if any inband, outband or timeout errors has happened and clear them.
- * Must be called with chip clk on !
- */
-bool sb_taclear(si_t *sih, bool details)
-{
-	si_info_t *sii;
-	sbconfig_t *sb;
-	uint origidx;
-	uint intr_val = 0;
-	bool rc = false;
-	u32 inband = 0, serror = 0, timeout = 0;
-	void *corereg = NULL;
-	volatile u32 imstate, tmstate;
-
-	sii = SI_INFO(sih);
-
-	if ((sii->pub.bustype == SDIO_BUS) ||
-	    (sii->pub.bustype == SPI_BUS)) {
-
-		INTR_OFF(sii, intr_val);
-		origidx = si_coreidx(sih);
-
-		corereg = si_setcore(sih, PCMCIA_CORE_ID, 0);
-		if (NULL == corereg)
-			corereg = si_setcore(sih, SDIOD_CORE_ID, 0);
-		if (NULL != corereg) {
-			sb = REGS2SB(corereg);
-
-			imstate = R_SBREG(sii, &sb->sbimstate);
-			if ((imstate != 0xffffffff)
-			    && (imstate & (SBIM_IBE | SBIM_TO))) {
-				AND_SBREG(sii, &sb->sbimstate,
-					  ~(SBIM_IBE | SBIM_TO));
-				/* inband = imstate & SBIM_IBE; cmd error */
-				timeout = imstate & SBIM_TO;
-			}
-			tmstate = R_SBREG(sii, &sb->sbtmstatehigh);
-			if ((tmstate != 0xffffffff)
-			    && (tmstate & SBTMH_INT_STATUS)) {
-				sb_serr_clear(sii);
-				serror = 1;
-				OR_SBREG(sii, &sb->sbtmstatelow, SBTML_INT_ACK);
-				AND_SBREG(sii, &sb->sbtmstatelow,
-					  ~SBTML_INT_ACK);
-			}
-		}
-
-		sb_setcoreidx(sih, origidx);
-		INTR_RESTORE(sii, intr_val);
-	}
-
-	if (inband | timeout | serror) {
-		rc = true;
-		SI_ERROR(("sb_taclear: inband 0x%x, serror 0x%x, timeout "
-			"0x%x!\n", inband, serror, timeout));
-	}
-
-	return rc;
-}
-
 void sb_core_disable(si_t *sih, u32 bits)
 {
 	si_info_t *sii;
@@ -562,27 +473,4 @@ void sb_core_reset(si_t *sih, u32 bits, u32 resetbits)
 		((bits | SICF_CLOCK_EN) << SBTML_SICF_SHIFT));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
 	udelay(1);
-}
-
-u32 sb_base(u32 admatch)
-{
-	u32 base;
-	uint type;
-
-	type = admatch & SBAM_TYPE_MASK;
-	ASSERT(type < 3);
-
-	base = 0;
-
-	if (type == 0) {
-		base = admatch & SBAM_BASE0_MASK;
-	} else if (type == 1) {
-		ASSERT(!(admatch & SBAM_ADNEG));	/* neg not supported */
-		base = admatch & SBAM_BASE1_MASK;
-	} else if (type == 2) {
-		ASSERT(!(admatch & SBAM_ADNEG));	/* neg not supported */
-		base = admatch & SBAM_BASE2_MASK;
-	}
-
-	return base;
 }

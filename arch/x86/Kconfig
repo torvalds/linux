@@ -64,8 +64,12 @@ config X86
 	select HAVE_TEXT_POKE_SMP
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select GENERIC_FIND_FIRST_BIT
+	select GENERIC_FIND_NEXT_BIT
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_IRQ_SHOW
+	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
 
 config INSTRUCTION_DECODER
@@ -216,10 +220,6 @@ config X86_64_SMP
 config X86_HT
 	def_bool y
 	depends on SMP
-
-config X86_TRAMPOLINE
-	def_bool y
-	depends on SMP || (64BIT && ACPI_SLEEP)
 
 config X86_32_LAZY_GS
 	def_bool y
@@ -382,6 +382,8 @@ config X86_INTEL_CE
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	select X86_REBOOTFIXUPS
+	select OF
+	select OF_EARLY_FLATTREE
 	---help---
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
@@ -811,7 +813,7 @@ config X86_LOCAL_APIC
 
 config X86_IO_APIC
 	def_bool y
-	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC
+	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_IOAPIC
 
 config X86_VISWS_APIC
 	def_bool y
@@ -1705,7 +1707,7 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	depends on NUMA
 
 config USE_PERCPU_NUMA_NODE_ID
-	def_bool X86_64
+	def_bool y
 	depends on NUMA
 
 menu "Power management and ACPI options"
@@ -2066,9 +2068,10 @@ config SCx200HR_TIMER
 
 config OLPC
 	bool "One Laptop Per Child support"
+	depends on !X86_PAE
 	select GPIOLIB
-	select OLPC_OPENFIRMWARE
-	depends on !X86_64 && !X86_PAE
+	select OF
+	select OF_PROMTREE if PROC_DEVICETREE
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
@@ -2078,21 +2081,6 @@ config OLPC_XO1
 	depends on OLPC && MFD_CS5535
 	---help---
 	  Add support for non-essential features of the OLPC XO-1 laptop.
-
-config OLPC_OPENFIRMWARE
-	bool "Support for OLPC's Open Firmware"
-	depends on !X86_64 && !X86_PAE
-	default n
-	select OF
-	help
-	  This option adds support for the implementation of Open Firmware
-	  that is used on the OLPC XO-1 Children's Machine.
-	  If unsure, say N here.
-
-config OLPC_OPENFIRMWARE_DT
-	bool
-	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
-	select OF_PROMTREE
 
 endif # X86_32
 
@@ -2137,6 +2125,11 @@ config COMPAT_FOR_U64_ALIGNMENT
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
+
+config KEYS_COMPAT
+	bool
+	depends on COMPAT && KEYS
+	default y
 
 endmenu
 

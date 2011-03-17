@@ -422,26 +422,24 @@ s32 igb_init_mbx_params_pf(struct e1000_hw *hw)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 
-	if (hw->mac.type == e1000_82576) {
-		mbx->timeout = 0;
-		mbx->usec_delay = 0;
+	mbx->timeout = 0;
+	mbx->usec_delay = 0;
 
-		mbx->size = E1000_VFMAILBOX_SIZE;
+	mbx->size = E1000_VFMAILBOX_SIZE;
 
-		mbx->ops.read = igb_read_mbx_pf;
-		mbx->ops.write = igb_write_mbx_pf;
-		mbx->ops.read_posted = igb_read_posted_mbx;
-		mbx->ops.write_posted = igb_write_posted_mbx;
-		mbx->ops.check_for_msg = igb_check_for_msg_pf;
-		mbx->ops.check_for_ack = igb_check_for_ack_pf;
-		mbx->ops.check_for_rst = igb_check_for_rst_pf;
+	mbx->ops.read = igb_read_mbx_pf;
+	mbx->ops.write = igb_write_mbx_pf;
+	mbx->ops.read_posted = igb_read_posted_mbx;
+	mbx->ops.write_posted = igb_write_posted_mbx;
+	mbx->ops.check_for_msg = igb_check_for_msg_pf;
+	mbx->ops.check_for_ack = igb_check_for_ack_pf;
+	mbx->ops.check_for_rst = igb_check_for_rst_pf;
 
-		mbx->stats.msgs_tx = 0;
-		mbx->stats.msgs_rx = 0;
-		mbx->stats.reqs = 0;
-		mbx->stats.acks = 0;
-		mbx->stats.rsts = 0;
-	}
+	mbx->stats.msgs_tx = 0;
+	mbx->stats.msgs_rx = 0;
+	mbx->stats.reqs = 0;
+	mbx->stats.acks = 0;
+	mbx->stats.rsts = 0;
 
 	return 0;
 }

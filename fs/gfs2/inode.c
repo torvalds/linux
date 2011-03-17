@@ -763,14 +763,15 @@ fail:
 	return error;
 }
 
-static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip)
+static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip,
+			      const struct qstr *qstr)
 {
 	int err;
 	size_t len;
 	void *value;
 	char *name;
 
-	err = security_inode_init_security(&ip->i_inode, &dip->i_inode,
+	err = security_inode_init_security(&ip->i_inode, &dip->i_inode, qstr,
 					   &name, &value, &len);
 
 	if (err) {
@@ -854,7 +855,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock2;
 
-	error = gfs2_security_init(dip, GFS2_I(inode));
+	error = gfs2_security_init(dip, GFS2_I(inode), name);
 	if (error)
 		goto fail_gunlock2;
 

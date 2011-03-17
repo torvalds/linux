@@ -621,7 +621,7 @@ static int __init memstick_init(void)
 {
 	int rc;
 
-	workqueue = create_freezeable_workqueue("kmemstick");
+	workqueue = create_freezable_workqueue("kmemstick");
 	if (!workqueue)
 		return -ENOMEM;
 

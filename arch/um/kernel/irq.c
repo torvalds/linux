@@ -35,8 +35,10 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+		struct irq_desc *desc = irq_to_desc(i);
+
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		action = desc->action;
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ",i);
@@ -46,7 +48,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
+		seq_printf(p, " %14s", get_irq_desc_chip(desc)->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -54,7 +56,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	} else if (i == NR_IRQS)
 		seq_putc(p, '\n');
 
@@ -360,10 +362,10 @@ EXPORT_SYMBOL(um_request_irq);
 EXPORT_SYMBOL(reactivate_fd);
 
 /*
- * irq_chip must define (startup || enable) &&
- * (shutdown || disable) && end
+ * irq_chip must define at least enable/disable and ack when
+ * the edge handler is used.
  */
-static void dummy(unsigned int irq)
+static void dummy(struct irq_data *d)
 {
 }
 
@@ -371,20 +373,17 @@ static void dummy(unsigned int irq)
 static struct irq_chip normal_irq_type = {
 	.name = "SIGIO",
 	.release = free_irq_by_irq_and_dev,
-	.disable = dummy,
-	.enable = dummy,
-	.ack = dummy,
-	.end = dummy
+	.irq_disable = dummy,
+	.irq_enable = dummy,
+	.irq_ack = dummy,
 };
 
 static struct irq_chip SIGVTALRM_irq_type = {
 	.name = "SIGVTALRM",
 	.release = free_irq_by_irq_and_dev,
-	.shutdown = dummy, /* never called */
-	.disable = dummy,
-	.enable = dummy,
-	.ack = dummy,
-	.end = dummy
+	.irq_disable = dummy,
+	.irq_enable = dummy,
+	.irq_ack = dummy,
 };
 
 void __init init_IRQ(void)

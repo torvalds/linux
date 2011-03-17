@@ -264,9 +264,6 @@ pid_put_sample(int pid, int type, unsigned int cpu, u64 start, u64 end)
 		c->start_time = start;
 	if (p->start_time == 0 || p->start_time > start)
 		p->start_time = start;
-
-	if (cpu > numcpus)
-		numcpus = cpu;
 }
 
 #define MAX_CPUS 4096
@@ -276,21 +273,24 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(event_t *event, struct sample_data *sample __used,
+static int process_comm_event(union perf_event *event,
+			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(event_t *event, struct sample_data *sample __used,
+static int process_fork_event(union perf_event *event,
+			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(event_t *event, struct sample_data *sample __used,
+static int process_exit_event(union perf_event *event,
+			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
 	pid_exit(event->fork.pid, event->fork.time);
@@ -486,8 +486,8 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(event_t *event __used,
-				struct sample_data *sample,
+static int process_sample_event(union perf_event *event __used,
+				struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct trace_entry *te;
@@ -510,6 +510,9 @@ static int process_sample_event(event_t *event __used,
 
 		if (!event_str)
 			return 0;
+
+		if (sample->cpu > numcpus)
+			numcpus = sample->cpu;
 
 		if (strcmp(event_str, "power:cpu_idle") == 0) {
 			struct power_processor_entry *ppe = (void *)te;

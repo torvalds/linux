@@ -25,14 +25,11 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 
-#ifdef CONFIG_HAS_WAKELOCK
-#include <linux/wakelock.h>
-#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
-A_BOOL enable_mmc_host_detect_change = 0;
+bool enable_mmc_host_detect_change = false;
 static void ar6000_enable_mmchost_detect_change(int enable);
 
 
@@ -44,11 +41,6 @@ extern int bmienable;
 extern struct net_device *ar6000_devices[];
 extern char ifname[];
 
-#ifdef CONFIG_HAS_WAKELOCK
-extern struct wake_lock ar6k_wow_wake_lock;
-struct wake_lock ar6k_init_wake_lock;
-#endif
-
 const char def_ifname[] = "wlan0";
 module_param_string(fwpath, fwpath, sizeof(fwpath), 0644);
 module_param(enablelogcat, uint, 0644);
@@ -59,7 +51,7 @@ static int screen_is_off;
 static struct early_suspend ar6k_early_suspend;
 #endif
 
-static A_STATUS (*ar6000_avail_ev_p)(void *, void *);
+static int (*ar6000_avail_ev_p)(void *, void *);
 
 #if defined(CONFIG_ANDROID_LOGGER) && (!defined(CONFIG_MMC_MSM))
 int logger_write(const enum logidx index,
@@ -128,9 +120,7 @@ int logger_write(const enum logidx index,
     }
     set_fs(oldfs);
 out_free_message:
-    if (msg) {
-        kfree(msg);
-    }
+    kfree(msg);
     return ret;
 }
 #endif
@@ -163,7 +153,7 @@ int android_logger_lv(void *module, int mask)
     }
 }
 
-static int android_readwrite_file(const A_CHAR *filename, A_CHAR *rbuf, const A_CHAR *wbuf, size_t length)
+static int android_readwrite_file(const char *filename, char *rbuf, const char *wbuf, size_t length)
 {
     int ret = 0;
     struct file *filp = (struct file *)-ENOENT;
@@ -277,17 +267,11 @@ void android_release_firmware(const struct firmware *firmware)
     }
 }
 
-static A_STATUS ar6000_android_avail_ev(void *context, void *hif_handle)
+static int ar6000_android_avail_ev(void *context, void *hif_handle)
 {
-    A_STATUS ret;    
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_lock(&ar6k_init_wake_lock);
-#endif
+    int ret;
     ar6000_enable_mmchost_detect_change(0);
     ret = ar6000_avail_ev_p(context, hif_handle);
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_unlock(&ar6k_init_wake_lock);
-#endif
     return ret;
 }
 
@@ -328,9 +312,6 @@ void android_module_init(OSDRV_CALLBACKS *osdrvCallbacks)
     bmienable = 1;
     if (ifname[0] == '\0')
         strcpy(ifname, def_ifname);
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_lock_init(&ar6k_init_wake_lock, WAKE_LOCK_SUSPEND, "ar6k_init");
-#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
     ar6k_early_suspend.suspend = android_early_suspend;
     ar6k_early_suspend.resume  = android_late_resume;
@@ -349,28 +330,25 @@ void android_module_exit(void)
 #ifdef CONFIG_HAS_EARLYSUSPEND
     unregister_early_suspend(&ar6k_early_suspend);
 #endif
-#ifdef CONFIG_HAS_WAKELOCK
-    wake_lock_destroy(&ar6k_init_wake_lock);
-#endif
     ar6000_enable_mmchost_detect_change(1);
 }
 
 #ifdef CONFIG_PM
-void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL isEvent)
+void android_ar6k_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent)
 {
     if (
 #ifdef CONFIG_HAS_EARLYSUSPEND
         screen_is_off && 
 #endif 
             skb && ar->arConnected) {
-        A_BOOL needWake = FALSE;
+        bool needWake = false;
         if (isEvent) {
-            if (A_NETBUF_LEN(skb) >= sizeof(A_UINT16)) {
-                A_UINT16 cmd = *(const A_UINT16 *)A_NETBUF_DATA(skb);
+            if (A_NETBUF_LEN(skb) >= sizeof(u16)) {
+                u16 cmd = *(const u16 *)A_NETBUF_DATA(skb);
                 switch (cmd) {
                 case WMI_CONNECT_EVENTID:
                 case WMI_DISCONNECT_EVENTID:
-                    needWake = TRUE;
+                    needWake = true;
                     break;
                 default:
                     /* dont wake lock the system for other event */
@@ -385,7 +363,7 @@ void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL i
                 case 0x888e: /* EAPOL */
                 case 0x88c7: /* RSN_PREAUTH */
                 case 0x88b4: /* WAPI */
-                     needWake = TRUE;
+                     needWake = true;
                      break;
                 case 0x0806: /* ARP is not important to hold wake lock */
                 default:
@@ -395,9 +373,6 @@ void android_ar6k_check_wow_status(AR_SOFTC_T *ar, struct sk_buff *skb, A_BOOL i
         }
         if (needWake) {
             /* keep host wake up if there is any event and packate comming in*/
-#ifdef CONFIG_HAS_WAKELOCK
-            wake_lock_timeout(&ar6k_wow_wake_lock, 3*HZ);
-#endif
             if (wowledon) {
                 char buf[32];
                 int len = sprintf(buf, "on");

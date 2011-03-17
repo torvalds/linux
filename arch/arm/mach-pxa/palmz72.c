@@ -212,7 +212,7 @@ static unsigned long store_ptr;
 static int palmz72_pm_suspend(struct sys_device *dev, pm_message_t msg)
 {
 	/* setup the resume_info struct for the original bootloader */
-	palmz72_resume_info.resume_addr = (u32) pxa_cpu_resume;
+	palmz72_resume_info.resume_addr = (u32) cpu_resume;
 
 	/* Storing memory touched by ROM */
 	store_ptr = *PALMZ72_SAVE_DWORD;

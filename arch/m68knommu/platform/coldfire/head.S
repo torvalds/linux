@@ -41,17 +41,17 @@
  *	DRAM controller is quite different.
  */
 .macro GET_MEM_SIZE
-	movel	MCF_MBAR+MCFSIM_DMR0,%d0 /* get mask for 1st bank */
+	movel	MCFSIM_DMR0,%d0		/* get mask for 1st bank */
 	btst	#0,%d0			/* check if region enabled */
 	beq	1f
 	andl	#0xfffc0000,%d0
 	beq	1f
 	addl	#0x00040000,%d0		/* convert mask to size */
 1:
-	movel	MCF_MBAR+MCFSIM_DMR1,%d1 /* get mask for 2nd bank */
+	movel	MCFSIM_DMR1,%d1		/* get mask for 2nd bank */
 	btst	#0,%d1			/* check if region enabled */
 	beq	2f
-	andl	#0xfffc0000, %d1
+	andl	#0xfffc0000,%d1
 	beq	2f
 	addl	#0x00040000,%d1
 	addl	%d1,%d0			/* total mem size in d0 */
@@ -68,14 +68,14 @@
 #elif defined(CONFIG_M520x)
 .macro GET_MEM_SIZE
 	clrl	%d0
-	movel	MCF_MBAR+MCFSIM_SDCS0, %d2 /* Get SDRAM chip select 0 config */
+	movel	MCFSIM_SDCS0, %d2	/* Get SDRAM chip select 0 config */
 	andl	#0x1f, %d2		/* Get only the chip select size */
 	beq	3f			/* Check if it is enabled */
 	addql	#1, %d2			/* Form exponent */
 	moveql	#1, %d0
 	lsll	%d2, %d0		/* 2 ^ exponent */
 3:
-	movel	MCF_MBAR+MCFSIM_SDCS1, %d2 /* Get SDRAM chip select 1 config */
+	movel	MCFSIM_SDCS1, %d2	/* Get SDRAM chip select 1 config */
 	andl	#0x1f, %d2		/* Get only the chip select size */
 	beq	4f			/* Check if it is enabled */
 	addql	#1, %d2			/* Form exponent */

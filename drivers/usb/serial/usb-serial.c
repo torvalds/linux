@@ -406,7 +406,7 @@ static void serial_unthrottle(struct tty_struct *tty)
 		port->serial->type->unthrottle(tty);
 }
 
-static int serial_ioctl(struct tty_struct *tty, struct file *file,
+static int serial_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -417,7 +417,7 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 	/* pass on to the driver specific version of this function
 	   if it is available */
 	if (port->serial->type->ioctl) {
-		retval = port->serial->type->ioctl(tty, file, cmd, arg);
+		retval = port->serial->type->ioctl(tty, cmd, arg);
 	} else
 		retval = -ENOIOCTLCMD;
 	return retval;
@@ -496,18 +496,18 @@ static const struct file_operations serial_proc_fops = {
 	.release	= single_release,
 };
 
-static int serial_tiocmget(struct tty_struct *tty, struct file *file)
+static int serial_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
 	dbg("%s - port %d", __func__, port->number);
 
 	if (port->serial->type->tiocmget)
-		return port->serial->type->tiocmget(tty, file);
+		return port->serial->type->tiocmget(tty);
 	return -EINVAL;
 }
 
-static int serial_tiocmset(struct tty_struct *tty, struct file *file,
+static int serial_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -515,7 +515,7 @@ static int serial_tiocmset(struct tty_struct *tty, struct file *file,
 	dbg("%s - port %d", __func__, port->number);
 
 	if (port->serial->type->tiocmset)
-		return port->serial->type->tiocmset(tty, file, set, clear);
+		return port->serial->type->tiocmset(tty, set, clear);
 	return -EINVAL;
 }
 
@@ -911,9 +911,8 @@ int usb_serial_probe(struct usb_interface *interface,
 			dev_err(&interface->dev, "No free urbs available\n");
 			goto probe_error;
 		}
-		buffer_size = serial->type->bulk_in_size;
-		if (!buffer_size)
-			buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+		buffer_size = max_t(int, serial->type->bulk_in_size,
+				le16_to_cpu(endpoint->wMaxPacketSize));
 		port->bulk_in_size = buffer_size;
 		port->bulk_in_endpointAddress = endpoint->bEndpointAddress;
 		port->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
