@@ -418,13 +418,14 @@ EXPORT_SYMBOL(h1940_led_blink_set);
 static struct gpio_led h1940_leds_desc[] = {
 	{
 		.name			= "Green",
-		.default_trigger	= "main-battery-charging-or-full",
+		.default_trigger	= "main-battery-full",
 		.gpio			= H1940_LATCH_LED_GREEN,
 		.retain_state_suspended	= 1,
 	},
 	{
 		.name			= "Red",
-		.default_trigger	= "main-battery-full",
+		.default_trigger
+			= "main-battery-charging-blink-full-solid",
 		.gpio			= H1940_LATCH_LED_RED,
 		.retain_state_suspended	= 1,
 	},

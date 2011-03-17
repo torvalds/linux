@@ -311,22 +311,23 @@ static int rx1950_led_blink_set(unsigned gpio, int state,
 
 static struct gpio_led rx1950_leds_desc[] = {
 	{
-		.name				= "Green",
-		.default_trigger	= "main-battery-charging-or-full",
-		.gpio				= S3C2410_GPA(6),
-		.retain_state_suspended		= 1,
-	},
-	{
-		.name				= "Red",
+		.name			= "Green",
 		.default_trigger	= "main-battery-full",
-		.gpio				= S3C2410_GPA(7),
-		.retain_state_suspended		= 1,
+		.gpio			= S3C2410_GPA(6),
+		.retain_state_suspended	= 1,
 	},
 	{
-		.name				= "Blue",
+		.name			= "Red",
+		.default_trigger
+			= "main-battery-charging-blink-full-solid",
+		.gpio			= S3C2410_GPA(7),
+		.retain_state_suspended	= 1,
+	},
+	{
+		.name			= "Blue",
 		.default_trigger	= "rx1950-acx-mem",
-		.gpio				= S3C2410_GPA(11),
-		.retain_state_suspended		= 1,
+		.gpio			= S3C2410_GPA(11),
+		.retain_state_suspended	= 1,
 	},
 };
 
