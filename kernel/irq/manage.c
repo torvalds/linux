@@ -1064,10 +1064,10 @@ mismatch:
 	ret = -EBUSY;
 
 out_mask:
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	free_cpumask_var(mask);
 
 out_thread:
-	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	if (new->thread) {
 		struct task_struct *t = new->thread;
 
