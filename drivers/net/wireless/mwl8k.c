@@ -137,6 +137,13 @@ struct mwl8k_tx_queue {
 	struct sk_buff **skb;
 };
 
+enum {
+	AMPDU_NO_STREAM,
+	AMPDU_STREAM_NEW,
+	AMPDU_STREAM_IN_PROGRESS,
+	AMPDU_STREAM_ACTIVE,
+};
+
 struct mwl8k_ampdu_stream {
 	struct ieee80211_sta *sta;
 	u8 tid;
@@ -172,6 +179,8 @@ struct mwl8k_priv {
 
 	/* Ampdu stream information */
 	u8 num_ampdu_queues;
+	spinlock_t stream_lock;
+	struct mwl8k_ampdu_stream ampdu[MWL8K_MAX_AMPDU_QUEUES];
 
 	/* firmware access */
 	struct mutex fw_mutex;
@@ -1592,6 +1601,74 @@ static void mwl8k_txq_deinit(struct ieee80211_hw *hw, int index)
 			    MWL8K_TX_DESCS * sizeof(struct mwl8k_tx_desc),
 			    txq->txd, txq->txd_dma);
 	txq->txd = NULL;
+}
+
+/* caller must hold priv->stream_lock when calling the stream functions */
+struct mwl8k_ampdu_stream *
+mwl8k_add_stream(struct ieee80211_hw *hw, struct ieee80211_sta *sta, u8 tid)
+{
+	struct mwl8k_ampdu_stream *stream;
+	struct mwl8k_priv *priv = hw->priv;
+	int i;
+
+	for (i = 0; i < priv->num_ampdu_queues; i++) {
+		stream = &priv->ampdu[i];
+		if (stream->state == AMPDU_NO_STREAM) {
+			stream->sta = sta;
+			stream->state = AMPDU_STREAM_NEW;
+			stream->tid = tid;
+			stream->idx = i;
+			stream->txq_idx = MWL8K_TX_WMM_QUEUES + i;
+			wiphy_debug(hw->wiphy, "Added a new stream for %pM %d",
+				    sta->addr, tid);
+			return stream;
+		}
+	}
+	return NULL;
+}
+
+static int
+mwl8k_start_stream(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
+{
+	int ret;
+
+	/* if the stream has already been started, don't start it again */
+	if (stream->state != AMPDU_STREAM_NEW)
+		return 0;
+	ret = ieee80211_start_tx_ba_session(stream->sta, stream->tid, 0);
+	if (ret)
+		wiphy_debug(hw->wiphy, "Failed to start stream for %pM %d: "
+			    "%d\n", stream->sta->addr, stream->tid, ret);
+	else
+		wiphy_debug(hw->wiphy, "Started stream for %pM %d\n",
+			    stream->sta->addr, stream->tid);
+	return ret;
+}
+
+static void
+mwl8k_remove_stream(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
+{
+	wiphy_debug(hw->wiphy, "Remove stream for %pM %d\n", stream->sta->addr,
+		    stream->tid);
+	memset(stream, 0, sizeof(*stream));
+}
+
+static struct mwl8k_ampdu_stream *
+mwl8k_lookup_stream(struct ieee80211_hw *hw, u8 *addr, u8 tid)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	int i;
+
+	for (i = 0 ; i < priv->num_ampdu_queues; i++) {
+		struct mwl8k_ampdu_stream *stream;
+		stream = &priv->ampdu[i];
+		if (stream->state == AMPDU_NO_STREAM)
+			continue;
+		if (!memcmp(stream->sta->addr, addr, ETH_ALEN) &&
+		    stream->tid == tid)
+			return stream;
+	}
+	return NULL;
 }
 
 static void
@@ -4854,6 +4931,8 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		goto err_free_queues;
 	}
 
+	memset(priv->ampdu, 0, sizeof(priv->ampdu));
+
 	/*
 	 * Temporarily enable interrupts.  Initial firmware host
 	 * commands use interrupts and avoid polling.  Disable
@@ -5017,6 +5096,8 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	priv->hostcmd_wait = NULL;
 
 	spin_lock_init(&priv->tx_lock);
+
+	spin_lock_init(&priv->stream_lock);
 
 	priv->tx_wait = NULL;
 
