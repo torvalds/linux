@@ -14,11 +14,11 @@
 #ifndef __MACH_GENERIC_H
 #define __MACH_GENERIC_H
 
-#include <asm/mach/time.h>
-#include <asm/mach/map.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
+#include <asm/mach/time.h>
+#include <asm/mach/map.h>
 #include <plat/padmux.h>
 
 /* spear3xx declarations */
@@ -33,14 +33,14 @@
 /* Add spear3xx family device structure declarations here */
 extern struct amba_device gpio_device;
 extern struct amba_device uart_device;
-extern struct sys_timer spear_sys_timer;
+extern struct sys_timer spear3xx_timer;
 
 /* Add spear3xx family function declarations here */
 void __init clk_init(void);
+void __init spear_setup_timer(void);
 void __init spear3xx_map_io(void);
 void __init spear3xx_init_irq(void);
 void __init spear3xx_init(void);
-void spear_pmx_init(struct pmx_driver *pmx_driver, uint base, uint size);
 
 /* pad mux declarations */
 #define PMX_FIRDA_MASK		(1 << 14)
@@ -129,11 +129,9 @@ extern struct pmx_dev pmx_telecom_camera;
 extern struct pmx_dev pmx_telecom_dac;
 extern struct pmx_dev pmx_telecom_i2s;
 extern struct pmx_dev pmx_telecom_boot_pins;
-extern struct pmx_dev pmx_telecom_sdio_4bit;
-extern struct pmx_dev pmx_telecom_sdio_8bit;
+extern struct pmx_dev pmx_telecom_sdhci_4bit;
+extern struct pmx_dev pmx_telecom_sdhci_8bit;
 extern struct pmx_dev pmx_gpio1;
-
-void spear300_pmx_init(void);
 
 /* Add spear300 machine function declarations here */
 void __init spear300_init(void);
@@ -153,8 +151,6 @@ extern struct pmx_dev pmx_uart3_4_5;
 extern struct pmx_dev pmx_fsmc;
 extern struct pmx_dev pmx_rs485_0_1;
 extern struct pmx_dev pmx_tdm0;
-
-void spear310_pmx_init(void);
 
 /* Add spear310 machine function declarations here */
 void __init spear310_init(void);
@@ -176,14 +172,14 @@ extern struct pmx_dev pmx_clcd;
 extern struct pmx_dev pmx_emi;
 extern struct pmx_dev pmx_fsmc;
 extern struct pmx_dev pmx_spp;
-extern struct pmx_dev pmx_sdio;
+extern struct pmx_dev pmx_sdhci;
 extern struct pmx_dev pmx_i2s;
 extern struct pmx_dev pmx_uart1;
 extern struct pmx_dev pmx_uart1_modem;
 extern struct pmx_dev pmx_uart2;
 extern struct pmx_dev pmx_touchscreen;
 extern struct pmx_dev pmx_can;
-extern struct pmx_dev pmx_sdio_led;
+extern struct pmx_dev pmx_sdhci_led;
 extern struct pmx_dev pmx_pwm0;
 extern struct pmx_dev pmx_pwm1;
 extern struct pmx_dev pmx_pwm2;
@@ -194,8 +190,6 @@ extern struct pmx_dev pmx_mii1;
 extern struct pmx_dev pmx_smii0;
 extern struct pmx_dev pmx_smii1;
 extern struct pmx_dev pmx_i2c1;
-
-void spear320_pmx_init(void);
 
 /* Add spear320 machine function declarations here */
 void __init spear320_init(void);

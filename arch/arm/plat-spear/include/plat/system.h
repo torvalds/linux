@@ -14,9 +14,9 @@
 #ifndef __PLAT_SYSTEM_H
 #define __PLAT_SYSTEM_H
 
-#include <asm/hardware/sp810.h>
 #include <linux/io.h>
-#include <mach/spear.h>
+#include <asm/hardware/sp810.h>
+#include <mach/hardware.h>
 
 static inline void arch_idle(void)
 {
