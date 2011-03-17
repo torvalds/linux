@@ -608,6 +608,12 @@ struct drm_gem_open {
 	__u64 size;
 };
 
+/** DRM_IOCTL_GET_CAP ioctl argument type */
+struct drm_get_cap {
+	__u64 capability;
+	__u64 value;
+};
+
 #include "drm_mode.h"
 
 #define DRM_IOCTL_BASE			'd'
@@ -628,6 +634,7 @@ struct drm_gem_open {
 #define DRM_IOCTL_GEM_CLOSE		DRM_IOW (0x09, struct drm_gem_close)
 #define DRM_IOCTL_GEM_FLINK		DRM_IOWR(0x0a, struct drm_gem_flink)
 #define DRM_IOCTL_GEM_OPEN		DRM_IOWR(0x0b, struct drm_gem_open)
+#define DRM_IOCTL_GET_CAP		DRM_IOWR(0x0c, struct drm_get_cap)
 
 #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, struct drm_unique)
 #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, struct drm_auth)
@@ -701,6 +708,10 @@ struct drm_gem_open {
 #define DRM_IOCTL_MODE_PAGE_FLIP	DRM_IOWR(0xB0, struct drm_mode_crtc_page_flip)
 #define DRM_IOCTL_MODE_DIRTYFB		DRM_IOWR(0xB1, struct drm_mode_fb_dirty_cmd)
 
+#define DRM_IOCTL_MODE_CREATE_DUMB DRM_IOWR(0xB2, struct drm_mode_create_dumb)
+#define DRM_IOCTL_MODE_MAP_DUMB    DRM_IOWR(0xB3, struct drm_mode_map_dumb)
+#define DRM_IOCTL_MODE_DESTROY_DUMB    DRM_IOWR(0xB4, struct drm_mode_destroy_dumb)
+
 /**
  * Device specific ioctls should only be in their respective headers
  * The device specific ioctl range is from 0x40 to 0x99.
@@ -740,6 +751,8 @@ struct drm_event_vblank {
 	__u32 sequence;
 	__u32 reserved;
 };
+
+#define DRM_CAP_DUMB_BUFFER 0x1
 
 /* typedef area */
 #ifndef __KERNEL__

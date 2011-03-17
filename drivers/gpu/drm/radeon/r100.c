@@ -1205,14 +1205,12 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	if (waitreloc.reg != RADEON_WAIT_UNTIL ||
 	    waitreloc.count != 0) {
 		DRM_ERROR("vline wait had illegal wait until segment\n");
-		r = -EINVAL;
-		return r;
+		return -EINVAL;
 	}
 
 	if (radeon_get_ib_value(p, waitreloc.idx + 1) != RADEON_WAIT_CRTC_VLINE) {
 		DRM_ERROR("vline wait had illegal wait until\n");
-		r = -EINVAL;
-		return r;
+		return -EINVAL;
 	}
 
 	/* jump over the NOP */
@@ -1230,8 +1228,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
-		r = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	crtc = obj_to_crtc(obj);
 	radeon_crtc = to_radeon_crtc(crtc);
@@ -1253,14 +1250,13 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 			break;
 		default:
 			DRM_ERROR("unknown crtc reloc\n");
-			r = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 		ib[h_idx] = header;
 		ib[h_idx + 3] |= RADEON_ENG_DISPLAY_SELECT_CRTC1;
 	}
-out:
-	return r;
+
+	return 0;
 }
 
 /**

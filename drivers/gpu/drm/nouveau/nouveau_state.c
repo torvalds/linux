@@ -544,7 +544,6 @@ static int
 nouveau_card_init_channel(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gpuobj = NULL;
 	int ret;
 
 	ret = nouveau_channel_alloc(dev, &dev_priv->channel,
@@ -552,41 +551,8 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	/* no dma objects on fermi... */
-	if (dev_priv->card_type >= NV_C0)
-		goto out_done;
-
-	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, dev_priv->vram_size,
-				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_VRAM,
-				     &gpuobj);
-	if (ret)
-		goto out_err;
-
-	ret = nouveau_ramht_insert(dev_priv->channel, NvDmaVRAM, gpuobj);
-	nouveau_gpuobj_ref(NULL, &gpuobj);
-	if (ret)
-		goto out_err;
-
-	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, dev_priv->gart_info.aper_size,
-				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_GART,
-				     &gpuobj);
-	if (ret)
-		goto out_err;
-
-	ret = nouveau_ramht_insert(dev_priv->channel, NvDmaGART, gpuobj);
-	nouveau_gpuobj_ref(NULL, &gpuobj);
-	if (ret)
-		goto out_err;
-
-out_done:
 	mutex_unlock(&dev_priv->channel->mutex);
 	return 0;
-
-out_err:
-	nouveau_channel_put(&dev_priv->channel);
-	return ret;
 }
 
 static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
@@ -929,12 +895,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
 
-	dev_priv->wq = create_workqueue("nouveau");
-	if (!dev_priv->wq) {
-		ret = -EINVAL;
-		goto err_priv;
-	}
-
 	/* resource 0 is mmio regs */
 	/* resource 1 is linear FB */
 	/* resource 2 is RAMIN (mmio regs + 0x1000000) */
@@ -947,7 +907,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		NV_ERROR(dev, "Unable to initialize the mmio mapping. "
 			 "Please report your setup to " DRIVER_EMAIL "\n");
 		ret = -EINVAL;
-		goto err_wq;
+		goto err_priv;
 	}
 	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n",
 					(unsigned long long)mmio_start_offs);
@@ -1054,8 +1014,6 @@ err_ramin:
 	iounmap(dev_priv->ramin);
 err_mmio:
 	iounmap(dev_priv->mmio);
-err_wq:
-	destroy_workqueue(dev_priv->wq);
 err_priv:
 	kfree(dev_priv);
 	dev->dev_private = NULL;
@@ -1103,9 +1061,9 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		getparam->value = dev->pci_device;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (drm_device_is_agp(dev))
+		if (drm_pci_device_is_agp(dev))
 			getparam->value = NV_AGP;
-		else if (drm_device_is_pcie(dev))
+		else if (drm_pci_device_is_pcie(dev))
 			getparam->value = NV_PCIE;
 		else
 			getparam->value = NV_PCI;
@@ -1126,7 +1084,7 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		getparam->value = 1;
 		break;
 	case NOUVEAU_GETPARAM_HAS_PAGEFLIP:
-		getparam->value = (dev_priv->card_type < NV_50);
+		getparam->value = 1;
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		/* NV40 and NV50 versions are quite different, but register

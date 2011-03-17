@@ -326,21 +326,21 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	struct intel_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
-		const char *pipe = crtc->pipe ? "B" : "A";
-		const char *plane = crtc->plane ? "B" : "A";
+		const char pipe = pipe_name(crtc->pipe);
+		const char plane = plane_name(crtc->plane);
 		struct intel_unpin_work *work;
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		work = crtc->unpin_work;
 		if (work == NULL) {
-			seq_printf(m, "No flip due on pipe %s (plane %s)\n",
+			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
 				   pipe, plane);
 		} else {
 			if (!work->pending) {
-				seq_printf(m, "Flip queued on pipe %s (plane %s)\n",
+				seq_printf(m, "Flip queued on pipe %c (plane %c)\n",
 					   pipe, plane);
 			} else {
-				seq_printf(m, "Flip pending (waiting for vsync) on pipe %s (plane %s)\n",
+				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
 					   pipe, plane);
 			}
 			if (work->enable_stall_check)
@@ -458,7 +458,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret, i;
+	int ret, i, pipe;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -471,10 +471,10 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(IIR));
 		seq_printf(m, "Interrupt mask:      %08x\n",
 			   I915_READ(IMR));
-		seq_printf(m, "Pipe A stat:         %08x\n",
-			   I915_READ(PIPEASTAT));
-		seq_printf(m, "Pipe B stat:         %08x\n",
-			   I915_READ(PIPEBSTAT));
+		for_each_pipe(pipe)
+			seq_printf(m, "Pipe %c stat:         %08x\n",
+				   pipe_name(pipe),
+				   I915_READ(PIPESTAT(pipe)));
 	} else {
 		seq_printf(m, "North Display Interrupt enable:		%08x\n",
 			   I915_READ(DEIER));
@@ -544,11 +544,11 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	volatile u32 *hws;
+	const volatile u32 __iomem *hws;
 	int i;
 
 	ring = &dev_priv->ring[(uintptr_t)node->info_ent->data];
-	hws = (volatile u32 *)ring->status_page.page_addr;
+	hws = (volatile u32 __iomem *)ring->status_page.page_addr;
 	if (hws == NULL)
 		return 0;
 
@@ -615,7 +615,7 @@ static int i915_ringbuffer_data(struct seq_file *m, void *data)
 	if (!ring->obj) {
 		seq_printf(m, "No ringbuffer setup\n");
 	} else {
-		u8 *virt = ring->virtual_start;
+		const u8 __iomem *virt = ring->virtual_start;
 		uint32_t off;
 
 		for (off = 0; off < ring->size; off += 4) {
@@ -805,15 +805,20 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		}
 	}
 
-	if (error->ringbuffer) {
-		struct drm_i915_error_object *obj = error->ringbuffer;
-
-		seq_printf(m, "--- ringbuffer = 0x%08x\n", obj->gtt_offset);
-		offset = 0;
-		for (page = 0; page < obj->page_count; page++) {
-			for (elt = 0; elt < PAGE_SIZE/4; elt++) {
-				seq_printf(m, "%08x :  %08x\n", offset, obj->pages[page][elt]);
-				offset += 4;
+	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++) {
+		if (error->ringbuffer[i]) {
+			struct drm_i915_error_object *obj = error->ringbuffer[i];
+			seq_printf(m, "%s --- ringbuffer = 0x%08x\n",
+				   dev_priv->ring[i].name,
+				   obj->gtt_offset);
+			offset = 0;
+			for (page = 0; page < obj->page_count; page++) {
+				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
+					seq_printf(m, "%08x :  %08x\n",
+						   offset,
+						   obj->pages[page][elt]);
+					offset += 4;
+				}
 			}
 		}
 	}
@@ -862,19 +867,44 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+		u32 rpstat;
+		u32 rpupei, rpcurup, rpprevup;
+		u32 rpdownei, rpcurdown, rpprevdown;
 		int max_freq;
 
 		/* RPSTAT1 is in the GT power well */
 		__gen6_gt_force_wake_get(dev_priv);
 
+		rpstat = I915_READ(GEN6_RPSTAT1);
+		rpupei = I915_READ(GEN6_RP_CUR_UP_EI);
+		rpcurup = I915_READ(GEN6_RP_CUR_UP);
+		rpprevup = I915_READ(GEN6_RP_PREV_UP);
+		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
+		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
+		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
+
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
-		seq_printf(m, "RPSTAT1: 0x%08x\n", I915_READ(GEN6_RPSTAT1));
+		seq_printf(m, "RPSTAT1: 0x%08x\n", rpstat);
 		seq_printf(m, "Render p-state ratio: %d\n",
 			   (gt_perf_status & 0xff00) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
 			   rp_state_limits & 0xff);
+		seq_printf(m, "CAGF: %dMHz\n", ((rpstat & GEN6_CAGF_MASK) >>
+						GEN6_CAGF_SHIFT) * 100);
+		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
+			   GEN6_CURICONT_MASK);
+		seq_printf(m, "RP CUR UP: %dus\n", rpcurup &
+			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP PREV UP: %dus\n", rpprevup &
+			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP CUR DOWN EI: %dus\n", rpdownei &
+			   GEN6_CURIAVG_MASK);
+		seq_printf(m, "RP CUR DOWN: %dus\n", rpcurdown &
+			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP PREV DOWN: %dus\n", rpprevdown &
+			   GEN6_CURBSYTAVG_MASK);
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
@@ -1259,7 +1289,7 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 }
 
 static struct drm_info_list i915_debugfs_list[] = {
-	{"i915_capabilities", i915_capabilities, 0, 0},
+	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},

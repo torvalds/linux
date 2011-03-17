@@ -136,5 +136,5 @@ nv84_crypt_isr(struct drm_device *dev)
 	nv_wr32(dev, 0x102130, stat);
 	nv_wr32(dev, 0x10200c, 0x10);
 
-	nv50_fb_vm_trap(dev, show, "PCRYPT");
+	nv50_fb_vm_trap(dev, show);
 }

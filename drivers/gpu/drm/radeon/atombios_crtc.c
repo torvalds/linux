@@ -61,8 +61,8 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 			args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2);
 			args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2);
 		} else if (a2 > a1) {
-			args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
-			args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
+			args.usOverscanTop = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
+			args.usOverscanBottom = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
 		}
 		break;
 	case RMX_FULL:
@@ -1026,7 +1026,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	 * just update base pointers
 	 */
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1135,7 +1135,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -1181,7 +1181,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1292,7 +1292,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
