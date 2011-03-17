@@ -1457,6 +1457,9 @@ static int __ethtool_set_sg(struct net_device *dev, u32 data)
 {
 	int err;
 
+	if (!dev->ethtool_ops->set_sg)
+		return -EOPNOTSUPP;
+
 	if (data && !(dev->features & NETIF_F_ALL_CSUM))
 		return -EINVAL;
 
