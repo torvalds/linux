@@ -276,12 +276,12 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "langwell gpiochip_add error %d\n", retval);
 		goto err5;
 	}
-	set_irq_data(pdev->irq, lnw);
-	set_irq_chained_handler(pdev->irq, lnw_irq_handler);
+	irq_set_handler_data(pdev->irq, lnw);
+	irq_set_chained_handler(pdev->irq, lnw_irq_handler);
 	for (i = 0; i < lnw->chip.ngpio; i++) {
-		set_irq_chip_and_handler_name(i + lnw->irq_base, &lnw_irqchip,
-					handle_simple_irq, "demux");
-		set_irq_chip_data(i + lnw->irq_base, lnw);
+		irq_set_chip_and_handler_name(i + lnw->irq_base, &lnw_irqchip,
+					      handle_simple_irq, "demux");
+		irq_set_chip_data(i + lnw->irq_base, lnw);
 	}
 
 	spin_lock_init(&lnw->lock);
