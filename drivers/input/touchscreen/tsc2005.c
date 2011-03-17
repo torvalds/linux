@@ -715,4 +715,3 @@ module_exit(tsc2005_exit);
 
 MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@nokia.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:tsc2005");
