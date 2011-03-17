@@ -129,8 +129,8 @@ struct tsc2005 {
 	int                     in_z1;
 	int			in_z2;
 
+	spinlock_t		lock;
 	struct timer_list	penup_timer;
-	struct work_struct	penup_work;
 
 	unsigned int		esd_timeout;
 	struct timer_list	esd_timer;
@@ -239,11 +239,10 @@ static irqreturn_t tsc2005_irq_handler(int irq, void *dev_id)
 static irqreturn_t tsc2005_irq_thread(int irq, void *_ts)
 {
 	struct tsc2005 *ts = _ts;
+	unsigned long flags;
 	unsigned int pressure;
-	u32 x;
-	u32 y;
-	u32 z1;
-	u32 z2;
+	u32 x, y;
+	u32 z1, z2;
 
 	mutex_lock(&ts->mutex);
 
@@ -261,33 +260,36 @@ static irqreturn_t tsc2005_irq_thread(int irq, void *_ts)
 	if (unlikely(x > MAX_12BIT || y > MAX_12BIT))
 		goto out;
 
-	/* skip coords if the pressure components are out of range */
+	/* Skip reading if the pressure components are out of range */
 	if (unlikely(z1 == 0 || z2 > MAX_12BIT || z1 >= z2))
 		goto out;
 
-       /* skip point if this is a pen down with the exact same values as
+       /*
+	* Skip point if this is a pen down with the exact same values as
 	* the value before pen-up - that implies SPI fed us stale data
 	*/
 	if (!ts->pen_down &&
-	ts->in_x == x &&
-	ts->in_y == y &&
-	ts->in_z1 == z1 &&
-	ts->in_z2 == z2)
+	    ts->in_x == x && ts->in_y == y &&
+	    ts->in_z1 == z1 && ts->in_z2 == z2) {
 		goto out;
+	}
 
-	/* At this point we are happy we have a valid and useful reading.
-	* Remember it for later comparisons. We may now begin downsampling
-	*/
+	/*
+	 * At this point we are happy we have a valid and useful reading.
+	 * Remember it for later comparisons. We may now begin downsampling.
+	 */
 	ts->in_x = x;
 	ts->in_y = y;
 	ts->in_z1 = z1;
 	ts->in_z2 = z2;
 
-	/* compute touch pressure resistance using equation #1 */
+	/* Compute touch pressure resistance using equation #1 */
 	pressure = x * (z2 - z1) / z1;
 	pressure = pressure * ts->x_plate_ohm / 4096;
 	if (unlikely(pressure > MAX_12BIT))
 		goto out;
+
+	spin_lock_irqsave(&ts->lock, flags);
 
 	tsc2005_update_pen_state(ts, x, y, pressure);
 
@@ -295,12 +297,13 @@ static irqreturn_t tsc2005_irq_thread(int irq, void *_ts)
 	mod_timer(&ts->penup_timer,
 		  jiffies + msecs_to_jiffies(TSC2005_PENUP_TIME_MS));
 
-	if (!ts->esd_timeout)
-		goto out;
+	if (ts->esd_timeout && ts->set_reset) {
+		/* update the watchdog timer */
+		mod_timer(&ts->esd_timer, round_jiffies(jiffies +
+					msecs_to_jiffies(ts->esd_timeout)));
+	}
 
-	/* update the watchdog timer */
-	mod_timer(&ts->esd_timer,
-		  round_jiffies(jiffies + msecs_to_jiffies(ts->esd_timeout)));
+	spin_unlock_irqrestore(&ts->lock, flags);
 
 out:
 	mutex_unlock(&ts->mutex);
@@ -310,17 +313,11 @@ out:
 static void tsc2005_penup_timer(unsigned long data)
 {
 	struct tsc2005 *ts = (struct tsc2005 *)data;
+	unsigned long flags;
 
-	schedule_work(&ts->penup_work);
-}
-
-static void tsc2005_penup_work(struct work_struct *work)
-{
-	struct tsc2005 *ts = container_of(work, struct tsc2005, penup_work);
-
-	mutex_lock(&ts->mutex);
+	spin_lock_irqsave(&ts->lock, flags);
 	tsc2005_update_pen_state(ts, 0, 0, 0);
-	mutex_unlock(&ts->mutex);
+	spin_unlock_irqrestore(&ts->lock, flags);
 }
 
 static void tsc2005_start_scan(struct tsc2005 *ts)
@@ -577,8 +574,8 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 
 	mutex_init(&ts->mutex);
 
+	spin_lock_init(&ts->lock);
 	setup_timer(&ts->penup_timer, tsc2005_penup_timer, (unsigned long)ts);
-	INIT_WORK(&ts->penup_work, tsc2005_penup_work);
 
 	setup_timer(&ts->esd_timer, tsc2005_esd_timer, (unsigned long)ts);
 	INIT_WORK(&ts->esd_work, tsc2005_esd_work);
@@ -659,7 +656,6 @@ static int __devexit tsc2005_remove(struct spi_device *spi)
 	del_timer_sync(&ts->penup_timer);
 
 	flush_work(&ts->esd_work);
-	flush_work(&ts->penup_work);
 
 	free_irq(ts->spi->irq, ts);
 	input_unregister_device(ts->idev);
