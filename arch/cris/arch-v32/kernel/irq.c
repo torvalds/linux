@@ -456,11 +456,11 @@ init_IRQ(void)
 		set_exception_vector(i, interrupt[j]);
 	}
 
-        /* Mark Timer and IPI IRQs as CPU local */
+	/* Mark Timer and IPI IRQs as CPU local */
 	irq_allocations[TIMER0_INTR_VECT - FIRST_IRQ].cpu = CPU_FIXED;
-	irq_desc[TIMER0_INTR_VECT].status |= IRQ_PER_CPU;
+	irq_set_status_flags(TIMER0_INTR_VECT, IRQ_PER_CPU);
 	irq_allocations[IPI_INTR_VECT - FIRST_IRQ].cpu = CPU_FIXED;
-	irq_desc[IPI_INTR_VECT].status |= IRQ_PER_CPU;
+	irq_set_status_flags(IPI_INTR_VECT, IRQ_PER_CPU);
 
 	set_exception_vector(0x00, nmi_interrupt);
 	set_exception_vector(0x30, multiple_interrupt);
