@@ -55,6 +55,7 @@ struct dm_table {
 	struct dm_target *targets;
 
 	unsigned discards_supported:1;
+	unsigned integrity_supported:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -859,7 +860,7 @@ int dm_table_alloc_md_mempools(struct dm_table *t)
 		return -EINVAL;
 	}
 
-	t->mempools = dm_alloc_md_mempools(type);
+	t->mempools = dm_alloc_md_mempools(type, t->integrity_supported);
 	if (!t->mempools)
 		return -ENOMEM;
 
@@ -935,8 +936,10 @@ static int dm_table_prealloc_integrity(struct dm_table *t, struct mapped_device 
 	struct dm_dev_internal *dd;
 
 	list_for_each_entry(dd, devices, list)
-		if (bdev_get_integrity(dd->dm_dev.bdev))
+		if (bdev_get_integrity(dd->dm_dev.bdev)) {
+			t->integrity_supported = 1;
 			return blk_integrity_register(dm_disk(md), NULL);
+		}
 
 	return 0;
 }

@@ -2620,9 +2620,10 @@ int dm_noflush_suspending(struct dm_target *ti)
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
-struct dm_md_mempools *dm_alloc_md_mempools(unsigned type)
+struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity)
 {
 	struct dm_md_mempools *pools = kmalloc(sizeof(*pools), GFP_KERNEL);
+	unsigned int pool_size = (type == DM_TYPE_BIO_BASED) ? 16 : MIN_IOS;
 
 	if (!pools)
 		return NULL;
@@ -2639,12 +2640,17 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type)
 	if (!pools->tio_pool)
 		goto free_io_pool_and_out;
 
-	pools->bs = (type == DM_TYPE_BIO_BASED) ?
-		    bioset_create(16, 0) : bioset_create(MIN_IOS, 0);
+	pools->bs = bioset_create(pool_size, 0);
 	if (!pools->bs)
 		goto free_tio_pool_and_out;
 
+	if (integrity && bioset_integrity_create(pools->bs, pool_size))
+		goto free_bioset_and_out;
+
 	return pools;
+
+free_bioset_and_out:
+	bioset_free(pools->bs);
 
 free_tio_pool_and_out:
 	mempool_destroy(pools->tio_pool);

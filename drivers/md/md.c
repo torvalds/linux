@@ -1803,8 +1803,12 @@ int md_integrity_register(mddev_t *mddev)
 			mdname(mddev));
 		return -EINVAL;
 	}
-	printk(KERN_NOTICE "md: data integrity on %s enabled\n",
-		mdname(mddev));
+	printk(KERN_NOTICE "md: data integrity enabled on %s\n", mdname(mddev));
+	if (bioset_integrity_create(mddev->bio_set, BIO_POOL_SIZE)) {
+		printk(KERN_ERR "md: failed to create integrity pool for %s\n",
+		       mdname(mddev));
+		return -EINVAL;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(md_integrity_register);
