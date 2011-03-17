@@ -90,7 +90,7 @@ irqfd_shutdown(struct work_struct *work)
 	 * We know no new events will be scheduled at this point, so block
 	 * until all previously outstanding events have completed
 	 */
-	flush_work(&irqfd->inject);
+	flush_work_sync(&irqfd->inject);
 
 	/*
 	 * It is now safe to release the object's resources
