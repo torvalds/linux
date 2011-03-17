@@ -191,6 +191,7 @@ struct mwl8k_priv {
 
 	struct mwl8k_rx_queue rxq[MWL8K_RX_QUEUES];
 	struct mwl8k_tx_queue txq[MWL8K_TX_QUEUES];
+	u32 txq_offset[MWL8K_TX_QUEUES];
 
 	bool radio_on;
 	bool radio_short_preamble;
@@ -1126,6 +1127,9 @@ static void mwl8k_rxq_deinit(struct ieee80211_hw *hw, int index)
 	struct mwl8k_rx_queue *rxq = priv->rxq + index;
 	int i;
 
+	if (rxq->rxd == NULL)
+		return;
+
 	for (i = 0; i < MWL8K_RX_DESCS; i++) {
 		if (rxq->buf[i].skb != NULL) {
 			pci_unmap_single(priv->pdev,
@@ -1559,6 +1563,9 @@ static void mwl8k_txq_deinit(struct ieee80211_hw *hw, int index)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_tx_queue *txq = priv->txq + index;
+
+	if (txq->txd == NULL)
+		return;
 
 	mwl8k_txq_reclaim(hw, index, INT_MAX, 1);
 
@@ -2058,23 +2065,16 @@ static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 		priv->ap_macids_supported = 0x000000ff;
 		priv->sta_macids_supported = 0x00000000;
 
-		off = le32_to_cpu(cmd->wcbbase0) & 0xffff;
-		iowrite32(priv->txq[0].txd_dma, priv->sram + off);
-
 		off = le32_to_cpu(cmd->rxwrptr) & 0xffff;
 		iowrite32(priv->rxq[0].rxd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->rxrdptr) & 0xffff;
 		iowrite32(priv->rxq[0].rxd_dma, priv->sram + off);
 
-		off = le32_to_cpu(cmd->wcbbase1) & 0xffff;
-		iowrite32(priv->txq[1].txd_dma, priv->sram + off);
-
-		off = le32_to_cpu(cmd->wcbbase2) & 0xffff;
-		iowrite32(priv->txq[2].txd_dma, priv->sram + off);
-
-		off = le32_to_cpu(cmd->wcbbase3) & 0xffff;
-		iowrite32(priv->txq[3].txd_dma, priv->sram + off);
+		priv->txq_offset[0] = le32_to_cpu(cmd->wcbbase0) & 0xffff;
+		priv->txq_offset[1] = le32_to_cpu(cmd->wcbbase1) & 0xffff;
+		priv->txq_offset[2] = le32_to_cpu(cmd->wcbbase2) & 0xffff;
+		priv->txq_offset[3] = le32_to_cpu(cmd->wcbbase3) & 0xffff;
 	}
 
 done:
@@ -4600,6 +4600,23 @@ static int mwl8k_init_firmware(struct ieee80211_hw *hw, char *fw_image,
 	return rc;
 }
 
+static int mwl8k_init_txqs(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	int rc = 0;
+	int i;
+
+	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
+		rc = mwl8k_txq_init(hw, i);
+		if (rc)
+			break;
+		if (priv->ap_fw)
+			iowrite32(priv->txq[i].txd_dma,
+				  priv->sram + priv->txq_offset[i]);
+	}
+	return rc;
+}
+
 /* initialize hw after successfully loading a firmware image */
 static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 {
@@ -4627,8 +4644,14 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		goto err_stop_firmware;
 	rxq_refill(hw, 0, INT_MAX);
 
-	for (i = 0; i < MWL8K_TX_QUEUES; i++) {
-		rc = mwl8k_txq_init(hw, i);
+	/* For the sta firmware, we need to know the dma addresses of tx queues
+	 * before sending MWL8K_CMD_GET_HW_SPEC.  So we must initialize them
+	 * prior to issuing this command.  But for the AP case, we learn the
+	 * total number of queues from the result CMD_GET_HW_SPEC, so for this
+	 * case we must initialize the tx queues after.
+	 */
+	if (!priv->ap_fw) {
+		rc = mwl8k_init_txqs(hw);
 		if (rc)
 			goto err_free_queues;
 	}
@@ -4656,6 +4679,8 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 	/* Get config data, mac addrs etc */
 	if (priv->ap_fw) {
 		rc = mwl8k_cmd_get_hw_spec_ap(hw);
+		if (!rc)
+			rc = mwl8k_init_txqs(hw);
 		if (!rc)
 			rc = mwl8k_cmd_set_hw_spec(hw);
 	} else {
