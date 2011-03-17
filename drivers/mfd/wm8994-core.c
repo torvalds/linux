@@ -97,9 +97,9 @@ int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 EXPORT_SYMBOL_GPL(wm8994_bulk_read);
 
 static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
-			int bytes, void *src)
+			int bytes, const void *src)
 {
-	u16 *buf = src;
+	const u16 *buf = src;
 	int i;
 
 	BUG_ON(bytes % 2);
@@ -146,7 +146,7 @@ EXPORT_SYMBOL_GPL(wm8994_reg_write);
  * @buf: Buffer to write from.  Data must be big-endian formatted.
  */
 int wm8994_bulk_write(struct wm8994 *wm8994, unsigned short reg,
-		      int count, u16 *buf)
+		      int count, const u16 *buf)
 {
 	int ret;
 
@@ -583,7 +583,7 @@ static int wm8994_i2c_read_device(struct wm8994 *wm8994, unsigned short reg,
 }
 
 static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
-				   int bytes, void *src)
+				   int bytes, const void *src)
 {
 	struct i2c_client *i2c = wm8994->control_data;
 	struct i2c_msg xfer[2];
