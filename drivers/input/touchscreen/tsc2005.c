@@ -713,4 +713,5 @@ static void __exit tsc2005_exit(void)
 module_exit(tsc2005_exit);
 
 MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@nokia.com>");
+MODULE_DESCRIPTION("TSC2005 Touchscreen Driver");
 MODULE_LICENSE("GPL");
