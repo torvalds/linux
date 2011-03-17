@@ -187,10 +187,11 @@ MODULE_DEVICE_TABLE(pci, lnw_gpio_ids);
 
 static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct lnw_gpio *lnw = get_irq_data(irq);
-	u32 base, gpio;
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+	struct lnw_gpio *lnw = irq_data_get_irq_handler_data(data);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	u32 base, gpio, gedr_v;
 	void __iomem *gedr;
-	u32 gedr_v;
 
 	/* check GPIO controller to check which pin triggered the interrupt */
 	for (base = 0; base < lnw->chip.ngpio; base += 32) {
@@ -207,11 +208,7 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 		writel(gedr_v, gedr);
 	}
 
-	if (desc->chip->irq_eoi)
-		desc->chip->irq_eoi(irq_get_irq_data(irq));
-	else
-		dev_warn(lnw->chip.dev, "missing EOI handler for irq %d\n", irq);
-
+	chip->irq_eoi(data);
 }
 
 static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
