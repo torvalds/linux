@@ -136,6 +136,7 @@ struct omap_vdd_info {
 	bool vp_enabled;
 
 	s16 prm_irqst_mod;
+	u8 prm_irqst_reg;
 	u32 (*read_reg) (u16 mod, u8 offset);
 	void (*write_reg) (u32 val, u16 mod, u8 offset);
 	int (*volt_scale) (struct omap_vdd_info *vdd,

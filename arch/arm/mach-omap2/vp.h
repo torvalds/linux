@@ -70,16 +70,13 @@ struct omap_vp_common_data {
 
 /**
  * struct omap_vp_prm_irqst_data - PRM_IRQSTATUS_MPU.VP_TRANXDONE_ST data
- * @prm_irqst_reg: reg offset for PRM_IRQSTATUS_MPU from top of PRM
  * @tranxdone_status: VP_TRANXDONE_ST bitmask in PRM_IRQSTATUS_MPU reg
  *
- * XXX prm_irqst_reg does not belong here
  * XXX Note that on OMAP3, VP_TRANXDONE interrupt may not work due to a
  *     hardware bug
  * XXX This structure is probably not needed
  */
 struct omap_vp_prm_irqst_data {
-	u8 prm_irqst_reg;
 	u32 tranxdone_status;
 };
 

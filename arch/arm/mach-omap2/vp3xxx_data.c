@@ -51,7 +51,6 @@ static const struct omap_vp_common_data omap3_vp_common = {
 };
 
 static const struct omap_vp_prm_irqst_data omap3_vp1_prm_irqst_data = {
-	.prm_irqst_reg = OMAP3_PRM_IRQSTATUS_MPU_OFFSET,
 	.tranxdone_status = OMAP3430_VP1_TRANXDONE_ST_MASK,
 };
 
@@ -67,7 +66,6 @@ struct omap_vp_instance_data omap3_vp1_data = {
 };
 
 static const struct omap_vp_prm_irqst_data omap3_vp2_prm_irqst_data = {
-	.prm_irqst_reg = OMAP3_PRM_IRQSTATUS_MPU_OFFSET,
 	.tranxdone_status = OMAP3430_VP2_TRANXDONE_ST_MASK,
 };
 

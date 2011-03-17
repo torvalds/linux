@@ -426,14 +426,12 @@ static int vp_forceupdate_scale_voltage(struct omap_vdd_info *vdd,
 		unsigned long target_volt)
 {
 	u32 vpconfig;
-	u8 target_vsel, current_vsel, prm_irqst_reg;
+	u8 target_vsel, current_vsel;
 	int ret, timeout = 0;
 
 	ret = _pre_volt_scale(vdd, target_volt, &target_vsel, &current_vsel);
 	if (ret)
 		return ret;
-
-	prm_irqst_reg = vdd->vp_data->prm_irqst_data->prm_irqst_reg;
 
 	/*
 	 * Clear all pending TransactionDone interrupt/status. Typical latency
@@ -441,8 +439,8 @@ static int vp_forceupdate_scale_voltage(struct omap_vdd_info *vdd,
 	 */
 	while (timeout++ < VP_TRANXDONE_TIMEOUT) {
 		vdd->write_reg(vdd->vp_data->prm_irqst_data->tranxdone_status,
-			       vdd->prm_irqst_mod, prm_irqst_reg);
-		if (!(vdd->read_reg(vdd->prm_irqst_mod, prm_irqst_reg) &
+			       vdd->prm_irqst_mod, vdd->prm_irqst_reg);
+		if (!(vdd->read_reg(vdd->prm_irqst_mod, vdd->prm_irqst_reg) &
 		      vdd->vp_data->prm_irqst_data->tranxdone_status))
 			break;
 		udelay(1);
@@ -475,7 +473,8 @@ static int vp_forceupdate_scale_voltage(struct omap_vdd_info *vdd,
 	 * Depends on SMPSWAITTIMEMIN/MAX and voltage change
 	 */
 	timeout = 0;
-	omap_test_timeout((vdd->read_reg(vdd->prm_irqst_mod, prm_irqst_reg) &
+	omap_test_timeout((vdd->read_reg(vdd->prm_irqst_mod,
+					 vdd->prm_irqst_reg) &
 			   vdd->vp_data->prm_irqst_data->tranxdone_status),
 			  VP_TRANXDONE_TIMEOUT, timeout);
 	if (timeout >= VP_TRANXDONE_TIMEOUT)
@@ -492,8 +491,8 @@ static int vp_forceupdate_scale_voltage(struct omap_vdd_info *vdd,
 	timeout = 0;
 	while (timeout++ < VP_TRANXDONE_TIMEOUT) {
 		vdd->write_reg(vdd->vp_data->prm_irqst_data->tranxdone_status,
-			       vdd->prm_irqst_mod, prm_irqst_reg);
-		if (!(vdd->read_reg(vdd->prm_irqst_mod, prm_irqst_reg) &
+			       vdd->prm_irqst_mod, vdd->prm_irqst_reg);
+		if (!(vdd->read_reg(vdd->prm_irqst_mod, vdd->prm_irqst_reg) &
 		      vdd->vp_data->prm_irqst_data->tranxdone_status))
 			break;
 		udelay(1);

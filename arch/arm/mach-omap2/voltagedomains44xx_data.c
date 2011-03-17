@@ -38,6 +38,7 @@ static const struct omap_vfsm_instance_data omap4_vdd_mpu_vfsm_data = {
 
 static struct omap_vdd_info omap4_vdd_mpu_info = {
 	.prm_irqst_mod = OMAP4430_PRM_OCP_SOCKET_INST,
+	.prm_irqst_reg = OMAP4_PRM_IRQSTATUS_MPU_2_OFFSET,
 	.vp_data = &omap4_vp_mpu_data,
 	.vc_data = &omap4_vc_mpu_data,
 	.vfsm = &omap4_vdd_mpu_vfsm_data,
@@ -52,6 +53,7 @@ static const struct omap_vfsm_instance_data omap4_vdd_iva_vfsm_data = {
 
 static struct omap_vdd_info omap4_vdd_iva_info = {
 	.prm_irqst_mod = OMAP4430_PRM_OCP_SOCKET_INST,
+	.prm_irqst_reg = OMAP4_PRM_IRQSTATUS_MPU_OFFSET,
 	.vp_data = &omap4_vp_iva_data,
 	.vc_data = &omap4_vc_iva_data,
 	.vfsm = &omap4_vdd_iva_vfsm_data,
@@ -66,6 +68,7 @@ static const struct omap_vfsm_instance_data omap4_vdd_core_vfsm_data = {
 
 static struct omap_vdd_info omap4_vdd_core_info = {
 	.prm_irqst_mod = OMAP4430_PRM_OCP_SOCKET_INST,
+	.prm_irqst_reg = OMAP4_PRM_IRQSTATUS_MPU_OFFSET,
 	.vp_data = &omap4_vp_core_data,
 	.vc_data = &omap4_vc_core_data,
 	.vfsm = &omap4_vdd_core_vfsm_data,
