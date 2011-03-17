@@ -148,16 +148,13 @@ struct tsc2005 {
 
 static void tsc2005_cmd(struct tsc2005 *ts, u8 cmd)
 {
-	u8 tx;
+	u8 tx = TSC2005_CMD | TSC2005_CMD_12BIT | cmd;
+	struct spi_transfer xfer = {
+		.tx_buf		= &tx,
+		.len		= 1,
+		.bits_per_word	= 8,
+	};
 	struct spi_message msg;
-	struct spi_transfer xfer = { 0 };
-
-	tx = TSC2005_CMD | TSC2005_CMD_12BIT | cmd;
-
-	xfer.tx_buf = &tx;
-	xfer.rx_buf = NULL;
-	xfer.len = 1;
-	xfer.bits_per_word = 8;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -166,17 +163,13 @@ static void tsc2005_cmd(struct tsc2005 *ts, u8 cmd)
 
 static void tsc2005_write(struct tsc2005 *ts, u8 reg, u16 value)
 {
-	u32 tx;
+	u32 tx = ((reg | TSC2005_REG_PND0) << 16) | value;
+	struct spi_transfer xfer = {
+		.tx_buf		= &tx,
+		.len		= 4,
+		.bits_per_word	= 24,
+	};
 	struct spi_message msg;
-	struct spi_transfer xfer = { 0 };
-
-	tx = (reg | TSC2005_REG_PND0) << 16;
-	tx |= value;
-
-	xfer.tx_buf = &tx;
-	xfer.rx_buf = NULL;
-	xfer.len = 4;
-	xfer.bits_per_word = 24;
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -185,6 +178,8 @@ static void tsc2005_write(struct tsc2005 *ts, u8 reg, u16 value)
 
 static void tsc2005_setup_read(struct tsc2005_spi_rd *rd, u8 reg, bool last)
 {
+	memset(rd, 0, sizeof(*rd));
+
 	rd->spi_tx		   = (reg | TSC2005_REG_READ) << 16;
 	rd->spi_xfer.tx_buf	   = &rd->spi_tx;
 	rd->spi_xfer.rx_buf	   = &rd->spi_rx;
@@ -195,14 +190,15 @@ static void tsc2005_setup_read(struct tsc2005_spi_rd *rd, u8 reg, bool last)
 
 static void tsc2005_read(struct tsc2005 *ts, u8 reg, u16 *value)
 {
+	struct tsc2005_spi_rd spi_rd;
 	struct spi_message msg;
-	struct tsc2005_spi_rd spi_rd = { { 0 }, 0, 0 };
 
 	tsc2005_setup_read(&spi_rd, reg, true);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&spi_rd.spi_xfer, &msg);
 	spi_sync(ts->spi, &msg);
+
 	*value = spi_rd.spi_rx;
 }
 
