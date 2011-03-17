@@ -555,6 +555,7 @@ static int __devinit tsc2005_setup(struct tsc2005 *ts,
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input-ts",
 		 dev_name(&ts->spi->dev));
 	ts->idev->phys = ts->phys;
+	ts->idev->id.bustype = BUS_SPI;
 	ts->idev->dev.parent = &ts->spi->dev;
 	ts->idev->evbit[0] = BIT(EV_ABS) | BIT(EV_KEY);
 	ts->idev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
