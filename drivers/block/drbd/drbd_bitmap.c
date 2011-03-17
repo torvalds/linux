@@ -28,6 +28,9 @@
 #include <linux/drbd.h>
 #include <linux/slab.h>
 #include <asm/kmap_types.h>
+
+#include <asm-generic/bitops/le.h>
+
 #include "drbd_int.h"
 
 
