@@ -93,8 +93,6 @@ struct mdk_rdev_s
 #define	Faulty		1		/* device is known to have a fault */
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
-#define	AllReserved	6		/* If whole device is reserved for
-					 * one array */
 #define	AutoDetected	7		/* added by auto-detect */
 #define Blocked		8		/* An error occured on an externally
 					 * managed array, don't allow writes
@@ -276,6 +274,8 @@ struct mddev_s
 	atomic_t			active;		/* general refcount */
 	atomic_t			openers;	/* number of active opens */
 
+	int				changed;	/* True if we might need to
+							 * reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */

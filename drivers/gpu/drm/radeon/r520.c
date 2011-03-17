@@ -79,8 +79,8 @@ static void r520_gpu_init(struct radeon_device *rdev)
 		WREG32(0x4128, 0xFF);
 	}
 	r420_pipes_init(rdev);
-	gb_pipe_select = RREG32(0x402C);
-	tmp = RREG32(0x170C);
+	gb_pipe_select = RREG32(R400_GB_PIPE_SELECT);
+	tmp = RREG32(R300_DST_PIPE_CONFIG);
 	pipe_select_current = (tmp >> 2) & 3;
 	tmp = (1 << pipe_select_current) |
 	      (((gb_pipe_select >> 8) & 0xF) << 4);

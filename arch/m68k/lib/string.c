@@ -243,14 +243,3 @@ void *memmove(void *dest, const void *src, size_t n)
 	return xdest;
 }
 EXPORT_SYMBOL(memmove);
-
-int memcmp(const void *cs, const void *ct, size_t count)
-{
-	const unsigned char *su1, *su2;
-
-	for (su1 = cs, su2 = ct; count > 0; ++su1, ++su2, count--)
-		if (*su1 != *su2)
-			return *su1 < *su2 ? -1 : +1;
-	return 0;
-}
-EXPORT_SYMBOL(memcmp);

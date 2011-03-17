@@ -187,7 +187,7 @@ tcp_cookie_size - INTEGER
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
-tcp_ecn - BOOLEAN
+tcp_ecn - INTEGER
 	Enable Explicit Congestion Notification (ECN) in TCP. ECN is only
 	used when both ends of the TCP flow support it. It is useful to
 	avoid losses due to congestion (when the bottleneck router supports

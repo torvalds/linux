@@ -337,7 +337,12 @@ xfs_iomap_prealloc_size(
 		int shift = 0;
 		int64_t freesp;
 
-		alloc_blocks = XFS_B_TO_FSB(mp, ip->i_size);
+		/*
+		 * rounddown_pow_of_two() returns an undefined result
+		 * if we pass in alloc_blocks = 0. Hence the "+ 1" to
+		 * ensure we always pass in a non-zero value.
+		 */
+		alloc_blocks = XFS_B_TO_FSB(mp, ip->i_size) + 1;
 		alloc_blocks = XFS_FILEOFF_MIN(MAXEXTLEN,
 					rounddown_pow_of_two(alloc_blocks));
 

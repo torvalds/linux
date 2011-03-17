@@ -153,7 +153,7 @@ static struct notifier_block vfp_notifier_block = {
  * Raise a SIGFPE for the current process.
  * sicode describes the signal being raised.
  */
-void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
+static void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 {
 	siginfo_t info;
 
@@ -489,8 +489,11 @@ void vfp_flush_hwstate(struct thread_info *thread)
 
 /*
  * VFP hardware can lose all context when a CPU goes offline.
- * Safely clear our held state when a CPU has been killed, and
- * re-enable access to VFP when the CPU comes back online.
+ * As we will be running in SMP mode with CPU hotplug, we will save the
+ * hardware state at every thread switch.  We clear our held state when
+ * a CPU has been killed, indicating that the VFP hardware doesn't contain
+ * a threads VFP state.  When a CPU starts up, we re-enable access to the
+ * VFP hardware.
  *
  * Both CPU_DYING and CPU_STARTING are called on the CPU which
  * is being offlined/onlined.

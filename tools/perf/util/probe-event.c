@@ -172,7 +172,7 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 	sym = __find_kernel_function_by_name(tp->symbol, &map);
 	if (sym) {
 		addr = map->unmap_ip(map, sym->start + tp->offset);
-		pr_debug("try to find %s+%ld@%llx\n", tp->symbol,
+		pr_debug("try to find %s+%ld@%" PRIx64 "\n", tp->symbol,
 			 tp->offset, addr);
 		ret = find_perf_probe_point((unsigned long)addr, pp);
 	}

@@ -169,11 +169,11 @@ static int __init pdc_console_tty_driver_init(void)
 
 	struct console *tmp;
 
-	acquire_console_sem();
+	console_lock();
 	for_each_console(tmp)
 		if (tmp == &pdc_cons)
 			break;
-	release_console_sem();
+	console_unlock();
 
 	if (!tmp) {
 		printk(KERN_INFO "PDC console driver not registered anymore, not creating %s\n", pdc_cons.name);

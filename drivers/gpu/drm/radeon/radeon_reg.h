@@ -375,6 +375,8 @@
 #define RADEON_CONFIG_APER_SIZE             0x0108
 #define RADEON_CONFIG_BONDS                 0x00e8
 #define RADEON_CONFIG_CNTL                  0x00e0
+#       define RADEON_CFG_VGA_RAM_EN        (1 << 8)
+#       define RADEON_CFG_VGA_IO_DIS        (1 << 9)
 #       define RADEON_CFG_ATI_REV_A11       (0   << 16)
 #       define RADEON_CFG_ATI_REV_A12       (1   << 16)
 #       define RADEON_CFG_ATI_REV_A13       (2   << 16)

@@ -209,11 +209,8 @@ static void wl_ops_stop(struct ieee80211_hw *hw)
 	struct wl_info *wl = hw->priv;
 	ASSERT(wl);
 	WL_LOCK(wl);
-	wl_down(wl);
 	ieee80211_stop_queues(hw);
 	WL_UNLOCK(wl);
-
-	return;
 }
 
 static int
@@ -246,7 +243,14 @@ wl_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 static void
 wl_ops_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	return;
+	struct wl_info *wl;
+
+	wl = HW_TO_WL(hw);
+
+	/* put driver in down state */
+	WL_LOCK(wl);
+	wl_down(wl);
+	WL_UNLOCK(wl);
 }
 
 static int
@@ -259,9 +263,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 	switch (type) {
 	case NL80211_CHAN_HT20:
 	case NL80211_CHAN_NO_HT:
-		WL_LOCK(wl);
 		err = wlc_set(wl->wlc, WLC_SET_CHANNEL, chan->hw_value);
-		WL_UNLOCK(wl);
 		break;
 	case NL80211_CHAN_HT40MINUS:
 	case NL80211_CHAN_HT40PLUS:
@@ -281,6 +283,7 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 	int err = 0;
 	int new_int;
 
+	WL_LOCK(wl);
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
 		WL_NONE("%s: Setting listen interval to %d\n",
 			__func__, conf->listen_interval);
@@ -337,6 +340,7 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
  config_out:
+	WL_UNLOCK(wl);
 	return err;
 }
 
@@ -455,13 +459,21 @@ wl_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 static void wl_ops_sw_scan_start(struct ieee80211_hw *hw)
 {
+	struct wl_info *wl = hw->priv;
 	WL_NONE("Scan Start\n");
+	WL_LOCK(wl);
+	wlc_scan_start(wl->wlc);
+	WL_UNLOCK(wl);
 	return;
 }
 
 static void wl_ops_sw_scan_complete(struct ieee80211_hw *hw)
 {
+	struct wl_info *wl = hw->priv;
 	WL_NONE("Scan Complete\n");
+	WL_LOCK(wl);
+	wlc_scan_stop(wl->wlc);
+	WL_UNLOCK(wl);
 	return;
 }
 
@@ -779,7 +791,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	wl_found++;
 	return wl;
 
- fail:
+fail:
 	wl_free(wl);
 fail1:
 	return NULL;
@@ -1090,7 +1102,6 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 }
 
-#ifdef LINUXSTA_PS
 static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct wl_info *wl;
@@ -1105,11 +1116,12 @@ static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 		return -ENODEV;
 	}
 
+	/* only need to flag hw is down for proper resume */
 	WL_LOCK(wl);
-	wl_down(wl);
 	wl->pub->hw_up = false;
 	WL_UNLOCK(wl);
-	pci_save_state(pdev, wl->pci_psstate);
+
+	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	return pci_set_power_state(pdev, PCI_D3hot);
 }
@@ -1133,7 +1145,7 @@ static int wl_resume(struct pci_dev *pdev)
 	if (err)
 		return err;
 
-	pci_restore_state(pdev, wl->pci_psstate);
+	pci_restore_state(pdev);
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1145,13 +1157,12 @@ static int wl_resume(struct pci_dev *pdev)
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
 
-	WL_LOCK(wl);
-	err = wl_up(wl);
-	WL_UNLOCK(wl);
-
+	/*
+	*  done. driver will be put in up state
+	*  in wl_ops_add_interface() call.
+	*/
 	return err;
 }
-#endif				/* LINUXSTA_PS */
 
 static void wl_remove(struct pci_dev *pdev)
 {
@@ -1184,14 +1195,12 @@ static void wl_remove(struct pci_dev *pdev)
 }
 
 static struct pci_driver wl_pci_driver = {
- .name  = "brcm80211",
- .probe = wl_pci_probe,
-#ifdef LINUXSTA_PS
- .suspend = wl_suspend,
- .resume  = wl_resume,
-#endif				/* LINUXSTA_PS */
- .remove   = __devexit_p(wl_remove),
- .id_table = wl_id_table,
+	.name = "brcm80211",
+	.probe = wl_pci_probe,
+	.suspend = wl_suspend,
+	.resume = wl_resume,
+	.remove = __devexit_p(wl_remove),
+	.id_table = wl_id_table,
 };
 
 /**

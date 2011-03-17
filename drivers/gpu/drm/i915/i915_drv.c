@@ -46,6 +46,12 @@ module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
 
+unsigned int i915_semaphores = 0;
+module_param_named(semaphores, i915_semaphores, int, 0600);
+
+unsigned int i915_enable_rc6 = 0;
+module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
+
 unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
@@ -60,7 +66,7 @@ extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
 	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
-	.class_mask = 0xffff00,			\
+	.class_mask = 0xff0000,			\
 	.vendor = 0x8086,			\
 	.device = id,				\
 	.subvendor = PCI_ANY_ID,		\
@@ -251,7 +257,7 @@ void intel_detect_pch (struct drm_device *dev)
 	}
 }
 
-void __gen6_force_wake_get(struct drm_i915_private *dev_priv)
+void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	int count;
 
@@ -267,10 +273,20 @@ void __gen6_force_wake_get(struct drm_i915_private *dev_priv)
 		udelay(10);
 }
 
-void __gen6_force_wake_put(struct drm_i915_private *dev_priv)
+void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
 	POSTING_READ(FORCEWAKE);
+}
+
+void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+{
+	int loop = 500;
+	u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	while (fifo < 20 && loop--) {
+		udelay(10);
+		fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	}
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -354,12 +370,13 @@ static int i915_drm_thaw(struct drm_device *dev)
 		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
+		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
 
-		if (dev_priv->renderctx && dev_priv->pwrctx)
+		if (IS_IRONLAKE_M(dev))
 			ironlake_enable_rc6(dev);
 	}
 
@@ -542,6 +559,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
+		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 		mutex_lock(&dev->struct_mutex);
 	}
@@ -566,6 +584,14 @@ int i915_reset(struct drm_device *dev, u8 flags)
 static int __devinit
 i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	/* Only bind to function 0 of the device. Early generations
+	 * used function 1 as a placeholder for multi-head. This causes
+	 * us confusion instead, especially on the systems where both
+	 * functions have the same PCI-ID!
+	 */
+	if (PCI_FUNC(pdev->devfn))
+		return -ENODEV;
+
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
@@ -751,6 +777,9 @@ static int __init i915_init(void)
 	if (vgacon_text_force() && i915_modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
+
+	if (!(driver.driver_features & DRIVER_MODESET))
+		driver.get_vblank_timestamp = NULL;
 
 	return drm_init(&driver);
 }

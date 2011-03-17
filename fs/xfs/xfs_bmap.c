@@ -1038,17 +1038,34 @@ xfs_bmap_add_extent_delay_real(
 		 * Filling in the middle part of a previous delayed allocation.
 		 * Contiguity is impossible here.
 		 * This case is avoided almost all the time.
+		 *
+		 * We start with a delayed allocation:
+		 *
+		 * +ddddddddddddddddddddddddddddddddddddddddddddddddddddddd+
+		 *  PREV @ idx
+		 *
+	         * and we are allocating:
+		 *                     +rrrrrrrrrrrrrrrrr+
+		 *			      new
+		 *
+		 * and we set it up for insertion as:
+		 * +ddddddddddddddddddd+rrrrrrrrrrrrrrrrr+ddddddddddddddddd+
+		 *                            new
+		 *  PREV @ idx          LEFT              RIGHT
+		 *                      inserted at idx + 1
 		 */
 		temp = new->br_startoff - PREV.br_startoff;
-		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
-		xfs_bmbt_set_blockcount(ep, temp);
-		r[0] = *new;
-		r[1].br_state = PREV.br_state;
-		r[1].br_startblock = 0;
-		r[1].br_startoff = new_endoff;
 		temp2 = PREV.br_startoff + PREV.br_blockcount - new_endoff;
-		r[1].br_blockcount = temp2;
-		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
+		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
+		xfs_bmbt_set_blockcount(ep, temp);	/* truncate PREV */
+		LEFT = *new;
+		RIGHT.br_state = PREV.br_state;
+		RIGHT.br_startblock = nullstartblock(
+				(int)xfs_bmap_worst_indlen(ip, temp2));
+		RIGHT.br_startoff = new_endoff;
+		RIGHT.br_blockcount = temp2;
+		/* insert LEFT (r[0]) and RIGHT (r[1]) at the same time */
+		xfs_iext_insert(ip, idx + 1, 2, &LEFT, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -2430,7 +2447,7 @@ xfs_bmap_btalloc_nullfb(
 		startag = ag = 0;
 
 	pag = xfs_perag_get(mp, ag);
-	while (*blen < ap->alen) {
+	while (*blen < args->maxlen) {
 		if (!pag->pagf_init) {
 			error = xfs_alloc_pagf_init(mp, args->tp, ag,
 						    XFS_ALLOC_FLAG_TRYLOCK);
@@ -2452,7 +2469,7 @@ xfs_bmap_btalloc_nullfb(
 			notinit = 1;
 
 		if (xfs_inode_is_filestream(ap->ip)) {
-			if (*blen >= ap->alen)
+			if (*blen >= args->maxlen)
 				break;
 
 			if (ap->userdata) {
@@ -2498,14 +2515,14 @@ xfs_bmap_btalloc_nullfb(
 	 * If the best seen length is less than the request
 	 * length, use the best as the minimum.
 	 */
-	else if (*blen < ap->alen)
+	else if (*blen < args->maxlen)
 		args->minlen = *blen;
 	/*
-	 * Otherwise we've seen an extent as big as alen,
+	 * Otherwise we've seen an extent as big as maxlen,
 	 * use that as the minimum.
 	 */
 	else
-		args->minlen = ap->alen;
+		args->minlen = args->maxlen;
 
 	/*
 	 * set the failure fallback case to look in the selected
@@ -2573,7 +2590,9 @@ xfs_bmap_btalloc(
 	args.tp = ap->tp;
 	args.mp = mp;
 	args.fsbno = ap->rval;
-	args.maxlen = MIN(ap->alen, mp->m_sb.sb_agblocks);
+
+	/* Trim the allocation back to the maximum an AG can fit. */
+	args.maxlen = MIN(ap->alen, XFS_ALLOC_AG_MAX_USABLE(mp));
 	args.firstblock = ap->firstblock;
 	blen = 0;
 	if (nullfb) {
@@ -2621,7 +2640,7 @@ xfs_bmap_btalloc(
 			/*
 			 * Adjust for alignment
 			 */
-			if (blen > args.alignment && blen <= ap->alen)
+			if (blen > args.alignment && blen <= args.maxlen)
 				args.minlen = blen - args.alignment;
 			args.minalignslop = 0;
 		} else {
@@ -2640,7 +2659,7 @@ xfs_bmap_btalloc(
 			 * of minlen+alignment+slop doesn't go up
 			 * between the calls.
 			 */
-			if (blen > mp->m_dalign && blen <= ap->alen)
+			if (blen > mp->m_dalign && blen <= args.maxlen)
 				nextminlen = blen - mp->m_dalign;
 			else
 				nextminlen = args.minlen;
@@ -4485,6 +4504,16 @@ xfs_bmapi(
 				/* Figure out the extent size, adjust alen */
 				extsz = xfs_get_extsz_hint(ip);
 				if (extsz) {
+					/*
+					 * make sure we don't exceed a single
+					 * extent length when we align the
+					 * extent by reducing length we are
+					 * going to allocate by the maximum
+					 * amount extent size aligment may
+					 * require.
+					 */
+					alen = XFS_FILBLKS_MIN(len,
+						   MAXEXTLEN - (2 * extsz - 1));
 					error = xfs_bmap_extsize_align(mp,
 							&got, &prev, extsz,
 							rt, eof,

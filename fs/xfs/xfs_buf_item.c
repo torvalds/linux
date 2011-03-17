@@ -427,13 +427,15 @@ xfs_buf_item_unpin(
 
 		if (remove) {
 			/*
-			 * We have to remove the log item from the transaction
-			 * as we are about to release our reference to the
-			 * buffer.  If we don't, the unlock that occurs later
-			 * in xfs_trans_uncommit() will ry to reference the
+			 * If we are in a transaction context, we have to
+			 * remove the log item from the transaction as we are
+			 * about to release our reference to the buffer.  If we
+			 * don't, the unlock that occurs later in
+			 * xfs_trans_uncommit() will try to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			xfs_trans_del_item(lip);
+			if (lip->li_desc)
+				xfs_trans_del_item(lip);
 
 			/*
 			 * Since the transaction no longer refers to the buffer,

@@ -240,26 +240,6 @@ static int vr41xx_rtc_irq_set_state(struct device *dev, int enabled)
 static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
-	case RTC_AIE_ON:
-		spin_lock_irq(&rtc_lock);
-
-		if (!alarm_enabled) {
-			enable_irq(aie_irq);
-			alarm_enabled = 1;
-		}
-
-		spin_unlock_irq(&rtc_lock);
-		break;
-	case RTC_AIE_OFF:
-		spin_lock_irq(&rtc_lock);
-
-		if (alarm_enabled) {
-			disable_irq(aie_irq);
-			alarm_enabled = 0;
-		}
-
-		spin_unlock_irq(&rtc_lock);
-		break;
 	case RTC_EPOCH_READ:
 		return put_user(epoch, (unsigned long __user *)arg);
 	case RTC_EPOCH_SET:
@@ -272,6 +252,24 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 		return -ENOIOCTLCMD;
 	}
 
+	return 0;
+}
+
+static int vr41xx_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	spin_lock_irq(&rtc_lock);
+	if (enabled) {
+		if (!alarm_enabled) {
+			enable_irq(aie_irq);
+			alarm_enabled = 1;
+		}
+	} else {
+		if (alarm_enabled) {
+			disable_irq(aie_irq);
+			alarm_enabled = 0;
+		}
+	}
+	spin_unlock_irq(&rtc_lock);
 	return 0;
 }
 

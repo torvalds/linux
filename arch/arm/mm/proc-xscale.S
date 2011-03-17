@@ -513,10 +513,48 @@ ENTRY(cpu_xscale_set_pte_ext)
 	xscale_set_pte_ext_epilogue
 	mov	pc, lr
 
-
 	.ltorg
-
 	.align
+
+.globl	cpu_xscale_suspend_size
+.equ	cpu_xscale_suspend_size, 4 * 7
+#ifdef CONFIG_PM
+ENTRY(cpu_xscale_do_suspend)
+	stmfd	sp!, {r4 - r10, lr}
+	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
+	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
+	mrc	p15, 0, r6, c13, c0, 0	@ PID
+	mrc	p15, 0, r7, c3, c0, 0	@ domain ID
+	mrc	p15, 0, r8, c2, c0, 0	@ translation table base addr
+	mrc	p15, 0, r9, c1, c1, 0	@ auxiliary control reg
+	mrc	p15, 0, r10, c1, c0, 0	@ control reg
+	bic	r4, r4, #2		@ clear frequency change bit
+	stmia	r0, {r4 - r10}		@ store cp regs
+	ldmfd	sp!, {r4 - r10, pc}
+ENDPROC(cpu_xscale_do_suspend)
+
+ENTRY(cpu_xscale_do_resume)
+	ldmia	r0, {r4 - r10}		@ load cp regs
+	mov	ip, #0
+	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I & D TLBs
+	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
+	mcr	p14, 0, r4, c6, c0, 0	@ clock configuration, turbo mode.
+	mcr	p15, 0, r5, c15, c1, 0	@ CP access reg
+	mcr	p15, 0, r6, c13, c0, 0	@ PID
+	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
+	mcr	p15, 0, r8, c2, c0, 0	@ translation table base addr
+	mcr	p15, 0, r9, c1, c1, 0	@ auxiliary control reg
+	mov	r0, r10			@ control register
+	mov	r2, r8, lsr #14		@ get TTB0 base
+	mov	r2, r2, lsl #14
+	ldr	r3, =PMD_TYPE_SECT | PMD_SECT_BUFFERABLE | \
+		     PMD_SECT_CACHEABLE | PMD_SECT_AP_WRITE
+	b	cpu_resume_mmu
+ENDPROC(cpu_xscale_do_resume)
+#else
+#define cpu_xscale_do_suspend	0
+#define cpu_xscale_do_resume	0
+#endif
 
 	__CPUINIT
 
@@ -565,6 +603,9 @@ ENTRY(xscale_processor_functions)
 	.word	cpu_xscale_dcache_clean_area
 	.word	cpu_xscale_switch_mm
 	.word	cpu_xscale_set_pte_ext
+	.word	cpu_xscale_suspend_size
+	.word	cpu_xscale_do_suspend
+	.word	cpu_xscale_do_resume
 	.size	xscale_processor_functions, . - xscale_processor_functions
 
 	.section ".rodata"

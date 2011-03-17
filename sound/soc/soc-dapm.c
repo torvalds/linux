@@ -712,7 +712,15 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 		    !path->connected(path->source, path->sink))
 			continue;
 
-		if (path->sink && path->sink->power_check &&
+		if (!path->sink)
+			continue;
+
+		if (path->sink->force) {
+			power = 1;
+			break;
+		}
+
+		if (path->sink->power_check &&
 		    path->sink->power_check(path->sink)) {
 			power = 1;
 			break;
@@ -1627,6 +1635,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_add_routes);
 int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_dapm_widget *w;
+	unsigned int val;
 
 	list_for_each_entry(w, &dapm->card->widgets, list)
 	{
@@ -1675,6 +1684,18 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		case snd_soc_dapm_post:
 			break;
 		}
+
+		/* Read the initial power state from the device */
+		if (w->reg >= 0) {
+			val = snd_soc_read(w->codec, w->reg);
+			val &= 1 << w->shift;
+			if (w->invert)
+				val = !val;
+
+			if (val)
+				w->power = 1;
+		}
+
 		w->new = 1;
 	}
 
@@ -1742,7 +1763,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned int val, val_mask;
+	unsigned int val;
 	int connect, change;
 	struct snd_soc_dapm_update update;
 
@@ -1750,13 +1771,13 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 
 	if (invert)
 		val = max - val;
-	val_mask = mask << shift;
+	mask = mask << shift;
 	val = val << shift;
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 
-	change = snd_soc_test_bits(widget->codec, reg, val_mask, val);
+	change = snd_soc_test_bits(widget->codec, reg, mask, val);
 	if (change) {
 		if (val)
 			/* new connection */

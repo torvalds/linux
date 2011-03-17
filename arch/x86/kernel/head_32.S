@@ -85,6 +85,8 @@ RESERVE_BRK(pagetables, INIT_MAP_SIZE)
  */
 __HEAD
 ENTRY(startup_32)
+	movl pa(stack_start),%ecx
+	
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
 	testb $(1<<6), BP_loadflags(%esi)
@@ -99,7 +101,9 @@ ENTRY(startup_32)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
+	movl %eax,%ss
 2:
+	leal -__PAGE_OFFSET(%ecx),%esp
 
 /*
  * Clear BSS first so that there are no surprises...
@@ -145,8 +149,6 @@ ENTRY(startup_32)
  * _brk_end is set up to point to the first "safe" location.
  * Mappings are created both at virtual address 0 (identity mapping)
  * and PAGE_OFFSET for up to _end.
- *
- * Note that the stack is not yet set up!
  */
 #ifdef CONFIG_X86_PAE
 
@@ -282,6 +284,9 @@ ENTRY(startup_32_smp)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
+	movl pa(stack_start),%ecx
+	movl %eax,%ss
+	leal -__PAGE_OFFSET(%ecx),%esp
 #endif /* CONFIG_SMP */
 default_entry:
 
@@ -347,8 +352,8 @@ default_entry:
 	movl %eax,%cr0		/* ..and set paging (PG) bit */
 	ljmp $__BOOT_CS,$1f	/* Clear prefetch and normalize %eip */
 1:
-	/* Set up the stack pointer */
-	lss stack_start,%esp
+	/* Shift the stack pointer to a virtual address */
+	addl $__PAGE_OFFSET, %esp
 
 /*
  * Initialize eflags.  Some BIOS's leave bits like NT set.  This would
@@ -360,9 +365,7 @@ default_entry:
 
 #ifdef CONFIG_SMP
 	cmpb $0, ready
-	jz  1f				/* Initial CPU cleans BSS */
-	jmp checkCPUtype
-1:
+	jnz checkCPUtype
 #endif /* CONFIG_SMP */
 
 /*
@@ -470,14 +473,7 @@ is386:	movl $2,%ecx		# set MP
 
 	cld			# gcc2 wants the direction flag cleared at all times
 	pushl $0		# fake return address for unwinder
-#ifdef CONFIG_SMP
-	movb ready, %cl
 	movb $1, ready
-	cmpb $0,%cl		# the first CPU calls start_kernel
-	je   1f
-	movl (stack_start), %esp
-1:
-#endif /* CONFIG_SMP */
 	jmp *(initial_code)
 
 /*
@@ -670,14 +666,14 @@ ENTRY(initial_page_table)
 #endif
 
 .data
+.balign 4
 ENTRY(stack_start)
 	.long init_thread_union+THREAD_SIZE
-	.long __BOOT_DS
-
-ready:	.byte 0
 
 early_recursion_flag:
 	.long 0
+
+ready:	.byte 0
 
 int_msg:
 	.asciz "Unknown interrupt or fault at: %p %p %p\n"

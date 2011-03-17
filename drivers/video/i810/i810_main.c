@@ -1574,7 +1574,7 @@ static int i810fb_suspend(struct pci_dev *dev, pm_message_t mesg)
 		return 0;
 	}
 
-	acquire_console_sem();
+	console_lock();
 	fb_set_suspend(info, 1);
 
 	if (info->fbops->fb_sync)
@@ -1587,7 +1587,7 @@ static int i810fb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	pci_save_state(dev);
 	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, mesg));
-	release_console_sem();
+	console_unlock();
 
 	return 0;
 }
@@ -1605,7 +1605,7 @@ static int i810fb_resume(struct pci_dev *dev)
 		return 0;
 	}
 
-	acquire_console_sem();
+	console_lock();
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
 
@@ -1621,7 +1621,7 @@ static int i810fb_resume(struct pci_dev *dev)
 	fb_set_suspend (info, 0);
 	info->fbops->fb_blank(VESA_NO_BLANKING, info);
 fail:
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
 /***********************************************************************

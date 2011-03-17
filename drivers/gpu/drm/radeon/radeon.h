@@ -179,10 +179,10 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
 void rs690_pm_info(struct radeon_device *rdev);
-extern u32 rv6xx_get_temp(struct radeon_device *rdev);
-extern u32 rv770_get_temp(struct radeon_device *rdev);
-extern u32 evergreen_get_temp(struct radeon_device *rdev);
-extern u32 sumo_get_temp(struct radeon_device *rdev);
+extern int rv6xx_get_temp(struct radeon_device *rdev);
+extern int rv770_get_temp(struct radeon_device *rdev);
+extern int evergreen_get_temp(struct radeon_device *rdev);
+extern int sumo_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -812,8 +812,7 @@ struct radeon_pm {
 	fixed20_12		sclk;
 	fixed20_12		mclk;
 	fixed20_12		needed_bandwidth;
-	/* XXX: use a define for num power modes */
-	struct radeon_power_state power_state[8];
+	struct radeon_power_state *power_state;
 	/* number of valid power states */
 	int                     num_power_states;
 	int                     current_power_state_index;

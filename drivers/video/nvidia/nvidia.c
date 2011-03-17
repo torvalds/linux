@@ -1057,7 +1057,7 @@ static int nvidiafb_suspend(struct pci_dev *dev, pm_message_t mesg)
 
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
-	acquire_console_sem();
+	console_lock();
 	par->pm_state = mesg.event;
 
 	if (mesg.event & PM_EVENT_SLEEP) {
@@ -1070,7 +1070,7 @@ static int nvidiafb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	}
 	dev->dev.power.power_state = mesg;
 
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
 
@@ -1079,7 +1079,7 @@ static int nvidiafb_resume(struct pci_dev *dev)
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct nvidia_par *par = info->par;
 
-	acquire_console_sem();
+	console_lock();
 	pci_set_power_state(dev, PCI_D0);
 
 	if (par->pm_state != PM_EVENT_FREEZE) {
@@ -1097,7 +1097,7 @@ static int nvidiafb_resume(struct pci_dev *dev)
 	nvidiafb_blank(FB_BLANK_UNBLANK, info);
 
 fail:
-	release_console_sem();
+	console_unlock();
 	return 0;
 }
 #else
