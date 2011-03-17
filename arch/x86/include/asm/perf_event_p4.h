@@ -1,5 +1,5 @@
 /*
- * Netburst Perfomance Events (P4, old Xeon)
+ * Netburst Performance Events (P4, old Xeon)
  */
 
 #ifndef PERF_EVENT_P4_H
@@ -9,7 +9,7 @@
 #include <linux/bitops.h>
 
 /*
- * NetBurst has perfomance MSRs shared between
+ * NetBurst has performance MSRs shared between
  * threads if HT is turned on, ie for both logical
  * processors (mem: in turn in Atom with HT support
  * perf-MSRs are not shared and every thread has its

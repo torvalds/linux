@@ -1111,7 +1111,7 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 
 	/*
 	 * If group events scheduling transaction was started,
-	 * skip the schedulability test here, it will be peformed
+	 * skip the schedulability test here, it will be performed
 	 * at commit time (->commit_txn) as a whole
 	 */
 	if (cpuc->group_flag & PERF_EVENT_TXN)

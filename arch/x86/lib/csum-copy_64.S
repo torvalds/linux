@@ -152,7 +152,7 @@ ENTRY(csum_partial_copy_generic)
 
 	adcq  %r9,%rax
 
-	/* do last upto 56 bytes */
+	/* do last up to 56 bytes */
 .Lhandle_tail:
 	/* ecx:	count */
 	movl %ecx,%r10d
@@ -180,7 +180,7 @@ ENTRY(csum_partial_copy_generic)
 	addl %ebx,%eax
 	adcl %r9d,%eax
 
-	/* do last upto 6 bytes */	
+	/* do last up to 6 bytes */	
 .Lhandle_7:
 	movl %r10d,%ecx
 	andl $7,%ecx

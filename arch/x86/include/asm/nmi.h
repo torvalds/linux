@@ -29,8 +29,8 @@ void arch_trigger_all_cpu_backtrace(void);
  * external nmis, because the local ones are more frequent.
  *
  * Also setup some default high/normal/low settings for
- * subsystems to registers with.  Using 4 bits to seperate
- * the priorities.  This can go alot higher if needed be.
+ * subsystems to registers with.  Using 4 bits to separate
+ * the priorities.  This can go a lot higher if needed be.
  */
 
 #define NMI_LOCAL_SHIFT		16	/* randomly picked */

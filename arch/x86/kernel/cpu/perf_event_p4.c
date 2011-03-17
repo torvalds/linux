@@ -1,5 +1,5 @@
 /*
- * Netburst Perfomance Events (P4, old Xeon)
+ * Netburst Performance Events (P4, old Xeon)
  *
  *  Copyright (C) 2010 Parallels, Inc., Cyrill Gorcunov <gorcunov@openvz.org>
  *  Copyright (C) 2010 Intel Corporation, Lin Ming <ming.m.lin@intel.com>
@@ -679,7 +679,7 @@ static int p4_validate_raw_event(struct perf_event *event)
 	 */
 
 	/*
-	 * if an event is shared accross the logical threads
+	 * if an event is shared across the logical threads
 	 * the user needs special permissions to be able to use it
 	 */
 	if (p4_ht_active() && p4_event_bind_map[v].shared) {
@@ -790,13 +790,13 @@ static void p4_pmu_disable_pebs(void)
 	 *
 	 * It's still allowed that two threads setup same cache
 	 * events so we can't simply clear metrics until we knew
-	 * noone is depending on us, so we need kind of counter
+	 * no one is depending on us, so we need kind of counter
 	 * for "ReplayEvent" users.
 	 *
 	 * What is more complex -- RAW events, if user (for some
 	 * reason) will pass some cache event metric with improper
 	 * event opcode -- it's fine from hardware point of view
-	 * but completely nonsence from "meaning" of such action.
+	 * but completely nonsense from "meaning" of such action.
 	 *
 	 * So at moment let leave metrics turned on forever -- it's
 	 * ok for now but need to be revisited!

@@ -1279,7 +1279,7 @@ static int __init calgary_bus_has_devices(int bus, unsigned short pci_dev)
 
 	if (pci_dev == PCI_DEVICE_ID_IBM_CALIOC2) {
 		/*
-		 * FIXME: properly scan for devices accross the
+		 * FIXME: properly scan for devices across the
 		 * PCI-to-PCI bridge on every CalIOC2 port.
 		 */
 		return 1;
@@ -1295,7 +1295,7 @@ static int __init calgary_bus_has_devices(int bus, unsigned short pci_dev)
 
 /*
  * calgary_init_bitmap_from_tce_table():
- * Funtion for kdump case. In the second/kdump kernel initialize
+ * Function for kdump case. In the second/kdump kernel initialize
  * the bitmap based on the tce table entries obtained from first kernel
  */
 static void calgary_init_bitmap_from_tce_table(struct iommu_table *tbl)
