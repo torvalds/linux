@@ -846,7 +846,7 @@ static u32 xhci_find_real_port_number(struct xhci_hcd *xhci,
 		 * Skip ports that don't have known speeds, or have duplicate
 		 * Extended Capabilities port speed entries.
 		 */
-		if (port_speed == 0 || port_speed == -1)
+		if (port_speed == 0 || port_speed == DUPLICATE_ENTRY)
 			continue;
 
 		/*
@@ -1727,12 +1727,12 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 			 * found a similar duplicate.
 			 */
 			if (xhci->port_array[i] != major_revision &&
-				xhci->port_array[i] != (u8) -1) {
+				xhci->port_array[i] != DUPLICATE_ENTRY) {
 				if (xhci->port_array[i] == 0x03)
 					xhci->num_usb3_ports--;
 				else
 					xhci->num_usb2_ports--;
-				xhci->port_array[i] = (u8) -1;
+				xhci->port_array[i] = DUPLICATE_ENTRY;
 			}
 			/* FIXME: Should we disable the port? */
 			continue;
@@ -1831,7 +1831,7 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		for (i = 0; i < num_ports; i++) {
 			if (xhci->port_array[i] == 0x03 ||
 					xhci->port_array[i] == 0 ||
-					xhci->port_array[i] == -1)
+					xhci->port_array[i] == DUPLICATE_ENTRY)
 				continue;
 
 			xhci->usb2_ports[port_index] =

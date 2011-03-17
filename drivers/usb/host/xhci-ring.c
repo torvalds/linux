@@ -1209,7 +1209,7 @@ static unsigned int find_faked_portnum_from_hw_portnum(struct usb_hcd *hcd,
 		 * Skip ports that don't have known speeds, or have duplicate
 		 * Extended Capabilities port speed entries.
 		 */
-		if (port_speed == 0 || port_speed == -1)
+		if (port_speed == 0 || port_speed == DUPLICATE_ENTRY)
 			continue;
 
 		/*
@@ -1260,7 +1260,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 				port_id);
 		goto cleanup;
 	}
-	if (major_revision == (u8) -1) {
+	if (major_revision == DUPLICATE_ENTRY) {
 		xhci_warn(xhci, "Event for port %u duplicated in"
 				"Extended Capabilities, ignoring.\n",
 				port_id);

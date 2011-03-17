@@ -348,6 +348,9 @@ struct xhci_op_regs {
 /* Initiate a warm port reset - complete when PORT_WRC is '1' */
 #define PORT_WR		(1 << 31)
 
+/* We mark duplicate entries with -1 */
+#define DUPLICATE_ENTRY ((u8)(-1))
+
 /* Port Power Management Status and Control - port_power_base bitmasks */
 /* Inactivity timer value for transitions into U1, in microseconds.
  * Timeout can be up to 127us.  0xFF means an infinite timeout.
