@@ -101,7 +101,7 @@ config GPIO_VR41XX
 
 config GPIO_SCH
 	tristate "Intel SCH GPIO"
-	depends on GPIOLIB && PCI
+	depends on GPIOLIB && PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
@@ -321,13 +321,13 @@ config GPIO_BT8XX
 
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
-	depends on PCI
+	depends on PCI && X86
 	help
 	  Say Y here to support Intel Langwell/Penwell GPIO.
 
 config GPIO_PCH
 	tristate "PCH GPIO of Intel Topcliff"
-	depends on PCI
+	depends on PCI && X86
 	help
 	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
