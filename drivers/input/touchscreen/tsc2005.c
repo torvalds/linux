@@ -27,6 +27,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/tsc2005.h>
 
@@ -661,8 +662,8 @@ static int __devexit tsc2005_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tsc2005_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int tsc2005_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct tsc2005 *ts = spi_get_drvdata(spi);
@@ -674,7 +675,7 @@ static int tsc2005_suspend(struct spi_device *spi, pm_message_t mesg)
 	return 0;
 }
 
-static int tsc2005_resume(struct spi_device *spi)
+static int tsc2005_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct tsc2005 *ts = spi_get_drvdata(spi);
@@ -687,17 +688,16 @@ static int tsc2005_resume(struct spi_device *spi)
 }
 #endif
 
+static SIMPLE_DEV_PM_OPS(tsc2005_pm_ops, tsc2005_suspend, tsc2005_resume);
+
 static struct spi_driver tsc2005_driver = {
-	.driver = {
-		.name = "tsc2005",
-		.owner = THIS_MODULE,
+	.driver	= {
+		.name	= "tsc2005",
+		.owner	= THIS_MODULE,
+		.pm	= &tsc2005_pm_ops,
 	},
-#ifdef CONFIG_PM
-	.suspend = tsc2005_suspend,
-	.resume = tsc2005_resume,
-#endif
-	.probe = tsc2005_probe,
-	.remove = __devexit_p(tsc2005_remove),
+	.probe	= tsc2005_probe,
+	.remove	= __devexit_p(tsc2005_remove),
 };
 
 static int __init tsc2005_init(void)
