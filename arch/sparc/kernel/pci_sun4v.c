@@ -580,7 +580,7 @@ static int __devinit pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
 	static const u32 vdma_default[] = { 0x80000000, 0x80000000 };
 	struct iommu *iommu = pbm->iommu;
-	unsigned long num_tsb_entries, sz, tsbsize;
+	unsigned long num_tsb_entries, sz;
 	u32 dma_mask, dma_offset;
 	const u32 *vdma;
 
@@ -596,7 +596,6 @@ static int __devinit pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 
 	dma_mask = (roundup_pow_of_two(vdma[1]) - 1UL);
 	num_tsb_entries = vdma[1] / IO_PAGE_SIZE;
-	tsbsize = num_tsb_entries * sizeof(iopte_t);
 
 	dma_offset = vdma[0];
 
@@ -844,9 +843,9 @@ static int pci_sun4v_msiq_build_irq(struct pci_pbm_info *pbm,
 				    unsigned long msiqid,
 				    unsigned long devino)
 {
-	unsigned int virt_irq = sun4v_build_irq(pbm->devhandle, devino);
+	unsigned int irq = sun4v_build_irq(pbm->devhandle, devino);
 
-	if (!virt_irq)
+	if (!irq)
 		return -ENOMEM;
 
 	if (pci_sun4v_msiq_setstate(pbm->devhandle, msiqid, HV_MSIQSTATE_IDLE))
@@ -854,7 +853,7 @@ static int pci_sun4v_msiq_build_irq(struct pci_pbm_info *pbm,
 	if (pci_sun4v_msiq_setvalid(pbm->devhandle, msiqid, HV_MSIQ_VALID))
 		return -EINVAL;
 
-	return virt_irq;
+	return irq;
 }
 
 static const struct sparc64_msiq_ops pci_sun4v_msiq_ops = {

@@ -214,11 +214,9 @@ static int pci_fire_msi_setup(struct pci_pbm_info *pbm, unsigned long msiqid,
 
 static int pci_fire_msi_teardown(struct pci_pbm_info *pbm, unsigned long msi)
 {
-	unsigned long msiqid;
 	u64 val;
 
 	val = upa_readq(pbm->pbm_regs + MSI_MAP(msi));
-	msiqid = (val & MSI_MAP_EQNUM);
 
 	val &= ~MSI_MAP_VALID;
 
@@ -277,7 +275,7 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 {
 	unsigned long cregs = (unsigned long) pbm->pbm_regs;
 	unsigned long imap_reg, iclr_reg, int_ctrlr;
-	unsigned int virt_irq;
+	unsigned int irq;
 	int fixup;
 	u64 val;
 
@@ -293,14 +291,14 @@ static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
 
 	fixup = ((pbm->portid << 6) | devino) - int_ctrlr;
 
-	virt_irq = build_irq(fixup, iclr_reg, imap_reg);
-	if (!virt_irq)
+	irq = build_irq(fixup, iclr_reg, imap_reg);
+	if (!irq)
 		return -ENOMEM;
 
 	upa_writeq(EVENT_QUEUE_CONTROL_SET_EN,
 		   pbm->pbm_regs + EVENT_QUEUE_CONTROL_SET(msiqid));
 
-	return virt_irq;
+	return irq;
 }
 
 static const struct sparc64_msiq_ops pci_fire_msiq_ops = {
