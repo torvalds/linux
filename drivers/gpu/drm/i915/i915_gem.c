@@ -1796,8 +1796,10 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 		return;
 
 	spin_lock(&file_priv->mm.lock);
-	list_del(&request->client_list);
-	request->file_priv = NULL;
+	if (request->file_priv) {
+		list_del(&request->client_list);
+		request->file_priv = NULL;
+	}
 	spin_unlock(&file_priv->mm.lock);
 }
 
