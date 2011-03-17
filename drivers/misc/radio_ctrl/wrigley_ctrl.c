@@ -101,6 +101,42 @@ static ssize_t wrigley_do_powerdown(struct wrigley_info *info)
 	return err;
 }
 
+/* hard reset of Wrigley data card
+ * recipe is:
+ * 1) set force_flash high
+ * 2) configure reset as output and drive low for 10ms
+ * 3) configure reset as input
+ * 4) set force flash low
+ * 5) verify data card reset by sampling reset
+ */
+static ssize_t wrigley_do_reset(struct wrigley_info *info)
+{
+	int i;
+	int value;
+	int err = -1;
+
+	gpio_direction_output(info->flash_gpio, 1);
+
+	gpio_direction_output(info->reset_gpio, 0);
+	msleep(10);
+	gpio_set_value(info->reset_gpio, 1);
+
+	gpio_direction_input(info->reset_gpio);
+	gpio_set_value(info->flash_gpio, 0);
+	for (i = 0; i < 10; i++) {
+		value = gpio_get_value(info->reset_gpio);
+		pr_info("%s: reset value = %d\n", __func__, value);
+		if (!value) {
+			err = 0;
+			info->status = WRIGLEY_STATUS_OFF;
+			break;
+		}
+		msleep(100);
+	}
+
+	return err;
+}
+
 static ssize_t wrigley_do_powerup(struct wrigley_info *info)
 {
 	int i, value, err = -1;
@@ -163,6 +199,8 @@ static ssize_t wrigley_command(struct radio_dev *rdev, char *cmd)
 
 	if (strcmp(cmd, "shutdown") == 0)
 		return wrigley_do_powerdown(info);
+	else if (strcmp(cmd, "reset") == 0)
+		return wrigley_do_reset(info);
 	else if (strcmp(cmd, "powerup") == 0)
 		return wrigley_do_powerup(info);
 	else if (strcmp(cmd, "bootmode_normal") == 0)
