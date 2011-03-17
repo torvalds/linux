@@ -180,11 +180,10 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
-	int ret = 0, slot, advance;
+	int ret = 0, slot;
 	size_t total_size = 0, size_left = size;
 	unsigned long name_ptr;
 	size_t name_len;
-	u32 nritems;
 
 	/*
 	 * ok we want all objects associated with this id.
@@ -204,34 +203,24 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
-	advance = 0;
+
 	while (1) {
 		leaf = path->nodes[0];
-		nritems = btrfs_header_nritems(leaf);
 		slot = path->slots[0];
 
 		/* this is where we start walking through the path */
-		if (advance || slot >= nritems) {
+		if (slot >= btrfs_header_nritems(leaf)) {
 			/*
 			 * if we've reached the last slot in this leaf we need
 			 * to go to the next leaf and reset everything
 			 */
-			if (slot >= nritems-1) {
-				ret = btrfs_next_leaf(root, path);
-				if (ret)
-					break;
-				leaf = path->nodes[0];
-				nritems = btrfs_header_nritems(leaf);
-				slot = path->slots[0];
-			} else {
-				/*
-				 * just walking through the slots on this leaf
-				 */
-				slot++;
-				path->slots[0]++;
-			}
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto err;
+			else if (ret > 0)
+				break;
+			continue;
 		}
-		advance = 1;
 
 		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
@@ -250,7 +239,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 		/* we are just looking for how big our buffer needs to be */
 		if (!size)
-			continue;
+			goto next;
 
 		if (!buffer || (name_len + 1) > size_left) {
 			ret = -ERANGE;
@@ -263,6 +252,8 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 		size_left -= name_len + 1;
 		buffer += name_len + 1;
+next:
+		path->slots[0]++;
 	}
 	ret = total_size;
 
