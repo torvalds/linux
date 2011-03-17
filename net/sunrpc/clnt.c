@@ -436,7 +436,9 @@ void rpc_killall_tasks(struct rpc_clnt *clnt)
 		if (!(rovr->tk_flags & RPC_TASK_KILLED)) {
 			rovr->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(rovr, -EIO);
-			rpc_wake_up_queued_task(rovr->tk_waitqueue, rovr);
+			if (RPC_IS_QUEUED(rovr))
+				rpc_wake_up_queued_task(rovr->tk_waitqueue,
+							rovr);
 		}
 	}
 	spin_unlock(&clnt->cl_lock);
