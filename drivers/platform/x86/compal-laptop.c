@@ -201,7 +201,7 @@ static bool extra_features;
  * into 0x4F and read a few bytes from the output, like so:
  *	u8 writeData = 0x33;
  *	ec_transaction(0x4F, &writeData, 1, buffer, 32, 0);
- * That address is labled "fan1 table information" in the service manual.
+ * That address is labelled "fan1 table information" in the service manual.
  * It should be clear which value in 'buffer' changes). This seems to be
  * related to fan speed. It isn't a proper 'realtime' fan speed value
  * though, because physically stopping or speeding up the fan doesn't

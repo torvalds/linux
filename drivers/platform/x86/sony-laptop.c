@@ -605,7 +605,7 @@ struct sony_nc_value {
 	int value;		/* current setting */
 	int valid;		/* Has ever been set */
 	int debug;		/* active only in debug mode ? */
-	struct device_attribute devattr;	/* sysfs atribute */
+	struct device_attribute devattr;	/* sysfs attribute */
 };
 
 #define SNC_HANDLE_NAMES(_name, _values...) \
@@ -3129,7 +3129,7 @@ static int sony_pic_add(struct acpi_device *device)
 	/* request io port */
 	list_for_each_entry_reverse(io, &spic_dev.ioports, list) {
 		if (request_region(io->io1.minimum, io->io1.address_length,
-					"Sony Programable I/O Device")) {
+					"Sony Programmable I/O Device")) {
 			dprintk("I/O port1: 0x%.4x (0x%.4x) + 0x%.2x\n",
 					io->io1.minimum, io->io1.maximum,
 					io->io1.address_length);
@@ -3137,7 +3137,7 @@ static int sony_pic_add(struct acpi_device *device)
 			if (io->io2.minimum) {
 				if (request_region(io->io2.minimum,
 						io->io2.address_length,
-						"Sony Programable I/O Device")) {
+						"Sony Programmable I/O Device")) {
 					dprintk("I/O port2: 0x%.4x (0x%.4x) + 0x%.2x\n",
 							io->io2.minimum, io->io2.maximum,
 							io->io2.address_length);

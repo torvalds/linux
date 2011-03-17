@@ -29,7 +29,7 @@
  *  John Belmonte  - ACPI code for Toshiba laptop was a good starting point.
  *  Eric Burghard  - LED display support for W1N
  *  Josh Green     - Light Sens support
- *  Thomas Tuttle  - His first patch for led support was very helpfull
+ *  Thomas Tuttle  - His first patch for led support was very helpful
  *  Sam Lin        - GPS support
  */
 
