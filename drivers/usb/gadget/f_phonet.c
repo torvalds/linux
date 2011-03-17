@@ -346,14 +346,19 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 
 		if (unlikely(!skb))
 			break;
-		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page, 0,
-				req->actual);
+
+		if (skb->len == 0) { /* First fragment */
+			skb->protocol = htons(ETH_P_PHONET);
+			skb_reset_mac_header(skb);
+			/* Can't use pskb_pull() on page in IRQ */
+			memcpy(skb_put(skb, 1), page_address(page), 1);
+		}
+
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+				skb->len == 0, req->actual);
 		page = NULL;
 
 		if (req->actual < req->length) { /* Last fragment */
-			skb->protocol = htons(ETH_P_PHONET);
-			skb_reset_mac_header(skb);
-			pskb_pull(skb, 1);
 			skb->dev = dev;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += skb->len;

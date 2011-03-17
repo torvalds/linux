@@ -172,6 +172,14 @@ void thermal_zone_device_update(struct thermal_zone_device *);
 struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
 		const struct thermal_cooling_device_ops *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
+
+#ifdef CONFIG_NET
 extern int generate_netlink_event(u32 orig, enum events event);
+#else
+static inline int generate_netlink_event(u32 orig, enum events event)
+{
+	return 0;
+}
+#endif
 
 #endif /* __THERMAL_H__ */

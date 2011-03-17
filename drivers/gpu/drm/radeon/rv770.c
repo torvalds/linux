@@ -307,7 +307,7 @@ static void rv770_mc_program(struct radeon_device *rdev)
  */
 void r700_cp_stop(struct radeon_device *rdev)
 {
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
 	WREG32(SCRATCH_UMSK, 0);
 }
@@ -1123,7 +1123,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r700_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 

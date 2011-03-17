@@ -2620,35 +2620,6 @@ static const struct pid_entry proc_base_stuff[] = {
 		&proc_self_inode_operations, NULL, {}),
 };
 
-/*
- *	Exceptional case: normally we are not allowed to unhash a busy
- * directory. In this case, however, we can do it - no aliasing problems
- * due to the way we treat inodes.
- */
-static int proc_base_revalidate(struct dentry *dentry, struct nameidata *nd)
-{
-	struct inode *inode;
-	struct task_struct *task;
-
-	if (nd->flags & LOOKUP_RCU)
-		return -ECHILD;
-
-	inode = dentry->d_inode;
-	task = get_proc_task(inode);
-	if (task) {
-		put_task_struct(task);
-		return 1;
-	}
-	d_drop(dentry);
-	return 0;
-}
-
-static const struct dentry_operations proc_base_dentry_operations =
-{
-	.d_revalidate	= proc_base_revalidate,
-	.d_delete	= pid_delete_dentry,
-};
-
 static struct dentry *proc_base_instantiate(struct inode *dir,
 	struct dentry *dentry, struct task_struct *task, const void *ptr)
 {
@@ -2685,7 +2656,6 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 	if (p->fop)
 		inode->i_fop = p->fop;
 	ei->op = p->op;
-	d_set_d_op(dentry, &proc_base_dentry_operations);
 	d_add(dentry, inode);
 	error = NULL;
 out:

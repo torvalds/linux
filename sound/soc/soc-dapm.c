@@ -712,7 +712,15 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 		    !path->connected(path->source, path->sink))
 			continue;
 
-		if (path->sink && path->sink->power_check &&
+		if (!path->sink)
+			continue;
+
+		if (path->sink->force) {
+			power = 1;
+			break;
+		}
+
+		if (path->sink->power_check &&
 		    path->sink->power_check(path->sink)) {
 			power = 1;
 			break;
@@ -933,7 +941,7 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 	}
 
 	if (!list_empty(&pending))
-		dapm_seq_run_coalesced(dapm, &pending);
+		dapm_seq_run_coalesced(cur_dapm, &pending);
 }
 
 static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
@@ -1627,6 +1635,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_add_routes);
 int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_dapm_widget *w;
+	unsigned int val;
 
 	list_for_each_entry(w, &dapm->card->widgets, list)
 	{
@@ -1675,6 +1684,18 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		case snd_soc_dapm_post:
 			break;
 		}
+
+		/* Read the initial power state from the device */
+		if (w->reg >= 0) {
+			val = snd_soc_read(w->codec, w->reg);
+			val &= 1 << w->shift;
+			if (w->invert)
+				val = !val;
+
+			if (val)
+				w->power = 1;
+		}
+
 		w->new = 1;
 	}
 

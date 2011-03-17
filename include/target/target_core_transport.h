@@ -135,6 +135,8 @@ extern void transport_complete_task(struct se_task *, int);
 extern void transport_add_task_to_execute_queue(struct se_task *,
 						struct se_task *,
 						struct se_device *);
+extern void transport_remove_task_from_execute_queue(struct se_task *,
+						struct se_device *);
 unsigned char *transport_dump_cmd_direction(struct se_cmd *);
 extern void transport_dump_dev_state(struct se_device *, char *, int *);
 extern void transport_dump_dev_info(struct se_device *, struct se_lun *,

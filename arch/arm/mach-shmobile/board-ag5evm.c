@@ -454,6 +454,7 @@ static void __init ag5evm_init(void)
 	gpio_direction_output(GPIO_PORT217, 0);
 	mdelay(1);
 	gpio_set_value(GPIO_PORT217, 1);
+	mdelay(100);
 
 	/* LCD backlight controller */
 	gpio_request(GPIO_PORT235, NULL); /* RESET */

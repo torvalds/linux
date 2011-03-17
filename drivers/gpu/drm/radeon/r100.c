@@ -70,23 +70,6 @@ MODULE_FIRMWARE(FIRMWARE_R520);
 
 void r100_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
-	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
-	u32 tmp;
-
-	/* make sure flip is at vb rather than hb */
-	tmp = RREG32(RADEON_CRTC_OFFSET_CNTL + radeon_crtc->crtc_offset);
-	tmp &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
-	/* make sure pending bit is asserted */
-	tmp |= RADEON_CRTC_GUI_TRIG_OFFSET_LEFT_EN;
-	WREG32(RADEON_CRTC_OFFSET_CNTL + radeon_crtc->crtc_offset, tmp);
-
-	/* set pageflip to happen as late as possible in the vblank interval.
-	 * same field for crtc1/2
-	 */
-	tmp = RREG32(RADEON_CRTC_GEN_CNTL);
-	tmp &= ~RADEON_CRTC_VSTAT_MODE_MASK;
-	WREG32(RADEON_CRTC_GEN_CNTL, tmp);
-
 	/* enable the pflip int */
 	radeon_irq_kms_pflip_irq_get(rdev, crtc);
 }
@@ -1041,7 +1024,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 		return r;
 	}
 	rdev->cp.ready = true;
-	rdev->mc.active_vram_size = rdev->mc.real_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 	return 0;
 }
 
@@ -1059,7 +1042,7 @@ void r100_cp_fini(struct radeon_device *rdev)
 void r100_cp_disable(struct radeon_device *rdev)
 {
 	/* Disable ring */
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	rdev->cp.ready = false;
 	WREG32(RADEON_CP_CSQ_MODE, 0);
 	WREG32(RADEON_CP_CSQ_CNTL, 0);
@@ -2329,7 +2312,6 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 	/* FIXME we don't use the second aperture yet when we could use it */
 	if (rdev->mc.visible_vram_size > rdev->mc.aper_size)
 		rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	config_aper_size = RREG32(RADEON_CONFIG_APER_SIZE);
 	if (rdev->flags & RADEON_IS_IGP) {
 		uint32_t tom;
@@ -3490,7 +3472,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 		track->num_texture = 16;
 		track->maxy = 4096;
 		track->separate_cube = 0;
-		track->aaresolve = true;
+		track->aaresolve = false;
 		track->aa.robj = NULL;
 	}
 
@@ -3801,8 +3783,6 @@ static int r100_startup(struct radeon_device *rdev)
 	r100_mc_program(rdev);
 	/* Resume clock */
 	r100_clock_startup(rdev);
-	/* Initialize GPU configuration (# pipes, ...) */
-//	r100_gpu_init(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r100_enable_bm(rdev);

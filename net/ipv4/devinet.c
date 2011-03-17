@@ -670,7 +670,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 			     ifap = &ifa->ifa_next) {
 				if (!strcmp(ifr.ifr_name, ifa->ifa_label) &&
 				    sin_orig.sin_addr.s_addr ==
-							ifa->ifa_address) {
+							ifa->ifa_local) {
 					break; /* found */
 				}
 			}
@@ -1040,8 +1040,8 @@ static void inetdev_send_gratuitous_arp(struct net_device *dev,
 		return;
 
 	arp_send(ARPOP_REQUEST, ETH_P_ARP,
-		 ifa->ifa_address, dev,
-		 ifa->ifa_address, NULL,
+		 ifa->ifa_local, dev,
+		 ifa->ifa_local, NULL,
 		 dev->dev_addr, NULL);
 }
 

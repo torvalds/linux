@@ -1228,7 +1228,9 @@ compat_sys_preadv(unsigned long fd, const struct compat_iovec __user *vec,
 	file = fget_light(fd, &fput_needed);
 	if (!file)
 		return -EBADF;
-	ret = compat_readv(file, vec, vlen, &pos);
+	ret = -ESPIPE;
+	if (file->f_mode & FMODE_PREAD)
+		ret = compat_readv(file, vec, vlen, &pos);
 	fput_light(file, fput_needed);
 	return ret;
 }
@@ -1285,7 +1287,9 @@ compat_sys_pwritev(unsigned long fd, const struct compat_iovec __user *vec,
 	file = fget_light(fd, &fput_needed);
 	if (!file)
 		return -EBADF;
-	ret = compat_writev(file, vec, vlen, &pos);
+	ret = -ESPIPE;
+	if (file->f_mode & FMODE_PWRITE)
+		ret = compat_writev(file, vec, vlen, &pos);
 	fput_light(file, fput_needed);
 	return ret;
 }

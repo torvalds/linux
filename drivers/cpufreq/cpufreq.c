@@ -1919,8 +1919,10 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 
 	ret = sysdev_driver_register(&cpu_sysdev_class,
 					&cpufreq_sysdev_driver);
+	if (ret)
+		goto err_null_driver;
 
-	if ((!ret) && !(cpufreq_driver->flags & CPUFREQ_STICKY)) {
+	if (!(cpufreq_driver->flags & CPUFREQ_STICKY)) {
 		int i;
 		ret = -ENODEV;
 
@@ -1935,21 +1937,22 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		if (ret) {
 			dprintk("no CPU initialized for driver %s\n",
 							driver_data->name);
-			sysdev_driver_unregister(&cpu_sysdev_class,
-						&cpufreq_sysdev_driver);
-
-			spin_lock_irqsave(&cpufreq_driver_lock, flags);
-			cpufreq_driver = NULL;
-			spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+			goto err_sysdev_unreg;
 		}
 	}
 
-	if (!ret) {
-		register_hotcpu_notifier(&cpufreq_cpu_notifier);
-		dprintk("driver %s up and running\n", driver_data->name);
-		cpufreq_debug_enable_ratelimit();
-	}
+	register_hotcpu_notifier(&cpufreq_cpu_notifier);
+	dprintk("driver %s up and running\n", driver_data->name);
+	cpufreq_debug_enable_ratelimit();
 
+	return 0;
+err_sysdev_unreg:
+	sysdev_driver_unregister(&cpu_sysdev_class,
+			&cpufreq_sysdev_driver);
+err_null_driver:
+	spin_lock_irqsave(&cpufreq_driver_lock, flags);
+	cpufreq_driver = NULL;
+	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_register_driver);

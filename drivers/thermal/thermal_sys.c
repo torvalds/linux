@@ -62,20 +62,6 @@ static DEFINE_MUTEX(thermal_list_lock);
 
 static unsigned int thermal_event_seqnum;
 
-static struct genl_family thermal_event_genl_family = {
-	.id = GENL_ID_GENERATE,
-	.name = THERMAL_GENL_FAMILY_NAME,
-	.version = THERMAL_GENL_VERSION,
-	.maxattr = THERMAL_GENL_ATTR_MAX,
-};
-
-static struct genl_multicast_group thermal_event_mcgrp = {
-	.name = THERMAL_GENL_MCAST_GROUP_NAME,
-};
-
-static int genetlink_init(void);
-static void genetlink_exit(void);
-
 static int get_idr(struct idr *idr, struct mutex *lock, int *id)
 {
 	int err;
@@ -1225,6 +1211,18 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 EXPORT_SYMBOL(thermal_zone_device_unregister);
 
+#ifdef CONFIG_NET
+static struct genl_family thermal_event_genl_family = {
+	.id = GENL_ID_GENERATE,
+	.name = THERMAL_GENL_FAMILY_NAME,
+	.version = THERMAL_GENL_VERSION,
+	.maxattr = THERMAL_GENL_ATTR_MAX,
+};
+
+static struct genl_multicast_group thermal_event_mcgrp = {
+	.name = THERMAL_GENL_MCAST_GROUP_NAME,
+};
+
 int generate_netlink_event(u32 orig, enum events event)
 {
 	struct sk_buff *skb;
@@ -1301,6 +1299,15 @@ static int genetlink_init(void)
 	return result;
 }
 
+static void genetlink_exit(void)
+{
+	genl_unregister_family(&thermal_event_genl_family);
+}
+#else /* !CONFIG_NET */
+static inline int genetlink_init(void) { return 0; }
+static inline void genetlink_exit(void) {}
+#endif /* !CONFIG_NET */
+
 static int __init thermal_init(void)
 {
 	int result = 0;
@@ -1314,11 +1321,6 @@ static int __init thermal_init(void)
 	}
 	result = genetlink_init();
 	return result;
-}
-
-static void genetlink_exit(void)
-{
-	genl_unregister_family(&thermal_event_genl_family);
 }
 
 static void __exit thermal_exit(void)

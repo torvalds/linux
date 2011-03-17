@@ -33,6 +33,20 @@
 #include <net/netfilter/nf_tproxy_core.h>
 #include <linux/netfilter/xt_TPROXY.h>
 
+static bool tproxy_sk_is_transparent(struct sock *sk)
+{
+	if (sk->sk_state != TCP_TIME_WAIT) {
+		if (inet_sk(sk)->transparent)
+			return true;
+		sock_put(sk);
+	} else {
+		if (inet_twsk(sk)->tw_transparent)
+			return true;
+		inet_twsk_put(inet_twsk(sk));
+	}
+	return false;
+}
+
 static inline __be32
 tproxy_laddr4(struct sk_buff *skb, __be32 user_laddr, __be32 daddr)
 {
@@ -141,7 +155,7 @@ tproxy_tg4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 					   skb->dev, NFT_LOOKUP_LISTENER);
 
 	/* NOTE: assign_sock consumes our sk reference */
-	if (sk && nf_tproxy_assign_sock(skb, sk)) {
+	if (sk && tproxy_sk_is_transparent(sk)) {
 		/* This should be in a separate target, but we don't do multiple
 		   targets on the same rule yet */
 		skb->mark = (skb->mark & ~mark_mask) ^ mark_value;
@@ -149,6 +163,8 @@ tproxy_tg4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 		pr_debug("redirecting: proto %hhu %pI4:%hu -> %pI4:%hu, mark: %x\n",
 			 iph->protocol, &iph->daddr, ntohs(hp->dest),
 			 &laddr, ntohs(lport), skb->mark);
+
+		nf_tproxy_assign_sock(skb, sk);
 		return NF_ACCEPT;
 	}
 
@@ -306,7 +322,7 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 					   par->in, NFT_LOOKUP_LISTENER);
 
 	/* NOTE: assign_sock consumes our sk reference */
-	if (sk && nf_tproxy_assign_sock(skb, sk)) {
+	if (sk && tproxy_sk_is_transparent(sk)) {
 		/* This should be in a separate target, but we don't do multiple
 		   targets on the same rule yet */
 		skb->mark = (skb->mark & ~tgi->mark_mask) ^ tgi->mark_value;
@@ -314,6 +330,8 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 		pr_debug("redirecting: proto %hhu %pI6:%hu -> %pI6:%hu, mark: %x\n",
 			 tproto, &iph->saddr, ntohs(hp->source),
 			 laddr, ntohs(lport), skb->mark);
+
+		nf_tproxy_assign_sock(skb, sk);
 		return NF_ACCEPT;
 	}
 

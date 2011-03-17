@@ -646,7 +646,7 @@ static int __devexit cpwd_remove(struct platform_device *op)
 	struct cpwd *p = dev_get_drvdata(&op->dev);
 	int i;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < WD_NUMDEVS; i++) {
 		misc_deregister(&p->devs[i].misc);
 
 		if (!p->enabled) {
