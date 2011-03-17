@@ -195,6 +195,7 @@ extern int NandRead(unsigned int Index, unsigned int nSec, void * buf) ;
 extern int NandWriteImage(unsigned int Index, unsigned int nSec, void * buf);
 extern int NandWrite(unsigned int Index, unsigned int nSec, void * buf) ;
 extern int NandDeInit(void) ;
+extern int NandForceDeInit(void);
 extern unsigned int NandGetCapacity(void); 
 extern void NandSetSysProtAddr(unsigned int SysImageWriteEndAdd);
 

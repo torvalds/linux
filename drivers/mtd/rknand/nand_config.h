@@ -57,6 +57,7 @@ Revision:   1.00
 #define RKNAND_DEBUG(n, arg...)
 #endif
 
+extern void rk29_power_reset(void);
 extern void rkNand_cond_resched(void);
 
 #define COND_RESCHED() rkNand_cond_resched()//cond_resched()
