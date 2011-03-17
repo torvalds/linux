@@ -44,8 +44,7 @@
 #include "fid.h"
 #include "cache.h"
 
-static const struct file_operations v9fs_cached_file_operations;
-static const struct file_operations v9fs_cached_file_operations_dotl;
+static const struct vm_operations_struct v9fs_file_vm_ops;
 
 /**
  * v9fs_file_open - open a file (or directory)
@@ -57,11 +56,13 @@ static const struct file_operations v9fs_cached_file_operations_dotl;
 int v9fs_file_open(struct inode *inode, struct file *file)
 {
 	int err;
+	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid;
 	int omode;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
+	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
 		omode = file->f_flags;
@@ -89,20 +90,30 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = fid;
-	if ((fid->qid.version) && (v9ses->cache)) {
-		P9_DPRINTK(P9_DEBUG_VFS, "cached");
-		/* enable cached file options */
-		if(file->f_op == &v9fs_file_operations)
-			file->f_op = &v9fs_cached_file_operations;
-		else if (file->f_op == &v9fs_file_operations_dotl)
-			file->f_op = &v9fs_cached_file_operations_dotl;
-
+	if (v9ses->cache && !v9inode->writeback_fid) {
+		/*
+		 * clone a fid and add it to writeback_fid
+		 * we do it during open time instead of
+		 * page dirty time via write_begin/page_mkwrite
+		 * because we want write after unlink usecase
+		 * to work.
+		 */
+		fid = v9fs_writeback_fid(file->f_path.dentry);
+		if (IS_ERR(fid)) {
+			err = PTR_ERR(fid);
+			goto out_error;
+		}
+		v9inode->writeback_fid = (void *) fid;
+	}
 #ifdef CONFIG_9P_FSCACHE
+	if (v9ses->cache)
 		v9fs_cache_inode_set_cookie(inode, file);
 #endif
-	}
-
 	return 0;
+out_error:
+	p9_client_clunk(file->private_data);
+	file->private_data = NULL;
+	return err;
 }
 
 /**
@@ -335,25 +346,22 @@ out_err:
 }
 
 /**
- * v9fs_file_readn - read from a file
- * @filp: file pointer to read
+ * v9fs_fid_readn - read from a fid
+ * @fid: fid to read
  * @data: data buffer to read data into
  * @udata: user data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
  *
  */
-
 ssize_t
-v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
+v9fs_fid_readn(struct p9_fid *fid, char *data, char __user *udata, u32 count,
 	       u64 offset)
 {
 	int n, total, size;
-	struct p9_fid *fid = filp->private_data;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "fid %d offset %llu count %d\n", fid->fid,
-					(long long unsigned) offset, count);
-
+		   (long long unsigned) offset, count);
 	n = 0;
 	total = 0;
 	size = fid->iounit ? fid->iounit : fid->clnt->msize - P9_IOHDRSZ;
@@ -376,6 +384,22 @@ v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
 		total = n;
 
 	return total;
+}
+
+/**
+ * v9fs_file_readn - read from a file
+ * @filp: file pointer to read
+ * @data: data buffer to read data into
+ * @udata: user data buffer to read data into
+ * @count: size of buffer
+ * @offset: offset at which to read data
+ *
+ */
+ssize_t
+v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
+	       u64 offset)
+{
+	return v9fs_fid_readn(filp->private_data, data, udata, count, offset);
 }
 
 /**
@@ -410,6 +434,49 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
 	return ret;
 }
 
+ssize_t
+v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
+			 const char __user *data, size_t count,
+			 loff_t *offset, int invalidate)
+{
+	int n;
+	loff_t i_size;
+	size_t total = 0;
+	struct p9_client *clnt;
+	loff_t origin = *offset;
+	unsigned long pg_start, pg_end;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
+		(int)count, (int)*offset);
+
+	clnt = fid->clnt;
+	do {
+		n = p9_client_write(fid, NULL, data+total, origin+total, count);
+		if (n <= 0)
+			break;
+		count -= n;
+		total += n;
+	} while (count > 0);
+
+	if (invalidate && (total > 0)) {
+		pg_start = origin >> PAGE_CACHE_SHIFT;
+		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
+		if (inode->i_mapping && inode->i_mapping->nrpages)
+			invalidate_inode_pages2_range(inode->i_mapping,
+						      pg_start, pg_end);
+		*offset += total;
+		i_size = i_size_read(inode);
+		if (*offset > i_size) {
+			inode_add_bytes(inode, *offset - i_size);
+			i_size_write(inode, *offset);
+		}
+	}
+	if (n < 0)
+		return n;
+
+	return total;
+}
+
 /**
  * v9fs_file_write - write to a file
  * @filp: file pointer to write
@@ -418,25 +485,13 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
  * @offset: offset at which to write data
  *
  */
-
 static ssize_t
 v9fs_file_write(struct file *filp, const char __user * data,
-		size_t count, loff_t * offset)
+		size_t count, loff_t *offset)
 {
-	ssize_t retval;
-	size_t total = 0;
-	int n;
-	struct p9_fid *fid;
-	struct p9_client *clnt;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	ssize_t retval = 0;
 	loff_t origin = *offset;
-	unsigned long pg_start, pg_end;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
-		(int)count, (int)*offset);
-
-	fid = filp->private_data;
-	clnt = fid->clnt;
 
 	retval = generic_write_checks(filp, &origin, &count, 0);
 	if (retval)
@@ -449,32 +504,13 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (!count)
 		goto out;
 
-	do {
-		n = p9_client_write(fid, NULL, data+total, origin+total, count);
-		if (n <= 0)
-			break;
-		count -= n;
-		total += n;
-	} while (count > 0);
-
-	if (total > 0) {
-		pg_start = origin >> PAGE_CACHE_SHIFT;
-		pg_end = (origin + total - 1) >> PAGE_CACHE_SHIFT;
-		if (inode->i_mapping && inode->i_mapping->nrpages)
-			invalidate_inode_pages2_range(inode->i_mapping,
-						      pg_start, pg_end);
-		*offset += total;
-		i_size_write(inode, i_size_read(inode) + total);
-		inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
-	}
-
-	if (n < 0)
-		retval = n;
-	else
-		retval = total;
+	return v9fs_file_write_internal(filp->f_path.dentry->d_inode,
+					filp->private_data,
+					data, count, offset, 1);
 out:
 	return retval;
 }
+
 
 static int v9fs_file_fsync(struct file *filp, int datasync)
 {
@@ -505,28 +541,182 @@ int v9fs_file_fsync_dotl(struct file *filp, int datasync)
 	return retval;
 }
 
-static const struct file_operations v9fs_cached_file_operations = {
+static int
+v9fs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int retval;
+
+	retval = generic_file_mmap(file, vma);
+	if (!retval)
+		vma->vm_ops = &v9fs_file_vm_ops;
+
+	return retval;
+}
+
+static int
+v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct v9fs_inode *v9inode;
+	struct page *page = vmf->page;
+	struct file *filp = vma->vm_file;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+
+
+	P9_DPRINTK(P9_DEBUG_VFS, "page %p fid %lx\n",
+		   page, (unsigned long)filp->private_data);
+
+	v9inode = V9FS_I(inode);
+	/* make sure the cache has finished storing the page */
+	v9fs_fscache_wait_on_page_write(inode, page);
+	BUG_ON(!v9inode->writeback_fid);
+	lock_page(page);
+	if (page->mapping != inode->i_mapping)
+		goto out_unlock;
+
+	return VM_FAULT_LOCKED;
+out_unlock:
+	unlock_page(page);
+	return VM_FAULT_NOPAGE;
+}
+
+static ssize_t
+v9fs_direct_read(struct file *filp, char __user *udata, size_t count,
+		 loff_t *offsetp)
+{
+	loff_t size, offset;
+	struct inode *inode;
+	struct address_space *mapping;
+
+	offset = *offsetp;
+	mapping = filp->f_mapping;
+	inode = mapping->host;
+	if (!count)
+		return 0;
+	size = i_size_read(inode);
+	if (offset < size)
+		filemap_write_and_wait_range(mapping, offset,
+					     offset + count - 1);
+
+	return v9fs_file_read(filp, udata, count, offsetp);
+}
+
+/**
+ * v9fs_cached_file_read - read from a file
+ * @filp: file pointer to read
+ * @udata: user data buffer to read data into
+ * @count: size of buffer
+ * @offset: offset at which to read data
+ *
+ */
+static ssize_t
+v9fs_cached_file_read(struct file *filp, char __user *data, size_t count,
+		      loff_t *offset)
+{
+	if (filp->f_flags & O_DIRECT)
+		return v9fs_direct_read(filp, data, count, offset);
+	return do_sync_read(filp, data, count, offset);
+}
+
+static ssize_t
+v9fs_direct_write(struct file *filp, const char __user * data,
+		  size_t count, loff_t *offsetp)
+{
+	loff_t offset;
+	ssize_t retval;
+	struct inode *inode;
+	struct address_space *mapping;
+
+	offset = *offsetp;
+	mapping = filp->f_mapping;
+	inode = mapping->host;
+	if (!count)
+		return 0;
+
+	mutex_lock(&inode->i_mutex);
+	retval = filemap_write_and_wait_range(mapping, offset,
+					      offset + count - 1);
+	if (retval)
+		goto err_out;
+	/*
+	 * After a write we want buffered reads to be sure to go to disk to get
+	 * the new data.  We invalidate clean cached page from the region we're
+	 * about to write.  We do this *before* the write so that if we fail
+	 * here we fall back to buffered write
+	 */
+	if (mapping->nrpages) {
+		pgoff_t pg_start = offset >> PAGE_CACHE_SHIFT;
+		pgoff_t pg_end   = (offset + count - 1) >> PAGE_CACHE_SHIFT;
+
+		retval = invalidate_inode_pages2_range(mapping,
+							pg_start, pg_end);
+		/*
+		 * If a page can not be invalidated, fall back
+		 * to buffered write.
+		 */
+		if (retval) {
+			if (retval == -EBUSY)
+				goto buff_write;
+			goto err_out;
+		}
+	}
+	retval = v9fs_file_write(filp, data, count, offsetp);
+err_out:
+	mutex_unlock(&inode->i_mutex);
+	return retval;
+
+buff_write:
+	mutex_unlock(&inode->i_mutex);
+	return do_sync_write(filp, data, count, offsetp);
+}
+
+/**
+ * v9fs_cached_file_write - write to a file
+ * @filp: file pointer to write
+ * @data: data buffer to write data from
+ * @count: size of buffer
+ * @offset: offset at which to write data
+ *
+ */
+static ssize_t
+v9fs_cached_file_write(struct file *filp, const char __user * data,
+		       size_t count, loff_t *offset)
+{
+
+	if (filp->f_flags & O_DIRECT)
+		return v9fs_direct_write(filp, data, count, offset);
+	return do_sync_write(filp, data, count, offset);
+}
+
+static const struct vm_operations_struct v9fs_file_vm_ops = {
+	.fault = filemap_fault,
+	.page_mkwrite = v9fs_vm_page_mkwrite,
+};
+
+
+const struct file_operations v9fs_cached_file_operations = {
 	.llseek = generic_file_llseek,
-	.read = do_sync_read,
+	.read = v9fs_cached_file_read,
+	.write = v9fs_cached_file_write,
 	.aio_read = generic_file_aio_read,
-	.write = v9fs_file_write,
+	.aio_write = generic_file_aio_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock,
-	.mmap = generic_file_readonly_mmap,
+	.mmap = v9fs_file_mmap,
 	.fsync = v9fs_file_fsync,
 };
 
-static const struct file_operations v9fs_cached_file_operations_dotl = {
+const struct file_operations v9fs_cached_file_operations_dotl = {
 	.llseek = generic_file_llseek,
-	.read = do_sync_read,
+	.read = v9fs_cached_file_read,
+	.write = v9fs_cached_file_write,
 	.aio_read = generic_file_aio_read,
-	.write = v9fs_file_write,
+	.aio_write = generic_file_aio_write,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
-	.mmap = generic_file_readonly_mmap,
+	.mmap = v9fs_file_mmap,
 	.fsync = v9fs_file_fsync_dotl,
 };
 

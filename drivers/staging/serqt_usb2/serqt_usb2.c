@@ -1098,8 +1098,7 @@ static void qt_close(struct usb_serial_port *port)
 
 	if (qt_port->write_urb) {
 		/* if this urb had a transfer buffer already (old tx) free it */
-		if (qt_port->write_urb->transfer_buffer != NULL)
-			kfree(qt_port->write_urb->transfer_buffer);
+		kfree(qt_port->write_urb->transfer_buffer);
 		usb_free_urb(qt_port->write_urb);
 	}
 
@@ -1191,7 +1190,7 @@ static int qt_write_room(struct tty_struct *tty)
 
 }
 
-static int qt_ioctl(struct tty_struct *tty, struct file *file,
+static int qt_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1383,7 +1382,7 @@ static void qt_break(struct tty_struct *tty, int break_state)
 
 static inline int qt_real_tiocmget(struct tty_struct *tty,
 				   struct usb_serial_port *port,
-				   struct file *file, struct usb_serial *serial)
+				   struct usb_serial *serial)
 {
 
 	u8 mcr;
@@ -1425,7 +1424,6 @@ static inline int qt_real_tiocmget(struct tty_struct *tty,
 
 static inline int qt_real_tiocmset(struct tty_struct *tty,
 				   struct usb_serial_port *port,
-				   struct file *file,
 				   struct usb_serial *serial,
 				   unsigned int value)
 {
@@ -1462,7 +1460,7 @@ static inline int qt_real_tiocmset(struct tty_struct *tty,
 		return 0;
 }
 
-static int qt_tiocmget(struct tty_struct *tty, struct file *file)
+static int qt_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
@@ -1480,13 +1478,13 @@ static int qt_tiocmget(struct tty_struct *tty, struct file *file)
 	dbg("%s - port %d\n", __func__, port->number);
 	dbg("%s - port->RxHolding = %d\n", __func__, qt_port->RxHolding);
 
-	retval = qt_real_tiocmget(tty, port, file, serial);
+	retval = qt_real_tiocmget(tty, port, serial);
 
 	spin_unlock_irqrestore(&qt_port->lock, flags);
 	return retval;
 }
 
-static int qt_tiocmset(struct tty_struct *tty, struct file *file,
+static int qt_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 
@@ -1506,7 +1504,7 @@ static int qt_tiocmset(struct tty_struct *tty, struct file *file,
 	dbg("%s - port %d\n", __func__, port->number);
 	dbg("%s - qt_port->RxHolding = %d\n", __func__, qt_port->RxHolding);
 
-	retval = qt_real_tiocmset(tty, port, file, serial, set);
+	retval = qt_real_tiocmset(tty, port, serial, set);
 
 	spin_unlock_irqrestore(&qt_port->lock, flags);
 	return retval;

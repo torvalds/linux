@@ -847,7 +847,7 @@ static void __init lguest_init_IRQ(void)
 void lguest_setup_irq(unsigned int irq)
 {
 	irq_alloc_desc_at(irq, 0);
-	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
+	irq_set_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
 }
 
@@ -995,7 +995,7 @@ static void lguest_time_irq(unsigned int irq, struct irq_desc *desc)
 static void lguest_time_init(void)
 {
 	/* Set up the timer interrupt (0) to go to our simple timer routine */
-	set_irq_handler(0, lguest_time_irq);
+	irq_set_handler(0, lguest_time_irq);
 
 	clocksource_register(&lguest_clock);
 

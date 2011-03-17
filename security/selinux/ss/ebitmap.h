@@ -36,7 +36,6 @@ struct ebitmap {
 };
 
 #define ebitmap_length(e) ((e)->highbit)
-#define ebitmap_startbit(e) ((e)->node ? (e)->node->startbit : 0)
 
 static inline unsigned int ebitmap_start_positive(struct ebitmap *e,
 						  struct ebitmap_node **n)

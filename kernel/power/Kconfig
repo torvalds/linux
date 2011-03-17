@@ -1,124 +1,11 @@
-config PM
-	bool "Power Management support"
-	depends on !IA64_HP_SIM
-	---help---
-	  "Power Management" means that parts of your computer are shut
-	  off or put into a power conserving "sleep" mode if they are not
-	  being used.  There are two competing standards for doing this: APM
-	  and ACPI.  If you want to use either one, say Y here and then also
-	  to the requisite support below.
-
-	  Power Management is most important for battery powered laptop
-	  computers; if you have a laptop, check out the Linux Laptop home
-	  page on the WWW at <http://www.linux-on-laptops.com/> or
-	  Tuxmobil - Linux on Mobile Computers at <http://www.tuxmobil.org/>
-	  and the Battery Powered Linux mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Note that, even if you say N here, Linux on the x86 architecture
-	  will issue the hlt instruction if nothing is to be done, thereby
-	  sending the processor to sleep and saving power.
-
-config PM_DEBUG
-	bool "Power Management Debug Support"
-	depends on PM
-	---help---
-	This option enables various debugging support in the Power Management
-	code. This is helpful when debugging and reporting PM bugs, like
-	suspend support.
-
-config PM_ADVANCED_DEBUG
-	bool "Extra PM attributes in sysfs for low-level debugging/testing"
-	depends on PM_DEBUG
-	default n
-	---help---
-	Add extra sysfs attributes allowing one to access some Power Management
-	fields of device objects from user space.  If you are not a kernel
-	developer interested in debugging/testing Power Management, say "no".
-
-config PM_VERBOSE
-	bool "Verbose Power Management debugging"
-	depends on PM_DEBUG
-	default n
-	---help---
-	This option enables verbose messages from the Power Management code.
-
-config CAN_PM_TRACE
-	def_bool y
-	depends on PM_DEBUG && PM_SLEEP && EXPERIMENTAL
-
-config PM_TRACE
-	bool
-	help
-	  This enables code to save the last PM event point across
-	  reboot. The architecture needs to support this, x86 for
-	  example does by saving things in the RTC, see below.
-
-	  The architecture specific code must provide the extern
-	  functions from <linux/resume-trace.h> as well as the
-	  <asm/resume-trace.h> header with a TRACE_RESUME() macro.
-
-	  The way the information is presented is architecture-
-	  dependent, x86 will print the information during a
-	  late_initcall.
-
-config PM_TRACE_RTC
-	bool "Suspend/resume event tracing"
-	depends on CAN_PM_TRACE
-	depends on X86
-	select PM_TRACE
-	default n
-	---help---
-	This enables some cheesy code to save the last PM event point in the
-	RTC across reboots, so that you can debug a machine that just hangs
-	during suspend (or more commonly, during resume).
-
-	To use this debugging feature you should attempt to suspend the
-	machine, reboot it and then run
-
-		dmesg -s 1000000 | grep 'hash matches'
-
-	CAUTION: this option will cause your machine's real-time clock to be
-	set to an invalid time after a resume.
-
-config PM_SLEEP_SMP
-	bool
-	depends on SMP
-	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
-	depends on PM_SLEEP
-	select HOTPLUG
-	select HOTPLUG_CPU
-	default y
-
-config PM_SLEEP
-	bool
-	depends on SUSPEND || HIBERNATION || XEN_SAVE_RESTORE
-	default y
-
-config PM_SLEEP_ADVANCED_DEBUG
-	bool
-	depends on PM_ADVANCED_DEBUG
-	default n
-
 config SUSPEND
 	bool "Suspend to RAM and standby"
-	depends on PM && ARCH_SUSPEND_POSSIBLE
+	depends on ARCH_SUSPEND_POSSIBLE
 	default y
 	---help---
 	  Allow the system to enter sleep states in which main memory is
 	  powered and thus its contents are preserved, such as the
 	  suspend-to-RAM state (e.g. the ACPI S3 state).
-
-config PM_TEST_SUSPEND
-	bool "Test suspend/resume and wakealarm during bootup"
-	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y
-	---help---
-	This option will let you suspend your machine during bootup, and
-	make it wake up a few seconds later using an RTC wakeup alarm.
-	Enable this with a kernel parameter like "test_suspend=mem".
-
-	You probably want to have your system's RTC driver statically
-	linked, ensuring that it's available when this test runs.
 
 config SUSPEND_FREEZER
 	bool "Enable freezer for suspend to RAM/standby" \
@@ -133,7 +20,7 @@ config SUSPEND_FREEZER
 
 config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
-	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
+	depends on SWAP && ARCH_HIBERNATION_POSSIBLE
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	---help---
@@ -196,6 +83,106 @@ config PM_STD_PARTITION
 	  suspended image to. It will simply pick the first available swap 
 	  device.
 
+config PM_SLEEP
+	def_bool y
+	depends on SUSPEND || HIBERNATION || XEN_SAVE_RESTORE
+
+config PM_SLEEP_SMP
+	def_bool y
+	depends on SMP
+	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
+	depends on PM_SLEEP
+	select HOTPLUG
+	select HOTPLUG_CPU
+
+config PM_RUNTIME
+	bool "Run-time PM core functionality"
+	depends on !IA64_HP_SIM
+	---help---
+	  Enable functionality allowing I/O devices to be put into energy-saving
+	  (low power) states at run time (or autosuspended) after a specified
+	  period of inactivity and woken up in response to a hardware-generated
+	  wake-up event or a driver's request.
+
+	  Hardware support is generally required for this functionality to work
+	  and the bus type drivers of the buses the devices are on are
+	  responsible for the actual handling of the autosuspend requests and
+	  wake-up events.
+
+config PM
+	def_bool y
+	depends on PM_SLEEP || PM_RUNTIME
+
+config PM_DEBUG
+	bool "Power Management Debug Support"
+	depends on PM
+	---help---
+	This option enables various debugging support in the Power Management
+	code. This is helpful when debugging and reporting PM bugs, like
+	suspend support.
+
+config PM_VERBOSE
+	bool "Verbose Power Management debugging"
+	depends on PM_DEBUG
+	---help---
+	This option enables verbose messages from the Power Management code.
+
+config PM_ADVANCED_DEBUG
+	bool "Extra PM attributes in sysfs for low-level debugging/testing"
+	depends on PM_DEBUG
+	---help---
+	Add extra sysfs attributes allowing one to access some Power Management
+	fields of device objects from user space.  If you are not a kernel
+	developer interested in debugging/testing Power Management, say "no".
+
+config PM_TEST_SUSPEND
+	bool "Test suspend/resume and wakealarm during bootup"
+	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y
+	---help---
+	This option will let you suspend your machine during bootup, and
+	make it wake up a few seconds later using an RTC wakeup alarm.
+	Enable this with a kernel parameter like "test_suspend=mem".
+
+	You probably want to have your system's RTC driver statically
+	linked, ensuring that it's available when this test runs.
+
+config CAN_PM_TRACE
+	def_bool y
+	depends on PM_DEBUG && PM_SLEEP
+
+config PM_TRACE
+	bool
+	help
+	  This enables code to save the last PM event point across
+	  reboot. The architecture needs to support this, x86 for
+	  example does by saving things in the RTC, see below.
+
+	  The architecture specific code must provide the extern
+	  functions from <linux/resume-trace.h> as well as the
+	  <asm/resume-trace.h> header with a TRACE_RESUME() macro.
+
+	  The way the information is presented is architecture-
+	  dependent, x86 will print the information during a
+	  late_initcall.
+
+config PM_TRACE_RTC
+	bool "Suspend/resume event tracing"
+	depends on CAN_PM_TRACE
+	depends on X86
+	select PM_TRACE
+	---help---
+	This enables some cheesy code to save the last PM event point in the
+	RTC across reboots, so that you can debug a machine that just hangs
+	during suspend (or more commonly, during resume).
+
+	To use this debugging feature you should attempt to suspend the
+	machine, reboot it and then run
+
+		dmesg -s 1000000 | grep 'hash matches'
+
+	CAUTION: this option will cause your machine's real-time clock to be
+	set to an invalid time after a resume.
+
 config APM_EMULATION
 	tristate "Advanced Power Management Emulation"
 	depends on PM && SYS_SUPPORTS_APM_EMULATION
@@ -222,31 +209,11 @@ config APM_EMULATION
 	  anything, try disabling/enabling this option (or disabling/enabling
 	  APM in your BIOS).
 
-config PM_RUNTIME
-	bool "Run-time PM core functionality"
-	depends on PM
-	---help---
-	  Enable functionality allowing I/O devices to be put into energy-saving
-	  (low power) states at run time (or autosuspended) after a specified
-	  period of inactivity and woken up in response to a hardware-generated
-	  wake-up event or a driver's request.
-
-	  Hardware support is generally required for this functionality to work
-	  and the bus type drivers of the buses the devices are on are
-	  responsible for the actual handling of the autosuspend requests and
-	  wake-up events.
-
-config PM_OPS
-	bool
-	depends on PM_SLEEP || PM_RUNTIME
-	default y
-
 config ARCH_HAS_OPP
 	bool
 
 config PM_OPP
 	bool "Operating Performance Point (OPP) Layer library"
-	depends on PM
 	depends on ARCH_HAS_OPP
 	---help---
 	  SOCs have a standard set of tuples consisting of frequency and

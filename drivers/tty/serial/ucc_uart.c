@@ -1194,8 +1194,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
-static int ucc_uart_probe(struct platform_device *ofdev,
-	const struct of_device_id *match)
+static int ucc_uart_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	const unsigned int *iprop;      /* Integer OF properties */
@@ -1485,7 +1484,7 @@ static struct of_device_id ucc_uart_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ucc_uart_match);
 
-static struct of_platform_driver ucc_uart_of_driver = {
+static struct platform_driver ucc_uart_of_driver = {
 	.driver = {
 		.name = "ucc_uart",
 		.owner = THIS_MODULE,
@@ -1510,7 +1509,7 @@ static int __init ucc_uart_init(void)
 		return ret;
 	}
 
-	ret = of_register_platform_driver(&ucc_uart_of_driver);
+	ret = platform_driver_register(&ucc_uart_of_driver);
 	if (ret)
 		printk(KERN_ERR
 		       "ucc-uart: could not register platform driver\n");
@@ -1523,7 +1522,7 @@ static void __exit ucc_uart_exit(void)
 	printk(KERN_INFO
 	       "Freescale QUICC Engine UART device driver unloading\n");
 
-	of_unregister_platform_driver(&ucc_uart_of_driver);
+	platform_driver_unregister(&ucc_uart_of_driver);
 	uart_unregister_driver(&ucc_uart_driver);
 }
 

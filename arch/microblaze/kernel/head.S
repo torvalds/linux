@@ -39,7 +39,7 @@
 #include <asm/mmu.h>
 #include <asm/processor.h>
 
-.data
+.section .data
 .global empty_zero_page
 .align 12
 empty_zero_page:
@@ -49,6 +49,11 @@ swapper_pg_dir:
 	.space	PAGE_SIZE
 
 #endif /* CONFIG_MMU */
+
+.section .rodata
+.align 4
+endian_check:
+	.word	1
 
 	__HEAD
 ENTRY(_start)
@@ -79,10 +84,7 @@ real_start:
 /* Does r7 point to a valid FDT? Load HEADER magic number */
 	/* Run time Big/Little endian platform */
 	/* Save 1 as word and load byte - 0 - BIG, 1 - LITTLE */
-	addik	r11, r0, 0x1 /* BIG/LITTLE checking value */
-	/* __bss_start will be zeroed later - it is just temp location */
-	swi	r11, r0, TOPHYS(__bss_start)
-	lbui	r11, r0, TOPHYS(__bss_start)
+	lbui	r11, r0, TOPHYS(endian_check)
 	beqid	r11, big_endian /* DO NOT break delay stop dependency */
 	lw	r11, r0, r7 /* Big endian load in delay slot */
 	lwr	r11, r0, r7 /* Little endian load */
@@ -222,26 +224,26 @@ start_here:
 #endif /* CONFIG_MMU */
 
 	/* Initialize small data anchors */
-	la	r13, r0, _KERNEL_SDA_BASE_
-	la	r2, r0, _KERNEL_SDA2_BASE_
+	addik	r13, r0, _KERNEL_SDA_BASE_
+	addik	r2, r0, _KERNEL_SDA2_BASE_
 
 	/* Initialize stack pointer */
-	la	r1, r0, init_thread_union + THREAD_SIZE - 4
+	addik	r1, r0, init_thread_union + THREAD_SIZE - 4
 
 	/* Initialize r31 with current task address */
-	la	r31, r0, init_task
+	addik	r31, r0, init_task
 
 	/*
 	 * Call platform dependent initialize function.
 	 * Please see $(ARCH)/mach-$(SUBARCH)/setup.c for
 	 * the function.
 	 */
-	la	r9, r0, machine_early_init
+	addik	r9, r0, machine_early_init
 	brald	r15, r9
 	nop
 
 #ifndef CONFIG_MMU
-	la	r15, r0, machine_halt
+	addik	r15, r0, machine_halt
 	braid	start_kernel
 	nop
 #else

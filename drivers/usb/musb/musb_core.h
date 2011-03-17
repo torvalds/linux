@@ -328,7 +328,7 @@ struct musb_hw_ep {
 #endif
 };
 
-static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_in_request(struct musb_hw_ep *hw_ep)
 {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_in);
@@ -337,7 +337,7 @@ static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
 #endif
 }
 
-static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_out_request(struct musb_hw_ep *hw_ep)
 {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_out);
@@ -358,10 +358,6 @@ struct musb_csr_regs {
 
 struct musb_context_registers {
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
-#endif
 	u8 power;
 	u16 intrtxe, intrrxe;
 	u8 intrusbe;

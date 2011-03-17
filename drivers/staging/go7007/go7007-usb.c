@@ -1247,15 +1247,13 @@ static void go7007_usb_disconnect(struct usb_interface *intf)
 		vurb = usb->video_urbs[i];
 		if (vurb) {
 			usb_kill_urb(vurb);
-			if (vurb->transfer_buffer)
-				kfree(vurb->transfer_buffer);
+			kfree(vurb->transfer_buffer);
 			usb_free_urb(vurb);
 		}
 		aurb = usb->audio_urbs[i];
 		if (aurb) {
 			usb_kill_urb(aurb);
-			if (aurb->transfer_buffer)
-				kfree(aurb->transfer_buffer);
+			kfree(aurb->transfer_buffer);
 			usb_free_urb(aurb);
 		}
 	}

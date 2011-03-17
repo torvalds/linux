@@ -15,7 +15,6 @@
  */
 
 #include <linux/netdevice.h>
-#include <osl.h>
 #include <bcmutils.h>
 
 #include <dngl_stats.h>
@@ -149,9 +148,8 @@ int dhd_custom_get_mac_address(unsigned char *buf)
 #ifdef EXAMPLE_GET_MAC
 	/* EXAMPLE code */
 	{
-		struct ether_addr ea_example = {
-			{0x00, 0x11, 0x22, 0x33, 0x44, 0xFF} };
-		bcopy((char *)&ea_example, buf, sizeof(struct ether_addr));
+		u8 ea_example[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0xFF};
+		memcpy(buf, ea_example, ETH_ALEN);
 	}
 #endif				/* EXAMPLE_GET_MAC */
 

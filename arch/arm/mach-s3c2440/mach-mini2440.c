@@ -97,26 +97,8 @@ static struct s3c2410_uartcfg mini2440_uartcfgs[] __initdata = {
 
 /* USB device UDC support */
 
-static void mini2440_udc_pullup(enum s3c2410_udc_cmd_e cmd)
-{
-	pr_debug("udc: pullup(%d)\n", cmd);
-
-	switch (cmd) {
-		case S3C2410_UDC_P_ENABLE :
-			gpio_set_value(S3C2410_GPC(5), 1);
-			break;
-		case S3C2410_UDC_P_DISABLE :
-			gpio_set_value(S3C2410_GPC(5), 0);
-			break;
-		case S3C2410_UDC_P_RESET :
-			break;
-		default:
-			break;
-	}
-}
-
 static struct s3c2410_udc_mach_info mini2440_udc_cfg __initdata = {
-	.udc_command		= mini2440_udc_pullup,
+	.pullup_pin = S3C2410_GPC(5),
 };
 
 
@@ -643,10 +625,6 @@ static void __init mini2440_init(void)
 	s3c_gpio_setpull(S3C2410_GPB(1), S3C_GPIO_PULL_UP);
 	s3c2410_gpio_setpin(S3C2410_GPB(1), 0);
 	s3c_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
-
-	/* Make sure the D+ pullup pin is output */
-	WARN_ON(gpio_request(S3C2410_GPC(5), "udc pup"));
-	gpio_direction_output(S3C2410_GPC(5), 0);
 
 	/* mark the key as input, without pullups (there is one on the board) */
 	for (i = 0; i < ARRAY_SIZE(mini2440_buttons); i++) {

@@ -23,7 +23,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "vmbus_private.h"
 
@@ -230,7 +230,7 @@ int hv_init(void)
 	* Allocate the hypercall page memory
 	* virtaddr = osd_page_alloc(1);
 	*/
-	virtaddr = osd_virtual_alloc_exec(PAGE_SIZE);
+	virtaddr = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_EXEC);
 
 	if (!virtaddr) {
 		DPRINT_ERR(VMBUS,
@@ -267,7 +267,7 @@ int hv_init(void)
 
 	hv_context.signal_event_param =
 		(struct hv_input_signal_event *)
-			(ALIGN_UP((unsigned long)
+			(ALIGN((unsigned long)
 				  hv_context.signal_event_buffer,
 				  HV_HYPERCALL_PARAM_ALIGN));
 	hv_context.signal_event_param->connectionid.asu32 = 0;
@@ -338,7 +338,7 @@ u16 hv_post_message(union hv_connection_id connection_id,
 		return -1;
 
 	aligned_msg = (struct hv_input_post_message *)
-			(ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
+			(ALIGN(addr, HV_HYPERCALL_PARAM_ALIGN));
 
 	aligned_msg->connectionid = connection_id;
 	aligned_msg->message_type = message_type;
@@ -462,10 +462,10 @@ void hv_synic_init(void *irqarg)
 
 Cleanup:
 	if (hv_context.synic_event_page[cpu])
-		osd_page_free(hv_context.synic_event_page[cpu], 1);
+		free_page((unsigned long)hv_context.synic_event_page[cpu]);
 
 	if (hv_context.synic_message_page[cpu])
-		osd_page_free(hv_context.synic_message_page[cpu], 1);
+		free_page((unsigned long)hv_context.synic_message_page[cpu]);
 	return;
 }
 
@@ -502,6 +502,6 @@ void hv_synic_cleanup(void *arg)
 
 	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
 
-	osd_page_free(hv_context.synic_message_page[cpu], 1);
-	osd_page_free(hv_context.synic_event_page[cpu], 1);
+	free_page((unsigned long)hv_context.synic_message_page[cpu]);
+	free_page((unsigned long)hv_context.synic_event_page[cpu]);
 }

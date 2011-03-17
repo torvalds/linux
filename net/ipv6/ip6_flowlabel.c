@@ -342,7 +342,7 @@ fl_create(struct net *net, struct in6_flowlabel_req *freq, char __user *optval,
 
 	if (olen > 0) {
 		struct msghdr msg;
-		struct flowi flowi;
+		struct flowi6 flowi6;
 		int junk;
 
 		err = -ENOMEM;
@@ -358,9 +358,9 @@ fl_create(struct net *net, struct in6_flowlabel_req *freq, char __user *optval,
 
 		msg.msg_controllen = olen;
 		msg.msg_control = (void*)(fl->opt+1);
-		flowi.oif = 0;
+		memset(&flowi6, 0, sizeof(flowi6));
 
-		err = datagram_send_ctl(net, &msg, &flowi, fl->opt, &junk,
+		err = datagram_send_ctl(net, &msg, &flowi6, fl->opt, &junk,
 					&junk, &junk);
 		if (err)
 			goto done;

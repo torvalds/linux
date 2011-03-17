@@ -51,6 +51,7 @@ config SPARC64
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config ARCH_DEFCONFIG
 	string
@@ -459,6 +460,39 @@ config SPARC_LEON
 	  IP cores that are distributed under GPL. GRLIB can be downloaded
 	  from www.gaisler.com. You can download a sparc-linux cross-compilation
 	  toolchain at www.gaisler.com.
+
+if SPARC_LEON
+menu "U-Boot options"
+
+config UBOOT_LOAD_ADDR
+	hex "uImage Load Address"
+	default 0x40004000
+	---help---
+	 U-Boot kernel load address, the address in physical address space
+	 where u-boot will place the Linux kernel before booting it.
+	 This address is normally the base address of main memory + 0x4000.
+
+config UBOOT_FLASH_ADDR
+	hex "uImage.o Load Address"
+	default 0x00080000
+	---help---
+	 Optional setting only affecting the uImage.o ELF-image used to
+	 download the uImage file to the target using a ELF-loader other than
+	 U-Boot. It may for example be used to download an uImage to FLASH with
+	 the GRMON utility before even starting u-boot.
+
+config UBOOT_ENTRY_ADDR
+	hex "uImage Entry Address"
+	default 0xf0004000
+	---help---
+	 Do not change this unless you know what you're doing. This is
+	 hardcoded by the SPARC32 and LEON port.
+
+	 This is the virtual address u-boot jumps to when booting the Linux
+	 Kernel.
+
+endmenu
+endif
 
 endmenu
 

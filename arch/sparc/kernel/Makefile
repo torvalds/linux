@@ -42,7 +42,6 @@ obj-$(CONFIG_SPARC32)   += windows.o
 obj-y                   += cpu.o
 obj-$(CONFIG_SPARC32)   += devices.o
 obj-$(CONFIG_SPARC32)   += tadpole.o
-obj-$(CONFIG_SPARC32)   += tick14.o
 obj-y                   += ptrace_$(BITS).o
 obj-y                   += unaligned_$(BITS).o
 obj-y                   += una_asm_$(BITS).o
@@ -54,6 +53,7 @@ obj-y                   += of_device_$(BITS).o
 obj-$(CONFIG_SPARC64)   += prom_irqtrans.o
 
 obj-$(CONFIG_SPARC_LEON)+= leon_kernel.o
+obj-$(CONFIG_SPARC_LEON)+= leon_pmc.o
 
 obj-$(CONFIG_SPARC64)   += reboot.o
 obj-$(CONFIG_SPARC64)   += sysfs.o

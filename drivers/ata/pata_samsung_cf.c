@@ -531,7 +531,6 @@ static int __init pata_s3c_probe(struct platform_device *pdev)
 	}
 
 	ap = host->ports[0];
-	ap->flags |= ATA_FLAG_MMIO;
 	ap->pio_mask = ATA_PIO4;
 
 	if (cpu_type == TYPE_S3C64XX) {

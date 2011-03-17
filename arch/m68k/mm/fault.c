@@ -18,7 +18,6 @@
 #include <asm/pgalloc.h>
 
 extern void die_if_kernel(char *, struct pt_regs *, long);
-extern const int frame_extra_sizes[]; /* in m68k/kernel/signal.c */
 
 int send_fault_sig(struct pt_regs *regs)
 {
@@ -35,21 +34,8 @@ int send_fault_sig(struct pt_regs *regs)
 		force_sig_info(siginfo.si_signo,
 			       &siginfo, current);
 	} else {
-		const struct exception_table_entry *fixup;
-
-		/* Are we prepared to handle this kernel fault? */
-		if ((fixup = search_exception_tables(regs->pc))) {
-			struct pt_regs *tregs;
-			/* Create a new four word stack frame, discarding the old
-			   one.  */
-			regs->stkadj = frame_extra_sizes[regs->format];
-			tregs =	(struct pt_regs *)((ulong)regs + regs->stkadj);
-			tregs->vector = regs->vector;
-			tregs->format = 0;
-			tregs->pc = fixup->fixup;
-			tregs->sr = regs->sr;
+		if (handle_kernel_fault(regs))
 			return -1;
-		}
 
 		//if (siginfo.si_signo == SIGBUS)
 		//	force_sig_info(siginfo.si_signo,

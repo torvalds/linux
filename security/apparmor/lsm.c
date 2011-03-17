@@ -693,11 +693,9 @@ static struct kernel_param_ops param_ops_aalockpolicy = {
 
 static int param_set_audit(const char *val, struct kernel_param *kp);
 static int param_get_audit(char *buffer, struct kernel_param *kp);
-#define param_check_audit(name, p) __param_check(name, p, int)
 
 static int param_set_mode(const char *val, struct kernel_param *kp);
 static int param_get_mode(char *buffer, struct kernel_param *kp);
-#define param_check_mode(name, p) __param_check(name, p, int)
 
 /* Flag values, also controllable via /sys/module/apparmor/parameters
  * We define special types as we want to do additional mediation.

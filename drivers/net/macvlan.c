@@ -152,9 +152,10 @@ static void macvlan_broadcast(struct sk_buff *skb,
 }
 
 /* called under rcu_read_lock() from netif_receive_skb */
-static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
+static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 {
 	struct macvlan_port *port;
+	struct sk_buff *skb = *pskb;
 	const struct ethhdr *eth = eth_hdr(skb);
 	const struct macvlan_dev *vlan;
 	const struct macvlan_dev *src;
@@ -184,7 +185,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 			 */
 			macvlan_broadcast(skb, port, src->dev,
 					  MACVLAN_MODE_VEPA);
-		return skb;
+		return RX_HANDLER_PASS;
 	}
 
 	if (port->passthru)
@@ -192,12 +193,12 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	else
 		vlan = macvlan_hash_lookup(port, eth->h_dest);
 	if (vlan == NULL)
-		return skb;
+		return RX_HANDLER_PASS;
 
 	dev = vlan->dev;
 	if (unlikely(!(dev->flags & IFF_UP))) {
 		kfree_skb(skb);
-		return NULL;
+		return RX_HANDLER_CONSUMED;
 	}
 	len = skb->len + ETH_HLEN;
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -211,7 +212,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 
 out:
 	macvlan_count_rx(vlan, len, ret == NET_RX_SUCCESS, 0);
-	return NULL;
+	return RX_HANDLER_CONSUMED;
 }
 
 static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -219,9 +220,11 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	const struct macvlan_port *port = vlan->port;
 	const struct macvlan_dev *dest;
+	__u8 ip_summed = skb->ip_summed;
 
 	if (vlan->mode == MACVLAN_MODE_BRIDGE) {
 		const struct ethhdr *eth = (void *)skb->data;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		/* send to other bridge ports directly */
 		if (is_multicast_ether_addr(eth->h_dest)) {
@@ -241,6 +244,7 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 xmit_world:
+	skb->ip_summed = ip_summed;
 	skb_set_dev(skb, vlan->lowerdev);
 	return dev_queue_xmit(skb);
 }

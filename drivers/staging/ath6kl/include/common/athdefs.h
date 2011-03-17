@@ -31,54 +31,45 @@
 
 /*
  * Generic error codes that can be used by hw, sta, ap, sim, dk
- * and any other environments. Since these are enums, feel free to
- * add any more codes that you need.
+ * and any other environments.
+ * Feel free to add any more non-zero codes that you need.
  */
 
-typedef enum {
-    A_ERROR = -1,               /* Generic error return */
-    A_OK = 0,                   /* success */
-                                /* Following values start at 1 */
-    A_DEVICE_NOT_FOUND,         /* not able to find PCI device */
-    A_NO_MEMORY,                /* not able to allocate memory, not available */
-    A_MEMORY_NOT_AVAIL,         /* memory region is not free for mapping */
-    A_NO_FREE_DESC,             /* no free descriptors available */
-    A_BAD_ADDRESS,              /* address does not match descriptor */
-    A_WIN_DRIVER_ERROR,         /* used in NT_HW version, if problem at init */
-    A_REGS_NOT_MAPPED,          /* registers not correctly mapped */
-    A_EPERM,                    /* Not superuser */
-    A_EACCES,                   /* Access denied */
-    A_ENOENT,                   /* No such entry, search failed, etc. */
-    A_EEXIST,                   /* The object already exists (can't create) */
-    A_EFAULT,                   /* Bad address fault */
-    A_EBUSY,                    /* Object is busy */
-    A_EINVAL,                   /* Invalid parameter */
-    A_EMSGSIZE,                 /* Inappropriate message buffer length */
-    A_ECANCELED,                /* Operation canceled */
-    A_ENOTSUP,                  /* Operation not supported */
-    A_ECOMM,                    /* Communication error on send */
-    A_EPROTO,                   /* Protocol error */
-    A_ENODEV,                   /* No such device */
-    A_EDEVNOTUP,                /* device is not UP */
-    A_NO_RESOURCE,              /* No resources for requested operation */
-    A_HARDWARE,                 /* Hardware failure */
-    A_PENDING,                  /* Asynchronous routine; will send up results la
-ter (typically in callback) */
-    A_EBADCHANNEL,              /* The channel cannot be used */
-    A_DECRYPT_ERROR,            /* Decryption error */
-    A_PHY_ERROR,                /* RX PHY error */
-    A_CONSUMED                  /* Object was consumed */
-} A_STATUS;
-
-#define A_SUCCESS(x)        (x == A_OK)
-#define A_FAILED(x)         (!A_SUCCESS(x))
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
+#define A_ERROR			(-1)	/* Generic error return */
+#define A_DEVICE_NOT_FOUND	1	/* not able to find PCI device */
+#define A_NO_MEMORY		2	/* not able to allocate memory,
+					 * not avail#defineable */
+#define A_MEMORY_NOT_AVAIL	3	/* memory region is not free for
+					 * mapping */
+#define A_NO_FREE_DESC		4	/* no free descriptors available */
+#define A_BAD_ADDRESS		5	/* address does not match descriptor */
+#define A_WIN_DRIVER_ERROR	6	/* used in NT_HW version,
+					 * if problem at init */
+#define A_REGS_NOT_MAPPED	7	/* registers not correctly mapped */
+#define A_EPERM			8	/* Not superuser */
+#define A_EACCES		0	/* Access denied */
+#define A_ENOENT		10	/* No such entry, search failed, etc. */
+#define A_EEXIST		11	/* The object already exists
+					 * (can't create) */
+#define A_EFAULT		12	/* Bad address fault */
+#define A_EBUSY			13	/* Object is busy */
+#define A_EINVAL		14	/* Invalid parameter */
+#define A_EMSGSIZE		15	/* Bad message buffer length */
+#define A_ECANCELED		16	/* Operation canceled */
+#define A_ENOTSUP		17	/* Operation not supported */
+#define A_ECOMM			18	/* Communication error on send */
+#define A_EPROTO		19	/* Protocol error */
+#define A_ENODEV		20	/* No such device */
+#define A_EDEVNOTUP		21	/* device is not UP */
+#define A_NO_RESOURCE		22	/* No resources for
+					 * requested operation */
+#define A_HARDWARE		23	/* Hardware failure */
+#define A_PENDING		24	/* Asynchronous routine; will send up
+					 * results later
+					 * (typically in callback) */
+#define A_EBADCHANNEL		25	/* The channel cannot be used */
+#define A_DECRYPT_ERROR		26	/* Decryption error */
+#define A_PHY_ERROR		27	/* RX PHY error */
+#define A_CONSUMED		28	/* Object was consumed */
 
 #endif /* __ATHDEFS_H__ */

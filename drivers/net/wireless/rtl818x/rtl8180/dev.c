@@ -146,7 +146,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.freq = dev->conf.channel->center_freq;
 			rx_status.band = dev->conf.channel->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
-			rx_status.flag |= RX_FLAG_TSFT;
+			rx_status.flag |= RX_FLAG_MACTIME_MPDU;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 
@@ -240,7 +240,7 @@ static irqreturn_t rtl8180_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -321,8 +321,6 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_DMA_POLLING, (1 << (prio + 4)));
-
-	return 0;
 }
 
 void rtl8180_set_anaparam(struct rtl8180_priv *priv, u32 anaparam)
@@ -687,7 +685,6 @@ static void rtl8180_beacon_work(struct work_struct *work)
 	struct ieee80211_hw *dev = vif_priv->dev;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
-	int err = 0;
 
 	/* don't overflow the tx ring */
 	if (ieee80211_queue_stopped(dev, 0))
@@ -708,8 +705,7 @@ static void rtl8180_beacon_work(struct work_struct *work)
 	/* TODO: use actual beacon queue */
 	skb_set_queue_mapping(skb, 0);
 
-	err = rtl8180_tx(dev, skb);
-	WARN_ON(err);
+	rtl8180_tx(dev, skb);
 
 resched:
 	/*

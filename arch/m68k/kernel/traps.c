@@ -48,10 +48,7 @@ asmlinkage void nmihandler(void);
 asmlinkage void fpu_emu(void);
 #endif
 
-e_vector vectors[256] = {
-	[VEC_BUSERR]	= buserr,
-	[VEC_SYS]	= system_call,
-};
+e_vector vectors[256];
 
 /* nmi handler for the Amiga */
 asm(".text\n"
@@ -61,10 +58,11 @@ asm(".text\n"
 /*
  * this must be called very early as the kernel might
  * use some instruction that are emulated on the 060
+ * and so we're prepared for early probe attempts (e.g. nf_init).
  */
 void __init base_trap_init(void)
 {
-	if(MACH_IS_SUN3X) {
+	if (MACH_IS_SUN3X) {
 		extern e_vector *sun3x_prom_vbr;
 
 		__asm__ volatile ("movec %%vbr, %0" : "=r" (sun3x_prom_vbr));
@@ -79,6 +77,10 @@ void __init base_trap_init(void)
 
 		vectors[VEC_UNIMPII] = unimp_vec;
 	}
+
+	vectors[VEC_BUSERR] = buserr;
+	vectors[VEC_ILLEGAL] = trap;
+	vectors[VEC_SYS] = system_call;
 }
 
 void __init trap_init (void)
@@ -1055,9 +1057,11 @@ asmlinkage void trap_c(struct frame *fp)
 	siginfo_t info;
 
 	if (fp->ptregs.sr & PS_S) {
-		if ((fp->ptregs.vector >> 2) == VEC_TRACE) {
-			/* traced a trapping instruction */
-		} else
+		if (fp->ptregs.vector == VEC_TRACE << 2) {
+			/* traced a trapping instruction on a 68020/30,
+			 * real exception will be executed afterwards.
+			 */
+		} else if (!handle_kernel_fault(&fp->ptregs))
 			bad_super_trap(fp);
 		return;
 	}

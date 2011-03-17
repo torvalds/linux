@@ -34,28 +34,32 @@ enum {
 	SCIx_NR_IRQS,
 };
 
+#define SCIx_IRQ_MUXED(irq)		\
+{					\
+	[SCIx_ERI_IRQ]	= (irq),	\
+	[SCIx_RXI_IRQ]	= (irq),	\
+	[SCIx_TXI_IRQ]	= (irq),	\
+	[SCIx_BRI_IRQ]	= (irq),	\
+}
+
 struct device;
 
 /*
  * Platform device specific platform_data struct
  */
 struct plat_sci_port {
-	void __iomem	*membase;		/* io cookie */
 	unsigned long	mapbase;		/* resource base */
 	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
 	unsigned int	type;			/* SCI / SCIF / IRDA */
 	upf_t		flags;			/* UPF_* flags */
-	char		*clk;			/* clock string */
 
 	unsigned int	scbrr_algo_id;		/* SCBRR calculation algo */
 	unsigned int	scscr;			/* SCSCR initialization */
 
 	struct device	*dma_dev;
 
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
-	unsigned int dma_slave_tx;
-	unsigned int dma_slave_rx;
-#endif
+	unsigned int	dma_slave_tx;
+	unsigned int	dma_slave_rx;
 };
 
 #endif /* __LINUX_SERIAL_SCI_H */

@@ -19,6 +19,7 @@
 #undef memset
 #undef memcpy
 #undef memmove
+#define memmove memmove
 #define memzero(s, n) memset((s), 0, (n))
 
 /* Symbols defined by linker scripts */
@@ -52,6 +53,10 @@ static unsigned long free_mem_end_ptr;
 
 #ifdef CONFIG_KERNEL_LZO
 #include "../../../../lib/decompress_unlzo.c"
+#endif
+
+#ifdef CONFIG_KERNEL_XZ
+#include "../../../../lib/decompress_unxz.c"
 #endif
 
 extern _sclp_print_early(const char *);

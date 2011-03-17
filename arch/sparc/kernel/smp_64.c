@@ -189,7 +189,7 @@ static inline long get_delta (long *rt, long *master)
 void smp_synchronize_tick_client(void)
 {
 	long i, delta, adj, adjust_latency = 0, done = 0;
-	unsigned long flags, rt, master_time_stamp, bound;
+	unsigned long flags, rt, master_time_stamp;
 #if DEBUG_TICK_SYNC
 	struct {
 		long rt;	/* roundtrip time */
@@ -208,10 +208,8 @@ void smp_synchronize_tick_client(void)
 	{
 		for (i = 0; i < NUM_ROUNDS; i++) {
 			delta = get_delta(&rt, &master_time_stamp);
-			if (delta == 0) {
+			if (delta == 0)
 				done = 1;	/* let's lock on to this... */
-				bound = rt;
-			}
 
 			if (!done) {
 				if (i > 0) {
@@ -933,13 +931,12 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 {
 	void *pg_addr;
-	int this_cpu;
 	u64 data0;
 
 	if (tlb_type == hypervisor)
 		return;
 
-	this_cpu = get_cpu();
+	preempt_disable();
 
 #ifdef CONFIG_DEBUG_DCFLUSH
 	atomic_inc(&dcpage_flushes);
@@ -964,7 +961,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	}
 	__local_flush_dcache_page(page);
 
-	put_cpu();
+	preempt_enable();
 }
 
 void __irq_entry smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)

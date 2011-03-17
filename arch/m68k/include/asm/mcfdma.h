@@ -11,29 +11,6 @@
 #define	mcfdma_h
 /****************************************************************************/
 
-
-/*
- *	Get address specific defines for this Coldfire member.
- */
-#if defined(CONFIG_M5206) || defined(CONFIG_M5206e)
-#define	MCFDMA_BASE0		0x200		/* Base address of DMA 0 */
-#define	MCFDMA_BASE1		0x240		/* Base address of DMA 1 */
-#elif defined(CONFIG_M5272)
-#define	MCFDMA_BASE0		0x0e0		/* Base address of DMA 0 */
-#elif defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
-/* These are relative to the IPSBAR, not MBAR */
-#define	MCFDMA_BASE0		0x100		/* Base address of DMA 0 */
-#define	MCFDMA_BASE1		0x140		/* Base address of DMA 1 */
-#define	MCFDMA_BASE2		0x180		/* Base address of DMA 2 */
-#define	MCFDMA_BASE3		0x1C0		/* Base address of DMA 3 */
-#elif defined(CONFIG_M5249) || defined(CONFIG_M5307) || defined(CONFIG_M5407)
-#define	MCFDMA_BASE0		0x300		/* Base address of DMA 0 */
-#define	MCFDMA_BASE1		0x340		/* Base address of DMA 1 */
-#define	MCFDMA_BASE2		0x380		/* Base address of DMA 2 */
-#define	MCFDMA_BASE3		0x3C0		/* Base address of DMA 3 */
-#endif
-
-
 #if !defined(CONFIG_M5272)
 
 /*

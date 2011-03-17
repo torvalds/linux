@@ -369,11 +369,6 @@ static void
 process_sched_event(struct task_desc *this_task __used, struct sched_atom *atom)
 {
 	int ret = 0;
-	u64 now;
-	long long delta;
-
-	now = get_nsecs();
-	delta = start_time + atom->timestamp - now;
 
 	switch (atom->type) {
 		case SCHED_EVENT_RUN:
@@ -562,7 +557,7 @@ static void wait_for_tasks(void)
 
 static void run_one_test(void)
 {
-	u64 T0, T1, delta, avg_delta, fluct, std_dev;
+	u64 T0, T1, delta, avg_delta, fluct;
 
 	T0 = get_nsecs();
 	wait_for_tasks();
@@ -578,7 +573,6 @@ static void run_one_test(void)
 	else
 		fluct = delta - avg_delta;
 	sum_fluct += fluct;
-	std_dev = sum_fluct / nr_runs / sqrt(nr_runs);
 	if (!run_avg)
 		run_avg = delta;
 	run_avg = (run_avg*9 + delta)/10;
@@ -799,7 +793,7 @@ replay_switch_event(struct trace_switch_event *switch_event,
 		    u64 timestamp,
 		    struct thread *thread __used)
 {
-	struct task_desc *prev, *next;
+	struct task_desc *prev, __used *next;
 	u64 timestamp0;
 	s64 delta;
 
@@ -1404,7 +1398,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 		 u64 timestamp,
 		 struct thread *thread __used)
 {
-	struct thread *sched_out, *sched_in;
+	struct thread *sched_out __used, *sched_in;
 	int new_shortname;
 	u64 timestamp0;
 	s64 delta;
@@ -1580,9 +1574,9 @@ process_sched_migrate_task_event(void *data, struct perf_session *session,
 						 event, cpu, timestamp, thread);
 }
 
-static void
-process_raw_event(event_t *raw_event __used, struct perf_session *session,
-		  void *data, int cpu, u64 timestamp, struct thread *thread)
+static void process_raw_event(union perf_event *raw_event __used,
+			      struct perf_session *session, void *data, int cpu,
+			      u64 timestamp, struct thread *thread)
 {
 	struct event *event;
 	int type;
@@ -1607,7 +1601,8 @@ process_raw_event(event_t *raw_event __used, struct perf_session *session,
 		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
 				struct perf_session *session)
 {
 	struct thread *thread;
@@ -1635,9 +1630,9 @@ static int process_sample_event(event_t *event, struct sample_data *sample,
 
 static struct perf_event_ops event_ops = {
 	.sample			= process_sample_event,
-	.comm			= event__process_comm,
-	.lost			= event__process_lost,
-	.fork			= event__process_task,
+	.comm			= perf_event__process_comm,
+	.lost			= perf_event__process_lost,
+	.fork			= perf_event__process_task,
 	.ordered_samples	= true,
 };
 

@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2009 Solarflare Communications Inc.
+ * Copyright 2006-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -28,7 +28,8 @@ struct efx_ethtool_stat {
 	enum {
 		EFX_ETHTOOL_STAT_SOURCE_mac_stats,
 		EFX_ETHTOOL_STAT_SOURCE_nic,
-		EFX_ETHTOOL_STAT_SOURCE_channel
+		EFX_ETHTOOL_STAT_SOURCE_channel,
+		EFX_ETHTOOL_STAT_SOURCE_tx_queue
 	} source;
 	unsigned offset;
 	u64(*get_stat) (void *field); /* Reader function */
@@ -86,6 +87,10 @@ static u64 efx_get_atomic_stat(void *field)
 	EFX_ETHTOOL_STAT(field, channel, n_##field,		\
 			 unsigned int, efx_get_uint_stat)
 
+#define EFX_ETHTOOL_UINT_TXQ_STAT(field)			\
+	EFX_ETHTOOL_STAT(tx_##field, tx_queue, field,		\
+			 unsigned int, efx_get_uint_stat)
+
 static struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_U64_MAC_STAT(tx_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(tx_good_bytes),
@@ -116,6 +121,10 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_ULONG_MAC_STAT(tx_non_tcpudp),
 	EFX_ETHTOOL_ULONG_MAC_STAT(tx_mac_src_error),
 	EFX_ETHTOOL_ULONG_MAC_STAT(tx_ip_src_error),
+	EFX_ETHTOOL_UINT_TXQ_STAT(tso_bursts),
+	EFX_ETHTOOL_UINT_TXQ_STAT(tso_long_headers),
+	EFX_ETHTOOL_UINT_TXQ_STAT(tso_packets),
+	EFX_ETHTOOL_UINT_TXQ_STAT(pushes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_good_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_bytes),
@@ -237,8 +246,8 @@ static void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->version, EFX_DRIVER_VERSION, sizeof(info->version));
 	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
-		siena_print_fwver(efx, info->fw_version,
-				  sizeof(info->fw_version));
+		efx_mcdi_print_fwver(efx, info->fw_version,
+				     sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
@@ -470,6 +479,7 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	struct efx_ethtool_stat *stat;
 	struct efx_channel *channel;
+	struct efx_tx_queue *tx_queue;
 	struct rtnl_link_stats64 temp;
 	int i;
 
@@ -495,6 +505,15 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 				data[i] += stat->get_stat((void *)channel +
 							  stat->offset);
 			break;
+		case EFX_ETHTOOL_STAT_SOURCE_tx_queue:
+			data[i] = 0;
+			efx_for_each_channel(channel, efx) {
+				efx_for_each_channel_tx_queue(tx_queue, channel)
+					data[i] +=
+						stat->get_stat((void *)tx_queue
+							       + stat->offset);
+			}
+			break;
 		}
 	}
 }
@@ -502,7 +521,7 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx __attribute__ ((unused)) = netdev_priv(net_dev);
-	unsigned long features;
+	u32 features;
 
 	features = NETIF_F_TSO;
 	if (efx->type->offload_features & NETIF_F_V6_CSUM)
@@ -519,7 +538,7 @@ static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
 static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	unsigned long features = efx->type->offload_features & NETIF_F_ALL_CSUM;
+	u32 features = efx->type->offload_features & NETIF_F_ALL_CSUM;
 
 	if (enable)
 		net_dev->features |= features;
@@ -635,7 +654,7 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 	/* Find lowest IRQ moderation across all used TX queues */
 	coalesce->tx_coalesce_usecs_irq = ~((u32) 0);
 	efx_for_each_channel(channel, efx) {
-		if (!efx_channel_get_tx_queue(channel, 0))
+		if (!efx_channel_has_tx_queues(channel))
 			continue;
 		if (channel->irq_moderation < coalesce->tx_coalesce_usecs_irq) {
 			if (channel->channel < efx->n_rx_channels)
@@ -680,8 +699,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 
 	/* If the channel is shared only allow RX parameters to be set */
 	efx_for_each_channel(channel, efx) {
-		if (efx_channel_get_rx_queue(channel) &&
-		    efx_channel_get_tx_queue(channel, 0) &&
+		if (efx_channel_has_rx_queue(channel) &&
+		    efx_channel_has_tx_queues(channel) &&
 		    tx_usecs) {
 			netif_err(efx, drv, efx->net_dev, "Channel is shared. "
 				  "Only RX coalescing may be set\n");

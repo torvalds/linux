@@ -27,6 +27,7 @@
 static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
+	struct ctl_table_header *head;
 
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
@@ -38,8 +39,11 @@ static void proc_evict_inode(struct inode *inode)
 	de = PROC_I(inode)->pde;
 	if (de)
 		pde_put(de);
-	if (PROC_I(inode)->sysctl)
-		sysctl_head_put(PROC_I(inode)->sysctl);
+	head = PROC_I(inode)->sysctl;
+	if (head) {
+		rcu_assign_pointer(PROC_I(inode)->sysctl, NULL);
+		sysctl_head_put(head);
+	}
 }
 
 struct vfsmount *proc_mnt;

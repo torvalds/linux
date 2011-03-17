@@ -131,7 +131,7 @@ arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 		       unsigned long mmr_offset, int limit)
 {
 	const struct cpumask *eligible_cpu = cpumask_of(cpu);
-	struct irq_cfg *cfg = get_irq_chip_data(irq);
+	struct irq_cfg *cfg = irq_get_chip_data(irq);
 	unsigned long mmr_value;
 	struct uv_IO_APIC_route_entry *entry;
 	int mmr_pnode, err;
@@ -148,7 +148,7 @@ arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 	else
 		irq_set_status_flags(irq, IRQ_MOVE_PCNTXT);
 
-	set_irq_chip_and_handler_name(irq, &uv_irq_chip, handle_percpu_irq,
+	irq_set_chip_and_handler_name(irq, &uv_irq_chip, handle_percpu_irq,
 				      irq_name);
 
 	mmr_value = 0;

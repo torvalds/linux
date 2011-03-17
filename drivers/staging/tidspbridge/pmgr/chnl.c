@@ -87,7 +87,7 @@ int chnl_create(struct chnl_mgr **channel_mgr,
 		struct bridge_drv_interface *intf_fxns;
 		dev_get_intf_fxns(hdev_obj, &intf_fxns);
 		/* Let Bridge channel module finish the create: */
-		status = (*intf_fxns->pfn_chnl_create) (&hchnl_mgr, hdev_obj,
+		status = (*intf_fxns->chnl_create) (&hchnl_mgr, hdev_obj,
 							mgr_attrts);
 		if (!status) {
 			/* Fill in DSP API channel module's fields of the
@@ -120,7 +120,7 @@ int chnl_destroy(struct chnl_mgr *hchnl_mgr)
 	if (chnl_mgr_obj) {
 		intf_fxns = chnl_mgr_obj->intf_fxns;
 		/* Let Bridge channel module destroy the chnl_mgr: */
-		status = (*intf_fxns->pfn_chnl_destroy) (hchnl_mgr);
+		status = (*intf_fxns->chnl_destroy) (hchnl_mgr);
 	} else {
 		status = -EFAULT;
 	}

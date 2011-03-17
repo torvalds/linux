@@ -791,8 +791,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	SMSC_TRACE(PROBE, "PHY %d: addr %d, phy_id 0x%08X",
-			phy_addr, phydev->addr, phydev->phy_id);
+	SMSC_TRACE(PROBE, "PHY: addr %d, phy_id 0x%08X",
+			phydev->addr, phydev->phy_id);
 
 	ret = phy_connect_direct(dev, phydev,
 			&smsc911x_phy_adjust_link, 0,
@@ -1177,6 +1177,11 @@ static int smsc911x_open(struct net_device *dev)
 
 	smsc911x_reg_write(pdata, HW_CFG, 0x00050000);
 	smsc911x_reg_write(pdata, AFC_CFG, 0x006E3740);
+
+	/* Increase the legal frame size of VLAN tagged frames to 1522 bytes */
+	spin_lock_irq(&pdata->mac_lock);
+	smsc911x_mac_write(pdata, VLAN1, ETH_P_8021Q);
+	spin_unlock_irq(&pdata->mac_lock);
 
 	/* Make sure EEPROM has finished loading before setting GPIO_CFG */
 	timeout = 50;

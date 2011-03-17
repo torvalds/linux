@@ -181,13 +181,13 @@ static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 {
 	int ret = 0;
 
-	if (rule->iifindex && (rule->iifindex != fl->iif))
+	if (rule->iifindex && (rule->iifindex != fl->flowi_iif))
 		goto out;
 
-	if (rule->oifindex && (rule->oifindex != fl->oif))
+	if (rule->oifindex && (rule->oifindex != fl->flowi_oif))
 		goto out;
 
-	if ((rule->mark ^ fl->mark) & rule->mark_mask)
+	if ((rule->mark ^ fl->flowi_mark) & rule->mark_mask)
 		goto out;
 
 	ret = ops->match(rule, fl, flags);

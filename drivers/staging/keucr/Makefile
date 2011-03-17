@@ -7,7 +7,6 @@ keucr-y :=			\
 		scsiglue.o	\
 		transport.o	\
 		init.o		\
-		sdscsi.o	\
 		msscsi.o	\
 		ms.o		\
 		smscsi.o	\

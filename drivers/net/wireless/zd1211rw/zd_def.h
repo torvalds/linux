@@ -45,7 +45,7 @@ typedef u16 __nocast zd_addr_t;
 #ifdef DEBUG
 #  define ZD_ASSERT(x) \
 do { \
-	if (!(x)) { \
+	if (unlikely(!(x))) { \
 		pr_debug("%s:%d ASSERT %s VIOLATED!\n", \
 			__FILE__, __LINE__, __stringify(x)); \
 		dump_stack(); \

@@ -85,7 +85,7 @@ static __devinit int palmld_pata_probe(struct platform_device *pdev)
 	ap = host->ports[0];
 	ap->ops	= &palmld_port_ops;
 	ap->pio_mask = ATA_PIO4;
-	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY | ATA_FLAG_PIO_POLLING;
+	ap->flags |= ATA_FLAG_PIO_POLLING;
 
 	/* memory mapping voodoo */
 	ap->ioaddr.cmd_addr = mem + 0x10;

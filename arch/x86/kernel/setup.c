@@ -113,6 +113,7 @@
 #endif
 #include <asm/mce.h>
 #include <asm/alternative.h>
+#include <asm/prom.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -293,8 +294,30 @@ static void __init init_gbpages(void)
 	else
 		direct_gbpages = 0;
 }
+
+static void __init cleanup_highmap_brk_end(void)
+{
+	pud_t *pud;
+	pmd_t *pmd;
+
+	mmu_cr4_features = read_cr4();
+
+	/*
+	 * _brk_end cannot change anymore, but it and _end may be
+	 * located on different 2M pages. cleanup_highmap(), however,
+	 * can only consider _end when it runs, so destroy any
+	 * mappings beyond _brk_end here.
+	 */
+	pud = pud_offset(pgd_offset_k(_brk_end), _brk_end);
+	pmd = pmd_offset(pud, _brk_end - 1);
+	while (++pmd <= pmd_offset(pud, (unsigned long)_end - 1))
+		pmd_clear(pmd);
+}
 #else
 static inline void init_gbpages(void)
+{
+}
+static inline void cleanup_highmap_brk_end(void)
 {
 }
 #endif
@@ -307,6 +330,8 @@ static void __init reserve_brk(void)
 	/* Mark brk area as locked down and no longer taking any
 	   new allocations */
 	_brk_start = 0;
+
+	cleanup_highmap_brk_end();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -429,16 +454,30 @@ static void __init parse_setup_data(void)
 		return;
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
-		data = early_memremap(pa_data, PAGE_SIZE);
+		u32 data_len, map_len;
+
+		map_len = max(PAGE_SIZE - (pa_data & ~PAGE_MASK),
+			      (u64)sizeof(struct setup_data));
+		data = early_memremap(pa_data, map_len);
+		data_len = data->len + sizeof(struct setup_data);
+		if (data_len > map_len) {
+			early_iounmap(data, map_len);
+			data = early_memremap(pa_data, data_len);
+			map_len = data_len;
+		}
+
 		switch (data->type) {
 		case SETUP_E820_EXT:
-			parse_e820_ext(data, pa_data);
+			parse_e820_ext(data);
+			break;
+		case SETUP_DTB:
+			add_dtb(pa_data);
 			break;
 		default:
 			break;
 		}
 		pa_data = data->next;
-		early_iounmap(data, PAGE_SIZE);
+		early_iounmap(data, map_len);
 	}
 }
 
@@ -680,15 +719,6 @@ static int __init parse_reservelow(char *p)
 
 early_param("reservelow", parse_reservelow);
 
-static u64 __init get_max_mapped(void)
-{
-	u64 end = max_pfn_mapped;
-
-	end <<= PAGE_SHIFT;
-
-	return end;
-}
-
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -704,8 +734,6 @@ static u64 __init get_max_mapped(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	int acpi = 0;
-	int amd = 0;
 	unsigned long flags;
 
 #ifdef CONFIG_X86_32
@@ -935,15 +963,8 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_DEBUG "initial memory mapped : 0 - %08lx\n",
 			max_pfn_mapped<<PAGE_SHIFT);
 
-	reserve_trampoline_memory();
+	setup_trampolines();
 
-#ifdef CONFIG_ACPI_SLEEP
-	/*
-	 * Reserve low memory region for sleep support.
-	 * even before init_memory_mapping
-	 */
-	acpi_reserve_wakeup_memory();
-#endif
 	init_gbpages();
 
 	/* max_pfn_mapped is updated here */
@@ -984,19 +1005,7 @@ void __init setup_arch(char **cmdline_p)
 
 	early_acpi_boot_init();
 
-#ifdef CONFIG_ACPI_NUMA
-	/*
-	 * Parse SRAT to discover nodes.
-	 */
-	acpi = acpi_numa_init();
-#endif
-
-#ifdef CONFIG_AMD_NUMA
-	if (!acpi)
-		amd = !amd_numa_init(0, max_pfn);
-#endif
-
-	initmem_init(0, max_pfn, acpi, amd);
+	initmem_init();
 	memblock_find_dma_reserve();
 	dma32_reserve_bootmem();
 
@@ -1029,8 +1038,8 @@ void __init setup_arch(char **cmdline_p)
 	 * Read APIC and some other early information from ACPI tables.
 	 */
 	acpi_boot_init();
-
 	sfi_init();
+	x86_dtb_init();
 
 	/*
 	 * get boot-time SMP configuration:
@@ -1040,9 +1049,7 @@ void __init setup_arch(char **cmdline_p)
 
 	prefill_possible_map();
 
-#ifdef CONFIG_X86_64
 	init_cpu_to_node();
-#endif
 
 	init_apic_mappings();
 	ioapic_and_gsi_init();
@@ -1065,6 +1072,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 	x86_init.oem.banner();
+
+	x86_init.timers.wallclock_init();
 
 	mcheck_init();
 

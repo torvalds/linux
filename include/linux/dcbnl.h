@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Intel Corporation.
+ * Copyright (c) 2008-2011, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -25,9 +25,14 @@
 /* IEEE 802.1Qaz std supported values */
 #define IEEE_8021QAZ_MAX_TCS	8
 
+#define IEEE_8021QAZ_TSA_STRICT		0
+#define IEEE_8021QAZ_TSA_CB_SHAPER	1
+#define IEEE_8021QAZ_TSA_ETS		2
+#define IEEE_8021QAZ_TSA_VENDOR		255
+
 /* This structure contains the IEEE 802.1Qaz ETS managed object
  *
- * @willing: willing bit in ETS configuratin TLV
+ * @willing: willing bit in ETS configuration TLV
  * @ets_cap: indicates supported capacity of ets feature
  * @cbs: credit based shaper ets algorithm supported
  * @tc_tx_bw: tc tx bandwidth indexed by traffic class
@@ -82,6 +87,50 @@ struct ieee_pfc {
 	__u64	indications[IEEE_8021QAZ_MAX_TCS];
 };
 
+/* CEE DCBX std supported values */
+#define CEE_DCBX_MAX_PGS	8
+#define CEE_DCBX_MAX_PRIO	8
+
+/**
+ * struct cee_pg - CEE Priority-Group managed object
+ *
+ * @willing: willing bit in the PG tlv
+ * @error: error bit in the PG tlv
+ * @pg_en: enable bit of the PG feature
+ * @tcs_supported: number of traffic classes supported
+ * @pg_bw: bandwidth percentage for each priority group
+ * @prio_pg: priority to PG mapping indexed by priority
+ */
+struct cee_pg {
+	__u8    willing;
+	__u8    error;
+	__u8    pg_en;
+	__u8    tcs_supported;
+	__u8    pg_bw[CEE_DCBX_MAX_PGS];
+	__u8    prio_pg[CEE_DCBX_MAX_PGS];
+};
+
+/**
+ * struct cee_pfc - CEE PFC managed object
+ *
+ * @willing: willing bit in the PFC tlv
+ * @error: error bit in the PFC tlv
+ * @pfc_en: bitmap indicating pfc enabled traffic classes
+ * @tcs_supported: number of traffic classes supported
+ */
+struct cee_pfc {
+	__u8    willing;
+	__u8    error;
+	__u8    pfc_en;
+	__u8    tcs_supported;
+};
+
+/* IEEE 802.1Qaz std supported values */
+#define IEEE_8021QAZ_APP_SEL_ETHERTYPE	1
+#define IEEE_8021QAZ_APP_SEL_STREAM	2
+#define IEEE_8021QAZ_APP_SEL_DGRAM	3
+#define IEEE_8021QAZ_APP_SEL_ANY	4
+
 /* This structure contains the IEEE 802.1Qaz APP managed object. This
  * object is also used for the CEE std as well. There is no difference
  * between the objects.
@@ -103,6 +152,20 @@ struct dcb_app {
 	__u8	selector;
 	__u8	priority;
 	__u16	protocol;
+};
+
+/**
+ * struct dcb_peer_app_info - APP feature information sent by the peer
+ *
+ * @willing: willing bit in the peer APP tlv
+ * @error: error bit in the peer APP tlv
+ *
+ * In addition to this information the full peer APP tlv also contains
+ * a table of 'app_count' APP objects defined above.
+ */
+struct dcb_peer_app_info {
+	__u8	willing;
+	__u8	error;
 };
 
 struct dcbmsg {
@@ -139,6 +202,7 @@ struct dcbmsg {
  * @DCB_CMD_SDCBX: set DCBX engine configuration
  * @DCB_CMD_GFEATCFG: get DCBX features flags
  * @DCB_CMD_SFEATCFG: set DCBX features negotiation flags
+ * @DCB_CMD_CEE_GET: get CEE aggregated configuration
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -181,6 +245,8 @@ enum dcbnl_commands {
 	DCB_CMD_GFEATCFG,
 	DCB_CMD_SFEATCFG,
 
+	DCB_CMD_CEE_GET,
+
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
 };
@@ -203,6 +269,7 @@ enum dcbnl_commands {
  * @DCB_ATTR_IEEE: IEEE 802.1Qaz supported attributes (NLA_NESTED)
  * @DCB_ATTR_DCBX: DCBX engine configuration in the device (NLA_U8)
  * @DCB_ATTR_FEATCFG: DCBX features flags (NLA_NESTED)
+ * @DCB_ATTR_CEE: CEE std supported attributes (NLA_NESTED)
  */
 enum dcbnl_attrs {
 	DCB_ATTR_UNDEFINED,
@@ -226,15 +293,32 @@ enum dcbnl_attrs {
 	DCB_ATTR_DCBX,
 	DCB_ATTR_FEATCFG,
 
+	/* CEE nested attributes */
+	DCB_ATTR_CEE,
+
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
 };
 
+/**
+ * enum ieee_attrs - IEEE 802.1Qaz get/set attributes
+ *
+ * @DCB_ATTR_IEEE_UNSPEC: unspecified
+ * @DCB_ATTR_IEEE_ETS: negotiated ETS configuration
+ * @DCB_ATTR_IEEE_PFC: negotiated PFC configuration
+ * @DCB_ATTR_IEEE_APP_TABLE: negotiated APP configuration
+ * @DCB_ATTR_IEEE_PEER_ETS: peer ETS configuration - get only
+ * @DCB_ATTR_IEEE_PEER_PFC: peer PFC configuration - get only
+ * @DCB_ATTR_IEEE_PEER_APP: peer APP tlv - get only
+ */
 enum ieee_attrs {
 	DCB_ATTR_IEEE_UNSPEC,
 	DCB_ATTR_IEEE_ETS,
 	DCB_ATTR_IEEE_PFC,
 	DCB_ATTR_IEEE_APP_TABLE,
+	DCB_ATTR_IEEE_PEER_ETS,
+	DCB_ATTR_IEEE_PEER_PFC,
+	DCB_ATTR_IEEE_PEER_APP,
 	__DCB_ATTR_IEEE_MAX
 };
 #define DCB_ATTR_IEEE_MAX (__DCB_ATTR_IEEE_MAX - 1)
@@ -245,6 +329,31 @@ enum ieee_attrs_app {
 	__DCB_ATTR_IEEE_APP_MAX
 };
 #define DCB_ATTR_IEEE_APP_MAX (__DCB_ATTR_IEEE_APP_MAX - 1)
+
+/**
+ * enum cee_attrs - CEE DCBX get attributes
+ *
+ * @DCB_ATTR_CEE_UNSPEC: unspecified
+ * @DCB_ATTR_CEE_PEER_PG: peer PG configuration - get only
+ * @DCB_ATTR_CEE_PEER_PFC: peer PFC configuration - get only
+ * @DCB_ATTR_CEE_PEER_APP: peer APP tlv - get only
+ */
+enum cee_attrs {
+	DCB_ATTR_CEE_UNSPEC,
+	DCB_ATTR_CEE_PEER_PG,
+	DCB_ATTR_CEE_PEER_PFC,
+	DCB_ATTR_CEE_PEER_APP_TABLE,
+	__DCB_ATTR_CEE_MAX
+};
+#define DCB_ATTR_CEE_MAX (__DCB_ATTR_CEE_MAX - 1)
+
+enum peer_app_attr {
+	DCB_ATTR_CEE_PEER_APP_UNSPEC,
+	DCB_ATTR_CEE_PEER_APP_INFO,
+	DCB_ATTR_CEE_PEER_APP,
+	__DCB_ATTR_CEE_PEER_APP_MAX
+};
+#define DCB_ATTR_CEE_PEER_APP_MAX (__DCB_ATTR_CEE_PEER_APP_MAX - 1)
 
 /**
  * enum dcbnl_pfc_attrs - DCB Priority Flow Control user priority nested attrs

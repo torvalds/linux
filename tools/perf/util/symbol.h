@@ -132,7 +132,6 @@ struct dso {
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	enum dso_kernel_type	kernel;
 	u8		 adjust_symbols:1;
-	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
 	u8		 hit:1;
 	u8		 annotate_warned:1;

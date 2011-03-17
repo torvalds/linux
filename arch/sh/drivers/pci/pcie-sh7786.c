@@ -1,16 +1,19 @@
 /*
  * Low-Level PCI Express Support for the SH7786
  *
- *  Copyright (C) 2009 - 2010  Paul Mundt
+ *  Copyright (C) 2009 - 2011  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#define pr_fmt(fmt) "PCI: " fmt
+
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
@@ -31,7 +34,7 @@ static unsigned int nr_ports;
 
 static struct sh7786_pcie_hwops {
 	int (*core_init)(void);
-	int (*port_init_hw)(struct sh7786_pcie_port *port);
+	async_func_ptr *port_init_hw;
 } *sh7786_pcie_hwops;
 
 static struct resource sh7786_pci0_resources[] = {
@@ -474,8 +477,9 @@ static int __init sh7786_pcie_core_init(void)
 	return test_mode_pin(MODE_PIN12) ? 3 : 2;
 }
 
-static int __init sh7786_pcie_init_hw(struct sh7786_pcie_port *port)
+static void __init sh7786_pcie_init_hw(void *data, async_cookie_t cookie)
 {
+	struct sh7786_pcie_port *port = data;
 	int ret;
 
 	/*
@@ -488,18 +492,30 @@ static int __init sh7786_pcie_init_hw(struct sh7786_pcie_port *port)
 	 * Setup clocks, needed both for PHY and PCIe registers.
 	 */
 	ret = pcie_clk_init(port);
-	if (unlikely(ret < 0))
-		return ret;
+	if (unlikely(ret < 0)) {
+		pr_err("clock initialization failed for port#%d\n",
+		       port->index);
+		return;
+	}
 
 	ret = phy_init(port);
-	if (unlikely(ret < 0))
-		return ret;
+	if (unlikely(ret < 0)) {
+		pr_err("phy initialization failed for port#%d\n",
+		       port->index);
+		return;
+	}
 
 	ret = pcie_init(port);
-	if (unlikely(ret < 0))
-		return ret;
+	if (unlikely(ret < 0)) {
+		pr_err("core initialization failed for port#%d\n",
+			       port->index);
+		return;
+	}
 
-	return register_pci_controller(port->hose);
+	/* In the interest of preserving device ordering, synchronize */
+	async_synchronize_cookie(cookie);
+
+	register_pci_controller(port->hose);
 }
 
 static struct sh7786_pcie_hwops sh7786_65nm_pcie_hwops __initdata = {
@@ -510,7 +526,7 @@ static struct sh7786_pcie_hwops sh7786_65nm_pcie_hwops __initdata = {
 static int __init sh7786_pcie_init(void)
 {
 	struct clk *platclk;
-	int ret = 0, i;
+	int i;
 
 	printk(KERN_NOTICE "PCI: Starting initialization.\n");
 
@@ -552,14 +568,10 @@ static int __init sh7786_pcie_init(void)
 		port->hose		= sh7786_pci_channels + i;
 		port->hose->io_map_base	= port->hose->resources[0].start;
 
-		ret |= sh7786_pcie_hwops->port_init_hw(port);
+		async_schedule(sh7786_pcie_hwops->port_init_hw, port);
 	}
 
-	if (unlikely(ret)) {
-		clk_disable(platclk);
-		clk_put(platclk);
-		return ret;
-	}
+	async_synchronize_full();
 
 	return 0;
 }

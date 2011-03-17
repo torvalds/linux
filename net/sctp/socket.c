@@ -2928,7 +2928,6 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 					     unsigned int optlen)
 {
 	struct sctp_sock	*sp;
-	struct sctp_endpoint	*ep;
 	struct sctp_association	*asoc = NULL;
 	struct sctp_setpeerprim	prim;
 	struct sctp_chunk	*chunk;
@@ -2936,7 +2935,6 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 	int 			err;
 
 	sp = sctp_sk(sk);
-	ep = sp->ep;
 
 	if (!sctp_addip_enable)
 		return -EPERM;
@@ -6102,15 +6100,16 @@ static void __sctp_write_space(struct sctp_association *asoc)
 			wake_up_interruptible(&asoc->wait);
 
 		if (sctp_writeable(sk)) {
-			if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
-				wake_up_interruptible(sk_sleep(sk));
+			wait_queue_head_t *wq = sk_sleep(sk);
+
+			if (wq && waitqueue_active(wq))
+				wake_up_interruptible(wq);
 
 			/* Note that we try to include the Async I/O support
 			 * here by modeling from the current TCP/UDP code.
 			 * We have not tested with it yet.
 			 */
-			if (sock->wq->fasync_list &&
-			    !(sk->sk_shutdown & SEND_SHUTDOWN))
+			if (!(sk->sk_shutdown & SEND_SHUTDOWN))
 				sock_wake_async(sock,
 						SOCK_WAKE_SPACE, POLL_OUT);
 		}

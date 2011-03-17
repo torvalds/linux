@@ -63,7 +63,7 @@ SECTIONS
     *(.init.page)
   } :data =0
   INIT_DATA_SECTION(16)
-  PERCPU(PAGE_SIZE)
+  PERCPU(L2_CACHE_BYTES, PAGE_SIZE)
   . = ALIGN(PAGE_SIZE);
   VMLINUX_SYMBOL(_einitdata) = .;
 

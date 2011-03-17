@@ -52,6 +52,264 @@
 #define EHCI_USBLEGCTLSTS	4		/* legacy control/status */
 #define EHCI_USBLEGCTLSTS_SOOE	(1 << 13)	/* SMI on ownership change */
 
+/* AMD quirk use */
+#define	AB_REG_BAR_LOW		0xe0
+#define	AB_REG_BAR_HIGH		0xe1
+#define	AB_REG_BAR_SB700	0xf0
+#define	AB_INDX(addr)		((addr) + 0x00)
+#define	AB_DATA(addr)		((addr) + 0x04)
+#define	AX_INDXC		0x30
+#define	AX_DATAC		0x34
+
+#define	NB_PCIE_INDX_ADDR	0xe0
+#define	NB_PCIE_INDX_DATA	0xe4
+#define	PCIE_P_CNTL		0x10040
+#define	BIF_NB			0x10002
+#define	NB_PIF0_PWRDOWN_0	0x01100012
+#define	NB_PIF0_PWRDOWN_1	0x01100013
+
+static struct amd_chipset_info {
+	struct pci_dev	*nb_dev;
+	struct pci_dev	*smbus_dev;
+	int nb_type;
+	int sb_type;
+	int isoc_reqs;
+	int probe_count;
+	int probe_result;
+} amd_chipset;
+
+static DEFINE_SPINLOCK(amd_lock);
+
+int usb_amd_find_chipset_info(void)
+{
+	u8 rev = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&amd_lock, flags);
+
+	amd_chipset.probe_count++;
+	/* probe only once */
+	if (amd_chipset.probe_count > 1) {
+		spin_unlock_irqrestore(&amd_lock, flags);
+		return amd_chipset.probe_result;
+	}
+
+	amd_chipset.smbus_dev = pci_get_device(PCI_VENDOR_ID_ATI, 0x4385, NULL);
+	if (amd_chipset.smbus_dev) {
+		rev = amd_chipset.smbus_dev->revision;
+		if (rev >= 0x40)
+			amd_chipset.sb_type = 1;
+		else if (rev >= 0x30 && rev <= 0x3b)
+			amd_chipset.sb_type = 3;
+	} else {
+		amd_chipset.smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+							0x780b, NULL);
+		if (!amd_chipset.smbus_dev) {
+			spin_unlock_irqrestore(&amd_lock, flags);
+			return 0;
+		}
+		rev = amd_chipset.smbus_dev->revision;
+		if (rev >= 0x11 && rev <= 0x18)
+			amd_chipset.sb_type = 2;
+	}
+
+	if (amd_chipset.sb_type == 0) {
+		if (amd_chipset.smbus_dev) {
+			pci_dev_put(amd_chipset.smbus_dev);
+			amd_chipset.smbus_dev = NULL;
+		}
+		spin_unlock_irqrestore(&amd_lock, flags);
+		return 0;
+	}
+
+	amd_chipset.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x9601, NULL);
+	if (amd_chipset.nb_dev) {
+		amd_chipset.nb_type = 1;
+	} else {
+		amd_chipset.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+							0x1510, NULL);
+		if (amd_chipset.nb_dev) {
+			amd_chipset.nb_type = 2;
+		} else  {
+			amd_chipset.nb_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+								0x9600, NULL);
+			if (amd_chipset.nb_dev)
+				amd_chipset.nb_type = 3;
+		}
+	}
+
+	amd_chipset.probe_result = 1;
+	printk(KERN_DEBUG "QUIRK: Enable AMD PLL fix\n");
+
+	spin_unlock_irqrestore(&amd_lock, flags);
+	return amd_chipset.probe_result;
+}
+EXPORT_SYMBOL_GPL(usb_amd_find_chipset_info);
+
+/*
+ * The hardware normally enables the A-link power management feature, which
+ * lets the system lower the power consumption in idle states.
+ *
+ * This USB quirk prevents the link going into that lower power state
+ * during isochronous transfers.
+ *
+ * Without this quirk, isochronous stream on OHCI/EHCI/xHCI controllers of
+ * some AMD platforms may stutter or have breaks occasionally.
+ */
+static void usb_amd_quirk_pll(int disable)
+{
+	u32 addr, addr_low, addr_high, val;
+	u32 bit = disable ? 0 : 1;
+	unsigned long flags;
+
+	spin_lock_irqsave(&amd_lock, flags);
+
+	if (disable) {
+		amd_chipset.isoc_reqs++;
+		if (amd_chipset.isoc_reqs > 1) {
+			spin_unlock_irqrestore(&amd_lock, flags);
+			return;
+		}
+	} else {
+		amd_chipset.isoc_reqs--;
+		if (amd_chipset.isoc_reqs > 0) {
+			spin_unlock_irqrestore(&amd_lock, flags);
+			return;
+		}
+	}
+
+	if (amd_chipset.sb_type == 1 || amd_chipset.sb_type == 2) {
+		outb_p(AB_REG_BAR_LOW, 0xcd6);
+		addr_low = inb_p(0xcd7);
+		outb_p(AB_REG_BAR_HIGH, 0xcd6);
+		addr_high = inb_p(0xcd7);
+		addr = addr_high << 8 | addr_low;
+
+		outl_p(0x30, AB_INDX(addr));
+		outl_p(0x40, AB_DATA(addr));
+		outl_p(0x34, AB_INDX(addr));
+		val = inl_p(AB_DATA(addr));
+	} else if (amd_chipset.sb_type == 3) {
+		pci_read_config_dword(amd_chipset.smbus_dev,
+					AB_REG_BAR_SB700, &addr);
+		outl(AX_INDXC, AB_INDX(addr));
+		outl(0x40, AB_DATA(addr));
+		outl(AX_DATAC, AB_INDX(addr));
+		val = inl(AB_DATA(addr));
+	} else {
+		spin_unlock_irqrestore(&amd_lock, flags);
+		return;
+	}
+
+	if (disable) {
+		val &= ~0x08;
+		val |= (1 << 4) | (1 << 9);
+	} else {
+		val |= 0x08;
+		val &= ~((1 << 4) | (1 << 9));
+	}
+	outl_p(val, AB_DATA(addr));
+
+	if (!amd_chipset.nb_dev) {
+		spin_unlock_irqrestore(&amd_lock, flags);
+		return;
+	}
+
+	if (amd_chipset.nb_type == 1 || amd_chipset.nb_type == 3) {
+		addr = PCIE_P_CNTL;
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_ADDR, addr);
+		pci_read_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, &val);
+
+		val &= ~(1 | (1 << 3) | (1 << 4) | (1 << 9) | (1 << 12));
+		val |= bit | (bit << 3) | (bit << 12);
+		val |= ((!bit) << 4) | ((!bit) << 9);
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, val);
+
+		addr = BIF_NB;
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_ADDR, addr);
+		pci_read_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, &val);
+		val &= ~(1 << 8);
+		val |= bit << 8;
+
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, val);
+	} else if (amd_chipset.nb_type == 2) {
+		addr = NB_PIF0_PWRDOWN_0;
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_ADDR, addr);
+		pci_read_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, &val);
+		if (disable)
+			val &= ~(0x3f << 7);
+		else
+			val |= 0x3f << 7;
+
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, val);
+
+		addr = NB_PIF0_PWRDOWN_1;
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_ADDR, addr);
+		pci_read_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, &val);
+		if (disable)
+			val &= ~(0x3f << 7);
+		else
+			val |= 0x3f << 7;
+
+		pci_write_config_dword(amd_chipset.nb_dev,
+					NB_PCIE_INDX_DATA, val);
+	}
+
+	spin_unlock_irqrestore(&amd_lock, flags);
+	return;
+}
+
+void usb_amd_quirk_pll_disable(void)
+{
+	usb_amd_quirk_pll(1);
+}
+EXPORT_SYMBOL_GPL(usb_amd_quirk_pll_disable);
+
+void usb_amd_quirk_pll_enable(void)
+{
+	usb_amd_quirk_pll(0);
+}
+EXPORT_SYMBOL_GPL(usb_amd_quirk_pll_enable);
+
+void usb_amd_dev_put(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&amd_lock, flags);
+
+	amd_chipset.probe_count--;
+	if (amd_chipset.probe_count > 0) {
+		spin_unlock_irqrestore(&amd_lock, flags);
+		return;
+	}
+
+	if (amd_chipset.nb_dev) {
+		pci_dev_put(amd_chipset.nb_dev);
+		amd_chipset.nb_dev = NULL;
+	}
+	if (amd_chipset.smbus_dev) {
+		pci_dev_put(amd_chipset.smbus_dev);
+		amd_chipset.smbus_dev = NULL;
+	}
+	amd_chipset.nb_type = 0;
+	amd_chipset.sb_type = 0;
+	amd_chipset.isoc_reqs = 0;
+	amd_chipset.probe_result = 0;
+
+	spin_unlock_irqrestore(&amd_lock, flags);
+}
+EXPORT_SYMBOL_GPL(usb_amd_dev_put);
 
 /*
  * Make sure the controller is completely inactive, unable to

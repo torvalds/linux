@@ -180,6 +180,7 @@ struct amba_ahb_device {
 struct device_node;
 void _amba_init(struct device_node *dp, struct device_node ***nextp);
 
+extern unsigned long amba_system_id;
 extern struct leon3_irqctrl_regs_map *leon3_irqctrl_regs;
 extern struct leon3_gptimer_regs_map *leon3_gptimer_regs;
 extern struct amba_apb_device leon_percpu_timer_dev[16];
@@ -253,6 +254,11 @@ extern unsigned int sparc_leon_eirq;
 #define GAISLER_L2TIME   0xffd	/* internal device: leon2 timer */
 #define GAISLER_L2C      0xffe	/* internal device: leon2compat */
 #define GAISLER_PLUGPLAY 0xfff	/* internal device: plug & play configarea */
+
+/* Chip IDs */
+#define AEROFLEX_UT699    0x0699
+#define LEON4_NEXTREME1   0x0102
+#define GAISLER_GR712RC   0x0712
 
 #define amba_vendor(x) (((x) >> 24) & 0xff)
 

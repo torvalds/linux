@@ -1479,6 +1479,7 @@ void pci_request_acs(void);
 #define PCI_VPD_RO_KEYWORD_PARTNO	"PN"
 #define PCI_VPD_RO_KEYWORD_MFR_ID	"MN"
 #define PCI_VPD_RO_KEYWORD_VENDOR0	"V0"
+#define PCI_VPD_RO_KEYWORD_CHKSUM	"RV"
 
 /**
  * pci_vpd_lrdt_size - Extracts the Large Resource Data Type length

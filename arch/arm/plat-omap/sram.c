@@ -242,7 +242,14 @@ static void __init omap_map_sram(void)
 	       omap_sram_size - SRAM_BOOTLOADER_SZ);
 }
 
-void * omap_sram_push(void * start, unsigned long size)
+/*
+ * Memory allocator for SRAM: calculates the new ceiling address
+ * for pushing a function using the fncpy API.
+ *
+ * Note that fncpy requires the returned address to be aligned
+ * to an 8-byte boundary.
+ */
+void *omap_sram_push_address(unsigned long size)
 {
 	if (size > (omap_sram_ceil - (omap_sram_base + SRAM_BOOTLOADER_SZ))) {
 		printk(KERN_ERR "Not enough space in SRAM\n");
@@ -250,10 +257,7 @@ void * omap_sram_push(void * start, unsigned long size)
 	}
 
 	omap_sram_ceil -= size;
-	omap_sram_ceil = ROUND_DOWN(omap_sram_ceil, sizeof(void *));
-	memcpy((void *)omap_sram_ceil, start, size);
-	flush_icache_range((unsigned long)omap_sram_ceil,
-		(unsigned long)(omap_sram_ceil + size));
+	omap_sram_ceil = ROUND_DOWN(omap_sram_ceil, FNCPY_ALIGN);
 
 	return (void *)omap_sram_ceil;
 }

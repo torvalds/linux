@@ -47,6 +47,7 @@
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
 #define EVERGREEN_RLC_UCODE_SIZE 768
+#define CAYMAN_RLC_UCODE_SIZE 1024
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
@@ -1255,7 +1256,6 @@ int r600_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -1937,7 +1937,7 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
  */
 void r600_cp_stop(struct radeon_device *rdev)
 {
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
 	WREG32(SCRATCH_UMSK, 0);
 }
@@ -2740,7 +2740,7 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev)
 
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
+		r = radeon_bo_create(rdev, rdev->ih.ring_size,
 				     PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_GTT,
 				     &rdev->ih.ring_obj);
@@ -2821,13 +2821,20 @@ static int r600_rlc_init(struct radeon_device *rdev)
 	WREG32(RLC_HB_CNTL, 0);
 	WREG32(RLC_HB_RPTR, 0);
 	WREG32(RLC_HB_WPTR, 0);
-	WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
-	WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
+	if (rdev->family <= CHIP_CAICOS) {
+		WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
+		WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
+	}
 	WREG32(RLC_MC_CNTL, 0);
 	WREG32(RLC_UCODE_CNTL, 0);
 
 	fw_data = (const __be32 *)rdev->rlc_fw->data;
-	if (rdev->family >= CHIP_CEDAR) {
+	if (rdev->family >= CHIP_CAYMAN) {
+		for (i = 0; i < CAYMAN_RLC_UCODE_SIZE; i++) {
+			WREG32(RLC_UCODE_ADDR, i);
+			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
+		}
+	} else if (rdev->family >= CHIP_CEDAR) {
 		for (i = 0; i < EVERGREEN_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));

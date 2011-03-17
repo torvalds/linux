@@ -78,8 +78,10 @@ static struct irqmap intc_irqmap[MCFINT_VECMAX - MCFINT_VECBASE] = {
  * an interrupt on this irq (for the external irqs). So this mask function
  * is also an ack_mask function.
  */
-static void intc_irq_mask(unsigned int irq)
+static void intc_irq_mask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX)) {
 		u32 v;
 		irq -= MCFINT_VECBASE;
@@ -88,8 +90,10 @@ static void intc_irq_mask(unsigned int irq)
 	}
 }
 
-static void intc_irq_unmask(unsigned int irq)
+static void intc_irq_unmask(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX)) {
 		u32 v;
 		irq -= MCFINT_VECBASE;
@@ -98,8 +102,10 @@ static void intc_irq_unmask(unsigned int irq)
 	}
 }
 
-static void intc_irq_ack(unsigned int irq)
+static void intc_irq_ack(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
+
 	/* Only external interrupts are acked */
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX)) {
 		irq -= MCFINT_VECBASE;
@@ -113,8 +119,10 @@ static void intc_irq_ack(unsigned int irq)
 	}
 }
 
-static int intc_irq_set_type(unsigned int irq, unsigned int type)
+static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 {
+	unsigned int irq = d->irq;
+
 	if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX)) {
 		irq -= MCFINT_VECBASE;
 		if (intc_irqmap[irq].ack) {
@@ -137,20 +145,17 @@ static int intc_irq_set_type(unsigned int irq, unsigned int type)
  */
 static void intc_external_irq(unsigned int irq, struct irq_desc *desc)
 {
-	kstat_incr_irqs_this_cpu(irq, desc);
-	desc->status |= IRQ_INPROGRESS;
-	desc->chip->ack(irq);
-	handle_IRQ_event(irq, desc->action);
-	desc->status &= ~IRQ_INPROGRESS;
+	get_irq_desc_chip(desc)->irq_ack(&desc->irq_data);
+	handle_simple_irq(irq, desc);
 }
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "CF-INTC",
-	.mask		= intc_irq_mask,
-	.unmask		= intc_irq_unmask,
-	.mask_ack	= intc_irq_mask,
-	.ack		= intc_irq_ack,
-	.set_type	= intc_irq_set_type,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
+	.irq_mask_ack	= intc_irq_mask,
+	.irq_ack	= intc_irq_ack,
+	.irq_set_type	= intc_irq_set_type,
 };
 
 void __init init_IRQ(void)

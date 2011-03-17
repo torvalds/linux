@@ -309,6 +309,11 @@ static void do_config_file(const char *filename)
 	close(fd);
 }
 
+/*
+ * Important: The below generated source_foo.o and deps_foo.o variable
+ * assignments are parsed not only by make, but also by the rather simple
+ * parser in scripts/mod/sumversion.c.
+ */
 static void parse_dep_file(void *map, size_t len)
 {
 	char *m = map;
@@ -323,7 +328,6 @@ static void parse_dep_file(void *map, size_t len)
 		exit(1);
 	}
 	memcpy(s, m, p-m); s[p-m] = 0;
-	printf("deps_%s := \\\n", target);
 	m = p+1;
 
 	clear_config();
@@ -343,12 +347,15 @@ static void parse_dep_file(void *map, size_t len)
 		    strrcmp(s, "arch/um/include/uml-config.h") &&
 		    strrcmp(s, ".ver")) {
 			/*
-			 * Do not output the first dependency (the
-			 * source file), so that kbuild is not confused
-			 * if a .c file is rewritten into .S or vice
-			 * versa.
+			 * Do not list the source file as dependency, so that
+			 * kbuild is not confused if a .c file is rewritten
+			 * into .S or vice versa. Storing it in source_* is
+			 * needed for modpost to compute srcversions.
 			 */
-			if (!first)
+			if (first) {
+				printf("source_%s := %s\n\n", target, s);
+				printf("deps_%s := \\\n", target);
+			} else
 				printf("  %s \\\n", s);
 			do_config_file(s);
 		}

@@ -676,4 +676,5 @@ void radeon_fb_output_poll_changed(struct radeon_device *rdev);
 
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
+int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);
 #endif

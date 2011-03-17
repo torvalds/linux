@@ -852,7 +852,7 @@ static int qt2_chars_in_buffer(struct tty_struct *tty)
  * TIOCMGET and TIOCMSET are filtered off to their own methods before they get
  * here, so we don't have to handle them.
  */
-static int qt2_ioctl(struct tty_struct *tty, struct file *file,
+static int qt2_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1078,7 +1078,7 @@ static void qt2_set_termios(struct tty_struct *tty,
 	}
 }
 
-static int qt2_tiocmget(struct tty_struct *tty, struct file *file)
+static int qt2_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
@@ -1121,7 +1121,7 @@ static int qt2_tiocmget(struct tty_struct *tty, struct file *file)
 	}
 }
 
-static int qt2_tiocmset(struct tty_struct *tty, struct file *file,
+static int qt2_tiocmset(struct tty_struct *tty,
 		       unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1221,7 +1221,7 @@ static void qt2_throttle(struct tty_struct *tty)
 	}
 	/* Send command to box to stop receiving stuff. This will stop this
 	 * particular UART from filling the endpoint - in the multiport case the
-	 * FPGA UART will handle any flow control implmented, but for the single
+	 * FPGA UART will handle any flow control implemented, but for the single
 	 * port it's handed differently and we just quit submitting urbs
 	 */
 	if (serial->dev->descriptor.idProduct != QUATECH_SSU2_100)

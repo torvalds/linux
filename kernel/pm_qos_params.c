@@ -103,11 +103,14 @@ static struct pm_qos_object *pm_qos_array[] = {
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos);
+static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
+		size_t count, loff_t *f_pos);
 static int pm_qos_power_open(struct inode *inode, struct file *filp);
 static int pm_qos_power_release(struct inode *inode, struct file *filp);
 
 static const struct file_operations pm_qos_power_fops = {
 	.write = pm_qos_power_write,
+	.read = pm_qos_power_read,
 	.open = pm_qos_power_open,
 	.release = pm_qos_power_release,
 	.llseek = noop_llseek,
@@ -375,6 +378,27 @@ static int pm_qos_power_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+
+static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	s32 value;
+	unsigned long flags;
+	struct pm_qos_object *o;
+	struct pm_qos_request_list *pm_qos_req = filp->private_data;;
+
+	if (!pm_qos_req)
+		return -EINVAL;
+	if (!pm_qos_request_active(pm_qos_req))
+		return -EINVAL;
+
+	o = pm_qos_array[pm_qos_req->pm_qos_class];
+	spin_lock_irqsave(&pm_qos_lock, flags);
+	value = pm_qos_get_value(o);
+	spin_unlock_irqrestore(&pm_qos_lock, flags);
+
+	return simple_read_from_buffer(buf, count, f_pos, &value, sizeof(s32));
+}
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos)

@@ -191,7 +191,8 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_ports: the number of different ports this device will have.
- * @bulk_in_size: bytes to allocate for bulk-in buffer (0 = end-point size)
+ * @bulk_in_size: minimum number of bytes to allocate for bulk-in buffer
+ *	(0 = end-point size)
  * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
  * @calc_num_ports: pointer to a function to determine how many ports this
  *	device has dynamically.  It will be called after the probe()
@@ -260,7 +261,7 @@ struct usb_serial_driver {
 			const unsigned char *buf, int count);
 	/* Called only by the tty layer */
 	int  (*write_room)(struct tty_struct *tty);
-	int  (*ioctl)(struct tty_struct *tty, struct file *file,
+	int  (*ioctl)(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg);
 	void (*set_termios)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
@@ -268,8 +269,8 @@ struct usb_serial_driver {
 	int  (*chars_in_buffer)(struct tty_struct *tty);
 	void (*throttle)(struct tty_struct *tty);
 	void (*unthrottle)(struct tty_struct *tty);
-	int  (*tiocmget)(struct tty_struct *tty, struct file *file);
-	int  (*tiocmset)(struct tty_struct *tty, struct file *file,
+	int  (*tiocmget)(struct tty_struct *tty);
+	int  (*tiocmset)(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
 	int  (*get_icount)(struct tty_struct *tty,
 			struct serial_icounter_struct *icount);

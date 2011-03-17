@@ -217,6 +217,13 @@ intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 	return dev_priv->pipe_to_crtc_mapping[pipe];
 }
 
+static inline struct drm_crtc *
+intel_get_crtc_for_plane(struct drm_device *dev, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return dev_priv->plane_to_crtc_mapping[plane];
+}
+
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_device *dev;
@@ -229,6 +236,8 @@ struct intel_unpin_work {
 
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
+
+extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
@@ -260,6 +269,7 @@ extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
 extern void intel_panel_setup_backlight(struct drm_device *dev);
 extern void intel_panel_enable_backlight(struct drm_device *dev);
 extern void intel_panel_disable_backlight(struct drm_device *dev);
+extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
@@ -321,8 +331,7 @@ extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 
 extern void intel_setup_overlay(struct drm_device *dev);
 extern void intel_cleanup_overlay(struct drm_device *dev);
-extern int intel_overlay_switch_off(struct intel_overlay *overlay,
-				    bool interruptible);
+extern int intel_overlay_switch_off(struct intel_overlay *overlay);
 extern int intel_overlay_put_image(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
 extern int intel_overlay_attrs(struct drm_device *dev, void *data,

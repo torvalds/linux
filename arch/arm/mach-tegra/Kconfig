@@ -10,6 +10,9 @@ config ARCH_TEGRA_2x_SOC
 	select CPU_V7
 	select ARM_GIC
 	select ARCH_REQUIRE_GPIOLIB
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select USB_ULPI if USB_SUPPORT
+	select USB_ULPI_VIEWPORT if USB_SUPPORT
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -26,6 +29,31 @@ config MACH_HARMONY
        bool "Harmony board"
        help
          Support for nVidia Harmony development platform
+
+config MACH_KAEN
+       bool "Kaen board"
+       select MACH_SEABOARD
+       help
+         Support for the Kaen version of Seaboard
+
+config MACH_SEABOARD
+       bool "Seaboard board"
+       help
+         Support for nVidia Seaboard development platform. It will
+	 also be included for some of the derivative boards that
+	 have large similarities with the seaboard design.
+
+config MACH_TRIMSLICE
+       bool "TrimSlice board"
+       select TEGRA_PCI
+       help
+         Support for CompuLab TrimSlice platform
+
+config MACH_WARIO
+       bool "Wario board"
+       select MACH_SEABOARD
+       help
+         Support for the Wario version of Seaboard
 
 choice
         prompt "Low-level debug console UART"
@@ -57,5 +85,8 @@ config TEGRA_SYSTEM_DMA
 	help
 	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
 	  several Tegra device drivers
+
+config TEGRA_EMC_SCALING_ENABLE
+	bool "Enable scaling the memory frequency"
 
 endif

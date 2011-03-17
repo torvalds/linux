@@ -25,9 +25,6 @@ static inline void fib_alias_accessed(struct fib_alias *fa)
 }
 
 /* Exported by fib_semantics.c */
-extern int fib_semantic_match(struct list_head *head,
-			      const struct flowi *flp,
-			      struct fib_result *res, int prefixlen, int fib_flags);
 extern void fib_release_info(struct fib_info *);
 extern struct fib_info *fib_create_info(struct fib_config *cfg);
 extern int fib_nh_match(struct fib_config *cfg, struct fib_info *fi);
@@ -50,5 +47,12 @@ static inline void fib_result_assign(struct fib_result *res,
 	/* we used to play games with refcounts, but we now use RCU */
 	res->fi = fi;
 }
+
+struct fib_prop {
+	int	error;
+	u8	scope;
+};
+
+extern const struct fib_prop fib_props[RTN_MAX + 1];
 
 #endif /* _FIB_LOOKUP_H */

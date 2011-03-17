@@ -29,9 +29,15 @@
  */
 
 extern unsigned char boot_cpu_id;
+extern volatile unsigned long cpu_callin_map[NR_CPUS];
+extern cpumask_t smp_commenced_mask;
+extern struct linux_prom_registers smp_penguin_ctable;
 
 typedef void (*smpfunc_t)(unsigned long, unsigned long, unsigned long,
 		       unsigned long, unsigned long);
+
+void cpu_panic(void);
+extern void smp4m_irq_rotate(int cpu);
 
 /*
  *	General functions that each host system must provide.

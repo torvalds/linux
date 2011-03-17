@@ -994,7 +994,6 @@ struct gem {
 	u32			status;
 
 	struct napi_struct	napi;
-	struct net_device_stats net_stats;
 
 	int			tx_fifo_sz;
 	int			rx_fifo_sz;

@@ -1965,6 +1965,7 @@ enum BC_STATUS crystalhd_hw_setup_dma_rings(struct crystalhd_hw *hw)
 		} else {
 			BCMLOG_ERR("Insufficient Memory For RX\n");
 			crystalhd_hw_free_dma_rings(hw);
+			kfree(rpkt);
 			return BC_STS_INSUFF_RES;
 		}
 		rpkt->desc_mem.pdma_desc_start = mem;

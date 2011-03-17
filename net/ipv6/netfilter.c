@@ -15,14 +15,14 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct dst_entry *dst;
-	struct flowi fl = {
-		.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
-		.mark = skb->mark,
-		.fl6_dst = iph->daddr,
-		.fl6_src = iph->saddr,
+	struct flowi6 fl6 = {
+		.flowi6_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
+		.flowi6_mark = skb->mark,
+		.daddr = iph->daddr,
+		.saddr = iph->saddr,
 	};
 
-	dst = ip6_route_output(net, skb->sk, &fl);
+	dst = ip6_route_output(net, skb->sk, &fl6);
 	if (dst->error) {
 		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 		LIMIT_NETDEBUG(KERN_DEBUG "ip6_route_me_harder: No more route.\n");
@@ -37,9 +37,10 @@ int ip6_route_me_harder(struct sk_buff *skb)
 
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
-	    xfrm_decode_session(skb, &fl, AF_INET6) == 0) {
+	    xfrm_decode_session(skb, flowi6_to_flowi(&fl6), AF_INET6) == 0) {
 		skb_dst_set(skb, NULL);
-		if (xfrm_lookup(net, &dst, &fl, skb->sk, 0))
+		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), skb->sk, 0);
+		if (IS_ERR(dst))
 			return -1;
 		skb_dst_set(skb, dst);
 	}
@@ -91,7 +92,7 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 
 static int nf_ip6_route(struct dst_entry **dst, struct flowi *fl)
 {
-	*dst = ip6_route_output(&init_net, NULL, fl);
+	*dst = ip6_route_output(&init_net, NULL, &fl->u.ip6);
 	return (*dst)->error;
 }
 
