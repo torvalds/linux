@@ -190,23 +190,22 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct lnw_gpio *lnw = irq_data_get_irq_handler_data(data);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
-	u32 base, gpio, gedr_v;
+	u32 base, gpio, mask;
 	unsigned long pending;
 	void __iomem *gedr;
 
 	/* check GPIO controller to check which pin triggered the interrupt */
 	for (base = 0; base < lnw->chip.ngpio; base += 32) {
 		gedr = gpio_reg(&lnw->chip, base, GEDR);
-		gedr_v = pending = readl(gedr);
-		if (!gedr_v)
-			continue;
+		pending = readl(gedr);
 		while (pending) {
 			gpio = __ffs(pending) - 1;
-			pending &= ~BIT(gpio);
+			mask = BIT(gpio);
+			pending &= ~mask;
+			/* Clear before handling so we can't lose an edge */
+			writel(mask, gedr);
 			generic_handle_irq(lnw->irq_base + base + gpio);
 		}
-		/* clear the edge detect status bit */
-		writel(gedr_v, gedr);
 	}
 
 	chip->irq_eoi(data);
