@@ -208,18 +208,16 @@ static inline void babbage_usbhub_reset(void)
 {
 	int ret;
 
-	/* Bring USB hub out of reset */
-	ret = gpio_request(BABBAGE_USB_HUB_RESET, "GPIO1_7");
+	/* Reset USB hub */
+	ret = gpio_request_one(BABBAGE_USB_HUB_RESET,
+					GPIOF_OUT_INIT_LOW, "GPIO1_7");
 	if (ret) {
 		printk(KERN_ERR"failed to get GPIO_USB_HUB_RESET: %d\n", ret);
 		return;
 	}
-	gpio_direction_output(BABBAGE_USB_HUB_RESET, 0);
 
-	/* USB HUB RESET - De-assert USB HUB RESET_N */
-	msleep(1);
-	gpio_set_value(BABBAGE_USB_HUB_RESET, 0);
-	msleep(1);
+	msleep(2);
+	/* Deassert reset */
 	gpio_set_value(BABBAGE_USB_HUB_RESET, 1);
 }
 
