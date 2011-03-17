@@ -1629,6 +1629,7 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
 {
 	int ret;
+	int delay = 0;
 	unsigned int selector;
 
 	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
@@ -1662,6 +1663,22 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 			}
 		}
 
+		/*
+		 * If we can't obtain the old selector there is not enough
+		 * info to call set_voltage_time_sel().
+		 */
+		if (rdev->desc->ops->set_voltage_time_sel &&
+		    rdev->desc->ops->get_voltage_sel) {
+			unsigned int old_selector = 0;
+
+			ret = rdev->desc->ops->get_voltage_sel(rdev);
+			if (ret < 0)
+				return ret;
+			old_selector = ret;
+			delay = rdev->desc->ops->set_voltage_time_sel(rdev,
+						old_selector, selector);
+		}
+
 		if (best_val != INT_MAX) {
 			ret = rdev->desc->ops->set_voltage_sel(rdev, selector);
 			selector = best_val;
@@ -1670,6 +1687,14 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		}
 	} else {
 		ret = -EINVAL;
+	}
+
+	/* Insert any necessary delays */
+	if (delay >= 1000) {
+		mdelay(delay / 1000);
+		udelay(delay % 1000);
+	} else if (delay) {
+		udelay(delay);
 	}
 
 	if (ret == 0)
