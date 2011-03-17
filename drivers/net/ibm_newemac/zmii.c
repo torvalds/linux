@@ -231,8 +231,7 @@ void *zmii_dump_regs(struct platform_device *ofdev, void *buf)
 	return regs + 1;
 }
 
-static int __devinit zmii_probe(struct platform_device *ofdev,
-				const struct of_device_id *match)
+static int __devinit zmii_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct zmii_instance *dev;
@@ -312,7 +311,7 @@ static struct of_device_id zmii_match[] =
 	{},
 };
 
-static struct of_platform_driver zmii_driver = {
+static struct platform_driver zmii_driver = {
 	.driver = {
 		.name = "emac-zmii",
 		.owner = THIS_MODULE,
@@ -324,10 +323,10 @@ static struct of_platform_driver zmii_driver = {
 
 int __init zmii_init(void)
 {
-	return of_register_platform_driver(&zmii_driver);
+	return platform_driver_register(&zmii_driver);
 }
 
 void zmii_exit(void)
 {
-	of_unregister_platform_driver(&zmii_driver);
+	platform_driver_unregister(&zmii_driver);
 }
