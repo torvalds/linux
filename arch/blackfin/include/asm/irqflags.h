@@ -89,15 +89,33 @@ static inline void __hard_local_irq_restore(unsigned long flags)
 #ifdef CONFIG_IPIPE
 
 #include <linux/compiler.h>
-#include <linux/ipipe_base.h>
 #include <linux/ipipe_trace.h>
+/*
+ * Way too many inter-deps between low-level headers in this port, so
+ * we redeclare the required bits we cannot pick from
+ * <asm/ipipe_base.h> to prevent circular dependencies.
+ */
+void __ipipe_stall_root(void);
+void __ipipe_unstall_root(void);
+unsigned long __ipipe_test_root(void);
+unsigned long __ipipe_test_and_stall_root(void);
+void __ipipe_restore_root(unsigned long flags);
+
+#ifdef CONFIG_IPIPE_DEBUG_CONTEXT
+struct ipipe_domain;
+extern struct ipipe_domain ipipe_root;
+void ipipe_check_context(struct ipipe_domain *ipd);
+#define __check_irqop_context(ipd)  ipipe_check_context(&ipipe_root)
+#else /* !CONFIG_IPIPE_DEBUG_CONTEXT */
+#define __check_irqop_context(ipd)  do { } while (0)
+#endif /* !CONFIG_IPIPE_DEBUG_CONTEXT */
 
 /*
  * Interrupt pipe interface to linux/irqflags.h.
  */
 static inline void arch_local_irq_disable(void)
 {
-	ipipe_check_context(ipipe_root_domain);
+	__check_irqop_context();
 	__ipipe_stall_root();
 	barrier();
 }
@@ -105,7 +123,7 @@ static inline void arch_local_irq_disable(void)
 static inline void arch_local_irq_enable(void)
 {
 	barrier();
-	ipipe_check_context(ipipe_root_domain);
+	__check_irqop_context();
 	__ipipe_unstall_root();
 }
 
@@ -119,16 +137,21 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 	return flags == bfin_no_irqs;
 }
 
-static inline void arch_local_irq_save_ptr(unsigned long *_flags)
-{
-	x = __ipipe_test_and_stall_root() ? bfin_no_irqs : bfin_irq_flags;
-	barrier();
-}
-
 static inline unsigned long arch_local_irq_save(void)
 {
-	ipipe_check_context(ipipe_root_domain);
-	return __hard_local_irq_save();
+	unsigned long flags;
+
+	__check_irqop_context();
+	flags = __ipipe_test_and_stall_root() ? bfin_no_irqs : bfin_irq_flags;
+	barrier();
+
+	return flags;
+}
+
+static inline void arch_local_irq_restore(unsigned long flags)
+{
+	__check_irqop_context();
+	__ipipe_restore_root(flags == bfin_no_irqs);
 }
 
 static inline unsigned long arch_mangle_irq_bits(int virt, unsigned long real)
@@ -192,7 +215,10 @@ static inline void hard_local_irq_restore(unsigned long flags)
 # define hard_local_irq_restore(flags)	__hard_local_irq_restore(flags)
 #endif /* !CONFIG_IPIPE_TRACE_IRQSOFF */
 
-#else /* CONFIG_IPIPE */
+#define hard_local_irq_save_cond()		hard_local_irq_save()
+#define hard_local_irq_restore_cond(flags)	hard_local_irq_restore(flags)
+
+#else /* !CONFIG_IPIPE */
 
 /*
  * Direct interface to linux/irqflags.h.
@@ -212,7 +238,48 @@ static inline void hard_local_irq_restore(unsigned long flags)
 #define hard_local_irq_restore(flags)	__hard_local_irq_restore(flags)
 #define hard_local_irq_enable()		__hard_local_irq_enable()
 #define hard_local_irq_disable()	__hard_local_irq_disable()
-
+#define hard_local_irq_save_cond()		hard_local_save_flags()
+#define hard_local_irq_restore_cond(flags)	do { (void)(flags); } while (0)
 
 #endif /* !CONFIG_IPIPE */
+
+#ifdef CONFIG_SMP
+#define hard_local_irq_save_smp()		hard_local_irq_save()
+#define hard_local_irq_restore_smp(flags)	hard_local_irq_restore(flags)
+#else
+#define hard_local_irq_save_smp()		hard_local_save_flags()
+#define hard_local_irq_restore_smp(flags)	do { (void)(flags); } while (0)
+#endif
+
+/*
+ * Remap the arch-neutral IRQ state manipulation macros to the
+ * blackfin-specific hard_local_irq_* API.
+ */
+#define local_irq_save_hw(flags)			\
+	do {						\
+		(flags) = hard_local_irq_save();	\
+	} while (0)
+#define local_irq_restore_hw(flags)		\
+	do {					\
+		hard_local_irq_restore(flags);	\
+	} while (0)
+#define local_irq_disable_hw()			\
+	do {					\
+		hard_local_irq_disable();	\
+	} while (0)
+#define local_irq_enable_hw()			\
+	do {					\
+		hard_local_irq_enable();	\
+	} while (0)
+#define local_irq_save_hw_notrace(flags)		\
+	do {						\
+		(flags) = __hard_local_irq_save();	\
+	} while (0)
+#define local_irq_restore_hw_notrace(flags)		\
+	do {						\
+		__hard_local_irq_restore(flags);	\
+	} while (0)
+
+#define irqs_disabled_hw()	hard_irqs_disabled()
+
 #endif
