@@ -42,6 +42,7 @@
 #ifdef CONFIG_SUN3X
 #include <asm/dvma.h>
 #endif
+#include <asm/natfeat.h>
 
 #if !FPSTATESIZE || !NR_IRQS
 #warning No CPU/platform type selected, your kernel will not work!
@@ -323,6 +324,10 @@ void __init setup_arch(char **cmdline_p)
 	default:
 		panic("No configuration setup");
 	}
+
+#ifdef CONFIG_NATFEAT
+	nf_init();
+#endif
 
 	paging_init();
 
