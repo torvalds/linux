@@ -1263,11 +1263,11 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 				 struct iwl_compressed_ba_resp *ba_resp)
 
 {
-	int i, sh, ack;
+	int sh;
 	u16 seq_ctl = le16_to_cpu(ba_resp->seq_ctl);
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
-	int successes = 0;
 	struct ieee80211_tx_info *info;
+	u64 bitmap, sent_bitmap;
 
 	if (unlikely(!agg->wait_for_ba))  {
 		if (unlikely(ba_resp->bitmap))
@@ -1281,70 +1281,42 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 
 	/* Calculate shift to align block-ack bits with our Tx window bits */
 	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl >> 4);
-	if (sh < 0) /* tbw something is wrong with indices */
+	if (sh < 0)
 		sh += 0x100;
 
-	if (agg->frame_count > (64 - sh)) {
-		IWL_DEBUG_TX_REPLY(priv, "more frames than bitmap size");
-		return -1;
-	}
-	if (!priv->cfg->base_params->no_agg_framecnt_info && ba_resp->txed) {
+	/*
+	 * Check for success or failure according to the
+	 * transmitted bitmap and block-ack bitmap
+	 */
+	bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
+	sent_bitmap = bitmap & agg->bitmap;
+
+	/* Sanity check values reported by uCode */
+	if (ba_resp->txed_2_done > ba_resp->txed) {
+		IWL_DEBUG_TX_REPLY(priv,
+			"bogus sent(%d) and ack(%d) count\n",
+			ba_resp->txed, ba_resp->txed_2_done);
 		/*
-		 * sent and ack information provided by uCode
-		 * use it instead of figure out ourself
+		 * set txed_2_done = txed,
+		 * so it won't impact rate scale
 		 */
-		if (ba_resp->txed_2_done > ba_resp->txed) {
-			IWL_DEBUG_TX_REPLY(priv,
-				"bogus sent(%d) and ack(%d) count\n",
-				ba_resp->txed, ba_resp->txed_2_done);
-			/*
-			 * set txed_2_done = txed,
-			 * so it won't impact rate scale
-			 */
-			ba_resp->txed = ba_resp->txed_2_done;
-		}
-		IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
-				ba_resp->txed, ba_resp->txed_2_done);
-	} else {
-		u64 bitmap, sent_bitmap;
+		ba_resp->txed = ba_resp->txed_2_done;
+	}
+	IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
+			ba_resp->txed, ba_resp->txed_2_done);
 
-		/* don't use 64-bit values for now */
-		bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
-
-		/* check for success or failure according to the
-		 * transmitted bitmap and block-ack bitmap */
-		sent_bitmap = bitmap & agg->bitmap;
-
-		/* For each frame attempted in aggregation,
-		 * update driver's record of tx frame's status. */
-		i = 0;
-		while (sent_bitmap) {
-			ack = sent_bitmap & 1ULL;
-			successes += ack;
-			IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
-				ack ? "ACK" : "NACK", i,
-				(agg->start_idx + i) & 0xff,
-				agg->start_idx + i);
-			sent_bitmap >>= 1;
-			++i;
-		}
-
-		IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n",
-				   (unsigned long long)bitmap);
+	/* Find the first ACKed frame to store the TX status */
+	while (sent_bitmap && !(sent_bitmap & 1)) {
+		agg->start_idx = (agg->start_idx + 1) & 0xff;
+		sent_bitmap >>= 1;
 	}
 
 	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb);
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
-	if (!priv->cfg->base_params->no_agg_framecnt_info && ba_resp->txed) {
-		info->status.ampdu_ack_len = ba_resp->txed_2_done;
-		info->status.ampdu_len = ba_resp->txed;
-
-	} else {
-		info->status.ampdu_ack_len = successes;
-		info->status.ampdu_len = agg->frame_count;
-	}
+	info->status.ampdu_ack_len = ba_resp->txed_2_done;
+	info->status.ampdu_len = ba_resp->txed;
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	return 0;
