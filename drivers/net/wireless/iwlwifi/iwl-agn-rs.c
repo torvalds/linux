@@ -2912,7 +2912,8 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 		ant_toggle_cnt = 1;
 		repeat_rate = IWL_NUMBER_TRY;
 	} else {
-		repeat_rate = IWL_HT_NUMBER_TRY;
+		repeat_rate = min(IWL_HT_NUMBER_TRY,
+				  LINK_QUAL_AGG_DISABLE_START_DEF - 1);
 	}
 
 	lq_cmd->general_params.mimo_delimiter =
