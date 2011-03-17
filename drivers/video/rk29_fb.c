@@ -94,7 +94,7 @@ char cursor_img[] = {
 0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00 
+0x00,0x00,0x00,0x00
 };
 
 #if 0
@@ -591,7 +591,7 @@ void load_screen(struct fb_info *info, bool initscreen)
 	    right_margin = x_res/6;
 	}
 
-    printk("screen->hsync_len =%d,  screen->left_margin =%d, x_res =%d,  right_margin = %d \n",
+    fbprintk("screen->hsync_len =%d,  screen->left_margin =%d, x_res =%d,  right_margin = %d \n",
         screen->hsync_len , screen->left_margin , x_res , right_margin );
     LcdMskReg(inf, DSP_HTOTAL_HS_END, m_BIT12LO | m_BIT12HI, v_BIT12LO(screen->hsync_len) |
              v_BIT12HI(screen->hsync_len + screen->left_margin + x_res + right_margin));
@@ -682,20 +682,19 @@ void load_screen(struct fb_info *info, bool initscreen)
         printk(KERN_ERR ">>>>>> set lcdc dclk_divider faild \n ");
     }
 
-    clk_enable(inf->dclk);
-    clk_enable(inf->aclk);
-    clk_enable(inf->clk);
-
     clk_enable(inf->aclk_ddr_lcdc);
     clk_enable(inf->aclk_disp_matrix);
     clk_enable(inf->hclk_cpu_display);
+
+    clk_enable(inf->aclk);
+    clk_enable(inf->clk);
+    clk_enable(inf->dclk);
 
     // init screen panel
     if(screen->init)
     {
     	screen->init();
     }
-
 }
 #if 0 //def  CONFIG_CPU_FREQ
 /*
