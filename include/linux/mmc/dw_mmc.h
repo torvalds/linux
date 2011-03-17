@@ -140,6 +140,7 @@ struct dw_mci {
 	u32			bus_hz;
 	u32			current_speed;
 	u32			num_slots;
+	u32			fifoth_val;
 	struct platform_device	*pdev;
 	struct dw_mci_board	*pdata;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];

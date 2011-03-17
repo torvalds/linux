@@ -1639,8 +1639,9 @@ static int dw_mci_probe(struct platform_device *pdev)
 	 */
 	fifo_size = mci_readl(host, FIFOTH);
 	fifo_size = (fifo_size >> 16) & 0x7ff;
-	mci_writel(host, FIFOTH, ((0x2 << 28) | ((fifo_size/2 - 1) << 16) |
-				  ((fifo_size/2) << 0)));
+	host->fifoth_val = ((0x2 << 28) | ((fifo_size/2 - 1) << 16) |
+			((fifo_size/2) << 0));
+	mci_writel(host, FIFOTH, host->fifoth_val);
 
 	/* disable clock to CIU */
 	mci_writel(host, CLKENA, 0);
@@ -1771,6 +1772,23 @@ static int dw_mci_resume(struct platform_device *pdev)
 {
 	int i, ret;
 	struct dw_mci *host = platform_get_drvdata(pdev);
+
+	if (host->dma_ops->init)
+		host->dma_ops->init(host);
+
+	if (!mci_wait_reset(&pdev->dev, host)) {
+		ret = -ENODEV;
+		return ret;
+	}
+
+	/* Restore the old value at FIFOTH register */
+	mci_writel(host, FIFOTH, host->fifoth_val);
+
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
+		   SDMMC_INT_TXDR | SDMMC_INT_RXDR |
+		   DW_MCI_ERROR_FLAGS | SDMMC_INT_CD);
+	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
