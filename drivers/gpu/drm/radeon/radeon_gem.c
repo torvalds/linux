@@ -358,6 +358,7 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_gem_object *gobj;
+	uint32_t handle;
 	int r;
 
 	args->pitch = radeon_align_pitch(rdev, args->width, args->bpp, 0) * ((args->bpp + 1) / 8);
@@ -371,12 +372,13 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	if (r)
 		return -ENOMEM;
 
-	r = drm_gem_handle_create(file_priv, gobj, &args->handle);
+	r = drm_gem_handle_create(file_priv, gobj, &handle);
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(gobj);
 	if (r) {
-		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
-	drm_gem_object_handle_unreference_unlocked(gobj);
+	args->handle = handle;
 	return 0;
 }
 
