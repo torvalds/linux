@@ -1160,8 +1160,8 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 		mask = rk29_sdmmc_read(host->regs, SDMMC_MINTSTS);// read only mask reg
 		pending = status & mask;
 		
-		if (!pending)
-			break;	
+//		if (!pending)
+//			break;	
 		if(pending & SDMMC_INT_CD) {
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, SDMMC_INT_CD); // clear sd detect int
 			present = rk29_sdmmc_get_cd(host->mmc);
