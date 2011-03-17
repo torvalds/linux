@@ -281,8 +281,7 @@ static const struct pci_id_descr pci_dev_descr_i7core_nehalem[] = {
 		/* Memory controller */
 	{ PCI_DESCR(3, 0, PCI_DEVICE_ID_INTEL_I7_MCR)     },
 	{ PCI_DESCR(3, 1, PCI_DEVICE_ID_INTEL_I7_MC_TAD)  },
-
-		/* Exists only for RDIMM */
+			/* Exists only for RDIMM */
 	{ PCI_DESCR(3, 2, PCI_DEVICE_ID_INTEL_I7_MC_RAS), .optional = 1  },
 	{ PCI_DESCR(3, 4, PCI_DEVICE_ID_INTEL_I7_MC_TEST) },
 
@@ -303,6 +302,16 @@ static const struct pci_id_descr pci_dev_descr_i7core_nehalem[] = {
 	{ PCI_DESCR(6, 1, PCI_DEVICE_ID_INTEL_I7_MC_CH2_ADDR) },
 	{ PCI_DESCR(6, 2, PCI_DEVICE_ID_INTEL_I7_MC_CH2_RANK) },
 	{ PCI_DESCR(6, 3, PCI_DEVICE_ID_INTEL_I7_MC_CH2_TC)   },
+
+		/* Generic Non-core registers */
+	/*
+	 * This is the PCI device on i7core and on Xeon 35xx (8086:2c41)
+	 * On Xeon 55xx, however, it has a different id (8086:2c40). So,
+	 * the probing code needs to test for the other address in case of
+	 * failure of this one
+	 */
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NONCORE)  },
+
 };
 
 static const struct pci_id_descr pci_dev_descr_lynnfield[] = {
@@ -319,6 +328,12 @@ static const struct pci_id_descr pci_dev_descr_lynnfield[] = {
 	{ PCI_DESCR( 5, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_ADDR) },
 	{ PCI_DESCR( 5, 2, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_RANK) },
 	{ PCI_DESCR( 5, 3, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH1_TC)   },
+
+	/*
+	 * This is the PCI device has an alternate address on some
+	 * processors like Core i7 860
+	 */
+	{ PCI_DESCR( 0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)     },
 };
 
 static const struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
@@ -346,6 +361,10 @@ static const struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
 	{ PCI_DESCR(6, 1, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH2_ADDR_REV2) },
 	{ PCI_DESCR(6, 2, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH2_RANK_REV2) },
 	{ PCI_DESCR(6, 3, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH2_TC_REV2)   },
+
+		/* Generic Non-core registers */
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_REV2)  },
+
 };
 
 #define PCI_ID_TABLE_ENTRY(A) { .descr=A, .n_devs = ARRAY_SIZE(A) }
@@ -1323,6 +1342,20 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 			      dev_descr->dev_id, *prev);
+
+	/*
+	 * On Xeon 55xx, the Intel Quckpath Arch Generic Non-core regs
+	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
+	 * to probe for the alternate address in case of failure
+	 */
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_I7_NONCORE && !pdev)
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				      PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT, *prev);
+
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE && !pdev)
+		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+				      PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_ALT,
+				      *prev);
 
 	if (!pdev) {
 		if (*prev) {
