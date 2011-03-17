@@ -864,6 +864,8 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 						EVENT_DATA_COMPLETE))
 				break;	
 			host->data = NULL;
+			rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))&(~SDMMC_CTRL_DMA_ENABLE));
+			
 			rk29_sdmmc_set_completed(host, EVENT_DATA_COMPLETE);
 			status = host->data_status;
 			if (unlikely(status & RK29_SDMMC_DATA_ERROR_FLAGS)) {
@@ -1147,15 +1149,17 @@ static irqreturn_t rk29_sdmmc1_card_detect_interrupt(int irq, void *dev_id)
 static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 {
 	struct rk29_sdmmc	*host = dev_id;
-	u32			status,  pending;
-	unsigned int		pass_count = 0;
+	u32			status,  pending, mask;
+//	unsigned int		pass_count = 0;
 	bool present;
 	bool present_old;
 
 	spin_lock(&host->lock);
-	do {
+//	do {
 		status = rk29_sdmmc_read(host->regs, SDMMC_RINTSTS);
-		pending = rk29_sdmmc_read(host->regs, SDMMC_MINTSTS);// read only mask reg
+		mask = rk29_sdmmc_read(host->regs, SDMMC_MINTSTS);// read only mask reg
+		pending = status & mask;
+		
 		if (!pending)
 			break;	
 		if(pending & SDMMC_INT_CD) {
@@ -1163,12 +1167,14 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 			present = rk29_sdmmc_get_cd(host->mmc);
 			present_old = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 			if (present != 0) {
+				printk("[zwp],%s,card detect interrupt,card present \n",__FUNCTION__);
 				set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 				if(present == present_old)	
 					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(2000));
 				else
 					mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(200));
-			} else {					
+			} else {
+				printk("[zwp],%s,card detect interrupt,card not present \n",__FUNCTION__);
 				clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 				mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(10));					
 			}						
@@ -1179,6 +1185,8 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 		    smp_wmb();
 		    rk29_sdmmc_set_pending(host, EVENT_CMD_COMPLETE);
 		    tasklet_schedule(&host->tasklet);
+			printk("[zwp] %s :cmd transfer error(int status 0x%x cmd %d host->state %d pending_events %d)\n", 
+					__FUNCTION__,status,host->cmd->opcode,host->state,host->pending_events);
 		}
 
 		if (pending & RK29_SDMMC_DATA_ERROR_FLAGS) { // if there is an error, let report DATA_ERROR
@@ -1187,6 +1195,8 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 			smp_wmb();
 			rk29_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
+			printk("[zwp] %s :data transfer error(int status 0x%x host->state %d pending_events %d pending=0x%x)\n", 
+					__FUNCTION__,status,host->state,host->pending_events,pending);
 		}
 
 		if(pending & SDMMC_INT_DTO) {
@@ -1223,9 +1233,10 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_SDIO);
 				mmc_signal_sdio_irq(host->mmc);
 		}
-	} while (pass_count++ < 5);
+//	} while (pass_count++ < 5);
 	spin_unlock(&host->lock);
-	return pass_count ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_HANDLED;
+//	return pass_count ? IRQ_HANDLED : IRQ_NONE;
 }
 
 /*
@@ -1246,15 +1257,18 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 	mrq = host->mrq;
 	if (mrq) {
 		if (mrq == host->curr_mrq) {
+#if 0 //TODO ,后面要把这块处理移到tasklet,使用状态机来做
 		  	/* reset all blocks */
 		  	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 		  	/* wait till resets clear */
 			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 			/* FIFO threshold settings  */
 			rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
+#endif
 			host->data = NULL;
 			host->cmd = NULL;
- 
+	 		printk("[zwp] %s >> %s >> %d state=%d\n", __FILE__, __FUNCTION__,__LINE__,host->state);
+
 			switch (host->state) {
 			case STATE_IDLE:
 				break;
