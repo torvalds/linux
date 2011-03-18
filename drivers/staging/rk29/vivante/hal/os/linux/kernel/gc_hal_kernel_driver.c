@@ -36,6 +36,7 @@
 #endif
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
+#include <mach/pmu.h>
 
 MODULE_DESCRIPTION("Vivante Graphics Driver");
 MODULE_LICENSE("GPL");
@@ -84,6 +85,8 @@ module_param(showArgs, int, 0644);
 unsigned long coreClock = 552*1000000;
 module_param(coreClock, ulong, 0644);
 #endif
+
+int shutdown = 0;
 
 static int drv_open(struct inode *inode, struct file *filp);
 static int drv_release(struct inode *inode, struct file *filp);
@@ -253,6 +256,11 @@ int drv_ioctl(struct inode *inode,
     gcsHAL_PRIVATE_DATA_PTR private;
 
     private = filp->private_data;
+
+    if(shutdown)
+    {
+        return -ENOTTY;
+    }
 
     if (private == gcvNULL)
     {
@@ -573,16 +581,15 @@ static int drv_init(void)
     // enable ram clock gate
     writel(readl(RK29_GRF_BASE+0xc0) & ~0x100000, RK29_GRF_BASE+0xc0);
     
-#if 1
-    mdelay(2);
-    printk("%s : gpu reset... ", __func__);
-    cru_set_soft_reset(SOFT_RST_GPU, true);
-    cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, true);
-    mdelay(1);
-    cru_set_soft_reset(SOFT_RST_DDR_GPU_PORT, false);
-    cru_set_soft_reset(SOFT_RST_GPU, false);
+#if 0
+    // power on gpu
+    printk("%s : gpu power on... ", __func__);
+    clk_disable(clk_get(NULL, "aclk_ddr_gpu"));
+    udelay(10);
+    pmu_set_power_domain(PD_GPU, true);
+    udelay(10);
+    clk_enable(clk_get(NULL, "aclk_ddr_gpu"));
     printk("done!\n");
-    mdelay(2);
 #endif
 
     printk("%s : gpu clk_disable...  ", __func__);
@@ -726,25 +733,35 @@ static void drv_exit(void)
     unregister_chrdev(major, DRV_NAME);
 #endif
 
-    mdelay(50); 
+    shutdown = 1;
+
+    msleep(50); 
     gckGALDEVICE_Stop(galDevice);
-    mdelay(50); 
+    msleep(50); 
     gckGALDEVICE_Destroy(galDevice);
-    mdelay(50); 
+    msleep(50); 
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    printk("gpu: %s clk_disable... ", __func__);
 
-    clk_gpu = clk_get(NULL, "gpu");
-    if(!IS_ERR(clk_gpu))    clk_disable(clk_gpu);
-  
-    clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
-    if(!IS_ERR(clk_aclk_gpu))    clk_disable(clk_aclk_gpu);   
-
+    printk("%s : gpu power off... ", __func__);
+    pmu_set_power_domain(PD_GPU, false);
+    printk("done!\n");
+    msleep(10);
+    
+    printk("%s : gpu clk_disable... ", __func__);
     clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
     if(!IS_ERR(clk_hclk_gpu))    clk_disable(clk_hclk_gpu);
 
+    clk_disable(clk_get(NULL, "aclk_ddr_gpu"));
+    
+    clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
+    if(!IS_ERR(clk_aclk_gpu))    clk_disable(clk_aclk_gpu);   
+
+    clk_gpu = clk_get(NULL, "gpu");
+    if(!IS_ERR(clk_gpu))    clk_disable(clk_gpu);
     printk("done!\n");
+    msleep(10);
+
 #endif
 }
 
@@ -768,9 +785,9 @@ static void gpu_early_suspend(struct early_suspend *h)
     
     printk("Enter %s \n", __func__);
 
-    mdelay(50); //Wait for gpu finish
+    msleep(50); //Wait for gpu finish
 
-	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_SUSPEND);
+	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
 
 	if (gcmIS_ERROR(status))
 	{
@@ -789,7 +806,7 @@ static void gpu_early_resume(struct early_suspend *h)
 
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_IDLE);
 
-	mdelay(50);
+	msleep(50);
 
 	if (gcmIS_ERROR(status))
 	{
@@ -872,9 +889,9 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 
 	device = platform_get_drvdata(dev);
 
-	mdelay(50); //Wait for gpu finish
+	msleep(50); //Wait for gpu finish
 
-	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_SUSPEND);
+	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
 
 	if (gcmIS_ERROR(status))
 	{
@@ -898,7 +915,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_IDLE);
 
-	mdelay(50);
+	msleep(50);
 
 	if (gcmIS_ERROR(status))
 	{

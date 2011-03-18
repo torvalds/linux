@@ -37,6 +37,7 @@
 
 #include <linux/delay.h>
 #include <mach/pmu.h>
+#include <mach/cru.h>
 
 #if !USE_NEW_LINUX_SIGNAL
 #define USER_SIGNAL_TABLE_LEN_INIT  64
@@ -5936,9 +5937,9 @@ gckOS_SetGPUPower(
 
     //printk("---------- gckOS_SetGPUPower Clock=%d Power=%d \n", Clock, Power);
 
+    mdelay(1);
     if(lastclock!=Clock) 
     {
-        mdelay(10);
         if(Clock) {
             printk("gpu: clk_enable... ");
             clk_enable(clk_gpu);
@@ -5954,24 +5955,30 @@ gckOS_SetGPUPower(
             clk_disable(clk_gpu);
             printk("done!\n");
         }
-        mdelay(10);
     }
     lastclock = Clock;
 
+
+    mdelay(1);
     if(lastpower!=Power)
     {
         if(Power) {
             printk("gpu: power on... ");
+            if(lastclock)    clk_disable(clk_aclk_ddr_gpu);
+            mdelay(1);
             pmu_set_power_domain(PD_GPU, true);
+            mdelay(1);
+            if(lastclock)    clk_enable(clk_aclk_ddr_gpu);
             printk("done!\n");
         } else {
-            //printk("gpu: power off... ");
-            //pmu_set_power_domain(PD_GPU, false);
-            //printk("done!\n");
+            printk("gpu: power off... ");
+            pmu_set_power_domain(PD_GPU, false);
+            printk("done!\n");
         }
     }
     lastpower = Power;
 
+    mdelay(1);
 #endif
 
     gcmkFOOTER_NO();
