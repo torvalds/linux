@@ -797,3 +797,33 @@ out:
 
 	return ret;
 }
+
+/*
+ * Helper to calculate the defraging length in one run according to threshold.
+ */
+static void ocfs2_calc_extent_defrag_len(u32 *alloc_size, u32 *len_defraged,
+					 u32 threshold, int *skip)
+{
+	if ((*alloc_size + *len_defraged) < threshold) {
+		/*
+		 * proceed defragmentation until we meet the thresh
+		 */
+		*len_defraged += *alloc_size;
+	} else if (*len_defraged == 0) {
+		/*
+		 * XXX: skip a large extent.
+		 */
+		*skip = 1;
+	} else {
+		/*
+		 * split this extent to coalesce with former pieces as
+		 * to reach the threshold.
+		 *
+		 * we're done here with one cycle of defragmentation
+		 * in a size of 'thresh', resetting 'len_defraged'
+		 * forces a new defragmentation.
+		 */
+		*alloc_size = threshold - *len_defraged;
+		*len_defraged = 0;
+	}
+}
