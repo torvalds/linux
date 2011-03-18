@@ -1095,13 +1095,6 @@ static int bnx2fc_netdev_setup(struct bnx2fc_hba *hba)
 	struct netdev_hw_addr *ha;
 	int sel_san_mac = 0;
 
-	/* Do not support for bonding device */
-	if ((netdev->priv_flags & IFF_MASTER_ALB) ||
-			(netdev->priv_flags & IFF_SLAVE_INACTIVE) ||
-			(netdev->priv_flags & IFF_MASTER_8023AD)) {
-		return -EOPNOTSUPP;
-	}
-
 	/* setup Source MAC Address */
 	rcu_read_lock();
 	for_each_dev_addr(physdev, ha) {
