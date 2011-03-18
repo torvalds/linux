@@ -15,6 +15,7 @@
 #include <asm/cache.h>
 #include <asm/irqflags.h>
 #include <asm/cacheflush.h>
+#include "cache.inc"
 
 #define mn10300_local_dcache_inv_range_intr_interval \
 	+((1 << MN10300_DCACHE_INV_RANGE_INTR_LOG2_INTERVAL) - 1)
@@ -62,10 +63,7 @@ mn10300_local_icache_inv:
 	btst	CHCTR_ICEN,d0
 	beq	mn10300_local_icache_inv_end
 
-	# invalidate
-	or	CHCTR_ICINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
+	invalidate_icache 1
 
 mn10300_local_icache_inv_end:
 	ret	[],0
@@ -87,11 +85,8 @@ mn10300_local_dcache_inv:
 	btst	CHCTR_DCEN,d0
 	beq	mn10300_local_dcache_inv_end
 
-	# invalidate
-	or	CHCTR_DCINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-
+	invalidate_dcache 1
+	
 mn10300_local_dcache_inv_end:
 	ret	[],0
 	.size	mn10300_local_dcache_inv,.-mn10300_local_dcache_inv

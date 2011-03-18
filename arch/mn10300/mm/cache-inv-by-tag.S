@@ -15,6 +15,7 @@
 #include <asm/cache.h>
 #include <asm/irqflags.h>
 #include <asm/cacheflush.h>
+#include "cache.inc"
 
 #define mn10300_local_dcache_inv_range_intr_interval \
 	+((1 << MN10300_DCACHE_INV_RANGE_INTR_LOG2_INTERVAL) - 1)
@@ -70,43 +71,7 @@ mn10300_local_icache_inv:
 	btst	CHCTR_ICEN,d0
 	beq	mn10300_local_icache_inv_end
 
-#if defined(CONFIG_AM33_2) || defined(CONFIG_AM33_3)
-	LOCAL_CLI_SAVE(d1)
-
-	# disable the icache
-	and	~CHCTR_ICEN,d0
-	movhu	d0,(a0)
-
-	# and wait for it to calm down
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_ICBUSY,d0
-	lne
-
-	# invalidate
-	or	CHCTR_ICINV,d0
-	movhu	d0,(a0)
-
-	# wait for the cache to finish
-	mov	CHCTR,a0
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_ICBUSY,d0
-	lne
-
-	# and reenable it
-	and	~CHCTR_ICINV,d0
-	or	CHCTR_ICEN,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-
-	LOCAL_IRQ_RESTORE(d1)
-#else /* CONFIG_AM33_2 || CONFIG_AM33_3 */
-	# invalidate
-	or	CHCTR_ICINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-#endif /* CONFIG_AM33_2 || CONFIG_AM33_3 */
+	invalidate_icache 1
 
 mn10300_local_icache_inv_end:
 	ret	[],0
@@ -128,43 +93,7 @@ mn10300_local_dcache_inv:
 	btst	CHCTR_DCEN,d0
 	beq	mn10300_local_dcache_inv_end
 
-#if defined(CONFIG_AM33_2) || defined(CONFIG_AM33_3)
-	LOCAL_CLI_SAVE(d1)
-
-	# disable the dcache
-	and	~CHCTR_DCEN,d0
-	movhu	d0,(a0)
-
-	# and wait for it to calm down
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_DCBUSY,d0
-	lne
-
-	# invalidate
-	or	CHCTR_DCINV,d0
-	movhu	d0,(a0)
-
-	# wait for the cache to finish
-	mov	CHCTR,a0
-	setlb
-	movhu	(a0),d0
-	btst	CHCTR_DCBUSY,d0
-	lne
-
-	# and reenable it
-	and	~CHCTR_DCINV,d0
-	or	CHCTR_DCEN,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-
-	LOCAL_IRQ_RESTORE(d1)
-#else /* CONFIG_AM33_2 || CONFIG_AM33_3 */
-	# invalidate
-	or	CHCTR_DCINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-#endif /* CONFIG_AM33_2 || CONFIG_AM33_3 */
+	invalidate_dcache 1
 
 mn10300_local_dcache_inv_end:
 	ret	[],0
