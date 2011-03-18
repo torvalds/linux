@@ -394,7 +394,6 @@ static struct irq_chip mn10300_serial_pic = {
 	.mask		= mn10300_serial_mask_ack,
 	.mask_ack	= mn10300_serial_mask_ack,
 	.unmask		= mn10300_serial_nop,
-	.end		= mn10300_serial_nop,
 };
 
 
