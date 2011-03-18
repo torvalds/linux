@@ -3885,10 +3885,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static inline bool single_plane_enabled(unsigned int mask)
-{
-	return mask && (mask & -mask) == 0;
-}
+#define single_plane_enabled(mask) is_power_of_2(mask)
 
 static void g4x_update_wm(struct drm_device *dev)
 {
