@@ -1191,6 +1191,11 @@ static inline int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return 0;
 }
 
+static inline int pci_wake_from_d3(struct pci_dev *dev, bool enable)
+{
+	return 0;
+}
+
 static inline pci_power_t pci_choose_state(struct pci_dev *dev,
 					   pm_message_t state)
 {
