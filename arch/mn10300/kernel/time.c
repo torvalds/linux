@@ -93,22 +93,6 @@ irqreturn_t local_timer_interrupt(void)
 	return IRQ_HANDLED;
 }
 
-void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
-{
-	u64 temp;
-	u32 shift;
-
-	/* Find a shift value */
-	for (shift = 32; shift > 0; shift--) {
-		temp = (u64) NSEC_PER_SEC << shift;
-		do_div(temp, clock);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	cs->shift = shift;
-	cs->mult = (u32) temp;
-}
-
 void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 				    unsigned int clock)
 {
