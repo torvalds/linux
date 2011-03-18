@@ -165,7 +165,7 @@ void free_thread_info(struct thread_info *info)
 		kfree(step_state);
 	}
 
-	free_page((unsigned long)info);
+	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 }
 
 static void save_arch_state(struct thread_struct *t);
@@ -574,6 +574,8 @@ SYSCALL_DEFINE4(execve, const char __user *, path,
 		goto out;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
+	if (error == 0)
+		single_step_execve();
 out:
 	return error;
 }
@@ -593,6 +595,8 @@ long compat_sys_execve(const char __user *path,
 		goto out;
 	error = compat_do_execve(filename, argv, envp, regs);
 	putname(filename);
+	if (error == 0)
+		single_step_execve();
 out:
 	return error;
 }
