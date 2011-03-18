@@ -114,7 +114,8 @@ static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
 	return frames;
 }
 
-static void init_data(struct linear_priv *data, int src_format, int dst_format)
+static void init_data(struct linear_priv *data,
+		      snd_pcm_format_t src_format, snd_pcm_format_t dst_format)
 {
 	int src_le, dst_le, src_bytes, dst_bytes;
 
@@ -140,9 +141,9 @@ static void init_data(struct linear_priv *data, int src_format, int dst_format)
 	if (snd_pcm_format_signed(src_format) !=
 	    snd_pcm_format_signed(dst_format)) {
 		if (dst_le)
-			data->flip = cpu_to_le32(0x80000000);
+			data->flip = (__force u32)cpu_to_le32(0x80000000);
 		else
-			data->flip = cpu_to_be32(0x80000000);
+			data->flip = (__force u32)cpu_to_be32(0x80000000);
 	}
 }
 
