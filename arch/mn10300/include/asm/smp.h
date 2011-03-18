@@ -62,8 +62,9 @@
  * An alternate way of dealing with this could be to use the EPSW.S bits to
  * cache this information for systems with up to four CPUs.
  */
+#define arch_smp_processor_id()	(CPUID)
 #if 0
-#define raw_smp_processor_id()	(CPUID)
+#define raw_smp_processor_id()	(arch_smp_processor_id())
 #else
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 #endif

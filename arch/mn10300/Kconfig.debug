@@ -153,4 +153,4 @@ endmenu
 
 config KERNEL_DEBUGGER
 	def_bool y
-	depends on GDBSTUB
+	depends on GDBSTUB || KGDB
