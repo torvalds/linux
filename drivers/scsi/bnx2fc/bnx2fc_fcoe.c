@@ -1432,8 +1432,7 @@ static int bnx2fc_destroy(struct net_device *netdev)
 	struct net_device *phys_dev;
 	int rc = 0;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	rtnl_lock();
 
 	mutex_lock(&bnx2fc_dev_lock);
 #ifdef CONFIG_SCSI_BNX2X_FCOE_MODULE
@@ -1805,10 +1804,7 @@ static int bnx2fc_disable(struct net_device *netdev)
 	struct ethtool_drvinfo drvinfo;
 	int rc = 0;
 
-	if (!rtnl_trylock()) {
-		printk(KERN_ERR PFX "retrying for rtnl_lock\n");
-		return -EIO;
-	}
+	rtnl_lock();
 
 	mutex_lock(&bnx2fc_dev_lock);
 
@@ -1867,10 +1863,7 @@ static int bnx2fc_enable(struct net_device *netdev)
 	struct ethtool_drvinfo drvinfo;
 	int rc = 0;
 
-	if (!rtnl_trylock()) {
-		printk(KERN_ERR PFX "retrying for rtnl_lock\n");
-		return -EIO;
-	}
+	rtnl_lock();
 
 	BNX2FC_MISC_DBG("Entered %s\n", __func__);
 	mutex_lock(&bnx2fc_dev_lock);
@@ -1942,10 +1935,8 @@ static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode)
 		return -EIO;
 	}
 
-	if (!rtnl_trylock()) {
-		printk(KERN_ERR "trying for rtnl_lock\n");
-		return -EIO;
-	}
+	rtnl_lock();
+
 	mutex_lock(&bnx2fc_dev_lock);
 
 #ifdef CONFIG_SCSI_BNX2X_FCOE_MODULE
