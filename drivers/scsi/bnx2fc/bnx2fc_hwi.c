@@ -87,7 +87,7 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 	fcoe_init1.task_list_pbl_addr_lo = (u32) hba->task_ctx_bd_dma;
 	fcoe_init1.task_list_pbl_addr_hi =
 				(u32) ((u64) hba->task_ctx_bd_dma >> 32);
-	fcoe_init1.mtu = hba->netdev->mtu;
+	fcoe_init1.mtu = BNX2FC_MINI_JUMBO_MTU;
 
 	fcoe_init1.flags = (PAGE_SHIFT <<
 				FCOE_KWQE_INIT1_LOG_PAGE_SIZE_SHIFT);

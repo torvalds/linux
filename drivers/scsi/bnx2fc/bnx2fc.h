@@ -89,6 +89,10 @@
 #define BNX2FC_ELSTM_XIDS		BNX2FC_CAN_QUEUE
 #define BNX2FC_MIN_PAYLOAD		256
 #define BNX2FC_MAX_PAYLOAD		2048
+#define BNX2FC_MFS			\
+			(BNX2FC_MAX_PAYLOAD + sizeof(struct fc_frame_header))
+#define BNX2FC_MINI_JUMBO_MTU		2500
+
 
 #define BNX2FC_RQ_BUF_SZ		256
 #define BNX2FC_RQ_BUF_LOG_SZ		(ilog2(BNX2FC_RQ_BUF_SZ))
@@ -128,7 +132,6 @@
 
 #define BNX2FC_WAIT_CNT			120
 #define BNX2FC_FW_TIMEOUT		(3 * HZ)
-
 #define PORT_MAX			2
 
 #define CMD_SCSI_STATUS(Cmnd)		((Cmnd)->SCp.Status)
