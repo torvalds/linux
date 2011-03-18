@@ -1,7 +1,7 @@
 config MN10300
 	def_bool y
 	select HAVE_OPROFILE
-	select GENERIC_HARDIRQS
+	select HAVE_GENERIC_HARDIRQS
 
 config AM33_2
 	def_bool n
