@@ -10,6 +10,7 @@
  *
  * Multichannel mode not supported.
  */
+#include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/clk.h>
@@ -78,100 +79,294 @@ static struct omap_mcbsp_ops omap1_mcbsp_ops = {
 };
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+struct resource omap7xx_mcbsp_res[][6] = {
+	{
+		{
+			.start = OMAP7XX_MCBSP1_BASE,
+			.end   = OMAP7XX_MCBSP1_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_7XX_McBSP1RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_7XX_McBSP1TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP1_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP1_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+	{
+		{
+			.start = OMAP7XX_MCBSP2_BASE,
+			.end   = OMAP7XX_MCBSP2_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_7XX_McBSP2RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_7XX_McBSP2TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP3_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP3_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+};
+
+#define omap7xx_mcbsp_res_0		omap7xx_mcbsp_res[0]
+
 static struct omap_mcbsp_platform_data omap7xx_mcbsp_pdata[] = {
 	{
-		.phys_base	= OMAP7XX_MCBSP1_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP1_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP1_TX,
-		.rx_irq		= INT_7XX_McBSP1RX,
-		.tx_irq		= INT_7XX_McBSP1TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 	{
-		.phys_base	= OMAP7XX_MCBSP2_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP3_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP3_TX,
-		.rx_irq		= INT_7XX_McBSP2RX,
-		.tx_irq		= INT_7XX_McBSP2TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 };
-#define OMAP7XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap7xx_mcbsp_pdata)
-#define OMAP7XX_MCBSP_REG_NUM		(OMAP_MCBSP_REG_XCERH / sizeof(u16) + 1)
+#define OMAP7XX_MCBSP_RES_SZ		ARRAY_SIZE(omap7xx_mcbsp_res[1])
+#define OMAP7XX_MCBSP_COUNT		ARRAY_SIZE(omap7xx_mcbsp_res)
 #else
+#define omap7xx_mcbsp_res_0		NULL
 #define omap7xx_mcbsp_pdata		NULL
-#define OMAP7XX_MCBSP_PDATA_SZ		0
-#define OMAP7XX_MCBSP_REG_NUM		0
+#define OMAP7XX_MCBSP_RES_SZ		0
+#define OMAP7XX_MCBSP_COUNT		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
+struct resource omap15xx_mcbsp_res[][6] = {
+	{
+		{
+			.start = OMAP1510_MCBSP1_BASE,
+			.end   = OMAP1510_MCBSP1_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_McBSP1RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_McBSP1TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP1_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP1_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+	{
+		{
+			.start = OMAP1510_MCBSP2_BASE,
+			.end   = OMAP1510_MCBSP2_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_1510_SPI_RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_1510_SPI_TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP2_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP2_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+	{
+		{
+			.start = OMAP1510_MCBSP3_BASE,
+			.end   = OMAP1510_MCBSP3_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_McBSP3RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_McBSP3TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP3_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP3_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+};
+
+#define omap15xx_mcbsp_res_0		omap15xx_mcbsp_res[0]
+
 static struct omap_mcbsp_platform_data omap15xx_mcbsp_pdata[] = {
 	{
-		.phys_base	= OMAP1510_MCBSP1_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP1_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP1_TX,
-		.rx_irq		= INT_McBSP1RX,
-		.tx_irq		= INT_McBSP1TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 	{
-		.phys_base	= OMAP1510_MCBSP2_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP2_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP2_TX,
-		.rx_irq		= INT_1510_SPI_RX,
-		.tx_irq		= INT_1510_SPI_TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 	{
-		.phys_base	= OMAP1510_MCBSP3_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP3_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP3_TX,
-		.rx_irq		= INT_McBSP3RX,
-		.tx_irq		= INT_McBSP3TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 };
-#define OMAP15XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap15xx_mcbsp_pdata)
-#define OMAP15XX_MCBSP_REG_NUM		(OMAP_MCBSP_REG_XCERH / sizeof(u16) + 1)
+#define OMAP15XX_MCBSP_RES_SZ		ARRAY_SIZE(omap15xx_mcbsp_res[1])
+#define OMAP15XX_MCBSP_COUNT		ARRAY_SIZE(omap15xx_mcbsp_res)
 #else
+#define omap15xx_mcbsp_res_0		NULL
 #define omap15xx_mcbsp_pdata		NULL
-#define OMAP15XX_MCBSP_PDATA_SZ		0
-#define OMAP15XX_MCBSP_REG_NUM		0
+#define OMAP15XX_MCBSP_RES_SZ		0
+#define OMAP15XX_MCBSP_COUNT		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP16XX
+struct resource omap16xx_mcbsp_res[][6] = {
+	{
+		{
+			.start = OMAP1610_MCBSP1_BASE,
+			.end   = OMAP1610_MCBSP1_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_McBSP1RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_McBSP1TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP1_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP1_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+	{
+		{
+			.start = OMAP1610_MCBSP2_BASE,
+			.end   = OMAP1610_MCBSP2_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_1610_McBSP2_RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_1610_McBSP2_TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP2_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP2_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+	{
+		{
+			.start = OMAP1610_MCBSP3_BASE,
+			.end   = OMAP1610_MCBSP3_BASE + SZ_256,
+			.flags = IORESOURCE_MEM,
+		},
+		{
+			.name  = "rx",
+			.start = INT_McBSP3RX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "tx",
+			.start = INT_McBSP3TX,
+			.flags = IORESOURCE_IRQ,
+		},
+		{
+			.name  = "rx",
+			.start = OMAP_DMA_MCBSP3_RX,
+			.flags = IORESOURCE_DMA,
+		},
+		{
+			.name  = "tx",
+			.start = OMAP_DMA_MCBSP3_TX,
+			.flags = IORESOURCE_DMA,
+		},
+	},
+};
+
+#define omap16xx_mcbsp_res_0		omap16xx_mcbsp_res[0]
+
 static struct omap_mcbsp_platform_data omap16xx_mcbsp_pdata[] = {
 	{
-		.phys_base	= OMAP1610_MCBSP1_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP1_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP1_TX,
-		.rx_irq		= INT_McBSP1RX,
-		.tx_irq		= INT_McBSP1TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 	{
-		.phys_base	= OMAP1610_MCBSP2_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP2_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP2_TX,
-		.rx_irq		= INT_1610_McBSP2_RX,
-		.tx_irq		= INT_1610_McBSP2_TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 	{
-		.phys_base	= OMAP1610_MCBSP3_BASE,
-		.dma_rx_sync	= OMAP_DMA_MCBSP3_RX,
-		.dma_tx_sync	= OMAP_DMA_MCBSP3_TX,
-		.rx_irq		= INT_McBSP3RX,
-		.tx_irq		= INT_McBSP3TX,
 		.ops		= &omap1_mcbsp_ops,
 	},
 };
-#define OMAP16XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap16xx_mcbsp_pdata)
-#define OMAP16XX_MCBSP_REG_NUM		(OMAP_MCBSP_REG_XCERH / sizeof(u16) + 1)
+#define OMAP16XX_MCBSP_RES_SZ		ARRAY_SIZE(omap16xx_mcbsp_res[1])
+#define OMAP16XX_MCBSP_COUNT		ARRAY_SIZE(omap16xx_mcbsp_res)
 #else
+#define omap16xx_mcbsp_res_0		NULL
 #define omap16xx_mcbsp_pdata		NULL
-#define OMAP16XX_MCBSP_PDATA_SZ		0
-#define OMAP16XX_MCBSP_REG_NUM		0
+#define OMAP16XX_MCBSP_RES_SZ		0
+#define OMAP16XX_MCBSP_COUNT		0
 #endif
 
 static int __init omap1_mcbsp_init(void)
@@ -179,16 +374,12 @@ static int __init omap1_mcbsp_init(void)
 	if (!cpu_class_is_omap1())
 		return -ENODEV;
 
-	if (cpu_is_omap7xx()) {
-		omap_mcbsp_count = OMAP7XX_MCBSP_PDATA_SZ;
-		omap_mcbsp_cache_size = OMAP7XX_MCBSP_REG_NUM * sizeof(u16);
-	} else if (cpu_is_omap15xx()) {
-		omap_mcbsp_count = OMAP15XX_MCBSP_PDATA_SZ;
-		omap_mcbsp_cache_size = OMAP15XX_MCBSP_REG_NUM * sizeof(u16);
-	} else if (cpu_is_omap16xx()) {
-		omap_mcbsp_count = OMAP16XX_MCBSP_PDATA_SZ;
-		omap_mcbsp_cache_size = OMAP16XX_MCBSP_REG_NUM * sizeof(u16);
-	}
+	if (cpu_is_omap7xx())
+		omap_mcbsp_count = OMAP7XX_MCBSP_COUNT;
+	else if (cpu_is_omap15xx())
+		omap_mcbsp_count = OMAP15XX_MCBSP_COUNT;
+	else if (cpu_is_omap16xx())
+		omap_mcbsp_count = OMAP16XX_MCBSP_COUNT;
 
 	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
 								GFP_KERNEL);
@@ -196,16 +387,22 @@ static int __init omap1_mcbsp_init(void)
 		return -ENOMEM;
 
 	if (cpu_is_omap7xx())
-		omap_mcbsp_register_board_cfg(omap7xx_mcbsp_pdata,
-						OMAP7XX_MCBSP_PDATA_SZ);
+		omap_mcbsp_register_board_cfg(omap7xx_mcbsp_res_0,
+					OMAP7XX_MCBSP_RES_SZ,
+					omap7xx_mcbsp_pdata,
+					OMAP7XX_MCBSP_COUNT);
 
 	if (cpu_is_omap15xx())
-		omap_mcbsp_register_board_cfg(omap15xx_mcbsp_pdata,
-						OMAP15XX_MCBSP_PDATA_SZ);
+		omap_mcbsp_register_board_cfg(omap15xx_mcbsp_res_0,
+					OMAP15XX_MCBSP_RES_SZ,
+					omap15xx_mcbsp_pdata,
+					OMAP15XX_MCBSP_COUNT);
 
 	if (cpu_is_omap16xx())
-		omap_mcbsp_register_board_cfg(omap16xx_mcbsp_pdata,
-						OMAP16XX_MCBSP_PDATA_SZ);
+		omap_mcbsp_register_board_cfg(omap16xx_mcbsp_res_0,
+					OMAP16XX_MCBSP_RES_SZ,
+					omap16xx_mcbsp_pdata,
+					OMAP16XX_MCBSP_COUNT);
 
 	return omap_mcbsp_init();
 }

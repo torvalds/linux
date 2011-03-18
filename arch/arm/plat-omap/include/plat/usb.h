@@ -110,6 +110,11 @@ extern int omap4430_phy_exit(struct device *dev);
 extern int omap4430_phy_suspend(struct device *dev, int suspend);
 #endif
 
+extern void am35x_musb_reset(void);
+extern void am35x_musb_phy_power(u8 on);
+extern void am35x_musb_clear_irq(void);
+extern void am35x_musb_set_mode(u8 musb_mode);
+
 /*
  * FIXME correct answer depends on hmc_mode,
  * as does (on omap1) any nonzero value for config->otg port number

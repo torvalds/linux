@@ -178,12 +178,11 @@ void omap2_init_dpll_parent(struct clk *clk)
 	if (!dd)
 		return;
 
-	/* Return bypass rate if DPLL is bypassed */
 	v = __raw_readl(dd->control_reg);
 	v &= dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
 
-	/* Reparent in case the dpll is in bypass */
+	/* Reparent the struct clk in case the dpll is in bypass */
 	if (cpu_is_omap24xx()) {
 		if (v == OMAP2XXX_EN_DPLL_LPBYPASS ||
 		    v == OMAP2XXX_EN_DPLL_FRBYPASS)
@@ -260,50 +259,22 @@ u32 omap2_get_dpll_rate(struct clk *clk)
 /* DPLL rate rounding code */
 
 /**
- * omap2_dpll_set_rate_tolerance: set the error tolerance during rate rounding
- * @clk: struct clk * of the DPLL
- * @tolerance: maximum rate error tolerance
- *
- * Set the maximum DPLL rate error tolerance for the rate rounding
- * algorithm.  The rate tolerance is an attempt to balance DPLL power
- * saving (the least divider value "n") vs. rate fidelity (the least
- * difference between the desired DPLL target rate and the rounded
- * rate out of the algorithm).  So, increasing the tolerance is likely
- * to decrease DPLL power consumption and increase DPLL rate error.
- * Returns -EINVAL if provided a null clock ptr or a clk that is not a
- * DPLL; or 0 upon success.
- */
-int omap2_dpll_set_rate_tolerance(struct clk *clk, unsigned int tolerance)
-{
-	if (!clk || !clk->dpll_data)
-		return -EINVAL;
-
-	clk->dpll_data->rate_tolerance = tolerance;
-
-	return 0;
-}
-
-/**
  * omap2_dpll_round_rate - round a target rate for an OMAP DPLL
  * @clk: struct clk * for a DPLL
  * @target_rate: desired DPLL clock rate
  *
- * Given a DPLL, a desired target rate, and a rate tolerance, round
- * the target rate to a possible, programmable rate for this DPLL.
- * Rate tolerance is assumed to be set by the caller before this
- * function is called.  Attempts to select the minimum possible n
- * within the tolerance to reduce power consumption.  Stores the
- * computed (m, n) in the DPLL's dpll_data structure so set_rate()
- * will not need to call this (expensive) function again.  Returns ~0
- * if the target rate cannot be rounded, either because the rate is
- * too low or because the rate tolerance is set too tightly; or the
- * rounded rate upon success.
+ * Given a DPLL and a desired target rate, round the target rate to a
+ * possible, programmable rate for this DPLL.  Attempts to select the
+ * minimum possible n.  Stores the computed (m, n) in the DPLL's
+ * dpll_data structure so set_rate() will not need to call this
+ * (expensive) function again.  Returns ~0 if the target rate cannot
+ * be rounded, or the rounded rate upon success.
  */
 long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 {
-	int m, n, r, e, scaled_max_m;
-	unsigned long scaled_rt_rp, new_rate;
-	int min_e = -1, min_e_m = -1, min_e_n = -1;
+	int m, n, r, scaled_max_m;
+	unsigned long scaled_rt_rp;
+	unsigned long new_rate = 0;
 	struct dpll_data *dd;
 
 	if (!clk || !clk->dpll_data)
@@ -311,8 +282,8 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 
 	dd = clk->dpll_data;
 
-	pr_debug("clock: starting DPLL round_rate for clock %s, target rate "
-		 "%ld\n", clk->name, target_rate);
+	pr_debug("clock: %s: starting DPLL round_rate, target rate %ld\n",
+		 clk->name, target_rate);
 
 	scaled_rt_rp = target_rate / (dd->clk_ref->rate / DPLL_SCALE_FACTOR);
 	scaled_max_m = dd->max_multiplier * DPLL_SCALE_FACTOR;
@@ -347,39 +318,23 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 		if (r == DPLL_MULT_UNDERFLOW)
 			continue;
 
-		e = target_rate - new_rate;
-		pr_debug("clock: n = %d: m = %d: rate error is %d "
-			 "(new_rate = %ld)\n", n, m, e, new_rate);
+		pr_debug("clock: %s: m = %d: n = %d: new_rate = %ld\n",
+			 clk->name, m, n, new_rate);
 
-		if (min_e == -1 ||
-		    min_e >= (int)(abs(e) - dd->rate_tolerance)) {
-			min_e = e;
-			min_e_m = m;
-			min_e_n = n;
-
-			pr_debug("clock: found new least error %d\n", min_e);
-
-			/* We found good settings -- bail out now */
-			if (min_e <= dd->rate_tolerance)
-				break;
+		if (target_rate == new_rate) {
+			dd->last_rounded_m = m;
+			dd->last_rounded_n = n;
+			dd->last_rounded_rate = target_rate;
+			break;
 		}
 	}
 
-	if (min_e < 0) {
-		pr_debug("clock: error: target rate or tolerance too low\n");
+	if (target_rate != new_rate) {
+		pr_debug("clock: %s: cannot round to rate %ld\n", clk->name,
+			 target_rate);
 		return ~0;
 	}
 
-	dd->last_rounded_m = min_e_m;
-	dd->last_rounded_n = min_e_n;
-	dd->last_rounded_rate = _dpll_compute_new_rate(dd->clk_ref->rate,
-						       min_e_m,  min_e_n);
-
-	pr_debug("clock: final least error: e = %d, m = %d, n = %d\n",
-		 min_e, min_e_m, min_e_n);
-	pr_debug("clock: final rate: %ld  (target rate: %ld)\n",
-		 dd->last_rounded_rate, target_rate);
-
-	return dd->last_rounded_rate;
+	return target_rate;
 }
 

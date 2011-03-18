@@ -56,16 +56,13 @@ struct omap_globals {
 	unsigned long   prm;            /* Power and Reset Management */
 	unsigned long   cm;             /* Clock Management */
 	unsigned long   cm2;
-	unsigned long	uart1_phys;
-	unsigned long	uart2_phys;
-	unsigned long	uart3_phys;
-	unsigned long	uart4_phys;
 };
 
 void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
 void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
+void omap2_set_globals_ti816x(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
 void omap2_set_globals_tap(struct omap_globals *);

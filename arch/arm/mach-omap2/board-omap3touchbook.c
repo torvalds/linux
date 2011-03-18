@@ -252,9 +252,7 @@ static struct twl4030_usb_data touchbook_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static struct twl4030_codec_audio_data touchbook_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data touchbook_audio_data;
 
 static struct twl4030_codec_data touchbook_codec_data = {
 	.audio_mclk = 26000000,
@@ -415,14 +413,15 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static void __init omap3_touchbook_init_irq(void)
+static void __init omap3_touchbook_init_early(void)
 {
-	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_board_config = omap3_touchbook_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_touchbook_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
+}
+
+static void __init omap3_touchbook_init_irq(void)
+{
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
@@ -510,6 +509,10 @@ static struct omap_musb_board_data musb_board_data = {
 
 static void __init omap3_touchbook_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = omap3_touchbook_config;
+	omap_board_config_size = ARRAY_SIZE(omap3_touchbook_config);
+
 	pm_power_off = omap3_touchbook_poweroff;
 
 	omap3_touchbook_i2c_init();
@@ -538,8 +541,9 @@ static void __init omap3_touchbook_init(void)
 MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")
 	/* Maintainer: Gregoire Gentil - http://www.alwaysinnovating.com */
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3_touchbook_init_early,
 	.init_irq	= omap3_touchbook_init_irq,
 	.init_machine	= omap3_touchbook_init,
 	.timer		= &omap_timer,

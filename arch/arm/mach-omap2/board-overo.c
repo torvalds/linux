@@ -358,9 +358,7 @@ static struct regulator_init_data overo_vmmc1 = {
 	.consumer_supplies	= &overo_vmmc1_supply,
 };
 
-static struct twl4030_codec_audio_data overo_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data overo_audio_data;
 
 static struct twl4030_codec_data overo_codec_data = {
 	.audio_mclk = 26000000,
@@ -409,14 +407,11 @@ static struct omap_board_config_kernel overo_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&overo_lcd_config },
 };
 
-static void __init overo_init_irq(void)
+static void __init overo_init_early(void)
 {
-	omap_board_config = overo_config;
-	omap_board_config_size = ARRAY_SIZE(overo_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
 }
 
 static struct platform_device *overo_devices[] __initdata = {
@@ -449,6 +444,8 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init overo_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_board_config = overo_config;
+	omap_board_config_size = ARRAY_SIZE(overo_config);
 	overo_i2c_init();
 	platform_add_devices(overo_devices, ARRAY_SIZE(overo_devices));
 	omap_serial_init();
@@ -501,9 +498,10 @@ static void __init overo_init(void)
 
 MACHINE_START(OVERO, "Gumstix Overo")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= overo_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= overo_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= overo_init,
 	.timer		= &omap_timer,
 MACHINE_END

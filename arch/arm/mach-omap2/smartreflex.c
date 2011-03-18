@@ -26,9 +26,9 @@
 #include <linux/pm_runtime.h>
 
 #include <plat/common.h>
-#include <plat/smartreflex.h>
 
 #include "pm.h"
+#include "smartreflex.h"
 
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40
@@ -54,6 +54,7 @@ struct omap_sr {
 	struct list_head		node;
 	struct omap_sr_nvalue_table	*nvalue_table;
 	struct voltagedomain		*voltdm;
+	struct dentry			*dbg_dir;
 };
 
 /* sr_list contains all the instances of smartreflex module */
@@ -260,9 +261,11 @@ static int sr_late_init(struct omap_sr *sr_info)
 	if (sr_class->class_type == SR_CLASS2 &&
 		sr_class->notify_flags && sr_info->irq) {
 
-		name = kzalloc(SMARTREFLEX_NAME_LEN + 1, GFP_KERNEL);
-		strcpy(name, "sr_");
-		strcat(name, sr_info->voltdm->name);
+		name = kasprintf(GFP_KERNEL, "sr_%s", sr_info->voltdm->name);
+		if (name == NULL) {
+			ret = -ENOMEM;
+			goto error;
+		}
 		ret = request_irq(sr_info->irq, sr_interrupt,
 				0, name, (void *)sr_info);
 		if (ret)
@@ -821,7 +824,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	struct omap_sr *sr_info = kzalloc(sizeof(struct omap_sr), GFP_KERNEL);
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct resource *mem, *irq;
-	struct dentry *vdd_dbg_dir, *dbg_dir, *nvalue_dir;
+	struct dentry *vdd_dbg_dir, *nvalue_dir;
 	struct omap_volt_data *volt_data;
 	int i, ret = 0;
 
@@ -896,24 +899,24 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		goto err_release_region;
 	}
 
-	dbg_dir = debugfs_create_dir("smartreflex", vdd_dbg_dir);
-	if (IS_ERR(dbg_dir)) {
+	sr_info->dbg_dir = debugfs_create_dir("smartreflex", vdd_dbg_dir);
+	if (IS_ERR(sr_info->dbg_dir)) {
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
 			__func__);
-		ret = PTR_ERR(dbg_dir);
+		ret = PTR_ERR(sr_info->dbg_dir);
 		goto err_release_region;
 	}
 
-	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR, dbg_dir,
-				(void *)sr_info, &pm_sr_fops);
-	(void) debugfs_create_x32("errweight", S_IRUGO, dbg_dir,
+	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR,
+			sr_info->dbg_dir, (void *)sr_info, &pm_sr_fops);
+	(void) debugfs_create_x32("errweight", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_weight);
-	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, dbg_dir,
+	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_maxlimit);
-	(void) debugfs_create_x32("errminlimit", S_IRUGO, dbg_dir,
+	(void) debugfs_create_x32("errminlimit", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_minlimit);
 
-	nvalue_dir = debugfs_create_dir("nvalue", dbg_dir);
+	nvalue_dir = debugfs_create_dir("nvalue", sr_info->dbg_dir);
 	if (IS_ERR(nvalue_dir)) {
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory"
 			"for n-values\n", __func__);
@@ -970,6 +973,8 @@ static int __devexit omap_sr_remove(struct platform_device *pdev)
 
 	if (sr_info->autocomp_active)
 		sr_stop_vddautocomp(sr_info);
+	if (sr_info->dbg_dir)
+		debugfs_remove_recursive(sr_info->dbg_dir);
 
 	list_del(&sr_info->node);
 	iounmap(sr_info->base);
