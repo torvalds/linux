@@ -1161,8 +1161,6 @@ int tm6000_set_standard(struct tm6000_core *dev, v4l2_std_id * norm)
 				rc = tm6000_load_std(dev, svideo_stds[i].common,
 						     sizeof(svideo_stds[i].
 							    common));
-				tm6000_set_audio_std(dev, svideo_stds[i].audio_default_std);
-
 				goto ret;
 			}
 		}

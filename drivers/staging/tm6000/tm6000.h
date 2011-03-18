@@ -129,6 +129,8 @@ struct tm6000_capabilities {
 	unsigned int    has_zl10353:1;
 	unsigned int    has_eeprom:1;
 	unsigned int    has_remote:1;
+	unsigned int    has_input_comp:1;
+	unsigned int    has_input_svid:1;
 };
 
 struct tm6000_dvb {

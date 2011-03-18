@@ -1080,18 +1080,27 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *norm)
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
 {
+	struct tm6000_fh   *fh = priv;
+	struct tm6000_core *dev = fh->dev;
+
 	switch (inp->index) {
 	case TM6000_INPUT_TV:
 		inp->type = V4L2_INPUT_TYPE_TUNER;
 		strcpy(inp->name, "Television");
 		break;
 	case TM6000_INPUT_COMPOSITE:
-		inp->type = V4L2_INPUT_TYPE_CAMERA;
-		strcpy(inp->name, "Composite");
+		if (dev->caps.has_input_comp) {
+			inp->type = V4L2_INPUT_TYPE_CAMERA;
+			strcpy(inp->name, "Composite");
+		} else
+			return -EINVAL;
 		break;
 	case TM6000_INPUT_SVIDEO:
-		inp->type = V4L2_INPUT_TYPE_CAMERA;
-		strcpy(inp->name, "S-Video");
+		if (dev->caps.has_input_svid) {
+			inp->type = V4L2_INPUT_TYPE_CAMERA;
+			strcpy(inp->name, "S-Video");
+		} else
+			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
