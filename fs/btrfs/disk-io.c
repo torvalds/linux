@@ -29,6 +29,7 @@
 #include <linux/crc32c.h>
 #include <linux/slab.h>
 #include <linux/migrate.h>
+#include <asm/unaligned.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -198,7 +199,7 @@ u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len)
 
 void btrfs_csum_final(u32 crc, char *result)
 {
-	*(__le32 *)result = ~cpu_to_le32(crc);
+	put_unaligned_le32(~crc, result);
 }
 
 /*
