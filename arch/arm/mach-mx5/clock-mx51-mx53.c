@@ -1511,6 +1511,7 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&iim_clk);
 	mx51_revision();
 	clk_disable(&iim_clk);
+	mx51_display_revision();
 
 	/* move usb_phy_clk to 24MHz */
 	clk_set_parent(&usb_phy1_clk, &osc_clk);

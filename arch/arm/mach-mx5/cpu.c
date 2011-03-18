@@ -51,6 +51,26 @@ int mx51_revision(void)
 }
 EXPORT_SYMBOL(mx51_revision);
 
+void mx51_display_revision(void)
+{
+	int rev;
+	char *srev;
+	rev = mx51_revision();
+
+	switch (rev) {
+	case IMX_CHIP_REVISION_2_0:
+		srev = IMX_CHIP_REVISION_2_0_STRING;
+		break;
+	case IMX_CHIP_REVISION_3_0:
+		srev = IMX_CHIP_REVISION_3_0_STRING;
+		break;
+	default:
+		srev = IMX_CHIP_REVISION_UNKNOWN_STRING;
+	}
+	printk(KERN_INFO "CPU identified as i.MX51, silicon rev %s\n", srev);
+}
+EXPORT_SYMBOL(mx51_display_revision);
+
 #ifdef CONFIG_NEON
 
 /*
