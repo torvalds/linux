@@ -883,7 +883,7 @@ static int __init update_mp_table(void)
 
 	if (!mpc_new_phys) {
 		unsigned char old, new;
-		/* check if we can change the postion */
+		/* check if we can change the position */
 		mpc->checksum = 0;
 		old = mpf_checksum((unsigned char *)mpc, mpc->length);
 		mpc->checksum = 0xff;
@@ -892,7 +892,7 @@ static int __init update_mp_table(void)
 			printk(KERN_INFO "mpc is readonly, please try alloc_mptable instead\n");
 			return 0;
 		}
-		printk(KERN_INFO "use in-positon replacing\n");
+		printk(KERN_INFO "use in-position replacing\n");
 	} else {
 		mpf->physptr = mpc_new_phys;
 		mpc_new = phys_to_virt(mpc_new_phys);

@@ -1109,7 +1109,7 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 
 	/*
 	 * If group events scheduling transaction was started,
-	 * skip the schedulability test here, it will be peformed
+	 * skip the schedulability test here, it will be performed
 	 * at commit time (->commit_txn) as a whole
 	 */
 	if (cpuc->group_flag & PERF_EVENT_TXN)
@@ -1790,7 +1790,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	perf_callchain_store(entry, regs->ip);
 
-	dump_trace(NULL, regs, NULL, &backtrace_ops, entry);
+	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
 }
 
 #ifdef CONFIG_COMPAT

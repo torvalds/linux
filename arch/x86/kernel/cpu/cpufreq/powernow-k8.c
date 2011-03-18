@@ -1275,7 +1275,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	if (powernow_k8_cpu_init_acpi(data)) {
 		/*
-		 * Use the PSB BIOS structure. This is only availabe on
+		 * Use the PSB BIOS structure. This is only available on
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {

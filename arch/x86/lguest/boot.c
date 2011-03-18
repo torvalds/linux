@@ -397,7 +397,7 @@ static void lguest_load_tr_desc(void)
  * instead we just use the real "cpuid" instruction.  Then I pretty much turned
  * off feature bits until the Guest booted.  (Don't say that: you'll damage
  * lguest sales!)  Shut up, inner voice!  (Hey, just pointing out that this is
- * hardly future proof.)  Noone's listening!  They don't like you anyway,
+ * hardly future proof.)  No one's listening!  They don't like you anyway,
  * parenthetic weirdo!
  *
  * Replacing the cpuid so we can turn features off is great for the kernel, but

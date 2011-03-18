@@ -73,7 +73,7 @@ static u32 __init allocate_aperture(void)
 	/*
 	 * using 512M as goal, in case kexec will load kernel_big
 	 * that will do the on position decompress, and  could overlap with
-	 * that positon with gart that is used.
+	 * that position with gart that is used.
 	 * sequende:
 	 * kernel_small
 	 * ==> kexec (with kdump trigger path or previous doesn't shutdown gart)

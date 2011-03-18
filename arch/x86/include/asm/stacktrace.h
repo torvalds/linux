@@ -47,7 +47,7 @@ struct stacktrace_ops {
 };
 
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
-		unsigned long *stack,
+		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data);
 
 #ifdef CONFIG_X86_32
@@ -86,11 +86,11 @@ stack_frame(struct task_struct *task, struct pt_regs *regs)
 
 extern void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		   unsigned long *stack, char *log_lvl);
+		   unsigned long *stack, unsigned long bp, char *log_lvl);
 
 extern void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		   unsigned long *sp, char *log_lvl);
+		   unsigned long *sp, unsigned long bp, char *log_lvl);
 
 extern unsigned int code_bytes;
 

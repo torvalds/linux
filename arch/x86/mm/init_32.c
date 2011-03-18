@@ -917,7 +917,7 @@ static void mark_nxdata_nx(void)
 {
 	/*
 	 * When this called, init has already been executed and released,
-	 * so everything past _etext sould be NX.
+	 * so everything past _etext should be NX.
 	 */
 	unsigned long start = PFN_ALIGN(_etext);
 	/*

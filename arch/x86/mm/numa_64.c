@@ -446,7 +446,7 @@ static int __init numa_alloc_distance(void)
  * @distance: NUMA distance
  *
  * Set the distance from node @from to @to to @distance.  If distance table
- * doesn't exist, one which is large enough to accomodate all the currently
+ * doesn't exist, one which is large enough to accommodate all the currently
  * known nodes will be created.
  *
  * If such table cannot be allocated, a warning is printed and further
