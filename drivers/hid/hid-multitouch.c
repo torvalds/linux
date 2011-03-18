@@ -79,6 +79,7 @@ struct mt_class {
 #define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	3
 #define MT_CLS_CYPRESS				4
 #define MT_CLS_EGALAX				5
+#define MT_CLS_STANTUM				6
 
 #define MT_DEFAULT_MAXCONTACT	10
 
@@ -138,6 +139,9 @@ struct mt_class mt_classes[] = {
 		.sn_move = 4096,
 		.sn_pressure = 32,
 	},
+	{ .name = MT_CLS_STANTUM,
+		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE },
+
 	{ }
 };
 
@@ -551,6 +555,17 @@ static const struct hid_device_id mt_devices[] = {
 	{  .driver_data = MT_CLS_EGALAX,
 		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
 			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH4) },
+
+	/* Stantum panels */
+	{ .driver_data = MT_CLS_STANTUM,
+		HID_USB_DEVICE(USB_VENDOR_ID_STANTUM,
+			USB_DEVICE_ID_MTP)},
+	{ .driver_data = MT_CLS_STANTUM,
+		HID_USB_DEVICE(USB_VENDOR_ID_STANTUM,
+			USB_DEVICE_ID_MTP_STM)},
+	{ .driver_data = MT_CLS_STANTUM,
+		HID_USB_DEVICE(USB_VENDOR_ID_STANTUM,
+			USB_DEVICE_ID_MTP_SITRONIX)},
 
 	{ }
 };
