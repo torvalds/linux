@@ -36,7 +36,7 @@ static long autofs4_root_compat_ioctl(struct file *,unsigned int,unsigned long);
 static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
 static struct vfsmount *autofs4_d_automount(struct path *);
-static int autofs4_d_manage(struct dentry *, bool, bool);
+static int autofs4_d_manage(struct dentry *, bool);
 static void autofs4_dentry_release(struct dentry *);
 
 const struct file_operations autofs4_root_operations = {
@@ -446,7 +446,7 @@ done:
 	return NULL;
 }
 
-int autofs4_d_manage(struct dentry *dentry, bool mounting_here, bool rcu_walk)
+int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
@@ -454,7 +454,7 @@ int autofs4_d_manage(struct dentry *dentry, bool mounting_here, bool rcu_walk)
 		dentry, dentry->d_name.len, dentry->d_name.name);
 
 	/* The daemon never waits. */
-	if (autofs4_oz_mode(sbi) || mounting_here) {
+	if (autofs4_oz_mode(sbi)) {
 		if (!d_mountpoint(dentry))
 			return -EISDIR;
 		return 0;

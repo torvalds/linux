@@ -933,8 +933,7 @@ static int follow_managed(struct path *path, unsigned flags)
 		if (managed & DCACHE_MANAGE_TRANSIT) {
 			BUG_ON(!path->dentry->d_op);
 			BUG_ON(!path->dentry->d_op->d_manage);
-			ret = path->dentry->d_op->d_manage(path->dentry,
-							   false, false);
+			ret = path->dentry->d_op->d_manage(path->dentry, false);
 			if (ret < 0)
 				return ret == -EISDIR ? 0 : ret;
 		}
@@ -999,7 +998,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		struct vfsmount *mounted;
 		if (unlikely(path->dentry->d_flags & DCACHE_MANAGE_TRANSIT) &&
 		    !reverse_transit &&
-		    path->dentry->d_op->d_manage(path->dentry, false, true) < 0)
+		    path->dentry->d_op->d_manage(path->dentry, true) < 0)
 			return false;
 		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
 		if (!mounted)
@@ -1086,7 +1085,7 @@ int follow_down(struct path *path)
 			BUG_ON(!path->dentry->d_op);
 			BUG_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(
-				path->dentry, false, false);
+				path->dentry, false);
 			if (ret < 0)
 				return ret == -EISDIR ? 0 : ret;
 		}
