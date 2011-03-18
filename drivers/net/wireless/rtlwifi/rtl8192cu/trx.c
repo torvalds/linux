@@ -656,7 +656,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
 
-	memset((void *)pdesc, 0, RTL_TX_HEADER_SIZE);
+	memset(pdesc, 0, RTL_TX_HEADER_SIZE);
 	if (firstseg)
 		SET_TX_DESC_OFFSET(pdesc, RTL_TX_HEADER_SIZE);
 	SET_TX_DESC_TX_RATE(pdesc, DESC92C_RATE1M);
