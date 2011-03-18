@@ -5323,14 +5323,6 @@ swevent_hlist_deref(struct swevent_htable *swhash)
 					 lockdep_is_held(&swhash->hlist_mutex));
 }
 
-static void swevent_hlist_release_rcu(struct rcu_head *rcu_head)
-{
-	struct swevent_hlist *hlist;
-
-	hlist = container_of(rcu_head, struct swevent_hlist, rcu_head);
-	kfree(hlist);
-}
-
 static void swevent_hlist_release(struct swevent_htable *swhash)
 {
 	struct swevent_hlist *hlist = swevent_hlist_deref(swhash);
@@ -5339,7 +5331,7 @@ static void swevent_hlist_release(struct swevent_htable *swhash)
 		return;
 
 	rcu_assign_pointer(swhash->swevent_hlist, NULL);
-	call_rcu(&hlist->rcu_head, swevent_hlist_release_rcu);
+	kfree_rcu(hlist, rcu_head);
 }
 
 static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
