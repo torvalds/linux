@@ -466,14 +466,6 @@ static void __mnt_unmake_readonly(struct vfsmount *mnt)
 	br_write_unlock(vfsmount_lock);
 }
 
-void simple_set_mnt(struct vfsmount *mnt, struct super_block *sb)
-{
-	mnt->mnt_sb = sb;
-	mnt->mnt_root = dget(sb->s_root);
-}
-
-EXPORT_SYMBOL(simple_set_mnt);
-
 void free_vfsmnt(struct vfsmount *mnt)
 {
 	kfree(mnt->mnt_devname);
