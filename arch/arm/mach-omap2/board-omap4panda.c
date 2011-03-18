@@ -280,19 +280,6 @@ static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 	return 0;
 }
 
-static struct regulator_init_data omap4_panda_vaux1 = {
-	.constraints = {
-		.min_uV			= 1000000,
-		.max_uV			= 3000000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
 static struct regulator_init_data omap4_panda_vaux2 = {
 	.constraints = {
 		.min_uV			= 1200000,
@@ -339,19 +326,6 @@ static struct regulator_init_data omap4_panda_vpp = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 2500000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_vusim = {
-	.constraints = {
-		.min_uV			= 1200000,
-		.max_uV			= 2900000,
 		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
@@ -413,12 +387,10 @@ static struct twl4030_platform_data omap4_panda_twldata = {
 	/* Regulators */
 	.vmmc		= &omap4_panda_vmmc,
 	.vpp		= &omap4_panda_vpp,
-	.vusim		= &omap4_panda_vusim,
 	.vana		= &omap4_panda_vana,
 	.vcxio		= &omap4_panda_vcxio,
 	.vdac		= &omap4_panda_vdac,
 	.vusb		= &omap4_panda_vusb,
-	.vaux1		= &omap4_panda_vaux1,
 	.vaux2		= &omap4_panda_vaux2,
 	.vaux3		= &omap4_panda_vaux3,
 	.usb		= &omap4_usbphy_data,
