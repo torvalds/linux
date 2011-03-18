@@ -2,9 +2,9 @@
  * mpc8xxx_wdt.c - MPC8xx/MPC83xx/MPC86xx watchdog userspace interface
  *
  * Authors: Dave Updegraff <dave@cray.org>
- * 	    Kumar Gala <galak@kernel.crashing.org>
- * 		Attribution: from 83xx_wst: Florian Schirmer <jolt@tuxbox.org>
- * 				..and from sc520_wdt
+ *	    Kumar Gala <galak@kernel.crashing.org>
+ *		Attribution: from 83xx_wst: Florian Schirmer <jolt@tuxbox.org>
+ *				..and from sc520_wdt
  * Copyright (c) 2008  MontaVista Software, Inc.
  *                     Anton Vorontsov <avorontsov@ru.mvista.com>
  *

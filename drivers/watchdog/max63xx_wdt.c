@@ -41,7 +41,7 @@ static int nowayout  = WATCHDOG_NOWAYOUT;
  * to ping the watchdog.
  */
 #define MAX6369_WDSET	(7 << 0)
-#define MAX6369_WDI   	(1 << 3)
+#define MAX6369_WDI	(1 << 3)
 
 static DEFINE_SPINLOCK(io_lock);
 

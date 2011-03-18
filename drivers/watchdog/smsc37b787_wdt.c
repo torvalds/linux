@@ -434,11 +434,11 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 	} uarg;
 
 	static const struct watchdog_info ident = {
-		.options = 		WDIOF_KEEPALIVEPING |
+		.options =		WDIOF_KEEPALIVEPING |
 					WDIOF_SETTIMEOUT |
 					WDIOF_MAGICCLOSE,
 		.firmware_version =	0,
-		.identity = 		"SMsC 37B787 Watchdog",
+		.identity =		"SMsC 37B787 Watchdog",
 	};
 
 	uarg.i = (int __user *)arg;
