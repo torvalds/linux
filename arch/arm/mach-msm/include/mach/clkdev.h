@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,17 +9,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#ifndef __MACH_SCM_H
-#define __MACH_SCM_H
+#ifndef __ASM_ARCH_MSM_CLKDEV_H
+#define __ASM_ARCH_MSM_CLKDEV_H
 
-#define SCM_SVC_BOOT			0x1
-#define SCM_SVC_PIL			0x2
+struct clk;
 
-extern int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
-		void *resp_buf, size_t resp_len);
-
-#define SCM_VERSION(major, minor) (((major) << 16) | ((minor) & 0xFF))
-
-extern u32 scm_get_version(void);
-
+static inline int __clk_get(struct clk *clk) { return 1; }
+static inline void __clk_put(struct clk *clk) { }
 #endif

@@ -16,11 +16,16 @@
 #ifndef __ARCH_ARM_MACH_MSM_DEVICES_H
 #define __ARCH_ARM_MACH_MSM_DEVICES_H
 
+#include <linux/clkdev.h>
+
 #include "clock.h"
 
 extern struct platform_device msm_device_uart1;
 extern struct platform_device msm_device_uart2;
 extern struct platform_device msm_device_uart3;
+
+extern struct platform_device msm8960_device_uart_gsbi2;
+extern struct platform_device msm8960_device_uart_gsbi5;
 
 extern struct platform_device msm_device_sdc1;
 extern struct platform_device msm_device_sdc2;
@@ -41,13 +46,13 @@ extern struct platform_device msm_device_mddi0;
 extern struct platform_device msm_device_mddi1;
 extern struct platform_device msm_device_mdp;
 
-extern struct clk msm_clocks_7x01a[];
+extern struct clk_lookup msm_clocks_7x01a[];
 extern unsigned msm_num_clocks_7x01a;
 
-extern struct clk msm_clocks_7x30[];
+extern struct clk_lookup msm_clocks_7x30[];
 extern unsigned msm_num_clocks_7x30;
 
-extern struct clk msm_clocks_8x50[];
+extern struct clk_lookup msm_clocks_8x50[];
 extern unsigned msm_num_clocks_8x50;
 
 #endif

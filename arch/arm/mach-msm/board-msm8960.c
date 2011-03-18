@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,11 +15,11 @@
  * 02110-1301, USA.
  *
  */
-
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -28,26 +28,23 @@
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
 
+#include "devices.h"
 
-static void __init msm8x60_map_io(void)
+static void __init msm8960_map_io(void)
 {
-	msm_map_msm8x60_io();
+	msm_map_msm8960_io();
 }
 
-static void __init msm8x60_init_irq(void)
+static void __init msm8960_init_irq(void)
 {
 	unsigned int i;
-
 	gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE,
 		 (void *)MSM_QGIC_CPU_BASE);
 
 	/* Edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
 	writel(0xFFFFD7FF, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);
 
-	/* RUMI does not adhere to GIC spec by enabling STIs by default.
-	 * Enable/clear is supposed to be RO for STIs, but is RW on RUMI.
-	 */
-	if (!machine_is_msm8x60_sim())
+	if (machine_is_msm8960_rumi3())
 		writel(0x0000FFFF, MSM_QGIC_DIST_BASE + GIC_DIST_ENABLE_SET);
 
 	/* FIXME: Not installing AVS_SVICINT and AVS_SVICINTSWDONE yet
@@ -60,34 +57,35 @@ static void __init msm8x60_init_irq(void)
 	}
 }
 
-static void __init msm8x60_init(void)
+static struct platform_device *sim_devices[] __initdata = {
+	&msm8960_device_uart_gsbi2,
+};
+
+static struct platform_device *rumi3_devices[] __initdata = {
+	&msm8960_device_uart_gsbi5,
+};
+
+static void __init msm8960_sim_init(void)
 {
+	platform_add_devices(sim_devices, ARRAY_SIZE(sim_devices));
 }
 
-MACHINE_START(MSM8X60_RUMI3, "QCT MSM8X60 RUMI3")
-	.map_io = msm8x60_map_io,
-	.init_irq = msm8x60_init_irq,
-	.init_machine = msm8x60_init,
+static void __init msm8960_rumi3_init(void)
+{
+	platform_add_devices(rumi3_devices, ARRAY_SIZE(rumi3_devices));
+}
+
+MACHINE_START(MSM8960_SIM, "QCT MSM8960 SIMULATOR")
+	.map_io = msm8960_map_io,
+	.init_irq = msm8960_init_irq,
 	.timer = &msm_timer,
+	.init_machine = msm8960_sim_init,
 MACHINE_END
 
-MACHINE_START(MSM8X60_SURF, "QCT MSM8X60 SURF")
-	.map_io = msm8x60_map_io,
-	.init_irq = msm8x60_init_irq,
-	.init_machine = msm8x60_init,
+MACHINE_START(MSM8960_RUMI3, "QCT MSM8960 RUMI3")
+	.map_io = msm8960_map_io,
+	.init_irq = msm8960_init_irq,
 	.timer = &msm_timer,
+	.init_machine = msm8960_rumi3_init,
 MACHINE_END
 
-MACHINE_START(MSM8X60_SIM, "QCT MSM8X60 SIMULATOR")
-	.map_io = msm8x60_map_io,
-	.init_irq = msm8x60_init_irq,
-	.init_machine = msm8x60_init,
-	.timer = &msm_timer,
-MACHINE_END
-
-MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
-	.map_io = msm8x60_map_io,
-	.init_irq = msm8x60_init_irq,
-	.init_machine = msm8x60_init,
-	.timer = &msm_timer,
-MACHINE_END

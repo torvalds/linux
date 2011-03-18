@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/memory.h>
 #include <linux/gfp.h>
+#include <linux/gpio.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
@@ -941,6 +942,38 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static void msmsdcc_setup_gpio(struct msmsdcc_host *host, bool enable)
+{
+	struct msm_mmc_gpio_data *curr;
+	int i, rc = 0;
+
+	if (!host->plat->gpio_data && host->gpio_config_status == enable)
+		return;
+
+	curr = host->plat->gpio_data;
+	for (i = 0; i < curr->size; i++) {
+		if (enable) {
+			rc = gpio_request(curr->gpio[i].no,
+						curr->gpio[i].name);
+			if (rc) {
+				pr_err("%s: gpio_request(%d, %s) failed %d\n",
+					mmc_hostname(host->mmc),
+					curr->gpio[i].no,
+					curr->gpio[i].name, rc);
+				goto free_gpios;
+			}
+		} else {
+			gpio_free(curr->gpio[i].no);
+		}
+	}
+	host->gpio_config_status = enable;
+	return;
+
+free_gpios:
+	for (; i >= 0; i--)
+		gpio_free(curr->gpio[i].no);
+}
+
 static void
 msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
@@ -952,6 +985,8 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spin_lock_irqsave(&host->lock, flags);
 
 	msmsdcc_enable_clocks(host);
+
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (ios->clock) {
 		if (ios->clock != host->clk_rate) {
@@ -979,9 +1014,11 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
+		msmsdcc_setup_gpio(host, false);
 		break;
 	case MMC_POWER_UP:
 		pwr |= MCI_PWR_UP;
+		msmsdcc_setup_gpio(host, true);
 		break;
 	case MMC_POWER_ON:
 		pwr |= MCI_PWR_ON;
@@ -998,9 +1035,10 @@ msmsdcc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		msmsdcc_writel(host, pwr, MMCIPOWER);
 	}
 #if BUSCLK_PWRSAVE
+	spin_lock_irqsave(&host->lock, flags);
 	msmsdcc_disable_clocks(host, 1);
-#endif
 	spin_unlock_irqrestore(&host->lock, flags);
+#endif
 }
 
 static void msmsdcc_enable_sdio_irq(struct mmc_host *mmc, int enable)
