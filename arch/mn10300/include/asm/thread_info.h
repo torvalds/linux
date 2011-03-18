@@ -129,7 +129,11 @@ static inline unsigned long current_stack_pointer(void)
 #define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
 #endif
 
+#ifndef CONFIG_KGDB
 #define free_thread_info(ti)	kfree((ti))
+#else
+extern void free_thread_info(struct thread_info *);
+#endif
 #define get_thread_info(ti)	get_task_struct((ti)->task)
 #define put_thread_info(ti)	put_task_struct((ti)->task)
 
