@@ -391,8 +391,8 @@ static int process_ops(struct filter_pred *preds,
 		       struct filter_pred *op, void *rec)
 {
 	struct filter_pred *pred;
+	int match = 0;
 	int type;
-	int match;
 	int i;
 
 	/*

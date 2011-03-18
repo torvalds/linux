@@ -159,4 +159,8 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 					session->sample_id_all, sample);
 }
 
+void perf_session__print_symbols(union perf_event *event,
+				 struct perf_sample *sample,
+				 struct perf_session *session);
+
 #endif /* __PERF_SESSION_H */

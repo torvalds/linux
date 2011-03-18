@@ -263,6 +263,28 @@ static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
 	return name;
 }
 
+const char *event_type(int type)
+{
+	switch (type) {
+	case PERF_TYPE_HARDWARE:
+		return "hardware";
+
+	case PERF_TYPE_SOFTWARE:
+		return "software";
+
+	case PERF_TYPE_TRACEPOINT:
+		return "tracepoint";
+
+	case PERF_TYPE_HW_CACHE:
+		return "hardware-cache";
+
+	default:
+		break;
+	}
+
+	return "unknown";
+}
+
 const char *event_name(struct perf_evsel *evsel)
 {
 	u64 config = evsel->attr.config;
