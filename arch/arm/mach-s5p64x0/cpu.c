@@ -119,7 +119,7 @@ void __init s5p6450_map_io(void)
 	s3c_adc_setname("s3c64xx-adc");
 
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
-	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6440_iodesc));
+	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6450_iodesc));
 }
 
 /*
