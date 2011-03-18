@@ -41,6 +41,8 @@ Other
   handling of different interfaces so that a single binary driver can be built.
 - Add support for new chips (obviously an ongoing item).
 
+More info: http://linuxwireless.org/en/users/Drivers/brcm80211
+
 Contact
 =====
 Brett Rudley <brudley@broadcom.com>
