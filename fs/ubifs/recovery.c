@@ -28,6 +28,23 @@
  * UBIFS always cleans away all remnants of an unclean un-mount, so that
  * errors do not accumulate. However UBIFS defers recovery if it is mounted
  * read-only, and the flash is not modified in that case.
+ *
+ * The general UBIFS approach to the recovery is that it recovers from
+ * corruptions which could be caused by power cuts, but it refuses to recover
+ * from corruption caused by other reasons. And UBIFS tries to distinguish
+ * between these 2 reasons of corruptions and silently recover in the former
+ * case and loudly complain in the latter case.
+ *
+ * UBIFS writes only to erased LEBs, so it writes only to the flash space
+ * containing only 0xFFs. UBIFS also always writes strictly from the beginning
+ * of the LEB to the end. And UBIFS assumes that the underlying flash media
+ * writes in @c->max_write_size bytes at a time.
+ *
+ * Hence, if UBIFS finds a corrupted node at offset X, it expects only the min.
+ * I/O unit corresponding to offset X to contain corrupted data, all the
+ * following min. I/O units have to contain empty space (all 0xFFs). If this is
+ * not true, the corruption cannot be the result of a power cut, and UBIFS
+ * refuses to mount.
  */
 
 #include <linux/crc32.h>
@@ -362,8 +379,9 @@ int ubifs_write_rcvrd_mst_node(struct ubifs_info *c)
  * @offs: offset to check
  *
  * This function returns %1 if @offs was in the last write to the LEB whose data
- * is in @buf, otherwise %0 is returned.  The determination is made by checking
- * for subsequent empty space starting from the next @c->min_io_size boundary.
+ * is in @buf, otherwise %0 is returned. The determination is made by checking
+ * for subsequent empty space starting from the next @c->max_write_size
+ * boundary.
  */
 static int is_last_write(const struct ubifs_info *c, void *buf, int offs)
 {
@@ -371,10 +389,10 @@ static int is_last_write(const struct ubifs_info *c, void *buf, int offs)
 	uint8_t *p;
 
 	/*
-	 * Round up to the next @c->min_io_size boundary i.e. @offs is in the
-	 * last wbuf written. After that should be empty space.
+	 * Round up to the next @c->max_write_size boundary i.e. @offs is in
+	 * the last wbuf written. After that should be empty space.
 	 */
-	empty_offs = ALIGN(offs + 1, c->min_io_size);
+	empty_offs = ALIGN(offs + 1, c->max_write_size);
 	check_len = c->leb_size - empty_offs;
 	p = buf + empty_offs - offs;
 	return is_empty(p, check_len);
@@ -429,7 +447,7 @@ static int no_more_nodes(const struct ubifs_info *c, void *buf, int len,
 	int skip, dlen = le32_to_cpu(ch->len);
 
 	/* Check for empty space after the corrupt node's common header */
-	skip = ALIGN(offs + UBIFS_CH_SZ, c->min_io_size) - offs;
+	skip = ALIGN(offs + UBIFS_CH_SZ, c->max_write_size) - offs;
 	if (is_empty(buf + skip, len - skip))
 		return 1;
 	/*
@@ -441,7 +459,7 @@ static int no_more_nodes(const struct ubifs_info *c, void *buf, int len,
 		return 0;
 	}
 	/* Now we know the corrupt node's length we can skip over it */
-	skip = ALIGN(offs + dlen, c->min_io_size) - offs;
+	skip = ALIGN(offs + dlen, c->max_write_size) - offs;
 	/* After which there should be empty space */
 	if (is_empty(buf + skip, len - skip))
 		return 1;
@@ -671,10 +689,14 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 		} else {
 			int corruption = first_non_ff(buf, len);
 
+			/*
+			 * See header comment for this file for more
+			 * explanations about the reasons we have this check.
+			 */
 			ubifs_err("corrupt empty space LEB %d:%d, corruption "
 				  "starts at %d", lnum, offs, corruption);
 			/* Make sure we dump interesting non-0xFF data */
-			offs = corruption;
+			offs += corruption;
 			buf += corruption;
 			goto corrupted;
 		}
@@ -836,12 +858,8 @@ struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
 static int recover_head(const struct ubifs_info *c, int lnum, int offs,
 			void *sbuf)
 {
-	int len, err;
+	int len = c->max_write_size, err;
 
-	if (c->min_io_size > 1)
-		len = c->min_io_size;
-	else
-		len = 512;
 	if (offs + len > c->leb_size)
 		len = c->leb_size - offs;
 
