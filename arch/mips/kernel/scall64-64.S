@@ -425,4 +425,7 @@ sys_call_table:
 	PTR	sys_fanotify_init		/* 5295 */
 	PTR	sys_fanotify_mark
 	PTR	sys_prlimit64
+	PTR	sys_name_to_handle_at
+	PTR	sys_open_by_handle_at
+	PTR	sys_clock_adjtime		/* 5300 */
 	.size	sys_call_table,.-sys_call_table
