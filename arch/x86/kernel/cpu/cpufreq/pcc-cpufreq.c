@@ -315,8 +315,6 @@ static int __init pcc_cpufreq_do_osc(acpi_handle *handle)
 
 	input.count = 4;
 	input.pointer = in_params;
-	input.count = 4;
-	input.pointer = in_params;
 	in_params[0].type               = ACPI_TYPE_BUFFER;
 	in_params[0].buffer.length      = 16;
 	in_params[0].buffer.pointer     = OSC_UUID;
