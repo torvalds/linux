@@ -375,7 +375,6 @@ static long vpu_clear_irqs(VPU_CLIENT_TYPE type)
 static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	pr_debug("ioctl cmd 0x%08x\n", cmd);
-	udelay(200);
 
 	switch (cmd) {
 	case VPU_IOC_CLOCK_ON: {
