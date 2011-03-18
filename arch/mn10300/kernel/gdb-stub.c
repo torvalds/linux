@@ -133,7 +133,7 @@
 #include <asm/system.h>
 #include <asm/gdb-stub.h>
 #include <asm/exceptions.h>
-#include <asm/cacheflush.h>
+#include <asm/debugger.h>
 #include <asm/serial-regs.h>
 #include <asm/busctl-regs.h>
 #include <unit/leds.h>
@@ -1665,7 +1665,7 @@ done:
 	 * NB: We flush both caches, just to be sure...
 	 */
 	if (gdbstub_flush_caches)
-		gdbstub_purge_cache();
+		debugger_local_cache_flushinv();
 
 	gdbstub_load_fpu();
 	mn10300_set_gdbleds(0);

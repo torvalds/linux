@@ -306,36 +306,7 @@ ENTRY(nmi_handler)
 	movbu	d0,(GxICR(GDB_NMI_IPI))
 	movhu	(GxICR(GDB_NMI_IPI)),d0
 	and	~EPSW_NMID,epsw		# enable NMI
-#ifdef CONFIG_MN10300_CACHE_ENABLED
-	mov	(gdbstub_nmi_opr_type),d0
-	cmp	GDBSTUB_NMI_CACHE_PURGE,d0
-	bne	4f			# if not gdb cache purge, jump
 
-	# gdb cache purge nmi ipi
-	add	-20,sp
-	mov	d1,(4,sp)
-	mov	a0,(8,sp)
-	mov	a1,(12,sp)
-	mov	mdr,d0
-	mov	d0,(16,sp)
-	call	gdbstub_local_purge_cache[],0
-	mov	0x1,d0
-	mov	(CPUID),d1
-	asl	d1,d0
-	mov	gdbstub_nmi_cpumask,a0
-	bclr	d0,(a0)
-	mov	(4,sp),d1
-	mov	(8,sp),a0
-	mov	(12,sp),a1
-	mov	(16,sp),d0
-	mov	d0,mdr
-	add	20,sp
-	mov	(sp),d0
-	add	4,sp
-	rti
-4:
-#endif /* CONFIG_MN10300_CACHE_ENABLED */
-	# gdb wait nmi ipi
 	mov     (sp),d0
 	SAVE_ALL
 	call    gdbstub_nmi_wait[],0

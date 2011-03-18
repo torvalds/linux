@@ -14,6 +14,14 @@
 
 #if defined(CONFIG_KERNEL_DEBUGGER)
 
+#ifndef CONFIG_MN10300_DEBUGGER_CACHE_NO_FLUSH
+extern void debugger_local_cache_flushinv(void);
+extern void debugger_local_cache_flushinv_one(u8 *);
+#else
+static inline void debugger_local_cache_flushinv(void) {}
+static inline void debugger_local_cache_flushinv_one(u8 *addr) {}
+#endif
+
 #else /* CONFIG_KERNEL_DEBUGGER */
 
 #endif /* CONFIG_KERNEL_DEBUGGER */
