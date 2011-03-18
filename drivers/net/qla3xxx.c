@@ -2460,7 +2460,7 @@ map_error:
  * The 3032 supports sglists by using the 3 addr/len pairs (ALP)
  * in the IOCB plus a chain of outbound address lists (OAL) that
  * each contain 5 ALPs.  The last ALP of the IOCB (3rd) or OAL (5th)
- * will used to point to an OAL when more ALP entries are required.
+ * will be used to point to an OAL when more ALP entries are required.
  * The IOCB is always the top of the chain followed by one or more
  * OALs (when necessary).
  */
