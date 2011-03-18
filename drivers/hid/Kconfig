@@ -100,12 +100,6 @@ config HID_BELKIN
 	---help---
 	Support for Belkin Flip KVM and Wireless keyboard.
 
-config HID_CANDO
-	tristate "Cando dual touch panel"
-	depends on USB_HID
-	---help---
-	Support for Cando dual touch panel.
-
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard" if EXPERT
 	depends on USB_HID
@@ -320,6 +314,7 @@ config HID_MULTITOUCH
 	  Generic support for HID multitouch panels.
 
 	  Say Y here if you have one of the following devices:
+	  - Cando dual touch panel
 	  - Cypress TrueTouch panels
 	  - Hanvon dual touch panels
 	  - IrTouch Infrared USB panels
