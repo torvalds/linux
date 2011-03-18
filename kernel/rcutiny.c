@@ -167,7 +167,7 @@ static void rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		prefetch(next);
 		debug_rcu_head_unqueue(list);
 		local_bh_disable();
-		list->func(list);
+		__rcu_reclaim(list);
 		local_bh_enable();
 		list = next;
 		RCU_TRACE(cb_count++);
