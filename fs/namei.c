@@ -1065,7 +1065,7 @@ failed:
  * Care must be taken as namespace_sem may be held (indicated by mounting_here
  * being true).
  */
-int follow_down(struct path *path, bool mounting_here)
+int follow_down(struct path *path)
 {
 	unsigned managed;
 	int ret;
@@ -1086,7 +1086,7 @@ int follow_down(struct path *path, bool mounting_here)
 			BUG_ON(!path->dentry->d_op);
 			BUG_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(
-				path->dentry, mounting_here, false);
+				path->dentry, false, false);
 			if (ret < 0)
 				return ret == -EISDIR ? 0 : ret;
 		}
