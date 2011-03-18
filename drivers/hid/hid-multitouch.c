@@ -60,8 +60,9 @@ struct mt_device {
 	__s8 inputmode;		/* InputMode HID feature, -1 if non-existent */
 	__u8 num_received;	/* how many contacts we received */
 	__u8 num_expected;	/* expected last contact index */
+	__u8 maxcontacts;
 	bool curvalid;		/* is the current contact valid? */
-	struct mt_slot slots[0];	/* first slot */
+	struct mt_slot *slots;
 };
 
 struct mt_class {
@@ -79,6 +80,8 @@ struct mt_class {
 #define MT_CLS_CYPRESS				4
 #define MT_CLS_EGALAX				5
 
+#define MT_DEFAULT_MAXCONTACT	10
+
 /*
  * these device-dependent functions determine what slot corresponds
  * to a valid contact that was just read.
@@ -95,12 +98,12 @@ static int cypress_compute_slot(struct mt_device *td)
 static int find_slot_from_contactid(struct mt_device *td)
 {
 	int i;
-	for (i = 0; i < td->mtclass->maxcontacts; ++i) {
+	for (i = 0; i < td->maxcontacts; ++i) {
 		if (td->slots[i].contactid == td->curdata.contactid &&
 			td->slots[i].touch_state)
 			return i;
 	}
-	for (i = 0; i < td->mtclass->maxcontacts; ++i) {
+	for (i = 0; i < td->maxcontacts; ++i) {
 		if (!td->slots[i].seen_in_this_frame &&
 			!td->slots[i].touch_state)
 			return i;
@@ -113,8 +116,7 @@ static int find_slot_from_contactid(struct mt_device *td)
 
 struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
-		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP,
-		.maxcontacts = 10 },
+		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP },
 	{ .name = MT_CLS_DUAL_INRANGE_CONTACTID,
 		.quirks = MT_QUIRK_VALID_IS_INRANGE |
 			MT_QUIRK_SLOT_IS_CONTACTID,
@@ -142,9 +144,19 @@ struct mt_class mt_classes[] = {
 static void mt_feature_mapping(struct hid_device *hdev,
 		struct hid_field *field, struct hid_usage *usage)
 {
-	if (usage->hid == HID_DG_INPUTMODE) {
-		struct mt_device *td = hid_get_drvdata(hdev);
+	struct mt_device *td = hid_get_drvdata(hdev);
+
+	switch (usage->hid) {
+	case HID_DG_INPUTMODE:
 		td->inputmode = field->report->id;
+		break;
+	case HID_DG_CONTACTMAX:
+		td->maxcontacts = field->value[0];
+		if (td->mtclass->maxcontacts)
+			/* check if the maxcontacts is given by the class */
+			td->maxcontacts = td->mtclass->maxcontacts;
+
+		break;
 	}
 }
 
@@ -208,8 +220,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			td->last_slot_field = usage->hid;
 			return 1;
 		case HID_DG_CONTACTID:
-			input_mt_init_slots(hi->input,
-					td->mtclass->maxcontacts);
+			input_mt_init_slots(hi->input, td->maxcontacts);
 			td->last_slot_field = usage->hid;
 			return 1;
 		case HID_DG_WIDTH:
@@ -292,7 +303,7 @@ static void mt_complete_slot(struct mt_device *td)
 	if (td->curvalid) {
 		int slotnum = mt_compute_slot(td);
 
-		if (slotnum >= 0 && slotnum < td->mtclass->maxcontacts)
+		if (slotnum >= 0 && slotnum < td->maxcontacts)
 			td->slots[slotnum] = td->curdata;
 	}
 	td->num_received++;
@@ -307,7 +318,7 @@ static void mt_emit_event(struct mt_device *td, struct input_dev *input)
 {
 	int i;
 
-	for (i = 0; i < td->mtclass->maxcontacts; ++i) {
+	for (i = 0; i < td->maxcontacts; ++i) {
 		struct mt_slot *s = &(td->slots[i]);
 		if ((td->mtclass->quirks & MT_QUIRK_NOT_SEEN_MEANS_UP) &&
 			!s->seen_in_this_frame) {
@@ -341,7 +352,7 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 	struct mt_device *td = hid_get_drvdata(hid);
 	__s32 quirks = td->mtclass->quirks;
 
-	if (hid->claimed & HID_CLAIMED_INPUT) {
+	if (hid->claimed & HID_CLAIMED_INPUT && td->slots) {
 		switch (usage->hid) {
 		case HID_DG_INRANGE:
 			if (quirks & MT_QUIRK_VALID_IS_INRANGE)
@@ -442,9 +453,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 */
 	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
 
-	td = kzalloc(sizeof(struct mt_device) +
-				mtclass->maxcontacts * sizeof(struct mt_slot),
-				GFP_KERNEL);
+	td = kzalloc(sizeof(struct mt_device), GFP_KERNEL);
 	if (!td) {
 		dev_err(&hdev->dev, "cannot allocate multitouch data\n");
 		return -ENOMEM;
@@ -460,6 +469,18 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret)
 		goto fail;
+
+	if (!td->maxcontacts)
+		td->maxcontacts = MT_DEFAULT_MAXCONTACT;
+
+	td->slots = kzalloc(td->maxcontacts * sizeof(struct mt_slot),
+				GFP_KERNEL);
+	if (!td->slots) {
+		dev_err(&hdev->dev, "cannot allocate multitouch slots\n");
+		hid_hw_stop(hdev);
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	mt_set_input_mode(hdev);
 
@@ -482,6 +503,7 @@ static void mt_remove(struct hid_device *hdev)
 {
 	struct mt_device *td = hid_get_drvdata(hdev);
 	hid_hw_stop(hdev);
+	kfree(td->slots);
 	kfree(td);
 	hid_set_drvdata(hdev, NULL);
 }
