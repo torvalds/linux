@@ -36,7 +36,7 @@ config KPROBES
 
 config GDBSTUB
 	bool "Remote GDB kernel debugging"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && DEPRECATED
 	select DEBUG_INFO
 	select FRAME_POINTER
 	help
@@ -45,6 +45,9 @@ config GDBSTUB
 	  megabytes and requires a machine with more than 16 MB, better 32 MB
 	  RAM to avoid excessive linking time. This is only useful for kernel
 	  hackers. If unsure, say N.
+
+	  This is deprecated in favour of KGDB and will be removed in a later
+	  version.
 
 config GDBSTUB_IMMEDIATE
 	bool "Break into GDB stub immediately"
