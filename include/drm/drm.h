@@ -469,6 +469,8 @@ enum drm_vblank_seq_type {
 	_DRM_VBLANK_SECONDARY = 0x20000000,	/**< Secondary display controller */
 	_DRM_VBLANK_SIGNAL = 0x40000000	/**< Send signal instead of blocking, unsupported */
 };
+#define _DRM_VBLANK_HIGH_CRTC_SHIFT 16
+#define _DRM_VBLANK_HIGH_CRTC_MASK 0x001F0000
 
 #define _DRM_VBLANK_TYPES_MASK (_DRM_VBLANK_ABSOLUTE | _DRM_VBLANK_RELATIVE)
 #define _DRM_VBLANK_FLAGS_MASK (_DRM_VBLANK_EVENT | _DRM_VBLANK_SIGNAL | \
@@ -753,6 +755,7 @@ struct drm_event_vblank {
 };
 
 #define DRM_CAP_DUMB_BUFFER 0x1
+#define DRM_CAP_HIGH_CRTC 0x2
 
 /* typedef area */
 #ifndef __KERNEL__
