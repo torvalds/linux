@@ -891,14 +891,6 @@ static ssize_t show_xps_map(struct netdev_queue *queue,
 	return len;
 }
 
-static void xps_dev_maps_release(struct rcu_head *rcu)
-{
-	struct xps_dev_maps *dev_maps =
-	    container_of(rcu, struct xps_dev_maps, rcu);
-
-	kfree(dev_maps);
-}
-
 static DEFINE_MUTEX(xps_map_mutex);
 #define xmap_dereference(P)		\
 	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
@@ -1008,7 +1000,7 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 	}
 
 	if (dev_maps)
-		call_rcu(&dev_maps->rcu, xps_dev_maps_release);
+		kfree_rcu(dev_maps, rcu);
 
 	netdev_queue_numa_node_write(queue, (numa_node >= 0) ? numa_node :
 					    NUMA_NO_NODE);
@@ -1080,7 +1072,7 @@ static void netdev_queue_release(struct kobject *kobj)
 
 		if (!nonempty) {
 			RCU_INIT_POINTER(dev->xps_maps, NULL);
-			call_rcu(&dev_maps->rcu, xps_dev_maps_release);
+			kfree_rcu(dev_maps, rcu);
 		}
 	}
 
