@@ -513,7 +513,7 @@ static int ethtool_set_one_feature(struct net_device *dev,
 	}
 }
 
-static int __ethtool_set_flags(struct net_device *dev, u32 data)
+int __ethtool_set_flags(struct net_device *dev, u32 data)
 {
 	u32 changed;
 
