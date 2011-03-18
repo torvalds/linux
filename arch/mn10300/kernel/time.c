@@ -93,43 +93,6 @@ irqreturn_t local_timer_interrupt(void)
 	return IRQ_HANDLED;
 }
 
-#ifndef CONFIG_GENERIC_TIME
-/*
- * advance the kernel's time keeping clocks (xtime and jiffies)
- * - we use Timer 0 & 1 cascaded as a clock to nudge us the next time
- *   there's a need to update
- */
-static irqreturn_t timer_interrupt(int irq, void *dev_id)
-{
-	unsigned tsc, elapse;
-	irqreturn_t ret;
-
-	while (tsc = get_cycles(),
-	       elapse = tsc - mn10300_last_tsc, /* time elapsed since last
-						 * tick */
-	       elapse > MN10300_TSC_PER_HZ
-	       ) {
-		mn10300_last_tsc += MN10300_TSC_PER_HZ;
-
-		/* advance the kernel's time tracking system */
-		xtime_update(1);
-	}
-
-	ret = local_timer_interrupt();
-#ifdef CONFIG_SMP
-	send_IPI_allbutself(LOCAL_TIMER_IPI);
-#endif
-	return ret;
-}
-
-static struct irqaction timer_irq = {
-	.handler	= timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_SHARED | IRQF_TIMER,
-	.name		= "timer",
-};
-#endif /* CONFIG_GENERIC_TIME */
-
-#ifdef CONFIG_CSRC_MN10300
 void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
 {
 	u64 temp;
@@ -145,9 +108,7 @@ void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
 	cs->shift = shift;
 	cs->mult = (u32) temp;
 }
-#endif
 
-#if CONFIG_CEVT_MN10300
 void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 				    unsigned int clock)
 {
@@ -164,7 +125,6 @@ void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 	cd->shift = shift;
 	cd->mult = (u32) temp;
 }
-#endif
 
 /*
  * initialise the various timers used by the main part of the kernel
@@ -177,11 +137,7 @@ void __init time_init(void)
 	 */
 	TMPSCNT |= TMPSCNT_ENABLE;
 
-#ifdef CONFIG_GENERIC_TIME
 	init_clocksource();
-#else
-	startup_timestamp_counter();
-#endif
 
 	printk(KERN_INFO
 	       "timestamp counter I/O clock running at %lu.%02lu"
@@ -190,12 +146,7 @@ void __init time_init(void)
 
 	mn10300_last_tsc = read_timestamp_counter();
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
 	init_clockevents();
-#else
-	reload_jiffies_counter(MN10300_JC_PER_HZ - 1);
-	setup_jiffies_interrupt(TMJCIRQ, &timer_irq, CONFIG_TIMER_IRQ_LEVEL);
-#endif
 
 #ifdef CONFIG_MN10300_WD_TIMER
 	/* start the watchdog timer */
