@@ -170,6 +170,16 @@
 #define SPEFSCR_FRMC 	0x00000003	/* Embedded FP rounding mode control */
 
 /* Special Purpose Registers (SPRNs)*/
+
+#ifdef CONFIG_40x
+#define SPRN_PID	0x3B1	/* Process ID */
+#else
+#define SPRN_PID	0x030	/* Process ID */
+#ifdef CONFIG_BOOKE
+#define SPRN_PID0	SPRN_PID/* Process ID Register 0 */
+#endif
+#endif
+
 #define SPRN_CTR	0x009	/* Count Register */
 #define SPRN_DSCR	0x11
 #define SPRN_CTRLF	0x088
@@ -852,6 +862,8 @@
 #define PVR_7450	0x80000000
 #define PVR_8540	0x80200000
 #define PVR_8560	0x80200000
+#define PVR_VER_E500V1	0x8020
+#define PVR_VER_E500V2	0x8021
 /*
  * For the 8xx processors, all of them report the same PVR family for
  * the PowerPC core. The various versions of these processors must be

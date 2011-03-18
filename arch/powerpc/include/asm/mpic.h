@@ -467,11 +467,11 @@ extern void mpic_request_ipis(void);
 void smp_mpic_message_pass(int target, int msg);
 
 /* Unmask a specific virq */
-extern void mpic_unmask_irq(unsigned int irq);
+extern void mpic_unmask_irq(struct irq_data *d);
 /* Mask a specific virq */
-extern void mpic_mask_irq(unsigned int irq);
+extern void mpic_mask_irq(struct irq_data *d);
 /* EOI a specific virq */
-extern void mpic_end_irq(unsigned int irq);
+extern void mpic_end_irq(struct irq_data *d);
 
 /* Fetch interrupt from a given mpic */
 extern unsigned int mpic_get_one_irq(struct mpic *mpic);

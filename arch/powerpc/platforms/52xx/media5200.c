@@ -49,45 +49,46 @@ struct media5200_irq {
 };
 struct media5200_irq media5200_irq;
 
-static void media5200_irq_unmask(unsigned int virq)
+static void media5200_irq_unmask(struct irq_data *d)
 {
 	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(&media5200_irq.lock, flags);
 	val = in_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE);
-	val |= 1 << (MEDIA5200_IRQ_SHIFT + irq_map[virq].hwirq);
+	val |= 1 << (MEDIA5200_IRQ_SHIFT + irq_map[d->irq].hwirq);
 	out_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE, val);
 	spin_unlock_irqrestore(&media5200_irq.lock, flags);
 }
 
-static void media5200_irq_mask(unsigned int virq)
+static void media5200_irq_mask(struct irq_data *d)
 {
 	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(&media5200_irq.lock, flags);
 	val = in_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE);
-	val &= ~(1 << (MEDIA5200_IRQ_SHIFT + irq_map[virq].hwirq));
+	val &= ~(1 << (MEDIA5200_IRQ_SHIFT + irq_map[d->irq].hwirq));
 	out_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE, val);
 	spin_unlock_irqrestore(&media5200_irq.lock, flags);
 }
 
 static struct irq_chip media5200_irq_chip = {
 	.name = "Media5200 FPGA",
-	.unmask = media5200_irq_unmask,
-	.mask = media5200_irq_mask,
-	.mask_ack = media5200_irq_mask,
+	.irq_unmask = media5200_irq_unmask,
+	.irq_mask = media5200_irq_mask,
+	.irq_mask_ack = media5200_irq_mask,
 };
 
 void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
 	int sub_virq, val;
 	u32 status, enable;
 
 	/* Mask off the cascaded IRQ */
 	raw_spin_lock(&desc->lock);
-	desc->chip->mask(virq);
+	chip->irq_mask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 
 	/* Ask the FPGA for IRQ status.  If 'val' is 0, then no irqs
@@ -105,9 +106,9 @@ void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 
 	/* Processing done; can reenable the cascade now */
 	raw_spin_lock(&desc->lock);
-	desc->chip->ack(virq);
+	chip->irq_ack(&desc->irq_data);
 	if (!(desc->status & IRQ_DISABLED))
-		desc->chip->unmask(virq);
+		chip->irq_unmask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }
 

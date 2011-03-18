@@ -56,32 +56,32 @@ static cpic8xx_t __iomem *cpic_reg;
 
 static struct irq_host *cpm_pic_host;
 
-static void cpm_mask_irq(unsigned int irq)
+static void cpm_mask_irq(struct irq_data *d)
 {
-	unsigned int cpm_vec = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpm_vec = (unsigned int)irq_map[d->irq].hwirq;
 
 	clrbits32(&cpic_reg->cpic_cimr, (1 << cpm_vec));
 }
 
-static void cpm_unmask_irq(unsigned int irq)
+static void cpm_unmask_irq(struct irq_data *d)
 {
-	unsigned int cpm_vec = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpm_vec = (unsigned int)irq_map[d->irq].hwirq;
 
 	setbits32(&cpic_reg->cpic_cimr, (1 << cpm_vec));
 }
 
-static void cpm_end_irq(unsigned int irq)
+static void cpm_end_irq(struct irq_data *d)
 {
-	unsigned int cpm_vec = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpm_vec = (unsigned int)irq_map[d->irq].hwirq;
 
 	out_be32(&cpic_reg->cpic_cisr, (1 << cpm_vec));
 }
 
 static struct irq_chip cpm_pic = {
 	.name = "CPM PIC",
-	.mask = cpm_mask_irq,
-	.unmask = cpm_unmask_irq,
-	.eoi = cpm_end_irq,
+	.irq_mask = cpm_mask_irq,
+	.irq_unmask = cpm_unmask_irq,
+	.irq_eoi = cpm_end_irq,
 };
 
 int cpm_get_irq(void)

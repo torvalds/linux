@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 DENX Software Engineering GmbH
+ * Copyright 2008-2011 DENX Software Engineering GmbH
  * Author: Heiko Schocher <hs@denx.de>
  *
  * Description:
@@ -49,12 +49,12 @@
  * Setup the architecture
  *
  */
-static void __init kmeter1_setup_arch(void)
+static void __init mpc83xx_km_setup_arch(void)
 {
 	struct device_node *np;
 
 	if (ppc_md.progress)
-		ppc_md.progress("kmeter1_setup_arch()", 0);
+		ppc_md.progress("kmpbec83xx_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
 	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
@@ -68,6 +68,9 @@ static void __init kmeter1_setup_arch(void)
 	if (np != NULL) {
 		par_io_init(np);
 		of_node_put(np);
+
+		for_each_node_by_name(np, "spi")
+			par_io_of_config(np);
 
 		for (np = NULL; (np = of_find_node_by_name(np, "ucc")) != NULL;)
 			par_io_of_config(np);
@@ -119,7 +122,7 @@ static void __init kmeter1_setup_arch(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-static struct of_device_id kmeter_ids[] = {
+static struct of_device_id kmpbec83xx_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .compatible = "simple-bus", },
@@ -131,13 +134,13 @@ static struct of_device_id kmeter_ids[] = {
 static int __init kmeter_declare_of_platform_devices(void)
 {
 	/* Publish the QE devices */
-	of_platform_bus_probe(NULL, kmeter_ids, NULL);
+	of_platform_bus_probe(NULL, kmpbec83xx_ids, NULL);
 
 	return 0;
 }
-machine_device_initcall(kmeter1, kmeter_declare_of_platform_devices);
+machine_device_initcall(mpc83xx_km, kmeter_declare_of_platform_devices);
 
-static void __init kmeter1_init_IRQ(void)
+static void __init mpc83xx_km_init_IRQ(void)
 {
 	struct device_node *np;
 
@@ -168,21 +171,34 @@ static void __init kmeter1_init_IRQ(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
+/* list of the supported boards */
+static char *board[] __initdata = {
+	"Keymile,KMETER1",
+	"Keymile,kmpbec8321",
+	NULL
+};
+
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init kmeter1_probe(void)
+static int __init mpc83xx_km_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
+	unsigned long node = of_get_flat_dt_root();
+	int i = 0;
 
-	return of_flat_dt_is_compatible(root, "keymile,KMETER1");
+	while (board[i]) {
+		if (of_flat_dt_is_compatible(node, board[i]))
+			break;
+		i++;
+	}
+	return (board[i] != NULL);
 }
 
-define_machine(kmeter1) {
-	.name		= "KMETER1",
-	.probe		= kmeter1_probe,
-	.setup_arch	= kmeter1_setup_arch,
-	.init_IRQ	= kmeter1_init_IRQ,
+define_machine(mpc83xx_km) {
+	.name		= "mpc83xx-km-platform",
+	.probe		= mpc83xx_km_probe,
+	.setup_arch	= mpc83xx_km_setup_arch,
+	.init_IRQ	= mpc83xx_km_init_IRQ,
 	.get_irq	= ipic_get_irq,
 	.restart	= mpc83xx_restart,
 	.time_init	= mpc83xx_time_init,
