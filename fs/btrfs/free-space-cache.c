@@ -1999,6 +1999,16 @@ int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 		min_bytes = max(bytes, (bytes + empty_size) >> 2);
 
 	spin_lock(&block_group->tree_lock);
+
+	/*
+	 * If we know we don't have enough space to make a cluster don't even
+	 * bother doing all the work to try and find one.
+	 */
+	if (block_group->free_space < min_bytes) {
+		spin_unlock(&block_group->tree_lock);
+		return -ENOSPC;
+	}
+
 	spin_lock(&cluster->lock);
 
 	/* someone already found a cluster, hooray */
