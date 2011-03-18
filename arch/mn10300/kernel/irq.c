@@ -363,12 +363,12 @@ int show_interrupts(struct seq_file *p, void *v)
 
 			if (i < NR_CPU_IRQS)
 				seq_printf(p, " %14s.%u",
-					   irq_desc[i].chip->name,
+					   irq_desc[i].irq_data.chip->name,
 					   (GxICR(i) & GxICR_LEVEL) >>
 					   GxICR_LEVEL_SHIFT);
 			else
 				seq_printf(p, " %14s",
-					   irq_desc[i].chip->name);
+					   irq_desc[i].irq_data.chip->name);
 
 			seq_printf(p, "  %s", action->name);
 

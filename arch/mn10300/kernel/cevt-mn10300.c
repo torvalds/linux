@@ -111,9 +111,9 @@ int __init init_clockevents(void)
 #if defined(CONFIG_SMP) && !defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
 	/* setup timer irq affinity so it only runs on this cpu */
 	{
-		struct irq_desc *desc;
-		desc = irq_to_desc(cd->irq);
-		cpumask_copy(desc->affinity, cpumask_of(cpu));
+		struct irq_data *data;
+		data = irq_get_irq_data(cd->irq);
+		cpumask_copy(data->affinity, cpumask_of(cpu));
 		iact->flags |= IRQF_NOBALANCING;
 	}
 #endif
