@@ -1612,10 +1612,13 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	__bit_spin_unlock(0, (unsigned long *)&tmp->d_sb->s_anon.first);
 	spin_unlock(&tmp->d_lock);
 	spin_unlock(&inode->i_lock);
+	security_d_instantiate(tmp, inode);
 
 	return tmp;
 
  out_iput:
+	if (res && !IS_ERR(res))
+		security_d_instantiate(res, inode);
 	iput(inode);
 	return res;
 }
