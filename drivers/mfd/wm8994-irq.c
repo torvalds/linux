@@ -225,9 +225,11 @@ static irqreturn_t wm8994_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	/* Apply masking */
-	for (i = 0; i < WM8994_NUM_IRQ_REGS; i++)
+	/* Bit swap and apply masking */
+	for (i = 0; i < WM8994_NUM_IRQ_REGS; i++) {
+		status[i] = be16_to_cpu(status[i]);
 		status[i] &= ~wm8994->irq_masks_cur[i];
+	}
 
 	/* Report */
 	for (i = 0; i < ARRAY_SIZE(wm8994_irqs); i++) {

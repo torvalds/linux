@@ -40,10 +40,8 @@ static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		return ret;
 
 	for (i = 0; i < bytes / 2; i++) {
-		buf[i] = be16_to_cpu(buf[i]);
-
 		dev_vdbg(wm8994->dev, "Read %04x from R%d(0x%x)\n",
-			 buf[i], reg + i, reg + i);
+			 be16_to_cpu(buf[i]), reg + i, reg + i);
 	}
 
 	return 0;
@@ -69,7 +67,7 @@ int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
 	if (ret < 0)
 		return ret;
 	else
-		return val;
+		return be16_to_cpu(val);
 }
 EXPORT_SYMBOL_GPL(wm8994_reg_read);
 
@@ -79,7 +77,7 @@ EXPORT_SYMBOL_GPL(wm8994_reg_read);
  * @wm8994: Device to read from
  * @reg: First register
  * @count: Number of registers
- * @buf: Buffer to fill.
+ * @buf: Buffer to fill.  The data will be returned big endian.
  */
 int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 		     int count, u16 *buf)
@@ -179,6 +177,8 @@ int wm8994_set_bits(struct wm8994 *wm8994, unsigned short reg,
 	ret = wm8994_read(wm8994, reg, 2, &r);
 	if (ret < 0)
 		goto out;
+
+	r = be16_to_cpu(r);
 
 	r &= ~mask;
 	r |= val;
