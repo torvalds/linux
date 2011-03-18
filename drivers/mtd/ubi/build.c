@@ -711,7 +711,7 @@ static int io_init(struct ubi_device *ubi)
 	}
 
 	/* Similar for the data offset */
-	ubi->leb_start = ubi->vid_hdr_offset + UBI_EC_HDR_SIZE;
+	ubi->leb_start = ubi->vid_hdr_offset + UBI_VID_HDR_SIZE;
 	ubi->leb_start = ALIGN(ubi->leb_start, ubi->min_io_size);
 
 	dbg_msg("vid_hdr_offset   %d", ubi->vid_hdr_offset);
@@ -923,6 +923,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	spin_lock_init(&ubi->volumes_lock);
 
 	ubi_msg("attaching mtd%d to ubi%d", mtd->index, ubi_num);
+	dbg_msg("sizeof(struct ubi_scan_leb) %zu", sizeof(struct ubi_scan_leb));
+	dbg_msg("sizeof(struct ubi_wl_entry) %zu", sizeof(struct ubi_wl_entry));
 
 	err = io_init(ubi);
 	if (err)
@@ -936,13 +938,6 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi->peb_buf2 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf2)
 		goto out_free;
-
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	mutex_init(&ubi->dbg_buf_mutex);
-	ubi->dbg_peb_buf = vmalloc(ubi->peb_size);
-	if (!ubi->dbg_peb_buf)
-		goto out_free;
-#endif
 
 	err = attach_by_scanning(ubi);
 	if (err) {
@@ -991,8 +986,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	 * checks @ubi->thread_enabled. Otherwise we may fail to wake it up.
 	 */
 	spin_lock(&ubi->wl_lock);
-	if (!DBG_DISABLE_BGT)
-		ubi->thread_enabled = 1;
+	ubi->thread_enabled = 1;
 	wake_up_process(ubi->bgt_thread);
 	spin_unlock(&ubi->wl_lock);
 
@@ -1009,9 +1003,6 @@ out_detach:
 out_free:
 	vfree(ubi->peb_buf1);
 	vfree(ubi->peb_buf2);
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	vfree(ubi->dbg_peb_buf);
-#endif
 	if (ref)
 		put_device(&ubi->dev);
 	else
@@ -1082,9 +1073,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	put_mtd_device(ubi->mtd);
 	vfree(ubi->peb_buf1);
 	vfree(ubi->peb_buf2);
-#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-	vfree(ubi->dbg_peb_buf);
-#endif
 	ubi_msg("mtd%d is detached from ubi%d", ubi->mtd->index, ubi->ubi_num);
 	put_device(&ubi->dev);
 	return 0;
