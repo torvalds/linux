@@ -196,7 +196,7 @@ unsigned int mnt_get_count(struct vfsmount *mnt)
 #endif
 }
 
-struct vfsmount *alloc_vfsmnt(const char *name)
+static struct vfsmount *alloc_vfsmnt(const char *name)
 {
 	struct vfsmount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
 	if (mnt) {
@@ -466,7 +466,7 @@ static void __mnt_unmake_readonly(struct vfsmount *mnt)
 	br_write_unlock(vfsmount_lock);
 }
 
-void free_vfsmnt(struct vfsmount *mnt)
+static void free_vfsmnt(struct vfsmount *mnt)
 {
 	kfree(mnt->mnt_devname);
 	mnt_free_id(mnt);
@@ -669,6 +669,36 @@ static struct vfsmount *skip_mnt_tree(struct vfsmount *p)
 	}
 	return p;
 }
+
+struct vfsmount *
+vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
+{
+	struct vfsmount *mnt;
+	struct dentry *root;
+
+	if (!type)
+		return ERR_PTR(-ENODEV);
+
+	mnt = alloc_vfsmnt(name);
+	if (!mnt)
+		return ERR_PTR(-ENOMEM);
+
+	if (flags & MS_KERNMOUNT)
+		mnt->mnt_flags = MNT_INTERNAL;
+
+	root = mount_fs(type, flags, name, data);
+	if (IS_ERR(root)) {
+		free_vfsmnt(mnt);
+		return ERR_CAST(root);
+	}
+
+	mnt->mnt_root = root;
+	mnt->mnt_sb = root->d_sb;
+	mnt->mnt_mountpoint = mnt->mnt_root;
+	mnt->mnt_parent = mnt;
+	return mnt;
+}
+EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
 static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 					int flag)
@@ -1905,7 +1935,81 @@ out:
 	return err;
 }
 
-static int do_add_mount(struct vfsmount *, struct path *, int);
+static struct vfsmount *fs_set_subtype(struct vfsmount *mnt, const char *fstype)
+{
+	int err;
+	const char *subtype = strchr(fstype, '.');
+	if (subtype) {
+		subtype++;
+		err = -EINVAL;
+		if (!subtype[0])
+			goto err;
+	} else
+		subtype = "";
+
+	mnt->mnt_sb->s_subtype = kstrdup(subtype, GFP_KERNEL);
+	err = -ENOMEM;
+	if (!mnt->mnt_sb->s_subtype)
+		goto err;
+	return mnt;
+
+ err:
+	mntput(mnt);
+	return ERR_PTR(err);
+}
+
+struct vfsmount *
+do_kern_mount(const char *fstype, int flags, const char *name, void *data)
+{
+	struct file_system_type *type = get_fs_type(fstype);
+	struct vfsmount *mnt;
+	if (!type)
+		return ERR_PTR(-ENODEV);
+	mnt = vfs_kern_mount(type, flags, name, data);
+	if (!IS_ERR(mnt) && (type->fs_flags & FS_HAS_SUBTYPE) &&
+	    !mnt->mnt_sb->s_subtype)
+		mnt = fs_set_subtype(mnt, fstype);
+	put_filesystem(type);
+	return mnt;
+}
+EXPORT_SYMBOL_GPL(do_kern_mount);
+
+/*
+ * add a mount into a namespace's mount tree
+ */
+static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
+{
+	int err;
+
+	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL);
+
+	down_write(&namespace_sem);
+	/* Something was mounted here while we slept */
+	err = follow_down(path, true);
+	if (err < 0)
+		goto unlock;
+
+	err = -EINVAL;
+	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(path->mnt))
+		goto unlock;
+
+	/* Refuse the same filesystem on the same mount point */
+	err = -EBUSY;
+	if (path->mnt->mnt_sb == newmnt->mnt_sb &&
+	    path->mnt->mnt_root == path->dentry)
+		goto unlock;
+
+	err = -EINVAL;
+	if (S_ISLNK(newmnt->mnt_root->d_inode->i_mode))
+		goto unlock;
+
+	newmnt->mnt_flags = mnt_flags;
+	err = graft_tree(newmnt, path);
+
+unlock:
+	up_write(&namespace_sem);
+	return err;
+}
 
 /*
  * create a new mount for userspace and request it to be added into the
@@ -1962,43 +2066,6 @@ fail:
 	}
 	mntput(m);
 	mntput(m);
-	return err;
-}
-
-/*
- * add a mount into a namespace's mount tree
- */
-static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
-{
-	int err;
-
-	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL);
-
-	down_write(&namespace_sem);
-	/* Something was mounted here while we slept */
-	err = follow_down(path, true);
-	if (err < 0)
-		goto unlock;
-
-	err = -EINVAL;
-	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(path->mnt))
-		goto unlock;
-
-	/* Refuse the same filesystem on the same mount point */
-	err = -EBUSY;
-	if (path->mnt->mnt_sb == newmnt->mnt_sb &&
-	    path->mnt->mnt_root == path->dentry)
-		goto unlock;
-
-	err = -EINVAL;
-	if (S_ISLNK(newmnt->mnt_root->d_inode->i_mode))
-		goto unlock;
-
-	newmnt->mnt_flags = mnt_flags;
-	err = graft_tree(newmnt, path);
-
-unlock:
-	up_write(&namespace_sem);
 	return err;
 }
 
@@ -2660,3 +2727,9 @@ void put_mnt_ns(struct mnt_namespace *ns)
 	kfree(ns);
 }
 EXPORT_SYMBOL(put_mnt_ns);
+
+struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
+{
+	return vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
+}
+EXPORT_SYMBOL_GPL(kern_mount_data);

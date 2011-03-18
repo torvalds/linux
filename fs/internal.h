@@ -12,6 +12,7 @@
 #include <linux/lglock.h>
 
 struct super_block;
+struct file_system_type;
 struct linux_binprm;
 struct path;
 
@@ -61,8 +62,6 @@ extern int check_unsafe_exec(struct linux_binprm *);
 extern int copy_mount_options(const void __user *, unsigned long *);
 extern int copy_mount_string(const void __user *, char **);
 
-extern void free_vfsmnt(struct vfsmount *);
-extern struct vfsmount *alloc_vfsmnt(const char *);
 extern unsigned int mnt_get_count(struct vfsmount *mnt);
 extern struct vfsmount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
 extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
@@ -99,6 +98,8 @@ extern struct file *get_empty_filp(void);
 extern int do_remount_sb(struct super_block *, int, void *, int);
 extern void __put_super(struct super_block *sb);
 extern void put_super(struct super_block *sb);
+extern struct dentry *mount_fs(struct file_system_type *,
+			       int, const char *, void *);
 
 /*
  * open.c
