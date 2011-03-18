@@ -467,6 +467,9 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 	rx_reg		= base + OMAP2_MCSPI_RX0;
 	chstat_reg	= base + OMAP2_MCSPI_CHSTAT0;
 
+	if (c < (word_len>>3))
+		return 0;
+
 	if (word_len <= 8) {
 		u8		*rx;
 		const u8	*tx;
@@ -514,7 +517,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				dev_vdbg(&spi->dev, "read-%d %02x\n",
 						word_len, *(rx - 1));
 			}
-		} while (c);
+		} while (c > (word_len>>3));
 	} else if (word_len <= 16) {
 		u16		*rx;
 		const u16	*tx;
@@ -561,7 +564,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				dev_vdbg(&spi->dev, "read-%d %04x\n",
 						word_len, *(rx - 1));
 			}
-		} while (c);
+		} while (c > (word_len>>3));
 	} else if (word_len <= 32) {
 		u32		*rx;
 		const u32	*tx;
@@ -608,7 +611,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				dev_vdbg(&spi->dev, "read-%d %08x\n",
 						word_len, *(rx - 1));
 			}
-		} while (c);
+		} while (c > (word_len>>3));
 	}
 
 	/* for TX_ONLY mode, be sure all words have shifted out */
@@ -629,6 +632,17 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 out:
 	omap2_mcspi_set_enable(spi, 1);
 	return count - c;
+}
+
+static u32 omap2_mcspi_calc_divisor(u32 speed_hz)
+{
+	u32 div;
+
+	for (div = 0; div < 15; div++)
+		if (speed_hz >= (OMAP2_MCSPI_MAX_FREQ >> div))
+			return div;
+
+	return 15;
 }
 
 /* called only when no transfer is active to this device */
@@ -653,12 +667,8 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	if (t && t->speed_hz)
 		speed_hz = t->speed_hz;
 
-	if (speed_hz) {
-		while (div <= 15 && (OMAP2_MCSPI_MAX_FREQ / (1 << div))
-					> speed_hz)
-			div++;
-	} else
-		div = 15;
+	speed_hz = min_t(u32, speed_hz, OMAP2_MCSPI_MAX_FREQ);
+	div = omap2_mcspi_calc_divisor(speed_hz);
 
 	l = mcspi_cached_chconf0(spi);
 
@@ -695,7 +705,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	mcspi_write_chconf0(spi, l);
 
 	dev_dbg(&spi->dev, "setup: speed %d, sample %s edge, clk %s\n",
-			OMAP2_MCSPI_MAX_FREQ / (1 << div),
+			OMAP2_MCSPI_MAX_FREQ >> div,
 			(spi->mode & SPI_CPHA) ? "trailing" : "leading",
 			(spi->mode & SPI_CPOL) ? "inverted" : "normal");
 
@@ -996,10 +1006,10 @@ static int omap2_mcspi_transfer(struct spi_device *spi, struct spi_message *m)
 					t->bits_per_word);
 			return -EINVAL;
 		}
-		if (t->speed_hz && t->speed_hz < OMAP2_MCSPI_MAX_FREQ/(1<<16)) {
-			dev_dbg(&spi->dev, "%d Hz max exceeds %d\n",
-					t->speed_hz,
-					OMAP2_MCSPI_MAX_FREQ/(1<<16));
+		if (t->speed_hz && t->speed_hz < (OMAP2_MCSPI_MAX_FREQ >> 15)) {
+			dev_dbg(&spi->dev, "speed_hz %d below minimum %d Hz\n",
+				t->speed_hz,
+				OMAP2_MCSPI_MAX_FREQ >> 15);
 			return -EINVAL;
 		}
 

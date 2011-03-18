@@ -187,31 +187,28 @@ MODULE_DEVICE_TABLE(pci, lnw_gpio_ids);
 
 static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct lnw_gpio *lnw = get_irq_data(irq);
-	u32 base, gpio;
+	struct irq_data *data = irq_desc_get_irq_data(desc);
+	struct lnw_gpio *lnw = irq_data_get_irq_handler_data(data);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	u32 base, gpio, mask;
+	unsigned long pending;
 	void __iomem *gedr;
-	u32 gedr_v;
 
 	/* check GPIO controller to check which pin triggered the interrupt */
 	for (base = 0; base < lnw->chip.ngpio; base += 32) {
 		gedr = gpio_reg(&lnw->chip, base, GEDR);
-		gedr_v = readl(gedr);
-		if (!gedr_v)
-			continue;
-		for (gpio = base; gpio < base + 32; gpio++)
-			if (gedr_v & BIT(gpio % 32)) {
-				pr_debug("pin %d triggered\n", gpio);
-				generic_handle_irq(lnw->irq_base + gpio);
-			}
-		/* clear the edge detect status bit */
-		writel(gedr_v, gedr);
+		pending = readl(gedr);
+		while (pending) {
+			gpio = __ffs(pending) - 1;
+			mask = BIT(gpio);
+			pending &= ~mask;
+			/* Clear before handling so we can't lose an edge */
+			writel(mask, gedr);
+			generic_handle_irq(lnw->irq_base + base + gpio);
+		}
 	}
 
-	if (desc->chip->irq_eoi)
-		desc->chip->irq_eoi(irq_get_irq_data(irq));
-	else
-		dev_warn(lnw->chip.dev, "missing EOI handler for irq %d\n", irq);
-
+	chip->irq_eoi(data);
 }
 
 static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
@@ -279,12 +276,12 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "langwell gpiochip_add error %d\n", retval);
 		goto err5;
 	}
-	set_irq_data(pdev->irq, lnw);
-	set_irq_chained_handler(pdev->irq, lnw_irq_handler);
+	irq_set_handler_data(pdev->irq, lnw);
+	irq_set_chained_handler(pdev->irq, lnw_irq_handler);
 	for (i = 0; i < lnw->chip.ngpio; i++) {
-		set_irq_chip_and_handler_name(i + lnw->irq_base, &lnw_irqchip,
-					handle_simple_irq, "demux");
-		set_irq_chip_data(i + lnw->irq_base, lnw);
+		irq_set_chip_and_handler_name(i + lnw->irq_base, &lnw_irqchip,
+					      handle_simple_irq, "demux");
+		irq_set_chip_data(i + lnw->irq_base, lnw);
 	}
 
 	spin_lock_init(&lnw->lock);

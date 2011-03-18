@@ -462,7 +462,8 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 {
 	struct pca953x_platform_data *pdata;
 	struct device_node *node;
-	const uint16_t *val;
+	const __be32 *val;
+	int size;
 
 	node = client->dev.of_node;
 	if (node == NULL)
@@ -475,13 +476,13 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 	}
 
 	pdata->gpio_base = -1;
-	val = of_get_property(node, "linux,gpio-base", NULL);
+	val = of_get_property(node, "linux,gpio-base", &size);
 	if (val) {
-		if (*val < 0)
-			dev_warn(&client->dev,
-				 "invalid gpio-base in device tree\n");
+		if (size != sizeof(*val))
+			dev_warn(&client->dev, "%s: wrong linux,gpio-base\n",
+				 node->full_name);
 		else
-			pdata->gpio_base = *val;
+			pdata->gpio_base = be32_to_cpup(val);
 	}
 
 	val = of_get_property(node, "polarity", NULL);

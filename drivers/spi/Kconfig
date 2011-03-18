@@ -53,6 +53,12 @@ if SPI_MASTER
 
 comment "SPI Master Controller Drivers"
 
+config SPI_ALTERA
+	tristate "Altera SPI Controller"
+	select SPI_BITBANG
+	help
+	  This is the driver for the Altera SPI Controller.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 && GENERIC_GPIO
@@ -231,6 +237,13 @@ config SPI_FSL_ESPI
 	  From MPC8536, 85xx platform uses the controller, and all P10xx,
 	  P20xx, P30xx,P40xx, P50xx uses this controller.
 
+config SPI_OC_TINY
+	tristate "OpenCores tiny SPI"
+	depends on GENERIC_GPIO
+	select SPI_BITBANG
+	help
+	  This is the driver for OpenCores tiny SPI master controller.
+
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
 	depends on ARCH_OMAP1
@@ -329,6 +342,12 @@ config SPI_SH_MSIOF
 	select SPI_BITBANG
 	help
 	  SPI driver for SuperH MSIOF blocks.
+
+config SPI_SH
+	tristate "SuperH SPI controller"
+	depends on SUPERH
+	help
+	  SPI driver for SuperH SPI blocks.
 
 config SPI_SH_SCI
 	tristate "SuperH SCI SPI controller"

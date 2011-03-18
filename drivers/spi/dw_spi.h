@@ -2,6 +2,7 @@
 #define DW_SPI_HEADER_H
 
 #include <linux/io.h>
+#include <linux/scatterlist.h>
 
 /* Bit fields in CTRLR0 */
 #define SPI_DFS_OFFSET			0
