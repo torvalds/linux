@@ -677,8 +677,8 @@ create_efivars_bin_attributes(struct efivars *efivars)
 
 	return 0;
 out_free:
-	kfree(efivars->new_var);
-	efivars->new_var = NULL;
+	kfree(efivars->del_var);
+	efivars->del_var = NULL;
 	kfree(efivars->new_var);
 	efivars->new_var = NULL;
 	return error;
