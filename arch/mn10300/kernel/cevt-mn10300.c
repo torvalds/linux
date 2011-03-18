@@ -89,9 +89,10 @@ int __init init_clockevents(void)
 	cd->name		= "Timestamp";
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 
-	/* Calculate the min / max delta */
-	clockevent_set_clock(cd, MN10300_JCCLK);
+	/* Calculate shift/mult. We want to spawn at least 1 second */
+	clockevents_calc_mult_shift(cd, MN10300_JCCLK, 1);
 
+	/* Calculate the min / max delta */
 	cd->max_delta_ns	= clockevent_delta2ns(TMJCBR_MAX, cd);
 	cd->min_delta_ns	= clockevent_delta2ns(100, cd);
 
