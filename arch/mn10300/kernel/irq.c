@@ -252,31 +252,6 @@ void set_intr_level(int irq, u16 level)
 	__mask_and_set_icr(irq, GxICR_ENABLE, level);
 }
 
-void mn10300_intc_set_level(unsigned int irq, unsigned int level)
-{
-	set_intr_level(irq, NUM2GxICR_LEVEL(level) & GxICR_LEVEL);
-}
-
-void mn10300_intc_clear(unsigned int irq)
-{
-	__mask_and_set_icr(irq, GxICR_LEVEL | GxICR_ENABLE, GxICR_DETECT);
-}
-
-void mn10300_intc_set(unsigned int irq)
-{
-	__mask_and_set_icr(irq, 0, GxICR_REQUEST | GxICR_DETECT);
-}
-
-void mn10300_intc_enable(unsigned int irq)
-{
-	mn10300_cpupic_unmask(irq);
-}
-
-void mn10300_intc_disable(unsigned int irq)
-{
-	mn10300_cpupic_mask(irq);
-}
-
 /*
  * mark an interrupt to be ACK'd after interrupt handlers have been run rather
  * than before
