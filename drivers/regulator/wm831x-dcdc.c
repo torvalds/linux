@@ -604,8 +604,8 @@ static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "HC"), dcdc);
-	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), dcdc);
+	free_irq(platform_get_irq_byname(pdev, "HC"), dcdc);
+	free_irq(platform_get_irq_byname(pdev, "UV"), dcdc);
 	regulator_unregister(dcdc->regulator);
 	if (dcdc->dvs_gpio)
 		gpio_free(dcdc->dvs_gpio);
@@ -780,7 +780,7 @@ static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), dcdc);
+	free_irq(platform_get_irq_byname(pdev, "UV"), dcdc);
 	regulator_unregister(dcdc->regulator);
 	kfree(dcdc);
 
