@@ -54,6 +54,14 @@ config GDBSTUB_IMMEDIATE
 	  possible, leaving the program counter at the beginning of
 	  start_kernel() in init/main.c.
 
+config GDBSTUB_ALLOW_SINGLE_STEP
+	bool "Allow software single-stepping in GDB stub"
+	depends on GDBSTUB && !SMP && !PREEMPT
+	help
+	  Allow GDB stub to perform software single-stepping through the
+	  kernel.  This doesn't work very well on SMP or preemptible kernels as
+	  it uses temporary breakpoints to emulate single-stepping.
+
 config GDB_CONSOLE
 	bool "Console output to GDB"
 	depends on GDBSTUB

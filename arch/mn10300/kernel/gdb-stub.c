@@ -405,6 +405,7 @@ static int hexToInt(char **ptr, int *intValue)
 	return (numChars);
 }
 
+#ifdef CONFIG_GDBSTUB_ALLOW_SINGLE_STEP
 /*
  * We single-step by setting breakpoints. When an exception
  * is handled, we need to restore the instructions hoisted
@@ -729,6 +730,7 @@ static int gdbstub_single_step(struct pt_regs *regs)
 	__gdbstub_restore_bp();
 	return -EFAULT;
 }
+#endif /* CONFIG_GDBSTUB_ALLOW_SINGLE_STEP */
 
 #ifdef CONFIG_GDBSTUB_CONSOLE
 
@@ -1208,11 +1210,13 @@ static int gdbstub(struct pt_regs *regs, enum exception_code excep)
 	/* if we were single stepping, restore the opcodes hoisted for the
 	 * breakpoint[s] */
 	broke = 0;
+#ifdef CONFIG_GDBSTUB_ALLOW_SINGLE_STEP
 	if ((step_bp[0].addr && step_bp[0].addr == (u8 *) regs->pc) ||
 	    (step_bp[1].addr && step_bp[1].addr == (u8 *) regs->pc))
 		broke = 1;
 
 	__gdbstub_restore_bp();
+#endif
 
 	if (gdbstub_rx_unget) {
 		sigval = SIGINT;
@@ -1548,17 +1552,21 @@ packet_waiting:
 			 * Step to next instruction
 			 */
 		case 's':
-			/*
-			 * using the T flag doesn't seem to perform single
+			/* Using the T flag doesn't seem to perform single
 			 * stepping (it seems to wind up being caught by the
 			 * JTAG unit), so we have to use breakpoints and
 			 * continue instead.
 			 */
+#ifdef CONFIG_GDBSTUB_ALLOW_SINGLE_STEP
 			if (gdbstub_single_step(regs) < 0)
 				/* ignore any fault error for now */
 				gdbstub_printk("unable to set single-step"
 					       " bp\n");
 			goto done;
+#else
+			gdbstub_strcpy(output_buffer, "E01");
+			break;
+#endif
 
 			/*
 			 * Set baud rate (bBB)
