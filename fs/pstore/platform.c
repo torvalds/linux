@@ -37,23 +37,13 @@
 static DEFINE_SPINLOCK(pstore_lock);
 static struct pstore_info *psinfo;
 
-/* How much of the console log to snapshot. /sys/fs/pstore/kmsg_bytes */
+/* How much of the console log to snapshot */
 static unsigned long kmsg_bytes = 10240;
 
-static ssize_t b_show(struct kobject *kobj,
-		      struct kobj_attribute *attr, char *buf)
+void pstore_set_kmsg_bytes(int bytes)
 {
-	return snprintf(buf, PAGE_SIZE, "%lu\n", kmsg_bytes);
+	kmsg_bytes = bytes;
 }
-
-static ssize_t b_store(struct kobject *kobj, struct kobj_attribute *attr,
-		       const char *buf, size_t count)
-{
-	return (sscanf(buf, "%lu", &kmsg_bytes) > 0) ? count : 0;
-}
-
-struct kobj_attribute pstore_kmsg_bytes_attr =
-	__ATTR(kmsg_bytes, S_IRUGO | S_IWUSR, b_show, b_store);
 
 /* Tag each group of saved records with a sequence number */
 static int	oopscount;
