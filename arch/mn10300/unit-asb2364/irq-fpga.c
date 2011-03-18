@@ -88,6 +88,17 @@ void __init irq_fpga_init(void)
 {
 	int irq;
 
+	ASB2364_FPGA_REG_MASK_LAN  = 0x0001;
+	SyncExBus();
+	ASB2364_FPGA_REG_MASK_UART = 0x0001;
+	SyncExBus();
+	ASB2364_FPGA_REG_MASK_I2C  = 0x0001;
+	SyncExBus();
+	ASB2364_FPGA_REG_MASK_USB  = 0x0001;
+	SyncExBus();
+	ASB2364_FPGA_REG_MASK_FPGA = 0x0001;
+	SyncExBus();
+
 	for (irq = NR_CPU_IRQS; irq < NR_IRQS; irq++)
 		set_irq_chip_and_handler(irq, &asb2364_fpga_pic, handle_level_irq);
 
