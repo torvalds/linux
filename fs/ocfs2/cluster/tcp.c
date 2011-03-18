@@ -210,10 +210,6 @@ static inline void o2net_set_func_stop_time(struct o2net_sock_container *sc)
 	sc->sc_tv_func_stop = ktime_get();
 }
 
-static ktime_t o2net_get_func_run_time(struct o2net_sock_container *sc)
-{
-	return ktime_sub(sc->sc_tv_func_stop, sc->sc_tv_func_start);
-}
 #else  /* CONFIG_DEBUG_FS */
 # define o2net_init_nst(a, b, c, d, e)
 # define o2net_set_nst_sock_time(a)
@@ -227,10 +223,14 @@ static ktime_t o2net_get_func_run_time(struct o2net_sock_container *sc)
 # define o2net_set_advance_stop_time(a)
 # define o2net_set_func_start_time(a)
 # define o2net_set_func_stop_time(a)
-# define o2net_get_func_run_time(a)		(ktime_t)0
 #endif /* CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_OCFS2_FS_STATS
+static ktime_t o2net_get_func_run_time(struct o2net_sock_container *sc)
+{
+	return ktime_sub(sc->sc_tv_func_stop, sc->sc_tv_func_start);
+}
+
 static void o2net_update_send_stats(struct o2net_send_tracking *nst,
 				    struct o2net_sock_container *sc)
 {
