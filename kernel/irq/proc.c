@@ -11,6 +11,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
 
 #include "internals.h"
 
@@ -24,7 +25,7 @@ static int irq_affinity_proc_show(struct seq_file *m, void *v)
 	const struct cpumask *mask = desc->irq_data.affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (desc->status & IRQ_MOVE_PENDING)
+	if (irqd_is_setaffinity_pending(&desc->irq_data))
 		mask = desc->pending_mask;
 #endif
 	seq_cpumask(m, mask);
@@ -65,8 +66,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	cpumask_var_t new_value;
 	int err;
 
-	if (!irq_to_desc(irq)->irq_data.chip->irq_set_affinity || no_irq_affinity ||
-	    irq_balancing_disabled(irq))
+	if (!irq_can_set_affinity(irq) || no_irq_affinity)
 		return -EIO;
 
 	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
@@ -89,7 +89,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	if (!cpumask_intersects(new_value, cpu_online_mask)) {
 		/* Special case for empty set - allow the architecture
 		   code to set default SMP affinity. */
-		err = irq_select_affinity_usr(irq) ? -EINVAL : count;
+		err = irq_select_affinity_usr(irq, new_value) ? -EINVAL : count;
 	} else {
 		irq_set_affinity(irq, new_value);
 		err = count;
@@ -357,3 +357,65 @@ void init_irq_proc(void)
 	}
 }
 
+#ifdef CONFIG_GENERIC_IRQ_SHOW
+
+int __weak arch_show_interrupts(struct seq_file *p, int prec)
+{
+	return 0;
+}
+
+int show_interrupts(struct seq_file *p, void *v)
+{
+	static int prec;
+
+	unsigned long flags, any_count = 0;
+	int i = *(loff_t *) v, j;
+	struct irqaction *action;
+	struct irq_desc *desc;
+
+	if (i > nr_irqs)
+		return 0;
+
+	if (i == nr_irqs)
+		return arch_show_interrupts(p, prec);
+
+	/* print header and calculate the width of the first column */
+	if (i == 0) {
+		for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
+			j *= 10;
+
+		seq_printf(p, "%*s", prec + 8, "");
+		for_each_online_cpu(j)
+			seq_printf(p, "CPU%-8d", j);
+		seq_putc(p, '\n');
+	}
+
+	desc = irq_to_desc(i);
+	if (!desc)
+		return 0;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	for_each_online_cpu(j)
+		any_count |= kstat_irqs_cpu(i, j);
+	action = desc->action;
+	if (!action && !any_count)
+		goto out;
+
+	seq_printf(p, "%*d: ", prec, i);
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
+	seq_printf(p, " %8s", desc->irq_data.chip->name);
+	seq_printf(p, "-%-8s", desc->name);
+
+	if (action) {
+		seq_printf(p, "  %s", action->name);
+		while ((action = action->next) != NULL)
+			seq_printf(p, ", %s", action->name);
+	}
+
+	seq_putc(p, '\n');
+out:
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	return 0;
+}
+#endif

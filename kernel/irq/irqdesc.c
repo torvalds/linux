@@ -79,7 +79,8 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node)
 	desc->irq_data.chip_data = NULL;
 	desc->irq_data.handler_data = NULL;
 	desc->irq_data.msi_desc = NULL;
-	desc->status = IRQ_DEFAULT_INIT_FLAGS;
+	irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
+	desc->istate = IRQS_DISABLED;
 	desc->handle_irq = handle_bad_irq;
 	desc->depth = 1;
 	desc->irq_count = 0;
@@ -206,6 +207,14 @@ struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 	return NULL;
 }
 
+static int irq_expand_nr_irqs(unsigned int nr)
+{
+	if (nr > IRQ_BITMAP_BITS)
+		return -ENOMEM;
+	nr_irqs = nr;
+	return 0;
+}
+
 int __init early_irq_init(void)
 {
 	int i, initcnt, node = first_online_node;
@@ -238,7 +247,7 @@ int __init early_irq_init(void)
 
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
-		.status		= IRQ_DEFAULT_INIT_FLAGS,
+		.istate		= IRQS_DISABLED,
 		.handle_irq	= handle_bad_irq,
 		.depth		= 1,
 		.lock		= __RAW_SPIN_LOCK_UNLOCKED(irq_desc->lock),
@@ -260,8 +269,8 @@ int __init early_irq_init(void)
 	for (i = 0; i < count; i++) {
 		desc[i].irq_data.irq = i;
 		desc[i].irq_data.chip = &no_irq_chip;
-		/* TODO : do this allocation on-demand ... */
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
+		irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
 		alloc_masks(desc + i, GFP_KERNEL, node);
 		desc_smp_init(desc + i, node);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
@@ -286,24 +295,14 @@ static void free_desc(unsigned int irq)
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node)
 {
-#if defined(CONFIG_KSTAT_IRQS_ONDEMAND)
-	struct irq_desc *desc;
-	unsigned int i;
-
-	for (i = 0; i < cnt; i++) {
-		desc = irq_to_desc(start + i);
-		if (desc && !desc->kstat_irqs) {
-			unsigned int __percpu *stats = alloc_percpu(unsigned int);
-
-			if (!stats)
-				return -1;
-			if (cmpxchg(&desc->kstat_irqs, NULL, stats) != NULL)
-				free_percpu(stats);
-		}
-	}
-#endif
 	return start;
 }
+
+static int irq_expand_nr_irqs(unsigned int nr)
+{
+	return -ENOMEM;
+}
+
 #endif /* !CONFIG_SPARSE_IRQ */
 
 /* Dynamic interrupt handling */
@@ -347,14 +346,17 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 
 	mutex_lock(&sparse_irq_lock);
 
-	start = bitmap_find_next_zero_area(allocated_irqs, nr_irqs, from, cnt, 0);
+	start = bitmap_find_next_zero_area(allocated_irqs, IRQ_BITMAP_BITS,
+					   from, cnt, 0);
 	ret = -EEXIST;
 	if (irq >=0 && start != irq)
 		goto err;
 
-	ret = -ENOMEM;
-	if (start >= nr_irqs)
-		goto err;
+	if (start + cnt > nr_irqs) {
+		ret = irq_expand_nr_irqs(start + cnt);
+		if (ret)
+			goto err;
+	}
 
 	bitmap_set(allocated_irqs, start, cnt);
 	mutex_unlock(&sparse_irq_lock);
@@ -399,6 +401,26 @@ int irq_reserve_irqs(unsigned int from, unsigned int cnt)
 unsigned int irq_get_next_irq(unsigned int offset)
 {
 	return find_next_bit(allocated_irqs, nr_irqs, offset);
+}
+
+struct irq_desc *
+__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (desc) {
+		if (bus)
+			chip_bus_lock(desc);
+		raw_spin_lock_irqsave(&desc->lock, *flags);
+	}
+	return desc;
+}
+
+void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus)
+{
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+	if (bus)
+		chip_bus_sync_unlock(desc);
 }
 
 /**

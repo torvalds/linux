@@ -1002,6 +1002,18 @@ const struct seq_operations mounts_op = {
 	.show	= show_vfsmnt
 };
 
+static int uuid_is_nil(u8 *uuid)
+{
+	int i;
+	u8  *cp = (u8 *)uuid;
+
+	for (i = 0; i < 16; i++) {
+		if (*cp++)
+			return 0;
+	}
+	return 1;
+}
+
 static int show_mountinfo(struct seq_file *m, void *v)
 {
 	struct proc_mounts *p = m->private;
@@ -1039,6 +1051,10 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	}
 	if (IS_MNT_UNBINDABLE(mnt))
 		seq_puts(m, " unbindable");
+
+	if (!uuid_is_nil(mnt->mnt_sb->s_uuid))
+		/* print the uuid */
+		seq_printf(m, " uuid:%pU", mnt->mnt_sb->s_uuid);
 
 	/* Filesystem specific data */
 	seq_puts(m, " - ");

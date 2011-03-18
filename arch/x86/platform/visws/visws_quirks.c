@@ -569,11 +569,13 @@ out_unlock:
 static struct irqaction master_action = {
 	.handler =	piix4_master_intr,
 	.name =		"PIIX4-8259",
+	.flags =	IRQF_NO_THREAD,
 };
 
 static struct irqaction cascade_action = {
 	.handler = 	no_action,
 	.name =		"cascade",
+	.flags =	IRQF_NO_THREAD,
 };
 
 static inline void set_piix4_virtual_irq_type(void)
@@ -606,7 +608,7 @@ static void __init visws_pre_intr_init(void)
 			chip = &cobalt_irq_type;
 
 		if (chip)
-			set_irq_chip(i, chip);
+			irq_set_chip(i, chip);
 	}
 
 	setup_irq(CO_IRQ_8259, &master_action);

@@ -17,7 +17,7 @@
 /*
  * Autodetection depends on the fact that any interrupt that
  * comes in on to an unassigned handler will get stuck with
- * "IRQ_WAITING" cleared and the interrupt disabled.
+ * "IRQS_WAITING" cleared and the interrupt disabled.
  */
 static DEFINE_MUTEX(probing_active);
 
@@ -32,7 +32,6 @@ unsigned long probe_irq_on(void)
 {
 	struct irq_desc *desc;
 	unsigned long mask = 0;
-	unsigned int status;
 	int i;
 
 	/*
@@ -46,13 +45,7 @@ unsigned long probe_irq_on(void)
 	 */
 	for_each_irq_desc_reverse(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
-			/*
-			 * An old-style architecture might still have
-			 * the handle_bad_irq handler there:
-			 */
-			compat_irq_chip_set_default_handler(desc);
-
+		if (!desc->action && irq_settings_can_probe(desc)) {
 			/*
 			 * Some chips need to know about probing in
 			 * progress:
@@ -60,7 +53,7 @@ unsigned long probe_irq_on(void)
 			if (desc->irq_data.chip->irq_set_type)
 				desc->irq_data.chip->irq_set_type(&desc->irq_data,
 							 IRQ_TYPE_PROBE);
-			desc->irq_data.chip->irq_startup(&desc->irq_data);
+			irq_startup(desc);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
@@ -75,10 +68,12 @@ unsigned long probe_irq_on(void)
 	 */
 	for_each_irq_desc_reverse(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
-			desc->status |= IRQ_AUTODETECT | IRQ_WAITING;
-			if (desc->irq_data.chip->irq_startup(&desc->irq_data))
-				desc->status |= IRQ_PENDING;
+		if (!desc->action && irq_settings_can_probe(desc)) {
+			desc->istate |= IRQS_AUTODETECT | IRQS_WAITING;
+			if (irq_startup(desc)) {
+				irq_compat_set_pending(desc);
+				desc->istate |= IRQS_PENDING;
+			}
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
@@ -93,13 +88,12 @@ unsigned long probe_irq_on(void)
 	 */
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		status = desc->status;
 
-		if (status & IRQ_AUTODETECT) {
+		if (desc->istate & IRQS_AUTODETECT) {
 			/* It triggered already - consider it spurious. */
-			if (!(status & IRQ_WAITING)) {
-				desc->status = status & ~IRQ_AUTODETECT;
-				desc->irq_data.chip->irq_shutdown(&desc->irq_data);
+			if (!(desc->istate & IRQS_WAITING)) {
+				desc->istate &= ~IRQS_AUTODETECT;
+				irq_shutdown(desc);
 			} else
 				if (i < 32)
 					mask |= 1 << i;
@@ -125,20 +119,18 @@ EXPORT_SYMBOL(probe_irq_on);
  */
 unsigned int probe_irq_mask(unsigned long val)
 {
-	unsigned int status, mask = 0;
+	unsigned int mask = 0;
 	struct irq_desc *desc;
 	int i;
 
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		status = desc->status;
-
-		if (status & IRQ_AUTODETECT) {
-			if (i < 16 && !(status & IRQ_WAITING))
+		if (desc->istate & IRQS_AUTODETECT) {
+			if (i < 16 && !(desc->istate & IRQS_WAITING))
 				mask |= 1 << i;
 
-			desc->status = status & ~IRQ_AUTODETECT;
-			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
+			desc->istate &= ~IRQS_AUTODETECT;
+			irq_shutdown(desc);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
@@ -169,20 +161,18 @@ int probe_irq_off(unsigned long val)
 {
 	int i, irq_found = 0, nr_of_irqs = 0;
 	struct irq_desc *desc;
-	unsigned int status;
 
 	for_each_irq_desc(i, desc) {
 		raw_spin_lock_irq(&desc->lock);
-		status = desc->status;
 
-		if (status & IRQ_AUTODETECT) {
-			if (!(status & IRQ_WAITING)) {
+		if (desc->istate & IRQS_AUTODETECT) {
+			if (!(desc->istate & IRQS_WAITING)) {
 				if (!nr_of_irqs)
 					irq_found = i;
 				nr_of_irqs++;
 			}
-			desc->status = status & ~IRQ_AUTODETECT;
-			desc->irq_data.chip->irq_shutdown(&desc->irq_data);
+			desc->istate &= ~IRQS_AUTODETECT;
+			irq_shutdown(desc);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
