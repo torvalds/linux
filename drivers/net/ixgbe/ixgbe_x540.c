@@ -226,6 +226,28 @@ mac_reset_top:
 }
 
 /**
+ *  ixgbe_start_hw_X540 - Prepare hardware for Tx/Rx
+ *  @hw: pointer to hardware structure
+ *
+ *  Starts the hardware using the generic start_hw function
+ *  and the generation start_hw function.
+ *  Then performs revision-specific operations, if any.
+ **/
+static s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
+{
+	s32 ret_val = 0;
+
+	ret_val = ixgbe_start_hw_generic(hw);
+	if (ret_val != 0)
+		goto out;
+
+	ret_val = ixgbe_start_hw_gen2(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  *  ixgbe_get_supported_physical_layer_X540 - Returns physical layer type
  *  @hw: pointer to hardware structure
  *
@@ -660,7 +682,7 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 static struct ixgbe_mac_operations mac_ops_X540 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_X540,
-	.start_hw               = &ixgbe_start_hw_generic,
+	.start_hw               = &ixgbe_start_hw_X540,
 	.clear_hw_cntrs         = &ixgbe_clear_hw_cntrs_generic,
 	.get_media_type         = &ixgbe_get_media_type_X540,
 	.get_supported_physical_layer =

@@ -1740,30 +1740,28 @@ static s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val)
  *  ixgbe_start_hw_82599 - Prepare hardware for Tx/Rx
  *  @hw: pointer to hardware structure
  *
- *  Starts the hardware using the generic start_hw function.
- *  Then performs device-specific:
- *  Clears the rate limiter registers.
+ *  Starts the hardware using the generic start_hw function
+ *  and the generation start_hw function.
+ *  Then performs revision-specific operations, if any.
  **/
 static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 {
-	u32 q_num;
-	s32 ret_val;
+	s32 ret_val = 0;
 
 	ret_val = ixgbe_start_hw_generic(hw);
+	if (ret_val != 0)
+		goto out;
 
-	/* Clear the rate limiters */
-	for (q_num = 0; q_num < hw->mac.max_tx_queues; q_num++) {
-		IXGBE_WRITE_REG(hw, IXGBE_RTTDQSEL, q_num);
-		IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, 0);
-	}
-	IXGBE_WRITE_FLUSH(hw);
+	ret_val = ixgbe_start_hw_gen2(hw);
+	if (ret_val != 0)
+		goto out;
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
 
 	if (ret_val == 0)
 		ret_val = ixgbe_verify_fw_version_82599(hw);
-
+out:
 	return ret_val;
 }
 
