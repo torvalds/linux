@@ -2045,9 +2045,26 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 
 	if (error && req->cmd_type == REQ_TYPE_FS &&
 	    !(req->cmd_flags & REQ_QUIET)) {
-		printk(KERN_ERR "end_request: I/O error, dev %s, sector %llu\n",
-				req->rq_disk ? req->rq_disk->disk_name : "?",
-				(unsigned long long)blk_rq_pos(req));
+		char *error_type;
+
+		switch (error) {
+		case -ENOLINK:
+			error_type = "recoverable transport";
+			break;
+		case -EREMOTEIO:
+			error_type = "critical target";
+			break;
+		case -EBADE:
+			error_type = "critical nexus";
+			break;
+		case -EIO:
+		default:
+			error_type = "I/O";
+			break;
+		}
+		printk(KERN_ERR "end_request: %s error, dev %s, sector %llu\n",
+		       error_type, req->rq_disk ? req->rq_disk->disk_name : "?",
+		       (unsigned long long)blk_rq_pos(req));
 	}
 
 	blk_account_io_completion(req, nr_bytes);

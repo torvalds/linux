@@ -341,6 +341,12 @@ struct csp {
 	uint8_t bbCreditMsb;
 	uint8_t bbCreditlsb;	/* FC Word 0, byte 3 */
 
+/*
+ * Word 1 Bit 31 in common service parameter is overloaded.
+ * Word 1 Bit 31 in FLOGI request is multiple NPort request
+ * Word 1 Bit 31 in FLOGI response is clean address bit
+ */
+#define clean_address_bit request_multiple_Nport /* Word 1, bit 31 */
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */
@@ -3198,7 +3204,10 @@ typedef struct {
 #define IOERR_SLER_RRQ_RJT_ERR        0x4C
 #define IOERR_SLER_RRQ_RETRY_ERR      0x4D
 #define IOERR_SLER_ABTS_ERR           0x4E
-
+#define IOERR_ELXSEC_KEY_UNWRAP_ERROR		0xF0
+#define IOERR_ELXSEC_KEY_UNWRAP_COMPARE_ERROR	0xF1
+#define IOERR_ELXSEC_CRYPTO_ERROR		0xF2
+#define IOERR_ELXSEC_CRYPTO_COMPARE_ERROR	0xF3
 #define IOERR_DRVR_MASK               0x100
 #define IOERR_SLI_DOWN                0x101  /* ulpStatus  - Driver defined */
 #define IOERR_SLI_BRESET              0x102

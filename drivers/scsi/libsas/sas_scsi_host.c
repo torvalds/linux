@@ -681,11 +681,10 @@ enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
 	struct sas_task *task = TO_SAS_TASK(cmd);
 	unsigned long flags;
-	enum blk_eh_timer_return rtn; 
+	enum blk_eh_timer_return rtn;
 
 	if (sas_ata_timed_out(cmd, task, &rtn))
 		return rtn;
-	
 
 	if (!task) {
 		cmd->request->timeout /= 2;

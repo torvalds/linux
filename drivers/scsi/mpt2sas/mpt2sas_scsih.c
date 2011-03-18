@@ -6975,7 +6975,6 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 	u32 device_state;
 
 	mpt2sas_base_stop_watchdog(ioc);
-	flush_scheduled_work();
 	scsi_block_requests(shost);
 	device_state = pci_choose_state(pdev, state);
 	printk(MPT2SAS_INFO_FMT "pdev=0x%p, slot=%s, entering "

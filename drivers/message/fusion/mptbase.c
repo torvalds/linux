@@ -7418,7 +7418,12 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 		case MPI_EVENT_SAS_PLS_LR_RATE_3_0:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
 			   "SAS PHY Link Status: Phy=%d:"
-			   " Rate 3.0 Gpbs",PhyNumber);
+			   " Rate 3.0 Gbps", PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_6_0:
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
+			   " Rate 6.0 Gbps", PhyNumber);
 			break;
 		default:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,

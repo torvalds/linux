@@ -633,6 +633,7 @@ int fc_lport_destroy(struct fc_lport *lport)
 	lport->tt.fcp_abort_io(lport);
 	lport->tt.disc_stop_final(lport);
 	lport->tt.exch_mgr_reset(lport, 0, 0);
+	fc_fc4_del_lport(lport);
 	return 0;
 }
 EXPORT_SYMBOL(fc_lport_destroy);
@@ -849,7 +850,7 @@ out:
 }
 
 /**
- * fc_lport_recv_req() - The generic lport request handler
+ * fc_lport_recv_els_req() - The generic lport ELS request handler
  * @lport: The local port that received the request
  * @fp:	   The request frame
  *
@@ -859,9 +860,9 @@ out:
  * Locking Note: This function should not be called with the lport
  *		 lock held becuase it will grab the lock.
  */
-static void fc_lport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
+static void fc_lport_recv_els_req(struct fc_lport *lport,
+				  struct fc_frame *fp)
 {
-	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	void (*recv)(struct fc_lport *, struct fc_frame *);
 
 	mutex_lock(&lport->lp_mutex);
@@ -873,8 +874,7 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 	 */
 	if (!lport->link_up)
 		fc_frame_free(fp);
-	else if (fh->fh_type == FC_TYPE_ELS &&
-		 fh->fh_r_ctl == FC_RCTL_ELS_REQ) {
+	else {
 		/*
 		 * Check opcode.
 		 */
@@ -903,12 +903,60 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 		}
 
 		recv(lport, fp);
-	} else {
-		FC_LPORT_DBG(lport, "dropping invalid frame (eof %x)\n",
-			     fr_eof(fp));
-		fc_frame_free(fp);
 	}
 	mutex_unlock(&lport->lp_mutex);
+}
+
+static int fc_lport_els_prli(struct fc_rport_priv *rdata, u32 spp_len,
+			     const struct fc_els_spp *spp_in,
+			     struct fc_els_spp *spp_out)
+{
+	return FC_SPP_RESP_INVL;
+}
+
+struct fc4_prov fc_lport_els_prov = {
+	.prli = fc_lport_els_prli,
+	.recv = fc_lport_recv_els_req,
+};
+
+/**
+ * fc_lport_recv_req() - The generic lport request handler
+ * @lport: The lport that received the request
+ * @fp: The frame the request is in
+ *
+ * Locking Note: This function should not be called with the lport
+ *		 lock held becuase it may grab the lock.
+ */
+static void fc_lport_recv_req(struct fc_lport *lport,
+			      struct fc_frame *fp)
+{
+	struct fc_frame_header *fh = fc_frame_header_get(fp);
+	struct fc_seq *sp = fr_seq(fp);
+	struct fc4_prov *prov;
+
+	/*
+	 * Use RCU read lock and module_lock to be sure module doesn't
+	 * deregister and get unloaded while we're calling it.
+	 * try_module_get() is inlined and accepts a NULL parameter.
+	 * Only ELSes and FCP target ops should come through here.
+	 * The locking is unfortunate, and a better scheme is being sought.
+	 */
+
+	rcu_read_lock();
+	if (fh->fh_type >= FC_FC4_PROV_SIZE)
+		goto drop;
+	prov = rcu_dereference(fc_passive_prov[fh->fh_type]);
+	if (!prov || !try_module_get(prov->module))
+		goto drop;
+	rcu_read_unlock();
+	prov->recv(lport, fp);
+	module_put(prov->module);
+	return;
+drop:
+	rcu_read_unlock();
+	FC_LPORT_DBG(lport, "dropping unexpected frame type %x\n", fh->fh_type);
+	fc_frame_free(fp);
+	lport->tt.exch_done(sp);
 }
 
 /**
@@ -1542,6 +1590,7 @@ void fc_lport_enter_flogi(struct fc_lport *lport)
  */
 int fc_lport_config(struct fc_lport *lport)
 {
+	INIT_LIST_HEAD(&lport->ema_list);
 	INIT_DELAYED_WORK(&lport->retry_work, fc_lport_timeout);
 	mutex_init(&lport->lp_mutex);
 
@@ -1549,6 +1598,7 @@ int fc_lport_config(struct fc_lport *lport)
 
 	fc_lport_add_fc4_type(lport, FC_TYPE_FCP);
 	fc_lport_add_fc4_type(lport, FC_TYPE_CT);
+	fc_fc4_conf_lport_params(lport, FC_TYPE_FCP);
 
 	return 0;
 }
@@ -1586,6 +1636,7 @@ int fc_lport_init(struct fc_lport *lport)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_1GBIT;
 	if (lport->link_supported_speeds & FC_PORTSPEED_10GBIT)
 		fc_host_supported_speeds(lport->host) |= FC_PORTSPEED_10GBIT;
+	fc_fc4_add_lport(lport);
 
 	return 0;
 }

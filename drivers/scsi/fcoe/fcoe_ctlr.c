@@ -44,9 +44,7 @@
 #include <scsi/libfc.h>
 #include <scsi/libfcoe.h>
 
-MODULE_AUTHOR("Open-FCoE.org");
-MODULE_DESCRIPTION("FIP discovery protocol support for FCoE HBAs");
-MODULE_LICENSE("GPL v2");
+#include "libfcoe.h"
 
 #define	FCOE_CTLR_MIN_FKA	500		/* min keep alive (mS) */
 #define	FCOE_CTLR_DEF_FKA	FIP_DEF_FKA	/* default keep alive (mS) */
@@ -66,31 +64,7 @@ static u8 fcoe_all_enode[ETH_ALEN] = FIP_ALL_ENODE_MACS;
 static u8 fcoe_all_vn2vn[ETH_ALEN] = FIP_ALL_VN2VN_MACS;
 static u8 fcoe_all_p2p[ETH_ALEN] = FIP_ALL_P2P_MACS;
 
-unsigned int libfcoe_debug_logging;
-module_param_named(debug_logging, libfcoe_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
-
-#define LIBFCOE_LOGGING	    0x01 /* General logging, not categorized */
-#define LIBFCOE_FIP_LOGGING 0x02 /* FIP logging */
-
-#define LIBFCOE_CHECK_LOGGING(LEVEL, CMD)		\
-do {							\
-	if (unlikely(libfcoe_debug_logging & LEVEL))	\
-		do {					\
-			CMD;				\
-		} while (0);				\
-} while (0)
-
-#define LIBFCOE_DBG(fmt, args...)					\
-	LIBFCOE_CHECK_LOGGING(LIBFCOE_LOGGING,				\
-			      printk(KERN_INFO "libfcoe: " fmt, ##args);)
-
-#define LIBFCOE_FIP_DBG(fip, fmt, args...)				\
-	LIBFCOE_CHECK_LOGGING(LIBFCOE_FIP_LOGGING,			\
-			      printk(KERN_INFO "host%d: fip: " fmt, 	\
-				     (fip)->lp->host->host_no, ##args);)
-
-static const char *fcoe_ctlr_states[] = {
+static const char * const fcoe_ctlr_states[] = {
 	[FIP_ST_DISABLED] =	"DISABLED",
 	[FIP_ST_LINK_WAIT] =	"LINK_WAIT",
 	[FIP_ST_AUTO] =		"AUTO",
@@ -308,8 +282,8 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
 			struct fip_mac_desc mac;
 			struct fip_wwn_desc wwnn;
 			struct fip_size_desc size;
-		} __attribute__((packed)) desc;
-	}  __attribute__((packed)) *sol;
+		} __packed desc;
+	}  __packed * sol;
 	u32 fcoe_size;
 
 	skb = dev_alloc_skb(sizeof(*sol));
@@ -456,7 +430,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 		struct ethhdr eth;
 		struct fip_header fip;
 		struct fip_mac_desc mac;
-	} __attribute__((packed)) *kal;
+	} __packed * kal;
 	struct fip_vn_desc *vn;
 	u32 len;
 	struct fc_lport *lp;
@@ -527,7 +501,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		struct ethhdr eth;
 		struct fip_header fip;
 		struct fip_encaps encaps;
-	} __attribute__((packed)) *cap;
+	} __packed * cap;
 	struct fc_frame_header *fh;
 	struct fip_mac_desc *mac;
 	struct fcoe_fcf *fcf;
@@ -1819,7 +1793,7 @@ static void fcoe_ctlr_vn_send(struct fcoe_ctlr *fip,
 		struct fip_mac_desc mac;
 		struct fip_wwn_desc wwnn;
 		struct fip_vn_desc vn;
-	} __attribute__((packed)) *frame;
+	} __packed * frame;
 	struct fip_fc4_feat *ff;
 	struct fip_size_desc *size;
 	u32 fcp_feat;
