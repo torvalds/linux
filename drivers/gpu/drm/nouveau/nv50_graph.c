@@ -939,7 +939,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev, u32 display, u64 inst, u32 chid
 	return 1;
 }
 
-static int
+int
 nv50_graph_isr_chid(struct drm_device *dev, u64 inst)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;

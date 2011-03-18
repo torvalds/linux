@@ -151,6 +151,8 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_SW		0
 #define NVOBJ_ENGINE_GR		1
 #define NVOBJ_ENGINE_CRYPT	2
+#define NVOBJ_ENGINE_COPY0	3
+#define NVOBJ_ENGINE_COPY1	4
 #define NVOBJ_ENGINE_DISPLAY	15
 #define NVOBJ_ENGINE_NR		16
 
@@ -1137,12 +1139,19 @@ extern void nv40_grctx_init(struct nouveau_grctx *);
 extern int  nv50_graph_create(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern struct nouveau_enum nv50_data_error_names[];
+extern int  nv50_graph_isr_chid(struct drm_device *dev, u64 inst);
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_create(struct drm_device *);
 
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);
+
+/* nva3_copy.c */
+extern int  nva3_copy_create(struct drm_device *dev);
+
+/* nvc0_copy.c */
+extern int  nvc0_copy_create(struct drm_device *dev, int engine);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);

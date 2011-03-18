@@ -598,6 +598,21 @@ nouveau_card_init(struct drm_device *dev)
 		break;
 	}
 
+	switch (dev_priv->card_type) {
+	case NV_50:
+		switch (dev_priv->chipset) {
+		case 0xa3:
+		case 0xa5:
+		case 0xa8:
+		case 0xaf:
+			nva3_copy_create(dev);
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
 	if (!nouveau_noaccel) {
 		for (e = 0; e < NVOBJ_ENGINE_NR; e++) {
 			if (dev_priv->eng[e]) {
