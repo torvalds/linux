@@ -376,6 +376,24 @@ config FB_CYBER2000
 	  Say Y if you have a NetWinder or a graphics card containing this
 	  device, otherwise say N.
 
+config FB_CYBER2000_DDC
+	bool "DDC for CyberPro support"
+	depends on FB_CYBER2000
+	select FB_DDC
+	default y
+	help
+	  Say Y here if you want DDC support for your CyberPro graphics
+	  card. This is only I2C bus support, driver does not use EDID.
+
+config FB_CYBER2000_I2C
+	bool "CyberPro 2000/2010/5000 I2C support"
+	depends on FB_CYBER2000 && I2C && ARCH_NETWINDER
+	select I2C_ALGOBIT
+	help
+	  Enable support for the I2C video decoder interface on the
+	  Integraphics CyberPro 20x0 and 5000 VGA chips.  This is used
+	  on the Netwinder machines for the SAA7111 video capture.
+
 config FB_APOLLO
 	bool
 	depends on (FB = y) && APOLLO
