@@ -175,7 +175,7 @@ int __irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask)
 /**
  *	irq_set_affinity - Set the irq affinity of a given irq
  *	@irq:		Interrupt to set affinity
- *	@cpumask:	cpumask
+ *	@mask:		cpumask
  *
  */
 int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
