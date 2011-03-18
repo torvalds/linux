@@ -14,14 +14,15 @@ Description:
 
 		DMI is structured as a large table of entries, where
 		each entry has a common header indicating the type and
-		length of the entry, as well as 'handle' that is
-		supposed to be unique amongst all entries.
+		length of the entry, as well as a firmware-provided
+		'handle' that is supposed to be unique amongst all
+		entries.
 
 		Some entries are required by the specification, but many
 		others are optional.  In general though, users should
 		never expect to find a specific entry type on their
 		system unless they know for certain what their firmware
-		is doing.  Machine to machine will vary.
+		is doing.  Machine to machine experiences will vary.
 
 		Multiple entries of the same type are allowed.  In order
 		to handle these duplicate entry types, each entry is
@@ -67,25 +68,24 @@ Description:
 			  and the two terminating nul characters.
 		type	: The type of the entry.  This value is the same
 			  as found in the directory name.  It indicates
-			  how the rest of the entry should be
-			  interpreted.
+			  how the rest of the entry should be interpreted.
 		instance: The instance ordinal of the entry for the
 			  given type.  This value is the same as found
 			  in the parent directory name.
-		position: The position of the entry within the entirety
-			  of the entirety.
+		position: The ordinal position (zero-based) of the entry
+			  within the entirety of the DMI entry table.
 
 		=== Entry Specialization ===
 
 		Some entry types may have other information available in
-		sysfs.
+		sysfs.  Not all types are specialized.
 
 		--- Type 15 - System Event Log ---
 
 		This entry allows the firmware to export a log of
 		events the system has taken.  This information is
 		typically backed by nvram, but the implementation
-		details are abstracted by this table.  This entries data
+		details are abstracted by this table.  This entry's data
 		is exported in the directory:
 
 		/sys/firmware/dmi/entries/15-0/system_event_log
