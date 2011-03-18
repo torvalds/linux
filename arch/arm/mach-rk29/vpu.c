@@ -133,32 +133,33 @@ static void vpu_put_clk(void)
 	clk_put(hclk_cpu_vcodec);
 }
 
+static u32 vpu_is_working(void)
+{
+	u32 irq_status;
+	u32 vpu_status = 0;
+	irq_status = readl(dec_dev.hwregs + DEC_INTERRUPT_REGISTER);
+	vpu_status |= irq_status&1;
+	irq_status = readl(enc_dev.hwregs + ENC_INTERRUPT_REGISTER);
+	vpu_status |= irq_status&1;
+	irq_status = readl(pp_dev.hwregs  + PP_INTERRUPT_REGISTER);
+	vpu_status |= irq_status&1;
+
+	return vpu_status;
+}
+
 static void vpu_power_on(void)
 {
 	pr_debug("power on\n");
 	if (client.enabled)
 		return;
-#if 0
-	pr_debug("power domain on\n");
-	pmu_set_power_domain(PD_VCODEC, true);
-	udelay(10);
-#endif
+
 	clk_enable(aclk_vepu);
 	clk_enable(hclk_vepu);
-	clk_enable(aclk_ddr_vepu);
 	clk_enable(hclk_cpu_vcodec);
-#if 0
 	udelay(10);
-	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
-	cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, true);
-	cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, true);
-	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, true);
+	pmu_set_power_domain(PD_VCODEC, true);
 	udelay(10);
-	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
-	cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, false);
-	cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, false);
-	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
-#endif
+	clk_enable(aclk_ddr_vepu);
 	client.enabled = true;
 }
 
@@ -167,123 +168,72 @@ static void vpu_power_off(void)
 	pr_debug("power off\n");
 	if (!client.enabled)
 		return;
+
+	while (vpu_is_working())
+		udelay(10);
+
+	pmu_set_power_domain(PD_VCODEC, false);
+	udelay(10);
 	clk_disable(hclk_cpu_vcodec);
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
-#if 0
-	pr_debug("power domain off\n");
-	pmu_set_power_domain(PD_VCODEC, false);
-#endif
+
 	client.enabled = false;
 }
 
-static void vpu_clock_on(unsigned long id)
+static void vpu_power_test(void)
 {
-	switch (id) {
-	case VPU_aclk_vepu :
-		printk("vpu_clock_on: aclk_vepu in\n");
-		clk_enable(aclk_vepu);
-		printk("vpu_clock_on: aclk_vepu out\n");
-		break;
-	case VPU_hclk_vepu :
-		printk("vpu_clock_on: hclk_vepu in\n");
-		clk_enable(hclk_vepu);
-		printk("vpu_clock_on: hclk_vepu out\n");
-		break;
-	case VPU_aclk_ddr_vepu :
-		printk("vpu_clock_on: aclk_ddr_vepu in\n");
-		clk_enable(aclk_ddr_vepu);
-		printk("vpu_clock_on: aclk_ddr_vepu out\n");
-		break;
-	case VPU_hclk_cpu_vcodec :
-		printk("vpu_clock_on: hclk_cpu_vcodec in\n");
-		clk_enable(hclk_cpu_vcodec);
-		printk("vpu_clock_on: hclk_cpu_vcodec out\n");
-		break;
-	default :
-		printk("vpu_clock_on: invalid id %lu\n", id);
-		break;
-	}
+#if 0
+	if (pmu_power_domain_is_on(PD_VCODEC)) {
+		printk("power domain is on, test closing\n");
 
-	return ;
-}
+		while (vpu_is_working())
+			msleep(1);
 
-static void vpu_clock_off(unsigned long id)
-{
-	switch (id) {
-	case VPU_aclk_vepu :
-		printk("vpu_clock_off: aclk_vepu in\n");
-		clk_disable(aclk_vepu);
-		printk("vpu_clock_off: aclk_vepu out\n");
-		break;
-	case VPU_hclk_vepu :
-		printk("vpu_clock_off: hclk_vepu in\n");
-		clk_disable(hclk_vepu);
-		printk("vpu_clock_off: hclk_vepu out\n");
-		break;
-	case VPU_aclk_ddr_vepu :
-		printk("vpu_clock_off: aclk_ddr_vepu in\n");
-		clk_disable(aclk_ddr_vepu);
-		printk("vpu_clock_off: aclk_ddr_vepu out\n");
-		break;
-	case VPU_hclk_cpu_vcodec :
-		printk("vpu_clock_off: hclk_cpu_vcodec in\n");
+		printk("power off\n");
+		pmu_set_power_domain(PD_VCODEC, false);
+
+		printk("clock off hclk_cpu_vcodec\n");
 		clk_disable(hclk_cpu_vcodec);
-		printk("vpu_clock_off: hclk_cpu_vcodec out\n");
-		break;
-	default :
-		printk("vpu_clock_off: invalid id %lu\n", id);
-		break;
-	}
-
-	return ;
-}
-
-static void vpu_clock_reset(unsigned long id)
-{
-	if (id == SOFT_RST_CPU_VODEC_A2A_AHB ||
-		id == SOFT_RST_VCODEC_AHB_BUS ||
-		id == SOFT_RST_VCODEC_AXI_BUS ||
-		id == SOFT_RST_DDR_VCODEC_PORT) {
-		printk("vpu_clock_reset: id %lu in\n", id);
-		cru_set_soft_reset(id, true);
-		printk("vpu_clock_reset: id %lu out\n", id);
+		printk("clock off hclk_vepu\n");
+		clk_disable(hclk_vepu);
+		printk("clock off aclk_ddr_vepu\n");
+		clk_disable(aclk_ddr_vepu);
+		printk("clock off aclk_vepu\n");
+		clk_disable(aclk_vepu);
 	} else {
-		printk("vpu_clock_reset: invalid id %lu\n", id);
+		printk("power domain is off, test opening\n");
+
+		printk("clock on : hclk_vepu\n");
+		clk_enable(hclk_vepu);
+		printk("clock on : hclk_cpu_vcodec\n");
+		clk_enable(hclk_cpu_vcodec);
+		printk("clock on : aclk_vepu\n");
+		clk_enable(aclk_vepu);
+		printk("clock on : aclk_ddr_vepu\n");
+		clk_enable(aclk_ddr_vepu);
+
+		printk("power on\n");
+		pmu_set_power_domain(PD_VCODEC, true);
+
+		#if 1
+		udelay(100);
+
+		printk("clock reset\n");
+		cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
+		cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, true);
+		cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, true);
+		cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, true);
+
+		printk("clock unreset\n");
+		cru_set_soft_reset(SOFT_RST_VCODEC_AXI_BUS, false);
+		cru_set_soft_reset(SOFT_RST_VCODEC_AHB_BUS, false);
+		cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
+		cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
+		#endif
 	}
-
-	return ;
-}
-
-static void vpu_clock_unreset(unsigned long id)
-{
-	if (id == SOFT_RST_CPU_VODEC_A2A_AHB ||
-		id == SOFT_RST_VCODEC_AHB_BUS ||
-		id == SOFT_RST_VCODEC_AXI_BUS ||
-		id == SOFT_RST_DDR_VCODEC_PORT) {
-		printk("vpu_clock_unreset: id %lu in\n", id);
-		cru_set_soft_reset(id, true);
-		printk("vpu_clock_unreset: id %lu out\n", id);
-	} else {
-		printk("vpu_clock_unreset: invalid id %lu\n", id);
-	}
-
-	return ;
-}
-
-static void vpu_domain_on(void)
-{
-	printk("vpu_domain_on in\n");
-	pmu_set_power_domain(PD_VCODEC, true);
-	printk("vpu_domain_on out\n");
-}
-
-static void vpu_domain_off(void)
-{
-	printk("vpu_domain_off in\n");
-	pmu_set_power_domain(PD_VCODEC, false);
-	printk("vpu_domain_off out\n");
+#endif
 }
 
 static long vpu_write_dec(u32 *src)
@@ -425,32 +375,27 @@ static long vpu_clear_irqs(VPU_CLIENT_TYPE type)
 static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	pr_debug("ioctl cmd 0x%08x\n", cmd);
+	udelay(200);
 
 	switch (cmd) {
 	case VPU_IOC_CLOCK_ON: {
-		//vpu_clock_on(arg);
 		vpu_power_on();
 		break;
 	}
 	case VPU_IOC_CLOCK_OFF: {
-		//vpu_clock_off(arg);
 		vpu_power_off();
 		break;
 	}
-	case VPU_IOC_CLOCK_RESET: {
-		vpu_clock_reset(arg);
-		break;
-	}
-	case VPU_IOC_CLOCK_UNRESET: {
-		vpu_clock_unreset(arg);
-		break;
-	}
-	case VPU_IOC_DOMAIN_ON: {
-		vpu_domain_on();
-		break;
-	}
+	case VPU_IOC_CLOCK_RESET:
+	case VPU_IOC_CLOCK_UNRESET:
+	case VPU_IOC_DOMAIN_ON:
 	case VPU_IOC_DOMAIN_OFF: {
-		vpu_domain_off();
+		break;
+	}
+
+
+	case VPU_IOC_TEST: {
+		vpu_power_test();
 		break;
 	}
 
@@ -644,6 +589,8 @@ static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 	u32 irq_status_pp;
 	u32 event = VPU_IRQ_EVENT_DEC_BIT;
 
+	pr_debug("dec_isr\n");
+
 	/* interrupt status register read */
 	irq_status_dec = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 	irq_status_pp  = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
@@ -679,6 +626,8 @@ static irqreturn_t hx280enc_isr(int irq, void *dev_id)
 	struct vpu_device *dev = (struct vpu_device *) dev_id;
 	u32 irq_status;
 	u32 event = VPU_IRQ_EVENT_ENC_BIT;
+
+	pr_debug("enc_isr\n");
 
 	irq_status = readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
