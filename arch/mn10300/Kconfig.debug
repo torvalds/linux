@@ -150,3 +150,7 @@ config GDBSTUB_ON_TTYSx
 	default y
 
 endmenu
+
+config KERNEL_DEBUGGER
+	def_bool y
+	depends on GDBSTUB
