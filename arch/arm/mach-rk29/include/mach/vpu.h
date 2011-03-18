@@ -45,6 +45,8 @@
 #define VPU_IOC_DOMAIN_ON       _IO(VPU_IOC_MAGIC, 5)
 #define VPU_IOC_DOMAIN_OFF      _IO(VPU_IOC_MAGIC, 6)
 
+#define VPU_IOC_TEST            _IO(VPU_IOC_MAGIC, 7)
+
 #define VPU_IOC_WR_DEC          _IOW(VPU_IOC_MAGIC, 8,  unsigned long)
 #define VPU_IOC_WR_DEC_PP       _IOW(VPU_IOC_MAGIC, 9,  unsigned long)
 #define VPU_IOC_WR_ENC          _IOW(VPU_IOC_MAGIC, 10, unsigned long)
