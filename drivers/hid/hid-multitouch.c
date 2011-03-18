@@ -235,9 +235,8 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MINOR);
-			field->logical_maximum = 1;
-			field->logical_minimum = 0;
-			set_abs(hi->input, ABS_MT_ORIENTATION, field, 0);
+			input_set_abs_params(hi->input,
+					ABS_MT_ORIENTATION, 0, 1, 0, 0);
 			td->last_slot_field = usage->hid;
 			return 1;
 		case HID_DG_TIPPRESSURE:
