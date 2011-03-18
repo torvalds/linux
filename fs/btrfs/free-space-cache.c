@@ -1287,9 +1287,22 @@ static int insert_into_bitmap(struct btrfs_block_group_cache *block_group,
 	 * If we are below the extents threshold then we can add this as an
 	 * extent, and don't have to deal with the bitmap
 	 */
-	if (block_group->free_extents < block_group->extents_thresh &&
-	    info->bytes > block_group->sectorsize * 4)
-		return 0;
+	if (block_group->free_extents < block_group->extents_thresh) {
+		/*
+		 * If this block group has some small extents we don't want to
+		 * use up all of our free slots in the cache with them, we want
+		 * to reserve them to larger extents, however if we have plent
+		 * of cache left then go ahead an dadd them, no sense in adding
+		 * the overhead of a bitmap if we don't have to.
+		 */
+		if (info->bytes <= block_group->sectorsize * 4) {
+			if (block_group->free_extents * 2 <=
+			    block_group->extents_thresh)
+				return 0;
+		} else {
+			return 0;
+		}
+	}
 
 	/*
 	 * some block groups are so tiny they can't be enveloped by a bitmap, so
