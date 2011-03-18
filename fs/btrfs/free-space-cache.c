@@ -1910,8 +1910,8 @@ static int btrfs_bitmap_cluster(struct btrfs_block_group_cache *block_group,
 
 	i = offset_to_bit(entry->offset, block_group->sectorsize,
 			  max_t(u64, offset, entry->offset));
-	search_bits = bytes_to_bits(min_bytes, block_group->sectorsize);
-	total_bits = bytes_to_bits(bytes, block_group->sectorsize);
+	search_bits = bytes_to_bits(bytes, block_group->sectorsize);
+	total_bits = bytes_to_bits(min_bytes, block_group->sectorsize);
 
 again:
 	found_bits = 0;
@@ -2034,8 +2034,7 @@ again:
 
 		if (entry->bitmap && entry->bytes > bytes + empty_size) {
 			ret = btrfs_bitmap_cluster(block_group, entry, cluster,
-						   offset, bytes + empty_size,
-						   min_bytes);
+						   offset, bytes, min_bytes);
 			if (!ret)
 				goto got_it;
 		}
@@ -2065,7 +2064,7 @@ again:
 
 	while (1) {
 		/* out window is just right, lets fill it */
-		if (window_free >= bytes + empty_size)
+		if (window_free >= min_bytes)
 			break;
 
 		node = rb_next(&last->offset_index);
