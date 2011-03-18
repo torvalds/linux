@@ -45,9 +45,12 @@ static struct map_desc mxc91231_io_desc[] __initdata = {
  */
 void __init mxc91231_map_io(void)
 {
-	mxc_set_cpu_type(MXC_CPU_MXC91231);
-
 	iotable_init(mxc91231_io_desc, ARRAY_SIZE(mxc91231_io_desc));
+}
+
+void __init mxc91231_init_early(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MXC91231);
 }
 
 int mxc91231_register_gpios(void);

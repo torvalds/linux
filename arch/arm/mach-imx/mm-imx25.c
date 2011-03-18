@@ -27,6 +27,8 @@
 #include <mach/hardware.h>
 #include <mach/mx25.h>
 #include <mach/iomux-v3.h>
+#include <mach/gpio.h>
+#include <mach/irqs.h>
 
 /*
  * This table defines static virtual address mappings for I/O regions.
@@ -45,18 +47,26 @@ static struct map_desc mx25_io_desc[] __initdata = {
  */
 void __init mx25_map_io(void)
 {
-	mxc_set_cpu_type(MXC_CPU_MX25);
-	mxc_iomux_v3_init(MX25_IO_ADDRESS(MX25_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX25_IO_ADDRESS(MX25_WDOG_BASE_ADDR));
-
 	iotable_init(mx25_io_desc, ARRAY_SIZE(mx25_io_desc));
 }
 
-int imx25_register_gpios(void);
+void __init imx25_init_early(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX25);
+	mxc_iomux_v3_init(MX25_IO_ADDRESS(MX25_IOMUXC_BASE_ADDR));
+	mxc_arch_reset_init(MX25_IO_ADDRESS(MX25_WDOG_BASE_ADDR));
+}
+
+static struct mxc_gpio_port imx25_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 0, 1, MX25_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 1, 2, MX25_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 2, 3, MX25_INT_GPIO3),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 3, 4, MX25_INT_GPIO4),
+};
 
 void __init mx25_init_irq(void)
 {
 	mxc_init_irq(MX25_IO_ADDRESS(MX25_AVIC_BASE_ADDR));
-	imx25_register_gpios();
+	mxc_gpio_init(imx25_gpio_ports,	ARRAY_SIZE(imx25_gpio_ports));
 }
 

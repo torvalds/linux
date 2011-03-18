@@ -442,11 +442,18 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("duart", "apb_pclk", xbus_clk)
 	/* for amba-pl011 driver */
 	_REGISTER_CLOCK("duart", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.0", NULL, uart_clk)
 	_REGISTER_CLOCK("rtc", NULL, rtc_clk)
-	_REGISTER_CLOCK(NULL, "hclk", hbus_clk)
+	_REGISTER_CLOCK("mxs-dma-apbh", NULL, hbus_clk)
+	_REGISTER_CLOCK("mxs-dma-apbx", NULL, xbus_clk)
 	_REGISTER_CLOCK(NULL, "usb", usb_clk)
 	_REGISTER_CLOCK(NULL, "audio", audio_clk)
-	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.0", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.1", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.2", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.3", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.4", NULL, pwm_clk)
+	_REGISTER_CLOCK("imx23-fb", NULL, lcdif_clk)
 };
 
 static int clk_misc_init(void)

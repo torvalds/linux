@@ -148,6 +148,7 @@ MACHINE_START(TERASTATION_WXL, "Buffalo Nas WXL")
 	.boot_params	= 0x00000100,
 	.init_machine	= wxl_init,
 	.map_io		= mv78xx0_map_io,
+	.init_early	= mv78xx0_init_early,
 	.init_irq	= mv78xx0_init_irq,
 	.timer		= &mv78xx0_timer,
 MACHINE_END

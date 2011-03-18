@@ -26,6 +26,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+#include <mach/bridge-regs.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
 #include <plat/ehci-orion.h>
@@ -599,6 +600,11 @@ void __init orion5x_wdt_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+void __init orion5x_init_early(void)
+{
+	orion_time_set_base(TIMER_VIRT_BASE);
+}
+
 int orion5x_tclk;
 
 int __init orion5x_find_tclk(void)
@@ -616,7 +622,9 @@ int __init orion5x_find_tclk(void)
 static void orion5x_timer_init(void)
 {
 	orion5x_tclk = orion5x_find_tclk();
-	orion_time_init(IRQ_ORION5X_BRIDGE, orion5x_tclk);
+
+	orion_time_init(ORION5X_BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+			IRQ_ORION5X_BRIDGE, orion5x_tclk);
 }
 
 struct sys_timer orion5x_timer = {

@@ -78,11 +78,16 @@ static int get_mx53_srev(void)
 	void __iomem *iim_base = MX51_IO_ADDRESS(MX53_IIM_BASE_ADDR);
 	u32 rev = readl(iim_base + IIM_SREV) & 0xff;
 
-	if (rev == 0x0)
+	switch (rev) {
+	case 0x0:
 		return IMX_CHIP_REVISION_1_0;
-	else if (rev == 0x10)
+	case 0x2:
 		return IMX_CHIP_REVISION_2_0;
-	return 0;
+	case 0x3:
+		return IMX_CHIP_REVISION_2_1;
+	default:
+		return IMX_CHIP_REVISION_UNKNOWN;
+	}
 }
 
 /*

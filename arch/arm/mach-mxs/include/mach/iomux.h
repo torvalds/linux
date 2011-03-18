@@ -91,6 +91,9 @@ typedef u32 iomux_cfg_t;
 #define MXS_PAD_PULLUP	((PAD_PULLUP << MXS_PAD_PULL_SHIFT) | \
 					MXS_PAD_PULL_VALID_MASK)
 
+/* generic pad control used in most cases */
+#define MXS_PAD_CTRL	(MXS_PAD_4MA | MXS_PAD_3V3 | MXS_PAD_NOPULL)
+
 #define MXS_IOMUX_PAD(_bank, _pin, _muxsel, _ma, _vol, _pull)		\
 		(((iomux_cfg_t)(_bank) << MXS_PAD_BANK_SHIFT) |		\
 		((iomux_cfg_t)(_pin) << MXS_PAD_PIN_SHIFT) |		\
