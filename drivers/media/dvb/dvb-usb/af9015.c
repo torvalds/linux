@@ -479,9 +479,7 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 		ret = af9015_set_reg_bit(d, 0xd50b, 0);
 	else
 		ret = af9015_clear_reg_bit(d, 0xd50b, 0);
-	if (ret)
-		goto error;
-	ret = af9015_write_reg(d, 0x98e9, 0xff);
+
 error:
 	if (ret)
 		err("endpoint init failed:%d", ret);
@@ -613,6 +611,11 @@ static int af9015_init(struct dvb_usb_device *d)
 {
 	int ret;
 	deb_info("%s:\n", __func__);
+
+	/* init RC canary */
+	ret = af9015_write_reg(d, 0x98e9, 0xff);
+	if (ret)
+		goto error;
 
 	ret = af9015_init_endpoint(d);
 	if (ret)
@@ -1041,10 +1044,13 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 
 	/* Only process key if canary killed */
 	if (buf[16] != 0xff && buf[0] != 0x01) {
-		/* Reset the canary */
-		af9015_write_reg(d, 0x98e9, 0xff);
 		deb_rc("%s: key pressed %02x %02x %02x %02x\n", __func__,
 			buf[12], buf[13], buf[14], buf[15]);
+
+		/* Reset the canary */
+		ret = af9015_write_reg(d, 0x98e9, 0xff);
+		if (ret)
+			goto error;
 
 		/* Remember this key */
 		memcpy(priv->rc_last, &buf[12], 4);
@@ -1058,6 +1064,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 					buf[13] << 8 | buf[14];
 			}
 		} else {
+			/* 32 bit NEC */
 			priv->rc_keycode = buf[12] << 24 | buf[13] << 16 |
 					buf[14] << 8 | buf[15];
 		}
