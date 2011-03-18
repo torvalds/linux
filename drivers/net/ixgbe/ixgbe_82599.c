@@ -61,6 +61,7 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
                                          bool autoneg,
                                          bool autoneg_wait_to_complete);
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
+static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 
 static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
@@ -86,7 +87,8 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 		if ((mac->ops.get_media_type(hw) ==
 		     ixgbe_media_type_backplane) &&
 		    (hw->phy.smart_speed == ixgbe_smart_speed_auto ||
-		     hw->phy.smart_speed == ixgbe_smart_speed_on))
+		     hw->phy.smart_speed == ixgbe_smart_speed_on) &&
+		     !ixgbe_verify_lesm_fw_enabled_82599(hw))
 			mac->ops.setup_link = &ixgbe_setup_mac_link_smartspeed;
 		else
 			mac->ops.setup_link = &ixgbe_setup_mac_link_82599;
@@ -2026,6 +2028,48 @@ static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
 
 fw_version_out:
 	return status;
+}
+
+/**
+ *  ixgbe_verify_lesm_fw_enabled_82599 - Checks LESM FW module state.
+ *  @hw: pointer to hardware structure
+ *
+ *  Returns true if the LESM FW module is present and enabled. Otherwise
+ *  returns false. Smart Speed must be disabled if LESM FW module is enabled.
+ **/
+static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw)
+{
+	bool lesm_enabled = false;
+	u16 fw_offset, fw_lesm_param_offset, fw_lesm_state;
+	s32 status;
+
+	/* get the offset to the Firmware Module block */
+	status = hw->eeprom.ops.read(hw, IXGBE_FW_PTR, &fw_offset);
+
+	if ((status != 0) ||
+	    (fw_offset == 0) || (fw_offset == 0xFFFF))
+		goto out;
+
+	/* get the offset to the LESM Parameters block */
+	status = hw->eeprom.ops.read(hw, (fw_offset +
+				     IXGBE_FW_LESM_PARAMETERS_PTR),
+				     &fw_lesm_param_offset);
+
+	if ((status != 0) ||
+	    (fw_lesm_param_offset == 0) || (fw_lesm_param_offset == 0xFFFF))
+		goto out;
+
+	/* get the lesm state word */
+	status = hw->eeprom.ops.read(hw, (fw_lesm_param_offset +
+				     IXGBE_FW_LESM_STATE_1),
+				     &fw_lesm_state);
+
+	if ((status == 0) &&
+	    (fw_lesm_state & IXGBE_FW_LESM_STATE_ENABLED))
+		lesm_enabled = true;
+
+out:
+	return lesm_enabled;
 }
 
 static struct ixgbe_mac_operations mac_ops_82599 = {
