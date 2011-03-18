@@ -153,7 +153,7 @@ mn10300_cpupic_setaffinity(struct irq_data *d, const struct cpumask *mask,
 	case LOCAL_TIMER_IPI:
 	case FLUSH_CACHE_IPI:
 	case CALL_FUNCTION_NMI_IPI:
-	case GDB_NMI_IPI:
+	case DEBUGGER_NMI_IPI:
 #ifdef CONFIG_MN10300_TTYSM0
 	case SC0RXIRQ:
 	case SC0TXIRQ:

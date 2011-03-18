@@ -440,6 +440,22 @@ int smp_nmi_call_function(smp_call_func_t func, void *info, int wait)
 }
 
 /**
+ * smp_jump_to_debugger - Make other CPUs enter the debugger by sending an IPI
+ *
+ * Send a non-maskable request to all other CPUs in the system, instructing
+ * them to jump into the debugger.  The caller is responsible for checking that
+ * the other CPUs responded to the instruction.
+ *
+ * The caller should make sure that this CPU's debugger IPI is disabled.
+ */
+void smp_jump_to_debugger(void)
+{
+	if (num_online_cpus() > 1)
+		/* Send a message to all other CPUs */
+		send_IPI_allbutself(DEBUGGER_NMI_IPI);
+}
+
+/**
  * stop_this_cpu - Callback to stop a CPU.
  * @unused: Callback context (ignored).
  */
@@ -603,7 +619,7 @@ static void __init smp_cpu_init(void)
 /**
  * smp_prepare_cpu_init - Initialise CPU in startup_secondary
  *
- * Set interrupt level 0-6 setting and init ICR of gdbstub.
+ * Set interrupt level 0-6 setting and init ICR of the kernel debugger.
  */
 void smp_prepare_cpu_init(void)
 {
@@ -622,15 +638,15 @@ void smp_prepare_cpu_init(void)
 	for (loop = 0; loop < GxICR_NUM_IRQS; loop++)
 		GxICR(loop) = GxICR_LEVEL_6 | GxICR_DETECT;
 
-#ifdef CONFIG_GDBSTUB
-	/* initialise GDB-stub */
+#ifdef CONFIG_KERNEL_DEBUGGER
+	/* initialise the kernel debugger interrupt */
 	do {
 		unsigned long flags;
 		u16 tmp16;
 
 		flags = arch_local_cli_save();
-		GxICR(GDB_NMI_IPI) = GxICR_NMI | GxICR_ENABLE | GxICR_DETECT;
-		tmp16 = GxICR(GDB_NMI_IPI);
+		GxICR(DEBUGGER_NMI_IPI) = GxICR_NMI | GxICR_ENABLE | GxICR_DETECT;
+		tmp16 = GxICR(DEBUGGER_NMI_IPI);
 		arch_local_irq_restore(flags);
 	} while (0);
 #endif

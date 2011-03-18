@@ -266,7 +266,11 @@ ENTRY(raw_bus_error)
 
 ###############################################################################
 #
-# Miscellaneous exception entry points
+# NMI exception entry points
+#
+# This is used by ordinary interrupt channels that have the GxICR_NMI bit set
+# in addition to the main NMI and Watchdog channels.  SMP NMI IPIs use this
+# facility.
 #
 ###############################################################################
 ENTRY(nmi_handler)
@@ -281,7 +285,7 @@ ENTRY(nmi_handler)
 	and	NMIAGR_GN,d0
 	lsr	0x2,d0
 	cmp	CALL_FUNCTION_NMI_IPI,d0
-	bne	5f			# if not call function, jump
+	bne	nmi_not_smp_callfunc	# if not call function, jump
 
 	# function call nmi ipi
 	add	4,sp			# no need to store TBR
@@ -295,30 +299,38 @@ ENTRY(nmi_handler)
 	call	smp_nmi_call_function_interrupt[],0
 	RESTORE_ALL
 
-5:
-#ifdef CONFIG_GDBSTUB
-	cmp	GDB_NMI_IPI,d0
-	bne	3f			# if not gdb nmi ipi, jump
+nmi_not_smp_callfunc:
+#ifdef CONFIG_KERNEL_DEBUGGER
+	cmp	DEBUGGER_NMI_IPI,d0
+	bne	nmi_not_debugger	# if not kernel debugger NMI IPI, jump
 
-	# gdb nmi ipi
+	# kernel debugger NMI IPI
 	add	4,sp			# no need to store TBR
 	mov	GxICR_DETECT,d0		# clear NMI
-	movbu	d0,(GxICR(GDB_NMI_IPI))
-	movhu	(GxICR(GDB_NMI_IPI)),d0
+	movbu	d0,(GxICR(DEBUGGER_NMI_IPI))
+	movhu	(GxICR(DEBUGGER_NMI_IPI)),d0
 	and	~EPSW_NMID,epsw		# enable NMI
 
 	mov     (sp),d0
 	SAVE_ALL
-	call    gdbstub_nmi_wait[],0
+	mov	fp,d0			# arg 0: stacked register file
+	mov	a2,d1			# arg 1: exception number
+	call    debugger_nmi_interrupt[],0
 	RESTORE_ALL
-3:
-#endif /* CONFIG_GDBSTUB */
+
+nmi_not_debugger:
+#endif /* CONFIG_KERNEL_DEBUGGER */
 	mov     (sp),d0                 # restore TBR to d0
 	add     4,sp
 #endif /* CONFIG_SMP */
 
 	bra	__common_exception_nonmi
 
+###############################################################################
+#
+# General exception entry point
+#
+###############################################################################
 ENTRY(__common_exception)
 	add	-4,sp
 	mov	d0,(sp)

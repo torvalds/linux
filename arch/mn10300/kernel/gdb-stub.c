@@ -1173,7 +1173,7 @@ int gdbstub_clear_breakpoint(u8 *addr, int len)
 
 /*
  * This function does all command processing for interfacing to gdb
- * - returns 1 if the exception should be skipped, 0 otherwise.
+ * - returns 0 if the exception should be skipped, -ERROR otherwise.
  */
 static int gdbstub(struct pt_regs *regs, enum exception_code excep)
 {
@@ -1188,7 +1188,7 @@ static int gdbstub(struct pt_regs *regs, enum exception_code excep)
 	int loop;
 
 	if (excep == EXCEP_FPU_DISABLED)
-		return 0;
+		return -ENOTSUPP;
 
 	gdbstub_flush_caches = 0;
 
@@ -1197,7 +1197,7 @@ static int gdbstub(struct pt_regs *regs, enum exception_code excep)
 	asm volatile("mov mdr,%0" : "=d"(mdr));
 	local_save_flags(epsw);
 	arch_local_change_intr_mask_level(
-		NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
+		NUM2EPSW_IM(CONFIG_DEBUGGER_IRQ_LEVEL + 1));
 
 	gdbstub_store_fpu();
 
@@ -1675,14 +1675,23 @@ done:
 	touch_softlockup_watchdog();
 
 	local_irq_restore(epsw);
-	return 1;
+	return 0;
+}
+
+/*
+ * Determine if we hit a debugger special breakpoint that needs skipping over
+ * automatically.
+ */
+int at_debugger_breakpoint(struct pt_regs *regs)
+{
+	return 0;
 }
 
 /*
  * handle event interception
  */
-asmlinkage int gdbstub_intercept(struct pt_regs *regs,
-				 enum exception_code excep)
+asmlinkage int debugger_intercept(enum exception_code excep,
+				  int signo, int si_code, struct pt_regs *regs)
 {
 	static u8 notfirst = 1;
 	int ret;
@@ -1696,7 +1705,7 @@ asmlinkage int gdbstub_intercept(struct pt_regs *regs,
 		asm("mov mdr,%0" : "=d"(mdr));
 
 		gdbstub_entry(
-			"--> gdbstub_intercept(%p,%04x) [MDR=%lx PC=%lx]\n",
+			"--> debugger_intercept(%p,%04x) [MDR=%lx PC=%lx]\n",
 			regs, excep, mdr, regs->pc);
 
 		gdbstub_entry(
@@ -1730,7 +1739,7 @@ asmlinkage int gdbstub_intercept(struct pt_regs *regs,
 
 	ret = gdbstub(regs, excep);
 
-	gdbstub_entry("<-- gdbstub_intercept()\n");
+	gdbstub_entry("<-- debugger_intercept()\n");
 	gdbstub_busy = 0;
 	return ret;
 }
