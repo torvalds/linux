@@ -972,6 +972,10 @@ static inline int handle_mm_fault(struct mm_struct *mm,
 extern int make_pages_present(unsigned long addr, unsigned long end);
 extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
 
+int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+		     unsigned long start, int len, unsigned int foll_flags,
+		     struct page **pages, struct vm_area_struct **vmas,
+		     int *nonblocking);
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			unsigned long start, int nr_pages, int write, int force,
 			struct page **pages, struct vm_area_struct **vmas);
@@ -1535,6 +1539,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
 #define FOLL_FORCE	0x10	/* get_user_pages read/write w/o permission */
 #define FOLL_MLOCK	0x40	/* mark page as mlocked */
 #define FOLL_SPLIT	0x80	/* don't return transhuge pages, split them */
+#define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
 
 typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
 			void *data);
@@ -1627,14 +1632,6 @@ extern int sysctl_memory_failure_recovery;
 extern void shake_page(struct page *p, int access);
 extern atomic_long_t mce_bad_pages;
 extern int soft_offline_page(struct page *page, int flags);
-#ifdef CONFIG_MEMORY_FAILURE
-int is_hwpoison_address(unsigned long addr);
-#else
-static inline int is_hwpoison_address(unsigned long addr)
-{
-	return 0;
-}
-#endif
 
 extern void dump_page(struct page *page);
 

@@ -245,11 +245,6 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 }
 #endif /* CONFIG_SPARSEMEM */
 
-int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int len, unsigned int foll_flags,
-		     struct page **pages, struct vm_area_struct **vmas,
-		     int *nonblocking);
-
 #define ZONE_RECLAIM_NOSCAN	-2
 #define ZONE_RECLAIM_FULL	-1
 #define ZONE_RECLAIM_SOME	0

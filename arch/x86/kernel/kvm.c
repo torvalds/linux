@@ -493,7 +493,7 @@ static void __init kvm_smp_prepare_boot_cpu(void)
 	native_smp_prepare_boot_cpu();
 }
 
-static void kvm_guest_cpu_online(void *dummy)
+static void __cpuinit kvm_guest_cpu_online(void *dummy)
 {
 	kvm_guest_cpu_init();
 }
