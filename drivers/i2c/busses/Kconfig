@@ -433,7 +433,7 @@ config I2C_IXP2000
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
-	depends on PPC32
+	depends on PPC
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the MPC107, Tsi107, MPC512x, MPC52xx,
@@ -451,6 +451,16 @@ config I2C_MV64XXX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mv64xxx.
+
+config I2C_MXS
+	tristate "Freescale i.MX28 I2C interface"
+	depends on SOC_IMX28
+	help
+	  Say Y here if you want to use the I2C bus controller on
+	  the Freescale i.MX28 processors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-mxs.
 
 config I2C_NOMADIK
 	tristate "ST-Ericsson Nomadik/Ux500 I2C Controller"
@@ -617,6 +627,13 @@ config I2C_STU300
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-stu300.
+
+config I2C_TEGRA
+	tristate "NVIDIA Tegra internal I2C controller"
+	depends on ARCH_TEGRA
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C controller embedded in NVIDIA Tegra SOCs
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
