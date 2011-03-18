@@ -479,6 +479,9 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 		ret = af9015_set_reg_bit(d, 0xd50b, 0);
 	else
 		ret = af9015_clear_reg_bit(d, 0xd50b, 0);
+	if (ret)
+		goto error;
+	ret = af9015_write_reg(d, 0x98e9, 0xff);
 error:
 	if (ret)
 		err("endpoint init failed:%d", ret);
@@ -1016,22 +1019,35 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 {
 	struct af9015_state *priv = d->priv;
 	int ret;
-	u8 buf[16];
+	u8 buf[17];
 
 	/* read registers needed to detect remote controller code */
 	ret = af9015_read_regs(d, 0x98d9, buf, sizeof(buf));
 	if (ret)
 		goto error;
 
-	if (buf[14] || buf[15]) {
+	/* If any of these are non-zero, assume invalid data */
+	if (buf[1] || buf[2] || buf[3])
+		return ret;
+
+	/* Check for repeat of previous code */
+	if ((priv->rc_repeat != buf[6] || buf[0]) &&
+					!memcmp(&buf[12], priv->rc_last, 4)) {
+		deb_rc("%s: key repeated\n", __func__);
+		rc_keydown(d->rc_dev, priv->rc_keycode, 0);
+		priv->rc_repeat = buf[6];
+		return ret;
+	}
+
+	/* Only process key if canary killed */
+	if (buf[16] != 0xff && buf[0] != 0x01) {
+		/* Reset the canary */
+		af9015_write_reg(d, 0x98e9, 0xff);
 		deb_rc("%s: key pressed %02x %02x %02x %02x\n", __func__,
 			buf[12], buf[13], buf[14], buf[15]);
 
-		/* clean IR code from mem */
-		ret = af9015_write_regs(d, 0x98e5, "\x00\x00\x00\x00", 4);
-		if (ret)
-			goto error;
-
+		/* Remember this key */
+		memcpy(priv->rc_last, &buf[12], 4);
 		if (buf[14] == (u8) ~buf[15]) {
 			if (buf[12] == (u8) ~buf[13]) {
 				/* NEC */
@@ -1041,15 +1057,16 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 				priv->rc_keycode = buf[12] << 16 |
 					buf[13] << 8 | buf[14];
 			}
-			rc_keydown(d->rc_dev, priv->rc_keycode, 0);
 		} else {
-			priv->rc_keycode = 0; /* clear just for sure */
+			priv->rc_keycode = buf[12] << 24 | buf[13] << 16 |
+					buf[14] << 8 | buf[15];
 		}
-	} else if (priv->rc_repeat != buf[6] || buf[0]) {
-		deb_rc("%s: key repeated\n", __func__);
 		rc_keydown(d->rc_dev, priv->rc_keycode, 0);
 	} else {
 		deb_rc("%s: no key press\n", __func__);
+		/* Invalidate last keypress */
+		/* Not really needed, but helps with debug */
+		priv->rc_last[2] = priv->rc_last[3];
 	}
 
 	priv->rc_repeat = buf[6];
