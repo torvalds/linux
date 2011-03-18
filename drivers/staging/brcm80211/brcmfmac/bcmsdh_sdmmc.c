@@ -68,6 +68,13 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, u32 regaddr,
 			     int regsize, u32 *data);
 
+void sdioh_sdio_set_host_pm_flags(int flag)
+{
+	if (sdio_set_host_pm_flags(gInstance->func[1], flag))
+		printk(KERN_ERR "%s: Failed to set pm_flags 0x%08x\n",\
+			 __func__, (unsigned int)flag);
+}
+
 static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 {
 	int err_ret;
