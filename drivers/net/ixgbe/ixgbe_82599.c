@@ -130,8 +130,12 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 		/* Release the semaphore */
 		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
-		/* Delay obtaining semaphore again to allow FW access */
-		msleep(hw->eeprom.semaphore_delay);
+		/*
+		 * Delay obtaining semaphore again to allow FW access,
+		 * semaphore_delay is in ms usleep_range needs us.
+		 */
+		usleep_range(hw->eeprom.semaphore_delay * 1000,
+			     hw->eeprom.semaphore_delay * 2000);
 
 		/* Now restart DSP by setting Restart_AN and clearing LMS */
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((IXGBE_READ_REG(hw,
@@ -140,7 +144,7 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 		/* Wait for AN to leave state 0 */
 		for (i = 0; i < 10; i++) {
-			msleep(4);
+			usleep_range(4000, 8000);
 			reg_anlp1 = IXGBE_READ_REG(hw, IXGBE_ANLP1);
 			if (reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)
 				break;
@@ -1178,7 +1182,7 @@ s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc)
 		if (IXGBE_READ_REG(hw, IXGBE_FDIRCTRL) &
 		                   IXGBE_FDIRCTRL_INIT_DONE)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	if (i >= IXGBE_FDIR_INIT_DONE_POLL)
 		hw_dbg(hw, "Flow Director Signature poll time exceeded!\n");
@@ -1273,7 +1277,7 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 		if (IXGBE_READ_REG(hw, IXGBE_FDIRCTRL) &
 		                   IXGBE_FDIRCTRL_INIT_DONE)
 			break;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	if (i >= IXGBE_FDIR_INIT_DONE_POLL)
 		hw_dbg(hw, "Flow Director Perfect poll time exceeded!\n");

@@ -753,7 +753,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 		                     &phy_data);
 		if ((phy_data & MDIO_CTRL1_RESET) == 0)
 			break;
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	if ((phy_data & MDIO_CTRL1_RESET) != 0) {
@@ -782,7 +782,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 		case IXGBE_DELAY_NL:
 			data_offset++;
 			hw_dbg(hw, "DELAY: %d MS\n", edata);
-			msleep(edata);
+			usleep_range(edata * 1000, edata * 2000);
 			break;
 		case IXGBE_DATA_NL:
 			hw_dbg(hw, "DATA:\n");

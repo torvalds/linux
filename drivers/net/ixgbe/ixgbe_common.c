@@ -503,7 +503,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	reg_val &= ~(IXGBE_RXCTRL_RXEN);
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg_val);
 	IXGBE_WRITE_FLUSH(hw);
-	msleep(2);
+	usleep_range(2000, 4000);
 
 	/* Clear interrupt mask to stop from interrupts being generated */
 	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
@@ -1151,8 +1151,12 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
 
 	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
 
-	/* Delay before attempt to obtain semaphore again to allow FW access */
-	msleep(hw->eeprom.semaphore_delay);
+	/*
+	 * Delay before attempt to obtain semaphore again to allow FW
+	 * access. semaphore_delay is in ms we need us for usleep_range
+	 */
+	usleep_range(hw->eeprom.semaphore_delay * 1000,
+		     hw->eeprom.semaphore_delay * 2000);
 }
 
 /**
@@ -2228,7 +2232,7 @@ s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 		 * thread currently using resource (swmask)
 		 */
 		ixgbe_release_eeprom_semaphore(hw);
-		msleep(5);
+		usleep_range(5000, 10000);
 		timeout--;
 	}
 
@@ -2302,7 +2306,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);

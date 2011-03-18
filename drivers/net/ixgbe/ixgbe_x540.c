@@ -563,7 +563,7 @@ static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
 			 * resource (swmask)
 			 */
 			ixgbe_release_swfw_sync_semaphore(hw);
-			msleep(5);
+			usleep_range(5000, 10000);
 		}
 	}
 
@@ -585,7 +585,7 @@ static s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
 		}
 	}
 
-	msleep(5);
+	usleep_range(5000, 10000);
 	return 0;
 }
 
@@ -609,7 +609,7 @@ static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask)
 	IXGBE_WRITE_REG(hw, IXGBE_SWFW_SYNC, swfw_sync);
 
 	ixgbe_release_swfw_sync_semaphore(hw);
-	msleep(5);
+	usleep_range(5000, 10000);
 }
 
 /**
