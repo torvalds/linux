@@ -387,10 +387,6 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 		file->f_path.dentry->d_name.name,
 		mapping->host->i_ino, len, (long long) pos);
 
-	pnfs_update_layout(mapping->host,
-			   nfs_file_open_context(file),
-			   IOMODE_RW);
-
 start:
 	/*
 	 * Prevent starvation issues if someone is doing a consistency

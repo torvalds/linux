@@ -1008,6 +1008,27 @@ static int nfs_parse_security_flavors(char *value,
 	return 1;
 }
 
+static int nfs_get_option_str(substring_t args[], char **option)
+{
+	kfree(*option);
+	*option = match_strdup(args);
+	return !option;
+}
+
+static int nfs_get_option_ul(substring_t args[], unsigned long *option)
+{
+	int rc;
+	char *string;
+
+	string = match_strdup(args);
+	if (string == NULL)
+		return -ENOMEM;
+	rc = strict_strtoul(string, 10, option);
+	kfree(string);
+
+	return rc;
+}
+
 /*
  * Error-check and convert a string of mount options from user space into
  * a data structure.  The whole mount string is processed; bad options are
@@ -1156,155 +1177,82 @@ static int nfs_parse_mount_options(char *raw,
 		 * options that take numeric values
 		 */
 		case Opt_port:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option > USHRT_MAX)
+			if (nfs_get_option_ul(args, &option) ||
+			    option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->nfs_server.port = option;
 			break;
 		case Opt_rsize:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->rsize = option;
 			break;
 		case Opt_wsize:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->wsize = option;
 			break;
 		case Opt_bsize:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->bsize = option;
 			break;
 		case Opt_timeo:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option == 0)
+			if (nfs_get_option_ul(args, &option) || option == 0)
 				goto out_invalid_value;
 			mnt->timeo = option;
 			break;
 		case Opt_retrans:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option == 0)
+			if (nfs_get_option_ul(args, &option) || option == 0)
 				goto out_invalid_value;
 			mnt->retrans = option;
 			break;
 		case Opt_acregmin:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acregmin = option;
 			break;
 		case Opt_acregmax:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acregmax = option;
 			break;
 		case Opt_acdirmin:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acdirmin = option;
 			break;
 		case Opt_acdirmax:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acdirmax = option;
 			break;
 		case Opt_actimeo:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->acregmin = mnt->acregmax =
 			mnt->acdirmin = mnt->acdirmax = option;
 			break;
 		case Opt_namelen:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			mnt->namlen = option;
 			break;
 		case Opt_mountport:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 || option > USHRT_MAX)
+			if (nfs_get_option_ul(args, &option) ||
+			    option > USHRT_MAX)
 				goto out_invalid_value;
 			mnt->mount_server.port = option;
 			break;
 		case Opt_mountvers:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0 ||
+			if (nfs_get_option_ul(args, &option) ||
 			    option < NFS_MNT_VERSION ||
 			    option > NFS_MNT3_VERSION)
 				goto out_invalid_value;
 			mnt->mount_server.version = option;
 			break;
 		case Opt_nfsvers:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			switch (option) {
 			case NFS2_VERSION:
@@ -1324,12 +1272,7 @@ static int nfs_parse_mount_options(char *raw,
 			}
 			break;
 		case Opt_minorversion:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-			rc = strict_strtoul(string, 10, &option);
-			kfree(string);
-			if (rc != 0)
+			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
 			if (option > NFS4_MAX_MINOR_VERSION)
 				goto out_invalid_value;
@@ -1365,21 +1308,18 @@ static int nfs_parse_mount_options(char *raw,
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
-				kfree(string);
 				break;
 			case Opt_xprt_tcp6:
 				protofamily = AF_INET6;
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-				kfree(string);
 				break;
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
 				xprt_load_transport(string);
-				kfree(string);
 				break;
 			default:
 				dfprintk(MOUNT, "NFS:   unrecognized "
@@ -1387,6 +1327,7 @@ static int nfs_parse_mount_options(char *raw,
 				kfree(string);
 				return 0;
 			}
+			kfree(string);
 			break;
 		case Opt_mountproto:
 			string = match_strdup(args);
@@ -1429,18 +1370,13 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_invalid_address;
 			break;
 		case Opt_clientaddr:
-			string = match_strdup(args);
-			if (string == NULL)
+			if (nfs_get_option_str(args, &mnt->client_address))
 				goto out_nomem;
-			kfree(mnt->client_address);
-			mnt->client_address = string;
 			break;
 		case Opt_mounthost:
-			string = match_strdup(args);
-			if (string == NULL)
+			if (nfs_get_option_str(args,
+					       &mnt->mount_server.hostname))
 				goto out_nomem;
-			kfree(mnt->mount_server.hostname);
-			mnt->mount_server.hostname = string;
 			break;
 		case Opt_mountaddr:
 			string = match_strdup(args);
@@ -1480,11 +1416,8 @@ static int nfs_parse_mount_options(char *raw,
 			};
 			break;
 		case Opt_fscache_uniq:
-			string = match_strdup(args);
-			if (string == NULL)
+			if (nfs_get_option_str(args, &mnt->fscache_uniq))
 				goto out_nomem;
-			kfree(mnt->fscache_uniq);
-			mnt->fscache_uniq = string;
 			mnt->options |= NFS_OPTION_FSCACHE;
 			break;
 		case Opt_local_lock:
@@ -1694,39 +1627,55 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	return nfs_walk_authlist(args, &request);
 }
 
-static int nfs_parse_simple_hostname(const char *dev_name,
-				     char **hostname, size_t maxnamlen,
-				     char **export_path, size_t maxpathlen)
+/*
+ * Split "dev_name" into "hostname:export_path".
+ *
+ * The leftmost colon demarks the split between the server's hostname
+ * and the export path.  If the hostname starts with a left square
+ * bracket, then it may contain colons.
+ *
+ * Note: caller frees hostname and export path, even on error.
+ */
+static int nfs_parse_devname(const char *dev_name,
+			     char **hostname, size_t maxnamlen,
+			     char **export_path, size_t maxpathlen)
 {
 	size_t len;
-	char *colon, *comma;
+	char *end;
 
-	colon = strchr(dev_name, ':');
-	if (colon == NULL)
-		goto out_bad_devname;
+	/* Is the host name protected with square brakcets? */
+	if (*dev_name == '[') {
+		end = strchr(++dev_name, ']');
+		if (end == NULL || end[1] != ':')
+			goto out_bad_devname;
 
-	len = colon - dev_name;
+		len = end - dev_name;
+		end++;
+	} else {
+		char *comma;
+
+		end = strchr(dev_name, ':');
+		if (end == NULL)
+			goto out_bad_devname;
+		len = end - dev_name;
+
+		/* kill possible hostname list: not supported */
+		comma = strchr(dev_name, ',');
+		if (comma != NULL && comma < end)
+			*comma = 0;
+	}
+
 	if (len > maxnamlen)
 		goto out_hostname;
 
 	/* N.B. caller will free nfs_server.hostname in all cases */
 	*hostname = kstrndup(dev_name, len, GFP_KERNEL);
-	if (!*hostname)
+	if (*hostname == NULL)
 		goto out_nomem;
-
-	/* kill possible hostname list: not supported */
-	comma = strchr(*hostname, ',');
-	if (comma != NULL) {
-		if (comma == *hostname)
-			goto out_bad_devname;
-		*comma = '\0';
-	}
-
-	colon++;
-	len = strlen(colon);
+	len = strlen(++end);
 	if (len > maxpathlen)
 		goto out_path;
-	*export_path = kstrndup(colon, len, GFP_KERNEL);
+	*export_path = kstrndup(end, len, GFP_KERNEL);
 	if (!*export_path)
 		goto out_nomem;
 
@@ -1748,85 +1697,6 @@ out_hostname:
 out_path:
 	dfprintk(MOUNT, "NFS: export pathname too long\n");
 	return -ENAMETOOLONG;
-}
-
-/*
- * Hostname has square brackets around it because it contains one or
- * more colons.  We look for the first closing square bracket, and a
- * colon must follow it.
- */
-static int nfs_parse_protected_hostname(const char *dev_name,
-					char **hostname, size_t maxnamlen,
-					char **export_path, size_t maxpathlen)
-{
-	size_t len;
-	char *start, *end;
-
-	start = (char *)(dev_name + 1);
-
-	end = strchr(start, ']');
-	if (end == NULL)
-		goto out_bad_devname;
-	if (*(end + 1) != ':')
-		goto out_bad_devname;
-
-	len = end - start;
-	if (len > maxnamlen)
-		goto out_hostname;
-
-	/* N.B. caller will free nfs_server.hostname in all cases */
-	*hostname = kstrndup(start, len, GFP_KERNEL);
-	if (*hostname == NULL)
-		goto out_nomem;
-
-	end += 2;
-	len = strlen(end);
-	if (len > maxpathlen)
-		goto out_path;
-	*export_path = kstrndup(end, len, GFP_KERNEL);
-	if (!*export_path)
-		goto out_nomem;
-
-	return 0;
-
-out_bad_devname:
-	dfprintk(MOUNT, "NFS: device name not in host:path format\n");
-	return -EINVAL;
-
-out_nomem:
-	dfprintk(MOUNT, "NFS: not enough memory to parse device name\n");
-	return -ENOMEM;
-
-out_hostname:
-	dfprintk(MOUNT, "NFS: server hostname too long\n");
-	return -ENAMETOOLONG;
-
-out_path:
-	dfprintk(MOUNT, "NFS: export pathname too long\n");
-	return -ENAMETOOLONG;
-}
-
-/*
- * Split "dev_name" into "hostname:export_path".
- *
- * The leftmost colon demarks the split between the server's hostname
- * and the export path.  If the hostname starts with a left square
- * bracket, then it may contain colons.
- *
- * Note: caller frees hostname and export path, even on error.
- */
-static int nfs_parse_devname(const char *dev_name,
-			     char **hostname, size_t maxnamlen,
-			     char **export_path, size_t maxpathlen)
-{
-	if (*dev_name == '[')
-		return nfs_parse_protected_hostname(dev_name,
-						    hostname, maxnamlen,
-						    export_path, maxpathlen);
-
-	return nfs_parse_simple_hostname(dev_name,
-					 hostname, maxnamlen,
-					 export_path, maxpathlen);
 }
 
 /*
