@@ -399,6 +399,10 @@ static struct platform_device hdmi_device = {
 	},
 };
 
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
+};
+
 static int __init hdmi_init_pm_clock(void)
 {
 	struct clk *hdmi_ick = clk_get(&hdmi_device.dev, "ick");
@@ -609,16 +613,12 @@ fsi_set_rate_end:
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags =	SH_FSI_BRS_INV		|
-			SH_FSI_OUT_SLAVE_MODE	|
-			SH_FSI_IN_SLAVE_MODE	|
-			SH_FSI_OFMT(PCM)	|
-			SH_FSI_IFMT(PCM),
+	.porta_flags =	SH_FSI_BRS_INV,
 
 	.portb_flags =	SH_FSI_BRS_INV	|
 			SH_FSI_BRM_INV	|
 			SH_FSI_LRS_INV	|
-			SH_FSI_OFMT(SPDIF),
+			SH_FSI_FMT_SPDIF,
 
 	.set_rate = fsi_set_rate,
 };
@@ -921,6 +921,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&leds_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&fsi_hdmi_device,
 	&sdhi0_device,
 #if !defined(CONFIG_MMC_SH_MMCIF)
 	&sdhi1_device,
