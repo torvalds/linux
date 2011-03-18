@@ -2569,9 +2569,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	error = user_path_dir(new_root, &new);
 	if (error)
 		goto out0;
-	error = -EINVAL;
-	if (!check_mnt(new.mnt))
-		goto out1;
 
 	error = user_path_dir(put_old, &old);
 	if (error)
@@ -2591,7 +2588,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		IS_MNT_SHARED(new.mnt->mnt_parent) ||
 		IS_MNT_SHARED(root.mnt->mnt_parent))
 		goto out2;
-	if (!check_mnt(root.mnt))
+	if (!check_mnt(root.mnt) || !check_mnt(new.mnt))
 		goto out2;
 	error = -ENOENT;
 	if (cant_mount(old.dentry))
@@ -2615,19 +2612,19 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		goto out2; /* not attached */
 	/* make sure we can reach put_old from new_root */
 	tmp = old.mnt;
-	br_write_lock(vfsmount_lock);
 	if (tmp != new.mnt) {
 		for (;;) {
 			if (tmp->mnt_parent == tmp)
-				goto out3; /* already mounted on put_old */
+				goto out2; /* already mounted on put_old */
 			if (tmp->mnt_parent == new.mnt)
 				break;
 			tmp = tmp->mnt_parent;
 		}
 		if (!is_subdir(tmp->mnt_mountpoint, new.dentry))
-			goto out3;
+			goto out2;
 	} else if (!is_subdir(old.dentry, new.dentry))
-		goto out3;
+		goto out2;
+	br_write_lock(vfsmount_lock);
 	detach_mnt(new.mnt, &parent_path);
 	detach_mnt(root.mnt, &root_parent);
 	/* mount old root on put_old */
@@ -2650,9 +2647,6 @@ out1:
 	path_put(&new);
 out0:
 	return error;
-out3:
-	br_write_unlock(vfsmount_lock);
-	goto out2;
 }
 
 static void __init init_mount_tree(void)
