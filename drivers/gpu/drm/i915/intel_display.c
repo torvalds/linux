@@ -6930,7 +6930,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
 	if (pcu_mbox & (1<<31)) { /* OC supported */
 		max_freq = pcu_mbox & 0xff;
-		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 100);
+		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
 	}
 
 	/* In units of 100MHz */
