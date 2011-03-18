@@ -130,6 +130,14 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 	}
 }
 
+static void report_sync(struct gpio_kp *kp)
+{
+	int i;
+
+	for (i = 0; i < kp->input_devs->count; i++)
+		input_sync(kp->input_devs->dev[i]);
+}
+
 static enum hrtimer_restart gpio_keypad_timer_func(struct hrtimer *timer)
 {
 	int out, in;
@@ -191,6 +199,7 @@ static enum hrtimer_restart gpio_keypad_timer_func(struct hrtimer *timer)
 		for (out = 0; out < mi->noutputs; out++)
 			for (in = 0; in < mi->ninputs; in++, key_index++)
 				report_key(kp, key_index, out, in);
+		report_sync(kp);
 	}
 	if (!kp->use_irq || kp->some_keys_pressed) {
 		hrtimer_start(timer, mi->poll_time, HRTIMER_MODE_REL);
