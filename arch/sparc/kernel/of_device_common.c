@@ -35,6 +35,20 @@ int of_address_to_resource(struct device_node *node, int index,
 }
 EXPORT_SYMBOL_GPL(of_address_to_resource);
 
+void __iomem *of_iomap(struct device_node *node, int index)
+{
+	struct platform_device *op = of_find_device_by_node(node);
+	struct resource *r;
+
+	if (!op || index >= op->num_resources)
+		return NULL;
+
+	r = &op->archdata.resource[index];
+
+	return of_ioremap(r, 0, resource_size(r), (char *) r->name);
+}
+EXPORT_SYMBOL(of_iomap);
+
 /* Take the archdata values for IOMMU, STC, and HOSTDATA found in
  * BUS and propagate to all child platform_device objects.
  */
