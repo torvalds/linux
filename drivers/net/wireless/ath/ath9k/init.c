@@ -553,8 +553,14 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
 
-	if (!pdata)
+	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
+		sc->sc_ah->led_pin = -1;
+	} else {
+		sc->sc_ah->gpio_mask = pdata->gpio_mask;
+		sc->sc_ah->gpio_val = pdata->gpio_val;
+		sc->sc_ah->led_pin = pdata->led_pin;
+	}
 
 	common = ath9k_hw_common(ah);
 	common->ops = &ath9k_common_ops;

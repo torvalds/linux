@@ -41,12 +41,14 @@ void ath_init_leds(struct ath_softc *sc)
 {
 	int ret;
 
-	if (AR_SREV_9287(sc->sc_ah))
-		sc->sc_ah->led_pin = ATH_LED_PIN_9287;
-	else if (AR_SREV_9485(sc->sc_ah))
-		sc->sc_ah->led_pin = ATH_LED_PIN_9485;
-	else
-		sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
+	if (sc->sc_ah->led_pin < 0) {
+		if (AR_SREV_9287(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9287;
+		else if (AR_SREV_9485(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9485;
+		else
+			sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
+	}
 
 	/* Configure gpio 1 for output */
 	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,

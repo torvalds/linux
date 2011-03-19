@@ -798,7 +798,7 @@ struct ath_hw {
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
-	u8 led_pin;
+	int led_pin;
 	u32 gpio_mask;
 	u32 gpio_val;
 
