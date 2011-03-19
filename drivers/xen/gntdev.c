@@ -662,7 +662,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (map->flags) {
 		if ((vma->vm_flags & VM_WRITE) &&
 				(map->flags & GNTMAP_readonly))
-			return -EINVAL;
+			goto out_unlock_put;
 	} else {
 		map->flags = GNTMAP_host_map;
 		if (!(vma->vm_flags & VM_WRITE))
@@ -700,6 +700,8 @@ unlock_out:
 	spin_unlock(&priv->lock);
 	return err;
 
+out_unlock_put:
+	spin_unlock(&priv->lock);
 out_put_map:
 	if (use_ptemod)
 		map->vma = NULL;
