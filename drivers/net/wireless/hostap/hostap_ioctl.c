@@ -1479,23 +1479,20 @@ static int prism2_txpower_hfa386x_to_dBm(u16 val)
 		val = 255;
 
 	tmp = val;
-	tmp >>= 2;
 
-	return -12 - tmp;
+	return tmp;
 }
 
 static u16 prism2_txpower_dBm_to_hfa386x(int val)
 {
 	signed char tmp;
 
-	if (val > 20)
-		return 128;
-	else if (val < -43)
+	if (val > 127)
 		return 127;
+	else if (val < -128)
+		return 128;
 
 	tmp = val;
-	tmp = -12 - tmp;
-	tmp <<= 2;
 
 	return (unsigned char) tmp;
 }
@@ -4052,3 +4049,35 @@ int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	return ret;
 }
+
+/* BUG FIX: Restore power setting value when lost due to F/W bug */
+
+int hostap_restore_power(struct net_device *dev)
+{
+        struct hostap_interface *iface = netdev_priv(dev);
+       local_info_t *local = iface->local;
+
+       u16 val;
+       int ret = 0;
+
+       if (local->txpower_type == PRISM2_TXPOWER_OFF) {
+                       val = 0xff; /* use all standby and sleep modes */
+                       ret = local->func->cmd(dev, HFA384X_CMDCODE_WRITEMIF,
+                                              HFA386X_CR_A_D_TEST_MODES2,
+                                              &val, NULL);
+       }
+
+#ifdef RAW_TXPOWER_SETTING
+       if (local->txpower_type == PRISM2_TXPOWER_FIXED) {
+               val = HFA384X_TEST_CFG_BIT_ALC;
+               local->func->cmd(dev, HFA384X_CMDCODE_TEST |
+                                (HFA384X_TEST_CFG_BITS << 8), 0, &val, NULL);
+               val = prism2_txpower_dBm_to_hfa386x(local->txpower);
+               ret = (local->func->cmd(dev, HFA384X_CMDCODE_WRITEMIF,
+                            HFA386X_CR_MANUAL_TX_POWER, &val, NULL));
+       }
+#endif /* RAW_TXPOWER_SETTING */
+       return (ret ? -EOPNOTSUPP : 0);
+}
+
+EXPORT_SYMBOL(hostap_restore_power);

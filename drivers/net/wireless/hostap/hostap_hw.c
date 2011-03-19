@@ -928,6 +928,7 @@ static int hfa384x_set_rid(struct net_device *dev, u16 rid, void *buf, int len)
 			prism2_hw_reset(dev);
 	}
 
+	hostap_restore_power(dev);
 	return res;
 }
 

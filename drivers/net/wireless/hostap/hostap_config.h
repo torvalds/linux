@@ -45,4 +45,9 @@
  */
 /* #define PRISM2_NO_STATION_MODES */
 
+/* Enable TX power Setting functions
+ * (min att = -128 , max att =  127)
+ */
+#define RAW_TXPOWER_SETTING
+
 #endif /* HOSTAP_CONFIG_H */

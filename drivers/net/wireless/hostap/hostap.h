@@ -90,6 +90,7 @@ extern const struct iw_handler_def hostap_iw_handler_def;
 extern const struct ethtool_ops prism2_ethtool_ops;
 
 int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+int hostap_restore_power(struct net_device *dev);
 
 
 #endif /* HOSTAP_H */
