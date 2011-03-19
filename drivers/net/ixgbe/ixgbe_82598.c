@@ -197,13 +197,32 @@ out:
  *  @hw: pointer to hardware structure
  *
  *  Starts the hardware using the generic start_hw function.
- *  Then set pcie completion timeout
+ *  Disables relaxed ordering Then set pcie completion timeout
+ *
  **/
 static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
+	u32 regval;
+	u32 i;
 	s32 ret_val = 0;
 
 	ret_val = ixgbe_start_hw_generic(hw);
+
+	/* Disable relaxed ordering */
+	for (i = 0; ((i < hw->mac.max_tx_queues) &&
+	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
+		regval &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
+	}
+
+	for (i = 0; ((i < hw->mac.max_rx_queues) &&
+	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
+		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
+		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+			    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
+	}
 
 	/* set the completion timeout for interface */
 	if (ret_val == 0)

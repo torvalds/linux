@@ -947,8 +947,6 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 	rxctrl |= IXGBE_DCA_RXCTRL_DESC_DCA_EN;
 	rxctrl |= IXGBE_DCA_RXCTRL_HEAD_DCA_EN;
 	rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_RRO_EN);
-	rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-		    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
 	IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(reg_idx), rxctrl);
 }
 
@@ -966,7 +964,6 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
 		txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
 		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(reg_idx), txctrl);
 		break;
 	case ixgbe_mac_82599EB:
@@ -976,7 +973,6 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 		txctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
 			   IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
 		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx), txctrl);
 		break;
 	default:
