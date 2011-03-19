@@ -900,7 +900,7 @@ static int cvmx_pcie_rc_initialize(int pcie_port)
 	mem_access_subid.s.ror = 0;
 	/* Disable Relaxed Ordering for Writes. */
 	mem_access_subid.s.row = 0;
-	/* PCIe Adddress Bits <63:34>. */
+	/* PCIe Address Bits <63:34>. */
 	mem_access_subid.s.ba = 0;
 
 	/*

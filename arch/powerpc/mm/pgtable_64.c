@@ -223,6 +223,8 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 					    caller);
 		if (area == NULL)
 			return NULL;
+
+		area->phys_addr = paligned;
 		ret = __ioremap_at(paligned, area->addr, size, flags);
 		if (!ret)
 			vunmap(area->addr);

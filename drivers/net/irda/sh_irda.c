@@ -635,7 +635,7 @@ static int sh_irda_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	ret = sh_irda_set_baudrate(self, speed);
 	if (ret < 0)
-		return ret;
+		goto sh_irda_hard_xmit_end;
 
 	self->tx_buff.len = 0;
 	if (skb->len) {
@@ -652,11 +652,21 @@ static int sh_irda_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 		sh_irda_write(self, IRTFLR, self->tx_buff.len);
 		sh_irda_write(self, IRTCTR, ARMOD | TE);
-	}
+	} else
+		goto sh_irda_hard_xmit_end;
 
 	dev_kfree_skb(skb);
 
 	return 0;
+
+sh_irda_hard_xmit_end:
+	sh_irda_set_baudrate(self, 9600);
+	netif_wake_queue(self->ndev);
+	sh_irda_rcv_ctrl(self, 1);
+	dev_kfree_skb(skb);
+
+	return ret;
+
 }
 
 static int sh_irda_ioctl(struct net_device *ndev, struct ifreq *ifreq, int cmd)

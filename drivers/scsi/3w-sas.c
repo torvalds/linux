@@ -1501,7 +1501,7 @@ out:
 } /* End twl_scsi_eh_reset() */
 
 /* This is the main scsi queue function to handle scsi opcodes */
-static int twl_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	int request_id, retval;
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)SCpnt->device->host->hostdata;
@@ -1535,6 +1535,8 @@ static int twl_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd
 out:
 	return retval;
 } /* End twl_scsi_queue() */
+
+static DEF_SCSI_QCMD(twl_scsi_queue)
 
 /* This function tells the controller to shut down */
 static void __twl_shutdown(TW_Device_Extension *tw_dev)

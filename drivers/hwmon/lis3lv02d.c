@@ -20,6 +20,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
@@ -860,8 +862,7 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 					(p->irq_flags2 & IRQF_TRIGGER_MASK),
 					DRIVER_NAME, &lis3_dev);
 		if (err < 0)
-			printk(KERN_ERR DRIVER_NAME
-				"No second IRQ. Limited functionality\n");
+			pr_err("No second IRQ. Limited functionality\n");
 	}
 }
 
@@ -879,7 +880,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 
 	switch (dev->whoami) {
 	case WAI_12B:
-		printk(KERN_INFO DRIVER_NAME ": 12 bits sensor found\n");
+		pr_info("12 bits sensor found\n");
 		dev->read_data = lis3lv02d_read_12;
 		dev->mdps_max_val = 2048;
 		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_12B;
@@ -890,7 +891,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->regs_size = ARRAY_SIZE(lis3_wai12_regs);
 		break;
 	case WAI_8B:
-		printk(KERN_INFO DRIVER_NAME ": 8 bits sensor found\n");
+		pr_info("8 bits sensor found\n");
 		dev->read_data = lis3lv02d_read_8;
 		dev->mdps_max_val = 128;
 		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
@@ -901,7 +902,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->regs_size = ARRAY_SIZE(lis3_wai8_regs);
 		break;
 	case WAI_3DC:
-		printk(KERN_INFO DRIVER_NAME ": 8 bits 3DC sensor found\n");
+		pr_info("8 bits 3DC sensor found\n");
 		dev->read_data = lis3lv02d_read_8;
 		dev->mdps_max_val = 128;
 		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
@@ -910,8 +911,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		dev->scale = LIS3_SENSITIVITY_8B;
 		break;
 	default:
-		printk(KERN_ERR DRIVER_NAME
-			": unknown sensor type 0x%X\n", dev->whoami);
+		pr_err("unknown sensor type 0x%X\n", dev->whoami);
 		return -EINVAL;
 	}
 
@@ -935,7 +935,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	}
 
 	if (lis3lv02d_joystick_enable())
-		printk(KERN_ERR DRIVER_NAME ": joystick initialization failed\n");
+		pr_err("joystick initialization failed\n");
 
 	/* passing in platform specific data is purely optional and only
 	 * used by the SPI transport layer at the moment */
@@ -957,8 +957,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 
 	/* bail if we did not get an IRQ from the bus layer */
 	if (!dev->irq) {
-		printk(KERN_ERR DRIVER_NAME
-			": No IRQ. Disabling /dev/freefall\n");
+		pr_debug("No IRQ. Disabling /dev/freefall\n");
 		goto out;
 	}
 
@@ -985,12 +984,12 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 				DRIVER_NAME, &lis3_dev);
 
 	if (err < 0) {
-		printk(KERN_ERR DRIVER_NAME "Cannot get IRQ\n");
+		pr_err("Cannot get IRQ\n");
 		goto out;
 	}
 
 	if (misc_register(&lis3lv02d_misc_device))
-		printk(KERN_ERR DRIVER_NAME ": misc_register failed\n");
+		pr_err("misc_register failed\n");
 out:
 	return 0;
 }

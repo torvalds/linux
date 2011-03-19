@@ -168,6 +168,16 @@ unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
 	return (time_ns * 1000 + tick_ps - 1) / tick_ps;
 }
 
+unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
+{
+	unsigned long tick_ps;
+
+	/* Calculate in picosecs to yield more exact results */
+	tick_ps = gpmc_get_fclk_period();
+
+	return (time_ps + tick_ps - 1) / tick_ps;
+}
+
 unsigned int gpmc_ticks_to_ns(unsigned int ticks)
 {
 	return ticks * gpmc_get_fclk_period() / 1000;
@@ -235,7 +245,7 @@ int gpmc_cs_calc_divider(int cs, unsigned int sync_clk)
 	int div;
 	u32 l;
 
-	l = sync_clk * 1000 + (gpmc_get_fclk_period() - 1);
+	l = sync_clk + (gpmc_get_fclk_period() - 1);
 	div = l / gpmc_get_fclk_period();
 	if (div > 4)
 		return -1;

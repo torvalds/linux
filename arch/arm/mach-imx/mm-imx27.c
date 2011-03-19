@@ -35,33 +35,18 @@ static struct map_desc imx27_io_desc[] __initdata = {
 	 * - ROM Patch
 	 * - and some reserved space
 	 */
-	{
-		.virtual = MX27_AIPI_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX27_AIPI_BASE_ADDR),
-		.length = MX27_AIPI_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX27, AIPI, MT_DEVICE),
 	/*
 	 * this fixed mapping covers:
 	 * - CSI
 	 * - ATA
 	 */
-	{
-		.virtual = MX27_SAHB1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX27_SAHB1_BASE_ADDR),
-		.length = MX27_SAHB1_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX27, SAHB1, MT_DEVICE),
 	/*
 	 * this fixed mapping covers:
 	 * - EMI
 	 */
-	{
-		.virtual = MX27_X_MEMC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX27_X_MEMC_BASE_ADDR),
-		.length = MX27_X_MEMC_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX27, X_MEMC, MT_DEVICE),
 };
 
 /*

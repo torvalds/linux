@@ -4,4 +4,4 @@
 
 obj-$(CONFIG_DNS_RESOLVER) += dns_resolver.o
 
-dns_resolver-objs :=  dns_key.o dns_query.o
+dns_resolver-y :=  dns_key.o dns_query.o

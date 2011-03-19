@@ -72,7 +72,7 @@ static int ix2505v_read_status_reg(struct ix2505v_state *state)
 	ret = i2c_transfer(state->i2c, msg, 1);
 	deb_i2c("Read %s ", __func__);
 
-	return (ret = 1) ? (int) b2[0] : -1;
+	return (ret == 1) ? (int) b2[0] : -1;
 }
 
 static int ix2505v_write(struct ix2505v_state *state, u8 buf[], u8 count)
@@ -311,7 +311,7 @@ struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 	return fe;
 
 error:
-	ix2505v_release(fe);
+	kfree(state);
 	return NULL;
 }
 EXPORT_SYMBOL(ix2505v_attach);

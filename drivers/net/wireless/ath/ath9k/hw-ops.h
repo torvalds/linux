@@ -223,11 +223,6 @@ static inline void ath9k_hw_rfbus_done(struct ath_hw *ah)
 	return ath9k_hw_private_ops(ah)->rfbus_done(ah);
 }
 
-static inline void ath9k_enable_rfkill(struct ath_hw *ah)
-{
-	return ath9k_hw_private_ops(ah)->enable_rfkill(ah);
-}
-
 static inline void ath9k_hw_restore_chainmask(struct ath_hw *ah)
 {
 	if (!ath9k_hw_private_ops(ah)->restore_chainmask)

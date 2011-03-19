@@ -38,6 +38,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -187,6 +189,7 @@ static const u8 IT87_REG_FANX_MIN[]	= { 0x1b, 0x1c, 0x1d, 0x85, 0x87 };
 #define IT87_REG_FAN_MAIN_CTRL 0x13
 #define IT87_REG_FAN_CTL       0x14
 #define IT87_REG_PWM(nr)       (0x15 + (nr))
+#define IT87_REG_PWM_DUTY(nr)  (0x63 + (nr) * 8)
 
 #define IT87_REG_VIN(nr)       (0x20 + (nr))
 #define IT87_REG_TEMP(nr)      (0x29 + (nr))
@@ -251,12 +254,16 @@ struct it87_data {
 	u8 fan_main_ctrl;	/* Register value */
 	u8 fan_ctl;		/* Register value */
 
-	/* The following 3 arrays correspond to the same registers. The
-	 * meaning of bits 6-0 depends on the value of bit 7, and we want
-	 * to preserve settings on mode changes, so we have to track all
-	 * values separately. */
+	/* The following 3 arrays correspond to the same registers up to
+	 * the IT8720F. The meaning of bits 6-0 depends on the value of bit
+	 * 7, and we want to preserve settings on mode changes, so we have
+	 * to track all values separately.
+	 * Starting with the IT8721F, the manual PWM duty cycles are stored
+	 * in separate registers (8-bit values), so the separate tracking
+	 * is no longer needed, but it is still done to keep the driver
+	 * simple. */
 	u8 pwm_ctrl[3];		/* Register value */
-	u8 pwm_duty[3];		/* Manual PWM value set by user (bit 6-0) */
+	u8 pwm_duty[3];		/* Manual PWM value set by user */
 	u8 pwm_temp_map[3];	/* PWM to temp. chan. mapping (bits 1-0) */
 
 	/* Automatic fan speed control registers */
@@ -832,7 +839,9 @@ static ssize_t set_pwm_enable(struct device *dev,
 				 data->fan_main_ctrl);
 	} else {
 		if (val == 1)				/* Manual mode */
-			data->pwm_ctrl[nr] = data->pwm_duty[nr];
+			data->pwm_ctrl[nr] = data->type == it8721 ?
+					     data->pwm_temp_map[nr] :
+					     data->pwm_duty[nr];
 		else					/* Automatic mode */
 			data->pwm_ctrl[nr] = 0x80 | data->pwm_temp_map[nr];
 		it87_write_value(data, IT87_REG_PWM(nr), data->pwm_ctrl[nr]);
@@ -858,12 +867,25 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
-	data->pwm_duty[nr] = pwm_to_reg(data, val);
-	/* If we are in manual mode, write the duty cycle immediately;
-	 * otherwise, just store it for later use. */
-	if (!(data->pwm_ctrl[nr] & 0x80)) {
-		data->pwm_ctrl[nr] = data->pwm_duty[nr];
-		it87_write_value(data, IT87_REG_PWM(nr), data->pwm_ctrl[nr]);
+	if (data->type == it8721) {
+		/* If we are in automatic mode, the PWM duty cycle register
+		 * is read-only so we can't write the value */
+		if (data->pwm_ctrl[nr] & 0x80) {
+			mutex_unlock(&data->update_lock);
+			return -EBUSY;
+		}
+		data->pwm_duty[nr] = pwm_to_reg(data, val);
+		it87_write_value(data, IT87_REG_PWM_DUTY(nr),
+				 data->pwm_duty[nr]);
+	} else {
+		data->pwm_duty[nr] = pwm_to_reg(data, val);
+		/* If we are in manual mode, write the duty cycle immediately;
+		 * otherwise, just store it for later use. */
+		if (!(data->pwm_ctrl[nr] & 0x80)) {
+			data->pwm_ctrl[nr] = data->pwm_duty[nr];
+			it87_write_value(data, IT87_REG_PWM(nr),
+					 data->pwm_ctrl[nr]);
+		}
 	}
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -1550,26 +1572,25 @@ static int __init it87_find(unsigned short *address,
 	case 0xffff:	/* No device at all */
 		goto exit;
 	default:
-		pr_debug(DRVNAME ": Unsupported chip (DEVID=0x%x)\n",
-			 chip_type);
+		pr_debug("Unsupported chip (DEVID=0x%x)\n", chip_type);
 		goto exit;
 	}
 
 	superio_select(PME);
 	if (!(superio_inb(IT87_ACT_REG) & 0x01)) {
-		pr_info("it87: Device not activated, skipping\n");
+		pr_info("Device not activated, skipping\n");
 		goto exit;
 	}
 
 	*address = superio_inw(IT87_BASE_REG) & ~(IT87_EXTENT - 1);
 	if (*address == 0) {
-		pr_info("it87: Base address not set, skipping\n");
+		pr_info("Base address not set, skipping\n");
 		goto exit;
 	}
 
 	err = 0;
 	sio_data->revision = superio_inb(DEVREV) & 0x0f;
-	pr_info("it87: Found IT%04xF chip at 0x%x, revision %d\n",
+	pr_info("Found IT%04xF chip at 0x%x, revision %d\n",
 		chip_type, *address, sio_data->revision);
 
 	/* in8 (Vbat) is always internal */
@@ -1595,7 +1616,7 @@ static int __init it87_find(unsigned short *address,
 		} else {
 			/* We need at least 4 VID pins */
 			if (reg & 0x0f) {
-				pr_info("it87: VID is disabled (pins used for GPIO)\n");
+				pr_info("VID is disabled (pins used for GPIO)\n");
 				sio_data->skip_vid = 1;
 			}
 		}
@@ -1631,7 +1652,7 @@ static int __init it87_find(unsigned short *address,
 		if (sio_data->type == it8720 && !(reg & (1 << 1))) {
 			reg |= (1 << 1);
 			superio_outb(IT87_SIO_PINX2_REG, reg);
-			pr_notice("it87: Routing internal VCCH to in7\n");
+			pr_notice("Routing internal VCCH to in7\n");
 		}
 		if (reg & (1 << 0))
 			sio_data->internal |= (1 << 0);
@@ -1641,7 +1662,7 @@ static int __init it87_find(unsigned short *address,
 		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	}
 	if (sio_data->beep_pin)
-		pr_info("it87: Beeping is supported\n");
+		pr_info("Beeping is supported\n");
 
 	/* Disable specific features based on DMI strings */
 	board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
@@ -1655,8 +1676,7 @@ static int __init it87_find(unsigned short *address,
 			   the PWM2 duty cycle, so we disable it.
 			   I use the board name string as the trigger in case
 			   the same board is ever used in other systems. */
-			pr_info("it87: Disabling pwm2 due to "
-				"hardware constraints\n");
+			pr_info("Disabling pwm2 due to hardware constraints\n");
 			sio_data->skip_pwm = (1 << 1);
 		}
 	}
@@ -1958,7 +1978,10 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 	 *   channels to use when later setting to automatic mode later.
 	 *   Use a 1:1 mapping by default (we are clueless.)
 	 * In both cases, the value can (and should) be changed by the user
-	 * prior to switching to a different mode. */
+	 * prior to switching to a different mode.
+	 * Note that this is no longer needed for the IT8721F and later, as
+	 * these have separate registers for the temperature mapping and the
+	 * manual duty cycle. */
 	for (i = 0; i < 3; i++) {
 		data->pwm_temp_map[i] = i;
 		data->pwm_duty[i] = 0x7f;	/* Full speed */
@@ -2034,10 +2057,16 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 static void it87_update_pwm_ctrl(struct it87_data *data, int nr)
 {
 	data->pwm_ctrl[nr] = it87_read_value(data, IT87_REG_PWM(nr));
-	if (data->pwm_ctrl[nr] & 0x80)	/* Automatic mode */
+	if (data->type == it8721) {
 		data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
-	else				/* Manual mode */
-		data->pwm_duty[nr] = data->pwm_ctrl[nr] & 0x7f;
+		data->pwm_duty[nr] = it87_read_value(data,
+						     IT87_REG_PWM_DUTY(nr));
+	} else {
+		if (data->pwm_ctrl[nr] & 0x80)	/* Automatic mode */
+			data->pwm_temp_map[nr] = data->pwm_ctrl[nr] & 0x03;
+		else				/* Manual mode */
+			data->pwm_duty[nr] = data->pwm_ctrl[nr] & 0x7f;
+	}
 
 	if (has_old_autopwm(data)) {
 		int i;
@@ -2160,28 +2189,26 @@ static int __init it87_device_add(unsigned short address,
 	pdev = platform_device_alloc(DRVNAME, address);
 	if (!pdev) {
 		err = -ENOMEM;
-		printk(KERN_ERR DRVNAME ": Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		goto exit;
 	}
 
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device resource addition failed "
-		       "(%d)\n", err);
+		pr_err("Device resource addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
 	err = platform_device_add_data(pdev, sio_data,
 				       sizeof(struct it87_sio_data));
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Platform data allocation failed\n");
+		pr_err("Platform data allocation failed\n");
 		goto exit_device_put;
 	}
 
 	err = platform_device_add(pdev);
 	if (err) {
-		printk(KERN_ERR DRVNAME ": Device addition failed (%d)\n",
-		       err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 

@@ -649,7 +649,7 @@ static ssize_t bh1770_power_state_store(struct device *dev,
 {
 	struct bh1770_chip *chip =  dev_get_drvdata(dev);
 	unsigned long value;
-	size_t ret;
+	ssize_t ret;
 
 	if (strict_strtoul(buf, 0, &value))
 		return -EINVAL;
@@ -659,8 +659,12 @@ static ssize_t bh1770_power_state_store(struct device *dev,
 		pm_runtime_get_sync(dev);
 
 		ret = bh1770_lux_rate(chip, chip->lux_rate_index);
-		ret |= bh1770_lux_interrupt_control(chip, BH1770_ENABLE);
+		if (ret < 0) {
+			pm_runtime_put(dev);
+			goto leave;
+		}
 
+		ret = bh1770_lux_interrupt_control(chip, BH1770_ENABLE);
 		if (ret < 0) {
 			pm_runtime_put(dev);
 			goto leave;

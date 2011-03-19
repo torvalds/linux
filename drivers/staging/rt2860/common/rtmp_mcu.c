@@ -267,7 +267,7 @@ int RtmpAsicSendCommandToMcu(struct rt_rtmp_adapter *pAd,
 		} while (i++ < 100);
 
 		if (i > 100) {
-			DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
+			DBGPRINT_ERR("H2M_MAILBOX still hold by MCU. command fail\n");
 			return FALSE;
 		}
 
@@ -296,7 +296,7 @@ int RtmpAsicSendCommandToMcu(struct rt_rtmp_adapter *pAd,
 #ifdef RTMP_MAC_PCI
 #endif /* RTMP_MAC_PCI // */
 			{
-				DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
+				DBGPRINT_ERR("H2M_MAILBOX still hold by MCU. command fail\n");
 			}
 			return FALSE;
 		}

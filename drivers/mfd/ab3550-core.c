@@ -1159,15 +1159,16 @@ static void ab3550_mask_work(struct work_struct *work)
 	}
 }
 
-static void ab3550_mask(unsigned int irq)
+static void ab3550_mask(struct irq_data *data)
 {
 	unsigned long flags;
 	struct ab3550 *ab;
 	struct ab3550_platform_data *plf_data;
+	int irq;
 
-	ab = get_irq_chip_data(irq);
+	ab = irq_data_get_irq_chip_data(data);
 	plf_data = ab->i2c_client[0]->dev.platform_data;
-	irq -= plf_data->irq.base;
+	irq = data->irq - plf_data->irq.base;
 
 	spin_lock_irqsave(&ab->event_lock, flags);
 	ab->event_mask[irq / 8] |= BIT(irq % 8);
@@ -1176,15 +1177,16 @@ static void ab3550_mask(unsigned int irq)
 	schedule_work(&ab->mask_work);
 }
 
-static void ab3550_unmask(unsigned int irq)
+static void ab3550_unmask(struct irq_data *data)
 {
 	unsigned long flags;
 	struct ab3550 *ab;
 	struct ab3550_platform_data *plf_data;
+	int irq;
 
-	ab = get_irq_chip_data(irq);
+	ab = irq_data_get_irq_chip_data(data);
 	plf_data = ab->i2c_client[0]->dev.platform_data;
-	irq -= plf_data->irq.base;
+	irq = data->irq - plf_data->irq.base;
 
 	spin_lock_irqsave(&ab->event_lock, flags);
 	ab->event_mask[irq / 8] &= ~BIT(irq % 8);
@@ -1193,20 +1195,16 @@ static void ab3550_unmask(unsigned int irq)
 	schedule_work(&ab->mask_work);
 }
 
-static void noop(unsigned int irq)
+static void noop(struct irq_data *data)
 {
 }
 
 static struct irq_chip ab3550_irq_chip = {
 	.name		= "ab3550-core", /* Keep the same name as the request */
-	.startup	= NULL, /* defaults to enable */
-	.shutdown	= NULL, /* defaults to disable */
-	.enable		= NULL, /* defaults to unmask */
-	.disable	= ab3550_mask, /* No default to mask in chip.c */
-	.ack		= noop,
-	.mask		= ab3550_mask,
-	.unmask		= ab3550_unmask,
-	.end		= NULL,
+	.irq_disable	= ab3550_mask, /* No default to mask in chip.c */
+	.irq_ack	= noop,
+	.irq_mask	= ab3550_mask,
+	.irq_unmask	= ab3550_unmask,
 };
 
 struct ab_family_id {

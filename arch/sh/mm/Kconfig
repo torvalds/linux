@@ -79,7 +79,7 @@ config 29BIT
 
 config 32BIT
 	bool
-	default y if CPU_SH5
+	default y if CPU_SH5 || !MMU
 
 config PMB
 	bool "Support 32-bit physical addressing through PMB"

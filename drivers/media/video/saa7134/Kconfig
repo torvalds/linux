@@ -26,7 +26,7 @@ config VIDEO_SAA7134_ALSA
 
 config VIDEO_SAA7134_RC
 	bool "Philips SAA7134 Remote Controller support"
-	depends on VIDEO_IR
+	depends on RC_CORE
 	depends on VIDEO_SAA7134
 	default y
 	---help---

@@ -49,13 +49,18 @@ struct clkops {
 /* struct clksel_rate.flags possibilities */
 #define RATE_IN_242X		(1 << 0)
 #define RATE_IN_243X		(1 << 1)
-#define RATE_IN_3XXX		(1 << 2)	/* rates common to all OMAP3 */
-#define RATE_IN_3430ES2		(1 << 3)	/* 3430ES2 rates only */
+#define RATE_IN_3430ES1		(1 << 2)	/* 3430ES1 rates only */
+#define RATE_IN_3430ES2PLUS	(1 << 3)	/* 3430 ES >= 2 rates only */
 #define RATE_IN_36XX		(1 << 4)
 #define RATE_IN_4430		(1 << 5)
 
 #define RATE_IN_24XX		(RATE_IN_242X | RATE_IN_243X)
-#define RATE_IN_3430ES2PLUS	(RATE_IN_3430ES2 | RATE_IN_36XX)
+#define RATE_IN_34XX		(RATE_IN_3430ES1 | RATE_IN_3430ES2PLUS)
+#define RATE_IN_3XXX		(RATE_IN_34XX | RATE_IN_36XX)
+
+/* RATE_IN_3430ES2PLUS_36XX includes 34xx/35xx with ES >=2, and all 36xx/37xx */
+#define RATE_IN_3430ES2PLUS_36XX	(RATE_IN_3430ES2PLUS | RATE_IN_36XX)
+
 
 /**
  * struct clksel_rate - register bitfield values corresponding to clk divisors
@@ -119,8 +124,7 @@ struct clksel {
  *
  * Possible values for @flags:
  * DPLL_J_TYPE: "J-type DPLL" (only some 36xx, 4xxx DPLLs)
- * NO_DCO_SEL: don't program DCO (only for some J-type DPLLs)
-
+ *
  * @freqsel_mask is only used on the OMAP34xx family and AM35xx.
  *
  * XXX Some DPLLs have multiple bypass inputs, so it's not technically
@@ -156,6 +160,8 @@ struct dpll_data {
 	u32			autoidle_mask;
 	u32			freqsel_mask;
 	u32			idlest_mask;
+	u32			dco_mask;
+	u32			sddiv_mask;
 	u8			auto_recal_bit;
 	u8			recal_en_bit;
 	u8			recal_st_bit;

@@ -325,7 +325,7 @@ static void ax_block_output(struct net_device *dev, int count,
 static void
 ax_mii_ei_outbits(struct net_device *dev, unsigned int bits, int len)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	void __iomem *memr_addr = (void __iomem *)dev->base_addr + AX_MEMR;
 	unsigned int memr;
 
@@ -364,7 +364,7 @@ ax_mii_ei_outbits(struct net_device *dev, unsigned int bits, int len)
 static unsigned int
 ax_phy_ei_inbits(struct net_device *dev, int no)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	void __iomem *memr_addr = (void __iomem *)dev->base_addr + AX_MEMR;
 	unsigned int memr;
 	unsigned int result = 0;
@@ -412,7 +412,7 @@ ax_phy_issueaddr(struct net_device *dev, int phy_addr, int reg, int opc)
 static int
 ax_phy_read(struct net_device *dev, int phy_addr, int reg)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned long flags;
  	unsigned int result;
 
@@ -435,7 +435,7 @@ ax_phy_read(struct net_device *dev, int phy_addr, int reg)
 static void
 ax_phy_write(struct net_device *dev, int phy_addr, int reg, int value)
 {
-	struct ei_device *ei = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei = netdev_priv(dev);
 	struct ax_device  *ax = to_ax_dev(dev);
 	unsigned long flags;
 

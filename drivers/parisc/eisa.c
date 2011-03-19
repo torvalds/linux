@@ -186,7 +186,6 @@ static struct irq_chip eisa_interrupt_type = {
 	.name	=	"EISA",
 	.unmask	=	eisa_unmask_irq,
 	.mask	=	eisa_mask_irq,
-	.ack	=	no_ack_irq,
 };
 
 static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)
@@ -340,7 +339,7 @@ static int __init eisa_probe(struct parisc_device *dev)
 	setup_irq(2, &irq2_action);
 	for (i = 0; i < 16; i++) {
 		set_irq_chip_and_handler(i, &eisa_interrupt_type,
-			handle_level_irq);
+					 handle_simple_irq);
 	}
 	
 	EISA_bus = 1;

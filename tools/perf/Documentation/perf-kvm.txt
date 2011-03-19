@@ -22,7 +22,7 @@ There are a couple of variants of perf kvm:
   a performance counter profile of guest os in realtime
   of an arbitrary workload.
 
-  'perf kvm record <command>' to record the performance couinter profile
+  'perf kvm record <command>' to record the performance counter profile
   of an arbitrary workload and save it into a perf data file. If both
   --host and --guest are input, the perf data file name is perf.data.kvm.
   If there is  no --host but --guest, the file name is perf.data.guest.
@@ -40,6 +40,12 @@ There are a couple of variants of perf kvm:
 
 OPTIONS
 -------
+-i::
+--input=::
+        Input file name.
+-o::
+--output::
+        Output file name.
 --host=::
         Collect host side performance profile.
 --guest=::

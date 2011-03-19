@@ -76,6 +76,8 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	struct chnl_net *priv  = container_of(layr, struct chnl_net, chnl);
 	int pktlen;
 	int err = 0;
+	const u8 *ip_version;
+	u8 buf;
 
 	priv = container_of(layr, struct chnl_net, chnl);
 
@@ -90,7 +92,21 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	 * send the packet to the net stack.
 	 */
 	skb->dev = priv->netdev;
-	skb->protocol = htons(ETH_P_IP);
+
+	/* check the version of IP */
+	ip_version = skb_header_pointer(skb, 0, 1, &buf);
+	if (!ip_version)
+		return -EINVAL;
+	switch (*ip_version >> 4) {
+	case 4:
+		skb->protocol = htons(ETH_P_IP);
+		break;
+	case 6:
+		skb->protocol = htons(ETH_P_IPV6);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* If we change the header in loop mode, the checksum is corrupted. */
 	if (priv->conn_req.protocol == CAIFPROTO_DATAGRAM_LOOP)

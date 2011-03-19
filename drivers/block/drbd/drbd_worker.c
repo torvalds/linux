@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/drbd.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/memcontrol.h>
@@ -102,12 +101,6 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 	put_ldev(mdev);
 }
 
-static int is_failed_barrier(int ee_flags)
-{
-	return (ee_flags & (EE_IS_BARRIER|EE_WAS_ERROR|EE_RESUBMITTED))
-			== (EE_IS_BARRIER|EE_WAS_ERROR);
-}
-
 /* writes on behalf of the partner, or resync writes,
  * "submitted" by the receiver, final stage.  */
 static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(local)
@@ -118,21 +111,6 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 	int do_wake;
 	int is_syncer_req;
 	int do_al_complete_io;
-
-	/* if this is a failed barrier request, disable use of barriers,
-	 * and schedule for resubmission */
-	if (is_failed_barrier(e->flags)) {
-		drbd_bump_write_ordering(mdev, WO_bdev_flush);
-		spin_lock_irqsave(&mdev->req_lock, flags);
-		list_del(&e->w.list);
-		e->flags = (e->flags & ~EE_WAS_ERROR) | EE_RESUBMITTED;
-		e->w.cb = w_e_reissue;
-		/* put_ldev actually happens below, once we come here again. */
-		__release(local);
-		spin_unlock_irqrestore(&mdev->req_lock, flags);
-		drbd_queue_work(&mdev->data.work, &e->w);
-		return;
-	}
 
 	D_ASSERT(e->block_id != ID_VACANT);
 
@@ -215,8 +193,10 @@ void drbd_endio_sec(struct bio *bio, int error)
  */
 void drbd_endio_pri(struct bio *bio, int error)
 {
+	unsigned long flags;
 	struct drbd_request *req = bio->bi_private;
 	struct drbd_conf *mdev = req->mdev;
+	struct bio_and_error m;
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 
@@ -242,7 +222,13 @@ void drbd_endio_pri(struct bio *bio, int error)
 	bio_put(req->private_bio);
 	req->private_bio = ERR_PTR(error);
 
-	req_mod(req, what);
+	/* not req_mod(), we need irqsave here! */
+	spin_lock_irqsave(&mdev->req_lock, flags);
+	__req_mod(req, what, &m);
+	spin_unlock_irqrestore(&mdev->req_lock, flags);
+
+	if (m.bio)
+		complete_master_bio(mdev, &m);
 }
 
 int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
@@ -925,7 +911,7 @@ out:
 	drbd_md_sync(mdev);
 
 	if (test_and_clear_bit(WRITE_BM_AFTER_RESYNC, &mdev->flags)) {
-		dev_warn(DEV, "Writing the whole bitmap, due to failed kmalloc\n");
+		dev_info(DEV, "Writing the whole bitmap\n");
 		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
 	}
 

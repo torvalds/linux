@@ -1,6 +1,6 @@
 /* bnx2i_hwi.c: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2009 Broadcom Corporation
+ * Copyright (c) 2006 - 2010 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -9,6 +9,7 @@
  * the Free Software Foundation.
  *
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
+ * Maintained by: Eddie Wai (eddie.wai@broadcom.com)
  */
 
 #include <linux/gfp.h>
@@ -385,6 +386,7 @@ int bnx2i_send_iscsi_tmf(struct bnx2i_conn *bnx2i_conn,
 	struct bnx2i_cmd *bnx2i_cmd;
 	struct bnx2i_tmf_request *tmfabort_wqe;
 	u32 dword;
+	u32 scsi_lun[2];
 
 	bnx2i_cmd = (struct bnx2i_cmd *)mtask->dd_data;
 	tmfabort_hdr = (struct iscsi_tm *)mtask->hdr;
@@ -426,7 +428,10 @@ int bnx2i_send_iscsi_tmf(struct bnx2i_conn *bnx2i_conn,
 	default:
 		tmfabort_wqe->ref_itt = RESERVED_ITT;
 	}
-	memcpy(tmfabort_wqe->lun, tmfabort_hdr->lun, sizeof(struct scsi_lun));
+	memcpy(scsi_lun, tmfabort_hdr->lun, sizeof(struct scsi_lun));
+	tmfabort_wqe->lun[0] = be32_to_cpu(scsi_lun[0]);
+	tmfabort_wqe->lun[1] = be32_to_cpu(scsi_lun[1]);
+
 	tmfabort_wqe->ref_cmd_sn = be32_to_cpu(tmfabort_hdr->refcmdsn);
 
 	tmfabort_wqe->bd_list_addr_lo = (u32) bnx2i_conn->hba->mp_bd_dma;
@@ -697,10 +702,11 @@ void bnx2i_send_cmd_cleanup_req(struct bnx2i_hba *hba, struct bnx2i_cmd *cmd)
  * this routine prepares and posts CONN_OFLD_REQ1/2 KWQE to initiate
  * 	iscsi connection context clean-up process
  */
-void bnx2i_send_conn_destroy(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
+int bnx2i_send_conn_destroy(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 {
 	struct kwqe *kwqe_arr[2];
 	struct iscsi_kwqe_conn_destroy conn_cleanup;
+	int rc = -EINVAL;
 
 	memset(&conn_cleanup, 0x00, sizeof(struct iscsi_kwqe_conn_destroy));
 
@@ -717,7 +723,9 @@ void bnx2i_send_conn_destroy(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 
 	kwqe_arr[0] = (struct kwqe *) &conn_cleanup;
 	if (hba->cnic && hba->cnic->submit_kwqes)
-		hba->cnic->submit_kwqes(hba->cnic, kwqe_arr, 1);
+		rc = hba->cnic->submit_kwqes(hba->cnic, kwqe_arr, 1);
+
+	return rc;
 }
 
 
@@ -728,8 +736,8 @@ void bnx2i_send_conn_destroy(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
  *
  * 5706/5708/5709 specific - prepares and posts CONN_OFLD_REQ1/2 KWQE
  */
-static void bnx2i_570x_send_conn_ofld_req(struct bnx2i_hba *hba,
-					  struct bnx2i_endpoint *ep)
+static int bnx2i_570x_send_conn_ofld_req(struct bnx2i_hba *hba,
+					 struct bnx2i_endpoint *ep)
 {
 	struct kwqe *kwqe_arr[2];
 	struct iscsi_kwqe_conn_offload1 ofld_req1;
@@ -737,6 +745,7 @@ static void bnx2i_570x_send_conn_ofld_req(struct bnx2i_hba *hba,
 	dma_addr_t dma_addr;
 	int num_kwqes = 2;
 	u32 *ptbl;
+	int rc = -EINVAL;
 
 	ofld_req1.hdr.op_code = ISCSI_KWQE_OPCODE_OFFLOAD_CONN1;
 	ofld_req1.hdr.flags =
@@ -774,7 +783,9 @@ static void bnx2i_570x_send_conn_ofld_req(struct bnx2i_hba *hba,
 	ofld_req2.num_additional_wqes = 0;
 
 	if (hba->cnic && hba->cnic->submit_kwqes)
-		hba->cnic->submit_kwqes(hba->cnic, kwqe_arr, num_kwqes);
+		rc = hba->cnic->submit_kwqes(hba->cnic, kwqe_arr, num_kwqes);
+
+	return rc;
 }
 
 
@@ -785,8 +796,8 @@ static void bnx2i_570x_send_conn_ofld_req(struct bnx2i_hba *hba,
  *
  * 57710 specific - prepares and posts CONN_OFLD_REQ1/2 KWQE
  */
-static void bnx2i_5771x_send_conn_ofld_req(struct bnx2i_hba *hba,
-					   struct bnx2i_endpoint *ep)
+static int bnx2i_5771x_send_conn_ofld_req(struct bnx2i_hba *hba,
+					  struct bnx2i_endpoint *ep)
 {
 	struct kwqe *kwqe_arr[5];
 	struct iscsi_kwqe_conn_offload1 ofld_req1;
@@ -795,6 +806,7 @@ static void bnx2i_5771x_send_conn_ofld_req(struct bnx2i_hba *hba,
 	dma_addr_t dma_addr;
 	int num_kwqes = 2;
 	u32 *ptbl;
+	int rc = -EINVAL;
 
 	ofld_req1.hdr.op_code = ISCSI_KWQE_OPCODE_OFFLOAD_CONN1;
 	ofld_req1.hdr.flags =
@@ -840,7 +852,9 @@ static void bnx2i_5771x_send_conn_ofld_req(struct bnx2i_hba *hba,
 	num_kwqes += 1;
 
 	if (hba->cnic && hba->cnic->submit_kwqes)
-		hba->cnic->submit_kwqes(hba->cnic, kwqe_arr, num_kwqes);
+		rc = hba->cnic->submit_kwqes(hba->cnic, kwqe_arr, num_kwqes);
+
+	return rc;
 }
 
 /**
@@ -851,12 +865,16 @@ static void bnx2i_5771x_send_conn_ofld_req(struct bnx2i_hba *hba,
  *
  * this routine prepares and posts CONN_OFLD_REQ1/2 KWQE
  */
-void bnx2i_send_conn_ofld_req(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
+int bnx2i_send_conn_ofld_req(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 {
+	int rc;
+
 	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type))
-		bnx2i_5771x_send_conn_ofld_req(hba, ep);
+		rc = bnx2i_5771x_send_conn_ofld_req(hba, ep);
 	else
-		bnx2i_570x_send_conn_ofld_req(hba, ep);
+		rc = bnx2i_570x_send_conn_ofld_req(hba, ep);
+
+	return rc;
 }
 
 
@@ -1513,7 +1531,7 @@ static void bnx2i_process_nopin_local_cmpl(struct iscsi_session *session,
 	task = iscsi_itt_to_task(conn,
 				 nop_in->itt & ISCSI_NOP_IN_MSG_INDEX);
 	if (task)
-		iscsi_put_task(task);
+		__iscsi_put_task(task);
 	spin_unlock(&session->lock);
 }
 
@@ -1549,11 +1567,9 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 	struct iscsi_task *task;
 	struct bnx2i_nop_in_msg *nop_in;
 	struct iscsi_nopin *hdr;
-	u32 itt;
 	int tgt_async_nop = 0;
 
 	nop_in = (struct bnx2i_nop_in_msg *)cqe;
-	itt = nop_in->itt & ISCSI_NOP_IN_MSG_INDEX;
 
 	spin_lock(&session->lock);
 	hdr = (struct iscsi_nopin *)&bnx2i_conn->gen_pdu.resp_hdr;
@@ -1563,7 +1579,7 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 	hdr->exp_cmdsn = cpu_to_be32(nop_in->exp_cmd_sn);
 	hdr->ttt = cpu_to_be32(nop_in->ttt);
 
-	if (itt == (u16) RESERVED_ITT) {
+	if (nop_in->itt == (u16) RESERVED_ITT) {
 		bnx2i_unsol_pdu_adjust_rq(bnx2i_conn);
 		hdr->itt = RESERVED_ITT;
 		tgt_async_nop = 1;
@@ -1571,7 +1587,8 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 	}
 
 	/* this is a response to one of our nop-outs */
-	task = iscsi_itt_to_task(conn, itt);
+	task = iscsi_itt_to_task(conn,
+			 (itt_t) (nop_in->itt & ISCSI_NOP_IN_MSG_INDEX));
 	if (task) {
 		hdr->flags = ISCSI_FLAG_CMD_FINAL;
 		hdr->itt = task->hdr->itt;
@@ -1721,9 +1738,18 @@ static void bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 		if (nopin->cq_req_sn != qp->cqe_exp_seq_sn)
 			break;
 
-		if (unlikely(test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx)))
+		if (unlikely(test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx))) {
+			if (nopin->op_code == ISCSI_OP_NOOP_IN &&
+			    nopin->itt == (u16) RESERVED_ITT) {
+				printk(KERN_ALERT "bnx2i: Unsolicited "
+					"NOP-In detected for suspended "
+					"connection dev=%s!\n",
+					bnx2i_conn->hba->netdev->name);
+				bnx2i_unsol_pdu_adjust_rq(bnx2i_conn);
+				goto cqe_out;
+			}
 			break;
-
+		}
 		tgt_async_msg = 0;
 
 		switch (nopin->op_code) {
@@ -1770,10 +1796,9 @@ static void bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 			printk(KERN_ALERT "bnx2i: unknown opcode 0x%x\n",
 					  nopin->op_code);
 		}
-
 		if (!tgt_async_msg)
 			bnx2i_conn->ep->num_active_cmds--;
-
+cqe_out:
 		/* clear out in production version only, till beta keep opcode
 		 * field intact, will be helpful in debugging (context dump)
 		 * nopin->op_code = 0;
@@ -2154,11 +2179,24 @@ static void bnx2i_process_ofld_cmpl(struct bnx2i_hba *hba,
 	}
 
 	if (ofld_kcqe->completion_status) {
+		ep->state = EP_STATE_OFLD_FAILED;
 		if (ofld_kcqe->completion_status ==
 		    ISCSI_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAILURE)
-			printk(KERN_ALERT "bnx2i: unable to allocate"
-					  " iSCSI context resources\n");
-		ep->state = EP_STATE_OFLD_FAILED;
+			printk(KERN_ALERT "bnx2i (%s): ofld1 cmpl - unable "
+				"to allocate iSCSI context resources\n",
+				hba->netdev->name);
+		else if (ofld_kcqe->completion_status ==
+			 ISCSI_KCQE_COMPLETION_STATUS_INVALID_OPCODE)
+			printk(KERN_ALERT "bnx2i (%s): ofld1 cmpl - invalid "
+				"opcode\n", hba->netdev->name);
+		else if (ofld_kcqe->completion_status ==
+			ISCSI_KCQE_COMPLETION_STATUS_CID_BUSY)
+			/* error status code valid only for 5771x chipset */
+			ep->state = EP_STATE_OFLD_FAILED_CID_BUSY;
+		else
+			printk(KERN_ALERT "bnx2i (%s): ofld1 cmpl - invalid "
+				"error code %d\n", hba->netdev->name,
+				ofld_kcqe->completion_status);
 	} else {
 		ep->state = EP_STATE_OFLD_COMPL;
 		cid_addr = ofld_kcqe->iscsi_conn_context_id;
@@ -2339,26 +2377,32 @@ static void bnx2i_cm_remote_close(struct cnic_sock *cm_sk)
 static void bnx2i_cm_remote_abort(struct cnic_sock *cm_sk)
 {
 	struct bnx2i_endpoint *ep = (struct bnx2i_endpoint *) cm_sk->context;
+	u32 old_state = ep->state;
 
 	ep->state = EP_STATE_TCP_RST_RCVD;
-	if (ep->conn)
-		bnx2i_recovery_que_add_conn(ep->hba, ep->conn);
+	if (old_state == EP_STATE_DISCONN_START)
+		wake_up_interruptible(&ep->ofld_wait);
+	else
+		if (ep->conn)
+			bnx2i_recovery_que_add_conn(ep->hba, ep->conn);
 }
 
 
-static void bnx2i_send_nl_mesg(struct cnic_dev *dev, u32 msg_type,
+static int bnx2i_send_nl_mesg(void *context, u32 msg_type,
 			       char *buf, u16 buflen)
 {
-	struct bnx2i_hba *hba;
+	struct bnx2i_hba *hba = context;
+	int rc;
 
-	hba = bnx2i_find_hba_for_cnic(dev);
 	if (!hba)
-		return;
+		return -ENODEV;
 
-	if (iscsi_offload_mesg(hba->shost, &bnx2i_iscsi_transport,
-				   msg_type, buf, buflen))
+	rc = iscsi_offload_mesg(hba->shost, &bnx2i_iscsi_transport,
+				msg_type, buf, buflen);
+	if (rc)
 		printk(KERN_ALERT "bnx2i: private nl message send error\n");
 
+	return rc;
 }
 
 

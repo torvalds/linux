@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/smc91x.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
@@ -42,7 +43,6 @@
 #include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <mach/pxa2xx_spi.h>
 #include <plat/pxa27x_keypad.h>
 #include <mach/littleton.h>
 #include <plat/i2c.h>
@@ -438,7 +438,7 @@ static void __init littleton_init(void)
 
 MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleton)")
 	.boot_params	= 0xa0000100,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa3xx_map_io,
 	.nr_irqs	= LITTLETON_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,

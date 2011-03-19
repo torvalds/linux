@@ -344,7 +344,20 @@ static struct platform_device tsc_device = {
 
 void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 {
-	int i;
+	int i, error;
+	struct clk *tsc_clk;
+
+	/*
+	 * The reset defaults for tnetv107x tsc clock divider is set too high.
+	 * This forces the clock down to a range that allows the ADC to
+	 * complete sample conversion in time.
+	 */
+	tsc_clk = clk_get(NULL, "sys_tsc_clk");
+	if (tsc_clk) {
+		error = clk_set_rate(tsc_clk, 5000000);
+		WARN_ON(error < 0);
+		clk_put(tsc_clk);
+	}
 
 	platform_device_register(&edma_device);
 	platform_device_register(&tnetv107x_wdt_device);

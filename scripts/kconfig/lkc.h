@@ -14,6 +14,7 @@
 static inline const char *gettext(const char *txt) { return txt; }
 static inline void textdomain(const char *domainname) {}
 static inline void bindtextdomain(const char *name, const char *dir) {}
+static inline char *bind_textdomain_codeset(const char *dn, char *c) { return c; }
 #endif
 
 #ifdef __cplusplus
@@ -67,10 +68,12 @@ struct kconf_id {
 	enum symbol_type stype;
 };
 
+#ifdef YYDEBUG
+extern int zconfdebug;
+#endif
+
 int zconfparse(void);
 void zconfdump(FILE *out);
-
-extern int zconfdebug;
 void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
@@ -107,6 +110,7 @@ void menu_end_menu(void);
 void menu_add_entry(struct symbol *sym);
 void menu_end_entry(void);
 void menu_add_dep(struct expr *dep);
+void menu_add_visibility(struct expr *dep);
 struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *expr, struct expr *dep);
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);

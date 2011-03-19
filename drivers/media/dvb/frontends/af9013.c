@@ -334,11 +334,11 @@ static int af9013_set_freq_ctrl(struct af9013_state *state, fe_bandwidth_t bw)
 				if_sample_freq = 3300000; /* 3.3 MHz */
 				break;
 			case BANDWIDTH_7_MHZ:
-				if_sample_freq = 3800000; /* 3.8 MHz */
+				if_sample_freq = 3500000; /* 3.5 MHz */
 				break;
 			case BANDWIDTH_8_MHZ:
 			default:
-				if_sample_freq = 4300000; /* 4.3 MHz */
+				if_sample_freq = 4000000; /* 4.0 MHz */
 				break;
 			}
 		} else if (state->config.tuner == AF9013_TUNER_TDA18218) {
@@ -964,7 +964,7 @@ error:
 static int af9013_update_signal_strength(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
-	int ret;
+	int ret = 0;
 	u8 rf_gain, if_gain;
 	int signal_strength;
 

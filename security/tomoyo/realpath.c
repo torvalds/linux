@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include "common.h"
+#include "../../fs/internal.h"
 
 /**
  * tomoyo_encode: Convert binary string to ascii string.

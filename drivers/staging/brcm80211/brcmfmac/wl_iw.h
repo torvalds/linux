@@ -78,7 +78,7 @@ typedef struct wl_iw_extra_params {
 
 #define CHECK_EXTRA_FOR_NULL(extra) \
 if (!extra) { \
-	WL_ERROR(("%s: error : extra is null pointer\n", __func__)); \
+	WL_ERROR("%s: error : extra is null pointer\n", __func__);	\
 	return -EINVAL; \
 }
 

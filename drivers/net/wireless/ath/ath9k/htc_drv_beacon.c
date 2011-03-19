@@ -123,11 +123,11 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 	/* TSF out of range threshold fixed at 1 second */
 	bs.bs_tsfoor_threshold = ATH9K_TSFOOR_THRESHOLD;
 
-	ath_print(common, ATH_DBG_BEACON, "tsf: %llu tsftu: %u\n", tsf, tsftu);
-	ath_print(common, ATH_DBG_BEACON,
-		  "bmiss: %u sleep: %u cfp-period: %u maxdur: %u next: %u\n",
-		  bs.bs_bmissthreshold, bs.bs_sleepduration,
-		  bs.bs_cfpperiod, bs.bs_cfpmaxduration, bs.bs_cfpnext);
+	ath_dbg(common, ATH_DBG_BEACON, "tsf: %llu tsftu: %u\n", tsf, tsftu);
+	ath_dbg(common, ATH_DBG_BEACON,
+		"bmiss: %u sleep: %u cfp-period: %u maxdur: %u next: %u\n",
+		bs.bs_bmissthreshold, bs.bs_sleepduration,
+		bs.bs_cfpperiod, bs.bs_cfpmaxduration, bs.bs_cfpnext);
 
 	/* Set the computed STA beacon timers */
 
@@ -154,9 +154,9 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	if (priv->op_flags & OP_ENABLE_BEACON)
 		imask |= ATH9K_INT_SWBA;
 
-	ath_print(common, ATH_DBG_BEACON,
-		  "IBSS Beacon config, intval: %d, imask: 0x%x\n",
-		  bss_conf->beacon_interval, imask);
+	ath_dbg(common, ATH_DBG_BEACON,
+		"IBSS Beacon config, intval: %d, imask: 0x%x\n",
+		bss_conf->beacon_interval, imask);
 
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	ath9k_hw_beaconinit(priv->ah, nexttbtt, intval);
@@ -246,8 +246,8 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 	qi.tqi_cwmax = qi_be.tqi_cwmax;
 
 	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Unable to update beacon queue %u!\n", qnum);
+		ath_err(ath9k_hw_common(ah),
+			"Unable to update beacon queue %u!\n", qnum);
 	} else {
 		ath9k_hw_resettxqueue(ah, priv->beaconq);
 	}
@@ -278,8 +278,8 @@ void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 		ath9k_htc_beacon_config_adhoc(priv, cur_conf);
 		break;
 	default:
-		ath_print(common, ATH_DBG_CONFIG,
-			  "Unsupported beaconing mode\n");
+		ath_dbg(common, ATH_DBG_CONFIG,
+			"Unsupported beaconing mode\n");
 		return;
 	}
 }

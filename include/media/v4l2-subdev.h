@@ -106,10 +106,7 @@ struct v4l2_subdev_io_pin_config {
 	u8 strength;	/* Pin drive strength */
 };
 
-/* s_config: if set, then it is always called by the v4l2_i2c_new_subdev*
-	functions after the v4l2_subdev was registered. It is used to pass
-	platform data to the subdev which can be used during initialization.
-
+/*
    s_io_pin_config: configure one or more chip I/O pins for chips that
 	multiplex different internal signal pads out to IO pins.  This function
 	takes a pointer to an array of 'n' pin configuration entries, one for
@@ -141,7 +138,6 @@ struct v4l2_subdev_io_pin_config {
 struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
-	int (*s_config)(struct v4l2_subdev *sd, int irq, void *platform_data);
 	int (*s_io_pin_config)(struct v4l2_subdev *sd, size_t n,
 				      struct v4l2_subdev_io_pin_config *pincfg);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
@@ -415,6 +411,21 @@ struct v4l2_subdev_ops {
 	const struct v4l2_subdev_sensor_ops	*sensor;
 };
 
+/*
+ * Internal ops. Never call this from drivers, only the v4l2 framework can call
+ * these ops.
+ *
+ * registered: called when this subdev is registered. When called the v4l2_dev
+ *	field is set to the correct v4l2_device.
+ *
+ * unregistered: called when this subdev is unregistered. When called the
+ *	v4l2_dev field is still set to the correct v4l2_device.
+ */
+struct v4l2_subdev_internal_ops {
+	int (*registered)(struct v4l2_subdev *sd);
+	void (*unregistered)(struct v4l2_subdev *sd);
+};
+
 #define V4L2_SUBDEV_NAME_SIZE 32
 
 /* Set this flag if this subdev is a i2c device. */
@@ -431,6 +442,8 @@ struct v4l2_subdev {
 	u32 flags;
 	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
+	/* Never call these internal ops from within a driver! */
+	const struct v4l2_subdev_internal_ops *internal_ops;
 	/* The control handler of this subdev. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
 	/* name must be unique */

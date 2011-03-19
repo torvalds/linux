@@ -11,7 +11,7 @@ endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
-obj-y	:= clkdev.o debugtraps.o dma-nommu.o dumpstack.o 		\
+obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 		\
 	   idle.o io.o irq.o irq_$(BITS).o kdebugfs.o			\
 	   machvec.o nmi_debug.o process.o				\
 	   process_$(BITS).o ptrace.o ptrace_$(BITS).o			\
@@ -19,6 +19,11 @@ obj-y	:= clkdev.o debugtraps.o dma-nommu.o dumpstack.o 		\
 	   setup.o signal_$(BITS).o sys_sh.o sys_sh$(BITS).o		\
 	   syscalls_$(BITS).o time.o topology.o traps.o			\
 	   traps_$(BITS).o unwinder.o
+
+ifndef CONFIG_GENERIC_IOMAP
+obj-y				+= iomap.o
+obj-$(CONFIG_HAS_IOPORT)	+= ioport.o
+endif
 
 obj-y				+= cpu/
 obj-$(CONFIG_VSYSCALL)		+= vsyscall/
@@ -39,7 +44,6 @@ obj-$(CONFIG_DUMP_CODE)		+= disassemble.o
 obj-$(CONFIG_HIBERNATION)	+= swsusp.o
 obj-$(CONFIG_DWARF_UNWINDER)	+= dwarf.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_callchain.o
-obj-$(CONFIG_HAS_IOPORT)	+= io_generic.o
 
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)		+= hw_breakpoint.o
 obj-$(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)	+= localtimer.o

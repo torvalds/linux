@@ -185,7 +185,6 @@ static void __init boot_flags_init(char *commands)
 
 extern void sun4c_probe_vac(void);
 extern char cputypval;
-extern unsigned long start, end;
 
 extern unsigned short root_flags;
 extern unsigned short root_dev;
@@ -210,7 +209,7 @@ void __init setup_arch(char **cmdline_p)
 	int i;
 	unsigned long highest_paddr;
 
-	sparc_ttable = (struct tt_entry *) &start;
+	sparc_ttable = (struct tt_entry *) &trapbase;
 
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();

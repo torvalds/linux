@@ -1097,7 +1097,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	enet_dma_writel(priv, 0, ENETDMA_IRMASK_REG(priv->tx_chan));
 
 	/* make sure no mib update is scheduled */
-	flush_scheduled_work();
+	cancel_work_sync(&priv->mib_update_task);
 
 	/* disable dma & mac */
 	bcm_enet_disable_dma(priv, priv->tx_chan);

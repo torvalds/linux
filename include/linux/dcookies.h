@@ -13,10 +13,10 @@
 #ifdef CONFIG_PROFILING
  
 #include <linux/dcache.h>
-#include <linux/path.h>
 #include <linux/types.h>
  
 struct dcookie_user;
+struct path;
  
 /**
  * dcookie_register - register a user of dcookies

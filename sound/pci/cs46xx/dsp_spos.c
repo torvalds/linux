@@ -225,39 +225,25 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 {
 	struct dsp_spos_instance * ins = kzalloc(sizeof(struct dsp_spos_instance), GFP_KERNEL);
 
-	if (ins == NULL) 
+	if (ins == NULL)
 		return NULL;
 
 	/* better to use vmalloc for this big table */
-	ins->symbol_table.nsymbols = 0;
 	ins->symbol_table.symbols = vmalloc(sizeof(struct dsp_symbol_entry) *
 					    DSP_MAX_SYMBOLS);
-	ins->symbol_table.highest_frag_index = 0;
-
-	if (ins->symbol_table.symbols == NULL) {
+	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
+	ins->modules = kmalloc(sizeof(struct dsp_module_desc) * DSP_MAX_MODULES, GFP_KERNEL);
+	if (!ins->symbol_table.symbols || !ins->code.data || !ins->modules) {
 		cs46xx_dsp_spos_destroy(chip);
 		goto error;
 	}
-
+	ins->symbol_table.nsymbols = 0;
+	ins->symbol_table.highest_frag_index = 0;
 	ins->code.offset = 0;
 	ins->code.size = 0;
-	ins->code.data = kmalloc(DSP_CODE_BYTE_SIZE, GFP_KERNEL);
-
-	if (ins->code.data == NULL) {
-		cs46xx_dsp_spos_destroy(chip);
-		goto error;
-	}
-
 	ins->nscb = 0;
 	ins->ntask = 0;
-
 	ins->nmodules = 0;
-	ins->modules = kmalloc(sizeof(struct dsp_module_desc) * DSP_MAX_MODULES, GFP_KERNEL);
-
-	if (ins->modules == NULL) {
-		cs46xx_dsp_spos_destroy(chip);
-		goto error;
-	}
 
 	/* default SPDIF input sample rate
 	   to 48000 khz */
@@ -271,8 +257,8 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 
 	/* set left and right validity bits and
 	   default channel status */
-	ins->spdif_csuv_default = 
-		ins->spdif_csuv_stream =  
+	ins->spdif_csuv_default =
+		ins->spdif_csuv_stream =
 	 /* byte 0 */  ((unsigned int)_wrap_all_bits(  (SNDRV_PCM_DEFAULT_CON_SPDIF        & 0xff)) << 24) |
 	 /* byte 1 */  ((unsigned int)_wrap_all_bits( ((SNDRV_PCM_DEFAULT_CON_SPDIF >> 8) & 0xff)) << 16) |
 	 /* byte 3 */   (unsigned int)_wrap_all_bits(  (SNDRV_PCM_DEFAULT_CON_SPDIF >> 24) & 0xff) |
@@ -281,6 +267,9 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 	return ins;
 
 error:
+	kfree(ins->modules);
+	kfree(ins->code.data);
+	vfree(ins->symbol_table.symbols);
 	kfree(ins);
 	return NULL;
 }

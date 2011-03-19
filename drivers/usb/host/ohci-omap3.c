@@ -648,7 +648,7 @@ static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
 
 	ret = omap3_start_ohci(omap, hcd);
 	if (ret) {
-		dev_dbg(&pdev->dev, "failed to start ehci\n");
+		dev_dbg(&pdev->dev, "failed to start ohci\n");
 		goto err_start;
 	}
 

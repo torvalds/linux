@@ -458,7 +458,7 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 	fattr = nfs_alloc_fattr();
 	status = -ENOMEM;
 	if (fh == NULL || fattr == NULL)
-		goto out;
+		goto out_free;
 
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_mark_for_revalidate(dir);
@@ -471,6 +471,7 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 	if (status == 0)
 		status = nfs_instantiate(dentry, fh, fattr);
 
+out_free:
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fh);
 out:
@@ -731,7 +732,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.statfs		= nfs_proc_statfs,
 	.fsinfo		= nfs_proc_fsinfo,
 	.pathconf	= nfs_proc_pathconf,
-	.decode_dirent	= nfs_decode_dirent,
+	.decode_dirent	= nfs2_decode_dirent,
 	.read_setup	= nfs_proc_read_setup,
 	.read_done	= nfs_read_done,
 	.write_setup	= nfs_proc_write_setup,

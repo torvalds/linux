@@ -1,4 +1,4 @@
-/* request_key_auth.c: request key authorisation controlling key def
+/* Request key authorisation token key definition.
  *
  * Copyright (C) 2005 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -26,7 +26,7 @@ static void request_key_auth_destroy(struct key *);
 static long request_key_auth_read(const struct key *, char __user *, size_t);
 
 /*
- * the request-key authorisation key type definition
+ * The request-key authorisation key type definition.
  */
 struct key_type key_type_request_key_auth = {
 	.name		= ".request_key_auth",
@@ -38,9 +38,8 @@ struct key_type key_type_request_key_auth = {
 	.read		= request_key_auth_read,
 };
 
-/*****************************************************************************/
 /*
- * instantiate a request-key authorisation key
+ * Instantiate a request-key authorisation key.
  */
 static int request_key_auth_instantiate(struct key *key,
 					const void *data,
@@ -48,12 +47,10 @@ static int request_key_auth_instantiate(struct key *key,
 {
 	key->payload.data = (struct request_key_auth *) data;
 	return 0;
+}
 
-} /* end request_key_auth_instantiate() */
-
-/*****************************************************************************/
 /*
- * reading a request-key authorisation key retrieves the callout information
+ * Describe an authorisation token.
  */
 static void request_key_auth_describe(const struct key *key,
 				      struct seq_file *m)
@@ -63,12 +60,10 @@ static void request_key_auth_describe(const struct key *key,
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
 	seq_printf(m, " pid:%d ci:%zu", rka->pid, rka->callout_len);
+}
 
-} /* end request_key_auth_describe() */
-
-/*****************************************************************************/
 /*
- * read the callout_info data
+ * Read the callout_info data (retrieves the callout information).
  * - the key's semaphore is read-locked
  */
 static long request_key_auth_read(const struct key *key,
@@ -91,13 +86,12 @@ static long request_key_auth_read(const struct key *key,
 	}
 
 	return ret;
+}
 
-} /* end request_key_auth_read() */
-
-/*****************************************************************************/
 /*
- * handle revocation of an authorisation token key
- * - called with the key sem write-locked
+ * Handle revocation of an authorisation token key.
+ *
+ * Called with the key sem write-locked.
  */
 static void request_key_auth_revoke(struct key *key)
 {
@@ -109,12 +103,10 @@ static void request_key_auth_revoke(struct key *key)
 		put_cred(rka->cred);
 		rka->cred = NULL;
 	}
+}
 
-} /* end request_key_auth_revoke() */
-
-/*****************************************************************************/
 /*
- * destroy an instantiation authorisation token key
+ * Destroy an instantiation authorisation token key.
  */
 static void request_key_auth_destroy(struct key *key)
 {
@@ -131,13 +123,11 @@ static void request_key_auth_destroy(struct key *key)
 	key_put(rka->dest_keyring);
 	kfree(rka->callout_info);
 	kfree(rka);
+}
 
-} /* end request_key_auth_destroy() */
-
-/*****************************************************************************/
 /*
- * create an authorisation token for /sbin/request-key or whoever to gain
- * access to the caller's security data
+ * Create an authorisation token for /sbin/request-key or whoever to gain
+ * access to the caller's security data.
  */
 struct key *request_key_auth_new(struct key *target, const void *callout_info,
 				 size_t callout_len, struct key *dest_keyring)
@@ -228,12 +218,10 @@ error_alloc:
 	kfree(rka);
 	kleave("= %d", ret);
 	return ERR_PTR(ret);
+}
 
-} /* end request_key_auth_new() */
-
-/*****************************************************************************/
 /*
- * see if an authorisation key is associated with a particular key
+ * See if an authorisation key is associated with a particular key.
  */
 static int key_get_instantiation_authkey_match(const struct key *key,
 					       const void *_id)
@@ -242,16 +230,11 @@ static int key_get_instantiation_authkey_match(const struct key *key,
 	key_serial_t id = (key_serial_t)(unsigned long) _id;
 
 	return rka->target_key->serial == id;
+}
 
-} /* end key_get_instantiation_authkey_match() */
-
-/*****************************************************************************/
 /*
- * get the authorisation key for instantiation of a specific key if attached to
- * the current process's keyrings
- * - this key is inserted into a keyring and that is set as /sbin/request-key's
- *   session keyring
- * - a target_id of zero specifies any valid token
+ * Search the current process's keyrings for the authorisation key for
+ * instantiation of a key.
  */
 struct key *key_get_instantiation_authkey(key_serial_t target_id)
 {
@@ -278,5 +261,4 @@ struct key *key_get_instantiation_authkey(key_serial_t target_id)
 
 error:
 	return authkey;
-
-} /* end key_get_instantiation_authkey() */
+}

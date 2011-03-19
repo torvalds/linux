@@ -17,7 +17,6 @@
 #define _LINUX_FIRMWARE_MAP_H
 
 #include <linux/list.h>
-#include <linux/kobject.h>
 
 /*
  * provide a dummy interface if CONFIG_FIRMWARE_MEMMAP is disabled

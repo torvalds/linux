@@ -19,9 +19,6 @@
 
 #include <hndsoc.h>
 
-#if !defined(WLC_LOW)
-#include "bcm_rpc.h"
-#endif
 /*
  * Data structure to export all chip specific common variables
  *   public (read-only) portion of siutils handle returned by si_attach()
@@ -50,19 +47,12 @@ struct si_pub {
 	uint socirev;		/* SOC interconnect rev */
 	bool pci_pr32414;
 
-#if !defined(WLC_LOW)
-	rpc_info_t *rpc;
-#endif
 };
 
 /* for HIGH_ONLY driver, the si_t must be writable to allow states sync from BMAC to HIGH driver
  * for monolithic driver, it is readonly to prevent accident change
  */
-#if !defined(WLC_LOW)
-typedef struct si_pub si_t;
-#else
 typedef const struct si_pub si_t;
-#endif
 
 /*
  * Many of the routines below take an 'sih' handle as their first arg.
@@ -128,8 +118,8 @@ typedef void (*gpio_handler_t) (u32 stat, void *arg);
 #define GPIO_CTRL_EPA_EN_MASK 0x40
 
 /* === exported functions === */
-extern si_t *si_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
-		       void *sdh, char **vars, uint *varsz);
+extern si_t *si_attach(uint pcidev, struct osl_info *osh, void *regs,
+		       uint bustype, void *sdh, char **vars, uint *varsz);
 
 extern void si_detach(si_t *sih);
 extern bool si_pci_war16165(si_t *sih);
@@ -138,7 +128,7 @@ extern uint si_coreid(si_t *sih);
 extern uint si_flag(si_t *sih);
 extern uint si_coreidx(si_t *sih);
 extern uint si_corerev(si_t *sih);
-extern void *si_osh(si_t *sih);
+struct osl_info *si_osh(si_t *sih);
 extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		uint val);
 extern void si_write_wrapperreg(si_t *sih, u32 offset, u32 val);
@@ -227,7 +217,7 @@ typedef struct gpioh_item {
 /* misc si info needed by some of the routines */
 typedef struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first field) */
-	void *osh;		/* osl os handle */
+	struct osl_info *osh;		/* osl os handle */
 	void *sdh;		/* bcmsdh handle */
 	uint dev_coreid;	/* the core provides driver functions */
 	void *intr_arg;		/* interrupt callback function arg */
@@ -305,9 +295,9 @@ typedef struct si_info {
 #define	ILP_DIV_5MHZ		0	/* ILP = 5 MHz */
 #define	ILP_DIV_1MHZ		4	/* ILP = 1 MHz */
 
-#define PCI(si)		((BUSTYPE((si)->pub.bustype) == PCI_BUS) &&	\
+#define PCI(si)		(((si)->pub.bustype == PCI_BUS) &&	\
 			 ((si)->pub.buscoretype == PCI_CORE_ID))
-#define PCIE(si)	((BUSTYPE((si)->pub.bustype) == PCI_BUS) &&	\
+#define PCIE(si)	(((si)->pub.bustype == PCI_BUS) &&	\
 			 ((si)->pub.buscoretype == PCIE_CORE_ID))
 #define PCI_FORCEHT(si)	\
 	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))
@@ -344,9 +334,9 @@ extern void si_epa_4313war(si_t *sih);
 char *si_getnvramflvar(si_t *sih, const char *name);
 
 /* AMBA Interconnect exported externs */
-extern si_t *ai_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
-		       void *sdh, char **vars, uint *varsz);
-extern si_t *ai_kattach(osl_t *osh);
+extern si_t *ai_attach(uint pcidev, struct osl_info *osh, void *regs,
+		       uint bustype, void *sdh, char **vars, uint *varsz);
+extern si_t *ai_kattach(struct osl_info *osh);
 extern void ai_scan(si_t *sih, void *regs, uint devid);
 
 extern uint ai_flag(si_t *sih);

@@ -35,4 +35,6 @@ int ui_helpline__show_help(const char *format, va_list ap);
 #include "ui/progress.h"
 #endif
 
+void ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
+
 #endif	/* __PERF_DEBUG_H */

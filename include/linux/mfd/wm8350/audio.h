@@ -522,9 +522,6 @@
 #define WM8350_MCLK_SEL_PLL_32K			3
 #define WM8350_MCLK_SEL_MCLK			5
 
-#define WM8350_MCLK_DIR_OUT			0
-#define WM8350_MCLK_DIR_IN			1
-
 /* clock divider id's */
 #define WM8350_ADC_CLKDIV			0
 #define WM8350_DAC_CLKDIV			1

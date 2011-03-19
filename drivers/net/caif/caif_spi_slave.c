@@ -36,10 +36,15 @@ static inline int forward_to_spi_cmd(struct cfspi *cfspi)
 #endif
 
 int spi_frm_align = 2;
-int spi_up_head_align = 1;
-int spi_up_tail_align;
-int spi_down_head_align = 3;
-int spi_down_tail_align = 1;
+
+/*
+ * SPI padding options.
+ * Warning: must be a base of 2 (& operation used) and can not be zero !
+ */
+int spi_up_head_align   = 1 << 1;
+int spi_up_tail_align   = 1 << 0;
+int spi_down_head_align = 1 << 2;
+int spi_down_tail_align = 1 << 1;
 
 #ifdef CONFIG_DEBUG_FS
 static inline void debugfs_store_prev(struct cfspi *cfspi)

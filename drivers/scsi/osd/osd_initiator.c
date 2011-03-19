@@ -951,8 +951,8 @@ static int _osd_req_finalize_cdb_cont(struct osd_request *or, const u8 *cap_key)
 	/* create a bio for continuation segment */
 	bio = bio_map_kern(req_q, or->cdb_cont.buff, or->cdb_cont.total_bytes,
 			   GFP_KERNEL);
-	if (unlikely(!bio))
-		return -ENOMEM;
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
 
 	bio->bi_rw |= REQ_WRITE;
 

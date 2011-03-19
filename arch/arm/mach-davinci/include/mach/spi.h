@@ -19,26 +19,66 @@
 #ifndef __ARCH_ARM_DAVINCI_SPI_H
 #define __ARCH_ARM_DAVINCI_SPI_H
 
+#define SPI_INTERN_CS	0xFF
+
 enum {
 	SPI_VERSION_1, /* For DM355/DM365/DM6467 */
 	SPI_VERSION_2, /* For DA8xx */
 };
 
+/**
+ * davinci_spi_platform_data - Platform data for SPI master device on DaVinci
+ *
+ * @version:	version of the SPI IP. Different DaVinci devices have slightly
+ *		varying versions of the same IP.
+ * @num_chipselect: number of chipselects supported by this SPI master
+ * @intr_line:	interrupt line used to connect the SPI IP to the ARM interrupt
+ *		controller withn the SoC. Possible values are 0 and 1.
+ * @chip_sel:	list of GPIOs which can act as chip-selects for the SPI.
+ *		SPI_INTERN_CS denotes internal SPI chip-select. Not necessary
+ *		to populate if all chip-selects are internal.
+ * @cshold_bug:	set this to true if the SPI controller on your chip requires
+ *		a write to CSHOLD bit in between transfers (like in DM355).
+ */
 struct davinci_spi_platform_data {
 	u8	version;
 	u8	num_chipselect;
+	u8	intr_line;
+	u8	*chip_sel;
+	bool	cshold_bug;
+};
+
+/**
+ * davinci_spi_config - Per-chip-select configuration for SPI slave devices
+ *
+ * @wdelay:	amount of delay between transmissions. Measured in number of
+ *		SPI module clocks.
+ * @odd_parity:	polarity of parity flag at the end of transmit data stream.
+ *		0 - odd parity, 1 - even parity.
+ * @parity_enable: enable transmission of parity at end of each transmit
+ *		data stream.
+ * @io_type:	type of IO transfer. Choose between polled, interrupt and DMA.
+ * @timer_disable: disable chip-select timers (setup and hold)
+ * @c2tdelay:	chip-select setup time. Measured in number of SPI module clocks.
+ * @t2cdelay:	chip-select hold time. Measured in number of SPI module clocks.
+ * @t2edelay:	transmit data finished to SPI ENAn pin inactive time. Measured
+ *		in number of SPI clocks.
+ * @c2edelay:	chip-select active to SPI ENAn signal active time. Measured in
+ *		number of SPI clocks.
+ */
+struct davinci_spi_config {
 	u8	wdelay;
 	u8	odd_parity;
 	u8	parity_enable;
-	u8	wait_enable;
+#define SPI_IO_TYPE_INTR	0
+#define SPI_IO_TYPE_POLL	1
+#define SPI_IO_TYPE_DMA		2
+	u8	io_type;
 	u8	timer_disable;
-	u8	clk_internal;
-	u8	cs_hold;
-	u8	intr_level;
-	u8	poll_mode;
-	u8	use_dma;
 	u8	c2tdelay;
 	u8	t2cdelay;
+	u8	t2edelay;
+	u8	c2edelay;
 };
 
 #endif	/* __ARCH_ARM_DAVINCI_SPI_H */

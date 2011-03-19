@@ -90,7 +90,7 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_debug_fwtrc(&bfad->bfa,
+	rc = bfa_ioc_debug_fwtrc(&bfad->bfa.ioc,
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -134,7 +134,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_debug_fwsave(&bfad->bfa,
+	rc = bfa_ioc_debug_fwsave(&bfad->bfa.ioc,
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -208,7 +208,7 @@ bfad_debugfs_read(struct file *file, char __user *buf,
 	if (!debug || !debug->debug_buffer)
 		return 0;
 
-	return memory_read_from_buffer(buf, nbytes, pos,
+	return simple_read_from_buffer(buf, nbytes, pos,
 				debug->debug_buffer, debug->buffer_len);
 }
 
@@ -254,7 +254,7 @@ bfad_debugfs_read_regrd(struct file *file, char __user *buf,
 	if (!bfad->regdata)
 		return 0;
 
-	rc = memory_read_from_buffer(buf, nbytes, pos,
+	rc = simple_read_from_buffer(buf, nbytes, pos,
 			bfad->regdata, bfad->reglen);
 
 	if ((*pos + nbytes) >= bfad->reglen) {
@@ -279,15 +279,31 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	u32 *regbuf;
 	void __iomem *rb, *reg_addr;
 	unsigned long flags;
+	void *kern_buf;
 
-	rc = sscanf(buf, "%x:%x", &addr, &len);
+	kern_buf = kzalloc(nbytes, GFP_KERNEL);
+
+	if (!kern_buf) {
+		printk(KERN_INFO "bfad[%d]: Failed to allocate buffer\n",
+				bfad->inst_no);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
+		kfree(kern_buf);
+		return -ENOMEM;
+	}
+
+	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
 	if (rc < 2) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
 			bfad->inst_no, __func__);
+		kfree(kern_buf);
 		return -EINVAL;
 	}
 
+	kfree(kern_buf);
 	kfree(bfad->regdata);
 	bfad->regdata = NULL;
 	bfad->reglen = 0;
@@ -339,14 +355,30 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	int addr, val, rc;
 	void __iomem *reg_addr;
 	unsigned long flags;
+	void *kern_buf;
 
-	rc = sscanf(buf, "%x:%x", &addr, &val);
+	kern_buf = kzalloc(nbytes, GFP_KERNEL);
+
+	if (!kern_buf) {
+		printk(KERN_INFO "bfad[%d]: Failed to allocate buffer\n",
+				bfad->inst_no);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
+		kfree(kern_buf);
+		return -ENOMEM;
+	}
+
+	rc = sscanf(kern_buf, "%x:%x", &addr, &val);
 	if (rc < 2) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
 			bfad->inst_no, __func__);
+		kfree(kern_buf);
 		return -EINVAL;
 	}
+	kfree(kern_buf);
 
 	addr &= BFA_REG_ADDRMSK(bfa); /* offset only 17 bit and word align */
 
@@ -359,7 +391,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 		return -EINVAL;
 	}
 
-	reg_addr = (u32 *) ((u8 *) bfa_ioc_bar0(ioc) + addr);
+	reg_addr = (bfa_ioc_bar0(ioc)) + addr;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	writel(val, reg_addr);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);

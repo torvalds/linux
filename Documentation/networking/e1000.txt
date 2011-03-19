@@ -79,7 +79,7 @@ InterruptThrottleRate
 ---------------------
 (not supported on Intel(R) 82542, 82543 or 82544-based adapters)
 Valid Range:   0,1,3,4,100-100000 (0=off, 1=dynamic, 3=dynamic conservative,
-                                   4=simplified balancing)
+                                 4=simplified balancing)
 Default Value: 3
 
 The driver can limit the amount of interrupts per second that the adapter
@@ -124,8 +124,8 @@ InterruptThrottleRate is set to mode 1. In this mode, which operates
 the same as mode 3, the InterruptThrottleRate will be increased stepwise to
 70000 for traffic in class "Lowest latency".
 
-In simplified mode the interrupt rate is based on the ratio of Tx and
-Rx traffic.  If the bytes per second rate is approximately equal, the
+In simplified mode the interrupt rate is based on the ratio of TX and
+RX traffic.  If the bytes per second rate is approximately equal, the
 interrupt rate will drop as low as 2000 interrupts per second.  If the
 traffic is mostly transmit or mostly receive, the interrupt rate could
 be as high as 8000.
@@ -245,7 +245,7 @@ NOTE:  Depending on the available system resources, the request for a
 TxDescriptorStep
 ----------------
 Valid Range:    1 (use every Tx Descriptor)
-		4 (use every 4th Tx Descriptor)
+                4 (use every 4th Tx Descriptor)
 
 Default Value:  1 (use every Tx Descriptor)
 
@@ -312,7 +312,7 @@ Valid Range:   0-xxxxxxx (0=off)
 Default Value: 256
 Usage: insmod e1000.ko copybreak=128
 
-Driver copies all packets below or equaling this size to a fresh Rx
+Driver copies all packets below or equaling this size to a fresh RX
 buffer before handing it up the stack.
 
 This parameter is different than other parameters, in that it is a
@@ -431,15 +431,15 @@ Additional Configurations
   Ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.  Ethtool
+  diagnostics, as well as displaying statistical information.  The ethtool
   version 1.6 or later is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://sourceforge.net/projects/gkernel.
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
   Enabling Wake on LAN* (WoL)
   ---------------------------
-  WoL is configured through the Ethtool* utility.
+  WoL is configured through the ethtool* utility.
 
   WoL will be enabled on the system during the next shut down or reboot.
   For this driver version, in order to enable WoL, the e1000 driver must be

@@ -60,7 +60,7 @@ struct lx_stream {
 	snd_pcm_uframes_t          frame_pos;
 	enum lx_stream_status      status; /* free, open, running, draining
 					    * pause */
-	int                        is_capture:1;
+	unsigned int               is_capture:1;
 };
 
 

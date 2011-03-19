@@ -51,11 +51,15 @@ static void saa7164_vbi_configure(struct saa7164_port *port)
 	/* Set up the DIF (enable it) for analog mode by default */
 	saa7164_api_initialize_dif(port);
 
-//	/* Configure the correct video standard */
-//	saa7164_api_configure_dif(port, port->encodernorm.id);
+	/* Configure the correct video standard */
+#if 0
+	saa7164_api_configure_dif(port, port->encodernorm.id);
+#endif
 
-//	/* Ensure the audio decoder is correct configured */
-//	saa7164_api_set_audio_std(port);
+#if 0
+	/* Ensure the audio decoder is correct configured */
+	saa7164_api_set_audio_std(port);
+#endif
 	dprintk(DBGLVL_VBI, "%s() ends\n", __func__);
 }
 
@@ -919,8 +923,10 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 	saa7164_vbi_buffers_alloc(port);
 
 	/* Configure the encoder with any cache values */
-//	saa7164_api_set_encoder(port);
-//	saa7164_api_get_encoder(port);
+#if 0
+	saa7164_api_set_encoder(port);
+	saa7164_api_get_encoder(port);
+#endif
 
 	/* Place the empty buffers on the hardware */
 	saa7164_buffer_cfg_port(port);
@@ -1060,7 +1066,8 @@ struct saa7164_user_buffer *saa7164_vbi_next_buf(struct saa7164_port *port)
 		if (crc_checking) {
 			crc = crc32(0, ubuf->data, ubuf->actual_size);
 			if (crc != ubuf->crc) {
-				printk(KERN_ERR "%s() ubuf %p crc became invalid, was 0x%x became 0x%x\n", __func__,
+				printk(KERN_ERR "%s() ubuf %p crc became invalid, was 0x%x became 0x%x\n",
+					__func__,
 					ubuf, ubuf->crc, crc);
 			}
 		}
@@ -1148,9 +1155,8 @@ static ssize_t fops_read(struct file *file, char __user *buffer,
 		buffer += cnt;
 		ret += cnt;
 
-		if (ubuf->pos > ubuf->actual_size) {
+		if (ubuf->pos > ubuf->actual_size)
 			printk(KERN_ERR "read() pos > actual, huh?\n");
-		}
 
 		if (ubuf->pos == ubuf->actual_size) {
 
@@ -1197,9 +1203,8 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	saa7164_histogram_update(&port->poll_interval,
 		port->last_poll_msecs_diff);
 
-	if (!video_is_registered(port->v4l_device)) {
+	if (!video_is_registered(port->v4l_device))
 		return -EIO;
-	}
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
@@ -1257,10 +1262,14 @@ static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
 	.vidioc_try_ext_ctrls	 = vidioc_try_ext_ctrls,
 	.vidioc_log_status	 = vidioc_log_status,
 	.vidioc_queryctrl	 = vidioc_queryctrl,
-//	.vidioc_g_chip_ident	 = saa7164_g_chip_ident,
+#if 0
+	.vidioc_g_chip_ident	 = saa7164_g_chip_ident,
+#endif
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-//	.vidioc_g_register	 = saa7164_g_register,
-//	.vidioc_s_register	 = saa7164_s_register,
+#if 0
+	.vidioc_g_register	 = saa7164_g_register,
+	.vidioc_s_register	 = saa7164_s_register,
+#endif
 #endif
 	.vidioc_g_fmt_vbi_cap	 = saa7164_vbi_fmt,
 	.vidioc_try_fmt_vbi_cap	 = saa7164_vbi_fmt,

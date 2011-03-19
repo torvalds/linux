@@ -1988,12 +1988,11 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
 	}
 
 	ndev = alloc_etherdev(sizeof(struct ns83820));
-	dev = PRIV(ndev);
-
 	err = -ENOMEM;
-	if (!dev)
+	if (!ndev)
 		goto out;
 
+	dev = PRIV(ndev);
 	dev->ndev = ndev;
 
 	spin_lock_init(&dev->rx_info.lock);

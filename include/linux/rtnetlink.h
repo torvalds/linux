@@ -6,7 +6,6 @@
 #include <linux/if_link.h>
 #include <linux/if_addr.h>
 #include <linux/neighbour.h>
-#include <linux/netdevice.h>
 
 /* rtnetlink families. Values up to 127 are reserved for real address
  * families, values above 128 may be used arbitrarily.
@@ -606,6 +605,7 @@ struct tcamsg {
 #ifdef __KERNEL__
 
 #include <linux/mutex.h>
+#include <linux/netdevice.h>
 
 static __inline__ int rtattr_strcmp(const struct rtattr *rta, const char *str)
 {

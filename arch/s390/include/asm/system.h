@@ -20,6 +20,7 @@
 struct task_struct;
 
 extern struct task_struct *__switch_to(void *, void *);
+extern void update_per_regs(struct task_struct *task);
 
 static inline void save_fp_regs(s390_fp_regs *fpregs)
 {
@@ -93,6 +94,7 @@ static inline void restore_access_regs(unsigned int *acrs)
 	if (next->mm) {							\
 		restore_fp_regs(&next->thread.fp_regs);			\
 		restore_access_regs(&next->thread.acrs[0]);		\
+		update_per_regs(next);					\
 	}								\
 	prev = __switch_to(prev,next);					\
 } while (0)
@@ -101,11 +103,9 @@ extern void account_vtime(struct task_struct *, struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
 
 #ifdef CONFIG_PFAULT
-extern void pfault_irq_init(void);
 extern int pfault_init(void);
 extern void pfault_fini(void);
 #else /* CONFIG_PFAULT */
-#define pfault_irq_init()	do { } while (0)
 #define pfault_init()		({-1;})
 #define pfault_fini()		do { } while (0)
 #endif /* CONFIG_PFAULT */
@@ -449,7 +449,7 @@ extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);
 extern void (*_machine_power_off)(void);
 
-#define arch_align_stack(x) (x)
+extern unsigned long arch_align_stack(unsigned long sp);
 
 static inline int tprot(unsigned long addr)
 {

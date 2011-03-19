@@ -32,6 +32,7 @@
 
 	Revision History:
 	Who			When		  What
+	Justin P. Mattock	11/07/2010	  Fix a comments, and typos
 	--------	----------	  ----------------------------------------------
 */
 
@@ -43,7 +44,7 @@
 /* ================================================================================= */
 
 /* the first 24-byte in TXD is called TXINFO and will be DMAed to MAC block through TXFIFO. */
-/* MAC block use this TXINFO to control the transmission behavior of this frame. */
+/* MAC block uses this TXINFO to control the transmission behavior of this frame. */
 #define FIFO_MGMT                 0
 #define FIFO_HCCA                 1
 #define FIFO_EDCA                 2
@@ -458,8 +459,8 @@ typedef union _BBP_CSR_CFG_STRUC {
 /* */
 typedef union _RF_CSR_CFG0_STRUC {
 	struct {
-		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
-		u32 bitwidth:5;	/* Selected     BBP     register */
+		u32 RegIdAndContent:24;	/* Register value to program into BBP */
+		u32 bitwidth:5;	/* Selected BBP register */
 		u32 StandbyMode:1;	/* 0: high when stand by 1: low when standby */
 		u32 Sel:1;	/* 0:RF_LE0 activate  1:RF_LE1 activate */
 		u32 Busy:1;	/* 0: idle 1: 8busy */
@@ -469,7 +470,7 @@ typedef union _RF_CSR_CFG0_STRUC {
 #define RF_CSR_CFG1			0x1024
 typedef union _RF_CSR_CFG1_STRUC {
 	struct {
-		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 RegIdAndContent:24;	/* Register value to program into BBP */
 		u32 RFGap:5;	/* Gap between BB_CONTROL_RF and RF_LE. 0: 3 system clock cycle (37.5usec) 1: 5 system clock cycle (62.5usec) */
 		u32 rsv:7;	/* 0: idle 1: 8busy */
 	} field;
@@ -478,7 +479,7 @@ typedef union _RF_CSR_CFG1_STRUC {
 #define RF_CSR_CFG2			0x1028	/* */
 typedef union _RF_CSR_CFG2_STRUC {
 	struct {
-		u32 RegIdAndContent:24;	/* Register     value to program into BBP */
+		u32 RegIdAndContent:24;	/* Register value to program into BBP */
 		u32 rsv:8;	/* 0: idle 1: 8busy */
 	} field;
 	u32 word;
@@ -490,7 +491,7 @@ typedef union _LED_CFG_STRUC {
 		u32 OffPeriod:8;	/* blinking off period unit 1ms */
 		u32 SlowBlinkPeriod:6;	/* slow blinking period. unit:1ms */
 		u32 rsv:2;
-		u32 RLedMode:2;	/* red Led Mode    0: off1: blinking upon TX2: periodic slow blinking3: always on */
+		u32 RLedMode:2;	/* red Led Mode 0: off1: blinking upon TX2: periodic slow blinking3: always on */
 		u32 GLedMode:2;	/* green Led Mode */
 		u32 YLedMode:2;	/* yellow Led Mode */
 		u32 LedPolar:1;	/* Led Polarity.  0: active low1: active high */
@@ -621,9 +622,9 @@ typedef union _TX_TIMEOUT_CFG_STRUC {
 #define TX_RTY_CFG	0x134c
 typedef union PACKED _TX_RTY_CFG_STRUC {
 	struct {
-		u32 ShortRtyLimit:8;	/*  short retry limit */
-		u32 LongRtyLimit:8;	/*long retry limit */
-		u32 LongRtyThre:12;	/* Long retry threshoold */
+		u32 ShortRtyLimit:8;	/* short retry limit */
+		u32 LongRtyLimit:8;	/* long retry limit */
+		u32 LongRtyThre:12;	/* Long retry threshold */
 		u32 NonAggRtyMode:1;	/* Non-Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
 		u32 AggRtyMode:1;	/* Aggregate MPDU retry mode.  0:expired by retry limit, 1: expired by mpdu life timer */
 		u32 TxautoFBEnable:1;	/* Tx retry PHY rate auto fallback enable */

@@ -28,6 +28,7 @@
 #include <linux/phy.h>
 #include <linux/workqueue.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 
 #include <asm/uaccess.h>
@@ -2031,7 +2032,7 @@ static void ucc_geth_set_multi(struct net_device *dev)
 			netdev_for_each_mc_addr(ha, dev) {
 				/* Only support group multicast for now.
 				 */
-				if (!(ha->addr[0] & 1))
+				if (!is_multicast_ether_addr(ha->addr))
 					continue;
 
 				/* Ask CPM to run CRC and set bit in
@@ -2050,11 +2051,15 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 
 	ugeth_vdbg("%s: IN", __func__);
 
+	/*
+	 * Tell the kernel the link is down.
+	 * Must be done before disabling the controller
+	 * or deadlock may happen.
+	 */
+	phy_stop(phydev);
+
 	/* Disable the controller */
 	ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
-
-	/* Tell the kernel the link is down */
-	phy_stop(phydev);
 
 	/* Mask all interrupts */
 	out_be32(ugeth->uccf->p_uccm, 0x00000000);
@@ -2064,9 +2069,6 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 
 	/* Disable Rx and Tx */
 	clrbits32(&ug_regs->maccfg1, MACCFG1_ENABLE_RX | MACCFG1_ENABLE_TX);
-
-	phy_disconnect(ugeth->phydev);
-	ugeth->phydev = NULL;
 
 	ucc_geth_memclean(ugeth);
 }
@@ -3550,7 +3552,10 @@ static int ucc_geth_close(struct net_device *dev)
 
 	napi_disable(&ugeth->napi);
 
+	cancel_work_sync(&ugeth->timeout_work);
 	ucc_geth_stop(ugeth);
+	phy_disconnect(ugeth->phydev);
+	ugeth->phydev = NULL;
 
 	free_irq(ugeth->ug_info->uf_info.irq, ugeth->ndev);
 
@@ -3579,8 +3584,12 @@ static void ucc_geth_timeout_work(struct work_struct *work)
 		 * Must reset MAC *and* PHY. This is done by reopening
 		 * the device.
 		 */
-		ucc_geth_close(dev);
-		ucc_geth_open(dev);
+		netif_tx_stop_all_queues(dev);
+		ucc_geth_stop(ugeth);
+		ucc_geth_init_mac(ugeth);
+		/* Must start PHY here */
+		phy_start(ugeth->phydev);
+		netif_tx_start_all_queues(dev);
 	}
 
 	netif_tx_schedule_all(dev);
@@ -3594,7 +3603,6 @@ static void ucc_geth_timeout(struct net_device *dev)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
 
-	netif_carrier_off(dev);
 	schedule_work(&ugeth->timeout_work);
 }
 

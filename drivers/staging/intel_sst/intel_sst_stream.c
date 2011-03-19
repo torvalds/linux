@@ -26,6 +26,8 @@
  *  This file contains the stream operations of SST driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
@@ -45,8 +47,8 @@
  */
 int sst_check_device_type(u32 device, u32 num_chan, u32 *pcm_slot)
 {
-	if (device >= MAX_NUM_STREAMS) {
-		pr_debug("sst: device type invalid %d\n", device);
+	if (device > MAX_NUM_STREAMS_MFLD) {
+		pr_debug("device type invalid %d\n", device);
 		return -EINVAL;
 	}
 	if (sst_drv_ctx->streams[device].status == STREAM_UN_INIT) {
@@ -71,15 +73,15 @@ int sst_check_device_type(u32 device, u32 num_chan, u32 *pcm_slot)
 		else if (device == SND_SST_DEVICE_CAPTURE && num_chan == 4)
 			*pcm_slot = 0x0F;
 		else {
-			pr_debug("sst: No condition satisfied.. ret err\n");
+			pr_debug("No condition satisfied.. ret err\n");
 			return -EINVAL;
 		}
 	} else {
-		pr_debug("sst: this stream state is not uni-init, is %d\n",
+		pr_debug("this stream state is not uni-init, is %d\n",
 				sst_drv_ctx->streams[device].status);
 		return -EBADRQC;
 	}
-	pr_debug("sst: returning slot %x\n", *pcm_slot);
+	pr_debug("returning slot %x\n", *pcm_slot);
 	return 0;
 }
 /**
@@ -96,7 +98,7 @@ static unsigned int get_mrst_stream_id(void)
 		if (sst_drv_ctx->streams[i].status == STREAM_UN_INIT)
 			return i;
 	}
-	pr_debug("sst: Didnt find empty stream for mrst\n");
+	pr_debug("Didnt find empty stream for mrst\n");
 	return -EBUSY;
 }
 
@@ -305,7 +307,7 @@ int sst_pause_stream(int str_id)
 		if (str_info->prev == STREAM_UN_INIT)
 			return -EBADRQC;
 		if (str_info->ctrl_blk.on == true) {
-			pr_err("SST ERR: control path is in use\n ");
+			pr_err("SST ERR: control path is in use\n");
 			return -EINVAL;
 		}
 		if (sst_create_short_msg(&msg))
@@ -333,7 +335,7 @@ int sst_pause_stream(int str_id)
 		}
 	} else {
 		retval = -EBADRQC;
-		pr_err("SST ERR:BADQRC for stream\n ");
+		pr_err("SST ERR: BADQRC for stream\n");
 	}
 
 	return retval;
@@ -468,7 +470,7 @@ int sst_drop_stream(int str_id)
 		}
 	} else {
 		retval = -EBADRQC;
-		pr_err("SST ERR:BADQRC for stream\n");
+		pr_err("SST ERR: BADQRC for stream\n");
 	}
 	return retval;
 }

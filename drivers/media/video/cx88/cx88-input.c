@@ -24,14 +24,12 @@
 
 #include <linux/init.h>
 #include <linux/hrtimer.h>
-#include <linux/input.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
 #include "cx88.h"
-#include <media/ir-core.h>
-#include <media/ir-common.h>
+#include <media/rc-core.h>
 
 #define MODULE_NAME "cx88xx"
 
@@ -39,9 +37,7 @@
 
 struct cx88_IR {
 	struct cx88_core *core;
-	struct input_dev *input;
-	struct ir_dev_props props;
-	u64 ir_type;
+	struct rc_dev *dev;
 
 	int users;
 
@@ -50,8 +46,6 @@ struct cx88_IR {
 
 	/* sample from gpio pin 16 */
 	u32 sampling;
-	u32 samples[16];
-	int scount;
 
 	/* poll external decoder */
 	int polling;
@@ -63,12 +57,19 @@ struct cx88_IR {
 	u32 mask_keyup;
 };
 
+static unsigned ir_samplerate = 4;
+module_param(ir_samplerate, uint, 0444);
+MODULE_PARM_DESC(ir_samplerate, "IR samplerate in kHz, 1 - 20, default 4");
+
 static int ir_debug;
 module_param(ir_debug, int, 0644);	/* debug level [IR] */
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define ir_dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s IR: " fmt , ir->core->name , ##arg)
+
+#define dprintk(fmt, arg...)	if (ir_debug) \
+	printk(KERN_DEBUG "cx88 IR: " fmt , ##arg)
 
 /* ---------------------------------------------------------------------- */
 
@@ -125,21 +126,26 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
 
-		ir_keydown(ir->input, data, 0);
+		rc_keydown(ir->dev, data, 0);
 
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown)
-			ir_keydown(ir->input, data, 0);
+			rc_keydown_notimeout(ir->dev, data, 0);
+		else
+			rc_keyup(ir->dev);
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup))
-			ir_keydown(ir->input, data, 0);
+			rc_keydown_notimeout(ir->dev, data, 0);
+		else
+			rc_keyup(ir->dev);
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_keydown(ir->input, data, 0);
+		rc_keydown_notimeout(ir->dev, data, 0);
+		rc_keyup(ir->dev);
 	}
 }
 
@@ -176,8 +182,8 @@ static int __cx88_ir_start(void *priv)
 	}
 	if (ir->sampling) {
 		core->pci_irqmask |= PCI_INT_IR_SMPINT;
-		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
-		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
+		cx_write(MO_DDS_IO, 0x33F286 * ir_samplerate); /* samplerate */
+		cx_write(MO_DDSCFG_IO, 0x5); /* enable */
 	}
 	return 0;
 }
@@ -214,17 +220,17 @@ void cx88_ir_stop(struct cx88_core *core)
 		__cx88_ir_stop(core);
 }
 
-static int cx88_ir_open(void *priv)
+static int cx88_ir_open(struct rc_dev *rc)
 {
-	struct cx88_core *core = priv;
+	struct cx88_core *core = rc->priv;
 
 	core->ir->users++;
 	return __cx88_ir_start(core);
 }
 
-static void cx88_ir_close(void *priv)
+static void cx88_ir_close(struct rc_dev *rc)
 {
-	struct cx88_core *core = priv;
+	struct cx88_core *core = rc->priv;
 
 	core->ir->users--;
 	if (!core->ir->users)
@@ -236,20 +242,20 @@ static void cx88_ir_close(void *priv)
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 {
 	struct cx88_IR *ir;
-	struct input_dev *input_dev;
+	struct rc_dev *dev;
 	char *ir_codes = NULL;
-	u64 ir_type = IR_TYPE_OTHER;
+	u64 rc_type = RC_TYPE_OTHER;
 	int err = -ENOMEM;
 	u32 hardware_mask = 0;	/* For devices with a hardware mask, when
 				 * used with a full-code IR table
 				 */
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ir || !input_dev)
+	dev = rc_allocate_device();
+	if (!ir || !dev)
 		goto err_out_free;
 
-	ir->input = input_dev;
+	ir->dev = dev;
 
 	/* detect & configure */
 	switch (core->boardnr) {
@@ -264,7 +270,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 		ir_codes = RC_MAP_CINERGY_1400;
-		ir_type = IR_TYPE_NEC;
 		ir->sampling = 0xeb04; /* address */
 		break;
 	case CX88_BOARD_HAUPPAUGE:
@@ -279,7 +284,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PCHDTV_HD5500:
 	case CX88_BOARD_HAUPPAUGE_IRONLY:
 		ir_codes = RC_MAP_HAUPPAUGE_NEW;
-		ir_type = IR_TYPE_RC5;
 		ir->sampling = 1;
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
@@ -367,18 +371,15 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_PROF_7301:
 	case CX88_BOARD_PROF_6200:
 		ir_codes = RC_MAP_TBS_NEC;
-		ir_type = IR_TYPE_NEC;
 		ir->sampling = 0xff00; /* address */
 		break;
 	case CX88_BOARD_TEVII_S460:
 	case CX88_BOARD_TEVII_S420:
 		ir_codes = RC_MAP_TEVII_NEC;
-		ir_type = IR_TYPE_NEC;
 		ir->sampling = 0xff00; /* address */
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
 		ir_codes         = RC_MAP_DNTV_LIVE_DVBT_PRO;
-		ir_type          = IR_TYPE_NEC;
 		ir->sampling     = 0xff00; /* address */
 		break;
 	case CX88_BOARD_NORWOOD_MICRO:
@@ -396,7 +397,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		ir_codes         = RC_MAP_PINNACLE_PCTV_HD;
-		ir_type          = IR_TYPE_RC5;
 		ir->sampling     = 1;
 		break;
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
@@ -407,12 +407,12 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		ir_codes         = RC_MAP_TWINHAN_VP1027_DVBS;
-		ir_type          = IR_TYPE_NEC;
+		rc_type          = RC_TYPE_NEC;
 		ir->sampling     = 0xff00; /* address */
 		break;
 	}
 
-	if (NULL == ir_codes) {
+	if (!ir_codes) {
 		err = -ENODEV;
 		goto err_out_free;
 	}
@@ -436,37 +436,45 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)", core->board.name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
-	ir->ir_type = ir_type;
-
-	input_dev->name = ir->name;
-	input_dev->phys = ir->phys;
-	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 1;
+	dev->input_name = ir->name;
+	dev->input_phys = ir->phys;
+	dev->input_id.bustype = BUS_PCI;
+	dev->input_id.version = 1;
 	if (pci->subsystem_vendor) {
-		input_dev->id.vendor = pci->subsystem_vendor;
-		input_dev->id.product = pci->subsystem_device;
+		dev->input_id.vendor = pci->subsystem_vendor;
+		dev->input_id.product = pci->subsystem_device;
 	} else {
-		input_dev->id.vendor = pci->vendor;
-		input_dev->id.product = pci->device;
+		dev->input_id.vendor = pci->vendor;
+		dev->input_id.product = pci->device;
 	}
-	input_dev->dev.parent = &pci->dev;
-	/* record handles to ourself */
+	dev->dev.parent = &pci->dev;
+	dev->map_name = ir_codes;
+	dev->driver_name = MODULE_NAME;
+	dev->priv = core;
+	dev->open = cx88_ir_open;
+	dev->close = cx88_ir_close;
+	dev->scanmask = hardware_mask;
+
+	if (ir->sampling) {
+		dev->driver_type = RC_DRIVER_IR_RAW;
+		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
+	} else {
+		dev->driver_type = RC_DRIVER_SCANCODE;
+		dev->allowed_protos = rc_type;
+	}
+
 	ir->core = core;
 	core->ir = ir;
 
-	ir->props.priv = core;
-	ir->props.open = cx88_ir_open;
-	ir->props.close = cx88_ir_close;
-	ir->props.scanmask = hardware_mask;
-
 	/* all done */
-	err = ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
+	err = rc_register_device(dev);
 	if (err)
 		goto err_out_free;
 
 	return 0;
 
- err_out_free:
+err_out_free:
+	rc_free_device(dev);
 	core->ir = NULL;
 	kfree(ir);
 	return err;
@@ -481,7 +489,7 @@ int cx88_ir_fini(struct cx88_core *core)
 		return 0;
 
 	cx88_ir_stop(core);
-	ir_input_unregister(ir->input);
+	rc_unregister_device(ir->dev);
 	kfree(ir);
 
 	/* done */
@@ -494,135 +502,75 @@ int cx88_ir_fini(struct cx88_core *core)
 void cx88_ir_irq(struct cx88_core *core)
 {
 	struct cx88_IR *ir = core->ir;
-	u32 samples, ircode;
-	int i, start, range, toggle, dev, code;
+	u32 samples;
+	unsigned todo, bits;
+	struct ir_raw_event ev;
 
-	if (NULL == ir)
-		return;
-	if (!ir->sampling)
+	if (!ir || !ir->sampling)
 		return;
 
+	/*
+	 * Samples are stored in a 32 bit register, oldest sample in
+	 * the msb. A set bit represents space and an unset bit
+	 * represents a pulse.
+	 */
 	samples = cx_read(MO_SAMPLE_IO);
-	if (0 != samples && 0xffffffff != samples) {
-		/* record sample data */
-		if (ir->scount < ARRAY_SIZE(ir->samples))
-			ir->samples[ir->scount++] = samples;
+
+	if (samples == 0xff && ir->dev->idle)
 		return;
+
+	init_ir_raw_event(&ev);
+	for (todo = 32; todo > 0; todo -= bits) {
+		ev.pulse = samples & 0x80000000 ? false : true;
+		bits = min(todo, 32U - fls(ev.pulse ? samples : ~samples));
+		ev.duration = (bits * NSEC_PER_SEC) / (1000 * ir_samplerate);
+		ir_raw_event_store_with_filter(ir->dev, &ev);
+		samples <<= bits;
 	}
-	if (!ir->scount) {
-		/* nothing to sample */
-		return;
-	}
-
-	/* have a complete sample */
-	if (ir->scount < ARRAY_SIZE(ir->samples))
-		ir->samples[ir->scount++] = samples;
-	for (i = 0; i < ir->scount; i++)
-		ir->samples[i] = ~ir->samples[i];
-	if (ir_debug)
-		ir_dump_samples(ir->samples, ir->scount);
-
-	/* decode it */
-	switch (core->boardnr) {
-	case CX88_BOARD_TEVII_S460:
-	case CX88_BOARD_TEVII_S420:
-	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
-	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
-	case CX88_BOARD_OMICOM_SS4_PCI:
-	case CX88_BOARD_SATTRADE_ST4200:
-	case CX88_BOARD_TBS_8920:
-	case CX88_BOARD_TBS_8910:
-	case CX88_BOARD_PROF_7300:
-	case CX88_BOARD_PROF_7301:
-	case CX88_BOARD_PROF_6200:
-	case CX88_BOARD_TWINHAN_VP1027_DVBS:
-		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
-
-		if (ircode == 0xffffffff) { /* decoding error */
-			ir_dprintk("pulse distance decoding error\n");
-			break;
-		}
-
-		ir_dprintk("pulse distance decoded: %x\n", ircode);
-
-		if (ircode == 0) { /* key still pressed */
-			ir_dprintk("pulse distance decoded repeat code\n");
-			ir_repeat(ir->input);
-			break;
-		}
-
-		if ((ircode & 0xffff) != (ir->sampling & 0xffff)) { /* wrong address */
-			ir_dprintk("pulse distance decoded wrong address\n");
-			break;
-		}
-
-		if (((~ircode >> 24) & 0xff) != ((ircode >> 16) & 0xff)) { /* wrong checksum */
-			ir_dprintk("pulse distance decoded wrong check sum\n");
-			break;
-		}
-
-		ir_dprintk("Key Code: %x\n", (ircode >> 16) & 0xff);
-		ir_keydown(ir->input, (ircode >> 16) & 0xff, 0);
-		break;
-	case CX88_BOARD_HAUPPAUGE:
-	case CX88_BOARD_HAUPPAUGE_DVB_T1:
-	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
-	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
-	case CX88_BOARD_HAUPPAUGE_HVR1100:
-	case CX88_BOARD_HAUPPAUGE_HVR3000:
-	case CX88_BOARD_HAUPPAUGE_HVR4000:
-	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
-	case CX88_BOARD_PCHDTV_HD3000:
-	case CX88_BOARD_PCHDTV_HD5500:
-	case CX88_BOARD_HAUPPAUGE_IRONLY:
-		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
-		ir_dprintk("biphase decoded: %x\n", ircode);
-		/*
-		 * RC5 has an extension bit which adds a new range
-		 * of available codes, this is detected here. Also
-		 * hauppauge remotes (black/silver) always use
-		 * specific device ids. If we do not filter the
-		 * device ids then messages destined for devices
-		 * such as TVs (id=0) will get through to the
-		 * device causing mis-fired events.
-		 */
-		/* split rc5 data block ... */
-		start = (ircode & 0x2000) >> 13;
-		range = (ircode & 0x1000) >> 12;
-		toggle= (ircode & 0x0800) >> 11;
-		dev   = (ircode & 0x07c0) >> 6;
-		code  = (ircode & 0x003f) | ((range << 6) ^ 0x0040);
-		if( start != 1)
-			/* no key pressed */
-			break;
-		if ( dev != 0x1e && dev != 0x1f )
-			/* not a hauppauge remote */
-			break;
-		ir_keydown(ir->input, code, toggle);
-		break;
-	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
-		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
-		ir_dprintk("biphase decoded: %x\n", ircode);
-		if ((ircode & 0xfffff000) != 0x3000)
-			break;
-		/* Note: bit 0x800 being the toggle is assumed, not checked
-		   with real hardware  */
-		ir_keydown(ir->input, ircode & 0x3f, ircode & 0x0800 ? 1 : 0);
-		break;
-	}
-
-	ir->scount = 0;
-	return;
+	ir_raw_event_handle(ir->dev);
 }
 
+static int get_key_pvr2000(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	int flags, code;
+
+	/* poll IR chip */
+	flags = i2c_smbus_read_byte_data(ir->c, 0x10);
+	if (flags < 0) {
+		dprintk("read error\n");
+		return 0;
+	}
+	/* key pressed ? */
+	if (0 == (flags & 0x80))
+		return 0;
+
+	/* read actual key code */
+	code = i2c_smbus_read_byte_data(ir->c, 0x00);
+	if (code < 0) {
+		dprintk("read error\n");
+		return 0;
+	}
+
+	dprintk("IR Key/Flags: (0x%02x/0x%02x)\n",
+		   code & 0xff, flags & 0xff);
+
+	*ir_key = code & 0xff;
+	*ir_raw = code;
+	return 1;
+}
 
 void cx88_i2c_init_ir(struct cx88_core *core)
 {
 	struct i2c_board_info info;
-	const unsigned short addr_list[] = {
+	const unsigned short default_addr_list[] = {
 		0x18, 0x6b, 0x71,
 		I2C_CLIENT_END
 	};
+	const unsigned short pvr2000_addr_list[] = {
+		0x18, 0x1a,
+		I2C_CLIENT_END
+	};
+	const unsigned short *addr_list = default_addr_list;
 	const unsigned short *addrp;
 	/* Instantiate the IR receiver device, if present */
 	if (0 != core->i2c_rc)
@@ -630,6 +578,16 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+
+	switch (core->boardnr) {
+	case CX88_BOARD_LEADTEK_PVR2000:
+		addr_list = pvr2000_addr_list;
+		core->init_data.name = "cx88 Leadtek PVR 2000 remote";
+		core->init_data.type = RC_TYPE_UNKNOWN;
+		core->init_data.get_key = get_key_pvr2000;
+		core->init_data.ir_codes = RC_MAP_EMPTY;
+		break;
+	}
 
 	/*
 	 * We can't call i2c_new_probed_device() because it uses
@@ -646,7 +604,7 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 			/* Hauppauge XVR */
 			core->init_data.name = "cx88 Hauppauge XVR remote";
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
-			core->init_data.type = IR_TYPE_RC5;
+			core->init_data.type = RC_TYPE_RC5;
 			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
 
 			info.platform_data = &core->init_data;

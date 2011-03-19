@@ -529,8 +529,6 @@ int main(int ac, char **av)
 		}
 		break;
 	case savedefconfig:
-		conf_read(NULL);
-		break;
 	case silentoldconfig:
 	case oldaskconfig:
 	case oldconfig:

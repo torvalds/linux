@@ -630,7 +630,7 @@ islpci_alloc_memory(islpci_private *priv)
 	printk(KERN_DEBUG "islpci_alloc_memory\n");
 #endif
 
-	/* remap the PCI device base address to accessable */
+	/* remap the PCI device base address to accessible */
 	if (!(priv->device_base =
 	      ioremap(pci_resource_start(priv->pdev, 0),
 		      ISL38XX_PCI_MEM_SIZE))) {
@@ -709,7 +709,7 @@ islpci_alloc_memory(islpci_private *priv)
 				   PCI_DMA_FROMDEVICE);
 		if (!priv->pci_map_rx_address[counter]) {
 			/* error mapping the buffer to device
-			   accessable memory address */
+			   accessible memory address */
 			printk(KERN_ERR "failed to map skb DMA'able\n");
 			goto out_free;
 		}
@@ -773,7 +773,7 @@ islpci_free_memory(islpci_private *priv)
 		priv->data_low_rx[counter] = NULL;
 	}
 
-	/* Free the acces control list and the WPA list */
+	/* Free the access control list and the WPA list */
 	prism54_acl_clean(&priv->acl);
 	prism54_wpa_bss_ie_clean(priv);
 	mgt_clean(priv);

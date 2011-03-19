@@ -16,6 +16,7 @@ config MMC_BLOCK
 
 config MMC_BLOCK_MINORS
 	int "Number of minors per block device"
+	depends on MMC_BLOCK
 	range 4 256
 	default 8
 	help

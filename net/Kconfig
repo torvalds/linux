@@ -214,8 +214,14 @@ source "net/ieee802154/Kconfig"
 source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
 source "net/dns_resolver/Kconfig"
+source "net/batman-adv/Kconfig"
 
 config RPS
+	boolean
+	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	default y
+
+config XPS
 	boolean
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
@@ -247,7 +253,9 @@ config NET_TCPPROBE
 	what was just said, you don't need it: say N.
 
 	Documentation on how to use TCP connection probing can be found
-	at http://linux-net.osdl.org/index.php/TcpProbe
+	at:
+	
+	  http://www.linuxfoundation.org/collaborate/workgroups/networking/tcpprobe
 
 	To compile this code as a module, choose M here: the
 	module will be called tcp_probe.

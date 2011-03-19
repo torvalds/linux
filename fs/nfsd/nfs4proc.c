@@ -604,9 +604,7 @@ nfsd4_link(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	return status;
 }
 
-static __be32
-nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
-	      void *arg)
+static __be32 nfsd4_do_lookupp(struct svc_rqst *rqstp, struct svc_fh *fh)
 {
 	struct svc_fh tmp_fh;
 	__be32 ret;
@@ -615,13 +613,19 @@ nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	ret = exp_pseudoroot(rqstp, &tmp_fh);
 	if (ret)
 		return ret;
-	if (tmp_fh.fh_dentry == cstate->current_fh.fh_dentry) {
+	if (tmp_fh.fh_dentry == fh->fh_dentry) {
 		fh_put(&tmp_fh);
 		return nfserr_noent;
 	}
 	fh_put(&tmp_fh);
-	return nfsd_lookup(rqstp, &cstate->current_fh,
-			   "..", 2, &cstate->current_fh);
+	return nfsd_lookup(rqstp, fh, "..", 2, fh);
+}
+
+static __be32
+nfsd4_lookupp(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      void *arg)
+{
+	return nfsd4_do_lookupp(rqstp, &cstate->current_fh);
 }
 
 static __be32
@@ -769,7 +773,33 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	} else
 		secinfo->si_exp = exp;
 	dput(dentry);
+	if (cstate->minorversion)
+		/* See rfc 5661 section 2.6.3.1.1.8 */
+		fh_put(&cstate->current_fh);
 	return err;
+}
+
+static __be32
+nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      struct nfsd4_secinfo_no_name *sin)
+{
+	__be32 err;
+
+	switch (sin->sin_style) {
+	case NFS4_SECINFO_STYLE4_CURRENT_FH:
+		break;
+	case NFS4_SECINFO_STYLE4_PARENT:
+		err = nfsd4_do_lookupp(rqstp, &cstate->current_fh);
+		if (err)
+			return err;
+		break;
+	default:
+		return nfserr_inval;
+	}
+	exp_get(cstate->current_fh.fh_export);
+	sin->sin_exp = cstate->current_fh.fh_export;
+	fh_put(&cstate->current_fh);
+	return nfs_ok;
 }
 
 static __be32
@@ -974,8 +1004,8 @@ static const char *nfsd4_op_name(unsigned opnum);
  * Also note, enforced elsewhere:
  *	- SEQUENCE other than as first op results in
  *	  NFS4ERR_SEQUENCE_POS. (Enforced in nfsd4_sequence().)
- *	- BIND_CONN_TO_SESSION must be the only op in its compound
- *	  (Will be enforced in nfsd4_bind_conn_to_session().)
+ *	- BIND_CONN_TO_SESSION must be the only op in its compound.
+ *	  (Enforced in nfsd4_bind_conn_to_session().)
  *	- DESTROY_SESSION must be the final operation in a compound, if
  *	  sessionid's in SEQUENCE and DESTROY_SESSION are the same.
  *	  (Enforced in nfsd4_destroy_session().)
@@ -1125,10 +1155,6 @@ encode_op:
 			fput(op->u.read.rd_filp);
 
 		nfsd4_increment_op_stats(op->opnum);
-	}
-	if (!rqstp->rq_usedeferral && status == nfserr_dropit) {
-		dprintk("%s Dropit - send NFS4ERR_DELAY\n", __func__);
-		status = nfserr_jukebox;
 	}
 
 	resp->cstate.status = status;
@@ -1300,6 +1326,11 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
 		.op_name = "OP_EXCHANGE_ID",
 	},
+	[OP_BIND_CONN_TO_SESSION] = {
+		.op_func = (nfsd4op_func)nfsd4_bind_conn_to_session,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
+		.op_name = "OP_BIND_CONN_TO_SESSION",
+	},
 	[OP_CREATE_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_create_session,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP,
@@ -1319,6 +1350,10 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_reclaim_complete,
 		.op_flags = ALLOWED_WITHOUT_FH,
 		.op_name = "OP_RECLAIM_COMPLETE",
+	},
+	[OP_SECINFO_NO_NAME] = {
+		.op_func = (nfsd4op_func)nfsd4_secinfo_no_name,
+		.op_name = "OP_SECINFO_NO_NAME",
 	},
 };
 

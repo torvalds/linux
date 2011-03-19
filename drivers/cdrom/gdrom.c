@@ -837,7 +837,7 @@ probe_fail_no_mem:
 
 static int __devexit remove_gdrom(struct platform_device *devptr)
 {
-	flush_scheduled_work();
+	flush_work_sync(&work);
 	blk_cleanup_queue(gd.gdrom_rq);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);
 	free_irq(HW_EVENT_GDROM_DMA, &gd);

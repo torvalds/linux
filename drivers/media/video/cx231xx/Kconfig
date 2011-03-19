@@ -1,9 +1,9 @@
 config VIDEO_CX231XX
 	tristate "Conexant cx231xx USB video capture support"
-	depends on VIDEO_DEV && I2C && INPUT
+	depends on VIDEO_DEV && I2C
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	depends on VIDEO_IR
+	depends on RC_CORE
 	select VIDEOBUF_VMALLOC
 	select VIDEO_CX25840
 	select VIDEO_CX2341X
@@ -13,6 +13,19 @@ config VIDEO_CX231XX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx231xx
+
+config VIDEO_CX231XX_RC
+	bool "Conexant cx231xx Remote Controller additional support"
+	depends on RC_CORE
+	depends on VIDEO_CX231XX
+	default y
+	---help---
+	  cx231xx hardware has a builtin RX/TX support. However, a few
+	  designs opted to not use it, but, instead, some other hardware.
+	  This module enables the usage of those other hardware, like the
+	  ones used with ISDB-T boards.
+
+	  On most cases, all you need for IR is mceusb module.
 
 config VIDEO_CX231XX_ALSA
 	tristate "Conexant Cx231xx ALSA audio module"
@@ -30,6 +43,8 @@ config VIDEO_CX231XX_DVB
 	depends on VIDEO_CX231XX && DVB_CORE
 	select VIDEOBUF_DVB
 	select MEDIA_TUNER_XC5000 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_NXP18271 if !DVB_FE_CUSTOMISE
+	select DVB_MB86A20S if !DVB_FE_CUSTOMISE
 
 	---help---
 	  This adds support for DVB cards based on the

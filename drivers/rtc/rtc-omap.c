@@ -429,13 +429,14 @@ fail1:
 fail0:
 	iounmap(rtc_base);
 fail:
-	release_resource(mem);
+	release_mem_region(mem->start, resource_size(mem));
 	return -EIO;
 }
 
 static int __exit omap_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device	*rtc = platform_get_drvdata(pdev);
+	struct resource		*mem = dev_get_drvdata(&rtc->dev);
 
 	device_init_wakeup(&pdev->dev, 0);
 
@@ -447,8 +448,9 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	if (omap_rtc_timer != omap_rtc_alarm)
 		free_irq(omap_rtc_alarm, rtc);
 
-	release_resource(dev_get_drvdata(&rtc->dev));
 	rtc_device_unregister(rtc);
+	iounmap(rtc_base);
+	release_mem_region(mem->start, resource_size(mem));
 	return 0;
 }
 

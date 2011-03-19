@@ -23,6 +23,7 @@ enum {
 	opt_umask, opt_uid, opt_gid,
 	opt_part, opt_session, opt_nls,
 	opt_nodecompose, opt_decompose,
+	opt_barrier, opt_nobarrier,
 	opt_force, opt_err
 };
 
@@ -37,6 +38,8 @@ static const match_table_t tokens = {
 	{ opt_nls, "nls=%s" },
 	{ opt_decompose, "decompose" },
 	{ opt_nodecompose, "nodecompose" },
+	{ opt_barrier, "barrier" },
+	{ opt_nobarrier, "nobarrier" },
 	{ opt_force, "force" },
 	{ opt_err, NULL }
 };
@@ -63,6 +66,32 @@ static inline int match_fourchar(substring_t *arg, u32 *result)
 		return -EINVAL;
 	memcpy(result, arg->from, 4);
 	return 0;
+}
+
+int hfsplus_parse_options_remount(char *input, int *force)
+{
+	char *p;
+	substring_t args[MAX_OPT_ARGS];
+	int token;
+
+	if (!input)
+		return 0;
+
+	while ((p = strsep(&input, ",")) != NULL) {
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case opt_force:
+			*force = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 1;
 }
 
 /* Parse options from mount. Returns 0 on failure */
@@ -136,7 +165,9 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 			if (p)
 				sbi->nls = load_nls(p);
 			if (!sbi->nls) {
-				printk(KERN_ERR "hfs: unable to load nls mapping \"%s\"\n", p);
+				printk(KERN_ERR "hfs: unable to load "
+						"nls mapping \"%s\"\n",
+					p);
 				kfree(p);
 				return 0;
 			}
@@ -147,6 +178,12 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 			break;
 		case opt_nodecompose:
 			set_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
+			break;
+		case opt_barrier:
+			clear_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
+			break;
+		case opt_nobarrier:
+			set_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
 			break;
 		case opt_force:
 			set_bit(HFSPLUS_SB_FORCE, &sbi->flags);
@@ -177,7 +214,8 @@ int hfsplus_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",creator=%.4s", (char *)&sbi->creator);
 	if (sbi->type != HFSPLUS_DEF_CR_TYPE)
 		seq_printf(seq, ",type=%.4s", (char *)&sbi->type);
-	seq_printf(seq, ",umask=%o,uid=%u,gid=%u", sbi->umask, sbi->uid, sbi->gid);
+	seq_printf(seq, ",umask=%o,uid=%u,gid=%u", sbi->umask,
+		sbi->uid, sbi->gid);
 	if (sbi->part >= 0)
 		seq_printf(seq, ",part=%u", sbi->part);
 	if (sbi->session >= 0)
@@ -186,5 +224,7 @@ int hfsplus_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",nls=%s", sbi->nls->charset);
 	if (test_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags))
 		seq_printf(seq, ",nodecompose");
+	if (test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
+		seq_printf(seq, ",nobarrier");
 	return 0;
 }

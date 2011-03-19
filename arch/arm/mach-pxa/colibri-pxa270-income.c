@@ -46,52 +46,6 @@
 #define GPIO113_INCOME_TS_IRQ   (113)
 
 /******************************************************************************
- * Pin configuration
- ******************************************************************************/
-static mfp_cfg_t income_pin_config[] __initdata = {
-	/* MMC */
-	GPIO32_MMC_CLK,
-	GPIO92_MMC_DAT_0,
-	GPIO109_MMC_DAT_1,
-	GPIO110_MMC_DAT_2,
-	GPIO111_MMC_DAT_3,
-	GPIO112_MMC_CMD,
-	GPIO0_GPIO,	/* SD detect */
-	GPIO1_GPIO,	/* SD read-only */
-
-	/* FFUART */
-	GPIO39_FFUART_TXD,
-	GPIO34_FFUART_RXD,
-
-	/* BFUART */
-	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
-	GPIO45_BTUART_RTS,
-
-	/* STUART */
-	GPIO46_STUART_RXD,
-	GPIO47_STUART_TXD,
-
-	/* UHC */
-	GPIO88_USBH1_PWR,
-	GPIO89_USBH1_PEN,
-
-	/* LCD */
-	GPIOxx_LCD_TFT_16BPP,
-
-	/* PWM */
-	GPIO16_PWM0_OUT,
-
-	/* I2C */
-	GPIO117_I2C_SCL,
-	GPIO118_I2C_SDA,
-
-	/* LED */
-	GPIO54_GPIO,	/* LED A */
-	GPIO55_GPIO,	/* LED B */
-};
-
-/******************************************************************************
  * SD/MMC card controller
  ******************************************************************************/
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
@@ -257,7 +211,6 @@ static inline void income_pwm_init(void) {}
 
 void __init colibri_pxa270_income_boardinit(void)
 {
-	pxa2xx_mfp_config(ARRAY_AND_SIZE(income_pin_config));
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);

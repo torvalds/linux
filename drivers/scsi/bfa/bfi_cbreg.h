@@ -208,6 +208,7 @@
 #define BFA_IOC1_HBEAT_REG               HOST_SEM2_INFO_REG
 #define BFA_IOC1_STATE_REG               HOST_SEM3_INFO_REG
 #define BFA_FW_USE_COUNT                 HOST_SEM4_INFO_REG
+#define BFA_IOC_FAIL_SYNC		 HOST_SEM5_INFO_REG
 
 #define CPE_Q_DEPTH(__n) \
 	(CPE_Q0_DEPTH + (__n) * (CPE_Q1_DEPTH - CPE_Q0_DEPTH))

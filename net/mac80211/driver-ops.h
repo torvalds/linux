@@ -233,6 +233,20 @@ static inline void drv_get_tkip_seq(struct ieee80211_local *local,
 	trace_drv_get_tkip_seq(local, hw_key_idx, iv32, iv16);
 }
 
+static inline int drv_set_frag_threshold(struct ieee80211_local *local,
+					u32 value)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	trace_drv_set_frag_threshold(local, value);
+	if (local->ops->set_frag_threshold)
+		ret = local->ops->set_frag_threshold(&local->hw, value);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
 static inline int drv_set_rts_threshold(struct ieee80211_local *local,
 					u32 value)
 {
@@ -353,7 +367,7 @@ static inline void drv_reset_tsf(struct ieee80211_local *local)
 
 static inline int drv_tx_last_beacon(struct ieee80211_local *local)
 {
-	int ret = 1;
+	int ret = 0; /* default unsuported op for less congestion */
 
 	might_sleep();
 
@@ -426,6 +440,59 @@ static inline void drv_channel_switch(struct ieee80211_local *local,
 	trace_drv_channel_switch(local, ch_switch);
 	local->ops->channel_switch(&local->hw, ch_switch);
 	trace_drv_return_void(local);
+}
+
+
+static inline int drv_set_antenna(struct ieee80211_local *local,
+				  u32 tx_ant, u32 rx_ant)
+{
+	int ret = -EOPNOTSUPP;
+	might_sleep();
+	if (local->ops->set_antenna)
+		ret = local->ops->set_antenna(&local->hw, tx_ant, rx_ant);
+	trace_drv_set_antenna(local, tx_ant, rx_ant, ret);
+	return ret;
+}
+
+static inline int drv_get_antenna(struct ieee80211_local *local,
+				  u32 *tx_ant, u32 *rx_ant)
+{
+	int ret = -EOPNOTSUPP;
+	might_sleep();
+	if (local->ops->get_antenna)
+		ret = local->ops->get_antenna(&local->hw, tx_ant, rx_ant);
+	trace_drv_get_antenna(local, *tx_ant, *rx_ant, ret);
+	return ret;
+}
+
+static inline int drv_remain_on_channel(struct ieee80211_local *local,
+					struct ieee80211_channel *chan,
+					enum nl80211_channel_type chantype,
+					unsigned int duration)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_remain_on_channel(local, chan, chantype, duration);
+	ret = local->ops->remain_on_channel(&local->hw, chan, chantype,
+					    duration);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_cancel_remain_on_channel(local);
+	ret = local->ops->cancel_remain_on_channel(&local->hw);
+	trace_drv_return_int(local, ret);
+
+	return ret;
 }
 
 #endif /* __MAC80211_DRIVER_OPS */

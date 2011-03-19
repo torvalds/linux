@@ -178,11 +178,13 @@ static int ad7414_probe(struct i2c_client *client,
 {
 	struct ad7414_data *data;
 	int conf;
-	int err = 0;
+	int err;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_READ_WORD_DATA))
+				     I2C_FUNC_SMBUS_READ_WORD_DATA)) {
+		err = -EOPNOTSUPP;
 		goto exit;
+	}
 
 	data = kzalloc(sizeof(struct ad7414_data), GFP_KERNEL);
 	if (!data) {

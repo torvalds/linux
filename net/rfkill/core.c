@@ -149,20 +149,6 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 	rfkill_led_trigger_event(rfkill);
 }
 
-const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
-{
-	return rfkill->led_trigger.name;
-}
-EXPORT_SYMBOL(rfkill_get_led_trigger_name);
-
-void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
-{
-	BUG_ON(!rfkill);
-
-	rfkill->ledtrigname = name;
-}
-EXPORT_SYMBOL(rfkill_set_led_trigger_name);
-
 static int rfkill_led_trigger_register(struct rfkill *rfkill)
 {
 	rfkill->led_trigger.name = rfkill->ledtrigname

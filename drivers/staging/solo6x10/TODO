@@ -1,7 +1,5 @@
 TODO (staging => main):
 
-	* checkpatch.pl (haven't run it yet)
-	* Lindent (should be clean, but check)
 	* Motion detection flags need to be moved to v4l2
 	* Some private CIDs need to be moved to v4l2
 
@@ -21,8 +19,6 @@ TODO (general):
 	  - implement playback via external sound jack
 	  - implement loopback of external sound jack with incoming audio?
 	  - implement pause/resume
-	  - check into jacking sound from tx28xx chips directly (to avoid
-	    g.723/8khz limitations)
 
 Plase send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc Ben Collins
 <bcollins@bluecherry.net>

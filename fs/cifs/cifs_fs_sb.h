@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  */
-#include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 
 #ifndef _CIFS_FS_SB_H
 #define _CIFS_FS_SB_H
@@ -40,14 +40,16 @@
 #define CIFS_MOUNT_FSCACHE	0x8000 /* local caching enabled */
 #define CIFS_MOUNT_MF_SYMLINKS	0x10000 /* Minshall+French Symlinks enabled */
 #define CIFS_MOUNT_MULTIUSER	0x20000 /* multiuser mount */
+#define CIFS_MOUNT_STRICT_IO	0x40000 /* strict cache mode */
 
 struct cifs_sb_info {
-	struct radix_tree_root tlink_tree;
-#define CIFS_TLINK_MASTER_TAG		0	/* is "master" (mount) tcon */
+	struct rb_root tlink_tree;
 	spinlock_t tlink_tree_lock;
+	struct tcon_link *master_tlink;
 	struct nls_table *local_nls;
 	unsigned int rsize;
 	unsigned int wsize;
+	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	atomic_t active;
 	uid_t	mnt_uid;
 	gid_t	mnt_gid;

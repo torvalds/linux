@@ -387,7 +387,7 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
-	&s3c_device_pcm,
+	&samsung_asoc_dma,
 	&s3c_device_usbgadget,
 	&h1940_device_leds,
 	&h1940_device_bluetooth,

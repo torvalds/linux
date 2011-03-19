@@ -149,7 +149,6 @@ xfs_qm_dqdestroy(
 	ASSERT(list_empty(&dqp->q_freelist));
 
 	mutex_destroy(&dqp->q_qlock);
-	sv_destroy(&dqp->q_pinwait);
 	kmem_zone_free(xfs_Gqm->qm_dqzone, dqp);
 
 	atomic_dec(&xfs_Gqm->qm_totaldquots);

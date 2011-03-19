@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 #include "usb_mon.h"

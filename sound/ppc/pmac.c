@@ -1228,10 +1228,8 @@ int __devinit snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 					       chip->rsrc[i].start + 1,
 					       rnames[i]) == NULL) {
 				printk(KERN_ERR "snd: can't request rsrc "
-				       " %d (%s: 0x%016llx:%016llx)\n",
-				       i, rnames[i],
-				       (unsigned long long)chip->rsrc[i].start,
-				       (unsigned long long)chip->rsrc[i].end);
+				       " %d (%s: %pR)\n",
+				       i, rnames[i], &chip->rsrc[i]);
 				err = -ENODEV;
 				goto __error;
 			}
@@ -1256,10 +1254,8 @@ int __devinit snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 					       chip->rsrc[i].start + 1,
 					       rnames[i]) == NULL) {
 				printk(KERN_ERR "snd: can't request rsrc "
-				       " %d (%s: 0x%016llx:%016llx)\n",
-				       i, rnames[i],
-				       (unsigned long long)chip->rsrc[i].start,
-				       (unsigned long long)chip->rsrc[i].end);
+				       " %d (%s: %pR)\n",
+				       i, rnames[i], &chip->rsrc[i]);
 				err = -ENODEV;
 				goto __error;
 			}

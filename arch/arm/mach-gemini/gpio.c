@@ -54,33 +54,33 @@ static void _set_gpio_irqenable(unsigned int base, unsigned int index,
 	__raw_writel(reg, base + GPIO_INT_EN);
 }
 
-static void gpio_ack_irq(unsigned int irq)
+static void gpio_ack_irq(struct irq_data *d)
 {
-	unsigned int gpio = irq_to_gpio(irq);
+	unsigned int gpio = irq_to_gpio(d->irq);
 	unsigned int base = GPIO_BASE(gpio / 32);
 
 	__raw_writel(1 << (gpio % 32), base + GPIO_INT_CLR);
 }
 
-static void gpio_mask_irq(unsigned int irq)
+static void gpio_mask_irq(struct irq_data *d)
 {
-	unsigned int gpio = irq_to_gpio(irq);
+	unsigned int gpio = irq_to_gpio(d->irq);
 	unsigned int base = GPIO_BASE(gpio / 32);
 
 	_set_gpio_irqenable(base, gpio % 32, 0);
 }
 
-static void gpio_unmask_irq(unsigned int irq)
+static void gpio_unmask_irq(struct irq_data *d)
 {
-	unsigned int gpio = irq_to_gpio(irq);
+	unsigned int gpio = irq_to_gpio(d->irq);
 	unsigned int base = GPIO_BASE(gpio / 32);
 
 	_set_gpio_irqenable(base, gpio % 32, 1);
 }
 
-static int gpio_set_irq_type(unsigned int irq, unsigned int type)
+static int gpio_set_irq_type(struct irq_data *d, unsigned int type)
 {
-	unsigned int gpio = irq_to_gpio(irq);
+	unsigned int gpio = irq_to_gpio(d->irq);
 	unsigned int gpio_mask = 1 << (gpio % 32);
 	unsigned int base = GPIO_BASE(gpio / 32);
 	unsigned int reg_both, reg_level, reg_type;
@@ -120,7 +120,7 @@ static int gpio_set_irq_type(unsigned int irq, unsigned int type)
 	__raw_writel(reg_level, base + GPIO_INT_LEVEL);
 	__raw_writel(reg_both, base + GPIO_INT_BOTH_EDGE);
 
-	gpio_ack_irq(irq);
+	gpio_ack_irq(d->irq);
 
 	return 0;
 }
@@ -146,10 +146,10 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 static struct irq_chip gpio_irq_chip = {
 	.name = "GPIO",
-	.ack = gpio_ack_irq,
-	.mask = gpio_mask_irq,
-	.unmask = gpio_unmask_irq,
-	.set_type = gpio_set_irq_type,
+	.irq_ack = gpio_ack_irq,
+	.irq_mask = gpio_mask_irq,
+	.irq_unmask = gpio_unmask_irq,
+	.irq_set_type = gpio_set_irq_type,
 };
 
 static void _set_gpio_direction(struct gpio_chip *chip, unsigned offset,

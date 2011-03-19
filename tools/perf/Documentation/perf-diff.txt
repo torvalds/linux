@@ -19,6 +19,18 @@ If no parameters are passed it will assume perf.data.old and perf.data.
 
 OPTIONS
 -------
+-M::
+--displacement::
+        Show position displacement relative to baseline.
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
+-m::
+--modules::
+        Load module symbols. WARNING: use only with -k and LIVE kernel
+
 -d::
 --dsos=::
 	Only consider symbols in these dsos. CSV that understands
@@ -42,13 +54,20 @@ OPTIONS
 --field-separator=::
 
 	Use a special separator character and don't pad with spaces, replacing
-	all occurances of this separator in symbol names (and other output)
+	all occurrences of this separator in symbol names (and other output)
 	with a '.' character, that thus it's the only non valid separator.
 
 -v::
 --verbose::
 	Be verbose, for instance, show the raw counts in addition to the
 	diff.
+
+-f::
+--force::
+       Don't complain, do it.
+
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
 
 SEE ALSO
 --------

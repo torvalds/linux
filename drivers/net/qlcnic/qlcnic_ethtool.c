@@ -1,25 +1,8 @@
 /*
- * Copyright (C) 2009 - QLogic Corporation.
- * All rights reserved.
+ * QLogic qlcnic NIC Driver
+ * Copyright (c)  2009-2010 QLogic Corporation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called "COPYING".
- *
+ * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include <linux/types.h>
@@ -101,8 +84,7 @@ static const char qlcnic_device_gstrings_stats[][ETH_GSTRING_LEN] = {
 static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register_Test_on_offline",
 	"Link_Test_on_offline",
-	"Interrupt_Test_offline",
-	"Loopback_Test_offline"
+	"Interrupt_Test_offline"
 };
 
 #define QLCNIC_TEST_LEN	ARRAY_SIZE(qlcnic_gstrings_test)
@@ -643,104 +625,6 @@ static int qlcnic_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
-#define QLC_ILB_PKT_SIZE 64
-#define QLC_NUM_ILB_PKT	16
-#define QLC_ILB_MAX_RCV_LOOP 10
-
-static void qlcnic_create_loopback_buff(unsigned char *data)
-{
-	unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
-	memset(data, 0x4e, QLC_ILB_PKT_SIZE);
-	memset(data, 0xff, 12);
-	memcpy(data + 12, random_data, sizeof(random_data));
-}
-
-int qlcnic_check_loopback_buff(unsigned char *data)
-{
-	unsigned char buff[QLC_ILB_PKT_SIZE];
-	qlcnic_create_loopback_buff(buff);
-	return memcmp(data, buff, QLC_ILB_PKT_SIZE);
-}
-
-static int qlcnic_do_ilb_test(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
-	struct qlcnic_host_sds_ring *sds_ring = &recv_ctx->sds_rings[0];
-	struct sk_buff *skb;
-	int i, loop, cnt = 0;
-
-	for (i = 0; i < QLC_NUM_ILB_PKT; i++) {
-		skb = dev_alloc_skb(QLC_ILB_PKT_SIZE);
-		qlcnic_create_loopback_buff(skb->data);
-		skb_put(skb, QLC_ILB_PKT_SIZE);
-
-		adapter->diag_cnt = 0;
-		qlcnic_xmit_frame(skb, adapter->netdev);
-
-		loop = 0;
-		do {
-			msleep(1);
-			qlcnic_process_rcv_ring_diag(sds_ring);
-		} while (loop++ < QLC_ILB_MAX_RCV_LOOP &&
-			 !adapter->diag_cnt);
-
-		dev_kfree_skb_any(skb);
-
-		if (!adapter->diag_cnt)
-			dev_warn(&adapter->pdev->dev, "ILB Test: %dth packet"
-				" not recevied\n", i + 1);
-		else
-			cnt++;
-	}
-	if (cnt != i) {
-		dev_warn(&adapter->pdev->dev, "ILB Test failed\n");
-		return -1;
-	}
-	return 0;
-}
-
-static int qlcnic_loopback_test(struct net_device *netdev)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int max_sds_rings = adapter->max_sds_rings;
-	int ret;
-
-	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		dev_warn(&adapter->pdev->dev, "Loopback test not supported"
-				"for non privilege function\n");
-		return 0;
-	}
-
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-		return -EIO;
-
-	if (qlcnic_request_quiscent_mode(adapter)) {
-		clear_bit(__QLCNIC_RESETTING, &adapter->state);
-		return -EIO;
-	}
-
-	ret = qlcnic_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
-	if (ret)
-		goto clear_it;
-
-	ret = qlcnic_set_ilb_mode(adapter);
-	if (ret)
-		goto done;
-
-	ret = qlcnic_do_ilb_test(adapter);
-
-	qlcnic_clear_ilb_mode(adapter);
-
-done:
-	qlcnic_diag_free_res(netdev, max_sds_rings);
-
-clear_it:
-	qlcnic_clear_quiscent_mode(adapter);
-	adapter->max_sds_rings = max_sds_rings;
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	return ret;
-}
-
 static int qlcnic_irq_test(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
@@ -788,14 +672,11 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 	if (data[1])
 		eth_test->flags |= ETH_TEST_FL_FAILED;
 
-	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
+	if (eth_test->flags & ETH_TEST_FL_OFFLINE) {
 		data[2] = qlcnic_irq_test(dev);
 		if (data[2])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		data[3] = qlcnic_loopback_test(dev);
-		if (data[3])
-			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 	}
 }
@@ -925,9 +806,10 @@ static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
 
 		dev->features &= ~NETIF_F_LRO;
 		qlcnic_send_lro_cleanup(adapter);
+		dev_info(&adapter->pdev->dev,
+					"disabling LRO as rx_csum is off\n");
 	}
 	adapter->rx_csum = !!data;
-	dev_info(&adapter->pdev->dev, "disabling LRO as rx_csum is off\n");
 	return 0;
 }
 
@@ -952,16 +834,27 @@ static int qlcnic_set_tso(struct net_device *dev, u32 data)
 static int qlcnic_blink_led(struct net_device *dev, u32 val)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	int max_sds_rings = adapter->max_sds_rings;
+	int dev_down = 0;
 	int ret;
 
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
-		return -EIO;
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+		dev_down = 1;
+		if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+			return -EIO;
+
+		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
+		if (ret) {
+			clear_bit(__QLCNIC_RESETTING, &adapter->state);
+			return ret;
+		}
+	}
 
 	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
-		return ret;
+		goto done;
 	}
 
 	msleep_interruptible(val * 1000);
@@ -970,10 +863,16 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to reset LED blink state.\n");
-		return ret;
+		goto done;
 	}
 
-	return 0;
+done:
+	if (dev_down) {
+		qlcnic_diag_free_res(dev, max_sds_rings);
+		clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	}
+	return ret;
+
 }
 
 static void

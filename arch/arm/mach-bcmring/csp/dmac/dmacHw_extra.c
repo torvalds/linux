@@ -316,7 +316,7 @@ static void DisplayDescRing(void *pDescriptor,	/*   [ IN ] Descriptor buffer */
 /**
 *  @brief   Check if DMA channel is the flow controller
 *
-*  @return  1 : If DMA is a flow controler
+*  @return  1 : If DMA is a flow controller
 *           0 : Peripheral is the flow controller
 *
 *  @note

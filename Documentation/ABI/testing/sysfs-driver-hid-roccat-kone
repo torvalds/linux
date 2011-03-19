@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/actual_dpi
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/actual_dpi
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	It is possible to switch the dpi setting of the mouse with the
@@ -17,13 +17,13 @@ Description:	It is possible to switch the dpi setting of the mouse with the
 
 		This file is readonly.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/actual_profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/actual_profile
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the number of the actual profile.
 		This file is readonly.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/firmware_version
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/firmware_version
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the raw integer version number of the
@@ -33,7 +33,7 @@ Description:	When read, this file returns the raw integer version number of the
 		left. E.g. a returned value of 138 means 1.38
 		This file is readonly.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/profile[1-5]
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/profile[1-5]
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
@@ -48,7 +48,7 @@ Description:	The mouse can store 5 profiles which can be switched by the
 		stored in the profile doesn't need to fit the number of the
 		store.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/settings
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/settings
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the settings stored in the mouse.
@@ -58,7 +58,7 @@ Description:	When read, this file returns the settings stored in the mouse.
 		The data has to be 36 bytes long. The mouse will reject invalid
 		data.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/startup_profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/startup_profile
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The integer value of this attribute ranges from 1 to 5.
@@ -67,7 +67,7 @@ Description:	The integer value of this attribute ranges from 1 to 5.
 		When written, this file sets the number of the startup profile
 		and the mouse activates this profile immediately.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/tcu
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/tcu
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse has a "Tracking Control Unit" which lets the user
@@ -78,7 +78,7 @@ Description:	The mouse has a "Tracking Control Unit" which lets the user
 		Writing 1 in this file will start the calibration which takes
 		around 6 seconds to complete and activates the TCU.
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/weight
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/weight
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can be equipped with one of four supplied weights

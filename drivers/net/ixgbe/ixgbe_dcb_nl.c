@@ -130,15 +130,21 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			netdev->netdev_ops->ndo_stop(netdev);
 		ixgbe_clear_interrupt_scheme(adapter);
 
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82598EB:
 			adapter->last_lfc_mode = adapter->hw.fc.current_mode;
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
-		}
-		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+			break;
+		case ixgbe_mac_82599EB:
+		case ixgbe_mac_X540:
 			adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 			adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+			break;
+		default:
+			break;
 		}
+
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		ixgbe_init_interrupt_scheme(adapter);
 		if (netif_running(netdev))
@@ -155,8 +161,14 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->dcb_cfg.pfc_mode_enable = false;
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
-			if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+			switch (adapter->hw.mac.type) {
+			case ixgbe_mac_82599EB:
+			case ixgbe_mac_X540:
 				adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+				break;
+			default:
+				break;
+			}
 
 			ixgbe_init_interrupt_scheme(adapter);
 			if (netif_running(netdev))
@@ -178,9 +190,14 @@ static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 	for (i = 0; i < netdev->addr_len; i++)
 		perm_addr[i] = adapter->hw.mac.perm_addr[i];
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		for (j = 0; j < netdev->addr_len; j++, i++)
 			perm_addr[i] = adapter->hw.mac.san_addr[j];
+		break;
+	default:
+		break;
 	}
 }
 
@@ -366,15 +383,29 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	}
 
 	if (adapter->dcb_cfg.pfc_mode_enable) {
-		if ((adapter->hw.mac.type != ixgbe_mac_82598EB) &&
-			(adapter->hw.fc.current_mode != ixgbe_fc_pfc))
-			adapter->last_lfc_mode = adapter->hw.fc.current_mode;
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+		case ixgbe_mac_X540:
+			if (adapter->hw.fc.current_mode != ixgbe_fc_pfc)
+				adapter->last_lfc_mode =
+				                  adapter->hw.fc.current_mode;
+			break;
+		default:
+			break;
+		}
 		adapter->hw.fc.requested_mode = ixgbe_fc_pfc;
 	} else {
-		if (adapter->hw.mac.type != ixgbe_mac_82598EB)
-			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
-		else
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82598EB:
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+			break;
+		case ixgbe_mac_82599EB:
+		case ixgbe_mac_X540:
+			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (adapter->dcb_set_bitmap & BIT_RESETLINK) {

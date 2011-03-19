@@ -1649,7 +1649,7 @@ check_sum:
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		u8 css, cso;
 
-		cso = skb_transport_offset(skb);
+		cso = skb_checksum_start_offset(skb);
 		if (unlikely(cso & 0x1)) {
 			netdev_err(adapter->netdev,
 				   "payload offset should not ant event number\n");

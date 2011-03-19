@@ -14,11 +14,13 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <osl.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <siutils.h>
@@ -77,7 +79,7 @@ typedef struct {
 	uint ccrev;		/* chipc revision */
 	otp_fn_t *fn;		/* OTP functions */
 	si_t *sih;		/* Saved sb handle */
-	osl_t *osh;
+	struct osl_info *osh;
 
 #ifdef BCMIPXOTP
 	/* IPX OTP section */
@@ -221,7 +223,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 {
 	int ret = 0;
 
-	switch (CHIPID(sih->chip)) {
+	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 		ret = osizew * 2 - OTP_SZ_FU_72 - OTP_SZ_CHECKSUM;
@@ -271,8 +273,8 @@ static void _ipxotp_init(otpinfo_t *oi, chipcregs_t *cc)
 	/* Read OTP lock bits and subregion programmed indication bits */
 	oi->status = R_REG(oi->osh, &cc->otpstatus);
 
-	if ((CHIPID(oi->sih->chip) == BCM43224_CHIP_ID)
-	    || (CHIPID(oi->sih->chip) == BCM43225_CHIP_ID)) {
+	if ((oi->sih->chip == BCM43224_CHIP_ID)
+	    || (oi->sih->chip == BCM43225_CHIP_ID)) {
 		u32 p_bits;
 		p_bits =
 		    (ipxotp_otpr(oi, cc, oi->otpgu_base + OTPGU_P_OFF) &
@@ -569,7 +571,7 @@ static int hndotp_size(void *oh)
 static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	osl_t *osh;
+	struct osl_info *osh;
 	volatile u16 *ptr;
 
 	ASSERT(wn < ((oi->size / 2) + OTP_RC_LIM_OFF));
@@ -584,7 +586,7 @@ static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	osl_t *osh;
+	struct osl_info *osh;
 	volatile u16 *ptr;
 
 	ASSERT(woff >= (-((int)oi->size / 2)));
@@ -603,7 +605,7 @@ static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
 	u32 otpp, st;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	osh = si_osh(oi->sih);
 	row = idx / 65;
@@ -636,7 +638,7 @@ static void *hndotp_init(si_t *sih)
 	otpinfo_t *oi;
 	u32 cap = 0, clkdiv, otpdiv = 0;
 	void *ret = NULL;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	oi = &otpinfo;
 
@@ -900,7 +902,7 @@ void *otp_init(si_t *sih)
 	void *ret = NULL;
 
 	oi = &otpinfo;
-	bzero(oi, sizeof(otpinfo_t));
+	memset(oi, 0, sizeof(otpinfo_t));
 
 	oi->ccrev = sih->ccrev;
 

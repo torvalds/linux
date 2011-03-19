@@ -1307,20 +1307,23 @@ static bool __init supported_pmu(void)
 	return false;
 }
 
-void __init init_hw_perf_events(void)
+int __init init_hw_perf_events(void)
 {
 	pr_info("Performance events: ");
 
 	if (!supported_pmu()) {
 		pr_cont("No support for PMU type '%s'\n", sparc_pmu_type);
-		return;
+		return 0;
 	}
 
 	pr_cont("Supported PMU type is '%s'\n", sparc_pmu_type);
 
-	perf_pmu_register(&pmu);
+	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 	register_die_notifier(&perf_event_nmi_notifier);
+
+	return 0;
 }
+early_initcall(init_hw_perf_events);
 
 void perf_callchain_kernel(struct perf_callchain_entry *entry,
 			   struct pt_regs *regs)

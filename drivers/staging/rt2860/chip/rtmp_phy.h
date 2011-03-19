@@ -247,7 +247,7 @@
 			}						\
 		}							\
 		if (BbpCsr.field.Busy == BUSY) {			\
-			DBGPRINT_ERR(("BBP(viaMCU=%d) read R%d fail\n", (_bViaMCU), _bbpID));	\
+			DBGPRINT_ERR("BBP(viaMCU=%d) read R%d fail\n", (_bViaMCU), _bbpID);	\
 			*(_pV) = (_pAd)->BbpWriteLatch[_bbpID];               \
 			if ((_bViaMCU) == TRUE) {			\
 				RTMP_IO_READ32(_pAd, _regID, &BbpCsr.word);				\
@@ -336,11 +336,11 @@
 			}						\
 		}							\
 	} else {							\
-		DBGPRINT_ERR((" , brt30xxBanMcuCmd = %d, Read BBP %d \n", (_A)->brt30xxBanMcuCmd, (_I)));	\
+		DBGPRINT_ERR(" , brt30xxBanMcuCmd = %d, Read BBP %d \n", (_A)->brt30xxBanMcuCmd, (_I));	\
 		*(_pV) = (_A)->BbpWriteLatch[_I];			\
 	}								\
 	if ((BbpCsr.field.Busy == BUSY) || ((_A)->bPCIclkOff == TRUE)) { \
-		DBGPRINT_ERR(("BBP read R%d=0x%x fail\n", _I, BbpCsr.word)); \
+		DBGPRINT_ERR("BBP read R%d=0x%x fail\n", _I, BbpCsr.word); \
 		*(_pV) = (_A)->BbpWriteLatch[_I];			\
 	}								\
 }
@@ -378,7 +378,7 @@
 			break;						\
 		}							\
 		if (_busyCnt == MAX_BUSY_COUNT) {			\
-			DBGPRINT_ERR(("BBP write R%d fail\n", _bbpID));	\
+			DBGPRINT_ERR("BBP write R%d fail\n", _bbpID);	\
 			if ((_bViaMCU) == TRUE) {			\
 				RTMP_IO_READ32(_pAd, H2M_BBP_AGENT, &BbpCsr.word);	\
 				BbpCsr.field.Busy = 0;			\
@@ -459,15 +459,15 @@
 				break;															\
 			}																	\
 		} else {						\
-			DBGPRINT_ERR(("  brt30xxBanMcuCmd = %d. Write BBP %d \n",  (_A)->brt30xxBanMcuCmd, (_I)));	\
+			DBGPRINT_ERR("  brt30xxBanMcuCmd = %d. Write BBP %d \n",  (_A)->brt30xxBanMcuCmd, (_I));	\
 		}																	\
 		if ((BusyCnt == MAX_BUSY_COUNT) || ((_A)->bPCIclkOff == TRUE)) { \
 			if (BusyCnt == MAX_BUSY_COUNT)				\
 				(_A)->AccessBBPFailCount++;					\
-			DBGPRINT_ERR(("BBP write R%d=0x%x fail. BusyCnt= %d.bPCIclkOff = %d. \n", _I, BbpCsr.word, BusyCnt, (_A)->bPCIclkOff));	\
+			DBGPRINT_ERR("BBP write R%d=0x%x fail. BusyCnt= %d.bPCIclkOff = %d. \n", _I, BbpCsr.word, BusyCnt, (_A)->bPCIclkOff);	\
 		}																	\
 	} else {							\
-		DBGPRINT_ERR(("****** BBP_Write_Latch Buffer exceeds max boundry ****** \n"));	\
+		DBGPRINT_ERR("****** BBP_Write_Latch Buffer exceeds max boundry ****** \n");	\
 	}																		\
 }
 #endif /* RTMP_MAC_PCI // */

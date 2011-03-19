@@ -577,7 +577,7 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 				mutex_unlock(&ttyj->ipw_tty_mutex);
 				tty_hangup(ttyj->linux_tty);
 				/* Wait till the tty_hangup has completed */
-				flush_scheduled_work();
+				flush_work_sync(&ttyj->linux_tty->hangup_work);
 				/* FIXME: Exactly how is the tty object locked here
 				   against a parallel ioctl etc */
 				mutex_lock(&ttyj->ipw_tty_mutex);

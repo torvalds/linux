@@ -42,6 +42,11 @@ struct nfsacl_encode_desc {
 	gid_t gid;
 };
 
+struct nfsacl_simple_acl {
+	struct posix_acl acl;
+	struct posix_acl_entry ace[4];
+};
+
 static int
 xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
 {
@@ -72,9 +77,20 @@ xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
 	return 0;
 }
 
-unsigned int
-nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
-	      struct posix_acl *acl, int encode_entries, int typeflag)
+/**
+ * nfsacl_encode - Encode an NFSv3 ACL
+ *
+ * @buf: destination xdr_buf to contain XDR encoded ACL
+ * @base: byte offset in xdr_buf where XDR'd ACL begins
+ * @inode: inode of file whose ACL this is
+ * @acl: posix_acl to encode
+ * @encode_entries: whether to encode ACEs as well
+ * @typeflag: ACL type: NFS_ACL_DEFAULT or zero
+ *
+ * Returns size of encoded ACL in bytes or a negative errno value.
+ */
+int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
+		  struct posix_acl *acl, int encode_entries, int typeflag)
 {
 	int entries = (acl && acl->a_count) ? max_t(int, acl->a_count, 4) : 0;
 	struct nfsacl_encode_desc nfsacl_desc = {
@@ -88,17 +104,22 @@ nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 		.uid = inode->i_uid,
 		.gid = inode->i_gid,
 	};
+	struct nfsacl_simple_acl aclbuf;
 	int err;
-	struct posix_acl *acl2 = NULL;
 
 	if (entries > NFS_ACL_MAX_ENTRIES ||
 	    xdr_encode_word(buf, base, entries))
 		return -EINVAL;
 	if (encode_entries && acl && acl->a_count == 3) {
-		/* Fake up an ACL_MASK entry. */
-		acl2 = posix_acl_alloc(4, GFP_KERNEL);
-		if (!acl2)
-			return -ENOMEM;
+		struct posix_acl *acl2 = &aclbuf.acl;
+
+		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
+		 * invoked in contexts where a memory allocation failure is
+		 * fatal.  Fortunately this fake ACL is small enough to
+		 * construct on the stack. */
+		memset(acl2, 0, sizeof(acl2));
+		posix_acl_init(acl2, 4);
+
 		/* Insert entries in canonical order: other orders seem
 		 to confuse Solaris VxFS. */
 		acl2->a_entries[0] = acl->a_entries[0];  /* ACL_USER_OBJ */
@@ -109,8 +130,6 @@ nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 		nfsacl_desc.acl = acl2;
 	}
 	err = xdr_encode_array2(buf, base + 4, &nfsacl_desc.desc);
-	if (acl2)
-		posix_acl_release(acl2);
 	if (!err)
 		err = 8 + nfsacl_desc.desc.elem_size *
 			  nfsacl_desc.desc.array_len;
@@ -224,9 +243,18 @@ posix_acl_from_nfsacl(struct posix_acl *acl)
 	return 0;
 }
 
-unsigned int
-nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
-	      struct posix_acl **pacl)
+/**
+ * nfsacl_decode - Decode an NFSv3 ACL
+ *
+ * @buf: xdr_buf containing XDR'd ACL data to decode
+ * @base: byte offset in xdr_buf where XDR'd ACL begins
+ * @aclcnt: count of ACEs in decoded posix_acl
+ * @pacl: buffer in which to place decoded posix_acl
+ *
+ * Returns the length of the decoded ACL in bytes, or a negative errno value.
+ */
+int nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
+		  struct posix_acl **pacl)
 {
 	struct nfsacl_decode_desc nfsacl_desc = {
 		.desc = {

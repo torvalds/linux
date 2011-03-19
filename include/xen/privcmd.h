@@ -34,12 +34,9 @@
 #define __LINUX_PUBLIC_PRIVCMD_H__
 
 #include <linux/types.h>
+#include <linux/compiler.h>
 
 typedef unsigned long xen_pfn_t;
-
-#ifndef __user
-#define __user
-#endif
 
 struct privcmd_hypercall {
 	__u64 op;

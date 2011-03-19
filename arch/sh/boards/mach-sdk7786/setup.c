@@ -15,13 +15,13 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
+#include <linux/clkdev.h>
 #include <mach/fpga.h>
 #include <mach/irq.h>
 #include <asm/machvec.h>
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
 #include <asm/clock.h>
-#include <asm/clkdev.h>
 #include <asm/reboot.h>
 #include <asm/smp-ops.h>
 
@@ -135,7 +135,7 @@ static int __init sdk7786_devices_setup(void)
 
 	return sdk7786_i2c_setup();
 }
-__initcall(sdk7786_devices_setup);
+device_initcall(sdk7786_devices_setup);
 
 static int sdk7786_mode_pins(void)
 {
@@ -237,6 +237,7 @@ static void __init sdk7786_setup(char **cmdline_p)
 	pr_info("Renesas Technology Europe SDK7786 support:\n");
 
 	sdk7786_fpga_init();
+	sdk7786_nmi_init();
 
 	pr_info("\tPCB revision:\t%d\n", fpga_read_reg(PCBRR) & 0xf);
 

@@ -117,6 +117,8 @@
 			};
 
 			IIC: i2c@ef600500 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				compatible = "ibm,iic-405ep", "ibm,iic";
 				reg = <0xef600500 0x00000011>;
 				interrupt-parent = <&UIC0>;

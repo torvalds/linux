@@ -1226,8 +1226,7 @@ rxf_process_packet_filter_vlan(struct bna_rxf *rxf)
 	/* Apply the VLAN filter */
 	if (rxf->rxf_flags & BNA_RXF_FL_VLAN_CONFIG_PENDING) {
 		rxf->rxf_flags &= ~BNA_RXF_FL_VLAN_CONFIG_PENDING;
-		if (!(rxf->rxmode_active & BNA_RXMODE_PROMISC) &&
-			!(rxf->rxmode_active & BNA_RXMODE_DEFAULT))
+		if (!(rxf->rxmode_active & BNA_RXMODE_PROMISC))
 			__rxf_vlan_filter_set(rxf, rxf->vlan_filter_status);
 	}
 
@@ -1274,9 +1273,6 @@ rxf_process_packet_filter(struct bna_rxf *rxf)
 		return 1;
 
 	if (rxf_process_packet_filter_promisc(rxf))
-		return 1;
-
-	if (rxf_process_packet_filter_default(rxf))
 		return 1;
 
 	if (rxf_process_packet_filter_allmulti(rxf))
@@ -1340,9 +1336,6 @@ rxf_clear_packet_filter(struct bna_rxf *rxf)
 	if (rxf_clear_packet_filter_promisc(rxf))
 		return 1;
 
-	if (rxf_clear_packet_filter_default(rxf))
-		return 1;
-
 	if (rxf_clear_packet_filter_allmulti(rxf))
 		return 1;
 
@@ -1388,8 +1381,6 @@ rxf_reset_packet_filter(struct bna_rxf *rxf)
 	rxf->ucast_pending_set = 0;
 
 	rxf_reset_packet_filter_promisc(rxf);
-
-	rxf_reset_packet_filter_default(rxf);
 
 	rxf_reset_packet_filter_allmulti(rxf);
 }
@@ -1441,12 +1432,16 @@ bna_rxf_init(struct bna_rxf *rxf,
 	memset(rxf->vlan_filter_table, 0,
 			(sizeof(u32) * ((BFI_MAX_VLAN + 1) / 32)));
 
+	/* Set up VLAN 0 for pure priority tagged packets */
+	rxf->vlan_filter_table[0] |= 1;
+
 	bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
 }
 
 static void
 bna_rxf_uninit(struct bna_rxf *rxf)
 {
+	struct bna *bna = rxf->rx->bna;
 	struct bna_mac *mac;
 
 	bna_rit_mod_seg_put(&rxf->rx->bna->rit_mod, rxf->rit_segment);
@@ -1472,6 +1467,27 @@ bna_rxf_uninit(struct bna_rxf *rxf)
 		bfa_q_qe_init(&mac->qe);
 		bna_mcam_mod_mac_put(&rxf->rx->bna->mcam_mod, mac);
 	}
+
+	/* Turn off pending promisc mode */
+	if (is_promisc_enable(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask)) {
+		/* system promisc state should be pending */
+		BUG_ON(!(bna->rxf_promisc_id == rxf->rxf_id));
+		promisc_inactive(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask);
+		 bna->rxf_promisc_id = BFI_MAX_RXF;
+	}
+	/* Promisc mode should not be active */
+	BUG_ON(rxf->rxmode_active & BNA_RXMODE_PROMISC);
+
+	/* Turn off pending all-multi mode */
+	if (is_allmulti_enable(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask)) {
+		allmulti_inactive(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask);
+	}
+	/* Allmulti mode should not be active */
+	BUG_ON(rxf->rxmode_active & BNA_RXMODE_ALLMULTI);
 
 	rxf->rx = NULL;
 }
@@ -1947,7 +1963,7 @@ bna_rx_sm_started_entry(struct bna_rx *rx)
 		bna_ib_ack(&rxp->cq.ib->door_bell, 0);
 	}
 
-	bna_llport_admin_up(&rx->bna->port.llport);
+	bna_llport_rx_started(&rx->bna->port.llport);
 }
 
 void
@@ -1955,13 +1971,13 @@ bna_rx_sm_started(struct bna_rx *rx, enum bna_rx_event event)
 {
 	switch (event) {
 	case RX_E_FAIL:
-		bna_llport_admin_down(&rx->bna->port.llport);
+		bna_llport_rx_stopped(&rx->bna->port.llport);
 		bfa_fsm_set_state(rx, bna_rx_sm_stopped);
 		rx_ib_fail(rx);
 		bna_rxf_fail(&rx->rxf);
 		break;
 	case RX_E_STOP:
-		bna_llport_admin_down(&rx->bna->port.llport);
+		bna_llport_rx_stopped(&rx->bna->port.llport);
 		bfa_fsm_set_state(rx, bna_rx_sm_rxf_stop_wait);
 		break;
 	default:
@@ -3373,7 +3389,7 @@ __bna_txq_start(struct bna_tx *tx, struct bna_txq *txq)
 
 	txq_cfg.cns_ptr2_n_q_state = BNA_Q_IDLE_STATE;
 	txq_cfg.nxt_qid_n_fid_n_pri = (((tx->txf.txf_id & 0x3f) << 3) |
-			(txq->priority & 0x3));
+			(txq->priority & 0x7));
 	txq_cfg.wvc_n_cquota_n_rquota =
 			((((u32)BFI_TX_MAX_WRR_QUOTA & 0xfff) << 12) |
 			(BFI_TX_MAX_WRR_QUOTA & 0xfff));

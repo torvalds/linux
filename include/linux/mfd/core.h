@@ -39,7 +39,7 @@ struct mfd_cell {
 	size_t			data_size;
 
 	/*
-	 * This resources can be specified relatievly to the parent device.
+	 * This resources can be specified relatively to the parent device.
 	 * For accessing device you should use resources from device
 	 */
 	int			num_resources;
@@ -47,6 +47,12 @@ struct mfd_cell {
 
 	/* don't check for resource conflicts */
 	bool			ignore_resource_conflicts;
+
+	/*
+	 * Disable runtime PM callbacks for this subdevice - see
+	 * pm_runtime_no_callbacks().
+	 */
+	bool			pm_runtime_no_callbacks;
 };
 
 extern int mfd_add_devices(struct device *parent, int id,

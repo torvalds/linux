@@ -195,7 +195,7 @@ typedef struct _CommandList_struct {
   int			   ctlr;
   int			   cmd_type; 
   long			   cmdindex;
-  struct hlist_node list;
+  struct list_head list;
   struct request *	   rq;
   struct completion *waiting;
   int	 retry_count;

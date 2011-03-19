@@ -720,7 +720,21 @@ static u32 netxen_nic_get_rx_csum(struct net_device *dev)
 static int netxen_nic_set_rx_csum(struct net_device *dev, u32 data)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
-	adapter->rx_csum = !!data;
+
+	if (data) {
+		adapter->rx_csum = data;
+		return 0;
+	}
+
+	if (dev->features & NETIF_F_LRO) {
+		if (netxen_config_hw_lro(adapter, NETXEN_NIC_LRO_DISABLED))
+			return -EIO;
+
+		dev->features &= ~NETIF_F_LRO;
+		netxen_send_lro_cleanup(adapter);
+		netdev_info(dev, "disabling LRO as rx_csum is off\n");
+	}
+	adapter->rx_csum = data;
 	return 0;
 }
 
@@ -893,11 +907,19 @@ static int netxen_nic_set_flags(struct net_device *netdev, u32 data)
 	if (!(adapter->capabilities & NX_FW_CAPABILITY_HW_LRO))
 		return -EINVAL;
 
+	if (!adapter->rx_csum) {
+		netdev_info(netdev, "rx csum is off, cannot toggle LRO\n");
+		return -EINVAL;
+	}
+
+	if (!!(data & ETH_FLAG_LRO) == !!(netdev->features & NETIF_F_LRO))
+		return 0;
+
 	if (data & ETH_FLAG_LRO) {
 		hw_lro = NETXEN_NIC_LRO_ENABLED;
 		netdev->features |= NETIF_F_LRO;
 	} else {
-		hw_lro = 0;
+		hw_lro = NETXEN_NIC_LRO_DISABLED;
 		netdev->features &= ~NETIF_F_LRO;
 	}
 

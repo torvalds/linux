@@ -31,7 +31,7 @@ source "drivers/pci/pcie/aer/Kconfig"
 # PCI Express ASPM
 #
 config PCIEASPM
-	bool "PCI Express ASPM control" if EMBEDDED
+	bool "PCI Express ASPM control" if EXPERT
 	depends on PCI && PCIEPORTBUS
 	default y
 	help

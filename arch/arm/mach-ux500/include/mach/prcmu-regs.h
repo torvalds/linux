@@ -1,10 +1,15 @@
 /*
- * Copyright (c) 2009 ST-Ericsson SA
+ * Copyright (C) STMicroelectronics 2009
+ * Copyright (C) ST-Ericsson SA 2010
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
+ * Author: Kumar Sanghvi <kumar.sanghvi@stericsson.com>
+ * Author: Sundar Iyer <sundar.iyer@stericsson.com>
+ *
+ * License Terms: GNU General Public License v2
+ *
+ * PRCM Unit registers
  */
+
 #ifndef __MACH_PRCMU_REGS_H
 #define __MACH_PRCMU_REGS_H
 
@@ -88,4 +93,4 @@
 /* Miscellaneous unit registers */
 #define PRCM_DSI_SW_RESET          (_PRCMU_BASE + 0x324)
 
-#endif /* __MACH_PRCMU__REGS_H */
+#endif /* __MACH_PRCMU_REGS_H */

@@ -24,9 +24,10 @@
 #include <linux/kernel.h>
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
-#include <bcmutils.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <osl.h>
+#include <bcmutils.h>
 
 #include <proto/802.11.h>
 #include <bcmwifi.h>
@@ -46,6 +47,7 @@
 #include <wlc_channel.h>
 #include <bcmsrom.h>
 #include <wlc_key.h>
+#include <wlc_event.h>
 
 #include <wlc_mac80211.h>
 
@@ -53,21 +55,23 @@
 #include <wlc_phy_shim.h>
 #include <wlc_phy_hal.h>
 #include <wl_export.h>
+#include <wl_dbg.h>
 
 /* PHY SHIM module specific state */
 struct wlc_phy_shim_info {
-	wlc_hw_info_t *wlc_hw;	/* pointer to main wlc_hw structure */
+	struct wlc_hw_info *wlc_hw;	/* pointer to main wlc_hw structure */
 	void *wlc;		/* pointer to main wlc structure */
 	void *wl;		/* pointer to os-specific private state */
 };
 
-wlc_phy_shim_info_t *wlc_phy_shim_attach(wlc_hw_info_t *wlc_hw,
+wlc_phy_shim_info_t *wlc_phy_shim_attach(struct wlc_hw_info *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
 	physhim = kzalloc(sizeof(wlc_phy_shim_info_t), GFP_ATOMIC);
 	if (!physhim) {
-		WL_ERROR(("wl%d: wlc_phy_shim_attach: out of mem\n", wlc_hw->unit));
+		WL_ERROR("wl%d: wlc_phy_shim_attach: out of mem\n",
+			 wlc_hw->unit);
 		return NULL;
 	}
 	physhim->wlc_hw = wlc_hw;

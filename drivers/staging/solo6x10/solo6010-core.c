@@ -136,6 +136,7 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 	int ret;
 	int sdram;
 	u8 chip_id;
+
 	solo_dev = kzalloc(sizeof(*solo_dev), GFP_KERNEL);
 	if (solo_dev == NULL)
 		return -ENOMEM;
@@ -163,21 +164,21 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 	chip_id = solo_reg_read(solo_dev, SOLO_CHIP_OPTION) &
 					SOLO_CHIP_ID_MASK;
 	switch (chip_id) {
-		case 7:
-			solo_dev->nr_chans = 16;
-			solo_dev->nr_ext = 5;
-			break;
-		case 6:
-			solo_dev->nr_chans = 8;
-			solo_dev->nr_ext = 2;
-			break;
-		default:
-			dev_warn(&pdev->dev, "Invalid chip_id 0x%02x, "
-				 "defaulting to 4 channels\n",
-				 chip_id);
-		case 5:
-			solo_dev->nr_chans = 4;
-			solo_dev->nr_ext = 1;
+	case 7:
+		solo_dev->nr_chans = 16;
+		solo_dev->nr_ext = 5;
+		break;
+	case 6:
+		solo_dev->nr_chans = 8;
+		solo_dev->nr_ext = 2;
+		break;
+	default:
+		dev_warn(&pdev->dev, "Invalid chip_id 0x%02x, "
+			 "defaulting to 4 channels\n",
+			 chip_id);
+	case 5:
+		solo_dev->nr_chans = 4;
+		solo_dev->nr_ext = 1;
 	}
 
 	/* Disable all interrupts to start */
@@ -261,13 +262,18 @@ static void __devexit solo6010_pci_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id solo6010_id_table[] = {
+	/* 6010 based cards */
 	{PCI_DEVICE(PCI_VENDOR_ID_SOFTLOGIC, PCI_DEVICE_ID_SOLO6010)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_NEUSOLO_4)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_NEUSOLO_9)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_NEUSOLO_16)},
-	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_COMMSOLO_4)},
-	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_COMMSOLO_9)},
-	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_COMMSOLO_16)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_SOLO_4)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_SOLO_9)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_SOLO_16)},
+	/* 6110 based cards */
+	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_6110_4)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_6110_8)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BLUECHERRY, PCI_DEVICE_ID_BC_6110_16)},
 	{0,}
 };
 

@@ -54,19 +54,18 @@ static void __init omap_nokia770_init_irq(void)
 	omap_init_irq();
 }
 
-static int nokia770_keymap[] = {
-	KEY(0, 1, GROUP_0 | KEY_UP),
-	KEY(0, 2, GROUP_1 | KEY_F5),
-	KEY(1, 0, GROUP_0 | KEY_LEFT),
+static const unsigned int nokia770_keymap[] = {
+	KEY(1, 0, GROUP_0 | KEY_UP),
+	KEY(2, 0, GROUP_1 | KEY_F5),
+	KEY(0, 1, GROUP_0 | KEY_LEFT),
 	KEY(1, 1, GROUP_0 | KEY_ENTER),
-	KEY(1, 2, GROUP_0 | KEY_RIGHT),
-	KEY(2, 0, GROUP_1 | KEY_ESC),
-	KEY(2, 1, GROUP_0 | KEY_DOWN),
+	KEY(2, 1, GROUP_0 | KEY_RIGHT),
+	KEY(0, 2, GROUP_1 | KEY_ESC),
+	KEY(1, 2, GROUP_0 | KEY_DOWN),
 	KEY(2, 2, GROUP_1 | KEY_F4),
-	KEY(3, 0, GROUP_2 | KEY_F7),
-	KEY(3, 1, GROUP_2 | KEY_F8),
-	KEY(3, 2, GROUP_2 | KEY_F6),
-	0
+	KEY(0, 3, GROUP_2 | KEY_F7),
+	KEY(1, 3, GROUP_2 | KEY_F8),
+	KEY(2, 3, GROUP_2 | KEY_F6),
 };
 
 static struct resource nokia770_kp_resources[] = {
@@ -77,11 +76,15 @@ static struct resource nokia770_kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data nokia770_keymap_data = {
+	.keymap		= nokia770_keymap,
+	.keymap_size	= ARRAY_SIZE(nokia770_keymap),
+};
+
 static struct omap_kp_platform_data nokia770_kp_data = {
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= nokia770_keymap,
-	.keymapsize	= ARRAY_SIZE(nokia770_keymap),
+	.keymap_data	= &nokia770_keymap_data,
 	.delay		= 4,
 };
 
@@ -246,7 +249,6 @@ static void __init omap_nokia770_init(void)
 	platform_add_devices(nokia770_devices, ARRAY_SIZE(nokia770_devices));
 	spi_register_board_info(nokia770_spi_board_info,
 				ARRAY_SIZE(nokia770_spi_board_info));
-	omap_gpio_init();
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	hwa742_dev_init();

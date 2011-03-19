@@ -1,9 +1,5 @@
 /*
- *  arch/sh/include/asm/clkdev.h
- *
- * Cloned from arch/arm/include/asm/clkdev.h:
- *
- *  Copyright (C) 2008 Russell King.
+ *  Copyright (C) 2010 Paul Mundt <lethal@linux-sh.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,25 +7,25 @@
  *
  * Helper for the clk API to assist looking up a struct clk.
  */
-#ifndef __ASM_CLKDEV_H
-#define __ASM_CLKDEV_H
 
-struct clk;
+#ifndef __CLKDEV__H_
+#define __CLKDEV__H_
 
-struct clk_lookup {
-	struct list_head	node;
-	const char		*dev_id;
-	const char		*con_id;
-	struct clk		*clk;
-};
+#include <linux/bootmem.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
 
-struct clk_lookup *clkdev_alloc(struct clk *clk, const char *con_id,
-	const char *dev_fmt, ...);
+#include <asm/clock.h>
 
-void clkdev_add(struct clk_lookup *cl);
-void clkdev_drop(struct clk_lookup *cl);
+static inline struct clk_lookup_alloc *__clkdev_alloc(size_t size)
+{
+	if (!slab_is_available())
+		return alloc_bootmem_low_pages(size);
+	else
+		return kzalloc(size, GFP_KERNEL);
+}
 
-void clkdev_add_table(struct clk_lookup *, size_t);
-int clk_add_alias(const char *, const char *, char *, struct device *);
+#define __clk_put(clk)
+#define __clk_get(clk) ({ 1; })
 
-#endif
+#endif /* __CLKDEV_H__ */

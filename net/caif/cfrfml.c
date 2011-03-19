@@ -193,7 +193,7 @@ out:
 
 static int cfrfml_transmit_segment(struct cfrfml *rfml, struct cfpkt *pkt)
 {
-	caif_assert(cfpkt_getlen(pkt) >= rfml->fragment_size);
+	caif_assert(cfpkt_getlen(pkt) < rfml->fragment_size);
 
 	/* Add info for MUX-layer to route the packet out. */
 	cfpkt_info(pkt)->channel_id = rfml->serv.layer.id;

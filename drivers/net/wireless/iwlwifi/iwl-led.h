@@ -47,14 +47,16 @@ enum led_type {
 
 /*
  * LED mode
- *    IWL_LED_BLINK:    adjust led blink rate based on blink table
+ *    IWL_LED_DEFAULT:  use system default
  *    IWL_LED_RF_STATE: turn LED on/off based on RF state
  *			LED ON  = RF ON
  *			LED OFF = RF OFF
+ *    IWL_LED_BLINK:    adjust led blink rate based on blink table
  */
 enum iwl_led_mode {
-	IWL_LED_BLINK,
+	IWL_LED_DEFAULT,
 	IWL_LED_RF_STATE,
+	IWL_LED_BLINK,
 };
 
 void iwl_leds_init(struct iwl_priv *priv);

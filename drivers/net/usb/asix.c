@@ -1508,6 +1508,10 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x0b95, 0x1780),
 	.driver_info = (unsigned long) &ax88178_info,
 }, {
+	// Logitec LAN-GTJ/U2A
+	USB_DEVICE (0x0789, 0x0160),
+	.driver_info = (unsigned long) &ax88178_info,
+}, {
 	// Linksys USB200M Rev 2
 	USB_DEVICE (0x13b1, 0x0018),
 	.driver_info = (unsigned long) &ax88772_info,

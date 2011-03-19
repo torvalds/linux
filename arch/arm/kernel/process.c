@@ -483,6 +483,7 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }
 
+#ifdef CONFIG_MMU
 /*
  * The vectors page is always readable from user space for the
  * atomic helpers and the signal restart code.  Let's declare a mapping
@@ -503,3 +504,4 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 {
 	return (vma->vm_start == 0xffff0000) ? "[vectors]" : NULL;
 }
+#endif

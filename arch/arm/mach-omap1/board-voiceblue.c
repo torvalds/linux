@@ -83,6 +83,9 @@ static struct platform_device serial_device = {
 
 static int __init ext_uart_init(void)
 {
+	if (!machine_is_voiceblue())
+		return -ENODEV;
+
 	return platform_device_register(&serial_device);
 }
 arch_initcall(ext_uart_init);
@@ -158,7 +161,6 @@ static void __init voiceblue_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static void __init voiceblue_init(void)
@@ -236,6 +238,9 @@ static struct notifier_block panic_block = {
 
 static int __init voiceblue_setup(void)
 {
+	if (!machine_is_voiceblue())
+		return -ENODEV;
+
 	/* Setup panic notifier */
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 

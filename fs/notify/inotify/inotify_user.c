@@ -752,6 +752,7 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	if (ret >= 0)
 		return ret;
 
+	fsnotify_put_group(group);
 	atomic_dec(&user->inotify_devs);
 out_free_uid:
 	free_uid(user);

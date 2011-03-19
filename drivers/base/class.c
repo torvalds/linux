@@ -27,7 +27,7 @@ static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 			       char *buf)
 {
 	struct class_attribute *class_attr = to_class_attr(attr);
-	struct class_private *cp = to_class(kobj);
+	struct subsys_private *cp = to_subsys_private(kobj);
 	ssize_t ret = -EIO;
 
 	if (class_attr->show)
@@ -39,7 +39,7 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 				const char *buf, size_t count)
 {
 	struct class_attribute *class_attr = to_class_attr(attr);
-	struct class_private *cp = to_class(kobj);
+	struct subsys_private *cp = to_subsys_private(kobj);
 	ssize_t ret = -EIO;
 
 	if (class_attr->store)
@@ -49,7 +49,7 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 
 static void class_release(struct kobject *kobj)
 {
-	struct class_private *cp = to_class(kobj);
+	struct subsys_private *cp = to_subsys_private(kobj);
 	struct class *class = cp->class;
 
 	pr_debug("class '%s': release.\n", class->name);
@@ -65,7 +65,7 @@ static void class_release(struct kobject *kobj)
 
 static const struct kobj_ns_type_operations *class_child_ns_type(struct kobject *kobj)
 {
-	struct class_private *cp = to_class(kobj);
+	struct subsys_private *cp = to_subsys_private(kobj);
 	struct class *class = cp->class;
 
 	return class->ns_type;
@@ -82,7 +82,7 @@ static struct kobj_type class_ktype = {
 	.child_ns_type	= class_child_ns_type,
 };
 
-/* Hotplug events for classes go to the class class_subsys */
+/* Hotplug events for classes go to the class subsys */
 static struct kset *class_kset;
 
 
@@ -90,7 +90,7 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 {
 	int error;
 	if (cls)
-		error = sysfs_create_file(&cls->p->class_subsys.kobj,
+		error = sysfs_create_file(&cls->p->subsys.kobj,
 					  &attr->attr);
 	else
 		error = -EINVAL;
@@ -100,20 +100,20 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 void class_remove_file(struct class *cls, const struct class_attribute *attr)
 {
 	if (cls)
-		sysfs_remove_file(&cls->p->class_subsys.kobj, &attr->attr);
+		sysfs_remove_file(&cls->p->subsys.kobj, &attr->attr);
 }
 
 static struct class *class_get(struct class *cls)
 {
 	if (cls)
-		kset_get(&cls->p->class_subsys);
+		kset_get(&cls->p->subsys);
 	return cls;
 }
 
 static void class_put(struct class *cls)
 {
 	if (cls)
-		kset_put(&cls->p->class_subsys);
+		kset_put(&cls->p->subsys);
 }
 
 static int add_class_attrs(struct class *cls)
@@ -162,7 +162,7 @@ static void klist_class_dev_put(struct klist_node *n)
 
 int __class_register(struct class *cls, struct lock_class_key *key)
 {
-	struct class_private *cp;
+	struct subsys_private *cp;
 	int error;
 
 	pr_debug("device class '%s': registering\n", cls->name);
@@ -170,11 +170,11 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
-	klist_init(&cp->class_devices, klist_class_dev_get, klist_class_dev_put);
+	klist_init(&cp->klist_devices, klist_class_dev_get, klist_class_dev_put);
 	INIT_LIST_HEAD(&cp->class_interfaces);
-	kset_init(&cp->class_dirs);
+	kset_init(&cp->glue_dirs);
 	__mutex_init(&cp->class_mutex, "struct class mutex", key);
-	error = kobject_set_name(&cp->class_subsys.kobj, "%s", cls->name);
+	error = kobject_set_name(&cp->subsys.kobj, "%s", cls->name);
 	if (error) {
 		kfree(cp);
 		return error;
@@ -187,15 +187,15 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 #if defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
 	if (!sysfs_deprecated || cls != &block_class)
-		cp->class_subsys.kobj.kset = class_kset;
+		cp->subsys.kobj.kset = class_kset;
 #else
-	cp->class_subsys.kobj.kset = class_kset;
+	cp->subsys.kobj.kset = class_kset;
 #endif
-	cp->class_subsys.kobj.ktype = &class_ktype;
+	cp->subsys.kobj.ktype = &class_ktype;
 	cp->class = cls;
 	cls->p = cp;
 
-	error = kset_register(&cp->class_subsys);
+	error = kset_register(&cp->subsys);
 	if (error) {
 		kfree(cp);
 		return error;
@@ -210,7 +210,7 @@ void class_unregister(struct class *cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
 	remove_class_attrs(cls);
-	kset_unregister(&cls->p->class_subsys);
+	kset_unregister(&cls->p->subsys);
 }
 
 static void class_create_release(struct class *cls)
@@ -295,7 +295,7 @@ void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
 
 	if (start)
 		start_knode = &start->knode_class;
-	klist_iter_init_node(&class->p->class_devices, &iter->ki, start_knode);
+	klist_iter_init_node(&class->p->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_init);
@@ -482,8 +482,8 @@ void class_interface_unregister(struct class_interface *class_intf)
 	class_put(parent);
 }
 
-ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
-                        	char *buf)
+ssize_t show_class_attr_string(struct class *class,
+			       struct class_attribute *attr, char *buf)
 {
 	struct class_attribute_string *cs;
 	cs = container_of(attr, struct class_attribute_string, attr);

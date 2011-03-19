@@ -147,7 +147,7 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
 	int frames = fsize / bytes_per_frame;
 
-	if (runtime == 0)
+	if (runtime == NULL)
 		return;
 
 	if (line6pcm->pos_in_done + frames > runtime->buffer_size) {

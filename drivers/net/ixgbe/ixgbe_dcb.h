@@ -150,7 +150,8 @@ struct ixgbe_dcb_config {
 /* DCB driver APIs */
 
 /* DCB credits calculation */
-s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *, int, u8);
+s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,
+				   struct ixgbe_dcb_config *, int, u8);
 
 /* DCB hw initialization */
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *, struct ixgbe_dcb_config *);

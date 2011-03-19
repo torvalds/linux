@@ -705,54 +705,85 @@ static int acpi_bus_get_perf_flags(struct acpi_device *device)
 }
 
 static acpi_status
-acpi_bus_extract_wakeup_device_power_package(struct acpi_device *device,
-					     union acpi_object *package)
+acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
+					     struct acpi_device_wakeup *wakeup)
 {
-	int i = 0;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *package = NULL;
 	union acpi_object *element = NULL;
+	acpi_status status;
+	int i = 0;
 
-	if (!device || !package || (package->package.count < 2))
+	if (!wakeup)
 		return AE_BAD_PARAMETER;
+
+	/* _PRW */
+	status = acpi_evaluate_object(handle, "_PRW", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRW"));
+		return status;
+	}
+
+	package = (union acpi_object *)buffer.pointer;
+
+	if (!package || (package->package.count < 2)) {
+		status = AE_BAD_DATA;
+		goto out;
+	}
 
 	element = &(package->package.elements[0]);
-	if (!element)
-		return AE_BAD_PARAMETER;
+	if (!element) {
+		status = AE_BAD_DATA;
+		goto out;
+	}
 	if (element->type == ACPI_TYPE_PACKAGE) {
 		if ((element->package.count < 2) ||
 		    (element->package.elements[0].type !=
 		     ACPI_TYPE_LOCAL_REFERENCE)
-		    || (element->package.elements[1].type != ACPI_TYPE_INTEGER))
-			return AE_BAD_DATA;
-		device->wakeup.gpe_device =
+		    || (element->package.elements[1].type != ACPI_TYPE_INTEGER)) {
+			status = AE_BAD_DATA;
+			goto out;
+		}
+		wakeup->gpe_device =
 		    element->package.elements[0].reference.handle;
-		device->wakeup.gpe_number =
+		wakeup->gpe_number =
 		    (u32) element->package.elements[1].integer.value;
 	} else if (element->type == ACPI_TYPE_INTEGER) {
-		device->wakeup.gpe_number = element->integer.value;
-	} else
-		return AE_BAD_DATA;
+		wakeup->gpe_device = NULL;
+		wakeup->gpe_number = element->integer.value;
+	} else {
+		status = AE_BAD_DATA;
+		goto out;
+	}
 
 	element = &(package->package.elements[1]);
 	if (element->type != ACPI_TYPE_INTEGER) {
-		return AE_BAD_DATA;
+		status = AE_BAD_DATA;
+		goto out;
 	}
-	device->wakeup.sleep_state = element->integer.value;
+	wakeup->sleep_state = element->integer.value;
 
 	if ((package->package.count - 2) > ACPI_MAX_HANDLES) {
-		return AE_NO_MEMORY;
+		status = AE_NO_MEMORY;
+		goto out;
 	}
-	device->wakeup.resources.count = package->package.count - 2;
-	for (i = 0; i < device->wakeup.resources.count; i++) {
+	wakeup->resources.count = package->package.count - 2;
+	for (i = 0; i < wakeup->resources.count; i++) {
 		element = &(package->package.elements[i + 2]);
-		if (element->type != ACPI_TYPE_LOCAL_REFERENCE)
-			return AE_BAD_DATA;
+		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
+			status = AE_BAD_DATA;
+			goto out;
+		}
 
-		device->wakeup.resources.handles[i] = element->reference.handle;
+		wakeup->resources.handles[i] = element->reference.handle;
 	}
 
-	acpi_gpe_can_wake(device->wakeup.gpe_device, device->wakeup.gpe_number);
+	acpi_setup_gpe_for_wake(handle, wakeup->gpe_device, wakeup->gpe_number);
 
-	return AE_OK;
+ out:
+	kfree(buffer.pointer);
+
+	return status;
 }
 
 static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
@@ -772,7 +803,7 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 	/* Power button, Lid switch always enable wakeup */
 	if (!acpi_match_device_ids(device, button_device_ids)) {
 		device->wakeup.flags.run_wake = 1;
-		device->wakeup.flags.always_enabled = 1;
+		device_set_wakeup_capable(&device->dev, true);
 		return;
 	}
 
@@ -784,28 +815,23 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 				!!(event_status & ACPI_EVENT_FLAG_HANDLE);
 }
 
-static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
+static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 {
+	acpi_handle temp;
 	acpi_status status = 0;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *package = NULL;
 	int psw_error;
 
-	/* _PRW */
-	status = acpi_evaluate_object(device->handle, "_PRW", NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRW"));
-		goto end;
-	}
+	/* Presence of _PRW indicates wake capable */
+	status = acpi_get_handle(device->handle, "_PRW", &temp);
+	if (ACPI_FAILURE(status))
+		return;
 
-	package = (union acpi_object *)buffer.pointer;
-	status = acpi_bus_extract_wakeup_device_power_package(device, package);
+	status = acpi_bus_extract_wakeup_device_power_package(device->handle,
+							      &device->wakeup);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Extracting _PRW package"));
-		goto end;
+		return;
 	}
-
-	kfree(buffer.pointer);
 
 	device->wakeup.flags.valid = 1;
 	device->wakeup.prepare_count = 0;
@@ -820,12 +846,9 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	if (psw_error)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				"error in _DSW or _PSW evaluation\n"));
-
-end:
-	if (ACPI_FAILURE(status))
-		device->flags.wake_capable = 0;
-	return 0;
 }
+
+static void acpi_bus_add_power_resource(acpi_handle handle);
 
 static int acpi_bus_get_power_flags(struct acpi_device *device)
 {
@@ -855,8 +878,12 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 		acpi_evaluate_reference(device->handle, object_name, NULL,
 					&ps->resources);
 		if (ps->resources.count) {
+			int j;
+
 			device->power.flags.power_resources = 1;
 			ps->flags.valid = 1;
+			for (j = 0; j < ps->resources.count; j++)
+				acpi_bus_add_power_resource(ps->resources.handles[j]);
 		}
 
 		/* Evaluate "_PSx" to see if we can do explicit sets */
@@ -881,10 +908,7 @@ static int acpi_bus_get_power_flags(struct acpi_device *device)
 	device->power.states[ACPI_STATE_D3].flags.valid = 1;
 	device->power.states[ACPI_STATE_D3].power = 0;
 
-	/* TBD: System wake support and resource requirements. */
-
-	device->power.state = ACPI_STATE_UNKNOWN;
-	acpi_bus_get_power(device->handle, &(device->power.state));
+	acpi_bus_init_power(device);
 
 	return 0;
 }
@@ -926,11 +950,6 @@ static int acpi_bus_get_flags(struct acpi_device *device)
 		status = acpi_get_handle(device->handle, "_PR0", &temp);
 	if (ACPI_SUCCESS(status))
 		device->flags.power_manageable = 1;
-
-	/* Presence of _PRW indicates wake capable */
-	status = acpi_get_handle(device->handle, "_PRW", &temp);
-	if (ACPI_SUCCESS(status))
-		device->flags.wake_capable = 1;
 
 	/* TBD: Performance management */
 
@@ -1258,11 +1277,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 	 * Wakeup device management
 	 *-----------------------
 	 */
-	if (device->flags.wake_capable) {
-		result = acpi_bus_get_wakeup_device_flags(device);
-		if (result)
-			goto end;
-	}
+	acpi_bus_get_wakeup_device_flags(device);
 
 	/*
 	 * Performance Management
@@ -1305,6 +1320,20 @@ end:
 
 #define ACPI_STA_DEFAULT (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED | \
 			  ACPI_STA_DEVICE_UI      | ACPI_STA_DEVICE_FUNCTIONING)
+
+static void acpi_bus_add_power_resource(acpi_handle handle)
+{
+	struct acpi_bus_ops ops = {
+		.acpi_op_add = 1,
+		.acpi_op_start = 1,
+	};
+	struct acpi_device *device = NULL;
+
+	acpi_bus_get_device(handle, &device);
+	if (!device)
+		acpi_add_single_object(&device, handle, ACPI_BUS_TYPE_POWER,
+					ACPI_STA_DEFAULT, &ops);
+}
 
 static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 				    unsigned long long *sta)
@@ -1360,8 +1389,16 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 		return AE_OK;
 
 	if (!(sta & ACPI_STA_DEVICE_PRESENT) &&
-	    !(sta & ACPI_STA_DEVICE_FUNCTIONING))
+	    !(sta & ACPI_STA_DEVICE_FUNCTIONING)) {
+		struct acpi_device_wakeup wakeup;
+		acpi_handle temp;
+
+		status = acpi_get_handle(handle, "_PRW", &temp);
+		if (ACPI_SUCCESS(status))
+			acpi_bus_extract_wakeup_device_power_package(handle,
+								     &wakeup);
 		return AE_CTRL_DEPTH;
+	}
 
 	/*
 	 * We may already have an acpi_device from a previous enumeration.  If
@@ -1444,7 +1481,7 @@ int acpi_bus_start(struct acpi_device *device)
 
 	result = acpi_bus_scan(device->handle, &ops, NULL);
 
-	acpi_update_gpes();
+	acpi_update_all_gpes();
 
 	return result;
 }
@@ -1550,6 +1587,8 @@ int __init acpi_scan_init(void)
 		printk(KERN_ERR PREFIX "Could not register bus type\n");
 	}
 
+	acpi_power_init();
+
 	/*
 	 * Enumerate devices in the ACPI namespace.
 	 */
@@ -1561,7 +1600,7 @@ int __init acpi_scan_init(void)
 	if (result)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
 	else
-		acpi_update_gpes();
+		acpi_update_all_gpes();
 
 	return result;
 }

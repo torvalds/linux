@@ -39,12 +39,10 @@ static struct pcmcia_irqs irqs[] = {
 static int balloon3_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	uint16_t ver;
-	int ret;
-	static void __iomem *fpga_ver;
 
 	ver = __raw_readw(BALLOON3_FPGA_VER);
-	if (ver > 0x0201)
-		pr_warn("The FPGA code, version 0x%04x, is newer than rel-0.3. "
+	if (ver < 0x4f08)
+		pr_warn("The FPGA code, version 0x%04x, is too old. "
 			"PCMCIA/CF support might be broken in this version!",
 			ver);
 
@@ -97,8 +95,9 @@ static void balloon3_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 static int balloon3_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 				       const socket_state_t *state)
 {
-	__raw_writew((state->flags & SS_RESET) ? BALLOON3_CF_RESET : 0,
-			BALLOON3_CF_CONTROL_REG);
+	__raw_writew(BALLOON3_CF_RESET, BALLOON3_CF_CONTROL_REG |
+			((state->flags & SS_RESET) ?
+			BALLOON3_FPGA_SETnCLR : 0));
 	return 0;
 }
 

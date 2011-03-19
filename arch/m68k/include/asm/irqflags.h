@@ -2,7 +2,9 @@
 #define _M68K_IRQFLAGS_H
 
 #include <linux/types.h>
+#ifdef CONFIG_MMU
 #include <linux/hardirq.h>
+#endif
 #include <linux/preempt.h>
 #include <asm/thread_info.h>
 #include <asm/entry.h>

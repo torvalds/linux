@@ -51,11 +51,18 @@ struct socket_smack {
  */
 struct inode_smack {
 	char		*smk_inode;	/* label of the fso */
+	char		*smk_task;	/* label of the task */
 	struct mutex	smk_lock;	/* initialization lock */
 	int		smk_flags;	/* smack inode flags */
 };
 
+struct task_smack {
+	char		*smk_task;	/* label used for access control */
+	char		*smk_forked;	/* label when forked */
+};
+
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
+#define	SMK_INODE_TRANSMUTE	0x02	/* directory is transmuting */
 
 /*
  * A label access rule.
@@ -161,6 +168,10 @@ struct smack_known {
 #define SMACK_CIPSO_MAXCATNUM           239     /* CIPSO 2.2 standard */
 
 /*
+ * Flag for transmute access
+ */
+#define MAY_TRANSMUTE	64
+/*
  * Just to make the common cases easier to deal with
  */
 #define MAY_ANY		(MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
@@ -191,6 +202,7 @@ struct inode_smack *new_inode_smack(char *);
 /*
  * These functions are in smack_access.c
  */
+int smk_access_entry(char *, char *);
 int smk_access(char *, char *, int, struct smk_audit_info *);
 int smk_curacc(char *, u32, struct smk_audit_info *);
 int smack_to_cipso(const char *, struct smack_cipso *);
@@ -234,12 +246,45 @@ static inline void smack_catset_bit(int cat, char *catsetp)
 }
 
 /*
+ * Is the directory transmuting?
+ */
+static inline int smk_inode_transmutable(const struct inode *isp)
+{
+	struct inode_smack *sip = isp->i_security;
+	return (sip->smk_flags & SMK_INODE_TRANSMUTE) != 0;
+}
+
+/*
  * Present a pointer to the smack label in an inode blob.
  */
 static inline char *smk_of_inode(const struct inode *isp)
 {
 	struct inode_smack *sip = isp->i_security;
 	return sip->smk_inode;
+}
+
+/*
+ * Present a pointer to the smack label in an task blob.
+ */
+static inline char *smk_of_task(const struct task_smack *tsp)
+{
+	return tsp->smk_task;
+}
+
+/*
+ * Present a pointer to the forked smack label in an task blob.
+ */
+static inline char *smk_of_forked(const struct task_smack *tsp)
+{
+	return tsp->smk_forked;
+}
+
+/*
+ * Present a pointer to the smack label in the current task blob.
+ */
+static inline char *smk_of_current(void)
+{
+	return smk_of_task(current_security());
 }
 
 /*

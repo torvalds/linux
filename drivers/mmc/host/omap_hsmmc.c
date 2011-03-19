@@ -1002,7 +1002,7 @@ static inline void omap_hsmmc_reset_controller_fsm(struct omap_hsmmc_host *host,
 	 * Monitor a 0->1 transition first
 	 */
 	if (mmc_slot(host).features & HSMMC_HAS_UPDATED_RESET) {
-		while ((!(OMAP_HSMMC_READ(host, SYSCTL) & bit))
+		while ((!(OMAP_HSMMC_READ(host->base, SYSCTL) & bit))
 					&& (i++ < limit))
 			cpu_relax();
 	}
@@ -2290,7 +2290,7 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 		free_irq(host->irq, host);
 		if (mmc_slot(host).card_detect_irq)
 			free_irq(mmc_slot(host).card_detect_irq, host);
-		flush_scheduled_work();
+		flush_work_sync(&host->mmc_carddetect_work);
 
 		mmc_host_disable(host->mmc);
 		clk_disable(host->iclk);

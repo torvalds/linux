@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <media/cx25840.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "cx25840-core.h"
 
@@ -261,7 +261,7 @@ static u16 ns_to_pulse_width_count(u32 ns, u16 divider)
 	u32 rem;
 
 	/*
-	 * The 2 lsb's of the pulse width timer count are not accessable, hence
+	 * The 2 lsb's of the pulse width timer count are not accessible, hence
 	 * the (1 << 2)
 	 */
 	n = ((u64) ns) * CX25840_IR_REFCLK_FREQ / 1000000; /* millicycles */

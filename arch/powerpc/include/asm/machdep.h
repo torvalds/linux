@@ -27,9 +27,7 @@ struct iommu_table;
 struct rtc_time;
 struct file;
 struct pci_controller;
-#ifdef CONFIG_KEXEC
 struct kimage;
-#endif
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
@@ -72,7 +70,7 @@ struct machdep_calls {
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
 
-	/* special for kexec, to be called in real mode, linar mapping is
+	/* special for kexec, to be called in real mode, linear mapping is
 	 * destroyed as well */
 	void		(*hpte_clear_all)(void);
 
@@ -118,9 +116,6 @@ struct machdep_calls {
 	 * If for some reason there is no irq, but the interrupt
 	 * shouldn't be counted as spurious, return NO_IRQ_IGNORE. */
 	unsigned int	(*get_irq)(void);
-#ifdef CONFIG_KEXEC
-	void		(*kexec_cpu_down)(int crash_shutdown, int secondary);
-#endif
 
 	/* PCI stuff */
 	/* Called after scanning the bus, before allocating resources */
@@ -237,11 +232,7 @@ struct machdep_calls {
 	void (*machine_shutdown)(void);
 
 #ifdef CONFIG_KEXEC
-	/* Called to do the minimal shutdown needed to run a kexec'd kernel
-	 * to run successfully.
-	 * XXX Should we move this one out of kexec scope?
-	 */
-	void (*machine_crash_shutdown)(struct pt_regs *regs);
+	void (*kexec_cpu_down)(int crash_shutdown, int secondary);
 
 	/* Called to do what every setup is needed on image and the
 	 * reboot code buffer. Returns 0 on success.
@@ -249,15 +240,6 @@ struct machdep_calls {
 	 * claims to support kexec.
 	 */
 	int (*machine_kexec_prepare)(struct kimage *image);
-
-	/* Called to handle any machine specific cleanup on image */
-	void (*machine_kexec_cleanup)(struct kimage *image);
-
-	/* Called to perform the _real_ kexec.
-	 * Do NOT allocate memory or fail here. We are past the point of
-	 * no return.
-	 */
-	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC */
 
 #ifdef CONFIG_SUSPEND
@@ -323,8 +305,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-extern void setup_pci_ptrs(void);
 
 #ifdef CONFIG_SMP
 /* Poor default implementations */

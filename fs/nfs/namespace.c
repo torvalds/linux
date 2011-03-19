@@ -49,12 +49,17 @@ char *nfs_path(const char *base,
 	       const struct dentry *dentry,
 	       char *buffer, ssize_t buflen)
 {
-	char *end = buffer+buflen;
+	char *end;
 	int namelen;
+	unsigned seq;
 
+rename_retry:
+	end = buffer+buflen;
 	*--end = '\0';
 	buflen--;
-	spin_lock(&dcache_lock);
+
+	seq = read_seqbegin(&rename_lock);
+	rcu_read_lock();
 	while (!IS_ROOT(dentry) && dentry != droot) {
 		namelen = dentry->d_name.len;
 		buflen -= namelen + 1;
@@ -65,7 +70,9 @@ char *nfs_path(const char *base,
 		*--end = '/';
 		dentry = dentry->d_parent;
 	}
-	spin_unlock(&dcache_lock);
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		goto rename_retry;
 	if (*end != '/') {
 		if (--buflen < 0)
 			goto Elong;
@@ -82,15 +89,16 @@ char *nfs_path(const char *base,
 	memcpy(end, base, namelen);
 	return end;
 Elong_unlock:
-	spin_unlock(&dcache_lock);
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		goto rename_retry;
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
 
 /*
- * nfs_follow_mountpoint - handle crossing a mountpoint on the server
- * @dentry - dentry of mountpoint
- * @nd - nameidata info
+ * nfs_d_automount - Handle crossing a mountpoint on the server
+ * @path - The mountpoint
  *
  * When we encounter a mountpoint on the server, we want to set up
  * a mountpoint on the client too, to prevent inode numbers from
@@ -100,87 +108,65 @@ Elong:
  * situation, and that different filesystems may want to use
  * different security flavours.
  */
-static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
+struct vfsmount *nfs_d_automount(struct path *path)
 {
 	struct vfsmount *mnt;
-	struct nfs_server *server = NFS_SERVER(dentry->d_inode);
+	struct nfs_server *server = NFS_SERVER(path->dentry->d_inode);
 	struct dentry *parent;
 	struct nfs_fh *fh = NULL;
 	struct nfs_fattr *fattr = NULL;
 	int err;
 
-	dprintk("--> nfs_follow_mountpoint()\n");
+	dprintk("--> nfs_d_automount()\n");
 
-	err = -ESTALE;
-	if (IS_ROOT(dentry))
-		goto out_err;
+	mnt = ERR_PTR(-ESTALE);
+	if (IS_ROOT(path->dentry))
+		goto out_nofree;
 
-	err = -ENOMEM;
+	mnt = ERR_PTR(-ENOMEM);
 	fh = nfs_alloc_fhandle();
 	fattr = nfs_alloc_fattr();
 	if (fh == NULL || fattr == NULL)
-		goto out_err;
+		goto out;
 
 	dprintk("%s: enter\n", __func__);
-	dput(nd->path.dentry);
-	nd->path.dentry = dget(dentry);
 
-	/* Look it up again */
-	parent = dget_parent(nd->path.dentry);
+	/* Look it up again to get its attributes */
+	parent = dget_parent(path->dentry);
 	err = server->nfs_client->rpc_ops->lookup(parent->d_inode,
-						  &nd->path.dentry->d_name,
+						  &path->dentry->d_name,
 						  fh, fattr);
 	dput(parent);
-	if (err != 0)
-		goto out_err;
+	if (err != 0) {
+		mnt = ERR_PTR(err);
+		goto out;
+	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
-		mnt = nfs_do_refmount(nd->path.mnt, nd->path.dentry);
+		mnt = nfs_do_refmount(path->mnt, path->dentry);
 	else
-		mnt = nfs_do_submount(nd->path.mnt, nd->path.dentry, fh,
-				      fattr);
-	err = PTR_ERR(mnt);
+		mnt = nfs_do_submount(path->mnt, path->dentry, fh, fattr);
 	if (IS_ERR(mnt))
-		goto out_err;
+		goto out;
 
-	mntget(mnt);
-	err = do_add_mount(mnt, &nd->path, nd->path.mnt->mnt_flags|MNT_SHRINKABLE,
-			   &nfs_automount_list);
-	if (err < 0) {
-		mntput(mnt);
-		if (err == -EBUSY)
-			goto out_follow;
-		goto out_err;
-	}
-	path_put(&nd->path);
-	nd->path.mnt = mnt;
-	nd->path.dentry = dget(mnt->mnt_root);
+	dprintk("%s: done, success\n", __func__);
+	mntget(mnt); /* prevent immediate expiration */
+	mnt_set_expiry(mnt, &nfs_automount_list);
 	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
+
 out:
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fh);
-	dprintk("%s: done, returned %d\n", __func__, err);
-
-	dprintk("<-- nfs_follow_mountpoint() = %d\n", err);
-	return ERR_PTR(err);
-out_err:
-	path_put(&nd->path);
-	goto out;
-out_follow:
-	while (d_mountpoint(nd->path.dentry) &&
-	       follow_down(&nd->path))
-		;
-	err = 0;
-	goto out;
+out_nofree:
+	dprintk("<-- nfs_follow_mountpoint() = %p\n", mnt);
+	return mnt;
 }
 
 const struct inode_operations nfs_mountpoint_inode_operations = {
-	.follow_link	= nfs_follow_mountpoint,
 	.getattr	= nfs_getattr,
 };
 
 const struct inode_operations nfs_referral_inode_operations = {
-	.follow_link	= nfs_follow_mountpoint,
 };
 
 static void nfs_expire_automounts(struct work_struct *work)

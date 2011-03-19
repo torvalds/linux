@@ -206,6 +206,7 @@ ENTRY(vfp_save_state)
 	mov	pc, lr
 ENDPROC(vfp_save_state)
 
+	.align
 last_VFP_context_address:
 	.word	last_VFP_context
 

@@ -23,6 +23,7 @@ struct omap_onenand_platform_data {
 	int                     (*onenand_setup)(void __iomem *, int freq);
 	int			dma_channel;
 	u8			flags;
+	u8			regulator_can_sleep;
 };
 
 #define ONENAND_MAX_PARTITIONS 8

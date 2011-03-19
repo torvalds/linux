@@ -537,7 +537,7 @@
        Notes: Further information in
        http://www.oreilly.com/catalog/linuxdrive2/
 
-     * Title: "Linux Device Drivers, 3nd Edition"
+     * Title: "Linux Device Drivers, 3rd Edition"
        Authors: Jonathan Corbet, Alessandro Rubini, and Greg Kroah-Hartman
        Publisher: O'Reilly & Associates.
        Date: 2005.
@@ -592,14 +592,6 @@
        Pages: 600.
        ISBN: 0-13-101908-2
 
-     * Title:  "The  Design  and Implementation of the 4.4 BSD UNIX
-       Operating System"
-       Author: Marshall Kirk McKusick, Keith Bostic, Michael J. Karels,
-       John S. Quarterman.
-       Publisher: Addison-Wesley.
-       Date: 1996.
-       ISBN: 0-201-54979-4
-
      * Title: "Programming for the real world - POSIX.4"
        Author: Bill O. Gallmeister.
        Publisher: O'Reilly & Associates, Inc..
@@ -610,27 +602,12 @@
        POSIX. Good reference.
 
      * Title:  "UNIX  Systems  for  Modern Architectures: Symmetric
-       Multiprocesssing and Caching for Kernel Programmers"
+       Multiprocessing and Caching for Kernel Programmers"
        Author: Curt Schimmel.
        Publisher: Addison Wesley.
        Date: June, 1994.
        Pages: 432.
        ISBN: 0-201-63338-8
-
-     * Title:  "The  Design  and Implementation of the 4.3 BSD UNIX
-       Operating System"
-       Author: Samuel J. Leffler, Marshall Kirk McKusick, Michael J.
-       Karels, John S. Quarterman.
-       Publisher: Addison-Wesley.
-       Date: 1989 (reprinted with corrections on October, 1990).
-       ISBN: 0-201-06196-1
-
-     * Title: "The Design of the UNIX Operating System"
-       Author: Maurice J. Bach.
-       Publisher: Prentice Hall.
-       Date: 1986.
-       Pages: 471.
-       ISBN: 0-13-201757-1
 
      MISCELLANEOUS:
 

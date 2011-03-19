@@ -96,6 +96,11 @@ static unsigned char ap_cs8427_codec_select(struct snd_ice1712 *ice)
 		tmp |= ICE1712_DELTA_AP_CCLK | ICE1712_DELTA_AP_CS_CODEC;
 		tmp &= ~ICE1712_DELTA_AP_CS_DIGITAL;
 		break;
+	case ICE1712_SUBDEVICE_DELTA66E:
+		tmp |= ICE1712_DELTA_66E_CCLK | ICE1712_DELTA_66E_CS_CHIP_A |
+		       ICE1712_DELTA_66E_CS_CHIP_B;
+		tmp &= ~ICE1712_DELTA_66E_CS_CS8427;
+		break;
 	case ICE1712_SUBDEVICE_VX442:
 		tmp |= ICE1712_VX442_CCLK | ICE1712_VX442_CODEC_CHIP_A | ICE1712_VX442_CODEC_CHIP_B;
 		tmp &= ~ICE1712_VX442_CS_DIGITAL;
@@ -118,6 +123,9 @@ static void ap_cs8427_codec_deassert(struct snd_ice1712 *ice, unsigned char tmp)
 	case ICE1712_SUBDEVICE_AUDIOPHILE:
 	case ICE1712_SUBDEVICE_DELTA410:
 		tmp |= ICE1712_DELTA_AP_CS_DIGITAL;
+		break;
+	case ICE1712_SUBDEVICE_DELTA66E:
+		tmp |= ICE1712_DELTA_66E_CS_CS8427;
 		break;
 	case ICE1712_SUBDEVICE_VX442:
 		tmp |= ICE1712_VX442_CS_DIGITAL;
@@ -273,6 +281,20 @@ static void delta1010lt_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 	snd_ice1712_save_gpio_status(ice);
 	priv->cs_mask = ICE1712_DELTA_1010LT_CS;
 	priv->cs_addr = chip << 4;
+}
+
+/*
+ * AK4524 on Delta66 rev E to choose the chip address
+ */
+static void delta66e_ak4524_lock(struct snd_akm4xxx *ak, int chip)
+{
+	struct snd_ak4xxx_private *priv = (void *)ak->private_value[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
+
+	snd_ice1712_save_gpio_status(ice);
+	priv->cs_mask =
+	priv->cs_addr = chip == 0 ? ICE1712_DELTA_66E_CS_CHIP_A :
+				    ICE1712_DELTA_66E_CS_CHIP_B;
 }
 
 /*
@@ -487,6 +509,29 @@ static struct snd_ak4xxx_private akm_delta1010lt_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
+static struct snd_akm4xxx akm_delta66e __devinitdata = {
+	.type = SND_AK4524,
+	.num_adcs = 4,
+	.num_dacs = 4,
+	.ops = {
+		.lock = delta66e_ak4524_lock,
+		.set_rate_val = delta_ak4524_set_rate_val
+	}
+};
+
+static struct snd_ak4xxx_private akm_delta66e_priv __devinitdata = {
+	.caddr = 2,
+	.cif = 0, /* the default level of the CIF pin from AK4524 */
+	.data_mask = ICE1712_DELTA_66E_DOUT,
+	.clk_mask = ICE1712_DELTA_66E_CCLK,
+	.cs_mask = 0,
+	.cs_addr = 0, /* set later */
+	.cs_none = 0,
+	.add_flags = 0,
+	.mask_flags = 0,
+};
+
+
 static struct snd_akm4xxx akm_delta44 __devinitdata = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
@@ -535,6 +580,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 {
 	int err;
 	struct snd_akm4xxx *ak;
+	unsigned char tmp;
 
 	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DELTA1010 &&
 	    ice->eeprom.gpiodir == 0x7b)
@@ -576,6 +622,12 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = 4;
 		break;
 	}
+
+	/* initialize the SPI clock to high */
+	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
+	tmp |= ICE1712_DELTA_AP_CCLK;
+	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
+	udelay(5);
 
 	/* initialize spdif */
 	switch (ice->eeprom.subvendor) {
@@ -644,8 +696,10 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_init(ak, &akm_delta44, &akm_delta44_priv, ice);
 		break;
 	case ICE1712_SUBDEVICE_VX442:
-	case ICE1712_SUBDEVICE_DELTA66E:
 		err = snd_ice1712_akm4xxx_init(ak, &akm_vx442, &akm_vx442_priv, ice);
+		break;
+	case ICE1712_SUBDEVICE_DELTA66E:
+		err = snd_ice1712_akm4xxx_init(ak, &akm_delta66e, &akm_delta66e_priv, ice);
 		break;
 	default:
 		snd_BUG();

@@ -1341,7 +1341,7 @@ static struct request *set_next_request(void)
 {
 	struct request_queue *q;
 	int cnt = FD_MAX_UNITS;
-	struct request *rq;
+	struct request *rq = NULL;
 
 	/* Find next queue we can dispatch from */
 	fdc_queue = fdc_queue + 1;

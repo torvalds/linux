@@ -106,6 +106,8 @@ config LZO_COMPRESS
 config LZO_DECOMPRESS
 	tristate
 
+source "lib/xz/Kconfig"
+
 #
 # These all provide a common interface (hence the apparent duplication with
 # ZLIB_INFLATE; DECOMPRESS_GZIP is just a wrapper.)
@@ -118,6 +120,10 @@ config DECOMPRESS_BZIP2
 	tristate
 
 config DECOMPRESS_LZMA
+	tristate
+
+config DECOMPRESS_XZ
+	select XZ_DEC
 	tristate
 
 config DECOMPRESS_LZO
@@ -209,5 +215,8 @@ config GENERIC_ATOMIC64
 
 config LRU_CACHE
 	tristate
+
+config AVERAGE
+	bool
 
 endmenu

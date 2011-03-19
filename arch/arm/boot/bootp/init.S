@@ -73,6 +73,8 @@ move:		ldmia	r4!, {r7 - r10}		@ move 32-bytes at a time
 
 		.size	_start, . - _start
 
+		.align
+
 		.type	data,#object
 data:		.word	initrd_start		@ source initrd address
 		.word	initrd_phys		@ destination initrd address

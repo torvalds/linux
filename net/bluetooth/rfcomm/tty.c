@@ -58,9 +58,9 @@ struct rfcomm_dev {
 
 	bdaddr_t		src;
 	bdaddr_t		dst;
-	u8 			channel;
+	u8			channel;
 
-	uint 			modem_status;
+	uint			modem_status;
 
 	struct rfcomm_dlc	*dlc;
 	struct tty_struct	*tty;
@@ -69,7 +69,7 @@ struct rfcomm_dev {
 
 	struct device		*tty_dev;
 
-	atomic_t 		wmem_alloc;
+	atomic_t		wmem_alloc;
 
 	struct sk_buff_head	pending;
 };
@@ -431,7 +431,8 @@ static int rfcomm_release_dev(void __user *arg)
 
 	BT_DBG("dev_id %d flags 0x%x", req.dev_id, req.flags);
 
-	if (!(dev = rfcomm_dev_get(req.dev_id)))
+	dev = rfcomm_dev_get(req.dev_id);
+	if (!dev)
 		return -ENODEV;
 
 	if (dev->flags != NOCAP_FLAGS && !capable(CAP_NET_ADMIN)) {
@@ -470,7 +471,8 @@ static int rfcomm_get_dev_list(void __user *arg)
 
 	size = sizeof(*dl) + dev_num * sizeof(*di);
 
-	if (!(dl = kmalloc(size, GFP_KERNEL)))
+	dl = kmalloc(size, GFP_KERNEL);
+	if (!dl)
 		return -ENOMEM;
 
 	di = dl->dev_info;
@@ -513,7 +515,8 @@ static int rfcomm_get_dev_info(void __user *arg)
 	if (copy_from_user(&di, arg, sizeof(di)))
 		return -EFAULT;
 
-	if (!(dev = rfcomm_dev_get(di.id)))
+	dev = rfcomm_dev_get(di.id);
+	if (!dev)
 		return -ENODEV;
 
 	di.flags   = dev->flags;
@@ -561,7 +564,8 @@ static void rfcomm_dev_data_ready(struct rfcomm_dlc *dlc, struct sk_buff *skb)
 		return;
 	}
 
-	if (!(tty = dev->tty) || !skb_queue_empty(&dev->pending)) {
+	tty = dev->tty;
+	if (!tty || !skb_queue_empty(&dev->pending)) {
 		skb_queue_tail(&dev->pending, skb);
 		return;
 	}
@@ -796,7 +800,8 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 
 		memcpy(skb_put(skb, size), buf + sent, size);
 
-		if ((err = rfcomm_dlc_send(dlc, skb)) < 0) {
+		err = rfcomm_dlc_send(dlc, skb);
+		if (err < 0) {
 			kfree_skb(skb);
 			break;
 		}
@@ -892,7 +897,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	/* Parity on/off and when on, odd/even */
 	if (((old->c_cflag & PARENB) != (new->c_cflag & PARENB)) ||
-			((old->c_cflag & PARODD) != (new->c_cflag & PARODD)) ) {
+			((old->c_cflag & PARODD) != (new->c_cflag & PARODD))) {
 		changes |= RFCOMM_RPN_PM_PARITY;
 		BT_DBG("Parity change detected.");
 	}
@@ -937,11 +942,10 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	/* POSIX does not support 1.5 stop bits and RFCOMM does not
 	 * support 2 stop bits. So a request for 2 stop bits gets
 	 * translated to 1.5 stop bits */
-	if (new->c_cflag & CSTOPB) {
+	if (new->c_cflag & CSTOPB)
 		stop_bits = RFCOMM_RPN_STOP_15;
-	} else {
+	else
 		stop_bits = RFCOMM_RPN_STOP_1;
-	}
 
 	/* Handle number of data bits [5-8] */
 	if ((old->c_cflag & CSIZE) != (new->c_cflag & CSIZE))

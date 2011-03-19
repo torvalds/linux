@@ -498,6 +498,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "platform device add failed\n");
 		goto error;
 	}
+	dev_set_drvdata(&pdev->dev, sound_device);
 
 	of_node_put(codec_np);
 

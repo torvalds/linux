@@ -292,7 +292,8 @@ static int lp3972_ldo_get_voltage(struct regulator_dev *dev)
 }
 
 static int lp3972_ldo_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+				  int min_uV, int max_uV,
+				  unsigned int *selector)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3972_LDO1;
@@ -312,6 +313,8 @@ static int lp3972_ldo_set_voltage(struct regulator_dev *dev,
 
 	if (val > LP3972_LDO_VOL_MAX_IDX(ldo) || vol_map[val] > max_vol)
 		return -EINVAL;
+
+	*selector = val;
 
 	shift = LP3972_LDO_VOL_CONTR_SHIFT(ldo);
 	ret = lp3972_set_bits(lp3972, LP3972_LDO_VOL_CONTR_REG(ldo),
@@ -416,7 +419,8 @@ static int lp3972_dcdc_get_voltage(struct regulator_dev *dev)
 }
 
 static int lp3972_dcdc_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV)
+				   int min_uV, int max_uV,
+				   unsigned int *selector)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3972_DCDC1;
@@ -437,6 +441,8 @@ static int lp3972_dcdc_set_voltage(struct regulator_dev *dev,
 	if (val > LP3972_BUCK_VOL_MAX_IDX(buck) ||
 	    vol_map[val] > max_vol)
 		return -EINVAL;
+
+	*selector = val;
 
 	ret = lp3972_set_bits(lp3972, LP3972_BUCK_VOL1_REG(buck),
 				LP3972_BUCK_VOL_MASK, val);

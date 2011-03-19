@@ -1029,8 +1029,6 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
 	if (err)
 		return err;
 
-	msleep(20);
-
 	return 0;
 }
 
@@ -1554,15 +1552,6 @@ static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 	return carl9170_regwrite_result();
 }
 
-/* TODO: replace this with sign_extend32(noise, 8) */
-static int carl9170_calc_noise_dbm(u32 raw_noise)
-{
-	if (raw_noise & 0x100)
-		return ~0x1ff | raw_noise;
-	else
-		return raw_noise;
-}
-
 int carl9170_get_noisefloor(struct ar9170 *ar)
 {
 	static const u32 phy_regs[] = {
@@ -1578,11 +1567,11 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 		return err;
 
 	for (i = 0; i < 2; i++) {
-		ar->noise[i] = carl9170_calc_noise_dbm(
-			(phy_res[i] >> 19) & 0x1ff);
+		ar->noise[i] = sign_extend32(GET_VAL(
+			AR9170_PHY_CCA_MIN_PWR, phy_res[i]), 8);
 
-		ar->noise[i + 2] = carl9170_calc_noise_dbm(
-			(phy_res[i + 2] >> 23) & 0x1ff);
+		ar->noise[i + 2] = sign_extend32(GET_VAL(
+			AR9170_PHY_EXT_CCA_MIN_PWR, phy_res[i + 2]), 8);
 	}
 
 	return 0;
@@ -1669,12 +1658,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			return err;
 
 		cmd = CARL9170_CMD_RF_INIT;
-
-		msleep(100);
-
-		err = carl9170_echo_test(ar, 0xaabbccdd);
-		if (err)
-			return err;
 	} else {
 		cmd = CARL9170_CMD_FREQUENCY;
 	}
@@ -1685,6 +1668,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 
 	err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
 				 0x200);
+	if (err)
+		return err;
 
 	err = carl9170_init_rf_bank4_pwr(ar,
 		channel->band == IEEE80211_BAND_5GHZ,

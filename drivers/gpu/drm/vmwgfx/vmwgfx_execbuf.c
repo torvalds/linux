@@ -653,8 +653,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = vmw_cmd_check_all(dev_priv, sw_context, cmd, arg->command_size);
 	if (unlikely(ret != 0))
 		goto out_err;
-	ret = ttm_eu_reserve_buffers(&sw_context->validate_nodes,
-				     dev_priv->val_seq++);
+	ret = ttm_eu_reserve_buffers(&sw_context->validate_nodes);
 	if (unlikely(ret != 0))
 		goto out_err;
 
@@ -691,6 +690,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 
 	fence_rep.error = ret;
 	fence_rep.fence_seq = (uint64_t) sequence;
+	fence_rep.pad64 = 0;
 
 	user_fence_rep = (struct drm_vmw_fence_rep __user *)
 	    (unsigned long)arg->fence_rep;

@@ -647,7 +647,7 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "device_register failed");
-		kfree(class_dev);
+		put_device(class_dev);
 		return;
 	}
 

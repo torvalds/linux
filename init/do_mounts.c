@@ -93,7 +93,7 @@ no_match:
  *
  * Returns the matching dev_t on success or 0 on failure.
  */
-static dev_t __init devt_from_partuuid(char *uuid_str)
+static dev_t devt_from_partuuid(char *uuid_str)
 {
 	dev_t res = 0;
 	struct device *dev = NULL;

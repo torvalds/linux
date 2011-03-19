@@ -53,7 +53,7 @@
  */
 
 /*
- * Function trace entry - function address and parent function addres:
+ * Function trace entry - function address and parent function address:
  */
 FTRACE_ENTRY(function, ftrace_entry,
 

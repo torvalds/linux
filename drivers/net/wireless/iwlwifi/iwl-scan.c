@@ -252,8 +252,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 
 	IWL_DEBUG_SCAN(priv, "Scan on %sGHz took %dms\n",
 		       (priv->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
-		       jiffies_to_msecs(elapsed_jiffies
-					(priv->scan_start, jiffies)));
+		       jiffies_to_msecs(jiffies - priv->scan_start));
 
 	queue_work(priv->workqueue, &priv->scan_completed);
 
@@ -603,13 +602,16 @@ out_settings:
 	if (!iwl_is_ready_rf(priv))
 		goto out;
 
-	/* Since setting the TXPOWER may have been deferred while
-	 * performing the scan, fire one off */
-	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+	/*
+	 * We do not commit power settings while scan is pending,
+	 * do it now if the settings changed.
+	 */
+	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
+	iwl_set_tx_power(priv, priv->tx_power_next, false);
 
 	priv->cfg->ops->utils->post_scan(priv);
 
- out:
+out:
 	mutex_unlock(&priv->mutex);
 }
 

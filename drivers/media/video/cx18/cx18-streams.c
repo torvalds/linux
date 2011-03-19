@@ -41,7 +41,7 @@ static struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.read = cx18_v4l2_read,
 	.open = cx18_v4l2_open,
 	/* FIXME change to video_ioctl2 if serialization lock can be removed */
-	.ioctl = cx18_v4l2_ioctl,
+	.unlocked_ioctl = cx18_v4l2_ioctl,
 	.release = cx18_v4l2_close,
 	.poll = cx18_v4l2_enc_poll,
 };
@@ -107,6 +107,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->video_dev = video_dev;
 
 	/* initialize cx18_stream fields */
+	s->dvb = NULL;
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
@@ -140,10 +141,15 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	int num_offset = cx18_stream_info[type].num_offset;
 	int num = cx->instance + cx18_first_minor + num_offset;
 
-	/* These four fields are always initialized. If video_dev == NULL, then
-	   this stream is not in use. In that case no other fields but these
-	   four can be used. */
+	/*
+	 * These five fields are always initialized.
+	 * For analog capture related streams, if video_dev == NULL then the
+	 * stream is not in use.
+	 * For the TS stream, if dvb == NULL then the stream is not in use.
+	 * In those cases no other fields but these four can be used.
+	 */
 	s->video_dev = NULL;
+	s->dvb = NULL;
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
@@ -166,6 +172,21 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	}
 
 	cx18_stream_init(cx, type);
+
+	/* Allocate the cx18_dvb struct only for the TS on cards with DTV */
+	if (type == CX18_ENC_STREAM_TYPE_TS) {
+		if (cx->card->hw_all & CX18_HW_DVB) {
+			s->dvb = kzalloc(sizeof(struct cx18_dvb), GFP_KERNEL);
+			if (s->dvb == NULL) {
+				CX18_ERR("Couldn't allocate cx18_dvb structure"
+					 " for %s\n", s->name);
+				return -ENOMEM;
+			}
+		} else {
+			/* Don't need buffers for the TS, if there is no DVB */
+			s->buffers = 0;
+		}
+	}
 
 	if (num_offset == -1)
 		return 0;
@@ -222,13 +243,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	const char *name;
 	int num, ret;
 
-	/* TODO: Shouldn't this be a VFL_TYPE_TRANSPORT or something?
-	 * We need a VFL_TYPE_TS defined.
-	 */
-	if (strcmp("TS", s->name) == 0) {
-		/* just return if no DVB is supported */
-		if ((cx->card->hw_all & CX18_HW_DVB) == 0)
-			return 0;
+	if (type == CX18_ENC_STREAM_TYPE_TS && s->dvb != NULL) {
 		ret = cx18_dvb_register(s);
 		if (ret < 0) {
 			CX18_ERR("DVB failed to register\n");
@@ -320,11 +335,13 @@ void cx18_streams_cleanup(struct cx18 *cx, int unregister)
 	/* Teardown all streams */
 	for (type = 0; type < CX18_MAX_STREAMS; type++) {
 
-		/* No struct video_device, but can have buffers allocated */
+		/* The TS has a cx18_dvb structure, not a video_device */
 		if (type == CX18_ENC_STREAM_TYPE_TS) {
-			if (cx->streams[type].dvb.enabled) {
-				cx18_dvb_unregister(&cx->streams[type]);
-				cx->streams[type].dvb.enabled = false;
+			if (cx->streams[type].dvb != NULL) {
+				if (unregister)
+					cx18_dvb_unregister(&cx->streams[type]);
+				kfree(cx->streams[type].dvb);
+				cx->streams[type].dvb = NULL;
 				cx18_stream_free(&cx->streams[type]);
 			}
 			continue;

@@ -44,34 +44,24 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 extern int ddebug_remove_module(const char *mod_name);
 
 #define dynamic_pr_debug(fmt, ...) do {					\
-	__label__ do_printk;						\
-	__label__ out;							\
 	static struct _ddebug descriptor				\
 	__used								\
 	__attribute__((section("__verbose"), aligned(8))) =		\
 	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
 		_DPRINTK_FLAGS_DEFAULT };				\
-	JUMP_LABEL(&descriptor.enabled, do_printk);			\
-	goto out;							\
-do_printk:								\
-	printk(KERN_DEBUG pr_fmt(fmt),	##__VA_ARGS__);			\
-out:	;								\
+	if (unlikely(descriptor.enabled))				\
+		printk(KERN_DEBUG pr_fmt(fmt),	##__VA_ARGS__);		\
 	} while (0)
 
 
 #define dynamic_dev_dbg(dev, fmt, ...) do {				\
-	__label__ do_printk;						\
-	__label__ out;							\
 	static struct _ddebug descriptor				\
 	__used								\
 	__attribute__((section("__verbose"), aligned(8))) =		\
 	{ KBUILD_MODNAME, __func__, __FILE__, fmt, __LINE__,		\
 		_DPRINTK_FLAGS_DEFAULT };				\
-	JUMP_LABEL(&descriptor.enabled, do_printk);			\
-	goto out;							\
-do_printk:								\
-	dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__);		\
-out:	;								\
+	if (unlikely(descriptor.enabled))				\
+		dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
 #else

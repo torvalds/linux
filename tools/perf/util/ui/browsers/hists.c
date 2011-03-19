@@ -350,7 +350,7 @@ static char *callchain_list__sym_name(struct callchain_list *self,
 	if (self->ms.sym)
 		return self->ms.sym->name;
 
-	snprintf(bf, bfsize, "%#Lx", self->ip);
+	snprintf(bf, bfsize, "%#" PRIx64, self->ip);
 	return bf;
 }
 

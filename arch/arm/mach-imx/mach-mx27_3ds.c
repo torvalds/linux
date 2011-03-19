@@ -22,20 +22,30 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/input/matrix_keypad.h>
 #include <linux/irq.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
+#include <linux/delay.h>
+#include <linux/mfd/mc13783.h>
+#include <linux/spi/spi.h>
+#include <linux/regulator/machine.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mmc.h>
+#include <mach/ulpi.h>
+#include <mach/irqs.h>
+#include <mach/3ds_debugboard.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 #define SD1_EN_GPIO (GPIO_PORTB + 25)
+#define OTG_PHY_RESET_GPIO (GPIO_PORTB + 23)
+#define SPI2_SS0 (GPIO_PORTD + 21)
+#define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTC + 28)
 
 static const int mx27pdk_pins[] __initconst = {
 	/* UART1 */
@@ -70,6 +80,24 @@ static const int mx27pdk_pins[] __initconst = {
 	PE22_PF_SD1_CMD,
 	PE23_PF_SD1_CLK,
 	SD1_EN_GPIO | GPIO_GPIO | GPIO_OUT,
+	/* OTG */
+	OTG_PHY_RESET_GPIO | GPIO_GPIO | GPIO_OUT,
+	PC7_PF_USBOTG_DATA5,
+	PC8_PF_USBOTG_DATA6,
+	PC9_PF_USBOTG_DATA0,
+	PC10_PF_USBOTG_DATA2,
+	PC11_PF_USBOTG_DATA1,
+	PC12_PF_USBOTG_DATA4,
+	PC13_PF_USBOTG_DATA3,
+	PE0_PF_USBOTG_NXT,
+	PE1_PF_USBOTG_STP,
+	PE2_PF_USBOTG_DIR,
+	PE24_PF_USBOTG_CLK,
+	PE25_PF_USBOTG_DATA7,
+	/* CSPI2 */
+	PD22_PF_CSPI2_SCLK,
+	PD23_PF_CSPI2_MISO,
+	PD24_PF_CSPI2_MOSI,
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -92,7 +120,7 @@ static const uint32_t mx27_3ds_keymap[] = {
 	KEY(2, 3, KEY_F10),
 };
 
-static struct matrix_keymap_data mx27_3ds_keymap_data = {
+static const struct matrix_keymap_data mx27_3ds_keymap_data __initconst = {
 	.keymap		= mx27_3ds_keymap,
 	.keymap_size	= ARRAY_SIZE(mx27_3ds_keymap),
 };
@@ -109,7 +137,7 @@ static void mx27_3ds_sdhc1_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOB(26), data);
 }
 
-static struct imxmmc_platform_data sdhc1_pdata = {
+static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
 	.init = mx27_3ds_sdhc1_init,
 	.exit = mx27_3ds_sdhc1_exit,
 };
@@ -121,6 +149,111 @@ static void mx27_3ds_sdhc1_enable_level_translator(void)
 	gpio_direction_output(SD1_EN_GPIO, 1);
 }
 
+
+static int otg_phy_init(void)
+{
+	gpio_request(OTG_PHY_RESET_GPIO, "usb-otg-reset");
+	gpio_direction_output(OTG_PHY_RESET_GPIO, 0);
+	mdelay(1);
+	gpio_set_value(OTG_PHY_RESET_GPIO, 1);
+	return 0;
+}
+
+#if defined(CONFIG_USB_ULPI)
+
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.portsc	= MXC_EHCI_MODE_ULPI,
+	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
+};
+#endif
+
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
+	.operating_mode = FSL_USB2_DR_DEVICE,
+	.phy_mode       = FSL_USB2_PHY_ULPI,
+};
+
+static int otg_mode_host;
+
+static int __init mx27_3ds_otg_mode(char *options)
+{
+	if (!strcmp(options, "host"))
+		otg_mode_host = 1;
+	else if (!strcmp(options, "device"))
+		otg_mode_host = 0;
+	else
+		pr_info("otg_mode neither \"host\" nor \"device\". "
+			"Defaulting to device\n");
+	return 0;
+}
+__setup("otg_mode=", mx27_3ds_otg_mode);
+
+/* Regulators */
+static struct regulator_consumer_supply vmmc1_consumers[] = {
+	REGULATOR_SUPPLY("lcd_2v8", NULL),
+};
+
+static struct regulator_init_data vmmc1_init = {
+	.constraints = {
+		.min_uV	= 2800000,
+		.max_uV = 2800000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vmmc1_consumers),
+	.consumer_supplies = vmmc1_consumers,
+};
+
+static struct regulator_consumer_supply vgen_consumers[] = {
+	REGULATOR_SUPPLY("vdd_lcdio", NULL),
+};
+
+static struct regulator_init_data vgen_init = {
+	.constraints = {
+		.min_uV	= 1800000,
+		.max_uV = 1800000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vgen_consumers),
+	.consumer_supplies = vgen_consumers,
+};
+
+static struct mc13783_regulator_init_data mx27_3ds_regulators[] = {
+	{
+		.id = MC13783_REG_VMMC1,
+		.init_data = &vmmc1_init,
+	}, {
+		.id = MC13783_REG_VGEN,
+		.init_data = &vgen_init,
+	},
+};
+
+/* MC13783 */
+static struct mc13783_platform_data mc13783_pdata __initdata = {
+	.regulators = mx27_3ds_regulators,
+	.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
+	.flags  = MC13783_USE_REGULATOR,
+};
+
+/* SPI */
+static int spi2_internal_chipselect[] = {SPI2_SS0};
+
+static const struct spi_imx_master spi2_pdata __initconst = {
+	.chipselect	= spi2_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi2_internal_chipselect),
+};
+
+static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
+	{
+		.modalias	= "mc13783",
+		.max_speed_hz	= 1000000,
+		.bus_num	= 1,
+		.chip_select	= 0, /* SS0 */
+		.platform_data	= &mc13783_pdata,
+		.irq = IRQ_GPIOC(14),
+		.mode = SPI_CS_HIGH,
+	},
+};
+
+
 static void __init mx27pdk_init(void)
 {
 	mxc_gpio_setup_multiple_pins(mx27pdk_pins, ARRAY_SIZE(mx27pdk_pins),
@@ -128,8 +261,27 @@ static void __init mx27pdk_init(void)
 	mx27_3ds_sdhc1_enable_level_translator();
 	imx27_add_imx_uart0(&uart_pdata);
 	imx27_add_fec(NULL);
-	mxc_register_device(&imx_kpp_device, &mx27_3ds_keymap_data);
-	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
+	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
+	imx27_add_mxc_mmc(0, &sdhc1_pdata);
+	imx27_add_imx2_wdt(NULL);
+	otg_phy_init();
+#if defined(CONFIG_USB_ULPI)
+	if (otg_mode_host) {
+		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+
+		imx27_add_mxc_ehci_otg(&otg_pdata);
+	}
+#endif
+	if (!otg_mode_host)
+		imx27_add_fsl_usb2_udc(&otg_device_pdata);
+
+	imx27_add_spi_imx1(&spi2_pdata);
+	spi_register_board_info(mx27_3ds_spi_devs,
+						ARRAY_SIZE(mx27_3ds_spi_devs));
+
+	if (mxc_expio_init(MX27_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+		pr_warn("Init of the debugboard failed, all devices on the debugboard are unusable.\n");
 }
 
 static void __init mx27pdk_timer_init(void)

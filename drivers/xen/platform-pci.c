@@ -105,7 +105,7 @@ static int __devinit platform_pci_init(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
 	int i, ret;
-	long ioaddr, iolen;
+	long ioaddr;
 	long mmio_addr, mmio_len;
 	unsigned int max_nr_gframes;
 
@@ -114,7 +114,6 @@ static int __devinit platform_pci_init(struct pci_dev *pdev,
 		return i;
 
 	ioaddr = pci_resource_start(pdev, 0);
-	iolen = pci_resource_len(pdev, 0);
 
 	mmio_addr = pci_resource_start(pdev, 1);
 	mmio_len = pci_resource_len(pdev, 1);
@@ -125,19 +124,13 @@ static int __devinit platform_pci_init(struct pci_dev *pdev,
 		goto pci_out;
 	}
 
-	if (request_mem_region(mmio_addr, mmio_len, DRV_NAME) == NULL) {
-		dev_err(&pdev->dev, "MEM I/O resource 0x%lx @ 0x%lx busy\n",
-		       mmio_addr, mmio_len);
-		ret = -EBUSY;
+	ret = pci_request_region(pdev, 1, DRV_NAME);
+	if (ret < 0)
 		goto pci_out;
-	}
 
-	if (request_region(ioaddr, iolen, DRV_NAME) == NULL) {
-		dev_err(&pdev->dev, "I/O resource 0x%lx @ 0x%lx busy\n",
-		       iolen, ioaddr);
-		ret = -EBUSY;
+	ret = pci_request_region(pdev, 0, DRV_NAME);
+	if (ret < 0)
 		goto mem_out;
-	}
 
 	platform_mmio = mmio_addr;
 	platform_mmiolen = mmio_len;
@@ -169,9 +162,9 @@ static int __devinit platform_pci_init(struct pci_dev *pdev,
 	return 0;
 
 out:
-	release_region(ioaddr, iolen);
+	pci_release_region(pdev, 0);
 mem_out:
-	release_mem_region(mmio_addr, mmio_len);
+	pci_release_region(pdev, 1);
 pci_out:
 	pci_disable_device(pdev);
 	return ret;

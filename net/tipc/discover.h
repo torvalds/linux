@@ -37,8 +37,6 @@
 #ifndef _TIPC_DISCOVER_H
 #define _TIPC_DISCOVER_H
 
-#include "core.h"
-
 struct link_req;
 
 struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,

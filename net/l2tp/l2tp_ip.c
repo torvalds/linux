@@ -476,15 +476,13 @@ static int l2tp_ip_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *m
 
 		{
 			struct flowi fl = { .oif = sk->sk_bound_dev_if,
-					    .nl_u = { .ip4_u = {
-							.daddr = daddr,
-							.saddr = inet->inet_saddr,
-							.tos = RT_CONN_FLAGS(sk) } },
+					    .fl4_dst = daddr,
+					    .fl4_src = inet->inet_saddr,
+					    .fl4_tos = RT_CONN_FLAGS(sk),
 					    .proto = sk->sk_protocol,
 					    .flags = inet_sk_flowi_flags(sk),
-					    .uli_u = { .ports = {
-							 .sport = inet->inet_sport,
-							 .dport = inet->inet_dport } } };
+					    .fl_ip_sport = inet->inet_sport,
+					    .fl_ip_dport = inet->inet_dport };
 
 			/* If this fails, retransmit mechanism of transport layer will
 			 * keep trying until route appears or the connection times
@@ -674,4 +672,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Chapman <jchapman@katalix.com>");
 MODULE_DESCRIPTION("L2TP over IP");
 MODULE_VERSION("1.0");
-MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_INET, SOCK_DGRAM, IPPROTO_L2TP);
+
+/* Use the value of SOCK_DGRAM (2) directory, because __stringify does't like
+ * enums
+ */
+MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_INET, 2, IPPROTO_L2TP);

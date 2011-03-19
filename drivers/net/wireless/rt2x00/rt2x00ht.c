@@ -40,8 +40,6 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 	if (tx_info->control.sta)
 		txdesc->mpdu_density =
 		    tx_info->control.sta->ht_cap.ampdu_density;
-	else
-		txdesc->mpdu_density = 0;
 
 	txdesc->ba_size = 7;	/* FIXME: What value is needed? */
 

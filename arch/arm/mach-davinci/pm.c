@@ -110,7 +110,7 @@ static int davinci_pm_enter(suspend_state_t state)
 	return ret;
 }
 
-static struct platform_suspend_ops davinci_pm_ops = {
+static const struct platform_suspend_ops davinci_pm_ops = {
 	.enter		= davinci_pm_enter,
 	.valid		= suspend_valid_only_mem,
 };

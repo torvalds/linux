@@ -205,20 +205,20 @@ pure_initcall(davinci_gpio_setup);
  * serve as EDMA event triggers.
  */
 
-static void gpio_irq_disable(unsigned irq)
+static void gpio_irq_disable(struct irq_data *d)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(irq);
-	u32 mask = (u32) get_irq_data(irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	u32 mask = (u32) irq_data_get_irq_data(d);
 
 	__raw_writel(mask, &g->clr_falling);
 	__raw_writel(mask, &g->clr_rising);
 }
 
-static void gpio_irq_enable(unsigned irq)
+static void gpio_irq_enable(struct irq_data *d)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(irq);
-	u32 mask = (u32) get_irq_data(irq);
-	unsigned status = irq_desc[irq].status;
+	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	u32 mask = (u32) irq_data_get_irq_data(d);
+	unsigned status = irq_desc[d->irq].status;
 
 	status &= IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING;
 	if (!status)
@@ -230,19 +230,19 @@ static void gpio_irq_enable(unsigned irq)
 		__raw_writel(mask, &g->set_rising);
 }
 
-static int gpio_irq_type(unsigned irq, unsigned trigger)
+static int gpio_irq_type(struct irq_data *d, unsigned trigger)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(irq);
-	u32 mask = (u32) get_irq_data(irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	u32 mask = (u32) irq_data_get_irq_data(d);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
 
-	irq_desc[irq].status &= ~IRQ_TYPE_SENSE_MASK;
-	irq_desc[irq].status |= trigger;
+	irq_desc[d->irq].status &= ~IRQ_TYPE_SENSE_MASK;
+	irq_desc[d->irq].status |= trigger;
 
 	/* don't enable the IRQ if it's currently disabled */
-	if (irq_desc[irq].depth == 0) {
+	if (irq_desc[d->irq].depth == 0) {
 		__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_FALLING)
 			     ? &g->set_falling : &g->clr_falling);
 		__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_RISING)
@@ -253,9 +253,9 @@ static int gpio_irq_type(unsigned irq, unsigned trigger)
 
 static struct irq_chip gpio_irqchip = {
 	.name		= "GPIO",
-	.enable		= gpio_irq_enable,
-	.disable	= gpio_irq_disable,
-	.set_type	= gpio_irq_type,
+	.irq_enable	= gpio_irq_enable,
+	.irq_disable	= gpio_irq_disable,
+	.irq_set_type	= gpio_irq_type,
 };
 
 static void
@@ -269,8 +269,8 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		mask <<= 16;
 
 	/* temporarily mask (level sensitive) parent IRQ */
-	desc->chip->mask(irq);
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_mask(&desc->irq_data);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	while (1) {
 		u32		status;
 		int		n;
@@ -293,7 +293,7 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			status >>= res;
 		}
 	}
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 	/* now it may re-trigger */
 }
 
@@ -320,10 +320,10 @@ static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
 		return -ENODEV;
 }
 
-static int gpio_irq_type_unbanked(unsigned irq, unsigned trigger)
+static int gpio_irq_type_unbanked(struct irq_data *d, unsigned trigger)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(irq);
-	u32 mask = (u32) get_irq_data(irq);
+	struct davinci_gpio_regs __iomem *g = irq2regs(d->irq);
+	u32 mask = (u32) irq_data_get_irq_data(d);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
@@ -397,7 +397,7 @@ static int __init davinci_gpio_irq_setup(void)
 		irq = bank_irq;
 		gpio_irqchip_unbanked = *get_irq_desc_chip(irq_to_desc(irq));
 		gpio_irqchip_unbanked.name = "GPIO-AINTC";
-		gpio_irqchip_unbanked.set_type = gpio_irq_type_unbanked;
+		gpio_irqchip_unbanked.irq_set_type = gpio_irq_type_unbanked;
 
 		/* default trigger: both edges */
 		g = gpio2regs(0);

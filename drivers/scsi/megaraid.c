@@ -366,7 +366,7 @@ mega_runpendq(adapter_t *adapter)
  * The command queuing entry point for the mid-layer.
  */
 static int
-megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
+megaraid_queue_lck(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 {
 	adapter_t	*adapter;
 	scb_t	*scb;
@@ -408,6 +408,8 @@ megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 	spin_unlock_irqrestore(&adapter->lock, flags);
 	return busy;
 }
+
+static DEF_SCSI_QCMD(megaraid_queue)
 
 /**
  * mega_allocate_scb()
@@ -4456,7 +4458,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 
 	scb->idx = CMDID_INT_CMDS;
 
-	megaraid_queue(scmd, mega_internal_done);
+	megaraid_queue_lck(scmd, mega_internal_done);
 
 	wait_for_completion(&adapter->int_waitq);
 

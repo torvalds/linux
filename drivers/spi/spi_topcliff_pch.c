@@ -267,7 +267,7 @@ static void pch_spi_handler_sub(struct pch_spi_data *data, u32 reg_spsr_val,
 	if (reg_spsr_val & SPSR_FI_BIT) {
 		/* disable FI & RFI interrupts */
 		pch_spi_setclr_reg(data->master, PCH_SPCR, 0,
-				   SPCR_FIE_BIT | SPCR_TFIE_BIT);
+				   SPCR_FIE_BIT | SPCR_RFIE_BIT);
 
 		/* transfer is completed;inform pch_spi_process_messages */
 		data->transfer_complete = true;
@@ -677,15 +677,15 @@ static void pch_spi_set_ir(struct pch_spi_data *data)
 {
 	/* enable interrupts */
 	if ((data->bpw_len) > PCH_MAX_FIFO_DEPTH) {
-		/* set receive threhold to PCH_RX_THOLD */
+		/* set receive threshold to PCH_RX_THOLD */
 		pch_spi_setclr_reg(data->master, PCH_SPCR,
-				   PCH_RX_THOLD << SPCR_TFIC_FIELD,
-				   ~MASK_TFIC_SPCR_BITS);
+				   PCH_RX_THOLD << SPCR_RFIC_FIELD,
+				   ~MASK_RFIC_SPCR_BITS);
 		/* enable FI and RFI interrupts */
 		pch_spi_setclr_reg(data->master, PCH_SPCR,
-				   SPCR_RFIE_BIT | SPCR_TFIE_BIT, 0);
+				   SPCR_RFIE_BIT | SPCR_FIE_BIT, 0);
 	} else {
-		/* set receive threhold to maximum */
+		/* set receive threshold to maximum */
 		pch_spi_setclr_reg(data->master, PCH_SPCR,
 				   PCH_RX_THOLD_MAX << SPCR_TFIC_FIELD,
 				   ~MASK_TFIC_SPCR_BITS);

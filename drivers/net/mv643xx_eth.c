@@ -1514,11 +1514,6 @@ static int mv643xx_eth_nway_reset(struct net_device *dev)
 	return genphy_restart_aneg(mp->phy);
 }
 
-static u32 mv643xx_eth_get_link(struct net_device *dev)
-{
-	return !!netif_carrier_ok(dev);
-}
-
 static int
 mv643xx_eth_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 {
@@ -1658,7 +1653,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.set_settings		= mv643xx_eth_set_settings,
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= mv643xx_eth_nway_reset,
-	.get_link		= mv643xx_eth_get_link,
+	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= mv643xx_eth_get_coalesce,
 	.set_coalesce		= mv643xx_eth_set_coalesce,
 	.get_ringparam		= mv643xx_eth_get_ringparam,
@@ -2983,7 +2978,7 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	unregister_netdev(mp->dev);
 	if (mp->phy != NULL)
 		phy_detach(mp->phy);
-	flush_scheduled_work();
+	cancel_work_sync(&mp->tx_timeout_task);
 	free_netdev(mp->dev);
 
 	platform_set_drvdata(pdev, NULL);

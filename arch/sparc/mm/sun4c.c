@@ -435,16 +435,14 @@ void __init sun4c_probe_memerr_reg(void)
 
 static inline void sun4c_init_ss2_cache_bug(void)
 {
-	extern unsigned long start;
-
 	if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS2)) ||
 	    (idprom->id_machtype == (SM_SUN4C | SM_4C_IPX)) ||
 	    (idprom->id_machtype == (SM_SUN4C | SM_4C_ELC))) {
 		/* Whee.. */
 		printk("SS2 cache bug detected, uncaching trap table page\n");
-		sun4c_flush_page((unsigned int) &start);
-		sun4c_put_pte(((unsigned long) &start),
-			(sun4c_get_pte((unsigned long) &start) | _SUN4C_PAGE_NOCACHE));
+		sun4c_flush_page((unsigned int) &_start);
+		sun4c_put_pte(((unsigned long) &_start),
+			(sun4c_get_pte((unsigned long) &_start) | _SUN4C_PAGE_NOCACHE));
 	}
 }
 

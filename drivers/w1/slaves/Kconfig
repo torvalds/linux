@@ -16,6 +16,17 @@ config W1_SLAVE_SMEM
 	  Say Y here if you want to connect 1-wire
 	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
 
+config W1_SLAVE_DS2423
+	tristate "Counter 1-wire device (DS2423)"
+	select CRC16
+	help
+	  If you enable this you can read the counter values available
+	  in the DS2423 chipset from the w1_slave file under the
+	  sys file system.
+
+	  Say Y here if you want to use a 1-wire
+	  counter family device (DS2423).
+
 config W1_SLAVE_DS2431
 	tristate "1kb EEPROM family support (DS2431)"
 	help

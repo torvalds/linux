@@ -246,7 +246,7 @@ static int mmm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	md = kzalloc(sizeof(struct mmm_data), GFP_KERNEL);
 	if (!md) {
-		dev_err(&hdev->dev, "cannot allocate 3M data\n");
+		hid_err(hdev, "cannot allocate 3M data\n");
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, md);

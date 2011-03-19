@@ -18,7 +18,7 @@
 char prom_version[80];
 
 /* The root node of the prom device tree. */
-int prom_stdin, prom_stdout;
+int prom_stdout;
 phandle prom_chosen_node;
 
 /* You must call prom_init() before you attempt to use any of the
@@ -35,14 +35,13 @@ void __init prom_init(void *cif_handler, void *cif_stack)
 	prom_cif_init(cif_handler, cif_stack);
 
 	prom_chosen_node = prom_finddevice(prom_chosen_path);
-	if (!prom_chosen_node || prom_chosen_node == -1)
+	if (!prom_chosen_node || (s32)prom_chosen_node == -1)
 		prom_halt();
 
-	prom_stdin = prom_getint(prom_chosen_node, "stdin");
 	prom_stdout = prom_getint(prom_chosen_node, "stdout");
 
 	node = prom_finddevice("/openprom");
-	if (!node || node == -1)
+	if (!node || (s32)node == -1)
 		prom_halt();
 
 	prom_getstring(node, "version", prom_version, sizeof(prom_version));

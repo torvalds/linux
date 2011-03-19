@@ -21,7 +21,8 @@
 /* Boundary values */
 static int		zero     = 0,
 			u8_max   = 0xFF;
-static unsigned long	seqw_min = 32;
+static unsigned long	seqw_min = DCCPF_SEQ_WMIN,
+			seqw_max = 0xFFFFFFFF;		/* maximum on 32 bit */
 
 static struct ctl_table dccp_default_table[] = {
 	{
@@ -31,6 +32,7 @@ static struct ctl_table dccp_default_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_doulongvec_minmax,
 		.extra1		= &seqw_min,		/* RFC 4340, 7.5.2 */
+		.extra2		= &seqw_max,
 	},
 	{
 		.procname	= "rx_ccid",

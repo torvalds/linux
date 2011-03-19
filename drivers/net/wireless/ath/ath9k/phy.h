@@ -19,6 +19,7 @@
 
 #define CHANSEL_DIV		15
 #define CHANSEL_2G(_freq)	(((_freq) * 0x10000) / CHANSEL_DIV)
+#define CHANSEL_2G_9485(_freq)	((((_freq) * 0x10000) - 215) / CHANSEL_DIV)
 #define CHANSEL_5G(_freq)	(((_freq) * 0x8000) / CHANSEL_DIV)
 
 #define AR_PHY_BASE     0x9800

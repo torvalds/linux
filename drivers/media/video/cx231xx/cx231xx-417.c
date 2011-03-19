@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -941,14 +940,14 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	u16 _buffer_size = 4096;
 	u8 *p_buffer;
 
-	p_current_fw = (u32 *)vmalloc(1884180*4);
+	p_current_fw = vmalloc(1884180 * 4);
 	p_fw = p_current_fw;
 	if (p_current_fw == 0) {
 		dprintk(2, "FAIL!!!\n");
 		return -1;
 	}
 
-	p_buffer = (u8 *)vmalloc(4096);
+	p_buffer = vmalloc(4096);
 	if (p_buffer == 0) {
 		dprintk(2, "FAIL!!!\n");
 		return -1;
@@ -1927,10 +1926,9 @@ static int mpeg_open(struct file *file)
 			dev = h;
 	}
 
-	if (dev == NULL) {
-		unlock_kernel();
+	if (dev == NULL)
 		return -ENODEV;
-	}
+
 	mutex_lock(&dev->lock);
 
 	/* allocate + initialize per filehandle data */

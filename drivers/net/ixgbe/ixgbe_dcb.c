@@ -42,7 +42,8 @@
  * It should be called only after the rules are checked by
  * ixgbe_dcb_check_config().
  */
-s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
+s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
+				   struct ixgbe_dcb_config *dcb_config,
 				   int max_frame, u8 direction)
 {
 	struct tc_bw_alloc *p;
@@ -124,7 +125,8 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
 			 * credit may not be enough to send out a TSO
 			 * packet in descriptor plane arbitration.
 			 */
-			if (credit_max &&
+			if ((hw->mac.type == ixgbe_mac_82598EB) &&
+			    credit_max &&
 			    (credit_max < MINIMUM_CREDIT_FOR_TSO))
 				credit_max = MINIMUM_CREDIT_FOR_TSO;
 
@@ -150,10 +152,17 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
                         struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret = 0;
-	if (hw->mac.type == ixgbe_mac_82598EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
 		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config);
-	else if (hw->mac.type == ixgbe_mac_82599EB)
+		break;
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config);
+		break;
+	default:
+		break;
+	}
 	return ret;
 }
 

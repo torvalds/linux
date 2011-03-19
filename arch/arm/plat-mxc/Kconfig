@@ -21,10 +21,6 @@ config ARCH_MX2
 
 config ARCH_MX25
 	bool "MX25-based"
-	select CPU_ARM926T
-	select ARCH_MXC_IOMUX_V3
-	select HAVE_FB_IMX
-	select ARCH_MXC_AUDMUX_V2
 	help
 	  This enables support for systems based on the Freescale i.MX25 family
 
@@ -51,7 +47,6 @@ endchoice
 
 source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
-source "arch/arm/mach-mx25/Kconfig"
 source "arch/arm/mach-mxc91231/Kconfig"
 source "arch/arm/mach-mx5/Kconfig"
 
@@ -68,12 +63,10 @@ config MXC_IRQ_PRIOR
 	  Say N here, unless you have a specialized requirement.
 
 config MXC_TZIC
-	bool "Enable TrustZone Interrupt Controller"
-	depends on ARCH_MX51
-	help
-	  This will be automatically selected for all processors
-	  containing this interrupt controller.
-	  Say N here only if you are really sure.
+	bool
+
+config MXC_AVIC
+	bool
 
 config MXC_PWM
 	tristate "Enable PWM driver"

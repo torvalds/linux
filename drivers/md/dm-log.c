@@ -455,7 +455,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 			r = PTR_ERR(lc->io_req.client);
 			DMWARN("couldn't allocate disk io client");
 			kfree(lc);
-			return -ENOMEM;
+			return r;
 		}
 
 		lc->disk_header = vmalloc(buf_size);

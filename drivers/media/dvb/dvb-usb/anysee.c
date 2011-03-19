@@ -394,7 +394,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 	if (ircode[0]) {
 		deb_rc("%s: key pressed %02x\n", __func__, ircode[1]);
-		ir_keydown(d->rc_input_dev, 0x08 << 8 | ircode[1], 0);
+		rc_keydown(d->rc_dev, 0x08 << 8 | ircode[1], 0);
 	}
 
 	return 0;
@@ -476,7 +476,7 @@ static struct dvb_usb_device_properties anysee_properties = {
 
 	.rc.core = {
 		.rc_codes         = RC_MAP_ANYSEE,
-		.protocol         = IR_TYPE_OTHER,
+		.protocol         = RC_TYPE_OTHER,
 		.module_name      = "anysee",
 		.rc_query         = anysee_rc_query,
 		.rc_interval      = 250,  /* windows driver uses 500ms */

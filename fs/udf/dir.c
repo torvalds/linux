@@ -30,7 +30,6 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 
 #include "udf_i.h"
@@ -190,18 +189,14 @@ static int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct inode *dir = filp->f_path.dentry->d_inode;
 	int result;
 
-	lock_kernel();
-
 	if (filp->f_pos == 0) {
 		if (filldir(dirent, ".", 1, filp->f_pos, dir->i_ino, DT_DIR) < 0) {
-			unlock_kernel();
 			return 0;
 		}
 		filp->f_pos++;
 	}
 
 	result = do_udf_readdir(dir, filp, filldir, dirent);
-	unlock_kernel();
  	return result;
 }
 

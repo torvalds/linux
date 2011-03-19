@@ -19,7 +19,7 @@ config FIREWIRE
 
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"
-	depends on PCI && FIREWIRE
+	depends on PCI && FIREWIRE && MMU
 	help
 	  Enable this driver if you have a FireWire controller based
 	  on the OHCI specification.  For all practical purposes, this
@@ -49,14 +49,12 @@ config FIREWIRE_SBP2
 	  configuration section.
 
 config FIREWIRE_NET
-	tristate "IP networking over 1394 (EXPERIMENTAL)"
-	depends on FIREWIRE && INET && EXPERIMENTAL
+	tristate "IP networking over 1394"
+	depends on FIREWIRE && INET
 	help
 	  This enables IPv4 over IEEE 1394, providing IP connectivity with
 	  other implementations of RFC 2734 as found on several operating
 	  systems.  Multicast support is currently limited.
-
-	  NOTE, this driver is not stable yet!
 
 	  To compile this driver as a module, say M here:  The module will be
 	  called firewire-net.

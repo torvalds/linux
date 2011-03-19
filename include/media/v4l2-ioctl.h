@@ -14,12 +14,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/compiler.h> /* need __user */
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-#define __MIN_V4L1
-#include <linux/videodev.h>
-#else
 #include <linux/videodev2.h>
-#endif
 
 struct v4l2_fh;
 
@@ -113,10 +108,6 @@ struct v4l2_ioctl_ops {
 
 
 	int (*vidioc_overlay) (struct file *file, void *fh, unsigned int i);
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-			/* buffer type is struct vidio_mbuf * */
-	int (*vidiocgmbuf)  (struct file *file, void *fh, struct video_mbuf *p);
-#endif
 	int (*vidioc_g_fbuf)   (struct file *file, void *fh,
 				struct v4l2_framebuffer *a);
 	int (*vidioc_s_fbuf)   (struct file *file, void *fh,
@@ -300,21 +291,14 @@ extern void v4l_printk_ioctl(unsigned int cmd);
 extern const char *v4l2_field_names[];
 extern const char *v4l2_type_names[];
 
-/*  Compatibility layer interface  --  v4l1-compat module */
-typedef long (*v4l2_kioctl)(struct file *file,
-			   unsigned int cmd, void *arg);
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-long v4l_compat_translate_ioctl(struct file *file,
-			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
-#else
-#define v4l_compat_translate_ioctl(file, cmd, arg, ioctl) (-EINVAL)
-#endif
-
 #ifdef CONFIG_COMPAT
 /* 32 Bits compatibility layer for 64 bits processors */
 extern long v4l2_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 #endif
+
+typedef long (*v4l2_kioctl)(struct file *file,
+		unsigned int cmd, void *arg);
 
 /* Include support for obsoleted stuff */
 extern long video_usercopy(struct file *file, unsigned int cmd,

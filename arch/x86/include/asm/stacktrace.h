@@ -7,6 +7,7 @@
 #define _ASM_X86_STACKTRACE_H
 
 #include <linux/uaccess.h>
+#include <linux/ptrace.h>
 
 extern int kstack_depth_to_print;
 
@@ -46,7 +47,7 @@ struct stacktrace_ops {
 };
 
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp,
+		unsigned long *stack,
 		const struct stacktrace_ops *ops, void *data);
 
 #ifdef CONFIG_X86_32
@@ -57,13 +58,39 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 #define get_bp(bp) asm("movq %%rbp, %0" : "=r" (bp) :)
 #endif
 
+#ifdef CONFIG_FRAME_POINTER
+static inline unsigned long
+stack_frame(struct task_struct *task, struct pt_regs *regs)
+{
+	unsigned long bp;
+
+	if (regs)
+		return regs->bp;
+
+	if (task == current) {
+		/* Grab bp right from our regs */
+		get_bp(bp);
+		return bp;
+	}
+
+	/* bp is the last reg pushed by switch_to */
+	return *(unsigned long *)task->thread.sp;
+}
+#else
+static inline unsigned long
+stack_frame(struct task_struct *task, struct pt_regs *regs)
+{
+	return 0;
+}
+#endif
+
 extern void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *stack, unsigned long bp, char *log_lvl);
+		   unsigned long *stack, char *log_lvl);
 
 extern void
 show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		unsigned long *sp, unsigned long bp, char *log_lvl);
+		   unsigned long *sp, char *log_lvl);
 
 extern unsigned int code_bytes;
 

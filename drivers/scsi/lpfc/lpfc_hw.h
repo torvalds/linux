@@ -880,6 +880,24 @@ struct  RLS_RSP {		/* Structure is in Big Endian format */
 	uint32_t crcCnt;
 };
 
+struct RRQ {			/* Structure is in Big Endian format */
+	uint32_t rrq;
+#define rrq_rsvd_SHIFT		24
+#define rrq_rsvd_MASK		0x000000ff
+#define rrq_rsvd_WORD		rrq
+#define rrq_did_SHIFT		0
+#define rrq_did_MASK		0x00ffffff
+#define rrq_did_WORD		rrq
+	uint32_t rrq_exchg;
+#define rrq_oxid_SHIFT		16
+#define rrq_oxid_MASK		0xffff
+#define rrq_oxid_WORD		rrq_exchg
+#define rrq_rxid_SHIFT		0
+#define rrq_rxid_MASK		0xffff
+#define rrq_rxid_WORD		rrq_exchg
+};
+
+
 struct RTV_RSP {		/* Structure is in Big Endian format */
 	uint32_t ratov;
 	uint32_t edtov;
@@ -1172,7 +1190,10 @@ typedef struct {
 #define PCI_VENDOR_ID_EMULEX        0x10df
 #define PCI_DEVICE_ID_FIREFLY       0x1ae5
 #define PCI_DEVICE_ID_PROTEUS_VF    0xe100
+#define PCI_DEVICE_ID_BALIUS        0xe131
 #define PCI_DEVICE_ID_PROTEUS_PF    0xe180
+#define PCI_DEVICE_ID_LANCER_FC     0xe200
+#define PCI_DEVICE_ID_LANCER_FCOE   0xe260
 #define PCI_DEVICE_ID_SAT_SMB       0xf011
 #define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
@@ -1189,6 +1210,7 @@ typedef struct {
 #define PCI_DEVICE_ID_SAT           0xf100
 #define PCI_DEVICE_ID_SAT_SCSP      0xf111
 #define PCI_DEVICE_ID_SAT_DCSP      0xf112
+#define PCI_DEVICE_ID_FALCON        0xf180
 #define PCI_DEVICE_ID_SUPERFLY      0xf700
 #define PCI_DEVICE_ID_DRAGONFLY     0xf800
 #define PCI_DEVICE_ID_CENTAUR       0xf900
@@ -1210,8 +1232,6 @@ typedef struct {
 #define PCI_VENDOR_ID_SERVERENGINE  0x19a2
 #define PCI_DEVICE_ID_TIGERSHARK    0x0704
 #define PCI_DEVICE_ID_TOMCAT        0x0714
-#define PCI_DEVICE_ID_FALCON        0xf180
-#define PCI_DEVICE_ID_BALIUS        0xe131
 
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
@@ -1368,7 +1388,6 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_READ_LNK_STAT   0x12
 #define MBX_REG_LOGIN       0x13
 #define MBX_UNREG_LOGIN     0x14
-#define MBX_READ_LA         0x15
 #define MBX_CLEAR_LA        0x16
 #define MBX_DUMP_MEMORY     0x17
 #define MBX_DUMP_CONTEXT    0x18
@@ -1402,7 +1421,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_READ_SPARM64    0x8D
 #define MBX_READ_RPI64      0x8F
 #define MBX_REG_LOGIN64     0x93
-#define MBX_READ_LA64       0x95
+#define MBX_READ_TOPOLOGY   0x95
 #define MBX_REG_VPI	    0x96
 #define MBX_UNREG_VPI	    0x97
 
@@ -1823,12 +1842,13 @@ typedef struct {
 #define FLAGS_IMED_ABORT             0x04000	/* Bit 14 */
 
 	uint32_t link_speed;
-#define LINK_SPEED_AUTO 0       /* Auto selection */
-#define LINK_SPEED_1G   1       /* 1 Gigabaud */
-#define LINK_SPEED_2G   2       /* 2 Gigabaud */
-#define LINK_SPEED_4G   4       /* 4 Gigabaud */
-#define LINK_SPEED_8G   8       /* 8 Gigabaud */
-#define LINK_SPEED_10G   16      /* 10 Gigabaud */
+#define LINK_SPEED_AUTO 0x0     /* Auto selection */
+#define LINK_SPEED_1G   0x1     /* 1 Gigabaud */
+#define LINK_SPEED_2G   0x2     /* 2 Gigabaud */
+#define LINK_SPEED_4G   0x4     /* 4 Gigabaud */
+#define LINK_SPEED_8G   0x8     /* 8 Gigabaud */
+#define LINK_SPEED_10G  0x10    /* 10 Gigabaud */
+#define LINK_SPEED_16G  0x11    /* 16 Gigabaud */
 
 } INIT_LINK_VAR;
 
@@ -1999,6 +2019,7 @@ typedef struct {
 #define LMT_4Gb       0x040
 #define LMT_8Gb       0x080
 #define LMT_10Gb      0x100
+#define LMT_16Gb      0x200
 	uint32_t rsvd2;
 	uint32_t rsvd3;
 	uint32_t max_xri;
@@ -2394,100 +2415,93 @@ typedef struct {
 #endif
 } UNREG_D_ID_VAR;
 
-/* Structure for MB Command READ_LA (21) */
-/* Structure for MB Command READ_LA64 (0x95) */
-
-typedef struct {
+/* Structure for MB Command READ_TOPOLOGY (0x95) */
+struct lpfc_mbx_read_top {
 	uint32_t eventTag;	/* Event tag */
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd1:19;
-	uint32_t fa:1;
-	uint32_t mm:1;		/* Menlo Maintenance mode enabled */
-	uint32_t rx:1;
-	uint32_t pb:1;
-	uint32_t il:1;
-	uint32_t attType:8;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t attType:8;
-	uint32_t il:1;
-	uint32_t pb:1;
-	uint32_t rx:1;
-	uint32_t mm:1;
-	uint32_t fa:1;
-	uint32_t rsvd1:19;
-#endif
-
-#define AT_RESERVED    0x00	/* Reserved - attType */
-#define AT_LINK_UP     0x01	/* Link is up */
-#define AT_LINK_DOWN   0x02	/* Link is down */
-
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint8_t granted_AL_PA;
-	uint8_t lipAlPs;
-	uint8_t lipType;
-	uint8_t topology;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint8_t topology;
-	uint8_t lipType;
-	uint8_t lipAlPs;
-	uint8_t granted_AL_PA;
-#endif
-
-#define TOPOLOGY_PT_PT 0x01	/* Topology is pt-pt / pt-fabric */
-#define TOPOLOGY_LOOP  0x02	/* Topology is FC-AL */
-#define TOPOLOGY_LNK_MENLO_MAINTENANCE 0x05 /* maint mode zephtr to menlo */
-
-	union {
-		struct ulp_bde lilpBde; /* This BDE points to a 128 byte buffer
-					   to */
-		/* store the LILP AL_PA position map into */
-		struct ulp_bde64 lilpBde64;
-	} un;
-
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t Dlu:1;
-	uint32_t Dtf:1;
-	uint32_t Drsvd2:14;
-	uint32_t DlnkSpeed:8;
-	uint32_t DnlPort:4;
-	uint32_t Dtx:2;
-	uint32_t Drx:2;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t Drx:2;
-	uint32_t Dtx:2;
-	uint32_t DnlPort:4;
-	uint32_t DlnkSpeed:8;
-	uint32_t Drsvd2:14;
-	uint32_t Dtf:1;
-	uint32_t Dlu:1;
-#endif
-
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t Ulu:1;
-	uint32_t Utf:1;
-	uint32_t Ursvd2:14;
-	uint32_t UlnkSpeed:8;
-	uint32_t UnlPort:4;
-	uint32_t Utx:2;
-	uint32_t Urx:2;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t Urx:2;
-	uint32_t Utx:2;
-	uint32_t UnlPort:4;
-	uint32_t UlnkSpeed:8;
-	uint32_t Ursvd2:14;
-	uint32_t Utf:1;
-	uint32_t Ulu:1;
-#endif
-
-#define LA_UNKNW_LINK  0x0    /* lnkSpeed */
-#define LA_1GHZ_LINK   0x04   /* lnkSpeed */
-#define LA_2GHZ_LINK   0x08   /* lnkSpeed */
-#define LA_4GHZ_LINK   0x10   /* lnkSpeed */
-#define LA_8GHZ_LINK   0x20   /* lnkSpeed */
-#define LA_10GHZ_LINK  0x40   /* lnkSpeed */
-
-} READ_LA_VAR;
+	uint32_t word2;
+#define lpfc_mbx_read_top_fa_SHIFT		12
+#define lpfc_mbx_read_top_fa_MASK		0x00000001
+#define lpfc_mbx_read_top_fa_WORD		word2
+#define lpfc_mbx_read_top_mm_SHIFT		11
+#define lpfc_mbx_read_top_mm_MASK		0x00000001
+#define lpfc_mbx_read_top_mm_WORD		word2
+#define lpfc_mbx_read_top_pb_SHIFT		9
+#define lpfc_mbx_read_top_pb_MASK		0X00000001
+#define lpfc_mbx_read_top_pb_WORD		word2
+#define lpfc_mbx_read_top_il_SHIFT		8
+#define lpfc_mbx_read_top_il_MASK		0x00000001
+#define lpfc_mbx_read_top_il_WORD		word2
+#define lpfc_mbx_read_top_att_type_SHIFT	0
+#define lpfc_mbx_read_top_att_type_MASK		0x000000FF
+#define lpfc_mbx_read_top_att_type_WORD		word2
+#define LPFC_ATT_RESERVED    0x00	/* Reserved - attType */
+#define LPFC_ATT_LINK_UP     0x01	/* Link is up */
+#define LPFC_ATT_LINK_DOWN   0x02	/* Link is down */
+	uint32_t word3;
+#define lpfc_mbx_read_top_alpa_granted_SHIFT	24
+#define lpfc_mbx_read_top_alpa_granted_MASK	0x000000FF
+#define lpfc_mbx_read_top_alpa_granted_WORD	word3
+#define lpfc_mbx_read_top_lip_alps_SHIFT	16
+#define lpfc_mbx_read_top_lip_alps_MASK		0x000000FF
+#define lpfc_mbx_read_top_lip_alps_WORD		word3
+#define lpfc_mbx_read_top_lip_type_SHIFT	8
+#define lpfc_mbx_read_top_lip_type_MASK		0x000000FF
+#define lpfc_mbx_read_top_lip_type_WORD		word3
+#define lpfc_mbx_read_top_topology_SHIFT	0
+#define lpfc_mbx_read_top_topology_MASK		0x000000FF
+#define lpfc_mbx_read_top_topology_WORD		word3
+#define LPFC_TOPOLOGY_PT_PT 0x01	/* Topology is pt-pt / pt-fabric */
+#define LPFC_TOPOLOGY_LOOP  0x02	/* Topology is FC-AL */
+#define LPFC_TOPOLOGY_MM    0x05	/* maint mode zephtr to menlo */
+	/* store the LILP AL_PA position map into */
+	struct ulp_bde64 lilpBde64;
+#define LPFC_ALPA_MAP_SIZE	128
+	uint32_t word7;
+#define lpfc_mbx_read_top_ld_lu_SHIFT		31
+#define lpfc_mbx_read_top_ld_lu_MASK		0x00000001
+#define lpfc_mbx_read_top_ld_lu_WORD		word7
+#define lpfc_mbx_read_top_ld_tf_SHIFT		30
+#define lpfc_mbx_read_top_ld_tf_MASK		0x00000001
+#define lpfc_mbx_read_top_ld_tf_WORD		word7
+#define lpfc_mbx_read_top_ld_link_spd_SHIFT	8
+#define lpfc_mbx_read_top_ld_link_spd_MASK	0x000000FF
+#define lpfc_mbx_read_top_ld_link_spd_WORD	word7
+#define lpfc_mbx_read_top_ld_nl_port_SHIFT	4
+#define lpfc_mbx_read_top_ld_nl_port_MASK	0x0000000F
+#define lpfc_mbx_read_top_ld_nl_port_WORD	word7
+#define lpfc_mbx_read_top_ld_tx_SHIFT		2
+#define lpfc_mbx_read_top_ld_tx_MASK		0x00000003
+#define lpfc_mbx_read_top_ld_tx_WORD		word7
+#define lpfc_mbx_read_top_ld_rx_SHIFT		0
+#define lpfc_mbx_read_top_ld_rx_MASK		0x00000003
+#define lpfc_mbx_read_top_ld_rx_WORD		word7
+	uint32_t word8;
+#define lpfc_mbx_read_top_lu_SHIFT		31
+#define lpfc_mbx_read_top_lu_MASK		0x00000001
+#define lpfc_mbx_read_top_lu_WORD		word8
+#define lpfc_mbx_read_top_tf_SHIFT		30
+#define lpfc_mbx_read_top_tf_MASK		0x00000001
+#define lpfc_mbx_read_top_tf_WORD		word8
+#define lpfc_mbx_read_top_link_spd_SHIFT	8
+#define lpfc_mbx_read_top_link_spd_MASK		0x000000FF
+#define lpfc_mbx_read_top_link_spd_WORD		word8
+#define lpfc_mbx_read_top_nl_port_SHIFT		4
+#define lpfc_mbx_read_top_nl_port_MASK		0x0000000F
+#define lpfc_mbx_read_top_nl_port_WORD		word8
+#define lpfc_mbx_read_top_tx_SHIFT		2
+#define lpfc_mbx_read_top_tx_MASK		0x00000003
+#define lpfc_mbx_read_top_tx_WORD		word8
+#define lpfc_mbx_read_top_rx_SHIFT		0
+#define lpfc_mbx_read_top_rx_MASK		0x00000003
+#define lpfc_mbx_read_top_rx_WORD		word8
+#define LPFC_LINK_SPEED_UNKNOWN	0x0
+#define LPFC_LINK_SPEED_1GHZ	0x04
+#define LPFC_LINK_SPEED_2GHZ	0x08
+#define LPFC_LINK_SPEED_4GHZ	0x10
+#define LPFC_LINK_SPEED_8GHZ	0x20
+#define LPFC_LINK_SPEED_10GHZ	0x40
+#define LPFC_LINK_SPEED_16GHZ	0x80
+};
 
 /* Structure for MB Command CLEAR_LA (22) */
 
@@ -3016,7 +3030,6 @@ typedef union {
 	READ_LNK_VAR varRdLnk;		/* cmd = 18 (READ_LNK_STAT)  */
 	REG_LOGIN_VAR varRegLogin;	/* cmd = 19 (REG_LOGIN(64))  */
 	UNREG_LOGIN_VAR varUnregLogin;	/* cmd = 20 (UNREG_LOGIN)    */
-	READ_LA_VAR varReadLA;		/* cmd = 21 (READ_LA(64))    */
 	CLEAR_LA_VAR varClearLA;	/* cmd = 22 (CLEAR_LA)       */
 	DUMP_VAR varDmp;		/* Warm Start DUMP mbx cmd   */
 	UNREG_D_ID_VAR varUnregDID;	/* cmd = 0x23 (UNREG_D_ID)   */
@@ -3026,6 +3039,7 @@ typedef union {
 	struct config_hbq_var varCfgHbq;/* cmd = 0x7c (CONFIG_HBQ)  */
 	struct update_cfg_var varUpdateCfg; /* cmd = 0x1B (UPDATE_CFG)*/
 	CONFIG_PORT_VAR varCfgPort;	/* cmd = 0x88 (CONFIG_PORT)  */
+	struct lpfc_mbx_read_top varReadTop; /* cmd = 0x95 (READ_TOPOLOGY) */
 	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
 	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
 	ASYNCEVT_ENABLE_VAR varCfgAsyncEvent; /*cmd = x33 (CONFIG_ASYNC) */

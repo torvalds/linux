@@ -840,7 +840,7 @@ static int __init topology_init(void)
 	for_each_online_node(i)
 		register_one_node(i);
 
-	for_each_present_cpu(i)
+	for (i = 0; i < smp_height * smp_width; ++i)
 		register_cpu(&cpu_devices[i], i);
 
 	return 0;
@@ -868,14 +868,14 @@ void __cpuinit setup_cpu(int boot)
 
 	/* Allow asynchronous TLB interrupts. */
 #if CHIP_HAS_TILE_DMA()
-	raw_local_irq_unmask(INT_DMATLB_MISS);
-	raw_local_irq_unmask(INT_DMATLB_ACCESS);
+	arch_local_irq_unmask(INT_DMATLB_MISS);
+	arch_local_irq_unmask(INT_DMATLB_ACCESS);
 #endif
 #if CHIP_HAS_SN_PROC()
-	raw_local_irq_unmask(INT_SNITLB_MISS);
+	arch_local_irq_unmask(INT_SNITLB_MISS);
 #endif
 #ifdef __tilegx__
-	raw_local_irq_unmask(INT_SINGLE_STEP_K);
+	arch_local_irq_unmask(INT_SINGLE_STEP_K);
 #endif
 
 	/*

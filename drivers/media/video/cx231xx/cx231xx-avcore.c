@@ -274,7 +274,7 @@ int cx231xx_afe_set_input_mux(struct cx231xx *dev, u32 input_mux)
 
 	if (ch1_setting != 0) {
 		status = afe_read_byte(dev, ADC_INPUT_CH1, &value);
-		value &= (!INPUT_SEL_MASK);
+		value &= ~INPUT_SEL_MASK;
 		value |= (ch1_setting - 1) << 4;
 		value &= 0xff;
 		status = afe_write_byte(dev, ADC_INPUT_CH1, value);
@@ -282,7 +282,7 @@ int cx231xx_afe_set_input_mux(struct cx231xx *dev, u32 input_mux)
 
 	if (ch2_setting != 0) {
 		status = afe_read_byte(dev, ADC_INPUT_CH2, &value);
-		value &= (!INPUT_SEL_MASK);
+		value &= ~INPUT_SEL_MASK;
 		value |= (ch2_setting - 1) << 4;
 		value &= 0xff;
 		status = afe_write_byte(dev, ADC_INPUT_CH2, value);
@@ -292,7 +292,7 @@ int cx231xx_afe_set_input_mux(struct cx231xx *dev, u32 input_mux)
 	   7 less than the input number */
 	if (ch3_setting != 0) {
 		status = afe_read_byte(dev, ADC_INPUT_CH3, &value);
-		value &= (!INPUT_SEL_MASK);
+		value &= ~INPUT_SEL_MASK;
 		value |= (ch3_setting - 1) << 4;
 		value &= 0xff;
 		status = afe_write_byte(dev, ADC_INPUT_CH3, value);
@@ -354,6 +354,7 @@ int cx231xx_afe_update_power_control(struct cx231xx *dev,
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
 	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 	case CX231XX_BOARD_HAUPPAUGE_USBLIVE2:
+	case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
 			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {

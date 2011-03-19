@@ -156,16 +156,16 @@ static inline struct wm8994_irq_data *irq_to_wm8994_irq(struct wm8994 *wm8994,
 	return &wm8994_irqs[irq - wm8994->irq_base];
 }
 
-static void wm8994_irq_lock(unsigned int irq)
+static void wm8994_irq_lock(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = get_irq_chip_data(irq);
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&wm8994->irq_lock);
 }
 
-static void wm8994_irq_sync_unlock(unsigned int irq)
+static void wm8994_irq_sync_unlock(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = get_irq_chip_data(irq);
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->irq_masks_cur); i++) {
@@ -182,28 +182,30 @@ static void wm8994_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&wm8994->irq_lock);
 }
 
-static void wm8994_irq_unmask(unsigned int irq)
+static void wm8994_irq_unmask(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = get_irq_chip_data(irq);
-	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994, irq);
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
+	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994,
+							     data->irq);
 
 	wm8994->irq_masks_cur[irq_data->reg - 1] &= ~irq_data->mask;
 }
 
-static void wm8994_irq_mask(unsigned int irq)
+static void wm8994_irq_mask(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = get_irq_chip_data(irq);
-	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994, irq);
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
+	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994,
+							     data->irq);
 
 	wm8994->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
 }
 
 static struct irq_chip wm8994_irq_chip = {
-	.name = "wm8994",
-	.bus_lock = wm8994_irq_lock,
-	.bus_sync_unlock = wm8994_irq_sync_unlock,
-	.mask = wm8994_irq_mask,
-	.unmask = wm8994_irq_unmask,
+	.name			= "wm8994",
+	.irq_bus_lock		= wm8994_irq_lock,
+	.irq_bus_sync_unlock	= wm8994_irq_sync_unlock,
+	.irq_mask		= wm8994_irq_mask,
+	.irq_unmask		= wm8994_irq_unmask,
 };
 
 /* The processing of the primary interrupt occurs in a thread so that

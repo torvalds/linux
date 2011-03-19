@@ -108,6 +108,4 @@ void via_fb_pci_remove(struct pci_dev *pdev);
 /* Temporary */
 int viafb_init(void);
 void viafb_exit(void);
-int viafb_suspend(struct pci_dev *pdev, pm_message_t state);
-int viafb_resume(struct pci_dev *pdev);
 #endif /* __VIAFBDEV_H__ */

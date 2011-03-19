@@ -68,6 +68,9 @@ static struct bcache_ops mips_sc_ops = {
  */
 static inline int mips_sc_is_activated(struct cpuinfo_mips *c)
 {
+	unsigned int config2 = read_c0_config2();
+	unsigned int tmp;
+
 	/* Check the bypass bit (L2B) */
 	switch (c->cputype) {
 	case CPU_34K:
@@ -83,6 +86,7 @@ static inline int mips_sc_is_activated(struct cpuinfo_mips *c)
 		c->scache.linesz = 2 << tmp;
 	else
 		return 0;
+	return 1;
 }
 
 static inline int __init mips_sc_probe(void)

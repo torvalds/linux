@@ -158,7 +158,6 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_connector *connector;
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
@@ -213,10 +212,6 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	NVVgaSeqReset(dev, nv_crtc->index, false);
 
 	NVWriteVgaCrtc(dev, nv_crtc->index, NV_CIO_CRE_RPC1_INDEX, crtc1A);
-
-	/* Update connector polling modes */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		nouveau_connector_set_polling(connector);
 }
 
 static bool
@@ -556,7 +551,10 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	if (dev_priv->card_type >= NV_30)
 		regp->gpio_ext = NVReadCRTC(dev, 0, NV_PCRTC_GPIO_EXT);
 
-	regp->crtc_cfg = NV_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	if (dev_priv->card_type >= NV_10)
+		regp->crtc_cfg = NV10_PCRTC_CONFIG_START_ADDRESS_HSYNC;
+	else
+		regp->crtc_cfg = NV04_PCRTC_CONFIG_START_ADDRESS_HSYNC;
 
 	/* Some misc regs */
 	if (dev_priv->card_type == NV_40) {
@@ -674,6 +672,7 @@ static void nv_crtc_prepare(struct drm_crtc *crtc)
 	if (nv_two_heads(dev))
 		NVSetOwner(dev, nv_crtc->index);
 
+	drm_vblank_pre_modeset(dev, nv_crtc->index);
 	funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	NVBlankScreen(dev, nv_crtc->index, true);
@@ -706,6 +705,7 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 #endif
 
 	funcs->dpms(crtc, DRM_MODE_DPMS_ON);
+	drm_vblank_post_modeset(dev, nv_crtc->index);
 }
 
 static void nv_crtc_destroy(struct drm_crtc *crtc)
@@ -831,7 +831,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	/* Update the framebuffer location. */
 	regp->fb_start = nv_crtc->fb.offset & ~3;
 	regp->fb_start += (y * drm_fb->pitch) + (x * drm_fb->bits_per_pixel / 8);
-	NVWriteCRTC(dev, nv_crtc->index, NV_PCRTC_START, regp->fb_start);
+	nv_set_crtc_base(dev, nv_crtc->index, regp->fb_start);
 
 	/* Update the arbitration parameters. */
 	nouveau_calc_arb(dev, crtc->mode.clock, drm_fb->bits_per_pixel,
@@ -991,6 +991,7 @@ static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
+	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };
 

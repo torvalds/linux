@@ -95,8 +95,8 @@ enum {
  */
 union bfi_addr_u {
 	struct {
-		u32	addr_lo;
-		u32	addr_hi;
+		__be32	addr_lo;
+		__be32	addr_hi;
 	} a32;
 };
 
@@ -104,7 +104,7 @@ union bfi_addr_u {
  * Scatter Gather Element
  */
 struct bfi_sge_s {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32	flags:2,
 			rsvd:2,
 			sg_len:28;
@@ -399,7 +399,7 @@ union bfi_ioc_i2h_msg_u {
  */
 struct bfi_pbc_blun_s {
 	wwn_t		tgt_pwwn;
-	lun_t		tgt_lun;
+	struct scsi_lun	tgt_lun;
 };
 
 /*

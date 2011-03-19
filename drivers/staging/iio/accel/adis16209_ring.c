@@ -105,7 +105,7 @@ static int adis16209_read_ring_data(struct device *dev, u8 *rx)
 		xfers[i].bits_per_word = 8;
 		xfers[i].cs_change = 1;
 		xfers[i].len = 2;
-		xfers[i].delay_usecs = 20;
+		xfers[i].delay_usecs = 30;
 		xfers[i].tx_buf = st->tx + 2 * i;
 		st->tx[2 * i]
 			= ADIS16209_READ_REG(ADIS16209_SUPPLY_OUT + 2 * i);

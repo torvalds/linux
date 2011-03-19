@@ -519,9 +519,12 @@ extern struct sram_channel cx25821_sram_channels[];
 #define Set_GPIO_Bit(Bit)                       (1 << Bit)
 #define Clear_GPIO_Bit(Bit)                     (~(1 << Bit))
 
-#define CX25821_ERR(fmt, args...)      printk(KERN_ERR  "cx25821(%d): " fmt, dev->board, ## args)
-#define CX25821_WARN(fmt, args...)     printk(KERN_WARNING "cx25821(%d): " fmt, dev->board , ## args)
-#define CX25821_INFO(fmt, args...)     printk(KERN_INFO "cx25821(%d): " fmt, dev->board , ## args)
+#define CX25821_ERR(fmt, args...)			\
+	pr_err("(%d): " fmt, dev->board, ##args)
+#define CX25821_WARN(fmt, args...)			\
+	pr_warn("(%d): " fmt, dev->board, ##args)
+#define CX25821_INFO(fmt, args...)			\
+	pr_info("(%d): " fmt, dev->board, ##args)
 
 extern int cx25821_i2c_register(struct cx25821_i2c *bus);
 extern void cx25821_card_setup(struct cx25821_dev *dev);

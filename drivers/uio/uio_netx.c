@@ -2,7 +2,7 @@
  * UIO driver for Hilscher NetX based fieldbus cards (cifX, comX).
  * See http://www.hilscher.com for details.
  *
- * (C) 2007 Hans J. Koch <hjk@linutronix.de>
+ * (C) 2007 Hans J. Koch <hjk@hansjkoch.de>
  * (C) 2008 Manuel Traut <manut@linutronix.de>
  *
  * Licensed under GPL version 2 only.

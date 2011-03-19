@@ -126,5 +126,3 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 
 	s3c_device_nand.dev.platform_data = npd;
 }
-
-EXPORT_SYMBOL_GPL(s3c_nand_set_platdata);

@@ -51,7 +51,8 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 		goto free_inode;
 
 	/* Load the header */
-	head = (struct hfs_btree_header_rec *)(kmap(page) + sizeof(struct hfs_bnode_desc));
+	head = (struct hfs_btree_header_rec *)(kmap(page) +
+		sizeof(struct hfs_bnode_desc));
 	tree->root = be32_to_cpu(head->root);
 	tree->leaf_count = be32_to_cpu(head->leaf_count);
 	tree->leaf_head = be32_to_cpu(head->leaf_head);
@@ -115,7 +116,9 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 
 	tree->node_size_shift = ffs(size) - 1;
 
-	tree->pages_per_bnode = (tree->node_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	tree->pages_per_bnode =
+		(tree->node_size + PAGE_CACHE_SIZE - 1) >>
+		PAGE_CACHE_SHIFT;
 
 	kunmap(page);
 	page_cache_release(page);
@@ -144,8 +147,10 @@ void hfs_btree_close(struct hfs_btree *tree)
 		while ((node = tree->node_hash[i])) {
 			tree->node_hash[i] = node->next_hash;
 			if (atomic_read(&node->refcnt))
-				printk(KERN_CRIT "hfs: node %d:%d still has %d user(s)!\n",
-					node->tree->cnid, node->this, atomic_read(&node->refcnt));
+				printk(KERN_CRIT "hfs: node %d:%d "
+						"still has %d user(s)!\n",
+					node->tree->cnid, node->this,
+					atomic_read(&node->refcnt));
 			hfs_bnode_free(node);
 			tree->node_hash_cnt--;
 		}
@@ -166,7 +171,8 @@ void hfs_btree_write(struct hfs_btree *tree)
 		return;
 	/* Load the header */
 	page = node->page[0];
-	head = (struct hfs_btree_header_rec *)(kmap(page) + sizeof(struct hfs_bnode_desc));
+	head = (struct hfs_btree_header_rec *)(kmap(page) +
+		sizeof(struct hfs_bnode_desc));
 
 	head->root = cpu_to_be32(tree->root);
 	head->leaf_count = cpu_to_be32(tree->leaf_count);
@@ -272,7 +278,8 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 						tree->free_nodes--;
 						mark_inode_dirty(tree->inode);
 						hfs_bnode_put(node);
-						return hfs_bnode_create(tree, idx);
+						return hfs_bnode_create(tree,
+							idx);
 					}
 				}
 			}
@@ -287,7 +294,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		kunmap(*pagep);
 		nidx = node->next;
 		if (!nidx) {
-			printk(KERN_DEBUG "hfs: create new bmap node...\n");
+			dprint(DBG_BNODE_MOD, "hfs: create new bmap node.\n");
 			next_node = hfs_bmap_new_bmap(node, idx);
 		} else
 			next_node = hfs_bnode_find(tree, nidx);
@@ -329,7 +336,9 @@ void hfs_bmap_free(struct hfs_bnode *node)
 		hfs_bnode_put(node);
 		if (!i) {
 			/* panic */;
-			printk(KERN_CRIT "hfs: unable to free bnode %u. bmap not found!\n", node->this);
+			printk(KERN_CRIT "hfs: unable to free bnode %u. "
+					"bmap not found!\n",
+				node->this);
 			return;
 		}
 		node = hfs_bnode_find(tree, i);
@@ -337,7 +346,9 @@ void hfs_bmap_free(struct hfs_bnode *node)
 			return;
 		if (node->type != HFS_NODE_MAP) {
 			/* panic */;
-			printk(KERN_CRIT "hfs: invalid bmap found! (%u,%d)\n", node->this, node->type);
+			printk(KERN_CRIT "hfs: invalid bmap found! "
+					"(%u,%d)\n",
+				node->this, node->type);
 			hfs_bnode_put(node);
 			return;
 		}
@@ -350,7 +361,9 @@ void hfs_bmap_free(struct hfs_bnode *node)
 	m = 1 << (~nidx & 7);
 	byte = data[off];
 	if (!(byte & m)) {
-		printk(KERN_CRIT "hfs: trying to free free bnode %u(%d)\n", node->this, node->type);
+		printk(KERN_CRIT "hfs: trying to free free bnode "
+				"%u(%d)\n",
+			node->this, node->type);
 		kunmap(page);
 		hfs_bnode_put(node);
 		return;

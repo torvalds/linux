@@ -203,7 +203,7 @@ static void __NS8390_init(struct net_device *dev, int startp);
 static int __ei_open(struct net_device *dev)
 {
 	unsigned long flags;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 
 	if (dev->watchdog_timeo <= 0)
 		 dev->watchdog_timeo = TX_TIMEOUT;
@@ -231,7 +231,7 @@ static int __ei_open(struct net_device *dev)
  */
 static int __ei_close(struct net_device *dev)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned long flags;
 
 	/*
@@ -256,7 +256,7 @@ static int __ei_close(struct net_device *dev)
 static void __ei_tx_timeout(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	int txsr, isr, tickssofar = jiffies - dev_trans_start(dev);
 	unsigned long flags;
 
@@ -303,7 +303,7 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 				   struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	int send_length = skb->len, output_page;
 	unsigned long flags;
 	char buf[ETH_ZLEN];
@@ -592,7 +592,7 @@ static void ei_tx_err(struct net_device *dev)
 static void ei_tx_intr(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	int status = ei_inb(e8390_base + EN0_TSR);
 
 	ei_outb_p(ENISR_TX, e8390_base + EN0_ISR); /* Ack intr. */
@@ -675,7 +675,7 @@ static void ei_tx_intr(struct net_device *dev)
 static void ei_receive(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned char rxing_page, this_frame, next_frame;
 	unsigned short current_offset;
 	int rx_pkt_count = 0;
@@ -879,7 +879,7 @@ static void ei_rx_overrun(struct net_device *dev)
 static struct net_device_stats *__ei_get_stats(struct net_device *dev)
 {
 	unsigned long ioaddr = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	unsigned long flags;
 
 	/* If the card is stopped, just return the present stats. */
@@ -927,7 +927,7 @@ static void do_set_multicast_list(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	int i;
-	struct ei_device *ei_local = (struct ei_device*)netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 
 	if (!(dev->flags&(IFF_PROMISC|IFF_ALLMULTI)))
 	{
@@ -981,7 +981,7 @@ static void do_set_multicast_list(struct net_device *dev)
 static void __ei_set_multicast_list(struct net_device *dev)
 {
 	unsigned long flags;
-	struct ei_device *ei_local = (struct ei_device*)netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	do_set_multicast_list(dev);
@@ -998,7 +998,7 @@ static void __ei_set_multicast_list(struct net_device *dev)
 
 static void ethdev_setup(struct net_device *dev)
 {
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	if (ei_debug > 1)
 		printk(version);
 
@@ -1036,7 +1036,7 @@ static struct net_device *____alloc_ei_netdev(int size)
 static void __NS8390_init(struct net_device *dev, int startp)
 {
 	unsigned long e8390_base = dev->base_addr;
-	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
+	struct ei_device *ei_local = netdev_priv(dev);
 	int i;
 	int endcfg = ei_local->word16
 	    ? (0x48 | ENDCFG_WTS | (ei_local->bigendian ? ENDCFG_BOS : 0))
@@ -1099,7 +1099,7 @@ static void NS8390_trigger_send(struct net_device *dev, unsigned int length,
 								int start_page)
 {
 	unsigned long e8390_base = dev->base_addr;
- 	struct ei_device *ei_local __attribute((unused)) = (struct ei_device *) netdev_priv(dev);
+ 	struct ei_device *ei_local __attribute((unused)) = netdev_priv(dev);
 
 	ei_outb_p(E8390_NODMA+E8390_PAGE0, e8390_base+E8390_CMD);
 

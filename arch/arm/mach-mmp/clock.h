@@ -6,7 +6,7 @@
  *  published by the Free Software Foundation.
  */
 
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 struct clkops {
 	void			(*enable)(struct clk *);

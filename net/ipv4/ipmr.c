@@ -1537,13 +1537,9 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	if (vif->flags & VIFF_TUNNEL) {
 		struct flowi fl = {
 			.oif = vif->link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = vif->remote,
-					.saddr = vif->local,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = vif->remote,
+			.fl4_src = vif->local,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 
@@ -1553,12 +1549,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	} else {
 		struct flowi fl = {
 			.oif = vif->link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_IPIP
 		};
 
@@ -1654,7 +1646,7 @@ static int ip_mr_forward(struct net *net, struct mr_table *mrt,
 	if (mrt->vif_table[vif].dev != skb->dev) {
 		int true_vifi;
 
-		if (skb_rtable(skb)->fl.iif == 0) {
+		if (rt_is_output_route(skb_rtable(skb))) {
 			/* It is our own packet, looped back.
 			 * Very complicated situation...
 			 *

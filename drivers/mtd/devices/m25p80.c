@@ -51,6 +51,10 @@
 #define	OPCODE_WRDI		0x04	/* Write disable */
 #define	OPCODE_AAI_WP		0xad	/* Auto address increment word program */
 
+/* Used for Macronix flashes only. */
+#define	OPCODE_EN4B		0xb7	/* Enter 4-byte mode */
+#define	OPCODE_EX4B		0xe9	/* Exit 4-byte mode */
+
 /* Status Register bits. */
 #define	SR_WIP			1	/* Write in progress */
 #define	SR_WEL			2	/* Write enable latch */
@@ -62,7 +66,7 @@
 
 /* Define max times to check status register before we give up. */
 #define	MAX_READY_WAIT_JIFFIES	(40 * HZ)	/* M25P16 specs 40s max chip erase */
-#define	MAX_CMD_SIZE		4
+#define	MAX_CMD_SIZE		5
 
 #ifdef CONFIG_M25PXX_USE_FAST_READ
 #define OPCODE_READ 	OPCODE_FAST_READ
@@ -152,6 +156,16 @@ static inline int write_disable(struct m25p *flash)
 }
 
 /*
+ * Enable/disable 4-byte addressing mode.
+ */
+static inline int set_4byte(struct m25p *flash, int enable)
+{
+	u8	code = enable ? OPCODE_EN4B : OPCODE_EX4B;
+
+	return spi_write_then_read(flash->spi, &code, 1, NULL, 0);
+}
+
+/*
  * Service routine to read status register until ready, or timeout occurs.
  * Returns non-zero if error.
  */
@@ -207,6 +221,7 @@ static void m25p_addr2cmd(struct m25p *flash, unsigned int addr, u8 *cmd)
 	cmd[1] = addr >> (flash->addr_width * 8 -  8);
 	cmd[2] = addr >> (flash->addr_width * 8 - 16);
 	cmd[3] = addr >> (flash->addr_width * 8 - 24);
+	cmd[4] = addr >> (flash->addr_width * 8 - 32);
 }
 
 static int m25p_cmdsz(struct m25p *flash)
@@ -482,6 +497,10 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t actual;
 	int cmd_sz, ret;
 
+	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+			dev_name(&flash->spi->dev), __func__, "to",
+			(u32)to, len);
+
 	*retlen = 0;
 
 	/* sanity checks */
@@ -607,7 +626,6 @@ struct flash_info {
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
-		.addr_width = 3,					\
 		.flags = (_flags),					\
 	})
 
@@ -635,7 +653,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "at26f004",   INFO(0x1f0400, 0, 64 * 1024,  8, SECT_4K) },
 	{ "at26df081a", INFO(0x1f4501, 0, 64 * 1024, 16, SECT_4K) },
 	{ "at26df161a", INFO(0x1f4601, 0, 64 * 1024, 32, SECT_4K) },
-	{ "at26df321",  INFO(0x1f4701, 0, 64 * 1024, 64, SECT_4K) },
+	{ "at26df321",  INFO(0x1f4700, 0, 64 * 1024, 64, SECT_4K) },
 
 	/* EON -- en25pxx */
 	{ "en25p32", INFO(0x1c2016, 0, 64 * 1024,  64, 0) },
@@ -653,6 +671,8 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "mx25l6405d",  INFO(0xc22017, 0, 64 * 1024, 128, 0) },
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
 	{ "mx25l12855e", INFO(0xc22618, 0, 64 * 1024, 256, 0) },
+	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, 0) },
+	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
 
 	/* Spansion -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).
@@ -764,6 +784,7 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 			return &m25p_ids[tmp];
 		}
 	}
+	dev_err(&spi->dev, "unrecognized JEDEC id %06x\n", jedec);
 	return ERR_PTR(-ENODEV);
 }
 
@@ -883,7 +904,17 @@ static int __devinit m25p_probe(struct spi_device *spi)
 
 	flash->mtd.dev.parent = &spi->dev;
 	flash->page_size = info->page_size;
-	flash->addr_width = info->addr_width;
+
+	if (info->addr_width)
+		flash->addr_width = info->addr_width;
+	else {
+		/* enable 4-byte addressing if the device exceeds 16MiB */
+		if (flash->mtd.size > 0x1000000) {
+			flash->addr_width = 4;
+			set_4byte(flash, 1);
+		} else
+			flash->addr_width = 3;
+	}
 
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", id->name,
 			(long long)flash->mtd.size >> 10);

@@ -26,8 +26,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
-#include <linux/cnt32_to_63.h>
 
+#include <asm/sched_clock.h>
 #include <mach/addr-map.h>
 #include <mach/regs-timers.h>
 #include <mach/regs-apbc.h>
@@ -42,23 +42,7 @@
 #define MAX_DELTA		(0xfffffffe)
 #define MIN_DELTA		(16)
 
-#define TCR2NS_SCALE_FACTOR	10
-
-static unsigned long tcr2ns_scale;
-
-static void __init set_tcr2ns_scale(unsigned long tcr_rate)
-{
-	unsigned long long v = 1000000000ULL << TCR2NS_SCALE_FACTOR;
-	do_div(v, tcr_rate);
-	tcr2ns_scale = v;
-	/*
-	 * We want an even value to automatically clear the top bit
-	 * returned by cnt32_to_63() without an additional run time
-	 * instruction. So if the LSB is 1 then round it up.
-	 */
-	if (tcr2ns_scale & 1)
-		tcr2ns_scale++;
-}
+static DEFINE_CLOCK_DATA(cd);
 
 /*
  * FIXME: the timer needs some delay to stablize the counter capture
@@ -75,10 +59,16 @@ static inline uint32_t timer_read(void)
 	return __raw_readl(TIMERS_VIRT_BASE + TMR_CVWR(0));
 }
 
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
-	unsigned long long v = cnt32_to_63(timer_read());
-	return (v * tcr2ns_scale) >> TCR2NS_SCALE_FACTOR;
+	u32 cyc = timer_read();
+	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+}
+
+static void notrace mmp_update_sched_clock(void)
+{
+	u32 cyc = timer_read();
+	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
@@ -146,7 +136,6 @@ static cycle_t clksrc_read(struct clocksource *cs)
 
 static struct clocksource cksrc = {
 	.name		= "clocksource",
-	.shift		= 20,
 	.rating		= 200,
 	.read		= clksrc_read,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -186,17 +175,15 @@ void __init timer_init(int irq)
 {
 	timer_config();
 
-	set_tcr2ns_scale(CLOCK_TICK_RATE);
+	init_sched_clock(&cd, mmp_update_sched_clock, 32, CLOCK_TICK_RATE);
 
 	ckevt.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC, ckevt.shift);
 	ckevt.max_delta_ns = clockevent_delta2ns(MAX_DELTA, &ckevt);
 	ckevt.min_delta_ns = clockevent_delta2ns(MIN_DELTA, &ckevt);
 	ckevt.cpumask = cpumask_of(0);
 
-	cksrc.mult = clocksource_hz2mult(CLOCK_TICK_RATE, cksrc.shift);
-
 	setup_irq(irq, &timer_irq);
 
-	clocksource_register(&cksrc);
+	clocksource_register_hz(&cksrc, CLOCK_TICK_RATE);
 	clockevents_register_device(&ckevt);
 }

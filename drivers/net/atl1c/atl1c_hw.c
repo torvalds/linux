@@ -82,7 +82,7 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	addr[0] = addr[1] = 0;
 	AT_READ_REG(hw, REG_OTP_CTRL, &otp_ctrl_data);
 	if (atl1c_check_eeprom_exist(hw)) {
-		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c_b) {
+		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c) {
 			/* Enable OTP CLK */
 			if (!(otp_ctrl_data & OTP_CTRL_CLK_EN)) {
 				otp_ctrl_data |= OTP_CTRL_CLK_EN;

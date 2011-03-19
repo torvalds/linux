@@ -25,7 +25,7 @@
 /*
  * FC transport template entry, get SCSI target port ID.
  */
-void
+static void
 bfad_im_get_starget_port_id(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
@@ -40,7 +40,7 @@ bfad_im_get_starget_port_id(struct scsi_target *starget)
 	bfad = im_port->bfad;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
-	itnim = bfad_os_get_itnim(im_port, starget->id);
+	itnim = bfad_get_itnim(im_port, starget->id);
 	if (itnim)
 		fc_id = bfa_fcs_itnim_get_fcid(&itnim->fcs_itnim);
 
@@ -51,7 +51,7 @@ bfad_im_get_starget_port_id(struct scsi_target *starget)
 /*
  * FC transport template entry, get SCSI target nwwn.
  */
-void
+static void
 bfad_im_get_starget_node_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
@@ -66,7 +66,7 @@ bfad_im_get_starget_node_name(struct scsi_target *starget)
 	bfad = im_port->bfad;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
-	itnim = bfad_os_get_itnim(im_port, starget->id);
+	itnim = bfad_get_itnim(im_port, starget->id);
 	if (itnim)
 		node_name = bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim);
 
@@ -77,7 +77,7 @@ bfad_im_get_starget_node_name(struct scsi_target *starget)
 /*
  * FC transport template entry, get SCSI target pwwn.
  */
-void
+static void
 bfad_im_get_starget_port_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
@@ -92,7 +92,7 @@ bfad_im_get_starget_port_name(struct scsi_target *starget)
 	bfad = im_port->bfad;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
-	itnim = bfad_os_get_itnim(im_port, starget->id);
+	itnim = bfad_get_itnim(im_port, starget->id);
 	if (itnim)
 		port_name = bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim);
 
@@ -103,7 +103,7 @@ bfad_im_get_starget_port_name(struct scsi_target *starget)
 /*
  * FC transport template entry, get SCSI host port ID.
  */
-void
+static void
 bfad_im_get_host_port_id(struct Scsi_Host *shost)
 {
 	struct bfad_im_port_s *im_port =
@@ -111,7 +111,7 @@ bfad_im_get_host_port_id(struct Scsi_Host *shost)
 	struct bfad_port_s    *port = im_port->port;
 
 	fc_host_port_id(shost) =
-			bfa_os_hton3b(bfa_fcs_lport_get_fcid(port->fcs_port));
+			bfa_hton3b(bfa_fcs_lport_get_fcid(port->fcs_port));
 }
 
 /*
@@ -487,7 +487,7 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	wait_for_completion(vport->comp_del);
 
 free_scsi_host:
-	bfad_os_scsi_host_free(bfad, im_port);
+	bfad_scsi_host_free(bfad, im_port);
 
 	kfree(vport);
 

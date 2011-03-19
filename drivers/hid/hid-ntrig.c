@@ -130,8 +130,7 @@ static void ntrig_report_version(struct hid_device *hdev)
 	if (ret == 8) {
 		ret = ntrig_version_string(&data[2], buf);
 
-		dev_info(&hdev->dev,
-			 "Firmware version: %s (%02x%02x %02x%02x)\n",
+		hid_info(hdev, "Firmware version: %s (%02x%02x %02x%02x)\n",
 			 buf, data[2], data[3], data[4], data[5]);
 	}
 
@@ -831,7 +830,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	nd = kmalloc(sizeof(struct ntrig_data), GFP_KERNEL);
 	if (!nd) {
-		dev_err(&hdev->dev, "cannot allocate N-Trig data\n");
+		hid_err(hdev, "cannot allocate N-Trig data\n");
 		return -ENOMEM;
 	}
 
@@ -850,13 +849,13 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 

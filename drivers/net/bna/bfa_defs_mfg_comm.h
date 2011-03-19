@@ -95,28 +95,6 @@ enum {
 	(type) == BFA_MFG_TYPE_CNA10P1 || \
 	bfa_mfg_is_mezz(type)))
 
-/**
- * Check if the card having old wwn/mac handling
- */
-#define bfa_mfg_is_old_wwn_mac_model(type) (( \
-	(type) == BFA_MFG_TYPE_FC8P2 || \
-	(type) == BFA_MFG_TYPE_FC8P1 || \
-	(type) == BFA_MFG_TYPE_FC4P2 || \
-	(type) == BFA_MFG_TYPE_FC4P1 || \
-	(type) == BFA_MFG_TYPE_CNA10P2 || \
-	(type) == BFA_MFG_TYPE_CNA10P1 || \
-	(type) == BFA_MFG_TYPE_JAYHAWK || \
-	(type) == BFA_MFG_TYPE_WANCHESE))
-
-#define bfa_mfg_increment_wwn_mac(m, i)				\
-do {								\
-	u32 t = ((m)[0] << 16) | ((m)[1] << 8) | (m)[2];	\
-	t += (i);						\
-	(m)[0] = (t >> 16) & 0xFF;				\
-	(m)[1] = (t >> 8) & 0xFF;				\
-	(m)[2] = t & 0xFF;					\
-} while (0)
-
 #define bfa_mfg_adapter_prop_init_flash(card_type, prop)	\
 do {								\
 	switch ((card_type)) {					\

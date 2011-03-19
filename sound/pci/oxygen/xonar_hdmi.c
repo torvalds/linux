@@ -1,5 +1,5 @@
 /*
- * helper functions for HDMI models (Xonar HDAV1.3)
+ * helper functions for HDMI models (Xonar HDAV1.3/HDAV1.3 Slim)
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  *

@@ -61,7 +61,7 @@ Linux 2.4:
 Linux 2.6:
 	除了遵循和 2.4 版内核同样的规则外，你还需要在 linux-kernel 邮件
 	列表上跟踪最新的 API 变化。向 Linux 2.6 内核提交驱动的顶级联系人
-	是 Andrew Morton <akpm@osdl.org>。
+	是 Andrew Morton <akpm@linux-foundation.org>。
 
 决定设备驱动能否被接受的条件
 ----------------------------

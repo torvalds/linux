@@ -119,11 +119,13 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 
 	idx = 0;
 	for_each_netdev(net, dev) {
+		struct net_bridge_port *port = br_port_get_rtnl(dev);
+
 		/* not a bridge port */
-		if (!br_port_exists(dev) || idx < cb->args[0])
+		if (!port || idx < cb->args[0])
 			goto skip;
 
-		if (br_fill_ifinfo(skb, br_port_get(dev),
+		if (br_fill_ifinfo(skb, port,
 				   NETLINK_CB(cb->skb).pid,
 				   cb->nlh->nlmsg_seq, RTM_NEWLINK,
 				   NLM_F_MULTI) < 0)
@@ -169,9 +171,9 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	if (!dev)
 		return -ENODEV;
 
-	if (!br_port_exists(dev))
+	p = br_port_get_rtnl(dev);
+	if (!p)
 		return -EINVAL;
-	p = br_port_get(dev);
 
 	/* if kernel STP is running, don't allow changes */
 	if (p->br->stp_enabled == BR_KERNEL_STP)

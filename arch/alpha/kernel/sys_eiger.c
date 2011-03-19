@@ -66,28 +66,11 @@ eiger_disable_irq(unsigned int irq)
 	eiger_update_irq_hw(irq, mask);
 }
 
-static unsigned int
-eiger_startup_irq(unsigned int irq)
-{
-	eiger_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void
-eiger_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		eiger_enable_irq(irq);
-}
-
 static struct irq_chip eiger_irq_type = {
 	.name		= "EIGER",
-	.startup	= eiger_startup_irq,
-	.shutdown	= eiger_disable_irq,
-	.enable		= eiger_enable_irq,
-	.disable	= eiger_disable_irq,
-	.ack		= eiger_disable_irq,
-	.end		= eiger_end_irq,
+	.unmask		= eiger_enable_irq,
+	.mask		= eiger_disable_irq,
+	.mask_ack	= eiger_disable_irq,
 };
 
 static void
@@ -153,8 +136,8 @@ eiger_init_irq(void)
 	init_i8259a_irqs();
 
 	for (i = 16; i < 128; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = &eiger_irq_type;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, &eiger_irq_type, handle_level_irq);
 	}
 }
 

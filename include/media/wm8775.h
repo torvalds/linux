@@ -32,7 +32,4 @@
 #define WM8775_AIN3 4
 #define WM8775_AIN4 8
 
-/* subdev group ID */
-#define WM8775_GID (1 << 0)
-
 #endif

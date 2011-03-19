@@ -65,7 +65,6 @@
 static MPT_CALLBACK	mpt_callbacks[MPT_MAX_CALLBACKS];
 
 #define FAULT_POLLING_INTERVAL 1000 /* in milliseconds */
-#define MPT2SAS_MAX_REQUEST_QUEUE 600 /* maximum controller queue depth */
 
 static int max_queue_depth = -1;
 module_param(max_queue_depth, int, 0);
@@ -78,6 +77,10 @@ MODULE_PARM_DESC(max_sgl_entries, " max sg entries ");
 static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
+
+static int missing_delay[2] = {-1, -1};
+module_param_array(missing_delay, int, NULL, 0);
+MODULE_PARM_DESC(missing_delay, " device missing delay , io missing delay");
 
 /* diag_buffer_enable is bitwise
  * bit 0 set = TRACE
@@ -515,9 +518,6 @@ _base_display_event_data(struct MPT2SAS_ADAPTER *ioc,
 	case MPI2_EVENT_EVENT_CHANGE:
 		desc = "Event Change";
 		break;
-	case MPI2_EVENT_TASK_SET_FULL:
-		desc = "Task Set Full";
-		break;
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
 		desc = "Device Status Change";
 		break;
@@ -758,7 +758,7 @@ _base_get_cb_idx(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 		if (smid < ioc->internal_smid) {
 			i = smid - ioc->hi_priority_smid;
 			cb_idx = ioc->hpr_lookup[i].cb_idx;
-		} else {
+		} else if (smid <= ioc->hba_queue_depth)  {
 			i = smid - ioc->internal_smid;
 			cb_idx = ioc->internal_lookup[i].cb_idx;
 		}
@@ -848,6 +848,7 @@ _base_interrupt(int irq, void *bus_id)
 		return IRQ_NONE;
 
 	completed_cmds = 0;
+	cb_idx = 0xFF;
 	do {
 		rd.word = rpf->Words;
 		if (rd.u.low == UINT_MAX || rd.u.high == UINT_MAX)
@@ -860,6 +861,9 @@ _base_interrupt(int irq, void *bus_id)
 		    MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY) {
 			reply = le32_to_cpu
 				(rpf->AddressReply.ReplyFrameAddress);
+			if (reply > ioc->reply_dma_max_address ||
+			    reply < ioc->reply_dma_min_address)
+				reply = 0;
 		} else if (request_desript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_TARGET_COMMAND_BUFFER)
 			goto next;
@@ -1489,6 +1493,7 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
 	unsigned long flags;
 	int i;
+	struct chain_tracker *chain_req, *next;
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	if (smid >= ioc->hi_priority_smid) {
@@ -1511,6 +1516,14 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 
 	/* scsiio queue */
 	i = smid - 1;
+	if (!list_empty(&ioc->scsi_lookup[i].chain_list)) {
+		list_for_each_entry_safe(chain_req, next,
+		    &ioc->scsi_lookup[i].chain_list, tracker_list) {
+			list_del_init(&chain_req->tracker_list);
+			list_add_tail(&chain_req->tracker_list,
+			    &ioc->free_chain_list);
+		}
+	}
 	ioc->scsi_lookup[i].cb_idx = 0xFF;
 	ioc->scsi_lookup[i].scmd = NULL;
 	list_add_tail(&ioc->scsi_lookup[i].tracker_list,
@@ -1819,6 +1832,97 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_update_missing_delay - change the missing delay timers
+ * @ioc: per adapter object
+ * @device_missing_delay: amount of time till device is reported missing
+ * @io_missing_delay: interval IO is returned when there is a missing device
+ *
+ * Return nothing.
+ *
+ * Passed on the command line, this function will modify the device missing
+ * delay, as well as the io missing delay. This should be called at driver
+ * load time.
+ */
+static void
+_base_update_missing_delay(struct MPT2SAS_ADAPTER *ioc,
+	u16 device_missing_delay, u8 io_missing_delay)
+{
+	u16 dmd, dmd_new, dmd_orignal;
+	u8 io_missing_delay_original;
+	u16 sz;
+	Mpi2SasIOUnitPage1_t *sas_iounit_pg1 = NULL;
+	Mpi2ConfigReply_t mpi_reply;
+	u8 num_phys = 0;
+	u16 ioc_status;
+
+	mpt2sas_config_get_number_hba_phys(ioc, &num_phys);
+	if (!num_phys)
+		return;
+
+	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData) + (num_phys *
+	    sizeof(Mpi2SasIOUnit1PhyData_t));
+	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg1) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	if ((mpt2sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
+	    sas_iounit_pg1, sz))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+
+	/* device missing delay */
+	dmd = sas_iounit_pg1->ReportDeviceMissingDelay;
+	if (dmd & MPI2_SASIOUNIT1_REPORT_MISSING_UNIT_16)
+		dmd = (dmd & MPI2_SASIOUNIT1_REPORT_MISSING_TIMEOUT_MASK) * 16;
+	else
+		dmd = dmd & MPI2_SASIOUNIT1_REPORT_MISSING_TIMEOUT_MASK;
+	dmd_orignal = dmd;
+	if (device_missing_delay > 0x7F) {
+		dmd = (device_missing_delay > 0x7F0) ? 0x7F0 :
+		    device_missing_delay;
+		dmd = dmd / 16;
+		dmd |= MPI2_SASIOUNIT1_REPORT_MISSING_UNIT_16;
+	} else
+		dmd = device_missing_delay;
+	sas_iounit_pg1->ReportDeviceMissingDelay = dmd;
+
+	/* io missing delay */
+	io_missing_delay_original = sas_iounit_pg1->IODeviceMissingDelay;
+	sas_iounit_pg1->IODeviceMissingDelay = io_missing_delay;
+
+	if (!mpt2sas_config_set_sas_iounit_pg1(ioc, &mpi_reply, sas_iounit_pg1,
+	    sz)) {
+		if (dmd & MPI2_SASIOUNIT1_REPORT_MISSING_UNIT_16)
+			dmd_new = (dmd &
+			    MPI2_SASIOUNIT1_REPORT_MISSING_TIMEOUT_MASK) * 16;
+		else
+			dmd_new =
+		    dmd & MPI2_SASIOUNIT1_REPORT_MISSING_TIMEOUT_MASK;
+		printk(MPT2SAS_INFO_FMT "device_missing_delay: old(%d), "
+		    "new(%d)\n", ioc->name, dmd_orignal, dmd_new);
+		printk(MPT2SAS_INFO_FMT "ioc_missing_delay: old(%d), "
+		    "new(%d)\n", ioc->name, io_missing_delay_original,
+		    io_missing_delay);
+		ioc->device_missing_delay = dmd_new;
+		ioc->io_missing_delay = io_missing_delay;
+	}
+
+out:
+	kfree(sas_iounit_pg1);
+}
+
+/**
  * _base_static_config_pages - static start of day config pages
  * @ioc: per adapter object
  *
@@ -1855,6 +1959,7 @@ _base_static_config_pages(struct MPT2SAS_ADAPTER *ioc)
 		    MPI2_IOUNITPAGE1_DISABLE_TASK_SET_FULL_HANDLING;
 	ioc->iounit_pg1.Flags = cpu_to_le32(iounit_pg1_flags);
 	mpt2sas_config_set_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
+
 }
 
 /**
@@ -1868,6 +1973,8 @@ _base_static_config_pages(struct MPT2SAS_ADAPTER *ioc)
 static void
 _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 {
+	int i;
+
 	dexitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
 
@@ -1932,6 +2039,20 @@ _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 	}
 	kfree(ioc->hpr_lookup);
 	kfree(ioc->internal_lookup);
+	if (ioc->chain_lookup) {
+		for (i = 0; i < ioc->chain_depth; i++) {
+			if (ioc->chain_lookup[i].chain_buffer)
+				pci_pool_free(ioc->chain_dma_pool,
+				    ioc->chain_lookup[i].chain_buffer,
+				    ioc->chain_lookup[i].chain_buffer_dma);
+		}
+		if (ioc->chain_dma_pool)
+			pci_pool_destroy(ioc->chain_dma_pool);
+	}
+	if (ioc->chain_lookup) {
+		free_pages((ulong)ioc->chain_lookup, ioc->chain_pages);
+		ioc->chain_lookup = NULL;
+	}
 }
 
 
@@ -1953,6 +2074,7 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	u32 sz, total_sz;
 	u32 retry_sz;
 	u16 max_request_credit;
+	int i;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -1970,14 +2092,11 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	}
 
 	/* command line tunables  for max controller queue depth */
-	if (max_queue_depth != -1) {
+	if (max_queue_depth != -1)
 		max_request_credit = (max_queue_depth < facts->RequestCredit)
 		    ? max_queue_depth : facts->RequestCredit;
-	} else {
-		max_request_credit = (facts->RequestCredit >
-		    MPT2SAS_MAX_REQUEST_QUEUE) ? MPT2SAS_MAX_REQUEST_QUEUE :
-		    facts->RequestCredit;
-	}
+	else
+		max_request_credit = facts->RequestCredit;
 
 	ioc->hba_queue_depth = max_request_credit;
 	ioc->hi_priority_depth = facts->HighPriorityCredit;
@@ -2083,7 +2202,7 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	 * "frame for smid=0
 	 */
 	ioc->chain_depth = ioc->chains_needed_per_io * ioc->scsiio_depth;
-	sz = ((ioc->scsiio_depth + 1 + ioc->chain_depth) * ioc->request_sz);
+	sz = ((ioc->scsiio_depth + 1) * ioc->request_sz);
 
 	/* hi-priority queue */
 	sz += (ioc->hi_priority_depth * ioc->request_sz);
@@ -2124,19 +2243,11 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	ioc->internal_dma = ioc->hi_priority_dma + (ioc->hi_priority_depth *
 	    ioc->request_sz);
 
-	ioc->chain = ioc->internal + (ioc->internal_depth *
-	    ioc->request_sz);
-	ioc->chain_dma = ioc->internal_dma + (ioc->internal_depth *
-	    ioc->request_sz);
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "request pool(0x%p): "
 	    "depth(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name,
 	    ioc->request, ioc->hba_queue_depth, ioc->request_sz,
 	    (ioc->hba_queue_depth * ioc->request_sz)/1024));
-	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "chain pool(0x%p): depth"
-	    "(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name, ioc->chain,
-	    ioc->chain_depth, ioc->request_sz, ((ioc->chain_depth *
-	    ioc->request_sz))/1024));
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "request pool: dma(0x%llx)\n",
 	    ioc->name, (unsigned long long) ioc->request_dma));
 	total_sz += sz;
@@ -2154,6 +2265,38 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "scsiio(0x%p): "
 	    "depth(%d)\n", ioc->name, ioc->request,
 	    ioc->scsiio_depth));
+
+	/* loop till the allocation succeeds */
+	do {
+		sz = ioc->chain_depth * sizeof(struct chain_tracker);
+		ioc->chain_pages = get_order(sz);
+		ioc->chain_lookup = (struct chain_tracker *)__get_free_pages(
+		    GFP_KERNEL, ioc->chain_pages);
+		if (ioc->chain_lookup == NULL)
+			ioc->chain_depth -= 100;
+	} while (ioc->chain_lookup == NULL);
+	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
+	    ioc->request_sz, 16, 0);
+	if (!ioc->chain_dma_pool) {
+		printk(MPT2SAS_ERR_FMT "chain_dma_pool: pci_pool_create "
+		    "failed\n", ioc->name);
+		goto out;
+	}
+	for (i = 0; i < ioc->chain_depth; i++) {
+		ioc->chain_lookup[i].chain_buffer = pci_pool_alloc(
+		    ioc->chain_dma_pool , GFP_KERNEL,
+		    &ioc->chain_lookup[i].chain_buffer_dma);
+		if (!ioc->chain_lookup[i].chain_buffer) {
+			ioc->chain_depth = i;
+			goto chain_done;
+		}
+		total_sz += ioc->request_sz;
+	}
+chain_done:
+	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "chain pool depth"
+	    "(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name,
+	    ioc->chain_depth, ioc->request_sz, ((ioc->chain_depth *
+	    ioc->request_sz))/1024));
 
 	/* initialize hi-priority queue smid's */
 	ioc->hpr_lookup = kcalloc(ioc->hi_priority_depth,
@@ -2221,6 +2364,8 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 		    ioc->name);
 		goto out;
 	}
+	ioc->reply_dma_min_address = (u32)(ioc->reply_dma);
+	ioc->reply_dma_max_address = (u32)(ioc->reply_dma) + sz;
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "reply pool(0x%p): depth"
 	    "(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name, ioc->reply,
 	    ioc->reply_free_queue_depth, ioc->reply_sz, sz/1024));
@@ -2302,7 +2447,6 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	return 0;
 
  out:
-	_base_release_memory_pools(ioc);
 	return -ENOMEM;
 }
 
@@ -3485,6 +3629,7 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	INIT_LIST_HEAD(&ioc->free_list);
 	smid = 1;
 	for (i = 0; i < ioc->scsiio_depth; i++, smid++) {
+		INIT_LIST_HEAD(&ioc->scsi_lookup[i].chain_list);
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].smid = smid;
 		ioc->scsi_lookup[i].scmd = NULL;
@@ -3511,6 +3656,13 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		list_add_tail(&ioc->internal_lookup[i].tracker_list,
 		    &ioc->internal_free_list);
 	}
+
+	/* chain pool */
+	INIT_LIST_HEAD(&ioc->free_chain_list);
+	for (i = 0; i < ioc->chain_depth; i++)
+		list_add_tail(&ioc->chain_lookup[i].tracker_list,
+		    &ioc->free_chain_list);
+
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
 	/* initialize Reply Free Queue */
@@ -3708,11 +3860,14 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	_base_unmask_events(ioc, MPI2_EVENT_IR_VOLUME);
 	_base_unmask_events(ioc, MPI2_EVENT_IR_PHYSICAL_DISK);
 	_base_unmask_events(ioc, MPI2_EVENT_IR_OPERATION_STATUS);
-	_base_unmask_events(ioc, MPI2_EVENT_TASK_SET_FULL);
 	_base_unmask_events(ioc, MPI2_EVENT_LOG_ENTRY_ADDED);
 	r = _base_make_ioc_operational(ioc, CAN_SLEEP);
 	if (r)
 		goto out_free_resources;
+
+	if (missing_delay[0] != -1 && missing_delay[1] != -1)
+		_base_update_missing_delay(ioc, missing_delay[0],
+		    missing_delay[1]);
 
 	mpt2sas_base_start_watchdog(ioc);
 	return 0;

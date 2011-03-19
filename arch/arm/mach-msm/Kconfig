@@ -40,14 +40,19 @@ config ARCH_MSM8X60
 	bool "MSM8X60"
 	select MACH_MSM8X60_SURF if (!MACH_MSM8X60_RUMI3 && !MACH_MSM8X60_SIM \
 				  && !MACH_MSM8X60_FFA)
+	select ARCH_MSM_SCORPIONMP
 	select ARM_GIC
 	select CPU_V7
 	select MSM_V2_TLMM
 	select MSM_GPIOMUX
+	select IOMMU_API
+	select MSM_SCM if SMP
 
 endchoice
 
 config MSM_SOC_REV_A
+	bool
+config  ARCH_MSM_SCORPIONMP
 	bool
 
 config  ARCH_MSM_ARM11
@@ -122,6 +127,10 @@ config MACH_MSM8X60_FFA
 
 endmenu
 
+config IOMMU_PGTABLES_L2
+	def_bool y
+	depends on ARCH_MSM8X60 && MMU && SMP && CPU_DCACHE_DISABLE=n
+
 config MSM_DEBUG_UART
 	int
 	default 1 if MSM_DEBUG_UART1
@@ -161,5 +170,11 @@ config MSM_GPIOMUX
 	bool
 
 config MSM_V2_TLMM
+	bool
+
+config IOMMU_API
+	bool
+
+config MSM_SCM
 	bool
 endif

@@ -33,6 +33,7 @@ struct pcm20 {
 	unsigned long freq;
 	int muted;
 	struct snd_miro_aci *aci;
+	struct mutex lock;
 };
 
 static struct pcm20 pcm20_card = {
@@ -72,7 +73,7 @@ static int pcm20_setfreq(struct pcm20 *dev, unsigned long freq)
 
 static const struct v4l2_file_operations pcm20_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static int vidioc_querycap(struct file *file, void *priv,
@@ -229,7 +230,7 @@ static int __init pcm20_init(void)
 		return -ENODEV;
 	}
 	strlcpy(v4l2_dev->name, "miropcm20", sizeof(v4l2_dev->name));
-
+	mutex_init(&dev->lock);
 
 	res = v4l2_device_register(NULL, v4l2_dev);
 	if (res < 0) {
@@ -242,6 +243,7 @@ static int __init pcm20_init(void)
 	dev->vdev.fops = &pcm20_fops;
 	dev->vdev.ioctl_ops = &pcm20_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
+	dev->vdev.lock = &dev->lock;
 	video_set_drvdata(&dev->vdev, dev);
 
 	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0)

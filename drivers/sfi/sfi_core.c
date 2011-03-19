@@ -101,7 +101,7 @@ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
 		return NULL;
 
 	if (sfi_use_ioremap)
-		return ioremap(phys, size);
+		return ioremap_cache(phys, size);
 	else
 		return early_ioremap(phys, size);
 }

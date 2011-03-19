@@ -34,7 +34,7 @@ void __cpuinit init_messaging(void)
 		panic("hv_register_message_state: error %d", rc);
 
 	/* Make sure downcall interrupts will be enabled. */
-	raw_local_irq_unmask(INT_INTCTRL_K);
+	arch_local_irq_unmask(INT_INTCTRL_K);
 }
 
 void hv_message_intr(struct pt_regs *regs, int intnum)

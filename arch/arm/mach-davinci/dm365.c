@@ -459,7 +459,7 @@ static struct clk_lookup dm365_clks[] = {
 	CLK(NULL, "usb", &usb_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
 	CLK("davinci_voicecodec", NULL, &voicecodec_clk),
-	CLK("davinci-asp.0", NULL, &asp0_clk),
+	CLK("davinci-mcbsp", NULL, &asp0_clk),
 	CLK(NULL, "rto", &rto_clk),
 	CLK(NULL, "mjcp", &mjcp_clk),
 	CLK(NULL, NULL, NULL),
@@ -625,12 +625,6 @@ static u64 dm365_spi0_dma_mask = DMA_BIT_MASK(32);
 static struct davinci_spi_platform_data dm365_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
-	.clk_internal	= 1,
-	.cs_hold	= 1,
-	.intr_level	= 0,
-	.poll_mode	= 1,	/* 0 -> interrupt mode 1-> polling mode */
-	.c2tdelay	= 0,
-	.t2cdelay	= 0,
 };
 
 static struct resource dm365_spi0_resources[] = {
@@ -922,8 +916,8 @@ static struct resource dm365_asp_resources[] = {
 };
 
 static struct platform_device dm365_asp_device = {
-	.name		= "davinci-asp",
-	.id		= 0,
+	.name		= "davinci-mcbsp",
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm365_asp_resources),
 	.resource	= dm365_asp_resources,
 };

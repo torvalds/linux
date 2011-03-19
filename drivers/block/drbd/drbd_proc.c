@@ -158,7 +158,6 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		[WO_none] = 'n',
 		[WO_drain_io] = 'd',
 		[WO_bdev_flush] = 'f',
-		[WO_bio_barrier] = 'b',
 	};
 
 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",

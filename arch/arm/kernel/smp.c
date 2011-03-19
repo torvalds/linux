@@ -16,6 +16,7 @@
 #include <linux/cache.h>
 #include <linux/profile.h>
 #include <linux/errno.h>
+#include <linux/ftrace.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/cpu.h>
@@ -24,6 +25,7 @@
 #include <linux/irq.h>
 #include <linux/percpu.h>
 #include <linux/clockchips.h>
+#include <linux/completion.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -37,7 +39,6 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
-#include <asm/smp_plat.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -46,63 +47,13 @@
  */
 struct secondary_data secondary_data;
 
-/*
- * structures for inter-processor calls
- * - A collection of single bit ipi messages.
- */
-struct ipi_data {
-	spinlock_t lock;
-	unsigned long ipi_count;
-	unsigned long bits;
-};
-
-static DEFINE_PER_CPU(struct ipi_data, ipi_data) = {
-	.lock	= SPIN_LOCK_UNLOCKED,
-};
-
 enum ipi_msg_type {
-	IPI_TIMER,
+	IPI_TIMER = 2,
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
 	IPI_CALL_FUNC_SINGLE,
 	IPI_CPU_STOP,
 };
-
-static inline void identity_mapping_add(pgd_t *pgd, unsigned long start,
-	unsigned long end)
-{
-	unsigned long addr, prot;
-	pmd_t *pmd;
-
-	prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE;
-	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale())
-		prot |= PMD_BIT4;
-
-	for (addr = start & PGDIR_MASK; addr < end;) {
-		pmd = pmd_offset(pgd + pgd_index(addr), addr);
-		pmd[0] = __pmd(addr | prot);
-		addr += SECTION_SIZE;
-		pmd[1] = __pmd(addr | prot);
-		addr += SECTION_SIZE;
-		flush_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
-	}
-}
-
-static inline void identity_mapping_del(pgd_t *pgd, unsigned long start,
-	unsigned long end)
-{
-	unsigned long addr;
-	pmd_t *pmd;
-
-	for (addr = start & PGDIR_MASK; addr < end; addr += PGDIR_SIZE) {
-		pmd = pmd_offset(pgd + pgd_index(addr), addr);
-		pmd[0] = __pmd(0);
-		pmd[1] = __pmd(0);
-		clean_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
-	}
-}
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
@@ -177,8 +128,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			barrier();
 		}
 
-		if (!cpu_online(cpu))
+		if (!cpu_online(cpu)) {
+			pr_crit("CPU%u: failed to come online\n", cpu);
 			ret = -EIO;
+		}
+	} else {
+		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 	}
 
 	secondary_data.stack = NULL;
@@ -194,18 +149,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	pgd_free(&init_mm, pgd);
 
-	if (ret) {
-		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);
-
-		/*
-		 * FIXME: We need to clean up the new idle thread. --rmk
-		 */
-	}
-
 	return ret;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+static void percpu_timer_stop(void);
+
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
@@ -233,7 +182,7 @@ int __cpu_disable(void)
 	/*
 	 * Stop the local timer for this CPU.
 	 */
-	local_timer_stop();
+	percpu_timer_stop();
 
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
@@ -252,12 +201,20 @@ int __cpu_disable(void)
 	return 0;
 }
 
+static DECLARE_COMPLETION(cpu_died);
+
 /*
  * called on the thread which is asking for a CPU to be shutdown -
  * waits until shutdown has completed, or it is timed out.
  */
 void __cpu_die(unsigned int cpu)
 {
+	if (!wait_for_completion_timeout(&cpu_died, msecs_to_jiffies(5000))) {
+		pr_err("CPU%u: cpu didn't die\n", cpu);
+		return;
+	}
+	printk(KERN_NOTICE "CPU%u: shutdown\n", cpu);
+
 	if (!platform_cpu_kill(cpu))
 		printk("CPU%u: unable to kill\n", cpu);
 }
@@ -274,12 +231,17 @@ void __ref cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	local_irq_disable();
 	idle_task_exit();
+
+	local_irq_disable();
+	mb();
+
+	/* Tell __cpu_die() that this CPU is now safe to dispose of */
+	complete(&cpu_died);
 
 	/*
 	 * actual CPU shutdown procedure is at least platform (if not
-	 * CPU) specific
+	 * CPU) specific.
 	 */
 	platform_cpu_die(cpu);
 
@@ -289,11 +251,23 @@ void __ref cpu_die(void)
 	 * to be repeated to undo the effects of taking the CPU offline.
 	 */
 	__asm__("mov	sp, %0\n"
+	"	mov	fp, #0\n"
 	"	b	secondary_start_kernel"
 		:
 		: "r" (task_stack_page(current) + THREAD_SIZE - 8));
 }
 #endif /* CONFIG_HOTPLUG_CPU */
+
+/*
+ * Called by both boot and secondaries to move global data into
+ * per-processor storage.
+ */
+static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
+{
+	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
+
+	cpu_info->loops_per_jiffy = loops_per_jiffy;
+}
 
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
@@ -310,7 +284,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * All kernel threads share the same mm context; grab a
 	 * reference and switch to it.
 	 */
-	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
@@ -320,6 +293,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 
 	cpu_init();
 	preempt_disable();
+	trace_hardirqs_off();
 
 	/*
 	 * Give the platform a chance to do its own initialisation.
@@ -353,17 +327,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	cpu_idle();
 }
 
-/*
- * Called by both boot and secondaries to move global data into
- * per-processor storage.
- */
-void __cpuinit smp_store_cpu_info(unsigned int cpuid)
-{
-	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
-
-	cpu_info->loops_per_jiffy = loops_per_jiffy;
-}
-
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	int cpu;
@@ -386,61 +349,80 @@ void __init smp_prepare_boot_cpu(void)
 	per_cpu(cpu_data, cpu).idle = current;
 }
 
-static void send_ipi_message(const struct cpumask *mask, enum ipi_msg_type msg)
+void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	unsigned long flags;
-	unsigned int cpu;
+	unsigned int ncores = num_possible_cpus();
 
-	local_irq_save(flags);
-
-	for_each_cpu(cpu, mask) {
-		struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-
-		spin_lock(&ipi->lock);
-		ipi->bits |= 1 << msg;
-		spin_unlock(&ipi->lock);
-	}
+	smp_store_cpu_info(smp_processor_id());
 
 	/*
-	 * Call the platform specific cross-CPU call function.
+	 * are we trying to boot more cores than exist?
 	 */
-	smp_cross_call(mask);
+	if (max_cpus > ncores)
+		max_cpus = ncores;
 
-	local_irq_restore(flags);
+	if (max_cpus > 1) {
+		/*
+		 * Enable the local timer or broadcast device for the
+		 * boot CPU, but only if we have more than one CPU.
+		 */
+		percpu_timer_setup();
+
+		/*
+		 * Initialise the SCU if there are more than one CPU
+		 * and let them know where to start.
+		 */
+		platform_smp_prepare_cpus(max_cpus);
+	}
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	send_ipi_message(mask, IPI_CALL_FUNC);
+	smp_cross_call(mask, IPI_CALL_FUNC);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+	smp_cross_call(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
 }
 
-void show_ipi_list(struct seq_file *p)
+static const char *ipi_types[NR_IPI] = {
+#define S(x,s)	[x - IPI_TIMER] = s
+	S(IPI_TIMER, "Timer broadcast interrupts"),
+	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
+	S(IPI_CALL_FUNC, "Function call interrupts"),
+	S(IPI_CALL_FUNC_SINGLE, "Single function call interrupts"),
+	S(IPI_CPU_STOP, "CPU stop interrupts"),
+};
+
+void show_ipi_list(struct seq_file *p, int prec)
 {
-	unsigned int cpu;
+	unsigned int cpu, i;
 
-	seq_puts(p, "IPI:");
+	for (i = 0; i < NR_IPI; i++) {
+		seq_printf(p, "%*s%u: ", prec - 1, "IPI", i);
 
-	for_each_present_cpu(cpu)
-		seq_printf(p, " %10lu", per_cpu(ipi_data, cpu).ipi_count);
+		for_each_present_cpu(cpu)
+			seq_printf(p, "%10u ",
+				   __get_irq_stat(cpu, ipi_irqs[i]));
 
-	seq_putc(p, '\n');
+		seq_printf(p, " %s\n", ipi_types[i]);
+	}
 }
 
-void show_local_irqs(struct seq_file *p)
+u64 smp_irq_stat_cpu(unsigned int cpu)
 {
-	unsigned int cpu;
+	u64 sum = 0;
+	int i;
 
-	seq_printf(p, "LOC: ");
+	for (i = 0; i < NR_IPI; i++)
+		sum += __get_irq_stat(cpu, ipi_irqs[i]);
 
-	for_each_present_cpu(cpu)
-		seq_printf(p, "%10u ", irq_stat[cpu].local_timer_irqs);
+#ifdef CONFIG_LOCAL_TIMERS
+	sum += __get_irq_stat(cpu, local_timer_irqs);
+#endif
 
-	seq_putc(p, '\n');
+	return sum;
 }
 
 /*
@@ -457,24 +439,36 @@ static void ipi_timer(void)
 }
 
 #ifdef CONFIG_LOCAL_TIMERS
-asmlinkage void __exception do_local_timer(struct pt_regs *regs)
+asmlinkage void __exception_irq_entry do_local_timer(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	int cpu = smp_processor_id();
 
 	if (local_timer_ack()) {
-		irq_stat[cpu].local_timer_irqs++;
+		__inc_irq_stat(cpu, local_timer_irqs);
 		ipi_timer();
 	}
 
 	set_irq_regs(old_regs);
+}
+
+void show_local_irqs(struct seq_file *p, int prec)
+{
+	unsigned int cpu;
+
+	seq_printf(p, "%*s: ", prec, "LOC");
+
+	for_each_present_cpu(cpu)
+		seq_printf(p, "%10u ", __get_irq_stat(cpu, local_timer_irqs));
+
+	seq_printf(p, " Local timer interrupts\n");
 }
 #endif
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 static void smp_timer_broadcast(const struct cpumask *mask)
 {
-	send_ipi_message(mask, IPI_TIMER);
+	smp_cross_call(mask, IPI_TIMER);
 }
 #else
 #define smp_timer_broadcast	NULL
@@ -511,6 +505,21 @@ void __cpuinit percpu_timer_setup(void)
 	local_timer_setup(evt);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * The generic clock events code purposely does not stop the local timer
+ * on CPU_DEAD/CPU_DEAD_FROZEN hotplug events, so we have to do it
+ * manually here.
+ */
+static void percpu_timer_stop(void)
+{
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
+
+	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
+}
+#endif
+
 static DEFINE_SPINLOCK(stop_lock);
 
 /*
@@ -537,85 +546,70 @@ static void ipi_cpu_stop(unsigned int cpu)
 
 /*
  * Main handler for inter-processor interrupts
- *
- * For ARM, the ipimask now only identifies a single
- * category of IPI (Bit 1 IPIs have been replaced by a
- * different mechanism):
- *
- *  Bit 0 - Inter-processor function call
  */
-asmlinkage void __exception do_IPI(struct pt_regs *regs)
+asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
-	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	ipi->ipi_count++;
+	if (ipinr >= IPI_TIMER && ipinr < IPI_TIMER + NR_IPI)
+		__inc_irq_stat(cpu, ipi_irqs[ipinr - IPI_TIMER]);
 
-	for (;;) {
-		unsigned long msgs;
+	switch (ipinr) {
+	case IPI_TIMER:
+		ipi_timer();
+		break;
 
-		spin_lock(&ipi->lock);
-		msgs = ipi->bits;
-		ipi->bits = 0;
-		spin_unlock(&ipi->lock);
+	case IPI_RESCHEDULE:
+		/*
+		 * nothing more to do - eveything is
+		 * done on the interrupt return path
+		 */
+		break;
 
-		if (!msgs)
-			break;
+	case IPI_CALL_FUNC:
+		generic_smp_call_function_interrupt();
+		break;
 
-		do {
-			unsigned nextmsg;
+	case IPI_CALL_FUNC_SINGLE:
+		generic_smp_call_function_single_interrupt();
+		break;
 
-			nextmsg = msgs & -msgs;
-			msgs &= ~nextmsg;
-			nextmsg = ffz(~nextmsg);
+	case IPI_CPU_STOP:
+		ipi_cpu_stop(cpu);
+		break;
 
-			switch (nextmsg) {
-			case IPI_TIMER:
-				ipi_timer();
-				break;
-
-			case IPI_RESCHEDULE:
-				/*
-				 * nothing more to do - eveything is
-				 * done on the interrupt return path
-				 */
-				break;
-
-			case IPI_CALL_FUNC:
-				generic_smp_call_function_interrupt();
-				break;
-
-			case IPI_CALL_FUNC_SINGLE:
-				generic_smp_call_function_single_interrupt();
-				break;
-
-			case IPI_CPU_STOP:
-				ipi_cpu_stop(cpu);
-				break;
-
-			default:
-				printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%x\n",
-				       cpu, nextmsg);
-				break;
-			}
-		} while (msgs);
+	default:
+		printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%x\n",
+		       cpu, ipinr);
+		break;
 	}
-
 	set_irq_regs(old_regs);
 }
 
 void smp_send_reschedule(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
+	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
 void smp_send_stop(void)
 {
-	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
-	if (!cpus_empty(mask))
-		send_ipi_message(&mask, IPI_CPU_STOP);
+	unsigned long timeout;
+
+	if (num_online_cpus() > 1) {
+		cpumask_t mask = cpu_online_map;
+		cpu_clear(smp_processor_id(), mask);
+
+		smp_cross_call(&mask, IPI_CPU_STOP);
+	}
+
+	/* Wait up to one second for other CPUs to stop */
+	timeout = USEC_PER_SEC;
+	while (num_online_cpus() > 1 && timeout--)
+		udelay(1);
+
+	if (num_online_cpus() > 1)
+		pr_warning("SMP: failed to stop secondary CPUs\n");
 }
 
 /*
@@ -624,129 +618,4 @@ void smp_send_stop(void)
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
-}
-
-static void
-on_each_cpu_mask(void (*func)(void *), void *info, int wait,
-		const struct cpumask *mask)
-{
-	preempt_disable();
-
-	smp_call_function_many(mask, func, info, wait);
-	if (cpumask_test_cpu(smp_processor_id(), mask))
-		func(info);
-
-	preempt_enable();
-}
-
-/**********************************************************************/
-
-/*
- * TLB operations
- */
-struct tlb_args {
-	struct vm_area_struct *ta_vma;
-	unsigned long ta_start;
-	unsigned long ta_end;
-};
-
-static inline void ipi_flush_tlb_all(void *ignored)
-{
-	local_flush_tlb_all();
-}
-
-static inline void ipi_flush_tlb_mm(void *arg)
-{
-	struct mm_struct *mm = (struct mm_struct *)arg;
-
-	local_flush_tlb_mm(mm);
-}
-
-static inline void ipi_flush_tlb_page(void *arg)
-{
-	struct tlb_args *ta = (struct tlb_args *)arg;
-
-	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
-}
-
-static inline void ipi_flush_tlb_kernel_page(void *arg)
-{
-	struct tlb_args *ta = (struct tlb_args *)arg;
-
-	local_flush_tlb_kernel_page(ta->ta_start);
-}
-
-static inline void ipi_flush_tlb_range(void *arg)
-{
-	struct tlb_args *ta = (struct tlb_args *)arg;
-
-	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
-}
-
-static inline void ipi_flush_tlb_kernel_range(void *arg)
-{
-	struct tlb_args *ta = (struct tlb_args *)arg;
-
-	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
-}
-
-void flush_tlb_all(void)
-{
-	if (tlb_ops_need_broadcast())
-		on_each_cpu(ipi_flush_tlb_all, NULL, 1);
-	else
-		local_flush_tlb_all();
-}
-
-void flush_tlb_mm(struct mm_struct *mm)
-{
-	if (tlb_ops_need_broadcast())
-		on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, mm_cpumask(mm));
-	else
-		local_flush_tlb_mm(mm);
-}
-
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
-{
-	if (tlb_ops_need_broadcast()) {
-		struct tlb_args ta;
-		ta.ta_vma = vma;
-		ta.ta_start = uaddr;
-		on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, mm_cpumask(vma->vm_mm));
-	} else
-		local_flush_tlb_page(vma, uaddr);
-}
-
-void flush_tlb_kernel_page(unsigned long kaddr)
-{
-	if (tlb_ops_need_broadcast()) {
-		struct tlb_args ta;
-		ta.ta_start = kaddr;
-		on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1);
-	} else
-		local_flush_tlb_kernel_page(kaddr);
-}
-
-void flush_tlb_range(struct vm_area_struct *vma,
-                     unsigned long start, unsigned long end)
-{
-	if (tlb_ops_need_broadcast()) {
-		struct tlb_args ta;
-		ta.ta_vma = vma;
-		ta.ta_start = start;
-		ta.ta_end = end;
-		on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, mm_cpumask(vma->vm_mm));
-	} else
-		local_flush_tlb_range(vma, start, end);
-}
-
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-{
-	if (tlb_ops_need_broadcast()) {
-		struct tlb_args ta;
-		ta.ta_start = start;
-		ta.ta_end = end;
-		on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
-	} else
-		local_flush_tlb_kernel_range(start, end);
 }

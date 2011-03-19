@@ -20,8 +20,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/sh_clk.h>
+#include <linux/clkdev.h>
 #include <mach/common.h>
-#include <asm/clkdev.h>
 
 /* SH7367 registers */
 #define RTFRQCR    0xe6150000

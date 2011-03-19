@@ -436,7 +436,9 @@ struct uvc_streaming {
 	struct uvc_streaming_control ctrl;
 	struct uvc_format *cur_format;
 	struct uvc_frame *cur_frame;
-
+	/* Protect access to ctrl, cur_format, cur_frame and hardware video
+	 * probe control.
+	 */
 	struct mutex mutex;
 
 	unsigned int frozen : 1;
@@ -574,6 +576,8 @@ extern int uvc_queue_enable(struct uvc_video_queue *queue, int enable);
 extern void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 extern struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 		struct uvc_buffer *buf);
+extern int uvc_queue_mmap(struct uvc_video_queue *queue,
+		struct vm_area_struct *vma);
 extern unsigned int uvc_queue_poll(struct uvc_video_queue *queue,
 		struct file *file, poll_table *wait);
 extern int uvc_queue_allocated(struct uvc_video_queue *queue);
@@ -606,10 +610,10 @@ extern int uvc_status_suspend(struct uvc_device *dev);
 extern int uvc_status_resume(struct uvc_device *dev);
 
 /* Controls */
-extern struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
-		__u32 v4l2_id, struct uvc_control_mapping **mapping);
 extern int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		struct v4l2_queryctrl *v4l2_ctrl);
+extern int uvc_query_v4l2_menu(struct uvc_video_chain *chain,
+		struct v4l2_querymenu *query_menu);
 
 extern int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		const struct uvc_control_mapping *mapping);

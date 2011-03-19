@@ -17,26 +17,7 @@
 #include <linux/device.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
-
-#include "powerdomain.h"
-
-/**
- * struct omap_opp - clock frequency-to-OPP ID table for DSP, MPU
- * @rate: target clock rate
- * @opp_id: OPP ID
- * @min_vdd: minimum VDD1 voltage (in millivolts) for this OPP
- *
- * Operating performance point data.  Can vary by OMAP chip and board.
- */
-struct omap_opp {
-	unsigned long rate;
-	u8 opp_id;
-	u16 min_vdd;
-};
-
-extern struct omap_opp *mpu_opps;
-extern struct omap_opp *dsp_opps;
-extern struct omap_opp *l3_opps;
+#include <linux/opp.h>
 
 /*
  * agent_id values for use with omap_pm_set_min_bus_tput():
@@ -59,9 +40,11 @@ extern struct omap_opp *l3_opps;
  * framework starts.  The "_if_" is to avoid name collisions with the
  * PM idle-loop code.
  */
-int __init omap_pm_if_early_init(struct omap_opp *mpu_opp_table,
-				 struct omap_opp *dsp_opp_table,
-				 struct omap_opp *l3_opp_table);
+#ifdef CONFIG_OMAP_PM_NONE
+#define omap_pm_if_early_init() 0
+#else
+int __init omap_pm_if_early_init(void);
+#endif
 
 /**
  * omap_pm_if_init - OMAP PM init code called after clock fw init
@@ -69,7 +52,11 @@ int __init omap_pm_if_early_init(struct omap_opp *mpu_opp_table,
  * The main initialization code.  OPP tables are passed in here.  The
  * "_if_" is to avoid name collisions with the PM idle-loop code.
  */
+#ifdef CONFIG_OMAP_PM_NONE
+#define omap_pm_if_init() 0
+#else
 int __init omap_pm_if_init(void);
+#endif
 
 /**
  * omap_pm_if_exit - OMAP PM exit code
@@ -363,9 +350,11 @@ unsigned long omap_pm_cpu_get_freq(void);
  * driver must restore device context.   If the number of context losses
  * exceeds the maximum positive integer, the function will wrap to 0 and
  * continue counting.  Returns the number of context losses for this device,
- * or -EINVAL upon error.
+ * or zero upon error.
  */
-int omap_pm_get_dev_context_loss_count(struct device *dev);
+u32 omap_pm_get_dev_context_loss_count(struct device *dev);
 
+void omap_pm_enable_off_mode(void);
+void omap_pm_disable_off_mode(void);
 
 #endif

@@ -1675,13 +1675,14 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 		{
 			char essid[IW_ESSID_MAX_SIZE+1];
-			if (wrq->u.essid.pointer)
+			if (wrq->u.essid.pointer) {
 				rc = iwctl_giwessid(dev, NULL,
 						    &(wrq->u.essid), essid);
 				if (copy_to_user(wrq->u.essid.pointer,
 						         essid,
 						         wrq->u.essid.length) )
 					rc = -EFAULT;
+			}
 		}
 		break;
 

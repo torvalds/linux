@@ -36,6 +36,8 @@
     asb100	7	3	1	4	0x31	0x0694	yes	no
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -701,8 +703,7 @@ static int asb100_detect(struct i2c_client *client,
 	int val1, val2;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("asb100.o: detect failed, "
-				"smbus byte data not supported!\n");
+		pr_debug("detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
@@ -715,7 +716,7 @@ static int asb100_detect(struct i2c_client *client,
 			(((!(val1 & 0x80)) && (val2 != 0x94)) ||
 			/* Check for ASB100 ID (high byte ) */
 			((val1 & 0x80) && (val2 != 0x06)))) {
-		pr_debug("asb100: detect failed, bad chip id 0x%02x!\n", val2);
+		pr_debug("detect failed, bad chip id 0x%02x!\n", val2);
 		return -ENODEV;
 	}
 
@@ -744,7 +745,7 @@ static int asb100_probe(struct i2c_client *client,
 
 	data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL);
 	if (!data) {
-		pr_debug("asb100.o: probe failed, kzalloc failed!\n");
+		pr_debug("probe failed, kzalloc failed!\n");
 		err = -ENOMEM;
 		goto ERROR0;
 	}

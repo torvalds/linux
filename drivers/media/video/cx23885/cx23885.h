@@ -30,7 +30,7 @@
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"
@@ -84,6 +84,7 @@
 #define CX23885_BOARD_HAUPPAUGE_HVR1290        26
 #define CX23885_BOARD_MYGICA_X8558PRO          27
 #define CX23885_BOARD_LEADTEK_WINFAST_PXTV1200 28
+#define CX23885_BOARD_GOTVIEW_X5_3D_HYBRID     29
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -310,8 +311,7 @@ struct cx23885_kernel_ir {
 	char			*name;
 	char			*phys;
 
-	struct input_dev	*inp_dev;
-	struct ir_dev_props	props;
+	struct rc_dev		*rc;
 };
 
 struct cx23885_dev {

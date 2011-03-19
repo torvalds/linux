@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -42,20 +42,20 @@ static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
                                           u16 *data, bool read);
 
 /* Cable length tables */
-static const u16 e1000_m88_cable_length_table[] =
-	{ 0, 50, 80, 110, 140, 140, E1000_CABLE_LENGTH_UNDEFINED };
+static const u16 e1000_m88_cable_length_table[] = {
+	0, 50, 80, 110, 140, 140, E1000_CABLE_LENGTH_UNDEFINED };
 #define M88E1000_CABLE_LENGTH_TABLE_SIZE \
 		ARRAY_SIZE(e1000_m88_cable_length_table)
 
-static const u16 e1000_igp_2_cable_length_table[] =
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21, 0, 0, 0, 3,
-	  6, 10, 13, 16, 19, 23, 26, 29, 32, 35, 38, 41, 6, 10, 14, 18, 22,
-	  26, 30, 33, 37, 41, 44, 48, 51, 54, 58, 61, 21, 26, 31, 35, 40,
-	  44, 49, 53, 57, 61, 65, 68, 72, 75, 79, 82, 40, 45, 51, 56, 61,
-	  66, 70, 75, 79, 83, 87, 91, 94, 98, 101, 104, 60, 66, 72, 77, 82,
-	  87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121, 83, 89, 95,
-	  100, 105, 109, 113, 116, 119, 122, 124, 104, 109, 114, 118, 121,
-	  124};
+static const u16 e1000_igp_2_cable_length_table[] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21, 0, 0, 0, 3,
+	6, 10, 13, 16, 19, 23, 26, 29, 32, 35, 38, 41, 6, 10, 14, 18, 22,
+	26, 30, 33, 37, 41, 44, 48, 51, 54, 58, 61, 21, 26, 31, 35, 40,
+	44, 49, 53, 57, 61, 65, 68, 72, 75, 79, 82, 40, 45, 51, 56, 61,
+	66, 70, 75, 79, 83, 87, 91, 94, 98, 101, 104, 60, 66, 72, 77, 82,
+	87, 92, 96, 100, 104, 108, 111, 114, 117, 119, 121, 83, 89, 95,
+	100, 105, 109, 113, 116, 119, 122, 124, 104, 109, 114, 118, 121,
+	124};
 #define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
 		ARRAY_SIZE(e1000_igp_2_cable_length_table)
 
@@ -226,6 +226,13 @@ s32 e1000e_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 	}
 	*data = (u16) mdic;
 
+	/*
+	 * Allow some time after each MDIC transaction to avoid
+	 * reading duplicate data in the next MDIC transaction.
+	 */
+	if (hw->mac.type == e1000_pch2lan)
+		udelay(100);
+
 	return 0;
 }
 
@@ -278,6 +285,13 @@ s32 e1000e_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 		e_dbg("MDI Error\n");
 		return -E1000_ERR_PHY;
 	}
+
+	/*
+	 * Allow some time after each MDIC transaction to avoid
+	 * reading duplicate data in the next MDIC transaction.
+	 */
+	if (hw->mac.type == e1000_pch2lan)
+		udelay(100);
 
 	return 0;
 }
@@ -623,12 +637,11 @@ s32 e1000e_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 {
-	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u16 phy_data;
 
-	/* Enable CRS on TX. This must be set for half-duplex operation. */
-	ret_val = phy->ops.read_reg(hw, I82577_CFG_REG, &phy_data);
+	/* Enable CRS on Tx. This must be set for half-duplex operation. */
+	ret_val = e1e_rphy(hw, I82577_CFG_REG, &phy_data);
 	if (ret_val)
 		goto out;
 
@@ -637,7 +650,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	/* Enable downshift */
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
-	ret_val = phy->ops.write_reg(hw, I82577_CFG_REG, phy_data);
+	ret_val = e1e_wphy(hw, I82577_CFG_REG, phy_data);
 
 out:
 	return ret_val;
@@ -760,16 +773,14 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	}
 
 	if (phy->type == e1000_phy_82578) {
-		ret_val = phy->ops.read_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL,
-		                            &phy_data);
+		ret_val = e1e_rphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
 		if (ret_val)
 			return ret_val;
 
 		/* 82578 PHY - set the downshift count to 1x. */
 		phy_data |= I82578_EPSCR_DOWNSHIFT_ENABLE;
 		phy_data &= ~I82578_EPSCR_DOWNSHIFT_COUNTER_MASK;
-		ret_val = phy->ops.write_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL,
-		                             phy_data);
+		ret_val = e1e_wphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
 		if (ret_val)
 			return ret_val;
 	}
@@ -1043,9 +1054,8 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 
 	e_dbg("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
 
-	if (phy->autoneg_mask & ADVERTISE_1000_FULL) {
+	if (phy->autoneg_mask & ADVERTISE_1000_FULL)
 		ret_val = e1e_wphy(hw, PHY_1000T_CTRL, mii_1000t_ctrl_reg);
-	}
 
 	return ret_val;
 }
@@ -1306,9 +1316,8 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 				 * We didn't get link.
 				 * Reset the DSP and cross our fingers.
 				 */
-				ret_val = e1e_wphy(hw,
-						M88E1000_PHY_PAGE_SELECT,
-						0x001d);
+				ret_val = e1e_wphy(hw, M88E1000_PHY_PAGE_SELECT,
+						   0x001d);
 				if (ret_val)
 					return ret_val;
 				ret_val = e1000e_phy_reset_dsp(hw);
@@ -1840,11 +1849,12 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 	u16 phy_data, i, agc_value = 0;
 	u16 cur_agc_index, max_agc_index = 0;
 	u16 min_agc_index = IGP02E1000_CABLE_LENGTH_TABLE_SIZE - 1;
-	u16 agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] =
-							 {IGP02E1000_PHY_AGC_A,
-							  IGP02E1000_PHY_AGC_B,
-							  IGP02E1000_PHY_AGC_C,
-							  IGP02E1000_PHY_AGC_D};
+	static const u16 agc_reg_array[IGP02E1000_PHY_CHANNEL_NUM] = {
+	       IGP02E1000_PHY_AGC_A,
+	       IGP02E1000_PHY_AGC_B,
+	       IGP02E1000_PHY_AGC_C,
+	       IGP02E1000_PHY_AGC_D
+	};
 
 	/* Read the AGC registers for all channels */
 	for (i = 0; i < IGP02E1000_PHY_CHANNEL_NUM; i++) {
@@ -2976,7 +2986,7 @@ s32 e1000_write_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
- *  e1000_get_phy_addr_for_hv_page - Get PHY adrress based on page
+ *  e1000_get_phy_addr_for_hv_page - Get PHY address based on page
  *  @page: page to be accessed
  **/
 static u32 e1000_get_phy_addr_for_hv_page(u32 page)
@@ -3057,12 +3067,12 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 		goto out;
 
 	/* Do not apply workaround if in PHY loopback bit 14 set */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &data);
+	e1e_rphy(hw, PHY_CONTROL, &data);
 	if (data & PHY_CONTROL_LB)
 		goto out;
 
 	/* check if link is up and at 1Gbps */
-	ret_val = hw->phy.ops.read_reg(hw, BM_CS_STATUS, &data);
+	ret_val = e1e_rphy(hw, BM_CS_STATUS, &data);
 	if (ret_val)
 		goto out;
 
@@ -3078,14 +3088,12 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	mdelay(200);
 
 	/* flush the packets in the fifo buffer */
-	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL,
-	                                HV_MUX_DATA_CTRL_GEN_TO_MAC |
-	                                HV_MUX_DATA_CTRL_FORCE_SPEED);
+	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC |
+			   HV_MUX_DATA_CTRL_FORCE_SPEED);
 	if (ret_val)
 		goto out;
 
-	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL,
-	                                HV_MUX_DATA_CTRL_GEN_TO_MAC);
+	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC);
 
 out:
 	return ret_val;
@@ -3105,7 +3113,7 @@ s32 e1000_check_polarity_82577(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 data;
 
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_STATUS_2, &data);
+	ret_val = e1e_rphy(hw, I82577_PHY_STATUS_2, &data);
 
 	if (!ret_val)
 		phy->cable_polarity = (data & I82577_PHY_STATUS2_REV_POLARITY)
@@ -3128,13 +3136,13 @@ s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)
 		goto out;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
 	if (ret_val)
 		goto out;
 
@@ -3198,7 +3206,7 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_STATUS_2, &data);
+	ret_val = e1e_rphy(hw, I82577_PHY_STATUS_2, &data);
 	if (ret_val)
 		goto out;
 
@@ -3210,7 +3218,7 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		ret_val = phy->ops.read_reg(hw, PHY_1000T_STATUS, &data);
+		ret_val = e1e_rphy(hw, PHY_1000T_STATUS, &data);
 		if (ret_val)
 			goto out;
 
@@ -3244,7 +3252,7 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data, length;
 
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_DIAG_STATUS, &phy_data);
+	ret_val = e1e_rphy(hw, I82577_PHY_DIAG_STATUS, &phy_data);
 	if (ret_val)
 		goto out;
 

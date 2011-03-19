@@ -509,6 +509,8 @@ static int bridge_open(struct inode *ip, struct file *filp)
 		pr_ctxt->res_state = PROC_RES_ALLOCATED;
 		spin_lock_init(&pr_ctxt->dmm_map_lock);
 		INIT_LIST_HEAD(&pr_ctxt->dmm_map_list);
+		spin_lock_init(&pr_ctxt->dmm_rsv_lock);
+		INIT_LIST_HEAD(&pr_ctxt->dmm_rsv_list);
 
 		pr_ctxt->node_id = kzalloc(sizeof(struct idr), GFP_KERNEL);
 		if (pr_ctxt->node_id) {

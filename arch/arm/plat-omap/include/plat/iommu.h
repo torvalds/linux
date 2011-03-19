@@ -50,6 +50,8 @@ struct iommu {
 	int (*isr)(struct iommu *obj);
 
 	void *ctx; /* iommu context: registres saved area */
+	u32 da_start;
+	u32 da_end;
 };
 
 struct cr_regs {
@@ -103,6 +105,8 @@ struct iommu_platform_data {
 	const char *name;
 	const char *clk_name;
 	const int nr_tlb_entries;
+	u32 da_start;
+	u32 da_end;
 };
 
 #if defined(CONFIG_ARCH_OMAP1)
@@ -152,6 +156,7 @@ extern void flush_iotlb_all(struct iommu *obj);
 extern int iopgtable_store_entry(struct iommu *obj, struct iotlb_entry *e);
 extern size_t iopgtable_clear_entry(struct iommu *obj, u32 iova);
 
+extern int iommu_set_da_range(struct iommu *obj, u32 start, u32 end);
 extern struct iommu *iommu_get(const char *name);
 extern void iommu_put(struct iommu *obj);
 

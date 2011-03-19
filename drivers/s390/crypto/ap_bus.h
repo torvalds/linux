@@ -196,4 +196,6 @@ void ap_flush_queue(struct ap_device *ap_dev);
 int ap_module_init(void);
 void ap_module_exit(void);
 
+int ap_4096_commands_available(ap_qid_t qid);
+
 #endif /* _AP_BUS_H_ */

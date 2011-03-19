@@ -208,7 +208,7 @@ struct platform_device jz4740_i2s_device = {
 
 /* PCM */
 struct platform_device jz4740_pcm_device = {
-	.name		= "jz4740-pcm",
+	.name		= "jz4740-pcm-audio",
 	.id		= -1,
 };
 

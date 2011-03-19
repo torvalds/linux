@@ -133,8 +133,7 @@ int __inet_inherit_port(struct sock *sk, struct sock *child)
 			}
 		}
 	}
-	sk_add_bind_node(child, &tb->owners);
-	inet_csk(child)->icsk_bind_hash = tb;
+	inet_bind_hash(child, tb, port);
 	spin_unlock(&head->lock);
 
 	return 0;

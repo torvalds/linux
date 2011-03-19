@@ -2200,6 +2200,12 @@ enum flow_control {
 	FC_BOTH	= 3,
 };
 
+struct sky2_stats {
+	struct u64_stats_sync syncp;
+	u64		packets;
+	u64		bytes;
+};
+
 struct sky2_port {
 	struct sky2_hw	     *hw;
 	struct net_device    *netdev;
@@ -2209,6 +2215,8 @@ struct sky2_port {
 
 	struct tx_ring_info  *tx_ring;
 	struct sky2_tx_le    *tx_le;
+	struct sky2_stats    tx_stats;
+
 	u16		     tx_ring_size;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
@@ -2221,17 +2229,15 @@ struct sky2_port {
 
 	struct rx_ring_info  *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
+	struct sky2_stats    rx_stats;
 
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
 	u16		     rx_data_size;
 	u16		     rx_nfrags;
-
-#ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
-	struct vlan_group    *vlgrp;
-#endif
+
 	struct {
 		unsigned long last;
 		u32	mac_rp;
@@ -2275,6 +2281,7 @@ struct sky2_hw {
 #define SKY2_HW_AUTO_TX_SUM	0x00000040	/* new IP decode for Tx */
 #define SKY2_HW_ADV_POWER_CTL	0x00000080	/* additional PHY power regs */
 #define SKY2_HW_RSS_BROKEN	0x00000100
+#define SKY2_HW_VLAN_BROKEN     0x00000200
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
@@ -2344,6 +2351,39 @@ static inline u32 gma_read32(struct sky2_hw *hw, unsigned port, unsigned reg)
 	unsigned base = SK_GMAC_REG(port, reg);
 	return (u32) sky2_read16(hw, base)
 		| (u32) sky2_read16(hw, base+4) << 16;
+}
+
+static inline u64 gma_read64(struct sky2_hw *hw, unsigned port, unsigned reg)
+{
+	unsigned base = SK_GMAC_REG(port, reg);
+
+	return (u64) sky2_read16(hw, base)
+		| (u64) sky2_read16(hw, base+4) << 16
+		| (u64) sky2_read16(hw, base+8) << 32
+		| (u64) sky2_read16(hw, base+12) << 48;
+}
+
+/* There is no way to atomically read32 bit values from PHY, so retry */
+static inline u32 get_stats32(struct sky2_hw *hw, unsigned port, unsigned reg)
+{
+	u32 val;
+
+	do {
+		val = gma_read32(hw, port, reg);
+	} while (gma_read32(hw, port, reg) != val);
+
+	return val;
+}
+
+static inline u64 get_stats64(struct sky2_hw *hw, unsigned port, unsigned reg)
+{
+	u64 val;
+
+	do {
+		val = gma_read64(hw, port, reg);
+	} while (gma_read64(hw, port, reg) != val);
+
+	return val;
 }
 
 static inline void gma_write16(const struct sky2_hw *hw, unsigned port, int r, u16 v)

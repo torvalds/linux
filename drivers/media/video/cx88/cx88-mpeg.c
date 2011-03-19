@@ -66,8 +66,14 @@ static void request_modules(struct cx8802_dev *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx8802_dev *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 
@@ -818,6 +824,8 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 	dev = pci_get_drvdata(pci_dev);
 
 	dprintk( 1, "%s\n", __func__);
+
+	flush_request_modules(dev);
 
 	if (!list_empty(&dev->drvlist)) {
 		struct cx8802_driver *drv, *tmp;

@@ -1245,10 +1245,11 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	int type;
 
 	/* Disable TV interrupts around load detect or we'll recurse */
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	i915_disable_pipestat(dev_priv, 0, PIPE_HOTPLUG_INTERRUPT_ENABLE |
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	i915_disable_pipestat(dev_priv, 0,
+			      PIPE_HOTPLUG_INTERRUPT_ENABLE |
 			      PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	save_tv_dac = tv_dac = I915_READ(TV_DAC);
 	save_tv_ctl = tv_ctl = I915_READ(TV_CTL);
@@ -1301,10 +1302,11 @@ intel_tv_detect_type (struct intel_tv *intel_tv)
 	I915_WRITE(TV_CTL, save_tv_ctl);
 
 	/* Restore interrupt config */
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	i915_enable_pipestat(dev_priv, 0, PIPE_HOTPLUG_INTERRUPT_ENABLE |
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	i915_enable_pipestat(dev_priv, 0,
+			     PIPE_HOTPLUG_INTERRUPT_ENABLE |
 			     PIPE_HOTPLUG_TV_INTERRUPT_ENABLE);
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return type;
 }

@@ -15,11 +15,19 @@
 #include <linux/list.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/cacheflush.h>
 
 #include "musb_core.h"
 #include "blackfin.h"
+
+struct bfin_glue {
+	struct device		*dev;
+	struct platform_device	*musb;
+};
+#define glue_to_musb(g)		platform_get_drvdata(g->musb)
 
 /*
  * Load an endpoint's FIFO
@@ -171,8 +179,9 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 	}
 
 	/* Start sampling ID pin, when plug is removed from MUSB */
-	if (is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
-		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+	if ((is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
+		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) ||
+		(musb->int_usb & MUSB_INTR_DISCONNECT && is_host_active(musb))) {
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		musb->a_wait_bcon = TIMER_DELAY;
 	}
@@ -277,7 +286,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 	DBG(4, "state is %s\n", otg_state_string(musb));
 }
 
-void musb_platform_enable(struct musb *musb)
+static void bfin_musb_enable(struct musb *musb)
 {
 	if (!is_otg_enabled(musb) && is_host_enabled(musb)) {
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
@@ -285,11 +294,11 @@ void musb_platform_enable(struct musb *musb)
 	}
 }
 
-void musb_platform_disable(struct musb *musb)
+static void bfin_musb_disable(struct musb *musb)
 {
 }
 
-static void bfin_set_vbus(struct musb *musb, int is_on)
+static void bfin_musb_set_vbus(struct musb *musb, int is_on)
 {
 	int value = musb->config->gpio_vrsel_active;
 	if (!is_on)
@@ -302,51 +311,29 @@ static void bfin_set_vbus(struct musb *musb, int is_on)
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
-static int bfin_set_power(struct otg_transceiver *x, unsigned mA)
+static int bfin_musb_set_power(struct otg_transceiver *x, unsigned mA)
 {
 	return 0;
 }
 
-void musb_platform_try_idle(struct musb *musb, unsigned long timeout)
+static void bfin_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	if (!is_otg_enabled(musb) && is_host_enabled(musb))
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 }
 
-int musb_platform_get_vbus_status(struct musb *musb)
+static int bfin_musb_get_vbus_status(struct musb *musb)
 {
 	return 0;
 }
 
-int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
+static int bfin_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
 	return -EIO;
 }
 
-int __init musb_platform_init(struct musb *musb, void *board_data)
+static void bfin_musb_reg_init(struct musb *musb)
 {
-
-	/*
-	 * Rev 1.0 BF549 EZ-KITs require PE7 to be high for both DEVICE
-	 * and OTG HOST modes, while rev 1.1 and greater require PE7 to
-	 * be low for DEVICE mode and high for HOST mode. We set it high
-	 * here because we are in host mode
-	 */
-
-	if (gpio_request(musb->config->gpio_vrsel, "USB_VRSEL")) {
-		printk(KERN_ERR "Failed ro request USB_VRSEL GPIO_%d \n",
-			musb->config->gpio_vrsel);
-		return -ENODEV;
-	}
-	gpio_direction_output(musb->config->gpio_vrsel, 0);
-
-	usb_nop_xceiv_register();
-	musb->xceiv = otg_get_transceiver();
-	if (!musb->xceiv) {
-		gpio_free(musb->config->gpio_vrsel);
-		return -ENODEV;
-	}
-
 	if (ANOMALY_05000346) {
 		bfin_write_USB_APHY_CALIB(ANOMALY_05000346_value);
 		SSYNC();
@@ -358,7 +345,8 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 	}
 
 	/* Configure PLL oscillator register */
-	bfin_write_USB_PLLOSC_CTRL(0x30a8);
+	bfin_write_USB_PLLOSC_CTRL(0x3080 |
+			((480/musb->config->clkin) << 1));
 	SSYNC();
 
 	bfin_write_USB_SRP_CLKDIV((get_sclk()/1000) / 32 - 1);
@@ -380,21 +368,47 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 				EP2_RX_ENA | EP3_RX_ENA | EP4_RX_ENA |
 				EP5_RX_ENA | EP6_RX_ENA | EP7_RX_ENA);
 	SSYNC();
+}
+
+static int bfin_musb_init(struct musb *musb)
+{
+
+	/*
+	 * Rev 1.0 BF549 EZ-KITs require PE7 to be high for both DEVICE
+	 * and OTG HOST modes, while rev 1.1 and greater require PE7 to
+	 * be low for DEVICE mode and high for HOST mode. We set it high
+	 * here because we are in host mode
+	 */
+
+	if (gpio_request(musb->config->gpio_vrsel, "USB_VRSEL")) {
+		printk(KERN_ERR "Failed ro request USB_VRSEL GPIO_%d\n",
+			musb->config->gpio_vrsel);
+		return -ENODEV;
+	}
+	gpio_direction_output(musb->config->gpio_vrsel, 0);
+
+	usb_nop_xceiv_register();
+	musb->xceiv = otg_get_transceiver();
+	if (!musb->xceiv) {
+		gpio_free(musb->config->gpio_vrsel);
+		return -ENODEV;
+	}
+
+	bfin_musb_reg_init(musb);
 
 	if (is_host_enabled(musb)) {
-		musb->board_set_vbus = bfin_set_vbus;
 		setup_timer(&musb_conn_timer,
 			musb_conn_timer_handler, (unsigned long) musb);
 	}
 	if (is_peripheral_enabled(musb))
-		musb->xceiv->set_power = bfin_set_power;
+		musb->xceiv->set_power = bfin_musb_set_power;
 
 	musb->isr = blackfin_interrupt;
 
 	return 0;
 }
 
-int musb_platform_exit(struct musb *musb)
+static int bfin_musb_exit(struct musb *musb)
 {
 	gpio_free(musb->config->gpio_vrsel);
 
@@ -402,3 +416,154 @@ int musb_platform_exit(struct musb *musb)
 	usb_nop_xceiv_unregister();
 	return 0;
 }
+
+static const struct musb_platform_ops bfin_ops = {
+	.init		= bfin_musb_init,
+	.exit		= bfin_musb_exit,
+
+	.enable		= bfin_musb_enable,
+	.disable	= bfin_musb_disable,
+
+	.set_mode	= bfin_musb_set_mode,
+	.try_idle	= bfin_musb_try_idle,
+
+	.vbus_status	= bfin_musb_vbus_status,
+	.set_vbus	= bfin_musb_set_vbus,
+};
+
+static u64 bfin_dmamask = DMA_BIT_MASK(32);
+
+static int __init bfin_probe(struct platform_device *pdev)
+{
+	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct platform_device		*musb;
+	struct bfin_glue		*glue;
+
+	int				ret = -ENOMEM;
+
+	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	if (!glue) {
+		dev_err(&pdev->dev, "failed to allocate glue context\n");
+		goto err0;
+	}
+
+	musb = platform_device_alloc("musb-hdrc", -1);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
+		goto err1;
+	}
+
+	musb->dev.parent		= &pdev->dev;
+	musb->dev.dma_mask		= &bfin_dmamask;
+	musb->dev.coherent_dma_mask	= bfin_dmamask;
+
+	glue->dev			= &pdev->dev;
+	glue->musb			= musb;
+
+	pdata->platform_ops		= &bfin_ops;
+
+	platform_set_drvdata(pdev, glue);
+
+	ret = platform_device_add_resources(musb, pdev->resource,
+			pdev->num_resources);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to add resources\n");
+		goto err2;
+	}
+
+	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
+	if (ret) {
+		dev_err(&pdev->dev, "failed to add platform_data\n");
+		goto err2;
+	}
+
+	ret = platform_device_add(musb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register musb device\n");
+		goto err2;
+	}
+
+	return 0;
+
+err2:
+	platform_device_put(musb);
+
+err1:
+	kfree(glue);
+
+err0:
+	return ret;
+}
+
+static int __exit bfin_remove(struct platform_device *pdev)
+{
+	struct bfin_glue		*glue = platform_get_drvdata(pdev);
+
+	platform_device_del(glue->musb);
+	platform_device_put(glue->musb);
+	kfree(glue);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int bfin_suspend(struct device *dev)
+{
+	struct bfin_glue	*glue = dev_get_drvdata(dev);
+	struct musb		*musb = glue_to_musb(glue);
+
+	if (is_host_active(musb))
+		/*
+		 * During hibernate gpio_vrsel will change from high to low
+		 * low which will generate wakeup event resume the system
+		 * immediately.  Set it to 0 before hibernate to avoid this
+		 * wakeup event.
+		 */
+		gpio_set_value(musb->config->gpio_vrsel, 0);
+
+	return 0;
+}
+
+static int bfin_resume(struct device *dev)
+{
+	struct bfin_glue	*glue = dev_get_drvdata(dev);
+	struct musb		*musb = glue_to_musb(glue);
+
+	bfin_musb_reg_init(musb);
+
+	return 0;
+}
+
+static struct dev_pm_ops bfin_pm_ops = {
+	.suspend	= bfin_suspend,
+	.resume		= bfin_resume,
+};
+
+#define DEV_PM_OPS	&bfin_pm_op,
+#else
+#define DEV_PM_OPS	NULL
+#endif
+
+static struct platform_driver bfin_driver = {
+	.remove		= __exit_p(bfin_remove),
+	.driver		= {
+		.name	= "musb-bfin",
+		.pm	= DEV_PM_OPS,
+	},
+};
+
+MODULE_DESCRIPTION("Blackfin MUSB Glue Layer");
+MODULE_AUTHOR("Bryan Wy <cooloney@kernel.org>");
+MODULE_LICENSE("GPL v2");
+
+static int __init bfin_init(void)
+{
+	return platform_driver_probe(&bfin_driver, bfin_probe);
+}
+subsys_initcall(bfin_init);
+
+static void __exit bfin_exit(void)
+{
+	platform_driver_unregister(&bfin_driver);
+}
+module_exit(bfin_exit);

@@ -45,47 +45,33 @@ extern void zfcp_cfdc_adapter_access_changed(struct zfcp_adapter *);
 
 /* zfcp_dbf.c */
 extern int zfcp_dbf_adapter_register(struct zfcp_adapter *);
-extern void zfcp_dbf_adapter_unregister(struct zfcp_dbf *);
-extern void zfcp_dbf_rec_thread(char *, struct zfcp_dbf *);
-extern void zfcp_dbf_rec_thread_lock(char *, struct zfcp_dbf *);
-extern void zfcp_dbf_rec_adapter(char *, void *, struct zfcp_dbf *);
-extern void zfcp_dbf_rec_port(char *, void *, struct zfcp_port *);
-extern void zfcp_dbf_rec_lun(char *, void *, struct scsi_device *);
-extern void zfcp_dbf_rec_trigger(char *, void *, u8, u8, void *,
-				 struct zfcp_adapter *, struct zfcp_port *,
-				 struct scsi_device *);
-extern void zfcp_dbf_rec_action(char *, struct zfcp_erp_action *);
-extern void _zfcp_dbf_hba_fsf_response(const char *, int, struct zfcp_fsf_req *,
-				       struct zfcp_dbf *);
-extern void _zfcp_dbf_hba_fsf_unsol(const char *, int level, struct zfcp_dbf *,
-					  struct fsf_status_read_buffer *);
-extern void zfcp_dbf_hba_qdio(struct zfcp_dbf *, unsigned int, int, int);
+extern void zfcp_dbf_adapter_unregister(struct zfcp_adapter *);
+extern void zfcp_dbf_rec_trig(char *, struct zfcp_adapter *,
+			      struct zfcp_port *, struct scsi_device *, u8, u8);
+extern void zfcp_dbf_rec_run(char *, struct zfcp_erp_action *);
+extern void zfcp_dbf_hba_fsf_uss(char *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_hba_fsf_res(char *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_hba_bit_err(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_berr(struct zfcp_dbf *, struct zfcp_fsf_req *);
-extern void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *, u32);
-extern void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *);
-extern void zfcp_dbf_san_els_request(struct zfcp_fsf_req *);
-extern void zfcp_dbf_san_els_response(struct zfcp_fsf_req *);
-extern void zfcp_dbf_san_incoming_els(struct zfcp_fsf_req *);
-extern void _zfcp_dbf_scsi(const char *, const char *, int, struct zfcp_dbf *,
-			   struct scsi_cmnd *, struct zfcp_fsf_req *,
-			   unsigned long);
+extern void zfcp_dbf_san_req(char *, struct zfcp_fsf_req *, u32);
+extern void zfcp_dbf_san_res(char *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_san_in_els(char *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_scsi(char *, struct scsi_cmnd *, struct zfcp_fsf_req *);
 
 /* zfcp_erp.c */
 extern void zfcp_erp_set_adapter_status(struct zfcp_adapter *, u32);
 extern void zfcp_erp_clear_adapter_status(struct zfcp_adapter *, u32);
-extern void zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, char *, void *);
-extern void zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int, char *,
-				      void *);
+extern void zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, char *);
+extern void zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int, char *);
 extern void zfcp_erp_set_port_status(struct zfcp_port *, u32);
 extern void zfcp_erp_clear_port_status(struct zfcp_port *, u32);
-extern int  zfcp_erp_port_reopen(struct zfcp_port *, int, char *, void *);
-extern void zfcp_erp_port_shutdown(struct zfcp_port *, int, char *, void *);
-extern void zfcp_erp_port_forced_reopen(struct zfcp_port *, int, char *,
-					void *);
+extern int  zfcp_erp_port_reopen(struct zfcp_port *, int, char *);
+extern void zfcp_erp_port_shutdown(struct zfcp_port *, int, char *);
+extern void zfcp_erp_port_forced_reopen(struct zfcp_port *, int, char *);
 extern void zfcp_erp_set_lun_status(struct scsi_device *, u32);
 extern void zfcp_erp_clear_lun_status(struct scsi_device *, u32);
-extern void zfcp_erp_lun_reopen(struct scsi_device *, int, char *, void *);
-extern void zfcp_erp_lun_shutdown(struct scsi_device *, int, char *, void *);
+extern void zfcp_erp_lun_reopen(struct scsi_device *, int, char *);
+extern void zfcp_erp_lun_shutdown(struct scsi_device *, int, char *);
 extern void zfcp_erp_lun_shutdown_wait(struct scsi_device *, char *);
 extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern void zfcp_erp_thread_kill(struct zfcp_adapter *);
@@ -149,6 +135,8 @@ extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
 extern void zfcp_qdio_siosl(struct zfcp_adapter *);
+extern struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *,
+					     struct qdio_buffer *);
 
 /* zfcp_scsi.c */
 extern struct zfcp_data zfcp_data;

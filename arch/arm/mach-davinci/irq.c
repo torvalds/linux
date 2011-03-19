@@ -53,14 +53,14 @@ static inline void davinci_irq_writel(unsigned long value, int offset)
 }
 
 /* Disable interrupt */
-static void davinci_mask_irq(unsigned int irq)
+static void davinci_mask_irq(struct irq_data *d)
 {
 	unsigned int mask;
 	u32 l;
 
-	mask = 1 << IRQ_BIT(irq);
+	mask = 1 << IRQ_BIT(d->irq);
 
-	if (irq > 31) {
+	if (d->irq > 31) {
 		l = davinci_irq_readl(IRQ_ENT_REG1_OFFSET);
 		l &= ~mask;
 		davinci_irq_writel(l, IRQ_ENT_REG1_OFFSET);
@@ -72,14 +72,14 @@ static void davinci_mask_irq(unsigned int irq)
 }
 
 /* Enable interrupt */
-static void davinci_unmask_irq(unsigned int irq)
+static void davinci_unmask_irq(struct irq_data *d)
 {
 	unsigned int mask;
 	u32 l;
 
-	mask = 1 << IRQ_BIT(irq);
+	mask = 1 << IRQ_BIT(d->irq);
 
-	if (irq > 31) {
+	if (d->irq > 31) {
 		l = davinci_irq_readl(IRQ_ENT_REG1_OFFSET);
 		l |= mask;
 		davinci_irq_writel(l, IRQ_ENT_REG1_OFFSET);
@@ -91,23 +91,23 @@ static void davinci_unmask_irq(unsigned int irq)
 }
 
 /* EOI interrupt */
-static void davinci_ack_irq(unsigned int irq)
+static void davinci_ack_irq(struct irq_data *d)
 {
 	unsigned int mask;
 
-	mask = 1 << IRQ_BIT(irq);
+	mask = 1 << IRQ_BIT(d->irq);
 
-	if (irq > 31)
+	if (d->irq > 31)
 		davinci_irq_writel(mask, IRQ_REG1_OFFSET);
 	else
 		davinci_irq_writel(mask, IRQ_REG0_OFFSET);
 }
 
 static struct irq_chip davinci_irq_chip_0 = {
-	.name	= "AINTC",
-	.ack	= davinci_ack_irq,
-	.mask	= davinci_mask_irq,
-	.unmask = davinci_unmask_irq,
+	.name		= "AINTC",
+	.irq_ack	= davinci_ack_irq,
+	.irq_mask	= davinci_mask_irq,
+	.irq_unmask	= davinci_unmask_irq,
 };
 
 /* ARM Interrupt Controller Initialization */

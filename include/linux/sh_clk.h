@@ -19,11 +19,13 @@ struct clk_mapping {
 };
 
 struct clk_ops {
+#ifdef CONFIG_SH_CLK_CPG_LEGACY
 	void (*init)(struct clk *clk);
+#endif
 	int (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
 	unsigned long (*recalc)(struct clk *clk);
-	int (*set_rate)(struct clk *clk, unsigned long rate, int algo_id);
+	int (*set_rate)(struct clk *clk, unsigned long rate);
 	int (*set_parent)(struct clk *clk, struct clk *parent);
 	long (*round_rate)(struct clk *clk, unsigned long rate);
 };
@@ -67,36 +69,6 @@ int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 void clk_enable_init_clocks(void);
 
-/**
- * clk_set_rate_ex - set the clock rate for a clock source, with additional parameter
- * @clk: clock source
- * @rate: desired clock rate in Hz
- * @algo_id: algorithm id to be passed down to ops->set_rate
- *
- * Returns success (0) or negative errno.
- */
-int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id);
-
-enum clk_sh_algo_id {
-	NO_CHANGE = 0,
-
-	IUS_N1_N1,
-	IUS_322,
-	IUS_522,
-	IUS_N11,
-
-	SB_N1,
-
-	SB3_N1,
-	SB3_32,
-	SB3_43,
-	SB3_54,
-
-	BP_N1,
-
-	IP_N1,
-};
-
 struct clk_div_mult_table {
 	unsigned int *divisors;
 	unsigned int nr_divisors;
@@ -121,6 +93,10 @@ int clk_rate_table_find(struct clk *clk,
 
 long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
 			      unsigned int div_max, unsigned long rate);
+
+long clk_round_parent(struct clk *clk, unsigned long target,
+		      unsigned long *best_freq, unsigned long *parent_freq,
+		      unsigned int div_min, unsigned int div_max);
 
 #define SH_CLK_MSTP32(_parent, _enable_reg, _enable_bit, _flags)	\
 {									\

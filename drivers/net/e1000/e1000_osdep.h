@@ -34,12 +34,21 @@
 #ifndef _E1000_OSDEP_H_
 #define _E1000_OSDEP_H_
 
-#include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/delay.h>
 #include <asm/io.h>
-#include <linux/interrupt.h>
-#include <linux/sched.h>
+
+#define CONFIG_RAM_BASE         0x60000
+#define GBE_CONFIG_OFFSET       0x0
+
+#define GBE_CONFIG_RAM_BASE \
+	((unsigned int)(CONFIG_RAM_BASE + GBE_CONFIG_OFFSET))
+
+#define GBE_CONFIG_BASE_VIRT    phys_to_virt(GBE_CONFIG_RAM_BASE)
+
+#define GBE_CONFIG_FLASH_WRITE(base, offset, count, data) \
+	(iowrite16_rep(base + offset, data, count))
+
+#define GBE_CONFIG_FLASH_READ(base, offset, count, data) \
+	(ioread16_rep(base + (offset << 1), data, count))
 
 #define er32(reg)							\
 	(readl(hw->hw_addr + ((hw->mac_type >= e1000_82543)		\

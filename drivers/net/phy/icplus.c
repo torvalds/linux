@@ -30,7 +30,7 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-MODULE_DESCRIPTION("ICPlus IP175C PHY driver");
+MODULE_DESCRIPTION("ICPlus IP175C/IC1001 PHY drivers");
 MODULE_AUTHOR("Michael Barkowski");
 MODULE_LICENSE("GPL");
 
@@ -89,6 +89,33 @@ static int ip175c_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int ip1001_config_init(struct phy_device *phydev)
+{
+	int err, value;
+
+	/* Software Reset PHY */
+	value = phy_read(phydev, MII_BMCR);
+	value |= BMCR_RESET;
+	err = phy_write(phydev, MII_BMCR, value);
+	if (err < 0)
+		return err;
+
+	do {
+		value = phy_read(phydev, MII_BMCR);
+	} while (value & BMCR_RESET);
+
+	/* Additional delay (2ns) used to adjust RX clock phase
+	 * at GMII/ RGMII interface */
+	value = phy_read(phydev, 16);
+	value |= 0x3;
+
+	err = phy_write(phydev, 16, value);
+	if (err < 0)
+		return err;
+
+	return err;
+}
+
 static int ip175c_read_status(struct phy_device *phydev)
 {
 	if (phydev->addr == 4) /* WAN port */
@@ -121,21 +148,43 @@ static struct phy_driver ip175c_driver = {
 	.driver		= { .owner = THIS_MODULE,},
 };
 
-static int __init ip175c_init(void)
+static struct phy_driver ip1001_driver = {
+	.phy_id		= 0x02430d90,
+	.name		= "ICPlus IP1001",
+	.phy_id_mask	= 0x0ffffff0,
+	.features	= PHY_GBIT_FEATURES | SUPPORTED_Pause |
+			  SUPPORTED_Asym_Pause,
+	.config_init	= &ip1001_config_init,
+	.config_aneg	= &genphy_config_aneg,
+	.read_status	= &genphy_read_status,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+	.driver		= { .owner = THIS_MODULE,},
+};
+
+static int __init icplus_init(void)
 {
+	int ret = 0;
+
+	ret = phy_driver_register(&ip1001_driver);
+	if (ret < 0)
+		return -ENODEV;
+
 	return phy_driver_register(&ip175c_driver);
 }
 
-static void __exit ip175c_exit(void)
+static void __exit icplus_exit(void)
 {
+	phy_driver_unregister(&ip1001_driver);
 	phy_driver_unregister(&ip175c_driver);
 }
 
-module_init(ip175c_init);
-module_exit(ip175c_exit);
+module_init(icplus_init);
+module_exit(icplus_exit);
 
 static struct mdio_device_id __maybe_unused icplus_tbl[] = {
 	{ 0x02430d80, 0x0ffffff0 },
+	{ 0x02430d90, 0x0ffffff0 },
 	{ }
 };
 

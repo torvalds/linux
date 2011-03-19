@@ -7,7 +7,7 @@
 // Copyright: (C) 2010 Julia Lawall, DIKU.  GPLv2.
 // Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.  GPLv2.
 // URL: http://coccinelle.lip6.fr/
-// Comments:
+// Comments: requires at least Coccinelle 0.2.4, lex or parse error otherwise
 // Options: -no_includes -include_headers
 
 virtual org
@@ -19,7 +19,7 @@ position p0,p;
 expression E;
 @@
 
-struct I s =@p0 { ... .fld@p = E, ...};
+struct I s =@p0 { ..., .fld@p = E, ...};
 
 @s@
 identifier I, s, r.fld;
@@ -27,7 +27,7 @@ position r.p0,p;
 expression E;
 @@
 
-struct I s =@p0 { ... .fld@p = E, ...};
+struct I s =@p0 { ..., .fld@p = E, ...};
 
 @script:python depends on org@
 p0 << r.p0;

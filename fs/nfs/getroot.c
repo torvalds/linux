@@ -63,9 +63,11 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 		 * This again causes shrink_dcache_for_umount_subtree() to
 		 * Oops, since the test for IS_ROOT() will fail.
 		 */
-		spin_lock(&dcache_lock);
+		spin_lock(&sb->s_root->d_inode->i_lock);
+		spin_lock(&sb->s_root->d_lock);
 		list_del_init(&sb->s_root->d_alias);
-		spin_unlock(&dcache_lock);
+		spin_unlock(&sb->s_root->d_lock);
+		spin_unlock(&sb->s_root->d_inode->i_lock);
 	}
 	return 0;
 }
@@ -117,9 +119,6 @@ struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 	}
 
 	security_d_instantiate(ret, inode);
-
-	if (ret->d_op == NULL)
-		ret->d_op = server->nfs_client->rpc_ops->dentry_ops;
 out:
 	nfs_free_fattr(fsinfo.fattr);
 	return ret;
@@ -224,9 +223,6 @@ struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 	}
 
 	security_d_instantiate(ret, inode);
-
-	if (ret->d_op == NULL)
-		ret->d_op = server->nfs_client->rpc_ops->dentry_ops;
 
 out:
 	nfs_free_fattr(fattr);

@@ -455,6 +455,8 @@ enum {
 	SHDMA_SLAVE_SDHI1_TX,
 	SHDMA_SLAVE_SDHI2_RX,
 	SHDMA_SLAVE_SDHI2_TX,
+	SHDMA_SLAVE_MMCIF_RX,
+	SHDMA_SLAVE_MMCIF_TX,
 };
 
 extern struct clk sh7372_extal1_clk;
@@ -464,5 +466,7 @@ extern struct clk sh7372_dv_clki_div2_clk;
 extern struct clk sh7372_pllc2_clk;
 extern struct clk sh7372_fsiack_clk;
 extern struct clk sh7372_fsibck_clk;
+extern struct clk sh7372_fsidiva_clk;
+extern struct clk sh7372_fsidivb_clk;
 
 #endif /* __ASM_SH7372_H__ */

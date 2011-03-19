@@ -1542,7 +1542,7 @@ out:
 	return err;
 }
 
-static void __exit n2_unregister_algs(void)
+static void __devexit n2_unregister_algs(void)
 {
 	mutex_lock(&spu_lock);
 	if (!--algs_registered)
@@ -1832,7 +1832,7 @@ static int __devinit get_irq_props(struct mdesc_handle *mdesc, u64 node,
 		return -ENODEV;
 
 	ino = mdesc_get_property(mdesc, node, "ino", &ino_len);
-	if (!intr)
+	if (!ino)
 		return -ENODEV;
 
 	if (intr_len != ino_len)

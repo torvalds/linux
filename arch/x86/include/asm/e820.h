@@ -72,6 +72,9 @@ struct e820map {
 #define BIOS_BEGIN		0x000a0000
 #define BIOS_END		0x00100000
 
+#define BIOS_ROM_BASE		0xffe00000
+#define BIOS_ROM_END		0xffffffff
+
 #ifdef __KERNEL__
 /* see comment in arch/x86/kernel/e820.c */
 extern struct e820map e820;

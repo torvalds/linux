@@ -47,6 +47,11 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
+	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
+			     NV40_USER(chan->id), PAGE_SIZE);
+	if (!chan->user)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
@@ -59,7 +64,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 			      NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			      0x30000000 /* no idea.. */);
-	nv_wi32(dev, fc + 56, chan->ramin_grctx->pinst >> 4);
 	nv_wi32(dev, fc + 60, 0x0001FFFF);
 
 	/* enable the fifo dma operation */
@@ -68,17 +72,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
-}
-
-void
-nv40_fifo_destroy_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-
-	nv_wr32(dev, NV04_PFIFO_MODE,
-		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
-
-	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 
 static void
@@ -279,6 +272,7 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 static void
 nv40_fifo_init_intr(struct drm_device *dev)
 {
+	nouveau_irq_register(dev, 8, nv04_fifo_isr);
 	nv_wr32(dev, 0x002100, 0xffffffff);
 	nv_wr32(dev, 0x002140, 0xffffffff);
 }
@@ -301,7 +295,7 @@ nv40_fifo_init(struct drm_device *dev)
 	pfifo->reassign(dev, true);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		if (dev_priv->fifos[i]) {
+		if (dev_priv->channels.ptr[i]) {
 			uint32_t mode = nv_rd32(dev, NV04_PFIFO_MODE);
 			nv_wr32(dev, NV04_PFIFO_MODE, mode | (1 << i));
 		}

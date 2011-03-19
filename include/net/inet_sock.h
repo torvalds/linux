@@ -116,8 +116,9 @@ struct inet_sock {
 	struct ipv6_pinfo	*pinet6;
 #endif
 	/* Socket demultiplex comparisons on incoming packets. */
-	__be32			inet_daddr;
-	__be32			inet_rcv_saddr;
+#define inet_daddr		sk.__sk_common.skc_daddr
+#define inet_rcv_saddr		sk.__sk_common.skc_rcv_saddr
+
 	__be16			inet_dport;
 	__u16			inet_num;
 	__be32			inet_saddr;
@@ -141,7 +142,7 @@ struct inet_sock {
 				nodefrag:1;
 	int			mc_index;
 	__be32			mc_addr;
-	struct ip_mc_socklist	*mc_list;
+	struct ip_mc_socklist __rcu	*mc_list;
 	struct {
 		unsigned int		flags;
 		unsigned int		fragsize;

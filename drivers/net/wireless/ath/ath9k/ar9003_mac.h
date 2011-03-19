@@ -65,7 +65,7 @@ struct ar9003_rxs {
 	u32 status9;
 	u32 status10;
 	u32 status11;
-} __packed;
+} __packed __aligned(4);
 
 /* Transmit Control Descriptor */
 struct ar9003_txc {
@@ -93,7 +93,7 @@ struct ar9003_txc {
 	u32 ctl21;  /* DMA control 21 */
 	u32 ctl22;  /* DMA control 22 */
 	u32 pad[9]; /* pad to cache line (128 bytes/32 dwords) */
-} __packed;
+} __packed __aligned(4);
 
 struct ar9003_txs {
 	u32 ds_info;
@@ -105,7 +105,7 @@ struct ar9003_txs {
 	u32 status6;
 	u32 status7;
 	u32 status8;
-} __packed;
+} __packed __aligned(4);
 
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw);
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size);

@@ -355,6 +355,12 @@ throtl_start_new_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 			tg->slice_end[rw], jiffies);
 }
 
+static inline void throtl_set_slice_end(struct throtl_data *td,
+		struct throtl_grp *tg, bool rw, unsigned long jiffy_end)
+{
+	tg->slice_end[rw] = roundup(jiffy_end, throtl_slice);
+}
+
 static inline void throtl_extend_slice(struct throtl_data *td,
 		struct throtl_grp *tg, bool rw, unsigned long jiffy_end)
 {
@@ -390,6 +396,16 @@ throtl_trim_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 	 */
 	if (throtl_slice_used(td, tg, rw))
 		return;
+
+	/*
+	 * A bio has been dispatched. Also adjust slice_end. It might happen
+	 * that initially cgroup limit was very low resulting in high
+	 * slice_end, but later limit was bumped up and bio was dispached
+	 * sooner, then we need to reduce slice_end. A high bogus slice_end
+	 * is bad because it does not allow new slice to start.
+	 */
+
+	throtl_set_slice_end(td, tg, rw, jiffies + throtl_slice);
 
 	time_elapsed = jiffies - tg->slice_start[rw];
 
@@ -645,7 +661,7 @@ static int throtl_dispatch_tg(struct throtl_data *td, struct throtl_grp *tg,
 {
 	unsigned int nr_reads = 0, nr_writes = 0;
 	unsigned int max_nr_reads = throtl_grp_quantum*3/4;
-	unsigned int max_nr_writes = throtl_grp_quantum - nr_reads;
+	unsigned int max_nr_writes = throtl_grp_quantum - max_nr_reads;
 	struct bio *bio;
 
 	/* Try to dispatch 75% READS and 25% WRITES */
@@ -709,26 +725,21 @@ static void throtl_process_limit_change(struct throtl_data *td)
 	struct throtl_grp *tg;
 	struct hlist_node *pos, *n;
 
-	/*
-	 * Make sure atomic_inc() effects from
-	 * throtl_update_blkio_group_read_bps(), group of functions are
-	 * visible.
-	 * Is this required or smp_mb__after_atomic_inc() was suffcient
-	 * after the atomic_inc().
-	 */
-	smp_rmb();
 	if (!atomic_read(&td->limits_changed))
 		return;
 
 	throtl_log(td, "limit changed =%d", atomic_read(&td->limits_changed));
 
-	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
-		/*
-		 * Do I need an smp_rmb() here to make sure tg->limits_changed
-		 * update is visible. I am relying on smp_rmb() at the
-		 * beginning of function and not putting a new one here.
-		 */
+	/*
+	 * Make sure updates from throtl_update_blkio_group_read_bps() group
+	 * of functions to tg->limits_changed are visible. We do not
+	 * want update td->limits_changed to be visible but update to
+	 * tg->limits_changed not being visible yet on this cpu. Hence
+	 * the read barrier.
+	 */
+	smp_rmb();
 
+	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
 		if (throtl_tg_on_rr(tg) && tg->limits_changed) {
 			throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
 				" riops=%u wiops=%u", tg->bps[READ],

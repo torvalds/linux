@@ -177,9 +177,16 @@ static struct inode *hpfs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void hpfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(hpfs_inode_cachep, hpfs_i(inode));
+}
+
 static void hpfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(hpfs_inode_cachep, hpfs_i(inode));
+	call_rcu(&inode->i_rcu, hpfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -543,6 +550,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	/* Fill superblock stuff */
 	s->s_magic = HPFS_SUPER_MAGIC;
 	s->s_op = &hpfs_sops;
+	s->s_d_op = &hpfs_dentry_operations;
 
 	sbi->sb_root = superblock->root;
 	sbi->sb_fs_size = superblock->n_sectors;
@@ -644,7 +652,6 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		iput(root);
 		goto bail0;
 	}
-	hpfs_set_dentry_operations(s->s_root);
 
 	/*
 	 * find the root directory's . pointer & finish filling in the inode

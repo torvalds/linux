@@ -1004,7 +1004,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_start_off = skb_checksum_start_offset(skb);
 		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl = (TXDCTRL_CENAB |
@@ -2380,10 +2380,8 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 	 */
 	mutex_unlock(&gp->pm_mutex);
 
-	/* Wait for a pending reset task to complete */
-	while (gp->reset_task_pending)
-		yield();
-	flush_scheduled_work();
+	/* Wait for the pending reset task to complete */
+	flush_work_sync(&gp->reset_task);
 
 	/* Shut the PHY down eventually and setup WOL */
 	gem_stop_phy(gp, gp->asleep_wol);
@@ -2928,10 +2926,8 @@ static void gem_remove_one(struct pci_dev *pdev)
 		/* We shouldn't need any locking here */
 		gem_get_cell(gp);
 
-		/* Wait for a pending reset task to complete */
-		while (gp->reset_task_pending)
-			yield();
-		flush_scheduled_work();
+		/* Cancel reset task */
+		cancel_work_sync(&gp->reset_task);
 
 		/* Shut the PHY down */
 		gem_stop_phy(gp, 0);

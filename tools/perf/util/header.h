@@ -81,9 +81,11 @@ void perf_header_attr__delete(struct perf_header_attr *self);
 int perf_header_attr__add_id(struct perf_header_attr *self, u64 id);
 
 u64 perf_header__sample_type(struct perf_header *header);
+bool perf_header__sample_id_all(const struct perf_header *header);
 struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header);
 void perf_header__set_feat(struct perf_header *self, int feat);
+void perf_header__clear_feat(struct perf_header *self, int feat);
 bool perf_header__has_feat(const struct perf_header *self, int feat);
 
 int perf_header__process_sections(struct perf_header *self, int fd,
@@ -111,8 +113,7 @@ int event__synthesize_event_types(event__handler_t process,
 int event__process_event_type(event_t *self,
 			      struct perf_session *session);
 
-int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
-				   int nb_events,
+int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
 				   event__handler_t process,
 				   struct perf_session *session);
 int event__process_tracing_data(event_t *self,

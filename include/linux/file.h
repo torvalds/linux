@@ -23,7 +23,7 @@ extern struct file *alloc_file(struct path *, fmode_t mode,
 
 static inline void fput_light(struct file *file, int fput_needed)
 {
-	if (unlikely(fput_needed))
+	if (fput_needed)
 		fput(file);
 }
 

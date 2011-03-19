@@ -160,7 +160,7 @@ static int log_rtas_len(char * buf)
 	/* rtas fixed header */
 	len = 8;
 	err = (struct rtas_error_log *)buf;
-	if (err->extended_log_length) {
+	if (err->extended && err->extended_log_length) {
 
 		/* extended header */
 		len += err->extended_log_length;

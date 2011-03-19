@@ -135,6 +135,7 @@ static const struct key_entry toshiba_acpi_keymap[] __initconst = {
 	{ KE_KEY, 0x141, { KEY_BRIGHTNESSUP } },
 	{ KE_KEY, 0x142, { KEY_WLAN } },
 	{ KE_KEY, 0x143, { KEY_PROG1 } },
+	{ KE_KEY, 0x17f, { KEY_FN } },
 	{ KE_KEY, 0xb05, { KEY_PROG2 } },
 	{ KE_KEY, 0xb06, { KEY_WWW } },
 	{ KE_KEY, 0xb07, { KEY_MAIL } },
@@ -840,7 +841,7 @@ static void remove_toshiba_proc_entries(void)
 	remove_proc_entry("version", toshiba_proc_dir);
 }
 
-static struct backlight_ops toshiba_backlight_data = {
+static const struct backlight_ops toshiba_backlight_data = {
         .get_brightness = get_lcd,
         .update_status  = set_lcd_status,
 };

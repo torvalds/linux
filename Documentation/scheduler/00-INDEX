@@ -3,7 +3,7 @@
 sched-arch.txt
 	- CPU Scheduler implementation hints for architecture specific code.
 sched-design-CFS.txt
-	- goals, design and implementation of the Complete Fair Scheduler.
+	- goals, design and implementation of the Completely Fair Scheduler.
 sched-domains.txt
 	- information on scheduling domains.
 sched-nice-design.txt

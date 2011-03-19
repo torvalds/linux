@@ -1198,7 +1198,7 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 
 	atomic_inc(&cam->reset_disable);
 
-	flush_scheduled_work();
+	flush_work_sync(&cam->sensor_reset_work);
 
 	rval = videobuf_streamoff(q);
 	if (!rval) {
@@ -1512,7 +1512,7 @@ static int omap24xxcam_release(struct file *file)
 
 	atomic_inc(&cam->reset_disable);
 
-	flush_scheduled_work();
+	flush_work_sync(&cam->sensor_reset_work);
 
 	/* stop streaming capture */
 	videobuf_streamoff(&fh->vbq);
@@ -1536,7 +1536,7 @@ static int omap24xxcam_release(struct file *file)
 	 * not be scheduled anymore since streaming is already
 	 * disabled.)
 	 */
-	flush_scheduled_work();
+	flush_work_sync(&cam->sensor_reset_work);
 
 	mutex_lock(&cam->mutex);
 	if (atomic_dec_return(&cam->users) == 0) {

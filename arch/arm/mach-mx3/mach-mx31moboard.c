@@ -40,8 +40,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
-#include <mach/mmc.h>
-#include <mach/mxc_ehci.h>
 #include <mach/mx3_camera.h>
 #include <mach/spi.h>
 #include <mach/ulpi.h>
@@ -170,11 +168,11 @@ static const struct spi_imx_master moboard_spi1_pdata __initconst = {
 
 static struct regulator_consumer_supply sdhc_consumers[] = {
 	{
-		.dev	= &mxcsdhc_device0.dev,
+		.dev_name = "mxc-mmc.0",
 		.supply	= "sdhc0_vcc",
 	},
 	{
-		.dev	= &mxcsdhc_device1.dev,
+		.dev_name = "mxc-mmc.1",
 		.supply	= "sdhc1_vcc",
 	},
 };
@@ -218,11 +216,11 @@ static struct regulator_init_data cam_vreg_data = {
 
 static struct mc13783_regulator_init_data moboard_regulators[] = {
 	{
-		.id = MC13783_REGU_VMMC1,
+		.id = MC13783_REG_VMMC1,
 		.init_data = &sdhc_vreg_data,
 	},
 	{
-		.id = MC13783_REGU_VCAM,
+		.id = MC13783_REG_VCAM,
 		.init_data = &cam_vreg_data,
 	},
 };
@@ -345,7 +343,7 @@ static void moboard_sdhc1_exit(struct device *dev, void *data)
 	gpio_free(SDHC1_CD);
 }
 
-static struct imxmmc_platform_data sdhc1_pdata = {
+static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
 	.get_ro	= moboard_sdhc1_get_ro,
 	.init	= moboard_sdhc1_init,
 	.exit	= moboard_sdhc1_exit,
@@ -404,17 +402,23 @@ static void usb_xcvr_reset(void)
 
 #if defined(CONFIG_USB_ULPI)
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static int __init moboard_usbh2_init(void)
 {
+	struct platform_device *pdev;
+
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	return mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	pdev = imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
 }
 #else
 static inline int moboard_usbh2_init(void) { return 0; }
@@ -520,7 +524,7 @@ static void __init mxc_board_init(void)
 	spi_register_board_info(moboard_spi_board_info,
 		ARRAY_SIZE(moboard_spi_board_info));
 
-	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
+	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	if (!mx31moboard_cam_alloc_dma(CAMERA_BUF_SIZE))

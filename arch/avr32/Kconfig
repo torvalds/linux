@@ -1,8 +1,8 @@
 config AVR32
 	def_bool y
-	# With EMBEDDED=n, we get lots of stuff automatically selected
+	# With EXPERT=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
-	select EMBEDDED
+	select EXPERT
 	select HAVE_CLK
 	select HAVE_OPROFILE
 	select HAVE_KPROBES

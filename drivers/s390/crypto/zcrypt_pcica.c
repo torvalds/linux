@@ -373,6 +373,7 @@ static int zcrypt_pcica_probe(struct ap_device *ap_dev)
 	zdev->min_mod_size = PCICA_MIN_MOD_SIZE;
 	zdev->max_mod_size = PCICA_MAX_MOD_SIZE;
 	zdev->speed_rating = PCICA_SPEED_RATING;
+	zdev->max_exp_bit_length = PCICA_MAX_MOD_SIZE;
 	ap_dev->reply = &zdev->reply;
 	ap_dev->private = zdev;
 	rc = zcrypt_device_register(zdev);

@@ -134,6 +134,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_COPPER_DUAL:
 	case E1000_DEV_ID_DH89XXCC_SGMII:
 	case E1000_DEV_ID_DH89XXCC_SERDES:
+	case E1000_DEV_ID_DH89XXCC_BACKPLANE:
+	case E1000_DEV_ID_DH89XXCC_SFP:
 		mac->type = e1000_82580;
 		break;
 	case E1000_DEV_ID_I350_COPPER:
@@ -1478,6 +1480,39 @@ out:
 }
 
 /**
+ *  igb_vmdq_set_anti_spoofing_pf - enable or disable anti-spoofing
+ *  @hw: pointer to the hardware struct
+ *  @enable: state to enter, either enabled or disabled
+ *  @pf: Physical Function pool - do not set anti-spoofing for the PF
+ *
+ *  enables/disables L2 switch anti-spoofing functionality.
+ **/
+void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
+{
+	u32 dtxswc;
+
+	switch (hw->mac.type) {
+	case e1000_82576:
+	case e1000_i350:
+		dtxswc = rd32(E1000_DTXSWC);
+		if (enable) {
+			dtxswc |= (E1000_DTXSWC_MAC_SPOOF_MASK |
+				   E1000_DTXSWC_VLAN_SPOOF_MASK);
+			/* The PF can spoof - it has to in order to
+			 * support emulation mode NICs */
+			dtxswc ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
+		} else {
+			dtxswc &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
+				    E1000_DTXSWC_VLAN_SPOOF_MASK);
+		}
+		wr32(E1000_DTXSWC, dtxswc);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
  *  igb_vmdq_set_loopback_pf - enable or disable vmdq loopback
  *  @hw: pointer to the hardware struct
  *  @enable: state to enter, either enabled or disabled
@@ -1578,7 +1613,7 @@ static s32 igb_reset_mdicnfg_82580(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 	u32 mdicnfg;
-	u16 nvm_data;
+	u16 nvm_data = 0;
 
 	if (hw->mac.type != e1000_82580)
 		goto out;

@@ -2022,6 +2022,9 @@ struct iwl_compressed_ba_resp {
 	__le64 bitmap;
 	__le16 scd_flow;
 	__le16 scd_ssn;
+	/* following only for 5000 series and up */
+	u8 txed;	/* number of frames sent */
+	u8 txed_2_done; /* number of frames acked */
 } __packed;
 
 /*
@@ -2407,9 +2410,9 @@ struct iwl_link_quality_cmd {
 #define BT_FRAG_THRESHOLD_MAX	0
 #define BT_FRAG_THRESHOLD_MIN	0
 
-#define BT_AGG_THRESHOLD_DEF	0
-#define BT_AGG_THRESHOLD_MAX	0
-#define BT_AGG_THRESHOLD_MIN	0
+#define BT_AGG_THRESHOLD_DEF	1200
+#define BT_AGG_THRESHOLD_MAX	8000
+#define BT_AGG_THRESHOLD_MIN	400
 
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
@@ -2436,8 +2439,9 @@ struct iwl_bt_cmd {
 #define IWLAGN_BT_FLAG_COEX_MODE_3W		2
 #define IWLAGN_BT_FLAG_COEX_MODE_4W		3
 
-#define IWLAGN_BT_FLAG_UCODE_DEFAULT	BIT(6)
-#define IWLAGN_BT_FLAG_NOCOEX_NOTIF	BIT(7)
+#define IWLAGN_BT_FLAG_UCODE_DEFAULT		BIT(6)
+/* Disable Sync PSPoll on SCO/eSCO */
+#define IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE	BIT(7)
 
 #define IWLAGN_BT_PRIO_BOOST_MAX	0xFF
 #define IWLAGN_BT_PRIO_BOOST_MIN	0x00
@@ -2447,8 +2451,9 @@ struct iwl_bt_cmd {
 
 #define IWLAGN_BT3_T7_DEFAULT		1
 
-#define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffffffff)
-#define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffffffff)
+#define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffff0000)
+#define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffff0000)
+#define IWLAGN_BT_KILL_ACK_CTS_MASK_SCO	cpu_to_le32(0xffffffff)
 
 #define IWLAGN_BT3_PRIO_SAMPLE_DEFAULT	2
 
@@ -2664,9 +2669,16 @@ struct iwl_spectrum_notification {
 #define IWL_POWER_VEC_SIZE 5
 
 #define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	cpu_to_le16(BIT(0))
+#define IWL_POWER_POWER_SAVE_ENA_MSK		cpu_to_le16(BIT(0))
+#define IWL_POWER_POWER_MANAGEMENT_ENA_MSK	cpu_to_le16(BIT(1))
 #define IWL_POWER_SLEEP_OVER_DTIM_MSK		cpu_to_le16(BIT(2))
 #define IWL_POWER_PCI_PM_MSK			cpu_to_le16(BIT(3))
 #define IWL_POWER_FAST_PD			cpu_to_le16(BIT(4))
+#define IWL_POWER_BEACON_FILTERING		cpu_to_le16(BIT(5))
+#define IWL_POWER_SHADOW_REG_ENA		cpu_to_le16(BIT(6))
+#define IWL_POWER_CT_KILL_SET			cpu_to_le16(BIT(7))
+#define IWL_POWER_BT_SCO_ENA			cpu_to_le16(BIT(8))
+#define IWL_POWER_ADVANCE_PM_ENA_MSK		cpu_to_le16(BIT(9))
 
 struct iwl3945_powertable_cmd {
 	__le16 flags;

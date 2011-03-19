@@ -1,8 +1,0 @@
-This is an obsolete driver for some cpia-based webcams that use the parallel port.
-We couldn't find anyone with this hardware in order to port it to use V4L2.
-
-Also, parallel-port webcams are obsolete nowadays.
-
-If nobody take care on it, the driver will be removed for 2.6.38.
-
-Please send patches to linux-media@vger.kernel.org

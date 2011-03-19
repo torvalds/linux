@@ -62,4 +62,6 @@
 #define PORT_FIO1 GPIO_16
 #define PORT_FIO2 GPIO_32
 
+#include <mach-common/ports-f.h>
+
 #endif /* _MACH_GPIO_H_ */

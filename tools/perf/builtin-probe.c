@@ -249,6 +249,11 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	     !params.show_lines))
 		usage_with_options(probe_usage, options);
 
+	/*
+	 * Only consider the user's kernel image path if given.
+	 */
+	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
+
 	if (params.list_events) {
 		if (params.mod_events) {
 			pr_err("  Error: Don't use --list with --add/--del.\n");

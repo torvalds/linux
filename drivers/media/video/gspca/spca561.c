@@ -597,7 +597,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 	else if (sd->gain < 128)
 		gspca_dev->usb_buf[0] = (sd->gain / 2) | 0x40;
 	else
-		gspca_dev->usb_buf[0] = (sd->gain / 4) | 0xC0;
+		gspca_dev->usb_buf[0] = (sd->gain / 4) | 0xc0;
 
 	gspca_dev->usb_buf[1] = 0;
 	reg_w_buf(gspca_dev, 0x8335, 2);
@@ -1061,7 +1061,7 @@ static const struct sd_desc *sd_desc[2] = {
 };
 
 /* -- module initialisation -- */
-static const __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x401a), .driver_info = Rev072A},
 	{USB_DEVICE(0x041e, 0x403b), .driver_info = Rev012A},
 	{USB_DEVICE(0x0458, 0x7004), .driver_info = Rev072A},

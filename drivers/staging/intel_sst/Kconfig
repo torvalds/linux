@@ -8,6 +8,7 @@ config SND_INTEL_SST
 
 config SND_INTELMID
 	tristate "Intel MID sound card driver"
+	depends on SOUND && SND
 	select SND_PCM
 	select SND_SEQUENCER
 	select SND_JACK

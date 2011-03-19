@@ -95,8 +95,8 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 		 * counter width:
 		 */
 		if (!(eax.split.version_id == 0 &&
-			current_cpu_data.x86 == 6 &&
-				current_cpu_data.x86_model == 15)) {
+			__this_cpu_read(cpu_info.x86) == 6 &&
+				__this_cpu_read(cpu_info.x86_model) == 15)) {
 
 			if (counter_width < eax.split.bit_width)
 				counter_width = eax.split.bit_width;
@@ -235,8 +235,8 @@ static void arch_perfmon_setup_counters(void)
 	eax.full = cpuid_eax(0xa);
 
 	/* Workaround for BIOS bugs in 6/15. Taken from perfmon2 */
-	if (eax.split.version_id == 0 && current_cpu_data.x86 == 6 &&
-		current_cpu_data.x86_model == 15) {
+	if (eax.split.version_id == 0 && __this_cpu_read(cpu_info.x86) == 6 &&
+		__this_cpu_read(cpu_info.x86_model) == 15) {
 		eax.split.version_id = 2;
 		eax.split.num_counters = 2;
 		eax.split.bit_width = 40;

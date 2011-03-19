@@ -168,4 +168,4 @@ out_unregister:
 	return err;
 }
 
-arch_initcall(pcr_arch_init);
+early_initcall(pcr_arch_init);

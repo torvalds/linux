@@ -1483,8 +1483,8 @@ static int stv090x_start_search(struct stv090x_state *state)
 		if (STV090x_WRITE_DEMOD(state, FFECFG, 0x41) < 0)
 			goto err;
 
-		if ((state->search_mode == STV090x_DVBS1)	||
-			(state->search_mode == STV090x_DSS)	||
+		if ((state->search_mode == STV090x_SEARCH_DVBS1)	||
+			(state->search_mode == STV090x_SEARCH_DSS)	||
 			(state->search_mode == STV090x_SEARCH_AUTO)) {
 
 			if (STV090x_WRITE_DEMOD(state, VITSCALE, 0x82) < 0)
@@ -2940,7 +2940,7 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 		STV090x_WRITE_DEMOD(state, ERRCTRL1, 0x67); /* PER */
 		break;
 
-	case STV090x_UNKNOWN:
+	case STV090x_ERROR:
 	default:
 		reg = STV090x_READ_DEMOD(state, DMDCFGMD);
 		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 1);

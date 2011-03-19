@@ -26,8 +26,8 @@
 #include <linux/semaphore.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
-#include <linux/delay.h>
 #include <linux/wait.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
 
@@ -48,10 +48,14 @@
 #define PCI_DEVICE_ID_NEUSOLO_4		0x4304
 #define PCI_DEVICE_ID_NEUSOLO_9		0x4309
 #define PCI_DEVICE_ID_NEUSOLO_16	0x4310
-/* Commell Softlogic 6010 based cards */
-#define PCI_DEVICE_ID_COMMSOLO_4	0x4E04
-#define PCI_DEVICE_ID_COMMSOLO_9	0x4E09
-#define PCI_DEVICE_ID_COMMSOLO_16	0x4E10
+/* Bluecherry Softlogic 6010 based cards */
+#define PCI_DEVICE_ID_BC_SOLO_4		0x4E04
+#define PCI_DEVICE_ID_BC_SOLO_9		0x4E09
+#define PCI_DEVICE_ID_BC_SOLO_16	0x4E10
+/* Bluecherry Softlogic 6110 based cards */
+#define PCI_DEVICE_ID_BC_6110_4		0x5304
+#define PCI_DEVICE_ID_BC_6110_8		0x5308
+#define PCI_DEVICE_ID_BC_6110_16	0x5310
 #endif /* Bluecherry */
 
 #define SOLO6010_NAME			"solo6010"
@@ -64,7 +68,7 @@
 #define SOLO6010_VER_MINOR		0
 #define SOLO6010_VER_SUB		0
 #define SOLO6010_VER_NUM \
-    KERNEL_VERSION(SOLO6010_VER_MAJOR, SOLO6010_VER_MINOR, SOLO6010_VER_SUB)
+	KERNEL_VERSION(SOLO6010_VER_MAJOR, SOLO6010_VER_MINOR, SOLO6010_VER_SUB)
 
 /*
  * The SOLO6010 actually has 8 i2c channels, but we only use 2.
@@ -78,7 +82,6 @@
 /* DMA Engine setup */
 #define SOLO_NR_P2M			4
 #define SOLO_NR_P2M_DESC		256
-#define SOLO_P2M_DESC_SIZE		(SOLO_NR_P2M_DESC * 16)
 /* MPEG and JPEG share the same interrupt and locks so they must be together
  * in the same dma channel. */
 #define SOLO_P2M_DMA_ID_MP4E		0
@@ -123,11 +126,17 @@ enum SOLO_I2C_STATE {
 	IIC_STATE_STOP
 };
 
+struct p2m_desc {
+	u32 ctrl;
+	u32 ext;
+	u32 ta;
+	u32 fa;
+};
+
 struct solo_p2m_dev {
-	struct semaphore	sem;
+	struct mutex		mutex;
 	struct completion	completion;
 	int			error;
-	u8			desc[SOLO_P2M_DESC_SIZE];
 };
 
 #define OSD_TEXT_MAX		30
@@ -185,7 +194,7 @@ struct solo6010_dev {
 	/* i2c related items */
 	struct i2c_adapter	i2c_adap[SOLO_I2C_ADAPTERS];
 	enum SOLO_I2C_STATE	i2c_state;
-	struct semaphore	i2c_sem;
+	struct mutex		i2c_mutex;
 	int			i2c_id;
 	wait_queue_head_t	i2c_wait;
 	struct i2c_msg		*i2c_msg;
@@ -212,7 +221,7 @@ struct solo6010_dev {
 	struct solo_enc_buf	enc_buf[SOLO_NR_RING_BUFS];
 
 	/* Current video settings */
-	u32 			video_type;
+	u32			video_type;
 	u16			video_hsize, video_vsize;
 	u16			vout_hstart, vout_vstart;
 	u16			vin_hstart, vin_vstart;
@@ -306,6 +315,14 @@ int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
 		   dma_addr_t dma_addr, u32 ext_addr, u32 size);
 int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
 		 void *sys_addr, u32 ext_addr, u32 size);
+int solo_p2m_dma_sg(struct solo6010_dev *solo_dev, u8 id,
+		    struct p2m_desc *pdesc, int wr,
+		    struct scatterlist *sglist, u32 sg_off,
+		    u32 ext_addr, u32 size);
+void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
+			u32 ext_addr, u32 size, int repeat, u32 ext_size);
+int solo_p2m_dma_desc(struct solo6010_dev *solo_dev, u8 id,
+		      struct p2m_desc *desc, int desc_count);
 
 /* Set the threshold for motion detection */
 void solo_set_motion_threshold(struct solo6010_dev *solo_dev, u8 ch, u16 val);

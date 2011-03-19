@@ -196,7 +196,7 @@ csrow3.
 The representation of the above is reflected in the directory tree
 in EDAC's sysfs interface. Starting in directory
 /sys/devices/system/edac/mc each memory controller will be represented
-by its own 'mcX' directory, where 'X" is the index of the MC.
+by its own 'mcX' directory, where 'X' is the index of the MC.
 
 
 	..../edac/mc/
@@ -207,7 +207,7 @@ by its own 'mcX' directory, where 'X" is the index of the MC.
 		   ....
 
 Under each 'mcX' directory each 'csrowX' is again represented by a
-'csrowX', where 'X" is the csrow index:
+'csrowX', where 'X' is the csrow index:
 
 
 	.../mc/mc0/
@@ -232,7 +232,7 @@ EDAC control and attribute files.
 
 
 In 'mcX' directories are EDAC control and attribute files for
-this 'X" instance of the memory controllers:
+this 'X' instance of the memory controllers:
 
 
 Counter reset control file:
@@ -343,7 +343,7 @@ Sdram memory scrubbing rate:
 'csrowX' DIRECTORIES
 
 In the 'csrowX' directories are EDAC control and attribute files for
-this 'X" instance of csrow:
+this 'X' instance of csrow:
 
 
 Total Uncorrectable Errors count attribute file:

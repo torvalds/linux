@@ -64,8 +64,6 @@
 	do { if (0) printk(KERN_CONT format, ##args); } while (0)
 #endif
 
-#define MPOA_TAG_LEN 4
-
 /* mpc_daemon -> kernel */
 static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc);
 static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc);

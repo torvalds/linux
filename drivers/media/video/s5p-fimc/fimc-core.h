@@ -13,13 +13,15 @@
 
 /*#define DEBUG*/
 
+#include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
 #include <media/s3c_fimc.h>
-#include <linux/videodev2.h>
+
 #include "regs-fimc.h"
 
 #define err(fmt, args...) \
@@ -369,6 +371,7 @@ struct fimc_pix_limit {
  * @pix_hoff: indicate whether horizontal offset is in pixels or in bytes
  * @has_inp_rot: set if has input rotator
  * @has_out_rot: set if has output rotator
+ * @has_cistatus2: 1 if CISTATUS2 register is present in this IP revision
  * @pix_limit: pixel size constraints for the scaler
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
@@ -379,6 +382,7 @@ struct samsung_fimc_variant {
 	unsigned int	pix_hoff:1;
 	unsigned int	has_inp_rot:1;
 	unsigned int	has_out_rot:1;
+	unsigned int	has_cistatus2:1;
 	struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
@@ -554,11 +558,19 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 	return frame;
 }
 
+/* Return an index to the buffer actually being written. */
 static inline u32 fimc_hw_get_frame_index(struct fimc_dev *dev)
 {
-	u32 reg = readl(dev->regs + S5P_CISTATUS);
-	return (reg & S5P_CISTATUS_FRAMECNT_MASK) >>
-		S5P_CISTATUS_FRAMECNT_SHIFT;
+	u32 reg;
+
+	if (dev->variant->has_cistatus2) {
+		reg = readl(dev->regs + S5P_CISTATUS2) & 0x3F;
+		return reg > 0 ? --reg : reg;
+	} else {
+		reg = readl(dev->regs + S5P_CISTATUS);
+		return (reg & S5P_CISTATUS_FRAMECNT_MASK) >>
+			S5P_CISTATUS_FRAMECNT_SHIFT;
+	}
 }
 
 /* -----------------------------------------------------*/
@@ -594,10 +606,6 @@ int fimc_vidioc_g_fmt(struct file *file, void *priv,
 		      struct v4l2_format *f);
 int fimc_vidioc_try_fmt(struct file *file, void *priv,
 			struct v4l2_format *f);
-int fimc_vidioc_g_crop(struct file *file, void *fh,
-		       struct v4l2_crop *cr);
-int fimc_vidioc_cropcap(struct file *file, void *fh,
-			struct v4l2_cropcap *cr);
 int fimc_vidioc_queryctrl(struct file *file, void *priv,
 			  struct v4l2_queryctrl *qc);
 int fimc_vidioc_g_ctrl(struct file *file, void *priv,

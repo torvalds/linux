@@ -199,7 +199,12 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 
 void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
-	unsigned int l2pad = L2PAD_SIZE(header_length);
+	/*
+	 * L2 padding is only present if the skb contains more than just the
+	 * IEEE 802.11 header.
+	 */
+	unsigned int l2pad = (skb->len > header_length) ?
+				L2PAD_SIZE(header_length) : 0;
 
 	if (!l2pad)
 		return;
@@ -309,14 +314,6 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	const struct rt2x00_rate *hwrate;
 
 	memset(txdesc, 0, sizeof(*txdesc));
-
-	/*
-	 * Initialize information from queue
-	 */
-	txdesc->qid = entry->queue->qid;
-	txdesc->cw_min = entry->queue->cw_min;
-	txdesc->cw_max = entry->queue->cw_max;
-	txdesc->aifs = entry->queue->aifs;
 
 	/*
 	 * Header and frame information.
@@ -460,12 +457,9 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry->skb);
 }
 
-static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
+static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
 				      struct txentry_desc *txdesc)
 {
-	struct data_queue *queue = entry->queue;
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-
 	/*
 	 * Check if we need to kick the queue, there are however a few rules
 	 *	1) Don't kick unless this is the last in frame in a burst.
@@ -477,7 +471,7 @@ static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
 	 */
 	if (rt2x00queue_threshold(queue) ||
 	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
-		rt2x00dev->ops->lib->kick_tx_queue(queue);
+		queue->rt2x00dev->ops->lib->kick_queue(queue);
 }
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
@@ -567,7 +561,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
-	rt2x00queue_kick_tx_queue(entry, &txdesc);
+	rt2x00queue_kick_tx_queue(queue, &txdesc);
 
 	return 0;
 }
@@ -591,7 +585,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	rt2x00queue_free_skb(intf->beacon);
 
 	if (!enable_beacon) {
-		rt2x00dev->ops->lib->kill_tx_queue(intf->beacon->queue);
+		rt2x00queue_stop_queue(intf->beacon->queue);
 		mutex_unlock(&intf->beacon_skb_mutex);
 		return 0;
 	}
@@ -649,10 +643,10 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 	 * it should not be kicked during this run, since it
 	 * is part of another TX operation.
 	 */
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 	index_start = queue->index[start];
 	index_end = queue->index[end];
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 
 	/*
 	 * Start from the TX done pointer, this guarentees that we will
@@ -706,11 +700,11 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 		return NULL;
 	}
 
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 
 	entry = &queue->entries[queue->index[index]];
 
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 
 	return entry;
 }
@@ -726,7 +720,7 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 		return;
 	}
 
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 
 	queue->index[index]++;
 	if (queue->index[index] >= queue->limit)
@@ -741,15 +735,219 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 		queue->count++;
 	}
 
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
+
+void rt2x00queue_pause_queue(struct data_queue *queue)
+{
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    !test_bit(QUEUE_STARTED, &queue->flags) ||
+	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
+		return;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		/*
+		 * For TX queues, we have to disable the queue
+		 * inside mac80211.
+		 */
+		ieee80211_stop_queue(queue->rt2x00dev->hw, queue->qid);
+		break;
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_pause_queue);
+
+void rt2x00queue_unpause_queue(struct data_queue *queue)
+{
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    !test_bit(QUEUE_STARTED, &queue->flags) ||
+	    !test_and_clear_bit(QUEUE_PAUSED, &queue->flags))
+		return;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		/*
+		 * For TX queues, we have to enable the queue
+		 * inside mac80211.
+		 */
+		ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
+		break;
+	case QID_RX:
+		/*
+		 * For RX we need to kick the queue now in order to
+		 * receive frames.
+		 */
+		queue->rt2x00dev->ops->lib->kick_queue(queue);
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_unpause_queue);
+
+void rt2x00queue_start_queue(struct data_queue *queue)
+{
+	mutex_lock(&queue->status_lock);
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    test_and_set_bit(QUEUE_STARTED, &queue->flags)) {
+		mutex_unlock(&queue->status_lock);
+		return;
+	}
+
+	set_bit(QUEUE_PAUSED, &queue->flags);
+
+	queue->rt2x00dev->ops->lib->start_queue(queue);
+
+	rt2x00queue_unpause_queue(queue);
+
+	mutex_unlock(&queue->status_lock);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_start_queue);
+
+void rt2x00queue_stop_queue(struct data_queue *queue)
+{
+	mutex_lock(&queue->status_lock);
+
+	if (!test_and_clear_bit(QUEUE_STARTED, &queue->flags)) {
+		mutex_unlock(&queue->status_lock);
+		return;
+	}
+
+	rt2x00queue_pause_queue(queue);
+
+	queue->rt2x00dev->ops->lib->stop_queue(queue);
+
+	mutex_unlock(&queue->status_lock);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_stop_queue);
+
+void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
+{
+	unsigned int i;
+	bool started;
+	bool tx_queue =
+		(queue->qid == QID_AC_VO) ||
+		(queue->qid == QID_AC_VI) ||
+		(queue->qid == QID_AC_BE) ||
+		(queue->qid == QID_AC_BK);
+
+	mutex_lock(&queue->status_lock);
+
+	/*
+	 * If the queue has been started, we must stop it temporarily
+	 * to prevent any new frames to be queued on the device. If
+	 * we are not dropping the pending frames, the queue must
+	 * only be stopped in the software and not the hardware,
+	 * otherwise the queue will never become empty on its own.
+	 */
+	started = test_bit(QUEUE_STARTED, &queue->flags);
+	if (started) {
+		/*
+		 * Pause the queue
+		 */
+		rt2x00queue_pause_queue(queue);
+
+		/*
+		 * If we are not supposed to drop any pending
+		 * frames, this means we must force a start (=kick)
+		 * to the queue to make sure the hardware will
+		 * start transmitting.
+		 */
+		if (!drop && tx_queue)
+			queue->rt2x00dev->ops->lib->kick_queue(queue);
+	}
+
+	/*
+	 * Check if driver supports flushing, we can only guarentee
+	 * full support for flushing if the driver is able
+	 * to cancel all pending frames (drop = true).
+	 */
+	if (drop && queue->rt2x00dev->ops->lib->flush_queue)
+		queue->rt2x00dev->ops->lib->flush_queue(queue);
+
+	/*
+	 * When we don't want to drop any frames, or when
+	 * the driver doesn't fully flush the queue correcly,
+	 * we must wait for the queue to become empty.
+	 */
+	for (i = 0; !rt2x00queue_empty(queue) && i < 100; i++)
+		msleep(10);
+
+	/*
+	 * The queue flush has failed...
+	 */
+	if (unlikely(!rt2x00queue_empty(queue)))
+		WARNING(queue->rt2x00dev, "Queue %d failed to flush", queue->qid);
+
+	/*
+	 * Restore the queue to the previous status
+	 */
+	if (started)
+		rt2x00queue_unpause_queue(queue);
+
+	mutex_unlock(&queue->status_lock);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_flush_queue);
+
+void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	/*
+	 * rt2x00queue_start_queue will call ieee80211_wake_queue
+	 * for each queue after is has been properly initialized.
+	 */
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_start_queue(queue);
+
+	rt2x00queue_start_queue(rt2x00dev->rx);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_start_queues);
+
+void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	/*
+	 * rt2x00queue_stop_queue will call ieee80211_stop_queue
+	 * as well, but we are completely shutting doing everything
+	 * now, so it is much safer to stop all TX queues at once,
+	 * and use rt2x00queue_stop_queue for cleaning up.
+	 */
+	ieee80211_stop_queues(rt2x00dev->hw);
+
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_stop_queue(queue);
+
+	rt2x00queue_stop_queue(rt2x00dev->rx);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_stop_queues);
+
+void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop)
+{
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_flush_queue(queue, drop);
+
+	rt2x00queue_flush_queue(rt2x00dev->rx, drop);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_flush_queues);
 
 static void rt2x00queue_reset(struct data_queue *queue)
 {
 	unsigned long irqflags;
 	unsigned int i;
 
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 
 	queue->count = 0;
 	queue->length = 0;
@@ -759,15 +957,7 @@ static void rt2x00queue_reset(struct data_queue *queue)
 		queue->last_action[i] = jiffies;
 	}
 
-	spin_unlock_irqrestore(&queue->lock, irqflags);
-}
-
-void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-
-	txall_queue_for_each(rt2x00dev, queue)
-		rt2x00dev->ops->lib->kill_tx_queue(queue);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
 void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
@@ -778,11 +968,8 @@ void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 	queue_for_each(rt2x00dev, queue) {
 		rt2x00queue_reset(queue);
 
-		for (i = 0; i < queue->limit; i++) {
+		for (i = 0; i < queue->limit; i++)
 			rt2x00dev->ops->lib->clear_entry(&queue->entries[i]);
-			if (queue->qid == QID_RX)
-				rt2x00queue_index_inc(queue, Q_INDEX);
-		}
 	}
 }
 
@@ -809,8 +996,8 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 		return -ENOMEM;
 
 #define QUEUE_ENTRY_PRIV_OFFSET(__base, __index, __limit, __esize, __psize) \
-	( ((char *)(__base)) + ((__limit) * (__esize)) + \
-	    ((__index) * (__psize)) )
+	(((char *)(__base)) + ((__limit) * (__esize)) + \
+	    ((__index) * (__psize)))
 
 	for (i = 0; i < queue->limit; i++) {
 		entries[i].flags = 0;
@@ -911,7 +1098,8 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
-	spin_lock_init(&queue->lock);
+	mutex_init(&queue->status_lock);
+	spin_lock_init(&queue->index_lock);
 
 	queue->rt2x00dev = rt2x00dev;
 	queue->qid = qid;
@@ -953,7 +1141,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize queue parameters.
 	 * RX: qid = QID_RX
-	 * TX: qid = QID_AC_BE + index
+	 * TX: qid = QID_AC_VO + index
 	 * TX: cw_min: 2^5 = 32.
 	 * TX: cw_max: 2^10 = 1024.
 	 * BCN: qid = QID_BEACON
@@ -961,7 +1149,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00queue_init(rt2x00dev, rt2x00dev->rx, QID_RX);
 
-	qid = QID_AC_BE;
+	qid = QID_AC_VO;
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_init(rt2x00dev, queue, qid++);
 

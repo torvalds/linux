@@ -26,6 +26,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ehea_phyp.h"
 
 
@@ -67,12 +69,11 @@ static long ehea_plpar_hcall_norets(unsigned long opcode,
 		}
 
 		if (ret < H_SUCCESS)
-			ehea_error("opcode=%lx ret=%lx"
-				   " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
-				   " arg5=%lx arg6=%lx arg7=%lx ",
-				   opcode, ret,
-				   arg1, arg2, arg3, arg4, arg5,
-				   arg6, arg7);
+			pr_err("opcode=%lx ret=%lx"
+			       " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
+			       " arg5=%lx arg6=%lx arg7=%lx\n",
+			       opcode, ret,
+			       arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 
 		return ret;
 	}
@@ -114,19 +115,18 @@ static long ehea_plpar_hcall9(unsigned long opcode,
 		    && (((cb_cat == H_PORT_CB4) && ((arg3 == H_PORT_CB4_JUMBO)
 		    || (arg3 == H_PORT_CB4_SPEED))) || ((cb_cat == H_PORT_CB7)
 		    && (arg3 == H_PORT_CB7_DUCQPN)))))
-			ehea_error("opcode=%lx ret=%lx"
-				   " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
-				   " arg5=%lx arg6=%lx arg7=%lx arg8=%lx"
-				   " arg9=%lx"
-				   " out1=%lx out2=%lx out3=%lx out4=%lx"
-				   " out5=%lx out6=%lx out7=%lx out8=%lx"
-				   " out9=%lx",
-				   opcode, ret,
-				   arg1, arg2, arg3, arg4, arg5,
-				   arg6, arg7, arg8, arg9,
-				   outs[0], outs[1], outs[2], outs[3],
-				   outs[4], outs[5], outs[6], outs[7],
-				   outs[8]);
+			pr_err("opcode=%lx ret=%lx"
+			       " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
+			       " arg5=%lx arg6=%lx arg7=%lx arg8=%lx"
+			       " arg9=%lx"
+			       " out1=%lx out2=%lx out3=%lx out4=%lx"
+			       " out5=%lx out6=%lx out7=%lx out8=%lx"
+			       " out9=%lx\n",
+			       opcode, ret,
+			       arg1, arg2, arg3, arg4, arg5,
+			       arg6, arg7, arg8, arg9,
+			       outs[0], outs[1], outs[2], outs[3], outs[4],
+			       outs[5], outs[6], outs[7], outs[8]);
 		return ret;
 	}
 
@@ -515,7 +515,7 @@ u64 ehea_h_register_rpage_mr(const u64 adapter_handle, const u64 mr_handle,
 			     const u64 log_pageaddr, const u64 count)
 {
 	if ((count > 1) && (log_pageaddr & ~PAGE_MASK)) {
-		ehea_error("not on pageboundary");
+		pr_err("not on pageboundary\n");
 		return H_PARAMETER;
 	}
 

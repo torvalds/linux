@@ -151,20 +151,6 @@ config RADIO_GEMTEK_PROBE
 	  following ports will be probed: 0x20c, 0x30c, 0x24c, 0x34c, 0x248 and
 	  0x28c.
 
-config RADIO_GEMTEK_PCI
-	tristate "GemTek PCI Radio Card support"
-	depends on VIDEO_V4L2 && PCI
-	---help---
-	  Choose Y here if you have this PCI FM radio card.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video for Linux API.  Information on
-	  this API and pointers to "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-gemtek-pci.
-
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
 	depends on VIDEO_V4L2 && PCI
@@ -451,5 +437,21 @@ config RADIO_TIMBERDALE
 	  This is a kind of umbrella driver for the Radio Tuner and DSP
 	  found behind the Timberdale FPGA on the Russellville board.
 	  Enabling this driver will automatically select the DSP and tuner.
+
+config RADIO_WL1273
+	tristate "Texas Instruments WL1273 I2C FM Radio"
+	depends on I2C && VIDEO_V4L2
+	select MFD_WL1273_CORE
+	select FW_LOADER
+	---help---
+	  Choose Y here if you have this FM radio chip.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux 2 API.  Information on
+	  this API and pointers to "v4l2" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-wl1273.
 
 endif # RADIO_ADAPTERS

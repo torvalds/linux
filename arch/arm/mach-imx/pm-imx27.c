@@ -32,13 +32,16 @@ static int mx27_suspend_enter(suspend_state_t state)
 	return 0;
 }
 
-static struct platform_suspend_ops mx27_suspend_ops = {
+static const struct platform_suspend_ops mx27_suspend_ops = {
 	.enter = mx27_suspend_enter,
 	.valid = suspend_valid_only_mem,
 };
 
 static int __init mx27_pm_init(void)
 {
+	if (!cpu_is_mx27())
+		return 0;
+
 	suspend_set_ops(&mx27_suspend_ops);
 	return 0;
 }

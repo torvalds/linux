@@ -169,7 +169,10 @@ struct ath5k_vif {
 /* Software Carrier, keeps track of the driver state
  * associated with an instance of a device */
 struct ath5k_softc {
-	struct pci_dev		*pdev;		/* for dma mapping */
+	struct pci_dev		*pdev;
+	struct device		*dev;		/* for dma mapping */
+	int irq;
+	u16 devid;
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
@@ -255,6 +258,8 @@ struct ath5k_softc {
 	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
 
 	struct delayed_work	tx_complete_work;
+
+	struct survey_info	survey;		/* collected survey info */
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

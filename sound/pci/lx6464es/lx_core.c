@@ -1152,7 +1152,7 @@ static int lx_interrupt_request_new_buffer(struct lx6464es *chip,
 					   struct lx_stream *lx_stream)
 {
 	struct snd_pcm_substream *substream = lx_stream->stream;
-	int is_capture = lx_stream->is_capture;
+	const unsigned int is_capture = lx_stream->is_capture;
 	int err;
 	unsigned long flags;
 

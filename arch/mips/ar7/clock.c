@@ -239,12 +239,12 @@ static void tnetd7300_set_clock(u32 shift, struct tnetd7300_clock *clock,
 	calculate(base_clock, frequency, &prediv, &postdiv, &mul);
 
 	writel(((prediv - 1) << PREDIV_SHIFT) | (postdiv - 1), &clock->ctrl);
-	msleep(1);
+	mdelay(1);
 	writel(4, &clock->pll);
 	while (readl(&clock->pll) & PLL_STATUS)
 		;
 	writel(((mul - 1) << MUL_SHIFT) | (0xff << 3) | 0x0e, &clock->pll);
-	msleep(75);
+	mdelay(75);
 }
 
 static void __init tnetd7300_init_clocks(void)
@@ -456,7 +456,7 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_put);
 
-int __init ar7_init_clocks(void)
+void __init ar7_init_clocks(void)
 {
 	switch (ar7_chip_id()) {
 	case AR7_CHIP_7100:
@@ -472,7 +472,4 @@ int __init ar7_init_clocks(void)
 	}
 	/* adjust vbus clock rate */
 	vbus_clk.rate = bus_clk.rate / 2;
-
-	return 0;
 }
-arch_initcall(ar7_init_clocks);

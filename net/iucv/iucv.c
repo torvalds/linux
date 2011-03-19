@@ -36,6 +36,7 @@
 #define KMSG_COMPONENT "iucv"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
@@ -1804,6 +1805,7 @@ static void iucv_external_interrupt(unsigned int ext_int_code,
 	struct iucv_irq_data *p;
 	struct iucv_irq_list *work;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_IUC]++;
 	p = iucv_irq_data[smp_processor_id()];
 	if (p->ippathid >= iucv_max_pathid) {
 		WARN_ON(p->ippathid >= iucv_max_pathid);

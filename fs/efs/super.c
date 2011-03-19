@@ -65,9 +65,16 @@ static struct inode *efs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void efs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
+}
+
 static void efs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
+	call_rcu(&inode->i_rcu, efs_i_callback);
 }
 
 static void init_once(void *foo)

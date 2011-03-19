@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Renesas Solutions Corp.
+ * Copyright (C) 2010  Paul Mundt
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,26 +14,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 
 	.macro  disable_fiq
 	.endm
 
 	.macro  get_irqnr_preamble, base, tmp
-	ldr     \base, =INTFLGA
-	.endm
-
-	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
 	.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-	ldr     \irqnr, [\base]
-	cmp	\irqnr, #0
-	beq	1000f
-	/* intevt to irq number */
-	lsr	\irqnr, \irqnr, #0x5
-	subs	\irqnr, \irqnr, #16
+	.endm
 
-1000:
+	.macro  test_for_ipi, irqnr, irqstat, base, tmp
+	.endm
+
+	.macro  test_for_ltirq, irqnr, irqstat, base, tmp
+	.endm
+
+	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm

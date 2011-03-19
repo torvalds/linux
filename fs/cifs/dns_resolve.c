@@ -66,7 +66,7 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	/* Search for server name delimiter */
 	sep = memchr(hostname, '\\', len);
 	if (sep)
-		len = sep - unc;
+		len = sep - hostname;
 	else
 		cFYI(1, "%s: probably server name is whole unc: %s",
 		     __func__, unc);

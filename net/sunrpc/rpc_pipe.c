@@ -162,9 +162,17 @@ rpc_alloc_inode(struct super_block *sb)
 }
 
 static void
+rpc_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
+}
+
+static void
 rpc_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
+	call_rcu(&inode->i_rcu, rpc_i_callback);
 }
 
 static int
@@ -430,7 +438,7 @@ void rpc_put_mount(void)
 }
 EXPORT_SYMBOL_GPL(rpc_put_mount);
 
-static int rpc_delete_dentry(struct dentry *dentry)
+static int rpc_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }
@@ -466,7 +474,7 @@ static int __rpc_create_common(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode;
 
-	BUG_ON(!d_unhashed(dentry));
+	d_drop(dentry);
 	inode = rpc_get_inode(dir->i_sb, mode);
 	if (!inode)
 		goto out_err;
@@ -583,7 +591,7 @@ static struct dentry *__rpc_lookup_create(struct dentry *parent,
 		}
 	}
 	if (!dentry->d_inode)
-		dentry->d_op = &rpc_dentry_operations;
+		d_set_d_op(dentry, &rpc_dentry_operations);
 out_err:
 	return dentry;
 }

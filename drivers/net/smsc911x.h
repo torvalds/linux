@@ -22,7 +22,7 @@
 #define __SMSC911X_H__
 
 #define TX_FIFO_LOW_THRESHOLD	((u32)1600)
-#define SMSC911X_EEPROM_SIZE	((u32)7)
+#define SMSC911X_EEPROM_SIZE	((u32)128)
 #define USE_DEBUG		0
 
 /* This is the maximum number of packets to be received every

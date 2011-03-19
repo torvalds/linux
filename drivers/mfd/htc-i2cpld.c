@@ -82,25 +82,25 @@ struct htcpld_data {
 /* There does not appear to be a way to proactively mask interrupts
  * on the htcpld chip itself.  So, we simply ignore interrupts that
  * aren't desired. */
-static void htcpld_mask(unsigned int irq)
+static void htcpld_mask(struct irq_data *data)
 {
-	struct htcpld_chip *chip = get_irq_chip_data(irq);
-	chip->irqs_enabled &= ~(1 << (irq - chip->irq_start));
-	pr_debug("HTCPLD mask %d %04x\n", irq, chip->irqs_enabled);
+	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
+	chip->irqs_enabled &= ~(1 << (data->irq - chip->irq_start));
+	pr_debug("HTCPLD mask %d %04x\n", data->irq, chip->irqs_enabled);
 }
-static void htcpld_unmask(unsigned int irq)
+static void htcpld_unmask(struct irq_data *data)
 {
-	struct htcpld_chip *chip = get_irq_chip_data(irq);
-	chip->irqs_enabled |= 1 << (irq - chip->irq_start);
-	pr_debug("HTCPLD unmask %d %04x\n", irq, chip->irqs_enabled);
+	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
+	chip->irqs_enabled |= 1 << (data->irq - chip->irq_start);
+	pr_debug("HTCPLD unmask %d %04x\n", data->irq, chip->irqs_enabled);
 }
 
-static int htcpld_set_type(unsigned int irq, unsigned int flags)
+static int htcpld_set_type(struct irq_data *data, unsigned int flags)
 {
-	struct irq_desc *d = irq_to_desc(irq);
+	struct irq_desc *d = irq_to_desc(data->irq);
 
 	if (!d) {
-		pr_err("HTCPLD invalid IRQ: %d\n", irq);
+		pr_err("HTCPLD invalid IRQ: %d\n", data->irq);
 		return -EINVAL;
 	}
 
@@ -118,10 +118,10 @@ static int htcpld_set_type(unsigned int irq, unsigned int flags)
 }
 
 static struct irq_chip htcpld_muxed_chip = {
-	.name     = "htcpld",
-	.mask     = htcpld_mask,
-	.unmask   = htcpld_unmask,
-	.set_type = htcpld_set_type,
+	.name         = "htcpld",
+	.irq_mask     = htcpld_mask,
+	.irq_unmask   = htcpld_unmask,
+	.irq_set_type = htcpld_set_type,
 };
 
 /* To properly dispatch IRQ events, we need to read from the
@@ -235,7 +235,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
  * and that work is scheduled in the set routine.  The kernel can then run
  * the I2C functions, which will sleep, in process context.
  */
-void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
+static void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct i2c_client *client;
 	struct htcpld_chip *chip_data;
@@ -259,7 +259,7 @@ void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 	schedule_work(&(chip_data->set_val_work));
 }
 
-void htcpld_chip_set_ni(struct work_struct *work)
+static void htcpld_chip_set_ni(struct work_struct *work)
 {
 	struct htcpld_chip *chip_data;
 	struct i2c_client *client;
@@ -269,7 +269,7 @@ void htcpld_chip_set_ni(struct work_struct *work)
 	i2c_smbus_read_byte_data(client, chip_data->cache_out);
 }
 
-int htcpld_chip_get(struct gpio_chip *chip, unsigned offset)
+static int htcpld_chip_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct htcpld_chip *chip_data;
 	int val = 0;
@@ -316,7 +316,7 @@ static int htcpld_direction_input(struct gpio_chip *chip,
 	return (offset < chip->ngpio) ? 0 : -EINVAL;
 }
 
-int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
+static int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct htcpld_chip *chip_data;
 
@@ -328,7 +328,7 @@ int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
 		return -EINVAL;
 }
 
-void htcpld_chip_reset(struct i2c_client *client)
+static void htcpld_chip_reset(struct i2c_client *client)
 {
 	struct htcpld_chip *chip_data = i2c_get_clientdata(client);
 	if (!chip_data)

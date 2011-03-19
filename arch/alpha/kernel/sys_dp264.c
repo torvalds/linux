@@ -115,20 +115,6 @@ dp264_disable_irq(unsigned int irq)
 	spin_unlock(&dp264_irq_lock);
 }
 
-static unsigned int
-dp264_startup_irq(unsigned int irq)
-{ 
-	dp264_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void
-dp264_end_irq(unsigned int irq)
-{ 
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		dp264_enable_irq(irq);
-}
-
 static void
 clipper_enable_irq(unsigned int irq)
 {
@@ -145,20 +131,6 @@ clipper_disable_irq(unsigned int irq)
 	cached_irq_mask &= ~(1UL << (irq - 16));
 	tsunami_update_irq_hw(cached_irq_mask);
 	spin_unlock(&dp264_irq_lock);
-}
-
-static unsigned int
-clipper_startup_irq(unsigned int irq)
-{ 
-	clipper_enable_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void
-clipper_end_irq(unsigned int irq)
-{ 
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		clipper_enable_irq(irq);
 }
 
 static void
@@ -200,23 +172,17 @@ clipper_set_affinity(unsigned int irq, const struct cpumask *affinity)
 
 static struct irq_chip dp264_irq_type = {
 	.name		= "DP264",
-	.startup	= dp264_startup_irq,
-	.shutdown	= dp264_disable_irq,
-	.enable		= dp264_enable_irq,
-	.disable	= dp264_disable_irq,
-	.ack		= dp264_disable_irq,
-	.end		= dp264_end_irq,
+	.unmask		= dp264_enable_irq,
+	.mask		= dp264_disable_irq,
+	.mask_ack	= dp264_disable_irq,
 	.set_affinity	= dp264_set_affinity,
 };
 
 static struct irq_chip clipper_irq_type = {
 	.name		= "CLIPPER",
-	.startup	= clipper_startup_irq,
-	.shutdown	= clipper_disable_irq,
-	.enable		= clipper_enable_irq,
-	.disable	= clipper_disable_irq,
-	.ack		= clipper_disable_irq,
-	.end		= clipper_end_irq,
+	.unmask		= clipper_enable_irq,
+	.mask		= clipper_disable_irq,
+	.mask_ack	= clipper_disable_irq,
 	.set_affinity	= clipper_set_affinity,
 };
 
@@ -302,8 +268,8 @@ init_tsunami_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = ops;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, ops, handle_level_irq);
 	}
 }
 

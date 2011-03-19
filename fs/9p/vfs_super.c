@@ -141,6 +141,11 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	}
 	v9fs_fill_super(sb, v9ses, flags, data);
 
+	if (v9ses->cache)
+		sb->s_d_op = &v9fs_cached_dentry_operations;
+	else
+		sb->s_d_op = &v9fs_dentry_operations;
+
 	inode = v9fs_get_inode(sb, S_IFDIR | mode);
 	if (IS_ERR(inode)) {
 		retval = PTR_ERR(inode);
@@ -216,9 +221,6 @@ static void v9fs_kill_super(struct super_block *s)
 	struct v9fs_session_info *v9ses = s->s_fs_info;
 
 	P9_DPRINTK(P9_DEBUG_VFS, " %p\n", s);
-
-	if (s->s_root)
-		v9fs_dentry_release(s->s_root);	/* clunk root */
 
 	kill_anon_super(s);
 

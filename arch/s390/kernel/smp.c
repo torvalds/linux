@@ -23,6 +23,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/workqueue.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -161,6 +162,7 @@ static void do_ext_call_interrupt(unsigned int ext_int_code,
 {
 	unsigned long bits;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_IPI]++;
 	/*
 	 * handle bit signal external calls
 	 *
@@ -469,25 +471,25 @@ int __cpuinit start_secondary(void *cpuvoid)
 	ipi_call_unlock();
 	/* Switch on interrupts */
 	local_irq_enable();
-	/* Print info about this processor */
-	print_cpu_info();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
 	return 0;
 }
 
-static void __init smp_create_idle(unsigned int cpu)
-{
-	struct task_struct *p;
+struct create_idle {
+	struct work_struct work;
+	struct task_struct *idle;
+	struct completion done;
+	int cpu;
+};
 
-	/*
-	 *  don't care about the psw and regs settings since we'll never
-	 *  reschedule the forked task.
-	 */
-	p = fork_idle(cpu);
-	if (IS_ERR(p))
-		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-	current_set[cpu] = p;
+static void __cpuinit smp_fork_idle(struct work_struct *work)
+{
+	struct create_idle *c_idle;
+
+	c_idle = container_of(work, struct create_idle, work);
+	c_idle->idle = fork_idle(c_idle->cpu);
+	complete(&c_idle->done);
 }
 
 static int __cpuinit smp_alloc_lowcore(int cpu)
@@ -551,6 +553,7 @@ static void smp_free_lowcore(int cpu)
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct _lowcore *cpu_lowcore;
+	struct create_idle c_idle;
 	struct task_struct *idle;
 	struct stack_frame *sf;
 	u32 lowcore;
@@ -558,6 +561,19 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	if (smp_cpu_state[cpu] != CPU_STATE_CONFIGURED)
 		return -EIO;
+	idle = current_set[cpu];
+	if (!idle) {
+		c_idle.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done);
+		INIT_WORK_ONSTACK(&c_idle.work, smp_fork_idle);
+		c_idle.cpu = cpu;
+		schedule_work(&c_idle.work);
+		wait_for_completion(&c_idle.done);
+		if (IS_ERR(c_idle.idle))
+			return PTR_ERR(c_idle.idle);
+		idle = c_idle.idle;
+		current_set[cpu] = c_idle.idle;
+	}
+	init_idle(idle, cpu);
 	if (smp_alloc_lowcore(cpu))
 		return -ENOMEM;
 	do {
@@ -572,7 +588,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	while (sigp_p(lowcore, cpu, sigp_set_prefix) == sigp_busy)
 		udelay(10);
 
-	idle = current_set[cpu];
 	cpu_lowcore = lowcore_ptr[cpu];
 	cpu_lowcore->kernel_stack = (unsigned long)
 		task_stack_page(idle) + THREAD_SIZE;
@@ -664,7 +679,6 @@ void __cpu_die(unsigned int cpu)
 		udelay(10);
 	smp_free_lowcore(cpu);
 	atomic_dec(&init_mm.context.attach_count);
-	pr_info("Processor %d stopped\n", cpu);
 }
 
 void cpu_die(void)
@@ -684,14 +698,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #endif
 	unsigned long async_stack, panic_stack;
 	struct _lowcore *lowcore;
-	unsigned int cpu;
 
 	smp_detect_cpus();
 
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
-	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
 	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
@@ -719,9 +731,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (vdso_alloc_per_cpu(smp_processor_id(), &S390_lowcore))
 		BUG();
 #endif
-	for_each_possible_cpu(cpu)
-		if (cpu != smp_processor_id())
-			smp_create_idle(cpu);
 }
 
 void __init smp_prepare_boot_cpu(void)

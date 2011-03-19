@@ -129,20 +129,6 @@ titan_disable_irq(unsigned int irq)
 	spin_unlock(&titan_irq_lock);
 }
 
-static unsigned int
-titan_startup_irq(unsigned int irq)
-{
-	titan_enable_irq(irq);
-	return 0;	/* never anything pending */
-}
-
-static void
-titan_end_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		titan_enable_irq(irq);
-}
-
 static void
 titan_cpu_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 {
@@ -189,20 +175,17 @@ init_titan_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
-		irq_desc[i].status = IRQ_DISABLED | IRQ_LEVEL;
-		irq_desc[i].chip = ops;
+		irq_to_desc(i)->status |= IRQ_LEVEL;
+		set_irq_chip_and_handler(i, ops, handle_level_irq);
 	}
 }
 
 static struct irq_chip titan_irq_type = {
-       .name	       = "TITAN",
-       .startup        = titan_startup_irq,
-       .shutdown       = titan_disable_irq,
-       .enable         = titan_enable_irq,
-       .disable        = titan_disable_irq,
-       .ack            = titan_disable_irq,
-       .end            = titan_end_irq,
-       .set_affinity   = titan_set_irq_affinity,
+       .name		= "TITAN",
+       .unmask		= titan_enable_irq,
+       .mask		= titan_disable_irq,
+       .mask_ack	= titan_disable_irq,
+       .set_affinity	= titan_set_irq_affinity,
 };
 
 static irqreturn_t

@@ -60,7 +60,6 @@
 
 #include "base.h"
 #include "debug.h"
-#include "../debug.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
@@ -312,6 +311,7 @@ static const struct {
 	{ ATH5K_DEBUG_DUMP_RX,	"dumprx",	"print received skb content" },
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
+	{ ATH5K_DEBUG_DMA,	"dma",		"dma start/stop" },
 	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
 	{ ATH5K_DEBUG_DESC,	"desc",		"descriptor chains" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
@@ -554,63 +554,63 @@ static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"RX\n---------------------\n");
-	len += snprintf(buf+len, sizeof(buf)-len, "CRC\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "CRC\t%u\t(%u%%)\n",
 			st->rxerr_crc,
 			st->rx_all_count > 0 ?
 				st->rxerr_crc*100/st->rx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "PHY\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "PHY\t%u\t(%u%%)\n",
 			st->rxerr_phy,
 			st->rx_all_count > 0 ?
 				st->rxerr_phy*100/st->rx_all_count : 0);
 	for (i = 0; i < 32; i++) {
 		if (st->rxerr_phy_code[i])
 			len += snprintf(buf+len, sizeof(buf)-len,
-				" phy_err[%d]\t%d\n",
+				" phy_err[%u]\t%u\n",
 				i, st->rxerr_phy_code[i]);
 	}
 
-	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%u\t(%u%%)\n",
 			st->rxerr_fifo,
 			st->rx_all_count > 0 ?
 				st->rxerr_fifo*100/st->rx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "decrypt\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "decrypt\t%u\t(%u%%)\n",
 			st->rxerr_decrypt,
 			st->rx_all_count > 0 ?
 				st->rxerr_decrypt*100/st->rx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "MIC\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "MIC\t%u\t(%u%%)\n",
 			st->rxerr_mic,
 			st->rx_all_count > 0 ?
 				st->rxerr_mic*100/st->rx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "process\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "process\t%u\t(%u%%)\n",
 			st->rxerr_proc,
 			st->rx_all_count > 0 ?
 				st->rxerr_proc*100/st->rx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "jumbo\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "jumbo\t%u\t(%u%%)\n",
 			st->rxerr_jumbo,
 			st->rx_all_count > 0 ?
 				st->rxerr_jumbo*100/st->rx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "[RX all\t%d]\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "[RX all\t%u]\n",
 			st->rx_all_count);
-	len += snprintf(buf+len, sizeof(buf)-len, "RX-all-bytes\t%d\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "RX-all-bytes\t%u\n",
 			st->rx_bytes_count);
 
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"\nTX\n---------------------\n");
-	len += snprintf(buf+len, sizeof(buf)-len, "retry\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "retry\t%u\t(%u%%)\n",
 			st->txerr_retry,
 			st->tx_all_count > 0 ?
 				st->txerr_retry*100/st->tx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%u\t(%u%%)\n",
 			st->txerr_fifo,
 			st->tx_all_count > 0 ?
 				st->txerr_fifo*100/st->tx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "filter\t%d\t(%d%%)\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "filter\t%u\t(%u%%)\n",
 			st->txerr_filt,
 			st->tx_all_count > 0 ?
 				st->txerr_filt*100/st->tx_all_count : 0);
-	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%d]\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%u]\n",
 			st->tx_all_count);
-	len += snprintf(buf+len, sizeof(buf)-len, "TX-all-bytes\t%d\n",
+	len += snprintf(buf+len, sizeof(buf)-len, "TX-all-bytes\t%u\n",
 			st->tx_bytes_count);
 
 	if (len > sizeof(buf))
@@ -719,7 +719,7 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 			st->mib_intr);
 	len += snprintf(buf+len, sizeof(buf)-len,
 			"beacon RSSI average:\t%d\n",
-			sc->ah->ah_beacon_rssi_avg.avg);
+			(int)ewma_read(&sc->ah->ah_beacon_rssi_avg));
 
 #define CC_PRINT(_struct, _field) \
 	_struct._field, \

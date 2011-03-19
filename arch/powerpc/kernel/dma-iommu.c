@@ -19,7 +19,7 @@ static void *dma_iommu_alloc_coherent(struct device *dev, size_t size,
 				      dma_addr_t *dma_handle, gfp_t flag)
 {
 	return iommu_alloc_coherent(dev, get_iommu_table_base(dev), size,
-				    dma_handle, device_to_mask(dev), flag,
+				    dma_handle, dev->coherent_dma_mask, flag,
 				    dev_to_node(dev));
 }
 

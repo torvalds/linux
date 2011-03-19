@@ -288,7 +288,7 @@ out:
  */
 static inline int do_refcount_check(struct vfsmount *mnt, int count)
 {
-	int mycount = atomic_read(&mnt->mnt_count) - mnt->mnt_ghosts;
+	int mycount = mnt_get_count(mnt) - mnt->mnt_ghosts;
 	return (mycount > count);
 }
 
@@ -300,7 +300,7 @@ static inline int do_refcount_check(struct vfsmount *mnt, int count)
  * Check if any of these mounts that **do not have submounts**
  * have more references than 'refcnt'. If so return busy.
  *
- * vfsmount lock must be held for read or write
+ * vfsmount lock must be held for write
  */
 int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
 {

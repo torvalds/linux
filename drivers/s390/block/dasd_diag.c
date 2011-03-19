@@ -10,6 +10,7 @@
 
 #define KMSG_COMPONENT "dasd"
 
+#include <linux/kernel_stat.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -238,6 +239,7 @@ static void dasd_ext_handler(unsigned int ext_int_code,
 	addr_t ip;
 	int rc;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_DSD]++;
 	switch (ext_int_code >> 24) {
 	case DASD_DIAG_CODE_31BIT:
 		ip = (addr_t) param32;
@@ -617,6 +619,7 @@ static struct dasd_discipline dasd_diag_discipline = {
 	.ebcname = "DIAG",
 	.max_blocks = DIAG_MAX_BLOCKS,
 	.check_device = dasd_diag_check_device,
+	.verify_path = dasd_generic_verify_path,
 	.fill_geometry = dasd_diag_fill_geometry,
 	.start_IO = dasd_start_diag,
 	.term_IO = dasd_diag_term_IO,

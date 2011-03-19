@@ -50,7 +50,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
 
@@ -130,13 +129,14 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int mioa701_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	unsigned short reg;
 
 	/* Add mioa701 specific widgets */
-	snd_soc_dapm_new_controls(codec, ARRAY_AND_SIZE(mioa701_dapm_widgets));
+	snd_soc_dapm_new_controls(dapm, ARRAY_AND_SIZE(mioa701_dapm_widgets));
 
 	/* Set up mioa701 specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(codec, ARRAY_AND_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, ARRAY_AND_SIZE(audio_map));
 
 	/* Prepare GPIO8 for rear speaker amplifier */
 	reg = codec->driver->read(codec, AC97_GPIO_CFG);
@@ -146,12 +146,12 @@ static int mioa701_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 	reg = codec->driver->read(codec, AC97_3D_CONTROL);
 	codec->driver->write(codec, AC97_3D_CONTROL, reg | 0xc000);
 
-	snd_soc_dapm_enable_pin(codec, "Front Speaker");
-	snd_soc_dapm_enable_pin(codec, "Rear Speaker");
-	snd_soc_dapm_enable_pin(codec, "Front Mic");
-	snd_soc_dapm_enable_pin(codec, "GSM Line In");
-	snd_soc_dapm_enable_pin(codec, "GSM Line Out");
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_enable_pin(dapm, "Front Speaker");
+	snd_soc_dapm_enable_pin(dapm, "Rear Speaker");
+	snd_soc_dapm_enable_pin(dapm, "Front Mic");
+	snd_soc_dapm_enable_pin(dapm, "GSM Line In");
+	snd_soc_dapm_enable_pin(dapm, "GSM Line Out");
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

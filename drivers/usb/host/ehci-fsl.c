@@ -52,7 +52,6 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	struct resource *res;
 	int irq;
 	int retval;
-	unsigned int temp;
 
 	pr_debug("initializing FSL-SOC USB Controller\n");
 
@@ -125,18 +124,6 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		retval = -ENODEV;
 		goto err3;
 	}
-
-	/*
-	 * Check if it is MPC5121 SoC, otherwise set pdata->have_sysif_regs
-	 * flag for 83xx or 8536 system interface registers.
-	 */
-	if (pdata->big_endian_mmio)
-		temp = in_be32(hcd->regs + FSL_SOC_USB_ID);
-	else
-		temp = in_le32(hcd->regs + FSL_SOC_USB_ID);
-
-	if ((temp & ID_MSK) != (~((temp & NID_MSK) >> 8) & ID_MSK))
-		pdata->have_sysif_regs = 1;
 
 	/* Enable USB controller, 83xx or 8536 */
 	if (pdata->have_sysif_regs)

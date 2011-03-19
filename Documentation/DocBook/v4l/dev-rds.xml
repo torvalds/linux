@@ -75,6 +75,7 @@ as follows:</para>
   </section>
 
   <section>
+    <title>RDS datastructures</title>
     <table frame="none" pgwide="1" id="v4l2-rds-data">
       <title>struct
 <structname>v4l2_rds_data</structname></title>
@@ -129,10 +130,11 @@ as follows:</para>
 
     <table frame="none" pgwide="1" id="v4l2-rds-block-codes">
       <title>Block defines</title>
-      <tgroup cols="3">
+      <tgroup cols="4">
 	<colspec colname="c1" colwidth="1*" />
 	<colspec colname="c2" colwidth="1*" />
-	<colspec colname="c3" colwidth="5*" />
+	<colspec colname="c3" colwidth="1*" />
+	<colspec colname="c4" colwidth="5*" />
 	<tbody valign="top">
 	  <row>
 	    <entry>V4L2_RDS_BLOCK_MSK</entry>

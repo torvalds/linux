@@ -64,17 +64,19 @@ static struct resource usb_resources[] = {
 	{
 		.start          = IRQ_USBINT,
 		.flags          = IORESOURCE_IRQ,
+		.name		= "mc"
 	},
 	{
 		/* placeholder for the dedicated CPPI IRQ */
 		.flags          = IORESOURCE_IRQ,
+		.name		= "dma"
 	},
 };
 
 static u64 usb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device usb_dev = {
-	.name           = "musb_hdrc",
+	.name           = "musb-davinci",
 	.id             = -1,
 	.dev = {
 		.platform_data		= &usb_data,
@@ -110,6 +112,7 @@ static struct resource da8xx_usb20_resources[] = {
 	{
 		.start		= IRQ_DA8XX_USB_INT,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "mc",
 	},
 };
 
@@ -121,6 +124,7 @@ int __init da8xx_register_usb20(unsigned mA, unsigned potpgt)
 
 	usb_dev.resource = da8xx_usb20_resources;
 	usb_dev.num_resources = ARRAY_SIZE(da8xx_usb20_resources);
+	usb_dev.name = "musb-da8xx";
 
 	return platform_device_register(&usb_dev);
 }

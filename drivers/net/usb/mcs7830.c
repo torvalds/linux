@@ -1,5 +1,5 @@
 /*
- * MOSCHIP MCS7830 based USB 2.0 Ethernet Devices
+ * MOSCHIP MCS7830 based (7730/7830/7832) USB 2.0 Ethernet Devices
  *
  * based on usbnet.c, asix.c and the vendor provided mcs7830 driver
  *
@@ -10,6 +10,9 @@
  * Copyright (c) 2002-2003 TiVo Inc.
  *
  * Definitions gathered from MOSCHIP, Data Sheet_7830DA.pdf (thanks!).
+ *
+ * 2010-12-19: add 7832 USB PID ("functionality same as MCS7830"),
+ *             per active notification by manufacturer
  *
  * TODO:
  * - support HIF_REG_CONFIG_SLEEPMODE/HIF_REG_CONFIG_TXENABLE (via autopm?)
@@ -60,6 +63,7 @@
 #define MCS7830_MAX_MCAST	64
 
 #define MCS7830_VENDOR_ID	0x9710
+#define MCS7832_PRODUCT_ID	0x7832
 #define MCS7830_PRODUCT_ID	0x7830
 #define MCS7730_PRODUCT_ID	0x7730
 
@@ -351,7 +355,7 @@ static int mcs7830_set_autoneg(struct usbnet *dev, int ptrUserPhyMode)
 	if (!ret)
 		ret = mcs7830_write_phy(dev, MII_BMCR,
 				BMCR_ANENABLE | BMCR_ANRESTART	);
-	return ret < 0 ? : 0;
+	return ret;
 }
 
 
@@ -626,7 +630,7 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 static const struct driver_info moschip_info = {
-	.description	= "MOSCHIP 7830/7730 usb-NET adapter",
+	.description	= "MOSCHIP 7830/7832/7730 usb-NET adapter",
 	.bind		= mcs7830_bind,
 	.rx_fixup	= mcs7830_rx_fixup,
 	.flags		= FLAG_ETHER,
@@ -644,6 +648,10 @@ static const struct driver_info sitecom_info = {
 };
 
 static const struct usb_device_id products[] = {
+	{
+		USB_DEVICE(MCS7830_VENDOR_ID, MCS7832_PRODUCT_ID),
+		.driver_info = (unsigned long) &moschip_info,
+	},
 	{
 		USB_DEVICE(MCS7830_VENDOR_ID, MCS7830_PRODUCT_ID),
 		.driver_info = (unsigned long) &moschip_info,

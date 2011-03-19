@@ -2069,7 +2069,7 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 
 	fb_set_suspend(info, 1);
 
@@ -2097,14 +2097,14 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		par->lock_blank = 0;
 		atyfb_blank(FB_BLANK_UNBLANK, info);
 		fb_set_suspend(info, 0);
-		release_console_sem();
+		console_unlock();
 		return -EIO;
 	}
 #else
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 #endif
 
-	release_console_sem();
+	console_unlock();
 
 	pdev->dev.power.power_state = state;
 
@@ -2133,7 +2133,7 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 	if (pdev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
-	acquire_console_sem();
+	console_lock();
 
 	/*
 	 * PCI state will have been restored by the core, so
@@ -2161,7 +2161,7 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 	par->lock_blank = 0;
 	atyfb_blank(FB_BLANK_UNBLANK, info);
 
-	release_console_sem();
+	console_unlock();
 
 	pdev->dev.power.power_state = PMSG_ON;
 
@@ -2221,7 +2221,7 @@ static int aty_bl_get_brightness(struct backlight_device *bd)
 	return bd->props.brightness;
 }
 
-static struct backlight_ops aty_bl_data = {
+static const struct backlight_ops aty_bl_data = {
 	.get_brightness = aty_bl_get_brightness,
 	.update_status	= aty_bl_update_status,
 };
@@ -2969,10 +2969,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 {
 	struct atyfb_par *par = info->par;
 	struct device_node *dp;
-	char prop[128];
-	phandle node;
-	int len, i, j, ret;
 	u32 mem, chip_id;
+	int i, j, ret;
 
 	/*
 	 * Map memory-mapped registers.
@@ -3088,23 +3086,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 		aty_st_le32(MEM_CNTL, mem, par);
 	}
 
-	/*
-	 * If this is the console device, we will set default video
-	 * settings to what the PROM left us with.
-	 */
-	node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "aliases");
-	if (node) {
-		len = prom_getproperty(node, "screen", prop, sizeof(prop));
-		if (len > 0) {
-			prop[len] = '\0';
-			node = prom_finddevice(prop);
-		} else
-			node = 0;
-	}
-
 	dp = pci_device_to_OF_node(pdev);
-	if (node == dp->phandle) {
+	if (dp == of_console_device) {
 		struct fb_var_screeninfo *var = &default_var;
 		unsigned int N, P, Q, M, T, R;
 		u32 v_total, h_total;
@@ -3112,9 +3095,9 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 		u8 pll_regs[16];
 		u8 clock_cntl;
 
-		crtc.vxres = prom_getintdefault(node, "width", 1024);
-		crtc.vyres = prom_getintdefault(node, "height", 768);
-		var->bits_per_pixel = prom_getintdefault(node, "depth", 8);
+		crtc.vxres = of_getintprop_default(dp, "width", 1024);
+		crtc.vyres = of_getintprop_default(dp, "height", 768);
+		var->bits_per_pixel = of_getintprop_default(dp, "depth", 8);
 		var->xoffset = var->yoffset = 0;
 		crtc.h_tot_disp = aty_ld_le32(CRTC_H_TOTAL_DISP, par);
 		crtc.h_sync_strt_wid = aty_ld_le32(CRTC_H_SYNC_STRT_WID, par);

@@ -62,13 +62,13 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	 * This will prevent the device being confused when it wants
 	 * to ACK frames or consideres itself associated.
 	 */
-	memset(&conf.mac, 0, sizeof(conf.mac));
+	memset(conf.mac, 0, sizeof(conf.mac));
 	if (mac)
-		memcpy(&conf.mac, mac, ETH_ALEN);
+		memcpy(conf.mac, mac, ETH_ALEN);
 
-	memset(&conf.bssid, 0, sizeof(conf.bssid));
+	memset(conf.bssid, 0, sizeof(conf.bssid));
 	if (bssid)
-		memcpy(&conf.bssid, bssid, ETH_ALEN);
+		memcpy(conf.bssid, bssid, ETH_ALEN);
 
 	flags |= CONFIG_UPDATE_TYPE;
 	if (mac || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))
@@ -133,7 +133,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 */
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
 		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
-	else if(config.rx == ANTENNA_SW_DIVERSITY)
+	else if (config.rx == ANTENNA_SW_DIVERSITY)
 		config.rx = active->rx;
 
 	if (!(ant->flags & ANTENNA_TX_DIVERSITY))
@@ -146,7 +146,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * else the changes will be ignored by the device.
 	 */
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
+		rt2x00queue_stop_queue(rt2x00dev->rx);
 
 	/*
 	 * Write new antenna setup to device and reset the link tuner.
@@ -160,7 +160,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	memcpy(active, &config, sizeof(config));
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
+		rt2x00queue_start_queue(rt2x00dev->rx);
 }
 
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,

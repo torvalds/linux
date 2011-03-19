@@ -40,21 +40,17 @@ unsigned long long sched_clock(void)
 		unsigned long long ll;
 		unsigned l[2];
 	} tsc64, result;
-	unsigned long tsc, tmp;
+	unsigned long tmp;
 	unsigned product[3]; /* 96-bit intermediate value */
 
 	/* cnt32_to_63() is not safe with preemption */
 	preempt_disable();
 
-	/* read the TSC value
-	 */
-	tsc = get_cycles();
-
-	/* expand to 64-bits.
+	/* expand the tsc to 64-bits.
 	 * - sched_clock() must be called once a minute or better or the
 	 *   following will go horribly wrong - see cnt32_to_63()
 	 */
-	tsc64.ll = cnt32_to_63(tsc) & 0x7fffffffffffffffULL;
+	tsc64.ll = cnt32_to_63(get_cycles()) & 0x7fffffffffffffffULL;
 
 	preempt_enable();
 

@@ -94,7 +94,7 @@ static void __init mp900c_init(void)
 MACHINE_START(NEC_MP900, "MobilePro900/C")
 	.boot_params	= 0xa0220100,
 	.timer		= &pxa_timer,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.init_machine	= mp900c_init,
 MACHINE_END

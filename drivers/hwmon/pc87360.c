@@ -33,6 +33,8 @@
  *  the standard Super-I/O addresses is used (0x2E/0x2F or 0x4E/0x4F).
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -1031,16 +1033,15 @@ static int __init pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses
 
 		val = superio_inb(sioaddr, ACT);
 		if (!(val & 0x01)) {
-			printk(KERN_INFO "pc87360: Device 0x%02x not "
-			       "activated\n", logdev[i]);
+			pr_info("Device 0x%02x not activated\n", logdev[i]);
 			continue;
 		}
 
 		val = (superio_inb(sioaddr, BASE) << 8)
 		    | superio_inb(sioaddr, BASE + 1);
 		if (!val) {
-			printk(KERN_INFO "pc87360: Base address not set for "
-			       "device 0x%02x\n", logdev[i]);
+			pr_info("Base address not set for device 0x%02x\n",
+				logdev[i]);
 			continue;
 		}
 
@@ -1050,17 +1051,15 @@ static int __init pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses
 			confreg[0] = superio_inb(sioaddr, 0xF0);
 			confreg[1] = superio_inb(sioaddr, 0xF1);
 
-#ifdef DEBUG
-			printk(KERN_DEBUG "pc87360: Fan 1: mon=%d "
-			       "ctrl=%d inv=%d\n", (confreg[0]>>2)&1,
-			       (confreg[0]>>3)&1, (confreg[0]>>4)&1);
-			printk(KERN_DEBUG "pc87360: Fan 2: mon=%d "
-			       "ctrl=%d inv=%d\n", (confreg[0]>>5)&1,
-			       (confreg[0]>>6)&1, (confreg[0]>>7)&1);
-			printk(KERN_DEBUG "pc87360: Fan 3: mon=%d "
-			       "ctrl=%d inv=%d\n", confreg[1]&1,
-			       (confreg[1]>>1)&1, (confreg[1]>>2)&1);
-#endif
+			pr_debug("Fan %d: mon=%d ctrl=%d inv=%d\n", 1,
+				 (confreg[0] >> 2) & 1, (confreg[0] >> 3) & 1,
+				 (confreg[0] >> 4) & 1);
+			pr_debug("Fan %d: mon=%d ctrl=%d inv=%d\n", 2,
+				 (confreg[0] >> 5) & 1, (confreg[0] >> 6) & 1,
+				 (confreg[0] >> 7) & 1);
+			pr_debug("Fan %d: mon=%d ctrl=%d inv=%d\n", 3,
+				 confreg[1] & 1, (confreg[1] >> 1) & 1,
+				 (confreg[1] >> 2) & 1);
 		} else if (i==1) { /* Voltages */
 			/* Are we using thermistors? */
 			if (*devid == 0xE9) { /* PC87366 */
@@ -1071,14 +1070,12 @@ static int __init pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses
 				confreg[3] = superio_inb(sioaddr, 0x25);
 
 				if (confreg[2] & 0x40) {
-					printk(KERN_INFO "pc87360: Using "
-					       "thermistors for temperature "
-					       "monitoring\n");
+					pr_info("Using thermistors for "
+						"temperature monitoring\n");
 				}
 				if (confreg[3] & 0xE0) {
-					printk(KERN_INFO "pc87360: VID "
-					       "inputs routed (mode %u)\n",
-					       confreg[3] >> 5);
+					pr_info("VID inputs routed (mode %u)\n",
+						confreg[3] >> 5);
 				}
 			}
 		}
@@ -1616,7 +1613,7 @@ static int __init pc87360_device_add(unsigned short address)
 	pdev = platform_device_alloc("pc87360", address);
 	if (!pdev) {
 		err = -ENOMEM;
-		printk(KERN_ERR "pc87360: Device allocation failed\n");
+		pr_err("Device allocation failed\n");
 		goto exit;
 	}
 
@@ -1639,15 +1636,13 @@ static int __init pc87360_device_add(unsigned short address)
 
 	err = platform_device_add_resources(pdev, res, res_count);
 	if (err) {
-		printk(KERN_ERR "pc87360: Device resources addition failed "
-		       "(%d)\n", err);
+		pr_err("Device resources addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
 	err = platform_device_add(pdev);
 	if (err) {
-		printk(KERN_ERR "pc87360: Device addition failed (%d)\n",
-		       err);
+		pr_err("Device addition failed (%d)\n", err);
 		goto exit_device_put;
 	}
 
@@ -1666,8 +1661,7 @@ static int __init pc87360_init(void)
 
 	if (pc87360_find(0x2e, &devid, extra_isa)
 	 && pc87360_find(0x4e, &devid, extra_isa)) {
-		printk(KERN_WARNING "pc87360: PC8736x not detected, "
-		       "module not inserted.\n");
+		pr_warn("PC8736x not detected, module not inserted\n");
 		return -ENODEV;
 	}
 
@@ -1680,8 +1674,7 @@ static int __init pc87360_init(void)
 	}
 
 	if (address == 0x0000) {
-		printk(KERN_WARNING "pc87360: No active logical device, "
-		       "module not inserted.\n");
+		pr_warn("No active logical device, module not inserted\n");
 		return -ENODEV;
 	}
 

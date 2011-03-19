@@ -55,7 +55,6 @@ struct scsi_disk {
 	u8		media_present;
 	u8		write_prot;
 	u8		protection_type;/* Data Integrity Field */
-	unsigned	previous_state : 1;
 	unsigned	ATO : 1;	/* state of disk ATO bit */
 	unsigned	WCE : 1;	/* state of disk WCE bit */
 	unsigned	RCD : 1;	/* state of disk RCD bit, unused */

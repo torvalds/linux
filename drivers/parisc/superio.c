@@ -323,7 +323,6 @@ static struct irq_chip superio_interrupt_type = {
 	.name	=	SUPERIO,
 	.unmask	=	superio_unmask_irq,
 	.mask	=	superio_mask_irq,
-	.ack =		no_ack_irq,
 };
 
 #ifdef DEBUG_SUPERIO_INIT
@@ -354,7 +353,7 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 #endif
 
 	for (i = 0; i < 16; i++) {
-		set_irq_chip_and_handler(i, &superio_interrupt_type, handle_level_irq);
+		set_irq_chip_and_handler(i, &superio_interrupt_type, handle_simple_irq);
 	}
 
 	/*

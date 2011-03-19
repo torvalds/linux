@@ -2,10 +2,13 @@
 #define _LINUX_FS_STRUCT_H
 
 #include <linux/path.h>
+#include <linux/spinlock.h>
+#include <linux/seqlock.h>
 
 struct fs_struct {
 	int users;
 	spinlock_t lock;
+	seqcount_t seq;
 	int umask;
 	int in_exec;
 	struct path root, pwd;

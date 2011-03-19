@@ -958,10 +958,6 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 				/* Packet is complete. Inject into stack. */
 				/* We have IP packet here */
 				odev->skb_rx_buf->protocol = cpu_to_be16(ETH_P_IP);
-				/* don't check it */
-				odev->skb_rx_buf->ip_summed =
-					CHECKSUM_UNNECESSARY;
-
 				skb_reset_mac_header(odev->skb_rx_buf);
 
 				/* Ship it off to the kernel */
@@ -1001,6 +997,18 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 	}
 }
 
+static void fix_crc_bug(struct urb *urb, __le16 max_packet_size)
+{
+	static const u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
+	u32 rest = urb->actual_length % le16_to_cpu(max_packet_size);
+
+	if (((rest == 5) || (rest == 6)) &&
+	    !memcmp(((u8 *)urb->transfer_buffer) + urb->actual_length - 4,
+		    crc_check, 4)) {
+		urb->actual_length -= 4;
+	}
+}
+
 /* Moving data from usb to kernel (in interrupt state) */
 static void read_bulk_callback(struct urb *urb)
 {
@@ -1029,17 +1037,8 @@ static void read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	if (odev->parent->port_spec & HSO_INFO_CRC_BUG) {
-		u32 rest;
-		u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
-		rest = urb->actual_length %
-			le16_to_cpu(odev->in_endp->wMaxPacketSize);
-		if (((rest == 5) || (rest == 6)) &&
-		    !memcmp(((u8 *) urb->transfer_buffer) +
-			    urb->actual_length - 4, crc_check, 4)) {
-			urb->actual_length -= 4;
-		}
-	}
+	if (odev->parent->port_spec & HSO_INFO_CRC_BUG)
+		fix_crc_bug(urb, odev->in_endp->wMaxPacketSize);
 
 	/* do we even have a packet? */
 	if (urb->actual_length) {
@@ -1231,18 +1230,8 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 		return;
 
 	if (status == 0) {
-		if (serial->parent->port_spec & HSO_INFO_CRC_BUG) {
-			u32 rest;
-			u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
-			rest =
-			    urb->actual_length %
-			    le16_to_cpu(serial->in_endp->wMaxPacketSize);
-			if (((rest == 5) || (rest == 6)) &&
-			    !memcmp(((u8 *) urb->transfer_buffer) +
-				    urb->actual_length - 4, crc_check, 4)) {
-				urb->actual_length -= 4;
-			}
-		}
+		if (serial->parent->port_spec & HSO_INFO_CRC_BUG)
+			fix_crc_bug(urb, serial->in_endp->wMaxPacketSize);
 		/* Valid data, handle RX data */
 		spin_lock(&serial->serial_lock);
 		serial->rx_urb_filled[hso_urb_to_index(serial, urb)] = 1;
@@ -1745,7 +1734,6 @@ static int hso_serial_ioctl(struct tty_struct *tty, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct hso_serial *serial =  get_serial_by_tty(tty);
-	void __user *uarg = (void __user *)arg;
 	int ret = 0;
 	D4("IOCTL cmd: %d, arg: %ld", cmd, arg);
 
@@ -2994,12 +2982,14 @@ static int hso_probe(struct usb_interface *interface,
 
 	case HSO_INTF_BULK:
 		/* It's a regular bulk interface */
-		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) &&
-		    !disable_net)
-			hso_dev = hso_create_net_device(interface, port_spec);
-		else
+		if ((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) {
+			if (!disable_net)
+				hso_dev =
+				    hso_create_net_device(interface, port_spec);
+		} else {
 			hso_dev =
 			    hso_create_bulk_serial_device(interface, port_spec);
+		}
 		if (!hso_dev)
 			goto exit;
 		break;

@@ -233,7 +233,7 @@ nilfs_ioctl_do_get_vinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	int ret;
 
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_dat_get_vinfo(nilfs_dat_inode(nilfs), buf, size, nmembs);
+	ret = nilfs_dat_get_vinfo(nilfs->ns_dat, buf, size, nmembs);
 	up_read(&nilfs->ns_segctor_sem);
 	return ret;
 }
@@ -242,8 +242,7 @@ static ssize_t
 nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			  void *buf, size_t size, size_t nmembs)
 {
-	struct inode *dat = nilfs_dat_inode(nilfs);
-	struct nilfs_bmap *bmap = NILFS_I(dat)->i_bmap;
+	struct nilfs_bmap *bmap = NILFS_I(nilfs->ns_dat)->i_bmap;
 	struct nilfs_bdesc *bdescs = buf;
 	int ret, i;
 
@@ -337,6 +336,7 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 				   struct nilfs_argv *argv, void *buf)
 {
 	size_t nmembs = argv->v_nmembs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct inode *inode;
 	struct nilfs_vdesc *vdesc;
 	struct buffer_head *bh, *n;
@@ -349,10 +349,21 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 		ino = vdesc->vd_ino;
 		cno = vdesc->vd_cno;
 		inode = nilfs_iget_for_gc(sb, ino, cno);
-		if (unlikely(inode == NULL)) {
-			ret = -ENOMEM;
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
 			goto failed;
 		}
+		if (list_empty(&NILFS_I(inode)->i_dirty)) {
+			/*
+			 * Add the inode to GC inode list. Garbage Collection
+			 * is serialized and no two processes manipulate the
+			 * list simultaneously.
+			 */
+			igrab(inode);
+			list_add(&NILFS_I(inode)->i_dirty,
+				 &nilfs->ns_gc_inodes);
+		}
+
 		do {
 			ret = nilfs_ioctl_move_inode_block(inode, vdesc,
 							   &buffers);
@@ -409,7 +420,7 @@ static int nilfs_ioctl_free_vblocknrs(struct the_nilfs *nilfs,
 	size_t nmembs = argv->v_nmembs;
 	int ret;
 
-	ret = nilfs_dat_freev(nilfs_dat_inode(nilfs), buf, nmembs);
+	ret = nilfs_dat_freev(nilfs->ns_dat, buf, nmembs);
 
 	return (ret < 0) ? ret : nmembs;
 }
@@ -418,8 +429,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 					 struct nilfs_argv *argv, void *buf)
 {
 	size_t nmembs = argv->v_nmembs;
-	struct inode *dat = nilfs_dat_inode(nilfs);
-	struct nilfs_bmap *bmap = NILFS_I(dat)->i_bmap;
+	struct nilfs_bmap *bmap = NILFS_I(nilfs->ns_dat)->i_bmap;
 	struct nilfs_bdesc *bdescs = buf;
 	int ret, i;
 
@@ -438,7 +448,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 			/* skip dead block */
 			continue;
 		if (bdescs[i].bd_level == 0) {
-			ret = nilfs_mdt_mark_block_dirty(dat,
+			ret = nilfs_mdt_mark_block_dirty(nilfs->ns_dat,
 							 bdescs[i].bd_offset);
 			if (ret < 0) {
 				WARN_ON(ret == -ENOENT);

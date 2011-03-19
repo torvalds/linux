@@ -44,7 +44,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 		     !sk2->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if) &&
 		    (!sk->sk_reuse || !sk2->sk_reuse ||
-		     sk2->sk_state == TCP_LISTEN) &&
+		     ((1 << sk2->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))) &&
 		     ipv6_rcv_saddr_equal(sk, sk2))
 			break;
 	}
@@ -54,24 +54,54 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 
+struct dst_entry *inet6_csk_route_req(struct sock *sk,
+				      const struct request_sock *req)
+{
+	struct inet6_request_sock *treq = inet6_rsk(req);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct in6_addr *final_p, final;
+	struct dst_entry *dst;
+	struct flowi fl;
+
+	memset(&fl, 0, sizeof(fl));
+	fl.proto = IPPROTO_TCP;
+	ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
+	final_p = fl6_update_dst(&fl, np->opt, &final);
+	ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
+	fl.oif = sk->sk_bound_dev_if;
+	fl.mark = sk->sk_mark;
+	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
+	fl.fl_ip_sport = inet_rsk(req)->loc_port;
+	security_req_classify_flow(req, &fl);
+
+	if (ip6_dst_lookup(sk, &dst, &fl))
+		return NULL;
+
+	if (final_p)
+		ipv6_addr_copy(&fl.fl6_dst, final_p);
+
+	if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+		return NULL;
+
+	return dst;
+}
+
 /*
  * request_sock (formerly open request) hash tables.
  */
 static u32 inet6_synq_hash(const struct in6_addr *raddr, const __be16 rport,
 			   const u32 rnd, const u16 synq_hsize)
 {
-	u32 a = (__force u32)raddr->s6_addr32[0];
-	u32 b = (__force u32)raddr->s6_addr32[1];
-	u32 c = (__force u32)raddr->s6_addr32[2];
+	u32 c;
 
-	a += JHASH_GOLDEN_RATIO;
-	b += JHASH_GOLDEN_RATIO;
-	c += rnd;
-	__jhash_mix(a, b, c);
+	c = jhash_3words((__force u32)raddr->s6_addr32[0],
+			 (__force u32)raddr->s6_addr32[1],
+			 (__force u32)raddr->s6_addr32[2],
+			 rnd);
 
-	a += (__force u32)raddr->s6_addr32[3];
-	b += (__force u32)rport;
-	__jhash_mix(a, b, c);
+	c = jhash_2words((__force u32)raddr->s6_addr32[3],
+			 (__force u32)rport,
+			 c);
 
 	return c & (synq_hsize - 1);
 }

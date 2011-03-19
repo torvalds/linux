@@ -4,8 +4,8 @@
 source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
-	bool "Virtualization"
-	default y
+	def_bool y
+	prompt "Virtualization"
 	---help---
 	  Say Y here to get to see options for using your Linux host to run other
 	  operating systems inside virtual machines (guests).
@@ -16,7 +16,8 @@ menuconfig VIRTUALIZATION
 if VIRTUALIZATION
 
 config KVM
-	tristate "Kernel-based Virtual Machine (KVM) support"
+	def_tristate y
+	prompt "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM && EXPERIMENTAL
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES

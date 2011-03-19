@@ -223,7 +223,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 
 static void __cpuinit calculate_tlb_offset(void)
 {
-	int cpu, node, nr_node_vecs;
+	int cpu, node, nr_node_vecs, idx = 0;
 	/*
 	 * we are changing tlb_vector_offset for each CPU in runtime, but this
 	 * will not cause inconsistency, as the write is atomic under X86. we
@@ -239,7 +239,7 @@ static void __cpuinit calculate_tlb_offset(void)
 		nr_node_vecs = NUM_INVALIDATE_TLB_VECTORS/nr_online_nodes;
 
 	for_each_online_node(node) {
-		int node_offset = (node % NUM_INVALIDATE_TLB_VECTORS) *
+		int node_offset = (idx % NUM_INVALIDATE_TLB_VECTORS) *
 			nr_node_vecs;
 		int cpu_offset = 0;
 		for_each_cpu(cpu, cpumask_of_node(node)) {
@@ -248,10 +248,11 @@ static void __cpuinit calculate_tlb_offset(void)
 			cpu_offset++;
 			cpu_offset = cpu_offset % nr_node_vecs;
 		}
+		idx++;
 	}
 }
 
-static int tlb_cpuhp_notify(struct notifier_block *n,
+static int __cpuinit tlb_cpuhp_notify(struct notifier_block *n,
 		unsigned long action, void *hcpu)
 {
 	switch (action & 0xf) {

@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(rtc_lock);
 
 static u64 tb_to_ns_scale __read_mostly;
 static unsigned tb_to_ns_shift __read_mostly;
-static unsigned long boot_tb __read_mostly;
+static u64 boot_tb __read_mostly;
 
 extern struct timezone sys_tz;
 static long timezone_offset;
@@ -265,11 +265,26 @@ void accumulate_stolen_time(void)
 {
 	u64 sst, ust;
 
-	sst = scan_dispatch_log(get_paca()->starttime_user);
-	ust = scan_dispatch_log(get_paca()->starttime);
-	get_paca()->system_time -= sst;
-	get_paca()->user_time -= ust;
-	get_paca()->stolen_time += ust + sst;
+	u8 save_soft_enabled = local_paca->soft_enabled;
+	u8 save_hard_enabled = local_paca->hard_enabled;
+
+	/* We are called early in the exception entry, before
+	 * soft/hard_enabled are sync'ed to the expected state
+	 * for the exception. We are hard disabled but the PACA
+	 * needs to reflect that so various debug stuff doesn't
+	 * complain
+	 */
+	local_paca->soft_enabled = 0;
+	local_paca->hard_enabled = 0;
+
+	sst = scan_dispatch_log(local_paca->starttime_user);
+	ust = scan_dispatch_log(local_paca->starttime);
+	local_paca->system_time -= sst;
+	local_paca->user_time -= ust;
+	local_paca->stolen_time += ust + sst;
+
+	local_paca->soft_enabled = save_soft_enabled;
+	local_paca->hard_enabled = save_hard_enabled;
 }
 
 static inline u64 calculate_stolen_time(u64 stop_tb)

@@ -126,6 +126,12 @@ struct console {
 	struct	 console *next;
 };
 
+/*
+ * for_each_console() allows you to iterate on each console
+ */
+#define for_each_console(con) \
+	for (con = console_drivers; con != NULL; con = con->next)
+
 extern int console_set_on_cmdline;
 
 extern int add_preferred_console(char *name, int idx, char *options);
@@ -133,9 +139,9 @@ extern int update_console_cmdline(char *name, int idx, char *name_new, int idx_n
 extern void register_console(struct console *);
 extern int unregister_console(struct console *);
 extern struct console *console_drivers;
-extern void acquire_console_sem(void);
-extern int try_acquire_console_sem(void);
-extern void release_console_sem(void);
+extern void console_lock(void);
+extern int console_trylock(void);
+extern void console_unlock(void);
 extern void console_conditional_schedule(void);
 extern void console_unblank(void);
 extern struct tty_driver *console_device(int *);
@@ -145,7 +151,7 @@ extern int is_console_locked(void);
 extern int braille_register_console(struct console *, int index,
 		char *console_options, char *braille_options);
 extern int braille_unregister_console(struct console *);
-
+extern void console_sysfs_notify(void);
 extern int console_suspend_enabled;
 
 /* Suspend and resume console messages over PM events */

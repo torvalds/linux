@@ -13,6 +13,7 @@
  */
 
 #include <asm/exception-64s.h>
+#include <asm/ptrace.h>
 
 /*
  * We layout physical memory as follows:

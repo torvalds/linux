@@ -152,9 +152,9 @@ dasd_3990_erp_alternate_path(struct dasd_ccw_req * erp)
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	opm = ccw_device_get_path_mask(device->cdev);
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
-	//FIXME: start with get_opm ?
 	if (erp->lpm == 0)
-		erp->lpm = LPM_ANYPATH & ~(erp->irb.esw.esw0.sublog.lpum);
+		erp->lpm = device->path_data.opm &
+			~(erp->irb.esw.esw0.sublog.lpum);
 	else
 		erp->lpm &= ~(erp->irb.esw.esw0.sublog.lpum);
 
@@ -270,10 +270,11 @@ static struct dasd_ccw_req *dasd_3990_erp_action_1(struct dasd_ccw_req *erp)
 {
 	erp->function = dasd_3990_erp_action_1;
 	dasd_3990_erp_alternate_path(erp);
-	if (erp->status == DASD_CQR_FAILED) {
+	if (erp->status == DASD_CQR_FAILED &&
+	    !test_bit(DASD_CQR_VERIFY_PATH, &erp->flags)) {
 		erp->status = DASD_CQR_FILLED;
 		erp->retries = 10;
-		erp->lpm = LPM_ANYPATH;
+		erp->lpm = erp->startdev->path_data.opm;
 		erp->function = dasd_3990_erp_action_1_sec;
 	}
 	return erp;
@@ -1907,15 +1908,14 @@ dasd_3990_erp_compound_retry(struct dasd_ccw_req * erp, char *sense)
 static void
 dasd_3990_erp_compound_path(struct dasd_ccw_req * erp, char *sense)
 {
-
 	if (sense[25] & DASD_SENSE_BIT_3) {
 		dasd_3990_erp_alternate_path(erp);
 
-		if (erp->status == DASD_CQR_FAILED) {
+		if (erp->status == DASD_CQR_FAILED &&
+		    !test_bit(DASD_CQR_VERIFY_PATH, &erp->flags)) {
 			/* reset the lpm and the status to be able to
 			 * try further actions. */
-
-			erp->lpm = 0;
+			erp->lpm = erp->startdev->path_data.opm;
 			erp->status = DASD_CQR_NEED_ERP;
 		}
 	}

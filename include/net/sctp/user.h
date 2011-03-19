@@ -78,6 +78,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_GET_PEER_ADDR_INFO	15
 #define SCTP_DELAYED_ACK_TIME	16
 #define SCTP_DELAYED_ACK SCTP_DELAYED_ACK_TIME
+#define SCTP_DELAYED_SACK SCTP_DELAYED_ACK_TIME
 #define SCTP_CONTEXT	17
 #define SCTP_FRAGMENT_INTERLEAVE	18
 #define SCTP_PARTIAL_DELIVERY_POINT	19 /* Set/Get partial delivery point */
@@ -99,8 +100,8 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_SOCKOPT_PEELOFF	102	/* peel off association. */
 /* Options 104-106 are deprecated and removed. Do not use this space */
 #define SCTP_SOCKOPT_CONNECTX_OLD	107	/* CONNECTX old requests. */
-#define SCTP_GET_PEER_ADDRS	108		/* Get all peer addresss. */
-#define SCTP_GET_LOCAL_ADDRS	109		/* Get all local addresss. */
+#define SCTP_GET_PEER_ADDRS	108		/* Get all peer address. */
+#define SCTP_GET_LOCAL_ADDRS	109		/* Get all local address. */
 #define SCTP_SOCKOPT_CONNECTX	110		/* CONNECTX requests. */
 #define SCTP_SOCKOPT_CONNECTX3	111	/* CONNECTX requests (updated) */
 

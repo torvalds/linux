@@ -116,7 +116,7 @@ MODULE_LICENSE("GPL");
 #define RX_RING_LEN_BITS		(RX_LOG_RING_SIZE << 5)
 #define	RX_RING_MOD_MASK		(RX_RING_SIZE - 1)
 
-#define TX_TIMEOUT	20
+#define TX_TIMEOUT	(HZ/5)
 
 /* The LANCE Rx and Tx ring descriptors. */
 struct lance_rx_head {

@@ -197,9 +197,9 @@ int security_quota_on(struct dentry *dentry)
 	return security_ops->quota_on(dentry);
 }
 
-int security_syslog(int type, bool from_file)
+int security_syslog(int type)
 {
-	return security_ops->syslog(type, from_file);
+	return security_ops->syslog(type);
 }
 
 int security_settime(struct timespec *ts, struct timezone *tz)
@@ -511,6 +511,15 @@ int security_inode_permission(struct inode *inode, int mask)
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 	return security_ops->inode_permission(inode, mask);
+}
+
+int security_inode_exec_permission(struct inode *inode, unsigned int flags)
+{
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+	if (flags)
+		return -ECHILD;
+	return security_ops->inode_permission(inode, MAY_EXEC);
 }
 
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
@@ -977,8 +986,7 @@ EXPORT_SYMBOL(security_inode_getsecctx);
 
 #ifdef CONFIG_SECURITY_NETWORK
 
-int security_unix_stream_connect(struct socket *sock, struct socket *other,
-				 struct sock *newsk)
+int security_unix_stream_connect(struct sock *sock, struct sock *other, struct sock *newsk)
 {
 	return security_ops->unix_stream_connect(sock, other, newsk);
 }

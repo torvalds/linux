@@ -59,14 +59,70 @@ bna_port_cb_link_down(struct bna_port *port, int status)
 	port->link_cbfn(port->bna->bnad, BNA_LINK_DOWN);
 }
 
+static inline int
+llport_can_be_up(struct bna_llport *llport)
+{
+	int ready = 0;
+	if (llport->type == BNA_PORT_T_REGULAR)
+		ready = ((llport->flags & BNA_LLPORT_F_ADMIN_UP) &&
+			 (llport->flags & BNA_LLPORT_F_RX_STARTED) &&
+			 (llport->flags & BNA_LLPORT_F_PORT_ENABLED));
+	else
+		ready = ((llport->flags & BNA_LLPORT_F_ADMIN_UP) &&
+			 (llport->flags & BNA_LLPORT_F_RX_STARTED) &&
+			 !(llport->flags & BNA_LLPORT_F_PORT_ENABLED));
+	return ready;
+}
+
+#define llport_is_up llport_can_be_up
+
+enum bna_llport_event {
+	LLPORT_E_START			= 1,
+	LLPORT_E_STOP			= 2,
+	LLPORT_E_FAIL			= 3,
+	LLPORT_E_UP			= 4,
+	LLPORT_E_DOWN			= 5,
+	LLPORT_E_FWRESP_UP_OK		= 6,
+	LLPORT_E_FWRESP_UP_FAIL		= 7,
+	LLPORT_E_FWRESP_DOWN		= 8
+};
+
+static void
+bna_llport_cb_port_enabled(struct bna_llport *llport)
+{
+	llport->flags |= BNA_LLPORT_F_PORT_ENABLED;
+
+	if (llport_can_be_up(llport))
+		bfa_fsm_send_event(llport, LLPORT_E_UP);
+}
+
+static void
+bna_llport_cb_port_disabled(struct bna_llport *llport)
+{
+	int llport_up = llport_is_up(llport);
+
+	llport->flags &= ~BNA_LLPORT_F_PORT_ENABLED;
+
+	if (llport_up)
+		bfa_fsm_send_event(llport, LLPORT_E_DOWN);
+}
+
 /**
  * MBOX
  */
 static int
 bna_is_aen(u8 msg_id)
 {
-	return msg_id == BFI_LL_I2H_LINK_DOWN_AEN ||
-	       msg_id == BFI_LL_I2H_LINK_UP_AEN;
+	switch (msg_id) {
+	case BFI_LL_I2H_LINK_DOWN_AEN:
+	case BFI_LL_I2H_LINK_UP_AEN:
+	case BFI_LL_I2H_PORT_ENABLE_AEN:
+	case BFI_LL_I2H_PORT_DISABLE_AEN:
+		return 1;
+
+	default:
+		return 0;
+	}
 }
 
 static void
@@ -80,6 +136,12 @@ bna_mbox_aen_callback(struct bna *bna, struct bfi_mbmsg *msg)
 		break;
 	case BFI_LL_I2H_LINK_DOWN_AEN:
 		bna_port_cb_link_down(&bna->port, aen->reason);
+		break;
+	case BFI_LL_I2H_PORT_ENABLE_AEN:
+		bna_llport_cb_port_enabled(&bna->port.llport);
+		break;
+	case BFI_LL_I2H_PORT_DISABLE_AEN:
+		bna_llport_cb_port_disabled(&bna->port.llport);
 		break;
 	default:
 		break;
@@ -251,16 +313,6 @@ static void bna_llport_start(struct bna_llport *llport);
 static void bna_llport_stop(struct bna_llport *llport);
 static void bna_llport_fail(struct bna_llport *llport);
 
-enum bna_llport_event {
-	LLPORT_E_START			= 1,
-	LLPORT_E_STOP			= 2,
-	LLPORT_E_FAIL			= 3,
-	LLPORT_E_UP			= 4,
-	LLPORT_E_DOWN			= 5,
-	LLPORT_E_FWRESP_UP		= 6,
-	LLPORT_E_FWRESP_DOWN		= 7
-};
-
 enum bna_llport_state {
 	BNA_LLPORT_STOPPED		= 1,
 	BNA_LLPORT_DOWN			= 2,
@@ -320,7 +372,7 @@ bna_llport_sm_stopped(struct bna_llport *llport,
 		/* No-op */
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 	case LLPORT_E_FWRESP_DOWN:
 		/**
 		 * These events are received due to flushing of mbox when
@@ -366,6 +418,7 @@ bna_llport_sm_down(struct bna_llport *llport,
 static void
 bna_llport_sm_up_resp_wait_entry(struct bna_llport *llport)
 {
+	BUG_ON(!llport_can_be_up(llport));
 	/**
 	 * NOTE: Do not call bna_fw_llport_up() here. That will over step
 	 * mbox due to down_resp_wait -> up_resp_wait transition on event
@@ -390,8 +443,12 @@ bna_llport_sm_up_resp_wait(struct bna_llport *llport,
 		bfa_fsm_set_state(llport, bna_llport_sm_down_resp_wait);
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 		bfa_fsm_set_state(llport, bna_llport_sm_up);
+		break;
+
+	case LLPORT_E_FWRESP_UP_FAIL:
+		bfa_fsm_set_state(llport, bna_llport_sm_down);
 		break;
 
 	case LLPORT_E_FWRESP_DOWN:
@@ -431,11 +488,12 @@ bna_llport_sm_down_resp_wait(struct bna_llport *llport,
 		bfa_fsm_set_state(llport, bna_llport_sm_up_resp_wait);
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 		/* up_resp_wait->down_resp_wait transition on LLPORT_E_DOWN */
 		bna_fw_llport_down(llport);
 		break;
 
+	case LLPORT_E_FWRESP_UP_FAIL:
 	case LLPORT_E_FWRESP_DOWN:
 		bfa_fsm_set_state(llport, bna_llport_sm_down);
 		break;
@@ -496,11 +554,12 @@ bna_llport_sm_last_resp_wait(struct bna_llport *llport,
 		/* No-op */
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 		/* up_resp_wait->last_resp_wait transition on LLPORT_T_STOP */
 		bna_fw_llport_down(llport);
 		break;
 
+	case LLPORT_E_FWRESP_UP_FAIL:
 	case LLPORT_E_FWRESP_DOWN:
 		bfa_fsm_set_state(llport, bna_llport_sm_stopped);
 		break;
@@ -541,7 +600,14 @@ bna_fw_cb_llport_up(void *arg, int status)
 	struct bna_llport *llport = (struct bna_llport *)arg;
 
 	bfa_q_qe_init(&llport->mbox_qe.qe);
-	bfa_fsm_send_event(llport, LLPORT_E_FWRESP_UP);
+	if (status == BFI_LL_CMD_FAIL) {
+		if (llport->type == BNA_PORT_T_REGULAR)
+			llport->flags &= ~BNA_LLPORT_F_PORT_ENABLED;
+		else
+			llport->flags &= ~BNA_LLPORT_F_ADMIN_UP;
+		bfa_fsm_send_event(llport, LLPORT_E_FWRESP_UP_FAIL);
+	} else
+		bfa_fsm_send_event(llport, LLPORT_E_FWRESP_UP_OK);
 }
 
 static void
@@ -588,13 +654,14 @@ bna_port_cb_llport_stopped(struct bna_port *port,
 static void
 bna_llport_init(struct bna_llport *llport, struct bna *bna)
 {
-	llport->flags |= BNA_LLPORT_F_ENABLED;
+	llport->flags |= BNA_LLPORT_F_ADMIN_UP;
+	llport->flags |= BNA_LLPORT_F_PORT_ENABLED;
 	llport->type = BNA_PORT_T_REGULAR;
 	llport->bna = bna;
 
 	llport->link_status = BNA_LINK_DOWN;
 
-	llport->admin_up_count = 0;
+	llport->rx_started_count = 0;
 
 	llport->stop_cbfn = NULL;
 
@@ -606,7 +673,8 @@ bna_llport_init(struct bna_llport *llport, struct bna *bna)
 static void
 bna_llport_uninit(struct bna_llport *llport)
 {
-	llport->flags &= ~BNA_LLPORT_F_ENABLED;
+	llport->flags &= ~BNA_LLPORT_F_ADMIN_UP;
+	llport->flags &= ~BNA_LLPORT_F_PORT_ENABLED;
 
 	llport->bna = NULL;
 }
@@ -628,6 +696,8 @@ bna_llport_stop(struct bna_llport *llport)
 static void
 bna_llport_fail(struct bna_llport *llport)
 {
+	/* Reset the physical port status to enabled */
+	llport->flags |= BNA_LLPORT_F_PORT_ENABLED;
 	bfa_fsm_send_event(llport, LLPORT_E_FAIL);
 }
 
@@ -638,25 +708,31 @@ bna_llport_state_get(struct bna_llport *llport)
 }
 
 void
-bna_llport_admin_up(struct bna_llport *llport)
+bna_llport_rx_started(struct bna_llport *llport)
 {
-	llport->admin_up_count++;
+	llport->rx_started_count++;
 
-	if (llport->admin_up_count == 1) {
-		llport->flags |= BNA_LLPORT_F_RX_ENABLED;
-		if (llport->flags & BNA_LLPORT_F_ENABLED)
+	if (llport->rx_started_count == 1) {
+
+		llport->flags |= BNA_LLPORT_F_RX_STARTED;
+
+		if (llport_can_be_up(llport))
 			bfa_fsm_send_event(llport, LLPORT_E_UP);
 	}
 }
 
 void
-bna_llport_admin_down(struct bna_llport *llport)
+bna_llport_rx_stopped(struct bna_llport *llport)
 {
-	llport->admin_up_count--;
+	int llport_up = llport_is_up(llport);
 
-	if (llport->admin_up_count == 0) {
-		llport->flags &= ~BNA_LLPORT_F_RX_ENABLED;
-		if (llport->flags & BNA_LLPORT_F_ENABLED)
+	llport->rx_started_count--;
+
+	if (llport->rx_started_count == 0) {
+
+		llport->flags &= ~BNA_LLPORT_F_RX_STARTED;
+
+		if (llport_up)
 			bfa_fsm_send_event(llport, LLPORT_E_DOWN);
 	}
 }
@@ -2056,37 +2132,6 @@ rxf_fltr_mbox_cmd(struct bna_rxf *rxf, u8 cmd, enum bna_status status)
 	bna_mbox_send(rxf->rx->bna, &rxf->mbox_qe);
 }
 
-static void
-__rxf_default_function_config(struct bna_rxf *rxf, enum bna_status status)
-{
-	struct bna_rx_fndb_ram *rx_fndb_ram;
-	u32 ctrl_flags;
-	int i;
-
-	rx_fndb_ram = (struct bna_rx_fndb_ram *)
-			BNA_GET_MEM_BASE_ADDR(rxf->rx->bna->pcidev.pci_bar_kva,
-			RX_FNDB_RAM_BASE_OFFSET);
-
-	for (i = 0; i < BFI_MAX_RXF; i++) {
-		if (status == BNA_STATUS_T_ENABLED) {
-			if (i == rxf->rxf_id)
-				continue;
-
-			ctrl_flags =
-				readl(&rx_fndb_ram[i].control_flags);
-			ctrl_flags |= BNA_RXF_CF_DEFAULT_FUNCTION_ENABLE;
-			writel(ctrl_flags,
-						&rx_fndb_ram[i].control_flags);
-		} else {
-			ctrl_flags =
-				readl(&rx_fndb_ram[i].control_flags);
-			ctrl_flags &= ~BNA_RXF_CF_DEFAULT_FUNCTION_ENABLE;
-			writel(ctrl_flags,
-						&rx_fndb_ram[i].control_flags);
-		}
-	}
-}
-
 int
 rxf_process_packet_filter_ucast(struct bna_rxf *rxf)
 {
@@ -2145,46 +2190,6 @@ rxf_process_packet_filter_promisc(struct bna_rxf *rxf)
 		/* Revert VLAN filter */
 		__rxf_vlan_filter_set(rxf, rxf->vlan_filter_status);
 		rxf_fltr_mbox_cmd(rxf, BFI_LL_H2I_RXF_PROMISCUOUS_SET_REQ,
-				BNA_STATUS_T_DISABLED);
-		return 1;
-	}
-
-	return 0;
-}
-
-int
-rxf_process_packet_filter_default(struct bna_rxf *rxf)
-{
-	struct bna *bna = rxf->rx->bna;
-
-	/* Enable/disable default mode */
-	if (is_default_enable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask)) {
-		/* move default configuration from pending -> active */
-		default_inactive(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		rxf->rxmode_active |= BNA_RXMODE_DEFAULT;
-
-		/* Disable VLAN filter to allow all VLANs */
-		__rxf_vlan_filter_set(rxf, BNA_STATUS_T_DISABLED);
-		/* Redirect all other RxF vlan filtering to this one */
-		__rxf_default_function_config(rxf, BNA_STATUS_T_ENABLED);
-		rxf_fltr_mbox_cmd(rxf, BFI_LL_H2I_RXF_DEFAULT_SET_REQ,
-				BNA_STATUS_T_ENABLED);
-		return 1;
-	} else if (is_default_disable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask)) {
-		/* move default configuration from pending -> active */
-		default_inactive(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		rxf->rxmode_active &= ~BNA_RXMODE_DEFAULT;
-		bna->rxf_default_id = BFI_MAX_RXF;
-
-		/* Revert VLAN filter */
-		__rxf_vlan_filter_set(rxf, rxf->vlan_filter_status);
-		/* Stop RxF vlan filter table redirection */
-		__rxf_default_function_config(rxf, BNA_STATUS_T_DISABLED);
-		rxf_fltr_mbox_cmd(rxf, BFI_LL_H2I_RXF_DEFAULT_SET_REQ,
 				BNA_STATUS_T_DISABLED);
 		return 1;
 	}
@@ -2289,48 +2294,6 @@ rxf_clear_packet_filter_promisc(struct bna_rxf *rxf)
 }
 
 int
-rxf_clear_packet_filter_default(struct bna_rxf *rxf)
-{
-	struct bna *bna = rxf->rx->bna;
-
-	/* 8. Execute pending default mode disable command */
-	if (is_default_disable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask)) {
-		/* move default configuration from pending -> active */
-		default_inactive(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		rxf->rxmode_active &= ~BNA_RXMODE_DEFAULT;
-		bna->rxf_default_id = BFI_MAX_RXF;
-
-		/* Revert VLAN filter */
-		__rxf_vlan_filter_set(rxf, rxf->vlan_filter_status);
-		/* Stop RxF vlan filter table redirection */
-		__rxf_default_function_config(rxf, BNA_STATUS_T_DISABLED);
-		rxf_fltr_mbox_cmd(rxf, BFI_LL_H2I_RXF_DEFAULT_SET_REQ,
-				BNA_STATUS_T_DISABLED);
-		return 1;
-	}
-
-	/* 9. Clear active default mode; move it to pending enable */
-	if (rxf->rxmode_active & BNA_RXMODE_DEFAULT) {
-		/* move default configuration from active -> pending */
-		default_enable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		rxf->rxmode_active &= ~BNA_RXMODE_DEFAULT;
-
-		/* Revert VLAN filter */
-		__rxf_vlan_filter_set(rxf, rxf->vlan_filter_status);
-		/* Stop RxF vlan filter table redirection */
-		__rxf_default_function_config(rxf, BNA_STATUS_T_DISABLED);
-		rxf_fltr_mbox_cmd(rxf, BFI_LL_H2I_RXF_DEFAULT_SET_REQ,
-				BNA_STATUS_T_DISABLED);
-		return 1;
-	}
-
-	return 0;
-}
-
-int
 rxf_clear_packet_filter_allmulti(struct bna_rxf *rxf)
 {
 	/* 10. Execute pending allmulti mode disable command */
@@ -2402,28 +2365,6 @@ rxf_reset_packet_filter_promisc(struct bna_rxf *rxf)
 		rxf->rxmode_active &= ~BNA_RXMODE_PROMISC;
 	}
 
-}
-
-void
-rxf_reset_packet_filter_default(struct bna_rxf *rxf)
-{
-	struct bna *bna = rxf->rx->bna;
-
-	/* 8. Clear pending default mode disable */
-	if (is_default_disable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask)) {
-		default_inactive(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		rxf->rxmode_active &= ~BNA_RXMODE_DEFAULT;
-		bna->rxf_default_id = BFI_MAX_RXF;
-	}
-
-	/* 9. Move default mode config from active -> pending */
-	if (rxf->rxmode_active & BNA_RXMODE_DEFAULT) {
-		default_enable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		rxf->rxmode_active &= ~BNA_RXMODE_DEFAULT;
-	}
 }
 
 void
@@ -2523,76 +2464,6 @@ rxf_promisc_disable(struct bna_rxf *rxf)
  *	1 = need h/w change
  */
 static int
-rxf_default_enable(struct bna_rxf *rxf)
-{
-	struct bna *bna = rxf->rx->bna;
-	int ret = 0;
-
-	/* There can not be any pending disable command */
-
-	/* Do nothing if pending enable or already enabled */
-	if (is_default_enable(rxf->rxmode_pending,
-		rxf->rxmode_pending_bitmask) ||
-		(rxf->rxmode_active & BNA_RXMODE_DEFAULT)) {
-		/* Schedule enable */
-	} else {
-		/* Default mode should not be active in the system */
-		default_enable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		bna->rxf_default_id = rxf->rxf_id;
-		ret = 1;
-	}
-
-	return ret;
-}
-
-/**
- * Should only be called by bna_rxf_mode_set.
- * Helps deciding if h/w configuration is needed or not.
- *  Returns:
- *	0 = no h/w change
- *	1 = need h/w change
- */
-static int
-rxf_default_disable(struct bna_rxf *rxf)
-{
-	struct bna *bna = rxf->rx->bna;
-	int ret = 0;
-
-	/* There can not be any pending disable */
-
-	/* Turn off pending enable command , if any */
-	if (is_default_enable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask)) {
-		/* Promisc mode should not be active */
-		/* system default state should be pending */
-		default_inactive(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		/* Remove the default state from the system */
-		bna->rxf_default_id = BFI_MAX_RXF;
-
-	/* Schedule disable */
-	} else if (rxf->rxmode_active & BNA_RXMODE_DEFAULT) {
-		/* Default mode should be active in the system */
-		default_disable(rxf->rxmode_pending,
-				rxf->rxmode_pending_bitmask);
-		ret = 1;
-
-	/* Do nothing if already disabled */
-	} else {
-	}
-
-	return ret;
-}
-
-/**
- * Should only be called by bna_rxf_mode_set.
- * Helps deciding if h/w configuration is needed or not.
- *  Returns:
- *	0 = no h/w change
- *	1 = need h/w change
- */
-static int
 rxf_allmulti_enable(struct bna_rxf *rxf)
 {
 	int ret = 0;
@@ -2654,50 +2525,17 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode new_mode,
 	struct bna_rxf *rxf = &rx->rxf;
 	int need_hw_config = 0;
 
-	/* Error checks */
+	/* Process the commands */
 
 	if (is_promisc_enable(new_mode, bitmask)) {
 		/* If promisc mode is already enabled elsewhere in the system */
 		if ((rx->bna->rxf_promisc_id != BFI_MAX_RXF) &&
 			(rx->bna->rxf_promisc_id != rxf->rxf_id))
 			goto err_return;
-
-		/* If default mode is already enabled in the system */
-		if (rx->bna->rxf_default_id != BFI_MAX_RXF)
-			goto err_return;
-
-		/* Trying to enable promiscuous and default mode together */
-		if (is_default_enable(new_mode, bitmask))
-			goto err_return;
-	}
-
-	if (is_default_enable(new_mode, bitmask)) {
-		/* If default mode is already enabled elsewhere in the system */
-		if ((rx->bna->rxf_default_id != BFI_MAX_RXF) &&
-			(rx->bna->rxf_default_id != rxf->rxf_id)) {
-				goto err_return;
-		}
-
-		/* If promiscuous mode is already enabled in the system */
-		if (rx->bna->rxf_promisc_id != BFI_MAX_RXF)
-			goto err_return;
-	}
-
-	/* Process the commands */
-
-	if (is_promisc_enable(new_mode, bitmask)) {
 		if (rxf_promisc_enable(rxf))
 			need_hw_config = 1;
 	} else if (is_promisc_disable(new_mode, bitmask)) {
 		if (rxf_promisc_disable(rxf))
-			need_hw_config = 1;
-	}
-
-	if (is_default_enable(new_mode, bitmask)) {
-		if (rxf_default_enable(rxf))
-			need_hw_config = 1;
-	} else if (is_default_disable(new_mode, bitmask)) {
-		if (rxf_default_disable(rxf))
 			need_hw_config = 1;
 	}
 
@@ -3126,7 +2964,6 @@ bna_init(struct bna *bna, struct bnad *bnad, struct bfa_pcidev *pcidev,
 
 	bna_mcam_mod_init(&bna->mcam_mod, bna, res_info);
 
-	bna->rxf_default_id = BFI_MAX_RXF;
 	bna->rxf_promisc_id = BFI_MAX_RXF;
 
 	/* Mbox q element for posting stat request to f/w */

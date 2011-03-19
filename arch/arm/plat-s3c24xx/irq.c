@@ -34,11 +34,10 @@
 #include <plat/irq.h>
 
 static void
-s3c_irq_mask(unsigned int irqno)
+s3c_irq_mask(struct irq_data *data)
 {
+	unsigned int irqno = data->irq - IRQ_EINT0;
 	unsigned long mask;
-
-	irqno -= IRQ_EINT0;
 
 	mask = __raw_readl(S3C2410_INTMSK);
 	mask |= 1UL << irqno;
@@ -46,18 +45,18 @@ s3c_irq_mask(unsigned int irqno)
 }
 
 static inline void
-s3c_irq_ack(unsigned int irqno)
+s3c_irq_ack(struct irq_data *data)
 {
-	unsigned long bitval = 1UL << (irqno - IRQ_EINT0);
+	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
 
 	__raw_writel(bitval, S3C2410_SRCPND);
 	__raw_writel(bitval, S3C2410_INTPND);
 }
 
 static inline void
-s3c_irq_maskack(unsigned int irqno)
+s3c_irq_maskack(struct irq_data *data)
 {
-	unsigned long bitval = 1UL << (irqno - IRQ_EINT0);
+	unsigned long bitval = 1UL << (data->irq - IRQ_EINT0);
 	unsigned long mask;
 
 	mask = __raw_readl(S3C2410_INTMSK);
@@ -69,8 +68,9 @@ s3c_irq_maskack(unsigned int irqno)
 
 
 static void
-s3c_irq_unmask(unsigned int irqno)
+s3c_irq_unmask(struct irq_data *data)
 {
+	unsigned int irqno = data->irq;
 	unsigned long mask;
 
 	if (irqno != IRQ_TIMER4 && irqno != IRQ_EINT8t23)
@@ -85,26 +85,25 @@ s3c_irq_unmask(unsigned int irqno)
 
 struct irq_chip s3c_irq_level_chip = {
 	.name		= "s3c-level",
-	.ack		= s3c_irq_maskack,
-	.mask		= s3c_irq_mask,
-	.unmask		= s3c_irq_unmask,
-	.set_wake	= s3c_irq_wake
+	.irq_ack	= s3c_irq_maskack,
+	.irq_mask	= s3c_irq_mask,
+	.irq_unmask	= s3c_irq_unmask,
+	.irq_set_wake	= s3c_irq_wake
 };
 
 struct irq_chip s3c_irq_chip = {
 	.name		= "s3c",
-	.ack		= s3c_irq_ack,
-	.mask		= s3c_irq_mask,
-	.unmask		= s3c_irq_unmask,
-	.set_wake	= s3c_irq_wake
+	.irq_ack	= s3c_irq_ack,
+	.irq_mask	= s3c_irq_mask,
+	.irq_unmask	= s3c_irq_unmask,
+	.irq_set_wake	= s3c_irq_wake
 };
 
 static void
-s3c_irqext_mask(unsigned int irqno)
+s3c_irqext_mask(struct irq_data *data)
 {
+	unsigned int irqno = data->irq - EXTINT_OFF;
 	unsigned long mask;
-
-	irqno -= EXTINT_OFF;
 
 	mask = __raw_readl(S3C24XX_EINTMASK);
 	mask |= ( 1UL << irqno);
@@ -112,13 +111,13 @@ s3c_irqext_mask(unsigned int irqno)
 }
 
 static void
-s3c_irqext_ack(unsigned int irqno)
+s3c_irqext_ack(struct irq_data *data)
 {
 	unsigned long req;
 	unsigned long bit;
 	unsigned long mask;
 
-	bit = 1UL << (irqno - EXTINT_OFF);
+	bit = 1UL << (data->irq - EXTINT_OFF);
 
 	mask = __raw_readl(S3C24XX_EINTMASK);
 
@@ -129,64 +128,57 @@ s3c_irqext_ack(unsigned int irqno)
 
 	/* not sure if we should be acking the parent irq... */
 
-	if (irqno <= IRQ_EINT7 ) {
+	if (data->irq <= IRQ_EINT7) {
 		if ((req & 0xf0) == 0)
-			s3c_irq_ack(IRQ_EINT4t7);
+			s3c_irq_ack(irq_get_irq_data(IRQ_EINT4t7));
 	} else {
 		if ((req >> 8) == 0)
-			s3c_irq_ack(IRQ_EINT8t23);
+			s3c_irq_ack(irq_get_irq_data(IRQ_EINT8t23));
 	}
 }
 
 static void
-s3c_irqext_unmask(unsigned int irqno)
+s3c_irqext_unmask(struct irq_data *data)
 {
+	unsigned int irqno = data->irq - EXTINT_OFF;
 	unsigned long mask;
 
-	irqno -= EXTINT_OFF;
-
 	mask = __raw_readl(S3C24XX_EINTMASK);
-	mask &= ~( 1UL << irqno);
+	mask &= ~(1UL << irqno);
 	__raw_writel(mask, S3C24XX_EINTMASK);
 }
 
 int
-s3c_irqext_type(unsigned int irq, unsigned int type)
+s3c_irqext_type(struct irq_data *data, unsigned int type)
 {
 	void __iomem *extint_reg;
 	void __iomem *gpcon_reg;
 	unsigned long gpcon_offset, extint_offset;
 	unsigned long newvalue = 0, value;
 
-	if ((irq >= IRQ_EINT0) && (irq <= IRQ_EINT3))
-	{
+	if ((data->irq >= IRQ_EINT0) && (data->irq <= IRQ_EINT3)) {
 		gpcon_reg = S3C2410_GPFCON;
 		extint_reg = S3C24XX_EXTINT0;
-		gpcon_offset = (irq - IRQ_EINT0) * 2;
-		extint_offset = (irq - IRQ_EINT0) * 4;
-	}
-	else if ((irq >= IRQ_EINT4) && (irq <= IRQ_EINT7))
-	{
+		gpcon_offset = (data->irq - IRQ_EINT0) * 2;
+		extint_offset = (data->irq - IRQ_EINT0) * 4;
+	} else if ((data->irq >= IRQ_EINT4) && (data->irq <= IRQ_EINT7)) {
 		gpcon_reg = S3C2410_GPFCON;
 		extint_reg = S3C24XX_EXTINT0;
-		gpcon_offset = (irq - (EXTINT_OFF)) * 2;
-		extint_offset = (irq - (EXTINT_OFF)) * 4;
-	}
-	else if ((irq >= IRQ_EINT8) && (irq <= IRQ_EINT15))
-	{
+		gpcon_offset = (data->irq - (EXTINT_OFF)) * 2;
+		extint_offset = (data->irq - (EXTINT_OFF)) * 4;
+	} else if ((data->irq >= IRQ_EINT8) && (data->irq <= IRQ_EINT15)) {
 		gpcon_reg = S3C2410_GPGCON;
 		extint_reg = S3C24XX_EXTINT1;
-		gpcon_offset = (irq - IRQ_EINT8) * 2;
-		extint_offset = (irq - IRQ_EINT8) * 4;
-	}
-	else if ((irq >= IRQ_EINT16) && (irq <= IRQ_EINT23))
-	{
+		gpcon_offset = (data->irq - IRQ_EINT8) * 2;
+		extint_offset = (data->irq - IRQ_EINT8) * 4;
+	} else if ((data->irq >= IRQ_EINT16) && (data->irq <= IRQ_EINT23)) {
 		gpcon_reg = S3C2410_GPGCON;
 		extint_reg = S3C24XX_EXTINT2;
-		gpcon_offset = (irq - IRQ_EINT8) * 2;
-		extint_offset = (irq - IRQ_EINT16) * 4;
-	} else
+		gpcon_offset = (data->irq - IRQ_EINT8) * 2;
+		extint_offset = (data->irq - IRQ_EINT16) * 4;
+	} else {
 		return -1;
+	}
 
 	/* Set the GPIO to external interrupt mode */
 	value = __raw_readl(gpcon_reg);
@@ -234,20 +226,20 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip s3c_irqext_chip = {
 	.name		= "s3c-ext",
-	.mask		= s3c_irqext_mask,
-	.unmask		= s3c_irqext_unmask,
-	.ack		= s3c_irqext_ack,
-	.set_type	= s3c_irqext_type,
-	.set_wake	= s3c_irqext_wake
+	.irq_mask	= s3c_irqext_mask,
+	.irq_unmask	= s3c_irqext_unmask,
+	.irq_ack	= s3c_irqext_ack,
+	.irq_set_type	= s3c_irqext_type,
+	.irq_set_wake	= s3c_irqext_wake
 };
 
 static struct irq_chip s3c_irq_eint0t4 = {
 	.name		= "s3c-ext0",
-	.ack		= s3c_irq_ack,
-	.mask		= s3c_irq_mask,
-	.unmask		= s3c_irq_unmask,
-	.set_wake	= s3c_irq_wake,
-	.set_type	= s3c_irqext_type,
+	.irq_ack	= s3c_irq_ack,
+	.irq_mask	= s3c_irq_mask,
+	.irq_unmask	= s3c_irq_unmask,
+	.irq_set_wake	= s3c_irq_wake,
+	.irq_set_type	= s3c_irqext_type,
 };
 
 /* mask values for the parent registers for each of the interrupt types */
@@ -261,109 +253,109 @@ static struct irq_chip s3c_irq_eint0t4 = {
 /* UART0 */
 
 static void
-s3c_irq_uart0_mask(unsigned int irqno)
+s3c_irq_uart0_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_UART0, 7);
+	s3c_irqsub_mask(data->irq, INTMSK_UART0, 7);
 }
 
 static void
-s3c_irq_uart0_unmask(unsigned int irqno)
+s3c_irq_uart0_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_UART0);
+	s3c_irqsub_unmask(data->irq, INTMSK_UART0);
 }
 
 static void
-s3c_irq_uart0_ack(unsigned int irqno)
+s3c_irq_uart0_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_UART0, 7);
+	s3c_irqsub_maskack(data->irq, INTMSK_UART0, 7);
 }
 
 static struct irq_chip s3c_irq_uart0 = {
 	.name		= "s3c-uart0",
-	.mask		= s3c_irq_uart0_mask,
-	.unmask		= s3c_irq_uart0_unmask,
-	.ack		= s3c_irq_uart0_ack,
+	.irq_mask	= s3c_irq_uart0_mask,
+	.irq_unmask	= s3c_irq_uart0_unmask,
+	.irq_ack	= s3c_irq_uart0_ack,
 };
 
 /* UART1 */
 
 static void
-s3c_irq_uart1_mask(unsigned int irqno)
+s3c_irq_uart1_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_UART1, 7 << 3);
+	s3c_irqsub_mask(data->irq, INTMSK_UART1, 7 << 3);
 }
 
 static void
-s3c_irq_uart1_unmask(unsigned int irqno)
+s3c_irq_uart1_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_UART1);
+	s3c_irqsub_unmask(data->irq, INTMSK_UART1);
 }
 
 static void
-s3c_irq_uart1_ack(unsigned int irqno)
+s3c_irq_uart1_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_UART1, 7 << 3);
+	s3c_irqsub_maskack(data->irq, INTMSK_UART1, 7 << 3);
 }
 
 static struct irq_chip s3c_irq_uart1 = {
 	.name		= "s3c-uart1",
-	.mask		= s3c_irq_uart1_mask,
-	.unmask		= s3c_irq_uart1_unmask,
-	.ack		= s3c_irq_uart1_ack,
+	.irq_mask	= s3c_irq_uart1_mask,
+	.irq_unmask	= s3c_irq_uart1_unmask,
+	.irq_ack	= s3c_irq_uart1_ack,
 };
 
 /* UART2 */
 
 static void
-s3c_irq_uart2_mask(unsigned int irqno)
+s3c_irq_uart2_mask(struct irq_data *data)
 {
-	s3c_irqsub_mask(irqno, INTMSK_UART2, 7 << 6);
+	s3c_irqsub_mask(data->irq, INTMSK_UART2, 7 << 6);
 }
 
 static void
-s3c_irq_uart2_unmask(unsigned int irqno)
+s3c_irq_uart2_unmask(struct irq_data *data)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_UART2);
+	s3c_irqsub_unmask(data->irq, INTMSK_UART2);
 }
 
 static void
-s3c_irq_uart2_ack(unsigned int irqno)
+s3c_irq_uart2_ack(struct irq_data *data)
 {
-	s3c_irqsub_maskack(irqno, INTMSK_UART2, 7 << 6);
+	s3c_irqsub_maskack(data->irq, INTMSK_UART2, 7 << 6);
 }
 
 static struct irq_chip s3c_irq_uart2 = {
 	.name		= "s3c-uart2",
-	.mask		= s3c_irq_uart2_mask,
-	.unmask		= s3c_irq_uart2_unmask,
-	.ack		= s3c_irq_uart2_ack,
+	.irq_mask	= s3c_irq_uart2_mask,
+	.irq_unmask	= s3c_irq_uart2_unmask,
+	.irq_ack	= s3c_irq_uart2_ack,
 };
 
 /* ADC and Touchscreen */
 
 static void
-s3c_irq_adc_mask(unsigned int irqno)
+s3c_irq_adc_mask(struct irq_data *d)
 {
-	s3c_irqsub_mask(irqno, INTMSK_ADCPARENT, 3 << 9);
+	s3c_irqsub_mask(d->irq, INTMSK_ADCPARENT, 3 << 9);
 }
 
 static void
-s3c_irq_adc_unmask(unsigned int irqno)
+s3c_irq_adc_unmask(struct irq_data *d)
 {
-	s3c_irqsub_unmask(irqno, INTMSK_ADCPARENT);
+	s3c_irqsub_unmask(d->irq, INTMSK_ADCPARENT);
 }
 
 static void
-s3c_irq_adc_ack(unsigned int irqno)
+s3c_irq_adc_ack(struct irq_data *d)
 {
-	s3c_irqsub_ack(irqno, INTMSK_ADCPARENT, 3 << 9);
+	s3c_irqsub_ack(d->irq, INTMSK_ADCPARENT, 3 << 9);
 }
 
 static struct irq_chip s3c_irq_adc = {
 	.name		= "s3c-adc",
-	.mask		= s3c_irq_adc_mask,
-	.unmask		= s3c_irq_adc_unmask,
-	.ack		= s3c_irq_adc_ack,
+	.irq_mask	= s3c_irq_adc_mask,
+	.irq_unmask	= s3c_irq_adc_unmask,
+	.irq_ack	= s3c_irq_adc_ack,
 };
 
 /* irq demux for adc */

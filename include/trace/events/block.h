@@ -206,15 +206,16 @@ TRACE_EVENT(block_bio_bounce,
  * block_bio_complete - completed all work on the block operation
  * @q: queue holding the block operation
  * @bio: block operation completed
+ * @error: io error value
  *
  * This tracepoint indicates there is no further work to do on this
  * block IO operation @bio.
  */
 TRACE_EVENT(block_bio_complete,
 
-	TP_PROTO(struct request_queue *q, struct bio *bio),
+	TP_PROTO(struct request_queue *q, struct bio *bio, int error),
 
-	TP_ARGS(q, bio),
+	TP_ARGS(q, bio, error),
 
 	TP_STRUCT__entry(
 		__field( dev_t,		dev		)
@@ -228,6 +229,7 @@ TRACE_EVENT(block_bio_complete,
 		__entry->dev		= bio->bi_bdev->bd_dev;
 		__entry->sector		= bio->bi_sector;
 		__entry->nr_sector	= bio->bi_size >> 9;
+		__entry->error		= error;
 		blk_fill_rwbs(__entry->rwbs, bio->bi_rw, bio->bi_size);
 	),
 
@@ -486,16 +488,16 @@ TRACE_EVENT(block_split,
 );
 
 /**
- * block_remap - map request for a partition to the raw device
+ * block_bio_remap - map request for a logical device to the raw device
  * @q: queue holding the operation
  * @bio: revised operation
  * @dev: device for the operation
  * @from: original sector for the operation
  *
- * An operation for a partition on a block device has been mapped to the
+ * An operation for a logical device has been mapped to the
  * raw block device.
  */
-TRACE_EVENT(block_remap,
+TRACE_EVENT(block_bio_remap,
 
 	TP_PROTO(struct request_queue *q, struct bio *bio, dev_t dev,
 		 sector_t from),

@@ -37,34 +37,9 @@
 #ifndef _TIPC_ADDR_H
 #define _TIPC_ADDR_H
 
-static inline u32 own_node(void)
-{
-	return tipc_node(tipc_own_addr);
-}
-
-static inline u32 own_cluster(void)
-{
-	return tipc_cluster(tipc_own_addr);
-}
-
-static inline u32 own_zone(void)
-{
-	return tipc_zone(tipc_own_addr);
-}
-
 static inline int in_own_cluster(u32 addr)
 {
 	return !((addr ^ tipc_own_addr) >> 12);
-}
-
-static inline int is_slave(u32 addr)
-{
-	return addr & 0x800;
-}
-
-static inline int may_route(u32 addr)
-{
-	return(addr ^ tipc_own_addr) >> 11;
 }
 
 /**

@@ -143,6 +143,7 @@ struct xfrm_state {
 	struct xfrm_id		id;
 	struct xfrm_selector	sel;
 	struct xfrm_mark	mark;
+	u32			tfcpad;
 
 	u32			genid;
 
@@ -805,6 +806,9 @@ __be16 xfrm_flowi_sport(struct flowi *fl)
 	case IPPROTO_MH:
 		port = htons(fl->fl_mh_type);
 		break;
+	case IPPROTO_GRE:
+		port = htons(ntohl(fl->fl_gre_key) >> 16);
+		break;
 	default:
 		port = 0;	/*XXX*/
 	}
@@ -825,6 +829,9 @@ __be16 xfrm_flowi_dport(struct flowi *fl)
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		port = htons(fl->fl_icmp_code);
+		break;
+	case IPPROTO_GRE:
+		port = htons(ntohl(fl->fl_gre_key) & 0xffff);
 		break;
 	default:
 		port = 0;	/*XXX*/

@@ -20,13 +20,19 @@
 #ifndef __OMAP2_DSS_FEATURES_H
 #define __OMAP2_DSS_FEATURES_H
 
-#define MAX_DSS_MANAGERS	2
+#define MAX_DSS_MANAGERS	3
 #define MAX_DSS_OVERLAYS	3
 
 /* DSS has feature id */
 enum dss_feat_id {
 	FEAT_GLOBAL_ALPHA	= 1 << 0,
 	FEAT_GLOBAL_ALPHA_VID1	= 1 << 1,
+	FEAT_PRE_MULT_ALPHA	= 1 << 2,
+	FEAT_LCDENABLEPOL	= 1 << 3,
+	FEAT_LCDENABLESIGNAL	= 1 << 4,
+	FEAT_PCKFREEENABLE	= 1 << 5,
+	FEAT_FUNCGATED		= 1 << 6,
+	FEAT_MGR_LCD2		= 1 << 7,
 };
 
 /* DSS register field id */
@@ -43,6 +49,8 @@ int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);
 enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
 enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
+bool dss_feat_color_mode_supported(enum omap_plane plane,
+		enum omap_color_mode color_mode);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);

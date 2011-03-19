@@ -110,3 +110,8 @@ void __init olpc_ofw_detect(void)
 			(unsigned long)olpc_ofw_cif, (-start) >> 20);
 	reserve_top_address(-start);
 }
+
+bool __init olpc_ofw_is_installed(void)
+{
+	return olpc_ofw_cif != NULL;
+}

@@ -76,6 +76,7 @@ static __init int efika_fabric_init(void)
 	rc = platform_device_add(pdev);
 	if (rc) {
 		pr_err("efika_fabric_init: platform_device_add() failed\n");
+		platform_device_put(pdev);
 		return -ENODEV;
 	}
 	return 0;

@@ -156,21 +156,21 @@ static void __init ap_map_io(void)
 
 #define INTEGRATOR_SC_VALID_INT	0x003fffff
 
-static void sc_mask_irq(unsigned int irq)
+static void sc_mask_irq(struct irq_data *d)
 {
-	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
+	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
 }
 
-static void sc_unmask_irq(unsigned int irq)
+static void sc_unmask_irq(struct irq_data *d)
 {
-	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_SET);
+	writel(1 << d->irq, VA_IC_BASE + IRQ_ENABLE_SET);
 }
 
 static struct irq_chip sc_chip = {
-	.name	= "SC",
-	.ack	= sc_mask_irq,
-	.mask	= sc_mask_irq,
-	.unmask = sc_unmask_irq,
+	.name		= "SC",
+	.irq_ack	= sc_mask_irq,
+	.irq_mask	= sc_mask_irq,
+	.irq_unmask	= sc_unmask_irq,
 };
 
 static void __init ap_init_irq(void)
@@ -372,7 +372,6 @@ static struct clocksource clocksource_timersp = {
 	.rating		= 200,
 	.read		= timersp_read,
 	.mask		= CLOCKSOURCE_MASK(16),
-	.shift		= 16,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -390,8 +389,7 @@ static void integrator_clocksource_init(u32 khz)
 	writel(ctrl, base + TIMER_CTRL);
 	writel(0xffff, base + TIMER_LOAD);
 
-	cs->mult = clocksource_khz2mult(khz, cs->shift);
-	clocksource_register(cs);
+	clocksource_register_khz(cs, khz);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;

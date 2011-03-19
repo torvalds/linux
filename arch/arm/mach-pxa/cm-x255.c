@@ -17,13 +17,13 @@
 #include <linux/mtd/nand-gpio.h>
 
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
 #include <mach/pxa25x.h>
-#include <mach/pxa2xx_spi.h>
 
 #include "generic.h"
 

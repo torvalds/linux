@@ -215,7 +215,7 @@ restart:
 		entry = radix_tree_deref_slot((void **)entries[i]);
 		if (unlikely(!entry))
 			continue;
-		if (unlikely(entry == RADIX_TREE_RETRY))
+		if (radix_tree_deref_retry(entry))
 			goto restart;
 
 		irq = create_irq();

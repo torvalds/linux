@@ -34,11 +34,13 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <linux/list.h>
 #include <linux/kernel.h>
 
 #include "../perf.h"
 #include "trace-event.h"
 #include "debugfs.h"
+#include "evsel.h"
 
 #define VERSION "0.5"
 
@@ -469,16 +471,17 @@ out:
 }
 
 static struct tracepoint_path *
-get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
+get_tracepoints_path(struct list_head *pattrs)
 {
 	struct tracepoint_path path, *ppath = &path;
-	int i, nr_tracepoints = 0;
+	struct perf_evsel *pos;
+	int nr_tracepoints = 0;
 
-	for (i = 0; i < nb_events; i++) {
-		if (pattrs[i].type != PERF_TYPE_TRACEPOINT)
+	list_for_each_entry(pos, pattrs, node) {
+		if (pos->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 		++nr_tracepoints;
-		ppath->next = tracepoint_id_to_path(pattrs[i].config);
+		ppath->next = tracepoint_id_to_path(pos->attr.config);
 		if (!ppath->next)
 			die("%s\n", "No memory to alloc tracepoints list");
 		ppath = ppath->next;
@@ -487,21 +490,21 @@ get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
 	return nr_tracepoints > 0 ? path.next : NULL;
 }
 
-bool have_tracepoints(struct perf_event_attr *pattrs, int nb_events)
+bool have_tracepoints(struct list_head *pattrs)
 {
-	int i;
+	struct perf_evsel *pos;
 
-	for (i = 0; i < nb_events; i++)
-		if (pattrs[i].type == PERF_TYPE_TRACEPOINT)
+	list_for_each_entry(pos, pattrs, node)
+		if (pos->attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 
 	return false;
 }
 
-int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
+int read_tracing_data(int fd, struct list_head *pattrs)
 {
 	char buf[BUFSIZ];
-	struct tracepoint_path *tps = get_tracepoints_path(pattrs, nb_events);
+	struct tracepoint_path *tps = get_tracepoints_path(pattrs);
 
 	/*
 	 * What? No tracepoints? No sense writing anything here, bail out.
@@ -545,14 +548,13 @@ int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 	return 0;
 }
 
-ssize_t read_tracing_data_size(int fd, struct perf_event_attr *pattrs,
-			       int nb_events)
+ssize_t read_tracing_data_size(int fd, struct list_head *pattrs)
 {
 	ssize_t size;
 	int err = 0;
 
 	calc_data_size = 1;
-	err = read_tracing_data(fd, pattrs, nb_events);
+	err = read_tracing_data(fd, pattrs);
 	size = calc_data_size - 1;
 	calc_data_size = 0;
 

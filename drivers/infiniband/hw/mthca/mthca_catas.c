@@ -146,7 +146,7 @@ static void poll_catas(unsigned long dev_ptr)
 
 void mthca_start_catas_poll(struct mthca_dev *dev)
 {
-	unsigned long addr;
+	phys_addr_t addr;
 
 	init_timer(&dev->catas_err.timer);
 	dev->catas_err.map  = NULL;
@@ -158,7 +158,8 @@ void mthca_start_catas_poll(struct mthca_dev *dev)
 	dev->catas_err.map = ioremap(addr, dev->catas_err.size * 4);
 	if (!dev->catas_err.map) {
 		mthca_warn(dev, "couldn't map catastrophic error region "
-			   "at 0x%lx/0x%x\n", addr, dev->catas_err.size * 4);
+			   "at 0x%llx/0x%x\n", (unsigned long long) addr,
+			   dev->catas_err.size * 4);
 		return;
 	}
 

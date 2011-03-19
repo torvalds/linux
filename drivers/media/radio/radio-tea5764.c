@@ -142,7 +142,6 @@ struct tea5764_device {
 	struct video_device		*videodev;
 	struct tea5764_regs		regs;
 	struct mutex			mutex;
-	int				users;
 };
 
 /* I2C code related */
@@ -458,41 +457,10 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
-static int tea5764_open(struct file *file)
-{
-	/* Currently we support only one device */
-	struct tea5764_device *radio = video_drvdata(file);
-
-	mutex_lock(&radio->mutex);
-	/* Only exclusive access */
-	if (radio->users) {
-		mutex_unlock(&radio->mutex);
-		return -EBUSY;
-	}
-	radio->users++;
-	mutex_unlock(&radio->mutex);
-	file->private_data = radio;
-	return 0;
-}
-
-static int tea5764_close(struct file *file)
-{
-	struct tea5764_device *radio = video_drvdata(file);
-
-	if (!radio)
-		return -ENODEV;
-	mutex_lock(&radio->mutex);
-	radio->users--;
-	mutex_unlock(&radio->mutex);
-	return 0;
-}
-
 /* File system interface */
 static const struct v4l2_file_operations tea5764_fops = {
 	.owner		= THIS_MODULE,
-	.open           = tea5764_open,
-	.release        = tea5764_close,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops tea5764_ioctl_ops = {
@@ -527,7 +495,7 @@ static int __devinit tea5764_i2c_probe(struct i2c_client *client,
 	int ret;
 
 	PDEBUG("probe");
-	radio = kmalloc(sizeof(struct tea5764_device), GFP_KERNEL);
+	radio = kzalloc(sizeof(struct tea5764_device), GFP_KERNEL);
 	if (!radio)
 		return -ENOMEM;
 
@@ -555,18 +523,19 @@ static int __devinit tea5764_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, radio);
 	video_set_drvdata(radio->videodev, radio);
-
-	ret = video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr);
-	if (ret < 0) {
-		PWARN("Could not register video device!");
-		goto errrel;
-	}
+	radio->videodev->lock = &radio->mutex;
 
 	/* initialize and power off the chip */
 	tea5764_i2c_read(radio);
 	tea5764_set_audout_mode(radio, V4L2_TUNER_MODE_STEREO);
 	tea5764_mute(radio, 1);
 	tea5764_power_down(radio);
+
+	ret = video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr);
+	if (ret < 0) {
+		PWARN("Could not register video device!");
+		goto errrel;
+	}
 
 	PINFO("registered.");
 	return 0;

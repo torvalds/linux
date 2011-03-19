@@ -20,6 +20,7 @@
  * are available. The use of 0x11 and 0x12 is deprecated
  */
 #define KVM_FEATURE_CLOCKSOURCE2        3
+#define KVM_FEATURE_ASYNC_PF		4
 
 /* The last 8 bits are used to indicate how to interpret the flags field
  * in pvclock structure. If no bits are set, all flags are ignored.
@@ -32,8 +33,12 @@
 /* Custom MSRs falls in the range 0x4b564d00-0x4b564dff */
 #define MSR_KVM_WALL_CLOCK_NEW  0x4b564d00
 #define MSR_KVM_SYSTEM_TIME_NEW 0x4b564d01
+#define MSR_KVM_ASYNC_PF_EN 0x4b564d02
 
 #define KVM_MAX_MMU_OP_BATCH           32
+
+#define KVM_ASYNC_PF_ENABLED			(1 << 0)
+#define KVM_ASYNC_PF_SEND_ALWAYS		(1 << 1)
 
 /* Operations for KVM_HC_MMU_OP */
 #define KVM_MMU_OP_WRITE_PTE            1
@@ -61,10 +66,20 @@ struct kvm_mmu_op_release_pt {
 	__u64 pt_phys;
 };
 
+#define KVM_PV_REASON_PAGE_NOT_PRESENT 1
+#define KVM_PV_REASON_PAGE_READY 2
+
+struct kvm_vcpu_pv_apf_data {
+	__u32 reason;
+	__u8 pad[60];
+	__u32 enabled;
+};
+
 #ifdef __KERNEL__
 #include <asm/processor.h>
 
 extern void kvmclock_init(void);
+extern int kvm_register_clock(char *txt);
 
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
@@ -160,8 +175,17 @@ static inline unsigned int kvm_arch_para_features(void)
 
 #ifdef CONFIG_KVM_GUEST
 void __init kvm_guest_init(void);
+void kvm_async_pf_task_wait(u32 token);
+void kvm_async_pf_task_wake(u32 token);
+u32 kvm_read_and_reset_pf_reason(void);
 #else
 #define kvm_guest_init() do { } while (0)
+#define kvm_async_pf_task_wait(T) do {} while(0)
+#define kvm_async_pf_task_wake(T) do {} while(0)
+static inline u32 kvm_read_and_reset_pf_reason(void)
+{
+	return 0;
+}
 #endif
 
 #endif /* __KERNEL__ */

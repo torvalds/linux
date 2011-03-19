@@ -7,6 +7,7 @@
  */
 
 #include <linux/input.h>	/* BUS_SPI */
+#include <linux/pm.h>
 #include <linux/spi/spi.h>
 
 #include "ad7879.h"
@@ -20,9 +21,10 @@
 #define AD7879_WRITECMD(reg) (AD7879_CMD(reg))
 #define AD7879_READCMD(reg)  (AD7879_CMD(reg) | AD7879_CMD_READ)
 
-#ifdef CONFIG_PM
-static int ad7879_spi_suspend(struct spi_device *spi, pm_message_t message)
+#ifdef CONFIG_PM_SLEEP
+static int ad7879_spi_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct ad7879 *ts = spi_get_drvdata(spi);
 
 	ad7879_suspend(ts);
@@ -30,18 +32,18 @@ static int ad7879_spi_suspend(struct spi_device *spi, pm_message_t message)
 	return 0;
 }
 
-static int ad7879_spi_resume(struct spi_device *spi)
+static int ad7879_spi_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
 	struct ad7879 *ts = spi_get_drvdata(spi);
 
 	ad7879_resume(ts);
 
 	return 0;
 }
-#else
-# define ad7879_spi_suspend NULL
-# define ad7879_spi_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ad7879_spi_pm, ad7879_spi_suspend, ad7879_spi_resume);
 
 /*
  * ad7879_read/write are only used for initial setup and for sysfs controls.
@@ -173,11 +175,10 @@ static struct spi_driver ad7879_spi_driver = {
 		.name	= "ad7879",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &ad7879_spi_pm,
 	},
 	.probe		= ad7879_spi_probe,
 	.remove		= __devexit_p(ad7879_spi_remove),
-	.suspend	= ad7879_spi_suspend,
-	.resume		= ad7879_spi_resume,
 };
 
 static int __init ad7879_spi_init(void)

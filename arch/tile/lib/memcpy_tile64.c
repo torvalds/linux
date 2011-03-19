@@ -54,7 +54,7 @@ typedef unsigned long (*memcpy_t)(void *, const void *, unsigned long);
  * we must run with interrupts disabled to avoid the risk of some
  * other code seeing the incoherent data in our cache.  (Recall that
  * our cache is indexed by PA, so even if the other code doesn't use
- * our KM_MEMCPY virtual addresses, they'll still hit in cache using
+ * our kmap_atomic virtual addresses, they'll still hit in cache using
  * the normal VAs that aren't supposed to hit in cache.)
  */
 static void memcpy_multicache(void *dest, const void *source,
@@ -64,6 +64,7 @@ static void memcpy_multicache(void *dest, const void *source,
 	unsigned long flags, newsrc, newdst;
 	pmd_t *pmdp;
 	pte_t *ptep;
+	int type0, type1;
 	int cpu = get_cpu();
 
 	/*
@@ -77,7 +78,8 @@ static void memcpy_multicache(void *dest, const void *source,
 	sim_allow_multiple_caching(1);
 
 	/* Set up the new dest mapping */
-	idx = FIX_KMAP_BEGIN + (KM_TYPE_NR * cpu) + KM_MEMCPY0;
+	type0 = kmap_atomic_idx_push();
+	idx = FIX_KMAP_BEGIN + (KM_TYPE_NR * cpu) + type0;
 	newdst = __fix_to_virt(idx) + ((unsigned long)dest & (PAGE_SIZE-1));
 	pmdp = pmd_offset(pud_offset(pgd_offset_k(newdst), newdst), newdst);
 	ptep = pte_offset_kernel(pmdp, newdst);
@@ -87,7 +89,8 @@ static void memcpy_multicache(void *dest, const void *source,
 	}
 
 	/* Set up the new source mapping */
-	idx += (KM_MEMCPY0 - KM_MEMCPY1);
+	type1 = kmap_atomic_idx_push();
+	idx += (type0 - type1);
 	src_pte = hv_pte_set_nc(src_pte);
 	src_pte = hv_pte_clear_writable(src_pte);  /* be paranoid */
 	newsrc = __fix_to_virt(idx) + ((unsigned long)source & (PAGE_SIZE-1));
@@ -119,6 +122,8 @@ static void memcpy_multicache(void *dest, const void *source,
 	 * We're done: notify the simulator that all is back to normal,
 	 * and re-enable interrupts and pre-emption.
 	 */
+	kmap_atomic_idx_pop();
+	kmap_atomic_idx_pop();
 	sim_allow_multiple_caching(0);
 	local_irq_restore(flags);
 	put_cpu();

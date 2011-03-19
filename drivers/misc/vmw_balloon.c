@@ -45,7 +45,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.2.1.1-k");
+MODULE_VERSION("1.2.1.2-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -315,7 +315,8 @@ static bool vmballoon_send_get_target(struct vmballoon *b, u32 *new_target)
  * fear that guest will need it. Host may reject some pages, we need to
  * check the return value and maybe submit a different page.
  */
-static bool vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn)
+static bool vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn,
+				     unsigned int *hv_status)
 {
 	unsigned long status, dummy;
 	u32 pfn32;
@@ -326,7 +327,7 @@ static bool vmballoon_send_lock_page(struct vmballoon *b, unsigned long pfn)
 
 	STATS_INC(b->stats.lock);
 
-	status = VMWARE_BALLOON_CMD(LOCK, pfn, dummy);
+	*hv_status = status = VMWARE_BALLOON_CMD(LOCK, pfn, dummy);
 	if (vmballoon_check_status(b, status))
 		return true;
 
@@ -410,6 +411,7 @@ static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
 {
 	struct page *page;
 	gfp_t flags;
+	unsigned int hv_status;
 	bool locked = false;
 
 	do {
@@ -429,11 +431,12 @@ static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
 		}
 
 		/* inform monitor */
-		locked = vmballoon_send_lock_page(b, page_to_pfn(page));
+		locked = vmballoon_send_lock_page(b, page_to_pfn(page), &hv_status);
 		if (!locked) {
 			STATS_INC(b->stats.refused_alloc);
 
-			if (b->reset_required) {
+			if (hv_status == VMW_BALLOON_ERROR_RESET ||
+			    hv_status == VMW_BALLOON_ERROR_PPN_NOTNEEDED) {
 				__free_page(page);
 				return -EIO;
 			}

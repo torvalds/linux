@@ -1,8 +1,6 @@
-ifeq ($(CONFIG_CAIF_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+ccflags-$(CONFIG_CAIF_DEBUG)     :=      -DDEBUG
 
-caif-objs := caif_dev.o \
+caif-y := caif_dev.o \
 	cfcnfg.o cfmuxl.o cfctrl.o  \
 	cffrml.o cfveil.o cfdbgl.o\
 	cfserl.o cfdgml.o  \
@@ -13,4 +11,4 @@ obj-$(CONFIG_CAIF) += caif.o
 obj-$(CONFIG_CAIF_NETDEV) += chnl_net.o
 obj-$(CONFIG_CAIF) += caif_socket.o
 
-export-objs := caif.o
+export-y := caif.o

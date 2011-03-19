@@ -291,6 +291,7 @@ mpi2_raid.h
  *                      can be sized by the build environment.
  *  07-30-09  02.00.04  Added proper define for the Use Default Settings bit of
  *                      VolumeCreationFlags and marked the old one as obsolete.
+ *  05-12-10  02.00.05  Added MPI2_RAID_VOL_FLAGS_OP_MDC define.
  *  --------------------------------------------------------------------------
 
 mpi2_sas.h
@@ -301,6 +302,7 @@ mpi2_sas.h
  *                      Request.
  *  10-28-09  02.00.03  Changed the type of SGL in MPI2_SATA_PASSTHROUGH_REQUEST
  *                      to MPI2_SGE_IO_UNION since it supports chained SGLs.
+ *  05-12-10  02.00.04  Modified some comments.
  *  --------------------------------------------------------------------------
 
 mpi2_targ.h
@@ -324,6 +326,7 @@ mpi2_tool.h
  *                      and reply messages.
  *                      Added MPI2_DIAG_BUF_TYPE_EXTENDED.
  *                      Incremented MPI2_DIAG_BUF_TYPE_COUNT.
+ *  05-12-10  02.00.05  Added Diagnostic Data Upload tool.
  *  --------------------------------------------------------------------------
 
 mpi2_type.h

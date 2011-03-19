@@ -36,17 +36,15 @@
 /*---------------------------------------------------------------------------*/
 /*
  *  ON COMPLETION OF AN AUDIO URB ITS DATA IS COPIED TO THE AUDIO BUFFERS
- *  PROVIDED peasycap->audio_idle IS ZER0.  REGARDLESS OF THIS BEING TRUE,
+ *  PROVIDED peasycap->audio_idle IS ZERO.  REGARDLESS OF THIS BEING TRUE,
  *  IT IS RESUBMITTED PROVIDED peasycap->audio_isoc_streaming IS NOT ZERO.
  */
 /*---------------------------------------------------------------------------*/
 void
 easysnd_complete(struct urb *purb)
 {
-static int mt;
 struct easycap *peasycap;
 struct data_buffer *paudio_buffer;
-char errbuf[16];
 __u8 *p1, *p2;
 __s16 s16;
 int i, j, more, much, leap, rc;
@@ -66,48 +64,62 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap\n");
+	return;
+}
+
 much = 0;
 
-
 if (peasycap->audio_idle) {
-	JOT(16, "%i=audio_idle  %i=audio_isoc_streaming\n", \
+	JOM(16, "%i=audio_idle  %i=audio_isoc_streaming\n", \
 			peasycap->audio_idle, peasycap->audio_isoc_streaming);
 	if (peasycap->audio_isoc_streaming) {
 		rc = usb_submit_urb(purb, GFP_ATOMIC);
 		if (0 != rc) {
-			SAY("ERROR: while %i=audio_idle, " \
+			if (-ENODEV != rc)
+				SAM("ERROR: while %i=audio_idle, " \
 					"usb_submit_urb() failed with rc:\n", \
 							peasycap->audio_idle);
 			switch (rc) {
 			case -ENOMEM: {
-				SAY("ENOMEM\n");    break;
+				SAM("-ENOMEM\n");
+				break;
 			}
 			case -ENODEV: {
-				SAY("ENODEV\n");    break;
+				break;
 			}
 			case -ENXIO: {
-				SAY("ENXIO\n");     break;
+				SAM("-ENXIO\n");
+				break;
 			}
 			case -EINVAL: {
-				SAY("EINVAL\n");    break;
+				SAM("-EINVAL\n");
+				break;
 			}
 			case -EAGAIN: {
-				SAY("EAGAIN\n");    break;
+				SAM("-EAGAIN\n");
+				break;
 			}
 			case -EFBIG: {
-				SAY("EFBIG\n");     break;
+				SAM("-EFBIG\n");
+				break;
 			}
 			case -EPIPE: {
-				SAY("EPIPE\n");     break;
+				SAM("-EPIPE\n");
+				break;
 			}
 			case -EMSGSIZE: {
-				SAY("EMSGSIZE\n");  break;
+				SAM("-EMSGSIZE\n");
+				break;
 			}
 			case -ENOSPC: {
-				SAY("ENOSPC\n");  break;
+				SAM("-ENOSPC\n");
+				break;
 			}
 			default: {
-				SAY("0x%08X\n", rc); break;
+				SAM("unknown error: 0x%08X\n", rc);
+				break;
 			}
 			}
 		}
@@ -116,74 +128,95 @@ return;
 }
 /*---------------------------------------------------------------------------*/
 if (purb->status) {
-	if (-ESHUTDOWN == purb->status) {
-		JOT(16, "immediate return because -ESHUTDOWN=purb->status\n");
+	if ((-ESHUTDOWN == purb->status) || (-ENOENT == purb->status)) {
+		JOM(16, "urb status -ESHUTDOWN or -ENOENT\n");
 		return;
 	}
-	SAY("ERROR: non-zero urb status:\n");
+	SAM("ERROR: non-zero urb status:\n");
 	switch (purb->status) {
 	case -EINPROGRESS: {
-		SAY("-EINPROGRESS\n"); break;
+		SAM("-EINPROGRESS\n");
+		break;
 	}
 	case -ENOSR: {
-		SAY("-ENOSR\n"); break;
+		SAM("-ENOSR\n");
+		break;
 	}
 	case -EPIPE: {
-		SAY("-EPIPE\n"); break;
+		SAM("-EPIPE\n");
+		break;
 	}
 	case -EOVERFLOW: {
-		SAY("-EOVERFLOW\n"); break;
+		SAM("-EOVERFLOW\n");
+		break;
 	}
 	case -EPROTO: {
-		SAY("-EPROTO\n"); break;
+		SAM("-EPROTO\n");
+		break;
 	}
 	case -EILSEQ: {
-		SAY("-EILSEQ\n"); break;
+		SAM("-EILSEQ\n");
+		break;
 	}
 	case -ETIMEDOUT: {
-		SAY("-ETIMEDOUT\n"); break;
+		SAM("-ETIMEDOUT\n");
+		break;
 	}
 	case -EMSGSIZE: {
-		SAY("-EMSGSIZE\n"); break;
+		SAM("-EMSGSIZE\n");
+		break;
 	}
 	case -EOPNOTSUPP: {
-		SAY("-EOPNOTSUPP\n"); break;
+		SAM("-EOPNOTSUPP\n");
+		break;
 	}
 	case -EPFNOSUPPORT: {
-		SAY("-EPFNOSUPPORT\n"); break;
+		SAM("-EPFNOSUPPORT\n");
+		break;
 	}
 	case -EAFNOSUPPORT: {
-		SAY("-EAFNOSUPPORT\n"); break;
+		SAM("-EAFNOSUPPORT\n");
+		break;
 	}
 	case -EADDRINUSE: {
-		SAY("-EADDRINUSE\n"); break;
+		SAM("-EADDRINUSE\n");
+		break;
 	}
 	case -EADDRNOTAVAIL: {
-		SAY("-EADDRNOTAVAIL\n"); break;
+		SAM("-EADDRNOTAVAIL\n");
+		break;
 	}
 	case -ENOBUFS: {
-		SAY("-ENOBUFS\n"); break;
+		SAM("-ENOBUFS\n");
+		break;
 	}
 	case -EISCONN: {
-		SAY("-EISCONN\n"); break;
+		SAM("-EISCONN\n");
+		break;
 	}
 	case -ENOTCONN: {
-		SAY("-ENOTCONN\n"); break;
+		SAM("-ENOTCONN\n");
+		break;
 	}
 	case -ESHUTDOWN: {
-		SAY("-ESHUTDOWN\n"); break;
+		SAM("-ESHUTDOWN\n");
+		break;
 	}
 	case -ENOENT: {
-		SAY("-ENOENT\n"); break;
+		SAM("-ENOENT\n");
+		break;
 	}
 	case -ECONNRESET: {
-		SAY("-ECONNRESET\n"); break;
+		SAM("-ECONNRESET\n");
+		break;
 	}
 	case -ENOSPC: {
-		SAY("ENOSPC\n");  break;
+		SAM("ENOSPC\n");
+		break;
 	}
 	default: {
-		SAY("unknown error code 0x%08X\n", purb->status); break;
+		SAM("unknown error code 0x%08X\n", purb->status);
+		break;
 	}
 	}
 /*---------------------------------------------------------------------------*/
@@ -196,35 +229,43 @@ if (purb->status) {
 	if (peasycap->audio_isoc_streaming) {
 		rc = usb_submit_urb(purb, GFP_ATOMIC);
 		if (0 != rc) {
-			SAY("ERROR: while %i=audio_idle, usb_submit_urb() "
+			SAM("ERROR: while %i=audio_idle, usb_submit_urb() "
 				"failed with rc:\n", peasycap->audio_idle);
 			switch (rc) {
 			case -ENOMEM: {
-				SAY("ENOMEM\n");    break;
+				SAM("-ENOMEM\n");
+				break;
 			}
 			case -ENODEV: {
-				SAY("ENODEV\n");    break;
+				SAM("-ENODEV\n");
+				break;
 			}
 			case -ENXIO: {
-				SAY("ENXIO\n");     break;
+				SAM("-ENXIO\n");
+				break;
 			}
 			case -EINVAL: {
-				SAY("EINVAL\n");    break;
+				SAM("-EINVAL\n");
+				break;
 			}
 			case -EAGAIN: {
-				SAY("EAGAIN\n");    break;
+				SAM("-EAGAIN\n");
+				break;
 			}
 			case -EFBIG: {
-				SAY("EFBIG\n");     break;
+				SAM("-EFBIG\n");
+				break;
 			}
 			case -EPIPE: {
-				SAY("EPIPE\n");     break;
+				SAM("-EPIPE\n");
+				break;
 			}
 			case -EMSGSIZE: {
-				SAY("EMSGSIZE\n");  break;
+				SAM("-EMSGSIZE\n");
+				break;
 			}
 			default: {
-				SAY("0x%08X\n", rc); break;
+				SAM("0x%08X\n", rc); break;
 			}
 			}
 		}
@@ -243,72 +284,80 @@ oldaudio = peasycap->oldaudio;
 for (i = 0;  i < purb->number_of_packets; i++) {
 	switch (purb->iso_frame_desc[i].status) {
 	case  0: {
-		strcpy(&errbuf[0], "OK"); break;
+		break;
 	}
 	case -ENOENT: {
-		strcpy(&errbuf[0], "-ENOENT"); break;
+		SAM("-ENOENT\n");
+		break;
 	}
 	case -EINPROGRESS: {
-		strcpy(&errbuf[0], "-EINPROGRESS"); break;
+		SAM("-EINPROGRESS\n");
+		break;
 	}
 	case -EPROTO: {
-		strcpy(&errbuf[0], "-EPROTO"); break;
+		SAM("-EPROTO\n");
+		break;
 	}
 	case -EILSEQ: {
-		strcpy(&errbuf[0], "-EILSEQ"); break;
+		SAM("-EILSEQ\n");
+		break;
 	}
 	case -ETIME: {
-		strcpy(&errbuf[0], "-ETIME"); break;
+		SAM("-ETIME\n");
+		break;
 	}
 	case -ETIMEDOUT: {
-		strcpy(&errbuf[0], "-ETIMEDOUT"); break;
+		SAM("-ETIMEDOUT\n");
+		break;
 	}
 	case -EPIPE: {
-		strcpy(&errbuf[0], "-EPIPE"); break;
+		SAM("-EPIPE\n");
+		break;
 	}
 	case -ECOMM: {
-		strcpy(&errbuf[0], "-ECOMM"); break;
+		SAM("-ECOMM\n");
+		break;
 	}
 	case -ENOSR: {
-		strcpy(&errbuf[0], "-ENOSR"); break;
+		SAM("-ENOSR\n");
+		break;
 	}
 	case -EOVERFLOW: {
-		strcpy(&errbuf[0], "-EOVERFLOW"); break;
+		SAM("-EOVERFLOW\n");
+		break;
 	}
 	case -EREMOTEIO: {
-		strcpy(&errbuf[0], "-EREMOTEIO"); break;
+		SAM("-EREMOTEIO\n");
+		break;
 	}
 	case -ENODEV: {
-		strcpy(&errbuf[0], "-ENODEV"); break;
+		SAM("-ENODEV\n");
+		break;
 	}
 	case -EXDEV: {
-		strcpy(&errbuf[0], "-EXDEV"); break;
+		SAM("-EXDEV\n");
+		break;
 	}
 	case -EINVAL: {
-		strcpy(&errbuf[0], "-EINVAL"); break;
+		SAM("-EINVAL\n");
+		break;
 	}
 	case -ECONNRESET: {
-		strcpy(&errbuf[0], "-ECONNRESET"); break;
+		SAM("-ECONNRESET\n");
+		break;
 	}
 	case -ENOSPC: {
-		strcpy(&errbuf[0], "-ENOSPC"); break;
+		SAM("-ENOSPC\n");
+		break;
 	}
 	case -ESHUTDOWN: {
-		strcpy(&errbuf[0], "-ESHUTDOWN"); break;
+		SAM("-ESHUTDOWN\n");
+		break;
 	}
 	default: {
-		strcpy(&errbuf[0], "UNKNOWN"); break;
+		SAM("unknown error:0x%08X\n", purb->iso_frame_desc[i].status);
+		break;
 	}
-	}
-	if ((!purb->iso_frame_desc[i].status) && 0) {
-		JOT(16, "frame[%2i]: %i=status{=%16s}  "  \
-						"%5i=actual  "  \
-						"%5i=length  "  \
-						"%3i=offset\n", \
-				i, purb->iso_frame_desc[i].status, &errbuf[0],
-				purb->iso_frame_desc[i].actual_length,
-				purb->iso_frame_desc[i].length,
-				purb->iso_frame_desc[i].offset);
 	}
 	if (!purb->iso_frame_desc[i].status) {
 		more = purb->iso_frame_desc[i].actual_length;
@@ -319,11 +368,12 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 #endif
 
 		if (!more)
-			mt++;
+			peasycap->audio_mt++;
 		else {
-			if (mt) {
-				JOT(16, "%4i empty audio urb frames\n", mt);
-				mt = 0;
+			if (peasycap->audio_mt) {
+				JOM(16, "%4i empty audio urb frames\n", \
+							peasycap->audio_mt);
+				peasycap->audio_mt = 0;
 			}
 
 			p1 = (__u8 *)(purb->transfer_buffer + \
@@ -340,13 +390,13 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 /*---------------------------------------------------------------------------*/
 			while (more) {
 				if (0 > more) {
-					SAY("easysnd_complete: MISTAKE: " \
+					SAM("easysnd_complete: MISTAKE: " \
 							"more is negative\n");
 					return;
 				}
 				if (peasycap->audio_buffer_page_many <= \
 							peasycap->audio_fill) {
-					SAY("ERROR: bad " \
+					SAM("ERROR: bad " \
 						"peasycap->audio_fill\n");
 					return;
 				}
@@ -355,7 +405,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 							[peasycap->audio_fill];
 				if (PAGE_SIZE < (paudio_buffer->pto - \
 						paudio_buffer->pgo)) {
-					SAY("ERROR: bad paudio_buffer->pto\n");
+					SAM("ERROR: bad paudio_buffer->pto\n");
 					return;
 				}
 				if (PAGE_SIZE == (paudio_buffer->pto - \
@@ -374,7 +424,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 							peasycap->audio_fill)
 						peasycap->audio_fill = 0;
 
-					JOT(12, "bumped peasycap->" \
+					JOM(12, "bumped peasycap->" \
 							"audio_fill to %i\n", \
 							peasycap->audio_fill);
 
@@ -387,7 +437,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 					if (!(peasycap->audio_fill % \
 						peasycap->\
 						audio_pages_per_fragment)) {
-						JOT(12, "wakeup call on wq_" \
+						JOM(12, "wakeup call on wq_" \
 						"audio, %i=frag reading  %i" \
 						"=fragment fill\n", \
 						(peasycap->audio_read / \
@@ -414,7 +464,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 				} else {
 #if defined(UPSAMPLE)
 					if (much % 16)
-						JOT(8, "MISTAKE? much" \
+						JOM(8, "MISTAKE? much" \
 						" is not divisible by 16\n");
 					if (much > (16 * \
 							more))
@@ -468,7 +518,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 			}
 		}
 	} else {
-		JOT(12, "discarding audio samples because " \
+		JOM(12, "discarding audio samples because " \
 			"%i=purb->iso_frame_desc[i].status\n", \
 				purb->iso_frame_desc[i].status);
 	}
@@ -486,38 +536,50 @@ peasycap->oldaudio = oldaudio;
 if (peasycap->audio_isoc_streaming) {
 	rc = usb_submit_urb(purb, GFP_ATOMIC);
 	if (0 != rc) {
-		SAY("ERROR: while %i=audio_idle, usb_submit_urb() failed " \
+		if (-ENODEV != rc) {
+			SAM("ERROR: while %i=audio_idle, " \
+					"usb_submit_urb() failed " \
 					"with rc:\n", peasycap->audio_idle);
+		}
 		switch (rc) {
 		case -ENOMEM: {
-			SAY("ENOMEM\n");    break;
+			SAM("-ENOMEM\n");
+			break;
 		}
 		case -ENODEV: {
-			SAY("ENODEV\n");    break;
+			break;
 		}
 		case -ENXIO: {
-			SAY("ENXIO\n");     break;
+			SAM("-ENXIO\n");
+			break;
 		}
 		case -EINVAL: {
-			SAY("EINVAL\n");    break;
+			SAM("-EINVAL\n");
+			break;
 		}
 		case -EAGAIN: {
-			SAY("EAGAIN\n");    break;
+			SAM("-EAGAIN\n");
+			break;
 		}
 		case -EFBIG: {
-			SAY("EFBIG\n");     break;
+			SAM("-EFBIG\n");
+			break;
 		}
 		case -EPIPE: {
-			SAY("EPIPE\n");     break;
+			SAM("-EPIPE\n");
+			break;
 		}
 		case -EMSGSIZE: {
-			SAY("EMSGSIZE\n");  break;
+			SAM("-EMSGSIZE\n");
+			break;
 		}
 		case -ENOSPC: {
-			SAY("ENOSPC\n");  break;
+			SAM("-ENOSPC\n");
+			break;
 		}
 		default: {
-			SAY("0x%08X\n", rc); break;
+			SAM("unknown error: 0x%08X\n", rc);
+			break;
 		}
 		}
 	}
@@ -529,8 +591,7 @@ return;
 /*
  *  THE AUDIO URBS ARE SUBMITTED AT THIS EARLY STAGE SO THAT IT IS POSSIBLE TO
  *  STREAM FROM /dev/easysnd1 WITH SIMPLE PROGRAMS SUCH AS cat WHICH DO NOT
- *  HAVE AN IOCTL INTERFACE.  THE VIDEO URBS, BY CONTRAST, MUST BE SUBMITTED
- *  MUCH LATER: SEE COMMENTS IN FILE easycap_main.c.
+ *  HAVE AN IOCTL INTERFACE.
  */
 /*---------------------------------------------------------------------------*/
 int
@@ -539,8 +600,15 @@ easysnd_open(struct inode *inode, struct file *file)
 struct usb_interface *pusb_interface;
 struct easycap *peasycap;
 int subminor, rc;
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+struct v4l2_device *pv4l2_device;
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
-JOT(4, "begins.\n");
+JOT(4, "begins\n");
 
 subminor = iminor(inode);
 
@@ -556,70 +624,90 @@ if (NULL == peasycap) {
 	SAY("ending unsuccessfully\n");
 	return -1;
 }
+/*---------------------------------------------------------------------------*/
+#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#else
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+/*---------------------------------------------------------------------------*/
+/*
+ *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
+ *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
+ *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
+ *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
+*/
+/*---------------------------------------------------------------------------*/
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	pv4l2_device = usb_get_intfdata(pusb_interface);
+	if ((struct v4l2_device *)NULL == pv4l2_device) {
+		SAY("ERROR: pv4l2_device is NULL\n");
+		return -EFAULT;
+	}
+	peasycap = (struct easycap *) \
+		container_of(pv4l2_device, struct easycap, v4l2_device);
+}
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+/*---------------------------------------------------------------------------*/
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return -EFAULT;
+}
+/*---------------------------------------------------------------------------*/
 
 file->private_data = peasycap;
 
 /*---------------------------------------------------------------------------*/
 /*
- *  INITIALIZATION.
+ *  INITIALIZATION
  */
 /*---------------------------------------------------------------------------*/
-JOT(4, "starting initialization\n");
+JOM(4, "starting initialization\n");
 
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAY("ERROR: peasycap->pusb_device is NULL\n");
-	return -EFAULT;
-} else {
-	JOT(16, "0x%08lX=peasycap->pusb_device\n", \
-					(long int)peasycap->pusb_device);
+	SAM("ERROR: peasycap->pusb_device is NULL\n");
+	return -ENODEV;
 }
+JOM(16, "0x%08lX=peasycap->pusb_device\n", (long int)peasycap->pusb_device);
 
 rc = audio_setup(peasycap);
 if (0 <= rc)
-	JOT(8, "audio_setup() returned %i\n", rc);
+	JOM(8, "audio_setup() returned %i\n", rc);
 else
-	JOT(8, "easysnd open(): ERROR: audio_setup() returned %i\n", rc);
+	JOM(8, "easysnd open(): ERROR: audio_setup() returned %i\n", rc);
 
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAY("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
-}
-rc = adjust_volume(peasycap, -8192);
-if (0 != rc) {
-	SAY("ERROR: adjust_volume(default) returned %i\n", rc);
-	return -EFAULT;
+	SAM("ERROR: peasycap->pusb_device has become NULL\n");
+	return -ENODEV;
 }
 /*---------------------------------------------------------------------------*/
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAY("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
+	SAM("ERROR: peasycap->pusb_device has become NULL\n");
+	return -ENODEV;
 }
 rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface, \
 					peasycap->audio_altsetting_on);
-JOT(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface, \
+JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface, \
 					peasycap->audio_altsetting_on, rc);
 
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAY("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
-}
 rc = wakeup_device(peasycap->pusb_device);
 if (0 == rc)
-	JOT(8, "wakeup_device() returned %i\n", rc);
+	JOM(8, "wakeup_device() returned %i\n", rc);
 else
-	JOT(8, "easysnd open(): ERROR: wakeup_device() returned %i\n", rc);
+	JOM(8, "ERROR: wakeup_device() returned %i\n", rc);
 
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAY("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
-}
-submit_audio_urbs(peasycap);
+peasycap->audio_eof = 0;
 peasycap->audio_idle = 0;
 
 peasycap->timeval1.tv_sec  = 0;
 peasycap->timeval1.tv_usec = 0;
 
-JOT(4, "finished initialization\n");
+submit_audio_urbs(peasycap);
+
+JOM(4, "finished initialization\n");
 return 0;
 }
 /*****************************************************************************/
@@ -635,11 +723,15 @@ if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
 	return -EFAULT;
 }
-if (0 != kill_audio_urbs(peasycap)) {
-	SAY("ERROR: kill_audio_urbs() failed\n");
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
 	return -EFAULT;
 }
-JOT(4, "ending successfully\n");
+if (0 != kill_audio_urbs(peasycap)) {
+	SAM("ERROR: kill_audio_urbs() failed\n");
+	return -EFAULT;
+}
+JOM(4, "ending successfully\n");
 return 0;
 }
 /*****************************************************************************/
@@ -648,12 +740,11 @@ easysnd_read(struct file *file, char __user *puserspacebuffer, \
 						size_t kount, loff_t *poff)
 {
 struct timeval timeval;
-static struct timeval timeval1;
-static long long int audio_bytes, above, below, mean;
+long long int above, below, mean;
 struct signed_div_result sdr;
 unsigned char *p0;
 long int kount1, more, rc, l0, lm;
-int fragment;
+int fragment, kd;
 struct easycap *peasycap;
 struct data_buffer *pdata_buffer;
 size_t szret;
@@ -671,23 +762,89 @@ size_t szret;
 
 JOT(8, "===== easysnd_read(): kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
 
-peasycap = (struct easycap *)(file->private_data);
+if (NULL == file) {
+	SAY("ERROR:  file is NULL\n");
+	return -ERESTARTSYS;
+}
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR in easysnd_read(): peasycap is NULL\n");
 	return -EFAULT;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return -EFAULT;
+}
+if (NULL == peasycap->pusb_device) {
+	SAY("ERROR in easysnd_read(): peasycap->pusb_device is NULL\n");
+	return -EFAULT;
+}
+kd = isdongle(peasycap);
+if (0 <= kd && DONGLE_MANY > kd) {
+	if (mutex_lock_interruptible(&(easycap_dongle[kd].mutex_audio))) {
+		SAY("ERROR: cannot lock easycap_dongle[%i].mutex_audio\n", kd);
+		return -ERESTARTSYS;
+	}
+	JOM(4, "locked easycap_dongle[%i].mutex_audio\n", kd);
 /*---------------------------------------------------------------------------*/
+/*
+ *  MEANWHILE, easycap_usb_disconnect() MAY HAVE FREED POINTER peasycap,
+ *  IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
+ *  IF NECESSARY, BAIL OUT.
+*/
+/*---------------------------------------------------------------------------*/
+	if (kd != isdongle(peasycap))
+		return -ERESTARTSYS;
+	if (NULL == file) {
+		SAY("ERROR:  file is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	peasycap = file->private_data;
+	if (NULL == peasycap) {
+		SAY("ERROR:  peasycap is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap: 0x%08lX\n", \
+						(unsigned long int) peasycap);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	if (NULL == peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+} else {
+/*---------------------------------------------------------------------------*/
+/*
+ *  IF easycap_usb_disconnect() HAS ALREADY FREED POINTER peasycap BEFORE THE
+ *  ATTEMPT TO ACQUIRE THE SEMAPHORE, isdongle() WILL HAVE FAILED.  BAIL OUT.
+*/
+/*---------------------------------------------------------------------------*/
+	return -ERESTARTSYS;
+}
+/*---------------------------------------------------------------------------*/
+if (file->f_flags & O_NONBLOCK)
+	JOT(16, "NONBLOCK  kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
+else
+	JOT(8, "BLOCKING  kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
+
 if ((0 > peasycap->audio_read) || \
 		(peasycap->audio_buffer_page_many <= peasycap->audio_read)) {
-	SAY("ERROR: peasycap->audio_read out of range\n");
+	SAM("ERROR: peasycap->audio_read out of range\n");
+	mutex_unlock(&easycap_dongle[kd].mutex_audio);
 	return -EFAULT;
 }
 pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
 if ((struct data_buffer *)NULL == pdata_buffer) {
-	SAY("ERROR: pdata_buffer is NULL\n");
+	SAM("ERROR: pdata_buffer is NULL\n");
+	mutex_unlock(&easycap_dongle[kd].mutex_audio);
 	return -EFAULT;
 }
-JOT(12, "before wait, %i=frag read  %i=frag fill\n", \
+JOM(12, "before wait, %i=frag read  %i=frag fill\n", \
 		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
 		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 fragment = (peasycap->audio_read / peasycap->audio_pages_per_fragment);
@@ -695,7 +852,8 @@ while ((fragment == (peasycap->audio_fill / \
 				peasycap->audio_pages_per_fragment)) || \
 		(0 == (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo)))) {
 	if (file->f_flags & O_NONBLOCK) {
-		JOT(16, "returning -EAGAIN as instructed\n");
+		JOM(16, "returning -EAGAIN as instructed\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EAGAIN;
 	}
 	rc = wait_event_interruptible(peasycap->wq_audio, \
@@ -704,50 +862,56 @@ while ((fragment == (peasycap->audio_fill / \
 				peasycap->audio_pages_per_fragment)) && \
 		(0 < (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo))))));
 	if (0 != rc) {
-		SAY("aborted by signal\n");
+		SAM("aborted by signal\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
 	}
 	if (peasycap->audio_eof) {
-		JOT(8, "returning 0 because  %i=audio_eof\n", \
+		JOM(8, "returning 0 because  %i=audio_eof\n", \
 							peasycap->audio_eof);
 		kill_audio_urbs(peasycap);
-		msleep(500);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return 0;
 	}
 	if (peasycap->audio_idle) {
-		JOT(16, "returning 0 because  %i=audio_idle\n", \
+		JOM(16, "returning 0 because  %i=audio_idle\n", \
 							peasycap->audio_idle);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return 0;
 	}
 	if (!peasycap->audio_isoc_streaming) {
-		JOT(16, "returning 0 because audio urbs not streaming\n");
+		JOM(16, "returning 0 because audio urbs not streaming\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return 0;
 	}
 }
-JOT(12, "after  wait, %i=frag read  %i=frag fill\n", \
+JOM(12, "after  wait, %i=frag read  %i=frag fill\n", \
 		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
 		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 szret = (size_t)0;
 while (fragment == (peasycap->audio_read / \
 				peasycap->audio_pages_per_fragment)) {
 	if (NULL == pdata_buffer->pgo) {
-		SAY("ERROR: pdata_buffer->pgo is NULL\n");
+		SAM("ERROR: pdata_buffer->pgo is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EFAULT;
 	}
 	if (NULL == pdata_buffer->pto) {
-		SAY("ERROR: pdata_buffer->pto is NULL\n");
+		SAM("ERROR: pdata_buffer->pto is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EFAULT;
 	}
 	kount1 = PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo);
 	if (0 > kount1) {
-		SAY("easysnd_read: MISTAKE: kount1 is negative\n");
+		SAM("easysnd_read: MISTAKE: kount1 is negative\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
 	}
 	if (!kount1) {
 		(peasycap->audio_read)++;
 		if (peasycap->audio_buffer_page_many <= peasycap->audio_read)
 			peasycap->audio_read = 0;
-		JOT(12, "bumped peasycap->audio_read to %i\n", \
+		JOM(12, "bumped peasycap->audio_read to %i\n", \
 						peasycap->audio_read);
 
 		if (fragment != (peasycap->audio_read / \
@@ -757,30 +921,34 @@ while (fragment == (peasycap->audio_read / \
 		if ((0 > peasycap->audio_read) || \
 			(peasycap->audio_buffer_page_many <= \
 					peasycap->audio_read)) {
-			SAY("ERROR: peasycap->audio_read out of range\n");
+			SAM("ERROR: peasycap->audio_read out of range\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
 		if ((struct data_buffer *)NULL == pdata_buffer) {
-			SAY("ERROR: pdata_buffer is NULL\n");
+			SAM("ERROR: pdata_buffer is NULL\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		if (NULL == pdata_buffer->pgo) {
-			SAY("ERROR: pdata_buffer->pgo is NULL\n");
+			SAM("ERROR: pdata_buffer->pgo is NULL\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		if (NULL == pdata_buffer->pto) {
-			SAY("ERROR: pdata_buffer->pto is NULL\n");
+			SAM("ERROR: pdata_buffer->pto is NULL\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		kount1 = PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo);
 	}
-	JOT(12, "ready  to send %li bytes\n", (long int) kount1);
-	JOT(12, "still  to send %li bytes\n", (long int) kount);
+	JOM(12, "ready  to send %li bytes\n", (long int) kount1);
+	JOM(12, "still  to send %li bytes\n", (long int) kount);
 	more = kount1;
 	if (more > kount)
 		more = kount;
-	JOT(12, "agreed to send %li bytes from page %i\n", \
+	JOM(12, "agreed to send %li bytes from page %i\n", \
 						more, peasycap->audio_read);
 	if (!more)
 		break;
@@ -798,7 +966,8 @@ while (fragment == (peasycap->audio_read / \
 /*---------------------------------------------------------------------------*/
 	rc = copy_to_user(puserspacebuffer, pdata_buffer->pto, more);
 	if (0 != rc) {
-		SAY("ERROR: copy_to_user() returned %li\n", rc);
+		SAM("ERROR: copy_to_user() returned %li\n", rc);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EFAULT;
 	}
 	*poff += (loff_t)more;
@@ -807,11 +976,11 @@ while (fragment == (peasycap->audio_read / \
 	puserspacebuffer += more;
 	kount -= (size_t)more;
 }
-JOT(12, "after  read, %i=frag read  %i=frag fill\n", \
+JOM(12, "after  read, %i=frag read  %i=frag fill\n", \
 		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
 		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 if (kount < 0) {
-	SAY("MISTAKE:  %li=kount  %li=szret\n", \
+	SAM("MISTAKE:  %li=kount  %li=szret\n", \
 					(long int)kount, (long int)szret);
 }
 /*---------------------------------------------------------------------------*/
@@ -827,11 +996,11 @@ if (peasycap->audio_sample) {
 	mean = peasycap->audio_niveau;
 	sdr = signed_div(mean, peasycap->audio_sample);
 
-	JOT(8, "%8lli=mean  %8lli=meansquare after %lli samples, =>\n", \
+	JOM(8, "%8lli=mean  %8lli=meansquare after %lli samples, =>\n", \
 				sdr.quotient, above, peasycap->audio_sample);
 
 	sdr = signed_div(above, 32768);
-	JOT(8, "audio dynamic range is roughly %lli\n", sdr.quotient);
+	JOM(8, "audio dynamic range is roughly %lli\n", sdr.quotient);
 }
 /*---------------------------------------------------------------------------*/
 /*
@@ -840,33 +1009,28 @@ if (peasycap->audio_sample) {
 /*---------------------------------------------------------------------------*/
 do_gettimeofday(&timeval);
 if (!peasycap->timeval1.tv_sec) {
-	audio_bytes = 0;
-	timeval1 = timeval;
-
-	if (mutex_lock_interruptible(&(peasycap->mutex_timeval1)))
-		return -ERESTARTSYS;
-	peasycap->timeval1 = timeval1;
-	mutex_unlock(&(peasycap->mutex_timeval1));
+	peasycap->audio_bytes = 0;
+	peasycap->timeval3 = timeval;
+	peasycap->timeval1 = peasycap->timeval3;
 	sdr.quotient = 192000;
 } else {
-	audio_bytes += (long long int) szret;
+	peasycap->audio_bytes += (long long int) szret;
 	below = ((long long int)(1000000)) * \
-		((long long int)(timeval.tv_sec  - timeval1.tv_sec)) + \
-		(long long int)(timeval.tv_usec - timeval1.tv_usec);
-	above = 1000000 * ((long long int) audio_bytes);
+		((long long int)(timeval.tv_sec  - \
+						peasycap->timeval3.tv_sec)) + \
+		(long long int)(timeval.tv_usec - peasycap->timeval3.tv_usec);
+	above = 1000000 * ((long long int) peasycap->audio_bytes);
 
 	if (below)
 		sdr = signed_div(above, below);
 	else
 		sdr.quotient = 192000;
 }
-JOT(8, "audio streaming at %lli bytes/second\n", sdr.quotient);
-if (mutex_lock_interruptible(&(peasycap->mutex_timeval1)))
-	return -ERESTARTSYS;
+JOM(8, "audio streaming at %lli bytes/second\n", sdr.quotient);
 peasycap->dnbydt = sdr.quotient;
-mutex_unlock(&(peasycap->mutex_timeval1));
 
-JOT(8, "returning %li\n", (long int)szret);
+JOM(8, "returning %li\n", (long int)szret);
+mutex_unlock(&easycap_dongle[kd].mutex_audio);
 return szret;
 }
 /*****************************************************************************/
@@ -881,27 +1045,31 @@ submit_audio_urbs(struct easycap *peasycap)
 struct data_urb *pdata_urb;
 struct urb *purb;
 struct list_head *plist_head;
-int j, isbad, m, rc;
+int j, isbad, nospc, m, rc;
 int isbuf;
 
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
+	return -EFAULT;
+}
 if ((struct list_head *)NULL == peasycap->purb_audio_head) {
-	SAY("ERROR: peasycap->urb_audio_head uninitialized\n");
+	SAM("ERROR: peasycap->urb_audio_head uninitialized\n");
 	return -EFAULT;
 }
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAY("ERROR: peasycap->pusb_device is NULL\n");
+	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
 if (!peasycap->audio_isoc_streaming) {
-	JOT(4, "initial submission of all audio urbs\n");
+	JOM(4, "initial submission of all audio urbs\n");
 	rc = usb_set_interface(peasycap->pusb_device,
 					peasycap->audio_interface, \
 					peasycap->audio_altsetting_on);
-	JOT(8, "usb_set_interface(.,%i,%i) returned %i\n", \
+	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", \
 					peasycap->audio_interface, \
 					peasycap->audio_altsetting_on, rc);
 
-	isbad = 0;  m = 0;
+	isbad = 0;  nospc = 0;  m = 0;
 	list_for_each(plist_head, (peasycap->purb_audio_head)) {
 		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
 		if (NULL != pdata_urb) {
@@ -938,39 +1106,49 @@ if (!peasycap->audio_isoc_streaming) {
 				rc = usb_submit_urb(purb, GFP_KERNEL);
 				if (0 != rc) {
 					isbad++;
-					SAY("ERROR: usb_submit_urb() failed" \
+					SAM("ERROR: usb_submit_urb() failed" \
 							" for urb with rc:\n");
 					switch (rc) {
 					case -ENOMEM: {
-						SAY("ENOMEM\n"); break;
+						SAM("-ENOMEM\n");
+						break;
 					}
 					case -ENODEV: {
-						SAY("ENODEV\n"); break;
+						SAM("-ENODEV\n");
+						break;
 					}
 					case -ENXIO: {
-						SAY("ENXIO\n"); break;
+						SAM("-ENXIO\n");
+						break;
 					}
 					case -EINVAL: {
-						SAY("EINVAL\n"); break;
+						SAM("-EINVAL\n");
+						break;
 					}
 					case -EAGAIN: {
-						SAY("EAGAIN\n"); break;
+						SAM("-EAGAIN\n");
+						break;
 					}
 					case -EFBIG: {
-						SAY("EFBIG\n"); break;
+						SAM("-EFBIG\n");
+						break;
 					}
 					case -EPIPE: {
-						SAY("EPIPE\n"); break;
+						SAM("-EPIPE\n");
+						break;
 					}
 					case -EMSGSIZE: {
-						SAY("EMSGSIZE\n"); break;
+						SAM("-EMSGSIZE\n");
+						break;
 					}
 					case -ENOSPC: {
-						SAY("ENOSPC\n"); break;
+						nospc++;
+						break;
 					}
 					default: {
-						SAY("unknown error code %i\n",\
-								 rc); break;
+						SAM("unknown error code %i\n",\
+								 rc);
+						break;
 					}
 					}
 				} else {
@@ -983,8 +1161,13 @@ if (!peasycap->audio_isoc_streaming) {
 			isbad++;
 		}
 	}
+	if (nospc) {
+		SAM("-ENOSPC=usb_submit_urb() for %i urbs\n", nospc);
+		SAM(".....  possibly inadequate USB bandwidth\n");
+		peasycap->audio_eof = 1;
+	}
 	if (isbad) {
-		JOT(4, "attempting cleanup instead of submitting\n");
+		JOM(4, "attempting cleanup instead of submitting\n");
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head, struct data_urb, \
 								list_head);
@@ -997,10 +1180,10 @@ if (!peasycap->audio_isoc_streaming) {
 		peasycap->audio_isoc_streaming = 0;
 	} else {
 		peasycap->audio_isoc_streaming = 1;
-		JOT(4, "submitted %i audio urbs\n", m);
+		JOM(4, "submitted %i audio urbs\n", m);
 	}
 } else
-	JOT(4, "already streaming audio urbs\n");
+	JOM(4, "already streaming audio urbs\n");
 
 return 0;
 }
@@ -1017,10 +1200,14 @@ int m;
 struct list_head *plist_head;
 struct data_urb *pdata_urb;
 
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
+	return -EFAULT;
+}
 if (peasycap->audio_isoc_streaming) {
 	if ((struct list_head *)NULL != peasycap->purb_audio_head) {
 		peasycap->audio_isoc_streaming = 0;
-		JOT(4, "killing audio urbs\n");
+		JOM(4, "killing audio urbs\n");
 		m = 0;
 		list_for_each(plist_head, (peasycap->purb_audio_head)) {
 			pdata_urb = list_entry(plist_head, struct data_urb,
@@ -1032,13 +1219,13 @@ if (peasycap->audio_isoc_streaming) {
 				}
 			}
 		}
-		JOT(4, "%i audio urbs killed\n", m);
+		JOM(4, "%i audio urbs killed\n", m);
 	} else {
-		SAY("ERROR: peasycap->purb_audio_head is NULL\n");
+		SAM("ERROR: peasycap->purb_audio_head is NULL\n");
 		return -EFAULT;
 	}
 } else {
-	JOT(8, "%i=audio_isoc_streaming, no audio urbs killed\n", \
+	JOM(8, "%i=audio_isoc_streaming, no audio urbs killed\n", \
 					peasycap->audio_isoc_streaming);
 }
 return 0;

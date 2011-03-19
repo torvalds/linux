@@ -283,9 +283,6 @@ static void __init osk_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-	osk_init_smc91x();
-	osk_init_cf();
 }
 
 static struct omap_usb_config osk_usb_config __initdata = {
@@ -341,25 +338,28 @@ static struct i2c_board_info __initdata mistral_i2c_board_info[] = {
 	 */
 };
 
-static const int osk_keymap[] = {
+static const unsigned int osk_keymap[] = {
 	/* KEY(col, row, code) */
 	KEY(0, 0, KEY_F1),		/* SW4 */
-	KEY(0, 3, KEY_UP),		/* (sw2/up) */
+	KEY(3, 0, KEY_UP),		/* (sw2/up) */
 	KEY(1, 1, KEY_LEFTCTRL),	/* SW5 */
-	KEY(1, 2, KEY_LEFT),		/* (sw2/left) */
-	KEY(2, 0, KEY_SPACE),		/* SW3 */
-	KEY(2, 1, KEY_ESC),		/* SW6 */
+	KEY(2, 1, KEY_LEFT),		/* (sw2/left) */
+	KEY(0, 2, KEY_SPACE),		/* SW3 */
+	KEY(1, 2, KEY_ESC),		/* SW6 */
 	KEY(2, 2, KEY_DOWN),		/* (sw2/down) */
-	KEY(3, 2, KEY_ENTER),		/* (sw2/select) */
+	KEY(2, 3, KEY_ENTER),		/* (sw2/select) */
 	KEY(3, 3, KEY_RIGHT),		/* (sw2/right) */
-	0
+};
+
+static const struct matrix_keymap_data osk_keymap_data = {
+	.keymap		= osk_keymap,
+	.keymap_size	= ARRAY_SIZE(osk_keymap),
 };
 
 static struct omap_kp_platform_data osk_kp_data = {
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= (int *) osk_keymap,
-	.keymapsize	= ARRAY_SIZE(osk_keymap),
+	.keymap_data	= &osk_keymap_data,
 	.delay		= 9,
 };
 
@@ -540,6 +540,9 @@ static void __init osk_mistral_init(void) { }
 static void __init osk_init(void)
 {
 	u32 l;
+
+	osk_init_smc91x();
+	osk_init_cf();
 
 	/* Workaround for wrong CS3 (NOR flash) timing
 	 * There are some U-Boot versions out there which configure

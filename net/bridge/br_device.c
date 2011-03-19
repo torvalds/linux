@@ -141,7 +141,7 @@ static int br_change_mtu(struct net_device *dev, int new_mtu)
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 	/* remember the MTU in the rtable for PMTU */
-	br->fake_rtable.dst.metrics[RTAX_MTU - 1] = new_mtu;
+	dst_metric_set(&br->fake_rtable.dst, RTAX_MTU, new_mtu);
 #endif
 
 	return 0;

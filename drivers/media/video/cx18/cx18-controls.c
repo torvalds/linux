@@ -108,7 +108,7 @@ static int cx18_try_ctrl(struct file *file, void *fh,
 					struct v4l2_ext_control *vctrl)
 {
 	struct v4l2_queryctrl qctrl;
-	const char **menu_items = NULL;
+	const char * const *menu_items = NULL;
 	int err;
 
 	qctrl.id = vctrl->id;

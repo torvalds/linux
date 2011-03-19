@@ -114,15 +114,15 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
 struct irqaction {
 	irq_handler_t handler;
 	unsigned long flags;
-	const char *name;
 	void *dev_id;
 	struct irqaction *next;
 	int irq;
-	struct proc_dir_entry *dir;
 	irq_handler_t thread_fn;
 	struct task_struct *thread;
 	unsigned long thread_flags;
-};
+	const char *name;
+	struct proc_dir_entry *dir;
+} ____cacheline_internodealigned_in_smp;
 
 extern irqreturn_t no_action(int cpl, void *dev_id);
 

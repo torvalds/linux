@@ -650,7 +650,7 @@ static int __devexit rx8025_remove(struct i2c_client *client)
 		mutex_unlock(lock);
 
 		free_irq(client->irq, client);
-		flush_scheduled_work();
+		cancel_work_sync(&rx8025->work);
 	}
 
 	rx8025_sysfs_unregister(&client->dev);

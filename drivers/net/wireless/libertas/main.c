@@ -104,6 +104,7 @@ static int lbs_dev_open(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	spin_lock_irq(&priv->driver_lock);
+	priv->stopping = false;
 
 	if (priv->connect_status == LBS_CONNECTED)
 		netif_carrier_on(dev);
@@ -131,10 +132,16 @@ static int lbs_eth_stop(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	spin_lock_irq(&priv->driver_lock);
+	priv->stopping = true;
 	netif_stop_queue(dev);
 	spin_unlock_irq(&priv->driver_lock);
 
 	schedule_work(&priv->mcast_work);
+	cancel_delayed_work_sync(&priv->scan_work);
+	if (priv->scan_req) {
+		cfg80211_scan_done(priv->scan_req, false);
+		priv->scan_req = NULL;
+	}
 
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
@@ -844,9 +851,10 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
 	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
 
-	priv->wol_criteria = 0xffffffff;
+	priv->wol_criteria = EHS_REMOVE_WAKEUP;
 	priv->wol_gpio = 0xff;
 	priv->wol_gap = 20;
+	priv->ehs_remove_supported = true;
 
 	goto done;
 
@@ -908,8 +916,6 @@ void lbs_remove_card(struct lbs_private *priv)
 
 	lbs_free_adapter(priv);
 	lbs_cfg_free(priv);
-
-	priv->dev = NULL;
 	free_netdev(dev);
 
 	lbs_deb_leave(LBS_DEB_MAIN);

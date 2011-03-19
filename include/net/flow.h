@@ -49,7 +49,6 @@ struct flowi {
 	__u8	proto;
 	__u8	flags;
 #define FLOWI_FLAG_ANYSRC 0x01
-#define FLOWI_FLAG_MATCH_ANY_IIF 0x02
 	union {
 		struct {
 			__be16	sport;
@@ -67,6 +66,7 @@ struct flowi {
 		} dnports;
 
 		__be32		spi;
+		__be32		gre_key;
 
 		struct {
 			__u8	type;
@@ -78,6 +78,7 @@ struct flowi {
 #define fl_icmp_code	uli_u.icmpt.code
 #define fl_ipsec_spi	uli_u.spi
 #define fl_mh_type	uli_u.mht.type
+#define fl_gre_key	uli_u.gre_key
 	__u32           secid;	/* used by xfrm; see secid.txt */
 } __attribute__((__aligned__(BITS_PER_LONG/8)));
 

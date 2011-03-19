@@ -340,14 +340,6 @@ am79c961_close(struct net_device *dev)
 	return 0;
 }
 
-/*
- * Get the current statistics.
- */
-static struct net_device_stats *am79c961_getstats (struct net_device *dev)
-{
-	return &dev->stats;
-}
-
 static void am79c961_mc_hash(char *addr, unsigned short *hash)
 {
 	if (addr[0] & 0x01) {
@@ -665,7 +657,6 @@ static const struct net_device_ops am79c961_netdev_ops = {
 	.ndo_open		= am79c961_open,
 	.ndo_stop		= am79c961_close,
 	.ndo_start_xmit		= am79c961_sendpacket,
-	.ndo_get_stats		= am79c961_getstats,
 	.ndo_set_multicast_list	= am79c961_setmulticastlist,
 	.ndo_tx_timeout		= am79c961_timeout,
 	.ndo_validate_addr	= eth_validate_addr,

@@ -75,9 +75,6 @@ static void cpu_unmask_irq(unsigned int irq)
 	smp_send_all_nop();
 }
 
-void no_ack_irq(unsigned int irq) { }
-void no_end_irq(unsigned int irq) { }
-
 void cpu_ack_irq(unsigned int irq)
 {
 	unsigned long mask = EIEM_MASK(irq);
@@ -241,7 +238,7 @@ int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 
 	/* for iosapic interrupts */
 	if (type) {
-		set_irq_chip_and_handler(irq, type, handle_level_irq);
+		set_irq_chip_and_handler(irq, type, handle_percpu_irq);
 		set_irq_chip_data(irq, data);
 		cpu_unmask_irq(irq);
 	}
@@ -392,7 +389,7 @@ static void claim_cpu_irqs(void)
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
 		set_irq_chip_and_handler(i, &cpu_interrupt_type,
-			handle_level_irq);
+					 handle_percpu_irq);
 	}
 
 	set_irq_handler(TIMER_IRQ, handle_percpu_irq);

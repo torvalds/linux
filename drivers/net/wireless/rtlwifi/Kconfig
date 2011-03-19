@@ -1,0 +1,15 @@
+config RTL8192CE
+	tristate "Realtek RTL8192CE/RTL8188SE Wireless Network Adapter"
+	depends on MAC80211 && EXPERIMENTAL
+	select FW_LOADER
+	select RTLWIFI
+	---help---
+	This is the driver for Realtek RTL8192CE/RTL8188CE 802.11n PCIe
+	wireless network adapters.
+
+	If you choose to build it as a module, it will be called rtl8192ce
+
+config RTLWIFI
+	tristate
+	depends on RTL8192CE
+	default m

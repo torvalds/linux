@@ -88,7 +88,7 @@ asmlinkage int sys_cacheflush(unsigned long addr, unsigned long len, int op)
 	}
 
 	if (op & CACHEFLUSH_I)
-		flush_cache_all();
+		flush_icache_range(addr, addr+len);
 
 	up_read(&current->mm->mmap_sem);
 	return 0;

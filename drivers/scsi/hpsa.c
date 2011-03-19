@@ -31,7 +31,6 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/compat.h>
 #include <linux/blktrace_api.h>
 #include <linux/uaccess.h>
@@ -91,11 +90,7 @@ static const struct pci_device_id hpsa_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3252},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3253},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3254},
-#define PCI_DEVICE_ID_HP_CISSF 0x333f
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x333F},
-	{PCI_VENDOR_ID_HP,     PCI_ANY_ID,             PCI_ANY_ID, PCI_ANY_ID,
-		PCI_CLASS_STORAGE_RAID << 8, 0xffff << 8, 0},
-	{PCI_VENDOR_ID_COMPAQ,     PCI_ANY_ID,             PCI_ANY_ID, PCI_ANY_ID,
+	{PCI_VENDOR_ID_HP,     PCI_ANY_ID,	PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_RAID << 8, 0xffff << 8, 0},
 	{0,}
 };
@@ -114,8 +109,6 @@ static struct board_type products[] = {
 	{0x3249103C, "Smart Array P812", &SA5_access},
 	{0x324a103C, "Smart Array P712m", &SA5_access},
 	{0x324b103C, "Smart Array P711m", &SA5_access},
-	{0x3233103C, "StorageWorks P1210m", &SA5_access},
-	{0x333F103C, "StorageWorks P1210m", &SA5_access},
 	{0x3250103C, "Smart Array", &SA5_access},
 	{0x3250113C, "Smart Array", &SA5_access},
 	{0x3250123C, "Smart Array", &SA5_access},
@@ -143,8 +136,7 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	void *buff, size_t size, u8 page_code, unsigned char *scsi3addr,
 	int cmd_type);
 
-static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
-		void (*done)(struct scsi_cmnd *));
+static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
 static void hpsa_scan_start(struct Scsi_Host *);
 static int hpsa_scan_finished(struct Scsi_Host *sh,
 	unsigned long elapsed_time);
@@ -649,11 +641,6 @@ static void fixup_botched_add(struct ctlr_info *h,
 static inline int device_is_the_same(struct hpsa_scsi_dev_t *dev1,
 	struct hpsa_scsi_dev_t *dev2)
 {
-	if ((is_logical_dev_addr_mode(dev1->scsi3addr) ||
-		(dev1->lun != -1 && dev2->lun != -1)) &&
-		dev1->devtype != 0x0C)
-		return (memcmp(dev1, dev2, sizeof(*dev1)) == 0);
-
 	/* we compare everything except lun and target as these
 	 * are not yet assigned.  Compare parts likely
 	 * to differ first
@@ -668,11 +655,7 @@ static inline int device_is_the_same(struct hpsa_scsi_dev_t *dev1,
 		return 0;
 	if (memcmp(dev1->vendor, dev2->vendor, sizeof(dev1->vendor)) != 0)
 		return 0;
-	if (memcmp(dev1->revision, dev2->revision, sizeof(dev1->revision)) != 0)
-		return 0;
 	if (dev1->devtype != dev2->devtype)
-		return 0;
-	if (dev1->raid_level != dev2->raid_level)
 		return 0;
 	if (dev1->bus != dev2->bus)
 		return 0;
@@ -1485,8 +1468,6 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		sizeof(this_device->vendor));
 	memcpy(this_device->model, &inq_buff[16],
 		sizeof(this_device->model));
-	memcpy(this_device->revision, &inq_buff[32],
-		sizeof(this_device->revision));
 	memset(this_device->device_id, 0,
 		sizeof(this_device->device_id));
 	hpsa_get_device_id(h, scsi3addr, this_device->device_id,
@@ -1926,7 +1907,7 @@ sglist_finished:
 }
 
 
-static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
+static int hpsa_scsi_queue_command_lck(struct scsi_cmnd *cmd,
 	void (*done)(struct scsi_cmnd *))
 {
 	struct ctlr_info *h;
@@ -2019,6 +2000,8 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 	/* the cmd'll come back via intr handler in complete_scsi_command()  */
 	return 0;
 }
+
+static DEF_SCSI_QCMD(hpsa_scsi_queue_command)
 
 static void hpsa_scan_start(struct Scsi_Host *sh)
 {

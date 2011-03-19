@@ -1406,8 +1406,10 @@ static int budget_av_detach(struct saa7146_dev *dev)
 
 #define KNC1_INPUTS 2
 static struct v4l2_input knc1_inputs[KNC1_INPUTS] = {
-	{0, "Composite", V4L2_INPUT_TYPE_TUNER, 1, 0, V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0},
-	{1, "S-Video", V4L2_INPUT_TYPE_CAMERA, 2, 0, V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0},
+	{ 0, "Composite", V4L2_INPUT_TYPE_TUNER, 1, 0,
+		V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
+	{ 1, "S-Video", V4L2_INPUT_TYPE_CAMERA, 2, 0,
+		V4L2_STD_PAL_BG | V4L2_STD_NTSC_M, 0, V4L2_IN_CAP_STD },
 };
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)

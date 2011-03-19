@@ -277,8 +277,12 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	dev->base_addr = ioaddr+ULTRA_NIC_OFFSET;
 
 	{
-		int addr_tbl[4] = {0x0C0000, 0x0E0000, 0xFC0000, 0xFE0000};
-		short num_pages_tbl[4] = {0x20, 0x40, 0x80, 0xff};
+		static const int addr_tbl[4] = {
+			0x0C0000, 0x0E0000, 0xFC0000, 0xFE0000
+		};
+		static const short num_pages_tbl[4] = {
+			0x20, 0x40, 0x80, 0xff
+		};
 
 		dev->mem_start = ((addr & 0x0f) << 13) + addr_tbl[(addr >> 6) & 3] ;
 		num_pages = num_pages_tbl[(addr >> 4) & 3];

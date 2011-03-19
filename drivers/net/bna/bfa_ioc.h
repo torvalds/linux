@@ -26,16 +26,7 @@
 #define BFA_IOC_TOV		3000	/* msecs */
 #define BFA_IOC_HWSEM_TOV	500	/* msecs */
 #define BFA_IOC_HB_TOV		500	/* msecs */
-#define BFA_IOC_HWINIT_MAX	2
-#define BFA_IOC_TOV_RECOVER	BFA_IOC_HB_TOV
-
-/**
- * Generic Scatter Gather Element used by driver
- */
-struct bfa_sge {
-	u32	sg_len;
-	void	*sg_addr;
-};
+#define BFA_IOC_HWINIT_MAX	5
 
 /**
  * PCI device information required by IOC
@@ -65,19 +56,6 @@ struct bfa_dma {
 #define BFI_SMEM_CT_SIZE	0x280000U	/* ! 2.5MB for catapult	*/
 
 /**
- * @brief BFA dma address assignment macro
- */
-#define bfa_dma_addr_set(dma_addr, pa)	\
-		__bfa_dma_addr_set(&dma_addr, (u64)pa)
-
-static inline void
-__bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
-{
-	dma_addr->a32.addr_lo = (u32) pa;
-	dma_addr->a32.addr_hi = (u32) (upper_32_bits(pa));
-}
-
-/**
  * @brief BFA dma address assignment macro. (big endian format)
  */
 #define bfa_dma_be_addr_set(dma_addr, pa)	\
@@ -105,8 +83,11 @@ struct bfa_ioc_regs {
 	void __iomem *host_page_num_fn;
 	void __iomem *heartbeat;
 	void __iomem *ioc_fwstate;
+	void __iomem *alt_ioc_fwstate;
 	void __iomem *ll_halt;
+	void __iomem *alt_ll_halt;
 	void __iomem *err_set;
+	void __iomem *ioc_fail_sync;
 	void __iomem *shirq_isr_next;
 	void __iomem *shirq_msk_next;
 	void __iomem *smem_page_start;
@@ -165,16 +146,22 @@ struct bfa_ioc_hbfail_notify {
 	(__notify)->cbarg = (__cbarg);				\
 } while (0)
 
+struct bfa_iocpf {
+	bfa_fsm_t		fsm;
+	struct bfa_ioc		*ioc;
+	u32			retry_count;
+	bool			auto_recover;
+};
+
 struct bfa_ioc {
 	bfa_fsm_t		fsm;
 	struct bfa 		*bfa;
 	struct bfa_pcidev 	pcidev;
-	struct bfa_timer_mod	*timer_mod;
 	struct timer_list 	ioc_timer;
+	struct timer_list 	iocpf_timer;
 	struct timer_list 	sem_timer;
 	struct timer_list	hb_timer;
 	u32			hb_count;
-	u32			retry_count;
 	struct list_head	hb_notify_q;
 	void			*dbg_fwsave;
 	int			dbg_fwsave_len;
@@ -182,7 +169,6 @@ struct bfa_ioc {
 	enum bfi_mclass		ioc_mc;
 	struct bfa_ioc_regs 	ioc_regs;
 	struct bfa_ioc_drv_stats stats;
-	bool			auto_recover;
 	bool			fcmode;
 	bool			ctdev;
 	bool			cna;
@@ -195,6 +181,7 @@ struct bfa_ioc {
 	struct bfa_ioc_cbfn	*cbfn;
 	struct bfa_ioc_mbox_mod	mbox_mod;
 	struct bfa_ioc_hwif	*ioc_hwif;
+	struct bfa_iocpf	iocpf;
 };
 
 struct bfa_ioc_hwif {
@@ -205,8 +192,12 @@ struct bfa_ioc_hwif {
 	void		(*ioc_map_port)	(struct bfa_ioc *ioc);
 	void		(*ioc_isr_mode_set)	(struct bfa_ioc *ioc,
 					bool msix);
-	void		(*ioc_notify_hbfail)	(struct bfa_ioc *ioc);
+	void		(*ioc_notify_fail)	(struct bfa_ioc *ioc);
 	void		(*ioc_ownership_reset)	(struct bfa_ioc *ioc);
+	void		(*ioc_sync_join)	(struct bfa_ioc *ioc);
+	void		(*ioc_sync_leave)	(struct bfa_ioc *ioc);
+	void		(*ioc_sync_ack)		(struct bfa_ioc *ioc);
+	bool		(*ioc_sync_complete)	(struct bfa_ioc *ioc);
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -271,7 +262,6 @@ void bfa_nw_ioc_enable(struct bfa_ioc *ioc);
 void bfa_nw_ioc_disable(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
-
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
 void bfa_nw_ioc_hbfail_register(struct bfa_ioc *ioc,
 	struct bfa_ioc_hbfail_notify *notify);
@@ -289,7 +279,8 @@ mac_t bfa_nw_ioc_get_mac(struct bfa_ioc *ioc);
  */
 void bfa_nw_ioc_timeout(void *ioc);
 void bfa_nw_ioc_hb_check(void *ioc);
-void bfa_nw_ioc_sem_timeout(void *ioc);
+void bfa_nw_iocpf_timeout(void *ioc);
+void bfa_nw_iocpf_sem_timeout(void *ioc);
 
 /*
  * F/W Image Size & Chunk

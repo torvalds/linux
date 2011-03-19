@@ -185,6 +185,9 @@
 
 #define DRV_NAME "imx-ssi"
 
+#include <linux/dmaengine.h>
+#include <mach/dma.h>
+
 struct imx_pcm_dma_params {
 	int dma;
 	unsigned long dma_addr;
@@ -212,6 +215,7 @@ struct imx_ssi {
 	int enabled;
 
 	struct platform_device *soc_platform_pdev;
+	struct platform_device *soc_platform_pdev_fiq;
 };
 
 struct snd_soc_platform *imx_ssi_fiq_init(struct platform_device *pdev,

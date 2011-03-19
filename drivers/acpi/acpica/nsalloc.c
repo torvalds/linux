@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2010, Intel Corp.
+ * Copyright (C) 2000 - 2011, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -234,8 +234,8 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 			 * modified the namespace. This is used for cleanup when the
 			 * method exits.
 			 */
-			walk_state->method_desc->method.flags |=
-			    AOPOBJ_MODIFIED_NAMESPACE;
+			walk_state->method_desc->method.info_flags |=
+			    ACPI_METHOD_MODIFIED_NAMESPACE;
 		}
 	}
 
@@ -341,10 +341,18 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 {
 	struct acpi_namespace_node *child_node = NULL;
 	u32 level = 1;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ns_delete_namespace_subtree);
 
 	if (!parent_node) {
+		return_VOID;
+	}
+
+	/* Lock namespace for possible update */
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
@@ -397,6 +405,7 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 		}
 	}
 
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_VOID;
 }
 

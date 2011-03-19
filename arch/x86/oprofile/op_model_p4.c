@@ -11,7 +11,7 @@
 #include <linux/oprofile.h>
 #include <linux/smp.h>
 #include <linux/ptrace.h>
-#include <linux/nmi.h>
+#include <asm/nmi.h>
 #include <asm/msr.h>
 #include <asm/fixmap.h>
 #include <asm/apic.h>

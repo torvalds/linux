@@ -87,7 +87,6 @@
 #include <linux/tty_flip.h>
 #include <linux/mm.h>
 #include <linux/serial.h>
-#include <linux/smp_lock.h>
 #include <linux/fcntl.h>
 #include <linux/major.h>
 #include <linux/delay.h>
@@ -2356,7 +2355,7 @@ static void __exit specialix_exit_module(void)
 	func_exit();
 }
 
-static struct pci_device_id specialx_pci_tbl[] __devinitdata = {
+static struct pci_device_id specialx_pci_tbl[] __devinitdata __used = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_IO8) },
 	{ }
 };
