@@ -1212,6 +1212,20 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	return true;
 }
 
+static void ath9k_hw_apply_gpio_override(struct ath_hw *ah)
+{
+	u32 gpio_mask = ah->gpio_mask;
+	int i;
+
+	for (i = 0; gpio_mask; i++, gpio_mask >>= 1) {
+		if (!(gpio_mask & 1))
+			continue;
+
+		ath9k_hw_cfg_output(ah, i, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+		ath9k_hw_set_gpio(ah, i, !!(ah->gpio_val & BIT(i)));
+	}
+}
+
 bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
@@ -1499,6 +1513,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		ar9003_hw_bb_watchdog_config(ah);
+
+	ath9k_hw_apply_gpio_override(ah);
 
 	return 0;
 }

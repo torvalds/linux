@@ -799,6 +799,8 @@ struct ath_hw {
 	int initPDADC;
 	int PDADCdelta;
 	u8 led_pin;
+	u32 gpio_mask;
+	u32 gpio_val;
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;

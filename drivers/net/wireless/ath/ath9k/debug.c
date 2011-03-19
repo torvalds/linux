@@ -1119,6 +1119,12 @@ int ath9k_init_debug(struct ath_hw *ah)
 	debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
 
+	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
+			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
+
+	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
+			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
+
 	sc->debug.regidx = 0;
 	return 0;
 }
