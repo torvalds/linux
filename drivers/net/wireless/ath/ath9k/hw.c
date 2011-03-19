@@ -1869,6 +1869,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	    !(AR_SREV_9271(ah)))
 		/* CB71: GPIO 0 is pulled down to indicate 3 rx chains */
 		pCap->rx_chainmask = ath9k_hw_gpio_get(ah, 0) ? 0x5 : 0x7;
+	else if (AR_SREV_9100(ah))
+		pCap->rx_chainmask = 0x7;
 	else
 		/* Use rx_chainmask from EEPROM. */
 		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
