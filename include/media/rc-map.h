@@ -134,6 +134,7 @@ void rc_map_init(void);
 #define RC_MAP_TECHNISAT_USB2            "rc-technisat-usb2"
 #define RC_MAP_TERRATEC_CINERGY_XS       "rc-terratec-cinergy-xs"
 #define RC_MAP_TERRATEC_SLIM             "rc-terratec-slim"
+#define RC_MAP_TERRATEC_SLIM_2           "rc-terratec-slim-2"
 #define RC_MAP_TEVII_NEC                 "rc-tevii-nec"
 #define RC_MAP_TOTAL_MEDIA_IN_HAND       "rc-total-media-in-hand"
 #define RC_MAP_TREKSTOR                  "rc-trekstor"
