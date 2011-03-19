@@ -2219,13 +2219,18 @@ i915_gem_flush_ring(struct intel_ring_buffer *ring,
 {
 	int ret;
 
+	if (((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) == 0)
+		return 0;
+
 	trace_i915_gem_ring_flush(ring, invalidate_domains, flush_domains);
 
 	ret = ring->flush(ring, invalidate_domains, flush_domains);
 	if (ret)
 		return ret;
 
-	i915_gem_process_flushing_list(ring, flush_domains);
+	if (flush_domains & I915_GEM_GPU_DOMAINS)
+		i915_gem_process_flushing_list(ring, flush_domains);
+
 	return 0;
 }
 
