@@ -1466,20 +1466,6 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	state->i2c = i2c;
 	memcpy(&state->config, config, sizeof(struct af9013_config));
 
-	/* chip version */
-	ret = af9013_read_reg_bits(state, 0xd733, 4, 4, &buf[2]);
-	if (ret)
-		goto error;
-
-	/* ROM version */
-	for (i = 0; i < 2; i++) {
-		ret = af9013_read_reg(state, 0x116b + i, &buf[i]);
-		if (ret)
-			goto error;
-	}
-	deb_info("%s: chip version:%d ROM version:%d.%d\n", __func__,
-		buf[2], buf[0], buf[1]);
-
 	/* download firmware */
 	if (state->config.output_mode != AF9013_OUTPUT_MODE_USB) {
 		ret = af9013_download_firmware(state);
@@ -1494,6 +1480,20 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 			goto error;
 	}
 	info("firmware version:%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3]);
+
+	/* chip version */
+	ret = af9013_read_reg_bits(state, 0xd733, 4, 4, &buf[2]);
+	if (ret)
+		goto error;
+
+	/* ROM version */
+	for (i = 0; i < 2; i++) {
+		ret = af9013_read_reg(state, 0x116b + i, &buf[i]);
+		if (ret)
+			goto error;
+	}
+	deb_info("%s: chip version:%d ROM version:%d.%d\n", __func__,
+		buf[2], buf[0], buf[1]);
 
 	/* settings for mp2if */
 	if (state->config.output_mode == AF9013_OUTPUT_MODE_USB) {
