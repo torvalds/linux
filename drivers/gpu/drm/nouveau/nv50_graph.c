@@ -662,7 +662,7 @@ nv50_pgraph_mp_trap(struct drm_device *dev, int tpid, int display)
 			nv_rd32(dev, addr + 0x20);
 			pc = nv_rd32(dev, addr + 0x24);
 			oplow = nv_rd32(dev, addr + 0x70);
-			ophigh= nv_rd32(dev, addr + 0x74);
+			ophigh = nv_rd32(dev, addr + 0x74);
 			NV_INFO(dev, "PGRAPH_TRAP_MP_EXEC - "
 					"TP %d MP %d: ", tpid, i);
 			nouveau_enum_print(nv50_mp_exec_error_names, status);

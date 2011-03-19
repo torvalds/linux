@@ -600,7 +600,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 	/* Get "some number" from the timing reg for NV_40
 	 * Used in calculations later */
 	if (dev_priv->card_type == NV_40) {
-		magic_number = (nv_rd32(dev,0x100228) & 0x0f000000) >> 24;
+		magic_number = (nv_rd32(dev, 0x100228) & 0x0f000000) >> 24;
 	}
 
 	entry = mem + mem[1];
@@ -668,7 +668,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 						  tUNK_13 << 8  | tUNK_13);
 
 			timing->reg_100234 = (tRAS << 24 | tRC);
-			timing->reg_100234 += max(tUNK_10,tUNK_11) << 16;
+			timing->reg_100234 += max(tUNK_10, tUNK_11) << 16;
 
 			if (dev_priv->chipset < 0xa3) {
 				timing->reg_100234 |= (tUNK_2 + 2) << 8;

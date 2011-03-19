@@ -883,13 +883,13 @@ extern void nouveau_channel_ref(struct nouveau_channel *chan,
 extern void nouveau_channel_idle(struct nouveau_channel *chan);
 
 /* nouveau_object.c */
-#define NVOBJ_CLASS(d,c,e) do {                                                \
+#define NVOBJ_CLASS(d, c, e) do {                                              \
 	int ret = nouveau_gpuobj_class_new((d), (c), NVOBJ_ENGINE_##e);        \
 	if (ret)                                                               \
 		return ret;                                                    \
 } while (0)
 
-#define NVOBJ_MTHD(d,c,m,e) do {                                               \
+#define NVOBJ_MTHD(d, c, m, e) do {                                            \
 	int ret = nouveau_gpuobj_mthd_new((d), (c), (m), (e));                 \
 	if (ret)                                                               \
 		return ret;                                                    \
