@@ -310,7 +310,7 @@ static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
 
 static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
 {
-	return le32_to_cpu(rate_n_flags) & 0xFF;
+	return le32_to_cpu(rate_n_flags) & RATE_MCS_RATE_MSK;
 }
 
 static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
