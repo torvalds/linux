@@ -1276,20 +1276,6 @@ int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
  * while scanning a device for factory marked good / bad blocks. */
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
-static struct nand_bbt_descr smallpage_flashbased = {
-	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = NAND_SMALL_BADBLOCK_POS,
-	.len = 1,
-	.pattern = scan_ff_pattern
-};
-
-static struct nand_bbt_descr largepage_flashbased = {
-	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = NAND_LARGE_BADBLOCK_POS,
-	.len = 2,
-	.pattern = scan_ff_pattern
-};
-
 static uint8_t scan_agand_pattern[] = { 0x1C, 0x71, 0xC7, 0x1C, 0x71, 0xC7 };
 
 static struct nand_bbt_descr agand_flashbased = {
@@ -1355,10 +1341,6 @@ static struct nand_bbt_descr bbt_mirror_no_bbt_descr = {
  * this->badblock_pattern. Thus, this->badblock_pattern should be NULL when
  * passed to this function.
  *
- * TODO: Handle other flags, replace other static structs
- *        (e.g. handle NAND_BBT_FLASH for flash-based BBT,
- *             replace smallpage_flashbased)
- *
  */
 static int nand_create_default_bbt_descr(struct nand_chip *this)
 {
@@ -1422,15 +1404,14 @@ int nand_default_bbt(struct mtd_info *mtd)
 				this->bbt_md = &bbt_mirror_descr;
 			}
 		}
-		if (!this->badblock_pattern) {
-			this->badblock_pattern = (mtd->writesize > 512) ? &largepage_flashbased : &smallpage_flashbased;
-		}
 	} else {
 		this->bbt_td = NULL;
 		this->bbt_md = NULL;
-		if (!this->badblock_pattern)
-			nand_create_default_bbt_descr(this);
 	}
+
+	if (!this->badblock_pattern)
+		nand_create_default_bbt_descr(this);
+
 	return nand_scan_bbt(mtd, this->badblock_pattern);
 }
 
