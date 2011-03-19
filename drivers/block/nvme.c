@@ -1146,6 +1146,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 static const struct block_device_operations nvme_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= nvme_ioctl,
+	.compat_ioctl	= nvme_ioctl,
 };
 
 static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
