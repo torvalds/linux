@@ -112,6 +112,10 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 
+#ifdef CONFIG_SND_ES1968_RADIO
+#include <sound/tea575x-tuner.h>
+#endif
+
 #define CARD_NAME "ESS Maestro1/2"
 #define DRIVER_NAME "ES1968"
 
@@ -552,6 +556,10 @@ struct es1968 {
 	struct snd_kcontrol *master_volume;
 	spinlock_t ac97_lock;
 	struct tasklet_struct hwvol_tq;
+#endif
+
+#ifdef CONFIG_SND_ES1968_RADIO
+	struct snd_tea575x tea;
 #endif
 };
 
@@ -2571,6 +2579,111 @@ static int __devinit snd_es1968_input_register(struct es1968 *chip)
 }
 #endif /* CONFIG_SND_ES1968_INPUT */
 
+#ifdef CONFIG_SND_ES1968_RADIO
+#define GPIO_DATA	0x60
+#define IO_MASK		4      /* mask      register offset from GPIO_DATA
+				bits 1=unmask write to given bit */
+#define IO_DIR		8      /* direction register offset from GPIO_DATA
+				bits 0/1=read/write direction */
+/* mask bits for GPIO lines */
+#define STR_DATA	0x0040 /* GPIO6 */
+#define STR_CLK		0x0080 /* GPIO7 */
+#define STR_WREN	0x0100 /* GPIO8 */
+#define STR_MOST	0x0200 /* GPIO9 */
+
+static void snd_es1968_tea575x_write(struct snd_tea575x *tea, unsigned int val)
+{
+	struct es1968 *chip = tea->private_data;
+	unsigned long io = chip->io_port + GPIO_DATA;
+	u16 l, bits;
+	u16 omask, odir;
+
+	omask = inw(io + IO_MASK);
+	odir = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
+	outw(odir | STR_DATA, io + IO_DIR);
+	outw(~(STR_DATA | STR_CLK | STR_WREN), io + IO_MASK);
+	udelay(16);
+
+	for (l = 25; l; l--) {
+		bits = ((val >> 18) & STR_DATA) | STR_WREN;
+		val <<= 1;			/* shift data */
+		outw(bits, io);			/* start strobe */
+		udelay(2);
+		outw(bits | STR_CLK, io);	/* HI level */
+		udelay(2);
+		outw(bits, io);			/* LO level */
+		udelay(4);
+	}
+
+	if (!tea->mute)
+		outw(0, io);
+
+	udelay(4);
+	outw(omask, io + IO_MASK);
+	outw(odir, io + IO_DIR);
+	msleep(125);
+}
+
+static unsigned int snd_es1968_tea575x_read(struct snd_tea575x *tea)
+{
+	struct es1968 *chip = tea->private_data;
+	unsigned long io = chip->io_port + GPIO_DATA;
+	u16 l, rdata;
+	u32 data = 0;
+	u16 omask;
+
+	omask = inw(io + IO_MASK);
+	outw(~(STR_CLK | STR_WREN), io + IO_MASK);
+	outw(0, io);
+	udelay(16);
+
+	for (l = 24; l--;) {
+		outw(STR_CLK, io);		/* HI state */
+		udelay(2);
+		if (!l)
+			tea->tuned = inw(io) & STR_MOST ? 0 : 1;
+		outw(0, io);			/* LO state */
+		udelay(2);
+		data <<= 1;			/* shift data */
+		rdata = inw(io);
+		if (!l)
+			tea->stereo = (rdata & STR_MOST) ?  0 : 1;
+		else if (l && rdata & STR_DATA)
+			data++;
+		udelay(2);
+	}
+
+	if (tea->mute)
+		outw(STR_WREN, io);
+
+	udelay(4);
+	outw(omask, io + IO_MASK);
+
+	return data & 0x3ffe;
+}
+
+static void snd_es1968_tea575x_mute(struct snd_tea575x *tea, unsigned int mute)
+{
+	struct es1968 *chip = tea->private_data;
+	unsigned long io = chip->io_port + GPIO_DATA;
+	u16 omask;
+
+	omask = inw(io + IO_MASK);
+	outw(~STR_WREN, io + IO_MASK);
+	tea->mute = mute;
+	outw(tea->mute ? STR_WREN : 0, io);
+	udelay(4);
+	outw(omask, io + IO_MASK);
+	msleep(125);
+}
+
+static struct snd_tea575x_ops snd_es1968_tea_ops = {
+	.write = snd_es1968_tea575x_write,
+	.read  = snd_es1968_tea575x_read,
+	.mute  = snd_es1968_tea575x_mute,
+};
+#endif
+
 static int snd_es1968_free(struct es1968 *chip)
 {
 #ifdef CONFIG_SND_ES1968_INPUT
@@ -2584,6 +2697,10 @@ static int snd_es1968_free(struct es1968 *chip)
 		outw(1, chip->io_port + 0x04); /* clear WP interrupts */
 		outw(0, chip->io_port + ESM_PORT_HOST_IRQ); /* disable IRQ */
 	}
+
+#ifdef CONFIG_SND_ES1968_RADIO
+	snd_tea575x_exit(&chip->tea);
+#endif
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -2722,6 +2839,14 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 	}
 
 	snd_card_set_dev(card, &pci->dev);
+
+#ifdef CONFIG_SND_ES1968_RADIO
+	chip->tea.card = card;
+	chip->tea.freq_fixup = 10700;
+	chip->tea.private_data = chip;
+	chip->tea.ops = &snd_es1968_tea_ops;
+	snd_tea575x_init(&chip->tea);
+#endif
 
 	*chip_ret = chip;
 
