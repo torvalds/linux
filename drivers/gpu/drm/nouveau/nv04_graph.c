@@ -507,7 +507,7 @@ int nv04_graph_init(struct drm_device *dev)
 	nv_wr32(dev, NV04_PGRAPH_DEBUG_0, 0x001FFFFF);*/
 	nv_wr32(dev, NV04_PGRAPH_DEBUG_0, 0x1231c000);
 	/*1231C000 blob, 001 haiku*/
-	//*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
+	/*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
 	nv_wr32(dev, NV04_PGRAPH_DEBUG_1, 0x72111100);
 	/*0x72111100 blob , 01 haiku*/
 	/*nv_wr32(dev, NV04_PGRAPH_DEBUG_2, 0x11d5f870);*/

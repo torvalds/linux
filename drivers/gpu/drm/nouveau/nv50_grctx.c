@@ -924,7 +924,7 @@ nv50_graph_construct_mmio_ddata(struct nouveau_grctx *ctx)
 		dd_emit(ctx, 1, 0);	/* 0000007f MULTISAMPLE_SAMPLES_LOG2 */
 	} else {
 		dd_emit(ctx, 1, 0);	/* 0000000f MULTISAMPLE_SAMPLES_LOG2 */
-	} 
+	}
 	dd_emit(ctx, 1, 0xc);		/* 000000ff SEMANTIC_COLOR.BFC0_ID */
 	if (dev_priv->chipset != 0x50)
 		dd_emit(ctx, 1, 0);	/* 00000001 SEMANTIC_COLOR.CLMP_EN */

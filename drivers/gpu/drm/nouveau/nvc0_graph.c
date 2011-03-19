@@ -452,28 +452,30 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvc0_graph_priv *priv = dev_priv->engine.graph.priv;
 	int gpc;
-	
-	//      TP      ROP UNKVAL(magic_not_rop_nr)
-	// 450: 4/0/0/0 2        3
-	// 460: 3/4/0/0 4        1
-	// 465: 3/4/4/0 4        7
-	// 470: 3/3/4/4 5        5
-	// 480: 3/4/4/4 6        6
 
-	// magicgpc918
-	// 450: 00200000 00000000001000000000000000000000
-	// 460: 00124925 00000000000100100100100100100101
-	// 465: 000ba2e9 00000000000010111010001011101001
-	// 470: 00092493 00000000000010010010010010010011
-	// 480: 00088889 00000000000010001000100010001001
+	/*
+	 *      TP      ROP UNKVAL(magic_not_rop_nr)
+	 * 450: 4/0/0/0 2        3
+	 * 460: 3/4/0/0 4        1
+	 * 465: 3/4/4/0 4        7
+	 * 470: 3/3/4/4 5        5
+	 * 480: 3/4/4/4 6        6
 
-	/* filled values up to tp_total, remainder 0 */
-	// 450: 00003210 00000000 00000000 00000000
-	// 460: 02321100 00000000 00000000 00000000
-	// 465: 22111000 00000233 00000000 00000000
-	// 470: 11110000 00233222 00000000 00000000
-	// 480: 11110000 03332222 00000000 00000000
-	
+	 * magicgpc918
+	 * 450: 00200000 00000000001000000000000000000000
+	 * 460: 00124925 00000000000100100100100100100101
+	 * 465: 000ba2e9 00000000000010111010001011101001
+	 * 470: 00092493 00000000000010010010010010010011
+	 * 480: 00088889 00000000000010001000100010001001
+
+	 * filled values up to tp_total, remainder 0
+	 * 450: 00003210 00000000 00000000 00000000
+	 * 460: 02321100 00000000 00000000 00000000
+	 * 465: 22111000 00000233 00000000 00000000
+	 * 470: 11110000 00233222 00000000 00000000
+	 * 480: 11110000 03332222 00000000 00000000
+	 */
+
 	nv_wr32(dev, GPC_BCAST(0x0980), priv->magicgpc980[0]);
 	nv_wr32(dev, GPC_BCAST(0x0984), priv->magicgpc980[1]);
 	nv_wr32(dev, GPC_BCAST(0x0988), priv->magicgpc980[2]);
@@ -676,9 +678,9 @@ nvc0_graph_init(struct drm_device *dev)
 
 	nvc0_graph_init_obj418880(dev);
 	nvc0_graph_init_regs(dev);
-	//nvc0_graph_init_unitplemented_magics(dev);
+	/*nvc0_graph_init_unitplemented_magics(dev);*/
 	nvc0_graph_init_gpc_0(dev);
-	//nvc0_graph_init_unitplemented_c242(dev);
+	/*nvc0_graph_init_unitplemented_c242(dev);*/
 
 	nv_wr32(dev, 0x400500, 0x00010001);
 	nv_wr32(dev, 0x400100, 0xffffffff);

@@ -52,9 +52,9 @@ struct nvc0_graph_priv {
 
 struct nvc0_graph_chan {
 	struct nouveau_gpuobj *grctx;
-	struct nouveau_gpuobj *unk408004; // 0x418810 too
-	struct nouveau_gpuobj *unk40800c; // 0x419004 too
-	struct nouveau_gpuobj *unk418810; // 0x419848 too
+	struct nouveau_gpuobj *unk408004; /* 0x418810 too */
+	struct nouveau_gpuobj *unk40800c; /* 0x419004 too */
+	struct nouveau_gpuobj *unk418810; /* 0x419848 too */
 	struct nouveau_gpuobj *mmio;
 	int mmio_nr;
 };
