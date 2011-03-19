@@ -207,6 +207,7 @@ extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
 
 struct in_ifaddr;
 extern void fib_add_ifaddr(struct in_ifaddr *);
+extern void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 
 static inline void ip_rt_put(struct rtable * rt)
 {
