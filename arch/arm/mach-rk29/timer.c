@@ -33,7 +33,7 @@
 
 #define TIMER_DISABLE			6
 #define TIMER_ENABLE			3
-#define TIMER_ENABLE_FREE_RUNNING	1
+#define TIMER_ENABLE_FREE_RUNNING	5
 
 #if 1	/* by default, use periph sync timer */
 
