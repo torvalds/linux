@@ -2902,7 +2902,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	rctl = er32(RCTL);
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	e1e_flush();
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	if (adapter->flags2 & FLAG2_DMA_BURST) {
 		/*
@@ -3383,7 +3383,7 @@ void e1000e_down(struct e1000_adapter *adapter)
 	ew32(TCTL, tctl);
 	/* flush both disables and wait for them to finish */
 	e1e_flush();
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	napi_disable(&adapter->napi);
 	e1000_irq_disable(adapter);
@@ -3418,7 +3418,7 @@ void e1000e_reinit_locked(struct e1000_adapter *adapter)
 {
 	might_sleep();
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 	e1000e_down(adapter);
 	e1000e_up(adapter);
 	clear_bit(__E1000_RESETTING, &adapter->state);
@@ -5028,7 +5028,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 	/* e1000e_down -> e1000e_reset dependent on max_frame_size & mtu */
 	adapter->max_frame_size = max_frame;
 	e_info("changing MTU from %d to %d\n", netdev->mtu, new_mtu);
