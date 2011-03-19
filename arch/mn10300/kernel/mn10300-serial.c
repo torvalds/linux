@@ -384,17 +384,21 @@ static void mn10300_serial_mask_ack(unsigned int irq)
 	arch_local_irq_restore(flags);
 }
 
-static void mn10300_serial_nop(unsigned int irq)
+static void mn10300_serial_chip_mask_ack(struct irq_data *d)
+{
+	mn10300_serial_mask_ack(d->irq);
+}
+
+static void mn10300_serial_nop(struct irq_data *d)
 {
 }
 
 static struct irq_chip mn10300_serial_pic = {
 	.name		= "mnserial",
-	.ack		= mn10300_serial_mask_ack,
-	.mask		= mn10300_serial_mask_ack,
-	.mask_ack	= mn10300_serial_mask_ack,
-	.unmask		= mn10300_serial_nop,
-	.end		= mn10300_serial_nop,
+	.irq_ack	= mn10300_serial_chip_mask_ack,
+	.irq_mask	= mn10300_serial_chip_mask_ack,
+	.irq_mask_ack	= mn10300_serial_chip_mask_ack,
+	.irq_unmask	= mn10300_serial_nop,
 };
 
 
