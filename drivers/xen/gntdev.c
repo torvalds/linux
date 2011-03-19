@@ -273,7 +273,7 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 				map->vma->vm_start + map->notify.addr;
 			err = copy_to_user(tmp, &err, 1);
 			if (err)
-				return err;
+				return -EFAULT;
 			map->notify.flags &= ~UNMAP_NOTIFY_CLEAR_BYTE;
 		} else if (pgno >= offset && pgno < offset + pages) {
 			uint8_t *tmp = kmap(map->pages[pgno]);
