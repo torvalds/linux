@@ -872,8 +872,7 @@ int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 			return -EINVAL; /* NILFS_I_DIRTY may remain for
 					   freeing inode */
 		}
-		list_del(&ii->i_dirty);
-		list_add_tail(&ii->i_dirty, &nilfs->ns_dirty_files);
+		list_move_tail(&ii->i_dirty, &nilfs->ns_dirty_files);
 		set_bit(NILFS_I_QUEUED, &ii->i_state);
 	}
 	spin_unlock(&nilfs->ns_inode_lock);

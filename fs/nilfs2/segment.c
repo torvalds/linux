@@ -1991,8 +1991,7 @@ static int nilfs_segctor_collect_dirty_files(struct nilfs_sc_info *sci,
 
 		clear_bit(NILFS_I_QUEUED, &ii->i_state);
 		set_bit(NILFS_I_BUSY, &ii->i_state);
-		list_del(&ii->i_dirty);
-		list_add_tail(&ii->i_dirty, &sci->sc_dirty_files);
+		list_move_tail(&ii->i_dirty, &sci->sc_dirty_files);
 	}
 	spin_unlock(&nilfs->ns_inode_lock);
 
@@ -2014,8 +2013,7 @@ static void nilfs_segctor_drop_written_files(struct nilfs_sc_info *sci,
 		clear_bit(NILFS_I_BUSY, &ii->i_state);
 		brelse(ii->i_bh);
 		ii->i_bh = NULL;
-		list_del(&ii->i_dirty);
-		list_add_tail(&ii->i_dirty, &ti->ti_garbage);
+		list_move_tail(&ii->i_dirty, &ti->ti_garbage);
 	}
 	spin_unlock(&nilfs->ns_inode_lock);
 }
