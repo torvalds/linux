@@ -200,15 +200,15 @@ nvc0_graph_create_context(struct nouveau_channel *chan)
 	for (i = 0; i < priv->grctx_size; i += 4)
 		nv_wo32(grctx, i, priv->grctx_vals[i / 4]);
 
-        nv_wo32(grctx, 0xf4, 0);
-        nv_wo32(grctx, 0xf8, 0);
-        nv_wo32(grctx, 0x10, grch->mmio_nr);
-        nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio->vinst));
-        nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio->vinst));
-        nv_wo32(grctx, 0x1c, 1);
-        nv_wo32(grctx, 0x20, 0);
-        nv_wo32(grctx, 0x28, 0);
-        nv_wo32(grctx, 0x2c, 0);
+	nv_wo32(grctx, 0xf4, 0);
+	nv_wo32(grctx, 0xf8, 0);
+	nv_wo32(grctx, 0x10, grch->mmio_nr);
+	nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio->vinst));
+	nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio->vinst));
+	nv_wo32(grctx, 0x1c, 1);
+	nv_wo32(grctx, 0x20, 0);
+	nv_wo32(grctx, 0x28, 0);
+	nv_wo32(grctx, 0x2c, 0);
 	pinstmem->flush(dev);
 	return 0;
 

@@ -887,13 +887,13 @@ extern void nouveau_channel_idle(struct nouveau_channel *chan);
 	int ret = nouveau_gpuobj_class_new((d), (c), NVOBJ_ENGINE_##e);        \
 	if (ret)                                                               \
 		return ret;                                                    \
-} while(0)
+} while (0)
 
 #define NVOBJ_MTHD(d,c,m,e) do {                                               \
 	int ret = nouveau_gpuobj_mthd_new((d), (c), (m), (e));                 \
 	if (ret)                                                               \
 		return ret;                                                    \
-} while(0)
+} while (0)
 
 extern int  nouveau_gpuobj_early_init(struct drm_device *);
 extern int  nouveau_gpuobj_init(struct drm_device *);
@@ -903,7 +903,7 @@ extern void nouveau_gpuobj_resume(struct drm_device *dev);
 extern int  nouveau_gpuobj_class_new(struct drm_device *, u32 class, u32 eng);
 extern int  nouveau_gpuobj_mthd_new(struct drm_device *, u32 class, u32 mthd,
 				    int (*exec)(struct nouveau_channel *,
-					        u32 class, u32 mthd, u32 data));
+						u32 class, u32 mthd, u32 data));
 extern int  nouveau_gpuobj_mthd_call(struct nouveau_channel *, u32, u32, u32);
 extern int  nouveau_gpuobj_mthd_call2(struct drm_device *, int, u32, u32, u32);
 extern int nouveau_gpuobj_channel_init(struct nouveau_channel *,

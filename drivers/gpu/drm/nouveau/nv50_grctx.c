@@ -747,7 +747,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 				gr_def(ctx, offset + 0x64, 0x0000001f);
 				gr_def(ctx, offset + 0x68, 0x0000000f);
 				gr_def(ctx, offset + 0x6c, 0x0000000f);
-			} else if(dev_priv->chipset < 0xa0) {
+			} else if (dev_priv->chipset < 0xa0) {
 				cp_ctx(ctx, offset + 0x50, 1);
 				cp_ctx(ctx, offset + 0x70, 1);
 			} else {
@@ -2836,7 +2836,7 @@ nv50_graph_construct_xfer_tprop(struct nouveau_grctx *ctx)
 	xf_emit(ctx, 1, 1);		/* 00000001 DST_LINEAR */
 	if (IS_NVA3F(dev_priv->chipset))
 		xf_emit(ctx, 1, 1);	/* 0000001f tesla UNK169C */
-	if(dev_priv->chipset == 0x50)
+	if (dev_priv->chipset == 0x50)
 		xf_emit(ctx, 1, 0);	/* ff */
 	else
 		xf_emit(ctx, 3, 0);	/* 1, 7, 3ff */

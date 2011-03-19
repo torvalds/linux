@@ -599,7 +599,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 
 	/* Get "some number" from the timing reg for NV_40
 	 * Used in calculations later */
-	if(dev_priv->card_type == NV_40) {
+	if (dev_priv->card_type == NV_40) {
 		magic_number = (nv_rd32(dev,0x100228) & 0x0f000000) >> 24;
 	}
 
@@ -645,22 +645,22 @@ nouveau_mem_timing_init(struct drm_device *dev)
 		timing->reg_100224 = (tUNK_0 + tUNK_19 + 1 + magic_number) << 24 |
 				      tUNK_18 << 16 |
 				      (tUNK_1 + tUNK_19 + 1 + magic_number) << 8;
-		if(dev_priv->chipset == 0xa8) {
+		if (dev_priv->chipset == 0xa8) {
 			timing->reg_100224 |= (tUNK_2 - 1);
 		} else {
 			timing->reg_100224 |= (tUNK_2 + 2 - magic_number);
 		}
 
 		timing->reg_100228 = (tUNK_12 << 16 | tUNK_11 << 8 | tUNK_10);
-		if(dev_priv->chipset >= 0xa3 && dev_priv->chipset < 0xaa) {
+		if (dev_priv->chipset >= 0xa3 && dev_priv->chipset < 0xaa) {
 			timing->reg_100228 |= (tUNK_19 - 1) << 24;
 		}
 
-		if(dev_priv->card_type == NV_40) {
+		if (dev_priv->card_type == NV_40) {
 			/* NV40: don't know what the rest of the regs are..
 			 * And don't need to know either */
 			timing->reg_100228 |= 0x20200000 | magic_number << 24;
-		} else if(dev_priv->card_type >= NV_50) {
+		} else if (dev_priv->card_type >= NV_50) {
 			/* XXX: reg_10022c */
 			timing->reg_10022c = tUNK_2 - 1;
 
@@ -670,7 +670,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 			timing->reg_100234 = (tRAS << 24 | tRC);
 			timing->reg_100234 += max(tUNK_10,tUNK_11) << 16;
 
-			if(dev_priv->chipset < 0xa3) {
+			if (dev_priv->chipset < 0xa3) {
 				timing->reg_100234 |= (tUNK_2 + 2) << 8;
 			} else {
 				/* XXX: +6? */
@@ -681,7 +681,7 @@ nouveau_mem_timing_init(struct drm_device *dev)
 			 * reg_100238: 0x00??????
 			 * reg_10023c: 0x!!??0202 for NV50+ cards (empirical evidence) */
 			timing->reg_10023c = 0x202;
-			if(dev_priv->chipset < 0xa3) {
+			if (dev_priv->chipset < 0xa3) {
 				timing->reg_10023c |= 0x4000000 | (tUNK_2 - 1) << 16;
 			} else {
 				/* currently unknown
