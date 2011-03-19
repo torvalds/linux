@@ -1232,8 +1232,7 @@ static struct nouveau_bitfield nv04_graph_intr[] = {
 	{}
 };
 
-static struct nouveau_bitfield nv04_graph_nstatus[] =
-{
+static struct nouveau_bitfield nv04_graph_nstatus[] = {
 	{ NV04_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV04_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
 	{ NV04_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
@@ -1241,8 +1240,7 @@ static struct nouveau_bitfield nv04_graph_nstatus[] =
 	{}
 };
 
-struct nouveau_bitfield nv04_graph_nsource[] =
-{
+struct nouveau_bitfield nv04_graph_nsource[] = {
 	{ NV03_PGRAPH_NSOURCE_NOTIFICATION,       "NOTIFICATION" },
 	{ NV03_PGRAPH_NSOURCE_DATA_ERROR,         "DATA_ERROR" },
 	{ NV03_PGRAPH_NSOURCE_PROTECTION_ERROR,   "PROTECTION_ERROR" },

@@ -1117,8 +1117,7 @@ struct nouveau_bitfield nv10_graph_intr[] = {
 	{}
 };
 
-struct nouveau_bitfield nv10_graph_nstatus[] =
-{
+struct nouveau_bitfield nv10_graph_nstatus[] = {
 	{ NV10_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV10_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
 	{ NV10_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },

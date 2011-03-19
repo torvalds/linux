@@ -1803,9 +1803,7 @@ nv50_graph_construct_gene_unk24xx(struct nouveau_grctx *ctx)
 		xf_emit(ctx, 1, 0);	/* 1ff */
 		xf_emit(ctx, 8, 0);	/* 0? */
 		xf_emit(ctx, 9, 0);	/* ffffffff, 7ff */
-	}
-	else
-	{
+	} else {
 		xf_emit(ctx, 0xc, 0);	/* RO */
 		/* SEEK */
 		xf_emit(ctx, 0xe10, 0); /* 190 * 9: 8*ffffffff, 7ff */

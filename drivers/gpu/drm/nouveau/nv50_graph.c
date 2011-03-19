@@ -548,8 +548,7 @@ nv84_graph_tlb_flush(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 }
 
-static struct nouveau_enum nv50_mp_exec_error_names[] =
-{
+static struct nouveau_enum nv50_mp_exec_error_names[] = {
 	{ 3, "STACK_UNDERFLOW", NULL },
 	{ 4, "QUADON_ACTIVE", NULL },
 	{ 8, "TIMEOUT", NULL },
