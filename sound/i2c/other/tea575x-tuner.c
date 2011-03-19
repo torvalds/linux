@@ -37,8 +37,8 @@ static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 
 #define RADIO_VERSION KERNEL_VERSION(0, 0, 2)
-#define FREQ_LO		 (87 * 16000)
-#define FREQ_HI		(108 * 16000)
+#define FREQ_LO		 (50UL * 16000)
+#define FREQ_HI		(150UL * 16000)
 
 /*
  * definitions
@@ -77,15 +77,29 @@ static struct v4l2_queryctrl radio_qctrl[] = {
  * lowlevel part
  */
 
+static void snd_tea575x_get_freq(struct snd_tea575x *tea)
+{
+	unsigned long freq;
+
+	freq = tea->ops->read(tea) & TEA575X_BIT_FREQ_MASK;
+	/* freq *= 12.5 */
+	freq *= 125;
+	freq /= 10;
+	/* crystal fixup */
+	if (tea->tea5759)
+		freq += tea->freq_fixup;
+	else
+		freq -= tea->freq_fixup;
+
+	tea->freq = freq * 16;		/* from kHz */
+}
+
 static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 {
 	unsigned long freq;
 
-	freq = tea->freq / 16;		/* to kHz */
-	if (freq > 108000)
-		freq = 108000;
-	if (freq < 87000)
-		freq = 87000;
+	freq = clamp(tea->freq, FREQ_LO, FREQ_HI);
+	freq /= 16;		/* to kHz */
 	/* crystal fixup */
 	if (tea->tea5759)
 		freq -= tea->freq_fixup;
@@ -109,29 +123,33 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 
-	strcpy(v->card, tea->tea5759 ? "TEA5759" : "TEA5757");
 	strlcpy(v->driver, "tea575x-tuner", sizeof(v->driver));
-	strlcpy(v->card, "Maestro Radio", sizeof(v->card));
+	strlcpy(v->card, tea->tea5759 ? "TEA5759" : "TEA5757", sizeof(v->card));
 	sprintf(v->bus_info, "PCI");
 	v->version = RADIO_VERSION;
-	v->capabilities = V4L2_CAP_TUNER;
+	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	return 0;
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
+	struct snd_tea575x *tea = video_drvdata(file);
+
 	if (v->index > 0)
 		return -EINVAL;
 
+	tea->ops->read(tea);
+
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
+	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 	v->rangelow = FREQ_LO;
 	v->rangehigh = FREQ_HI;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
-	v->capability = V4L2_TUNER_CAP_LOW;
-	v->audmode = V4L2_TUNER_MODE_MONO;
-	v->signal = 0xffff;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
+	v->audmode = tea->stereo ? V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
+	v->signal = tea->tuned ? 0xffff : 0;
+
 	return 0;
 }
 
@@ -148,7 +166,10 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct snd_tea575x *tea = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
+	snd_tea575x_get_freq(tea);
 	f->frequency = tea->freq;
 	return 0;
 }
@@ -157,6 +178,9 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
+
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 
 	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI)
 		return -EINVAL;

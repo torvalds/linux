@@ -38,8 +38,10 @@ struct snd_tea575x {
 	struct snd_card *card;
 	struct video_device *vd;	/* video device */
 	int dev_nr;			/* requested device number + 1 */
-	int tea5759;			/* 5759 chip is present */
-	int mute;			/* Device is muted? */
+	bool tea5759;			/* 5759 chip is present */
+	bool mute;			/* Device is muted? */
+	bool stereo;			/* receiving stereo */
+	bool tuned;			/* tuned to a station */
 	unsigned int freq_fixup;	/* crystal onboard */
 	unsigned int val;		/* hw value */
 	unsigned long freq;		/* frequency */
