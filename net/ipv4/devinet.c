@@ -345,6 +345,17 @@ static void __inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 		}
 	}
 
+	/* On promotion all secondaries from subnet are changing
+	 * the primary IP, we must remove all their routes silently
+	 * and later to add them back with new prefsrc. Do this
+	 * while all addresses are on the device list.
+	 */
+	for (ifa = promote; ifa; ifa = ifa->ifa_next) {
+		if (ifa1->ifa_mask == ifa->ifa_mask &&
+		    inet_ifa_match(ifa1->ifa_address, ifa))
+			fib_del_ifaddr(ifa, ifa1);
+	}
+
 	/* 2. Unlink it */
 
 	*ifap = ifa1->ifa_next;
