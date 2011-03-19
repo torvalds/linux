@@ -2144,33 +2144,6 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 				} else {
 					txq->axq_tx_inprogress = true;
 				}
-			} else {
-				/* If the queue has pending buffers, then it
-				 * should be doing tx work (and have axq_depth).
-				 * Shouldn't get to this state I think..but
-				 * we do.
-				 */
-				if (!(sc->sc_flags & (SC_OP_OFFCHANNEL)) &&
-				    (txq->pending_frames > 0 ||
-				     !list_empty(&txq->axq_acq) ||
-				     txq->stopped)) {
-					ath_err(ath9k_hw_common(sc->sc_ah),
-						"txq: %p axq_qnum: %u,"
-						" mac80211_qnum: %i"
-						" axq_link: %p"
-						" pending frames: %i"
-						" axq_acq empty: %i"
-						" stopped: %i"
-						" axq_depth: 0  Attempting to"
-						" restart tx logic.\n",
-						txq, txq->axq_qnum,
-						txq->mac80211_qnum,
-						txq->axq_link,
-						txq->pending_frames,
-						list_empty(&txq->axq_acq),
-						txq->stopped);
-					ath_txq_schedule(sc, txq);
-				}
 			}
 			spin_unlock_bh(&txq->axq_lock);
 		}
