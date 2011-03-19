@@ -665,9 +665,8 @@ error:
 static int af9015_download_firmware(struct usb_device *udev,
 	const struct firmware *fw)
 {
-	int i, len, packets, remainder, ret;
+	int i, len, remaining, ret;
 	struct req_t req = {DOWNLOAD_FIRMWARE, 0, 0, 0, 0, 0, NULL};
-	u16 addr = 0x5100; /* firmware start address */
 	u16 checksum = 0;
 
 	deb_info("%s:\n", __func__);
@@ -679,24 +678,20 @@ static int af9015_download_firmware(struct usb_device *udev,
 	af9015_config.firmware_size = fw->size;
 	af9015_config.firmware_checksum = checksum;
 
-	#define FW_PACKET_MAX_DATA  55
-
-	packets = fw->size / FW_PACKET_MAX_DATA;
-	remainder = fw->size % FW_PACKET_MAX_DATA;
-	len = FW_PACKET_MAX_DATA;
-	for (i = 0; i <= packets; i++) {
-		if (i == packets)  /* set size of the last packet */
-			len = remainder;
+	#define FW_ADDR 0x5100 /* firmware start address */
+	#define LEN_MAX 55 /* max packet size */
+	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
+		len = remaining;
+		if (len > LEN_MAX)
+			len = LEN_MAX;
 
 		req.data_len = len;
-		req.data = (u8 *)(fw->data + i * FW_PACKET_MAX_DATA);
-		req.addr = addr;
-		addr += FW_PACKET_MAX_DATA;
+		req.data = (u8 *) &fw->data[fw->size - remaining];
+		req.addr = FW_ADDR + fw->size - remaining;
 
 		ret = af9015_rw_udev(udev, &req);
 		if (ret) {
-			err("firmware download failed at packet %d with " \
-				"code %d", i, ret);
+			err("firmware download failed:%d", ret);
 			goto error;
 		}
 	}
