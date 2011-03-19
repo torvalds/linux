@@ -744,6 +744,8 @@ static const struct af9015_rc_setup af9015_rc_setup_hashes[] = {
 };
 
 static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
+	{ (USB_VID_TERRATEC << 16) + USB_PID_TERRATEC_CINERGY_T_STICK_RC,
+		RC_MAP_TERRATEC_SLIM_2 },
 	{ (USB_VID_TERRATEC << 16) + USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC,
 		RC_MAP_TERRATEC_SLIM },
 	{ (USB_VID_VISIONPLUS << 16) + USB_PID_AZUREWAVE_AD_TU700,
