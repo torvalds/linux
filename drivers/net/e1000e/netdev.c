@@ -5714,7 +5714,7 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	u8 pba_str[E1000_PBANUM_LENGTH];
 
 	/* print bus type/speed/width info */
-	e_info("(PCI Express:2.5GB/s:%s) %pM\n",
+	e_info("(PCI Express:2.5GT/s:%s) %pM\n",
 	       /* bus width */
 	       ((hw->bus.width == e1000_bus_width_pcie_x4) ? "Width x4" :
 	        "Width x1"),
