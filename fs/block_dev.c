@@ -1181,9 +1181,9 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
 	disk_unblock_events(disk);
- out:
 	module_put(disk->fops->owner);
 	put_disk(disk);
+ out:
 	bdput(bdev);
 
 	return ret;
