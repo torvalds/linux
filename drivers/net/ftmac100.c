@@ -1102,7 +1102,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 		goto err_req_mem;
 	}
 
-	priv->base = ioremap(res->start, res->end - res->start);
+	priv->base = ioremap(res->start, resource_size(res));
 	if (!priv->base) {
 		dev_err(&pdev->dev, "Failed to ioremap ethernet registers\n");
 		err = -EIO;
