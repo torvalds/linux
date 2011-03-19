@@ -1323,13 +1323,11 @@ static struct dvb_frontend_ops af9013_ops;
 
 static int af9013_download_firmware(struct af9013_state *state)
 {
-	int i, len, packets, remainder, ret;
+	int i, len, remaining, ret;
 	const struct firmware *fw;
-	u16 addr = 0x5100; /* firmware start address */
 	u16 checksum = 0;
 	u8 val;
 	u8 fw_params[4];
-	u8 *data;
 	u8 *fw_file = AF9013_DEFAULT_FIRMWARE;
 
 	msleep(100);
@@ -1373,21 +1371,18 @@ static int af9013_download_firmware(struct af9013_state *state)
 	if (ret)
 		goto error_release;
 
-	#define FW_PACKET_MAX_DATA  16
+	#define FW_ADDR 0x5100 /* firmware start address */
+	#define LEN_MAX 16 /* max packet size */
+	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
+		len = remaining;
+		if (len > LEN_MAX)
+			len = LEN_MAX;
 
-	packets = fw->size / FW_PACKET_MAX_DATA;
-	remainder = fw->size % FW_PACKET_MAX_DATA;
-	len = FW_PACKET_MAX_DATA;
-	for (i = 0; i <= packets; i++) {
-		if (i == packets)  /* set size of the last packet */
-			len = remainder;
-
-		data = (u8 *)(fw->data + i * FW_PACKET_MAX_DATA);
-		ret = af9013_write_ofsm_regs(state, addr, data, len);
-		addr += FW_PACKET_MAX_DATA;
-
+		ret = af9013_write_ofsm_regs(state,
+			FW_ADDR + fw->size - remaining,
+			(u8 *) &fw->data[fw->size - remaining], len);
 		if (ret) {
-			err("firmware download failed at %d with %d", i, ret);
+			err("firmware download failed:%d", ret);
 			goto error_release;
 		}
 	}
