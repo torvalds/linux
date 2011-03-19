@@ -288,6 +288,7 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 
 	if (card->ext_csd.rev >= 3) {
 		u8 sa_shift = ext_csd[EXT_CSD_S_A_TIMEOUT];
+		card->ext_csd.bootconfig = ext_csd[EXT_CSD_BOOT_CONFIG];
 
 		/* Sleep / awake timeout in 100ns units */
 		if (sa_shift > 0 && sa_shift <= 0x17)
@@ -565,6 +566,15 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			 */
 			mmc_set_erase_size(card);
 		}
+	}
+
+	/*
+	 * Ensure eMMC user default partition is enabled
+	 */
+	if (card->ext_csd.bootconfig & 0x7) {
+		card->ext_csd.bootconfig &= ~0x7;
+		mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_CONFIG,
+			   card->ext_csd.bootconfig);
 	}
 
 	/*
