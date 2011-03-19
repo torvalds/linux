@@ -274,16 +274,16 @@ ENDPROC(_evt_system_call)
  * level to EVT14 to prepare the caller for a normal interrupt
  * return through RTI.
  *
- * We currently use this facility in two occasions:
+ * We currently use this feature in two occasions:
  *
- * - to branch to __ipipe_irq_tail_hook as requested by a high
+ * - before branching to __ipipe_irq_tail_hook as requested by a high
  *   priority domain after the pipeline delivered an interrupt,
  *   e.g. such as Xenomai, in order to start its rescheduling
  *   procedure, since we may not switch tasks when IRQ levels are
  *   nested on the Blackfin, so we have to fake an interrupt return
  *   so that we may reschedule immediately.
  *
- * - to branch to sync_root_irqs, in order to play any interrupt
+ * - before branching to __ipipe_sync_root(), in order to play any interrupt
  *   pending for the root domain (i.e. the Linux kernel). This lowers
  *   the core priority level enough so that Linux IRQ handlers may
  *   never delay interrupts handled by high priority domains; we defer
