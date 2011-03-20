@@ -1204,7 +1204,7 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 		 */
 		if (NULL == bd) {
 			DBG(1, "null BD\n");
-			tx_ram->tx_complete = 0;
+			musb_writel(&tx_ram->tx_complete, 0, 0);
 			continue;
 		}
 
