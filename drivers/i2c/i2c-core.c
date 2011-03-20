@@ -1091,6 +1091,18 @@ EXPORT_SYMBOL(i2c_del_adapter);
 
 /* ------------------------------------------------------------------------- */
 
+int i2c_for_each_dev(void *data, int (*fn)(struct device *, void *))
+{
+	int res;
+
+	mutex_lock(&core_lock);
+	res = bus_for_each_dev(&i2c_bus_type, NULL, data, fn);
+	mutex_unlock(&core_lock);
+
+	return res;
+}
+EXPORT_SYMBOL_GPL(i2c_for_each_dev);
+
 static int __process_new_driver(struct device *dev, void *data)
 {
 	if (dev->type != &i2c_adapter_type)
@@ -1134,9 +1146,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
-	mutex_lock(&core_lock);
-	bus_for_each_dev(&i2c_bus_type, NULL, driver, __process_new_driver);
-	mutex_unlock(&core_lock);
+	i2c_for_each_dev(driver, __process_new_driver);
 
 	return 0;
 }
@@ -1156,9 +1166,7 @@ static int __process_removed_driver(struct device *dev, void *data)
  */
 void i2c_del_driver(struct i2c_driver *driver)
 {
-	mutex_lock(&core_lock);
-	bus_for_each_dev(&i2c_bus_type, NULL, driver, __process_removed_driver);
-	mutex_unlock(&core_lock);
+	i2c_for_each_dev(driver, __process_removed_driver);
 
 	driver_unregister(&driver->driver);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);

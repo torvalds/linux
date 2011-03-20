@@ -395,6 +395,8 @@ i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 		return NULL;
 }
 
+int i2c_for_each_dev(void *data, int (*fn)(struct device *, void *));
+
 /* Adapter locking functions, exported for shared pin cases */
 void i2c_lock_adapter(struct i2c_adapter *);
 void i2c_unlock_adapter(struct i2c_adapter *);
