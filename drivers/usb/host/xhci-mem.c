@@ -982,7 +982,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
  * The NAK interval is one NAK per 1 to 255 microframes, or no NAKs if interval
  * is set to 0.
  */
-static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
+static unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	unsigned int interval = 0;
@@ -1041,7 +1041,7 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
  * transaction opportunities per microframe", but that goes in the Max Burst
  * endpoint context field.
  */
-static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
+static u32 xhci_get_endpoint_mult(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	if (udev->speed != USB_SPEED_SUPER ||
@@ -1050,7 +1050,7 @@ static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
 	return ep->ss_ep_comp.bmAttributes;
 }
 
-static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
+static u32 xhci_get_endpoint_type(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	int in;
@@ -1084,7 +1084,7 @@ static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
  * Basically, this is the maxpacket size, multiplied by the burst size
  * and mult size.
  */
-static inline u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
+static u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
 		struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {

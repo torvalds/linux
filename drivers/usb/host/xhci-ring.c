@@ -93,7 +93,7 @@ dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 /* Does this link TRB point to the first segment in a ring,
  * or was the previous TRB the last TRB on the last segment in the ERST?
  */
-static inline bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring *ring,
+static bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		struct xhci_segment *seg, union xhci_trb *trb)
 {
 	if (ring == xhci->event_ring)
@@ -107,7 +107,7 @@ static inline bool last_trb_on_last_seg(struct xhci_hcd *xhci, struct xhci_ring 
  * segment?  I.e. would the updated event TRB pointer step off the end of the
  * event seg?
  */
-static inline int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
+static int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		struct xhci_segment *seg, union xhci_trb *trb)
 {
 	if (ring == xhci->event_ring)
@@ -116,7 +116,7 @@ static inline int last_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		return (trb->link.control & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK);
 }
 
-static inline int enqueue_is_link_trb(struct xhci_ring *ring)
+static int enqueue_is_link_trb(struct xhci_ring *ring)
 {
 	struct xhci_link_trb *link = &ring->enqueue->link;
 	return ((link->control & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK));
@@ -592,7 +592,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 	ep->ep_state |= SET_DEQ_PENDING;
 }
 
-static inline void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
+static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 		struct xhci_virt_ep *ep)
 {
 	ep->ep_state &= ~EP_HALT_PENDING;
