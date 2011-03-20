@@ -645,3 +645,12 @@ Who:	Florian Westphal <fw@strlen.de>
 Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
 
 ----------------------------
+
+What:	i2c_driver.attach_adapter
+	i2c_driver.detach_adapter
+When:	September 2011
+Why:	These legacy callbacks should no longer be used as i2c-core offers
+	a variety of preferable alternative ways to instantiate I2C devices.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
