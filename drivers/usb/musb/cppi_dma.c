@@ -1455,7 +1455,7 @@ static int cppi_channel_abort(struct dma_channel *channel)
 		 *    compare mode by writing 1 to the tx_complete register.
 		 */
 		cppi_reset_tx(tx_ram, 1);
-		cppi_ch->head = 0;
+		cppi_ch->head = NULL;
 		musb_writel(&tx_ram->tx_complete, 0, 1);
 		cppi_dump_tx(5, cppi_ch, " (done teardown)");
 
