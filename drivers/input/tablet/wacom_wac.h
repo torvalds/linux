@@ -88,15 +88,15 @@ struct wacom_features {
 
 struct wacom_shared {
 	bool stylus_in_proximity;
+	bool touch_down;
 };
 
 struct wacom_wac {
 	char name[64];
 	unsigned char *data;
-	int tool[3];
-	int id[3];
+	int tool[2];
+	int id[2];
 	__u32 serial[2];
-	int last_finger;
 	struct wacom_features features;
 	struct wacom_shared *shared;
 	struct input_dev *input;

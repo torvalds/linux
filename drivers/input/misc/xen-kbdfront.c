@@ -11,12 +11,6 @@
  *  more details.
  */
 
-/*
- * TODO:
- *
- * Switch to grant tables together with xen-fbfront.c.
- */
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
@@ -30,6 +24,8 @@
 #include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/page.h>
+#include <xen/grant_table.h>
+#include <xen/interface/grant_table.h>
 #include <xen/interface/io/fbif.h>
 #include <xen/interface/io/kbdif.h>
 #include <xen/xenbus.h>
@@ -38,6 +34,7 @@ struct xenkbd_info {
 	struct input_dev *kbd;
 	struct input_dev *ptr;
 	struct xenkbd_page *page;
+	int gref;
 	int irq;
 	struct xenbus_device *xbdev;
 	char phys[32];
@@ -110,7 +107,7 @@ static irqreturn_t input_handler(int rq, void *dev_id)
 static int __devinit xenkbd_probe(struct xenbus_device *dev,
 				  const struct xenbus_device_id *id)
 {
-	int ret, i;
+	int ret, i, abs;
 	struct xenkbd_info *info;
 	struct input_dev *kbd, *ptr;
 
@@ -122,11 +119,17 @@ static int __devinit xenkbd_probe(struct xenbus_device *dev,
 	dev_set_drvdata(&dev->dev, info);
 	info->xbdev = dev;
 	info->irq = -1;
+	info->gref = -1;
 	snprintf(info->phys, sizeof(info->phys), "xenbus/%s", dev->nodename);
 
 	info->page = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	if (!info->page)
 		goto error_nomem;
+
+	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-abs-pointer", "%d", &abs) < 0)
+		abs = 0;
+	if (abs)
+		xenbus_printf(XBT_NIL, dev->nodename, "request-abs-pointer", "1");
 
 	/* keyboard */
 	kbd = input_allocate_device();
@@ -137,11 +140,12 @@ static int __devinit xenkbd_probe(struct xenbus_device *dev,
 	kbd->id.bustype = BUS_PCI;
 	kbd->id.vendor = 0x5853;
 	kbd->id.product = 0xffff;
-	kbd->evbit[0] = BIT(EV_KEY);
+
+	__set_bit(EV_KEY, kbd->evbit);
 	for (i = KEY_ESC; i < KEY_UNKNOWN; i++)
-		set_bit(i, kbd->keybit);
+		__set_bit(i, kbd->keybit);
 	for (i = KEY_OK; i < KEY_MAX; i++)
-		set_bit(i, kbd->keybit);
+		__set_bit(i, kbd->keybit);
 
 	ret = input_register_device(kbd);
 	if (ret) {
@@ -160,12 +164,20 @@ static int __devinit xenkbd_probe(struct xenbus_device *dev,
 	ptr->id.bustype = BUS_PCI;
 	ptr->id.vendor = 0x5853;
 	ptr->id.product = 0xfffe;
-	ptr->evbit[0] = BIT(EV_KEY) | BIT(EV_REL) | BIT(EV_ABS);
+
+	if (abs) {
+		__set_bit(EV_ABS, ptr->evbit);
+		input_set_abs_params(ptr, ABS_X, 0, XENFB_WIDTH, 0, 0);
+		input_set_abs_params(ptr, ABS_Y, 0, XENFB_HEIGHT, 0, 0);
+	} else {
+		input_set_capability(ptr, EV_REL, REL_X);
+		input_set_capability(ptr, EV_REL, REL_Y);
+	}
+	input_set_capability(ptr, EV_REL, REL_WHEEL);
+
+	__set_bit(EV_KEY, ptr->evbit);
 	for (i = BTN_LEFT; i <= BTN_TASK; i++)
-		set_bit(i, ptr->keybit);
-	ptr->relbit[0] = BIT(REL_X) | BIT(REL_Y) | BIT(REL_WHEEL);
-	input_set_abs_params(ptr, ABS_X, 0, XENFB_WIDTH, 0, 0);
-	input_set_abs_params(ptr, ABS_Y, 0, XENFB_HEIGHT, 0, 0);
+		__set_bit(i, ptr->keybit);
 
 	ret = input_register_device(ptr);
 	if (ret) {
@@ -218,15 +230,20 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
 	int ret, evtchn;
 	struct xenbus_transaction xbt;
 
+	ret = gnttab_grant_foreign_access(dev->otherend_id,
+	                                  virt_to_mfn(info->page), 0);
+	if (ret < 0)
+		return ret;
+	info->gref = ret;
+
 	ret = xenbus_alloc_evtchn(dev, &evtchn);
 	if (ret)
-		return ret;
+		goto error_grant;
 	ret = bind_evtchn_to_irqhandler(evtchn, input_handler,
 					0, dev->devicetype, info);
 	if (ret < 0) {
-		xenbus_free_evtchn(dev, evtchn);
 		xenbus_dev_fatal(dev, ret, "bind_evtchn_to_irqhandler");
-		return ret;
+		goto error_evtchan;
 	}
 	info->irq = ret;
 
@@ -234,10 +251,13 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
 	ret = xenbus_transaction_start(&xbt);
 	if (ret) {
 		xenbus_dev_fatal(dev, ret, "starting transaction");
-		return ret;
+		goto error_irqh;
 	}
 	ret = xenbus_printf(xbt, dev->nodename, "page-ref", "%lu",
 			    virt_to_mfn(info->page));
+	if (ret)
+		goto error_xenbus;
+	ret = xenbus_printf(xbt, dev->nodename, "page-gref", "%u", info->gref);
 	if (ret)
 		goto error_xenbus;
 	ret = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",
@@ -249,7 +269,7 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
 		if (ret == -EAGAIN)
 			goto again;
 		xenbus_dev_fatal(dev, ret, "completing transaction");
-		return ret;
+		goto error_irqh;
 	}
 
 	xenbus_switch_state(dev, XenbusStateInitialised);
@@ -258,6 +278,14 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
  error_xenbus:
 	xenbus_transaction_end(xbt, 1);
 	xenbus_dev_fatal(dev, ret, "writing xenstore");
+ error_irqh:
+	unbind_from_irqhandler(info->irq, info);
+	info->irq = -1;
+ error_evtchan:
+	xenbus_free_evtchn(dev, evtchn);
+ error_grant:
+	gnttab_end_foreign_access_ref(info->gref, 0);
+	info->gref = -1;
 	return ret;
 }
 
@@ -266,13 +294,16 @@ static void xenkbd_disconnect_backend(struct xenkbd_info *info)
 	if (info->irq >= 0)
 		unbind_from_irqhandler(info->irq, info);
 	info->irq = -1;
+	if (info->gref >= 0)
+		gnttab_end_foreign_access_ref(info->gref, 0);
+	info->gref = -1;
 }
 
 static void xenkbd_backend_changed(struct xenbus_device *dev,
 				   enum xenbus_state backend_state)
 {
 	struct xenkbd_info *info = dev_get_drvdata(&dev->dev);
-	int ret, val;
+	int val;
 
 	switch (backend_state) {
 	case XenbusStateInitialising:
@@ -285,16 +316,6 @@ static void xenkbd_backend_changed(struct xenbus_device *dev,
 
 	case XenbusStateInitWait:
 InitWait:
-		ret = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
-				   "feature-abs-pointer", "%d", &val);
-		if (ret < 0)
-			val = 0;
-		if (val) {
-			ret = xenbus_printf(XBT_NIL, info->xbdev->nodename,
-					    "request-abs-pointer", "1");
-			if (ret)
-				pr_warning("can't request abs-pointer\n");
-		}
 		xenbus_switch_state(dev, XenbusStateConnected);
 		break;
 
