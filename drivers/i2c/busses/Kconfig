@@ -98,8 +98,9 @@ config I2C_I801
 	    EP80579 (Tolapai)
 	    ICH10
 	    5/3400 Series (PCH)
-	    Cougar Point (PCH)
+	    6 Series (PCH)
 	    Patsburg (PCH)
+	    DH89xxCC (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
