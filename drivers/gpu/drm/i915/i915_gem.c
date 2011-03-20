@@ -3603,6 +3603,8 @@ static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj)
 		return;
 	}
 
+	trace_i915_gem_object_destroy(obj);
+
 	if (obj->base.map_list.map)
 		i915_gem_free_mmap_offset(obj);
 
@@ -3612,8 +3614,6 @@ static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj)
 	kfree(obj->page_cpu_valid);
 	kfree(obj->bit_17);
 	kfree(obj);
-
-	trace_i915_gem_object_destroy(obj);
 }
 
 void i915_gem_free_object(struct drm_gem_object *gem_obj)
