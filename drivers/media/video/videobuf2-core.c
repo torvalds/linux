@@ -1111,6 +1111,7 @@ EXPORT_SYMBOL_GPL(vb2_dqbuf);
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 {
 	struct vb2_buffer *vb;
+	int ret;
 
 	if (q->fileio) {
 		dprintk(1, "streamon: file io in progress\n");
@@ -1138,12 +1139,16 @@ int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 		}
 	}
 
-	q->streaming = 1;
-
 	/*
 	 * Let driver notice that streaming state has been enabled.
 	 */
-	call_qop(q, start_streaming, q);
+	ret = call_qop(q, start_streaming, q);
+	if (ret) {
+		dprintk(1, "streamon: driver refused to start streaming\n");
+		return ret;
+	}
+
+	q->streaming = 1;
 
 	/*
 	 * If any buffers were queued before streamon,
