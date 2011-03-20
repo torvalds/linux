@@ -329,13 +329,19 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 static int lme2510_return_status(struct usb_device *dev)
 {
 	int ret = 0;
-	u8 data[10] = {0};
+	u8 *data;
+
+	data = kzalloc(10, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	ret |= usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			0x06, 0x80, 0x0302, 0x00, data, 0x0006, 200);
 	info("Firmware Status: %x (%x)", ret , data[2]);
 
-	return (ret < 0) ? -ENODEV : data[2];
+	ret = (ret < 0) ? -ENODEV : data[2];
+	kfree(data);
+	return ret;
 }
 
 static int lme2510_msg(struct dvb_usb_device *d,
@@ -655,7 +661,7 @@ static int lme2510_download_firmware(struct usb_device *dev,
 					const struct firmware *fw)
 {
 	int ret = 0;
-	u8 data[512] = {0};
+	u8 *data;
 	u16 j, wlen, len_in, start, end;
 	u8 packet_size, dlen, i;
 	u8 *fw_data;
@@ -663,6 +669,11 @@ static int lme2510_download_firmware(struct usb_device *dev,
 	packet_size = 0x31;
 	len_in = 1;
 
+	data = kzalloc(512, GFP_KERNEL);
+	if (!data) {
+		info("FRM Could not start Firmware Download (Buffer allocation failed)");
+		return -ENOMEM;
+	}
 
 	info("FRM Starting Firmware Download");
 
@@ -706,7 +717,7 @@ static int lme2510_download_firmware(struct usb_device *dev,
 	else
 		info("FRM Firmware Download Completed - Resetting Device");
 
-
+	kfree(data);
 	return (ret < 0) ? -ENODEV : 0;
 }
 
