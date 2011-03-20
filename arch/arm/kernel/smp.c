@@ -474,13 +474,12 @@ static void smp_timer_broadcast(const struct cpumask *mask)
 #define smp_timer_broadcast	NULL
 #endif
 
-#ifndef CONFIG_LOCAL_TIMERS
 static void broadcast_timer_set_mode(enum clock_event_mode mode,
 	struct clock_event_device *evt)
 {
 }
 
-static void local_timer_setup(struct clock_event_device *evt)
+static void broadcast_timer_setup(struct clock_event_device *evt)
 {
 	evt->name	= "dummy_timer";
 	evt->features	= CLOCK_EVT_FEAT_ONESHOT |
@@ -492,7 +491,6 @@ static void local_timer_setup(struct clock_event_device *evt)
 
 	clockevents_register_device(evt);
 }
-#endif
 
 void __cpuinit percpu_timer_setup(void)
 {
@@ -502,7 +500,8 @@ void __cpuinit percpu_timer_setup(void)
 	evt->cpumask = cpumask_of(cpu);
 	evt->broadcast = smp_timer_broadcast;
 
-	local_timer_setup(evt);
+	if (local_timer_setup(evt))
+		broadcast_timer_setup(evt);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

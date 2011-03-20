@@ -7,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/ata_platform.h>
 #include <linux/smsc911x.h>
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
@@ -48,12 +49,14 @@ void __init v2m_map_io(struct map_desc *tile, size_t num)
 	iotable_init(tile, num);
 }
 
+void __init v2m_init_early(void)
+{
+	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
+}
 
 static void __init v2m_timer_init(void)
 {
 	u32 scctrl;
-
-	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
 
 	/* Select 1MHz TIMCLK as the reference clock for SP804 timers */
 	scctrl = readl(MMIO_P2V(V2M_SYSCTL + SCCTRL));
@@ -249,6 +252,29 @@ static struct platform_device v2m_flash_device = {
 	.dev.platform_data = &v2m_flash_data,
 };
 
+static struct pata_platform_info v2m_pata_data = {
+	.ioport_shift	= 2,
+};
+
+static struct resource v2m_pata_resources[] = {
+	{
+		.start	= V2M_CF,
+		.end	= V2M_CF + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= V2M_CF + 0x100,
+		.end	= V2M_CF + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device v2m_cf_device = {
+	.name		= "pata_platform",
+	.id		= -1,
+	.resource	= v2m_pata_resources,
+	.num_resources	= ARRAY_SIZE(v2m_pata_resources),
+	.dev.platform_data = &v2m_pata_data,
+};
 
 static unsigned int v2m_mmci_status(struct device *dev)
 {
@@ -363,6 +389,7 @@ static int __init v2m_init(void)
 	platform_device_register(&v2m_pcie_i2c_device);
 	platform_device_register(&v2m_ddc_i2c_device);
 	platform_device_register(&v2m_flash_device);
+	platform_device_register(&v2m_cf_device);
 	platform_device_register(&v2m_eth_device);
 	platform_device_register(&v2m_usb_device);
 

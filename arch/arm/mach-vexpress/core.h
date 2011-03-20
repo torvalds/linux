@@ -21,4 +21,5 @@ struct amba_device name##_device = {		\
 struct map_desc;
 
 void v2m_map_io(struct map_desc *tile, size_t num);
+void v2m_init_early(void);
 extern struct sys_timer v2m_timer;
