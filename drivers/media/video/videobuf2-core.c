@@ -1364,18 +1364,18 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	struct vb2_buffer *vb = NULL;
 
 	/*
-	 * Start file io emulator if streaming api has not been used yet.
+	 * Start file I/O emulator only if streaming API has not been used yet.
 	 */
 	if (q->num_buffers == 0 && q->fileio == NULL) {
 		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ)) {
 			ret = __vb2_init_fileio(q, 1);
 			if (ret)
-				return ret;
+				return POLLERR;
 		}
 		if (V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_WRITE)) {
 			ret = __vb2_init_fileio(q, 0);
 			if (ret)
-				return ret;
+				return POLLERR;
 			/*
 			 * Write to OUTPUT queue can be done immediately.
 			 */
