@@ -164,7 +164,13 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 #define I915_BREADCRUMB_INDEX		0x21
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
+
 int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
+static inline int intel_wait_ring_idle(struct intel_ring_buffer *ring)
+{
+	return intel_wait_ring_buffer(ring, ring->space - 8);
+}
+
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
 
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
