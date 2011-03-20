@@ -1356,9 +1356,10 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	if (!obj->fault_mappable)
 		return;
 
-	unmap_mapping_range(obj->base.dev->dev_mapping,
-			    (loff_t)obj->base.map_list.hash.key<<PAGE_SHIFT,
-			    obj->base.size, 1);
+	if (obj->base.dev->dev_mapping)
+		unmap_mapping_range(obj->base.dev->dev_mapping,
+				    (loff_t)obj->base.map_list.hash.key<<PAGE_SHIFT,
+				    obj->base.size, 1);
 
 	obj->fault_mappable = false;
 }
