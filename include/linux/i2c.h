@@ -29,7 +29,6 @@
 #include <linux/types.h>
 #ifdef __KERNEL__
 #include <linux/module.h>
-#include <linux/i2c-id.h>
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
