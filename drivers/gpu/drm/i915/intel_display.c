@@ -6713,13 +6713,14 @@ intel_alloc_context_page(struct drm_device *dev)
 	struct drm_i915_gem_object *ctx;
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	ctx = i915_gem_alloc_object(dev, 4096);
 	if (!ctx) {
 		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
 		return NULL;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_object_pin(ctx, 4096, true);
 	if (ret) {
 		DRM_ERROR("failed to pin power context: %d\n", ret);
@@ -6731,7 +6732,6 @@ intel_alloc_context_page(struct drm_device *dev)
 		DRM_ERROR("failed to set-domain on power context: %d\n", ret);
 		goto err_unpin;
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	return ctx;
 
@@ -7295,9 +7295,12 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	if (!i915_enable_rc6)
 		return;
 
+	mutex_lock(&dev->struct_mutex);
 	ret = ironlake_setup_rc6(dev);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
 		return;
+	}
 
 	/*
 	 * GPU can automatically power down the render unit if given a page
@@ -7306,6 +7309,7 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	ret = BEGIN_LP_RING(6);
 	if (ret) {
 		ironlake_teardown_rc6(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
 
@@ -7323,6 +7327,7 @@ void ironlake_enable_rc6(struct drm_device *dev)
 
 	I915_WRITE(PWRCTXA, dev_priv->pwrctx->gtt_offset | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 
