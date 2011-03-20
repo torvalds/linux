@@ -7325,6 +7325,19 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	OUT_RING(MI_FLUSH);
 	ADVANCE_LP_RING();
 
+	/*
+	 * Wait for the command parser to advance past MI_SET_CONTEXT. The HW
+	 * does an implicit flush, combined with MI_FLUSH above, it should be
+	 * safe to assume that renderctx is valid
+	 */
+	ret = intel_wait_ring_idle(LP_RING(dev_priv));
+	if (ret) {
+		DRM_ERROR("failed to enable ironlake power power savings\n");
+		ironlake_teardown_rc6(dev);
+		mutex_unlock(&dev->struct_mutex);
+		return;
+	}
+
 	I915_WRITE(PWRCTXA, dev_priv->pwrctx->gtt_offset | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
 	mutex_unlock(&dev->struct_mutex);
