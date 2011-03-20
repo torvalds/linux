@@ -447,7 +447,7 @@ extern void i2c_release_client(struct i2c_client *client);
 extern void i2c_clients_command(struct i2c_adapter *adap,
 				unsigned int cmd, void *arg);
 
-extern struct i2c_adapter *i2c_get_adapter(int id);
+extern struct i2c_adapter *i2c_get_adapter(int nr);
 extern void i2c_put_adapter(struct i2c_adapter *adap);
 
 

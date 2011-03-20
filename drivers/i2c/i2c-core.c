@@ -1581,12 +1581,12 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 }
 EXPORT_SYMBOL_GPL(i2c_new_probed_device);
 
-struct i2c_adapter *i2c_get_adapter(int id)
+struct i2c_adapter *i2c_get_adapter(int nr)
 {
 	struct i2c_adapter *adapter;
 
 	mutex_lock(&core_lock);
-	adapter = idr_find(&i2c_adapter_idr, id);
+	adapter = idr_find(&i2c_adapter_idr, nr);
 	if (adapter && !try_module_get(adapter->owner))
 		adapter = NULL;
 
