@@ -1167,8 +1167,11 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 	tx = musb_readl(tibase, DAVINCI_TXCPPI_MASKED_REG);
 	rx = musb_readl(tibase, DAVINCI_RXCPPI_MASKED_REG);
 
-	if (!tx && !rx)
+	if (!tx && !rx) {
+		if (cppi->irq)
+			spin_unlock_irqrestore(&musb->lock, flags);
 		return IRQ_NONE;
+	}
 
 	DBG(4, "CPPI IRQ Tx%x Rx%x\n", tx, rx);
 
