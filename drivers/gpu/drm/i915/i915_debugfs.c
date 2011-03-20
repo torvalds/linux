@@ -1186,6 +1186,30 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_context_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(m, "power context ");
+	describe_obj(m, dev_priv->pwrctx);
+	seq_printf(m, "\n");
+
+	seq_printf(m, "render context ");
+	describe_obj(m, dev_priv->renderctx);
+	seq_printf(m, "\n");
+
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return 0;
+}
+
 static int
 i915_wedged_open(struct inode *inode,
 		 struct file *filp)
@@ -1324,6 +1348,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_sr_status", i915_sr_status, 0},
 	{"i915_opregion", i915_opregion, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
+	{"i915_context_status", i915_context_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
