@@ -1265,6 +1265,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		case 0x10ec0660:
 		case 0x10ec0662:
 		case 0x10ec0663:
+		case 0x10ec0665:
 		case 0x10ec0862:
 		case 0x10ec0889:
 			set_eapd(codec, 0x14, 1);
@@ -4240,6 +4241,7 @@ static void alc_power_eapd(struct hda_codec *codec)
 	case 0x10ec0660:
 	case 0x10ec0662:
 	case 0x10ec0663:
+	case 0x10ec0665:
 	case 0x10ec0862:
 	case 0x10ec0889:
 		set_eapd(codec, 0x14, 0);
