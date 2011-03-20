@@ -98,7 +98,7 @@ rename_retry:
 		namelen--;
 	buflen -= namelen;
 	if (buflen < 0) {
-		spin_lock(&dentry->d_lock);
+		spin_unlock(&dentry->d_lock);
 		rcu_read_unlock();
 		goto Elong;
 	}
@@ -108,7 +108,7 @@ rename_retry:
 	rcu_read_unlock();
 	return end;
 Elong_unlock:
-	spin_lock(&dentry->d_lock);
+	spin_unlock(&dentry->d_lock);
 	rcu_read_unlock();
 	if (read_seqretry(&rename_lock, seq))
 		goto rename_retry;
