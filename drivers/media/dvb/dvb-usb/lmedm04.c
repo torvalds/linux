@@ -678,15 +678,15 @@ static int lme2510_download_firmware(struct usb_device *dev,
 				data[0] = i | 0x80;
 				dlen = (u8)(end - j)-1;
 			}
-		data[1] = dlen;
-		memcpy(&data[2], fw_data, dlen+1);
-		wlen = (u8) dlen + 4;
-		data[wlen-1] = check_sum(fw_data, dlen+1);
-		deb_info(1, "Data S=%02x:E=%02x CS= %02x", data[3],
+			data[1] = dlen;
+			memcpy(&data[2], fw_data, dlen+1);
+			wlen = (u8) dlen + 4;
+			data[wlen-1] = check_sum(fw_data, dlen+1);
+			deb_info(1, "Data S=%02x:E=%02x CS= %02x", data[3],
 				data[dlen+2], data[dlen+3]);
-		ret |= lme2510_bulk_write(dev, data,  wlen, 1);
-		ret |= lme2510_bulk_read(dev, data, len_in , 1);
-		ret |= (data[0] == 0x88) ? 0 : -1;
+			ret |= lme2510_bulk_write(dev, data,  wlen, 1);
+			ret |= lme2510_bulk_read(dev, data, len_in , 1);
+			ret |= (data[0] == 0x88) ? 0 : -1;
 		}
 	}
 
