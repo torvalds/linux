@@ -84,8 +84,8 @@
 #define HIDP_WAITING_FOR_SEND_ACK	11
 
 struct hidp_connadd_req {
-	int   ctrl_sock;	// Connected control socket
-	int   intr_sock;	// Connteted interrupt socket
+	int   ctrl_sock;	/* Connected control socket */
+	int   intr_sock;	/* Connected interrupt socket */
 	__u16 parser;
 	__u16 rd_size;
 	__u8 __user *rd_data;
