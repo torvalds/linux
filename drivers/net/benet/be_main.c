@@ -1868,6 +1868,9 @@ static void be_worker(struct work_struct *work)
 	struct be_rx_obj *rxo;
 	int i;
 
+	if (!adapter->ue_detected && !lancer_chip(adapter))
+		be_detect_dump_ue(adapter);
+
 	/* when interrupts are not yet enabled, just reap any pending
 	* mcc completions */
 	if (!netif_running(adapter->netdev)) {
@@ -1879,9 +1882,6 @@ static void be_worker(struct work_struct *work)
 			struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 			be_cq_notify(adapter, mcc_obj->cq.id, false, mcc_compl);
 		}
-
-		if (!adapter->ue_detected && !lancer_chip(adapter))
-			be_detect_dump_ue(adapter);
 
 		goto reschedule;
 	}
@@ -1900,8 +1900,6 @@ static void be_worker(struct work_struct *work)
 			be_post_rx_frags(rxo, GFP_KERNEL);
 		}
 	}
-	if (!adapter->ue_detected && !lancer_chip(adapter))
-		be_detect_dump_ue(adapter);
 
 reschedule:
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
