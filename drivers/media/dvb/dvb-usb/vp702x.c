@@ -30,8 +30,8 @@ struct vp702x_adapter_state {
 	u8  pid_filter_state;
 };
 
-/* check for mutex FIXME */
-int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen)
+static int vp702x_usb_in_op_unlocked(struct dvb_usb_device *d, u8 req,
+				     u16 value, u16 index, u8 *b, int blen)
 {
 	int ret;
 
@@ -55,8 +55,20 @@ int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 	return ret;
 }
 
-static int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
-			     u16 index, u8 *b, int blen)
+int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value,
+			    u16 index, u8 *b, int blen)
+{
+	int ret;
+
+	mutex_lock(&d->usb_mutex);
+	ret = vp702x_usb_in_op_unlocked(d, req, value, index, b, blen);
+	mutex_unlock(&d->usb_mutex);
+
+	return ret;
+}
+
+int vp702x_usb_out_op_unlocked(struct dvb_usb_device *d, u8 req, u16 value,
+				      u16 index, u8 *b, int blen)
 {
 	int ret;
 	deb_xfer("out: req. %02x, val: %04x, ind: %04x, buffer: ",req,value,index);
@@ -74,6 +86,18 @@ static int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 		return 0;
 }
 
+int vp702x_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
+			     u16 index, u8 *b, int blen)
+{
+	int ret;
+
+	mutex_lock(&d->usb_mutex);
+	ret = vp702x_usb_out_op_unlocked(d, req, value, index, b, blen);
+	mutex_unlock(&d->usb_mutex);
+
+	return ret;
+}
+
 int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int ilen, int msec)
 {
 	int ret;
@@ -81,12 +105,11 @@ int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int il
 	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
 		return ret;
 
-	ret = vp702x_usb_out_op(d,REQUEST_OUT,0,0,o,olen);
+	ret = vp702x_usb_out_op_unlocked(d, REQUEST_OUT, 0, 0, o, olen);
 	msleep(msec);
-	ret = vp702x_usb_in_op(d,REQUEST_IN,0,0,i,ilen);
+	ret = vp702x_usb_in_op_unlocked(d, REQUEST_IN, 0, 0, i, ilen);
 
 	mutex_unlock(&d->usb_mutex);
-
 	return ret;
 }
 
