@@ -1423,8 +1423,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
-		kfree(wl->scan.scanned_ch);
-		wl->scan.scanned_ch = NULL;
+		memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 		wl->scan.req = NULL;
 		ieee80211_scan_completed(wl->hw, true);
 	}
@@ -3502,6 +3501,10 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
 
+	/* make sure all our channels fit in the scanned_ch bitmask */
+	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +
+		     ARRAY_SIZE(wl1271_channels_5ghz) >
+		     WL1271_MAX_CHANNELS);
 	/*
 	 * We keep local copies of the band structs because we need to
 	 * modify them on a per-device basis.

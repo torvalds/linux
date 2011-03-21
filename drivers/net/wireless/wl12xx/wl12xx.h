@@ -302,9 +302,10 @@ struct wl1271_rx_mem_pool_addr {
 	u32 addr_extra;
 };
 
+#define WL1271_MAX_CHANNELS 64
 struct wl1271_scan {
 	struct cfg80211_scan_request *req;
-	bool *scanned_ch;
+	unsigned long scanned_ch[BITS_TO_LONGS(WL1271_MAX_CHANNELS)];
 	bool failed;
 	u8 state;
 	u8 ssid[IW_ESSID_MAX_SIZE+1];

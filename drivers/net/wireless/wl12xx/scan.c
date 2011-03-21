@@ -48,8 +48,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 		goto out;
 
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
-	kfree(wl->scan.scanned_ch);
-	wl->scan.scanned_ch = NULL;
+	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 	wl->scan.req = NULL;
 	ieee80211_scan_completed(wl->hw, false);
 
@@ -87,7 +86,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 
 		flags = req->channels[i]->flags;
 
-		if (!wl->scan.scanned_ch[i] &&
+		if (!test_bit(i, wl->scan.scanned_ch) &&
 		    !(flags & IEEE80211_CHAN_DISABLED) &&
 		    ((!!(flags & IEEE80211_CHAN_PASSIVE_SCAN)) == passive) &&
 		    (req->channels[i]->band == band)) {
@@ -124,7 +123,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 			memset(&channels[j].bssid_msb, 0xff, 2);
 
 			/* Mark the channels we already used */
-			wl->scan.scanned_ch[i] = true;
+			set_bit(i, wl->scan.scanned_ch);
 
 			j++;
 		}
@@ -291,6 +290,12 @@ void wl1271_scan_stm(struct wl1271 *wl)
 int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 		struct cfg80211_scan_request *req)
 {
+	/*
+	 * cfg80211 should guarantee that we don't get more channels
+	 * than what we have registered.
+	 */
+	BUG_ON(req->n_channels > WL1271_MAX_CHANNELS);
+
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE)
 		return -EBUSY;
 
@@ -304,10 +309,8 @@ int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	}
 
 	wl->scan.req = req;
+	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 
-	wl->scan.scanned_ch = kcalloc(req->n_channels,
-				      sizeof(*wl->scan.scanned_ch),
-				      GFP_KERNEL);
 	/* we assume failure so that timeout scenarios are handled correctly */
 	wl->scan.failed = true;
 	ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
