@@ -516,10 +516,11 @@ ecryptfs_find_global_auth_tok_for_sig(
 			goto out_invalid_auth_tok;
 		}
 
+		down_write(&(walker->global_auth_tok_key->sem));
 		rc = ecryptfs_verify_auth_tok_from_key(
 				walker->global_auth_tok_key, auth_tok);
 		if (rc)
-			goto out_invalid_auth_tok;
+			goto out_invalid_auth_tok_unlock;
 
 		(*auth_tok_key) = walker->global_auth_tok_key;
 		key_get(*auth_tok_key);
@@ -527,6 +528,8 @@ ecryptfs_find_global_auth_tok_for_sig(
 	}
 	rc = -ENOENT;
 	goto out;
+out_invalid_auth_tok_unlock:
+	up_write(&(walker->global_auth_tok_key->sem));
 out_invalid_auth_tok:
 	printk(KERN_WARNING "Invalidating auth tok with sig = [%s]\n", sig);
 	walker->flags |= ECRYPTFS_AUTH_TOK_INVALID;
@@ -869,8 +872,10 @@ out_free_unlock:
 out_unlock:
 	mutex_unlock(s->tfm_mutex);
 out:
-	if (auth_tok_key)
+	if (auth_tok_key) {
+		up_write(&(auth_tok_key->sem));
 		key_put(auth_tok_key);
+	}
 	kfree(s);
 	return rc;
 }
@@ -1106,8 +1111,10 @@ out:
 		(*filename_size) = 0;
 		(*filename) = NULL;
 	}
-	if (auth_tok_key)
+	if (auth_tok_key) {
+		up_write(&(auth_tok_key->sem));
 		key_put(auth_tok_key);
+	}
 	kfree(s);
 	return rc;
 }
@@ -1638,9 +1645,10 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 		(*auth_tok_key) = NULL;
 		goto out;
 	}
-
+	down_write(&(*auth_tok_key)->sem);
 	rc = ecryptfs_verify_auth_tok_from_key(*auth_tok_key, auth_tok);
 	if (rc) {
+		up_write(&(*auth_tok_key)->sem);
 		key_put(*auth_tok_key);
 		(*auth_tok_key) = NULL;
 		goto out;
@@ -1865,6 +1873,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 find_next_matching_auth_tok:
 	found_auth_tok = 0;
 	if (auth_tok_key) {
+		up_write(&(auth_tok_key->sem));
 		key_put(auth_tok_key);
 		auth_tok_key = NULL;
 	}
@@ -1951,8 +1960,10 @@ found_matching_auth_tok:
 out_wipe_list:
 	wipe_auth_tok_list(&auth_tok_list);
 out:
-	if (auth_tok_key)
+	if (auth_tok_key) {
+		up_write(&(auth_tok_key->sem));
 		key_put(auth_tok_key);
+	}
 	return rc;
 }
 
@@ -2446,6 +2457,7 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			rc = -EINVAL;
 			goto out_free;
 		}
+		up_write(&(auth_tok_key->sem));
 		key_put(auth_tok_key);
 		auth_tok_key = NULL;
 	}
@@ -2460,8 +2472,10 @@ out_free:
 out:
 	if (rc)
 		(*len) = 0;
-	if (auth_tok_key)
+	if (auth_tok_key) {
+		up_write(&(auth_tok_key->sem));
 		key_put(auth_tok_key);
+	}
 
 	mutex_unlock(&crypt_stat->keysig_list_mutex);
 	return rc;

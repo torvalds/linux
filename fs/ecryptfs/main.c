@@ -254,8 +254,10 @@ static int ecryptfs_init_global_auth_toks(
 			       "option: [%s]\n", global_auth_tok->sig);
 			global_auth_tok->flags |= ECRYPTFS_AUTH_TOK_INVALID;
 			goto out;
-		} else
+		} else {
 			global_auth_tok->flags &= ~ECRYPTFS_AUTH_TOK_INVALID;
+			up_write(&(global_auth_tok->global_auth_tok_key)->sem);
+		}
 	}
 out:
 	return rc;
