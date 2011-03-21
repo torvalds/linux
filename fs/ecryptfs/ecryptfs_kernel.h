@@ -233,7 +233,7 @@ ecryptfs_get_key_payload_data(struct key *key)
 
 struct ecryptfs_key_sig {
 	struct list_head crypt_stat_list;
-	char keysig[ECRYPTFS_SIG_SIZE_HEX];
+	char keysig[ECRYPTFS_SIG_SIZE_HEX + 1];
 };
 
 struct ecryptfs_filename {
