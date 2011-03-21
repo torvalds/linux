@@ -474,7 +474,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 		return -EIO;
 	}
 
-	pci_read_config_byte(dev->pci, PCI_CLASS_REVISION, &dev->pci_rev);
+	dev->pci_rev = dev->pci->revision;
 	pci_read_config_byte(dev->pci, PCI_LATENCY_TIMER,  &dev->pci_lat);
 	printk(KERN_INFO "%s/2: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", dev->core->name,

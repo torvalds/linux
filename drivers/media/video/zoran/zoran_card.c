@@ -1230,7 +1230,7 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	mutex_init(&zr->other_lock);
 	if (pci_enable_device(pdev))
 		goto zr_unreg;
-	pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION, &zr->revision);
+	zr->revision = zr->pci_dev->revision;
 
 	dprintk(1,
 		KERN_INFO
