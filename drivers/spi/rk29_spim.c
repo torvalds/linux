@@ -89,24 +89,24 @@ struct chip_data {
 #define TXBUSY    (1<<3)
 
 static void spi_dump_regs(struct rk29xx_spi *dws) {
-	printk("MRST SPI0 registers:\n");
-	printk("=================================\n");
-	printk("CTRL0: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_CTRLR0));
-	printk("CTRL1: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_CTRLR1));
-	printk("SSIENR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_ENR));
-	printk("SER: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_SER));
-	printk("BAUDR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_BAUDR));
-	printk("TXFTLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_TXFTLR));
-	printk("RXFTLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_RXFTLR));
-	printk("TXFLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_TXFLR));
-	printk("RXFLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_RXFLR));
-	printk("SR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_SR));
-	printk("IMR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_IMR));
-	printk("ISR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_ISR));
-	printk("DMACR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_DMACR));
-	printk("DMATDLR: \t0x%08x\n", rk29xx_readl(dws, SPIM_DMATDLR));
-	printk("DMARDLR: \t0x%08x\n", rk29xx_readl(dws, SPIM_DMARDLR));
-	printk("=================================\n");
+	DBG("MRST SPI0 registers:\n");
+	DBG("=================================\n");
+	DBG("CTRL0: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_CTRLR0));
+	DBG("CTRL1: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_CTRLR1));
+	DBG("SSIENR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_ENR));
+	DBG("SER: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_SER));
+	DBG("BAUDR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_BAUDR));
+	DBG("TXFTLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_TXFTLR));
+	DBG("RXFTLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_RXFTLR));
+	DBG("TXFLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_TXFLR));
+	DBG("RXFLR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_RXFLR));
+	DBG("SR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_SR));
+	DBG("IMR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_IMR));
+	DBG("ISR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_ISR));
+	DBG("DMACR: \t\t0x%08x\n", rk29xx_readl(dws, SPIM_DMACR));
+	DBG("DMATDLR: \t0x%08x\n", rk29xx_readl(dws, SPIM_DMATDLR));
+	DBG("DMARDLR: \t0x%08x\n", rk29xx_readl(dws, SPIM_DMARDLR));
+	DBG("=================================\n");
 
 }
 
@@ -245,15 +245,21 @@ static void flush(struct rk29xx_spi *dws)
 static void spi_cs_control(struct rk29xx_spi *dws, u32 cs, u8 flag)
 {
 	#if 1
-	    return;
+	if (flag)
+		rk29xx_writel(dws, SPIM_SER, 1 << cs);
+	else 		
+		rk29xx_writel(dws, SPIM_SER, 0);
+	return;
 	#else
 	struct rk29xx_spi_platform_data *pdata = dws->master->dev.platform_data;
 	struct spi_cs_gpio *cs_gpios = pdata->chipselect_gpios;
 
-	if (flag == 0)
+	if (flag == 0) {
 		gpio_direction_output(cs_gpios[cs].cs_gpio, GPIO_HIGH);
-	else
+	}
+	else {
 		gpio_direction_output(cs_gpios[cs].cs_gpio, GPIO_LOW);
+	}
 	#endif
 }
 
@@ -1007,16 +1013,19 @@ static void dma_transfer(struct rk29xx_spi *dws) //int cs_change)
 	DBG("dws->tx_dmach: %d, dws->rx_dmach: %d, transfer->tx_dma: 0x%x\n", dws->tx_dmach, dws->rx_dmach, (unsigned int)transfer->tx_dma);
 	if (transfer->tx_buf != NULL) {
 		dws->state |= TXBUSY;
-		if (transfer->len & 0x3) {
+		/*if (transfer->len & 0x3) {
 			burst = 1;
 		}
 		else {
 			burst = 4;
 		}
-		if (rk29_dma_config(dws->tx_dmach, burst)) {
+		if (rk29_dma_config(dws->tx_dmach, burst)) {*/
+		if (rk29_dma_config(dws->tx_dmach, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
+		
+		rk29_dma_ctrl(dws->tx_dmach, RK29_DMAOP_FLUSH);	
 		
 		iRet = rk29_dma_enqueue(dws->tx_dmach, (void *)dws,
 					transfer->tx_dma, transfer->len);
@@ -1032,12 +1041,16 @@ static void dma_transfer(struct rk29xx_spi *dws) //int cs_change)
 		}
 	}
 
+	wait_till_not_busy(dws);
+
 	if (transfer->rx_buf != NULL) {
 		dws->state |= RXBUSY;
 		if (rk29_dma_config(dws->rx_dmach, 1)) {
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
+
+		rk29_dma_ctrl(dws->rx_dmach, RK29_DMAOP_FLUSH);	
 		
 		iRet = rk29_dma_enqueue(dws->rx_dmach, (void *)dws,
 					transfer->rx_dma, transfer->len);

@@ -1679,7 +1679,8 @@ static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi0 cs0",
 		.cs_gpio = RK29_PIN2_PC1,
-		.cs_iomux_name = NULL,
+		.cs_iomux_name = GPIO2C1_SPI0CSN0_NAME,
+		.cs_iomux_mode = GPIO2H_SPI0_CSN0,
 	},
 	{
 		.name = "spi0 cs1",
@@ -1693,7 +1694,8 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi1 cs0",
 		.cs_gpio = RK29_PIN2_PC5,
-		.cs_iomux_name = NULL,
+		.cs_iomux_name = GPIO2C5_SPI1CSN0_NAME,
+		.cs_iomux_mode = GPIO2H_SPI1_CSN0,
 	},
 	{
 		.name = "spi1 cs1",
@@ -1706,22 +1708,10 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
 #if 1
-	int i,j,ret;
-
-	//cs
+	int i;
 	if (cs_gpios) {
 		for (i=0; i<cs_num; i++) {
 			rk29_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
-			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
-			if (ret) {
-				for (j=0;j<i;j++) {
-					gpio_free(cs_gpios[j].cs_gpio);
-					//rk29_mux_api_mode_resume(cs_gpios[j].cs_iomux_name);
-				}
-				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
-				return -1;
-			}
-			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 		}
 	}
 #endif
@@ -1730,16 +1720,6 @@ static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 
 static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
-#if 1
-	int i;
-
-	if (cs_gpios) {
-		for (i=0; i<cs_num; i++) {
-			gpio_free(cs_gpios[i].cs_gpio);
-			//rk29_mux_api_mode_resume(cs_gpios[i].cs_iomux_name);
-		}
-	}
-#endif
 	return 0;
 }
 

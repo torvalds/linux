@@ -834,6 +834,7 @@ int spi_write_then_read(struct spi_device *spi,
 	} else
 		local_buf = buf;
 
+	memset(local_buf, 0, SPI_BUFSIZ);
 	memcpy(local_buf, txbuf, n_tx);
 	x[0].tx_buf = local_buf;
 	x[1].rx_buf = local_buf + n_tx;
