@@ -84,7 +84,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MCC_CQ_LEN		256
 
 #define MAX_RSS_QS		4	/* BE limit is 4 queues/port */
-#define BE_MAX_MSIX_VECTORS	(MAX_RSS_QS + 1 + 1)/* RSS qs + 1 def Rx + Tx */
+#define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
+#define BE_MAX_MSIX_VECTORS	(MAX_RX_QS + 1)/* RX + TX */
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST 		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
@@ -276,7 +277,7 @@ struct be_adapter {
 	spinlock_t mcc_cq_lock;
 
 	struct msix_entry msix_entries[BE_MAX_MSIX_VECTORS];
-	bool msix_enabled;
+	u32 num_msix_vec;
 	bool isr_registered;
 
 	/* TX Rings */
@@ -287,7 +288,7 @@ struct be_adapter {
 	u32 cache_line_break[8];
 
 	/* Rx rings */
-	struct be_rx_obj rx_obj[MAX_RSS_QS + 1]; /* one default non-rss Q */
+	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 num_rx_qs;
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
@@ -351,6 +352,7 @@ struct be_adapter {
 
 extern const struct ethtool_ops be_ethtool_ops;
 
+#define msix_enabled(adapter)		(adapter->num_msix_vec > 0)
 #define tx_stats(adapter)		(&adapter->tx_stats)
 #define rx_stats(rxo)			(&rxo->stats)
 
