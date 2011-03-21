@@ -373,7 +373,7 @@ static int adis16400_self_test(struct device *dev)
 		dev_err(dev, "problem starting self test");
 		goto err_ret;
 	}
-
+	msleep(ADIS16400_MTEST_DELAY);
 	adis16400_check_status(dev);
 
 err_ret:
