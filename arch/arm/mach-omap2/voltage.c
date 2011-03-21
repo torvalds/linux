@@ -293,136 +293,6 @@ static void __init vdd_debugfs_init(struct voltagedomain *voltdm)
 				&nom_volt_debug_fops);
 }
 
-/* Voltage scale and accessory APIs */
-static int _pre_volt_scale(struct voltagedomain *voltdm,
-		unsigned long target_volt, u8 *target_vsel, u8 *current_vsel)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	struct omap_volt_data *volt_data;
-	const struct omap_vc_common_data *vc_common;
-	const struct omap_vp_common_data *vp_common;
-	u32 vc_cmdval, vp_errgain_val;
-
-	vc_common = vdd->vc_data->vc_common;
-	vp_common = vdd->vp_data->vp_common;
-
-	/* Check if suffiecient pmic info is available for this vdd */
-	if (!vdd->pmic_info) {
-		pr_err("%s: Insufficient pmic info to scale the vdd_%s\n",
-			__func__, voltdm->name);
-		return -EINVAL;
-	}
-
-	if (!vdd->pmic_info->uv_to_vsel) {
-		pr_err("%s: PMIC function to convert voltage in uV to"
-			"vsel not registered. Hence unable to scale voltage"
-			"for vdd_%s\n", __func__, voltdm->name);
-		return -ENODATA;
-	}
-
-	if (!vdd->read_reg || !vdd->write_reg) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
-			__func__, voltdm->name);
-		return -EINVAL;
-	}
-
-	/* Get volt_data corresponding to target_volt */
-	volt_data = omap_voltage_get_voltdata(voltdm, target_volt);
-	if (IS_ERR(volt_data))
-		volt_data = NULL;
-
-	*target_vsel = vdd->pmic_info->uv_to_vsel(target_volt);
-	*current_vsel = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->voltage);
-
-	/* Setting the ON voltage to the new target voltage */
-	vc_cmdval = vdd->read_reg(vdd->vc_data->vc_common->prm_mod, vdd->vc_data->cmdval_reg);
-	vc_cmdval &= ~vc_common->cmd_on_mask;
-	vc_cmdval |= (*target_vsel << vc_common->cmd_on_shift);
-	vdd->write_reg(vc_cmdval, vdd->vc_data->vc_common->prm_mod, vdd->vc_data->cmdval_reg);
-
-	/* Setting vp errorgain based on the voltage */
-	if (volt_data) {
-		vp_errgain_val = vdd->read_reg(vdd->vp_data->vp_common->prm_mod,
-					       vdd->vp_data->vpconfig);
-		vdd->vp_rt_data.vpconfig_errorgain = volt_data->vp_errgain;
-		vp_errgain_val &= ~vp_common->vpconfig_errorgain_mask;
-		vp_errgain_val |= vdd->vp_rt_data.vpconfig_errorgain <<
-			vp_common->vpconfig_errorgain_shift;
-		vdd->write_reg(vp_errgain_val, vdd->vp_data->vp_common->prm_mod,
-			       vdd->vp_data->vpconfig);
-	}
-
-	return 0;
-}
-
-static void _post_volt_scale(struct voltagedomain *voltdm,
-		unsigned long target_volt, u8 target_vsel, u8 current_vsel)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 smps_steps = 0, smps_delay = 0;
-
-	smps_steps = abs(target_vsel - current_vsel);
-	/* SMPS slew rate / step size. 2us added as buffer. */
-	smps_delay = ((smps_steps * vdd->pmic_info->step_size) /
-			vdd->pmic_info->slew_rate) + 2;
-	udelay(smps_delay);
-
-	vdd->curr_volt = target_volt;
-}
-
-/* vc_bypass_scale_voltage - VC bypass method of voltage scaling */
-static int vc_bypass_scale_voltage(struct voltagedomain *voltdm,
-		unsigned long target_volt)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 loop_cnt = 0, retries_cnt = 0;
-	u32 vc_valid, vc_bypass_val_reg, vc_bypass_value;
-	u8 target_vsel, current_vsel;
-	int ret;
-
-	ret = _pre_volt_scale(voltdm, target_volt, &target_vsel, &current_vsel);
-	if (ret)
-		return ret;
-
-	vc_valid = vdd->vc_data->vc_common->valid;
-	vc_bypass_val_reg = vdd->vc_data->vc_common->bypass_val_reg;
-	vc_bypass_value = (target_vsel << vdd->vc_data->vc_common->data_shift) |
-			(vdd->pmic_info->pmic_reg <<
-			vdd->vc_data->vc_common->regaddr_shift) |
-			(vdd->pmic_info->i2c_slave_addr <<
-			vdd->vc_data->vc_common->slaveaddr_shift);
-
-	vdd->write_reg(vc_bypass_value, vdd->vc_data->vc_common->prm_mod, vc_bypass_val_reg);
-	vdd->write_reg(vc_bypass_value | vc_valid, vdd->vc_data->vc_common->prm_mod,
-		       vc_bypass_val_reg);
-
-	vc_bypass_value = vdd->read_reg(vdd->vc_data->vc_common->prm_mod, vc_bypass_val_reg);
-	/*
-	 * Loop till the bypass command is acknowledged from the SMPS.
-	 * NOTE: This is legacy code. The loop count and retry count needs
-	 * to be revisited.
-	 */
-	while (!(vc_bypass_value & vc_valid)) {
-		loop_cnt++;
-
-		if (retries_cnt > 10) {
-			pr_warning("%s: Retry count exceeded\n", __func__);
-			return -ETIMEDOUT;
-		}
-
-		if (loop_cnt > 50) {
-			retries_cnt++;
-			loop_cnt = 0;
-			udelay(10);
-		}
-		vc_bypass_value = vdd->read_reg(vdd->vc_data->vc_common->prm_mod,
-						vc_bypass_val_reg);
-	}
-
-	_post_volt_scale(voltdm, target_volt, target_vsel, current_vsel);
-	return 0;
-}
-
 /* VP force update method of voltage scaling */
 static int vp_forceupdate_scale_voltage(struct voltagedomain *voltdm,
 		unsigned long target_volt)
@@ -432,7 +302,7 @@ static int vp_forceupdate_scale_voltage(struct voltagedomain *voltdm,
 	u8 target_vsel, current_vsel;
 	int ret, timeout = 0;
 
-	ret = _pre_volt_scale(voltdm, target_volt, &target_vsel, &current_vsel);
+	ret = omap_vc_pre_scale(voltdm, target_volt, &target_vsel, &current_vsel);
 	if (ret)
 		return ret;
 
@@ -485,7 +355,7 @@ static int vp_forceupdate_scale_voltage(struct voltagedomain *voltdm,
 			"TRANXDONE never got set after the voltage update\n",
 			__func__, voltdm->name);
 
-	_post_volt_scale(voltdm, target_volt, target_vsel, current_vsel);
+	omap_vc_post_scale(voltdm, target_volt, target_vsel, current_vsel);
 
 	/*
 	 * Disable TransactionDone interrupt , clear all status, clear
@@ -515,132 +385,6 @@ static int vp_forceupdate_scale_voltage(struct voltagedomain *voltdm,
 	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
 
 	return 0;
-}
-
-static void __init omap3_vfsm_init(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-
-	/*
-	 * Voltage Manager FSM parameters init
-	 * XXX This data should be passed in from the board file
-	 */
-	vdd->write_reg(OMAP3_CLKSETUP, vdd->vc_data->vc_common->prm_mod, OMAP3_PRM_CLKSETUP_OFFSET);
-	vdd->write_reg(OMAP3_VOLTOFFSET, vdd->vc_data->vc_common->prm_mod,
-		       OMAP3_PRM_VOLTOFFSET_OFFSET);
-	vdd->write_reg(OMAP3_VOLTSETUP2, vdd->vc_data->vc_common->prm_mod,
-		       OMAP3_PRM_VOLTSETUP2_OFFSET);
-}
-
-static void __init omap3_vc_init(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	static bool is_initialized;
-	u8 on_vsel, onlp_vsel, ret_vsel, off_vsel;
-	u32 vc_val;
-
-	if (is_initialized)
-		return;
-
-	/* Set up the on, inactive, retention and off voltage */
-	on_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->on_volt);
-	onlp_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->onlp_volt);
-	ret_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->ret_volt);
-	off_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->off_volt);
-	vc_val	= ((on_vsel << vdd->vc_data->vc_common->cmd_on_shift) |
-		(onlp_vsel << vdd->vc_data->vc_common->cmd_onlp_shift) |
-		(ret_vsel << vdd->vc_data->vc_common->cmd_ret_shift) |
-		(off_vsel << vdd->vc_data->vc_common->cmd_off_shift));
-	vdd->write_reg(vc_val, vdd->vc_data->vc_common->prm_mod, vdd->vc_data->cmdval_reg);
-
-	/*
-	 * Generic VC parameters init
-	 * XXX This data should be abstracted out
-	 */
-	vdd->write_reg(OMAP3430_CMD1_MASK | OMAP3430_RAV1_MASK, vdd->vc_data->vc_common->prm_mod,
-			OMAP3_PRM_VC_CH_CONF_OFFSET);
-	vdd->write_reg(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN_MASK, vdd->vc_data->vc_common->prm_mod,
-			OMAP3_PRM_VC_I2C_CFG_OFFSET);
-
-	omap3_vfsm_init(voltdm);
-
-	is_initialized = true;
-}
-
-
-/* OMAP4 specific voltage init functions */
-static void __init omap4_vc_init(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	static bool is_initialized;
-	u32 vc_val;
-
-	if (is_initialized)
-		return;
-
-	/* TODO: Configure setup times and CMD_VAL values*/
-
-	/*
-	 * Generic VC parameters init
-	 * XXX This data should be abstracted out
-	 */
-	vc_val = (OMAP4430_RAV_VDD_MPU_L_MASK | OMAP4430_CMD_VDD_MPU_L_MASK |
-		  OMAP4430_RAV_VDD_IVA_L_MASK | OMAP4430_CMD_VDD_IVA_L_MASK |
-		  OMAP4430_RAV_VDD_CORE_L_MASK | OMAP4430_CMD_VDD_CORE_L_MASK);
-	vdd->write_reg(vc_val, vdd->vc_data->vc_common->prm_mod, OMAP4_PRM_VC_CFG_CHANNEL_OFFSET);
-
-	/* XXX These are magic numbers and do not belong! */
-	vc_val = (0x60 << OMAP4430_SCLL_SHIFT | 0x26 << OMAP4430_SCLH_SHIFT);
-	vdd->write_reg(vc_val, vdd->vc_data->vc_common->prm_mod, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
-
-	is_initialized = true;
-}
-
-static void __init omap_vc_init(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 vc_val;
-
-	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
-		pr_err("%s: PMIC info requried to configure vc for"
-			"vdd_%s not populated.Hence cannot initialize vc\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	if (!vdd->read_reg || !vdd->write_reg) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	/* Set up the SMPS_SA(i2c slave address in VC */
-	vc_val = vdd->read_reg(vdd->vc_data->vc_common->prm_mod,
-			       vdd->vc_data->vc_common->smps_sa_reg);
-	vc_val &= ~vdd->vc_data->smps_sa_mask;
-	vc_val |= vdd->pmic_info->i2c_slave_addr << vdd->vc_data->smps_sa_shift;
-	vdd->write_reg(vc_val, vdd->vc_data->vc_common->prm_mod,
-		       vdd->vc_data->vc_common->smps_sa_reg);
-
-	/* Setup the VOLRA(pmic reg addr) in VC */
-	vc_val = vdd->read_reg(vdd->vc_data->vc_common->prm_mod,
-			       vdd->vc_data->vc_common->smps_volra_reg);
-	vc_val &= ~vdd->vc_data->smps_volra_mask;
-	vc_val |= vdd->pmic_info->pmic_reg << vdd->vc_data->smps_volra_shift;
-	vdd->write_reg(vc_val, vdd->vc_data->vc_common->prm_mod,
-		       vdd->vc_data->vc_common->smps_volra_reg);
-
-	/* Configure the setup times */
-	vc_val = vdd->read_reg(vdd->vc_data->vc_common->prm_mod, vdd->vfsm->voltsetup_reg);
-	vc_val &= ~vdd->vfsm->voltsetup_mask;
-	vc_val |= vdd->pmic_info->volt_setup_time <<
-			vdd->vfsm->voltsetup_shift;
-	vdd->write_reg(vc_val, vdd->vc_data->vc_common->prm_mod, vdd->vfsm->voltsetup_reg);
-
-	if (cpu_is_omap34xx())
-		omap3_vc_init(voltdm);
-	else if (cpu_is_omap44xx())
-		omap4_vc_init(voltdm);
 }
 
 static int __init omap_vdd_data_configure(struct voltagedomain *voltdm)
@@ -1025,7 +769,7 @@ void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		vdd->volt_scale = vp_forceupdate_scale_voltage;
 		return;
 	case VOLTSCALE_VCBYPASS:
-		vdd->volt_scale = vc_bypass_scale_voltage;
+		vdd->volt_scale = omap_vc_bypass_scale_voltage;
 		return;
 	default:
 		pr_warning("%s: Trying to change the method of voltage scaling"
@@ -1061,7 +805,7 @@ int __init omap_voltage_late_init(void)
 		if (voltdm->vdd) {
 			if (omap_vdd_data_configure(voltdm))
 				continue;
-			omap_vc_init(voltdm);
+			omap_vc_init_channel(voltdm);
 			vp_init(voltdm);
 			vdd_debugfs_init(voltdm);
 		}

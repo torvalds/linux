@@ -19,6 +19,8 @@
 
 #include <linux/kernel.h>
 
+struct voltagedomain;
+
 /**
  * struct omap_vc_common_data - per-VC register/bitfield data
  * @cmd_on_mask: ON bitmask in PRM_VC_CMD_VAL* register
@@ -80,6 +82,16 @@ extern struct omap_vc_instance_data omap3_vc2_data;
 extern struct omap_vc_instance_data omap4_vc_mpu_data;
 extern struct omap_vc_instance_data omap4_vc_iva_data;
 extern struct omap_vc_instance_data omap4_vc_core_data;
+
+void omap_vc_init_channel(struct voltagedomain *voltdm);
+int omap_vc_pre_scale(struct voltagedomain *voltdm,
+		      unsigned long target_volt,
+		      u8 *target_vsel, u8 *current_vsel);
+void omap_vc_post_scale(struct voltagedomain *voltdm,
+			unsigned long target_volt,
+			u8 target_vsel, u8 current_vsel);
+int omap_vc_bypass_scale_voltage(struct voltagedomain *voltdm,
+				 unsigned long target_volt);
 
 #endif
 
