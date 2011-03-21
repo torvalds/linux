@@ -322,7 +322,7 @@ static void bfin_musb_try_idle(struct musb *musb, unsigned long timeout)
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 }
 
-static int bfin_musb_get_vbus_status(struct musb *musb)
+static int bfin_musb_vbus_status(struct musb *musb)
 {
 	return 0;
 }
