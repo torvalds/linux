@@ -1892,10 +1892,6 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-                rk29sdk_wifi_bt_gpio_control_init();
-#endif
-
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
@@ -1916,7 +1912,10 @@ static void __init machine_rk29_board_init(void)
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
         
-        rk29sdk_init_wifi_mem();
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	rk29sdk_wifi_bt_gpio_control_init();
+	rk29sdk_init_wifi_mem();
+#endif
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
