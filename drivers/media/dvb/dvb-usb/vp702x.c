@@ -36,14 +36,14 @@ struct vp702x_device_state {
 /* check for mutex FIXME */
 int vp702x_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen)
 {
-	int ret = -1;
+	int ret;
 
-		ret = usb_control_msg(d->udev,
-			usb_rcvctrlpipe(d->udev,0),
-			req,
-			USB_TYPE_VENDOR | USB_DIR_IN,
-			value,index,b,blen,
-			2000);
+	ret = usb_control_msg(d->udev,
+		usb_rcvctrlpipe(d->udev, 0),
+		req,
+		USB_TYPE_VENDOR | USB_DIR_IN,
+		value, index, b, blen,
+		2000);
 
 	if (ret < 0) {
 		warn("usb in operation failed. (%d)", ret);
@@ -221,7 +221,8 @@ static int vp702x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	vp702x_usb_out_op(adap->dev, SET_TUNER_POWER_REQ, 0, 7, NULL, 0);
 
-	if (vp702x_usb_inout_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0, buf, 10, 10))
+	if (vp702x_usb_inout_cmd(adap->dev, GET_SYSTEM_STRING, NULL, 0,
+				   buf, 10, 10))
 		return -EIO;
 
 	buf[9] = '\0';
@@ -307,9 +308,9 @@ static struct dvb_usb_device_properties vp702x_properties = {
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver vp702x_usb_driver = {
 	.name		= "dvb_usb_vp702x",
-	.probe 		= vp702x_usb_probe,
-	.disconnect = dvb_usb_device_exit,
-	.id_table 	= vp702x_usb_table,
+	.probe		= vp702x_usb_probe,
+	.disconnect	= dvb_usb_device_exit,
+	.id_table	= vp702x_usb_table,
 };
 
 /* module stuff */
