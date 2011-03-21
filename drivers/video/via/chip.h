@@ -137,10 +137,6 @@ struct chip_information {
 	struct lvds_chip_information lvds_chip_info2;
 };
 
-struct crt_setting_information {
-	int iga_path;
-};
-
 struct tmds_setting_information {
 	int iga_path;
 	int h_active;

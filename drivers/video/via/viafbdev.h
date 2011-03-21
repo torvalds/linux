@@ -50,7 +50,6 @@ struct viafb_shared {
 
 	/* All the information will be needed to set engine */
 	struct tmds_setting_information tmds_setting_info;
-	struct crt_setting_information crt_setting_info;
 	struct lvds_setting_information lvds_setting_info;
 	struct lvds_setting_information lvds_setting_info2;
 	struct chip_information chip_info;
@@ -79,7 +78,6 @@ struct viafb_par {
 	/* All the information will be needed to set engine */
 	/* depreciated, use the ones in shared directly */
 	struct tmds_setting_information *tmds_setting_info;
-	struct crt_setting_information *crt_setting_info;
 	struct lvds_setting_information *lvds_setting_info;
 	struct lvds_setting_information *lvds_setting_info2;
 	struct chip_information *chip_info;

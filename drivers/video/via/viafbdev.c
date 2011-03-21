@@ -930,10 +930,8 @@ static int get_primary_device(void)
 	/* Rule: device on iga1 path are the primary device. */
 	if (viafb_SAMM_ON) {
 		if (viafb_CRT_ON) {
-			if (viaparinfo->crt_setting_info->iga_path == IGA1) {
-				DEBUG_MSG(KERN_INFO "CRT IGA Path:%d\n",
-					viaparinfo->
-					crt_setting_info->iga_path);
+			if (viaparinfo->shared->iga1_devices & VIA_CRT) {
+				DEBUG_MSG(KERN_INFO "CRT IGA Path:%d\n", IGA1);
 				primary_device = CRT_Device;
 			}
 		}
@@ -1746,7 +1744,6 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	viaparinfo->lvds_setting_info = &viaparinfo->shared->lvds_setting_info;
 	viaparinfo->lvds_setting_info2 =
 		&viaparinfo->shared->lvds_setting_info2;
-	viaparinfo->crt_setting_info = &viaparinfo->shared->crt_setting_info;
 	viaparinfo->chip_info = &viaparinfo->shared->chip_info;
 
 	if (viafb_dual_fb)

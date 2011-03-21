@@ -770,13 +770,14 @@ static u32 get_lcd_devices(int output_interface)
 /*Set IGA path for each device*/
 void viafb_set_iga_path(void)
 {
+	int crt_iga_path = 0;
 
 	if (viafb_SAMM_ON == 1) {
 		if (viafb_CRT_ON) {
 			if (viafb_primary_dev == CRT_Device)
-				viaparinfo->crt_setting_info->iga_path = IGA1;
+				crt_iga_path = IGA1;
 			else
-				viaparinfo->crt_setting_info->iga_path = IGA2;
+				crt_iga_path = IGA2;
 		}
 
 		if (viafb_DVI_ON) {
@@ -793,8 +794,7 @@ void viafb_set_iga_path(void)
 					UNICHROME_CLE266)) {
 					viaparinfo->
 					lvds_setting_info->iga_path = IGA2;
-					viaparinfo->
-					crt_setting_info->iga_path = IGA1;
+					crt_iga_path = IGA1;
 					viaparinfo->
 					tmds_setting_info->iga_path = IGA1;
 				} else
@@ -814,10 +814,10 @@ void viafb_set_iga_path(void)
 		viafb_SAMM_ON = 0;
 
 		if (viafb_CRT_ON && viafb_LCD_ON) {
-			viaparinfo->crt_setting_info->iga_path = IGA1;
+			crt_iga_path = IGA1;
 			viaparinfo->lvds_setting_info->iga_path = IGA2;
 		} else if (viafb_CRT_ON && viafb_DVI_ON) {
-			viaparinfo->crt_setting_info->iga_path = IGA1;
+			crt_iga_path = IGA1;
 			viaparinfo->tmds_setting_info->iga_path = IGA2;
 		} else if (viafb_LCD_ON && viafb_DVI_ON) {
 			viaparinfo->tmds_setting_info->iga_path = IGA1;
@@ -826,7 +826,7 @@ void viafb_set_iga_path(void)
 			viaparinfo->lvds_setting_info->iga_path = IGA2;
 			viaparinfo->lvds_setting_info2->iga_path = IGA2;
 		} else if (viafb_CRT_ON) {
-			viaparinfo->crt_setting_info->iga_path = IGA1;
+			crt_iga_path = IGA1;
 		} else if (viafb_LCD_ON) {
 			viaparinfo->lvds_setting_info->iga_path = IGA2;
 		} else if (viafb_DVI_ON) {
@@ -837,7 +837,7 @@ void viafb_set_iga_path(void)
 	viaparinfo->shared->iga1_devices = 0;
 	viaparinfo->shared->iga2_devices = 0;
 	if (viafb_CRT_ON) {
-		if (viaparinfo->crt_setting_info->iga_path == IGA1)
+		if (crt_iga_path == IGA1)
 			viaparinfo->shared->iga1_devices |= VIA_CRT;
 		else
 			viaparinfo->shared->iga2_devices |= VIA_CRT;
@@ -2072,8 +2072,6 @@ void __devinit viafb_init_chip_info(int chip_type)
 	init_tmds_chip_info();
 	init_lvds_chip_info();
 
-	viaparinfo->crt_setting_info->iga_path = IGA1;
-
 	/*Set IGA path for each device */
 	viafb_set_iga_path();
 
@@ -2450,15 +2448,15 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 	/* CRT set mode */
 	if (viafb_CRT_ON) {
-		if (viafb_SAMM_ON && (viaparinfo->crt_setting_info->iga_path ==
-			IGA2)) {
+		if (viafb_SAMM_ON &&
+			viaparinfo->shared->iga2_devices & VIA_CRT) {
 			viafb_fill_crtc_timing(crt_timing1, vmode_tbl1,
-				video_bpp1 / 8,
-				viaparinfo->crt_setting_info->iga_path);
+				video_bpp1 / 8, IGA2);
 		} else {
 			viafb_fill_crtc_timing(crt_timing, vmode_tbl,
 				video_bpp / 8,
-				viaparinfo->crt_setting_info->iga_path);
+				(viaparinfo->shared->iga1_devices & VIA_CRT)
+				? IGA1 : IGA2);
 		}
 
 		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
