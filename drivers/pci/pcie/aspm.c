@@ -770,6 +770,8 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	int i;
 	struct pcie_link_state *link;
 
+	if (aspm_disabled)
+		return -EPERM;
 	for (i = 0; i < ARRAY_SIZE(policy_str); i++)
 		if (!strncmp(val, policy_str[i], strlen(policy_str[i])))
 			break;
@@ -824,6 +826,8 @@ static ssize_t link_state_store(struct device *dev,
 	struct pcie_link_state *link, *root = pdev->link_state->root;
 	u32 val = buf[0] - '0', state = 0;
 
+	if (aspm_disabled)
+		return -EPERM;
 	if (n < 1 || val > 3)
 		return -EINVAL;
 
