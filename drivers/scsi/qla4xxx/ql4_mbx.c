@@ -476,6 +476,11 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 
 	init_fw_cb->fw_options &= __constant_cpu_to_le16(~FWOPT_TARGET_MODE);
 
+	/* Set bit for "serialize task mgmt" all other bits need to be zero */
+	init_fw_cb->add_fw_options = 0;
+	init_fw_cb->add_fw_options |=
+	    __constant_cpu_to_le16(SERIALIZE_TASK_MGMT);
+
 	if (qla4xxx_set_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)
 		!= QLA_SUCCESS) {
 		DEBUG2(printk(KERN_WARNING

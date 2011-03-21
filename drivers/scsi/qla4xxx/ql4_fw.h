@@ -455,6 +455,7 @@ struct addr_ctrl_blk {
 	uint8_t res0;	/* 07 */
 	uint16_t eth_mtu_size;	/* 08-09 */
 	uint16_t add_fw_options;	/* 0A-0B */
+#define SERIALIZE_TASK_MGMT		0x0400
 
 	uint8_t hb_interval;	/* 0C */
 	uint8_t inst_num; /* 0D */
