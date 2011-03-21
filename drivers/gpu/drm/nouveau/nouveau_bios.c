@@ -6354,6 +6354,32 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 		}
 	}
 
+	/* XFX GT-240X-YA
+	 *
+	 * So many things wrong here, replace the entire encoder table..
+	 */
+	if (nv_match_device(dev, 0x0ca3, 0x1682, 0x3003)) {
+		if (idx == 0) {
+			*conn = 0x02001300; /* VGA, connector 1 */
+			*conf = 0x00000028;
+		} else
+		if (idx == 1) {
+			*conn = 0x01010312; /* DVI, connector 0 */
+			*conf = 0x00020030;
+		} else
+		if (idx == 2) {
+			*conn = 0x01010310; /* VGA, connector 0 */
+			*conf = 0x00000028;
+		} else
+		if (idx == 3) {
+			*conn = 0x02022362; /* HDMI, connector 2 */
+			*conf = 0x00020010;
+		} else {
+			*conn = 0x0000000e; /* EOL */
+			*conf = 0x00000000;
+		}
+	}
+
 	return true;
 }
 
