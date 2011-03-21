@@ -1445,7 +1445,6 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		atomic_set(&ddb_entry->relogin_retry_count, 0);
 		atomic_set(&ddb_entry->relogin_timer, 0);
 		clear_bit(DF_RELOGIN, &ddb_entry->flags);
-		clear_bit(DF_NO_RELOGIN, &ddb_entry->flags);
 		iscsi_unblock_session(ddb_entry->sess);
 		iscsi_session_event(ddb_entry->sess,
 				    ISCSI_KEVENT_CREATE_SESSION);
@@ -1470,7 +1469,6 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		 */
 		if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_FAILED &&
 		    !test_bit(DF_RELOGIN, &ddb_entry->flags) &&
-		    !test_bit(DF_NO_RELOGIN, &ddb_entry->flags) &&
 		    qla4_is_relogin_allowed(ha, conn_err)) {
 			/*
 			 * This triggers a relogin.  After the relogin_timer

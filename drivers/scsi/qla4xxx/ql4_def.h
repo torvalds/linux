@@ -286,8 +286,6 @@ struct ddb_entry {
  * DDB flags.
  */
 #define DF_RELOGIN		0	/* Relogin to device */
-#define DF_NO_RELOGIN		1	/* Do not relogin if IOCTL
-					 * logged it out */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
 
