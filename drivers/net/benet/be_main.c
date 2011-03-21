@@ -2330,7 +2330,6 @@ static int be_setup(struct be_adapter *adapter)
 
 	return 0;
 
-	be_mcc_queues_destroy(adapter);
 rx_qs_destroy:
 	be_rx_queues_destroy(adapter);
 tx_qs_destroy:
