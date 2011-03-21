@@ -152,9 +152,6 @@ struct omap_vdd_info {
 		unsigned long target_volt);
 };
 
-unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm);
-void omap_vp_enable(struct voltagedomain *voltdm);
-void omap_vp_disable(struct voltagedomain *voltdm);
 int omap_voltage_scale_vdd(struct voltagedomain *voltdm,
 		unsigned long target_volt);
 void omap_voltage_reset(struct voltagedomain *voltdm);

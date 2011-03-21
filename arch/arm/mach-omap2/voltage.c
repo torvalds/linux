@@ -46,10 +46,6 @@ static LIST_HEAD(voltdm_list);
 #define VOLTAGE_DIR_SIZE	16
 static struct dentry *voltage_dir;
 
-/* Init function pointers */
-static int vp_forceupdate_scale_voltage(struct voltagedomain *voltdm,
-					unsigned long target_volt);
-
 static u32 omap3_voltage_read_reg(u16 mod, u8 offset)
 {
 	return omap2_prm_read_mod_reg(mod, offset);
@@ -105,7 +101,7 @@ static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 	sys_clk_speed /= 1000;
 
 	/* Generic voltage parameters */
-	vdd->volt_scale = vp_forceupdate_scale_voltage;
+	vdd->volt_scale = omap_vp_forceupdate_scale;
 	vdd->vp_enabled = false;
 
 	vdd->vp_rt_data.vpconfig_erroroffset =
@@ -127,30 +123,6 @@ static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 	return 0;
 }
 
-/* Voltage debugfs support */
-static int vp_volt_debug_get(void *data, u64 *val)
-{
-	struct voltagedomain *voltdm = (struct voltagedomain *)data;
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u8 vsel;
-
-	if (!vdd) {
-		pr_warning("Wrong paramater passed\n");
-		return -EINVAL;
-	}
-
-	vsel = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->voltage);
-
-	if (!vdd->pmic_info->vsel_to_uv) {
-		pr_warning("PMIC function to convert vsel to voltage"
-			"in uV not registerd\n");
-		return -EINVAL;
-	}
-
-	*val = vdd->pmic_info->vsel_to_uv(vsel);
-	return 0;
-}
-
 static int nom_volt_debug_get(void *data, u64 *val)
 {
 	struct voltagedomain *voltdm = (struct voltagedomain *)data;
@@ -165,85 +137,8 @@ static int nom_volt_debug_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(vp_volt_debug_fops, vp_volt_debug_get, NULL, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(nom_volt_debug_fops, nom_volt_debug_get, NULL,
 								"%llu\n");
-static void vp_latch_vsel(struct voltagedomain *voltdm)
-{
-	u32 vpconfig;
-	unsigned long uvdc;
-	char vsel;
-	struct omap_vdd_info *vdd = voltdm->vdd;
-
-	uvdc = omap_voltage_get_nom_volt(voltdm);
-	if (!uvdc) {
-		pr_warning("%s: unable to find current voltage for vdd_%s\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
-		pr_warning("%s: PMIC function to convert voltage in uV to"
-			" vsel not registered\n", __func__);
-		return;
-	}
-
-	vsel = vdd->pmic_info->uv_to_vsel(uvdc);
-
-	vpconfig = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	vpconfig &= ~(vdd->vp_data->vp_common->vpconfig_initvoltage_mask |
-			vdd->vp_data->vp_common->vpconfig_initvdd);
-	vpconfig |= vsel << vdd->vp_data->vp_common->vpconfig_initvoltage_shift;
-
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	/* Trigger initVDD value copy to voltage processor */
-	vdd->write_reg((vpconfig | vdd->vp_data->vp_common->vpconfig_initvdd),
-		       vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	/* Clear initVDD copy trigger bit */
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-}
-
-/* Generic voltage init functions */
-static void __init vp_init(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 vp_val;
-
-	if (!vdd->read_reg || !vdd->write_reg) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	vp_val = vdd->vp_rt_data.vpconfig_erroroffset |
-		(vdd->vp_rt_data.vpconfig_errorgain <<
-		vdd->vp_data->vp_common->vpconfig_errorgain_shift) |
-		vdd->vp_data->vp_common->vpconfig_timeouten;
-	vdd->write_reg(vp_val, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	vp_val = ((vdd->vp_rt_data.vstepmin_smpswaittimemin <<
-		vdd->vp_data->vp_common->vstepmin_smpswaittimemin_shift) |
-		(vdd->vp_rt_data.vstepmin_stepmin <<
-		vdd->vp_data->vp_common->vstepmin_stepmin_shift));
-	vdd->write_reg(vp_val, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vstepmin);
-
-	vp_val = ((vdd->vp_rt_data.vstepmax_smpswaittimemax <<
-		vdd->vp_data->vp_common->vstepmax_smpswaittimemax_shift) |
-		(vdd->vp_rt_data.vstepmax_stepmax <<
-		vdd->vp_data->vp_common->vstepmax_stepmax_shift));
-	vdd->write_reg(vp_val, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vstepmax);
-
-	vp_val = ((vdd->vp_rt_data.vlimitto_vddmax <<
-		vdd->vp_data->vp_common->vlimitto_vddmax_shift) |
-		(vdd->vp_rt_data.vlimitto_vddmin <<
-		vdd->vp_data->vp_common->vlimitto_vddmin_shift) |
-		(vdd->vp_rt_data.vlimitto_timeout <<
-		vdd->vp_data->vp_common->vlimitto_timeout_shift));
-	vdd->write_reg(vp_val, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vlimitto);
-}
-
 static void __init vdd_debugfs_init(struct voltagedomain *voltdm)
 {
 	char *name;
@@ -268,123 +163,9 @@ static void __init vdd_debugfs_init(struct voltagedomain *voltdm)
 		return;
 	}
 
-	(void) debugfs_create_x16("vp_errorgain", S_IRUGO, vdd->debug_dir,
-				&(vdd->vp_rt_data.vpconfig_errorgain));
-	(void) debugfs_create_x16("vp_smpswaittimemin", S_IRUGO,
-				vdd->debug_dir,
-				&(vdd->vp_rt_data.vstepmin_smpswaittimemin));
-	(void) debugfs_create_x8("vp_stepmin", S_IRUGO, vdd->debug_dir,
-				&(vdd->vp_rt_data.vstepmin_stepmin));
-	(void) debugfs_create_x16("vp_smpswaittimemax", S_IRUGO,
-				vdd->debug_dir,
-				&(vdd->vp_rt_data.vstepmax_smpswaittimemax));
-	(void) debugfs_create_x8("vp_stepmax", S_IRUGO, vdd->debug_dir,
-				&(vdd->vp_rt_data.vstepmax_stepmax));
-	(void) debugfs_create_x8("vp_vddmax", S_IRUGO, vdd->debug_dir,
-				&(vdd->vp_rt_data.vlimitto_vddmax));
-	(void) debugfs_create_x8("vp_vddmin", S_IRUGO, vdd->debug_dir,
-				&(vdd->vp_rt_data.vlimitto_vddmin));
-	(void) debugfs_create_x16("vp_timeout", S_IRUGO, vdd->debug_dir,
-				&(vdd->vp_rt_data.vlimitto_timeout));
-	(void) debugfs_create_file("curr_vp_volt", S_IRUGO, vdd->debug_dir,
-				(void *) voltdm, &vp_volt_debug_fops);
 	(void) debugfs_create_file("curr_nominal_volt", S_IRUGO,
 				vdd->debug_dir, (void *) voltdm,
 				&nom_volt_debug_fops);
-}
-
-/* VP force update method of voltage scaling */
-static int vp_forceupdate_scale_voltage(struct voltagedomain *voltdm,
-		unsigned long target_volt)
-{
-	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 vpconfig;
-	u8 target_vsel, current_vsel;
-	int ret, timeout = 0;
-
-	ret = omap_vc_pre_scale(voltdm, target_volt, &target_vsel, &current_vsel);
-	if (ret)
-		return ret;
-
-	/*
-	 * Clear all pending TransactionDone interrupt/status. Typical latency
-	 * is <3us
-	 */
-	while (timeout++ < VP_TRANXDONE_TIMEOUT) {
-		vdd->write_reg(vdd->vp_data->prm_irqst_data->tranxdone_status,
-			       vdd->prm_irqst_mod, vdd->prm_irqst_reg);
-		if (!(vdd->read_reg(vdd->prm_irqst_mod, vdd->prm_irqst_reg) &
-		      vdd->vp_data->prm_irqst_data->tranxdone_status))
-			break;
-		udelay(1);
-	}
-	if (timeout >= VP_TRANXDONE_TIMEOUT) {
-		pr_warning("%s: vdd_%s TRANXDONE timeout exceeded."
-			"Voltage change aborted", __func__, voltdm->name);
-		return -ETIMEDOUT;
-	}
-
-	/* Configure for VP-Force Update */
-	vpconfig = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	vpconfig &= ~(vdd->vp_data->vp_common->vpconfig_initvdd |
-			vdd->vp_data->vp_common->vpconfig_forceupdate |
-			vdd->vp_data->vp_common->vpconfig_initvoltage_mask);
-	vpconfig |= ((target_vsel <<
-			vdd->vp_data->vp_common->vpconfig_initvoltage_shift));
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	/* Trigger initVDD value copy to voltage processor */
-	vpconfig |= vdd->vp_data->vp_common->vpconfig_initvdd;
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	/* Force update of voltage */
-	vpconfig |= vdd->vp_data->vp_common->vpconfig_forceupdate;
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	/*
-	 * Wait for TransactionDone. Typical latency is <200us.
-	 * Depends on SMPSWAITTIMEMIN/MAX and voltage change
-	 */
-	timeout = 0;
-	omap_test_timeout((vdd->read_reg(vdd->prm_irqst_mod,
-					 vdd->prm_irqst_reg) &
-			   vdd->vp_data->prm_irqst_data->tranxdone_status),
-			  VP_TRANXDONE_TIMEOUT, timeout);
-	if (timeout >= VP_TRANXDONE_TIMEOUT)
-		pr_err("%s: vdd_%s TRANXDONE timeout exceeded."
-			"TRANXDONE never got set after the voltage update\n",
-			__func__, voltdm->name);
-
-	omap_vc_post_scale(voltdm, target_volt, target_vsel, current_vsel);
-
-	/*
-	 * Disable TransactionDone interrupt , clear all status, clear
-	 * control registers
-	 */
-	timeout = 0;
-	while (timeout++ < VP_TRANXDONE_TIMEOUT) {
-		vdd->write_reg(vdd->vp_data->prm_irqst_data->tranxdone_status,
-			       vdd->prm_irqst_mod, vdd->prm_irqst_reg);
-		if (!(vdd->read_reg(vdd->prm_irqst_mod, vdd->prm_irqst_reg) &
-		      vdd->vp_data->prm_irqst_data->tranxdone_status))
-			break;
-		udelay(1);
-	}
-
-	if (timeout >= VP_TRANXDONE_TIMEOUT)
-		pr_warning("%s: vdd_%s TRANXDONE timeout exceeded while trying"
-			"to clear the TRANXDONE status\n",
-			__func__, voltdm->name);
-
-	vpconfig = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	/* Clear initVDD copy trigger bit */
-	vpconfig &= ~vdd->vp_data->vp_common->vpconfig_initvdd;
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	/* Clear force bit */
-	vpconfig &= ~vdd->vp_data->vp_common->vpconfig_forceupdate;
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	return 0;
 }
 
 static int __init omap_vdd_data_configure(struct voltagedomain *voltdm)
@@ -436,129 +217,6 @@ unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm)
 	vdd = voltdm->vdd;
 
 	return vdd->curr_volt;
-}
-
-/**
- * omap_vp_get_curr_volt() - API to get the current vp voltage.
- * @voltdm:	pointer to the VDD.
- *
- * This API returns the current voltage for the specified voltage processor
- */
-unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd;
-	u8 curr_vsel;
-
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
-		return 0;
-	}
-
-	vdd = voltdm->vdd;
-	if (!vdd->read_reg) {
-		pr_err("%s: No read API for reading vdd_%s regs\n",
-			__func__, voltdm->name);
-		return 0;
-	}
-
-	curr_vsel = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->voltage);
-
-	if (!vdd->pmic_info || !vdd->pmic_info->vsel_to_uv) {
-		pr_warning("%s: PMIC function to convert vsel to voltage"
-			"in uV not registerd\n", __func__);
-		return 0;
-	}
-
-	return vdd->pmic_info->vsel_to_uv(curr_vsel);
-}
-
-/**
- * omap_vp_enable() - API to enable a particular VP
- * @voltdm:	pointer to the VDD whose VP is to be enabled.
- *
- * This API enables a particular voltage processor. Needed by the smartreflex
- * class drivers.
- */
-void omap_vp_enable(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd;
-	u32 vpconfig;
-
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
-		return;
-	}
-
-	vdd = voltdm->vdd;
-	if (!vdd->read_reg || !vdd->write_reg) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	/* If VP is already enabled, do nothing. Return */
-	if (vdd->vp_enabled)
-		return;
-
-	vp_latch_vsel(voltdm);
-
-	/* Enable VP */
-	vpconfig = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	vpconfig |= vdd->vp_data->vp_common->vpconfig_vpenable;
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	vdd->vp_enabled = true;
-}
-
-/**
- * omap_vp_disable() - API to disable a particular VP
- * @voltdm:	pointer to the VDD whose VP is to be disabled.
- *
- * This API disables a particular voltage processor. Needed by the smartreflex
- * class drivers.
- */
-void omap_vp_disable(struct voltagedomain *voltdm)
-{
-	struct omap_vdd_info *vdd;
-	u32 vpconfig;
-	int timeout;
-
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
-		return;
-	}
-
-	vdd = voltdm->vdd;
-	if (!vdd->read_reg || !vdd->write_reg) {
-		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	/* If VP is already disabled, do nothing. Return */
-	if (!vdd->vp_enabled) {
-		pr_warning("%s: Trying to disable VP for vdd_%s when"
-			"it is already disabled\n", __func__, voltdm->name);
-		return;
-	}
-
-	/* Disable VP */
-	vpconfig = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-	vpconfig &= ~vdd->vp_data->vp_common->vpconfig_vpenable;
-	vdd->write_reg(vpconfig, vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vpconfig);
-
-	/*
-	 * Wait for VP idle Typical latency is <2us. Maximum latency is ~100us
-	 */
-	omap_test_timeout((vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->vstatus)),
-				VP_IDLE_TIMEOUT, timeout);
-
-	if (timeout >= VP_IDLE_TIMEOUT)
-		pr_warning("%s: vdd_%s idle timedout\n",
-			__func__, voltdm->name);
-
-	vdd->vp_enabled = false;
-
-	return;
 }
 
 /**
@@ -766,7 +424,7 @@ void omap_change_voltscale_method(struct voltagedomain *voltdm,
 
 	switch (voltscale_method) {
 	case VOLTSCALE_VPFORCEUPDATE:
-		vdd->volt_scale = vp_forceupdate_scale_voltage;
+		vdd->volt_scale = omap_vp_forceupdate_scale;
 		return;
 	case VOLTSCALE_VCBYPASS:
 		vdd->volt_scale = omap_vc_bypass_scale;
@@ -810,8 +468,8 @@ int __init omap_voltage_late_init(void)
 		if (voltdm->vdd) {
 			if (omap_vdd_data_configure(voltdm))
 				continue;
-			vp_init(voltdm);
 			vdd_debugfs_init(voltdm);
+			omap_vp_init(voltdm);
 		}
 	}
 

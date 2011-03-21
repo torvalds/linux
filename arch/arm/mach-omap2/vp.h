@@ -19,6 +19,8 @@
 
 #include <linux/kernel.h>
 
+struct voltagedomain;
+
 /* XXX document */
 #define VP_IDLE_TIMEOUT		200
 #define VP_TRANXDONE_TIMEOUT	300
@@ -138,5 +140,12 @@ extern struct omap_vp_instance_data omap3_vp2_data;
 extern struct omap_vp_instance_data omap4_vp_mpu_data;
 extern struct omap_vp_instance_data omap4_vp_iva_data;
 extern struct omap_vp_instance_data omap4_vp_core_data;
+
+void omap_vp_init(struct voltagedomain *voltdm);
+void omap_vp_enable(struct voltagedomain *voltdm);
+void omap_vp_disable(struct voltagedomain *voltdm);
+unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm);
+int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
+			      unsigned long target_volt);
 
 #endif
