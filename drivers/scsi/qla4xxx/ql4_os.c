@@ -57,6 +57,12 @@ MODULE_PARM_DESC(ql4xmaxqdepth,
 		"Maximum queue depth to report for target devices.\n"
 		" Default: 32.");
 
+static int ql4xsess_recovery_tmo = QL4_SESS_RECOVERY_TMO;
+module_param(ql4xsess_recovery_tmo, int, S_IRUGO);
+MODULE_PARM_DESC(ql4xsess_recovery_tmo,
+		"Target Session Recovery Timeout.\n"
+		" Default: 30 sec.");
+
 /*
  * SCSI host template entry points
  */
@@ -166,7 +172,7 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 		DEBUG2(printk("scsi%ld: %s: ddb [%d] session recovery timeout "
 			      "of (%d) secs exhausted, marking device DEAD.\n",
 			      ha->host_no, __func__, ddb_entry->fw_ddb_index,
-			      QL4_SESS_RECOVERY_TMO));
+			      ddb_entry->sess->recovery_tmo));
 	}
 }
 
@@ -296,7 +302,7 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 {
 	int err;
 
-	ddb_entry->sess->recovery_tmo = QL4_SESS_RECOVERY_TMO;
+	ddb_entry->sess->recovery_tmo = ql4xsess_recovery_tmo;
 
 	err = iscsi_add_session(ddb_entry->sess, ddb_entry->fw_ddb_index);
 	if (err) {
