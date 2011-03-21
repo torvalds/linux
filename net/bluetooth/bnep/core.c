@@ -36,6 +36,7 @@
 #include <linux/errno.h>
 #include <linux/net.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 
 #include <linux/socket.h>
@@ -479,12 +480,11 @@ static int bnep_session(void *arg)
 
 	BT_DBG("");
 
-	daemonize("kbnepd %s", dev->name);
 	set_user_nice(current, -15);
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk_sleep(sk), &wait);
-	while (!atomic_read(&s->killed)) {
+	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		/* RX */
@@ -611,11 +611,12 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 
 	__bnep_link_session(s);
 
-	err = kernel_thread(bnep_session, s, CLONE_KERNEL);
-	if (err < 0) {
+	s->task = kthread_run(bnep_session, s, "kbnepd %s", dev->name);
+	if (IS_ERR(s->task)) {
 		/* Session thread start failed, gotta cleanup. */
 		unregister_netdev(dev);
 		__bnep_unlink_session(s);
+		err = PTR_ERR(s->task);
 		goto failed;
 	}
 
@@ -639,15 +640,9 @@ int bnep_del_connection(struct bnep_conndel_req *req)
 	down_read(&bnep_session_sem);
 
 	s = __bnep_get_session(req->dst);
-	if (s) {
-		/* Wakeup user-space which is polling for socket errors.
-		 * This is temporary hack until we have shutdown in L2CAP */
-		s->sock->sk->sk_err = EUNATCH;
-
-		/* Kill session thread */
-		atomic_inc(&s->killed);
-		wake_up_interruptible(sk_sleep(s->sock->sk));
-	} else
+	if (s)
+		kthread_stop(s->task);
+	else
 		err = -ENOENT;
 
 	up_read(&bnep_session_sem);
