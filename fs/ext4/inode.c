@@ -4096,6 +4096,9 @@ no_top:
  *
  * We release `count' blocks on disk, but (last - first) may be greater
  * than `count' because there can be holes in there.
+ *
+ * Return 0 on success, 1 on invalid block range
+ * and < 0 on fatal error.
  */
 static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 			     struct buffer_head *bh,
@@ -4122,25 +4125,21 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		if (bh) {
 			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
 			err = ext4_handle_dirty_metadata(handle, inode, bh);
-			if (unlikely(err)) {
-				ext4_std_error(inode->i_sb, err);
-				return 1;
-			}
+			if (unlikely(err))
+				goto out_err;
 		}
 		err = ext4_mark_inode_dirty(handle, inode);
-		if (unlikely(err)) {
-			ext4_std_error(inode->i_sb, err);
-			return 1;
-		}
+		if (unlikely(err))
+			goto out_err;
 		err = ext4_truncate_restart_trans(handle, inode,
 						  blocks_for_truncate(inode));
-		if (unlikely(err)) {
-			ext4_std_error(inode->i_sb, err);
-			return 1;
-		}
+		if (unlikely(err))
+			goto out_err;
 		if (bh) {
 			BUFFER_TRACE(bh, "retaking write access");
-			ext4_journal_get_write_access(handle, bh);
+			err = ext4_journal_get_write_access(handle, bh);
+			if (unlikely(err))
+				goto out_err;
 		}
 	}
 
@@ -4149,6 +4148,9 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 
 	ext4_free_blocks(handle, inode, NULL, block_to_free, count, flags);
 	return 0;
+out_err:
+	ext4_std_error(inode->i_sb, err);
+	return err;
 }
 
 /**
@@ -4182,7 +4184,7 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 	ext4_fsblk_t nr;		    /* Current block # */
 	__le32 *p;			    /* Pointer into inode/ind
 					       for current block */
-	int err;
+	int err = 0;
 
 	if (this_bh) {				/* For indirect block */
 		BUFFER_TRACE(this_bh, "get_write_access");
@@ -4204,9 +4206,10 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 			} else if (nr == block_to_free + count) {
 				count++;
 			} else {
-				if (ext4_clear_blocks(handle, inode, this_bh,
-						      block_to_free, count,
-						      block_to_free_p, p))
+				err = ext4_clear_blocks(handle, inode, this_bh,
+						        block_to_free, count,
+						        block_to_free_p, p);
+				if (err)
 					break;
 				block_to_free = nr;
 				block_to_free_p = p;
@@ -4215,9 +4218,12 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 		}
 	}
 
-	if (count > 0)
-		ext4_clear_blocks(handle, inode, this_bh, block_to_free,
-				  count, block_to_free_p, p);
+	if (!err && count > 0)
+		err = ext4_clear_blocks(handle, inode, this_bh, block_to_free,
+					count, block_to_free_p, p);
+	if (err < 0)
+		/* fatal error */
+		return;
 
 	if (this_bh) {
 		BUFFER_TRACE(this_bh, "call ext4_handle_dirty_metadata");
