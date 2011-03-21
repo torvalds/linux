@@ -29,10 +29,6 @@ static struct kmem_cache *srb_cachep;
 /*
  * Module parameter information and variables
  */
-int ql4xdiscoverywait = 60;
-module_param(ql4xdiscoverywait, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ql4xdiscoverywait, "Discovery wait time");
-
 int ql4xdontresethba = 0;
 module_param(ql4xdontresethba, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xdontresethba,

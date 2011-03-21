@@ -407,9 +407,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	/*memcpy(ha->alias, init_fw_cb->Alias,
 	       min(sizeof(ha->alias), sizeof(init_fw_cb->Alias)));*/
 
-	/* Save Command Line Paramater info */
-	ha->discovery_wait = ql4xdiscoverywait;
-
 	if (ha->acb_version == ACB_SUPPORTED) {
 		ha->ipv6_options = init_fw_cb->ipv6_opts;
 		ha->ipv6_addl_options = init_fw_cb->ipv6_addtl_opts;

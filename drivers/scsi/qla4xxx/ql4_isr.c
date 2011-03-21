@@ -1008,34 +1008,9 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 					      mbox_sts[0], mbox_sts[2],
 					      mbox_sts[3]));
 				break;
-			} else if (process_aen == RELOGIN_DDB_CHANGED_AENS) {
-				/* for use during init time, we only want to
-				 * relogin non-active ddbs */
-				struct ddb_entry *ddb_entry;
-
-				ddb_entry =
-					/* FIXME: name length? */
-					qla4xxx_lookup_ddb_by_fw_index(ha,
-								       mbox_sts[2]);
-				if (!ddb_entry)
-					break;
-
-				ddb_entry->dev_scan_wait_to_complete_relogin =
-					0;
-				ddb_entry->dev_scan_wait_to_start_relogin =
-					jiffies +
-					((ddb_entry->default_time2wait +
-					  4) * HZ);
-
-				DEBUG2(printk("scsi%ld: ddb [%d] initiate"
-					      " RELOGIN after %d seconds\n",
-					      ha->host_no,
-					      ddb_entry->fw_ddb_index,
-					      ddb_entry->default_time2wait +
-					      4));
-				break;
 			}
-
+		case PROCESS_ALL_AENS:
+		default:
 			if (mbox_sts[1] == 0) {	/* Global DB change. */
 				qla4xxx_reinitialize_ddb_list(ha);
 			} else if (mbox_sts[1] == 1) {	/* Specific device. */

@@ -233,9 +233,6 @@ struct ddb_entry {
 
 	unsigned long flags;	/* DDB Flags */
 
-	unsigned long dev_scan_wait_to_start_relogin;
-	unsigned long dev_scan_wait_to_complete_relogin;
-
 	uint16_t fw_ddb_index;	/* DDB firmware index */
 	uint16_t options;
 	uint32_t fw_ddb_device_state; /* F/W Device State  -- see ql4_fw.h */
@@ -479,7 +476,6 @@ struct scsi_qla_host {
 	uint32_t timer_active;
 
 	/* Recovery Timers */
-	uint32_t discovery_wait;
 	atomic_t check_relogin_timeouts;
 	uint32_t retry_reset_ha_cnt;
 	uint32_t isp_reset_timer;	/* reset test timer */
@@ -765,6 +761,5 @@ static inline void ql4xxx_unlock_drvr(struct scsi_qla_host *a)
 /* Defines for process_aen() */
 #define PROCESS_ALL_AENS	 0
 #define FLUSH_DDB_CHANGED_AENS	 1
-#define RELOGIN_DDB_CHANGED_AENS 2
 
 #endif	/*_QLA4XXX_H */
