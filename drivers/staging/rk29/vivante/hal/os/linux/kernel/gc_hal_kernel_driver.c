@@ -527,7 +527,6 @@ static int drv_init(void)
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
     struct clk * clk_gpu = NULL;
     struct clk * clk_aclk_gpu = NULL;
-    struct clk * clk_hclk_gpu = NULL;
 #endif
 
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
@@ -535,12 +534,7 @@ static int drv_init(void)
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 
-    printk("%s : gpu clk_enable... ", __func__);
-    // clk_gpu_ahb
-    clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
-    if(!IS_ERR(clk_hclk_gpu))    clk_enable(clk_hclk_gpu);
-
-    // clk_aclk_gpu
+    // set clk_aclk_gpu rate but no enable
     clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
     if (IS_ERR(clk_aclk_gpu))
     {
@@ -554,11 +548,8 @@ static int drv_init(void)
     	    	      "[galcore] Can't set aclk_gpu clock.");
         return -EAGAIN;
     }
-    clk_enable(clk_aclk_gpu);    
 
-    clk_enable(clk_get(NULL, "aclk_ddr_gpu"));
-
-    // clk_gpu
+    // set clk_gpu rate but no enable
     clk_gpu = clk_get(NULL, "gpu");
     if (IS_ERR(clk_gpu))
     {
@@ -566,7 +557,6 @@ static int drv_init(void)
         printk("clk_gpu get error: %d\n", retval);
         return -ENODEV;
     }
-
     clk_set_rate(clk_get(NULL, "codec_pll"), coreClock);
     /* APMU_GC_156M, APMU_GC_624M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently */
     if (clk_set_rate(clk_gpu, coreClock))  //designed on 500M
@@ -575,31 +565,9 @@ static int drv_init(void)
     	    	      "[galcore] Can't set core clock.");
         return -EAGAIN;
     }
-    clk_enable(clk_gpu);
-    printk("done!\n");
-
+    
     // enable ram clock gate
     writel(readl(RK29_GRF_BASE+0xc0) & ~0x100000, RK29_GRF_BASE+0xc0);
-    
-#if 0
-    // power on gpu
-    printk("%s : gpu power on... ", __func__);
-    clk_disable(clk_get(NULL, "aclk_ddr_gpu"));
-    udelay(10);
-    pmu_set_power_domain(PD_GPU, true);
-    udelay(10);
-    clk_enable(clk_get(NULL, "aclk_ddr_gpu"));
-    printk("done!\n");
-#endif
-
-    printk("%s : gpu clk_disable...  ", __func__);
-    mdelay(1);
-    clk_disable(clk_gpu);
-    clk_disable(clk_aclk_gpu);
-    clk_disable(clk_get(NULL, "aclk_ddr_gpu"));
-    clk_disable(clk_hclk_gpu);
-    mdelay(1);
-    printk("done!\n");
 
 #endif
 
@@ -743,11 +711,6 @@ static void drv_exit(void)
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 
-    printk("%s : gpu power off... ", __func__);
-    pmu_set_power_domain(PD_GPU, false);
-    printk("done!\n");
-    msleep(10);
-    
     printk("%s : gpu clk_disable... ", __func__);
     clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
     if(!IS_ERR(clk_hclk_gpu))    clk_disable(clk_hclk_gpu);
@@ -760,6 +723,15 @@ static void drv_exit(void)
     clk_gpu = clk_get(NULL, "gpu");
     if(!IS_ERR(clk_gpu))    clk_disable(clk_gpu);
     printk("done!\n");
+    msleep(10);
+
+    printk("%s : gpu power off... ", __func__);
+    pmu_set_power_domain(PD_GPU, false);
+    printk("done!\n");
+    msleep(10);
+
+    // disable ram clock gate
+    writel(readl(RK29_GRF_BASE+0xc0) | 0x100000, RK29_GRF_BASE+0xc0);
     msleep(10);
 
 #endif

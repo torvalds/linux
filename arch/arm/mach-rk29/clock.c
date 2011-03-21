@@ -2289,7 +2289,7 @@ static int __init clk_disable_unused(void)
 
 	pmu_set_power_domain(PD_VCODEC, false);
 //	pmu_set_power_domain(PD_DISPLAY, false);
-	pmu_set_power_domain(PD_GPU, false);
+//	pmu_set_power_domain(PD_GPU, false);
 
 	return 0;
 }
