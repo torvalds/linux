@@ -32,6 +32,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
+#include <linux/pci-aspm.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
@@ -591,12 +592,16 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 
 		status = acpi_pci_osc_control_set(device->handle, &flags,
 					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-		if (ACPI_SUCCESS(status))
+		if (ACPI_SUCCESS(status)) {
 			dev_info(root->bus->bridge,
 				"ACPI _OSC control (0x%02x) granted\n", flags);
-		else
+		} else {
 			dev_dbg(root->bus->bridge,
 				"ACPI _OSC request failed (code %d)\n", status);
+			printk(KERN_INFO "Unable to assume _OSC PCIe control. "
+				"Disabling ASPM\n");
+			pcie_no_aspm();
+		}
 	}
 
 	pci_acpi_add_bus_pm_notifier(device, root->bus);
