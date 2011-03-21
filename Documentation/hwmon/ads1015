@@ -1,0 +1,67 @@
+Kernel driver ads1015
+=====================
+
+Supported chips:
+  * Texas Instruments ADS1015
+    Prefix: 'ads1015'
+    Datasheet: Publicly available at the Texas Instruments website :
+               http://focus.ti.com/lit/ds/symlink/ads1015.pdf
+
+Authors:
+        Dirk Eibach, Guntermann & Drunck GmbH <eibach@gdsys.de>
+
+Description
+-----------
+
+This driver implements support for the Texas Instruments ADS1015.
+
+This device is a 12-bit A-D converter with 4 inputs.
+
+The inputs can be used single ended or in certain differential combinations.
+
+The inputs can be exported to 8 sysfs input files in0_input - in7_input:
+in0: Voltage over AIN0 and AIN1.
+in1: Voltage over AIN0 and AIN3.
+in2: Voltage over AIN1 and AIN3.
+in3: Voltage over AIN2 and AIN3.
+in4: Voltage over AIN0 and GND.
+in5: Voltage over AIN1 and GND.
+in6: Voltage over AIN2 and GND.
+in7: Voltage over AIN3 and GND.
+
+Which inputs are exported can be configured using platform data or devicetree.
+
+By default all inputs are exported.
+
+Platform Data
+-------------
+
+In linux/i2c/ads1015.h platform data is defined as:
+
+struct ads1015_platform_data {
+	unsigned int exported_channels;
+};
+
+exported_channels is a bitmask that specifies which inputs should be exported.
+
+Example:
+struct ads1015_platform_data data = {
+	.exported_channels = (1 << 2) | (1 << 4)
+};
+
+In this case only in2_input and in4_input would be created.
+
+Devicetree
+----------
+
+The ads1015 node may have an "exported-channels" property.
+exported_channels is a bitmask that specifies which inputs should be exported.
+
+Example:
+ads1015@49 {
+	compatible = "ti,ads1015";
+	reg = <0x49>;
+	exported-channels = < 0x14 >;
+};
+
+In this case only in2_input and in4_input would be created.
