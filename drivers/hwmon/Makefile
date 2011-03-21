@@ -5,8 +5,12 @@
 obj-$(CONFIG_HWMON)		+= hwmon.o
 obj-$(CONFIG_HWMON_VID)		+= hwmon-vid.o
 
+# Helper drivers
+obj-$(CONFIG_SENSORS_LIS3LV02D) += lis3lv02d.o
+
 # APCI drivers
 obj-$(CONFIG_SENSORS_ATK0110)	+= asus_atk0110.o
+obj-$(CONFIG_HP_ACCEL)		+= hp_accel.o
 
 # Native drivers
 # asb100, then w83781d go first, as they can override other drivers' addresses.
@@ -63,9 +67,8 @@ obj-$(CONFIG_SENSORS_JZ4740)	+= jz4740-hwmon.o
 obj-$(CONFIG_SENSORS_K8TEMP)	+= k8temp.o
 obj-$(CONFIG_SENSORS_K10TEMP)	+= k10temp.o
 obj-$(CONFIG_SENSORS_LINEAGE)	+= lineage-pem.o
-obj-$(CONFIG_SENSORS_LIS3LV02D) += lis3lv02d.o hp_accel.o
-obj-$(CONFIG_SENSORS_LIS3_SPI)	+= lis3lv02d.o lis3lv02d_spi.o
-obj-$(CONFIG_SENSORS_LIS3_I2C)	+= lis3lv02d.o lis3lv02d_i2c.o
+obj-$(CONFIG_SENSORS_LIS3_SPI)	+= lis3lv02d_spi.o
+obj-$(CONFIG_SENSORS_LIS3_I2C)	+= lis3lv02d_i2c.o
 obj-$(CONFIG_SENSORS_LM63)	+= lm63.o
 obj-$(CONFIG_SENSORS_LM70)	+= lm70.o
 obj-$(CONFIG_SENSORS_LM73)	+= lm73.o

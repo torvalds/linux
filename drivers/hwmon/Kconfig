@@ -2,6 +2,12 @@
 # Hardware monitoring chip drivers configuration
 #
 
+config SENSORS_LIS3LV02D
+	tristate
+	depends on INPUT
+	select INPUT_POLLDEV
+	default n
+
 menuconfig HWMON
 	tristate "Hardware Monitoring support"
 	depends on HAS_IOMEM
@@ -1218,7 +1224,7 @@ config SENSORS_ULTRA45
 config SENSORS_LIS3_SPI
 	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
 	depends on !ACPI && SPI_MASTER && INPUT
-	select INPUT_POLLDEV
+	select SENSORS_LIS3LV02D
 	default n
 	help
 	  This driver provides support for the LIS3LV02Dx accelerometer connected
@@ -1235,7 +1241,7 @@ config SENSORS_LIS3_SPI
 config SENSORS_LIS3_I2C
 	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (I2C)"
 	depends on I2C && INPUT
-	select INPUT_POLLDEV
+	select SENSORS_LIS3LV02D
 	default n
 	help
 	  This driver provides support for the LIS3LV02Dx accelerometer connected
@@ -1296,35 +1302,24 @@ config SENSORS_ATK0110
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_atk0110.
 
-config SENSORS_LIS3LV02D
-	tristate "STMicroeletronics LIS3* three-axis digital accelerometer"
+config HP_ACCEL
+	tristate "HP laptop accelerometer"
 	depends on INPUT
-	select INPUT_POLLDEV
+	select SENSORS_LIS3LV02D
 	select NEW_LEDS
 	select LEDS_CLASS
 	default n
 	help
-	  This driver provides support for the LIS3* accelerometers, such as the
-	  LIS3LV02DL or the LIS331DL. In particular, it can be found in a number
-	  of HP laptops, which have the "Mobile Data Protection System 3D" or
-	  "3D DriveGuard" feature. On such systems the driver should load
-	  automatically (via ACPI alias). The accelerometer might also be found
-	  in other systems, connected via SPI or I2C. The accelerometer data is
-	  readable via /sys/devices/platform/lis3lv02d.
+	  This driver provides support for the "Mobile Data Protection System 3D"
+	  or "3D DriveGuard" feature of HP laptops. On such systems the driver
+	  should load automatically (via ACPI alias).
 
-	  This driver also provides an absolute input class device, allowing
-	  a laptop to act as a pinball machine-esque joystick. It provides also
-	  a misc device which can be used to detect free-fall. On HP laptops,
-	  if the led infrastructure is activated, support for a led indicating
-	  disk protection will be provided as hp::hddprotect. For more
-	  information on the feature, refer to Documentation/hwmon/lis3lv02d.
+	  Support for a led indicating disk protection will be provided as
+	  hp::hddprotect. For more information on the feature, refer to
+	  Documentation/hwmon/lis3lv02d.
 
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for HP laptops will be
-	  called hp_accel.
-
-	  Say Y here if you have an applicable laptop and want to experience
-	  the awesome power of lis3lv02d.
+	  To compile this driver as a module, choose M here: the module will
+	  be called hp_accel.
 
 endif # ACPI
 
