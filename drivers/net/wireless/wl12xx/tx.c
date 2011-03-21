@@ -235,9 +235,6 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 			   TX_HW_ATTR_SESSION_COUNTER;
 
 		tx_attr |= TX_HW_ATTR_TX_DUMMY_REQ;
-
-		/* Dummy packets require the TID to be management */
-		desc->tid = WL1271_TID_MGMT;
 	} else {
 		/* configure the tx attributes */
 		tx_attr =

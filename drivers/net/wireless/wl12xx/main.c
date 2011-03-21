@@ -1243,6 +1243,8 @@ int wl1271_tx_dummy_packet(struct wl1271 *wl)
 	memset(skb->data, 0, TX_DUMMY_PACKET_SIZE);
 
 	skb->pkt_type = TX_PKT_TYPE_DUMMY_REQ;
+	/* Dummy packets require the TID to be management */
+	skb->priority = WL1271_TID_MGMT;
 	/* CONF_TX_AC_VO */
 	skb->queue_mapping = 0;
 
