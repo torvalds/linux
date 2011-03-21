@@ -635,6 +635,16 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	(*packet_size) = 0;
+	rc = ecryptfs_find_auth_tok_for_sig(
+		&auth_tok_key,
+		&s->auth_tok, mount_crypt_stat,
+		mount_crypt_stat->global_default_fnek_sig);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to find auth tok for "
+		       "fnek sig [%s]; rc = [%d]\n", __func__,
+		       mount_crypt_stat->global_default_fnek_sig, rc);
+		goto out;
+	}
 	rc = ecryptfs_get_tfm_and_mutex_for_cipher_name(
 		&s->desc.tfm,
 		&s->tfm_mutex, mount_crypt_stat->global_default_fn_cipher_name);
@@ -720,16 +730,6 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		goto out_free_unlock;
 	}
 	dest[s->i++] = s->cipher_code;
-	rc = ecryptfs_find_auth_tok_for_sig(
-		&auth_tok_key,
-		&s->auth_tok, mount_crypt_stat,
-		mount_crypt_stat->global_default_fnek_sig);
-	if (rc) {
-		printk(KERN_ERR "%s: Error attempting to find auth tok for "
-		       "fnek sig [%s]; rc = [%d]\n", __func__,
-		       mount_crypt_stat->global_default_fnek_sig, rc);
-		goto out_free_unlock;
-	}
 	/* TODO: Support other key modules than passphrase for
 	 * filename encryption */
 	if (s->auth_tok->token_type != ECRYPTFS_PASSWORD) {
@@ -983,6 +983,15 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		       __func__, s->cipher_code);
 		goto out;
 	}
+	rc = ecryptfs_find_auth_tok_for_sig(&auth_tok_key,
+					    &s->auth_tok, mount_crypt_stat,
+					    s->fnek_sig_hex);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to find auth tok for "
+		       "fnek sig [%s]; rc = [%d]\n", __func__, s->fnek_sig_hex,
+		       rc);
+		goto out;
+	}
 	rc = ecryptfs_get_tfm_and_mutex_for_cipher_name(&s->desc.tfm,
 							&s->tfm_mutex,
 							s->cipher_string);
@@ -1029,15 +1038,6 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	 * >= ECRYPTFS_MAX_IV_BYTES. */
 	memset(s->iv, 0, ECRYPTFS_MAX_IV_BYTES);
 	s->desc.info = s->iv;
-	rc = ecryptfs_find_auth_tok_for_sig(&auth_tok_key,
-					    &s->auth_tok, mount_crypt_stat,
-					    s->fnek_sig_hex);
-	if (rc) {
-		printk(KERN_ERR "%s: Error attempting to find auth tok for "
-		       "fnek sig [%s]; rc = [%d]\n", __func__, s->fnek_sig_hex,
-		       rc);
-		goto out_free_unlock;
-	}
 	/* TODO: Support other key modules than passphrase for
 	 * filename encryption */
 	if (s->auth_tok->token_type != ECRYPTFS_PASSWORD) {
