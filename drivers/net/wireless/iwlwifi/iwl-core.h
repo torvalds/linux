@@ -291,7 +291,6 @@ struct iwl_base_params {
 	bool set_l0s;
 	bool use_bsm;
 
-	bool use_isr_legacy;
 	const u16 max_ll_items;
 	const bool shadow_ram_support;
 	u16 led_compensation;

@@ -59,8 +59,6 @@ void iwl_free_isr_ict(struct iwl_priv *priv)
 int iwl_alloc_isr_ict(struct iwl_priv *priv)
 {
 
-	if (priv->cfg->base_params->use_isr_legacy)
-		return 0;
 	/* allocate shrared data table */
 	priv->_agn.ict_tbl_vir =
 		dma_alloc_coherent(&priv->pci_dev->dev,
