@@ -269,7 +269,7 @@ struct init_tbl_entry {
 	int (*handler)(struct nvbios *, uint16_t, struct init_exec *);
 };
 
-static int parse_init_table(struct nvbios *, unsigned int, struct init_exec *);
+static int parse_init_table(struct nvbios *, uint16_t, struct init_exec *);
 
 #define MACRO_INDEX_SIZE	2
 #define MACRO_SIZE		8
@@ -2011,6 +2011,27 @@ init_sub_direct(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 }
 
 static int
+init_jump(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_JUMP   opcode: 0x5C ('\')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (16 bit): offset (in bios)
+	 *
+	 * Continue execution of init table from 'offset'
+	 */
+
+	uint16_t jmp_offset = ROM16(bios->data[offset + 1]);
+
+	if (!iexec->execute)
+		return 3;
+
+	BIOSLOG(bios, "0x%04X: Jump to 0x%04X\n", offset, jmp_offset);
+	return jmp_offset - offset;
+}
+
+static int
 init_i2c_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 {
 	/*
@@ -3659,6 +3680,7 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, init_zm_reg_sequence            },
 	/* INIT_INDIRECT_REG (0x5A, 7, 0, 0) removed due to no example of use */
 	{ "INIT_SUB_DIRECT"                   , 0x5B, init_sub_direct                 },
+	{ "INIT_JUMP"                         , 0x5C, init_jump                       },
 	{ "INIT_I2C_IF"                       , 0x5E, init_i2c_if                     },
 	{ "INIT_COPY_NV_REG"                  , 0x5F, init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, init_zm_index_io                },
@@ -3700,8 +3722,7 @@ static struct init_tbl_entry itbl_entry[] = {
 #define MAX_TABLE_OPS 1000
 
 static int
-parse_init_table(struct nvbios *bios, unsigned int offset,
-		 struct init_exec *iexec)
+parse_init_table(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 {
 	/*
 	 * Parses all commands in an init table.
