@@ -378,7 +378,6 @@ struct ecryptfs_mount_crypt_stat {
 	u32 flags;
 	struct list_head global_auth_tok_list;
 	struct mutex global_auth_tok_list_mutex;
-	size_t num_global_auth_toks;
 	size_t global_default_cipher_key_size;
 	size_t global_default_fn_cipher_key_bytes;
 	unsigned char global_default_cipher_name[ECRYPTFS_MAX_CIPHER_NAME_SIZE

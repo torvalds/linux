@@ -2454,7 +2454,6 @@ ecryptfs_add_global_auth_tok(struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
 	list_add(&new_auth_tok->mount_crypt_stat_list,
 		 &mount_crypt_stat->global_auth_tok_list);
-	mount_crypt_stat->num_global_auth_toks++;
 	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
 out:
 	return rc;

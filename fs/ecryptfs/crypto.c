@@ -266,7 +266,6 @@ void ecryptfs_destroy_mount_crypt_stat(
 				 &mount_crypt_stat->global_auth_tok_list,
 				 mount_crypt_stat_list) {
 		list_del(&auth_tok->mount_crypt_stat_list);
-		mount_crypt_stat->num_global_auth_toks--;
 		if (auth_tok->global_auth_tok_key
 		    && !(auth_tok->flags & ECRYPTFS_AUTH_TOK_INVALID))
 			key_put(auth_tok->global_auth_tok_key);
