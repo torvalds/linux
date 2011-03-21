@@ -15,6 +15,7 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 #include "vp702x.h"
+#include <linux/mutex.h>
 
 /* debug */
 int dvb_usb_vp702x_debug;
@@ -27,10 +28,6 @@ struct vp702x_adapter_state {
 	int pid_filter_count;
 	int pid_filter_can_bypass;
 	u8  pid_filter_state;
-};
-
-struct vp702x_device_state {
-	u8 power_state;
 };
 
 /* check for mutex FIXME */
@@ -241,8 +238,38 @@ static struct dvb_usb_device_properties vp702x_properties;
 static int vp702x_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf, &vp702x_properties,
-				   THIS_MODULE, NULL, adapter_nr);
+	struct dvb_usb_device *d;
+	struct vp702x_device_state *st;
+	int ret;
+
+	ret = dvb_usb_device_init(intf, &vp702x_properties,
+				   THIS_MODULE, &d, adapter_nr);
+	if (ret)
+		goto out;
+
+	st = d->priv;
+	st->buf_len = 16;
+	st->buf = kmalloc(st->buf_len, GFP_KERNEL);
+	if (!st->buf) {
+		ret = -ENOMEM;
+		dvb_usb_device_exit(intf);
+		goto out;
+	}
+	mutex_init(&st->buf_mutex);
+
+out:
+	return ret;
+
+}
+
+static void vp702x_usb_disconnect(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	struct vp702x_device_state *st = d->priv;
+	mutex_lock(&st->buf_mutex);
+	kfree(st->buf);
+	mutex_unlock(&st->buf_mutex);
+	dvb_usb_device_exit(intf);
 }
 
 static struct usb_device_id vp702x_usb_table [] = {
@@ -309,7 +336,7 @@ static struct dvb_usb_device_properties vp702x_properties = {
 static struct usb_driver vp702x_usb_driver = {
 	.name		= "dvb_usb_vp702x",
 	.probe		= vp702x_usb_probe,
-	.disconnect	= dvb_usb_device_exit,
+	.disconnect	= vp702x_usb_disconnect,
 	.id_table	= vp702x_usb_table,
 };
 
