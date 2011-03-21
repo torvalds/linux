@@ -738,12 +738,11 @@ struct pll_config {
 	u8 rshift;
 };
 
-struct pll_map {
-	u32 clk;
-	struct pll_config cle266_pll;
-	struct pll_config k800_pll;
-	struct pll_config cx700_pll;
-	struct pll_config vx855_pll;
+struct pll_limit {
+	u16 multiplier_min;
+	u16 multiplier_max;
+	u8 divisor;
+	u8 rshift;
 };
 
 struct rgbLUT {
