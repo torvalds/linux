@@ -86,10 +86,15 @@ static struct voltagedomain omap4_voltdm_core = {
 	.vdd = &omap4_vdd_core_info,
 };
 
+static struct voltagedomain omap4_voltdm_wkup = {
+	.name = "wakeup",
+};
+
 static struct voltagedomain *voltagedomains_omap4[] __initdata = {
 	&omap4_voltdm_mpu,
 	&omap4_voltdm_iva,
 	&omap4_voltdm_core,
+	&omap4_voltdm_wkup,
 	NULL,
 };
 

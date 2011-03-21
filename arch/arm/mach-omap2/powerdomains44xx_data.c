@@ -33,6 +33,7 @@
 /* core_44xx_pwrdm: CORE power domain */
 static struct powerdomain core_44xx_pwrdm = {
 	.name		  = "core_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_CORE_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_RET_ON,
@@ -58,6 +59,7 @@ static struct powerdomain core_44xx_pwrdm = {
 /* gfx_44xx_pwrdm: 3D accelerator power domain */
 static struct powerdomain gfx_44xx_pwrdm = {
 	.name		  = "gfx_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_GFX_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_ON,
@@ -74,6 +76,7 @@ static struct powerdomain gfx_44xx_pwrdm = {
 /* abe_44xx_pwrdm: Audio back end power domain */
 static struct powerdomain abe_44xx_pwrdm = {
 	.name		  = "abe_pwrdm",
+	.voltdm		  = { .name = "iva" },
 	.prcm_offs	  = OMAP4430_PRM_ABE_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -93,6 +96,7 @@ static struct powerdomain abe_44xx_pwrdm = {
 /* dss_44xx_pwrdm: Display subsystem power domain */
 static struct powerdomain dss_44xx_pwrdm = {
 	.name		  = "dss_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_DSS_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -110,6 +114,7 @@ static struct powerdomain dss_44xx_pwrdm = {
 /* tesla_44xx_pwrdm: Tesla processor power domain */
 static struct powerdomain tesla_44xx_pwrdm = {
 	.name		  = "tesla_pwrdm",
+	.voltdm		  = { .name = "iva" },
 	.prcm_offs	  = OMAP4430_PRM_TESLA_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -131,6 +136,7 @@ static struct powerdomain tesla_44xx_pwrdm = {
 /* wkup_44xx_pwrdm: Wake-up power domain */
 static struct powerdomain wkup_44xx_pwrdm = {
 	.name		  = "wkup_pwrdm",
+	.voltdm		  = { .name = "wakeup" },
 	.prcm_offs	  = OMAP4430_PRM_WKUP_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_ON,
@@ -146,6 +152,7 @@ static struct powerdomain wkup_44xx_pwrdm = {
 /* cpu0_44xx_pwrdm: MPU0 processor and Neon coprocessor power domain */
 static struct powerdomain cpu0_44xx_pwrdm = {
 	.name		  = "cpu0_pwrdm",
+	.voltdm		  = { .name = "mpu" },
 	.prcm_offs	  = OMAP4430_PRCM_MPU_CPU0_INST,
 	.prcm_partition	  = OMAP4430_PRCM_MPU_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -162,6 +169,7 @@ static struct powerdomain cpu0_44xx_pwrdm = {
 /* cpu1_44xx_pwrdm: MPU1 processor and Neon coprocessor power domain */
 static struct powerdomain cpu1_44xx_pwrdm = {
 	.name		  = "cpu1_pwrdm",
+	.voltdm		  = { .name = "mpu" },
 	.prcm_offs	  = OMAP4430_PRCM_MPU_CPU1_INST,
 	.prcm_partition	  = OMAP4430_PRCM_MPU_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -178,6 +186,7 @@ static struct powerdomain cpu1_44xx_pwrdm = {
 /* emu_44xx_pwrdm: Emulation power domain */
 static struct powerdomain emu_44xx_pwrdm = {
 	.name		  = "emu_pwrdm",
+	.voltdm		  = { .name = "wakeup" },
 	.prcm_offs	  = OMAP4430_PRM_EMU_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_ON,
@@ -193,6 +202,7 @@ static struct powerdomain emu_44xx_pwrdm = {
 /* mpu_44xx_pwrdm: Modena processor and the Neon coprocessor power domain */
 static struct powerdomain mpu_44xx_pwrdm = {
 	.name		  = "mpu_pwrdm",
+	.voltdm		  = { .name = "mpu" },
 	.prcm_offs	  = OMAP4430_PRM_MPU_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_RET_ON,
@@ -213,6 +223,7 @@ static struct powerdomain mpu_44xx_pwrdm = {
 /* ivahd_44xx_pwrdm: IVA-HD power domain */
 static struct powerdomain ivahd_44xx_pwrdm = {
 	.name		  = "ivahd_pwrdm",
+	.voltdm		  = { .name = "iva" },
 	.prcm_offs	  = OMAP4430_PRM_IVAHD_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -236,6 +247,7 @@ static struct powerdomain ivahd_44xx_pwrdm = {
 /* cam_44xx_pwrdm: Camera subsystem power domain */
 static struct powerdomain cam_44xx_pwrdm = {
 	.name		  = "cam_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_CAM_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_ON,
@@ -252,6 +264,7 @@ static struct powerdomain cam_44xx_pwrdm = {
 /* l3init_44xx_pwrdm: L3 initators pheripherals power domain  */
 static struct powerdomain l3init_44xx_pwrdm = {
 	.name		  = "l3init_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_L3INIT_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_RET_ON,
@@ -269,6 +282,7 @@ static struct powerdomain l3init_44xx_pwrdm = {
 /* l4per_44xx_pwrdm: Target peripherals power domain */
 static struct powerdomain l4per_44xx_pwrdm = {
 	.name		  = "l4per_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_L4PER_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_RET_ON,
@@ -291,6 +305,7 @@ static struct powerdomain l4per_44xx_pwrdm = {
  */
 static struct powerdomain always_on_core_44xx_pwrdm = {
 	.name		  = "always_on_core_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_ALWAYS_ON_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_ON,
@@ -299,6 +314,7 @@ static struct powerdomain always_on_core_44xx_pwrdm = {
 /* cefuse_44xx_pwrdm: Customer efuse controller power domain */
 static struct powerdomain cefuse_44xx_pwrdm = {
 	.name		  = "cefuse_pwrdm",
+	.voltdm		  = { .name = "core" },
 	.prcm_offs	  = OMAP4430_PRM_CEFUSE_INST,
 	.prcm_partition	  = OMAP4430_PRM_PARTITION,
 	.pwrsts		  = PWRSTS_OFF_ON,
