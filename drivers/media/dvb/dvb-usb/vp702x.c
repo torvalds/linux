@@ -23,7 +23,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DV
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-struct vp702x_state {
+struct vp702x_adapter_state {
 	int pid_filter_count;
 	int pid_filter_can_bypass;
 	u8  pid_filter_state;
@@ -126,7 +126,7 @@ static int vp702x_set_pld_state(struct dvb_usb_adapter *adap, u8 state)
 
 static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int onoff)
 {
-	struct vp702x_state *st = adap->priv;
+	struct vp702x_adapter_state *st = adap->priv;
 	u8 buf[16] = { 0 };
 
 	if (onoff)
@@ -147,7 +147,7 @@ static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int onof
 
 static int vp702x_init_pid_filter(struct dvb_usb_adapter *adap)
 {
-	struct vp702x_state *st = adap->priv;
+	struct vp702x_adapter_state *st = adap->priv;
 	int i;
 	u8 b[10] = { 0 };
 
@@ -279,7 +279,7 @@ static struct dvb_usb_device_properties vp702x_properties = {
 					}
 				}
 			},
-			.size_of_priv     = sizeof(struct vp702x_state),
+			.size_of_priv     = sizeof(struct vp702x_adapter_state),
 		}
 	},
 	.read_mac_address = vp702x_read_mac_addr,
