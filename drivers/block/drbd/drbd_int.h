@@ -1113,7 +1113,7 @@ extern int _conn_send_state_req(struct drbd_tconn *, int vnr, enum drbd_packet c
 				union drbd_state, union drbd_state);
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
-extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct socket *sock,
+extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
 			  enum drbd_packet cmd, struct p_header *h, size_t size,
 			  unsigned msg_flags);
 extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
@@ -1860,7 +1860,7 @@ static inline void request_ping(struct drbd_tconn *tconn)
 	wake_asender(tconn);
 }
 
-static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
+static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct drbd_socket *sock,
 				  enum drbd_packet cmd, struct p_header *h, size_t size,
 				  unsigned msg_flags)
 {
