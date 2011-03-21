@@ -93,38 +93,61 @@ int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int il
 static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 				int olen, u8 *i, int ilen, int msec)
 {
-	u8 bout[olen+2];
-	u8 bin[ilen+1];
 	int ret = 0;
+	u8 *buf;
+	int buflen = max(olen + 2, ilen + 1);
 
-	bout[0] = 0x00;
-	bout[1] = cmd;
-	memcpy(&bout[2],o,olen);
+	buf = kmalloc(buflen, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
-	ret = vp702x_usb_inout_op(d, bout, olen+2, bin, ilen+1,msec);
+	buf[0] = 0x00;
+	buf[1] = cmd;
+	memcpy(&buf[2], o, olen);
+
+	ret = vp702x_usb_inout_op(d, buf, olen+2, buf, ilen+1, msec);
 
 	if (ret == 0)
-		memcpy(i,&bin[1],ilen);
+		memcpy(i, &buf[1], ilen);
 
+	kfree(buf);
 	return ret;
 }
 
 static int vp702x_set_pld_mode(struct dvb_usb_adapter *adap, u8 bypass)
 {
-	u8 buf[16] = { 0 };
-	return vp702x_usb_in_op(adap->dev, 0xe0, (bypass << 8) | 0x0e, 0, buf, 16);
+	int ret;
+	u8 *buf = kzalloc(16, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = vp702x_usb_in_op(adap->dev, 0xe0, (bypass << 8) | 0x0e,
+			0, buf, 16);
+	kfree(buf);
+	return ret;
 }
 
 static int vp702x_set_pld_state(struct dvb_usb_adapter *adap, u8 state)
 {
-	u8 buf[16] = { 0 };
-	return vp702x_usb_in_op(adap->dev, 0xe0, (state << 8) | 0x0f, 0, buf, 16);
+	int ret;
+	u8 *buf = kzalloc(16, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = vp702x_usb_in_op(adap->dev, 0xe0, (state << 8) | 0x0f,
+			0, buf, 16);
+	kfree(buf);
+	return ret;
 }
 
 static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int onoff)
 {
 	struct vp702x_adapter_state *st = adap->priv;
-	u8 buf[16] = { 0 };
+	u8 *buf;
+
+	buf = kzalloc(16, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	if (onoff)
 		st->pid_filter_state |=  (1 << id);
@@ -138,6 +161,8 @@ static int vp702x_set_pid(struct dvb_usb_adapter *adap, u16 pid, u8 id, int onof
 	vp702x_set_pld_state(adap, st->pid_filter_state);
 	vp702x_usb_in_op(adap->dev, 0xe0, (((pid >> 8) & 0xff) << 8) | (id), 0, buf, 16);
 	vp702x_usb_in_op(adap->dev, 0xe0, (((pid     ) & 0xff) << 8) | (id+1), 0, buf, 16);
+
+	kfree(buf);
 	return 0;
 }
 
@@ -146,13 +171,17 @@ static int vp702x_init_pid_filter(struct dvb_usb_adapter *adap)
 {
 	struct vp702x_adapter_state *st = adap->priv;
 	int i;
-	u8 b[10] = { 0 };
+	u8 *b;
+
+	b = kzalloc(10, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
 
 	st->pid_filter_count = 8;
 	st->pid_filter_can_bypass = 1;
 	st->pid_filter_state = 0x00;
 
-	vp702x_set_pld_mode(adap, 1); // bypass
+	vp702x_set_pld_mode(adap, 1); /* bypass */
 
 	for (i = 0; i < st->pid_filter_count; i++)
 		vp702x_set_pid(adap, 0xffff, i, 1);
@@ -162,6 +191,7 @@ static int vp702x_init_pid_filter(struct dvb_usb_adapter *adap)
 	vp702x_usb_in_op(adap->dev, 0xb5, 1, 0, b, 10);
 
 	//vp702x_set_pld_mode(d, 0); // filter
+	kfree(b);
 	return 0;
 }
 
@@ -179,11 +209,15 @@ static struct rc_map_table rc_map_vp702x_table[] = {
 /* remote control stuff (does not work with my box) */
 static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[10];
+	u8 *key;
 	int i;
 
 /* remove the following return to enabled remote querying */
 	return 0;
+
+	key = kmalloc(10, GFP_KERNEL);
+	if (!key)
+		return -ENOMEM;
 
 	vp702x_usb_in_op(d,READ_REMOTE_REQ,0,0,key,10);
 
@@ -191,6 +225,7 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	if (key[1] == 0x44) {
 		*state = REMOTE_NO_KEY_PRESSED;
+		kfree(key);
 		return 0;
 	}
 
@@ -200,15 +235,24 @@ static int vp702x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			*event = rc_map_vp702x_table[i].keycode;
 			break;
 		}
+	kfree(key);
 	return 0;
 }
 
 
 static int vp702x_read_mac_addr(struct dvb_usb_device *d,u8 mac[6])
 {
-	u8 i;
+	u8 i, *buf;
+
+	buf = kmalloc(6, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
 	for (i = 6; i < 12; i++)
-		vp702x_usb_in_op(d, READ_EEPROM_REQ, i, 1, &mac[i - 6], 1);
+		vp702x_usb_in_op(d, READ_EEPROM_REQ, i, 1, &buf[i - 6], 1);
+
+	memcpy(mac, buf, 6);
+	kfree(buf);
 	return 0;
 }
 
