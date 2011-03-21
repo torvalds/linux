@@ -469,7 +469,7 @@ static int adis16400_initial_setup(struct adis16400_state *st)
 	if (ret)
 		goto err_ret;
 
-	if (prod_id != ADIS16400_PRODUCT_ID_DEFAULT)
+	if ((prod_id & 0xF000) != ADIS16400_PRODUCT_ID_DEFAULT)
 		dev_warn(dev, "unknown product id");
 
 	printk(KERN_INFO DRIVER_NAME ": prod_id 0x%04x at CS%d (irq %d)\n",
