@@ -134,13 +134,17 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct m920x_state *m = d->priv;
 	int i, ret = 0;
-	u8 rc_state[2];
+	u8 *rc_state;
+
+	rc_state = kmalloc(2, GFP_KERNEL);
+	if (!rc_state)
+		return -ENOMEM;
 
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_STATE, rc_state, 1)) != 0)
-		goto unlock;
+		goto out;
 
 	if ((ret = m920x_read(d->udev, M9206_CORE, 0x0, M9206_RC_KEY, rc_state + 1, 1)) != 0)
-		goto unlock;
+		goto out;
 
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
 		if (rc5_data(&d->props.rc.legacy.rc_map_table[i]) == rc_state[1]) {
@@ -149,7 +153,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			switch(rc_state[0]) {
 			case 0x80:
 				*state = REMOTE_NO_KEY_PRESSED;
-				goto unlock;
+				goto out;
 
 			case 0x88: /* framing error or "invalid code" */
 			case 0x99:
@@ -157,7 +161,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			case 0xd8:
 				*state = REMOTE_NO_KEY_PRESSED;
 				m->rep_count = 0;
-				goto unlock;
+				goto out;
 
 			case 0x93:
 			case 0x92:
@@ -165,7 +169,7 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 			case 0x82:
 				m->rep_count = 0;
 				*state = REMOTE_KEY_PRESSED;
-				goto unlock;
+				goto out;
 
 			case 0x91:
 			case 0x81: /* pinnacle PCTV310e */
@@ -174,12 +178,12 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					*state = REMOTE_KEY_REPEAT;
 				else
 					*state = REMOTE_NO_KEY_PRESSED;
-				goto unlock;
+				goto out;
 
 			default:
 				deb("Unexpected rc state %02x\n", rc_state[0]);
 				*state = REMOTE_NO_KEY_PRESSED;
-				goto unlock;
+				goto out;
 			}
 		}
 
@@ -188,8 +192,8 @@ static int m920x_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	*state = REMOTE_NO_KEY_PRESSED;
 
- unlock:
-
+ out:
+	kfree(rc_state);
 	return ret;
 }
 
@@ -339,12 +343,18 @@ static int m920x_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, in
 static int m920x_firmware_download(struct usb_device *udev, const struct firmware *fw)
 {
 	u16 value, index, size;
-	u8 read[4], *buff;
+	u8 *read, *buff;
 	int i, pass, ret = 0;
 
 	buff = kmalloc(65536, GFP_KERNEL);
 	if (buff == NULL)
 		return -ENOMEM;
+
+	read = kmalloc(4, GFP_KERNEL);
+	if (!read) {
+		kfree(buff);
+		return -ENOMEM;
+	}
 
 	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
@@ -396,6 +406,7 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 	deb("firmware uploaded!\n");
 
  done:
+	kfree(read);
 	kfree(buff);
 
 	return ret;
