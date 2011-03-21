@@ -499,12 +499,12 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	return err;
 
 exit_inode:
-	/* ext4_journal_release_buffer(handle, iloc.bh); */
+	/* ext4_handle_release_buffer(handle, iloc.bh); */
 	brelse(iloc.bh);
 exit_dindj:
-	/* ext4_journal_release_buffer(handle, dind); */
+	/* ext4_handle_release_buffer(handle, dind); */
 exit_sbh:
-	/* ext4_journal_release_buffer(handle, EXT4_SB(sb)->s_sbh); */
+	/* ext4_handle_release_buffer(handle, EXT4_SB(sb)->s_sbh); */
 exit_dind:
 	brelse(dind);
 exit_bh:
@@ -586,7 +586,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			/*
 			int j;
 			for (j = 0; j < i; j++)
-				ext4_journal_release_buffer(handle, primary[j]);
+				ext4_handle_release_buffer(handle, primary[j]);
 			 */
 			goto exit_bh;
 		}
