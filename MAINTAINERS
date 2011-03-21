@@ -5769,6 +5769,13 @@ S:	Supported
 F:	Documentation/hwmon/emc2103
 F:	drivers/hwmon/emc2103.c
 
+SMSC SCH5627 HARDWARE MONITOR DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	lm-sensors@lm-sensors.org
+S:	Supported
+F:	Documentation/hwmon/sch5627
+F:	drivers/hwmon/sch5627.c
+
 SMSC47B397 HARDWARE MONITOR DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
 L:	lm-sensors@lm-sensors.org
