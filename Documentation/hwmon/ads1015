@@ -19,7 +19,7 @@ This device is a 12-bit A-D converter with 4 inputs.
 
 The inputs can be used single ended or in certain differential combinations.
 
-The inputs can be exported to 8 sysfs input files in0_input - in7_input:
+The inputs can be made available by 8 sysfs input files in0_input - in7_input:
 in0: Voltage over AIN0 and AIN1.
 in1: Voltage over AIN0 and AIN3.
 in2: Voltage over AIN1 and AIN3.
@@ -29,39 +29,44 @@ in5: Voltage over AIN1 and GND.
 in6: Voltage over AIN2 and GND.
 in7: Voltage over AIN3 and GND.
 
-Which inputs are exported can be configured using platform data or devicetree.
+Which inputs are available can be configured using platform data or devicetree.
 
 By default all inputs are exported.
 
 Platform Data
 -------------
 
-In linux/i2c/ads1015.h platform data is defined as:
-
-struct ads1015_platform_data {
-	unsigned int exported_channels;
-};
-
-exported_channels is a bitmask that specifies which inputs should be exported.
+In linux/i2c/ads1015.h platform data is defined, channel_data contains
+configuration data for the used input combinations:
+- pga is the programmable gain amplifier (values are full scale)
+  0: +/- 6.144 V
+  1: +/- 4.096 V
+  2: +/- 2.048 V
+  3: +/- 1.024 V
+  4: +/- 0.512 V
+  5: +/- 0.256 V
+- data_rate in samples per second
+  0: 128
+  1: 250
+  2: 490
+  3: 920
+  4: 1600
+  5: 2400
+  6: 3300
 
 Example:
 struct ads1015_platform_data data = {
-	.exported_channels = (1 << 2) | (1 << 4)
+	.channel_data = {
+		[2] = { .enabled = true, .pga = 1, .data_rate = 0 },
+		[4] = { .enabled = true, .pga = 4, .data_rate = 5 },
+	}
 };
 
-In this case only in2_input and in4_input would be created.
+In this case only in2_input (FS +/- 4.096 V, 128 SPS) and in4_input
+(FS +/- 0.512 V, 2400 SPS) would be created.
 
 Devicetree
 ----------
 
-The ads1015 node may have an "exported-channels" property.
-exported_channels is a bitmask that specifies which inputs should be exported.
-
-Example:
-ads1015@49 {
-	compatible = "ti,ads1015";
-	reg = <0x49>;
-	exported-channels = < 0x14 >;
-};
-
-In this case only in2_input and in4_input would be created.
+Configuration is also possible via devicetree:
+Documentation/devicetree/bindings/hwmon/ads1015.txt
