@@ -339,6 +339,7 @@ static struct platform_device wl1271_device = {
 	},
 };
 
+static DEFINE_MUTEX(wl_list_mutex);
 static LIST_HEAD(wl_list);
 
 static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
@@ -369,10 +370,12 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 		return NOTIFY_DONE;
 
 	wl_temp = hw->priv;
+	mutex_lock(&wl_list_mutex);
 	list_for_each_entry(wl, &wl_list, list) {
 		if (wl == wl_temp)
 			break;
 	}
+	mutex_unlock(&wl_list_mutex);
 	if (wl != wl_temp)
 		return NOTIFY_DONE;
 
@@ -1390,8 +1393,10 @@ power_off:
 out:
 	mutex_unlock(&wl->mutex);
 
+	mutex_lock(&wl_list_mutex);
 	if (!ret)
 		list_add(&wl->list, &wl_list);
+	mutex_unlock(&wl_list_mutex);
 
 	return ret;
 }
@@ -1404,7 +1409,9 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	wl1271_info("down");
 
+	mutex_lock(&wl_list_mutex);
 	list_del(&wl->list);
+	mutex_unlock(&wl_list_mutex);
 
 	WARN_ON(wl->state != WL1271_STATE_ON);
 
