@@ -51,6 +51,11 @@ MODULE_PARM_DESC(ql4xenablemsix,
 		" 2 = enable MSI interrupt mechanism.");
 
 #define QL4_DEF_QDEPTH 32
+static int ql4xmaxqdepth = QL4_DEF_QDEPTH;
+module_param(ql4xmaxqdepth, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ql4xmaxqdepth,
+		"Maximum queue depth to report for target devices.\n"
+		" Default: 32.");
 
 /*
  * SCSI host template entry points
@@ -1904,10 +1909,15 @@ static int qla4xxx_slave_alloc(struct scsi_device *sdev)
 {
 	struct iscsi_cls_session *sess = starget_to_session(sdev->sdev_target);
 	struct ddb_entry *ddb = sess->dd_data;
+	int queue_depth = QL4_DEF_QDEPTH;
 
 	sdev->hostdata = ddb;
 	sdev->tagged_supported = 1;
-	scsi_activate_tcq(sdev, QL4_DEF_QDEPTH);
+
+	if (ql4xmaxqdepth != 0 && ql4xmaxqdepth <= 0xffffU)
+		queue_depth = ql4xmaxqdepth;
+
+	scsi_activate_tcq(sdev, queue_depth);
 	return 0;
 }
 
