@@ -147,6 +147,16 @@ static u32 mpic_infos[][MPIC_IDX_END] = {
 
 #endif /* CONFIG_MPIC_WEIRD */
 
+static inline unsigned int mpic_processor_id(struct mpic *mpic)
+{
+	unsigned int cpu = 0;
+
+	if (mpic->flags & MPIC_PRIMARY)
+		cpu = hard_smp_processor_id();
+
+	return cpu;
+}
+
 /*
  * Register accessor functions
  */
@@ -210,19 +220,14 @@ static inline void _mpic_ipi_write(struct mpic *mpic, unsigned int ipi, u32 valu
 
 static inline u32 _mpic_cpu_read(struct mpic *mpic, unsigned int reg)
 {
-	unsigned int cpu = 0;
+	unsigned int cpu = mpic_processor_id(mpic);
 
-	if (mpic->flags & MPIC_PRIMARY)
-		cpu = hard_smp_processor_id();
 	return _mpic_read(mpic->reg_type, &mpic->cpuregs[cpu], reg);
 }
 
 static inline void _mpic_cpu_write(struct mpic *mpic, unsigned int reg, u32 value)
 {
-	unsigned int cpu = 0;
-
-	if (mpic->flags & MPIC_PRIMARY)
-		cpu = hard_smp_processor_id();
+	unsigned int cpu = mpic_processor_id(mpic);
 
 	_mpic_write(mpic->reg_type, &mpic->cpuregs[cpu], reg, value);
 }
@@ -913,6 +918,20 @@ void mpic_set_vector(unsigned int virq, unsigned int vector)
 	mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
 }
 
+void mpic_set_destination(unsigned int virq, unsigned int cpuid)
+{
+	struct mpic *mpic = mpic_from_irq(virq);
+	unsigned int src = mpic_irq_to_hw(virq);
+
+	DBG("mpic: set_destination(mpic:@%p,virq:%d,src:%d,cpuid:0x%x)\n",
+	    mpic, virq, src, cpuid);
+
+	if (src >= mpic->irq_count)
+		return;
+
+	mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION), 1 << cpuid);
+}
+
 static struct irq_chip mpic_irq_chip = {
 	.irq_mask	= mpic_mask_irq,
 	.irq_unmask	= mpic_unmask_irq,
@@ -993,6 +1012,16 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	/* Set default irq type */
 	set_irq_type(virq, IRQ_TYPE_NONE);
 
+	/* If the MPIC was reset, then all vectors have already been
+	 * initialized.  Otherwise, a per source lazy initialization
+	 * is done here.
+	 */
+	if (!mpic_is_ipi(mpic, hw) && (mpic->flags & MPIC_NO_RESET)) {
+		mpic_set_vector(virq, hw);
+		mpic_set_destination(virq, mpic_processor_id(mpic));
+		mpic_irq_set_priority(virq, 8);
+	}
+
 	return 0;
 }
 
@@ -1039,6 +1068,11 @@ static struct irq_host_ops mpic_host_ops = {
 	.map = mpic_host_map,
 	.xlate = mpic_host_xlate,
 };
+
+static int mpic_reset_prohibited(struct device_node *node)
+{
+	return node && of_get_property(node, "pic-no-reset", NULL);
+}
 
 /*
  * Exported functions
@@ -1160,7 +1194,15 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic_map(mpic, node, paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
 
 	/* Reset */
-	if (flags & MPIC_WANTS_RESET) {
+
+	/* When using a device-node, reset requests are only honored if the MPIC
+	 * is allowed to reset.
+	 */
+	if (mpic_reset_prohibited(node))
+		mpic->flags |= MPIC_NO_RESET;
+
+	if ((flags & MPIC_WANTS_RESET) && !(mpic->flags & MPIC_NO_RESET)) {
+		printk(KERN_DEBUG "mpic: Resetting\n");
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
 			   | MPIC_GREG_GCONF_RESET);
@@ -1320,22 +1362,21 @@ void __init mpic_init(struct mpic *mpic)
 
 	mpic_pasemi_msi_init(mpic);
 
-	if (mpic->flags & MPIC_PRIMARY)
-		cpu = hard_smp_processor_id();
-	else
-		cpu = 0;
+	cpu = mpic_processor_id(mpic);
 
-	for (i = 0; i < mpic->num_sources; i++) {
-		/* start with vector = source number, and masked */
-		u32 vecpri = MPIC_VECPRI_MASK | i |
-			(8 << MPIC_VECPRI_PRIORITY_SHIFT);
+	if (!(mpic->flags & MPIC_NO_RESET)) {
+		for (i = 0; i < mpic->num_sources; i++) {
+			/* start with vector = source number, and masked */
+			u32 vecpri = MPIC_VECPRI_MASK | i |
+				(8 << MPIC_VECPRI_PRIORITY_SHIFT);
 		
-		/* check if protected */
-		if (mpic->protected && test_bit(i, mpic->protected))
-			continue;
-		/* init hw */
-		mpic_irq_write(i, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
-		mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION), 1 << cpu);
+			/* check if protected */
+			if (mpic->protected && test_bit(i, mpic->protected))
+				continue;
+			/* init hw */
+			mpic_irq_write(i, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
+			mpic_irq_write(i, MPIC_INFO(IRQ_DESTINATION), 1 << cpu);
+		}
 	}
 	
 	/* Init spurious vector */
