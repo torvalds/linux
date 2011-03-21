@@ -1581,6 +1581,33 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* Boss JS-8 Jam Station  */
+	USB_DEVICE(0x0582, 0x0109),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "BOSS", */
+		/* .product_name = "JS-8", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* has ID 0x0110 when not in Advanced Driver mode */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x010f),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
