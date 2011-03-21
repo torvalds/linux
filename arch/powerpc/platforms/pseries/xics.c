@@ -250,26 +250,26 @@ static unsigned int xics_startup(struct irq_data *d)
 	return 0;
 }
 
-static void xics_mask_real_irq(struct irq_data *d)
+static void xics_mask_real_irq(unsigned int hwirq)
 {
 	int call_status;
 
-	if (d->irq == XICS_IPI)
+	if (hwirq == XICS_IPI)
 		return;
 
-	call_status = rtas_call(ibm_int_off, 1, 1, NULL, d->irq);
+	call_status = rtas_call(ibm_int_off, 1, 1, NULL, hwirq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_off irq=%u returned %d\n",
-			__func__, d->irq, call_status);
+			__func__, hwirq, call_status);
 		return;
 	}
 
 	/* Have to set XIVE to 0xff to be able to remove a slot */
-	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, d->irq,
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, hwirq,
 				default_server, 0xff);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_set_xive(0xff) irq=%u returned %d\n",
-			__func__, d->irq, call_status);
+			__func__, hwirq, call_status);
 		return;
 	}
 }
@@ -283,13 +283,13 @@ static void xics_mask_irq(struct irq_data *d)
 	irq = (unsigned int)irq_map[d->irq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
-	xics_mask_real_irq(d);
+	xics_mask_real_irq(irq);
 }
 
 static void xics_mask_unknown_vec(unsigned int vec)
 {
 	printk(KERN_ERR "Interrupt %u (real) is invalid, disabling it.\n", vec);
-	xics_mask_real_irq(irq_get_irq_data(vec));
+	xics_mask_real_irq(vec);
 }
 
 static inline unsigned int xics_xirr_vector(unsigned int xirr)
