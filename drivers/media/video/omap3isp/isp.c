@@ -215,20 +215,21 @@ static u32 isp_set_xclk(struct isp_device *isp, u32 xclk, u8 xclksel)
 	}
 
 	switch (xclksel) {
-	case 0:
+	case ISP_XCLK_A:
 		isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_MAIN, ISP_TCTRL_CTRL,
 				ISPTCTRL_CTRL_DIVA_MASK,
 				divisor << ISPTCTRL_CTRL_DIVA_SHIFT);
 		dev_dbg(isp->dev, "isp_set_xclk(): cam_xclka set to %d Hz\n",
 			currentxclk);
 		break;
-	case 1:
+	case ISP_XCLK_B:
 		isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_MAIN, ISP_TCTRL_CTRL,
 				ISPTCTRL_CTRL_DIVB_MASK,
 				divisor << ISPTCTRL_CTRL_DIVB_SHIFT);
 		dev_dbg(isp->dev, "isp_set_xclk(): cam_xclkb set to %d Hz\n",
 			currentxclk);
 		break;
+	case ISP_XCLK_NONE:
 	default:
 		omap3isp_put(isp);
 		dev_dbg(isp->dev, "ISP_ERR: isp_set_xclk(): Invalid requested "
@@ -237,13 +238,13 @@ static u32 isp_set_xclk(struct isp_device *isp, u32 xclk, u8 xclksel)
 	}
 
 	/* Do we go from stable whatever to clock? */
-	if (divisor >= 2 && isp->xclk_divisor[xclksel] < 2)
+	if (divisor >= 2 && isp->xclk_divisor[xclksel - 1] < 2)
 		omap3isp_get(isp);
 	/* Stopping the clock. */
-	else if (divisor < 2 && isp->xclk_divisor[xclksel] >= 2)
+	else if (divisor < 2 && isp->xclk_divisor[xclksel - 1] >= 2)
 		omap3isp_put(isp);
 
-	isp->xclk_divisor[xclksel] = divisor;
+	isp->xclk_divisor[xclksel - 1] = divisor;
 
 	omap3isp_put(isp);
 
