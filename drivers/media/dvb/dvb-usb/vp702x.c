@@ -116,13 +116,28 @@ int vp702x_usb_inout_op(struct dvb_usb_device *d, u8 *o, int olen, u8 *i, int il
 static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 				int olen, u8 *i, int ilen, int msec)
 {
+	struct vp702x_device_state *st = d->priv;
 	int ret = 0;
 	u8 *buf;
 	int buflen = max(olen + 2, ilen + 1);
 
-	buf = kmalloc(buflen, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	ret = mutex_lock_interruptible(&st->buf_mutex);
+	if (ret < 0)
+		return ret;
+
+	if (buflen > st->buf_len) {
+		buf = kmalloc(buflen, GFP_KERNEL);
+		if (!buf) {
+			mutex_unlock(&st->buf_mutex);
+			return -ENOMEM;
+		}
+		info("successfully reallocated a bigger buffer");
+		kfree(st->buf);
+		st->buf = buf;
+		st->buf_len = buflen;
+	} else {
+		buf = st->buf;
+	}
 
 	buf[0] = 0x00;
 	buf[1] = cmd;
@@ -132,8 +147,8 @@ static int vp702x_usb_inout_cmd(struct dvb_usb_device *d, u8 cmd, u8 *o,
 
 	if (ret == 0)
 		memcpy(i, &buf[1], ilen);
+	mutex_unlock(&st->buf_mutex);
 
-	kfree(buf);
 	return ret;
 }
 
