@@ -138,6 +138,24 @@ config TC1100_WMI
 	  This is a driver for the WMI extensions (wireless and bluetooth power
 	  control) of the HP Compaq TC1100 tablet.
 
+config HP_ACCEL
+	tristate "HP laptop accelerometer"
+	depends on INPUT && ACPI
+	select SENSORS_LIS3LV02D
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	  This driver provides support for the "Mobile Data Protection System 3D"
+	  or "3D DriveGuard" feature of HP laptops. On such systems the driver
+	  should load automatically (via ACPI alias).
+
+	  Support for a led indicating disk protection will be provided as
+	  hp::hddprotect. For more information on the feature, refer to
+	  Documentation/hwmon/lis3lv02d.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called hp_accel.
+
 config HP_WMI
 	tristate "HP WMI extras"
 	depends on ACPI_WMI

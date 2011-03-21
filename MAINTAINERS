@@ -198,7 +198,7 @@ F:	Documentation/scsi/aacraid.txt
 F:	drivers/scsi/aacraid/
 
 ABIT UGURU 1,2 HARDWARE MONITOR DRIVER
-M:	Hans de Goede <j.w.r.degoede@hhs.nl>
+M:	Hans de Goede <hdegoede@redhat.com>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/abituguru.c
@@ -364,6 +364,14 @@ L:	device-driver-devel@blackfin.uclinux.org
 W:	http://wiki-analog.com/ADP8860
 S:	Supported
 F:	drivers/video/backlight/adp8860_bl.c
+
+ADS1015 HARDWARE MONITOR DRIVER
+M:	Dirk Eibach <eibach@gdsys.de>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/ads1015
+F:	drivers/hwmon/ads1015.c
+F:	include/linux/i2c/ads1015.h
 
 ADT746X FAN DRIVER
 M:	Colin Leroy <colin@colino.net>
@@ -3913,8 +3921,8 @@ S:	Supported
 LIS3LV02D ACCELEROMETER DRIVER
 M:	Eric Piel <eric.piel@tremplin-utc.net>
 S:	Maintained
-F:	Documentation/hwmon/lis3lv02d
-F:	drivers/hwmon/lis3lv02d.*
+F:	Documentation/misc-devices/lis3lv02d
+F:	drivers/misc/lis3lv02d/
 
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
@@ -5768,6 +5776,13 @@ L:	lm-sensors@lm-sensors.org
 S:	Supported
 F:	Documentation/hwmon/emc2103
 F:	drivers/hwmon/emc2103.c
+
+SMSC SCH5627 HARDWARE MONITOR DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	lm-sensors@lm-sensors.org
+S:	Supported
+F:	Documentation/hwmon/sch5627
+F:	drivers/hwmon/sch5627.c
 
 SMSC47B397 HARDWARE MONITOR DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>

@@ -35,11 +35,11 @@
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <linux/leds.h>
+#include <linux/atomic.h>
 #include <acpi/acpi_drivers.h>
-#include <asm/atomic.h>
-#include "lis3lv02d.h"
+#include "../../misc/lis3lv02d/lis3lv02d.h"
 
-#define DRIVER_NAME     "lis3lv02d"
+#define DRIVER_NAME     "hp_accel"
 #define ACPI_MDPS_CLASS "accelerometer"
 
 /* Delayed LEDs infrastructure ------------------------------------ */
@@ -402,4 +402,3 @@ MODULE_LICENSE("GPL");
 
 module_init(lis3lv02d_init_module);
 module_exit(lis3lv02d_exit_module);
-
