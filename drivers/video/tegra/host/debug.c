@@ -106,7 +106,7 @@ static void nvhost_debug_handle_word(struct seq_file *s, int *state, int *count,
 	switch (*state) {
 	case NVHOST_DBG_STATE_CMD:
 		if (addr)
-			seq_printf(s, "%d: %08x: %08x:", channel, addr, val);
+			seq_printf(s, "%d: %08lx: %08x:", channel, addr, val);
 		else
 			seq_printf(s, "%d: %08x:", channel, val);
 
@@ -161,7 +161,7 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 		u32 dmaput, dmaget, dmactrl;
 		u32 cbstat, cbread;
 		u32 fifostat;
-		u32 val, base;
+		u32 val, base, offset;
 		unsigned start, end;
 		unsigned wr_ptr, rd_ptr;
 		int state;
@@ -175,7 +175,7 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 		cbstat = readl(m->aperture + HOST1X_SYNC_CBSTAT(i));
 
 		seq_printf(s, "%d-%s (%d): ", i, m->channels[i].mod.name,
-			   m->channels[i].mod.refcount);
+			   atomic_read(&m->channels[i].mod.refcount));
 
 		if (dmactrl != 0x0 || !m->channels[i].cdma.push_buffer.mapped) {
 			seq_printf(s, "inactive\n\n");
@@ -183,19 +183,20 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 		}
 
 		switch (cbstat) {
-		case 0x00010008:
+		case 0x00010008:		/* HOST_WAIT_SYNCPT */
 			seq_printf(s, "waiting on syncpt %d val %d\n",
 				   cbread >> 24, cbread & 0xffffff);
 			break;
 
-		case 0x00010009:
+		case 0x00010009:		/* HOST_WAIT_SYNCPT_BASE */
 			base = cbread >> 15 & 0xf;
+			offset = cbread & 0xffff;
 
 			val = readl(m->aperture + HOST1X_SYNC_SYNCPT_BASE(base)) & 0xffff;
-			val += cbread & 0xffff;
+			val += offset;
 
-			seq_printf(s, "waiting on syncpt %d val %d\n",
-				   cbread >> 24, val);
+			seq_printf(s, "waiting on syncpt %d val %d (base %d, offset %d)\n",
+				   cbread >> 24, val, base, offset);
 			break;
 
 		default:
@@ -210,7 +211,6 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 		 * check if we're executing a fetch, and if so dump
 		 * it. */
 		if (size) {
-			u32 offset = dmaget - m->channels[i].cdma.push_buffer.phys;
 			u32 map_base = phys_addr & PAGE_MASK;
 			u32 map_size = (size * 4 + PAGE_SIZE - 1) & PAGE_MASK;
 			u32 map_offset = phys_addr - map_base;
