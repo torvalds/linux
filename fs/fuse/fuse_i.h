@@ -272,7 +272,6 @@ struct fuse_req {
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
 		struct cuse_init_in cuse_init_in;
-		struct cuse_init_out cuse_init_out;
 		struct {
 			struct fuse_read_in in;
 			u64 attr_ver;
