@@ -39,7 +39,7 @@
 #include <acpi/acpi_drivers.h>
 #include "../../misc/lis3lv02d/lis3lv02d.h"
 
-#define DRIVER_NAME     "lis3lv02d"
+#define DRIVER_NAME     "hp_accel"
 #define ACPI_MDPS_CLASS "accelerometer"
 
 /* Delayed LEDs infrastructure ------------------------------------ */
