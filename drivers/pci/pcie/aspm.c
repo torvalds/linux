@@ -708,6 +708,28 @@ void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 	up_read(&pci_bus_sem);
 }
 
+void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
+{
+	struct pcie_link_state *link = pdev->link_state;
+
+	if (aspm_disabled || !pci_is_pcie(pdev) || !link)
+		return;
+
+	if (aspm_policy != POLICY_POWERSAVE)
+		return;
+
+	if ((pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
+		return;
+
+	down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+	pcie_config_aspm_path(link);
+	pcie_set_clkpm(link, policy_to_clkpm_state(link));
+	mutex_unlock(&aspm_lock);
+	up_read(&pci_bus_sem);
+}
+
 /*
  * pci_disable_link_state - disable pci device's link state, so the link will
  * never enter specific states
