@@ -65,6 +65,24 @@ static int process_request_key_err(long err_code)
 	return rc;
 }
 
+static int process_find_global_auth_tok_for_sig_err(int err_code)
+{
+	int rc = err_code;
+
+	switch (err_code) {
+	case -ENOENT:
+		ecryptfs_printk(KERN_WARNING, "Missing auth tok\n");
+		break;
+	case -EINVAL:
+		ecryptfs_printk(KERN_WARNING, "Invalid auth tok\n");
+		break;
+	default:
+		rc = process_request_key_err(err_code);
+		break;
+	}
+	return rc;
+}
+
 /**
  * ecryptfs_parse_packet_length
  * @data: Pointer to memory containing length at offset
@@ -403,27 +421,117 @@ out:
 	return rc;
 }
 
+/**
+ * ecryptfs_verify_version
+ * @version: The version number to confirm
+ *
+ * Returns zero on good version; non-zero otherwise
+ */
+static int ecryptfs_verify_version(u16 version)
+{
+	int rc = 0;
+	unsigned char major;
+	unsigned char minor;
+
+	major = ((version >> 8) & 0xFF);
+	minor = (version & 0xFF);
+	if (major != ECRYPTFS_VERSION_MAJOR) {
+		ecryptfs_printk(KERN_ERR, "Major version number mismatch. "
+				"Expected [%d]; got [%d]\n",
+				ECRYPTFS_VERSION_MAJOR, major);
+		rc = -EINVAL;
+		goto out;
+	}
+	if (minor != ECRYPTFS_VERSION_MINOR) {
+		ecryptfs_printk(KERN_ERR, "Minor version number mismatch. "
+				"Expected [%d]; got [%d]\n",
+				ECRYPTFS_VERSION_MINOR, minor);
+		rc = -EINVAL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
+/**
+ * ecryptfs_verify_auth_tok_from_key
+ * @auth_tok_key: key containing the authentication token
+ * @auth_tok: authentication token
+ *
+ * Returns zero on valid auth tok; -EINVAL otherwise
+ */
+static int
+ecryptfs_verify_auth_tok_from_key(struct key *auth_tok_key,
+				  struct ecryptfs_auth_tok **auth_tok)
+{
+	int rc = 0;
+
+	(*auth_tok) = ecryptfs_get_key_payload_data(auth_tok_key);
+	if (ecryptfs_verify_version((*auth_tok)->version)) {
+		printk(KERN_ERR "Data structure version mismatch. Userspace "
+		       "tools must match eCryptfs kernel module with major "
+		       "version [%d] and minor version [%d]\n",
+		       ECRYPTFS_VERSION_MAJOR, ECRYPTFS_VERSION_MINOR);
+		rc = -EINVAL;
+		goto out;
+	}
+	if ((*auth_tok)->token_type != ECRYPTFS_PASSWORD
+	    && (*auth_tok)->token_type != ECRYPTFS_PRIVATE_KEY) {
+		printk(KERN_ERR "Invalid auth_tok structure "
+		       "returned from key query\n");
+		rc = -EINVAL;
+		goto out;
+	}
+out:
+	return rc;
+}
+
 static int
 ecryptfs_find_global_auth_tok_for_sig(
-	struct ecryptfs_global_auth_tok **global_auth_tok,
+	struct key **auth_tok_key,
+	struct ecryptfs_auth_tok **auth_tok,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat, char *sig)
 {
 	struct ecryptfs_global_auth_tok *walker;
 	int rc = 0;
 
-	(*global_auth_tok) = NULL;
+	(*auth_tok_key) = NULL;
+	(*auth_tok) = NULL;
 	mutex_lock(&mount_crypt_stat->global_auth_tok_list_mutex);
 	list_for_each_entry(walker,
 			    &mount_crypt_stat->global_auth_tok_list,
 			    mount_crypt_stat_list) {
-		if (memcmp(walker->sig, sig, ECRYPTFS_SIG_SIZE_HEX) == 0) {
-			rc = key_validate(walker->global_auth_tok_key);
-			if (!rc)
-				(*global_auth_tok) = walker;
+		if (memcmp(walker->sig, sig, ECRYPTFS_SIG_SIZE_HEX))
+			continue;
+
+		if (walker->flags & ECRYPTFS_AUTH_TOK_INVALID) {
+			rc = -EINVAL;
 			goto out;
 		}
+
+		rc = key_validate(walker->global_auth_tok_key);
+		if (rc) {
+			if (rc == -EKEYEXPIRED)
+				goto out;
+			goto out_invalid_auth_tok;
+		}
+
+		rc = ecryptfs_verify_auth_tok_from_key(
+				walker->global_auth_tok_key, auth_tok);
+		if (rc)
+			goto out_invalid_auth_tok;
+
+		(*auth_tok_key) = walker->global_auth_tok_key;
+		key_get(*auth_tok_key);
+		goto out;
 	}
-	rc = -EINVAL;
+	rc = -ENOENT;
+	goto out;
+out_invalid_auth_tok:
+	printk(KERN_WARNING "Invalidating auth tok with sig = [%s]\n", sig);
+	walker->flags |= ECRYPTFS_AUTH_TOK_INVALID;
+	key_put(walker->global_auth_tok_key);
+	walker->global_auth_tok_key = NULL;
 out:
 	mutex_unlock(&mount_crypt_stat->global_auth_tok_list_mutex);
 	return rc;
@@ -451,14 +559,11 @@ ecryptfs_find_auth_tok_for_sig(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	char *sig)
 {
-	struct ecryptfs_global_auth_tok *global_auth_tok;
 	int rc = 0;
 
-	(*auth_tok_key) = NULL;
-	(*auth_tok) = NULL;
-	if (ecryptfs_find_global_auth_tok_for_sig(&global_auth_tok,
-						  mount_crypt_stat, sig)) {
-
+	rc = ecryptfs_find_global_auth_tok_for_sig(auth_tok_key, auth_tok,
+						   mount_crypt_stat, sig);
+	if (rc == -ENOENT) {
 		/* if the flag ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY is set in the
 		 * mount_crypt_stat structure, we prevent to use auth toks that
 		 * are not inserted through the ecryptfs_add_global_auth_tok
@@ -470,8 +575,7 @@ ecryptfs_find_auth_tok_for_sig(
 
 		rc = ecryptfs_keyring_auth_tok_for_sig(auth_tok_key, auth_tok,
 						       sig);
-	} else
-		(*auth_tok) = global_auth_tok->global_auth_tok;
+	}
 	return rc;
 }
 
@@ -1520,38 +1624,6 @@ out:
 	return rc;
 }
 
-/**
- * ecryptfs_verify_version
- * @version: The version number to confirm
- *
- * Returns zero on good version; non-zero otherwise
- */
-static int ecryptfs_verify_version(u16 version)
-{
-	int rc = 0;
-	unsigned char major;
-	unsigned char minor;
-
-	major = ((version >> 8) & 0xFF);
-	minor = (version & 0xFF);
-	if (major != ECRYPTFS_VERSION_MAJOR) {
-		ecryptfs_printk(KERN_ERR, "Major version number mismatch. "
-				"Expected [%d]; got [%d]\n",
-				ECRYPTFS_VERSION_MAJOR, major);
-		rc = -EINVAL;
-		goto out;
-	}
-	if (minor != ECRYPTFS_VERSION_MINOR) {
-		ecryptfs_printk(KERN_ERR, "Minor version number mismatch. "
-				"Expected [%d]; got [%d]\n",
-				ECRYPTFS_VERSION_MINOR, minor);
-		rc = -EINVAL;
-		goto out;
-	}
-out:
-	return rc;
-}
-
 int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 				      struct ecryptfs_auth_tok **auth_tok,
 				      char *sig)
@@ -1566,29 +1638,12 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 		(*auth_tok_key) = NULL;
 		goto out;
 	}
-	(*auth_tok) = ecryptfs_get_key_payload_data(*auth_tok_key);
-	if (ecryptfs_verify_version((*auth_tok)->version)) {
-		printk(KERN_ERR
-		       "Data structure version mismatch. "
-		       "Userspace tools must match eCryptfs "
-		       "kernel module with major version [%d] "
-		       "and minor version [%d]\n",
-		       ECRYPTFS_VERSION_MAJOR,
-		       ECRYPTFS_VERSION_MINOR);
-		rc = -EINVAL;
-		goto out_release_key;
-	}
-	if ((*auth_tok)->token_type != ECRYPTFS_PASSWORD
-	    && (*auth_tok)->token_type != ECRYPTFS_PRIVATE_KEY) {
-		printk(KERN_ERR "Invalid auth_tok structure "
-		       "returned from key query\n");
-		rc = -EINVAL;
-		goto out_release_key;
-	}
-out_release_key:
+
+	rc = ecryptfs_verify_auth_tok_from_key(*auth_tok_key, auth_tok);
 	if (rc) {
 		key_put(*auth_tok_key);
 		(*auth_tok_key) = NULL;
+		goto out;
 	}
 out:
 	return rc;
@@ -2325,7 +2380,7 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 				 size_t max)
 {
 	struct ecryptfs_auth_tok *auth_tok;
-	struct ecryptfs_global_auth_tok *global_auth_tok;
+	struct key *auth_tok_key = NULL;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 		&ecryptfs_superblock_to_private(
 			ecryptfs_dentry->d_sb)->mount_crypt_stat;
@@ -2344,21 +2399,16 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 	list_for_each_entry(key_sig, &crypt_stat->keysig_list,
 			    crypt_stat_list) {
 		memset(key_rec, 0, sizeof(*key_rec));
-		rc = ecryptfs_find_global_auth_tok_for_sig(&global_auth_tok,
+		rc = ecryptfs_find_global_auth_tok_for_sig(&auth_tok_key,
+							   &auth_tok,
 							   mount_crypt_stat,
 							   key_sig->keysig);
 		if (rc) {
-			printk(KERN_ERR "Error attempting to get the global "
-			       "auth_tok; rc = [%d]\n", rc);
+			printk(KERN_WARNING "Unable to retrieve auth tok with "
+			       "sig = [%s]\n", key_sig->keysig);
+			rc = process_find_global_auth_tok_for_sig_err(rc);
 			goto out_free;
 		}
-		if (global_auth_tok->flags & ECRYPTFS_AUTH_TOK_INVALID) {
-			printk(KERN_WARNING
-			       "Skipping invalid auth tok with sig = [%s]\n",
-			       global_auth_tok->sig);
-			continue;
-		}
-		auth_tok = global_auth_tok->global_auth_tok;
 		if (auth_tok->token_type == ECRYPTFS_PASSWORD) {
 			rc = write_tag_3_packet((dest_base + (*len)),
 						&max, auth_tok,
@@ -2396,6 +2446,8 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			rc = -EINVAL;
 			goto out_free;
 		}
+		key_put(auth_tok_key);
+		auth_tok_key = NULL;
 	}
 	if (likely(max > 0)) {
 		dest_base[(*len)] = 0x00;
@@ -2408,6 +2460,9 @@ out_free:
 out:
 	if (rc)
 		(*len) = 0;
+	if (auth_tok_key)
+		key_put(auth_tok_key);
+
 	mutex_unlock(&crypt_stat->keysig_list_mutex);
 	return rc;
 }

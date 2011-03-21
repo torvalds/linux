@@ -331,7 +331,6 @@ struct ecryptfs_global_auth_tok {
 	u32 flags;
 	struct list_head mount_crypt_stat_list;
 	struct key *global_auth_tok_key;
-	struct ecryptfs_auth_tok *global_auth_tok;
 	unsigned char sig[ECRYPTFS_SIG_SIZE_HEX + 1];
 };
 
