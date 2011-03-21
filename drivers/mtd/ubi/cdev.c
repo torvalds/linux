@@ -1100,5 +1100,5 @@ const struct file_operations ubi_ctrl_cdev_operations = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ctrl_cdev_ioctl,
 	.compat_ioctl   = ctrl_cdev_compat_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= no_llseek,
 };
