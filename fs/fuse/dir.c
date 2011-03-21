@@ -158,10 +158,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 {
 	struct inode *inode;
 
-	if (nd && nd->flags & LOOKUP_RCU)
-		return -ECHILD;
-
-	inode = entry->d_inode;
+	inode = ACCESS_ONCE(entry->d_inode);
 	if (inode && is_bad_inode(inode))
 		return 0;
 	else if (fuse_dentry_time(entry) < get_jiffies_64()) {
@@ -176,6 +173,9 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		/* For negative dentries, always do a fresh lookup */
 		if (!inode)
 			return 0;
+
+		if (nd->flags & LOOKUP_RCU)
+			return -ECHILD;
 
 		fc = get_fuse_conn(inode);
 		req = fuse_get_req(fc);
