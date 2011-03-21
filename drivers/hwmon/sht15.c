@@ -610,7 +610,7 @@ static int __devexit sht15_remove(struct platform_device *pdev)
 	struct sht15_data *data = platform_get_drvdata(pdev);
 
 	/* Make sure any reads from the device are done and
-	 * prevent new ones beginnning */
+	 * prevent new ones from beginning */
 	mutex_lock(&data->read_lock);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &sht15_attr_group);
