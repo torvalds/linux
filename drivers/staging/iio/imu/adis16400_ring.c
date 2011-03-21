@@ -122,12 +122,10 @@ static int adis16400_spi_read_burst(struct device *dev, u8 *rx)
 			.tx_buf = st->tx,
 			.bits_per_word = 8,
 			.len = 2,
-			.cs_change = 0,
 		}, {
 			.rx_buf = rx,
 			.bits_per_word = 8,
 			.len = 24,
-			.cs_change = 1,
 		},
 	};
 
