@@ -451,7 +451,6 @@ int init_lcdc(struct fb_info *info)
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
-    pmu_set_power_domain(PD_DISPLAY, 1);
     inf->clk = clk_get(NULL, "hclk_lcdc");
     inf->aclk_ddr_lcdc = clk_get(NULL, "aclk_ddr_lcdc");
     inf->aclk_disp_matrix = clk_get(NULL, "aclk_disp_matrix");
@@ -461,10 +460,11 @@ int init_lcdc(struct fb_info *info)
         printk(KERN_ERR "failed to get lcdc_hclk source\n");
         return PTR_ERR(inf->clk);
     }
-    clk_enable(inf->aclk_ddr_lcdc);
     clk_enable(inf->aclk_disp_matrix);
     clk_enable(inf->hclk_cpu_display);
     clk_enable(inf->clk);
+    pmu_set_power_domain(PD_DISPLAY, 1);
+    clk_enable(inf->aclk_ddr_lcdc);
 
 	// set AHB access rule and disable all windows
     LcdWrReg(inf, SYS_CONFIG, 0x60000000);
@@ -2175,7 +2175,7 @@ static int rk29fb_suspend(struct platform_device *pdev, pm_message_t mesg)
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-       // pmu_set_power_domain(PD_DISPLAY, 0);
+        pmu_set_power_domain(PD_DISPLAY, 0);
 		inf->in_suspend = 1;
 	}
     return 0;
@@ -2196,12 +2196,13 @@ static int rk29fb_resume(struct platform_device *pdev)
 	if(inf->in_suspend)
 	{
 	    inf->in_suspend = 0;
-       // pmu_set_power_domain(PD_DISPLAY, 1);
     	fbprintk(">>>>>> enable the lcdc clk! \n");
-        clk_enable(inf->aclk_ddr_lcdc);
         clk_enable(inf->aclk_disp_matrix);
         clk_enable(inf->hclk_cpu_display);
         clk_enable(inf->clk);
+        pmu_set_power_domain(PD_DISPLAY, 1);
+        clk_enable(inf->aclk_ddr_lcdc);
+
         if (inf->dclk){
             clk_enable(inf->dclk);
         }
@@ -2661,7 +2662,7 @@ static void rk29fb_shutdown(struct platform_device *pdev)
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-       // pmu_set_power_domain(PD_DISPLAY, 0);
+        pmu_set_power_domain(PD_DISPLAY, 0);
 		inf->in_suspend = 1;
 	}
 
