@@ -706,7 +706,7 @@ static void prepare_header95(struct p_header95 *h, enum drbd_packet cmd, int siz
 static void _prepare_header(struct drbd_tconn *tconn, int vnr, struct p_header *h,
 			    enum drbd_packet cmd, int size)
 {
-	if (tconn->agreed_pro_version >= 100 || size > DRBD_MAX_SIZE_H80_PACKET)
+	if (tconn->agreed_pro_version >= 95)
 		prepare_header95(&h->h95, cmd, size);
 	else
 		prepare_header80(&h->h80, cmd, size);

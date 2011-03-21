@@ -819,9 +819,9 @@ static int drbd_connect(struct drbd_tconn *tconn)
 		return -2;
 
 	clear_bit(DISCARD_CONCURRENT, &tconn->flags);
-	tconn->agreed_pro_version = 99;
-	/* agreed_pro_version must be smaller than 100 so we send the old
-	   header (h80) in the first packet and in the handshake packet. */
+
+	/* Assume that the peer only understands protocol 80 until we know better.  */
+	tconn->agreed_pro_version = 80;
 
 	sock  = NULL;
 	msock = NULL;
