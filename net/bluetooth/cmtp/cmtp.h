@@ -37,7 +37,7 @@
 #define CMTP_LOOPBACK	0
 
 struct cmtp_connadd_req {
-	int   sock;	// Connected socket
+	int   sock;	/* Connected socket */
 	__u32 flags;
 };
 
