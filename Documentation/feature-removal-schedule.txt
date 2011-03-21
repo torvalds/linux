@@ -585,16 +585,6 @@ Who:    NeilBrown <neilb@suse.de>
 
 ----------------------------
 
-What:	i2c_adapter.id
-When:	June 2011
-Why:	This field is deprecated. I2C device drivers shouldn't change their
-	behavior based on the underlying I2C adapter. Instead, the I2C
-	adapter driver should instantiate the I2C devices and provide the
-	needed platform-specific information.
-Who:	Jean Delvare <khali@linux-fr.org>
-
-----------------------------
-
 What:	cancel_rearming_delayed_work[queue]()
 When:	2.6.39
 
@@ -643,5 +633,14 @@ When:	2012
 Why:	superseded by xt_addrtype
 Who:	Florian Westphal <fw@strlen.de>
 Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
+
+----------------------------
+
+What:	i2c_driver.attach_adapter
+	i2c_driver.detach_adapter
+When:	September 2011
+Why:	These legacy callbacks should no longer be used as i2c-core offers
+	a variety of preferable alternative ways to instantiate I2C devices.
+Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------

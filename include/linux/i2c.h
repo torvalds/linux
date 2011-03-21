@@ -29,7 +29,6 @@
 #include <linux/types.h>
 #ifdef __KERNEL__
 #include <linux/module.h>
-#include <linux/i2c-id.h>
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
@@ -105,8 +104,8 @@ extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 /**
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
- * @attach_adapter: Callback for bus addition (for legacy drivers)
- * @detach_adapter: Callback for bus removal (for legacy drivers)
+ * @attach_adapter: Callback for bus addition (deprecated)
+ * @detach_adapter: Callback for bus removal (deprecated)
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
@@ -144,11 +143,11 @@ struct i2c_driver {
 	unsigned int class;
 
 	/* Notifies the driver that a new bus has appeared or is about to be
-	 * removed. You should avoid using this if you can, it will probably
-	 * be removed in a near future.
+	 * removed. You should avoid using this, it will be removed in a
+	 * near future.
 	 */
-	int (*attach_adapter)(struct i2c_adapter *);
-	int (*detach_adapter)(struct i2c_adapter *);
+	int (*attach_adapter)(struct i2c_adapter *) __deprecated;
+	int (*detach_adapter)(struct i2c_adapter *) __deprecated;
 
 	/* Standard driver model interfaces */
 	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
@@ -354,7 +353,6 @@ struct i2c_algorithm {
  */
 struct i2c_adapter {
 	struct module *owner;
-	unsigned int id __deprecated;
 	unsigned int class;		  /* classes to allow probing for */
 	const struct i2c_algorithm *algo; /* the algorithm to access the bus */
 	void *algo_data;
@@ -395,6 +393,8 @@ i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 	else
 		return NULL;
 }
+
+int i2c_for_each_dev(void *data, int (*fn)(struct device *, void *));
 
 /* Adapter locking functions, exported for shared pin cases */
 void i2c_lock_adapter(struct i2c_adapter *);
@@ -447,7 +447,7 @@ extern void i2c_release_client(struct i2c_client *client);
 extern void i2c_clients_command(struct i2c_adapter *adap,
 				unsigned int cmd, void *arg);
 
-extern struct i2c_adapter *i2c_get_adapter(int id);
+extern struct i2c_adapter *i2c_get_adapter(int nr);
 extern void i2c_put_adapter(struct i2c_adapter *adap);
 
 
