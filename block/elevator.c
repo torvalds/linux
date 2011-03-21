@@ -521,6 +521,40 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	return ELEVATOR_NO_MERGE;
 }
 
+/*
+ * Attempt to do an insertion back merge. Only check for the case where
+ * we can append 'rq' to an existing request, so we can throw 'rq' away
+ * afterwards.
+ *
+ * Returns true if we merged, false otherwise
+ */
+static bool elv_attempt_insert_merge(struct request_queue *q,
+				     struct request *rq)
+{
+	struct request *__rq;
+
+	if (blk_queue_nomerges(q))
+		return false;
+
+	/*
+	 * First try one-hit cache.
+	 */
+	if (q->last_merge && blk_attempt_req_merge(q, q->last_merge, rq))
+		return true;
+
+	if (blk_queue_noxmerges(q))
+		return false;
+
+	/*
+	 * See if our hash lookup can find a potential backmerge.
+	 */
+	__rq = elv_rqhash_find(q, blk_rq_pos(rq));
+	if (__rq && blk_attempt_req_merge(q, __rq, rq))
+		return true;
+
+	return false;
+}
+
 void elv_merged_request(struct request_queue *q, struct request *rq, int type)
 {
 	struct elevator_queue *e = q->elevator;
@@ -538,14 +572,18 @@ void elv_merge_requests(struct request_queue *q, struct request *rq,
 			     struct request *next)
 {
 	struct elevator_queue *e = q->elevator;
+	const int next_sorted = next->cmd_flags & REQ_SORTED;
 
-	if (e->ops->elevator_merge_req_fn)
+	if (next_sorted && e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
 
 	elv_rqhash_reposition(q, rq);
-	elv_rqhash_del(q, next);
 
-	q->nr_sorted--;
+	if (next_sorted) {
+		elv_rqhash_del(q, next);
+		q->nr_sorted--;
+	}
+
 	q->last_merge = rq;
 }
 
@@ -647,6 +685,14 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		__blk_run_queue(q, false);
 		break;
 
+	case ELEVATOR_INSERT_SORT_MERGE:
+		/*
+		 * If we succeed in merging this request with one in the
+		 * queue already, we are done - rq has now been freed,
+		 * so no need to do anything further.
+		 */
+		if (elv_attempt_insert_merge(q, rq))
+			break;
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(rq->cmd_type != REQ_TYPE_FS &&
 		       !(rq->cmd_flags & REQ_DISCARD));

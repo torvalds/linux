@@ -166,6 +166,7 @@ extern struct request *elv_rb_find(struct rb_root *, sector_t);
 #define ELEVATOR_INSERT_SORT	3
 #define ELEVATOR_INSERT_REQUEUE	4
 #define ELEVATOR_INSERT_FLUSH	5
+#define ELEVATOR_INSERT_SORT_MERGE	6
 
 /*
  * return values from elevator_may_queue_fn

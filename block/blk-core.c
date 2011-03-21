@@ -2685,7 +2685,7 @@ static void flush_plug_list(struct blk_plug *plug)
 		/*
 		 * rq is already accounted, so use raw insert
 		 */
-		__elv_add_request(q, rq, ELEVATOR_INSERT_SORT);
+		__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);
 	}
 
 	if (q) {
