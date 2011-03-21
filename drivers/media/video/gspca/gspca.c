@@ -630,7 +630,8 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 		ep = &alt->endpoint[i];
 		attr = ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 		if (attr == xfer
-		    && ep->desc.wMaxPacketSize != 0)
+		    && ep->desc.wMaxPacketSize != 0
+		    && usb_endpoint_dir_in(&ep->desc))
 			return ep;
 	}
 	return NULL;
