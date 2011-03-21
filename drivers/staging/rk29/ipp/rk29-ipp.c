@@ -928,7 +928,7 @@ static void __exit rk29_ipp_exit(void)
 	platform_driver_unregister(&rk29_ipp_driver);
 }
 
-module_init(rk29_ipp_init);
+module_init_sync(rk29_ipp_init);
 module_exit(rk29_ipp_exit);
 
 /* Module information */
