@@ -724,7 +724,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_VDD1 reg\n");
 		return -EIO;
 	}
-
+	
 	/* VDD2 */
 	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VDD2);
 	if (err) {
@@ -738,7 +738,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_VDD2 reg\n");
 		return -EIO;
 	}
-
+	
 	/* VIO */
 	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VIO);
 	if (err) {
@@ -752,7 +752,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_VIO reg\n");
 		return -EIO;
 	}
-
+	
 	/* Mask ALL interrupts */
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, 0xFF,
 			TPS65910_REG_INT_MSK);
@@ -776,6 +776,27 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL reg\n");
 		return -EIO;
 	}
+
+#if 0
+	printk(KERN_INFO "TPS65910 Set default voltage.\n");
+	/* VDD1 Set the default voltage: 1150 mV(47)*/
+	val = 47;	
+	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD1_OP);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_REG_VDD1_OP);
+		return -EIO;
+	}
+
+	/* VDD2 Set the default voltage: 1087 * 1.25mV(41)*/
+	val = 42;	
+	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_REG_VDD2_OP);
+		return -EIO;
+	}
+#endif
 
 	/* initilize all ISR work as NULL, specific driver will
 	 * assign function(s) later.
@@ -2073,7 +2094,8 @@ static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi0 cs0",
 		.cs_gpio = RK29_PIN2_PC1,
-		.cs_iomux_name = NULL,
+		.cs_iomux_name = GPIO2C1_SPI0CSN0_NAME,
+		.cs_iomux_mode = GPIO2H_SPI0_CSN0,
 	},
 	{
 		.name = "spi0 cs1",
@@ -2087,7 +2109,8 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi1 cs0",
 		.cs_gpio = RK29_PIN2_PC5,
-		.cs_iomux_name = NULL,
+		.cs_iomux_name = GPIO2C5_SPI1CSN0_NAME,
+		.cs_iomux_mode = GPIO2H_SPI1_CSN0,
 	},
 	{
 		.name = "spi1 cs1",
@@ -2100,40 +2123,20 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
 #if 1
-	int i,j,ret;
-
-	//cs
+	int i;
 	if (cs_gpios) {
 		for (i=0; i<cs_num; i++) {
 			rk29_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
-			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
-			if (ret) {
-				for (j=0;j<i;j++) {
-					gpio_free(cs_gpios[j].cs_gpio);
-					//rk29_mux_api_mode_resume(cs_gpios[j].cs_iomux_name);
-				}
-				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
-				return -1;
-			}
-			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 		}
 	}
 #endif
+
 	return 0;
 }
 
 static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
-#if 1
-	int i;
 
-	if (cs_gpios) {
-		for (i=0; i<cs_num; i++) {
-			gpio_free(cs_gpios[i].cs_gpio);
-			//rk29_mux_api_mode_resume(cs_gpios[i].cs_iomux_name);
-		}
-	}
-#endif
 	return 0;
 }
 
@@ -2286,11 +2289,9 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-                rk29sdk_wifi_bt_gpio_control_init();
-#endif
 
-		platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));
@@ -2309,8 +2310,11 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
-        
-    rk29sdk_init_wifi_mem();
+
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+    rk29sdk_wifi_bt_gpio_control_init();
+	rk29sdk_init_wifi_mem();
+#endif        
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
