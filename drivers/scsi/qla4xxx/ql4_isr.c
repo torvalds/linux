@@ -801,7 +801,7 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 			       &ha->reg->ctrl_status);
 			readl(&ha->reg->ctrl_status);
 
-			if (!test_bit(AF_HBA_GOING_AWAY, &ha->flags))
+			if (!test_bit(AF_HA_REMOVAL, &ha->flags))
 				set_bit(DPC_RESET_HA_INTR, &ha->dpc_flags);
 
 			break;

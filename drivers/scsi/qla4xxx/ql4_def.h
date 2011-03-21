@@ -53,6 +53,9 @@
 #define PCI_DEVICE_ID_QLOGIC_ISP8022	0x8022
 #endif
 
+#define ISP4XXX_PCI_FN_1	0x1
+#define ISP4XXX_PCI_FN_2	0x3
+
 #define QLA_SUCCESS			0
 #define QLA_ERROR			1
 
@@ -371,7 +374,7 @@ struct scsi_qla_host {
 #define AF_LINK_UP			8 /* 0x00000100 */
 #define AF_IRQ_ATTACHED			10 /* 0x00000400 */
 #define AF_DISABLE_ACB_COMPLETE		11 /* 0x00000800 */
-#define AF_HBA_GOING_AWAY		12 /* 0x00001000 */
+#define AF_HA_REMOVAL			12 /* 0x00001000 */
 #define AF_INTx_ENABLED			15 /* 0x00008000 */
 #define AF_MSI_ENABLED			16 /* 0x00010000 */
 #define AF_MSIX_ENABLED			17 /* 0x00020000 */

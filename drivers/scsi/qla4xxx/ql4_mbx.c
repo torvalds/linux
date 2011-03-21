@@ -151,7 +151,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
 	    test_bit(AF_INTERRUPTS_ON, &ha->flags) &&
 	    test_bit(AF_ONLINE, &ha->flags) &&
-	    !test_bit(AF_HBA_GOING_AWAY, &ha->flags)) {
+	    !test_bit(AF_HA_REMOVAL, &ha->flags)) {
 		/* Do not poll for completion. Use completion queue */
 		set_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
 		wait_for_completion_timeout(&ha->mbx_intr_comp, MBOX_TOV * HZ);

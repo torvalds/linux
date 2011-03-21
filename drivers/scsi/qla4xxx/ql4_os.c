@@ -749,12 +749,6 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	if (!pci_channel_offline(ha->pdev))
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
 
-	if (test_bit(AF_HBA_GOING_AWAY, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s exited. HBA GOING AWAY\n",
-		    __func__));
-		return;
-	}
-
 	if (is_qla8022(ha)) {
 		qla4_8xxx_watchdog(ha);
 	}
@@ -1063,7 +1057,6 @@ void qla4xxx_dead_adapter_cleanup(struct scsi_qla_host *ha)
 
 	/* Disable the board */
 	ql4_printk(KERN_INFO, ha, "Disabling the board\n");
-	set_bit(AF_HBA_GOING_AWAY, &ha->flags);
 
 	qla4xxx_abort_active_cmds(ha, DID_NO_CONNECT << 16);
 	qla4xxx_mark_all_devices_missing(ha);
@@ -1254,11 +1247,6 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 		    ha->host_no, __func__, ha->flags));
 		goto do_dpc_exit;
 	}
-
-	/* HBA is in the process of being permanently disabled.
-	 * Don't process anything */
-	if (test_bit(AF_HBA_GOING_AWAY, &ha->flags))
-		return;
 
 	if (is_qla8022(ha)) {
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
@@ -1824,6 +1812,44 @@ probe_disable_device:
 }
 
 /**
+ * qla4xxx_prevent_other_port_reinit - prevent other port from re-initialize
+ * @ha: pointer to adapter structure
+ *
+ * Mark the other ISP-4xxx port to indicate that the driver is being removed,
+ * so that the other port will not re-initialize while in the process of
+ * removing the ha due to driver unload or hba hotplug.
+ **/
+static void qla4xxx_prevent_other_port_reinit(struct scsi_qla_host *ha)
+{
+	struct scsi_qla_host *other_ha = NULL;
+	struct pci_dev *other_pdev = NULL;
+	int fn = ISP4XXX_PCI_FN_2;
+
+	/*iscsi function numbers for ISP4xxx is 1 and 3*/
+	if (PCI_FUNC(ha->pdev->devfn) & BIT_1)
+		fn = ISP4XXX_PCI_FN_1;
+
+	other_pdev =
+		pci_get_domain_bus_and_slot(pci_domain_nr(ha->pdev->bus),
+		ha->pdev->bus->number, PCI_DEVFN(PCI_SLOT(ha->pdev->devfn),
+		fn));
+
+	/* Get other_ha if other_pdev is valid and state is enable*/
+	if (other_pdev) {
+		if (atomic_read(&other_pdev->enable_cnt)) {
+			other_ha = pci_get_drvdata(other_pdev);
+			if (other_ha) {
+				set_bit(AF_HA_REMOVAL, &other_ha->flags);
+				DEBUG2(ql4_printk(KERN_INFO, ha, "%s: "
+				    "Prevent %s reinit\n", __func__,
+				    dev_name(&other_ha->pdev->dev)));
+			}
+		}
+		pci_dev_put(other_pdev);
+	}
+}
+
+/**
  * qla4xxx_remove_adapter - calback function to remove adapter.
  * @pci_dev: PCI device pointer
  **/
@@ -1833,7 +1859,8 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	ha = pci_get_drvdata(pdev);
 
-	set_bit(AF_HBA_GOING_AWAY, &ha->flags);
+	if (!is_qla8022(ha))
+		qla4xxx_prevent_other_port_reinit(ha);
 
 	/* remove devs from iscsi_sessions to scsi_devices */
 	qla4xxx_free_ddb_list(ha);
