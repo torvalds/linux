@@ -3155,8 +3155,7 @@ static void be_shutdown(struct pci_dev *pdev)
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdev;
 
-	if (netif_running(netdev))
-		cancel_delayed_work_sync(&adapter->work);
+	cancel_delayed_work_sync(&adapter->work);
 
 	netif_device_detach(netdev);
 
