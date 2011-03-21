@@ -1013,13 +1013,6 @@ static int qla4xxx_initialize_ddb_list(struct scsi_qla_host *ha)
 	if ((status = qla4xxx_build_ddb_list(ha)) == QLA_ERROR)
 		return status;
 
-	/*
-	 * Targets can come online after the inital discovery, so processing
-	 * the aens here will catch them.
-	 */
-	if (test_and_clear_bit(DPC_AEN, &ha->dpc_flags))
-		qla4xxx_process_aen(ha, PROCESS_ALL_AENS);
-
 	return status;
 }
 
