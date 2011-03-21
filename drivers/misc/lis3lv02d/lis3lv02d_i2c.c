@@ -33,7 +33,7 @@
 #include <linux/delay.h>
 #include "lis3lv02d.h"
 
-#define DRV_NAME 	"lis3lv02d_i2c"
+#define DRV_NAME	"lis3lv02d_i2c"
 
 static const char reg_vdd[]    = "Vdd";
 static const char reg_vdd_io[] = "Vdd_IO";

@@ -3913,8 +3913,8 @@ S:	Supported
 LIS3LV02D ACCELEROMETER DRIVER
 M:	Eric Piel <eric.piel@tremplin-utc.net>
 S:	Maintained
-F:	Documentation/hwmon/lis3lv02d
-F:	drivers/hwmon/lis3lv02d.*
+F:	Documentation/misc-devices/lis3lv02d
+F:	drivers/misc/lis3lv02d/
 
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>

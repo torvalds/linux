@@ -38,7 +38,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/pm_runtime.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "lis3lv02d.h"
 
 #define DRIVER_NAME     "lis3lv02d"
@@ -88,7 +88,6 @@
 struct lis3lv02d lis3_dev = {
 	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(lis3_dev.misc_wait),
 };
-
 EXPORT_SYMBOL_GPL(lis3_dev);
 
 /* just like param_set_int() but does sanity-check so that it won't point
