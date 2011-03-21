@@ -57,6 +57,7 @@ struct nfs_pageio_descriptor {
 	size_t			pg_count;
 	size_t			pg_bsize;
 	unsigned int		pg_base;
+	char			pg_moreio;
 
 	struct inode		*pg_inode;
 	int			(*pg_doio)(struct nfs_pageio_descriptor *);

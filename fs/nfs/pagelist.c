@@ -223,6 +223,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_count = 0;
 	desc->pg_bsize = bsize;
 	desc->pg_base = 0;
+	desc->pg_moreio = 0;
 	desc->pg_inode = inode;
 	desc->pg_doio = doio;
 	desc->pg_ioflags = io_flags;
@@ -335,9 +336,11 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			   struct nfs_page *req)
 {
 	while (!nfs_pageio_do_add_request(desc, req)) {
+		desc->pg_moreio = 1;
 		nfs_pageio_doio(desc);
 		if (desc->pg_error < 0)
 			return 0;
+		desc->pg_moreio = 0;
 	}
 	return 1;
 }

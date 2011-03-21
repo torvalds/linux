@@ -33,6 +33,8 @@
 #define FLUSH_STABLE		4	/* commit to stable storage */
 #define FLUSH_LOWPRI		8	/* low priority background flush */
 #define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
+#define FLUSH_COND_STABLE	32	/* conditional stable write - only stable
+					 * if everything fits in one RPC */
 
 #ifdef __KERNEL__
 

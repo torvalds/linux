@@ -179,8 +179,8 @@ static int wb_priority(struct writeback_control *wbc)
 	if (wbc->for_reclaim)
 		return FLUSH_HIGHPRI | FLUSH_STABLE;
 	if (wbc->for_kupdate || wbc->for_background)
-		return FLUSH_LOWPRI;
-	return 0;
+		return FLUSH_LOWPRI | FLUSH_COND_STABLE;
+	return FLUSH_COND_STABLE;
 }
 
 /*
@@ -863,7 +863,7 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->args.context = get_nfs_open_context(req->wb_context);
 	data->args.lock_context = req->wb_lock_context;
 	data->args.stable  = NFS_UNSTABLE;
-	if (how & FLUSH_STABLE) {
+	if (how & (FLUSH_STABLE | FLUSH_COND_STABLE)) {
 		data->args.stable = NFS_DATA_SYNC;
 		if (!nfs_need_commit(NFS_I(inode)))
 			data->args.stable = NFS_FILE_SYNC;
@@ -911,6 +911,12 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
+
+	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
+	    (desc->pg_moreio || NFS_I(desc->pg_inode)->ncommit ||
+	     desc->pg_count > wsize))
+		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
+
 
 	nbytes = desc->pg_count;
 	do {
@@ -1001,6 +1007,10 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 	req = nfs_list_entry(data->pages.next);
 	if ((!lseg) && list_is_singular(&data->pages))
 		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
+
+	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
+	    (desc->pg_moreio || NFS_I(desc->pg_inode)->ncommit))
+		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
 
 	/* Set up the argument struct */
 	ret = nfs_write_rpcsetup(req, data, &nfs_write_full_ops, desc->pg_count, 0, lseg, desc->pg_ioflags);
