@@ -1630,6 +1630,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	uint8_t init_retry_count = 0;
 	char buf[34];
 	struct qla4_8xxx_legacy_intr_set *nx_legacy_intr;
+	uint32_t dev_state;
 
 	if (pci_enable_device(pdev))
 		return -1;
@@ -1713,6 +1714,18 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	status = qla4xxx_initialize_adapter(ha, REBUILD_DDB_LIST);
 	while ((!test_bit(AF_ONLINE, &ha->flags)) &&
 	    init_retry_count++ < MAX_INIT_RETRIES) {
+
+		if (is_qla8022(ha)) {
+			qla4_8xxx_idc_lock(ha);
+			dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+			qla4_8xxx_idc_unlock(ha);
+			if (dev_state == QLA82XX_DEV_FAILED) {
+				ql4_printk(KERN_WARNING, ha, "%s: don't retry "
+				    "initialize adapter. H/W is in failed state\n",
+				    __func__);
+				break;
+			}
+		}
 		DEBUG2(printk("scsi: %s: retrying adapter initialization "
 			      "(%d)\n", __func__, init_retry_count));
 
