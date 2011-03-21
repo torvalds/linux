@@ -1218,6 +1218,27 @@ recover_ha_init_adapter:
 	return status;
 }
 
+static void qla4xxx_relogin_all_devices(struct scsi_qla_host *ha)
+{
+	struct ddb_entry *ddb_entry, *dtemp;
+
+	list_for_each_entry_safe(ddb_entry, dtemp, &ha->ddb_list, list) {
+		if ((atomic_read(&ddb_entry->state) == DDB_STATE_MISSING) ||
+		    (atomic_read(&ddb_entry->state) == DDB_STATE_DEAD)) {
+			if (ddb_entry->fw_ddb_device_state ==
+			    DDB_DS_SESSION_ACTIVE) {
+				atomic_set(&ddb_entry->state, DDB_STATE_ONLINE);
+				ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ddb[%d]"
+				    " marked ONLINE\n",	ha->host_no, __func__,
+				    ddb_entry->fw_ddb_index);
+
+				iscsi_unblock_session(ddb_entry->sess);
+			} else
+				qla4xxx_relogin_device(ha, ddb_entry);
+		}
+	}
+}
+
 void qla4xxx_wake_dpc(struct scsi_qla_host *ha)
 {
 	if (ha->dpc_thread &&
@@ -1326,13 +1347,7 @@ dpc_post_reset_ha:
 	if (test_and_clear_bit(DPC_LINK_CHANGED, &ha->dpc_flags)) {
 		if (!test_bit(AF_LINK_UP, &ha->flags)) {
 			/* ---- link down? --- */
-			list_for_each_entry_safe(ddb_entry, dtemp,
-						 &ha->ddb_list, list) {
-				if (atomic_read(&ddb_entry->state) ==
-						DDB_STATE_ONLINE)
-					qla4xxx_mark_device_missing(ha,
-							ddb_entry);
-			}
+			qla4xxx_mark_all_devices_missing(ha);
 		} else {
 			/* ---- link up? --- *
 			 * F/W will auto login to all devices ONLY ONCE after
@@ -1341,30 +1356,7 @@ dpc_post_reset_ha:
 			 * manually relogin to devices when recovering from
 			 * connection failures, logouts, expired KATO, etc. */
 
-			list_for_each_entry_safe(ddb_entry, dtemp,
-							&ha->ddb_list, list) {
-				if ((atomic_read(&ddb_entry->state) ==
-						 DDB_STATE_MISSING) ||
-				    (atomic_read(&ddb_entry->state) ==
-						 DDB_STATE_DEAD)) {
-					if (ddb_entry->fw_ddb_device_state ==
-					    DDB_DS_SESSION_ACTIVE) {
-						atomic_set(&ddb_entry->state,
-							   DDB_STATE_ONLINE);
-						ql4_printk(KERN_INFO, ha,
-						    "scsi%ld: %s: ddb[%d]"
-						    " marked ONLINE\n",
-						    ha->host_no, __func__,
-						    ddb_entry->fw_ddb_index);
-
-						iscsi_unblock_session(
-						    ddb_entry->sess);
-					} else
-						qla4xxx_relogin_device(
-						    ha, ddb_entry);
-				}
-
-			}
+			qla4xxx_relogin_all_devices(ha);
 		}
 	}
 
