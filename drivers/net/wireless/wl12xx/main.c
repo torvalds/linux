@@ -1126,7 +1126,7 @@ out:
 	return ret;
 }
 
-int __wl1271_plt_stop(struct wl1271 *wl)
+static int __wl1271_plt_stop(struct wl1271 *wl)
 {
 	int ret = 0;
 
@@ -2985,10 +2985,11 @@ out:
 	return ret;
 }
 
-int wl1271_op_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   enum ieee80211_ampdu_mlme_action action,
-			   struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			   u8 buf_size)
+static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  enum ieee80211_ampdu_mlme_action action,
+				  struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+				  u8 buf_size)
 {
 	struct wl1271 *wl = hw->priv;
 	int ret;
