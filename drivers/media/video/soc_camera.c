@@ -144,6 +144,10 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
+	/* Only single-plane capture is supported so far */
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	/* limit format to hardware capabilities */
 	return ici->ops->try_fmt(icd, f);
 }
@@ -396,10 +400,6 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 	if (ici->ops->init_videobuf)
 		icd->vb_vidq.field = pix->field;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
-			 f->type);
-
 	dev_dbg(&icd->dev, "set width: %d height: %d\n",
 		icd->user_width, icd->user_height);
 
@@ -618,6 +618,11 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		dev_warn(&icd->dev, "Wrong buf-type %d\n", f->type);
+		return -EINVAL;
+	}
+
 	if (icd->streamer && icd->streamer != file)
 		return -EBUSY;
 
@@ -660,6 +665,9 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
 	WARN_ON(priv != file->private_data);
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 
 	pix->width		= icd->user_width;
 	pix->height		= icd->user_height;
