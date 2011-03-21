@@ -1035,29 +1035,37 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	struct nvme_user_io io;
 	struct nvme_command c;
 	unsigned length;
-	u32 result;
 	int nents, status;
 	struct scatterlist *sg;
 	struct nvme_prps *prps;
 
 	if (copy_from_user(&io, uio, sizeof(io)))
 		return -EFAULT;
-	length = io.nblocks << io.block_shift;
-	nents = nvme_map_user_pages(dev, io.opcode & 1, io.addr, length, &sg);
+	length = (io.nblocks + 1) << ns->lba_shift;
+
+	switch (io.opcode) {
+	case nvme_cmd_write:
+	case nvme_cmd_read:
+		nents = nvme_map_user_pages(dev, io.opcode & 1, io.addr,
+								length, &sg);
+	default:
+		return -EFAULT;
+	}
+
 	if (nents < 0)
 		return nents;
 
 	memset(&c, 0, sizeof(c));
 	c.rw.opcode = io.opcode;
 	c.rw.flags = io.flags;
-	c.rw.nsid = cpu_to_le32(io.nsid);
+	c.rw.nsid = cpu_to_le32(ns->ns_id);
 	c.rw.slba = cpu_to_le64(io.slba);
-	c.rw.length = cpu_to_le16(io.nblocks - 1);
+	c.rw.length = cpu_to_le16(io.nblocks);
 	c.rw.control = cpu_to_le16(io.control);
 	c.rw.dsmgmt = cpu_to_le16(io.dsmgmt);
-	c.rw.reftag = cpu_to_le32(io.reftag);	/* XXX: endian? */
-	c.rw.apptag = cpu_to_le16(io.apptag);
-	c.rw.appmask = cpu_to_le16(io.appmask);
+	c.rw.reftag = io.reftag;
+	c.rw.apptag = io.apptag;
+	c.rw.appmask = io.appmask;
 	/* XXX: metadata */
 	prps = nvme_setup_prps(dev, &c.common, sg, length);
 
@@ -1069,11 +1077,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	 * additional races since q_lock already protects against other CPUs.
 	 */
 	put_nvmeq(nvmeq);
-	status = nvme_submit_sync_cmd(nvmeq, &c, &result, IO_TIMEOUT);
+	status = nvme_submit_sync_cmd(nvmeq, &c, NULL, IO_TIMEOUT);
 
 	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg, nents);
 	nvme_free_prps(dev, prps);
-	put_user(result, &uio->result);
 	return status;
 }
 
