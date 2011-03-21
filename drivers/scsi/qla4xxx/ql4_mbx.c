@@ -32,6 +32,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	u_long wait_count;
 	uint32_t intr_status;
 	unsigned long flags = 0;
+	uint32_t dev_state;
 
 	/* Make sure that pointers are valid */
 	if (!mbx_cmd || !mbx_sts) {
@@ -40,12 +41,23 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		return status;
 	}
 
-	if (is_qla8022(ha) &&
-	    test_bit(AF_FW_RECOVERY, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: prematurely "
-		    "completing mbx cmd as firmware recovery detected\n",
-		    ha->host_no, __func__));
-		return status;
+	if (is_qla8022(ha)) {
+		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "
+			    "prematurely completing mbx cmd as firmware "
+			    "recovery detected\n", ha->host_no, __func__));
+			return status;
+		}
+		/* Do not send any mbx cmd if h/w is in failed state*/
+		qla4_8xxx_idc_lock(ha);
+		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla4_8xxx_idc_unlock(ha);
+		if (dev_state == QLA82XX_DEV_FAILED) {
+			ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: H/W is in "
+			    "failed state, do not send any mailbox commands\n",
+			    ha->host_no, __func__);
+			return status;
+		}
 	}
 
 	if ((is_aer_supported(ha)) &&
