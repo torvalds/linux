@@ -19,10 +19,8 @@
 # *******************************************************************/
 ######################################################################
 
-ifneq ($(GCOV),)
-  EXTRA_CFLAGS += -fprofile-arcs -ftest-coverage
-  EXTRA_CFLAGS += -O0
-endif
+ccflags-$(GCOV) := -fprofile-arcs -ftest-coverage
+ccflags-$(GCOV) += -O0
 
 obj-$(CONFIG_SCSI_LPFC) := lpfc.o
 
