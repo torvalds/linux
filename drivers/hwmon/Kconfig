@@ -1302,25 +1302,6 @@ config SENSORS_ATK0110
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_atk0110.
 
-config HP_ACCEL
-	tristate "HP laptop accelerometer"
-	depends on INPUT
-	select SENSORS_LIS3LV02D
-	select NEW_LEDS
-	select LEDS_CLASS
-	default n
-	help
-	  This driver provides support for the "Mobile Data Protection System 3D"
-	  or "3D DriveGuard" feature of HP laptops. On such systems the driver
-	  should load automatically (via ACPI alias).
-
-	  Support for a led indicating disk protection will be provided as
-	  hp::hddprotect. For more information on the feature, refer to
-	  Documentation/hwmon/lis3lv02d.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called hp_accel.
-
 endif # ACPI
 
 endif # HWMON

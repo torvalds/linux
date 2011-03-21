@@ -10,7 +10,6 @@ obj-$(CONFIG_SENSORS_LIS3LV02D) += lis3lv02d.o
 
 # APCI drivers
 obj-$(CONFIG_SENSORS_ATK0110)	+= asus_atk0110.o
-obj-$(CONFIG_HP_ACCEL)		+= hp_accel.o
 
 # Native drivers
 # asb100, then w83781d go first, as they can override other drivers' addresses.

@@ -17,8 +17,8 @@ Description
 This driver provides support for the accelerometer found in various HP laptops
 sporting the feature officially called "HP Mobile Data Protection System 3D" or
 "HP 3D DriveGuard". It detects automatically laptops with this sensor. Known
-models (full list can be found in drivers/hwmon/hp_accel.c) will have their
-axis automatically oriented on standard way (eg: you can directly play
+models (full list can be found in drivers/platform/x86/hp_accel.c) will have
+their axis automatically oriented on standard way (eg: you can directly play
 neverball). The accelerometer data is readable via
 /sys/devices/platform/lis3lv02d. Reported values are scaled
 to mg values (1/1000th of earth gravity).
