@@ -783,9 +783,6 @@ struct btrfs_free_cluster {
 	/* first extent starting offset */
 	u64 window_start;
 
-	/* if this cluster simply points at a bitmap in the block group */
-	bool points_to_bitmap;
-
 	struct btrfs_block_group_cache *block_group;
 	/*
 	 * when a cluster is allocated from a block group, we put the
