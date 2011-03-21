@@ -102,7 +102,7 @@ void cpu_idle(void)
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
 		if (cpu_should_die()) {
-			preempt_enable_no_resched();
+			sched_preempt_enable_no_resched();
 			cpu_die();
 		}
 		schedule_preempt_disabled();
