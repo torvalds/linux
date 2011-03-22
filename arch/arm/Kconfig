@@ -1129,16 +1129,6 @@ config ARM_ERRATA_743622
 	  visible impact on the overall performance or power consumption of the
 	  processor.
 
-config ARM_ERRATA_720791
-	bool "ARM errata: Dynamic high-level clock gating corrupts the Jazelle instruction stream"
-	depends on CPU_V7
-	help
-	  This option enables the workaround for the 720791 Cortex-A9
-	  (r1p0..r1p2) erratum.  The Jazelle instruction stream may be
-	  corrupted when dynamic high-level clock gating is enabled.
-	  This workaround disables gating the Core clock when the Instruction
-	  side is waiting for a Page Table Walk answer or linefill completion.
-
 endmenu
 
 source "arch/arm/common/Kconfig"
