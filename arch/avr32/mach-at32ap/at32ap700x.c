@@ -2061,8 +2061,8 @@ at32_add_device_ac97c(unsigned int id, struct ac97c_platform_data *data,
 		tx_dws->reg_width = DW_DMA_SLAVE_WIDTH_16BIT;
 		tx_dws->cfg_hi = DWC_CFGH_DST_PER(4);
 		tx_dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL | DWC_CFGL_HS_SRC_POL);
-		rx_dws->src_master = 0;
-		rx_dws->dst_master = 1;
+		tx_dws->src_master = 0;
+		tx_dws->dst_master = 1;
 		tx_dws->src_msize = DW_DMA_MSIZE_1;
 		tx_dws->dst_msize = DW_DMA_MSIZE_1;
 		tx_dws->fc = DW_DMA_FC_D_M2P;
