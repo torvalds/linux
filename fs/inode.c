@@ -26,6 +26,7 @@
 #include <linux/posix_acl.h>
 #include <linux/ima.h>
 #include <linux/cred.h>
+#include "internal.h"
 
 /*
  * inode locking rules.
@@ -36,6 +37,8 @@
  *   inode_lru, inode->i_lru
  * inode_sb_list_lock protects:
  *   sb->s_inodes, inode->i_sb_list
+ * inode_wb_list_lock protects:
+ *   bdi->wb.b_{dirty,io,more_io}, inode->i_wb_list
  *
  * Lock ordering:
  * inode_lock
@@ -44,6 +47,9 @@
  * inode_sb_list_lock
  *   inode->i_lock
  *     inode_lru_lock
+ *
+ * inode_wb_list_lock
+ *   inode->i_lock
  */
 
 /*
@@ -105,6 +111,7 @@ static struct hlist_head *inode_hashtable __read_mostly;
 DEFINE_SPINLOCK(inode_lock);
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_wb_list_lock);
 
 /*
  * iprune_sem provides exclusion between the icache shrinking and the
@@ -483,10 +490,7 @@ static void evict(struct inode *inode)
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(!list_empty(&inode->i_lru));
 
-	spin_lock(&inode_lock);
-	list_del_init(&inode->i_wb_list);
-	spin_unlock(&inode_lock);
-
+	inode_wb_list_del(inode);
 	inode_sb_list_del(inode);
 
 	if (op->evict_inode) {
