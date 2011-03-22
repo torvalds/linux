@@ -39,12 +39,15 @@ static int force_sensor = -1;
 enum e_ctrl {
 	BRIGHTNESS,
 	CONTRAST,
+	EXPOSURE,
 	GAMMA,
 	AUTOGAIN,
 	LIGHTFREQ,
 	SHARPNESS,
 	NCTRLS		/* number of controls */
 };
+
+#define AUTOGAIN_DEF 1
 
 /* specific webcam descriptor */
 struct sd {
@@ -92,7 +95,8 @@ enum sensors {
 
 /* V4L2 controls supported by the driver */
 static void setcontrast(struct gspca_dev *gspca_dev);
-static void setautogain(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static void setlightfreq(struct gspca_dev *gspca_dev);
 static void setsharpness(struct gspca_dev *gspca_dev);
 
@@ -121,6 +125,18 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 	    },
 	    .set_control = setcontrast
 	},
+[EXPOSURE] = {
+	    {
+		.id      = V4L2_CID_EXPOSURE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Exposure",
+		.minimum = 0x30d,
+		.maximum	= 0x493e,
+		.step		= 1,
+		.default_value  = 0x927
+	    },
+	    .set_control = setexposure
+	},
 [GAMMA] = {
 	    {
 		.id      = V4L2_CID_GAMMA,
@@ -141,9 +157,10 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-		.default_value = 1,
+		.default_value = AUTOGAIN_DEF,
+		.flags   = V4L2_CTRL_FLAG_UPDATE
 	    },
-	    .set_control = setautogain
+	    .set = sd_setautogain
 	},
 [LIGHTFREQ] = {
 	    {
@@ -5926,6 +5943,26 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, gr[i], 0x0130 + i);	/* gradient */
 }
 
+static void getexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->ctrls[EXPOSURE].val = (i2c_read(gspca_dev, 0x25) << 9)
+		| (i2c_read(gspca_dev, 0x26) << 1)
+		| (i2c_read(gspca_dev, 0x27) >> 7);
+}
+
+static void setexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int val;
+
+	val = sd->ctrls[EXPOSURE].val;
+	i2c_write(gspca_dev, 0x25, val >> 9, 0x00);
+	i2c_write(gspca_dev, 0x26, val >> 1, 0x00);
+	i2c_write(gspca_dev, 0x27, val << 7, 0x00);
+}
+
 static void setquality(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -6623,10 +6660,19 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	sd->ctrls[GAMMA].def = gamma[sd->sensor];
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+		break;
 	case SENSOR_OV7630C:
-		gspca_dev->ctrl_dis = (1 << LIGHTFREQ);
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ) | (1 << EXPOSURE);
+		break;
+	default:
+		gspca_dev->ctrl_dis = (1 << EXPOSURE);
 		break;
 	}
+#if AUTOGAIN_DEF
+	if (sd->ctrls[AUTOGAIN].val)
+		gspca_dev->ctrl_inac = (1 << EXPOSURE);
+#endif
 
 	/* switch off the led */
 	reg_w(gspca_dev, 0x01, 0x0000);
@@ -6772,9 +6818,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x40, 0x0117);
 		break;
 	case SENSOR_HV7131R:
-		i2c_write(gspca_dev, 0x25, 0x04, 0x00);	/* exposure */
-		i2c_write(gspca_dev, 0x26, 0x93, 0x00);
-		i2c_write(gspca_dev, 0x27, 0xe0, 0x00);
+		if (!sd->ctrls[AUTOGAIN].val)
+			setexposure(gspca_dev);
 		reg_w(gspca_dev, 0x00, ZC3XX_R1A7_CALCGLOBALMEAN);
 		break;
 	case SENSOR_GC0305:
@@ -6850,6 +6895,23 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		len -= 18;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+}
+
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->ctrls[AUTOGAIN].val = val;
+	if (val) {
+		gspca_dev->ctrl_inac |= (1 << EXPOSURE);
+	} else {
+		gspca_dev->ctrl_inac &= ~(1 << EXPOSURE);
+		if (gspca_dev->streaming)
+			getexposure(gspca_dev);
+	}
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
+	return gspca_dev->usb_err;
 }
 
 static int sd_querymenu(struct gspca_dev *gspca_dev,
