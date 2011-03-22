@@ -341,7 +341,7 @@ exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&urb->dev->dev, "%s - usb_submit_urb failed with "
-			"result %d", __func__, retval);
+			"result %d\n", __func__, retval);
 }
 
 /* data interface returns incoming bytes, or we got unthrottled */
@@ -355,7 +355,7 @@ static void acm_read_bulk(struct urb *urb)
 	dbg("Entering acm_read_bulk with status %d", status);
 
 	if (!ACM_READY(acm)) {
-		dev_dbg(&acm->data->dev, "Aborting, acm not ready");
+		dev_dbg(&acm->data->dev, "Aborting, acm not ready\n");
 		return;
 	}
 	usb_mark_last_busy(acm->dev);
@@ -1224,7 +1224,7 @@ made_compressed_probe:
 		snd->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (snd->urb == NULL) {
 			dev_dbg(&intf->dev,
-				"out of memory (write urbs usb_alloc_urb)");
+				"out of memory (write urbs usb_alloc_urb)\n");
 			goto alloc_fail8;
 		}
 
