@@ -29,8 +29,38 @@
 /* default iSCSI listen port for incoming connections */
 #define ISCSI_LISTEN_PORT	3260
 
+/* iSCSI header length */
+#define ISCSI_HDR_LEN		48
+
+/* iSCSI CRC32C length */
+#define ISCSI_CRC_LEN		4
+
 /* Padding word length */
 #define ISCSI_PAD_LEN		4
+
+/*
+ * Serial Number Arithmetic, 32 bits, RFC1982
+ */
+
+static inline int iscsi_sna_lt(u32 n1, u32 n2)
+{
+	return (s32)(n1 - n2) < 0;
+}
+
+static inline int iscsi_sna_lte(u32 n1, u32 n2)
+{
+	return (s32)(n1 - n2) <= 0;
+}
+
+static inline int iscsi_sna_gt(u32 n1, u32 n2)
+{
+	return (s32)(n1 - n2) > 0;
+}
+
+static inline int iscsi_sna_gte(u32 n1, u32 n2)
+{
+	return (s32)(n1 - n2) >= 0;
+}
 
 /*
  * useful common(control and data pathes) macro
