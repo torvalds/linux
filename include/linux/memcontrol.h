@@ -96,7 +96,7 @@ extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
 
 extern int
 mem_cgroup_prepare_migration(struct page *page,
-	struct page *newpage, struct mem_cgroup **ptr);
+	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask);
 extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
 	struct page *oldpage, struct page *newpage, bool migration_ok);
 
@@ -249,7 +249,7 @@ static inline struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
 
 static inline int
 mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
-	struct mem_cgroup **ptr)
+	struct mem_cgroup **ptr, gfp_t gfp_mask)
 {
 	return 0;
 }

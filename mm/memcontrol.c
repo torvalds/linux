@@ -2883,7 +2883,7 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
  * page belongs to.
  */
 int mem_cgroup_prepare_migration(struct page *page,
-	struct page *newpage, struct mem_cgroup **ptr)
+	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
@@ -2940,7 +2940,7 @@ int mem_cgroup_prepare_migration(struct page *page,
 		return 0;
 
 	*ptr = mem;
-	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false, PAGE_SIZE);
+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, ptr, false, PAGE_SIZE);
 	css_put(&mem->css);/* drop extra refcnt */
 	if (ret || *ptr == NULL) {
 		if (PageAnon(page)) {
