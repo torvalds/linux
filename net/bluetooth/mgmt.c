@@ -239,7 +239,8 @@ static struct pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 		return NULL;
 	}
 
-	memcpy(cmd->param, data, len);
+	if (data)
+		memcpy(cmd->param, data, len);
 
 	cmd->sk = sk;
 	sock_hold(sk);
