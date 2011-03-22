@@ -36,6 +36,7 @@ struct emac_platform_data {
 
 	u8 rmii_en;
 	u8 version;
+	bool no_bd_ram;
 	void (*interrupt_enable) (void);
 	void (*interrupt_disable) (void);
 };
