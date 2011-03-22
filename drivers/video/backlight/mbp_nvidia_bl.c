@@ -143,6 +143,7 @@ static int __devinit mb_bl_add(struct acpi_device *dev)
 {
 	struct backlight_properties props;
 	struct pci_dev *host;
+	int intensity;
 
 	host = pci_get_bus_and_slot(0, 0);
 
@@ -161,6 +162,18 @@ static int __devinit mb_bl_add(struct acpi_device *dev)
 	if (!hw_data) {
 		printk(KERN_ERR DRIVER "unknown hardware\n");
 		return -ENODEV;
+	}
+
+	/* Check that the hardware responds - this may not work under EFI */
+
+	intensity = hw_data->backlight_ops.get_brightness(NULL);
+
+	if (!intensity) {
+		hw_data->set_brightness(1);
+		if (!hw_data->backlight_ops.get_brightness(NULL))
+			return -ENODEV;
+
+		hw_data->set_brightness(0);
 	}
 
 	if (!request_region(hw_data->iostart, hw_data->iolen,
