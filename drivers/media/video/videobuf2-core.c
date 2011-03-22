@@ -51,7 +51,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb,
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		mem_priv = call_memop(q, plane, alloc, q->alloc_ctx[plane],
 					plane_sizes[plane]);
-		if (!mem_priv)
+		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
 
 		/* Associate allocator private data with this plane */
