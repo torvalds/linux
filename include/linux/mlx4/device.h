@@ -422,7 +422,7 @@ struct mlx4_dev {
 	unsigned long		flags;
 	struct mlx4_caps	caps;
 	struct radix_tree_root	qp_table_tree;
-	u32			rev_id;
+	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
 };
 

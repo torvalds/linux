@@ -216,6 +216,9 @@ struct mlx4_en_tx_desc {
 
 #define MLX4_EN_USE_SRQ		0x01000000
 
+#define MLX4_EN_CX3_LOW_ID	0x1000
+#define MLX4_EN_CX3_HIGH_ID	0x1005
+
 struct mlx4_en_rx_alloc {
 	struct page *page;
 	u16 offset;

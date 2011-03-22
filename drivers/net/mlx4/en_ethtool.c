@@ -45,7 +45,20 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	sprintf(drvinfo->driver, DRV_NAME " (%s)", mdev->dev->board_id);
+	switch (mdev->dev->rev_id) {
+	case 0xa0:
+		if (dev->dev_id >= MLX4_EN_CX3_LOW_ID && dev->dev_id <= MLX4_EN_CX3_HIGH_ID)
+			sprintf(drvinfo->driver, DRV_NAME " (%s_CX-3)", mdev->dev->board_id);
+		else
+			sprintf(drvinfo->driver, DRV_NAME " (%s_CX)", mdev->dev->board_id);
+		break;
+	case 0xb0:
+		sprintf(drvinfo->driver, DRV_NAME " (%s_CX-2)", mdev->dev->board_id);
+		break;
+	default:
+		sprintf(drvinfo->driver, DRV_NAME " (%s)", mdev->dev->board_id);
+		break;
+	}
 	strncpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")", 32);
 	sprintf(drvinfo->fw_version, "%d.%d.%d",
 		(u16) (mdev->dev->caps.fw_ver >> 32),
