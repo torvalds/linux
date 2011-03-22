@@ -12,6 +12,7 @@ config ARCH_MX35
 
 config SOC_IMX31
 	bool
+	select CPU_V6
 	select IMX_HAVE_PLATFORM_MXC_RNGA
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_MX31
@@ -19,6 +20,7 @@ config SOC_IMX31
 
 config SOC_IMX35
 	bool
+	select CPU_V6
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
 	select HAVE_EPIT
