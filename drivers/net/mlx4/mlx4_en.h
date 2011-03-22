@@ -479,6 +479,13 @@ struct mlx4_en_priv {
 	int mc_addrs_cnt;
 	struct mlx4_en_stat_out_mbox hw_stats;
 	int vids[128];
+	bool wol;
+};
+
+enum mlx4_en_wol {
+	MLX4_EN_WOL_MAGIC = (1ULL << 61),
+	MLX4_EN_WOL_ENABLED = (1ULL << 62),
+	MLX4_EN_WOL_DO_MODIFY = (1ULL << 63),
 };
 
 

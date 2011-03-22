@@ -276,6 +276,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->udp_rss = field & 0x1;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ETH_UC_LOOPBACK_OFFSET);
 	dev_cap->loopback_support = field & 0x1;
+	dev_cap->wol = field & 0x40;
 	MLX4_GET(dev_cap->flags, outbox, QUERY_DEV_CAP_FLAGS_OFFSET);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_UAR_OFFSET);
 	dev_cap->reserved_uars = field >> 4;
@@ -908,3 +909,22 @@ int mlx4_NOP(struct mlx4_dev *dev)
 	/* Input modifier of 0x1f means "finish as soon as possible." */
 	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, 100);
 }
+
+#define MLX4_WOL_SETUP_MODE (5 << 28)
+int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port)
+{
+	u32 in_mod = MLX4_WOL_SETUP_MODE | port << 8;
+
+	return mlx4_cmd_imm(dev, 0, config, in_mod, 0x3,
+			    MLX4_CMD_MOD_STAT_CFG, MLX4_CMD_TIME_CLASS_A);
+}
+EXPORT_SYMBOL_GPL(mlx4_wol_read);
+
+int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port)
+{
+	u32 in_mod = MLX4_WOL_SETUP_MODE | port << 8;
+
+	return mlx4_cmd(dev, config, in_mod, 0x1, MLX4_CMD_MOD_STAT_CFG,
+					MLX4_CMD_TIME_CLASS_A);
+}
+EXPORT_SYMBOL_GPL(mlx4_wol_write);

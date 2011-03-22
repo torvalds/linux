@@ -80,6 +80,7 @@ struct mlx4_dev_cap {
 	u16 stat_rate_support;
 	int udp_rss;
 	int loopback_support;
+	int wol;
 	u32 flags;
 	int reserved_uars;
 	int uar_size;
