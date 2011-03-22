@@ -125,7 +125,7 @@ adc_sync_read_callback(struct adc_client *client, void *param, int result)
 int adc_sync_read(struct adc_client *client)
 {
 	struct adc_request *req = NULL;
-	int err, tmo;
+	int err, tmo, tail;
 
 	if(client == NULL) {
 		printk(KERN_ERR "client point is NULL");
@@ -144,6 +144,7 @@ int adc_sync_read(struct adc_client *client)
 	req->callback =  adc_sync_read_callback;
 	req->callback_param = req;
 	req->client = client;
+	req->status = SYNC_READ;
 
 	init_completion(&req->completion);
 	err = adc_enqueue_request(client->adc, req);
@@ -154,8 +155,14 @@ int adc_sync_read(struct adc_client *client)
 		return err;
 	}
 	tmo = wait_for_completion_timeout(&req->completion,msecs_to_jiffies(100));
-	if(tmo == 0)
+	kfree(req);
+	req = NULL;
+	if(tmo == 0) {
+		tail = (client->adc->queue_tail - 1) & (MAX_ADC_FIFO_DEPTH - 1);
+		client->adc->queue[tail] = NULL;
+		client->adc->queue_tail = tail;
 		return -ETIMEDOUT;
+	}
 	return client->result;
 }
 EXPORT_SYMBOL(adc_sync_read);
@@ -181,6 +188,7 @@ int adc_async_read(struct adc_client *client)
 	req->callback = client->callback;
 	req->callback_param = client->callback_param;
 	req->client = client;
+	req->status = ASYNC_READ;
 
 	return adc_enqueue_request(client->adc, req);
 }
@@ -206,7 +214,10 @@ void adc_core_irq_handle(struct adc_host *adc)
 	trigger_next_adc_job_if_any(adc);
 
 	req->callback(adc->cur, req->callback_param, res);
-	kfree(req);
+	if(req->status == ASYNC_READ) {
+		kfree(req);
+		req = NULL;
+	}
 }
 EXPORT_SYMBOL(adc_core_irq_handle);
 
