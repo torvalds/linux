@@ -652,8 +652,10 @@ static void acm_port_down(struct acm *acm, int drain)
 		usb_kill_urb(acm->ctrlurb);
 		for (i = 0; i < ACM_NW; i++)
 			usb_kill_urb(acm->wb[i].urb);
+		tasklet_disable(&acm->urb_task);
 		for (i = 0; i < nr; i++)
 			usb_kill_urb(acm->ru[i].urb);
+		tasklet_enable(&acm->urb_task);
 		acm->control->needs_remote_wakeup = 0;
 		usb_autopm_put_interface(acm->control);
 	}
