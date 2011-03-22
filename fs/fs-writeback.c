@@ -332,9 +332,9 @@ static void inode_wait_for_writeback(struct inode *inode)
 }
 
 /*
- * Write out an inode's dirty pages.  Called under inode_wb_list_lock.  Either
- * the caller has an active reference on the inode or the inode has I_WILL_FREE
- * set.
+ * Write out an inode's dirty pages.  Called under inode_wb_list_lock and
+ * inode->i_lock.  Either the caller has an active reference on the inode or
+ * the inode has I_WILL_FREE set.
  *
  * If `wait' is set, wait on the writeout.
  *
@@ -349,7 +349,9 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 	unsigned dirty;
 	int ret;
 
-	spin_lock(&inode->i_lock);
+	assert_spin_locked(&inode_wb_list_lock);
+	assert_spin_locked(&inode->i_lock);
+
 	if (!atomic_read(&inode->i_count))
 		WARN_ON(!(inode->i_state & (I_WILL_FREE|I_FREEING)));
 	else
@@ -365,7 +367,6 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		 * completed a full scan of b_io.
 		 */
 		if (wbc->sync_mode != WB_SYNC_ALL) {
-			spin_unlock(&inode->i_lock);
 			requeue_io(inode);
 			return 0;
 		}
@@ -456,7 +457,6 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 		}
 	}
 	inode_sync_complete(inode);
-	spin_unlock(&inode->i_lock);
 	return ret;
 }
 
@@ -544,7 +544,6 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 		}
 
 		__iget(inode);
-		spin_unlock(&inode->i_lock);
 
 		pages_skipped = wbc->pages_skipped;
 		writeback_single_inode(inode, wbc);
@@ -555,6 +554,7 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 			 */
 			redirty_tail(inode);
 		}
+		spin_unlock(&inode->i_lock);
 		spin_unlock(&inode_wb_list_lock);
 		iput(inode);
 		cond_resched();
@@ -1309,7 +1309,9 @@ int write_inode_now(struct inode *inode, int sync)
 
 	might_sleep();
 	spin_lock(&inode_wb_list_lock);
+	spin_lock(&inode->i_lock);
 	ret = writeback_single_inode(inode, &wbc);
+	spin_unlock(&inode->i_lock);
 	spin_unlock(&inode_wb_list_lock);
 	if (sync)
 		inode_sync_wait(inode);
@@ -1333,7 +1335,9 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc)
 	int ret;
 
 	spin_lock(&inode_wb_list_lock);
+	spin_lock(&inode->i_lock);
 	ret = writeback_single_inode(inode, wbc);
+	spin_unlock(&inode->i_lock);
 	spin_unlock(&inode_wb_list_lock);
 	return ret;
 }
