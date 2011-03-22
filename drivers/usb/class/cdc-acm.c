@@ -340,8 +340,8 @@ static void acm_ctrl_irq(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&urb->dev->dev, "%s - usb_submit_urb failed with "
-			"result %d\n", __func__, retval);
+		dev_err(&acm->control->dev, "%s - usb_submit_urb failed: %d\n",
+							__func__, retval);
 }
 
 /* data interface returns incoming bytes, or we got unthrottled */
@@ -355,13 +355,14 @@ static void acm_read_bulk(struct urb *urb)
 	dbg("Entering acm_read_bulk with status %d", status);
 
 	if (!ACM_READY(acm)) {
-		dev_dbg(&acm->data->dev, "Aborting, acm not ready\n");
+		dev_dbg(&acm->data->dev, "%s - acm not ready\n", __func__);
 		return;
 	}
 	usb_mark_last_busy(acm->dev);
 
 	if (status)
-		dev_dbg(&acm->data->dev, "bulk rx status %d\n", status);
+		dev_dbg(&acm->data->dev, "%s - non-zero urb status: %d\n",
+							__func__, status);
 
 	buf = rcv->buffer;
 	buf->size = urb->actual_length;
@@ -511,7 +512,8 @@ static void acm_write_bulk(struct urb *urb)
 
 	if (verbose || urb->status
 			|| (urb->actual_length != urb->transfer_buffer_length))
-		dev_dbg(&acm->data->dev, "tx %d/%d bytes -- > %d\n",
+		dev_dbg(&acm->data->dev, "%s - len %d/%d, status %d\n",
+			__func__,
 			urb->actual_length,
 			urb->transfer_buffer_length,
 			urb->status);
@@ -530,7 +532,8 @@ static void acm_softint(struct work_struct *work)
 	struct acm *acm = container_of(work, struct acm, work);
 	struct tty_struct *tty;
 
-	dev_vdbg(&acm->data->dev, "tx work\n");
+	dev_vdbg(&acm->data->dev, "%s\n", __func__);
+
 	if (!ACM_READY(acm))
 		return;
 	tty = tty_port_tty_get(&acm->port);
