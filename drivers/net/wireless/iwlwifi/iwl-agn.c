@@ -409,7 +409,7 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
  * Tell nic where to find circular buffer of Tx Frame Descriptors for
  * given Tx queue, and enable the DMA channel used for that queue.
  *
- * 4965 supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
+ * supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
  * channels supported in hardware.
  */
 int iwl_hw_tx_queue_init(struct iwl_priv *priv,
@@ -986,7 +986,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
 			handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
 			iwl_write32(priv, CSR_FH_INT_STATUS,
-					CSR49_FH_INT_RX_MASK);
+					CSR_FH_INT_RX_MASK);
 		}
 		if (inta & CSR_INT_BIT_RX_PERIODIC) {
 			handled |= CSR_INT_BIT_RX_PERIODIC;
@@ -1024,7 +1024,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
-		iwl_write32(priv, CSR_FH_INT_STATUS, CSR49_FH_INT_TX_MASK);
+		iwl_write32(priv, CSR_FH_INT_STATUS, CSR_FH_INT_TX_MASK);
 		IWL_DEBUG_ISR(priv, "uCode load interrupt\n");
 		priv->isr_stats.tx++;
 		handled |= CSR_INT_BIT_FH_TX;
@@ -1259,28 +1259,19 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 
 	switch (api_ver) {
 	default:
-		/*
-		 * 4965 doesn't revision the firmware file format
-		 * along with the API version, it always uses v1
-		 * file format.
-		 */
-		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) !=
-				CSR_HW_REV_TYPE_4965) {
-			hdr_size = 28;
-			if (ucode_raw->size < hdr_size) {
-				IWL_ERR(priv, "File size too small!\n");
-				return -EINVAL;
-			}
-			pieces->build = le32_to_cpu(ucode->u.v2.build);
-			pieces->inst_size = le32_to_cpu(ucode->u.v2.inst_size);
-			pieces->data_size = le32_to_cpu(ucode->u.v2.data_size);
-			pieces->init_size = le32_to_cpu(ucode->u.v2.init_size);
-			pieces->init_data_size = le32_to_cpu(ucode->u.v2.init_data_size);
-			pieces->boot_size = le32_to_cpu(ucode->u.v2.boot_size);
-			src = ucode->u.v2.data;
-			break;
+		hdr_size = 28;
+		if (ucode_raw->size < hdr_size) {
+			IWL_ERR(priv, "File size too small!\n");
+			return -EINVAL;
 		}
-		/* fall through for 4965 */
+		pieces->build = le32_to_cpu(ucode->u.v2.build);
+		pieces->inst_size = le32_to_cpu(ucode->u.v2.inst_size);
+		pieces->data_size = le32_to_cpu(ucode->u.v2.data_size);
+		pieces->init_size = le32_to_cpu(ucode->u.v2.init_size);
+		pieces->init_data_size = le32_to_cpu(ucode->u.v2.init_data_size);
+		pieces->boot_size = le32_to_cpu(ucode->u.v2.boot_size);
+		src = ucode->u.v2.data;
+		break;
 	case 0:
 	case 1:
 	case 2:
