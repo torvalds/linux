@@ -78,26 +78,13 @@ static const struct address_space_operations adfs_aops = {
 	.bmap		= _adfs_bmap
 };
 
-static inline unsigned int
-adfs_filetype(struct inode *inode)
-{
-	unsigned int type;
-
-	if (ADFS_I(inode)->stamped)
-		type = (ADFS_I(inode)->loadaddr >> 8) & 0xfff;
-	else
-		type = (unsigned int) -1;
-
-	return type;
-}
-
 /*
  * Convert ADFS attributes and filetype to Linux permission.
  */
 static umode_t
 adfs_atts2mode(struct super_block *sb, struct inode *inode)
 {
-	unsigned int filetype, attr = ADFS_I(inode)->attr;
+	unsigned int attr = ADFS_I(inode)->attr;
 	umode_t mode, rmask;
 	struct adfs_sb_info *asb = ADFS_SB(sb);
 
@@ -106,9 +93,7 @@ adfs_atts2mode(struct super_block *sb, struct inode *inode)
 		return S_IFDIR | S_IXUGO | mode;
 	}
 
-	filetype = adfs_filetype(inode);
-
-	switch (filetype) {
+	switch (ADFS_I(inode)->filetype) {
 	case 0xfc0:	/* LinkFS */
 		return S_IFLNK|S_IRWXUGO;
 
@@ -277,7 +262,8 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 	ADFS_I(inode)->loadaddr  = obj->loadaddr;
 	ADFS_I(inode)->execaddr  = obj->execaddr;
 	ADFS_I(inode)->attr      = obj->attr;
-	ADFS_I(inode)->stamped	  = ((obj->loadaddr & 0xfff00000) == 0xfff00000);
+	ADFS_I(inode)->filetype  = obj->filetype;
+	ADFS_I(inode)->stamped   = ((obj->loadaddr & 0xfff00000) == 0xfff00000);
 
 	inode->i_mode	 = adfs_atts2mode(sb, inode);
 	adfs_adfs2unix_time(&inode->i_mtime, inode);
