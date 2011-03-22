@@ -39,6 +39,11 @@
 
 #include <asm/atomic.h>
 
+#define MAX_MSIX_P_PORT		17
+#define MAX_MSIX		64
+#define MSIX_LEGACY_SZ		4
+#define MIN_MSIX_P_PORT		5
+
 enum {
 	MLX4_FLAG_MSI_X		= 1 << 0,
 	MLX4_FLAG_OLD_PORT_CMDS	= 1 << 1,
@@ -223,6 +228,7 @@ struct mlx4_caps {
 	int			num_eqs;
 	int			reserved_eqs;
 	int			num_comp_vectors;
+	int			comp_pool;
 	int			num_mpts;
 	int			num_mtt_segs;
 	int			mtts_per_seg;
@@ -526,5 +532,7 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 int mlx4_test_interrupts(struct mlx4_dev *dev);
+int mlx4_assign_eq(struct mlx4_dev *dev, char* name , int* vector);
+void mlx4_release_eq(struct mlx4_dev *dev, int vec);
 
 #endif /* MLX4_DEVICE_H */

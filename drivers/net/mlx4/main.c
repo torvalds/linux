@@ -969,13 +969,15 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct msix_entry *entries;
-	int nreq;
+	int nreq = min_t(int, dev->caps.num_ports *
+			 min_t(int, num_online_cpus() + 1, MAX_MSIX_P_PORT)
+				+ MSIX_LEGACY_SZ, MAX_MSIX);
 	int err;
 	int i;
 
 	if (msi_x) {
 		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
-			     num_possible_cpus() + 1);
+			     nreq);
 		entries = kcalloc(nreq, sizeof *entries, GFP_KERNEL);
 		if (!entries)
 			goto no_msi;
@@ -998,7 +1000,15 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 			goto no_msi;
 		}
 
-		dev->caps.num_comp_vectors = nreq - 1;
+		if (nreq <
+		    MSIX_LEGACY_SZ + dev->caps.num_ports * MIN_MSIX_P_PORT) {
+			/*Working in legacy mode , all EQ's shared*/
+			dev->caps.comp_pool           = 0;
+			dev->caps.num_comp_vectors = nreq - 1;
+		} else {
+			dev->caps.comp_pool           = nreq - MSIX_LEGACY_SZ;
+			dev->caps.num_comp_vectors = MSIX_LEGACY_SZ - 1;
+		}
 		for (i = 0; i < nreq; ++i)
 			priv->eq_table.eq[i].irq = entries[i].vector;
 
@@ -1010,6 +1020,7 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 
 no_msi:
 	dev->caps.num_comp_vectors = 1;
+	dev->caps.comp_pool	   = 0;
 
 	for (i = 0; i < 2; ++i)
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
@@ -1150,6 +1161,9 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = mlx4_alloc_eq_table(dev);
 	if (err)
 		goto err_close;
+
+	priv->msix_ctl.pool_bm = 0;
+	spin_lock_init(&priv->msix_ctl.pool_lock);
 
 	mlx4_enable_msi_x(dev);
 

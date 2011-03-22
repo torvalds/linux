@@ -282,6 +282,11 @@ struct mlx4_sense {
 	struct delayed_work	sense_poll;
 };
 
+struct mlx4_msix_ctl {
+	u64		pool_bm;
+	spinlock_t	pool_lock;
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -313,6 +318,7 @@ struct mlx4_priv {
 	struct mlx4_port_info	port[MLX4_MAX_PORTS + 1];
 	struct mlx4_sense       sense;
 	struct mutex		port_mutex;
+	struct mlx4_msix_ctl	msix_ctl;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
