@@ -1620,27 +1620,33 @@ static inline void cfq_del_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_blkiocg_update_idle_time_stats(&cfqq->cfqg->blkg);
 }
 
+static void cfq_clear_queue_stats(struct cfq_data *cfqd,
+				  struct cfq_queue *cfqq)
+{
+	cfq_blkiocg_update_avg_queue_size_stats(&cfqq->cfqg->blkg);
+	cfqq->slice_start = 0;
+	cfqq->dispatch_start = jiffies;
+	cfqq->allocated_slice = 0;
+	cfqq->slice_end = 0;
+	cfqq->slice_dispatch = 0;
+	cfqq->nr_sectors = 0;
+
+	cfq_clear_cfqq_wait_request(cfqq);
+	cfq_clear_cfqq_must_dispatch(cfqq);
+	cfq_clear_cfqq_must_alloc_slice(cfqq);
+	cfq_clear_cfqq_fifo_expire(cfqq);
+	cfq_mark_cfqq_slice_new(cfqq);
+
+	cfq_del_timer(cfqd, cfqq);
+}
+
 static void __cfq_set_active_queue(struct cfq_data *cfqd,
 				   struct cfq_queue *cfqq)
 {
 	if (cfqq) {
 		cfq_log_cfqq(cfqd, cfqq, "set_active wl_prio:%d wl_type:%d",
 				cfqd->serving_prio, cfqd->serving_type);
-		cfq_blkiocg_update_avg_queue_size_stats(&cfqq->cfqg->blkg);
-		cfqq->slice_start = 0;
-		cfqq->dispatch_start = jiffies;
-		cfqq->allocated_slice = 0;
-		cfqq->slice_end = 0;
-		cfqq->slice_dispatch = 0;
-		cfqq->nr_sectors = 0;
-
-		cfq_clear_cfqq_wait_request(cfqq);
-		cfq_clear_cfqq_must_dispatch(cfqq);
-		cfq_clear_cfqq_must_alloc_slice(cfqq);
-		cfq_clear_cfqq_fifo_expire(cfqq);
-		cfq_mark_cfqq_slice_new(cfqq);
-
-		cfq_del_timer(cfqd, cfqq);
+		cfq_clear_queue_stats(cfqd, cfqq);
 	}
 
 	cfqd->active_queue = cfqq;
@@ -3332,7 +3338,8 @@ static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 
 	cfq_service_tree_add(cfqd, cfqq, 1);
-	__cfq_set_active_queue(cfqd, cfqq);
+
+	cfq_clear_queue_stats(cfqd, cfqq);
 }
 
 /*
