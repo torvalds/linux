@@ -153,6 +153,13 @@ config MUSB_PIO_ONLY
 	  you can still disable it at run time using the "use_dma=n" module
 	  parameter.
 
+config USB_UX500_DMA
+	bool
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	default USB_MUSB_UX500
+	help
+	  Enable DMA transfers on UX500 platforms.
+
 config USB_INVENTRA_DMA
 	bool
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
