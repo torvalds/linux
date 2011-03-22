@@ -36,10 +36,10 @@
  * @prot:       pointer to struct proto structure.
  */
 struct can_proto {
-	int              type;
-	int              protocol;
-	struct proto_ops *ops;
-	struct proto     *prot;
+	int type;
+	int protocol;
+	const struct proto_ops *ops;
+	struct proto *prot;
 };
 
 /* function prototypes for the CAN networklayer core (af_can.c) */
@@ -58,5 +58,6 @@ extern void can_rx_unregister(struct net_device *dev, canid_t can_id,
 			      void *data);
 
 extern int can_send(struct sk_buff *skb, int loop);
+extern int can_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 
 #endif /* CAN_CORE_H */
