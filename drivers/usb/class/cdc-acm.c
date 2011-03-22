@@ -1177,7 +1177,16 @@ made_compressed_probe:
 		goto alloc_fail5;
 	}
 	for (i = 0; i < num_rx_buf; i++) {
+		struct acm_rb *rb = &(acm->rb[i]);
 		struct acm_ru *rcv = &(acm->ru[i]);
+
+		rb->base = usb_alloc_coherent(acm->dev, readsize, GFP_KERNEL,
+								&rb->dma);
+		if (!rb->base) {
+			dev_err(&intf->dev, "out of memory "
+					"(read bufs usb_alloc_coherent)\n");
+			goto alloc_fail6;
+		}
 
 		rcv->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (rcv->urb == NULL) {
@@ -1189,17 +1198,6 @@ made_compressed_probe:
 		rcv->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		rcv->instance = acm;
 	}
-	for (i = 0; i < num_rx_buf; i++) {
-		struct acm_rb *rb = &(acm->rb[i]);
-
-		rb->base = usb_alloc_coherent(acm->dev, readsize,
-				GFP_KERNEL, &rb->dma);
-		if (!rb->base) {
-			dev_err(&intf->dev,
-				"out of memory (read bufs usb_alloc_coherent)\n");
-			goto alloc_fail7;
-		}
-	}
 	for (i = 0; i < ACM_NW; i++) {
 		struct acm_wb *snd = &(acm->wb[i]);
 
@@ -1207,7 +1205,7 @@ made_compressed_probe:
 		if (snd->urb == NULL) {
 			dev_err(&intf->dev,
 				"out of memory (write urbs usb_alloc_urb)\n");
-			goto alloc_fail8;
+			goto alloc_fail7;
 		}
 
 		if (usb_endpoint_xfer_int(epwrite))
@@ -1226,7 +1224,7 @@ made_compressed_probe:
 
 	i = device_create_file(&intf->dev, &dev_attr_bmCapabilities);
 	if (i < 0)
-		goto alloc_fail8;
+		goto alloc_fail7;
 
 	if (cfd) { /* export the country data */
 		acm->country_codes = kmalloc(cfd->bLength - 4, GFP_KERNEL);
@@ -1278,14 +1276,13 @@ skip_countries:
 	acm_table[minor] = acm;
 
 	return 0;
-alloc_fail8:
+alloc_fail7:
 	for (i = 0; i < ACM_NW; i++)
 		usb_free_urb(acm->wb[i].urb);
-alloc_fail7:
-	acm_read_buffers_free(acm);
 alloc_fail6:
 	for (i = 0; i < num_rx_buf; i++)
 		usb_free_urb(acm->ru[i].urb);
+	acm_read_buffers_free(acm);
 	usb_free_urb(acm->ctrlurb);
 alloc_fail5:
 	acm_write_buffers_free(acm);
