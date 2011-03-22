@@ -1254,6 +1254,7 @@ static int __init vivi_create_instance(int inst)
 	*vfd = vivi_template;
 	vfd->debug = debug;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 
 	/*
 	 * Provide a mutex to v4l2 core. It will be used to protect
