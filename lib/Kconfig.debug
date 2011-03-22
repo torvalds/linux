@@ -9,6 +9,17 @@ config PRINTK_TIME
 	  operations.  This is useful for identifying long delays
 	  in kernel startup.
 
+config DEFAULT_MESSAGE_LOGLEVEL
+	int "Default message log level (1-7)"
+	range 1 7
+	default "4"
+	help
+	  Default log level for printk statements with no specified priority.
+
+	  This was hard-coded to KERN_WARNING since at least 2.6.10 but folks
+	  that are auditing their logs closely may want to set it to a lower
+	  priority.
+
 config ENABLE_WARN_DEPRECATED
 	bool "Enable __deprecated logic"
 	default y
