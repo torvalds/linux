@@ -619,6 +619,13 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 
 	/* Only giveback urb when this is the last td in urb */
 	if (urb_priv->td_cnt == urb_priv->length) {
+		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+			xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+			if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs	== 0) {
+				if (xhci->quirks & XHCI_AMD_PLL_FIX)
+					usb_amd_quirk_pll_enable();
+			}
+		}
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		xhci_dbg(xhci, "Giveback %s URB %p\n", adjective, urb);
 
@@ -1565,8 +1572,17 @@ td_cleanup:
 
 		urb_priv->td_cnt++;
 		/* Giveback the urb when all the tds are completed */
-		if (urb_priv->td_cnt == urb_priv->length)
+		if (urb_priv->td_cnt == urb_priv->length) {
 			ret = 1;
+			if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+				xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs--;
+				if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs
+					== 0) {
+					if (xhci->quirks & XHCI_AMD_PLL_FIX)
+						usb_amd_quirk_pll_enable();
+				}
+			}
+		}
 	}
 
 	return ret;
@@ -3152,6 +3168,12 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			return -EINVAL;
 		}
 	}
+
+	if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs == 0) {
+		if (xhci->quirks & XHCI_AMD_PLL_FIX)
+			usb_amd_quirk_pll_disable();
+	}
+	xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs++;
 
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
 			start_cycle, start_trb);

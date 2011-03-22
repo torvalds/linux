@@ -550,6 +550,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	del_timer_sync(&xhci->event_ring_timer);
 #endif
 
+	if (xhci->quirks & XHCI_AMD_PLL_FIX)
+		usb_amd_dev_put();
+
 	xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
