@@ -756,6 +756,15 @@ static void throtl_process_limit_change(struct throtl_data *td)
 			" riops=%u wiops=%u", tg->bps[READ], tg->bps[WRITE],
 			tg->iops[READ], tg->iops[WRITE]);
 
+		/*
+		 * Restart the slices for both READ and WRITES. It
+		 * might happen that a group's limit are dropped
+		 * suddenly and we don't want to account recently
+		 * dispatched IO with new low rate
+		 */
+		throtl_start_new_slice(td, tg, 0);
+		throtl_start_new_slice(td, tg, 1);
+
 		if (throtl_tg_on_rr(tg))
 			tg_update_disptime(td, tg);
 	}
@@ -821,7 +830,8 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 
 	struct delayed_work *dwork = &td->throtl_work;
 
-	if (total_nr_queued(td) > 0) {
+	/* schedule work if limits changed even if no bio is queued */
+	if (total_nr_queued(td) > 0 || td->limits_changed) {
 		/*
 		 * We might have a work scheduled to be executed in future.
 		 * Cancel that and schedule a new one.
@@ -1002,6 +1012,19 @@ int blk_throtl_bio(struct request_queue *q, struct bio **biop)
 	/* Bio is with-in rate limit of group */
 	if (tg_may_dispatch(td, tg, bio, NULL)) {
 		throtl_charge_bio(tg, bio);
+
+		/*
+		 * We need to trim slice even when bios are not being queued
+		 * otherwise it might happen that a bio is not queued for
+		 * a long time and slice keeps on extending and trim is not
+		 * called for a long time. Now if limits are reduced suddenly
+		 * we take into account all the IO dispatched so far at new
+		 * low rate and * newly queued IO gets a really long dispatch
+		 * time.
+		 *
+		 * So keep on trimming slice even if bio is not queued.
+		 */
+		throtl_trim_slice(td, tg, rw);
 		goto out;
 	}
 
