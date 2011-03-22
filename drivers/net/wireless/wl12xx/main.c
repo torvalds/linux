@@ -1706,7 +1706,12 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF)) {
-		ret = -EAGAIN;
+		/* we support configuring the channel and band while off */
+		if ((changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
+			wl->band = conf->channel->band;
+			wl->channel = channel;
+		}
+
 		goto out;
 	}
 
