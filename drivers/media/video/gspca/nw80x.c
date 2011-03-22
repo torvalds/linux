@@ -172,14 +172,14 @@ static const struct v4l2_pix_format vga_mode[] = {
 #define I2C0 0xff
 
 static const u8 nw800_init[] = {
-	0x05, 0x00, 0x01, 0x55,
-	0x10, 0x9b, 0x01, 0xaa,
-	0x05, 0x02, 0x01, 0x02,
-	0x06, 0x00, 0x02, 0x04, 0xd9,
-	0x05, 0x05, 0x01, 0x00,
-	0x05, 0x05, 0x01, 0x01,
+	0x04, 0x05, 0x01, 0x61,
+	0x04, 0x04, 0x01, 0x01,
 	0x04, 0x06, 0x01, 0x04,
-
+	0x04, 0x04, 0x03, 0x00, 0x00, 0x00,
+	0x05, 0x05, 0x01, 0x00,
+	0, 0, 0
+};
+static const u8 nw800_start[] = {
 	0x04, 0x06, 0x01, 0xc0,
 	0x00, 0x00, 0x40, 0x10, 0x43, 0x00, 0xb4, 0x01, 0x10, 0x00, 0x4f,
 			  0xef, 0x0e, 0x00, 0x74, 0x01, 0x01, 0x00, 0x19,
@@ -530,8 +530,9 @@ static const u8 spacecam_init[] = {
 	0x04, 0x06, 0x01, 0x04,
 	0x04, 0x04, 0x03, 0x00, 0x00, 0x00,
 	0x05, 0x05, 0x01, 0x00,
-/*fixme: add 300ms delay?*/
-/*fixme: at capture start time*/
+	0, 0, 0
+};
+static const u8 spacecam_start[] = {
 	0x04, 0x06, 0x01, 0x44,
 	0x00, 0x00, 0x40, 0x10, 0x43, 0x00, 0xb4, 0x01, 0x10, 0x00, 0x4f,
 			  0xef, 0x0e, 0x00, 0x74, 0x01, 0x01, 0x00, 0x19,
@@ -1221,9 +1222,12 @@ static const u8 mustek_start[] = {
 };
 
 /* nw802 - Scope USB Microscope M2 (ProScope) (Hitachi HD49322BF) */
-static const u8 proscope_init_1[] = {
+static const u8 proscope_init[] = {
 	0x04, 0x05, 0x01, 0x21,
 	0x04, 0x04, 0x01, 0x01,
+	0, 0, 0
+};
+static const u8 proscope_start_1[] = {
 	0x04, 0x06, 0x01, 0x04,
 	0x00, 0x00, 0x40, 0x10, 0x01, 0x00, 0xf9, 0x02, 0x10, 0x00, 0x04,
 			  0x0f, 0x1f, 0x00, 0x0d, 0x02, 0x01, 0x00, 0x19,
@@ -1512,8 +1516,8 @@ static const u8 dvcv6_start[] = {
 };
 
 static const u8 *webcam_start[] = {
-	[Generic800] = nw800_init,
-	[SpaceCam] = spacecam_init,
+	[Generic800] = nw800_start,
+	[SpaceCam] = spacecam_start,
 	[SpaceCam2] = spacecam2_start,
 	[Cvideopro] = cvideopro_start,
 	[Dlink350c] = dlink_start,
@@ -1521,7 +1525,7 @@ static const u8 *webcam_start[] = {
 	[Kr651us] = kr651_start_1,
 	[Kritter] = kritter_start,
 	[Mustek300] = mustek_start,
-	[Proscope] = proscope_init_1,
+	[Proscope] = proscope_start_1,
 	[Twinkle] = twinkle_start,
 	[DvcV6] = dvcv6_start,
 	[P35u] = nw801_start_1,
@@ -1720,21 +1724,6 @@ static void setautogain(struct gspca_dev *gspca_dev)
 	}
 }
 
-/* this function is called at probe time */
-static int sd_config(struct gspca_dev *gspca_dev,
-			const struct usb_device_id *id)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if ((unsigned) webcam >= NWEBCAMS)
-		webcam = 0;
-	sd->webcam = webcam;
-	gspca_dev->cam.reverse_alts = 1;
-	gspca_dev->cam.ctrls = sd->ctrls;
-	sd->ag_cnt = -1;
-	return 0;
-}
-
 static int nw802_test_reg(struct gspca_dev *gspca_dev,
 			u16 index,
 			u8 value)
@@ -1748,10 +1737,18 @@ static int nw802_test_reg(struct gspca_dev *gspca_dev,
 	return gspca_dev->usb_buf[0] == value;
 }
 
-/* this function is called at probe and resume time */
-static int sd_init(struct gspca_dev *gspca_dev)
+/* this function is called at probe time */
+static int sd_config(struct gspca_dev *gspca_dev,
+			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	if ((unsigned) webcam >= NWEBCAMS)
+		webcam = 0;
+	sd->webcam = webcam;
+	gspca_dev->cam.reverse_alts = 1;
+	gspca_dev->cam.ctrls = sd->ctrls;
+	sd->ag_cnt = -1;
 
 	/*
 	 * Autodetect sequence inspired from some log.
@@ -1801,7 +1798,35 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		gspca_dev->ctrl_dis = ~(1 << GAIN);
 		break;
 	}
+	return gspca_dev->usb_err;
+}
 
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->bridge) {
+	case BRIDGE_NW800:
+		switch (sd->webcam) {
+		case SpaceCam:
+			reg_w_buf(gspca_dev, spacecam_init);
+			break;
+		default:
+			reg_w_buf(gspca_dev, nw800_init);
+			break;
+		}
+		break;
+	default:
+		switch (sd->webcam) {
+		case Mustek300:
+		case P35u:
+		case Proscope:
+			reg_w_buf(gspca_dev, proscope_init);
+			break;
+		}
+		break;
+	}
 	return gspca_dev->usb_err;
 }
 
