@@ -56,9 +56,11 @@ static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
 	spin_lock(&inode_lock);
+	spin_lock(&inode->i_lock);
 	inode->i_data.backing_dev_info = dst;
 	if (inode->i_state & I_DIRTY)
 		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
+	spin_unlock(&inode->i_lock);
 	spin_unlock(&inode_lock);
 }
 
