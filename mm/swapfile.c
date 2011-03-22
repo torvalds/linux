@@ -1918,10 +1918,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		return -EPERM;
 
 	p = alloc_swap_info();
-	if (IS_ERR(p)) {
-		error = PTR_ERR(p);
-		goto out;
-	}
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 
 	name = getname(specialfile);
 	error = PTR_ERR(name);
