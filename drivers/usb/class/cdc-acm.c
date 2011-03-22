@@ -626,8 +626,6 @@ static void acm_tty_unregister(struct acm *acm)
 	kfree(acm);
 }
 
-static int acm_tty_chars_in_buffer(struct tty_struct *tty);
-
 static void acm_port_down(struct acm *acm)
 {
 	int i, nr = acm->rx_buflimit;
