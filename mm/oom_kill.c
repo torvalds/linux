@@ -31,6 +31,7 @@
 #include <linux/memcontrol.h>
 #include <linux/mempolicy.h>
 #include <linux/security.h>
+#include <linux/ptrace.h>
 
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
@@ -316,22 +317,29 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 		if (test_tsk_thread_flag(p, TIF_MEMDIE))
 			return ERR_PTR(-1UL);
 
-		/*
-		 * This is in the process of releasing memory so wait for it
-		 * to finish before killing some other task by mistake.
-		 *
-		 * However, if p is the current task, we allow the 'kill' to
-		 * go ahead if it is exiting: this will simply set TIF_MEMDIE,
-		 * which will allow it to gain access to memory reserves in
-		 * the process of exiting and releasing its resources.
-		 * Otherwise we could get an easy OOM deadlock.
-		 */
 		if (p->flags & PF_EXITING) {
-			if (p != current)
-				return ERR_PTR(-1UL);
-
-			chosen = p;
-			*ppoints = 1000;
+			/*
+			 * If p is the current task and is in the process of
+			 * releasing memory, we allow the "kill" to set
+			 * TIF_MEMDIE, which will allow it to gain access to
+			 * memory reserves.  Otherwise, it may stall forever.
+			 *
+			 * The loop isn't broken here, however, in case other
+			 * threads are found to have already been oom killed.
+			 */
+			if (p == current) {
+				chosen = p;
+				*ppoints = 1000;
+			} else {
+				/*
+				 * If this task is not being ptraced on exit,
+				 * then wait for it to finish before killing
+				 * some other task unnecessarily.
+				 */
+				if (!(task_ptrace(p->group_leader) &
+							PT_TRACE_EXIT))
+					return ERR_PTR(-1UL);
+			}
 		}
 
 		points = oom_badness(p, mem, nodemask, totalpages);
@@ -493,6 +501,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
 
+			if (child->mm == p->mm)
+				continue;
 			/*
 			 * oom_badness() returns 0 if the thread is unkillable
 			 */
