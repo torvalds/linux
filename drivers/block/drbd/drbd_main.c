@@ -721,7 +721,7 @@ static unsigned int prepare_header95(struct p_header95 *h, enum drbd_packet cmd,
 {
 	h->magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 	h->command = cpu_to_be16(cmd);
-	h->length  = cpu_to_be32(size);
+	h->length = cpu_to_be32(size);
 	return sizeof(struct p_header95);
 }
 
