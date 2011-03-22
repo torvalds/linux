@@ -208,7 +208,7 @@ static int acm_write_start(struct acm *acm, int wbn)
 		return -ENODEV;
 	}
 
-	dev_dbg(&acm->data->dev, "%s - susp_count %d\n", __func__,
+	dev_vdbg(&acm->data->dev, "%s - susp_count %d\n", __func__,
 							acm->susp_count);
 	usb_autopm_get_interface_async(acm->control);
 	if (acm->susp_count) {
@@ -361,7 +361,7 @@ static void acm_read_bulk(struct urb *urb)
 	struct acm *acm = rcv->instance;
 	int status = urb->status;
 
-	dev_dbg(&acm->data->dev, "%s - status %d\n", __func__, status);
+	dev_vdbg(&acm->data->dev, "%s - status %d\n", __func__, status);
 
 	if (!ACM_READY(acm)) {
 		dev_dbg(&acm->data->dev, "%s - acm not ready\n", __func__);
@@ -404,7 +404,7 @@ static void acm_rx_tasklet(unsigned long _acm)
 	unsigned long flags;
 	unsigned char throttled;
 
-	dev_dbg(&acm->data->dev, "%s\n", __func__);
+	dev_vdbg(&acm->data->dev, "%s\n", __func__);
 
 	if (!ACM_READY(acm)) {
 		dev_dbg(&acm->data->dev, "%s - acm not ready\n", __func__);
@@ -432,7 +432,7 @@ next_buffer:
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&acm->read_lock, flags);
 
-	dev_dbg(&acm->data->dev, "%s - processing buf 0x%p, size = %d\n",
+	dev_vdbg(&acm->data->dev, "%s - processing buf 0x%p, size = %d\n",
 						__func__, buf, buf->size);
 	if (tty) {
 		spin_lock_irqsave(&acm->throttle_lock, flags);
@@ -505,7 +505,7 @@ urbs:
 			return;
 		} else {
 			spin_unlock_irqrestore(&acm->read_lock, flags);
-			dev_dbg(&acm->data->dev,
+			dev_vdbg(&acm->data->dev,
 				"%s - sending urb 0x%p, rcv 0x%p, buf 0x%p\n",
 				__func__, rcv->urb, rcv, buf);
 		}
@@ -719,7 +719,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	if (!count)
 		return 0;
 
-	dev_dbg(&acm->data->dev, "%s - count %d\n", __func__, count);
+	dev_vdbg(&acm->data->dev, "%s - count %d\n", __func__, count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	wbn = acm_wb_alloc(acm);
@@ -730,7 +730,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	wb = &acm->wb[wbn];
 
 	count = (count > acm->writesize) ? acm->writesize : count;
-	dev_dbg(&acm->data->dev, "%s - write %d\n", __func__, count);
+	dev_vdbg(&acm->data->dev, "%s - write %d\n", __func__, count);
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 	spin_unlock_irqrestore(&acm->write_lock, flags);
