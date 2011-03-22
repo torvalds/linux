@@ -79,75 +79,80 @@ enum webcams {
 	NWEBCAMS	/* number of webcams */
 };
 
+static const u8 webcam_chip[NWEBCAMS] = {
+	[Generic800]	= BRIDGE_NW800,	/* 06a5:0000
+					 * Typhoon Webcam 100 USB */
+
+	[SpaceCam]	= BRIDGE_NW800,	/* 06a5:d800
+				* Trust SpaceCam120 or SpaceCam100 PORTABLE */
+
+	[SpaceCam2]	= BRIDGE_NW800,	/* 06a5:d800 - pas106
+			* other Trust SpaceCam120 or SpaceCam100 PORTABLE */
+
+	[Cvideopro]	= BRIDGE_NW802,	/* 06a5:d001
+			* Conceptronic Video Pro 'CVIDEOPRO USB Webcam CCD' */
+
+	[Dlink350c]	= BRIDGE_NW802,	/* 06a5:d001
+					 * D-Link NetQam Pro 250plus */
+
+	[DS3303u]	= BRIDGE_NW801,	/* 06a5:d001
+				* Plustek Opticam 500U or ProLink DS3303u */
+
+	[Kr651us]	= BRIDGE_NW802,	/* 06a5:d001
+					 * Panasonic GP-KR651US */
+
+	[Kritter]	= BRIDGE_NW802,	/* 06a5:d001
+					 * iRez Kritter cam */
+
+	[Mustek300]	= BRIDGE_NW802,	/* 055f:d001
+					 * Mustek Wcam 300 mini */
+
+	[Proscope]	= BRIDGE_NW802,	/* 06a5:d001
+					 * Scalar USB Microscope (ProScope) */
+
+	[Twinkle]	= BRIDGE_NW800,	/* 06a5:d800 - hv7121b? (seems pas106)
+					 * Divio Chicony TwinkleCam
+					 * DSB-C110 */
+
+	[DvcV6]		= BRIDGE_NW802,	/* 0502:d001
+					 * DVC V6 */
+
+	[P35u]		= BRIDGE_NW801,	/* 052b:d001, 06a5:d001 and 06be:d001
+					 * EZCam Pro p35u */
+
+	[Generic802]	= BRIDGE_NW802,
+};
 /*
- - webcams:
-	- Typhoon Webcam 100 USB (06a5:0000)
-		nw800
-	- Trust SpaceCam120 or SpaceCam100 PORTABLE (06a5:d800)
-		nw801 SpaceCam.init
-		    or trust_space.init if no LED (?)
-	- Divio Chicony TwinkleCam (06a5:d800) ?
-		nw800 Twinkle.init
-	- Plustek Opticam 500U or ProLink DS3303u
-		nw801 DS3303u.init
-	- Logitech QuickCam Pro (dark focus ring) (046d:d001)
-		nw801
-	- EZCam Pro p35u (052b:d001, 06a5:d001 and 06be:d001)
-		nw801 - sensor Sharp IR3Y38M
-	- AVerMedia Camguard (0728:d001)
-		nw801
-	- Panasonic GP-KR651US (06a5:d001)
-		nw802 kr651us.init
-	- iRez Kritter cam
-		nw802 kritter.init
-	- D-link dru-350c cam
-		nw802 d-link-350c.init
-	- The Scope USB Microscope M2 (ProScope)
-			= Divio ProLink DS3303u WebCam (06a5:d001)
-			= Scalar USB Microscope M2 (Proscope)
-		nw802 proscope.init
-	- Conceptronic Video Pro 'CVIDEOPRO USB Webcam CCD' (06a5:d001)
-		nw802 cvideopro.init
-	- Mustek Wcam 300 mini
-		nw802 mustek_300_mini.init
-	- D-Link NetQam Pro 250plus (06a5:d001)
-	- Showcam NGS webcam (065a:d800)
-	- sceptre svc300
-	- DSB-C110 (06a5:d800)
-		et31x110
-	- DVC V6 (0502:d001)
-		nw802
- - registers
-      nw800/et31x110	  nw801		  nw802
-	0000..009e	0000..00a1	0000..009e
-	0200..0211	   id		   id
-	0300..0302	   id		   id
-	0400..0406	  (inex)	0400..0406
-	0500..0505	0500..0506	  (inex)
-	0600..061a	0600..0601	0600..0601
-	0800..0814	   id		   id
-	1000..109c	1000..10a1	1000..109a
+ * other webcams:
+ *	- nw801 046d:d001
+ *		Logitech QuickCam Pro (dark focus ring)
+ *	- nw801 0728:d001
+ *		AVerMedia Camguard
+ *	- nw??? 06a5:d001
+ *		D-Link NetQam Pro 250plus
+ *	- nw800 065a:d800
+ *		Showcam NGS webcam
+ *	- nw??? ????:????
+ *		Sceptre svc300
+ */
 
-	080c: luma (nw800/nw802)
-	080d: luma (nw801)
-	1004: LUT (?)
-	100b: R gain (0..63)
-	100c: B gain
-	100d: G gain
-	100e: Y gain
-	100f: U gain
-	1010: V gain
-	1019: clock (nw801 - bit 0x08: indoor/outdoor)
-	101b: shutter 1 (0..255)
-	101c: shutter 2
-	1026: BP = gain (nw801)
-	1041, 1052, 1063, 1074: LUT base (nw802)
-	1048, 1059, 106a, 107b: LUT base (nw801)
- - resolutions
-	nw800 352x288
-	nw801/nw802 320x240 - 640x480
-*/
+/*
+ * registers
+ *    nw800/et31x110	  nw801		  nw802
+ *	0000..009e	0000..00a1	0000..009e
+ *	0200..0211	   id		   id
+ *	0300..0302	   id		   id
+ *	0400..0406	  (inex)	0400..0406
+ *	0500..0505	0500..0506	  (inex)
+ *	0600..061a	0600..0601	0600..0601
+ *	0800..0814	   id		   id
+ *	1000..109c	1000..10a1	1000..109a
+ */
 
+/* resolutions
+ *	nw800: 320x240, 352x288
+ *	nw801/802: 320x240, 640x480
+ */
 static const struct v4l2_pix_format cif_mode[] = {
 	{352, 288, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
 		.bytesperline = 352,
@@ -1769,7 +1774,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		if (sd->webcam == Generic800)
 			sd->webcam = P35u;
 	}
-	PDEBUG(D_PROBE, "Bridge nw80%d", sd->bridge);
+	if (webcam_chip[sd->webcam] != sd->bridge) {
+		err("Bad webcam type %d for NW80%d", sd->webcam, sd->bridge);
+		gspca_dev->usb_err = -ENODEV;
+		return gspca_dev->usb_err;
+	}
+	PDEBUG(D_PROBE, "Bridge nw80%d - type: %d", sd->bridge, sd->webcam);
 
 	if (sd->bridge == BRIDGE_NW800) {
 		gspca_dev->cam.cam_mode = cif_mode;
