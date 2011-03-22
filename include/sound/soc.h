@@ -248,7 +248,7 @@ typedef int (*hw_write_t)(void *,const char* ,int);
 extern struct snd_ac97_bus_ops soc_ac97_ops;
 
 enum snd_soc_control_type {
-	SND_SOC_CUSTOM,
+	SND_SOC_CUSTOM = 1,
 	SND_SOC_I2C,
 	SND_SOC_SPI,
 };
@@ -539,6 +539,7 @@ struct snd_soc_codec {
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
+	enum snd_soc_control_type control_type;
 	hw_write_t hw_write;
 	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
