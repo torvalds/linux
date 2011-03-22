@@ -94,12 +94,6 @@ static DEFINE_MUTEX(open_mutex);
 static const struct tty_port_operations acm_port_ops = {
 };
 
-#ifdef VERBOSE_DEBUG
-#define verbose	1
-#else
-#define verbose	0
-#endif
-
 /*
  * Functions for ACM control messages.
  */
@@ -528,9 +522,8 @@ static void acm_write_bulk(struct urb *urb)
 	struct acm *acm = wb->instance;
 	unsigned long flags;
 
-	if (verbose || urb->status
-			|| (urb->actual_length != urb->transfer_buffer_length))
-		dev_dbg(&acm->data->dev, "%s - len %d/%d, status %d\n",
+	if (urb->status	|| (urb->actual_length != urb->transfer_buffer_length))
+		dev_vdbg(&acm->data->dev, "%s - len %d/%d, status %d\n",
 			__func__,
 			urb->actual_length,
 			urb->transfer_buffer_length,
