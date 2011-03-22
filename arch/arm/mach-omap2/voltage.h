@@ -96,6 +96,8 @@ struct omap_volt_data {
  * @step_size:	PMIC voltage step size (in uv)
  * @vsel_to_uv:	PMIC API to convert vsel value to actual voltage in uV.
  * @uv_to_vsel:	PMIC API to convert voltage in uV to vsel value.
+ * @volt_reg_addr: voltage configuration register address
+ * @cmd_reg_addr: command (on, on-LP, ret, off) configuration register address
  */
 struct omap_volt_pmic_info {
 	int slew_rate;
@@ -112,7 +114,8 @@ struct omap_volt_pmic_info {
 	u8 vp_vddmax;
 	u8 vp_timeout_us;
 	u8 i2c_slave_addr;
-	u8 pmic_reg;
+	u8 volt_reg_addr;
+	u8 cmd_reg_addr;
 	unsigned long (*vsel_to_uv) (const u8 vsel);
 	u8 (*uv_to_vsel) (unsigned long uV);
 };

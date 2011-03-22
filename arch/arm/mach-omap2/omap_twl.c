@@ -158,7 +158,7 @@ static struct omap_volt_pmic_info omap3_mpu_volt_info = {
 	.vp_vddmax		= OMAP3430_VP1_VLIMITTO_VDDMAX,
 	.vp_timeout_us		= OMAP3_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr		= OMAP3_SRI2C_SLAVE_ADDR,
-	.pmic_reg		= OMAP3_VDD_MPU_SR_CONTROL_REG,
+	.volt_reg_addr		= OMAP3_VDD_MPU_SR_CONTROL_REG,
 	.vsel_to_uv		= twl4030_vsel_to_uv,
 	.uv_to_vsel		= twl4030_uv_to_vsel,
 };
@@ -178,7 +178,7 @@ static struct omap_volt_pmic_info omap3_core_volt_info = {
 	.vp_vddmax		= OMAP3430_VP2_VLIMITTO_VDDMAX,
 	.vp_timeout_us		= OMAP3_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr		= OMAP3_SRI2C_SLAVE_ADDR,
-	.pmic_reg		= OMAP3_VDD_CORE_SR_CONTROL_REG,
+	.volt_reg_addr		= OMAP3_VDD_CORE_SR_CONTROL_REG,
 	.vsel_to_uv		= twl4030_vsel_to_uv,
 	.uv_to_vsel		= twl4030_uv_to_vsel,
 };
@@ -198,7 +198,7 @@ static struct omap_volt_pmic_info omap4_mpu_volt_info = {
 	.vp_vddmax		= OMAP4_VP_MPU_VLIMITTO_VDDMAX,
 	.vp_timeout_us		= OMAP4_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr		= OMAP4_SRI2C_SLAVE_ADDR,
-	.pmic_reg		= OMAP4_VDD_MPU_SR_VOLT_REG,
+	.volt_reg_addr		= OMAP4_VDD_MPU_SR_VOLT_REG,
 	.vsel_to_uv		= twl6030_vsel_to_uv,
 	.uv_to_vsel		= twl6030_uv_to_vsel,
 };
@@ -218,7 +218,7 @@ static struct omap_volt_pmic_info omap4_iva_volt_info = {
 	.vp_vddmax		= OMAP4_VP_IVA_VLIMITTO_VDDMAX,
 	.vp_timeout_us		= OMAP4_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr		= OMAP4_SRI2C_SLAVE_ADDR,
-	.pmic_reg		= OMAP4_VDD_IVA_SR_VOLT_REG,
+	.volt_reg_addr		= OMAP4_VDD_IVA_SR_VOLT_REG,
 	.vsel_to_uv		= twl6030_vsel_to_uv,
 	.uv_to_vsel		= twl6030_uv_to_vsel,
 };
@@ -238,7 +238,7 @@ static struct omap_volt_pmic_info omap4_core_volt_info = {
 	.vp_vddmax		= OMAP4_VP_CORE_VLIMITTO_VDDMAX,
 	.vp_timeout_us		= OMAP4_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr		= OMAP4_SRI2C_SLAVE_ADDR,
-	.pmic_reg		= OMAP4_VDD_CORE_SR_VOLT_REG,
+	.volt_reg_addr		= OMAP4_VDD_CORE_SR_VOLT_REG,
 	.vsel_to_uv		= twl6030_vsel_to_uv,
 	.uv_to_vsel		= twl6030_uv_to_vsel,
 };

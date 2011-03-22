@@ -115,7 +115,7 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 	vc_valid = vc->common->valid;
 	vc_bypass_val_reg = vc->common->bypass_val_reg;
 	vc_bypass_value = (target_vsel << vc->common->data_shift) |
-			(vdd->pmic_info->pmic_reg <<
+			(vdd->pmic_info->volt_reg_addr <<
 			vc->common->regaddr_shift) |
 			(vdd->pmic_info->i2c_slave_addr <<
 			vc->common->slaveaddr_shift);
@@ -264,7 +264,7 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	vc_val = vdd->read_reg(vc->common->prm_mod,
 			       vc->common->smps_volra_reg);
 	vc_val &= ~vc->smps_volra_mask;
-	vc_val |= vdd->pmic_info->pmic_reg << vc->smps_volra_shift;
+	vc_val |= vdd->pmic_info->volt_reg_addr << vc->smps_volra_shift;
 	vdd->write_reg(vc_val, vc->common->prm_mod,
 		       vc->common->smps_volra_reg);
 
