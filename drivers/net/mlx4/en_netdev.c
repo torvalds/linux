@@ -1069,6 +1069,23 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	en_warn(priv, "Using %d TX rings\n", prof->tx_ring_num);
 	en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
 
+	/* Configure port */
+	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
+				    MLX4_EN_MIN_MTU,
+				    0, 0, 0, 0);
+	if (err) {
+		en_err(priv, "Failed setting port general configurations "
+		       "for port %d, with error %d\n", priv->port, err);
+		goto out;
+	}
+
+	/* Init port */
+	en_warn(priv, "Initializing port\n");
+	err = mlx4_INIT_PORT(mdev->dev, priv->port);
+	if (err) {
+		en_err(priv, "Failed Initializing port\n");
+		goto out;
+	}
 	priv->registered = 1;
 	mlx4_en_set_default_moderation(priv);
 	queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
