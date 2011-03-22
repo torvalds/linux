@@ -5944,6 +5944,7 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 	int nr_pages = 0;
 	u32 *csums = dip->csums;
 	int ret = 0;
+	int write = rw & REQ_WRITE;
 
 	bio = btrfs_dio_bio_alloc(orig_bio->bi_bdev, start_sector, GFP_NOFS);
 	if (!bio)
@@ -5980,7 +5981,8 @@ static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
 				goto out_err;
 			}
 
-			if (!skip_sum)
+			/* Write's use the ordered csums */
+			if (!write && !skip_sum)
 				csums = csums + nr_pages;
 			start_sector += submit_len >> 9;
 			file_offset += submit_len;
@@ -6048,7 +6050,8 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	}
 	dip->csums = NULL;
 
-	if (!skip_sum) {
+	/* Write's use the ordered csum stuff, so we don't need dip->csums */
+	if (!write && !skip_sum) {
 		dip->csums = kmalloc(sizeof(u32) * bio->bi_vcnt, GFP_NOFS);
 		if (!dip->csums) {
 			kfree(dip);
