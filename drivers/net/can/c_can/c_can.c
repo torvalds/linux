@@ -633,9 +633,6 @@ static void c_can_start(struct net_device *dev)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 
-	/* enable status change, error and module interrupts */
-	c_can_enable_all_interrupts(priv, ENABLE_ALL_INTERRUPTS);
-
 	/* basic c_can configuration */
 	c_can_chip_config(dev);
 
@@ -643,6 +640,9 @@ static void c_can_start(struct net_device *dev)
 
 	/* reset tx helper pointers */
 	priv->tx_next = priv->tx_echo = 0;
+
+	/* enable status change, error and module interrupts */
+	c_can_enable_all_interrupts(priv, ENABLE_ALL_INTERRUPTS);
 }
 
 static void c_can_stop(struct net_device *dev)
