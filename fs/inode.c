@@ -423,17 +423,6 @@ void __insert_inode_hash(struct inode *inode, unsigned long hashval)
 EXPORT_SYMBOL(__insert_inode_hash);
 
 /**
- *	__remove_inode_hash - remove an inode from the hash
- *	@inode: inode to unhash
- *
- *	Remove an inode from the superblock.
- */
-static void __remove_inode_hash(struct inode *inode)
-{
-	hlist_del_init(&inode->i_hash);
-}
-
-/**
  *	remove_inode_hash - remove an inode from the hash
  *	@inode: inode to unhash
  *
@@ -462,9 +451,30 @@ void end_writeback(struct inode *inode)
 }
 EXPORT_SYMBOL(end_writeback);
 
+/*
+ * Free the inode passed in, removing it from the lists it is still connected
+ * to. We remove any pages still attached to the inode and wait for any IO that
+ * is still in progress before finally destroying the inode.
+ *
+ * An inode must already be marked I_FREEING so that we avoid the inode being
+ * moved back onto lists if we race with other code that manipulates the lists
+ * (e.g. writeback_single_inode). The caller is responsible for setting this.
+ *
+ * An inode must already be removed from the LRU list before being evicted from
+ * the cache. This should occur atomically with setting the I_FREEING state
+ * flag, so no inodes here should ever be on the LRU when being evicted.
+ */
 static void evict(struct inode *inode)
 {
 	const struct super_operations *op = inode->i_sb->s_op;
+
+	BUG_ON(!(inode->i_state & I_FREEING));
+	BUG_ON(!list_empty(&inode->i_lru));
+
+	spin_lock(&inode_lock);
+	list_del_init(&inode->i_wb_list);
+	__inode_sb_list_del(inode);
+	spin_unlock(&inode_lock);
 
 	if (op->evict_inode) {
 		op->evict_inode(inode);
@@ -477,6 +487,15 @@ static void evict(struct inode *inode)
 		bd_forget(inode);
 	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
 		cd_forget(inode);
+
+	remove_inode_hash(inode);
+
+	spin_lock(&inode->i_lock);
+	wake_up_bit(&inode->i_state, __I_NEW);
+	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
+	spin_unlock(&inode->i_lock);
+
+	destroy_inode(inode);
 }
 
 /*
@@ -495,16 +514,6 @@ static void dispose_list(struct list_head *head)
 		list_del_init(&inode->i_lru);
 
 		evict(inode);
-
-		spin_lock(&inode_lock);
-		__remove_inode_hash(inode);
-		__inode_sb_list_del(inode);
-		spin_unlock(&inode_lock);
-
-		spin_lock(&inode->i_lock);
-		wake_up_bit(&inode->i_state, __I_NEW);
-		spin_unlock(&inode->i_lock);
-		destroy_inode(inode);
 	}
 }
 
@@ -537,13 +546,7 @@ void evict_inodes(struct super_block *sb)
 		if (!(inode->i_state & (I_DIRTY | I_SYNC)))
 			inodes_stat.nr_unused--;
 		spin_unlock(&inode->i_lock);
-
-		/*
-		 * Move the inode off the IO lists and LRU once I_FREEING is
-		 * set so that it won't get moved back on there if it is dirty.
-		 */
 		list_move(&inode->i_lru, &dispose);
-		list_del_init(&inode->i_wb_list);
 	}
 	spin_unlock(&inode_lock);
 
@@ -596,13 +599,7 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 		if (!(inode->i_state & (I_DIRTY | I_SYNC)))
 			inodes_stat.nr_unused--;
 		spin_unlock(&inode->i_lock);
-
-		/*
-		 * Move the inode off the IO lists and LRU once I_FREEING is
-		 * set so that it won't get moved back on there if it is dirty.
-		 */
 		list_move(&inode->i_lru, &dispose);
-		list_del_init(&inode->i_wb_list);
 	}
 	spin_unlock(&inode_lock);
 
@@ -699,12 +696,7 @@ static void prune_icache(int nr_to_scan)
 		inode->i_state |= I_FREEING;
 		spin_unlock(&inode->i_lock);
 
-		/*
-		 * Move the inode off the IO lists and LRU once I_FREEING is
-		 * set so that it won't get moved back on there if it is dirty.
-		 */
 		list_move(&inode->i_lru, &freeable);
-		list_del_init(&inode->i_wb_list);
 		inodes_stat.nr_unused--;
 	}
 	if (current_is_kswapd())
@@ -1434,16 +1426,16 @@ static void iput_final(struct inode *inode)
 	else
 		drop = generic_drop_inode(inode);
 
+	if (!drop && (sb->s_flags & MS_ACTIVE)) {
+		inode->i_state |= I_REFERENCED;
+		if (!(inode->i_state & (I_DIRTY|I_SYNC)))
+			inode_lru_list_add(inode);
+		spin_unlock(&inode->i_lock);
+		spin_unlock(&inode_lock);
+		return;
+	}
+
 	if (!drop) {
-		if (sb->s_flags & MS_ACTIVE) {
-			inode->i_state |= I_REFERENCED;
-			if (!(inode->i_state & (I_DIRTY|I_SYNC))) {
-				inode_lru_list_add(inode);
-			}
-			spin_unlock(&inode->i_lock);
-			spin_unlock(&inode_lock);
-			return;
-		}
 		inode->i_state |= I_WILL_FREE;
 		spin_unlock(&inode->i_lock);
 		spin_unlock(&inode_lock);
@@ -1452,28 +1444,14 @@ static void iput_final(struct inode *inode)
 		spin_lock(&inode->i_lock);
 		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state &= ~I_WILL_FREE;
-		__remove_inode_hash(inode);
 	}
 
 	inode->i_state |= I_FREEING;
-	spin_unlock(&inode->i_lock);
-
-	/*
-	 * Move the inode off the IO lists and LRU once I_FREEING is
-	 * set so that it won't get moved back on there if it is dirty.
-	 */
 	inode_lru_list_del(inode);
-	list_del_init(&inode->i_wb_list);
-
-	__inode_sb_list_del(inode);
-	spin_unlock(&inode_lock);
-	evict(inode);
-	remove_inode_hash(inode);
-	spin_lock(&inode->i_lock);
-	wake_up_bit(&inode->i_state, __I_NEW);
-	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
 	spin_unlock(&inode->i_lock);
-	destroy_inode(inode);
+	spin_unlock(&inode_lock);
+
+	evict(inode);
 }
 
 /**
