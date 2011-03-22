@@ -1553,6 +1553,10 @@ static int musb_gadget_wakeup(struct usb_gadget *gadget)
 				break;
 		}
 
+		spin_unlock_irqrestore(&musb->lock, flags);
+		otg_start_srp(musb->xceiv);
+		spin_lock_irqsave(&musb->lock, flags);
+
 		/* Block idling for at least 1s */
 		musb_platform_try_idle(musb,
 			jiffies + msecs_to_jiffies(1 * HZ));
