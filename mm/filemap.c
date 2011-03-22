@@ -863,9 +863,13 @@ repeat:
 		page = radix_tree_deref_slot((void **)pages[i]);
 		if (unlikely(!page))
 			continue;
+
+		/*
+		 * This can only trigger when the entry at index 0 moves out
+		 * of or back to the root: none yet gotten, safe to restart.
+		 */
 		if (radix_tree_deref_retry(page)) {
-			if (ret)
-				start = pages[ret-1]->index;
+			WARN_ON(start | i);
 			goto restart;
 		}
 
@@ -915,6 +919,11 @@ repeat:
 		page = radix_tree_deref_slot((void **)pages[i]);
 		if (unlikely(!page))
 			continue;
+
+		/*
+		 * This can only trigger when the entry at index 0 moves out
+		 * of or back to the root: none yet gotten, safe to restart.
+		 */
 		if (radix_tree_deref_retry(page))
 			goto restart;
 
@@ -975,6 +984,11 @@ repeat:
 		page = radix_tree_deref_slot((void **)pages[i]);
 		if (unlikely(!page))
 			continue;
+
+		/*
+		 * This can only trigger when the entry at index 0 moves out
+		 * of or back to the root: none yet gotten, safe to restart.
+		 */
 		if (radix_tree_deref_retry(page))
 			goto restart;
 
