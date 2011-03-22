@@ -2228,6 +2228,13 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
 
+unsigned int snd_soc_bulk_write_raw(struct snd_soc_codec *codec,
+				    unsigned int reg, const void *data, size_t len)
+{
+	return codec->bulk_write_raw(codec, reg, data, len);
+}
+EXPORT_SYMBOL_GPL(snd_soc_bulk_write_raw);
+
 /**
  * snd_soc_update_bits - update codec register bits
  * @codec: audio codec

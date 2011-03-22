@@ -625,6 +625,44 @@ static int snd_soc_16_16_spi_write(void *control_data, const char *data,
 #define snd_soc_16_16_spi_write NULL
 #endif
 
+/* Primitive bulk write support for soc-cache.  The data pointed to by `data' needs
+ * to already be in the form the hardware expects including any leading register specific
+ * data.  Any data written through this function will not go through the cache as it
+ * only handles writing to volatile or out of bounds registers.
+ */
+static int snd_soc_hw_bulk_write_raw(struct snd_soc_codec *codec, unsigned int reg,
+				     const void *data, size_t len)
+{
+	int ret;
+
+	/* Ensure that the base register is volatile.  Subsequently
+	 * any other register that is touched by this routine should be
+	 * volatile as well to ensure that we don't get out of sync with
+	 * the cache.
+	 */
+	if (!snd_soc_codec_volatile_register(codec, reg)
+	    && reg < codec->driver->reg_cache_size)
+		return -EINVAL;
+
+	switch (codec->control_type) {
+	case SND_SOC_I2C:
+		ret = i2c_master_send(codec->control_data, data, len);
+		break;
+	case SND_SOC_SPI:
+		ret = do_spi_write(codec->control_data, data, len);
+		break;
+	default:
+		BUG();
+	}
+
+	if (ret == len)
+		return 0;
+	if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
+
 static struct {
 	int addr_bits;
 	int data_bits;
@@ -708,6 +746,7 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 
 	codec->write = io_types[i].write;
 	codec->read = io_types[i].read;
+	codec->bulk_write_raw = snd_soc_hw_bulk_write_raw;
 
 	switch (control) {
 	case SND_SOC_CUSTOM:
