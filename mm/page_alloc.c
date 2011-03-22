@@ -2411,19 +2411,42 @@ void si_meminfo_node(struct sysinfo *val, int nid)
 }
 #endif
 
+/*
+ * Determine whether the zone's node should be displayed or not, depending on
+ * whether SHOW_MEM_FILTER_NODES was passed to __show_free_areas().
+ */
+static bool skip_free_areas_zone(unsigned int flags, const struct zone *zone)
+{
+	bool ret = false;
+
+	if (!(flags & SHOW_MEM_FILTER_NODES))
+		goto out;
+
+	get_mems_allowed();
+	ret = !node_isset(zone->zone_pgdat->node_id,
+				cpuset_current_mems_allowed);
+	put_mems_allowed();
+out:
+	return ret;
+}
+
 #define K(x) ((x) << (PAGE_SHIFT-10))
 
 /*
  * Show free area list (used inside shift_scroll-lock stuff)
  * We also calculate the percentage fragmentation. We do this by counting the
  * memory on each free list with the exception of the first item on the list.
+ * Suppresses nodes that are not allowed by current's cpuset if
+ * SHOW_MEM_FILTER_NODES is passed.
  */
-void show_free_areas(void)
+void __show_free_areas(unsigned int filter)
 {
 	int cpu;
 	struct zone *zone;
 
 	for_each_populated_zone(zone) {
+		if (skip_free_areas_zone(filter, zone))
+			continue;
 		show_node(zone);
 		printk("%s per-cpu:\n", zone->name);
 
@@ -2465,6 +2488,8 @@ void show_free_areas(void)
 	for_each_populated_zone(zone) {
 		int i;
 
+		if (skip_free_areas_zone(filter, zone))
+			continue;
 		show_node(zone);
 		printk("%s"
 			" free:%lukB"
@@ -2532,6 +2557,8 @@ void show_free_areas(void)
 	for_each_populated_zone(zone) {
  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
 
+		if (skip_free_areas_zone(filter, zone))
+			continue;
 		show_node(zone);
 		printk("%s: ", zone->name);
 
@@ -2549,6 +2576,11 @@ void show_free_areas(void)
 	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
 
 	show_swap_cache_info();
+}
+
+void show_free_areas(void)
+{
+	__show_free_areas(0);
 }
 
 static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
