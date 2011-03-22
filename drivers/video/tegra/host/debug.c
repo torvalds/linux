@@ -126,6 +126,27 @@ static void nvhost_debug_handle_word(struct seq_file *s, int *state, int *count,
 	}
 }
 
+static void nvhost_sync_reg_dump(struct seq_file *s)
+{
+	struct nvhost_master *m = s->private;
+	int i;
+
+	/* print HOST1X_SYNC regs 4 per line (from 0x3000 -> 0x31E0) */
+	for (i = 0; i <= 0x1E0; i += 4) {
+		if ((i & 0xF) == 0x0)
+			seq_printf(s, "\n0x%08x : ", i);
+		seq_printf(s, "%08x  ", readl(m->sync_aperture + i));
+	}
+
+	seq_printf(s, "\n\n");
+
+	/* print HOST1X_SYNC regs 4 per line (from 0x3340 -> 0x3774) */
+	for (i = 0x340; i <= 0x774; i += 4) {
+		if ((i & 0xF) == 0x0)
+			seq_printf(s, "\n0x%08x : ", i);
+		seq_printf(s, "%08x  ", readl(m->sync_aperture + i));
+	}
+}
 
 static int nvhost_debug_show(struct seq_file *s, void *unused)
 {
@@ -232,7 +253,7 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 		fifostat = readl(regs + HOST1X_CHANNEL_FIFOSTAT);
 		if ((fifostat & 1 << 10) == 0 ) {
 
-                    seq_printf(s, "\n%d: fifo:\n", i);
+			seq_printf(s, "\n%d: fifo:\n", i);
 			writel(0x0, m->aperture + HOST1X_SYNC_CFPEEK_CTRL);
 			writel(1 << 31 | i << 16, m->aperture + HOST1X_SYNC_CFPEEK_CTRL);
 			rd_ptr = readl(m->aperture + HOST1X_SYNC_CFPEEK_PTRS) & 0x1ff;
@@ -264,6 +285,8 @@ static int nvhost_debug_show(struct seq_file *s, void *unused)
 
 		seq_printf(s, "\n");
 	}
+
+	nvhost_sync_reg_dump(s);
 
 	nvhost_module_idle(&m->mod);
 	return 0;

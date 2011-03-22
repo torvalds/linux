@@ -142,7 +142,6 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
 int tegra_dma_dequeue_req(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
-void tegra_dma_dequeue(struct tegra_dma_channel *ch);
 void tegra_dma_flush(struct tegra_dma_channel *ch);
 
 bool tegra_dma_is_req_inflight(struct tegra_dma_channel *ch,
