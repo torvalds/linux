@@ -927,7 +927,7 @@ retry:
 				break;
 			}
 
-			done_index = page->index + 1;
+			done_index = page->index;
 
 			lock_page(page);
 
@@ -977,6 +977,7 @@ continue_unlock:
 					 * not be suitable for data integrity
 					 * writeout).
 					 */
+					done_index = page->index + 1;
 					done = 1;
 					break;
 				}
