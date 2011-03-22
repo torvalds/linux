@@ -1,5 +1,5 @@
 #
-# arch/m68knommu/Makefile
+# arch/m68k/Makefile
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -7,8 +7,6 @@
 #
 # (C) Copyright 2002, Greg Ungerer <gerg@snapgear.com>
 #
-
-KBUILD_DEFCONFIG := m5208evb_defconfig
 
 platform-$(CONFIG_M68328)	:= 68328
 platform-$(CONFIG_M68EZ328)	:= 68EZ328
@@ -82,7 +80,7 @@ cpuclass-$(CONFIG_M68360)	:= 68360
 CPUCLASS := $(cpuclass-y)
 
 ifneq ($(CPUCLASS),$(PLATFORM))
-CLASSDIR := arch/m68knommu/platform/$(cpuclass-y)/
+CLASSDIR := arch/m68k/platform/$(cpuclass-y)/
 endif
 
 export PLATFORM BOARD MODEL CPUCLASS
@@ -114,13 +112,13 @@ KBUILD_CFLAGS += $(cflags-y)
 KBUILD_CFLAGS += -D__linux__
 KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 
-head-y := arch/m68knommu/platform/$(cpuclass-y)/head.o
+head-y := arch/m68k/platform/$(cpuclass-y)/head.o
 
-core-y	+= arch/m68knommu/kernel/ \
-	   arch/m68knommu/mm/ \
+core-y	+= arch/m68k/kernel/ \
+	   arch/m68k/mm/ \
 	   $(CLASSDIR) \
-	   arch/m68knommu/platform/$(PLATFORM)/
-libs-y	+= arch/m68knommu/lib/
+	   arch/m68k/platform/$(PLATFORM)/
+libs-y	+= arch/m68k/lib/
 
 archclean:
 
