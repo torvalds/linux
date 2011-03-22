@@ -100,13 +100,6 @@ struct irq_desc {
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
-/* Will be removed once the last users in power and sh are gone */
-extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
-static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
-{
-	return desc;
-}
-
 #ifdef CONFIG_GENERIC_HARDIRQS
 
 static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
