@@ -511,7 +511,7 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 
 	xfrm_mark_get(attrs, &x->mark);
 
-	err = xfrm_init_state(x);
+	err = __xfrm_init_state(x, false);
 	if (err)
 		goto error;
 

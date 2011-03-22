@@ -3605,7 +3605,7 @@ int __net_init __ip_vs_control_init(struct net *net)
 
 	/* procfs stats */
 	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (ipvs->tot_stats.cpustats) {
+	if (!ipvs->tot_stats.cpustats) {
 		pr_err("%s(): alloc_percpu.\n", __func__);
 		return -ENOMEM;
 	}

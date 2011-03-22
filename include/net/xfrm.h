@@ -1430,6 +1430,7 @@ extern void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 extern u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq);
 extern int xfrm_init_replay(struct xfrm_state *x);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
+extern int __xfrm_init_state(struct xfrm_state *x, bool init_replay);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi,
