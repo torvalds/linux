@@ -2439,6 +2439,8 @@ static int __init musb_init(void)
 		"musb-dma"
 #elif defined(CONFIG_USB_TUSB_OMAP_DMA)
 		"tusb-omap-dma"
+#elif defined(CONFIG_USB_UX500_DMA)
+		"ux500-dma"
 #else
 		"?dma?"
 #endif
