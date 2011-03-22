@@ -24,6 +24,7 @@
 #include <mach/system.h>
 #include <mach/sram.h>
 #include <mach/gpio.h>
+#include <mach/ddr.h>
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel(v, RK29_CRU_BASE + offset); readl(RK29_CRU_BASE + offset); } while (0)
@@ -43,11 +44,6 @@ static inline void delay_300us(void)
 {
 	LOOP(300 * LOOPS_PER_USEC);
 }
-
-extern void ddr_suspend(void);
-extern void ddr_resume(void);
-extern void delayus(uint32_t us);
-extern void ddr_change_freq(uint32_t nMHz);
 
 #ifdef DEBUG
 static void/* inline*/ __sramfunc printch(char byte)

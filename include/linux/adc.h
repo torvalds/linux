@@ -31,6 +31,9 @@ struct adc_request {
 	struct adc_client *client;
 	/* Used in case of sync requests */
 	struct completion completion;
+#define ASYNC_READ 0
+#define SYNC_READ 1
+	int status;
 };
 struct adc_host;
 struct adc_ops {
