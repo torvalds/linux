@@ -174,49 +174,47 @@ adfs_mode2atts(struct super_block *sb, struct inode *inode)
 
 /*
  * Convert an ADFS time to Unix time.  ADFS has a 40-bit centi-second time
- * referenced to 1 Jan 1900 (til 2248)
+ * referenced to 1 Jan 1900 (til 2248) so we need to discard 2208988800 seconds
+ * of time to convert from RISC OS epoch to Unix epoch.
  */
 static void
 adfs_adfs2unix_time(struct timespec *tv, struct inode *inode)
 {
 	unsigned int high, low;
+	/* 01 Jan 1970 00:00:00 (Unix epoch) as nanoseconds since
+	 * 01 Jan 1900 00:00:00 (RISC OS epoch)
+	 */
+	static const s64 nsec_unix_epoch_diff_risc_os_epoch =
+							2208988800000000000LL;
+	s64 nsec;
 
 	if (ADFS_I(inode)->stamped == 0)
 		goto cur_time;
 
-	high = ADFS_I(inode)->loadaddr << 24;
-	low  = ADFS_I(inode)->execaddr;
+	high = ADFS_I(inode)->loadaddr & 0xFF; /* top 8 bits of timestamp */
+	low  = ADFS_I(inode)->execaddr;    /* bottom 32 bits of timestamp */
 
-	high |= low >> 8;
-	low  &= 255;
+	/* convert 40-bit centi-seconds to 32-bit seconds
+	 * going via nanoseconds to retain precision
+	 */
+	nsec = (((s64) high << 32) | (s64) low) * 10000000; /* cs to ns */
 
 	/* Files dated pre  01 Jan 1970 00:00:00. */
-	if (high < 0x336e996a)
+	if (nsec < nsec_unix_epoch_diff_risc_os_epoch)
 		goto too_early;
 
-	/* Files dated post 18 Jan 2038 03:14:05. */
-	if (high >= 0x656e9969)
-		goto too_late;
+	/* convert from RISC OS to Unix epoch */
+	nsec -= nsec_unix_epoch_diff_risc_os_epoch;
 
-	/* discard 2208988800 (0x336e996a00) seconds of time */
-	high -= 0x336e996a;
-
-	/* convert 40-bit centi-seconds to 32-bit seconds */
-	tv->tv_sec = (((high % 100) << 8) + low) / 100 + (high / 100 << 8);
-	tv->tv_nsec = 0;
+	*tv = ns_to_timespec(nsec);
 	return;
 
  cur_time:
-	*tv = CURRENT_TIME_SEC;
+	*tv = CURRENT_TIME;
 	return;
 
  too_early:
 	tv->tv_sec = tv->tv_nsec = 0;
-	return;
-
- too_late:
-	tv->tv_sec = 0x7ffffffd;
-	tv->tv_nsec = 0;
 	return;
 }
 
