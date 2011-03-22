@@ -568,7 +568,7 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	if (0 > acm_set_control(acm, acm->ctrlout = ACM_CTRL_DTR | ACM_CTRL_RTS) &&
 	    (acm->ctrl_caps & USB_CDC_CAP_LINE))
-		goto full_bailout;
+		goto bail_out;
 
 	usb_autopm_put_interface(acm->control);
 
@@ -592,8 +592,6 @@ out:
 	mutex_unlock(&open_mutex);
 	return rv;
 
-full_bailout:
-	usb_kill_urb(acm->ctrlurb);
 bail_out:
 	acm->port.count--;
 	mutex_unlock(&acm->mutex);
