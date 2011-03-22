@@ -2090,7 +2090,7 @@ static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
 {
 	int r;
 	u8 bpp;
-	struct omap_video_timings timings;
+	struct omap_video_timings timings, temp_timings;
 
 	r = omapfb_mode_to_timings(mode_str, &timings, &bpp);
 	if (r)
@@ -2100,14 +2100,23 @@ static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
 	fbdev->bpp_overrides[fbdev->num_bpp_overrides].bpp = bpp;
 	++fbdev->num_bpp_overrides;
 
-	if (!display->driver->check_timings || !display->driver->set_timings)
-		return -EINVAL;
+	if (display->driver->check_timings) {
+		r = display->driver->check_timings(display, &timings);
+		if (r)
+			return r;
+	} else {
+		/* If check_timings is not present compare xres and yres */
+		if (display->driver->get_timings) {
+			display->driver->get_timings(display, &temp_timings);
 
-	r = display->driver->check_timings(display, &timings);
-	if (r)
-		return r;
+			if (temp_timings.x_res != timings.x_res ||
+				temp_timings.y_res != timings.y_res)
+				return -EINVAL;
+		}
+	}
 
-	display->driver->set_timings(display, &timings);
+	if (display->driver->set_timings)
+			display->driver->set_timings(display, &timings);
 
 	return 0;
 }
