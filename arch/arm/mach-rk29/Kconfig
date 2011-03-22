@@ -42,6 +42,12 @@ config MACH_RK29_PHONESDK
         help
 	  Support for the ROCKCHIP Board For Rk29 Phone Sdk.
 
+config MACH_RK29_A22
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For A22"
+        help
+	  Support for the ROCKCHIP Board For A22.
+
 endchoice
 
 config RK29_MEM_SIZE_M
