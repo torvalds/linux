@@ -302,6 +302,9 @@ struct radeon_encoder_lvds {
 	uint32_t lvds_gen_cntl;
 	/* panel mode */
 	struct drm_display_mode native_mode;
+	struct backlight_device *bl_dev;
+	int      dpms_mode;
+	uint8_t  backlight_level;
 };
 
 struct radeon_encoder_tv_dac {
@@ -355,6 +358,9 @@ struct radeon_encoder_atom_dig {
 	uint32_t lcd_ss_id;
 	/* panel mode */
 	struct drm_display_mode native_mode;
+	struct backlight_device *bl_dev;
+	int dpms_mode;
+	uint8_t backlight_level;
 };
 
 struct radeon_encoder_atom_dac {
