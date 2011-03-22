@@ -458,6 +458,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_rss_map rss_map;
 	u32 flags;
 #define MLX4_EN_FLAG_PROMISC	0x1
+#define MLX4_EN_FLAG_MC_PROMISC	0x2
 	u32 tx_ring_num;
 	u32 rx_ring_num;
 	u32 rx_skb_size;

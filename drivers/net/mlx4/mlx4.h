@@ -286,6 +286,10 @@ struct mlx4_vlan_table {
 	int			max;
 };
 
+struct mlx4_mac_entry {
+	u64 mac;
+};
+
 struct mlx4_port_info {
 	struct mlx4_dev	       *dev;
 	int			port;
@@ -293,7 +297,9 @@ struct mlx4_port_info {
 	struct device_attribute port_attr;
 	enum mlx4_port_type	tmp_type;
 	struct mlx4_mac_table	mac_table;
+	struct radix_tree_root	mac_tree;
 	struct mlx4_vlan_table	vlan_table;
+	int			base_qpn;
 };
 
 struct mlx4_sense {
