@@ -437,17 +437,16 @@ static int bnx2fc_l2_rcv_thread(void *arg)
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
 		schedule();
-		set_current_state(TASK_RUNNING);
 		spin_lock_bh(&bg->fcoe_rx_list.lock);
 		while ((skb = __skb_dequeue(&bg->fcoe_rx_list)) != NULL) {
 			spin_unlock_bh(&bg->fcoe_rx_list.lock);
 			bnx2fc_recv_frame(skb);
 			spin_lock_bh(&bg->fcoe_rx_list.lock);
 		}
+		__set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&bg->fcoe_rx_list.lock);
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	return 0;
 }
 
@@ -569,7 +568,6 @@ int bnx2fc_percpu_io_thread(void *arg)
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
 		schedule();
-		set_current_state(TASK_RUNNING);
 		spin_lock_bh(&p->fp_work_lock);
 		while (!list_empty(&p->work_list)) {
 			list_splice_init(&p->work_list, &work_list);
@@ -583,10 +581,10 @@ int bnx2fc_percpu_io_thread(void *arg)
 
 			spin_lock_bh(&p->fp_work_lock);
 		}
+		__set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&p->fp_work_lock);
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
