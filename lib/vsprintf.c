@@ -1047,16 +1047,12 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			if (spec.field_width == -1)
 				spec.field_width = 2 * sizeof(void *);
 			return string(buf, end, "pK-error", spec);
-		} else if ((kptr_restrict == 0) ||
-			 (kptr_restrict == 1 &&
-			  has_capability_noaudit(current, CAP_SYSLOG)))
-			break;
-
-		if (spec.field_width == -1) {
-			spec.field_width = 2 * sizeof(void *);
-			spec.flags |= ZEROPAD;
 		}
-		return number(buf, end, 0, spec);
+		if (!((kptr_restrict == 0) ||
+		      (kptr_restrict == 1 &&
+		       has_capability_noaudit(current, CAP_SYSLOG))))
+			ptr = NULL;
+		break;
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
