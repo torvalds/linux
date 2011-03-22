@@ -461,8 +461,10 @@ static int ite_tx_ir(struct rc_dev *rcdev, int *txbuf, u32 n)
 			else
 				val |= ITE_TX_SPACE;
 
-			/* if we get to 0 available, read again, just in case
-							      * some other slot got freed */
+			/*
+			 * if we get to 0 available, read again, just in case
+			 * some other slot got freed
+			 */
 			if (fifo_avail <= 0)
 				fifo_avail = ITE_TX_FIFO_LEN - dev->params.get_tx_used_slots(dev);
 
@@ -1511,7 +1513,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* store resource values */
 	itdev->cir_addr = pnp_port_start(pdev, 0);
-	itdev->cir_irq =pnp_irq(pdev, 0);
+	itdev->cir_irq = pnp_irq(pdev, 0);
 
 	/* initialize spinlocks */
 	spin_lock_init(&itdev->lock);

@@ -24,15 +24,18 @@
 
 /* logging macros */
 #define ite_pr(level, text, ...) \
-    printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
-#define ite_dbg(text, ...) \
-    if (debug) \
-	printk(KERN_DEBUG \
-	    KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
-#define ite_dbg_verbose(text, ...) \
-    if (debug > 1) \
-	printk(KERN_DEBUG \
-	    KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
+	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
+#define ite_dbg(text, ...) do { \
+	if (debug) \
+		printk(KERN_DEBUG \
+			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
+} while (0)
+
+#define ite_dbg_verbose(text, ...) do {\
+	if (debug > 1) \
+		printk(KERN_DEBUG \
+			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
+} while (0)
 
 /* FIFO sizes */
 #define ITE_TX_FIFO_LEN 32
@@ -76,41 +79,41 @@ struct ite_dev_params {
 	 * called while holding the spin lock, except for the TX FIFO length
 	 * one */
 	/* get pending interrupt causes */
-	int (*get_irq_causes) (struct ite_dev * dev);
+	int (*get_irq_causes) (struct ite_dev *dev);
 
 	/* enable rx */
-	void (*enable_rx) (struct ite_dev * dev);
+	void (*enable_rx) (struct ite_dev *dev);
 
 	/* make rx enter the idle state; keep listening for a pulse, but stop
 	 * streaming space bytes */
-	void (*idle_rx) (struct ite_dev * dev);
+	void (*idle_rx) (struct ite_dev *dev);
 
 	/* disable rx completely */
-	void (*disable_rx) (struct ite_dev * dev);
+	void (*disable_rx) (struct ite_dev *dev);
 
 	/* read bytes from RX FIFO; return read count */
-	int (*get_rx_bytes) (struct ite_dev * dev, u8 * buf, int buf_size);
+	int (*get_rx_bytes) (struct ite_dev *dev, u8 *buf, int buf_size);
 
 	/* enable tx FIFO space available interrupt */
-	void (*enable_tx_interrupt) (struct ite_dev * dev);
+	void (*enable_tx_interrupt) (struct ite_dev *dev);
 
 	/* disable tx FIFO space available interrupt */
-	void (*disable_tx_interrupt) (struct ite_dev * dev);
+	void (*disable_tx_interrupt) (struct ite_dev *dev);
 
 	/* get number of full TX FIFO slots */
-	int (*get_tx_used_slots) (struct ite_dev * dev);
+	int (*get_tx_used_slots) (struct ite_dev *dev);
 
 	/* put a byte to the TX FIFO */
-	void (*put_tx_byte) (struct ite_dev * dev, u8 value);
+	void (*put_tx_byte) (struct ite_dev *dev, u8 value);
 
 	/* disable hardware completely */
-	void (*disable) (struct ite_dev * dev);
+	void (*disable) (struct ite_dev *dev);
 
 	/* initialize the hardware */
-	void (*init_hardware) (struct ite_dev * dev);
+	void (*init_hardware) (struct ite_dev *dev);
 
 	/* set the carrier parameters */
-	void (*set_carrier_params) (struct ite_dev * dev, bool high_freq,
+	void (*set_carrier_params) (struct ite_dev *dev, bool high_freq,
 				    bool use_demodulator, u8 carrier_freq_bits,
 				    u8 allowance_bits, u8 pulse_width_bits);
 };
