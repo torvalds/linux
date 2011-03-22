@@ -142,8 +142,6 @@ struct tmds_setting_information {
 	int h_active;
 	int v_active;
 	int max_pixel_clock;
-	int max_hres;
-	int max_vres;
 };
 
 struct lvds_setting_information {
