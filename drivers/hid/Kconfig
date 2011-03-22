@@ -185,7 +185,7 @@ config HID_EZKEY
 	Support for Ezkey BTC 8193 keyboard.
 
 config HID_KEYTOUCH
-	tristate "Keyoutch HID devices"
+	tristate "Keytouch HID devices"
 	depends on USB_HID
 	---help---
 	Support for Keytouch HID devices not fully compliant with
