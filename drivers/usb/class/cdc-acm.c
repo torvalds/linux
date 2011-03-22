@@ -606,16 +606,15 @@ early_bail:
 
 static void acm_tty_unregister(struct acm *acm)
 {
-	int i, nr;
+	int i;
 
-	nr = acm->rx_buflimit;
 	tty_unregister_device(acm_tty_driver, acm->minor);
 	usb_put_intf(acm->control);
 	acm_table[acm->minor] = NULL;
 	usb_free_urb(acm->ctrlurb);
 	for (i = 0; i < ACM_NW; i++)
 		usb_free_urb(acm->wb[i].urb);
-	for (i = 0; i < nr; i++)
+	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_free_urb(acm->ru[i].urb);
 	kfree(acm->country_codes);
 	kfree(acm);
@@ -623,7 +622,8 @@ static void acm_tty_unregister(struct acm *acm)
 
 static void acm_port_down(struct acm *acm)
 {
-	int i, nr = acm->rx_buflimit;
+	int i;
+
 	mutex_lock(&open_mutex);
 	if (acm->dev) {
 		usb_autopm_get_interface(acm->control);
@@ -632,7 +632,7 @@ static void acm_port_down(struct acm *acm)
 		for (i = 0; i < ACM_NW; i++)
 			usb_kill_urb(acm->wb[i].urb);
 		tasklet_disable(&acm->urb_task);
-		for (i = 0; i < nr; i++)
+		for (i = 0; i < acm->rx_buflimit; i++)
 			usb_kill_urb(acm->ru[i].urb);
 		tasklet_enable(&acm->urb_task);
 		acm->control->needs_remote_wakeup = 0;
@@ -882,9 +882,9 @@ static void acm_write_buffers_free(struct acm *acm)
 static void acm_read_buffers_free(struct acm *acm)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
-	int i, n = acm->rx_buflimit;
+	int i;
 
-	for (i = 0; i < n; i++)
+	for (i = 0; i < acm->rx_buflimit; i++)
 		usb_free_coherent(usb_dev, acm->readsize,
 				  acm->rb[i].base, acm->rb[i].dma);
 }
