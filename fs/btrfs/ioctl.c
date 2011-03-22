@@ -138,6 +138,24 @@ static int btrfs_ioctl_getflags(struct file *file, void __user *arg)
 	return 0;
 }
 
+static int check_flags(unsigned int flags)
+{
+	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
+		      FS_NOATIME_FL | FS_NODUMP_FL | \
+		      FS_SYNC_FL | FS_DIRSYNC_FL | \
+		      FS_NOCOMP_FL | FS_COMPR_FL | \
+		      FS_NOCOW_FL | FS_COW_FL))
+		return -EOPNOTSUPP;
+
+	if ((flags & FS_NOCOMP_FL) && (flags & FS_COMPR_FL))
+		return -EINVAL;
+
+	if ((flags & FS_NOCOW_FL) && (flags & FS_COW_FL))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
@@ -153,10 +171,9 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	if (copy_from_user(&flags, arg, sizeof(flags)))
 		return -EFAULT;
 
-	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
-		      FS_NOATIME_FL | FS_NODUMP_FL | \
-		      FS_SYNC_FL | FS_DIRSYNC_FL))
-		return -EOPNOTSUPP;
+	ret = check_flags(flags);
+	if (ret)
+		return ret;
 
 	if (!is_owner_or_cap(inode))
 		return -EACCES;
@@ -201,6 +218,22 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	else
 		ip->flags &= ~BTRFS_INODE_DIRSYNC;
 
+	/*
+	 * The COMPRESS flag can only be changed by users, while the NOCOMPRESS
+	 * flag may be changed automatically if compression code won't make
+	 * things smaller.
+	 */
+	if (flags & FS_NOCOMP_FL) {
+		ip->flags &= ~BTRFS_INODE_COMPRESS;
+		ip->flags |= BTRFS_INODE_NOCOMPRESS;
+	} else if (flags & FS_COMPR_FL) {
+		ip->flags |= BTRFS_INODE_COMPRESS;
+		ip->flags &= ~BTRFS_INODE_NOCOMPRESS;
+	}
+	if (flags & FS_NOCOW_FL)
+		ip->flags |= BTRFS_INODE_NODATACOW;
+	else if (flags & FS_COW_FL)
+		ip->flags &= ~BTRFS_INODE_NODATACOW;
 
 	trans = btrfs_join_transaction(root, 1);
 	BUG_ON(IS_ERR(trans));

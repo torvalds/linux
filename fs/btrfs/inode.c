@@ -384,7 +384,8 @@ again:
 	 */
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS) &&
 	    (btrfs_test_opt(root, COMPRESS) ||
-	     (BTRFS_I(inode)->force_compress))) {
+	     (BTRFS_I(inode)->force_compress) ||
+	     (BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS))) {
 		WARN_ON(pages);
 		pages = kzalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
 
@@ -1256,7 +1257,8 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
 	else if (!btrfs_test_opt(root, COMPRESS) &&
-		 !(BTRFS_I(inode)->force_compress))
+		 !(BTRFS_I(inode)->force_compress) &&
+		 !(BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS))
 		ret = cow_file_range(inode, locked_page, start, end,
 				      page_started, nr_written, 1);
 	else
@@ -4584,7 +4586,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	if ((mode & S_IFREG)) {
 		if (btrfs_test_opt(root, NODATASUM))
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
-		if (btrfs_test_opt(root, NODATACOW))
+		if (btrfs_test_opt(root, NODATACOW) ||
+		    (BTRFS_I(dir)->flags & BTRFS_INODE_NODATACOW))
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
 	}
 
@@ -6866,6 +6869,26 @@ static int btrfs_getattr(struct vfsmount *mnt,
 	return 0;
 }
 
+/*
+ * If a file is moved, it will inherit the cow and compression flags of the new
+ * directory.
+ */
+static void fixup_inode_flags(struct inode *dir, struct inode *inode)
+{
+	struct btrfs_inode *b_dir = BTRFS_I(dir);
+	struct btrfs_inode *b_inode = BTRFS_I(inode);
+
+	if (b_dir->flags & BTRFS_INODE_NODATACOW)
+		b_inode->flags |= BTRFS_INODE_NODATACOW;
+	else
+		b_inode->flags &= ~BTRFS_INODE_NODATACOW;
+
+	if (b_dir->flags & BTRFS_INODE_COMPRESS)
+		b_inode->flags |= BTRFS_INODE_COMPRESS;
+	else
+		b_inode->flags &= ~BTRFS_INODE_COMPRESS;
+}
+
 static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry)
 {
@@ -6998,6 +7021,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			BUG_ON(ret);
 		}
 	}
+
+	fixup_inode_flags(new_dir, old_inode);
 
 	ret = btrfs_add_link(trans, new_dir, old_inode,
 			     new_dentry->d_name.name,
