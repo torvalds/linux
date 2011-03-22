@@ -1857,6 +1857,9 @@ new_slab:
 	}
 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
 		slab_out_of_memory(s, gfpflags, node);
+#ifdef CONFIG_CMPXCHG_LOCAL
+	local_irq_restore(flags);
+#endif
 	return NULL;
 debug:
 	if (!alloc_debug_processing(s, c->page, object, addr))
