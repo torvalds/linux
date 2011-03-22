@@ -2902,6 +2902,11 @@ sub process {
 		    $line =~ /DEVICE_ATTR.*S_IWUGO/ ) {
 			WARN("Exporting world writable files is usually an error. Consider more restrictive permissions.\n" . $herecurr);
 		}
+
+		# Check for memset with swapped arguments
+		if ($line =~ /memset.*\,(\ |)(0x|)0(\ |0|)\);/) {
+			ERROR("memset size is 3rd argument, not the second.\n" . $herecurr);
+		}
 	}
 
 	# If we have no input at all, then there is nothing to report on
