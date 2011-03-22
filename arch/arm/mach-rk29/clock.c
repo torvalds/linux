@@ -1600,12 +1600,16 @@ static struct clk aclk_gpu = {
 };
 
 
+static struct clk vip_clkin = {
+	.name		= "vip_clkin",
+};
+
 static struct clk *clk_vip_parents[4] = { &xin24m, &xin27m, &dclk_ebook };
 
-static struct clk clk_vip = {
-	.name		= "vip",
+static struct clk clk_vip_out = {
+	.name		= "vip_out",
 	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_VIP,
+	.gate_idx	= CLK_GATE_VIP_OUT,
 	.clksel_con	= CRU_CLKSEL1_CON,
 	.clksel_parent_mask	= 3,
 	.clksel_parent_shift	= 7,
@@ -1673,7 +1677,7 @@ GATE_CLK(wdt, pclk_periph, WDT);
 GATE_CLK(pwm, pclk_periph, PWM);
 GATE_CLK(vip_bus, aclk_cpu, VIP_BUS);
 GATE_CLK(vip_matrix, clk_vip_bus, VIP_MATRIX);
-GATE_CLK(vip_input, hclk_cpu, VIP_INPUT);
+GATE_CLK(vip_input, vip_clkin, VIP_INPUT);
 GATE_CLK(jtag, aclk_cpu, JTAG);
 
 GATE_CLK(aclk_ddr_lcdc, aclk_lcdc, ACLK_DDR_LCDC);
@@ -1713,6 +1717,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "otgphy0_clkin", &otgphy0_clkin),
 	CLK(NULL, "otgphy1_clkin", &otgphy1_clkin),
 	CLK(NULL, "gpsclk", &gpsclk),
+	CLK(NULL, "vip_clkin", &vip_clkin),
 
 	CLK1(12m),
 	CLK(NULL, "arm_pll", &arm_pll_clk),
@@ -1729,7 +1734,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "hclk_periph", &hclk_periph),
 	CLK(NULL, "pclk_periph", &pclk_periph),
 
-	CLK1(vip),
+	CLK1(vip_out),
 	CLK1(otgphy0),
 	CLK1(otgphy1),
 	CLK1(uhost),
