@@ -223,7 +223,7 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 
 	req = &c->reqs[row][col];
 	if (!req->tc) {
-		req->wq = kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
+		req->wq = kmalloc(sizeof(wait_queue_head_t), GFP_NOFS);
 		if (!req->wq) {
 			printk(KERN_ERR "Couldn't grow tag array\n");
 			return ERR_PTR(-ENOMEM);
@@ -233,17 +233,17 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 				P9_TRANS_PREF_PAYLOAD_SEP) {
 			int alloc_msize = min(c->msize, 4096);
 			req->tc = kmalloc(sizeof(struct p9_fcall)+alloc_msize,
-					GFP_KERNEL);
+					  GFP_NOFS);
 			req->tc->capacity = alloc_msize;
 			req->rc = kmalloc(sizeof(struct p9_fcall)+alloc_msize,
-					GFP_KERNEL);
+					  GFP_NOFS);
 			req->rc->capacity = alloc_msize;
 		} else {
 			req->tc = kmalloc(sizeof(struct p9_fcall)+c->msize,
-					GFP_KERNEL);
+					  GFP_NOFS);
 			req->tc->capacity = c->msize;
 			req->rc = kmalloc(sizeof(struct p9_fcall)+c->msize,
-					GFP_KERNEL);
+					  GFP_NOFS);
 			req->rc->capacity = c->msize;
 		}
 		if ((!req->tc) || (!req->rc)) {
