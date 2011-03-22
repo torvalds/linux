@@ -32,7 +32,7 @@ static DEFINE_MUTEX(btrace_mutex);
 
 struct trace_bprintk_fmt {
 	struct list_head list;
-	char fmt[0];
+	const char *fmt;
 };
 
 static inline struct trace_bprintk_fmt *lookup_format(const char *fmt)
@@ -49,6 +49,7 @@ static
 void hold_module_trace_bprintk_format(const char **start, const char **end)
 {
 	const char **iter;
+	char *fmt;
 
 	mutex_lock(&btrace_mutex);
 	for (iter = start; iter < end; iter++) {
@@ -58,14 +59,18 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 			continue;
 		}
 
-		tb_fmt = kmalloc(offsetof(struct trace_bprintk_fmt, fmt)
-				+ strlen(*iter) + 1, GFP_KERNEL);
-		if (tb_fmt) {
+		tb_fmt = kmalloc(sizeof(*tb_fmt), GFP_KERNEL);
+		if (tb_fmt)
+			fmt = kmalloc(strlen(*iter) + 1, GFP_KERNEL);
+		if (tb_fmt && fmt) {
 			list_add_tail(&tb_fmt->list, &trace_bprintk_fmt_list);
-			strcpy(tb_fmt->fmt, *iter);
+			strcpy(fmt, *iter);
+			tb_fmt->fmt = fmt;
 			*iter = tb_fmt->fmt;
-		} else
+		} else {
+			kfree(tb_fmt);
 			*iter = NULL;
+		}
 	}
 	mutex_unlock(&btrace_mutex);
 }
