@@ -597,6 +597,7 @@ static int scsi_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 		break;
 
 	default:
+		ret = BLKPREP_KILL;
 		goto out;
 	}
 
