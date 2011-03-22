@@ -29,7 +29,7 @@
  * VC data common to 34xx/36xx chips
  * XXX This stuff presumably belongs in the vc3xxx.c or vc.c file.
  */
-static struct omap_vc_common_data omap3_vc_common = {
+static struct omap_vc_common omap3_vc_common = {
 	.prm_mod         = OMAP3430_GR_MOD,
 	.smps_sa_reg	 = OMAP3_PRM_VC_SMPS_SA_OFFSET,
 	.smps_volra_reg	 = OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET,
@@ -45,8 +45,8 @@ static struct omap_vc_common_data omap3_vc_common = {
 	.cmd_off_shift	 = OMAP3430_VC_CMD_OFF_SHIFT,
 };
 
-struct omap_vc_instance_data omap3_vc1_data = {
-	.vc_common = &omap3_vc_common,
+struct omap_vc_channel omap3_vc_mpu = {
+	.common = &omap3_vc_common,
 	.cmdval_reg = OMAP3_PRM_VC_CMD_VAL_0_OFFSET,
 	.smps_sa_shift = OMAP3430_PRM_VC_SMPS_SA_SA0_SHIFT,
 	.smps_sa_mask = OMAP3430_PRM_VC_SMPS_SA_SA0_MASK,
@@ -54,8 +54,8 @@ struct omap_vc_instance_data omap3_vc1_data = {
 	.smps_volra_mask = OMAP3430_VOLRA0_MASK,
 };
 
-struct omap_vc_instance_data omap3_vc2_data = {
-	.vc_common = &omap3_vc_common,
+struct omap_vc_channel omap3_vc_core = {
+	.common = &omap3_vc_common,
 	.cmdval_reg = OMAP3_PRM_VC_CMD_VAL_1_OFFSET,
 	.smps_sa_shift = OMAP3430_PRM_VC_SMPS_SA_SA1_SHIFT,
 	.smps_sa_mask = OMAP3430_PRM_VC_SMPS_SA_SA1_MASK,

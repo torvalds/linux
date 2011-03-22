@@ -41,7 +41,6 @@ static struct omap_vdd_info omap3_vdd1_info = {
 	.prm_irqst_mod = OCP_MOD,
 	.prm_irqst_reg = OMAP3_PRM_IRQSTATUS_MPU_OFFSET,
 	.vp_data = &omap3_vp1_data,
-	.vc_data = &omap3_vc1_data,
 	.vfsm = &omap3_vdd1_vfsm_data,
 };
 
@@ -55,19 +54,20 @@ static struct omap_vdd_info omap3_vdd2_info = {
 	.prm_irqst_mod = OCP_MOD,
 	.prm_irqst_reg = OMAP3_PRM_IRQSTATUS_MPU_OFFSET,
 	.vp_data = &omap3_vp2_data,
-	.vc_data = &omap3_vc2_data,
 	.vfsm = &omap3_vdd2_vfsm_data,
 };
 
 static struct voltagedomain omap3_voltdm_mpu = {
 	.name = "mpu_iva",
 	.scalable = true,
+	.vc = &omap3_vc_mpu,
 	.vdd = &omap3_vdd1_info,
 };
 
 static struct voltagedomain omap3_voltdm_core = {
 	.name = "core",
 	.scalable = true,
+	.vc = &omap3_vc_core,
 	.vdd = &omap3_vdd2_info,
 };
 

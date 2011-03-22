@@ -22,7 +22,7 @@
 struct voltagedomain;
 
 /**
- * struct omap_vc_common_data - per-VC register/bitfield data
+ * struct omap_vc_common - per-VC register/bitfield data
  * @cmd_on_mask: ON bitmask in PRM_VC_CMD_VAL* register
  * @valid: VALID bitmask in PRM_VC_BYPASS_VAL register
  * @prm_mod: PRM module id used for PRM register access
@@ -40,7 +40,7 @@ struct voltagedomain;
  * XXX One of cmd_on_mask and cmd_on_shift are not needed
  * XXX VALID should probably be a shift, not a mask
  */
-struct omap_vc_common_data {
+struct omap_vc_common {
 	u32 cmd_on_mask;
 	u32 valid;
 	s16 prm_mod;
@@ -57,8 +57,8 @@ struct omap_vc_common_data {
 };
 
 /**
- * struct omap_vc_instance_data - VC per-instance data
- * @vc_common: pointer to VC common data for this platform
+ * struct omap_vc_channel - VC per-instance data
+ * @common: pointer to VC common data for this platform
  * @smps_sa_mask: SA* bitmask in the PRM_VC_SMPS_SA register
  * @smps_volra_mask: VOLRA* bitmask in the PRM_VC_VOL_RA register
  * @smps_sa_shift: SA* field shift in the PRM_VC_SMPS_SA register
@@ -67,8 +67,8 @@ struct omap_vc_common_data {
  * XXX It is not necessary to have both a *_mask and a *_shift -
  *     remove one
  */
-struct omap_vc_instance_data {
-	const struct omap_vc_common_data *vc_common;
+struct omap_vc_channel {
+	const struct omap_vc_common *common;
 	u32 smps_sa_mask;
 	u32 smps_volra_mask;
 	u8 cmdval_reg;
@@ -76,12 +76,12 @@ struct omap_vc_instance_data {
 	u8 smps_volra_shift;
 };
 
-extern struct omap_vc_instance_data omap3_vc1_data;
-extern struct omap_vc_instance_data omap3_vc2_data;
+extern struct omap_vc_channel omap3_vc_mpu;
+extern struct omap_vc_channel omap3_vc_core;
 
-extern struct omap_vc_instance_data omap4_vc_mpu_data;
-extern struct omap_vc_instance_data omap4_vc_iva_data;
-extern struct omap_vc_instance_data omap4_vc_core_data;
+extern struct omap_vc_channel omap4_vc_mpu;
+extern struct omap_vc_channel omap4_vc_iva;
+extern struct omap_vc_channel omap4_vc_core;
 
 void omap_vc_init_channel(struct voltagedomain *voltdm);
 int omap_vc_pre_scale(struct voltagedomain *voltdm,
@@ -90,8 +90,8 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 void omap_vc_post_scale(struct voltagedomain *voltdm,
 			unsigned long target_volt,
 			u8 target_vsel, u8 current_vsel);
-int omap_vc_bypass_scale_voltage(struct voltagedomain *voltdm,
-				 unsigned long target_volt);
+int omap_vc_bypass_scale(struct voltagedomain *voltdm,
+			 unsigned long target_volt);
 
 #endif
 

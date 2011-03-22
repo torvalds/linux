@@ -769,7 +769,7 @@ void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		vdd->volt_scale = vp_forceupdate_scale_voltage;
 		return;
 	case VOLTSCALE_VCBYPASS:
-		vdd->volt_scale = omap_vc_bypass_scale_voltage;
+		vdd->volt_scale = omap_vc_bypass_scale;
 		return;
 	default:
 		pr_warning("%s: Trying to change the method of voltage scaling"
@@ -802,10 +802,12 @@ int __init omap_voltage_late_init(void)
 		if (!voltdm->scalable)
 			continue;
 
+		if (voltdm->vc)
+			omap_vc_init_channel(voltdm);
+
 		if (voltdm->vdd) {
 			if (omap_vdd_data_configure(voltdm))
 				continue;
-			omap_vc_init_channel(voltdm);
 			vp_init(voltdm);
 			vdd_debugfs_init(voltdm);
 		}
