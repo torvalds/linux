@@ -121,22 +121,21 @@ static int __init olpc_xo1_init(void)
 {
 	int r;
 
-	r = mfd_shared_platform_driver_register(&cs5535_pms_drv, "cs5535-pms");
+	r = platform_driver_register(&cs5535_pms_drv);
 	if (r)
 		return r;
 
-	r = mfd_shared_platform_driver_register(&cs5535_acpi_drv,
-			"cs5535-acpi");
+	r = platform_driver_register(&cs5535_acpi_drv);
 	if (r)
-		mfd_shared_platform_driver_unregister(&cs5535_pms_drv);
+		platform_driver_unregister(&cs5535_pms_drv);
 
 	return r;
 }
 
 static void __exit olpc_xo1_exit(void)
 {
-	mfd_shared_platform_driver_unregister(&cs5535_acpi_drv);
-	mfd_shared_platform_driver_unregister(&cs5535_pms_drv);
+	platform_driver_unregister(&cs5535_acpi_drv);
+	platform_driver_unregister(&cs5535_pms_drv);
 }
 
 MODULE_AUTHOR("Daniel Drake <dsd@laptop.org>");
