@@ -396,8 +396,9 @@
 #define __NR_name_to_handle_at	375
 #define __NR_open_by_handle_at	376
 #define __NR_clock_adjtime	377
+#define __NR_syncfs		378
 
-#define __NR_syscall		378
+#define __NR_syscall		379
 #define NR_syscalls		__NR_syscall
 
 /* Old optional stuff no one actually uses */
