@@ -124,9 +124,11 @@ static inline unsigned long current_stack_pointer(void)
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk) kzalloc(THREAD_SIZE, GFP_KERNEL)
+#define alloc_thread_info_node(tsk, node)			\
+		kzalloc_node(THREAD_SIZE, GFP_KERNEL, node)
 #else
-#define alloc_thread_info(tsk) kmalloc(THREAD_SIZE, GFP_KERNEL)
+#define alloc_thread_info_node(tsk, node)			\
+		kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
 #endif
 
 #define free_thread_info(ti)	kfree((ti))

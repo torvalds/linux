@@ -59,11 +59,12 @@ struct thread_info {
 #ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
-#define alloc_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
+#define alloc_thread_info_node(tsk, node)	\
+		((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
 #define task_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
 #else
 #define current_thread_info()	((struct thread_info *) 0)
-#define alloc_thread_info(tsk)	((struct thread_info *) 0)
+#define alloc_thread_info_node(tsk, node)	((struct thread_info *) 0)
 #define task_thread_info(tsk)	((struct thread_info *) 0)
 #endif
 #define free_thread_info(ti)	/* nothing */
