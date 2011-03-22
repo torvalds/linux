@@ -154,6 +154,10 @@ static const u8 webcam_chip[NWEBCAMS] = {
  *	nw801/802: 320x240, 640x480
  */
 static const struct v4l2_pix_format cif_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 4 / 8,
+		.colorspace = V4L2_COLORSPACE_JPEG},
 	{352, 288, V4L2_PIX_FMT_JPGL, V4L2_FIELD_NONE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 4 / 8,
@@ -1782,12 +1786,18 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	PDEBUG(D_PROBE, "Bridge nw80%d - type: %d", sd->bridge, sd->webcam);
 
 	if (sd->bridge == BRIDGE_NW800) {
-		gspca_dev->cam.cam_mode = cif_mode;
-		gspca_dev->cam.nmodes = ARRAY_SIZE(cif_mode);
+		switch (sd->webcam) {
+		case DS3303u:
+			gspca_dev->cam.cam_mode = cif_mode;	/* qvga */
+			break;
+		default:
+			gspca_dev->cam.cam_mode = &cif_mode[1];	/* cif */
+			break;
+		}
+		gspca_dev->cam.nmodes = 1;
 	} else {
 		gspca_dev->cam.cam_mode = vga_mode;
 		switch (sd->webcam) {
-		case Generic802:
 		case Kr651us:
 		case Proscope:
 		case P35u:
