@@ -73,7 +73,13 @@ static inline void get_anon_vma(struct anon_vma *anon_vma)
 	atomic_inc(&anon_vma->refcount);
 }
 
-void put_anon_vma(struct anon_vma *);
+void __put_anon_vma(struct anon_vma *anon_vma);
+
+static inline void put_anon_vma(struct anon_vma *anon_vma)
+{
+	if (atomic_dec_and_test(&anon_vma->refcount))
+		__put_anon_vma(anon_vma);
+}
 
 static inline struct anon_vma *page_anon_vma(struct page *page)
 {
@@ -116,7 +122,6 @@ void unlink_anon_vmas(struct vm_area_struct *);
 int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
 int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
 void __anon_vma_link(struct vm_area_struct *);
-void anon_vma_free(struct anon_vma *);
 
 static inline void anon_vma_merge(struct vm_area_struct *vma,
 				  struct vm_area_struct *next)
@@ -124,6 +129,8 @@ static inline void anon_vma_merge(struct vm_area_struct *vma,
 	VM_BUG_ON(vma->anon_vma != next->anon_vma);
 	unlink_anon_vmas(next);
 }
+
+struct anon_vma *page_get_anon_vma(struct page *page);
 
 /*
  * rmap interfaces called when adding or removing pte of page
