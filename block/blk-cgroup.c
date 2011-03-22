@@ -605,10 +605,10 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 	if (type == BLKIO_STAT_SECTORS)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.sectors, cb, dev);
+#ifdef CONFIG_DEBUG_BLK_CGROUP
 	if (type == BLKIO_STAT_UNACCOUNTED_TIME)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.unaccounted_time, cb, dev);
-#ifdef CONFIG_DEBUG_BLK_CGROUP
 	if (type == BLKIO_STAT_AVG_QUEUE_SIZE) {
 		uint64_t sum = blkg->stats.avg_queue_size_sum;
 		uint64_t samples = blkg->stats.avg_queue_size_samples;
@@ -1111,9 +1111,6 @@ static int blkiocg_file_read_map(struct cgroup *cgrp, struct cftype *cft,
 		case BLKIO_PROP_sectors:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_SECTORS, 0);
-		case BLKIO_PROP_unaccounted_time:
-			return blkio_read_blkg_stats(blkcg, cft, cb,
-						BLKIO_STAT_UNACCOUNTED_TIME, 0);
 		case BLKIO_PROP_io_service_bytes:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_SERVICE_BYTES, 1);
@@ -1133,6 +1130,9 @@ static int blkiocg_file_read_map(struct cgroup *cgrp, struct cftype *cft,
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_QUEUED, 1);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+		case BLKIO_PROP_unaccounted_time:
+			return blkio_read_blkg_stats(blkcg, cft, cb,
+						BLKIO_STAT_UNACCOUNTED_TIME, 0);
 		case BLKIO_PROP_dequeue:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_DEQUEUE, 0);
@@ -1270,12 +1270,6 @@ struct cftype blkio_files[] = {
 		.read_map = blkiocg_file_read_map,
 	},
 	{
-		.name = "unaccounted_time",
-		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
-				BLKIO_PROP_unaccounted_time),
-		.read_map = blkiocg_file_read_map,
-	},
-	{
 		.name = "io_service_bytes",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
 				BLKIO_PROP_io_service_bytes),
@@ -1394,6 +1388,12 @@ struct cftype blkio_files[] = {
 		.name = "dequeue",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
 				BLKIO_PROP_dequeue),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "unaccounted_time",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_unaccounted_time),
 		.read_map = blkiocg_file_read_map,
 	},
 #endif
