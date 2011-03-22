@@ -105,6 +105,7 @@ struct mlx4_bitmap {
 	u32			max;
 	u32                     reserved_top;
 	u32			mask;
+	u32			avail;
 	spinlock_t		lock;
 	unsigned long	       *table;
 };
@@ -371,6 +372,7 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap);
 void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj);
 u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align);
 void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt);
+u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap);
 int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
 		     u32 reserved_bot, u32 resetrved_top);
 void mlx4_bitmap_cleanup(struct mlx4_bitmap *bitmap);
