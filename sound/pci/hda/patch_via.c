@@ -1323,6 +1323,11 @@ static void mute_aa_path(struct hda_codec *codec, int mute)
 		start_idx = 2;
 		end_idx = 4;
 		break;
+	case VT1718S:
+		nid_mixer = 0x21;
+		start_idx = 1;
+		end_idx = 3;
+		break;
 	default:
 		return;
 	}
