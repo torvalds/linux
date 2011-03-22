@@ -113,6 +113,11 @@ static unsigned con_start;	/* Index into log_buf: next char to be sent to consol
 static unsigned log_end;	/* Index into log_buf: most-recently-written-char + 1 */
 
 /*
+ * If exclusive_console is non-NULL then only this console is to be printed to.
+ */
+static struct console *exclusive_console;
+
+/*
  *	Array of consoles built from command line options (console=)
  */
 struct console_cmdline
@@ -476,6 +481,8 @@ static void __call_console_drivers(unsigned start, unsigned end)
 	struct console *con;
 
 	for_each_console(con) {
+		if (exclusive_console && con != exclusive_console)
+			continue;
 		if ((con->flags & CON_ENABLED) && con->write &&
 				(cpu_online(smp_processor_id()) ||
 				(con->flags & CON_ANYTIME)))
@@ -1230,6 +1237,11 @@ void console_unlock(void)
 		local_irq_restore(flags);
 	}
 	console_locked = 0;
+
+	/* Release the exclusive_console once it is used */
+	if (unlikely(exclusive_console))
+		exclusive_console = NULL;
+
 	up(&console_sem);
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 	if (wake_klogd)
@@ -1464,6 +1476,12 @@ void register_console(struct console *newcon)
 		spin_lock_irqsave(&logbuf_lock, flags);
 		con_start = log_start;
 		spin_unlock_irqrestore(&logbuf_lock, flags);
+		/*
+		 * We're about to replay the log buffer.  Only do this to the
+		 * just-registered console to avoid excessive message spam to
+		 * the already-registered consoles.
+		 */
+		exclusive_console = newcon;
 	}
 	console_unlock();
 	console_sysfs_notify();
