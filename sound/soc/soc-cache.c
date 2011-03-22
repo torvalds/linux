@@ -20,6 +20,30 @@
 
 #include <trace/events/asoc.h>
 
+#if defined(CONFIG_SPI_MASTER)
+static int do_spi_write(void *control_data, const void *msg,
+			int len)
+{
+	struct spi_device *spi = control_data;
+	struct spi_transfer t;
+	struct spi_message m;
+
+	if (len <= 0)
+		return 0;
+
+	spi_message_init(&m);
+	memset(&t, 0, sizeof t);
+
+	t.tx_buf = msg;
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#endif
+
 static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		       unsigned int value, const void *data, int len)
 {
@@ -89,27 +113,12 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 static int snd_soc_4_12_spi_write(void *control_data, const char *data,
 				 int len)
 {
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
 	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
 
 	msg[0] = data[1];
 	msg[1] = data[0];
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
+	return do_spi_write(control_data, msg, len);
 }
 #else
 #define snd_soc_4_12_spi_write NULL
@@ -136,27 +145,12 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 static int snd_soc_7_9_spi_write(void *control_data, const char *data,
 				 int len)
 {
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
 	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
 
 	msg[0] = data[0];
 	msg[1] = data[1];
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
+	return do_spi_write(control_data, msg, len);
 }
 #else
 #define snd_soc_7_9_spi_write NULL
@@ -184,27 +178,12 @@ static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
 static int snd_soc_8_8_spi_write(void *control_data, const char *data,
 				 int len)
 {
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
 	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
 
 	msg[0] = data[0];
 	msg[1] = data[1];
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
+	return do_spi_write(control_data, msg, len);
 }
 #else
 #define snd_soc_8_8_spi_write NULL
@@ -232,28 +211,13 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 static int snd_soc_8_16_spi_write(void *control_data, const char *data,
 				 int len)
 {
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
 	u8 msg[3];
-
-	if (len <= 0)
-		return 0;
 
 	msg[0] = data[0];
 	msg[1] = data[1];
 	msg[2] = data[2];
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
+	return do_spi_write(control_data, msg, len);
 }
 #else
 #define snd_soc_8_16_spi_write NULL
@@ -365,28 +329,13 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 static int snd_soc_16_8_spi_write(void *control_data, const char *data,
 				 int len)
 {
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
 	u8 msg[3];
-
-	if (len <= 0)
-		return 0;
 
 	msg[0] = data[0];
 	msg[1] = data[1];
 	msg[2] = data[2];
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
+	return do_spi_write(control_data, msg, len);
 }
 #else
 #define snd_soc_16_8_spi_write NULL
@@ -432,29 +381,14 @@ static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
 static int snd_soc_16_16_spi_write(void *control_data, const char *data,
 				 int len)
 {
-	struct spi_device *spi = control_data;
-	struct spi_transfer t;
-	struct spi_message m;
 	u8 msg[4];
-
-	if (len <= 0)
-		return 0;
 
 	msg[0] = data[0];
 	msg[1] = data[1];
 	msg[2] = data[2];
 	msg[3] = data[3];
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof t);
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
+	return do_spi_write(control_data, msg, len);
 }
 #else
 #define snd_soc_16_16_spi_write NULL
