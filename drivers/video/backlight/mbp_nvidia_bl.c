@@ -1,5 +1,5 @@
 /*
- *  Backlight Driver for Nvidia 8600 in Macbook Pro
+ *  Backlight Driver for Macbooks
  *
  *  Copyright (c) Red Hat <mjg@redhat.com>
  *  Based on code from Pommed:
@@ -19,22 +19,26 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
 #include <linux/backlight.h>
 #include <linux/err.h>
-#include <linux/dmi.h>
 #include <linux/io.h>
+#include <linux/pci.h>
+#include <linux/acpi.h>
 
-static struct backlight_device *mbp_backlight_device;
+static struct backlight_device *mb_backlight_device;
 
-/* Structure to be passed to the DMI_MATCH function. */
-struct dmi_match_data {
+struct hw_data {
 	/* I/O resource to allocate. */
 	unsigned long iostart;
 	unsigned long iolen;
 	/* Backlight operations structure. */
 	const struct backlight_ops backlight_ops;
+	void (*set_brightness)(int);
 };
+
+static const struct hw_data *hw_data;
+
+#define DRIVER "mb_backlight: "
 
 /* Module parameters. */
 static int debug;
@@ -44,16 +48,21 @@ MODULE_PARM_DESC(debug, "Set to one to enable debugging messages.");
 /*
  * Implementation for MacBooks with Intel chipset.
  */
+static void intel_chipset_set_brightness(int intensity)
+{
+	outb(0x04 | (intensity << 4), 0xb3);
+	outb(0xbf, 0xb2);
+}
+
 static int intel_chipset_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
 
 	if (debug)
-		printk(KERN_DEBUG "mbp_nvidia_bl: setting brightness to %d\n",
+		printk(KERN_DEBUG DRIVER "setting brightness to %d\n",
 		       intensity);
 
-	outb(0x04 | (intensity << 4), 0xb3);
-	outb(0xbf, 0xb2);
+	intel_chipset_set_brightness(intensity);
 	return 0;
 }
 
@@ -66,35 +75,41 @@ static int intel_chipset_get_intensity(struct backlight_device *bd)
 	intensity = inb(0xb3) >> 4;
 
 	if (debug)
-		printk(KERN_DEBUG "mbp_nvidia_bl: read brightness of %d\n",
+		printk(KERN_DEBUG DRIVER "read brightness of %d\n",
 		       intensity);
 
 	return intensity;
 }
 
-static const struct dmi_match_data intel_chipset_data = {
+static const struct hw_data intel_chipset_data = {
 	.iostart = 0xb2,
 	.iolen = 2,
 	.backlight_ops	= {
 		.options	= BL_CORE_SUSPENDRESUME,
 		.get_brightness	= intel_chipset_get_intensity,
 		.update_status	= intel_chipset_send_intensity,
-	}
+	},
+	.set_brightness = intel_chipset_set_brightness,
 };
 
 /*
  * Implementation for MacBooks with Nvidia chipset.
  */
+static void nvidia_chipset_set_brightness(int intensity)
+{
+	outb(0x04 | (intensity << 4), 0x52f);
+	outb(0xbf, 0x52e);
+}
+
 static int nvidia_chipset_send_intensity(struct backlight_device *bd)
 {
 	int intensity = bd->props.brightness;
 
 	if (debug)
-		printk(KERN_DEBUG "mbp_nvidia_bl: setting brightness to %d\n",
+		printk(KERN_DEBUG DRIVER "setting brightness to %d\n",
 		       intensity);
 
-	outb(0x04 | (intensity << 4), 0x52f);
-	outb(0xbf, 0x52e);
+	nvidia_chipset_set_brightness(intensity);
 	return 0;
 }
 
@@ -107,295 +122,106 @@ static int nvidia_chipset_get_intensity(struct backlight_device *bd)
 	intensity = inb(0x52f) >> 4;
 
 	if (debug)
-		printk(KERN_DEBUG "mbp_nvidia_bl: read brightness of %d\n",
+		printk(KERN_DEBUG DRIVER "read brightness of %d\n",
 		       intensity);
 
 	return intensity;
 }
 
-static const struct dmi_match_data nvidia_chipset_data = {
+static const struct hw_data nvidia_chipset_data = {
 	.iostart = 0x52e,
 	.iolen = 2,
 	.backlight_ops		= {
 		.options	= BL_CORE_SUSPENDRESUME,
 		.get_brightness	= nvidia_chipset_get_intensity,
 		.update_status	= nvidia_chipset_send_intensity
-	}
+	},
+	.set_brightness = nvidia_chipset_set_brightness,
 };
 
-/*
- * DMI matching.
- */
-static /* const */ struct dmi_match_data *driver_data;
-
-static int mbp_dmi_match(const struct dmi_system_id *id)
-{
-	driver_data = id->driver_data;
-
-	printk(KERN_INFO "mbp_nvidia_bl: %s detected\n", id->ident);
-	return 1;
-}
-
-static const struct dmi_system_id __initdata mbp_device_table[] = {
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 1,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 2,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook2,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 3,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook3,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 4,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook4,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 4,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook4,2"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 1,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro1,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 1,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro1,2"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 2,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro2,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 2,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro2,2"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 3,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro3,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 3,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro3,2"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 4,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro4,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookAir 1,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir1,1"),
-		},
-		.driver_data	= (void *)&intel_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 5,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5,1"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 5,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5,2"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBook 6,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook6,1"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookAir 2,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir2,1"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 5,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,1"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 5,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,2"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 5,3",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,3"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 5,4",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,4"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookPro 5,5",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro5,5"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookAir 3,1",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir3,1"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{
-		.callback	= mbp_dmi_match,
-		.ident		= "MacBookAir 3,2",
-		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir3,2"),
-		},
-		.driver_data	= (void *)&nvidia_chipset_data,
-	},
-	{ }
-};
-
-static int __init mbp_init(void)
+static int __devinit mb_bl_add(struct acpi_device *dev)
 {
 	struct backlight_properties props;
-	if (!dmi_check_system(mbp_device_table))
-		return -ENODEV;
+	struct pci_dev *host;
 
-	if (!request_region(driver_data->iostart, driver_data->iolen, 
-						"Macbook Pro backlight"))
+	host = pci_get_bus_and_slot(0, 0);
+
+	if (!host) {
+		printk(KERN_ERR DRIVER "unable to find PCI host\n");
+		return -ENODEV;
+	}
+
+	if (host->vendor == PCI_VENDOR_ID_INTEL)
+		hw_data = &intel_chipset_data;
+	else if (host->vendor == PCI_VENDOR_ID_NVIDIA)
+		hw_data = &nvidia_chipset_data;
+
+	pci_dev_put(host);
+
+	if (!hw_data) {
+		printk(KERN_ERR DRIVER "unknown hardware\n");
+		return -ENODEV;
+	}
+
+	if (!request_region(hw_data->iostart, hw_data->iolen,
+			    "Macbook backlight"))
 		return -ENXIO;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = 15;
-	mbp_backlight_device = backlight_device_register("mbp_backlight", NULL,
-							 NULL,
-							 &driver_data->backlight_ops,
-							 &props);
-	if (IS_ERR(mbp_backlight_device)) {
-		release_region(driver_data->iostart, driver_data->iolen);
-		return PTR_ERR(mbp_backlight_device);
+	mb_backlight_device = backlight_device_register("mb_backlight", NULL,
+				    NULL, &hw_data->backlight_ops, &props);
+
+	if (IS_ERR(mb_backlight_device)) {
+		release_region(hw_data->iostart, hw_data->iolen);
+		return PTR_ERR(mb_backlight_device);
 	}
 
-	mbp_backlight_device->props.brightness =
-		driver_data->backlight_ops.get_brightness(mbp_backlight_device);
-	backlight_update_status(mbp_backlight_device);
+	mb_backlight_device->props.brightness =
+		hw_data->backlight_ops.get_brightness(mb_backlight_device);
+	backlight_update_status(mb_backlight_device);
 
 	return 0;
 }
 
-static void __exit mbp_exit(void)
+static int __devexit mb_bl_remove(struct acpi_device *dev, int type)
 {
-	backlight_device_unregister(mbp_backlight_device);
+	backlight_device_unregister(mb_backlight_device);
 
-	release_region(driver_data->iostart, driver_data->iolen);
+	release_region(hw_data->iostart, hw_data->iolen);
+	hw_data = NULL;
+	return 0;
 }
 
-module_init(mbp_init);
-module_exit(mbp_exit);
+static const struct acpi_device_id mb_bl_ids[] = {
+	{"APP0002", 0},
+	{"", 0},
+};
+
+static struct acpi_driver mb_bl_driver = {
+	.name = "Macbook backlight",
+	.ids = mb_bl_ids,
+	.ops = {
+		.add = mb_bl_add,
+		.remove = mb_bl_remove,
+	},
+};
+
+static int __init mb_init(void)
+{
+	return acpi_bus_register_driver(&mb_bl_driver);
+}
+
+static void __exit mb_exit(void)
+{
+	acpi_bus_unregister_driver(&mb_bl_driver);
+}
+
+module_init(mb_init);
+module_exit(mb_exit);
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
-MODULE_DESCRIPTION("Nvidia-based Macbook Pro Backlight Driver");
+MODULE_DESCRIPTION("Macbook Backlight Driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(dmi, mbp_device_table);
+MODULE_DEVICE_TABLE(acpi, mb_bl_ids);

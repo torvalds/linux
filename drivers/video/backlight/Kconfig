@@ -244,12 +244,12 @@ config BACKLIGHT_MAX8925
 	  If you have a LCD backlight connected to the WLED output of MAX8925
 	  WLED output, say Y here to enable this driver.
 
-config BACKLIGHT_MBP_NVIDIA
-       tristate "MacBook Pro Nvidia Backlight Driver"
+config BACKLIGHT_MACBOOK
+       tristate "MacBook Backlight Driver"
        depends on X86
        help
-         If you have an Apple Macbook Pro with Nvidia graphics hardware say Y
-	 to enable a driver for its backlight
+         If you have an Apple Macbook say Y to enable a driver for its
+	 backlight
 
 config BACKLIGHT_TOSA
 	tristate "Sharp SL-6000 Backlight Driver"
