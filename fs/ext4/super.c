@@ -595,7 +595,7 @@ __acquires(bitlock)
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u",
+	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u, ",
 	       sb->s_id, function, line, grp);
 	if (ino)
 		printk(KERN_CONT "inode %lu: ", ino);
