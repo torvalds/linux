@@ -12,30 +12,6 @@
  *
  * Sponsored by SuSE
  *
- * ChangeLog:
- *	v0.9  - thorough cleaning, URBification, almost a rewrite
- *	v0.10 - some more cleanups
- *	v0.11 - fixed flow control, read error doesn't stop reads
- *	v0.12 - added TIOCM ioctls, added break handling, made struct acm
- *		kmalloced
- *	v0.13 - added termios, added hangup
- *	v0.14 - sized down struct acm
- *	v0.15 - fixed flow control again - characters could be lost
- *	v0.16 - added code for modems with swapped data and control interfaces
- *	v0.17 - added new style probing
- *	v0.18 - fixed new style probing for devices with more configurations
- *	v0.19 - fixed CLOCAL handling (thanks to Richard Shih-Ping Chan)
- *	v0.20 - switched to probing on interface (rather than device) class
- *	v0.21 - revert to probing on device for devices with multiple configs
- *	v0.22 - probe only the control interface. if usbcore doesn't choose the
- *		config we want, sysadmin changes bConfigurationValue in sysfs.
- *	v0.23 - use softirq for rx processing, as needed by tty layer
- *	v0.24 - change probe method to evaluate CDC union descriptor
- *	v0.25 - downstream tasks paralelized to maximize throughput
- *	v0.26 - multiple write urbs, writesize increased
- */
-
-/*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -76,10 +52,7 @@
 
 #define ACM_CLOSE_TIMEOUT	15	/* seconds to let writes drain */
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.26"
+
 #define DRIVER_AUTHOR "Armin Fuerst, Pavel Machek, Johannes Erdfelt, Vojtech Pavlik, David Kubicek"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB modems and ISDN adapters"
 
@@ -1736,8 +1709,7 @@ static int __init acm_init(void)
 		return retval;
 	}
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 
 	return 0;
 }
