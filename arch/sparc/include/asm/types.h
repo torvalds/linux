@@ -22,10 +22,6 @@ typedef unsigned short umode_t;
 
 #ifndef __ASSEMBLY__
 
-/* Dma addresses come in generic and 64-bit flavours.  */
-
-typedef u32 dma_addr_t;
-
 #if defined(__arch64__)
 
 /*** SPARC 64 bit ***/

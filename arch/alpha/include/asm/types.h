@@ -27,7 +27,6 @@ typedef unsigned int umode_t;
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-typedef u64 dma_addr_t;
 typedef u64 dma64_addr_t;
 
 #endif /* __ASSEMBLY__ */
