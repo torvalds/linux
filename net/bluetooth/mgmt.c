@@ -36,7 +36,7 @@ struct pending_cmd {
 	struct list_head list;
 	__u16 opcode;
 	int index;
-	void *cmd;
+	void *param;
 	struct sock *sk;
 	void *user_data;
 };
@@ -217,7 +217,7 @@ static int read_controller_info(struct sock *sk, u16 index)
 static void mgmt_pending_free(struct pending_cmd *cmd)
 {
 	sock_put(cmd->sk);
-	kfree(cmd->cmd);
+	kfree(cmd->param);
 	kfree(cmd);
 }
 
@@ -233,13 +233,13 @@ static struct pending_cmd *mgmt_pending_add(struct sock *sk, u16 opcode,
 	cmd->opcode = opcode;
 	cmd->index = index;
 
-	cmd->cmd = kmalloc(len, GFP_ATOMIC);
-	if (!cmd->cmd) {
+	cmd->param = kmalloc(len, GFP_ATOMIC);
+	if (!cmd->param) {
 		kfree(cmd);
 		return NULL;
 	}
 
-	memcpy(cmd->cmd, data, len);
+	memcpy(cmd->param, data, len);
 
 	cmd->sk = sk;
 	sock_hold(sk);
@@ -1426,7 +1426,7 @@ struct cmd_lookup {
 
 static void mode_rsp(struct pending_cmd *cmd, void *data)
 {
-	struct mgmt_mode *cp = cmd->cmd;
+	struct mgmt_mode *cp = cmd->param;
 	struct cmd_lookup *match = data;
 
 	if (cp->val != match->val)
@@ -1525,7 +1525,7 @@ int mgmt_connected(u16 index, bdaddr_t *bdaddr)
 
 static void disconnect_rsp(struct pending_cmd *cmd, void *data)
 {
-	struct mgmt_cp_disconnect *cp = cmd->cmd;
+	struct mgmt_cp_disconnect *cp = cmd->param;
 	struct sock **sk = data;
 	struct mgmt_rp_disconnect rp;
 
