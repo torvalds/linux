@@ -111,8 +111,9 @@ static int acm_ctrl_msg(struct acm *acm, int request, int value,
 		request, USB_RT_ACM, value,
 		acm->control->altsetting[0].desc.bInterfaceNumber,
 		buf, len, 5000);
-	dbg("acm_control_msg: rq: 0x%02x val: %#x len: %#x result: %d",
-						request, value, len, retval);
+	dev_dbg(&acm->control->dev,
+			"%s - rq 0x%02x, val %#x, len %#x, result %d\n",
+			__func__, request, value, len, retval);
 	return retval < 0 ? retval : 0;
 }
 
@@ -192,7 +193,9 @@ static int acm_start_wb(struct acm *acm, struct acm_wb *wb)
 
 	rc = usb_submit_urb(wb->urb, GFP_ATOMIC);
 	if (rc < 0) {
-		dbg("usb_submit_urb(write bulk) failed: %d", rc);
+		dev_err(&acm->data->dev,
+			"%s - usb_submit_urb(write bulk) failed: %d\n",
+			__func__, rc);
 		acm_write_done(acm, wb);
 	}
 	return rc;
@@ -211,7 +214,8 @@ static int acm_write_start(struct acm *acm, int wbn)
 		return -ENODEV;
 	}
 
-	dbg("%s susp_count: %d", __func__, acm->susp_count);
+	dev_dbg(&acm->data->dev, "%s - susp_count %d\n", __func__,
+							acm->susp_count);
 	usb_autopm_get_interface_async(acm->control);
 	if (acm->susp_count) {
 		if (!acm->delayed_wb)
@@ -287,10 +291,14 @@ static void acm_ctrl_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__, status);
+		dev_dbg(&acm->control->dev,
+				"%s - urb shutting down with status: %d\n",
+				__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__, status);
+		dev_dbg(&acm->control->dev,
+				"%s - nonzero urb status received: %d\n",
+				__func__, status);
 		goto exit;
 	}
 
@@ -302,8 +310,8 @@ static void acm_ctrl_irq(struct urb *urb)
 	data = (unsigned char *)(dr + 1);
 	switch (dr->bNotificationType) {
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
-		dbg("%s network", dr->wValue ?
-					"connected to" : "disconnected from");
+		dev_dbg(&acm->control->dev, "%s - network connection: %d\n",
+							__func__, dr->wValue);
 		break;
 
 	case USB_CDC_NOTIFY_SERIAL_STATE:
@@ -313,7 +321,8 @@ static void acm_ctrl_irq(struct urb *urb)
 		if (tty) {
 			if (!acm->clocal &&
 				(acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
-				dbg("calling hangup");
+				dev_dbg(&acm->control->dev,
+					"%s - calling hangup\n", __func__);
 				tty_hangup(tty);
 			}
 			tty_kref_put(tty);
@@ -321,7 +330,10 @@ static void acm_ctrl_irq(struct urb *urb)
 
 		acm->ctrlin = newctrl;
 
-		dbg("input control lines: dcd%c dsr%c break%c ring%c framing%c parity%c overrun%c",
+		dev_dbg(&acm->control->dev,
+			"%s - input control lines: dcd%c dsr%c break%c "
+			"ring%c framing%c parity%c overrun%c\n",
+			__func__,
 			acm->ctrlin & ACM_CTRL_DCD ? '+' : '-',
 			acm->ctrlin & ACM_CTRL_DSR ? '+' : '-',
 			acm->ctrlin & ACM_CTRL_BRK ? '+' : '-',
@@ -332,7 +344,10 @@ static void acm_ctrl_irq(struct urb *urb)
 			break;
 
 	default:
-		dbg("unknown notification %d received: index %d len %d data0 %d data1 %d",
+		dev_dbg(&acm->control->dev,
+			"%s - unknown notification %d received: index %d "
+			"len %d data0 %d data1 %d\n",
+			__func__,
 			dr->bNotificationType, dr->wIndex,
 			dr->wLength, data[0], data[1]);
 		break;
@@ -352,7 +367,7 @@ static void acm_read_bulk(struct urb *urb)
 	struct acm *acm = rcv->instance;
 	int status = urb->status;
 
-	dbg("Entering acm_read_bulk with status %d", status);
+	dev_dbg(&acm->data->dev, "%s - status %d\n", __func__, status);
 
 	if (!ACM_READY(acm)) {
 		dev_dbg(&acm->data->dev, "%s - acm not ready\n", __func__);
@@ -395,10 +410,10 @@ static void acm_rx_tasklet(unsigned long _acm)
 	unsigned long flags;
 	unsigned char throttled;
 
-	dbg("Entering acm_rx_tasklet");
+	dev_dbg(&acm->data->dev, "%s\n", __func__);
 
 	if (!ACM_READY(acm)) {
-		dbg("acm_rx_tasklet: ACM not ready");
+		dev_dbg(&acm->data->dev, "%s - acm not ready\n", __func__);
 		return;
 	}
 
@@ -406,7 +421,7 @@ static void acm_rx_tasklet(unsigned long _acm)
 	throttled = acm->throttle;
 	spin_unlock_irqrestore(&acm->throttle_lock, flags);
 	if (throttled) {
-		dbg("acm_rx_tasklet: throttled");
+		dev_dbg(&acm->data->dev, "%s - throttled\n", __func__);
 		return;
 	}
 
@@ -423,8 +438,8 @@ next_buffer:
 	list_del(&buf->list);
 	spin_unlock_irqrestore(&acm->read_lock, flags);
 
-	dbg("acm_rx_tasklet: procesing buf 0x%p, size = %d", buf, buf->size);
-
+	dev_dbg(&acm->data->dev, "%s - processing buf 0x%p, size = %d\n",
+						__func__, buf, buf->size);
 	if (tty) {
 		spin_lock_irqsave(&acm->throttle_lock, flags);
 		throttled = acm->throttle;
@@ -434,7 +449,8 @@ next_buffer:
 			tty_flip_buffer_push(tty);
 		} else {
 			tty_kref_put(tty);
-			dbg("Throttling noticed");
+			dev_dbg(&acm->data->dev, "%s - throttling noticed\n",
+								__func__);
 			spin_lock_irqsave(&acm->read_lock, flags);
 			list_add(&buf->list, &acm->filled_read_bufs);
 			spin_unlock_irqrestore(&acm->read_lock, flags);
@@ -495,7 +511,9 @@ urbs:
 			return;
 		} else {
 			spin_unlock_irqrestore(&acm->read_lock, flags);
-			dbg("acm_rx_tasklet: sending urb 0x%p, rcv 0x%p, buf 0x%p", rcv->urb, rcv, buf);
+			dev_dbg(&acm->data->dev,
+				"%s - sending urb 0x%p, rcv 0x%p, buf 0x%p\n",
+				__func__, rcv->urb, rcv, buf);
 		}
 	}
 	spin_lock_irqsave(&acm->read_lock, flags);
@@ -552,7 +570,6 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	struct acm *acm;
 	int rv = -ENODEV;
 	int i;
-	dbg("Entering acm_tty_open.");
 
 	mutex_lock(&open_mutex);
 
@@ -561,6 +578,8 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 		goto out;
 	else
 		rv = 0;
+
+	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
 	set_bit(TTY_NO_WRITE_SPLIT, &tty->flags);
 
@@ -581,7 +600,8 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	acm->ctrlurb->dev = acm->dev;
 	if (usb_submit_urb(acm->ctrlurb, GFP_KERNEL)) {
-		dbg("usb_submit_urb(ctrl irq) failed");
+		dev_err(&acm->control->dev,
+			"%s - usb_submit_urb(ctrl irq) failed\n", __func__);
 		goto bail_out;
 	}
 
@@ -701,12 +721,12 @@ static int acm_tty_write(struct tty_struct *tty,
 	int wbn;
 	struct acm_wb *wb;
 
-	dbg("Entering acm_tty_write to write %d bytes,", count);
-
 	if (!ACM_READY(acm))
 		return -EINVAL;
 	if (!count)
 		return 0;
+
+	dev_dbg(&acm->data->dev, "%s - count %d\n", __func__, count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	wbn = acm_wb_alloc(acm);
@@ -717,7 +737,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	wb = &acm->wb[wbn];
 
 	count = (count > acm->writesize) ? acm->writesize : count;
-	dbg("Get %d bytes...", count);
+	dev_dbg(&acm->data->dev, "%s - write %d\n", __func__, count);
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 	spin_unlock_irqrestore(&acm->write_lock, flags);
@@ -780,7 +800,8 @@ static int acm_tty_break_ctl(struct tty_struct *tty, int state)
 		return -EINVAL;
 	retval = acm_send_break(acm, state ? 0xffff : 0);
 	if (retval < 0)
-		dbg("send break failed");
+		dev_dbg(&acm->control->dev, "%s - send break failed\n",
+								__func__);
 	return retval;
 }
 
@@ -875,7 +896,9 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 
 	if (memcmp(&acm->line, &newline, sizeof newline)) {
 		memcpy(&acm->line, &newline, sizeof newline);
-		dbg("set line: %d %d %d %d", le32_to_cpu(newline.dwDTERate),
+		dev_dbg(&acm->control->dev, "%s - set line: %d %d %d %d\n",
+			__func__,
+			le32_to_cpu(newline.dwDTERate),
 			newline.bCharFormat, newline.bParityType,
 			newline.bDataBits);
 		acm_set_line(acm, &acm->line);
@@ -1136,7 +1159,7 @@ skip_normal_probe:
 		epwrite = t;
 	}
 made_compressed_probe:
-	dbg("interfaces are valid");
+	dev_dbg(&intf->dev, "interfaces are valid\n");
 	for (minor = 0; minor < ACM_TTY_MINORS && acm_table[minor]; minor++);
 
 	if (minor == ACM_TTY_MINORS) {
@@ -1321,7 +1344,8 @@ alloc_fail:
 static void stop_data_traffic(struct acm *acm)
 {
 	int i;
-	dbg("Entering stop_data_traffic");
+
+	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
 	tasklet_disable(&acm->urb_task);
 
