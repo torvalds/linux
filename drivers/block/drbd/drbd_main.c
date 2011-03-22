@@ -1029,6 +1029,23 @@ int conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode)
 	return !conn_send_cmd(tconn, 0, &tconn->meta, cmd, &p.head, sizeof(p));
 }
 
+static void dcbp_set_code(struct p_compressed_bm *p, enum drbd_bitmap_code code)
+{
+	BUG_ON(code & ~0xf);
+	p->encoding = (p->encoding & ~0xf) | code;
+}
+
+static void dcbp_set_start(struct p_compressed_bm *p, int set)
+{
+	p->encoding = (p->encoding & ~0x80) | (set ? 0x80 : 0);
+}
+
+static void dcbp_set_pad_bits(struct p_compressed_bm *p, int n)
+{
+	BUG_ON(n & ~0x7);
+	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
+}
+
 int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 	struct p_compressed_bm *p,
 	struct bm_xfer_ctx *c)
@@ -1073,12 +1090,12 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 			if (rl == 0) {
 				/* the first checked bit was set,
 				 * store start value, */
-				DCBP_set_start(p, 1);
+				dcbp_set_start(p, 1);
 				/* but skip encoding of zero run length */
 				toggle = !toggle;
 				continue;
 			}
-			DCBP_set_start(p, 0);
+			dcbp_set_start(p, 0);
 		}
 
 		/* paranoia: catch zero runlength.
@@ -1118,7 +1135,7 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 	bm_xfer_ctx_bit_to_word_offset(c);
 
 	/* store pad_bits */
-	DCBP_set_pad_bits(p, (8 - bs.cur.bit) & 0x7);
+	dcbp_set_pad_bits(p, (8 - bs.cur.bit) & 0x7);
 
 	return len;
 }
@@ -1143,7 +1160,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 		return -EIO;
 
 	if (len) {
-		DCBP_set_code(p, RLE_VLI_Bits);
+		dcbp_set_code(p, RLE_VLI_Bits);
 		err = _drbd_send_cmd(mdev, mdev->tconn->data.socket,
 				     P_COMPRESSED_BITMAP, h,
 				     sizeof(*p) + len, 0);

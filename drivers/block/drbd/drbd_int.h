@@ -541,45 +541,6 @@ struct p_delay_probe93 {
 	u32     offset;  /* usecs the probe got sent after the reference time point */
 } __packed;
 
-/* DCBP: Drbd Compressed Bitmap Packet ... */
-static inline enum drbd_bitmap_code
-DCBP_get_code(struct p_compressed_bm *p)
-{
-	return (enum drbd_bitmap_code)(p->encoding & 0x0f);
-}
-
-static inline void
-DCBP_set_code(struct p_compressed_bm *p, enum drbd_bitmap_code code)
-{
-	BUG_ON(code & ~0xf);
-	p->encoding = (p->encoding & ~0xf) | code;
-}
-
-static inline int
-DCBP_get_start(struct p_compressed_bm *p)
-{
-	return (p->encoding & 0x80) != 0;
-}
-
-static inline void
-DCBP_set_start(struct p_compressed_bm *p, int set)
-{
-	p->encoding = (p->encoding & ~0x80) | (set ? 0x80 : 0);
-}
-
-static inline int
-DCBP_get_pad_bits(struct p_compressed_bm *p)
-{
-	return (p->encoding >> 4) & 0x7;
-}
-
-static inline void
-DCBP_set_pad_bits(struct p_compressed_bm *p, int n)
-{
-	BUG_ON(n & ~0x7);
-	p->encoding = (p->encoding & (~0x7 << 4)) | (n << 4);
-}
-
 /* one bitmap packet, including the p_header,
  * should fit within one _architecture independend_ page.
  * so we need to use the fixed size 4KiB page size

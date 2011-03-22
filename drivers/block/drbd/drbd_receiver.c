@@ -3600,6 +3600,21 @@ receive_bitmap_plain(struct drbd_conf *mdev, unsigned int data_size,
 	return 1;
 }
 
+static enum drbd_bitmap_code dcbp_get_code(struct p_compressed_bm *p)
+{
+	return (enum drbd_bitmap_code)(p->encoding & 0x0f);
+}
+
+static int dcbp_get_start(struct p_compressed_bm *p)
+{
+	return (p->encoding & 0x80) != 0;
+}
+
+static int dcbp_get_pad_bits(struct p_compressed_bm *p)
+{
+	return (p->encoding >> 4) & 0x7;
+}
+
 /**
  * recv_bm_rle_bits
  *
@@ -3618,11 +3633,11 @@ recv_bm_rle_bits(struct drbd_conf *mdev,
 	u64 tmp;
 	unsigned long s = c->bit_offset;
 	unsigned long e;
-	int toggle = DCBP_get_start(p);
+	int toggle = dcbp_get_start(p);
 	int have;
 	int bits;
 
-	bitstream_init(&bs, p->code, len, DCBP_get_pad_bits(p));
+	bitstream_init(&bs, p->code, len, dcbp_get_pad_bits(p));
 
 	bits = bitstream_get_bits(&bs, &look_ahead, 64);
 	if (bits < 0)
@@ -3677,7 +3692,7 @@ decode_bitmap_c(struct drbd_conf *mdev,
 		struct bm_xfer_ctx *c,
 		unsigned int len)
 {
-	if (DCBP_get_code(p) == RLE_VLI_Bits)
+	if (dcbp_get_code(p) == RLE_VLI_Bits)
 		return recv_bm_rle_bits(mdev, p, c, len);
 
 	/* other variants had been implemented for evaluation,
