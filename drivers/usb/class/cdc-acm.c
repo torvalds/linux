@@ -1143,7 +1143,7 @@ made_compressed_probe:
 
 	acm = kzalloc(sizeof(struct acm), GFP_KERNEL);
 	if (acm == NULL) {
-		dev_dbg(&intf->dev, "out of memory (acm kzalloc)\n");
+		dev_err(&intf->dev, "out of memory (acm kzalloc)\n");
 		goto alloc_fail;
 	}
 
@@ -1179,19 +1179,19 @@ made_compressed_probe:
 
 	buf = usb_alloc_coherent(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
 	if (!buf) {
-		dev_dbg(&intf->dev, "out of memory (ctrl buffer alloc)\n");
+		dev_err(&intf->dev, "out of memory (ctrl buffer alloc)\n");
 		goto alloc_fail2;
 	}
 	acm->ctrl_buffer = buf;
 
 	if (acm_write_buffers_alloc(acm) < 0) {
-		dev_dbg(&intf->dev, "out of memory (write buffer alloc)\n");
+		dev_err(&intf->dev, "out of memory (write buffer alloc)\n");
 		goto alloc_fail4;
 	}
 
 	acm->ctrlurb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!acm->ctrlurb) {
-		dev_dbg(&intf->dev, "out of memory (ctrlurb kmalloc)\n");
+		dev_err(&intf->dev, "out of memory (ctrlurb kmalloc)\n");
 		goto alloc_fail5;
 	}
 	for (i = 0; i < num_rx_buf; i++) {
@@ -1199,7 +1199,7 @@ made_compressed_probe:
 
 		rcv->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (rcv->urb == NULL) {
-			dev_dbg(&intf->dev,
+			dev_err(&intf->dev,
 				"out of memory (read urbs usb_alloc_urb)\n");
 			goto alloc_fail6;
 		}
@@ -1213,7 +1213,7 @@ made_compressed_probe:
 		rb->base = usb_alloc_coherent(acm->dev, readsize,
 				GFP_KERNEL, &rb->dma);
 		if (!rb->base) {
-			dev_dbg(&intf->dev,
+			dev_err(&intf->dev,
 				"out of memory (read bufs usb_alloc_coherent)\n");
 			goto alloc_fail7;
 		}
@@ -1223,7 +1223,7 @@ made_compressed_probe:
 
 		snd->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (snd->urb == NULL) {
-			dev_dbg(&intf->dev,
+			dev_err(&intf->dev,
 				"out of memory (write urbs usb_alloc_urb)\n");
 			goto alloc_fail8;
 		}
