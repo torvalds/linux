@@ -650,6 +650,14 @@ static struct platform_device *stingray_devices[] __initdata = {
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
 
+static struct tegra_sdhci_platform_data stingray_sdhci_sdcard_platform_data = {
+	.clk_id = NULL,
+	.force_hs = 0,
+	.cd_gpio = TEGRA_GPIO_PI5,
+	.wp_gpio = -1,
+	.power_gpio = -1,
+};
+
 static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 	.clk_id = NULL,
 	.force_hs = 0,
@@ -716,9 +724,11 @@ static void stingray_sdhci_init(void)
 {
 	/* TODO: setup GPIOs for cd, wd, and power */
 	tegra_sdhci_device2.dev.platform_data = &stingray_wifi_data;
+	tegra_sdhci_device3.dev.platform_data = &stingray_sdhci_sdcard_platform_data;
 	tegra_sdhci_device4.dev.platform_data = &stingray_sdhci_platform_data4;
 
 	platform_device_register(&tegra_sdhci_device2);
+	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device4);
 }
 #define ATAG_BDADDR 0x43294329	/* stingray bluetooth address tag */
@@ -1165,6 +1175,11 @@ static void __init tegra_stingray_init(void)
 	tegra_gpio_enable(TEGRA_GPIO_PU4);
 	gpio_request(TEGRA_GPIO_PU4, "4329_pwr");
 	gpio_direction_output(TEGRA_GPIO_PU4, 0);
+
+	/* Enable GPIO for SD card detect */
+	tegra_gpio_enable(TEGRA_GPIO_PI5);
+	gpio_request(TEGRA_GPIO_PI5, "sdcard_detect");
+	gpio_direction_input(TEGRA_GPIO_PI5);
 
 	stingray_pinmux_init();
 
