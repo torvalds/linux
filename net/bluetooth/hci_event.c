@@ -822,6 +822,17 @@ static void hci_cc_user_confirm_neg_reply(struct hci_dev *hdev,
 								rp->status);
 }
 
+static void hci_cc_read_local_oob_data_reply(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_rp_read_local_oob_data *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	mgmt_read_local_oob_data_reply_complete(hdev->id, rp->hash,
+						rp->randomizer, rp->status);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1750,6 +1761,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_PIN_CODE_NEG_REPLY:
 		hci_cc_pin_code_neg_reply(hdev, skb);
+		break;
+
+	case HCI_OP_READ_LOCAL_OOB_DATA:
+		hci_cc_read_local_oob_data_reply(hdev, skb);
 		break;
 
 	case HCI_OP_LE_READ_BUFFER_SIZE:

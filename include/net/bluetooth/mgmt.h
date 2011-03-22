@@ -177,6 +177,12 @@ struct mgmt_cp_set_local_name {
 	__u8 name[MGMT_MAX_NAME_LENGTH];
 } __packed;
 
+#define MGMT_OP_READ_LOCAL_OOB_DATA	0x0018
+struct mgmt_rp_read_local_oob_data {
+	__u8 hash[16];
+	__u8 randomizer[16];
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
