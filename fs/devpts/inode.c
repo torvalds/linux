@@ -502,7 +502,7 @@ int devpts_pty_new(struct inode *ptmx_inode, struct tty_struct *tty)
 	mutex_lock(&root->d_inode->i_mutex);
 
 	dentry = d_alloc_name(root, s);
-	if (!IS_ERR(dentry)) {
+	if (dentry) {
 		d_add(dentry, inode);
 		fsnotify_create(root->d_inode, dentry);
 	} else {
