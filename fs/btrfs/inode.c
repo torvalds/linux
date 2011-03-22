@@ -4817,7 +4817,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	/* do not allow sys_link's with other subvols of the same device */
 	if (root->objectid != BTRFS_I(inode)->root->objectid)
-		return -EPERM;
+		return -EXDEV;
 
 	btrfs_inc_nlink(inode);
 	inode->i_ctime = CURRENT_TIME;
