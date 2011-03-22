@@ -56,7 +56,7 @@ static struct mtd_partition edosk7760_nor_flash_partitions[] = {
 	}, {
 		.name = "fs",
 		.offset = MTDPART_OFS_APPEND,
-		.size = SZ_26M,
+		.size = (26 << 20),
 	}, {
 		.name = "other",
 		.offset = MTDPART_OFS_APPEND,
