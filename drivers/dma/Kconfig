@@ -221,7 +221,7 @@ config IMX_SDMA
 
 config IMX_DMA
 	tristate "i.MX DMA support"
-	depends on ARCH_MX1 || ARCH_MX21 || MACH_MX27
+	depends on IMX_HAVE_DMA_V1
 	select DMA_ENGINE
 	help
 	  Support the i.MX DMA engine. This engine is integrated into
