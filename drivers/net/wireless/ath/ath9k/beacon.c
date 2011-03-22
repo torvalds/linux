@@ -363,7 +363,7 @@ void ath_beacon_tasklet(unsigned long data)
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
 		sc->beacon.bmisscnt++;
 
-		if (sc->beacon.bmisscnt < BSTUCK_THRESH) {
+		if (sc->beacon.bmisscnt < BSTUCK_THRESH * sc->nbcnvifs) {
 			ath_dbg(common, ATH_DBG_BSTUCK,
 				"missed %u consecutive beacons\n",
 				sc->beacon.bmisscnt);
@@ -378,13 +378,6 @@ void ath_beacon_tasklet(unsigned long data)
 		}
 
 		return;
-	}
-
-	if (sc->beacon.bmisscnt != 0) {
-		ath_dbg(common, ATH_DBG_BSTUCK,
-			"resume beacon xmit after %u misses\n",
-			sc->beacon.bmisscnt);
-		sc->beacon.bmisscnt = 0;
 	}
 
 	/*
@@ -419,6 +412,13 @@ void ath_beacon_tasklet(unsigned long data)
 		if (bf != NULL) {
 			bfaddr = bf->bf_daddr;
 			bc = 1;
+		}
+
+		if (sc->beacon.bmisscnt != 0) {
+			ath_dbg(common, ATH_DBG_BSTUCK,
+				"resume beacon xmit after %u misses\n",
+				sc->beacon.bmisscnt);
+			sc->beacon.bmisscnt = 0;
 		}
 	}
 
