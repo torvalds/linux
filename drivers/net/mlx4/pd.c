@@ -39,6 +39,10 @@
 #include "mlx4.h"
 #include "icm.h"
 
+enum {
+	MLX4_NUM_RESERVED_UARS = 8
+};
+
 int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -104,6 +108,10 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf)
 	if (!list_empty(&priv->bf_list))
 		uar = list_entry(priv->bf_list.next, struct mlx4_uar, bf_list);
 	else {
+		if (mlx4_bitmap_avail(&priv->uar_table.bitmap) < MLX4_NUM_RESERVED_UARS) {
+			err = -ENOMEM;
+			goto out;
+		}
 		uar = kmalloc(sizeof *uar, GFP_KERNEL);
 		if (!uar) {
 			err = -ENOMEM;
