@@ -2804,9 +2804,9 @@ sub process {
 			WARN("consider using a completion\n" . $herecurr);
 
 		}
-# recommend strict_strto* over simple_strto*
+# recommend kstrto* over simple_strto*
 		if ($line =~ /\bsimple_(strto.*?)\s*\(/) {
-			WARN("consider using strict_$1 in preference to simple_$1\n" . $herecurr);
+			WARN("consider using kstrto* in preference to simple_$1\n" . $herecurr);
 		}
 # check for __initcall(), use device_initcall() explicitly please
 		if ($line =~ /^.\s*__initcall\s*\(/) {
