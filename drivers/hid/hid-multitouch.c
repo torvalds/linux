@@ -11,6 +11,12 @@
  *  Copyright (c) 2010 Henrik Rydberg <rydberg@euromail.se>
  *  Copyright (c) 2010 Canonical, Ltd.
  *
+ *  This code is partly based on hid-3m-pct.c:
+ *
+ *  Copyright (c) 2009-2010 Stephane Chatty <chatty@enac.fr>
+ *  Copyright (c) 2010      Henrik Rydberg <rydberg@euromail.se>
+ *  Copyright (c) 2010      Canonical, Ltd.
+ *
  */
 
 /*
@@ -69,6 +75,8 @@ struct mt_class {
 	__s32 name;	/* MT_CLS */
 	__s32 quirks;
 	__s32 sn_move;	/* Signal/noise ratio for move events */
+	__s32 sn_width;	/* Signal/noise ratio for width events */
+	__s32 sn_height;	/* Signal/noise ratio for height events */
 	__s32 sn_pressure;	/* Signal/noise ratio for pressure events */
 	__u8 maxcontacts;
 };
@@ -80,6 +88,7 @@ struct mt_class {
 #define MT_CLS_CYPRESS				4
 #define MT_CLS_EGALAX				5
 #define MT_CLS_STANTUM				6
+#define MT_CLS_3M				7
 
 #define MT_DEFAULT_MAXCONTACT	10
 
@@ -141,6 +150,12 @@ struct mt_class mt_classes[] = {
 	},
 	{ .name = MT_CLS_STANTUM,
 		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE },
+	{ .name = MT_CLS_3M,
+		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE |
+			MT_QUIRK_SLOT_IS_CONTACTID,
+		.sn_move = 2048,
+		.sn_width = 128,
+		.sn_height = 128 },
 
 	{ }
 };
@@ -230,11 +245,15 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MAJOR);
+			set_abs(hi->input, ABS_MT_TOUCH_MAJOR, field,
+				cls->sn_width);
 			td->last_slot_field = usage->hid;
 			return 1;
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MINOR);
+			set_abs(hi->input, ABS_MT_TOUCH_MINOR, field,
+				cls->sn_height);
 			input_set_abs_params(hi->input,
 					ABS_MT_ORIENTATION, 0, 1, 0, 0);
 			td->last_slot_field = usage->hid;
@@ -332,11 +351,18 @@ static void mt_emit_event(struct mt_device *td, struct input_dev *input)
 		input_mt_report_slot_state(input, MT_TOOL_FINGER,
 			s->touch_state);
 		if (s->touch_state) {
+			/* this finger is on the screen */
+			int wide = (s->w > s->h);
+			/* divided by two to match visual scale of touch */
+			int major = max(s->w, s->h) >> 1;
+			int minor = min(s->w, s->h) >> 1;
+
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, s->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, s->y);
+			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, s->p);
-			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, s->w);
-			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, s->h);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
 		}
 		s->seen_in_this_frame = false;
 
@@ -398,6 +424,15 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 			break;
 
 		default:
+			if (td->last_field_index
+				&& field->index == td->last_field_index)
+				/* we reach here when the last field in the
+				 * report is not related to multitouch.
+				 * This is not good. As a temporary solution,
+				 * we trigger our mt event completion and
+				 * ignore the field.
+				 */
+				break;
 			/* fallback to the generic hidinput handling */
 			return 0;
 		}
@@ -512,6 +547,14 @@ static void mt_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id mt_devices[] = {
+
+	/* 3M panels */
+	{ .driver_data = MT_CLS_3M,
+		HID_USB_DEVICE(USB_VENDOR_ID_3M,
+			USB_DEVICE_ID_3M1968) },
+	{ .driver_data = MT_CLS_3M,
+		HID_USB_DEVICE(USB_VENDOR_ID_3M,
+			USB_DEVICE_ID_3M2256) },
 
 	/* Cando panels */
 	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTNUMBER,
