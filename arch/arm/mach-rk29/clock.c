@@ -37,6 +37,7 @@
 /* bit 0 is free */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 #define CONFIG_PARTICIPANT	(1 << 10)	/* Fundamental clock */
+#define IS_PD			(1 << 2)	/* Power Domain */
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	writel(v, RK29_CRU_BASE + offset)
@@ -201,7 +202,7 @@ static int gate_mode(struct clk *clk, int on)
 		v = cru_readl(reg);
 
 	if (on)
-		v &= ~(1 << idx);	// clear bit 
+		v &= ~(1 << idx);	// clear bit
 	else
 		v |= (1 << idx);	// set bit
 
@@ -1697,6 +1698,101 @@ GATE_CLK(hclk_mmc0, hclk_periph, HCLK_MMC0);
 GATE_CLK(hclk_mmc1, hclk_periph, HCLK_MMC1);
 GATE_CLK(hclk_emmc, hclk_periph, HCLK_EMMC);
 
+
+static int pd_vcodec_mode(struct clk *clk, int on)
+{
+	if (on) {
+		u32 gate, gate2;
+
+		gate = cru_clkgate3_con_mirror;
+		gate |= (1 << CLK_GATE_ACLK_DDR_VEPU % 32);
+		gate &= ~((1 << CLK_GATE_ACLK_VEPU % 32)
+			| (1 << CLK_GATE_HCLK_VEPU % 32)
+			| (1 << CLK_GATE_HCLK_CPU_VCODEC % 32));
+		cru_writel(gate, CRU_CLKGATE3_CON);
+
+		pmu_set_power_domain(PD_VCODEC, true);
+
+		udelay(10);
+
+		cru_writel(cru_clkgate3_con_mirror, CRU_CLKGATE3_CON);
+	} else {
+		pmu_set_power_domain(PD_VCODEC, false);
+	}
+
+	return 0;
+}
+
+static struct clk pd_vcodec = {
+	.name	= "pd_vcodec",
+	.flags  = IS_PD,
+	.mode	= pd_vcodec_mode,
+};
+
+static int pd_display_mode(struct clk *clk, int on)
+{
+	if (on) {
+		u32 gate, gate2;
+
+		gate = cru_clkgate3_con_mirror;
+		gate |= (1 << CLK_GATE_ACLK_DDR_LCDC % 32);
+		gate &= ~((1 << CLK_GATE_HCLK_CPU_DISPLAY % 32)
+			| (1 << CLK_GATE_HCLK_DISP_MATRIX % 32)
+			| (1 << CLK_GATE_ACLK_DISP_MATRIX % 32)
+			| (1 << CLK_GATE_DCLK_EBOOK % 32)
+			| (1 << CLK_GATE_HCLK_EBOOK % 32)
+			| (1 << CLK_GATE_HCLK_IPP % 32)
+			| (1 << CLK_GATE_ACLK_IPP % 32)
+			| (1 << CLK_GATE_DCLK_LCDC % 32)
+			| (1 << CLK_GATE_HCLK_LCDC % 32)
+			| (1 << CLK_GATE_ACLK_LCDC % 32));
+		cru_writel(gate, CRU_CLKGATE3_CON);
+
+		gate2 = cru_readl(CRU_CLKGATE2_CON);
+		gate = gate2;
+		gate &= ~((1 << CLK_GATE_VIP_OUT % 32)
+			| (1 << CLK_GATE_VIP_SLAVE % 32)
+			| (1 << CLK_GATE_VIP_MATRIX % 32)
+			| (1 << CLK_GATE_VIP_BUS % 32));
+		cru_writel(gate, CRU_CLKGATE2_CON);
+
+		pmu_set_power_domain(PD_DISPLAY, true);
+
+		udelay(10);
+
+		cru_writel(gate2, CRU_CLKGATE2_CON);
+		cru_writel(cru_clkgate3_con_mirror, CRU_CLKGATE3_CON);
+	} else {
+		pmu_set_power_domain(PD_DISPLAY, false);
+	}
+
+	return 0;
+}
+
+static struct clk pd_display = {
+	.name	= "pd_display",
+	.flags  = IS_PD,
+	.mode	= pd_display_mode,
+};
+
+static int pd_gpu_mode(struct clk *clk, int on)
+{
+	if (on) {
+		pmu_set_power_domain(PD_GPU, true);
+	} else {
+		pmu_set_power_domain(PD_GPU, false);
+	}
+
+	return 0;
+}
+
+static struct clk pd_gpu = {
+	.name	= "pd_gpu",
+	.flags  = IS_PD,
+	.mode	= pd_gpu_mode,
+};
+
+
 #define CLK(dev, con, ck) \
 	{ \
 		.dev_id = dev, \
@@ -1874,6 +1970,10 @@ static struct clk_lookup clks[] = {
 	CLK1(hclk_gpu),
 	CLK1(hclk_cpu_vcodec),
 	CLK1(hclk_cpu_display),
+
+	CLK(NULL, "pd_vcodec", &pd_vcodec),
+	CLK(NULL, "pd_display", &pd_display),
+	CLK(NULL, "pd_gpu", &pd_gpu),
 };
 
 static LIST_HEAD(clocks);
@@ -2283,7 +2383,7 @@ static int __init clk_disable_unused(void)
 	struct clk *ck;
 
 	list_for_each_entry(ck, &clocks, node) {
-		if (ck->usecount > 0 || ck->mode == NULL)
+		if (ck->usecount > 0 || ck->mode == NULL || (ck->flags & IS_PD))
 			continue;
 
 		LOCK();
@@ -2358,7 +2458,7 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 			v = cru_clkgate3_con_mirror & (1 << idx);
 		else
 			v = cru_readl(reg) & (1 << idx);
-		
+
 		seq_printf(s, "%s ", v ? "off" : "on ");
 	}
 
