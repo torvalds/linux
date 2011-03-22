@@ -548,7 +548,7 @@ static struct dev_pm_ops bfin_pm_ops = {
 static struct platform_driver bfin_driver = {
 	.remove		= __exit_p(bfin_remove),
 	.driver		= {
-		.name	= "musb-bfin",
+		.name	= "musb-blackfin",
 		.pm	= DEV_PM_OPS,
 	},
 };
