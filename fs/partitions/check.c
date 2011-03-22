@@ -290,7 +290,8 @@ ssize_t part_inflight_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 
-	return sprintf(buf, "%8u %8u\n", p->in_flight[0], p->in_flight[1]);
+	return sprintf(buf, "%8u %8u\n", atomic_read(&p->in_flight[0]),
+		atomic_read(&p->in_flight[1]));
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST

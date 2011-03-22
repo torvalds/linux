@@ -477,7 +477,8 @@ static void start_io_acct(struct dm_io *io)
 	cpu = part_stat_lock();
 	part_round_stats(cpu, &dm_disk(md)->part0);
 	part_stat_unlock();
-	dm_disk(md)->part0.in_flight[rw] = atomic_inc_return(&md->pending[rw]);
+	atomic_set(&dm_disk(md)->part0.in_flight[rw],
+		atomic_inc_return(&md->pending[rw]));
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -497,8 +498,8 @@ static void end_io_acct(struct dm_io *io)
 	 * After this is decremented the bio must not be touched if it is
 	 * a flush.
 	 */
-	dm_disk(md)->part0.in_flight[rw] = pending =
-		atomic_dec_return(&md->pending[rw]);
+	pending = atomic_dec_return(&md->pending[rw]);
+	atomic_set(&dm_disk(md)->part0.in_flight[rw], pending);
 	pending += atomic_read(&md->pending[rw^0x1]);
 
 	/* nudge anyone waiting on suspend queue */
