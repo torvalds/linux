@@ -38,6 +38,8 @@ enum e_ctrl {
 	NCTRLS		/* number of controls */
 };
 
+#define AUTOGAIN_DEF 1
+
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
@@ -47,6 +49,8 @@ struct sd {
 	u32 ae_res;
 	s8 ag_cnt;
 #define AG_CNT_START 13
+	u8 exp_too_low_cnt;
+	u8 exp_too_high_cnt;
 
 	u8 bridge;
 	u8 webcam;
@@ -1638,12 +1642,12 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 	}
 }
 
-static int swap_6bits(int v)
+static int swap_bits(int v)
 {
 	int r, i;
 
 	r = 0;
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 8; i++) {
 		r <<= 1;
 		if (v & 1)
 			r++;
@@ -1657,20 +1661,17 @@ static void setgain(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 val, v[2];
 
-	val = sd->ctrls[GAIN].val >> 1;		/* 0 - 63 -> 0 - 31 */
-	reg_w(gspca_dev, 0x100e, &val, 1);	/* AE Y gain */
-
+	val = sd->ctrls[GAIN].val;
 	switch (sd->webcam) {
 	case P35u:
 		/* Note the control goes from 0-255 not 0-127, but anything
 		   above 127 just means amplifying noise */
-		val = sd->ctrls[GAIN].val << 1; /* 0 - 63 -> 0 - 127 */
+		val >>= 1;			/* 0 - 255 -> 0 - 127 */
 		reg_w(gspca_dev, 0x1026, &val, 1);
 		break;
 	case Kr651us:
-		/* 0 - 63 -> 0 - 0x37 */
-		val = (sd->ctrls[GAIN].val * 0x37) / 63;
-		val = swap_6bits(val);
+		/* 0 - 253 */
+		val = swap_bits(val);
 		v[0] = val << 3;
 		v[1] = val >> 5;
 		reg_w(gspca_dev, 0x101d, v, 2);	/* SIF reg0/1 (AGC) */
@@ -1681,16 +1682,18 @@ static void setgain(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	s16 val;
 	u8 v[2];
 
+	val = sd->ctrls[EXPOSURE].val;
 	switch (sd->webcam) {
 	case P35u:
-		v[0] = (sd->ctrls[EXPOSURE].val << 3) | 0x01;
+		v[0] = ((9 - val) << 3) | 0x01;
 		reg_w(gspca_dev, 0x1019, v, 1);
 		break;
 	case Kr651us:
-		v[0] = sd->ctrls[EXPOSURE].val;
-		v[1] = sd->ctrls[EXPOSURE].val >> 8;
+		v[0] = val;
+		v[1] = val >> 8;
 		reg_w(gspca_dev, 0x101b, v, 2);
 		break;
 	}
@@ -1788,16 +1791,30 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	switch (sd->webcam) {
 	case P35u:
 /*		sd->ctrls[EXPOSURE].max = 9;
- *		sd->ctrls[EXPOSURE].def = 1; */
+ *		sd->ctrls[EXPOSURE].def = 9; */
+		/* coarse expo auto gain function gain minimum, to avoid
+		 * a large settings jump the first auto adjustment */
+		sd->ctrls[GAIN].def = 255 / 5 * 2;
 		break;
+	case Cvideopro:
+	case DvcV6:
+	case Kritter:
+		gspca_dev->ctrl_dis = (1 << GAIN) | (1 << AUTOGAIN);
+		/* fall thru */
 	case Kr651us:
 		sd->ctrls[EXPOSURE].max = 315;
 		sd->ctrls[EXPOSURE].def = 150;
 		break;
 	default:
-		gspca_dev->ctrl_dis = ~(1 << GAIN);
+		gspca_dev->ctrl_dis = (1 << GAIN) | (1 << EXPOSURE)
+					 | (1 << AUTOGAIN);
 		break;
 	}
+
+#if AUTOGAIN_DEF
+	if (!(gspca_dev->ctrl_dis & (1 << AUTOGAIN)))
+		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
+#endif
 	return gspca_dev->usb_err;
 }
 
@@ -1865,6 +1882,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setgain(gspca_dev);
 	setexposure(gspca_dev);
 	setautogain(gspca_dev);
+	sd->exp_too_high_cnt = 0;
+	sd->exp_too_low_cnt = 0;
 	return gspca_dev->usb_err;
 }
 
@@ -1936,11 +1955,12 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	return gspca_dev->usb_err;
 }
 
+#include "autogain_functions.h"
+
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int luma;
-	int gain, shutter;
 
 	if (sd->ag_cnt < 0)
 		return;
@@ -1954,76 +1974,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		+ (gspca_dev->usb_buf[1] << 8) + gspca_dev->usb_buf[0];
 	luma /= sd->ae_res;
 
-	if (sd->webcam == P35u) {
-		u8 clock;
-
-		if (luma > 92 && luma < 108)
-			return;			/* fine */
-		clock = sd->ctrls[EXPOSURE].val;
-		gain = sd->ctrls[GAIN].val;
-		if (luma < 100) {
-			if (luma < 70 && clock > 0)
-				clock--;
-			if (gain > 98 && clock > 0)
-				clock--;
-			if (gain <= 50)
-				gain += 3;
-		} else {
-			if (luma > 150 && clock < 9)
-				clock++;
-			if (gain < 12 && clock < 9)
-				clock++;
-			if (gain >= 5)
-				gain -= 3;
-		}
-		if (gain != sd->ctrls[GAIN].val) {
-			sd->ctrls[GAIN].val = gain;
-			setgain(gspca_dev);
-		}
-		if (clock != sd->ctrls[EXPOSURE].val) {
-			sd->ctrls[EXPOSURE].val = clock;
-			setexposure(gspca_dev);
-		}
-		return;
-	}
-
-	/* kr651us */
-	if (luma > 95 && luma < 105)
-		return;				/* fine */
-	gain = sd->ctrls[GAIN].val;
-	shutter = sd->ctrls[EXPOSURE].val;
-	if (luma < 100) {
-		if (shutter > 0) {
-			if (luma < 85 && shutter > 50)
-				shutter -= 50;
-			else
-				shutter--;
-		} else if (gain < 63) {
-			if (luma < 85 && gain < 53)
-				gain += 10;
-			else
-				gain++;
-		}
-	} else {
-		if (gain > 0) {
-			if (luma > 115 && gain > 10)
-				gain -= 10;
-			else
-				gain--;
-		} else if (shutter < 316) {	/* max 0x13b */
-			if (luma > 115 && shutter < 266)
-				shutter += 50;
-			else
-				shutter++;
-		}
-	}
-	if (gain != sd->ctrls[GAIN].val) {
-		sd->ctrls[GAIN].val = gain;
-		setgain(gspca_dev);
-	}
-	if (shutter != sd->ctrls[EXPOSURE].val) {
-		sd->ctrls[EXPOSURE].val = shutter;
-		setexposure(gspca_dev);
+	switch (sd->webcam) {
+	case P35u:
+		coarse_grained_expo_autogain(gspca_dev, luma, 100, 5);
+		break;
+	default:
+		auto_gain_n_exposure(gspca_dev, luma, 100, 5, 230, 0);
+		break;
 	}
 }
 
@@ -2035,9 +1992,9 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Gain",
 		.minimum = 0,
-		.maximum = 63,
+		.maximum = 253,
 		.step    = 1,
-		.default_value = 16
+		.default_value = 128
 	    },
 	    .set_control = setgain
 	},
@@ -2049,7 +2006,7 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.minimum = 0,
 		.maximum = 9,
 		.step    = 1,
-		.default_value = 1
+		.default_value = 9
 	    },
 	    .set_control = setexposure
 	},
@@ -2061,7 +2018,7 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-		.default_value = 1,
+		.default_value = AUTOGAIN_DEF,
 		.flags   = V4L2_CTRL_FLAG_UPDATE
 	    },
 	    .set = sd_setautogain
