@@ -386,7 +386,7 @@ struct ath_beacon {
 	u32 beaconq;
 	u32 bmisscnt;
 	u32 ast_be_xmit;
-	u64 bc_tstamp;
+	u32 bc_tstamp;
 	struct ieee80211_vif *bslot[ATH_BCBUF];
 	int slottime;
 	int slotupdate;

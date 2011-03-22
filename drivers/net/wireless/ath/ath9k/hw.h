@@ -416,8 +416,6 @@ struct ath9k_beacon_state {
 	u32 bs_nextdtim;
 	u32 bs_intval;
 #define ATH9K_BEACON_PERIOD       0x0000ffff
-#define ATH9K_BEACON_ENA          0x00800000
-#define ATH9K_BEACON_RESET_TSF    0x01000000
 #define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
 	u16 bs_cfpperiod;
@@ -930,6 +928,7 @@ void ath9k_hw_setopmode(struct ath_hw *ah);
 void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
 void ath9k_hw_setbssidmask(struct ath_hw *ah);
 void ath9k_hw_write_associd(struct ath_hw *ah);
+u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
