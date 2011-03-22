@@ -905,6 +905,7 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	dev->ctrl_config = NVME_CC_ENABLE | NVME_CC_CSS_NVM;
 	dev->ctrl_config |= (PAGE_SHIFT - 12) << NVME_CC_MPS_SHIFT;
 	dev->ctrl_config |= NVME_CC_ARB_RR | NVME_CC_SHN_NONE;
+	dev->ctrl_config |= NVME_CC_IOSQES | NVME_CC_IOCQES;
 
 	writel(0, &dev->bar->cc);
 	writel(aqa, &dev->bar->aqa);
