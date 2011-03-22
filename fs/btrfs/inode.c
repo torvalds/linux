@@ -5744,6 +5744,10 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 
 	kfree(dip->csums);
 	kfree(dip);
+
+	/* If we had a csum failure make sure to clear the uptodate flag */
+	if (err)
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
 	dio_end_io(bio, err);
 }
 
@@ -5845,6 +5849,10 @@ out_done:
 
 	kfree(dip->csums);
 	kfree(dip);
+
+	/* If we had an error make sure to clear the uptodate flag */
+	if (err)
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
 	dio_end_io(bio, err);
 }
 
