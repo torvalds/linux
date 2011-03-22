@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/smc91x.h>
 #include <linux/mfd/da903x.h>
 #include <linux/mtd/mtd.h>
@@ -31,7 +32,6 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa930.h>
-#include <plat/i2c.h>
 #include <mach/pxafb.h>
 
 #include "devices.h"

@@ -26,6 +26,7 @@
 #include <linux/ucb1400.h>
 #include <linux/ata_platform.h>
 #include <linux/regulator/max1586.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,8 +40,6 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
 #include <mach/pata_pxa.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
