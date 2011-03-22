@@ -62,6 +62,7 @@ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
 extern void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
 extern void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
+extern void mem_cgroup_rotate_reclaimable_page(struct page *page);
 extern void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru);
 extern void mem_cgroup_del_lru(struct page *page);
 extern void mem_cgroup_move_lists(struct page *page,
@@ -207,6 +208,11 @@ static inline void mem_cgroup_add_lru_list(struct page *page, int lru)
 }
 
 static inline void mem_cgroup_del_lru_list(struct page *page, int lru)
+{
+	return ;
+}
+
+static inline inline void mem_cgroup_rotate_reclaimable_page(struct page *page)
 {
 	return ;
 }
