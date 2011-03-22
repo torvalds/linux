@@ -191,6 +191,15 @@ static inline void __set_irq_handler_unlocked(int irq,
 	desc->handle_irq = handler;
 }
 
+static inline void
+irq_set_lockdep_class(unsigned int irq, struct lock_class_key *class)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (desc)
+		lockdep_set_class(&desc->lock, class);
+}
+
 #ifdef CONFIG_IRQ_PREFLOW_FASTEOI
 static inline void
 __irq_set_preflow_handler(unsigned int irq, irq_preflow_handler_t handler)
