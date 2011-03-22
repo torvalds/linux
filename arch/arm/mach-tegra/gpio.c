@@ -340,7 +340,7 @@ static int __init tegra_gpio_init(void)
 	for (i = INT_GPIO_BASE; i < (INT_GPIO_BASE + TEGRA_NR_GPIOS); i++) {
 		bank = &tegra_gpio_banks[GPIO_BANK(irq_to_gpio(i))];
 
-		lockdep_set_class(&irq_desc[i].lock, &gpio_lock_class);
+		irq_set_lockdep_class(i, &gpio_lock_class);
 		set_irq_chip_data(i, bank);
 		set_irq_chip(i, &tegra_gpio_irq_chip);
 		set_irq_handler(i, handle_simple_irq);

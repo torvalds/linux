@@ -518,7 +518,7 @@ void __init at91_gpio_irq_setup(void)
 		__raw_writel(~0, this->regbase + PIO_IDR);
 
 		for (i = 0, pin = this->chip.base; i < 32; i++, pin++) {
-			lockdep_set_class(&irq_desc[pin].lock, &gpio_lock_class);
+			irq_set_lockdep_class(pin, &gpio_lock_class);
 
 			/*
 			 * Can use the "simple" and not "edge" handler since it's
