@@ -765,6 +765,18 @@ int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
 	return err;
 }
 
+int drbd_send_ping(struct drbd_tconn *tconn)
+{
+	struct p_header h;
+	return !conn_send_cmd(tconn, 0, &tconn->meta, P_PING, &h, sizeof(h));
+}
+
+int drbd_send_ping_ack(struct drbd_tconn *tconn)
+{
+	struct p_header h;
+	return !conn_send_cmd(tconn, 0, &tconn->meta, P_PING_ACK, &h, sizeof(h));
+}
+
 int drbd_send_sync_param(struct drbd_conf *mdev)
 {
 	struct p_rs_param_95 *p;

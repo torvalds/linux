@@ -1939,17 +1939,8 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
 }
 
-static inline int drbd_send_ping(struct drbd_tconn *tconn)
-{
-	struct p_header h;
-	return !conn_send_cmd(tconn, 0, &tconn->meta, P_PING, &h, sizeof(h));
-}
-
-static inline int drbd_send_ping_ack(struct drbd_tconn *tconn)
-{
-	struct p_header h;
-	return !conn_send_cmd(tconn, 0, &tconn->meta, P_PING_ACK, &h, sizeof(h));
-}
+extern int drbd_send_ping(struct drbd_tconn *tconn);
+extern int drbd_send_ping_ack(struct drbd_tconn *tconn);
 
 static inline int drbd_send_state_req(struct drbd_conf *mdev,
 				      union drbd_state mask, union drbd_state val)
