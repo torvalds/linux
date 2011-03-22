@@ -72,9 +72,9 @@ static int __devinit olpc_xo1_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't fetch device resource info\n");
 		return -EIO;
 	}
-	if (strcmp(pdev->name, "olpc-xo1-pms") == 0)
+	if (strcmp(pdev->name, "cs5535-pms") == 0)
 		pms_base = res->start;
-	else if (strcmp(pdev->name, "olpc-xo1-ac-acpi") == 0)
+	else if (strcmp(pdev->name, "olpc-xo1-pm-acpi") == 0)
 		acpi_base = res->start;
 
 	/* If we have both addresses, we can override the poweroff hook */
@@ -90,9 +90,9 @@ static int __devexit olpc_xo1_remove(struct platform_device *pdev)
 {
 	mfd_cell_disable(pdev);
 
-	if (strcmp(pdev->name, "olpc-xo1-pms") == 0)
+	if (strcmp(pdev->name, "cs5535-pms") == 0)
 		pms_base = 0;
-	else if (strcmp(pdev->name, "olpc-xo1-acpi") == 0)
+	else if (strcmp(pdev->name, "olpc-xo1-pm-acpi") == 0)
 		acpi_base = 0;
 
 	pm_power_off = NULL;
@@ -101,7 +101,7 @@ static int __devexit olpc_xo1_remove(struct platform_device *pdev)
 
 static struct platform_driver cs5535_pms_drv = {
 	.driver = {
-		.name = "olpc-xo1-pms",
+		.name = "cs5535-pms",
 		.owner = THIS_MODULE,
 	},
 	.probe = olpc_xo1_probe,
@@ -110,7 +110,7 @@ static struct platform_driver cs5535_pms_drv = {
 
 static struct platform_driver cs5535_acpi_drv = {
 	.driver = {
-		.name = "olpc-xo1-acpi",
+		.name = "olpc-xo1-pm-acpi",
 		.owner = THIS_MODULE,
 	},
 	.probe = olpc_xo1_probe,

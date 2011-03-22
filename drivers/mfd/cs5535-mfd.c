@@ -115,14 +115,12 @@ static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
 #ifdef CONFIG_OLPC
 static void __devinit cs5535_clone_olpc_cells(void)
 {
-	const char *acpi_clones[] = { "olpc-xo1-acpi" };
-	const char *pms_clones[] = { "olpc-xo1-pms" };
+	const char *acpi_clones[] = { "olpc-xo1-pm-acpi", "olpc-xo1-sci-acpi" };
 
 	if (!machine_is_olpc())
 		return;
 
 	mfd_clone_cell("cs5535-acpi", acpi_clones, ARRAY_SIZE(acpi_clones));
-	mfd_clone_cell("cs5535-pms", pms_clones, ARRAY_SIZE(pms_clones));
 }
 #else
 static void cs5535_clone_olpc_cells(void) { }
