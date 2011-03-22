@@ -973,6 +973,7 @@ static int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 	int count = 0;
 	ext4_fsblk_t first_block = 0;
 
+	trace_ext4_ind_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
 	J_ASSERT(!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)));
 	J_ASSERT(handle != NULL || (flags & EXT4_GET_BLOCKS_CREATE) == 0);
 	depth = ext4_block_to_path(inode, map->m_lblk, offsets,
@@ -1058,6 +1059,8 @@ cleanup:
 		partial--;
 	}
 out:
+	trace_ext4_ind_map_blocks_exit(inode, map->m_lblk,
+				map->m_pblk, map->m_len, err);
 	return err;
 }
 
@@ -3379,6 +3382,7 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 
 static int ext4_readpage(struct file *file, struct page *page)
 {
+	trace_ext4_readpage(page);
 	return mpage_readpage(page, ext4_get_block);
 }
 
@@ -3413,6 +3417,8 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 {
 	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
 
+	trace_ext4_invalidatepage(page, offset);
+
 	/*
 	 * free any io_end structure allocated for buffers to be discarded
 	 */
@@ -3433,6 +3439,8 @@ static void ext4_invalidatepage(struct page *page, unsigned long offset)
 static int ext4_releasepage(struct page *page, gfp_t wait)
 {
 	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
+
+	trace_ext4_releasepage(page);
 
 	WARN_ON(PageChecked(page));
 	if (!page_has_buffers(page))
@@ -3792,11 +3800,16 @@ static ssize_t ext4_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+	ssize_t ret;
 
+	trace_ext4_direct_IO_enter(inode, offset, iov_length(iov, nr_segs), rw);
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		return ext4_ext_direct_IO(rw, iocb, iov, offset, nr_segs);
-
-	return ext4_ind_direct_IO(rw, iocb, iov, offset, nr_segs);
+		ret = ext4_ext_direct_IO(rw, iocb, iov, offset, nr_segs);
+	else
+		ret = ext4_ind_direct_IO(rw, iocb, iov, offset, nr_segs);
+	trace_ext4_direct_IO_exit(inode, offset,
+				iov_length(iov, nr_segs), rw, ret);
+	return ret;
 }
 
 /*
@@ -4425,6 +4438,8 @@ void ext4_truncate(struct inode *inode)
 	ext4_lblk_t last_block;
 	unsigned blocksize = inode->i_sb->s_blocksize;
 
+	trace_ext4_truncate_enter(inode);
+
 	if (!ext4_can_truncate(inode))
 		return;
 
@@ -4435,6 +4450,7 @@ void ext4_truncate(struct inode *inode)
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		ext4_ext_truncate(inode);
+		trace_ext4_truncate_exit(inode);
 		return;
 	}
 
@@ -4564,6 +4580,7 @@ out_stop:
 		ext4_orphan_del(handle, inode);
 
 	ext4_journal_stop(handle);
+	trace_ext4_truncate_exit(inode);
 }
 
 /*
@@ -4695,6 +4712,7 @@ make_io:
 		 * has in-inode xattrs, or we don't have this inode in memory.
 		 * Read the block from disk.
 		 */
+		trace_ext4_load_inode(inode);
 		get_bh(bh);
 		bh->b_end_io = end_buffer_read_sync;
 		submit_bh(READ_META, bh);

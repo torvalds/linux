@@ -44,6 +44,8 @@
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
 
+#include <trace/events/ext4.h>
+
 static int ext4_ext_truncate_extend_restart(handle_t *handle,
 					    struct inode *inode,
 					    int needed)
@@ -664,6 +666,8 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		if (unlikely(!bh))
 			goto err;
 		if (!bh_uptodate_or_lock(bh)) {
+			trace_ext4_ext_load_extent(inode, block,
+						path[ppos].p_block);
 			if (bh_submit_read(bh) < 0) {
 				put_bh(bh);
 				goto err;
@@ -3297,7 +3301,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent_header *eh;
 	struct ext4_extent newex, *ex;
-	ext4_fsblk_t newblock;
+	ext4_fsblk_t newblock = 0;
 	int err = 0, depth, ret;
 	unsigned int allocated = 0;
 	struct ext4_allocation_request ar;
@@ -3305,6 +3309,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 
 	ext_debug("blocks %u/%u requested for inode %lu\n",
 		  map->m_lblk, map->m_len, inode->i_ino);
+	trace_ext4_ext_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
 
 	/* check in cache */
 	if (ext4_ext_in_cache(inode, map->m_lblk, &newex)) {
@@ -3525,6 +3530,8 @@ out2:
 		ext4_ext_drop_refs(path);
 		kfree(path);
 	}
+	trace_ext4_ext_map_blocks_exit(inode, map->m_lblk,
+		newblock, map->m_len, err ? err : allocated);
 	return err ? err : allocated;
 }
 
@@ -3658,6 +3665,7 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EOPNOTSUPP;
 
+	trace_ext4_fallocate_enter(inode, offset, len, mode);
 	map.m_lblk = offset >> blkbits;
 	/*
 	 * We can't just convert len to max_blocks because
@@ -3673,6 +3681,7 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	ret = inode_newsize_ok(inode, (len + offset));
 	if (ret) {
 		mutex_unlock(&inode->i_mutex);
+		trace_ext4_fallocate_exit(inode, offset, max_blocks, ret);
 		return ret;
 	}
 retry:
@@ -3717,6 +3726,8 @@ retry:
 		goto retry;
 	}
 	mutex_unlock(&inode->i_mutex);
+	trace_ext4_fallocate_exit(inode, offset, max_blocks,
+				ret > 0 ? ret2 : ret);
 	return ret > 0 ? ret2 : ret;
 }
 

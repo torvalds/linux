@@ -40,6 +40,7 @@
 #include "xattr.h"
 #include "acl.h"
 
+#include <trace/events/ext4.h>
 /*
  * define how far ahead to read directories while searching them.
  */
@@ -2183,6 +2184,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	struct ext4_dir_entry_2 *de;
 	handle_t *handle;
 
+	trace_ext4_unlink_enter(dir, dentry);
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	dquot_initialize(dir);
@@ -2228,6 +2230,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 end_unlink:
 	ext4_journal_stop(handle);
 	brelse(bh);
+	trace_ext4_unlink_exit(dentry, retval);
 	return retval;
 }
 
