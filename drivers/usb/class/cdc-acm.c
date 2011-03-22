@@ -50,9 +50,6 @@
 #include "cdc-acm.h"
 
 
-#define ACM_CLOSE_TIMEOUT	15	/* seconds to let writes drain */
-
-
 #define DRIVER_AUTHOR "Armin Fuerst, Pavel Machek, Johannes Erdfelt, Vojtech Pavlik, David Kubicek"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB modems and ISDN adapters"
 
@@ -507,8 +504,6 @@ static void acm_write_bulk(struct urb *urb)
 	spin_unlock_irqrestore(&acm->write_lock, flags);
 	if (ACM_READY(acm))
 		schedule_work(&acm->work);
-	else
-		wake_up_interruptible(&acm->drain_wait);
 }
 
 static void acm_softint(struct work_struct *work)
@@ -1155,7 +1150,6 @@ made_compressed_probe:
 	acm->urb_task.func = acm_rx_tasklet;
 	acm->urb_task.data = (unsigned long) acm;
 	INIT_WORK(&acm->work, acm_softint);
-	init_waitqueue_head(&acm->drain_wait);
 	spin_lock_init(&acm->throttle_lock);
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
