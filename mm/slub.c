@@ -217,7 +217,7 @@ static inline void sysfs_slab_remove(struct kmem_cache *s)
 
 #endif
 
-static inline void stat(struct kmem_cache *s, enum stat_item si)
+static inline void stat(const struct kmem_cache *s, enum stat_item si)
 {
 #ifdef CONFIG_SLUB_STATS
 	__this_cpu_inc(s->cpu_slab->stat[si]);
@@ -1597,6 +1597,7 @@ static inline void note_cmpxchg_failure(const char *n,
 		printk("for unknown reason: actual=%lx was=%lx target=%lx\n",
 			actual_tid, tid, next_tid(tid));
 #endif
+	stat(s, CMPXCHG_DOUBLE_CPU_FAIL);
 }
 
 #endif
@@ -1857,6 +1858,9 @@ new_slab:
 	}
 	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
 		slab_out_of_memory(s, gfpflags, node);
+#ifdef CONFIG_CMPXCHG_LOCAL
+	local_irq_restore(flags);
+#endif
 	return NULL;
 debug:
 	if (!alloc_debug_processing(s, c->page, object, addr))
