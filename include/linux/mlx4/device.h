@@ -351,6 +351,17 @@ struct mlx4_fmr {
 struct mlx4_uar {
 	unsigned long		pfn;
 	int			index;
+	struct list_head	bf_list;
+	unsigned		free_bf_bmap;
+	void __iomem	       *map;
+	void __iomem	       *bf_map;
+};
+
+struct mlx4_bf {
+	unsigned long		offset;
+	int			buf_size;
+	struct mlx4_uar	       *uar;
+	void __iomem	       *reg;
 };
 
 struct mlx4_cq {
@@ -478,6 +489,8 @@ void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn);
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar);
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar);
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf);
+void mlx4_bf_free(struct mlx4_dev *dev, struct mlx4_bf *bf);
 
 int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 		  struct mlx4_mtt *mtt);

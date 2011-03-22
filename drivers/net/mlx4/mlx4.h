@@ -353,6 +353,9 @@ struct mlx4_priv {
 	struct mutex		port_mutex;
 	struct mlx4_msix_ctl	msix_ctl;
 	struct mlx4_steer	*steer;
+	struct list_head	bf_list;
+	struct mutex		bf_mutex;
+	struct io_mapping	*bf_mapping;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
