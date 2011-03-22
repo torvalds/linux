@@ -4173,6 +4173,11 @@ static int patch_vt1708S(struct hda_codec *codec)
 		spec->stream_name_analog = "VT1708BCE Analog";
 		spec->stream_name_digital = "VT1708BCE Digital";
 	}
+	/* correct names for VT1818S */
+	if (codec->vendor_id == 0x11060440) {
+		spec->stream_name_analog = "VT1818S Analog";
+		spec->stream_name_digital = "VT1818S Digital";
+	}
 	return 0;
 }
 
