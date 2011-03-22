@@ -359,13 +359,22 @@ static void utp_poll(struct fsg_dev *fsg)
 			printk(KERN_WARNING "%s: exit with status %d\n",
 					__func__, uud->data.status);
 			UTP_SS_EXIT(fsg, uud->data.status);
+		} else if (uud->data.flags & UTP_FLAG_REPORT_BUSY) {
+			UTP_SS_BUSY(fsg, --ctx->counter);
 		} else {
-			pr_debug("%s: pass\n", __func__);
+			printk("%s: pass returned.\n", __func__);
 			UTP_SS_PASS(fsg);
 		}
 		utp_user_data_free(uud);
 	} else {
-		pr_debug("%s: still busy...\n", __func__);
+		if (utp_context.cur_state & UTP_FLAG_DATA) {
+			if (count_list(&ctx->read) < 7) {
+				pr_debug("%s: pass returned in POLL stage. \n", __func__);
+				UTP_SS_PASS(fsg);
+				utp_context.cur_state = 0;
+				return;
+			}
+		}
 		UTP_SS_BUSY(fsg, --ctx->counter);
 	}
 }
@@ -378,6 +387,7 @@ static int utp_exec(struct fsg_dev *fsg,
 	struct utp_user_data *uud = NULL, *uud2r;
 	struct utp_context *ctx = UTP_CTX(fsg);
 
+	ctx->counter = 0xFFFF;
 	uud2r = utp_user_data_alloc(cmdsize + 1);
 	uud2r->data.flags = UTP_FLAG_COMMAND;
 	uud2r->data.payload = payload;
@@ -418,14 +428,13 @@ static int utp_exec(struct fsg_dev *fsg,
 		memcpy(ctx->buffer, uud->data.data, uud->data.bufsize);
 		UTP_SS_SIZE(fsg, uud->data.bufsize);
 	} else if (uud->data.flags & UTP_FLAG_REPORT_BUSY) {
-		ctx->counter = 0xFFFF;
 		UTP_SS_BUSY(fsg, ctx->counter);
 	} else if (uud->data.flags & UTP_FLAG_STATUS) {
 		printk(KERN_WARNING "%s: exit with status %d\n", __func__,
 				uud->data.status);
 		UTP_SS_EXIT(fsg, uud->data.status);
 	} else {
-		pr_debug("%s: pass\n", __func__);
+		pr_debug("%s: pass returned in EXEC stage. \n", __func__);
 		UTP_SS_PASS(fsg);
 	}
 	utp_user_data_free(uud);
@@ -515,10 +524,12 @@ static int utp_handle_message(struct fsg_dev *fsg,
 					fsg->common->data_size);
 		UTP_SS_PASS(fsg);
 		break;
-	case UTP_PUT: /* data from host to device */
-		pr_debug("%s: PUT, %d bytes\n", __func__,
-					fsg->common->data_size);
+	case UTP_PUT:
+		utp_context.cur_state =  UTP_FLAG_DATA;
+		pr_debug("%s: PUT, Received %d bytes\n", __func__, fsg->common->data_size);/* data from host to device */
 		uud2r = utp_user_data_alloc(fsg->common->data_size);
+		if (!uud2r)
+			return -ENOMEM;
 		uud2r->data.bufsize = fsg->common->data_size;
 		uud2r->data.flags = UTP_FLAG_DATA;
 		utp_do_write(fsg, uud2r->data.data, fsg->common->data_size);
@@ -558,10 +569,12 @@ static int utp_handle_message(struct fsg_dev *fsg,
 			UTP_SS_PASS(fsg);
 		}
 #endif
-		UTP_SS_PASS(fsg);
+		if (count_list(&UTP_CTX(fsg)->read) < 7) {
+			utp_context.cur_state = 0;
+			UTP_SS_PASS(fsg);
+		} else
+			UTP_SS_BUSY(fsg, UTP_CTX(fsg)->counter);
 
-		wait_event_interruptible(UTP_CTX(fsg)->list_full_wq,
-			count_list(&UTP_CTX(fsg)->read) < 7);
 		break;
 	}
 
