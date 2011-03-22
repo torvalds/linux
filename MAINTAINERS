@@ -5651,17 +5651,6 @@ M:	Robin Holt <holt@sgi.com>
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
-SHARP LH SUPPORT (LH7952X & LH7A40X)
-M:	Marc Singer <elf@buici.com>
-W:	http://projects.buici.com/arm
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	Documentation/arm/Sharp-LH/ADC-LH7-Touchscreen
-F:	arch/arm/mach-lh7a40x/
-F:	drivers/tty/serial/serial_lh7a40x.c
-F:	drivers/usb/gadget/lh7a40*
-F:	drivers/usb/host/ohci-lh7a40*
-
 SIMPLE FIRMWARE INTERFACE (SFI)
 M:	Len Brown <lenb@kernel.org>
 L:	sfi-devel@simplefirmware.org
