@@ -1295,7 +1295,7 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->init(codec);
 	}
-	return -EINVAL;
+	return -ENOSYS;
 }
 
 /*
@@ -1310,7 +1310,7 @@ int snd_soc_cache_exit(struct snd_soc_codec *codec)
 				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->exit(codec);
 	}
-	return -EINVAL;
+	return -ENOSYS;
 }
 
 /**
@@ -1334,7 +1334,7 @@ int snd_soc_cache_read(struct snd_soc_codec *codec,
 	}
 
 	mutex_unlock(&codec->cache_rw_mutex);
-	return -EINVAL;
+	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_read);
 
@@ -1359,7 +1359,7 @@ int snd_soc_cache_write(struct snd_soc_codec *codec,
 	}
 
 	mutex_unlock(&codec->cache_rw_mutex);
-	return -EINVAL;
+	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_write);
 
@@ -1382,7 +1382,7 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 	}
 
 	if (!codec->cache_ops || !codec->cache_ops->sync)
-		return -EINVAL;
+		return -ENOSYS;
 
 	if (codec->cache_ops->name)
 		name = codec->cache_ops->name;
