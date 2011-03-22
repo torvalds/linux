@@ -1597,11 +1597,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: [state][,regs][,debounce][,die]
 
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
-			Format: [panic,][num]
+			Format: [panic,][nopanic,][num]
 			Valid num: 0
 			0 - turn nmi_watchdog off
 			When panic is specified, panic when an NMI watchdog
-			timeout occurs.
+			timeout occurs (or 'nopanic' to override the opposite
+			default).
 			This is useful when you use a panic=... timeout and
 			need the box quickly up again.
 

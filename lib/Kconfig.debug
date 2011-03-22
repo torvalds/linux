@@ -171,6 +171,23 @@ config HARDLOCKUP_DETECTOR
 	def_bool LOCKUP_DETECTOR && PERF_EVENTS && HAVE_PERF_EVENTS_NMI && \
 		 !ARCH_HAS_NMI_WATCHDOG
 
+config BOOTPARAM_HARDLOCKUP_PANIC
+	bool "Panic (Reboot) On Hard Lockups"
+	depends on LOCKUP_DETECTOR
+	help
+	  Say Y here to enable the kernel to panic on "hard lockups",
+	  which are bugs that cause the kernel to loop in kernel
+	  mode with interrupts disabled for more than 60 seconds.
+
+	  Say N if unsure.
+
+config BOOTPARAM_HARDLOCKUP_PANIC_VALUE
+	int
+	depends on LOCKUP_DETECTOR
+	range 0 1
+	default 0 if !BOOTPARAM_HARDLOCKUP_PANIC
+	default 1 if BOOTPARAM_HARDLOCKUP_PANIC
+
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
 	depends on LOCKUP_DETECTOR
