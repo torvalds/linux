@@ -25,6 +25,8 @@ config LCD_NT35582
 	bool "MCU NT35582"
 config LCD_NT35580
 	bool "MCU NT35580"
+config LCD_ILI9803_CPT4_3
+	bool "RGB lcd_ILI9803_CPT4_3"	
 config LCD_ANX7150_720P
 	bool "anx7150 720p for default panel"
 	---help---
