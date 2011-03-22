@@ -82,11 +82,11 @@
 struct qstr gfs2_qdot __read_mostly;
 struct qstr gfs2_qdotdot __read_mostly;
 
-typedef int (*leaf_call_t) (struct gfs2_inode *dip, u32 index, u32 len,
-			    u64 leaf_no, void *data);
 typedef int (*gfs2_dscan_t)(const struct gfs2_dirent *dent,
 			    const struct qstr *name, void *opaque);
 
+static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
+			u64 leaf_no);
 
 int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, u64 block,
 			    struct buffer_head **bhp)
@@ -1770,13 +1770,11 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 /**
  * foreach_leaf - call a function for each leaf in a directory
  * @dip: the directory
- * @lc: the function to call for each each
- * @data: private data to pass to it
  *
  * Returns: errno
  */
 
-static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
+static int foreach_leaf(struct gfs2_inode *dip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct buffer_head *bh;
@@ -1823,7 +1821,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 			len = 1 << (dip->i_depth - be16_to_cpu(leaf->lf_depth));
 			brelse(bh);
 
-			error = lc(dip, index, len, leaf_no, data);
+			error = leaf_dealloc(dip, index, len, leaf_no);
 			if (error)
 				goto out;
 
@@ -1855,7 +1853,7 @@ out:
  */
 
 static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
-			u64 leaf_no, void *data)
+			u64 leaf_no)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_leaf *tmp_leaf;
@@ -1978,7 +1976,7 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip)
 	int error;
 
 	/* Dealloc on-disk leaves to FREEMETA state */
-	error = foreach_leaf(dip, leaf_dealloc, NULL);
+	error = foreach_leaf(dip);
 	if (error)
 		return error;
 
