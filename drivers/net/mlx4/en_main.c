@@ -296,7 +296,7 @@ static struct mlx4_interface mlx4_en_interface = {
 	.remove		= mlx4_en_remove,
 	.event		= mlx4_en_event,
 	.get_dev	= mlx4_en_get_netdev,
-	.protocol	= MLX4_PROTOCOL_EN,
+	.protocol	= MLX4_PROT_ETH,
 };
 
 static int __init mlx4_en_init(void)

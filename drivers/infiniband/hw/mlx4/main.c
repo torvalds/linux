@@ -625,7 +625,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
 				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
-				    MLX4_PROTOCOL_IB);
+				    MLX4_PROT_IB_IPV6);
 	if (err)
 		return err;
 
@@ -636,7 +636,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROTOCOL_IB);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
 	return err;
 }
 
@@ -666,7 +666,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_gid_entry *ge;
 
 	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw, MLX4_PROTOCOL_IB);
+				    &mqp->mqp, gid->raw, MLX4_PROT_IB_IPV6);
 	if (err)
 		return err;
 
@@ -953,7 +953,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	mlx4_foreach_ib_transport_port(port, ibdev->dev) {
 		oldnd = iboe->netdevs[port - 1];
 		iboe->netdevs[port - 1] =
-			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROTOCOL_EN, port);
+			mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port);
 		if (oldnd != iboe->netdevs[port - 1]) {
 			if (iboe->netdevs[port - 1])
 				netdev_added(ibdev, port);
@@ -1206,7 +1206,7 @@ static struct mlx4_interface mlx4_ib_interface = {
 	.add		= mlx4_ib_add,
 	.remove		= mlx4_ib_remove,
 	.event		= mlx4_ib_event,
-	.protocol	= MLX4_PROTOCOL_IB
+	.protocol	= MLX4_PROT_IB_IPV6
 };
 
 static int __init mlx4_ib_init(void)

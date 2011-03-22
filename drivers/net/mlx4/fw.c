@@ -274,6 +274,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->stat_rate_support = stat_rate;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_UDP_RSS_OFFSET);
 	dev_cap->udp_rss = field & 0x1;
+	dev_cap->vep_uc_steering = field & 0x2;
+	dev_cap->vep_mc_steering = field & 0x4;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ETH_UC_LOOPBACK_OFFSET);
 	dev_cap->loopback_support = field & 0x1;
 	dev_cap->wol = field & 0x40;

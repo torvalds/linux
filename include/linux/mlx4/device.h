@@ -150,8 +150,10 @@ enum {
 };
 
 enum mlx4_protocol {
-	MLX4_PROTOCOL_IB,
-	MLX4_PROTOCOL_EN,
+	MLX4_PROT_IB_IPV6 = 0,
+	MLX4_PROT_ETH,
+	MLX4_PROT_IB_IPV4,
+	MLX4_PROT_FCOE
 };
 
 enum {
@@ -176,6 +178,12 @@ enum mlx4_special_vlan_idx {
 	MLX4_NO_VLAN_IDX        = 0,
 	MLX4_VLAN_MISS_IDX,
 	MLX4_VLAN_REGULAR
+};
+
+enum mlx4_steer_type {
+	MLX4_MC_STEER = 0,
+	MLX4_UC_STEER,
+	MLX4_NUM_STEERS
 };
 
 enum {
@@ -251,6 +259,8 @@ struct mlx4_caps {
 	u16			stat_rate_support;
 	int			udp_rss;
 	int			loopback_support;
+	int			vep_uc_steering;
+	int			vep_mc_steering;
 	int			wol;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
