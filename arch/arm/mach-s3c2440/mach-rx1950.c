@@ -263,27 +263,78 @@ void rx1950_disable_charger(void)
 	gpio_direction_output(S3C2410_GPJ(3), 0);
 }
 
+DEFINE_SPINLOCK(rx1950_blink_spin);
+
+static int rx1950_led_blink_set(unsigned gpio, int state,
+	unsigned long *delay_on, unsigned long *delay_off)
+{
+	int blink_gpio, check_gpio;
+
+	switch (gpio) {
+	case S3C2410_GPA(6):
+		blink_gpio = S3C2410_GPA(4);
+		check_gpio = S3C2410_GPA(3);
+		break;
+	case S3C2410_GPA(7):
+		blink_gpio = S3C2410_GPA(3);
+		check_gpio = S3C2410_GPA(4);
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
+	if (delay_on && delay_off && !*delay_on && !*delay_off)
+		*delay_on = *delay_off = 500;
+
+	spin_lock(&rx1950_blink_spin);
+
+	switch (state) {
+	case GPIO_LED_NO_BLINK_LOW:
+	case GPIO_LED_NO_BLINK_HIGH:
+		if (!gpio_get_value(check_gpio))
+			gpio_set_value(S3C2410_GPJ(6), 0);
+		gpio_set_value(blink_gpio, 0);
+		gpio_set_value(gpio, state);
+		break;
+	case GPIO_LED_BLINK:
+		gpio_set_value(gpio, 0);
+		gpio_set_value(S3C2410_GPJ(6), 1);
+		gpio_set_value(blink_gpio, 1);
+		break;
+	}
+
+	spin_unlock(&rx1950_blink_spin);
+
+	return 0;
+}
+
 static struct gpio_led rx1950_leds_desc[] = {
 	{
-		.name				= "Green",
-		.default_trigger	= "main-battery-charging-or-full",
-		.gpio				= S3C2410_GPA(6),
-	},
-	{
-		.name				= "Red",
+		.name			= "Green",
 		.default_trigger	= "main-battery-full",
-		.gpio				= S3C2410_GPA(7),
+		.gpio			= S3C2410_GPA(6),
+		.retain_state_suspended	= 1,
 	},
 	{
-		.name				= "Blue",
+		.name			= "Red",
+		.default_trigger
+			= "main-battery-charging-blink-full-solid",
+		.gpio			= S3C2410_GPA(7),
+		.retain_state_suspended	= 1,
+	},
+	{
+		.name			= "Blue",
 		.default_trigger	= "rx1950-acx-mem",
-		.gpio				= S3C2410_GPA(11),
+		.gpio			= S3C2410_GPA(11),
+		.retain_state_suspended	= 1,
 	},
 };
 
 static struct gpio_led_platform_data rx1950_leds_pdata = {
 	.num_leds	= ARRAY_SIZE(rx1950_leds_desc),
 	.leds		= rx1950_leds_desc,
+	.gpio_blink_set	= rx1950_led_blink_set,
 };
 
 static struct platform_device rx1950_leds = {
@@ -751,6 +802,13 @@ static void __init rx1950_init_machine(void)
 		WARN_ON(gpio_request(S3C2410_GPD(i), "LCD power"));
 
 	WARN_ON(gpio_request(S3C2410_GPB(1), "LCD power"));
+
+	WARN_ON(gpio_request(S3C2410_GPA(3), "Red blink"));
+	WARN_ON(gpio_request(S3C2410_GPA(4), "Green blink"));
+	WARN_ON(gpio_request(S3C2410_GPJ(6), "LED blink"));
+	gpio_direction_output(S3C2410_GPA(3), 0);
+	gpio_direction_output(S3C2410_GPA(4), 0);
+	gpio_direction_output(S3C2410_GPJ(6), 0);
 
 	platform_add_devices(rx1950_devices, ARRAY_SIZE(rx1950_devices));
 
