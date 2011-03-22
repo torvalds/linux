@@ -106,9 +106,8 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	cancel_dirty_page(page, PAGE_CACHE_SIZE);
 
 	clear_page_mlock(page);
-	remove_from_page_cache(page);
 	ClearPageMappedToDisk(page);
-	page_cache_release(page);	/* pagecache ref */
+	delete_from_page_cache(page);
 	return 0;
 }
 
