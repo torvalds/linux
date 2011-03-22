@@ -31,6 +31,7 @@
 #include <linux/irq.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/card.h>
 
 #include <mach/board.h>
 #include <mach/rk29_iomap.h>
@@ -704,6 +705,11 @@ static void rk29_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
+static void  rk29_sdmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
+{
+        card->quirks = MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
+
+}
 static const struct mmc_host_ops rk29_sdmmc_ops[] = {
 	{
 		.request	= rk29_sdmmc_request,
@@ -715,6 +721,7 @@ static const struct mmc_host_ops rk29_sdmmc_ops[] = {
 		.request	= rk29_sdmmc_request,
 		.set_ios	= rk29_sdmmc_set_ios,
 		.enable_sdio_irq = rk29_sdmmc_enable_sdio_irq,
+                .init_card       = rk29_sdmmc_init_card,
 	},
 };
 
