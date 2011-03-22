@@ -34,9 +34,14 @@
  *   inode->i_state, inode->i_hash, __iget()
  * inode_lru_lock protects:
  *   inode_lru, inode->i_lru
+ * inode_sb_list_lock protects:
+ *   sb->s_inodes, inode->i_sb_list
  *
  * Lock ordering:
  * inode_lock
+ *   inode->i_lock
+ *
+ * inode_sb_list_lock
  *   inode->i_lock
  *     inode_lru_lock
  */
@@ -98,6 +103,8 @@ static struct hlist_head *inode_hashtable __read_mostly;
  * the i_state of an inode while it is in use..
  */
 DEFINE_SPINLOCK(inode_lock);
+
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
 
 /*
  * iprune_sem provides exclusion between the icache shrinking and the
@@ -378,26 +385,23 @@ static void inode_lru_list_del(struct inode *inode)
 	spin_unlock(&inode_lru_lock);
 }
 
-static inline void __inode_sb_list_add(struct inode *inode)
-{
-	list_add(&inode->i_sb_list, &inode->i_sb->s_inodes);
-}
-
 /**
  * inode_sb_list_add - add inode to the superblock list of inodes
  * @inode: inode to add
  */
 void inode_sb_list_add(struct inode *inode)
 {
-	spin_lock(&inode_lock);
-	__inode_sb_list_add(inode);
-	spin_unlock(&inode_lock);
+	spin_lock(&inode_sb_list_lock);
+	list_add(&inode->i_sb_list, &inode->i_sb->s_inodes);
+	spin_unlock(&inode_sb_list_lock);
 }
 EXPORT_SYMBOL_GPL(inode_sb_list_add);
 
-static inline void __inode_sb_list_del(struct inode *inode)
+static inline void inode_sb_list_del(struct inode *inode)
 {
+	spin_lock(&inode_sb_list_lock);
 	list_del_init(&inode->i_sb_list);
+	spin_unlock(&inode_sb_list_lock);
 }
 
 static unsigned long hash(struct super_block *sb, unsigned long hashval)
@@ -481,8 +485,9 @@ static void evict(struct inode *inode)
 
 	spin_lock(&inode_lock);
 	list_del_init(&inode->i_wb_list);
-	__inode_sb_list_del(inode);
 	spin_unlock(&inode_lock);
+
+	inode_sb_list_del(inode);
 
 	if (op->evict_inode) {
 		op->evict_inode(inode);
@@ -539,7 +544,7 @@ void evict_inodes(struct super_block *sb)
 	struct inode *inode, *next;
 	LIST_HEAD(dispose);
 
-	spin_lock(&inode_lock);
+	spin_lock(&inode_sb_list_lock);
 	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
 		if (atomic_read(&inode->i_count))
 			continue;
@@ -555,7 +560,7 @@ void evict_inodes(struct super_block *sb)
 		spin_unlock(&inode->i_lock);
 		list_add(&inode->i_lru, &dispose);
 	}
-	spin_unlock(&inode_lock);
+	spin_unlock(&inode_sb_list_lock);
 
 	dispose_list(&dispose);
 
@@ -584,7 +589,7 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 	struct inode *inode, *next;
 	LIST_HEAD(dispose);
 
-	spin_lock(&inode_lock);
+	spin_lock(&inode_sb_list_lock);
 	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
 		spin_lock(&inode->i_lock);
 		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
@@ -607,7 +612,7 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 		spin_unlock(&inode->i_lock);
 		list_add(&inode->i_lru, &dispose);
 	}
-	spin_unlock(&inode_lock);
+	spin_unlock(&inode_sb_list_lock);
 
 	dispose_list(&dispose);
 
@@ -867,16 +872,14 @@ struct inode *new_inode(struct super_block *sb)
 {
 	struct inode *inode;
 
-	spin_lock_prefetch(&inode_lock);
+	spin_lock_prefetch(&inode_sb_list_lock);
 
 	inode = alloc_inode(sb);
 	if (inode) {
-		spin_lock(&inode_lock);
 		spin_lock(&inode->i_lock);
 		inode->i_state = 0;
 		spin_unlock(&inode->i_lock);
-		__inode_sb_list_add(inode);
-		spin_unlock(&inode_lock);
+		inode_sb_list_add(inode);
 	}
 	return inode;
 }
@@ -945,7 +948,7 @@ static struct inode *get_new_inode(struct super_block *sb,
 			inode->i_state = I_NEW;
 			hlist_add_head(&inode->i_hash, head);
 			spin_unlock(&inode->i_lock);
-			__inode_sb_list_add(inode);
+			inode_sb_list_add(inode);
 			spin_unlock(&inode_lock);
 
 			/* Return the locked inode with I_NEW set, the
@@ -994,7 +997,7 @@ static struct inode *get_new_inode_fast(struct super_block *sb,
 			inode->i_state = I_NEW;
 			hlist_add_head(&inode->i_hash, head);
 			spin_unlock(&inode->i_lock);
-			__inode_sb_list_add(inode);
+			inode_sb_list_add(inode);
 			spin_unlock(&inode_lock);
 
 			/* Return the locked inode with I_NEW set, the

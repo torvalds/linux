@@ -125,6 +125,8 @@ extern long do_handle_open(int mountdirfd,
 /*
  * inode.c
  */
+extern spinlock_t inode_sb_list_lock;
+
 extern int get_nr_dirty_inodes(void);
 extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);

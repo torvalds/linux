@@ -29,6 +29,8 @@
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
 
+#include "../internal.h"
+
 /*
  * Recalculate the mask of events relevant to a given inode locked.
  */
@@ -237,15 +239,14 @@ out:
  * fsnotify_unmount_inodes - an sb is unmounting.  handle any watched inodes.
  * @list: list of inodes being unmounted (sb->s_inodes)
  *
- * Called with inode_lock held, protecting the unmounting super block's list
- * of inodes, and with iprune_mutex held, keeping shrink_icache_memory() at bay.
- * We temporarily drop inode_lock, however, and CAN block.
+ * Called during unmount with no locks held, so needs to be safe against
+ * concurrent modifiers. We temporarily drop inode_sb_list_lock and CAN block.
  */
 void fsnotify_unmount_inodes(struct list_head *list)
 {
 	struct inode *inode, *next_i, *need_iput = NULL;
 
-	spin_lock(&inode_lock);
+	spin_lock(&inode_sb_list_lock);
 	list_for_each_entry_safe(inode, next_i, list, i_sb_list) {
 		struct inode *need_iput_tmp;
 
@@ -293,12 +294,11 @@ void fsnotify_unmount_inodes(struct list_head *list)
 		}
 
 		/*
-		 * We can safely drop inode_lock here because we hold
+		 * We can safely drop inode_sb_list_lock here because we hold
 		 * references on both inode and next_i.  Also no new inodes
-		 * will be added since the umount has begun.  Finally,
-		 * iprune_mutex keeps shrink_icache_memory() away.
+		 * will be added since the umount has begun.
 		 */
-		spin_unlock(&inode_lock);
+		spin_unlock(&inode_sb_list_lock);
 
 		if (need_iput_tmp)
 			iput(need_iput_tmp);
@@ -310,7 +310,7 @@ void fsnotify_unmount_inodes(struct list_head *list)
 
 		iput(inode);
 
-		spin_lock(&inode_lock);
+		spin_lock(&inode_sb_list_lock);
 	}
-	spin_unlock(&inode_lock);
+	spin_unlock(&inode_sb_list_lock);
 }
