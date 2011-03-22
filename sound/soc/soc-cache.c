@@ -47,26 +47,31 @@ static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -EIO;
 }
 
-static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
+static unsigned int do_hw_read(struct snd_soc_codec *codec, unsigned int reg)
 {
 	int ret;
 	unsigned int val;
 
 	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg) ||
-		codec->cache_bypass) {
-			if (codec->cache_only)
-				return -1;
+	    snd_soc_codec_volatile_register(codec, reg) ||
+	    codec->cache_bypass) {
+		if (codec->cache_only)
+			return -1;
 
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
+		BUG_ON(!codec->hw_read);
+		return codec->hw_read(codec, reg);
 	}
 
 	ret = snd_soc_cache_read(codec, reg, &val);
 	if (ret < 0)
 		return -1;
 	return val;
+}
+
+static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
+				     unsigned int reg)
+{
+	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -113,23 +118,7 @@ static int snd_soc_4_12_spi_write(void *control_data, const char *data,
 static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg) ||
-		codec->cache_bypass) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
+	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -188,24 +177,7 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
-	int ret;
-	unsigned int val;
-
-	reg &= 0xff;
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg) ||
-		codec->cache_bypass) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
+	return do_hw_read(codec, reg);
 }
 
 #if defined(CONFIG_SPI_MASTER)
@@ -253,23 +225,7 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 				      unsigned int reg)
 {
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-	    snd_soc_codec_volatile_register(codec, reg) ||
-	    codec->cache_bypass) {
-		if (codec->cache_only)
-			return -1;
-
-		BUG_ON(!codec->hw_read);
-		return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
+	return do_hw_read(codec, reg);
 }
 
 #if defined(CONFIG_SPI_MASTER)
@@ -389,24 +345,7 @@ static unsigned int snd_soc_16_8_read_i2c(struct snd_soc_codec *codec,
 static unsigned int snd_soc_16_8_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
-	int ret;
-	unsigned int val;
-
-	reg &= 0xff;
-	if (reg >= codec->driver->reg_cache_size ||
-		snd_soc_codec_volatile_register(codec, reg) ||
-		codec->cache_bypass) {
-			if (codec->cache_only)
-				return -1;
-
-			BUG_ON(!codec->hw_read);
-			return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-	return val;
+	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -473,24 +412,7 @@ static unsigned int snd_soc_16_16_read_i2c(struct snd_soc_codec *codec,
 static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
 				       unsigned int reg)
 {
-	int ret;
-	unsigned int val;
-
-	if (reg >= codec->driver->reg_cache_size ||
-	    snd_soc_codec_volatile_register(codec, reg) ||
-	    codec->cache_bypass) {
-		if (codec->cache_only)
-			return -1;
-
-		BUG_ON(!codec->hw_read);
-		return codec->hw_read(codec, reg);
-	}
-
-	ret = snd_soc_cache_read(codec, reg, &val);
-	if (ret < 0)
-		return -1;
-
-	return val;
+	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
