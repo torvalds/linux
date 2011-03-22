@@ -599,16 +599,20 @@ static void tegra_stop_rx(struct uart_port *u)
 		set_rts(t, false);
 
 	if (t->rx_in_progress) {
+		wait_sym_time(t, 1); /* wait a character interval */
+
 		ier = t->ier_shadow;
 		ier &= ~(UART_IER_RDI | UART_IER_RLSI | UART_IER_RTOIE | UART_IER_EORD);
 		t->ier_shadow = ier;
 		uart_writeb(t, ier, UART_IER);
 		t->rx_in_progress = 0;
-	}
-	if (t->use_rx_dma && t->rx_dma) {
-		if (!tegra_dma_dequeue_req(t->rx_dma, &t->rx_dma_req))
-			tegra_rx_dma_complete_req(t, &t->rx_dma_req);
 
+		if (t->use_rx_dma && t->rx_dma) {
+			if (!tegra_dma_dequeue_req(t->rx_dma, &t->rx_dma_req))
+				tegra_rx_dma_complete_req(t, &t->rx_dma_req);
+		} else {
+			do_handle_rx_pio(t);
+		}
 		tty_flip_buffer_push(u->state->port.tty);
 	}
 
