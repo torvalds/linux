@@ -557,6 +557,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	int err = 0;
 	int i;
 	int j;
+	char name[32];
 
 	if (priv->port_up) {
 		en_dbg(DRV, priv, "start port called while port already up\n");
@@ -601,10 +602,19 @@ int mlx4_en_start_port(struct net_device *dev)
 		goto cq_err;
 	}
 
+	if (mdev->dev->caps.comp_pool && !priv->tx_vector) {
+		sprintf(name , "%s-tx", priv->dev->name);
+		if (mlx4_assign_eq(mdev->dev , name, &priv->tx_vector)) {
+			mlx4_warn(mdev, "Failed Assigning an EQ to "
+					"%s_tx ,Falling back to legacy "
+					"EQ's\n", priv->dev->name);
+		}
+	}
 	/* Configure tx cq's and rings */
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		/* Configure cq */
 		cq = &priv->tx_cq[i];
+		cq->vector = priv->tx_vector;
 		err = mlx4_en_activate_cq(priv, cq);
 		if (err) {
 			en_err(priv, "Failed allocating Tx CQ\n");
@@ -819,7 +829,7 @@ static int mlx4_en_close(struct net_device *dev)
 	return 0;
 }
 
-void mlx4_en_free_resources(struct mlx4_en_priv *priv)
+void mlx4_en_free_resources(struct mlx4_en_priv *priv, bool reserve_vectors)
 {
 	int i;
 
@@ -827,14 +837,14 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 		if (priv->tx_ring[i].tx_info)
 			mlx4_en_destroy_tx_ring(priv, &priv->tx_ring[i]);
 		if (priv->tx_cq[i].buf)
-			mlx4_en_destroy_cq(priv, &priv->tx_cq[i]);
+			mlx4_en_destroy_cq(priv, &priv->tx_cq[i], reserve_vectors);
 	}
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		if (priv->rx_ring[i].rx_info)
 			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i]);
 		if (priv->rx_cq[i].buf)
-			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
+			mlx4_en_destroy_cq(priv, &priv->rx_cq[i], reserve_vectors);
 	}
 }
 
@@ -896,7 +906,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mdev->pndev[priv->port] = NULL;
 	mutex_unlock(&mdev->state_lock);
 
-	mlx4_en_free_resources(priv);
+	mlx4_en_free_resources(priv, false);
 	free_netdev(dev);
 }
 
