@@ -306,12 +306,6 @@ u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	 */
 	iwl_set_ht_add_station(priv, sta_id, sta, ctx);
 
-	/* 3945 only */
-	rate = (priv->band == IEEE80211_BAND_5GHZ) ?
-		IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP;
-	/* Turn on both antennas for the station... */
-	station->sta.rate_n_flags = cpu_to_le16(rate | RATE_MCS_ANT_AB_MSK);
-
 	return sta_id;
 
 }
