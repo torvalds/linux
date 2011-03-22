@@ -444,6 +444,16 @@ config USB_SL811_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called sl811-hcd.
 
+config USB_SL811_HCD_ISO
+	bool "partial ISO support"
+	depends on USB_SL811_HCD
+	help
+	  The driver doesn't support iso_frame_desc (yet), but for some simple
+	  devices that just queue one ISO frame per URB, then ISO transfers
+	  "should" work using the normal urb status fields.
+
+	  If unsure, say N.
+
 config USB_SL811_CS
 	tristate "CF/PCMCIA support for SL811HS HCD"
 	depends on USB_SL811_HCD && PCMCIA
