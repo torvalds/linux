@@ -326,9 +326,9 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 static void conn_md_sync(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
-	int minor;
+	int vnr;
 
-	idr_for_each_entry(&tconn->volumes, mdev, minor)
+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
 		drbd_md_sync(mdev);
 }
 

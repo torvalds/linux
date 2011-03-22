@@ -50,9 +50,9 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 bool conn_all_vols_unconf(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
-	int minor;
+	int vnr;
 
-	idr_for_each_entry(&tconn->volumes, mdev, minor) {
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		if (mdev->state.disk != D_DISKLESS ||
 		    mdev->state.conn != C_STANDALONE ||
 		    mdev->state.role != R_SECONDARY)
@@ -332,9 +332,9 @@ static void print_state_change(struct drbd_conf *mdev, union drbd_state os, unio
 static bool vol_has_primary_peer(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
-	int minor;
+	int vnr;
 
-	idr_for_each_entry(&tconn->volumes, mdev, minor) {
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		if (mdev->state.peer == R_PRIMARY)
 			return true;
 	}
