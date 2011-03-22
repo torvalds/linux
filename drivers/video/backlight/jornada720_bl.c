@@ -106,6 +106,7 @@ static int jornada_bl_probe(struct platform_device *pdev)
 	struct backlight_device *bd;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = BL_MAX_BRIGHT;
 	bd = backlight_device_register(S1D_DEVICENAME, &pdev->dev, NULL,
 				       &jornada_bl_ops, &props);

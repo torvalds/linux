@@ -795,6 +795,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		count++;
 
 		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_FIRMWARE;
 		props.max_brightness = device->brightness->count - 3;
 		device->backlight = backlight_device_register(name, NULL, device,
 							      &acpi_backlight_ops,

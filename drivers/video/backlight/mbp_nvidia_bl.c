@@ -367,6 +367,7 @@ static int __init mbp_init(void)
 		return -ENXIO;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = 15;
 	mbp_backlight_device = backlight_device_register("mbp_backlight", NULL,
 							 NULL,
