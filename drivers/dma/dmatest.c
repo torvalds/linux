@@ -54,6 +54,11 @@ module_param(pq_sources, uint, S_IRUGO);
 MODULE_PARM_DESC(pq_sources,
 		"Number of p+q source buffers (default: 3)");
 
+static int timeout = 3000;
+module_param(timeout, uint, S_IRUGO);
+MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), \
+		Pass -1 for infinite timeout");
+
 /*
  * Initialization patterns. All bytes in the source buffer has bit 7
  * set, all bytes in the destination buffer has bit 7 cleared.
@@ -299,7 +304,7 @@ static int dmatest_func(void *data)
 		dma_addr_t dma_srcs[src_cnt];
 		dma_addr_t dma_dsts[dst_cnt];
 		struct completion cmp;
-		unsigned long tmo = msecs_to_jiffies(3000);
+		unsigned long tmo = msecs_to_jiffies(timeout);
 		u8 align = 0;
 
 		total_tests++;
