@@ -1,5 +1,5 @@
 /*
- *  Backlight Driver for Macbooks
+ *  Backlight Driver for Intel-based Apples
  *
  *  Copyright (c) Red Hat <mjg@redhat.com>
  *  Based on code from Pommed:
@@ -25,7 +25,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 
-static struct backlight_device *mb_backlight_device;
+static struct backlight_device *apple_backlight_device;
 
 struct hw_data {
 	/* I/O resource to allocate. */
@@ -38,7 +38,7 @@ struct hw_data {
 
 static const struct hw_data *hw_data;
 
-#define DRIVER "mb_backlight: "
+#define DRIVER "apple_backlight: "
 
 /* Module parameters. */
 static int debug;
@@ -46,7 +46,7 @@ module_param_named(debug, debug, int, 0644);
 MODULE_PARM_DESC(debug, "Set to one to enable debugging messages.");
 
 /*
- * Implementation for MacBooks with Intel chipset.
+ * Implementation for machines with Intel chipset.
  */
 static void intel_chipset_set_brightness(int intensity)
 {
@@ -93,7 +93,7 @@ static const struct hw_data intel_chipset_data = {
 };
 
 /*
- * Implementation for MacBooks with Nvidia chipset.
+ * Implementation for machines with Nvidia chipset.
  */
 static void nvidia_chipset_set_brightness(int intensity)
 {
@@ -139,7 +139,7 @@ static const struct hw_data nvidia_chipset_data = {
 	.set_brightness = nvidia_chipset_set_brightness,
 };
 
-static int __devinit mb_bl_add(struct acpi_device *dev)
+static int __devinit apple_bl_add(struct acpi_device *dev)
 {
 	struct backlight_properties props;
 	struct pci_dev *host;
@@ -177,64 +177,65 @@ static int __devinit mb_bl_add(struct acpi_device *dev)
 	}
 
 	if (!request_region(hw_data->iostart, hw_data->iolen,
-			    "Macbook backlight"))
+			    "Apple backlight"))
 		return -ENXIO;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = 15;
-	mb_backlight_device = backlight_device_register("mb_backlight", NULL,
-				    NULL, &hw_data->backlight_ops, &props);
+	apple_backlight_device = backlight_device_register("apple_backlight",
+				  NULL, NULL, &hw_data->backlight_ops, &props);
 
-	if (IS_ERR(mb_backlight_device)) {
+	if (IS_ERR(apple_backlight_device)) {
 		release_region(hw_data->iostart, hw_data->iolen);
-		return PTR_ERR(mb_backlight_device);
+		return PTR_ERR(apple_backlight_device);
 	}
 
-	mb_backlight_device->props.brightness =
-		hw_data->backlight_ops.get_brightness(mb_backlight_device);
-	backlight_update_status(mb_backlight_device);
+	apple_backlight_device->props.brightness =
+		hw_data->backlight_ops.get_brightness(apple_backlight_device);
+	backlight_update_status(apple_backlight_device);
 
 	return 0;
 }
 
-static int __devexit mb_bl_remove(struct acpi_device *dev, int type)
+static int __devexit apple_bl_remove(struct acpi_device *dev, int type)
 {
-	backlight_device_unregister(mb_backlight_device);
+	backlight_device_unregister(apple_backlight_device);
 
 	release_region(hw_data->iostart, hw_data->iolen);
 	hw_data = NULL;
 	return 0;
 }
 
-static const struct acpi_device_id mb_bl_ids[] = {
+static const struct acpi_device_id apple_bl_ids[] = {
 	{"APP0002", 0},
 	{"", 0},
 };
 
-static struct acpi_driver mb_bl_driver = {
-	.name = "Macbook backlight",
-	.ids = mb_bl_ids,
+static struct acpi_driver apple_bl_driver = {
+	.name = "Apple backlight",
+	.ids = apple_bl_ids,
 	.ops = {
-		.add = mb_bl_add,
-		.remove = mb_bl_remove,
+		.add = apple_bl_add,
+		.remove = apple_bl_remove,
 	},
 };
 
-static int __init mb_init(void)
+static int __init apple_bl_init(void)
 {
-	return acpi_bus_register_driver(&mb_bl_driver);
+	return acpi_bus_register_driver(&apple_bl_driver);
 }
 
-static void __exit mb_exit(void)
+static void __exit apple_bl_exit(void)
 {
-	acpi_bus_unregister_driver(&mb_bl_driver);
+	acpi_bus_unregister_driver(&apple_bl_driver);
 }
 
-module_init(mb_init);
-module_exit(mb_exit);
+module_init(apple_bl_init);
+module_exit(apple_bl_exit);
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
-MODULE_DESCRIPTION("Macbook Backlight Driver");
+MODULE_DESCRIPTION("Apple Backlight Driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(acpi, mb_bl_ids);
+MODULE_DEVICE_TABLE(acpi, apple_bl_ids);
+MODULE_ALIAS("mbp_nvidia_bl");
