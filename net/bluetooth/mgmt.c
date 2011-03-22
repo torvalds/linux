@@ -1345,6 +1345,74 @@ unlock:
 	return err;
 }
 
+static int add_remote_oob_data(struct sock *sk, u16 index, unsigned char *data,
+									u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_add_remote_oob_data *cp = (void *) data;
+	int err;
+
+	BT_DBG("hci%u ", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA,
+									EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA,
+									ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	err = hci_add_remote_oob_data(hdev, &cp->bdaddr, cp->hash,
+								cp->randomizer);
+	if (err < 0)
+		err = cmd_status(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA, -err);
+	else
+		err = cmd_complete(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA, NULL,
+									0);
+
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int remove_remote_oob_data(struct sock *sk, u16 index,
+						unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_remove_remote_oob_data *cp = (void *) data;
+	int err;
+
+	BT_DBG("hci%u ", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+									EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+									ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	err = hci_remove_remote_oob_data(hdev, &cp->bdaddr);
+	if (err < 0)
+		err = cmd_status(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+									-err);
+	else
+		err = cmd_complete(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+								NULL, 0);
+
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1445,6 +1513,13 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_READ_LOCAL_OOB_DATA:
 		err = read_local_oob_data(sk, index);
+		break;
+	case MGMT_OP_ADD_REMOTE_OOB_DATA:
+		err = add_remote_oob_data(sk, index, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_REMOVE_REMOTE_OOB_DATA:
+		err = remove_remote_oob_data(sk, index, buf + sizeof(*hdr),
+									len);
 		break;
 
 	default:

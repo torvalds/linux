@@ -2471,6 +2471,37 @@ static inline void hci_remote_host_features_evt(struct hci_dev *hdev, struct sk_
 	hci_dev_unlock(hdev);
 }
 
+static inline void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_ev_remote_oob_data_request *ev = (void *) skb->data;
+	struct oob_data *data;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
+	if (data) {
+		struct hci_cp_remote_oob_data_reply cp;
+
+		bacpy(&cp.bdaddr, &ev->bdaddr);
+		memcpy(cp.hash, data->hash, sizeof(cp.hash));
+		memcpy(cp.randomizer, data->randomizer, sizeof(cp.randomizer));
+
+		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY, sizeof(cp),
+									&cp);
+	} else {
+		struct hci_cp_remote_oob_data_neg_reply cp;
+
+		bacpy(&cp.bdaddr, &ev->bdaddr);
+		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_NEG_REPLY, sizeof(cp),
+									&cp);
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_conn_complete *ev = (void *) skb->data;
@@ -2671,6 +2702,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_META:
 		hci_le_meta_evt(hdev, skb);
+		break;
+
+	case HCI_EV_REMOTE_OOB_DATA_REQUEST:
+		hci_remote_oob_data_request_evt(hdev, skb);
 		break;
 
 	default:

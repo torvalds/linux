@@ -426,6 +426,18 @@ struct hci_rp_user_confirm_reply {
 
 #define HCI_OP_USER_CONFIRM_NEG_REPLY	0x042d
 
+#define HCI_OP_REMOTE_OOB_DATA_REPLY	0x0430
+struct hci_cp_remote_oob_data_reply {
+	bdaddr_t bdaddr;
+	__u8     hash[16];
+	__u8     randomizer[16];
+} __packed;
+
+#define HCI_OP_REMOTE_OOB_DATA_NEG_REPLY	0x0433
+struct hci_cp_remote_oob_data_neg_reply {
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_OP_IO_CAPABILITY_NEG_REPLY	0x0434
 struct hci_cp_io_capability_neg_reply {
 	bdaddr_t bdaddr;
@@ -960,6 +972,11 @@ struct hci_ev_io_capa_reply {
 struct hci_ev_user_confirm_req {
 	bdaddr_t	bdaddr;
 	__le32		passkey;
+} __packed;
+
+#define HCI_EV_REMOTE_OOB_DATA_REQUEST	0x35
+struct hci_ev_remote_oob_data_request {
+	bdaddr_t bdaddr;
 } __packed;
 
 #define HCI_EV_SIMPLE_PAIR_COMPLETE	0x36

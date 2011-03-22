@@ -82,6 +82,13 @@ struct link_key {
 	u8 pin_len;
 };
 
+struct oob_data {
+	struct list_head list;
+	bdaddr_t bdaddr;
+	u8 hash[16];
+	u8 randomizer[16];
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -168,6 +175,8 @@ struct hci_dev {
 	struct list_head	uuids;
 
 	struct list_head	link_keys;
+
+	struct list_head	remote_oob_data;
 
 	struct hci_dev_stats	stat;
 
@@ -504,6 +513,13 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 						u8 *key, u8 type, u8 pin_len);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+
+int hci_remote_oob_data_clear(struct hci_dev *hdev);
+struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
+							bdaddr_t *bdaddr);
+int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
+								u8 *randomizer);
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
 void hci_del_off_timer(struct hci_dev *hdev);
 
