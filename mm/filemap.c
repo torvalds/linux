@@ -621,8 +621,10 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 		__lock_page(page);
 		return 1;
 	} else {
-		up_read(&mm->mmap_sem);
-		wait_on_page_locked(page);
+		if (!(flags & FAULT_FLAG_RETRY_NOWAIT)) {
+			up_read(&mm->mmap_sem);
+			wait_on_page_locked(page);
+		}
 		return 0;
 	}
 }
