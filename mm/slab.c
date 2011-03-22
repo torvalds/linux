@@ -1390,7 +1390,7 @@ static int __meminit slab_memory_callback(struct notifier_block *self,
 		break;
 	}
 out:
-	return ret ? notifier_from_errno(ret) : NOTIFY_OK;
+	return notifier_from_errno(ret);
 }
 #endif /* CONFIG_NUMA && CONFIG_MEMORY_HOTPLUG */
 
