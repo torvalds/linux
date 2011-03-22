@@ -1700,6 +1700,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		v[0] = ((9 - val) << 3) | 0x01;
 		reg_w(gspca_dev, 0x1019, v, 1);
 		break;
+	case Cvideopro:
+	case DvcV6:
+	case Kritter:
 	case Kr651us:
 		v[0] = val;
 		v[1] = val >> 8;
