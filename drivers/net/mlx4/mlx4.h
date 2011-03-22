@@ -162,6 +162,27 @@ struct mlx4_fw {
 	u8			catas_bar;
 };
 
+#define MGM_QPN_MASK       0x00FFFFFF
+#define MGM_BLCK_LB_BIT    30
+
+struct mlx4_promisc_qp {
+	struct list_head list;
+	u32 qpn;
+};
+
+struct mlx4_steer_index {
+	struct list_head list;
+	unsigned int index;
+	struct list_head duplicates;
+};
+
+struct mlx4_mgm {
+	__be32			next_gid_index;
+	__be32			members_count;
+	u32			reserved[2];
+	u8			gid[16];
+	__be32			qp[MLX4_QP_PER_MGM];
+};
 struct mlx4_cmd {
 	struct pci_pool	       *pool;
 	void __iomem	       *hcr;
@@ -287,6 +308,12 @@ struct mlx4_msix_ctl {
 	spinlock_t	pool_lock;
 };
 
+struct mlx4_steer {
+	struct list_head promisc_qps[MLX4_NUM_STEERS];
+	struct list_head steer_entries[MLX4_NUM_STEERS];
+	struct list_head high_prios;
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -319,6 +346,7 @@ struct mlx4_priv {
 	struct mlx4_sense       sense;
 	struct mutex		port_mutex;
 	struct mlx4_msix_ctl	msix_ctl;
+	struct mlx4_steer	*steer;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -409,4 +437,9 @@ void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 
+int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  enum mlx4_protocol prot, enum mlx4_steer_type steer);
+int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  int block_mcast_loopback, enum mlx4_protocol prot,
+			  enum mlx4_steer_type steer);
 #endif /* MLX4_H */

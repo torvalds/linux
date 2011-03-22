@@ -1063,6 +1063,59 @@ static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
 	device_remove_file(&info->dev->pdev->dev, &info->port_attr);
 }
 
+static int mlx4_init_steering(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int num_entries = dev->caps.num_ports;
+	int i, j;
+
+	priv->steer = kzalloc(sizeof(struct mlx4_steer) * num_entries, GFP_KERNEL);
+	if (!priv->steer)
+		return -ENOMEM;
+
+	for (i = 0; i < num_entries; i++) {
+		for (j = 0; j < MLX4_NUM_STEERS; j++) {
+			INIT_LIST_HEAD(&priv->steer[i].promisc_qps[j]);
+			INIT_LIST_HEAD(&priv->steer[i].steer_entries[j]);
+		}
+		INIT_LIST_HEAD(&priv->steer[i].high_prios);
+	}
+	return 0;
+}
+
+static void mlx4_clear_steering(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_steer_index *entry, *tmp_entry;
+	struct mlx4_promisc_qp *pqp, *tmp_pqp;
+	int num_entries = dev->caps.num_ports;
+	int i, j;
+
+	for (i = 0; i < num_entries; i++) {
+		for (j = 0; j < MLX4_NUM_STEERS; j++) {
+			list_for_each_entry_safe(pqp, tmp_pqp,
+						 &priv->steer[i].promisc_qps[j],
+						 list) {
+				list_del(&pqp->list);
+				kfree(pqp);
+			}
+			list_for_each_entry_safe(entry, tmp_entry,
+						 &priv->steer[i].steer_entries[j],
+						 list) {
+				list_del(&entry->list);
+				list_for_each_entry_safe(pqp, tmp_pqp,
+							 &entry->duplicates,
+							 list) {
+					list_del(&pqp->list);
+					kfree(pqp);
+				}
+				kfree(entry);
+			}
+		}
+	}
+	kfree(priv->steer);
+}
+
 static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mlx4_priv *priv;
@@ -1172,6 +1225,10 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mlx4_enable_msi_x(dev);
 
+	err = mlx4_init_steering(dev);
+	if (err)
+		goto err_free_eq;
+
 	err = mlx4_setup_hca(dev);
 	if (err == -EBUSY && (dev->flags & MLX4_FLAG_MSI_X)) {
 		dev->flags &= ~MLX4_FLAG_MSI_X;
@@ -1180,7 +1237,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	if (err)
-		goto err_free_eq;
+		goto err_steer;
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		err = mlx4_init_port_info(dev, port);
@@ -1212,6 +1269,9 @@ err_port:
 	mlx4_cleanup_mr_table(dev);
 	mlx4_cleanup_pd_table(dev);
 	mlx4_cleanup_uar_table(dev);
+
+err_steer:
+	mlx4_clear_steering(dev);
 
 err_free_eq:
 	mlx4_free_eq_table(dev);
@@ -1272,6 +1332,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		iounmap(priv->kar);
 		mlx4_uar_free(dev, &priv->driver_uar);
 		mlx4_cleanup_uar_table(dev);
+		mlx4_clear_steering(dev);
 		mlx4_free_eq_table(dev);
 		mlx4_close_hca(dev);
 		mlx4_cmd_cleanup(dev);
