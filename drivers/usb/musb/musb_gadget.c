@@ -372,7 +372,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 		/* MUSB_TXCSR_P_ISO is still set correctly */
 
-#ifdef CONFIG_USB_INVENTRA_DMA
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
 		{
 			if (request_size < musb_ep->packet_sz)
 				musb_ep->dma->desired_mode = 0;
@@ -555,7 +555,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 		if ((request->zero && request->length
 			&& (request->length % musb_ep->packet_sz == 0)
 			&& (request->actual == request->length))
-#ifdef CONFIG_USB_INVENTRA_DMA
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
 			|| (is_dma && (!dma->desired_mode ||
 				(request->actual &
 					(musb_ep->packet_sz - 1))))
@@ -758,6 +758,53 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				if (use_dma)
 					return;
 			}
+#elif defined(CONFIG_USB_UX500_DMA)
+			if ((is_buffer_mapped(req)) &&
+				(request->actual < request->length)) {
+
+				struct dma_controller *c;
+				struct dma_channel *channel;
+				int transfer_size = 0;
+
+				c = musb->dma_controller;
+				channel = musb_ep->dma;
+
+				/* In case first packet is short */
+				if (len < musb_ep->packet_sz)
+					transfer_size = len;
+				else if (request->short_not_ok)
+					transfer_size =	min(request->length -
+							request->actual,
+							channel->max_len);
+				else
+					transfer_size = min(request->length -
+							request->actual,
+							(unsigned)len);
+
+				csr &= ~MUSB_RXCSR_DMAMODE;
+				csr |= (MUSB_RXCSR_DMAENAB |
+					MUSB_RXCSR_AUTOCLEAR);
+
+				musb_writew(epio, MUSB_RXCSR, csr);
+
+				if (transfer_size <= musb_ep->packet_sz) {
+					musb_ep->dma->desired_mode = 0;
+				} else {
+					musb_ep->dma->desired_mode = 1;
+					/* Mode must be set after DMAENAB */
+					csr |= MUSB_RXCSR_DMAMODE;
+					musb_writew(epio, MUSB_RXCSR, csr);
+				}
+
+				if (c->channel_program(channel,
+							musb_ep->packet_sz,
+							channel->desired_mode,
+							request->dma
+							+ request->actual,
+							transfer_size))
+
+					return;
+			}
 #endif	/* Mentor's DMA */
 
 			fifo_count = request->length - request->actual;
@@ -895,7 +942,8 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			musb_readw(epio, MUSB_RXCSR),
 			musb_ep->dma->actual_len, request);
 
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA)
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA) || \
+	defined(CONFIG_USB_UX500_DMA)
 		/* Autoclear doesn't clear RxPktRdy for short packets */
 		if ((dma->desired_mode == 0 && !hw_ep->rx_double_buffered)
 				|| (dma->actual_len
@@ -925,7 +973,8 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		if (!req)
 			return;
 	}
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA)
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA) || \
+	defined(CONFIG_USB_UX500_DMA)
 exit:
 #endif
 	/* Analyze request */
