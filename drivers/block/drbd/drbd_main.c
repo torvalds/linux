@@ -1182,7 +1182,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 }
 
 /* See the comment at receive_bitmap() */
-int _drbd_send_bitmap(struct drbd_conf *mdev)
+static int _drbd_send_bitmap(struct drbd_conf *mdev)
 {
 	struct bm_xfer_ctx c;
 	struct p_header *p;
