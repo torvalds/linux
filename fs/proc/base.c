@@ -775,7 +775,8 @@ static ssize_t mem_read(struct file * file, char __user * buf,
 	if (!task)
 		goto out_no_task;
 
-	if (check_mem_permission(task))
+	ret = check_mem_permission(task);
+	if (ret)
 		goto out;
 
 	ret = -ENOMEM;
@@ -845,7 +846,8 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
 	if (!task)
 		goto out_no_task;
 
-	if (check_mem_permission(task))
+	copied = check_mem_permission(task);
+	if (copied)
 		goto out;
 
 	copied = -ENOMEM;
@@ -917,6 +919,7 @@ static ssize_t environ_read(struct file *file, char __user *buf,
 	if (!task)
 		goto out_no_task;
 
+	ret = -EPERM;
 	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out;
 
