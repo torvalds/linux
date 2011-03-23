@@ -2037,6 +2037,114 @@ static int dsi_force_tx_stop_mode_io(void)
 	return 0;
 }
 
+static bool dsi_vc_is_enabled(int channel)
+{
+	return REG_GET(DSI_VC_CTRL(channel), 0, 0);
+}
+
+static void dsi_packet_sent_handler_vp(void *data, u32 mask)
+{
+	const int channel = dsi.update_channel;
+	u8 bit = dsi.te_enabled ? 30 : 31;
+
+	if (REG_GET(DSI_VC_TE(channel), bit, bit) == 0)
+		complete((struct completion *)data);
+}
+
+static int dsi_sync_vc_vp(int channel)
+{
+	int r = 0;
+	u8 bit;
+
+	DECLARE_COMPLETION_ONSTACK(completion);
+
+	bit = dsi.te_enabled ? 30 : 31;
+
+	r = dsi_register_isr_vc(channel, dsi_packet_sent_handler_vp,
+		&completion, DSI_VC_IRQ_PACKET_SENT);
+	if (r)
+		goto err0;
+
+	/* Wait for completion only if TE_EN/TE_START is still set */
+	if (REG_GET(DSI_VC_TE(channel), bit, bit)) {
+		if (wait_for_completion_timeout(&completion,
+				msecs_to_jiffies(10)) == 0) {
+			DSSERR("Failed to complete previous frame transfer\n");
+			r = -EIO;
+			goto err1;
+		}
+	}
+
+	dsi_unregister_isr_vc(channel, dsi_packet_sent_handler_vp,
+		&completion, DSI_VC_IRQ_PACKET_SENT);
+
+	return 0;
+err1:
+	dsi_unregister_isr_vc(channel, dsi_packet_sent_handler_vp, &completion,
+		DSI_VC_IRQ_PACKET_SENT);
+err0:
+	return r;
+}
+
+static void dsi_packet_sent_handler_l4(void *data, u32 mask)
+{
+	const int channel = dsi.update_channel;
+
+	if (REG_GET(DSI_VC_CTRL(channel), 5, 5) == 0)
+		complete((struct completion *)data);
+}
+
+static int dsi_sync_vc_l4(int channel)
+{
+	int r = 0;
+
+	DECLARE_COMPLETION_ONSTACK(completion);
+
+	r = dsi_register_isr_vc(channel, dsi_packet_sent_handler_l4,
+		&completion, DSI_VC_IRQ_PACKET_SENT);
+	if (r)
+		goto err0;
+
+	/* Wait for completion only if TX_FIFO_NOT_EMPTY is still set */
+	if (REG_GET(DSI_VC_CTRL(channel), 5, 5)) {
+		if (wait_for_completion_timeout(&completion,
+				msecs_to_jiffies(10)) == 0) {
+			DSSERR("Failed to complete previous l4 transfer\n");
+			r = -EIO;
+			goto err1;
+		}
+	}
+
+	dsi_unregister_isr_vc(channel, dsi_packet_sent_handler_l4,
+		&completion, DSI_VC_IRQ_PACKET_SENT);
+
+	return 0;
+err1:
+	dsi_unregister_isr_vc(channel, dsi_packet_sent_handler_l4,
+		&completion, DSI_VC_IRQ_PACKET_SENT);
+err0:
+	return r;
+}
+
+static int dsi_sync_vc(int channel)
+{
+	WARN_ON(!dsi_bus_is_locked());
+
+	WARN_ON(in_interrupt());
+
+	if (!dsi_vc_is_enabled(channel))
+		return 0;
+
+	switch (dsi.vc[channel].mode) {
+	case DSI_VC_MODE_VP:
+		return dsi_sync_vc_vp(channel);
+	case DSI_VC_MODE_L4:
+		return dsi_sync_vc_l4(channel);
+	default:
+		BUG();
+	}
+}
+
 static int dsi_vc_enable(int channel, bool enable)
 {
 	DSSDBG("dsi_vc_enable channel %d, enable %d\n",
@@ -2089,6 +2197,8 @@ static int dsi_vc_config_l4(int channel)
 
 	DSSDBGF("%d", channel);
 
+	dsi_sync_vc(channel);
+
 	dsi_vc_enable(channel, 0);
 
 	/* VC_BUSY */
@@ -2116,6 +2226,8 @@ static int dsi_vc_config_vp(int channel)
 		return 0;
 
 	DSSDBGF("%d", channel);
+
+	dsi_sync_vc(channel);
 
 	dsi_vc_enable(channel, 0);
 
@@ -3109,31 +3221,14 @@ static void dsi_te_timeout(unsigned long arg)
 }
 #endif
 
-static void dsi_framedone_bta_callback(void *data, u32 mask);
-
 static void dsi_handle_framedone(int error)
 {
-	const int channel = dsi.update_channel;
-
-	dsi_unregister_isr_vc(channel, dsi_framedone_bta_callback,
-			NULL, DSI_VC_IRQ_BTA);
-
-	cancel_delayed_work(&dsi.framedone_timeout_work);
-
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
 
 	if (dsi.te_enabled) {
 		/* enable LP_RX_TO again after the TE */
 		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
-	}
-
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("Received error during frame transfer:\n");
-		dsi_vc_flush_receive_data(channel);
-		if (!error)
-			error = -EIO;
 	}
 
 	dsi.framedone_callback(error, dsi.framedone_data);
@@ -3156,61 +3251,20 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	dsi_handle_framedone(-ETIMEDOUT);
 }
 
-static void dsi_framedone_bta_callback(void *data, u32 mask)
-{
-	dsi_handle_framedone(0);
-
-#ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
-	dispc_fake_vsync_irq();
-#endif
-}
-
 static void dsi_framedone_irq_callback(void *data, u32 mask)
 {
-	const int channel = dsi.update_channel;
-	int r;
-
 	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
 	 * turns itself off. However, DSI still has the pixels in its buffers,
 	 * and is sending the data.
 	 */
 
-	if (dsi.te_enabled) {
-		/* enable LP_RX_TO again after the TE */
-		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
-	}
+	__cancel_delayed_work(&dsi.framedone_timeout_work);
 
-	/* Send BTA after the frame. We need this for the TE to work, as TE
-	 * trigger is only sent for BTAs without preceding packet. Thus we need
-	 * to BTA after the pixel packets so that next BTA will cause TE
-	 * trigger.
-	 *
-	 * This is not needed when TE is not in use, but we do it anyway to
-	 * make sure that the transfer has been completed. It would be more
-	 * optimal, but more complex, to wait only just before starting next
-	 * transfer.
-	 *
-	 * Also, as there's no interrupt telling when the transfer has been
-	 * done and the channel could be reconfigured, the only way is to
-	 * busyloop until TE_SIZE is zero. With BTA we can do this
-	 * asynchronously.
-	 * */
+	dsi_handle_framedone(0);
 
-	r = dsi_register_isr_vc(channel, dsi_framedone_bta_callback,
-			NULL, DSI_VC_IRQ_BTA);
-	if (r) {
-		DSSERR("Failed to register BTA ISR\n");
-		dsi_handle_framedone(-EIO);
-		return;
-	}
-
-	r = dsi_vc_send_bta(channel);
-	if (r) {
-		DSSERR("BTA after framedone failed\n");
-		dsi_unregister_isr_vc(channel, dsi_framedone_bta_callback,
-				NULL, DSI_VC_IRQ_BTA);
-		dsi_handle_framedone(-EIO);
-	}
+#ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
+	dispc_fake_vsync_irq();
+#endif
 }
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
