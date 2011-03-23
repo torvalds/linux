@@ -100,8 +100,8 @@ static void belkin_sa_process_read_urb(struct urb *urb);
 static void belkin_sa_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios * old);
 static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state);
-static int  belkin_sa_tiocmget(struct tty_struct *tty, struct file *file);
-static int  belkin_sa_tiocmset(struct tty_struct *tty, struct file *file,
+static int  belkin_sa_tiocmget(struct tty_struct *tty);
+static int  belkin_sa_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
 
 
@@ -497,7 +497,7 @@ static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
 		dev_err(&port->dev, "Set break_ctl %d\n", break_state);
 }
 
-static int belkin_sa_tiocmget(struct tty_struct *tty, struct file *file)
+static int belkin_sa_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
@@ -513,7 +513,7 @@ static int belkin_sa_tiocmget(struct tty_struct *tty, struct file *file)
 	return control_state;
 }
 
-static int belkin_sa_tiocmset(struct tty_struct *tty, struct file *file,
+static int belkin_sa_tiocmset(struct tty_struct *tty,
 			       unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

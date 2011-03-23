@@ -58,7 +58,7 @@
 #define HIF_DEFAULT_IO_BLOCK_SIZE          128
 
     /* set extended MBOX window information for SDIO interconnects */
-static INLINE void SetExtendedMboxWindowInfo(A_UINT16 Manfid, HIF_DEVICE_MBOX_INFO *pInfo)
+static INLINE void SetExtendedMboxWindowInfo(u16 Manfid, struct hif_device_mbox_info *pInfo)
 {
     switch (Manfid & MANUFACTURER_ID_AR6K_BASE_MASK) {                   
         case MANUFACTURER_ID_AR6002_BASE :
@@ -74,7 +74,7 @@ static INLINE void SetExtendedMboxWindowInfo(A_UINT16 Manfid, HIF_DEVICE_MBOX_IN
             pInfo->GMboxSize = HIF_GMBOX_WIDTH;
             break;
         default:
-            A_ASSERT(FALSE);
+            A_ASSERT(false);
             break;
     }
 }

@@ -100,6 +100,7 @@ MACHINE_START(DB88F6281_BP, "Marvell DB-88F6281-BP Development Board")
 	.boot_params	= 0x00000100,
 	.init_machine	= db88f6281_init,
 	.map_io		= kirkwood_map_io,
+	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
 MACHINE_END

@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/atomic.h>
 
 #define DISPC_IRQ_FRAMEDONE		(1 << 0)
@@ -225,6 +226,16 @@ struct omap_dss_board_info {
 	struct omap_dss_device **devices;
 	struct omap_dss_device *default_device;
 };
+
+#if defined(CONFIG_OMAP2_DSS_MODULE) || defined(CONFIG_OMAP2_DSS)
+/* Init with the board info */
+extern int omap_display_init(struct omap_dss_board_info *board_data);
+#else
+static inline int omap_display_init(struct omap_dss_board_info *board_data)
+{
+	return 0;
+}
+#endif
 
 struct omap_video_timings {
 	/* Unit: pixels */

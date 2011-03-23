@@ -42,6 +42,7 @@
 #include <linux/personality.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
@@ -51,7 +52,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-const int frame_extra_sizes[16] = {
+static const int frame_extra_sizes[16] = {
   [1]	= -1, /* sizeof(((struct frame *)0)->un.fmt1), */
   [2]	= sizeof(((struct frame *)0)->un.fmt2),
   [3]	= sizeof(((struct frame *)0)->un.fmt3),
@@ -68,6 +69,27 @@ const int frame_extra_sizes[16] = {
   [14]	= -1, /* sizeof(((struct frame *)0)->un.fmte), */
   [15]	= -1, /* sizeof(((struct frame *)0)->un.fmtf), */
 };
+
+int handle_kernel_fault(struct pt_regs *regs)
+{
+	const struct exception_table_entry *fixup;
+	struct pt_regs *tregs;
+
+	/* Are we prepared to handle this kernel fault? */
+	fixup = search_exception_tables(regs->pc);
+	if (!fixup)
+		return 0;
+
+	/* Create a new four word stack frame, discarding the old one. */
+	regs->stkadj = frame_extra_sizes[regs->format];
+	tregs =	(struct pt_regs *)((long)regs + regs->stkadj);
+	tregs->vector = regs->vector;
+	tregs->format = 0;
+	tregs->pc = fixup->fixup;
+	tregs->sr = regs->sr;
+
+	return 1;
+}
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.

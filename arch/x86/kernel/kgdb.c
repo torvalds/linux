@@ -278,7 +278,7 @@ static int hw_break_release_slot(int breakno)
 		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
 		if (dbg_release_bp_slot(*pevent))
 			/*
-			 * The debugger is responisble for handing the retry on
+			 * The debugger is responsible for handing the retry on
 			 * remove failure.
 			 */
 			return -1;
@@ -532,15 +532,6 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 			return NOTIFY_STOP;
 		}
 		return NOTIFY_DONE;
-
-	case DIE_NMIWATCHDOG:
-		if (atomic_read(&kgdb_active) != -1) {
-			/* KGDB CPU roundup: */
-			kgdb_nmicallback(raw_smp_processor_id(), regs);
-			return NOTIFY_STOP;
-		}
-		/* Enter debugger: */
-		break;
 
 	case DIE_DEBUG:
 		if (atomic_read(&kgdb_cpu_doing_single_step) != -1) {

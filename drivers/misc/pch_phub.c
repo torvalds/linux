@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
+ * Copyright (C) 2010 OKI SEMICONDUCTOR CO., LTD.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,13 +27,19 @@
 #include <linux/mutex.h>
 #include <linux/if_ether.h>
 #include <linux/ctype.h>
+#include <linux/dmi.h>
 
 #define PHUB_STATUS 0x00		/* Status Register offset */
 #define PHUB_CONTROL 0x04		/* Control Register offset */
 #define PHUB_TIMEOUT 0x05		/* Time out value for Status Register */
 #define PCH_PHUB_ROM_WRITE_ENABLE 0x01	/* Enabling for writing ROM */
 #define PCH_PHUB_ROM_WRITE_DISABLE 0x00	/* Disabling for writing ROM */
-#define PCH_PHUB_ROM_START_ADDR 0x14	/* ROM data area start address offset */
+#define PCH_PHUB_MAC_START_ADDR 0x20C  /* MAC data area start address offset */
+#define PCH_PHUB_ROM_START_ADDR_EG20T 0x14 /* ROM data area start address offset
+					      (Intel EG20T PCH)*/
+#define PCH_PHUB_ROM_START_ADDR_ML7213 0x400 /* ROM data area start address
+						offset(OKI SEMICONDUCTOR ML7213)
+					      */
 
 /* MAX number of INT_REDUCE_CONTROL registers */
 #define MAX_NUM_INT_REDUCE_CONTROL_REG 128
@@ -41,6 +47,21 @@
 #define PCH_MINOR_NOS 1
 #define CLKCFG_CAN_50MHZ 0x12000000
 #define CLKCFG_CANCLK_MASK 0xFF000000
+#define CLKCFG_UART_MASK			0xFFFFFF
+
+/* CM-iTC */
+#define CLKCFG_UART_48MHZ			(1 << 16)
+#define CLKCFG_BAUDDIV				(2 << 20)
+#define CLKCFG_PLL2VCO				(8 << 9)
+#define CLKCFG_UARTCLKSEL			(1 << 18)
+
+/* Macros for ML7213 */
+#define PCI_VENDOR_ID_ROHM			0x10db
+#define PCI_DEVICE_ID_ROHM_ML7213_PHUB		0x801A
+
+/* Macros for ML7213 */
+#define PCI_VENDOR_ID_ROHM			0x10db
+#define PCI_DEVICE_ID_ROHM_ML7213_PHUB		0x801A
 
 /* SROM ACCESS Macro */
 #define PCH_WORD_ADDR_MASK (~((1 << 2) - 1))
@@ -298,7 +319,7 @@ static void pch_phub_read_serial_rom_val(struct pch_phub_reg *chip,
 {
 	unsigned int mem_addr;
 
-	mem_addr = PCH_PHUB_ROM_START_ADDR +
+	mem_addr = PCH_PHUB_ROM_START_ADDR_EG20T +
 			pch_phub_mac_offset[offset_address];
 
 	pch_phub_read_serial_rom(chip, mem_addr, data);
@@ -315,7 +336,7 @@ static int pch_phub_write_serial_rom_val(struct pch_phub_reg *chip,
 	int retval;
 	unsigned int mem_addr;
 
-	mem_addr = PCH_PHUB_ROM_START_ADDR +
+	mem_addr = PCH_PHUB_ROM_START_ADDR_EG20T +
 			pch_phub_mac_offset[offset_address];
 
 	retval = pch_phub_write_serial_rom(chip, mem_addr, data);
@@ -594,23 +615,46 @@ static int __devinit pch_phub_probe(struct pci_dev *pdev,
 		"pch_phub_extrom_base_address variable is %p\n", __func__,
 		chip->pch_phub_extrom_base_address);
 
+	if (id->driver_data == 1) {
+		retval = sysfs_create_file(&pdev->dev.kobj,
+					   &dev_attr_pch_mac.attr);
+		if (retval)
+			goto err_sysfs_create;
+
+		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
+		if (retval)
+			goto exit_bin_attr;
+
+		pch_phub_read_modify_write_reg(chip,
+					       (unsigned int)CLKCFG_REG_OFFSET,
+					       CLKCFG_CAN_50MHZ,
+					       CLKCFG_CANCLK_MASK);
+
+		/* quirk for CM-iTC board */
+		if (strstr(dmi_get_system_info(DMI_BOARD_NAME), "CM-iTC"))
+			pch_phub_read_modify_write_reg(chip,
+						(unsigned int)CLKCFG_REG_OFFSET,
+						CLKCFG_UART_48MHZ | CLKCFG_BAUDDIV |
+						CLKCFG_PLL2VCO | CLKCFG_UARTCLKSEL,
+						CLKCFG_UART_MASK);
+
+		/* set the prefech value */
+		iowrite32(0x000affaa, chip->pch_phub_base_address + 0x14);
+		/* set the interrupt delay value */
+		iowrite32(0x25, chip->pch_phub_base_address + 0x44);
+	} else if (id->driver_data == 2) {
+		retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
+		if (retval)
+			goto err_sysfs_create;
+		/* set the prefech value
+		 * Device2(USB OHCI #1/ USB EHCI #1/ USB Device):a
+		 * Device4(SDIO #0,1,2):f
+		 * Device6(SATA 2):f
+		 * Device8(USB OHCI #0/ USB EHCI #0):a
+		 */
+		iowrite32(0x000affa0, chip->pch_phub_base_address + 0x14);
+	}
 	pci_set_drvdata(pdev, chip);
-
-	retval = sysfs_create_file(&pdev->dev.kobj, &dev_attr_pch_mac.attr);
-	if (retval)
-		goto err_sysfs_create;
-
-	retval = sysfs_create_bin_file(&pdev->dev.kobj, &pch_bin_attr);
-	if (retval)
-		goto exit_bin_attr;
-
-	pch_phub_read_modify_write_reg(chip, (unsigned int)CLKCFG_REG_OFFSET,
-					CLKCFG_CAN_50MHZ, CLKCFG_CANCLK_MASK);
-
-	/* set the prefech value */
-	iowrite32(0x000affaa, chip->pch_phub_base_address + 0x14);
-	/* set the interrupt delay value */
-	iowrite32(0x25, chip->pch_phub_base_address + 0x44);
 
 	return 0;
 exit_bin_attr:
@@ -687,9 +731,11 @@ static int pch_phub_resume(struct pci_dev *pdev)
 #endif /* CONFIG_PM */
 
 static struct pci_device_id pch_phub_pcidev_id[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_PCH1_PHUB)},
-	{0,}
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH1_PHUB),       1,  },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7213_PHUB), 2,  },
+	{ }
 };
+MODULE_DEVICE_TABLE(pci, pch_phub_pcidev_id);
 
 static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",

@@ -152,16 +152,33 @@ sim_dump(unsigned int mask)
 /**
  * Print a string to the simulator stdout.
  *
- * @param str The string to be written; a newline is automatically added.
+ * @param str The string to be written.
+ */
+static __inline void
+sim_print(const char* str)
+{
+  for ( ; *str != '\0'; str++)
+  {
+    __insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_PUTC |
+                 (*str << _SIM_CONTROL_OPERATOR_BITS));
+  }
+  __insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_PUTC |
+               (SIM_PUTC_FLUSH_BINARY << _SIM_CONTROL_OPERATOR_BITS));
+}
+
+
+/**
+ * Print a string to the simulator stdout.
+ *
+ * @param str The string to be written (a newline is automatically added).
  */
 static __inline void
 sim_print_string(const char* str)
 {
-  int i;
-  for (i = 0; str[i] != 0; i++)
+  for ( ; *str != '\0'; str++)
   {
     __insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_PUTC |
-                 (str[i] << _SIM_CONTROL_OPERATOR_BITS));
+                 (*str << _SIM_CONTROL_OPERATOR_BITS));
   }
   __insn_mtspr(SPR_SIM_CONTROL, SIM_CONTROL_PUTC |
                (SIM_PUTC_FLUSH_STRING << _SIM_CONTROL_OPERATOR_BITS));
@@ -203,7 +220,7 @@ sim_command(const char* str)
  * we are passing to the simulator are actually valid in the registers
  * (i.e. returned from memory) prior to the SIM_CONTROL spr.
  */
-static __inline int _sim_syscall0(int val)
+static __inline long _sim_syscall0(int val)
 {
   long result;
   __asm__ __volatile__ ("mtspr SIM_CONTROL, r0"
@@ -211,7 +228,7 @@ static __inline int _sim_syscall0(int val)
   return result;
 }
 
-static __inline int _sim_syscall1(int val, long arg1)
+static __inline long _sim_syscall1(int val, long arg1)
 {
   long result;
   __asm__ __volatile__ ("{ and zero, r1, r1; mtspr SIM_CONTROL, r0 }"
@@ -219,7 +236,7 @@ static __inline int _sim_syscall1(int val, long arg1)
   return result;
 }
 
-static __inline int _sim_syscall2(int val, long arg1, long arg2)
+static __inline long _sim_syscall2(int val, long arg1, long arg2)
 {
   long result;
   __asm__ __volatile__ ("{ and zero, r1, r2; mtspr SIM_CONTROL, r0 }"
@@ -233,7 +250,7 @@ static __inline int _sim_syscall2(int val, long arg1, long arg2)
    the register values for arguments 3 and up may still be in flight
    to the core from a stack frame reload. */
 
-static __inline int _sim_syscall3(int val, long arg1, long arg2, long arg3)
+static __inline long _sim_syscall3(int val, long arg1, long arg2, long arg3)
 {
   long result;
   __asm__ __volatile__ ("{ and zero, r3, r3 };"
@@ -244,7 +261,7 @@ static __inline int _sim_syscall3(int val, long arg1, long arg2, long arg3)
   return result;
 }
 
-static __inline int _sim_syscall4(int val, long arg1, long arg2, long arg3,
+static __inline long _sim_syscall4(int val, long arg1, long arg2, long arg3,
                                   long arg4)
 {
   long result;
@@ -256,7 +273,7 @@ static __inline int _sim_syscall4(int val, long arg1, long arg2, long arg3,
   return result;
 }
 
-static __inline int _sim_syscall5(int val, long arg1, long arg2, long arg3,
+static __inline long _sim_syscall5(int val, long arg1, long arg2, long arg3,
                                   long arg4, long arg5)
 {
   long result;
@@ -267,7 +284,6 @@ static __inline int _sim_syscall5(int val, long arg1, long arg2, long arg3,
                           "R03" (arg3), "R04" (arg4), "R05" (arg5));
   return result;
 }
-
 
 /**
  * Make a special syscall to the simulator itself, if running under
@@ -281,7 +297,8 @@ static __inline int _sim_syscall5(int val, long arg1, long arg2, long arg3,
  */
 #define _sim_syscall(syscall_num, nr, args...) \
   _sim_syscall##nr( \
-    ((syscall_num) << _SIM_CONTROL_OPERATOR_BITS) | SIM_CONTROL_SYSCALL, args)
+    ((syscall_num) << _SIM_CONTROL_OPERATOR_BITS) | SIM_CONTROL_SYSCALL, \
+    ##args)
 
 
 /* Values for the "access_mask" parameters below. */
@@ -364,6 +381,13 @@ sim_validate_lines_evicted(unsigned long long pa, unsigned long length)
 #endif
 }
 
+
+/* Return the current CPU speed in cycles per second. */
+static __inline long
+sim_query_cpu_speed(void)
+{
+  return _sim_syscall(SIM_SYSCALL_QUERY_CPU_SPEED, 0);
+}
 
 #endif /* !__DOXYGEN__ */
 

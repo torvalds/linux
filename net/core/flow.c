@@ -172,9 +172,9 @@ static void flow_new_hash_rnd(struct flow_cache *fc,
 
 static u32 flow_hash_code(struct flow_cache *fc,
 			  struct flow_cache_percpu *fcp,
-			  struct flowi *key)
+			  const struct flowi *key)
 {
-	u32 *k = (u32 *) key;
+	const u32 *k = (const u32 *) key;
 
 	return jhash2(k, (sizeof(*key) / sizeof(u32)), fcp->hash_rnd)
 		& (flow_cache_hash_size(fc) - 1);
@@ -186,17 +186,17 @@ typedef unsigned long flow_compare_t;
  * important assumptions that we can here, such as alignment and
  * constant size.
  */
-static int flow_key_compare(struct flowi *key1, struct flowi *key2)
+static int flow_key_compare(const struct flowi *key1, const struct flowi *key2)
 {
-	flow_compare_t *k1, *k1_lim, *k2;
+	const flow_compare_t *k1, *k1_lim, *k2;
 	const int n_elem = sizeof(struct flowi) / sizeof(flow_compare_t);
 
 	BUILD_BUG_ON(sizeof(struct flowi) % sizeof(flow_compare_t));
 
-	k1 = (flow_compare_t *) key1;
+	k1 = (const flow_compare_t *) key1;
 	k1_lim = k1 + n_elem;
 
-	k2 = (flow_compare_t *) key2;
+	k2 = (const flow_compare_t *) key2;
 
 	do {
 		if (*k1++ != *k2++)
@@ -207,7 +207,7 @@ static int flow_key_compare(struct flowi *key1, struct flowi *key2)
 }
 
 struct flow_cache_object *
-flow_cache_lookup(struct net *net, struct flowi *key, u16 family, u8 dir,
+flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 		  flow_resolve_t resolver, void *ctx)
 {
 	struct flow_cache *fc = &flow_cache_global;

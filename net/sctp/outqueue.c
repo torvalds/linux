@@ -545,13 +545,11 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	struct sctp_transport *transport = pkt->transport;
 	sctp_xmit_t status;
 	struct sctp_chunk *chunk, *chunk1;
-	struct sctp_association *asoc;
 	int fast_rtx;
 	int error = 0;
 	int timer = 0;
 	int done = 0;
 
-	asoc = q->asoc;
 	lqueue = &q->retransmit;
 	fast_rtx = q->fast_rtx;
 

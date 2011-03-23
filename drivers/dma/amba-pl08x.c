@@ -1845,7 +1845,7 @@ static inline void init_pl08x_debugfs(struct pl08x_driver_data *pl08x)
 }
 #endif
 
-static int pl08x_probe(struct amba_device *adev, struct amba_id *id)
+static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct pl08x_driver_data *pl08x;
 	const struct vendor_data *vd = id->data;

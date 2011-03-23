@@ -537,8 +537,8 @@ config SERIAL_S3C6400
 
 config SERIAL_S5PV210
 	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_S5P6442 || CPU_S5PV310)
-	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_S5PV310)
+	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_S5P6442 || CPU_EXYNOS4210)
+	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_EXYNOS4210)
 	default y
 	help
 	  Serial port support for Samsung's S5P Family of SoC's
@@ -1110,29 +1110,6 @@ config SERIAL_PMACZILOG_CONSOLE
 	  on your (Power)Mac as the console, you can do so by answering
 	  Y to this option.
 
-config SERIAL_LH7A40X
-	tristate "Sharp LH7A40X embedded UART support"
-	depends on ARM && ARCH_LH7A40X
-	select SERIAL_CORE
-	help
-	  This enables support for the three on-board UARTs of the
-	  Sharp LH7A40X series CPUs.  Choose Y or M.
-
-config SERIAL_LH7A40X_CONSOLE
-	bool "Support for console on Sharp LH7A40X serial port"
-	depends on SERIAL_LH7A40X=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you wish to use one of the serial ports as the
-	  system console--the system console is the device which
-	  receives all kernel messages and warnings and which allows
-	  logins in single user mode.
-
-	  Even if you say Y here, the currently visible framebuffer console
-	  (/dev/tty0) will still be used as the default system console, but
-	  you can alter that using a kernel command line, for example
-	  "console=ttyAM1".
-
 config SERIAL_CPM
 	tristate "CPM SCC/SMC serial port support"
 	depends on CPM2 || 8xx
@@ -1318,6 +1295,18 @@ config SERIAL_MSM_CONSOLE
 	bool "MSM serial console support"
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_MSM_HS
+	tristate "MSM UART High Speed: Serial Driver"
+	depends on ARCH_MSM
+	select SERIAL_CORE
+	help
+	  If you have a machine based on MSM family of SoCs, you
+	  can enable its onboard high speed serial port by enabling
+	  this option.
+
+	  Choose M here to compile it as a module. The module will be
+	  called msm_serial_hs.
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
@@ -1588,12 +1577,39 @@ config SERIAL_IFX6X60
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
 config SERIAL_PCH_UART
-	tristate "Intel EG20T PCH UART"
-	depends on PCI && DMADEVICES
+	tristate "Intel EG20T PCH UART/OKI SEMICONDUCTOR ML7213 IOH"
+	depends on PCI
 	select SERIAL_CORE
-	select PCH_DMA
 	help
 	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
 	  Enabling PCH_DMA, this PCH UART works as DMA mode.
+
+	  This driver also can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/
+	  Output Hub) which is for IVI(In-Vehicle Infotainment) use.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
+
+config SERIAL_MSM_SMD
+	bool "Enable tty device interface for some SMD ports"
+	default n
+	depends on MSM_SMD
+	help
+	  Enables userspace clients to read and write to some streaming SMD
+	  ports via tty device interface for MSM chipset.
+
+config SERIAL_MXS_AUART
+	depends on ARCH_MXS
+	tristate "MXS AUART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the MXS Application UART (AUART) port.
+
+config SERIAL_MXS_AUART_CONSOLE
+	bool "MXS AUART console support"
+	depends on SERIAL_MXS_AUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a MXS AUART port to be the system console.
+
 endmenu

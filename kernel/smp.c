@@ -194,7 +194,7 @@ void generic_smp_call_function_interrupt(void)
 	 */
 	list_for_each_entry_rcu(data, &call_function.queue, csd.list) {
 		int refs;
-		void (*func) (void *info);
+		smp_call_func_t func;
 
 		/*
 		 * Since we walk the list without any locks, we might
@@ -214,17 +214,17 @@ void generic_smp_call_function_interrupt(void)
 		if (atomic_read(&data->refs) == 0)
 			continue;
 
-		func = data->csd.func;			/* for later warn */
-		data->csd.func(data->csd.info);
+		func = data->csd.func;		/* save for later warn */
+		func(data->csd.info);
 
 		/*
-		 * If the cpu mask is not still set then it enabled interrupts,
-		 * we took another smp interrupt, and executed the function
-		 * twice on this cpu.  In theory that copy decremented refs.
+		 * If the cpu mask is not still set then func enabled
+		 * interrupts (BUG), and this cpu took another smp call
+		 * function interrupt and executed func(info) twice
+		 * on this cpu.  That nested execution decremented refs.
 		 */
 		if (!cpumask_test_and_clear_cpu(cpu, data->cpumask)) {
-			WARN(1, "%pS enabled interrupts and double executed\n",
-			     func);
+			WARN(1, "%pf enabled interrupts and double executed\n", func);
 			continue;
 		}
 
@@ -450,7 +450,7 @@ void smp_call_function_many(const struct cpumask *mask,
 {
 	struct call_function_data *data;
 	unsigned long flags;
-	int cpu, next_cpu, this_cpu = smp_processor_id();
+	int refs, cpu, next_cpu, this_cpu = smp_processor_id();
 
 	/*
 	 * Can deadlock when called with interrupts disabled.
@@ -461,7 +461,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled()
 		     && !oops_in_progress && !early_boot_irqs_disabled);
 
-	/* So, what's a CPU they want? Ignoring this one. */
+	/* Try to fastpath.  So, what's a CPU they want? Ignoring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
 	if (cpu == this_cpu)
 		cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
@@ -483,22 +483,49 @@ void smp_call_function_many(const struct cpumask *mask,
 
 	data = &__get_cpu_var(cfd_data);
 	csd_lock(&data->csd);
+
+	/* This BUG_ON verifies our reuse assertions and can be removed */
 	BUG_ON(atomic_read(&data->refs) || !cpumask_empty(data->cpumask));
+
+	/*
+	 * The global call function queue list add and delete are protected
+	 * by a lock, but the list is traversed without any lock, relying
+	 * on the rcu list add and delete to allow safe concurrent traversal.
+	 * We reuse the call function data without waiting for any grace
+	 * period after some other cpu removes it from the global queue.
+	 * This means a cpu might find our data block as it is being
+	 * filled out.
+	 *
+	 * We hold off the interrupt handler on the other cpu by
+	 * ordering our writes to the cpu mask vs our setting of the
+	 * refs counter.  We assert only the cpu owning the data block
+	 * will set a bit in cpumask, and each bit will only be cleared
+	 * by the subject cpu.  Each cpu must first find its bit is
+	 * set and then check that refs is set indicating the element is
+	 * ready to be processed, otherwise it must skip the entry.
+	 *
+	 * On the previous iteration refs was set to 0 by another cpu.
+	 * To avoid the use of transitivity, set the counter to 0 here
+	 * so the wmb will pair with the rmb in the interrupt handler.
+	 */
+	atomic_set(&data->refs, 0);	/* convert 3rd to 1st party write */
 
 	data->csd.func = func;
 	data->csd.info = info;
-	cpumask_and(data->cpumask, mask, cpu_online_mask);
-	cpumask_clear_cpu(this_cpu, data->cpumask);
 
-	/*
-	 * To ensure the interrupt handler gets an complete view
-	 * we order the cpumask and refs writes and order the read
-	 * of them in the interrupt handler.  In addition we may
-	 * only clear our own cpu bit from the mask.
-	 */
+	/* Ensure 0 refs is visible before mask.  Also orders func and info */
 	smp_wmb();
 
-	atomic_set(&data->refs, cpumask_weight(data->cpumask));
+	/* We rely on the "and" being processed before the store */
+	cpumask_and(data->cpumask, mask, cpu_online_mask);
+	cpumask_clear_cpu(this_cpu, data->cpumask);
+	refs = cpumask_weight(data->cpumask);
+
+	/* Some callers race with other cpus changing the passed mask */
+	if (unlikely(!refs)) {
+		csd_unlock(&data->csd);
+		return;
+	}
 
 	raw_spin_lock_irqsave(&call_function.lock, flags);
 	/*
@@ -507,6 +534,12 @@ void smp_call_function_many(const struct cpumask *mask,
 	 * will not miss any other list entries:
 	 */
 	list_add_rcu(&data->csd.list, &call_function.queue);
+	/*
+	 * We rely on the wmb() in list_add_rcu to complete our writes
+	 * to the cpumask before this write to refs, which indicates
+	 * data is on the list and is ready to be processed.
+	 */
+	atomic_set(&data->refs, refs);
 	raw_spin_unlock_irqrestore(&call_function.lock, flags);
 
 	/*
@@ -570,6 +603,87 @@ void ipi_call_unlock_irq(void)
 	raw_spin_unlock_irq(&call_function.lock);
 }
 #endif /* USE_GENERIC_SMP_HELPERS */
+
+/* Setup configured maximum number of CPUs to activate */
+unsigned int setup_max_cpus = NR_CPUS;
+EXPORT_SYMBOL(setup_max_cpus);
+
+
+/*
+ * Setup routine for controlling SMP activation
+ *
+ * Command-line option of "nosmp" or "maxcpus=0" will disable SMP
+ * activation entirely (the MPS table probe still happens, though).
+ *
+ * Command-line option of "maxcpus=<NUM>", where <NUM> is an integer
+ * greater than 0, limits the maximum number of CPUs activated in
+ * SMP mode to <NUM>.
+ */
+
+void __weak arch_disable_smp_support(void) { }
+
+static int __init nosmp(char *str)
+{
+	setup_max_cpus = 0;
+	arch_disable_smp_support();
+
+	return 0;
+}
+
+early_param("nosmp", nosmp);
+
+/* this is hard limit */
+static int __init nrcpus(char *str)
+{
+	int nr_cpus;
+
+	get_option(&str, &nr_cpus);
+	if (nr_cpus > 0 && nr_cpus < nr_cpu_ids)
+		nr_cpu_ids = nr_cpus;
+
+	return 0;
+}
+
+early_param("nr_cpus", nrcpus);
+
+static int __init maxcpus(char *str)
+{
+	get_option(&str, &setup_max_cpus);
+	if (setup_max_cpus == 0)
+		arch_disable_smp_support();
+
+	return 0;
+}
+
+early_param("maxcpus", maxcpus);
+
+/* Setup number of possible processor ids */
+int nr_cpu_ids __read_mostly = NR_CPUS;
+EXPORT_SYMBOL(nr_cpu_ids);
+
+/* An arch may set nr_cpu_ids earlier if needed, so this would be redundant */
+void __init setup_nr_cpu_ids(void)
+{
+	nr_cpu_ids = find_last_bit(cpumask_bits(cpu_possible_mask),NR_CPUS) + 1;
+}
+
+/* Called by boot processor to activate the rest. */
+void __init smp_init(void)
+{
+	unsigned int cpu;
+
+	/* FIXME: This should be done in userspace --RR */
+	for_each_present_cpu(cpu) {
+		if (num_online_cpus() >= setup_max_cpus)
+			break;
+		if (!cpu_online(cpu))
+			cpu_up(cpu);
+	}
+
+	/* Any cleanup work */
+	printk(KERN_INFO "Brought up %ld CPUs\n", (long)num_online_cpus());
+	smp_cpus_done(setup_max_cpus);
+}
 
 /*
  * Call a function on all processors.  May be used during early boot while

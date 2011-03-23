@@ -624,8 +624,7 @@ static void make_lowercase(char *s)
 	}
 }
 
-static int __devinit fsl_ssi_probe(struct platform_device *pdev,
-				   const struct of_device_id *match)
+static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 {
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
@@ -774,7 +773,7 @@ static const struct of_device_id fsl_ssi_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_ssi_ids);
 
-static struct of_platform_driver fsl_ssi_driver = {
+static struct platform_driver fsl_ssi_driver = {
 	.driver = {
 		.name = "fsl-ssi-dai",
 		.owner = THIS_MODULE,
@@ -788,12 +787,12 @@ static int __init fsl_ssi_init(void)
 {
 	printk(KERN_INFO "Freescale Synchronous Serial Interface (SSI) ASoC Driver\n");
 
-	return of_register_platform_driver(&fsl_ssi_driver);
+	return platform_driver_register(&fsl_ssi_driver);
 }
 
 static void __exit fsl_ssi_exit(void)
 {
-	of_unregister_platform_driver(&fsl_ssi_driver);
+	platform_driver_unregister(&fsl_ssi_driver);
 }
 
 module_init(fsl_ssi_init);

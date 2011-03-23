@@ -37,26 +37,26 @@ extern void *_ramvec[];
 /* The number of spurious interrupts */
 volatile unsigned int num_spurious;
 
-static void intc_irq_unmask(unsigned int irq)
+static void intc_irq_unmask(struct irq_data *d)
 {
-	pquicc->intr_cimr |= (1 << irq);
+	pquicc->intr_cimr |= (1 << d->irq);
 }
 
-static void intc_irq_mask(unsigned int irq)
+static void intc_irq_mask(struct irq_data *d)
 {
-	pquicc->intr_cimr &= ~(1 << irq);
+	pquicc->intr_cimr &= ~(1 << d->irq);
 }
 
-static void intc_irq_ack(unsigned int irq)
+static void intc_irq_ack(struct irq_data *d)
 {
-	pquicc->intr_cisr = (1 << irq);
+	pquicc->intr_cisr = (1 << d->irq);
 }
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "M68K-INTC",
-	.mask		= intc_irq_mask,
-	.unmask		= intc_irq_unmask,
-	.ack		= intc_irq_ack,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
+	.irq_ack	= intc_irq_ack,
 };
 
 /*

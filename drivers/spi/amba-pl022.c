@@ -329,15 +329,16 @@ struct vendor_data {
 /**
  * struct pl022 - This is the private SSP driver data structure
  * @adev: AMBA device model hookup
- * @vendor: Vendor data for the IP block
- * @phybase: The physical memory where the SSP device resides
- * @virtbase: The virtual memory where the SSP is mapped
+ * @vendor: vendor data for the IP block
+ * @phybase: the physical memory where the SSP device resides
+ * @virtbase: the virtual memory where the SSP is mapped
+ * @clk: outgoing clock "SPICLK" for the SPI bus
  * @master: SPI framework hookup
  * @master_info: controller-specific data from machine setup
- * @regs: SSP controller register's virtual address
- * @pump_messages: Work struct for scheduling work to the workqueue
- * @lock: spinlock to syncronise access to driver data
  * @workqueue: a workqueue on which any spi_message request is queued
+ * @pump_messages: work struct for scheduling work to the workqueue
+ * @queue_lock: spinlock to syncronise access to message queue
+ * @queue: message queue
  * @busy: workqueue is busy
  * @running: workqueue is running
  * @pump_transfers: Tasklet used in Interrupt Transfer mode
@@ -348,8 +349,14 @@ struct vendor_data {
  * @tx_end: end position in TX buffer to be read
  * @rx: current position in RX buffer to be written
  * @rx_end: end position in RX buffer to be written
- * @readingtype: the type of read currently going on
- * @writingtype: the type or write currently going on
+ * @read: the type of read currently going on
+ * @write: the type of write currently going on
+ * @exp_fifo_level: expected FIFO level
+ * @dma_rx_channel: optional channel for RX DMA
+ * @dma_tx_channel: optional channel for TX DMA
+ * @sgt_rx: scattertable for the RX transfer
+ * @sgt_tx: scattertable for the TX transfer
+ * @dummypage: a dummy page used for driving data on the bus with DMA
  */
 struct pl022 {
 	struct amba_device		*adev;
@@ -397,8 +404,8 @@ struct pl022 {
  * @cpsr: Value of Clock prescale register
  * @n_bytes: how many bytes(power of 2) reqd for a given data width of client
  * @enable_dma: Whether to enable DMA or not
- * @write: function ptr to be used to write when doing xfer for this chip
  * @read: function ptr to be used to read when doing xfer for this chip
+ * @write: function ptr to be used to write when doing xfer for this chip
  * @cs_control: chip select callback provided by chip
  * @xfer_type: polling/interrupt/DMA
  *
@@ -508,9 +515,10 @@ static void giveback(struct pl022 *pl022)
 	msg->state = NULL;
 	if (msg->complete)
 		msg->complete(msg->context);
-	/* This message is completed, so let's turn off the clocks! */
+	/* This message is completed, so let's turn off the clocks & power */
 	clk_disable(pl022->clk);
 	amba_pclk_disable(pl022->adev);
+	amba_vcore_disable(pl022->adev);
 }
 
 /**
@@ -917,7 +925,6 @@ static int configure_dma(struct pl022 *pl022)
 	struct dma_chan *txchan = pl022->dma_tx_channel;
 	struct dma_async_tx_descriptor *rxdesc;
 	struct dma_async_tx_descriptor *txdesc;
-	dma_cookie_t cookie;
 
 	/* Check that the channels are available */
 	if (!rxchan || !txchan)
@@ -962,10 +969,8 @@ static int configure_dma(struct pl022 *pl022)
 		tx_conf.dst_addr_width = rx_conf.src_addr_width;
 	BUG_ON(rx_conf.src_addr_width != tx_conf.dst_addr_width);
 
-	rxchan->device->device_control(rxchan, DMA_SLAVE_CONFIG,
-				       (unsigned long) &rx_conf);
-	txchan->device->device_control(txchan, DMA_SLAVE_CONFIG,
-				       (unsigned long) &tx_conf);
+	dmaengine_slave_config(rxchan, &rx_conf);
+	dmaengine_slave_config(txchan, &tx_conf);
 
 	/* Create sglists for the transfers */
 	pages = (pl022->cur_transfer->len >> PAGE_SHIFT) + 1;
@@ -1018,23 +1023,17 @@ static int configure_dma(struct pl022 *pl022)
 	rxdesc->callback_param = pl022;
 
 	/* Submit and fire RX and TX with TX last so we're ready to read! */
-	cookie = rxdesc->tx_submit(rxdesc);
-	if (dma_submit_error(cookie))
-		goto err_submit_rx;
-	cookie = txdesc->tx_submit(txdesc);
-	if (dma_submit_error(cookie))
-		goto err_submit_tx;
-	rxchan->device->device_issue_pending(rxchan);
-	txchan->device->device_issue_pending(txchan);
+	dmaengine_submit(rxdesc);
+	dmaengine_submit(txdesc);
+	dma_async_issue_pending(rxchan);
+	dma_async_issue_pending(txchan);
 
 	return 0;
 
-err_submit_tx:
-err_submit_rx:
 err_txdesc:
-	txchan->device->device_control(txchan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(txchan);
 err_rxdesc:
-	rxchan->device->device_control(rxchan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(rxchan);
 	dma_unmap_sg(txchan->device->dev, pl022->sgt_tx.sgl,
 		     pl022->sgt_tx.nents, DMA_TO_DEVICE);
 err_tx_sgmap:
@@ -1101,8 +1100,8 @@ static void terminate_dma(struct pl022 *pl022)
 	struct dma_chan *rxchan = pl022->dma_rx_channel;
 	struct dma_chan *txchan = pl022->dma_tx_channel;
 
-	rxchan->device->device_control(rxchan, DMA_TERMINATE_ALL, 0);
-	txchan->device->device_control(txchan, DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(rxchan);
+	dmaengine_terminate_all(txchan);
 	unmap_free_dma_scatter(pl022);
 }
 
@@ -1482,9 +1481,11 @@ static void pump_messages(struct work_struct *work)
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(pl022->cur_msg->spi);
 	/*
-	 * We enable the clocks here, then the clocks will be disabled when
-	 * giveback() is called in each method (poll/interrupt/DMA)
+	 * We enable the core voltage and clocks here, then the clocks
+	 * and core will be disabled when giveback() is called in each method
+	 * (poll/interrupt/DMA)
 	 */
+	amba_vcore_enable(pl022->adev);
 	amba_pclk_enable(pl022->adev);
 	clk_enable(pl022->clk);
 	restore_state(pl022);
@@ -1910,8 +1911,6 @@ static int pl022_setup(struct spi_device *spi)
 	    && ((pl022->master_info)->enable_dma)) {
 		chip->enable_dma = true;
 		dev_dbg(&spi->dev, "DMA mode set in controller state\n");
-		if (status < 0)
-			goto err_config_params;
 		SSP_WRITE_BITS(chip->dmacr, SSP_DMA_ENABLED,
 			       SSP_DMACR_MASK_RXDMAE, 0);
 		SSP_WRITE_BITS(chip->dmacr, SSP_DMA_ENABLED,
@@ -2021,7 +2020,7 @@ static void pl022_cleanup(struct spi_device *spi)
 
 
 static int __devinit
-pl022_probe(struct amba_device *adev, struct amba_id *id)
+pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
 	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;
@@ -2130,8 +2129,12 @@ pl022_probe(struct amba_device *adev, struct amba_id *id)
 		goto err_spi_register;
 	}
 	dev_dbg(dev, "probe succeded\n");
-	/* Disable the silicon block pclk and clock it when needed */
+	/*
+	 * Disable the silicon block pclk and any voltage domain and just
+	 * power it up and clock it when it's needed
+	 */
 	amba_pclk_disable(adev);
+	amba_vcore_disable(adev);
 	return 0;
 
  err_spi_register:
@@ -2196,9 +2199,11 @@ static int pl022_suspend(struct amba_device *adev, pm_message_t state)
 		return status;
 	}
 
+	amba_vcore_enable(adev);
 	amba_pclk_enable(adev);
 	load_ssp_default_config(pl022);
 	amba_pclk_disable(adev);
+	amba_vcore_disable(adev);
 	dev_dbg(&adev->dev, "suspended\n");
 	return 0;
 }

@@ -609,17 +609,30 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("duart", NULL, uart_clk)
 	_REGISTER_CLOCK("imx28-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK("imx28-fec.1", NULL, fec_clk)
+	_REGISTER_CLOCK("mxs-auart.0", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.1", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.2", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.3", NULL, uart_clk)
+	_REGISTER_CLOCK("mxs-auart.4", NULL, uart_clk)
 	_REGISTER_CLOCK("rtc", NULL, rtc_clk)
 	_REGISTER_CLOCK("pll2", NULL, pll2_clk)
-	_REGISTER_CLOCK(NULL, "hclk", hbus_clk)
-	_REGISTER_CLOCK(NULL, "xclk", xbus_clk)
-	_REGISTER_CLOCK(NULL, "can0", can0_clk)
-	_REGISTER_CLOCK(NULL, "can1", can1_clk)
+	_REGISTER_CLOCK("mxs-dma-apbh", NULL, hbus_clk)
+	_REGISTER_CLOCK("mxs-dma-apbx", NULL, xbus_clk)
+	_REGISTER_CLOCK("flexcan.0", NULL, can0_clk)
+	_REGISTER_CLOCK("flexcan.1", NULL, can1_clk)
 	_REGISTER_CLOCK(NULL, "usb0", usb0_clk)
 	_REGISTER_CLOCK(NULL, "usb1", usb1_clk)
-	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.0", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.1", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.2", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.3", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.4", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.5", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.6", NULL, pwm_clk)
+	_REGISTER_CLOCK("mxs-pwm.7", NULL, pwm_clk)
 	_REGISTER_CLOCK(NULL, "lradc", lradc_clk)
 	_REGISTER_CLOCK(NULL, "spdif", spdif_clk)
+	_REGISTER_CLOCK("imx28-fb", NULL, lcdif_clk)
 };
 
 static int clk_misc_init(void)
@@ -736,6 +749,8 @@ int __init mx28_clocks_init(void)
 	clk_enable(&xbus_clk);
 	clk_enable(&emi_clk);
 	clk_enable(&uart_clk);
+
+	clk_set_parent(&lcdif_clk, &ref_pix_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

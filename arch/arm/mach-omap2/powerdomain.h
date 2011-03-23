@@ -2,7 +2,7 @@
  * OMAP2/3/4 powerdomain control
  *
  * Copyright (C) 2007-2008, 2010 Texas Instruments, Inc.
- * Copyright (C) 2007-2010 Nokia Corporation
+ * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Paul Walmsley
  *
@@ -34,17 +34,14 @@
 
 /* Powerdomain allowable state bitfields */
 #define PWRSTS_ON		(1 << PWRDM_POWER_ON)
+#define PWRSTS_INACTIVE		(1 << PWRDM_POWER_INACTIVE)
+#define PWRSTS_RET		(1 << PWRDM_POWER_RET)
 #define PWRSTS_OFF		(1 << PWRDM_POWER_OFF)
-#define PWRSTS_OFF_ON		((1 << PWRDM_POWER_OFF) | \
-				 (1 << PWRDM_POWER_ON))
 
-#define PWRSTS_OFF_RET		((1 << PWRDM_POWER_OFF) | \
-				 (1 << PWRDM_POWER_RET))
-
-#define PWRSTS_RET_ON		((1 << PWRDM_POWER_RET) | \
-				 (1 << PWRDM_POWER_ON))
-
-#define PWRSTS_OFF_RET_ON	(PWRSTS_OFF_RET | (1 << PWRDM_POWER_ON))
+#define PWRSTS_OFF_ON		(PWRSTS_OFF | PWRSTS_ON)
+#define PWRSTS_OFF_RET		(PWRSTS_OFF | PWRSTS_RET)
+#define PWRSTS_RET_ON		(PWRSTS_RET | PWRSTS_ON)
+#define PWRSTS_OFF_RET_ON	(PWRSTS_OFF_RET | PWRSTS_ON)
 
 
 /* Powerdomain flags */
@@ -165,7 +162,6 @@ struct pwrdm_ops {
 	int	(*pwrdm_wait_transition)(struct powerdomain *pwrdm);
 };
 
-void pwrdm_fw_init(void);
 void pwrdm_init(struct powerdomain **pwrdm_list, struct pwrdm_ops *custom_funcs);
 
 struct powerdomain *pwrdm_lookup(const char *name);
@@ -212,6 +208,7 @@ int pwrdm_pre_transition(void);
 int pwrdm_post_transition(void);
 int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm);
 u32 pwrdm_get_context_loss_count(struct powerdomain *pwrdm);
+bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm);
 
 extern void omap2xxx_powerdomains_init(void);
 extern void omap3xxx_powerdomains_init(void);

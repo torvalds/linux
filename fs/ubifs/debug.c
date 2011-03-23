@@ -43,8 +43,8 @@ DEFINE_SPINLOCK(dbg_lock);
 static char dbg_key_buf0[128];
 static char dbg_key_buf1[128];
 
-unsigned int ubifs_msg_flags = UBIFS_MSG_FLAGS_DEFAULT;
-unsigned int ubifs_chk_flags = UBIFS_CHK_FLAGS_DEFAULT;
+unsigned int ubifs_msg_flags;
+unsigned int ubifs_chk_flags;
 unsigned int ubifs_tst_flags;
 
 module_param_named(debug_msgs, ubifs_msg_flags, uint, S_IRUGO | S_IWUSR);
@@ -810,16 +810,24 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 {
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
+	void *buf;
 
 	if (dbg_failure_mode)
 		return;
 
 	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
 	       current->pid, lnum);
-	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf, 0);
+
+	buf = __vmalloc(c->leb_size, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	if (!buf) {
+		ubifs_err("cannot allocate memory for dumping LEB %d", lnum);
+		return;
+	}
+
+	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
 		ubifs_err("scan error %d", (int)PTR_ERR(sleb));
-		return;
+		goto out;
 	}
 
 	printk(KERN_DEBUG "LEB %d has %d nodes ending at %d\n", lnum,
@@ -835,6 +843,9 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	printk(KERN_DEBUG "(pid %d) finish dumping LEB %d\n",
 	       current->pid, lnum);
 	ubifs_scan_destroy(sleb);
+
+out:
+	vfree(buf);
 	return;
 }
 
@@ -2690,16 +2701,8 @@ int ubifs_debugging_init(struct ubifs_info *c)
 	if (!c->dbg)
 		return -ENOMEM;
 
-	c->dbg->buf = vmalloc(c->leb_size);
-	if (!c->dbg->buf)
-		goto out;
-
 	failure_mode_init(c);
 	return 0;
-
-out:
-	kfree(c->dbg);
-	return -ENOMEM;
 }
 
 /**
@@ -2709,7 +2712,6 @@ out:
 void ubifs_debugging_exit(struct ubifs_info *c)
 {
 	failure_mode_exit(c);
-	vfree(c->dbg->buf);
 	kfree(c->dbg);
 }
 
@@ -2813,19 +2815,19 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	}
 
 	fname = "dump_lprops";
-	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR(dent))
 		goto out_remove;
 	d->dfs_dump_lprops = dent;
 
 	fname = "dump_budg";
-	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR(dent))
 		goto out_remove;
 	d->dfs_dump_budg = dent;
 
 	fname = "dump_tnc";
-	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR(dent))
 		goto out_remove;
 	d->dfs_dump_tnc = dent;

@@ -35,6 +35,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
+#include <plat/omap4-keypad.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -44,10 +45,93 @@
 #define ETH_KS8851_IRQ			34
 #define ETH_KS8851_POWER_ON		48
 #define ETH_KS8851_QUART		138
-#define OMAP4SDP_MDM_PWR_EN_GPIO	157
 #define OMAP4_SFH7741_SENSOR_OUTPUT_GPIO	184
 #define OMAP4_SFH7741_ENABLE_GPIO		188
 
+static const int sdp4430_keymap[] = {
+	KEY(0, 0, KEY_E),
+	KEY(0, 1, KEY_R),
+	KEY(0, 2, KEY_T),
+	KEY(0, 3, KEY_HOME),
+	KEY(0, 4, KEY_F5),
+	KEY(0, 5, KEY_UNKNOWN),
+	KEY(0, 6, KEY_I),
+	KEY(0, 7, KEY_LEFTSHIFT),
+
+	KEY(1, 0, KEY_D),
+	KEY(1, 1, KEY_F),
+	KEY(1, 2, KEY_G),
+	KEY(1, 3, KEY_SEND),
+	KEY(1, 4, KEY_F6),
+	KEY(1, 5, KEY_UNKNOWN),
+	KEY(1, 6, KEY_K),
+	KEY(1, 7, KEY_ENTER),
+
+	KEY(2, 0, KEY_X),
+	KEY(2, 1, KEY_C),
+	KEY(2, 2, KEY_V),
+	KEY(2, 3, KEY_END),
+	KEY(2, 4, KEY_F7),
+	KEY(2, 5, KEY_UNKNOWN),
+	KEY(2, 6, KEY_DOT),
+	KEY(2, 7, KEY_CAPSLOCK),
+
+	KEY(3, 0, KEY_Z),
+	KEY(3, 1, KEY_KPPLUS),
+	KEY(3, 2, KEY_B),
+	KEY(3, 3, KEY_F1),
+	KEY(3, 4, KEY_F8),
+	KEY(3, 5, KEY_UNKNOWN),
+	KEY(3, 6, KEY_O),
+	KEY(3, 7, KEY_SPACE),
+
+	KEY(4, 0, KEY_W),
+	KEY(4, 1, KEY_Y),
+	KEY(4, 2, KEY_U),
+	KEY(4, 3, KEY_F2),
+	KEY(4, 4, KEY_VOLUMEUP),
+	KEY(4, 5, KEY_UNKNOWN),
+	KEY(4, 6, KEY_L),
+	KEY(4, 7, KEY_LEFT),
+
+	KEY(5, 0, KEY_S),
+	KEY(5, 1, KEY_H),
+	KEY(5, 2, KEY_J),
+	KEY(5, 3, KEY_F3),
+	KEY(5, 4, KEY_F9),
+	KEY(5, 5, KEY_VOLUMEDOWN),
+	KEY(5, 6, KEY_M),
+	KEY(5, 7, KEY_RIGHT),
+
+	KEY(6, 0, KEY_Q),
+	KEY(6, 1, KEY_A),
+	KEY(6, 2, KEY_N),
+	KEY(6, 3, KEY_BACK),
+	KEY(6, 4, KEY_BACKSPACE),
+	KEY(6, 5, KEY_UNKNOWN),
+	KEY(6, 6, KEY_P),
+	KEY(6, 7, KEY_UP),
+
+	KEY(7, 0, KEY_PROG1),
+	KEY(7, 1, KEY_PROG2),
+	KEY(7, 2, KEY_PROG3),
+	KEY(7, 3, KEY_PROG4),
+	KEY(7, 4, KEY_F4),
+	KEY(7, 5, KEY_UNKNOWN),
+	KEY(7, 6, KEY_OK),
+	KEY(7, 7, KEY_DOWN),
+};
+
+static struct matrix_keymap_data sdp4430_keymap_data = {
+	.keymap			= sdp4430_keymap,
+	.keymap_size		= ARRAY_SIZE(sdp4430_keymap),
+};
+
+static struct omap4_keypad_platform_data sdp4430_keypad_data = {
+	.keymap_data		= &sdp4430_keymap_data,
+	.rows			= 8,
+	.cols			= 8,
+};
 static struct gpio_led sdp4430_gpio_leds[] = {
 	{
 		.name	= "omap4:green:debug0",
@@ -239,27 +323,14 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
 
-static void __init omap_4430sdp_init_irq(void)
+static void __init omap_4430sdp_init_early(void)
 {
-	omap_board_config = sdp4430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(1);
 #endif
-	gic_init_irq();
 }
-
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
-	.port_mode[0]	= EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1]	= EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[2]	= EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.phy_reset	= false,
-	.reset_gpio_port[0]  = -EINVAL,
-	.reset_gpio_port[1]  = -EINVAL,
-	.reset_gpio_port[2]  = -EINVAL,
-};
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_UTMI,
@@ -272,14 +343,10 @@ static struct twl4030_usb_data omap4_usbphy_data = {
 	.phy_exit	= omap4430_phy_exit,
 	.phy_power	= omap4430_phy_power,
 	.phy_set_clock	= omap4430_phy_set_clk,
+	.phy_suspend	= omap4430_phy_suspend,
 };
 
 static struct omap2_hsmmc_info mmc[] = {
-	{
-		.mmc		= 1,
-		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
-		.gpio_wp	= -EINVAL,
-	},
 	{
 		.mmc		= 2,
 		.caps		=  MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
@@ -288,19 +355,24 @@ static struct omap2_hsmmc_info mmc[] = {
 		.nonremovable   = true,
 		.ocr_mask	= MMC_VDD_29_30,
 	},
+	{
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+		.gpio_wp	= -EINVAL,
+	},
 	{}	/* Terminator */
 };
 
 static struct regulator_consumer_supply sdp4430_vaux_supply[] = {
 	{
 		.supply = "vmmc",
-		.dev_name = "mmci-omap-hs.1",
+		.dev_name = "omap_hsmmc.1",
 	},
 };
 static struct regulator_consumer_supply sdp4430_vmmc_supply[] = {
 	{
 		.supply = "vmmc",
-		.dev_name = "mmci-omap-hs.0",
+		.dev_name = "omap_hsmmc.0",
 	},
 };
 
@@ -434,7 +506,6 @@ static struct regulator_init_data sdp4430_vana = {
 	.constraints = {
 		.min_uV			= 2100000,
 		.max_uV			= 2100000,
-		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
@@ -446,7 +517,6 @@ static struct regulator_init_data sdp4430_vcxio = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
-		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
@@ -458,7 +528,6 @@ static struct regulator_init_data sdp4430_vdac = {
 	.constraints = {
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
-		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
@@ -557,9 +626,76 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP4_MUX(USBB2_ULPITLL_CLK, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+
+static struct omap_device_pad serial2_pads[] __initdata = {
+	OMAP_MUX_STATIC("uart2_cts.uart2_cts",
+			 OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart2_rts.uart2_rts",
+			 OMAP_PIN_OUTPUT | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart2_rx.uart2_rx",
+			 OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart2_tx.uart2_tx",
+			 OMAP_PIN_OUTPUT | OMAP_MUX_MODE0),
+};
+
+static struct omap_device_pad serial3_pads[] __initdata = {
+	OMAP_MUX_STATIC("uart3_cts_rctx.uart3_cts_rctx",
+			 OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart3_rts_sd.uart3_rts_sd",
+			 OMAP_PIN_OUTPUT | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart3_rx_irrx.uart3_rx_irrx",
+			 OMAP_PIN_INPUT | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart3_tx_irtx.uart3_tx_irtx",
+			 OMAP_PIN_OUTPUT | OMAP_MUX_MODE0),
+};
+
+static struct omap_device_pad serial4_pads[] __initdata = {
+	OMAP_MUX_STATIC("uart4_rx.uart4_rx",
+			 OMAP_PIN_INPUT | OMAP_MUX_MODE0),
+	OMAP_MUX_STATIC("uart4_tx.uart4_tx",
+			 OMAP_PIN_OUTPUT | OMAP_MUX_MODE0),
+};
+
+static struct omap_board_data serial2_data = {
+	.id		= 1,
+	.pads		= serial2_pads,
+	.pads_cnt	= ARRAY_SIZE(serial2_pads),
+};
+
+static struct omap_board_data serial3_data = {
+	.id		= 2,
+	.pads		= serial3_pads,
+	.pads_cnt	= ARRAY_SIZE(serial3_pads),
+};
+
+static struct omap_board_data serial4_data = {
+	.id		= 3,
+	.pads		= serial4_pads,
+	.pads_cnt	= ARRAY_SIZE(serial4_pads),
+};
+
+static inline void board_serial_init(void)
+{
+	struct omap_board_data bdata;
+	bdata.flags	= 0;
+	bdata.pads	= NULL;
+	bdata.pads_cnt	= 0;
+	bdata.id	= 0;
+	/* pass dummy data for UART1 */
+	omap_serial_init_port(&bdata);
+
+	omap_serial_init_port(&serial2_data);
+	omap_serial_init_port(&serial3_data);
+	omap_serial_init_port(&serial4_data);
+}
 #else
 #define board_mux	NULL
-#endif
+
+static inline void board_serial_init(void)
+{
+	omap_serial_init();
+}
+ #endif
 
 static void __init omap_4430sdp_init(void)
 {
@@ -570,20 +706,15 @@ static void __init omap_4430sdp_init(void)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, package);
 
+	omap_board_config = sdp4430_config;
+	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
+
 	omap4_i2c_init();
 	omap_sfh7741prox_init();
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
-	omap_serial_init();
+	board_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);
 
-	/* Power on the ULPI PHY */
-	status = gpio_request(OMAP4SDP_MDM_PWR_EN_GPIO, "USBB1 PHY VMDM_3V3");
-	if (status)
-		pr_err("%s: Could not get USBB1 PHY GPIO\n", __func__);
-	else
-		gpio_direction_output(OMAP4SDP_MDM_PWR_EN_GPIO, 1);
-
-	usb_ehci_init(&ehci_pdata);
 	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();
@@ -594,6 +725,10 @@ static void __init omap_4430sdp_init(void)
 		spi_register_board_info(sdp4430_spi_board_info,
 				ARRAY_SIZE(sdp4430_spi_board_info));
 	}
+
+	status = omap4_keyboard_init(&sdp4430_keypad_data);
+	if (status)
+		pr_err("Keypad initialization failed: %d\n", status);
 }
 
 static void __init omap_4430sdp_map_io(void)
@@ -605,9 +740,10 @@ static void __init omap_4430sdp_map_io(void)
 MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	/* Maintainer: Santosh Shilimkar - Texas Instruments Inc */
 	.boot_params	= 0x80000100,
-	.map_io		= omap_4430sdp_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_4430sdp_init_irq,
+	.map_io		= omap_4430sdp_map_io,
+	.init_early	= omap_4430sdp_init_early,
+	.init_irq	= gic_init_irq,
 	.init_machine	= omap_4430sdp_init,
 	.timer		= &omap_timer,
 MACHINE_END

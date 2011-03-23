@@ -5,10 +5,10 @@
  * interface and Solaris-compatible ioctls as best it is
  * able.
  *
- * NOTE: 	CP1400 systems appear to have a defective intr_mask
- * 			register on the PLD, preventing the disabling of
- * 			timer interrupts.  We use a timer to periodically
- * 			reset 'stopped' watchdogs on affected platforms.
+ * NOTE:	CP1400 systems appear to have a defective intr_mask
+ *			register on the PLD, preventing the disabling of
+ *			timer interrupts.  We use a timer to periodically
+ *			reset 'stopped' watchdogs on affected platforms.
  *
  * Copyright (c) 2000 Eric Brower (ebrower@usa.net)
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
@@ -107,13 +107,13 @@ static struct cpwd *cpwd_device;
  * -------------------
  * |-  counter val  -|
  * -------------------
- * dcntr - 	Current 16-bit downcounter value.
- * 			When downcounter reaches '0' watchdog expires.
- * 			Reading this register resets downcounter with
- * 			'limit' value.
- * limit - 	16-bit countdown value in 1/10th second increments.
- * 			Writing this register begins countdown with input value.
- * 			Reading from this register does not affect counter.
+ * dcntr -	Current 16-bit downcounter value.
+ *			When downcounter reaches '0' watchdog expires.
+ *			Reading this register resets downcounter with
+ *			'limit' value.
+ * limit -	16-bit countdown value in 1/10th second increments.
+ *			Writing this register begins countdown with input value.
+ *			Reading from this register does not affect counter.
  * NOTES:	After watchdog reset, dcntr and limit contain '1'
  *
  * status register (byte access):
@@ -123,7 +123,7 @@ static struct cpwd *cpwd_device;
  * |-   UNUSED  -| EXP | RUN |
  * ---------------------------
  * status-	Bit 0 - Watchdog is running
- * 			Bit 1 - Watchdog has expired
+ *			Bit 1 - Watchdog has expired
  *
  *** PLD register block definition (struct wd_pld_regblk)
  *
@@ -197,7 +197,7 @@ static u8 cpwd_readb(void __iomem *addr)
  * Because of the CP1400 defect this should only be
  * called during initialzation or by wd_[start|stop]timer()
  *
- * index 	- sub-device index, or -1 for 'all'
+ * index	- sub-device index, or -1 for 'all'
  * enable	- non-zero to enable interrupts, zero to disable
  */
 static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
@@ -317,13 +317,13 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 		} else {
 			/* Fudge WD_EXPIRED status for defective CP1400--
 			 * IF timer is running
-			 * 	AND brokenstop is set
-			 * 	AND an interrupt has been serviced
+			 *	AND brokenstop is set
+			 *	AND an interrupt has been serviced
 			 * we are WD_EXPIRED.
 			 *
 			 * IF timer is running
-			 * 	AND brokenstop is set
-			 * 	AND no interrupt has been serviced
+			 *	AND brokenstop is set
+			 *	AND no interrupt has been serviced
 			 * we are WD_FREERUN.
 			 */
 			if (p->broken &&
@@ -528,8 +528,7 @@ static const struct file_operations cpwd_fops = {
 	.llseek =		no_llseek,
 };
 
-static int __devinit cpwd_probe(struct platform_device *op,
-				const struct of_device_id *match)
+static int __devinit cpwd_probe(struct platform_device *op)
 {
 	struct device_node *options;
 	const char *str_prop;
@@ -614,7 +613,7 @@ static int __devinit cpwd_probe(struct platform_device *op,
 
 	if (p->broken) {
 		init_timer(&cpwd_timer);
-		cpwd_timer.function 	= cpwd_brokentimer;
+		cpwd_timer.function	= cpwd_brokentimer;
 		cpwd_timer.data		= (unsigned long) p;
 		cpwd_timer.expires	= WD_BTIMEOUT;
 
@@ -678,7 +677,7 @@ static const struct of_device_id cpwd_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cpwd_match);
 
-static struct of_platform_driver cpwd_driver = {
+static struct platform_driver cpwd_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -690,12 +689,12 @@ static struct of_platform_driver cpwd_driver = {
 
 static int __init cpwd_init(void)
 {
-	return of_register_platform_driver(&cpwd_driver);
+	return platform_driver_register(&cpwd_driver);
 }
 
 static void __exit cpwd_exit(void)
 {
-	of_unregister_platform_driver(&cpwd_driver);
+	platform_driver_unregister(&cpwd_driver);
 }
 
 module_init(cpwd_init);

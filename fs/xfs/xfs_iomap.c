@@ -101,11 +101,11 @@ xfs_iomap_eof_align_last_fsb(
 }
 
 STATIC int
-xfs_cmn_err_fsblock_zero(
+xfs_alert_fsblock_zero(
 	xfs_inode_t	*ip,
 	xfs_bmbt_irec_t	*imap)
 {
-	xfs_cmn_err(XFS_PTAG_FSBLOCK_ZERO, CE_ALERT, ip->i_mount,
+	xfs_alert_tag(ip->i_mount, XFS_PTAG_FSBLOCK_ZERO,
 			"Access to block zero in inode %llu "
 			"start_block: %llx start_off: %llx "
 			"blkcnt: %llx extent-state: %x\n",
@@ -246,7 +246,7 @@ xfs_iomap_write_direct(
 	}
 
 	if (!(imap->br_startblock || XFS_IS_REALTIME_INODE(ip))) {
-		error = xfs_cmn_err_fsblock_zero(ip, imap);
+		error = xfs_alert_fsblock_zero(ip, imap);
 		goto error_out;
 	}
 
@@ -464,7 +464,7 @@ retry:
 	}
 
 	if (!(imap[0].br_startblock || XFS_IS_REALTIME_INODE(ip)))
-		return xfs_cmn_err_fsblock_zero(ip, &imap[0]);
+		return xfs_alert_fsblock_zero(ip, &imap[0]);
 
 	*ret_imap = imap[0];
 	return 0;
@@ -614,7 +614,7 @@ xfs_iomap_write_allocate(
 		 * covers at least part of the callers request
 		 */
 		if (!(imap->br_startblock || XFS_IS_REALTIME_INODE(ip)))
-			return xfs_cmn_err_fsblock_zero(ip, imap);
+			return xfs_alert_fsblock_zero(ip, imap);
 
 		if ((offset_fsb >= imap->br_startoff) &&
 		    (offset_fsb < (imap->br_startoff +
@@ -724,7 +724,7 @@ xfs_iomap_write_unwritten(
 			return XFS_ERROR(error);
 
 		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
-			return xfs_cmn_err_fsblock_zero(ip, &imap);
+			return xfs_alert_fsblock_zero(ip, &imap);
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {
 			/*

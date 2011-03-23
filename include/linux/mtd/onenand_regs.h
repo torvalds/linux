@@ -168,6 +168,7 @@
 #define ONENAND_SYS_CFG1_INT		(1 << 6)
 #define ONENAND_SYS_CFG1_IOBE		(1 << 5)
 #define ONENAND_SYS_CFG1_RDY_CONF	(1 << 4)
+#define ONENAND_SYS_CFG1_VHF		(1 << 3)
 #define ONENAND_SYS_CFG1_HF		(1 << 2)
 #define ONENAND_SYS_CFG1_SYNC_WRITE	(1 << 1)
 

@@ -93,6 +93,7 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
 	struct axon_msic *msic = get_irq_data(irq);
 	u32 write_offset, msi;
 	int idx;
@@ -145,7 +146,7 @@ static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		msic->read_offset &= MSIC_FIFO_SIZE_MASK;
 	}
 
-	desc->chip->eoi(irq);
+	chip->irq_eoi(&desc->irq_data);
 }
 
 static struct axon_msic *find_msi_translator(struct pci_dev *dev)
@@ -328,7 +329,7 @@ static struct irq_host_ops msic_host_ops = {
 	.map	= msic_host_map,
 };
 
-static int axon_msi_shutdown(struct platform_device *device)
+static void axon_msi_shutdown(struct platform_device *device)
 {
 	struct axon_msic *msic = dev_get_drvdata(&device->dev);
 	u32 tmp;
@@ -338,12 +339,9 @@ static int axon_msi_shutdown(struct platform_device *device)
 	tmp  = dcr_read(msic->dcr_host, MSIC_CTRL_REG);
 	tmp &= ~MSIC_CTRL_ENABLE & ~MSIC_CTRL_IRQ_ENABLE;
 	msic_dcr_write(msic, MSIC_CTRL_REG, tmp);
-
-	return 0;
 }
 
-static int axon_msi_probe(struct platform_device *device,
-			  const struct of_device_id *device_id)
+static int axon_msi_probe(struct platform_device *device)
 {
 	struct device_node *dn = device->dev.of_node;
 	struct axon_msic *msic;
@@ -446,7 +444,7 @@ static const struct of_device_id axon_msi_device_id[] = {
 	{}
 };
 
-static struct of_platform_driver axon_msi_driver = {
+static struct platform_driver axon_msi_driver = {
 	.probe		= axon_msi_probe,
 	.shutdown	= axon_msi_shutdown,
 	.driver = {
@@ -458,7 +456,7 @@ static struct of_platform_driver axon_msi_driver = {
 
 static int __init axon_msi_init(void)
 {
-	return of_register_platform_driver(&axon_msi_driver);
+	return platform_driver_register(&axon_msi_driver);
 }
 subsys_initcall(axon_msi_init);
 

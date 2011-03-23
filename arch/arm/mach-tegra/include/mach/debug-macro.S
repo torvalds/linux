@@ -19,30 +19,15 @@
  */
 
 #include <mach/io.h>
+#include <mach/iomap.h>
 
 	.macro  addruart, rp, rv
         ldr     \rp, =IO_APB_PHYS       @ physical
         ldr     \rv, =IO_APB_VIRT        @ virtual
-#if defined(CONFIG_TEGRA_DEBUG_UART_NONE)
-#error "A debug UART must be selected in the kernel config to use DEBUG_LL"
-#elif defined(CONFIG_TEGRA_DEBUG_UARTA)
-        orr     \rp, \rp, #0x6000
-        orr     \rv, \rv, #0x6000
-#elif defined(CONFIG_TEGRA_DEBUG_UARTB)
-        orr     \rp, \rp, #0x6000
-	orr	\rp, \rp, #0x40
-        orr     \rv, \rv, #0x6000
-	orr	\rv, \rv, #0x40
-#elif defined(CONFIG_TEGRA_DEBUG_UARTC)
-        orr     \rp, \rp, #0x6200
-        orr     \rv, \rv, #0x6200
-#elif defined(CONFIG_TEGRA_DEBUG_UARTD)
-        orr     \rp, \rp, #0x6300
-        orr     \rv, \rv, #0x6300
-#elif defined(CONFIG_TEGRA_DEBUG_UARTE)
-        orr     \rp, \rp, #0x6400
-        orr     \rv, \rv, #0x6400
-#endif
+	orr	\rp, \rp, #(TEGRA_DEBUG_UART_BASE & 0xFF)
+	orr	\rp, \rp, #(TEGRA_DEBUG_UART_BASE & 0xFF00)
+	orr	\rv, \rv, #(TEGRA_DEBUG_UART_BASE & 0xFF)
+	orr	\rv, \rv, #(TEGRA_DEBUG_UART_BASE & 0xFF00)
 	.endm
 
 #define UART_SHIFT	2

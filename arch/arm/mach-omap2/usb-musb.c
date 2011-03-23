@@ -30,117 +30,10 @@
 #include <mach/irqs.h>
 #include <mach/am35xx.h>
 #include <plat/usb.h>
-#include "control.h"
+#include <plat/omap_device.h>
+#include "mux.h"
 
 #if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined (CONFIG_USB_MUSB_AM35X)
-
-static void am35x_musb_reset(void)
-{
-	u32	regval;
-
-	/* Reset the musb interface */
-	regval = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
-
-	regval |= AM35XX_USBOTGSS_SW_RST;
-	omap_ctrl_writel(regval, AM35XX_CONTROL_IP_SW_RESET);
-
-	regval &= ~AM35XX_USBOTGSS_SW_RST;
-	omap_ctrl_writel(regval, AM35XX_CONTROL_IP_SW_RESET);
-
-	regval = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
-}
-
-static void am35x_musb_phy_power(u8 on)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies(100);
-	u32 devconf2;
-
-	if (on) {
-		/*
-		 * Start the on-chip PHY and its PLL.
-		 */
-		devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
-
-		devconf2 &= ~(CONF2_RESET | CONF2_PHYPWRDN | CONF2_OTGPWRDN);
-		devconf2 |= CONF2_PHY_PLLON;
-
-		omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-
-		pr_info(KERN_INFO "Waiting for PHY clock good...\n");
-		while (!(omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2)
-				& CONF2_PHYCLKGD)) {
-			cpu_relax();
-
-			if (time_after(jiffies, timeout)) {
-				pr_err(KERN_ERR "musb PHY clock good timed out\n");
-				break;
-			}
-		}
-	} else {
-		/*
-		 * Power down the on-chip PHY.
-		 */
-		devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
-
-		devconf2 &= ~CONF2_PHY_PLLON;
-		devconf2 |=  CONF2_PHYPWRDN | CONF2_OTGPWRDN;
-		omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-	}
-}
-
-static void am35x_musb_clear_irq(void)
-{
-	u32 regval;
-
-	regval = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
-	regval |= AM35XX_USBOTGSS_INT_CLR;
-	omap_ctrl_writel(regval, AM35XX_CONTROL_LVL_INTR_CLEAR);
-	regval = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
-}
-
-static void am35x_musb_set_mode(u8 musb_mode)
-{
-	u32 devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
-
-	devconf2 &= ~CONF2_OTGMODE;
-	switch (musb_mode) {
-#ifdef	CONFIG_USB_MUSB_HDRC_HCD
-	case MUSB_HOST:		/* Force VBUS valid, ID = 0 */
-		devconf2 |= CONF2_FORCE_HOST;
-		break;
-#endif
-#ifdef	CONFIG_USB_GADGET_MUSB_HDRC
-	case MUSB_PERIPHERAL:	/* Force VBUS valid, ID = 1 */
-		devconf2 |= CONF2_FORCE_DEVICE;
-		break;
-#endif
-#ifdef	CONFIG_USB_MUSB_OTG
-	case MUSB_OTG:		/* Don't override the VBUS/ID comparators */
-		devconf2 |= CONF2_NO_OVERRIDE;
-		break;
-#endif
-	default:
-		pr_info(KERN_INFO "Unsupported mode %u\n", musb_mode);
-	}
-
-	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-}
-
-static struct resource musb_resources[] = {
-	[0] = { /* start and end set dynamically */
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {	/* general IRQ */
-		.start	= INT_243X_HS_USB_MC,
-		.flags	= IORESOURCE_IRQ,
-		.name	= "mc",
-	},
-	[2] = {	/* DMA IRQ */
-		.start	= INT_243X_HS_USB_DMA,
-		.flags	= IORESOURCE_IRQ,
-		.name	= "dma",
-	},
-};
 
 static struct musb_hdrc_config musb_config = {
 	.multipoint	= 1,
@@ -169,38 +62,65 @@ static struct musb_hdrc_platform_data musb_plat = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
-static struct platform_device musb_device = {
-	.name		= "musb-omap2430",
-	.id		= -1,
-	.dev = {
-		.dma_mask		= &musb_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &musb_plat,
+static struct omap_device_pm_latency omap_musb_latency[] = {
+	{
+		.deactivate_func	= omap_device_idle_hwmods,
+		.activate_func		= omap_device_enable_hwmods,
+		.flags			= OMAP_DEVICE_LATENCY_AUTO_ADJUST,
 	},
-	.num_resources	= ARRAY_SIZE(musb_resources),
-	.resource	= musb_resources,
 };
+
+static void usb_musb_mux_init(struct omap_musb_board_data *board_data)
+{
+	switch (board_data->interface_type) {
+	case MUSB_INTERFACE_UTMI:
+		omap_mux_init_signal("usba0_otg_dp", OMAP_PIN_INPUT);
+		omap_mux_init_signal("usba0_otg_dm", OMAP_PIN_INPUT);
+		break;
+	case MUSB_INTERFACE_ULPI:
+		omap_mux_init_signal("usba0_ulpiphy_clk",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_stp",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dir",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_nxt",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat0",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat1",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat2",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat3",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat4",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat5",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat6",
+						OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("usba0_ulpiphy_dat7",
+						OMAP_PIN_INPUT_PULLDOWN);
+		break;
+	default:
+		break;
+	}
+}
 
 void __init usb_musb_init(struct omap_musb_board_data *board_data)
 {
-	if (cpu_is_omap243x()) {
-		musb_resources[0].start = OMAP243X_HS_BASE;
-	} else if (cpu_is_omap3517() || cpu_is_omap3505()) {
-		musb_device.name = "musb-am35x";
-		musb_resources[0].start = AM35XX_IPSS_USBOTGSS_BASE;
-		musb_resources[1].start = INT_35XX_USBOTG_IRQ;
-		board_data->set_phy_power = am35x_musb_phy_power;
-		board_data->clear_irq = am35x_musb_clear_irq;
-		board_data->set_mode = am35x_musb_set_mode;
-		board_data->reset = am35x_musb_reset;
-	} else if (cpu_is_omap34xx()) {
-		musb_resources[0].start = OMAP34XX_HSUSB_OTG_BASE;
+	struct omap_hwmod		*oh;
+	struct omap_device		*od;
+	struct platform_device		*pdev;
+	struct device			*dev;
+	int				bus_id = -1;
+	const char			*oh_name, *name;
+
+	if (cpu_is_omap3517() || cpu_is_omap3505()) {
 	} else if (cpu_is_omap44xx()) {
-		musb_resources[0].start = OMAP44XX_HSUSB_OTG_BASE;
-		musb_resources[1].start = OMAP44XX_IRQ_HS_USB_MC_N;
-		musb_resources[2].start = OMAP44XX_IRQ_HS_USB_DMA_N;
+		usb_musb_mux_init(board_data);
 	}
-	musb_resources[0].end = musb_resources[0].start + SZ_4K - 1;
 
 	/*
 	 * REVISIT: This line can be removed once all the platforms using
@@ -212,8 +132,38 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 	musb_plat.mode = board_data->mode;
 	musb_plat.extvbus = board_data->extvbus;
 
-	if (platform_device_register(&musb_device) < 0)
-		printk(KERN_ERR "Unable to register HS-USB (MUSB) device\n");
+	if (cpu_is_omap44xx())
+		omap4430_phy_init(dev);
+
+	if (cpu_is_omap3517() || cpu_is_omap3505()) {
+		oh_name = "am35x_otg_hs";
+		name = "musb-am35x";
+	} else {
+		oh_name = "usb_otg_hs";
+		name = "musb-omap2430";
+	}
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return;
+	}
+
+	od = omap_device_build(name, bus_id, oh, &musb_plat,
+			       sizeof(musb_plat), omap_musb_latency,
+			       ARRAY_SIZE(omap_musb_latency), false);
+	if (IS_ERR(od)) {
+		pr_err("Could not build omap_device for %s %s\n",
+						name, oh_name);
+		return;
+	}
+
+	pdev = &od->pdev;
+	dev = &pdev->dev;
+	get_device(dev);
+	dev->dma_mask = &musb_dmamask;
+	dev->coherent_dma_mask = musb_dmamask;
+	put_device(dev);
 }
 
 #else

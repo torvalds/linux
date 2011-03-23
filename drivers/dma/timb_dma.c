@@ -629,7 +629,7 @@ static int td_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		desc_node)
 		list_move(&td_desc->desc_node, &td_chan->free_list);
 
-	/* now tear down the runnning */
+	/* now tear down the running */
 	__td_finish(td_chan);
 	spin_unlock_bh(&td_chan->lock);
 

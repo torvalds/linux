@@ -59,9 +59,9 @@ irq_to_pic_bit(unsigned int irq)
 }
 
 static void
-cpld_mask_irq(unsigned int irq)
+cpld_mask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irq_map[d->irq].hwirq;
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -69,9 +69,9 @@ cpld_mask_irq(unsigned int irq)
 }
 
 static void
-cpld_unmask_irq(unsigned int irq)
+cpld_unmask_irq(struct irq_data *d)
 {
-	unsigned int cpld_irq = (unsigned int)irq_map[irq].hwirq;
+	unsigned int cpld_irq = (unsigned int)irq_map[d->irq].hwirq;
 	void __iomem *pic_mask = irq_to_pic_mask(cpld_irq);
 
 	out_8(pic_mask,
@@ -80,9 +80,9 @@ cpld_unmask_irq(unsigned int irq)
 
 static struct irq_chip cpld_pic = {
 	.name = "CPLD PIC",
-	.mask = cpld_mask_irq,
-	.ack = cpld_mask_irq,
-	.unmask = cpld_unmask_irq,
+	.irq_mask = cpld_mask_irq,
+	.irq_ack = cpld_mask_irq,
+	.irq_unmask = cpld_unmask_irq,
 };
 
 static int

@@ -16,20 +16,18 @@
 #include <linux/serial_8250.h>
 
 #include <asm/ce4100.h>
+#include <asm/prom.h>
 #include <asm/setup.h>
+#include <asm/i8259.h>
 #include <asm/io.h>
+#include <asm/io_apic.h>
 
 static int ce4100_i8042_detect(void)
 {
 	return 0;
 }
 
-static void __init sdv_find_smp_config(void)
-{
-}
-
 #ifdef CONFIG_SERIAL_8250
-
 
 static unsigned int mem_serial_in(struct uart_port *p, int offset)
 {
@@ -119,6 +117,15 @@ static void __init sdv_arch_setup(void)
 	sdv_serial_fixup();
 }
 
+#ifdef CONFIG_X86_IO_APIC
+static void __cpuinit sdv_pci_init(void)
+{
+	x86_of_pci_init();
+	/* We can't set this earlier, because we need to calibrate the timer */
+	legacy_pic = &null_legacy_pic;
+}
+#endif
+
 /*
  * CE4100 specific x86_init function overrides and early setup
  * calls.
@@ -129,6 +136,11 @@ void __init x86_ce4100_early_setup(void)
 	x86_platform.i8042_detect = ce4100_i8042_detect;
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
-	x86_init.mpparse.find_smp_config = sdv_find_smp_config;
+	x86_init.mpparse.find_smp_config = x86_init_noop;
 	x86_init.pci.init = ce4100_pci_init;
+
+#ifdef CONFIG_X86_IO_APIC
+	x86_init.pci.init_irq = sdv_pci_init;
+	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc_nocheck;
+#endif
 }

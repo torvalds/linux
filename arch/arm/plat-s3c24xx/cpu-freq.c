@@ -433,7 +433,7 @@ static int s3c_cpufreq_verify(struct cpufreq_policy *policy)
 static struct cpufreq_frequency_table suspend_pll;
 static unsigned int suspend_freq;
 
-static int s3c_cpufreq_suspend(struct cpufreq_policy *policy, pm_message_t pmsg)
+static int s3c_cpufreq_suspend(struct cpufreq_policy *policy)
 {
 	suspend_pll.frequency = clk_get_rate(_clk_mpll);
 	suspend_pll.index = __raw_readl(S3C2410_MPLLCON);

@@ -33,6 +33,8 @@
 #include <linux/hid.h>
 
 #include "hid-ids.h"
+
+#ifdef CONFIG_HID_ACRUX_FF
 #include "usbhid/usbhid.h"
 
 struct axff_device {
@@ -109,6 +111,12 @@ err_free_mem:
 	kfree(axff);
 	return error;
 }
+#else
+static inline int axff_init(struct hid_device *hid)
+{
+	return 0;
+}
+#endif
 
 static int ax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
@@ -139,7 +147,23 @@ static int ax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			 error);
 	}
 
+	/*
+	 * We need to start polling device right away, otherwise
+	 * it will go into a coma.
+	 */
+	error = hid_hw_open(hdev);
+	if (error) {
+		dev_err(&hdev->dev, "hw open failed\n");
+		return error;
+	}
+
 	return 0;
+}
+
+static void ax_remove(struct hid_device *hdev)
+{
+	hid_hw_close(hdev);
+	hid_hw_stop(hdev);
 }
 
 static const struct hid_device_id ax_devices[] = {
@@ -149,9 +173,10 @@ static const struct hid_device_id ax_devices[] = {
 MODULE_DEVICE_TABLE(hid, ax_devices);
 
 static struct hid_driver ax_driver = {
-	.name = "acrux",
-	.id_table = ax_devices,
-	.probe = ax_probe,
+	.name		= "acrux",
+	.id_table	= ax_devices,
+	.probe		= ax_probe,
+	.remove		= ax_remove,
 };
 
 static int __init ax_init(void)

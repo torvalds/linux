@@ -12,14 +12,7 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/device.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
 #include <sound/soc.h>
-
-#include "dma.h"
-#include "ac97.h"
 
 static struct snd_soc_card smdk2443;
 

@@ -35,6 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -42,7 +43,6 @@
 
 #include <mach/pxa27x.h>
 #include <mach/hx4700.h>
-#include <plat/i2c.h>
 #include <mach/irda.h>
 
 #include <video/platform_lcd.h>

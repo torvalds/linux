@@ -165,7 +165,8 @@ static int seq_show(struct seq_file *s, void *v)
 	struct nf_logger *t;
 	int ret;
 
-	logger = nf_loggers[*pos];
+	logger = rcu_dereference_protected(nf_loggers[*pos],
+					   lockdep_is_held(&nf_log_mutex));
 
 	if (!logger)
 		ret = seq_printf(s, "%2lld NONE (", *pos);
@@ -253,7 +254,8 @@ static int nf_log_proc_dostring(ctl_table *table, int write,
 		mutex_unlock(&nf_log_mutex);
 	} else {
 		mutex_lock(&nf_log_mutex);
-		logger = nf_loggers[tindex];
+		logger = rcu_dereference_protected(nf_loggers[tindex],
+						   lockdep_is_held(&nf_log_mutex));
 		if (!logger)
 			table->data = "NONE";
 		else

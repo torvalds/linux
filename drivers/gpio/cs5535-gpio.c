@@ -373,7 +373,7 @@ static int __devexit cs5535_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver cs5535_gpio_drv = {
+static struct platform_driver cs5535_gpio_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
@@ -384,12 +384,12 @@ static struct platform_driver cs5535_gpio_drv = {
 
 static int __init cs5535_gpio_init(void)
 {
-	return platform_driver_register(&cs5535_gpio_drv);
+	return platform_driver_register(&cs5535_gpio_driver);
 }
 
 static void __exit cs5535_gpio_exit(void)
 {
-	platform_driver_unregister(&cs5535_gpio_drv);
+	platform_driver_unregister(&cs5535_gpio_driver);
 }
 
 module_init(cs5535_gpio_init);

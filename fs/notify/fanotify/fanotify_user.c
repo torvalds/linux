@@ -876,7 +876,7 @@ SYSCALL_ALIAS(sys_fanotify_mark, SyS_fanotify_mark);
 #endif
 
 /*
- * fanotify_user_setup - Our initialization function.  Note that we cannnot return
+ * fanotify_user_setup - Our initialization function.  Note that we cannot return
  * error because we have compiled-in VFS hooks.  So an (unlikely) failure here
  * must result in panic().
  */

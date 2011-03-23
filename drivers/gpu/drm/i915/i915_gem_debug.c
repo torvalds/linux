@@ -134,51 +134,6 @@ i915_verify_lists(struct drm_device *dev)
 }
 #endif /* WATCH_INACTIVE */
 
-
-#if WATCH_EXEC | WATCH_PWRITE
-static void
-i915_gem_dump_page(struct page *page, uint32_t start, uint32_t end,
-		   uint32_t bias, uint32_t mark)
-{
-	uint32_t *mem = kmap_atomic(page, KM_USER0);
-	int i;
-	for (i = start; i < end; i += 4)
-		DRM_INFO("%08x: %08x%s\n",
-			  (int) (bias + i), mem[i / 4],
-			  (bias + i == mark) ? " ********" : "");
-	kunmap_atomic(mem, KM_USER0);
-	/* give syslog time to catch up */
-	msleep(1);
-}
-
-void
-i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
-		     const char *where, uint32_t mark)
-{
-	int page;
-
-	DRM_INFO("%s: object at offset %08x\n", where, obj->gtt_offset);
-	for (page = 0; page < (len + PAGE_SIZE-1) / PAGE_SIZE; page++) {
-		int page_len, chunk, chunk_len;
-
-		page_len = len - page * PAGE_SIZE;
-		if (page_len > PAGE_SIZE)
-			page_len = PAGE_SIZE;
-
-		for (chunk = 0; chunk < page_len; chunk += 128) {
-			chunk_len = page_len - chunk;
-			if (chunk_len > 128)
-				chunk_len = 128;
-			i915_gem_dump_page(obj->pages[page],
-					   chunk, chunk + chunk_len,
-					   obj->gtt_offset +
-					   page * PAGE_SIZE,
-					   mark);
-		}
-	}
-}
-#endif
-
 #if WATCH_COHERENCY
 void
 i915_gem_object_check_coherency(struct drm_i915_gem_object *obj, int handle)

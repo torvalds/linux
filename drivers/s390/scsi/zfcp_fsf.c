@@ -18,6 +18,8 @@
 #include "zfcp_qdio.h"
 #include "zfcp_reqlist.h"
 
+struct kmem_cache *zfcp_fsf_qtcb_cache;
+
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
@@ -83,7 +85,7 @@ void zfcp_fsf_req_free(struct zfcp_fsf_req *req)
 	}
 
 	if (likely(req->qtcb))
-		kmem_cache_free(zfcp_data.qtcb_cache, req->qtcb);
+		kmem_cache_free(zfcp_fsf_qtcb_cache, req->qtcb);
 	kfree(req);
 }
 
@@ -212,7 +214,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 
 	if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
 		zfcp_dbf_hba_fsf_uss("fssrh_1", req);
-		mempool_free(sr_buf, adapter->pool.status_read_data);
+		mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 		zfcp_fsf_req_free(req);
 		return;
 	}
@@ -265,7 +267,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		break;
 	}
 
-	mempool_free(sr_buf, adapter->pool.status_read_data);
+	mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 	zfcp_fsf_req_free(req);
 
 	atomic_inc(&adapter->stat_miss);
@@ -628,7 +630,7 @@ static struct fsf_qtcb *zfcp_qtcb_alloc(mempool_t *pool)
 	if (likely(pool))
 		qtcb = mempool_alloc(pool, GFP_ATOMIC);
 	else
-		qtcb = kmem_cache_alloc(zfcp_data.qtcb_cache, GFP_ATOMIC);
+		qtcb = kmem_cache_alloc(zfcp_fsf_qtcb_cache, GFP_ATOMIC);
 
 	if (unlikely(!qtcb))
 		return NULL;
@@ -723,6 +725,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	struct zfcp_adapter *adapter = qdio->adapter;
 	struct zfcp_fsf_req *req;
 	struct fsf_status_read_buffer *sr_buf;
+	struct page *page;
 	int retval = -EIO;
 
 	spin_lock_irq(&qdio->req_q_lock);
@@ -736,11 +739,12 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 		goto out;
 	}
 
-	sr_buf = mempool_alloc(adapter->pool.status_read_data, GFP_ATOMIC);
-	if (!sr_buf) {
+	page = mempool_alloc(adapter->pool.sr_data, GFP_ATOMIC);
+	if (!page) {
 		retval = -ENOMEM;
 		goto failed_buf;
 	}
+	sr_buf = page_address(page);
 	memset(sr_buf, 0, sizeof(*sr_buf));
 	req->data = sr_buf;
 
@@ -755,7 +759,7 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 
 failed_req_send:
 	req->data = NULL;
-	mempool_free(sr_buf, adapter->pool.status_read_data);
+	mempool_free(virt_to_page(sr_buf), adapter->pool.sr_data);
 failed_buf:
 	zfcp_dbf_hba_fsf_uss("fssr__1", req);
 	zfcp_fsf_req_free(req);
@@ -1552,7 +1556,7 @@ int zfcp_fsf_open_wka_port(struct zfcp_fc_wka_port *wka_port)
 				  SBAL_FLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
-	if (unlikely(IS_ERR(req))) {
+	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
 		goto out;
 	}
@@ -1605,7 +1609,7 @@ int zfcp_fsf_close_wka_port(struct zfcp_fc_wka_port *wka_port)
 				  SBAL_FLAGS0_TYPE_READ,
 				  qdio->adapter->pool.erp_req);
 
-	if (unlikely(IS_ERR(req))) {
+	if (IS_ERR(req)) {
 		retval = PTR_ERR(req);
 		goto out;
 	}
@@ -2206,7 +2210,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction);
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
-	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
+	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd, 0);
 
 	if (scsi_prot_sg_count(scsi_cmnd)) {
 		zfcp_qdio_set_data_div(qdio, &req->qdio_req,
@@ -2284,7 +2288,6 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 		goto out;
 	}
 
-	req->status |= ZFCP_STATUS_FSFREQ_TASK_MANAGEMENT;
 	req->data = scmnd;
 	req->handler = zfcp_fsf_fcp_task_mgmt_handler;
 	req->qtcb->header.lun_handle = zfcp_sdev->lun_handle;
@@ -2296,7 +2299,7 @@ struct zfcp_fsf_req *zfcp_fsf_fcp_task_mgmt(struct scsi_cmnd *scmnd,
 	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
 
 	fcp_cmnd = (struct fcp_cmnd *) &req->qtcb->bottom.io.fcp_cmnd;
-	zfcp_fc_fcp_tm(fcp_cmnd, scmnd->device, tm_flags);
+	zfcp_fc_scsi_to_fcp(fcp_cmnd, scmnd, tm_flags);
 
 	zfcp_fsf_start_timer(req, ZFCP_SCSI_ER_TIMEOUT);
 	if (!zfcp_fsf_req_send(req))

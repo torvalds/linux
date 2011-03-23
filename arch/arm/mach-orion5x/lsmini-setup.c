@@ -270,6 +270,7 @@ MACHINE_START(LINKSTATION_MINI, "Buffalo Linkstation Mini")
 	.boot_params	= 0x00000100,
 	.init_machine	= lsmini_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

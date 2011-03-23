@@ -5582,9 +5582,16 @@ static void qsfp_7322_event(struct work_struct *work)
 	 * even on failure to read cable information.  We don't
 	 * get here for QME, so IS_QME check not needed here.
 	 */
-	le2 = (!ret && qd->cache.atten[1] >= qib_long_atten &&
-	       !ppd->dd->cspec->r1 && QSFP_IS_CU(qd->cache.tech)) ?
-		LE2_5m : LE2_DEFAULT;
+	if (!ret && !ppd->dd->cspec->r1) {
+		if (QSFP_IS_ACTIVE_FAR(qd->cache.tech))
+			le2 = LE2_QME;
+		else if (qd->cache.atten[1] >= qib_long_atten &&
+			 QSFP_IS_CU(qd->cache.tech))
+			le2 = LE2_5m;
+		else
+			le2 = LE2_DEFAULT;
+	} else
+		le2 = LE2_DEFAULT;
 	ibsd_wr_allchans(ppd, 13, (le2 << 7), BMASK(9, 7));
 	init_txdds_table(ppd, 0);
 }

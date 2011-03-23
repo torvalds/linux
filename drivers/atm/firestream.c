@@ -1031,7 +1031,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		/* We now use the "submit_command" function to submit commands to
 		   the firestream. There is a define up near the definition of
 		   that routine that switches this routine between immediate write
-		   to the immediate comamnd registers and queuing the commands in
+		   to the immediate command registers and queuing the commands in
 		   the HPTXQ for execution. This last technique might be more
 		   efficient if we know we're going to submit a whole lot of
 		   commands in one go, but this driver is not setup to be able to

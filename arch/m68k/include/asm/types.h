@@ -25,9 +25,6 @@ typedef unsigned short umode_t;
 
 #ifndef __ASSEMBLY__
 
-/* DMA addresses are always 32-bits wide */
-
-typedef u32 dma_addr_t;
 typedef u32 dma64_addr_t;
 
 #endif /* __ASSEMBLY__ */

@@ -21,16 +21,16 @@
  */
 unsigned int dma_base_addr[MAX_M68K_DMA_CHANNELS] = {
 #ifdef MCFDMA_BASE0
-	MCF_MBAR + MCFDMA_BASE0,
+	MCFDMA_BASE0,
 #endif
 #ifdef MCFDMA_BASE1
-	MCF_MBAR + MCFDMA_BASE1,
+	MCFDMA_BASE1,
 #endif
 #ifdef MCFDMA_BASE2
-	MCF_MBAR + MCFDMA_BASE2,
+	MCFDMA_BASE2,
 #endif
 #ifdef MCFDMA_BASE3
-	MCF_MBAR + MCFDMA_BASE3,
+	MCFDMA_BASE3,
 #endif
 };
 

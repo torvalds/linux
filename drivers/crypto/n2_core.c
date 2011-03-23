@@ -2004,8 +2004,7 @@ static void __devinit n2_spu_driver_version(void)
 		pr_info("%s", version);
 }
 
-static int __devinit n2_crypto_probe(struct platform_device *dev,
-				     const struct of_device_id *match)
+static int __devinit n2_crypto_probe(struct platform_device *dev)
 {
 	struct mdesc_handle *mdesc;
 	const char *full_name;
@@ -2116,8 +2115,7 @@ static void free_ncp(struct n2_mau *mp)
 	kfree(mp);
 }
 
-static int __devinit n2_mau_probe(struct platform_device *dev,
-				     const struct of_device_id *match)
+static int __devinit n2_mau_probe(struct platform_device *dev)
 {
 	struct mdesc_handle *mdesc;
 	const char *full_name;
@@ -2211,7 +2209,7 @@ static struct of_device_id n2_crypto_match[] = {
 
 MODULE_DEVICE_TABLE(of, n2_crypto_match);
 
-static struct of_platform_driver n2_crypto_driver = {
+static struct platform_driver n2_crypto_driver = {
 	.driver = {
 		.name		=	"n2cp",
 		.owner		=	THIS_MODULE,
@@ -2235,7 +2233,7 @@ static struct of_device_id n2_mau_match[] = {
 
 MODULE_DEVICE_TABLE(of, n2_mau_match);
 
-static struct of_platform_driver n2_mau_driver = {
+static struct platform_driver n2_mau_driver = {
 	.driver = {
 		.name		=	"ncp",
 		.owner		=	THIS_MODULE,
@@ -2247,20 +2245,20 @@ static struct of_platform_driver n2_mau_driver = {
 
 static int __init n2_init(void)
 {
-	int err = of_register_platform_driver(&n2_crypto_driver);
+	int err = platform_driver_register(&n2_crypto_driver);
 
 	if (!err) {
-		err = of_register_platform_driver(&n2_mau_driver);
+		err = platform_driver_register(&n2_mau_driver);
 		if (err)
-			of_unregister_platform_driver(&n2_crypto_driver);
+			platform_driver_unregister(&n2_crypto_driver);
 	}
 	return err;
 }
 
 static void __exit n2_exit(void)
 {
-	of_unregister_platform_driver(&n2_mau_driver);
-	of_unregister_platform_driver(&n2_crypto_driver);
+	platform_driver_unregister(&n2_mau_driver);
+	platform_driver_unregister(&n2_crypto_driver);
 }
 
 module_init(n2_init);

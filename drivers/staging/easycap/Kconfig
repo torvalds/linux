@@ -1,6 +1,6 @@
 config EASYCAP
 	tristate "EasyCAP USB ID 05e1:0408 support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_DEV && (SND || SOUND_OSS_CORE)
 
 	---help---
 	  This is an integrated audio/video driver for EasyCAP cards with
@@ -14,4 +14,45 @@ config EASYCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called easycap
+
+choice
+        prompt "Sound Interface"
+        depends on EASYCAP
+        default EASYCAP_SND
+	---help---
+
+config EASYCAP_SND
+        bool "ALSA"
+	depends on SND
+	select SND_PCM
+
+        ---help---
+          Say 'Y' if you want to use ALSA interface
+
+	  This will disable Open Sound System (OSS) binding.
+
+config EASYCAP_OSS
+	bool "OSS (DEPRECATED)"
+	depends on SOUND_OSS_CORE
+
+	---help---
+	  Say 'Y' if you prefer Open Sound System (OSS) interface
+
+	  This will disable Advanced Linux Sound Architecture (ALSA) binding.
+
+	  Once binding to ALSA interface will be stable this option will be
+          removed.
+endchoice
+
+config EASYCAP_DEBUG
+	bool "Enable EasyCAP driver debugging"
+	depends on EASYCAP
+
+	---help---
+	  This option enables debug printouts
+
+	  To enable debug, pass the debug level to the debug module
+          parameter:
+
+          modprobe easycap debug=[0..9]
 

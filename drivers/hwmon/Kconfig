@@ -467,6 +467,17 @@ config SENSORS_JC42
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
 
+config SENSORS_LINEAGE
+	tristate "Lineage Compact Power Line Power Entry Module"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Lineage Compact Power Line
+	  series of DC/DC and AC/DC converters such as CP1800, CP2000AC,
+	  CP2000DC, CP2725, and others.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lineage-pem.
+
 config SENSORS_LM63
 	tristate "National Semiconductor LM63 and LM64"
 	depends on I2C
@@ -510,7 +521,7 @@ config SENSORS_LM75
 		- Dallas Semiconductor DS75 and DS1775
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
-		- National Semiconductor LM75
+		- National Semiconductor LM75, LM75A
 		- NXP's LM75A
 		- ST Microelectronics STDS75
 		- TelCom (now Microchip) TCN75
@@ -625,6 +636,17 @@ config SENSORS_LM93
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
 
+config SENSORS_LTC4151
+	tristate "Linear Technology LTC4151"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get support for Linear Technology LTC4151
+	  High Voltage I2C Current and Voltage Monitor interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4151.
+
 config SENSORS_LTC4215
 	tristate "Linear Technology LTC4215"
 	depends on I2C && EXPERIMENTAL
@@ -685,6 +707,16 @@ config SENSORS_MAX1619
 	  This driver can also be built as a module.  If so, the module
 	  will be called max1619.
 
+config SENSORS_MAX6639
+	tristate "Maxim MAX6639 sensor chip"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the MAX6639
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max6639.
+
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
 	depends on I2C && EXPERIMENTAL
@@ -734,6 +766,61 @@ config SENSORS_PCF8591
 
 	  These devices are hard to detect and rarely found on mainstream
 	  hardware.  If unsure, say N.
+
+config PMBUS
+	tristate "PMBus support"
+	depends on I2C && EXPERIMENTAL
+	default n
+	help
+	  Say yes here if you want to enable PMBus support.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pmbus_core.
+
+if PMBUS
+
+config SENSORS_PMBUS
+	tristate "Generic PMBus devices"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for generic
+	  PMBus devices, including but not limited to BMR450, BMR451, BMR453,
+	  BMR454, and LTC2978.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pmbus.
+
+config SENSORS_MAX16064
+	tristate "Maxim MAX16064"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX16064.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max16064.
+
+config SENSORS_MAX34440
+	tristate "Maxim MAX34440/MAX34441"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX34440 and MAX34441.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max34440.
+
+config SENSORS_MAX8688
+	tristate "Maxim MAX8688"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX8688.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max8688.
+
+endif # PMBUS
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
@@ -871,6 +958,25 @@ config SENSORS_SMSC47B397
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called smsc47b397.
+
+config SENSORS_SCH5627
+	tristate "SMSC SCH5627"
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the SMSC SCH5627 Super-I/O chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sch5627.
+
+config SENSORS_ADS1015
+	tristate "Texas Instruments ADS1015"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADS1015
+	  12-bit 4-input ADC device.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ads1015.
 
 config SENSORS_ADS7828
 	tristate "Texas Instruments ADS7828"
@@ -1083,7 +1189,7 @@ config SENSORS_W83627HF
 	  will be called w83627hf.
 
 config SENSORS_W83627EHF
-	tristate "Winbond W83627EHF/EHG/DHG, W83667HG"
+	tristate "Winbond W83627EHF/EHG/DHG, W83667HG, NCT6775F, NCT6776F"
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware
@@ -1094,7 +1200,8 @@ config SENSORS_W83627EHF
 	  chip suited for specific Intel processors that use PECI such as
 	  the Core 2 Duo.
 
-	  This driver also supports the W83667HG chip.
+	  This driver also supports Nuvoton W83667HG, W83667HG-B, NCT6775F
+	  (also known as W83667HG-I), and NCT6776F.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
@@ -1126,40 +1233,6 @@ config SENSORS_ULTRA45
 	help
 	  This driver provides support for the Ultra45 workstation environmental
 	  sensors.
-
-config SENSORS_LIS3_SPI
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
-	depends on !ACPI && SPI_MASTER && INPUT
-	select INPUT_POLLDEV
-	default n
-	help
-	  This driver provides support for the LIS3LV02Dx accelerometer connected
-	  via SPI. The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
-
-	  This driver also provides an absolute input class device, allowing
-	  the laptop to act as a pinball machine-esque joystick.
-
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for the SPI transport
-	  is called lis3lv02d_spi.
-
-config SENSORS_LIS3_I2C
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (I2C)"
-	depends on I2C && INPUT
-	select INPUT_POLLDEV
-	default n
-	help
-	  This driver provides support for the LIS3LV02Dx accelerometer connected
-	  via I2C. The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
-
-	  This driver also provides an absolute input class device, allowing
-	  the device to act as a pinball machine-esque joystick.
-
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for the I2C transport
-	  is called lis3lv02d_i2c.
 
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
@@ -1207,36 +1280,6 @@ config SENSORS_ATK0110
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_atk0110.
-
-config SENSORS_LIS3LV02D
-	tristate "STMicroeletronics LIS3* three-axis digital accelerometer"
-	depends on INPUT
-	select INPUT_POLLDEV
-	select NEW_LEDS
-	select LEDS_CLASS
-	default n
-	help
-	  This driver provides support for the LIS3* accelerometers, such as the
-	  LIS3LV02DL or the LIS331DL. In particular, it can be found in a number
-	  of HP laptops, which have the "Mobile Data Protection System 3D" or
-	  "3D DriveGuard" feature. On such systems the driver should load
-	  automatically (via ACPI alias). The accelerometer might also be found
-	  in other systems, connected via SPI or I2C. The accelerometer data is
-	  readable via /sys/devices/platform/lis3lv02d.
-
-	  This driver also provides an absolute input class device, allowing
-	  a laptop to act as a pinball machine-esque joystick. It provides also
-	  a misc device which can be used to detect free-fall. On HP laptops,
-	  if the led infrastructure is activated, support for a led indicating
-	  disk protection will be provided as hp::hddprotect. For more
-	  information on the feature, refer to Documentation/hwmon/lis3lv02d.
-
-	  This driver can also be built as modules.  If so, the core module
-	  will be called lis3lv02d and a specific module for HP laptops will be
-	  called hp_accel.
-
-	  Say Y here if you have an applicable laptop and want to experience
-	  the awesome power of lis3lv02d.
 
 endif # ACPI
 

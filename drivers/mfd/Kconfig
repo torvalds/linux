@@ -81,6 +81,17 @@ config MFD_DM355EVM_MSP
 	  boards.  MSP430 firmware manages resets and power sequencing,
 	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
 
+config MFD_TI_SSP
+	tristate "TI Sequencer Serial Port support"
+	depends on ARCH_DAVINCI_TNETV107X
+	select MFD_CORE
+	---help---
+	  Say Y here if you want support for the Sequencer Serial Port
+	  in a Texas Instruments TNETV107X SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti-ssp.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
@@ -623,6 +634,15 @@ config MFD_WL1273_CORE
 	  This is the core driver for the TI WL1273 FM radio. This MFD
 	  driver connects the radio-wl1273 V4L2 module and the wl1273
 	  audio codec.
+
+config MFD_OMAP_USB_HOST
+	bool "Support OMAP USBHS core driver"
+	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
+	default y
+	help
+	  This is the core driver for the OAMP EHCI and OHCI drivers.
+	  This MFD driver does the required setup functionalities for
+	  OMAP USB Host drivers.
 
 endif # MFD_SUPPORT
 

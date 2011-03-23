@@ -1003,7 +1003,7 @@ static int rv770_vram_scratch_init(struct radeon_device *rdev)
 	u64 gpu_addr;
 
 	if (rdev->vram_scratch.robj == NULL) {
-		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
+		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
 				     &rdev->vram_scratch.robj);
 		if (r) {
@@ -1209,7 +1209,7 @@ int rv770_resume(struct radeon_device *rdev)
 
 	r = r600_ib_test(rdev);
 	if (r) {
-		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
+		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		return r;
 	}
 

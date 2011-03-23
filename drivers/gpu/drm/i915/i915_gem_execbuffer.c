@@ -37,6 +37,7 @@ struct change_domains {
 	uint32_t invalidate_domains;
 	uint32_t flush_domains;
 	uint32_t flush_rings;
+	uint32_t flips;
 };
 
 /*
@@ -190,6 +191,9 @@ i915_gem_object_set_to_gpu_domain(struct drm_i915_gem_object *obj,
 	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_GTT)
 		i915_gem_release_mmap(obj);
 
+	if (obj->base.pending_write_domain)
+		cd->flips |= atomic_read(&obj->pending_flip);
+
 	/* The actual obj->write_domain will be updated with
 	 * pending_write_domain after we emit the accumulated flush for all
 	 * of our domain changes in execbuffers (which clears objects'
@@ -282,21 +286,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	target_offset = to_intel_bo(target_obj)->gtt_offset;
 
-#if WATCH_RELOC
-	DRM_INFO("%s: obj %p offset %08x target %d "
-		 "read %08x write %08x gtt %08x "
-		 "presumed %08x delta %08x\n",
-		 __func__,
-		 obj,
-		 (int) reloc->offset,
-		 (int) reloc->target_handle,
-		 (int) reloc->read_domains,
-		 (int) reloc->write_domain,
-		 (int) target_offset,
-		 (int) reloc->presumed_offset,
-		 reloc->delta);
-#endif
-
 	/* The target buffer should have appeared before us in the
 	 * exec_object list, so it should have a GTT space bound by now.
 	 */
@@ -362,16 +351,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  "obj %p target %d offset %d.\n",
 			  obj, reloc->target_handle,
 			  (int) reloc->offset);
-		return ret;
-	}
-
-	/* and points to somewhere within the target object. */
-	if (unlikely(reloc->delta >= target_obj->size)) {
-		DRM_ERROR("Relocation beyond target object bounds: "
-			  "obj %p target %d delta %d size %d.\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->delta,
-			  (int) target_obj->size);
 		return ret;
 	}
 
@@ -575,7 +554,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 
 			if (has_fenced_gpu_access) {
 				if (need_fence) {
-					ret = i915_gem_object_get_fence(obj, ring, 1);
+					ret = i915_gem_object_get_fence(obj, ring);
 					if (ret)
 						break;
 				} else if (entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
@@ -690,11 +669,9 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	/* reacquire the objects */
 	eb_reset(eb);
 	for (i = 0; i < count; i++) {
-		struct drm_i915_gem_object *obj;
-
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
-		if (obj == NULL) {
+		if (&obj->base == NULL) {
 			DRM_ERROR("Invalid object handle %d at index %d\n",
 				   exec[i].handle, i);
 			ret = -ENOENT;
@@ -749,8 +726,7 @@ i915_gem_execbuffer_flush(struct drm_device *dev,
 	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
 		for (i = 0; i < I915_NUM_RINGS; i++)
 			if (flush_rings & (1 << i)) {
-				ret = i915_gem_flush_ring(dev,
-							  &dev_priv->ring[i],
+				ret = i915_gem_flush_ring(&dev_priv->ring[i],
 							  invalidate_domains,
 							  flush_domains);
 				if (ret)
@@ -774,7 +750,7 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 
 	/* XXX gpu semaphores are implicated in various hard hangs on SNB */
 	if (INTEL_INFO(obj->base.dev)->gen < 6 || !i915_semaphores)
-		return i915_gem_object_wait_rendering(obj, true);
+		return i915_gem_object_wait_rendering(obj);
 
 	idx = intel_ring_sync_index(from, to);
 
@@ -789,7 +765,7 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 		if (request == NULL)
 			return -ENOMEM;
 
-		ret = i915_add_request(obj->base.dev, NULL, request, from);
+		ret = i915_add_request(from, NULL, request);
 		if (ret) {
 			kfree(request);
 			return ret;
@@ -803,6 +779,39 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 }
 
 static int
+i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
+{
+	u32 plane, flip_mask;
+	int ret;
+
+	/* Check for any pending flips. As we only maintain a flip queue depth
+	 * of 1, we can simply insert a WAIT for the next display flip prior
+	 * to executing the batch and avoid stalling the CPU.
+	 */
+
+	for (plane = 0; flips >> plane; plane++) {
+		if (((flips >> plane) & 1) == 0)
+			continue;
+
+		if (plane)
+			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+		else
+			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+
+		ret = intel_ring_begin(ring, 2);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_advance(ring);
+	}
+
+	return 0;
+}
+
+
+static int
 i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 				struct list_head *objects)
 {
@@ -810,23 +819,21 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 	struct change_domains cd;
 	int ret;
 
-	cd.invalidate_domains = 0;
-	cd.flush_domains = 0;
-	cd.flush_rings = 0;
+	memset(&cd, 0, sizeof(cd));
 	list_for_each_entry(obj, objects, exec_list)
 		i915_gem_object_set_to_gpu_domain(obj, ring, &cd);
 
 	if (cd.invalidate_domains | cd.flush_domains) {
-#if WATCH_EXEC
-		DRM_INFO("%s: invalidate_domains %08x flush_domains %08x\n",
-			  __func__,
-			 cd.invalidate_domains,
-			 cd.flush_domains);
-#endif
 		ret = i915_gem_execbuffer_flush(ring->dev,
 						cd.invalidate_domains,
 						cd.flush_domains,
 						cd.flush_rings);
+		if (ret)
+			return ret;
+	}
+
+	if (cd.flips) {
+		ret = i915_gem_execbuffer_wait_for_flips(ring, cd.flips);
 		if (ret)
 			return ret;
 	}
@@ -877,47 +884,6 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 	return 0;
 }
 
-static int
-i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring,
-				   struct list_head *objects)
-{
-	struct drm_i915_gem_object *obj;
-	int flips;
-
-	/* Check for any pending flips. As we only maintain a flip queue depth
-	 * of 1, we can simply insert a WAIT for the next display flip prior
-	 * to executing the batch and avoid stalling the CPU.
-	 */
-	flips = 0;
-	list_for_each_entry(obj, objects, exec_list) {
-		if (obj->base.write_domain)
-			flips |= atomic_read(&obj->pending_flip);
-	}
-	if (flips) {
-		int plane, flip_mask, ret;
-
-		for (plane = 0; flips >> plane; plane++) {
-			if (((flips >> plane) & 1) == 0)
-				continue;
-
-			if (plane)
-				flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-			else
-				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-
-			ret = intel_ring_begin(ring, 2);
-			if (ret)
-				return ret;
-
-			intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
-			intel_ring_emit(ring, MI_NOOP);
-			intel_ring_advance(ring);
-		}
-	}
-
-	return 0;
-}
-
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *objects,
 				   struct intel_ring_buffer *ring,
@@ -926,6 +892,10 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 	struct drm_i915_gem_object *obj;
 
 	list_for_each_entry(obj, objects, exec_list) {
+		  u32 old_read = obj->base.read_domains;
+		  u32 old_write = obj->base.write_domain;
+
+
 		obj->base.read_domains = obj->base.pending_read_domains;
 		obj->base.write_domain = obj->base.pending_write_domain;
 		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
@@ -939,9 +909,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 			intel_mark_busy(ring->dev, obj);
 		}
 
-		trace_i915_gem_object_change_domain(obj,
-						    obj->base.read_domains,
-						    obj->base.write_domain);
+		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
 }
 
@@ -963,14 +931,14 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 4)
 		invalidate |= I915_GEM_DOMAIN_SAMPLER;
 	if (ring->flush(ring, invalidate, 0)) {
-		i915_gem_next_request_seqno(dev, ring);
+		i915_gem_next_request_seqno(ring);
 		return;
 	}
 
 	/* Add a breadcrumb for the completion of the batch buffer */
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL || i915_add_request(dev, file, request, ring)) {
-		i915_gem_next_request_seqno(dev, ring);
+	if (request == NULL || i915_add_request(ring, file, request)) {
+		i915_gem_next_request_seqno(ring);
 		kfree(request);
 	}
 }
@@ -1000,10 +968,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-#if WATCH_EXEC
-	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
-		  (int) args->buffers_ptr, args->buffer_count, args->batch_len);
-#endif
 	switch (args->flags & I915_EXEC_RING_MASK) {
 	case I915_EXEC_DEFAULT:
 	case I915_EXEC_RENDER:
@@ -1113,7 +1077,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
-		if (obj == NULL) {
+		if (&obj->base == NULL) {
 			DRM_ERROR("Invalid object handle %d at index %d\n",
 				   exec[i].handle, i);
 			/* prevent error path from reading uninitialized data */
@@ -1170,11 +1134,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto err;
 
-	ret = i915_gem_execbuffer_wait_for_flips(ring, &objects);
-	if (ret)
-		goto err;
-
-	seqno = i915_gem_next_request_seqno(dev, ring);
+	seqno = i915_gem_next_request_seqno(ring);
 	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++) {
 		if (seqno < ring->sync_seqno[i]) {
 			/* The GPU can not handle its semaphore value wrapping,
@@ -1188,6 +1148,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			BUG_ON(ring->sync_seqno[i]);
 		}
 	}
+
+	trace_i915_gem_ring_dispatch(ring, seqno);
 
 	exec_start = batch_obj->gtt_offset + args->batch_start_offset;
 	exec_len = args->batch_len;
@@ -1244,11 +1206,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_exec_object *exec_list = NULL;
 	struct drm_i915_gem_exec_object2 *exec2_list = NULL;
 	int ret, i;
-
-#if WATCH_EXEC
-	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
-		  (int) args->buffers_ptr, args->buffer_count, args->batch_len);
-#endif
 
 	if (args->buffer_count < 1) {
 		DRM_ERROR("execbuf with %d buffers\n", args->buffer_count);
@@ -1330,17 +1287,16 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	struct drm_i915_gem_exec_object2 *exec2_list = NULL;
 	int ret;
 
-#if WATCH_EXEC
-	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
-		  (int) args->buffers_ptr, args->buffer_count, args->batch_len);
-#endif
-
 	if (args->buffer_count < 1) {
 		DRM_ERROR("execbuf2 with %d buffers\n", args->buffer_count);
 		return -EINVAL;
 	}
 
-	exec2_list = drm_malloc_ab(sizeof(*exec2_list), args->buffer_count);
+	exec2_list = kmalloc(sizeof(*exec2_list)*args->buffer_count,
+			     GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (exec2_list == NULL)
+		exec2_list = drm_malloc_ab(sizeof(*exec2_list),
+					   args->buffer_count);
 	if (exec2_list == NULL) {
 		DRM_ERROR("Failed to allocate exec list for %d buffers\n",
 			  args->buffer_count);

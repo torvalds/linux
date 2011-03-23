@@ -59,7 +59,7 @@
  * uncached region.  This will no doubt cause big problems if memory allocated
  * here is not also freed properly. -- JW
  */
-void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle)
+void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 {
 	unsigned long order, vaddr;
 	void *ret;

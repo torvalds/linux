@@ -40,30 +40,307 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dean Hildebrand <dhildebz@umich.edu>");
 MODULE_DESCRIPTION("The NFSv4 file layout driver");
 
-static int
-filelayout_set_layoutdriver(struct nfs_server *nfss)
+#define FILELAYOUT_POLL_RETRY_MAX     (15*HZ)
+
+static loff_t
+filelayout_get_dense_offset(struct nfs4_filelayout_segment *flseg,
+			    loff_t offset)
 {
-	int status = pnfs_alloc_init_deviceid_cache(nfss->nfs_client,
-						nfs4_fl_free_deviceid_callback);
-	if (status) {
-		printk(KERN_WARNING "%s: deviceid cache could not be "
-			"initialized\n", __func__);
-		return status;
+	u32 stripe_width = flseg->stripe_unit * flseg->dsaddr->stripe_count;
+	u64 tmp;
+
+	offset -= flseg->pattern_offset;
+	tmp = offset;
+	do_div(tmp, stripe_width);
+
+	return tmp * flseg->stripe_unit + do_div(offset, flseg->stripe_unit);
+}
+
+/* This function is used by the layout driver to calculate the
+ * offset of the file on the dserver based on whether the
+ * layout type is STRIPE_DENSE or STRIPE_SPARSE
+ */
+static loff_t
+filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
+{
+	struct nfs4_filelayout_segment *flseg = FILELAYOUT_LSEG(lseg);
+
+	switch (flseg->stripe_type) {
+	case STRIPE_SPARSE:
+		return offset;
+
+	case STRIPE_DENSE:
+		return filelayout_get_dense_offset(flseg, offset);
 	}
-	dprintk("%s: deviceid cache has been initialized successfully\n",
-		__func__);
+
+	BUG();
+}
+
+/* For data server errors we don't recover from */
+static void
+filelayout_set_lo_fail(struct pnfs_layout_segment *lseg)
+{
+	if (lseg->pls_range.iomode == IOMODE_RW) {
+		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
+		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
+	} else {
+		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
+		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
+	}
+}
+
+static int filelayout_async_handle_error(struct rpc_task *task,
+					 struct nfs4_state *state,
+					 struct nfs_client *clp,
+					 int *reset)
+{
+	if (task->tk_status >= 0)
+		return 0;
+
+	*reset = 0;
+
+	switch (task->tk_status) {
+	case -NFS4ERR_BADSESSION:
+	case -NFS4ERR_BADSLOT:
+	case -NFS4ERR_BAD_HIGH_SLOT:
+	case -NFS4ERR_DEADSESSION:
+	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+	case -NFS4ERR_SEQ_FALSE_RETRY:
+	case -NFS4ERR_SEQ_MISORDERED:
+		dprintk("%s ERROR %d, Reset session. Exchangeid "
+			"flags 0x%x\n", __func__, task->tk_status,
+			clp->cl_exchange_flags);
+		nfs4_schedule_session_recovery(clp->cl_session);
+		break;
+	case -NFS4ERR_DELAY:
+	case -NFS4ERR_GRACE:
+	case -EKEYEXPIRED:
+		rpc_delay(task, FILELAYOUT_POLL_RETRY_MAX);
+		break;
+	default:
+		dprintk("%s DS error. Retry through MDS %d\n", __func__,
+			task->tk_status);
+		*reset = 1;
+		break;
+	}
+	task->tk_status = 0;
+	return -EAGAIN;
+}
+
+/* NFS_PROTO call done callback routines */
+
+static int filelayout_read_done_cb(struct rpc_task *task,
+				struct nfs_read_data *data)
+{
+	struct nfs_client *clp = data->ds_clp;
+	int reset = 0;
+
+	dprintk("%s DS read\n", __func__);
+
+	if (filelayout_async_handle_error(task, data->args.context->state,
+					  data->ds_clp, &reset) == -EAGAIN) {
+		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
+			__func__, data->ds_clp, data->ds_clp->cl_session);
+		if (reset) {
+			filelayout_set_lo_fail(data->lseg);
+			nfs4_reset_read(task, data);
+			clp = NFS_SERVER(data->inode)->nfs_client;
+		}
+		nfs_restart_rpc(task, clp);
+		return -EAGAIN;
+	}
+
 	return 0;
 }
 
-/* Clear out the layout by destroying its device list */
-static int
-filelayout_clear_layoutdriver(struct nfs_server *nfss)
+/*
+ * Call ops for the async read/write cases
+ * In the case of dense layouts, the offset needs to be reset to its
+ * original value.
+ */
+static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
-	dprintk("--> %s\n", __func__);
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
 
-	if (nfss->nfs_client->cl_devid_cache)
-		pnfs_put_deviceid_cache(nfss->nfs_client);
+	rdata->read_done_cb = filelayout_read_done_cb;
+
+	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
+				&rdata->args.seq_args, &rdata->res.seq_res,
+				0, task))
+		return;
+
+	rpc_call_start(task);
+}
+
+static void filelayout_read_call_done(struct rpc_task *task, void *data)
+{
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
+
+	/* Note this may cause RPC to be resent */
+	rdata->mds_ops->rpc_call_done(task, data);
+}
+
+static void filelayout_read_release(void *data)
+{
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	rdata->mds_ops->rpc_release(data);
+}
+
+static int filelayout_write_done_cb(struct rpc_task *task,
+				struct nfs_write_data *data)
+{
+	int reset = 0;
+
+	if (filelayout_async_handle_error(task, data->args.context->state,
+					  data->ds_clp, &reset) == -EAGAIN) {
+		struct nfs_client *clp;
+
+		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
+			__func__, data->ds_clp, data->ds_clp->cl_session);
+		if (reset) {
+			filelayout_set_lo_fail(data->lseg);
+			nfs4_reset_write(task, data);
+			clp = NFS_SERVER(data->inode)->nfs_client;
+		} else
+			clp = data->ds_clp;
+		nfs_restart_rpc(task, clp);
+		return -EAGAIN;
+	}
+
 	return 0;
+}
+
+static void filelayout_write_prepare(struct rpc_task *task, void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
+				&wdata->args.seq_args, &wdata->res.seq_res,
+				0, task))
+		return;
+
+	rpc_call_start(task);
+}
+
+static void filelayout_write_call_done(struct rpc_task *task, void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	/* Note this may cause RPC to be resent */
+	wdata->mds_ops->rpc_call_done(task, data);
+}
+
+static void filelayout_write_release(void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	wdata->mds_ops->rpc_release(data);
+}
+
+struct rpc_call_ops filelayout_read_call_ops = {
+	.rpc_call_prepare = filelayout_read_prepare,
+	.rpc_call_done = filelayout_read_call_done,
+	.rpc_release = filelayout_read_release,
+};
+
+struct rpc_call_ops filelayout_write_call_ops = {
+	.rpc_call_prepare = filelayout_write_prepare,
+	.rpc_call_done = filelayout_write_call_done,
+	.rpc_release = filelayout_write_release,
+};
+
+static enum pnfs_try_status
+filelayout_read_pagelist(struct nfs_read_data *data)
+{
+	struct pnfs_layout_segment *lseg = data->lseg;
+	struct nfs4_pnfs_ds *ds;
+	loff_t offset = data->args.offset;
+	u32 j, idx;
+	struct nfs_fh *fh;
+	int status;
+
+	dprintk("--> %s ino %lu pgbase %u req %Zu@%llu\n",
+		__func__, data->inode->i_ino,
+		data->args.pgbase, (size_t)data->args.count, offset);
+
+	/* Retrieve the correct rpc_client for the byte range */
+	j = nfs4_fl_calc_j_index(lseg, offset);
+	idx = nfs4_fl_calc_ds_index(lseg, j);
+	ds = nfs4_fl_prepare_ds(lseg, idx);
+	if (!ds) {
+		/* Either layout fh index faulty, or ds connect failed */
+		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
+		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
+		return PNFS_NOT_ATTEMPTED;
+	}
+	dprintk("%s USE DS:ip %x %hu\n", __func__,
+		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+
+	/* No multipath support. Use first DS */
+	data->ds_clp = ds->ds_clp;
+	fh = nfs4_fl_select_ds_fh(lseg, j);
+	if (fh)
+		data->args.fh = fh;
+
+	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
+	data->mds_offset = offset;
+
+	/* Perform an asynchronous read to ds */
+	status = nfs_initiate_read(data, ds->ds_clp->cl_rpcclient,
+				   &filelayout_read_call_ops);
+	BUG_ON(status != 0);
+	return PNFS_ATTEMPTED;
+}
+
+/* Perform async writes. */
+static enum pnfs_try_status
+filelayout_write_pagelist(struct nfs_write_data *data, int sync)
+{
+	struct pnfs_layout_segment *lseg = data->lseg;
+	struct nfs4_pnfs_ds *ds;
+	loff_t offset = data->args.offset;
+	u32 j, idx;
+	struct nfs_fh *fh;
+	int status;
+
+	/* Retrieve the correct rpc_client for the byte range */
+	j = nfs4_fl_calc_j_index(lseg, offset);
+	idx = nfs4_fl_calc_ds_index(lseg, j);
+	ds = nfs4_fl_prepare_ds(lseg, idx);
+	if (!ds) {
+		printk(KERN_ERR "%s: prepare_ds failed, use MDS\n", __func__);
+		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
+		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
+		return PNFS_NOT_ATTEMPTED;
+	}
+	dprintk("%s ino %lu sync %d req %Zu@%llu DS:%x:%hu\n", __func__,
+		data->inode->i_ino, sync, (size_t) data->args.count, offset,
+		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+
+	/* We can't handle commit to ds yet */
+	if (!FILELAYOUT_LSEG(lseg)->commit_through_mds)
+		data->args.stable = NFS_FILE_SYNC;
+
+	data->write_done_cb = filelayout_write_done_cb;
+	data->ds_clp = ds->ds_clp;
+	fh = nfs4_fl_select_ds_fh(lseg, j);
+	if (fh)
+		data->args.fh = fh;
+	/*
+	 * Get the file offset on the dserver. Set the write offset to
+	 * this offset and save the original offset.
+	 */
+	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
+	data->mds_offset = offset;
+
+	/* Perform an asynchronous write */
+	status = nfs_initiate_write(data, ds->ds_clp->cl_rpcclient,
+				    &filelayout_write_call_ops, sync);
+	BUG_ON(status != 0);
+	return PNFS_ATTEMPTED;
 }
 
 /*
@@ -92,14 +369,14 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 		goto out;
 	}
 
-	if (fl->stripe_unit % PAGE_SIZE) {
-		dprintk("%s Stripe unit (%u) not page aligned\n",
+	if (!fl->stripe_unit || fl->stripe_unit % PAGE_SIZE) {
+		dprintk("%s Invalid stripe unit (%u)\n",
 			__func__, fl->stripe_unit);
 		goto out;
 	}
 
 	/* find and reference the deviceid */
-	dsaddr = nfs4_fl_find_get_deviceid(nfss->nfs_client, id);
+	dsaddr = nfs4_fl_find_get_deviceid(id);
 	if (dsaddr == NULL) {
 		dsaddr = get_device_info(lo->plh_inode, id);
 		if (dsaddr == NULL)
@@ -134,7 +411,7 @@ out:
 	dprintk("--> %s returns %d\n", __func__, status);
 	return status;
 out_put:
-	pnfs_put_deviceid(nfss->nfs_client->cl_devid_cache, &dsaddr->deviceid);
+	nfs4_fl_put_deviceid(dsaddr);
 	goto out;
 }
 
@@ -243,23 +520,47 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 static void
 filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 {
-	struct nfs_server *nfss = NFS_SERVER(lseg->pls_layout->plh_inode);
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 
 	dprintk("--> %s\n", __func__);
-	pnfs_put_deviceid(nfss->nfs_client->cl_devid_cache,
-			  &fl->dsaddr->deviceid);
+	nfs4_fl_put_deviceid(fl->dsaddr);
 	_filelayout_free_lseg(fl);
 }
 
+/*
+ * filelayout_pg_test(). Called by nfs_can_coalesce_requests()
+ *
+ * return 1 :  coalesce page
+ * return 0 :  don't coalesce page
+ */
+int
+filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
+		   struct nfs_page *req)
+{
+	u64 p_stripe, r_stripe;
+	u32 stripe_unit;
+
+	if (!pgio->pg_lseg)
+		return 1;
+	p_stripe = (u64)prev->wb_index << PAGE_CACHE_SHIFT;
+	r_stripe = (u64)req->wb_index << PAGE_CACHE_SHIFT;
+	stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
+
+	do_div(p_stripe, stripe_unit);
+	do_div(r_stripe, stripe_unit);
+
+	return (p_stripe == r_stripe);
+}
+
 static struct pnfs_layoutdriver_type filelayout_type = {
-	.id = LAYOUT_NFSV4_1_FILES,
-	.name = "LAYOUT_NFSV4_1_FILES",
-	.owner = THIS_MODULE,
-	.set_layoutdriver = filelayout_set_layoutdriver,
-	.clear_layoutdriver = filelayout_clear_layoutdriver,
-	.alloc_lseg              = filelayout_alloc_lseg,
-	.free_lseg               = filelayout_free_lseg,
+	.id			= LAYOUT_NFSV4_1_FILES,
+	.name			= "LAYOUT_NFSV4_1_FILES",
+	.owner			= THIS_MODULE,
+	.alloc_lseg		= filelayout_alloc_lseg,
+	.free_lseg		= filelayout_free_lseg,
+	.pg_test		= filelayout_pg_test,
+	.read_pagelist		= filelayout_read_pagelist,
+	.write_pagelist		= filelayout_write_pagelist,
 };
 
 static int __init nfs4filelayout_init(void)

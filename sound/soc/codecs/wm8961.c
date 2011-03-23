@@ -291,7 +291,7 @@ struct wm8961_priv {
 	int sysclk;
 };
 
-static int wm8961_volatile_register(unsigned int reg)
+static int wm8961_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8961_SOFTWARE_RESET:

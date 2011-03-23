@@ -90,13 +90,14 @@ static noinline int cow_file_range(struct inode *inode,
 				   unsigned long *nr_written, int unlock);
 
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
-				     struct inode *inode,  struct inode *dir)
+				     struct inode *inode,  struct inode *dir,
+				     const struct qstr *qstr)
 {
 	int err;
 
 	err = btrfs_init_acl(trans, inode, dir);
 	if (!err)
-		err = btrfs_xattr_security_init(trans, inode, dir);
+		err = btrfs_xattr_security_init(trans, inode, dir, qstr);
 	return err;
 }
 
@@ -4704,7 +4705,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -4765,7 +4766,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -4805,9 +4806,6 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	unsigned long nr = 0;
 	int err;
 	int drop_inode = 0;
-
-	if (inode->i_nlink == 0)
-		return -ENOENT;
 
 	/* do not allow sys_link's with other subvols of the same device */
 	if (root->objectid != BTRFS_I(inode)->root->objectid)
@@ -4894,7 +4892,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	drop_on_err = 1;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err)
 		goto out_fail;
 
@@ -7106,7 +7104,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;

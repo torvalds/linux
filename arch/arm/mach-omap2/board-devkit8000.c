@@ -140,7 +140,7 @@ static void devkit8000_panel_disable_dvi(struct omap_dss_device *dssdev)
 }
 
 static struct regulator_consumer_supply devkit8000_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 
 /* ads7846 on SPI */
@@ -193,14 +193,6 @@ static struct omap_dss_board_info devkit8000_dss_data = {
 	.num_devices = ARRAY_SIZE(devkit8000_dss_devices),
 	.devices = devkit8000_dss_devices,
 	.default_device = &devkit8000_lcd_device,
-};
-
-static struct platform_device devkit8000_dss_device = {
-	.name		= "omapdss",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &devkit8000_dss_data,
-	},
 };
 
 static struct regulator_consumer_supply devkit8000_vdda_dac_supply =
@@ -350,9 +342,7 @@ static struct twl4030_usb_data devkit8000_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static struct twl4030_codec_audio_data devkit8000_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data devkit8000_audio_data;
 
 static struct twl4030_codec_data devkit8000_codec_data = {
 	.audio_mclk = 26000000,
@@ -456,11 +446,15 @@ static struct platform_device keys_gpio = {
 };
 
 
-static void __init devkit8000_init_irq(void)
+static void __init devkit8000_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
+}
+
+static void __init devkit8000_init_irq(void)
+{
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
@@ -575,7 +569,6 @@ static void __init omap_dm9000_init(void)
 }
 
 static struct platform_device *devkit8000_devices[] __initdata = {
-	&devkit8000_dss_device,
 	&leds_gpio,
 	&keys_gpio,
 	&omap_dm9000_dev,
@@ -620,11 +613,11 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset  = true,
 	.reset_gpio_port[0]  = -EINVAL,
@@ -632,6 +625,7 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+#ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* nCS and IRQ for Devkit8000 ethernet */
 	OMAP3_MUX(GPMC_NCS6, OMAP_MUX_MODE0),
@@ -785,6 +779,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#endif
 
 static void __init devkit8000_init(void)
 {
@@ -797,13 +792,14 @@ static void __init devkit8000_init(void)
 	platform_add_devices(devkit8000_devices,
 			ARRAY_SIZE(devkit8000_devices));
 
+	omap_display_init(&devkit8000_dss_data);
 	spi_register_board_info(devkit8000_spi_board_info,
 	ARRAY_SIZE(devkit8000_spi_board_info));
 
 	devkit8000_ads7846_init();
 
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&ehci_pdata);
+	usbhs_init(&usbhs_bdata);
 	devkit8000_flash_init();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
@@ -813,8 +809,9 @@ static void __init devkit8000_init(void)
 
 MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= devkit8000_init_early,
 	.init_irq	= devkit8000_init_irq,
 	.init_machine	= devkit8000_init,
 	.timer		= &omap_timer,

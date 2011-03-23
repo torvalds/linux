@@ -30,6 +30,16 @@ config SND_MXC_SOC_WM1133_EV1
 	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
 	  PMIC board with WM8835x fitted.
 
+config SND_SOC_MX27VIS_AIC32X4
+	tristate "SoC audio support for Visstrim M10 boards"
+	depends on MACH_IMX27_VISSTRIM_M10
+	select SND_SOC_TVL320AIC32X4
+	select SND_MXC_SOC_SSI
+	select SND_MXC_SOC_MX2
+	help
+	  Say Y if you want to add support for SoC audio on Visstrim SM10
+	  board with TLV320AIC32X4 codec.
+
 config SND_SOC_PHYCORE_AC97
 	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
 	depends on MACH_PCM043 || MACH_PCA100
@@ -44,7 +54,8 @@ config SND_SOC_EUKREA_TLV320
 	tristate "Eukrea TLV320"
 	depends on MACH_EUKREA_MBIMX27_BASEBOARD \
 		|| MACH_EUKREA_MBIMXSD25_BASEBOARD \
-		|| MACH_EUKREA_MBIMXSD35_BASEBOARD
+		|| MACH_EUKREA_MBIMXSD35_BASEBOARD \
+		|| MACH_EUKREA_MBIMXSD51_BASEBOARD
 	select SND_SOC_TLV320AIC23
 	select SND_MXC_SOC_SSI
 	select SND_MXC_SOC_FIQ

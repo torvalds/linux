@@ -797,8 +797,7 @@ int labpc_common_detach(struct comedi_device *dev)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 
 	/* only free stuff if it has been allocated by _attach */
-	if (devpriv->dma_buffer)
-		kfree(devpriv->dma_buffer);
+	kfree(devpriv->dma_buffer);
 	if (devpriv->dma_chan)
 		free_dma(devpriv->dma_chan);
 	if (dev->irq)

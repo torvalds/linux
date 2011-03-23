@@ -690,7 +690,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 {
 	struct ubifs_data_node *data;
 	int err, lnum, offs, compr_type, out_len;
-	int dlen = UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE * WORST_COMPR_FACTOR;
+	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	dbg_jnl("ino %lu, blk %u, len %d, key %s",
@@ -698,9 +698,19 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 		DBGKEY(key));
 	ubifs_assert(len <= UBIFS_BLOCK_SIZE);
 
-	data = kmalloc(dlen, GFP_NOFS);
-	if (!data)
-		return -ENOMEM;
+	data = kmalloc(dlen, GFP_NOFS | __GFP_NOWARN);
+	if (!data) {
+		/*
+		 * Fall-back to the write reserve buffer. Note, we might be
+		 * currently on the memory reclaim path, when the kernel is
+		 * trying to free some memory by writing out dirty pages. The
+		 * write reserve buffer helps us to guarantee that we are
+		 * always able to write the data.
+		 */
+		allocated = 0;
+		mutex_lock(&c->write_reserve_mutex);
+		data = c->write_reserve_buf;
+	}
 
 	data->ch.node_type = UBIFS_DATA_NODE;
 	key_write(c, key, &data->key);
@@ -736,7 +746,10 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 		goto out_ro;
 
 	finish_reservation(c);
-	kfree(data);
+	if (!allocated)
+		mutex_unlock(&c->write_reserve_mutex);
+	else
+		kfree(data);
 	return 0;
 
 out_release:
@@ -745,7 +758,10 @@ out_ro:
 	ubifs_ro_mode(c, err);
 	finish_reservation(c);
 out_free:
-	kfree(data);
+	if (!allocated)
+		mutex_unlock(&c->write_reserve_mutex);
+	else
+		kfree(data);
 	return err;
 }
 

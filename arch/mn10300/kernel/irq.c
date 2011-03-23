@@ -37,8 +37,9 @@ atomic_t irq_err_count;
 /*
  * MN10300 interrupt controller operations
  */
-static void mn10300_cpupic_ack(unsigned int irq)
+static void mn10300_cpupic_ack(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	unsigned long flags;
 	u16 tmp;
 
@@ -61,13 +62,14 @@ static void __mask_and_set_icr(unsigned int irq,
 	arch_local_irq_restore(flags);
 }
 
-static void mn10300_cpupic_mask(unsigned int irq)
+static void mn10300_cpupic_mask(struct irq_data *d)
 {
-	__mask_and_set_icr(irq, GxICR_LEVEL, 0);
+	__mask_and_set_icr(d->irq, GxICR_LEVEL, 0);
 }
 
-static void mn10300_cpupic_mask_ack(unsigned int irq)
+static void mn10300_cpupic_mask_ack(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 #ifdef CONFIG_SMP
 	unsigned long flags;
 	u16 tmp;
@@ -85,7 +87,7 @@ static void mn10300_cpupic_mask_ack(unsigned int irq)
 		tmp2 = GxICR(irq);
 
 		irq_affinity_online[irq] =
-			any_online_cpu(*irq_desc[irq].affinity);
+			any_online_cpu(*d->affinity);
 		CROSS_GxICR(irq, irq_affinity_online[irq]) =
 			(tmp & (GxICR_LEVEL | GxICR_ENABLE)) | GxICR_DETECT;
 		tmp = CROSS_GxICR(irq, irq_affinity_online[irq]);
@@ -97,13 +99,14 @@ static void mn10300_cpupic_mask_ack(unsigned int irq)
 #endif /* CONFIG_SMP */
 }
 
-static void mn10300_cpupic_unmask(unsigned int irq)
+static void mn10300_cpupic_unmask(struct irq_data *d)
 {
-	__mask_and_set_icr(irq, GxICR_LEVEL, GxICR_ENABLE);
+	__mask_and_set_icr(d->irq, GxICR_LEVEL, GxICR_ENABLE);
 }
 
-static void mn10300_cpupic_unmask_clear(unsigned int irq)
+static void mn10300_cpupic_unmask_clear(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	/* the MN10300 PIC latches its interrupt request bit, even after the
 	 * device has ceased to assert its interrupt line and the interrupt
 	 * channel has been disabled in the PIC, so for level-triggered
@@ -121,7 +124,7 @@ static void mn10300_cpupic_unmask_clear(unsigned int irq)
 	} else {
 		tmp = GxICR(irq);
 
-		irq_affinity_online[irq] = any_online_cpu(*irq_desc[irq].affinity);
+		irq_affinity_online[irq] = any_online_cpu(*d->affinity);
 		CROSS_GxICR(irq, irq_affinity_online[irq]) = (tmp & GxICR_LEVEL) | GxICR_ENABLE | GxICR_DETECT;
 		tmp = CROSS_GxICR(irq, irq_affinity_online[irq]);
 	}
@@ -134,7 +137,8 @@ static void mn10300_cpupic_unmask_clear(unsigned int irq)
 
 #ifdef CONFIG_SMP
 static int
-mn10300_cpupic_setaffinity(unsigned int irq, const struct cpumask *mask)
+mn10300_cpupic_setaffinity(struct irq_data *d, const struct cpumask *mask,
+			   bool force)
 {
 	unsigned long flags;
 	int err;
@@ -142,7 +146,7 @@ mn10300_cpupic_setaffinity(unsigned int irq, const struct cpumask *mask)
 	flags = arch_local_cli_save();
 
 	/* check irq no */
-	switch (irq) {
+	switch (d->irq) {
 	case TMJCIRQ:
 	case RESCHEDULE_IPI:
 	case CALL_FUNC_SINGLE_IPI:
@@ -181,7 +185,7 @@ mn10300_cpupic_setaffinity(unsigned int irq, const struct cpumask *mask)
 		break;
 
 	default:
-		set_bit(irq, irq_affinity_request);
+		set_bit(d->irq, irq_affinity_request);
 		err = 0;
 		break;
 	}
@@ -202,15 +206,15 @@ mn10300_cpupic_setaffinity(unsigned int irq, const struct cpumask *mask)
  * mask_ack() is provided), and mask_ack() just masks.
  */
 static struct irq_chip mn10300_cpu_pic_level = {
-	.name		= "cpu_l",
-	.disable	= mn10300_cpupic_mask,
-	.enable		= mn10300_cpupic_unmask_clear,
-	.ack		= NULL,
-	.mask		= mn10300_cpupic_mask,
-	.mask_ack	= mn10300_cpupic_mask,
-	.unmask		= mn10300_cpupic_unmask_clear,
+	.name			= "cpu_l",
+	.irq_disable		= mn10300_cpupic_mask,
+	.irq_enable		= mn10300_cpupic_unmask_clear,
+	.irq_ack		= NULL,
+	.irq_mask		= mn10300_cpupic_mask,
+	.irq_mask_ack		= mn10300_cpupic_mask,
+	.irq_unmask		= mn10300_cpupic_unmask_clear,
 #ifdef CONFIG_SMP
-	.set_affinity	= mn10300_cpupic_setaffinity,
+	.irq_set_affinity	= mn10300_cpupic_setaffinity,
 #endif
 };
 
@@ -220,15 +224,15 @@ static struct irq_chip mn10300_cpu_pic_level = {
  * We use the latch clearing function of the PIC as the 'ACK' function.
  */
 static struct irq_chip mn10300_cpu_pic_edge = {
-	.name		= "cpu_e",
-	.disable	= mn10300_cpupic_mask,
-	.enable		= mn10300_cpupic_unmask,
-	.ack		= mn10300_cpupic_ack,
-	.mask		= mn10300_cpupic_mask,
-	.mask_ack	= mn10300_cpupic_mask_ack,
-	.unmask		= mn10300_cpupic_unmask,
+	.name			= "cpu_e",
+	.irq_disable		= mn10300_cpupic_mask,
+	.irq_enable		= mn10300_cpupic_unmask,
+	.irq_ack		= mn10300_cpupic_ack,
+	.irq_mask		= mn10300_cpupic_mask,
+	.irq_mask_ack		= mn10300_cpupic_mask_ack,
+	.irq_unmask		= mn10300_cpupic_unmask,
 #ifdef CONFIG_SMP
-	.set_affinity	= mn10300_cpupic_setaffinity,
+	.irq_set_affinity	= mn10300_cpupic_setaffinity,
 #endif
 };
 
@@ -252,31 +256,6 @@ void set_intr_level(int irq, u16 level)
 	__mask_and_set_icr(irq, GxICR_ENABLE, level);
 }
 
-void mn10300_intc_set_level(unsigned int irq, unsigned int level)
-{
-	set_intr_level(irq, NUM2GxICR_LEVEL(level) & GxICR_LEVEL);
-}
-
-void mn10300_intc_clear(unsigned int irq)
-{
-	__mask_and_set_icr(irq, GxICR_LEVEL | GxICR_ENABLE, GxICR_DETECT);
-}
-
-void mn10300_intc_set(unsigned int irq)
-{
-	__mask_and_set_icr(irq, 0, GxICR_REQUEST | GxICR_DETECT);
-}
-
-void mn10300_intc_enable(unsigned int irq)
-{
-	mn10300_cpupic_unmask(irq);
-}
-
-void mn10300_intc_disable(unsigned int irq)
-{
-	mn10300_cpupic_mask(irq);
-}
-
 /*
  * mark an interrupt to be ACK'd after interrupt handlers have been run rather
  * than before
@@ -296,7 +275,7 @@ void __init init_IRQ(void)
 	int irq;
 
 	for (irq = 0; irq < NR_IRQS; irq++)
-		if (irq_desc[irq].chip == &no_irq_chip)
+		if (get_irq_chip(irq) == &no_irq_chip)
 			/* due to the PIC latching interrupt requests, even
 			 * when the IRQ is disabled, IRQ_PENDING is superfluous
 			 * and we can use handle_level_irq() for edge-triggered
@@ -384,12 +363,12 @@ int show_interrupts(struct seq_file *p, void *v)
 
 			if (i < NR_CPU_IRQS)
 				seq_printf(p, " %14s.%u",
-					   irq_desc[i].chip->name,
+					   irq_desc[i].irq_data.chip->name,
 					   (GxICR(i) & GxICR_LEVEL) >>
 					   GxICR_LEVEL_SHIFT);
 			else
 				seq_printf(p, " %14s",
-					   irq_desc[i].chip->name);
+					   irq_desc[i].irq_data.chip->name);
 
 			seq_printf(p, "  %s", action->name);
 

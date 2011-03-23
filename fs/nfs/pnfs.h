@@ -30,6 +30,8 @@
 #ifndef FS_NFS_PNFS_H
 #define FS_NFS_PNFS_H
 
+#include <linux/nfs_page.h>
+
 enum {
 	NFS_LSEG_VALID = 0,	/* cleared when lseg is recalled/returned */
 	NFS_LSEG_ROC,		/* roc bit received from server */
@@ -41,6 +43,11 @@ struct pnfs_layout_segment {
 	atomic_t pls_refcount;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
+};
+
+enum pnfs_try_status {
+	PNFS_ATTEMPTED     = 0,
+	PNFS_NOT_ATTEMPTED = 1,
 };
 
 #ifdef CONFIG_NFS_V4_1
@@ -61,10 +68,18 @@ struct pnfs_layoutdriver_type {
 	const u32 id;
 	const char *name;
 	struct module *owner;
-	int (*set_layoutdriver) (struct nfs_server *);
-	int (*clear_layoutdriver) (struct nfs_server *);
 	struct pnfs_layout_segment * (*alloc_lseg) (struct pnfs_layout_hdr *layoutid, struct nfs4_layoutget_res *lgr);
 	void (*free_lseg) (struct pnfs_layout_segment *lseg);
+
+	/* test for nfs page cache coalescing */
+	int (*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
+
+	/*
+	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
+	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
+	 */
+	enum pnfs_try_status (*read_pagelist) (struct nfs_read_data *nfs_data);
+	enum pnfs_try_status (*write_pagelist) (struct nfs_write_data *nfs_data, int how);
 };
 
 struct pnfs_layout_hdr {
@@ -90,52 +105,6 @@ struct pnfs_device {
 	unsigned int  pglen;
 };
 
-/*
- * Device ID RCU cache. A device ID is unique per client ID and layout type.
- */
-#define NFS4_DEVICE_ID_HASH_BITS	5
-#define NFS4_DEVICE_ID_HASH_SIZE	(1 << NFS4_DEVICE_ID_HASH_BITS)
-#define NFS4_DEVICE_ID_HASH_MASK	(NFS4_DEVICE_ID_HASH_SIZE - 1)
-
-static inline u32
-nfs4_deviceid_hash(struct nfs4_deviceid *id)
-{
-	unsigned char *cptr = (unsigned char *)id->data;
-	unsigned int nbytes = NFS4_DEVICEID4_SIZE;
-	u32 x = 0;
-
-	while (nbytes--) {
-		x *= 37;
-		x += *cptr++;
-	}
-	return x & NFS4_DEVICE_ID_HASH_MASK;
-}
-
-struct pnfs_deviceid_node {
-	struct hlist_node	de_node;
-	struct nfs4_deviceid	de_id;
-	atomic_t		de_ref;
-};
-
-struct pnfs_deviceid_cache {
-	spinlock_t		dc_lock;
-	atomic_t		dc_ref;
-	void			(*dc_free_callback)(struct pnfs_deviceid_node *);
-	struct hlist_head	dc_deviceids[NFS4_DEVICE_ID_HASH_SIZE];
-};
-
-extern int pnfs_alloc_init_deviceid_cache(struct nfs_client *,
-			void (*free_callback)(struct pnfs_deviceid_node *));
-extern void pnfs_put_deviceid_cache(struct nfs_client *);
-extern struct pnfs_deviceid_node *pnfs_find_get_deviceid(
-				struct pnfs_deviceid_cache *,
-				struct nfs4_deviceid *);
-extern struct pnfs_deviceid_node *pnfs_add_deviceid(
-				struct pnfs_deviceid_cache *,
-				struct pnfs_deviceid_node *);
-extern void pnfs_put_deviceid(struct pnfs_deviceid_cache *c,
-			      struct pnfs_deviceid_node *devid);
-
 extern int pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *);
 extern void pnfs_unregister_layoutdriver(struct pnfs_layoutdriver_type *);
 
@@ -146,11 +115,18 @@ extern int nfs4_proc_layoutget(struct nfs4_layoutget *lgp);
 
 /* pnfs.c */
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
+void put_lseg(struct pnfs_layout_segment *lseg);
 struct pnfs_layout_segment *
 pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 		   enum pnfs_iomode access_type);
 void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
+enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
+					     const struct rpc_call_ops *, int);
+enum pnfs_try_status pnfs_try_to_read_data(struct nfs_read_data *,
+					    const struct rpc_call_ops *);
+void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
+void pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *);
 int pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
 void pnfs_destroy_layout(struct nfs_inode *);
@@ -177,6 +153,16 @@ static inline int lo_fail_bit(u32 iomode)
 			 NFS_LAYOUT_RW_FAILED : NFS_LAYOUT_RO_FAILED;
 }
 
+static inline struct pnfs_layout_segment *
+get_lseg(struct pnfs_layout_segment *lseg)
+{
+	if (lseg) {
+		atomic_inc(&lseg->pls_refcount);
+		smp_mb__after_atomic_inc();
+	}
+	return lseg;
+}
+
 /* Return true if a layout driver is being used for this mountpoint */
 static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 {
@@ -194,10 +180,34 @@ static inline void pnfs_destroy_layout(struct nfs_inode *nfsi)
 }
 
 static inline struct pnfs_layout_segment *
+get_lseg(struct pnfs_layout_segment *lseg)
+{
+	return NULL;
+}
+
+static inline void put_lseg(struct pnfs_layout_segment *lseg)
+{
+}
+
+static inline struct pnfs_layout_segment *
 pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 		   enum pnfs_iomode access_type)
 {
 	return NULL;
+}
+
+static inline enum pnfs_try_status
+pnfs_try_to_read_data(struct nfs_read_data *data,
+		      const struct rpc_call_ops *call_ops)
+{
+	return PNFS_NOT_ATTEMPTED;
+}
+
+static inline enum pnfs_try_status
+pnfs_try_to_write_data(struct nfs_write_data *data,
+		       const struct rpc_call_ops *call_ops, int how)
+{
+	return PNFS_NOT_ATTEMPTED;
 }
 
 static inline bool
@@ -228,6 +238,18 @@ static inline void set_pnfs_layoutdriver(struct nfs_server *s, u32 id)
 
 static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
+}
+
+static inline void
+pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *ino)
+{
+	pgio->pg_test = NULL;
+}
+
+static inline void
+pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *ino)
+{
+	pgio->pg_test = NULL;
 }
 
 #endif /* CONFIG_NFS_V4_1 */

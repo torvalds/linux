@@ -22,6 +22,11 @@
 struct hnddma_pub;
 #endif				/* _hnddma_pub_ */
 
+/* map/unmap direction */
+#define	DMA_TX	1		/* TX direction for DMA */
+#define	DMA_RX	2		/* RX direction for DMA */
+#define BUS_SWAP32(v)		(v)
+
 /* range param for dma_getnexttxp() and dma_txreclaim */
 typedef enum txd_range {
 	HNDDMA_RANGE_ALL = 1,
@@ -143,52 +148,11 @@ struct hnddma_pub {
 	uint txnobuf;		/* tx out of dma descriptors */
 };
 
-extern struct hnddma_pub *dma_attach(struct osl_info *osh, char *name,
-			    si_t *sih,
+extern struct hnddma_pub *dma_attach(char *name, si_t *sih,
 			    void *dmaregstx, void *dmaregsrx, uint ntxd,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
-#ifdef BCMDMA32
 
-#define dma_detach(di)			((di)->di_fn->detach(di))
-#define dma_txreset(di)			((di)->di_fn->txreset(di))
-#define dma_rxreset(di)			((di)->di_fn->rxreset(di))
-#define dma_rxidle(di)			((di)->di_fn->rxidle(di))
-#define dma_txinit(di)                  ((di)->di_fn->txinit(di))
-#define dma_txenabled(di)               ((di)->di_fn->txenabled(di))
-#define dma_rxinit(di)                  ((di)->di_fn->rxinit(di))
-#define dma_txsuspend(di)               ((di)->di_fn->txsuspend(di))
-#define dma_txresume(di)                ((di)->di_fn->txresume(di))
-#define dma_txsuspended(di)             ((di)->di_fn->txsuspended(di))
-#define dma_txsuspendedidle(di)         ((di)->di_fn->txsuspendedidle(di))
-#define dma_txfast(di, p, commit)	((di)->di_fn->txfast(di, p, commit))
-#define dma_fifoloopbackenable(di)      ((di)->di_fn->fifoloopbackenable(di))
-#define dma_txstopped(di)               ((di)->di_fn->txstopped(di))
-#define dma_rxstopped(di)               ((di)->di_fn->rxstopped(di))
-#define dma_rxenable(di)                ((di)->di_fn->rxenable(di))
-#define dma_rxenabled(di)               ((di)->di_fn->rxenabled(di))
-#define dma_rx(di)                      ((di)->di_fn->rx(di))
-#define dma_rxfill(di)                  ((di)->di_fn->rxfill(di))
-#define dma_txreclaim(di, range)	((di)->di_fn->txreclaim(di, range))
-#define dma_rxreclaim(di)               ((di)->di_fn->rxreclaim(di))
-#define dma_getvar(di, name)		((di)->di_fn->d_getvar(di, name))
-#define dma_getnexttxp(di, range)	((di)->di_fn->getnexttxp(di, range))
-#define dma_getnextrxp(di, forceall)    ((di)->di_fn->getnextrxp(di, forceall))
-#define dma_peeknexttxp(di)             ((di)->di_fn->peeknexttxp(di))
-#define dma_peeknextrxp(di)             ((di)->di_fn->peeknextrxp(di))
-#define dma_rxparam_get(di, off, bufs)	((di)->di_fn->rxparam_get(di, off, bufs))
-
-#define dma_txblock(di)                 ((di)->di_fn->txblock(di))
-#define dma_txunblock(di)               ((di)->di_fn->txunblock(di))
-#define dma_txactive(di)                ((di)->di_fn->txactive(di))
-#define dma_rxactive(di)                ((di)->di_fn->rxactive(di))
-#define dma_txrotate(di)                ((di)->di_fn->txrotate(di))
-#define dma_counterreset(di)            ((di)->di_fn->counterreset(di))
-#define dma_ctrlflags(di, mask, flags)  ((di)->di_fn->ctrlflags((di), (mask), (flags)))
-#define dma_txpending(di)		((di)->di_fn->txpending(di))
-#define dma_txcommitted(di)		((di)->di_fn->txcommitted(di))
-
-#else				/* BCMDMA32 */
 extern const di_fcn_t dma64proc;
 
 #define dma_detach(di)			(dma64proc.detach(di))
@@ -231,7 +195,6 @@ extern const di_fcn_t dma64proc;
 #define dma_txpending(di)		(dma64proc.txpending(di))
 #define dma_txcommitted(di)		(dma64proc.txcommitted(di))
 
-#endif				/* BCMDMA32 */
 
 /* return addresswidth allowed
  * This needs to be done after SB attach but before dma attach.
@@ -239,8 +202,6 @@ extern const di_fcn_t dma64proc;
  * This info is needed by DMA_ALLOC_CONSISTENT in dma attach
  */
 extern uint dma_addrwidth(si_t *sih, void *dmaregs);
-
-/* pio helpers */
-extern void dma_txpioloopback(struct osl_info *osh, dma32regs_t *);
-
+void dma_walk_packets(struct hnddma_pub *dmah, void (*callback_fnc)
+		      (void *pkt, void *arg_a), void *arg_a);
 #endif				/* _hnddma_h_ */

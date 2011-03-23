@@ -2493,7 +2493,7 @@ int close_ctree(struct btrfs_root *root)
 	 * ERROR state on disk.
 	 *
 	 * 2. when btrfs flips readonly just in btrfs_commit_super,
-	 * and in such case, btrfs cannnot write sb via btrfs_commit_super,
+	 * and in such case, btrfs cannot write sb via btrfs_commit_super,
 	 * and since fs_state has been set BTRFS_SUPER_FLAG_ERROR flag,
 	 * btrfs will cleanup all FS resources first and write sb then.
 	 */

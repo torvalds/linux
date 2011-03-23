@@ -630,8 +630,7 @@ static void print_basics(struct powernow_k8_data *data)
 					data->powernow_table[j].frequency/1000);
 			} else {
 				printk(KERN_INFO PFX
-					"   %d : fid 0x%x (%d MHz), vid 0x%x\n",
-					j,
+					"fid 0x%x (%d MHz), vid 0x%x\n",
 					data->powernow_table[j].index & 0xff,
 					data->powernow_table[j].frequency/1000,
 					data->powernow_table[j].index >> 8);
@@ -1276,7 +1275,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	if (powernow_k8_cpu_init_acpi(data)) {
 		/*
-		 * Use the PSB BIOS structure. This is only availabe on
+		 * Use the PSB BIOS structure. This is only available on
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {

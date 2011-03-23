@@ -31,7 +31,7 @@
  *	By default use timer1 as the system clock timer.
  */
 #define	FREQ	((MCF_CLK / 2) / 64)
-#define	TA(a)	(MCF_IPSBAR + MCFPIT_BASE1 + (a))
+#define	TA(a)	(MCFPIT_BASE1 + (a))
 #define PIT_CYCLES_PER_JIFFY (FREQ / HZ)
 
 static u32 pit_cnt;

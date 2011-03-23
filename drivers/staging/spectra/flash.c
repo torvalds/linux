@@ -428,10 +428,9 @@ static int allocate_memory(void)
 		DeviceInfo.wPageDataSize;
 
 	/* Malloc memory for block tables */
-	g_pBlockTable = kmalloc(block_table_size, GFP_ATOMIC);
+	g_pBlockTable = kzalloc(block_table_size, GFP_ATOMIC);
 	if (!g_pBlockTable)
 		goto block_table_fail;
-	memset(g_pBlockTable, 0, block_table_size);
 	total_bytes += block_table_size;
 
 	g_pWearCounter = (u8 *)(g_pBlockTable +
@@ -447,19 +446,17 @@ static int allocate_memory(void)
 		Cache.array[i].address = NAND_CACHE_INIT_ADDR;
 		Cache.array[i].use_cnt = 0;
 		Cache.array[i].changed = CLEAR;
-		Cache.array[i].buf = kmalloc(Cache.cache_item_size,
-			GFP_ATOMIC);
+		Cache.array[i].buf = kzalloc(Cache.cache_item_size,
+					     GFP_ATOMIC);
 		if (!Cache.array[i].buf)
 			goto cache_item_fail;
-		memset(Cache.array[i].buf, 0, Cache.cache_item_size);
 		total_bytes += Cache.cache_item_size;
 	}
 
 	/* Malloc memory for IPF */
-	g_pIPF = kmalloc(page_size, GFP_ATOMIC);
+	g_pIPF = kzalloc(page_size, GFP_ATOMIC);
 	if (!g_pIPF)
 		goto ipf_fail;
-	memset(g_pIPF, 0, page_size);
 	total_bytes += page_size;
 
 	/* Malloc memory for data merging during Level2 Cache flush */
@@ -476,10 +473,9 @@ static int allocate_memory(void)
 	total_bytes += block_size;
 
 	/* Malloc memory for temp buffer */
-	g_pTempBuf = kmalloc(Cache.cache_item_size, GFP_ATOMIC);
+	g_pTempBuf = kzalloc(Cache.cache_item_size, GFP_ATOMIC);
 	if (!g_pTempBuf)
 		goto Temp_buf_fail;
-	memset(g_pTempBuf, 0, Cache.cache_item_size);
 	total_bytes += Cache.cache_item_size;
 
 	/* Malloc memory for block table blocks */
@@ -589,10 +585,9 @@ static int allocate_memory(void)
 	total_bytes += block_size;
 
 	/* Malloc memory for copy of block table used in CDMA mode */
-	g_pBTStartingCopy = kmalloc(block_table_size, GFP_ATOMIC);
+	g_pBTStartingCopy = kzalloc(block_table_size, GFP_ATOMIC);
 	if (!g_pBTStartingCopy)
 		goto bt_starting_copy;
-	memset(g_pBTStartingCopy, 0, block_table_size);
 	total_bytes += block_table_size;
 
 	g_pWearCounterCopy = (u8 *)(g_pBTStartingCopy +
@@ -608,28 +603,25 @@ static int allocate_memory(void)
 			5 * DeviceInfo.wDataBlockNum * sizeof(u8);
 	if (DeviceInfo.MLCDevice)
 		mem_size += 5 * DeviceInfo.wDataBlockNum * sizeof(u16);
-	g_pBlockTableCopies = kmalloc(mem_size, GFP_ATOMIC);
+	g_pBlockTableCopies = kzalloc(mem_size, GFP_ATOMIC);
 	if (!g_pBlockTableCopies)
 		goto blk_table_copies_fail;
-	memset(g_pBlockTableCopies, 0, mem_size);
 	total_bytes += mem_size;
 	g_pNextBlockTable = g_pBlockTableCopies;
 
 	/* Malloc memory for Block Table Delta */
 	mem_size = MAX_DESCS * sizeof(struct BTableChangesDelta);
-	g_pBTDelta = kmalloc(mem_size, GFP_ATOMIC);
+	g_pBTDelta = kzalloc(mem_size, GFP_ATOMIC);
 	if (!g_pBTDelta)
 		goto bt_delta_fail;
-	memset(g_pBTDelta, 0, mem_size);
 	total_bytes += mem_size;
 	g_pBTDelta_Free = g_pBTDelta;
 
 	/* Malloc memory for Copy Back Buffers */
 	for (j = 0; j < COPY_BACK_BUF_NUM; j++) {
-		cp_back_buf_copies[j] = kmalloc(block_size, GFP_ATOMIC);
+		cp_back_buf_copies[j] = kzalloc(block_size, GFP_ATOMIC);
 		if (!cp_back_buf_copies[j])
 			goto cp_back_buf_copies_fail;
-		memset(cp_back_buf_copies[j], 0, block_size);
 		total_bytes += block_size;
 	}
 	cp_back_buf_idx = 0;
@@ -3911,7 +3903,7 @@ int GLOB_FTL_Page_Write(u8 *pData, u64 dwPageAddr)
 * Description:  erases the specified block
 *               increments the erase count
 *               If erase count reaches its upper limit,call function to
-*               do the ajustment as per the relative erase count values
+*               do the adjustment as per the relative erase count values
 *&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*/
 int GLOB_FTL_Block_Erase(u64 blk_addr)
 {

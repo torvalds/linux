@@ -55,7 +55,7 @@ int bench_sched_pipe(int argc, const char **argv,
 	 * discarding returned value of read(), write()
 	 * causes error in building environment for perf
 	 */
-	int ret, wait_stat;
+	int __used ret, wait_stat;
 	pid_t pid, retpid;
 
 	argc = parse_options(argc, argv, options,

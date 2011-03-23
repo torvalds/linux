@@ -148,6 +148,9 @@ extern struct nfs_server *nfs_clone_server(struct nfs_server *,
 					   struct nfs_fattr *);
 extern void nfs_mark_client_ready(struct nfs_client *clp, int state);
 extern int nfs4_check_client_ready(struct nfs_client *clp);
+extern struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
+					     const struct sockaddr *ds_addr,
+					     int ds_addrlen, int ds_proto);
 #ifdef CONFIG_PROC_FS
 extern int __init nfs_fs_proc_init(void);
 extern void nfs_fs_proc_exit(void);
@@ -163,10 +166,10 @@ static inline void nfs_fs_proc_exit(void)
 
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4
-extern struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry);
+extern struct vfsmount *nfs_do_refmount(struct dentry *dentry);
 #else
 static inline
-struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry)
+struct vfsmount *nfs_do_refmount(struct dentry *dentry)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -213,8 +216,14 @@ extern const u32 nfs41_maxwrite_overhead;
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
 
+extern int nfs4_init_ds_session(struct nfs_client *clp);
+
 /* proc.c */
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
+extern int nfs_init_client(struct nfs_client *clp,
+			   const struct rpc_timeout *timeparms,
+			   const char *ip_addr, rpc_authflavor_t authflavour,
+			   int noresvport);
 
 /* dir.c */
 extern int nfs_access_cache_shrinker(struct shrinker *shrink,
@@ -247,24 +256,30 @@ extern void nfs_sb_active(struct super_block *sb);
 extern void nfs_sb_deactive(struct super_block *sb);
 
 /* namespace.c */
-extern char *nfs_path(const char *base,
-		      const struct dentry *droot,
-		      const struct dentry *dentry,
+extern char *nfs_path(char **p, struct dentry *dentry,
 		      char *buffer, ssize_t buflen);
 extern struct vfsmount *nfs_d_automount(struct path *path);
 
 /* getroot.c */
-extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *);
+extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *,
+				   const char *);
 #ifdef CONFIG_NFS_V4
-extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *);
+extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *,
+				    const char *);
 
 extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh);
 #endif
 
 /* read.c */
+extern int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
+			     const struct rpc_call_ops *call_ops);
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 
 /* write.c */
+extern int nfs_initiate_write(struct nfs_write_data *data,
+			      struct rpc_clnt *clnt,
+			      const struct rpc_call_ops *call_ops,
+			      int how);
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
@@ -274,6 +289,13 @@ extern int nfs_migrate_page(struct address_space *,
 #endif
 
 /* nfs4proc.c */
+extern void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data);
+extern int nfs4_init_client(struct nfs_client *clp,
+			    const struct rpc_timeout *timeparms,
+			    const char *ip_addr,
+			    rpc_authflavor_t authflavour,
+			    int noresvport);
+extern void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data);
 extern int _nfs4_call_sync(struct nfs_server *server,
 			   struct rpc_message *msg,
 			   struct nfs4_sequence_args *args,
@@ -288,12 +310,11 @@ extern int _nfs4_call_sync_session(struct nfs_server *server,
 /*
  * Determine the device name as a string
  */
-static inline char *nfs_devname(const struct vfsmount *mnt_parent,
-				const struct dentry *dentry,
+static inline char *nfs_devname(struct dentry *dentry,
 				char *buffer, ssize_t buflen)
 {
-	return nfs_path(mnt_parent->mnt_devname, mnt_parent->mnt_root,
-			dentry, buffer, buflen);
+	char *dummy;
+	return nfs_path(&dummy, dentry, buffer, buflen);
 }
 
 /*

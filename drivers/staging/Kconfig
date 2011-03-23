@@ -41,6 +41,10 @@ config STAGING_EXCLUDE_BUILD
 
 if !STAGING_EXCLUDE_BUILD
 
+source "drivers/staging/tty/Kconfig"
+
+source "drivers/staging/generic_serial/Kconfig"
+
 source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
@@ -87,11 +91,11 @@ source "drivers/staging/rtl8192e/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
+source "drivers/staging/rts_pstor/Kconfig"
+
 source "drivers/staging/frontier/Kconfig"
 
 source "drivers/staging/pohmelfs/Kconfig"
-
-source "drivers/staging/autofs/Kconfig"
 
 source "drivers/staging/phison/Kconfig"
 
@@ -127,6 +131,8 @@ source "drivers/staging/cs5535_gpio/Kconfig"
 
 source "drivers/staging/zram/Kconfig"
 
+source "drivers/staging/zcache/Kconfig"
+
 source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
@@ -141,15 +147,11 @@ source "drivers/staging/crystalhd/Kconfig"
 
 source "drivers/staging/cxt1e1/Kconfig"
 
-source "drivers/staging/ti-st/Kconfig"
-
 source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/msm/Kconfig"
 
 source "drivers/staging/lirc/Kconfig"
-
-source "drivers/staging/smbfs/Kconfig"
 
 source "drivers/staging/easycap/Kconfig"
 
@@ -178,6 +180,8 @@ source "drivers/staging/speakup/Kconfig"
 source "drivers/staging/cptm1217/Kconfig"
 
 source "drivers/staging/ste_rmi4/Kconfig"
+
+source "drivers/staging/gma500/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

@@ -76,6 +76,7 @@ core-$(CONFIG_MVME16x)		+= arch/m68k/mvme16x/
 core-$(CONFIG_BVME6000)		+= arch/m68k/bvme6000/
 core-$(CONFIG_SUN3X)		+= arch/m68k/sun3x/	arch/m68k/sun3/
 core-$(CONFIG_SUN3)		+= arch/m68k/sun3/	arch/m68k/sun3/prom/
+core-$(CONFIG_NATFEAT)		+= arch/m68k/emu/
 core-$(CONFIG_M68040)		+= arch/m68k/fpsp040/
 core-$(CONFIG_M68060)		+= arch/m68k/ifpsp060/
 core-$(CONFIG_M68KFPU_EMU)	+= arch/m68k/math-emu/

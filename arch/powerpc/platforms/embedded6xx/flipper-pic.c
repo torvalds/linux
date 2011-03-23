@@ -46,10 +46,10 @@
  *
  */
 
-static void flipper_pic_mask_and_ack(unsigned int virq)
+static void flipper_pic_mask_and_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = virq_to_hw(d->irq);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 	u32 mask = 1 << irq;
 
 	clrbits32(io_base + FLIPPER_IMR, mask);
@@ -57,27 +57,27 @@ static void flipper_pic_mask_and_ack(unsigned int virq)
 	out_be32(io_base + FLIPPER_ICR, mask);
 }
 
-static void flipper_pic_ack(unsigned int virq)
+static void flipper_pic_ack(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = virq_to_hw(d->irq);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	/* this is at least needed for RSW */
 	out_be32(io_base + FLIPPER_ICR, 1 << irq);
 }
 
-static void flipper_pic_mask(unsigned int virq)
+static void flipper_pic_mask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = virq_to_hw(d->irq);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	clrbits32(io_base + FLIPPER_IMR, 1 << irq);
 }
 
-static void flipper_pic_unmask(unsigned int virq)
+static void flipper_pic_unmask(struct irq_data *d)
 {
-	int irq = virq_to_hw(virq);
-	void __iomem *io_base = get_irq_chip_data(virq);
+	int irq = virq_to_hw(d->irq);
+	void __iomem *io_base = irq_data_get_irq_chip_data(d);
 
 	setbits32(io_base + FLIPPER_IMR, 1 << irq);
 }
@@ -85,10 +85,10 @@ static void flipper_pic_unmask(unsigned int virq)
 
 static struct irq_chip flipper_pic = {
 	.name		= "flipper-pic",
-	.ack		= flipper_pic_ack,
-	.mask_ack	= flipper_pic_mask_and_ack,
-	.mask		= flipper_pic_mask,
-	.unmask		= flipper_pic_unmask,
+	.irq_ack	= flipper_pic_ack,
+	.irq_mask_ack	= flipper_pic_mask_and_ack,
+	.irq_mask	= flipper_pic_mask,
+	.irq_unmask	= flipper_pic_unmask,
 };
 
 /*

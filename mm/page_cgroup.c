@@ -243,12 +243,7 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
 		break;
 	}
 
-	if (ret)
-		ret = notifier_from_errno(ret);
-	else
-		ret = NOTIFY_OK;
-
-	return ret;
+	return notifier_from_errno(ret);
 }
 
 #endif

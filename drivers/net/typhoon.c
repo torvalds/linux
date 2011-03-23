@@ -123,12 +123,11 @@ static const int multicast_filter_limit = 32;
 #include <linux/in6.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
-#include <generated/utsrelease.h>
 
 #include "typhoon.h"
 
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
-MODULE_VERSION(UTS_RELEASE);
+MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_NAME);
 MODULE_DESCRIPTION("3Com Typhoon Family (3C990, 3CR990, and variants)");

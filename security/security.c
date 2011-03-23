@@ -181,11 +181,6 @@ int security_real_capable_noaudit(struct task_struct *tsk, int cap)
 	return ret;
 }
 
-int security_sysctl(struct ctl_table *table, int op)
-{
-	return security_ops->sysctl(table, op);
-}
-
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
 	return security_ops->quotactl(cmds, type, id, sb);
@@ -201,7 +196,7 @@ int security_syslog(int type)
 	return security_ops->syslog(type);
 }
 
-int security_settime(struct timespec *ts, struct timezone *tz)
+int security_settime(const struct timespec *ts, const struct timezone *tz)
 {
 	return security_ops->settime(ts, tz);
 }
@@ -271,6 +266,11 @@ int security_sb_copy_data(char *orig, char *copy)
 }
 EXPORT_SYMBOL(security_sb_copy_data);
 
+int security_sb_remount(struct super_block *sb, void *data)
+{
+	return security_ops->sb_remount(sb, data);
+}
+
 int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	return security_ops->sb_kern_mount(sb, flags, data);
@@ -335,11 +335,13 @@ void security_inode_free(struct inode *inode)
 }
 
 int security_inode_init_security(struct inode *inode, struct inode *dir,
-				  char **name, void **value, size_t *len)
+				 const struct qstr *qstr, char **name,
+				 void **value, size_t *len)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return security_ops->inode_init_security(inode, dir, name, value, len);
+	return security_ops->inode_init_security(inode, dir, qstr, name, value,
+						 len);
 }
 EXPORT_SYMBOL(security_inode_init_security);
 
@@ -359,6 +361,7 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
 		return 0;
 	return security_ops->path_mkdir(dir, dentry, mode);
 }
+EXPORT_SYMBOL(security_path_mkdir);
 
 int security_path_rmdir(struct path *dir, struct dentry *dentry)
 {
@@ -373,6 +376,7 @@ int security_path_unlink(struct path *dir, struct dentry *dentry)
 		return 0;
 	return security_ops->path_unlink(dir, dentry);
 }
+EXPORT_SYMBOL(security_path_unlink);
 
 int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name)
@@ -399,6 +403,7 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 	return security_ops->path_rename(old_dir, old_dentry, new_dir,
 					 new_dentry);
 }
+EXPORT_SYMBOL(security_path_rename);
 
 int security_path_truncate(struct path *path)
 {
@@ -1100,7 +1105,7 @@ void security_sk_clone(const struct sock *sk, struct sock *newsk)
 
 void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
 {
-	security_ops->sk_getsecid(sk, &fl->secid);
+	security_ops->sk_getsecid(sk, &fl->flowi_secid);
 }
 EXPORT_SYMBOL(security_sk_classify_flow);
 
@@ -1233,7 +1238,8 @@ int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 }
 
 int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
-				       struct xfrm_policy *xp, struct flowi *fl)
+				       struct xfrm_policy *xp,
+				       const struct flowi *fl)
 {
 	return security_ops->xfrm_state_pol_flow_match(x, xp, fl);
 }
@@ -1245,7 +1251,7 @@ int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
 
 void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl)
 {
-	int rc = security_ops->xfrm_decode_session(skb, &fl->secid, 0);
+	int rc = security_ops->xfrm_decode_session(skb, &fl->flowi_secid, 0);
 
 	BUG_ON(rc);
 }

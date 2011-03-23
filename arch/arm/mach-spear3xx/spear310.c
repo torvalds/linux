@@ -13,9 +13,9 @@
 
 #include <linux/ptrace.h>
 #include <asm/irq.h>
-#include <mach/generic.h>
-#include <mach/spear.h>
 #include <plat/shirq.h>
+#include <mach/generic.h>
+#include <mach/hardware.h>
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -139,8 +139,6 @@ struct pmx_driver pmx_driver = {
 	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
 };
 
-/* Add spear310 specific devices here */
-
 /* spear3xx shared irq */
 struct shirq_dev_config shirq_ras1_config[] = {
 	{
@@ -257,6 +255,8 @@ struct spear_shirq shirq_intrcomm_ras = {
 	},
 };
 
+/* Add spear310 specific devices here */
+
 /* spear310 routines */
 void __init spear310_init(void)
 {
@@ -267,7 +267,7 @@ void __init spear310_init(void)
 	spear3xx_init();
 
 	/* shared irq registration */
-	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SPEAR310_SOC_CONFIG_SIZE);
+	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SZ_4K);
 	if (base) {
 		/* shirq 1 */
 		shirq_ras1.regs.base = base;
@@ -293,10 +293,11 @@ void __init spear310_init(void)
 		if (ret)
 			printk(KERN_ERR "Error registering Shared IRQ 4\n");
 	}
-}
 
-void spear310_pmx_init(void)
-{
-	spear_pmx_init(&pmx_driver, SPEAR310_SOC_CONFIG_BASE,
-			SPEAR310_SOC_CONFIG_SIZE);
+	/* pmx initialization */
+	pmx_driver.base = base;
+	ret = pmx_register(&pmx_driver);
+	if (ret)
+		printk(KERN_ERR "padmux: registeration failed. err no: %d\n",
+				ret);
 }

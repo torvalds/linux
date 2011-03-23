@@ -127,6 +127,7 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 		return;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 0xff;
 	bl = backlight_device_register("backlight", &sinfo->pdev->dev, sinfo,
 				       &atmel_lcdc_bl_ops, &props);

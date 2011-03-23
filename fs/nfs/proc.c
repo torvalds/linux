@@ -741,4 +741,5 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.lock		= nfs_proc_lock,
 	.lock_check_bounds = nfs_lock_check_bounds,
 	.close_context	= nfs_close_context,
+	.init_client	= nfs_init_client,
 };

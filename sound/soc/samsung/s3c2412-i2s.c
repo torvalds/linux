@@ -16,21 +16,13 @@
  * option) any later version.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
-#include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
-#include <mach/hardware.h>
+#include <sound/pcm_params.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/dma.h>
@@ -38,8 +30,6 @@
 #include "dma.h"
 #include "regs-i2s-v2.h"
 #include "s3c2412-i2s.h"
-
-#define S3C2412_I2S_DEBUG 0
 
 static struct s3c2410_dma_client s3c2412_dma_client_out = {
 	.name		= "I2S PCM Stereo out"

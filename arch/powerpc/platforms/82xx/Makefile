@@ -6,4 +6,4 @@ obj-$(CONFIG_CPM2) += pq2.o
 obj-$(CONFIG_PQ2_ADS_PCI_PIC) += pq2ads-pci-pic.o
 obj-$(CONFIG_PQ2FADS) += pq2fads.o
 obj-$(CONFIG_EP8248E) += ep8248e.o
-obj-$(CONFIG_MGCOGE) += mgcoge.o
+obj-$(CONFIG_MGCOGE) += km82xx.o

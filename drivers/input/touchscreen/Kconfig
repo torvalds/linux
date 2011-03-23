@@ -86,6 +86,18 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
+config TOUCHSCREEN_ATMEL_MXT
+	tristate "Atmel mXT I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Atmel mXT series I2C touchscreen,
+	  such as AT42QT602240/ATMXT224, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_mxt_ts.
+
 config TOUCHSCREEN_BITSY
 	tristate "Compaq iPAQ H3600 (Bitsy) touchscreen"
 	depends on SA1100_BITSY
@@ -339,18 +351,6 @@ config TOUCHSCREEN_PENMOUNT
 	  To compile this driver as a module, choose M here: the
 	  module will be called penmount.
 
-config TOUCHSCREEN_QT602240
-	tristate "QT602240 I2C Touchscreen"
-	depends on I2C
-	help
-	  Say Y here if you have the AT42QT602240/ATMXT224 I2C touchscreen
-	  connected to your system.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called qt602240_ts.
-
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on SH_MIGOR && I2C
@@ -422,6 +422,16 @@ config TOUCHSCREEN_UCB1400
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_ts.
+
+config TOUCHSCREEN_WM831X
+	tristate "Support for WM831x touchscreen controllers"
+	depends on MFD_WM831X
+	help
+	  This enables support for the touchscreen controller on the WM831x
+	  series of PMICs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm831x-ts.
 
 config TOUCHSCREEN_WM97XX
 	tristate "Support for WM97xx AC97 touchscreen controllers"
@@ -628,6 +638,17 @@ config TOUCHSCREEN_TOUCHIT213
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchit213.
+
+config TOUCHSCREEN_TSC2005
+        tristate "TSC2005 based touchscreens"
+        depends on SPI_MASTER
+        help
+          Say Y here if you have a TSC2005 based touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tsc2005.
 
 config TOUCHSCREEN_TSC2007
 	tristate "TSC2007 based touchscreens"

@@ -172,6 +172,19 @@
 			interrupts = <0x1e 4>;
 		};
 
+		USBOTG0: usbotg@bff80000 {
+			compatible = "amcc,dwc-otg";
+			reg = <0x4 0xbff80000 0x10000>;
+			interrupt-parent = <&USBOTG0>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupts = <0x0 0x1 0x2>;
+			interrupt-map = </* USB-OTG */ 0x0 &UIC2 0x1c 0x4
+					 /* HIGH-POWER */ 0x1 &UIC1 0x1a 0x8
+					 /* DMA */ 0x2 &UIC0 0xc 0x4>;
+		};
+
 		SATA0: sata@bffd1000 {
 			compatible = "amcc,sata-460ex";
 			reg = <4 0xbffd1000 0x800 4 0xbffd0800 0x400>;
@@ -231,6 +244,11 @@
 						label = "u-boot";
 						reg = <0x03fa0000 0x00060000>;
 					};
+				};
+
+				cpld@2,0 {
+					compatible = "amcc,ppc460ex-bcsr";
+					reg = <2 0x0 0x9>;
 				};
 
 				ndfc@3,0 {
@@ -305,6 +323,12 @@
 				reg = <0xef600800 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x3 0x4>;
+			};
+
+			GPIO0: gpio@ef600b00 {
+				compatible = "ibm,ppc4xx-gpio";
+				reg = <0xef600b00 0x00000048>;
+				gpio-controller;
 			};
 
 			ZMII0: emac-zmii@ef600d00 {

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -118,6 +118,7 @@ struct vf_data_storage {
 	bool pf_set_mac;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
+	u16 tx_rate;
 };
 
 /* wrapper around a pointer to a socket buffer,
@@ -209,6 +210,7 @@ struct ixgbe_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+	u8 dcb_tc;
 
 	u16 work_limit;			/* max work per interrupt */
 
@@ -243,7 +245,7 @@ enum ixgbe_ring_f_enum {
 	RING_F_ARRAY_SIZE      /* must be last in enum set */
 };
 
-#define IXGBE_MAX_DCB_INDICES   8
+#define IXGBE_MAX_DCB_INDICES  64
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 64
 #define IXGBE_MAX_FDIR_INDICES 64
@@ -334,9 +336,14 @@ struct ixgbe_adapter {
 	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbe_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
+
+	/* DCB parameters */
+	struct ieee_pfc *ixgbe_ieee_pfc;
+	struct ieee_ets *ixgbe_ieee_ets;
 	struct ixgbe_dcb_config dcb_cfg;
 	struct ixgbe_dcb_config temp_dcb_cfg;
 	u8 dcb_set_bitmap;
+	u8 dcbx_cap;
 	enum ixgbe_fc_mode last_lfc_mode;
 
 	/* Interrupt Throttle Rate */
@@ -462,6 +469,7 @@ struct ixgbe_adapter {
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
+	int vf_rate_link_speed;
 };
 
 enum ixbge_state_t {
@@ -521,7 +529,6 @@ extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *,
 extern void ixgbe_alloc_rx_buffers(struct ixgbe_ring *, u16);
 extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
-extern u8 ixgbe_dcb_txq_to_tc(struct ixgbe_adapter *adapter, u8 index);
 extern s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc);
 extern s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc);
@@ -538,6 +545,7 @@ extern void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
                                struct ixgbe_ring *ring);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
+extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_adapter *adapter,
@@ -549,6 +557,8 @@ extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
                           struct sk_buff *skb);
 extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
                               struct scatterlist *sgl, unsigned int sgc);
+extern int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
+				 struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid);
 extern int ixgbe_fcoe_enable(struct net_device *netdev);
 extern int ixgbe_fcoe_disable(struct net_device *netdev);

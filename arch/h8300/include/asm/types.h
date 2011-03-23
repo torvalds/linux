@@ -22,10 +22,6 @@ typedef unsigned short umode_t;
 
 #define BITS_PER_LONG 32
 
-/* Dma addresses are 32-bits wide.  */
-
-typedef u32 dma_addr_t;
-
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */

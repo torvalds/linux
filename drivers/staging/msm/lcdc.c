@@ -224,12 +224,12 @@ static int __init lcdc_driver_init(void)
 	mdp_lcdc_pclk_clk = clk_get(NULL, "mdp_lcdc_pclk_clk");
 	if (IS_ERR(mdp_lcdc_pclk_clk)) {
 		printk(KERN_ERR "error: can't get mdp_lcdc_pclk_clk!\n");
-		return IS_ERR(mdp_lcdc_pclk_clk);
+		return PTR_ERR(mdp_lcdc_pclk_clk);
 	}
 	mdp_lcdc_pad_pclk_clk = clk_get(NULL, "mdp_lcdc_pad_pclk_clk");
 	if (IS_ERR(mdp_lcdc_pad_pclk_clk)) {
 		printk(KERN_ERR "error: can't get mdp_lcdc_pad_pclk_clk!\n");
-		return IS_ERR(mdp_lcdc_pad_pclk_clk);
+		return PTR_ERR(mdp_lcdc_pad_pclk_clk);
 	}
 //	pm_qos_add_requirement(PM_QOS_SYSTEM_BUS_FREQ , "lcdc",
 //				PM_QOS_DEFAULT_VALUE);

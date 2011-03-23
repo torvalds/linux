@@ -37,7 +37,7 @@ SECTIONS
   _einittext = .;
 
   INIT_DATA_SECTION(8)
-  PERCPU(4096)
+  PERCPU(L1_CACHE_BYTES, 4096)
 
   . = ALIGN(PAGE_SIZE);
   __init_end = .;

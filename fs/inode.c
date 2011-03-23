@@ -84,16 +84,13 @@ static struct hlist_head *inode_hashtable __read_mostly;
 DEFINE_SPINLOCK(inode_lock);
 
 /*
- * iprune_sem provides exclusion between the kswapd or try_to_free_pages
- * icache shrinking path, and the umount path.  Without this exclusion,
- * by the time prune_icache calls iput for the inode whose pages it has
- * been invalidating, or by the time it calls clear_inode & destroy_inode
- * from its final dispose_list, the struct super_block they refer to
- * (for inode->i_sb->s_op) may already have been freed and reused.
+ * iprune_sem provides exclusion between the icache shrinking and the
+ * umount path.
  *
- * We make this an rwsem because the fastpath is icache shrinking. In
- * some cases a filesystem may be doing a significant amount of work in
- * its inode reclaim code, so this should improve parallelism.
+ * We don't actually need it to protect anything in the umount path,
+ * but only need to cycle through it to make sure any inode that
+ * prune_icache took off the LRU list has been fully torn down by the
+ * time we are past evict_inodes.
  */
 static DECLARE_RWSEM(iprune_sem);
 
@@ -516,17 +513,12 @@ void evict_inodes(struct super_block *sb)
 	struct inode *inode, *next;
 	LIST_HEAD(dispose);
 
-	down_write(&iprune_sem);
-
 	spin_lock(&inode_lock);
 	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
 		if (atomic_read(&inode->i_count))
 			continue;
-
-		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
-			WARN_ON(1);
+		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE))
 			continue;
-		}
 
 		inode->i_state |= I_FREEING;
 
@@ -542,6 +534,13 @@ void evict_inodes(struct super_block *sb)
 	spin_unlock(&inode_lock);
 
 	dispose_list(&dispose);
+
+	/*
+	 * Cycle through iprune_sem to make sure any inode that prune_icache
+	 * moved off the list before we took the lock has been fully torn
+	 * down.
+	 */
+	down_write(&iprune_sem);
 	up_write(&iprune_sem);
 }
 
@@ -560,8 +559,6 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 	int busy = 0;
 	struct inode *inode, *next;
 	LIST_HEAD(dispose);
-
-	down_write(&iprune_sem);
 
 	spin_lock(&inode_lock);
 	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
@@ -590,7 +587,6 @@ int invalidate_inodes(struct super_block *sb, bool kill_dirty)
 	spin_unlock(&inode_lock);
 
 	dispose_list(&dispose);
-	up_write(&iprune_sem);
 
 	return busy;
 }
@@ -1719,7 +1715,7 @@ void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 EXPORT_SYMBOL(init_special_inode);
 
 /**
- * Init uid,gid,mode for new inode according to posix standards
+ * inode_init_owner - Init uid,gid,mode for new inode according to posix standards
  * @inode: New inode
  * @dir: Directory inode
  * @mode: mode of the new inode

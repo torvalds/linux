@@ -85,7 +85,7 @@ static int __init aio_setup(void)
 	kiocb_cachep = KMEM_CACHE(kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 
-	aio_wq = create_workqueue("aio");
+	aio_wq = alloc_workqueue("aio", 0, 1);	/* used to limit concurrency */
 	abe_pool = mempool_create_kmalloc_pool(1, sizeof(struct aio_batch_entry));
 	BUG_ON(!aio_wq || !abe_pool);
 
@@ -520,7 +520,7 @@ static inline void really_put_req(struct kioctx *ctx, struct kiocb *req)
 	ctx->reqs_active--;
 
 	if (unlikely(!ctx->reqs_active && ctx->dead))
-		wake_up(&ctx->wait);
+		wake_up_all(&ctx->wait);
 }
 
 static void aio_fput_routine(struct work_struct *data)
@@ -577,7 +577,7 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 		spin_lock(&fput_lock);
 		list_add(&req->ki_list, &fput_head);
 		spin_unlock(&fput_lock);
-		queue_work(aio_wq, &fput_work);
+		schedule_work(&fput_work);
 	} else {
 		req->ki_filp = NULL;
 		really_put_req(ctx, req);
@@ -1229,7 +1229,7 @@ static void io_destroy(struct kioctx *ioctx)
 	 * by other CPUs at this point.  Right now, we rely on the
 	 * locking done by the above calls to ensure this consistency.
 	 */
-	wake_up(&ioctx->wait);
+	wake_up_all(&ioctx->wait);
 	put_ioctx(ioctx);	/* once for the lookup */
 }
 

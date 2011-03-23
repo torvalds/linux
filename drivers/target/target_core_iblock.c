@@ -35,7 +35,6 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/bio.h>
 #include <linux/genhd.h>
 #include <linux/file.h>

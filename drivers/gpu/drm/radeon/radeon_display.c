@@ -371,7 +371,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
 	INIT_WORK(&work->work, radeon_unpin_work_func);
 
@@ -391,7 +391,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 
 	/* pin the new buffer */
 	obj = new_radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 
 	DRM_DEBUG_DRIVER("flip-ioctl() cur_fbo = %p, cur_bbo = %p\n",
 			 work->old_rbo, rbo);

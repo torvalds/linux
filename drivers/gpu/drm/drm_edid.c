@@ -230,24 +230,32 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 		      int block, int len)
 {
 	unsigned char start = block * EDID_LENGTH;
-	struct i2c_msg msgs[] = {
-		{
-			.addr	= DDC_ADDR,
-			.flags	= 0,
-			.len	= 1,
-			.buf	= &start,
-		}, {
-			.addr	= DDC_ADDR,
-			.flags	= I2C_M_RD,
-			.len	= len,
-			.buf	= buf,
-		}
-	};
+	int ret, retries = 5;
 
-	if (i2c_transfer(adapter, msgs, 2) == 2)
-		return 0;
+	/* The core i2c driver will automatically retry the transfer if the
+	 * adapter reports EAGAIN. However, we find that bit-banging transfers
+	 * are susceptible to errors under a heavily loaded machine and
+	 * generate spurious NAKs and timeouts. Retrying the transfer
+	 * of the individual block a few times seems to overcome this.
+	 */
+	do {
+		struct i2c_msg msgs[] = {
+			{
+				.addr	= DDC_ADDR,
+				.flags	= 0,
+				.len	= 1,
+				.buf	= &start,
+			}, {
+				.addr	= DDC_ADDR,
+				.flags	= I2C_M_RD,
+				.len	= len,
+				.buf	= buf,
+			}
+		};
+		ret = i2c_transfer(adapter, msgs, 2);
+	} while (ret != 2 && --retries);
 
-	return -1;
+	return ret == 2 ? 0 : -1;
 }
 
 static u8 *
@@ -449,12 +457,11 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh)
 {
+	struct drm_display_mode *mode = NULL;
 	int i;
-	struct drm_display_mode *ptr, *mode;
 
-	mode = NULL;
 	for (i = 0; i < drm_num_dmt_modes; i++) {
-		ptr = &drm_dmt_modes[i];
+		const struct drm_display_mode *ptr = &drm_dmt_modes[i];
 		if (hsize == ptr->hdisplay &&
 			vsize == ptr->vdisplay &&
 			fresh == drm_mode_vrefresh(ptr)) {
@@ -885,7 +892,7 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 }
 
 static bool
-mode_is_rb(struct drm_display_mode *mode)
+mode_is_rb(const struct drm_display_mode *mode)
 {
 	return (mode->htotal - mode->hdisplay == 160) &&
 	       (mode->hsync_end - mode->hdisplay == 80) &&
@@ -894,7 +901,8 @@ mode_is_rb(struct drm_display_mode *mode)
 }
 
 static bool
-mode_in_hsync_range(struct drm_display_mode *mode, struct edid *edid, u8 *t)
+mode_in_hsync_range(const struct drm_display_mode *mode,
+		    struct edid *edid, u8 *t)
 {
 	int hsync, hmin, hmax;
 
@@ -910,7 +918,8 @@ mode_in_hsync_range(struct drm_display_mode *mode, struct edid *edid, u8 *t)
 }
 
 static bool
-mode_in_vsync_range(struct drm_display_mode *mode, struct edid *edid, u8 *t)
+mode_in_vsync_range(const struct drm_display_mode *mode,
+		    struct edid *edid, u8 *t)
 {
 	int vsync, vmin, vmax;
 
@@ -941,7 +950,7 @@ range_pixel_clock(struct edid *edid, u8 *t)
 }
 
 static bool
-mode_in_range(struct drm_display_mode *mode, struct edid *edid,
+mode_in_range(const struct drm_display_mode *mode, struct edid *edid,
 	      struct detailed_timing *timing)
 {
 	u32 max_clock;
@@ -1472,7 +1481,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 			int hdisplay, int vdisplay)
 {
 	int i, count, num_modes = 0;
-	struct drm_display_mode *mode, *ptr;
+	struct drm_display_mode *mode;
 	struct drm_device *dev = connector->dev;
 
 	count = sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
@@ -1482,7 +1491,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 		vdisplay = 0;
 
 	for (i = 0; i < count; i++) {
-		ptr = &drm_dmt_modes[i];
+		const struct drm_display_mode *ptr = &drm_dmt_modes[i];
 		if (hdisplay && vdisplay) {
 			/*
 			 * Only when two are valid, they will be used to check

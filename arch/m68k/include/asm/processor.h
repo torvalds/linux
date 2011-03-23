@@ -113,6 +113,8 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 	wrusp(usp);
 }
 
+extern int handle_kernel_fault(struct pt_regs *regs);
+
 #else
 
 /*

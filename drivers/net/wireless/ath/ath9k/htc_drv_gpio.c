@@ -389,7 +389,8 @@ void ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 			ret, ah->curchan->channel);
 	}
 
-	ath_update_txpow(priv);
+	ath9k_cmn_update_txpow(ah, priv->curtxpow, priv->txpowlimit,
+			       &priv->curtxpow);
 
 	/* Start RX */
 	WMI_CMD(WMI_START_RECV_CMDID);

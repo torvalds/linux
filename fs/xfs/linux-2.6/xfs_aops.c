@@ -854,7 +854,7 @@ xfs_aops_discard_page(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		goto out_invalidate;
 
-	xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+	xfs_alert(ip->i_mount,
 		"page discard on page %p, inode 0x%llx, offset %llu.",
 			page, ip->i_ino, offset);
 
@@ -872,7 +872,7 @@ xfs_aops_discard_page(
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+				xfs_alert(ip->i_mount,
 			"page discard unable to remove delalloc mapping.");
 			}
 			break;
@@ -1411,7 +1411,7 @@ xfs_vm_write_failed(
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+				xfs_alert(ip->i_mount,
 			"xfs_vm_write_failed: unable to clean up ino %lld",
 						ip->i_ino);
 			}

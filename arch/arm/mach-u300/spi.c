@@ -11,6 +11,9 @@
 #include <linux/spi/spi.h>
 #include <linux/amba/pl022.h>
 #include <linux/err.h>
+#include <mach/coh901318.h>
+#include <mach/dma_channels.h>
+
 #include "padmux.h"
 
 /*
@@ -30,11 +33,8 @@ static void select_dummy_chip(u32 chipselect)
 }
 
 struct pl022_config_chip dummy_chip_info = {
-	/*
-	 * available POLLING_TRANSFER and INTERRUPT_TRANSFER,
-	 * DMA_TRANSFER does not work
-	 */
-	.com_mode = INTERRUPT_TRANSFER,
+	/* available POLLING_TRANSFER, INTERRUPT_TRANSFER, DMA_TRANSFER */
+	.com_mode = DMA_TRANSFER,
 	.iface = SSP_INTERFACE_MOTOROLA_SPI,
 	/* We can only act as master but SSP_SLAVE is possible in theory */
 	.hierarchy = SSP_MASTER,
@@ -75,8 +75,6 @@ static struct spi_board_info u300_spi_devices[] = {
 static struct pl022_ssp_controller ssp_platform_data = {
 	/* If you have several SPI buses this varies, we have only bus 0 */
 	.bus_id = 0,
-	/* Set this to 1 when we think we got DMA working */
-	.enable_dma = 0,
 	/*
 	 * On the APP CPU GPIO 4, 5 and 6 are connected as generic
 	 * chip selects for SPI. (Same on U330, U335 and U365.)
@@ -84,6 +82,14 @@ static struct pl022_ssp_controller ssp_platform_data = {
 	 * and do padmuxing accordingly too.
 	 */
 	.num_chipselect = 3,
+#ifdef CONFIG_COH901318
+	.enable_dma = 1,
+	.dma_filter = coh901318_filter_id,
+	.dma_rx_param = (void *) U300_DMA_SPI_RX,
+	.dma_tx_param = (void *) U300_DMA_SPI_TX,
+#else
+	.enable_dma = 0,
+#endif
 };
 
 
@@ -109,6 +115,7 @@ void __init u300_spi_init(struct amba_device *adev)
 	}
 
 }
+
 void __init u300_spi_register_board_devices(void)
 {
 	/* Register any SPI devices */

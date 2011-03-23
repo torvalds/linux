@@ -118,6 +118,7 @@ MACHINE_START(RD88F6281, "Marvell RD-88F6281 Reference Board")
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f6281_init,
 	.map_io		= kirkwood_map_io,
+	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
 MACHINE_END

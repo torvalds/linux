@@ -121,10 +121,11 @@ extern ssize_t jffs2_listxattr(struct dentry *, char *, size_t);
 #endif /* CONFIG_JFFS2_FS_XATTR */
 
 #ifdef CONFIG_JFFS2_FS_SECURITY
-extern int jffs2_init_security(struct inode *inode, struct inode *dir);
+extern int jffs2_init_security(struct inode *inode, struct inode *dir,
+			       const struct qstr *qstr);
 extern const struct xattr_handler jffs2_security_xattr_handler;
 #else
-#define jffs2_init_security(inode,dir)	(0)
+#define jffs2_init_security(inode,dir,qstr)	(0)
 #endif /* CONFIG_JFFS2_FS_SECURITY */
 
 #endif /* _JFFS2_FS_XATTR_H_ */

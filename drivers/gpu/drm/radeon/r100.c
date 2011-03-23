@@ -1205,14 +1205,12 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	if (waitreloc.reg != RADEON_WAIT_UNTIL ||
 	    waitreloc.count != 0) {
 		DRM_ERROR("vline wait had illegal wait until segment\n");
-		r = -EINVAL;
-		return r;
+		return -EINVAL;
 	}
 
 	if (radeon_get_ib_value(p, waitreloc.idx + 1) != RADEON_WAIT_CRTC_VLINE) {
 		DRM_ERROR("vline wait had illegal wait until\n");
-		r = -EINVAL;
-		return r;
+		return -EINVAL;
 	}
 
 	/* jump over the NOP */
@@ -1230,8 +1228,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
-		r = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	crtc = obj_to_crtc(obj);
 	radeon_crtc = to_radeon_crtc(crtc);
@@ -1253,14 +1250,13 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 			break;
 		default:
 			DRM_ERROR("unknown crtc reloc\n");
-			r = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 		ib[h_idx] = header;
 		ib[h_idx + 3] |= RADEON_ENG_DISPLAY_SELECT_CRTC1;
 	}
-out:
-	return r;
+
+	return 0;
 }
 
 /**
@@ -3621,7 +3617,7 @@ int r100_ib_test(struct radeon_device *rdev)
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test succeeded in %u usecs\n", i);
 	} else {
-		DRM_ERROR("radeon: ib test failed (sracth(0x%04X)=0x%08X)\n",
+		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);
 		r = -EINVAL;
 	}
@@ -3641,13 +3637,13 @@ int r100_ib_init(struct radeon_device *rdev)
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing IB pool (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing IB pool (%d).\n", r);
 		r100_ib_fini(rdev);
 		return r;
 	}
 	r = r100_ib_test(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled testing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
 		r100_ib_fini(rdev);
 		return r;
 	}
@@ -3803,12 +3799,12 @@ static int r100_startup(struct radeon_device *rdev)
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
 	r = r100_ib_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
 		return r;
 	}
 	return 0;

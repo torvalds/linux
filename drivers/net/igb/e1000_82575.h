@@ -251,5 +251,6 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *, bool, int);
 void igb_vmdq_set_loopback_pf(struct e1000_hw *, bool);
 void igb_vmdq_set_replication_pf(struct e1000_hw *, bool);
 u16 igb_rxpbs_adjust_82580(u32 data);
+s32 igb_set_eee_i350(struct e1000_hw *);
 
 #endif

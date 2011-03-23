@@ -2,6 +2,14 @@
 # Misc strange devices
 #
 
+# This one has to live outside of the MISC_DEVICES conditional,
+# because it may be selected by drivers/platform/x86/hp_accel.
+config SENSORS_LIS3LV02D
+	tristate
+	depends on INPUT
+	select INPUT_POLLDEV
+	default n
+
 menuconfig MISC_DEVICES
 	bool "Misc devices"
 	---help---
@@ -394,6 +402,16 @@ config DS1682
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1682.
 
+config SPEAR13XX_PCIE_GADGET
+	bool "PCIe gadget support for SPEAr13XX platform"
+	depends on ARCH_SPEAR13XX
+	default n
+	help
+	 This option enables gadget support for PCIe controller. If
+	 board file defines any controller as PCIe endpoint then a sysfs
+	 entry will be created for that controller. User can use these
+	 sysfs node to configure PCIe EP as per his requirements.
+
 config TI_DAC7512
 	tristate "Texas Instruments DAC7512"
 	depends on SPI && SYSFS
@@ -441,13 +459,18 @@ config BMP085
 	  module will be called bmp085.
 
 config PCH_PHUB
-	tristate "PCH Packet Hub of Intel Topcliff"
+	tristate "PCH Packet Hub of Intel Topcliff / OKI SEMICONDUCTOR ML7213"
 	depends on PCI
 	help
 	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
 	  Intel Topcliff which is an IOH(Input/Output Hub) for x86 embedded
 	  processor. The Topcliff has MAC address and Option ROM data in SROM.
 	  This driver can access MAC address and Option ROM data in SROM.
+
+	  This driver also can be used for OKI SEMICONDUCTOR's ML7213 which is
+	  for IVI(In-Vehicle Infotainment) use.
+	  ML7213 is companion chip for Intel Atom E6xx series.
+	  ML7213 is completely compatible for Intel EG20T PCH.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
@@ -457,5 +480,6 @@ source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
+source "drivers/misc/lis3lv02d/Kconfig"
 
 endif # MISC_DEVICES

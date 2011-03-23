@@ -29,6 +29,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <linux/mfd/da903x.h>
 #include <linux/regulator/machine.h>
@@ -48,7 +49,6 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 #include <mach/audio.h>
 #include <mach/pxa3xx-u2d.h>

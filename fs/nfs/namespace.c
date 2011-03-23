@@ -25,33 +25,30 @@ static LIST_HEAD(nfs_automount_list);
 static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 
-static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
-					const struct dentry *dentry,
+static struct vfsmount *nfs_do_submount(struct dentry *dentry,
 					struct nfs_fh *fh,
 					struct nfs_fattr *fattr);
 
 /*
  * nfs_path - reconstruct the path given an arbitrary dentry
- * @base - arbitrary string to prepend to the path
- * @droot - pointer to root dentry for mountpoint
+ * @base - used to return pointer to the end of devname part of path
  * @dentry - pointer to dentry
  * @buffer - result buffer
  * @buflen - length of buffer
  *
- * Helper function for constructing the path from the
- * root dentry to an arbitrary hashed dentry.
+ * Helper function for constructing the server pathname
+ * by arbitrary hashed dentry.
  *
  * This is mainly for use in figuring out the path on the
- * server side when automounting on top of an existing partition.
+ * server side when automounting on top of an existing partition
+ * and in generating /proc/mounts and friends.
  */
-char *nfs_path(const char *base,
-	       const struct dentry *droot,
-	       const struct dentry *dentry,
-	       char *buffer, ssize_t buflen)
+char *nfs_path(char **p, struct dentry *dentry, char *buffer, ssize_t buflen)
 {
 	char *end;
 	int namelen;
 	unsigned seq;
+	const char *base;
 
 rename_retry:
 	end = buffer+buflen;
@@ -60,7 +57,10 @@ rename_retry:
 
 	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
-	while (!IS_ROOT(dentry) && dentry != droot) {
+	while (1) {
+		spin_lock(&dentry->d_lock);
+		if (IS_ROOT(dentry))
+			break;
 		namelen = dentry->d_name.len;
 		buflen -= namelen + 1;
 		if (buflen < 0)
@@ -68,27 +68,47 @@ rename_retry:
 		end -= namelen;
 		memcpy(end, dentry->d_name.name, namelen);
 		*--end = '/';
+		spin_unlock(&dentry->d_lock);
 		dentry = dentry->d_parent;
 	}
-	rcu_read_unlock();
-	if (read_seqretry(&rename_lock, seq))
+	if (read_seqretry(&rename_lock, seq)) {
+		spin_unlock(&dentry->d_lock);
+		rcu_read_unlock();
 		goto rename_retry;
+	}
 	if (*end != '/') {
-		if (--buflen < 0)
+		if (--buflen < 0) {
+			spin_unlock(&dentry->d_lock);
+			rcu_read_unlock();
 			goto Elong;
+		}
 		*--end = '/';
+	}
+	*p = end;
+	base = dentry->d_fsdata;
+	if (!base) {
+		spin_unlock(&dentry->d_lock);
+		rcu_read_unlock();
+		WARN_ON(1);
+		return end;
 	}
 	namelen = strlen(base);
 	/* Strip off excess slashes in base string */
 	while (namelen > 0 && base[namelen - 1] == '/')
 		namelen--;
 	buflen -= namelen;
-	if (buflen < 0)
+	if (buflen < 0) {
+		spin_unlock(&dentry->d_lock);
+		rcu_read_unlock();
 		goto Elong;
+	}
 	end -= namelen;
 	memcpy(end, base, namelen);
+	spin_unlock(&dentry->d_lock);
+	rcu_read_unlock();
 	return end;
 Elong_unlock:
+	spin_unlock(&dentry->d_lock);
 	rcu_read_unlock();
 	if (read_seqretry(&rename_lock, seq))
 		goto rename_retry;
@@ -143,9 +163,9 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
-		mnt = nfs_do_refmount(path->mnt, path->dentry);
+		mnt = nfs_do_refmount(path->dentry);
 	else
-		mnt = nfs_do_submount(path->mnt, path->dentry, fh, fattr);
+		mnt = nfs_do_submount(path->dentry, fh, fattr);
 	if (IS_ERR(mnt))
 		goto out;
 
@@ -209,19 +229,17 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 
 /**
  * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
- * @mnt_parent - mountpoint of parent directory
  * @dentry - parent directory
  * @fh - filehandle for new root dentry
  * @fattr - attributes for new root inode
  *
  */
-static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
-					const struct dentry *dentry,
+static struct vfsmount *nfs_do_submount(struct dentry *dentry,
 					struct nfs_fh *fh,
 					struct nfs_fattr *fattr)
 {
 	struct nfs_clone_mount mountdata = {
-		.sb = mnt_parent->mnt_sb,
+		.sb = dentry->d_sb,
 		.dentry = dentry,
 		.fh = fh,
 		.fattr = fattr,
@@ -237,11 +255,11 @@ static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 			dentry->d_name.name);
 	if (page == NULL)
 		goto out;
-	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
+	devname = nfs_devname(dentry, page, PAGE_SIZE);
 	mnt = (struct vfsmount *)devname;
 	if (IS_ERR(devname))
 		goto free_page;
-	mnt = nfs_do_clone_mount(NFS_SB(mnt_parent->mnt_sb), devname, &mountdata);
+	mnt = nfs_do_clone_mount(NFS_SB(dentry->d_sb), devname, &mountdata);
 free_page:
 	free_page((unsigned long)page);
 out:

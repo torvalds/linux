@@ -172,7 +172,7 @@ asmlinkage void do_softirq(void)
 
 		call_on_stack(__do_softirq, isp);
 		/*
-		 * Shouldnt happen, we returned above if in_interrupt():
+		 * Shouldn't happen, we returned above if in_interrupt():
 		 */
 		WARN_ON_ONCE(softirq_count());
 	}

@@ -203,11 +203,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		mdelay(10);
 	}
 
-	/* setup specific usb hw */
-	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);
-	if (ret < 0)
-		goto err_init;
-
 	ehci = hcd_to_ehci(hcd);
 
 	/* EHCI registers start at offset 0x100 */

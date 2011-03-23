@@ -468,10 +468,14 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 		SPEX(country_code, SSB_SPROM4_CCODE, 0xFFFF, 0);
 		SPEX(boardflags_lo, SSB_SPROM4_BFLLO, 0xFFFF, 0);
 		SPEX(boardflags_hi, SSB_SPROM4_BFLHI, 0xFFFF, 0);
+		SPEX(boardflags2_lo, SSB_SPROM4_BFL2LO, 0xFFFF, 0);
+		SPEX(boardflags2_hi, SSB_SPROM4_BFL2HI, 0xFFFF, 0);
 	} else {
 		SPEX(country_code, SSB_SPROM5_CCODE, 0xFFFF, 0);
 		SPEX(boardflags_lo, SSB_SPROM5_BFLLO, 0xFFFF, 0);
 		SPEX(boardflags_hi, SSB_SPROM5_BFLHI, 0xFFFF, 0);
+		SPEX(boardflags2_lo, SSB_SPROM5_BFL2LO, 0xFFFF, 0);
+		SPEX(boardflags2_hi, SSB_SPROM5_BFL2HI, 0xFFFF, 0);
 	}
 	SPEX(ant_available_a, SSB_SPROM4_ANTAVAIL, SSB_SPROM4_ANTAVAIL_A,
 	     SSB_SPROM4_ANTAVAIL_A_SHIFT);
@@ -641,7 +645,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 		break;
 	default:
 		ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
-			   "  revision %d detected. Will extract"
+			   " revision %d detected. Will extract"
 			   " v1\n", out->revision);
 		out->revision = 1;
 		sprom_extract_r123(out, in);

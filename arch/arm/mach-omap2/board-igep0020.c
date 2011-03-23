@@ -250,7 +250,7 @@ static inline void __init igep2_init_smsc911x(void) { }
 #endif
 
 static struct regulator_consumer_supply igep2_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep2_vmmc1 = {
@@ -268,7 +268,7 @@ static struct regulator_init_data igep2_vmmc1 = {
 };
 
 static struct regulator_consumer_supply igep2_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_init_data igep2_vio = {
 	.constraints = {
@@ -286,7 +286,7 @@ static struct regulator_init_data igep2_vio = {
 };
 
 static struct regulator_consumer_supply igep2_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_init_data igep2_vmmc2 = {
 	.constraints		= {
@@ -485,18 +485,8 @@ static struct omap_dss_board_info igep2_dss_data = {
 	.default_device	= &igep2_dvi_device,
 };
 
-static struct platform_device igep2_dss_device = {
-	.name	= "omapdss",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &igep2_dss_data,
-	},
-};
-
-static struct regulator_consumer_supply igep2_vpll2_supply = {
-	.supply	= "vdds_dsi",
-	.dev	= &igep2_dss_device.dev,
-};
+static struct regulator_consumer_supply igep2_vpll2_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
 static struct regulator_init_data igep2_vpll2 = {
 	.constraints = {
@@ -521,21 +511,17 @@ static void __init igep2_display_init(void)
 }
 
 static struct platform_device *igep2_devices[] __initdata = {
-	&igep2_dss_device,
 	&igep2_vwlan_device,
 };
 
-static void __init igep2_init_irq(void)
+static void __init igep2_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(m65kxxxxam_sdrc_params,
 				  m65kxxxxam_sdrc_params);
-	omap_init_irq();
 }
 
-static struct twl4030_codec_audio_data igep2_audio_data = {
-	.audio_mclk = 26000000,
-};
+static struct twl4030_codec_audio_data igep2_audio_data;
 
 static struct twl4030_codec_data igep2_codec_data = {
 	.audio_mclk = 26000000,
@@ -627,10 +613,10 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset = true,
 	.reset_gpio_port[0] = IGEP2_GPIO_USBH_NRESET,
@@ -697,9 +683,10 @@ static void __init igep2_init(void)
 	/* Register I2C busses and drivers */
 	igep2_i2c_init();
 	platform_add_devices(igep2_devices, ARRAY_SIZE(igep2_devices));
+	omap_display_init(&igep2_dss_data);
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&ehci_pdata);
+	usbhs_init(&usbhs_bdata);
 
 	igep2_flash_init();
 	igep2_leds_init();
@@ -716,9 +703,10 @@ static void __init igep2_init(void)
 
 MACHINE_START(IGEP0020, "IGEP v2 board")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= igep2_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= igep2_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= igep2_init,
 	.timer		= &omap_timer,
 MACHINE_END

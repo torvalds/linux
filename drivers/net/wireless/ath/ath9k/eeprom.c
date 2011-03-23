@@ -89,6 +89,38 @@ bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList, u16 listSize,
 	return false;
 }
 
+void ath9k_hw_usb_gen_fill_eeprom(struct ath_hw *ah, u16 *eep_data,
+				  int eep_start_loc, int size)
+{
+	int i = 0, j, addr;
+	u32 addrdata[8];
+	u32 data[8];
+
+	for (addr = 0; addr < size; addr++) {
+		addrdata[i] = AR5416_EEPROM_OFFSET +
+			((addr + eep_start_loc) << AR5416_EEPROM_S);
+		i++;
+		if (i == 8) {
+			REG_READ_MULTI(ah, addrdata, data, i);
+
+			for (j = 0; j < i; j++) {
+				*eep_data = data[j];
+				eep_data++;
+			}
+			i = 0;
+		}
+	}
+
+	if (i != 0) {
+		REG_READ_MULTI(ah, addrdata, data, i);
+
+		for (j = 0; j < i; j++) {
+			*eep_data = data[j];
+			eep_data++;
+		}
+	}
+}
+
 bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data)
 {
 	return common->bus_ops->eeprom_read(common, off, data);

@@ -102,8 +102,7 @@ struct wm8994_priv {
 
 	wm8958_micdet_cb jack_cb;
 	void *jack_cb_data;
-	bool jack_is_mic;
-	bool jack_is_video;
+	int micdet_irq;
 
 	int revision;
 	struct wm8994_pdata *pdata;
@@ -115,7 +114,7 @@ struct wm8994_priv {
 	unsigned int aif2clk_disable:1;
 };
 
-static int wm8994_readable(unsigned int reg)
+static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8994_GPIO_1:
@@ -142,7 +141,7 @@ static int wm8994_readable(unsigned int reg)
 	return wm8994_access_masks[reg].readable != 0;
 }
 
-static int wm8994_volatile(unsigned int reg)
+static int wm8994_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	if (reg >= WM8994_CACHE_SIZE)
 		return 1;
@@ -170,7 +169,7 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
-	if (!wm8994_volatile(reg)) {
+	if (!wm8994_volatile(codec, reg)) {
 		ret = snd_soc_cache_write(codec, reg, value);
 		if (ret != 0)
 			dev_err(codec->dev, "Cache write to %x failed: %d\n",
@@ -188,7 +187,7 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
-	if (!wm8994_volatile(reg) && wm8994_readable(reg) &&
+	if (!wm8994_volatile(codec, reg) && wm8994_readable(codec, reg) &&
 	    reg < codec->driver->reg_cache_size) {
 		ret = snd_soc_cache_read(codec, reg, &val);
 		if (ret >= 0)
@@ -529,7 +528,7 @@ static int wm8994_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8994_priv *wm8994 =snd_soc_codec_get_drvdata(codec);
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
 
 	ucontrol->value.enumerated.item[0] = wm8994->retune_mobile_cfg[block];
@@ -1103,6 +1102,13 @@ static int adc_mux_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int micbias_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	late_enable_ev(w, kcontrol, event);
+	return 0;
+}
+
 static int dac_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
@@ -1440,6 +1446,10 @@ SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
 SND_SOC_DAPM_INPUT("Clock"),
 
+SND_SOC_DAPM_MICBIAS("MICBIAS", WM8994_MICBIAS, 2, 0),
+SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_NOPM, 0, 0, micbias_ev,
+		      SND_SOC_DAPM_PRE_PMU),
+
 SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
@@ -1755,6 +1765,8 @@ static const struct snd_soc_dapm_route wm8994_revd_intercon[] = {
 	{ "AIF2DACDAT", NULL, "AIF1DACDAT" },
 	{ "AIF1ADCDAT", NULL, "AIF2ADCDAT" },
 	{ "AIF2ADCDAT", NULL, "AIF1ADCDAT" },
+	{ "MICBIAS", NULL, "CLK_SYS" },
+	{ "MICBIAS", NULL, "MICBIAS Supply" },
 };
 
 static const struct snd_soc_dapm_route wm8994_intercon[] = {
@@ -2883,6 +2895,13 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 	else
 		snd_soc_add_controls(wm8994->codec, wm8994_eq_controls,
 				     ARRAY_SIZE(wm8994_eq_controls));
+
+	for (i = 0; i < ARRAY_SIZE(pdata->micbias); i++) {
+		if (pdata->micbias[i]) {
+			snd_soc_write(codec, WM8958_MICBIAS1 + i,
+				pdata->micbias[i] & 0xffff);
+		}
+	}
 }
 
 /**
@@ -2993,46 +3012,18 @@ static void wm8958_default_micdet(u16 status, void *data)
 	int report = 0;
 
 	/* If nothing present then clear our statuses */
-	if (!(status & WM8958_MICD_STS)) {
-		wm8994->jack_is_video = false;
-		wm8994->jack_is_mic = false;
+	if (!(status & WM8958_MICD_STS))
 		goto done;
-	}
 
-	/* Assume anything over 475 ohms is a microphone and remember
-	 * that we've seen one (since buttons override it) */
-	if (status & 0x600)
-		wm8994->jack_is_mic = true;
-	if (wm8994->jack_is_mic)
-		report |= SND_JACK_MICROPHONE;
-
-	/* Video has an impedence of approximately 75 ohms; assume
-	 * this isn't used as a button and remember it since buttons
-	 * override it. */
-	if (status & 0x40)
-		wm8994->jack_is_video = true;
-	if (wm8994->jack_is_video)
-		report |= SND_JACK_VIDEOOUT;
+	report = SND_JACK_MICROPHONE;
 
 	/* Everything else is buttons; just assign slots */
-	if (status & 0x4)
+	if (status & 0x1c0)
 		report |= SND_JACK_BTN_0;
-	if (status & 0x8)
-		report |= SND_JACK_BTN_1;
-	if (status & 0x10)
-		report |= SND_JACK_BTN_2;
-	if (status & 0x20)
-		report |= SND_JACK_BTN_3;
-	if (status & 0x80)
-		report |= SND_JACK_BTN_4;
-	if (status & 0x100)
-		report |= SND_JACK_BTN_5;
 
 done:
 	snd_soc_jack_report(wm8994->micdet[0].jack, report,
-			    SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2 |
-			    SND_JACK_BTN_3 | SND_JACK_BTN_4 | SND_JACK_BTN_5 |
-			    SND_JACK_MICROPHONE | SND_JACK_VIDEOOUT);
+			    SND_JACK_BTN_0 | SND_JACK_MICROPHONE);
 }
 
 /**
@@ -3131,13 +3122,19 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
+	if (wm8994->pdata && wm8994->pdata->micdet_irq)
+		wm8994->micdet_irq = wm8994->pdata->micdet_irq;
+	else if (wm8994->pdata && wm8994->pdata->irq_base)
+		wm8994->micdet_irq = wm8994->pdata->irq_base +
+				     WM8994_IRQ_MIC1_DET;
+
 	pm_runtime_enable(codec->dev);
 	pm_runtime_resume(codec->dev);
 
 	/* Read our current status back from the chip - we don't want to
 	 * reset as this may interfere with the GPIO or LDO operation. */
 	for (i = 0; i < WM8994_CACHE_SIZE; i++) {
-		if (!wm8994_readable(i) || wm8994_volatile(i))
+		if (!wm8994_readable(codec, i) || wm8994_volatile(codec, i))
 			continue;
 
 		ret = wm8994_reg_read(codec->control_data, i);
@@ -3179,14 +3176,17 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM8994:
-		ret = wm8994_request_irq(codec->control_data,
-					 WM8994_IRQ_MIC1_DET,
-					 wm8994_mic_irq, "Mic 1 detect",
-					 wm8994);
-		if (ret != 0)
-			dev_warn(codec->dev,
-				 "Failed to request Mic1 detect IRQ: %d\n",
-				 ret);
+		if (wm8994->micdet_irq) {
+			ret = request_threaded_irq(wm8994->micdet_irq, NULL,
+						   wm8994_mic_irq,
+						   IRQF_TRIGGER_RISING,
+						   "Mic1 detect",
+						   wm8994);
+			if (ret != 0)
+				dev_warn(codec->dev,
+					 "Failed to request Mic1 detect IRQ: %d\n",
+					 ret);
+		}
 
 		ret = wm8994_request_irq(codec->control_data,
 					 WM8994_IRQ_MIC1_SHRT,
@@ -3217,15 +3217,17 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		break;
 
 	case WM8958:
-		ret = wm8994_request_irq(codec->control_data,
-					 WM8994_IRQ_MIC1_DET,
-					 wm8958_mic_irq, "Mic detect",
-					 wm8994);
-		if (ret != 0)
-			dev_warn(codec->dev,
-				 "Failed to request Mic detect IRQ: %d\n",
-				 ret);
-		break;
+		if (wm8994->micdet_irq) {
+			ret = request_threaded_irq(wm8994->micdet_irq, NULL,
+						   wm8958_mic_irq,
+						   IRQF_TRIGGER_RISING,
+						   "Mic detect",
+						   wm8994);
+			if (ret != 0)
+				dev_warn(codec->dev,
+					 "Failed to request Mic detect IRQ: %d\n",
+					 ret);
+		}
 	}
 
 	/* Remember if AIFnLRCLK is configured as a GPIO.  This should be
@@ -3369,7 +3371,8 @@ err_irq:
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_SHRT, wm8994);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET, wm8994);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT, wm8994);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET, wm8994);
+	if (wm8994->micdet_irq)
+		free_irq(wm8994->micdet_irq, wm8994);
 err:
 	kfree(wm8994);
 	return ret;
@@ -3386,8 +3389,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM8994:
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_SHRT,
-				wm8994);
+		if (wm8994->micdet_irq)
+			free_irq(wm8994->micdet_irq, wm8994);
 		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET,
 				wm8994);
 		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT,
@@ -3397,8 +3400,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 		break;
 
 	case WM8958:
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET,
-				wm8994);
+		if (wm8994->micdet_irq)
+			free_irq(wm8994->micdet_irq, wm8994);
 		break;
 	}
 	kfree(wm8994->retune_mobile_texts);

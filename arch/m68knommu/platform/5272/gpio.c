@@ -32,9 +32,9 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.set			= mcf_gpio_set_value,
 			.ngpio			= 16,
 		},
-		.pddr				= MCFSIM_PADDR,
-		.podr				= MCFSIM_PADAT,
-		.ppdr				= MCFSIM_PADAT,
+		.pddr				= (void __iomem *) MCFSIM_PADDR,
+		.podr				= (void __iomem *) MCFSIM_PADAT,
+		.ppdr				= (void __iomem *) MCFSIM_PADAT,
 	},
 	{
 		.gpio_chip			= {
@@ -48,9 +48,9 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.base			= 16,
 			.ngpio			= 16,
 		},
-		.pddr				= MCFSIM_PBDDR,
-		.podr				= MCFSIM_PBDAT,
-		.ppdr				= MCFSIM_PBDAT,
+		.pddr				= (void __iomem *) MCFSIM_PBDDR,
+		.podr				= (void __iomem *) MCFSIM_PBDAT,
+		.ppdr				= (void __iomem *) MCFSIM_PBDAT,
 	},
 	{
 		.gpio_chip			= {
@@ -64,9 +64,9 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.base			= 32,
 			.ngpio			= 16,
 		},
-		.pddr				= MCFSIM_PCDDR,
-		.podr				= MCFSIM_PCDAT,
-		.ppdr				= MCFSIM_PCDAT,
+		.pddr				= (void __iomem *) MCFSIM_PCDDR,
+		.podr				= (void __iomem *) MCFSIM_PCDAT,
+		.ppdr				= (void __iomem *) MCFSIM_PCDAT,
 	},
 };
 

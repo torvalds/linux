@@ -313,8 +313,9 @@ kvm_irqfd_deassign(struct kvm *kvm, int fd, int gsi)
 		if (irqfd->eventfd == eventfd && irqfd->gsi == gsi) {
 			/*
 			 * This rcu_assign_pointer is needed for when
-			 * another thread calls kvm_irqfd_update before
-			 * we flush workqueue below.
+			 * another thread calls kvm_irq_routing_update before
+			 * we flush workqueue below (we synchronize with
+			 * kvm_irq_routing_update using irqfds.lock).
 			 * It is paired with synchronize_rcu done by caller
 			 * of that function.
 			 */

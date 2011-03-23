@@ -166,9 +166,7 @@ static struct ata_port_operations adma_ata_ops = {
 static struct ata_port_info adma_port_info[] = {
 	/* board_1841_idx */
 	{
-		.flags		= ATA_FLAG_SLAVE_POSS |
-				  ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_POLLING,
+		.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_PIO_POLLING,
 		.pio_mask	= ATA_PIO4_ONLY,
 		.udma_mask	= ATA_UDMA4,
 		.port_ops	= &adma_ata_ops,

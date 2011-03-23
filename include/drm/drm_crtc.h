@@ -659,7 +659,7 @@ extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
 extern struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
-						   struct drm_display_mode *mode);
+						   const struct drm_display_mode *mode);
 extern void drm_mode_debug_printmodeline(struct drm_display_mode *mode);
 extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
@@ -685,8 +685,8 @@ extern void drm_mode_validate_size(struct drm_device *dev,
 extern void drm_mode_prune_invalid(struct drm_device *dev,
 				   struct list_head *mode_list, bool verbose);
 extern void drm_mode_sort(struct list_head *mode_list);
-extern int drm_mode_hsync(struct drm_display_mode *mode);
-extern int drm_mode_vrefresh(struct drm_display_mode *mode);
+extern int drm_mode_hsync(const struct drm_display_mode *mode);
+extern int drm_mode_vrefresh(const struct drm_display_mode *mode);
 extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 				  int adjust_flags);
 extern void drm_mode_connector_list_update(struct drm_connector *connector);
@@ -798,4 +798,11 @@ extern int drm_add_modes_noedid(struct drm_connector *connector,
 extern bool drm_edid_is_valid(struct edid *edid);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh);
+
+extern int drm_mode_create_dumb_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
+extern int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
+				    void *data, struct drm_file *file_priv);
+extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
+				      void *data, struct drm_file *file_priv);
 #endif /* __DRM_CRTC_H__ */

@@ -35,6 +35,17 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
+What:	AR9170USB
+When:	2.6.40
+
+Why:	This driver is deprecated and the firmware is no longer
+	maintained. The replacement driver "carl9170" has been
+	around for a while, so the devices are still supported.
+
+Who:	Christian Lamparter <chunkeey@googlemail.com>
+
+---------------------------
+
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -566,16 +577,6 @@ Who:    NeilBrown <neilb@suse.de>
 
 ----------------------------
 
-What:	i2c_adapter.id
-When:	June 2011
-Why:	This field is deprecated. I2C device drivers shouldn't change their
-	behavior based on the underlying I2C adapter. Instead, the I2C
-	adapter driver should instantiate the I2C devices and provide the
-	needed platform-specific information.
-Who:	Jean Delvare <khali@linux-fr.org>
-
-----------------------------
-
 What:	cancel_rearming_delayed_work[queue]()
 When:	2.6.39
 
@@ -596,6 +597,13 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
+What:	xt_connlimit rev 0
+When:	2012
+Who:	Jan Engelhardt <jengelh@medozas.de>
+Files:	net/netfilter/xt_connlimit.c
+
+----------------------------
+
 What:	noswapaccount kernel command line parameter
 When:	2.6.40
 Why:	The original implementation of memsw feature enabled by
@@ -609,5 +617,22 @@ Why:	The original implementation of memsw feature enabled by
 	less command line parameters with the same functionality and we
 	can also cleanup the parameter handling a bit ().
 Who:	Michal Hocko <mhocko@suse.cz>
+
+----------------------------
+
+What:	ipt_addrtype match include file
+When:	2012
+Why:	superseded by xt_addrtype
+Who:	Florian Westphal <fw@strlen.de>
+Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
+
+----------------------------
+
+What:	i2c_driver.attach_adapter
+	i2c_driver.detach_adapter
+When:	September 2011
+Why:	These legacy callbacks should no longer be used as i2c-core offers
+	a variety of preferable alternative ways to instantiate I2C devices.
+Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------

@@ -232,7 +232,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	/* move empty skb from pool to prod and map it */
 	prod_rx_buf->skb = fp->tpa_pool[queue].skb;
 	mapping = dma_map_single(&bp->pdev->dev, fp->tpa_pool[queue].skb->data,
-				 bp->rx_buf_size, DMA_FROM_DEVICE);
+				 fp->rx_buf_size, DMA_FROM_DEVICE);
 	dma_unmap_addr_set(prod_rx_buf, mapping, mapping);
 
 	/* move partial skb from cons to pool (don't unmap yet) */
@@ -367,13 +367,13 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	struct sw_rx_bd *rx_buf = &fp->tpa_pool[queue];
 	struct sk_buff *skb = rx_buf->skb;
 	/* alloc new skb */
-	struct sk_buff *new_skb = netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+	struct sk_buff *new_skb = netdev_alloc_skb(bp->dev, fp->rx_buf_size);
 
 	/* Unmap skb in the pool anyway, as we are going to change
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
 	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(rx_buf, mapping),
-			 bp->rx_buf_size, DMA_FROM_DEVICE);
+			 fp->rx_buf_size, DMA_FROM_DEVICE);
 
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
@@ -385,10 +385,10 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		prefetch(((char *)(skb)) + L1_CACHE_BYTES);
 
 #ifdef BNX2X_STOP_ON_ERROR
-		if (pad + len > bp->rx_buf_size) {
+		if (pad + len > fp->rx_buf_size) {
 			BNX2X_ERR("skb_put is about to fail...  "
 				  "pad %d  len %d  rx_buf_size %d\n",
-				  pad, len, bp->rx_buf_size);
+				  pad, len, fp->rx_buf_size);
 			bnx2x_panic();
 			return;
 		}
@@ -618,7 +618,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			if (likely(bnx2x_alloc_rx_skb(bp, fp, bd_prod) == 0)) {
 				dma_unmap_single(&bp->pdev->dev,
 					dma_unmap_addr(rx_buf, mapping),
-						 bp->rx_buf_size,
+						 fp->rx_buf_size,
 						 DMA_FROM_DEVICE);
 				skb_reserve(skb, pad);
 				skb_put(skb, len);
@@ -858,19 +858,16 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 	u16 ring_prod;
 	int i, j;
 
-	bp->rx_buf_size = bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN +
-		IP_HEADER_ALIGNMENT_PADDING;
-
-	DP(NETIF_MSG_IFUP,
-	   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, bp->rx_buf_size);
-
 	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
+
+		DP(NETIF_MSG_IFUP,
+		   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, fp->rx_buf_size);
 
 		if (!fp->disable_tpa) {
 			for (i = 0; i < max_agg_queues; i++) {
 				fp->tpa_pool[i].skb =
-				   netdev_alloc_skb(bp->dev, bp->rx_buf_size);
+				   netdev_alloc_skb(bp->dev, fp->rx_buf_size);
 				if (!fp->tpa_pool[i].skb) {
 					BNX2X_ERR("Failed to allocate TPA "
 						  "skb pool for queue[%d] - "
@@ -978,7 +975,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 
 			dma_unmap_single(&bp->pdev->dev,
 					 dma_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size, DMA_FROM_DEVICE);
+					 fp->rx_buf_size, DMA_FROM_DEVICE);
 
 			rx_buf->skb = NULL;
 			dev_kfree_skb(skb);
@@ -1303,6 +1300,31 @@ static inline int bnx2x_set_real_num_queues(struct bnx2x *bp)
 	return rc;
 }
 
+static inline void bnx2x_set_rx_buf_size(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+
+		/* Always use a mini-jumbo MTU for the FCoE L2 ring */
+		if (IS_FCOE_IDX(i))
+			/*
+			 * Although there are no IP frames expected to arrive to
+			 * this ring we still want to add an
+			 * IP_HEADER_ALIGNMENT_PADDING to prevent a buffer
+			 * overrun attack.
+			 */
+			fp->rx_buf_size =
+				BNX2X_FCOE_MINI_JUMBO_MTU + ETH_OVREHEAD +
+				BNX2X_RX_ALIGN + IP_HEADER_ALIGNMENT_PADDING;
+		else
+			fp->rx_buf_size =
+				bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN +
+				IP_HEADER_ALIGNMENT_PADDING;
+	}
+}
+
 /* must be called with rtnl_lock */
 int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 {
@@ -1325,6 +1347,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* must be called before memory allocation and HW init */
 	bnx2x_ilt_set_info(bp);
+
+	/* Set the receive queues buffer size */
+	bnx2x_set_rx_buf_size(bp);
 
 	if (bnx2x_alloc_mem(bp))
 		return -ENOMEM;
@@ -1481,6 +1506,15 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	bnx2x_set_eth_mac(bp, 1);
 
+	/* Clear MC configuration */
+	if (CHIP_IS_E1(bp))
+		bnx2x_invalidate_e1_mc_list(bp);
+	else
+		bnx2x_invalidate_e1h_mc_list(bp);
+
+	/* Clear UC lists configuration */
+	bnx2x_invalidate_uc_list(bp);
+
 	if (bp->pending_max) {
 		bnx2x_update_max_mf_config(bp, bp->pending_max);
 		bp->pending_max = 0;
@@ -1489,25 +1523,23 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (bp->port.pmf)
 		bnx2x_initial_phy_init(bp, load_mode);
 
+	/* Initialize Rx filtering */
+	bnx2x_set_rx_mode(bp->dev);
+
 	/* Start fast path */
 	switch (load_mode) {
 	case LOAD_NORMAL:
 		/* Tx queue should be only reenabled */
 		netif_tx_wake_all_queues(bp->dev);
 		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_OPEN:
 		netif_tx_start_all_queues(bp->dev);
 		smp_mb__after_clear_bit();
-		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		break;
 
 	case LOAD_DIAG:
-		/* Initialize the receive filter. */
-		bnx2x_set_rx_mode(bp->dev);
 		bp->state = BNX2X_STATE_DIAG;
 		break;
 

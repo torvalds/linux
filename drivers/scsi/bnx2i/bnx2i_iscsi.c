@@ -1092,6 +1092,9 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 	case ISCSI_OP_SCSI_TMFUNC:
 		rc = bnx2i_send_iscsi_tmf(bnx2i_conn, task);
 		break;
+	case ISCSI_OP_TEXT:
+		rc = bnx2i_send_iscsi_text(bnx2i_conn, task);
+		break;
 	default:
 		iscsi_conn_printk(KERN_ALERT, bnx2i_conn->cls_conn->dd_data,
 				  "send_gen: unsupported op 0x%x\n",
@@ -1455,42 +1458,40 @@ static void bnx2i_conn_destroy(struct iscsi_cls_conn *cls_conn)
 
 
 /**
- * bnx2i_conn_get_param - return iscsi connection parameter to caller
- * @cls_conn:	pointer to iscsi cls conn
+ * bnx2i_ep_get_param - return iscsi ep parameter to caller
+ * @ep:		pointer to iscsi endpoint
  * @param:	parameter type identifier
  * @buf: 	buffer pointer
  *
- * returns iSCSI connection parameters
+ * returns iSCSI ep parameters
  */
-static int bnx2i_conn_get_param(struct iscsi_cls_conn *cls_conn,
-				enum iscsi_param param, char *buf)
+static int bnx2i_ep_get_param(struct iscsi_endpoint *ep,
+			      enum iscsi_param param, char *buf)
 {
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
-	int len = 0;
+	struct bnx2i_endpoint *bnx2i_ep = ep->dd_data;
+	struct bnx2i_hba *hba = bnx2i_ep->hba;
+	int len = -ENOTCONN;
 
-	if (!(bnx2i_conn && bnx2i_conn->ep && bnx2i_conn->ep->hba))
-		goto out;
+	if (!hba)
+		return -ENOTCONN;
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
-		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
-		if (bnx2i_conn->ep->cm_sk)
-			len = sprintf(buf, "%hu\n",
-				      bnx2i_conn->ep->cm_sk->dst_port);
-		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
+		mutex_lock(&hba->net_dev_lock);
+		if (bnx2i_ep->cm_sk)
+			len = sprintf(buf, "%hu\n", bnx2i_ep->cm_sk->dst_port);
+		mutex_unlock(&hba->net_dev_lock);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
-		if (bnx2i_conn->ep->cm_sk)
-			len = sprintf(buf, "%pI4\n",
-				      &bnx2i_conn->ep->cm_sk->dst_ip);
-		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
+		mutex_lock(&hba->net_dev_lock);
+		if (bnx2i_ep->cm_sk)
+			len = sprintf(buf, "%pI4\n", &bnx2i_ep->cm_sk->dst_ip);
+		mutex_unlock(&hba->net_dev_lock);
 		break;
 	default:
-		return iscsi_conn_get_param(cls_conn, param, buf);
+		return -ENOSYS;
 	}
-out:
+
 	return len;
 }
 
@@ -1935,13 +1936,13 @@ static int bnx2i_ep_tcp_conn_active(struct bnx2i_endpoint *bnx2i_ep)
 		cnic_dev_10g = 1;
 
 	switch (bnx2i_ep->state) {
-	case EP_STATE_CONNECT_FAILED:
 	case EP_STATE_CLEANUP_FAILED:
 	case EP_STATE_OFLD_FAILED:
 	case EP_STATE_DISCONN_TIMEDOUT:
 		ret = 0;
 		break;
 	case EP_STATE_CONNECT_START:
+	case EP_STATE_CONNECT_FAILED:
 	case EP_STATE_CONNECT_COMPL:
 	case EP_STATE_ULP_UPDATE_START:
 	case EP_STATE_ULP_UPDATE_COMPL:
@@ -2167,7 +2168,8 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.name			= "bnx2i",
 	.caps			= CAP_RECOVERY_L0 | CAP_HDRDGST |
 				  CAP_MULTI_R2T | CAP_DATADGST |
-				  CAP_DATA_PATH_OFFLOAD,
+				  CAP_DATA_PATH_OFFLOAD |
+				  CAP_TEXT_NEGO,
 	.param_mask		= ISCSI_MAX_RECV_DLENGTH |
 				  ISCSI_MAX_XMIT_DLENGTH |
 				  ISCSI_HDRDGST_EN |
@@ -2200,7 +2202,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.bind_conn		= bnx2i_conn_bind,
 	.destroy_conn		= bnx2i_conn_destroy,
 	.set_param		= iscsi_set_param,
-	.get_conn_param		= bnx2i_conn_get_param,
+	.get_conn_param		= iscsi_conn_get_param,
 	.get_session_param	= iscsi_session_get_param,
 	.get_host_param		= bnx2i_host_get_param,
 	.start_conn		= bnx2i_conn_start,
@@ -2209,6 +2211,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 	.xmit_task		= bnx2i_task_xmit,
 	.get_stats		= bnx2i_conn_get_stats,
 	/* TCP connect - disconnect - option-2 interface calls */
+	.get_ep_param		= bnx2i_ep_get_param,
 	.ep_connect		= bnx2i_ep_connect,
 	.ep_poll		= bnx2i_ep_poll,
 	.ep_disconnect		= bnx2i_ep_disconnect,

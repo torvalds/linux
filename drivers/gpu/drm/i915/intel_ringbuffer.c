@@ -62,17 +62,8 @@ render_ring_flush(struct intel_ring_buffer *ring,
 		  u32	flush_domains)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 cmd;
 	int ret;
-
-#if WATCH_EXEC
-	DRM_INFO("%s: invalidate %08x flush %08x\n", __func__,
-		  invalidate_domains, flush_domains);
-#endif
-
-	trace_i915_gem_request_flush(dev, dev_priv->next_seqno,
-				     invalidate_domains, flush_domains);
 
 	if ((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) {
 		/*
@@ -122,9 +113,6 @@ render_ring_flush(struct intel_ring_buffer *ring,
 		    (IS_G4X(dev) || IS_GEN5(dev)))
 			cmd |= MI_INVALIDATE_ISP;
 
-#if WATCH_EXEC
-		DRM_INFO("%s: queue flush %08x to ring\n", __func__, cmd);
-#endif
 		ret = intel_ring_begin(ring, 2);
 		if (ret)
 			return ret;
@@ -612,7 +600,6 @@ ring_add_request(struct intel_ring_buffer *ring,
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
-	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
 	*result = seqno;
 	return 0;
 }
@@ -715,10 +702,7 @@ render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 				u32 offset, u32 len)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
-
-	trace_i915_gem_request_submit(dev, dev_priv->next_seqno + 1);
 
 	if (IS_I830(dev) || IS_845G(dev)) {
 		ret = intel_ring_begin(ring, 4);
@@ -894,6 +878,10 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 	/* Disable the ring buffer. The ring must be idle at this point */
 	dev_priv = ring->dev->dev_private;
 	ret = intel_wait_ring_buffer(ring, ring->size - 8);
+	if (ret)
+		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
+			  ring->name, ret);
+
 	I915_WRITE_CTL(ring, 0);
 
 	drm_core_ioremapfree(&ring->map, ring->dev);
@@ -950,13 +938,13 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 			return 0;
 	}
 
-	trace_i915_ring_wait_begin (dev);
+	trace_i915_ring_wait_begin(ring);
 	end = jiffies + 3 * HZ;
 	do {
 		ring->head = I915_READ_HEAD(ring);
 		ring->space = ring_space(ring);
 		if (ring->space >= n) {
-			trace_i915_ring_wait_end(dev);
+			trace_i915_ring_wait_end(ring);
 			return 0;
 		}
 
@@ -970,15 +958,19 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		if (atomic_read(&dev_priv->mm.wedged))
 			return -EAGAIN;
 	} while (!time_after(jiffies, end));
-	trace_i915_ring_wait_end (dev);
+	trace_i915_ring_wait_end(ring);
 	return -EBUSY;
 }
 
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	int n = 4*num_dwords;
 	int ret;
+
+	if (unlikely(atomic_read(&dev_priv->mm.wedged)))
+		return -EIO;
 
 	if (unlikely(ring->tail + n > ring->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);

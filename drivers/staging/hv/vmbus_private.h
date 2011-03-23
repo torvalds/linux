@@ -45,19 +45,19 @@
 #define MAX_NUM_CHANNELS_SUPPORTED	256
 
 
-enum VMBUS_CONNECT_STATE {
-	Disconnected,
-	Connecting,
-	Connected,
-	Disconnecting
+enum vmbus_connect_state {
+	DISCONNECTED,
+	CONNECTING,
+	CONNECTED,
+	DISCONNECTING
 };
 
 #define MAX_SIZE_CHANNEL_MESSAGE	HV_MESSAGE_PAYLOAD_BYTE_COUNT
 
-struct VMBUS_CONNECTION {
-	enum VMBUS_CONNECT_STATE ConnectState;
+struct vmbus_connection {
+	enum vmbus_connect_state conn_state;
 
-	atomic_t NextGpadlHandle;
+	atomic_t next_gpadl_handle;
 
 	/*
 	 * Represents channel interrupts. Each bit position represents a
@@ -66,69 +66,68 @@ struct VMBUS_CONNECTION {
 	 * event. The other end receives the port event and parse the
 	 * recvInterruptPage to see which bit is set
 	 */
-	void *InterruptPage;
-	void *SendInterruptPage;
-	void *RecvInterruptPage;
+	void *int_page;
+	void *send_int_page;
+	void *recv_int_page;
 
 	/*
 	 * 2 pages - 1st page for parent->child notification and 2nd
 	 * is child->parent notification
 	 */
-	void *MonitorPages;
-	struct list_head ChannelMsgList;
+	void *monitor_pages;
+	struct list_head chn_msg_list;
 	spinlock_t channelmsg_lock;
 
 	/* List of channels */
-	struct list_head ChannelList;
+	struct list_head chn_list;
 	spinlock_t channel_lock;
 
-	struct workqueue_struct *WorkQueue;
+	struct workqueue_struct *work_queue;
 };
 
 
-struct VMBUS_MSGINFO {
+struct vmbus_msginfo {
 	/* Bookkeeping stuff */
-	struct list_head MsgListEntry;
+	struct list_head msglist_entry;
 
 	/* Synchronize the request/response if needed */
-	struct osd_waitevent *WaitEvent;
+	int wait_condition;
+	wait_queue_head_t  wait_event;
 
 	/* The message itself */
-	unsigned char Msg[0];
+	unsigned char msg[0];
 };
 
 
-extern struct VMBUS_CONNECTION gVmbusConnection;
+extern struct vmbus_connection vmbus_connection;
 
 /* General vmbus interface */
 
-struct hv_device *vmbus_child_device_create(struct hv_guid *deviceType,
-					 struct hv_guid *deviceInstance,
+struct hv_device *vmbus_child_device_create(struct hv_guid *type,
+					 struct hv_guid *instance,
 					 struct vmbus_channel *channel);
 
-int VmbusChildDeviceAdd(struct hv_device *Device);
-int vmbus_child_device_register(struct hv_device *root_device_obj,
-				struct hv_device *child_device_obj);
+int vmbus_child_device_register(struct hv_device *child_device_obj);
 void vmbus_child_device_unregister(struct hv_device *device_obj);
 
 /* static void */
 /* VmbusChildDeviceDestroy( */
 /* struct hv_device *); */
 
-struct vmbus_channel *GetChannelFromRelId(u32 relId);
+struct vmbus_channel *relid2channel(u32 relid);
 
 
 /* Connection interface */
 
-int VmbusConnect(void);
+int vmbus_connect(void);
 
-int VmbusDisconnect(void);
+int vmbus_disconnect(void);
 
-int VmbusPostMessage(void *buffer, size_t bufSize);
+int vmbus_post_msg(void *buffer, size_t buflen);
 
-int VmbusSetEvent(u32 childRelId);
+int vmbus_set_event(u32 child_relid);
 
-void VmbusOnEvents(void);
+void vmbus_on_event(unsigned long data);
 
 
 #endif /* _VMBUS_PRIVATE_H_ */

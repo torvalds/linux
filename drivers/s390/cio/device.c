@@ -172,9 +172,11 @@ static int io_subchannel_settle(void)
 }
 
 static struct css_driver io_subchannel_driver = {
-	.owner = THIS_MODULE,
+	.drv = {
+		.owner = THIS_MODULE,
+		.name = "io_subchannel",
+	},
 	.subchannel_type = io_subchannel_ids,
-	.name = "io_subchannel",
 	.irq = io_subchannel_irq,
 	.sch_event = io_subchannel_sch_event,
 	.chp_event = io_subchannel_chp_event,
@@ -1030,6 +1032,7 @@ static void io_subchannel_init_fields(struct subchannel *sch)
  */
 static int io_subchannel_probe(struct subchannel *sch)
 {
+	struct io_subchannel_private *io_priv;
 	struct ccw_device *cdev;
 	int rc;
 
@@ -1073,10 +1076,11 @@ static int io_subchannel_probe(struct subchannel *sch)
 	if (rc)
 		goto out_schedule;
 	/* Allocate I/O subchannel private data. */
-	sch->private = kzalloc(sizeof(struct io_subchannel_private),
-			       GFP_KERNEL | GFP_DMA);
-	if (!sch->private)
+	io_priv = kzalloc(sizeof(*io_priv), GFP_KERNEL | GFP_DMA);
+	if (!io_priv)
 		goto out_schedule;
+
+	set_io_private(sch, io_priv);
 	css_schedule_eval(sch->schid);
 	return 0;
 
@@ -1090,6 +1094,7 @@ out_schedule:
 static int
 io_subchannel_remove (struct subchannel *sch)
 {
+	struct io_subchannel_private *io_priv = to_io_private(sch);
 	struct ccw_device *cdev;
 
 	cdev = sch_get_cdev(sch);
@@ -1099,11 +1104,12 @@ io_subchannel_remove (struct subchannel *sch)
 	/* Set ccw device to not operational and drop reference. */
 	spin_lock_irq(cdev->ccwlock);
 	sch_set_cdev(sch, NULL);
+	set_io_private(sch, NULL);
 	cdev->private->state = DEV_STATE_NOT_OPER;
 	spin_unlock_irq(cdev->ccwlock);
 	ccw_device_unregister(cdev);
 out_free:
-	kfree(sch->private);
+	kfree(io_priv);
 	sysfs_remove_group(&sch->dev.kobj, &io_subchannel_attr_group);
 	return 0;
 }
@@ -1553,11 +1559,12 @@ spinlock_t * cio_get_console_lock(void)
 static int ccw_device_console_enable(struct ccw_device *cdev,
 				     struct subchannel *sch)
 {
+	struct io_subchannel_private *io_priv = cio_get_console_priv();
 	int rc;
 
 	/* Attach subchannel private data. */
-	sch->private = cio_get_console_priv();
-	memset(sch->private, 0, sizeof(struct io_subchannel_private));
+	memset(io_priv, 0, sizeof(*io_priv));
+	set_io_private(sch, io_priv);
 	io_subchannel_init_fields(sch);
 	rc = cio_commit_config(sch);
 	if (rc)

@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -138,7 +139,8 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 
 		spin_unlock(&sdev->ud.lock);
 
-		usbip_start_threads(&sdev->ud);
+		sdev->ud.tcp_rx = kthread_run(stub_rx_loop, &sdev->ud, "stub_rx");
+		sdev->ud.tcp_tx = kthread_run(stub_tx_loop, &sdev->ud, "stub_tx");
 
 		spin_lock(&sdev->ud.lock);
 		sdev->ud.status = SDEV_ST_USED;
@@ -218,7 +220,8 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	}
 
 	/* 1. stop threads */
-	usbip_stop_threads(ud);
+	kthread_stop(ud->tcp_rx);
+	kthread_stop(ud->tcp_tx);
 
 	/* 2. close the socket */
 	/*
@@ -335,9 +338,6 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	 * changes during a usbip connection.
 	 */
 	sdev->devid     = (busnum << 16) | devnum;
-
-	usbip_task_init(&sdev->ud.tcp_rx, "stub_rx", stub_rx_loop);
-	usbip_task_init(&sdev->ud.tcp_tx, "stub_tx", stub_tx_loop);
 
 	sdev->ud.side = USBIP_STUB;
 	sdev->ud.status = SDEV_ST_AVAILABLE;
@@ -543,7 +543,7 @@ static void stub_disconnect(struct usb_interface *interface)
 	stub_remove_files(&interface->dev);
 
 	/*If usb reset called from event handler*/
-	if (busid_priv->sdev->ud.eh.thread == current) {
+	if (busid_priv->sdev->ud.eh == current) {
 		busid_priv->interf_count--;
 		return;
 	}

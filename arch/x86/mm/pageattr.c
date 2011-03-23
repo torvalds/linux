@@ -310,7 +310,7 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
 		 * these shared mappings are made of small page mappings.
 		 * Thus this don't enforce !RW mapping for small page kernel
 		 * text mapping logic will help Linux Xen parvirt guest boot
-		 * aswell.
+		 * as well.
 		 */
 		if (lookup_address(address, &level) && (level != PG_LEVEL_4K))
 			pgprot_val(forbidden) |= _PAGE_RW;

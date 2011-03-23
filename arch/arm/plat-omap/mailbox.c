@@ -32,7 +32,6 @@
 
 #include <plat/mailbox.h>
 
-static struct workqueue_struct *mboxd;
 static struct omap_mbox **mboxes;
 
 static int mbox_configured;
@@ -197,7 +196,7 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 	/* no more messages in the fifo. clear IRQ source. */
 	ack_mbox_irq(mbox, IRQ_RX);
 nomem:
-	queue_work(mboxd, &mbox->rxq->work);
+	schedule_work(&mbox->rxq->work);
 }
 
 static irqreturn_t mbox_interrupt(int irq, void *p)
@@ -307,7 +306,7 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 	if (!--mbox->use_count) {
 		free_irq(mbox->irq, mbox);
 		tasklet_kill(&mbox->txq->tasklet);
-		flush_work(&mbox->rxq->work);
+	flush_work_sync(&mbox->rxq->work);
 		mbox_queue_free(mbox->txq);
 		mbox_queue_free(mbox->rxq);
 	}
@@ -409,10 +408,6 @@ static int __init omap_mbox_init(void)
 	if (err)
 		return err;
 
-	mboxd = create_workqueue("mboxd");
-	if (!mboxd)
-		return -ENOMEM;
-
 	/* kfifo size sanity check: alignment and minimal size */
 	mbox_kfifo_size = ALIGN(mbox_kfifo_size, sizeof(mbox_msg_t));
 	mbox_kfifo_size = max_t(unsigned int, mbox_kfifo_size,
@@ -424,7 +419,6 @@ subsys_initcall(omap_mbox_init);
 
 static void __exit omap_mbox_exit(void)
 {
-	destroy_workqueue(mboxd);
 	class_unregister(&omap_mbox_class);
 }
 module_exit(omap_mbox_exit);

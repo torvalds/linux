@@ -673,16 +673,12 @@ static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags = SH_FSI_BRS_INV |
-		       SH_FSI_OUT_SLAVE_MODE |
-		       SH_FSI_IN_SLAVE_MODE |
-		       SH_FSI_OFMT(PCM) |
-		       SH_FSI_IFMT(PCM),
+	.porta_flags = SH_FSI_BRS_INV,
 
 	.portb_flags = SH_FSI_BRS_INV |
 		       SH_FSI_BRM_INV |
 		       SH_FSI_LRS_INV |
-		       SH_FSI_OFMT(SPDIF),
+		       SH_FSI_FMT_SPDIF,
 	.set_rate = fsi_set_rate,
 };
 
@@ -781,6 +777,10 @@ static struct platform_device hdmi_device = {
 	.dev	= {
 		.platform_data	= &hdmi_info,
 	},
+};
+
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
 };
 
 static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
@@ -936,6 +936,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&usb1_host_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&fsi_hdmi_device,
 	&sh_mmcif_device,
 	&lcdc1_device,
 	&lcdc_device,

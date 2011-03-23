@@ -1768,8 +1768,8 @@ static int __init amiga_floppy_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	ret = -ENOMEM;
-	if ((raw_buf = (char *)amiga_chip_alloc (RAW_BUF_SIZE, "Floppy")) ==
-	    NULL) {
+	raw_buf = amiga_chip_alloc(RAW_BUF_SIZE, "Floppy");
+	if (!raw_buf) {
 		printk("fd: cannot get chip mem buffer\n");
 		goto out_blkdev;
 	}

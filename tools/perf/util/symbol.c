@@ -207,8 +207,7 @@ struct dso *dso__new(const char *name)
 		dso__set_short_name(self, self->name);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			self->symbols[i] = self->symbol_names[i] = RB_ROOT;
-		self->slen_calculated = 0;
-		self->origin = DSO__ORIG_NOT_FOUND;
+		self->symtab_type = SYMTAB__NOT_FOUND;
 		self->loaded = 0;
 		self->sorted_by_name = 0;
 		self->has_build_id = 0;
@@ -681,9 +680,9 @@ int dso__load_kallsyms(struct dso *self, const char *filename,
 		return -1;
 
 	if (self->kernel == DSO_TYPE_GUEST_KERNEL)
-		self->origin = DSO__ORIG_GUEST_KERNEL;
+		self->symtab_type = SYMTAB__GUEST_KALLSYMS;
 	else
-		self->origin = DSO__ORIG_KERNEL;
+		self->symtab_type = SYMTAB__KALLSYMS;
 
 	return dso__split_kallsyms(self, map, filter);
 }
@@ -1205,7 +1204,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				}
 				curr_map->map_ip = identity__map_ip;
 				curr_map->unmap_ip = identity__map_ip;
-				curr_dso->origin = self->origin;
+				curr_dso->symtab_type = self->symtab_type;
 				map_groups__insert(kmap->kmaps, curr_map);
 				dsos__add(&self->node, curr_dso);
 				dso__set_loaded(curr_dso, map->type);
@@ -1431,21 +1430,21 @@ out:
 char dso__symtab_origin(const struct dso *self)
 {
 	static const char origin[] = {
-		[DSO__ORIG_KERNEL] =   'k',
-		[DSO__ORIG_JAVA_JIT] = 'j',
-		[DSO__ORIG_BUILD_ID_CACHE] = 'B',
-		[DSO__ORIG_FEDORA] =   'f',
-		[DSO__ORIG_UBUNTU] =   'u',
-		[DSO__ORIG_BUILDID] =  'b',
-		[DSO__ORIG_DSO] =      'd',
-		[DSO__ORIG_KMODULE] =  'K',
-		[DSO__ORIG_GUEST_KERNEL] =  'g',
-		[DSO__ORIG_GUEST_KMODULE] =  'G',
+		[SYMTAB__KALLSYMS]	      = 'k',
+		[SYMTAB__JAVA_JIT]	      = 'j',
+		[SYMTAB__BUILD_ID_CACHE]      = 'B',
+		[SYMTAB__FEDORA_DEBUGINFO]    = 'f',
+		[SYMTAB__UBUNTU_DEBUGINFO]    = 'u',
+		[SYMTAB__BUILDID_DEBUGINFO]   = 'b',
+		[SYMTAB__SYSTEM_PATH_DSO]     = 'd',
+		[SYMTAB__SYSTEM_PATH_KMODULE] = 'K',
+		[SYMTAB__GUEST_KALLSYMS]      =  'g',
+		[SYMTAB__GUEST_KMODULE]	      =  'G',
 	};
 
-	if (self == NULL || self->origin == DSO__ORIG_NOT_FOUND)
+	if (self == NULL || self->symtab_type == SYMTAB__NOT_FOUND)
 		return '!';
-	return origin[self->origin];
+	return origin[self->symtab_type];
 }
 
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
@@ -1478,8 +1477,8 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 
 	if (strncmp(self->name, "/tmp/perf-", 10) == 0) {
 		ret = dso__load_perf_map(self, map, filter);
-		self->origin = ret > 0 ? DSO__ORIG_JAVA_JIT :
-					 DSO__ORIG_NOT_FOUND;
+		self->symtab_type = ret > 0 ? SYMTAB__JAVA_JIT :
+					      SYMTAB__NOT_FOUND;
 		return ret;
 	}
 
@@ -1487,26 +1486,26 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	 * On the first pass, only load images if they have a full symtab.
 	 * Failing that, do a second pass where we accept .dynsym also
 	 */
-	for (self->origin = DSO__ORIG_BUILD_ID_CACHE, want_symtab = 1;
-	     self->origin != DSO__ORIG_NOT_FOUND;
-	     self->origin++) {
-		switch (self->origin) {
-		case DSO__ORIG_BUILD_ID_CACHE:
+	for (self->symtab_type = SYMTAB__BUILD_ID_CACHE, want_symtab = 1;
+	     self->symtab_type != SYMTAB__NOT_FOUND;
+	     self->symtab_type++) {
+		switch (self->symtab_type) {
+		case SYMTAB__BUILD_ID_CACHE:
 			/* skip the locally configured cache if a symfs is given */
 			if (symbol_conf.symfs[0] ||
 			    (dso__build_id_filename(self, name, size) == NULL)) {
 				continue;
 			}
 			break;
-		case DSO__ORIG_FEDORA:
+		case SYMTAB__FEDORA_DEBUGINFO:
 			snprintf(name, size, "%s/usr/lib/debug%s.debug",
 				 symbol_conf.symfs, self->long_name);
 			break;
-		case DSO__ORIG_UBUNTU:
+		case SYMTAB__UBUNTU_DEBUGINFO:
 			snprintf(name, size, "%s/usr/lib/debug%s",
 				 symbol_conf.symfs, self->long_name);
 			break;
-		case DSO__ORIG_BUILDID: {
+		case SYMTAB__BUILDID_DEBUGINFO: {
 			char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 
 			if (!self->has_build_id)
@@ -1520,20 +1519,20 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 				 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
 			}
 			break;
-		case DSO__ORIG_DSO:
+		case SYMTAB__SYSTEM_PATH_DSO:
 			snprintf(name, size, "%s%s",
 			     symbol_conf.symfs, self->long_name);
 			break;
-		case DSO__ORIG_GUEST_KMODULE:
-			if (map->groups && map->groups->machine)
-				root_dir = map->groups->machine->root_dir;
+		case SYMTAB__GUEST_KMODULE:
+			if (map->groups && machine)
+				root_dir = machine->root_dir;
 			else
 				root_dir = "";
 			snprintf(name, size, "%s%s%s", symbol_conf.symfs,
 				 root_dir, self->long_name);
 			break;
 
-		case DSO__ORIG_KMODULE:
+		case SYMTAB__SYSTEM_PATH_KMODULE:
 			snprintf(name, size, "%s%s", symbol_conf.symfs,
 				 self->long_name);
 			break;
@@ -1545,7 +1544,7 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 			 */
 			if (want_symtab) {
 				want_symtab = 0;
-				self->origin = DSO__ORIG_BUILD_ID_CACHE;
+				self->symtab_type = SYMTAB__BUILD_ID_CACHE;
 			} else
 				continue;
 		}
@@ -1758,9 +1757,9 @@ struct map *machine__new_module(struct machine *self, u64 start,
 		return NULL;
 
 	if (machine__is_host(self))
-		dso->origin = DSO__ORIG_KMODULE;
+		dso->symtab_type = SYMTAB__SYSTEM_PATH_KMODULE;
 	else
-		dso->origin = DSO__ORIG_GUEST_KMODULE;
+		dso->symtab_type = SYMTAB__GUEST_KMODULE;
 	map_groups__insert(&self->kmaps, map);
 	return map;
 }

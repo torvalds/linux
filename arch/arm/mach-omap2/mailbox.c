@@ -14,12 +14,11 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
 #include <plat/mailbox.h>
 #include <mach/irqs.h>
 
 #define MAILBOX_REVISION		0x000
-#define MAILBOX_SYSCONFIG		0x010
-#define MAILBOX_SYSSTATUS		0x014
 #define MAILBOX_MESSAGE(m)		(0x040 + 4 * (m))
 #define MAILBOX_FIFOSTATUS(m)		(0x080 + 4 * (m))
 #define MAILBOX_MSGSTATUS(m)		(0x0c0 + 4 * (m))
@@ -32,17 +31,6 @@
 
 #define MAILBOX_IRQ_NEWMSG(m)		(1 << (2 * (m)))
 #define MAILBOX_IRQ_NOTFULL(m)		(1 << (2 * (m) + 1))
-
-/* SYSCONFIG: register bit definition */
-#define AUTOIDLE	(1 << 0)
-#define SOFTRESET	(1 << 1)
-#define SMARTIDLE	(2 << 3)
-#define OMAP4_SOFTRESET	(1 << 0)
-#define OMAP4_NOIDLE	(1 << 2)
-#define OMAP4_SMARTIDLE	(2 << 2)
-
-/* SYSSTATUS: register bit definition */
-#define RESETDONE	(1 << 0)
 
 #define MBOX_REG_SIZE			0x120
 
@@ -70,8 +58,6 @@ struct omap_mbox2_priv {
 	unsigned long irqdisable;
 };
 
-static struct clk *mbox_ick_handle;
-
 static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
 				  omap_mbox_type_t irq);
 
@@ -89,52 +75,12 @@ static inline void mbox_write_reg(u32 val, size_t ofs)
 static int omap2_mbox_startup(struct omap_mbox *mbox)
 {
 	u32 l;
-	unsigned long timeout;
 
-	mbox_ick_handle = clk_get(NULL, "mailboxes_ick");
-	if (IS_ERR(mbox_ick_handle)) {
-		printk(KERN_ERR "Could not get mailboxes_ick: %ld\n",
-			PTR_ERR(mbox_ick_handle));
-		return PTR_ERR(mbox_ick_handle);
-	}
-	clk_enable(mbox_ick_handle);
-
-	if (cpu_is_omap44xx()) {
-		mbox_write_reg(OMAP4_SOFTRESET, MAILBOX_SYSCONFIG);
-		timeout = jiffies + msecs_to_jiffies(20);
-		do {
-			l = mbox_read_reg(MAILBOX_SYSCONFIG);
-			if (!(l & OMAP4_SOFTRESET))
-				break;
-		} while (!time_after(jiffies, timeout));
-
-		if (l & OMAP4_SOFTRESET) {
-			pr_err("Can't take mailbox out of reset\n");
-			return -ENODEV;
-		}
-	} else {
-		mbox_write_reg(SOFTRESET, MAILBOX_SYSCONFIG);
-		timeout = jiffies + msecs_to_jiffies(20);
-		do {
-			l = mbox_read_reg(MAILBOX_SYSSTATUS);
-			if (l & RESETDONE)
-				break;
-		} while (!time_after(jiffies, timeout));
-
-		if (!(l & RESETDONE)) {
-			pr_err("Can't take mailbox out of reset\n");
-			return -ENODEV;
-		}
-	}
+	pm_runtime_enable(mbox->dev->parent);
+	pm_runtime_get_sync(mbox->dev->parent);
 
 	l = mbox_read_reg(MAILBOX_REVISION);
 	pr_debug("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
-
-	if (cpu_is_omap44xx())
-		l = OMAP4_SMARTIDLE;
-	else
-		l = SMARTIDLE | AUTOIDLE;
-	mbox_write_reg(l, MAILBOX_SYSCONFIG);
 
 	omap2_mbox_enable_irq(mbox, IRQ_RX);
 
@@ -143,9 +89,8 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 
 static void omap2_mbox_shutdown(struct omap_mbox *mbox)
 {
-	clk_disable(mbox_ick_handle);
-	clk_put(mbox_ick_handle);
-	mbox_ick_handle = NULL;
+	pm_runtime_put_sync(mbox->dev->parent);
+	pm_runtime_disable(mbox->dev->parent);
 }
 
 /* Mailbox FIFO handle functions */
@@ -312,7 +257,7 @@ struct omap_mbox mbox_dsp_info = {
 struct omap_mbox *omap3_mboxes[] = { &mbox_dsp_info, NULL };
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2420)
+#if defined(CONFIG_SOC_OMAP2420)
 /* IVA */
 static struct omap_mbox2_priv omap2_mbox_iva_priv = {
 	.tx_fifo = {
@@ -400,14 +345,14 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 	else if (cpu_is_omap34xx()) {
 		list = omap3_mboxes;
 
-		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
+		list[0]->irq = platform_get_irq(pdev, 0);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP2)
 	else if (cpu_is_omap2430()) {
 		list = omap2_mboxes;
 
-		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
+		list[0]->irq = platform_get_irq(pdev, 0);
 	} else if (cpu_is_omap2420()) {
 		list = omap2_mboxes;
 
@@ -419,8 +364,7 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 	else if (cpu_is_omap44xx()) {
 		list = omap4_mboxes;
 
-		list[0]->irq = list[1]->irq =
-			platform_get_irq_byname(pdev, "mbox");
+		list[0]->irq = list[1]->irq = platform_get_irq(pdev, 0);
 	}
 #endif
 	else {

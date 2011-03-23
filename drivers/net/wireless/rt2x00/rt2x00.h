@@ -189,6 +189,7 @@ struct rt2x00_chip {
 #define RT3572		0x3572
 #define RT3593		0x3593	/* PCIe */
 #define RT3883		0x3883	/* WSOC */
+#define RT5390         0x5390  /* 2.4GHz */
 
 	u16 rf;
 	u16 rev;
@@ -225,6 +226,8 @@ struct channel_info {
 struct antenna_setup {
 	enum antenna rx;
 	enum antenna tx;
+	u8 rx_chain_num;
+	u8 tx_chain_num;
 };
 
 /*
@@ -368,6 +371,7 @@ struct rt2x00_intf {
 	 * dedicated beacon entry.
 	 */
 	struct queue_entry *beacon;
+	bool enable_beacon;
 
 	/*
 	 * Actions that needed rescheduling.
@@ -463,7 +467,6 @@ struct rt2x00lib_crypto {
 	const u8 *address;
 
 	u32 bssidx;
-	u32 aid;
 
 	u8 key[16];
 	u8 tx_mic[8];
@@ -511,14 +514,13 @@ struct rt2x00lib_ops {
 	irq_handler_t irq_handler;
 
 	/*
-	 * Threaded Interrupt handlers.
-	 */
-	irq_handler_t irq_handler_thread;
-
-	/*
 	 * TX status tasklet handler.
 	 */
 	void (*txstatus_tasklet) (unsigned long data);
+	void (*pretbtt_tasklet) (unsigned long data);
+	void (*tbtt_tasklet) (unsigned long data);
+	void (*rxdone_tasklet) (unsigned long data);
+	void (*autowake_tasklet) (unsigned long data);
 
 	/*
 	 * Device init handlers.
@@ -573,6 +575,7 @@ struct rt2x00lib_ops {
 			       struct txentry_desc *txdesc);
 	void (*write_beacon) (struct queue_entry *entry,
 			      struct txentry_desc *txdesc);
+	void (*clear_beacon) (struct queue_entry *entry);
 	int (*get_tx_data_len) (struct queue_entry *entry);
 
 	/*
@@ -658,12 +661,15 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_L2PAD,
 	DRIVER_REQUIRE_TXSTATUS_FIFO,
 	DRIVER_REQUIRE_TASKLET_CONTEXT,
+	DRIVER_REQUIRE_SW_SEQNO,
+	DRIVER_REQUIRE_HT_TX_DESC,
 
 	/*
 	 * Driver features
 	 */
 	CONFIG_SUPPORT_HW_BUTTON,
 	CONFIG_SUPPORT_HW_CRYPTO,
+	CONFIG_SUPPORT_POWER_LIMIT,
 	DRIVER_SUPPORT_CONTROL_FILTERS,
 	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
 	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,
@@ -788,10 +794,12 @@ struct rt2x00_dev {
 	 *  - Open ap interface count.
 	 *  - Open sta interface count.
 	 *  - Association count.
+	 *  - Beaconing enabled count.
 	 */
 	unsigned int intf_ap_count;
 	unsigned int intf_sta_count;
 	unsigned int intf_associated;
+	unsigned int intf_beaconing;
 
 	/*
 	 * Link quality
@@ -857,6 +865,13 @@ struct rt2x00_dev {
 	 */
 	struct ieee80211_low_level_stats low_level_stats;
 
+	/**
+	 * Work queue for all work which should not be placed
+	 * on the mac80211 workqueue (because of dependencies
+	 * between various work structures).
+	 */
+	struct workqueue_struct *workqueue;
+
 	/*
 	 * Scheduled work.
 	 * NOTE: intf_work will use ieee80211_iterate_active_interfaces()
@@ -872,25 +887,18 @@ struct rt2x00_dev {
 	struct work_struct txdone_work;
 
 	/*
-	 * Data queue arrays for RX, TX and Beacon.
-	 * The Beacon array also contains the Atim queue
-	 * if that is supported by the device.
+	 * Data queue arrays for RX, TX, Beacon and ATIM.
 	 */
 	unsigned int data_queues;
 	struct data_queue *rx;
 	struct data_queue *tx;
 	struct data_queue *bcn;
+	struct data_queue *atim;
 
 	/*
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
-
-	/*
-	 * Interrupt values, stored between interrupt service routine
-	 * and interrupt thread routine.
-	 */
-	u32 irqvalue[2];
 
 	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
@@ -901,6 +909,15 @@ struct rt2x00_dev {
 	 * Tasklet for processing tx status reports (rt2800pci).
 	 */
 	struct tasklet_struct txstatus_tasklet;
+	struct tasklet_struct pretbtt_tasklet;
+	struct tasklet_struct tbtt_tasklet;
+	struct tasklet_struct rxdone_tasklet;
+	struct tasklet_struct autowake_tasklet;
+
+	/*
+	 * Protect the interrupt mask register.
+	 */
+	spinlock_t irqmask_lock;
 };
 
 /*
@@ -1046,12 +1063,24 @@ void rt2x00queue_map_txskb(struct queue_entry *entry);
 void rt2x00queue_unmap_skb(struct queue_entry *entry);
 
 /**
- * rt2x00queue_get_queue - Convert queue index to queue pointer
+ * rt2x00queue_get_tx_queue - Convert tx queue index to queue pointer
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @queue: rt2x00 queue index (see &enum data_queue_qid).
+ *
+ * Returns NULL for non tx queues.
  */
-struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
-					 const enum data_queue_qid queue);
+static inline struct data_queue *
+rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
+			 const enum data_queue_qid queue)
+{
+	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
+		return &rt2x00dev->tx[queue];
+
+	if (queue == QID_ATIM)
+		return rt2x00dev->atim;
+
+	return NULL;
+}
 
 /**
  * rt2x00queue_get_entry - Get queue entry where the given index points to.
@@ -1168,7 +1197,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry);
 /*
  * mac80211 handlers.
  */
-int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,

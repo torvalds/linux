@@ -149,6 +149,7 @@ static int kb3886bl_probe(struct platform_device *pdev)
 		machinfo->limit_mask = -1;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = machinfo->max_intensity;
 	kb3886_backlight_device = backlight_device_register("kb3886-bl",
 							    &pdev->dev, NULL,

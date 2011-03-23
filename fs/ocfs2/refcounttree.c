@@ -4328,7 +4328,8 @@ static int ocfs2_reflink(struct dentry *old_dentry, struct inode *dir,
 
 	/* If the security isn't preserved, we need to re-initialize them. */
 	if (!preserve) {
-		error = ocfs2_init_security_and_acl(dir, new_orphan_inode);
+		error = ocfs2_init_security_and_acl(dir, new_orphan_inode,
+						    &new_dentry->d_name);
 		if (error)
 			mlog_errno(error);
 	}
@@ -4379,7 +4380,7 @@ static int ocfs2_user_path_parent(const char __user *path,
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 
-	error = path_lookup(s, LOOKUP_PARENT, nd);
+	error = kern_path_parent(s, nd);
 	if (error)
 		putname(s);
 	else

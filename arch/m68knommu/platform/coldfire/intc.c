@@ -111,28 +111,28 @@ void mcf_autovector(int irq)
 #endif
 }
 
-static void intc_irq_mask(unsigned int irq)
+static void intc_irq_mask(struct irq_data *d)
 {
-	if (mcf_irq2imr[irq])
-		mcf_setimr(mcf_irq2imr[irq]);
+	if (mcf_irq2imr[d->irq])
+		mcf_setimr(mcf_irq2imr[d->irq]);
 }
 
-static void intc_irq_unmask(unsigned int irq)
+static void intc_irq_unmask(struct irq_data *d)
 {
-	if (mcf_irq2imr[irq])
-		mcf_clrimr(mcf_irq2imr[irq]);
+	if (mcf_irq2imr[d->irq])
+		mcf_clrimr(mcf_irq2imr[d->irq]);
 }
 
-static int intc_irq_set_type(unsigned int irq, unsigned int type)
+static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	return 0;
 }
 
 static struct irq_chip intc_irq_chip = {
 	.name		= "CF-INTC",
-	.mask		= intc_irq_mask,
-	.unmask		= intc_irq_unmask,
-	.set_type	= intc_irq_set_type,
+	.irq_mask	= intc_irq_mask,
+	.irq_unmask	= intc_irq_unmask,
+	.irq_set_type	= intc_irq_set_type,
 };
 
 void __init init_IRQ(void)

@@ -22,6 +22,7 @@
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -35,8 +36,6 @@
 #include <mach/udc.h>
 #include <mach/palmasoc.h>
 #include <mach/palm27x.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"

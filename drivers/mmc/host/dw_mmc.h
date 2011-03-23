@@ -43,6 +43,7 @@
 #define SDMMC_USRID		0x068
 #define SDMMC_VERID		0x06c
 #define SDMMC_HCON		0x070
+#define SDMMC_UHS_REG		0x074
 #define SDMMC_BMOD		0x080
 #define SDMMC_PLDMND		0x084
 #define SDMMC_DBADDR		0x088
@@ -51,7 +52,6 @@
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_DATA		0x100
-#define SDMMC_DATA_ADR		0x100
 
 /* shift bit field */
 #define _SBF(f, v)		((v) << (f))

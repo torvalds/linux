@@ -148,6 +148,7 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 	alias = d_lookup(parent, &data->args.name);
 	if (alias != NULL) {
 		int ret = 0;
+		void *devname_garbage = NULL;
 
 		/*
 		 * Hey, we raced with lookup... See if we need to transfer
@@ -157,6 +158,7 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 		spin_lock(&alias->d_lock);
 		if (alias->d_inode != NULL &&
 		    !(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
+			devname_garbage = alias->d_fsdata;
 			alias->d_fsdata = data;
 			alias->d_flags |= DCACHE_NFSFS_RENAMED;
 			ret = 1;
@@ -164,6 +166,13 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 		spin_unlock(&alias->d_lock);
 		nfs_dec_sillycount(dir);
 		dput(alias);
+		/*
+		 * If we'd displaced old cached devname, free it.  At that
+		 * point dentry is definitely not a root, so we won't need
+		 * that anymore.
+		 */
+		if (devname_garbage)
+			kfree(devname_garbage);
 		return ret;
 	}
 	data->dir = igrab(dir);
@@ -252,6 +261,7 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_unlinkdata *data;
 	int status = -ENOMEM;
+	void *devname_garbage = NULL;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
@@ -269,8 +279,16 @@ nfs_async_unlink(struct inode *dir, struct dentry *dentry)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out_unlock;
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
+	devname_garbage = dentry->d_fsdata;
 	dentry->d_fsdata = data;
 	spin_unlock(&dentry->d_lock);
+	/*
+	 * If we'd displaced old cached devname, free it.  At that
+	 * point dentry is definitely not a root, so we won't need
+	 * that anymore.
+	 */
+	if (devname_garbage)
+		kfree(devname_garbage);
 	return 0;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
@@ -299,6 +317,7 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		dentry->d_flags &= ~DCACHE_NFSFS_RENAMED;
 		data = dentry->d_fsdata;
+		dentry->d_fsdata = NULL;
 	}
 	spin_unlock(&dentry->d_lock);
 
@@ -315,6 +334,7 @@ nfs_cancel_async_unlink(struct dentry *dentry)
 		struct nfs_unlinkdata *data = dentry->d_fsdata;
 
 		dentry->d_flags &= ~DCACHE_NFSFS_RENAMED;
+		dentry->d_fsdata = NULL;
 		spin_unlock(&dentry->d_lock);
 		nfs_free_unlinkdata(data);
 		return;

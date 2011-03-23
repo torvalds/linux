@@ -23,6 +23,11 @@
 #ifndef __HV_API_H
 #define __HV_API_H
 
+struct hv_guid {
+	unsigned char data[16];
+};
+
+
 
 /* Status codes for hypervisor operations. */
 

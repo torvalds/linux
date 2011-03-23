@@ -158,7 +158,7 @@ static u32 hstcp_ssthresh(struct sock *sk)
 }
 
 
-static struct tcp_congestion_ops tcp_highspeed = {
+static struct tcp_congestion_ops tcp_highspeed __read_mostly = {
 	.init		= hstcp_init,
 	.ssthresh	= hstcp_ssthresh,
 	.cong_avoid	= hstcp_cong_avoid,
