@@ -261,8 +261,8 @@ static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 	o_desc.wMaxPacketSize =
 		__constant_cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
 
-	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress & 0x7f;
-	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress & 0x7f;
+	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress;
+	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial->in = dbgp.i_ep;
