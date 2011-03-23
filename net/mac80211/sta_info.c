@@ -698,6 +698,8 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 	cancel_work_sync(&sta->drv_unblock_wk);
 
+	cfg80211_del_sta(sdata->dev, sta->sta.addr, GFP_KERNEL);
+
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
 

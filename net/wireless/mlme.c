@@ -770,6 +770,15 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 }
 EXPORT_SYMBOL(cfg80211_new_sta);
 
+void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_sta_del_event(rdev, dev, mac_addr, gfp);
+}
+EXPORT_SYMBOL(cfg80211_del_sta);
+
 struct cfg80211_mgmt_registration {
 	struct list_head list;
 

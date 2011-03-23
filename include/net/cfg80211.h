@@ -2667,6 +2667,15 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
 
 /**
+ * cfg80211_del_sta - notify userspace about deletion of a station
+ *
+ * @dev: the netdev
+ * @mac_addr: the station's address
+ * @gfp: allocation flags
+ */
+void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
+
+/**
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @dev: network device
  * @freq: Frequency on which the frame was received in MHz
