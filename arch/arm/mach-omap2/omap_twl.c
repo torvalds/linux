@@ -288,7 +288,7 @@ int __init omap3_twl_init(void)
 	if (!twl_sr_enable_autoinit)
 		omap3_twl_set_sr_bit(true);
 
-	voltdm = voltdm_lookup("mpu");
+	voltdm = voltdm_lookup("mpu_iva");
 	omap_voltage_register_pmic(voltdm, &omap3_mpu_volt_info);
 
 	voltdm = voltdm_lookup("core");

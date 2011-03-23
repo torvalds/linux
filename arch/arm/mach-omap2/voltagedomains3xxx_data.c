@@ -60,7 +60,7 @@ static struct omap_vdd_info omap3_vdd2_info = {
 };
 
 static struct voltagedomain omap3_voltdm_mpu = {
-	.name = "mpu",
+	.name = "mpu_iva",
 	.vdd = &omap3_vdd1_info,
 };
 
