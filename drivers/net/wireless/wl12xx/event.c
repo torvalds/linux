@@ -33,6 +33,7 @@ void wl1271_pspoll_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
+	int ret;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, pspoll_work);
@@ -55,8 +56,13 @@ void wl1271_pspoll_work(struct work_struct *work)
 	 * delivery failure occurred, and no-one changed state since, so
 	 * we should go back to powersave.
 	 */
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
 	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, wl->basic_rate, true);
 
+	wl1271_ps_elp_sleep(wl);
 out:
 	mutex_unlock(&wl->mutex);
 };
@@ -129,11 +135,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 		/* enable beacon early termination */
 		ret = wl1271_acx_bet_enable(wl, true);
-		if (ret < 0)
-			break;
-
-		/* go to extremely low power mode */
-		wl1271_ps_elp_sleep(wl);
 		break;
 	default:
 		break;

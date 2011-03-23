@@ -511,22 +511,14 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 void wl1271_tx_work_locked(struct wl1271 *wl)
 {
 	struct sk_buff *skb;
-	bool woken_up = false;
 	u32 buf_offset = 0;
 	bool sent_packets = false;
 	int ret;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
-		goto out;
+		return;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
-		if (!woken_up) {
-			ret = wl1271_ps_elp_wakeup(wl);
-			if (ret < 0)
-				goto out_ack;
-			woken_up = true;
-		}
-
 		ret = wl1271_prepare_tx_frame(wl, skb, buf_offset);
 		if (ret == -EAGAIN) {
 			/*
@@ -573,18 +565,22 @@ out_ack:
 
 		wl1271_handle_tx_low_watermark(wl);
 	}
-
-out:
-	if (woken_up)
-		wl1271_ps_elp_sleep(wl);
 }
 
 void wl1271_tx_work(struct work_struct *work)
 {
 	struct wl1271 *wl = container_of(work, struct wl1271, tx_work);
+	int ret;
 
 	mutex_lock(&wl->mutex);
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
 	wl1271_tx_work_locked(wl);
+
+	wl1271_ps_elp_wakeup(wl);
+out:
 	mutex_unlock(&wl->mutex);
 }
 

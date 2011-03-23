@@ -2792,32 +2792,31 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		conf_tid->ack_policy = CONF_ACK_POLICY_LEGACY;
 		conf_tid->apsd_conf[0] = 0;
 		conf_tid->apsd_conf[1] = 0;
-	} else {
-		ret = wl1271_ps_elp_wakeup(wl);
-		if (ret < 0)
-			goto out;
+		goto out;
+	}
 
-		/*
-		 * the txop is confed in units of 32us by the mac80211,
-		 * we need us
-		 */
-		ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
-					params->cw_min, params->cw_max,
-					params->aifs, params->txop << 5);
-		if (ret < 0)
-			goto out_sleep;
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
-		ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
-					 CONF_CHANNEL_TYPE_EDCF,
-					 wl1271_tx_get_queue(queue),
-					 ps_scheme, CONF_ACK_POLICY_LEGACY,
-					 0, 0);
-		if (ret < 0)
-			goto out_sleep;
+	/*
+	 * the txop is confed in units of 32us by the mac80211,
+	 * we need us
+	 */
+	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
+				params->cw_min, params->cw_max,
+				params->aifs, params->txop << 5);
+	if (ret < 0)
+		goto out_sleep;
+
+	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
+				 CONF_CHANNEL_TYPE_EDCF,
+				 wl1271_tx_get_queue(queue),
+				 ps_scheme, CONF_ACK_POLICY_LEGACY,
+				 0, 0);
 
 out_sleep:
-		wl1271_ps_elp_sleep(wl);
-	}
+	wl1271_ps_elp_sleep(wl);
 
 out:
 	mutex_unlock(&wl->mutex);
