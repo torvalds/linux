@@ -73,7 +73,7 @@ static void report_ccb_status(u32 status, char *outstr)
 
 	report_jump_idx(status, outstr);
 
-	if (cha_id < sizeof(cha_id_list)) {
+	if (cha_id < ARRAY_SIZE(cha_id_list)) {
 		SPRINTFCAT(outstr, "%s: ", cha_id_list[cha_id],
 			   strlen(cha_id_list[cha_id]));
 	} else {
@@ -81,7 +81,7 @@ static void report_ccb_status(u32 status, char *outstr)
 			   cha_id, sizeof("ff"));
 	}
 
-	if (err_id < sizeof(err_id_list)) {
+	if (err_id < ARRAY_SIZE(err_id_list)) {
 		SPRINTFCAT(outstr, "%s", err_id_list[err_id],
 			   strlen(err_id_list[err_id]));
 	} else {
@@ -198,11 +198,11 @@ static void report_deco_status(u32 status, char *outstr)
 
 	report_jump_idx(status, outstr);
 
-	for (i = 0; i < sizeof(desc_error_list); i++)
+	for (i = 0; i < ARRAY_SIZE(desc_error_list); i++)
 		if (desc_error_list[i].value == desc_error)
 			break;
 
-	if (i != sizeof(desc_error_list) && desc_error_list[i].error_text) {
+	if (i != ARRAY_SIZE(desc_error_list) && desc_error_list[i].error_text) {
 		SPRINTFCAT(outstr, "%s", desc_error_list[i].error_text,
 			   strlen(desc_error_list[i].error_text));
 	} else {
