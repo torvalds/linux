@@ -99,11 +99,6 @@ static inline void unlock_page_cgroup(struct page_cgroup *pc)
 	bit_spin_unlock(PCG_LOCK, &pc->flags);
 }
 
-static inline int page_is_cgroup_locked(struct page_cgroup *pc)
-{
-	return bit_spin_is_locked(PCG_LOCK, &pc->flags);
-}
-
 static inline void move_lock_page_cgroup(struct page_cgroup *pc,
 	unsigned long *flags)
 {

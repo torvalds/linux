@@ -2200,33 +2200,49 @@ void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail)
 #endif
 
 /**
- * __mem_cgroup_move_account - move account of the page
+ * mem_cgroup_move_account - move account of the page
  * @pc:	page_cgroup of the page.
  * @from: mem_cgroup which the page is moved from.
  * @to:	mem_cgroup which the page is moved to. @from != @to.
  * @uncharge: whether we should call uncharge and css_put against @from.
+ * @charge_size: number of bytes to charge (regular or huge page)
  *
  * The caller must confirm following.
  * - page is not on LRU (isolate_page() is useful.)
- * - the pc is locked, used, and ->mem_cgroup points to @from.
+ * - compound_lock is held when charge_size > PAGE_SIZE
  *
  * This function doesn't do "charge" nor css_get to new cgroup. It should be
  * done by a caller(__mem_cgroup_try_charge would be usefull). If @uncharge is
  * true, this function does "uncharge" from old cgroup, but it doesn't if
  * @uncharge is false, so a caller should do "uncharge".
  */
-
-static void __mem_cgroup_move_account(struct page_cgroup *pc,
-	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge,
-	int charge_size)
+static int mem_cgroup_move_account(struct page_cgroup *pc,
+				   struct mem_cgroup *from, struct mem_cgroup *to,
+				   bool uncharge, int charge_size)
 {
 	int nr_pages = charge_size >> PAGE_SHIFT;
+	unsigned long flags;
+	int ret;
 
 	VM_BUG_ON(from == to);
 	VM_BUG_ON(PageLRU(pc->page));
-	VM_BUG_ON(!page_is_cgroup_locked(pc));
-	VM_BUG_ON(!PageCgroupUsed(pc));
-	VM_BUG_ON(pc->mem_cgroup != from);
+	/*
+	 * The page is isolated from LRU. So, collapse function
+	 * will not handle this page. But page splitting can happen.
+	 * Do this check under compound_page_lock(). The caller should
+	 * hold it.
+	 */
+	ret = -EBUSY;
+	if (charge_size > PAGE_SIZE && !PageTransHuge(pc->page))
+		goto out;
+
+	lock_page_cgroup(pc);
+
+	ret = -EINVAL;
+	if (!PageCgroupUsed(pc) || pc->mem_cgroup != from)
+		goto unlock;
+
+	move_lock_page_cgroup(pc, &flags);
 
 	if (PageCgroupFileMapped(pc)) {
 		/* Update mapped_file data for mem_cgroup */
@@ -2250,40 +2266,16 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
 	 * garanteed that "to" is never removed. So, we don't check rmdir
 	 * status here.
 	 */
-}
-
-/*
- * check whether the @pc is valid for moving account and call
- * __mem_cgroup_move_account()
- */
-static int mem_cgroup_move_account(struct page_cgroup *pc,
-		struct mem_cgroup *from, struct mem_cgroup *to,
-		bool uncharge, int charge_size)
-{
-	int ret = -EINVAL;
-	unsigned long flags;
-	/*
-	 * The page is isolated from LRU. So, collapse function
-	 * will not handle this page. But page splitting can happen.
-	 * Do this check under compound_page_lock(). The caller should
-	 * hold it.
-	 */
-	if ((charge_size > PAGE_SIZE) && !PageTransHuge(pc->page))
-		return -EBUSY;
-
-	lock_page_cgroup(pc);
-	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-		move_lock_page_cgroup(pc, &flags);
-		__mem_cgroup_move_account(pc, from, to, uncharge, charge_size);
-		move_unlock_page_cgroup(pc, &flags);
-		ret = 0;
-	}
+	move_unlock_page_cgroup(pc, &flags);
+	ret = 0;
+unlock:
 	unlock_page_cgroup(pc);
 	/*
 	 * check events
 	 */
 	memcg_check_events(to, pc->page);
 	memcg_check_events(from, pc->page);
+out:
 	return ret;
 }
 
