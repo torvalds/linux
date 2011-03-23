@@ -163,8 +163,8 @@ int init(void)
 { 
 	volatile u32 data;
 
-    if(gLcd_info)
-        gLcd_info->io_init();
+	if(gLcd_info)
+	gLcd_info->io_init();
 
 	printk("lcd init...\n");
 	spi_screenreg_cmd(0xB1);
@@ -272,51 +272,60 @@ int init(void)
 	spi_screenreg_cmd(0x29);
 	mdelay(10);
 	spi_screenreg_cmd(0x2C);
-    if(gLcd_info)
-        gLcd_info->io_deinit();
+	if(gLcd_info)
+	gLcd_info->io_deinit();
 
     return 0;
 }
 
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-	
+#if 1	
     if(gLcd_info)
         gLcd_info->io_init();
-	#if 0
+
 	if(enable) {
-		spi_screenreg_set(0x10, 0xffff, 0xffff);
-		spi_screenreg_set(0x28, 0xffff, 0xffff);
+		spi_screenreg_cmd(0xB7);
+		spi_screenreg_param(0x0f);
 	} else { 
-		spi_screenreg_set(0x29, 0xffff, 0xffff);
-		spi_screenreg_set(0x11, 0xffff, 0xffff);
+ 		CS_OUT() ;
+		for(int i=0;i<6;i++)
+		{
+			CS_SET();
+			DRVDelayUs(1);
+			CS_CLR();
+			DRVDelayUs(1);
+			CS_SET();
+			mdelay(2);			
+		}
 	}
-  #endif
+
     if(gLcd_info)
         gLcd_info->io_deinit();
+#endif
     return 0;
 }
+
 void set_backlight(int brightness)
 {
-#if 0
-	if (g_spi != NULL)
-	{
-		fbprintk("AMS369FG06:set_backlight = %d\r\n", brightness);
-		if (brightness < 0)
-		{
-			brightness = 0;
-		}
-		if (brightness > 4)
-		{
-			brightness = 4;
-		}
+#if 1
+ 	if(gLcd_info)
+        gLcd_info->io_init();
 
-		g_backlight_level = brightness;
-		write_data(pBrighenessLevel[brightness], ARRAY_SIZE(pBrighenessLevel[brightness]));
+	printk("lcd_ili9803:set_backlight = %d\r\n", brightness);
+	if (brightness < 0)
+	{
+		brightness = 0;
 	}
+	if (brightness > 4)
+	{
+		brightness = 4;
+	}
+	spi_screenreg_cmd(0x51);
+	spi_screenreg_param(brightness<<5);
+		
+  	 if(gLcd_info)
+        gLcd_info->io_deinit();
+
 #endif
-}
-void rk2818_backlight_ctl(int suspend)
-{
-	standby(suspend);
 }
