@@ -142,4 +142,13 @@ int stor_vsc_initialize(struct hv_driver *driver);
 int stor_vsc_on_host_reset(struct hv_device *device);
 int blk_vsc_initialize(struct hv_driver *driver);
 
+int stor_vsc_on_device_add(struct hv_device *device,
+				void *additional_info);
+int stor_vsc_on_device_remove(struct hv_device *device);
+
+int stor_vsc_on_io_request(struct hv_device *device,
+				struct hv_storvsc_request *request);
+void stor_vsc_on_cleanup(struct hv_driver *driver);
+
+
 #endif /* _STORVSC_API_H_ */

@@ -504,7 +504,7 @@ static int stor_vsc_connect_to_vsp(struct hv_device *device)
  * stor_vsc_on_device_add - Callback when the device belonging to this driver
  * is added
  */
-static int stor_vsc_on_device_add(struct hv_device *device,
+int stor_vsc_on_device_add(struct hv_device *device,
 					void *additional_info)
 {
 	struct storvsc_device *stor_device;
@@ -553,7 +553,7 @@ cleanup:
 /*
  * stor_vsc_on_device_remove - Callback when the our device is being removed
  */
-static int stor_vsc_on_device_remove(struct hv_device *device)
+int stor_vsc_on_device_remove(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 
@@ -646,7 +646,7 @@ cleanup:
 /*
  * stor_vsc_on_io_request - Callback to initiate an I/O request
  */
-static int stor_vsc_on_io_request(struct hv_device *device,
+int stor_vsc_on_io_request(struct hv_device *device,
 			      struct hv_storvsc_request *request)
 {
 	struct storvsc_device *stor_device;
@@ -739,7 +739,7 @@ static int stor_vsc_on_io_request(struct hv_device *device,
 /*
  * stor_vsc_on_cleanup - Perform any cleanup when the driver is removed
  */
-static void stor_vsc_on_cleanup(struct hv_driver *driver)
+void stor_vsc_on_cleanup(struct hv_driver *driver)
 {
 }
 

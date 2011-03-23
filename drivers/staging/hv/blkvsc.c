@@ -22,8 +22,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include "logging.h"
 #include "hv_api.h"
-#include "storvsc.c"
 #include "storvsc_api.h"
 
 static const char *g_blk_driver_name = "blkvsc";
