@@ -2741,6 +2741,11 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			td->last_trb = ep_ring->enqueue;
 			field |= TRB_IOC;
 		}
+
+		/* Only set interrupt on short packet for IN endpoints */
+		if (usb_urb_dir_in(urb))
+			field |= TRB_ISP;
+
 		xhci_dbg(xhci, " sg entry: dma = %#x, len = %#x (%d), "
 				"64KB boundary at %#x, end dma = %#x\n",
 				(unsigned int) addr, trb_buff_len, trb_buff_len,
@@ -2766,12 +2771,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
-				/* We always want to know if the TRB was short,
-				 * or we won't get an event when it completes.
-				 * (Unless we use event data TRBs, which are a
-				 * waste of space and HC resources.)
-				 */
-				field | TRB_ISP | TRB_TYPE(TRB_NORMAL));
+				field | TRB_TYPE(TRB_NORMAL));
 		--num_trbs;
 		running_total += trb_buff_len;
 
@@ -2905,6 +2905,11 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			td->last_trb = ep_ring->enqueue;
 			field |= TRB_IOC;
 		}
+
+		/* Only set interrupt on short packet for IN endpoints */
+		if (usb_urb_dir_in(urb))
+			field |= TRB_ISP;
+
 		remainder = xhci_td_remainder(urb->transfer_buffer_length -
 				running_total);
 		length_field = TRB_LEN(trb_buff_len) |
@@ -2918,12 +2923,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
-				/* We always want to know if the TRB was short,
-				 * or we won't get an event when it completes.
-				 * (Unless we use event data TRBs, which are a
-				 * waste of space and HC resources.)
-				 */
-				field | TRB_ISP | TRB_TYPE(TRB_NORMAL));
+				field | TRB_TYPE(TRB_NORMAL));
 		--num_trbs;
 		running_total += trb_buff_len;
 
@@ -3009,7 +3009,12 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		  field);
 
 	/* If there's data, queue data TRBs */
-	field = 0;
+	/* Only set interrupt on short packet for IN endpoints */
+	if (usb_urb_dir_in(urb))
+		field = TRB_ISP | TRB_TYPE(TRB_DATA);
+	else
+		field = TRB_TYPE(TRB_DATA);
+
 	length_field = TRB_LEN(urb->transfer_buffer_length) |
 		xhci_td_remainder(urb->transfer_buffer_length) |
 		TRB_INTR_TARGET(0);
@@ -3020,8 +3025,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				lower_32_bits(urb->transfer_dma),
 				upper_32_bits(urb->transfer_dma),
 				length_field,
-				/* Event on short tx */
-				field | TRB_ISP | TRB_TYPE(TRB_DATA) | ep_ring->cycle_state);
+				field | ep_ring->cycle_state);
 	}
 
 	/* Save the DMA address of the last TRB in the TD */
@@ -3145,6 +3149,10 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				field |= ep_ring->cycle_state;
 			}
 
+			/* Only set interrupt on short packet for IN EPs */
+			if (usb_urb_dir_in(urb))
+				field |= TRB_ISP;
+
 			/* Chain all the TRBs together; clear the chain bit in
 			 * the last TRB to indicate it's the last TRB in the
 			 * chain.
@@ -3172,12 +3180,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
-				/* We always want to know if the TRB was short,
-				 * or we won't get an event when it completes.
-				 * (Unless we use event data TRBs, which are a
-				 * waste of space and HC resources.)
-				 */
-				field | TRB_ISP);
+				field);
 			running_total += trb_buff_len;
 
 			addr += trb_buff_len;
