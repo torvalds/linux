@@ -1288,28 +1288,6 @@ err_out:
 	return rc;
 }
 
-static char *cmdline = NULL;
-
-static int fsl_rio_get_hdid(int index)
-{
-	/* XXX Need to parse multiple entries in some format */
-	if (!cmdline)
-		return -1;
-
-	return simple_strtol(cmdline, NULL, 0);
-}
-
-static int fsl_rio_get_cmdline(char *s)
-{
-	if (!s)
-		return 0;
-
-	cmdline = s;
-	return 1;
-}
-
-__setup("riohdid=", fsl_rio_get_cmdline);
-
 static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 {
 	const char *str;
@@ -1439,7 +1417,6 @@ int fsl_rio_setup(struct platform_device *dev)
 		rc = -ENOMEM;
 		goto err_port;
 	}
-	port->id = 0;
 	port->index = 0;
 
 	priv = kzalloc(sizeof(struct rio_priv), GFP_KERNEL);
@@ -1470,8 +1447,6 @@ int fsl_rio_setup(struct platform_device *dev)
 	priv->dev = &dev->dev;
 
 	port->ops = ops;
-	port->host_deviceid = fsl_rio_get_hdid(port->id);
-
 	port->priv = priv;
 	port->phys_efptr = 0x100;
 	rio_register_mport(port);
