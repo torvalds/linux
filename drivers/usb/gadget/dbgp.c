@@ -312,6 +312,7 @@ static int __init dbgp_bind(struct usb_gadget *gadget)
 
 	dbgp.req->length = DBGP_REQ_EP0_LEN;
 	gadget->ep0->driver_data = gadget;
+	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial = kzalloc(sizeof(struct gserial), GFP_KERNEL);
