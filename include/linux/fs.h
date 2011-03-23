@@ -1463,7 +1463,7 @@ enum {
  */
 extern struct user_namespace init_user_ns;
 #define inode_userns(inode) (&init_user_ns)
-extern bool is_owner_or_cap(const struct inode *inode);
+extern bool inode_owner_or_capable(const struct inode *inode);
 
 /* not quite ready to be deprecated, but... */
 extern void lock_super(struct super_block *);
