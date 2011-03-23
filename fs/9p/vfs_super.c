@@ -307,6 +307,51 @@ static int v9fs_drop_inode(struct inode *inode)
 	return 1;
 }
 
+static int v9fs_write_inode(struct inode *inode,
+			    struct writeback_control *wbc)
+{
+	int ret;
+	struct p9_wstat wstat;
+	struct v9fs_inode *v9inode;
+	/*
+	 * send an fsync request to server irrespective of
+	 * wbc->sync_mode.
+	 */
+	P9_DPRINTK(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+	v9inode = V9FS_I(inode);
+	if (!v9inode->writeback_fid)
+		return 0;
+	v9fs_blank_wstat(&wstat);
+
+	ret = p9_client_wstat(v9inode->writeback_fid, &wstat);
+	if (ret < 0) {
+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		return ret;
+	}
+	return 0;
+}
+
+static int v9fs_write_inode_dotl(struct inode *inode,
+				 struct writeback_control *wbc)
+{
+	int ret;
+	struct v9fs_inode *v9inode;
+	/*
+	 * send an fsync request to server irrespective of
+	 * wbc->sync_mode.
+	 */
+	P9_DPRINTK(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+	v9inode = V9FS_I(inode);
+	if (!v9inode->writeback_fid)
+		return 0;
+	ret = p9_client_fsync(v9inode->writeback_fid, 0);
+	if (ret < 0) {
+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		return ret;
+	}
+	return 0;
+}
+
 static const struct super_operations v9fs_super_ops = {
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
@@ -314,6 +359,7 @@ static const struct super_operations v9fs_super_ops = {
 	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
+	.write_inode = v9fs_write_inode,
 };
 
 static const struct super_operations v9fs_super_ops_dotl = {
@@ -325,6 +371,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
+	.write_inode = v9fs_write_inode_dotl,
 };
 
 struct file_system_type v9fs_fs_type = {
