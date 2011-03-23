@@ -608,5 +608,13 @@ config RAMOOPS
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in RAM where it can be read back at some later point.
 
+config MSM_SMD_PKT
+	bool "Enable device interface for some SMD packet ports"
+	default n
+	depends on MSM_SMD
+	help
+	  Enables userspace clients to read and write to some packet SMD
+	  ports via device interface for MSM chipset.
+
 endmenu
 
