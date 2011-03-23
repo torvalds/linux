@@ -223,6 +223,52 @@ static inline void print_dropped_signal(int sig)
 				current->comm, current->pid, sig);
 }
 
+/**
+ * task_clear_group_stop_pending - clear pending group stop
+ * @task: target task
+ *
+ * Clear group stop states for @task.
+ *
+ * CONTEXT:
+ * Must be called with @task->sighand->siglock held.
+ */
+static void task_clear_group_stop_pending(struct task_struct *task)
+{
+	task->group_stop &= ~GROUP_STOP_CONSUME;
+}
+
+/**
+ * task_participate_group_stop - participate in a group stop
+ * @task: task participating in a group stop
+ *
+ * @task is participating in a group stop.  Group stop states are cleared
+ * and the group stop count is consumed if %GROUP_STOP_CONSUME was set.  If
+ * the consumption completes the group stop, the appropriate %SIGNAL_*
+ * flags are set.
+ *
+ * CONTEXT:
+ * Must be called with @task->sighand->siglock held.
+ */
+static bool task_participate_group_stop(struct task_struct *task)
+{
+	struct signal_struct *sig = task->signal;
+	bool consume = task->group_stop & GROUP_STOP_CONSUME;
+
+	task_clear_group_stop_pending(task);
+
+	if (!consume)
+		return false;
+
+	if (!WARN_ON_ONCE(sig->group_stop_count == 0))
+		sig->group_stop_count--;
+
+	if (!sig->group_stop_count) {
+		sig->flags = SIGNAL_STOP_STOPPED;
+		return true;
+	}
+	return false;
+}
+
 /*
  * allocate a new signal queue record
  * - this may be called without locks if and only if t == current, otherwise an
@@ -1645,7 +1691,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	 * we must participate in the bookkeeping.
 	 */
 	if (current->signal->group_stop_count > 0)
-		--current->signal->group_stop_count;
+		task_participate_group_stop(current);
 
 	current->last_siginfo = info;
 	current->exit_code = exit_code;
@@ -1730,6 +1776,7 @@ static int do_signal_stop(int signr)
 	int notify = 0;
 
 	if (!sig->group_stop_count) {
+		unsigned int gstop = GROUP_STOP_CONSUME;
 		struct task_struct *t;
 
 		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
@@ -1741,6 +1788,7 @@ static int do_signal_stop(int signr)
 		 */
 		sig->group_exit_code = signr;
 
+		current->group_stop = gstop;
 		sig->group_stop_count = 1;
 		for (t = next_thread(current); t != current; t = next_thread(t))
 			/*
@@ -1750,19 +1798,19 @@ static int do_signal_stop(int signr)
 			 */
 			if (!(t->flags & PF_EXITING) &&
 			    !task_is_stopped_or_traced(t)) {
+				t->group_stop = gstop;
 				sig->group_stop_count++;
 				signal_wake_up(t, 0);
-			}
+			} else
+				task_clear_group_stop_pending(t);
 	}
 	/*
 	 * If there are no other threads in the group, or if there is
 	 * a group stop in progress and we are the last to stop, report
 	 * to the parent.  When ptraced, every thread reports itself.
 	 */
-	if (!--sig->group_stop_count) {
-		sig->flags = SIGNAL_STOP_STOPPED;
+	if (task_participate_group_stop(current))
 		notify = CLD_STOPPED;
-	}
 	if (task_ptrace(current))
 		notify = CLD_STOPPED;
 
@@ -2026,10 +2074,8 @@ void exit_signals(struct task_struct *tsk)
 			recalc_sigpending_and_wake(t);
 
 	if (unlikely(tsk->signal->group_stop_count) &&
-			!--tsk->signal->group_stop_count) {
-		tsk->signal->flags = SIGNAL_STOP_STOPPED;
+	    task_participate_group_stop(tsk))
 		group_stop = CLD_STOPPED;
-	}
 out:
 	spin_unlock_irq(&tsk->sighand->siglock);
 

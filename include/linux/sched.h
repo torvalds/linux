@@ -1260,6 +1260,7 @@ struct task_struct {
 	int exit_state;
 	int exit_code, exit_signal;
 	int pdeath_signal;  /*  The signal sent when the parent dies  */
+	unsigned int group_stop;	/* GROUP_STOP_*, siglock protected */
 	/* ??? */
 	unsigned int personality;
 	unsigned did_exec:1;
@@ -1770,6 +1771,11 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 /* NOTE: this will return 0 or PF_USED_MATH, it will never return 1 */
 #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
 #define used_math() tsk_used_math(current)
+
+/*
+ * task->group_stop flags
+ */
+#define GROUP_STOP_CONSUME	(1 << 17) /* consume group stop count */
 
 #ifdef CONFIG_PREEMPT_RCU
 
