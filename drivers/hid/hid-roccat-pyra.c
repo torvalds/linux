@@ -652,7 +652,8 @@ static int pyra_raw_event(struct hid_device *hdev, struct hid_report *report,
 static const struct hid_device_id pyra_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT,
 			USB_DEVICE_ID_ROCCAT_PYRA_WIRED) },
-	/* TODO add USB_DEVICE_ID_ROCCAT_PYRA_WIRELESS after testing */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT,
+			USB_DEVICE_ID_ROCCAT_PYRA_WIRELESS) },
 	{ }
 };
 
