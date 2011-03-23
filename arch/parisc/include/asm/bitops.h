@@ -234,6 +234,4 @@ static __inline__ int fls(int x)
 
 #endif	/* __KERNEL__ */
 
-#include <asm-generic/bitops/minix-le.h>
-
 #endif /* _PARISC_BITOPS_H */

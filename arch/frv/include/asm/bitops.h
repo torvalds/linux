@@ -406,8 +406,6 @@ int __ilog2_u64(u64 n)
 #define ext2_set_bit_atomic(lock,nr,addr)	test_and_set_bit  ((nr) ^ 0x18, (addr))
 #define ext2_clear_bit_atomic(lock,nr,addr)	test_and_clear_bit((nr) ^ 0x18, (addr))
 
-#include <asm-generic/bitops/minix-le.h>
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_BITOPS_H */

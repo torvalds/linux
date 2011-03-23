@@ -678,7 +678,6 @@ static inline int ffs(int word)
 
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
-#include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */
 

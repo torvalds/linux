@@ -332,20 +332,6 @@ unsigned long find_next_bit_le(const void *addr,
 #define ext2_clear_bit_atomic(lock, nr, addr) \
 	test_and_clear_bit_le((nr), (unsigned long*)addr)
 
-/* Bitmap functions for the minix filesystem.  */
-
-#define minix_test_and_set_bit(nr,addr) \
-	__test_and_set_bit_le(nr, (unsigned long *)addr)
-#define minix_set_bit(nr,addr) \
-	__set_bit_le(nr, (unsigned long *)addr)
-#define minix_test_and_clear_bit(nr,addr) \
-	__test_and_clear_bit_le(nr, (unsigned long *)addr)
-#define minix_test_bit(nr,addr) \
-	test_bit_le(nr, (unsigned long *)addr)
-
-#define minix_find_first_zero_bit(addr,size) \
-	find_first_zero_bit_le((unsigned long *)addr, size)
-
 #include <asm-generic/bitops/sched.h>
 
 #endif /* __KERNEL__ */

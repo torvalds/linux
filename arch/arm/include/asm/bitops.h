@@ -345,16 +345,6 @@ static inline int find_next_bit_le(const void *p, int size, int offset)
 #define ext2_clear_bit_atomic(lock, nr, p)	\
 		test_and_clear_bit_le(nr, p)
 
-/*
- * Minix is defined to use little-endian byte ordering.
- * These do not need to be atomic.
- */
-#define minix_set_bit __set_bit_le
-#define minix_test_bit test_bit_le
-#define minix_test_and_set_bit __test_and_set_bit_le
-#define minix_test_and_clear_bit __test_and_clear_bit_le
-#define minix_find_first_zero_bit find_first_zero_bit_le
-
 #endif /* __KERNEL__ */
 
 #endif /* _ARM_BITOPS_H */

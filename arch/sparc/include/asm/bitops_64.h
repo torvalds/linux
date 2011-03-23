@@ -96,8 +96,6 @@ static inline unsigned int __arch_hweight8(unsigned int w)
 #define ext2_clear_bit_atomic(lock,nr,addr) \
 	test_and_clear_bit((nr) ^ 0x38,(unsigned long *)(addr))
 
-#include <asm-generic/bitops/minix.h>
-
 #endif /* __KERNEL__ */
 
 #endif /* defined(_SPARC64_BITOPS_H) */

@@ -159,7 +159,6 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 #define ext2_set_bit_atomic(l,n,a)   test_and_set_bit(n,a)
 #define ext2_clear_bit_atomic(l,n,a) test_and_clear_bit(n,a)
 
-#include <asm-generic/bitops/minix.h>
 #include <asm-generic/bitops/sched.h>
 
 #endif /* __KERNEL__ */

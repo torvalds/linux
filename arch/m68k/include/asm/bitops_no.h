@@ -336,8 +336,6 @@ found_middle:
 	return result + ffz(__swab32(tmp));
 }
 
-#include <asm-generic/bitops/minix.h>
-
 #endif /* __KERNEL__ */
 
 #include <asm-generic/bitops/fls.h>

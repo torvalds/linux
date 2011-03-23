@@ -463,7 +463,5 @@ static inline int fls(int x)
 #define ext2_clear_bit_atomic(lock, nr, addr)			\
 	test_and_clear_bit((nr), (unsigned long *)(addr))
 
-#include <asm-generic/bitops/minix.h>
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_BITOPS_H */
