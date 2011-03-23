@@ -694,7 +694,7 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nesdev->netdev_count++;
 	nesdev->nesadapter->netdev_count++;
 
-	printk(KERN_ERR PFX "%s: NetEffect RNIC driver successfully loaded.\n",
+	printk(KERN_INFO PFX "%s: NetEffect RNIC driver successfully loaded.\n",
 			pci_name(pcidev));
 	return 0;
 
