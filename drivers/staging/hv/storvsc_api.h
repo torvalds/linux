@@ -152,6 +152,16 @@ static inline struct storvsc_device *get_stor_device(struct hv_device *device)
 	return stor_device;
 }
 
+
+static inline void put_stor_device(struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+
+	stor_device = (struct storvsc_device *)device->ext;
+
+	atomic_dec(&stor_device->ref_count);
+}
+
 /* Interface */
 int stor_vsc_on_host_reset(struct hv_device *device);
 
