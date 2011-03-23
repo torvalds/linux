@@ -1828,7 +1828,8 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	int orig_level;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 
 	level = btrfs_header_level(log->node);
 	orig_level = level;
@@ -3114,9 +3115,11 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 		.stage = 0,
 	};
 
-	fs_info->log_root_recovering = 1;
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
+
+	fs_info->log_root_recovering = 1;
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
 	BUG_ON(IS_ERR(trans));
@@ -3124,7 +3127,8 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	wc.trans = trans;
 	wc.pin = 1;
 
-	walk_log_tree(trans, log_root_tree, &wc);
+	ret = walk_log_tree(trans, log_root_tree, &wc);
+	BUG_ON(ret);
 
 again:
 	key.objectid = BTRFS_TREE_LOG_OBJECTID;
@@ -3148,8 +3152,7 @@ again:
 
 		log = btrfs_read_fs_root_no_radix(log_root_tree,
 						  &found_key);
-		BUG_ON(!log);
-
+		BUG_ON(IS_ERR(log));
 
 		tmp_key.objectid = found_key.offset;
 		tmp_key.type = BTRFS_ROOT_ITEM_KEY;

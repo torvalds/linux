@@ -2350,12 +2350,15 @@ static noinline long btrfs_ioctl_start_sync(struct file *file, void __user *argp
 	struct btrfs_root *root = BTRFS_I(file->f_dentry->d_inode)->root;
 	struct btrfs_trans_handle *trans;
 	u64 transid;
+	int ret;
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 	transid = trans->transid;
-	btrfs_commit_transaction_async(trans, root, 0);
+	ret = btrfs_commit_transaction_async(trans, root, 0);
+	if (ret)
+		return ret;
 
 	if (argp)
 		if (copy_to_user(argp, &transid, sizeof(transid)))
