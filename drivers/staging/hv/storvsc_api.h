@@ -137,6 +137,21 @@ struct storvsc_device {
 	struct storvsc_request_extension reset_request;
 };
 
+
+/* Get the stordevice object iff exists and its refcount > 1 */
+static inline struct storvsc_device *get_stor_device(struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+
+	stor_device = (struct storvsc_device *)device->ext;
+	if (stor_device && atomic_read(&stor_device->ref_count) > 1)
+		atomic_inc(&stor_device->ref_count);
+	else
+		stor_device = NULL;
+
+	return stor_device;
+}
+
 /* Interface */
 int stor_vsc_on_host_reset(struct hv_device *device);
 
