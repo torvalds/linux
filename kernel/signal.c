@@ -1783,7 +1783,6 @@ void ptrace_notify(int exit_code)
 static int do_signal_stop(int signr)
 {
 	struct signal_struct *sig = current->signal;
-	int notify = 0;
 
 	if (!(current->group_stop & GROUP_STOP_PENDING)) {
 		unsigned int gstop = GROUP_STOP_PENDING | GROUP_STOP_CONSUME;
@@ -1813,29 +1812,37 @@ static int do_signal_stop(int signr)
 			} else
 				task_clear_group_stop_pending(t);
 	}
-	/*
-	 * If there are no other threads in the group, or if there is
-	 * a group stop in progress and we are the last to stop, report
-	 * to the parent.  When ptraced, every thread reports itself.
-	 */
-	if (task_participate_group_stop(current))
-		notify = CLD_STOPPED;
-	if (task_ptrace(current))
-		notify = CLD_STOPPED;
 
 	current->exit_code = sig->group_exit_code;
 	__set_current_state(TASK_STOPPED);
 
+	if (likely(!task_ptrace(current))) {
+		int notify = 0;
+
+		/*
+		 * If there are no other threads in the group, or if there
+		 * is a group stop in progress and we are the last to stop,
+		 * report to the parent.
+		 */
+		if (task_participate_group_stop(current))
+			notify = CLD_STOPPED;
+
+		spin_unlock_irq(&current->sighand->siglock);
+
+		if (notify) {
+			read_lock(&tasklist_lock);
+			do_notify_parent_cldstop(current, notify);
+			read_unlock(&tasklist_lock);
+		}
+
+		/* Now we don't run again until woken by SIGCONT or SIGKILL */
+		schedule();
+
+		spin_lock_irq(&current->sighand->siglock);
+	} else
+		ptrace_stop(current->exit_code, CLD_STOPPED, 0, NULL);
+
 	spin_unlock_irq(&current->sighand->siglock);
-
-	if (notify) {
-		read_lock(&tasklist_lock);
-		do_notify_parent_cldstop(current, notify);
-		read_unlock(&tasklist_lock);
-	}
-
-	/* Now we don't run again until woken by SIGCONT or SIGKILL */
-	schedule();
 
 	tracehook_finish_jctl();
 	current->exit_code = 0;
