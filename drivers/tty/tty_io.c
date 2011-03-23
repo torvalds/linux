@@ -1391,16 +1391,15 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 		return ERR_PTR(-ENODEV);
 
 	tty = alloc_tty_struct();
-	if (!tty)
-		goto fail_no_mem;
+	if (!tty) {
+		retval = -ENOMEM;
+		goto err_module_put;
+	}
 	initialize_tty_struct(tty, driver, idx);
 
 	retval = tty_driver_install_tty(driver, tty);
-	if (retval < 0) {
-		free_tty_struct(tty);
-		module_put(driver->owner);
-		return ERR_PTR(retval);
-	}
+	if (retval < 0)
+		goto err_free_tty;
 
 	/*
 	 * Structures all installed ... call the ldisc open routines.
@@ -1409,15 +1408,17 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	 */
 	retval = tty_ldisc_setup(tty, tty->link);
 	if (retval)
-		goto release_mem_out;
+		goto err_release_tty;
 	return tty;
 
-fail_no_mem:
+err_free_tty:
+	free_tty_struct(tty);
+err_module_put:
 	module_put(driver->owner);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(retval);
 
 	/* call the tty release_tty routine to clean out this slot */
-release_mem_out:
+err_release_tty:
 	if (printk_ratelimit())
 		printk(KERN_INFO "tty_init_dev: ldisc open failed, "
 				 "clearing slot %d\n", idx);
