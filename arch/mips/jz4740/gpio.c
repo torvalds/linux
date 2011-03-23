@@ -347,22 +347,14 @@ static void jz_gpio_irq_unmask(struct irq_data *data)
 /* TODO: Check if function is gpio */
 static unsigned int jz_gpio_irq_startup(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_to_desc(data->irq);
-
 	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_SELECT_SET);
-
-	desc->status &= ~IRQ_MASKED;
 	jz_gpio_irq_unmask(data);
-
 	return 0;
 }
 
 static void jz_gpio_irq_shutdown(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_to_desc(data->irq);
-
 	jz_gpio_irq_mask(data);
-	desc->status |= IRQ_MASKED;
 
 	/* Set direction to input */
 	jz_gpio_set_irq_bit(data, JZ_REG_GPIO_DIRECTION_CLEAR);
@@ -377,10 +369,7 @@ static void jz_gpio_irq_ack(struct irq_data *data)
 static int jz_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 {
 	struct jz_gpio_chip *chip = irq_to_jz_gpio_chip(data);
-	struct irq_desc *desc = irq_to_desc(data->irq);
 	unsigned int irq = data->irq;
-
-	jz_gpio_irq_mask(data);
 
 	if (flow_type == IRQ_TYPE_EDGE_BOTH) {
 		uint32_t value = readl(chip->base + JZ_REG_GPIO_PIN);
@@ -414,9 +403,6 @@ static int jz_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		return -EINVAL;
 	}
 
-	if (!(desc->status & IRQ_MASKED))
-		jz_gpio_irq_unmask(data);
-
 	return 0;
 }
 
@@ -443,6 +429,7 @@ static struct irq_chip jz_gpio_irq_chip = {
 	.irq_shutdown = jz_gpio_irq_shutdown,
 	.irq_set_type = jz_gpio_irq_set_type,
 	.irq_set_wake = jz_gpio_irq_set_wake,
+	.flags = IRQCHIP_SET_TYPE_MASKED,
 };
 
 /*
@@ -527,7 +514,7 @@ static int jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	set_irq_chained_handler(chip->irq, jz_gpio_irq_demux_handler);
 
 	for (irq = chip->irq_base; irq < chip->irq_base + chip->gpio_chip.ngpio; ++irq) {
-		lockdep_set_class(&irq_desc[irq].lock, &gpio_lock_class);
+		irq_set_lockdep_class(irq, &gpio_lock_class);
 		set_irq_chip_data(irq, chip);
 		set_irq_chip_and_handler(irq, &jz_gpio_irq_chip,
 			handle_level_irq);
