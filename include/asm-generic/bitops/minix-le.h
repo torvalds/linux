@@ -1,8 +1,6 @@
 #ifndef _ASM_GENERIC_BITOPS_MINIX_LE_H_
 #define _ASM_GENERIC_BITOPS_MINIX_LE_H_
 
-#include <asm-generic/bitops/le.h>
-
 #define minix_test_and_set_bit(nr,addr)	\
 	__test_and_set_bit_le((nr), (unsigned long *)(addr))
 #define minix_set_bit(nr,addr)		\

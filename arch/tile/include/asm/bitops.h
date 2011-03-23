@@ -122,6 +122,7 @@ static inline unsigned long __arch_hweight64(__u64 w)
 #include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/sched.h>
+#include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-non-atomic.h>
 #include <asm-generic/bitops/minix.h>
 

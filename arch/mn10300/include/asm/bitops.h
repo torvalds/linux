@@ -233,6 +233,7 @@ int ffs(int x)
 #define ext2_clear_bit_atomic(lock, nr, addr) \
 	test_and_clear_bit((nr), (addr))
 
+#include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-non-atomic.h>
 #include <asm-generic/bitops/minix-le.h>
 
