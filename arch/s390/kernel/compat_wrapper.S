@@ -1899,3 +1899,8 @@ compat_sys_clock_adjtime_wrapper:
 	lgfr	%r2,%r2			# clockid_t (int)
 	llgtr	%r3,%r3			# struct compat_timex __user *
 	jg	compat_sys_clock_adjtime
+
+	.globl	sys_syncfs_wrapper
+sys_syncfs_wrapper:
+	lgfr	%r2,%r2			# int
+	jg	sys_syncfs

@@ -346,3 +346,4 @@ SYSCALL(sys_prlimit64,sys_prlimit64,sys_prlimit64_wrapper)
 SYSCALL(sys_name_to_handle_at,sys_name_to_handle_at,sys_name_to_handle_at_wrapper) /* 335 */
 SYSCALL(sys_open_by_handle_at,sys_open_by_handle_at,compat_sys_open_by_handle_at_wrapper)
 SYSCALL(sys_clock_adjtime,sys_clock_adjtime,compat_sys_clock_adjtime_wrapper)
+SYSCALL(sys_syncfs,sys_syncfs,sys_syncfs_wrapper)

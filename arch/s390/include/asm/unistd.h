@@ -275,7 +275,8 @@
 #define __NR_name_to_handle_at	335
 #define __NR_open_by_handle_at	336
 #define __NR_clock_adjtime	337
-#define NR_syscalls 338
+#define __NR_syncfs		338
+#define NR_syscalls 339
 
 /* 
  * There are some system calls that are not present on 64 bit, some
