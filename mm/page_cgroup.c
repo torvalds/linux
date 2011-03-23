@@ -130,7 +130,38 @@ struct page *lookup_cgroup_page(struct page_cgroup *pc)
 	return page;
 }
 
-/* __alloc_bootmem...() is protected by !slab_available() */
+static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+{
+	void *addr = NULL;
+
+	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
+	if (addr)
+		return addr;
+
+	if (node_state(nid, N_HIGH_MEMORY))
+		addr = vmalloc_node(size, nid);
+	else
+		addr = vmalloc(size);
+
+	return addr;
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static void free_page_cgroup(void *addr)
+{
+	if (is_vmalloc_addr(addr)) {
+		vfree(addr);
+	} else {
+		struct page *page = virt_to_page(addr);
+		if (!PageReserved(page)) { /* Is bootmem ? */
+			size_t table_size =
+				sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+			free_pages_exact(addr, table_size);
+		}
+	}
+}
+#endif
+
 static int __init_refok init_section_page_cgroup(unsigned long pfn)
 {
 	struct page_cgroup *base, *pc;
@@ -147,17 +178,8 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
 
 	nid = page_to_nid(pfn_to_page(pfn));
 	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-	VM_BUG_ON(!slab_is_available());
-	if (node_state(nid, N_HIGH_MEMORY)) {
-		base = kmalloc_node(table_size,
-				    GFP_KERNEL | __GFP_NOWARN, nid);
-		if (!base)
-			base = vmalloc_node(table_size, nid);
-	} else {
-		base = kmalloc(table_size, GFP_KERNEL | __GFP_NOWARN);
-		if (!base)
-			base = vmalloc(table_size);
-	}
+	base = alloc_page_cgroup(table_size, nid);
+
 	/*
 	 * The value stored in section->page_cgroup is (base - pfn)
 	 * and it does not point to the memory block allocated above,
@@ -189,16 +211,8 @@ void __free_page_cgroup(unsigned long pfn)
 	if (!ms || !ms->page_cgroup)
 		return;
 	base = ms->page_cgroup + pfn;
-	if (is_vmalloc_addr(base)) {
-		vfree(base);
-		ms->page_cgroup = NULL;
-	} else {
-		struct page *page = virt_to_page(base);
-		if (!PageReserved(page)) { /* Is bootmem ? */
-			kfree(base);
-			ms->page_cgroup = NULL;
-		}
-	}
+	free_page_cgroup(base);
+	ms->page_cgroup = NULL;
 }
 
 int __meminit online_page_cgroup(unsigned long start_pfn,
