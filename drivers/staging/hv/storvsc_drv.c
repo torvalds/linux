@@ -36,6 +36,8 @@
 #include "version_info.h"
 #include "vmbus.h"
 #include "storvsc_api.h"
+#include "vstorage.h"
+#include "channel.h"
 
 
 static const char *g_driver_name = "storvsc";
@@ -227,6 +229,63 @@ static int storvsc_drv_init(void)
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(&drv->driver);
 
+	return ret;
+}
+
+
+int stor_vsc_on_host_reset(struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+	struct storvsc_request_extension *request;
+	struct vstor_packet *vstor_packet;
+	int ret;
+
+	DPRINT_INFO(STORVSC, "resetting host adapter...");
+
+	stor_device = get_stor_device(device);
+	if (!stor_device) {
+		DPRINT_ERR(STORVSC, "unable to get stor device..."
+			   "device being destroyed?");
+		return -1;
+	}
+
+	request = &stor_device->reset_request;
+	vstor_packet = &request->vstor_packet;
+
+	init_waitqueue_head(&request->wait_event);
+
+	vstor_packet->operation = VSTOR_OPERATION_RESET_BUS;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+	vstor_packet->vm_srb.path_id = stor_device->path_id;
+
+	request->wait_condition = 0;
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)&stor_device->reset_request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0) {
+		DPRINT_ERR(STORVSC, "Unable to send reset packet %p ret %d",
+			   vstor_packet, ret);
+		goto cleanup;
+	}
+
+	wait_event_timeout(request->wait_event, request->wait_condition,
+			msecs_to_jiffies(1000));
+	if (request->wait_condition == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+	DPRINT_INFO(STORVSC, "host adapter reset completed");
+
+	/*
+	 * At this point, all outstanding requests in the adapter
+	 * should have been flushed out and return to us
+	 */
+
+cleanup:
+	put_stor_device(device);
 	return ret;
 }
 
