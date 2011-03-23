@@ -132,9 +132,6 @@ struct storvsc_device {
 	unsigned char path_id;
 	unsigned char target_id;
 
-	/* LIST_ENTRY OutstandingRequestList; */
-	/* HANDLE OutstandingRequestLock; */
-
 	/* Used for vsc/vsp channel reset process */
 	struct storvsc_request_extension init_request;
 	struct storvsc_request_extension reset_request;
