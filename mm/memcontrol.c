@@ -2334,7 +2334,7 @@ static int mem_cgroup_move_parent(struct page *page,
 	struct cgroup *pcg = cg->parent;
 	struct mem_cgroup *parent;
 	unsigned int nr_pages;
-	unsigned long flags;
+	unsigned long uninitialized_var(flags);
 	int ret;
 
 	/* Is ROOT ? */
