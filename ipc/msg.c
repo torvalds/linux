@@ -421,7 +421,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			return -EFAULT;
 	}
 
-	ipcp = ipcctl_pre_down(&msg_ids(ns), msqid, cmd,
+	ipcp = ipcctl_pre_down(ns, &msg_ids(ns), msqid, cmd,
 			       &msqid64.msg_perm, msqid64.msg_qbytes);
 	if (IS_ERR(ipcp))
 		return PTR_ERR(ipcp);
@@ -539,7 +539,7 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 			success_return = 0;
 		}
 		err = -EACCES;
-		if (ipcperms(&msq->q_perm, S_IRUGO))
+		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 			goto out_unlock;
 
 		err = security_msg_queue_msgctl(msq, cmd);
@@ -664,7 +664,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		struct msg_sender s;
 
 		err = -EACCES;
-		if (ipcperms(&msq->q_perm, S_IWUGO))
+		if (ipcperms(ns, &msq->q_perm, S_IWUGO))
 			goto out_unlock_free;
 
 		err = security_msg_queue_msgsnd(msq, msg, msgflg);
@@ -774,7 +774,7 @@ long do_msgrcv(int msqid, long *pmtype, void __user *mtext,
 		struct list_head *tmp;
 
 		msg = ERR_PTR(-EACCES);
-		if (ipcperms(&msq->q_perm, S_IRUGO))
+		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 			goto out_unlock;
 
 		msg = ERR_PTR(-EAGAIN);

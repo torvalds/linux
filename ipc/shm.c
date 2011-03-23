@@ -623,7 +623,8 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 			return -EFAULT;
 	}
 
-	ipcp = ipcctl_pre_down(&shm_ids(ns), shmid, cmd, &shmid64.shm_perm, 0);
+	ipcp = ipcctl_pre_down(ns, &shm_ids(ns), shmid, cmd,
+			       &shmid64.shm_perm, 0);
 	if (IS_ERR(ipcp))
 		return PTR_ERR(ipcp);
 
@@ -737,7 +738,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 			result = 0;
 		}
 		err = -EACCES;
-		if (ipcperms (&shp->shm_perm, S_IRUGO))
+		if (ipcperms(ns, &shp->shm_perm, S_IRUGO))
 			goto out_unlock;
 		err = security_shm_shmctl(shp, cmd);
 		if (err)
@@ -773,7 +774,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 
 		audit_ipc_obj(&(shp->shm_perm));
 
-		if (!capable(CAP_IPC_LOCK)) {
+		if (!ns_capable(ns->user_ns, CAP_IPC_LOCK)) {
 			uid_t euid = current_euid();
 			err = -EPERM;
 			if (euid != shp->shm_perm.uid &&
@@ -888,7 +889,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	}
 
 	err = -EACCES;
-	if (ipcperms(&shp->shm_perm, acc_mode))
+	if (ipcperms(ns, &shp->shm_perm, acc_mode))
 		goto out_unlock;
 
 	err = security_shm_shmat(shp, shmaddr, shmflg);
