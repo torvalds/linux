@@ -1775,7 +1775,10 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 /*
  * task->group_stop flags
  */
+#define GROUP_STOP_PENDING	(1 << 16) /* task should stop for group stop */
 #define GROUP_STOP_CONSUME	(1 << 17) /* consume group stop count */
+
+extern void task_clear_group_stop_pending(struct task_struct *task);
 
 #ifdef CONFIG_PREEMPT_RCU
 

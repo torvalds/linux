@@ -124,7 +124,7 @@ static inline int has_pending_signals(sigset_t *signal, sigset_t *blocked)
 
 static int recalc_sigpending_tsk(struct task_struct *t)
 {
-	if (t->signal->group_stop_count > 0 ||
+	if ((t->group_stop & GROUP_STOP_PENDING) ||
 	    PENDING(&t->pending, &t->blocked) ||
 	    PENDING(&t->signal->shared_pending, &t->blocked)) {
 		set_tsk_thread_flag(t, TIF_SIGPENDING);
@@ -232,19 +232,19 @@ static inline void print_dropped_signal(int sig)
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
-static void task_clear_group_stop_pending(struct task_struct *task)
+void task_clear_group_stop_pending(struct task_struct *task)
 {
-	task->group_stop &= ~GROUP_STOP_CONSUME;
+	task->group_stop &= ~(GROUP_STOP_PENDING | GROUP_STOP_CONSUME);
 }
 
 /**
  * task_participate_group_stop - participate in a group stop
  * @task: task participating in a group stop
  *
- * @task is participating in a group stop.  Group stop states are cleared
- * and the group stop count is consumed if %GROUP_STOP_CONSUME was set.  If
- * the consumption completes the group stop, the appropriate %SIGNAL_*
- * flags are set.
+ * @task has GROUP_STOP_PENDING set and is participating in a group stop.
+ * Group stop states are cleared and the group stop count is consumed if
+ * %GROUP_STOP_CONSUME was set.  If the consumption completes the group
+ * stop, the appropriate %SIGNAL_* flags are set.
  *
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
@@ -253,6 +253,8 @@ static bool task_participate_group_stop(struct task_struct *task)
 {
 	struct signal_struct *sig = task->signal;
 	bool consume = task->group_stop & GROUP_STOP_CONSUME;
+
+	WARN_ON_ONCE(!(task->group_stop & GROUP_STOP_PENDING));
 
 	task_clear_group_stop_pending(task);
 
@@ -765,6 +767,9 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 		t = p;
 		do {
 			unsigned int state;
+
+			task_clear_group_stop_pending(t);
+
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
 			/*
 			 * If there is a handler for SIGCONT, we must make
@@ -906,6 +911,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 			signal->group_stop_count = 0;
 			t = p;
 			do {
+				task_clear_group_stop_pending(t);
 				sigaddset(&t->pending.signal, SIGKILL);
 				signal_wake_up(t, 1);
 			} while_each_thread(p, t);
@@ -1139,6 +1145,7 @@ int zap_other_threads(struct task_struct *p)
 	p->signal->group_stop_count = 0;
 
 	while_each_thread(p, t) {
+		task_clear_group_stop_pending(t);
 		count++;
 
 		/* Don't bother with already dead threads */
@@ -1690,7 +1697,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	 * If there is a group stop in progress,
 	 * we must participate in the bookkeeping.
 	 */
-	if (current->signal->group_stop_count > 0)
+	if (current->group_stop & GROUP_STOP_PENDING)
 		task_participate_group_stop(current);
 
 	current->last_siginfo = info;
@@ -1775,8 +1782,8 @@ static int do_signal_stop(int signr)
 	struct signal_struct *sig = current->signal;
 	int notify = 0;
 
-	if (!sig->group_stop_count) {
-		unsigned int gstop = GROUP_STOP_CONSUME;
+	if (!(current->group_stop & GROUP_STOP_PENDING)) {
+		unsigned int gstop = GROUP_STOP_PENDING | GROUP_STOP_CONSUME;
 		struct task_struct *t;
 
 		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
@@ -1796,8 +1803,7 @@ static int do_signal_stop(int signr)
 			 * stop is always done with the siglock held,
 			 * so this check has no races.
 			 */
-			if (!(t->flags & PF_EXITING) &&
-			    !task_is_stopped_or_traced(t)) {
+			if (!(t->flags & PF_EXITING) && !task_is_stopped(t)) {
 				t->group_stop = gstop;
 				sig->group_stop_count++;
 				signal_wake_up(t, 0);
@@ -1926,8 +1932,8 @@ relock:
 		if (unlikely(signr != 0))
 			ka = return_ka;
 		else {
-			if (unlikely(signal->group_stop_count > 0) &&
-			    do_signal_stop(0))
+			if (unlikely(current->group_stop &
+				     GROUP_STOP_PENDING) && do_signal_stop(0))
 				goto relock;
 
 			signr = dequeue_signal(current, &current->blocked,
@@ -2073,7 +2079,7 @@ void exit_signals(struct task_struct *tsk)
 		if (!signal_pending(t) && !(t->flags & PF_EXITING))
 			recalc_sigpending_and_wake(t);
 
-	if (unlikely(tsk->signal->group_stop_count) &&
+	if (unlikely(tsk->group_stop & GROUP_STOP_PENDING) &&
 	    task_participate_group_stop(tsk))
 		group_stop = CLD_STOPPED;
 out:
