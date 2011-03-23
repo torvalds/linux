@@ -1080,7 +1080,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		if (unlikely(!PageCgroupUsed(pc)))
 			continue;
 
-		page = pc->page;
+		page = lookup_cgroup_page(pc);
 
 		if (unlikely(!PageLRU(page)))
 			continue;
@@ -3344,7 +3344,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *mem,
 		}
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 
-		page = pc->page;
+		page = lookup_cgroup_page(pc);
 
 		ret = mem_cgroup_move_parent(page, pc, mem, GFP_KERNEL);
 		if (ret == -ENOMEM)
