@@ -1409,6 +1409,42 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active)
 
 }
 
+static void set_primary_pll_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x20;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x2D, value, 0x30);
+}
+
+static void set_secondary_pll_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x08;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x2D, value, 0x08);
+}
+
 static u32 cle266_encode_pll(struct pll_config pll)
 {
 	return (pll.multiplier << 8)
@@ -1492,6 +1528,58 @@ static void k800_set_secondary_pll(struct pll_config config)
 static void vx855_set_secondary_pll(struct pll_config config)
 {
 	k800_set_secondary_pll_encoded(vx855_encode_pll(config));
+}
+
+enum via_clksrc {
+	VIA_CLKSRC_X1 = 0,
+	VIA_CLKSRC_TVX1,
+	VIA_CLKSRC_TVPLL,
+	VIA_CLKSRC_DVP1TVCLKR,
+	VIA_CLKSRC_CAP0,
+	VIA_CLKSRC_CAP1,
+};
+
+static inline u8 set_clock_source_common(enum via_clksrc source, bool use_pll)
+{
+	u8 data = 0;
+
+	switch (source) {
+	case VIA_CLKSRC_X1:
+		data = 0x00;
+		break;
+	case VIA_CLKSRC_TVX1:
+		data = 0x02;
+		break;
+	case VIA_CLKSRC_TVPLL:
+		data = 0x04; /* 0x06 should be the same */
+		break;
+	case VIA_CLKSRC_DVP1TVCLKR:
+		data = 0x0A;
+		break;
+	case VIA_CLKSRC_CAP0:
+		data = 0xC;
+		break;
+	case VIA_CLKSRC_CAP1:
+		data = 0x0E;
+		break;
+	}
+
+	if (!use_pll)
+		data |= 1;
+
+	return data;
+}
+
+static void set_primary_clock_source(enum via_clksrc source, bool use_pll)
+{
+	u8 data = set_clock_source_common(source, use_pll) << 4;
+	via_write_reg_mask(VIACR, 0x6C, data, 0xF0);
+}
+
+static void set_secondary_clock_source(enum via_clksrc source, bool use_pll)
+{
+	u8 data = set_clock_source_common(source, use_pll);
+	via_write_reg_mask(VIACR, 0x6C, data, 0x0F);
 }
 
 static inline u32 get_pll_internal_frequency(u32 ref_freq,
