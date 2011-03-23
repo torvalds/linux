@@ -385,10 +385,6 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 		data->inode->i_ino, sync, (size_t) data->args.count, offset,
 		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
 
-	/* We can't handle commit to ds yet */
-	if (!FILELAYOUT_LSEG(lseg)->commit_through_mds)
-		data->args.stable = NFS_FILE_SYNC;
-
 	data->write_done_cb = filelayout_write_done_cb;
 	data->ds_clp = ds->ds_clp;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
