@@ -2475,7 +2475,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 
 	/* shmem */
 	if (PageSwapCache(page)) {
-		struct mem_cgroup *mem = NULL;
+		struct mem_cgroup *mem;
 
 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
 		if (!ret)
@@ -2500,6 +2500,8 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 {
 	struct mem_cgroup *mem;
 	int ret;
+
+	*ptr = NULL;
 
 	if (mem_cgroup_disabled())
 		return 0;
@@ -2916,6 +2918,8 @@ int mem_cgroup_prepare_migration(struct page *page,
 	enum charge_type ctype;
 	int ret = 0;
 
+	*ptr = NULL;
+
 	VM_BUG_ON(PageTransHuge(page));
 	if (mem_cgroup_disabled())
 		return 0;
@@ -3058,7 +3062,7 @@ int mem_cgroup_shmem_charge_fallback(struct page *page,
 			    struct mm_struct *mm,
 			    gfp_t gfp_mask)
 {
-	struct mem_cgroup *mem = NULL;
+	struct mem_cgroup *mem;
 	int ret;
 
 	if (mem_cgroup_disabled())
