@@ -90,7 +90,6 @@ static inline unsigned int __arch_hweight8(unsigned int w)
 #ifdef __KERNEL__
 
 #include <asm-generic/bitops/le.h>
-#include <asm-generic/bitops/ext2-non-atomic.h>
 
 #define ext2_set_bit_atomic(lock,nr,addr) \
 	test_and_set_bit((nr) ^ 0x38,(unsigned long *)(addr))

@@ -339,18 +339,11 @@ static inline int find_next_bit_le(const void *p, int size, int offset)
 
 /*
  * Ext2 is defined to use little-endian byte ordering.
- * These do not need to be atomic.
  */
-#define ext2_set_bit __test_and_set_bit_le
 #define ext2_set_bit_atomic(lock, nr, p)	\
 		test_and_set_bit_le(nr, p)
-#define ext2_clear_bit __test_and_clear_bit_le
 #define ext2_clear_bit_atomic(lock, nr, p)	\
 		test_and_clear_bit_le(nr, p)
-#define ext2_test_bit test_bit_le
-#define ext2_find_first_zero_bit find_first_zero_bit_le
-#define ext2_find_next_zero_bit find_next_zero_bit_le
-#define ext2_find_next_bit find_next_bit_le
 
 /*
  * Minix is defined to use little-endian byte ordering.

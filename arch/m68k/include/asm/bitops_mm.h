@@ -490,17 +490,10 @@ static inline unsigned long find_next_bit_le(const void *addr,
 
 /* Bitmap functions for the ext2 filesystem. */
 
-#define ext2_set_bit __test_and_set_bit_le
 #define ext2_set_bit_atomic(lock, nr, addr)	\
 	test_and_set_bit_le(nr, addr)
-#define ext2_clear_bit __test_and_clear_bit_le
 #define ext2_clear_bit_atomic(lock, nr, addr)	\
 	test_and_clear_bit_le(nr, addr)
-#define ext2_find_next_zero_bit find_next_zero_bit_le
-#define ext2_find_next_bit find_next_bit_le
-#define ext2_test_bit test_bit_le
-#define ext2_find_first_zero_bit find_first_zero_bit_le
-#define ext2_find_first_bit find_first_bit_le
 
 #endif /* __KERNEL__ */
 

@@ -155,7 +155,6 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 #include <asm-generic/bitops/lock.h>
 
 #include <asm-generic/bitops/le.h>
-#include <asm-generic/bitops/ext2-non-atomic.h>
 
 #define ext2_set_bit_atomic(l,n,a)   test_and_set_bit(n,a)
 #define ext2_clear_bit_atomic(l,n,a) test_and_clear_bit(n,a)

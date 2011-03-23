@@ -107,7 +107,6 @@ static inline unsigned long __fls(unsigned long word)
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/le.h>
-#include <asm-generic/bitops/ext2-non-atomic.h>
 
 #ifdef __XTENSA_EL__
 # define ext2_set_bit_atomic(lock,nr,addr)				\
