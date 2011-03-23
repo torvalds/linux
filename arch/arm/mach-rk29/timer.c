@@ -95,9 +95,12 @@ static void rk29_timer_set_mode(enum clock_event_mode mode, struct clock_event_d
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		RK_TIMER_DISABLE(TIMER_CLKEVT);
-		RK_TIMER_SETCOUNT(TIMER_CLKEVT, 24000000/HZ - 1);
-		RK_TIMER_ENABLE(TIMER_CLKEVT);
+		do {
+			RK_TIMER_DISABLE(TIMER_CLKEVT);
+			RK_TIMER_SETCOUNT(TIMER_CLKEVT, 24000000/HZ - 1);
+			RK_TIMER_ENABLE(TIMER_CLKEVT);
+		} while (RK_TIMER_READVALUE(TIMER_CLKEVT) > (24000000/HZ - 1));
+		break;
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
