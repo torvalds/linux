@@ -155,7 +155,7 @@ static int blk_vsc_on_device_add(struct hv_device *device,
 }
 
 
-int blk_vsc_initialize(struct hv_driver *driver)
+static int blk_vsc_initialize(struct hv_driver *driver)
 {
 	struct storvsc_driver_object *stor_driver;
 	int ret = 0;
@@ -244,7 +244,7 @@ static const struct block_device_operations block_ops = {
 /*
  * blkvsc_drv_init -  BlkVsc driver initialization.
  */
-static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
+static int blkvsc_drv_init(void)
 {
 	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv;
 	struct hv_driver *drv = &g_blkvsc_drv.base;
@@ -255,7 +255,7 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	drv->priv = storvsc_drv_obj;
 
 	/* Callback to client driver to complete the initialization */
-	drv_init(&storvsc_drv_obj->base);
+	blk_vsc_initialize(&storvsc_drv_obj->base);
 
 	drv->driver.name = storvsc_drv_obj->base.name;
 
@@ -1555,7 +1555,7 @@ static int __init blkvsc_init(void)
 
 	DPRINT_INFO(BLKVSC_DRV, "Blkvsc initializing....");
 
-	ret = blkvsc_drv_init(blk_vsc_initialize);
+	ret = blkvsc_drv_init();
 
 	return ret;
 }

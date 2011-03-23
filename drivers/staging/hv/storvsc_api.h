@@ -139,7 +139,6 @@ struct storvsc_device {
 
 /* Interface */
 int stor_vsc_on_host_reset(struct hv_device *device);
-int blk_vsc_initialize(struct hv_driver *driver);
 
 int stor_vsc_on_device_add(struct hv_device *device,
 				void *additional_info);
