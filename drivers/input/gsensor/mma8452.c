@@ -645,7 +645,8 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	/* z-axis acceleration */
 	input_set_abs_params(mma8452->input_dev, ABS_Z, -20000, 20000, 0, 0); //2g full scale range
 
-	mma8452->input_dev->name = "compass";
+	// mma8452->input_dev->name = "compass";
+	mma8452->input_dev->name = "gsensor";
 	mma8452->input_dev->dev.parent = &client->dev;
 
 	err = input_register_device(mma8452->input_dev);
