@@ -305,10 +305,10 @@ static __inline__ int test_le_bit(unsigned long nr,
 
 #define find_first_zero_bit_le(addr, size) \
 	find_next_zero_bit_le((addr), (size), 0)
-unsigned long find_next_zero_bit_le(const unsigned long *addr,
+unsigned long find_next_zero_bit_le(const void *addr,
 				    unsigned long size, unsigned long offset);
 
-unsigned long find_next_bit_le(const unsigned long *addr,
+unsigned long find_next_bit_le(const void *addr,
 				    unsigned long size, unsigned long offset);
 /* Bitmap functions for the ext2 filesystem */
 
