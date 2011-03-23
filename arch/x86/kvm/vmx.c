@@ -3532,11 +3532,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 		switch (type) {
 		case INTR_TYPE_NMI_INTR:
 			vcpu->arch.nmi_injected = false;
-			if (cpu_has_virtual_nmis()) {
-				vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
-					      GUEST_INTR_STATE_NMI);
-				vmx->nmi_known_unmasked = false;
-			}
+			vmx_set_nmi_mask(vcpu, true);
 			break;
 		case INTR_TYPE_EXT_INTR:
 		case INTR_TYPE_SOFT_INTR:
@@ -3991,9 +3987,7 @@ static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
 		 * Clear bit "block by NMI" before VM entry if a NMI
 		 * delivery faulted.
 		 */
-		vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
-				GUEST_INTR_STATE_NMI);
-		vmx->nmi_known_unmasked = true;
+		vmx_set_nmi_mask(&vmx->vcpu, false);
 		break;
 	case INTR_TYPE_SOFT_EXCEPTION:
 		vmx->vcpu.arch.event_exit_inst_len =
