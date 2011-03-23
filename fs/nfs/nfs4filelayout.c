@@ -496,6 +496,16 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 	return 0;
 }
 
+static void
+filelayout_free_lseg(struct pnfs_layout_segment *lseg)
+{
+	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
+
+	dprintk("--> %s\n", __func__);
+	nfs4_fl_put_deviceid(fl->dsaddr);
+	_filelayout_free_lseg(fl);
+}
+
 static struct pnfs_layout_segment *
 filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 		      struct nfs4_layoutget_res *lgr)
@@ -515,16 +525,6 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 		return NULL;
 	}
 	return &fl->generic_hdr;
-}
-
-static void
-filelayout_free_lseg(struct pnfs_layout_segment *lseg)
-{
-	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
-
-	dprintk("--> %s\n", __func__);
-	nfs4_fl_put_deviceid(fl->dsaddr);
-	_filelayout_free_lseg(fl);
 }
 
 /*
