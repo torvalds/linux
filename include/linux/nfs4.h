@@ -570,9 +570,11 @@ struct nfs4_sessionid {
 };
 
 /* Create Session Flags */
-#define SESSION4_PERSIST	 0x001
-#define SESSION4_BACK_CHAN 	 0x002
-#define SESSION4_RDMA		 0x004
+#define SESSION4_PERSIST	0x001
+#define SESSION4_BACK_CHAN	0x002
+#define SESSION4_RDMA		0x004
+
+#define SESSION4_FLAG_MASK_A	0x007
 
 enum state_protect_how4 {
 	SP4_NONE	= 0,

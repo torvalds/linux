@@ -1515,6 +1515,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	bool confirm_me = false;
 	int status = 0;
 
+	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
+		return nfserr_inval;
+
 	nfs4_lock_state();
 	unconf = find_unconfirmed_client(&cr_ses->clientid);
 	conf = find_confirmed_client(&cr_ses->clientid);
