@@ -1432,6 +1432,14 @@ int fsl_rio_setup(struct platform_device *dev)
 	port->iores.flags = IORESOURCE_MEM;
 	port->iores.name = "rio_io_win";
 
+	if (request_resource(&iomem_resource, &port->iores) < 0) {
+		dev_err(&dev->dev, "RIO: Error requesting master port region"
+			" 0x%016llx-0x%016llx\n",
+			(u64)port->iores.start, (u64)port->iores.end);
+			rc = -ENOMEM;
+			goto err_res;
+	}
+
 	priv->pwirq   = irq_of_parse_and_map(dev->dev.of_node, 0);
 	priv->bellirq = irq_of_parse_and_map(dev->dev.of_node, 2);
 	priv->txirq = irq_of_parse_and_map(dev->dev.of_node, 3);
@@ -1536,6 +1544,7 @@ int fsl_rio_setup(struct platform_device *dev)
 	return 0;
 err:
 	iounmap(priv->regs_win);
+err_res:
 	kfree(priv);
 err_priv:
 	kfree(port);

@@ -1137,20 +1137,9 @@ static int __devinit rio_init(void)
 
 int __devinit rio_init_mports(void)
 {
-	int rc = 0;
 	struct rio_mport *port;
 
 	list_for_each_entry(port, &rio_mports, node) {
-		if (!request_mem_region(port->iores.start,
-					resource_size(&port->iores),
-					port->name)) {
-			printk(KERN_ERR
-			       "RIO: Error requesting master port region 0x%016llx-0x%016llx\n",
-			       (u64)port->iores.start, (u64)port->iores.end);
-			rc = -ENOMEM;
-			goto out;
-		}
-
 		if (port->host_deviceid >= 0)
 			rio_enum_mport(port);
 		else
@@ -1159,8 +1148,7 @@ int __devinit rio_init_mports(void)
 
 	rio_init();
 
-      out:
-	return rc;
+	return 0;
 }
 
 device_initcall_sync(rio_init_mports);
