@@ -156,33 +156,24 @@ static struct pci_controller sni_pcit_controller = {
 	.io_map_base    = SNI_PORT_BASE
 };
 
-static void enable_pcit_irq(unsigned int irq)
+static void enable_pcit_irq(struct irq_data *d)
 {
-	u32 mask = 1 << (irq - SNI_PCIT_INT_START + 24);
+	u32 mask = 1 << (d->irq - SNI_PCIT_INT_START + 24);
 
 	*(volatile u32 *)SNI_PCIT_INT_REG |= mask;
 }
 
-void disable_pcit_irq(unsigned int irq)
+void disable_pcit_irq(struct irq_data *d)
 {
-	u32 mask = 1 << (irq - SNI_PCIT_INT_START + 24);
+	u32 mask = 1 << (d->irq - SNI_PCIT_INT_START + 24);
 
 	*(volatile u32 *)SNI_PCIT_INT_REG &= ~mask;
 }
 
-void end_pcit_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_pcit_irq(irq);
-}
-
 static struct irq_chip pcit_irq_type = {
 	.name = "PCIT",
-	.ack = disable_pcit_irq,
-	.mask = disable_pcit_irq,
-	.mask_ack = disable_pcit_irq,
-	.unmask = enable_pcit_irq,
-	.end = end_pcit_irq,
+	.irq_mask = disable_pcit_irq,
+	.irq_unmask = enable_pcit_irq,
 };
 
 static void pcit_hwint1(void)
