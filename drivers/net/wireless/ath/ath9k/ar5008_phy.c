@@ -44,6 +44,34 @@ static const int m1ThreshExt_off = 127;
 static const int m2ThreshExt_off = 127;
 
 
+static void ar5008_rf_bank_setup(u32 *bank, struct ar5416IniArray *array,
+				 int col)
+{
+	int i;
+
+	for (i = 0; i < array->ia_rows; i++)
+		bank[i] = INI_RA(array, i, col);
+}
+
+
+#define REG_WRITE_RF_ARRAY(iniarray, regData, regWr) \
+	ar5008_write_rf_array(ah, iniarray, regData, &(regWr))
+
+static void ar5008_write_rf_array(struct ath_hw *ah, struct ar5416IniArray *array,
+				  u32 *data, unsigned int *writecnt)
+{
+	int r;
+
+	ENABLE_REGWRITE_BUFFER(ah);
+
+	for (r = 0; r < array->ia_rows; r++) {
+		REG_WRITE(ah, INI_RA(array, r, 0), data[r]);
+		DO_DELAY(*writecnt);
+	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+}
+
 /**
  * ar5008_hw_phy_modify_rx_buffer() - perform analog swizzling of parameters
  * @rfbuf:
@@ -530,16 +558,16 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 	eepMinorRev = ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV);
 
 	/* Setup Bank 0 Write */
-	RF_BANK_SETUP(ah->analogBank0Data, &ah->iniBank0, 1);
+	ar5008_rf_bank_setup(ah->analogBank0Data, &ah->iniBank0, 1);
 
 	/* Setup Bank 1 Write */
-	RF_BANK_SETUP(ah->analogBank1Data, &ah->iniBank1, 1);
+	ar5008_rf_bank_setup(ah->analogBank1Data, &ah->iniBank1, 1);
 
 	/* Setup Bank 2 Write */
-	RF_BANK_SETUP(ah->analogBank2Data, &ah->iniBank2, 1);
+	ar5008_rf_bank_setup(ah->analogBank2Data, &ah->iniBank2, 1);
 
 	/* Setup Bank 6 Write */
-	RF_BANK_SETUP(ah->analogBank3Data, &ah->iniBank3,
+	ar5008_rf_bank_setup(ah->analogBank3Data, &ah->iniBank3,
 		      modesIndex);
 	{
 		int i;
@@ -569,7 +597,7 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 	}
 
 	/* Setup Bank 7 Setup */
-	RF_BANK_SETUP(ah->analogBank7Data, &ah->iniBank7, 1);
+	ar5008_rf_bank_setup(ah->analogBank7Data, &ah->iniBank7, 1);
 
 	/* Write Analog registers */
 	REG_WRITE_RF_ARRAY(&ah->iniBank0, ah->analogBank0Data,

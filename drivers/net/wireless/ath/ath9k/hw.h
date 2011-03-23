@@ -106,16 +106,8 @@
 			udelay(1);				\
 	} while (0)
 
-#define REG_WRITE_ARRAY(iniarray, column, regWr) do {                   \
-		int r;							\
-		ENABLE_REGWRITE_BUFFER(ah);				\
-		for (r = 0; r < ((iniarray)->ia_rows); r++) {		\
-			REG_WRITE(ah, INI_RA((iniarray), (r), 0),	\
-				  INI_RA((iniarray), r, (column)));	\
-			DO_DELAY(regWr);				\
-		}							\
-		REGWRITE_BUFFER_FLUSH(ah);				\
-	} while (0)
+#define REG_WRITE_ARRAY(iniarray, column, regWr) \
+	ath9k_hw_write_array(ah, iniarray, column, &(regWr))
 
 #define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
@@ -913,6 +905,8 @@ void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
+void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+			  int column, unsigned int *writecnt);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,

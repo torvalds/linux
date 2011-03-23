@@ -130,6 +130,20 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
 }
 EXPORT_SYMBOL(ath9k_hw_wait);
 
+void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+			  int column, unsigned int *writecnt)
+{
+	int r;
+
+	ENABLE_REGWRITE_BUFFER(ah);
+	for (r = 0; r < array->ia_rows; r++) {
+		REG_WRITE(ah, INI_RA(array, r, 0),
+			  INI_RA(array, r, column));
+		DO_DELAY(*writecnt);
+	}
+	REGWRITE_BUFFER_FLUSH(ah);
+}
+
 u32 ath9k_hw_reverse_bits(u32 val, u32 n)
 {
 	u32 retval;
