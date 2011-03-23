@@ -117,18 +117,6 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/rbtx4927.h>
 
-static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq);
-static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq);
-
-#define TOSHIBA_RBTX4927_IOC_NAME "RBTX4927-IOC"
-static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
-	.name = TOSHIBA_RBTX4927_IOC_NAME,
-	.ack = toshiba_rbtx4927_irq_ioc_disable,
-	.mask = toshiba_rbtx4927_irq_ioc_disable,
-	.mask_ack = toshiba_rbtx4927_irq_ioc_disable,
-	.unmask = toshiba_rbtx4927_irq_ioc_enable,
-};
-
 static int toshiba_rbtx4927_irq_nested(int sw_irq)
 {
 	u8 level3;
@@ -138,6 +126,32 @@ static int toshiba_rbtx4927_irq_nested(int sw_irq)
 		return -1;
 	return RBTX4927_IRQ_IOC + __fls8(level3);
 }
+
+static void toshiba_rbtx4927_irq_ioc_enable(struct irq_data *d)
+{
+	unsigned char v;
+
+	v = readb(rbtx4927_imask_addr);
+	v |= (1 << (d->irq - RBTX4927_IRQ_IOC));
+	writeb(v, rbtx4927_imask_addr);
+}
+
+static void toshiba_rbtx4927_irq_ioc_disable(struct irq_data *d)
+{
+	unsigned char v;
+
+	v = readb(rbtx4927_imask_addr);
+	v &= ~(1 << (d->irq - RBTX4927_IRQ_IOC));
+	writeb(v, rbtx4927_imask_addr);
+	mmiowb();
+}
+
+#define TOSHIBA_RBTX4927_IOC_NAME "RBTX4927-IOC"
+static struct irq_chip toshiba_rbtx4927_irq_ioc_type = {
+	.name = TOSHIBA_RBTX4927_IOC_NAME,
+	.irq_mask = toshiba_rbtx4927_irq_ioc_disable,
+	.irq_unmask = toshiba_rbtx4927_irq_ioc_enable,
+};
 
 static void __init toshiba_rbtx4927_irq_ioc_init(void)
 {
@@ -154,26 +168,6 @@ static void __init toshiba_rbtx4927_irq_ioc_init(void)
 					 handle_level_irq);
 	set_irq_chained_handler(RBTX4927_IRQ_IOCINT, handle_simple_irq);
 }
-
-static void toshiba_rbtx4927_irq_ioc_enable(unsigned int irq)
-{
-	unsigned char v;
-
-	v = readb(rbtx4927_imask_addr);
-	v |= (1 << (irq - RBTX4927_IRQ_IOC));
-	writeb(v, rbtx4927_imask_addr);
-}
-
-static void toshiba_rbtx4927_irq_ioc_disable(unsigned int irq)
-{
-	unsigned char v;
-
-	v = readb(rbtx4927_imask_addr);
-	v &= ~(1 << (irq - RBTX4927_IRQ_IOC));
-	writeb(v, rbtx4927_imask_addr);
-	mmiowb();
-}
-
 
 static int rbtx4927_irq_dispatch(int pending)
 {
