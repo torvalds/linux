@@ -131,9 +131,9 @@ struct rk29_nand_platform_data rk29_nand_data = {
  * author: zyw@rock-chips.com
  *****************************************************************************************/
 //#ifdef  CONFIG_LCD_TD043MGEA1
-#define LCD_TXD_PIN          INVALID_GPIO
-#define LCD_CLK_PIN          INVALID_GPIO
-#define LCD_CS_PIN           INVALID_GPIO
+#define LCD_TXD_PIN          RK29_PIN2_PC6
+#define LCD_CLK_PIN          RK29_PIN2_PC4
+#define LCD_CS_PIN           RK29_PIN2_PC5
 /*****************************************************************************************
 * frame buffer  devices
 * author: zyw@rock-chips.com
@@ -150,14 +150,20 @@ struct rk29_nand_platform_data rk29_nand_data = {
 //#endif
 static int rk29_lcd_io_init(void)
 {
-    int ret = 0;
-    return ret;
+	int ret = 0;
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME, GPIO2H_GPIO2C6); 
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME, GPIO2H_GPIO2C5); 
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME, GPIO2H_GPIO2C4); 	
+	return ret;
 }
 
 static int rk29_lcd_io_deinit(void)
 {
-    int ret = 0;
-    return ret;
+	int ret = 0;
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME, GPIO2H_SPI1_TXD); 
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME, GPIO2H_SPI1_CSN0); 
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME, GPIO2H_SPI1_CLK); 
+	return ret;
 }
 
 static struct rk29lcd_info rk29_lcd_info = {

@@ -135,6 +135,12 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	uint32_t post_scale_target_w, post_scale_target_h;
 	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
 	uint32_t ret = 0;
+
+	if (drvdata == NULL) {			/* ddl@rock-chips.com : check driver is normal or not */
+		printk(KERN_ERR, "%s drvdata is NULL, IPP driver probe is fail!!\n", __FUNCTION__);
+		return -EPERM;
+	}
+
 	rotate = req->flag;
 	switch (rotate) {
 	case IPP_ROT_90:
@@ -928,7 +934,7 @@ static void __exit rk29_ipp_exit(void)
 	platform_driver_unregister(&rk29_ipp_driver);
 }
 
-module_init_sync(rk29_ipp_init);
+device_initcall_sync(rk29_ipp_init);
 module_exit(rk29_ipp_exit);
 
 /* Module information */

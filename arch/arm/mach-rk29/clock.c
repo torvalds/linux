@@ -1702,7 +1702,7 @@ GATE_CLK(hclk_emmc, hclk_periph, HCLK_EMMC);
 static int pd_vcodec_mode(struct clk *clk, int on)
 {
 	if (on) {
-		u32 gate, gate2;
+		u32 gate;
 
 		gate = cru_clkgate3_con_mirror;
 		gate |= (1 << CLK_GATE_ACLK_DDR_VEPU % 32);
@@ -2295,7 +2295,7 @@ static int clk_register(struct clk *clk)
 	return 0;
 }
 
-static unsigned int __initdata armclk = 600 * MHZ;
+static unsigned int __initdata armclk = 300 * MHZ;
 
 /*
  * You can override arm_clk rate with armclk= cmdline option.

@@ -20,4 +20,5 @@ obj-$(CONFIG_LCD_HX8357) += lcd_hx8357.o
 obj-$(CONFIG_LCD_HSD100PXN) += lcd_hsd100pxn.o
 obj-$(CONFIG_LCD_B101AW06) += lcd_B101AW06.o
 obj-$(CONFIG_LCD_ANX7150_720P) += lcd_anx7150_720p.o
+obj-$(CONFIG_LCD_ILI9803_CPT4_3) += lcd_ili9803_cpt4_3.o
 

@@ -3394,7 +3394,7 @@ static int sensor_deactivate(struct i2c_client *client)
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_task_lock(client, 1);
-
+	sensor_ioctrl(icd, Sensor_PowerDown, 1);
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
@@ -4463,11 +4463,11 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 
     icd->formats = sensor_colour_formats;
     icd->num_formats = ARRAY_SIZE(sensor_colour_formats);
-	sensor_ioctrl(icd, Sensor_PowerDown, 1);
+
     return 0;
 
 sensor_video_probe_err:
-	sensor_ioctrl(icd, Sensor_PowerDown, 1);
+
     return ret;
 }
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)

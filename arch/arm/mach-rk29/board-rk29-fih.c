@@ -43,6 +43,7 @@
 #include <mach/rk29_nand.h>
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
+#include <linux/leds-att1272.h>							/* ddl@rock-chips.com: camera flash led support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 
@@ -67,7 +68,7 @@
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       0x01300000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
-#define MEM_CAMIPP_SIZE     SZ_4M
+#define MEM_CAMIPP_SIZE     SZ_8M
 #else
 #define MEM_CAMIPP_SIZE     0
 #endif
@@ -826,7 +827,14 @@ struct tps65910_platform_data rk29_tps65910_data = {
 };
 #endif /* CONFIG_TPS65910_CORE */
 
-
+/* ddl@rock-chips.com: camera flash led support */
+#if CONFIG_LEDS_ATT1272
+struct att1272_led_platform_data rk29_att1272_led_data = {
+	.name = "camera_flash_led",
+	.en_gpio = RK29_PIN1_PB0,
+	.flen_gpio = RK29_PIN1_PB1,
+};
+#endif
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -1004,6 +1012,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
       //.platform_data  = &p1003_info,
     },
 #endif
+
+#if defined (CONFIG_LEDS_ATT1272)
+    {
+		.type           = "att1272",
+        .addr           = 0x37,
+        .flags          = 0,
+        .platform_data  = &rk29_att1272_led_data,
+    },
+#endif
 };
 #endif
 
@@ -1050,7 +1067,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
 #define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_MT9P111         /* back camera sensor */
-#define SENSOR_IIC_ADDR_0 	    0x00
+#define SENSOR_IIC_ADDR_0 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
@@ -1062,7 +1079,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
 #define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_S5K6AA          /* front camera sensor */
-#define SENSOR_IIC_ADDR_1 	    0x78
+#define SENSOR_IIC_ADDR_1 	    0x00
 #define SENSOR_IIC_ADAPTER_ID_1    1
 #define SENSOR_POWER_PIN_1         INVALID_GPIO
 #define SENSOR_RESET_PIN_1         RK29_PIN1_PB3
