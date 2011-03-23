@@ -101,6 +101,8 @@ static int set_single_step(struct task_struct *tsk, unsigned long addr)
 
 		attr = bp->attr;
 		attr.bp_addr = addr;
+		/* reenable breakpoint */
+		attr.disabled = false;
 		err = modify_user_hw_breakpoint(bp, &attr);
 		if (unlikely(err))
 			return err;
