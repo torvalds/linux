@@ -1644,13 +1644,16 @@ static int path_lookupat(int dfd, const char *name,
 			err = -ECHILD;
 	}
 
-	if (!err)
+	if (!err) {
 		err = handle_reval_path(nd);
+		if (err)
+			path_put(&nd->path);
+	}
 
 	if (!err && nd->flags & LOOKUP_DIRECTORY) {
 		if (!nd->inode->i_op->lookup) {
 			path_put(&nd->path);
-			return -ENOTDIR;
+			err = -ENOTDIR;
 		}
 	}
 
