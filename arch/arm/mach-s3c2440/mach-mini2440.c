@@ -506,6 +506,11 @@ static struct i2c_board_info mini2440_i2c_devs[] __initdata = {
 	},
 };
 
+static struct platform_device uda1340_codec = {
+		.name = "uda134x-codec",
+		.id = -1,
+};
+
 static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_wdt,
@@ -521,7 +526,9 @@ static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_nand,
 	&s3c_device_sdi,
 	&s3c_device_iis,
+	&uda1340_codec,
 	&mini2440_audio,
+	&samsung_asoc_dma,
 };
 
 static void __init mini2440_map_io(void)

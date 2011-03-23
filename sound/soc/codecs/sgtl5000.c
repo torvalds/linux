@@ -772,6 +772,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+#ifdef CONFIG_REGULATOR
 static int ldo_regulator_is_enabled(struct regulator_dev *dev)
 {
 	struct ldo_regulator *ldo = rdev_get_drvdata(dev);
@@ -901,6 +902,19 @@ static int ldo_regulator_remove(struct snd_soc_codec *codec)
 
 	return 0;
 }
+#else
+static int ldo_regulator_register(struct snd_soc_codec *codec,
+				struct regulator_init_data *init_data,
+				int voltage)
+{
+	return -EINVAL;
+}
+
+static int ldo_regulator_remove(struct snd_soc_codec *codec)
+{
+	return 0;
+}
+#endif
 
 /*
  * set dac bias
