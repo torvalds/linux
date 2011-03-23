@@ -1886,3 +1886,10 @@ sys_name_to_handle_at_wrapper:
 	llgtr	%r5,%r5			# int __user *
 	lgfr	%r6,%r6			# int
 	jg	sys_name_to_handle_at
+
+	.globl	compat_sys_open_by_handle_at_wrapper
+compat_sys_open_by_handle_at_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# struct file_handle __user *
+	lgfr	%r4,%r4			# int
+	jg	compat_sys_open_by_handle_at

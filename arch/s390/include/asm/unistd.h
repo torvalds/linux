@@ -273,7 +273,8 @@
 #define __NR_fanotify_mark	333
 #define __NR_prlimit64		334
 #define __NR_name_to_handle_at	335
-#define NR_syscalls 336
+#define __NR_open_by_handle_at	336
+#define NR_syscalls 337
 
 /* 
  * There are some system calls that are not present on 64 bit, some
