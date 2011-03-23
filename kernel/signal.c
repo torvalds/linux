@@ -224,6 +224,26 @@ static inline void print_dropped_signal(int sig)
 }
 
 /**
+ * task_clear_group_stop_trapping - clear group stop trapping bit
+ * @task: target task
+ *
+ * If GROUP_STOP_TRAPPING is set, a ptracer is waiting for us.  Clear it
+ * and wake up the ptracer.  Note that we don't need any further locking.
+ * @task->siglock guarantees that @task->parent points to the ptracer.
+ *
+ * CONTEXT:
+ * Must be called with @task->sighand->siglock held.
+ */
+static void task_clear_group_stop_trapping(struct task_struct *task)
+{
+	if (unlikely(task->group_stop & GROUP_STOP_TRAPPING)) {
+		task->group_stop &= ~GROUP_STOP_TRAPPING;
+		__wake_up_sync(&task->parent->signal->wait_chldexit,
+			       TASK_UNINTERRUPTIBLE, 1);
+	}
+}
+
+/**
  * task_clear_group_stop_pending - clear pending group stop
  * @task: target task
  *
@@ -1706,8 +1726,20 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	current->last_siginfo = info;
 	current->exit_code = exit_code;
 
-	/* Let the debugger run.  */
-	__set_current_state(TASK_TRACED);
+	/*
+	 * TRACED should be visible before TRAPPING is cleared; otherwise,
+	 * the tracer might fail do_wait().
+	 */
+	set_current_state(TASK_TRACED);
+
+	/*
+	 * We're committing to trapping.  Clearing GROUP_STOP_TRAPPING and
+	 * transition to TASK_TRACED should be atomic with respect to
+	 * siglock.  This hsould be done after the arch hook as siglock is
+	 * released and regrabbed across it.
+	 */
+	task_clear_group_stop_trapping(current);
+
 	spin_unlock_irq(&current->sighand->siglock);
 	read_lock(&tasklist_lock);
 	if (may_ptrace_stop()) {
@@ -1788,6 +1820,9 @@ static int do_signal_stop(int signr)
 		unsigned int gstop = GROUP_STOP_PENDING | GROUP_STOP_CONSUME;
 		struct task_struct *t;
 
+		/* signr will be recorded in task->group_stop for retries */
+		WARN_ON_ONCE(signr & ~GROUP_STOP_SIGMASK);
+
 		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED) ||
 		    unlikely(signal_group_exit(sig)))
 			return 0;
@@ -1797,25 +1832,27 @@ static int do_signal_stop(int signr)
 		 */
 		sig->group_exit_code = signr;
 
-		current->group_stop = gstop;
+		current->group_stop &= ~GROUP_STOP_SIGMASK;
+		current->group_stop |= signr | gstop;
 		sig->group_stop_count = 1;
-		for (t = next_thread(current); t != current; t = next_thread(t))
+		for (t = next_thread(current); t != current;
+		     t = next_thread(t)) {
+			t->group_stop &= ~GROUP_STOP_SIGMASK;
 			/*
 			 * Setting state to TASK_STOPPED for a group
 			 * stop is always done with the siglock held,
 			 * so this check has no races.
 			 */
 			if (!(t->flags & PF_EXITING) && !task_is_stopped(t)) {
-				t->group_stop = gstop;
+				t->group_stop |= signr | gstop;
 				sig->group_stop_count++;
 				signal_wake_up(t, 0);
-			} else
+			} else {
 				task_clear_group_stop_pending(t);
+			}
+		}
 	}
-
-	current->exit_code = sig->group_exit_code;
-	__set_current_state(TASK_STOPPED);
-
+retry:
 	if (likely(!task_ptrace(current))) {
 		int notify = 0;
 
@@ -1827,6 +1864,7 @@ static int do_signal_stop(int signr)
 		if (task_participate_group_stop(current))
 			notify = CLD_STOPPED;
 
+		__set_current_state(TASK_STOPPED);
 		spin_unlock_irq(&current->sighand->siglock);
 
 		if (notify) {
@@ -1839,13 +1877,28 @@ static int do_signal_stop(int signr)
 		schedule();
 
 		spin_lock_irq(&current->sighand->siglock);
-	} else
-		ptrace_stop(current->exit_code, CLD_STOPPED, 0, NULL);
+	} else {
+		ptrace_stop(current->group_stop & GROUP_STOP_SIGMASK,
+			    CLD_STOPPED, 0, NULL);
+		current->exit_code = 0;
+	}
+
+	/*
+	 * GROUP_STOP_PENDING could be set if another group stop has
+	 * started since being woken up or ptrace wants us to transit
+	 * between TASK_STOPPED and TRACED.  Retry group stop.
+	 */
+	if (current->group_stop & GROUP_STOP_PENDING) {
+		WARN_ON_ONCE(!(current->group_stop & GROUP_STOP_SIGMASK));
+		goto retry;
+	}
+
+	/* PTRACE_ATTACH might have raced with task killing, clear trapping */
+	task_clear_group_stop_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
 
 	tracehook_finish_jctl();
-	current->exit_code = 0;
 
 	return 1;
 }

@@ -1775,8 +1775,10 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 /*
  * task->group_stop flags
  */
+#define GROUP_STOP_SIGMASK	0xffff    /* signr of the last group stop */
 #define GROUP_STOP_PENDING	(1 << 16) /* task should stop for group stop */
 #define GROUP_STOP_CONSUME	(1 << 17) /* consume group stop count */
+#define GROUP_STOP_TRAPPING	(1 << 18) /* switching from STOPPED to TRACED */
 
 extern void task_clear_group_stop_pending(struct task_struct *task);
 

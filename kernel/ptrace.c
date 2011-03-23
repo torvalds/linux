@@ -49,14 +49,22 @@ static void ptrace_untrace(struct task_struct *child)
 	spin_lock(&child->sighand->siglock);
 	if (task_is_traced(child)) {
 		/*
-		 * If the group stop is completed or in progress,
-		 * this thread was already counted as stopped.
+		 * If group stop is completed or in progress, it should
+		 * participate in the group stop.  Set GROUP_STOP_PENDING
+		 * before kicking it.
+		 *
+		 * This involves TRACED -> RUNNING -> STOPPED transition
+		 * which is similar to but in the opposite direction of
+		 * what happens while attaching to a stopped task.
+		 * However, in this direction, the intermediate RUNNING
+		 * state is not hidden even from the current ptracer and if
+		 * it immediately re-attaches and performs a WNOHANG
+		 * wait(2), it may fail.
 		 */
 		if (child->signal->flags & SIGNAL_STOP_STOPPED ||
 		    child->signal->group_stop_count)
-			__set_task_state(child, TASK_STOPPED);
-		else
-			signal_wake_up(child, 1);
+			child->group_stop |= GROUP_STOP_PENDING;
+		signal_wake_up(child, 1);
 	}
 	spin_unlock(&child->sighand->siglock);
 }
@@ -165,6 +173,7 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 
 static int ptrace_attach(struct task_struct *task)
 {
+	bool wait_trap = false;
 	int retval;
 
 	audit_ptrace(task);
@@ -204,12 +213,42 @@ static int ptrace_attach(struct task_struct *task)
 	__ptrace_link(task, current);
 	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
 
+	spin_lock(&task->sighand->siglock);
+
+	/*
+	 * If the task is already STOPPED, set GROUP_STOP_PENDING and
+	 * TRAPPING, and kick it so that it transits to TRACED.  TRAPPING
+	 * will be cleared if the child completes the transition or any
+	 * event which clears the group stop states happens.  We'll wait
+	 * for the transition to complete before returning from this
+	 * function.
+	 *
+	 * This hides STOPPED -> RUNNING -> TRACED transition from the
+	 * attaching thread but a different thread in the same group can
+	 * still observe the transient RUNNING state.  IOW, if another
+	 * thread's WNOHANG wait(2) on the stopped tracee races against
+	 * ATTACH, the wait(2) may fail due to the transient RUNNING.
+	 *
+	 * The following task_is_stopped() test is safe as both transitions
+	 * in and out of STOPPED are protected by siglock.
+	 */
+	if (task_is_stopped(task)) {
+		task->group_stop |= GROUP_STOP_PENDING | GROUP_STOP_TRAPPING;
+		signal_wake_up(task, 1);
+		wait_trap = true;
+	}
+
+	spin_unlock(&task->sighand->siglock);
+
 	retval = 0;
 unlock_tasklist:
 	write_unlock_irq(&tasklist_lock);
 unlock_creds:
 	mutex_unlock(&task->signal->cred_guard_mutex);
 out:
+	if (wait_trap)
+		wait_event(current->signal->wait_chldexit,
+			   !(task->group_stop & GROUP_STOP_TRAPPING));
 	return retval;
 }
 
