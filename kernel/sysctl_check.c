@@ -145,10 +145,6 @@ int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table)
 			if (!table->proc_handler)
 				set_fail(&fail, table, "No proc_handler");
 #endif
-#if 0
-			if (!table->procname && table->proc_handler)
-				set_fail(&fail, table, "proc_handler without procname");
-#endif
 			sysctl_check_leaf(namespaces, table, &fail);
 		}
 		if (table->mode > 0777)
