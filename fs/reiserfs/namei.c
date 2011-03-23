@@ -771,7 +771,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 					EMPTY_DIR_SIZE_V1 : EMPTY_DIR_SIZE,
 					dentry, inode, &security);
 	if (retval) {
-		dir->i_nlink--;
+		DEC_DIR_INODE_NLINK(dir)
 		goto out_failed;
 	}
 

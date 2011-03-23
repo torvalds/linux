@@ -110,6 +110,9 @@ struct wm8994_priv {
 
 	unsigned int aif1clk_enable:1;
 	unsigned int aif2clk_enable:1;
+
+	unsigned int aif1clk_disable:1;
+	unsigned int aif2clk_disable:1;
 };
 
 static int wm8994_readable(unsigned int reg)
@@ -1015,14 +1018,18 @@ static int late_enable_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (wm8994->aif1clk_enable)
+		if (wm8994->aif1clk_enable) {
 			snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
 					    WM8994_AIF1CLK_ENA_MASK,
 					    WM8994_AIF1CLK_ENA);
-		if (wm8994->aif2clk_enable)
+			wm8994->aif1clk_enable = 0;
+		}
+		if (wm8994->aif2clk_enable) {
 			snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
 					    WM8994_AIF2CLK_ENA_MASK,
 					    WM8994_AIF2CLK_ENA);
+			wm8994->aif2clk_enable = 0;
+		}
 		break;
 	}
 
@@ -1037,15 +1044,15 @@ static int late_disable_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMD:
-		if (wm8994->aif1clk_enable) {
+		if (wm8994->aif1clk_disable) {
 			snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
 					    WM8994_AIF1CLK_ENA_MASK, 0);
-			wm8994->aif1clk_enable = 0;
+			wm8994->aif1clk_disable = 0;
 		}
-		if (wm8994->aif2clk_enable) {
+		if (wm8994->aif2clk_disable) {
 			snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
 					    WM8994_AIF2CLK_ENA_MASK, 0);
-			wm8994->aif2clk_enable = 0;
+			wm8994->aif2clk_disable = 0;
 		}
 		break;
 	}
@@ -1063,6 +1070,9 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		wm8994->aif1clk_enable = 1;
 		break;
+	case SND_SOC_DAPM_POST_PMD:
+		wm8994->aif1clk_disable = 1;
+		break;
 	}
 
 	return 0;
@@ -1078,8 +1088,18 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		wm8994->aif2clk_enable = 1;
 		break;
+	case SND_SOC_DAPM_POST_PMD:
+		wm8994->aif2clk_disable = 1;
+		break;
 	}
 
+	return 0;
+}
+
+static int adc_mux_ev(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	late_enable_ev(w, kcontrol, event);
 	return 0;
 }
 
@@ -1398,9 +1418,21 @@ SND_SOC_DAPM_DAC_E("DAC1R", NULL, SND_SOC_NOPM, 0, 0,
 
 static const struct snd_soc_dapm_widget wm8994_dac_widgets[] = {
 SND_SOC_DAPM_DAC("DAC2L", NULL, WM8994_POWER_MANAGEMENT_5, 3, 0),
-SND_SOC_DAPM_DAC("DAC1R", NULL, WM8994_POWER_MANAGEMENT_5, 2, 0),
+SND_SOC_DAPM_DAC("DAC2R", NULL, WM8994_POWER_MANAGEMENT_5, 2, 0),
 SND_SOC_DAPM_DAC("DAC1L", NULL, WM8994_POWER_MANAGEMENT_5, 1, 0),
 SND_SOC_DAPM_DAC("DAC1R", NULL, WM8994_POWER_MANAGEMENT_5, 0, 0),
+};
+
+static const struct snd_soc_dapm_widget wm8994_adc_revd_widgets[] = {
+SND_SOC_DAPM_MUX_E("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux,
+		   adc_mux_ev, SND_SOC_DAPM_PRE_PMU),
+SND_SOC_DAPM_MUX_E("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux,
+		   adc_mux_ev, SND_SOC_DAPM_PRE_PMU),
+};
+
+static const struct snd_soc_dapm_widget wm8994_adc_widgets[] = {
+SND_SOC_DAPM_MUX("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux),
+SND_SOC_DAPM_MUX("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux),
 };
 
 static const struct snd_soc_dapm_widget wm8994_dapm_widgets[] = {
@@ -1496,9 +1528,6 @@ SND_SOC_DAPM_ADC("DMIC1R", NULL, WM8994_POWER_MANAGEMENT_4, 2, 0),
  */
 SND_SOC_DAPM_ADC("ADCL", NULL, SND_SOC_NOPM, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
-
-SND_SOC_DAPM_MUX("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux),
-SND_SOC_DAPM_MUX("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux),
 
 SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &hpl_mux),
 SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &hpr_mux),
@@ -3280,11 +3309,15 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		if (wm8994->revision < 4) {
 			snd_soc_dapm_new_controls(dapm, wm8994_lateclk_revd_widgets,
 						  ARRAY_SIZE(wm8994_lateclk_revd_widgets));
+			snd_soc_dapm_new_controls(dapm, wm8994_adc_revd_widgets,
+						  ARRAY_SIZE(wm8994_adc_revd_widgets));
 			snd_soc_dapm_new_controls(dapm, wm8994_dac_revd_widgets,
 						  ARRAY_SIZE(wm8994_dac_revd_widgets));
 		} else {
 			snd_soc_dapm_new_controls(dapm, wm8994_lateclk_widgets,
 						  ARRAY_SIZE(wm8994_lateclk_widgets));
+			snd_soc_dapm_new_controls(dapm, wm8994_adc_widgets,
+						  ARRAY_SIZE(wm8994_adc_widgets));
 			snd_soc_dapm_new_controls(dapm, wm8994_dac_widgets,
 						  ARRAY_SIZE(wm8994_dac_widgets));
 		}
@@ -3292,6 +3325,12 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	case WM8958:
 		snd_soc_add_controls(codec, wm8958_snd_controls,
 				     ARRAY_SIZE(wm8958_snd_controls));
+		snd_soc_dapm_new_controls(dapm, wm8994_lateclk_widgets,
+					  ARRAY_SIZE(wm8994_lateclk_widgets));
+		snd_soc_dapm_new_controls(dapm, wm8994_adc_widgets,
+					  ARRAY_SIZE(wm8994_adc_widgets));
+		snd_soc_dapm_new_controls(dapm, wm8994_dac_widgets,
+					  ARRAY_SIZE(wm8994_dac_widgets));
 		snd_soc_dapm_new_controls(dapm, wm8958_dapm_widgets,
 					  ARRAY_SIZE(wm8958_dapm_widgets));
 		break;
@@ -3317,6 +3356,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		}
 		break;
 	case WM8958:
+		snd_soc_dapm_add_routes(dapm, wm8994_lateclk_intercon,
+					ARRAY_SIZE(wm8994_lateclk_intercon));
 		snd_soc_dapm_add_routes(dapm, wm8958_intercon,
 					ARRAY_SIZE(wm8958_intercon));
 		break;

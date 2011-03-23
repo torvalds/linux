@@ -3046,16 +3046,37 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	}
 
 	while (!end) {
-		off = extent_map_end(em);
-		if (off >= max)
-			end = 1;
+		u64 offset_in_extent;
 
-		em_start = em->start;
-		em_len = em->len;
+		/* break if the extent we found is outside the range */
+		if (em->start >= max || extent_map_end(em) < off)
+			break;
+
+		/*
+		 * get_extent may return an extent that starts before our
+		 * requested range.  We have to make sure the ranges
+		 * we return to fiemap always move forward and don't
+		 * overlap, so adjust the offsets here
+		 */
+		em_start = max(em->start, off);
+
+		/*
+		 * record the offset from the start of the extent
+		 * for adjusting the disk offset below
+		 */
+		offset_in_extent = em_start - em->start;
 		em_end = extent_map_end(em);
+		em_len = em_end - em_start;
 		emflags = em->flags;
 		disko = 0;
 		flags = 0;
+
+		/*
+		 * bump off for our next call to get_extent
+		 */
+		off = extent_map_end(em);
+		if (off >= max)
+			end = 1;
 
 		if (em->block_start == EXTENT_MAP_LAST_BYTE) {
 			end = 1;
@@ -3067,7 +3088,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
 		} else {
-			disko = em->block_start;
+			disko = em->block_start + offset_in_extent;
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;

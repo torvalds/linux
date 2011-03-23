@@ -508,7 +508,7 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 	sch311x_sio_outb(sio_config_port, 0x07, 0x0a);
 
 	/* Check if Logical Device Register is currently active */
-	if (sch311x_sio_inb(sio_config_port, 0x30) && 0x01 == 0)
+	if ((sch311x_sio_inb(sio_config_port, 0x30) & 0x01) == 0)
 		printk(KERN_INFO PFX "Seems that LDN 0x0a is not active...\n");
 
 	/* Get the base address of the runtime registers */

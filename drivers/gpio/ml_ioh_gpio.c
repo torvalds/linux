@@ -326,6 +326,7 @@ static DEFINE_PCI_DEVICE_TABLE(ioh_gpio_pcidev_id) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x802E) },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, ioh_gpio_pcidev_id);
 
 static struct pci_driver ioh_gpio_driver = {
 	.name = "ml_ioh_gpio",

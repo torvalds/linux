@@ -1765,4 +1765,4 @@ module_exit(ipgre_fini);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("gre");
 MODULE_ALIAS_RTNL_LINK("gretap");
-MODULE_ALIAS("gre0");
+MODULE_ALIAS_NETDEV("gre0");

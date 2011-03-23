@@ -4821,10 +4821,11 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		goto fail;
 
 	/*
-	 * 1 item for inode ref
+	 * 2 items for inode and inode ref
 	 * 2 items for dir items
+	 * 1 item for parent inode
 	 */
-	trans = btrfs_start_transaction(root, 3);
+	trans = btrfs_start_transaction(root, 5);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		goto fail;
@@ -6056,6 +6057,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	if (!skip_sum) {
 		dip->csums = kmalloc(sizeof(u32) * bio->bi_vcnt, GFP_NOFS);
 		if (!dip->csums) {
+			kfree(dip);
 			ret = -ENOMEM;
 			goto free_ordered;
 		}

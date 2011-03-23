@@ -729,6 +729,15 @@ struct btrfs_space_info {
 	u64 disk_total;		/* total bytes on disk, takes mirrors into
 				   account */
 
+	/*
+	 * we bump reservation progress every time we decrement
+	 * bytes_reserved.  This way people waiting for reservations
+	 * know something good has happened and they can check
+	 * for progress.  The number here isn't to be trusted, it
+	 * just shows reclaim activity
+	 */
+	unsigned long reservation_progress;
+
 	int full;		/* indicates that we cannot allocate any more
 				   chunks for this space */
 	int force_alloc;	/* set if we need to force a chunk alloc for

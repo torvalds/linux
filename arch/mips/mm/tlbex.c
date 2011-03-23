@@ -109,6 +109,8 @@ static bool scratchpad_available(void)
 static int scratchpad_offset(int i)
 {
 	BUG();
+	/* Really unreachable, but evidently some GCC want this. */
+	return 0;
 }
 #endif
 /*
