@@ -1593,8 +1593,6 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 			rt->rt_peer_genid = rt_peer_genid();
 		}
 		check_peer_pmtu(dst, peer);
-
-		inet_putpeer(peer);
 	}
 }
 
