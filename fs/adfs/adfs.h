@@ -112,7 +112,7 @@ struct object_info {
 /* RISC OS 12-bit filetype converts to ,xyz hex filename suffix */
 static inline int append_filetype_suffix(char *buf, __u16 filetype)
 {
-	if (filetype == -1)
+	if (filetype == 0xffff)	/* no explicit 12-bit file type was set */
 		return 0;
 
 	*buf++ = ',';
