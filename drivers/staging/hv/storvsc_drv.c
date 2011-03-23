@@ -191,7 +191,7 @@ static struct scsi_host_template scsi_driver = {
 /*
  * storvsc_drv_init - StorVsc driver initialization.
  */
-static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
+static int storvsc_drv_init(void)
 {
 	int ret;
 	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv;
@@ -200,7 +200,7 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */
-	drv_init(&storvsc_drv_obj->base);
+	stor_vsc_initialize(&storvsc_drv_obj->base);
 
 	drv->priv = storvsc_drv_obj;
 
@@ -986,7 +986,7 @@ static int __init storvsc_init(void)
 	int ret;
 
 	DPRINT_INFO(STORVSC_DRV, "Storvsc initializing....");
-	ret = storvsc_drv_init(stor_vsc_initialize);
+	ret = storvsc_drv_init();
 	return ret;
 }
 
