@@ -380,7 +380,6 @@ static struct gt801_platform_data gt801_info = {
 #endif
 
 /* EETI_EGALAX touch I2C */
-
 #if defined (CONFIG_EETI_EGALAX)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN4_PD5
