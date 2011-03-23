@@ -86,7 +86,6 @@ struct jz_gpio_chip {
 	spinlock_t lock;
 
 	struct gpio_chip gpio_chip;
-	struct irq_chip irq_chip;
 	struct sys_device sysdev;
 };
 
@@ -435,6 +434,17 @@ static int jz_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
 	return 0;
 }
 
+static struct irq_chip jz_gpio_irq_chip = {
+	.name = "GPIO",
+	.irq_mask = jz_gpio_irq_mask,
+	.irq_unmask = jz_gpio_irq_unmask,
+	.irq_ack = jz_gpio_irq_ack,
+	.irq_startup = jz_gpio_irq_startup,
+	.irq_shutdown = jz_gpio_irq_shutdown,
+	.irq_set_type = jz_gpio_irq_set_type,
+	.irq_set_wake = jz_gpio_irq_set_wake,
+};
+
 /*
  * This lock class tells lockdep that GPIO irqs are in a different
  * category than their parents, so it won't report false recursion.
@@ -452,16 +462,6 @@ static struct lock_class_key gpio_lock_class;
 		.direction_input = jz_gpio_direction_input, \
 		.base = JZ4740_GPIO_BASE_ ## _bank, \
 		.ngpio = JZ4740_GPIO_NUM_ ## _bank, \
-	}, \
-	.irq_chip =  { \
-		.name = "GPIO Bank " # _bank, \
-		.irq_mask = jz_gpio_irq_mask, \
-		.irq_unmask = jz_gpio_irq_unmask, \
-		.irq_ack = jz_gpio_irq_ack, \
-		.irq_startup = jz_gpio_irq_startup, \
-		.irq_shutdown = jz_gpio_irq_shutdown, \
-		.irq_set_type = jz_gpio_irq_set_type, \
-		.irq_set_wake = jz_gpio_irq_set_wake, \
 	}, \
 }
 
@@ -529,7 +529,8 @@ static int jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	for (irq = chip->irq_base; irq < chip->irq_base + chip->gpio_chip.ngpio; ++irq) {
 		lockdep_set_class(&irq_desc[irq].lock, &gpio_lock_class);
 		set_irq_chip_data(irq, chip);
-		set_irq_chip_and_handler(irq, &chip->irq_chip, handle_level_irq);
+		set_irq_chip_and_handler(irq, &jz_gpio_irq_chip,
+			handle_level_irq);
 	}
 
 	return 0;
