@@ -1827,10 +1827,27 @@ static int do_signal_stop(int signr)
 		    unlikely(signal_group_exit(sig)))
 			return 0;
 		/*
-		 * There is no group stop already in progress.
-		 * We must initiate one now.
+		 * There is no group stop already in progress.  We must
+		 * initiate one now.
+		 *
+		 * While ptraced, a task may be resumed while group stop is
+		 * still in effect and then receive a stop signal and
+		 * initiate another group stop.  This deviates from the
+		 * usual behavior as two consecutive stop signals can't
+		 * cause two group stops when !ptraced.
+		 *
+		 * The condition can be distinguished by testing whether
+		 * SIGNAL_STOP_STOPPED is already set.  Don't generate
+		 * group_exit_code in such case.
+		 *
+		 * This is not necessary for SIGNAL_STOP_CONTINUED because
+		 * an intervening stop signal is required to cause two
+		 * continued events regardless of ptrace.
 		 */
-		sig->group_exit_code = signr;
+		if (!(sig->flags & SIGNAL_STOP_STOPPED))
+			sig->group_exit_code = signr;
+		else
+			WARN_ON_ONCE(!task_ptrace(current));
 
 		current->group_stop &= ~GROUP_STOP_SIGMASK;
 		current->group_stop |= signr | gstop;
