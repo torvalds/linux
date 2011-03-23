@@ -36,7 +36,7 @@ static struct cpu_table * __init s3c_lookup_cpu(unsigned long idcode,
 						unsigned int count)
 {
 	for (; count != 0; count--, tab++) {
-		if ((idcode & tab->idmask) == tab->idcode)
+		if ((idcode & tab->idmask) == (tab->idcode & tab->idmask))
 			return tab;
 	}
 
