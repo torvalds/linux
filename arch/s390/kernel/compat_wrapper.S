@@ -1877,3 +1877,12 @@ sys_prlimit64_wrapper:
 	llgtr	%r4,%r4			# const struct rlimit64 __user *
 	llgtr	%r5,%r5			# struct rlimit64 __user *
 	jg	sys_prlimit64		# branch to system call
+
+	.globl	sys_name_to_handle_at_wrapper
+sys_name_to_handle_at_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char __user *
+	llgtr	%r4,%r4			# struct file_handle __user *
+	llgtr	%r5,%r5			# int __user *
+	lgfr	%r6,%r6			# int
+	jg	sys_name_to_handle_at
