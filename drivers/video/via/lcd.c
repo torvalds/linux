@@ -562,7 +562,7 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	int set_vres = plvds_setting_info->v_active;
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
-	u32 pll_D_N, clock;
+	u32 clock;
 	struct display_timing mode_crt_reg, panel_crt_reg;
 	struct crt_mode_table *panel_crt_table = NULL;
 	struct VideoModeTable *vmode_tbl = viafb_get_mode(panel_hres,
@@ -613,10 +613,7 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		viafb_load_FIFO_reg(set_iga, set_hres, set_vres);
 
 	fill_lcd_format();
-
-	pll_D_N = viafb_get_clk_value(clock);
-	DEBUG_MSG(KERN_INFO "PLL=0x%x", pll_D_N);
-	viafb_set_vclock(pll_D_N, set_iga);
+	viafb_set_vclock(clock, set_iga);
 	lcd_patch_skew(plvds_setting_info, plvds_chip_info);
 
 	/* If K8M800, enable LCD Prefetch Mode. */

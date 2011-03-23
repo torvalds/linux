@@ -1474,7 +1474,7 @@ static struct pll_config get_pll_config(struct pll_limit *limits, int size,
 	return best;
 }
 
-u32 viafb_get_clk_value(int clk)
+static u32 viafb_get_clk_value(int clk)
 {
 	u32 value = 0;
 
@@ -1512,6 +1512,10 @@ u32 viafb_get_clk_value(int clk)
 /* Set VCLK*/
 void viafb_set_vclock(u32 clk, int set_iga)
 {
+	u32 value = viafb_get_clk_value(clk);
+
+	DEBUG_MSG(KERN_INFO "PLL=0x%x", value);
+
 	/* H.W. Reset : ON */
 	viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 
@@ -1520,8 +1524,8 @@ void viafb_set_vclock(u32 clk, int set_iga)
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
 		case UNICHROME_K400:
-			via_write_reg(VIASR, SR46, (clk & 0x00FF));
-			via_write_reg(VIASR, SR47, (clk & 0xFF00) >> 8);
+			via_write_reg(VIASR, SR46, (value & 0x00FF));
+			via_write_reg(VIASR, SR47, (value & 0xFF00) >> 8);
 			break;
 
 		case UNICHROME_K800:
@@ -1535,9 +1539,9 @@ void viafb_set_vclock(u32 clk, int set_iga)
 		case UNICHROME_VX800:
 		case UNICHROME_VX855:
 		case UNICHROME_VX900:
-			via_write_reg(VIASR, SR44, (clk & 0x0000FF));
-			via_write_reg(VIASR, SR45, (clk & 0x00FF00) >> 8);
-			via_write_reg(VIASR, SR46, (clk & 0xFF0000) >> 16);
+			via_write_reg(VIASR, SR44, (value & 0x0000FF));
+			via_write_reg(VIASR, SR45, (value & 0x00FF00) >> 8);
+			via_write_reg(VIASR, SR46, (value & 0xFF0000) >> 16);
 			break;
 		}
 	}
@@ -1547,8 +1551,8 @@ void viafb_set_vclock(u32 clk, int set_iga)
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
 		case UNICHROME_K400:
-			via_write_reg(VIASR, SR44, (clk & 0x00FF));
-			via_write_reg(VIASR, SR45, (clk & 0xFF00) >> 8);
+			via_write_reg(VIASR, SR44, (value & 0x00FF));
+			via_write_reg(VIASR, SR45, (value & 0xFF00) >> 8);
 			break;
 
 		case UNICHROME_K800:
@@ -1562,9 +1566,9 @@ void viafb_set_vclock(u32 clk, int set_iga)
 		case UNICHROME_VX800:
 		case UNICHROME_VX855:
 		case UNICHROME_VX900:
-			via_write_reg(VIASR, SR4A, (clk & 0x0000FF));
-			via_write_reg(VIASR, SR4B, (clk & 0x00FF00) >> 8);
-			via_write_reg(VIASR, SR4C, (clk & 0xFF0000) >> 16);
+			via_write_reg(VIASR, SR4A, (value & 0x0000FF));
+			via_write_reg(VIASR, SR4B, (value & 0x00FF00) >> 8);
+			via_write_reg(VIASR, SR4C, (value & 0xFF0000) >> 16);
 			break;
 		}
 	}
@@ -1827,7 +1831,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	int i;
 	int index = 0;
 	int h_addr, v_addr;
-	u32 pll_D_N, clock, refresh = viafb_refresh;
+	u32 clock, refresh = viafb_refresh;
 
 	if (viafb_SAMM_ON && set_iga == IGA2)
 		refresh = viafb_refresh1;
@@ -1884,9 +1888,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 	clock = crt_reg.hor_total * crt_reg.ver_total
 		* crt_table[index].refresh_rate;
-	pll_D_N = viafb_get_clk_value(clock);
-	DEBUG_MSG(KERN_INFO "PLL=%x", pll_D_N);
-	viafb_set_vclock(pll_D_N, set_iga);
+	viafb_set_vclock(clock, set_iga);
 
 }
 
