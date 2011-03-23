@@ -1071,6 +1071,9 @@ static int soc_camera_probe(struct device *dev)
 		}
 	}
 
+	sd = soc_camera_to_subdev(icd);
+	sd->grp_id = (long)icd;
+
 	/* At this point client .probe() should have run already */
 	ret = soc_camera_init_user_formats(icd);
 	if (ret < 0)
@@ -1092,7 +1095,6 @@ static int soc_camera_probe(struct device *dev)
 		goto evidstart;
 
 	/* Try to improve our guess of a reasonable window format */
-	sd = soc_camera_to_subdev(icd);
 	if (!v4l2_subdev_call(sd, video, g_mbus_fmt, &mf)) {
 		icd->user_width		= mf.width;
 		icd->user_height	= mf.height;

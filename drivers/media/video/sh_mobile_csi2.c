@@ -208,6 +208,7 @@ static int sh_csi2_notify(struct notifier_block *nb,
 	case BUS_NOTIFY_BOUND_DRIVER:
 		snprintf(priv->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s%s",
 			 dev_name(v4l2_dev->dev), ".mipi-csi");
+		priv->subdev.grp_id = (long)icd;
 		ret = v4l2_device_register_subdev(v4l2_dev, &priv->subdev);
 		dev_dbg(dev, "%s(%p): ret(register_subdev) = %d\n", __func__, priv, ret);
 		if (ret < 0)
