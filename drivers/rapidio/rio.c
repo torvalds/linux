@@ -1134,8 +1134,6 @@ static int __devinit rio_init(void)
 	return 0;
 }
 
-device_initcall(rio_init);
-
 int __devinit rio_init_mports(void)
 {
 	int rc = 0;
@@ -1158,9 +1156,13 @@ int __devinit rio_init_mports(void)
 			rio_disc_mport(port);
 	}
 
+	rio_init();
+
       out:
 	return rc;
 }
+
+device_initcall_sync(rio_init_mports);
 
 void rio_register_mport(struct rio_mport *port)
 {
