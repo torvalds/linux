@@ -233,7 +233,7 @@ static int storvsc_drv_init(void)
 }
 
 
-int stor_vsc_on_host_reset(struct hv_device *device)
+static int stor_vsc_on_host_reset(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
 	struct storvsc_request_extension *request;
