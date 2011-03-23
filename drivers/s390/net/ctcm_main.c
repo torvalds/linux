@@ -1774,8 +1774,10 @@ static struct ccw_driver ctcm_ccw_driver = {
 };
 
 static struct ccwgroup_driver ctcm_group_driver = {
-	.owner       = THIS_MODULE,
-	.name        = CTC_DRIVER_NAME,
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= CTC_DRIVER_NAME,
+	},
 	.max_slaves  = 2,
 	.driver_id   = 0xC3E3C3D4,	/* CTCM */
 	.probe       = ctcm_probe_device,
