@@ -268,6 +268,10 @@ void task_clear_group_stop_pending(struct task_struct *task)
  *
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
+ *
+ * RETURNS:
+ * %true if group stop completion should be notified to the parent, %false
+ * otherwise.
  */
 static bool task_participate_group_stop(struct task_struct *task)
 {
@@ -284,7 +288,11 @@ static bool task_participate_group_stop(struct task_struct *task)
 	if (!WARN_ON_ONCE(sig->group_stop_count == 0))
 		sig->group_stop_count--;
 
-	if (!sig->group_stop_count) {
+	/*
+	 * Tell the caller to notify completion iff we are entering into a
+	 * fresh group stop.  Read comment in do_signal_stop() for details.
+	 */
+	if (!sig->group_stop_count && !(sig->flags & SIGNAL_STOP_STOPPED)) {
 		sig->flags = SIGNAL_STOP_STOPPED;
 		return true;
 	}
