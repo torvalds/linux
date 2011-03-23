@@ -291,6 +291,60 @@ error:
 }
 
 /**
+ * has_capability - Does a task have a capability in init_user_ns
+ * @t: The task in question
+ * @cap: The capability to be tested for
+ *
+ * Return true if the specified task has the given superior capability
+ * currently in effect to the initial user namespace, false if not.
+ *
+ * Note that this does not set PF_SUPERPRIV on the task.
+ */
+bool has_capability(struct task_struct *t, int cap)
+{
+	int ret = security_real_capable(t, &init_user_ns, cap);
+
+	return (ret == 0);
+}
+
+/**
+ * has_capability - Does a task have a capability in a specific user ns
+ * @t: The task in question
+ * @ns: target user namespace
+ * @cap: The capability to be tested for
+ *
+ * Return true if the specified task has the given superior capability
+ * currently in effect to the specified user namespace, false if not.
+ *
+ * Note that this does not set PF_SUPERPRIV on the task.
+ */
+bool has_ns_capability(struct task_struct *t,
+		       struct user_namespace *ns, int cap)
+{
+	int ret = security_real_capable(t, ns, cap);
+
+	return (ret == 0);
+}
+
+/**
+ * has_capability_noaudit - Does a task have a capability (unaudited)
+ * @t: The task in question
+ * @cap: The capability to be tested for
+ *
+ * Return true if the specified task has the given superior capability
+ * currently in effect to init_user_ns, false if not.  Don't write an
+ * audit message for the check.
+ *
+ * Note that this does not set PF_SUPERPRIV on the task.
+ */
+bool has_capability_noaudit(struct task_struct *t, int cap)
+{
+	int ret = security_real_capable_noaudit(t, &init_user_ns, cap);
+
+	return (ret == 0);
+}
+
+/**
  * capable - Determine if the current task has a superior capability in effect
  * @cap: The capability to be tested for
  *
