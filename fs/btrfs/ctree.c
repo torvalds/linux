@@ -147,10 +147,11 @@ noinline void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
-	spin_lock(&root->node_lock);
-	eb = root->node;
+
+	rcu_read_lock();
+	eb = rcu_dereference(root->node);
 	extent_buffer_get(eb);
-	spin_unlock(&root->node_lock);
+	rcu_read_unlock();
 	return eb;
 }
 
@@ -165,14 +166,8 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
 	while (1) {
 		eb = btrfs_root_node(root);
 		btrfs_tree_lock(eb);
-
-		spin_lock(&root->node_lock);
-		if (eb == root->node) {
-			spin_unlock(&root->node_lock);
+		if (eb == root->node)
 			break;
-		}
-		spin_unlock(&root->node_lock);
-
 		btrfs_tree_unlock(eb);
 		free_extent_buffer(eb);
 	}
@@ -458,10 +453,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		else
 			parent_start = 0;
 
-		spin_lock(&root->node_lock);
-		root->node = cow;
 		extent_buffer_get(cow);
-		spin_unlock(&root->node_lock);
+		rcu_assign_pointer(root->node, cow);
 
 		btrfs_free_tree_block(trans, root, buf, parent_start,
 				      last_ref);
@@ -930,9 +923,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 
-		spin_lock(&root->node_lock);
-		root->node = child;
-		spin_unlock(&root->node_lock);
+		rcu_assign_pointer(root->node, child);
 
 		add_root_to_dirty_list(root);
 		btrfs_tree_unlock(child);
@@ -2007,10 +1998,8 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 
 	btrfs_mark_buffer_dirty(c);
 
-	spin_lock(&root->node_lock);
 	old = root->node;
-	root->node = c;
-	spin_unlock(&root->node_lock);
+	rcu_assign_pointer(root->node, c);
 
 	/* the super has an extra ref to root->node */
 	free_extent_buffer(old);
