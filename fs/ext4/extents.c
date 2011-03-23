@@ -3112,14 +3112,13 @@ static int check_eofblocks_fl(handle_t *handle, struct inode *inode,
 {
 	int i, depth;
 	struct ext4_extent_header *eh;
-	struct ext4_extent *ex, *last_ex;
+	struct ext4_extent *last_ex;
 
 	if (!ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS))
 		return 0;
 
 	depth = ext_depth(inode);
 	eh = path[depth].p_hdr;
-	ex = path[depth].p_ext;
 
 	if (unlikely(!eh->eh_entries)) {
 		EXT4_ERROR_INODE(inode, "eh->eh_entries == 0 and "
@@ -3299,7 +3298,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			struct ext4_map_blocks *map, int flags)
 {
 	struct ext4_ext_path *path = NULL;
-	struct ext4_extent_header *eh;
 	struct ext4_extent newex, *ex;
 	ext4_fsblk_t newblock = 0;
 	int err = 0, depth, ret;
@@ -3357,7 +3355,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		err = -EIO;
 		goto out2;
 	}
-	eh = path[depth].p_hdr;
 
 	ex = path[depth].p_ext;
 	if (ex) {
