@@ -1893,3 +1893,9 @@ compat_sys_open_by_handle_at_wrapper:
 	llgtr	%r3,%r3			# struct file_handle __user *
 	lgfr	%r4,%r4			# int
 	jg	compat_sys_open_by_handle_at
+
+	.globl	compat_sys_clock_adjtime_wrapper
+compat_sys_clock_adjtime_wrapper:
+	lgfr	%r2,%r2			# clockid_t (int)
+	llgtr	%r3,%r3			# struct compat_timex __user *
+	jg	compat_sys_clock_adjtime
