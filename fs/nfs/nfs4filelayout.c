@@ -503,6 +503,7 @@ filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 
 	dprintk("--> %s\n", __func__);
 	nfs4_fl_put_deviceid(fl->dsaddr);
+	kfree(fl->commit_buckets);
 	_filelayout_free_lseg(fl);
 }
 
@@ -523,6 +524,27 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 	if (rc != 0 || filelayout_check_layout(layoutid, fl, lgr, &id)) {
 		_filelayout_free_lseg(fl);
 		return NULL;
+	}
+
+	/* This assumes there is only one IOMODE_RW lseg.  What
+	 * we really want to do is have a layout_hdr level
+	 * dictionary of <multipath_list4, fh> keys, each
+	 * associated with a struct list_head, populated by calls
+	 * to filelayout_write_pagelist().
+	 * */
+	if ((!fl->commit_through_mds) && (lgr->range.iomode == IOMODE_RW)) {
+		int i;
+		int size = (fl->stripe_type == STRIPE_SPARSE) ?
+			fl->dsaddr->ds_num : fl->dsaddr->stripe_count;
+
+		fl->commit_buckets = kcalloc(size, sizeof(struct list_head), GFP_KERNEL);
+		if (!fl->commit_buckets) {
+			filelayout_free_lseg(&fl->generic_hdr);
+			return NULL;
+		}
+		fl->number_of_buckets = size;
+		for (i = 0; i < size; i++)
+			INIT_LIST_HEAD(&fl->commit_buckets[i]);
 	}
 	return &fl->generic_hdr;
 }
