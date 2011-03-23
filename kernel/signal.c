@@ -1898,10 +1898,18 @@ retry:
 		__set_current_state(TASK_STOPPED);
 		spin_unlock_irq(&current->sighand->siglock);
 
+		/*
+		 * Notify the parent of the group stop completion.  Because
+		 * we're not holding either the siglock or tasklist_lock
+		 * here, ptracer may attach inbetween; however, this is for
+		 * group stop and should always be delivered to the real
+		 * parent of the group leader.  The new ptracer will get
+		 * its notification when this task transitions into
+		 * TASK_TRACED.
+		 */
 		if (notify) {
 			read_lock(&tasklist_lock);
-			do_notify_parent_cldstop(current, task_ptrace(current),
-						 notify);
+			do_notify_parent_cldstop(current, false, notify);
 			read_unlock(&tasklist_lock);
 		}
 
@@ -2182,9 +2190,13 @@ void exit_signals(struct task_struct *tsk)
 out:
 	spin_unlock_irq(&tsk->sighand->siglock);
 
+	/*
+	 * If group stop has completed, deliver the notification.  This
+	 * should always go to the real parent of the group leader.
+	 */
 	if (unlikely(group_stop)) {
 		read_lock(&tasklist_lock);
-		do_notify_parent_cldstop(tsk, task_ptrace(tsk), group_stop);
+		do_notify_parent_cldstop(tsk, false, group_stop);
 		read_unlock(&tasklist_lock);
 	}
 }
