@@ -1537,6 +1537,10 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		return 0;
 	}
 
+	/* dead body doesn't have much to contribute */
+	if (p->exit_state == EXIT_DEAD)
+		return 0;
+
 	if (likely(!ptrace) && unlikely(task_ptrace(p))) {
 		/*
 		 * This child is hidden by ptrace.
@@ -1545,9 +1549,6 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		wo->notask_error = 0;
 		return 0;
 	}
-
-	if (p->exit_state == EXIT_DEAD)
-		return 0;
 
 	/*
 	 * We don't reap group leaders with subthreads.
