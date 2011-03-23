@@ -295,11 +295,13 @@ vfs_removexattr(struct dentry *dentry, const char *name)
 	if (error)
 		return error;
 
-	error = security_inode_removexattr(dentry, name);
-	if (error)
-		return error;
-
 	mutex_lock(&inode->i_mutex);
+	error = security_inode_removexattr(dentry, name);
+	if (error) {
+		mutex_unlock(&inode->i_mutex);
+		return error;
+	}
+
 	error = inode->i_op->removexattr(dentry, name);
 	mutex_unlock(&inode->i_mutex);
 
