@@ -196,11 +196,6 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	return val;
 }
 
-static const struct ath_ops ath9k_common_ops = {
-	.read = ath9k_ioread32,
-	.write = ath9k_iowrite32,
-};
-
 /**************************/
 /*     Initialization     */
 /**************************/
@@ -551,6 +546,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = subsysid;
+	ah->reg_ops.read = ath9k_ioread32;
+	ah->reg_ops.write = ath9k_iowrite32;
 	sc->sc_ah = ah;
 
 	if (!pdata) {
@@ -563,7 +560,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	}
 
 	common = ath9k_hw_common(ah);
-	common->ops = &ath9k_common_ops;
+	common->ops = &ah->reg_ops;
 	common->bus_ops = bus_ops;
 	common->ah = ah;
 	common->hw = sc->hw;

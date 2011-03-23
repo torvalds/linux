@@ -430,14 +430,6 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	mutex_unlock(&priv->wmi->multi_write_mutex);
 }
 
-static const struct ath_ops ath9k_common_ops = {
-	.read = ath9k_regread,
-	.multi_read = ath9k_multi_regread,
-	.write = ath9k_regwrite,
-	.enable_write_buffer = ath9k_enable_regwrite_buffer,
-	.write_flush = ath9k_regwrite_flush,
-};
-
 static void ath_usb_read_cachesize(struct ath_common *common, int *csz)
 {
 	*csz = L1_CACHE_BYTES >> 2;
@@ -658,10 +650,15 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	ah->hw_version.subsysid = 0; /* FIXME */
 	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
+	ah->reg_ops.read = ath9k_regread;
+	ah->reg_ops.multi_read = ath9k_multi_regread;
+	ah->reg_ops.write = ath9k_regwrite;
+	ah->reg_ops.enable_write_buffer = ath9k_enable_regwrite_buffer;
+	ah->reg_ops.write_flush = ath9k_regwrite_flush;
 	priv->ah = ah;
 
 	common = ath9k_hw_common(ah);
-	common->ops = &ath9k_common_ops;
+	common->ops = &ah->reg_ops;
 	common->bus_ops = &ath9k_usb_bus_ops;
 	common->ah = ah;
 	common->hw = priv->hw;

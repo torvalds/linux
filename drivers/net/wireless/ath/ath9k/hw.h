@@ -65,24 +65,24 @@
 
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) \
-	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))
+	(_ah)->reg_ops.write((_ah), (_val), (_reg))
 
 #define REG_READ(_ah, _reg) \
-	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
+	(_ah)->reg_ops.read((_ah), (_reg))
 
 #define REG_READ_MULTI(_ah, _addr, _val, _cnt)		\
-	ath9k_hw_common(_ah)->ops->multi_read((_ah), (_addr), (_val), (_cnt))
+	(_ah)->reg_ops.multi_read((_ah), (_addr), (_val), (_cnt))
 
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
-		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
-			ath9k_hw_common(_ah)->ops->enable_write_buffer((_ah)); \
+		if ((_ah)->reg_ops.enable_write_buffer)	\
+			(_ah)->reg_ops.enable_write_buffer((_ah)); \
 	} while (0)
 
 #define REGWRITE_BUFFER_FLUSH(_ah)					\
 	do {								\
-		if (ath9k_hw_common(_ah)->ops->write_flush)		\
-			ath9k_hw_common(_ah)->ops->write_flush((_ah));	\
+		if ((_ah)->reg_ops.write_flush)		\
+			(_ah)->reg_ops.write_flush((_ah));	\
 	} while (0)
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
@@ -657,6 +657,8 @@ struct ath_nf_limits {
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
 
 struct ath_hw {
+	struct ath_ops reg_ops;
+
 	struct ieee80211_hw *hw;
 	struct ath_common common;
 	struct ath9k_hw_version hw_version;
