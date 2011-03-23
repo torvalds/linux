@@ -236,6 +236,29 @@ struct nfs4_getdeviceinfo_res {
 	struct nfs4_sequence_res seq_res;
 };
 
+struct nfs4_layoutcommit_args {
+	nfs4_stateid stateid;
+	__u64 lastbytewritten;
+	struct inode *inode;
+	const u32 *bitmask;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_layoutcommit_res {
+	struct nfs_fattr *fattr;
+	const struct nfs_server *server;
+	struct nfs4_sequence_res seq_res;
+};
+
+struct nfs4_layoutcommit_data {
+	struct rpc_task task;
+	struct nfs_fattr fattr;
+	struct pnfs_layout_segment *lseg;
+	struct rpc_cred *cred;
+	struct nfs4_layoutcommit_args args;
+	struct nfs4_layoutcommit_res res;
+};
+
 /*
  * Arguments to the open call.
  */

@@ -5616,6 +5616,100 @@ int nfs4_proc_getdeviceinfo(struct nfs_server *server, struct pnfs_device *pdev)
 }
 EXPORT_SYMBOL_GPL(nfs4_proc_getdeviceinfo);
 
+static void nfs4_layoutcommit_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_layoutcommit_data *data = calldata;
+	struct nfs_server *server = NFS_SERVER(data->args.inode);
+
+	if (nfs4_setup_sequence(server, &data->args.seq_args,
+				&data->res.seq_res, 1, task))
+		return;
+	rpc_call_start(task);
+}
+
+static void
+nfs4_layoutcommit_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_layoutcommit_data *data = calldata;
+	struct nfs_server *server = NFS_SERVER(data->args.inode);
+
+	if (!nfs4_sequence_done(task, &data->res.seq_res))
+		return;
+
+	switch (task->tk_status) { /* Just ignore these failures */
+	case NFS4ERR_DELEG_REVOKED: /* layout was recalled */
+	case NFS4ERR_BADIOMODE:     /* no IOMODE_RW layout for range */
+	case NFS4ERR_BADLAYOUT:     /* no layout */
+	case NFS4ERR_GRACE:	    /* loca_recalim always false */
+		task->tk_status = 0;
+	}
+
+	if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN) {
+		nfs_restart_rpc(task, server->nfs_client);
+		return;
+	}
+
+	if (task->tk_status == 0)
+		nfs_post_op_update_inode_force_wcc(data->args.inode,
+						   data->res.fattr);
+}
+
+static void nfs4_layoutcommit_release(void *calldata)
+{
+	struct nfs4_layoutcommit_data *data = calldata;
+
+	/* Matched by references in pnfs_set_layoutcommit */
+	put_lseg(data->lseg);
+	put_rpccred(data->cred);
+	kfree(data);
+}
+
+static const struct rpc_call_ops nfs4_layoutcommit_ops = {
+	.rpc_call_prepare = nfs4_layoutcommit_prepare,
+	.rpc_call_done = nfs4_layoutcommit_done,
+	.rpc_release = nfs4_layoutcommit_release,
+};
+
+int
+nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, int sync)
+{
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTCOMMIT],
+		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
+		.rpc_cred = data->cred,
+	};
+	struct rpc_task_setup task_setup_data = {
+		.task = &data->task,
+		.rpc_client = NFS_CLIENT(data->args.inode),
+		.rpc_message = &msg,
+		.callback_ops = &nfs4_layoutcommit_ops,
+		.callback_data = data,
+		.flags = RPC_TASK_ASYNC,
+	};
+	struct rpc_task *task;
+	int status = 0;
+
+	dprintk("NFS: %4d initiating layoutcommit call. sync %d "
+		"lbw: %llu inode %lu\n",
+		data->task.tk_pid, sync,
+		data->args.lastbytewritten,
+		data->args.inode->i_ino);
+
+	task = rpc_run_task(&task_setup_data);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	if (!sync)
+		goto out;
+	status = nfs4_wait_for_completion_rpc_task(task);
+	if (status != 0)
+		goto out;
+	status = task->tk_status;
+out:
+	dprintk("%s: status %d\n", __func__, status);
+	rpc_put_task(task);
+	return status;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {

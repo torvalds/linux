@@ -262,6 +262,8 @@ extern int nfs4_proc_destroy_session(struct nfs4_session *);
 extern int nfs4_init_session(struct nfs_server *server);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
+extern int nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data,
+				  int sync);
 
 static inline bool
 is_ds_only_client(struct nfs_client *clp)

@@ -1562,7 +1562,20 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 
 int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	return nfs_commit_unstable_pages(inode, wbc);
+	int ret;
+
+	ret = nfs_commit_unstable_pages(inode, wbc);
+	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
+		int status, sync = wbc->sync_mode;
+
+		if (wbc->nonblocking || wbc->for_background)
+				sync = 0;
+
+		status = pnfs_layoutcommit_inode(inode, sync);
+		if (status < 0)
+			return status;
+	}
+	return ret;
 }
 
 /*

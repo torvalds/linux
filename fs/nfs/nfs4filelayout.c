@@ -154,6 +154,23 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 }
 
 /*
+ * We reference the rpc_cred of the first WRITE that triggers the need for
+ * a LAYOUTCOMMIT, and use it to send the layoutcommit compound.
+ * rfc5661 is not clear about which credential should be used.
+ */
+static void
+filelayout_set_layoutcommit(struct nfs_write_data *wdata)
+{
+	if (FILELAYOUT_LSEG(wdata->lseg)->commit_through_mds ||
+	    wdata->res.verf->committed == NFS_FILE_SYNC)
+		return;
+
+	pnfs_set_layoutcommit(wdata);
+	dprintk("%s ionde %lu pls_end_pos %lu\n", __func__, wdata->inode->i_ino,
+		(unsigned long) wdata->lseg->pls_end_pos);
+}
+
+/*
  * Call ops for the async read/write cases
  * In the case of dense layouts, the offset needs to be reset to its
  * original value.
@@ -210,6 +227,7 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 		return -EAGAIN;
 	}
 
+	filelayout_set_layoutcommit(data);
 	return 0;
 }
 

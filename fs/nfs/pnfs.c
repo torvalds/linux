@@ -946,3 +946,97 @@ pnfs_try_to_read_data(struct nfs_read_data *rdata,
 	dprintk("%s End (trypnfs:%d)\n", __func__, trypnfs);
 	return trypnfs;
 }
+
+/*
+ * Currently there is only one (whole file) write lseg.
+ */
+static struct pnfs_layout_segment *pnfs_list_write_lseg(struct inode *inode)
+{
+	struct pnfs_layout_segment *lseg, *rv = NULL;
+
+	list_for_each_entry(lseg, &NFS_I(inode)->layout->plh_segs, pls_list)
+		if (lseg->pls_range.iomode == IOMODE_RW)
+			rv = lseg;
+	return rv;
+}
+
+void
+pnfs_set_layoutcommit(struct nfs_write_data *wdata)
+{
+	struct nfs_inode *nfsi = NFS_I(wdata->inode);
+	loff_t end_pos = wdata->args.offset + wdata->res.count;
+
+	spin_lock(&nfsi->vfs_inode.i_lock);
+	if (!test_and_set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		/* references matched in nfs4_layoutcommit_release */
+		get_lseg(wdata->lseg);
+		wdata->lseg->pls_lc_cred =
+			get_rpccred(wdata->args.context->state->owner->so_cred);
+		mark_inode_dirty_sync(wdata->inode);
+		dprintk("%s: Set layoutcommit for inode %lu ",
+			__func__, wdata->inode->i_ino);
+	}
+	if (end_pos > wdata->lseg->pls_end_pos)
+		wdata->lseg->pls_end_pos = end_pos;
+	spin_unlock(&nfsi->vfs_inode.i_lock);
+}
+EXPORT_SYMBOL_GPL(pnfs_set_layoutcommit);
+
+int
+pnfs_layoutcommit_inode(struct inode *inode, int sync)
+{
+	struct nfs4_layoutcommit_data *data;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct pnfs_layout_segment *lseg;
+	struct rpc_cred *cred;
+	loff_t end_pos;
+	int status = 0;
+
+	dprintk("--> %s inode %lu\n", __func__, inode->i_ino);
+
+	/* Note kzalloc ensures data->res.seq_res.sr_slot == NULL */
+	data = kzalloc(sizeof(*data), GFP_NOFS);
+	spin_lock(&inode->i_lock);
+
+	if (!test_and_clear_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		spin_unlock(&inode->i_lock);
+		kfree(data);
+		goto out;
+	}
+	/*
+	 * Currently only one (whole file) write lseg which is referenced
+	 * in pnfs_set_layoutcommit and will be found.
+	 */
+	lseg = pnfs_list_write_lseg(inode);
+
+	end_pos = lseg->pls_end_pos;
+	cred = lseg->pls_lc_cred;
+	lseg->pls_end_pos = 0;
+	lseg->pls_lc_cred = NULL;
+
+	if (!data) {
+		put_lseg(lseg);
+		spin_unlock(&inode->i_lock);
+		put_rpccred(cred);
+		status = -ENOMEM;
+		goto out;
+	} else {
+		memcpy(&data->args.stateid.data, nfsi->layout->plh_stateid.data,
+			sizeof(nfsi->layout->plh_stateid.data));
+	}
+	spin_unlock(&inode->i_lock);
+
+	data->args.inode = inode;
+	data->lseg = lseg;
+	data->cred = cred;
+	nfs_fattr_init(&data->fattr);
+	data->args.bitmask = NFS_SERVER(inode)->cache_consistency_bitmask;
+	data->res.fattr = &data->fattr;
+	data->args.lastbytewritten = end_pos - 1;
+	data->res.server = NFS_SERVER(inode);
+
+	status = nfs4_proc_layoutcommit(data, sync);
+out:
+	dprintk("<-- %s status %d\n", __func__, status);
+	return status;
+}

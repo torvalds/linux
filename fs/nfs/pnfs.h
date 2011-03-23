@@ -43,6 +43,8 @@ struct pnfs_layout_segment {
 	atomic_t pls_refcount;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
+	struct rpc_cred	*pls_lc_cred; /* LAYOUTCOMMIT credential */
+	loff_t pls_end_pos; /* LAYOUTCOMMIT write end */
 };
 
 enum pnfs_try_status {
@@ -152,7 +154,8 @@ bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
-
+void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
+int pnfs_layoutcommit_inode(struct inode *inode, int sync);
 
 static inline int lo_fail_bit(u32 iomode)
 {
@@ -325,6 +328,10 @@ static inline void pnfs_clear_request_commit(struct nfs_page *req)
 {
 }
 
+static inline int pnfs_layoutcommit_inode(struct inode *inode, int sync)
+{
+	return 0;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */
