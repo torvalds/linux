@@ -174,7 +174,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_HT                         = BIT(0),
 	ATH9K_HW_CAP_RFSILENT                   = BIT(1),
 	ATH9K_HW_CAP_CST                        = BIT(2),
-	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(3),
 	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(4),
 	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(5),
 	ATH9K_HW_CAP_EDMA			= BIT(6),

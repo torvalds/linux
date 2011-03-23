@@ -1903,8 +1903,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->rts_aggr_limit = (8 * 1024);
 	}
 
-	pCap->hw_caps |= ATH9K_HW_CAP_ENHANCEDPM;
-
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	ah->rfsilent = ah->eep_ops->get_eeprom(ah, EEP_RF_SILENT);
 	if (ah->rfsilent & EEP_RFSILENT_ENABLED) {
