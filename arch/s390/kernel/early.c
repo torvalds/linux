@@ -143,8 +143,9 @@ static noinline __init void create_kernel_nss(void)
 	snprintf(defsys_cmd + hlen, DEFSYS_CMD_SIZE - hlen,
 		 " EW MINSIZE=%.7iK PARMREGS=0-13", min_size);
 	defsys_cmd[DEFSYS_CMD_SIZE - 1] = '\0';
-	sprintf(savesys_cmd, "SAVESYS %s \n IPL %s",
-		kernel_nss_name, kernel_nss_name);
+	snprintf(savesys_cmd, SAVESYS_CMD_SIZE, "SAVESYS %s \n IPL %s",
+		 kernel_nss_name, kernel_nss_name);
+	savesys_cmd[SAVESYS_CMD_SIZE - 1] = '\0';
 
 	__cpcmd(defsys_cmd, NULL, 0, &response);
 
