@@ -107,7 +107,7 @@ int lcd_init(void)
 
 /* set lcd to sleep mode or not */
 
-int lcd_standby(u32 enable)
+int lcd_standby(u8 enable)
 {
     mcu_ioctl(MCU_SETBYPASS, 1);
 
@@ -124,7 +124,7 @@ int lcd_standby(u32 enable)
 
 /* set lcd to write memory mode, so the lcdc of RK29xx can send the fb content to the lcd internal ram in hold mode*/
 
-int lcd_refresh(u32 arg)
+int lcd_refresh(u8 arg)
 {
     mcu_ioctl(MCU_SETBYPASS, 1);
 
@@ -162,7 +162,7 @@ int lcd_refresh(u32 arg)
 
 /* not used */
 
-int lcd_scandir(u32 dir)
+int lcd_scandir(u16 dir)
 {
     mcu_ioctl(MCU_SETBYPASS, 1);
     
@@ -175,7 +175,7 @@ int lcd_scandir(u32 dir)
 
 /* not used */
 
-int lcd_disparea(u32 area)
+int lcd_disparea(u8 area)
 {
     mcu_ioctl(MCU_SETBYPASS, 1);
     mcu_ioctl(MCU_SETBYPASS, 0);

@@ -50,7 +50,7 @@
 
 static struct rk29lcd_info *gLcd_info = NULL;
 int lcd_init(void);
-int lcd_standby(u32 enable);
+int lcd_standby(u8 enable);
 /*
 #define RXD_PORT	    RK2818_PIN_PB7
 #define TXD_PORT        RK2818_PIN_PB6    //gLcd_info->txd_pin
@@ -319,7 +319,7 @@ int lcd_init(void)
     return 0;
 }
 
-int lcd_standby(u32 enable)	//***enable =1 means suspend, 0 means resume 
+int lcd_standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
 
     if(gLcd_info)

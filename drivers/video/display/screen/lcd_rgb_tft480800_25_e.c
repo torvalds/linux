@@ -114,7 +114,7 @@
 
 static struct rk29lcd_info *gLcd_info = NULL;
 int lcd_init(void);
-int lcd_standby(u32 enable);
+int lcd_standby(u8 enable);
 
 
 /* spi write a data frame,type mean command or data */
@@ -475,7 +475,7 @@ int lcd_init(void)
     return 0;
 }
 
-int lcd_standby(u32 enable)
+int lcd_standby(u8 enable)
 {
     if(gLcd_info)
         gLcd_info->io_init();
