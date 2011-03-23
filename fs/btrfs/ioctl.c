@@ -2547,7 +2547,7 @@ static long btrfs_ioctl_scrub(struct btrfs_root *root, void __user *arg)
 		return PTR_ERR(sa);
 
 	ret = btrfs_scrub_dev(root, sa->devid, sa->start, sa->end,
-			      &sa->progress);
+			      &sa->progress, sa->flags & BTRFS_SCRUB_READONLY);
 
 	if (copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;

@@ -42,7 +42,6 @@
  *  - In case of a read error on files with nodatasum, map the file and read
  *    the extent to trigger a writeback of the good copy
  *  - track and record media errors, throw out bad devices
- *  - add a readonly mode
  *  - add a mode to also read unallocated space
  *  - make the prefetch cancellable
  */
@@ -99,6 +98,7 @@ struct scrub_dev {
 	u16			csum_size;
 	struct list_head	csum_list;
 	atomic_t		cancel_req;
+	int			readonly;
 	/*
 	 * statistics
 	 */
@@ -329,14 +329,16 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 	if (i == multi->num_stripes)
 		goto uncorrectable;
 
-	/*
-	 * bi_io_vec[ix].bv_page now contains good data, write it back
-	 */
-	if (scrub_fixup_io(WRITE, sdev->dev->bdev,
-			   (sbio->physical + ix * PAGE_SIZE) >> 9,
-			   sbio->bio->bi_io_vec[ix].bv_page)) {
-		/* I/O-error, writeback failed, give up */
-		goto uncorrectable;
+	if (!sdev->readonly) {
+		/*
+		 * bi_io_vec[ix].bv_page now contains good data, write it back
+		 */
+		if (scrub_fixup_io(WRITE, sdev->dev->bdev,
+				   (sbio->physical + ix * PAGE_SIZE) >> 9,
+				   sbio->bio->bi_io_vec[ix].bv_page)) {
+			/* I/O-error, writeback failed, give up */
+			goto uncorrectable;
+		}
 	}
 
 	kfree(multi);
@@ -1156,7 +1158,7 @@ static noinline_for_stack void scrub_workers_put(struct btrfs_root *root)
 
 
 int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
-		    struct btrfs_scrub_progress *progress)
+		    struct btrfs_scrub_progress *progress, int readonly)
 {
 	struct scrub_dev *sdev;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -1209,6 +1211,7 @@ int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
 		scrub_workers_put(root);
 		return PTR_ERR(sdev);
 	}
+	sdev->readonly = readonly;
 	dev->scrub_device = sdev;
 
 	atomic_inc(&fs_info->scrubs_running);
