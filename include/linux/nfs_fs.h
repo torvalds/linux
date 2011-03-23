@@ -95,7 +95,10 @@ struct nfs_open_context {
 	int error;
 
 	struct list_head list;
+};
 
+struct nfs_open_dir_context {
+	struct rpc_cred *cred;
 	__u64 dir_cookie;
 };
 
