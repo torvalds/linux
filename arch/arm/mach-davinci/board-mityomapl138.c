@@ -29,7 +29,7 @@
 #include <mach/mux.h>
 #include <mach/spi.h>
 
-#define MITYOMAPL138_PHY_ID		"0:03"
+#define MITYOMAPL138_PHY_ID		""
 
 #define FACTORY_CONFIG_MAGIC	0x012C0138
 #define FACTORY_CONFIG_VERSION	0x00010001
