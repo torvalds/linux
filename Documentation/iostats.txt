@@ -1,8 +1,6 @@
 I/O statistics fields
 ---------------
 
-Last modified Sep 30, 2003
-
 Since 2.4.20 (and some versions before, with patches), and 2.5.45,
 more extensive disk statistics have been introduced to help measure disk
 activity. Tools such as sar and iostat typically interpret these and do
@@ -46,11 +44,12 @@ the above example, the first field of statistics would be 446216.
 By contrast, in 2.6 if you look at /sys/block/hda/stat, you'll
 find just the eleven fields, beginning with 446216.  If you look at
 /proc/diskstats, the eleven fields will be preceded by the major and
-minor device numbers, and device name.  Each of these formats provide
+minor device numbers, and device name.  Each of these formats provides
 eleven fields of statistics, each meaning exactly the same things.
 All fields except field 9 are cumulative since boot.  Field 9 should
-go to zero as I/Os complete; all others only increase.  Yes, these are
-32 bit unsigned numbers, and on a very busy or long-lived system they
+go to zero as I/Os complete; all others only increase (unless they
+overflow and wrap).  Yes, these are (32-bit or 64-bit) unsigned long
+(native word size) numbers, and on a very busy or long-lived system they
 may wrap. Applications should be prepared to deal with that; unless
 your observations are measured in large numbers of minutes or hours,
 they should not wrap twice before you notice them.
@@ -96,11 +95,11 @@ introduced when changes collide, so (for instance) adding up all the
 read I/Os issued per partition should equal those made to the disks ...
 but due to the lack of locking it may only be very close.
 
-In 2.6, there are counters for each cpu, which made the lack of locking
-almost a non-issue.  When the statistics are read, the per-cpu counters
-are summed (possibly overflowing the unsigned 32-bit variable they are
+In 2.6, there are counters for each CPU, which make the lack of locking
+almost a non-issue.  When the statistics are read, the per-CPU counters
+are summed (possibly overflowing the unsigned long variable they are
 summed to) and the result given to the user.  There is no convenient
-user interface for accessing the per-cpu counters themselves.
+user interface for accessing the per-CPU counters themselves.
 
 Disks vs Partitions
 -------------------
