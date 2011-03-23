@@ -38,6 +38,16 @@
 #include "storvsc_api.h"
 
 
+static const char *g_driver_name = "storvsc";
+
+/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
+static const struct hv_guid gStorVscDeviceType = {
+	.data = {
+		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
+		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
+	}
+};
+
 struct host_device_context {
 	/* must be 1st field
 	 * FIXME this is a bug */
@@ -63,6 +73,59 @@ struct storvsc_cmd_request {
 	 * Which sounds like a very bad design... */
 };
 
+
+/*
+ * stor_vsc_initialize - Main entry point
+ */
+int stor_vsc_initialize(struct hv_driver *driver)
+{
+	struct storvsc_driver_object *stor_driver;
+
+	stor_driver = (struct storvsc_driver_object *)driver;
+
+	DPRINT_DBG(STORVSC, "sizeof(STORVSC_REQUEST)=%zd "
+		   "sizeof(struct storvsc_request_extension)=%zd "
+		   "sizeof(struct vstor_packet)=%zd, "
+		   "sizeof(struct vmscsi_request)=%zd",
+		   sizeof(struct hv_storvsc_request),
+		   sizeof(struct storvsc_request_extension),
+		   sizeof(struct vstor_packet),
+		   sizeof(struct vmscsi_request));
+
+	/* Make sure we are at least 2 pages since 1 page is used for control */
+
+	driver->name = g_driver_name;
+	memcpy(&driver->dev_type, &gStorVscDeviceType,
+	       sizeof(struct hv_guid));
+
+	stor_driver->request_ext_size =
+			sizeof(struct storvsc_request_extension);
+
+	/*
+	 * Divide the ring buffer data size (which is 1 page less
+	 * than the ring buffer size since that page is reserved for
+	 * the ring buffer indices) by the max request size (which is
+	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
+	 */
+	stor_driver->max_outstanding_req_per_channel =
+		((stor_driver->ring_buffer_size - PAGE_SIZE) /
+		  ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
+			   sizeof(struct vstor_packet) + sizeof(u64),
+			   sizeof(u64)));
+
+	DPRINT_INFO(STORVSC, "max io %u, currently %u\n",
+		    stor_driver->max_outstanding_req_per_channel,
+		    STORVSC_MAX_IO_REQUESTS);
+
+	/* Setup the dispatch table */
+	stor_driver->base.dev_add	= stor_vsc_on_device_add;
+	stor_driver->base.dev_rm	= stor_vsc_on_device_remove;
+	stor_driver->base.cleanup	= stor_vsc_on_cleanup;
+
+	stor_driver->on_io_request	= stor_vsc_on_io_request;
+
+	return 0;
+}
 
 /* Static decl */
 static int storvsc_probe(struct device *dev);
