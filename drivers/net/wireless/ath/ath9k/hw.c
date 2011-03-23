@@ -675,14 +675,14 @@ static void ath9k_hw_init_qos(struct ath_hw *ah)
 
 unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 {
-		REG_WRITE(ah, PLL3, (REG_READ(ah, PLL3) & ~(PLL3_DO_MEAS_MASK)));
+	REG_CLR_BIT(ah, PLL3, PLL3_DO_MEAS_MASK);
+	udelay(100);
+	REG_SET_BIT(ah, PLL3, PLL3_DO_MEAS_MASK);
+
+	while ((REG_READ(ah, PLL4) & PLL4_MEAS_DONE) == 0)
 		udelay(100);
-		REG_WRITE(ah, PLL3, (REG_READ(ah, PLL3) | PLL3_DO_MEAS_MASK));
 
-		while ((REG_READ(ah, PLL4) & PLL4_MEAS_DONE) == 0)
-			udelay(100);
-
-		return (REG_READ(ah, PLL3) & SQSUM_DVC_MASK) >> 3;
+	return (REG_READ(ah, PLL3) & SQSUM_DVC_MASK) >> 3;
 }
 EXPORT_SYMBOL(ar9003_get_pll_sqsum_dvc);
 
@@ -832,8 +832,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		ah->misc_mode);
 
 	if (ah->misc_mode != 0)
-		REG_WRITE(ah, AR_PCU_MISC,
-			  REG_READ(ah, AR_PCU_MISC) | ah->misc_mode);
+		REG_SET_BIT(ah, AR_PCU_MISC, ah->misc_mode);
 
 	if (conf->channel && conf->channel->band == IEEE80211_BAND_5GHZ)
 		sifstime = 16;
@@ -901,23 +900,19 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan)
 static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 regval;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	/*
 	 * set AHB_MODE not to do cacheline prefetches
 	*/
-	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		regval = REG_READ(ah, AR_AHB_MODE);
-		REG_WRITE(ah, AR_AHB_MODE, regval | AR_AHB_PREFETCH_RD_EN);
-	}
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		REG_SET_BIT(ah, AR_AHB_MODE, AR_AHB_PREFETCH_RD_EN);
 
 	/*
 	 * let mac dma reads be in 128 byte chunks
 	 */
-	regval = REG_READ(ah, AR_TXCFG) & ~AR_TXCFG_DMASZ_MASK;
-	REG_WRITE(ah, AR_TXCFG, regval | AR_TXCFG_DMASZ_128B);
+	REG_RMW(ah, AR_TXCFG, AR_TXCFG_DMASZ_128B, AR_TXCFG_DMASZ_MASK);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
@@ -934,8 +929,7 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 	/*
 	 * let mac dma writes be in 128 byte chunks
 	 */
-	regval = REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_DMASZ_MASK;
-	REG_WRITE(ah, AR_RXCFG, regval | AR_RXCFG_DMASZ_128B);
+	REG_RMW(ah, AR_RXCFG, AR_RXCFG_DMASZ_128B, AR_RXCFG_DMASZ_MASK);
 
 	/*
 	 * Setup receive FIFO threshold to hold off TX activities
@@ -974,30 +968,27 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 
 static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)
 {
-	u32 val;
+	u32 mask = AR_STA_ID1_STA_AP | AR_STA_ID1_ADHOC;
+	u32 set = AR_STA_ID1_KSRCH_MODE;
 
-	val = REG_READ(ah, AR_STA_ID1);
-	val &= ~(AR_STA_ID1_STA_AP | AR_STA_ID1_ADHOC);
 	switch (opmode) {
-	case NL80211_IFTYPE_AP:
-		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_STA_AP
-			  | AR_STA_ID1_KSRCH_MODE);
-		REG_CLR_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
-		break;
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
-		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_ADHOC
-			  | AR_STA_ID1_KSRCH_MODE);
+		set |= AR_STA_ID1_ADHOC;
 		REG_SET_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
 		break;
+	case NL80211_IFTYPE_AP:
+		set |= AR_STA_ID1_STA_AP;
+		/* fall through */
 	case NL80211_IFTYPE_STATION:
-		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_KSRCH_MODE);
+		REG_CLR_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
 		break;
 	default:
-		if (ah->is_monitoring)
-			REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_KSRCH_MODE);
+		if (!ah->is_monitoring)
+			set = 0;
 		break;
 	}
+	REG_RMW(ah, AR_STA_ID1, set, mask);
 }
 
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
@@ -1023,10 +1014,8 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	u32 tmpReg;
 
 	if (AR_SREV_9100(ah)) {
-		u32 val = REG_READ(ah, AR_RTC_DERIVED_CLK);
-		val &= ~AR_RTC_DERIVED_CLK_PERIOD;
-		val |= SM(1, AR_RTC_DERIVED_CLK_PERIOD);
-		REG_WRITE(ah, AR_RTC_DERIVED_CLK, val);
+		REG_RMW_FIELD(ah, AR_RTC_DERIVED_CLK,
+			      AR_RTC_DERIVED_CLK_PERIOD, 1);
 		(void)REG_READ(ah, AR_RTC_DERIVED_CLK);
 	}
 
@@ -1451,8 +1440,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		ar9002_hw_enable_wep_aggregation(ah);
 	}
 
-	REG_WRITE(ah, AR_STA_ID1,
-		  REG_READ(ah, AR_STA_ID1) | AR_STA_ID1_PRESERVE_SEQNUM);
+	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PRESERVE_SEQNUM);
 
 	ath9k_hw_set_dma(ah);
 
@@ -2204,11 +2192,9 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits)
 	REG_WRITE(ah, AR_PHY_ERR, phybits);
 
 	if (phybits)
-		REG_WRITE(ah, AR_RXCFG,
-			  REG_READ(ah, AR_RXCFG) | AR_RXCFG_ZLFDMA);
+		REG_SET_BIT(ah, AR_RXCFG, AR_RXCFG_ZLFDMA);
 	else
-		REG_WRITE(ah, AR_RXCFG,
-			  REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_ZLFDMA);
+		REG_CLR_BIT(ah, AR_RXCFG, AR_RXCFG_ZLFDMA);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 }
