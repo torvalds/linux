@@ -357,6 +357,28 @@ struct p1003_platform_data p1003_info = {
 
 };
 #endif
+
+#if defined(CONFIG_TOUCHSCREEN_GT801_IIC) 
+#include "../../../drivers/input/touchscreen/gt801_ts.h"
+#define GT801_GPIO_INT      RK29_PIN4_PD5
+#define GT801_GPIO_RESET    RK29_PIN6_PC3
+static struct gt801_platform_data gt801_info = {
+	.model			= 801,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 480,
+	.y_min			= 0,
+	.y_max			= 800,
+	.gpio_reset     = GT801_GPIO_RESET,
+	.gpio_reset_active_low = 1,
+	.gpio_pendown		= GT801_GPIO_INT,
+    .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
+    .resetpin_iomux_name = NULL,
+    .pendown_iomux_mode = GPIO4H_GPIO4D5,
+    .resetpin_iomux_mode = 0,
+};
+#endif
+
 #if defined (CONFIG_EETI_EGALAX)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN4_PD5
@@ -1403,6 +1425,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 
 #ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
+#if defined (CONFIG_TOUCHSCREEN_GT801_IIC)
+{
+	.type           = "gt801_ts",
+	.addr           = 0x55,
+	.flags          = 0,
+	.irq            = RK29_PIN4_PD5,
+	.platform_data = &gt801_info,
+},	
+#endif
 #if defined (CONFIG_MFD_WM831X_I2C)
 {
 	.type           = "wm8310",

@@ -742,4 +742,7 @@ config TOUCHSCREEN_IT7260
 
 	  If unsure, say N (but it's safe to say "Y").
 
+config TOUCHSCREEN_GT801_IIC
+	tristate "GT801_IIC based touchscreens"
+	depends on I2C2_RK29
 endif
