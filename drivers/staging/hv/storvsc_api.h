@@ -114,6 +114,32 @@ struct storvsc_request_extension {
 	struct vstor_packet vstor_packet;
 };
 
+/* A storvsc device is a device object that contains a vmbus channel */
+struct storvsc_device {
+	struct hv_device *device;
+
+	/* 0 indicates the device is being destroyed */
+	atomic_t ref_count;
+
+	atomic_t num_outstanding_req;
+
+	/*
+	 * Each unique Port/Path/Target represents 1 channel ie scsi
+	 * controller. In reality, the pathid, targetid is always 0
+	 * and the port is set by us
+	 */
+	unsigned int port_number;
+	unsigned char path_id;
+	unsigned char target_id;
+
+	/* LIST_ENTRY OutstandingRequestList; */
+	/* HANDLE OutstandingRequestLock; */
+
+	/* Used for vsc/vsp channel reset process */
+	struct storvsc_request_extension init_request;
+	struct storvsc_request_extension reset_request;
+};
+
 /* Interface */
 int stor_vsc_initialize(struct hv_driver *driver);
 int stor_vsc_on_host_reset(struct hv_device *device);
