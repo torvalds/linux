@@ -25,6 +25,9 @@
 /* to alert the user that structure sizes may be mismatched even though the */
 /* protocol versions match. */
 
+#ifndef _VSTORAGE_H_
+#define _VSTORAGE_H_
+
 #define REVISION_STRING(REVISION_) #REVISION_
 #define FILL_VMSTOR_REVISION(RESULT_LVALUE_)				\
 	do {								\
@@ -190,3 +193,5 @@ struct vstor_packet {
 
 /*  This is the set of flags that the vsc can set in any packets it sends */
 #define VSC_LEGAL_FLAGS		(REQUEST_COMPLETION_FLAG)
+
+#endif /* _VSTORAGE_H_ */
