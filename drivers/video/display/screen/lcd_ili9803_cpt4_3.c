@@ -280,6 +280,7 @@ int init(void)
 
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
+	int i;
 #if 1	
     if(gLcd_info)
         gLcd_info->io_init();
@@ -289,7 +290,7 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		spi_screenreg_param(0x0f);
 	} else { 
  		CS_OUT() ;
-		for(int i=0;i<6;i++)
+		for(i=0; i<6; i++)
 		{
 			CS_SET();
 			DRVDelayUs(1);
