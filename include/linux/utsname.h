@@ -37,9 +37,13 @@ struct new_utsname {
 #include <linux/nsproxy.h>
 #include <linux/err.h>
 
+struct user_namespace;
+extern struct user_namespace init_user_ns;
+
 struct uts_namespace {
 	struct kref kref;
 	struct new_utsname name;
+	struct user_namespace *user_ns;
 };
 extern struct uts_namespace init_uts_ns;
 
