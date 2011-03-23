@@ -100,6 +100,8 @@ struct nfs_open_context {
 struct nfs_open_dir_context {
 	struct rpc_cred *cred;
 	__u64 dir_cookie;
+	__u64 dup_cookie;
+	int duped;
 };
 
 /*

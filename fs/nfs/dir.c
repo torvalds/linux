@@ -139,7 +139,9 @@ static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct rpc_cred *
 	struct nfs_open_dir_context *ctx;
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
+		ctx->duped = 0;
 		ctx->dir_cookie = 0;
+		ctx->dup_cookie = 0;
 		ctx->cred = get_rpccred(cred);
 	} else
 		ctx = ERR_PTR(-ENOMEM);
@@ -321,6 +323,7 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 {
 	loff_t diff = desc->file->f_pos - desc->current_index;
 	unsigned int index;
+	struct nfs_open_dir_context *ctx = desc->file->private_data;
 
 	if (diff < 0)
 		goto out_eof;
@@ -333,6 +336,7 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 	index = (unsigned int)diff;
 	*desc->dir_cookie = array->array[index].cookie;
 	desc->cache_entry_index = index;
+	ctx->duped = 0;
 	return 0;
 out_eof:
 	desc->eof = 1;
@@ -343,11 +347,18 @@ static
 int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_descriptor_t *desc)
 {
 	int i;
+	loff_t new_pos;
 	int status = -EAGAIN;
+	struct nfs_open_dir_context *ctx = desc->file->private_data;
 
 	for (i = 0; i < array->size; i++) {
 		if (array->array[i].cookie == *desc->dir_cookie) {
-			desc->file->f_pos = desc->current_index + i;
+			new_pos = desc->current_index + i;
+			if (new_pos < desc->file->f_pos) {
+				ctx->dup_cookie = *desc->dir_cookie;
+				ctx->duped = 1;
+			}
+			desc->file->f_pos = new_pos;
 			desc->cache_entry_index = i;
 			return 0;
 		}
@@ -732,6 +743,20 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	int i = 0;
 	int res = 0;
 	struct nfs_cache_array *array = NULL;
+	struct nfs_open_dir_context *ctx = file->private_data;
+
+	if (ctx->duped != 0 && ctx->dup_cookie == *desc->dir_cookie) {
+		if (printk_ratelimit()) {
+			pr_notice("NFS: directory %s/%s contains a readdir loop.  "
+				"Please contact your server vendor.  "
+				"Offending cookie: %llu\n",
+				file->f_dentry->d_parent->d_name.name,
+				file->f_dentry->d_name.name,
+				*desc->dir_cookie);
+		}
+		res = -ELOOP;
+		goto out;
+	}
 
 	array = nfs_readdir_get_array(desc->page);
 	if (IS_ERR(array)) {
@@ -914,6 +939,7 @@ static loff_t nfs_llseek_dir(struct file *filp, loff_t offset, int origin)
 	if (offset != filp->f_pos) {
 		filp->f_pos = offset;
 		dir_ctx->dir_cookie = 0;
+		dir_ctx->duped = 0;
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
