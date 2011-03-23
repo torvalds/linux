@@ -108,7 +108,7 @@ static int caam_probe(struct platform_device *pdev,
 	 * for all, then go probe each one.
 	 */
 	rspec = 0;
-	for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring")
+	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring")
 		rspec++;
 	ctrlpriv->jrdev = kzalloc(sizeof(struct device *) * rspec, GFP_KERNEL);
 	if (ctrlpriv->jrdev == NULL) {
@@ -118,7 +118,7 @@ static int caam_probe(struct platform_device *pdev,
 
 	ring = 0;
 	ctrlpriv->total_jobrs = 0;
-	for_each_compatible_node(np, NULL, "fsl,sec4.0-job-ring") {
+	for_each_compatible_node(np, NULL, "fsl,sec-v4.0-job-ring") {
 		caam_jr_probe(pdev, np, ring);
 		ctrlpriv->total_jobrs++;
 		ring++;
@@ -236,7 +236,7 @@ static int caam_probe(struct platform_device *pdev,
 
 static struct of_device_id caam_match[] = {
 	{
-		.compatible = "fsl,sec4.0",
+		.compatible = "fsl,sec-v4.0",
 	},
 	{},
 };

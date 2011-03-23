@@ -1020,7 +1020,7 @@ static void __exit caam_algapi_exit(void)
 	struct caam_crypto_alg *t_alg, *n;
 	int i, err;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node)
 		return;
 
@@ -1094,7 +1094,7 @@ static int __init caam_algapi_init(void)
 	struct caam_drv_private *priv;
 	int i = 0, err = 0;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
 	if (!dev_node)
 		return -ENODEV;
 

@@ -53,7 +53,7 @@ PROPERTIES
    - compatible
       Usage: required
       Value type: <string>
-      Definition: Must include "fsl,p4080-sec4.0","fsl,sec-4.0"
+      Definition: Must include "fsl,p4080-sec-v4.0","fsl,sec-v4.0"
 
    - #address-cells
        Usage: required
@@ -72,7 +72,7 @@ PROPERTIES
       Usage: required
       Value type: <prop-encoded-array>
       Definition: A standard property.  Specifies the physical
-          address and length of the SEC4.0 configuration registers.
+          address and length of the SEC4 configuration registers.
           registers
 
    - ranges
@@ -105,7 +105,7 @@ PROPERTIES
 
 EXAMPLE
 	crypto@300000 {
-		compatible = "fsl,p4080-sec4.0", "fsl,sec4.0";
+		compatible = "fsl,p4080-sec-v4.0", "fsl,sec-v4.0";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x300000 0x10000>;
@@ -127,7 +127,7 @@ P4080 Job Ring (JR) Node
   - compatible
       Usage: required
       Value type: <string>
-      Definition: Must include "fsl,p4080-sec4.0-job-ring","fsl,sec4.0-job-ring"
+      Definition: Must include "fsl,p4080-sec-v4.0-job-ring","fsl,sec-v4.0-job-ring"
 
   - reg
       Usage: required
@@ -163,8 +163,8 @@ P4080 Job Ring (JR) Node
 
 EXAMPLE
 	jr@1000 {
-		compatible = "fsl,p4080-sec4.0-job-ring",
-			     "fsl,sec4.0-job-ring";
+		compatible = "fsl,p4080-sec-v4.0-job-ring",
+			     "fsl,sec-v4.0-job-ring";
 		reg = <0x1000 0x1000>;
 		fsl,liodn = <0x081>;
 		interrupt-parent = <&mpic>;
@@ -186,7 +186,7 @@ P4080 Run Time Integrity Check (RTIC) Node
   - compatible
       Usage: required
       Value type: <string>
-      Definition: Must include "fsl,p4080-sec4.0-rtic","fsl,sec4.0-rtic".
+      Definition: Must include "fsl,p4080-sec-v4.0-rtic","fsl,sec-v4.0-rtic".
 
    - #address-cells
        Usage: required
@@ -219,8 +219,8 @@ P4080 Run Time Integrity Check (RTIC) Node
 
 EXAMPLE
 	rtic@6000 {
-		compatible = "fsl,p4080-sec4.0-rtic",
-			     "fsl,sec4.0-rtic";
+		compatible = "fsl,p4080-sec-v4.0-rtic",
+			     "fsl,sec-v4.0-rtic";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x6000 0x100>;
@@ -238,7 +238,7 @@ P4080 Run Time Integrity Check (RTIC) Memory Node
   - compatible
       Usage: required
       Value type: <string>
-      Definition: Must include "fsl,p4080-sec4.0-rtic-memory","fsl,sec4.0-rtic-memory".
+      Definition: Must include "fsl,p4080-sec-v4.0-rtic-memory","fsl,sec-v4.0-rtic-memory".
 
   - reg
       Usage: required
@@ -270,8 +270,8 @@ P4080 Run Time Integrity Check (RTIC) Memory Node
 
 EXAMPLE
 	rtic-a@0 {
-		compatible = "fsl,p4080-sec4.0-rtic-memory",
-			     "fsl,sec4.0-rtic-memory";
+		compatible = "fsl,p4080-sec-v4.0-rtic-memory",
+			     "fsl,sec-v4.0-rtic-memory";
 		reg = <0x00 0x20 0x100 0x80>;
 		fsl,liodn   = <0x03c>;
 		fsl,rtic-region  = <0x12345678 0x12345678 0x12345678>;
@@ -288,7 +288,7 @@ P4080 Secure Non-Volatile Storage (SNVS) Node
   - compatible
       Usage: required
       Value type: <string>
-      Definition: Must include "fsl,p4080-sec4.0-mon", "fsl,sec4.0-mon".
+      Definition: Must include "fsl,p4080-sec-v4.0-mon", "fsl,sec-v4.0-mon".
 
   - reg
       Usage: required
@@ -315,7 +315,7 @@ P4080 Secure Non-Volatile Storage (SNVS) Node
 
 EXAMPLE
 	sec_mon@314000 {
-		compatible = "fsl,p4080-sec4.0-mon", "fsl,sec4.0-mon";
+		compatible = "fsl,p4080-sec-v4.0-mon", "fsl,sec-v4.0-mon";
 		reg = <0x314000 0x1000>;
 		interrupt-parent = <&mpic>;
 		interrupts = <93 2>;
@@ -325,7 +325,7 @@ EXAMPLE
 FULL EXAMPLE
 
 	crypto: crypto@300000 {
-		compatible = "fsl,p4080-sec4.0", "fsl,sec4.0";
+		compatible = "fsl,p4080-sec-v4.0", "fsl,sec-v4.0";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x300000 0x10000>;
@@ -334,73 +334,73 @@ FULL EXAMPLE
 		interrupts = <92 2>;
 
 		sec_jr0: jr@1000 {
-			compatible = "fsl,p4080-sec4.0-job-ring",
-				     "fsl,sec4.0-job-ring";
+			compatible = "fsl,p4080-sec-v4.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
 			reg = <0x1000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <88 2>;
 		};
 
 		sec_jr1: jr@2000 {
-			compatible = "fsl,p4080-sec4.0-job-ring",
-				     "fsl,sec4.0-job-ring";
+			compatible = "fsl,p4080-sec-v4.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
 			reg = <0x2000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <89 2>;
 		};
 
 		sec_jr2: jr@3000 {
-			compatible = "fsl,p4080-sec4.0-job-ring",
-				     "fsl,sec4.0-job-ring";
+			compatible = "fsl,p4080-sec-v4.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
 			reg = <0x3000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <90 2>;
 		};
 
 		sec_jr3: jr@4000 {
-			compatible = "fsl,p4080-sec4.0-job-ring",
-				     "fsl,sec4.0-job-ring";
+			compatible = "fsl,p4080-sec-v4.0-job-ring",
+				     "fsl,sec-v4.0-job-ring";
 			reg = <0x4000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <91 2>;
 		};
 
 		rtic@6000 {
-			compatible = "fsl,p4080-sec4.0-rtic",
-				     "fsl,sec4.0-rtic";
+			compatible = "fsl,p4080-sec-v4.0-rtic",
+				     "fsl,sec-v4.0-rtic";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x6000 0x100>;
 			ranges = <0x0 0x6100 0xe00>;
 
 			rtic_a: rtic-a@0 {
-				compatible = "fsl,p4080-sec4.0-rtic-memory",
-					     "fsl,sec4.0-rtic-memory";
+				compatible = "fsl,p4080-sec-v4.0-rtic-memory",
+					     "fsl,sec-v4.0-rtic-memory";
 				reg = <0x00 0x20 0x100 0x80>;
 			};
 
 			rtic_b: rtic-b@20 {
-				compatible = "fsl,p4080-sec4.0-rtic-memory",
-					     "fsl,sec4.0-rtic-memory";
+				compatible = "fsl,p4080-sec-v4.0-rtic-memory",
+					     "fsl,sec-v4.0-rtic-memory";
 				reg = <0x20 0x20 0x200 0x80>;
 			};
 
 			rtic_c: rtic-c@40 {
-				compatible = "fsl,p4080-sec4.0-rtic-memory",
-					     "fsl,sec4.0-rtic-memory";
+				compatible = "fsl,p4080-sec-v4.0-rtic-memory",
+					     "fsl,sec-v4.0-rtic-memory";
 				reg = <0x40 0x20 0x300 0x80>;
 			};
 
 			rtic_d: rtic-d@60 {
-				compatible = "fsl,p4080-sec4.0-rtic-memory",
-					     "fsl,sec4.0-rtic-memory";
+				compatible = "fsl,p4080-sec-v4.0-rtic-memory",
+					     "fsl,sec-v4.0-rtic-memory";
 				reg = <0x60 0x20 0x500 0x80>;
 			};
 		};
 	};
 
 	sec_mon: sec_mon@314000 {
-		compatible = "fsl,p4080-sec4.0-mon", "fsl,sec4.0-mon";
+		compatible = "fsl,p4080-sec-v4.0-mon", "fsl,sec-v4.0-mon";
 		reg = <0x314000 0x1000>;
 		interrupt-parent = <&mpic>;
 		interrupts = <93 2>;
