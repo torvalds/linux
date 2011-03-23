@@ -4870,10 +4870,15 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 			break;
 		}
 
-		if (len >= EXT4_BLOCKS_PER_GROUP(sb))
-			len -= (EXT4_BLOCKS_PER_GROUP(sb) - first_block);
-		else
+		/*
+		 * For all the groups except the last one, last block will
+		 * always be EXT4_BLOCKS_PER_GROUP(sb), so we only need to
+		 * change it for the last group in which case start +
+		 * len < EXT4_BLOCKS_PER_GROUP(sb).
+		 */
+		if (first_block + len < EXT4_BLOCKS_PER_GROUP(sb))
 			last_block = first_block + len;
+		len -= last_block - first_block;
 
 		if (e4b.bd_info->bb_free >= minlen) {
 			cnt = ext4_trim_all_free(sb, &e4b, first_block,
