@@ -1880,11 +1880,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
 
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD >> 1;
-	else
-		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
-
 	if (AR_SREV_9271(ah))
 		pCap->num_gpio_pins = AR9271_NUM_GPIO;
 	else if (AR_DEVID_7010(ah))

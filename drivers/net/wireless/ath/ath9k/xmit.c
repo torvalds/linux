@@ -1980,7 +1980,7 @@ static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
 		if (ieee80211_is_data(hdr->frame_control) &&
 		    (ts->ts_flags & (ATH9K_TX_DATA_UNDERRUN |
 		                     ATH9K_TX_DELIM_UNDERRUN)) &&
-		    ah->tx_trig_level >= sc->sc_ah->caps.tx_triglevel_max)
+		    ah->tx_trig_level >= sc->sc_ah->config.max_txtrig_level)
 			tx_info->status.rates[tx_rateindex].count =
 				hw->max_rate_tries;
 	}
