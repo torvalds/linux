@@ -860,7 +860,7 @@ struct drbd_md {
 	s32 bm_offset;	/* signed relative sector offset to bitmap */
 
 	/* u32 al_nr_extents;	   important for restoring the AL
-	 * is stored into  sync_conf.al_extents, which in turn
+	 * is stored into  ldev->dc.al_extents, which in turn
 	 * gets applied to act_log->nr_elements
 	 */
 };
@@ -929,6 +929,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	atomic_t net_cnt;		/* Users of net_conf */
 	wait_queue_head_t net_cnt_wait;
 	wait_queue_head_t ping_wait;		/* Woken upon reception of a ping, and a state change */
+	struct res_opts res_opts;
 
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
@@ -945,6 +946,8 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct crypto_hash *cram_hmac_tfm;
 	struct crypto_hash *integrity_w_tfm; /* to be used by the worker thread */
 	struct crypto_hash *integrity_r_tfm; /* to be used by the receiver thread */
+	struct crypto_hash *csums_tfm;
+	struct crypto_hash *verify_tfm;
 	void *int_dig_out;
 	void *int_dig_in;
 	void *int_dig_vv;
@@ -963,7 +966,6 @@ struct drbd_conf {
 	unsigned long flags;
 
 	/* configured by drbdsetup */
-	struct syncer_conf sync_conf;
 	struct drbd_backing_dev *ldev __protected_by(local);
 
 	sector_t p_size;     /* partner's disk size */
@@ -1037,8 +1039,6 @@ struct drbd_conf {
 	/* size of out-of-sync range in sectors. */
 	sector_t ov_last_oos_size;
 	unsigned long ov_left; /* in bits */
-	struct crypto_hash *csums_tfm;
-	struct crypto_hash *verify_tfm;
 
 	struct drbd_bitmap *bitmap;
 	unsigned long bm_resync_fo; /* bit offset for drbd_bm_find_next */
@@ -1188,7 +1188,7 @@ extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
 			  char *data, size_t size);
 #define USE_DATA_SOCKET 1
 #define USE_META_SOCKET 0
-extern int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc);
+extern int drbd_send_sync_param(struct drbd_conf *mdev);
 extern int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			u32 set_size);
 extern int drbd_send_ack(struct drbd_conf *, enum drbd_packet,

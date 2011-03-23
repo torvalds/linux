@@ -402,7 +402,7 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
 		rv = SS_CONNECTED_OUTDATES;
 
 	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
-		 (mdev->sync_conf.verify_alg[0] == 0))
+		 (mdev->tconn->net_conf->verify_alg[0] == 0))
 		rv = SS_NO_VERIFY_ALG;
 
 	else if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) &&
@@ -668,7 +668,7 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED))
 		ns.susp_fen = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
 
-	if (mdev->sync_conf.on_no_data == OND_SUSPEND_IO &&
+	if (mdev->tconn->res_opts.on_no_data == OND_SUSPEND_IO &&
 	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE))
 		ns.susp_nod = 1; /* Suspend IO while no data available (no accessible data available) */
 

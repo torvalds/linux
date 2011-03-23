@@ -784,7 +784,7 @@ int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
 	return ok;
 }
 
-int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
+int drbd_send_sync_param(struct drbd_conf *mdev)
 {
 	struct p_rs_param_95 *p;
 	struct socket *sock;
@@ -793,7 +793,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 
 	size = apv <= 87 ? sizeof(struct p_rs_param)
 		: apv == 88 ? sizeof(struct p_rs_param)
-			+ strlen(mdev->sync_conf.verify_alg) + 1
+			+ strlen(mdev->tconn->net_conf->verify_alg) + 1
 		: apv <= 94 ? sizeof(struct p_rs_param_89)
 		: /* apv >= 95 */ sizeof(struct p_rs_param_95);
 
@@ -812,16 +812,25 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 		/* initialize verify_alg and csums_alg */
 		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
 
-		p->rate = cpu_to_be32(sc->rate);
-		p->c_plan_ahead = cpu_to_be32(sc->c_plan_ahead);
-		p->c_delay_target = cpu_to_be32(sc->c_delay_target);
-		p->c_fill_target = cpu_to_be32(sc->c_fill_target);
-		p->c_max_rate = cpu_to_be32(sc->c_max_rate);
+		if (get_ldev(mdev)) {
+			p->rate = cpu_to_be32(mdev->ldev->dc.resync_rate);
+			p->c_plan_ahead = cpu_to_be32(mdev->ldev->dc.c_plan_ahead);
+			p->c_delay_target = cpu_to_be32(mdev->ldev->dc.c_delay_target);
+			p->c_fill_target = cpu_to_be32(mdev->ldev->dc.c_fill_target);
+			p->c_max_rate = cpu_to_be32(mdev->ldev->dc.c_max_rate);
+			put_ldev(mdev);
+		} else {
+			p->rate = cpu_to_be32(DRBD_RATE_DEF);
+			p->c_plan_ahead = cpu_to_be32(DRBD_C_PLAN_AHEAD_DEF);
+			p->c_delay_target = cpu_to_be32(DRBD_C_DELAY_TARGET_DEF);
+			p->c_fill_target = cpu_to_be32(DRBD_C_FILL_TARGET_DEF);
+			p->c_max_rate = cpu_to_be32(DRBD_C_MAX_RATE_DEF);
+		}
 
 		if (apv >= 88)
-			strcpy(p->verify_alg, mdev->sync_conf.verify_alg);
+			strcpy(p->verify_alg, mdev->tconn->net_conf->verify_alg);
 		if (apv >= 89)
-			strcpy(p->csums_alg, mdev->sync_conf.csums_alg);
+			strcpy(p->csums_alg, mdev->tconn->net_conf->csums_alg);
 
 		rv = _drbd_send_cmd(mdev, sock, cmd, &p->head, size, 0);
 	} else
@@ -1043,7 +1052,7 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 	int bits;
 
 	/* may we use this feature? */
-	if ((mdev->sync_conf.use_rle == 0) ||
+	if ((mdev->tconn->net_conf->use_rle == 0) ||
 		(mdev->tconn->agreed_pro_version < 90))
 			return 0;
 
@@ -1790,26 +1799,8 @@ static int drbd_release(struct gendisk *gd, fmode_t mode)
 
 static void drbd_set_defaults(struct drbd_conf *mdev)
 {
-	/* This way we get a compile error when sync_conf grows,
-	   and we forgot to initialize it here */
-	mdev->sync_conf = (struct syncer_conf) {
-		/* .rate = */		DRBD_RATE_DEF,
-		/* .after = */		DRBD_AFTER_DEF,
-		/* .al_extents = */	DRBD_AL_EXTENTS_DEF,
-		/* .verify_alg = */	{}, 0,
-		/* .cpu_mask = */	{}, 0,
-		/* .csums_alg = */	{}, 0,
-		/* .use_rle = */	0,
-		/* .on_no_data = */	DRBD_ON_NO_DATA_DEF,
-		/* .c_plan_ahead = */	DRBD_C_PLAN_AHEAD_DEF,
-		/* .c_delay_target = */	DRBD_C_DELAY_TARGET_DEF,
-		/* .c_fill_target = */	DRBD_C_FILL_TARGET_DEF,
-		/* .c_max_rate = */	DRBD_C_MAX_RATE_DEF,
-		/* .c_min_rate = */	DRBD_C_MIN_RATE_DEF
-	};
-
-	/* Have to use that way, because the layout differs between
-	   big endian and little endian */
+	/* Beware! The actual layout differs
+	 * between big endian and little endian */
 	mdev->state = (union drbd_state) {
 		{ .role = R_SECONDARY,
 		  .peer = R_UNKNOWN,
@@ -2286,6 +2277,11 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
 	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
 	drbd_thread_init(tconn, &tconn->asender, drbd_asender, "asender");
 
+	tconn->res_opts = (struct res_opts) {
+		{}, 0, /* cpu_mask */
+		DRBD_ON_NO_DATA_DEF, /* on_no_data */
+	};
+
 	mutex_lock(&drbd_cfg_mutex);
 	list_add_tail(&tconn->all_tconn, &drbd_tconns);
 	mutex_unlock(&drbd_cfg_mutex);
@@ -2559,10 +2555,10 @@ void drbd_free_sock(struct drbd_tconn *tconn)
 
 void drbd_free_resources(struct drbd_conf *mdev)
 {
-	crypto_free_hash(mdev->csums_tfm);
-	mdev->csums_tfm = NULL;
-	crypto_free_hash(mdev->verify_tfm);
-	mdev->verify_tfm = NULL;
+	crypto_free_hash(mdev->tconn->csums_tfm);
+	mdev->tconn->csums_tfm = NULL;
+	crypto_free_hash(mdev->tconn->verify_tfm);
+	mdev->tconn->verify_tfm = NULL;
 	crypto_free_hash(mdev->tconn->cram_hmac_tfm);
 	mdev->tconn->cram_hmac_tfm = NULL;
 	crypto_free_hash(mdev->tconn->integrity_w_tfm);
@@ -2589,7 +2585,7 @@ struct meta_data_on_disk {
 	u32 md_size_sect;
 	u32 al_offset;         /* offset to this block */
 	u32 al_nr_extents;     /* important for restoring the AL */
-	      /* `-- act_log->nr_elements <-- sync_conf.al_extents */
+	      /* `-- act_log->nr_elements <-- ldev->dc.al_extents */
 	u32 bm_offset;         /* offset to the bitmap, from here */
 	u32 bm_bytes_per_bit;  /* BM_BLOCK_SIZE */
 	u32 la_peer_max_bio_size;   /* last peer max_bio_size */
@@ -2715,7 +2711,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		bdev->md.uuid[i] = be64_to_cpu(buffer->uuid[i]);
 	bdev->md.flags = be32_to_cpu(buffer->flags);
-	mdev->sync_conf.al_extents = be32_to_cpu(buffer->al_nr_extents);
+	bdev->dc.al_extents = be32_to_cpu(buffer->al_nr_extents);
 	bdev->md.device_uuid = be64_to_cpu(buffer->device_uuid);
 
 	spin_lock_irq(&mdev->tconn->req_lock);
@@ -2727,8 +2723,8 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 	}
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	if (mdev->sync_conf.al_extents < 7)
-		mdev->sync_conf.al_extents = 127;
+	if (bdev->dc.al_extents < 7)
+		bdev->dc.al_extents = 127;
 
  err:
 	mutex_unlock(&mdev->md_io_mutex);

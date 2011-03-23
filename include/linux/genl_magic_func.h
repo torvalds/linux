@@ -190,11 +190,12 @@ static struct nlattr *nested_attr_tb[128];
 
 #undef GENL_struct
 #define GENL_struct(tag_name, tag_number, s_name, s_fields)		\
-	/* static, potentially unused */				\
-int s_name ## _from_attrs(struct s_name *s, struct nlattr *tb[])	\
+/* *_from_attrs functions are static, but potentially unused */		\
+static int __ ## s_name ## _from_attrs(struct s_name *s,		\
+		struct genl_info *info, bool exclude_invariants)	\
 {									\
 	const int maxtype = ARRAY_SIZE(s_name ## _nl_policy)-1;		\
-	struct nlattr *tla = tb[tag_number];				\
+	struct nlattr *tla = info->attrs[tag_number];			\
 	struct nlattr **ntb = nested_attr_tb;				\
 	struct nlattr *nla;						\
 	int err;							\
@@ -211,33 +212,49 @@ int s_name ## _from_attrs(struct s_name *s, struct nlattr *tb[])	\
 									\
 	s_fields							\
 	return 0;							\
-}
+}					__attribute__((unused))		\
+static int s_name ## _from_attrs(struct s_name *s,			\
+						struct genl_info *info)	\
+{									\
+	return __ ## s_name ## _from_attrs(s, info, false);		\
+}					__attribute__((unused))		\
+static int s_name ## _from_attrs_for_change(struct s_name *s,		\
+						struct genl_info *info)	\
+{									\
+	return __ ## s_name ## _from_attrs(s, info, true);		\
+}					__attribute__((unused))		\
 
-#undef __field
-#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)	\
+#define __assign(attr_nr, attr_flag, name, nla_type, type, assignment...)	\
 		nla = ntb[__nla_type(attr_nr)];				\
 		if (nla) {						\
-			if (s)						\
-				s->name = __get(nla);			\
-			DPRINT_FIELD("<<", nla_type, name, s, nla);	\
+			if (exclude_invariants && ((attr_flag) & GENLA_F_INVARIANT)) {		\
+				pr_info("<< must not change invariant attr: %s\n", #name);	\
+				return -EEXIST;				\
+			}						\
+			assignment;					\
+		} else if (exclude_invariants && ((attr_flag) & GENLA_F_INVARIANT)) {		\
+			/* attribute missing from payload, */		\
+			/* which was expected */			\
 		} else if ((attr_flag) & GENLA_F_REQUIRED) {		\
 			pr_info("<< missing attr: %s\n", #name);	\
 			return -ENOMSG;					\
 		}
 
+#undef __field
+#define __field(attr_nr, attr_flag, name, nla_type, type, __get, __put)	\
+	__assign(attr_nr, attr_flag, name, nla_type, type,		\
+			if (s)						\
+				s->name = __get(nla);			\
+			DPRINT_FIELD("<<", nla_type, name, s, nla))
+
 /* validate_nla() already checked nla_len <= maxlen appropriately. */
 #undef __array
 #define __array(attr_nr, attr_flag, name, nla_type, type, maxlen, __get, __put) \
-		nla = ntb[__nla_type(attr_nr)];				\
-		if (nla) {						\
+	__assign(attr_nr, attr_flag, name, nla_type, type,		\
 			if (s)						\
 				s->name ## _len =			\
 					__get(s->name, nla, maxlen);	\
-			DPRINT_ARRAY("<<", nla_type, name, s, nla);	\
-		} else if ((attr_flag) & GENLA_F_REQUIRED) {		\
-			pr_info("<< missing attr: %s\n", #name);	\
-			return -ENOMSG;					\
-		}							\
+			DPRINT_ARRAY("<<", nla_type, name, s, nla))
 
 #include GENL_MAGIC_INCLUDE_FILE
 

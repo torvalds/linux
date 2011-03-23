@@ -763,7 +763,7 @@ int drbd_connected(int vnr, void *p, void *data)
 		&mdev->tconn->cstate_mutex :
 		&mdev->own_state_mutex;
 
-	ok &= drbd_send_sync_param(mdev, &mdev->sync_conf);
+	ok &= drbd_send_sync_param(mdev);
 	ok &= drbd_send_sizes(mdev, 0, 0);
 	ok &= drbd_send_uuids(mdev);
 	ok &= drbd_send_state(mdev);
@@ -2085,7 +2085,7 @@ int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector)
 	int throttle = 0;
 
 	/* feature disabled? */
-	if (mdev->sync_conf.c_min_rate == 0)
+	if (mdev->ldev->dc.c_min_rate == 0)
 		return 0;
 
 	spin_lock_irq(&mdev->al_lock);
@@ -2125,7 +2125,7 @@ int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector)
 		db = mdev->rs_mark_left[i] - rs_left;
 		dbdt = Bit2KB(db/dt);
 
-		if (dbdt > mdev->sync_conf.c_min_rate)
+		if (dbdt > mdev->ldev->dc.c_min_rate)
 			throttle = 1;
 	}
 	return throttle;
@@ -3001,7 +3001,10 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packet cmd,
 	if (drbd_recv(mdev->tconn, &p->head.payload, header_size) != header_size)
 		return false;
 
-	mdev->sync_conf.rate	  = be32_to_cpu(p->rate);
+	if (get_ldev(mdev)) {
+		mdev->ldev->dc.resync_rate = be32_to_cpu(p->rate);
+		put_ldev(mdev);
+	}
 
 	if (apv >= 88) {
 		if (apv == 88) {
@@ -3029,10 +3032,10 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packet cmd,
 			p->csums_alg[SHARED_SECRET_MAX-1] = 0;
 		}
 
-		if (strcmp(mdev->sync_conf.verify_alg, p->verify_alg)) {
+		if (strcmp(mdev->tconn->net_conf->verify_alg, p->verify_alg)) {
 			if (mdev->state.conn == C_WF_REPORT_PARAMS) {
 				dev_err(DEV, "Different verify-alg settings. me=\"%s\" peer=\"%s\"\n",
-				    mdev->sync_conf.verify_alg, p->verify_alg);
+				    mdev->tconn->net_conf->verify_alg, p->verify_alg);
 				goto disconnect;
 			}
 			verify_tfm = drbd_crypto_alloc_digest_safe(mdev,
@@ -3043,10 +3046,10 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packet cmd,
 			}
 		}
 
-		if (apv >= 89 && strcmp(mdev->sync_conf.csums_alg, p->csums_alg)) {
+		if (apv >= 89 && strcmp(mdev->tconn->net_conf->csums_alg, p->csums_alg)) {
 			if (mdev->state.conn == C_WF_REPORT_PARAMS) {
 				dev_err(DEV, "Different csums-alg settings. me=\"%s\" peer=\"%s\"\n",
-				    mdev->sync_conf.csums_alg, p->csums_alg);
+				    mdev->tconn->net_conf->csums_alg, p->csums_alg);
 				goto disconnect;
 			}
 			csums_tfm = drbd_crypto_alloc_digest_safe(mdev,
@@ -3057,37 +3060,39 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packet cmd,
 			}
 		}
 
-		if (apv > 94) {
-			mdev->sync_conf.rate	  = be32_to_cpu(p->rate);
-			mdev->sync_conf.c_plan_ahead = be32_to_cpu(p->c_plan_ahead);
-			mdev->sync_conf.c_delay_target = be32_to_cpu(p->c_delay_target);
-			mdev->sync_conf.c_fill_target = be32_to_cpu(p->c_fill_target);
-			mdev->sync_conf.c_max_rate = be32_to_cpu(p->c_max_rate);
+		if (apv > 94 && get_ldev(mdev)) {
+			mdev->ldev->dc.resync_rate = be32_to_cpu(p->rate);
+			mdev->ldev->dc.c_plan_ahead = be32_to_cpu(p->c_plan_ahead);
+			mdev->ldev->dc.c_delay_target = be32_to_cpu(p->c_delay_target);
+			mdev->ldev->dc.c_fill_target = be32_to_cpu(p->c_fill_target);
+			mdev->ldev->dc.c_max_rate = be32_to_cpu(p->c_max_rate);
 
-			fifo_size = (mdev->sync_conf.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
+			fifo_size = (mdev->ldev->dc.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
 			if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
 				rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
 				if (!rs_plan_s) {
 					dev_err(DEV, "kmalloc of fifo_buffer failed");
+					put_ldev(mdev);
 					goto disconnect;
 				}
 			}
+			put_ldev(mdev);
 		}
 
 		spin_lock(&mdev->peer_seq_lock);
 		/* lock against drbd_nl_syncer_conf() */
 		if (verify_tfm) {
-			strcpy(mdev->sync_conf.verify_alg, p->verify_alg);
-			mdev->sync_conf.verify_alg_len = strlen(p->verify_alg) + 1;
-			crypto_free_hash(mdev->verify_tfm);
-			mdev->verify_tfm = verify_tfm;
+			strcpy(mdev->tconn->net_conf->verify_alg, p->verify_alg);
+			mdev->tconn->net_conf->verify_alg_len = strlen(p->verify_alg) + 1;
+			crypto_free_hash(mdev->tconn->verify_tfm);
+			mdev->tconn->verify_tfm = verify_tfm;
 			dev_info(DEV, "using verify-alg: \"%s\"\n", p->verify_alg);
 		}
 		if (csums_tfm) {
-			strcpy(mdev->sync_conf.csums_alg, p->csums_alg);
-			mdev->sync_conf.csums_alg_len = strlen(p->csums_alg) + 1;
-			crypto_free_hash(mdev->csums_tfm);
-			mdev->csums_tfm = csums_tfm;
+			strcpy(mdev->tconn->net_conf->csums_alg, p->csums_alg);
+			mdev->tconn->net_conf->csums_alg_len = strlen(p->csums_alg) + 1;
+			crypto_free_hash(mdev->tconn->csums_tfm);
+			mdev->tconn->csums_tfm = csums_tfm;
 			dev_info(DEV, "using csums-alg: \"%s\"\n", p->csums_alg);
 		}
 		if (fifo_size != mdev->rs_plan_s.size) {

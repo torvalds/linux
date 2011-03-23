@@ -59,12 +59,20 @@ enum {
 	GENLA_F_MANDATORY	= 1 << 14,
 	GENLA_F_REQUIRED	= 1 << 15,
 
-	/* This will not be present in the __u16 .nla_type, but can be
-	 * triggered on in <struct>_to_skb, to exclude "sensitive"
-	 * information from broadcasts, or on unpriviledged get requests.
-	 * This is useful because genetlink multicast groups can be listened in
-	 * on by anyone.  */
+	/* Below will not be present in the __u16 .nla_type, but can be
+	 * triggered on in <struct>_to_skb resp. <struct>_from_attrs */
+
+	/* To exclude "sensitive" information from broadcasts, or on
+	 * unpriviledged get requests.  This is useful because genetlink
+	 * multicast groups can be listened in on by anyone.  */
 	GENLA_F_SENSITIVE	= 1 << 16,
+
+	/* INVARIAN options cannot be changed at runtime.
+	 * Useful to share an attribute policy and struct definition,
+	 * between some "create" and "change" commands,
+	 * but disallow certain fields to be changed online.
+	 */
+	GENLA_F_INVARIANT	= 1 << 17,
 };
 
 #define __nla_type(x)	((__u16)((__u16)(x) & (__u16)NLA_TYPE_MASK))

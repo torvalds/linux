@@ -102,66 +102,73 @@ GENL_struct(DRBD_NLA_CFG_CONTEXT, 2, drbd_cfg_context,
 )
 
 GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
-	__u64_field(1, GENLA_F_MANDATORY,	disk_size)
-	__str_field(2, GENLA_F_REQUIRED,	backing_dev,	128)
-	__str_field(3, GENLA_F_REQUIRED,	meta_dev,	128)
-	__u32_field(4, GENLA_F_REQUIRED,	meta_dev_idx)
-	__u32_field(5, GENLA_F_MANDATORY,	max_bio_bvecs)
+	__str_field(1, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	backing_dev,	128)
+	__str_field(2, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	meta_dev,	128)
+	__u32_field(3, GENLA_F_REQUIRED | GENLA_F_INVARIANT,	meta_dev_idx)
+
+	/* use the resize command to try and change the disk_size */
+	__u64_field(4, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	disk_size)
+	/* we could change the max_bio_bvecs,
+	 * but it won't propagate through the stack */
+	__u32_field(5, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	max_bio_bvecs)
+
 	__u32_field(6, GENLA_F_MANDATORY,	on_io_error)
 	__u32_field(7, GENLA_F_MANDATORY,	fencing)
-	__flg_field(8, GENLA_F_MANDATORY,	no_disk_barrier)
-	__flg_field(9, GENLA_F_MANDATORY,	no_disk_flush)
-	__flg_field(10, GENLA_F_MANDATORY,	no_disk_drain)
-	__flg_field(11, GENLA_F_MANDATORY,	no_md_flush)
-	__flg_field(12, GENLA_F_MANDATORY,	use_bmbv)
+
+	__u32_field(8,	GENLA_F_MANDATORY,	resync_rate)
+	__u32_field(9,	GENLA_F_MANDATORY,	resync_after)
+	__u32_field(10,	GENLA_F_MANDATORY,	al_extents)
+	__u32_field(11,	GENLA_F_MANDATORY,	c_plan_ahead)
+	__u32_field(12,	GENLA_F_MANDATORY,	c_delay_target)
+	__u32_field(13,	GENLA_F_MANDATORY,	c_fill_target)
+	__u32_field(14,	GENLA_F_MANDATORY,	c_max_rate)
+	__u32_field(15,	GENLA_F_MANDATORY,	c_min_rate)
+
+	__flg_field(16, GENLA_F_MANDATORY,	no_disk_barrier)
+	__flg_field(17, GENLA_F_MANDATORY,	no_disk_flush)
+	__flg_field(18, GENLA_F_MANDATORY,	no_disk_drain)
+	__flg_field(19, GENLA_F_MANDATORY,	no_md_flush)
+
 )
 
-GENL_struct(DRBD_NLA_SYNCER_CONF, 4, syncer_conf,
-	__u32_field(1,	GENLA_F_MANDATORY,	rate)
-	__u32_field(2,	GENLA_F_MANDATORY,	after)
-	__u32_field(3,	GENLA_F_MANDATORY,	al_extents)
-	__str_field(4,	GENLA_F_MANDATORY,	cpu_mask,       32)
-	__str_field(5,	GENLA_F_MANDATORY,	verify_alg,     SHARED_SECRET_MAX)
-	__str_field(6,	GENLA_F_MANDATORY,	csums_alg,	SHARED_SECRET_MAX)
-	__flg_field(7,	GENLA_F_MANDATORY,	use_rle)
-	__u32_field(8,	GENLA_F_MANDATORY,	on_no_data)
-	__u32_field(9,	GENLA_F_MANDATORY,	c_plan_ahead)
-	__u32_field(10,	GENLA_F_MANDATORY,	c_delay_target)
-	__u32_field(11,	GENLA_F_MANDATORY,	c_fill_target)
-	__u32_field(12,	GENLA_F_MANDATORY,	c_max_rate)
-	__u32_field(13,	GENLA_F_MANDATORY,	c_min_rate)
+GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
+	__str_field(1,	GENLA_F_MANDATORY,	cpu_mask,       32)
+	__u32_field(2,	GENLA_F_MANDATORY,	on_no_data)
 )
 
 GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
-	__str_field(1,	GENLA_F_MANDATORY | GENLA_F_SENSITIVE,
+	__bin_field(1,	GENLA_F_REQUIRED | GENLA_F_INVARIANT,	my_addr,	128)
+	__bin_field(2,	GENLA_F_REQUIRED | GENLA_F_INVARIANT,	peer_addr,	128)
+	__str_field(3,	GENLA_F_MANDATORY | GENLA_F_SENSITIVE,
 						shared_secret,	SHARED_SECRET_MAX)
-	__str_field(2,	GENLA_F_MANDATORY,	cram_hmac_alg,	SHARED_SECRET_MAX)
-	__str_field(3,	GENLA_F_MANDATORY,	integrity_alg,	SHARED_SECRET_MAX)
-	__str_field(4,	GENLA_F_REQUIRED,	my_addr,	128)
-	__str_field(5,	GENLA_F_REQUIRED,	peer_addr,	128)
-	__u32_field(6,	GENLA_F_REQUIRED,	wire_protocol)
-	__u32_field(7,	GENLA_F_MANDATORY,	try_connect_int)
-	__u32_field(8,	GENLA_F_MANDATORY,	timeout)
-	__u32_field(9,	GENLA_F_MANDATORY,	ping_int)
-	__u32_field(10,	GENLA_F_MANDATORY,	ping_timeo)
-	__u32_field(11,	GENLA_F_MANDATORY,	sndbuf_size)
-	__u32_field(12,	GENLA_F_MANDATORY,	rcvbuf_size)
-	__u32_field(13,	GENLA_F_MANDATORY,	ko_count)
-	__u32_field(14,	GENLA_F_MANDATORY,	max_buffers)
-	__u32_field(15,	GENLA_F_MANDATORY,	max_epoch_size)
-	__u32_field(16,	GENLA_F_MANDATORY,	unplug_watermark)
-	__u32_field(17,	GENLA_F_MANDATORY,	after_sb_0p)
-	__u32_field(18,	GENLA_F_MANDATORY,	after_sb_1p)
-	__u32_field(19,	GENLA_F_MANDATORY,	after_sb_2p)
-	__u32_field(20,	GENLA_F_MANDATORY,	rr_conflict)
-	__u32_field(21,	GENLA_F_MANDATORY,	on_congestion)
-	__u32_field(22,	GENLA_F_MANDATORY,	cong_fill)
-	__u32_field(23,	GENLA_F_MANDATORY,	cong_extents)
-	__flg_field(24, GENLA_F_MANDATORY,	two_primaries)
-	__flg_field(25, GENLA_F_MANDATORY,	want_lose)
-	__flg_field(26, GENLA_F_MANDATORY,	no_cork)
-	__flg_field(27, GENLA_F_MANDATORY,	always_asbp)
-	__flg_field(28, GENLA_F_MANDATORY,	dry_run)
+	__str_field(4,	GENLA_F_MANDATORY,	cram_hmac_alg,	SHARED_SECRET_MAX)
+	__str_field(5,	GENLA_F_MANDATORY,	integrity_alg,	SHARED_SECRET_MAX)
+	__str_field(6,	GENLA_F_MANDATORY,	verify_alg,     SHARED_SECRET_MAX)
+	__str_field(7,	GENLA_F_MANDATORY,	csums_alg,	SHARED_SECRET_MAX)
+	__u32_field(8,	GENLA_F_MANDATORY,	wire_protocol)
+	__u32_field(9,	GENLA_F_MANDATORY,	try_connect_int)
+	__u32_field(10,	GENLA_F_MANDATORY,	timeout)
+	__u32_field(11,	GENLA_F_MANDATORY,	ping_int)
+	__u32_field(12,	GENLA_F_MANDATORY,	ping_timeo)
+	__u32_field(13,	GENLA_F_MANDATORY,	sndbuf_size)
+	__u32_field(14,	GENLA_F_MANDATORY,	rcvbuf_size)
+	__u32_field(15,	GENLA_F_MANDATORY,	ko_count)
+	__u32_field(16,	GENLA_F_MANDATORY,	max_buffers)
+	__u32_field(17,	GENLA_F_MANDATORY,	max_epoch_size)
+	__u32_field(18,	GENLA_F_MANDATORY,	unplug_watermark)
+	__u32_field(19,	GENLA_F_MANDATORY,	after_sb_0p)
+	__u32_field(20,	GENLA_F_MANDATORY,	after_sb_1p)
+	__u32_field(21,	GENLA_F_MANDATORY,	after_sb_2p)
+	__u32_field(22,	GENLA_F_MANDATORY,	rr_conflict)
+	__u32_field(23,	GENLA_F_MANDATORY,	on_congestion)
+	__u32_field(24,	GENLA_F_MANDATORY,	cong_fill)
+	__u32_field(25,	GENLA_F_MANDATORY,	cong_extents)
+	__flg_field(26, GENLA_F_MANDATORY,	two_primaries)
+	__flg_field(27, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	want_lose)
+	__flg_field(28, GENLA_F_MANDATORY,	no_cork)
+	__flg_field(29, GENLA_F_MANDATORY,	always_asbp)
+	__flg_field(30, GENLA_F_MANDATORY | GENLA_F_INVARIANT,	dry_run)
+	__flg_field(31,	GENLA_F_MANDATORY,	use_rle)
 )
 
 GENL_struct(DRBD_NLA_SET_ROLE_PARMS, 6, set_role_parms,
@@ -270,11 +277,10 @@ GENL_op(DRBD_ADM_ADD_LINK, 7, GENL_doit(drbd_adm_create_connection),
 GENL_op(DRBD_ADM_DEL_LINK, 8, GENL_doit(drbd_adm_delete_connection),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, GENLA_F_REQUIRED))
 
-	/* operates on replication links */
-GENL_op(DRBD_ADM_SYNCER, 9,
-	GENL_doit(drbd_adm_syncer),
+GENL_op(DRBD_ADM_RESOURCE_OPTS, 9,
+	GENL_doit(drbd_adm_resource_opts),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, GENLA_F_REQUIRED)
-	GENL_tla_expected(DRBD_NLA_SYNCER_CONF, GENLA_F_MANDATORY)
+	GENL_tla_expected(DRBD_NLA_RESOURCE_OPTS, GENLA_F_MANDATORY)
 )
 
 GENL_op(
@@ -284,14 +290,26 @@ GENL_op(
 	GENL_tla_expected(DRBD_NLA_NET_CONF, GENLA_F_REQUIRED)
 )
 
+GENL_op(
+	DRBD_ADM_CHG_NET_OPTS, 29,
+	GENL_doit(drbd_adm_net_opts),
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, GENLA_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_NET_CONF, GENLA_F_REQUIRED)
+)
+
 GENL_op(DRBD_ADM_DISCONNECT, 11, GENL_doit(drbd_adm_disconnect),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, GENLA_F_REQUIRED))
 
-	/* operates on minors */
 GENL_op(DRBD_ADM_ATTACH, 12,
 	GENL_doit(drbd_adm_attach),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, GENLA_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_DISK_CONF, GENLA_F_REQUIRED)
+)
+
+GENL_op(DRBD_ADM_CHG_DISK_OPTS, 28,
+	GENL_doit(drbd_adm_disk_opts),
+	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, GENLA_F_REQUIRED)
+	GENL_tla_expected(DRBD_NLA_DISK_OPTS, GENLA_F_REQUIRED)
 )
 
 GENL_op(
@@ -301,7 +319,6 @@ GENL_op(
 	GENL_tla_expected(DRBD_NLA_RESIZE_PARMS, GENLA_F_MANDATORY)
 )
 
-	/* operates on all volumes within a resource */
 GENL_op(
 	DRBD_ADM_PRIMARY, 14,
 	GENL_doit(drbd_adm_set_role),
