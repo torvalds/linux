@@ -185,7 +185,7 @@ static inline unsigned long ext2_swab(const unsigned long y)
 #endif
 }
 
-unsigned long generic_find_next_zero_le_bit(const unsigned long *addr, unsigned
+unsigned long find_next_zero_bit_le(const unsigned long *addr, unsigned
 		long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
@@ -226,10 +226,9 @@ found_middle:
 found_middle_swap:
 	return result + ffz(ext2_swab(tmp));
 }
+EXPORT_SYMBOL(find_next_zero_bit_le);
 
-EXPORT_SYMBOL(generic_find_next_zero_le_bit);
-
-unsigned long generic_find_next_le_bit(const unsigned long *addr, unsigned
+unsigned long find_next_bit_le(const unsigned long *addr, unsigned
 		long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
@@ -271,5 +270,5 @@ found_middle:
 found_middle_swap:
 	return result + __ffs(ext2_swab(tmp));
 }
-EXPORT_SYMBOL(generic_find_next_le_bit);
+EXPORT_SYMBOL(find_next_bit_le);
 #endif /* __BIG_ENDIAN */

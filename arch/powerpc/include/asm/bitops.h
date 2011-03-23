@@ -303,11 +303,12 @@ static __inline__ int test_le_bit(unsigned long nr,
 #define __test_and_clear_le_bit(nr, addr) \
 	__test_and_clear_bit((nr) ^ BITOP_LE_SWIZZLE, (addr))
 
-#define find_first_zero_le_bit(addr, size) generic_find_next_zero_le_bit((addr), (size), 0)
-unsigned long generic_find_next_zero_le_bit(const unsigned long *addr,
+#define find_first_zero_bit_le(addr, size) \
+	find_next_zero_bit_le((addr), (size), 0)
+unsigned long find_next_zero_bit_le(const unsigned long *addr,
 				    unsigned long size, unsigned long offset);
 
-unsigned long generic_find_next_le_bit(const unsigned long *addr,
+unsigned long find_next_bit_le(const unsigned long *addr,
 				    unsigned long size, unsigned long offset);
 /* Bitmap functions for the ext2 filesystem */
 
@@ -324,12 +325,12 @@ unsigned long generic_find_next_le_bit(const unsigned long *addr,
 #define ext2_test_bit(nr, addr)      test_le_bit((nr),(unsigned long*)addr)
 
 #define ext2_find_first_zero_bit(addr, size) \
-	find_first_zero_le_bit((unsigned long*)addr, size)
+	find_first_zero_bit_le((unsigned long*)addr, size)
 #define ext2_find_next_zero_bit(addr, size, off) \
-	generic_find_next_zero_le_bit((unsigned long*)addr, size, off)
+	find_next_zero_bit_le((unsigned long *)addr, size, off)
 
 #define ext2_find_next_bit(addr, size, off) \
-	generic_find_next_le_bit((unsigned long *)addr, size, off)
+	find_next_bit_le((unsigned long *)addr, size, off)
 /* Bitmap functions for the minix filesystem.  */
 
 #define minix_test_and_set_bit(nr,addr) \
@@ -342,7 +343,7 @@ unsigned long generic_find_next_le_bit(const unsigned long *addr,
 	test_le_bit(nr, (unsigned long *)addr)
 
 #define minix_find_first_zero_bit(addr,size) \
-	find_first_zero_le_bit((unsigned long *)addr, size)
+	find_first_zero_bit_le((unsigned long *)addr, size)
 
 #include <asm-generic/bitops/sched.h>
 
