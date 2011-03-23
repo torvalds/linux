@@ -1694,6 +1694,15 @@ static int sigkill_pending(struct task_struct *tsk)
 }
 
 /*
+ * Test whether the target task of the usual cldstop notification - the
+ * real_parent of @child - is in the same group as the ptracer.
+ */
+static bool real_parent_is_ptracer(struct task_struct *child)
+{
+	return same_thread_group(child->parent, child->real_parent);
+}
+
+/*
  * This must be called with current->sighand->siglock held.
  *
  * This should be the path for all ptrace stops.
@@ -1708,6 +1717,8 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	__releases(&current->sighand->siglock)
 	__acquires(&current->sighand->siglock)
 {
+	bool gstop_done = false;
+
 	if (arch_ptrace_stop_needed(exit_code, info)) {
 		/*
 		 * The arch code has something special to do before a
@@ -1735,7 +1746,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	 * is entered - ignore it.
 	 */
 	if (why == CLD_STOPPED && (current->group_stop & GROUP_STOP_PENDING))
-		task_participate_group_stop(current);
+		gstop_done = task_participate_group_stop(current);
 
 	current->last_siginfo = info;
 	current->exit_code = exit_code;
@@ -1757,7 +1768,20 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	spin_unlock_irq(&current->sighand->siglock);
 	read_lock(&tasklist_lock);
 	if (may_ptrace_stop()) {
-		do_notify_parent_cldstop(current, task_ptrace(current), why);
+		/*
+		 * Notify parents of the stop.
+		 *
+		 * While ptraced, there are two parents - the ptracer and
+		 * the real_parent of the group_leader.  The ptracer should
+		 * know about every stop while the real parent is only
+		 * interested in the completion of group stop.  The states
+		 * for the two don't interact with each other.  Notify
+		 * separately unless they're gonna be duplicates.
+		 */
+		do_notify_parent_cldstop(current, true, why);
+		if (gstop_done && !real_parent_is_ptracer(current))
+			do_notify_parent_cldstop(current, false, why);
+
 		/*
 		 * Don't want to allow preemption here, because
 		 * sys_ptrace() needs this task to be inactive.
@@ -1772,7 +1796,16 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		/*
 		 * By the time we got the lock, our tracer went away.
 		 * Don't drop the lock yet, another tracer may come.
+		 *
+		 * If @gstop_done, the ptracer went away between group stop
+		 * completion and here.  During detach, it would have set
+		 * GROUP_STOP_PENDING on us and we'll re-enter TASK_STOPPED
+		 * in do_signal_stop() on return, so notifying the real
+		 * parent of the group stop completion is enough.
 		 */
+		if (gstop_done)
+			do_notify_parent_cldstop(current, false, why);
+
 		__set_current_state(TASK_RUNNING);
 		if (clear_code)
 			current->exit_code = 0;
@@ -2017,10 +2050,24 @@ relock:
 
 		spin_unlock_irq(&sighand->siglock);
 
+		/*
+		 * Notify the parent that we're continuing.  This event is
+		 * always per-process and doesn't make whole lot of sense
+		 * for ptracers, who shouldn't consume the state via
+		 * wait(2) either, but, for backward compatibility, notify
+		 * the ptracer of the group leader too unless it's gonna be
+		 * a duplicate.
+		 */
 		read_lock(&tasklist_lock);
+
+		do_notify_parent_cldstop(current, false, why);
+
 		leader = current->group_leader;
-		do_notify_parent_cldstop(leader, task_ptrace(leader), why);
+		if (task_ptrace(leader) && !real_parent_is_ptracer(leader))
+			do_notify_parent_cldstop(leader, true, why);
+
 		read_unlock(&tasklist_lock);
+
 		goto relock;
 	}
 
