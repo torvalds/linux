@@ -1281,10 +1281,8 @@ static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear)
 {
 	struct moxa_port *ch;
-	int port;
 	int dtr, rts;
 
-	port = tty->index;
 	mutex_lock(&moxa_openlock);
 	ch = tty->driver_data;
 	if (!ch) {
@@ -1756,11 +1754,9 @@ static int MoxaPortSetTermio(struct moxa_port *port, struct ktermios *termio,
 		speed_t baud)
 {
 	void __iomem *ofsAddr;
-	tcflag_t cflag;
 	tcflag_t mode = 0;
 
 	ofsAddr = port->tableAddr;
-	cflag = termio->c_cflag;	/* termio->c_cflag */
 
 	mode = termio->c_cflag & CSIZE;
 	if (mode == CS5)
