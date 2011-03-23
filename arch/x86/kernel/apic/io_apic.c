@@ -30,7 +30,7 @@
 #include <linux/compiler.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/msi.h>
 #include <linux/htirq.h>
 #include <linux/freezer.h>
@@ -2918,89 +2918,84 @@ static int __init io_apic_bug_finalize(void)
 
 late_initcall(io_apic_bug_finalize);
 
-struct sysfs_ioapic_data {
-	struct sys_device dev;
-	struct IO_APIC_route_entry entry[0];
-};
-static struct sysfs_ioapic_data * mp_ioapic_data[MAX_IO_APICS];
+static struct IO_APIC_route_entry *ioapic_saved_data[MAX_IO_APICS];
 
-static int ioapic_suspend(struct sys_device *dev, pm_message_t state)
+static void suspend_ioapic(int ioapic_id)
 {
-	struct IO_APIC_route_entry *entry;
-	struct sysfs_ioapic_data *data;
+	struct IO_APIC_route_entry *saved_data = ioapic_saved_data[ioapic_id];
 	int i;
 
-	data = container_of(dev, struct sysfs_ioapic_data, dev);
-	entry = data->entry;
-	for (i = 0; i < nr_ioapic_registers[dev->id]; i ++, entry ++ )
-		*entry = ioapic_read_entry(dev->id, i);
+	if (!saved_data)
+		return;
+
+	for (i = 0; i < nr_ioapic_registers[ioapic_id]; i++)
+		saved_data[i] = ioapic_read_entry(ioapic_id, i);
+}
+
+static int ioapic_suspend(void)
+{
+	int ioapic_id;
+
+	for (ioapic_id = 0; ioapic_id < nr_ioapics; ioapic_id++)
+		suspend_ioapic(ioapic_id);
 
 	return 0;
 }
 
-static int ioapic_resume(struct sys_device *dev)
+static void resume_ioapic(int ioapic_id)
 {
-	struct IO_APIC_route_entry *entry;
-	struct sysfs_ioapic_data *data;
+	struct IO_APIC_route_entry *saved_data = ioapic_saved_data[ioapic_id];
 	unsigned long flags;
 	union IO_APIC_reg_00 reg_00;
 	int i;
 
-	data = container_of(dev, struct sysfs_ioapic_data, dev);
-	entry = data->entry;
+	if (!saved_data)
+		return;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	reg_00.raw = io_apic_read(dev->id, 0);
-	if (reg_00.bits.ID != mp_ioapics[dev->id].apicid) {
-		reg_00.bits.ID = mp_ioapics[dev->id].apicid;
-		io_apic_write(dev->id, 0, reg_00.raw);
+	reg_00.raw = io_apic_read(ioapic_id, 0);
+	if (reg_00.bits.ID != mp_ioapics[ioapic_id].apicid) {
+		reg_00.bits.ID = mp_ioapics[ioapic_id].apicid;
+		io_apic_write(ioapic_id, 0, reg_00.raw);
 	}
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
-	for (i = 0; i < nr_ioapic_registers[dev->id]; i++)
-		ioapic_write_entry(dev->id, i, entry[i]);
-
-	return 0;
+	for (i = 0; i < nr_ioapic_registers[ioapic_id]; i++)
+		ioapic_write_entry(ioapic_id, i, saved_data[i]);
 }
 
-static struct sysdev_class ioapic_sysdev_class = {
-	.name = "ioapic",
+static void ioapic_resume(void)
+{
+	int ioapic_id;
+
+	for (ioapic_id = nr_ioapics - 1; ioapic_id >= 0; ioapic_id--)
+		resume_ioapic(ioapic_id);
+}
+
+static struct syscore_ops ioapic_syscore_ops = {
 	.suspend = ioapic_suspend,
 	.resume = ioapic_resume,
 };
 
-static int __init ioapic_init_sysfs(void)
+static int __init ioapic_init_ops(void)
 {
-	struct sys_device * dev;
-	int i, size, error;
+	int i;
 
-	error = sysdev_class_register(&ioapic_sysdev_class);
-	if (error)
-		return error;
+	for (i = 0; i < nr_ioapics; i++) {
+		unsigned int size;
 
-	for (i = 0; i < nr_ioapics; i++ ) {
-		size = sizeof(struct sys_device) + nr_ioapic_registers[i]
+		size = nr_ioapic_registers[i]
 			* sizeof(struct IO_APIC_route_entry);
-		mp_ioapic_data[i] = kzalloc(size, GFP_KERNEL);
-		if (!mp_ioapic_data[i]) {
-			printk(KERN_ERR "Can't suspend/resume IOAPIC %d\n", i);
-			continue;
-		}
-		dev = &mp_ioapic_data[i]->dev;
-		dev->id = i;
-		dev->cls = &ioapic_sysdev_class;
-		error = sysdev_register(dev);
-		if (error) {
-			kfree(mp_ioapic_data[i]);
-			mp_ioapic_data[i] = NULL;
-			printk(KERN_ERR "Can't suspend/resume IOAPIC %d\n", i);
-			continue;
-		}
+		ioapic_saved_data[i] = kzalloc(size, GFP_KERNEL);
+		if (!ioapic_saved_data[i])
+			pr_err("IOAPIC %d: suspend/resume impossible!\n", i);
 	}
+
+	register_syscore_ops(&ioapic_syscore_ops);
 
 	return 0;
 }
 
-device_initcall(ioapic_init_sysfs);
+device_initcall(ioapic_init_ops);
 
 /*
  * Dynamic irq allocate and deallocation

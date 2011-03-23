@@ -27,7 +27,7 @@
 #include <linux/kdebug.h>
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
 #include <asm/atomic.h>
@@ -589,7 +589,7 @@ void set_up_gart_resume(u32 aper_order, u32 aper_alloc)
 	aperture_alloc = aper_alloc;
 }
 
-static void gart_fixup_northbridges(struct sys_device *dev)
+static void gart_fixup_northbridges(void)
 {
 	int i;
 
@@ -613,31 +613,18 @@ static void gart_fixup_northbridges(struct sys_device *dev)
 	}
 }
 
-static int gart_resume(struct sys_device *dev)
+static void gart_resume(void)
 {
 	pr_info("PCI-DMA: Resuming GART IOMMU\n");
 
-	gart_fixup_northbridges(dev);
+	gart_fixup_northbridges();
 
 	enable_gart_translations();
-
-	return 0;
 }
 
-static int gart_suspend(struct sys_device *dev, pm_message_t state)
-{
-	return 0;
-}
-
-static struct sysdev_class gart_sysdev_class = {
-	.name		= "gart",
-	.suspend	= gart_suspend,
+static struct syscore_ops gart_syscore_ops = {
 	.resume		= gart_resume,
 
-};
-
-static struct sys_device device_gart = {
-	.cls		= &gart_sysdev_class,
 };
 
 /*
@@ -650,7 +637,7 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 	unsigned aper_base, new_aper_base;
 	struct pci_dev *dev;
 	void *gatt;
-	int i, error;
+	int i;
 
 	pr_info("PCI-DMA: Disabling AGP.\n");
 
@@ -685,12 +672,7 @@ static __init int init_amd_gatt(struct agp_kern_info *info)
 
 	agp_gatt_table = gatt;
 
-	error = sysdev_class_register(&gart_sysdev_class);
-	if (!error)
-		error = sysdev_register(&device_gart);
-	if (error)
-		panic("Could not register gart_sysdev -- "
-		      "would corrupt data on next suspend");
+	register_syscore_ops(&gart_syscore_ops);
 
 	flush_gart();
 
