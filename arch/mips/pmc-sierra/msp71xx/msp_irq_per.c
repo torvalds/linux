@@ -48,100 +48,61 @@ static inline void per_wmb(void)
 	dummy_read++;
 }
 
-static inline void unmask_per_irq(unsigned int irq)
+static inline void unmask_per_irq(struct irq_data *d)
 {
 #ifdef CONFIG_SMP
 	unsigned long flags;
 	spin_lock_irqsave(&per_lock, flags);
-	*PER_INT_MSK_REG |= (1 << (irq - MSP_PER_INTBASE));
+	*PER_INT_MSK_REG |= (1 << (d->irq - MSP_PER_INTBASE));
 	spin_unlock_irqrestore(&per_lock, flags);
 #else
-	*PER_INT_MSK_REG |= (1 << (irq - MSP_PER_INTBASE));
+	*PER_INT_MSK_REG |= (1 << (d->irq - MSP_PER_INTBASE));
 #endif
 	per_wmb();
 }
 
-static inline void mask_per_irq(unsigned int irq)
+static inline void mask_per_irq(struct irq_data *d)
 {
 #ifdef CONFIG_SMP
 	unsigned long flags;
 	spin_lock_irqsave(&per_lock, flags);
-	*PER_INT_MSK_REG &= ~(1 << (irq - MSP_PER_INTBASE));
+	*PER_INT_MSK_REG &= ~(1 << (d->irq - MSP_PER_INTBASE));
 	spin_unlock_irqrestore(&per_lock, flags);
 #else
-	*PER_INT_MSK_REG &= ~(1 << (irq - MSP_PER_INTBASE));
+	*PER_INT_MSK_REG &= ~(1 << (d->irq - MSP_PER_INTBASE));
 #endif
 	per_wmb();
 }
 
-static inline void msp_per_irq_enable(unsigned int irq)
+static inline void msp_per_irq_ack(struct irq_data *d)
 {
-	unmask_per_irq(irq);
-}
-
-static inline void msp_per_irq_disable(unsigned int irq)
-{
-	 mask_per_irq(irq);
-}
-
-static unsigned int msp_per_irq_startup(unsigned int irq)
-{
-	msp_per_irq_enable(irq);
-	return 0;
-}
-
-#define    msp_per_irq_shutdown    msp_per_irq_disable
-
-static inline void msp_per_irq_ack(unsigned int irq)
-{
-	mask_per_irq(irq);
+	mask_per_irq(d);
 	/*
 	 * In the PER interrupt controller, only bits 11 and 10
 	 * are write-to-clear, (SPI TX complete, SPI RX complete).
 	 * It does nothing for any others.
 	 */
-
-	*PER_INT_STS_REG = (1 << (irq - MSP_PER_INTBASE));
-
-	/* Re-enable the CIC cascaded interrupt and return */
-	irq_desc[MSP_INT_CIC].chip->end(MSP_INT_CIC);
-}
-
-static void msp_per_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		unmask_per_irq(irq);
+	*PER_INT_STS_REG = (1 << (d->irq - MSP_PER_INTBASE));
 }
 
 #ifdef CONFIG_SMP
-static inline int msp_per_irq_set_affinity(unsigned int irq,
-				const struct cpumask *affinity)
+static int msp_per_irq_set_affinity(struct irq_data *d,
+				    const struct cpumask *affinity, bool force)
 {
-	unsigned long flags;
-	/*
-	 * Calls to ack, end, startup, enable are spinlocked in setup_irq and
-	 * __do_IRQ.Callers of this function do not spinlock,so we need to
-	 * do so ourselves.
-	 */
-	raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
-	msp_per_irq_enable(irq);
-	raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+	/* WTF is this doing ????? */
+	unmask_per_irq(d);
 	return 0;
-
 }
 #endif
 
 static struct irq_chip msp_per_irq_controller = {
 	.name = "MSP_PER",
-	.startup = msp_per_irq_startup,
-	.shutdown = msp_per_irq_shutdown,
-	.enable = msp_per_irq_enable,
-	.disable = msp_per_irq_disable,
+	.irq_enable = unmask_per_irq.
+	.irq_disable = mask_per_irq,
+	.irq_ack = msp_per_irq_ack,
 #ifdef CONFIG_SMP
-	.set_affinity = msp_per_irq_set_affinity,
+	.irq_set_affinity = msp_per_irq_set_affinity,
 #endif
-	.ack = msp_per_irq_ack,
-	.end = msp_per_irq_end,
 };
 
 void __init msp_per_irq_init(void)
@@ -152,10 +113,7 @@ void __init msp_per_irq_init(void)
 	*PER_INT_STS_REG  = 0xFFFFFFFF;
 	/* initialize all the IRQ descriptors */
 	for (i = MSP_PER_INTBASE; i < MSP_PER_INTBASE + 32; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &msp_per_irq_controller;
+		irq_set_chip(i, &msp_per_irq_controller);
 #ifdef CONFIG_MIPS_MT_SMTC
 		irq_hwmask[i] = C_IRQ4;
 #endif
@@ -173,7 +131,5 @@ void msp_per_irq_dispatch(void)
 		do_IRQ(ffs(pending) + MSP_PER_INTBASE - 1);
 	} else {
 		spurious_interrupt();
-	/* Re-enable the CIC cascaded interrupt and return */
-	irq_desc[MSP_INT_CIC].chip->end(MSP_INT_CIC);
 	}
 }

@@ -77,7 +77,7 @@ static inline void cic_wmb(void)
 	dummy_read++;
 }
 
-static inline void unmask_cic_irq(unsigned int irq)
+static void unmask_cic_irq(struct irq_data *d)
 {
 	volatile u32   *cic_msk_reg = CIC_VPE0_MSK_REG;
 	int vpe;
@@ -89,18 +89,18 @@ static inline void unmask_cic_irq(unsigned int irq)
 	* Make sure we have IRQ affinity.  It may have changed while
 	* we were processing the IRQ.
 	*/
-	if (!cpumask_test_cpu(smp_processor_id(), irq_desc[irq].affinity))
+	if (!cpumask_test_cpu(smp_processor_id(), d->affinity))
 		return;
 #endif
 
 	vpe = get_current_vpe();
 	LOCK_VPE(flags, mtflags);
-	cic_msk_reg[vpe] |= (1 << (irq - MSP_CIC_INTBASE));
+	cic_msk_reg[vpe] |= (1 << (d->irq - MSP_CIC_INTBASE));
 	UNLOCK_VPE(flags, mtflags);
 	cic_wmb();
 }
 
-static inline void mask_cic_irq(unsigned int irq)
+static void mask_cic_irq(struct irq_data *d)
 {
 	volatile u32 *cic_msk_reg = CIC_VPE0_MSK_REG;
 	int	vpe = get_current_vpe();
@@ -108,33 +108,27 @@ static inline void mask_cic_irq(unsigned int irq)
 	unsigned long flags, mtflags;
 #endif
 	LOCK_VPE(flags, mtflags);
-	cic_msk_reg[vpe] &= ~(1 << (irq - MSP_CIC_INTBASE));
+	cic_msk_reg[vpe] &= ~(1 << (d->irq - MSP_CIC_INTBASE));
 	UNLOCK_VPE(flags, mtflags);
 	cic_wmb();
 }
-static inline void msp_cic_irq_ack(unsigned int irq)
+static void msp_cic_irq_ack(struct irq_data *d)
 {
-	mask_cic_irq(irq);
+	mask_cic_irq(d);
 	/*
 	* Only really necessary for 18, 16-14 and sometimes 3:0
 	* (since these can be edge sensitive) but it doesn't
 	* hurt for the others
 	*/
-	*CIC_STS_REG = (1 << (irq - MSP_CIC_INTBASE));
-	smtc_im_ack_irq(irq);
-}
-
-static void msp_cic_irq_end(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		unmask_cic_irq(irq);
+	*CIC_STS_REG = (1 << (d->irq - MSP_CIC_INTBASE));
+	smtc_im_ack_irq(d->irq);
 }
 
 /*Note: Limiting to VSMP . Not tested in SMTC */
 
 #ifdef CONFIG_MIPS_MT_SMP
-static inline int msp_cic_irq_set_affinity(unsigned int irq,
-					const struct cpumask *cpumask)
+static int msp_cic_irq_set_affinity(struct irq_data *d,
+				    const struct cpumask *cpumask, bool force)
 {
 	int cpu;
 	unsigned long flags;
@@ -163,13 +157,12 @@ static inline int msp_cic_irq_set_affinity(unsigned int irq,
 
 static struct irq_chip msp_cic_irq_controller = {
 	.name = "MSP_CIC",
-	.mask = mask_cic_irq,
-	.mask_ack = msp_cic_irq_ack,
-	.unmask = unmask_cic_irq,
-	.ack = msp_cic_irq_ack,
-	.end = msp_cic_irq_end,
+	.irq_mask = mask_cic_irq,
+	.irq_mask_ack = msp_cic_irq_ack,
+	.irq_unmask = unmask_cic_irq,
+	.irq_ack = msp_cic_irq_ack,
 #ifdef CONFIG_MIPS_MT_SMP
-	.set_affinity = msp_cic_irq_set_affinity,
+	.irq_set_affinity = msp_cic_irq_set_affinity,
 #endif
 };
 
@@ -220,7 +213,5 @@ void msp_cic_irq_dispatch(void)
 		do_IRQ(ffs(pending) + MSP_CIC_INTBASE - 1);
 	} else{
 		spurious_interrupt();
-		/* Re-enable the CIC cascaded interrupt. */
-		irq_desc[MSP_INT_CIC].chip->end(MSP_INT_CIC);
 	}
 }
