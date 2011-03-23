@@ -504,11 +504,6 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *mem)
 	}
 }
 
-static inline unsigned long mem_cgroup_get_excess(struct mem_cgroup *mem)
-{
-	return res_counter_soft_limit_excess(&mem->res) >> PAGE_SHIFT;
-}
-
 static struct mem_cgroup_per_zone *
 __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
 {
@@ -1127,33 +1122,21 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 #define mem_cgroup_from_res_counter(counter, member)	\
 	container_of(counter, struct mem_cgroup, member)
 
-static bool mem_cgroup_check_under_limit(struct mem_cgroup *mem)
-{
-	if (do_swap_account) {
-		if (res_counter_check_under_limit(&mem->res) &&
-			res_counter_check_under_limit(&mem->memsw))
-			return true;
-	} else
-		if (res_counter_check_under_limit(&mem->res))
-			return true;
-	return false;
-}
-
 /**
- * mem_cgroup_check_margin - check if the memory cgroup allows charging
- * @mem: memory cgroup to check
- * @bytes: the number of bytes the caller intends to charge
+ * mem_cgroup_margin - calculate chargeable space of a memory cgroup
+ * @mem: the memory cgroup
  *
- * Returns a boolean value on whether @mem can be charged @bytes or
- * whether this would exceed the limit.
+ * Returns the maximum amount of memory @mem can be charged with, in
+ * bytes.
  */
-static bool mem_cgroup_check_margin(struct mem_cgroup *mem, unsigned long bytes)
+static unsigned long long mem_cgroup_margin(struct mem_cgroup *mem)
 {
-	if (!res_counter_check_margin(&mem->res, bytes))
-		return false;
-	if (do_swap_account && !res_counter_check_margin(&mem->memsw, bytes))
-		return false;
-	return true;
+	unsigned long long margin;
+
+	margin = res_counter_margin(&mem->res);
+	if (do_swap_account)
+		margin = min(margin, res_counter_margin(&mem->memsw));
+	return margin;
 }
 
 static unsigned int get_swappiness(struct mem_cgroup *memcg)
@@ -1420,7 +1403,9 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
 	bool shrink = reclaim_options & MEM_CGROUP_RECLAIM_SHRINK;
 	bool check_soft = reclaim_options & MEM_CGROUP_RECLAIM_SOFT;
-	unsigned long excess = mem_cgroup_get_excess(root_mem);
+	unsigned long excess;
+
+	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
 
 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
 	if (root_mem->memsw_is_minimum)
@@ -1477,9 +1462,9 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 			return ret;
 		total += ret;
 		if (check_soft) {
-			if (res_counter_check_within_soft_limit(&root_mem->res))
+			if (!res_counter_soft_limit_excess(&root_mem->res))
 				return total;
-		} else if (mem_cgroup_check_under_limit(root_mem))
+		} else if (mem_cgroup_margin(root_mem))
 			return 1 + total;
 	}
 	return total;
@@ -1898,7 +1883,7 @@ static int __mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
 
 	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
 					      gfp_mask, flags);
-	if (mem_cgroup_check_margin(mem_over_limit, csize))
+	if (mem_cgroup_margin(mem_over_limit) >= csize)
 		return CHARGE_RETRY;
 	/*
 	 * Even though the limit is exceeded at this point, reclaim
