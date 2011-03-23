@@ -679,6 +679,7 @@ void smtc_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 
 void smtc_forward_irq(unsigned int irq)
 {
+	struct irq_data *d = irq_get_irq_data(irq);
 	int target;
 
 	/*
@@ -692,7 +693,7 @@ void smtc_forward_irq(unsigned int irq)
 	 * and efficiency, we just pick the easiest one to find.
 	 */
 
-	target = cpumask_first(irq_desc[irq].affinity);
+	target = cpumask_first(d->affinity);
 
 	/*
 	 * We depend on the platform code to have correctly processed
