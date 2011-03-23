@@ -64,6 +64,8 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 
+#include "fib_lookup.h"
+
 static struct ipv4_devconf ipv4_devconf = {
 	.data = {
 		[IPV4_DEVCONF_ACCEPT_REDIRECTS - 1] = 1,
@@ -150,6 +152,20 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 			result = dev;
 			break;
 		}
+	}
+	if (!result) {
+		struct flowi4 fl4 = { .daddr = addr };
+		struct fib_result res = { 0 };
+		struct fib_table *local;
+
+		/* Fallback to FIB local table so that communication
+		 * over loopback subnets work.
+		 */
+		local = fib_get_table(net, RT_TABLE_LOCAL);
+		if (local &&
+		    !fib_table_lookup(local, &fl4, &res, FIB_LOOKUP_NOREF) &&
+		    res.type == RTN_LOCAL)
+			result = FIB_RES_DEV(res);
 	}
 	if (result && devref)
 		dev_hold(result);
