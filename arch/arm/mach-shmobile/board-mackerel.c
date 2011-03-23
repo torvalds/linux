@@ -921,7 +921,8 @@ static struct platform_device ceu_device = {
 	.num_resources	= ARRAY_SIZE(ceu_resources),
 	.resource	= ceu_resources,
 	.dev		= {
-		.platform_data	= &sh_mobile_ceu_info,
+		.platform_data		= &sh_mobile_ceu_info,
+		.coherent_dma_mask	= 0xffffffff,
 	},
 };
 
