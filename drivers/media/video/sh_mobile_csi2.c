@@ -38,6 +38,8 @@ struct sh_csi2 {
 	void __iomem			*base;
 	struct platform_device		*pdev;
 	struct sh_csi2_client_config	*client;
+	unsigned long (*query_bus_param)(struct soc_camera_device *);
+	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 };
 
 static int sh_csi2_try_fmt(struct v4l2_subdev *sd,
@@ -216,6 +218,8 @@ static int sh_csi2_notify(struct notifier_block *nb,
 
 		priv->client = pdata->clients + i;
 
+		priv->set_bus_param		= icd->ops->set_bus_param;
+		priv->query_bus_param		= icd->ops->query_bus_param;
 		icd->ops->set_bus_param		= sh_csi2_set_bus_param;
 		icd->ops->query_bus_param	= sh_csi2_query_bus_param;
 
@@ -227,8 +231,10 @@ static int sh_csi2_notify(struct notifier_block *nb,
 		priv->client = NULL;
 
 		/* Driver is about to be unbound */
-		icd->ops->set_bus_param		= NULL;
-		icd->ops->query_bus_param	= NULL;
+		icd->ops->set_bus_param		= priv->set_bus_param;
+		icd->ops->query_bus_param	= priv->query_bus_param;
+		priv->set_bus_param		= NULL;
+		priv->query_bus_param		= NULL;
 
 		v4l2_device_unregister_subdev(&priv->subdev);
 
