@@ -15,6 +15,7 @@
 
 #define IPCNS_CALLBACK_PRI 0
 
+struct user_namespace;
 
 struct ipc_ids {
 	int in_use;
@@ -56,6 +57,8 @@ struct ipc_namespace {
 	unsigned int    mq_msg_max;      /* initialized to DFLT_MSGMAX */
 	unsigned int    mq_msgsize_max;  /* initialized to DFLT_MSGSIZEMAX */
 
+	/* user_ns which owns the ipc ns */
+	struct user_namespace *user_ns;
 };
 
 extern struct ipc_namespace init_ipc_ns;
