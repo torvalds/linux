@@ -350,9 +350,9 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	u8 request = ctrl->bRequest;
 	u16 value = le16_to_cpu(ctrl->wValue);
 	u16 length = le16_to_cpu(ctrl->wLength);
-	int err = 0;
-	void *data;
-	u16 len;
+	int err = -EOPNOTSUPP;
+	void *data = NULL;
+	u16 len = 0;
 
 	gadget->ep0->driver_data = gadget;
 
@@ -371,10 +371,9 @@ static int dbgp_setup(struct usb_gadget *gadget,
 		default:
 			goto fail;
 		}
+		err = 0;
 	} else if (request == USB_REQ_SET_FEATURE &&
 		   value == USB_DEVICE_DEBUG_MODE) {
-		len = 0;
-		data = NULL;
 		dev_dbg(&dbgp.gadget->dev, "setup: feat debug\n");
 #ifdef CONFIG_USB_G_DBGP_PRINTK
 		err = dbgp_enable_ep();
