@@ -2396,8 +2396,10 @@ static struct ccw_device_id lcs_ids[] = {
 MODULE_DEVICE_TABLE(ccw, lcs_ids);
 
 static struct ccw_driver lcs_ccw_driver = {
-	.owner	= THIS_MODULE,
-	.name	= "lcs",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "lcs",
+	},
 	.ids	= lcs_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,

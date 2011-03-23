@@ -282,8 +282,10 @@ static struct ccw_device_id claw_ids[] = {
 MODULE_DEVICE_TABLE(ccw, claw_ids);
 
 static struct ccw_driver claw_ccw_driver = {
-	.owner	= THIS_MODULE,
-	.name	= "claw",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "claw",
+	},
 	.ids	= claw_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,

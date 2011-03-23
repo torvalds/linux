@@ -3902,7 +3902,9 @@ static struct ccw_device_id qeth_ids[] = {
 MODULE_DEVICE_TABLE(ccw, qeth_ids);
 
 static struct ccw_driver qeth_ccw_driver = {
-	.name = "qeth",
+	.driver = {
+		.name = "qeth",
+	},
 	.ids = qeth_ids,
 	.probe = ccwgroup_probe_ccwdev,
 	.remove = ccwgroup_remove_ccwdev,

@@ -547,7 +547,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
-	if (cdev->drv && !try_module_get(cdev->drv->owner)) {
+	if (cdev->drv && !try_module_get(cdev->drv->driver.owner)) {
 		atomic_set(&cdev->private->onoff, 0);
 		return -EINVAL;
 	}
@@ -573,7 +573,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	}
 out:
 	if (cdev->drv)
-		module_put(cdev->drv->owner);
+		module_put(cdev->drv->driver.owner);
 	atomic_set(&cdev->private->onoff, 0);
 	return (ret < 0) ? ret : count;
 }
@@ -1993,8 +1993,6 @@ int ccw_driver_register(struct ccw_driver *cdriver)
 	struct device_driver *drv = &cdriver->driver;
 
 	drv->bus = &ccw_bus_type;
-	drv->name = cdriver->name;
-	drv->owner = cdriver->owner;
 
 	return driver_register(drv);
 }
