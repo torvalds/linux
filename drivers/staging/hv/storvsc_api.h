@@ -25,6 +25,7 @@
 #ifndef _STORVSC_API_H_
 #define _STORVSC_API_H_
 
+#include "vstorage.h"
 #include "vmbus_api.h"
 
 /* Defines */
@@ -100,6 +101,17 @@ struct storvsc_device_info {
 	unsigned int port_number;
 	unsigned char path_id;
 	unsigned char target_id;
+};
+
+struct storvsc_request_extension {
+	struct hv_storvsc_request *request;
+	struct hv_device *device;
+
+	/* Synchronize the request/response if needed */
+	int wait_condition;
+	wait_queue_head_t wait_event;
+
+	struct vstor_packet vstor_packet;
 };
 
 /* Interface */

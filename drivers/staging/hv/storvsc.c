@@ -33,19 +33,6 @@
 #include "channel.h"
 
 
-struct storvsc_request_extension {
-	/* LIST_ENTRY ListEntry; */
-
-	struct hv_storvsc_request *request;
-	struct hv_device *device;
-
-	/* Synchronize the request/response if needed */
-	int wait_condition;
-	wait_queue_head_t wait_event;
-
-	struct vstor_packet vstor_packet;
-};
-
 /* A storvsc device is a device object that contains a vmbus channel */
 struct storvsc_device {
 	struct hv_device *device;
