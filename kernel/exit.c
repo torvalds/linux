@@ -1541,17 +1541,19 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 	if (p->exit_state == EXIT_DEAD)
 		return 0;
 
-	if (likely(!ptrace) && unlikely(task_ptrace(p))) {
-		/*
-		 * This child is hidden by ptrace.
-		 * We aren't allowed to see it now, but eventually we will.
-		 */
-		wo->notask_error = 0;
-		return 0;
-	}
-
 	/* slay zombie? */
 	if (p->exit_state == EXIT_ZOMBIE) {
+		/*
+		 * A zombie ptracee is only visible to its ptracer.
+		 * Notification and reaping will be cascaded to the real
+		 * parent when the ptracer detaches.
+		 */
+		if (likely(!ptrace) && unlikely(task_ptrace(p))) {
+			/* it will become visible, clear notask_error */
+			wo->notask_error = 0;
+			return 0;
+		}
+
 		/* we don't reap group leaders with subthreads */
 		if (!delay_group_leader(p))
 			return wait_task_zombie(wo, p);
@@ -1580,15 +1582,38 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 			wo->notask_error = 0;
 	} else {
 		/*
+		 * If @p is ptraced by a task in its real parent's group,
+		 * hide group stop/continued state when looking at @p as
+		 * the real parent; otherwise, a single stop can be
+		 * reported twice as group and ptrace stops.
+		 *
+		 * If a ptracer wants to distinguish the two events for its
+		 * own children, it should create a separate process which
+		 * takes the role of real parent.
+		 */
+		if (likely(!ptrace) && task_ptrace(p) &&
+		    same_thread_group(p->parent, p->real_parent))
+			return 0;
+
+		/*
 		 * @p is alive and it's gonna stop, continue or exit, so
 		 * there always is something to wait for.
 		 */
 		wo->notask_error = 0;
 	}
 
+	/*
+	 * Wait for stopped.  Depending on @ptrace, different stopped state
+	 * is used and the two don't interact with each other.
+	 */
 	if (task_stopped_code(p, ptrace))
 		return wait_task_stopped(wo, ptrace, p);
 
+	/*
+	 * Wait for continued.  There's only one continued state and the
+	 * ptracer can consume it which can confuse the real parent.  Don't
+	 * use WCONTINUED from ptracer.  You don't need or want it.
+	 */
 	return wait_task_continued(wo, p);
 }
 
