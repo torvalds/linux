@@ -560,20 +560,19 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 		return -ENOMEM;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
-		free_tty_struct(o_tty);
-		return -ENOMEM;
+		goto err_free_tty;
 	}
 	initialize_tty_struct(o_tty, driver->other, idx);
 
 	tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
 	if (tty->termios == NULL)
-		goto free_mem_out;
+		goto err_free_mem;
 	*tty->termios = driver->init_termios;
 	tty->termios_locked = tty->termios + 1;
 
 	o_tty->termios = kzalloc(sizeof(struct ktermios[2]), GFP_KERNEL);
 	if (o_tty->termios == NULL)
-		goto free_mem_out;
+		goto err_free_mem;
 	*o_tty->termios = driver->other->init_termios;
 	o_tty->termios_locked = o_tty->termios + 1;
 
@@ -592,11 +591,12 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 	tty->count++;
 	pty_count++;
 	return 0;
-free_mem_out:
+err_free_mem:
 	kfree(o_tty->termios);
-	module_put(o_tty->driver->owner);
-	free_tty_struct(o_tty);
 	kfree(tty->termios);
+	module_put(o_tty->driver->owner);
+err_free_tty:
+	free_tty_struct(o_tty);
 	return -ENOMEM;
 }
 
