@@ -1409,10 +1409,9 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 		return;
 }
 
-static void nfs_commit_release(void *calldata)
+static void nfs_commit_release_pages(struct nfs_write_data *data)
 {
-	struct nfs_write_data	*data = calldata;
-	struct nfs_page		*req;
+	struct nfs_page	*req;
 	int status = data->task.tk_status;
 
 	while (!list_empty(&data->pages)) {
@@ -1446,6 +1445,13 @@ static void nfs_commit_release(void *calldata)
 	next:
 		nfs_clear_page_tag_locked(req);
 	}
+}
+
+static void nfs_commit_release(void *calldata)
+{
+	struct nfs_write_data *data = calldata;
+
+	nfs_commit_release_pages(data);
 	nfs_commit_clear_lock(NFS_I(data->inode));
 	nfs_commitdata_release(calldata);
 }
