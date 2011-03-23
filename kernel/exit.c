@@ -1550,17 +1550,41 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		return 0;
 	}
 
-	/*
-	 * We don't reap group leaders with subthreads.
-	 */
-	if (p->exit_state == EXIT_ZOMBIE && !delay_group_leader(p))
-		return wait_task_zombie(wo, p);
+	/* slay zombie? */
+	if (p->exit_state == EXIT_ZOMBIE) {
+		/* we don't reap group leaders with subthreads */
+		if (!delay_group_leader(p))
+			return wait_task_zombie(wo, p);
 
-	/*
-	 * It's stopped or running now, so it might
-	 * later continue, exit, or stop again.
-	 */
-	wo->notask_error = 0;
+		/*
+		 * Allow access to stopped/continued state via zombie by
+		 * falling through.  Clearing of notask_error is complex.
+		 *
+		 * When !@ptrace:
+		 *
+		 * If WEXITED is set, notask_error should naturally be
+		 * cleared.  If not, subset of WSTOPPED|WCONTINUED is set,
+		 * so, if there are live subthreads, there are events to
+		 * wait for.  If all subthreads are dead, it's still safe
+		 * to clear - this function will be called again in finite
+		 * amount time once all the subthreads are released and
+		 * will then return without clearing.
+		 *
+		 * When @ptrace:
+		 *
+		 * Stopped state is per-task and thus can't change once the
+		 * target task dies.  Only continued and exited can happen.
+		 * Clear notask_error if WCONTINUED | WEXITED.
+		 */
+		if (likely(!ptrace) || (wo->wo_flags & (WCONTINUED | WEXITED)))
+			wo->notask_error = 0;
+	} else {
+		/*
+		 * @p is alive and it's gonna stop, continue or exit, so
+		 * there always is something to wait for.
+		 */
+		wo->notask_error = 0;
+	}
 
 	if (task_stopped_code(p, ptrace))
 		return wait_task_stopped(wo, ptrace, p);
