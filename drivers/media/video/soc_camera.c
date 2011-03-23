@@ -996,10 +996,11 @@ static void soc_camera_free_i2c(struct soc_camera_device *icd)
 {
 	struct i2c_client *client =
 		to_i2c_client(to_soc_camera_control(icd));
+	struct i2c_adapter *adap = client->adapter;
 	dev_set_drvdata(&icd->dev, NULL);
 	v4l2_device_unregister_subdev(i2c_get_clientdata(client));
 	i2c_unregister_device(client);
-	i2c_put_adapter(client->adapter);
+	i2c_put_adapter(adap);
 }
 #else
 #define soc_camera_init_i2c(icd, icl)	(-ENODEV)
