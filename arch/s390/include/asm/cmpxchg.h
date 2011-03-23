@@ -164,6 +164,33 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	\
 				       (unsigned long)(n), sizeof(*(ptr))))
 
+#ifdef CONFIG_64BIT
+#define cmpxchg64(ptr, o, n)						\
+({									\
+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	cmpxchg((ptr), (o), (n));					\
+})
+#else /* CONFIG_64BIT */
+static inline unsigned long long __cmpxchg64(void *ptr,
+					     unsigned long long old,
+					     unsigned long long new)
+{
+	register_pair rp_old = {.pair = old};
+	register_pair rp_new = {.pair = new};
+
+	asm volatile(
+		"	cds	%0,%2,%1"
+		: "+&d" (rp_old), "=Q" (ptr)
+		: "d" (rp_new), "Q" (ptr)
+		: "cc");
+	return rp_old.pair;
+}
+#define cmpxchg64(ptr, o, n)						\
+	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
+					 (unsigned long long)(o),	\
+					 (unsigned long long)(n)))
+#endif /* CONFIG_64BIT */
+
 #include <asm-generic/cmpxchg-local.h>
 
 static inline unsigned long __cmpxchg_local(void *ptr,
@@ -192,14 +219,7 @@ static inline unsigned long __cmpxchg_local(void *ptr,
 #define cmpxchg_local(ptr, o, n)					\
 	((__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
 			(unsigned long)(n), sizeof(*(ptr))))
-#ifdef CONFIG_64BIT
-#define cmpxchg64_local(ptr, o, n)					\
-({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-	cmpxchg_local((ptr), (o), (n));					\
-})
-#else
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
-#endif
+
+#define cmpxchg64_local(ptr, o, n)	cmpxchg64((ptr), (o), (n))
 
 #endif /* __ASM_CMPXCHG_H */
