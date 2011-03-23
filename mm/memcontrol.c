@@ -2118,10 +2118,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 {
 	int nr_pages = page_size >> PAGE_SHIFT;
 
-	/* try_charge() can return NULL to *memcg, taking care of it. */
-	if (!mem)
-		return;
-
 	lock_page_cgroup(pc);
 	if (unlikely(PageCgroupUsed(pc))) {
 		unlock_page_cgroup(pc);
