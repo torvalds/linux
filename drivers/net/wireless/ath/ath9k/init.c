@@ -407,13 +407,7 @@ void ath9k_init_crypto(struct ath_softc *sc)
 	int i = 0;
 
 	/* Get the hardware key cache size. */
-	common->keymax = sc->sc_ah->caps.keycache_size;
-	if (common->keymax > ATH_KEYMAX) {
-		ath_dbg(common, ATH_DBG_ANY,
-			"Warning, using only %u entries in %u key cache\n",
-			ATH_KEYMAX, common->keymax);
-		common->keymax = ATH_KEYMAX;
-	}
+	common->keymax = AR_KEYTABLE_SIZE;
 
 	/*
 	 * Reset the key cache since some parts do not
