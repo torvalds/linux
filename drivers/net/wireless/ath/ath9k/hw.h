@@ -73,6 +73,9 @@
 #define REG_READ_MULTI(_ah, _addr, _val, _cnt)		\
 	(_ah)->reg_ops.multi_read((_ah), (_addr), (_val), (_cnt))
 
+#define REG_RMW(_ah, _reg, _set, _clr) \
+	(_ah)->reg_ops.rmw((_ah), (_reg), (_set), (_clr))
+
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
 		if ((_ah)->reg_ops.enable_write_buffer)	\
@@ -87,17 +90,14 @@
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
-#define REG_RMW(_a, _r, _set, _clr)    \
-	REG_WRITE(_a, _r, (REG_READ(_a, _r) & ~(_clr)) | (_set))
 #define REG_RMW_FIELD(_a, _r, _f, _v) \
-	REG_WRITE(_a, _r, \
-	(REG_READ(_a, _r) & ~_f) | (((_v) << _f##_S) & _f))
+	REG_RMW(_a, _r, (((_v) << _f##_S) & _f), (_f))
 #define REG_READ_FIELD(_a, _r, _f) \
 	(((REG_READ(_a, _r) & _f) >> _f##_S))
 #define REG_SET_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) | (_f))
+	REG_RMW(_a, _r, (_f), 0)
 #define REG_CLR_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~(_f))
+	REG_RMW(_a, _r, 0, (_f))
 
 #define DO_DELAY(x) do {					\
 		if (((++(x) % 64) == 0) &&			\

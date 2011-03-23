@@ -430,6 +430,17 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	mutex_unlock(&priv->wmi->multi_write_mutex);
 }
 
+static u32 ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
+{
+	u32 val;
+
+	val = ath9k_regread(hw_priv, reg_offset);
+	val &= ~clr;
+	val |= set;
+	ath9k_regwrite(hw_priv, val, reg_offset);
+	return val;
+}
+
 static void ath_usb_read_cachesize(struct ath_common *common, int *csz)
 {
 	*csz = L1_CACHE_BYTES >> 2;
@@ -655,6 +666,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	ah->reg_ops.write = ath9k_regwrite;
 	ah->reg_ops.enable_write_buffer = ath9k_enable_regwrite_buffer;
 	ah->reg_ops.write_flush = ath9k_regwrite_flush;
+	ah->reg_ops.rmw = ath9k_reg_rmw;
 	priv->ah = ah;
 
 	common = ath9k_hw_common(ah);
