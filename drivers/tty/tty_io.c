@@ -1894,6 +1894,7 @@ got_driver:
 	retval = tty_add_file(tty, filp);
 	if (retval) {
 		tty_unlock();
+		tty_release(inode, filp);
 		return retval;
 	}
 
