@@ -290,7 +290,6 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 	if (diff >= array->size) {
 		if (array->eof_index >= 0)
 			goto out_eof;
-		desc->current_index += array->size;
 		return -EAGAIN;
 	}
 
@@ -311,6 +310,7 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 
 	for (i = 0; i < array->size; i++) {
 		if (array->array[i].cookie == *desc->dir_cookie) {
+			desc->file->f_pos = desc->current_index + i;
 			desc->cache_entry_index = i;
 			return 0;
 		}
@@ -342,6 +342,7 @@ int nfs_readdir_search_array(nfs_readdir_descriptor_t *desc)
 
 	if (status == -EAGAIN) {
 		desc->last_cookie = array->last_cookie;
+		desc->current_index += array->size;
 		desc->page_index++;
 	}
 	nfs_readdir_release_array(desc->page);
