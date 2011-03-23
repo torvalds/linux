@@ -378,11 +378,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.spurchans[i][1] = AR_NO_SPUR;
 	}
 
-	if (ah->hw_version.devid != AR2427_DEVID_PCIE)
-		ah->config.ht_enable = 1;
-	else
-		ah->config.ht_enable = 0;
-
 	/* PAPRD needs some more work to be enabled */
 	ah->config.paprd_disable = 1;
 
@@ -1880,7 +1875,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
 
-	if (ah->config.ht_enable)
+	if (ah->hw_version.devid != AR2427_DEVID_PCIE)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;

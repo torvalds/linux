@@ -222,7 +222,6 @@ struct ath9k_ops_config {
 	u8 pcie_clock_req;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
-	u8 ht_enable;
 	u8 paprd_disable;
 	u32 ofdm_trig_low;
 	u32 ofdm_trig_high;
