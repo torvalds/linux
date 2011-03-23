@@ -2502,7 +2502,6 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		 * for partial write.
 		 */
 		set_buffer_new(bh);
-		set_buffer_mapped(bh);
 	}
 	return 0;
 }
