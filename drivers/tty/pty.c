@@ -295,8 +295,8 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 		return -ENOMEM;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
-		free_tty_struct(o_tty);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_free_tty;
 	}
 	initialize_tty_struct(o_tty, driver->other, idx);
 
@@ -304,13 +304,11 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	   the easy way .. */
 	retval = tty_init_termios(tty);
 	if (retval)
-		goto free_mem_out;
+		goto err_module_put;
 
 	retval = tty_init_termios(o_tty);
-	if (retval) {
-		tty_free_termios(tty);
-		goto free_mem_out;
-	}
+	if (retval)
+		goto err_free_termios;
 
 	/*
 	 * Everything allocated ... set up the o_tty structure.
@@ -327,10 +325,13 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	tty->count++;
 	driver->ttys[idx] = tty;
 	return 0;
-free_mem_out:
+err_free_termios:
+	tty_free_termios(tty);
+err_module_put:
 	module_put(o_tty->driver->owner);
+err_free_tty:
 	free_tty_struct(o_tty);
-	return -ENOMEM;
+	return retval;
 }
 
 static int pty_bsd_ioctl(struct tty_struct *tty,
