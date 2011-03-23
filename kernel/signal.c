@@ -1595,16 +1595,30 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	return ret;
 }
 
-static void do_notify_parent_cldstop(struct task_struct *tsk, int why)
+/**
+ * do_notify_parent_cldstop - notify parent of stopped/continued state change
+ * @tsk: task reporting the state change
+ * @for_ptracer: the notification is for ptracer
+ * @why: CLD_{CONTINUED|STOPPED|TRAPPED} to report
+ *
+ * Notify @tsk's parent that the stopped/continued state has changed.  If
+ * @for_ptracer is %false, @tsk's group leader notifies to its real parent.
+ * If %true, @tsk reports to @tsk->parent which should be the ptracer.
+ *
+ * CONTEXT:
+ * Must be called with tasklist_lock at least read locked.
+ */
+static void do_notify_parent_cldstop(struct task_struct *tsk,
+				     bool for_ptracer, int why)
 {
 	struct siginfo info;
 	unsigned long flags;
 	struct task_struct *parent;
 	struct sighand_struct *sighand;
 
-	if (task_ptrace(tsk))
+	if (for_ptracer) {
 		parent = tsk->parent;
-	else {
+	} else {
 		tsk = tsk->group_leader;
 		parent = tsk->real_parent;
 	}
@@ -1743,7 +1757,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	spin_unlock_irq(&current->sighand->siglock);
 	read_lock(&tasklist_lock);
 	if (may_ptrace_stop()) {
-		do_notify_parent_cldstop(current, why);
+		do_notify_parent_cldstop(current, task_ptrace(current), why);
 		/*
 		 * Don't want to allow preemption here, because
 		 * sys_ptrace() needs this task to be inactive.
@@ -1886,7 +1900,8 @@ retry:
 
 		if (notify) {
 			read_lock(&tasklist_lock);
-			do_notify_parent_cldstop(current, notify);
+			do_notify_parent_cldstop(current, task_ptrace(current),
+						 notify);
 			read_unlock(&tasklist_lock);
 		}
 
@@ -1982,6 +1997,7 @@ relock:
 	 * the CLD_ si_code into SIGNAL_CLD_MASK bits.
 	 */
 	if (unlikely(signal->flags & SIGNAL_CLD_MASK)) {
+		struct task_struct *leader;
 		int why;
 
 		if (signal->flags & SIGNAL_CLD_CONTINUED)
@@ -1994,7 +2010,8 @@ relock:
 		spin_unlock_irq(&sighand->siglock);
 
 		read_lock(&tasklist_lock);
-		do_notify_parent_cldstop(current->group_leader, why);
+		leader = current->group_leader;
+		do_notify_parent_cldstop(leader, task_ptrace(leader), why);
 		read_unlock(&tasklist_lock);
 		goto relock;
 	}
@@ -2167,7 +2184,7 @@ out:
 
 	if (unlikely(group_stop)) {
 		read_lock(&tasklist_lock);
-		do_notify_parent_cldstop(tsk, group_stop);
+		do_notify_parent_cldstop(tsk, task_ptrace(tsk), group_stop);
 		read_unlock(&tasklist_lock);
 	}
 }
