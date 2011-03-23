@@ -1437,7 +1437,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	REGWRITE_BUFFER_FLUSH(ah);
 
 	ah->intr_txqs = 0;
-	for (i = 0; i < ah->caps.total_queues; i++)
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		ath9k_hw_resettxqueue(ah, i);
 
 	ath9k_hw_init_interrupt_masks(ah, ah->opmode);
@@ -1884,12 +1884,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
-
-	if (capField & AR_EEPROM_EEPCAP_MAXQCU)
-		pCap->total_queues =
-			MS(capField, AR_EEPROM_EEPCAP_MAXQCU);
-	else
-		pCap->total_queues = ATH9K_NUM_TX_QUEUES;
 
 	if (capField & AR_EEPROM_EEPCAP_KC_ENTRIES)
 		pCap->keycache_size =
