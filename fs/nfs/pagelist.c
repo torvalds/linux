@@ -398,6 +398,7 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 	pgoff_t idx_end;
 	int found, i;
 	int res;
+	struct list_head *list;
 
 	res = 0;
 	if (npages == 0)
@@ -418,10 +419,10 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 			idx_start = req->wb_index + 1;
 			if (nfs_set_page_tag_locked(req)) {
 				kref_get(&req->wb_kref);
-				nfs_list_remove_request(req);
 				radix_tree_tag_clear(&nfsi->nfs_page_tree,
 						req->wb_index, tag);
-				nfs_list_add_request(req, dst);
+				list = pnfs_choose_commit_list(req, dst);
+				nfs_list_add_request(req, list);
 				res++;
 				if (res == INT_MAX)
 					goto out;
