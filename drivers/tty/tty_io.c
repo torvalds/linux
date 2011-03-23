@@ -1399,7 +1399,7 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 
 	retval = tty_driver_install_tty(driver, tty);
 	if (retval < 0)
-		goto err_free_tty;
+		goto err_deinit_tty;
 
 	/*
 	 * Structures all installed ... call the ldisc open routines.
@@ -1411,7 +1411,8 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 		goto err_release_tty;
 	return tty;
 
-err_free_tty:
+err_deinit_tty:
+	deinitialize_tty_struct(tty);
 	free_tty_struct(tty);
 err_module_put:
 	module_put(driver->owner);

@@ -304,7 +304,7 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	   the easy way .. */
 	retval = tty_init_termios(tty);
 	if (retval)
-		goto err_module_put;
+		goto err_deinit_tty;
 
 	retval = tty_init_termios(o_tty);
 	if (retval)
@@ -327,7 +327,8 @@ static int pty_install(struct tty_driver *driver, struct tty_struct *tty)
 	return 0;
 err_free_termios:
 	tty_free_termios(tty);
-err_module_put:
+err_deinit_tty:
+	deinitialize_tty_struct(o_tty);
 	module_put(o_tty->driver->owner);
 err_free_tty:
 	free_tty_struct(o_tty);
@@ -592,6 +593,7 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 	pty_count++;
 	return 0;
 err_free_mem:
+	deinitialize_tty_struct(o_tty);
 	kfree(o_tty->termios);
 	kfree(tty->termios);
 	module_put(o_tty->driver->owner);
