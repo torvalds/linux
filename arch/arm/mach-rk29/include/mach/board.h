@@ -194,7 +194,6 @@ struct it7260_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
-
 struct akm8975_platform_data {
 	char layouts[3][3];
 	char project_name[64];
@@ -202,9 +201,9 @@ struct akm8975_platform_data {
 };
 
 struct rk29_gpio_expander_info {
-	unsigned int gpio_num;// 初始化的pin 脚宏定义 如：rk29_PIN_PI0
-	unsigned int pin_type;//初始化的pin 为输入pin还是输出pin 如：GPIO_IN
-	unsigned int pin_value;//如果为 output pin 设置电平，如：GPIO_HIGH
+	unsigned int gpio_num;
+	unsigned int pin_type;//GPIO_IN or GPIO_OUT
+	unsigned int pin_value;//GPIO_HIGH or GPIO_LOW
 };
 
 struct tca6424_platform_data {
@@ -214,8 +213,8 @@ struct tca6424_platform_data {
 	/*  the first gpio irq  number in all of irq source */
 
 	unsigned int gpio_irq_start;
-	unsigned int irq_pin_num;        //中断的个数
-	unsigned int tca6424_irq_pin;     //扩展IO的中断挂在哪个gpio
+	unsigned int irq_pin_num;        //number of interrupt
+	unsigned int tca6424_irq_pin;     //rk29 gpio
 	unsigned int expand_port_group;
 	unsigned int expand_port_pinnum;
 	unsigned int rk_irq_mode;

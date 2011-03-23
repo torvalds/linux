@@ -119,9 +119,9 @@ struct rk2818_bl_info{
 };
 
 struct rk2818_gpio_expander_info {
-	unsigned int gpio_num;// 初始化的pin 脚宏定义 如：RK2818_PIN_PI0
-	unsigned int pin_type;//初始化的pin 为输入pin还是输出pin 如：GPIO_IN
-	unsigned int pin_value;//如果为 output pin 设置电平，如：GPIO_HIGH
+	unsigned int gpio_num;// RK2818_PIN_PI0
+	unsigned int pin_type;//GPIO_IN or GPIO_OUT
+	unsigned int pin_value;//GPIO_HIGH or GPIO_LOW
 };
 
 
@@ -132,8 +132,8 @@ struct pca9554_platform_data {
 	/*  the first gpio irq  number in all of irq source */
 
 	unsigned int gpio_irq_start;
-	unsigned int irq_pin_num;        //中断的个数
-	unsigned int pca9954_irq_pin;        //扩展IO的中断挂在哪个gpio
+	unsigned int irq_pin_num;        //number of intterupt
+	unsigned int pca9954_irq_pin;        //rk28 gpio
 	/* initial polarity inversion setting */
 	uint16_t invert;
 	struct rk2818_gpio_expander_info  *settinginfo;
@@ -152,8 +152,8 @@ struct tca6424_platform_data {
 	/*  the first gpio irq  number in all of irq source */
 
 	unsigned int gpio_irq_start;
-	unsigned int irq_pin_num;        //中断的个数
-	unsigned int tca6424_irq_pin;     //扩展IO的中断挂在哪个gpio
+	unsigned int irq_pin_num;        //number of interrupt
+	unsigned int tca6424_irq_pin;     //rk28 gpio
 	unsigned int expand_port_group;
 	unsigned int expand_port_pinnum;
 	unsigned int rk_irq_mode;

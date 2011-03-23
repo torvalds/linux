@@ -34,7 +34,7 @@ typedef enum _MCU_STATUS {
 } MCU_STATUS;
 
 
-/* Sceen description */
+/* Screen description */
 struct rk29fb_screen {
     /* screen type & out face */
     u16 type;
@@ -77,10 +77,10 @@ struct rk29fb_screen {
 
     /* Operation function*/
     int (*init)(void);
-    int (*standby)(u8 enable);
-    int (*refresh)(u8 arg);
-    int (*scandir)(u16 dir);
-    int (*disparea)(u8 area);
+    int (*standby)(u32 enable);
+    int (*refresh)(u32 arg);
+    int (*scandir)(u32 dir);
+    int (*disparea)(u32 area);
 
 };
 

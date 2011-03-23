@@ -184,6 +184,7 @@ static void  rk29_i2c_clockrate(struct rk29_i2c_data *i2c)
 	rk29_i2c_calcdivisor(i2c->i2c_rate, scl_rate, &real_rate, &rem, &exp);
 
 	tmp = readl(i2c->regs + I2C_OPR);
+	tmp &= ~0x3f;
 	tmp |= exp;
 	tmp |= rem<<I2CCDVR_EXP_BITS;	
 	writel(tmp, i2c->regs + I2C_OPR);

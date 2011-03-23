@@ -207,7 +207,7 @@ struct rk29_camera_dev
 	struct clk *hclk_cpu_display;
 	struct clk *vip_slave;
 
-    struct clk *vip;
+	struct clk *vip_out;
 	struct clk *vip_input;
 	struct clk *vip_bus;
 
@@ -263,8 +263,13 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
     dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
 	/* planar capture requires Y, U and V buffers to be page aligned */
+	#if 0
     *size = PAGE_ALIGN(icd->user_width* icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
 	pcdev->vipmem_bsize = PAGE_ALIGN(pcdev->host_width * pcdev->host_height * bytes_per_pixel);
+	#else
+	*size = PAGE_ALIGN((icd->user_width* icd->user_height * icd->current_fmt->depth + 7)>>3);                               /* Y pages UV pages, yuv422*/
+	pcdev->vipmem_bsize = PAGE_ALIGN((pcdev->host_width * pcdev->host_height * icd->current_fmt->depth + 7)>>3);
+	#endif
 
 	if ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height)) {
 
@@ -612,9 +617,9 @@ static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera
 
     RK29CAMERA_DG("%s..%d.. \n",__FUNCTION__,__LINE__);
     if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
-		!pcdev->vip_slave || !pcdev->vip || !pcdev->vip_input || !pcdev->vip_bus ||
+		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus ||
 		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) ||
-		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
+		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip_out) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
 
         RK29CAMERA_TR(KERN_ERR "failed to get vip_clk(axi) source\n");
         goto RK29_CAMERA_ACTIVE_ERR;
@@ -658,9 +663,9 @@ static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera
              goto RK29_CAMERA_ACTIVE_ERR;
     }
 
-    clk_set_parent(pcdev->vip, parent);
+    clk_set_parent(pcdev->vip_out, parent);
 
-    clk_enable(pcdev->vip);
+    clk_enable(pcdev->vip_out);
     rk29_mux_api_set(GPIO1B4_VIPCLKOUT_NAME, GPIO1L_VIP_CLKOUT);
     ndelay(10);
 
@@ -693,7 +698,7 @@ static void rk29_camera_deactivate(struct rk29_camera_dev *pcdev)
     read_vip_reg(RK29_VIP_INT_STS);             //clear vip interrupte single
 
     rk29_mux_api_set(GPIO1B4_VIPCLKOUT_NAME, GPIO1L_GPIO1B4);
-    clk_disable(pcdev->vip);
+    clk_disable(pcdev->vip_out);
 
 	clk_disable(pcdev->vip_input);
 	clk_disable(pcdev->vip_bus);
@@ -1133,7 +1138,26 @@ RK29_CAMERA_SET_FMT_END:
     	RK29CAMERA_TR("\n%s..%d.. ret = %d  \n",__FUNCTION__,__LINE__, ret);
     return ret;
 }
+static bool rk29_camera_fmt_capturechk(struct v4l2_format *f)
+{
+    bool ret = false;
 
+	if ((f->fmt.pix.width == 1024) && (f->fmt.pix.height == 768)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 1600) && (f->fmt.pix.height == 1200)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 2048) && (f->fmt.pix.height == 1536)) {
+		ret = true;
+	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
+		ret = true;
+	}
+
+	if (ret == true)
+		RK29CAMERA_DG("%s %dx%d is capture format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+	return ret;
+}
 static int rk29_camera_try_fmt(struct soc_camera_device *icd,
                                    struct v4l2_format *f)
 {
@@ -1145,7 +1169,8 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     __u32 pixfmt = pix->pixelformat;
     enum v4l2_field field;
     int ret,usr_w,usr_h;
-	int bytes_per_pixel;
+	bool is_capture = rk29_camera_fmt_capturechk(f);
+	bool vipmem_is_overflow = false;
 
 	usr_w = pix->width;
 	usr_h = pix->height;
@@ -1171,10 +1196,14 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     ret = v4l2_subdev_call(sd, video, try_fmt, f);
     pix->pixelformat = pixfmt;
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-	bytes_per_pixel = (xlate->cam_fmt->depth + 7) >> 3;
 	if ((pix->width > usr_w) && (pix->height > usr_h)) {
-		/* Assume preview buffer minimum is 4 */
-		if (PAGE_ALIGN(bytes_per_pixel*pix->width*pix->height)*4 <= pcdev->vipmem_size) {
+		if (is_capture) {
+			vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3) > pcdev->vipmem_size);
+		} else {
+			/* Assume preview buffer minimum is 4 */
+			vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3)*4 > pcdev->vipmem_size);
+		}
+		if (vipmem_is_overflow == false) {
 			pix->width = usr_w;
 			pix->height = usr_h;
 		} else {
@@ -1182,14 +1211,19 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 		}
 	} else if ((pix->width < usr_w) && (pix->height < usr_h)) {
 		if (((usr_w>>1) < pix->width) && ((usr_h>>1) < pix->height)) {
-			if (PAGE_ALIGN(bytes_per_pixel*pix->width*pix->height)*4 <= pcdev->vipmem_size) {
+			if (is_capture) {
+				vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3) <= pcdev->vipmem_size);
+			} else {
+				vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3)*4 <= pcdev->vipmem_size);
+			}
+			if (vipmem_is_overflow == false) {
 				pix->width = usr_w;
 				pix->height = usr_h;
 			} else {
 				RK29CAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",pix->width,pix->height,usr_w,usr_h);
 			}
 		} else {
-			RK29CAMERA_TR("The aspect ratio(%dx%d//%dx%d) is bigger than 2 !\n",pix->width,pix->height,usr_w,usr_h);
+			RK29CAMERA_TR("The aspect ratio(%dx%d/%dx%d) is bigger than 2 !\n",pix->width,pix->height,usr_w,usr_h);
 		}
 	}
 	#endif
@@ -1443,7 +1477,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
 
 	pcdev->hclk_cpu_display = clk_get(&pdev->dev, "hclk_cpu_display");
 	pcdev->vip_slave = clk_get(&pdev->dev, "vip_slave");
-	pcdev->vip = clk_get(&pdev->dev,"vip");
+	pcdev->vip_out = clk_get(&pdev->dev,"vip_out");
 	pcdev->vip_input = clk_get(&pdev->dev,"vip_input");
 	pcdev->vip_bus = clk_get(&pdev->dev, "vip_bus");
 
@@ -1451,9 +1485,9 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	pcdev->vip_matrix = clk_get(&pdev->dev,"vip_matrix");
 
     if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
-		!pcdev->vip_slave || !pcdev->vip || !pcdev->vip_input || !pcdev->vip_bus ||
+		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus ||
 		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) ||
-		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
+		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip_out) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
 
         RK29CAMERA_TR(KERN_ERR "failed to get vip_clk(axi) source\n");
         err = -ENOENT;
@@ -1565,9 +1599,9 @@ exit_reqmem:
 		clk_put(pcdev->vip_slave);
 		pcdev->vip_slave = NULL;
     }
-	if (pcdev->vip) {
-		clk_put(pcdev->vip);
-		pcdev->vip = NULL;
+	if (pcdev->vip_out) {
+		clk_put(pcdev->vip_out);
+		pcdev->vip_out = NULL;
     }
 	if (pcdev->vip_input) {
 		clk_put(pcdev->vip_input);

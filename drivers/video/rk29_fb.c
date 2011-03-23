@@ -195,6 +195,7 @@ struct rk29fb_inf {
     struct clk      *aclk_ddr_lcdc;   //DDR LCDC AXI clock disable.
     struct clk      *aclk_disp_matrix;  //DISPLAY matrix AXI clock disable.
     struct clk      *hclk_cpu_display;  //CPU DISPLAY AHB bus clock disable.
+    struct clk      *pd_display;        // display power domain
     unsigned long	dclk_rate;
 
     /* lcdc reg base address and backup reg */
@@ -455,7 +456,12 @@ int init_lcdc(struct fb_info *info)
     inf->aclk_ddr_lcdc = clk_get(NULL, "aclk_ddr_lcdc");
     inf->aclk_disp_matrix = clk_get(NULL, "aclk_disp_matrix");
     inf->hclk_cpu_display = clk_get(NULL, "hclk_cpu_display");
-    if ((IS_ERR(inf->clk)) || (IS_ERR(inf->aclk_ddr_lcdc)) || (IS_ERR(inf->aclk_disp_matrix)) ||(IS_ERR(inf->hclk_cpu_display)))
+    inf->pd_display = clk_get(NULL, "pd_display");
+    if ((IS_ERR(inf->clk)) ||
+        (IS_ERR(inf->aclk_ddr_lcdc)) ||
+        (IS_ERR(inf->aclk_disp_matrix)) ||
+        (IS_ERR(inf->hclk_cpu_display)) ||
+        (IS_ERR(inf->pd_display)))
     {
         printk(KERN_ERR "failed to get lcdc_hclk source\n");
         return PTR_ERR(inf->clk);
@@ -463,7 +469,8 @@ int init_lcdc(struct fb_info *info)
     clk_enable(inf->aclk_disp_matrix);
     clk_enable(inf->hclk_cpu_display);
     clk_enable(inf->clk);
-    pmu_set_power_domain(PD_DISPLAY, 1);
+    clk_enable(inf->pd_display);
+    //pmu_set_power_domain(PD_DISPLAY, 1);
     clk_enable(inf->aclk_ddr_lcdc);
 
 	// set AHB access rule and disable all windows
@@ -2175,7 +2182,8 @@ static int rk29fb_suspend(struct platform_device *pdev, pm_message_t mesg)
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-        pmu_set_power_domain(PD_DISPLAY, 0);
+        clk_disable(inf->pd_display);
+        //pmu_set_power_domain(PD_DISPLAY, 0);
 		inf->in_suspend = 1;
 	}
     return 0;
@@ -2200,7 +2208,8 @@ static int rk29fb_resume(struct platform_device *pdev)
         clk_enable(inf->aclk_disp_matrix);
         clk_enable(inf->hclk_cpu_display);
         clk_enable(inf->clk);
-        pmu_set_power_domain(PD_DISPLAY, 1);
+        clk_enable(inf->pd_display);
+        //pmu_set_power_domain(PD_DISPLAY, 1);
         clk_enable(inf->aclk_ddr_lcdc);
 
         if (inf->dclk){
@@ -2662,7 +2671,8 @@ static void rk29fb_shutdown(struct platform_device *pdev)
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-        pmu_set_power_domain(PD_DISPLAY, 0);
+        clk_disable(inf->pd_display);
+        //pmu_set_power_domain(PD_DISPLAY, 0);
 		inf->in_suspend = 1;
 	}
 
@@ -2693,9 +2703,7 @@ static void __exit rk29fb_exit(void)
     platform_driver_unregister(&rk29fb_driver);
 }
 
-//subsys_initcall(rk29fb_init);
-
-module_init(rk29fb_init);
+fs_initcall(rk29fb_init);
 module_exit(rk29fb_exit);
 
 

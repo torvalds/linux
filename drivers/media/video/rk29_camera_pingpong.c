@@ -1223,7 +1223,7 @@ static int rk29_camera_probe(struct platform_device *pdev)
     rk29_camdev_info_ptr = pcdev;
 
     /*config output clk*/
-    pcdev->clk = clk_get(&pdev->dev, "vip");
+    pcdev->clk = clk_get(&pdev->dev, "vip_out");
     if (!pcdev->clk || IS_ERR(pcdev->clk))  {
         RK29CAMERA_TR(KERN_ERR "failed to get vip_clk source\n");
         err = -ENOENT;

@@ -48,24 +48,19 @@ static int vflash_ioctl(struct inode *inode, struct file *file,
         case READ_BDADDR_FROM_FLASH:
         {   
             char *tempBuf = (char *)kmalloc(512, GFP_KERNEL);
+	    char bd_addr[6] = {0};
             int i;
-            #if 0
+
             GetSNSectorInfo(tempBuf);
-            #else
-            tempBuf[498] = 0x00;
-            tempBuf[499] = 0x11;
-            tempBuf[500] = 0x22;
-            tempBuf[501] = 0x33;
-            tempBuf[502] = 0x44;
-            tempBuf[503] = 0x55;
-            tempBuf[504] = 0x66;
-            #endif
+
             for(i=498; i<=504; i++)
             {
                 DBG("tempBuf[%d]=%x\n", i, tempBuf[i]);
+		bd_addr[504-i] = tempBuf[i];
             }
+
             
-			if(copy_to_user(argp, &(tempBuf[499]), 6))
+	    if(copy_to_user(argp, bd_addr, 6))
 			{
 			    printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
                 kfree(tempBuf);

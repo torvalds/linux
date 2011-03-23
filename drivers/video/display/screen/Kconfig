@@ -13,10 +13,16 @@ config LCD_HL070VM4AU
     bool "RGB_HL070VM4AU"
 config LCD_HSD070IDW1
     bool "RGB Hannstar800x480"
+config LCD_RGB_TFT480800_25_E
+    bool "RGB TFT480800_25_E"
 config LCD_HSD100PXN
 	  bool "RGB Hannstar HSD100PXN(1024X768)"
 config LCD_B101AW06
 	  bool "RGB Hannstar B101AW06(1024X600)"
+config LCD_RGB_TFT480800_25_E
+	  bool "RGB TFT480800_25_E(480X800)"
+config LCD_LS035Y8DX02A
+	  bool "RGB LS035Y8DX02A(480X800)"
 config LCD_A060SE02
     bool "MCU A060SE02"
 config LCD_S1D13521
@@ -25,6 +31,16 @@ config LCD_NT35582
 	bool "MCU NT35582"
 config LCD_NT35580
 	bool "MCU NT35580"
+config LCD_IPS1P5680_V1_E
+	bool "MCU IPS1P5680_V1_E"
+config LCD_MCU_TFT480800_25_E
+	bool "MCU TFT480800_25_E"
+config LCD_ILI9803_CPT4_3
+	bool "RGB lcd_ILI9803_CPT4_3"	
+config LCD_IPS1P5680_V1_E
+    bool "MCU IPS1P5680_V1_E"
+config LCD_MCU_TFT480800_25_E
+    bool "MCU TFT480800_25_E"
 config LCD_ANX7150_720P
 	bool "anx7150 720p for default panel"
 	---help---

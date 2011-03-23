@@ -66,31 +66,50 @@ static const struct adc_ops rk29_adc_ops = {
 	.read		= rk29_adc_read,
 };
 #ifdef ADC_TEST
+struct adc_test_data {
+	struct adc_client *client;
+	struct timer_list timer;
+	struct work_struct 	timer_work;
+};
 static void callback(struct adc_client *client, void *param, int result)
 {
 	dev_info(client->adc->dev, "[chn%d] async_read = %d\n", client->chn, result);
 	return;
 }
+static void adc_timer(unsigned long data)
+{
+	//int sync_read = 0;
+	 struct adc_test_data *test=(struct adc_test_data *)data;
+	
+	//sync_read = adc_sync_read(test->client);
+	//dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", 0, sync_read);
+	schedule_work(&test->timer_work);
+	add_timer(&test->timer);
+}
+static void adc_timer_work(struct work_struct *work)
+{	
+	int sync_read = 0;
+	struct adc_test_data *test = container_of(work, struct adc_test_data,
+						timer_work);
+	adc_async_read(test->client);
+	sync_read = adc_sync_read(test->client);
+	dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", 0, sync_read);
+}
+
 static int rk29_adc_test(void)
 {
-	int sync_read = 0, i, j = 10;
-	struct adc_client *client =NULL;
+	struct adc_test_data *test = NULL;
 
-	while(j--)
-	{
-		client = adc_register(i, callback, NULL);
-		adc_async_read(client);
-		mdelay(1000);
-		sync_read = adc_sync_read(client);
-		dev_info(client->adc->dev, "[chn%d] sync_read = %d\n", client->chn, sync_read);
-		adc_unregister(client);
-		mdelay(1000);
-		i++;
-		if(i >= 4)
-			i = 0;
-	}
-	adc_unregister(client);
+	test = kzalloc(sizeof(struct adc_test_data), GFP_KERNEL);
+	
+	test->client = adc_register(0, callback, NULL);
+	INIT_WORK(&test->timer_work, adc_timer_work);
+	setup_timer(&test->timer, adc_timer, (unsigned long)test);
+	test->timer.expires  = jiffies + 100;
+	add_timer(&test->timer);
+	
 	return 0;
+
 }
 #endif
 
@@ -157,9 +176,6 @@ static int rk29_adc_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "rk29 adc: driver initialized\n");
-#ifdef ADC_TEST	
-	rk29_adc_test();
-#endif
 	return 0;
 // err_iomap:
 //	iounmap(dev->regs);
@@ -243,4 +259,12 @@ module_exit(rk29_adc_exit);
 MODULE_DESCRIPTION("Driver for ADC");
 MODULE_AUTHOR("kfx, kfx@rock-chips.com");
 MODULE_LICENSE("GPL");
+static int __init adc_test_init(void)
+{
+#ifdef ADC_TEST	
+		rk29_adc_test();
+#endif
+	return 0;
 
+}
+module_init(adc_test_init);
