@@ -2417,19 +2417,14 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 			return false;
 
 		/*
-		 * If there is only one sync queue, and its think time is
-		 * small, we can ignore async queue here and give the sync
+		 * If there is only one sync queue
+		 * we can ignore async queue here and give the sync
 		 * queue no dispatch limit. The reason is a sync queue can
 		 * preempt async queue, limiting the sync queue doesn't make
 		 * sense. This is useful for aiostress test.
 		 */
-		if (cfq_cfqq_sync(cfqq) && cfqd->busy_sync_queues == 1) {
-			struct cfq_io_context *cic = RQ_CIC(cfqq->next_rq);
-
-			if (sample_valid(cic->ttime_samples) &&
-				cic->ttime_mean < cfqd->cfq_slice_idle)
-				promote_sync = true;
-		}
+		if (cfq_cfqq_sync(cfqq) && cfqd->busy_sync_queues == 1)
+			promote_sync = true;
 
 		/*
 		 * We have other queues, don't allow more IO from this one
