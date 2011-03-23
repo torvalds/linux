@@ -3181,7 +3181,8 @@ static void set_widgets_power_state_vt1708B(struct hda_codec *codec)
 	int imux_is_smixer;
 	unsigned int parm;
 	int is_8ch = 0;
-	if (spec->codec_type != VT1708B_4CH)
+	if ((spec->codec_type != VT1708B_4CH) &&
+	    (codec->vendor_id != 0x11064397))
 		is_8ch = 1;
 
 	/* SW0 (17h) = stereo mixer */
@@ -3220,6 +3221,16 @@ static void set_widgets_power_state_vt1708B(struct hda_codec *codec)
 				    AC_VERB_SET_POWER_STATE, parm);
 		snd_hda_codec_write(codec, 0x24, 0,
 				    AC_VERB_SET_POWER_STATE, parm);
+	} else if (codec->vendor_id == 0x11064397) {
+		/* PW7(23h), SW2(27h), AOW2(25h) */
+		parm = AC_PWRST_D3;
+		set_pin_power_state(codec, 0x23, &parm);
+		if (spec->smart51_enabled)
+			set_pin_power_state(codec, 0x1a, &parm);
+		snd_hda_codec_write(codec, 0x27, 0,
+				    AC_VERB_SET_POWER_STATE, parm);
+		snd_hda_codec_write(codec, 0x25, 0,
+				    AC_VERB_SET_POWER_STATE, parm);
 	}
 
 	/* PW 3/4/7 (1ch/1dh/23h) */
@@ -3239,7 +3250,9 @@ static void set_widgets_power_state_vt1708B(struct hda_codec *codec)
 				    AC_VERB_SET_POWER_STATE, parm);
 		snd_hda_codec_write(codec, 0x27, 0,
 				    AC_VERB_SET_POWER_STATE, parm);
-	}
+	} else if (codec->vendor_id == 0x11064397 && spec->hp_independent_mode)
+		snd_hda_codec_write(codec, 0x25, 0,
+				    AC_VERB_SET_POWER_STATE, parm);
 }
 
 static int patch_vt1708S(struct hda_codec *codec);
@@ -3414,10 +3427,35 @@ static struct hda_verb vt1708S_uniwill_init_verbs[] = {
 	{ }
 };
 
+static struct hda_verb vt1705_uniwill_init_verbs[] = {
+	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
+	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
+	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
+	{ }
+};
+
 static struct hda_pcm_stream vt1708S_pcm_analog_playback = {
 	.substreams = 2,
 	.channels_min = 2,
 	.channels_max = 8,
+	.nid = 0x10, /* NID to query formats and rates */
+	.ops = {
+		.open = via_playback_pcm_open,
+		.prepare = via_playback_multi_pcm_prepare,
+		.cleanup = via_playback_multi_pcm_cleanup,
+		.close = via_pcm_open_close
+	},
+};
+
+static struct hda_pcm_stream vt1705_pcm_analog_playback = {
+	.substreams = 2,
+	.channels_min = 2,
+	.channels_max = 6,
 	.nid = 0x10, /* NID to query formats and rates */
 	.ops = {
 		.open = via_playback_pcm_open,
@@ -3473,7 +3511,10 @@ static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
 				spec->multiout.dac_nids[i] = 0x10;
 				break;
 			case AUTO_SEQ_CENLFE:
-				spec->multiout.dac_nids[i] = 0x24;
+				if (spec->codec->vendor_id == 0x11064397)
+					spec->multiout.dac_nids[i] = 0x25;
+				else
+					spec->multiout.dac_nids[i] = 0x24;
 				break;
 			case AUTO_SEQ_SURROUND:
 				spec->multiout.dac_nids[i] = 0x11;
@@ -3489,22 +3530,28 @@ static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
 	if (cfg->line_outs == 1) {
 		spec->multiout.num_dacs = 3;
 		spec->multiout.dac_nids[AUTO_SEQ_SURROUND] = 0x11;
-		spec->multiout.dac_nids[AUTO_SEQ_CENLFE] = 0x24;
+		if (spec->codec->vendor_id == 0x11064397)
+			spec->multiout.dac_nids[AUTO_SEQ_CENLFE] = 0x25;
+		else
+			spec->multiout.dac_nids[AUTO_SEQ_CENLFE] = 0x24;
 	}
 
 	return 0;
 }
 
 /* add playback controls from the parsed DAC table */
-static int vt1708S_auto_create_multi_out_ctls(struct via_spec *spec,
+static int vt1708S_auto_create_multi_out_ctls(struct hda_codec *codec,
 					     const struct auto_pin_cfg *cfg)
 {
+	struct via_spec *spec = codec->spec;
 	char name[32];
 	static const char * const chname[4] = {
 		"Front", "Surround", "C/LFE", "Side"
 	};
-	hda_nid_t nid_vols[] = {0x10, 0x11, 0x24, 0x25};
-	hda_nid_t nid_mutes[] = {0x1C, 0x18, 0x26, 0x27};
+	hda_nid_t nid_vols[2][4] = { {0x10, 0x11, 0x24, 0x25},
+				     {0x10, 0x11, 0x25, 0} };
+	hda_nid_t nid_mutes[2][4] = { {0x1C, 0x18, 0x26, 0x27},
+				      {0x1C, 0x18, 0x27, 0} };
 	hda_nid_t nid, nid_vol, nid_mute;
 	int i, err;
 
@@ -3515,8 +3562,15 @@ static int vt1708S_auto_create_multi_out_ctls(struct via_spec *spec,
 		if (!nid && i > AUTO_SEQ_CENLFE)
 			continue;
 
-		nid_vol = nid_vols[i];
-		nid_mute = nid_mutes[i];
+		if (codec->vendor_id == 0x11064397) {
+			nid_vol = nid_vols[1][i];
+			nid_mute = nid_mutes[1][i];
+		} else {
+			nid_vol = nid_vols[0][i];
+			nid_mute = nid_mutes[0][i];
+		}
+		if (!nid_vol && !nid_mute)
+			continue;
 
 		if (i == AUTO_SEQ_CENLFE) {
 			/* Center/LFE */
@@ -3670,7 +3724,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1708S_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = vt1708S_auto_create_multi_out_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 	err = vt1708S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
@@ -3737,17 +3791,29 @@ static int patch_vt1708S(struct hda_codec *codec)
 	}
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708S_volume_init_verbs;
-	spec->init_verbs[spec->num_iverbs++] = vt1708S_uniwill_init_verbs;
+	if (codec->vendor_id == 0x11064397)
+		spec->init_verbs[spec->num_iverbs++] =
+			vt1705_uniwill_init_verbs;
+	else
+		spec->init_verbs[spec->num_iverbs++] =
+			vt1708S_uniwill_init_verbs;
 
 	if (codec->vendor_id == 0x11060440)
 		spec->stream_name_analog = "VT1818S Analog";
+	else if (codec->vendor_id == 0x11064397)
+		spec->stream_name_analog = "VT1705 Analog";
 	else
 		spec->stream_name_analog = "VT1708S Analog";
-	spec->stream_analog_playback = &vt1708S_pcm_analog_playback;
+	if (codec->vendor_id == 0x11064397)
+		spec->stream_analog_playback = &vt1705_pcm_analog_playback;
+	else
+		spec->stream_analog_playback = &vt1708S_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1708S_pcm_analog_capture;
 
 	if (codec->vendor_id == 0x11060440)
 		spec->stream_name_digital = "VT1818S Digital";
+	else if (codec->vendor_id == 0x11064397)
+		spec->stream_name_digital = "VT1705 Digital";
 	else
 		spec->stream_name_digital = "VT1708S Digital";
 	spec->stream_digital_playback = &vt1708S_pcm_digital_playback;
@@ -3784,6 +3850,14 @@ static int patch_vt1708S(struct hda_codec *codec)
 	if (codec->vendor_id == 0x11060440) {
 		spec->stream_name_analog = "VT1818S Analog";
 		spec->stream_name_digital = "VT1818S Digital";
+	}
+	/* correct names for VT1705 */
+	if (codec->vendor_id == 0x11064397)	{
+		kfree(codec->chip_name);
+		codec->chip_name = kstrdup("VT1705", GFP_KERNEL);
+		snprintf(codec->bus->card->mixername,
+			 sizeof(codec->bus->card->mixername),
+			 "%s %s", codec->vendor_name, codec->chip_name);
 	}
 	spec->set_widgets_power_state =  set_widgets_power_state_vt1708B;
 	return 0;
@@ -6003,7 +6077,7 @@ static struct hda_codec_preset snd_hda_preset_via[] = {
 	  .patch = patch_vt1708S},
 	{ .id = 0x11063397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11064397, .name = "VT1708S",
+	{ .id = 0x11064397, .name = "VT1705",
 	  .patch = patch_vt1708S},
 	{ .id = 0x11065397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
