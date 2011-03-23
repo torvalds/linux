@@ -2887,6 +2887,20 @@ void initialize_tty_struct(struct tty_struct *tty,
 }
 
 /**
+ *	deinitialize_tty_struct
+ *	@tty: tty to deinitialize
+ *
+ *	This subroutine deinitializes a tty structure that has been newly
+ *	allocated but tty_release cannot be called on that yet.
+ *
+ *	Locking: none - tty in question must not be exposed at this point
+ */
+void deinitialize_tty_struct(struct tty_struct *tty)
+{
+	tty_ldisc_deinit(tty);
+}
+
+/**
  *	tty_put_char	-	write one character to a tty
  *	@tty: tty
  *	@ch: character

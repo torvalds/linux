@@ -956,6 +956,19 @@ void tty_ldisc_init(struct tty_struct *tty)
 	tty_ldisc_assign(tty, ld);
 }
 
+/**
+ *	tty_ldisc_init		-	ldisc cleanup for new tty
+ *	@tty: tty that was allocated recently
+ *
+ *	The tty structure must not becompletely set up (tty_ldisc_setup) when
+ *      this call is made.
+ */
+void tty_ldisc_deinit(struct tty_struct *tty)
+{
+	put_ldisc(tty->ldisc);
+	tty_ldisc_assign(tty, NULL);
+}
+
 void tty_ldisc_begin(void)
 {
 	/* Setup the default TTY line discipline. */
