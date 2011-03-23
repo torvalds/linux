@@ -340,7 +340,7 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 	save_stack_trace_tsk(task, &trace);
 
 	for (i = 0; i < trace.nr_entries; i++) {
-		seq_printf(m, "[<%p>] %pS\n",
+		seq_printf(m, "[<%pK>] %pS\n",
 			   (void *)entries[i], (void *)entries[i]);
 	}
 	kfree(entries);
