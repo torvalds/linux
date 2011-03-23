@@ -2670,7 +2670,8 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 
 		if (err) {
 			struct l2cap_cmd_rej rej;
-			BT_DBG("error %d", err);
+
+			BT_ERR("Wrong link type (%d)", err);
 
 			/* FIXME: Map err to a valid reason */
 			rej.reason = cpu_to_le16(0);
