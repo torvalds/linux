@@ -677,9 +677,9 @@ void smtc_set_irq_affinity(unsigned int irq, cpumask_t affinity)
 	 */
 }
 
-void smtc_forward_irq(unsigned int irq)
+void smtc_forward_irq(struct irq_data *d)
 {
-	struct irq_data *d = irq_get_irq_data(irq);
+	unsigned int irq = d->irq;
 	int target;
 
 	/*
@@ -708,12 +708,10 @@ void smtc_forward_irq(unsigned int irq)
 	 */
 
 	/* If no one is eligible, service locally */
-	if (target >= NR_CPUS) {
+	if (target >= NR_CPUS)
 		do_IRQ_no_affinity(irq);
-		return;
-	}
-
-	smtc_send_ipi(target, IRQ_AFFINITY_IPI, irq);
+	else
+		smtc_send_ipi(target, IRQ_AFFINITY_IPI, irq);
 }
 
 #endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */

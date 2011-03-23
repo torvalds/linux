@@ -183,8 +183,8 @@ void __irq_entry do_IRQ(unsigned int irq)
 {
 	irq_enter();
 	check_stack_overflow();
-	__DO_IRQ_SMTC_HOOK(irq);
-	generic_handle_irq(irq);
+	if (!smtc_handle_on_other_cpu(irq))
+		generic_handle_irq(irq);
 	irq_exit();
 }
 
@@ -197,7 +197,7 @@ void __irq_entry do_IRQ(unsigned int irq)
 void __irq_entry do_IRQ_no_affinity(unsigned int irq)
 {
 	irq_enter();
-	__NO_AFFINITY_IRQ_SMTC_HOOK(irq);
+	smtc_im_backstop(irq);
 	generic_handle_irq(irq);
 	irq_exit();
 }
