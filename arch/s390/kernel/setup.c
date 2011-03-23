@@ -436,9 +436,15 @@ static struct resource data_resource = {
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
+static struct resource bss_resource = {
+	.name = "Kernel bss",
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
+};
+
 static struct resource __initdata *standard_resources[] = {
 	&code_resource,
 	&data_resource,
+	&bss_resource,
 };
 
 static void __init setup_resources(void)
@@ -450,6 +456,8 @@ static void __init setup_resources(void)
 	code_resource.end = (unsigned long) &_etext - 1;
 	data_resource.start = (unsigned long) &_etext;
 	data_resource.end = (unsigned long) &_edata - 1;
+	bss_resource.start = (unsigned long) &__bss_start;
+	bss_resource.end = (unsigned long) &__bss_stop - 1;
 
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
