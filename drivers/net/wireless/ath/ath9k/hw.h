@@ -200,7 +200,6 @@ struct ath9k_hw_capabilities {
 	u8 max_txchains;
 	u8 max_rxchains;
 	u16 tx_triglevel_max;
-	u16 reg_cap;
 	u8 num_gpio_pins;
 	u8 rx_hp_qdepth;
 	u8 rx_lp_qdepth;
