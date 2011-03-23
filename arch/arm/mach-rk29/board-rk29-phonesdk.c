@@ -322,7 +322,7 @@ static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
 };
 
-/*HANNSTAR_P1003 touch*/
+/* HANNSTAR_P1003 touch I2C */
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN4_PD5
@@ -379,6 +379,8 @@ static struct gt801_platform_data gt801_info = {
 };
 #endif
 
+/* EETI_EGALAX touch I2C */
+
 #if defined (CONFIG_EETI_EGALAX)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN4_PD5
@@ -413,6 +415,31 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
 
 };
 #endif
+
+/* GT801 touch I2C */
+#if defined (CONFIG_GT801)
+#include <drivers/input/touchscreen/gt801.h> 
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN4_PD5
+
+static struct gt801_platform_data gt801_info = {
+  .model = 801,
+  .swap_xy = 0,
+  .x_min = 0,
+  .x_max = 480,
+  .y_min = 0,
+  .y_max = 800,
+  .gpio_reset = TOUCH_RESET_PIN,
+  .gpio_reset_active_low = 1,
+  .gpio_pendown = TOUCH_INT_PIN,
+  .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
+  .resetpin_iomux_name = "FFF",
+  .pendown_iomux_mode = GPIO4H_GPIO4D5,
+  .resetpin_iomux_mode = 0,
+  .get_pendown_state = NULL,
+};
+#endif
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN6_PC4
@@ -1433,6 +1460,15 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 	.irq            = RK29_PIN4_PD5,
 	.platform_data = &gt801_info,
 },	
+#endif
+#if defined (CONFIG_GT801)
+    {
+      .type           = "gt801_touch",
+      .addr           = 0x55,
+      .flags          = 0,
+      .irq            = RK29_PIN4_PD5,
+      .platform_data  = &gt801_info,
+    },
 #endif
 #if defined (CONFIG_MFD_WM831X_I2C)
 {
