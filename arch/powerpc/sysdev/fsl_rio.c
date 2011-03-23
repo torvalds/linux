@@ -482,7 +482,7 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 }
 
 /**
- * rio_hw_add_outb_message - Add message to the MPC85xx outbound message queue
+ * fsl_add_outb_message - Add message to the MPC85xx outbound message queue
  * @mport: Master port with outbound message queue
  * @rdev: Target of outbound message
  * @mbox: Outbound mailbox
@@ -492,8 +492,8 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
  * Adds the @buffer message to the MPC85xx outbound message queue. Returns
  * %0 on success or %-EINVAL on failure.
  */
-int
-rio_hw_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
+static int
+fsl_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 			void *buffer, size_t len)
 {
 	struct rio_priv *priv = mport->priv;
@@ -502,9 +502,8 @@ rio_hw_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 					+ priv->msg_tx_ring.tx_slot;
 	int ret = 0;
 
-	pr_debug
-	    ("RIO: rio_hw_add_outb_message(): destid %4.4x mbox %d buffer %8.8x len %8.8x\n",
-	     rdev->destid, mbox, (int)buffer, len);
+	pr_debug("RIO: fsl_add_outb_message(): destid %4.4x mbox %d buffer " \
+		 "%8.8x len %8.8x\n", rdev->destid, mbox, (int)buffer, len);
 
 	if ((len < 8) || (len > RIO_MAX_MSG_SIZE)) {
 		ret = -EINVAL;
@@ -554,8 +553,6 @@ rio_hw_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(rio_hw_add_outb_message);
-
 /**
  * fsl_rio_tx_handler - MPC85xx outbound message interrupt handler
  * @irq: Linux interrupt number
@@ -600,7 +597,7 @@ fsl_rio_tx_handler(int irq, void *dev_instance)
 }
 
 /**
- * rio_open_outb_mbox - Initialize MPC85xx outbound mailbox
+ * fsl_open_outb_mbox - Initialize MPC85xx outbound mailbox
  * @mport: Master port implementing the outbound message unit
  * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
@@ -610,7 +607,8 @@ fsl_rio_tx_handler(int irq, void *dev_instance)
  * and enables the outbound message unit. Returns %0 on success and
  * %-EINVAL or %-ENOMEM on failure.
  */
-int rio_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
+static int
+fsl_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 {
 	int i, j, rc = 0;
 	struct rio_priv *priv = mport->priv;
@@ -706,14 +704,14 @@ int rio_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entr
 }
 
 /**
- * rio_close_outb_mbox - Shut down MPC85xx outbound mailbox
+ * fsl_close_outb_mbox - Shut down MPC85xx outbound mailbox
  * @mport: Master port implementing the outbound message unit
  * @mbox: Mailbox to close
  *
  * Disables the outbound message unit, free all buffers, and
  * frees the outbound message interrupt.
  */
-void rio_close_outb_mbox(struct rio_mport *mport, int mbox)
+static void fsl_close_outb_mbox(struct rio_mport *mport, int mbox)
 {
 	struct rio_priv *priv = mport->priv;
 	/* Disable inbound message unit */
@@ -770,7 +768,7 @@ fsl_rio_rx_handler(int irq, void *dev_instance)
 }
 
 /**
- * rio_open_inb_mbox - Initialize MPC85xx inbound mailbox
+ * fsl_open_inb_mbox - Initialize MPC85xx inbound mailbox
  * @mport: Master port implementing the inbound message unit
  * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
@@ -780,7 +778,8 @@ fsl_rio_rx_handler(int irq, void *dev_instance)
  * and enables the inbound message unit. Returns %0 on success
  * and %-EINVAL or %-ENOMEM on failure.
  */
-int rio_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
+static int
+fsl_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 {
 	int i, rc = 0;
 	struct rio_priv *priv = mport->priv;
@@ -844,14 +843,14 @@ int rio_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entri
 }
 
 /**
- * rio_close_inb_mbox - Shut down MPC85xx inbound mailbox
+ * fsl_close_inb_mbox - Shut down MPC85xx inbound mailbox
  * @mport: Master port implementing the inbound message unit
  * @mbox: Mailbox to close
  *
  * Disables the inbound message unit, free all buffers, and
  * frees the inbound message interrupt.
  */
-void rio_close_inb_mbox(struct rio_mport *mport, int mbox)
+static void fsl_close_inb_mbox(struct rio_mport *mport, int mbox)
 {
 	struct rio_priv *priv = mport->priv;
 	/* Disable inbound message unit */
@@ -866,7 +865,7 @@ void rio_close_inb_mbox(struct rio_mport *mport, int mbox)
 }
 
 /**
- * rio_hw_add_inb_buffer - Add buffer to the MPC85xx inbound message queue
+ * fsl_add_inb_buffer - Add buffer to the MPC85xx inbound message queue
  * @mport: Master port implementing the inbound message unit
  * @mbox: Inbound mailbox number
  * @buf: Buffer to add to inbound queue
@@ -874,12 +873,12 @@ void rio_close_inb_mbox(struct rio_mport *mport, int mbox)
  * Adds the @buf buffer to the MPC85xx inbound message queue. Returns
  * %0 on success or %-EINVAL on failure.
  */
-int rio_hw_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
+static int fsl_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 {
 	int rc = 0;
 	struct rio_priv *priv = mport->priv;
 
-	pr_debug("RIO: rio_hw_add_inb_buffer(), msg_rx_ring.rx_slot %d\n",
+	pr_debug("RIO: fsl_add_inb_buffer(), msg_rx_ring.rx_slot %d\n",
 		 priv->msg_rx_ring.rx_slot);
 
 	if (priv->msg_rx_ring.virt_buffer[priv->msg_rx_ring.rx_slot]) {
@@ -898,17 +897,15 @@ int rio_hw_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 	return rc;
 }
 
-EXPORT_SYMBOL_GPL(rio_hw_add_inb_buffer);
-
 /**
- * rio_hw_get_inb_message - Fetch inbound message from the MPC85xx message unit
+ * fsl_get_inb_message - Fetch inbound message from the MPC85xx message unit
  * @mport: Master port implementing the inbound message unit
  * @mbox: Inbound mailbox number
  *
  * Gets the next available inbound message from the inbound message queue.
  * A pointer to the message is returned on success or NULL on failure.
  */
-void *rio_hw_get_inb_message(struct rio_mport *mport, int mbox)
+static void *fsl_get_inb_message(struct rio_mport *mport, int mbox)
 {
 	struct rio_priv *priv = mport->priv;
 	u32 phys_buf, virt_buf;
@@ -944,8 +941,6 @@ void *rio_hw_get_inb_message(struct rio_mport *mport, int mbox)
       out2:
 	return buf;
 }
-
-EXPORT_SYMBOL_GPL(rio_hw_get_inb_message);
 
 /**
  * fsl_rio_dbell_handler - MPC85xx doorbell interrupt handler
@@ -1431,6 +1426,13 @@ int fsl_rio_setup(struct platform_device *dev)
 	ops->cwrite = fsl_rio_config_write;
 	ops->dsend = fsl_rio_doorbell_send;
 	ops->pwenable = fsl_rio_pw_enable;
+	ops->open_outb_mbox = fsl_open_outb_mbox;
+	ops->open_inb_mbox = fsl_open_inb_mbox;
+	ops->close_outb_mbox = fsl_close_outb_mbox;
+	ops->close_inb_mbox = fsl_close_inb_mbox;
+	ops->add_outb_message = fsl_add_outb_message;
+	ops->add_inb_buffer = fsl_add_inb_buffer;
+	ops->get_inb_message = fsl_get_inb_message;
 
 	port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
 	if (!port) {

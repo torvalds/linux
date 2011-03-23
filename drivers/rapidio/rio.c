@@ -68,9 +68,13 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 			 void (*minb) (struct rio_mport * mport, void *dev_id, int mbox,
 				       int slot))
 {
-	int rc = 0;
+	int rc = -ENOSYS;
+	struct resource *res;
 
-	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	if (mport->ops->open_inb_mbox == NULL)
+		goto out;
+
+	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
@@ -88,7 +92,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 		/* Hook the inbound message callback */
 		mport->inb_msg[mbox].mcback = minb;
 
-		rc = rio_open_inb_mbox(mport, dev_id, mbox, entries);
+		rc = mport->ops->open_inb_mbox(mport, dev_id, mbox, entries);
 	} else
 		rc = -ENOMEM;
 
@@ -106,10 +110,13 @@ int rio_request_inb_mbox(struct rio_mport *mport,
  */
 int rio_release_inb_mbox(struct rio_mport *mport, int mbox)
 {
-	rio_close_inb_mbox(mport, mbox);
+	if (mport->ops->close_inb_mbox) {
+		mport->ops->close_inb_mbox(mport, mbox);
 
-	/* Release the mailbox resource */
-	return release_resource(mport->inb_msg[mbox].res);
+		/* Release the mailbox resource */
+		return release_resource(mport->inb_msg[mbox].res);
+	} else
+		return -ENOSYS;
 }
 
 /**
@@ -129,9 +136,13 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 			  int entries,
 			  void (*moutb) (struct rio_mport * mport, void *dev_id, int mbox, int slot))
 {
-	int rc = 0;
+	int rc = -ENOSYS;
+	struct resource *res;
 
-	struct resource *res = kmalloc(sizeof(struct resource), GFP_KERNEL);
+	if (mport->ops->open_outb_mbox == NULL)
+		goto out;
+
+	res = kmalloc(sizeof(struct resource), GFP_KERNEL);
 
 	if (res) {
 		rio_init_mbox_res(res, mbox, mbox);
@@ -149,7 +160,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 		/* Hook the inbound message callback */
 		mport->outb_msg[mbox].mcback = moutb;
 
-		rc = rio_open_outb_mbox(mport, dev_id, mbox, entries);
+		rc = mport->ops->open_outb_mbox(mport, dev_id, mbox, entries);
 	} else
 		rc = -ENOMEM;
 
@@ -167,10 +178,13 @@ int rio_request_outb_mbox(struct rio_mport *mport,
  */
 int rio_release_outb_mbox(struct rio_mport *mport, int mbox)
 {
-	rio_close_outb_mbox(mport, mbox);
+	if (mport->ops->close_outb_mbox) {
+		mport->ops->close_outb_mbox(mport, mbox);
 
-	/* Release the mailbox resource */
-	return release_resource(mport->outb_msg[mbox].res);
+		/* Release the mailbox resource */
+		return release_resource(mport->outb_msg[mbox].res);
+	} else
+		return -ENOSYS;
 }
 
 /**
