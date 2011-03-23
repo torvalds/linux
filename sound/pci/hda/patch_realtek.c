@@ -16008,9 +16008,12 @@ static int alc861_auto_create_multi_out_ctls(struct hda_codec *codec,
 				return err;
 		} else {
 			const char *name = pfx;
-			if (!name)
+			int index = i;
+			if (!name) {
 				name = chname[i];
-			err = __alc861_create_out_sw(codec, name, nid, i, 3);
+				index = 0;
+			}
+			err = __alc861_create_out_sw(codec, name, nid, index, 3);
 			if (err < 0)
 				return err;
 		}
@@ -17161,16 +17164,19 @@ static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 				return err;
 		} else {
 			const char *name = pfx;
-			if (!name)
+			int index = i;
+			if (!name) {
 				name = chname[i];
+				index = 0;
+			}
 			err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
-						name, i,
+						name, index,
 					  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			err = __add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
-					       name, i,
+					       name, index,
 					  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2,
 							      HDA_INPUT));
 			if (err < 0)
@@ -19219,12 +19225,15 @@ static int alc662_auto_create_multi_out_ctls(struct hda_codec *codec,
 				return err;
 		} else {
 			const char *name = pfx;
-			if (!name)
+			int index = i;
+			if (!name) {
 				name = chname[i];
-			err = __alc662_add_vol_ctl(spec, name, nid, i, 3);
+				index = 0;
+			}
+			err = __alc662_add_vol_ctl(spec, name, nid, index, 3);
 			if (err < 0)
 				return err;
-			err = __alc662_add_sw_ctl(spec, name, mix, i, 3);
+			err = __alc662_add_sw_ctl(spec, name, mix, index, 3);
 			if (err < 0)
 				return err;
 		}
