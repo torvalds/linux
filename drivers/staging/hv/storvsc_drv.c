@@ -77,7 +77,7 @@ struct storvsc_cmd_request {
 /*
  * stor_vsc_initialize - Main entry point
  */
-int stor_vsc_initialize(struct hv_driver *driver)
+static int stor_vsc_initialize(struct hv_driver *driver)
 {
 	struct storvsc_driver_object *stor_driver;
 
