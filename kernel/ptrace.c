@@ -37,15 +37,23 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 	child->parent = new_parent;
 }
 
-/*
- * Turn a tracing stop into a normal stop now, since with no tracer there
- * would be no way to wake it up with SIGCONT or SIGKILL.  If there was a
- * signal sent that would resume the child, but didn't because it was in
- * TASK_TRACED, resume it now.
- * Requires that irqs be disabled.
+/**
+ * __ptrace_unlink - unlink ptracee and restore its execution state
+ * @child: ptracee to be unlinked
+ *
+ * Remove @child from the ptrace list, move it back to the original parent.
+ *
+ * CONTEXT:
+ * write_lock_irq(tasklist_lock)
  */
-static void ptrace_untrace(struct task_struct *child)
+void __ptrace_unlink(struct task_struct *child)
 {
+	BUG_ON(!child->ptrace);
+
+	child->ptrace = 0;
+	child->parent = child->real_parent;
+	list_del_init(&child->ptrace_entry);
+
 	spin_lock(&child->sighand->siglock);
 	if (task_is_traced(child)) {
 		/*
@@ -67,24 +75,6 @@ static void ptrace_untrace(struct task_struct *child)
 		signal_wake_up(child, 1);
 	}
 	spin_unlock(&child->sighand->siglock);
-}
-
-/*
- * unptrace a task: move it back to its original parent and
- * remove it from the ptrace list.
- *
- * Must be called with the tasklist lock write-held.
- */
-void __ptrace_unlink(struct task_struct *child)
-{
-	BUG_ON(!child->ptrace);
-
-	child->ptrace = 0;
-	child->parent = child->real_parent;
-	list_del_init(&child->ptrace_entry);
-
-	if (task_is_traced(child))
-		ptrace_untrace(child);
 }
 
 /*
