@@ -263,7 +263,7 @@ void set_intr_level(int irq, u16 level)
  */
 void mn10300_set_lateack_irq_type(int irq)
 {
-	set_irq_chip_and_handler(irq, &mn10300_cpu_pic_level,
+	irq_set_chip_and_handler(irq, &mn10300_cpu_pic_level,
 				 handle_level_irq);
 }
 
@@ -275,12 +275,12 @@ void __init init_IRQ(void)
 	int irq;
 
 	for (irq = 0; irq < NR_IRQS; irq++)
-		if (get_irq_chip(irq) == &no_irq_chip)
+		if (irq_get_chip(irq) == &no_irq_chip)
 			/* due to the PIC latching interrupt requests, even
 			 * when the IRQ is disabled, IRQ_PENDING is superfluous
 			 * and we can use handle_level_irq() for edge-triggered
 			 * interrupts */
-			set_irq_chip_and_handler(irq, &mn10300_cpu_pic_edge,
+			irq_set_chip_and_handler(irq, &mn10300_cpu_pic_edge,
 						 handle_level_irq);
 
 	unit_init_IRQ();
