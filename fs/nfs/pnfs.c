@@ -472,6 +472,9 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs4_layoutget *lgp;
 	struct pnfs_layout_segment *lseg = NULL;
+	struct page **pages = NULL;
+	int i;
+	u32 max_resp_sz, max_pages;
 
 	dprintk("--> %s\n", __func__);
 
@@ -479,6 +482,21 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp = kzalloc(sizeof(*lgp), GFP_KERNEL);
 	if (lgp == NULL)
 		return NULL;
+
+	/* allocate pages for xdr post processing */
+	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
+	max_pages = max_resp_sz >> PAGE_SHIFT;
+
+	pages = kzalloc(max_pages * sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		goto out_err_free;
+
+	for (i = 0; i < max_pages; i++) {
+		pages[i] = alloc_page(GFP_KERNEL);
+		if (!pages[i])
+			goto out_err_free;
+	}
+
 	lgp->args.minlength = NFS4_MAX_UINT64;
 	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
 	lgp->args.range.iomode = iomode;
@@ -487,6 +505,8 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp->args.type = server->pnfs_curr_ld->id;
 	lgp->args.inode = ino;
 	lgp->args.ctx = get_nfs_open_context(ctx);
+	lgp->args.layout.pages = pages;
+	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
 	lgp->lsegpp = &lseg;
 
 	/* Synchronously retrieve layout information from server and
@@ -497,7 +517,26 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 		/* remember that LAYOUTGET failed and suspend trying */
 		set_bit(lo_fail_bit(iomode), &lo->plh_flags);
 	}
+
+	/* free xdr pages */
+	for (i = 0; i < max_pages; i++)
+		__free_page(pages[i]);
+	kfree(pages);
+
 	return lseg;
+
+out_err_free:
+	/* free any allocated xdr pages, lgp as it's not used */
+	if (pages) {
+		for (i = 0; i < max_pages; i++) {
+			if (!pages[i])
+				break;
+			__free_page(pages[i]);
+		}
+		kfree(pages);
+	}
+	kfree(lgp);
+	return NULL;
 }
 
 bool pnfs_roc(struct inode *ino)

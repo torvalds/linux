@@ -190,8 +190,9 @@ struct nfs4_get_lease_time_res {
 #define PNFS_LAYOUT_MAXSIZE 4096
 
 struct nfs4_layoutdriver_data {
+	struct page **pages;
+	__u32 pglen;
 	__u32 len;
-	void *buf;
 };
 
 struct pnfs_layout_range {
@@ -209,6 +210,7 @@ struct nfs4_layoutget_args {
 	struct nfs_open_context *ctx;
 	struct nfs4_sequence_args seq_args;
 	nfs4_stateid stateid;
+	struct nfs4_layoutdriver_data layout;
 };
 
 struct nfs4_layoutget_res {
@@ -216,8 +218,8 @@ struct nfs4_layoutget_res {
 	struct pnfs_layout_range range;
 	__u32 type;
 	nfs4_stateid stateid;
-	struct nfs4_layoutdriver_data layout;
 	struct nfs4_sequence_res seq_res;
+	struct nfs4_layoutdriver_data *layoutp;
 };
 
 struct nfs4_layoutget {

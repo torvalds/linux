@@ -502,11 +502,32 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 			 struct nfs4_layoutget_res *lgr,
 			 struct nfs4_deviceid *id)
 {
-	uint32_t *p = (uint32_t *)lgr->layout.buf;
+	struct xdr_stream stream;
+	struct xdr_buf buf = {
+		.pages =  lgr->layoutp->pages,
+		.page_len =  lgr->layoutp->len,
+		.buflen =  lgr->layoutp->len,
+		.len = lgr->layoutp->len,
+	};
+	struct page *scratch;
+	__be32 *p;
 	uint32_t nfl_util;
 	int i;
 
 	dprintk("%s: set_layout_map Begin\n", __func__);
+
+	scratch = alloc_page(GFP_KERNEL);
+	if (!scratch)
+		return -ENOMEM;
+
+	xdr_init_decode(&stream, &buf, NULL);
+	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
+
+	/* 20 = ufl_util (4), first_stripe_index (4), pattern_offset (8),
+	 * num_fh (4) */
+	p = xdr_inline_decode(&stream, NFS4_DEVICEID4_SIZE + 20);
+	if (unlikely(!p))
+		goto out_err;
 
 	memcpy(id, p, sizeof(*id));
 	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
@@ -529,32 +550,46 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 		__func__, nfl_util, fl->num_fh, fl->first_stripe_index,
 		fl->pattern_offset);
 
+	if (!fl->num_fh)
+		goto out_err;
+
 	fl->fh_array = kzalloc(fl->num_fh * sizeof(struct nfs_fh *),
 			       GFP_KERNEL);
 	if (!fl->fh_array)
-		return -ENOMEM;
+		goto out_err;
 
 	for (i = 0; i < fl->num_fh; i++) {
 		/* Do we want to use a mempool here? */
 		fl->fh_array[i] = kmalloc(sizeof(struct nfs_fh), GFP_KERNEL);
-		if (!fl->fh_array[i]) {
-			filelayout_free_fh_array(fl);
-			return -ENOMEM;
-		}
+		if (!fl->fh_array[i])
+			goto out_err_free;
+
+		p = xdr_inline_decode(&stream, 4);
+		if (unlikely(!p))
+			goto out_err_free;
 		fl->fh_array[i]->size = be32_to_cpup(p++);
 		if (sizeof(struct nfs_fh) < fl->fh_array[i]->size) {
 			printk(KERN_ERR "Too big fh %d received %d\n",
 			       i, fl->fh_array[i]->size);
-			filelayout_free_fh_array(fl);
-			return -EIO;
+			goto out_err_free;
 		}
+
+		p = xdr_inline_decode(&stream, fl->fh_array[i]->size);
+		if (unlikely(!p))
+			goto out_err_free;
 		memcpy(fl->fh_array[i]->data, p, fl->fh_array[i]->size);
-		p += XDR_QUADLEN(fl->fh_array[i]->size);
 		dprintk("DEBUG: %s: fh len %d\n", __func__,
 			fl->fh_array[i]->size);
 	}
 
+	__free_page(scratch);
 	return 0;
+
+out_err_free:
+	filelayout_free_fh_array(fl);
+out_err:
+	__free_page(scratch);
+	return -EIO;
 }
 
 static void
