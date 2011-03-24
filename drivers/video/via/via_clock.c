@@ -29,6 +29,9 @@
 #include "global.h"
 #include "debug.h"
 
+const char *via_slap = "Please slap VIA Technologies to motivate them "
+	"releasing full documentation for your platform!\n";
+
 static inline u32 cle266_encode_pll(struct via_pll_config pll)
 {
 	return (pll.multiplier << 8)
@@ -229,19 +232,34 @@ static void set_secondary_clock_source(enum via_clksrc source, bool use_pll)
 	via_write_reg_mask(VIACR, 0x6C, data, 0x0F);
 }
 
+static void dummy_set_clock_state(u8 state)
+{
+	printk(KERN_INFO "Using undocumented set clock state.\n%s", via_slap);
+}
+
+static void dummy_set_clock_source(enum via_clksrc source, bool use_pll)
+{
+	printk(KERN_INFO "Using undocumented set clock source.\n%s", via_slap);
+}
+
+static void dummy_set_pll_state(u8 state)
+{
+	printk(KERN_INFO "Using undocumented set PLL state.\n%s", via_slap);
+}
+
 void via_clock_init(struct via_clock *clock, int gfx_chip)
 {
 	switch (gfx_chip) {
 	case UNICHROME_CLE266:
 	case UNICHROME_K400:
-		clock->set_primary_clock_state = NULL;
-		clock->set_primary_clock_source = NULL;
-		clock->set_primary_pll_state = NULL;
+		clock->set_primary_clock_state = dummy_set_clock_state;
+		clock->set_primary_clock_source = dummy_set_clock_source;
+		clock->set_primary_pll_state = dummy_set_pll_state;
 		clock->set_primary_pll = cle266_set_primary_pll;
 
-		clock->set_secondary_clock_state = NULL;
-		clock->set_secondary_clock_source = NULL;
-		clock->set_secondary_pll_state = NULL;
+		clock->set_secondary_clock_state = dummy_set_clock_state;
+		clock->set_secondary_clock_source = dummy_set_clock_source;
+		clock->set_secondary_pll_state = dummy_set_pll_state;
 		clock->set_secondary_pll = cle266_set_secondary_pll;
 		break;
 	case UNICHROME_K800:
