@@ -139,7 +139,8 @@ void __init mb93493_init(void)
 	int irq;
 
 	for (irq = IRQ_BASE_MB93493 + 0; irq <= IRQ_BASE_MB93493 + 10; irq++)
-		set_irq_chip_and_handler(irq, &frv_mb93493_pic, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &frv_mb93493_pic,
+					 handle_edge_irq);
 
 	/* the MB93493 drives external IRQ inputs on the CPU PIC */
 	setup_irq(IRQ_CPU_MB93493_0, &mb93493_irq[0]);
