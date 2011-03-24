@@ -25,7 +25,7 @@ static inline struct amba_device *
 db8500_add_ssp(const char *name, resource_size_t base, int irq,
 	       struct pl022_ssp_controller *pdata)
 {
-	return dbx500_add_amba_device(name, base, irq, pdata, SSP_PER_ID);
+	return dbx500_add_amba_device(name, base, irq, pdata, 0);
 }
 
 
