@@ -296,12 +296,14 @@ extern int nfs4_init_client(struct nfs_client *clp,
 			    rpc_authflavor_t authflavour,
 			    int noresvport);
 extern void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data);
-extern int _nfs4_call_sync(struct nfs_server *server,
+extern int _nfs4_call_sync(struct rpc_clnt *clnt,
+			   struct nfs_server *server,
 			   struct rpc_message *msg,
 			   struct nfs4_sequence_args *args,
 			   struct nfs4_sequence_res *res,
 			   int cache_reply);
-extern int _nfs4_call_sync_session(struct nfs_server *server,
+extern int _nfs4_call_sync_session(struct rpc_clnt *clnt,
+				   struct nfs_server *server,
 				   struct rpc_message *msg,
 				   struct nfs4_sequence_args *args,
 				   struct nfs4_sequence_res *res,

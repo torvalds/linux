@@ -153,7 +153,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 
 	/* Look it up again to get its attributes */
 	parent = dget_parent(path->dentry);
-	err = server->nfs_client->rpc_ops->lookup(parent->d_inode,
+	err = server->nfs_client->rpc_ops->lookup(server->client, parent->d_inode,
 						  &path->dentry->d_name,
 						  fh, fattr);
 	dput(parent);

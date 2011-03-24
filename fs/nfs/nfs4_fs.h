@@ -57,7 +57,8 @@ enum nfs4_session_state {
 struct nfs4_minor_version_ops {
 	u32	minor_version;
 
-	int	(*call_sync)(struct nfs_server *server,
+	int	(*call_sync)(struct rpc_clnt *clnt,
+			struct nfs_server *server,
 			struct rpc_message *msg,
 			struct nfs4_sequence_args *args,
 			struct nfs4_sequence_res *res,
