@@ -155,7 +155,7 @@ void __init init_IRQ(void)
 	setup_vector();
 
 	for (c = 0; c < NR_IRQS; c++)
-		set_irq_chip_and_handler(c, &h8300irq_chip, handle_simple_irq);
+		irq_set_chip_and_handler(c, &h8300irq_chip, handle_simple_irq);
 }
 
 asmlinkage void do_IRQ(int irq)
