@@ -65,7 +65,7 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 		return 0;
 	ret = ih->xlate(ih, intspec, intsize, &virq, &type);
 	if (ret)
-		return ret;
+		return 0;
 	if (type == IRQ_TYPE_NONE)
 		return virq;
 	/* set the mask if it is different from current */
