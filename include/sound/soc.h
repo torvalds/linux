@@ -278,6 +278,10 @@ int snd_soc_register_codec(struct device *dev,
 void snd_soc_unregister_codec(struct device *dev);
 int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
 				    unsigned int reg);
+int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
+				    unsigned int reg);
+int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
+				    unsigned int reg);
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       int addr_bits, int data_bits,
 			       enum snd_soc_control_type control);

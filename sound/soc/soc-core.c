@@ -2147,6 +2147,42 @@ int snd_soc_codec_volatile_register(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_codec_volatile_register);
 
 /**
+ * snd_soc_codec_readable_register: Report if a register is readable.
+ *
+ * @codec: CODEC to query.
+ * @reg: Register to query.
+ *
+ * Boolean function indicating if a CODEC register is readable.
+ */
+int snd_soc_codec_readable_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
+{
+	if (codec->readable_register)
+		return codec->readable_register(codec, reg);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_readable_register);
+
+/**
+ * snd_soc_codec_writable_register: Report if a register is writable.
+ *
+ * @codec: CODEC to query.
+ * @reg: Register to query.
+ *
+ * Boolean function indicating if a CODEC register is writable.
+ */
+int snd_soc_codec_writable_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
+{
+	if (codec->writable_register)
+		return codec->writable_register(codec, reg);
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_writable_register);
+
+/**
  * snd_soc_new_ac97_codec - initailise AC97 device
  * @codec: audio codec
  * @ops: AC97 bus operations
