@@ -48,7 +48,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %14s", get_irq_desc_chip(desc)->name);
+		seq_printf(p, " %14s", irq_desc_get_chip(desc)->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -390,11 +390,10 @@ void __init init_IRQ(void)
 {
 	int i;
 
-	set_irq_chip_and_handler(TIMER_IRQ, &SIGVTALRM_irq_type, handle_edge_irq);
+	irq_set_chip_and_handler(TIMER_IRQ, &SIGVTALRM_irq_type, handle_edge_irq);
 
-	for (i = 1; i < NR_IRQS; i++) {
-		set_irq_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
-	}
+	for (i = 1; i < NR_IRQS; i++)
+		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
 }
 
 /*
