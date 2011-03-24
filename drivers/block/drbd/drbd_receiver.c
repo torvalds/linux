@@ -578,6 +578,16 @@ static int drbd_recv_all(struct drbd_tconn *tconn, void *buf, size_t size)
 	return err;
 }
 
+static int drbd_recv_all_warn(struct drbd_tconn *tconn, void *buf, size_t size)
+{
+	int err;
+
+	err = drbd_recv_all(tconn, buf, size);
+	if (err && !signal_pending(current))
+		conn_warn(tconn, "short read (expected size %d)\n", (int)size);
+	return err;
+}
+
 /* quoting tcp(7):
  *   On individual connections, the socket buffer size must be set prior to the
  *   listen(2) or connect(2) calls in order to have it take effect.
@@ -986,14 +996,9 @@ static int drbd_recv_header(struct drbd_tconn *tconn, struct packet_info *pi)
 	struct p_header *h = &tconn->data.rbuf.header;
 	int err;
 
-	err = drbd_recv(tconn, h, sizeof(*h));
-	if (unlikely(err != sizeof(*h))) {
-		if (!signal_pending(current))
-			conn_warn(tconn, "short read expecting header on sock: r=%d\n", err);
-		if (err >= 0)
-			err = -EIO;
+	err = drbd_recv_all_warn(tconn, h, sizeof(*h));
+	if (err)
 		return err;
-	}
 
 	err = decode_header(tconn, h, pi);
 	tconn->last_received = jiffies;
@@ -1307,7 +1312,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
 	struct drbd_peer_request *peer_req;
 	struct page *page;
-	int dgs, ds, rr;
+	int dgs, ds, err;
 	void *dig_in = mdev->tconn->int_dig_in;
 	void *dig_vv = mdev->tconn->int_dig_vv;
 	unsigned long *data;
@@ -1316,14 +1321,9 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
 
 	if (dgs) {
-		rr = drbd_recv(mdev->tconn, dig_in, dgs);
-		if (rr != dgs) {
-			if (!signal_pending(current))
-				dev_warn(DEV,
-					"short read receiving data digest: read %d expected %d\n",
-					rr, dgs);
+		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
+		if (err)
 			return NULL;
-		}
 	}
 
 	data_size -= dgs;
@@ -1357,20 +1357,17 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 	page_chain_for_each(page) {
 		unsigned len = min_t(int, ds, PAGE_SIZE);
 		data = kmap(page);
-		rr = drbd_recv(mdev->tconn, data, len);
+		err = drbd_recv_all_warn(mdev->tconn, data, len);
 		if (drbd_insert_fault(mdev, DRBD_FAULT_RECEIVE)) {
 			dev_err(DEV, "Fault injection: Corrupting data on receive\n");
 			data[0] = data[0] ^ (unsigned long)-1;
 		}
 		kunmap(page);
-		if (rr != len) {
+		if (err) {
 			drbd_free_ee(mdev, peer_req);
-			if (!signal_pending(current))
-				dev_warn(DEV, "short read receiving data: read %d expected %d\n",
-				rr, len);
 			return NULL;
 		}
-		ds -= rr;
+		ds -= len;
 	}
 
 	if (dgs) {
@@ -1392,7 +1389,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 static int drbd_drain_block(struct drbd_conf *mdev, int data_size)
 {
 	struct page *page;
-	int rr, err = 0;
+	int err = 0;
 	void *data;
 
 	if (!data_size)
@@ -1404,16 +1401,10 @@ static int drbd_drain_block(struct drbd_conf *mdev, int data_size)
 	while (data_size) {
 		unsigned int len = min_t(int, data_size, PAGE_SIZE);
 
-		rr = drbd_recv(mdev->tconn, data, len);
-		if (rr != len) {
-			if (!signal_pending(current))
-				dev_warn(DEV,
-					"short read receiving data: read %d expected %d\n",
-					rr, len);
-			err = (rr < 0) ? rr : -EIO;
+		err = drbd_recv_all_warn(mdev->tconn, data, len);
+		if (err)
 			break;
-		}
-		data_size -= rr;
+		data_size -= len;
 	}
 	kunmap(page);
 	drbd_pp_free(mdev, page, 0);
@@ -1425,7 +1416,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 {
 	struct bio_vec *bvec;
 	struct bio *bio;
-	int dgs, rr, i, expect;
+	int dgs, err, i, expect;
 	void *dig_in = mdev->tconn->int_dig_in;
 	void *dig_vv = mdev->tconn->int_dig_vv;
 
@@ -1433,14 +1424,9 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
 
 	if (dgs) {
-		rr = drbd_recv(mdev->tconn, dig_in, dgs);
-		if (rr != dgs) {
-			if (!signal_pending(current))
-				dev_warn(DEV,
-					"short read receiving data reply digest: read %d expected %d\n",
-					rr, dgs);
-			return rr < 0 ? rr : -EIO;
-		}
+		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
+		if (err)
+			return err;
 	}
 
 	data_size -= dgs;
@@ -1453,19 +1439,13 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	D_ASSERT(sector == bio->bi_sector);
 
 	bio_for_each_segment(bvec, bio, i) {
+		void *mapped = kmap(bvec->bv_page) + bvec->bv_offset;
 		expect = min_t(int, data_size, bvec->bv_len);
-		rr = drbd_recv(mdev->tconn,
-			     kmap(bvec->bv_page)+bvec->bv_offset,
-			     expect);
+		err = drbd_recv_all_warn(mdev->tconn, mapped, expect);
 		kunmap(bvec->bv_page);
-		if (rr != expect) {
-			if (!signal_pending(current))
-				dev_warn(DEV, "short read receiving data reply: "
-					"read %d expected %d\n",
-					rr, expect);
-			return rr < 0 ? rr : -EIO;
-		}
-		data_size -= rr;
+		if (err)
+			return err;
+		data_size -= expect;
 	}
 
 	if (dgs) {
@@ -3984,12 +3964,9 @@ static void drbdd(struct drbd_tconn *tconn)
 		}
 
 		if (shs) {
-			err = drbd_recv_all(tconn, &header->payload, shs);
-			if (err) {
-				if (!signal_pending(current))
-					conn_warn(tconn, "short read while reading sub header: rv=%d\n", err);
+			err = drbd_recv_all_warn(tconn, &header->payload, shs);
+			if (err)
 				goto err_out;
-			}
 		}
 
 		if (drbd_cmd_handler[pi.cmd].fa_type == CONN) {
@@ -4199,7 +4176,7 @@ static int drbd_do_handshake(struct drbd_tconn *tconn)
 	struct p_handshake *p = &tconn->data.rbuf.handshake;
 	const int expect = sizeof(struct p_handshake) - sizeof(struct p_header80);
 	struct packet_info pi;
-	int err, rv;
+	int err;
 
 	err = drbd_send_handshake(tconn);
 	if (err)
@@ -4221,13 +4198,9 @@ static int drbd_do_handshake(struct drbd_tconn *tconn)
 		return -1;
 	}
 
-	rv = drbd_recv(tconn, &p->head.payload, expect);
-
-	if (rv != expect) {
-		if (!signal_pending(current))
-			conn_warn(tconn, "short read receiving handshake packet: l=%u\n", rv);
+	err = drbd_recv_all_warn(tconn, &p->head.payload, expect);
+	if (err)
 		return 0;
-	}
 
 	p->protocol_min = be32_to_cpu(p->protocol_min);
 	p->protocol_max = be32_to_cpu(p->protocol_max);
@@ -4325,11 +4298,8 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 		goto fail;
 	}
 
-	rv = drbd_recv(tconn, peers_ch, pi.size);
-
-	if (rv != pi.size) {
-		if (!signal_pending(current))
-			conn_warn(tconn, "short read AuthChallenge: l=%u\n", rv);
+	err = drbd_recv_all_warn(tconn, peers_ch, pi.size);
+	if (err) {
 		rv = 0;
 		goto fail;
 	}
@@ -4375,11 +4345,8 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 		goto fail;
 	}
 
-	rv = drbd_recv(tconn, response , resp_size);
-
-	if (rv != resp_size) {
-		if (!signal_pending(current))
-			conn_warn(tconn, "short read receiving AuthResponse: l=%u\n", rv);
+	err = drbd_recv_all_warn(tconn, response , resp_size);
+	if (err) {
 		rv = 0;
 		goto fail;
 	}
