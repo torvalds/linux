@@ -583,6 +583,9 @@ static const struct snd_soc_dapm_widget dac33_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Right DAC Power",
 			    DAC33_RDAC_PWR_CTRL, 2, 0, NULL, 0),
 
+	SND_SOC_DAPM_SUPPLY("Codec Power",
+			    DAC33_PWR_CTRL, 4, 0, NULL, 0),
+
 	SND_SOC_DAPM_PRE("Pre Playback", dac33_playback_event),
 	SND_SOC_DAPM_POST("Post Playback", dac33_playback_event),
 };
@@ -615,6 +618,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* output */
 	{"LEFT_LO", NULL, "Output Left Amplifier"},
 	{"RIGHT_LO", NULL, "Output Right Amplifier"},
+
+	{"LEFT_LO", NULL, "Codec Power"},
+	{"RIGHT_LO", NULL, "Codec Power"},
 };
 
 static int dac33_add_widgets(struct snd_soc_codec *codec)
@@ -632,13 +638,10 @@ static int dac33_add_widgets(struct snd_soc_codec *codec)
 static int dac33_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
 {
-	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (!dac33->substream)
-			dac33_soft_power(codec, 1);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
