@@ -215,6 +215,22 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 
 EXPORT_SYMBOL_GPL(gss_mech_get_by_pseudoflavor);
 
+int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr)
+{
+	struct gss_api_mech *pos = NULL;
+	int i = 0;
+
+	spin_lock(&registered_mechs_lock);
+	list_for_each_entry(pos, &registered_mechs, gm_list) {
+		array_ptr[i] = pos->gm_pfs->pseudoflavor;
+		i++;
+	}
+	spin_unlock(&registered_mechs_lock);
+	return i;
+}
+
+EXPORT_SYMBOL_GPL(gss_mech_list_pseudoflavors);
+
 u32
 gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)
 {

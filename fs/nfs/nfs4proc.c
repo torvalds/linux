@@ -41,6 +41,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/gss_api.h>
 #include <linux/nfs.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
@@ -2191,15 +2192,43 @@ static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	return err;
 }
 
+static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
+				struct nfs_fsinfo *info, rpc_authflavor_t flavor)
+{
+	struct rpc_auth *auth;
+	int ret;
+
+	auth = rpcauth_create(flavor, server->client);
+	if (!auth) {
+		ret = -EIO;
+		goto out;
+	}
+	ret = nfs4_lookup_root(server, fhandle, info);
+	if (ret < 0)
+		ret = -EAGAIN;
+out:
+	return ret;
+}
+
 /*
  * get the file handle for the "/" directory on the server
  */
 static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
-	int status;
+	int i, len, status = 0;
+	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS + 2];
 
-	status = nfs4_lookup_root(server, fhandle, info);
+	flav_array[0] = RPC_AUTH_UNIX;
+	len = gss_mech_list_pseudoflavors(&flav_array[1]);
+	flav_array[1+len] = RPC_AUTH_NULL;
+	len += 2;
+
+	for (i = 0; i < len; i++) {
+		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
+		if (status == 0)
+			break;
+	}
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
 	if (status == 0)
