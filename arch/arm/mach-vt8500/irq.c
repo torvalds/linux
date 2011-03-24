@@ -97,15 +97,15 @@ static int vt8500_irq_set_type(unsigned int irq, unsigned int flow_type)
 		return -EINVAL;
 	case IRQF_TRIGGER_HIGH:
 		dctr |= VT8500_TRIGGER_HIGH;
-		irq_desc[orig_irq].handle_irq = handle_level_irq;
+		__irq_set_handler_locked(orig_irq, handle_level_irq);
 		break;
 	case IRQF_TRIGGER_FALLING:
 		dctr |= VT8500_TRIGGER_FALLING;
-		irq_desc[orig_irq].handle_irq = handle_edge_irq;
+		__irq_set_handler_locked(orig_irq, handle_edge_irq);
 		break;
 	case IRQF_TRIGGER_RISING:
 		dctr |= VT8500_TRIGGER_RISING;
-		irq_desc[orig_irq].handle_irq = handle_edge_irq;
+		__irq_set_handler_locked(orig_irq, handle_edge_irq);
 		break;
 	}
 	writeb(dctr, base + VT8500_IC_DCTR + irq);
