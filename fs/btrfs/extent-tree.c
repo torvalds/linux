@@ -36,8 +36,6 @@
 static int update_block_group(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      u64 bytenr, u64 num_bytes, int alloc);
-static int update_reserved_bytes(struct btrfs_block_group_cache *cache,
-				 u64 num_bytes, int reserve, int sinfo);
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				u64 bytenr, u64 num_bytes, u64 parent,
@@ -4233,8 +4231,8 @@ int btrfs_pin_extent(struct btrfs_root *root,
  * update size of reserved extents. this function may return -EAGAIN
  * if 'reserve' is true or 'sinfo' is false.
  */
-static int update_reserved_bytes(struct btrfs_block_group_cache *cache,
-				 u64 num_bytes, int reserve, int sinfo)
+int btrfs_update_reserved_bytes(struct btrfs_block_group_cache *cache,
+				u64 num_bytes, int reserve, int sinfo)
 {
 	int ret = 0;
 	if (sinfo) {
@@ -4714,10 +4712,10 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
 
 		btrfs_add_free_space(cache, buf->start, buf->len);
-		ret = update_reserved_bytes(cache, buf->len, 0, 0);
+		ret = btrfs_update_reserved_bytes(cache, buf->len, 0, 0);
 		if (ret == -EAGAIN) {
 			/* block group became read-only */
-			update_reserved_bytes(cache, buf->len, 0, 1);
+			btrfs_update_reserved_bytes(cache, buf->len, 0, 1);
 			goto out;
 		}
 
@@ -5206,7 +5204,7 @@ checks:
 					     search_start - offset);
 		BUG_ON(offset > search_start);
 
-		ret = update_reserved_bytes(block_group, num_bytes, 1,
+		ret = btrfs_update_reserved_bytes(block_group, num_bytes, 1,
 					    (data & BTRFS_BLOCK_GROUP_DATA));
 		if (ret == -EAGAIN) {
 			btrfs_add_free_space(block_group, offset, num_bytes);
@@ -5432,7 +5430,7 @@ int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
 	ret = btrfs_discard_extent(root, start, len);
 
 	btrfs_add_free_space(cache, start, len);
-	update_reserved_bytes(cache, len, 0, 1);
+	btrfs_update_reserved_bytes(cache, len, 0, 1);
 	btrfs_put_block_group(cache);
 
 	trace_btrfs_reserved_extent_free(root, start, len);
@@ -5634,7 +5632,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 		put_caching_control(caching_ctl);
 	}
 
-	ret = update_reserved_bytes(block_group, ins->offset, 1, 1);
+	ret = btrfs_update_reserved_bytes(block_group, ins->offset, 1, 1);
 	BUG_ON(ret);
 	btrfs_put_block_group(block_group);
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
