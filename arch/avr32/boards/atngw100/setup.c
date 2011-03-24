@@ -322,6 +322,6 @@ static int __init atngw100_arch_init(void)
 	/* set_irq_type() after the arch_initcall for EIC has run, and
 	 * before the I2C subsystem could try using this IRQ.
 	 */
-	return set_irq_type(AT32_EXTINT(3), IRQ_TYPE_EDGE_FALLING);
+	return irq_set_irq_type(AT32_EXTINT(3), IRQ_TYPE_EDGE_FALLING);
 }
 arch_initcall(atngw100_arch_init);

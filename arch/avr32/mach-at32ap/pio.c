@@ -285,7 +285,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	struct pio_device	*pio = get_irq_desc_chip_data(desc);
 	unsigned		gpio_irq;
 
-	gpio_irq = (unsigned) get_irq_data(irq);
+	gpio_irq = (unsigned) irq_get_handler_data(irq);
 	for (;;) {
 		u32		isr;
 
@@ -310,16 +310,16 @@ gpio_irq_setup(struct pio_device *pio, int irq, int gpio_irq)
 {
 	unsigned	i;
 
-	set_irq_chip_data(irq, pio);
-	set_irq_data(irq, (void *) gpio_irq);
+	irq_set_chip_data(irq, pio);
+	irq_set_handler_data(irq, (void *)gpio_irq);
 
 	for (i = 0; i < 32; i++, gpio_irq++) {
-		set_irq_chip_data(gpio_irq, pio);
-		set_irq_chip_and_handler(gpio_irq, &gpio_irqchip,
-				handle_simple_irq);
+		irq_set_chip_data(gpio_irq, pio);
+		irq_set_chip_and_handler(gpio_irq, &gpio_irqchip,
+					 handle_simple_irq);
 	}
 
-	set_irq_chained_handler(irq, gpio_irq_handler);
+	irq_set_chained_handler(irq, gpio_irq_handler);
 }
 
 /*--------------------------------------------------------------------------*/

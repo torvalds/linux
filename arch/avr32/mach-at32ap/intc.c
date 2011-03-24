@@ -126,7 +126,7 @@ void __init init_IRQ(void)
 		intc_writel(&intc0, INTPR0 + 4 * i, offset);
 		readback = intc_readl(&intc0, INTPR0 + 4 * i);
 		if (readback == offset)
-			set_irq_chip_and_handler(i, &intc0.chip,
+			irq_set_chip_and_handler(i, &intc0.chip,
 						 handle_simple_irq);
 	}
 
