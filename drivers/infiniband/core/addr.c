@@ -204,7 +204,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 
 	/* If the device does ARP internally, return 'done' */
 	if (rt->dst.dev->flags & IFF_NOARP) {
-		rdma_copy_addr(addr, rt->dst.dev, NULL);
+		ret = rdma_copy_addr(addr, rt->dst.dev, NULL);
 		goto put;
 	}
 

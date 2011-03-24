@@ -1109,6 +1109,9 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
+	/* Allow large DMA segments, up to the firmware limit of 1 GB */
+	dma_set_max_seg_size(&pdev->dev, 1024 * 1024 * 1024);
+
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "Device struct alloc failed, "
