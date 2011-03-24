@@ -1787,6 +1787,8 @@ out:
 static int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
+	trace_btrfs_writepage_end_io_hook(page, start, end, uptodate);
+
 	ClearPagePrivate2(page);
 	return btrfs_finish_ordered_io(page->mapping->host, start, end);
 }
@@ -3718,6 +3720,8 @@ void btrfs_evict_inode(struct inode *inode)
 	unsigned long nr;
 	int ret;
 
+	trace_btrfs_inode_evict(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 	if (inode->i_nlink && (btrfs_root_refs(&root->root_item) != 0 ||
 			       root == root->fs_info->tree_root))
@@ -4510,6 +4514,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		return ERR_PTR(-ENOMEM);
 
 	if (dir) {
+		trace_btrfs_inode_request(dir);
+
 		ret = btrfs_set_inode_index(dir, index);
 		if (ret) {
 			iput(inode);
@@ -4584,6 +4590,9 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 
 	insert_inode_hash(inode);
 	inode_tree_add(inode);
+
+	trace_btrfs_inode_new(inode);
+
 	return inode;
 fail:
 	if (dir)
@@ -5261,6 +5270,9 @@ insert:
 	}
 	write_unlock(&em_tree->lock);
 out:
+
+	trace_btrfs_get_extent(root, em);
+
 	if (path)
 		btrfs_free_path(path);
 	if (trans) {

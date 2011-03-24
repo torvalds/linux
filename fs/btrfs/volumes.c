@@ -33,17 +33,6 @@
 #include "volumes.h"
 #include "async-thread.h"
 
-struct map_lookup {
-	u64 type;
-	int io_align;
-	int io_width;
-	int stripe_len;
-	int sector_size;
-	int num_stripes;
-	int sub_stripes;
-	struct btrfs_bio_stripe stripes[];
-};
-
 static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				struct btrfs_device *device);
@@ -1923,6 +1912,8 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 
 	BUG_ON(ret);
 
+	trace_btrfs_chunk_free(root, map, chunk_offset, em->len);
+
 	if (map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		ret = btrfs_del_sys_chunk(root, chunk_objectid, chunk_offset);
 		BUG_ON(ret);
@@ -2650,6 +2641,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	*num_bytes = chunk_bytes_by_type(type, calc_size,
 					 map->num_stripes, sub_stripes);
 
+	trace_btrfs_chunk_alloc(info->chunk_root, map, start, *num_bytes);
+
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
 		ret = -ENOMEM;
@@ -2758,6 +2751,7 @@ static int __finish_chunk_alloc(struct btrfs_trans_handle *trans,
 					     item_size);
 		BUG_ON(ret);
 	}
+
 	kfree(chunk);
 	return 0;
 }

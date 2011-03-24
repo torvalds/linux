@@ -5412,6 +5412,8 @@ again:
 		dump_space_info(sinfo, num_bytes, 1);
 	}
 
+	trace_btrfs_reserved_extent_alloc(root, ins->objectid, ins->offset);
+
 	return ret;
 }
 
@@ -5432,6 +5434,8 @@ int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
 	btrfs_add_free_space(cache, start, len);
 	update_reserved_bytes(cache, len, 0, 1);
 	btrfs_put_block_group(cache);
+
+	trace_btrfs_reserved_extent_free(root, start, len);
 
 	return ret;
 }

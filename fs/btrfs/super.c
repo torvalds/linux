@@ -52,6 +52,9 @@
 #include "export.h"
 #include "compression.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/btrfs.h>
+
 static const struct super_operations btrfs_super_ops;
 
 static const char *btrfs_decode_error(struct btrfs_fs_info *fs_info, int errno,
@@ -619,6 +622,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
+
+	trace_btrfs_sync_fs(wait);
 
 	if (!wait) {
 		filemap_flush(root->fs_info->btree_inode->i_mapping);

@@ -2192,6 +2192,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	else
 		write_flags = WRITE;
 
+	trace___extent_writepage(page, inode, wbc);
+
 	WARN_ON(!PageLocked(page));
 	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
 	if (page->index > end_index ||

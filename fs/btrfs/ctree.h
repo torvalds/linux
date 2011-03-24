@@ -28,6 +28,7 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/kobject.h>
+#include <trace/events/btrfs.h>
 #include <asm/kmap_types.h>
 #include "extent_io.h"
 #include "extent_map.h"

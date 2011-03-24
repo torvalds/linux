@@ -535,6 +535,9 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
+
+	trace_btrfs_cow_block(root, buf, *cow_ret);
+
 	return ret;
 }
 

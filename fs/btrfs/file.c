@@ -1205,6 +1205,7 @@ int btrfs_sync_file(struct file *file, int datasync)
 	int ret = 0;
 	struct btrfs_trans_handle *trans;
 
+	trace_btrfs_sync_file(file, datasync);
 
 	/* we wait first, since the writeback may change the inode */
 	root->log_batch++;

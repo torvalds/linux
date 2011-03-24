@@ -1389,6 +1389,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
 
+	trace_btrfs_transaction_commit(root);
+
 	mutex_unlock(&root->fs_info->trans_mutex);
 
 	if (current->journal_info == trans)
