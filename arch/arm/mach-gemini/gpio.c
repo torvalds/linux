@@ -127,8 +127,8 @@ static int gpio_set_irq_type(struct irq_data *d, unsigned int type)
 
 static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
+	unsigned int port = (unsigned int)irq_desc_get_handler_data(desc);
 	unsigned int gpio_irq_no, irq_stat;
-	unsigned int port = (unsigned int)get_irq_data(irq);
 
 	irq_stat = __raw_readl(GPIO_BASE(port) + GPIO_INT_STAT);
 
@@ -138,9 +138,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if ((irq_stat & 1) == 0)
 			continue;
 
-		BUG_ON(!(irq_desc[gpio_irq_no].handle_irq));
-		irq_desc[gpio_irq_no].handle_irq(gpio_irq_no,
-				&irq_desc[gpio_irq_no]);
+		generic_handle_irq(gpio_irq_no);
 	}
 }
 
