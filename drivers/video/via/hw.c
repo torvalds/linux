@@ -21,6 +21,7 @@
 
 #include <linux/via-core.h>
 #include "global.h"
+#include "via_clock.h"
 
 static struct pll_limit cle266_pll_limits[] = {
 	{19, 19, 4, 0},
@@ -483,6 +484,9 @@ static struct via_device_mapping device_mapping[] = {
 	{VIA_LVDS1, "LVDS1"},
 	{VIA_LVDS2, "LVDS2"}
 };
+
+/* structure with function pointers to support clock control */
+static struct via_clock clock;
 
 static void load_fix_bit_crtc_reg(void);
 static void __devinit init_gfx_chip_info(int chip_type);
@@ -1409,230 +1413,10 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active)
 
 }
 
-static void set_primary_clock_state(u8 state)
-{
-	u8 value;
-
-	switch (state) {
-	case VIA_STATE_ON:
-		value = 0x20;
-		break;
-	case VIA_STATE_OFF:
-		value = 0x00;
-		break;
-	default:
-		return;
-	}
-
-	via_write_reg_mask(VIASR, 0x1B, value, 0x30);
-}
-
-static void set_secondary_clock_state(u8 state)
-{
-	u8 value;
-
-	switch (state) {
-	case VIA_STATE_ON:
-		value = 0x80;
-		break;
-	case VIA_STATE_OFF:
-		value = 0x00;
-		break;
-	default:
-		return;
-	}
-
-	via_write_reg_mask(VIASR, 0x1B, value, 0xC0);
-}
-
-static void set_primary_pll_state(u8 state)
-{
-	u8 value;
-
-	switch (state) {
-	case VIA_STATE_ON:
-		value = 0x20;
-		break;
-	case VIA_STATE_OFF:
-		value = 0x00;
-		break;
-	default:
-		return;
-	}
-
-	via_write_reg_mask(VIASR, 0x2D, value, 0x30);
-}
-
-static void set_secondary_pll_state(u8 state)
-{
-	u8 value;
-
-	switch (state) {
-	case VIA_STATE_ON:
-		value = 0x08;
-		break;
-	case VIA_STATE_OFF:
-		value = 0x00;
-		break;
-	default:
-		return;
-	}
-
-	via_write_reg_mask(VIASR, 0x2D, value, 0x0C);
-}
-
-static u32 cle266_encode_pll(struct pll_config pll)
-{
-	return (pll.multiplier << 8)
-		| (pll.rshift << 6)
-		| pll.divisor;
-}
-
-static u32 k800_encode_pll(struct pll_config pll)
-{
-	return ((pll.divisor - 2) << 16)
-		| (pll.rshift << 10)
-		| (pll.multiplier - 2);
-}
-
-static u32 vx855_encode_pll(struct pll_config pll)
-{
-	return (pll.divisor << 16)
-		| (pll.rshift << 10)
-		| pll.multiplier;
-}
-
-static inline void cle266_set_primary_pll_encoded(u32 data)
-{
-	via_write_reg_mask(VIASR, 0x40, 0x02, 0x02); /* enable reset */
-	via_write_reg(VIASR, 0x46, data & 0xFF);
-	via_write_reg(VIASR, 0x47, (data >> 8) & 0xFF);
-	via_write_reg_mask(VIASR, 0x40, 0x00, 0x02); /* disable reset */
-}
-
-static inline void k800_set_primary_pll_encoded(u32 data)
-{
-	via_write_reg_mask(VIASR, 0x40, 0x02, 0x02); /* enable reset */
-	via_write_reg(VIASR, 0x44, data & 0xFF);
-	via_write_reg(VIASR, 0x45, (data >> 8) & 0xFF);
-	via_write_reg(VIASR, 0x46, (data >> 16) & 0xFF);
-	via_write_reg_mask(VIASR, 0x40, 0x00, 0x02); /* disable reset */
-}
-
-static inline void cle266_set_secondary_pll_encoded(u32 data)
-{
-	via_write_reg_mask(VIASR, 0x40, 0x04, 0x04); /* enable reset */
-	via_write_reg(VIASR, 0x44, data & 0xFF);
-	via_write_reg(VIASR, 0x45, (data >> 8) & 0xFF);
-	via_write_reg_mask(VIASR, 0x40, 0x00, 0x04); /* disable reset */
-}
-
-static inline void k800_set_secondary_pll_encoded(u32 data)
-{
-	via_write_reg_mask(VIASR, 0x40, 0x04, 0x04); /* enable reset */
-	via_write_reg(VIASR, 0x4A, data & 0xFF);
-	via_write_reg(VIASR, 0x4B, (data >> 8) & 0xFF);
-	via_write_reg(VIASR, 0x4C, (data >> 16) & 0xFF);
-	via_write_reg_mask(VIASR, 0x40, 0x00, 0x04); /* disable reset */
-}
-
-static void cle266_set_primary_pll(struct pll_config config)
-{
-	cle266_set_primary_pll_encoded(cle266_encode_pll(config));
-}
-
-static void k800_set_primary_pll(struct pll_config config)
-{
-	k800_set_primary_pll_encoded(k800_encode_pll(config));
-}
-
-static void vx855_set_primary_pll(struct pll_config config)
-{
-	k800_set_primary_pll_encoded(vx855_encode_pll(config));
-}
-
-static void cle266_set_secondary_pll(struct pll_config config)
-{
-	cle266_set_secondary_pll_encoded(cle266_encode_pll(config));
-}
-
-static void k800_set_secondary_pll(struct pll_config config)
-{
-	k800_set_secondary_pll_encoded(k800_encode_pll(config));
-}
-
-static void vx855_set_secondary_pll(struct pll_config config)
-{
-	k800_set_secondary_pll_encoded(vx855_encode_pll(config));
-}
-
-enum via_clksrc {
-	VIA_CLKSRC_X1 = 0,
-	VIA_CLKSRC_TVX1,
-	VIA_CLKSRC_TVPLL,
-	VIA_CLKSRC_DVP1TVCLKR,
-	VIA_CLKSRC_CAP0,
-	VIA_CLKSRC_CAP1,
-};
-
-static inline u8 set_clock_source_common(enum via_clksrc source, bool use_pll)
-{
-	u8 data = 0;
-
-	switch (source) {
-	case VIA_CLKSRC_X1:
-		data = 0x00;
-		break;
-	case VIA_CLKSRC_TVX1:
-		data = 0x02;
-		break;
-	case VIA_CLKSRC_TVPLL:
-		data = 0x04; /* 0x06 should be the same */
-		break;
-	case VIA_CLKSRC_DVP1TVCLKR:
-		data = 0x0A;
-		break;
-	case VIA_CLKSRC_CAP0:
-		data = 0xC;
-		break;
-	case VIA_CLKSRC_CAP1:
-		data = 0x0E;
-		break;
-	}
-
-	if (!use_pll)
-		data |= 1;
-
-	return data;
-}
-
-static void set_primary_clock_source(enum via_clksrc source, bool use_pll)
-{
-	u8 data = set_clock_source_common(source, use_pll) << 4;
-	via_write_reg_mask(VIACR, 0x6C, data, 0xF0);
-}
-
-static void set_secondary_clock_source(enum via_clksrc source, bool use_pll)
-{
-	u8 data = set_clock_source_common(source, use_pll);
-	via_write_reg_mask(VIACR, 0x6C, data, 0x0F);
-}
-
-static inline u32 get_pll_internal_frequency(u32 ref_freq,
-	struct pll_config pll)
-{
-	return ref_freq / pll.divisor * pll.multiplier;
-}
-
-static inline u32 get_pll_output_frequency(u32 ref_freq, struct pll_config pll)
-{
-	return get_pll_internal_frequency(ref_freq, pll)>>pll.rshift;
-}
-
-static struct pll_config get_pll_config(struct pll_limit *limits, int size,
+static struct via_pll_config get_pll_config(struct pll_limit *limits, int size,
 	int clk)
 {
-	struct pll_config cur, up, down, best = {0, 1, 0};
+	struct via_pll_config cur, up, down, best = {0, 1, 0};
 	const u32 f0 = 14318180; /* X1 frequency */
 	int i, f;
 
@@ -1662,9 +1446,9 @@ static struct pll_config get_pll_config(struct pll_limit *limits, int size,
 	return best;
 }
 
-static struct pll_config get_best_pll_config(int clk)
+static struct via_pll_config get_best_pll_config(int clk)
 {
-	struct pll_config config;
+	struct via_pll_config config;
 
 	switch (viaparinfo->chip_info->gfx_chip_name) {
 	case UNICHROME_CLE266:
@@ -1700,57 +1484,12 @@ static struct pll_config get_best_pll_config(int clk)
 /* Set VCLK*/
 void viafb_set_vclock(u32 clk, int set_iga)
 {
-	struct pll_config config = get_best_pll_config(clk);
+	struct via_pll_config config = get_best_pll_config(clk);
 
-	if (set_iga == IGA1) {
-		/* Change D,N FOR VCLK */
-		switch (viaparinfo->chip_info->gfx_chip_name) {
-		case UNICHROME_CLE266:
-		case UNICHROME_K400:
-			cle266_set_primary_pll(config);
-			break;
-		case UNICHROME_K800:
-		case UNICHROME_PM800:
-		case UNICHROME_CN700:
-		case UNICHROME_CX700:
-		case UNICHROME_CN750:
-		case UNICHROME_K8M890:
-		case UNICHROME_P4M890:
-		case UNICHROME_P4M900:
-		case UNICHROME_VX800:
-			k800_set_primary_pll(config);
-			break;
-		case UNICHROME_VX855:
-		case UNICHROME_VX900:
-			vx855_set_primary_pll(config);
-			break;
-		}
-	}
-
-	if (set_iga == IGA2) {
-		/* Change D,N FOR LCK */
-		switch (viaparinfo->chip_info->gfx_chip_name) {
-		case UNICHROME_CLE266:
-		case UNICHROME_K400:
-			cle266_set_secondary_pll(config);
-			break;
-		case UNICHROME_K800:
-		case UNICHROME_PM800:
-		case UNICHROME_CN700:
-		case UNICHROME_CX700:
-		case UNICHROME_CN750:
-		case UNICHROME_K8M890:
-		case UNICHROME_P4M890:
-		case UNICHROME_P4M900:
-		case UNICHROME_VX800:
-			k800_set_secondary_pll(config);
-			break;
-		case UNICHROME_VX855:
-		case UNICHROME_VX900:
-			vx855_set_secondary_pll(config);
-			break;
-		}
-	}
+	if (set_iga == IGA1)
+		clock.set_primary_pll(config);
+	if (set_iga == IGA2)
+		clock.set_secondary_pll(config);
 
 	/* Fire! */
 	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
@@ -2059,6 +1798,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 void __devinit viafb_init_chip_info(int chip_type)
 {
+	via_clock_init(&clock, chip_type);
 	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
 	init_lvds_chip_info();

@@ -732,12 +732,6 @@ struct _lcd_scaling_factor {
 	struct _lcd_ver_scaling_factor lcd_ver_scaling_factor;
 };
 
-struct pll_config {
-	u16 multiplier;
-	u8 divisor;
-	u8 rshift;
-};
-
 struct pll_limit {
 	u16 multiplier_min;
 	u16 multiplier_max;
