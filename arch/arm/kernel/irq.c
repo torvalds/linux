@@ -51,63 +51,18 @@
 
 unsigned long irq_err_count;
 
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, cpu;
-	struct irq_desc *desc;
-	struct irqaction * action;
-	unsigned long flags;
-	int prec, n;
-
-	for (prec = 3, n = 1000; prec < 10 && n <= nr_irqs; prec++)
-		n *= 10;
-
-#ifdef CONFIG_SMP
-	if (prec < 4)
-		prec = 4;
-#endif
-
-	if (i == 0) {
-		char cpuname[12];
-
-		seq_printf(p, "%*s ", prec, "");
-		for_each_present_cpu(cpu) {
-			sprintf(cpuname, "CPU%d", cpu);
-			seq_printf(p, " %10s", cpuname);
-		}
-		seq_putc(p, '\n');
-	}
-
-	if (i < nr_irqs) {
-		desc = irq_to_desc(i);
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action)
-			goto unlock;
-
-		seq_printf(p, "%*d: ", prec, i);
-		for_each_present_cpu(cpu)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-		seq_printf(p, " %10s", desc->irq_data.chip->name ? : "-");
-		seq_printf(p, "  %s", action->name);
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-unlock:
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == nr_irqs) {
 #ifdef CONFIG_FIQ
-		show_fiq_list(p, prec);
+	show_fiq_list(p, prec);
 #endif
 #ifdef CONFIG_SMP
-		show_ipi_list(p, prec);
+	show_ipi_list(p, prec);
 #endif
 #ifdef CONFIG_LOCAL_TIMERS
-		show_local_irqs(p, prec);
+	show_local_irqs(p, prec);
 #endif
-		seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
-	}
+	seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
 	return 0;
 }
 
