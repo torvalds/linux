@@ -1231,6 +1231,29 @@ struct platform_device rk29_device_gps = {
 	};
 #endif
 
+
+#if defined(CONFIG_TOUCHSCREEN_ILI2102_IIC) 
+#include "../../../drivers/input/touchscreen/ili2102_ts.h"
+#define GT801_GPIO_INT      RK29_PIN4_PD5
+#define GT801_GPIO_RESET    RK29_PIN6_PC3
+static struct ili2102_platform_data ili2102_info = {
+	.model			= 2102,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 480,
+	.y_min			= 0,
+	.y_max			= 800,
+	.gpio_reset     = GT801_GPIO_RESET,
+	.gpio_reset_active_low = 1,
+	.gpio_pendown		= GT801_GPIO_INT,
+	.pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
+	.resetpin_iomux_name = NULL,
+	.pendown_iomux_mode = GPIO4H_GPIO4D5,
+	.resetpin_iomux_mode = 0,
+};
+#endif
+
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -1409,6 +1432,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 
 #ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
+#if defined (CONFIG_TOUCHSCREEN_ILI2102_IIC)
+{
+	.type           = "ili2102_ts",
+	.addr           = 0x41,
+	.flags          = 0,
+	.irq            = RK29_PIN4_PD5,
+	.platform_data = &ili2102_info,
+},	
+#endif
 #if defined (CONFIG_MFD_WM831X_I2C)
 {
 	.type           = "wm8310",
