@@ -30,13 +30,10 @@ static irqreturn_t sparc64_msiq_interrupt(int irq, void *cookie)
 
 		err = ops->dequeue_msi(pbm, msiqid, &head, &msi);
 		if (likely(err > 0)) {
-			struct irq_desc *desc;
 			unsigned int irq;
 
 			irq = pbm->msi_irq_table[msi - pbm->msi_first];
-			desc = irq_desc + irq;
-
-			desc->handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 
 		if (unlikely(err < 0))
