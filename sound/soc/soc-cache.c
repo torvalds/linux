@@ -1449,3 +1449,17 @@ int snd_soc_default_readable_register(struct snd_soc_codec *codec,
 	return codec->driver->reg_access_default[index].read;
 }
 EXPORT_SYMBOL_GPL(snd_soc_default_readable_register);
+
+int snd_soc_default_writable_register(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	int index;
+
+	if (reg >= codec->driver->reg_cache_size)
+		return 1;
+	index = snd_soc_get_reg_access_index(codec, reg);
+	if (index < 0)
+		return 0;
+	return codec->driver->reg_access_default[index].write;
+}
+EXPORT_SYMBOL_GPL(snd_soc_default_writable_register);
