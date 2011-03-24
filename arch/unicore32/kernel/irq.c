@@ -321,24 +321,24 @@ void __init init_IRQ(void)
 	writel(1, INTC_ICCR);
 
 	for (irq = 0; irq < IRQ_GPIOHIGH; irq++) {
-		set_irq_chip(irq, &puv3_low_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip(irq, &puv3_low_gpio_chip);
+		irq_set_handler(irq, handle_edge_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN,
 			0);
 	}
 
 	for (irq = IRQ_GPIOHIGH + 1; irq < IRQ_GPIO0; irq++) {
-		set_irq_chip(irq, &puv3_normal_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &puv3_normal_chip);
+		irq_set_handler(irq, handle_level_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOAUTOEN,
 			IRQ_NOPROBE);
 	}
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO27; irq++) {
-		set_irq_chip(irq, &puv3_high_gpio_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip(irq, &puv3_high_gpio_chip);
+		irq_set_handler(irq, handle_edge_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN,
 			0);
@@ -347,8 +347,8 @@ void __init init_IRQ(void)
 	/*
 	 * Install handler for GPIO 0-27 edge detect interrupts
 	 */
-	set_irq_chip(IRQ_GPIOHIGH, &puv3_normal_chip);
-	set_irq_chained_handler(IRQ_GPIOHIGH, puv3_gpio_handler);
+	irq_set_chip(IRQ_GPIOHIGH, &puv3_normal_chip);
+	irq_set_chained_handler(IRQ_GPIOHIGH, puv3_gpio_handler);
 
 #ifdef CONFIG_PUV3_GPIO
 	puv3_init_gpio();
