@@ -87,6 +87,56 @@ done:
 }
 
 /*
+ * Calculate and dget next entry in the subdirs list under root.
+ */
+static struct dentry *get_next_positive_subdir(struct dentry *prev,
+						struct dentry *root)
+{
+	struct list_head *next;
+	struct dentry *p, *q;
+
+	spin_lock(&autofs4_lock);
+
+	if (prev == NULL) {
+		spin_lock(&root->d_lock);
+		prev = dget_dlock(root);
+		next = prev->d_subdirs.next;
+		p = prev;
+		goto start;
+	}
+
+	p = prev;
+	spin_lock(&p->d_lock);
+again:
+	next = p->d_u.d_child.next;
+start:
+	if (next == &root->d_subdirs) {
+		spin_unlock(&p->d_lock);
+		spin_unlock(&autofs4_lock);
+		dput(prev);
+		return NULL;
+	}
+
+	q = list_entry(next, struct dentry, d_u.d_child);
+
+	spin_lock_nested(&q->d_lock, DENTRY_D_LOCK_NESTED);
+	/* Negative dentry - try next */
+	if (!simple_positive(q)) {
+		spin_unlock(&p->d_lock);
+		p = q;
+		goto again;
+	}
+	dget_dlock(q);
+	spin_unlock(&q->d_lock);
+	spin_unlock(&p->d_lock);
+	spin_unlock(&autofs4_lock);
+
+	dput(prev);
+
+	return q;
+}
+
+/*
  * Calculate and dget next entry in top down tree traversal.
  */
 static struct dentry *get_next_positive_dentry(struct dentry *prev,
@@ -333,7 +383,7 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 	timeout = sbi->exp_timeout;
 
 	dentry = NULL;
-	while ((dentry = get_next_positive_dentry(dentry, root))) {
+	while ((dentry = get_next_positive_subdir(dentry, root))) {
 		spin_lock(&sbi->fs_lock);
 		ino = autofs4_dentry_ino(dentry);
 		/* No point expiring a pending mount */
