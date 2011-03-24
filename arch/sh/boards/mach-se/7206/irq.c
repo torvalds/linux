@@ -92,9 +92,8 @@ static void eoi_se7206_irq(struct irq_data *data)
 {
 	unsigned short sts0,sts1;
 	unsigned int irq = data->irq;
-	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (!(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
+	if (!irqd_irq_disabled(data) && !irqd_irq_inprogress(data))
 		enable_se7206_irq(data);
 	/* FPGA isr clear */
 	sts0 = __raw_readw(INTSTS0);

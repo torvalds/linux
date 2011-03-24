@@ -387,19 +387,16 @@ static int intc_suspend(void)
 		/* enable wakeup irqs belonging to this intc controller */
 		for_each_active_irq(irq) {
 			struct irq_data *data;
-			struct irq_desc *desc;
 			struct irq_chip *chip;
 
 			data = irq_get_irq_data(irq);
 			chip = irq_data_get_irq_chip(data);
 			if (chip != &d->chip)
 				continue;
-			desc = irq_to_desc(irq);
-			if ((desc->status & IRQ_WAKEUP))
+			if (irqd_is_wakeup_set(data))
 				chip->irq_enable(data);
 		}
 	}
-
 	return 0;
 }
 
@@ -412,7 +409,6 @@ static void intc_resume(void)
 
 		for_each_active_irq(irq) {
 			struct irq_data *data;
-			struct irq_desc *desc;
 			struct irq_chip *chip;
 
 			data = irq_get_irq_data(irq);
@@ -423,8 +419,7 @@ static void intc_resume(void)
 			 */
 			if (chip != &d->chip)
 				continue;
-			desc = irq_to_desc(irq);
-			if (desc->status & IRQ_DISABLED)
+			if (irqd_irq_disabled(data))
 				chip->irq_disable(data);
 			else
 				chip->irq_enable(data);
