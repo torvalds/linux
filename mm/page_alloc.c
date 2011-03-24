@@ -2195,7 +2195,7 @@ nopage:
 			current->comm, order, gfp_mask);
 		dump_stack();
 		if (!should_suppress_show_mem())
-			__show_mem(filter);
+			show_mem(filter);
 	}
 	return page;
 got_pg:
