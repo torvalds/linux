@@ -146,9 +146,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	}
 
 	memcpy(&priv->cell_mmc, &sh_mobile_sdhi_cell, sizeof(priv->cell_mmc));
-	priv->cell_mmc.driver_data = mmc_data;
-	priv->cell_mmc.platform_data = &priv->cell_mmc;
-	priv->cell_mmc.data_size = sizeof(priv->cell_mmc);
+	priv->cell_mmc.mfd_data = mmc_data;
 
 	platform_set_drvdata(pdev, priv);
 

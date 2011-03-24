@@ -25,22 +25,20 @@ struct mfd_cell {
 	const char		*name;
 	int			id;
 
+	/* refcounting for multiple drivers to use a single cell */
+	atomic_t		*usage_count;
 	int			(*enable)(struct platform_device *dev);
 	int			(*disable)(struct platform_device *dev);
+
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
-	/* driver-specific data for MFD-aware "cell" drivers */
-	void			*driver_data;
-
-	/* platform_data can be used to either pass data to "generic"
-	   driver or as a hook to mfd_cell for the "cell" drivers */
-	void			*platform_data;
-	size_t			data_size;
+	/* mfd_data can be used to pass data to client drivers */
+	void			*mfd_data;
 
 	/*
-	 * This resources can be specified relatively to the parent device.
-	 * For accessing device you should use resources from device
+	 * These resources can be specified relative to the parent device.
+	 * For accessing hardware you should use resources from the platform dev
 	 */
 	int			num_resources;
 	const struct resource	*resources;
@@ -55,11 +53,47 @@ struct mfd_cell {
 	bool			pm_runtime_no_callbacks;
 };
 
+/*
+ * Convenience functions for clients using shared cells.  Refcounting
+ * happens automatically, with the cell's enable/disable callbacks
+ * being called only when a device is first being enabled or no other
+ * clients are making use of it.
+ */
+extern int mfd_cell_enable(struct platform_device *pdev);
+extern int mfd_cell_disable(struct platform_device *pdev);
+
+/*
+ * Given a platform device that's been created by mfd_add_devices(), fetch
+ * the mfd_cell that created it.
+ */
+static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+
+/*
+ * Given a platform device that's been created by mfd_add_devices(), fetch
+ * the .mfd_data entry from the mfd_cell that created it.
+ */
+static inline void *mfd_get_data(struct platform_device *pdev)
+{
+	return mfd_get_cell(pdev)->mfd_data;
+}
+
 extern int mfd_add_devices(struct device *parent, int id,
-			   const struct mfd_cell *cells, int n_devs,
+			   struct mfd_cell *cells, int n_devs,
 			   struct resource *mem_base,
 			   int irq_base);
 
 extern void mfd_remove_devices(struct device *parent);
+
+/*
+ * For MFD drivers with clients sharing access to resources, these create
+ * multiple platform devices per cell.  Contention handling must still be
+ * handled via drivers (ie, with enable/disable hooks).
+ */
+extern int mfd_shared_platform_driver_register(struct platform_driver *drv,
+		const char *cellname);
+extern void mfd_shared_platform_driver_unregister(struct platform_driver *drv);
 
 #endif

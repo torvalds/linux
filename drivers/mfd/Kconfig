@@ -129,6 +129,17 @@ config UCB1400_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
 
+config TPS6105X
+	tristate "TPS61050/61052 Boost Converters"
+	depends on I2C
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  This option enables a driver for the TP61050/TPS61052
+	  high-power "white LED driver". This boost converter is
+	  sometimes used for other things than white LEDs, and
+	  also contains a GPIO pin.
+
 config TPS65010
 	tristate "TPS6501x Power Management chips"
 	depends on I2C && GPIOLIB
@@ -177,6 +188,16 @@ config TWL4030_CORE
 	  boards, providing power management, RTC, GPIO, keypad, a
 	  high speed USB OTG transceiver, an audio codec (on most
 	  versions) and many other features.
+
+config TWL4030_MADC
+	tristate "Texas Instruments TWL4030 MADC"
+	depends on TWL4030_CORE
+	help
+	This driver provides support for triton TWL4030-MADC. The
+	driver supports both RT and SW conversion methods.
+
+	This driver can be built as a module. If so it will be
+	named twl4030-madc
 
 config TWL4030_POWER
 	bool "Support power resources on TWL4030 family chips"
@@ -303,6 +324,18 @@ config MFD_MAX8925
 	  a Power Management IC. This driver provies common support for
 	  accessing the device, additional drivers must be enabled in order
 	  to use the functionality of the device.
+
+config MFD_MAX8997
+	bool "Maxim Semiconductor MAX8997/8966 PMIC Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  Say yes here to support for Maxim Semiconductor MAX8998/8966.
+	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,
+	  MUIC controls on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 config MFD_MAX8998
 	bool "Maxim Semiconductor MAX8998/National LP3974 PMIC Support"
@@ -533,6 +566,13 @@ config AB8500_DEBUG
        help
          Select this option if you want debug information using the debug
          filesystem, debugfs.
+
+config AB8500_GPADC
+	bool "AB8500 GPADC driver"
+	depends on AB8500_CORE && REGULATOR_AB8500
+	default y
+	help
+	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
 
 config AB3550_CORE
         bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"

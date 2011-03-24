@@ -38,7 +38,6 @@ static int wl1273_core_remove(struct i2c_client *client)
 	dev_dbg(&client->dev, "%s\n", __func__);
 
 	mfd_remove_devices(&client->dev);
-	i2c_set_clientdata(client, NULL);
 	kfree(core);
 
 	return 0;
@@ -79,8 +78,7 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 
 	cell = &core->cells[children];
 	cell->name = "wl1273_fm_radio";
-	cell->platform_data = &core;
-	cell->data_size = sizeof(core);
+	cell->mfd_data = &core;
 	children++;
 
 	if (pdata->children & WL1273_CODEC_CHILD) {
@@ -88,8 +86,7 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 
 		dev_dbg(&client->dev, "%s: Have codec.\n", __func__);
 		cell->name = "wl1273-codec";
-		cell->platform_data = &core;
-		cell->data_size = sizeof(core);
+		cell->mfd_data = &core;
 		children++;
 	}
 
@@ -104,7 +101,6 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 	return 0;
 
 err:
-	i2c_set_clientdata(client, NULL);
 	pdata->free_resources();
 	kfree(core);
 
