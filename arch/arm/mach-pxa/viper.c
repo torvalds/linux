@@ -310,8 +310,8 @@ static void __init viper_init_irq(void)
 	/* setup ISA IRQs */
 	for (level = 0; level < ARRAY_SIZE(viper_isa_irqs); level++) {
 		isa_irq = viper_bit_to_irq(level);
-		irq_set_chip(isa_irq, &viper_irq_chip);
-		irq_set_handler(isa_irq, handle_edge_irq);
+		irq_set_chip_and_handler(isa_irq, &viper_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
 	}
 

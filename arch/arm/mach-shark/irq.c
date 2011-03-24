@@ -80,8 +80,7 @@ void __init shark_init_irq(void)
 	int irq;
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		irq_set_chip(irq, &fb_chip);
-		irq_set_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &fb_chip, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 

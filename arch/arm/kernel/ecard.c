@@ -1043,8 +1043,8 @@ ecard_probe(int slot, card_type_t type)
 	 */
 	if (slot < 8) {
 		ec->irq = 32 + slot;
-		irq_set_chip(ec->irq, &ecard_chip);
-		irq_set_handler(ec->irq, handle_level_irq);
+		irq_set_chip_and_handler(ec->irq, &ecard_chip,
+					 handle_level_irq);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 

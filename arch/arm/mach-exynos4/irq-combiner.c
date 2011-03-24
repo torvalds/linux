@@ -119,8 +119,7 @@ void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
 
 	for (i = irq_start; i < combiner_data[combiner_nr].irq_offset
 				+ MAX_IRQ_IN_COMBINER; i++) {
-		irq_set_chip(i, &combiner_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &combiner_chip, handle_level_irq);
 		irq_set_chip_data(i, &combiner_data[combiner_nr]);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}

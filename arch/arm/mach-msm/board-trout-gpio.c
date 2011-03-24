@@ -214,8 +214,8 @@ int __init trout_init_gpio(void)
 {
 	int i;
 	for(i = TROUT_INT_START; i <= TROUT_INT_END; i++) {
-		irq_set_chip(i, &trout_gpio_irq_chip);
-		irq_set_handler(i, handle_edge_irq);
+		irq_set_chip_and_handler(i, &trout_gpio_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

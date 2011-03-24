@@ -68,8 +68,7 @@ void __init iop32x_init_irq(void)
 		*IOP3XX_PCIIRSR = 0x0f;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		irq_set_chip(i, &ext_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &ext_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 }

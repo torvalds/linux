@@ -107,8 +107,8 @@ int spear_shirq_register(struct spear_shirq *shirq)
 
 	irq_set_chained_handler(shirq->irq, shirq_handler);
 	for (i = 0; i < shirq->dev_count; i++) {
-		irq_set_chip(shirq->dev_config[i].virq, &shirq_chip);
-		irq_set_handler(shirq->dev_config[i].virq, handle_simple_irq);
+		irq_set_chip_and_handler(shirq->dev_config[i].virq,
+					 &shirq_chip, handle_simple_irq);
 		set_irq_flags(shirq->dev_config[i].virq, IRQF_VALID);
 		irq_set_chip_data(shirq->dev_config[i].virq, shirq);
 	}

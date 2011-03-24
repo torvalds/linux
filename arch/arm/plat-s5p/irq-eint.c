@@ -208,8 +208,7 @@ int __init s5p_init_irq_eint(void)
 		irq_set_chip(irq, &s5p_irq_vic_eint);
 
 	for (irq = IRQ_EINT(16); irq <= IRQ_EINT(31); irq++) {
-		irq_set_chip(irq, &s5p_irq_eint);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &s5p_irq_eint, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

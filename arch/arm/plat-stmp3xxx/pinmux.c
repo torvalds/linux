@@ -533,8 +533,8 @@ int __init stmp3xxx_pinmux_init(int virtual_irq_start)
 
 		for (virq = pm->virq; virq < pm->virq; virq++) {
 			gpio_irq_chip.irq_mask(irq_get_irq_data(virq));
-			irq_set_chip(virq, &gpio_irq_chip);
-			irq_set_handler(virq, handle_level_irq);
+			irq_set_chip_and_handler(virq, &gpio_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(virq, IRQF_VALID);
 		}
 		r = gpiochip_add(&pm->chip);

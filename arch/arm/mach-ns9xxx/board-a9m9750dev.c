@@ -107,8 +107,8 @@ void __init board_a9m9750dev_init_irq(void)
 				__func__);
 
 	for (i = FPGA_IRQ(0); i <= FPGA_IRQ(7); ++i) {
-		irq_set_chip(i, &a9m9750dev_fpga_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &a9m9750dev_fpga_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

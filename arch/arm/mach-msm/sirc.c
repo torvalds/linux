@@ -158,8 +158,7 @@ void __init msm_init_sirc(void)
 	wake_enable = 0;
 
 	for (i = FIRST_SIRC_IRQ; i < LAST_SIRC_IRQ; i++) {
-		irq_set_chip(i, &sirc_irq_chip);
-		irq_set_handler(i, handle_edge_irq);
+		irq_set_chip_and_handler(i, &sirc_irq_chip, handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

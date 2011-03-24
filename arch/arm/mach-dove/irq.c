@@ -121,8 +121,7 @@ void __init dove_init_irq(void)
 	writel(0, PMU_INTERRUPT_CAUSE);
 
 	for (i = IRQ_DOVE_PMU_START; i < NR_IRQS; i++) {
-		irq_set_chip(i, &pmu_irq_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &pmu_irq_chip, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 		set_irq_flags(i, IRQF_VALID);
 	}

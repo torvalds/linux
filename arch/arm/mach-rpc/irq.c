@@ -133,20 +133,20 @@ void __init rpc_init_irq(void)
 
 		switch (irq) {
 		case 0 ... 7:
-			irq_set_chip(irq, &iomd_a_chip);
-			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &iomd_a_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 8 ... 15:
-			irq_set_chip(irq, &iomd_b_chip);
-			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &iomd_b_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 
 		case 16 ... 21:
-			irq_set_chip(irq, &iomd_dma_chip);
-			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &iomd_dma_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, flags);
 			break;
 

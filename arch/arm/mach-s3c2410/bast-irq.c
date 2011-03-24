@@ -154,8 +154,8 @@ static __init int bast_irq_init(void)
 		for (i = 0; i < 4; i++) {
 			unsigned int irqno = bast_pc104_irqs[i];
 
-			irq_set_chip(irqno, &bast_pc104_chip);
-			irq_set_handler(irqno, handle_level_irq);
+			irq_set_chip_and_handler(irqno, &bast_pc104_chip,
+						 handle_level_irq);
 			set_irq_flags(irqno, IRQF_VALID);
 		}
 	}

@@ -175,8 +175,8 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 	unsigned int irqno;
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
-		irq_set_chip(irqno, &s3c2412_irq_eint0t4);
-		irq_set_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c2412_irq_eint0t4,
+					 handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -185,8 +185,8 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 	irq_set_chained_handler(IRQ_S3C2412_CFSDI, s3c2412_irq_demux_cfsdi);
 
 	for (irqno = IRQ_S3C2412_SDI; irqno <= IRQ_S3C2412_CF; irqno++) {
-		irq_set_chip(irqno, &s3c2412_irq_cfsdi);
-		irq_set_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c2412_irq_cfsdi,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 

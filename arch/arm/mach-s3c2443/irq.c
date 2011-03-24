@@ -230,13 +230,11 @@ static int __init s3c2443_add_sub(unsigned int base,
 {
 	unsigned int irqno;
 
-	irq_set_chip(base, &s3c_irq_level_chip);
-	irq_set_handler(base, handle_level_irq);
+	irq_set_chip_and_handler(base, &s3c_irq_level_chip, handle_level_irq);
 	irq_set_chained_handler(base, demux);
 
 	for (irqno = start; irqno <= end; irqno++) {
-		irq_set_chip(irqno, chip);
-		irq_set_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, chip, handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 

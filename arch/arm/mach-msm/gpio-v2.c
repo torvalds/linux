@@ -362,8 +362,8 @@ static int __devinit msm_gpio_probe(struct platform_device *dev)
 
 	for (i = 0; i < msm_gpio.gpio_chip.ngpio; ++i) {
 		irq = msm_gpio_to_irq(&msm_gpio.gpio_chip, i);
-		irq_set_chip(irq, &msm_gpio_irq_chip);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &msm_gpio_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

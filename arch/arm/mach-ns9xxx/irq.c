@@ -67,8 +67,7 @@ void __init ns9xxx_init_irq(void)
 		__raw_writel(prio2irq(i), SYS_IVA(i));
 
 	for (i = 0; i <= 31; ++i) {
-		irq_set_chip(i, &ns9xxx_chip);
-		irq_set_handler(i, handle_fasteoi_irq);
+		irq_set_chip_and_handler(i, &ns9xxx_chip, handle_fasteoi_irq);
 		set_irq_flags(i, IRQF_VALID);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}

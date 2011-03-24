@@ -592,8 +592,8 @@ void __init s3c24xx_init_irq(void)
 		case IRQ_UART1:
 		case IRQ_UART2:
 		case IRQ_ADCPARENT:
-			irq_set_chip(irqno, &s3c_irq_level_chip);
-			irq_set_handler(irqno, handle_level_irq);
+			irq_set_chip_and_handler(irqno, &s3c_irq_level_chip,
+						 handle_level_irq);
 			break;
 
 		case IRQ_RESERVED6:
@@ -603,8 +603,8 @@ void __init s3c24xx_init_irq(void)
 
 		default:
 			//irqdbf("registering irq %d (s3c irq)\n", irqno);
-			irq_set_chip(irqno, &s3c_irq_chip);
-			irq_set_handler(irqno, handle_edge_irq);
+			irq_set_chip_and_handler(irqno, &s3c_irq_chip,
+						 handle_edge_irq);
 			set_irq_flags(irqno, IRQF_VALID);
 		}
 	}
@@ -623,15 +623,15 @@ void __init s3c24xx_init_irq(void)
 
 	for (irqno = IRQ_EINT0; irqno <= IRQ_EINT3; irqno++) {
 		irqdbf("registering irq %d (ext int)\n", irqno);
-		irq_set_chip(irqno, &s3c_irq_eint0t4);
-		irq_set_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_eint0t4,
+					 handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_EINT4; irqno <= IRQ_EINT23; irqno++) {
 		irqdbf("registering irq %d (extended s3c irq)\n", irqno);
-		irq_set_chip(irqno, &s3c_irqext_chip);
-		irq_set_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irqext_chip,
+					 handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
@@ -641,29 +641,28 @@ void __init s3c24xx_init_irq(void)
 
 	for (irqno = IRQ_S3CUART_RX0; irqno <= IRQ_S3CUART_ERR0; irqno++) {
 		irqdbf("registering irq %d (s3c uart0 irq)\n", irqno);
-		irq_set_chip(irqno, &s3c_irq_uart0);
-		irq_set_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_uart0,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_S3CUART_RX1; irqno <= IRQ_S3CUART_ERR1; irqno++) {
 		irqdbf("registering irq %d (s3c uart1 irq)\n", irqno);
-		irq_set_chip(irqno, &s3c_irq_uart1);
-		irq_set_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_uart1,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_S3CUART_RX2; irqno <= IRQ_S3CUART_ERR2; irqno++) {
 		irqdbf("registering irq %d (s3c uart2 irq)\n", irqno);
-		irq_set_chip(irqno, &s3c_irq_uart2);
-		irq_set_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_uart2,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 
 	for (irqno = IRQ_TC; irqno <= IRQ_ADC; irqno++) {
 		irqdbf("registering irq %d (s3c adc irq)\n", irqno);
-		irq_set_chip(irqno, &s3c_irq_adc);
-		irq_set_handler(irqno, handle_edge_irq);
+		irq_set_chip_and_handler(irqno, &s3c_irq_adc, handle_edge_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 

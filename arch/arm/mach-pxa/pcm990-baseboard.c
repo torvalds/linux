@@ -281,8 +281,8 @@ static void __init pcm990_init_irq(void)
 
 	/* setup extra PCM990 irqs */
 	for (irq = PCM027_IRQ(0); irq <= PCM027_IRQ(3); irq++) {
-		irq_set_chip(irq, &pcm990_irq_chip);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &pcm990_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 

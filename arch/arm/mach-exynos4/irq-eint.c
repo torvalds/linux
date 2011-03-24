@@ -208,8 +208,8 @@ int __init exynos4_init_irq_eint(void)
 	int irq;
 
 	for (irq = 0 ; irq <= 31 ; irq++) {
-		irq_set_chip(IRQ_EINT(irq), &exynos4_irq_eint);
-		irq_set_handler(IRQ_EINT(irq), handle_level_irq);
+		irq_set_chip_and_handler(IRQ_EINT(irq), &exynos4_irq_eint,
+					 handle_level_irq);
 		set_irq_flags(IRQ_EINT(irq), IRQF_VALID);
 	}
 

@@ -149,8 +149,8 @@ static void __init lpd270_init_irq(void)
 
 	/* setup extra LogicPD PXA270 irqs */
 	for (irq = LPD270_IRQ(2); irq <= LPD270_IRQ(4); irq++) {
-		irq_set_chip(irq, &lpd270_irq_chip);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &lpd270_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 	irq_set_chained_handler(IRQ_GPIO(0), lpd270_irq_handler);

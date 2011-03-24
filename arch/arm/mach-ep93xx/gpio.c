@@ -231,8 +231,8 @@ void __init ep93xx_gpio_init_irq(void)
 
 	for (gpio_irq = gpio_to_irq(0);
 	     gpio_irq <= gpio_to_irq(EP93XX_GPIO_LINE_MAX_IRQ); ++gpio_irq) {
-		irq_set_chip(gpio_irq, &ep93xx_gpio_irq_chip);
-		irq_set_handler(gpio_irq, handle_level_irq);
+		irq_set_chip_and_handler(gpio_irq, &ep93xx_gpio_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(gpio_irq, IRQF_VALID);
 	}
 

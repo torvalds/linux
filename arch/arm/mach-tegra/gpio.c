@@ -342,8 +342,8 @@ static int __init tegra_gpio_init(void)
 
 		irq_set_lockdep_class(i, &gpio_lock_class);
 		irq_set_chip_data(i, bank);
-		irq_set_chip(i, &tegra_gpio_irq_chip);
-		irq_set_handler(i, handle_simple_irq);
+		irq_set_chip_and_handler(i, &tegra_gpio_irq_chip,
+					 handle_simple_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

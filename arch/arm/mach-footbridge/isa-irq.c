@@ -151,14 +151,14 @@ void __init isa_init_irq(unsigned int host_irq)
 
 	if (host_irq != (unsigned int)-1) {
 		for (irq = _ISA_IRQ(0); irq < _ISA_IRQ(8); irq++) {
-			irq_set_chip(irq, &isa_lo_chip);
-			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &isa_lo_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 
 		for (irq = _ISA_IRQ(8); irq < _ISA_IRQ(16); irq++) {
-			irq_set_chip(irq, &isa_hi_chip);
-			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &isa_hi_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 

@@ -181,8 +181,7 @@ int __init mxc_expio_init(u32 base, u32 p_irq)
 	__raw_writew(0x1F, brd_io + INTR_MASK_REG);
 	for (i = MXC_EXP_IO_BASE;
 	     i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES); i++) {
-		irq_set_chip(i, &expio_irq_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &expio_irq_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 	irq_set_irq_type(p_irq, IRQF_TRIGGER_LOW);

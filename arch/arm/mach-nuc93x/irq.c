@@ -59,8 +59,8 @@ void __init nuc93x_init_irq(void)
 	__raw_writel(0xFFFFFFFE, REG_AIC_MDCR);
 
 	for (irqno = IRQ_WDT; irqno <= NR_IRQS; irqno++) {
-		irq_set_chip(irqno, &nuc93x_irq_chip);
-		irq_set_handler(irqno, handle_level_irq);
+		irq_set_chip_and_handler(irqno, &nuc93x_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irqno, IRQF_VALID);
 	}
 }

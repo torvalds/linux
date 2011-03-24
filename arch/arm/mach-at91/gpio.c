@@ -511,8 +511,8 @@ void __init at91_gpio_irq_setup(void)
 			 * Can use the "simple" and not "edge" handler since it's
 			 * shorter, and the AIC handles interrupts sanely.
 			 */
-			irq_set_chip(pin, &gpio_irqchip);
-			irq_set_handler(pin, handle_simple_irq);
+			irq_set_chip_and_handler(pin, &gpio_irqchip,
+						 handle_simple_irq);
 			set_irq_flags(pin, IRQF_VALID);
 		}
 

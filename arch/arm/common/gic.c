@@ -319,8 +319,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	 * Setup the Linux IRQ subsystem.
 	 */
 	for (i = irq_start; i < irq_limit; i++) {
-		irq_set_chip(i, &gic_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &gic_chip, handle_level_irq);
 		irq_set_chip_data(i, gic);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}

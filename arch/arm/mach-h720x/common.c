@@ -199,15 +199,15 @@ void __init h720x_init_irq (void)
 
 	/* Initialize global IRQ's, fast path */
 	for (irq = 0; irq < NR_GLBL_IRQS; irq++) {
-		irq_set_chip(irq, &h720x_global_chip);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &h720x_global_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
 	/* Initialize multiplexed IRQ's, slow path */
 	for (irq = IRQ_CHAINED_GPIOA(0) ; irq <= IRQ_CHAINED_GPIOD(31); irq++) {
-		irq_set_chip(irq, &h720x_gpio_chip);
-		irq_set_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &h720x_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
 	irq_set_chained_handler(IRQ_GPIOA, h720x_gpioa_demux_handler);
@@ -217,8 +217,8 @@ void __init h720x_init_irq (void)
 
 #ifdef CONFIG_CPU_H7202
 	for (irq = IRQ_CHAINED_GPIOE(0) ; irq <= IRQ_CHAINED_GPIOE(31); irq++) {
-		irq_set_chip(irq, &h720x_gpio_chip);
-		irq_set_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &h720x_gpio_chip,
+					 handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
 	irq_set_chained_handler(IRQ_GPIOE, h720x_gpioe_demux_handler);

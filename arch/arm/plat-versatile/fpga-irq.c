@@ -64,8 +64,8 @@ void __init fpga_irq_init(int parent_irq, u32 valid, struct fpga_irq_data *f)
 			unsigned int irq = f->irq_start + i;
 
 			irq_set_chip_data(irq, f);
-			irq_set_chip(irq, &f->chip);
-			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &f->chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 	}

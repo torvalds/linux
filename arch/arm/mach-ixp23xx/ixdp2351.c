@@ -136,8 +136,8 @@ void __init ixdp2351_init_irq(void)
 	     irq++) {
 		if (IXDP2351_INTA_IRQ_MASK(irq) & IXDP2351_INTA_IRQ_VALID) {
 			set_irq_flags(irq, IRQF_VALID);
-			irq_set_handler(irq, handle_level_irq);
-			irq_set_chip(irq, &ixdp2351_inta_chip);
+			irq_set_chip_and_handler(irq, &ixdp2351_inta_chip,
+						 handle_level_irq);
 		}
 	}
 
@@ -147,8 +147,8 @@ void __init ixdp2351_init_irq(void)
 	     irq++) {
 		if (IXDP2351_INTB_IRQ_MASK(irq) & IXDP2351_INTB_IRQ_VALID) {
 			set_irq_flags(irq, IRQF_VALID);
-			irq_set_handler(irq, handle_level_irq);
-			irq_set_chip(irq, &ixdp2351_intb_chip);
+			irq_set_chip_and_handler(irq, &ixdp2351_intb_chip,
+						 handle_level_irq);
 		}
 	}
 

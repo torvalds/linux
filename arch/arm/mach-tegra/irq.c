@@ -154,8 +154,7 @@ void __init tegra_init_irq(void)
 
 	for (i = 0; i < INT_MAIN_NR; i++) {
 		irq = INT_PRI_BASE + i;
-		irq_set_chip(irq, &tegra_irq);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &tegra_irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }

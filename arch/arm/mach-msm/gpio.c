@@ -355,8 +355,8 @@ static int __init msm_init_gpio(void)
 			msm_gpio_chips[j].chip.ngpio)
 			j++;
 		irq_set_chip_data(i, &msm_gpio_chips[j]);
-		irq_set_chip(i, &msm_gpio_irq_chip);
-		irq_set_handler(i, handle_edge_irq);
+		irq_set_chip_and_handler(i, &msm_gpio_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

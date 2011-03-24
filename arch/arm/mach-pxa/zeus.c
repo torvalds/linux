@@ -146,8 +146,8 @@ static void __init zeus_init_irq(void)
 	/* Setup ISA IRQs */
 	for (level = 0; level < ARRAY_SIZE(zeus_isa_irqs); level++) {
 		isa_irq = zeus_bit_to_irq(level);
-		irq_set_chip(isa_irq, &zeus_irq_chip);
-		irq_set_handler(isa_irq, handle_edge_irq);
+		irq_set_chip_and_handler(isa_irq, &zeus_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);
 	}
 

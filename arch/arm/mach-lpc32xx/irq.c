@@ -390,8 +390,8 @@ void __init lpc32xx_init_irq(void)
 
 	/* Configure supported IRQ's */
 	for (i = 0; i < NR_IRQS; i++) {
-		irq_set_chip(i, &lpc32xx_irq_chip);
-		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &lpc32xx_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 

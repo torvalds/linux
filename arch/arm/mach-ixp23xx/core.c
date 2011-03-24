@@ -289,12 +289,12 @@ static void ixp23xx_config_irq(unsigned int irq, enum ixp23xx_irq_type type)
 {
 	switch (type) {
 	case IXP23XX_IRQ_LEVEL:
-		irq_set_chip(irq, &ixp23xx_irq_level_chip);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &ixp23xx_irq_level_chip,
+					 handle_level_irq);
 		break;
 	case IXP23XX_IRQ_EDGE:
-		irq_set_chip(irq, &ixp23xx_irq_edge_chip);
-		irq_set_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &ixp23xx_irq_edge_chip,
+					 handle_edge_irq);
 		break;
 	}
 	set_irq_flags(irq, IRQF_VALID);
@@ -324,8 +324,8 @@ void __init ixp23xx_init_irq(void)
 	}
 
 	for (irq = IRQ_IXP23XX_INTA; irq <= IRQ_IXP23XX_INTB; irq++) {
-		irq_set_chip(irq, &ixp23xx_pci_irq_chip);
-		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &ixp23xx_pci_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

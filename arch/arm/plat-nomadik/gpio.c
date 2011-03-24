@@ -725,8 +725,8 @@ static int nmk_gpio_init_irq(struct nmk_gpio_chip *nmk_chip)
 
 	first_irq = NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base);
 	for (i = first_irq; i < first_irq + nmk_chip->chip.ngpio; i++) {
-		irq_set_chip(i, &nmk_gpio_irq_chip);
-		irq_set_handler(i, handle_edge_irq);
+		irq_set_chip_and_handler(i, &nmk_gpio_irq_chip,
+					 handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 		irq_set_chip_data(i, nmk_chip);
 		irq_set_irq_type(i, IRQ_TYPE_EDGE_FALLING);

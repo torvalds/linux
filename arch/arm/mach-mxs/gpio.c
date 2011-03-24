@@ -265,8 +265,8 @@ int __init mxs_gpio_init(struct mxs_gpio_port *port, int cnt)
 
 		for (j = port[i].virtual_irq_start;
 			j < port[i].virtual_irq_start + 32; j++) {
-			irq_set_chip(j, &gpio_irq_chip);
-			irq_set_handler(j, handle_level_irq);
+			irq_set_chip_and_handler(j, &gpio_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 
