@@ -324,6 +324,10 @@ static void dac33_init_chip(struct snd_soc_codec *codec)
 	dac33_write(codec, DAC33_OUT_AMP_CTRL,
 		    dac33_read_reg_cache(codec, DAC33_OUT_AMP_CTRL));
 
+	dac33_write(codec, DAC33_LDAC_PWR_CTRL,
+		    dac33_read_reg_cache(codec, DAC33_LDAC_PWR_CTRL));
+	dac33_write(codec, DAC33_RDAC_PWR_CTRL,
+		    dac33_read_reg_cache(codec, DAC33_RDAC_PWR_CTRL));
 }
 
 static inline int dac33_read_id(struct snd_soc_codec *codec)
