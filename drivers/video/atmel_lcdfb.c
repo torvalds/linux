@@ -68,7 +68,7 @@ static void atmel_lcdfb_update_dma2d(struct atmel_lcdfb_info *sinfo,
 }
 #endif
 
-static const u32 contrast_ctr = ATMEL_LCDC_PS_DIV8
+static u32 contrast_ctr = ATMEL_LCDC_PS_DIV8
 		| ATMEL_LCDC_POL_POSITIVE
 		| ATMEL_LCDC_ENA_PWMENABLE;
 
@@ -164,6 +164,10 @@ static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 
 static void init_contrast(struct atmel_lcdfb_info *sinfo)
 {
+	/* contrast pwm can be 'inverted' */
+	if (sinfo->lcdcon_pol_negative)
+			contrast_ctr &= ~(ATMEL_LCDC_POL_POSITIVE);
+
 	/* have some default contrast/backlight settings */
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, contrast_ctr);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, ATMEL_LCDC_CVAL_DEFAULT);
@@ -711,11 +715,35 @@ static int atmel_lcdfb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static int atmel_lcdfb_blank(int blank_mode, struct fb_info *info)
+{
+	struct atmel_lcdfb_info *sinfo = info->par;
+
+	switch (blank_mode) {
+	case FB_BLANK_UNBLANK:
+	case FB_BLANK_NORMAL:
+		atmel_lcdfb_start(sinfo);
+		break;
+	case FB_BLANK_VSYNC_SUSPEND:
+	case FB_BLANK_HSYNC_SUSPEND:
+		break;
+	case FB_BLANK_POWERDOWN:
+		atmel_lcdfb_stop(sinfo);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* let fbcon do a soft blank for us */
+	return ((blank_mode == FB_BLANK_NORMAL) ? 1 : 0);
+}
+
 static struct fb_ops atmel_lcdfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_check_var	= atmel_lcdfb_check_var,
 	.fb_set_par	= atmel_lcdfb_set_par,
 	.fb_setcolreg	= atmel_lcdfb_setcolreg,
+	.fb_blank	= atmel_lcdfb_blank,
 	.fb_pan_display	= atmel_lcdfb_pan_display,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
@@ -817,6 +845,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		sinfo->guard_time = pdata_sinfo->guard_time;
 		sinfo->smem_len = pdata_sinfo->smem_len;
 		sinfo->lcdcon_is_backlight = pdata_sinfo->lcdcon_is_backlight;
+		sinfo->lcdcon_pol_negative = pdata_sinfo->lcdcon_pol_negative;
 		sinfo->lcd_wiring_mode = pdata_sinfo->lcd_wiring_mode;
 	} else {
 		dev_err(dev, "cannot get default configuration\n");

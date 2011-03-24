@@ -490,7 +490,7 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 
 	ovl->manager = mgr;
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	/* XXX: on manual update display, in auto update mode, a bug happens
 	 * here. When an overlay is first enabled on LCD, then it's disabled,
 	 * and the manager is changed to TV, we sometimes get SYNC_LOST_DIGIT
@@ -499,7 +499,7 @@ static int omap_dss_set_manager(struct omap_overlay *ovl,
 	 * but I don't understand how or why. */
 	msleep(40);
 	dispc_set_channel_out(ovl->id, mgr->id);
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	return 0;
 }
@@ -679,7 +679,8 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 			lcd2_mgr->set_device(lcd2_mgr, dssdev);
 			mgr = lcd2_mgr;
 		}
-	} else if (dssdev->type != OMAP_DISPLAY_TYPE_VENC) {
+	} else if (dssdev->type != OMAP_DISPLAY_TYPE_VENC
+			&& dssdev->type != OMAP_DISPLAY_TYPE_HDMI) {
 		if (!lcd_mgr->device || force) {
 			if (lcd_mgr->device)
 				lcd_mgr->unset_device(lcd_mgr);
@@ -688,7 +689,8 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 		}
 	}
 
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC
+			|| dssdev->type == OMAP_DISPLAY_TYPE_HDMI) {
 		if (!tv_mgr->device || force) {
 			if (tv_mgr->device)
 				tv_mgr->unset_device(tv_mgr);
