@@ -3945,18 +3945,20 @@ static void drbdd(struct drbd_tconn *tconn)
 	int err;
 
 	while (get_t_state(&tconn->receiver) == RUNNING) {
+		struct data_cmd *cmd;
+
 		drbd_thread_current_set_cpu(&tconn->receiver);
 		if (drbd_recv_header(tconn, &pi))
 			goto err_out;
 
-		if (unlikely(pi.cmd >= ARRAY_SIZE(drbd_cmd_handler) ||
-		    !drbd_cmd_handler[pi.cmd].mdev_fn)) {
+		cmd = &drbd_cmd_handler[pi.cmd];
+		if (unlikely(pi.cmd >= ARRAY_SIZE(drbd_cmd_handler) || !cmd->mdev_fn)) {
 			conn_err(tconn, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
 			goto err_out;
 		}
 
-		shs = drbd_cmd_handler[pi.cmd].pkt_size - sizeof(struct p_header);
-		if (pi.size - shs > 0 && !drbd_cmd_handler[pi.cmd].expect_payload) {
+		shs = cmd->pkt_size - sizeof(struct p_header);
+		if (pi.size - shs > 0 && !cmd->expect_payload) {
 			conn_err(tconn, "No payload expected %s l:%d\n", cmdname(pi.cmd), pi.size);
 			goto err_out;
 		}
@@ -3967,12 +3969,12 @@ static void drbdd(struct drbd_tconn *tconn)
 				goto err_out;
 		}
 
-		if (drbd_cmd_handler[pi.cmd].fa_type == CONN) {
-			err = drbd_cmd_handler[pi.cmd].conn_fn(tconn, pi.cmd, pi.size - shs);
+		if (cmd->fa_type == CONN) {
+			err = cmd->conn_fn(tconn, pi.cmd, pi.size - shs);
 		} else {
 			struct drbd_conf *mdev = vnr_to_mdev(tconn, pi.vnr);
 			err = mdev ?
-				drbd_cmd_handler[pi.cmd].mdev_fn(mdev, pi.cmd, pi.size - shs) :
+				cmd->mdev_fn(mdev, pi.cmd, pi.size - shs) :
 				tconn_receive_skip(tconn, pi.cmd, pi.size - shs);
 		}
 
