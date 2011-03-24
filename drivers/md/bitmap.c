@@ -347,7 +347,7 @@ static void write_page(struct bitmap *bitmap, struct page *page, int wait)
 			atomic_inc(&bitmap->pending_writes);
 			set_buffer_locked(bh);
 			set_buffer_mapped(bh);
-			submit_bh(WRITE | REQ_UNPLUG | REQ_SYNC, bh);
+			submit_bh(WRITE | REQ_SYNC, bh);
 			bh = bh->b_this_page;
 		}
 
@@ -1339,8 +1339,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 			prepare_to_wait(&bitmap->overflow_wait, &__wait,
 					TASK_UNINTERRUPTIBLE);
 			spin_unlock_irq(&bitmap->lock);
-			md_unplug(bitmap->mddev);
-			schedule();
+			io_schedule();
 			finish_wait(&bitmap->overflow_wait, &__wait);
 			continue;
 		}

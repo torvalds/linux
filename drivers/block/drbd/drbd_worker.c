@@ -792,7 +792,6 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 		 * queue (or even the read operations for those packets
 		 * is not finished by now).   Retry in 100ms. */
 
-		drbd_kick_lo(mdev);
 		__set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ / 10);
 		w = kmalloc(sizeof(struct drbd_work), GFP_ATOMIC);

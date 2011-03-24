@@ -55,8 +55,7 @@ static int mmc_queue_thread(void *d)
 
 		spin_lock_irq(q->queue_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!blk_queue_plugged(q))
-			req = blk_fetch_request(q);
+		req = blk_fetch_request(q);
 		mq->req = req;
 		spin_unlock_irq(q->queue_lock);
 

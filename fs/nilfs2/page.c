@@ -493,15 +493,14 @@ unsigned nilfs_page_count_clean_buffers(struct page *page,
 }
 
 void nilfs_mapping_init(struct address_space *mapping,
-			struct backing_dev_info *bdi,
-			const struct address_space_operations *aops)
+			struct backing_dev_info *bdi)
 {
 	mapping->host = NULL;
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	mapping->assoc_mapping = NULL;
 	mapping->backing_dev_info = bdi;
-	mapping->a_ops = aops;
+	mapping->a_ops = NULL;
 }
 
 /*

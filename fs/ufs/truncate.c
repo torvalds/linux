@@ -479,7 +479,7 @@ int ufs_truncate(struct inode *inode, loff_t old_i_size)
 			break;
 		if (IS_SYNC(inode) && (inode->i_state & I_DIRTY))
 			ufs_sync_inode (inode);
-		blk_run_address_space(inode->i_mapping);
+		blk_flush_plug(current);
 		yield();
 	}
 

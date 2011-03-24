@@ -840,7 +840,6 @@ static int bm_rw(struct drbd_conf *mdev, int rw) __must_hold(local)
 	for (i = 0; i < num_pages; i++)
 		bm_page_io_async(mdev, b, i, rw);
 
-	drbd_blk_run_queue(bdev_get_queue(mdev->ldev->md_bdev));
 	wait_event(b->bm_io_wait, atomic_read(&b->bm_async_io) == 0);
 
 	if (test_bit(BM_MD_IO_ERROR, &b->bm_flags)) {

@@ -80,7 +80,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 
 	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &mdev->flags))
 		rw |= REQ_FUA;
-	rw |= REQ_UNPLUG | REQ_SYNC;
+	rw |= REQ_SYNC;
 
 	bio = bio_alloc(GFP_NOIO, 1);
 	bio->bi_bdev = bdev->md_bdev;
@@ -688,8 +688,6 @@ void drbd_al_to_on_disk_bm(struct drbd_conf *mdev)
 			submit_bio(WRITE, bios[i]);
 		}
 	}
-
-	drbd_blk_run_queue(bdev_get_queue(mdev->ldev->md_bdev));
 
 	/* always (try to) flush bitmap to stable storage */
 	drbd_md_flush(mdev);
