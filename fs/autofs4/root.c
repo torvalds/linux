@@ -444,6 +444,8 @@ int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 
 	/* The daemon never waits. */
 	if (autofs4_oz_mode(sbi)) {
+		if (rcu_walk)
+			return 0;
 		if (!d_mountpoint(dentry))
 			return -EISDIR;
 		return 0;
