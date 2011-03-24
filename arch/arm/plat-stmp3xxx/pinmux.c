@@ -495,8 +495,7 @@ static void stmp3xxx_gpio_irq(u32 irq, struct irq_desc *desc)
 
 	while (stat) {
 		if (stat & 1)
-			irq_desc[gpio_irq].handle_irq(gpio_irq,
-				&irq_desc[gpio_irq]);
+			generic_handle_irq(gpio_irq);
 		gpio_irq++;
 		stat >>= 1;
 	}
