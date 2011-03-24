@@ -71,6 +71,9 @@ static struct usb_device_id btusb_table[] = {
 	/* Apple MacBookAir3,1, MacBookAir3,2 */
 	{ USB_DEVICE(0x05ac, 0x821b) },
 
+	/* Apple MacBookPro8,2 */
+	{ USB_DEVICE(0x05ac, 0x821a) },
+
 	/* AVM BlueFRITZ! USB v2.0 */
 	{ USB_DEVICE(0x057c, 0x3800) },
 
