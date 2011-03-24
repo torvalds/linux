@@ -43,6 +43,8 @@ struct pnfs_layout_segment {
 	atomic_t pls_refcount;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
+	struct rpc_cred	*pls_lc_cred; /* LAYOUTCOMMIT credential */
+	loff_t pls_end_pos; /* LAYOUTCOMMIT write end */
 };
 
 enum pnfs_try_status {
@@ -74,6 +76,13 @@ struct pnfs_layoutdriver_type {
 	/* test for nfs page cache coalescing */
 	int (*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
 
+	/* Returns true if layoutdriver wants to divert this request to
+	 * driver's commit routine.
+	 */
+	bool (*mark_pnfs_commit)(struct pnfs_layout_segment *lseg);
+	struct list_head * (*choose_commit_list) (struct nfs_page *req);
+	int (*commit_pagelist)(struct inode *inode, struct list_head *mds_pages, int how);
+
 	/*
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
 	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
@@ -100,7 +109,6 @@ struct pnfs_device {
 	unsigned int  layout_type;
 	unsigned int  mincount;
 	struct page **pages;
-	void          *area;
 	unsigned int  pgbase;
 	unsigned int  pglen;
 };
@@ -145,7 +153,8 @@ bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier);
-
+void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
+int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 
 static inline int lo_fail_bit(u32 iomode)
 {
@@ -167,6 +176,51 @@ get_lseg(struct pnfs_layout_segment *lseg)
 static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 {
 	return nfss->pnfs_curr_ld != NULL;
+}
+
+static inline void
+pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
+{
+	if (lseg) {
+		struct pnfs_layoutdriver_type *ld;
+
+		ld = NFS_SERVER(req->wb_page->mapping->host)->pnfs_curr_ld;
+		if (ld->mark_pnfs_commit && ld->mark_pnfs_commit(lseg)) {
+			set_bit(PG_PNFS_COMMIT, &req->wb_flags);
+			req->wb_commit_lseg = get_lseg(lseg);
+		}
+	}
+}
+
+static inline int
+pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
+{
+	if (!test_and_clear_bit(NFS_INO_PNFS_COMMIT, &NFS_I(inode)->flags))
+		return PNFS_NOT_ATTEMPTED;
+	return NFS_SERVER(inode)->pnfs_curr_ld->commit_pagelist(inode, mds_pages, how);
+}
+
+static inline struct list_head *
+pnfs_choose_commit_list(struct nfs_page *req, struct list_head *mds)
+{
+	struct list_head *rv;
+
+	if (test_and_clear_bit(PG_PNFS_COMMIT, &req->wb_flags)) {
+		struct inode *inode = req->wb_commit_lseg->pls_layout->plh_inode;
+
+		set_bit(NFS_INO_PNFS_COMMIT, &NFS_I(inode)->flags);
+		rv = NFS_SERVER(inode)->pnfs_curr_ld->choose_commit_list(req);
+		/* matched by ref taken when PG_PNFS_COMMIT is set */
+		put_lseg(req->wb_commit_lseg);
+	} else
+		rv = mds;
+	return rv;
+}
+
+static inline void pnfs_clear_request_commit(struct nfs_page *req)
+{
+	if (test_and_clear_bit(PG_PNFS_COMMIT, &req->wb_flags))
+		put_lseg(req->wb_commit_lseg);
 }
 
 #else  /* CONFIG_NFS_V4_1 */
@@ -252,6 +306,31 @@ pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *ino)
 	pgio->pg_test = NULL;
 }
 
+static inline void
+pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
+{
+}
+
+static inline int
+pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
+{
+	return PNFS_NOT_ATTEMPTED;
+}
+
+static inline struct list_head *
+pnfs_choose_commit_list(struct nfs_page *req, struct list_head *mds)
+{
+	return mds;
+}
+
+static inline void pnfs_clear_request_commit(struct nfs_page *req)
+{
+}
+
+static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)
+{
+	return 0;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */
