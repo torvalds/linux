@@ -344,10 +344,6 @@ static void sun4u_irq_disable(struct irq_data *data)
 static void sun4u_irq_eoi(struct irq_data *data)
 {
 	struct irq_handler_data *handler_data = data->handler_data;
-	struct irq_desc *desc = irq_desc + data->irq;
-
-	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		return;
 
 	if (likely(handler_data))
 		upa_writeq(ICLR_IDLE, handler_data->iclr);
@@ -402,11 +398,7 @@ static void sun4v_irq_disable(struct irq_data *data)
 static void sun4v_irq_eoi(struct irq_data *data)
 {
 	unsigned int ino = irq_table[data->irq].dev_ino;
-	struct irq_desc *desc = irq_desc + data->irq;
 	int err;
-
-	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		return;
 
 	err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
 	if (err != HV_EOK)
@@ -481,12 +473,8 @@ static void sun4v_virq_disable(struct irq_data *data)
 
 static void sun4v_virq_eoi(struct irq_data *data)
 {
-	struct irq_desc *desc = irq_desc + data->irq;
 	unsigned long dev_handle, dev_ino;
 	int err;
-
-	if (unlikely(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		return;
 
 	dev_handle = irq_table[data->irq].dev_handle;
 	dev_ino = irq_table[data->irq].dev_ino;
@@ -505,6 +493,7 @@ static struct irq_chip sun4u_irq = {
 	.irq_disable		= sun4u_irq_disable,
 	.irq_eoi		= sun4u_irq_eoi,
 	.irq_set_affinity	= sun4u_set_affinity,
+	.flags			= IRQCHIP_EOI_IF_HANDLED,
 };
 
 static struct irq_chip sun4v_irq = {
@@ -513,6 +502,7 @@ static struct irq_chip sun4v_irq = {
 	.irq_disable		= sun4v_irq_disable,
 	.irq_eoi		= sun4v_irq_eoi,
 	.irq_set_affinity	= sun4v_set_affinity,
+	.flags			= IRQCHIP_EOI_IF_HANDLED,
 };
 
 static struct irq_chip sun4v_virq = {
@@ -521,16 +511,15 @@ static struct irq_chip sun4v_virq = {
 	.irq_disable		= sun4v_virq_disable,
 	.irq_eoi		= sun4v_virq_eoi,
 	.irq_set_affinity	= sun4v_virt_set_affinity,
+	.flags			= IRQCHIP_EOI_IF_HANDLED,
 };
 
-static void pre_flow_handler(unsigned int irq, struct irq_desc *desc)
+static void pre_flow_handler(struct irq_data *d)
 {
-	struct irq_handler_data *handler_data = get_irq_data(irq);
-	unsigned int ino = irq_table[irq].dev_ino;
+	struct irq_handler_data *handler_data = irq_data_get_irq_handler_data(d);
+	unsigned int ino = irq_table[d->irq].dev_ino;
 
 	handler_data->pre_handler(ino, handler_data->arg1, handler_data->arg2);
-
-	handle_fasteoi_irq(irq, desc);
 }
 
 void irq_install_pre_handler(int irq,
@@ -538,13 +527,12 @@ void irq_install_pre_handler(int irq,
 			     void *arg1, void *arg2)
 {
 	struct irq_handler_data *handler_data = get_irq_data(irq);
-	struct irq_desc *desc = irq_desc + irq;
 
 	handler_data->pre_handler = func;
 	handler_data->arg1 = arg1;
 	handler_data->arg2 = arg2;
 
-	desc->handle_irq = pre_flow_handler;
+	__irq_set_preflow_handler(irq, pre_flow_handler);
 }
 
 unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
@@ -734,7 +722,6 @@ void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 	orig_sp = set_hardirq_stack();
 
 	while (bucket_pa) {
-		struct irq_desc *desc;
 		unsigned long next_pa;
 		unsigned int irq;
 
@@ -742,10 +729,7 @@ void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 		irq = bucket_get_irq(bucket_pa);
 		bucket_clear_chain_pa(bucket_pa);
 
-		desc = irq_desc + irq;
-
-		if (!(desc->status & IRQ_DISABLED))
-			desc->handle_irq(irq, desc);
+		generic_handle_irq(irq);
 
 		bucket_pa = next_pa;
 	}
