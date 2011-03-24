@@ -172,6 +172,11 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 		length += sizeof(dirh);
 
 		dir_count = le32_to_cpu(dirh.count) + 1;
+
+		/* dir_count should never be larger than 256 */
+		if (dir_count > 256)
+			goto failed_read;
+
 		while (dir_count--) {
 			/*
 			 * Read directory entry.
@@ -182,6 +187,10 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 				goto failed_read;
 
 			size = le16_to_cpu(dire->size) + 1;
+
+			/* size should never be larger than SQUASHFS_NAME_LEN */
+			if (size > SQUASHFS_NAME_LEN)
+				goto failed_read;
 
 			err = squashfs_read_metadata(inode->i_sb, dire->name,
 					&block, &offset, size);
