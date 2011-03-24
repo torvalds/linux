@@ -63,7 +63,7 @@ void intc_set_prio_level(unsigned int irq, unsigned int level)
 
 static void intc_redirect_irq(unsigned int irq, struct irq_desc *desc)
 {
-	generic_handle_irq((unsigned int)get_irq_data(irq));
+	generic_handle_irq((unsigned int)irq_get_handler_data(irq));
 }
 
 static void __init intc_register_irq(struct intc_desc *desc,
@@ -116,9 +116,9 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	irq_data = irq_get_irq_data(irq);
 
 	disable_irq_nosync(irq);
-	set_irq_chip_and_handler_name(irq, &d->chip,
-				      handle_level_irq, "level");
-	set_irq_chip_data(irq, (void *)data[primary]);
+	irq_set_chip_and_handler_name(irq, &d->chip, handle_level_irq,
+				      "level");
+	irq_set_chip_data(irq, (void *)data[primary]);
 
 	/*
 	 * set priority level
@@ -340,9 +340,9 @@ int __init register_intc_controller(struct intc_desc *desc)
 			vect2->enum_id = 0;
 
 			/* redirect this interrupts to the first one */
-			set_irq_chip(irq2, &dummy_irq_chip);
-			set_irq_chained_handler(irq2, intc_redirect_irq);
-			set_irq_data(irq2, (void *)irq);
+			irq_set_chip(irq2, &dummy_irq_chip);
+			irq_set_chained_handler(irq2, intc_redirect_irq);
+			irq_set_handler_data(irq2, (void *)irq);
 		}
 	}
 

@@ -125,7 +125,7 @@ static struct irq_chip se7206_irq_chip __read_mostly = {
 static void make_se7206_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	set_irq_chip_and_handler_name(irq, &se7206_irq_chip,
+	irq_set_chip_and_handler_name(irq, &se7206_irq_chip,
 				      handle_level_irq, "level");
 	disable_se7206_irq(irq_get_irq_data(irq));
 }
