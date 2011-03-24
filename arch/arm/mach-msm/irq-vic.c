@@ -357,8 +357,8 @@ void __init msm_init_irq(void)
 	writel(3, VIC_INT_MASTEREN);
 
 	for (n = 0; n < NR_MSM_IRQS; n++) {
-		set_irq_chip(n, &msm_irq_chip);
-		set_irq_handler(n, handle_level_irq);
+		irq_set_chip(n, &msm_irq_chip);
+		irq_set_handler(n, handle_level_irq);
 		set_irq_flags(n, IRQF_VALID);
 	}
 }

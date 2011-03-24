@@ -202,11 +202,11 @@ void __init h7202_init_irq (void)
 	for (irq = IRQ_TIMER1;
 	                  irq < IRQ_CHAINED_TIMERX(NR_TIMERX_IRQS); irq++) {
 		__mask_timerx_irq(irq);
-		set_irq_chip(irq, &h7202_timerx_chip);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip(irq, &h7202_timerx_chip);
+		irq_set_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID );
 	}
-	set_irq_chained_handler(IRQ_TIMERX, h7202_timerx_demux_handler);
+	irq_set_chained_handler(IRQ_TIMERX, h7202_timerx_demux_handler);
 
 	h720x_init_irq();
 }

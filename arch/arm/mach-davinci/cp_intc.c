@@ -167,9 +167,9 @@ void __init cp_intc_init(void)
 
 	/* Set up genirq dispatching for cp_intc */
 	for (i = 0; i < num_irq; i++) {
-		set_irq_chip(i, &cp_intc_irq_chip);
+		irq_set_chip(i, &cp_intc_irq_chip);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-		set_irq_handler(i, handle_edge_irq);
+		irq_set_handler(i, handle_edge_irq);
 	}
 
 	/* Enable global interrupt */

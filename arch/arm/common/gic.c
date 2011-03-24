@@ -213,8 +213,8 @@ static int gic_set_wake(struct irq_data *d, unsigned int on)
 
 static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct gic_chip_data *chip_data = get_irq_data(irq);
-	struct irq_chip *chip = get_irq_chip(irq);
+	struct gic_chip_data *chip_data = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_get_chip(irq);
 	unsigned int cascade_irq, gic_irq;
 	unsigned long status;
 
@@ -257,9 +257,9 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 {
 	if (gic_nr >= MAX_GIC_NR)
 		BUG();
-	if (set_irq_data(irq, &gic_data[gic_nr]) != 0)
+	if (irq_set_handler_data(irq, &gic_data[gic_nr]) != 0)
 		BUG();
-	set_irq_chained_handler(irq, gic_handle_cascade_irq);
+	irq_set_chained_handler(irq, gic_handle_cascade_irq);
 }
 
 static void __init gic_dist_init(struct gic_chip_data *gic,
@@ -319,9 +319,9 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	 * Setup the Linux IRQ subsystem.
 	 */
 	for (i = irq_start; i < irq_limit; i++) {
-		set_irq_chip(i, &gic_chip);
-		set_irq_chip_data(i, gic);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip(i, &gic_chip);
+		irq_set_chip_data(i, gic);
+		irq_set_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 

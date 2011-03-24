@@ -474,9 +474,9 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 	for (i = 0; i < ngpio; i++) {
 		unsigned int irq = secondary_irq_base + i;
 
-		set_irq_chip(irq, &orion_gpio_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
-		set_irq_chip_data(irq, ochip);
+		irq_set_chip(irq, &orion_gpio_irq_chip);
+		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_data(irq, ochip);
 		irq_set_status_flags(irq, IRQ_LEVEL);
 		set_irq_flags(irq, IRQF_VALID);
 	}

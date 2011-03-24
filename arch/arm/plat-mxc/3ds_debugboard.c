@@ -181,12 +181,12 @@ int __init mxc_expio_init(u32 base, u32 p_irq)
 	__raw_writew(0x1F, brd_io + INTR_MASK_REG);
 	for (i = MXC_EXP_IO_BASE;
 	     i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES); i++) {
-		set_irq_chip(i, &expio_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip(i, &expio_irq_chip);
+		irq_set_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	set_irq_type(p_irq, IRQF_TRIGGER_LOW);
-	set_irq_chained_handler(p_irq, mxc_expio_irq_handler);
+	irq_set_irq_type(p_irq, IRQF_TRIGGER_LOW);
+	irq_set_chained_handler(p_irq, mxc_expio_irq_handler);
 
 	/* Register Lan device on the debugboard */
 	smsc911x_resources[0].start = LAN9217_BASE_ADDR(base);

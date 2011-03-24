@@ -231,20 +231,29 @@ void __init ep93xx_gpio_init_irq(void)
 
 	for (gpio_irq = gpio_to_irq(0);
 	     gpio_irq <= gpio_to_irq(EP93XX_GPIO_LINE_MAX_IRQ); ++gpio_irq) {
-		set_irq_chip(gpio_irq, &ep93xx_gpio_irq_chip);
-		set_irq_handler(gpio_irq, handle_level_irq);
+		irq_set_chip(gpio_irq, &ep93xx_gpio_irq_chip);
+		irq_set_handler(gpio_irq, handle_level_irq);
 		set_irq_flags(gpio_irq, IRQF_VALID);
 	}
 
-	set_irq_chained_handler(IRQ_EP93XX_GPIO_AB, ep93xx_gpio_ab_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO0MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO1MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO2MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO3MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO4MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO5MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO6MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO7MUX, ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO_AB,
+				ep93xx_gpio_ab_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO0MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO1MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO2MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO3MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO4MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO5MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO6MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO7MUX,
+				ep93xx_gpio_f_irq_handler);
 }
 
 

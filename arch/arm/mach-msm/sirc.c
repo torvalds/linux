@@ -158,15 +158,15 @@ void __init msm_init_sirc(void)
 	wake_enable = 0;
 
 	for (i = FIRST_SIRC_IRQ; i < LAST_SIRC_IRQ; i++) {
-		set_irq_chip(i, &sirc_irq_chip);
-		set_irq_handler(i, handle_edge_irq);
+		irq_set_chip(i, &sirc_irq_chip);
+		irq_set_handler(i, handle_edge_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(sirc_reg_table); i++) {
-		set_irq_chained_handler(sirc_reg_table[i].cascade_irq,
+		irq_set_chained_handler(sirc_reg_table[i].cascade_irq,
 					sirc_irq_handler);
-		set_irq_wake(sirc_reg_table[i].cascade_irq, 1);
+		irq_set_irq_wake(sirc_reg_table[i].cascade_irq, 1);
 	}
 	return;
 }

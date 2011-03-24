@@ -223,8 +223,8 @@ void __init omap_init_irq(void)
 	       nr_of_irqs, nr_banks, nr_banks > 1 ? "s" : "");
 
 	for (i = 0; i < nr_of_irqs; i++) {
-		set_irq_chip(i, &omap_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip(i, &omap_irq_chip);
+		irq_set_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

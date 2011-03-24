@@ -328,12 +328,12 @@ static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	if (on) {
 		if (bitmap_empty(msm_gpio.wake_irqs, NR_GPIO_IRQS))
-			set_irq_wake(TLMM_SCSS_SUMMARY_IRQ, 1);
+			irq_set_irq_wake(TLMM_SCSS_SUMMARY_IRQ, 1);
 		set_bit(gpio, msm_gpio.wake_irqs);
 	} else {
 		clear_bit(gpio, msm_gpio.wake_irqs);
 		if (bitmap_empty(msm_gpio.wake_irqs, NR_GPIO_IRQS))
-			set_irq_wake(TLMM_SCSS_SUMMARY_IRQ, 0);
+			irq_set_irq_wake(TLMM_SCSS_SUMMARY_IRQ, 0);
 	}
 
 	return 0;
@@ -362,12 +362,12 @@ static int __devinit msm_gpio_probe(struct platform_device *dev)
 
 	for (i = 0; i < msm_gpio.gpio_chip.ngpio; ++i) {
 		irq = msm_gpio_to_irq(&msm_gpio.gpio_chip, i);
-		set_irq_chip(irq, &msm_gpio_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &msm_gpio_irq_chip);
+		irq_set_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	set_irq_chained_handler(TLMM_SCSS_SUMMARY_IRQ,
+	irq_set_chained_handler(TLMM_SCSS_SUMMARY_IRQ,
 				msm_summary_irq_handler);
 	return 0;
 }
@@ -379,7 +379,7 @@ static int __devexit msm_gpio_remove(struct platform_device *dev)
 	if (ret < 0)
 		return ret;
 
-	set_irq_handler(TLMM_SCSS_SUMMARY_IRQ, NULL);
+	irq_set_handler(TLMM_SCSS_SUMMARY_IRQ, NULL);
 
 	return 0;
 }

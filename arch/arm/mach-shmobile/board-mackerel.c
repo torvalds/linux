@@ -1124,15 +1124,15 @@ static void __init mackerel_init(void)
 
 	/* enable Keypad */
 	gpio_request(GPIO_FN_IRQ9_42,	NULL);
-	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable Touchscreen */
 	gpio_request(GPIO_FN_IRQ7_40,	NULL);
-	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
-	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable SDHI0 */
 	gpio_request(GPIO_FN_SDHICD0, NULL);

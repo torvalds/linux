@@ -287,7 +287,7 @@ static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 	else
 		wakeups[bank] &= ~mask;
 
-	set_irq_wake(gpio_chip[bank].bank->id, state);
+	irq_set_irq_wake(gpio_chip[bank].bank->id, state);
 
 	return 0;
 }
@@ -511,8 +511,8 @@ void __init at91_gpio_irq_setup(void)
 			 * Can use the "simple" and not "edge" handler since it's
 			 * shorter, and the AIC handles interrupts sanely.
 			 */
-			set_irq_chip(pin, &gpio_irqchip);
-			set_irq_handler(pin, handle_simple_irq);
+			irq_set_chip(pin, &gpio_irqchip);
+			irq_set_handler(pin, handle_simple_irq);
 			set_irq_flags(pin, IRQF_VALID);
 		}
 
@@ -523,8 +523,8 @@ void __init at91_gpio_irq_setup(void)
 		if (prev && prev->next == this)
 			continue;
 
-		set_irq_chip_data(id, this);
-		set_irq_chained_handler(id, gpio_irq_handler);
+		irq_set_chip_data(id, this);
+		irq_set_chained_handler(id, gpio_irq_handler);
 	}
 	pr_info("AT91: %d gpio irqs in %d banks\n", pin - PIN_BASE, gpio_banks);
 }

@@ -117,9 +117,9 @@ static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 	for (offs = 0; offs < 3; offs++) {
 		irq = uirq->base_irq + offs;
 
-		set_irq_chip(irq, &s3c_irq_uart);
-		set_irq_chip_data(irq, uirq);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &s3c_irq_uart);
+		irq_set_chip_data(irq, uirq);
+		irq_set_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 

@@ -136,8 +136,8 @@ void __init vt8500_init_irq(void)
 			/* Disable all interrupts and route them to IRQ */
 			writeb(0x00, ic_regbase + VT8500_IC_DCTR + i);
 
-			set_irq_chip(i, &vt8500_irq_chip);
-			set_irq_handler(i, handle_level_irq);
+			irq_set_chip(i, &vt8500_irq_chip);
+			irq_set_handler(i, handle_level_irq);
 			set_irq_flags(i, IRQF_VALID);
 		}
 	} else {
@@ -167,8 +167,8 @@ void __init wm8505_init_irq(void)
 				writeb(0x00, sic_regbase + VT8500_IC_DCTR
 								+ i - 64);
 
-			set_irq_chip(i, &vt8500_irq_chip);
-			set_irq_handler(i, handle_level_irq);
+			irq_set_chip(i, &vt8500_irq_chip);
+			irq_set_handler(i, handle_level_irq);
 			set_irq_flags(i, IRQF_VALID);
 		}
 	} else {

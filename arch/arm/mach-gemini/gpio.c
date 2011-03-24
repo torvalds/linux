@@ -217,13 +217,13 @@ void __init gemini_gpio_init(void)
 
 		for (j = GPIO_IRQ_BASE + i * 32;
 		     j < GPIO_IRQ_BASE + (i + 1) * 32; j++) {
-			set_irq_chip(j, &gpio_irq_chip);
-			set_irq_handler(j, handle_edge_irq);
+			irq_set_chip(j, &gpio_irq_chip);
+			irq_set_handler(j, handle_edge_irq);
 			set_irq_flags(j, IRQF_VALID);
 		}
 
-		set_irq_chained_handler(IRQ_GPIO(i), gpio_irq_handler);
-		set_irq_data(IRQ_GPIO(i), (void *)i);
+		irq_set_chained_handler(IRQ_GPIO(i), gpio_irq_handler);
+		irq_set_handler_data(IRQ_GPIO(i), (void *)i);
 	}
 
 	BUG_ON(gpiochip_add(&gemini_gpio_chip));

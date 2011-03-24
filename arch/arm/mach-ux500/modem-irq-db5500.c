@@ -90,8 +90,8 @@ static irqreturn_t modem_cpu_irq_handler(int irq, void *data)
 
 static void create_virtual_irq(int irq, struct irq_chip *modem_irq_chip)
 {
-	set_irq_chip(irq, modem_irq_chip);
-	set_irq_handler(irq, handle_simple_irq);
+	irq_set_chip(irq, modem_irq_chip);
+	irq_set_handler(irq, handle_simple_irq);
 	set_irq_flags(irq, IRQF_VALID);
 
 	pr_debug("modem_irq: Created virtual IRQ %d\n", irq);
