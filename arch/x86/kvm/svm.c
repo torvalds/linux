@@ -376,7 +376,6 @@ struct svm_cpu_data {
 };
 
 static DEFINE_PER_CPU(struct svm_cpu_data *, svm_data);
-static uint32_t svm_features;
 
 struct svm_init_data {
 	int cpu;
@@ -801,8 +800,6 @@ static __init int svm_hardware_setup(void)
 		if (r)
 			goto err;
 	}
-
-	svm_features = cpuid_edx(SVM_CPUID_FUNC);
 
 	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
