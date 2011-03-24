@@ -844,8 +844,8 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 {
 	/* target parameters */
 	static struct param _params[] = {
-		{1, 1024, "invalid number of priority groups"},
-		{1, 1024, "invalid initial priority group number"},
+		{0, 1024, "invalid number of priority groups"},
+		{0, 1024, "invalid initial priority group number"},
 	};
 
 	int r;
@@ -878,6 +878,13 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	r = read_param(_params + 1, shift(&as), &next_pg_num, &ti->error);
 	if (r)
 		goto bad;
+
+	if ((!m->nr_priority_groups && next_pg_num) ||
+	    (m->nr_priority_groups && !next_pg_num)) {
+		ti->error = "invalid initial priority group";
+		r = -EINVAL;
+		goto bad;
+	}
 
 	/* parse the priority groups */
 	while (as.argc) {
@@ -1415,7 +1422,7 @@ static int multipath_status(struct dm_target *ti, status_type_t type,
 	else if (m->current_pg)
 		pg_num = m->current_pg->pg_num;
 	else
-			pg_num = 1;
+		pg_num = (m->nr_priority_groups ? 1 : 0);
 
 	DMEMIT("%u ", pg_num);
 
