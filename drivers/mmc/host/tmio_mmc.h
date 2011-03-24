@@ -17,36 +17,14 @@
 #define TMIO_MMC_H
 
 #include <linux/highmem.h>
+#include <linux/mmc/tmio.h>
 #include <linux/pagemap.h>
 
-/* Definitions for values the CTRL_STATUS register can take. */
-#define TMIO_STAT_CMDRESPEND    0x00000001
-#define TMIO_STAT_DATAEND       0x00000004
-#define TMIO_STAT_CARD_REMOVE   0x00000008
-#define TMIO_STAT_CARD_INSERT   0x00000010
-#define TMIO_STAT_SIGSTATE      0x00000020
-#define TMIO_STAT_WRPROTECT     0x00000080
-#define TMIO_STAT_CARD_REMOVE_A 0x00000100
-#define TMIO_STAT_CARD_INSERT_A 0x00000200
-#define TMIO_STAT_SIGSTATE_A    0x00000400
-#define TMIO_STAT_CMD_IDX_ERR   0x00010000
-#define TMIO_STAT_CRCFAIL       0x00020000
-#define TMIO_STAT_STOPBIT_ERR   0x00040000
-#define TMIO_STAT_DATATIMEOUT   0x00080000
-#define TMIO_STAT_RXOVERFLOW    0x00100000
-#define TMIO_STAT_TXUNDERRUN    0x00200000
-#define TMIO_STAT_CMDTIMEOUT    0x00400000
-#define TMIO_STAT_RXRDY         0x01000000
-#define TMIO_STAT_TXRQ          0x02000000
-#define TMIO_STAT_ILL_FUNC      0x20000000
-#define TMIO_STAT_CMD_BUSY      0x40000000
-#define TMIO_STAT_ILL_ACCESS    0x80000000
-
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
-#define TMIO_SDIO_STAT_IOIRQ		0x0001
+#define TMIO_SDIO_STAT_IOIRQ	0x0001
 #define TMIO_SDIO_STAT_EXPUB52	0x4000
-#define TMIO_SDIO_STAT_EXWT		0x8000
-#define TMIO_SDIO_MASK_ALL		0xc007
+#define TMIO_SDIO_STAT_EXWT	0x8000
+#define TMIO_SDIO_MASK_ALL	0xc007
 
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
