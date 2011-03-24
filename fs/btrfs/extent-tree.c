@@ -440,7 +440,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	 * allocate blocks for the tree root we can't do the fast caching since
 	 * we likely hold important locks.
 	 */
-	if (!trans->transaction->in_commit &&
+	if (trans && (!trans->transaction->in_commit) &&
 	    (root && root != root->fs_info->tree_root)) {
 		spin_lock(&cache->lock);
 		if (cache->cached != BTRFS_CACHE_NO) {
@@ -8777,4 +8777,52 @@ int btrfs_error_discard_extent(struct btrfs_root *root, u64 bytenr,
 			       u64 num_bytes, u64 *actual_bytes)
 {
 	return btrfs_discard_extent(root, bytenr, num_bytes, actual_bytes);
+}
+
+int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_block_group_cache *cache = NULL;
+	u64 group_trimmed;
+	u64 start;
+	u64 end;
+	u64 trimmed = 0;
+	int ret = 0;
+
+	cache = btrfs_lookup_block_group(fs_info, range->start);
+
+	while (cache) {
+		if (cache->key.objectid >= (range->start + range->len)) {
+			btrfs_put_block_group(cache);
+			break;
+		}
+
+		start = max(range->start, cache->key.objectid);
+		end = min(range->start + range->len,
+				cache->key.objectid + cache->key.offset);
+
+		if (end - start >= range->minlen) {
+			if (!block_group_cache_done(cache)) {
+				ret = cache_block_group(cache, NULL, root, 0);
+				if (!ret)
+					wait_block_group_cache_done(cache);
+			}
+			ret = btrfs_trim_block_group(cache,
+						     &group_trimmed,
+						     start,
+						     end,
+						     range->minlen);
+
+			trimmed += group_trimmed;
+			if (ret) {
+				btrfs_put_block_group(cache);
+				break;
+			}
+		}
+
+		cache = next_block_group(fs_info->tree_root, cache);
+	}
+
+	range->len = trimmed;
+	return ret;
 }

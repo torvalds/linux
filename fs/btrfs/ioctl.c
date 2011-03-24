@@ -40,6 +40,7 @@
 #include <linux/xattr.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -256,6 +257,49 @@ static int btrfs_ioctl_getversion(struct file *file, int __user *arg)
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	return put_user(inode->i_generation, arg);
+}
+
+static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
+{
+	struct btrfs_root *root = fdentry(file)->d_sb->s_fs_info;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_device *device;
+	struct request_queue *q;
+	struct fstrim_range range;
+	u64 minlen = ULLONG_MAX;
+	u64 num_devices = 0;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	list_for_each_entry(device, &fs_info->fs_devices->devices, dev_list) {
+		if (!device->bdev)
+			continue;
+		q = bdev_get_queue(device->bdev);
+		if (blk_queue_discard(q)) {
+			num_devices++;
+			minlen = min((u64)q->limits.discard_granularity,
+				     minlen);
+		}
+	}
+	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	if (!num_devices)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&range, arg, sizeof(range)))
+		return -EFAULT;
+
+	range.minlen = max(range.minlen, minlen);
+	ret = btrfs_trim_fs(root, &range);
+	if (ret < 0)
+		return ret;
+
+	if (copy_to_user(arg, &range, sizeof(range)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static noinline int create_subvol(struct btrfs_root *root,
@@ -2426,6 +2470,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_setflags(file, argp);
 	case FS_IOC_GETVERSION:
 		return btrfs_ioctl_getversion(file, argp);
+	case FITRIM:
+		return btrfs_ioctl_fitrim(file, argp);
 	case BTRFS_IOC_SNAP_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 0);
 	case BTRFS_IOC_SNAP_CREATE_V2:
