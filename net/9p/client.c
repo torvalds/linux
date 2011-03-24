@@ -1220,27 +1220,6 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fsync);
 
-int p9_client_sync_fs(struct p9_fid *fid)
-{
-	int err = 0;
-	struct p9_req_t *req;
-	struct p9_client *clnt;
-
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TSYNC_FS fid %d\n", fid->fid);
-
-	clnt = fid->clnt;
-	req = p9_client_rpc(clnt, P9_TSYNCFS, "d", fid->fid);
-	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
-		goto error;
-	}
-	P9_DPRINTK(P9_DEBUG_9P, "<<< RSYNCFS fid %d\n", fid->fid);
-	p9_free_req(clnt, req);
-error:
-	return err;
-}
-EXPORT_SYMBOL(p9_client_sync_fs);
-
 int p9_client_clunk(struct p9_fid *fid)
 {
 	int err;

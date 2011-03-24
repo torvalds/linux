@@ -154,6 +154,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		retval = PTR_ERR(inode);
 		goto release_sb;
 	}
+
 	root = d_alloc_root(inode);
 	if (!root) {
 		iput(inode);
@@ -185,21 +186,10 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		p9stat_free(st);
 		kfree(st);
 	}
-	v9fs_fid_add(root, fid);
 	retval = v9fs_get_acl(inode, fid);
 	if (retval)
 		goto release_sb;
-	/*
-	 * Add the root fid to session info. This is used
-	 * for file system sync. We want a cloned fid here
-	 * so that we can do a sync_filesystem after a
-	 * shrink_dcache_for_umount
-	 */
-	v9ses->root_fid = v9fs_fid_clone(root);
-	if (IS_ERR(v9ses->root_fid)) {
-		retval = PTR_ERR(v9ses->root_fid);
-		goto release_sb;
-	}
+	v9fs_fid_add(root, fid);
 
 	P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	return dget(sb->s_root);
@@ -210,11 +200,15 @@ close_session:
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
 	return ERR_PTR(retval);
+
 release_sb:
 	/*
-	 * we will do the session_close and root dentry
-	 * release in the below call.
+	 * we will do the session_close and root dentry release
+	 * in the below call. But we need to clunk fid, because we haven't
+	 * attached the fid to dentry so it won't get clunked
+	 * automatically.
 	 */
+	p9_client_clunk(fid);
 	deactivate_locked_super(sb);
 	return ERR_PTR(retval);
 }
@@ -232,7 +226,7 @@ static void v9fs_kill_super(struct super_block *s)
 	P9_DPRINTK(P9_DEBUG_VFS, " %p\n", s);
 
 	kill_anon_super(s);
-	p9_client_clunk(v9ses->root_fid);
+
 	v9fs_session_cancel(v9ses);
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
@@ -283,14 +277,6 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	res = simple_statfs(dentry, buf);
 done:
 	return res;
-}
-
-static int v9fs_sync_fs(struct super_block *sb, int wait)
-{
-	struct v9fs_session_info *v9ses = sb->s_fs_info;
-
-	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_sync_fs: super_block %p\n", sb);
-	return p9_client_sync_fs(v9ses->root_fid);
 }
 
 static int v9fs_drop_inode(struct inode *inode)
@@ -365,7 +351,6 @@ static const struct super_operations v9fs_super_ops = {
 static const struct super_operations v9fs_super_ops_dotl = {
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
-	.sync_fs = v9fs_sync_fs,
 	.statfs = v9fs_statfs,
 	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
