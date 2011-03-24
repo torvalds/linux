@@ -1409,6 +1409,42 @@ void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active)
 
 }
 
+static void set_primary_clock_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x20;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x1B, value, 0x30);
+}
+
+static void set_secondary_clock_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x80;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x1B, value, 0xC0);
+}
+
 static void set_primary_pll_state(u8 state)
 {
 	u8 value;
@@ -1442,7 +1478,7 @@ static void set_secondary_pll_state(u8 state)
 		return;
 	}
 
-	via_write_reg_mask(VIASR, 0x2D, value, 0x08);
+	via_write_reg_mask(VIASR, 0x2D, value, 0x0C);
 }
 
 static u32 cle266_encode_pll(struct pll_config pll)
