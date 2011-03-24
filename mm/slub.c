@@ -1604,7 +1604,7 @@ static inline void note_cmpxchg_failure(const char *n,
 
 void init_kmem_cache_cpus(struct kmem_cache *s)
 {
-#if defined(CONFIG_CMPXCHG_LOCAL) && defined(CONFIG_PREEMPT)
+#ifdef CONFIG_CMPXCHG_LOCAL
 	int cpu;
 
 	for_each_possible_cpu(cpu)
