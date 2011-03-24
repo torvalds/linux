@@ -194,7 +194,6 @@ struct it7260_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
-
 struct akm8975_platform_data {
 	char layouts[3][3];
 	char project_name[64];

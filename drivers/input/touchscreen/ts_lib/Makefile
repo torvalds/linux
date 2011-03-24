@@ -1,0 +1,1 @@
+obj-y	+= tslib.o variance.o dejitter.o

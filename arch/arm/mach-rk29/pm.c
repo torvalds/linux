@@ -25,6 +25,7 @@
 #include <mach/sram.h>
 #include <mach/gpio.h>
 #include <mach/ddr.h>
+#include <mach/memtester.h>
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel(v, RK29_CRU_BASE + offset); readl(RK29_CRU_BASE + offset); } while (0)
@@ -71,12 +72,58 @@ static void/* inline*/ __sramfunc printch(char byte)
 		printch('\r');
 }
 
-static void inline printascii(const char *s)
+static void __sramfunc printascii(const char *s)
 {
 	while (*s) {
-		printch(*s);
-		s++;
+		if (*s == '\n')
+		{
+		    printch('\r');
+		}
+	    printch(*s);
+	    s++;
 	}
+}
+void print(const char *s)
+{
+    printascii(s);
+}
+
+void __sramfunc print_Hex(unsigned int hex)
+{
+	int i = 8;
+	printch('0');
+	printch('x');
+	while (i--) {
+		unsigned char c = (hex & 0xF0000000) >> 28;
+		printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		hex <<= 4;
+	}
+}
+
+void __sramfunc print_Dec (uint32_t n)
+{
+    if (n >= 10)
+    {
+        print_Dec(n / 10);
+        n %= 10;
+    }
+    printch((char)(n + '0'));
+}
+
+void print_Dec_3(uint32_t value)
+{
+    if(value<10)
+    {
+        print("  ");
+    }
+    else if(value<100)
+    {
+        print(" ");
+    }
+    else
+    {
+    }
+    print_Dec(value);
 }
 
 static void /* inline*/ __sramfunc printhex(unsigned int hex)
@@ -209,7 +256,10 @@ void __sramfunc ddr_testmode(void)
             //    printascii("self refresh success\n");
         }
     }
-    
+    else if(ddr_debug == 3)
+    {
+        memtester();
+    }
 }
 #else
 void __sramfunc ddr_testmode(void)
@@ -220,7 +270,7 @@ static void __sramfunc rk29_sram_suspend(void)
 {
 	u32 clksel0;
 
-    if(ddr_debug)
+    if((ddr_debug == 1)||(ddr_debug == 2))
         ddr_testmode();
 	printch('5');
 	ddr_suspend();
@@ -285,6 +335,11 @@ static int rk29_pm_enter(suspend_state_t state)
 {
 	u32 apll, cpll, gpll, mode, clksel0;
 	u32 clkgate[4];
+
+	// memory teseter
+    if(ddr_debug == 3)
+        ddr_testmode();
+        
 	printch('0');
 
 #ifdef CONFIG_RK29_PWM_REGULATOR

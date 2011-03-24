@@ -34,7 +34,7 @@
 
 #include <asm/io.h>
 
-#define ddr_print(x...) printk( "ddr init: " x )
+#define ddr_print(x...) printk( "DDR DEBUG: " x )
 
 // save_sp  must be static global variable  
 
@@ -1006,7 +1006,7 @@ refresh:
     pDDR_Reg->CCR |= HOSTEN;  //enable host port
 }
 
-void __sramfunc ddr_change_freq(uint32_t nMHz)
+uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 {
     uint32_t ret;
 	volatile u32 n;	
@@ -1057,6 +1057,7 @@ void __sramfunc ddr_change_freq(uint32_t nMHz)
     
     DDR_RESTORE_SP(save_sp);
     local_irq_restore(flags);
+    return ret;
     //ddr_print("%s exit\n", __func__);
 }
 void __sramfunc ddr_suspend(void)
@@ -1213,7 +1214,7 @@ static int __init ddr_probe(void)
 
     if((mem_type == DDRII) || (mem_type == DDR3))
     {
-        pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF);// | AUTOPD;
+        pDDR_Reg->ALPMR = LPPERIOD_POWER_DOWN(0xFF) | AUTOPD;
     }
     else
     {
@@ -1226,9 +1227,8 @@ static int __init ddr_probe(void)
     Hz = clk_get_rate(clk_get(NULL,"ddr"));
     MHz = Hz/1000000;
     
-    ddr_change_freq(MHz);
-    ddr_print("ddr pll freq=%dMHz\n", MHz);
-
-   return 0;
+    value = ddr_change_freq(MHz);
+    ddr_print("init success!!! freq=%dMHz\n", value);
+    return 0;
 }
 core_initcall_sync(ddr_probe);

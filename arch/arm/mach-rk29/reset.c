@@ -70,7 +70,8 @@ static void  pwm2gpiodefault(void)
 	*pGRF_GPIO2L_IOMUX &= ~(0x3<<6);
 	// set gpio to input
 	*pGPIO2_DIR &= ~(0x1<<3);
-//	testflag =1;
+
+	memset(RK29_PWM_BASE, 0, 0x40);
 } 
 
 
@@ -93,24 +94,22 @@ void  rk29_arch_reset(int mode, const char *cmd)
 {
 	u32 reg;
 
+	local_irq_disable();
+	local_fiq_disable();
+
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
+	delay_500ns();
+
 	/* from panic? */
 	if (system_state != SYSTEM_RESTART)
 		machine_power_off();
 
-	local_irq_disable();
-	local_fiq_disable();
 	pwm2gpiodefault();
 
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
-
-	delay_500ns();
-
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_SLOW, CRU_MODE_CON);
-
 	delay_500ns();
 
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_SLOW, CRU_MODE_CON);
-
 	delay_500ns();
 	
 	cru_writel(0, CRU_CLKGATE0_CON);

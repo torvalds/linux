@@ -2703,9 +2703,7 @@ static void __exit rk29fb_exit(void)
     platform_driver_unregister(&rk29fb_driver);
 }
 
-//subsys_initcall(rk29fb_init);
-
-module_init(rk29fb_init);
+fs_initcall(rk29fb_init);
 module_exit(rk29fb_exit);
 
 

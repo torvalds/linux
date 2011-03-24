@@ -34,7 +34,7 @@ typedef enum _MCU_STATUS {
 } MCU_STATUS;
 
 
-/* Sceen description */
+/* Screen description */
 struct rk29fb_screen {
     /* screen type & out face */
     u16 type;
