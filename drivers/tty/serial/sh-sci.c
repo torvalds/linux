@@ -1872,13 +1872,6 @@ static struct console serial_console = {
 	.data		= &sci_uart_driver,
 };
 
-static int __init sci_console_init(void)
-{
-	register_console(&serial_console);
-	return 0;
-}
-console_initcall(sci_console_init);
-
 static struct console early_serial_console = {
 	.name           = "early_ttySC",
 	.write          = serial_console_write,
@@ -1907,18 +1900,18 @@ static int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
 	register_console(&early_serial_console);
 	return 0;
 }
+
+#define SCI_CONSOLE	(&serial_console)
+
 #else
 static inline int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
 {
 	return -EINVAL;
 }
-#endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-#if defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
-#define SCI_CONSOLE	(&serial_console)
-#else
-#define SCI_CONSOLE	0
-#endif
+#define SCI_CONSOLE	NULL
+
+#endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
 static char banner[] __initdata =
 	KERN_INFO "SuperH SCI(F) driver initialized\n";
