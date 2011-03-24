@@ -89,17 +89,13 @@ static void eic_unmask_irq(struct irq_chip *d)
 static int eic_set_irq_type(struct irq_chip *d, unsigned int flow_type)
 {
 	struct eic *eic = irq_data_get_irq_chip_data(data);
-	struct irq_desc *desc;
 	unsigned int irq = d->irq;
 	unsigned int i = irq - eic->first_irq;
 	u32 mode, edge, level;
-	int ret = 0;
 
 	flow_type &= IRQ_TYPE_SENSE_MASK;
 	if (flow_type == IRQ_TYPE_NONE)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
-
-	desc = irq_to_desc(irq);
 
 	mode = eic_readl(eic, MODE);
 	edge = eic_readl(eic, EDGE);
@@ -123,25 +119,20 @@ static int eic_set_irq_type(struct irq_chip *d, unsigned int flow_type)
 		edge &= ~(1 << i);
 		break;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	if (ret == 0) {
-		eic_writel(eic, MODE, mode);
-		eic_writel(eic, EDGE, edge);
-		eic_writel(eic, LEVEL, level);
+	eic_writel(eic, MODE, mode);
+	eic_writel(eic, EDGE, edge);
+	eic_writel(eic, LEVEL, level);
 
-		if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH)) {
-			flow_type |= IRQ_LEVEL;
-			__irq_set_handler_locked(irq, handle_level_irq);
-		} else
-			__irq_set_handler_locked(irq, handle_edge_irq);
-		desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-		desc->status |= flow_type;
-	}
+	irqd_set_trigger_type(d, flow_type);
+	if (flow_type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+		__irq_set_handler_locked(irq, handle_level_irq);
+	else
+		__irq_set_handler_locked(irq, handle_edge_irq);
 
-	return ret;
+	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
 static struct irq_chip eic_chip = {
