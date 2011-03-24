@@ -23,8 +23,6 @@
 
 #include "autofs_i.h"
 
-DEFINE_SPINLOCK(autofs4_lock);
-
 static int autofs4_dir_symlink(struct inode *,struct dentry *,const char *);
 static int autofs4_dir_unlink(struct inode *,struct dentry *);
 static int autofs4_dir_rmdir(struct inode *,struct dentry *);
@@ -125,15 +123,15 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	 * autofs file system so just let the libfs routines handle
 	 * it.
 	 */
-	spin_lock(&autofs4_lock);
+	spin_lock(&sbi->lookup_lock);
 	spin_lock(&dentry->d_lock);
 	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
 		spin_unlock(&dentry->d_lock);
-		spin_unlock(&autofs4_lock);
+		spin_unlock(&sbi->lookup_lock);
 		return -ENOENT;
 	}
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->lookup_lock);
 
 out:
 	return dcache_dir_open(inode, file);
@@ -171,7 +169,6 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 	const unsigned char *str = name->name;
 	struct list_head *p, *head;
 
-	spin_lock(&autofs4_lock);
 	spin_lock(&sbi->lookup_lock);
 	head = &sbi->active_list;
 	list_for_each(p, head) {
@@ -204,14 +201,12 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 			dget_dlock(active);
 			spin_unlock(&active->d_lock);
 			spin_unlock(&sbi->lookup_lock);
-			spin_unlock(&autofs4_lock);
 			return active;
 		}
 next:
 		spin_unlock(&active->d_lock);
 	}
 	spin_unlock(&sbi->lookup_lock);
-	spin_unlock(&autofs4_lock);
 
 	return NULL;
 }
@@ -226,7 +221,6 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry)
 	const unsigned char *str = name->name;
 	struct list_head *p, *head;
 
-	spin_lock(&autofs4_lock);
 	spin_lock(&sbi->lookup_lock);
 	head = &sbi->expiring_list;
 	list_for_each(p, head) {
@@ -259,14 +253,12 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry)
 			dget_dlock(expiring);
 			spin_unlock(&expiring->d_lock);
 			spin_unlock(&sbi->lookup_lock);
-			spin_unlock(&autofs4_lock);
 			return expiring;
 		}
 next:
 		spin_unlock(&expiring->d_lock);
 	}
 	spin_unlock(&sbi->lookup_lock);
-	spin_unlock(&autofs4_lock);
 
 	return NULL;
 }
@@ -603,12 +595,12 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 
 	dir->i_mtime = CURRENT_TIME;
 
-	spin_lock(&autofs4_lock);
-	autofs4_add_expiring(dentry);
+	spin_lock(&sbi->lookup_lock);
+	__autofs4_add_expiring(dentry);
 	spin_lock(&dentry->d_lock);
 	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->lookup_lock);
 
 	return 0;
 }
@@ -677,20 +669,17 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
-	spin_lock(&autofs4_lock);
 	spin_lock(&sbi->lookup_lock);
 	spin_lock(&dentry->d_lock);
 	if (!list_empty(&dentry->d_subdirs)) {
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&sbi->lookup_lock);
-		spin_unlock(&autofs4_lock);
 		return -ENOTEMPTY;
 	}
 	__autofs4_add_expiring(dentry);
-	spin_unlock(&sbi->lookup_lock);
 	__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->lookup_lock);
 
 	if (sbi->version < 5)
 		autofs_clear_leaf_automount_flags(dentry);

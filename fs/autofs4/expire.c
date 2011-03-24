@@ -92,10 +92,11 @@ done:
 static struct dentry *get_next_positive_subdir(struct dentry *prev,
 						struct dentry *root)
 {
+	struct autofs_sb_info *sbi = autofs4_sbi(root->d_sb);
 	struct list_head *next;
 	struct dentry *p, *q;
 
-	spin_lock(&autofs4_lock);
+	spin_lock(&sbi->lookup_lock);
 
 	if (prev == NULL) {
 		spin_lock(&root->d_lock);
@@ -112,7 +113,7 @@ again:
 start:
 	if (next == &root->d_subdirs) {
 		spin_unlock(&p->d_lock);
-		spin_unlock(&autofs4_lock);
+		spin_unlock(&sbi->lookup_lock);
 		dput(prev);
 		return NULL;
 	}
@@ -129,7 +130,7 @@ start:
 	dget_dlock(q);
 	spin_unlock(&q->d_lock);
 	spin_unlock(&p->d_lock);
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->lookup_lock);
 
 	dput(prev);
 
@@ -142,13 +143,14 @@ start:
 static struct dentry *get_next_positive_dentry(struct dentry *prev,
 						struct dentry *root)
 {
+	struct autofs_sb_info *sbi = autofs4_sbi(root->d_sb);
 	struct list_head *next;
 	struct dentry *p, *ret;
 
 	if (prev == NULL)
 		return dget(root);
 
-	spin_lock(&autofs4_lock);
+	spin_lock(&sbi->lookup_lock);
 relock:
 	p = prev;
 	spin_lock(&p->d_lock);
@@ -160,7 +162,7 @@ again:
 
 			if (p == root) {
 				spin_unlock(&p->d_lock);
-				spin_unlock(&autofs4_lock);
+				spin_unlock(&sbi->lookup_lock);
 				dput(prev);
 				return NULL;
 			}
@@ -190,7 +192,7 @@ again:
 	dget_dlock(ret);
 	spin_unlock(&ret->d_lock);
 	spin_unlock(&p->d_lock);
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->lookup_lock);
 
 	dput(prev);
 
@@ -459,13 +461,13 @@ found:
 	ino->flags |= AUTOFS_INF_EXPIRING;
 	init_completion(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
-	spin_lock(&autofs4_lock);
+	spin_lock(&sbi->lookup_lock);
 	spin_lock(&expired->d_parent->d_lock);
 	spin_lock_nested(&expired->d_lock, DENTRY_D_LOCK_NESTED);
 	list_move(&expired->d_parent->d_subdirs, &expired->d_u.d_child);
 	spin_unlock(&expired->d_lock);
 	spin_unlock(&expired->d_parent->d_lock);
-	spin_unlock(&autofs4_lock);
+	spin_unlock(&sbi->lookup_lock);
 	return expired;
 }
 

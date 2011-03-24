@@ -61,8 +61,6 @@ do {							\
 		current->pid, __func__, ##args);	\
 } while (0)
 
-extern spinlock_t autofs4_lock;
-
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this
    structure.  It holds a reference to the dentry, so dentries are never
