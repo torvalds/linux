@@ -2180,8 +2180,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
 			drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size, ID_IN_SYNC);
 			break;
 		default:
-			dev_err(DEV, "unexpected command (%s) in receive_DataRequest\n",
-				cmdname(cmd));
+			BUG();
 		}
 		if (verb && __ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "Can not satisfy peer's read request, "
@@ -2267,10 +2266,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packet cmd,
 		break;
 
 	default:
-		dev_err(DEV, "unexpected command (%s) in receive_DataRequest\n",
-		    cmdname(cmd));
-		fault_type = DRBD_FAULT_MAX;
-		goto out_free_e;
+		BUG();
 	}
 
 	/* Throttle, drbd_rs_begin_io and submit should become asynchronous
