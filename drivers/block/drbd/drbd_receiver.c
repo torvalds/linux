@@ -3574,8 +3574,9 @@ static int receive_sync_uuid(struct drbd_conf *mdev, enum drbd_packet cmd,
  */
 static int
 receive_bitmap_plain(struct drbd_conf *mdev, unsigned int data_size,
-		     unsigned long *buffer, struct bm_xfer_ctx *c)
+		     struct p_header *h, struct bm_xfer_ctx *c)
 {
+	unsigned long *buffer = (unsigned long *)h->payload;
 	unsigned num_words = min_t(size_t, BM_PACKET_WORDS, c->bm_words - c->word_offset);
 	unsigned want = num_words * sizeof(long);
 	int err;
@@ -3750,7 +3751,6 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 			  unsigned int data_size)
 {
 	struct bm_xfer_ctx c;
-	void *buffer;
 	int err;
 	struct p_header *h = mdev->tconn->data.rbuf;
 	struct packet_info pi;
@@ -3759,15 +3759,6 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 	/* you are supposed to send additional out-of-sync information
 	 * if you actually set bits during this phase */
 
-	/* maybe we should use some per thread scratch page,
-	 * and allocate that during initial device creation? */
-	buffer	 = (unsigned long *) __get_free_page(GFP_NOIO);
-	if (!buffer) {
-		dev_err(DEV, "failed to allocate one page buffer in %s\n", __func__);
-		err = -ENOMEM;
-		goto out;
-	}
-
 	c = (struct bm_xfer_ctx) {
 		.bm_bits = drbd_bm_bits(mdev),
 		.bm_words = drbd_bm_words(mdev),
@@ -3775,7 +3766,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 
 	for(;;) {
 		if (cmd == P_BITMAP) {
-			err = receive_bitmap_plain(mdev, data_size, buffer, &c);
+			err = receive_bitmap_plain(mdev, data_size, h, &c);
 		} else if (cmd == P_COMPRESSED_BITMAP) {
 			/* MAYBE: sanity check that we speak proto >= 90,
 			 * and the feature is enabled! */
@@ -3786,9 +3777,8 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 				err = -EIO;
 				goto out;
 			}
-			/* use the page buff */
-			p = buffer;
-			memcpy(p, h, sizeof(*h));
+
+			p = mdev->tconn->data.rbuf;
 			err = drbd_recv_all(mdev->tconn, p->head.payload, data_size);
 			if (err)
 			       goto out;
@@ -3842,7 +3832,6 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packet cmd,
 	drbd_bm_unlock(mdev);
 	if (!err && mdev->state.conn == C_WF_BITMAP_S)
 		drbd_start_resync(mdev, C_SYNC_SOURCE);
-	free_page((unsigned long) buffer);
 	return err;
 }
 
