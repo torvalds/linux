@@ -526,7 +526,7 @@ void irq_install_pre_handler(int irq,
 			     void (*func)(unsigned int, void *, void *),
 			     void *arg1, void *arg2)
 {
-	struct irq_handler_data *handler_data = get_irq_data(irq);
+	struct irq_handler_data *handler_data = irq_get_handler_data(irq);
 
 	handler_data->pre_handler = func;
 	handler_data->arg1 = arg1;
@@ -550,13 +550,11 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	if (!irq) {
 		irq = irq_alloc(0, ino);
 		bucket_set_irq(__pa(bucket), irq);
-		set_irq_chip_and_handler_name(irq,
-					      &sun4u_irq,
-					      handle_fasteoi_irq,
-					      "IVEC");
+		irq_set_chip_and_handler_name(irq, &sun4u_irq,
+					      handle_fasteoi_irq, "IVEC");
 	}
 
-	handler_data = get_irq_data(irq);
+	handler_data = irq_get_handler_data(irq);
 	if (unlikely(handler_data))
 		goto out;
 
@@ -565,7 +563,7 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_data(irq, handler_data);
+	irq_set_handler_data(irq, handler_data);
 
 	handler_data->imap  = imap;
 	handler_data->iclr  = iclr;
@@ -588,12 +586,11 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 	if (!irq) {
 		irq = irq_alloc(0, sysino);
 		bucket_set_irq(__pa(bucket), irq);
-		set_irq_chip_and_handler_name(irq, chip,
-					      handle_fasteoi_irq,
+		irq_set_chip_and_handler_name(irq, chip, handle_fasteoi_irq,
 					      "IVEC");
 	}
 
-	handler_data = get_irq_data(irq);
+	handler_data = irq_get_handler_data(irq);
 	if (unlikely(handler_data))
 		goto out;
 
@@ -602,7 +599,7 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
 	}
-	set_irq_data(irq, handler_data);
+	irq_set_handler_data(irq, handler_data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
@@ -647,8 +644,7 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	irq = irq_alloc(devhandle, devino);
 	bucket_set_irq(__pa(bucket), irq);
 
-	set_irq_chip_and_handler_name(irq, &sun4v_virq,
-				      handle_fasteoi_irq,
+	irq_set_chip_and_handler_name(irq, &sun4v_virq, handle_fasteoi_irq,
 				      "IVEC");
 
 	handler_data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
@@ -660,7 +656,7 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 	 * the interrupt.
 	 */
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
-	set_irq_data(irq, handler_data);
+	irq_set_handler_data(irq, handler_data);
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct

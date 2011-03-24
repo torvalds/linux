@@ -133,8 +133,8 @@ static int sparc64_setup_msi_irq(unsigned int *irq_p,
 	if (!*irq_p)
 		goto out_err;
 
-	set_irq_chip_and_handler_name(*irq_p, &msi_irq,
-				      handle_simple_irq, "MSI");
+	irq_set_chip_and_handler_name(*irq_p, &msi_irq, handle_simple_irq,
+				      "MSI");
 
 	err = alloc_msi(pbm);
 	if (unlikely(err < 0))
@@ -160,7 +160,7 @@ static int sparc64_setup_msi_irq(unsigned int *irq_p,
 	}
 	msg.data = msi;
 
-	set_irq_msi(*irq_p, entry);
+	irq_set_msi_desc(*irq_p, entry);
 	write_msi_msg(*irq_p, &msg);
 
 	return 0;
@@ -169,7 +169,7 @@ out_msi_free:
 	free_msi(pbm, msi);
 
 out_irq_free:
-	set_irq_chip(*irq_p, NULL);
+	irq_set_chip(*irq_p, NULL);
 	irq_free(*irq_p);
 	*irq_p = 0;
 
@@ -208,7 +208,7 @@ static void sparc64_teardown_msi_irq(unsigned int irq,
 
 	free_msi(pbm, msi_num);
 
-	set_irq_chip(irq, NULL);
+	irq_set_chip(irq, NULL);
 	irq_free(irq);
 }
 
