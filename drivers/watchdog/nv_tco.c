@@ -302,7 +302,7 @@ MODULE_DEVICE_TABLE(pci, tco_pci_tbl);
  *	Init & exit routines
  */
 
-static unsigned char __init nv_tco_getdevice(void)
+static unsigned char __devinit nv_tco_getdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	u32 val;
