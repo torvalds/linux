@@ -183,7 +183,6 @@ static void jlj_dostream(struct work_struct *work)
 	struct sd *dev = container_of(work, struct sd, work_struct);
 	struct gspca_dev *gspca_dev = &dev->gspca_dev;
 	int blocks_left; /* 0x200-sized blocks remaining in current frame. */
-	int size_in_blocks;
 	int act_len;
 	int packet_type;
 	int ret;
@@ -209,7 +208,6 @@ static void jlj_dostream(struct work_struct *work)
 			act_len, JEILINJ_MAX_TRANSFER);
 		if (ret < 0 || act_len < FRAME_HEADER_LEN)
 			goto quit_stream;
-		size_in_blocks = buffer[0x0a];
 		blocks_left = buffer[0x0a] - 1;
 		PDEBUG(D_STREAM, "blocks_left = 0x%x", blocks_left);
 

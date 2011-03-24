@@ -88,7 +88,7 @@ int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 		"%s(image=%p, size=%d, flags=0x%x, dst=%p, dstsize=0x%x)\n",
 		__func__, src, srcsize, dlflags, dst, dstsize);
 
-	if ((src == 0) || (dst == 0)) {
+	if ((src == NULL) || (dst == NULL)) {
 		ret = -EIO;
 		goto out;
 	}

@@ -479,6 +479,7 @@ static int af9015_init_endpoint(struct dvb_usb_device *d)
 		ret = af9015_set_reg_bit(d, 0xd50b, 0);
 	else
 		ret = af9015_clear_reg_bit(d, 0xd50b, 0);
+
 error:
 	if (ret)
 		err("endpoint init failed:%d", ret);
@@ -611,6 +612,11 @@ static int af9015_init(struct dvb_usb_device *d)
 	int ret;
 	deb_info("%s:\n", __func__);
 
+	/* init RC canary */
+	ret = af9015_write_reg(d, 0x98e9, 0xff);
+	if (ret)
+		goto error;
+
 	ret = af9015_init_endpoint(d);
 	if (ret)
 		goto error;
@@ -659,9 +665,8 @@ error:
 static int af9015_download_firmware(struct usb_device *udev,
 	const struct firmware *fw)
 {
-	int i, len, packets, remainder, ret;
+	int i, len, remaining, ret;
 	struct req_t req = {DOWNLOAD_FIRMWARE, 0, 0, 0, 0, 0, NULL};
-	u16 addr = 0x5100; /* firmware start address */
 	u16 checksum = 0;
 
 	deb_info("%s:\n", __func__);
@@ -673,24 +678,20 @@ static int af9015_download_firmware(struct usb_device *udev,
 	af9015_config.firmware_size = fw->size;
 	af9015_config.firmware_checksum = checksum;
 
-	#define FW_PACKET_MAX_DATA  55
-
-	packets = fw->size / FW_PACKET_MAX_DATA;
-	remainder = fw->size % FW_PACKET_MAX_DATA;
-	len = FW_PACKET_MAX_DATA;
-	for (i = 0; i <= packets; i++) {
-		if (i == packets)  /* set size of the last packet */
-			len = remainder;
+	#define FW_ADDR 0x5100 /* firmware start address */
+	#define LEN_MAX 55 /* max packet size */
+	for (remaining = fw->size; remaining > 0; remaining -= LEN_MAX) {
+		len = remaining;
+		if (len > LEN_MAX)
+			len = LEN_MAX;
 
 		req.data_len = len;
-		req.data = (u8 *)(fw->data + i * FW_PACKET_MAX_DATA);
-		req.addr = addr;
-		addr += FW_PACKET_MAX_DATA;
+		req.data = (u8 *) &fw->data[fw->size - remaining];
+		req.addr = FW_ADDR + fw->size - remaining;
 
 		ret = af9015_rw_udev(udev, &req);
 		if (ret) {
-			err("firmware download failed at packet %d with " \
-				"code %d", i, ret);
+			err("firmware download failed:%d", ret);
 			goto error;
 		}
 	}
@@ -738,6 +739,8 @@ static const struct af9015_rc_setup af9015_rc_setup_hashes[] = {
 };
 
 static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
+	{ (USB_VID_TERRATEC << 16) + USB_PID_TERRATEC_CINERGY_T_STICK_RC,
+		RC_MAP_TERRATEC_SLIM_2 },
 	{ (USB_VID_TERRATEC << 16) + USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC,
 		RC_MAP_TERRATEC_SLIM },
 	{ (USB_VID_VISIONPLUS << 16) + USB_PID_AZUREWAVE_AD_TU700,
@@ -1016,22 +1019,38 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 {
 	struct af9015_state *priv = d->priv;
 	int ret;
-	u8 buf[16];
+	u8 buf[17];
 
 	/* read registers needed to detect remote controller code */
 	ret = af9015_read_regs(d, 0x98d9, buf, sizeof(buf));
 	if (ret)
 		goto error;
 
-	if (buf[14] || buf[15]) {
+	/* If any of these are non-zero, assume invalid data */
+	if (buf[1] || buf[2] || buf[3])
+		return ret;
+
+	/* Check for repeat of previous code */
+	if ((priv->rc_repeat != buf[6] || buf[0]) &&
+					!memcmp(&buf[12], priv->rc_last, 4)) {
+		deb_rc("%s: key repeated\n", __func__);
+		rc_keydown(d->rc_dev, priv->rc_keycode, 0);
+		priv->rc_repeat = buf[6];
+		return ret;
+	}
+
+	/* Only process key if canary killed */
+	if (buf[16] != 0xff && buf[0] != 0x01) {
 		deb_rc("%s: key pressed %02x %02x %02x %02x\n", __func__,
 			buf[12], buf[13], buf[14], buf[15]);
 
-		/* clean IR code from mem */
-		ret = af9015_write_regs(d, 0x98e5, "\x00\x00\x00\x00", 4);
+		/* Reset the canary */
+		ret = af9015_write_reg(d, 0x98e9, 0xff);
 		if (ret)
 			goto error;
 
+		/* Remember this key */
+		memcpy(priv->rc_last, &buf[12], 4);
 		if (buf[14] == (u8) ~buf[15]) {
 			if (buf[12] == (u8) ~buf[13]) {
 				/* NEC */
@@ -1041,15 +1060,17 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 				priv->rc_keycode = buf[12] << 16 |
 					buf[13] << 8 | buf[14];
 			}
-			rc_keydown(d->rc_dev, priv->rc_keycode, 0);
 		} else {
-			priv->rc_keycode = 0; /* clear just for sure */
+			/* 32 bit NEC */
+			priv->rc_keycode = buf[12] << 24 | buf[13] << 16 |
+					buf[14] << 8 | buf[15];
 		}
-	} else if (priv->rc_repeat != buf[6] || buf[0]) {
-		deb_rc("%s: key repeated\n", __func__);
 		rc_keydown(d->rc_dev, priv->rc_keycode, 0);
 	} else {
 		deb_rc("%s: no key press\n", __func__);
+		/* Invalidate last keypress */
+		/* Not really needed, but helps with debug */
+		priv->rc_last[2] = priv->rc_last[3];
 	}
 
 	priv->rc_repeat = buf[6];

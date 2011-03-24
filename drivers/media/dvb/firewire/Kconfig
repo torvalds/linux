@@ -1,6 +1,6 @@
 config DVB_FIREDTV
 	tristate "FireDTV and FloppyDTV"
-	depends on DVB_CORE && (FIREWIRE || IEEE1394)
+	depends on DVB_CORE && FIREWIRE
 	help
 	  Support for DVB receivers from Digital Everywhere
 	  which are connected via IEEE 1394 (FireWire).
@@ -12,12 +12,6 @@ config DVB_FIREDTV
 	  the module will be called firedtv.
 
 if DVB_FIREDTV
-
-config DVB_FIREDTV_FIREWIRE
-	def_bool FIREWIRE = y || (FIREWIRE = m && DVB_FIREDTV = m)
-
-config DVB_FIREDTV_IEEE1394
-	def_bool IEEE1394 = y || (IEEE1394 = m && DVB_FIREDTV = m)
 
 config DVB_FIREDTV_INPUT
 	def_bool INPUT = y || (INPUT = m && DVB_FIREDTV = m)

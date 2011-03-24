@@ -88,7 +88,7 @@ static const struct soc_mbus_pixelfmt mbus_fmt[] = {
 		.packing		= SOC_MBUS_PACKING_EXTEND16,
 		.order			= SOC_MBUS_ORDER_LE,
 	},
-	[MBUS_IDX(GREY8_1X8)] = {
+	[MBUS_IDX(Y8_1X8)] = {
 		.fourcc			= V4L2_PIX_FMT_GREY,
 		.name			= "Grey",
 		.bits_per_sample	= 8,
@@ -131,6 +131,20 @@ static const struct soc_mbus_pixelfmt mbus_fmt[] = {
 		.order			= SOC_MBUS_ORDER_BE,
 	},
 };
+
+int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf)
+{
+	switch (mf->packing) {
+	case SOC_MBUS_PACKING_NONE:
+	case SOC_MBUS_PACKING_EXTEND16:
+		return 1;
+	case SOC_MBUS_PACKING_2X8_PADHI:
+	case SOC_MBUS_PACKING_2X8_PADLO:
+		return 2;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(soc_mbus_samples_per_pixel);
 
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf)
 {

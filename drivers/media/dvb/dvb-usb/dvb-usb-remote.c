@@ -273,7 +273,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	dev->map_name = d->props.rc.core.rc_codes;
 	dev->change_protocol = d->props.rc.core.change_protocol;
 	dev->allowed_protos = d->props.rc.core.allowed_protos;
-	dev->driver_type = RC_DRIVER_SCANCODE;
+	dev->driver_type = d->props.rc.core.driver_type;
 	usb_to_input_id(d->udev, &dev->input_id);
 	dev->input_name = "IR-receiver inside an USB DVB receiver";
 	dev->input_phys = d->rc_phys;

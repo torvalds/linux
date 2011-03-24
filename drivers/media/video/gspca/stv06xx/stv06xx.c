@@ -525,11 +525,9 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 			  const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam;
 
 	PDEBUG(D_PROBE, "Configuring camera");
 
-	cam = &gspca_dev->cam;
 	sd->desc = sd_desc;
 	sd->bridge = id->driver_info;
 	gspca_dev->sd_desc = &sd->desc;

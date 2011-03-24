@@ -1177,10 +1177,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	int ret;
 	int width = format->fmt.pix.width;
 	int height = format->fmt.pix.height;
-	unsigned int maxwidth, maxheight;
-
-	maxwidth = 720;
-	maxheight = 480;
 
 	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
