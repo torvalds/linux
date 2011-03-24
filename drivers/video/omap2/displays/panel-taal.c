@@ -420,6 +420,22 @@ static int taal_set_update_window(struct taal_data *td,
 	return r;
 }
 
+static void taal_queue_esd_work(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+
+	if (td->esd_interval > 0)
+		queue_delayed_work(td->esd_wq, &td->esd_work,
+				msecs_to_jiffies(td->esd_interval));
+}
+
+static void taal_cancel_esd_work(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+
+	cancel_delayed_work(&td->esd_work);
+}
+
 static int taal_bl_update_status(struct backlight_device *dev)
 {
 	struct omap_dss_device *dssdev = dev_get_drvdata(&dev->dev);
@@ -841,7 +857,7 @@ static void __exit taal_remove(struct omap_dss_device *dssdev)
 	taal_bl_update_status(bldev);
 	backlight_device_unregister(bldev);
 
-	cancel_delayed_work(&td->esd_work);
+	taal_cancel_esd_work(dssdev);
 	destroy_workqueue(td->esd_wq);
 
 	/* reset, to be sure that the panel is in a valid state */
@@ -983,9 +999,7 @@ static int taal_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
-	if (td->esd_interval > 0)
-		queue_delayed_work(td->esd_wq, &td->esd_work,
-				msecs_to_jiffies(td->esd_interval));
+	taal_queue_esd_work(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -1006,7 +1020,7 @@ static void taal_disable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&td->lock);
 
-	cancel_delayed_work(&td->esd_work);
+	taal_cancel_esd_work(dssdev);
 
 	dsi_bus_lock();
 
@@ -1034,7 +1048,7 @@ static int taal_suspend(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	cancel_delayed_work(&td->esd_work);
+	taal_cancel_esd_work(dssdev);
 
 	dsi_bus_lock();
 
@@ -1076,9 +1090,7 @@ static int taal_resume(struct omap_dss_device *dssdev)
 		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 	} else {
 		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-		if (td->esd_interval > 0)
-			queue_delayed_work(td->esd_wq, &td->esd_work,
-					msecs_to_jiffies(td->esd_interval));
+		taal_queue_esd_work(dssdev);
 	}
 
 	mutex_unlock(&td->lock);
@@ -1521,8 +1533,7 @@ static void taal_esd_work(struct work_struct *work)
 
 	dsi_bus_unlock();
 
-	queue_delayed_work(td->esd_wq, &td->esd_work,
-		       msecs_to_jiffies(td->esd_interval));
+	taal_queue_esd_work(dssdev);
 
 	mutex_unlock(&td->lock);
 	return;
@@ -1535,8 +1546,7 @@ err:
 
 	dsi_bus_unlock();
 
-	queue_delayed_work(td->esd_wq, &td->esd_work,
-		       msecs_to_jiffies(td->esd_interval));
+	taal_queue_esd_work(dssdev);
 
 	mutex_unlock(&td->lock);
 }
