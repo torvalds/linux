@@ -708,6 +708,9 @@ static hda_nid_t side_mute_channel(struct via_spec *spec)
 	case VT1709_10CH:	return 0x29;
 	case VT1708B_8CH:	/* fall thru */
 	case VT1708S:		return 0x27;
+	case VT2002P:		return 0x19;
+	case VT1802:		return 0x15;
+	case VT1812:		return 0x15;
 	default:		return 0;
 	}
 }
@@ -716,13 +719,22 @@ static int update_side_mute_status(struct hda_codec *codec)
 {
 	/* mute side channel */
 	struct via_spec *spec = codec->spec;
-	unsigned int parm = spec->hp_independent_mode
-		? AMP_OUT_MUTE : AMP_OUT_UNMUTE;
+	unsigned int parm;
 	hda_nid_t sw3 = side_mute_channel(spec);
 
-	if (sw3)
-		snd_hda_codec_write(codec, sw3, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    parm);
+	if (sw3) {
+		if (VT2002P_COMPATIBLE(spec))
+			parm = spec->hp_independent_mode ?
+			       AMP_IN_MUTE(1) : AMP_IN_UNMUTE(1);
+		else
+			parm = spec->hp_independent_mode ?
+			       AMP_OUT_MUTE : AMP_OUT_UNMUTE;
+		snd_hda_codec_write(codec, sw3, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, parm);
+		if (spec->codec_type == VT1812)
+			snd_hda_codec_write(codec, 0x1d, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE, parm);
+	}
 	return 0;
 }
 
