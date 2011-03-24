@@ -108,7 +108,7 @@ SECTIONS
 		__sun4v_2insn_patch_end = .;
 	}
 
-	PERCPU(SMP_CACHE_BYTES, PAGE_SIZE)
+	PERCPU_SECTION(SMP_CACHE_BYTES)
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;

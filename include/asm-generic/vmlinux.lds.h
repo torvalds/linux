@@ -15,7 +15,7 @@
  *	HEAD_TEXT_SECTION
  *	INIT_TEXT_SECTION(PAGE_SIZE)
  *	INIT_DATA_SECTION(...)
- *	PERCPU(CACHELINE_SIZE, PAGE_SIZE)
+ *	PERCPU_SECTION(CACHELINE_SIZE)
  *	__init_end = .;
  *
  *	_stext = .;
@@ -709,7 +709,7 @@
  *
  * Note that this macros defines __per_cpu_load as an absolute symbol.
  * If there is no need to put the percpu section at a predetermined
- * address, use PERCPU().
+ * address, use PERCPU_SECTION.
  */
 #define PERCPU_VADDR(cacheline, vaddr, phdr)				\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
@@ -729,20 +729,19 @@
 	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data..percpu);
 
 /**
- * PERCPU - define output section for percpu area, simple version
+ * PERCPU_SECTION - define output section for percpu area, simple version
  * @cacheline: cacheline size
- * @align: required alignment
  *
- * Align to @align and outputs output section for percpu area.  This macro
- * doesn't manipulate @vaddr or @phdr and __per_cpu_load and
+ * Align to PAGE_SIZE and outputs output section for percpu area.  This
+ * macro doesn't manipulate @vaddr or @phdr and __per_cpu_load and
  * __per_cpu_start will be identical.
  *
- * This macro is equivalent to ALIGN(@align); PERCPU_VADDR(@cacheline,,)
+ * This macro is equivalent to ALIGN(PAGE_SIZE); PERCPU_VADDR(@cacheline,,)
  * except that __per_cpu_load is defined as a relative symbol against
  * .data..percpu which is required for relocatable x86_32 configuration.
  */
-#define PERCPU(cacheline, align)					\
-	. = ALIGN(align);						\
+#define PERCPU_SECTION(cacheline)					\
+	. = ALIGN(PAGE_SIZE);						\
 	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
