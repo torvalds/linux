@@ -65,62 +65,60 @@ render_ring_flush(struct intel_ring_buffer *ring,
 	u32 cmd;
 	int ret;
 
-	if ((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) {
+	/*
+	 * read/write caches:
+	 *
+	 * I915_GEM_DOMAIN_RENDER is always invalidated, but is
+	 * only flushed if MI_NO_WRITE_FLUSH is unset.  On 965, it is
+	 * also flushed at 2d versus 3d pipeline switches.
+	 *
+	 * read-only caches:
+	 *
+	 * I915_GEM_DOMAIN_SAMPLER is flushed on pre-965 if
+	 * MI_READ_FLUSH is set, and is always flushed on 965.
+	 *
+	 * I915_GEM_DOMAIN_COMMAND may not exist?
+	 *
+	 * I915_GEM_DOMAIN_INSTRUCTION, which exists on 965, is
+	 * invalidated when MI_EXE_FLUSH is set.
+	 *
+	 * I915_GEM_DOMAIN_VERTEX, which exists on 965, is
+	 * invalidated with every MI_FLUSH.
+	 *
+	 * TLBs:
+	 *
+	 * On 965, TLBs associated with I915_GEM_DOMAIN_COMMAND
+	 * and I915_GEM_DOMAIN_CPU in are invalidated at PTE write and
+	 * I915_GEM_DOMAIN_RENDER and I915_GEM_DOMAIN_SAMPLER
+	 * are flushed at any MI_FLUSH.
+	 */
+
+	cmd = MI_FLUSH | MI_NO_WRITE_FLUSH;
+	if ((invalidate_domains|flush_domains) &
+	    I915_GEM_DOMAIN_RENDER)
+		cmd &= ~MI_NO_WRITE_FLUSH;
+	if (INTEL_INFO(dev)->gen < 4) {
 		/*
-		 * read/write caches:
-		 *
-		 * I915_GEM_DOMAIN_RENDER is always invalidated, but is
-		 * only flushed if MI_NO_WRITE_FLUSH is unset.  On 965, it is
-		 * also flushed at 2d versus 3d pipeline switches.
-		 *
-		 * read-only caches:
-		 *
-		 * I915_GEM_DOMAIN_SAMPLER is flushed on pre-965 if
-		 * MI_READ_FLUSH is set, and is always flushed on 965.
-		 *
-		 * I915_GEM_DOMAIN_COMMAND may not exist?
-		 *
-		 * I915_GEM_DOMAIN_INSTRUCTION, which exists on 965, is
-		 * invalidated when MI_EXE_FLUSH is set.
-		 *
-		 * I915_GEM_DOMAIN_VERTEX, which exists on 965, is
-		 * invalidated with every MI_FLUSH.
-		 *
-		 * TLBs:
-		 *
-		 * On 965, TLBs associated with I915_GEM_DOMAIN_COMMAND
-		 * and I915_GEM_DOMAIN_CPU in are invalidated at PTE write and
-		 * I915_GEM_DOMAIN_RENDER and I915_GEM_DOMAIN_SAMPLER
-		 * are flushed at any MI_FLUSH.
+		 * On the 965, the sampler cache always gets flushed
+		 * and this bit is reserved.
 		 */
-
-		cmd = MI_FLUSH | MI_NO_WRITE_FLUSH;
-		if ((invalidate_domains|flush_domains) &
-		    I915_GEM_DOMAIN_RENDER)
-			cmd &= ~MI_NO_WRITE_FLUSH;
-		if (INTEL_INFO(dev)->gen < 4) {
-			/*
-			 * On the 965, the sampler cache always gets flushed
-			 * and this bit is reserved.
-			 */
-			if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
-				cmd |= MI_READ_FLUSH;
-		}
-		if (invalidate_domains & I915_GEM_DOMAIN_INSTRUCTION)
-			cmd |= MI_EXE_FLUSH;
-
-		if (invalidate_domains & I915_GEM_DOMAIN_COMMAND &&
-		    (IS_G4X(dev) || IS_GEN5(dev)))
-			cmd |= MI_INVALIDATE_ISP;
-
-		ret = intel_ring_begin(ring, 2);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, cmd);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
+		if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
+			cmd |= MI_READ_FLUSH;
 	}
+	if (invalidate_domains & I915_GEM_DOMAIN_INSTRUCTION)
+		cmd |= MI_EXE_FLUSH;
+
+	if (invalidate_domains & I915_GEM_DOMAIN_COMMAND &&
+	    (IS_G4X(dev) || IS_GEN5(dev)))
+		cmd |= MI_INVALIDATE_ISP;
+
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, cmd);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -567,9 +565,6 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 	       u32     flush_domains)
 {
 	int ret;
-
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
-		return 0;
 
 	ret = intel_ring_begin(ring, 2);
 	if (ret)
@@ -1056,9 +1051,6 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 	uint32_t cmd;
 	int ret;
 
-	if (((invalidate | flush) & I915_GEM_GPU_DOMAINS) == 0)
-		return 0;
-
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
@@ -1229,9 +1221,6 @@ static int blt_ring_flush(struct intel_ring_buffer *ring,
 {
 	uint32_t cmd;
 	int ret;
-
-	if (((invalidate | flush) & I915_GEM_DOMAIN_RENDER) == 0)
-		return 0;
 
 	ret = blt_ring_begin(ring, 4);
 	if (ret)
