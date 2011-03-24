@@ -270,14 +270,6 @@ Who:	Zhang Rui <rui.zhang@intel.com>
 
 ---------------------------
 
-What:	/proc/acpi/button
-When:	August 2007
-Why:	/proc/acpi/button has been replaced by events to the input layer
-	since 2.6.20.
-Who:	Len Brown <len.brown@intel.com>
-
----------------------------
-
 What:	/proc/acpi/event
 When:	February 2008
 Why:	/proc/acpi/event has been replaced by events via the input layer
