@@ -204,8 +204,8 @@ static void locomo_setup_irq(struct locomo *lchip)
 	/* Install handlers for IRQ_LOCOMO_* */
 	for ( ; irq <= lchip->irq_base + 3; irq++) {
 		irq_set_chip(irq, &locomo_chip);
-		irq_set_chip_data(irq, lchip);
 		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_data(irq, lchip);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }

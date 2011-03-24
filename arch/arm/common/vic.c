@@ -306,8 +306,8 @@ static void __init vic_set_irq_sources(void __iomem *base,
 			unsigned int irq = irq_start + i;
 
 			irq_set_chip(irq, &vic_chip);
-			irq_set_chip_data(irq, base);
 			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_data(irq, base);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
 	}

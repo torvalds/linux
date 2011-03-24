@@ -57,8 +57,8 @@ void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 		unsigned int irq = irq_start + i;
 
 		irq_set_chip(irq, &orion_irq_chip);
-		irq_set_chip_data(irq, maskaddr);
 		irq_set_handler(irq, handle_level_irq);
+		irq_set_chip_data(irq, maskaddr);
 		irq_set_status_flags(irq, IRQ_LEVEL);
 		set_irq_flags(irq, IRQF_VALID);
 	}

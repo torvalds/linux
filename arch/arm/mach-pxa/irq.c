@@ -138,8 +138,8 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
 		irq_set_chip(irq, &pxa_low_gpio_chip);
-		irq_set_chip_data(irq, irq_base(0));
 		irq_set_handler(irq, handle_edge_irq);
+		irq_set_chip_data(irq, irq_base(0));
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
@@ -166,8 +166,8 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 
 			irq = PXA_IRQ(i);
 			irq_set_chip(irq, &pxa_internal_irq_chip);
-			irq_set_chip_data(irq, base);
 			irq_set_handler(irq, handle_level_irq);
+			irq_set_chip_data(irq, base);
 			set_irq_flags(irq, IRQF_VALID);
 		}
 	}

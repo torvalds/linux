@@ -320,8 +320,8 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	 */
 	for (i = irq_start; i < irq_limit; i++) {
 		irq_set_chip(i, &gic_chip);
-		irq_set_chip_data(i, gic);
 		irq_set_handler(i, handle_level_irq);
+		irq_set_chip_data(i, gic);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 	}
 
