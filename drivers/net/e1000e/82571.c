@@ -431,9 +431,6 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 	case e1000_82573:
 	case e1000_82574:
 	case e1000_82583:
-		/* Disable ASPM L0s due to hardware errata */
-		e1000e_disable_aspm(adapter->pdev, PCIE_LINK_STATE_L0S);
-
 		if (pdev->device == E1000_DEV_ID_82573L) {
 			adapter->flags |= FLAG_HAS_JUMBO_FRAMES;
 			adapter->max_hw_frame_size = DEFAULT_JUMBO;
@@ -2066,7 +2063,8 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_SWSM_ON_LOAD,
-	.flags2			= FLAG2_DISABLE_ASPM_L1,
+	.flags2			= FLAG2_DISABLE_ASPM_L1
+				  | FLAG2_DISABLE_ASPM_L0S,
 	.pba			= 20,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
@@ -2086,7 +2084,8 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.flags2			  = FLAG2_CHECK_PHY_HANG,
+	.flags2			  = FLAG2_CHECK_PHY_HANG
+				  | FLAG2_DISABLE_ASPM_L0S,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -2104,6 +2103,7 @@ struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
+	.flags2			= FLAG2_DISABLE_ASPM_L0S,
 	.pba			= 32,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,

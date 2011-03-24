@@ -58,6 +58,8 @@
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
+
 static const struct e1000_info *e1000_info_tbl[] = {
 	[board_82571]		= &e1000_82571_info,
 	[board_82572]		= &e1000_82572_info,
@@ -5384,7 +5386,7 @@ static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 	pci_write_config_word(pdev->bus->self, pos + PCI_EXP_LNKCTL, reg16);
 }
 #endif
-void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
 	dev_info(&pdev->dev, "Disabling ASPM %s %s\n",
 		 (state & PCIE_LINK_STATE_L0S) ? "L0s" : "",
@@ -5404,13 +5406,19 @@ static int __e1000_resume(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u16 aspm_disable_flag = 0;
 	u32 err;
+
+	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L0S)
+		aspm_disable_flag = PCIE_LINK_STATE_L0S;
+	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
+		aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	if (aspm_disable_flag)
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
-		e1000e_disable_aspm(pdev, PCIE_LINK_STATE_L1);
 
 	e1000e_set_interrupt_capability(adapter);
 	if (netif_running(netdev)) {
@@ -5654,11 +5662,17 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	u16 aspm_disable_flag = 0;
 	int err;
 	pci_ers_result_t result;
 
+	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L0S)
+		aspm_disable_flag = PCIE_LINK_STATE_L0S;
 	if (adapter->flags2 & FLAG2_DISABLE_ASPM_L1)
-		e1000e_disable_aspm(pdev, PCIE_LINK_STATE_L1);
+		aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	if (aspm_disable_flag)
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
+
 	err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -5799,12 +5813,17 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	resource_size_t flash_start, flash_len;
 
 	static int cards_found;
+	u16 aspm_disable_flag = 0;
 	int i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 
+	if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
+		aspm_disable_flag = PCIE_LINK_STATE_L0S;
 	if (ei->flags2 & FLAG2_DISABLE_ASPM_L1)
-		e1000e_disable_aspm(pdev, PCIE_LINK_STATE_L1);
+		aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	if (aspm_disable_flag)
+		e1000e_disable_aspm(pdev, aspm_disable_flag);
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
