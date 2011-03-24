@@ -1235,6 +1235,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	u8 major_revision;
 	struct xhci_bus_state *bus_state;
 	u32 __iomem **port_array;
+	bool bogus_port_status = false;
 
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
@@ -1247,6 +1248,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 	if ((port_id <= 0) || (port_id > max_ports)) {
 		xhci_warn(xhci, "Invalid port id %d\n", port_id);
+		bogus_port_status = true;
 		goto cleanup;
 	}
 
@@ -1258,12 +1260,14 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		xhci_warn(xhci, "Event for port %u not in "
 				"Extended Capabilities, ignoring.\n",
 				port_id);
+		bogus_port_status = true;
 		goto cleanup;
 	}
 	if (major_revision == DUPLICATE_ENTRY) {
 		xhci_warn(xhci, "Event for port %u duplicated in"
 				"Extended Capabilities, ignoring.\n",
 				port_id);
+		bogus_port_status = true;
 		goto cleanup;
 	}
 
@@ -1334,6 +1338,13 @@ static void handle_port_status(struct xhci_hcd *xhci,
 cleanup:
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
+
+	/* Don't make the USB core poll the roothub if we got a bad port status
+	 * change event.  Besides, at that point we can't tell which roothub
+	 * (USB 2.0 or USB 3.0) to kick.
+	 */
+	if (bogus_port_status)
+		return;
 
 	spin_unlock(&xhci->lock);
 	/* Pass this up to the core */
