@@ -280,7 +280,7 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		if (dev->driver->dumb_create)
 			req->value = 1;
 		break;
-	case DRM_CAP_HIGH_CRTC:
+	case DRM_CAP_VBLANK_HIGH_CRTC:
 		req->value = 1;
 		break;
 	default:
