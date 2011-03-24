@@ -1151,9 +1151,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
+#if 0
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(RK29_PIN5_PD5,GPIO_LOW);
+#else
+	gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW);
+#endif
 	return 0;
 }
 

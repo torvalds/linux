@@ -1542,26 +1542,34 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 	kfree(host);
 	return 0;
 }
-
 static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	int ret = 0;
 #ifdef CONFIG_PM
 	struct rk29_sdmmc *host = platform_get_drvdata(pdev);
+
+	printk("Enter rk29_sdmmc_suspend\n");
+	if(host->mmc)
+		ret = mmc_suspend_host(host->mmc, state);
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
 	clk_disable(host->clk);
 #endif
-	return 0;
+	return ret;
 }
 
 static int rk29_sdmmc_resume(struct platform_device *pdev)
 {
+	int ret = 0;
 #ifdef CONFIG_PM
 	struct rk29_sdmmc *host = platform_get_drvdata(pdev);
-	clk_enable(host->clk);
-#endif
-	return 0;
-}
 
+	printk("Exit rk29_sdmmc_suspend\n");
+	clk_enable(host->clk);
+	if(host->mmc)
+		ret = mmc_resume_host(host->mmc);
+#endif
+	return ret;
+}
 static struct platform_driver rk29_sdmmc_driver = {
 	.suspend    = rk29_sdmmc_suspend,
 	.resume     = rk29_sdmmc_resume,
