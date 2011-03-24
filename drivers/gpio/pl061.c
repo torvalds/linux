@@ -315,8 +315,8 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 		else
 			pl061_direction_input(&chip->gc, i);
 
-		irq_set_chip(i + chip->irq_base, &pl061_irqchip);
-		irq_set_handler(i + chip->irq_base, handle_simple_irq);
+		irq_set_chip_and_handler(i + chip->irq_base, &pl061_irqchip,
+					 handle_simple_irq);
 		set_irq_flags(i+chip->irq_base, IRQF_VALID);
 		irq_set_chip_data(i + chip->irq_base, chip);
 	}

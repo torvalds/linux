@@ -583,8 +583,7 @@ static void sx150x_remove_irq_chip(struct sx150x_chip *chip)
 
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = chip->irq_base + n;
-		irq_set_handler(irq, NULL);
-		irq_set_chip(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
 	}
 }
 
