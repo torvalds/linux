@@ -235,13 +235,13 @@ int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 {
 	if (irq_desc[irq].action)
 		return -EBUSY;
-	if (get_irq_chip(irq) != &cpu_interrupt_type)
+	if (irq_get_chip(irq) != &cpu_interrupt_type)
 		return -EBUSY;
 
 	/* for iosapic interrupts */
 	if (type) {
-		set_irq_chip_and_handler(irq, type, handle_percpu_irq);
-		set_irq_chip_data(irq, data);
+		irq_set_chip_and_handler(irq, type, handle_percpu_irq);
+		irq_set_chip_data(irq, data);
 		__cpu_unmask_irq(irq);
 	}
 	return 0;
@@ -393,14 +393,14 @@ static void claim_cpu_irqs(void)
 {
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
-		set_irq_chip_and_handler(i, &cpu_interrupt_type,
+		irq_set_chip_and_handler(i, &cpu_interrupt_type,
 					 handle_percpu_irq);
 	}
 
-	set_irq_handler(TIMER_IRQ, handle_percpu_irq);
+	irq_set_handler(TIMER_IRQ, handle_percpu_irq);
 	setup_irq(TIMER_IRQ, &timer_action);
 #ifdef CONFIG_SMP
-	set_irq_handler(IPI_IRQ, handle_percpu_irq);
+	irq_set_handler(IPI_IRQ, handle_percpu_irq);
 	setup_irq(IPI_IRQ, &ipi_action);
 #endif
 }
