@@ -110,7 +110,7 @@
 #define SPRN_MAS2	0x272	/* MMU Assist Register 2 */
 #define SPRN_MAS3	0x273	/* MMU Assist Register 3 */
 #define SPRN_MAS4	0x274	/* MMU Assist Register 4 */
-#define SPRN_MAS5	0x275	/* MMU Assist Register 5 */
+#define SPRN_MAS5	0x153	/* MMU Assist Register 5 */
 #define SPRN_MAS6	0x276	/* MMU Assist Register 6 */
 #define SPRN_PID1	0x279	/* Process ID Register 1 */
 #define SPRN_PID2	0x27A	/* Process ID Register 2 */
