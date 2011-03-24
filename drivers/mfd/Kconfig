@@ -133,6 +133,7 @@ config TPS6105X
 	tristate "TPS61050/61052 Boost Converters"
 	depends on I2C
 	select REGULATOR
+	select MFD_CORE
 	select REGULATOR_FIXED_VOLTAGE
 	help
 	  This option enables a driver for the TP61050/TPS61052
