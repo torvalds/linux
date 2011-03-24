@@ -6,6 +6,7 @@
  *  with various broken implementations of this HW.
  *
  *  Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
+ *  Copyright 2010-2011 Freescale Semiconductor, Inc.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive
@@ -1023,6 +1024,7 @@ static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {
+	struct mpic *mpic = h->host_data;
 	static unsigned char map_mpic_senses[4] = {
 		IRQ_TYPE_EDGE_RISING,
 		IRQ_TYPE_LEVEL_LOW,
@@ -1031,7 +1033,38 @@ static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
 	};
 
 	*out_hwirq = intspec[0];
-	if (intsize > 1) {
+	if (intsize >= 4 && (mpic->flags & MPIC_FSL)) {
+		/*
+		 * Freescale MPIC with extended intspec:
+		 * First two cells are as usual.  Third specifies
+		 * an "interrupt type".  Fourth is type-specific data.
+		 *
+		 * See Documentation/devicetree/bindings/powerpc/fsl/mpic.txt
+		 */
+		switch (intspec[2]) {
+		case 0:
+		case 1: /* no EISR/EIMR support for now, treat as shared IRQ */
+			break;
+		case 2:
+			if (intspec[0] >= ARRAY_SIZE(mpic->ipi_vecs))
+				return -EINVAL;
+
+			*out_hwirq = mpic->ipi_vecs[intspec[0]];
+			break;
+		case 3:
+			if (intspec[0] >= ARRAY_SIZE(mpic->timer_vecs))
+				return -EINVAL;
+
+			*out_hwirq = mpic->timer_vecs[intspec[0]];
+			break;
+		default:
+			pr_debug("%s: unknown irq type %u\n",
+				 __func__, intspec[2]);
+			return -EINVAL;
+		}
+
+		*out_flags = map_mpic_senses[intspec[1] & 3];
+	} else if (intsize > 1) {
 		u32 mask = 0x3;
 
 		/* Apple invented a new race of encoding on machines with
@@ -1130,6 +1163,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/* Check for "big-endian" in device-tree */
 	if (node && of_get_property(node, "big-endian", NULL) != NULL)
 		mpic->flags |= MPIC_BIG_ENDIAN;
+	if (node && of_device_is_compatible(node, "fsl,mpic"))
+		mpic->flags |= MPIC_FSL;
 
 	/* Look for protected sources */
 	if (node) {

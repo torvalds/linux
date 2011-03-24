@@ -371,6 +371,8 @@ struct mpic
  * NOTE: This flag trumps MPIC_WANTS_RESET.
  */
 #define MPIC_NO_RESET			0x00004000
+/* Freescale MPIC (compatible includes "fsl,mpic") */
+#define MPIC_FSL			0x00008000
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000
