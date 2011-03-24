@@ -73,13 +73,13 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 	/* Trigger the command */
 	snd_soc_write(codec, WM8993_DC_SERVO_0, val);
 
-	dev_info(codec->dev, "Waiting for DC servo...\n");
+	dev_vdbg(codec->dev, "Waiting for DC servo...\n");
 
 	do {
 		count++;
 		msleep(10);
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_0);
-		dev_info(codec->dev, "DC servo: %x\n", reg);
+		dev_vdbg(codec->dev, "DC servo: %x\n", reg);
 	} while (reg & op && count < 400);
 
 	if (reg & op)
@@ -380,7 +380,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA);
-
+	//	printk("hp_event power1 up: 0x%04x",snd_soc_read(codec,WM8993_POWER_MANAGEMENT_1));
 		reg |= WM8993_HPOUT1L_DLY | WM8993_HPOUT1R_DLY;
 		snd_soc_write(codec, WM8993_ANALOGUE_HP_0, reg);
 
@@ -409,6 +409,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,
 				    0);
+	//	printk("hp_event power1 down: 0x%04x",snd_soc_read(codec,WM8993_POWER_MANAGEMENT_1));
 		break;
 	}
 
@@ -639,6 +640,13 @@ SND_SOC_DAPM_OUTPUT("LINEOUT2N"),
 };
 
 static const struct snd_soc_dapm_route analogue_routes[] = {
+	{ "IN1L PGA", NULL , "MICBIAS2" },
+	{ "IN1R PGA", NULL , "MICBIAS1" },
+	{ "MICBIAS2", NULL , "IN1LP"},
+	{ "MICBIAS2", NULL , "IN1LN"},
+	{ "MICBIAS1", NULL , "IN1RP"},
+	{ "MICBIAS1", NULL , "IN1RN"},
+	
 	{ "IN1L PGA", "IN1LP Switch", "IN1LP" },
 	{ "IN1L PGA", "IN1LN Switch", "IN1LN" },
 

@@ -3639,7 +3639,7 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 				      pdata->jd_thr,
 				      pdata->micbias1_lvl,
 				      pdata->micbias2_lvl);
-	pdata->num_drc_cfgs = 0;//add 
+
 	DBG_INFO(codec->dev, "%d DRC configurations\n", pdata->num_drc_cfgs);
 
 	if (pdata->num_drc_cfgs) 
@@ -3679,7 +3679,7 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 		for (i = 0; i < WM8994_NUM_DRC; i++)
 			wm8994_set_drc(codec, i);
 	}
-	pdata->num_retune_mobile_cfgs = 0;//add 
+
 	DBG_INFO(codec->dev, "%d ReTune Mobile configurations\n",
 		pdata->num_retune_mobile_cfgs);
 
@@ -3718,9 +3718,9 @@ static int wm8994_probe(struct platform_device *pdev)
 			     ARRAY_SIZE(wm8994_snd_controls));
 	snd_soc_dapm_new_controls(codec, wm8994_dapm_widgets,
 				  ARRAY_SIZE(wm8994_dapm_widgets));
-	wm_hubs_add_analogue_routes(codec, 0, 0);
+	wm_hubs_add_analogue_routes(codec, 1, 0);
 	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
-	snd_soc_dapm_new_widgets(codec);	//and
+//	snd_soc_dapm_new_widgets(codec);	//add
 	
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
@@ -3844,7 +3844,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		else
 		{
 			DBG("Error Read reg debug.\n");
-			DBG("For example: r:22,23,24,25\n");
+			DBG("For example: echo 'r:22,23,24,25'>wm8994_ts\n");
 		}
 		break;
 	case 'w':
@@ -3871,7 +3871,10 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		}
 		break;		
 	default:
-		printk("Please press 'l'!\n");
+		DBG("Help for wm8994_ts .\n-->The Cmd list: \n");
+		DBG("-->'d&&D' Open or Off the debug\n");
+		DBG("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>wm8994_ts\n");
+		DBG("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>wm8994_ts\n");
 		break;
 	}
 

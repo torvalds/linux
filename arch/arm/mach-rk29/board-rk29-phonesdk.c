@@ -49,6 +49,8 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/gpio.h>
+#include <linux/mfd/wm8994/pdata.h>
+#include <linux/mfd/wm8994/registers.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -1274,6 +1276,116 @@ struct platform_device rk29_device_gps = {
 #endif
 
 /*****************************************************************************************
+ * wm8994  codec
+ * author: qjb@rock-chips.com
+ *****************************************************************************************/
+#if defined(CONFIG_MFD_WM8994)
+#if defined (CONFIG_REGULATOR_WM8994)
+static struct regulator_consumer_supply wm8994_ldo1_consumers[] = {
+	{
+		.supply = "DBVDD",
+	},
+	{
+		.supply = "AVDD1",
+	},
+	{
+		.supply = "CPVDD",
+	},
+	{
+		.supply = "SPKVDD1",
+	}		
+};
+static struct regulator_consumer_supply wm8994_ldo2_consumers[] = {
+	{
+		.supply = "DCVDD",
+	},
+	{
+		.supply = "AVDD2",
+	},
+	{
+		.supply = "SPKVDD2",
+	}			
+};
+struct regulator_init_data regulator_init_data_ldo1 = {
+	.constraints = {
+		.name = "wm8994-ldo1",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo1_consumers),
+	.consumer_supplies = wm8994_ldo1_consumers,	
+};
+struct regulator_init_data regulator_init_data_ldo2 = {
+	.constraints = {
+		.name = "wm8994-ldo2",
+		.min_uA = 00000,
+		.max_uA = 18000,
+		.always_on = true,
+		.apply_uV = true,		
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_CURRENT,		
+	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8994_ldo2_consumers),
+	.consumer_supplies = wm8994_ldo2_consumers,	
+};
+#endif 
+struct wm8994_drc_cfg wm8994_drc_cfg_pdata = {
+	.name = "wm8994_DRC",
+	.regs = {0,0,0,0,0},
+};
+
+struct wm8994_retune_mobile_cfg wm8994_retune_mobile_cfg_pdata = {
+	.name = "wm8994_EQ",
+	.rate = 0,
+	.regs = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,},
+}; 
+
+struct wm8994_pdata wm8994_platdata = {	
+#if defined (CONFIG_GPIO_WM8994)
+	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
+	//Fill value to initialize the GPIO
+	.gpio_defaults ={},
+#endif	
+	//enable=0 disable ldo
+#if defined (CONFIG_REGULATOR_WM8994)	
+	.ldo = {
+		{
+			.enable = 0,
+			//TCA6424_P11
+			.supply = "wm8994-ldo1",
+			.init_data = &regulator_init_data_ldo1,
+		},
+		{
+			.enable = 0,
+			.supply = "wm8994-ldo2",		
+			.init_data = &regulator_init_data_ldo2,
+		}
+	},
+#endif 	
+	//DRC 0--use default
+	.num_drc_cfgs = 0,
+	.drc_cfgs = &wm8994_drc_cfg_pdata,
+	//EQ   0--use default 
+	.num_retune_mobile_cfgs = 0,
+	.retune_mobile_cfgs = &wm8994_retune_mobile_cfg_pdata,
+	
+	.lineout1_diff = 1,
+	.lineout2_diff = 1,
+	
+	.lineout1fb = 1,
+	.lineout2fb = 1,
+	
+	.micbias1_lvl = 1,
+	.micbias2_lvl = 1,
+	
+	.jd_scthr = 0,
+	.jd_thr = 0,
+};
+#endif 
+
+/*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
 *****************************************************************************************/
@@ -1368,6 +1480,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "wm8994",
 		.addr           = 0x1A,
 		.flags			= 0,
+		.platform_data  = &wm8994_platdata,	
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
@@ -2626,7 +2739,6 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
 	.io_fix_leakage_bug = spi_io_fix_leakage_bug,
 	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
 };
-
 
 /*****************************************************************************************
  * xpt2046 touch panel

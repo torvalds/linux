@@ -184,13 +184,13 @@ static struct mfd_cell wm8994_devs[] = {
  * management.
  */
 static const char *wm8994_main_supplies[] = {
-	// "DBVDD",
-	// "DCVDD",
-	// "AVDD1",
-	// "AVDD2",
-	// "CPVDD",
-	// "SPKVDD1",
-	// "SPKVDD2",
+	"DBVDD",
+	"DCVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD1",
+	"SPKVDD2",
 };
 
 #ifdef CONFIG_PM
