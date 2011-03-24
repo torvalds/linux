@@ -110,4 +110,9 @@ static inline int drbd_request_state(struct drbd_conf *mdev,
 	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
 }
 
+enum drbd_role conn_highest_role(struct drbd_tconn *tconn);
+enum drbd_role conn_highest_peer(struct drbd_tconn *tconn);
+enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn);
+enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn);
+
 #endif

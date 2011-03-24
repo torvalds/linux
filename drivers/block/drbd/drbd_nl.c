@@ -366,116 +366,122 @@ int conn_khelper(struct drbd_tconn *tconn, char *cmd)
 	return ret;
 }
 
-enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
+static enum drbd_fencing_p highest_fencing_policy(struct drbd_tconn *tconn)
 {
-	char *ex_to_string;
-	int r;
-	enum drbd_disk_state nps;
-	enum drbd_fencing_p fp;
+	enum drbd_fencing_p fp = FP_NOT_AVAIL;
+	struct drbd_conf *mdev;
+	int vnr;
 
-	D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
-
-	if (get_ldev_if_state(mdev, D_CONSISTENT)) {
-		fp = mdev->ldev->dc.fencing;
-		put_ldev(mdev);
-	} else {
-		dev_warn(DEV, "Not fencing peer, I'm not even Consistent myself.\n");
-		nps = mdev->state.pdsk;
-		goto out;
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		if (get_ldev_if_state(mdev, D_CONSISTENT)) {
+			fp = max_t(enum drbd_fencing_p, fp, mdev->ldev->dc.fencing);
+			put_ldev(mdev);
+		}
 	}
 
-	r = drbd_khelper(mdev, "fence-peer");
+	return fp;
+}
+
+bool conn_try_outdate_peer(struct drbd_tconn *tconn)
+{
+	union drbd_state mask = { };
+	union drbd_state val = { };
+	enum drbd_fencing_p fp;
+	char *ex_to_string;
+	int r;
+
+	if (tconn->cstate >= C_WF_REPORT_PARAMS) {
+		conn_err(tconn, "Expected cstate < C_WF_REPORT_PARAMS\n");
+		return false;
+	}
+
+	fp = highest_fencing_policy(tconn);
+	switch (fp) {
+	case FP_NOT_AVAIL:
+		conn_warn(tconn, "Not fencing peer, I'm not even Consistent myself.\n");
+		goto out;
+	case FP_DONT_CARE:
+		return true;
+	default: ;
+	}
+
+	r = conn_khelper(tconn, "fence-peer");
 
 	switch ((r>>8) & 0xff) {
 	case 3: /* peer is inconsistent */
 		ex_to_string = "peer is inconsistent or worse";
-		nps = D_INCONSISTENT;
+		mask.pdsk = D_MASK;
+		val.pdsk = D_INCONSISTENT;
 		break;
 	case 4: /* peer got outdated, or was already outdated */
 		ex_to_string = "peer was fenced";
-		nps = D_OUTDATED;
+		mask.pdsk = D_MASK;
+		val.pdsk = D_OUTDATED;
 		break;
 	case 5: /* peer was down */
-		if (mdev->state.disk == D_UP_TO_DATE) {
+		if (conn_highest_disk(tconn) == D_UP_TO_DATE) {
 			/* we will(have) create(d) a new UUID anyways... */
 			ex_to_string = "peer is unreachable, assumed to be dead";
-			nps = D_OUTDATED;
+			mask.pdsk = D_MASK;
+			val.pdsk = D_OUTDATED;
 		} else {
 			ex_to_string = "peer unreachable, doing nothing since disk != UpToDate";
-			nps = mdev->state.pdsk;
 		}
 		break;
 	case 6: /* Peer is primary, voluntarily outdate myself.
 		 * This is useful when an unconnected R_SECONDARY is asked to
 		 * become R_PRIMARY, but finds the other peer being active. */
 		ex_to_string = "peer is active";
-		dev_warn(DEV, "Peer is primary, outdating myself.\n");
-		nps = D_UNKNOWN;
-		_drbd_request_state(mdev, NS(disk, D_OUTDATED), CS_WAIT_COMPLETE);
+		conn_warn(tconn, "Peer is primary, outdating myself.\n");
+		mask.disk = D_MASK;
+		val.disk = D_OUTDATED;
 		break;
 	case 7:
 		if (fp != FP_STONITH)
-			dev_err(DEV, "fence-peer() = 7 && fencing != Stonith !!!\n");
+			conn_err(tconn, "fence-peer() = 7 && fencing != Stonith !!!\n");
 		ex_to_string = "peer was stonithed";
-		nps = D_OUTDATED;
+		mask.pdsk = D_MASK;
+		val.pdsk = D_OUTDATED;
 		break;
 	default:
 		/* The script is broken ... */
-		nps = D_UNKNOWN;
-		dev_err(DEV, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
-		return nps;
+		conn_err(tconn, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
+		return false; /* Eventually leave IO frozen */
 	}
 
-	dev_info(DEV, "fence-peer helper returned %d (%s)\n",
-			(r>>8) & 0xff, ex_to_string);
+	conn_info(tconn, "fence-peer helper returned %d (%s)\n",
+		  (r>>8) & 0xff, ex_to_string);
 
-out:
-	if (mdev->state.susp_fen && nps >= D_UNKNOWN) {
-		/* The handler was not successful... unfreeze here, the
-		   state engine can not unfreeze... */
-		_drbd_request_state(mdev, NS(susp_fen, 0), CS_VERBOSE);
-	}
+ out:
 
-	return nps;
+	/* Not using
+	   conn_request_state(tconn, mask, val, CS_VERBOSE);
+	   here, because we might were able to re-establish the connection in the
+	   meantime. */
+	spin_lock_irq(&tconn->req_lock);
+	if (tconn->cstate < C_WF_REPORT_PARAMS)
+		_conn_request_state(tconn, mask, val, CS_VERBOSE);
+	spin_unlock_irq(&tconn->req_lock);
+
+	return conn_highest_pdsk(tconn) <= D_OUTDATED;
 }
 
 static int _try_outdate_peer_async(void *data)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *)data;
-	enum drbd_disk_state nps;
-	union drbd_state ns;
+	struct drbd_tconn *tconn = (struct drbd_tconn *)data;
 
-	nps = drbd_try_outdate_peer(mdev);
-
-	/* Not using
-	   drbd_request_state(mdev, NS(pdsk, nps));
-	   here, because we might were able to re-establish the connection
-	   in the meantime. This can only partially be solved in the state's
-	   engine is_valid_state() and is_valid_state_transition()
-	   functions.
-
-	   nps can be D_INCONSISTENT, D_OUTDATED or D_UNKNOWN.
-	   pdsk == D_INCONSISTENT while conn >= C_CONNECTED is valid,
-	   therefore we have to have the pre state change check here.
-	*/
-	spin_lock_irq(&mdev->tconn->req_lock);
-	ns = mdev->state;
-	if (ns.conn < C_WF_REPORT_PARAMS) {
-		ns.pdsk = nps;
-		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
-	}
-	spin_unlock_irq(&mdev->tconn->req_lock);
+	conn_try_outdate_peer(tconn);
 
 	return 0;
 }
 
-void drbd_try_outdate_peer_async(struct drbd_conf *mdev)
+void conn_try_outdate_peer_async(struct drbd_tconn *tconn)
 {
 	struct task_struct *opa;
 
-	opa = kthread_run(_try_outdate_peer_async, mdev, "drbd%d_a_helper", mdev_to_minor(mdev));
+	opa = kthread_run(_try_outdate_peer_async, tconn, "drbd_async_h");
 	if (IS_ERR(opa))
-		dev_err(DEV, "out of mem, failed to invoke fence-peer helper\n");
+		conn_err(tconn, "out of mem, failed to invoke fence-peer helper\n");
 }
 
 enum drbd_state_rv
@@ -486,7 +492,6 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	int try = 0;
 	int forced = 0;
 	union drbd_state mask, val;
-	enum drbd_disk_state nps;
 
 	if (new_role == R_PRIMARY)
 		request_ping(mdev->tconn); /* Detect a dead peer ASAP */
@@ -519,32 +524,23 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		if (rv == SS_NO_UP_TO_DATE_DISK &&
 		    mdev->state.disk == D_CONSISTENT && mask.pdsk == 0) {
 			D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
-			nps = drbd_try_outdate_peer(mdev);
 
-			if (nps == D_OUTDATED || nps == D_INCONSISTENT) {
+			if (conn_try_outdate_peer(mdev->tconn)) {
 				val.disk = D_UP_TO_DATE;
 				mask.disk = D_MASK;
 			}
-
-			val.pdsk = nps;
-			mask.pdsk = D_MASK;
-
 			continue;
 		}
 
 		if (rv == SS_NOTHING_TO_DO)
 			goto out;
 		if (rv == SS_PRIMARY_NOP && mask.pdsk == 0) {
-			nps = drbd_try_outdate_peer(mdev);
-
-			if (force && nps > D_OUTDATED) {
+			if (!conn_try_outdate_peer(mdev->tconn) && force) {
 				dev_warn(DEV, "Forced into split brain situation!\n");
-				nps = D_OUTDATED;
+				mask.pdsk = D_MASK;
+				val.pdsk  = D_OUTDATED;
+
 			}
-
-			mask.pdsk = D_MASK;
-			val.pdsk  = nps;
-
 			continue;
 		}
 		if (rv == SS_TWO_PRIMARIES) {

@@ -1472,8 +1472,8 @@ extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
 extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
 					enum drbd_role new_role,
 					int force);
-extern enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev);
-extern void drbd_try_outdate_peer_async(struct drbd_conf *mdev);
+extern bool conn_try_outdate_peer(struct drbd_tconn *tconn);
+extern void conn_try_outdate_peer_async(struct drbd_tconn *tconn);
 extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
 
 /* drbd_worker.c */

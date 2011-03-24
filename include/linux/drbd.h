@@ -65,7 +65,8 @@ enum drbd_io_error_p {
 };
 
 enum drbd_fencing_p {
-	FP_DONT_CARE,
+	FP_NOT_AVAIL = -1, /* Not a policy */
+	FP_DONT_CARE = 0,
 	FP_RESOURCE,
 	FP_STONITH
 };

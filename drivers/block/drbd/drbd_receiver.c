@@ -4030,8 +4030,10 @@ static void drbd_disconnect(struct drbd_tconn *tconn)
 	drbd_free_sock(tconn);
 
 	idr_for_each(&tconn->volumes, drbd_disconnected, tconn);
-
 	conn_info(tconn, "Connection closed\n");
+
+	if (conn_highest_role(tconn) == R_PRIMARY && conn_highest_pdsk(tconn) >= D_UNKNOWN)
+		conn_try_outdate_peer_async(tconn);
 
 	spin_lock_irq(&tconn->req_lock);
 	oc = tconn->cstate;
@@ -4108,9 +4110,6 @@ static int drbd_disconnected(int vnr, void *p, void *data)
 		fp = mdev->ldev->dc.fencing;
 		put_ldev(mdev);
 	}
-
-	if (mdev->state.role == R_PRIMARY && fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN)
-		drbd_try_outdate_peer_async(mdev);
 
 	/* serialize with bitmap writeout triggered by the state change,
 	 * if any. */
