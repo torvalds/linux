@@ -5267,6 +5267,10 @@ static struct snd_kcontrol_new vt2002P_capture_mixer[] = {
 };
 
 static struct hda_verb vt2002P_volume_init_verbs[] = {
+	/* Class-D speaker related verbs */
+	{0x1, 0xfe0, 0x4},
+	{0x1, 0xfe9, 0x80},
+	{0x1, 0xfe2, 0x22},
 	/*
 	 * Unmute ADC0-1 and set the default input to mic-in
 	 */
