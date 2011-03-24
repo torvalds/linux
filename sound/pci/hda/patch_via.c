@@ -1200,6 +1200,8 @@ static struct hda_verb vt1708_volume_init_verbs[] = {
 	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
 	/* PW9 Output enable */
 	{0x25, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	/* power down jack detect function */
+	{0x1, 0xf81, 0x1},
 	{ }
 };
 
