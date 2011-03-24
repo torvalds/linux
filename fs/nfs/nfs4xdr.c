@@ -113,7 +113,7 @@ static int nfs4_stat_to_errno(int);
 #define encode_restorefh_maxsz  (op_encode_hdr_maxsz)
 #define decode_restorefh_maxsz  (op_decode_hdr_maxsz)
 #define encode_fsinfo_maxsz	(encode_getattr_maxsz)
-#define decode_fsinfo_maxsz	(op_decode_hdr_maxsz + 11)
+#define decode_fsinfo_maxsz	(op_decode_hdr_maxsz + 15)
 #define encode_renew_maxsz	(op_encode_hdr_maxsz + 3)
 #define decode_renew_maxsz	(op_decode_hdr_maxsz)
 #define encode_setclientid_maxsz \
@@ -2966,6 +2966,7 @@ static int decode_attr_error(struct xdr_stream *xdr, uint32_t *bitmap)
 		if (unlikely(!p))
 			goto out_overflow;
 		bitmap[0] &= ~FATTR4_WORD0_RDATTR_ERROR;
+		return -be32_to_cpup(p);
 	}
 	return 0;
 out_overflow:
@@ -3953,6 +3954,10 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 	fattr->valid |= status;
 
 	status = decode_attr_error(xdr, bitmap);
+	if (status == -NFS4ERR_WRONGSEC) {
+		nfs_fixup_secinfo_attributes(fattr, fh);
+		status = 0;
+	}
 	if (status < 0)
 		goto xdr_error;
 
@@ -6314,10 +6319,6 @@ static struct {
 	{ NFS4ERR_SYMLINK,	-ELOOP		},
 	{ NFS4ERR_OP_ILLEGAL,	-EOPNOTSUPP	},
 	{ NFS4ERR_DEADLOCK,	-EDEADLK	},
-	{ NFS4ERR_WRONGSEC,	-EPERM		}, /* FIXME: this needs
-						    * to be handled by a
-						    * middle-layer.
-						    */
 	{ -1,			-EIO		}
 };
 

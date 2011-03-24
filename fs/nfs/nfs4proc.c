@@ -87,6 +87,8 @@ static int nfs4_map_errors(int err)
 	switch (err) {
 	case -NFS4ERR_RESOURCE:
 		return -EREMOTEIO;
+	case -NFS4ERR_WRONGSEC:
+		return -EPERM;
 	case -NFS4ERR_BADOWNER:
 	case -NFS4ERR_BADNAME:
 		return -EINVAL;
@@ -2383,6 +2385,16 @@ static int _nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir,
 	return status;
 }
 
+void nfs_fixup_secinfo_attributes(struct nfs_fattr *fattr, struct nfs_fh *fh)
+{
+	memset(fh, 0, sizeof(struct nfs_fh));
+	fattr->fsid.major = 1;
+	fattr->valid |= NFS_ATTR_FATTR_TYPE | NFS_ATTR_FATTR_MODE |
+		NFS_ATTR_FATTR_NLINK | NFS_ATTR_FATTR_FSID | NFS_ATTR_FATTR_MOUNTPOINT;
+	fattr->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	fattr->nlink = 2;
+}
+
 static int nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir, struct qstr *name,
 			    struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
@@ -2392,6 +2404,8 @@ static int nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir, struct qst
 		err = nfs4_handle_exception(NFS_SERVER(dir),
 				_nfs4_proc_lookup(clnt, dir, name, fhandle, fattr),
 				&exception);
+		if (err == -EPERM)
+			nfs_fixup_secinfo_attributes(fattr, fhandle);
 	} while (exception.retry);
 	return err;
 }

@@ -160,6 +160,28 @@ gss_mech_get_by_name(const char *name)
 
 EXPORT_SYMBOL_GPL(gss_mech_get_by_name);
 
+struct gss_api_mech *
+gss_mech_get_by_OID(struct xdr_netobj *obj)
+{
+	struct gss_api_mech	*pos, *gm = NULL;
+
+	spin_lock(&registered_mechs_lock);
+	list_for_each_entry(pos, &registered_mechs, gm_list) {
+		if (obj->len == pos->gm_oid.len) {
+			if (0 == memcmp(obj->data, pos->gm_oid.data, obj->len)) {
+				if (try_module_get(pos->gm_owner))
+					gm = pos;
+				break;
+			}
+		}
+	}
+	spin_unlock(&registered_mechs_lock);
+	return gm;
+
+}
+
+EXPORT_SYMBOL_GPL(gss_mech_get_by_OID);
+
 static inline int
 mech_supports_pseudoflavor(struct gss_api_mech *gm, u32 pseudoflavor)
 {

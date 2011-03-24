@@ -254,7 +254,9 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 	struct inode *inode = ERR_PTR(-ENOENT);
 	unsigned long hash;
 
-	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) == 0)
+	nfs_attr_check_mountpoint(sb, fattr);
+
+	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) == 0 && (fattr->valid & NFS_ATTR_FATTR_MOUNTPOINT) == 0)
 		goto out_no_inode;
 	if ((fattr->valid & NFS_ATTR_FATTR_TYPE) == 0)
 		goto out_no_inode;
@@ -298,8 +300,8 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS))
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			/* Deal with crossing mountpoints */
-			if ((fattr->valid & NFS_ATTR_FATTR_FSID)
-					&& !nfs_fsid_equal(&NFS_SB(sb)->fsid, &fattr->fsid)) {
+			if (fattr->valid & NFS_ATTR_FATTR_MOUNTPOINT ||
+					fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) {
 				if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
 					inode->i_op = &nfs_referral_inode_operations;
 				else
