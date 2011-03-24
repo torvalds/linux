@@ -2160,6 +2160,8 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	if (!ath_drain_all_txq(sc, false))
 		ath_reset(sc, false);
 
+	ieee80211_wake_queues(hw);
+
 out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
 	mutex_unlock(&sc->mutex);
