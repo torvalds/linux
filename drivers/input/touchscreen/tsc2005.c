@@ -477,7 +477,14 @@ static void tsc2005_esd_work(struct work_struct *work)
 	int error;
 	u16 r;
 
-	mutex_lock(&ts->mutex);
+	if (!mutex_trylock(&ts->mutex)) {
+		/*
+		 * If the mutex is taken, it means that disable or enable is in
+		 * progress. In that case just reschedule the work. If the work
+		 * is not needed, it will be canceled by disable.
+		 */
+		goto reschedule;
+	}
 
 	if (time_is_after_jiffies(ts->last_valid_interrupt +
 				  msecs_to_jiffies(ts->esd_timeout)))
@@ -510,11 +517,12 @@ static void tsc2005_esd_work(struct work_struct *work)
 	tsc2005_start_scan(ts);
 
 out:
+	mutex_unlock(&ts->mutex);
+reschedule:
 	/* re-arm the watchdog */
 	schedule_delayed_work(&ts->esd_work,
 			      round_jiffies_relative(
 					msecs_to_jiffies(ts->esd_timeout)));
-	mutex_unlock(&ts->mutex);
 }
 
 static int tsc2005_open(struct input_dev *input)
