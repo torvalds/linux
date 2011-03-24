@@ -1231,8 +1231,8 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     rk28_usb_suspend(0);
     del_timer(&otg_dev->pcd->check_vbus_timer); 
 	
-	DWC_PRINT("CRU_CLKGATE1_CON: 0x%08x\n",dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x60)));
-	DWC_PRINT("USB_PHY_CON1:     0x%08x\n",dwc_read_reg32((uint32_t *)(USB_GRF_CON)));
+	//DWC_PRINT("CRU_CLKGATE1_CON: 0x%08x\n",dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x60)));
+	//DWC_PRINT("USB_PHY_CON1:     0x%08x\n",dwc_read_reg32((uint32_t *)(USB_GRF_CON)));
     return 0;
 }
 #else

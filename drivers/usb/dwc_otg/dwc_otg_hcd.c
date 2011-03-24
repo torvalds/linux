@@ -165,11 +165,9 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
         hprt0.b.prtconndet = 1;
         dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 
-        hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
+        //hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);	
         //DWC_PRINT("%s, HPRT0:0x%x\n",hcd->self.bus_name,hprt0.d32);
     	
-        gintmsk.b.portintr = 1;
-        dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
         mdelay(10);
     }
     else
@@ -178,6 +176,8 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
                 core_if->hcd_cb->suspend( core_if->hcd_cb->p, 1);
         }
     }
+    gintmsk.b.portintr = 1;
+    dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
 
 	return 0;
 }
