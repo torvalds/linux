@@ -86,8 +86,7 @@ static void pmu_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (!(cause & (1 << irq)))
 			continue;
 		irq = pmu_to_irq(irq);
-		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	}
 }
 
@@ -124,7 +123,7 @@ void __init dove_init_irq(void)
 	for (i = IRQ_DOVE_PMU_START; i < NR_IRQS; i++) {
 		set_irq_chip(i, &pmu_irq_chip);
 		set_irq_handler(i, handle_level_irq);
-		irq_desc[i].status |= IRQ_LEVEL;
+		irq_set_status_flags(i, IRQ_LEVEL);
 		set_irq_flags(i, IRQF_VALID);
 	}
 	set_irq_chained_handler(IRQ_DOVE_PMU, pmu_irq_handler);
