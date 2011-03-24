@@ -4167,8 +4167,6 @@ static void tp_perf_event_destroy(struct perf_event *event)
 
 static const struct pmu *tp_perf_event_init(struct perf_event *event)
 {
-	if (event->hw.state & PERF_HES_STOPPED)
-		return 0;
 	/*
 	 * Raw tracepoint data is a severe data leak, only allow root to
 	 * have these.
