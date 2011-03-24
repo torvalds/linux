@@ -1,5 +1,5 @@
-#ifndef MMCIF_AP4EB_H
-#define MMCIF_AP4EB_H
+#ifndef MMC_AP4EB_H
+#define MMC_AP4EB_H
 
 #define PORT185CR      (void __iomem *)0xe60520b9
 #define PORT186CR      (void __iomem *)0xe60520ba
@@ -8,7 +8,7 @@
 
 #define PORTR191_160DR (void __iomem *)0xe6056014
 
-static inline void mmcif_init_progress(void)
+static inline void mmc_init_progress(void)
 {
        /* Initialise LEDS1-4
         * registers: PORT185CR-PORT188CR (LED1-LED4 Control)
@@ -20,10 +20,10 @@ static inline void mmcif_init_progress(void)
        __raw_writeb(0x10, PORT188CR);
 }
 
-static inline void mmcif_update_progress(int n)
+static inline void mmc_update_progress(int n)
 {
 	__raw_writel((__raw_readl(PORTR191_160DR) & ~(0xf << 25)) |
 		     (1 << (25 + n)), PORTR191_160DR);
 }
 
-#endif /* MMCIF_AP4EB_H */
+#endif /* MMC_AP4EB_H */

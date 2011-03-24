@@ -1,5 +1,5 @@
-#ifndef MMCIF_H
-#define MMCIF_H
+#ifndef MMC_H
+#define MMC_H
 
 /**************************************************
  *
@@ -8,11 +8,11 @@
  **************************************************/
 
 #ifdef CONFIG_MACH_AP4EVB
-#include "mach/mmcif-ap4eb.h"
+#include "mach/mmc-ap4eb.h"
 #elif CONFIG_MACH_MACKEREL
-#include "mach/mmcif-mackerel.h"
+#include "mach/mmc-mackerel.h"
 #else
 #error "unsupported board."
 #endif
 
-#endif /* MMCIF_H */
+#endif /* MMC_H */
