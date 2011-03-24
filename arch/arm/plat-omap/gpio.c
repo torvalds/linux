@@ -755,12 +755,6 @@ static int gpio_irq_type(struct irq_data *d, unsigned type)
 	bank = irq_data_get_irq_chip_data(d);
 	spin_lock_irqsave(&bank->lock, flags);
 	retval = _set_gpio_triggering(bank, get_gpio_index(gpio), type);
-	if (retval == 0) {
-		struct irq_desc *desc = irq_to_desc(d->irq);
-
-		desc->status &= ~IRQ_TYPE_SENSE_MASK;
-		desc->status |= type;
-	}
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
@@ -1270,8 +1264,7 @@ static void gpio_unmask_irq(struct irq_data *d)
 	unsigned int gpio = d->irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
 	unsigned int irq_mask = 1 << get_gpio_index(gpio);
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	u32 trigger = desc->status & IRQ_TYPE_SENSE_MASK;
+	u32 trigger = irqd_get_trigger_type(d);
 
 	if (trigger)
 		_set_gpio_triggering(bank, get_gpio_index(gpio), trigger);
