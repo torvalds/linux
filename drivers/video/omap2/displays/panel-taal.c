@@ -227,7 +227,8 @@ struct taal_data {
 
 	bool intro_printed;
 
-	struct workqueue_struct *esd_wq;
+	struct workqueue_struct *workqueue;
+
 	struct delayed_work esd_work;
 	unsigned esd_interval;
 
@@ -425,7 +426,7 @@ static void taal_queue_esd_work(struct omap_dss_device *dssdev)
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 
 	if (td->esd_interval > 0)
-		queue_delayed_work(td->esd_wq, &td->esd_work,
+		queue_delayed_work(td->workqueue, &td->esd_work,
 				msecs_to_jiffies(td->esd_interval));
 }
 
@@ -768,8 +769,8 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_reg;
 
-	td->esd_wq = create_singlethread_workqueue("taal_esd");
-	if (td->esd_wq == NULL) {
+	td->workqueue = create_singlethread_workqueue("taal_esd");
+	if (td->workqueue == NULL) {
 		dev_err(&dssdev->dev, "can't create ESD workqueue\n");
 		r = -ENOMEM;
 		goto err_wq;
@@ -868,7 +869,7 @@ err_irq:
 err_gpio:
 	backlight_device_unregister(bldev);
 err_bl:
-	destroy_workqueue(td->esd_wq);
+	destroy_workqueue(td->workqueue);
 err_wq:
 	free_regulators(panel_config->regulators, panel_config->num_regulators);
 err_reg:
@@ -900,7 +901,7 @@ static void __exit taal_remove(struct omap_dss_device *dssdev)
 	backlight_device_unregister(bldev);
 
 	taal_cancel_esd_work(dssdev);
-	destroy_workqueue(td->esd_wq);
+	destroy_workqueue(td->workqueue);
 
 	/* reset, to be sure that the panel is in a valid state */
 	taal_hw_reset(dssdev);
