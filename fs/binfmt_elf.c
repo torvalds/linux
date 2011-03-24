@@ -1906,7 +1906,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	segs = current->mm->map_count;
 	segs += elf_core_extra_phdrs();
 
-	gate_vma = get_gate_vma(current);
+	gate_vma = get_gate_vma(current->mm);
 	if (gate_vma != NULL)
 		segs++;
 

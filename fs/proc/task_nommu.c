@@ -199,13 +199,13 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	/* pin the task and mm whilst we play with them */
 	priv->task = get_pid_task(priv->pid, PIDTYPE_PID);
 	if (!priv->task)
-		return NULL;
+		return ERR_PTR(-ESRCH);
 
 	mm = mm_for_maps(priv->task);
-	if (!mm) {
+	if (!mm || IS_ERR(mm)) {
 		put_task_struct(priv->task);
 		priv->task = NULL;
-		return NULL;
+		return mm;
 	}
 	down_read(&mm->mmap_sem);
 
