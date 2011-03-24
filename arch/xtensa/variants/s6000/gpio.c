@@ -128,7 +128,7 @@ static int set_type(struct irq_data *d, unsigned int type)
 		handler = handle_edge_irq;
 	}
 	writeb(reg, S6_REG_GPIO + S6_GPIO_BANK(0) + S6_GPIO_IS);
-	__set_irq_handler_unlocked(irq, handler);
+	__irq_set_handler_locked(irq, handler);
 
 	reg = readb(S6_REG_GPIO + S6_GPIO_BANK(0) + S6_GPIO_IEV);
 	if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_EDGE_RISING))
@@ -158,8 +158,8 @@ static u8 demux_masks[4];
 
 static void demux_irqs(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-	u8 *mask = get_irq_desc_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	u8 *mask = irq_desc_get_handler_data(desc);
 	u8 pending;
 	int cirq;
 
@@ -218,11 +218,11 @@ void __init variant_init_irq(void)
 				i = ffs(mask);
 				cirq += i;
 				mask >>= i;
-				set_irq_chip(cirq, &gpioirqs);
-				set_irq_type(irq, IRQ_TYPE_LEVEL_LOW);
+				irq_set_chip(cirq, &gpioirqs);
+				irq_set_irq_type(irq, IRQ_TYPE_LEVEL_LOW);
 			} while (mask);
-			set_irq_data(irq, demux_masks + n);
-			set_irq_chained_handler(irq, demux_irqs);
+			irq_set_handler_data(irq, demux_masks + n);
+			irq_set_chained_handler(irq, demux_irqs);
 			if (++n == ARRAY_SIZE(demux_masks))
 				break;
 		}

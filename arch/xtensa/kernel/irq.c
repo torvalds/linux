@@ -164,25 +164,25 @@ void __init init_IRQ(void)
 		int mask = 1 << index;
 
 		if (mask & XCHAL_INTTYPE_MASK_SOFTWARE)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_simple_irq);
 
 		else if (mask & XCHAL_INTTYPE_MASK_EXTERN_EDGE)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_edge_irq);
 
 		else if (mask & XCHAL_INTTYPE_MASK_EXTERN_LEVEL)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_level_irq);
 
 		else if (mask & XCHAL_INTTYPE_MASK_TIMER)
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_edge_irq);
 
 		else	/* XCHAL_INTTYPE_MASK_WRITE_ERROR */
 			/* XCHAL_INTTYPE_MASK_NMI */
 
-			set_irq_chip_and_handler(index, &xtensa_irq_chip,
+			irq_set_chip_and_handler(index, &xtensa_irq_chip,
 						 handle_level_irq);
 	}
 
