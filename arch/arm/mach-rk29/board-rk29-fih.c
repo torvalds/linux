@@ -527,7 +527,7 @@ static struct regulator_init_data rk29_regulator_vio = {
 /* VAUX1 */
 static struct regulator_consumer_supply rk29_vaux1_supplies[] = {
 	{
-		.supply = "vuax1",
+		.supply = "vaux1",
 	},
 };
 
@@ -547,7 +547,7 @@ static struct regulator_init_data rk29_regulator_vaux1 = {
 /* VAUX2 */
 static struct regulator_consumer_supply rk29_vaux2_supplies[] = {
 	{
-		.supply = "vuax2",
+		.supply = "vaux2",
 	},
 };
 
