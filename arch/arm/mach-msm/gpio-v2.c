@@ -275,14 +275,14 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 
 	if (flow_type & IRQ_TYPE_EDGE_BOTH) {
 		bits |= BIT(INTR_DECT_CTL);
-		irq_desc[irq].handle_irq = handle_edge_irq;
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
 		if ((flow_type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
 			__set_bit(gpio, msm_gpio.dual_edge_irqs);
 		else
 			__clear_bit(gpio, msm_gpio.dual_edge_irqs);
 	} else {
 		bits &= ~BIT(INTR_DECT_CTL);
-		irq_desc[irq].handle_irq = handle_level_irq;
+		__irq_set_handler_locked(d->irq, handle_level_irq);
 		__clear_bit(gpio, msm_gpio.dual_edge_irqs);
 	}
 
