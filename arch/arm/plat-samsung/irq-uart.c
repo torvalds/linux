@@ -107,7 +107,6 @@ static struct irq_chip s3c_irq_uart = {
 
 static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 {
-	struct irq_desc *desc = irq_to_desc(uirq->parent_irq);
 	void __iomem *reg_base = uirq->regs;
 	unsigned int irq;
 	int offs;
@@ -124,8 +123,8 @@ static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	desc->irq_data.handler_data = uirq;
-	set_irq_chained_handler(uirq->parent_irq, s3c_irq_demux_uart);
+	irq_set_handler_data(uirq->parent_irq, uirq);
+	irq_set_chained_handler(uirq->parent_irq, s3c_irq_demux_uart);
 }
 
 /**
