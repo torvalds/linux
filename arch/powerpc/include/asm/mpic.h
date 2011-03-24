@@ -263,6 +263,7 @@ struct mpic
 #ifdef CONFIG_SMP
 	struct irq_chip		hc_ipi;
 #endif
+	struct irq_chip		hc_tm;
 	const char		*name;
 	/* Flags */
 	unsigned int		flags;
@@ -281,7 +282,7 @@ struct mpic
 
 	/* vector numbers used for internal sources (ipi/timers) */
 	unsigned int		ipi_vecs[4];
-	unsigned int		timer_vecs[4];
+	unsigned int		timer_vecs[8];
 
 	/* Spurious vector to program into unused sources */
 	unsigned int		spurious_vec;
