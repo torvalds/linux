@@ -275,17 +275,16 @@ static int autofs4_mount_wait(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
-	int status;
+	int status = 0;
 
 	if (ino->flags & AUTOFS_INF_PENDING) {
 		DPRINTK("waiting for mount name=%.*s",
 			dentry->d_name.len, dentry->d_name.name);
 		status = autofs4_wait(sbi, dentry, NFY_MOUNT);
 		DPRINTK("mount wait done status=%d", status);
-		ino->last_used = jiffies;
-		return status;
 	}
-	return 0;
+	ino->last_used = jiffies;
+	return status;
 }
 
 static int do_expire_wait(struct dentry *dentry)
@@ -319,9 +318,12 @@ static struct dentry *autofs4_mountpoint_changed(struct path *path)
 	 */
 	if (autofs_type_indirect(sbi->type) && d_unhashed(dentry)) {
 		struct dentry *parent = dentry->d_parent;
+		struct autofs_info *ino;
 		struct dentry *new = d_lookup(parent, &dentry->d_name);
 		if (!new)
 			return NULL;
+		ino = autofs4_dentry_ino(new);
+		ino->last_used = jiffies;
 		dput(path->dentry);
 		path->dentry = new;
 	}
@@ -337,18 +339,6 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 
 	DPRINTK("dentry=%p %.*s",
 		dentry, dentry->d_name.len, dentry->d_name.name);
-
-	/*
-	 * Someone may have manually umounted this or it was a submount
-	 * that has gone away.
-	 */
-	spin_lock(&dentry->d_lock);
-	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
-		if (!(dentry->d_flags & DCACHE_MANAGE_TRANSIT) &&
-		     (dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
-			__managed_dentry_set_transit(path->dentry);
-	}
-	spin_unlock(&dentry->d_lock);
 
 	/* The daemon never triggers a mount. */
 	if (autofs4_oz_mode(sbi))
@@ -418,18 +408,17 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 done:
 	if (!(ino->flags & AUTOFS_INF_EXPIRING)) {
 		/*
-		 * Any needed mounting has been completed and the path updated
-		 * so turn this into a normal dentry so we don't continually
-		 * call ->d_automount() and ->d_manage().
-		 */
-		spin_lock(&dentry->d_lock);
-		__managed_dentry_clear_transit(dentry);
-		/*
+		 * Any needed mounting has been completed and the path
+		 * updated so clear DCACHE_NEED_AUTOMOUNT so we don't
+		 * call ->d_automount() on rootless multi-mounts since
+		 * it can lead to an incorrect ELOOP error return.
+		 *
 		 * Only clear DMANAGED_AUTOMOUNT for rootless multi-mounts and
 		 * symlinks as in all other cases the dentry will be covered by
 		 * an actual mount so ->d_automount() won't be called during
 		 * the follow.
 		 */
+		spin_lock(&dentry->d_lock);
 		if ((!d_mountpoint(dentry) &&
 		    !list_empty(&dentry->d_subdirs)) ||
 		    (dentry->d_inode && S_ISLNK(dentry->d_inode->i_mode)))
