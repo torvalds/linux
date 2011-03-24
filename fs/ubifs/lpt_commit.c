@@ -1633,7 +1633,7 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
 		return 0;
 
-	buf = p = __vmalloc(c->leb_size, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
 		ubifs_err("cannot allocate memory for ltab checking");
 		return 0;
@@ -1885,7 +1885,7 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 
 	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
 	       current->pid, lnum);
-	buf = p = __vmalloc(c->leb_size, GFP_KERNEL | GFP_NOFS, PAGE_KERNEL);
+	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
 	if (!buf) {
 		ubifs_err("cannot allocate memory to dump LPT");
 		return;
