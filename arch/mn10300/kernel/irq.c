@@ -403,23 +403,22 @@ int show_interrupts(struct seq_file *p, void *v)
 #ifdef CONFIG_HOTPLUG_CPU
 void migrate_irqs(void)
 {
-	irq_desc_t *desc;
 	int irq;
 	unsigned int self, new;
 	unsigned long flags;
 
 	self = smp_processor_id();
 	for (irq = 0; irq < NR_IRQS; irq++) {
-		desc = irq_desc + irq;
+		struct irq_data *data = irq_get_irq_data(irq);
 
-		if (desc->status == IRQ_PER_CPU)
+		if (irqd_is_per_cpu(data))
 			continue;
 
-		if (cpu_isset(self, irq_desc[irq].affinity) &&
+		if (cpu_isset(self, data->affinity) &&
 		    !cpus_intersects(irq_affinity[irq], cpu_online_map)) {
 			int cpu_id;
 			cpu_id = first_cpu(cpu_online_map);
-			cpu_set(cpu_id, irq_desc[irq].affinity);
+			cpu_set(cpu_id, data->affinity);
 		}
 		/* We need to operate irq_affinity_online atomically. */
 		arch_local_cli_save(flags);
@@ -430,7 +429,7 @@ void migrate_irqs(void)
 			GxICR(irq) = x & GxICR_LEVEL;
 			tmp = GxICR(irq);
 
-			new = any_online_cpu(irq_desc[irq].affinity);
+			new = any_online_cpu(data->affinity);
 			irq_affinity_online[irq] = new;
 
 			CROSS_GxICR(irq, new) =
