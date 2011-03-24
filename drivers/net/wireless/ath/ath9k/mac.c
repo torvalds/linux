@@ -713,7 +713,6 @@ EXPORT_SYMBOL(ath9k_hw_abortpcurecv);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 {
 #define AH_RX_STOP_DMA_TIMEOUT 10000   /* usec */
-#define AH_RX_TIME_QUANTUM     100     /* usec */
 	struct ath_common *common = ath9k_hw_common(ah);
 	int i;
 
@@ -737,7 +736,6 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 		return true;
 	}
 
-#undef AH_RX_TIME_QUANTUM
 #undef AH_RX_STOP_DMA_TIMEOUT
 }
 EXPORT_SYMBOL(ath9k_hw_stopdmarecv);

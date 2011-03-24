@@ -116,7 +116,7 @@ void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
 
 	if (chan->band == IEEE80211_BAND_2GHZ) {
 		ichan->chanmode = CHANNEL_G;
-		ichan->channelFlags = CHANNEL_2GHZ | CHANNEL_OFDM | CHANNEL_G;
+		ichan->channelFlags = CHANNEL_2GHZ | CHANNEL_OFDM;
 	} else {
 		ichan->chanmode = CHANNEL_A;
 		ichan->channelFlags = CHANNEL_5GHZ | CHANNEL_OFDM;
