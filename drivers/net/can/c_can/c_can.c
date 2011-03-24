@@ -588,14 +588,9 @@ static void c_can_chip_config(struct net_device *dev)
 {
 	struct c_can_priv *priv = netdev_priv(dev);
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
-		/* disable automatic retransmission */
-		priv->write_reg(priv, &priv->regs->control,
-				CONTROL_DISABLE_AR);
-	else
-		/* enable automatic retransmission */
-		priv->write_reg(priv, &priv->regs->control,
-				CONTROL_ENABLE_AR);
+	/* enable automatic retransmission */
+	priv->write_reg(priv, &priv->regs->control,
+			CONTROL_ENABLE_AR);
 
 	if (priv->can.ctrlmode & (CAN_CTRLMODE_LISTENONLY &
 					CAN_CTRLMODE_LOOPBACK)) {
@@ -1112,8 +1107,7 @@ struct net_device *alloc_c_can_dev(void)
 	priv->can.bittiming_const = &c_can_bittiming_const;
 	priv->can.do_set_mode = c_can_set_mode;
 	priv->can.do_get_berr_counter = c_can_get_berr_counter;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_ONE_SHOT |
-					CAN_CTRLMODE_LOOPBACK |
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 					CAN_CTRLMODE_LISTENONLY |
 					CAN_CTRLMODE_BERR_REPORTING;
 
