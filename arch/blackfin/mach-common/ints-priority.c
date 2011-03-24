@@ -578,10 +578,9 @@ static void bfin_gpio_ack_irq(struct irq_data *d)
 static void bfin_gpio_mask_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = d->irq;
-	struct irq_desc *desc = irq_to_desc(irq);
 	u32 gpionr = irq_to_gpio(irq);
 
-	if (desc->handle_irq == handle_edge_irq)
+	if (!irqd_is_level_type(d))
 		set_gpio_data(gpionr, 0);
 
 	set_gpio_maska(gpionr, 0);
@@ -837,12 +836,11 @@ void init_pint_lut(void)
 
 static void bfin_gpio_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (pint[bank]->invert_set & pintbit)
 			pint[bank]->invert_clear = pintbit;
 		else
@@ -854,12 +852,11 @@ static void bfin_gpio_ack_irq(struct irq_data *d)
 
 static void bfin_gpio_mask_ack_irq(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 pint_val = irq2pint_lut[d->irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
 	u32 bank = PINT_2_BANK(pint_val);
 
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		if (pint[bank]->invert_set & pintbit)
 			pint[bank]->invert_clear = pintbit;
 		else
