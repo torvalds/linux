@@ -1504,6 +1504,7 @@ static int check_version(unsigned int cmd, struct dm_ioctl __user *user)
 static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 {
 	struct dm_ioctl tmp, *dmi;
+	int secure_data;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp) - sizeof(tmp.data)))
 		return -EFAULT;
@@ -1511,17 +1512,28 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl **param)
 	if (tmp.data_size < (sizeof(tmp) - sizeof(tmp.data)))
 		return -EINVAL;
 
+	secure_data = tmp.flags & DM_SECURE_DATA_FLAG;
+
 	dmi = vmalloc(tmp.data_size);
-	if (!dmi)
+	if (!dmi) {
+		if (secure_data && clear_user(user, tmp.data_size))
+			return -EFAULT;
 		return -ENOMEM;
+	}
 
 	if (copy_from_user(dmi, user, tmp.data_size))
+		goto bad;
+
+	/* Wipe the user buffer so we do not return it to userspace */
+	if (secure_data && clear_user(user, tmp.data_size))
 		goto bad;
 
 	*param = dmi;
 	return 0;
 
 bad:
+	if (secure_data)
+		memset(dmi, 0, tmp.data_size);
 	vfree(dmi);
 	return -EFAULT;
 }
@@ -1531,6 +1543,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 	/* Always clear this flag */
 	param->flags &= ~DM_BUFFER_FULL_FLAG;
 	param->flags &= ~DM_UEVENT_GENERATED_FLAG;
+	param->flags &= ~DM_SECURE_DATA_FLAG;
 
 	/* Ignores parameters */
 	if (cmd == DM_REMOVE_ALL_CMD ||
@@ -1558,6 +1571,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 {
 	int r = 0;
+	int wipe_buffer;
 	unsigned int cmd;
 	struct dm_ioctl *uninitialized_var(param);
 	ioctl_fn fn = NULL;
@@ -1602,12 +1616,14 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 	 * Copy the parameters into kernel space.
 	 */
 	r = copy_params(user, &param);
-	input_param_size = param->data_size;
 
 	current->flags &= ~PF_MEMALLOC;
 
 	if (r)
 		return r;
+
+	input_param_size = param->data_size;
+	wipe_buffer = param->flags & DM_SECURE_DATA_FLAG;
 
 	r = validate_params(cmd, param);
 	if (r)
@@ -1623,6 +1639,9 @@ static int ctl_ioctl(uint command, struct dm_ioctl __user *user)
 		r = -EFAULT;
 
 out:
+	if (wipe_buffer)
+		memset(param, 0, input_param_size);
+
 	vfree(param);
 	return r;
 }
