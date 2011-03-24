@@ -335,68 +335,20 @@ asmlinkage void do_IRQ(void)
 /*
  * Display interrupt management information through /proc/interrupts
  */
-int show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
-	int i = *(loff_t *) v, j, cpu;
-	struct irqaction *action;
-	unsigned long flags;
-
-	switch (i) {
-		/* display column title bar naming CPUs */
-	case 0:
-		seq_printf(p, "           ");
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j))
-				seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-		break;
-
-		/* display information rows, one per active CPU */
-	case 1 ... NR_IRQS - 1:
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-
-		action = irq_desc[i].action;
-		if (action) {
-			seq_printf(p, "%3d: ", i);
-			for_each_present_cpu(cpu)
-				seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-
-			if (i < NR_CPU_IRQS)
-				seq_printf(p, " %14s.%u",
-					   irq_desc[i].irq_data.chip->name,
-					   (GxICR(i) & GxICR_LEVEL) >>
-					   GxICR_LEVEL_SHIFT);
-			else
-				seq_printf(p, " %14s",
-					   irq_desc[i].irq_data.chip->name);
-
-			seq_printf(p, "  %s", action->name);
-
-			for (action = action->next;
-			     action;
-			     action = action->next)
-				seq_printf(p, ", %s", action->name);
-
-			seq_putc(p, '\n');
-		}
-
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-		break;
-
-		/* polish off with NMI and error counters */
-	case NR_IRQS:
 #ifdef CONFIG_MN10300_WD_TIMER
-		seq_printf(p, "NMI: ");
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j))
-				seq_printf(p, "%10u ", nmi_count(j));
-		seq_putc(p, '\n');
+	int j;
+
+	seq_printf(p, "%*s: ", prec, "NMI");
+	for (j = 0; j < NR_CPUS; j++)
+		if (cpu_online(j))
+			seq_printf(p, "%10u ", nmi_count(j));
+	seq_putc(p, '\n');
 #endif
 
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-		break;
-	}
-
+	seq_printf(p, "%*s: ", prec, "ERR");
+	seq_printf(p, "%10u\n", atomic_read(&irq_err_count));
 	return 0;
 }
 
