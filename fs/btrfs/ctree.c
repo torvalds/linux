@@ -682,6 +682,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			if (!cur) {
 				cur = read_tree_block(root, blocknr,
 							 blocksize, gen);
+				if (!cur)
+					return -EIO;
 			} else if (!uptodate) {
 				btrfs_read_buffer(cur, gen);
 			}
@@ -4087,6 +4089,7 @@ find_next_key:
 		}
 		btrfs_set_path_blocking(path);
 		cur = read_node_slot(root, cur, slot);
+		BUG_ON(!cur);
 
 		btrfs_tree_lock(cur);
 

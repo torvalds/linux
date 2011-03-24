@@ -6067,6 +6067,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		if (reada && level == 1)
 			reada_walk_down(trans, root, wc, path);
 		next = read_tree_block(root, bytenr, blocksize, generation);
+		if (!next)
+			return -EIO;
 		btrfs_tree_lock(next);
 		btrfs_set_lock_blocking(next);
 	}
@@ -7937,6 +7939,10 @@ static noinline int relocate_one_extent(struct btrfs_root *extent_root,
 
 			eb = read_tree_block(found_root, block_start,
 					     block_size, 0);
+			if (!eb) {
+				ret = -EIO;
+				goto out;
+			}
 			btrfs_tree_lock(eb);
 			BUG_ON(level != btrfs_header_level(eb));
 
