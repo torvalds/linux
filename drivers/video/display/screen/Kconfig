@@ -47,6 +47,8 @@ config LCD_ANX7150_720P
 	bool "anx7150 720p for default panel"
 	---help---
 	if you want set anx7150(720p 50hz) for default panel, android UI size is 1280x720.
+config LCD_AT070TNA2
+	bool "RGB AT070TNA2"
 endchoice
 
 

@@ -68,7 +68,23 @@ struct mpu_private_data {
 };
 
 static int pid;
-
+struct i2c_msg1 {
+	__u16 addr;	/* slave address			*/
+	__u16 flags;
+#define I2C_M_TEN		0x0010	/* this is a ten bit chip address */
+#define I2C_M_RD		0x0001	/* read data, from slave to master */
+#define I2C_M_NOSTART		0x4000	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_REV_DIR_ADDR	0x2000	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_IGNORE_NAK	0x1000	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_NO_RD_ACK		0x0800	/* if I2C_FUNC_PROTOCOL_MANGLING */
+#define I2C_M_RECV_LEN		0x0400	/* length will be first received byte */
+	__u16 len;		/* msg length				*/
+	__u8 *buf;		/* pointer to msg data			*/
+};
+struct i2c_rdwr_ioctl_data1 {
+	struct i2c_msg1 __user *msgs;	/* pointers to i2c_msgs */
+	__u32 nmsgs;			/* number of i2c_msgs */
+};
 static struct i2c_client *this_client;
 
 static int mpu_open(struct inode *inode, struct file *file)
@@ -130,13 +146,14 @@ static int mpu_release(struct inode *inode, struct file *file)
 static noinline int mpudev_ioctl_rdrw(struct i2c_client *client,
 				      unsigned long arg)
 {
-	struct i2c_rdwr_ioctl_data rdwr_arg;
-	struct i2c_msg *rdwr_pa;
+	struct i2c_rdwr_ioctl_data1 rdwr_arg;
+	struct i2c_msg1 *rdwr_pa;
+	struct i2c_msg *msgs;
 	u8 __user **data_ptrs;
 	int i, res;
 
 	if (copy_from_user(&rdwr_arg,
-			   (struct i2c_rdwr_ioctl_data __user *) arg,
+			   (struct i2c_rdwr_ioctl_data1 __user *) arg,
 			   sizeof(rdwr_arg)))
 		return -EFAULT;
 
@@ -144,14 +161,14 @@ static noinline int mpudev_ioctl_rdrw(struct i2c_client *client,
 	 * be sent at once */
 	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
 		return -EINVAL;
-
-	rdwr_pa = (struct i2c_msg *)
-	    kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
+	msgs = (struct i2c_msg *)kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
+	rdwr_pa = (struct i2c_msg1 *)
+	    kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg1), GFP_KERNEL);
 	if (!rdwr_pa)
 		return -ENOMEM;
 
 	if (copy_from_user(rdwr_pa, rdwr_arg.msgs,
-			   rdwr_arg.nmsgs * sizeof(struct i2c_msg))) {
+			   rdwr_arg.nmsgs * sizeof(struct i2c_msg1))) {
 		kfree(rdwr_pa);
 		return -EFAULT;
 	}
@@ -184,6 +201,12 @@ static noinline int mpudev_ioctl_rdrw(struct i2c_client *client,
 			res = -EFAULT;
 			break;
 		}
+		msgs[i].buf = rdwr_pa[i].buf;
+		msgs[i].len = rdwr_pa[i].len;
+		msgs[i].flags = rdwr_pa[i].flags;
+		msgs[i].addr = rdwr_pa[i].addr;
+
+		msgs[i].scl_rate = 400 * 1000;
 	}
 	if (res < 0) {
 		int j;
@@ -191,10 +214,11 @@ static noinline int mpudev_ioctl_rdrw(struct i2c_client *client,
 			kfree(rdwr_pa[j].buf);
 		kfree(data_ptrs);
 		kfree(rdwr_pa);
+		kfree(msgs);
 		return res;
 	}
 
-	res = i2c_transfer(client->adapter, rdwr_pa, rdwr_arg.nmsgs);
+	res = i2c_transfer(client->adapter, msgs,rdwr_arg.nmsgs);
 	while (i-- > 0) {
 		if (res >= 0 && (rdwr_pa[i].flags & I2C_M_RD)) {
 			if (copy_to_user(data_ptrs[i], rdwr_pa[i].buf,
@@ -205,6 +229,7 @@ static noinline int mpudev_ioctl_rdrw(struct i2c_client *client,
 	}
 	kfree(data_ptrs);
 	kfree(rdwr_pa);
+	kfree(msgs);
 	return res;
 }
 
@@ -1195,15 +1220,17 @@ static struct i2c_driver mpu3050_driver = {
 
 static int __init mpu_init(void)
 {
+	printk("xxm -> enter mpu_init\n");
 	int res = i2c_add_driver(&mpu3050_driver);
 	pid = 0;
 	printk(KERN_DEBUG "%s\n", __func__);
-	if (res)
-		dev_err(&this_client->adapter->dev, "%s failed\n",
+	printk("xxm-> end mpu_init\n");
+	if (res){
+		dev_err(&this_client->adapter->dev, "%s\n",
 			__func__);
 	return res;
+	}
 }
-
 static void __exit mpu_exit(void)
 {
 	printk(KERN_DEBUG "%s\n", __func__);

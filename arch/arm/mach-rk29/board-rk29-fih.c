@@ -26,7 +26,7 @@
 #include <linux/usb/android_composite.h>
 #include <linux/i2c/tps65910.h>
 #include <linux/mpu.h>
-
+#include <linux/mpu3050.h>
 #include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -43,7 +43,6 @@
 #include <mach/rk29_nand.h>
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
-#include <linux/leds-att1272.h>							/* ddl@rock-chips.com: camera flash led support */
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 
@@ -63,12 +62,12 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_64M
+#define PMEM_GPU_SIZE      ( SZ_64M *3)
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       0x01300000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
-#define MEM_CAMIPP_SIZE     SZ_8M
+#define MEM_CAMIPP_SIZE     SZ_4M
 #else
 #define MEM_CAMIPP_SIZE     0
 #endif
@@ -404,34 +403,49 @@ static struct mma8452_platform_data mma8452_info = {
 
 };
 #endif
-#if 1
+#if defined (CONFIG_SENSORS_MPU3050)
 /*mpu3050*/
 static struct mpu3050_platform_data mpu3050_data = {
 		.int_config = 0x10,
-		.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+		.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//{ 0, -1, 0 ,-1 , 0, 0, 0, 0, 1 },
+//{ 0, -1, 0 ,-1 , 0, 0, 0, 0, 1 },
+//{ 1, 0, 0,0, -1, 0,0, 0, 1 },//{ 0, 1, 0,1, 0, 0,0, 0, -1 },
 		.level_shifter = 0,
-#if 0
+#if defined (CONFIG_SENSORS_KXTF9)
 		.accel = {
-				.get_slave_descr = bma150_get_slave_descr,
+				.get_slave_descr = kxtf9_get_slave_descr ,
 				.adapt_num = 0, // The i2c bus to which the mpu device is
 				// connected
+				.irq = RK29_PIN0_PA3,
 				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
-				.address = 0x38,
-				.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.address = 0x0f,
+				.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//{ 0, -1, 0 ,1 , 0, 0, 0, 0, 1 },
+//{ 0, -1, 0 ,1 , 0, 0, 0, 0, 1 },
+//{ 1, 0, 0,0, 1, 0,0, 0, 1 },//{ 0, 1, 0,1, 0, 0,0, 0, -1 },
 		},
 #endif
+#if defined (CONFIG_SENSORS_AK8975)
 		.compass = {
 				.get_slave_descr = ak8975_get_slave_descr,/*ak5883_get_slave_descr,*/
 				.adapt_num = 0, // The i2c bus to which the compass device is. 
 				// It can be difference with mpu
 				// connected
+				.irq = RK29_PIN0_PA4,
 				.bus = EXT_SLAVE_BUS_PRIMARY,
-				.address = 0x1E,
-				.orientation = { 0, 1, 0,-1, 0, 0,0, 0, 1 },
+				.address = 0x0d,
+				.orientation = /*{ 0, 1, 0,
+								-1, 0, 0,
+								 0, 0, 1 },*/
+				{ -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//{ 0, 1, 0 , -1 , 0, 0, 0, 0, 1 },
+//{ -1, 0, 0 ,0 , -1, 0, 0, 0, 1 },
+//{ -1, 0, 0,0, -1, 0,0, 0, 1 },//{ 0, 1, 0,-1, 0, 0,0, 0, 1 },
 		},
 };
 #endif
-
+#endif
 #if defined (CONFIG_BATTERY_BQ27510)
  
 #define DC_CHECK_PIN RK29_PIN4_PA1
@@ -527,7 +541,7 @@ static struct regulator_init_data rk29_regulator_vio = {
 /* VAUX1 */
 static struct regulator_consumer_supply rk29_vaux1_supplies[] = {
 	{
-		.supply = "vaux1",
+		.supply = "vuax1",
 	},
 };
 
@@ -547,7 +561,7 @@ static struct regulator_init_data rk29_regulator_vaux1 = {
 /* VAUX2 */
 static struct regulator_consumer_supply rk29_vaux2_supplies[] = {
 	{
-		.supply = "vaux2",
+		.supply = "vuax2",
 	},
 };
 
@@ -725,7 +739,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_VDD1 reg\n");
 		return -EIO;
 	}
-	
+
 	/* VDD2 */
 	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VDD2);
 	if (err) {
@@ -739,7 +753,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_VDD2 reg\n");
 		return -EIO;
 	}
-	
+
 	/* VIO */
 	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VIO);
 	if (err) {
@@ -753,7 +767,7 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_VIO reg\n");
 		return -EIO;
 	}
-	
+
 	/* Mask ALL interrupts */
 	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, 0xFF,
 			TPS65910_REG_INT_MSK);
@@ -777,27 +791,6 @@ static int rk29_tps65910_config(struct tps65910_platform_data *pdata)
 		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL reg\n");
 		return -EIO;
 	}
-
-#if 0
-	printk(KERN_INFO "TPS65910 Set default voltage.\n");
-	/* VDD1 Set the default voltage: 1150 mV(47)*/
-	val = 47;	
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD1_OP);
-	if (err) {
-		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-				\n", TPS65910_REG_VDD1_OP);
-		return -EIO;
-	}
-
-	/* VDD2 Set the default voltage: 1087 * 1.25mV(41)*/
-	val = 42;	
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2_OP);
-	if (err) {
-		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-				\n", TPS65910_REG_VDD2_OP);
-		return -EIO;
-	}
-#endif
 
 	/* initilize all ISR work as NULL, specific driver will
 	 * assign function(s) later.
@@ -827,14 +820,7 @@ struct tps65910_platform_data rk29_tps65910_data = {
 };
 #endif /* CONFIG_TPS65910_CORE */
 
-/* ddl@rock-chips.com: camera flash led support */
-#if CONFIG_LEDS_ATT1272
-struct att1272_led_platform_data rk29_att1272_led_data = {
-	.name = "camera_flash_led",
-	.en_gpio = RK29_PIN1_PB0,
-	.flen_gpio = RK29_PIN1_PB1,
-};
-#endif
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -965,7 +951,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
-#if defined (CONFIG_SENSORS_AK8975)
+#if 0//defined (CONFIG_SENSORS_AK8975)
 	{
 		.type    		= "ak8975",
 		.addr           = 0x0d,
@@ -973,8 +959,8 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
-#if 1
 /*mpu3050*/
+#if defined (CONFIG_SENSORS_MPU3050) 
 	{
 		.type 			= "mpu3050",
 		.addr			= 0x68,
@@ -1010,15 +996,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
       .flags          = 0,
       .irq            = RK29_PIN0_PA2,
       //.platform_data  = &p1003_info,
-    },
-#endif
-
-#if defined (CONFIG_LEDS_ATT1272)
-    {
-		.type           = "att1272",
-        .addr           = 0x37,
-        .flags          = 0,
-        .platform_data  = &rk29_att1272_led_data,
     },
 #endif
 };
@@ -1067,7 +1044,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
 #define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_MT9P111         /* back camera sensor */
-#define SENSOR_IIC_ADDR_0 	    0x78
+#define SENSOR_IIC_ADDR_0 	    0x00
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
@@ -1079,7 +1056,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
 #define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_S5K6AA          /* front camera sensor */
-#define SENSOR_IIC_ADDR_1 	    0x00
+#define SENSOR_IIC_ADDR_1 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_1    1
 #define SENSOR_POWER_PIN_1         INVALID_GPIO
 #define SENSOR_RESET_PIN_1         RK29_PIN1_PB3
@@ -2111,8 +2088,7 @@ static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi0 cs0",
 		.cs_gpio = RK29_PIN2_PC1,
-		.cs_iomux_name = GPIO2C1_SPI0CSN0_NAME,
-		.cs_iomux_mode = GPIO2H_SPI0_CSN0,
+		.cs_iomux_name = NULL,
 	},
 	{
 		.name = "spi0 cs1",
@@ -2126,8 +2102,7 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
     {
 		.name = "spi1 cs0",
 		.cs_gpio = RK29_PIN2_PC5,
-		.cs_iomux_name = GPIO2C5_SPI1CSN0_NAME,
-		.cs_iomux_mode = GPIO2H_SPI1_CSN0,
+		.cs_iomux_name = NULL,
 	},
 	{
 		.name = "spi1 cs1",
@@ -2140,20 +2115,40 @@ static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
 #if 1
-	int i;
+	int i,j,ret;
+
+	//cs
 	if (cs_gpios) {
 		for (i=0; i<cs_num; i++) {
 			rk29_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
+			ret = gpio_request(cs_gpios[i].cs_gpio, cs_gpios[i].name);
+			if (ret) {
+				for (j=0;j<i;j++) {
+					gpio_free(cs_gpios[j].cs_gpio);
+					//rk29_mux_api_mode_resume(cs_gpios[j].cs_iomux_name);
+				}
+				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
+				return -1;
+			}
+			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 		}
 	}
 #endif
-
 	return 0;
 }
 
 static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
+#if 1
+	int i;
 
+	if (cs_gpios) {
+		for (i=0; i<cs_num; i++) {
+			gpio_free(cs_gpios[i].cs_gpio);
+			//rk29_mux_api_mode_resume(cs_gpios[i].cs_iomux_name);
+		}
+	}
+#endif
 	return 0;
 }
 
@@ -2306,9 +2301,11 @@ static void __init machine_rk29_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+                rk29sdk_wifi_bt_gpio_control_init();
+#endif
 
-
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));
@@ -2327,11 +2324,8 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
-
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-    rk29sdk_wifi_bt_gpio_control_init();
-	rk29sdk_init_wifi_mem();
-#endif        
+        
+    rk29sdk_init_wifi_mem();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
