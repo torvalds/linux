@@ -54,6 +54,7 @@ struct nmk_gpio_chip {
 	u32 rwimsc;
 	u32 fwimsc;
 	u32 slpm;
+	u32 enabled;
 };
 
 static struct nmk_gpio_chip *
@@ -557,6 +558,11 @@ static int nmk_gpio_irq_maskunmask(struct irq_data *d, bool enable)
 	if (!nmk_chip)
 		return -EINVAL;
 
+	if (enable)
+		nmk_chip->enabled |= bitmask;
+	else
+		nmk_chip->enabled &= ~bitmask;
+
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
 	spin_lock(&nmk_chip->lock);
 
@@ -583,8 +589,6 @@ static void nmk_gpio_irq_unmask(struct irq_data *d)
 
 static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	bool enabled = !(desc->status & IRQ_DISABLED);
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
 	u32 bitmask;
@@ -599,7 +603,7 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
 	spin_lock(&nmk_chip->lock);
 
-	if (!enabled)
+	if (!(nmk_chip->enabled & bitmask))
 		__nmk_gpio_set_wake(nmk_chip, gpio, on);
 
 	if (on)
@@ -615,9 +619,7 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-	bool enabled = !(desc->status & IRQ_DISABLED);
-	bool wake = desc->wake_depth;
+	bool enabled, wake = irqd_is_wakeup_set(d);
 	int gpio;
 	struct nmk_gpio_chip *nmk_chip;
 	unsigned long flags;
@@ -633,6 +635,8 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	if (type & IRQ_TYPE_LEVEL_LOW)
 		return -EINVAL;
+
+	enabled = nmk_chip->enabled & bitmask;
 
 	spin_lock_irqsave(&nmk_chip->lock, flags);
 
