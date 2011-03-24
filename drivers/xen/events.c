@@ -585,7 +585,7 @@ static void ack_pirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	move_native_irq(data->irq);
+	irq_move_irq(data);
 
 	if (VALID_EVTCHN(evtchn)) {
 		mask_evtchn(evtchn);
@@ -1339,7 +1339,7 @@ static void ack_dynirq(struct irq_data *data)
 {
 	int evtchn = evtchn_from_irq(data->irq);
 
-	move_masked_irq(data->irq);
+	irq_move_masked_irq(data);
 
 	if (VALID_EVTCHN(evtchn))
 		unmask_evtchn(evtchn);
