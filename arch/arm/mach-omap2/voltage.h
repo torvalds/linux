@@ -53,11 +53,13 @@ struct omap_vfsm_instance_data {
 /**
  * struct voltagedomain - omap voltage domain global structure.
  * @name: Name of the voltage domain which can be used as a unique identifier.
+ * @scalable: Whether or not this voltage domain is scalable
  * @node: list_head linking all voltage domains
  * @vdd: to be removed
  */
 struct voltagedomain {
 	char *name;
+	bool scalable;
 	struct list_head node;
 	struct omap_vdd_info *vdd;
 };

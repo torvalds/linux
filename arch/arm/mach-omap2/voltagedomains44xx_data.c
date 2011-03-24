@@ -70,16 +70,19 @@ static struct omap_vdd_info omap4_vdd_core_info = {
 
 static struct voltagedomain omap4_voltdm_mpu = {
 	.name = "mpu",
+	.scalable = true,
 	.vdd = &omap4_vdd_mpu_info,
 };
 
 static struct voltagedomain omap4_voltdm_iva = {
 	.name = "iva",
+	.scalable = true,
 	.vdd = &omap4_vdd_iva_info,
 };
 
 static struct voltagedomain omap4_voltdm_core = {
 	.name = "core",
+	.scalable = true,
 	.vdd = &omap4_vdd_core_info,
 };
 

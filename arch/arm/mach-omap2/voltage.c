@@ -1054,6 +1054,9 @@ int __init omap_voltage_late_init(void)
 		pr_err("%s: Unable to create voltage debugfs main dir\n",
 			__func__);
 	list_for_each_entry(voltdm, &voltdm_list, node) {
+		if (!voltdm->scalable)
+			continue;
+
 		if (voltdm->vdd) {
 			if (omap_vdd_data_configure(voltdm))
 				continue;
