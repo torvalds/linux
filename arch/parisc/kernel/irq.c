@@ -113,13 +113,8 @@ int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest)
 	int cpu_dest;
 
 	/* timer and ipi have to always be received on all CPUs */
-	if (CHECK_IRQ_PER_CPU(irq_to_desc(d->irq)->status)) {
-		/* Bad linux design decision.  The mask has already
-		 * been set; we must reset it. Will fix - tglx
-		 */
-		cpumask_setall(d->affinity);
+	if (irqd_is_per_cpu(d))
 		return -EINVAL;
-	}
 
 	/* whatever mask they set, we just allow one CPU */
 	cpu_dest = first_cpu(*dest);
@@ -357,7 +352,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 	desc = irq_to_desc(irq);
 	cpumask_copy(&dest, desc->irq_data.affinity);
-	if (CHECK_IRQ_PER_CPU(desc->status) &&
+	if (irqd_is_per_cpu(&desc->irq_data) &&
 	    !cpu_isset(smp_processor_id(), dest)) {
 		int cpu = first_cpu(dest);
 
