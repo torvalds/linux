@@ -126,6 +126,7 @@ struct btrfs_fs_devices {
 struct btrfs_bio_stripe {
 	struct btrfs_device *dev;
 	u64 physical;
+	u64 length; /* only used for discard mappings */
 };
 
 struct btrfs_multi_bio {
