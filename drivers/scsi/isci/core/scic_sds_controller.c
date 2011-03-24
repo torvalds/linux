@@ -2116,7 +2116,7 @@ enum sci_status scic_controller_construct(struct scic_sds_controller *controller
 	/* Initialize the User and OEM parameters to default values. */
 	scic_sds_controller_set_default_config_parameters(controller);
 
-	return SCI_SUCCESS;
+	return scic_controller_reset(controller);
 }
 
 /* --------------------------------------------------------------------------- */
@@ -3562,6 +3562,7 @@ const struct scic_sds_controller_state_handler scic_sds_controller_state_handler
 		.terminate_request = scic_sds_controller_default_request_handler,
 	},
 	[SCI_BASE_CONTROLLER_STATE_RESET] = {
+		.base.reset        = scic_sds_controller_general_reset_handler,
 		.base.initialize   = scic_sds_controller_reset_state_initialize_handler,
 		.base.start_io     = scic_sds_controller_default_start_operation_handler,
 		.base.complete_io  = scic_sds_controller_default_request_handler,
