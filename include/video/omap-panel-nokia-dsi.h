@@ -8,7 +8,7 @@ struct omap_dss_device;
  * @name: panel name
  * @use_ext_te: use external TE
  * @ext_te_gpio: external TE GPIO
- * @use_esd_check: perform ESD checks
+ * @esd_interval: interval of ESD checks, 0 = disabled (ms)
  * @max_backlight_level: maximum backlight level
  * @set_backlight: pointer to backlight set function
  * @get_backlight: pointer to backlight get function
@@ -21,7 +21,7 @@ struct nokia_dsi_panel_data {
 	bool use_ext_te;
 	int ext_te_gpio;
 
-	bool use_esd_check;
+	unsigned esd_interval;
 
 	int max_backlight_level;
 	int (*set_backlight)(struct omap_dss_device *dssdev, int level);

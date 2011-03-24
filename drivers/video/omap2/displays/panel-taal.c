@@ -63,8 +63,6 @@
 #define DCS_GET_ID2		0xdb
 #define DCS_GET_ID3		0xdc
 
-#define TAAL_ESD_CHECK_PERIOD	msecs_to_jiffies(5000)
-
 static irqreturn_t taal_te_isr(int irq, void *data);
 static void taal_te_timeout_work_callback(struct work_struct *work);
 static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable);
@@ -231,6 +229,7 @@ struct taal_data {
 
 	struct workqueue_struct *esd_wq;
 	struct delayed_work esd_work;
+	unsigned esd_interval;
 
 	struct panel_config *panel_config;
 };
@@ -700,6 +699,7 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	}
 	td->dssdev = dssdev;
 	td->panel_config = panel_config;
+	td->esd_interval = panel_data->esd_interval;
 
 	mutex_init(&td->lock);
 
@@ -963,7 +963,6 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 static int taal_enable(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	int r;
 
 	dev_dbg(&dssdev->dev, "enable\n");
@@ -984,9 +983,9 @@ static int taal_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
-	if (panel_data->use_esd_check)
+	if (td->esd_interval > 0)
 		queue_delayed_work(td->esd_wq, &td->esd_work,
-				TAAL_ESD_CHECK_PERIOD);
+				msecs_to_jiffies(td->esd_interval));
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -1056,7 +1055,6 @@ err:
 static int taal_resume(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	int r;
 
 	dev_dbg(&dssdev->dev, "resume\n");
@@ -1078,9 +1076,9 @@ static int taal_resume(struct omap_dss_device *dssdev)
 		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 	} else {
 		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-		if (panel_data->use_esd_check)
+		if (td->esd_interval > 0)
 			queue_delayed_work(td->esd_wq, &td->esd_work,
-					TAAL_ESD_CHECK_PERIOD);
+					msecs_to_jiffies(td->esd_interval));
 	}
 
 	mutex_unlock(&td->lock);
@@ -1523,7 +1521,8 @@ static void taal_esd_work(struct work_struct *work)
 
 	dsi_bus_unlock();
 
-	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
+	queue_delayed_work(td->esd_wq, &td->esd_work,
+		       msecs_to_jiffies(td->esd_interval));
 
 	mutex_unlock(&td->lock);
 	return;
@@ -1536,7 +1535,8 @@ err:
 
 	dsi_bus_unlock();
 
-	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
+	queue_delayed_work(td->esd_wq, &td->esd_work,
+		       msecs_to_jiffies(td->esd_interval));
 
 	mutex_unlock(&td->lock);
 }
