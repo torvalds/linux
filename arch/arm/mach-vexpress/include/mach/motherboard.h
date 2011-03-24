@@ -118,4 +118,26 @@
 int v2m_cfg_write(u32 devfn, u32 data);
 int v2m_cfg_read(u32 devfn, u32 *data);
 
+/*
+ * Core tile IDs
+ */
+#define V2M_CT_ID_CA9		0x0c000191
+#define V2M_CT_ID_UNSUPPORTED	0xff000191
+#define V2M_CT_ID_MASK		0xff000fff
+
+struct ct_desc {
+	u32			id;
+	const char		*name;
+	void			(*map_io)(void);
+	void			(*init_early)(void);
+	void			(*init_irq)(void);
+	void			(*init_tile)(void);
+#ifdef CONFIG_SMP
+	void			(*init_cpu_map)(void);
+	void			(*smp_enable)(unsigned int);
+#endif
+};
+
+extern struct ct_desc *ct_desc;
+
 #endif
