@@ -234,12 +234,12 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 	return codec_type;
 };
 
+#define VIA_JACK_EVENT		0x20
 #define VIA_HP_EVENT		0x01
 #define VIA_GPIO_EVENT		0x02
-#define VIA_JACK_EVENT		0x04
-#define VIA_MONO_EVENT		0x08
-#define VIA_SPEAKER_EVENT	0x10
-#define VIA_BIND_HP_EVENT	0x20
+#define VIA_MONO_EVENT		0x03
+#define VIA_SPEAKER_EVENT	0x04
+#define VIA_BIND_HP_EVENT	0x05
 
 enum {
 	VIA_CTL_WIDGET_VOL,
@@ -1746,17 +1746,21 @@ static void via_unsol_event(struct hda_codec *codec,
 				  unsigned int res)
 {
 	res >>= 26;
-	if (res & VIA_HP_EVENT)
-		via_hp_automute(codec);
-	if (res & VIA_GPIO_EVENT)
-		via_gpio_control(codec);
+
 	if (res & VIA_JACK_EVENT)
 		set_widgets_power_state(codec);
-	if (res & VIA_MONO_EVENT)
+
+	res &= ~VIA_JACK_EVENT;
+
+	if (res == VIA_HP_EVENT)
+		via_hp_automute(codec);
+	else if (res == VIA_GPIO_EVENT)
+		via_gpio_control(codec);
+	else if (res == VIA_MONO_EVENT)
 		via_mono_automute(codec);
-	if (res & VIA_SPEAKER_EVENT)
+	else if (res == VIA_SPEAKER_EVENT)
 		via_speaker_automute(codec);
-	if (res & VIA_BIND_HP_EVENT)
+	else if (res == VIA_BIND_HP_EVENT)
 		via_hp_bind_automute(codec);
 }
 
