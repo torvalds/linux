@@ -27,8 +27,7 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 
-struct drxd_config
-{
+struct drxd_config {
 	u8 index;
 
 	u8 pll_address;
@@ -49,9 +48,9 @@ struct drxd_config
 	u8 disable_i2c_gate_ctrl;
 
 	u32 IF;
-	int (*pll_set)       (void *priv, void *priv_params,
-			      u8 pll_addr, u8 demoda_addr, s32 *off);
-	s16 (*osc_deviation) (void *priv, s16 dev, int flag);
+	int (*pll_set) (void *priv, void *priv_params,
+			u8 pll_addr, u8 demoda_addr, s32 * off);
+	 s16(*osc_deviation) (void *priv, s16 dev, int flag);
 };
 
 extern

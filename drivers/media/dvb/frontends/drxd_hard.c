@@ -62,7 +62,6 @@
 #define DRX_LOCK_FEC   2
 #define DRX_LOCK_DEMOD 4
 
-
 /****************************************************************************/
 
 enum CSCDState {
@@ -91,11 +90,11 @@ enum OperationMode {
 
 struct SCfgAgc {
 	enum AGC_CTRL_MODE ctrlMode;
-	u16 outputLevel;   /* range [0, ... , 1023], 1/n of fullscale range */
-	u16 settleLevel;   /* range [0, ... , 1023], 1/n of fullscale range */
-	u16 minOutputLevel;/* range [0, ... , 1023], 1/n of fullscale range */
-	u16 maxOutputLevel;/* range [0, ... , 1023], 1/n of fullscale range */
-	u16 speed;         /* range [0, ... , 1023], 1/n of fullscale range */
+	u16 outputLevel;	/* range [0, ... , 1023], 1/n of fullscale range */
+	u16 settleLevel;	/* range [0, ... , 1023], 1/n of fullscale range */
+	u16 minOutputLevel;	/* range [0, ... , 1023], 1/n of fullscale range */
+	u16 maxOutputLevel;	/* range [0, ... , 1023], 1/n of fullscale range */
+	u16 speed;		/* range [0, ... , 1023], 1/n of fullscale range */
 
 	u16 R1;
 	u16 R2;
@@ -112,7 +111,7 @@ struct SNoiseCal {
 enum app_env {
 	APPENV_STATIC = 0,
 	APPENV_PORTABLE = 1,
-	APPENV_MOBILE   = 2
+	APPENV_MOBILE = 2
 };
 
 enum EIFFilter {
@@ -136,7 +135,7 @@ struct drxd_state {
 	int init_done;
 	struct semaphore mutex;
 
-	u8  chip_adr;
+	u8 chip_adr;
 	u16 hi_cfg_timing_div;
 	u16 hi_cfg_bridge_delay;
 	u16 hi_cfg_wakeup_key;
@@ -205,14 +204,13 @@ struct drxd_state {
 
 };
 
-
 /****************************************************************************/
 /* I2C **********************************************************************/
 /****************************************************************************/
 
-static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
+static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 * data, int len)
 {
-	struct i2c_msg msg = { .addr=adr, .flags=0, .buf=data, .len=len };
+	struct i2c_msg msg = {.addr = adr,.flags = 0,.buf = data,.len = len };
 
 	if (i2c_transfer(adap, &msg, 1) != 1)
 		return -1;
@@ -220,12 +218,13 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 }
 
 static int i2c_read(struct i2c_adapter *adap,
-		    u8 adr, u8 *msg, int len, u8 *answ, int alen)
+		    u8 adr, u8 * msg, int len, u8 * answ, int alen)
 {
-	struct i2c_msg msgs[2] = { { .addr=adr, .flags=0,
-				     .buf=msg, .len=len },
-				   { .addr=adr, .flags=I2C_M_RD,
-				     .buf=answ, .len=alen } };
+	struct i2c_msg msgs[2] = { {.addr = adr,.flags = 0,
+				    .buf = msg,.len = len},
+	{.addr = adr,.flags = I2C_M_RD,
+	 .buf = answ,.len = alen}
+	};
 	if (i2c_transfer(adap, msgs, 2) != 2)
 		return -1;
 	return 0;
@@ -235,75 +234,81 @@ inline u32 MulDiv32(u32 a, u32 b, u32 c)
 {
 	u64 tmp64;
 
-	tmp64=(u64)a*(u64)b;
+	tmp64 = (u64) a *(u64) b;
 	do_div(tmp64, c);
 
 	return (u32) tmp64;
 }
 
-static int Read16(struct drxd_state *state, u32 reg, u16 *data, u8 flags)
+static int Read16(struct drxd_state *state, u32 reg, u16 * data, u8 flags)
 {
-	u8 adr=state->config.demod_address;
-	u8 mm1[4]={reg&0xff, (reg>>16)&0xff,
-		   flags|((reg>>24)&0xff), (reg>>8)&0xff};
+	u8 adr = state->config.demod_address;
+	u8 mm1[4] = { reg & 0xff, (reg >> 16) & 0xff,
+		flags | ((reg >> 24) & 0xff), (reg >> 8) & 0xff
+	};
 	u8 mm2[2];
-	if (i2c_read(state->i2c, adr, mm1, 4, mm2, 2)<0)
+	if (i2c_read(state->i2c, adr, mm1, 4, mm2, 2) < 0)
 		return -1;
 	if (data)
-		*data=mm2[0]|(mm2[1]<<8);
-	return mm2[0]|(mm2[1]<<8);
+		*data = mm2[0] | (mm2[1] << 8);
+	return mm2[0] | (mm2[1] << 8);
 }
 
-static int Read32(struct drxd_state *state, u32 reg, u32 *data, u8 flags)
+static int Read32(struct drxd_state *state, u32 reg, u32 * data, u8 flags)
 {
-	u8 adr=state->config.demod_address;
-	u8 mm1[4]={reg&0xff, (reg>>16)&0xff,
-		   flags|((reg>>24)&0xff), (reg>>8)&0xff};
+	u8 adr = state->config.demod_address;
+	u8 mm1[4] = { reg & 0xff, (reg >> 16) & 0xff,
+		flags | ((reg >> 24) & 0xff), (reg >> 8) & 0xff
+	};
 	u8 mm2[4];
 
-	if (i2c_read(state->i2c, adr, mm1, 4, mm2, 4)<0)
+	if (i2c_read(state->i2c, adr, mm1, 4, mm2, 4) < 0)
 		return -1;
 	if (data)
-		*data=mm2[0]|(mm2[1]<<8)|(mm2[2]<<16)|(mm2[3]<<24);
+		*data =
+		    mm2[0] | (mm2[1] << 8) | (mm2[2] << 16) | (mm2[3] << 24);
 	return 0;
 }
 
 static int Write16(struct drxd_state *state, u32 reg, u16 data, u8 flags)
 {
-	u8 adr=state->config.demod_address;
-	u8 mm[6]={ reg&0xff, (reg>>16)&0xff,
-		   flags|((reg>>24)&0xff), (reg>>8)&0xff,
-		   data&0xff, (data>>8)&0xff };
+	u8 adr = state->config.demod_address;
+	u8 mm[6] = { reg & 0xff, (reg >> 16) & 0xff,
+		flags | ((reg >> 24) & 0xff), (reg >> 8) & 0xff,
+		data & 0xff, (data >> 8) & 0xff
+	};
 
-	if (i2c_write(state->i2c, adr, mm, 6)<0)
+	if (i2c_write(state->i2c, adr, mm, 6) < 0)
 		return -1;
 	return 0;
 }
 
 static int Write32(struct drxd_state *state, u32 reg, u32 data, u8 flags)
 {
-	u8 adr=state->config.demod_address;
-	u8 mm[8]={ reg&0xff, (reg>>16)&0xff,
-		   flags|((reg>>24)&0xff), (reg>>8)&0xff,
-		   data&0xff, (data>>8)&0xff,
-		   (data>>16)&0xff, (data>>24)&0xff };
+	u8 adr = state->config.demod_address;
+	u8 mm[8] = { reg & 0xff, (reg >> 16) & 0xff,
+		flags | ((reg >> 24) & 0xff), (reg >> 8) & 0xff,
+		data & 0xff, (data >> 8) & 0xff,
+		(data >> 16) & 0xff, (data >> 24) & 0xff
+	};
 
-	if (i2c_write(state->i2c, adr, mm, 8)<0)
+	if (i2c_write(state->i2c, adr, mm, 8) < 0)
 		return -1;
 	return 0;
 }
 
 static int write_chunk(struct drxd_state *state,
-		       u32 reg, u8 *data, u32 len, u8 flags)
+		       u32 reg, u8 * data, u32 len, u8 flags)
 {
-	u8 adr=state->config.demod_address;
-	u8 mm[CHUNK_SIZE+4]={ reg&0xff, (reg>>16)&0xff,
-			      flags|((reg>>24)&0xff), (reg>>8)&0xff };
+	u8 adr = state->config.demod_address;
+	u8 mm[CHUNK_SIZE + 4] = { reg & 0xff, (reg >> 16) & 0xff,
+		flags | ((reg >> 24) & 0xff), (reg >> 8) & 0xff
+	};
 	int i;
 
-	for (i=0; i<len; i++)
-		mm[4+i]=data[i];
-	if (i2c_write(state->i2c, adr, mm, 4+len)<0) {
+	for (i = 0; i < len; i++)
+		mm[4 + i] = data[i];
+	if (i2c_write(state->i2c, adr, mm, 4 + len) < 0) {
 		printk("error in write_chunk\n");
 		return -1;
 	}
@@ -311,12 +316,12 @@ static int write_chunk(struct drxd_state *state,
 }
 
 static int WriteBlock(struct drxd_state *state,
-		      u32 Address, u16 BlockSize, u8 *pBlock, u8 Flags)
+		      u32 Address, u16 BlockSize, u8 * pBlock, u8 Flags)
 {
-	while(BlockSize >  0) {
+	while (BlockSize > 0) {
 		u16 Chunk = BlockSize > CHUNK_SIZE ? CHUNK_SIZE : BlockSize;
 
-		if (write_chunk(state, Address, pBlock, Chunk, Flags)<0)
+		if (write_chunk(state, Address, pBlock, Chunk, Flags) < 0)
 			return -1;
 		pBlock += Chunk;
 		Address += (Chunk >> 1);
@@ -325,32 +330,31 @@ static int WriteBlock(struct drxd_state *state,
 	return 0;
 }
 
-static int WriteTable(struct drxd_state *state, u8 *pTable)
+static int WriteTable(struct drxd_state *state, u8 * pTable)
 {
 	int status = 0;
 
-	if( pTable == NULL )
+	if (pTable == NULL)
 		return 0;
 
-	while(!status) {
+	while (!status) {
 		u16 Length;
-		u32 Address = pTable[0]|(pTable[1]<<8)|
-			(pTable[2]<<16)|(pTable[3]<<24);
+		u32 Address = pTable[0] | (pTable[1] << 8) |
+		    (pTable[2] << 16) | (pTable[3] << 24);
 
-		if (Address==0xFFFFFFFF)
+		if (Address == 0xFFFFFFFF)
 			break;
 		pTable += sizeof(u32);
 
-		Length = pTable[0]|(pTable[1]<<8);
+		Length = pTable[0] | (pTable[1] << 8);
 		pTable += sizeof(u16);
 		if (!Length)
 			break;
-		status = WriteBlock(state, Address, Length*2, pTable, 0);
-		pTable += (Length*2);
+		status = WriteBlock(state, Address, Length * 2, pTable, 0);
+		pTable += (Length * 2);
 	}
 	return status;
 }
-
 
 /****************************************************************************/
 /****************************************************************************/
@@ -375,32 +379,32 @@ static int InitCE(struct drxd_state *state)
 		CHK_ERROR(WriteTable(state, state->m_InitCE));
 
 		if (state->operation_mode == OM_DVBT_Diversity_Front ||
-		    state->operation_mode == OM_DVBT_Diversity_End ) {
+		    state->operation_mode == OM_DVBT_Diversity_End) {
 			AppEnv = state->app_env_diversity;
 		}
-		if ( AppEnv == APPENV_STATIC ) {
-			CHK_ERROR(Write16(state,CE_REG_TAPSET__A, 0x0000,0));
-		} else if( AppEnv == APPENV_PORTABLE ) {
-			CHK_ERROR(Write16(state,CE_REG_TAPSET__A, 0x0001,0));
-		} else if( AppEnv == APPENV_MOBILE &&  state->type_A ) {
-			CHK_ERROR(Write16(state,CE_REG_TAPSET__A, 0x0002,0));
-		} else if( AppEnv == APPENV_MOBILE && !state->type_A ) {
-			CHK_ERROR(Write16(state,CE_REG_TAPSET__A, 0x0006,0));
+		if (AppEnv == APPENV_STATIC) {
+			CHK_ERROR(Write16(state, CE_REG_TAPSET__A, 0x0000, 0));
+		} else if (AppEnv == APPENV_PORTABLE) {
+			CHK_ERROR(Write16(state, CE_REG_TAPSET__A, 0x0001, 0));
+		} else if (AppEnv == APPENV_MOBILE && state->type_A) {
+			CHK_ERROR(Write16(state, CE_REG_TAPSET__A, 0x0002, 0));
+		} else if (AppEnv == APPENV_MOBILE && !state->type_A) {
+			CHK_ERROR(Write16(state, CE_REG_TAPSET__A, 0x0006, 0));
 		}
 
 		/* start ce */
-		CHK_ERROR(Write16(state,B_CE_REG_COMM_EXEC__A,0x0001,0));
-	} while(0);
+		CHK_ERROR(Write16(state, B_CE_REG_COMM_EXEC__A, 0x0001, 0));
+	} while (0);
 	return status;
 }
 
 static int StopOC(struct drxd_state *state)
 {
 	int status = 0;
-	u16            ocSyncLvl  = 0;
-	u16            ocModeLop  = state->m_EcOcRegOcModeLop;
-	u16            dtoIncLop  = 0;
-	u16            dtoIncHip  = 0;
+	u16 ocSyncLvl = 0;
+	u16 ocModeLop = state->m_EcOcRegOcModeLop;
+	u16 dtoIncLop = 0;
+	u16 dtoIncHip = 0;
 
 	do {
 		/* Store output configuration */
@@ -413,65 +417,65 @@ static int StopOC(struct drxd_state *state)
 
 		/* Flush FIFO (byte-boundary) at fixed rate */
 		CHK_ERROR(Read16(state, EC_OC_REG_RCN_MAP_LOP__A,
-				 &dtoIncLop,0 ));
+				 &dtoIncLop, 0));
 		CHK_ERROR(Read16(state, EC_OC_REG_RCN_MAP_HIP__A,
-				 &dtoIncHip,0 ));
+				 &dtoIncHip, 0));
 		CHK_ERROR(Write16(state, EC_OC_REG_DTO_INC_LOP__A,
-				  dtoIncLop,0 ));
+				  dtoIncLop, 0));
 		CHK_ERROR(Write16(state, EC_OC_REG_DTO_INC_HIP__A,
-				  dtoIncHip,0 ));
+				  dtoIncHip, 0));
 		ocModeLop &= ~(EC_OC_REG_OC_MODE_LOP_DTO_CTR_SRC__M);
-		ocModeLop |=   EC_OC_REG_OC_MODE_LOP_DTO_CTR_SRC_STATIC;
+		ocModeLop |= EC_OC_REG_OC_MODE_LOP_DTO_CTR_SRC_STATIC;
 		CHK_ERROR(Write16(state, EC_OC_REG_OC_MODE_LOP__A,
-				  ocModeLop,0 ));
+				  ocModeLop, 0));
 		CHK_ERROR(Write16(state, EC_OC_REG_COMM_EXEC__A,
-				  EC_OC_REG_COMM_EXEC_CTL_HOLD,0 ));
+				  EC_OC_REG_COMM_EXEC_CTL_HOLD, 0));
 
 		msleep(1);
 		/* Output pins to '0' */
 		CHK_ERROR(Write16(state, EC_OC_REG_OCR_MPG_UOS__A,
-				  EC_OC_REG_OCR_MPG_UOS__M,0 ));
+				  EC_OC_REG_OCR_MPG_UOS__M, 0));
 
 		/* Force the OC out of sync */
 		ocSyncLvl &= ~(EC_OC_REG_SNC_ISC_LVL_OSC__M);
 		CHK_ERROR(Write16(state, EC_OC_REG_SNC_ISC_LVL__A,
-				  ocSyncLvl,0 ));
+				  ocSyncLvl, 0));
 		ocModeLop &= ~(EC_OC_REG_OC_MODE_LOP_PAR_ENA__M);
-		ocModeLop |=   EC_OC_REG_OC_MODE_LOP_PAR_ENA_ENABLE;
-		ocModeLop |=   0x2; /* Magically-out-of-sync */
+		ocModeLop |= EC_OC_REG_OC_MODE_LOP_PAR_ENA_ENABLE;
+		ocModeLop |= 0x2;	/* Magically-out-of-sync */
 		CHK_ERROR(Write16(state, EC_OC_REG_OC_MODE_LOP__A,
-				  ocModeLop,0 ));
-		CHK_ERROR(Write16(state, EC_OC_REG_COMM_INT_STA__A, 0x0,0  ));
+				  ocModeLop, 0));
+		CHK_ERROR(Write16(state, EC_OC_REG_COMM_INT_STA__A, 0x0, 0));
 		CHK_ERROR(Write16(state, EC_OC_REG_COMM_EXEC__A,
-				  EC_OC_REG_COMM_EXEC_CTL_ACTIVE,0 ));
-	} while(0);
+				  EC_OC_REG_COMM_EXEC_CTL_ACTIVE, 0));
+	} while (0);
 
 	return status;
 }
 
 static int StartOC(struct drxd_state *state)
 {
-	int status=0;
+	int status = 0;
 
 	do {
 		/* Stop OC */
 		CHK_ERROR(Write16(state, EC_OC_REG_COMM_EXEC__A,
-				  EC_OC_REG_COMM_EXEC_CTL_HOLD,0 ));
+				  EC_OC_REG_COMM_EXEC_CTL_HOLD, 0));
 
 		/* Restore output configuration */
 		CHK_ERROR(Write16(state, EC_OC_REG_SNC_ISC_LVL__A,
-				  state->m_EcOcRegSncSncLvl,0 ));
+				  state->m_EcOcRegSncSncLvl, 0));
 		CHK_ERROR(Write16(state, EC_OC_REG_OC_MODE_LOP__A,
-				  state->m_EcOcRegOcModeLop,0 ));
+				  state->m_EcOcRegOcModeLop, 0));
 
 		/* Output pins active again */
 		CHK_ERROR(Write16(state, EC_OC_REG_OCR_MPG_UOS__A,
-				  EC_OC_REG_OCR_MPG_UOS_INIT,0 ));
+				  EC_OC_REG_OCR_MPG_UOS_INIT, 0));
 
 		/* Start OC */
 		CHK_ERROR(Write16(state, EC_OC_REG_COMM_EXEC__A,
-				  EC_OC_REG_COMM_EXEC_CTL_ACTIVE,0 ));
-	} while(0);
+				  EC_OC_REG_COMM_EXEC_CTL_ACTIVE, 0));
+	} while (0);
 	return status;
 }
 
@@ -497,40 +501,39 @@ static int InitAtomicRead(struct drxd_state *state)
 
 static int CorrectSysClockDeviation(struct drxd_state *state);
 
-static int DRX_GetLockStatus(struct drxd_state *state, u32 *pLockStatus)
+static int DRX_GetLockStatus(struct drxd_state *state, u32 * pLockStatus)
 {
 	u16 ScRaRamLock = 0;
-	const u16 mpeg_lock_mask  = ( SC_RA_RAM_LOCK_MPEG__M |
-				      SC_RA_RAM_LOCK_FEC__M  |
-				      SC_RA_RAM_LOCK_DEMOD__M );
-	const u16 fec_lock_mask   = ( SC_RA_RAM_LOCK_FEC__M  |
-				      SC_RA_RAM_LOCK_DEMOD__M );
-	const u16 demod_lock_mask =   SC_RA_RAM_LOCK_DEMOD__M ;
+	const u16 mpeg_lock_mask = (SC_RA_RAM_LOCK_MPEG__M |
+				    SC_RA_RAM_LOCK_FEC__M |
+				    SC_RA_RAM_LOCK_DEMOD__M);
+	const u16 fec_lock_mask = (SC_RA_RAM_LOCK_FEC__M |
+				   SC_RA_RAM_LOCK_DEMOD__M);
+	const u16 demod_lock_mask = SC_RA_RAM_LOCK_DEMOD__M;
 
 	int status;
 
-	*pLockStatus=0;
+	*pLockStatus = 0;
 
-	status = Read16(state, SC_RA_RAM_LOCK__A, &ScRaRamLock, 0x0000 );
-	if(status<0)  {
-		printk("Can't read SC_RA_RAM_LOCK__A status = %08x\n",
-		       status);
+	status = Read16(state, SC_RA_RAM_LOCK__A, &ScRaRamLock, 0x0000);
+	if (status < 0) {
+		printk("Can't read SC_RA_RAM_LOCK__A status = %08x\n", status);
 		return status;
 	}
 
-	if( state->drxd_state != DRXD_STARTED )
+	if (state->drxd_state != DRXD_STARTED)
 		return 0;
 
-	if ( (ScRaRamLock & mpeg_lock_mask) == mpeg_lock_mask ) {
-		*pLockStatus|=DRX_LOCK_MPEG;
+	if ((ScRaRamLock & mpeg_lock_mask) == mpeg_lock_mask) {
+		*pLockStatus |= DRX_LOCK_MPEG;
 		CorrectSysClockDeviation(state);
 	}
 
-	if ( (ScRaRamLock & fec_lock_mask) == fec_lock_mask )
-		*pLockStatus|=DRX_LOCK_FEC;
+	if ((ScRaRamLock & fec_lock_mask) == fec_lock_mask)
+		*pLockStatus |= DRX_LOCK_FEC;
 
-	if ( (ScRaRamLock & demod_lock_mask) == demod_lock_mask )
-		*pLockStatus|=DRX_LOCK_DEMOD;
+	if ((ScRaRamLock & demod_lock_mask) == demod_lock_mask)
+		*pLockStatus |= DRX_LOCK_DEMOD;
 	return 0;
 }
 
@@ -540,35 +543,33 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 {
 	int status;
 
-	if( cfg->outputLevel > DRXD_FE_CTRL_MAX )
-	    return -1;
+	if (cfg->outputLevel > DRXD_FE_CTRL_MAX)
+		return -1;
 
-	if( cfg->ctrlMode == AGC_CTRL_USER ) {
+	if (cfg->ctrlMode == AGC_CTRL_USER) {
 		do {
 			u16 FeAgRegPm1AgcWri;
 			u16 FeAgRegAgModeLop;
 
-			CHK_ERROR(Read16(state,FE_AG_REG_AG_MODE_LOP__A,
-					 &FeAgRegAgModeLop,0));
-			FeAgRegAgModeLop &=
-				(~FE_AG_REG_AG_MODE_LOP_MODE_4__M);
-			FeAgRegAgModeLop |=
-				FE_AG_REG_AG_MODE_LOP_MODE_4_STATIC;
-			CHK_ERROR(Write16(state,FE_AG_REG_AG_MODE_LOP__A,
-					  FeAgRegAgModeLop,0));
+			CHK_ERROR(Read16(state, FE_AG_REG_AG_MODE_LOP__A,
+					 &FeAgRegAgModeLop, 0));
+			FeAgRegAgModeLop &= (~FE_AG_REG_AG_MODE_LOP_MODE_4__M);
+			FeAgRegAgModeLop |= FE_AG_REG_AG_MODE_LOP_MODE_4_STATIC;
+			CHK_ERROR(Write16(state, FE_AG_REG_AG_MODE_LOP__A,
+					  FeAgRegAgModeLop, 0));
 
-			FeAgRegPm1AgcWri = (u16)(cfg->outputLevel &
-						 FE_AG_REG_PM1_AGC_WRI__M);
-			CHK_ERROR(Write16(state,FE_AG_REG_PM1_AGC_WRI__A,
-					  FeAgRegPm1AgcWri,0));
+			FeAgRegPm1AgcWri = (u16) (cfg->outputLevel &
+						  FE_AG_REG_PM1_AGC_WRI__M);
+			CHK_ERROR(Write16(state, FE_AG_REG_PM1_AGC_WRI__A,
+					  FeAgRegPm1AgcWri, 0));
 		}
-		while(0);
-	} else if( cfg->ctrlMode == AGC_CTRL_AUTO ) {
-		if ( ( (cfg->maxOutputLevel) < (cfg->minOutputLevel) ) ||
-		     ( (cfg->maxOutputLevel) > DRXD_FE_CTRL_MAX ) ||
-		     ( (cfg->speed) > DRXD_FE_CTRL_MAX ) ||
-		     ( (cfg->settleLevel) > DRXD_FE_CTRL_MAX )
-			)
+		while (0);
+	} else if (cfg->ctrlMode == AGC_CTRL_AUTO) {
+		if (((cfg->maxOutputLevel) < (cfg->minOutputLevel)) ||
+		    ((cfg->maxOutputLevel) > DRXD_FE_CTRL_MAX) ||
+		    ((cfg->speed) > DRXD_FE_CTRL_MAX) ||
+		    ((cfg->settleLevel) > DRXD_FE_CTRL_MAX)
+		    )
 			return (-1);
 		do {
 			u16 FeAgRegAgModeLop;
@@ -577,94 +578,95 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 
 			/* == Mode == */
 
-			CHK_ERROR(Read16(state,FE_AG_REG_AG_MODE_LOP__A,
-					 &FeAgRegAgModeLop,0));
-			FeAgRegAgModeLop &=
-				(~FE_AG_REG_AG_MODE_LOP_MODE_4__M);
+			CHK_ERROR(Read16(state, FE_AG_REG_AG_MODE_LOP__A,
+					 &FeAgRegAgModeLop, 0));
+			FeAgRegAgModeLop &= (~FE_AG_REG_AG_MODE_LOP_MODE_4__M);
 			FeAgRegAgModeLop |=
-				FE_AG_REG_AG_MODE_LOP_MODE_4_DYNAMIC;
-			CHK_ERROR(Write16(state,FE_AG_REG_AG_MODE_LOP__A,
-					  FeAgRegAgModeLop,0));
+			    FE_AG_REG_AG_MODE_LOP_MODE_4_DYNAMIC;
+			CHK_ERROR(Write16(state, FE_AG_REG_AG_MODE_LOP__A,
+					  FeAgRegAgModeLop, 0));
 
 			/* == Settle level == */
 
-			FeAgRegEgcSetLvl = (u16)(( cfg->settleLevel >> 1 ) &
-						 FE_AG_REG_EGC_SET_LVL__M );
-			CHK_ERROR(Write16(state,FE_AG_REG_EGC_SET_LVL__A,
-					  FeAgRegEgcSetLvl,0));
+			FeAgRegEgcSetLvl = (u16) ((cfg->settleLevel >> 1) &
+						  FE_AG_REG_EGC_SET_LVL__M);
+			CHK_ERROR(Write16(state, FE_AG_REG_EGC_SET_LVL__A,
+					  FeAgRegEgcSetLvl, 0));
 
 			/* == Min/Max == */
 
-			slope = (u16)(( cfg->maxOutputLevel -
-					cfg->minOutputLevel )/2);
-			offset = (u16)(( cfg->maxOutputLevel +
-					 cfg->minOutputLevel )/2 - 511);
+			slope = (u16) ((cfg->maxOutputLevel -
+					cfg->minOutputLevel) / 2);
+			offset = (u16) ((cfg->maxOutputLevel +
+					 cfg->minOutputLevel) / 2 - 511);
 
-			CHK_ERROR(Write16(state,FE_AG_REG_GC1_AGC_RIC__A,
-					  slope,0));
-			CHK_ERROR(Write16(state,FE_AG_REG_GC1_AGC_OFF__A,
-					  offset,0));
+			CHK_ERROR(Write16(state, FE_AG_REG_GC1_AGC_RIC__A,
+					  slope, 0));
+			CHK_ERROR(Write16(state, FE_AG_REG_GC1_AGC_OFF__A,
+					  offset, 0));
 
 			/* == Speed == */
 			{
 				const u16 maxRur = 8;
-				const u16 slowIncrDecLUT[]={ 3, 4, 4, 5, 6 };
-				const u16 fastIncrDecLUT[]={ 14, 15, 15, 16,
-							     17, 18, 18, 19,
-							     20, 21, 22, 23,
-							     24, 26, 27, 28,
-							     29, 31};
+				const u16 slowIncrDecLUT[] = { 3, 4, 4, 5, 6 };
+				const u16 fastIncrDecLUT[] = { 14, 15, 15, 16,
+					17, 18, 18, 19,
+					20, 21, 22, 23,
+					24, 26, 27, 28,
+					29, 31
+				};
 
-				u16 fineSteps  = (DRXD_FE_CTRL_MAX+1)/
-					(maxRur+1);
-				u16 fineSpeed  = (u16)(cfg->speed -
-						       ((cfg->speed/
-							 fineSteps)*
+				u16 fineSteps = (DRXD_FE_CTRL_MAX + 1) /
+				    (maxRur + 1);
+				u16 fineSpeed = (u16) (cfg->speed -
+						       ((cfg->speed /
+							 fineSteps) *
 							fineSteps));
-				u16 invRurCount= (u16)(cfg->speed /
-						       fineSteps);
+				u16 invRurCount = (u16) (cfg->speed /
+							 fineSteps);
 				u16 rurCount;
-				if ( invRurCount > maxRur )
-				{
-					rurCount   = 0;
+				if (invRurCount > maxRur) {
+					rurCount = 0;
 					fineSpeed += fineSteps;
 				} else {
-					rurCount   = maxRur - invRurCount;
+					rurCount = maxRur - invRurCount;
 				}
 
 				/*
-				  fastInc = default *
-				  (2^(fineSpeed/fineSteps))
-				  => range[default...2*default>
-				  slowInc = default *
-				  (2^(fineSpeed/fineSteps))
-				*/
+				   fastInc = default *
+				   (2^(fineSpeed/fineSteps))
+				   => range[default...2*default>
+				   slowInc = default *
+				   (2^(fineSpeed/fineSteps))
+				 */
 				{
 					u16 fastIncrDec =
-						fastIncrDecLUT[fineSpeed/
-							       ((fineSteps/
-								 (14+1))+1) ];
-					u16 slowIncrDec = slowIncrDecLUT[
-						fineSpeed/(fineSteps/(3+1)) ];
+					    fastIncrDecLUT[fineSpeed /
+							   ((fineSteps /
+							     (14 + 1)) + 1)];
+					u16 slowIncrDec =
+					    slowIncrDecLUT[fineSpeed /
+							   (fineSteps /
+							    (3 + 1))];
 
 					CHK_ERROR(Write16(state,
-						  FE_AG_REG_EGC_RUR_CNT__A,
+							  FE_AG_REG_EGC_RUR_CNT__A,
 							  rurCount, 0));
 					CHK_ERROR(Write16(state,
-						  FE_AG_REG_EGC_FAS_INC__A,
+							  FE_AG_REG_EGC_FAS_INC__A,
 							  fastIncrDec, 0));
 					CHK_ERROR(Write16(state,
-						  FE_AG_REG_EGC_FAS_DEC__A,
+							  FE_AG_REG_EGC_FAS_DEC__A,
 							  fastIncrDec, 0));
 					CHK_ERROR(Write16(state,
-						  FE_AG_REG_EGC_SLO_INC__A,
+							  FE_AG_REG_EGC_SLO_INC__A,
 							  slowIncrDec, 0));
 					CHK_ERROR(Write16(state,
-						  FE_AG_REG_EGC_SLO_DEC__A,
+							  FE_AG_REG_EGC_SLO_DEC__A,
 							  slowIncrDec, 0));
 				}
 			}
-		} while(0);
+		} while (0);
 
 	} else {
 		/* No OFF mode for IF control */
@@ -673,90 +675,87 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 	return status;
 }
 
-
 static int SetCfgRfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 {
 	int status = 0;
 
-	if( cfg->outputLevel > DRXD_FE_CTRL_MAX )
+	if (cfg->outputLevel > DRXD_FE_CTRL_MAX)
 		return -1;
 
-	if( cfg->ctrlMode == AGC_CTRL_USER ) {
+	if (cfg->ctrlMode == AGC_CTRL_USER) {
 		do {
-			u16 AgModeLop=0;
-			u16 level = ( cfg->outputLevel );
+			u16 AgModeLop = 0;
+			u16 level = (cfg->outputLevel);
 
-			if (level == DRXD_FE_CTRL_MAX )
+			if (level == DRXD_FE_CTRL_MAX)
 				level++;
 
-			CHK_ERROR( Write16(state,FE_AG_REG_PM2_AGC_WRI__A,
-					   level, 0x0000 ));
+			CHK_ERROR(Write16(state, FE_AG_REG_PM2_AGC_WRI__A,
+					  level, 0x0000));
 
 			/*==== Mode ====*/
 
 			/* Powerdown PD2, WRI source */
-			state->m_FeAgRegAgPwd &=
-				~(FE_AG_REG_AG_PWD_PWD_PD2__M);
+			state->m_FeAgRegAgPwd &= ~(FE_AG_REG_AG_PWD_PWD_PD2__M);
 			state->m_FeAgRegAgPwd |=
-				FE_AG_REG_AG_PWD_PWD_PD2_DISABLE;
-			CHK_ERROR( Write16(state,FE_AG_REG_AG_PWD__A,
-					   state->m_FeAgRegAgPwd,0x0000 ));
+			    FE_AG_REG_AG_PWD_PWD_PD2_DISABLE;
+			CHK_ERROR(Write16(state, FE_AG_REG_AG_PWD__A,
+					  state->m_FeAgRegAgPwd, 0x0000));
 
-			CHK_ERROR( Read16(state,FE_AG_REG_AG_MODE_LOP__A,
-					  &AgModeLop,0x0000 ));
-			AgModeLop &= (~( FE_AG_REG_AG_MODE_LOP_MODE_5__M |
-					 FE_AG_REG_AG_MODE_LOP_MODE_E__M));
-			AgModeLop |= ( FE_AG_REG_AG_MODE_LOP_MODE_5_STATIC |
-				       FE_AG_REG_AG_MODE_LOP_MODE_E_STATIC );
-			CHK_ERROR( Write16(state,FE_AG_REG_AG_MODE_LOP__A,
-					   AgModeLop,0x0000 ));
-
+			CHK_ERROR(Read16(state, FE_AG_REG_AG_MODE_LOP__A,
+					 &AgModeLop, 0x0000));
+			AgModeLop &= (~(FE_AG_REG_AG_MODE_LOP_MODE_5__M |
+					FE_AG_REG_AG_MODE_LOP_MODE_E__M));
+			AgModeLop |= (FE_AG_REG_AG_MODE_LOP_MODE_5_STATIC |
+				      FE_AG_REG_AG_MODE_LOP_MODE_E_STATIC);
+			CHK_ERROR(Write16(state, FE_AG_REG_AG_MODE_LOP__A,
+					  AgModeLop, 0x0000));
 
 			/* enable AGC2 pin */
 			{
 				u16 FeAgRegAgAgcSio = 0;
-				CHK_ERROR( Read16(state,
-						  FE_AG_REG_AG_AGC_SIO__A,
-						  &FeAgRegAgAgcSio, 0x0000 ));
+				CHK_ERROR(Read16(state,
+						 FE_AG_REG_AG_AGC_SIO__A,
+						 &FeAgRegAgAgcSio, 0x0000));
 				FeAgRegAgAgcSio &=
-					~(FE_AG_REG_AG_AGC_SIO_AGC_SIO_2__M);
+				    ~(FE_AG_REG_AG_AGC_SIO_AGC_SIO_2__M);
 				FeAgRegAgAgcSio |=
-					FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_OUTPUT;
-				CHK_ERROR( Write16(state,
-						   FE_AG_REG_AG_AGC_SIO__A,
-						   FeAgRegAgAgcSio, 0x0000 ));
+				    FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_OUTPUT;
+				CHK_ERROR(Write16(state,
+						  FE_AG_REG_AG_AGC_SIO__A,
+						  FeAgRegAgAgcSio, 0x0000));
 			}
 
-		} while(0);
-	} else if( cfg->ctrlMode == AGC_CTRL_AUTO ) {
-		u16 AgModeLop=0;
+		} while (0);
+	} else if (cfg->ctrlMode == AGC_CTRL_AUTO) {
+		u16 AgModeLop = 0;
 
 		do {
 			u16 level;
 			/* Automatic control */
 			/* Powerup PD2, AGC2 as output, TGC source */
 			(state->m_FeAgRegAgPwd) &=
-				~(FE_AG_REG_AG_PWD_PWD_PD2__M);
+			    ~(FE_AG_REG_AG_PWD_PWD_PD2__M);
 			(state->m_FeAgRegAgPwd) |=
-				FE_AG_REG_AG_PWD_PWD_PD2_DISABLE;
-			CHK_ERROR(Write16(state,FE_AG_REG_AG_PWD__A,
-					  (state->m_FeAgRegAgPwd),0x0000 ));
+			    FE_AG_REG_AG_PWD_PWD_PD2_DISABLE;
+			CHK_ERROR(Write16(state, FE_AG_REG_AG_PWD__A,
+					  (state->m_FeAgRegAgPwd), 0x0000));
 
-			CHK_ERROR(Read16(state,FE_AG_REG_AG_MODE_LOP__A,
-					 &AgModeLop,0x0000 ));
-			AgModeLop &= (~( FE_AG_REG_AG_MODE_LOP_MODE_5__M |
-					 FE_AG_REG_AG_MODE_LOP_MODE_E__M));
-			AgModeLop |= ( FE_AG_REG_AG_MODE_LOP_MODE_5_STATIC |
-				       FE_AG_REG_AG_MODE_LOP_MODE_E_DYNAMIC );
+			CHK_ERROR(Read16(state, FE_AG_REG_AG_MODE_LOP__A,
+					 &AgModeLop, 0x0000));
+			AgModeLop &= (~(FE_AG_REG_AG_MODE_LOP_MODE_5__M |
+					FE_AG_REG_AG_MODE_LOP_MODE_E__M));
+			AgModeLop |= (FE_AG_REG_AG_MODE_LOP_MODE_5_STATIC |
+				      FE_AG_REG_AG_MODE_LOP_MODE_E_DYNAMIC);
 			CHK_ERROR(Write16(state,
 					  FE_AG_REG_AG_MODE_LOP__A,
-					  AgModeLop, 0x0000 ));
+					  AgModeLop, 0x0000));
 			/* Settle level */
-			level = ( (( cfg->settleLevel )>>4) &
-				  FE_AG_REG_TGC_SET_LVL__M );
+			level = (((cfg->settleLevel) >> 4) &
+				 FE_AG_REG_TGC_SET_LVL__M);
 			CHK_ERROR(Write16(state,
 					  FE_AG_REG_TGC_SET_LVL__A,
-					  level,0x0000 ));
+					  level, 0x0000));
 
 			/* Min/max: don't care */
 
@@ -765,91 +764,91 @@ static int SetCfgRfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 			/* enable AGC2 pin */
 			{
 				u16 FeAgRegAgAgcSio = 0;
-				CHK_ERROR( Read16(state,
-						  FE_AG_REG_AG_AGC_SIO__A,
-						  &FeAgRegAgAgcSio, 0x0000 ));
+				CHK_ERROR(Read16(state,
+						 FE_AG_REG_AG_AGC_SIO__A,
+						 &FeAgRegAgAgcSio, 0x0000));
 				FeAgRegAgAgcSio &=
-					~(FE_AG_REG_AG_AGC_SIO_AGC_SIO_2__M);
+				    ~(FE_AG_REG_AG_AGC_SIO_AGC_SIO_2__M);
 				FeAgRegAgAgcSio |=
-					FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_OUTPUT;
-				CHK_ERROR( Write16(state,
-						   FE_AG_REG_AG_AGC_SIO__A,
-						   FeAgRegAgAgcSio, 0x0000 ));
+				    FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_OUTPUT;
+				CHK_ERROR(Write16(state,
+						  FE_AG_REG_AG_AGC_SIO__A,
+						  FeAgRegAgAgcSio, 0x0000));
 			}
 
-		} while(0);
+		} while (0);
 	} else {
-		u16 AgModeLop=0;
+		u16 AgModeLop = 0;
 
 		do {
 			/* No RF AGC control */
 			/* Powerdown PD2, AGC2 as output, WRI source */
 			(state->m_FeAgRegAgPwd) &=
-				~(FE_AG_REG_AG_PWD_PWD_PD2__M);
+			    ~(FE_AG_REG_AG_PWD_PWD_PD2__M);
 			(state->m_FeAgRegAgPwd) |=
-				FE_AG_REG_AG_PWD_PWD_PD2_ENABLE;
+			    FE_AG_REG_AG_PWD_PWD_PD2_ENABLE;
 			CHK_ERROR(Write16(state,
 					  FE_AG_REG_AG_PWD__A,
-					  (state->m_FeAgRegAgPwd),0x0000 ));
+					  (state->m_FeAgRegAgPwd), 0x0000));
 
 			CHK_ERROR(Read16(state,
 					 FE_AG_REG_AG_MODE_LOP__A,
-					 &AgModeLop,0x0000 ));
-			AgModeLop &= (~( FE_AG_REG_AG_MODE_LOP_MODE_5__M |
-					 FE_AG_REG_AG_MODE_LOP_MODE_E__M));
-			AgModeLop |= ( FE_AG_REG_AG_MODE_LOP_MODE_5_STATIC |
-				       FE_AG_REG_AG_MODE_LOP_MODE_E_STATIC );
+					 &AgModeLop, 0x0000));
+			AgModeLop &= (~(FE_AG_REG_AG_MODE_LOP_MODE_5__M |
+					FE_AG_REG_AG_MODE_LOP_MODE_E__M));
+			AgModeLop |= (FE_AG_REG_AG_MODE_LOP_MODE_5_STATIC |
+				      FE_AG_REG_AG_MODE_LOP_MODE_E_STATIC);
 			CHK_ERROR(Write16(state,
 					  FE_AG_REG_AG_MODE_LOP__A,
-					  AgModeLop,0x0000 ));
+					  AgModeLop, 0x0000));
 
 			/* set FeAgRegAgAgcSio AGC2 (RF) as input */
 			{
 				u16 FeAgRegAgAgcSio = 0;
-				CHK_ERROR( Read16(state,
-						  FE_AG_REG_AG_AGC_SIO__A,
-						  &FeAgRegAgAgcSio, 0x0000 ));
+				CHK_ERROR(Read16(state,
+						 FE_AG_REG_AG_AGC_SIO__A,
+						 &FeAgRegAgAgcSio, 0x0000));
 				FeAgRegAgAgcSio &=
-					~(FE_AG_REG_AG_AGC_SIO_AGC_SIO_2__M);
+				    ~(FE_AG_REG_AG_AGC_SIO_AGC_SIO_2__M);
 				FeAgRegAgAgcSio |=
-					FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_INPUT;
-				CHK_ERROR( Write16(state,
-						   FE_AG_REG_AG_AGC_SIO__A,
-						   FeAgRegAgAgcSio, 0x0000 ));
+				    FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_INPUT;
+				CHK_ERROR(Write16(state,
+						  FE_AG_REG_AG_AGC_SIO__A,
+						  FeAgRegAgAgcSio, 0x0000));
 			}
-		} while(0);
+		} while (0);
 	}
 	return status;
 }
 
-static int ReadIFAgc(struct drxd_state *state, u32 *pValue)
+static int ReadIFAgc(struct drxd_state *state, u32 * pValue)
 {
 	int status = 0;
 
 	*pValue = 0;
-	if( state->if_agc_cfg.ctrlMode != AGC_CTRL_OFF ) {
+	if (state->if_agc_cfg.ctrlMode != AGC_CTRL_OFF) {
 		u16 Value;
-		status = Read16(state, FE_AG_REG_GC1_AGC_DAT__A,&Value,0);
+		status = Read16(state, FE_AG_REG_GC1_AGC_DAT__A, &Value, 0);
 		Value &= FE_AG_REG_GC1_AGC_DAT__M;
-		if(status>=0) {
+		if (status >= 0) {
 			/*           3.3V
-				      |
-				      R1
-				      |
+			   |
+			   R1
+			   |
 			   Vin - R3 - * -- Vout
-				      |
-				      R2
-				      |
-				     GND
-			*/
+			   |
+			   R2
+			   |
+			   GND
+			 */
 			u32 R1 = state->if_agc_cfg.R1;
 			u32 R2 = state->if_agc_cfg.R2;
 			u32 R3 = state->if_agc_cfg.R3;
 
-			u32 Vmax = (3300 * R2) / ( R1 + R2 );
-			u32 Rpar = ( R2 * R3 ) / ( R3 + R2 );
-			u32 Vmin = (3300 * Rpar ) / ( R1 + Rpar );
-			u32 Vout = Vmin + (( Vmax - Vmin ) * Value) / 1024;
+			u32 Vmax = (3300 * R2) / (R1 + R2);
+			u32 Rpar = (R2 * R3) / (R3 + R2);
+			u32 Vmin = (3300 * Rpar) / (R1 + Rpar);
+			u32 Vout = Vmin + ((Vmax - Vmin) * Value) / 1024;
 
 			*pValue = Vout;
 		}
@@ -878,7 +877,7 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 }
 
 static int DownloadMicrocode(struct drxd_state *state,
-			     const u8 *pMCImage, u32 Length)
+			     const u8 * pMCImage, u32 Length)
 {
 	u8 *pSrc;
 	u16 Flags;
@@ -886,32 +885,38 @@ static int DownloadMicrocode(struct drxd_state *state,
 	u16 nBlocks;
 	u16 BlockSize;
 	u16 BlockCRC;
-	u32 offset=0;
-	int i, status=0;
+	u32 offset = 0;
+	int i, status = 0;
 
-	pSrc=(u8 *) pMCImage;
+	pSrc = (u8 *) pMCImage;
 	Flags = (pSrc[0] << 8) | pSrc[1];
-	pSrc += sizeof(u16); offset += sizeof(u16);
+	pSrc += sizeof(u16);
+	offset += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
-	pSrc += sizeof(u16); offset += sizeof(u16);
+	pSrc += sizeof(u16);
+	offset += sizeof(u16);
 
-	for(i=0; i<nBlocks; i++ ) {
-		Address=(pSrc[0] << 24) | (pSrc[1] << 16) |
-			(pSrc[2] << 8) | pSrc[3];
-		pSrc += sizeof(u32); offset += sizeof(u32);
+	for (i = 0; i < nBlocks; i++) {
+		Address = (pSrc[0] << 24) | (pSrc[1] << 16) |
+		    (pSrc[2] << 8) | pSrc[3];
+		pSrc += sizeof(u32);
+		offset += sizeof(u32);
 
-		BlockSize = ( (pSrc[0] << 8) | pSrc[1] ) * sizeof(u16);
-		pSrc += sizeof(u16); offset += sizeof(u16);
+		BlockSize = ((pSrc[0] << 8) | pSrc[1]) * sizeof(u16);
+		pSrc += sizeof(u16);
+		offset += sizeof(u16);
 
 		Flags = (pSrc[0] << 8) | pSrc[1];
-		pSrc += sizeof(u16); offset += sizeof(u16);
+		pSrc += sizeof(u16);
+		offset += sizeof(u16);
 
 		BlockCRC = (pSrc[0] << 8) | pSrc[1];
-		pSrc += sizeof(u16); offset += sizeof(u16);
+		pSrc += sizeof(u16);
+		offset += sizeof(u16);
 
-		status = WriteBlock(state,Address,BlockSize,
-				    pSrc,DRX_I2C_CLEARCRC);
-		if (status<0)
+		status = WriteBlock(state, Address, BlockSize,
+				    pSrc, DRX_I2C_CLEARCRC);
+		if (status < 0)
 			break;
 		pSrc += BlockSize;
 		offset += BlockSize;
@@ -920,51 +925,48 @@ static int DownloadMicrocode(struct drxd_state *state,
 	return status;
 }
 
-static int HI_Command(struct drxd_state *state, u16 cmd, u16 *pResult)
+static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 {
 	u32 nrRetries = 0;
 	u16 waitCmd;
 	int status;
 
-	if ((status=Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0))<0)
+	if ((status = Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0)) < 0)
 		return status;
 
 	do {
-		nrRetries+=1;
-		if (nrRetries>DRXD_MAX_RETRIES) {
-			status=-1;
+		nrRetries += 1;
+		if (nrRetries > DRXD_MAX_RETRIES) {
+			status = -1;
 			break;
 		};
-		status=Read16(state, HI_RA_RAM_SRV_CMD__A, &waitCmd, 0);
-	} while (waitCmd!=0);
+		status = Read16(state, HI_RA_RAM_SRV_CMD__A, &waitCmd, 0);
+	} while (waitCmd != 0);
 
-	if (status>=0)
-		status=Read16(state, HI_RA_RAM_SRV_RES__A, pResult, 0);
+	if (status >= 0)
+		status = Read16(state, HI_RA_RAM_SRV_RES__A, pResult, 0);
 	return status;
 }
 
 static int HI_CfgCommand(struct drxd_state *state)
 {
-	int status=0;
+	int status = 0;
 
 	down(&state->mutex);
-	Write16(state, HI_RA_RAM_SRV_CFG_KEY__A,
-		HI_RA_RAM_SRV_RST_KEY_ACT, 0);
+	Write16(state, HI_RA_RAM_SRV_CFG_KEY__A, HI_RA_RAM_SRV_RST_KEY_ACT, 0);
 	Write16(state, HI_RA_RAM_SRV_CFG_DIV__A, state->hi_cfg_timing_div, 0);
-	Write16(state, HI_RA_RAM_SRV_CFG_BDL__A,
-		state->hi_cfg_bridge_delay, 0);
+	Write16(state, HI_RA_RAM_SRV_CFG_BDL__A, state->hi_cfg_bridge_delay, 0);
 	Write16(state, HI_RA_RAM_SRV_CFG_WUP__A, state->hi_cfg_wakeup_key, 0);
 	Write16(state, HI_RA_RAM_SRV_CFG_ACT__A, state->hi_cfg_ctrl, 0);
 
-	Write16(state, HI_RA_RAM_SRV_CFG_KEY__A,
-		HI_RA_RAM_SRV_RST_KEY_ACT, 0);
+	Write16(state, HI_RA_RAM_SRV_CFG_KEY__A, HI_RA_RAM_SRV_RST_KEY_ACT, 0);
 
-	if ((state->hi_cfg_ctrl & HI_RA_RAM_SRV_CFG_ACT_PWD_EXE)==
+	if ((state->hi_cfg_ctrl & HI_RA_RAM_SRV_CFG_ACT_PWD_EXE) ==
 	    HI_RA_RAM_SRV_CFG_ACT_PWD_EXE)
-		status=Write16(state, HI_RA_RAM_SRV_CMD__A,
-			       HI_RA_RAM_SRV_CMD_CONFIG, 0);
+		status = Write16(state, HI_RA_RAM_SRV_CMD__A,
+				 HI_RA_RAM_SRV_CMD_CONFIG, 0);
 	else
-		status=HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, 0);
+		status = HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, 0);
 	up(&state->mutex);
 	return status;
 }
@@ -974,7 +976,7 @@ static int InitHI(struct drxd_state *state)
 	state->hi_cfg_wakeup_key = (state->chip_adr);
 	/* port/bridge/power down ctrl */
 	state->hi_cfg_ctrl = HI_RA_RAM_SRV_CFG_ACT_SLV0_ON;
-	return  HI_CfgCommand(state);
+	return HI_CfgCommand(state);
 }
 
 static int HI_ResetCommand(struct drxd_state *state)
@@ -982,20 +984,19 @@ static int HI_ResetCommand(struct drxd_state *state)
 	int status;
 
 	down(&state->mutex);
-	status=Write16(state, HI_RA_RAM_SRV_RST_KEY__A,
-		       HI_RA_RAM_SRV_RST_KEY_ACT, 0);
-	if (status==0)
-		status=HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, 0);
+	status = Write16(state, HI_RA_RAM_SRV_RST_KEY__A,
+			 HI_RA_RAM_SRV_RST_KEY_ACT, 0);
+	if (status == 0)
+		status = HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, 0);
 	up(&state->mutex);
 	msleep(1);
 	return status;
 }
 
-static int DRX_ConfigureI2CBridge(struct drxd_state *state,
-				  int bEnableBridge)
+static int DRX_ConfigureI2CBridge(struct drxd_state *state, int bEnableBridge)
 {
 	state->hi_cfg_ctrl &= (~HI_RA_RAM_SRV_CFG_ACT_BRD__M);
-	if ( bEnableBridge )
+	if (bEnableBridge)
 		state->hi_cfg_ctrl |= HI_RA_RAM_SRV_CFG_ACT_BRD_ON;
 	else
 		state->hi_cfg_ctrl |= HI_RA_RAM_SRV_CFG_ACT_BRD_OFF;
@@ -1010,13 +1011,13 @@ static int DRX_ConfigureI2CBridge(struct drxd_state *state,
 
 #if 0
 static int AtomicReadBlock(struct drxd_state *state,
-			   u32 Addr, u16 DataSize, u8 *pData, u8 Flags)
+			   u32 Addr, u16 DataSize, u8 * pData, u8 Flags)
 {
 	int status;
-	int   i=0;
+	int i = 0;
 
 	/* Parameter check */
-	if ( (!pData) || ( (DataSize & 1)!=0 ) )
+	if ((!pData) || ((DataSize & 1) != 0))
 		return -1;
 
 	down(&state->mutex);
@@ -1024,31 +1025,31 @@ static int AtomicReadBlock(struct drxd_state *state,
 	do {
 		/* Instruct HI to read n bytes */
 		/* TODO use proper names forthese egisters */
-		CHK_ERROR( Write16(state,HI_RA_RAM_SRV_CFG_KEY__A,
-				   (HI_TR_FUNC_ADDR & 0xFFFF), 0));
-		CHK_ERROR( Write16(state,HI_RA_RAM_SRV_CFG_DIV__A,
-				   (u16)(Addr >> 16), 0));
-		CHK_ERROR( Write16(state,HI_RA_RAM_SRV_CFG_BDL__A,
-				   (u16)(Addr & 0xFFFF), 0));
-		CHK_ERROR( Write16(state,HI_RA_RAM_SRV_CFG_WUP__A,
-				   (u16)((DataSize/2) - 1), 0));
-		CHK_ERROR( Write16(state,HI_RA_RAM_SRV_CFG_ACT__A,
-				   HI_TR_READ, 0));
+		CHK_ERROR(Write16(state, HI_RA_RAM_SRV_CFG_KEY__A,
+				  (HI_TR_FUNC_ADDR & 0xFFFF), 0));
+		CHK_ERROR(Write16(state, HI_RA_RAM_SRV_CFG_DIV__A,
+				  (u16) (Addr >> 16), 0));
+		CHK_ERROR(Write16(state, HI_RA_RAM_SRV_CFG_BDL__A,
+				  (u16) (Addr & 0xFFFF), 0));
+		CHK_ERROR(Write16(state, HI_RA_RAM_SRV_CFG_WUP__A,
+				  (u16) ((DataSize / 2) - 1), 0));
+		CHK_ERROR(Write16(state, HI_RA_RAM_SRV_CFG_ACT__A,
+				  HI_TR_READ, 0));
 
-		CHK_ERROR( HI_Command(state, HI_RA_RAM_SRV_CMD_EXECUTE,0));
+		CHK_ERROR(HI_Command(state, HI_RA_RAM_SRV_CMD_EXECUTE, 0));
 
-	} while(0);
+	} while (0);
 
-	if (status>=0) {
-		for (i = 0; i < (DataSize/2); i += 1) {
+	if (status >= 0) {
+		for (i = 0; i < (DataSize / 2); i += 1) {
 			u16 word;
 
 			status = Read16(state, (HI_RA_RAM_USR_BEGIN__A + i),
 					&word, 0);
-			if( status<0)
+			if (status < 0)
 				break;
-			pData[2*i]       = (u8) (word & 0xFF);
-			pData[(2*i) + 1] = (u8) (word >> 8 );
+			pData[2 * i] = (u8) (word & 0xFF);
+			pData[(2 * i) + 1] = (u8) (word >> 8);
 		}
 	}
 	up(&state->mutex);
@@ -1056,18 +1057,17 @@ static int AtomicReadBlock(struct drxd_state *state,
 }
 
 static int AtomicReadReg32(struct drxd_state *state,
-			   u32 Addr, u32 *pData, u8 Flags)
+			   u32 Addr, u32 * pData, u8 Flags)
 {
-	u8 buf[sizeof (u32)];
+	u8 buf[sizeof(u32)];
 	int status;
 
 	if (!pData)
 		return -1;
-	status=AtomicReadBlock(state, Addr, sizeof (u32), buf, Flags);
-	*pData = (((u32) buf[0]) <<  0) +
-		(((u32) buf[1]) <<  8) +
-		(((u32) buf[2]) << 16) +
-		(((u32) buf[3]) << 24);
+	status = AtomicReadBlock(state, Addr, sizeof(u32), buf, Flags);
+	*pData = (((u32) buf[0]) << 0) +
+	    (((u32) buf[1]) << 8) +
+	    (((u32) buf[2]) << 16) + (((u32) buf[3]) << 24);
 	return status;
 }
 #endif
@@ -1095,7 +1095,7 @@ static int InitCC(struct drxd_state *state)
 {
 	if (state->osc_clock_freq == 0 ||
 	    state->osc_clock_freq > 20000 ||
-	    (state->osc_clock_freq % 4000 ) != 0 ) {
+	    (state->osc_clock_freq % 4000) != 0) {
 		printk("invalid osc frequency %d\n", state->osc_clock_freq);
 		return -1;
 	}
@@ -1103,7 +1103,7 @@ static int InitCC(struct drxd_state *state)
 	Write16(state, CC_REG_OSC_MODE__A, CC_REG_OSC_MODE_M20, 0);
 	Write16(state, CC_REG_PLL_MODE__A, CC_REG_PLL_MODE_BYPASS_PLL |
 		CC_REG_PLL_MODE_PUMP_CUR_12, 0);
-	Write16(state, CC_REG_REF_DIVIDE__A, state->osc_clock_freq/4000, 0);
+	Write16(state, CC_REG_REF_DIVIDE__A, state->osc_clock_freq / 4000, 0);
 	Write16(state, CC_REG_PWD_MODE__A, CC_REG_PWD_MODE_DOWN_PLL, 0);
 	Write16(state, CC_REG_UPDATE__A, CC_REG_UPDATE_KEY, 0);
 
@@ -1114,18 +1114,17 @@ static int ResetECOD(struct drxd_state *state)
 {
 	int status = 0;
 
-	if(state->type_A )
+	if (state->type_A)
 		status = Write16(state, EC_OD_REG_SYNC__A, 0x0664, 0);
 	else
 		status = Write16(state, B_EC_OD_REG_SYNC__A, 0x0664, 0);
 
-	if (!(status<0))
+	if (!(status < 0))
 		status = WriteTable(state, state->m_ResetECRAM);
-	if (!(status<0))
+	if (!(status < 0))
 		status = Write16(state, EC_OD_REG_COMM_EXEC__A, 0x0001, 0);
 	return status;
 }
-
 
 /* Configure PGA switch */
 
@@ -1135,28 +1134,28 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 	u16 AgModeLop = 0;
 	u16 AgModeHip = 0;
 	do {
-		if ( pgaSwitch  ) {
+		if (pgaSwitch) {
 			/* PGA on */
 			/* fine gain */
 			CHK_ERROR(Read16(state, B_FE_AG_REG_AG_MODE_LOP__A,
 					 &AgModeLop, 0x0000));
-			AgModeLop&=(~(B_FE_AG_REG_AG_MODE_LOP_MODE_C__M));
-			AgModeLop|= B_FE_AG_REG_AG_MODE_LOP_MODE_C_DYNAMIC;
+			AgModeLop &= (~(B_FE_AG_REG_AG_MODE_LOP_MODE_C__M));
+			AgModeLop |= B_FE_AG_REG_AG_MODE_LOP_MODE_C_DYNAMIC;
 			CHK_ERROR(Write16(state, B_FE_AG_REG_AG_MODE_LOP__A,
 					  AgModeLop, 0x0000));
 
 			/* coarse gain */
 			CHK_ERROR(Read16(state, B_FE_AG_REG_AG_MODE_HIP__A,
 					 &AgModeHip, 0x0000));
-			AgModeHip&=(~(B_FE_AG_REG_AG_MODE_HIP_MODE_J__M));
-			AgModeHip|= B_FE_AG_REG_AG_MODE_HIP_MODE_J_DYNAMIC ;
+			AgModeHip &= (~(B_FE_AG_REG_AG_MODE_HIP_MODE_J__M));
+			AgModeHip |= B_FE_AG_REG_AG_MODE_HIP_MODE_J_DYNAMIC;
 			CHK_ERROR(Write16(state, B_FE_AG_REG_AG_MODE_HIP__A,
 					  AgModeHip, 0x0000));
 
 			/* enable fine and coarse gain, enable AAF,
 			   no ext resistor */
 			CHK_ERROR(Write16(state, B_FE_AG_REG_AG_PGA_MODE__A,
-				      B_FE_AG_REG_AG_PGA_MODE_PFY_PCY_AFY_REN,
+					  B_FE_AG_REG_AG_PGA_MODE_PFY_PCY_AFY_REN,
 					  0x0000));
 		} else {
 			/* PGA off, bypass */
@@ -1164,71 +1163,73 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 			/* fine gain */
 			CHK_ERROR(Read16(state, B_FE_AG_REG_AG_MODE_LOP__A,
 					 &AgModeLop, 0x0000));
-			AgModeLop&=(~(B_FE_AG_REG_AG_MODE_LOP_MODE_C__M));
-			AgModeLop|= B_FE_AG_REG_AG_MODE_LOP_MODE_C_STATIC ;
+			AgModeLop &= (~(B_FE_AG_REG_AG_MODE_LOP_MODE_C__M));
+			AgModeLop |= B_FE_AG_REG_AG_MODE_LOP_MODE_C_STATIC;
 			CHK_ERROR(Write16(state, B_FE_AG_REG_AG_MODE_LOP__A,
 					  AgModeLop, 0x0000));
 
 			/* coarse gain */
 			CHK_ERROR(Read16(state, B_FE_AG_REG_AG_MODE_HIP__A,
 					 &AgModeHip, 0x0000));
-			AgModeHip&=(~(B_FE_AG_REG_AG_MODE_HIP_MODE_J__M));
-			AgModeHip|= B_FE_AG_REG_AG_MODE_HIP_MODE_J_STATIC ;
+			AgModeHip &= (~(B_FE_AG_REG_AG_MODE_HIP_MODE_J__M));
+			AgModeHip |= B_FE_AG_REG_AG_MODE_HIP_MODE_J_STATIC;
 			CHK_ERROR(Write16(state, B_FE_AG_REG_AG_MODE_HIP__A,
 					  AgModeHip, 0x0000));
 
 			/* disable fine and coarse gain, enable AAF,
 			   no ext resistor */
 			CHK_ERROR(Write16(state, B_FE_AG_REG_AG_PGA_MODE__A,
-				      B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN,
+					  B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN,
 					  0x0000));
 		}
 	}
-	while(0);
+	while (0);
 	return status;
 }
 
 static int InitFE(struct drxd_state *state)
 {
-   int status;
+	int status;
 
-    do
-    {
-	CHK_ERROR( WriteTable(state, state->m_InitFE_1));
+	do {
+		CHK_ERROR(WriteTable(state, state->m_InitFE_1));
 
-	if( state->type_A ) {
-		status = Write16(state,  FE_AG_REG_AG_PGA_MODE__A,
-				 FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN, 0);
-	} else {
-		if (state->PGA)
-			status = SetCfgPga(state, 0);
-		else
-			status =
-			 Write16(state, B_FE_AG_REG_AG_PGA_MODE__A,
-				 B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN, 0);
-	}
+		if (state->type_A) {
+			status = Write16(state, FE_AG_REG_AG_PGA_MODE__A,
+					 FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN,
+					 0);
+		} else {
+			if (state->PGA)
+				status = SetCfgPga(state, 0);
+			else
+				status =
+				    Write16(state, B_FE_AG_REG_AG_PGA_MODE__A,
+					    B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN,
+					    0);
+		}
 
-	if (status<0) break;
-	CHK_ERROR( Write16( state, FE_AG_REG_AG_AGC_SIO__A,
-			    state->m_FeAgRegAgAgcSio, 0x0000));
-	CHK_ERROR( Write16( state, FE_AG_REG_AG_PWD__A,state->m_FeAgRegAgPwd,
-			    0x0000));
+		if (status < 0)
+			break;
+		CHK_ERROR(Write16(state, FE_AG_REG_AG_AGC_SIO__A,
+				  state->m_FeAgRegAgAgcSio, 0x0000));
+		CHK_ERROR(Write16
+			  (state, FE_AG_REG_AG_PWD__A, state->m_FeAgRegAgPwd,
+			   0x0000));
 
-	CHK_ERROR( WriteTable(state, state->m_InitFE_2));
+		CHK_ERROR(WriteTable(state, state->m_InitFE_2));
 
+	} while (0);
 
-    } while(0);
-
-    return status;
+	return status;
 }
 
 static int InitFT(struct drxd_state *state)
 {
 	/*
-	  norm OFFSET,  MB says =2 voor 8K en =3 voor 2K waarschijnlijk
-	  SC stuff
-	*/
-	return Write16(state, FT_REG_COMM_EXEC__A, 0x0001, 0x0000 );
+	   norm OFFSET,  MB says =2 voor 8K en =3 voor 2K waarschijnlijk
+	   SC stuff
+	 */
+	return Write16(state, FT_REG_COMM_EXEC__A, 0x0001, 0x0000);
 }
 
 static int SC_WaitForReady(struct drxd_state *state)
@@ -1236,10 +1237,9 @@ static int SC_WaitForReady(struct drxd_state *state)
 	u16 curCmd;
 	int i;
 
-	for(i = 0; i < DRXD_MAX_RETRIES; i += 1 )
-	{
-		int status = Read16(state, SC_RA_RAM_CMD__A,&curCmd,0);
-		if (status==0 || curCmd == 0 )
+	for (i = 0; i < DRXD_MAX_RETRIES; i += 1) {
+		int status = Read16(state, SC_RA_RAM_CMD__A, &curCmd, 0);
+		if (status == 0 || curCmd == 0)
 			return status;
 	}
 	return -1;
@@ -1247,79 +1247,75 @@ static int SC_WaitForReady(struct drxd_state *state)
 
 static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 {
-	int status=0;
+	int status = 0;
 	u16 errCode;
 
-	Write16(state, SC_RA_RAM_CMD__A,cmd,0);
+	Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
 	SC_WaitForReady(state);
 
-	Read16(state, SC_RA_RAM_CMD_ADDR__A,&errCode,0);
+	Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
 
-	if( errCode == 0xFFFF )
-	{
-		   printk("Command Error\n");
-		   status = -1;
+	if (errCode == 0xFFFF) {
+		printk("Command Error\n");
+		status = -1;
 	}
 
 	return status;
 }
 
 static int SC_ProcStartCommand(struct drxd_state *state,
-			       u16 subCmd,u16 param0,u16 param1)
+			       u16 subCmd, u16 param0, u16 param1)
 {
-	int status=0;
+	int status = 0;
 	u16 scExec;
 
 	down(&state->mutex);
 	do {
 		Read16(state, SC_COMM_EXEC__A, &scExec, 0);
 		if (scExec != 1) {
-			status=-1;
+			status = -1;
 			break;
 		}
 		SC_WaitForReady(state);
-		Write16(state, SC_RA_RAM_CMD_ADDR__A,subCmd,0);
-		Write16(state, SC_RA_RAM_PARAM1__A,param1,0);
-		Write16(state, SC_RA_RAM_PARAM0__A,param0,0);
+		Write16(state, SC_RA_RAM_CMD_ADDR__A, subCmd, 0);
+		Write16(state, SC_RA_RAM_PARAM1__A, param1, 0);
+		Write16(state, SC_RA_RAM_PARAM0__A, param0, 0);
 
 		SC_SendCommand(state, SC_RA_RAM_CMD_PROC_START);
-	} while(0);
+	} while (0);
 	up(&state->mutex);
 	return status;
 }
 
-
 static int SC_SetPrefParamCommand(struct drxd_state *state,
-				  u16 subCmd,u16 param0,u16 param1)
+				  u16 subCmd, u16 param0, u16 param1)
 {
 	int status;
 
 	down(&state->mutex);
 	do {
-		CHK_ERROR( SC_WaitForReady(state) );
-		CHK_ERROR( Write16(state,SC_RA_RAM_CMD_ADDR__A,subCmd,0) );
-		CHK_ERROR( Write16(state,SC_RA_RAM_PARAM1__A,param1,0) );
-		CHK_ERROR( Write16(state,SC_RA_RAM_PARAM0__A,param0,0) );
+		CHK_ERROR(SC_WaitForReady(state));
+		CHK_ERROR(Write16(state, SC_RA_RAM_CMD_ADDR__A, subCmd, 0));
+		CHK_ERROR(Write16(state, SC_RA_RAM_PARAM1__A, param1, 0));
+		CHK_ERROR(Write16(state, SC_RA_RAM_PARAM0__A, param0, 0));
 
-		CHK_ERROR( SC_SendCommand(state,
-					  SC_RA_RAM_CMD_SET_PREF_PARAM) );
-	} while(0);
+		CHK_ERROR(SC_SendCommand(state, SC_RA_RAM_CMD_SET_PREF_PARAM));
+	} while (0);
 	up(&state->mutex);
 	return status;
 }
 
 #if 0
-static int SC_GetOpParamCommand(struct drxd_state *state, u16 *result)
+static int SC_GetOpParamCommand(struct drxd_state *state, u16 * result)
 {
-	int status=0;
+	int status = 0;
 
 	down(&state->mutex);
 	do {
-		CHK_ERROR( SC_WaitForReady(state) );
-		CHK_ERROR( SC_SendCommand(state,
-					  SC_RA_RAM_CMD_GET_OP_PARAM) );
-		CHK_ERROR( Read16(state, SC_RA_RAM_PARAM0__A,result, 0 ) );
-	} while(0);
+		CHK_ERROR(SC_WaitForReady(state));
+		CHK_ERROR(SC_SendCommand(state, SC_RA_RAM_CMD_GET_OP_PARAM));
+		CHK_ERROR(Read16(state, SC_RA_RAM_PARAM0__A, result, 0));
+	} while (0);
 	up(&state->mutex);
 	return status;
 }
@@ -1333,45 +1329,38 @@ static int ConfigureMPEGOutput(struct drxd_state *state, int bEnableOutput)
 		u16 EcOcRegIprInvMpg = 0;
 		u16 EcOcRegOcModeLop = 0;
 		u16 EcOcRegOcModeHip = 0;
-		u16 EcOcRegOcMpgSio  = 0;
+		u16 EcOcRegOcMpgSio = 0;
 
 		/*CHK_ERROR(Read16(state, EC_OC_REG_OC_MODE_LOP__A,
-		  &EcOcRegOcModeLop, 0));*/
+		   &EcOcRegOcModeLop, 0)); */
 
-		if( state->operation_mode == OM_DVBT_Diversity_Front )
-		{
-			if ( bEnableOutput )
-			{
+		if (state->operation_mode == OM_DVBT_Diversity_Front) {
+			if (bEnableOutput) {
 				EcOcRegOcModeHip |=
-				  B_EC_OC_REG_OC_MODE_HIP_MPG_BUS_SRC_MONITOR;
-			}
-			else
+				    B_EC_OC_REG_OC_MODE_HIP_MPG_BUS_SRC_MONITOR;
+			} else
 				EcOcRegOcMpgSio |= EC_OC_REG_OC_MPG_SIO__M;
 			EcOcRegOcModeLop |=
-				EC_OC_REG_OC_MODE_LOP_PAR_ENA_DISABLE;
-		}
-		else
-		{
+			    EC_OC_REG_OC_MODE_LOP_PAR_ENA_DISABLE;
+		} else {
 			EcOcRegOcModeLop = state->m_EcOcRegOcModeLop;
 
 			if (bEnableOutput)
-				EcOcRegOcMpgSio &=
-					(~(EC_OC_REG_OC_MPG_SIO__M));
+				EcOcRegOcMpgSio &= (~(EC_OC_REG_OC_MPG_SIO__M));
 			else
 				EcOcRegOcMpgSio |= EC_OC_REG_OC_MPG_SIO__M;
 
 			/* Don't Insert RS Byte */
-			if( state->insert_rs_byte  )
-			{
+			if (state->insert_rs_byte) {
 				EcOcRegOcModeLop &=
-					(~(EC_OC_REG_OC_MODE_LOP_PAR_ENA__M));
+				    (~(EC_OC_REG_OC_MODE_LOP_PAR_ENA__M));
 				EcOcRegOcModeHip &=
-				     (~EC_OC_REG_OC_MODE_HIP_MPG_PAR_VAL__M);
+				    (~EC_OC_REG_OC_MODE_HIP_MPG_PAR_VAL__M);
 				EcOcRegOcModeHip |=
 				    EC_OC_REG_OC_MODE_HIP_MPG_PAR_VAL_ENABLE;
 			} else {
 				EcOcRegOcModeLop |=
-					EC_OC_REG_OC_MODE_LOP_PAR_ENA_DISABLE;
+				    EC_OC_REG_OC_MODE_LOP_PAR_ENA_DISABLE;
 				EcOcRegOcModeHip &=
 				    (~EC_OC_REG_OC_MODE_HIP_MPG_PAR_VAL__M);
 				EcOcRegOcModeHip |=
@@ -1379,7 +1368,7 @@ static int ConfigureMPEGOutput(struct drxd_state *state, int bEnableOutput)
 			}
 
 			/* Mode = Parallel */
-			if( state->enable_parallel )
+			if (state->enable_parallel)
 				EcOcRegOcModeLop &=
 				    (~(EC_OC_REG_OC_MODE_LOP_MPG_TRM_MDE__M));
 			else
@@ -1407,114 +1396,114 @@ static int ConfigureMPEGOutput(struct drxd_state *state, int bEnableOutput)
 		EcOcRegIprInvMpg &= (~(0x0800));
 
 		/* EcOcRegOcModeLop =0x05; */
-		CHK_ERROR( Write16(state, EC_OC_REG_IPR_INV_MPG__A,
-				   EcOcRegIprInvMpg, 0));
-		CHK_ERROR( Write16(state, EC_OC_REG_OC_MODE_LOP__A,
-				   EcOcRegOcModeLop, 0) );
-		CHK_ERROR( Write16(state, EC_OC_REG_OC_MODE_HIP__A,
-				   EcOcRegOcModeHip, 0x0000  ) );
-		CHK_ERROR( Write16(state, EC_OC_REG_OC_MPG_SIO__A,
-				   EcOcRegOcMpgSio, 0) );
-	} while(0);
+		CHK_ERROR(Write16(state, EC_OC_REG_IPR_INV_MPG__A,
+				  EcOcRegIprInvMpg, 0));
+		CHK_ERROR(Write16(state, EC_OC_REG_OC_MODE_LOP__A,
+				  EcOcRegOcModeLop, 0));
+		CHK_ERROR(Write16(state, EC_OC_REG_OC_MODE_HIP__A,
+				  EcOcRegOcModeHip, 0x0000));
+		CHK_ERROR(Write16(state, EC_OC_REG_OC_MPG_SIO__A,
+				  EcOcRegOcMpgSio, 0));
+	} while (0);
 	return status;
 }
 
 static int SetDeviceTypeId(struct drxd_state *state)
 {
-    int status = 0;
-    u16 deviceId = 0 ;
+	int status = 0;
+	u16 deviceId = 0;
 
-    do {
-	    CHK_ERROR(Read16(state, CC_REG_JTAGID_L__A, &deviceId, 0));
-	    /* TODO: why twice? */
-	    CHK_ERROR(Read16(state, CC_REG_JTAGID_L__A, &deviceId, 0));
-	    printk( "drxd: deviceId = %04x\n",deviceId);
+	do {
+		CHK_ERROR(Read16(state, CC_REG_JTAGID_L__A, &deviceId, 0));
+		/* TODO: why twice? */
+		CHK_ERROR(Read16(state, CC_REG_JTAGID_L__A, &deviceId, 0));
+		printk("drxd: deviceId = %04x\n", deviceId);
 
-	    state->type_A = 0;
-	    state->PGA = 0;
-	    state->diversity = 0;
-	    if (deviceId == 0) { /* on A2 only 3975 available */
-		    state->type_A = 1;
-		    printk("DRX3975D-A2\n");
-	    } else {
-		    deviceId >>= 12;
-		    printk("DRX397%dD-B1\n",deviceId);
-		    switch(deviceId) {
-		    case 4:
-			    state->diversity = 1;
-		    case 3:
-		    case 7:
-			    state->PGA = 1;
-			    break;
-		    case 6:
-			    state->diversity = 1;
-		    case 5:
-		    case 8:
-			    break;
-		    default:
-			    status = -1;
-			    break;
-		    }
-	    }
-    } while(0);
+		state->type_A = 0;
+		state->PGA = 0;
+		state->diversity = 0;
+		if (deviceId == 0) {	/* on A2 only 3975 available */
+			state->type_A = 1;
+			printk("DRX3975D-A2\n");
+		} else {
+			deviceId >>= 12;
+			printk("DRX397%dD-B1\n", deviceId);
+			switch (deviceId) {
+			case 4:
+				state->diversity = 1;
+			case 3:
+			case 7:
+				state->PGA = 1;
+				break;
+			case 6:
+				state->diversity = 1;
+			case 5:
+			case 8:
+				break;
+			default:
+				status = -1;
+				break;
+			}
+		}
+	} while (0);
 
-    if (status<0)
-	    return status;
+	if (status < 0)
+		return status;
 
-    /* Init Table selection */
-    state->m_InitAtomicRead = DRXD_InitAtomicRead;
-    state->m_InitSC   = DRXD_InitSC;
-    state->m_ResetECRAM = DRXD_ResetECRAM;
-    if (state->type_A) {
-	    state->m_ResetCEFR = DRXD_ResetCEFR;
-	    state->m_InitFE_1 = DRXD_InitFEA2_1;
-	    state->m_InitFE_2 = DRXD_InitFEA2_2;
-	    state->m_InitCP   = DRXD_InitCPA2;
-	    state->m_InitCE   = DRXD_InitCEA2;
-	    state->m_InitEQ   = DRXD_InitEQA2;
-	    state->m_InitEC   = DRXD_InitECA2;
-	    if (load_firmware(state, DRX_FW_FILENAME_A2))
-		    return -EIO;
-    } else {
-	    state->m_ResetCEFR = NULL;
-	    state->m_InitFE_1 = DRXD_InitFEB1_1;
-	    state->m_InitFE_2 = DRXD_InitFEB1_2;
-	    state->m_InitCP   = DRXD_InitCPB1;
-	    state->m_InitCE   = DRXD_InitCEB1;
-	    state->m_InitEQ   = DRXD_InitEQB1;
-	    state->m_InitEC   = DRXD_InitECB1;
-	    if (load_firmware(state, DRX_FW_FILENAME_B1))
-		    return -EIO;
-    }
-    if (state->diversity) {
-	    state->m_InitDiversityFront = DRXD_InitDiversityFront;
-	    state->m_InitDiversityEnd = DRXD_InitDiversityEnd;
-	    state->m_DisableDiversity = DRXD_DisableDiversity;
-	    state->m_StartDiversityFront = DRXD_StartDiversityFront;
-	    state->m_StartDiversityEnd = DRXD_StartDiversityEnd;
-	    state->m_DiversityDelay8MHZ = DRXD_DiversityDelay8MHZ;
-	    state->m_DiversityDelay6MHZ = DRXD_DiversityDelay6MHZ;
-    } else {
-	    state->m_InitDiversityFront = NULL;
-	    state->m_InitDiversityEnd = NULL;
-	    state->m_DisableDiversity = NULL;
-	    state->m_StartDiversityFront = NULL;
-	    state->m_StartDiversityEnd = NULL;
-	    state->m_DiversityDelay8MHZ = NULL;
-	    state->m_DiversityDelay6MHZ = NULL;
-    }
+	/* Init Table selection */
+	state->m_InitAtomicRead = DRXD_InitAtomicRead;
+	state->m_InitSC = DRXD_InitSC;
+	state->m_ResetECRAM = DRXD_ResetECRAM;
+	if (state->type_A) {
+		state->m_ResetCEFR = DRXD_ResetCEFR;
+		state->m_InitFE_1 = DRXD_InitFEA2_1;
+		state->m_InitFE_2 = DRXD_InitFEA2_2;
+		state->m_InitCP = DRXD_InitCPA2;
+		state->m_InitCE = DRXD_InitCEA2;
+		state->m_InitEQ = DRXD_InitEQA2;
+		state->m_InitEC = DRXD_InitECA2;
+		if (load_firmware(state, DRX_FW_FILENAME_A2))
+			return -EIO;
+	} else {
+		state->m_ResetCEFR = NULL;
+		state->m_InitFE_1 = DRXD_InitFEB1_1;
+		state->m_InitFE_2 = DRXD_InitFEB1_2;
+		state->m_InitCP = DRXD_InitCPB1;
+		state->m_InitCE = DRXD_InitCEB1;
+		state->m_InitEQ = DRXD_InitEQB1;
+		state->m_InitEC = DRXD_InitECB1;
+		if (load_firmware(state, DRX_FW_FILENAME_B1))
+			return -EIO;
+	}
+	if (state->diversity) {
+		state->m_InitDiversityFront = DRXD_InitDiversityFront;
+		state->m_InitDiversityEnd = DRXD_InitDiversityEnd;
+		state->m_DisableDiversity = DRXD_DisableDiversity;
+		state->m_StartDiversityFront = DRXD_StartDiversityFront;
+		state->m_StartDiversityEnd = DRXD_StartDiversityEnd;
+		state->m_DiversityDelay8MHZ = DRXD_DiversityDelay8MHZ;
+		state->m_DiversityDelay6MHZ = DRXD_DiversityDelay6MHZ;
+	} else {
+		state->m_InitDiversityFront = NULL;
+		state->m_InitDiversityEnd = NULL;
+		state->m_DisableDiversity = NULL;
+		state->m_StartDiversityFront = NULL;
+		state->m_StartDiversityEnd = NULL;
+		state->m_DiversityDelay8MHZ = NULL;
+		state->m_DiversityDelay6MHZ = NULL;
+	}
 
-    return status;
+	return status;
 }
 
 static int CorrectSysClockDeviation(struct drxd_state *state)
 {
 	int status;
-	s32  incr = 0;
-	s32  nomincr = 0;
-	u32 bandwidth=0;
-	u32 sysClockInHz=0;
-	u32 sysClockFreq=0; /* in kHz */
+	s32 incr = 0;
+	s32 nomincr = 0;
+	u32 bandwidth = 0;
+	u32 sysClockInHz = 0;
+	u32 sysClockFreq = 0;	/* in kHz */
 	s16 oscClockDeviation;
 	s16 Diff;
 
@@ -1523,79 +1512,75 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 
 		/* These accesses should be AtomicReadReg32, but that
 		   causes trouble (at least for diversity */
-		CHK_ERROR( Read32(state, LC_RA_RAM_IFINCR_NOM_L__A,
-				  ((u32 *)&nomincr),0 ));
-		CHK_ERROR( Read32(state, FE_IF_REG_INCR0__A,
-				  (u32 *) &incr,0 ));
+		CHK_ERROR(Read32(state, LC_RA_RAM_IFINCR_NOM_L__A,
+				 ((u32 *) & nomincr), 0));
+		CHK_ERROR(Read32(state, FE_IF_REG_INCR0__A, (u32 *) & incr, 0));
 
-		if( state->type_A ) {
-			if( (nomincr - incr < -500) ||
-			    (nomincr - incr > 500 ) )
+		if (state->type_A) {
+			if ((nomincr - incr < -500) || (nomincr - incr > 500))
 				break;
 		} else {
-			if( (nomincr - incr < -2000 ) ||
-			    (nomincr - incr > 2000 ) )
+			if ((nomincr - incr < -2000) || (nomincr - incr > 2000))
 				break;
 		}
 
-		switch( state->param.u.ofdm.bandwidth )
-		{
-		case BANDWIDTH_8_MHZ    :
+		switch (state->param.u.ofdm.bandwidth) {
+		case BANDWIDTH_8_MHZ:
 			bandwidth = DRXD_BANDWIDTH_8MHZ_IN_HZ;
 			break;
-		case BANDWIDTH_7_MHZ    :
+		case BANDWIDTH_7_MHZ:
 			bandwidth = DRXD_BANDWIDTH_7MHZ_IN_HZ;
 			break;
-		case BANDWIDTH_6_MHZ    :
+		case BANDWIDTH_6_MHZ:
 			bandwidth = DRXD_BANDWIDTH_6MHZ_IN_HZ;
 			break;
-		default                    :
+		default:
 			return -1;
 			break;
 		}
 
 		/* Compute new sysclock value
 		   sysClockFreq = (((incr + 2^23)*bandwidth)/2^21)/1000 */
-		incr += (1<<23);
-		sysClockInHz = MulDiv32(incr,bandwidth,1<<21);
-		sysClockFreq= (u32)(sysClockInHz/1000);
+		incr += (1 << 23);
+		sysClockInHz = MulDiv32(incr, bandwidth, 1 << 21);
+		sysClockFreq = (u32) (sysClockInHz / 1000);
 		/* rounding */
-		if ( ( sysClockInHz%1000 ) > 500 )
-		{
+		if ((sysClockInHz % 1000) > 500) {
 			sysClockFreq++;
 		}
 
 		/* Compute clock deviation in ppm */
-		oscClockDeviation = (u16) (
-			(((s32)(sysClockFreq) -
-			  (s32)(state->expected_sys_clock_freq))*
-			 1000000L)/(s32)(state->expected_sys_clock_freq) );
+		oscClockDeviation = (u16) ((((s32) (sysClockFreq) -
+					     (s32)
+					     (state->expected_sys_clock_freq)) *
+					    1000000L) /
+					   (s32)
+					   (state->expected_sys_clock_freq));
 
 		Diff = oscClockDeviation - state->osc_clock_deviation;
-		/*printk("sysclockdiff=%d\n", Diff);*/
-		if( Diff >= -200 && Diff <= 200 ) {
+		/*printk("sysclockdiff=%d\n", Diff); */
+		if (Diff >= -200 && Diff <= 200) {
 			state->sys_clock_freq = (u16) sysClockFreq;
-			if( oscClockDeviation !=
-			    state->osc_clock_deviation ) {
+			if (oscClockDeviation != state->osc_clock_deviation) {
 				if (state->config.osc_deviation) {
-					state->config.osc_deviation(
-						state->priv,
-						oscClockDeviation, 1);
-					state->osc_clock_deviation=
-						oscClockDeviation;
+					state->config.osc_deviation(state->priv,
+								    oscClockDeviation,
+								    1);
+					state->osc_clock_deviation =
+					    oscClockDeviation;
 				}
 			}
 			/* switch OFF SRMM scan in SC */
-			CHK_ERROR( Write16( state,
-					    SC_RA_RAM_SAMPLE_RATE_COUNT__A,
-					    DRXD_OSCDEV_DONT_SCAN,0));
+			CHK_ERROR(Write16(state,
+					  SC_RA_RAM_SAMPLE_RATE_COUNT__A,
+					  DRXD_OSCDEV_DONT_SCAN, 0));
 			/* overrule FE_IF internal value for
 			   proper re-locking */
-			CHK_ERROR( Write16( state, SC_RA_RAM_IF_SAVE__AX,
-					    state->current_fe_if_incr, 0));
+			CHK_ERROR(Write16(state, SC_RA_RAM_IF_SAVE__AX,
+					  state->current_fe_if_incr, 0));
 			state->cscd_state = CSCD_SAVED;
 		}
-	} while(0);
+	} while (0);
 
 	return (status);
 }
@@ -1604,59 +1589,57 @@ static int DRX_Stop(struct drxd_state *state)
 {
 	int status;
 
-	if( state->drxd_state != DRXD_STARTED )
+	if (state->drxd_state != DRXD_STARTED)
 		return 0;
 
 	do {
-		if (state->cscd_state != CSCD_SAVED ) {
+		if (state->cscd_state != CSCD_SAVED) {
 			u32 lock;
-			CHK_ERROR( DRX_GetLockStatus(state, &lock));
+			CHK_ERROR(DRX_GetLockStatus(state, &lock));
 		}
 
 		CHK_ERROR(StopOC(state));
 
 		state->drxd_state = DRXD_STOPPED;
 
-		CHK_ERROR( ConfigureMPEGOutput(state, 0) );
+		CHK_ERROR(ConfigureMPEGOutput(state, 0));
 
-		if(state->type_A ) {
+		if (state->type_A) {
 			/* Stop relevant processors off the device */
-			CHK_ERROR( Write16(state, EC_OD_REG_COMM_EXEC__A,
-					   0x0000, 0x0000));
+			CHK_ERROR(Write16(state, EC_OD_REG_COMM_EXEC__A,
+					  0x0000, 0x0000));
 
-			CHK_ERROR( Write16(state, SC_COMM_EXEC__A,
-					   SC_COMM_EXEC_CTL_STOP, 0 ));
-			CHK_ERROR( Write16(state, LC_COMM_EXEC__A,
-					   SC_COMM_EXEC_CTL_STOP, 0 ));
+			CHK_ERROR(Write16(state, SC_COMM_EXEC__A,
+					  SC_COMM_EXEC_CTL_STOP, 0));
+			CHK_ERROR(Write16(state, LC_COMM_EXEC__A,
+					  SC_COMM_EXEC_CTL_STOP, 0));
 		} else {
 			/* Stop all processors except HI & CC & FE */
 			CHK_ERROR(Write16(state,
 					  B_SC_COMM_EXEC__A,
-					  SC_COMM_EXEC_CTL_STOP, 0 ));
+					  SC_COMM_EXEC_CTL_STOP, 0));
 			CHK_ERROR(Write16(state,
 					  B_LC_COMM_EXEC__A,
-					  SC_COMM_EXEC_CTL_STOP, 0 ));
+					  SC_COMM_EXEC_CTL_STOP, 0));
 			CHK_ERROR(Write16(state,
 					  B_FT_COMM_EXEC__A,
-					  SC_COMM_EXEC_CTL_STOP, 0 ));
+					  SC_COMM_EXEC_CTL_STOP, 0));
 			CHK_ERROR(Write16(state,
 					  B_CP_COMM_EXEC__A,
-					  SC_COMM_EXEC_CTL_STOP, 0 ));
+					  SC_COMM_EXEC_CTL_STOP, 0));
 			CHK_ERROR(Write16(state,
 					  B_CE_COMM_EXEC__A,
-					  SC_COMM_EXEC_CTL_STOP, 0 ));
+					  SC_COMM_EXEC_CTL_STOP, 0));
 			CHK_ERROR(Write16(state,
 					  B_EQ_COMM_EXEC__A,
-					  SC_COMM_EXEC_CTL_STOP, 0 ));
+					  SC_COMM_EXEC_CTL_STOP, 0));
 			CHK_ERROR(Write16(state,
-					  EC_OD_REG_COMM_EXEC__A,
-					  0x0000, 0 ));
+					  EC_OD_REG_COMM_EXEC__A, 0x0000, 0));
 		}
 
-	} while(0);
+	} while (0);
 	return status;
 }
-
 
 int SetOperationMode(struct drxd_state *state, int oMode)
 {
@@ -1678,15 +1661,12 @@ int SetOperationMode(struct drxd_state *state, int oMode)
 			break;
 		}
 
-		switch(oMode)
-		{
+		switch (oMode) {
 		case OM_DVBT_Diversity_Front:
-			status = WriteTable(state,
-					    state->m_InitDiversityFront);
+			status = WriteTable(state, state->m_InitDiversityFront);
 			break;
 		case OM_DVBT_Diversity_End:
-			status = WriteTable(state,
-					    state->m_InitDiversityEnd);
+			status = WriteTable(state, state->m_InitDiversityEnd);
 			break;
 		case OM_Default:
 			/* We need to check how to
@@ -1695,57 +1675,51 @@ int SetOperationMode(struct drxd_state *state, int oMode)
 			status = WriteTable(state, state->m_DisableDiversity);
 			break;
 		}
-	} while(0);
+	} while (0);
 
 	if (!status)
 		state->operation_mode = oMode;
 	return status;
 }
 
-
-
 static int StartDiversity(struct drxd_state *state)
 {
-	int status=0;
+	int status = 0;
 	u16 rcControl;
 
 	do {
 		if (state->operation_mode == OM_DVBT_Diversity_Front) {
 			CHK_ERROR(WriteTable(state,
 					     state->m_StartDiversityFront));
-		} else if( state->operation_mode == OM_DVBT_Diversity_End ) {
+		} else if (state->operation_mode == OM_DVBT_Diversity_End) {
 			CHK_ERROR(WriteTable(state,
 					     state->m_StartDiversityEnd));
-			if( state->param.u.ofdm.bandwidth ==
-			    BANDWIDTH_8_MHZ ) {
-				CHK_ERROR(
-					WriteTable(state,
-						   state->
-						   m_DiversityDelay8MHZ));
+			if (state->param.u.ofdm.bandwidth == BANDWIDTH_8_MHZ) {
+				CHK_ERROR(WriteTable(state,
+						     state->
+						     m_DiversityDelay8MHZ));
 			} else {
-				CHK_ERROR(
-					WriteTable(state,
-						   state->
-						   m_DiversityDelay6MHZ));
+				CHK_ERROR(WriteTable(state,
+						     state->
+						     m_DiversityDelay6MHZ));
 			}
 
 			CHK_ERROR(Read16(state,
 					 B_EQ_REG_RC_SEL_CAR__A,
-					 &rcControl,0));
+					 &rcControl, 0));
 			rcControl &= ~(B_EQ_REG_RC_SEL_CAR_FFTMODE__M);
 			rcControl |= B_EQ_REG_RC_SEL_CAR_DIV_ON |
-				/*  combining enabled */
-				B_EQ_REG_RC_SEL_CAR_MEAS_A_CC |
-				B_EQ_REG_RC_SEL_CAR_PASS_A_CC |
-				B_EQ_REG_RC_SEL_CAR_LOCAL_A_CC;
+			    /*  combining enabled */
+			    B_EQ_REG_RC_SEL_CAR_MEAS_A_CC |
+			    B_EQ_REG_RC_SEL_CAR_PASS_A_CC |
+			    B_EQ_REG_RC_SEL_CAR_LOCAL_A_CC;
 			CHK_ERROR(Write16(state,
 					  B_EQ_REG_RC_SEL_CAR__A,
-					  rcControl,0));
+					  rcControl, 0));
 		}
-	} while(0);
+	} while (0);
 	return status;
 }
-
 
 static int SetFrequencyShift(struct drxd_state *state,
 			     u32 offsetFreq, int channelMirrored)
@@ -1763,60 +1737,55 @@ static int SetFrequencyShift(struct drxd_state *state,
 	 */
 
 	/* Compute register value, unsigned computation */
-	state->fe_fs_add_incr = MulDiv32( state->intermediate_freq +
+	state->fe_fs_add_incr = MulDiv32(state->intermediate_freq +
 					 offsetFreq,
-					 1<<28, state->sys_clock_freq);
+					 1 << 28, state->sys_clock_freq);
 	/* Remove integer part */
 	state->fe_fs_add_incr &= 0x0FFFFFFFL;
-	if (negativeShift)
-	{
-		state->fe_fs_add_incr = ((1<<28) - state->fe_fs_add_incr);
+	if (negativeShift) {
+		state->fe_fs_add_incr = ((1 << 28) - state->fe_fs_add_incr);
 	}
 
 	/* Save the frequency shift without tunerOffset compensation
 	   for CtrlGetChannel. */
-	state->org_fe_fs_add_incr = MulDiv32( state->intermediate_freq,
-					    1<<28, state->sys_clock_freq);
+	state->org_fe_fs_add_incr = MulDiv32(state->intermediate_freq,
+					     1 << 28, state->sys_clock_freq);
 	/* Remove integer part */
 	state->org_fe_fs_add_incr &= 0x0FFFFFFFL;
 	if (negativeShift)
-		state->org_fe_fs_add_incr = ((1L<<28) -
+		state->org_fe_fs_add_incr = ((1L << 28) -
 					     state->org_fe_fs_add_incr);
 
 	return Write32(state, FE_FS_REG_ADD_INC_LOP__A,
 		       state->fe_fs_add_incr, 0);
 }
 
-static int SetCfgNoiseCalibration (struct drxd_state *state,
-				   struct SNoiseCal* noiseCal )
+static int SetCfgNoiseCalibration(struct drxd_state *state,
+				  struct SNoiseCal *noiseCal)
 {
 	u16 beOptEna;
-	int status=0;
+	int status = 0;
 
 	do {
-		CHK_ERROR(Read16(state, SC_RA_RAM_BE_OPT_ENA__A,
-				 &beOptEna, 0));
-		if (noiseCal->cpOpt)
-		{
+		CHK_ERROR(Read16(state, SC_RA_RAM_BE_OPT_ENA__A, &beOptEna, 0));
+		if (noiseCal->cpOpt) {
 			beOptEna |= (1 << SC_RA_RAM_BE_OPT_ENA_CP_OPT);
 		} else {
 			beOptEna &= ~(1 << SC_RA_RAM_BE_OPT_ENA_CP_OPT);
 			CHK_ERROR(Write16(state, CP_REG_AC_NEXP_OFFS__A,
 					  noiseCal->cpNexpOfs, 0));
 		}
-		CHK_ERROR(Write16(state, SC_RA_RAM_BE_OPT_ENA__A,
-				  beOptEna, 0));
+		CHK_ERROR(Write16(state, SC_RA_RAM_BE_OPT_ENA__A, beOptEna, 0));
 
-		if( !state->type_A )
-		{
-			CHK_ERROR(Write16( state,
-					   B_SC_RA_RAM_CO_TD_CAL_2K__A,
-					   noiseCal->tdCal2k,0));
-			CHK_ERROR(Write16( state,
-					   B_SC_RA_RAM_CO_TD_CAL_8K__A,
-					   noiseCal->tdCal8k,0));
+		if (!state->type_A) {
+			CHK_ERROR(Write16(state,
+					  B_SC_RA_RAM_CO_TD_CAL_2K__A,
+					  noiseCal->tdCal2k, 0));
+			CHK_ERROR(Write16(state,
+					  B_SC_RA_RAM_CO_TD_CAL_8K__A,
+					  noiseCal->tdCal8k, 0));
 		}
-	} while(0);
+	} while (0);
 
 	return status;
 }
@@ -1826,84 +1795,83 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 	struct dvb_ofdm_parameters *p = &state->param.u.ofdm;
 	int status;
 
-	u16  transmissionParams = 0;
-	u16  operationMode = 0;
-	u16  qpskTdTpsPwr = 0;
-	u16  qam16TdTpsPwr = 0;
-	u16  qam64TdTpsPwr = 0;
-	u32   feIfIncr = 0;
-	u32   bandwidth = 0;
+	u16 transmissionParams = 0;
+	u16 operationMode = 0;
+	u16 qpskTdTpsPwr = 0;
+	u16 qam16TdTpsPwr = 0;
+	u16 qam64TdTpsPwr = 0;
+	u32 feIfIncr = 0;
+	u32 bandwidth = 0;
 	int mirrorFreqSpect;
 
-	u16  qpskSnCeGain  = 0;
-	u16  qam16SnCeGain = 0;
-	u16  qam64SnCeGain = 0;
-	u16  qpskIsGainMan  = 0;
-	u16  qam16IsGainMan = 0;
-	u16  qam64IsGainMan = 0;
-	u16  qpskIsGainExp  = 0;
-	u16  qam16IsGainExp = 0;
-	u16  qam64IsGainExp = 0;
-	u16  bandwidthParam = 0;
+	u16 qpskSnCeGain = 0;
+	u16 qam16SnCeGain = 0;
+	u16 qam64SnCeGain = 0;
+	u16 qpskIsGainMan = 0;
+	u16 qam16IsGainMan = 0;
+	u16 qam64IsGainMan = 0;
+	u16 qpskIsGainExp = 0;
+	u16 qam16IsGainExp = 0;
+	u16 qam64IsGainExp = 0;
+	u16 bandwidthParam = 0;
 
-	if (off<0)
-		off=(off-500)/1000;
+	if (off < 0)
+		off = (off - 500) / 1000;
 	else
-		off=(off+500)/1000;
+		off = (off + 500) / 1000;
 
 	do {
 		if (state->drxd_state != DRXD_STOPPED)
 			return -1;
-		CHK_ERROR( ResetECOD(state) );
+		CHK_ERROR(ResetECOD(state));
 		if (state->type_A) {
-			CHK_ERROR( InitSC(state) );
+			CHK_ERROR(InitSC(state));
 		} else {
-			CHK_ERROR( InitFT(state) );
-			CHK_ERROR( InitCP(state) );
-			CHK_ERROR( InitCE(state) );
-			CHK_ERROR( InitEQ(state) );
-			CHK_ERROR( InitSC(state) );
+			CHK_ERROR(InitFT(state));
+			CHK_ERROR(InitCP(state));
+			CHK_ERROR(InitCE(state));
+			CHK_ERROR(InitEQ(state));
+			CHK_ERROR(InitSC(state));
 		}
 
 		/* Restore current IF & RF AGC settings */
 
-		CHK_ERROR(SetCfgIfAgc(state, &state->if_agc_cfg ));
-		CHK_ERROR(SetCfgRfAgc(state, &state->rf_agc_cfg ));
+		CHK_ERROR(SetCfgIfAgc(state, &state->if_agc_cfg));
+		CHK_ERROR(SetCfgRfAgc(state, &state->rf_agc_cfg));
 
-		mirrorFreqSpect=( state->param.inversion==INVERSION_ON);
+		mirrorFreqSpect = (state->param.inversion == INVERSION_ON);
 
 		switch (p->transmission_mode) {
-		default:  /* Not set, detect it automatically */
+		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
 			/* fall through , try first guess DRX_FFTMODE_8K */
-		case TRANSMISSION_MODE_8K :
+		case TRANSMISSION_MODE_8K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_8K;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,
-						   EC_SB_REG_TR_MODE__A,
-						   EC_SB_REG_TR_MODE_8K,
-						   0x0000 ));
-				qpskSnCeGain  = 99;
+				CHK_ERROR(Write16(state,
+						  EC_SB_REG_TR_MODE__A,
+						  EC_SB_REG_TR_MODE_8K,
+						  0x0000));
+				qpskSnCeGain = 99;
 				qam16SnCeGain = 83;
 				qam64SnCeGain = 67;
 			}
 			break;
-		case TRANSMISSION_MODE_2K :
+		case TRANSMISSION_MODE_2K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_2K;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,
-						   EC_SB_REG_TR_MODE__A,
-						   EC_SB_REG_TR_MODE_2K,
-						   0x0000 ));
-				qpskSnCeGain  = 97;
+				CHK_ERROR(Write16(state,
+						  EC_SB_REG_TR_MODE__A,
+						  EC_SB_REG_TR_MODE_2K,
+						  0x0000));
+				qpskSnCeGain = 97;
 				qam16SnCeGain = 71;
 				qam64SnCeGain = 65;
 			}
 			break;
 		}
 
-		switch( p->guard_interval )
-		{
+		switch (p->guard_interval) {
 		case GUARD_INTERVAL_1_4:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_GUARD_4;
 			break;
@@ -1916,95 +1884,94 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		case GUARD_INTERVAL_1_32:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_GUARD_32;
 			break;
-		default:  /* Not set, detect it automatically */
+		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_GUARD__M;
 			/* try first guess 1/4 */
 			transmissionParams |= SC_RA_RAM_OP_PARAM_GUARD_4;
 			break;
 		}
 
-		switch( p->hierarchy_information )
-		{
+		switch (p->hierarchy_information) {
 		case HIERARCHY_1:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_A1;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state, EQ_REG_OT_ALPHA__A,
-						   0x0001, 0x0000 ) );
-				CHK_ERROR( Write16(state, EC_SB_REG_ALPHA__A,
-						   0x0001, 0x0000 ) );
+				CHK_ERROR(Write16(state, EQ_REG_OT_ALPHA__A,
+						  0x0001, 0x0000));
+				CHK_ERROR(Write16(state, EC_SB_REG_ALPHA__A,
+						  0x0001, 0x0000));
 
-				qpskTdTpsPwr  = EQ_TD_TPS_PWR_UNKNOWN;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKNOWN;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHA1;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHA1;
 
-				qpskIsGainMan  =
-					SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
+				qpskIsGainMan =
+				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
 				qam16IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE;
 				qam64IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__PRE;
 
-				qpskIsGainExp  =
-					SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
+				qpskIsGainExp =
+				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
 				qam16IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE;
 				qam64IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__PRE;
 			}
 			break;
 
 		case HIERARCHY_2:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_A2;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,  EQ_REG_OT_ALPHA__A,
-						   0x0002, 0x0000 ) );
-				CHK_ERROR( Write16(state,  EC_SB_REG_ALPHA__A,
-						   0x0002, 0x0000 ) );
+				CHK_ERROR(Write16(state, EQ_REG_OT_ALPHA__A,
+						  0x0002, 0x0000));
+				CHK_ERROR(Write16(state, EC_SB_REG_ALPHA__A,
+						  0x0002, 0x0000));
 
-				qpskTdTpsPwr  = EQ_TD_TPS_PWR_UNKNOWN;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKNOWN;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHA2;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHA2;
 
 				qpskIsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
 				qam16IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__PRE;
 				qam64IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__PRE;
 
-				qpskIsGainExp  =
-					SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
+				qpskIsGainExp =
+				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
 				qam16IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__PRE;
 				qam64IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__PRE;
 			}
 			break;
 		case HIERARCHY_4:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_A4;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,  EQ_REG_OT_ALPHA__A,
-						   0x0003, 0x0000 ));
-				CHK_ERROR( Write16(state,  EC_SB_REG_ALPHA__A,
-						   0x0003, 0x0000 ) );
+				CHK_ERROR(Write16(state, EQ_REG_OT_ALPHA__A,
+						  0x0003, 0x0000));
+				CHK_ERROR(Write16(state, EC_SB_REG_ALPHA__A,
+						  0x0003, 0x0000));
 
-				qpskTdTpsPwr  = EQ_TD_TPS_PWR_UNKNOWN;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_UNKNOWN;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHA4;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHA4;
 
-				qpskIsGainMan  =
-					SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
+				qpskIsGainMan =
+				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__PRE;
 				qam16IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__PRE;
 				qam64IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__PRE;
 
-				qpskIsGainExp  =
-					SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
+				qpskIsGainExp =
+				    SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE;
 				qam16IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__PRE;
 				qam64IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_EXP__PRE;
 			}
 			break;
 		case HIERARCHY_AUTO:
@@ -2013,34 +1980,34 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			operationMode |= SC_RA_RAM_OP_AUTO_HIER__M;
 			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_NO;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state, EQ_REG_OT_ALPHA__A,
-						   0x0000, 0x0000 ) );
-				CHK_ERROR( Write16(state, EC_SB_REG_ALPHA__A,
-						   0x0000, 0x0000 ) );
+				CHK_ERROR(Write16(state, EQ_REG_OT_ALPHA__A,
+						  0x0000, 0x0000));
+				CHK_ERROR(Write16(state, EC_SB_REG_ALPHA__A,
+						  0x0000, 0x0000));
 
-				qpskTdTpsPwr  = EQ_TD_TPS_PWR_QPSK;
+				qpskTdTpsPwr = EQ_TD_TPS_PWR_QPSK;
 				qam16TdTpsPwr = EQ_TD_TPS_PWR_QAM16_ALPHAN;
 				qam64TdTpsPwr = EQ_TD_TPS_PWR_QAM64_ALPHAN;
 
-				qpskIsGainMan  =
-					SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__PRE;
+				qpskIsGainMan =
+				    SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__PRE;
 				qam16IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__PRE;
 				qam64IsGainMan =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__PRE;
 
-				qpskIsGainExp  =
-					SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__PRE;
+				qpskIsGainExp =
+				    SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__PRE;
 				qam16IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE;
 				qam64IsGainExp =
-					SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__PRE;
+				    SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__PRE;
 			}
 			break;
 		}
-		CHK_ERROR( status );
+		CHK_ERROR(status);
 
-		switch( p->constellation ) {
+		switch (p->constellation) {
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_CONST__M;
 			/* fall through , try first guess
@@ -2049,60 +2016,60 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM64;
 			if (state->type_A) {
 				CHK_ERROR(Write16(state, EQ_REG_OT_CONST__A,
-						  0x0002, 0x0000 ) );
+						  0x0002, 0x0000));
 				CHK_ERROR(Write16(state, EC_SB_REG_CONST__A,
 						  EC_SB_REG_CONST_64QAM,
-						  0x0000) );
+						  0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_MSB__A,
-						  0x0020, 0x0000 ) );
+						  0x0020, 0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_BIT2__A,
-						  0x0008, 0x0000 ) );
+						  0x0008, 0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_LSB__A,
-						  0x0002, 0x0000 ) );
+						  0x0002, 0x0000));
 
 				CHK_ERROR(Write16(state,
 						  EQ_REG_TD_TPS_PWR_OFS__A,
-						  qam64TdTpsPwr, 0x0000 ) );
-				CHK_ERROR( Write16(state,EQ_REG_SN_CEGAIN__A,
-						   qam64SnCeGain, 0x0000 ));
-				CHK_ERROR( Write16(state,EQ_REG_IS_GAIN_MAN__A,
-						   qam64IsGainMan, 0x0000 ));
-				CHK_ERROR( Write16(state,EQ_REG_IS_GAIN_EXP__A,
-						   qam64IsGainExp, 0x0000 ));
+						  qam64TdTpsPwr, 0x0000));
+				CHK_ERROR(Write16(state, EQ_REG_SN_CEGAIN__A,
+						  qam64SnCeGain, 0x0000));
+				CHK_ERROR(Write16(state, EQ_REG_IS_GAIN_MAN__A,
+						  qam64IsGainMan, 0x0000));
+				CHK_ERROR(Write16(state, EQ_REG_IS_GAIN_EXP__A,
+						  qam64IsGainExp, 0x0000));
 			}
 			break;
-		case QPSK   :
+		case QPSK:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QPSK;
 			if (state->type_A) {
 				CHK_ERROR(Write16(state, EQ_REG_OT_CONST__A,
-						  0x0000, 0x0000 ) );
+						  0x0000, 0x0000));
 				CHK_ERROR(Write16(state, EC_SB_REG_CONST__A,
 						  EC_SB_REG_CONST_QPSK,
-						  0x0000) );
+						  0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_MSB__A,
-						  0x0010, 0x0000 ) );
+						  0x0010, 0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_BIT2__A,
-						  0x0000, 0x0000 ) );
+						  0x0000, 0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_LSB__A,
-						  0x0000, 0x0000 ) );
+						  0x0000, 0x0000));
 
 				CHK_ERROR(Write16(state,
 						  EQ_REG_TD_TPS_PWR_OFS__A,
-						  qpskTdTpsPwr, 0x0000 ) );
-				CHK_ERROR( Write16(state, EQ_REG_SN_CEGAIN__A,
-						   qpskSnCeGain, 0x0000 ));
-				CHK_ERROR( Write16(state,
-						   EQ_REG_IS_GAIN_MAN__A,
-						   qpskIsGainMan, 0x0000 ));
-				CHK_ERROR( Write16(state,
-						   EQ_REG_IS_GAIN_EXP__A,
-						   qpskIsGainExp, 0x0000 ));
+						  qpskTdTpsPwr, 0x0000));
+				CHK_ERROR(Write16(state, EQ_REG_SN_CEGAIN__A,
+						  qpskSnCeGain, 0x0000));
+				CHK_ERROR(Write16(state,
+						  EQ_REG_IS_GAIN_MAN__A,
+						  qpskIsGainMan, 0x0000));
+				CHK_ERROR(Write16(state,
+						  EQ_REG_IS_GAIN_EXP__A,
+						  qpskIsGainExp, 0x0000));
 			}
 			break;
 
@@ -2110,104 +2077,103 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM16;
 			if (state->type_A) {
 				CHK_ERROR(Write16(state, EQ_REG_OT_CONST__A,
-						  0x0001, 0x0000 ) );
+						  0x0001, 0x0000));
 				CHK_ERROR(Write16(state, EC_SB_REG_CONST__A,
 						  EC_SB_REG_CONST_16QAM,
-						  0x0000) );
+						  0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_MSB__A,
-						  0x0010, 0x0000 ) );
+						  0x0010, 0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_BIT2__A,
-						  0x0004, 0x0000 ) );
+						  0x0004, 0x0000));
 				CHK_ERROR(Write16(state,
 						  EC_SB_REG_SCALE_LSB__A,
-						  0x0000, 0x0000 ) );
+						  0x0000, 0x0000));
 
 				CHK_ERROR(Write16(state,
 						  EQ_REG_TD_TPS_PWR_OFS__A,
-						  qam16TdTpsPwr, 0x0000 ) );
-				CHK_ERROR( Write16(state, EQ_REG_SN_CEGAIN__A,
-						   qam16SnCeGain, 0x0000 ));
-				CHK_ERROR( Write16(state,
-						   EQ_REG_IS_GAIN_MAN__A,
-						   qam16IsGainMan, 0x0000 ));
-				CHK_ERROR( Write16(state,
-						   EQ_REG_IS_GAIN_EXP__A,
-						   qam16IsGainExp, 0x0000 ));
+						  qam16TdTpsPwr, 0x0000));
+				CHK_ERROR(Write16(state, EQ_REG_SN_CEGAIN__A,
+						  qam16SnCeGain, 0x0000));
+				CHK_ERROR(Write16(state,
+						  EQ_REG_IS_GAIN_MAN__A,
+						  qam16IsGainMan, 0x0000));
+				CHK_ERROR(Write16(state,
+						  EQ_REG_IS_GAIN_EXP__A,
+						  qam16IsGainExp, 0x0000));
 			}
 			break;
 
 		}
-		CHK_ERROR( status );
+		CHK_ERROR(status);
 
 		switch (DRX_CHANNEL_HIGH) {
 		default:
 		case DRX_CHANNEL_AUTO:
 		case DRX_CHANNEL_LOW:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_PRIO_LO;
-			CHK_ERROR( Write16(state,  EC_SB_REG_PRIOR__A,
-					   EC_SB_REG_PRIOR_LO, 0x0000 ));
+			CHK_ERROR(Write16(state, EC_SB_REG_PRIOR__A,
+					  EC_SB_REG_PRIOR_LO, 0x0000));
 			break;
 		case DRX_CHANNEL_HIGH:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_PRIO_HI;
-			CHK_ERROR( Write16(state,  EC_SB_REG_PRIOR__A,
-					   EC_SB_REG_PRIOR_HI, 0x0000 ));
+			CHK_ERROR(Write16(state, EC_SB_REG_PRIOR__A,
+					  EC_SB_REG_PRIOR_HI, 0x0000));
 			break;
 
 		}
 
-		switch( p->code_rate_HP )
-		{
+		switch (p->code_rate_HP) {
 		case FEC_1_2:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_1_2;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,
-						   EC_VD_REG_SET_CODERATE__A,
-						   EC_VD_REG_SET_CODERATE_C1_2,
-						   0x0000 ) );
+				CHK_ERROR(Write16(state,
+						  EC_VD_REG_SET_CODERATE__A,
+						  EC_VD_REG_SET_CODERATE_C1_2,
+						  0x0000));
 			}
 			break;
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_RATE__M;
-		case FEC_2_3  :
+		case FEC_2_3:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_2_3;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,
-						   EC_VD_REG_SET_CODERATE__A,
-						   EC_VD_REG_SET_CODERATE_C2_3,
-						   0x0000 ) );
+				CHK_ERROR(Write16(state,
+						  EC_VD_REG_SET_CODERATE__A,
+						  EC_VD_REG_SET_CODERATE_C2_3,
+						  0x0000));
 			}
 			break;
-		case FEC_3_4  :
+		case FEC_3_4:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_3_4;
 			if (state->type_A) {
-			CHK_ERROR( Write16(state,
-					   EC_VD_REG_SET_CODERATE__A,
-					   EC_VD_REG_SET_CODERATE_C3_4,
-					   0x0000 ) );
+				CHK_ERROR(Write16(state,
+						  EC_VD_REG_SET_CODERATE__A,
+						  EC_VD_REG_SET_CODERATE_C3_4,
+						  0x0000));
 			}
 			break;
-		case FEC_5_6  :
+		case FEC_5_6:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_5_6;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,
-						   EC_VD_REG_SET_CODERATE__A,
-						   EC_VD_REG_SET_CODERATE_C5_6,
-						   0x0000 ) );
+				CHK_ERROR(Write16(state,
+						  EC_VD_REG_SET_CODERATE__A,
+						  EC_VD_REG_SET_CODERATE_C5_6,
+						  0x0000));
 			}
 			break;
-		case FEC_7_8  :
+		case FEC_7_8:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_7_8;
 			if (state->type_A) {
-				CHK_ERROR( Write16(state,
-						   EC_VD_REG_SET_CODERATE__A,
-						   EC_VD_REG_SET_CODERATE_C7_8,
-						   0x0000 ) );
+				CHK_ERROR(Write16(state,
+						  EC_VD_REG_SET_CODERATE__A,
+						  EC_VD_REG_SET_CODERATE_C7_8,
+						  0x0000));
 			}
 			break;
 		}
-		CHK_ERROR( status );
+		CHK_ERROR(status);
 
 		/* First determine real bandwidth (Hz) */
 		/* Also set delay for impulse noise cruncher (only A2) */
@@ -2216,8 +2182,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		   by SC for fix for some 8K,1/8 guard but is restored by
 		   InitEC and ResetEC
 		   functions */
-		switch( p->bandwidth )
-		{
+		switch (p->bandwidth) {
 		case BANDWIDTH_AUTO:
 		case BANDWIDTH_8_MHZ:
 			/* (64/7)*(8/8)*1000000 */
@@ -2225,27 +2190,27 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 
 			bandwidthParam = 0;
 			status = Write16(state,
-					 FE_AG_REG_IND_DEL__A , 50 , 0x0000 );
+					 FE_AG_REG_IND_DEL__A, 50, 0x0000);
 			break;
 		case BANDWIDTH_7_MHZ:
 			/* (64/7)*(7/8)*1000000 */
 			bandwidth = DRXD_BANDWIDTH_7MHZ_IN_HZ;
-			bandwidthParam =0x4807; /*binary:0100 1000 0000 0111 */
+			bandwidthParam = 0x4807;	/*binary:0100 1000 0000 0111 */
 			status = Write16(state,
-					 FE_AG_REG_IND_DEL__A , 59 , 0x0000 );
+					 FE_AG_REG_IND_DEL__A, 59, 0x0000);
 			break;
 		case BANDWIDTH_6_MHZ:
 			/* (64/7)*(6/8)*1000000 */
 			bandwidth = DRXD_BANDWIDTH_6MHZ_IN_HZ;
-			bandwidthParam =0x0F07; /*binary: 0000 1111 0000 0111*/
+			bandwidthParam = 0x0F07;	/*binary: 0000 1111 0000 0111 */
 			status = Write16(state,
-					 FE_AG_REG_IND_DEL__A , 71 , 0x0000 );
+					 FE_AG_REG_IND_DEL__A, 71, 0x0000);
 			break;
 		}
-		CHK_ERROR( status );
+		CHK_ERROR(status);
 
-		CHK_ERROR( Write16(state,
-				   SC_RA_RAM_BAND__A, bandwidthParam, 0x0000));
+		CHK_ERROR(Write16(state,
+				  SC_RA_RAM_BAND__A, bandwidthParam, 0x0000));
 
 		{
 			u16 sc_config;
@@ -2254,45 +2219,43 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 
 			/* enable SLAVE mode in 2k 1/32 to
 			   prevent timing change glitches */
-			if ( (p->transmission_mode==TRANSMISSION_MODE_2K) &&
-			     (p->guard_interval==GUARD_INTERVAL_1_32) ) {
+			if ((p->transmission_mode == TRANSMISSION_MODE_2K) &&
+			    (p->guard_interval == GUARD_INTERVAL_1_32)) {
 				/* enable slave */
 				sc_config |= SC_RA_RAM_CONFIG_SLAVE__M;
 			} else {
 				/* disable slave */
 				sc_config &= ~SC_RA_RAM_CONFIG_SLAVE__M;
 			}
-			CHK_ERROR( Write16(state,
-					   SC_RA_RAM_CONFIG__A, sc_config,0 ));
+			CHK_ERROR(Write16(state,
+					  SC_RA_RAM_CONFIG__A, sc_config, 0));
 		}
 
-		CHK_ERROR( SetCfgNoiseCalibration(state, &state->noise_cal));
+		CHK_ERROR(SetCfgNoiseCalibration(state, &state->noise_cal));
 
-		if (state->cscd_state == CSCD_INIT )
-		{
+		if (state->cscd_state == CSCD_INIT) {
 			/* switch on SRMM scan in SC */
-			CHK_ERROR( Write16(state,
-					   SC_RA_RAM_SAMPLE_RATE_COUNT__A,
-					   DRXD_OSCDEV_DO_SCAN, 0x0000 ));
+			CHK_ERROR(Write16(state,
+					  SC_RA_RAM_SAMPLE_RATE_COUNT__A,
+					  DRXD_OSCDEV_DO_SCAN, 0x0000));
 /*            CHK_ERROR( Write16( SC_RA_RAM_SAMPLE_RATE_STEP__A,
 	      DRXD_OSCDEV_STEP  , 0x0000 ));*/
 			state->cscd_state = CSCD_SET;
 		}
 
-
 		/* Now compute FE_IF_REG_INCR */
 		/*((( SysFreq/BandWidth)/2)/2) -1) * 2^23) =>
-		  ((SysFreq / BandWidth) * (2^21) ) - (2^23)*/
-		feIfIncr = MulDiv32(state->sys_clock_freq*1000,
-			    ( 1ULL<< 21 ), bandwidth) - (1<<23) ;
-		CHK_ERROR( Write16(state,
-				   FE_IF_REG_INCR0__A,
-				   (u16)(feIfIncr & FE_IF_REG_INCR0__M ),
-				   0x0000) );
-		CHK_ERROR( Write16(state,
-				   FE_IF_REG_INCR1__A,
-				   (u16)((feIfIncr >> FE_IF_REG_INCR0__W) &
-					 FE_IF_REG_INCR1__M ), 0x0000) );
+		   ((SysFreq / BandWidth) * (2^21) ) - (2^23) */
+		feIfIncr = MulDiv32(state->sys_clock_freq * 1000,
+				    (1ULL << 21), bandwidth) - (1 << 23);
+		CHK_ERROR(Write16(state,
+				  FE_IF_REG_INCR0__A,
+				  (u16) (feIfIncr & FE_IF_REG_INCR0__M),
+				  0x0000));
+		CHK_ERROR(Write16(state,
+				  FE_IF_REG_INCR1__A,
+				  (u16) ((feIfIncr >> FE_IF_REG_INCR0__W) &
+					 FE_IF_REG_INCR1__M), 0x0000));
 		/* Bandwidth setting done */
 
 		/* Mirror & frequency offset */
@@ -2301,34 +2264,34 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		/* Start SC, write channel settings to SC */
 
 		/* Enable SC after setting all other parameters */
-		CHK_ERROR( Write16(state,  SC_COMM_STATE__A, 0, 0x0000));
-		CHK_ERROR( Write16(state,  SC_COMM_EXEC__A, 1, 0x0000));
+		CHK_ERROR(Write16(state, SC_COMM_STATE__A, 0, 0x0000));
+		CHK_ERROR(Write16(state, SC_COMM_EXEC__A, 1, 0x0000));
 
 		/* Write SC parameter registers, operation mode */
 #if 1
-		operationMode =( SC_RA_RAM_OP_AUTO_MODE__M  |
-				  SC_RA_RAM_OP_AUTO_GUARD__M |
-				  SC_RA_RAM_OP_AUTO_CONST__M |
-				  SC_RA_RAM_OP_AUTO_HIER__M  |
-				  SC_RA_RAM_OP_AUTO_RATE__M  );
+		operationMode = (SC_RA_RAM_OP_AUTO_MODE__M |
+				 SC_RA_RAM_OP_AUTO_GUARD__M |
+				 SC_RA_RAM_OP_AUTO_CONST__M |
+				 SC_RA_RAM_OP_AUTO_HIER__M |
+				 SC_RA_RAM_OP_AUTO_RATE__M);
 #endif
-		CHK_ERROR( SC_SetPrefParamCommand(state, 0x0000,
-						  transmissionParams,
-						  operationMode) );
+		CHK_ERROR(SC_SetPrefParamCommand(state, 0x0000,
+						 transmissionParams,
+						 operationMode));
 
 		/* Start correct processes to get in lock */
-		CHK_ERROR( SC_ProcStartCommand(state, SC_RA_RAM_PROC_LOCKTRACK,
-					       SC_RA_RAM_SW_EVENT_RUN_NMASK__M,
-					       SC_RA_RAM_LOCKTRACK_MIN) );
+		CHK_ERROR(SC_ProcStartCommand(state, SC_RA_RAM_PROC_LOCKTRACK,
+					      SC_RA_RAM_SW_EVENT_RUN_NMASK__M,
+					      SC_RA_RAM_LOCKTRACK_MIN));
 
-		CHK_ERROR( StartOC(state) );
+		CHK_ERROR(StartOC(state));
 
-		if( state->operation_mode != OM_Default ) {
+		if (state->operation_mode != OM_Default) {
 			CHK_ERROR(StartDiversity(state));
 		}
 
 		state->drxd_state = DRXD_STARTED;
-	} while(0);
+	} while (0);
 
 	return status;
 }
@@ -2336,140 +2299,136 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 {
 	u32 ulRfAgcOutputLevel = 0xffffffff;
-	u32 ulRfAgcSettleLevel = 528;           /* Optimum value for MT2060 */
-	u32 ulRfAgcMinLevel = 0;                    /* Currently unused */
-	u32 ulRfAgcMaxLevel = DRXD_FE_CTRL_MAX; /* Currently unused */
-	u32 ulRfAgcSpeed = 0;                       /* Currently unused */
-	u32 ulRfAgcMode = 0;/*2;   Off */
-	u32 ulRfAgcR1 =  820;
+	u32 ulRfAgcSettleLevel = 528;	/* Optimum value for MT2060 */
+	u32 ulRfAgcMinLevel = 0;	/* Currently unused */
+	u32 ulRfAgcMaxLevel = DRXD_FE_CTRL_MAX;	/* Currently unused */
+	u32 ulRfAgcSpeed = 0;	/* Currently unused */
+	u32 ulRfAgcMode = 0;	/*2;   Off */
+	u32 ulRfAgcR1 = 820;
 	u32 ulRfAgcR2 = 2200;
-	u32 ulRfAgcR3 =  150;
-	u32 ulIfAgcMode = 0;  /* Auto */
+	u32 ulRfAgcR3 = 150;
+	u32 ulIfAgcMode = 0;	/* Auto */
 	u32 ulIfAgcOutputLevel = 0xffffffff;
 	u32 ulIfAgcSettleLevel = 0xffffffff;
 	u32 ulIfAgcMinLevel = 0xffffffff;
 	u32 ulIfAgcMaxLevel = 0xffffffff;
 	u32 ulIfAgcSpeed = 0xffffffff;
-	u32 ulIfAgcR1 =  820;
+	u32 ulIfAgcR1 = 820;
 	u32 ulIfAgcR2 = 2200;
-	u32 ulIfAgcR3 =  150;
+	u32 ulIfAgcR3 = 150;
 	u32 ulClock = state->config.clock;
 	u32 ulSerialMode = 0;
-	u32 ulEcOcRegOcModeLop = 4; /* Dynamic DTO source */
+	u32 ulEcOcRegOcModeLop = 4;	/* Dynamic DTO source */
 	u32 ulHiI2cDelay = HI_I2C_DELAY;
 	u32 ulHiI2cBridgeDelay = HI_I2C_BRIDGE_DELAY;
 	u32 ulHiI2cPatch = 0;
-	u32 ulEnvironment          = APPENV_PORTABLE;
+	u32 ulEnvironment = APPENV_PORTABLE;
 	u32 ulEnvironmentDiversity = APPENV_MOBILE;
 	u32 ulIFFilter = IFFILTER_SAW;
 
-	state->if_agc_cfg.ctrlMode  = AGC_CTRL_AUTO;
+	state->if_agc_cfg.ctrlMode = AGC_CTRL_AUTO;
 	state->if_agc_cfg.outputLevel = 0;
 	state->if_agc_cfg.settleLevel = 140;
 	state->if_agc_cfg.minOutputLevel = 0;
 	state->if_agc_cfg.maxOutputLevel = 1023;
 	state->if_agc_cfg.speed = 904;
 
-	if( ulIfAgcMode == 1 && ulIfAgcOutputLevel <= DRXD_FE_CTRL_MAX )
-	{
-		state->if_agc_cfg.ctrlMode  = AGC_CTRL_USER;
-		state->if_agc_cfg.outputLevel = (u16)(ulIfAgcOutputLevel);
+	if (ulIfAgcMode == 1 && ulIfAgcOutputLevel <= DRXD_FE_CTRL_MAX) {
+		state->if_agc_cfg.ctrlMode = AGC_CTRL_USER;
+		state->if_agc_cfg.outputLevel = (u16) (ulIfAgcOutputLevel);
 	}
 
-	if( ulIfAgcMode == 0 &&
+	if (ulIfAgcMode == 0 &&
 	    ulIfAgcSettleLevel <= DRXD_FE_CTRL_MAX &&
 	    ulIfAgcMinLevel <= DRXD_FE_CTRL_MAX &&
 	    ulIfAgcMaxLevel <= DRXD_FE_CTRL_MAX &&
-	    ulIfAgcSpeed <= DRXD_FE_CTRL_MAX
-		)
-	{
-		state->if_agc_cfg.ctrlMode  = AGC_CTRL_AUTO;
-		state->if_agc_cfg.settleLevel = (u16)(ulIfAgcSettleLevel);
-		state->if_agc_cfg.minOutputLevel = (u16)(ulIfAgcMinLevel);
-		state->if_agc_cfg.maxOutputLevel = (u16)(ulIfAgcMaxLevel);
-		state->if_agc_cfg.speed = (u16)(ulIfAgcSpeed);
+	    ulIfAgcSpeed <= DRXD_FE_CTRL_MAX) {
+		state->if_agc_cfg.ctrlMode = AGC_CTRL_AUTO;
+		state->if_agc_cfg.settleLevel = (u16) (ulIfAgcSettleLevel);
+		state->if_agc_cfg.minOutputLevel = (u16) (ulIfAgcMinLevel);
+		state->if_agc_cfg.maxOutputLevel = (u16) (ulIfAgcMaxLevel);
+		state->if_agc_cfg.speed = (u16) (ulIfAgcSpeed);
 	}
 
-	state->if_agc_cfg.R1 = (u16)(ulIfAgcR1);
-	state->if_agc_cfg.R2 = (u16)(ulIfAgcR2);
-	state->if_agc_cfg.R3 = (u16)(ulIfAgcR3);
+	state->if_agc_cfg.R1 = (u16) (ulIfAgcR1);
+	state->if_agc_cfg.R2 = (u16) (ulIfAgcR2);
+	state->if_agc_cfg.R3 = (u16) (ulIfAgcR3);
 
-	state->rf_agc_cfg.R1 = (u16)(ulRfAgcR1);
-	state->rf_agc_cfg.R2 = (u16)(ulRfAgcR2);
-	state->rf_agc_cfg.R3 = (u16)(ulRfAgcR3);
+	state->rf_agc_cfg.R1 = (u16) (ulRfAgcR1);
+	state->rf_agc_cfg.R2 = (u16) (ulRfAgcR2);
+	state->rf_agc_cfg.R3 = (u16) (ulRfAgcR3);
 
-	state->rf_agc_cfg.ctrlMode  = AGC_CTRL_AUTO;
+	state->rf_agc_cfg.ctrlMode = AGC_CTRL_AUTO;
 	/* rest of the RFAgcCfg structure currently unused */
-	if (ulRfAgcMode==1 && ulRfAgcOutputLevel<=DRXD_FE_CTRL_MAX) {
-		state->rf_agc_cfg.ctrlMode  = AGC_CTRL_USER;
-		state->rf_agc_cfg.outputLevel = (u16)(ulRfAgcOutputLevel);
+	if (ulRfAgcMode == 1 && ulRfAgcOutputLevel <= DRXD_FE_CTRL_MAX) {
+		state->rf_agc_cfg.ctrlMode = AGC_CTRL_USER;
+		state->rf_agc_cfg.outputLevel = (u16) (ulRfAgcOutputLevel);
 	}
 
-	if( ulRfAgcMode == 0 &&
+	if (ulRfAgcMode == 0 &&
 	    ulRfAgcSettleLevel <= DRXD_FE_CTRL_MAX &&
 	    ulRfAgcMinLevel <= DRXD_FE_CTRL_MAX &&
 	    ulRfAgcMaxLevel <= DRXD_FE_CTRL_MAX &&
-	    ulRfAgcSpeed <= DRXD_FE_CTRL_MAX
-		)
-	{
-		state->rf_agc_cfg.ctrlMode  = AGC_CTRL_AUTO;
-		state->rf_agc_cfg.settleLevel = (u16)(ulRfAgcSettleLevel);
-		state->rf_agc_cfg.minOutputLevel = (u16)(ulRfAgcMinLevel);
-		state->rf_agc_cfg.maxOutputLevel = (u16)(ulRfAgcMaxLevel);
-		state->rf_agc_cfg.speed = (u16)(ulRfAgcSpeed);
+	    ulRfAgcSpeed <= DRXD_FE_CTRL_MAX) {
+		state->rf_agc_cfg.ctrlMode = AGC_CTRL_AUTO;
+		state->rf_agc_cfg.settleLevel = (u16) (ulRfAgcSettleLevel);
+		state->rf_agc_cfg.minOutputLevel = (u16) (ulRfAgcMinLevel);
+		state->rf_agc_cfg.maxOutputLevel = (u16) (ulRfAgcMaxLevel);
+		state->rf_agc_cfg.speed = (u16) (ulRfAgcSpeed);
 	}
 
-	if( ulRfAgcMode == 2 )
-	{
-		state->rf_agc_cfg.ctrlMode  = AGC_CTRL_OFF;
+	if (ulRfAgcMode == 2) {
+		state->rf_agc_cfg.ctrlMode = AGC_CTRL_OFF;
 	}
 
 	if (ulEnvironment <= 2)
-		state->app_env_default   = (enum app_env)
-			(ulEnvironment);
+		state->app_env_default = (enum app_env)
+		    (ulEnvironment);
 	if (ulEnvironmentDiversity <= 2)
 		state->app_env_diversity = (enum app_env)
-			(ulEnvironmentDiversity);
+		    (ulEnvironmentDiversity);
 
-	if( ulIFFilter == IFFILTER_DISCRETE )
-	{
+	if (ulIFFilter == IFFILTER_DISCRETE) {
 		/* discrete filter */
-		state->noise_cal.cpOpt     = 0;
-		state->noise_cal.cpNexpOfs =  40;
-		state->noise_cal.tdCal2k   = -40;
-		state->noise_cal.tdCal8k   = -24;
+		state->noise_cal.cpOpt = 0;
+		state->noise_cal.cpNexpOfs = 40;
+		state->noise_cal.tdCal2k = -40;
+		state->noise_cal.tdCal8k = -24;
 	} else {
 		/* SAW filter */
-		state->noise_cal.cpOpt     = 1;
-		state->noise_cal.cpNexpOfs =   0;
-		state->noise_cal.tdCal2k   = -21;
-		state->noise_cal.tdCal8k   = -24;
+		state->noise_cal.cpOpt = 1;
+		state->noise_cal.cpNexpOfs = 0;
+		state->noise_cal.tdCal2k = -21;
+		state->noise_cal.tdCal8k = -24;
 	}
-	state->m_EcOcRegOcModeLop = (u16)(ulEcOcRegOcModeLop);
+	state->m_EcOcRegOcModeLop = (u16) (ulEcOcRegOcModeLop);
 
-	state->chip_adr = (state->config.demod_address<<1)|1;
-	switch( ulHiI2cPatch )
-	{
-	case 1 : state->m_HiI2cPatch = DRXD_HiI2cPatch_1; break;
-	case 3 : state->m_HiI2cPatch = DRXD_HiI2cPatch_3; break;
+	state->chip_adr = (state->config.demod_address << 1) | 1;
+	switch (ulHiI2cPatch) {
+	case 1:
+		state->m_HiI2cPatch = DRXD_HiI2cPatch_1;
+		break;
+	case 3:
+		state->m_HiI2cPatch = DRXD_HiI2cPatch_3;
+		break;
 	default:
 		state->m_HiI2cPatch = NULL;
 	}
 
 	/* modify tuner and clock attributes */
-	state->intermediate_freq = (u16)(IntermediateFrequency/1000);
+	state->intermediate_freq = (u16) (IntermediateFrequency / 1000);
 	/* expected system clock frequency in kHz */
 	state->expected_sys_clock_freq = 48000;
 	/* real system clock frequency in kHz */
 	state->sys_clock_freq = 48000;
-	state->osc_clock_freq     = (u16) ulClock;
+	state->osc_clock_freq = (u16) ulClock;
 	state->osc_clock_deviation = 0;
 	state->cscd_state = CSCD_INIT;
 	state->drxd_state = DRXD_UNINITIALIZED;
 
-	state->PGA=0;
-	state->type_A=0;
-	state->tuner_mirrors=0;
+	state->PGA = 0;
+	state->type_A = 0;
+	state->tuner_mirrors = 0;
 
 	/* modify MPEG output attributes */
 	state->insert_rs_byte = state->config.insert_rs_byte;
@@ -2478,12 +2437,12 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	/* Timing div, 250ns/Psys */
 	/* Timing div, = ( delay (nano seconds) * sysclk (kHz) )/ 1000 */
 
-	state->hi_cfg_timing_div = (u16)((state->sys_clock_freq/1000)*
-					 ulHiI2cDelay)/1000 ;
+	state->hi_cfg_timing_div = (u16) ((state->sys_clock_freq / 1000) *
+					  ulHiI2cDelay) / 1000;
 	/* Bridge delay, uses oscilator clock */
 	/* Delay = ( delay (nano seconds) * oscclk (kHz) )/ 1000 */
-	state->hi_cfg_bridge_delay = (u16)((state->osc_clock_freq/1000) *
-					   ulHiI2cBridgeDelay)/1000 ;
+	state->hi_cfg_bridge_delay = (u16) ((state->osc_clock_freq / 1000) *
+					    ulHiI2cBridgeDelay) / 1000;
 
 	state->m_FeAgRegAgPwd = DRXD_DEF_AG_PWD_CONSUMER;
 	/* state->m_FeAgRegAgPwd = DRXD_DEF_AG_PWD_PRO; */
@@ -2491,9 +2450,9 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	return 0;
 }
 
-int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
+int DRXD_init(struct drxd_state *state, const u8 * fw, u32 fw_size)
 {
-	int status=0;
+	int status = 0;
 	u32 driverVersion;
 
 	if (state->init_done)
@@ -2504,10 +2463,10 @@ int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 	do {
 		state->operation_mode = OM_Default;
 
-		CHK_ERROR( SetDeviceTypeId(state) );
+		CHK_ERROR(SetDeviceTypeId(state));
 
 		/* Apply I2c address patch to B1 */
-		if( !state->type_A && state->m_HiI2cPatch != NULL )
+		if (!state->type_A && state->m_HiI2cPatch != NULL)
 			CHK_ERROR(WriteTable(state, state->m_HiI2cPatch));
 
 		if (state->type_A) {
@@ -2516,7 +2475,7 @@ int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 			CHK_ERROR(Write16(state, 0x43012D, 0x047f, 0));
 		}
 
-		CHK_ERROR( HI_ResetCommand(state));
+		CHK_ERROR(HI_ResetCommand(state));
 
 		CHK_ERROR(StopAllProcessors(state));
 		CHK_ERROR(InitCC(state));
@@ -2525,29 +2484,27 @@ int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 
 		if (state->config.osc_deviation)
 			state->osc_clock_deviation =
-				state->config.osc_deviation(state->priv,
-							    0, 0);
+			    state->config.osc_deviation(state->priv, 0, 0);
 		{
 			/* Handle clock deviation */
 			s32 devB;
-			s32 devA = (s32)(state->osc_clock_deviation) *
-				(s32)(state->expected_sys_clock_freq);
+			s32 devA = (s32) (state->osc_clock_deviation) *
+			    (s32) (state->expected_sys_clock_freq);
 			/* deviation in kHz */
-			s32 deviation = ( devA /(1000000L));
+			s32 deviation = (devA / (1000000L));
 			/* rounding, signed */
-			if ( devA > 0 )
-				devB=(2);
+			if (devA > 0)
+				devB = (2);
 			else
-				devB=(-2);
-			if ( (devB*(devA%1000000L)>1000000L ) )
-			{
+				devB = (-2);
+			if ((devB * (devA % 1000000L) > 1000000L)) {
 				/* add +1 or -1 */
-				deviation += (devB/2);
+				deviation += (devB / 2);
 			}
 
-			state->sys_clock_freq=(u16)((state->
-						     expected_sys_clock_freq)+
-						    deviation);
+			state->sys_clock_freq =
+			    (u16) ((state->expected_sys_clock_freq) +
+				   deviation);
 		}
 		CHK_ERROR(InitHI(state));
 		CHK_ERROR(InitAtomicRead(state));
@@ -2565,7 +2522,7 @@ int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 
 		if (state->PGA) {
 			state->m_FeAgRegAgPwd = DRXD_DEF_AG_PWD_PRO;
-			SetCfgPga(state, 0);  /* PGA = 0 dB */
+			SetCfgPga(state, 0);	/* PGA = 0 dB */
 		} else {
 			state->m_FeAgRegAgPwd = DRXD_DEF_AG_PWD_CONSUMER;
 		}
@@ -2587,39 +2544,37 @@ int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 		CHK_ERROR(Write16(state, SC_COMM_EXEC__A,
 				  SC_COMM_EXEC_CTL_STOP, 0));
 		CHK_ERROR(Write16(state, LC_COMM_EXEC__A,
-				  SC_COMM_EXEC_CTL_STOP, 0 ));
+				  SC_COMM_EXEC_CTL_STOP, 0));
 
-
-		driverVersion  = (((VERSION_MAJOR/10)  << 4) +
-				  (VERSION_MAJOR%10)) << 24;
-		driverVersion += (((VERSION_MINOR/10)  << 4) +
-				  (VERSION_MINOR%10)) << 16;
-		driverVersion +=  ((VERSION_PATCH/1000)<<12) +
-			((VERSION_PATCH/100)<<8) +
-			((VERSION_PATCH/10  )<< 4) +
-			(VERSION_PATCH%10 );
+		driverVersion = (((VERSION_MAJOR / 10) << 4) +
+				 (VERSION_MAJOR % 10)) << 24;
+		driverVersion += (((VERSION_MINOR / 10) << 4) +
+				  (VERSION_MINOR % 10)) << 16;
+		driverVersion += ((VERSION_PATCH / 1000) << 12) +
+		    ((VERSION_PATCH / 100) << 8) +
+		    ((VERSION_PATCH / 10) << 4) + (VERSION_PATCH % 10);
 
 		CHK_ERROR(Write32(state, SC_RA_RAM_DRIVER_VERSION__AX,
-				  driverVersion,0 ));
+				  driverVersion, 0));
 
-		CHK_ERROR( StopOC(state) );
+		CHK_ERROR(StopOC(state));
 
 		state->drxd_state = DRXD_STOPPED;
-		state->init_done=1;
-		status=0;
+		state->init_done = 1;
+		status = 0;
 	} while (0);
 	return status;
 }
 
-int DRXD_status(struct drxd_state *state, u32 *pLockStatus)
+int DRXD_status(struct drxd_state *state, u32 * pLockStatus)
 {
 	DRX_GetLockStatus(state, pLockStatus);
 
-	/*if (*pLockStatus&DRX_LOCK_MPEG)*/
-	if (*pLockStatus&DRX_LOCK_FEC) {
+	/*if (*pLockStatus&DRX_LOCK_MPEG) */
+	if (*pLockStatus & DRX_LOCK_FEC) {
 		ConfigureMPEGOutput(state, 1);
 		/* Get status again, in case we have MPEG lock now */
-		/*DRX_GetLockStatus(state, pLockStatus);*/
+		/*DRX_GetLockStatus(state, pLockStatus); */
 	}
 
 	return 0;
@@ -2629,61 +2584,59 @@ int DRXD_status(struct drxd_state *state, u32 *pLockStatus)
 /****************************************************************************/
 /****************************************************************************/
 
-static int drxd_read_signal_strength(struct dvb_frontend *fe,
-					u16 *strength)
+static int drxd_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 	u32 value;
 	int res;
 
-	res=ReadIFAgc(state, &value);
-	if (res<0)
-		*strength=0;
+	res = ReadIFAgc(state, &value);
+	if (res < 0)
+		*strength = 0;
 	else
-		*strength=0xffff-(value<<4);
+		*strength = 0xffff - (value << 4);
 	return 0;
 }
 
-
-static int drxd_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int drxd_read_status(struct dvb_frontend *fe, fe_status_t * status)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 	u32 lock;
 
 	DRXD_status(state, &lock);
-	*status=0;
+	*status = 0;
 	/* No MPEG lock in V255 firmware, bug ? */
 #if 1
-	if (lock&DRX_LOCK_MPEG)
-		*status|=FE_HAS_LOCK;
+	if (lock & DRX_LOCK_MPEG)
+		*status |= FE_HAS_LOCK;
 #else
-	if (lock&DRX_LOCK_FEC)
-		*status|=FE_HAS_LOCK;
+	if (lock & DRX_LOCK_FEC)
+		*status |= FE_HAS_LOCK;
 #endif
-	if (lock&DRX_LOCK_FEC)
-		*status|=FE_HAS_VITERBI|FE_HAS_SYNC;
-	if (lock&DRX_LOCK_DEMOD)
-		*status|=FE_HAS_CARRIER|FE_HAS_SIGNAL;
+	if (lock & DRX_LOCK_FEC)
+		*status |= FE_HAS_VITERBI | FE_HAS_SYNC;
+	if (lock & DRX_LOCK_DEMOD)
+		*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
 
 	return 0;
 }
 
 static int drxd_init(struct dvb_frontend *fe)
 {
-	struct drxd_state *state=fe->demodulator_priv;
-	int err=0;
+	struct drxd_state *state = fe->demodulator_priv;
+	int err = 0;
 
 /*	if (request_firmware(&state->fw, "drxd.fw", state->dev)<0) */
-		return DRXD_init(state, 0, 0);
+	return DRXD_init(state, 0, 0);
 
-	err=DRXD_init(state, state->fw->data, state->fw->size);
+	err = DRXD_init(state, state->fw->data, state->fw->size);
 	release_firmware(state->fw);
 	return err;
 }
 
 int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 {
-	struct drxd_state *state=fe->demodulator_priv;
+	struct drxd_state *state = fe->demodulator_priv;
 
 	if (state->config.disable_i2c_gate_ctrl == 1)
 		return 0;
@@ -2692,58 +2645,58 @@ int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 }
 
 static int drxd_get_tune_settings(struct dvb_frontend *fe,
-				     struct dvb_frontend_tune_settings *sets)
+				  struct dvb_frontend_tune_settings *sets)
 {
-	sets->min_delay_ms=10000;
-	sets->max_drift=0;
-	sets->step_size=0;
+	sets->min_delay_ms = 10000;
+	sets->max_drift = 0;
+	sets->step_size = 0;
 	return 0;
 }
 
-static int drxd_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int drxd_read_ber(struct dvb_frontend *fe, u32 * ber)
 {
 	*ber = 0;
 	return 0;
 }
 
-static int drxd_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int drxd_read_snr(struct dvb_frontend *fe, u16 * snr)
 {
-	*snr=0;
+	*snr = 0;
 	return 0;
 }
 
-static int drxd_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int drxd_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 {
-	*ucblocks=0;
+	*ucblocks = 0;
 	return 0;
 }
 
-static int drxd_sleep(struct dvb_frontend* fe)
+static int drxd_sleep(struct dvb_frontend *fe)
 {
-	struct drxd_state *state=fe->demodulator_priv;
+	struct drxd_state *state = fe->demodulator_priv;
 
 	ConfigureMPEGOutput(state, 0);
 	return 0;
 }
 
 static int drxd_get_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *param)
+			     struct dvb_frontend_parameters *param)
 {
 	return 0;
 }
 
-static int drxd_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+static int drxd_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	return drxd_config_i2c(fe, enable);
 }
 
 static int drxd_set_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *param)
+			     struct dvb_frontend_parameters *param)
 {
-	struct drxd_state *state=fe->demodulator_priv;
-	s32 off=0;
+	struct drxd_state *state = fe->demodulator_priv;
+	s32 off = 0;
 
-	state->param=*param;
+	state->param = *param;
 	DRX_Stop(state);
 
 	if (fe->ops.tuner_ops.set_params) {
@@ -2756,8 +2709,7 @@ static int drxd_set_frontend(struct dvb_frontend *fe,
 	if (state->config.pll_set &&
 	    state->config.pll_set(state->priv, param,
 				  state->config.pll_address,
-				  state->config.demoda_address,
-				  &off)<0) {
+				  state->config.demoda_address, &off) < 0) {
 		printk("Error in pll_set\n");
 		return -1;
 	}
@@ -2766,7 +2718,6 @@ static int drxd_set_frontend(struct dvb_frontend *fe,
 
 	return DRX_Start(state, off);
 }
-
 
 static void drxd_release(struct dvb_frontend *fe)
 {
@@ -2778,22 +2729,20 @@ static void drxd_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops drxd_ops = {
 
 	.info = {
-		.name			= "Micronas DRXD DVB-T",
-		.type			= FE_OFDM,
-		.frequency_min		= 47125000,
-		.frequency_max		= 855250000,
-		.frequency_stepsize	= 166667,
-		.frequency_tolerance	= 0,
-		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
-			FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
-			FE_CAN_FEC_AUTO |
-			FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-			FE_CAN_QAM_AUTO |
-			FE_CAN_TRANSMISSION_MODE_AUTO |
-			FE_CAN_GUARD_INTERVAL_AUTO |
-			FE_CAN_HIERARCHY_AUTO | FE_CAN_RECOVER |
-			FE_CAN_MUTE_TS
-	},
+		 .name = "Micronas DRXD DVB-T",
+		 .type = FE_OFDM,
+		 .frequency_min = 47125000,
+		 .frequency_max = 855250000,
+		 .frequency_stepsize = 166667,
+		 .frequency_tolerance = 0,
+		 .caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
+		 FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
+		 FE_CAN_FEC_AUTO |
+		 FE_CAN_QAM_16 | FE_CAN_QAM_64 |
+		 FE_CAN_QAM_AUTO |
+		 FE_CAN_TRANSMISSION_MODE_AUTO |
+		 FE_CAN_GUARD_INTERVAL_AUTO |
+		 FE_CAN_HIERARCHY_AUTO | FE_CAN_RECOVER | FE_CAN_MUTE_TS},
 
 	.release = drxd_release,
 	.init = drxd_init,
@@ -2817,29 +2766,29 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 {
 	struct drxd_state *state = NULL;
 
-	state=kmalloc(sizeof(struct drxd_state), GFP_KERNEL);
+	state = kmalloc(sizeof(struct drxd_state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 	memset(state, 0, sizeof(*state));
 
 	memcpy(&state->ops, &drxd_ops, sizeof(struct dvb_frontend_ops));
-	state->dev=dev;
-	state->config=*config;
-	state->i2c=i2c;
-	state->priv=priv;
+	state->dev = dev;
+	state->config = *config;
+	state->i2c = i2c;
+	state->priv = priv;
 
 	sema_init(&state->mutex, 1);
 
-	if (Read16(state, 0, 0, 0)<0)
+	if (Read16(state, 0, 0, 0) < 0)
 		goto error;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-	state->frontend.ops=&state->ops;
+	state->frontend.ops = &state->ops;
 #else
 	memcpy(&state->frontend.ops, &drxd_ops,
 	       sizeof(struct dvb_frontend_ops));
 #endif
-	state->frontend.demodulator_priv=state;
+	state->frontend.demodulator_priv = state;
 	ConfigureMPEGOutput(state, 0);
 	return &state->frontend;
 

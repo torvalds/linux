@@ -24,15 +24,7 @@
 #ifndef __DRX3973D_MAP__H__
 #define __DRX3973D_MAP__H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define HI_SID                                                                  0x10
-
-
-
-
 
 #define HI_COMM_EXEC__A                                                         0x400000
 #define HI_COMM_EXEC__W                                                         3
@@ -66,11 +58,6 @@ extern "C" {
 #define HI_COMM_INT_MSK__W                                                      16
 #define HI_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
-
 #define HI_CT_REG_COMM_EXEC__A                                                  0x410000
 #define HI_CT_REG_COMM_EXEC__W                                                  3
 #define HI_CT_REG_COMM_EXEC__M                                                  0x7
@@ -81,7 +68,6 @@ extern "C" {
 #define     HI_CT_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     HI_CT_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     HI_CT_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define HI_CT_REG_COMM_STATE__A                                                 0x410001
 #define HI_CT_REG_COMM_STATE__W                                                 10
@@ -96,7 +82,6 @@ extern "C" {
 #define   HI_CT_REG_COMM_SERVICE1_HI__W                                         1
 #define   HI_CT_REG_COMM_SERVICE1_HI__M                                         0x1
 
-
 #define HI_CT_REG_COMM_INT_STA__A                                               0x410007
 #define HI_CT_REG_COMM_INT_STA__W                                               1
 #define HI_CT_REG_COMM_INT_STA__M                                               0x1
@@ -104,16 +89,12 @@ extern "C" {
 #define   HI_CT_REG_COMM_INT_STA_REQUEST__W                                     1
 #define   HI_CT_REG_COMM_INT_STA_REQUEST__M                                     0x1
 
-
 #define HI_CT_REG_COMM_INT_MSK__A                                               0x410008
 #define HI_CT_REG_COMM_INT_MSK__W                                               1
 #define HI_CT_REG_COMM_INT_MSK__M                                               0x1
 #define   HI_CT_REG_COMM_INT_MSK_REQUEST__B                                     0
 #define   HI_CT_REG_COMM_INT_MSK_REQUEST__W                                     1
 #define   HI_CT_REG_COMM_INT_MSK_REQUEST__M                                     0x1
-
-
-
 
 #define HI_CT_REG_CTL_STK__AX                                                   0x410010
 #define HI_CT_REG_CTL_STK__XSZ                                                  4
@@ -128,17 +109,11 @@ extern "C" {
 #define HI_CT_REG_CTL_BPT__W                                                    10
 #define HI_CT_REG_CTL_BPT__M                                                    0x3FF
 
-
-
-
-
-
 #define HI_RA_RAM_SLV0_FLG_SMM__A                                               0x420010
 #define HI_RA_RAM_SLV0_FLG_SMM__W                                               1
 #define HI_RA_RAM_SLV0_FLG_SMM__M                                               0x1
 #define   HI_RA_RAM_SLV0_FLG_SMM_MULTI                                          0x0
 #define   HI_RA_RAM_SLV0_FLG_SMM_SINGLE                                         0x1
-
 
 #define HI_RA_RAM_SLV0_DEV_ID__A                                                0x420011
 #define HI_RA_RAM_SLV0_DEV_ID__W                                                7
@@ -149,7 +124,6 @@ extern "C" {
 #define HI_RA_RAM_SLV0_FLG_CRC__M                                               0x1
 #define   HI_RA_RAM_SLV0_FLG_CRC_CONTINUE                                       0x0
 #define   HI_RA_RAM_SLV0_FLG_CRC_RESTART                                        0x1
-
 
 #define HI_RA_RAM_SLV0_FLG_ACC__A                                               0x420013
 #define HI_RA_RAM_SLV0_FLG_ACC__W                                               3
@@ -165,13 +139,11 @@ extern "C" {
 #define     HI_RA_RAM_SLV0_FLG_ACC_BRC_NORMAL                                   0x0
 #define     HI_RA_RAM_SLV0_FLG_ACC_BRC_BROADCAST                                0x4
 
-
 #define HI_RA_RAM_SLV0_STATE__A                                                 0x420014
 #define HI_RA_RAM_SLV0_STATE__W                                                 1
 #define HI_RA_RAM_SLV0_STATE__M                                                 0x1
 #define   HI_RA_RAM_SLV0_STATE_ADDRESS                                          0x0
 #define   HI_RA_RAM_SLV0_STATE_DATA                                             0x1
-
 
 #define HI_RA_RAM_SLV0_BLK_BNK__A                                               0x420015
 #define HI_RA_RAM_SLV0_BLK_BNK__W                                               12
@@ -182,7 +154,6 @@ extern "C" {
 #define   HI_RA_RAM_SLV0_BLK_BNK_BLK__B                                         6
 #define   HI_RA_RAM_SLV0_BLK_BNK_BLK__W                                         6
 #define   HI_RA_RAM_SLV0_BLK_BNK_BLK__M                                         0xFC0
-
 
 #define HI_RA_RAM_SLV0_ADDR__A                                                  0x420016
 #define HI_RA_RAM_SLV0_ADDR__W                                                  16
@@ -196,15 +167,11 @@ extern "C" {
 #define HI_RA_RAM_SLV0_READBACK__W                                              16
 #define HI_RA_RAM_SLV0_READBACK__M                                              0xFFFF
 
-
-
-
 #define HI_RA_RAM_SLV1_FLG_SMM__A                                               0x420020
 #define HI_RA_RAM_SLV1_FLG_SMM__W                                               1
 #define HI_RA_RAM_SLV1_FLG_SMM__M                                               0x1
 #define   HI_RA_RAM_SLV1_FLG_SMM_MULTI                                          0x0
 #define   HI_RA_RAM_SLV1_FLG_SMM_SINGLE                                         0x1
-
 
 #define HI_RA_RAM_SLV1_DEV_ID__A                                                0x420021
 #define HI_RA_RAM_SLV1_DEV_ID__W                                                7
@@ -215,7 +182,6 @@ extern "C" {
 #define HI_RA_RAM_SLV1_FLG_CRC__M                                               0x1
 #define   HI_RA_RAM_SLV1_FLG_CRC_CONTINUE                                       0x0
 #define   HI_RA_RAM_SLV1_FLG_CRC_RESTART                                        0x1
-
 
 #define HI_RA_RAM_SLV1_FLG_ACC__A                                               0x420023
 #define HI_RA_RAM_SLV1_FLG_ACC__W                                               3
@@ -231,13 +197,11 @@ extern "C" {
 #define     HI_RA_RAM_SLV1_FLG_ACC_BRC_NORMAL                                   0x0
 #define     HI_RA_RAM_SLV1_FLG_ACC_BRC_BROADCAST                                0x4
 
-
 #define HI_RA_RAM_SLV1_STATE__A                                                 0x420024
 #define HI_RA_RAM_SLV1_STATE__W                                                 1
 #define HI_RA_RAM_SLV1_STATE__M                                                 0x1
 #define   HI_RA_RAM_SLV1_STATE_ADDRESS                                          0x0
 #define   HI_RA_RAM_SLV1_STATE_DATA                                             0x1
-
 
 #define HI_RA_RAM_SLV1_BLK_BNK__A                                               0x420025
 #define HI_RA_RAM_SLV1_BLK_BNK__W                                               12
@@ -248,7 +212,6 @@ extern "C" {
 #define   HI_RA_RAM_SLV1_BLK_BNK_BLK__B                                         6
 #define   HI_RA_RAM_SLV1_BLK_BNK_BLK__W                                         6
 #define   HI_RA_RAM_SLV1_BLK_BNK_BLK__M                                         0xFC0
-
 
 #define HI_RA_RAM_SLV1_ADDR__A                                                  0x420026
 #define HI_RA_RAM_SLV1_ADDR__W                                                  16
@@ -262,15 +225,11 @@ extern "C" {
 #define HI_RA_RAM_SLV1_READBACK__W                                              16
 #define HI_RA_RAM_SLV1_READBACK__M                                              0xFFFF
 
-
-
-
 #define HI_RA_RAM_SRV_SEM__A                                                    0x420030
 #define HI_RA_RAM_SRV_SEM__W                                                    1
 #define HI_RA_RAM_SRV_SEM__M                                                    0x1
 #define   HI_RA_RAM_SRV_SEM_FREE                                                0x0
 #define   HI_RA_RAM_SRV_SEM_CLAIMED                                             0x1
-
 
 #define HI_RA_RAM_SRV_RES__A                                                    0x420031
 #define HI_RA_RAM_SRV_RES__W                                                    3
@@ -280,7 +239,6 @@ extern "C" {
 #define   HI_RA_RAM_SRV_RES_STOP_FOUND                                          0x2
 #define   HI_RA_RAM_SRV_RES_ARBITRATION_FAILED                                  0x3
 #define   HI_RA_RAM_SRV_RES_INTERNAL_ERROR                                      0x4
-
 
 #define HI_RA_RAM_SRV_CMD__A                                                    0x420032
 #define HI_RA_RAM_SRV_CMD__W                                                    3
@@ -293,21 +251,16 @@ extern "C" {
 #define   HI_RA_RAM_SRV_CMD_TRANSMIT                                            0x5
 #define   HI_RA_RAM_SRV_CMD_EXECUTE                                             0x6
 
-
 #define HI_RA_RAM_SRV_PAR__AX                                                   0x420033
 #define HI_RA_RAM_SRV_PAR__XSZ                                                  5
 #define HI_RA_RAM_SRV_PAR__W                                                    16
 #define HI_RA_RAM_SRV_PAR__M                                                    0xFFFF
-
-
 
 #define HI_RA_RAM_SRV_NOP_RES__A                                                0x420031
 #define HI_RA_RAM_SRV_NOP_RES__W                                                3
 #define HI_RA_RAM_SRV_NOP_RES__M                                                0x7
 #define   HI_RA_RAM_SRV_NOP_RES_OK                                              0x0
 #define   HI_RA_RAM_SRV_NOP_RES_INTERNAL_ERROR                                  0x4
-
-
 
 #define HI_RA_RAM_SRV_UIO_RES__A                                                0x420031
 #define HI_RA_RAM_SRV_UIO_RES__W                                                3
@@ -340,8 +293,6 @@ extern "C" {
 #define     HI_RA_RAM_SRV_UIO_SET_DIR_OUT                                       0x0
 #define     HI_RA_RAM_SRV_UIO_SET_DIR_IN                                        0x2
 
-
-
 #define HI_RA_RAM_SRV_RST_RES__A                                                0x420031
 #define HI_RA_RAM_SRV_RST_RES__W                                                1
 #define HI_RA_RAM_SRV_RST_RES__M                                                0x1
@@ -353,8 +304,6 @@ extern "C" {
 #define HI_RA_RAM_SRV_RST_KEY__M                                                0xFFFF
 #define   HI_RA_RAM_SRV_RST_KEY_ACT                                             0x3973
 
-
-
 #define HI_RA_RAM_SRV_CFG_RES__A                                                0x420031
 #define HI_RA_RAM_SRV_CFG_RES__W                                                1
 #define HI_RA_RAM_SRV_CFG_RES__M                                                0x1
@@ -365,7 +314,6 @@ extern "C" {
 #define HI_RA_RAM_SRV_CFG_KEY__W                                                16
 #define HI_RA_RAM_SRV_CFG_KEY__M                                                0xFFFF
 #define   HI_RA_RAM_SRV_CFG_KEY_ACT                                             0x3973
-
 
 #define HI_RA_RAM_SRV_CFG_DIV__A                                                0x420034
 #define HI_RA_RAM_SRV_CFG_DIV__W                                                5
@@ -403,14 +351,11 @@ extern "C" {
 #define     HI_RA_RAM_SRV_CFG_ACT_PWD_NOP                                       0x0
 #define     HI_RA_RAM_SRV_CFG_ACT_PWD_EXE                                       0x8
 
-
-
 #define HI_RA_RAM_SRV_CPY_RES__A                                                0x420031
 #define HI_RA_RAM_SRV_CPY_RES__W                                                1
 #define HI_RA_RAM_SRV_CPY_RES__M                                                0x1
 #define   HI_RA_RAM_SRV_CPY_RES_OK                                              0x0
 #define   HI_RA_RAM_SRV_CPY_RES_ERROR                                           0x1
-
 
 #define HI_RA_RAM_SRV_CPY_SBB__A                                                0x420033
 #define HI_RA_RAM_SRV_CPY_SBB__W                                                12
@@ -421,7 +366,6 @@ extern "C" {
 #define   HI_RA_RAM_SRV_CPY_SBB_BLK__B                                          6
 #define   HI_RA_RAM_SRV_CPY_SBB_BLK__W                                          6
 #define   HI_RA_RAM_SRV_CPY_SBB_BLK__M                                          0xFC0
-
 
 #define HI_RA_RAM_SRV_CPY_SAD__A                                                0x420034
 #define HI_RA_RAM_SRV_CPY_SAD__W                                                16
@@ -441,12 +385,9 @@ extern "C" {
 #define   HI_RA_RAM_SRV_CPY_DBB_BLK__W                                          6
 #define   HI_RA_RAM_SRV_CPY_DBB_BLK__M                                          0xFC0
 
-
 #define HI_RA_RAM_SRV_CPY_DAD__A                                                0x420034
 #define HI_RA_RAM_SRV_CPY_DAD__W                                                16
 #define HI_RA_RAM_SRV_CPY_DAD__M                                                0xFFFF
-
-
 
 #define HI_RA_RAM_SRV_TRM_RES__A                                                0x420031
 #define HI_RA_RAM_SRV_TRM_RES__W                                                2
@@ -454,7 +395,6 @@ extern "C" {
 #define   HI_RA_RAM_SRV_TRM_RES_OK                                              0x0
 #define   HI_RA_RAM_SRV_TRM_RES_ERROR                                           0x1
 #define   HI_RA_RAM_SRV_TRM_RES_ARBITRATION_FAILED                              0x3
-
 
 #define HI_RA_RAM_SRV_TRM_MST__A                                                0x420033
 #define HI_RA_RAM_SRV_TRM_MST__W                                                12
@@ -471,7 +411,6 @@ extern "C" {
 #define   HI_RA_RAM_SRV_TRM_TRM_DAT__W                                          8
 #define   HI_RA_RAM_SRV_TRM_TRM_DAT__M                                          0xFF
 
-
 #define HI_RA_RAM_SRV_TRM_DBB__A                                                0x420033
 #define HI_RA_RAM_SRV_TRM_DBB__W                                                12
 #define HI_RA_RAM_SRV_TRM_DBB__M                                                0xFFF
@@ -482,13 +421,9 @@ extern "C" {
 #define   HI_RA_RAM_SRV_TRM_DBB_BLK__W                                          6
 #define   HI_RA_RAM_SRV_TRM_DBB_BLK__M                                          0xFC0
 
-
 #define HI_RA_RAM_SRV_TRM_DAD__A                                                0x420034
 #define HI_RA_RAM_SRV_TRM_DAD__W                                                16
 #define HI_RA_RAM_SRV_TRM_DAD__M                                                0xFFFF
-
-
-
 
 #define HI_RA_RAM_USR_BEGIN__A                                                  0x420040
 #define HI_RA_RAM_USR_BEGIN__W                                                  16
@@ -497,11 +432,6 @@ extern "C" {
 #define HI_RA_RAM_USR_END__A                                                    0x42007F
 #define HI_RA_RAM_USR_END__W                                                    16
 #define HI_RA_RAM_USR_END__M                                                    0xFFFF
-
-
-
-
-
 
 #define HI_IF_RAM_TRP_BPT0__AX                                                  0x430000
 #define HI_IF_RAM_TRP_BPT0__XSZ                                                 2
@@ -513,9 +443,6 @@ extern "C" {
 #define HI_IF_RAM_TRP_STKU__W                                                   12
 #define HI_IF_RAM_TRP_STKU__M                                                   0xFFF
 
-
-
-
 #define HI_IF_RAM_USR_BEGIN__A                                                  0x430200
 #define HI_IF_RAM_USR_BEGIN__W                                                  12
 #define HI_IF_RAM_USR_BEGIN__M                                                  0xFFF
@@ -524,15 +451,7 @@ extern "C" {
 #define HI_IF_RAM_USR_END__W                                                    12
 #define HI_IF_RAM_USR_END__M                                                    0xFFF
 
-
-
-
-
 #define SC_SID                                                                  0x11
-
-
-
-
 
 #define SC_COMM_EXEC__A                                                         0x800000
 #define SC_COMM_EXEC__W                                                         3
@@ -566,11 +485,6 @@ extern "C" {
 #define SC_COMM_INT_MSK__W                                                      16
 #define SC_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
-
 #define SC_CT_REG_COMM_EXEC__A                                                  0x810000
 #define SC_CT_REG_COMM_EXEC__W                                                  3
 #define SC_CT_REG_COMM_EXEC__M                                                  0x7
@@ -581,7 +495,6 @@ extern "C" {
 #define     SC_CT_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     SC_CT_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     SC_CT_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define SC_CT_REG_COMM_STATE__A                                                 0x810001
 #define SC_CT_REG_COMM_STATE__W                                                 10
@@ -596,7 +509,6 @@ extern "C" {
 #define   SC_CT_REG_COMM_SERVICE1_SC__W                                         1
 #define   SC_CT_REG_COMM_SERVICE1_SC__M                                         0x2
 
-
 #define SC_CT_REG_COMM_INT_STA__A                                               0x810007
 #define SC_CT_REG_COMM_INT_STA__W                                               1
 #define SC_CT_REG_COMM_INT_STA__M                                               0x1
@@ -604,16 +516,12 @@ extern "C" {
 #define   SC_CT_REG_COMM_INT_STA_REQUEST__W                                     1
 #define   SC_CT_REG_COMM_INT_STA_REQUEST__M                                     0x1
 
-
 #define SC_CT_REG_COMM_INT_MSK__A                                               0x810008
 #define SC_CT_REG_COMM_INT_MSK__W                                               1
 #define SC_CT_REG_COMM_INT_MSK__M                                               0x1
 #define   SC_CT_REG_COMM_INT_MSK_REQUEST__B                                     0
 #define   SC_CT_REG_COMM_INT_MSK_REQUEST__W                                     1
 #define   SC_CT_REG_COMM_INT_MSK_REQUEST__M                                     0x1
-
-
-
 
 #define SC_CT_REG_CTL_STK__AX                                                   0x810010
 #define SC_CT_REG_CTL_STK__XSZ                                                  4
@@ -627,10 +535,6 @@ extern "C" {
 #define SC_CT_REG_CTL_BPT__A                                                    0x810020
 #define SC_CT_REG_CTL_BPT__W                                                    10
 #define SC_CT_REG_CTL_BPT__M                                                    0x3FF
-
-
-
-
 
 #define SC_RA_RAM_PARAM0__A                                                     0x820040
 #define SC_RA_RAM_PARAM0__W                                                     16
@@ -722,8 +626,6 @@ extern "C" {
 #define   SC_RA_RAM_LOCKTRACK_SR_SCANNING                                       0xC
 #define   SC_RA_RAM_LOCKTRACK_MAX                                               0xD
 
-
-
 #define SC_RA_RAM_OP_PARAM__A                                                   0x820048
 #define SC_RA_RAM_OP_PARAM__W                                                   13
 #define SC_RA_RAM_OP_PARAM__M                                                   0x1FFF
@@ -812,8 +714,6 @@ extern "C" {
 #define   SC_RA_RAM_LOCK_NODVBT__W                                              1
 #define   SC_RA_RAM_LOCK_NODVBT__M                                              0x8
 
-
-
 #define SC_RA_RAM_BE_OPT_ENA__A                                                 0x82004C
 #define SC_RA_RAM_BE_OPT_ENA__W                                                 5
 #define SC_RA_RAM_BE_OPT_ENA__M                                                 0x1F
@@ -873,8 +773,6 @@ extern "C" {
 #define   SC_RA_RAM_CONFIG_ADJUST_OFF__W                                        1
 #define   SC_RA_RAM_CONFIG_ADJUST_OFF__M                                        0x8000
 
-
-
 #define SC_RA_RAM_PILOT_THRES_SPD__A                                            0x820051
 #define SC_RA_RAM_PILOT_THRES_SPD__W                                            16
 #define SC_RA_RAM_PILOT_THRES_SPD__M                                            0xFFFF
@@ -887,8 +785,6 @@ extern "C" {
 #define SC_RA_RAM_PILOT_THRES_FREQSCAN__W                                       16
 #define SC_RA_RAM_PILOT_THRES_FREQSCAN__M                                       0xFFFF
 #define SC_RA_RAM_PILOT_THRES_FREQSCAN__PRE                                     0x406
-
-
 
 #define SC_RA_RAM_CO_THRES_8K__A                                                0x820055
 #define SC_RA_RAM_CO_THRES_8K__W                                                16
@@ -991,16 +887,10 @@ extern "C" {
 #define SC_RA_RAM_ECHO_GUARD__M                                                 0xFFFF
 #define SC_RA_RAM_ECHO_GUARD__PRE                                               0x18
 
-
-
 #define SC_RA_RAM_IR_FREQ__A                                                    0x8200D0
 #define SC_RA_RAM_IR_FREQ__W                                                    16
 #define SC_RA_RAM_IR_FREQ__M                                                    0xFFFF
 #define SC_RA_RAM_IR_FREQ__PRE                                                  0x0
-
-
-
-
 
 #define SC_RA_RAM_IR_COARSE_2K_LENGTH__A                                        0x8200D1
 #define SC_RA_RAM_IR_COARSE_2K_LENGTH__W                                        16
@@ -1015,8 +905,6 @@ extern "C" {
 #define SC_RA_RAM_IR_COARSE_2K_KAISINC__M                                       0xFFFF
 #define SC_RA_RAM_IR_COARSE_2K_KAISINC__PRE                                     0x100
 
-
-
 #define SC_RA_RAM_IR_COARSE_8K_LENGTH__A                                        0x8200D4
 #define SC_RA_RAM_IR_COARSE_8K_LENGTH__W                                        16
 #define SC_RA_RAM_IR_COARSE_8K_LENGTH__M                                        0xFFFF
@@ -1029,10 +917,6 @@ extern "C" {
 #define SC_RA_RAM_IR_COARSE_8K_KAISINC__W                                       16
 #define SC_RA_RAM_IR_COARSE_8K_KAISINC__M                                       0xFFFF
 #define SC_RA_RAM_IR_COARSE_8K_KAISINC__PRE                                     0x200
-
-
-
-
 
 #define SC_RA_RAM_IR_FINE_2K_LENGTH__A                                          0x8200D7
 #define SC_RA_RAM_IR_FINE_2K_LENGTH__W                                          16
@@ -1047,8 +931,6 @@ extern "C" {
 #define SC_RA_RAM_IR_FINE_2K_KAISINC__M                                         0xFFFF
 #define SC_RA_RAM_IR_FINE_2K_KAISINC__PRE                                       0x100
 
-
-
 #define SC_RA_RAM_IR_FINE_8K_LENGTH__A                                          0x8200DA
 #define SC_RA_RAM_IR_FINE_8K_LENGTH__W                                          16
 #define SC_RA_RAM_IR_FINE_8K_LENGTH__M                                          0xFFFF
@@ -1061,8 +943,6 @@ extern "C" {
 #define SC_RA_RAM_IR_FINE_8K_KAISINC__W                                         16
 #define SC_RA_RAM_IR_FINE_8K_KAISINC__M                                         0xFFFF
 #define SC_RA_RAM_IR_FINE_8K_KAISINC__PRE                                       0x40
-
-
 
 #define SC_RA_RAM_ECHO_SHIFT_LIM__A                                             0x8200DD
 #define SC_RA_RAM_ECHO_SHIFT_LIM__W                                             16
@@ -1077,10 +957,6 @@ extern "C" {
 #define SC_RA_RAM_ECHO_FILTER__M                                                0xFFFF
 #define SC_RA_RAM_ECHO_FILTER__PRE                                              0x2
 
-
-
-
-
 #define SC_RA_RAM_NI_INIT_2K_PER_LEFT__A                                        0x8200E0
 #define SC_RA_RAM_NI_INIT_2K_PER_LEFT__W                                        16
 #define SC_RA_RAM_NI_INIT_2K_PER_LEFT__M                                        0xFFFF
@@ -1093,8 +969,6 @@ extern "C" {
 #define SC_RA_RAM_NI_INIT_2K_POS_LR__W                                          16
 #define SC_RA_RAM_NI_INIT_2K_POS_LR__M                                          0xFFFF
 #define SC_RA_RAM_NI_INIT_2K_POS_LR__PRE                                        0xE8
-
-
 
 #define SC_RA_RAM_NI_INIT_8K_PER_LEFT__A                                        0x8200E3
 #define SC_RA_RAM_NI_INIT_8K_PER_LEFT__W                                        16
@@ -1109,8 +983,6 @@ extern "C" {
 #define SC_RA_RAM_NI_INIT_8K_POS_LR__M                                          0xFFFF
 #define SC_RA_RAM_NI_INIT_8K_POS_LR__PRE                                        0xA0
 
-
-
 #define SC_RA_RAM_SAMPLE_RATE_COUNT__A                                          0x8200E8
 #define SC_RA_RAM_SAMPLE_RATE_COUNT__W                                          16
 #define SC_RA_RAM_SAMPLE_RATE_COUNT__M                                          0xFFFF
@@ -1119,8 +991,6 @@ extern "C" {
 #define SC_RA_RAM_SAMPLE_RATE_STEP__W                                           16
 #define SC_RA_RAM_SAMPLE_RATE_STEP__M                                           0xFFFF
 #define SC_RA_RAM_SAMPLE_RATE_STEP__PRE                                         0x113
-
-
 
 #define SC_RA_RAM_TPS_TIMEOUT_LIM__A                                            0x8200EA
 #define SC_RA_RAM_TPS_TIMEOUT_LIM__W                                            16
@@ -1176,8 +1046,6 @@ extern "C" {
 #define SC_RA_RAM_BOOTCOUNT__W                                                  16
 #define SC_RA_RAM_BOOTCOUNT__M                                                  0xFFFF
 
-
-
 #define SC_RA_RAM_LC_ABS_2K__A                                                  0x8200F4
 #define SC_RA_RAM_LC_ABS_2K__W                                                  16
 #define SC_RA_RAM_LC_ABS_2K__M                                                  0xFFFF
@@ -1187,10 +1055,6 @@ extern "C" {
 #define SC_RA_RAM_LC_ABS_8K__M                                                  0xFFFF
 #define SC_RA_RAM_LC_ABS_8K__PRE                                                0x1F
 
-
-
-
-
 #define SC_RA_RAM_NE_ERR_SELECT_FR_OFF_2K__A                                    0x8200F6
 #define SC_RA_RAM_NE_ERR_SELECT_FR_OFF_2K__W                                    16
 #define SC_RA_RAM_NE_ERR_SELECT_FR_OFF_2K__M                                    0xFFFF
@@ -1199,8 +1063,6 @@ extern "C" {
 #define SC_RA_RAM_NE_ERR_SELECT_FR_OFF_8K__W                                    16
 #define SC_RA_RAM_NE_ERR_SELECT_FR_OFF_8K__M                                    0xFFFF
 #define SC_RA_RAM_NE_ERR_SELECT_FR_OFF_8K__PRE                                  0x0
-
-
 
 #define SC_RA_RAM_NE_ERR_SELECT_FR_ON_2K__A                                     0x8200F8
 #define SC_RA_RAM_NE_ERR_SELECT_FR_ON_2K__W                                     16
@@ -1216,8 +1078,6 @@ extern "C" {
 #define SC_RA_RAM_STACKUNDERFLOW__A                                             0x8200FF
 #define SC_RA_RAM_STACKUNDERFLOW__W                                             16
 #define SC_RA_RAM_STACKUNDERFLOW__M                                             0xFFFF
-
-
 
 #define SC_RA_RAM_NF_MAXECHOTOKEN__A                                            0x820148
 #define SC_RA_RAM_NF_MAXECHOTOKEN__W                                            16
@@ -1246,10 +1106,6 @@ extern "C" {
 #define SC_RA_RAM_NF_ECHOTABLE__W                                               16
 #define SC_RA_RAM_NF_ECHOTABLE__M                                               0xFFFF
 
-
-
-
-
 #define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__A                                     0x8201A0
 #define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__W                                     16
 #define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__M                                     0xFFFF
@@ -1258,8 +1114,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__W                                     16
 #define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__M                                     0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE                                   0x4
-
-
 
 #define SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__A                                        0x8201A2
 #define SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__W                                        16
@@ -1270,8 +1124,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__M                                        0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__PRE                                      0x5
 
-
-
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__A                                       0x8201A4
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__W                                       16
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__M                                       0xFFFF
@@ -1280,8 +1132,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__W                                       16
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__M                                       0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE                                     0x5
-
-
 
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__A                                    0x8201A6
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__W                                    16
@@ -1292,8 +1142,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__M                                    0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__PRE                                  0x5
 
-
-
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__A                                    0x8201A8
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__W                                    16
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__M                                    0xFFFF
@@ -1302,8 +1150,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__W                                    16
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__M                                    0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__PRE                                  0x6
-
-
 
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__A                                       0x8201AA
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__W                                       16
@@ -1314,8 +1160,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__M                                       0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__PRE                                     0x5
 
-
-
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__A                                    0x8201AC
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__W                                    16
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__M                                    0xFFFF
@@ -1324,8 +1168,6 @@ extern "C" {
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__W                                    16
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__M                                    0xFFFF
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__PRE                                  0x5
-
-
 
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__A                                    0x8201AE
 #define SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__W                                    16
@@ -1357,11 +1199,6 @@ extern "C" {
 #define   SC_RA_RAM_PROC_EQ                                                     0x7
 #define   SC_RA_RAM_PROC_MAX                                                    0x8
 
-
-
-
-
-
 #define SC_IF_RAM_TRP_RST__AX                                                   0x830000
 #define SC_IF_RAM_TRP_RST__XSZ                                                  2
 #define SC_IF_RAM_TRP_RST__W                                                    12
@@ -1377,9 +1214,6 @@ extern "C" {
 #define SC_IF_RAM_TRP_STKU__W                                                   12
 #define SC_IF_RAM_TRP_STKU__M                                                   0xFFF
 
-
-
-
 #define SC_IF_RAM_VERSION_MA_MI__A                                              0x830FFE
 #define SC_IF_RAM_VERSION_MA_MI__W                                              12
 #define SC_IF_RAM_VERSION_MA_MI__M                                              0xFFF
@@ -1387,14 +1221,6 @@ extern "C" {
 #define SC_IF_RAM_VERSION_PATCH__A                                              0x830FFF
 #define SC_IF_RAM_VERSION_PATCH__W                                              12
 #define SC_IF_RAM_VERSION_PATCH__M                                              0xFFF
-
-
-
-
-
-
-
-
 
 #define FE_COMM_EXEC__A                                                         0xC00000
 #define FE_COMM_EXEC__W                                                         3
@@ -1428,16 +1254,7 @@ extern "C" {
 #define FE_COMM_INT_MSK__W                                                      16
 #define FE_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
 #define FE_AD_SID                                                               0x1
-
-
-
-
-
 
 #define FE_AD_REG_COMM_EXEC__A                                                  0xC10000
 #define FE_AD_REG_COMM_EXEC__W                                                  3
@@ -1449,7 +1266,6 @@ extern "C" {
 #define     FE_AD_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     FE_AD_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     FE_AD_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define FE_AD_REG_COMM_MB__A                                                    0xC10002
 #define FE_AD_REG_COMM_MB__W                                                    2
@@ -1483,7 +1299,6 @@ extern "C" {
 #define   FE_AD_REG_COMM_INT_STA_ADC_OVERFLOW__W                                1
 #define   FE_AD_REG_COMM_INT_STA_ADC_OVERFLOW__M                                0x1
 
-
 #define FE_AD_REG_COMM_INT_MSK__A                                               0xC10008
 #define FE_AD_REG_COMM_INT_MSK__W                                               2
 #define FE_AD_REG_COMM_INT_MSK__M                                               0x3
@@ -1491,136 +1306,107 @@ extern "C" {
 #define   FE_AD_REG_COMM_INT_MSK_ADC_OVERFLOW__W                                1
 #define   FE_AD_REG_COMM_INT_MSK_ADC_OVERFLOW__M                                0x1
 
-
 #define FE_AD_REG_CUR_SEL__A                                                    0xC10010
 #define FE_AD_REG_CUR_SEL__W                                                    2
 #define FE_AD_REG_CUR_SEL__M                                                    0x3
 #define   FE_AD_REG_CUR_SEL_INIT                                                0x2
-
 
 #define FE_AD_REG_OVERFLOW__A                                                   0xC10011
 #define FE_AD_REG_OVERFLOW__W                                                   1
 #define FE_AD_REG_OVERFLOW__M                                                   0x1
 #define   FE_AD_REG_OVERFLOW_INIT                                               0x0
 
-
 #define FE_AD_REG_FDB_IN__A                                                     0xC10012
 #define FE_AD_REG_FDB_IN__W                                                     1
 #define FE_AD_REG_FDB_IN__M                                                     0x1
 #define   FE_AD_REG_FDB_IN_INIT                                                 0x0
-
 
 #define FE_AD_REG_PD__A                                                         0xC10013
 #define FE_AD_REG_PD__W                                                         1
 #define FE_AD_REG_PD__M                                                         0x1
 #define   FE_AD_REG_PD_INIT                                                     0x1
 
-
 #define FE_AD_REG_INVEXT__A                                                     0xC10014
 #define FE_AD_REG_INVEXT__W                                                     1
 #define FE_AD_REG_INVEXT__M                                                     0x1
 #define   FE_AD_REG_INVEXT_INIT                                                 0x0
-
 
 #define FE_AD_REG_CLKNEG__A                                                     0xC10015
 #define FE_AD_REG_CLKNEG__W                                                     1
 #define FE_AD_REG_CLKNEG__M                                                     0x1
 #define   FE_AD_REG_CLKNEG_INIT                                                 0x0
 
-
 #define FE_AD_REG_MON_IN_MUX__A                                                 0xC10016
 #define FE_AD_REG_MON_IN_MUX__W                                                 2
 #define FE_AD_REG_MON_IN_MUX__M                                                 0x3
 #define   FE_AD_REG_MON_IN_MUX_INIT                                             0x0
-
 
 #define FE_AD_REG_MON_IN5__A                                                    0xC10017
 #define FE_AD_REG_MON_IN5__W                                                    10
 #define FE_AD_REG_MON_IN5__M                                                    0x3FF
 #define   FE_AD_REG_MON_IN5_INIT                                                0x0
 
-
 #define FE_AD_REG_MON_IN4__A                                                    0xC10018
 #define FE_AD_REG_MON_IN4__W                                                    10
 #define FE_AD_REG_MON_IN4__M                                                    0x3FF
 #define   FE_AD_REG_MON_IN4_INIT                                                0x0
-
 
 #define FE_AD_REG_MON_IN3__A                                                    0xC10019
 #define FE_AD_REG_MON_IN3__W                                                    10
 #define FE_AD_REG_MON_IN3__M                                                    0x3FF
 #define   FE_AD_REG_MON_IN3_INIT                                                0x0
 
-
 #define FE_AD_REG_MON_IN2__A                                                    0xC1001A
 #define FE_AD_REG_MON_IN2__W                                                    10
 #define FE_AD_REG_MON_IN2__M                                                    0x3FF
 #define   FE_AD_REG_MON_IN2_INIT                                                0x0
-
 
 #define FE_AD_REG_MON_IN1__A                                                    0xC1001B
 #define FE_AD_REG_MON_IN1__W                                                    10
 #define FE_AD_REG_MON_IN1__M                                                    0x3FF
 #define   FE_AD_REG_MON_IN1_INIT                                                0x0
 
-
 #define FE_AD_REG_MON_IN0__A                                                    0xC1001C
 #define FE_AD_REG_MON_IN0__W                                                    10
 #define FE_AD_REG_MON_IN0__M                                                    0x3FF
 #define   FE_AD_REG_MON_IN0_INIT                                                0x0
-
 
 #define FE_AD_REG_MON_IN_VAL__A                                                 0xC1001D
 #define FE_AD_REG_MON_IN_VAL__W                                                 1
 #define FE_AD_REG_MON_IN_VAL__M                                                 0x1
 #define   FE_AD_REG_MON_IN_VAL_INIT                                             0x0
 
-
 #define FE_AD_REG_CTR_CLK_O__A                                                  0xC1001E
 #define FE_AD_REG_CTR_CLK_O__W                                                  1
 #define FE_AD_REG_CTR_CLK_O__M                                                  0x1
 #define   FE_AD_REG_CTR_CLK_O_INIT                                              0x0
-
 
 #define FE_AD_REG_CTR_CLK_E_O__A                                                0xC1001F
 #define FE_AD_REG_CTR_CLK_E_O__W                                                1
 #define FE_AD_REG_CTR_CLK_E_O__M                                                0x1
 #define   FE_AD_REG_CTR_CLK_E_O_INIT                                            0x1
 
-
 #define FE_AD_REG_CTR_VAL_O__A                                                  0xC10020
 #define FE_AD_REG_CTR_VAL_O__W                                                  1
 #define FE_AD_REG_CTR_VAL_O__M                                                  0x1
 #define   FE_AD_REG_CTR_VAL_O_INIT                                              0x0
-
 
 #define FE_AD_REG_CTR_VAL_E_O__A                                                0xC10021
 #define FE_AD_REG_CTR_VAL_E_O__W                                                1
 #define FE_AD_REG_CTR_VAL_E_O__M                                                0x1
 #define   FE_AD_REG_CTR_VAL_E_O_INIT                                            0x1
 
-
 #define FE_AD_REG_CTR_DATA_O__A                                                 0xC10022
 #define FE_AD_REG_CTR_DATA_O__W                                                 10
 #define FE_AD_REG_CTR_DATA_O__M                                                 0x3FF
 #define   FE_AD_REG_CTR_DATA_O_INIT                                             0x0
-
 
 #define FE_AD_REG_CTR_DATA_E_O__A                                               0xC10023
 #define FE_AD_REG_CTR_DATA_E_O__W                                               10
 #define FE_AD_REG_CTR_DATA_E_O__M                                               0x3FF
 #define   FE_AD_REG_CTR_DATA_E_O_INIT                                           0x3FF
 
-
-
-
-
 #define FE_AG_SID                                                               0x2
-
-
-
-
-
 
 #define FE_AG_REG_COMM_EXEC__A                                                  0xC20000
 #define FE_AG_REG_COMM_EXEC__W                                                  3
@@ -1650,7 +1436,6 @@ extern "C" {
 #define   FE_AG_REG_COMM_MB_OBS__M                                              0x2
 #define     FE_AG_REG_COMM_MB_OBS_OFF                                           0x0
 #define     FE_AG_REG_COMM_MB_OBS_ON                                            0x2
-
 
 #define FE_AG_REG_COMM_SERVICE0__A                                              0xC20003
 #define FE_AG_REG_COMM_SERVICE0__W                                              10
@@ -1688,7 +1473,6 @@ extern "C" {
 #define   FE_AG_REG_COMM_INT_STA_BGC_PGA_UPD__W                                 1
 #define   FE_AG_REG_COMM_INT_STA_BGC_PGA_UPD__M                                 0x80
 
-
 #define FE_AG_REG_COMM_INT_MSK__A                                               0xC20008
 #define FE_AG_REG_COMM_INT_MSK__W                                               8
 #define FE_AG_REG_COMM_INT_MSK__M                                               0xFF
@@ -1716,7 +1500,6 @@ extern "C" {
 #define   FE_AG_REG_COMM_INT_MSK_BGC_PGA_UPD__B                                 7
 #define   FE_AG_REG_COMM_INT_MSK_BGC_PGA_UPD__W                                 1
 #define   FE_AG_REG_COMM_INT_MSK_BGC_PGA_UPD__M                                 0x80
-
 
 #define FE_AG_REG_AG_MODE_LOP__A                                                0xC20010
 #define FE_AG_REG_AG_MODE_LOP__W                                                16
@@ -1819,7 +1602,6 @@ extern "C" {
 #define     FE_AG_REG_AG_MODE_LOP_MODE_F_DISABLE                                0x0
 #define     FE_AG_REG_AG_MODE_LOP_MODE_F_ENABLE                                 0x8000
 
-
 #define FE_AG_REG_AG_MODE_HIP__A                                                0xC20011
 #define FE_AG_REG_AG_MODE_HIP__W                                                2
 #define FE_AG_REG_AG_MODE_HIP__M                                                0x3
@@ -1837,7 +1619,6 @@ extern "C" {
 #define     FE_AG_REG_AG_MODE_HIP_MODE_H_OUTPUT                                 0x0
 #define     FE_AG_REG_AG_MODE_HIP_MODE_H_ENABLE                                 0x2
 
-
 #define FE_AG_REG_AG_PGA_MODE__A                                                0xC20012
 #define FE_AG_REG_AG_PGA_MODE__W                                                3
 #define FE_AG_REG_AG_PGA_MODE__M                                                0x7
@@ -1850,7 +1631,6 @@ extern "C" {
 #define   FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REY                                 0x5
 #define   FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFN_REY                                 0x6
 #define   FE_AG_REG_AG_PGA_MODE_PFN_PCY_AFY_REY                                 0x7
-
 
 #define FE_AG_REG_AG_AGC_SIO__A                                                 0xC20013
 #define FE_AG_REG_AG_AGC_SIO__W                                                 2
@@ -1869,7 +1649,6 @@ extern "C" {
 #define     FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_OUTPUT                               0x0
 #define     FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_INPUT                                0x2
 
-
 #define FE_AG_REG_AG_AGC_USR_DAT__A                                             0xC20014
 #define FE_AG_REG_AG_AGC_USR_DAT__W                                             2
 #define FE_AG_REG_AG_AGC_USR_DAT__M                                             0x3
@@ -1879,7 +1658,6 @@ extern "C" {
 #define   FE_AG_REG_AG_AGC_USR_DAT_USR_DAT_2__B                                 1
 #define   FE_AG_REG_AG_AGC_USR_DAT_USR_DAT_2__W                                 1
 #define   FE_AG_REG_AG_AGC_USR_DAT_USR_DAT_2__M                                 0x2
-
 
 #define FE_AG_REG_AG_PWD__A                                                     0xC20015
 #define FE_AG_REG_AG_PWD__W                                                     5
@@ -1916,18 +1694,15 @@ extern "C" {
 #define     FE_AG_REG_AG_PWD_PWD_AAF_DISABLE                                    0x0
 #define     FE_AG_REG_AG_PWD_PWD_AAF_ENABLE                                     0x10
 
-
 #define FE_AG_REG_DCE_AUR_CNT__A                                                0xC20016
 #define FE_AG_REG_DCE_AUR_CNT__W                                                5
 #define FE_AG_REG_DCE_AUR_CNT__M                                                0x1F
 #define   FE_AG_REG_DCE_AUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_DCE_RUR_CNT__A                                                0xC20017
 #define FE_AG_REG_DCE_RUR_CNT__W                                                5
 #define FE_AG_REG_DCE_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_DCE_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_DCE_AVE_DAT__A                                                0xC20018
 #define FE_AG_REG_DCE_AVE_DAT__W                                                10
@@ -1938,18 +1713,15 @@ extern "C" {
 #define FE_AG_REG_DEC_AVE_WRI__M                                                0x3FF
 #define   FE_AG_REG_DEC_AVE_WRI_INIT                                            0x0
 
-
 #define FE_AG_REG_ACE_AUR_CNT__A                                                0xC2001A
 #define FE_AG_REG_ACE_AUR_CNT__W                                                5
 #define FE_AG_REG_ACE_AUR_CNT__M                                                0x1F
 #define   FE_AG_REG_ACE_AUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_ACE_RUR_CNT__A                                                0xC2001B
 #define FE_AG_REG_ACE_RUR_CNT__W                                                5
 #define FE_AG_REG_ACE_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_ACE_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_ACE_AVE_DAT__A                                                0xC2001C
 #define FE_AG_REG_ACE_AVE_DAT__W                                                10
@@ -1960,7 +1732,6 @@ extern "C" {
 #define FE_AG_REG_AEC_AVE_INC__M                                                0x3FF
 #define   FE_AG_REG_AEC_AVE_INC_INIT                                            0x0
 
-
 #define FE_AG_REG_AEC_AVE_DAT__A                                                0xC2001E
 #define FE_AG_REG_AEC_AVE_DAT__W                                                10
 #define FE_AG_REG_AEC_AVE_DAT__M                                                0x3FF
@@ -1970,12 +1741,10 @@ extern "C" {
 #define FE_AG_REG_AEC_CLP_LVL__M                                                0xFFFF
 #define   FE_AG_REG_AEC_CLP_LVL_INIT                                            0x0
 
-
 #define FE_AG_REG_CDR_RUR_CNT__A                                                0xC20020
 #define FE_AG_REG_CDR_RUR_CNT__W                                                5
 #define FE_AG_REG_CDR_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_CDR_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_CDR_CLP_DAT__A                                                0xC20021
 #define FE_AG_REG_CDR_CLP_DAT__W                                                16
@@ -1986,78 +1755,65 @@ extern "C" {
 #define FE_AG_REG_CDR_CLP_POS__M                                                0x3FF
 #define   FE_AG_REG_CDR_CLP_POS_INIT                                            0x0
 
-
 #define FE_AG_REG_CDR_CLP_NEG__A                                                0xC20023
 #define FE_AG_REG_CDR_CLP_NEG__W                                                10
 #define FE_AG_REG_CDR_CLP_NEG__M                                                0x3FF
 #define   FE_AG_REG_CDR_CLP_NEG_INIT                                            0x0
-
 
 #define FE_AG_REG_EGC_RUR_CNT__A                                                0xC20024
 #define FE_AG_REG_EGC_RUR_CNT__W                                                5
 #define FE_AG_REG_EGC_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_EGC_RUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_EGC_SET_LVL__A                                                0xC20025
 #define FE_AG_REG_EGC_SET_LVL__W                                                9
 #define FE_AG_REG_EGC_SET_LVL__M                                                0x1FF
 #define   FE_AG_REG_EGC_SET_LVL_INIT                                            0x0
-
 
 #define FE_AG_REG_EGC_FLA_RGN__A                                                0xC20026
 #define FE_AG_REG_EGC_FLA_RGN__W                                                9
 #define FE_AG_REG_EGC_FLA_RGN__M                                                0x1FF
 #define   FE_AG_REG_EGC_FLA_RGN_INIT                                            0x0
 
-
 #define FE_AG_REG_EGC_SLO_RGN__A                                                0xC20027
 #define FE_AG_REG_EGC_SLO_RGN__W                                                9
 #define FE_AG_REG_EGC_SLO_RGN__M                                                0x1FF
 #define   FE_AG_REG_EGC_SLO_RGN_INIT                                            0x0
-
 
 #define FE_AG_REG_EGC_JMP_PSN__A                                                0xC20028
 #define FE_AG_REG_EGC_JMP_PSN__W                                                4
 #define FE_AG_REG_EGC_JMP_PSN__M                                                0xF
 #define   FE_AG_REG_EGC_JMP_PSN_INIT                                            0x0
 
-
 #define FE_AG_REG_EGC_FLA_INC__A                                                0xC20029
 #define FE_AG_REG_EGC_FLA_INC__W                                                16
 #define FE_AG_REG_EGC_FLA_INC__M                                                0xFFFF
 #define   FE_AG_REG_EGC_FLA_INC_INIT                                            0x0
-
 
 #define FE_AG_REG_EGC_FLA_DEC__A                                                0xC2002A
 #define FE_AG_REG_EGC_FLA_DEC__W                                                16
 #define FE_AG_REG_EGC_FLA_DEC__M                                                0xFFFF
 #define   FE_AG_REG_EGC_FLA_DEC_INIT                                            0x0
 
-
 #define FE_AG_REG_EGC_SLO_INC__A                                                0xC2002B
 #define FE_AG_REG_EGC_SLO_INC__W                                                16
 #define FE_AG_REG_EGC_SLO_INC__M                                                0xFFFF
 #define   FE_AG_REG_EGC_SLO_INC_INIT                                            0x0
-
 
 #define FE_AG_REG_EGC_SLO_DEC__A                                                0xC2002C
 #define FE_AG_REG_EGC_SLO_DEC__W                                                16
 #define FE_AG_REG_EGC_SLO_DEC__M                                                0xFFFF
 #define   FE_AG_REG_EGC_SLO_DEC_INIT                                            0x0
 
-
 #define FE_AG_REG_EGC_FAS_INC__A                                                0xC2002D
 #define FE_AG_REG_EGC_FAS_INC__W                                                16
 #define FE_AG_REG_EGC_FAS_INC__M                                                0xFFFF
 #define   FE_AG_REG_EGC_FAS_INC_INIT                                            0x0
 
-
 #define FE_AG_REG_EGC_FAS_DEC__A                                                0xC2002E
 #define FE_AG_REG_EGC_FAS_DEC__W                                                16
 #define FE_AG_REG_EGC_FAS_DEC__M                                                0xFFFF
 #define   FE_AG_REG_EGC_FAS_DEC_INIT                                            0x0
-
 
 #define FE_AG_REG_EGC_MAP_DAT__A                                                0xC2002F
 #define FE_AG_REG_EGC_MAP_DAT__W                                                16
@@ -2068,30 +1824,25 @@ extern "C" {
 #define FE_AG_REG_PM1_AGC_WRI__M                                                0x7FF
 #define   FE_AG_REG_PM1_AGC_WRI_INIT                                            0x0
 
-
 #define FE_AG_REG_GC1_AGC_RIC__A                                                0xC20031
 #define FE_AG_REG_GC1_AGC_RIC__W                                                16
 #define FE_AG_REG_GC1_AGC_RIC__M                                                0xFFFF
 #define   FE_AG_REG_GC1_AGC_RIC_INIT                                            0x0
-
 
 #define FE_AG_REG_GC1_AGC_OFF__A                                                0xC20032
 #define FE_AG_REG_GC1_AGC_OFF__W                                                16
 #define FE_AG_REG_GC1_AGC_OFF__M                                                0xFFFF
 #define   FE_AG_REG_GC1_AGC_OFF_INIT                                            0x0
 
-
 #define FE_AG_REG_GC1_AGC_MAX__A                                                0xC20033
 #define FE_AG_REG_GC1_AGC_MAX__W                                                10
 #define FE_AG_REG_GC1_AGC_MAX__M                                                0x3FF
 #define   FE_AG_REG_GC1_AGC_MAX_INIT                                            0x0
 
-
 #define FE_AG_REG_GC1_AGC_MIN__A                                                0xC20034
 #define FE_AG_REG_GC1_AGC_MIN__W                                                10
 #define FE_AG_REG_GC1_AGC_MIN__M                                                0x3FF
 #define   FE_AG_REG_GC1_AGC_MIN_INIT                                            0x0
-
 
 #define FE_AG_REG_GC1_AGC_DAT__A                                                0xC20035
 #define FE_AG_REG_GC1_AGC_DAT__W                                                10
@@ -2102,30 +1853,25 @@ extern "C" {
 #define FE_AG_REG_PM2_AGC_WRI__M                                                0x7FF
 #define   FE_AG_REG_PM2_AGC_WRI_INIT                                            0x0
 
-
 #define FE_AG_REG_GC2_AGC_RIC__A                                                0xC20037
 #define FE_AG_REG_GC2_AGC_RIC__W                                                16
 #define FE_AG_REG_GC2_AGC_RIC__M                                                0xFFFF
 #define   FE_AG_REG_GC2_AGC_RIC_INIT                                            0x0
-
 
 #define FE_AG_REG_GC2_AGC_OFF__A                                                0xC20038
 #define FE_AG_REG_GC2_AGC_OFF__W                                                16
 #define FE_AG_REG_GC2_AGC_OFF__M                                                0xFFFF
 #define   FE_AG_REG_GC2_AGC_OFF_INIT                                            0x0
 
-
 #define FE_AG_REG_GC2_AGC_MAX__A                                                0xC20039
 #define FE_AG_REG_GC2_AGC_MAX__W                                                10
 #define FE_AG_REG_GC2_AGC_MAX__M                                                0x3FF
 #define   FE_AG_REG_GC2_AGC_MAX_INIT                                            0x0
 
-
 #define FE_AG_REG_GC2_AGC_MIN__A                                                0xC2003A
 #define FE_AG_REG_GC2_AGC_MIN__W                                                10
 #define FE_AG_REG_GC2_AGC_MIN__M                                                0x3FF
 #define   FE_AG_REG_GC2_AGC_MIN_INIT                                            0x0
-
 
 #define FE_AG_REG_GC2_AGC_DAT__A                                                0xC2003B
 #define FE_AG_REG_GC2_AGC_DAT__W                                                10
@@ -2136,42 +1882,35 @@ extern "C" {
 #define FE_AG_REG_IND_WIN__M                                                    0x1F
 #define   FE_AG_REG_IND_WIN_INIT                                                0x0
 
-
 #define FE_AG_REG_IND_THD_LOL__A                                                0xC2003D
 #define FE_AG_REG_IND_THD_LOL__W                                                6
 #define FE_AG_REG_IND_THD_LOL__M                                                0x3F
 #define   FE_AG_REG_IND_THD_LOL_INIT                                            0x0
-
 
 #define FE_AG_REG_IND_THD_HIL__A                                                0xC2003E
 #define FE_AG_REG_IND_THD_HIL__W                                                6
 #define FE_AG_REG_IND_THD_HIL__M                                                0x3F
 #define   FE_AG_REG_IND_THD_HIL_INIT                                            0x0
 
-
 #define FE_AG_REG_IND_DEL__A                                                    0xC2003F
 #define FE_AG_REG_IND_DEL__W                                                    7
 #define FE_AG_REG_IND_DEL__M                                                    0x7F
 #define   FE_AG_REG_IND_DEL_INIT                                                0x0
-
 
 #define FE_AG_REG_IND_PD1_WRI__A                                                0xC20040
 #define FE_AG_REG_IND_PD1_WRI__W                                                6
 #define FE_AG_REG_IND_PD1_WRI__M                                                0x3F
 #define   FE_AG_REG_IND_PD1_WRI_INIT                                            0x1F
 
-
 #define FE_AG_REG_PDA_AUR_CNT__A                                                0xC20041
 #define FE_AG_REG_PDA_AUR_CNT__W                                                5
 #define FE_AG_REG_PDA_AUR_CNT__M                                                0x1F
 #define   FE_AG_REG_PDA_AUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_PDA_RUR_CNT__A                                                0xC20042
 #define FE_AG_REG_PDA_RUR_CNT__W                                                5
 #define FE_AG_REG_PDA_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_PDA_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_PDA_AVE_DAT__A                                                0xC20043
 #define FE_AG_REG_PDA_AVE_DAT__W                                                6
@@ -2182,42 +1921,35 @@ extern "C" {
 #define FE_AG_REG_PDC_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_PDC_RUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_PDC_SET_LVL__A                                                0xC20045
 #define FE_AG_REG_PDC_SET_LVL__W                                                6
 #define FE_AG_REG_PDC_SET_LVL__M                                                0x3F
 #define   FE_AG_REG_PDC_SET_LVL_INIT                                            0x10
-
 
 #define FE_AG_REG_PDC_FLA_RGN__A                                                0xC20046
 #define FE_AG_REG_PDC_FLA_RGN__W                                                6
 #define FE_AG_REG_PDC_FLA_RGN__M                                                0x3F
 #define   FE_AG_REG_PDC_FLA_RGN_INIT                                            0x0
 
-
 #define FE_AG_REG_PDC_JMP_PSN__A                                                0xC20047
 #define FE_AG_REG_PDC_JMP_PSN__W                                                3
 #define FE_AG_REG_PDC_JMP_PSN__M                                                0x7
 #define   FE_AG_REG_PDC_JMP_PSN_INIT                                            0x0
-
 
 #define FE_AG_REG_PDC_FLA_STP__A                                                0xC20048
 #define FE_AG_REG_PDC_FLA_STP__W                                                16
 #define FE_AG_REG_PDC_FLA_STP__M                                                0xFFFF
 #define   FE_AG_REG_PDC_FLA_STP_INIT                                            0x0
 
-
 #define FE_AG_REG_PDC_SLO_STP__A                                                0xC20049
 #define FE_AG_REG_PDC_SLO_STP__W                                                16
 #define FE_AG_REG_PDC_SLO_STP__M                                                0xFFFF
 #define   FE_AG_REG_PDC_SLO_STP_INIT                                            0x0
 
-
 #define FE_AG_REG_PDC_PD2_WRI__A                                                0xC2004A
 #define FE_AG_REG_PDC_PD2_WRI__W                                                6
 #define FE_AG_REG_PDC_PD2_WRI__M                                                0x3F
 #define   FE_AG_REG_PDC_PD2_WRI_INIT                                            0x0
-
 
 #define FE_AG_REG_PDC_MAP_DAT__A                                                0xC2004B
 #define FE_AG_REG_PDC_MAP_DAT__W                                                6
@@ -2228,18 +1960,15 @@ extern "C" {
 #define FE_AG_REG_PDC_MAX__M                                                    0x3F
 #define   FE_AG_REG_PDC_MAX_INIT                                                0x2
 
-
 #define FE_AG_REG_TGA_AUR_CNT__A                                                0xC2004D
 #define FE_AG_REG_TGA_AUR_CNT__W                                                5
 #define FE_AG_REG_TGA_AUR_CNT__M                                                0x1F
 #define   FE_AG_REG_TGA_AUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_TGA_RUR_CNT__A                                                0xC2004E
 #define FE_AG_REG_TGA_RUR_CNT__W                                                5
 #define FE_AG_REG_TGA_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_TGA_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_TGA_AVE_DAT__A                                                0xC2004F
 #define FE_AG_REG_TGA_AVE_DAT__W                                                6
@@ -2250,36 +1979,30 @@ extern "C" {
 #define FE_AG_REG_TGC_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_TGC_RUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_TGC_SET_LVL__A                                                0xC20051
 #define FE_AG_REG_TGC_SET_LVL__W                                                6
 #define FE_AG_REG_TGC_SET_LVL__M                                                0x3F
 #define   FE_AG_REG_TGC_SET_LVL_INIT                                            0x0
-
 
 #define FE_AG_REG_TGC_FLA_RGN__A                                                0xC20052
 #define FE_AG_REG_TGC_FLA_RGN__W                                                6
 #define FE_AG_REG_TGC_FLA_RGN__M                                                0x3F
 #define   FE_AG_REG_TGC_FLA_RGN_INIT                                            0x0
 
-
 #define FE_AG_REG_TGC_JMP_PSN__A                                                0xC20053
 #define FE_AG_REG_TGC_JMP_PSN__W                                                4
 #define FE_AG_REG_TGC_JMP_PSN__M                                                0xF
 #define   FE_AG_REG_TGC_JMP_PSN_INIT                                            0x0
-
 
 #define FE_AG_REG_TGC_FLA_STP__A                                                0xC20054
 #define FE_AG_REG_TGC_FLA_STP__W                                                16
 #define FE_AG_REG_TGC_FLA_STP__M                                                0xFFFF
 #define   FE_AG_REG_TGC_FLA_STP_INIT                                            0x0
 
-
 #define FE_AG_REG_TGC_SLO_STP__A                                                0xC20055
 #define FE_AG_REG_TGC_SLO_STP__W                                                16
 #define FE_AG_REG_TGC_SLO_STP__M                                                0xFFFF
 #define   FE_AG_REG_TGC_SLO_STP_INIT                                            0x0
-
 
 #define FE_AG_REG_TGC_MAP_DAT__A                                                0xC20056
 #define FE_AG_REG_TGC_MAP_DAT__W                                                10
@@ -2290,12 +2013,10 @@ extern "C" {
 #define FE_AG_REG_FGA_AUR_CNT__M                                                0x1F
 #define   FE_AG_REG_FGA_AUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_FGA_RUR_CNT__A                                                0xC20058
 #define FE_AG_REG_FGA_RUR_CNT__W                                                5
 #define FE_AG_REG_FGA_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_FGA_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_FGA_AVE_DAT__A                                                0xC20059
 #define FE_AG_REG_FGA_AVE_DAT__W                                                10
@@ -2306,36 +2027,30 @@ extern "C" {
 #define FE_AG_REG_FGC_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_FGC_RUR_CNT_INIT                                            0x0
 
-
 #define FE_AG_REG_FGC_SET_LVL__A                                                0xC2005B
 #define FE_AG_REG_FGC_SET_LVL__W                                                9
 #define FE_AG_REG_FGC_SET_LVL__M                                                0x1FF
 #define   FE_AG_REG_FGC_SET_LVL_INIT                                            0x0
-
 
 #define FE_AG_REG_FGC_FLA_RGN__A                                                0xC2005C
 #define FE_AG_REG_FGC_FLA_RGN__W                                                9
 #define FE_AG_REG_FGC_FLA_RGN__M                                                0x1FF
 #define   FE_AG_REG_FGC_FLA_RGN_INIT                                            0x0
 
-
 #define FE_AG_REG_FGC_JMP_PSN__A                                                0xC2005D
 #define FE_AG_REG_FGC_JMP_PSN__W                                                4
 #define FE_AG_REG_FGC_JMP_PSN__M                                                0xF
 #define   FE_AG_REG_FGC_JMP_PSN_INIT                                            0x0
-
 
 #define FE_AG_REG_FGC_FLA_STP__A                                                0xC2005E
 #define FE_AG_REG_FGC_FLA_STP__W                                                16
 #define FE_AG_REG_FGC_FLA_STP__M                                                0xFFFF
 #define   FE_AG_REG_FGC_FLA_STP_INIT                                            0x0
 
-
 #define FE_AG_REG_FGC_SLO_STP__A                                                0xC2005F
 #define FE_AG_REG_FGC_SLO_STP__W                                                16
 #define FE_AG_REG_FGC_SLO_STP__M                                                0xFFFF
 #define   FE_AG_REG_FGC_SLO_STP_INIT                                            0x0
-
 
 #define FE_AG_REG_FGC_MAP_DAT__A                                                0xC20060
 #define FE_AG_REG_FGC_MAP_DAT__W                                                10
@@ -2346,69 +2061,51 @@ extern "C" {
 #define FE_AG_REG_FGM_WRI__M                                                    0x3FF
 #define   FE_AG_REG_FGM_WRI_INIT                                                0x20
 
-
 #define FE_AG_REG_BGC_RUR_CNT__A                                                0xC20062
 #define FE_AG_REG_BGC_RUR_CNT__W                                                5
 #define FE_AG_REG_BGC_RUR_CNT__M                                                0x1F
 #define   FE_AG_REG_BGC_RUR_CNT_INIT                                            0x0
-
 
 #define FE_AG_REG_BGC_SET_LVL__A                                                0xC20063
 #define FE_AG_REG_BGC_SET_LVL__W                                                9
 #define FE_AG_REG_BGC_SET_LVL__M                                                0x1FF
 #define   FE_AG_REG_BGC_SET_LVL_INIT                                            0x0
 
-
 #define FE_AG_REG_BGC_FLA_RGN__A                                                0xC20064
 #define FE_AG_REG_BGC_FLA_RGN__W                                                9
 #define FE_AG_REG_BGC_FLA_RGN__M                                                0x1FF
 #define   FE_AG_REG_BGC_FLA_RGN_INIT                                            0x0
-
 
 #define FE_AG_REG_BGC_JMP_PSN__A                                                0xC20065
 #define FE_AG_REG_BGC_JMP_PSN__W                                                4
 #define FE_AG_REG_BGC_JMP_PSN__M                                                0xF
 #define   FE_AG_REG_BGC_JMP_PSN_INIT                                            0x0
 
-
 #define FE_AG_REG_BGC_FLA_STP__A                                                0xC20066
 #define FE_AG_REG_BGC_FLA_STP__W                                                16
 #define FE_AG_REG_BGC_FLA_STP__M                                                0xFFFF
 #define   FE_AG_REG_BGC_FLA_STP_INIT                                            0x0
-
 
 #define FE_AG_REG_BGC_SLO_STP__A                                                0xC20067
 #define FE_AG_REG_BGC_SLO_STP__W                                                16
 #define FE_AG_REG_BGC_SLO_STP__M                                                0xFFFF
 #define   FE_AG_REG_BGC_SLO_STP_INIT                                            0x0
 
-
 #define FE_AG_REG_BGC_FGC_WRI__A                                                0xC20068
 #define FE_AG_REG_BGC_FGC_WRI__W                                                4
 #define FE_AG_REG_BGC_FGC_WRI__M                                                0xF
 #define   FE_AG_REG_BGC_FGC_WRI_INIT                                            0x7
-
 
 #define FE_AG_REG_BGC_CGC_WRI__A                                                0xC20069
 #define FE_AG_REG_BGC_CGC_WRI__W                                                2
 #define FE_AG_REG_BGC_CGC_WRI__M                                                0x3
 #define   FE_AG_REG_BGC_CGC_WRI_INIT                                            0x1
 
-
 #define FE_AG_REG_BGC_FGC_DAT__A                                                0xC2006A
 #define FE_AG_REG_BGC_FGC_DAT__W                                                4
 #define FE_AG_REG_BGC_FGC_DAT__M                                                0xF
 
-
-
-
-
 #define FE_FS_SID                                                               0x3
-
-
-
-
-
 
 #define FE_FS_REG_COMM_EXEC__A                                                  0xC30000
 #define FE_FS_REG_COMM_EXEC__W                                                  3
@@ -2444,7 +2141,6 @@ extern "C" {
 #define     FE_FS_REG_COMM_MB_MUX_REAL                                          0x0
 #define     FE_FS_REG_COMM_MB_MUX_IMAG                                          0x4
 
-
 #define FE_FS_REG_COMM_SERVICE0__A                                              0xC30003
 #define FE_FS_REG_COMM_SERVICE0__W                                              10
 #define FE_FS_REG_COMM_SERVICE0__M                                              0x3FF
@@ -2466,34 +2162,22 @@ extern "C" {
 #define FE_FS_REG_ADD_INC_LOP__M                                                0xFFFF
 #define   FE_FS_REG_ADD_INC_LOP_INIT                                            0x0
 
-
 #define FE_FS_REG_ADD_INC_HIP__A                                                0xC30011
 #define FE_FS_REG_ADD_INC_HIP__W                                                12
 #define FE_FS_REG_ADD_INC_HIP__M                                                0xFFF
 #define   FE_FS_REG_ADD_INC_HIP_INIT                                            0x0
-
 
 #define FE_FS_REG_ADD_OFF__A                                                    0xC30012
 #define FE_FS_REG_ADD_OFF__W                                                    12
 #define FE_FS_REG_ADD_OFF__M                                                    0xFFF
 #define   FE_FS_REG_ADD_OFF_INIT                                                0x0
 
-
 #define FE_FS_REG_ADD_OFF_VAL__A                                                0xC30013
 #define FE_FS_REG_ADD_OFF_VAL__W                                                1
 #define FE_FS_REG_ADD_OFF_VAL__M                                                0x1
 #define   FE_FS_REG_ADD_OFF_VAL_INIT                                            0x0
 
-
-
-
-
 #define FE_FD_SID                                                               0x4
-
-
-
-
-
 
 #define FE_FD_REG_COMM_EXEC__A                                                  0xC40000
 #define FE_FD_REG_COMM_EXEC__W                                                  3
@@ -2505,7 +2189,6 @@ extern "C" {
 #define     FE_FD_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     FE_FD_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     FE_FD_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define FE_FD_REG_COMM_MB__A                                                    0xC40002
 #define FE_FD_REG_COMM_MB__W                                                    3
@@ -2535,14 +2218,12 @@ extern "C" {
 #define   FE_FD_REG_COMM_INT_STA_NEW_MEAS__W                                    1
 #define   FE_FD_REG_COMM_INT_STA_NEW_MEAS__M                                    0x1
 
-
 #define FE_FD_REG_COMM_INT_MSK__A                                               0xC40008
 #define FE_FD_REG_COMM_INT_MSK__W                                               1
 #define FE_FD_REG_COMM_INT_MSK__M                                               0x1
 #define   FE_FD_REG_COMM_INT_MSK_NEW_MEAS__B                                    0
 #define   FE_FD_REG_COMM_INT_MSK_NEW_MEAS__W                                    1
 #define   FE_FD_REG_COMM_INT_MSK_NEW_MEAS__M                                    0x1
-
 
 #define FE_FD_REG_SCL__A                                                        0xC40010
 #define FE_FD_REG_SCL__W                                                        6
@@ -2572,16 +2253,7 @@ extern "C" {
 #define FE_FD_REG_POWER__W                                                      10
 #define FE_FD_REG_POWER__M                                                      0x3FF
 
-
-
-
-
 #define FE_IF_SID                                                               0x5
-
-
-
-
-
 
 #define FE_IF_REG_COMM_EXEC__A                                                  0xC50000
 #define FE_IF_REG_COMM_EXEC__W                                                  3
@@ -2593,7 +2265,6 @@ extern "C" {
 #define     FE_IF_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     FE_IF_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     FE_IF_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define FE_IF_REG_COMM_MB__A                                                    0xC50002
 #define FE_IF_REG_COMM_MB__W                                                    3
@@ -2609,28 +2280,17 @@ extern "C" {
 #define     FE_IF_REG_COMM_MB_OBS_OFF                                           0x0
 #define     FE_IF_REG_COMM_MB_OBS_ON                                            0x2
 
-
 #define FE_IF_REG_INCR0__A                                                      0xC50010
 #define FE_IF_REG_INCR0__W                                                      16
 #define FE_IF_REG_INCR0__M                                                      0xFFFF
 #define   FE_IF_REG_INCR0_INIT                                                  0x0
-
 
 #define FE_IF_REG_INCR1__A                                                      0xC50011
 #define FE_IF_REG_INCR1__W                                                      8
 #define FE_IF_REG_INCR1__M                                                      0xFF
 #define   FE_IF_REG_INCR1_INIT                                                  0x28
 
-
-
-
-
 #define FE_CF_SID                                                               0x6
-
-
-
-
-
 
 #define FE_CF_REG_COMM_EXEC__A                                                  0xC60000
 #define FE_CF_REG_COMM_EXEC__W                                                  3
@@ -2642,7 +2302,6 @@ extern "C" {
 #define     FE_CF_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     FE_CF_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     FE_CF_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define FE_CF_REG_COMM_MB__A                                                    0xC60002
 #define FE_CF_REG_COMM_MB__W                                                    3
@@ -2672,14 +2331,12 @@ extern "C" {
 #define   FE_CF_REG_COMM_INT_STA_NEW_MEAS__W                                    1
 #define   FE_CF_REG_COMM_INT_STA_NEW_MEAS__M                                    0x1
 
-
 #define FE_CF_REG_COMM_INT_MSK__A                                               0xC60008
 #define FE_CF_REG_COMM_INT_MSK__W                                               2
 #define FE_CF_REG_COMM_INT_MSK__M                                               0x3
 #define   FE_CF_REG_COMM_INT_MSK_NEW_MEAS__B                                    0
 #define   FE_CF_REG_COMM_INT_MSK_NEW_MEAS__W                                    1
 #define   FE_CF_REG_COMM_INT_MSK_NEW_MEAS__M                                    0x1
-
 
 #define FE_CF_REG_SCL__A                                                        0xC60010
 #define FE_CF_REG_SCL__W                                                        9
@@ -2709,16 +2366,7 @@ extern "C" {
 #define FE_CF_REG_POWER__W                                                      10
 #define FE_CF_REG_POWER__M                                                      0x3FF
 
-
-
-
-
 #define FE_CU_SID                                                               0x7
-
-
-
-
-
 
 #define FE_CU_REG_COMM_EXEC__A                                                  0xC70000
 #define FE_CU_REG_COMM_EXEC__W                                                  3
@@ -2754,7 +2402,6 @@ extern "C" {
 #define     FE_CU_REG_COMM_MB_MUX_REAL                                          0x0
 #define     FE_CU_REG_COMM_MB_MUX_IMAG                                          0x4
 
-
 #define FE_CU_REG_COMM_SERVICE0__A                                              0xC70003
 #define FE_CU_REG_COMM_SERVICE0__W                                              10
 #define FE_CU_REG_COMM_SERVICE0__M                                              0x3FF
@@ -2781,7 +2428,6 @@ extern "C" {
 #define   FE_CU_REG_COMM_INT_STA_FT_START__W                                    1
 #define   FE_CU_REG_COMM_INT_STA_FT_START__M                                    0x2
 
-
 #define FE_CU_REG_COMM_INT_MSK__A                                               0xC70008
 #define FE_CU_REG_COMM_INT_MSK__W                                               2
 #define FE_CU_REG_COMM_INT_MSK__M                                               0x3
@@ -2791,7 +2437,6 @@ extern "C" {
 #define   FE_CU_REG_COMM_INT_MSK_FT_START__B                                    1
 #define   FE_CU_REG_COMM_INT_MSK_FT_START__W                                    1
 #define   FE_CU_REG_COMM_INT_MSK_FT_START__M                                    0x2
-
 
 #define FE_CU_REG_MODE__A                                                       0xC70010
 #define FE_CU_REG_MODE__W                                                       3
@@ -2816,18 +2461,15 @@ extern "C" {
 #define     FE_CU_REG_MODE_IFD_ENABLE                                           0x0
 #define     FE_CU_REG_MODE_IFD_DISABLE                                          0x4
 
-
 #define FE_CU_REG_FRM_CNT_RST__A                                                0xC70011
 #define FE_CU_REG_FRM_CNT_RST__W                                                15
 #define FE_CU_REG_FRM_CNT_RST__M                                                0x7FFF
 #define   FE_CU_REG_FRM_CNT_RST_INIT                                            0x0
 
-
 #define FE_CU_REG_FRM_CNT_STR__A                                                0xC70012
 #define FE_CU_REG_FRM_CNT_STR__W                                                15
 #define FE_CU_REG_FRM_CNT_STR__M                                                0x7FFF
 #define   FE_CU_REG_FRM_CNT_STR_INIT                                            0x0
-
 
 #define FE_CU_REG_FRM_SMP_CNT__A                                                0xC70013
 #define FE_CU_REG_FRM_SMP_CNT__W                                                15
@@ -2850,24 +2492,20 @@ extern "C" {
 #define FE_CU_REG_CTR_NF1_WLO__M                                                0x7FFF
 #define   FE_CU_REG_CTR_NF1_WLO_INIT                                            0x0
 
-
 #define FE_CU_REG_CTR_NF1_WHI__A                                                0xC70018
 #define FE_CU_REG_CTR_NF1_WHI__W                                                15
 #define FE_CU_REG_CTR_NF1_WHI__M                                                0x7FFF
 #define   FE_CU_REG_CTR_NF1_WHI_INIT                                            0x0
-
 
 #define FE_CU_REG_CTR_NF2_WLO__A                                                0xC70019
 #define FE_CU_REG_CTR_NF2_WLO__W                                                15
 #define FE_CU_REG_CTR_NF2_WLO__M                                                0x7FFF
 #define   FE_CU_REG_CTR_NF2_WLO_INIT                                            0x0
 
-
 #define FE_CU_REG_CTR_NF2_WHI__A                                                0xC7001A
 #define FE_CU_REG_CTR_NF2_WHI__W                                                15
 #define FE_CU_REG_CTR_NF2_WHI__M                                                0x7FFF
 #define   FE_CU_REG_CTR_NF2_WHI_INIT                                            0x0
-
 
 #define FE_CU_REG_DIV_NF1_REA__A                                                0xC7001B
 #define FE_CU_REG_DIV_NF1_REA__W                                                12
@@ -2885,23 +2523,11 @@ extern "C" {
 #define FE_CU_REG_DIV_NF2_IMA__W                                                12
 #define FE_CU_REG_DIV_NF2_IMA__M                                                0xFFF
 
-
-
 #define FE_CU_BUF_RAM__A                                                        0xC80000
-
-
 
 #define FE_CU_CMP_RAM__A                                                        0xC90000
 
-
-
-
-
 #define FT_SID                                                                  0x8
-
-
-
-
 
 #define FT_COMM_EXEC__A                                                         0x1000000
 #define FT_COMM_EXEC__W                                                         3
@@ -2935,11 +2561,6 @@ extern "C" {
 #define FT_COMM_INT_MSK__W                                                      16
 #define FT_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
-
 #define FT_REG_COMM_EXEC__A                                                     0x1010000
 #define FT_REG_COMM_EXEC__W                                                     3
 #define FT_REG_COMM_EXEC__M                                                     0x7
@@ -2950,7 +2571,6 @@ extern "C" {
 #define     FT_REG_COMM_EXEC_CTL_ACTIVE                                         0x1
 #define     FT_REG_COMM_EXEC_CTL_HOLD                                           0x2
 #define     FT_REG_COMM_EXEC_CTL_STEP                                           0x3
-
 
 #define FT_REG_COMM_MB__A                                                       0x1010002
 #define FT_REG_COMM_MB__W                                                       3
@@ -2984,14 +2604,12 @@ extern "C" {
 #define   FT_REG_COMM_INT_STA_NEW_MEAS__W                                       1
 #define   FT_REG_COMM_INT_STA_NEW_MEAS__M                                       0x1
 
-
 #define FT_REG_COMM_INT_MSK__A                                                  0x1010008
 #define FT_REG_COMM_INT_MSK__W                                                  2
 #define FT_REG_COMM_INT_MSK__M                                                  0x3
 #define   FT_REG_COMM_INT_MSK_NEW_MEAS__B                                       0
 #define   FT_REG_COMM_INT_MSK_NEW_MEAS__W                                       1
 #define   FT_REG_COMM_INT_MSK_NEW_MEAS__M                                       0x1
-
 
 #define FT_REG_MODE_2K__A                                                       0x1010010
 #define FT_REG_MODE_2K__W                                                       1
@@ -3000,7 +2618,6 @@ extern "C" {
 #define   FT_REG_MODE_2K_MODE_2K                                                0x1
 #define   FT_REG_MODE_2K_INIT                                                   0x0
 
-
 #define FT_REG_BUS_MOD__A                                                       0x1010011
 #define FT_REG_BUS_MOD__W                                                       1
 #define FT_REG_BUS_MOD__M                                                       0x1
@@ -3008,73 +2625,46 @@ extern "C" {
 #define   FT_REG_BUS_MOD_PILOT                                                  0x1
 #define   FT_REG_BUS_MOD_INIT                                                   0x0
 
-
 #define FT_REG_BUS_REAL__A                                                      0x1010012
 #define FT_REG_BUS_REAL__W                                                      10
 #define FT_REG_BUS_REAL__M                                                      0x3FF
 #define   FT_REG_BUS_REAL_INIT                                                  0x0
-
 
 #define FT_REG_BUS_IMAG__A                                                      0x1010013
 #define FT_REG_BUS_IMAG__W                                                      10
 #define FT_REG_BUS_IMAG__M                                                      0x3FF
 #define   FT_REG_BUS_IMAG_INIT                                                  0x0
 
-
 #define FT_REG_BUS_VAL__A                                                       0x1010014
 #define FT_REG_BUS_VAL__W                                                       1
 #define FT_REG_BUS_VAL__M                                                       0x1
 #define   FT_REG_BUS_VAL_INIT                                                   0x0
-
 
 #define FT_REG_PEAK__A                                                          0x1010015
 #define FT_REG_PEAK__W                                                          11
 #define FT_REG_PEAK__M                                                          0x7FF
 #define   FT_REG_PEAK_INIT                                                      0x0
 
-
 #define FT_REG_NORM_OFF__A                                                      0x1010016
 #define FT_REG_NORM_OFF__W                                                      4
 #define FT_REG_NORM_OFF__M                                                      0xF
 #define   FT_REG_NORM_OFF_INIT                                                  0x2
 
-
-
 #define FT_ST1_RAM__A                                                           0x1020000
-
-
 
 #define FT_ST2_RAM__A                                                           0x1030000
 
-
-
 #define FT_ST3_RAM__A                                                           0x1040000
-
-
 
 #define FT_ST5_RAM__A                                                           0x1050000
 
-
-
 #define FT_ST6_RAM__A                                                           0x1060000
-
-
 
 #define FT_ST8_RAM__A                                                           0x1070000
 
-
-
 #define FT_ST9_RAM__A                                                           0x1080000
 
-
-
-
-
 #define CP_SID                                                                  0x9
-
-
-
-
 
 #define CP_COMM_EXEC__A                                                         0x1400000
 #define CP_COMM_EXEC__W                                                         3
@@ -3108,11 +2698,6 @@ extern "C" {
 #define CP_COMM_INT_MSK__W                                                      16
 #define CP_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
-
 #define CP_REG_COMM_EXEC__A                                                     0x1410000
 #define CP_REG_COMM_EXEC__W                                                     3
 #define CP_REG_COMM_EXEC__M                                                     0x7
@@ -3123,7 +2708,6 @@ extern "C" {
 #define     CP_REG_COMM_EXEC_CTL_ACTIVE                                         0x1
 #define     CP_REG_COMM_EXEC_CTL_HOLD                                           0x2
 #define     CP_REG_COMM_EXEC_CTL_STEP                                           0x3
-
 
 #define CP_REG_COMM_MB__A                                                       0x1410002
 #define CP_REG_COMM_MB__W                                                       3
@@ -3157,7 +2741,6 @@ extern "C" {
 #define   CP_REG_COMM_INT_STA_NEW_MEAS__W                                       1
 #define   CP_REG_COMM_INT_STA_NEW_MEAS__M                                       0x1
 
-
 #define CP_REG_COMM_INT_MSK__A                                                  0x1410008
 #define CP_REG_COMM_INT_MSK__W                                                  2
 #define CP_REG_COMM_INT_MSK__M                                                  0x3
@@ -3165,54 +2748,45 @@ extern "C" {
 #define   CP_REG_COMM_INT_MSK_NEW_MEAS__W                                       1
 #define   CP_REG_COMM_INT_MSK_NEW_MEAS__M                                       0x1
 
-
 #define CP_REG_MODE_2K__A                                                       0x1410010
 #define CP_REG_MODE_2K__W                                                       1
 #define CP_REG_MODE_2K__M                                                       0x1
 #define   CP_REG_MODE_2K_INIT                                                   0x0
-
 
 #define CP_REG_INTERVAL__A                                                      0x1410011
 #define CP_REG_INTERVAL__W                                                      4
 #define CP_REG_INTERVAL__M                                                      0xF
 #define   CP_REG_INTERVAL_INIT                                                  0x5
 
-
 #define CP_REG_SKIP_START0__A                                                   0x1410012
 #define CP_REG_SKIP_START0__W                                                   13
 #define CP_REG_SKIP_START0__M                                                   0x1FFF
 #define   CP_REG_SKIP_START0_INIT                                               0x0
-
 
 #define CP_REG_SKIP_STOP0__A                                                    0x1410013
 #define CP_REG_SKIP_STOP0__W                                                    13
 #define CP_REG_SKIP_STOP0__M                                                    0x1FFF
 #define   CP_REG_SKIP_STOP0_INIT                                                0x0
 
-
 #define CP_REG_SKIP_START1__A                                                   0x1410014
 #define CP_REG_SKIP_START1__W                                                   13
 #define CP_REG_SKIP_START1__M                                                   0x1FFF
 #define   CP_REG_SKIP_START1_INIT                                               0x0
-
 
 #define CP_REG_SKIP_STOP1__A                                                    0x1410015
 #define CP_REG_SKIP_STOP1__W                                                    13
 #define CP_REG_SKIP_STOP1__M                                                    0x1FFF
 #define   CP_REG_SKIP_STOP1_INIT                                                0x0
 
-
 #define CP_REG_SKIP_START2__A                                                   0x1410016
 #define CP_REG_SKIP_START2__W                                                   13
 #define CP_REG_SKIP_START2__M                                                   0x1FFF
 #define   CP_REG_SKIP_START2_INIT                                               0x0
 
-
 #define CP_REG_SKIP_STOP2__A                                                    0x1410017
 #define CP_REG_SKIP_STOP2__W                                                    13
 #define CP_REG_SKIP_STOP2__M                                                    0x1FFF
 #define   CP_REG_SKIP_STOP2_INIT                                                0x0
-
 
 #define CP_REG_SKIP_ENA__A                                                      0x1410018
 #define CP_REG_SKIP_ENA__W                                                      3
@@ -3231,12 +2805,10 @@ extern "C" {
 #define   CP_REG_SKIP_ENA_CPD__M                                                0x4
 #define     CP_REG_SKIP_ENA_INIT                                                0x0
 
-
 #define CP_REG_BR_MODE_MIX__A                                                   0x1410020
 #define CP_REG_BR_MODE_MIX__W                                                   1
 #define CP_REG_BR_MODE_MIX__M                                                   0x1
 #define   CP_REG_BR_MODE_MIX_INIT                                               0x0
-
 
 #define CP_REG_BR_SMB_NR__A                                                     0x1410021
 #define CP_REG_BR_SMB_NR__W                                                     3
@@ -3251,36 +2823,30 @@ extern "C" {
 #define   CP_REG_BR_SMB_NR_VAL__M                                               0x4
 #define     CP_REG_BR_SMB_NR_INIT                                               0x0
 
-
 #define CP_REG_BR_CP_SMB_NR__A                                                  0x1410022
 #define CP_REG_BR_CP_SMB_NR__W                                                  2
 #define CP_REG_BR_CP_SMB_NR__M                                                  0x3
 #define   CP_REG_BR_CP_SMB_NR_INIT                                              0x0
-
 
 #define CP_REG_BR_SPL_OFFSET__A                                                 0x1410023
 #define CP_REG_BR_SPL_OFFSET__W                                                 3
 #define CP_REG_BR_SPL_OFFSET__M                                                 0x7
 #define   CP_REG_BR_SPL_OFFSET_INIT                                             0x0
 
-
 #define CP_REG_BR_STR_DEL__A                                                    0x1410024
 #define CP_REG_BR_STR_DEL__W                                                    10
 #define CP_REG_BR_STR_DEL__M                                                    0x3FF
 #define   CP_REG_BR_STR_DEL_INIT                                                0xA
-
 
 #define CP_REG_RT_ANG_INC0__A                                                   0x1410030
 #define CP_REG_RT_ANG_INC0__W                                                   16
 #define CP_REG_RT_ANG_INC0__M                                                   0xFFFF
 #define   CP_REG_RT_ANG_INC0_INIT                                               0x0
 
-
 #define CP_REG_RT_ANG_INC1__A                                                   0x1410031
 #define CP_REG_RT_ANG_INC1__W                                                   8
 #define CP_REG_RT_ANG_INC1__M                                                   0xFF
 #define   CP_REG_RT_ANG_INC1_INIT                                               0x0
-
 
 #define CP_REG_RT_DETECT_ENA__A                                                 0x1410032
 #define CP_REG_RT_DETECT_ENA__W                                                 2
@@ -3295,36 +2861,30 @@ extern "C" {
 #define   CP_REG_RT_DETECT_ENA_CONTINUOUS__M                                    0x2
 #define     CP_REG_RT_DETECT_ENA_INIT                                           0x0
 
-
 #define CP_REG_RT_DETECT_TRH__A                                                 0x1410033
 #define CP_REG_RT_DETECT_TRH__W                                                 2
 #define CP_REG_RT_DETECT_TRH__M                                                 0x3
 #define   CP_REG_RT_DETECT_TRH_INIT                                             0x3
-
 
 #define CP_REG_RT_SPD_RELIABLE__A                                               0x1410034
 #define CP_REG_RT_SPD_RELIABLE__W                                               3
 #define CP_REG_RT_SPD_RELIABLE__M                                               0x7
 #define   CP_REG_RT_SPD_RELIABLE_INIT                                           0x0
 
-
 #define CP_REG_RT_SPD_DIRECTION__A                                              0x1410035
 #define CP_REG_RT_SPD_DIRECTION__W                                              1
 #define CP_REG_RT_SPD_DIRECTION__M                                              0x1
 #define   CP_REG_RT_SPD_DIRECTION_INIT                                          0x0
-
 
 #define CP_REG_RT_SPD_MOD__A                                                    0x1410036
 #define CP_REG_RT_SPD_MOD__W                                                    2
 #define CP_REG_RT_SPD_MOD__M                                                    0x3
 #define   CP_REG_RT_SPD_MOD_INIT                                                0x0
 
-
 #define CP_REG_RT_SPD_SMB__A                                                    0x1410037
 #define CP_REG_RT_SPD_SMB__W                                                    2
 #define CP_REG_RT_SPD_SMB__M                                                    0x3
 #define   CP_REG_RT_SPD_SMB_INIT                                                0x0
-
 
 #define CP_REG_RT_CPD_MODE__A                                                   0x1410038
 #define CP_REG_RT_CPD_MODE__W                                                   3
@@ -3339,24 +2899,20 @@ extern "C" {
 #define   CP_REG_RT_CPD_MODE_ADD__M                                             0x4
 #define     CP_REG_RT_CPD_MODE_INIT                                             0x0
 
-
 #define CP_REG_RT_CPD_RELIABLE__A                                               0x1410039
 #define CP_REG_RT_CPD_RELIABLE__W                                               3
 #define CP_REG_RT_CPD_RELIABLE__M                                               0x7
 #define   CP_REG_RT_CPD_RELIABLE_INIT                                           0x0
-
 
 #define CP_REG_RT_CPD_BIN__A                                                    0x141003A
 #define CP_REG_RT_CPD_BIN__W                                                    5
 #define CP_REG_RT_CPD_BIN__M                                                    0x1F
 #define   CP_REG_RT_CPD_BIN_INIT                                                0x0
 
-
 #define CP_REG_RT_CPD_MAX__A                                                    0x141003B
 #define CP_REG_RT_CPD_MAX__W                                                    4
 #define CP_REG_RT_CPD_MAX__M                                                    0xF
 #define   CP_REG_RT_CPD_MAX_INIT                                                0x0
-
 
 #define CP_REG_RT_SUPR_VAL__A                                                   0x141003C
 #define CP_REG_RT_SUPR_VAL__W                                                   2
@@ -3371,60 +2927,50 @@ extern "C" {
 #define   CP_REG_RT_SUPR_VAL_DL__M                                              0x2
 #define     CP_REG_RT_SUPR_VAL_INIT                                             0x0
 
-
 #define CP_REG_RT_EXP_AVE__A                                                    0x141003D
 #define CP_REG_RT_EXP_AVE__W                                                    5
 #define CP_REG_RT_EXP_AVE__M                                                    0x1F
 #define   CP_REG_RT_EXP_AVE_INIT                                                0x0
-
 
 #define CP_REG_RT_EXP_MARG__A                                                   0x141003E
 #define CP_REG_RT_EXP_MARG__W                                                   5
 #define CP_REG_RT_EXP_MARG__M                                                   0x1F
 #define   CP_REG_RT_EXP_MARG_INIT                                               0x0
 
-
 #define CP_REG_AC_NEXP_OFFS__A                                                  0x1410040
 #define CP_REG_AC_NEXP_OFFS__W                                                  8
 #define CP_REG_AC_NEXP_OFFS__M                                                  0xFF
 #define   CP_REG_AC_NEXP_OFFS_INIT                                              0x0
-
 
 #define CP_REG_AC_AVER_POW__A                                                   0x1410041
 #define CP_REG_AC_AVER_POW__W                                                   8
 #define CP_REG_AC_AVER_POW__M                                                   0xFF
 #define   CP_REG_AC_AVER_POW_INIT                                               0x5F
 
-
 #define CP_REG_AC_MAX_POW__A                                                    0x1410042
 #define CP_REG_AC_MAX_POW__W                                                    8
 #define CP_REG_AC_MAX_POW__M                                                    0xFF
 #define   CP_REG_AC_MAX_POW_INIT                                                0x7A
-
 
 #define CP_REG_AC_WEIGHT_MAN__A                                                 0x1410043
 #define CP_REG_AC_WEIGHT_MAN__W                                                 6
 #define CP_REG_AC_WEIGHT_MAN__M                                                 0x3F
 #define   CP_REG_AC_WEIGHT_MAN_INIT                                             0x31
 
-
 #define CP_REG_AC_WEIGHT_EXP__A                                                 0x1410044
 #define CP_REG_AC_WEIGHT_EXP__W                                                 5
 #define CP_REG_AC_WEIGHT_EXP__M                                                 0x1F
 #define   CP_REG_AC_WEIGHT_EXP_INIT                                             0x10
-
 
 #define CP_REG_AC_GAIN_MAN__A                                                   0x1410045
 #define CP_REG_AC_GAIN_MAN__W                                                   16
 #define CP_REG_AC_GAIN_MAN__M                                                   0xFFFF
 #define   CP_REG_AC_GAIN_MAN_INIT                                               0x0
 
-
 #define CP_REG_AC_GAIN_EXP__A                                                   0x1410046
 #define CP_REG_AC_GAIN_EXP__W                                                   5
 #define CP_REG_AC_GAIN_EXP__M                                                   0x1F
 #define   CP_REG_AC_GAIN_EXP_INIT                                               0x0
-
 
 #define CP_REG_AC_AMP_MODE__A                                                   0x1410047
 #define CP_REG_AC_AMP_MODE__W                                                   2
@@ -3434,18 +2980,15 @@ extern "C" {
 #define   CP_REG_AC_AMP_MODE_FIXED                                              0x2
 #define   CP_REG_AC_AMP_MODE_INIT                                               0x2
 
-
 #define CP_REG_AC_AMP_FIX__A                                                    0x1410048
 #define CP_REG_AC_AMP_FIX__W                                                    14
 #define CP_REG_AC_AMP_FIX__M                                                    0x3FFF
 #define   CP_REG_AC_AMP_FIX_INIT                                                0x1FF
 
-
 #define CP_REG_AC_AMP_READ__A                                                   0x1410049
 #define CP_REG_AC_AMP_READ__W                                                   14
 #define CP_REG_AC_AMP_READ__M                                                   0x3FFF
 #define   CP_REG_AC_AMP_READ_INIT                                               0x0
-
 
 #define CP_REG_AC_ANG_MODE__A                                                   0x141004A
 #define CP_REG_AC_ANG_MODE__W                                                   2
@@ -3456,24 +2999,20 @@ extern "C" {
 #define   CP_REG_AC_ANG_MODE_OFFSET                                             0x3
 #define   CP_REG_AC_ANG_MODE_INIT                                               0x3
 
-
 #define CP_REG_AC_ANG_OFFS__A                                                   0x141004B
 #define CP_REG_AC_ANG_OFFS__W                                                   14
 #define CP_REG_AC_ANG_OFFS__M                                                   0x3FFF
 #define   CP_REG_AC_ANG_OFFS_INIT                                               0x0
-
 
 #define CP_REG_AC_ANG_READ__A                                                   0x141004C
 #define CP_REG_AC_ANG_READ__W                                                   16
 #define CP_REG_AC_ANG_READ__M                                                   0xFFFF
 #define   CP_REG_AC_ANG_READ_INIT                                               0x0
 
-
 #define CP_REG_DL_MB_WR_ADDR__A                                                 0x1410050
 #define CP_REG_DL_MB_WR_ADDR__W                                                 15
 #define CP_REG_DL_MB_WR_ADDR__M                                                 0x7FFF
 #define   CP_REG_DL_MB_WR_ADDR_INIT                                             0x0
-
 
 #define CP_REG_DL_MB_WR_CTR__A                                                  0x1410051
 #define CP_REG_DL_MB_WR_CTR__W                                                  5
@@ -3492,12 +3031,10 @@ extern "C" {
 #define   CP_REG_DL_MB_WR_CTR_CTR__M                                            0x1
 #define     CP_REG_DL_MB_WR_CTR_INIT                                            0x0
 
-
 #define CP_REG_DL_MB_RD_ADDR__A                                                 0x1410052
 #define CP_REG_DL_MB_RD_ADDR__W                                                 15
 #define CP_REG_DL_MB_RD_ADDR__M                                                 0x7FFF
 #define   CP_REG_DL_MB_RD_ADDR_INIT                                             0x0
-
 
 #define CP_REG_DL_MB_RD_CTR__A                                                  0x1410053
 #define CP_REG_DL_MB_RD_CTR__W                                                  11
@@ -3528,35 +3065,17 @@ extern "C" {
 #define   CP_REG_DL_MB_RD_CTR_CTR__M                                            0x1
 #define     CP_REG_DL_MB_RD_CTR_INIT                                            0x0
 
-
-
 #define CP_BR_BUF_RAM__A                                                        0x1420000
-
-
 
 #define CP_BR_CPL_RAM__A                                                        0x1430000
 
-
-
 #define CP_PB_DL0_RAM__A                                                        0x1440000
-
-
 
 #define CP_PB_DL1_RAM__A                                                        0x1450000
 
-
-
 #define CP_PB_DL2_RAM__A                                                        0x1460000
 
-
-
-
-
 #define CE_SID                                                                  0xA
-
-
-
-
 
 #define CE_COMM_EXEC__A                                                         0x1800000
 #define CE_COMM_EXEC__W                                                         3
@@ -3590,11 +3109,6 @@ extern "C" {
 #define CE_COMM_INT_MSK__W                                                      16
 #define CE_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
-
 #define CE_REG_COMM_EXEC__A                                                     0x1810000
 #define CE_REG_COMM_EXEC__W                                                     3
 #define CE_REG_COMM_EXEC__M                                                     0x7
@@ -3605,7 +3119,6 @@ extern "C" {
 #define     CE_REG_COMM_EXEC_CTL_ACTIVE                                         0x1
 #define     CE_REG_COMM_EXEC_CTL_HOLD                                           0x2
 #define     CE_REG_COMM_EXEC_CTL_STEP                                           0x3
-
 
 #define CE_REG_COMM_MB__A                                                       0x1810002
 #define CE_REG_COMM_MB__W                                                       4
@@ -3652,7 +3165,6 @@ extern "C" {
 #define   CE_REG_COMM_INT_STA_CE_FI__W                                          1
 #define   CE_REG_COMM_INT_STA_CE_FI__M                                          0x4
 
-
 #define CE_REG_COMM_INT_MSK__A                                                  0x1810008
 #define CE_REG_COMM_INT_MSK__W                                                  3
 #define CE_REG_COMM_INT_MSK__M                                                  0x7
@@ -3666,18 +3178,14 @@ extern "C" {
 #define   CE_REG_COMM_INT_MSK_CE_FI__W                                          1
 #define   CE_REG_COMM_INT_MSK_CE_FI__M                                          0x4
 
-
 #define CE_REG_2K__A                                                            0x1810010
 #define CE_REG_2K__W                                                            1
 #define CE_REG_2K__M                                                            0x1
 #define   CE_REG_2K_INIT                                                        0x0
 
-
 #define CE_REG_TAPSET__A                                                        0x1810011
 #define CE_REG_TAPSET__W                                                        2
 #define CE_REG_TAPSET__M                                                        0x3
-
-
 
 #define CE_REG_TAPSET_MOTION_INIT                                               0x0
 
@@ -3689,42 +3197,35 @@ extern "C" {
 
 #define CE_REG_TAPSET_MOTION_UNDEFINED                                          0x3
 
-
 #define CE_REG_AVG_POW__A                                                       0x1810012
 #define CE_REG_AVG_POW__W                                                       8
 #define CE_REG_AVG_POW__M                                                       0xFF
 #define   CE_REG_AVG_POW_INIT                                                   0x0
-
 
 #define CE_REG_MAX_POW__A                                                       0x1810013
 #define CE_REG_MAX_POW__W                                                       8
 #define CE_REG_MAX_POW__M                                                       0xFF
 #define   CE_REG_MAX_POW_INIT                                                   0x0
 
-
 #define CE_REG_ATT__A                                                           0x1810014
 #define CE_REG_ATT__W                                                           8
 #define CE_REG_ATT__M                                                           0xFF
 #define   CE_REG_ATT_INIT                                                       0x0
-
 
 #define CE_REG_NRED__A                                                          0x1810015
 #define CE_REG_NRED__W                                                          6
 #define CE_REG_NRED__M                                                          0x3F
 #define   CE_REG_NRED_INIT                                                      0x0
 
-
 #define CE_REG_PU_SIGN__A                                                       0x1810020
 #define CE_REG_PU_SIGN__W                                                       1
 #define CE_REG_PU_SIGN__M                                                       0x1
 #define   CE_REG_PU_SIGN_INIT                                                   0x0
 
-
 #define CE_REG_PU_MIX__A                                                        0x1810021
 #define CE_REG_PU_MIX__W                                                        7
 #define CE_REG_PU_MIX__M                                                        0x7F
 #define   CE_REG_PU_MIX_INIT                                                    0x0
-
 
 #define CE_REG_PB_PILOT_REQ__A                                                  0x1810030
 #define CE_REG_PB_PILOT_REQ__W                                                  15
@@ -3737,48 +3238,40 @@ extern "C" {
 #define   CE_REG_PB_PILOT_REQ_PILOT_ADR__W                                      12
 #define   CE_REG_PB_PILOT_REQ_PILOT_ADR__M                                      0xFFF
 
-
 #define CE_REG_PB_PILOT_REQ_VALID__A                                            0x1810031
 #define CE_REG_PB_PILOT_REQ_VALID__W                                            1
 #define CE_REG_PB_PILOT_REQ_VALID__M                                            0x1
 #define   CE_REG_PB_PILOT_REQ_VALID_INIT                                        0x0
-
 
 #define CE_REG_PB_FREEZE__A                                                     0x1810032
 #define CE_REG_PB_FREEZE__W                                                     1
 #define CE_REG_PB_FREEZE__M                                                     0x1
 #define   CE_REG_PB_FREEZE_INIT                                                 0x0
 
-
 #define CE_REG_PB_PILOT_EXP__A                                                  0x1810038
 #define CE_REG_PB_PILOT_EXP__W                                                  4
 #define CE_REG_PB_PILOT_EXP__M                                                  0xF
 #define   CE_REG_PB_PILOT_EXP_INIT                                              0x0
-
 
 #define CE_REG_PB_PILOT_REAL__A                                                 0x1810039
 #define CE_REG_PB_PILOT_REAL__W                                                 10
 #define CE_REG_PB_PILOT_REAL__M                                                 0x3FF
 #define   CE_REG_PB_PILOT_REAL_INIT                                             0x0
 
-
 #define CE_REG_PB_PILOT_IMAG__A                                                 0x181003A
 #define CE_REG_PB_PILOT_IMAG__W                                                 10
 #define CE_REG_PB_PILOT_IMAG__M                                                 0x3FF
 #define   CE_REG_PB_PILOT_IMAG_INIT                                             0x0
-
 
 #define CE_REG_PB_SMBNR__A                                                      0x181003B
 #define CE_REG_PB_SMBNR__W                                                      5
 #define CE_REG_PB_SMBNR__M                                                      0x1F
 #define   CE_REG_PB_SMBNR_INIT                                                  0x0
 
-
 #define CE_REG_NE_PILOT_REQ__A                                                  0x1810040
 #define CE_REG_NE_PILOT_REQ__W                                                  12
 #define CE_REG_NE_PILOT_REQ__M                                                  0xFFF
 #define   CE_REG_NE_PILOT_REQ_INIT                                              0x0
-
 
 #define CE_REG_NE_PILOT_REQ_VALID__A                                            0x1810041
 #define CE_REG_NE_PILOT_REQ_VALID__W                                            2
@@ -3791,12 +3284,10 @@ extern "C" {
 #define   CE_REG_NE_PILOT_REQ_VALID_READ_VALID__W                               1
 #define   CE_REG_NE_PILOT_REQ_VALID_READ_VALID__M                               0x1
 
-
 #define CE_REG_NE_PILOT_DATA__A                                                 0x1810042
 #define CE_REG_NE_PILOT_DATA__W                                                 10
 #define CE_REG_NE_PILOT_DATA__M                                                 0x3FF
 #define   CE_REG_NE_PILOT_DATA_INIT                                             0x0
-
 
 #define CE_REG_NE_ERR_SELECT__A                                                 0x1810043
 #define CE_REG_NE_ERR_SELECT__W                                                 3
@@ -3815,30 +3306,25 @@ extern "C" {
 #define   CE_REG_NE_ERR_SELECT_TD_ENABLE__W                                     1
 #define   CE_REG_NE_ERR_SELECT_TD_ENABLE__M                                     0x1
 
-
 #define CE_REG_NE_TD_CAL__A                                                     0x1810044
 #define CE_REG_NE_TD_CAL__W                                                     9
 #define CE_REG_NE_TD_CAL__M                                                     0x1FF
 #define   CE_REG_NE_TD_CAL_INIT                                                 0x0
-
 
 #define CE_REG_NE_FD_CAL__A                                                     0x1810045
 #define CE_REG_NE_FD_CAL__W                                                     9
 #define CE_REG_NE_FD_CAL__M                                                     0x1FF
 #define   CE_REG_NE_FD_CAL_INIT                                                 0x0
 
-
 #define CE_REG_NE_MIXAVG__A                                                     0x1810046
 #define CE_REG_NE_MIXAVG__W                                                     3
 #define CE_REG_NE_MIXAVG__M                                                     0x7
 #define   CE_REG_NE_MIXAVG_INIT                                                 0x0
 
-
 #define CE_REG_NE_NUPD_OFS__A                                                   0x1810047
 #define CE_REG_NE_NUPD_OFS__W                                                   7
 #define CE_REG_NE_NUPD_OFS__M                                                   0x7F
 #define   CE_REG_NE_NUPD_OFS_INIT                                               0x0
-
 
 #define CE_REG_NE_TD_POW__A                                                     0x1810048
 #define CE_REG_NE_TD_POW__W                                                     15
@@ -3853,7 +3339,6 @@ extern "C" {
 #define   CE_REG_NE_TD_POW_MANTISSA__W                                          10
 #define   CE_REG_NE_TD_POW_MANTISSA__M                                          0x3FF
 
-
 #define CE_REG_NE_FD_POW__A                                                     0x1810049
 #define CE_REG_NE_FD_POW__W                                                     15
 #define CE_REG_NE_FD_POW__M                                                     0x7FFF
@@ -3867,96 +3352,80 @@ extern "C" {
 #define   CE_REG_NE_FD_POW_MANTISSA__W                                          10
 #define   CE_REG_NE_FD_POW_MANTISSA__M                                          0x3FF
 
-
 #define CE_REG_NE_NEXP_AVG__A                                                   0x181004A
 #define CE_REG_NE_NEXP_AVG__W                                                   8
 #define CE_REG_NE_NEXP_AVG__M                                                   0xFF
 #define   CE_REG_NE_NEXP_AVG_INIT                                               0x0
-
 
 #define CE_REG_NE_OFFSET__A                                                     0x181004B
 #define CE_REG_NE_OFFSET__W                                                     9
 #define CE_REG_NE_OFFSET__M                                                     0x1FF
 #define   CE_REG_NE_OFFSET_INIT                                                 0x0
 
-
 #define CE_REG_PE_NEXP_OFFS__A                                                  0x1810050
 #define CE_REG_PE_NEXP_OFFS__W                                                  8
 #define CE_REG_PE_NEXP_OFFS__M                                                  0xFF
 #define   CE_REG_PE_NEXP_OFFS_INIT                                              0x0
-
 
 #define CE_REG_PE_TIMESHIFT__A                                                  0x1810051
 #define CE_REG_PE_TIMESHIFT__W                                                  14
 #define CE_REG_PE_TIMESHIFT__M                                                  0x3FFF
 #define   CE_REG_PE_TIMESHIFT_INIT                                              0x0
 
-
 #define CE_REG_PE_DIF_REAL_L__A                                                 0x1810052
 #define CE_REG_PE_DIF_REAL_L__W                                                 16
 #define CE_REG_PE_DIF_REAL_L__M                                                 0xFFFF
 #define   CE_REG_PE_DIF_REAL_L_INIT                                             0x0
-
 
 #define CE_REG_PE_DIF_IMAG_L__A                                                 0x1810053
 #define CE_REG_PE_DIF_IMAG_L__W                                                 16
 #define CE_REG_PE_DIF_IMAG_L__M                                                 0xFFFF
 #define   CE_REG_PE_DIF_IMAG_L_INIT                                             0x0
 
-
 #define CE_REG_PE_DIF_REAL_R__A                                                 0x1810054
 #define CE_REG_PE_DIF_REAL_R__W                                                 16
 #define CE_REG_PE_DIF_REAL_R__M                                                 0xFFFF
 #define   CE_REG_PE_DIF_REAL_R_INIT                                             0x0
-
 
 #define CE_REG_PE_DIF_IMAG_R__A                                                 0x1810055
 #define CE_REG_PE_DIF_IMAG_R__W                                                 16
 #define CE_REG_PE_DIF_IMAG_R__M                                                 0xFFFF
 #define   CE_REG_PE_DIF_IMAG_R_INIT                                             0x0
 
-
 #define CE_REG_PE_ABS_REAL_L__A                                                 0x1810056
 #define CE_REG_PE_ABS_REAL_L__W                                                 16
 #define CE_REG_PE_ABS_REAL_L__M                                                 0xFFFF
 #define   CE_REG_PE_ABS_REAL_L_INIT                                             0x0
-
 
 #define CE_REG_PE_ABS_IMAG_L__A                                                 0x1810057
 #define CE_REG_PE_ABS_IMAG_L__W                                                 16
 #define CE_REG_PE_ABS_IMAG_L__M                                                 0xFFFF
 #define   CE_REG_PE_ABS_IMAG_L_INIT                                             0x0
 
-
 #define CE_REG_PE_ABS_REAL_R__A                                                 0x1810058
 #define CE_REG_PE_ABS_REAL_R__W                                                 16
 #define CE_REG_PE_ABS_REAL_R__M                                                 0xFFFF
 #define   CE_REG_PE_ABS_REAL_R_INIT                                             0x0
-
 
 #define CE_REG_PE_ABS_IMAG_R__A                                                 0x1810059
 #define CE_REG_PE_ABS_IMAG_R__W                                                 16
 #define CE_REG_PE_ABS_IMAG_R__M                                                 0xFFFF
 #define   CE_REG_PE_ABS_IMAG_R_INIT                                             0x0
 
-
 #define CE_REG_PE_ABS_EXP_L__A                                                  0x181005A
 #define CE_REG_PE_ABS_EXP_L__W                                                  5
 #define CE_REG_PE_ABS_EXP_L__M                                                  0x1F
 #define   CE_REG_PE_ABS_EXP_L_INIT                                              0x0
-
 
 #define CE_REG_PE_ABS_EXP_R__A                                                  0x181005B
 #define CE_REG_PE_ABS_EXP_R__W                                                  5
 #define CE_REG_PE_ABS_EXP_R__M                                                  0x1F
 #define   CE_REG_PE_ABS_EXP_R_INIT                                              0x0
 
-
 #define CE_REG_TP_UPDATE_MODE__A                                                0x1810060
 #define CE_REG_TP_UPDATE_MODE__W                                                1
 #define CE_REG_TP_UPDATE_MODE__M                                                0x1
 #define   CE_REG_TP_UPDATE_MODE_INIT                                            0x0
-
 
 #define CE_REG_TP_LMS_TAP_ON__A                                                 0x1810061
 #define CE_REG_TP_LMS_TAP_ON__W                                                 1
@@ -4007,7 +3476,6 @@ extern "C" {
 #define   CE_REG_TP_DOPP_ENERGY_MANTISSA__W                                     10
 #define   CE_REG_TP_DOPP_ENERGY_MANTISSA__M                                     0x3FF
 
-
 #define CE_REG_TP_DOPP_DIFF_ENERGY__A                                           0x181006D
 #define CE_REG_TP_DOPP_DIFF_ENERGY__W                                           15
 #define CE_REG_TP_DOPP_DIFF_ENERGY__M                                           0x7FFF
@@ -4020,7 +3488,6 @@ extern "C" {
 #define   CE_REG_TP_DOPP_DIFF_ENERGY_MANTISSA__B                                0
 #define   CE_REG_TP_DOPP_DIFF_ENERGY_MANTISSA__W                                10
 #define   CE_REG_TP_DOPP_DIFF_ENERGY_MANTISSA__M                                0x3FF
-
 
 #define CE_REG_TP_A0_TAP_ENERGY__A                                              0x181006E
 #define CE_REG_TP_A0_TAP_ENERGY__W                                              15
@@ -4035,7 +3502,6 @@ extern "C" {
 #define   CE_REG_TP_A0_TAP_ENERGY_MANTISSA__W                                   10
 #define   CE_REG_TP_A0_TAP_ENERGY_MANTISSA__M                                   0x3FF
 
-
 #define CE_REG_TP_A1_TAP_ENERGY__A                                              0x181006F
 #define CE_REG_TP_A1_TAP_ENERGY__W                                              15
 #define CE_REG_TP_A1_TAP_ENERGY__M                                              0x7FFF
@@ -4049,398 +3515,330 @@ extern "C" {
 #define   CE_REG_TP_A1_TAP_ENERGY_MANTISSA__W                                   10
 #define   CE_REG_TP_A1_TAP_ENERGY_MANTISSA__M                                   0x3FF
 
-
 #define CE_REG_TI_NEXP_OFFS__A                                                  0x1810070
 #define CE_REG_TI_NEXP_OFFS__W                                                  8
 #define CE_REG_TI_NEXP_OFFS__M                                                  0xFF
 #define   CE_REG_TI_NEXP_OFFS_INIT                                              0x0
-
 
 #define CE_REG_TI_PEAK__A                                                       0x1810071
 #define CE_REG_TI_PEAK__W                                                       8
 #define CE_REG_TI_PEAK__M                                                       0xFF
 #define   CE_REG_TI_PEAK_INIT                                                   0x0
 
-
 #define CE_REG_FI_SHT_INCR__A                                                   0x1810090
 #define CE_REG_FI_SHT_INCR__W                                                   7
 #define CE_REG_FI_SHT_INCR__M                                                   0x7F
 #define   CE_REG_FI_SHT_INCR_INIT                                               0x9
-
 
 #define CE_REG_FI_EXP_NORM__A                                                   0x1810091
 #define CE_REG_FI_EXP_NORM__W                                                   4
 #define CE_REG_FI_EXP_NORM__M                                                   0xF
 #define   CE_REG_FI_EXP_NORM_INIT                                               0x4
 
-
 #define CE_REG_FI_SUPR_VAL__A                                                   0x1810092
 #define CE_REG_FI_SUPR_VAL__W                                                   1
 #define CE_REG_FI_SUPR_VAL__M                                                   0x1
 #define   CE_REG_FI_SUPR_VAL_INIT                                               0x1
-
 
 #define CE_REG_IR_INPUTSEL__A                                                   0x18100A0
 #define CE_REG_IR_INPUTSEL__W                                                   1
 #define CE_REG_IR_INPUTSEL__M                                                   0x1
 #define   CE_REG_IR_INPUTSEL_INIT                                               0x0
 
-
 #define CE_REG_IR_STARTPOS__A                                                   0x18100A1
 #define CE_REG_IR_STARTPOS__W                                                   8
 #define CE_REG_IR_STARTPOS__M                                                   0xFF
 #define   CE_REG_IR_STARTPOS_INIT                                               0x0
-
 
 #define CE_REG_IR_NEXP_THRES__A                                                 0x18100A2
 #define CE_REG_IR_NEXP_THRES__W                                                 8
 #define CE_REG_IR_NEXP_THRES__M                                                 0xFF
 #define   CE_REG_IR_NEXP_THRES_INIT                                             0x0
 
-
 #define CE_REG_IR_LENGTH__A                                                     0x18100A3
 #define CE_REG_IR_LENGTH__W                                                     4
 #define CE_REG_IR_LENGTH__M                                                     0xF
 #define   CE_REG_IR_LENGTH_INIT                                                 0x0
-
 
 #define CE_REG_IR_FREQ__A                                                       0x18100A4
 #define CE_REG_IR_FREQ__W                                                       11
 #define CE_REG_IR_FREQ__M                                                       0x7FF
 #define   CE_REG_IR_FREQ_INIT                                                   0x0
 
-
 #define CE_REG_IR_FREQINC__A                                                    0x18100A5
 #define CE_REG_IR_FREQINC__W                                                    11
 #define CE_REG_IR_FREQINC__M                                                    0x7FF
 #define   CE_REG_IR_FREQINC_INIT                                                0x0
-
 
 #define CE_REG_IR_KAISINC__A                                                    0x18100A6
 #define CE_REG_IR_KAISINC__W                                                    15
 #define CE_REG_IR_KAISINC__M                                                    0x7FFF
 #define   CE_REG_IR_KAISINC_INIT                                                0x0
 
-
 #define CE_REG_IR_CTL__A                                                        0x18100A7
 #define CE_REG_IR_CTL__W                                                        3
 #define CE_REG_IR_CTL__M                                                        0x7
 #define   CE_REG_IR_CTL_INIT                                                    0x0
-
 
 #define CE_REG_IR_REAL__A                                                       0x18100A8
 #define CE_REG_IR_REAL__W                                                       16
 #define CE_REG_IR_REAL__M                                                       0xFFFF
 #define   CE_REG_IR_REAL_INIT                                                   0x0
 
-
 #define CE_REG_IR_IMAG__A                                                       0x18100A9
 #define CE_REG_IR_IMAG__W                                                       16
 #define CE_REG_IR_IMAG__M                                                       0xFFFF
 #define   CE_REG_IR_IMAG_INIT                                                   0x0
-
 
 #define CE_REG_IR_INDEX__A                                                      0x18100AA
 #define CE_REG_IR_INDEX__W                                                      12
 #define CE_REG_IR_INDEX__M                                                      0xFFF
 #define   CE_REG_IR_INDEX_INIT                                                  0x0
 
-
-
-
 #define CE_REG_FR_TREAL00__A                                                    0x1820010
 #define CE_REG_FR_TREAL00__W                                                    11
 #define CE_REG_FR_TREAL00__M                                                    0x7FF
 #define   CE_REG_FR_TREAL00_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG00__A                                                    0x1820011
 #define CE_REG_FR_TIMAG00__W                                                    11
 #define CE_REG_FR_TIMAG00__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG00_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL01__A                                                    0x1820012
 #define CE_REG_FR_TREAL01__W                                                    11
 #define CE_REG_FR_TREAL01__M                                                    0x7FF
 #define   CE_REG_FR_TREAL01_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG01__A                                                    0x1820013
 #define CE_REG_FR_TIMAG01__W                                                    11
 #define CE_REG_FR_TIMAG01__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG01_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL02__A                                                    0x1820014
 #define CE_REG_FR_TREAL02__W                                                    11
 #define CE_REG_FR_TREAL02__M                                                    0x7FF
 #define   CE_REG_FR_TREAL02_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG02__A                                                    0x1820015
 #define CE_REG_FR_TIMAG02__W                                                    11
 #define CE_REG_FR_TIMAG02__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG02_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL03__A                                                    0x1820016
 #define CE_REG_FR_TREAL03__W                                                    11
 #define CE_REG_FR_TREAL03__M                                                    0x7FF
 #define   CE_REG_FR_TREAL03_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG03__A                                                    0x1820017
 #define CE_REG_FR_TIMAG03__W                                                    11
 #define CE_REG_FR_TIMAG03__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG03_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL04__A                                                    0x1820018
 #define CE_REG_FR_TREAL04__W                                                    11
 #define CE_REG_FR_TREAL04__M                                                    0x7FF
 #define   CE_REG_FR_TREAL04_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG04__A                                                    0x1820019
 #define CE_REG_FR_TIMAG04__W                                                    11
 #define CE_REG_FR_TIMAG04__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG04_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL05__A                                                    0x182001A
 #define CE_REG_FR_TREAL05__W                                                    11
 #define CE_REG_FR_TREAL05__M                                                    0x7FF
 #define   CE_REG_FR_TREAL05_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG05__A                                                    0x182001B
 #define CE_REG_FR_TIMAG05__W                                                    11
 #define CE_REG_FR_TIMAG05__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG05_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL06__A                                                    0x182001C
 #define CE_REG_FR_TREAL06__W                                                    11
 #define CE_REG_FR_TREAL06__M                                                    0x7FF
 #define   CE_REG_FR_TREAL06_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG06__A                                                    0x182001D
 #define CE_REG_FR_TIMAG06__W                                                    11
 #define CE_REG_FR_TIMAG06__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG06_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL07__A                                                    0x182001E
 #define CE_REG_FR_TREAL07__W                                                    11
 #define CE_REG_FR_TREAL07__M                                                    0x7FF
 #define   CE_REG_FR_TREAL07_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG07__A                                                    0x182001F
 #define CE_REG_FR_TIMAG07__W                                                    11
 #define CE_REG_FR_TIMAG07__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG07_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL08__A                                                    0x1820020
 #define CE_REG_FR_TREAL08__W                                                    11
 #define CE_REG_FR_TREAL08__M                                                    0x7FF
 #define   CE_REG_FR_TREAL08_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG08__A                                                    0x1820021
 #define CE_REG_FR_TIMAG08__W                                                    11
 #define CE_REG_FR_TIMAG08__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG08_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL09__A                                                    0x1820022
 #define CE_REG_FR_TREAL09__W                                                    11
 #define CE_REG_FR_TREAL09__M                                                    0x7FF
 #define   CE_REG_FR_TREAL09_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG09__A                                                    0x1820023
 #define CE_REG_FR_TIMAG09__W                                                    11
 #define CE_REG_FR_TIMAG09__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG09_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL10__A                                                    0x1820024
 #define CE_REG_FR_TREAL10__W                                                    11
 #define CE_REG_FR_TREAL10__M                                                    0x7FF
 #define   CE_REG_FR_TREAL10_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG10__A                                                    0x1820025
 #define CE_REG_FR_TIMAG10__W                                                    11
 #define CE_REG_FR_TIMAG10__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG10_INIT                                                0x0
 
-
 #define CE_REG_FR_TREAL11__A                                                    0x1820026
 #define CE_REG_FR_TREAL11__W                                                    11
 #define CE_REG_FR_TREAL11__M                                                    0x7FF
 #define   CE_REG_FR_TREAL11_INIT                                                0x52
-
 
 #define CE_REG_FR_TIMAG11__A                                                    0x1820027
 #define CE_REG_FR_TIMAG11__W                                                    11
 #define CE_REG_FR_TIMAG11__M                                                    0x7FF
 #define   CE_REG_FR_TIMAG11_INIT                                                0x0
 
-
 #define CE_REG_FR_MID_TAP__A                                                    0x1820028
 #define CE_REG_FR_MID_TAP__W                                                    11
 #define CE_REG_FR_MID_TAP__M                                                    0x7FF
 #define   CE_REG_FR_MID_TAP_INIT                                                0x51
-
 
 #define CE_REG_FR_SQS_G00__A                                                    0x1820029
 #define CE_REG_FR_SQS_G00__W                                                    8
 #define CE_REG_FR_SQS_G00__M                                                    0xFF
 #define   CE_REG_FR_SQS_G00_INIT                                                0xB
 
-
 #define CE_REG_FR_SQS_G01__A                                                    0x182002A
 #define CE_REG_FR_SQS_G01__W                                                    8
 #define CE_REG_FR_SQS_G01__M                                                    0xFF
 #define   CE_REG_FR_SQS_G01_INIT                                                0xB
-
 
 #define CE_REG_FR_SQS_G02__A                                                    0x182002B
 #define CE_REG_FR_SQS_G02__W                                                    8
 #define CE_REG_FR_SQS_G02__M                                                    0xFF
 #define   CE_REG_FR_SQS_G02_INIT                                                0xB
 
-
 #define CE_REG_FR_SQS_G03__A                                                    0x182002C
 #define CE_REG_FR_SQS_G03__W                                                    8
 #define CE_REG_FR_SQS_G03__M                                                    0xFF
 #define   CE_REG_FR_SQS_G03_INIT                                                0xB
-
 
 #define CE_REG_FR_SQS_G04__A                                                    0x182002D
 #define CE_REG_FR_SQS_G04__W                                                    8
 #define CE_REG_FR_SQS_G04__M                                                    0xFF
 #define   CE_REG_FR_SQS_G04_INIT                                                0xB
 
-
 #define CE_REG_FR_SQS_G05__A                                                    0x182002E
 #define CE_REG_FR_SQS_G05__W                                                    8
 #define CE_REG_FR_SQS_G05__M                                                    0xFF
 #define   CE_REG_FR_SQS_G05_INIT                                                0xB
-
 
 #define CE_REG_FR_SQS_G06__A                                                    0x182002F
 #define CE_REG_FR_SQS_G06__W                                                    8
 #define CE_REG_FR_SQS_G06__M                                                    0xFF
 #define   CE_REG_FR_SQS_G06_INIT                                                0xB
 
-
 #define CE_REG_FR_SQS_G07__A                                                    0x1820030
 #define CE_REG_FR_SQS_G07__W                                                    8
 #define CE_REG_FR_SQS_G07__M                                                    0xFF
 #define   CE_REG_FR_SQS_G07_INIT                                                0xB
-
 
 #define CE_REG_FR_SQS_G08__A                                                    0x1820031
 #define CE_REG_FR_SQS_G08__W                                                    8
 #define CE_REG_FR_SQS_G08__M                                                    0xFF
 #define   CE_REG_FR_SQS_G08_INIT                                                0xB
 
-
 #define CE_REG_FR_SQS_G09__A                                                    0x1820032
 #define CE_REG_FR_SQS_G09__W                                                    8
 #define CE_REG_FR_SQS_G09__M                                                    0xFF
 #define   CE_REG_FR_SQS_G09_INIT                                                0xB
-
 
 #define CE_REG_FR_SQS_G10__A                                                    0x1820033
 #define CE_REG_FR_SQS_G10__W                                                    8
 #define CE_REG_FR_SQS_G10__M                                                    0xFF
 #define   CE_REG_FR_SQS_G10_INIT                                                0xB
 
-
 #define CE_REG_FR_SQS_G11__A                                                    0x1820034
 #define CE_REG_FR_SQS_G11__W                                                    8
 #define CE_REG_FR_SQS_G11__M                                                    0xFF
 #define   CE_REG_FR_SQS_G11_INIT                                                0xB
-
 
 #define CE_REG_FR_SQS_G12__A                                                    0x1820035
 #define CE_REG_FR_SQS_G12__W                                                    8
 #define CE_REG_FR_SQS_G12__M                                                    0xFF
 #define   CE_REG_FR_SQS_G12_INIT                                                0x5
 
-
 #define CE_REG_FR_RIO_G00__A                                                    0x1820036
 #define CE_REG_FR_RIO_G00__W                                                    9
 #define CE_REG_FR_RIO_G00__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G00_INIT                                                0x1FF
-
 
 #define CE_REG_FR_RIO_G01__A                                                    0x1820037
 #define CE_REG_FR_RIO_G01__W                                                    9
 #define CE_REG_FR_RIO_G01__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G01_INIT                                                0x190
 
-
 #define CE_REG_FR_RIO_G02__A                                                    0x1820038
 #define CE_REG_FR_RIO_G02__W                                                    9
 #define CE_REG_FR_RIO_G02__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G02_INIT                                                0x10B
-
 
 #define CE_REG_FR_RIO_G03__A                                                    0x1820039
 #define CE_REG_FR_RIO_G03__W                                                    9
 #define CE_REG_FR_RIO_G03__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G03_INIT                                                0xC8
 
-
 #define CE_REG_FR_RIO_G04__A                                                    0x182003A
 #define CE_REG_FR_RIO_G04__W                                                    9
 #define CE_REG_FR_RIO_G04__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G04_INIT                                                0xA0
-
 
 #define CE_REG_FR_RIO_G05__A                                                    0x182003B
 #define CE_REG_FR_RIO_G05__W                                                    9
 #define CE_REG_FR_RIO_G05__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G05_INIT                                                0x85
 
-
 #define CE_REG_FR_RIO_G06__A                                                    0x182003C
 #define CE_REG_FR_RIO_G06__W                                                    9
 #define CE_REG_FR_RIO_G06__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G06_INIT                                                0x72
-
 
 #define CE_REG_FR_RIO_G07__A                                                    0x182003D
 #define CE_REG_FR_RIO_G07__W                                                    9
 #define CE_REG_FR_RIO_G07__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G07_INIT                                                0x64
 
-
 #define CE_REG_FR_RIO_G08__A                                                    0x182003E
 #define CE_REG_FR_RIO_G08__W                                                    9
 #define CE_REG_FR_RIO_G08__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G08_INIT                                                0x59
-
 
 #define CE_REG_FR_RIO_G09__A                                                    0x182003F
 #define CE_REG_FR_RIO_G09__W                                                    9
 #define CE_REG_FR_RIO_G09__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G09_INIT                                                0x50
 
-
 #define CE_REG_FR_RIO_G10__A                                                    0x1820040
 #define CE_REG_FR_RIO_G10__W                                                    9
 #define CE_REG_FR_RIO_G10__M                                                    0x1FF
 #define   CE_REG_FR_RIO_G10_INIT                                                0x49
-
 
 #define CE_REG_FR_MODE__A                                                       0x1820041
 #define CE_REG_FR_MODE__W                                                       6
@@ -4471,18 +3869,15 @@ extern "C" {
 #define   CE_REG_FR_MODE_UPDATE_MODE__M                                         0x20
 #define     CE_REG_FR_MODE_INIT                                                 0x3E
 
-
 #define CE_REG_FR_SQS_TRH__A                                                    0x1820042
 #define CE_REG_FR_SQS_TRH__W                                                    8
 #define CE_REG_FR_SQS_TRH__M                                                    0xFF
 #define   CE_REG_FR_SQS_TRH_INIT                                                0x80
 
-
 #define CE_REG_FR_RIO_GAIN__A                                                   0x1820043
 #define CE_REG_FR_RIO_GAIN__W                                                   3
 #define CE_REG_FR_RIO_GAIN__M                                                   0x7
 #define   CE_REG_FR_RIO_GAIN_INIT                                               0x2
-
 
 #define CE_REG_FR_BYPASS__A                                                     0x1820044
 #define CE_REG_FR_BYPASS__W                                                     10
@@ -4501,53 +3896,36 @@ extern "C" {
 #define   CE_REG_FR_BYPASS_TOTAL__M                                             0x200
 #define     CE_REG_FR_BYPASS_INIT                                               0x13B
 
-
 #define CE_REG_FR_PM_SET__A                                                     0x1820045
 #define CE_REG_FR_PM_SET__W                                                     4
 #define CE_REG_FR_PM_SET__M                                                     0xF
 #define   CE_REG_FR_PM_SET_INIT                                                 0x4
-
 
 #define CE_REG_FR_ERR_SH__A                                                     0x1820046
 #define CE_REG_FR_ERR_SH__W                                                     4
 #define CE_REG_FR_ERR_SH__M                                                     0xF
 #define   CE_REG_FR_ERR_SH_INIT                                                 0x4
 
-
 #define CE_REG_FR_MAN_SH__A                                                     0x1820047
 #define CE_REG_FR_MAN_SH__W                                                     4
 #define CE_REG_FR_MAN_SH__M                                                     0xF
 #define   CE_REG_FR_MAN_SH_INIT                                                 0x7
-
 
 #define CE_REG_FR_TAP_SH__A                                                     0x1820048
 #define CE_REG_FR_TAP_SH__W                                                     3
 #define CE_REG_FR_TAP_SH__M                                                     0x7
 #define   CE_REG_FR_TAP_SH_INIT                                                 0x3
 
-
 #define CE_REG_FR_CLIP__A                                                       0x1820049
 #define CE_REG_FR_CLIP__W                                                       9
 #define CE_REG_FR_CLIP__M                                                       0x1FF
 #define   CE_REG_FR_CLIP_INIT                                                   0x49
 
-
-
 #define CE_PB_RAM__A                                                            0x1830000
-
-
 
 #define CE_NE_RAM__A                                                            0x1840000
 
-
-
-
-
 #define EQ_SID                                                                  0xE
-
-
-
-
 
 #define EQ_COMM_EXEC__A                                                         0x1C00000
 #define EQ_COMM_EXEC__W                                                         3
@@ -4580,11 +3958,6 @@ extern "C" {
 #define EQ_COMM_INT_MSK__A                                                      0x1C00008
 #define EQ_COMM_INT_MSK__W                                                      16
 #define EQ_COMM_INT_MSK__M                                                      0xFFFF
-
-
-
-
-
 
 #define EQ_REG_COMM_EXEC__A                                                     0x1C10000
 #define EQ_REG_COMM_EXEC__W                                                     3
@@ -4628,7 +4001,6 @@ extern "C" {
 #define     EQ_REG_COMM_MB_OBS_MUX_EQ_IS                                        0x20
 #define     EQ_REG_COMM_MB_OBS_MUX_EQ_SN                                        0x30
 
-
 #define EQ_REG_COMM_SERVICE0__A                                                 0x1C10003
 #define EQ_REG_COMM_SERVICE0__W                                                 10
 #define EQ_REG_COMM_SERVICE0__M                                                 0x3FF
@@ -4647,7 +4019,6 @@ extern "C" {
 #define   EQ_REG_COMM_INT_STA_ERR_RDY__W                                        1
 #define   EQ_REG_COMM_INT_STA_ERR_RDY__M                                        0x2
 
-
 #define EQ_REG_COMM_INT_MSK__A                                                  0x1C10008
 #define EQ_REG_COMM_INT_MSK__W                                                  2
 #define EQ_REG_COMM_INT_MSK__M                                                  0x3
@@ -4657,7 +4028,6 @@ extern "C" {
 #define   EQ_REG_COMM_INT_MSK_MER_RDY__B                                        1
 #define   EQ_REG_COMM_INT_MSK_MER_RDY__W                                        1
 #define   EQ_REG_COMM_INT_MSK_MER_RDY__M                                        0x2
-
 
 #define EQ_REG_IS_MODE__A                                                       0x1C10014
 #define EQ_REG_IS_MODE__W                                                       4
@@ -4676,24 +4046,20 @@ extern "C" {
 #define     EQ_REG_IS_MODE_LIM_CLP_SEL_CLP_SEL_ONE                              0x0
 #define     EQ_REG_IS_MODE_LIM_CLP_SEL_CLP_SEL_TWO                              0x2
 
-
 #define EQ_REG_IS_GAIN_MAN__A                                                   0x1C10015
 #define EQ_REG_IS_GAIN_MAN__W                                                   10
 #define EQ_REG_IS_GAIN_MAN__M                                                   0x3FF
 #define   EQ_REG_IS_GAIN_MAN_INIT                                               0x0
-
 
 #define EQ_REG_IS_GAIN_EXP__A                                                   0x1C10016
 #define EQ_REG_IS_GAIN_EXP__W                                                   5
 #define EQ_REG_IS_GAIN_EXP__M                                                   0x1F
 #define   EQ_REG_IS_GAIN_EXP_INIT                                               0x0
 
-
 #define EQ_REG_IS_CLIP_EXP__A                                                   0x1C10017
 #define EQ_REG_IS_CLIP_EXP__W                                                   5
 #define EQ_REG_IS_CLIP_EXP__M                                                   0x1F
 #define   EQ_REG_IS_CLIP_EXP_INIT                                               0x0
-
 
 #define EQ_REG_DV_MODE__A                                                       0x1C1001E
 #define EQ_REG_DV_MODE__W                                                       4
@@ -4723,7 +4089,6 @@ extern "C" {
 #define   EQ_REG_DV_MODE_CLP_IMA_ENA__M                                         0x8
 #define     EQ_REG_DV_MODE_CLP_IMA_ENA_CLP_IMA_DIS                              0x0
 #define     EQ_REG_DV_MODE_CLP_IMA_ENA_CLP_IMA_ENA                              0x8
-
 
 #define EQ_REG_DV_POS_CLIP_DAT__A                                               0x1C1001F
 #define EQ_REG_DV_POS_CLIP_DAT__W                                               16
@@ -4782,30 +4147,25 @@ extern "C" {
 #define     EQ_REG_SN_MODE_MODE_7_DYNAMIC                                       0x0
 #define     EQ_REG_SN_MODE_MODE_7_STATIC                                        0x80
 
-
 #define EQ_REG_SN_PFIX__A                                                       0x1C10029
 #define EQ_REG_SN_PFIX__W                                                       8
 #define EQ_REG_SN_PFIX__M                                                       0xFF
 #define   EQ_REG_SN_PFIX_INIT                                                   0x0
-
 
 #define EQ_REG_SN_CEGAIN__A                                                     0x1C1002A
 #define EQ_REG_SN_CEGAIN__W                                                     8
 #define EQ_REG_SN_CEGAIN__M                                                     0xFF
 #define   EQ_REG_SN_CEGAIN_INIT                                                 0x0
 
-
 #define EQ_REG_SN_OFFSET__A                                                     0x1C1002B
 #define EQ_REG_SN_OFFSET__W                                                     6
 #define EQ_REG_SN_OFFSET__M                                                     0x3F
 #define   EQ_REG_SN_OFFSET_INIT                                                 0x0
 
-
 #define EQ_REG_SN_NULLIFY__A                                                    0x1C1002C
 #define EQ_REG_SN_NULLIFY__W                                                    6
 #define EQ_REG_SN_NULLIFY__M                                                    0x3F
 #define   EQ_REG_SN_NULLIFY_INIT                                                0x0
-
 
 #define EQ_REG_SN_SQUASH__A                                                     0x1C1002D
 #define EQ_REG_SN_SQUASH__W                                                     10
@@ -4819,9 +4179,6 @@ extern "C" {
 #define   EQ_REG_SN_SQUASH_EXP__B                                               6
 #define   EQ_REG_SN_SQUASH_EXP__W                                               4
 #define   EQ_REG_SN_SQUASH_EXP__M                                               0x3C0
-
-
-
 
 #define EQ_REG_RC_SEL_CAR__A                                                    0x1C10032
 #define EQ_REG_RC_SEL_CAR__W                                                    6
@@ -4855,7 +4212,6 @@ extern "C" {
 #define     EQ_REG_RC_SEL_CAR_MEAS_A_CC                                         0x0
 #define     EQ_REG_RC_SEL_CAR_MEAS_B_CE                                         0x20
 
-
 #define EQ_REG_RC_STS__A                                                        0x1C10033
 #define EQ_REG_RC_STS__W                                                        12
 #define EQ_REG_RC_STS__M                                                        0xFFF
@@ -4882,44 +4238,35 @@ extern "C" {
 #define     EQ_REG_RC_STS_OVERFLOW_NO                                           0x0
 #define     EQ_REG_RC_STS_OVERFLOW_YES                                          0x800
 
-
 #define EQ_REG_OT_CONST__A                                                      0x1C10046
 #define EQ_REG_OT_CONST__W                                                      2
 #define EQ_REG_OT_CONST__M                                                      0x3
 #define   EQ_REG_OT_CONST_INIT                                                  0x0
-
 
 #define EQ_REG_OT_ALPHA__A                                                      0x1C10047
 #define EQ_REG_OT_ALPHA__W                                                      2
 #define EQ_REG_OT_ALPHA__M                                                      0x3
 #define   EQ_REG_OT_ALPHA_INIT                                                  0x0
 
-
 #define EQ_REG_OT_QNT_THRES0__A                                                 0x1C10048
 #define EQ_REG_OT_QNT_THRES0__W                                                 5
 #define EQ_REG_OT_QNT_THRES0__M                                                 0x1F
 #define   EQ_REG_OT_QNT_THRES0_INIT                                             0x0
-
 
 #define EQ_REG_OT_QNT_THRES1__A                                                 0x1C10049
 #define EQ_REG_OT_QNT_THRES1__W                                                 5
 #define EQ_REG_OT_QNT_THRES1__M                                                 0x1F
 #define   EQ_REG_OT_QNT_THRES1_INIT                                             0x0
 
-
 #define EQ_REG_OT_CSI_STEP__A                                                   0x1C1004A
 #define EQ_REG_OT_CSI_STEP__W                                                   4
 #define EQ_REG_OT_CSI_STEP__M                                                   0xF
 #define   EQ_REG_OT_CSI_STEP_INIT                                               0x0
 
-
 #define EQ_REG_OT_CSI_OFFSET__A                                                 0x1C1004B
 #define EQ_REG_OT_CSI_OFFSET__W                                                 7
 #define EQ_REG_OT_CSI_OFFSET__M                                                 0x7F
 #define   EQ_REG_OT_CSI_OFFSET_INIT                                             0x0
-
-
-
 
 #define EQ_REG_TD_TPS_INIT__A                                                   0x1C10050
 #define EQ_REG_TD_TPS_INIT__W                                                   1
@@ -4928,7 +4275,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_INIT_POS                                                0x0
 #define   EQ_REG_TD_TPS_INIT_NEG                                                0x1
 
-
 #define EQ_REG_TD_TPS_SYNC__A                                                   0x1C10051
 #define EQ_REG_TD_TPS_SYNC__W                                                   16
 #define EQ_REG_TD_TPS_SYNC__M                                                   0xFFFF
@@ -4936,14 +4282,12 @@ extern "C" {
 #define   EQ_REG_TD_TPS_SYNC_ODD                                                0x35EE
 #define   EQ_REG_TD_TPS_SYNC_EVEN                                               0xCA11
 
-
 #define EQ_REG_TD_TPS_LEN__A                                                    0x1C10052
 #define EQ_REG_TD_TPS_LEN__W                                                    6
 #define EQ_REG_TD_TPS_LEN__M                                                    0x3F
 #define   EQ_REG_TD_TPS_LEN_INIT                                                0x0
 #define   EQ_REG_TD_TPS_LEN_DEF                                                 0x17
 #define   EQ_REG_TD_TPS_LEN_ID_SUP                                              0x1F
-
 
 #define EQ_REG_TD_TPS_FRM_NMB__A                                                0x1C10053
 #define EQ_REG_TD_TPS_FRM_NMB__W                                                2
@@ -4954,7 +4298,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_FRM_NMB_3                                               0x2
 #define   EQ_REG_TD_TPS_FRM_NMB_4                                               0x3
 
-
 #define EQ_REG_TD_TPS_CONST__A                                                  0x1C10054
 #define EQ_REG_TD_TPS_CONST__W                                                  2
 #define EQ_REG_TD_TPS_CONST__M                                                  0x3
@@ -4962,7 +4305,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_CONST_QPSK                                              0x0
 #define   EQ_REG_TD_TPS_CONST_16QAM                                             0x1
 #define   EQ_REG_TD_TPS_CONST_64QAM                                             0x2
-
 
 #define EQ_REG_TD_TPS_HINFO__A                                                  0x1C10055
 #define EQ_REG_TD_TPS_HINFO__W                                                  3
@@ -4972,7 +4314,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_HINFO_H1                                                0x1
 #define   EQ_REG_TD_TPS_HINFO_H2                                                0x2
 #define   EQ_REG_TD_TPS_HINFO_H4                                                0x3
-
 
 #define EQ_REG_TD_TPS_CODE_HP__A                                                0x1C10056
 #define EQ_REG_TD_TPS_CODE_HP__W                                                3
@@ -4984,7 +4325,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_CODE_HP_5_6                                             0x3
 #define   EQ_REG_TD_TPS_CODE_HP_7_8                                             0x4
 
-
 #define EQ_REG_TD_TPS_CODE_LP__A                                                0x1C10057
 #define EQ_REG_TD_TPS_CODE_LP__W                                                3
 #define EQ_REG_TD_TPS_CODE_LP__M                                                0x7
@@ -4995,7 +4335,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_CODE_LP_5_6                                             0x3
 #define   EQ_REG_TD_TPS_CODE_LP_7_8                                             0x4
 
-
 #define EQ_REG_TD_TPS_GUARD__A                                                  0x1C10058
 #define EQ_REG_TD_TPS_GUARD__W                                                  2
 #define EQ_REG_TD_TPS_GUARD__M                                                  0x3
@@ -5005,7 +4344,6 @@ extern "C" {
 #define   EQ_REG_TD_TPS_GUARD_08                                                0x2
 #define   EQ_REG_TD_TPS_GUARD_04                                                0x3
 
-
 #define EQ_REG_TD_TPS_TR_MODE__A                                                0x1C10059
 #define EQ_REG_TD_TPS_TR_MODE__W                                                2
 #define EQ_REG_TD_TPS_TR_MODE__M                                                0x3
@@ -5013,67 +4351,50 @@ extern "C" {
 #define   EQ_REG_TD_TPS_TR_MODE_2K                                              0x0
 #define   EQ_REG_TD_TPS_TR_MODE_8K                                              0x1
 
-
 #define EQ_REG_TD_TPS_CELL_ID_HI__A                                             0x1C1005A
 #define EQ_REG_TD_TPS_CELL_ID_HI__W                                             8
 #define EQ_REG_TD_TPS_CELL_ID_HI__M                                             0xFF
 #define   EQ_REG_TD_TPS_CELL_ID_HI_INIT                                         0x0
-
 
 #define EQ_REG_TD_TPS_CELL_ID_LO__A                                             0x1C1005B
 #define EQ_REG_TD_TPS_CELL_ID_LO__W                                             8
 #define EQ_REG_TD_TPS_CELL_ID_LO__M                                             0xFF
 #define   EQ_REG_TD_TPS_CELL_ID_LO_INIT                                         0x0
 
-
 #define EQ_REG_TD_TPS_RSV__A                                                    0x1C1005C
 #define EQ_REG_TD_TPS_RSV__W                                                    6
 #define EQ_REG_TD_TPS_RSV__M                                                    0x3F
 #define   EQ_REG_TD_TPS_RSV_INIT                                                0x0
-
 
 #define EQ_REG_TD_TPS_BCH__A                                                    0x1C1005D
 #define EQ_REG_TD_TPS_BCH__W                                                    14
 #define EQ_REG_TD_TPS_BCH__M                                                    0x3FFF
 #define   EQ_REG_TD_TPS_BCH_INIT                                                0x0
 
-
 #define EQ_REG_TD_SQR_ERR_I__A                                                  0x1C1005E
 #define EQ_REG_TD_SQR_ERR_I__W                                                  16
 #define EQ_REG_TD_SQR_ERR_I__M                                                  0xFFFF
 #define   EQ_REG_TD_SQR_ERR_I_INIT                                              0x0
-
 
 #define EQ_REG_TD_SQR_ERR_Q__A                                                  0x1C1005F
 #define EQ_REG_TD_SQR_ERR_Q__W                                                  16
 #define EQ_REG_TD_SQR_ERR_Q__M                                                  0xFFFF
 #define   EQ_REG_TD_SQR_ERR_Q_INIT                                              0x0
 
-
 #define EQ_REG_TD_SQR_ERR_EXP__A                                                0x1C10060
 #define EQ_REG_TD_SQR_ERR_EXP__W                                                4
 #define EQ_REG_TD_SQR_ERR_EXP__M                                                0xF
 #define   EQ_REG_TD_SQR_ERR_EXP_INIT                                            0x0
-
 
 #define EQ_REG_TD_REQ_SMB_CNT__A                                                0x1C10061
 #define EQ_REG_TD_REQ_SMB_CNT__W                                                16
 #define EQ_REG_TD_REQ_SMB_CNT__M                                                0xFFFF
 #define   EQ_REG_TD_REQ_SMB_CNT_INIT                                            0x0
 
-
 #define EQ_REG_TD_TPS_PWR_OFS__A                                                0x1C10062
 #define EQ_REG_TD_TPS_PWR_OFS__W                                                16
 #define EQ_REG_TD_TPS_PWR_OFS__M                                                0xFFFF
 #define   EQ_REG_TD_TPS_PWR_OFS_INIT                                            0x0
-
-
-
-
-
-
-
-
 
 #define EC_COMM_EXEC__A                                                         0x2000000
 #define EC_COMM_EXEC__W                                                         3
@@ -5107,15 +4428,7 @@ extern "C" {
 #define EC_COMM_INT_MSK__W                                                      16
 #define EC_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
 #define EC_SB_SID                                                               0x16
-
-
-
-
 
 #define EC_SB_REG_COMM_EXEC__A                                                  0x2010000
 #define EC_SB_REG_COMM_EXEC__W                                                  3
@@ -5144,14 +4457,12 @@ extern "C" {
 #define     EC_SB_REG_COMM_MB_OBS_OFF                                           0x0
 #define     EC_SB_REG_COMM_MB_OBS_ON                                            0x2
 
-
 #define EC_SB_REG_TR_MODE__A                                                    0x2010010
 #define EC_SB_REG_TR_MODE__W                                                    1
 #define EC_SB_REG_TR_MODE__M                                                    0x1
 #define   EC_SB_REG_TR_MODE_INIT                                                0x0
 #define   EC_SB_REG_TR_MODE_8K                                                  0x0
 #define   EC_SB_REG_TR_MODE_2K                                                  0x1
-
 
 #define EC_SB_REG_CONST__A                                                      0x2010011
 #define EC_SB_REG_CONST__W                                                      2
@@ -5160,7 +4471,6 @@ extern "C" {
 #define   EC_SB_REG_CONST_QPSK                                                  0x0
 #define   EC_SB_REG_CONST_16QAM                                                 0x1
 #define   EC_SB_REG_CONST_64QAM                                                 0x2
-
 
 #define EC_SB_REG_ALPHA__A                                                      0x2010012
 #define EC_SB_REG_ALPHA__W                                                      3
@@ -5176,14 +4486,12 @@ extern "C" {
 
 #define   EC_SB_REG_ALPHA_H4                                                    0x3
 
-
 #define EC_SB_REG_PRIOR__A                                                      0x2010013
 #define EC_SB_REG_PRIOR__W                                                      1
 #define EC_SB_REG_PRIOR__M                                                      0x1
 #define   EC_SB_REG_PRIOR_INIT                                                  0x0
 #define   EC_SB_REG_PRIOR_HI                                                    0x0
 #define   EC_SB_REG_PRIOR_LO                                                    0x1
-
 
 #define EC_SB_REG_CSI_HI__A                                                     0x2010014
 #define EC_SB_REG_CSI_HI__W                                                     5
@@ -5193,7 +4501,6 @@ extern "C" {
 #define   EC_SB_REG_CSI_HI_MIN                                                  0x0
 #define   EC_SB_REG_CSI_HI_TAG                                                  0x0
 
-
 #define EC_SB_REG_CSI_LO__A                                                     0x2010015
 #define EC_SB_REG_CSI_LO__W                                                     5
 #define EC_SB_REG_CSI_LO__M                                                     0x1F
@@ -5202,13 +4509,11 @@ extern "C" {
 #define   EC_SB_REG_CSI_LO_MIN                                                  0x0
 #define   EC_SB_REG_CSI_LO_TAG                                                  0x0
 
-
 #define EC_SB_REG_SMB_TGL__A                                                    0x2010016
 #define EC_SB_REG_SMB_TGL__W                                                    1
 #define EC_SB_REG_SMB_TGL__M                                                    0x1
 #define   EC_SB_REG_SMB_TGL_OFF                                                 0x0
 #define   EC_SB_REG_SMB_TGL_ON                                                  0x1
-
 
 #define EC_SB_REG_SNR_HI__A                                                     0x2010017
 #define EC_SB_REG_SNR_HI__W                                                     8
@@ -5218,7 +4523,6 @@ extern "C" {
 #define   EC_SB_REG_SNR_HI_MIN                                                  0x0
 #define   EC_SB_REG_SNR_HI_TAG                                                  0x0
 
-
 #define EC_SB_REG_SNR_MID__A                                                    0x2010018
 #define EC_SB_REG_SNR_MID__W                                                    8
 #define EC_SB_REG_SNR_MID__M                                                    0xFF
@@ -5226,7 +4530,6 @@ extern "C" {
 #define   EC_SB_REG_SNR_MID_MAX                                                 0xFF
 #define   EC_SB_REG_SNR_MID_MIN                                                 0x0
 #define   EC_SB_REG_SNR_MID_TAG                                                 0x0
-
 
 #define EC_SB_REG_SNR_LO__A                                                     0x2010019
 #define EC_SB_REG_SNR_LO__W                                                     8
@@ -5236,13 +4539,11 @@ extern "C" {
 #define   EC_SB_REG_SNR_LO_MIN                                                  0x0
 #define   EC_SB_REG_SNR_LO_TAG                                                  0x0
 
-
 #define EC_SB_REG_SCALE_MSB__A                                                  0x201001A
 #define EC_SB_REG_SCALE_MSB__W                                                  6
 #define EC_SB_REG_SCALE_MSB__M                                                  0x3F
 #define   EC_SB_REG_SCALE_MSB_INIT                                              0x30
 #define   EC_SB_REG_SCALE_MSB_MAX                                               0x3F
-
 
 #define EC_SB_REG_SCALE_BIT2__A                                                 0x201001B
 #define EC_SB_REG_SCALE_BIT2__W                                                 6
@@ -5250,13 +4551,11 @@ extern "C" {
 #define   EC_SB_REG_SCALE_BIT2_INIT                                             0x20
 #define   EC_SB_REG_SCALE_BIT2_MAX                                              0x3F
 
-
 #define EC_SB_REG_SCALE_LSB__A                                                  0x201001C
 #define EC_SB_REG_SCALE_LSB__W                                                  6
 #define EC_SB_REG_SCALE_LSB__M                                                  0x3F
 #define   EC_SB_REG_SCALE_LSB_INIT                                              0x10
 #define   EC_SB_REG_SCALE_LSB_MAX                                               0x3F
-
 
 #define EC_SB_REG_CSI_OFS__A                                                    0x201001D
 #define EC_SB_REG_CSI_OFS__W                                                    4
@@ -5271,27 +4570,13 @@ extern "C" {
 #define     EC_SB_REG_CSI_OFS_DIS_ENA                                           0x0
 #define     EC_SB_REG_CSI_OFS_DIS_DIS                                           0x8
 
-
-
 #define EC_SB_SD_RAM__A                                                         0x2020000
-
-
 
 #define EC_SB_BD0_RAM__A                                                        0x2030000
 
-
-
 #define EC_SB_BD1_RAM__A                                                        0x2040000
 
-
-
-
-
 #define EC_VD_SID                                                               0x17
-
-
-
-
 
 #define EC_VD_REG_COMM_EXEC__A                                                  0x2090000
 #define EC_VD_REG_COMM_EXEC__W                                                  3
@@ -5340,7 +4625,6 @@ extern "C" {
 #define   EC_VD_REG_COMM_INT_MSK_BER_RDY__W                                     1
 #define   EC_VD_REG_COMM_INT_MSK_BER_RDY__M                                     0x1
 
-
 #define EC_VD_REG_FORCE__A                                                      0x2090010
 #define EC_VD_REG_FORCE__W                                                      2
 #define EC_VD_REG_FORCE__M                                                      0x3
@@ -5349,7 +4633,6 @@ extern "C" {
 #define   EC_VD_REG_FORCE_PROP                                                  0x1
 #define   EC_VD_REG_FORCE_FORCED                                                0x2
 #define   EC_VD_REG_FORCE_FIXED                                                 0x3
-
 
 #define EC_VD_REG_SET_CODERATE__A                                               0x2090011
 #define EC_VD_REG_SET_CODERATE__W                                               3
@@ -5361,18 +4644,15 @@ extern "C" {
 #define   EC_VD_REG_SET_CODERATE_C5_6                                           0x3
 #define   EC_VD_REG_SET_CODERATE_C7_8                                           0x4
 
-
 #define EC_VD_REG_REQ_SMB_CNT__A                                                0x2090012
 #define EC_VD_REG_REQ_SMB_CNT__W                                                16
 #define EC_VD_REG_REQ_SMB_CNT__M                                                0xFFFF
 #define   EC_VD_REG_REQ_SMB_CNT_INIT                                            0x0
 
-
 #define EC_VD_REG_REQ_BIT_CNT__A                                                0x2090013
 #define EC_VD_REG_REQ_BIT_CNT__W                                                16
 #define EC_VD_REG_REQ_BIT_CNT__M                                                0xFFFF
 #define   EC_VD_REG_REQ_BIT_CNT_INIT                                            0xFFF
-
 
 #define EC_VD_REG_RLK_ENA__A                                                    0x2090014
 #define EC_VD_REG_RLK_ENA__W                                                    1
@@ -5381,14 +4661,12 @@ extern "C" {
 #define   EC_VD_REG_RLK_ENA_OFF                                                 0x0
 #define   EC_VD_REG_RLK_ENA_ON                                                  0x1
 
-
 #define EC_VD_REG_VAL__A                                                        0x2090015
 #define EC_VD_REG_VAL__W                                                        2
 #define EC_VD_REG_VAL__M                                                        0x3
 #define   EC_VD_REG_VAL_INIT                                                    0x0
 #define   EC_VD_REG_VAL_CODE                                                    0x1
 #define   EC_VD_REG_VAL_CNT                                                     0x2
-
 
 #define EC_VD_REG_GET_CODERATE__A                                               0x2090016
 #define EC_VD_REG_GET_CODERATE__W                                               3
@@ -5400,18 +4678,15 @@ extern "C" {
 #define   EC_VD_REG_GET_CODERATE_C5_6                                           0x3
 #define   EC_VD_REG_GET_CODERATE_C7_8                                           0x4
 
-
 #define EC_VD_REG_ERR_BIT_CNT__A                                                0x2090017
 #define EC_VD_REG_ERR_BIT_CNT__W                                                16
 #define EC_VD_REG_ERR_BIT_CNT__M                                                0xFFFF
 #define   EC_VD_REG_ERR_BIT_CNT_INIT                                            0xFFFF
 
-
 #define EC_VD_REG_IN_BIT_CNT__A                                                 0x2090018
 #define EC_VD_REG_IN_BIT_CNT__W                                                 16
 #define EC_VD_REG_IN_BIT_CNT__M                                                 0xFFFF
 #define   EC_VD_REG_IN_BIT_CNT_INIT                                             0x0
-
 
 #define EC_VD_REG_STS__A                                                        0x2090019
 #define EC_VD_REG_STS__W                                                        1
@@ -5420,42 +4695,22 @@ extern "C" {
 #define   EC_VD_REG_STS_NO_LOCK                                                 0x0
 #define   EC_VD_REG_STS_IN_LOCK                                                 0x1
 
-
 #define EC_VD_REG_RLK_CNT__A                                                    0x209001A
 #define EC_VD_REG_RLK_CNT__W                                                    16
 #define EC_VD_REG_RLK_CNT__M                                                    0xFFFF
 #define   EC_VD_REG_RLK_CNT_INIT                                                0x0
 
-
-
 #define EC_VD_TB0_RAM__A                                                        0x20A0000
-
-
 
 #define EC_VD_TB1_RAM__A                                                        0x20B0000
 
-
-
 #define EC_VD_TB2_RAM__A                                                        0x20C0000
-
-
 
 #define EC_VD_TB3_RAM__A                                                        0x20D0000
 
-
-
 #define EC_VD_RE_RAM__A                                                         0x2100000
 
-
-
-
-
 #define EC_OD_SID                                                               0x18
-
-
-
-
-
 
 #define EC_OD_REG_COMM_EXEC__A                                                  0x2110000
 #define EC_OD_REG_COMM_EXEC__W                                                  3
@@ -5467,7 +4722,6 @@ extern "C" {
 #define     EC_OD_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     EC_OD_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     EC_OD_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define EC_OD_REG_COMM_MB__A                                                    0x2110002
 #define EC_OD_REG_COMM_MB__W                                                    3
@@ -5508,7 +4762,6 @@ extern "C" {
 #define   EC_OD_REG_COMM_INT_STA_LOST_SYNC__W                                   1
 #define   EC_OD_REG_COMM_INT_STA_LOST_SYNC__M                                   0x2
 
-
 #define EC_OD_REG_COMM_INT_MSK__A                                               0x2110008
 #define EC_OD_REG_COMM_INT_MSK__W                                               2
 #define EC_OD_REG_COMM_INT_MSK__M                                               0x3
@@ -5518,7 +4771,6 @@ extern "C" {
 #define   EC_OD_REG_COMM_INT_MSK_LOST_SYNC__B                                   1
 #define   EC_OD_REG_COMM_INT_MSK_LOST_SYNC__W                                   1
 #define   EC_OD_REG_COMM_INT_MSK_LOST_SYNC__M                                   0x2
-
 
 #define EC_OD_REG_SYNC__A                                                       0x2110010
 #define EC_OD_REG_SYNC__W                                                       12
@@ -5533,24 +4785,13 @@ extern "C" {
 #define   EC_OD_REG_SYNC_OUT_SYNC__W                                            3
 #define   EC_OD_REG_SYNC_OUT_SYNC__M                                            0xE00
 
-
 #define EC_OD_REG_NOSYNC__A                                                     0x2110011
 #define EC_OD_REG_NOSYNC__W                                                     8
 #define EC_OD_REG_NOSYNC__M                                                     0xFF
 
-
-
 #define EC_OD_DEINT_RAM__A                                                      0x2120000
 
-
-
-
-
 #define EC_RS_SID                                                               0x19
-
-
-
-
 
 #define EC_RS_REG_COMM_EXEC__A                                                  0x2130000
 #define EC_RS_REG_COMM_EXEC__W                                                  3
@@ -5599,12 +4840,10 @@ extern "C" {
 #define   EC_RS_REG_COMM_INT_MSK_BER_RDY__W                                     1
 #define   EC_RS_REG_COMM_INT_MSK_BER_RDY__M                                     0x1
 
-
 #define EC_RS_REG_REQ_PCK_CNT__A                                                0x2130010
 #define EC_RS_REG_REQ_PCK_CNT__W                                                16
 #define EC_RS_REG_REQ_PCK_CNT__M                                                0xFFFF
 #define   EC_RS_REG_REQ_PCK_CNT_INIT                                            0xFF
-
 
 #define EC_RS_REG_VAL__A                                                        0x2130011
 #define EC_RS_REG_VAL__W                                                        1
@@ -5612,44 +4851,29 @@ extern "C" {
 #define   EC_RS_REG_VAL_INIT                                                    0x0
 #define   EC_RS_REG_VAL_PCK                                                     0x1
 
-
 #define EC_RS_REG_ERR_PCK_CNT__A                                                0x2130012
 #define EC_RS_REG_ERR_PCK_CNT__W                                                16
 #define EC_RS_REG_ERR_PCK_CNT__M                                                0xFFFF
 #define   EC_RS_REG_ERR_PCK_CNT_INIT                                            0xFFFF
-
 
 #define EC_RS_REG_ERR_SMB_CNT__A                                                0x2130013
 #define EC_RS_REG_ERR_SMB_CNT__W                                                16
 #define EC_RS_REG_ERR_SMB_CNT__M                                                0xFFFF
 #define   EC_RS_REG_ERR_SMB_CNT_INIT                                            0xFFFF
 
-
 #define EC_RS_REG_ERR_BIT_CNT__A                                                0x2130014
 #define EC_RS_REG_ERR_BIT_CNT__W                                                16
 #define EC_RS_REG_ERR_BIT_CNT__M                                                0xFFFF
 #define   EC_RS_REG_ERR_BIT_CNT_INIT                                            0xFFFF
-
 
 #define EC_RS_REG_IN_PCK_CNT__A                                                 0x2130015
 #define EC_RS_REG_IN_PCK_CNT__W                                                 16
 #define EC_RS_REG_IN_PCK_CNT__M                                                 0xFFFF
 #define   EC_RS_REG_IN_PCK_CNT_INIT                                             0x0
 
-
-
 #define EC_RS_EC_RAM__A                                                         0x2140000
 
-
-
-
-
 #define EC_OC_SID                                                               0x1A
-
-
-
-
-
 
 #define EC_OC_REG_COMM_EXEC__A                                                  0x2150000
 #define EC_OC_REG_COMM_EXEC__W                                                  3
@@ -5679,7 +4903,6 @@ extern "C" {
 #define   EC_OC_REG_COMM_MB_OBS__M                                              0x2
 #define     EC_OC_REG_COMM_MB_OBS_OFF                                           0x0
 #define     EC_OC_REG_COMM_MB_OBS_ON                                            0x2
-
 
 #define EC_OC_REG_COMM_SERVICE0__A                                              0x2150003
 #define EC_OC_REG_COMM_SERVICE0__W                                              10
@@ -5711,7 +4934,6 @@ extern "C" {
 #define   EC_OC_REG_COMM_INT_STA_PCK_ERR_UPD__W                                 1
 #define   EC_OC_REG_COMM_INT_STA_PCK_ERR_UPD__M                                 0x20
 
-
 #define EC_OC_REG_COMM_INT_MSK__A                                               0x2150008
 #define EC_OC_REG_COMM_INT_MSK__W                                               6
 #define EC_OC_REG_COMM_INT_MSK__M                                               0x3F
@@ -5733,7 +4955,6 @@ extern "C" {
 #define   EC_OC_REG_COMM_INT_MSK_PCK_ERR_UPD__B                                 5
 #define   EC_OC_REG_COMM_INT_MSK_PCK_ERR_UPD__W                                 1
 #define   EC_OC_REG_COMM_INT_MSK_PCK_ERR_UPD__M                                 0x20
-
 
 #define EC_OC_REG_OC_MODE_LOP__A                                                0x2150010
 #define EC_OC_REG_OC_MODE_LOP__W                                                16
@@ -5824,7 +5045,6 @@ extern "C" {
 #define     EC_OC_REG_OC_MODE_LOP_DER_ENA_ENABLE                                0x0
 #define     EC_OC_REG_OC_MODE_LOP_DER_ENA_DISABLE                               0x8000
 
-
 #define EC_OC_REG_OC_MODE_HIP__A                                                0x2150011
 #define EC_OC_REG_OC_MODE_HIP__W                                                14
 #define EC_OC_REG_OC_MODE_HIP__M                                                0x3FFF
@@ -5914,7 +5134,6 @@ extern "C" {
 #define     EC_OC_REG_OC_MODE_HIP_FDB_SEL_MPG_SEL_ZER                           0x0
 #define     EC_OC_REG_OC_MODE_HIP_FDB_SEL_MPG_SEL_MPG                           0x2000
 
-
 #define EC_OC_REG_OC_MPG_SIO__A                                                 0x2150012
 #define EC_OC_REG_OC_MPG_SIO__W                                                 12
 #define EC_OC_REG_OC_MPG_SIO__M                                                 0xFFF
@@ -5991,7 +5210,6 @@ extern "C" {
 #define   EC_OC_REG_OC_MPG_SIO_MPG_SIO_11__M                                    0x800
 #define     EC_OC_REG_OC_MPG_SIO_MPG_SIO_11_OUTPUT                              0x0
 #define     EC_OC_REG_OC_MPG_SIO_MPG_SIO_11_INPUT                               0x800
-
 
 #define EC_OC_REG_OC_MON_SIO__A                                                 0x2150013
 #define EC_OC_REG_OC_MON_SIO__W                                                 12
@@ -6070,18 +5288,15 @@ extern "C" {
 #define     EC_OC_REG_OC_MON_SIO_MON_SIO_11_OUTPUT                              0x0
 #define     EC_OC_REG_OC_MON_SIO_MON_SIO_11_INPUT                               0x800
 
-
 #define EC_OC_REG_DTO_INC_LOP__A                                                0x2150014
 #define EC_OC_REG_DTO_INC_LOP__W                                                16
 #define EC_OC_REG_DTO_INC_LOP__M                                                0xFFFF
 #define   EC_OC_REG_DTO_INC_LOP_INIT                                            0x0
 
-
 #define EC_OC_REG_DTO_INC_HIP__A                                                0x2150015
 #define EC_OC_REG_DTO_INC_HIP__W                                                8
 #define EC_OC_REG_DTO_INC_HIP__M                                                0xFF
 #define   EC_OC_REG_DTO_INC_HIP_INIT                                            0x0
-
 
 #define EC_OC_REG_SNC_ISC_LVL__A                                                0x2150016
 #define EC_OC_REG_SNC_ISC_LVL__W                                                12
@@ -6100,12 +5315,10 @@ extern "C" {
 #define   EC_OC_REG_SNC_ISC_LVL_NSC__W                                          4
 #define   EC_OC_REG_SNC_ISC_LVL_NSC__M                                          0xF00
 
-
 #define EC_OC_REG_SNC_NSC_LVL__A                                                0x2150017
 #define EC_OC_REG_SNC_NSC_LVL__W                                                8
 #define EC_OC_REG_SNC_NSC_LVL__M                                                0xFF
 #define   EC_OC_REG_SNC_NSC_LVL_INIT                                            0x0
-
 
 #define EC_OC_REG_SNC_SNC_MODE__A                                               0x2150019
 #define EC_OC_REG_SNC_SNC_MODE__W                                               2
@@ -6113,7 +5326,6 @@ extern "C" {
 #define   EC_OC_REG_SNC_SNC_MODE_SEARCH                                         0x0
 #define   EC_OC_REG_SNC_SNC_MODE_TRACK                                          0x1
 #define   EC_OC_REG_SNC_SNC_MODE_LOCK                                           0x2
-
 
 #define EC_OC_REG_SNC_PCK_NMB__A                                                0x215001A
 #define EC_OC_REG_SNC_PCK_NMB__W                                                16
@@ -6136,48 +5348,40 @@ extern "C" {
 #define   EC_OC_REG_TMD_TOP_MODE_SELECT_BOT_BOT                                 0x2
 #define   EC_OC_REG_TMD_TOP_MODE_SELECT_TOP_BOT                                 0x3
 
-
 #define EC_OC_REG_TMD_TOP_CNT__A                                                0x215001E
 #define EC_OC_REG_TMD_TOP_CNT__W                                                10
 #define EC_OC_REG_TMD_TOP_CNT__M                                                0x3FF
 #define   EC_OC_REG_TMD_TOP_CNT_INIT                                            0x0
-
 
 #define EC_OC_REG_TMD_HIL_MAR__A                                                0x215001F
 #define EC_OC_REG_TMD_HIL_MAR__W                                                10
 #define EC_OC_REG_TMD_HIL_MAR__M                                                0x3FF
 #define   EC_OC_REG_TMD_HIL_MAR_INIT                                            0x0
 
-
 #define EC_OC_REG_TMD_LOL_MAR__A                                                0x2150020
 #define EC_OC_REG_TMD_LOL_MAR__W                                                10
 #define EC_OC_REG_TMD_LOL_MAR__M                                                0x3FF
 #define   EC_OC_REG_TMD_LOL_MAR_INIT                                            0x0
-
 
 #define EC_OC_REG_TMD_CUR_CNT__A                                                0x2150021
 #define EC_OC_REG_TMD_CUR_CNT__W                                                4
 #define EC_OC_REG_TMD_CUR_CNT__M                                                0xF
 #define   EC_OC_REG_TMD_CUR_CNT_INIT                                            0x0
 
-
 #define EC_OC_REG_TMD_IUR_CNT__A                                                0x2150022
 #define EC_OC_REG_TMD_IUR_CNT__W                                                4
 #define EC_OC_REG_TMD_IUR_CNT__M                                                0xF
 #define   EC_OC_REG_TMD_IUR_CNT_INIT                                            0x0
-
 
 #define EC_OC_REG_AVR_ASH_CNT__A                                                0x2150023
 #define EC_OC_REG_AVR_ASH_CNT__W                                                4
 #define EC_OC_REG_AVR_ASH_CNT__M                                                0xF
 #define   EC_OC_REG_AVR_ASH_CNT_INIT                                            0x0
 
-
 #define EC_OC_REG_AVR_BSH_CNT__A                                                0x2150024
 #define EC_OC_REG_AVR_BSH_CNT__W                                                4
 #define EC_OC_REG_AVR_BSH_CNT__M                                                0xF
 #define   EC_OC_REG_AVR_BSH_CNT_INIT                                            0x0
-
 
 #define EC_OC_REG_AVR_AVE_LOP__A                                                0x2150025
 #define EC_OC_REG_AVR_AVE_LOP__W                                                16
@@ -6210,42 +5414,35 @@ extern "C" {
 #define     EC_OC_REG_RCN_MODE_MODE_2_ENABLE                                    0x4
 #define     EC_OC_REG_RCN_MODE_MODE_2_DISABLE                                   0x0
 
-
 #define EC_OC_REG_RCN_CRA_LOP__A                                                0x2150028
 #define EC_OC_REG_RCN_CRA_LOP__W                                                16
 #define EC_OC_REG_RCN_CRA_LOP__M                                                0xFFFF
 #define   EC_OC_REG_RCN_CRA_LOP_INIT                                            0x0
-
 
 #define EC_OC_REG_RCN_CRA_HIP__A                                                0x2150029
 #define EC_OC_REG_RCN_CRA_HIP__W                                                8
 #define EC_OC_REG_RCN_CRA_HIP__M                                                0xFF
 #define   EC_OC_REG_RCN_CRA_HIP_INIT                                            0x0
 
-
 #define EC_OC_REG_RCN_CST_LOP__A                                                0x215002A
 #define EC_OC_REG_RCN_CST_LOP__W                                                16
 #define EC_OC_REG_RCN_CST_LOP__M                                                0xFFFF
 #define   EC_OC_REG_RCN_CST_LOP_INIT                                            0x0
-
 
 #define EC_OC_REG_RCN_CST_HIP__A                                                0x215002B
 #define EC_OC_REG_RCN_CST_HIP__W                                                8
 #define EC_OC_REG_RCN_CST_HIP__M                                                0xFF
 #define   EC_OC_REG_RCN_CST_HIP_INIT                                            0x0
 
-
 #define EC_OC_REG_RCN_SET_LVL__A                                                0x215002C
 #define EC_OC_REG_RCN_SET_LVL__W                                                9
 #define EC_OC_REG_RCN_SET_LVL__M                                                0x1FF
 #define   EC_OC_REG_RCN_SET_LVL_INIT                                            0x0
 
-
 #define EC_OC_REG_RCN_GAI_LVL__A                                                0x215002D
 #define EC_OC_REG_RCN_GAI_LVL__W                                                4
 #define EC_OC_REG_RCN_GAI_LVL__M                                                0xF
 #define   EC_OC_REG_RCN_GAI_LVL_INIT                                            0x0
-
 
 #define EC_OC_REG_RCN_DRA_LOP__A                                                0x215002E
 #define EC_OC_REG_RCN_DRA_LOP__W                                                16
@@ -6268,12 +5465,10 @@ extern "C" {
 #define EC_OC_REG_RCN_CLP_LOP__M                                                0xFFFF
 #define   EC_OC_REG_RCN_CLP_LOP_INIT                                            0xFFFF
 
-
 #define EC_OC_REG_RCN_CLP_HIP__A                                                0x2150033
 #define EC_OC_REG_RCN_CLP_HIP__W                                                8
 #define EC_OC_REG_RCN_CLP_HIP__M                                                0xFF
 #define   EC_OC_REG_RCN_CLP_HIP_INIT                                            0xFF
-
 
 #define EC_OC_REG_RCN_MAP_LOP__A                                                0x2150034
 #define EC_OC_REG_RCN_MAP_LOP__W                                                16
@@ -6360,7 +5555,6 @@ extern "C" {
 #define     EC_OC_REG_OCR_MPG_UOS_CLK_DISABLE                                   0x0
 #define     EC_OC_REG_OCR_MPG_UOS_CLK_ENABLE                                    0x800
 
-
 #define EC_OC_REG_OCR_MPG_WRI__A                                                0x2150037
 #define EC_OC_REG_OCR_MPG_WRI__W                                                12
 #define EC_OC_REG_OCR_MPG_WRI__M                                                0xFFF
@@ -6425,7 +5619,6 @@ extern "C" {
 #define   EC_OC_REG_OCR_MPG_WRI_CLK__M                                          0x800
 #define     EC_OC_REG_OCR_MPG_WRI_CLK_DISABLE                                   0x0
 #define     EC_OC_REG_OCR_MPG_WRI_CLK_ENABLE                                    0x800
-
 
 #define EC_OC_REG_OCR_MPG_USR_DAT__A                                            0x2150038
 #define EC_OC_REG_OCR_MPG_USR_DAT__W                                            12
@@ -6508,7 +5701,6 @@ extern "C" {
 #define     EC_OC_REG_OCR_MON_UOS_CLK_DISABLE                                   0x0
 #define     EC_OC_REG_OCR_MON_UOS_CLK_ENABLE                                    0x800
 
-
 #define EC_OC_REG_OCR_MON_WRI__A                                                0x215003A
 #define EC_OC_REG_OCR_MON_WRI__W                                                12
 #define EC_OC_REG_OCR_MON_WRI__M                                                0xFFF
@@ -6574,7 +5766,6 @@ extern "C" {
 #define     EC_OC_REG_OCR_MON_WRI_CLK_DISABLE                                   0x0
 #define     EC_OC_REG_OCR_MON_WRI_CLK_ENABLE                                    0x800
 
-
 #define EC_OC_REG_OCR_MON_USR_DAT__A                                            0x215003B
 #define EC_OC_REG_OCR_MON_USR_DAT__W                                            12
 #define EC_OC_REG_OCR_MON_USR_DAT__M                                            0xFFF
@@ -6584,12 +5775,10 @@ extern "C" {
 #define EC_OC_REG_OCR_MON_CNT__M                                                0x3FFF
 #define   EC_OC_REG_OCR_MON_CNT_INIT                                            0x0
 
-
 #define EC_OC_REG_OCR_MON_RDX__A                                                0x215003D
 #define EC_OC_REG_OCR_MON_RDX__W                                                1
 #define EC_OC_REG_OCR_MON_RDX__M                                                0x1
 #define   EC_OC_REG_OCR_MON_RDX_INIT                                            0x0
-
 
 #define EC_OC_REG_OCR_MON_RD0__A                                                0x215003E
 #define EC_OC_REG_OCR_MON_RD0__W                                                10
@@ -6620,31 +5809,19 @@ extern "C" {
 #define EC_OC_REG_OCR_INV_MON__M                                                0xFFF
 #define   EC_OC_REG_OCR_INV_MON_INIT                                            0x0
 
-
 #define EC_OC_REG_IPR_INV_MPG__A                                                0x2150045
 #define EC_OC_REG_IPR_INV_MPG__W                                                12
 #define EC_OC_REG_IPR_INV_MPG__M                                                0xFFF
 #define   EC_OC_REG_IPR_INV_MPG_INIT                                            0x0
-
 
 #define EC_OC_REG_IPR_MSR_SNC__A                                                0x2150046
 #define EC_OC_REG_IPR_MSR_SNC__W                                                6
 #define EC_OC_REG_IPR_MSR_SNC__M                                                0x3F
 #define   EC_OC_REG_IPR_MSR_SNC_INIT                                            0x0
 
-
-
 #define EC_OC_RAM__A                                                            0x2160000
 
-
-
-
-
 #define CC_SID                                                                  0x1B
-
-
-
-
 
 #define CC_COMM_EXEC__A                                                         0x2400000
 #define CC_COMM_EXEC__W                                                         3
@@ -6677,12 +5854,6 @@ extern "C" {
 #define CC_COMM_INT_MSK__A                                                      0x2400008
 #define CC_COMM_INT_MSK__W                                                      16
 #define CC_COMM_INT_MSK__M                                                      0xFFFF
-
-
-
-
-
-
 
 #define CC_REG_COMM_EXEC__A                                                     0x2410000
 #define CC_REG_COMM_EXEC__W                                                     3
@@ -6723,7 +5894,6 @@ extern "C" {
 #define   CC_REG_OSC_MODE_M20                                                   0x1
 #define   CC_REG_OSC_MODE_M48                                                   0x2
 
-
 #define CC_REG_PLL_MODE__A                                                      0x2410011
 #define CC_REG_PLL_MODE__W                                                      6
 #define CC_REG_PLL_MODE__M                                                      0x3F
@@ -6749,7 +5919,6 @@ extern "C" {
 #define     CC_REG_PLL_MODE_OUT_EN_OFF                                          0x0
 #define     CC_REG_PLL_MODE_OUT_EN_ON                                           0x20
 
-
 #define CC_REG_REF_DIVIDE__A                                                    0x2410012
 #define CC_REG_REF_DIVIDE__W                                                    4
 #define CC_REG_REF_DIVIDE__M                                                    0xF
@@ -6765,7 +5934,6 @@ extern "C" {
 #define   CC_REG_REF_DIVIDE_D08                                                 0x8
 #define   CC_REG_REF_DIVIDE_D09                                                 0x9
 #define   CC_REG_REF_DIVIDE_D10                                                 0xA
-
 
 #define CC_REG_REF_DELAY__A                                                     0x2410013
 #define CC_REG_REF_DELAY__W                                                     3
@@ -6783,12 +5951,10 @@ extern "C" {
 #define     CC_REG_REF_DELAY_DELAY_DEL_6                                        0x4
 #define     CC_REG_REF_DELAY_DELAY_DEL_9                                        0x6
 
-
 #define CC_REG_CLK_DELAY__A                                                     0x2410014
 #define CC_REG_CLK_DELAY__W                                                     4
 #define CC_REG_CLK_DELAY__M                                                     0xF
 #define   CC_REG_CLK_DELAY_OFF                                                  0x0
-
 
 #define CC_REG_PWD_MODE__A                                                      0x2410015
 #define CC_REG_PWD_MODE__W                                                      2
@@ -6797,7 +5963,6 @@ extern "C" {
 #define   CC_REG_PWD_MODE_DOWN_CLK                                              0x1
 #define   CC_REG_PWD_MODE_DOWN_PLL                                              0x2
 #define   CC_REG_PWD_MODE_DOWN_OSC                                              0x3
-
 
 #define CC_REG_SOFT_RST__A                                                      0x2410016
 #define CC_REG_SOFT_RST__W                                                      2
@@ -6809,39 +5974,27 @@ extern "C" {
 #define   CC_REG_SOFT_RST_OSC__W                                                1
 #define   CC_REG_SOFT_RST_OSC__M                                                0x2
 
-
 #define CC_REG_UPDATE__A                                                        0x2410017
 #define CC_REG_UPDATE__W                                                        16
 #define CC_REG_UPDATE__M                                                        0xFFFF
 #define   CC_REG_UPDATE_KEY                                                     0x3973
-
 
 #define CC_REG_PLL_LOCK__A                                                      0x2410018
 #define CC_REG_PLL_LOCK__W                                                      1
 #define CC_REG_PLL_LOCK__M                                                      0x1
 #define   CC_REG_PLL_LOCK_LOCK                                                  0x1
 
-
 #define CC_REG_JTAGID_L__A                                                      0x2410019
 #define CC_REG_JTAGID_L__W                                                      16
 #define CC_REG_JTAGID_L__M                                                      0xFFFF
 #define   CC_REG_JTAGID_L_INIT                                                  0x0
-
 
 #define CC_REG_JTAGID_H__A                                                      0x241001A
 #define CC_REG_JTAGID_H__W                                                      16
 #define CC_REG_JTAGID_H__M                                                      0xFFFF
 #define   CC_REG_JTAGID_H_INIT                                                  0x0
 
-
-
-
-
 #define LC_SID                                                                  0x1C
-
-
-
-
 
 #define LC_COMM_EXEC__A                                                         0x2800000
 #define LC_COMM_EXEC__W                                                         3
@@ -6875,11 +6028,6 @@ extern "C" {
 #define LC_COMM_INT_MSK__W                                                      16
 #define LC_COMM_INT_MSK__M                                                      0xFFFF
 
-
-
-
-
-
 #define LC_CT_REG_COMM_EXEC__A                                                  0x2810000
 #define LC_CT_REG_COMM_EXEC__W                                                  3
 #define LC_CT_REG_COMM_EXEC__M                                                  0x7
@@ -6890,7 +6038,6 @@ extern "C" {
 #define     LC_CT_REG_COMM_EXEC_CTL_ACTIVE                                      0x1
 #define     LC_CT_REG_COMM_EXEC_CTL_HOLD                                        0x2
 #define     LC_CT_REG_COMM_EXEC_CTL_STEP                                        0x3
-
 
 #define LC_CT_REG_COMM_STATE__A                                                 0x2810001
 #define LC_CT_REG_COMM_STATE__W                                                 10
@@ -6905,7 +6052,6 @@ extern "C" {
 #define   LC_CT_REG_COMM_SERVICE1_LC__W                                         1
 #define   LC_CT_REG_COMM_SERVICE1_LC__M                                         0x1000
 
-
 #define LC_CT_REG_COMM_INT_STA__A                                               0x2810007
 #define LC_CT_REG_COMM_INT_STA__W                                               1
 #define LC_CT_REG_COMM_INT_STA__M                                               0x1
@@ -6913,16 +6059,12 @@ extern "C" {
 #define   LC_CT_REG_COMM_INT_STA_REQUEST__W                                     1
 #define   LC_CT_REG_COMM_INT_STA_REQUEST__M                                     0x1
 
-
 #define LC_CT_REG_COMM_INT_MSK__A                                               0x2810008
 #define LC_CT_REG_COMM_INT_MSK__W                                               1
 #define LC_CT_REG_COMM_INT_MSK__M                                               0x1
 #define   LC_CT_REG_COMM_INT_MSK_REQUEST__B                                     0
 #define   LC_CT_REG_COMM_INT_MSK_REQUEST__W                                     1
 #define   LC_CT_REG_COMM_INT_MSK_REQUEST__M                                     0x1
-
-
-
 
 #define LC_CT_REG_CTL_STK__AX                                                   0x2810010
 #define LC_CT_REG_CTL_STK__XSZ                                                  4
@@ -6936,10 +6078,6 @@ extern "C" {
 #define LC_CT_REG_CTL_BPT__A                                                    0x2810020
 #define LC_CT_REG_CTL_BPT__W                                                    10
 #define LC_CT_REG_CTL_BPT__M                                                    0x3FF
-
-
-
-
 
 #define LC_RA_RAM_PROC_DELAY_IF__A                                              0x2820006
 #define LC_RA_RAM_PROC_DELAY_IF__W                                              16
@@ -7060,10 +6198,6 @@ extern "C" {
 #define LC_RA_RAM_ADJUST_DELAY__W                                               16
 #define LC_RA_RAM_ADJUST_DELAY__M                                               0xFFFF
 
-
-
-
-
 #define LC_RA_RAM_PIPE_CP_PHASE_0__A                                            0x2820028
 #define LC_RA_RAM_PIPE_CP_PHASE_0__W                                            16
 #define LC_RA_RAM_PIPE_CP_PHASE_0__M                                            0xFFFF
@@ -7082,8 +6216,6 @@ extern "C" {
 #define LC_RA_RAM_PIPE_CP_PHASE_RZ__A                                           0x282002D
 #define LC_RA_RAM_PIPE_CP_PHASE_RZ__W                                           16
 #define LC_RA_RAM_PIPE_CP_PHASE_RZ__M                                           0xFFFF
-
-
 
 #define LC_RA_RAM_PIPE_CP_CRMM_0__A                                             0x2820030
 #define LC_RA_RAM_PIPE_CP_CRMM_0__W                                             16
@@ -7104,8 +6236,6 @@ extern "C" {
 #define LC_RA_RAM_PIPE_CP_CRMM_RZ__W                                            16
 #define LC_RA_RAM_PIPE_CP_CRMM_RZ__M                                            0xFFFF
 
-
-
 #define LC_RA_RAM_PIPE_CP_SRMM_0__A                                             0x2820038
 #define LC_RA_RAM_PIPE_CP_SRMM_0__W                                             16
 #define LC_RA_RAM_PIPE_CP_SRMM_0__M                                             0xFFFF
@@ -7124,10 +6254,6 @@ extern "C" {
 #define LC_RA_RAM_PIPE_CP_SRMM_RZ__A                                            0x282003D
 #define LC_RA_RAM_PIPE_CP_SRMM_RZ__W                                            16
 #define LC_RA_RAM_PIPE_CP_SRMM_RZ__M                                            0xFFFF
-
-
-
-
 
 #define LC_RA_RAM_FILTER_CRMM_A__A                                              0x2820060
 #define LC_RA_RAM_FILTER_CRMM_A__W                                              16
@@ -7150,8 +6276,6 @@ extern "C" {
 #define LC_RA_RAM_FILTER_CRMM_TMP__W                                            16
 #define LC_RA_RAM_FILTER_CRMM_TMP__M                                            0xFFFF
 
-
-
 #define LC_RA_RAM_FILTER_SRMM_A__A                                              0x2820068
 #define LC_RA_RAM_FILTER_SRMM_A__W                                              16
 #define LC_RA_RAM_FILTER_SRMM_A__M                                              0xFFFF
@@ -7172,8 +6296,6 @@ extern "C" {
 #define LC_RA_RAM_FILTER_SRMM_TMP__XSZ                                          2
 #define LC_RA_RAM_FILTER_SRMM_TMP__W                                            16
 #define LC_RA_RAM_FILTER_SRMM_TMP__M                                            0xFFFF
-
-
 
 #define LC_RA_RAM_FILTER_PHASE_A__A                                             0x2820070
 #define LC_RA_RAM_FILTER_PHASE_A__W                                             16
@@ -7196,8 +6318,6 @@ extern "C" {
 #define LC_RA_RAM_FILTER_PHASE_TMP__W                                           16
 #define LC_RA_RAM_FILTER_PHASE_TMP__M                                           0xFFFF
 
-
-
 #define LC_RA_RAM_FILTER_DELAY_A__A                                             0x2820078
 #define LC_RA_RAM_FILTER_DELAY_A__W                                             16
 #define LC_RA_RAM_FILTER_DELAY_A__M                                             0xFFFF
@@ -7219,11 +6339,6 @@ extern "C" {
 #define LC_RA_RAM_FILTER_DELAY_TMP__W                                           16
 #define LC_RA_RAM_FILTER_DELAY_TMP__M                                           0xFFFF
 
-
-
-
-
-
 #define LC_IF_RAM_TRP_BPT0__AX                                                  0x2830000
 #define LC_IF_RAM_TRP_BPT0__XSZ                                                 2
 #define LC_IF_RAM_TRP_BPT0__W                                                   12
@@ -7239,17 +6354,7 @@ extern "C" {
 #define LC_IF_RAM_TRP_WARM__W                                                   12
 #define LC_IF_RAM_TRP_WARM__M                                                   0xFFF
 
-
-
-
-
-
-
 #define B_HI_SID                                                                0x10
-
-
-
-
 
 #define B_HI_COMM_EXEC__A                                                       0x400000
 #define B_HI_COMM_EXEC__W                                                       3
@@ -7283,11 +6388,6 @@ extern "C" {
 #define B_HI_COMM_INT_MSK__W                                                    16
 #define B_HI_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
-
 #define B_HI_CT_REG_COMM_EXEC__A                                                0x410000
 #define B_HI_CT_REG_COMM_EXEC__W                                                3
 #define B_HI_CT_REG_COMM_EXEC__M                                                0x7
@@ -7298,7 +6398,6 @@ extern "C" {
 #define     B_HI_CT_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_HI_CT_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_HI_CT_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_HI_CT_REG_COMM_STATE__A                                               0x410001
 #define B_HI_CT_REG_COMM_STATE__W                                               10
@@ -7313,7 +6412,6 @@ extern "C" {
 #define   B_HI_CT_REG_COMM_SERVICE1_HI__W                                       1
 #define   B_HI_CT_REG_COMM_SERVICE1_HI__M                                       0x1
 
-
 #define B_HI_CT_REG_COMM_INT_STA__A                                             0x410007
 #define B_HI_CT_REG_COMM_INT_STA__W                                             1
 #define B_HI_CT_REG_COMM_INT_STA__M                                             0x1
@@ -7321,16 +6419,12 @@ extern "C" {
 #define   B_HI_CT_REG_COMM_INT_STA_REQUEST__W                                   1
 #define   B_HI_CT_REG_COMM_INT_STA_REQUEST__M                                   0x1
 
-
 #define B_HI_CT_REG_COMM_INT_MSK__A                                             0x410008
 #define B_HI_CT_REG_COMM_INT_MSK__W                                             1
 #define B_HI_CT_REG_COMM_INT_MSK__M                                             0x1
 #define   B_HI_CT_REG_COMM_INT_MSK_REQUEST__B                                   0
 #define   B_HI_CT_REG_COMM_INT_MSK_REQUEST__W                                   1
 #define   B_HI_CT_REG_COMM_INT_MSK_REQUEST__M                                   0x1
-
-
-
 
 #define B_HI_CT_REG_CTL_STK__AX                                                 0x410010
 #define B_HI_CT_REG_CTL_STK__XSZ                                                4
@@ -7345,17 +6439,11 @@ extern "C" {
 #define B_HI_CT_REG_CTL_BPT__W                                                  10
 #define B_HI_CT_REG_CTL_BPT__M                                                  0x3FF
 
-
-
-
-
-
 #define B_HI_RA_RAM_SLV0_FLG_SMM__A                                             0x420010
 #define B_HI_RA_RAM_SLV0_FLG_SMM__W                                             1
 #define B_HI_RA_RAM_SLV0_FLG_SMM__M                                             0x1
 #define   B_HI_RA_RAM_SLV0_FLG_SMM_MULTI                                        0x0
 #define   B_HI_RA_RAM_SLV0_FLG_SMM_SINGLE                                       0x1
-
 
 #define B_HI_RA_RAM_SLV0_DEV_ID__A                                              0x420011
 #define B_HI_RA_RAM_SLV0_DEV_ID__W                                              7
@@ -7366,7 +6454,6 @@ extern "C" {
 #define B_HI_RA_RAM_SLV0_FLG_CRC__M                                             0x1
 #define   B_HI_RA_RAM_SLV0_FLG_CRC_CONTINUE                                     0x0
 #define   B_HI_RA_RAM_SLV0_FLG_CRC_RESTART                                      0x1
-
 
 #define B_HI_RA_RAM_SLV0_FLG_ACC__A                                             0x420013
 #define B_HI_RA_RAM_SLV0_FLG_ACC__W                                             3
@@ -7382,13 +6469,11 @@ extern "C" {
 #define     B_HI_RA_RAM_SLV0_FLG_ACC_BRC_NORMAL                                 0x0
 #define     B_HI_RA_RAM_SLV0_FLG_ACC_BRC_BROADCAST                              0x4
 
-
 #define B_HI_RA_RAM_SLV0_STATE__A                                               0x420014
 #define B_HI_RA_RAM_SLV0_STATE__W                                               1
 #define B_HI_RA_RAM_SLV0_STATE__M                                               0x1
 #define   B_HI_RA_RAM_SLV0_STATE_ADDRESS                                        0x0
 #define   B_HI_RA_RAM_SLV0_STATE_DATA                                           0x1
-
 
 #define B_HI_RA_RAM_SLV0_BLK_BNK__A                                             0x420015
 #define B_HI_RA_RAM_SLV0_BLK_BNK__W                                             12
@@ -7399,7 +6484,6 @@ extern "C" {
 #define   B_HI_RA_RAM_SLV0_BLK_BNK_BLK__B                                       6
 #define   B_HI_RA_RAM_SLV0_BLK_BNK_BLK__W                                       6
 #define   B_HI_RA_RAM_SLV0_BLK_BNK_BLK__M                                       0xFC0
-
 
 #define B_HI_RA_RAM_SLV0_ADDR__A                                                0x420016
 #define B_HI_RA_RAM_SLV0_ADDR__W                                                16
@@ -7413,15 +6497,11 @@ extern "C" {
 #define B_HI_RA_RAM_SLV0_READBACK__W                                            16
 #define B_HI_RA_RAM_SLV0_READBACK__M                                            0xFFFF
 
-
-
-
 #define B_HI_RA_RAM_SLV1_FLG_SMM__A                                             0x420020
 #define B_HI_RA_RAM_SLV1_FLG_SMM__W                                             1
 #define B_HI_RA_RAM_SLV1_FLG_SMM__M                                             0x1
 #define   B_HI_RA_RAM_SLV1_FLG_SMM_MULTI                                        0x0
 #define   B_HI_RA_RAM_SLV1_FLG_SMM_SINGLE                                       0x1
-
 
 #define B_HI_RA_RAM_SLV1_DEV_ID__A                                              0x420021
 #define B_HI_RA_RAM_SLV1_DEV_ID__W                                              7
@@ -7432,7 +6512,6 @@ extern "C" {
 #define B_HI_RA_RAM_SLV1_FLG_CRC__M                                             0x1
 #define   B_HI_RA_RAM_SLV1_FLG_CRC_CONTINUE                                     0x0
 #define   B_HI_RA_RAM_SLV1_FLG_CRC_RESTART                                      0x1
-
 
 #define B_HI_RA_RAM_SLV1_FLG_ACC__A                                             0x420023
 #define B_HI_RA_RAM_SLV1_FLG_ACC__W                                             3
@@ -7448,13 +6527,11 @@ extern "C" {
 #define     B_HI_RA_RAM_SLV1_FLG_ACC_BRC_NORMAL                                 0x0
 #define     B_HI_RA_RAM_SLV1_FLG_ACC_BRC_BROADCAST                              0x4
 
-
 #define B_HI_RA_RAM_SLV1_STATE__A                                               0x420024
 #define B_HI_RA_RAM_SLV1_STATE__W                                               1
 #define B_HI_RA_RAM_SLV1_STATE__M                                               0x1
 #define   B_HI_RA_RAM_SLV1_STATE_ADDRESS                                        0x0
 #define   B_HI_RA_RAM_SLV1_STATE_DATA                                           0x1
-
 
 #define B_HI_RA_RAM_SLV1_BLK_BNK__A                                             0x420025
 #define B_HI_RA_RAM_SLV1_BLK_BNK__W                                             12
@@ -7465,7 +6542,6 @@ extern "C" {
 #define   B_HI_RA_RAM_SLV1_BLK_BNK_BLK__B                                       6
 #define   B_HI_RA_RAM_SLV1_BLK_BNK_BLK__W                                       6
 #define   B_HI_RA_RAM_SLV1_BLK_BNK_BLK__M                                       0xFC0
-
 
 #define B_HI_RA_RAM_SLV1_ADDR__A                                                0x420026
 #define B_HI_RA_RAM_SLV1_ADDR__W                                                16
@@ -7479,15 +6555,11 @@ extern "C" {
 #define B_HI_RA_RAM_SLV1_READBACK__W                                            16
 #define B_HI_RA_RAM_SLV1_READBACK__M                                            0xFFFF
 
-
-
-
 #define B_HI_RA_RAM_SRV_SEM__A                                                  0x420030
 #define B_HI_RA_RAM_SRV_SEM__W                                                  1
 #define B_HI_RA_RAM_SRV_SEM__M                                                  0x1
 #define   B_HI_RA_RAM_SRV_SEM_FREE                                              0x0
 #define   B_HI_RA_RAM_SRV_SEM_CLAIMED                                           0x1
-
 
 #define B_HI_RA_RAM_SRV_RES__A                                                  0x420031
 #define B_HI_RA_RAM_SRV_RES__W                                                  3
@@ -7497,7 +6569,6 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_RES_STOP_FOUND                                        0x2
 #define   B_HI_RA_RAM_SRV_RES_ARBITRATION_FAILED                                0x3
 #define   B_HI_RA_RAM_SRV_RES_INTERNAL_ERROR                                    0x4
-
 
 #define B_HI_RA_RAM_SRV_CMD__A                                                  0x420032
 #define B_HI_RA_RAM_SRV_CMD__W                                                  3
@@ -7510,21 +6581,16 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_CMD_TRANSMIT                                          0x5
 #define   B_HI_RA_RAM_SRV_CMD_EXECUTE                                           0x6
 
-
 #define B_HI_RA_RAM_SRV_PAR__AX                                                 0x420033
 #define B_HI_RA_RAM_SRV_PAR__XSZ                                                5
 #define B_HI_RA_RAM_SRV_PAR__W                                                  16
 #define B_HI_RA_RAM_SRV_PAR__M                                                  0xFFFF
-
-
 
 #define B_HI_RA_RAM_SRV_NOP_RES__A                                              0x420031
 #define B_HI_RA_RAM_SRV_NOP_RES__W                                              3
 #define B_HI_RA_RAM_SRV_NOP_RES__M                                              0x7
 #define   B_HI_RA_RAM_SRV_NOP_RES_OK                                            0x0
 #define   B_HI_RA_RAM_SRV_NOP_RES_INTERNAL_ERROR                                0x4
-
-
 
 #define B_HI_RA_RAM_SRV_UIO_RES__A                                              0x420031
 #define B_HI_RA_RAM_SRV_UIO_RES__W                                              3
@@ -7557,8 +6623,6 @@ extern "C" {
 #define     B_HI_RA_RAM_SRV_UIO_SET_DIR_OUT                                     0x0
 #define     B_HI_RA_RAM_SRV_UIO_SET_DIR_IN                                      0x2
 
-
-
 #define B_HI_RA_RAM_SRV_RST_RES__A                                              0x420031
 #define B_HI_RA_RAM_SRV_RST_RES__W                                              1
 #define B_HI_RA_RAM_SRV_RST_RES__M                                              0x1
@@ -7570,8 +6634,6 @@ extern "C" {
 #define B_HI_RA_RAM_SRV_RST_KEY__M                                              0xFFFF
 #define   B_HI_RA_RAM_SRV_RST_KEY_ACT                                           0x3973
 
-
-
 #define B_HI_RA_RAM_SRV_CFG_RES__A                                              0x420031
 #define B_HI_RA_RAM_SRV_CFG_RES__W                                              1
 #define B_HI_RA_RAM_SRV_CFG_RES__M                                              0x1
@@ -7582,7 +6644,6 @@ extern "C" {
 #define B_HI_RA_RAM_SRV_CFG_KEY__W                                              16
 #define B_HI_RA_RAM_SRV_CFG_KEY__M                                              0xFFFF
 #define   B_HI_RA_RAM_SRV_CFG_KEY_ACT                                           0x3973
-
 
 #define B_HI_RA_RAM_SRV_CFG_DIV__A                                              0x420034
 #define B_HI_RA_RAM_SRV_CFG_DIV__W                                              5
@@ -7620,14 +6681,11 @@ extern "C" {
 #define     B_HI_RA_RAM_SRV_CFG_ACT_PWD_NOP                                     0x0
 #define     B_HI_RA_RAM_SRV_CFG_ACT_PWD_EXE                                     0x8
 
-
-
 #define B_HI_RA_RAM_SRV_CPY_RES__A                                              0x420031
 #define B_HI_RA_RAM_SRV_CPY_RES__W                                              1
 #define B_HI_RA_RAM_SRV_CPY_RES__M                                              0x1
 #define   B_HI_RA_RAM_SRV_CPY_RES_OK                                            0x0
 #define   B_HI_RA_RAM_SRV_CPY_RES_ERROR                                         0x1
-
 
 #define B_HI_RA_RAM_SRV_CPY_SBB__A                                              0x420033
 #define B_HI_RA_RAM_SRV_CPY_SBB__W                                              12
@@ -7638,7 +6696,6 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_CPY_SBB_BLK__B                                        6
 #define   B_HI_RA_RAM_SRV_CPY_SBB_BLK__W                                        6
 #define   B_HI_RA_RAM_SRV_CPY_SBB_BLK__M                                        0xFC0
-
 
 #define B_HI_RA_RAM_SRV_CPY_SAD__A                                              0x420034
 #define B_HI_RA_RAM_SRV_CPY_SAD__W                                              16
@@ -7658,12 +6715,9 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_CPY_DBB_BLK__W                                        6
 #define   B_HI_RA_RAM_SRV_CPY_DBB_BLK__M                                        0xFC0
 
-
 #define B_HI_RA_RAM_SRV_CPY_DAD__A                                              0x420034
 #define B_HI_RA_RAM_SRV_CPY_DAD__W                                              16
 #define B_HI_RA_RAM_SRV_CPY_DAD__M                                              0xFFFF
-
-
 
 #define B_HI_RA_RAM_SRV_TRM_RES__A                                              0x420031
 #define B_HI_RA_RAM_SRV_TRM_RES__W                                              2
@@ -7671,7 +6725,6 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_TRM_RES_OK                                            0x0
 #define   B_HI_RA_RAM_SRV_TRM_RES_ERROR                                         0x1
 #define   B_HI_RA_RAM_SRV_TRM_RES_ARBITRATION_FAILED                            0x3
-
 
 #define B_HI_RA_RAM_SRV_TRM_MST__A                                              0x420033
 #define B_HI_RA_RAM_SRV_TRM_MST__W                                              12
@@ -7688,7 +6741,6 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_TRM_TRM_DAT__W                                        8
 #define   B_HI_RA_RAM_SRV_TRM_TRM_DAT__M                                        0xFF
 
-
 #define B_HI_RA_RAM_SRV_TRM_DBB__A                                              0x420033
 #define B_HI_RA_RAM_SRV_TRM_DBB__W                                              12
 #define B_HI_RA_RAM_SRV_TRM_DBB__M                                              0xFFF
@@ -7699,13 +6751,9 @@ extern "C" {
 #define   B_HI_RA_RAM_SRV_TRM_DBB_BLK__W                                        6
 #define   B_HI_RA_RAM_SRV_TRM_DBB_BLK__M                                        0xFC0
 
-
 #define B_HI_RA_RAM_SRV_TRM_DAD__A                                              0x420034
 #define B_HI_RA_RAM_SRV_TRM_DAD__W                                              16
 #define B_HI_RA_RAM_SRV_TRM_DAD__M                                              0xFFFF
-
-
-
 
 #define B_HI_RA_RAM_USR_BEGIN__A                                                0x420040
 #define B_HI_RA_RAM_USR_BEGIN__W                                                16
@@ -7714,11 +6762,6 @@ extern "C" {
 #define B_HI_RA_RAM_USR_END__A                                                  0x42007F
 #define B_HI_RA_RAM_USR_END__W                                                  16
 #define B_HI_RA_RAM_USR_END__M                                                  0xFFFF
-
-
-
-
-
 
 #define B_HI_IF_RAM_TRP_BPT0__AX                                                0x430000
 #define B_HI_IF_RAM_TRP_BPT0__XSZ                                               2
@@ -7730,9 +6773,6 @@ extern "C" {
 #define B_HI_IF_RAM_TRP_STKU__W                                                 12
 #define B_HI_IF_RAM_TRP_STKU__M                                                 0xFFF
 
-
-
-
 #define B_HI_IF_RAM_USR_BEGIN__A                                                0x430200
 #define B_HI_IF_RAM_USR_BEGIN__W                                                12
 #define B_HI_IF_RAM_USR_BEGIN__M                                                0xFFF
@@ -7741,15 +6781,7 @@ extern "C" {
 #define B_HI_IF_RAM_USR_END__W                                                  12
 #define B_HI_IF_RAM_USR_END__M                                                  0xFFF
 
-
-
-
-
 #define B_SC_SID                                                                0x11
-
-
-
-
 
 #define B_SC_COMM_EXEC__A                                                       0x800000
 #define B_SC_COMM_EXEC__W                                                       3
@@ -7783,11 +6815,6 @@ extern "C" {
 #define B_SC_COMM_INT_MSK__W                                                    16
 #define B_SC_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
-
 #define B_SC_CT_REG_COMM_EXEC__A                                                0x810000
 #define B_SC_CT_REG_COMM_EXEC__W                                                3
 #define B_SC_CT_REG_COMM_EXEC__M                                                0x7
@@ -7798,7 +6825,6 @@ extern "C" {
 #define     B_SC_CT_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_SC_CT_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_SC_CT_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_SC_CT_REG_COMM_STATE__A                                               0x810001
 #define B_SC_CT_REG_COMM_STATE__W                                               10
@@ -7813,7 +6839,6 @@ extern "C" {
 #define   B_SC_CT_REG_COMM_SERVICE1_SC__W                                       1
 #define   B_SC_CT_REG_COMM_SERVICE1_SC__M                                       0x2
 
-
 #define B_SC_CT_REG_COMM_INT_STA__A                                             0x810007
 #define B_SC_CT_REG_COMM_INT_STA__W                                             1
 #define B_SC_CT_REG_COMM_INT_STA__M                                             0x1
@@ -7821,16 +6846,12 @@ extern "C" {
 #define   B_SC_CT_REG_COMM_INT_STA_REQUEST__W                                   1
 #define   B_SC_CT_REG_COMM_INT_STA_REQUEST__M                                   0x1
 
-
 #define B_SC_CT_REG_COMM_INT_MSK__A                                             0x810008
 #define B_SC_CT_REG_COMM_INT_MSK__W                                             1
 #define B_SC_CT_REG_COMM_INT_MSK__M                                             0x1
 #define   B_SC_CT_REG_COMM_INT_MSK_REQUEST__B                                   0
 #define   B_SC_CT_REG_COMM_INT_MSK_REQUEST__W                                   1
 #define   B_SC_CT_REG_COMM_INT_MSK_REQUEST__M                                   0x1
-
-
-
 
 #define B_SC_CT_REG_CTL_STK__AX                                                 0x810010
 #define B_SC_CT_REG_CTL_STK__XSZ                                                4
@@ -7844,10 +6865,6 @@ extern "C" {
 #define B_SC_CT_REG_CTL_BPT__A                                                  0x810020
 #define B_SC_CT_REG_CTL_BPT__W                                                  10
 #define B_SC_CT_REG_CTL_BPT__M                                                  0x3FF
-
-
-
-
 
 #define B_SC_RA_RAM_PARAM0__A                                                   0x820040
 #define B_SC_RA_RAM_PARAM0__W                                                   16
@@ -7933,8 +6950,6 @@ extern "C" {
 #define   B_SC_RA_RAM_LOCKTRACK_TRACK                                           0x9
 #define   B_SC_RA_RAM_LOCKTRACK_TRACK_ERROR                                     0xA
 #define   B_SC_RA_RAM_LOCKTRACK_MAX                                             0xB
-
-
 
 #define B_SC_RA_RAM_OP_PARAM__A                                                 0x820048
 #define B_SC_RA_RAM_OP_PARAM__W                                                 13
@@ -8025,8 +7040,6 @@ extern "C" {
 #define   B_SC_RA_RAM_LOCK_NODVBT__W                                            1
 #define   B_SC_RA_RAM_LOCK_NODVBT__M                                            0x8
 
-
-
 #define B_SC_RA_RAM_BE_OPT_ENA__A                                               0x82004C
 #define B_SC_RA_RAM_BE_OPT_ENA__W                                               5
 #define B_SC_RA_RAM_BE_OPT_ENA__M                                               0x1F
@@ -8098,10 +7111,6 @@ extern "C" {
 #define B_SC_RA_RAM_CE_REG_NE_FD_OFF__M                                         0xFFFF
 #define B_SC_RA_RAM_CE_REG_NE_FD_OFF__PRE                                       0xA0
 
-
-
-
-
 #define B_SC_RA_RAM_FR_2K_MAN_SH__A                                             0x820055
 #define B_SC_RA_RAM_FR_2K_MAN_SH__W                                             16
 #define B_SC_RA_RAM_FR_2K_MAN_SH__M                                             0xFFFF
@@ -8119,8 +7128,6 @@ extern "C" {
 #define B_SC_RA_RAM_FR_2K_LEAK_SH__M                                            0xFFFF
 #define B_SC_RA_RAM_FR_2K_LEAK_SH__PRE                                          0x2
 
-
-
 #define B_SC_RA_RAM_FR_8K_MAN_SH__A                                             0x820059
 #define B_SC_RA_RAM_FR_8K_MAN_SH__W                                             16
 #define B_SC_RA_RAM_FR_8K_MAN_SH__M                                             0xFFFF
@@ -8137,8 +7144,6 @@ extern "C" {
 #define B_SC_RA_RAM_FR_8K_LEAK_SH__W                                            16
 #define B_SC_RA_RAM_FR_8K_LEAK_SH__M                                            0xFFFF
 #define B_SC_RA_RAM_FR_8K_LEAK_SH__PRE                                          0x2
-
-
 
 #define B_SC_RA_RAM_CO_TD_CAL_2K__A                                             0x82005D
 #define B_SC_RA_RAM_CO_TD_CAL_2K__W                                             16
@@ -8215,10 +7220,6 @@ extern "C" {
 #define B_SC_RA_RAM_PILOT_CPD_EXP_MARG_TILT__M                                  0xFFFF
 #define B_SC_RA_RAM_PILOT_CPD_EXP_MARG_TILT__PRE                                0x0
 
-
-
-
-
 #define B_SC_RA_RAM_DIVERSITY_DELAY_2K_32__A                                    0x820098
 #define B_SC_RA_RAM_DIVERSITY_DELAY_2K_32__W                                    16
 #define B_SC_RA_RAM_DIVERSITY_DELAY_2K_32__M                                    0xFFFF
@@ -8235,8 +7236,6 @@ extern "C" {
 #define B_SC_RA_RAM_DIVERSITY_DELAY_2K_4__W                                     16
 #define B_SC_RA_RAM_DIVERSITY_DELAY_2K_4__M                                     0xFFFF
 #define B_SC_RA_RAM_DIVERSITY_DELAY_2K_4__PRE                                   0x258
-
-
 
 #define B_SC_RA_RAM_DIVERSITY_DELAY_8K_32__A                                    0x82009C
 #define B_SC_RA_RAM_DIVERSITY_DELAY_8K_32__W                                    16
@@ -8255,16 +7254,10 @@ extern "C" {
 #define B_SC_RA_RAM_DIVERSITY_DELAY_8K_4__M                                     0xFFFF
 #define B_SC_RA_RAM_DIVERSITY_DELAY_8K_4__PRE                                   0xDAC
 
-
-
 #define B_SC_RA_RAM_IR_FREQ__A                                                  0x8200D0
 #define B_SC_RA_RAM_IR_FREQ__W                                                  16
 #define B_SC_RA_RAM_IR_FREQ__M                                                  0xFFFF
 #define B_SC_RA_RAM_IR_FREQ__PRE                                                0x0
-
-
-
-
 
 #define B_SC_RA_RAM_IR_COARSE_2K_LENGTH__A                                      0x8200D1
 #define B_SC_RA_RAM_IR_COARSE_2K_LENGTH__W                                      16
@@ -8279,8 +7272,6 @@ extern "C" {
 #define B_SC_RA_RAM_IR_COARSE_2K_KAISINC__M                                     0xFFFF
 #define B_SC_RA_RAM_IR_COARSE_2K_KAISINC__PRE                                   0x100
 
-
-
 #define B_SC_RA_RAM_IR_COARSE_8K_LENGTH__A                                      0x8200D4
 #define B_SC_RA_RAM_IR_COARSE_8K_LENGTH__W                                      16
 #define B_SC_RA_RAM_IR_COARSE_8K_LENGTH__M                                      0xFFFF
@@ -8293,10 +7284,6 @@ extern "C" {
 #define B_SC_RA_RAM_IR_COARSE_8K_KAISINC__W                                     16
 #define B_SC_RA_RAM_IR_COARSE_8K_KAISINC__M                                     0xFFFF
 #define B_SC_RA_RAM_IR_COARSE_8K_KAISINC__PRE                                   0x200
-
-
-
-
 
 #define B_SC_RA_RAM_IR_FINE_2K_LENGTH__A                                        0x8200D7
 #define B_SC_RA_RAM_IR_FINE_2K_LENGTH__W                                        16
@@ -8311,8 +7298,6 @@ extern "C" {
 #define B_SC_RA_RAM_IR_FINE_2K_KAISINC__M                                       0xFFFF
 #define B_SC_RA_RAM_IR_FINE_2K_KAISINC__PRE                                     0x100
 
-
-
 #define B_SC_RA_RAM_IR_FINE_8K_LENGTH__A                                        0x8200DA
 #define B_SC_RA_RAM_IR_FINE_8K_LENGTH__W                                        16
 #define B_SC_RA_RAM_IR_FINE_8K_LENGTH__M                                        0xFFFF
@@ -8325,8 +7310,6 @@ extern "C" {
 #define B_SC_RA_RAM_IR_FINE_8K_KAISINC__W                                       16
 #define B_SC_RA_RAM_IR_FINE_8K_KAISINC__M                                       0xFFFF
 #define B_SC_RA_RAM_IR_FINE_8K_KAISINC__PRE                                     0x40
-
-
 
 #define B_SC_RA_RAM_ECHO_SHIFT_LIM__A                                           0x8200DD
 #define B_SC_RA_RAM_ECHO_SHIFT_LIM__W                                           16
@@ -8347,10 +7330,6 @@ extern "C" {
 #define   B_SC_RA_RAM_ECHO_SHIFT_TERM_TIMEOUT__W                                6
 #define   B_SC_RA_RAM_ECHO_SHIFT_TERM_TIMEOUT__M                                0xFC00
 
-
-
-
-
 #define B_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A                                      0x8200E0
 #define B_SC_RA_RAM_NI_INIT_2K_PER_LEFT__W                                      16
 #define B_SC_RA_RAM_NI_INIT_2K_PER_LEFT__M                                      0xFFFF
@@ -8363,8 +7342,6 @@ extern "C" {
 #define B_SC_RA_RAM_NI_INIT_2K_POS_LR__W                                        16
 #define B_SC_RA_RAM_NI_INIT_2K_POS_LR__M                                        0xFFFF
 #define B_SC_RA_RAM_NI_INIT_2K_POS_LR__PRE                                      0xE8
-
-
 
 #define B_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A                                      0x8200E3
 #define B_SC_RA_RAM_NI_INIT_8K_PER_LEFT__W                                      16
@@ -8379,8 +7356,6 @@ extern "C" {
 #define B_SC_RA_RAM_NI_INIT_8K_POS_LR__M                                        0xFFFF
 #define B_SC_RA_RAM_NI_INIT_8K_POS_LR__PRE                                      0xA0
 
-
-
 #define B_SC_RA_RAM_SAMPLE_RATE_COUNT__A                                        0x8200E8
 #define B_SC_RA_RAM_SAMPLE_RATE_COUNT__W                                        16
 #define B_SC_RA_RAM_SAMPLE_RATE_COUNT__M                                        0xFFFF
@@ -8389,8 +7364,6 @@ extern "C" {
 #define B_SC_RA_RAM_SAMPLE_RATE_STEP__W                                         16
 #define B_SC_RA_RAM_SAMPLE_RATE_STEP__M                                         0xFFFF
 #define B_SC_RA_RAM_SAMPLE_RATE_STEP__PRE                                       0x44C
-
-
 
 #define B_SC_RA_RAM_TPS_TIMEOUT_LIM__A                                          0x8200EA
 #define B_SC_RA_RAM_TPS_TIMEOUT_LIM__W                                          16
@@ -8446,8 +7419,6 @@ extern "C" {
 #define B_SC_RA_RAM_BOOTCOUNT__W                                                16
 #define B_SC_RA_RAM_BOOTCOUNT__M                                                0xFFFF
 
-
-
 #define B_SC_RA_RAM_LC_ABS_2K__A                                                0x8200F4
 #define B_SC_RA_RAM_LC_ABS_2K__W                                                16
 #define B_SC_RA_RAM_LC_ABS_2K__M                                                0xFFFF
@@ -8470,8 +7441,6 @@ extern "C" {
 #define B_SC_RA_RAM_STACKUNDERFLOW__A                                           0x8200FF
 #define B_SC_RA_RAM_STACKUNDERFLOW__W                                           16
 #define B_SC_RA_RAM_STACKUNDERFLOW__M                                           0xFFFF
-
-
 
 #define B_SC_RA_RAM_NF_MAXECHOTOKEN__A                                          0x820148
 #define B_SC_RA_RAM_NF_MAXECHOTOKEN__W                                          16
@@ -8500,10 +7469,6 @@ extern "C" {
 #define B_SC_RA_RAM_NF_ECHOTABLE__W                                             16
 #define B_SC_RA_RAM_NF_ECHOTABLE__M                                             0xFFFF
 
-
-
-
-
 #define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__A                                   0x8201A0
 #define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__W                                   16
 #define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_MAN__M                                   0xFFFF
@@ -8512,8 +7477,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__W                                   16
 #define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__M                                   0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_UNKNOWN_EXP__PRE                                 0x4
-
-
 
 #define B_SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__A                                      0x8201A2
 #define B_SC_RA_RAM_EQ_IS_GAIN_QPSK_MAN__W                                      16
@@ -8524,8 +7487,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__M                                      0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_QPSK_EXP__PRE                                    0x4
 
-
-
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__A                                     0x8201A4
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__W                                     16
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_MAN__M                                     0xFFFF
@@ -8534,8 +7495,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__W                                     16
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__M                                     0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_EXP__PRE                                   0x5
-
-
 
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__A                                  0x8201A6
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_MAN__W                                  16
@@ -8546,8 +7505,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__M                                  0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A2_EXP__PRE                                0x4
 
-
-
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__A                                  0x8201A8
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__W                                  16
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_MAN__M                                  0xFFFF
@@ -8556,8 +7513,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__W                                  16
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__M                                  0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_16QAM_A4_EXP__PRE                                0x5
-
-
 
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__A                                     0x8201AA
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_MAN__W                                     16
@@ -8568,8 +7523,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__M                                     0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_EXP__PRE                                   0x5
 
-
-
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__A                                  0x8201AC
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__W                                  16
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_MAN__M                                  0xFFFF
@@ -8578,8 +7531,6 @@ extern "C" {
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__W                                  16
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__M                                  0xFFFF
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A2_EXP__PRE                                0x4
-
-
 
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__A                                  0x8201AE
 #define B_SC_RA_RAM_EQ_IS_GAIN_64QAM_A4_MAN__W                                  16
@@ -8609,11 +7560,6 @@ extern "C" {
 #define   B_SC_RA_RAM_PROC_ECHO_DIVERSITY                                       0x8
 #define   B_SC_RA_RAM_PROC_MAX                                                  0x9
 
-
-
-
-
-
 #define B_SC_IF_RAM_TRP_RST__AX                                                 0x830000
 #define B_SC_IF_RAM_TRP_RST__XSZ                                                2
 #define B_SC_IF_RAM_TRP_RST__W                                                  12
@@ -8629,9 +7575,6 @@ extern "C" {
 #define B_SC_IF_RAM_TRP_STKU__W                                                 12
 #define B_SC_IF_RAM_TRP_STKU__M                                                 0xFFF
 
-
-
-
 #define B_SC_IF_RAM_VERSION_MA_MI__A                                            0x830FFE
 #define B_SC_IF_RAM_VERSION_MA_MI__W                                            12
 #define B_SC_IF_RAM_VERSION_MA_MI__M                                            0xFFF
@@ -8639,14 +7582,6 @@ extern "C" {
 #define B_SC_IF_RAM_VERSION_PATCH__A                                            0x830FFF
 #define B_SC_IF_RAM_VERSION_PATCH__W                                            12
 #define B_SC_IF_RAM_VERSION_PATCH__M                                            0xFFF
-
-
-
-
-
-
-
-
 
 #define B_FE_COMM_EXEC__A                                                       0xC00000
 #define B_FE_COMM_EXEC__W                                                       3
@@ -8680,16 +7615,7 @@ extern "C" {
 #define B_FE_COMM_INT_MSK__W                                                    16
 #define B_FE_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
 #define B_FE_AD_SID                                                             0x1
-
-
-
-
-
 
 #define B_FE_AD_REG_COMM_EXEC__A                                                0xC10000
 #define B_FE_AD_REG_COMM_EXEC__W                                                3
@@ -8701,7 +7627,6 @@ extern "C" {
 #define     B_FE_AD_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_FE_AD_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_FE_AD_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_FE_AD_REG_COMM_MB__A                                                  0xC10002
 #define B_FE_AD_REG_COMM_MB__W                                                  2
@@ -8735,7 +7660,6 @@ extern "C" {
 #define   B_FE_AD_REG_COMM_INT_STA_ADC_OVERFLOW__W                              1
 #define   B_FE_AD_REG_COMM_INT_STA_ADC_OVERFLOW__M                              0x1
 
-
 #define B_FE_AD_REG_COMM_INT_MSK__A                                             0xC10008
 #define B_FE_AD_REG_COMM_INT_MSK__W                                             2
 #define B_FE_AD_REG_COMM_INT_MSK__M                                             0x3
@@ -8743,136 +7667,107 @@ extern "C" {
 #define   B_FE_AD_REG_COMM_INT_MSK_ADC_OVERFLOW__W                              1
 #define   B_FE_AD_REG_COMM_INT_MSK_ADC_OVERFLOW__M                              0x1
 
-
 #define B_FE_AD_REG_CUR_SEL__A                                                  0xC10010
 #define B_FE_AD_REG_CUR_SEL__W                                                  2
 #define B_FE_AD_REG_CUR_SEL__M                                                  0x3
 #define   B_FE_AD_REG_CUR_SEL_INIT                                              0x2
-
 
 #define B_FE_AD_REG_OVERFLOW__A                                                 0xC10011
 #define B_FE_AD_REG_OVERFLOW__W                                                 1
 #define B_FE_AD_REG_OVERFLOW__M                                                 0x1
 #define   B_FE_AD_REG_OVERFLOW_INIT                                             0x0
 
-
 #define B_FE_AD_REG_FDB_IN__A                                                   0xC10012
 #define B_FE_AD_REG_FDB_IN__W                                                   1
 #define B_FE_AD_REG_FDB_IN__M                                                   0x1
 #define   B_FE_AD_REG_FDB_IN_INIT                                               0x0
-
 
 #define B_FE_AD_REG_PD__A                                                       0xC10013
 #define B_FE_AD_REG_PD__W                                                       1
 #define B_FE_AD_REG_PD__M                                                       0x1
 #define   B_FE_AD_REG_PD_INIT                                                   0x1
 
-
 #define B_FE_AD_REG_INVEXT__A                                                   0xC10014
 #define B_FE_AD_REG_INVEXT__W                                                   1
 #define B_FE_AD_REG_INVEXT__M                                                   0x1
 #define   B_FE_AD_REG_INVEXT_INIT                                               0x0
-
 
 #define B_FE_AD_REG_CLKNEG__A                                                   0xC10015
 #define B_FE_AD_REG_CLKNEG__W                                                   1
 #define B_FE_AD_REG_CLKNEG__M                                                   0x1
 #define   B_FE_AD_REG_CLKNEG_INIT                                               0x0
 
-
 #define B_FE_AD_REG_MON_IN_MUX__A                                               0xC10016
 #define B_FE_AD_REG_MON_IN_MUX__W                                               2
 #define B_FE_AD_REG_MON_IN_MUX__M                                               0x3
 #define   B_FE_AD_REG_MON_IN_MUX_INIT                                           0x0
-
 
 #define B_FE_AD_REG_MON_IN5__A                                                  0xC10017
 #define B_FE_AD_REG_MON_IN5__W                                                  10
 #define B_FE_AD_REG_MON_IN5__M                                                  0x3FF
 #define   B_FE_AD_REG_MON_IN5_INIT                                              0x0
 
-
 #define B_FE_AD_REG_MON_IN4__A                                                  0xC10018
 #define B_FE_AD_REG_MON_IN4__W                                                  10
 #define B_FE_AD_REG_MON_IN4__M                                                  0x3FF
 #define   B_FE_AD_REG_MON_IN4_INIT                                              0x0
-
 
 #define B_FE_AD_REG_MON_IN3__A                                                  0xC10019
 #define B_FE_AD_REG_MON_IN3__W                                                  10
 #define B_FE_AD_REG_MON_IN3__M                                                  0x3FF
 #define   B_FE_AD_REG_MON_IN3_INIT                                              0x0
 
-
 #define B_FE_AD_REG_MON_IN2__A                                                  0xC1001A
 #define B_FE_AD_REG_MON_IN2__W                                                  10
 #define B_FE_AD_REG_MON_IN2__M                                                  0x3FF
 #define   B_FE_AD_REG_MON_IN2_INIT                                              0x0
-
 
 #define B_FE_AD_REG_MON_IN1__A                                                  0xC1001B
 #define B_FE_AD_REG_MON_IN1__W                                                  10
 #define B_FE_AD_REG_MON_IN1__M                                                  0x3FF
 #define   B_FE_AD_REG_MON_IN1_INIT                                              0x0
 
-
 #define B_FE_AD_REG_MON_IN0__A                                                  0xC1001C
 #define B_FE_AD_REG_MON_IN0__W                                                  10
 #define B_FE_AD_REG_MON_IN0__M                                                  0x3FF
 #define   B_FE_AD_REG_MON_IN0_INIT                                              0x0
-
 
 #define B_FE_AD_REG_MON_IN_VAL__A                                               0xC1001D
 #define B_FE_AD_REG_MON_IN_VAL__W                                               1
 #define B_FE_AD_REG_MON_IN_VAL__M                                               0x1
 #define   B_FE_AD_REG_MON_IN_VAL_INIT                                           0x0
 
-
 #define B_FE_AD_REG_CTR_CLK_O__A                                                0xC1001E
 #define B_FE_AD_REG_CTR_CLK_O__W                                                1
 #define B_FE_AD_REG_CTR_CLK_O__M                                                0x1
 #define   B_FE_AD_REG_CTR_CLK_O_INIT                                            0x0
-
 
 #define B_FE_AD_REG_CTR_CLK_E_O__A                                              0xC1001F
 #define B_FE_AD_REG_CTR_CLK_E_O__W                                              1
 #define B_FE_AD_REG_CTR_CLK_E_O__M                                              0x1
 #define   B_FE_AD_REG_CTR_CLK_E_O_INIT                                          0x1
 
-
 #define B_FE_AD_REG_CTR_VAL_O__A                                                0xC10020
 #define B_FE_AD_REG_CTR_VAL_O__W                                                1
 #define B_FE_AD_REG_CTR_VAL_O__M                                                0x1
 #define   B_FE_AD_REG_CTR_VAL_O_INIT                                            0x0
-
 
 #define B_FE_AD_REG_CTR_VAL_E_O__A                                              0xC10021
 #define B_FE_AD_REG_CTR_VAL_E_O__W                                              1
 #define B_FE_AD_REG_CTR_VAL_E_O__M                                              0x1
 #define   B_FE_AD_REG_CTR_VAL_E_O_INIT                                          0x1
 
-
 #define B_FE_AD_REG_CTR_DATA_O__A                                               0xC10022
 #define B_FE_AD_REG_CTR_DATA_O__W                                               10
 #define B_FE_AD_REG_CTR_DATA_O__M                                               0x3FF
 #define   B_FE_AD_REG_CTR_DATA_O_INIT                                           0x0
-
 
 #define B_FE_AD_REG_CTR_DATA_E_O__A                                             0xC10023
 #define B_FE_AD_REG_CTR_DATA_E_O__W                                             10
 #define B_FE_AD_REG_CTR_DATA_E_O__M                                             0x3FF
 #define   B_FE_AD_REG_CTR_DATA_E_O_INIT                                         0x3FF
 
-
-
-
-
 #define B_FE_AG_SID                                                             0x2
-
-
-
-
-
 
 #define B_FE_AG_REG_COMM_EXEC__A                                                0xC20000
 #define B_FE_AG_REG_COMM_EXEC__W                                                3
@@ -8904,7 +7799,6 @@ extern "C" {
 #define     B_FE_AG_REG_COMM_MB_MUX_DAT_PD2                                     0x4
 #define     B_FE_AG_REG_COMM_MB_MUX_DAT_PD1                                     0x8
 #define     B_FE_AG_REG_COMM_MB_MUX_DAT_IND_PD1                                 0xC
-
 
 #define B_FE_AG_REG_COMM_SERVICE0__A                                            0xC20003
 #define B_FE_AG_REG_COMM_SERVICE0__W                                            10
@@ -8939,7 +7833,6 @@ extern "C" {
 #define   B_FE_AG_REG_COMM_INT_STA_BGC_PGA_UPD__W                               1
 #define   B_FE_AG_REG_COMM_INT_STA_BGC_PGA_UPD__M                               0x80
 
-
 #define B_FE_AG_REG_COMM_INT_MSK__A                                             0xC20008
 #define B_FE_AG_REG_COMM_INT_MSK__W                                             8
 #define B_FE_AG_REG_COMM_INT_MSK__M                                             0xFF
@@ -8964,7 +7857,6 @@ extern "C" {
 #define   B_FE_AG_REG_COMM_INT_MSK_BGC_PGA_UPD__B                               7
 #define   B_FE_AG_REG_COMM_INT_MSK_BGC_PGA_UPD__W                               1
 #define   B_FE_AG_REG_COMM_INT_MSK_BGC_PGA_UPD__M                               0x80
-
 
 #define B_FE_AG_REG_AG_MODE_LOP__A                                              0xC20010
 #define B_FE_AG_REG_AG_MODE_LOP__W                                              15
@@ -9055,7 +7947,6 @@ extern "C" {
 #define     B_FE_AG_REG_AG_MODE_LOP_MODE_E_STATIC                               0x0
 #define     B_FE_AG_REG_AG_MODE_LOP_MODE_E_DYNAMIC                              0x4000
 
-
 #define B_FE_AG_REG_AG_MODE_HIP__A                                              0xC20011
 #define B_FE_AG_REG_AG_MODE_HIP__W                                              5
 #define B_FE_AG_REG_AG_MODE_HIP__M                                              0x1F
@@ -9091,7 +7982,6 @@ extern "C" {
 #define     B_FE_AG_REG_AG_MODE_HIP_MODE_K_GRAPH1                               0x0
 #define     B_FE_AG_REG_AG_MODE_HIP_MODE_K_GRAPH2                               0x10
 
-
 #define B_FE_AG_REG_AG_PGA_MODE__A                                              0xC20012
 #define B_FE_AG_REG_AG_PGA_MODE__W                                              3
 #define B_FE_AG_REG_AG_PGA_MODE__M                                              0x7
@@ -9104,7 +7994,6 @@ extern "C" {
 #define   B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REY                               0x5
 #define   B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFN_REY                               0x6
 #define   B_FE_AG_REG_AG_PGA_MODE_PFN_PCY_AFY_REY                               0x7
-
 
 #define B_FE_AG_REG_AG_AGC_SIO__A                                               0xC20013
 #define B_FE_AG_REG_AG_AGC_SIO__W                                               2
@@ -9123,7 +8012,6 @@ extern "C" {
 #define     B_FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_OUTPUT                             0x0
 #define     B_FE_AG_REG_AG_AGC_SIO_AGC_SIO_2_INPUT                              0x2
 
-
 #define B_FE_AG_REG_AG_AGC_USR_DAT__A                                           0xC20014
 #define B_FE_AG_REG_AG_AGC_USR_DAT__W                                           2
 #define B_FE_AG_REG_AG_AGC_USR_DAT__M                                           0x3
@@ -9133,7 +8021,6 @@ extern "C" {
 #define   B_FE_AG_REG_AG_AGC_USR_DAT_USR_DAT_2__B                               1
 #define   B_FE_AG_REG_AG_AGC_USR_DAT_USR_DAT_2__W                               1
 #define   B_FE_AG_REG_AG_AGC_USR_DAT_USR_DAT_2__M                               0x2
-
 
 #define B_FE_AG_REG_AG_PWD__A                                                   0xC20015
 #define B_FE_AG_REG_AG_PWD__W                                                   5
@@ -9170,18 +8057,15 @@ extern "C" {
 #define     B_FE_AG_REG_AG_PWD_PWD_AAF_DISABLE                                  0x0
 #define     B_FE_AG_REG_AG_PWD_PWD_AAF_ENABLE                                   0x10
 
-
 #define B_FE_AG_REG_DCE_AUR_CNT__A                                              0xC20016
 #define B_FE_AG_REG_DCE_AUR_CNT__W                                              5
 #define B_FE_AG_REG_DCE_AUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_DCE_AUR_CNT_INIT                                          0x10
 
-
 #define B_FE_AG_REG_DCE_RUR_CNT__A                                              0xC20017
 #define B_FE_AG_REG_DCE_RUR_CNT__W                                              5
 #define B_FE_AG_REG_DCE_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_DCE_RUR_CNT_INIT                                          0x0
-
 
 #define B_FE_AG_REG_DCE_AVE_DAT__A                                              0xC20018
 #define B_FE_AG_REG_DCE_AVE_DAT__W                                              10
@@ -9192,18 +8076,15 @@ extern "C" {
 #define B_FE_AG_REG_DEC_AVE_WRI__M                                              0x3FF
 #define   B_FE_AG_REG_DEC_AVE_WRI_INIT                                          0x0
 
-
 #define B_FE_AG_REG_ACE_AUR_CNT__A                                              0xC2001A
 #define B_FE_AG_REG_ACE_AUR_CNT__W                                              5
 #define B_FE_AG_REG_ACE_AUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_ACE_AUR_CNT_INIT                                          0xE
 
-
 #define B_FE_AG_REG_ACE_RUR_CNT__A                                              0xC2001B
 #define B_FE_AG_REG_ACE_RUR_CNT__W                                              5
 #define B_FE_AG_REG_ACE_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_ACE_RUR_CNT_INIT                                          0x0
-
 
 #define B_FE_AG_REG_ACE_AVE_DAT__A                                              0xC2001C
 #define B_FE_AG_REG_ACE_AVE_DAT__W                                              10
@@ -9214,7 +8095,6 @@ extern "C" {
 #define B_FE_AG_REG_AEC_AVE_INC__M                                              0x3FF
 #define   B_FE_AG_REG_AEC_AVE_INC_INIT                                          0x0
 
-
 #define B_FE_AG_REG_AEC_AVE_DAT__A                                              0xC2001E
 #define B_FE_AG_REG_AEC_AVE_DAT__W                                              10
 #define B_FE_AG_REG_AEC_AVE_DAT__M                                              0x3FF
@@ -9224,12 +8104,10 @@ extern "C" {
 #define B_FE_AG_REG_AEC_CLP_LVL__M                                              0xFFFF
 #define   B_FE_AG_REG_AEC_CLP_LVL_INIT                                          0x0
 
-
 #define B_FE_AG_REG_CDR_RUR_CNT__A                                              0xC20020
 #define B_FE_AG_REG_CDR_RUR_CNT__W                                              5
 #define B_FE_AG_REG_CDR_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_CDR_RUR_CNT_INIT                                          0x10
-
 
 #define B_FE_AG_REG_CDR_CLP_DAT__A                                              0xC20021
 #define B_FE_AG_REG_CDR_CLP_DAT__W                                              16
@@ -9240,78 +8118,65 @@ extern "C" {
 #define B_FE_AG_REG_CDR_CLP_POS__M                                              0x3FF
 #define   B_FE_AG_REG_CDR_CLP_POS_INIT                                          0x16A
 
-
 #define B_FE_AG_REG_CDR_CLP_NEG__A                                              0xC20023
 #define B_FE_AG_REG_CDR_CLP_NEG__W                                              10
 #define B_FE_AG_REG_CDR_CLP_NEG__M                                              0x3FF
 #define   B_FE_AG_REG_CDR_CLP_NEG_INIT                                          0x296
-
 
 #define B_FE_AG_REG_EGC_RUR_CNT__A                                              0xC20024
 #define B_FE_AG_REG_EGC_RUR_CNT__W                                              5
 #define B_FE_AG_REG_EGC_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_EGC_RUR_CNT_INIT                                          0x0
 
-
 #define B_FE_AG_REG_EGC_SET_LVL__A                                              0xC20025
 #define B_FE_AG_REG_EGC_SET_LVL__W                                              9
 #define B_FE_AG_REG_EGC_SET_LVL__M                                              0x1FF
 #define   B_FE_AG_REG_EGC_SET_LVL_INIT                                          0x46
-
 
 #define B_FE_AG_REG_EGC_FLA_RGN__A                                              0xC20026
 #define B_FE_AG_REG_EGC_FLA_RGN__W                                              9
 #define B_FE_AG_REG_EGC_FLA_RGN__M                                              0x1FF
 #define   B_FE_AG_REG_EGC_FLA_RGN_INIT                                          0x4
 
-
 #define B_FE_AG_REG_EGC_SLO_RGN__A                                              0xC20027
 #define B_FE_AG_REG_EGC_SLO_RGN__W                                              9
 #define B_FE_AG_REG_EGC_SLO_RGN__M                                              0x1FF
 #define   B_FE_AG_REG_EGC_SLO_RGN_INIT                                          0x1F
-
 
 #define B_FE_AG_REG_EGC_JMP_PSN__A                                              0xC20028
 #define B_FE_AG_REG_EGC_JMP_PSN__W                                              4
 #define B_FE_AG_REG_EGC_JMP_PSN__M                                              0xF
 #define   B_FE_AG_REG_EGC_JMP_PSN_INIT                                          0x0
 
-
 #define B_FE_AG_REG_EGC_FLA_INC__A                                              0xC20029
 #define B_FE_AG_REG_EGC_FLA_INC__W                                              16
 #define B_FE_AG_REG_EGC_FLA_INC__M                                              0xFFFF
 #define   B_FE_AG_REG_EGC_FLA_INC_INIT                                          0x0
-
 
 #define B_FE_AG_REG_EGC_FLA_DEC__A                                              0xC2002A
 #define B_FE_AG_REG_EGC_FLA_DEC__W                                              16
 #define B_FE_AG_REG_EGC_FLA_DEC__M                                              0xFFFF
 #define   B_FE_AG_REG_EGC_FLA_DEC_INIT                                          0x0
 
-
 #define B_FE_AG_REG_EGC_SLO_INC__A                                              0xC2002B
 #define B_FE_AG_REG_EGC_SLO_INC__W                                              16
 #define B_FE_AG_REG_EGC_SLO_INC__M                                              0xFFFF
 #define   B_FE_AG_REG_EGC_SLO_INC_INIT                                          0x3
-
 
 #define B_FE_AG_REG_EGC_SLO_DEC__A                                              0xC2002C
 #define B_FE_AG_REG_EGC_SLO_DEC__W                                              16
 #define B_FE_AG_REG_EGC_SLO_DEC__M                                              0xFFFF
 #define   B_FE_AG_REG_EGC_SLO_DEC_INIT                                          0x3
 
-
 #define B_FE_AG_REG_EGC_FAS_INC__A                                              0xC2002D
 #define B_FE_AG_REG_EGC_FAS_INC__W                                              16
 #define B_FE_AG_REG_EGC_FAS_INC__M                                              0xFFFF
 #define   B_FE_AG_REG_EGC_FAS_INC_INIT                                          0xE
 
-
 #define B_FE_AG_REG_EGC_FAS_DEC__A                                              0xC2002E
 #define B_FE_AG_REG_EGC_FAS_DEC__W                                              16
 #define B_FE_AG_REG_EGC_FAS_DEC__M                                              0xFFFF
 #define   B_FE_AG_REG_EGC_FAS_DEC_INIT                                          0xE
-
 
 #define B_FE_AG_REG_EGC_MAP_DAT__A                                              0xC2002F
 #define B_FE_AG_REG_EGC_MAP_DAT__W                                              16
@@ -9322,30 +8187,25 @@ extern "C" {
 #define B_FE_AG_REG_PM1_AGC_WRI__M                                              0x7FF
 #define   B_FE_AG_REG_PM1_AGC_WRI_INIT                                          0x0
 
-
 #define B_FE_AG_REG_GC1_AGC_RIC__A                                              0xC20031
 #define B_FE_AG_REG_GC1_AGC_RIC__W                                              16
 #define B_FE_AG_REG_GC1_AGC_RIC__M                                              0xFFFF
 #define   B_FE_AG_REG_GC1_AGC_RIC_INIT                                          0x64
-
 
 #define B_FE_AG_REG_GC1_AGC_OFF__A                                              0xC20032
 #define B_FE_AG_REG_GC1_AGC_OFF__W                                              16
 #define B_FE_AG_REG_GC1_AGC_OFF__M                                              0xFFFF
 #define   B_FE_AG_REG_GC1_AGC_OFF_INIT                                          0xFEC8
 
-
 #define B_FE_AG_REG_GC1_AGC_MAX__A                                              0xC20033
 #define B_FE_AG_REG_GC1_AGC_MAX__W                                              10
 #define B_FE_AG_REG_GC1_AGC_MAX__M                                              0x3FF
 #define   B_FE_AG_REG_GC1_AGC_MAX_INIT                                          0x1FF
 
-
 #define B_FE_AG_REG_GC1_AGC_MIN__A                                              0xC20034
 #define B_FE_AG_REG_GC1_AGC_MIN__W                                              10
 #define B_FE_AG_REG_GC1_AGC_MIN__M                                              0x3FF
 #define   B_FE_AG_REG_GC1_AGC_MIN_INIT                                          0x200
-
 
 #define B_FE_AG_REG_GC1_AGC_DAT__A                                              0xC20035
 #define B_FE_AG_REG_GC1_AGC_DAT__W                                              10
@@ -9356,30 +8216,25 @@ extern "C" {
 #define B_FE_AG_REG_PM2_AGC_WRI__M                                              0x7FF
 #define   B_FE_AG_REG_PM2_AGC_WRI_INIT                                          0x0
 
-
 #define B_FE_AG_REG_GC2_AGC_RIC__A                                              0xC20037
 #define B_FE_AG_REG_GC2_AGC_RIC__W                                              16
 #define B_FE_AG_REG_GC2_AGC_RIC__M                                              0xFFFF
 #define   B_FE_AG_REG_GC2_AGC_RIC_INIT                                          0x64
-
 
 #define B_FE_AG_REG_GC2_AGC_OFF__A                                              0xC20038
 #define B_FE_AG_REG_GC2_AGC_OFF__W                                              16
 #define B_FE_AG_REG_GC2_AGC_OFF__M                                              0xFFFF
 #define   B_FE_AG_REG_GC2_AGC_OFF_INIT                                          0xFEC8
 
-
 #define B_FE_AG_REG_GC2_AGC_MAX__A                                              0xC20039
 #define B_FE_AG_REG_GC2_AGC_MAX__W                                              10
 #define B_FE_AG_REG_GC2_AGC_MAX__M                                              0x3FF
 #define   B_FE_AG_REG_GC2_AGC_MAX_INIT                                          0x1FF
 
-
 #define B_FE_AG_REG_GC2_AGC_MIN__A                                              0xC2003A
 #define B_FE_AG_REG_GC2_AGC_MIN__W                                              10
 #define B_FE_AG_REG_GC2_AGC_MIN__M                                              0x3FF
 #define   B_FE_AG_REG_GC2_AGC_MIN_INIT                                          0x200
-
 
 #define B_FE_AG_REG_GC2_AGC_DAT__A                                              0xC2003B
 #define B_FE_AG_REG_GC2_AGC_DAT__W                                              10
@@ -9390,42 +8245,35 @@ extern "C" {
 #define B_FE_AG_REG_IND_WIN__M                                                  0x1F
 #define   B_FE_AG_REG_IND_WIN_INIT                                              0x0
 
-
 #define B_FE_AG_REG_IND_THD_LOL__A                                              0xC2003D
 #define B_FE_AG_REG_IND_THD_LOL__W                                              6
 #define B_FE_AG_REG_IND_THD_LOL__M                                              0x3F
 #define   B_FE_AG_REG_IND_THD_LOL_INIT                                          0x5
-
 
 #define B_FE_AG_REG_IND_THD_HIL__A                                              0xC2003E
 #define B_FE_AG_REG_IND_THD_HIL__W                                              6
 #define B_FE_AG_REG_IND_THD_HIL__M                                              0x3F
 #define   B_FE_AG_REG_IND_THD_HIL_INIT                                          0xF
 
-
 #define B_FE_AG_REG_IND_DEL__A                                                  0xC2003F
 #define B_FE_AG_REG_IND_DEL__W                                                  7
 #define B_FE_AG_REG_IND_DEL__M                                                  0x7F
 #define   B_FE_AG_REG_IND_DEL_INIT                                              0x32
-
 
 #define B_FE_AG_REG_IND_PD1_WRI__A                                              0xC20040
 #define B_FE_AG_REG_IND_PD1_WRI__W                                              6
 #define B_FE_AG_REG_IND_PD1_WRI__M                                              0x3F
 #define   B_FE_AG_REG_IND_PD1_WRI_INIT                                          0x1E
 
-
 #define B_FE_AG_REG_PDA_AUR_CNT__A                                              0xC20041
 #define B_FE_AG_REG_PDA_AUR_CNT__W                                              5
 #define B_FE_AG_REG_PDA_AUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_PDA_AUR_CNT_INIT                                          0x10
 
-
 #define B_FE_AG_REG_PDA_RUR_CNT__A                                              0xC20042
 #define B_FE_AG_REG_PDA_RUR_CNT__W                                              5
 #define B_FE_AG_REG_PDA_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_PDA_RUR_CNT_INIT                                          0x0
-
 
 #define B_FE_AG_REG_PDA_AVE_DAT__A                                              0xC20043
 #define B_FE_AG_REG_PDA_AVE_DAT__W                                              6
@@ -9436,42 +8284,35 @@ extern "C" {
 #define B_FE_AG_REG_PDC_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_PDC_RUR_CNT_INIT                                          0x0
 
-
 #define B_FE_AG_REG_PDC_SET_LVL__A                                              0xC20045
 #define B_FE_AG_REG_PDC_SET_LVL__W                                              6
 #define B_FE_AG_REG_PDC_SET_LVL__M                                              0x3F
 #define   B_FE_AG_REG_PDC_SET_LVL_INIT                                          0x10
-
 
 #define B_FE_AG_REG_PDC_FLA_RGN__A                                              0xC20046
 #define B_FE_AG_REG_PDC_FLA_RGN__W                                              6
 #define B_FE_AG_REG_PDC_FLA_RGN__M                                              0x3F
 #define   B_FE_AG_REG_PDC_FLA_RGN_INIT                                          0x0
 
-
 #define B_FE_AG_REG_PDC_JMP_PSN__A                                              0xC20047
 #define B_FE_AG_REG_PDC_JMP_PSN__W                                              3
 #define B_FE_AG_REG_PDC_JMP_PSN__M                                              0x7
 #define   B_FE_AG_REG_PDC_JMP_PSN_INIT                                          0x0
-
 
 #define B_FE_AG_REG_PDC_FLA_STP__A                                              0xC20048
 #define B_FE_AG_REG_PDC_FLA_STP__W                                              16
 #define B_FE_AG_REG_PDC_FLA_STP__M                                              0xFFFF
 #define   B_FE_AG_REG_PDC_FLA_STP_INIT                                          0x0
 
-
 #define B_FE_AG_REG_PDC_SLO_STP__A                                              0xC20049
 #define B_FE_AG_REG_PDC_SLO_STP__W                                              16
 #define B_FE_AG_REG_PDC_SLO_STP__M                                              0xFFFF
 #define   B_FE_AG_REG_PDC_SLO_STP_INIT                                          0x1
 
-
 #define B_FE_AG_REG_PDC_PD2_WRI__A                                              0xC2004A
 #define B_FE_AG_REG_PDC_PD2_WRI__W                                              6
 #define B_FE_AG_REG_PDC_PD2_WRI__M                                              0x3F
 #define   B_FE_AG_REG_PDC_PD2_WRI_INIT                                          0x1F
-
 
 #define B_FE_AG_REG_PDC_MAP_DAT__A                                              0xC2004B
 #define B_FE_AG_REG_PDC_MAP_DAT__W                                              6
@@ -9482,18 +8323,15 @@ extern "C" {
 #define B_FE_AG_REG_PDC_MAX__M                                                  0x3F
 #define   B_FE_AG_REG_PDC_MAX_INIT                                              0x2
 
-
 #define B_FE_AG_REG_TGA_AUR_CNT__A                                              0xC2004D
 #define B_FE_AG_REG_TGA_AUR_CNT__W                                              5
 #define B_FE_AG_REG_TGA_AUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_TGA_AUR_CNT_INIT                                          0x10
 
-
 #define B_FE_AG_REG_TGA_RUR_CNT__A                                              0xC2004E
 #define B_FE_AG_REG_TGA_RUR_CNT__W                                              5
 #define B_FE_AG_REG_TGA_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_TGA_RUR_CNT_INIT                                          0x0
-
 
 #define B_FE_AG_REG_TGA_AVE_DAT__A                                              0xC2004F
 #define B_FE_AG_REG_TGA_AVE_DAT__W                                              6
@@ -9504,36 +8342,30 @@ extern "C" {
 #define B_FE_AG_REG_TGC_RUR_CNT__M                                              0x1F
 #define   B_FE_AG_REG_TGC_RUR_CNT_INIT                                          0x0
 
-
 #define B_FE_AG_REG_TGC_SET_LVL__A                                              0xC20051
 #define B_FE_AG_REG_TGC_SET_LVL__W                                              6
 #define B_FE_AG_REG_TGC_SET_LVL__M                                              0x3F
 #define   B_FE_AG_REG_TGC_SET_LVL_INIT                                          0x18
-
 
 #define B_FE_AG_REG_TGC_FLA_RGN__A                                              0xC20052
 #define B_FE_AG_REG_TGC_FLA_RGN__W                                              6
 #define B_FE_AG_REG_TGC_FLA_RGN__M                                              0x3F
 #define   B_FE_AG_REG_TGC_FLA_RGN_INIT                                          0x0
 
-
 #define B_FE_AG_REG_TGC_JMP_PSN__A                                              0xC20053
 #define B_FE_AG_REG_TGC_JMP_PSN__W                                              4
 #define B_FE_AG_REG_TGC_JMP_PSN__M                                              0xF
 #define   B_FE_AG_REG_TGC_JMP_PSN_INIT                                          0x0
-
 
 #define B_FE_AG_REG_TGC_FLA_STP__A                                              0xC20054
 #define B_FE_AG_REG_TGC_FLA_STP__W                                              16
 #define B_FE_AG_REG_TGC_FLA_STP__M                                              0xFFFF
 #define   B_FE_AG_REG_TGC_FLA_STP_INIT                                          0x0
 
-
 #define B_FE_AG_REG_TGC_SLO_STP__A                                              0xC20055
 #define B_FE_AG_REG_TGC_SLO_STP__W                                              16
 #define B_FE_AG_REG_TGC_SLO_STP__M                                              0xFFFF
 #define   B_FE_AG_REG_TGC_SLO_STP_INIT                                          0x1
-
 
 #define B_FE_AG_REG_TGC_MAP_DAT__A                                              0xC20056
 #define B_FE_AG_REG_TGC_MAP_DAT__W                                              10
@@ -9544,30 +8376,25 @@ extern "C" {
 #define B_FE_AG_REG_FGM_WRI__M                                                  0x3FF
 #define   B_FE_AG_REG_FGM_WRI_INIT                                              0x80
 
-
 #define B_FE_AG_REG_BGC_FGC_WRI__A                                              0xC20068
 #define B_FE_AG_REG_BGC_FGC_WRI__W                                              4
 #define B_FE_AG_REG_BGC_FGC_WRI__M                                              0xF
 #define   B_FE_AG_REG_BGC_FGC_WRI_INIT                                          0x0
-
 
 #define B_FE_AG_REG_BGC_CGC_WRI__A                                              0xC20069
 #define B_FE_AG_REG_BGC_CGC_WRI__W                                              2
 #define B_FE_AG_REG_BGC_CGC_WRI__M                                              0x3
 #define   B_FE_AG_REG_BGC_CGC_WRI_INIT                                          0x0
 
-
 #define B_FE_AG_REG_BGC_THD_LVL__A                                              0xC2006B
 #define B_FE_AG_REG_BGC_THD_LVL__W                                              4
 #define B_FE_AG_REG_BGC_THD_LVL__M                                              0xF
 #define   B_FE_AG_REG_BGC_THD_LVL_INIT                                          0xF
 
-
 #define B_FE_AG_REG_BGC_THD_INC__A                                              0xC2006C
 #define B_FE_AG_REG_BGC_THD_INC__W                                              4
 #define B_FE_AG_REG_BGC_THD_INC__M                                              0xF
 #define   B_FE_AG_REG_BGC_THD_INC_INIT                                          0x8
-
 
 #define B_FE_AG_REG_BGC_DAT__A                                                  0xC2006D
 #define B_FE_AG_REG_BGC_DAT__W                                                  4
@@ -9577,7 +8404,6 @@ extern "C" {
 #define B_FE_AG_REG_IND_PD1_COM__W                                              6
 #define B_FE_AG_REG_IND_PD1_COM__M                                              0x3F
 #define   B_FE_AG_REG_IND_PD1_COM_INIT                                          0x7
-
 
 #define B_FE_AG_REG_AG_AGC_BUF__A                                               0xC2006F
 #define B_FE_AG_REG_AG_AGC_BUF__W                                               2
@@ -9596,7 +8422,6 @@ extern "C" {
 #define     B_FE_AG_REG_AG_AGC_BUF_AGC_BUF_2_SLOW                               0x0
 #define     B_FE_AG_REG_AG_AGC_BUF_AGC_BUF_2_FAST                               0x2
 
-
 #define B_FE_AG_REG_PMX_SPE__A                                                  0xC20070
 #define B_FE_AG_REG_PMX_SPE__W                                                  3
 #define B_FE_AG_REG_PMX_SPE__M                                                  0x7
@@ -9610,16 +8435,7 @@ extern "C" {
 #define   B_FE_AG_REG_PMX_SPE_48MHZ_DIVIDE_BY_7                                 0x6
 #define   B_FE_AG_REG_PMX_SPE_48MHZ_DIVIDE_BY_8                                 0x7
 
-
-
-
-
 #define B_FE_FS_SID                                                             0x3
-
-
-
-
-
 
 #define B_FE_FS_REG_COMM_EXEC__A                                                0xC30000
 #define B_FE_FS_REG_COMM_EXEC__W                                                3
@@ -9655,7 +8471,6 @@ extern "C" {
 #define     B_FE_FS_REG_COMM_MB_MUX_REAL                                        0x0
 #define     B_FE_FS_REG_COMM_MB_MUX_IMAG                                        0x4
 
-
 #define B_FE_FS_REG_COMM_SERVICE0__A                                            0xC30003
 #define B_FE_FS_REG_COMM_SERVICE0__W                                            10
 #define B_FE_FS_REG_COMM_SERVICE0__M                                            0x3FF
@@ -9677,34 +8492,22 @@ extern "C" {
 #define B_FE_FS_REG_ADD_INC_LOP__M                                              0xFFFF
 #define   B_FE_FS_REG_ADD_INC_LOP_INIT                                          0x0
 
-
 #define B_FE_FS_REG_ADD_INC_HIP__A                                              0xC30011
 #define B_FE_FS_REG_ADD_INC_HIP__W                                              12
 #define B_FE_FS_REG_ADD_INC_HIP__M                                              0xFFF
 #define   B_FE_FS_REG_ADD_INC_HIP_INIT                                          0xC00
-
 
 #define B_FE_FS_REG_ADD_OFF__A                                                  0xC30012
 #define B_FE_FS_REG_ADD_OFF__W                                                  12
 #define B_FE_FS_REG_ADD_OFF__M                                                  0xFFF
 #define   B_FE_FS_REG_ADD_OFF_INIT                                              0x0
 
-
 #define B_FE_FS_REG_ADD_OFF_VAL__A                                              0xC30013
 #define B_FE_FS_REG_ADD_OFF_VAL__W                                              1
 #define B_FE_FS_REG_ADD_OFF_VAL__M                                              0x1
 #define   B_FE_FS_REG_ADD_OFF_VAL_INIT                                          0x0
 
-
-
-
-
 #define B_FE_FD_SID                                                             0x4
-
-
-
-
-
 
 #define B_FE_FD_REG_COMM_EXEC__A                                                0xC40000
 #define B_FE_FD_REG_COMM_EXEC__W                                                3
@@ -9716,7 +8519,6 @@ extern "C" {
 #define     B_FE_FD_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_FE_FD_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_FE_FD_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_FE_FD_REG_COMM_MB__A                                                  0xC40002
 #define B_FE_FD_REG_COMM_MB__W                                                  3
@@ -9746,14 +8548,12 @@ extern "C" {
 #define   B_FE_FD_REG_COMM_INT_STA_NEW_MEAS__W                                  1
 #define   B_FE_FD_REG_COMM_INT_STA_NEW_MEAS__M                                  0x1
 
-
 #define B_FE_FD_REG_COMM_INT_MSK__A                                             0xC40008
 #define B_FE_FD_REG_COMM_INT_MSK__W                                             1
 #define B_FE_FD_REG_COMM_INT_MSK__M                                             0x1
 #define   B_FE_FD_REG_COMM_INT_MSK_NEW_MEAS__B                                  0
 #define   B_FE_FD_REG_COMM_INT_MSK_NEW_MEAS__W                                  1
 #define   B_FE_FD_REG_COMM_INT_MSK_NEW_MEAS__M                                  0x1
-
 
 #define B_FE_FD_REG_SCL__A                                                      0xC40010
 #define B_FE_FD_REG_SCL__W                                                      6
@@ -9779,16 +8579,7 @@ extern "C" {
 #define B_FE_FD_REG_MAX__W                                                      16
 #define B_FE_FD_REG_MAX__M                                                      0xFFFF
 
-
-
-
-
 #define B_FE_IF_SID                                                             0x5
-
-
-
-
-
 
 #define B_FE_IF_REG_COMM_EXEC__A                                                0xC50000
 #define B_FE_IF_REG_COMM_EXEC__W                                                3
@@ -9800,7 +8591,6 @@ extern "C" {
 #define     B_FE_IF_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_FE_IF_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_FE_IF_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_FE_IF_REG_COMM_MB__A                                                  0xC50002
 #define B_FE_IF_REG_COMM_MB__W                                                  3
@@ -9816,28 +8606,17 @@ extern "C" {
 #define     B_FE_IF_REG_COMM_MB_OBS_OFF                                         0x0
 #define     B_FE_IF_REG_COMM_MB_OBS_ON                                          0x2
 
-
 #define B_FE_IF_REG_INCR0__A                                                    0xC50010
 #define B_FE_IF_REG_INCR0__W                                                    16
 #define B_FE_IF_REG_INCR0__M                                                    0xFFFF
 #define   B_FE_IF_REG_INCR0_INIT                                                0x0
-
 
 #define B_FE_IF_REG_INCR1__A                                                    0xC50011
 #define B_FE_IF_REG_INCR1__W                                                    8
 #define B_FE_IF_REG_INCR1__M                                                    0xFF
 #define   B_FE_IF_REG_INCR1_INIT                                                0x28
 
-
-
-
-
 #define B_FE_CF_SID                                                             0x6
-
-
-
-
-
 
 #define B_FE_CF_REG_COMM_EXEC__A                                                0xC60000
 #define B_FE_CF_REG_COMM_EXEC__W                                                3
@@ -9849,7 +8628,6 @@ extern "C" {
 #define     B_FE_CF_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_FE_CF_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_FE_CF_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_FE_CF_REG_COMM_MB__A                                                  0xC60002
 #define B_FE_CF_REG_COMM_MB__W                                                  3
@@ -9879,14 +8657,12 @@ extern "C" {
 #define   B_FE_CF_REG_COMM_INT_STA_NEW_MEAS__W                                  1
 #define   B_FE_CF_REG_COMM_INT_STA_NEW_MEAS__M                                  0x1
 
-
 #define B_FE_CF_REG_COMM_INT_MSK__A                                             0xC60008
 #define B_FE_CF_REG_COMM_INT_MSK__W                                             2
 #define B_FE_CF_REG_COMM_INT_MSK__M                                             0x3
 #define   B_FE_CF_REG_COMM_INT_MSK_NEW_MEAS__B                                  0
 #define   B_FE_CF_REG_COMM_INT_MSK_NEW_MEAS__W                                  1
 #define   B_FE_CF_REG_COMM_INT_MSK_NEW_MEAS__M                                  0x1
-
 
 #define B_FE_CF_REG_SCL__A                                                      0xC60010
 #define B_FE_CF_REG_SCL__W                                                      9
@@ -9912,16 +8688,7 @@ extern "C" {
 #define B_FE_CF_REG_MAX__W                                                      16
 #define B_FE_CF_REG_MAX__M                                                      0xFFFF
 
-
-
-
-
 #define B_FE_CU_SID                                                             0x7
-
-
-
-
-
 
 #define B_FE_CU_REG_COMM_EXEC__A                                                0xC70000
 #define B_FE_CU_REG_COMM_EXEC__W                                                3
@@ -9957,7 +8724,6 @@ extern "C" {
 #define     B_FE_CU_REG_COMM_MB_MUX_REAL                                        0x0
 #define     B_FE_CU_REG_COMM_MB_MUX_IMAG                                        0x4
 
-
 #define B_FE_CU_REG_COMM_SERVICE0__A                                            0xC70003
 #define B_FE_CU_REG_COMM_SERVICE0__W                                            10
 #define B_FE_CU_REG_COMM_SERVICE0__M                                            0x3FF
@@ -9990,7 +8756,6 @@ extern "C" {
 #define   B_FE_CU_REG_COMM_INT_STA_NF_READY__W                                  1
 #define   B_FE_CU_REG_COMM_INT_STA_NF_READY__M                                  0x8
 
-
 #define B_FE_CU_REG_COMM_INT_MSK__A                                             0xC70008
 #define B_FE_CU_REG_COMM_INT_MSK__W                                             4
 #define B_FE_CU_REG_COMM_INT_MSK__M                                             0xF
@@ -10006,7 +8771,6 @@ extern "C" {
 #define   B_FE_CU_REG_COMM_INT_MSK_NF_READY__B                                  3
 #define   B_FE_CU_REG_COMM_INT_MSK_NF_READY__W                                  1
 #define   B_FE_CU_REG_COMM_INT_MSK_NF_READY__M                                  0x8
-
 
 #define B_FE_CU_REG_MODE__A                                                     0xC70010
 #define B_FE_CU_REG_MODE__W                                                     5
@@ -10043,18 +8807,15 @@ extern "C" {
 #define     B_FE_CU_REG_MODE_FES_SEL_RST                                        0x0
 #define     B_FE_CU_REG_MODE_FES_SEL_UPD                                        0x10
 
-
 #define B_FE_CU_REG_FRM_CNT_RST__A                                              0xC70011
 #define B_FE_CU_REG_FRM_CNT_RST__W                                              15
 #define B_FE_CU_REG_FRM_CNT_RST__M                                              0x7FFF
 #define   B_FE_CU_REG_FRM_CNT_RST_INIT                                          0x20FF
 
-
 #define B_FE_CU_REG_FRM_CNT_STR__A                                              0xC70012
 #define B_FE_CU_REG_FRM_CNT_STR__W                                              15
 #define B_FE_CU_REG_FRM_CNT_STR__M                                              0x7FFF
 #define   B_FE_CU_REG_FRM_CNT_STR_INIT                                          0x1E
-
 
 #define B_FE_CU_REG_FRM_SMP_CNT__A                                              0xC70013
 #define B_FE_CU_REG_FRM_SMP_CNT__W                                              15
@@ -10077,18 +8838,15 @@ extern "C" {
 #define B_FE_CU_REG_BUF_NFC_DEL__M                                              0x3FFF
 #define   B_FE_CU_REG_BUF_NFC_DEL_INIT                                          0x0
 
-
 #define B_FE_CU_REG_CTR_NFC_ICR__A                                              0xC70020
 #define B_FE_CU_REG_CTR_NFC_ICR__W                                              5
 #define B_FE_CU_REG_CTR_NFC_ICR__M                                              0x1F
 #define   B_FE_CU_REG_CTR_NFC_ICR_INIT                                          0x0
 
-
 #define B_FE_CU_REG_CTR_NFC_OCR__A                                              0xC70021
 #define B_FE_CU_REG_CTR_NFC_OCR__W                                              15
 #define B_FE_CU_REG_CTR_NFC_OCR__M                                              0x7FFF
 #define   B_FE_CU_REG_CTR_NFC_OCR_INIT                                          0x61A8
-
 
 #define B_FE_CU_REG_CTR_NFC_CNT__A                                              0xC70022
 #define B_FE_CU_REG_CTR_NFC_CNT__W                                              15
@@ -10101,7 +8859,6 @@ extern "C" {
 #define   B_FE_CU_REG_CTR_NFC_STS_ACC_MAX_IMA                                   0x1
 #define   B_FE_CU_REG_CTR_NFC_STS_ACC_MAX_REA                                   0x2
 #define   B_FE_CU_REG_CTR_NFC_STS_CNT_MAX                                       0x4
-
 
 #define B_FE_CU_REG_DIV_NFC_REA__A                                              0xC70024
 #define B_FE_CU_REG_DIV_NFC_REA__W                                              14
@@ -10116,7 +8873,6 @@ extern "C" {
 #define B_FE_CU_REG_FRM_CNT_UPD__M                                              0x7FFF
 #define   B_FE_CU_REG_FRM_CNT_UPD_INIT                                          0x20FF
 
-
 #define B_FE_CU_REG_DIV_NFC_CLP__A                                              0xC70027
 #define B_FE_CU_REG_DIV_NFC_CLP__W                                              2
 #define B_FE_CU_REG_DIV_NFC_CLP__M                                              0x3
@@ -10126,23 +8882,11 @@ extern "C" {
 #define   B_FE_CU_REG_DIV_NFC_CLP_CLIP_S13                                      0x2
 #define   B_FE_CU_REG_DIV_NFC_CLP_CLIP_S14                                      0x3
 
-
-
 #define B_FE_CU_BUF_RAM__A                                                      0xC80000
-
-
 
 #define B_FE_CU_CMP_RAM__A                                                      0xC90000
 
-
-
-
-
 #define B_FT_SID                                                                0x8
-
-
-
-
 
 #define B_FT_COMM_EXEC__A                                                       0x1000000
 #define B_FT_COMM_EXEC__W                                                       3
@@ -10176,11 +8920,6 @@ extern "C" {
 #define B_FT_COMM_INT_MSK__W                                                    16
 #define B_FT_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
-
 #define B_FT_REG_COMM_EXEC__A                                                   0x1010000
 #define B_FT_REG_COMM_EXEC__W                                                   3
 #define B_FT_REG_COMM_EXEC__M                                                   0x7
@@ -10191,7 +8930,6 @@ extern "C" {
 #define     B_FT_REG_COMM_EXEC_CTL_ACTIVE                                       0x1
 #define     B_FT_REG_COMM_EXEC_CTL_HOLD                                         0x2
 #define     B_FT_REG_COMM_EXEC_CTL_STEP                                         0x3
-
 
 #define B_FT_REG_COMM_MB__A                                                     0x1010002
 #define B_FT_REG_COMM_MB__W                                                     3
@@ -10207,7 +8945,6 @@ extern "C" {
 #define     B_FT_REG_COMM_MB_OBS_OFF                                            0x0
 #define     B_FT_REG_COMM_MB_OBS_ON                                             0x2
 
-
 #define B_FT_REG_MODE_2K__A                                                     0x1010010
 #define B_FT_REG_MODE_2K__W                                                     1
 #define B_FT_REG_MODE_2K__M                                                     0x1
@@ -10215,49 +8952,26 @@ extern "C" {
 #define   B_FT_REG_MODE_2K_MODE_2K                                              0x1
 #define   B_FT_REG_MODE_2K_INIT                                                 0x0
 
-
 #define B_FT_REG_NORM_OFF__A                                                    0x1010016
 #define B_FT_REG_NORM_OFF__W                                                    4
 #define B_FT_REG_NORM_OFF__M                                                    0xF
 #define   B_FT_REG_NORM_OFF_INIT                                                0x2
 
-
-
 #define B_FT_ST1_RAM__A                                                         0x1020000
-
-
 
 #define B_FT_ST2_RAM__A                                                         0x1030000
 
-
-
 #define B_FT_ST3_RAM__A                                                         0x1040000
-
-
 
 #define B_FT_ST5_RAM__A                                                         0x1050000
 
-
-
 #define B_FT_ST6_RAM__A                                                         0x1060000
-
-
 
 #define B_FT_ST8_RAM__A                                                         0x1070000
 
-
-
 #define B_FT_ST9_RAM__A                                                         0x1080000
 
-
-
-
-
 #define B_CP_SID                                                                0x9
-
-
-
-
 
 #define B_CP_COMM_EXEC__A                                                       0x1400000
 #define B_CP_COMM_EXEC__W                                                       3
@@ -10291,11 +9005,6 @@ extern "C" {
 #define B_CP_COMM_INT_MSK__W                                                    16
 #define B_CP_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
-
 #define B_CP_REG_COMM_EXEC__A                                                   0x1410000
 #define B_CP_REG_COMM_EXEC__W                                                   3
 #define B_CP_REG_COMM_EXEC__M                                                   0x7
@@ -10306,7 +9015,6 @@ extern "C" {
 #define     B_CP_REG_COMM_EXEC_CTL_ACTIVE                                       0x1
 #define     B_CP_REG_COMM_EXEC_CTL_HOLD                                         0x2
 #define     B_CP_REG_COMM_EXEC_CTL_STEP                                         0x3
-
 
 #define B_CP_REG_COMM_MB__A                                                     0x1410002
 #define B_CP_REG_COMM_MB__W                                                     3
@@ -10340,7 +9048,6 @@ extern "C" {
 #define   B_CP_REG_COMM_INT_STA_NEW_MEAS__W                                     1
 #define   B_CP_REG_COMM_INT_STA_NEW_MEAS__M                                     0x1
 
-
 #define B_CP_REG_COMM_INT_MSK__A                                                0x1410008
 #define B_CP_REG_COMM_INT_MSK__W                                                2
 #define B_CP_REG_COMM_INT_MSK__M                                                0x3
@@ -10348,18 +9055,15 @@ extern "C" {
 #define   B_CP_REG_COMM_INT_MSK_NEW_MEAS__W                                     1
 #define   B_CP_REG_COMM_INT_MSK_NEW_MEAS__M                                     0x1
 
-
 #define B_CP_REG_MODE_2K__A                                                     0x1410010
 #define B_CP_REG_MODE_2K__W                                                     1
 #define B_CP_REG_MODE_2K__M                                                     0x1
 #define   B_CP_REG_MODE_2K_INIT                                                 0x0
 
-
 #define B_CP_REG_INTERVAL__A                                                    0x1410011
 #define B_CP_REG_INTERVAL__W                                                    4
 #define B_CP_REG_INTERVAL__M                                                    0xF
 #define   B_CP_REG_INTERVAL_INIT                                                0x5
-
 
 #define B_CP_REG_DETECT_ENA__A                                                  0x1410012
 #define B_CP_REG_DETECT_ENA__W                                                  2
@@ -10373,7 +9077,6 @@ extern "C" {
 #define   B_CP_REG_DETECT_ENA_CONTINUOUS__W                                     1
 #define   B_CP_REG_DETECT_ENA_CONTINUOUS__M                                     0x2
 #define     B_CP_REG_DETECT_ENA_INIT                                            0x0
-
 
 #define B_CP_REG_BR_SMB_NR__A                                                   0x1410021
 #define B_CP_REG_BR_SMB_NR__W                                                   4
@@ -10392,78 +9095,65 @@ extern "C" {
 #define   B_CP_REG_BR_SMB_NR_OFFSET__M                                          0x8
 #define     B_CP_REG_BR_SMB_NR_INIT                                             0x0
 
-
 #define B_CP_REG_BR_CP_SMB_NR__A                                                0x1410022
 #define B_CP_REG_BR_CP_SMB_NR__W                                                2
 #define B_CP_REG_BR_CP_SMB_NR__M                                                0x3
 #define   B_CP_REG_BR_CP_SMB_NR_INIT                                            0x0
-
 
 #define B_CP_REG_BR_SPL_OFFSET__A                                               0x1410023
 #define B_CP_REG_BR_SPL_OFFSET__W                                               3
 #define B_CP_REG_BR_SPL_OFFSET__M                                               0x7
 #define   B_CP_REG_BR_SPL_OFFSET_INIT                                           0x0
 
-
 #define B_CP_REG_BR_STR_DEL__A                                                  0x1410024
 #define B_CP_REG_BR_STR_DEL__W                                                  10
 #define B_CP_REG_BR_STR_DEL__M                                                  0x3FF
 #define   B_CP_REG_BR_STR_DEL_INIT                                              0xA
-
 
 #define B_CP_REG_BR_EXP_ADJ__A                                                  0x1410025
 #define B_CP_REG_BR_EXP_ADJ__W                                                  5
 #define B_CP_REG_BR_EXP_ADJ__M                                                  0x1F
 #define   B_CP_REG_BR_EXP_ADJ_INIT                                              0x10
 
-
 #define B_CP_REG_RT_ANG_INC0__A                                                 0x1410030
 #define B_CP_REG_RT_ANG_INC0__W                                                 16
 #define B_CP_REG_RT_ANG_INC0__M                                                 0xFFFF
 #define   B_CP_REG_RT_ANG_INC0_INIT                                             0x0
-
 
 #define B_CP_REG_RT_ANG_INC1__A                                                 0x1410031
 #define B_CP_REG_RT_ANG_INC1__W                                                 8
 #define B_CP_REG_RT_ANG_INC1__M                                                 0xFF
 #define   B_CP_REG_RT_ANG_INC1_INIT                                             0x0
 
-
 #define B_CP_REG_RT_SPD_EXP_MARG__A                                             0x1410032
 #define B_CP_REG_RT_SPD_EXP_MARG__W                                             5
 #define B_CP_REG_RT_SPD_EXP_MARG__M                                             0x1F
 #define   B_CP_REG_RT_SPD_EXP_MARG_INIT                                         0x5
-
 
 #define B_CP_REG_RT_DETECT_TRH__A                                               0x1410033
 #define B_CP_REG_RT_DETECT_TRH__W                                               2
 #define B_CP_REG_RT_DETECT_TRH__M                                               0x3
 #define   B_CP_REG_RT_DETECT_TRH_INIT                                           0x3
 
-
 #define B_CP_REG_RT_SPD_RELIABLE__A                                             0x1410034
 #define B_CP_REG_RT_SPD_RELIABLE__W                                             3
 #define B_CP_REG_RT_SPD_RELIABLE__M                                             0x7
 #define   B_CP_REG_RT_SPD_RELIABLE_INIT                                         0x0
-
 
 #define B_CP_REG_RT_SPD_DIRECTION__A                                            0x1410035
 #define B_CP_REG_RT_SPD_DIRECTION__W                                            1
 #define B_CP_REG_RT_SPD_DIRECTION__M                                            0x1
 #define   B_CP_REG_RT_SPD_DIRECTION_INIT                                        0x0
 
-
 #define B_CP_REG_RT_SPD_MOD__A                                                  0x1410036
 #define B_CP_REG_RT_SPD_MOD__W                                                  2
 #define B_CP_REG_RT_SPD_MOD__M                                                  0x3
 #define   B_CP_REG_RT_SPD_MOD_INIT                                              0x0
 
-
 #define B_CP_REG_RT_SPD_SMB__A                                                  0x1410037
 #define B_CP_REG_RT_SPD_SMB__W                                                  2
 #define B_CP_REG_RT_SPD_SMB__M                                                  0x3
 #define   B_CP_REG_RT_SPD_SMB_INIT                                              0x0
-
 
 #define B_CP_REG_RT_CPD_MODE__A                                                 0x1410038
 #define B_CP_REG_RT_CPD_MODE__W                                                 3
@@ -10478,24 +9168,20 @@ extern "C" {
 #define   B_CP_REG_RT_CPD_MODE_ADD__M                                           0x4
 #define     B_CP_REG_RT_CPD_MODE_INIT                                           0x0
 
-
 #define B_CP_REG_RT_CPD_RELIABLE__A                                             0x1410039
 #define B_CP_REG_RT_CPD_RELIABLE__W                                             3
 #define B_CP_REG_RT_CPD_RELIABLE__M                                             0x7
 #define   B_CP_REG_RT_CPD_RELIABLE_INIT                                         0x0
-
 
 #define B_CP_REG_RT_CPD_BIN__A                                                  0x141003A
 #define B_CP_REG_RT_CPD_BIN__W                                                  5
 #define B_CP_REG_RT_CPD_BIN__M                                                  0x1F
 #define   B_CP_REG_RT_CPD_BIN_INIT                                              0x0
 
-
 #define B_CP_REG_RT_CPD_MAX__A                                                  0x141003B
 #define B_CP_REG_RT_CPD_MAX__W                                                  4
 #define B_CP_REG_RT_CPD_MAX__M                                                  0xF
 #define   B_CP_REG_RT_CPD_MAX_INIT                                              0x0
-
 
 #define B_CP_REG_RT_SUPR_VAL__A                                                 0x141003C
 #define B_CP_REG_RT_SUPR_VAL__W                                                 2
@@ -10510,60 +9196,50 @@ extern "C" {
 #define   B_CP_REG_RT_SUPR_VAL_DL__M                                            0x2
 #define     B_CP_REG_RT_SUPR_VAL_INIT                                           0x0
 
-
 #define B_CP_REG_RT_EXP_AVE__A                                                  0x141003D
 #define B_CP_REG_RT_EXP_AVE__W                                                  5
 #define B_CP_REG_RT_EXP_AVE__M                                                  0x1F
 #define   B_CP_REG_RT_EXP_AVE_INIT                                              0x0
-
 
 #define B_CP_REG_RT_CPD_EXP_MARG__A                                             0x141003E
 #define B_CP_REG_RT_CPD_EXP_MARG__W                                             5
 #define B_CP_REG_RT_CPD_EXP_MARG__M                                             0x1F
 #define   B_CP_REG_RT_CPD_EXP_MARG_INIT                                         0x3
 
-
 #define B_CP_REG_AC_NEXP_OFFS__A                                                0x1410040
 #define B_CP_REG_AC_NEXP_OFFS__W                                                8
 #define B_CP_REG_AC_NEXP_OFFS__M                                                0xFF
 #define   B_CP_REG_AC_NEXP_OFFS_INIT                                            0x0
-
 
 #define B_CP_REG_AC_AVER_POW__A                                                 0x1410041
 #define B_CP_REG_AC_AVER_POW__W                                                 8
 #define B_CP_REG_AC_AVER_POW__M                                                 0xFF
 #define   B_CP_REG_AC_AVER_POW_INIT                                             0x5F
 
-
 #define B_CP_REG_AC_MAX_POW__A                                                  0x1410042
 #define B_CP_REG_AC_MAX_POW__W                                                  8
 #define B_CP_REG_AC_MAX_POW__M                                                  0xFF
 #define   B_CP_REG_AC_MAX_POW_INIT                                              0x7A
-
 
 #define B_CP_REG_AC_WEIGHT_MAN__A                                               0x1410043
 #define B_CP_REG_AC_WEIGHT_MAN__W                                               6
 #define B_CP_REG_AC_WEIGHT_MAN__M                                               0x3F
 #define   B_CP_REG_AC_WEIGHT_MAN_INIT                                           0x31
 
-
 #define B_CP_REG_AC_WEIGHT_EXP__A                                               0x1410044
 #define B_CP_REG_AC_WEIGHT_EXP__W                                               5
 #define B_CP_REG_AC_WEIGHT_EXP__M                                               0x1F
 #define   B_CP_REG_AC_WEIGHT_EXP_INIT                                           0x10
-
 
 #define B_CP_REG_AC_GAIN_MAN__A                                                 0x1410045
 #define B_CP_REG_AC_GAIN_MAN__W                                                 16
 #define B_CP_REG_AC_GAIN_MAN__M                                                 0xFFFF
 #define   B_CP_REG_AC_GAIN_MAN_INIT                                             0x0
 
-
 #define B_CP_REG_AC_GAIN_EXP__A                                                 0x1410046
 #define B_CP_REG_AC_GAIN_EXP__W                                                 5
 #define B_CP_REG_AC_GAIN_EXP__M                                                 0x1F
 #define   B_CP_REG_AC_GAIN_EXP_INIT                                             0x0
-
 
 #define B_CP_REG_AC_AMP_MODE__A                                                 0x1410047
 #define B_CP_REG_AC_AMP_MODE__W                                                 2
@@ -10573,18 +9249,15 @@ extern "C" {
 #define   B_CP_REG_AC_AMP_MODE_FIXED                                            0x2
 #define   B_CP_REG_AC_AMP_MODE_INIT                                             0x2
 
-
 #define B_CP_REG_AC_AMP_FIX__A                                                  0x1410048
 #define B_CP_REG_AC_AMP_FIX__W                                                  14
 #define B_CP_REG_AC_AMP_FIX__M                                                  0x3FFF
 #define   B_CP_REG_AC_AMP_FIX_INIT                                              0x1FF
 
-
 #define B_CP_REG_AC_AMP_READ__A                                                 0x1410049
 #define B_CP_REG_AC_AMP_READ__W                                                 14
 #define B_CP_REG_AC_AMP_READ__M                                                 0x3FFF
 #define   B_CP_REG_AC_AMP_READ_INIT                                             0x0
-
 
 #define B_CP_REG_AC_ANG_MODE__A                                                 0x141004A
 #define B_CP_REG_AC_ANG_MODE__W                                                 2
@@ -10595,48 +9268,40 @@ extern "C" {
 #define   B_CP_REG_AC_ANG_MODE_OFFSET                                           0x3
 #define   B_CP_REG_AC_ANG_MODE_INIT                                             0x3
 
-
 #define B_CP_REG_AC_ANG_OFFS__A                                                 0x141004B
 #define B_CP_REG_AC_ANG_OFFS__W                                                 14
 #define B_CP_REG_AC_ANG_OFFS__M                                                 0x3FFF
 #define   B_CP_REG_AC_ANG_OFFS_INIT                                             0x0
-
 
 #define B_CP_REG_AC_ANG_READ__A                                                 0x141004C
 #define B_CP_REG_AC_ANG_READ__W                                                 16
 #define B_CP_REG_AC_ANG_READ__M                                                 0xFFFF
 #define   B_CP_REG_AC_ANG_READ_INIT                                             0x0
 
-
 #define B_CP_REG_AC_ACCU_REAL0__A                                               0x1410060
 #define B_CP_REG_AC_ACCU_REAL0__W                                               8
 #define B_CP_REG_AC_ACCU_REAL0__M                                               0xFF
 #define   B_CP_REG_AC_ACCU_REAL0_INIT                                           0x0
-
 
 #define B_CP_REG_AC_ACCU_IMAG0__A                                               0x1410061
 #define B_CP_REG_AC_ACCU_IMAG0__W                                               8
 #define B_CP_REG_AC_ACCU_IMAG0__M                                               0xFF
 #define   B_CP_REG_AC_ACCU_IMAG0_INIT                                           0x0
 
-
 #define B_CP_REG_AC_ACCU_REAL1__A                                               0x1410062
 #define B_CP_REG_AC_ACCU_REAL1__W                                               8
 #define B_CP_REG_AC_ACCU_REAL1__M                                               0xFF
 #define   B_CP_REG_AC_ACCU_REAL1_INIT                                           0x0
-
 
 #define B_CP_REG_AC_ACCU_IMAG1__A                                               0x1410063
 #define B_CP_REG_AC_ACCU_IMAG1__W                                               8
 #define B_CP_REG_AC_ACCU_IMAG1__M                                               0xFF
 #define   B_CP_REG_AC_ACCU_IMAG1_INIT                                           0x0
 
-
 #define B_CP_REG_DL_MB_WR_ADDR__A                                               0x1410050
 #define B_CP_REG_DL_MB_WR_ADDR__W                                               15
 #define B_CP_REG_DL_MB_WR_ADDR__M                                               0x7FFF
 #define   B_CP_REG_DL_MB_WR_ADDR_INIT                                           0x0
-
 
 #define B_CP_REG_DL_MB_WR_CTR__A                                                0x1410051
 #define B_CP_REG_DL_MB_WR_CTR__W                                                5
@@ -10655,12 +9320,10 @@ extern "C" {
 #define   B_CP_REG_DL_MB_WR_CTR_CTR__M                                          0x1
 #define     B_CP_REG_DL_MB_WR_CTR_INIT                                          0x0
 
-
 #define B_CP_REG_DL_MB_RD_ADDR__A                                               0x1410052
 #define B_CP_REG_DL_MB_RD_ADDR__W                                               15
 #define B_CP_REG_DL_MB_RD_ADDR__M                                               0x7FFF
 #define   B_CP_REG_DL_MB_RD_ADDR_INIT                                           0x0
-
 
 #define B_CP_REG_DL_MB_RD_CTR__A                                                0x1410053
 #define B_CP_REG_DL_MB_RD_CTR__W                                                11
@@ -10691,35 +9354,17 @@ extern "C" {
 #define   B_CP_REG_DL_MB_RD_CTR_CTR__M                                          0x1
 #define     B_CP_REG_DL_MB_RD_CTR_INIT                                          0x0
 
-
-
 #define B_CP_BR_BUF_RAM__A                                                      0x1420000
-
-
 
 #define B_CP_BR_CPL_RAM__A                                                      0x1430000
 
-
-
 #define B_CP_PB_DL0_RAM__A                                                      0x1440000
-
-
 
 #define B_CP_PB_DL1_RAM__A                                                      0x1450000
 
-
-
 #define B_CP_PB_DL2_RAM__A                                                      0x1460000
 
-
-
-
-
 #define B_CE_SID                                                                0xA
-
-
-
-
 
 #define B_CE_COMM_EXEC__A                                                       0x1800000
 #define B_CE_COMM_EXEC__W                                                       3
@@ -10753,11 +9398,6 @@ extern "C" {
 #define B_CE_COMM_INT_MSK__W                                                    16
 #define B_CE_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
-
 #define B_CE_REG_COMM_EXEC__A                                                   0x1810000
 #define B_CE_REG_COMM_EXEC__W                                                   3
 #define B_CE_REG_COMM_EXEC__M                                                   0x7
@@ -10768,7 +9408,6 @@ extern "C" {
 #define     B_CE_REG_COMM_EXEC_CTL_ACTIVE                                       0x1
 #define     B_CE_REG_COMM_EXEC_CTL_HOLD                                         0x2
 #define     B_CE_REG_COMM_EXEC_CTL_STEP                                         0x3
-
 
 #define B_CE_REG_COMM_MB__A                                                     0x1810002
 #define B_CE_REG_COMM_MB__W                                                     4
@@ -10815,7 +9454,6 @@ extern "C" {
 #define   B_CE_REG_COMM_INT_STA_CE_FI__W                                        1
 #define   B_CE_REG_COMM_INT_STA_CE_FI__M                                        0x4
 
-
 #define B_CE_REG_COMM_INT_MSK__A                                                0x1810008
 #define B_CE_REG_COMM_INT_MSK__W                                                3
 #define B_CE_REG_COMM_INT_MSK__M                                                0x7
@@ -10829,18 +9467,14 @@ extern "C" {
 #define   B_CE_REG_COMM_INT_MSK_CE_FI__W                                        1
 #define   B_CE_REG_COMM_INT_MSK_CE_FI__M                                        0x4
 
-
 #define B_CE_REG_2K__A                                                          0x1810010
 #define B_CE_REG_2K__W                                                          1
 #define B_CE_REG_2K__M                                                          0x1
 #define   B_CE_REG_2K_INIT                                                      0x0
 
-
 #define B_CE_REG_TAPSET__A                                                      0x1810011
 #define B_CE_REG_TAPSET__W                                                      4
 #define B_CE_REG_TAPSET__M                                                      0xF
-
-
 
 #define B_CE_REG_TAPSET_MOTION_INIT                                             0x0
 
@@ -10854,42 +9488,35 @@ extern "C" {
 
 #define B_CE_REG_TAPSET_MOTION_UNDEFINED                                        0x8
 
-
 #define B_CE_REG_AVG_POW__A                                                     0x1810012
 #define B_CE_REG_AVG_POW__W                                                     8
 #define B_CE_REG_AVG_POW__M                                                     0xFF
 #define   B_CE_REG_AVG_POW_INIT                                                 0x0
-
 
 #define B_CE_REG_MAX_POW__A                                                     0x1810013
 #define B_CE_REG_MAX_POW__W                                                     8
 #define B_CE_REG_MAX_POW__M                                                     0xFF
 #define   B_CE_REG_MAX_POW_INIT                                                 0x0
 
-
 #define B_CE_REG_ATT__A                                                         0x1810014
 #define B_CE_REG_ATT__W                                                         8
 #define B_CE_REG_ATT__M                                                         0xFF
 #define   B_CE_REG_ATT_INIT                                                     0x0
-
 
 #define B_CE_REG_NRED__A                                                        0x1810015
 #define B_CE_REG_NRED__W                                                        6
 #define B_CE_REG_NRED__M                                                        0x3F
 #define   B_CE_REG_NRED_INIT                                                    0x0
 
-
 #define B_CE_REG_PU_SIGN__A                                                     0x1810020
 #define B_CE_REG_PU_SIGN__W                                                     1
 #define B_CE_REG_PU_SIGN__M                                                     0x1
 #define   B_CE_REG_PU_SIGN_INIT                                                 0x0
 
-
 #define B_CE_REG_PU_MIX__A                                                      0x1810021
 #define B_CE_REG_PU_MIX__W                                                      1
 #define B_CE_REG_PU_MIX__M                                                      0x1
 #define   B_CE_REG_PU_MIX_INIT                                                  0x0
-
 
 #define B_CE_REG_PB_PILOT_REQ__A                                                0x1810030
 #define B_CE_REG_PB_PILOT_REQ__W                                                15
@@ -10902,48 +9529,40 @@ extern "C" {
 #define   B_CE_REG_PB_PILOT_REQ_PILOT_ADR__W                                    12
 #define   B_CE_REG_PB_PILOT_REQ_PILOT_ADR__M                                    0xFFF
 
-
 #define B_CE_REG_PB_PILOT_REQ_VALID__A                                          0x1810031
 #define B_CE_REG_PB_PILOT_REQ_VALID__W                                          1
 #define B_CE_REG_PB_PILOT_REQ_VALID__M                                          0x1
 #define   B_CE_REG_PB_PILOT_REQ_VALID_INIT                                      0x0
-
 
 #define B_CE_REG_PB_FREEZE__A                                                   0x1810032
 #define B_CE_REG_PB_FREEZE__W                                                   1
 #define B_CE_REG_PB_FREEZE__M                                                   0x1
 #define   B_CE_REG_PB_FREEZE_INIT                                               0x0
 
-
 #define B_CE_REG_PB_PILOT_EXP__A                                                0x1810038
 #define B_CE_REG_PB_PILOT_EXP__W                                                4
 #define B_CE_REG_PB_PILOT_EXP__M                                                0xF
 #define   B_CE_REG_PB_PILOT_EXP_INIT                                            0x0
-
 
 #define B_CE_REG_PB_PILOT_REAL__A                                               0x1810039
 #define B_CE_REG_PB_PILOT_REAL__W                                               10
 #define B_CE_REG_PB_PILOT_REAL__M                                               0x3FF
 #define   B_CE_REG_PB_PILOT_REAL_INIT                                           0x0
 
-
 #define B_CE_REG_PB_PILOT_IMAG__A                                               0x181003A
 #define B_CE_REG_PB_PILOT_IMAG__W                                               10
 #define B_CE_REG_PB_PILOT_IMAG__M                                               0x3FF
 #define   B_CE_REG_PB_PILOT_IMAG_INIT                                           0x0
-
 
 #define B_CE_REG_PB_SMBNR__A                                                    0x181003B
 #define B_CE_REG_PB_SMBNR__W                                                    5
 #define B_CE_REG_PB_SMBNR__M                                                    0x1F
 #define   B_CE_REG_PB_SMBNR_INIT                                                0x0
 
-
 #define B_CE_REG_NE_PILOT_REQ__A                                                0x1810040
 #define B_CE_REG_NE_PILOT_REQ__W                                                12
 #define B_CE_REG_NE_PILOT_REQ__M                                                0xFFF
 #define   B_CE_REG_NE_PILOT_REQ_INIT                                            0x0
-
 
 #define B_CE_REG_NE_PILOT_REQ_VALID__A                                          0x1810041
 #define B_CE_REG_NE_PILOT_REQ_VALID__W                                          2
@@ -10956,12 +9575,10 @@ extern "C" {
 #define   B_CE_REG_NE_PILOT_REQ_VALID_READ_VALID__W                             1
 #define   B_CE_REG_NE_PILOT_REQ_VALID_READ_VALID__M                             0x1
 
-
 #define B_CE_REG_NE_PILOT_DATA__A                                               0x1810042
 #define B_CE_REG_NE_PILOT_DATA__W                                               10
 #define B_CE_REG_NE_PILOT_DATA__M                                               0x3FF
 #define   B_CE_REG_NE_PILOT_DATA_INIT                                           0x0
-
 
 #define B_CE_REG_NE_ERR_SELECT__A                                               0x1810043
 #define B_CE_REG_NE_ERR_SELECT__W                                               5
@@ -10988,30 +9605,25 @@ extern "C" {
 #define   B_CE_REG_NE_ERR_SELECT_TD_ENABLE__W                                   1
 #define   B_CE_REG_NE_ERR_SELECT_TD_ENABLE__M                                   0x1
 
-
 #define B_CE_REG_NE_TD_CAL__A                                                   0x1810044
 #define B_CE_REG_NE_TD_CAL__W                                                   9
 #define B_CE_REG_NE_TD_CAL__M                                                   0x1FF
 #define   B_CE_REG_NE_TD_CAL_INIT                                               0x1E8
-
 
 #define B_CE_REG_NE_FD_CAL__A                                                   0x1810045
 #define B_CE_REG_NE_FD_CAL__W                                                   9
 #define B_CE_REG_NE_FD_CAL__M                                                   0x1FF
 #define   B_CE_REG_NE_FD_CAL_INIT                                               0x1D9
 
-
 #define B_CE_REG_NE_MIXAVG__A                                                   0x1810046
 #define B_CE_REG_NE_MIXAVG__W                                                   3
 #define B_CE_REG_NE_MIXAVG__M                                                   0x7
 #define   B_CE_REG_NE_MIXAVG_INIT                                               0x6
 
-
 #define B_CE_REG_NE_NUPD_OFS__A                                                 0x1810047
 #define B_CE_REG_NE_NUPD_OFS__W                                                 4
 #define B_CE_REG_NE_NUPD_OFS__M                                                 0xF
 #define   B_CE_REG_NE_NUPD_OFS_INIT                                             0x4
-
 
 #define B_CE_REG_NE_TD_POW__A                                                   0x1810048
 #define B_CE_REG_NE_TD_POW__W                                                   15
@@ -11026,7 +9638,6 @@ extern "C" {
 #define   B_CE_REG_NE_TD_POW_MANTISSA__W                                        10
 #define   B_CE_REG_NE_TD_POW_MANTISSA__M                                        0x3FF
 
-
 #define B_CE_REG_NE_FD_POW__A                                                   0x1810049
 #define B_CE_REG_NE_FD_POW__W                                                   15
 #define B_CE_REG_NE_FD_POW__M                                                   0x7FFF
@@ -11040,102 +9651,85 @@ extern "C" {
 #define   B_CE_REG_NE_FD_POW_MANTISSA__W                                        10
 #define   B_CE_REG_NE_FD_POW_MANTISSA__M                                        0x3FF
 
-
 #define B_CE_REG_NE_NEXP_AVG__A                                                 0x181004A
 #define B_CE_REG_NE_NEXP_AVG__W                                                 8
 #define B_CE_REG_NE_NEXP_AVG__M                                                 0xFF
 #define   B_CE_REG_NE_NEXP_AVG_INIT                                             0x0
-
 
 #define B_CE_REG_NE_OFFSET__A                                                   0x181004B
 #define B_CE_REG_NE_OFFSET__W                                                   9
 #define B_CE_REG_NE_OFFSET__M                                                   0x1FF
 #define   B_CE_REG_NE_OFFSET_INIT                                               0x0
 
-
 #define B_CE_REG_NE_NUPD_TRH__A                                                 0x181004C
 #define B_CE_REG_NE_NUPD_TRH__W                                                 5
 #define B_CE_REG_NE_NUPD_TRH__M                                                 0x1F
 #define   B_CE_REG_NE_NUPD_TRH_INIT                                             0x14
-
 
 #define B_CE_REG_PE_NEXP_OFFS__A                                                0x1810050
 #define B_CE_REG_PE_NEXP_OFFS__W                                                8
 #define B_CE_REG_PE_NEXP_OFFS__M                                                0xFF
 #define   B_CE_REG_PE_NEXP_OFFS_INIT                                            0x0
 
-
 #define B_CE_REG_PE_TIMESHIFT__A                                                0x1810051
 #define B_CE_REG_PE_TIMESHIFT__W                                                14
 #define B_CE_REG_PE_TIMESHIFT__M                                                0x3FFF
 #define   B_CE_REG_PE_TIMESHIFT_INIT                                            0x0
-
 
 #define B_CE_REG_PE_DIF_REAL_L__A                                               0x1810052
 #define B_CE_REG_PE_DIF_REAL_L__W                                               16
 #define B_CE_REG_PE_DIF_REAL_L__M                                               0xFFFF
 #define   B_CE_REG_PE_DIF_REAL_L_INIT                                           0x0
 
-
 #define B_CE_REG_PE_DIF_IMAG_L__A                                               0x1810053
 #define B_CE_REG_PE_DIF_IMAG_L__W                                               16
 #define B_CE_REG_PE_DIF_IMAG_L__M                                               0xFFFF
 #define   B_CE_REG_PE_DIF_IMAG_L_INIT                                           0x0
-
 
 #define B_CE_REG_PE_DIF_REAL_R__A                                               0x1810054
 #define B_CE_REG_PE_DIF_REAL_R__W                                               16
 #define B_CE_REG_PE_DIF_REAL_R__M                                               0xFFFF
 #define   B_CE_REG_PE_DIF_REAL_R_INIT                                           0x0
 
-
 #define B_CE_REG_PE_DIF_IMAG_R__A                                               0x1810055
 #define B_CE_REG_PE_DIF_IMAG_R__W                                               16
 #define B_CE_REG_PE_DIF_IMAG_R__M                                               0xFFFF
 #define   B_CE_REG_PE_DIF_IMAG_R_INIT                                           0x0
-
 
 #define B_CE_REG_PE_ABS_REAL_L__A                                               0x1810056
 #define B_CE_REG_PE_ABS_REAL_L__W                                               16
 #define B_CE_REG_PE_ABS_REAL_L__M                                               0xFFFF
 #define   B_CE_REG_PE_ABS_REAL_L_INIT                                           0x0
 
-
 #define B_CE_REG_PE_ABS_IMAG_L__A                                               0x1810057
 #define B_CE_REG_PE_ABS_IMAG_L__W                                               16
 #define B_CE_REG_PE_ABS_IMAG_L__M                                               0xFFFF
 #define   B_CE_REG_PE_ABS_IMAG_L_INIT                                           0x0
-
 
 #define B_CE_REG_PE_ABS_REAL_R__A                                               0x1810058
 #define B_CE_REG_PE_ABS_REAL_R__W                                               16
 #define B_CE_REG_PE_ABS_REAL_R__M                                               0xFFFF
 #define   B_CE_REG_PE_ABS_REAL_R_INIT                                           0x0
 
-
 #define B_CE_REG_PE_ABS_IMAG_R__A                                               0x1810059
 #define B_CE_REG_PE_ABS_IMAG_R__W                                               16
 #define B_CE_REG_PE_ABS_IMAG_R__M                                               0xFFFF
 #define   B_CE_REG_PE_ABS_IMAG_R_INIT                                           0x0
-
 
 #define B_CE_REG_PE_ABS_EXP_L__A                                                0x181005A
 #define B_CE_REG_PE_ABS_EXP_L__W                                                5
 #define B_CE_REG_PE_ABS_EXP_L__M                                                0x1F
 #define   B_CE_REG_PE_ABS_EXP_L_INIT                                            0x0
 
-
 #define B_CE_REG_PE_ABS_EXP_R__A                                                0x181005B
 #define B_CE_REG_PE_ABS_EXP_R__W                                                5
 #define B_CE_REG_PE_ABS_EXP_R__M                                                0x1F
 #define   B_CE_REG_PE_ABS_EXP_R_INIT                                            0x0
 
-
 #define B_CE_REG_TP_UPDATE_MODE__A                                              0x1810060
 #define B_CE_REG_TP_UPDATE_MODE__W                                              1
 #define B_CE_REG_TP_UPDATE_MODE__M                                              0x1
 #define   B_CE_REG_TP_UPDATE_MODE_INIT                                          0x0
-
 
 #define B_CE_REG_TP_LMS_TAP_ON__A                                               0x1810061
 #define B_CE_REG_TP_LMS_TAP_ON__W                                               1
@@ -11186,7 +9780,6 @@ extern "C" {
 #define   B_CE_REG_TP_DOPP_ENERGY_MANTISSA__W                                   10
 #define   B_CE_REG_TP_DOPP_ENERGY_MANTISSA__M                                   0x3FF
 
-
 #define B_CE_REG_TP_DOPP_DIFF_ENERGY__A                                         0x181006D
 #define B_CE_REG_TP_DOPP_DIFF_ENERGY__W                                         15
 #define B_CE_REG_TP_DOPP_DIFF_ENERGY__M                                         0x7FFF
@@ -11199,7 +9792,6 @@ extern "C" {
 #define   B_CE_REG_TP_DOPP_DIFF_ENERGY_MANTISSA__B                              0
 #define   B_CE_REG_TP_DOPP_DIFF_ENERGY_MANTISSA__W                              10
 #define   B_CE_REG_TP_DOPP_DIFF_ENERGY_MANTISSA__M                              0x3FF
-
 
 #define B_CE_REG_TP_A0_TAP_ENERGY__A                                            0x181006E
 #define B_CE_REG_TP_A0_TAP_ENERGY__W                                            15
@@ -11214,7 +9806,6 @@ extern "C" {
 #define   B_CE_REG_TP_A0_TAP_ENERGY_MANTISSA__W                                 10
 #define   B_CE_REG_TP_A0_TAP_ENERGY_MANTISSA__M                                 0x3FF
 
-
 #define B_CE_REG_TP_A1_TAP_ENERGY__A                                            0x181006F
 #define B_CE_REG_TP_A1_TAP_ENERGY__W                                            15
 #define B_CE_REG_TP_A1_TAP_ENERGY__M                                            0x7FFF
@@ -11228,146 +9819,120 @@ extern "C" {
 #define   B_CE_REG_TP_A1_TAP_ENERGY_MANTISSA__W                                 10
 #define   B_CE_REG_TP_A1_TAP_ENERGY_MANTISSA__M                                 0x3FF
 
-
 #define B_CE_REG_TI_SYM_CNT__A                                                  0x1810072
 #define B_CE_REG_TI_SYM_CNT__W                                                  6
 #define B_CE_REG_TI_SYM_CNT__M                                                  0x3F
 #define   B_CE_REG_TI_SYM_CNT_INIT                                              0x0
-
 
 #define B_CE_REG_TI_PHN_ENABLE__A                                               0x1810073
 #define B_CE_REG_TI_PHN_ENABLE__W                                               1
 #define B_CE_REG_TI_PHN_ENABLE__M                                               0x1
 #define   B_CE_REG_TI_PHN_ENABLE_INIT                                           0x0
 
-
 #define B_CE_REG_TI_SHIFT__A                                                    0x1810074
 #define B_CE_REG_TI_SHIFT__W                                                    2
 #define B_CE_REG_TI_SHIFT__M                                                    0x3
 #define   B_CE_REG_TI_SHIFT_INIT                                                0x0
-
 
 #define B_CE_REG_TI_SLOW__A                                                     0x1810075
 #define B_CE_REG_TI_SLOW__W                                                     1
 #define B_CE_REG_TI_SLOW__M                                                     0x1
 #define   B_CE_REG_TI_SLOW_INIT                                                 0x0
 
-
 #define B_CE_REG_TI_MGAIN__A                                                    0x1810076
 #define B_CE_REG_TI_MGAIN__W                                                    8
 #define B_CE_REG_TI_MGAIN__M                                                    0xFF
 #define   B_CE_REG_TI_MGAIN_INIT                                                0x0
-
 
 #define B_CE_REG_TI_ACCU1__A                                                    0x1810077
 #define B_CE_REG_TI_ACCU1__W                                                    8
 #define B_CE_REG_TI_ACCU1__M                                                    0xFF
 #define   B_CE_REG_TI_ACCU1_INIT                                                0x0
 
-
 #define B_CE_REG_NI_PER_LEFT__A                                                 0x18100B0
 #define B_CE_REG_NI_PER_LEFT__W                                                 5
 #define B_CE_REG_NI_PER_LEFT__M                                                 0x1F
 #define   B_CE_REG_NI_PER_LEFT_INIT                                             0xE
-
 
 #define B_CE_REG_NI_PER_RIGHT__A                                                0x18100B1
 #define B_CE_REG_NI_PER_RIGHT__W                                                5
 #define B_CE_REG_NI_PER_RIGHT__M                                                0x1F
 #define   B_CE_REG_NI_PER_RIGHT_INIT                                            0x7
 
-
 #define B_CE_REG_NI_POS_LR__A                                                   0x18100B2
 #define B_CE_REG_NI_POS_LR__W                                                   9
 #define B_CE_REG_NI_POS_LR__M                                                   0x1FF
 #define   B_CE_REG_NI_POS_LR_INIT                                               0xA0
-
 
 #define B_CE_REG_FI_SHT_INCR__A                                                 0x1810090
 #define B_CE_REG_FI_SHT_INCR__W                                                 7
 #define B_CE_REG_FI_SHT_INCR__M                                                 0x7F
 #define   B_CE_REG_FI_SHT_INCR_INIT                                             0x9
 
-
 #define B_CE_REG_FI_EXP_NORM__A                                                 0x1810091
 #define B_CE_REG_FI_EXP_NORM__W                                                 4
 #define B_CE_REG_FI_EXP_NORM__M                                                 0xF
 #define   B_CE_REG_FI_EXP_NORM_INIT                                             0x4
-
 
 #define B_CE_REG_FI_SUPR_VAL__A                                                 0x1810092
 #define B_CE_REG_FI_SUPR_VAL__W                                                 1
 #define B_CE_REG_FI_SUPR_VAL__M                                                 0x1
 #define   B_CE_REG_FI_SUPR_VAL_INIT                                             0x1
 
-
 #define B_CE_REG_IR_INPUTSEL__A                                                 0x18100A0
 #define B_CE_REG_IR_INPUTSEL__W                                                 1
 #define B_CE_REG_IR_INPUTSEL__M                                                 0x1
 #define   B_CE_REG_IR_INPUTSEL_INIT                                             0x0
-
 
 #define B_CE_REG_IR_STARTPOS__A                                                 0x18100A1
 #define B_CE_REG_IR_STARTPOS__W                                                 8
 #define B_CE_REG_IR_STARTPOS__M                                                 0xFF
 #define   B_CE_REG_IR_STARTPOS_INIT                                             0x0
 
-
 #define B_CE_REG_IR_NEXP_THRES__A                                               0x18100A2
 #define B_CE_REG_IR_NEXP_THRES__W                                               8
 #define B_CE_REG_IR_NEXP_THRES__M                                               0xFF
 #define   B_CE_REG_IR_NEXP_THRES_INIT                                           0x0
-
 
 #define B_CE_REG_IR_LENGTH__A                                                   0x18100A3
 #define B_CE_REG_IR_LENGTH__W                                                   4
 #define B_CE_REG_IR_LENGTH__M                                                   0xF
 #define   B_CE_REG_IR_LENGTH_INIT                                               0x0
 
-
 #define B_CE_REG_IR_FREQ__A                                                     0x18100A4
 #define B_CE_REG_IR_FREQ__W                                                     11
 #define B_CE_REG_IR_FREQ__M                                                     0x7FF
 #define   B_CE_REG_IR_FREQ_INIT                                                 0x0
-
 
 #define B_CE_REG_IR_FREQINC__A                                                  0x18100A5
 #define B_CE_REG_IR_FREQINC__W                                                  11
 #define B_CE_REG_IR_FREQINC__M                                                  0x7FF
 #define   B_CE_REG_IR_FREQINC_INIT                                              0x0
 
-
 #define B_CE_REG_IR_KAISINC__A                                                  0x18100A6
 #define B_CE_REG_IR_KAISINC__W                                                  15
 #define B_CE_REG_IR_KAISINC__M                                                  0x7FFF
 #define   B_CE_REG_IR_KAISINC_INIT                                              0x0
-
 
 #define B_CE_REG_IR_CTL__A                                                      0x18100A7
 #define B_CE_REG_IR_CTL__W                                                      3
 #define B_CE_REG_IR_CTL__M                                                      0x7
 #define   B_CE_REG_IR_CTL_INIT                                                  0x0
 
-
 #define B_CE_REG_IR_REAL__A                                                     0x18100A8
 #define B_CE_REG_IR_REAL__W                                                     16
 #define B_CE_REG_IR_REAL__M                                                     0xFFFF
 #define   B_CE_REG_IR_REAL_INIT                                                 0x0
-
 
 #define B_CE_REG_IR_IMAG__A                                                     0x18100A9
 #define B_CE_REG_IR_IMAG__W                                                     16
 #define B_CE_REG_IR_IMAG__M                                                     0xFFFF
 #define   B_CE_REG_IR_IMAG_INIT                                                 0x0
 
-
 #define B_CE_REG_IR_INDEX__A                                                    0x18100AA
 #define B_CE_REG_IR_INDEX__W                                                    12
 #define B_CE_REG_IR_INDEX__M                                                    0xFFF
 #define   B_CE_REG_IR_INDEX_INIT                                                0x0
-
-
-
 
 #define B_CE_REG_FR_COMM_EXEC__A                                                0x1820000
 #define B_CE_REG_FR_COMM_EXEC__W                                                1
@@ -11378,294 +9943,245 @@ extern "C" {
 #define B_CE_REG_FR_TREAL00__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL00_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG00__A                                                  0x1820011
 #define B_CE_REG_FR_TIMAG00__W                                                  11
 #define B_CE_REG_FR_TIMAG00__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG00_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL01__A                                                  0x1820012
 #define B_CE_REG_FR_TREAL01__W                                                  11
 #define B_CE_REG_FR_TREAL01__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL01_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG01__A                                                  0x1820013
 #define B_CE_REG_FR_TIMAG01__W                                                  11
 #define B_CE_REG_FR_TIMAG01__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG01_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL02__A                                                  0x1820014
 #define B_CE_REG_FR_TREAL02__W                                                  11
 #define B_CE_REG_FR_TREAL02__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL02_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG02__A                                                  0x1820015
 #define B_CE_REG_FR_TIMAG02__W                                                  11
 #define B_CE_REG_FR_TIMAG02__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG02_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL03__A                                                  0x1820016
 #define B_CE_REG_FR_TREAL03__W                                                  11
 #define B_CE_REG_FR_TREAL03__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL03_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG03__A                                                  0x1820017
 #define B_CE_REG_FR_TIMAG03__W                                                  11
 #define B_CE_REG_FR_TIMAG03__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG03_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL04__A                                                  0x1820018
 #define B_CE_REG_FR_TREAL04__W                                                  11
 #define B_CE_REG_FR_TREAL04__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL04_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG04__A                                                  0x1820019
 #define B_CE_REG_FR_TIMAG04__W                                                  11
 #define B_CE_REG_FR_TIMAG04__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG04_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL05__A                                                  0x182001A
 #define B_CE_REG_FR_TREAL05__W                                                  11
 #define B_CE_REG_FR_TREAL05__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL05_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG05__A                                                  0x182001B
 #define B_CE_REG_FR_TIMAG05__W                                                  11
 #define B_CE_REG_FR_TIMAG05__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG05_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL06__A                                                  0x182001C
 #define B_CE_REG_FR_TREAL06__W                                                  11
 #define B_CE_REG_FR_TREAL06__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL06_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG06__A                                                  0x182001D
 #define B_CE_REG_FR_TIMAG06__W                                                  11
 #define B_CE_REG_FR_TIMAG06__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG06_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL07__A                                                  0x182001E
 #define B_CE_REG_FR_TREAL07__W                                                  11
 #define B_CE_REG_FR_TREAL07__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL07_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG07__A                                                  0x182001F
 #define B_CE_REG_FR_TIMAG07__W                                                  11
 #define B_CE_REG_FR_TIMAG07__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG07_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL08__A                                                  0x1820020
 #define B_CE_REG_FR_TREAL08__W                                                  11
 #define B_CE_REG_FR_TREAL08__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL08_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG08__A                                                  0x1820021
 #define B_CE_REG_FR_TIMAG08__W                                                  11
 #define B_CE_REG_FR_TIMAG08__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG08_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL09__A                                                  0x1820022
 #define B_CE_REG_FR_TREAL09__W                                                  11
 #define B_CE_REG_FR_TREAL09__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL09_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG09__A                                                  0x1820023
 #define B_CE_REG_FR_TIMAG09__W                                                  11
 #define B_CE_REG_FR_TIMAG09__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG09_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL10__A                                                  0x1820024
 #define B_CE_REG_FR_TREAL10__W                                                  11
 #define B_CE_REG_FR_TREAL10__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL10_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG10__A                                                  0x1820025
 #define B_CE_REG_FR_TIMAG10__W                                                  11
 #define B_CE_REG_FR_TIMAG10__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG10_INIT                                              0x0
-
 
 #define B_CE_REG_FR_TREAL11__A                                                  0x1820026
 #define B_CE_REG_FR_TREAL11__W                                                  11
 #define B_CE_REG_FR_TREAL11__M                                                  0x7FF
 #define   B_CE_REG_FR_TREAL11_INIT                                              0x52
 
-
 #define B_CE_REG_FR_TIMAG11__A                                                  0x1820027
 #define B_CE_REG_FR_TIMAG11__W                                                  11
 #define B_CE_REG_FR_TIMAG11__M                                                  0x7FF
 #define   B_CE_REG_FR_TIMAG11_INIT                                              0x0
-
 
 #define B_CE_REG_FR_MID_TAP__A                                                  0x1820028
 #define B_CE_REG_FR_MID_TAP__W                                                  11
 #define B_CE_REG_FR_MID_TAP__M                                                  0x7FF
 #define   B_CE_REG_FR_MID_TAP_INIT                                              0x51
 
-
 #define B_CE_REG_FR_SQS_G00__A                                                  0x1820029
 #define B_CE_REG_FR_SQS_G00__W                                                  8
 #define B_CE_REG_FR_SQS_G00__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G00_INIT                                              0xB
-
 
 #define B_CE_REG_FR_SQS_G01__A                                                  0x182002A
 #define B_CE_REG_FR_SQS_G01__W                                                  8
 #define B_CE_REG_FR_SQS_G01__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G01_INIT                                              0xB
 
-
 #define B_CE_REG_FR_SQS_G02__A                                                  0x182002B
 #define B_CE_REG_FR_SQS_G02__W                                                  8
 #define B_CE_REG_FR_SQS_G02__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G02_INIT                                              0xB
-
 
 #define B_CE_REG_FR_SQS_G03__A                                                  0x182002C
 #define B_CE_REG_FR_SQS_G03__W                                                  8
 #define B_CE_REG_FR_SQS_G03__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G03_INIT                                              0xB
 
-
 #define B_CE_REG_FR_SQS_G04__A                                                  0x182002D
 #define B_CE_REG_FR_SQS_G04__W                                                  8
 #define B_CE_REG_FR_SQS_G04__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G04_INIT                                              0xB
-
 
 #define B_CE_REG_FR_SQS_G05__A                                                  0x182002E
 #define B_CE_REG_FR_SQS_G05__W                                                  8
 #define B_CE_REG_FR_SQS_G05__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G05_INIT                                              0xB
 
-
 #define B_CE_REG_FR_SQS_G06__A                                                  0x182002F
 #define B_CE_REG_FR_SQS_G06__W                                                  8
 #define B_CE_REG_FR_SQS_G06__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G06_INIT                                              0xB
-
 
 #define B_CE_REG_FR_SQS_G07__A                                                  0x1820030
 #define B_CE_REG_FR_SQS_G07__W                                                  8
 #define B_CE_REG_FR_SQS_G07__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G07_INIT                                              0xB
 
-
 #define B_CE_REG_FR_SQS_G08__A                                                  0x1820031
 #define B_CE_REG_FR_SQS_G08__W                                                  8
 #define B_CE_REG_FR_SQS_G08__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G08_INIT                                              0xB
-
 
 #define B_CE_REG_FR_SQS_G09__A                                                  0x1820032
 #define B_CE_REG_FR_SQS_G09__W                                                  8
 #define B_CE_REG_FR_SQS_G09__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G09_INIT                                              0xB
 
-
 #define B_CE_REG_FR_SQS_G10__A                                                  0x1820033
 #define B_CE_REG_FR_SQS_G10__W                                                  8
 #define B_CE_REG_FR_SQS_G10__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G10_INIT                                              0xB
-
 
 #define B_CE_REG_FR_SQS_G11__A                                                  0x1820034
 #define B_CE_REG_FR_SQS_G11__W                                                  8
 #define B_CE_REG_FR_SQS_G11__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G11_INIT                                              0xB
 
-
 #define B_CE_REG_FR_SQS_G12__A                                                  0x1820035
 #define B_CE_REG_FR_SQS_G12__W                                                  8
 #define B_CE_REG_FR_SQS_G12__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_G12_INIT                                              0x5
-
 
 #define B_CE_REG_FR_RIO_G00__A                                                  0x1820036
 #define B_CE_REG_FR_RIO_G00__W                                                  9
 #define B_CE_REG_FR_RIO_G00__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G00_INIT                                              0x1FF
 
-
 #define B_CE_REG_FR_RIO_G01__A                                                  0x1820037
 #define B_CE_REG_FR_RIO_G01__W                                                  9
 #define B_CE_REG_FR_RIO_G01__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G01_INIT                                              0x190
-
 
 #define B_CE_REG_FR_RIO_G02__A                                                  0x1820038
 #define B_CE_REG_FR_RIO_G02__W                                                  9
 #define B_CE_REG_FR_RIO_G02__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G02_INIT                                              0x10B
 
-
 #define B_CE_REG_FR_RIO_G03__A                                                  0x1820039
 #define B_CE_REG_FR_RIO_G03__W                                                  9
 #define B_CE_REG_FR_RIO_G03__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G03_INIT                                              0xC8
-
 
 #define B_CE_REG_FR_RIO_G04__A                                                  0x182003A
 #define B_CE_REG_FR_RIO_G04__W                                                  9
 #define B_CE_REG_FR_RIO_G04__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G04_INIT                                              0xA0
 
-
 #define B_CE_REG_FR_RIO_G05__A                                                  0x182003B
 #define B_CE_REG_FR_RIO_G05__W                                                  9
 #define B_CE_REG_FR_RIO_G05__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G05_INIT                                              0x85
-
 
 #define B_CE_REG_FR_RIO_G06__A                                                  0x182003C
 #define B_CE_REG_FR_RIO_G06__W                                                  9
 #define B_CE_REG_FR_RIO_G06__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G06_INIT                                              0x72
 
-
 #define B_CE_REG_FR_RIO_G07__A                                                  0x182003D
 #define B_CE_REG_FR_RIO_G07__W                                                  9
 #define B_CE_REG_FR_RIO_G07__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G07_INIT                                              0x64
-
 
 #define B_CE_REG_FR_RIO_G08__A                                                  0x182003E
 #define B_CE_REG_FR_RIO_G08__W                                                  9
 #define B_CE_REG_FR_RIO_G08__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G08_INIT                                              0x59
 
-
 #define B_CE_REG_FR_RIO_G09__A                                                  0x182003F
 #define B_CE_REG_FR_RIO_G09__W                                                  9
 #define B_CE_REG_FR_RIO_G09__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G09_INIT                                              0x50
 
-
 #define B_CE_REG_FR_RIO_G10__A                                                  0x1820040
 #define B_CE_REG_FR_RIO_G10__W                                                  9
 #define B_CE_REG_FR_RIO_G10__M                                                  0x1FF
 #define   B_CE_REG_FR_RIO_G10_INIT                                              0x49
-
 
 #define B_CE_REG_FR_MODE__A                                                     0x1820041
 #define B_CE_REG_FR_MODE__W                                                     9
@@ -11708,18 +10224,15 @@ extern "C" {
 #define   B_CE_REG_FR_MODE_NOTCH_MODE__M                                        0x100
 #define     B_CE_REG_FR_MODE_INIT                                               0xDE
 
-
 #define B_CE_REG_FR_SQS_TRH__A                                                  0x1820042
 #define B_CE_REG_FR_SQS_TRH__W                                                  8
 #define B_CE_REG_FR_SQS_TRH__M                                                  0xFF
 #define   B_CE_REG_FR_SQS_TRH_INIT                                              0x80
 
-
 #define B_CE_REG_FR_RIO_GAIN__A                                                 0x1820043
 #define B_CE_REG_FR_RIO_GAIN__W                                                 3
 #define B_CE_REG_FR_RIO_GAIN__M                                                 0x7
 #define   B_CE_REG_FR_RIO_GAIN_INIT                                             0x2
-
 
 #define B_CE_REG_FR_BYPASS__A                                                   0x1820044
 #define B_CE_REG_FR_BYPASS__W                                                   10
@@ -11738,65 +10251,46 @@ extern "C" {
 #define   B_CE_REG_FR_BYPASS_TOTAL__M                                           0x200
 #define     B_CE_REG_FR_BYPASS_INIT                                             0x13B
 
-
 #define B_CE_REG_FR_PM_SET__A                                                   0x1820045
 #define B_CE_REG_FR_PM_SET__W                                                   4
 #define B_CE_REG_FR_PM_SET__M                                                   0xF
 #define   B_CE_REG_FR_PM_SET_INIT                                               0x4
-
 
 #define B_CE_REG_FR_ERR_SH__A                                                   0x1820046
 #define B_CE_REG_FR_ERR_SH__W                                                   4
 #define B_CE_REG_FR_ERR_SH__M                                                   0xF
 #define   B_CE_REG_FR_ERR_SH_INIT                                               0x4
 
-
 #define B_CE_REG_FR_MAN_SH__A                                                   0x1820047
 #define B_CE_REG_FR_MAN_SH__W                                                   4
 #define B_CE_REG_FR_MAN_SH__M                                                   0xF
 #define   B_CE_REG_FR_MAN_SH_INIT                                               0x7
-
 
 #define B_CE_REG_FR_TAP_SH__A                                                   0x1820048
 #define B_CE_REG_FR_TAP_SH__W                                                   3
 #define B_CE_REG_FR_TAP_SH__M                                                   0x7
 #define   B_CE_REG_FR_TAP_SH_INIT                                               0x3
 
-
 #define B_CE_REG_FR_CLIP__A                                                     0x1820049
 #define B_CE_REG_FR_CLIP__W                                                     9
 #define B_CE_REG_FR_CLIP__M                                                     0x1FF
 #define   B_CE_REG_FR_CLIP_INIT                                                 0x49
-
 
 #define B_CE_REG_FR_LEAK_UPD__A                                                 0x182004A
 #define B_CE_REG_FR_LEAK_UPD__W                                                 3
 #define B_CE_REG_FR_LEAK_UPD__M                                                 0x7
 #define   B_CE_REG_FR_LEAK_UPD_INIT                                             0x1
 
-
 #define B_CE_REG_FR_LEAK_SH__A                                                  0x182004B
 #define B_CE_REG_FR_LEAK_SH__W                                                  3
 #define B_CE_REG_FR_LEAK_SH__M                                                  0x7
 #define   B_CE_REG_FR_LEAK_SH_INIT                                              0x1
 
-
-
 #define B_CE_PB_RAM__A                                                          0x1830000
-
-
 
 #define B_CE_NE_RAM__A                                                          0x1840000
 
-
-
-
-
 #define B_EQ_SID                                                                0xE
-
-
-
-
 
 #define B_EQ_COMM_EXEC__A                                                       0x1C00000
 #define B_EQ_COMM_EXEC__W                                                       3
@@ -11829,11 +10323,6 @@ extern "C" {
 #define B_EQ_COMM_INT_MSK__A                                                    0x1C00008
 #define B_EQ_COMM_INT_MSK__W                                                    16
 #define B_EQ_COMM_INT_MSK__M                                                    0xFFFF
-
-
-
-
-
 
 #define B_EQ_REG_COMM_EXEC__A                                                   0x1C10000
 #define B_EQ_REG_COMM_EXEC__W                                                   3
@@ -11877,7 +10366,6 @@ extern "C" {
 #define     B_EQ_REG_COMM_MB_OBS_MUX_EQ_IS                                      0x20
 #define     B_EQ_REG_COMM_MB_OBS_MUX_EQ_SN                                      0x30
 
-
 #define B_EQ_REG_COMM_SERVICE0__A                                               0x1C10003
 #define B_EQ_REG_COMM_SERVICE0__W                                               10
 #define B_EQ_REG_COMM_SERVICE0__M                                               0x3FF
@@ -11896,7 +10384,6 @@ extern "C" {
 #define   B_EQ_REG_COMM_INT_STA_ERR_RDY__W                                      1
 #define   B_EQ_REG_COMM_INT_STA_ERR_RDY__M                                      0x2
 
-
 #define B_EQ_REG_COMM_INT_MSK__A                                                0x1C10008
 #define B_EQ_REG_COMM_INT_MSK__W                                                2
 #define B_EQ_REG_COMM_INT_MSK__M                                                0x3
@@ -11906,7 +10393,6 @@ extern "C" {
 #define   B_EQ_REG_COMM_INT_MSK_MER_RDY__B                                      1
 #define   B_EQ_REG_COMM_INT_MSK_MER_RDY__W                                      1
 #define   B_EQ_REG_COMM_INT_MSK_MER_RDY__M                                      0x2
-
 
 #define B_EQ_REG_IS_MODE__A                                                     0x1C10014
 #define B_EQ_REG_IS_MODE__W                                                     4
@@ -11925,24 +10411,20 @@ extern "C" {
 #define     B_EQ_REG_IS_MODE_LIM_CLP_SEL_CLP_SEL_ONE                            0x0
 #define     B_EQ_REG_IS_MODE_LIM_CLP_SEL_CLP_SEL_TWO                            0x2
 
-
 #define B_EQ_REG_IS_GAIN_MAN__A                                                 0x1C10015
 #define B_EQ_REG_IS_GAIN_MAN__W                                                 10
 #define B_EQ_REG_IS_GAIN_MAN__M                                                 0x3FF
 #define   B_EQ_REG_IS_GAIN_MAN_INIT                                             0x114
-
 
 #define B_EQ_REG_IS_GAIN_EXP__A                                                 0x1C10016
 #define B_EQ_REG_IS_GAIN_EXP__W                                                 5
 #define B_EQ_REG_IS_GAIN_EXP__M                                                 0x1F
 #define   B_EQ_REG_IS_GAIN_EXP_INIT                                             0x5
 
-
 #define B_EQ_REG_IS_CLIP_EXP__A                                                 0x1C10017
 #define B_EQ_REG_IS_CLIP_EXP__W                                                 5
 #define B_EQ_REG_IS_CLIP_EXP__M                                                 0x1F
 #define   B_EQ_REG_IS_CLIP_EXP_INIT                                             0x10
-
 
 #define B_EQ_REG_DV_MODE__A                                                     0x1C1001E
 #define B_EQ_REG_DV_MODE__W                                                     4
@@ -11972,7 +10454,6 @@ extern "C" {
 #define   B_EQ_REG_DV_MODE_CLP_IMA_ENA__M                                       0x8
 #define     B_EQ_REG_DV_MODE_CLP_IMA_ENA_CLP_IMA_DIS                            0x0
 #define     B_EQ_REG_DV_MODE_CLP_IMA_ENA_CLP_IMA_ENA                            0x8
-
 
 #define B_EQ_REG_DV_POS_CLIP_DAT__A                                             0x1C1001F
 #define B_EQ_REG_DV_POS_CLIP_DAT__W                                             16
@@ -12031,30 +10512,25 @@ extern "C" {
 #define     B_EQ_REG_SN_MODE_MODE_7_DYNAMIC                                     0x0
 #define     B_EQ_REG_SN_MODE_MODE_7_STATIC                                      0x80
 
-
 #define B_EQ_REG_SN_PFIX__A                                                     0x1C10029
 #define B_EQ_REG_SN_PFIX__W                                                     8
 #define B_EQ_REG_SN_PFIX__M                                                     0xFF
 #define   B_EQ_REG_SN_PFIX_INIT                                                 0x0
-
 
 #define B_EQ_REG_SN_CEGAIN__A                                                   0x1C1002A
 #define B_EQ_REG_SN_CEGAIN__W                                                   8
 #define B_EQ_REG_SN_CEGAIN__M                                                   0xFF
 #define   B_EQ_REG_SN_CEGAIN_INIT                                               0x30
 
-
 #define B_EQ_REG_SN_OFFSET__A                                                   0x1C1002B
 #define B_EQ_REG_SN_OFFSET__W                                                   6
 #define B_EQ_REG_SN_OFFSET__M                                                   0x3F
 #define   B_EQ_REG_SN_OFFSET_INIT                                               0x39
 
-
 #define B_EQ_REG_SN_NULLIFY__A                                                  0x1C1002C
 #define B_EQ_REG_SN_NULLIFY__W                                                  6
 #define B_EQ_REG_SN_NULLIFY__M                                                  0x3F
 #define   B_EQ_REG_SN_NULLIFY_INIT                                              0x0
-
 
 #define B_EQ_REG_SN_SQUASH__A                                                   0x1C1002D
 #define B_EQ_REG_SN_SQUASH__W                                                   10
@@ -12068,9 +10544,6 @@ extern "C" {
 #define   B_EQ_REG_SN_SQUASH_EXP__B                                             6
 #define   B_EQ_REG_SN_SQUASH_EXP__W                                             4
 #define   B_EQ_REG_SN_SQUASH_EXP__M                                             0x3C0
-
-
-
 
 #define B_EQ_REG_RC_SEL_CAR__A                                                  0x1C10032
 #define B_EQ_REG_RC_SEL_CAR__W                                                  8
@@ -12112,7 +10585,6 @@ extern "C" {
 #define     B_EQ_REG_RC_SEL_CAR_FFTMODE_2K                                      0x0
 #define     B_EQ_REG_RC_SEL_CAR_FFTMODE_8K                                      0x80
 
-
 #define B_EQ_REG_RC_STS__A                                                      0x1C10033
 #define B_EQ_REG_RC_STS__W                                                      14
 #define B_EQ_REG_RC_STS__M                                                      0x3FFF
@@ -12151,48 +10623,40 @@ extern "C" {
 #define     B_EQ_REG_RC_STS_DRI_PRS_NO                                          0x0
 #define     B_EQ_REG_RC_STS_DRI_PRS_YES                                         0x2000
 
-
 #define B_EQ_REG_OT_CONST__A                                                    0x1C10046
 #define B_EQ_REG_OT_CONST__W                                                    2
 #define B_EQ_REG_OT_CONST__M                                                    0x3
 #define   B_EQ_REG_OT_CONST_INIT                                                0x2
-
 
 #define B_EQ_REG_OT_ALPHA__A                                                    0x1C10047
 #define B_EQ_REG_OT_ALPHA__W                                                    2
 #define B_EQ_REG_OT_ALPHA__M                                                    0x3
 #define   B_EQ_REG_OT_ALPHA_INIT                                                0x0
 
-
 #define B_EQ_REG_OT_QNT_THRES0__A                                               0x1C10048
 #define B_EQ_REG_OT_QNT_THRES0__W                                               5
 #define B_EQ_REG_OT_QNT_THRES0__M                                               0x1F
 #define   B_EQ_REG_OT_QNT_THRES0_INIT                                           0x1E
-
 
 #define B_EQ_REG_OT_QNT_THRES1__A                                               0x1C10049
 #define B_EQ_REG_OT_QNT_THRES1__W                                               5
 #define B_EQ_REG_OT_QNT_THRES1__M                                               0x1F
 #define   B_EQ_REG_OT_QNT_THRES1_INIT                                           0x1F
 
-
 #define B_EQ_REG_OT_CSI_STEP__A                                                 0x1C1004A
 #define B_EQ_REG_OT_CSI_STEP__W                                                 4
 #define B_EQ_REG_OT_CSI_STEP__M                                                 0xF
 #define   B_EQ_REG_OT_CSI_STEP_INIT                                             0x5
-
 
 #define B_EQ_REG_OT_CSI_OFFSET__A                                               0x1C1004B
 #define B_EQ_REG_OT_CSI_OFFSET__W                                               7
 #define B_EQ_REG_OT_CSI_OFFSET__M                                               0x7F
 #define   B_EQ_REG_OT_CSI_OFFSET_INIT                                           0x5
 
-
 #define B_EQ_REG_OT_CSI_GAIN__A                                                 0x1C1004C
 #define B_EQ_REG_OT_CSI_GAIN__W                                                 8
 #define B_EQ_REG_OT_CSI_GAIN__M                                                 0xFF
 #define   B_EQ_REG_OT_CSI_GAIN_INIT                                             0x2B
-
 
 #define B_EQ_REG_OT_CSI_MEAN__A                                                 0x1C1004D
 #define B_EQ_REG_OT_CSI_MEAN__W                                                 7
@@ -12202,16 +10666,12 @@ extern "C" {
 #define B_EQ_REG_OT_CSI_VARIANCE__W                                             7
 #define B_EQ_REG_OT_CSI_VARIANCE__M                                             0x7F
 
-
-
-
 #define B_EQ_REG_TD_TPS_INIT__A                                                 0x1C10050
 #define B_EQ_REG_TD_TPS_INIT__W                                                 1
 #define B_EQ_REG_TD_TPS_INIT__M                                                 0x1
 #define   B_EQ_REG_TD_TPS_INIT_INIT                                             0x0
 #define   B_EQ_REG_TD_TPS_INIT_POS                                              0x0
 #define   B_EQ_REG_TD_TPS_INIT_NEG                                              0x1
-
 
 #define B_EQ_REG_TD_TPS_SYNC__A                                                 0x1C10051
 #define B_EQ_REG_TD_TPS_SYNC__W                                                 16
@@ -12220,14 +10680,12 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_SYNC_ODD                                              0x35EE
 #define   B_EQ_REG_TD_TPS_SYNC_EVEN                                             0xCA11
 
-
 #define B_EQ_REG_TD_TPS_LEN__A                                                  0x1C10052
 #define B_EQ_REG_TD_TPS_LEN__W                                                  6
 #define B_EQ_REG_TD_TPS_LEN__M                                                  0x3F
 #define   B_EQ_REG_TD_TPS_LEN_INIT                                              0x0
 #define   B_EQ_REG_TD_TPS_LEN_DEF                                               0x17
 #define   B_EQ_REG_TD_TPS_LEN_ID_SUP                                            0x1F
-
 
 #define B_EQ_REG_TD_TPS_FRM_NMB__A                                              0x1C10053
 #define B_EQ_REG_TD_TPS_FRM_NMB__W                                              2
@@ -12238,7 +10696,6 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_FRM_NMB_3                                             0x2
 #define   B_EQ_REG_TD_TPS_FRM_NMB_4                                             0x3
 
-
 #define B_EQ_REG_TD_TPS_CONST__A                                                0x1C10054
 #define B_EQ_REG_TD_TPS_CONST__W                                                2
 #define B_EQ_REG_TD_TPS_CONST__M                                                0x3
@@ -12246,7 +10703,6 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_CONST_QPSK                                            0x0
 #define   B_EQ_REG_TD_TPS_CONST_16QAM                                           0x1
 #define   B_EQ_REG_TD_TPS_CONST_64QAM                                           0x2
-
 
 #define B_EQ_REG_TD_TPS_HINFO__A                                                0x1C10055
 #define B_EQ_REG_TD_TPS_HINFO__W                                                3
@@ -12256,7 +10712,6 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_HINFO_H1                                              0x1
 #define   B_EQ_REG_TD_TPS_HINFO_H2                                              0x2
 #define   B_EQ_REG_TD_TPS_HINFO_H4                                              0x3
-
 
 #define B_EQ_REG_TD_TPS_CODE_HP__A                                              0x1C10056
 #define B_EQ_REG_TD_TPS_CODE_HP__W                                              3
@@ -12268,7 +10723,6 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_CODE_HP_5_6                                           0x3
 #define   B_EQ_REG_TD_TPS_CODE_HP_7_8                                           0x4
 
-
 #define B_EQ_REG_TD_TPS_CODE_LP__A                                              0x1C10057
 #define B_EQ_REG_TD_TPS_CODE_LP__W                                              3
 #define B_EQ_REG_TD_TPS_CODE_LP__M                                              0x7
@@ -12279,7 +10733,6 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_CODE_LP_5_6                                           0x3
 #define   B_EQ_REG_TD_TPS_CODE_LP_7_8                                           0x4
 
-
 #define B_EQ_REG_TD_TPS_GUARD__A                                                0x1C10058
 #define B_EQ_REG_TD_TPS_GUARD__W                                                2
 #define B_EQ_REG_TD_TPS_GUARD__M                                                0x3
@@ -12289,7 +10742,6 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_GUARD_08                                              0x2
 #define   B_EQ_REG_TD_TPS_GUARD_04                                              0x3
 
-
 #define B_EQ_REG_TD_TPS_TR_MODE__A                                              0x1C10059
 #define B_EQ_REG_TD_TPS_TR_MODE__W                                              2
 #define B_EQ_REG_TD_TPS_TR_MODE__M                                              0x3
@@ -12297,67 +10749,50 @@ extern "C" {
 #define   B_EQ_REG_TD_TPS_TR_MODE_2K                                            0x0
 #define   B_EQ_REG_TD_TPS_TR_MODE_8K                                            0x1
 
-
 #define B_EQ_REG_TD_TPS_CELL_ID_HI__A                                           0x1C1005A
 #define B_EQ_REG_TD_TPS_CELL_ID_HI__W                                           8
 #define B_EQ_REG_TD_TPS_CELL_ID_HI__M                                           0xFF
 #define   B_EQ_REG_TD_TPS_CELL_ID_HI_INIT                                       0x0
-
 
 #define B_EQ_REG_TD_TPS_CELL_ID_LO__A                                           0x1C1005B
 #define B_EQ_REG_TD_TPS_CELL_ID_LO__W                                           8
 #define B_EQ_REG_TD_TPS_CELL_ID_LO__M                                           0xFF
 #define   B_EQ_REG_TD_TPS_CELL_ID_LO_INIT                                       0x0
 
-
 #define B_EQ_REG_TD_TPS_RSV__A                                                  0x1C1005C
 #define B_EQ_REG_TD_TPS_RSV__W                                                  6
 #define B_EQ_REG_TD_TPS_RSV__M                                                  0x3F
 #define   B_EQ_REG_TD_TPS_RSV_INIT                                              0x0
-
 
 #define B_EQ_REG_TD_TPS_BCH__A                                                  0x1C1005D
 #define B_EQ_REG_TD_TPS_BCH__W                                                  14
 #define B_EQ_REG_TD_TPS_BCH__M                                                  0x3FFF
 #define   B_EQ_REG_TD_TPS_BCH_INIT                                              0x0
 
-
 #define B_EQ_REG_TD_SQR_ERR_I__A                                                0x1C1005E
 #define B_EQ_REG_TD_SQR_ERR_I__W                                                16
 #define B_EQ_REG_TD_SQR_ERR_I__M                                                0xFFFF
 #define   B_EQ_REG_TD_SQR_ERR_I_INIT                                            0x0
-
 
 #define B_EQ_REG_TD_SQR_ERR_Q__A                                                0x1C1005F
 #define B_EQ_REG_TD_SQR_ERR_Q__W                                                16
 #define B_EQ_REG_TD_SQR_ERR_Q__M                                                0xFFFF
 #define   B_EQ_REG_TD_SQR_ERR_Q_INIT                                            0x0
 
-
 #define B_EQ_REG_TD_SQR_ERR_EXP__A                                              0x1C10060
 #define B_EQ_REG_TD_SQR_ERR_EXP__W                                              4
 #define B_EQ_REG_TD_SQR_ERR_EXP__M                                              0xF
 #define   B_EQ_REG_TD_SQR_ERR_EXP_INIT                                          0x0
-
 
 #define B_EQ_REG_TD_REQ_SMB_CNT__A                                              0x1C10061
 #define B_EQ_REG_TD_REQ_SMB_CNT__W                                              16
 #define B_EQ_REG_TD_REQ_SMB_CNT__M                                              0xFFFF
 #define   B_EQ_REG_TD_REQ_SMB_CNT_INIT                                          0x200
 
-
 #define B_EQ_REG_TD_TPS_PWR_OFS__A                                              0x1C10062
 #define B_EQ_REG_TD_TPS_PWR_OFS__W                                              16
 #define B_EQ_REG_TD_TPS_PWR_OFS__M                                              0xFFFF
 #define   B_EQ_REG_TD_TPS_PWR_OFS_INIT                                          0x19F
-
-
-
-
-
-
-
-
 
 #define B_EC_COMM_EXEC__A                                                       0x2000000
 #define B_EC_COMM_EXEC__W                                                       3
@@ -12391,15 +10826,7 @@ extern "C" {
 #define B_EC_COMM_INT_MSK__W                                                    16
 #define B_EC_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
 #define B_EC_SB_SID                                                             0x16
-
-
-
-
 
 #define B_EC_SB_REG_COMM_EXEC__A                                                0x2010000
 #define B_EC_SB_REG_COMM_EXEC__W                                                3
@@ -12428,14 +10855,12 @@ extern "C" {
 #define     B_EC_SB_REG_COMM_MB_OBS_OFF                                         0x0
 #define     B_EC_SB_REG_COMM_MB_OBS_ON                                          0x2
 
-
 #define B_EC_SB_REG_TR_MODE__A                                                  0x2010010
 #define B_EC_SB_REG_TR_MODE__W                                                  1
 #define B_EC_SB_REG_TR_MODE__M                                                  0x1
 #define   B_EC_SB_REG_TR_MODE_INIT                                              0x0
 #define   B_EC_SB_REG_TR_MODE_8K                                                0x0
 #define   B_EC_SB_REG_TR_MODE_2K                                                0x1
-
 
 #define B_EC_SB_REG_CONST__A                                                    0x2010011
 #define B_EC_SB_REG_CONST__W                                                    2
@@ -12444,7 +10869,6 @@ extern "C" {
 #define   B_EC_SB_REG_CONST_QPSK                                                0x0
 #define   B_EC_SB_REG_CONST_16QAM                                               0x1
 #define   B_EC_SB_REG_CONST_64QAM                                               0x2
-
 
 #define B_EC_SB_REG_ALPHA__A                                                    0x2010012
 #define B_EC_SB_REG_ALPHA__W                                                    3
@@ -12460,14 +10884,12 @@ extern "C" {
 
 #define   B_EC_SB_REG_ALPHA_H4                                                  0x3
 
-
 #define B_EC_SB_REG_PRIOR__A                                                    0x2010013
 #define B_EC_SB_REG_PRIOR__W                                                    1
 #define B_EC_SB_REG_PRIOR__M                                                    0x1
 #define   B_EC_SB_REG_PRIOR_INIT                                                0x0
 #define   B_EC_SB_REG_PRIOR_HI                                                  0x0
 #define   B_EC_SB_REG_PRIOR_LO                                                  0x1
-
 
 #define B_EC_SB_REG_CSI_HI__A                                                   0x2010014
 #define B_EC_SB_REG_CSI_HI__W                                                   5
@@ -12477,7 +10899,6 @@ extern "C" {
 #define   B_EC_SB_REG_CSI_HI_MIN                                                0x0
 #define   B_EC_SB_REG_CSI_HI_TAG                                                0x0
 
-
 #define B_EC_SB_REG_CSI_LO__A                                                   0x2010015
 #define B_EC_SB_REG_CSI_LO__W                                                   5
 #define B_EC_SB_REG_CSI_LO__M                                                   0x1F
@@ -12486,14 +10907,12 @@ extern "C" {
 #define   B_EC_SB_REG_CSI_LO_MIN                                                0x0
 #define   B_EC_SB_REG_CSI_LO_TAG                                                0x0
 
-
 #define B_EC_SB_REG_SMB_TGL__A                                                  0x2010016
 #define B_EC_SB_REG_SMB_TGL__W                                                  1
 #define B_EC_SB_REG_SMB_TGL__M                                                  0x1
 #define   B_EC_SB_REG_SMB_TGL_OFF                                               0x0
 #define   B_EC_SB_REG_SMB_TGL_ON                                                0x1
 #define   B_EC_SB_REG_SMB_TGL_INIT                                              0x1
-
 
 #define B_EC_SB_REG_SNR_HI__A                                                   0x2010017
 #define B_EC_SB_REG_SNR_HI__W                                                   8
@@ -12503,7 +10922,6 @@ extern "C" {
 #define   B_EC_SB_REG_SNR_HI_MIN                                                0x0
 #define   B_EC_SB_REG_SNR_HI_TAG                                                0x0
 
-
 #define B_EC_SB_REG_SNR_MID__A                                                  0x2010018
 #define B_EC_SB_REG_SNR_MID__W                                                  8
 #define B_EC_SB_REG_SNR_MID__M                                                  0xFF
@@ -12511,7 +10929,6 @@ extern "C" {
 #define   B_EC_SB_REG_SNR_MID_MAX                                               0xFF
 #define   B_EC_SB_REG_SNR_MID_MIN                                               0x0
 #define   B_EC_SB_REG_SNR_MID_TAG                                               0x0
-
 
 #define B_EC_SB_REG_SNR_LO__A                                                   0x2010019
 #define B_EC_SB_REG_SNR_LO__W                                                   8
@@ -12521,13 +10938,11 @@ extern "C" {
 #define   B_EC_SB_REG_SNR_LO_MIN                                                0x0
 #define   B_EC_SB_REG_SNR_LO_TAG                                                0x0
 
-
 #define B_EC_SB_REG_SCALE_MSB__A                                                0x201001A
 #define B_EC_SB_REG_SCALE_MSB__W                                                6
 #define B_EC_SB_REG_SCALE_MSB__M                                                0x3F
 #define   B_EC_SB_REG_SCALE_MSB_INIT                                            0x30
 #define   B_EC_SB_REG_SCALE_MSB_MAX                                             0x3F
-
 
 #define B_EC_SB_REG_SCALE_BIT2__A                                               0x201001B
 #define B_EC_SB_REG_SCALE_BIT2__W                                               6
@@ -12535,76 +10950,54 @@ extern "C" {
 #define   B_EC_SB_REG_SCALE_BIT2_INIT                                           0xC
 #define   B_EC_SB_REG_SCALE_BIT2_MAX                                            0x3F
 
-
 #define B_EC_SB_REG_SCALE_LSB__A                                                0x201001C
 #define B_EC_SB_REG_SCALE_LSB__W                                                6
 #define B_EC_SB_REG_SCALE_LSB__M                                                0x3F
 #define   B_EC_SB_REG_SCALE_LSB_INIT                                            0x3
 #define   B_EC_SB_REG_SCALE_LSB_MAX                                             0x3F
 
-
 #define B_EC_SB_REG_CSI_OFS0__A                                                 0x201001D
 #define B_EC_SB_REG_CSI_OFS0__W                                                 4
 #define B_EC_SB_REG_CSI_OFS0__M                                                 0xF
 #define   B_EC_SB_REG_CSI_OFS0_INIT                                             0x4
-
 
 #define B_EC_SB_REG_CSI_OFS1__A                                                 0x201001E
 #define B_EC_SB_REG_CSI_OFS1__W                                                 4
 #define B_EC_SB_REG_CSI_OFS1__M                                                 0xF
 #define   B_EC_SB_REG_CSI_OFS1_INIT                                             0x1
 
-
 #define B_EC_SB_REG_CSI_OFS2__A                                                 0x201001F
 #define B_EC_SB_REG_CSI_OFS2__W                                                 4
 #define B_EC_SB_REG_CSI_OFS2__M                                                 0xF
 #define   B_EC_SB_REG_CSI_OFS2_INIT                                             0x2
-
 
 #define B_EC_SB_REG_MAX0__A                                                     0x2010020
 #define B_EC_SB_REG_MAX0__W                                                     6
 #define B_EC_SB_REG_MAX0__M                                                     0x3F
 #define   B_EC_SB_REG_MAX0_INIT                                                 0x3F
 
-
 #define B_EC_SB_REG_MAX1__A                                                     0x2010021
 #define B_EC_SB_REG_MAX1__W                                                     6
 #define B_EC_SB_REG_MAX1__M                                                     0x3F
 #define   B_EC_SB_REG_MAX1_INIT                                                 0x3F
-
 
 #define B_EC_SB_REG_MAX2__A                                                     0x2010022
 #define B_EC_SB_REG_MAX2__W                                                     6
 #define B_EC_SB_REG_MAX2__M                                                     0x3F
 #define   B_EC_SB_REG_MAX2_INIT                                                 0x3F
 
-
 #define B_EC_SB_REG_CSI_DIS__A                                                  0x2010023
 #define B_EC_SB_REG_CSI_DIS__W                                                  1
 #define B_EC_SB_REG_CSI_DIS__M                                                  0x1
 #define   B_EC_SB_REG_CSI_DIS_INIT                                              0x0
 
-
-
 #define B_EC_SB_SD_RAM__A                                                       0x2020000
-
-
 
 #define B_EC_SB_BD0_RAM__A                                                      0x2030000
 
-
-
 #define B_EC_SB_BD1_RAM__A                                                      0x2040000
 
-
-
-
-
 #define B_EC_VD_SID                                                             0x17
-
-
-
-
 
 #define B_EC_VD_REG_COMM_EXEC__A                                                0x2090000
 #define B_EC_VD_REG_COMM_EXEC__W                                                3
@@ -12653,7 +11046,6 @@ extern "C" {
 #define   B_EC_VD_REG_COMM_INT_MSK_BER_RDY__W                                   1
 #define   B_EC_VD_REG_COMM_INT_MSK_BER_RDY__M                                   0x1
 
-
 #define B_EC_VD_REG_FORCE__A                                                    0x2090010
 #define B_EC_VD_REG_FORCE__W                                                    2
 #define B_EC_VD_REG_FORCE__M                                                    0x3
@@ -12662,7 +11054,6 @@ extern "C" {
 #define   B_EC_VD_REG_FORCE_PROP                                                0x1
 #define   B_EC_VD_REG_FORCE_FORCED                                              0x2
 #define   B_EC_VD_REG_FORCE_FIXED                                               0x3
-
 
 #define B_EC_VD_REG_SET_CODERATE__A                                             0x2090011
 #define B_EC_VD_REG_SET_CODERATE__W                                             3
@@ -12674,18 +11065,15 @@ extern "C" {
 #define   B_EC_VD_REG_SET_CODERATE_C5_6                                         0x3
 #define   B_EC_VD_REG_SET_CODERATE_C7_8                                         0x4
 
-
 #define B_EC_VD_REG_REQ_SMB_CNT__A                                              0x2090012
 #define B_EC_VD_REG_REQ_SMB_CNT__W                                              16
 #define B_EC_VD_REG_REQ_SMB_CNT__M                                              0xFFFF
 #define   B_EC_VD_REG_REQ_SMB_CNT_INIT                                          0x1
 
-
 #define B_EC_VD_REG_REQ_BIT_CNT__A                                              0x2090013
 #define B_EC_VD_REG_REQ_BIT_CNT__W                                              16
 #define B_EC_VD_REG_REQ_BIT_CNT__M                                              0xFFFF
 #define   B_EC_VD_REG_REQ_BIT_CNT_INIT                                          0xFFF
-
 
 #define B_EC_VD_REG_RLK_ENA__A                                                  0x2090014
 #define B_EC_VD_REG_RLK_ENA__W                                                  1
@@ -12694,14 +11082,12 @@ extern "C" {
 #define   B_EC_VD_REG_RLK_ENA_OFF                                               0x0
 #define   B_EC_VD_REG_RLK_ENA_ON                                                0x1
 
-
 #define B_EC_VD_REG_VAL__A                                                      0x2090015
 #define B_EC_VD_REG_VAL__W                                                      2
 #define B_EC_VD_REG_VAL__M                                                      0x3
 #define   B_EC_VD_REG_VAL_INIT                                                  0x0
 #define   B_EC_VD_REG_VAL_CODE                                                  0x1
 #define   B_EC_VD_REG_VAL_CNT                                                   0x2
-
 
 #define B_EC_VD_REG_GET_CODERATE__A                                             0x2090016
 #define B_EC_VD_REG_GET_CODERATE__W                                             3
@@ -12713,18 +11099,15 @@ extern "C" {
 #define   B_EC_VD_REG_GET_CODERATE_C5_6                                         0x3
 #define   B_EC_VD_REG_GET_CODERATE_C7_8                                         0x4
 
-
 #define B_EC_VD_REG_ERR_BIT_CNT__A                                              0x2090017
 #define B_EC_VD_REG_ERR_BIT_CNT__W                                              16
 #define B_EC_VD_REG_ERR_BIT_CNT__M                                              0xFFFF
 #define   B_EC_VD_REG_ERR_BIT_CNT_INIT                                          0xFFFF
 
-
 #define B_EC_VD_REG_IN_BIT_CNT__A                                               0x2090018
 #define B_EC_VD_REG_IN_BIT_CNT__W                                               16
 #define B_EC_VD_REG_IN_BIT_CNT__M                                               0xFFFF
 #define   B_EC_VD_REG_IN_BIT_CNT_INIT                                           0x0
-
 
 #define B_EC_VD_REG_STS__A                                                      0x2090019
 #define B_EC_VD_REG_STS__W                                                      1
@@ -12733,42 +11116,22 @@ extern "C" {
 #define   B_EC_VD_REG_STS_NO_LOCK                                               0x0
 #define   B_EC_VD_REG_STS_IN_LOCK                                               0x1
 
-
 #define B_EC_VD_REG_RLK_CNT__A                                                  0x209001A
 #define B_EC_VD_REG_RLK_CNT__W                                                  16
 #define B_EC_VD_REG_RLK_CNT__M                                                  0xFFFF
 #define   B_EC_VD_REG_RLK_CNT_INIT                                              0x0
 
-
-
 #define B_EC_VD_TB0_RAM__A                                                      0x20A0000
-
-
 
 #define B_EC_VD_TB1_RAM__A                                                      0x20B0000
 
-
-
 #define B_EC_VD_TB2_RAM__A                                                      0x20C0000
-
-
 
 #define B_EC_VD_TB3_RAM__A                                                      0x20D0000
 
-
-
 #define B_EC_VD_RE_RAM__A                                                       0x2100000
 
-
-
-
-
 #define B_EC_OD_SID                                                             0x18
-
-
-
-
-
 
 #define B_EC_OD_REG_COMM_EXEC__A                                                0x2110000
 #define B_EC_OD_REG_COMM_EXEC__W                                                3
@@ -12787,7 +11150,6 @@ extern "C" {
 #define   B_EC_OD_REG_COMM_STATE_DI_LOCKED__B                                   0
 #define   B_EC_OD_REG_COMM_STATE_DI_LOCKED__W                                   1
 #define   B_EC_OD_REG_COMM_STATE_DI_LOCKED__M                                   0x1
-
 
 #define B_EC_OD_REG_COMM_MB__A                                                  0x2110002
 #define B_EC_OD_REG_COMM_MB__W                                                  3
@@ -12828,7 +11190,6 @@ extern "C" {
 #define   B_EC_OD_REG_COMM_INT_STA_LOST_SYNC__W                                 1
 #define   B_EC_OD_REG_COMM_INT_STA_LOST_SYNC__M                                 0x2
 
-
 #define B_EC_OD_REG_COMM_INT_MSK__A                                             0x2110008
 #define B_EC_OD_REG_COMM_INT_MSK__W                                             2
 #define B_EC_OD_REG_COMM_INT_MSK__M                                             0x3
@@ -12838,7 +11199,6 @@ extern "C" {
 #define   B_EC_OD_REG_COMM_INT_MSK_LOST_SYNC__B                                 1
 #define   B_EC_OD_REG_COMM_INT_MSK_LOST_SYNC__W                                 1
 #define   B_EC_OD_REG_COMM_INT_MSK_LOST_SYNC__M                                 0x2
-
 
 #define B_EC_OD_REG_SYNC__A                                                     0x2110664
 #define B_EC_OD_REG_SYNC__W                                                     12
@@ -12853,24 +11213,13 @@ extern "C" {
 #define   B_EC_OD_REG_SYNC_OUT_SYNC__W                                          3
 #define   B_EC_OD_REG_SYNC_OUT_SYNC__M                                          0xE00
 
-
 #define B_EC_OD_REG_NOSYNC__A                                                   0x2110004
 #define B_EC_OD_REG_NOSYNC__W                                                   8
 #define B_EC_OD_REG_NOSYNC__M                                                   0xFF
 
-
-
 #define B_EC_OD_DEINT_RAM__A                                                    0x2120000
 
-
-
-
-
 #define B_EC_RS_SID                                                             0x19
-
-
-
-
 
 #define B_EC_RS_REG_COMM_EXEC__A                                                0x2130000
 #define B_EC_RS_REG_COMM_EXEC__W                                                3
@@ -12919,12 +11268,10 @@ extern "C" {
 #define   B_EC_RS_REG_COMM_INT_MSK_BER_RDY__W                                   1
 #define   B_EC_RS_REG_COMM_INT_MSK_BER_RDY__M                                   0x1
 
-
 #define B_EC_RS_REG_REQ_PCK_CNT__A                                              0x2130010
 #define B_EC_RS_REG_REQ_PCK_CNT__W                                              16
 #define B_EC_RS_REG_REQ_PCK_CNT__M                                              0xFFFF
 #define   B_EC_RS_REG_REQ_PCK_CNT_INIT                                          0x200
-
 
 #define B_EC_RS_REG_VAL__A                                                      0x2130011
 #define B_EC_RS_REG_VAL__W                                                      1
@@ -12932,44 +11279,29 @@ extern "C" {
 #define   B_EC_RS_REG_VAL_INIT                                                  0x0
 #define   B_EC_RS_REG_VAL_PCK                                                   0x1
 
-
 #define B_EC_RS_REG_ERR_PCK_CNT__A                                              0x2130012
 #define B_EC_RS_REG_ERR_PCK_CNT__W                                              16
 #define B_EC_RS_REG_ERR_PCK_CNT__M                                              0xFFFF
 #define   B_EC_RS_REG_ERR_PCK_CNT_INIT                                          0xFFFF
-
 
 #define B_EC_RS_REG_ERR_SMB_CNT__A                                              0x2130013
 #define B_EC_RS_REG_ERR_SMB_CNT__W                                              16
 #define B_EC_RS_REG_ERR_SMB_CNT__M                                              0xFFFF
 #define   B_EC_RS_REG_ERR_SMB_CNT_INIT                                          0xFFFF
 
-
 #define B_EC_RS_REG_ERR_BIT_CNT__A                                              0x2130014
 #define B_EC_RS_REG_ERR_BIT_CNT__W                                              16
 #define B_EC_RS_REG_ERR_BIT_CNT__M                                              0xFFFF
 #define   B_EC_RS_REG_ERR_BIT_CNT_INIT                                          0xFFFF
-
 
 #define B_EC_RS_REG_IN_PCK_CNT__A                                               0x2130015
 #define B_EC_RS_REG_IN_PCK_CNT__W                                               16
 #define B_EC_RS_REG_IN_PCK_CNT__M                                               0xFFFF
 #define   B_EC_RS_REG_IN_PCK_CNT_INIT                                           0x0
 
-
-
 #define B_EC_RS_EC_RAM__A                                                       0x2140000
 
-
-
-
-
 #define B_EC_OC_SID                                                             0x1A
-
-
-
-
-
 
 #define B_EC_OC_REG_COMM_EXEC__A                                                0x2150000
 #define B_EC_OC_REG_COMM_EXEC__W                                                3
@@ -12999,7 +11331,6 @@ extern "C" {
 #define   B_EC_OC_REG_COMM_MB_OBS__M                                            0x2
 #define     B_EC_OC_REG_COMM_MB_OBS_OFF                                         0x0
 #define     B_EC_OC_REG_COMM_MB_OBS_ON                                          0x2
-
 
 #define B_EC_OC_REG_COMM_SERVICE0__A                                            0x2150003
 #define B_EC_OC_REG_COMM_SERVICE0__W                                            10
@@ -13031,7 +11362,6 @@ extern "C" {
 #define   B_EC_OC_REG_COMM_INT_STA_PCK_ERR_UPD__W                               1
 #define   B_EC_OC_REG_COMM_INT_STA_PCK_ERR_UPD__M                               0x20
 
-
 #define B_EC_OC_REG_COMM_INT_MSK__A                                             0x2150008
 #define B_EC_OC_REG_COMM_INT_MSK__W                                             6
 #define B_EC_OC_REG_COMM_INT_MSK__M                                             0x3F
@@ -13053,7 +11383,6 @@ extern "C" {
 #define   B_EC_OC_REG_COMM_INT_MSK_PCK_ERR_UPD__B                               5
 #define   B_EC_OC_REG_COMM_INT_MSK_PCK_ERR_UPD__W                               1
 #define   B_EC_OC_REG_COMM_INT_MSK_PCK_ERR_UPD__M                               0x20
-
 
 #define B_EC_OC_REG_OC_MODE_LOP__A                                              0x2150010
 #define B_EC_OC_REG_OC_MODE_LOP__W                                              16
@@ -13143,7 +11472,6 @@ extern "C" {
 #define   B_EC_OC_REG_OC_MODE_LOP_DER_ENA__M                                    0x8000
 #define     B_EC_OC_REG_OC_MODE_LOP_DER_ENA_ENABLE                              0x0
 #define     B_EC_OC_REG_OC_MODE_LOP_DER_ENA_DISABLE                             0x8000
-
 
 #define B_EC_OC_REG_OC_MODE_HIP__A                                              0x2150011
 #define B_EC_OC_REG_OC_MODE_HIP__W                                              15
@@ -13240,7 +11568,6 @@ extern "C" {
 #define     B_EC_OC_REG_OC_MODE_HIP_SNC_OFF_SEL_ZER                             0x0
 #define     B_EC_OC_REG_OC_MODE_HIP_SNC_OFF_SEL_CLC                             0x4000
 
-
 #define B_EC_OC_REG_OC_MPG_SIO__A                                               0x2150012
 #define B_EC_OC_REG_OC_MPG_SIO__W                                               12
 #define B_EC_OC_REG_OC_MPG_SIO__M                                               0xFFF
@@ -13318,18 +11645,15 @@ extern "C" {
 #define     B_EC_OC_REG_OC_MPG_SIO_MPG_SIO_11_OUTPUT                            0x0
 #define     B_EC_OC_REG_OC_MPG_SIO_MPG_SIO_11_INPUT                             0x800
 
-
 #define B_EC_OC_REG_DTO_INC_LOP__A                                              0x2150014
 #define B_EC_OC_REG_DTO_INC_LOP__W                                              16
 #define B_EC_OC_REG_DTO_INC_LOP__M                                              0xFFFF
 #define   B_EC_OC_REG_DTO_INC_LOP_INIT                                          0x0
 
-
 #define B_EC_OC_REG_DTO_INC_HIP__A                                              0x2150015
 #define B_EC_OC_REG_DTO_INC_HIP__W                                              8
 #define B_EC_OC_REG_DTO_INC_HIP__M                                              0xFF
 #define   B_EC_OC_REG_DTO_INC_HIP_INIT                                          0xC0
-
 
 #define B_EC_OC_REG_SNC_ISC_LVL__A                                              0x2150016
 #define B_EC_OC_REG_SNC_ISC_LVL__W                                              12
@@ -13348,12 +11672,10 @@ extern "C" {
 #define   B_EC_OC_REG_SNC_ISC_LVL_NSC__W                                        4
 #define   B_EC_OC_REG_SNC_ISC_LVL_NSC__M                                        0xF00
 
-
 #define B_EC_OC_REG_SNC_NSC_LVL__A                                              0x2150017
 #define B_EC_OC_REG_SNC_NSC_LVL__W                                              8
 #define B_EC_OC_REG_SNC_NSC_LVL__M                                              0xFF
 #define   B_EC_OC_REG_SNC_NSC_LVL_INIT                                          0x0
-
 
 #define B_EC_OC_REG_SNC_SNC_MODE__A                                             0x2150019
 #define B_EC_OC_REG_SNC_SNC_MODE__W                                             2
@@ -13361,7 +11683,6 @@ extern "C" {
 #define   B_EC_OC_REG_SNC_SNC_MODE_SEARCH                                       0x0
 #define   B_EC_OC_REG_SNC_SNC_MODE_TRACK                                        0x1
 #define   B_EC_OC_REG_SNC_SNC_MODE_LOCK                                         0x2
-
 
 #define B_EC_OC_REG_SNC_PCK_NMB__A                                              0x215001A
 #define B_EC_OC_REG_SNC_PCK_NMB__W                                              16
@@ -13384,48 +11705,40 @@ extern "C" {
 #define   B_EC_OC_REG_TMD_TOP_MODE_SELECT_BOT_BOT                               0x2
 #define   B_EC_OC_REG_TMD_TOP_MODE_SELECT_TOP_BOT                               0x3
 
-
 #define B_EC_OC_REG_TMD_TOP_CNT__A                                              0x215001E
 #define B_EC_OC_REG_TMD_TOP_CNT__W                                              10
 #define B_EC_OC_REG_TMD_TOP_CNT__M                                              0x3FF
 #define   B_EC_OC_REG_TMD_TOP_CNT_INIT                                          0x1F4
-
 
 #define B_EC_OC_REG_TMD_HIL_MAR__A                                              0x215001F
 #define B_EC_OC_REG_TMD_HIL_MAR__W                                              10
 #define B_EC_OC_REG_TMD_HIL_MAR__M                                              0x3FF
 #define   B_EC_OC_REG_TMD_HIL_MAR_INIT                                          0x3C0
 
-
 #define B_EC_OC_REG_TMD_LOL_MAR__A                                              0x2150020
 #define B_EC_OC_REG_TMD_LOL_MAR__W                                              10
 #define B_EC_OC_REG_TMD_LOL_MAR__M                                              0x3FF
 #define   B_EC_OC_REG_TMD_LOL_MAR_INIT                                          0x40
-
 
 #define B_EC_OC_REG_TMD_CUR_CNT__A                                              0x2150021
 #define B_EC_OC_REG_TMD_CUR_CNT__W                                              4
 #define B_EC_OC_REG_TMD_CUR_CNT__M                                              0xF
 #define   B_EC_OC_REG_TMD_CUR_CNT_INIT                                          0x3
 
-
 #define B_EC_OC_REG_TMD_IUR_CNT__A                                              0x2150022
 #define B_EC_OC_REG_TMD_IUR_CNT__W                                              4
 #define B_EC_OC_REG_TMD_IUR_CNT__M                                              0xF
 #define   B_EC_OC_REG_TMD_IUR_CNT_INIT                                          0x0
-
 
 #define B_EC_OC_REG_AVR_ASH_CNT__A                                              0x2150023
 #define B_EC_OC_REG_AVR_ASH_CNT__W                                              4
 #define B_EC_OC_REG_AVR_ASH_CNT__M                                              0xF
 #define   B_EC_OC_REG_AVR_ASH_CNT_INIT                                          0x6
 
-
 #define B_EC_OC_REG_AVR_BSH_CNT__A                                              0x2150024
 #define B_EC_OC_REG_AVR_BSH_CNT__W                                              4
 #define B_EC_OC_REG_AVR_BSH_CNT__M                                              0xF
 #define   B_EC_OC_REG_AVR_BSH_CNT_INIT                                          0x2
-
 
 #define B_EC_OC_REG_AVR_AVE_LOP__A                                              0x2150025
 #define B_EC_OC_REG_AVR_AVE_LOP__W                                              16
@@ -13458,42 +11771,35 @@ extern "C" {
 #define     B_EC_OC_REG_RCN_MODE_MODE_2_ENABLE                                  0x4
 #define     B_EC_OC_REG_RCN_MODE_MODE_2_DISABLE                                 0x0
 
-
 #define B_EC_OC_REG_RCN_CRA_LOP__A                                              0x2150028
 #define B_EC_OC_REG_RCN_CRA_LOP__W                                              16
 #define B_EC_OC_REG_RCN_CRA_LOP__M                                              0xFFFF
 #define   B_EC_OC_REG_RCN_CRA_LOP_INIT                                          0x0
-
 
 #define B_EC_OC_REG_RCN_CRA_HIP__A                                              0x2150029
 #define B_EC_OC_REG_RCN_CRA_HIP__W                                              8
 #define B_EC_OC_REG_RCN_CRA_HIP__M                                              0xFF
 #define   B_EC_OC_REG_RCN_CRA_HIP_INIT                                          0xC0
 
-
 #define B_EC_OC_REG_RCN_CST_LOP__A                                              0x215002A
 #define B_EC_OC_REG_RCN_CST_LOP__W                                              16
 #define B_EC_OC_REG_RCN_CST_LOP__M                                              0xFFFF
 #define   B_EC_OC_REG_RCN_CST_LOP_INIT                                          0x1000
-
 
 #define B_EC_OC_REG_RCN_CST_HIP__A                                              0x215002B
 #define B_EC_OC_REG_RCN_CST_HIP__W                                              8
 #define B_EC_OC_REG_RCN_CST_HIP__M                                              0xFF
 #define   B_EC_OC_REG_RCN_CST_HIP_INIT                                          0x0
 
-
 #define B_EC_OC_REG_RCN_SET_LVL__A                                              0x215002C
 #define B_EC_OC_REG_RCN_SET_LVL__W                                              9
 #define B_EC_OC_REG_RCN_SET_LVL__M                                              0x1FF
 #define   B_EC_OC_REG_RCN_SET_LVL_INIT                                          0x1FF
 
-
 #define B_EC_OC_REG_RCN_GAI_LVL__A                                              0x215002D
 #define B_EC_OC_REG_RCN_GAI_LVL__W                                              4
 #define B_EC_OC_REG_RCN_GAI_LVL__M                                              0xF
 #define   B_EC_OC_REG_RCN_GAI_LVL_INIT                                          0xA
-
 
 #define B_EC_OC_REG_RCN_DRA_LOP__A                                              0x215002E
 #define B_EC_OC_REG_RCN_DRA_LOP__W                                              16
@@ -13516,12 +11822,10 @@ extern "C" {
 #define B_EC_OC_REG_RCN_CLP_LOP__M                                              0xFFFF
 #define   B_EC_OC_REG_RCN_CLP_LOP_INIT                                          0x0
 
-
 #define B_EC_OC_REG_RCN_CLP_HIP__A                                              0x2150033
 #define B_EC_OC_REG_RCN_CLP_HIP__W                                              8
 #define B_EC_OC_REG_RCN_CLP_HIP__M                                              0xFF
 #define   B_EC_OC_REG_RCN_CLP_HIP_INIT                                          0xC0
-
 
 #define B_EC_OC_REG_RCN_MAP_LOP__A                                              0x2150034
 #define B_EC_OC_REG_RCN_MAP_LOP__W                                              16
@@ -13608,7 +11912,6 @@ extern "C" {
 #define     B_EC_OC_REG_OCR_MPG_UOS_CLK_DISABLE                                 0x0
 #define     B_EC_OC_REG_OCR_MPG_UOS_CLK_ENABLE                                  0x800
 
-
 #define B_EC_OC_REG_OCR_MPG_WRI__A                                              0x2150037
 #define B_EC_OC_REG_OCR_MPG_WRI__W                                              12
 #define B_EC_OC_REG_OCR_MPG_WRI__M                                              0xFFF
@@ -13674,7 +11977,6 @@ extern "C" {
 #define     B_EC_OC_REG_OCR_MPG_WRI_CLK_DISABLE                                 0x0
 #define     B_EC_OC_REG_OCR_MPG_WRI_CLK_ENABLE                                  0x800
 
-
 #define B_EC_OC_REG_OCR_MPG_USR_DAT__A                                          0x2150038
 #define B_EC_OC_REG_OCR_MPG_USR_DAT__W                                          12
 #define B_EC_OC_REG_OCR_MPG_USR_DAT__M                                          0xFFF
@@ -13684,12 +11986,10 @@ extern "C" {
 #define B_EC_OC_REG_OCR_MON_CNT__M                                              0x3FFF
 #define   B_EC_OC_REG_OCR_MON_CNT_INIT                                          0x0
 
-
 #define B_EC_OC_REG_OCR_MON_RDX__A                                              0x215003D
 #define B_EC_OC_REG_OCR_MON_RDX__W                                              1
 #define B_EC_OC_REG_OCR_MON_RDX__M                                              0x1
 #define   B_EC_OC_REG_OCR_MON_RDX_INIT                                          0x0
-
 
 #define B_EC_OC_REG_OCR_MON_RD0__A                                              0x215003E
 #define B_EC_OC_REG_OCR_MON_RD0__W                                              10
@@ -13720,18 +12020,15 @@ extern "C" {
 #define B_EC_OC_REG_OCR_INV_MON__M                                              0xFFF
 #define   B_EC_OC_REG_OCR_INV_MON_INIT                                          0x0
 
-
 #define B_EC_OC_REG_IPR_INV_MPG__A                                              0x2150045
 #define B_EC_OC_REG_IPR_INV_MPG__W                                              12
 #define B_EC_OC_REG_IPR_INV_MPG__M                                              0xFFF
 #define   B_EC_OC_REG_IPR_INV_MPG_INIT                                          0x0
 
-
 #define B_EC_OC_REG_IPR_MSR_SNC__A                                              0x2150046
 #define B_EC_OC_REG_IPR_MSR_SNC__W                                              6
 #define B_EC_OC_REG_IPR_MSR_SNC__M                                              0x3F
 #define   B_EC_OC_REG_IPR_MSR_SNC_INIT                                          0x0
-
 
 #define B_EC_OC_REG_DTO_CLKMODE__A                                              0x2150047
 #define B_EC_OC_REG_DTO_CLKMODE__W                                              2
@@ -13750,12 +12047,10 @@ extern "C" {
 #define     B_EC_OC_REG_DTO_CLKMODE_PAR_SER_SERIAL_MODE                         0x0
 #define     B_EC_OC_REG_DTO_CLKMODE_PAR_SER_PARALLEL_MODE                       0x2
 
-
 #define B_EC_OC_REG_DTO_PER__A                                                  0x2150048
 #define B_EC_OC_REG_DTO_PER__W                                                  8
 #define B_EC_OC_REG_DTO_PER__M                                                  0xFF
 #define   B_EC_OC_REG_DTO_PER_INIT                                              0x6
-
 
 #define B_EC_OC_REG_DTO_BUR__A                                                  0x2150049
 #define B_EC_OC_REG_DTO_BUR__W                                                  2
@@ -13765,7 +12060,6 @@ extern "C" {
 #define   B_EC_OC_REG_DTO_BUR_SELECT_188                                        0x1
 #define   B_EC_OC_REG_DTO_BUR_SELECT_204                                        0x2
 #define   B_EC_OC_REG_DTO_BUR_SELECT_47                                         0x3
-
 
 #define B_EC_OC_REG_RCR_CLKMODE__A                                              0x215004A
 #define B_EC_OC_REG_RCR_CLKMODE__W                                              3
@@ -13790,19 +12084,9 @@ extern "C" {
 #define     B_EC_OC_REG_RCR_CLKMODE_FEEDBACKLOOP_SELECT_SELECT_FIFO             0x0
 #define     B_EC_OC_REG_RCR_CLKMODE_FEEDBACKLOOP_SELECT_SELECT_FEEDBACKLOOP     0x4
 
-
-
 #define B_EC_OC_RAM__A                                                          0x2160000
 
-
-
-
-
 #define B_CC_SID                                                                0x1B
-
-
-
-
 
 #define B_CC_COMM_EXEC__A                                                       0x2400000
 #define B_CC_COMM_EXEC__W                                                       3
@@ -13835,12 +12119,6 @@ extern "C" {
 #define B_CC_COMM_INT_MSK__A                                                    0x2400008
 #define B_CC_COMM_INT_MSK__W                                                    16
 #define B_CC_COMM_INT_MSK__M                                                    0xFFFF
-
-
-
-
-
-
 
 #define B_CC_REG_COMM_EXEC__A                                                   0x2410000
 #define B_CC_REG_COMM_EXEC__W                                                   3
@@ -13881,7 +12159,6 @@ extern "C" {
 #define   B_CC_REG_OSC_MODE_M20                                                 0x1
 #define   B_CC_REG_OSC_MODE_M48                                                 0x2
 
-
 #define B_CC_REG_PLL_MODE__A                                                    0x2410011
 #define B_CC_REG_PLL_MODE__W                                                    6
 #define B_CC_REG_PLL_MODE__M                                                    0x3F
@@ -13907,7 +12184,6 @@ extern "C" {
 #define     B_CC_REG_PLL_MODE_OUT_EN_OFF                                        0x0
 #define     B_CC_REG_PLL_MODE_OUT_EN_ON                                         0x20
 
-
 #define B_CC_REG_REF_DIVIDE__A                                                  0x2410012
 #define B_CC_REG_REF_DIVIDE__W                                                  4
 #define B_CC_REG_REF_DIVIDE__M                                                  0xF
@@ -13924,7 +12200,6 @@ extern "C" {
 #define   B_CC_REG_REF_DIVIDE_D09                                               0x9
 #define   B_CC_REG_REF_DIVIDE_D10                                               0xA
 
-
 #define B_CC_REG_REF_DELAY__A                                                   0x2410013
 #define B_CC_REG_REF_DELAY__W                                                   3
 #define B_CC_REG_REF_DELAY__M                                                   0x7
@@ -13940,7 +12215,6 @@ extern "C" {
 #define     B_CC_REG_REF_DELAY_DELAY_DEL_3                                      0x2
 #define     B_CC_REG_REF_DELAY_DELAY_DEL_6                                      0x4
 #define     B_CC_REG_REF_DELAY_DELAY_DEL_9                                      0x6
-
 
 #define B_CC_REG_CLK_DELAY__A                                                   0x2410014
 #define B_CC_REG_CLK_DELAY__W                                                   5
@@ -13970,7 +12244,6 @@ extern "C" {
 #define     B_CC_REG_CLK_DELAY_EDGE_POS                                         0x0
 #define     B_CC_REG_CLK_DELAY_EDGE_NEG                                         0x10
 
-
 #define B_CC_REG_PWD_MODE__A                                                    0x2410015
 #define B_CC_REG_PWD_MODE__W                                                    2
 #define B_CC_REG_PWD_MODE__M                                                    0x3
@@ -13978,7 +12251,6 @@ extern "C" {
 #define   B_CC_REG_PWD_MODE_DOWN_CLK                                            0x1
 #define   B_CC_REG_PWD_MODE_DOWN_PLL                                            0x2
 #define   B_CC_REG_PWD_MODE_DOWN_OSC                                            0x3
-
 
 #define B_CC_REG_SOFT_RST__A                                                    0x2410016
 #define B_CC_REG_SOFT_RST__W                                                    2
@@ -13990,75 +12262,57 @@ extern "C" {
 #define   B_CC_REG_SOFT_RST_OSC__W                                              1
 #define   B_CC_REG_SOFT_RST_OSC__M                                              0x2
 
-
 #define B_CC_REG_UPDATE__A                                                      0x2410017
 #define B_CC_REG_UPDATE__W                                                      16
 #define B_CC_REG_UPDATE__M                                                      0xFFFF
 #define   B_CC_REG_UPDATE_KEY                                                   0x3973
-
 
 #define B_CC_REG_PLL_LOCK__A                                                    0x2410018
 #define B_CC_REG_PLL_LOCK__W                                                    1
 #define B_CC_REG_PLL_LOCK__M                                                    0x1
 #define   B_CC_REG_PLL_LOCK_LOCK                                                0x1
 
-
 #define B_CC_REG_JTAGID_L__A                                                    0x2410019
 #define B_CC_REG_JTAGID_L__W                                                    16
 #define B_CC_REG_JTAGID_L__M                                                    0xFFFF
 #define   B_CC_REG_JTAGID_L_INIT                                                0x0
-
 
 #define B_CC_REG_JTAGID_H__A                                                    0x241001A
 #define B_CC_REG_JTAGID_H__W                                                    16
 #define B_CC_REG_JTAGID_H__M                                                    0xFFFF
 #define   B_CC_REG_JTAGID_H_INIT                                                0x0
 
-
 #define B_CC_REG_DIVERSITY__A                                                   0x241001B
 #define B_CC_REG_DIVERSITY__W                                                   1
 #define B_CC_REG_DIVERSITY__M                                                   0x1
 #define   B_CC_REG_DIVERSITY_INIT                                               0x0
-
 
 #define B_CC_REG_BACKUP3V__A                                                    0x241001C
 #define B_CC_REG_BACKUP3V__W                                                    1
 #define B_CC_REG_BACKUP3V__M                                                    0x1
 #define   B_CC_REG_BACKUP3V_INIT                                                0x0
 
-
 #define B_CC_REG_DRV_IO__A                                                      0x241001D
 #define B_CC_REG_DRV_IO__W                                                      3
 #define B_CC_REG_DRV_IO__M                                                      0x7
 #define   B_CC_REG_DRV_IO_INIT                                                  0x2
-
 
 #define B_CC_REG_DRV_MPG__A                                                     0x241001E
 #define B_CC_REG_DRV_MPG__W                                                     3
 #define B_CC_REG_DRV_MPG__M                                                     0x7
 #define   B_CC_REG_DRV_MPG_INIT                                                 0x2
 
-
 #define B_CC_REG_DRV_I2C1__A                                                    0x241001F
 #define B_CC_REG_DRV_I2C1__W                                                    3
 #define B_CC_REG_DRV_I2C1__M                                                    0x7
 #define   B_CC_REG_DRV_I2C1_INIT                                                0x2
-
 
 #define B_CC_REG_DRV_I2C2__A                                                    0x2410020
 #define B_CC_REG_DRV_I2C2__W                                                    1
 #define B_CC_REG_DRV_I2C2__M                                                    0x1
 #define   B_CC_REG_DRV_I2C2_INIT                                                0x0
 
-
-
-
-
 #define B_LC_SID                                                                0x1C
-
-
-
-
 
 #define B_LC_COMM_EXEC__A                                                       0x2800000
 #define B_LC_COMM_EXEC__W                                                       3
@@ -14092,11 +12346,6 @@ extern "C" {
 #define B_LC_COMM_INT_MSK__W                                                    16
 #define B_LC_COMM_INT_MSK__M                                                    0xFFFF
 
-
-
-
-
-
 #define B_LC_CT_REG_COMM_EXEC__A                                                0x2810000
 #define B_LC_CT_REG_COMM_EXEC__W                                                3
 #define B_LC_CT_REG_COMM_EXEC__M                                                0x7
@@ -14107,7 +12356,6 @@ extern "C" {
 #define     B_LC_CT_REG_COMM_EXEC_CTL_ACTIVE                                    0x1
 #define     B_LC_CT_REG_COMM_EXEC_CTL_HOLD                                      0x2
 #define     B_LC_CT_REG_COMM_EXEC_CTL_STEP                                      0x3
-
 
 #define B_LC_CT_REG_COMM_STATE__A                                               0x2810001
 #define B_LC_CT_REG_COMM_STATE__W                                               10
@@ -14122,7 +12370,6 @@ extern "C" {
 #define   B_LC_CT_REG_COMM_SERVICE1_LC__W                                       1
 #define   B_LC_CT_REG_COMM_SERVICE1_LC__M                                       0x1000
 
-
 #define B_LC_CT_REG_COMM_INT_STA__A                                             0x2810007
 #define B_LC_CT_REG_COMM_INT_STA__W                                             1
 #define B_LC_CT_REG_COMM_INT_STA__M                                             0x1
@@ -14130,16 +12377,12 @@ extern "C" {
 #define   B_LC_CT_REG_COMM_INT_STA_REQUEST__W                                   1
 #define   B_LC_CT_REG_COMM_INT_STA_REQUEST__M                                   0x1
 
-
 #define B_LC_CT_REG_COMM_INT_MSK__A                                             0x2810008
 #define B_LC_CT_REG_COMM_INT_MSK__W                                             1
 #define B_LC_CT_REG_COMM_INT_MSK__M                                             0x1
 #define   B_LC_CT_REG_COMM_INT_MSK_REQUEST__B                                   0
 #define   B_LC_CT_REG_COMM_INT_MSK_REQUEST__W                                   1
 #define   B_LC_CT_REG_COMM_INT_MSK_REQUEST__M                                   0x1
-
-
-
 
 #define B_LC_CT_REG_CTL_STK__AX                                                 0x2810010
 #define B_LC_CT_REG_CTL_STK__XSZ                                                4
@@ -14153,10 +12396,6 @@ extern "C" {
 #define B_LC_CT_REG_CTL_BPT__A                                                  0x2810020
 #define B_LC_CT_REG_CTL_BPT__W                                                  10
 #define B_LC_CT_REG_CTL_BPT__M                                                  0x3FF
-
-
-
-
 
 #define B_LC_RA_RAM_PROC_DELAY_IF__A                                            0x2820006
 #define B_LC_RA_RAM_PROC_DELAY_IF__W                                            16
@@ -14296,10 +12535,6 @@ extern "C" {
 #define B_LC_RA_RAM_ADJUST_DELAY__W                                             16
 #define B_LC_RA_RAM_ADJUST_DELAY__M                                             0xFFFF
 
-
-
-
-
 #define B_LC_RA_RAM_PIPE_CP_PHASE_0__A                                          0x2820028
 #define B_LC_RA_RAM_PIPE_CP_PHASE_0__W                                          16
 #define B_LC_RA_RAM_PIPE_CP_PHASE_0__M                                          0xFFFF
@@ -14318,8 +12553,6 @@ extern "C" {
 #define B_LC_RA_RAM_PIPE_CP_PHASE_RZ__A                                         0x282002D
 #define B_LC_RA_RAM_PIPE_CP_PHASE_RZ__W                                         16
 #define B_LC_RA_RAM_PIPE_CP_PHASE_RZ__M                                         0xFFFF
-
-
 
 #define B_LC_RA_RAM_PIPE_CP_CRMM_0__A                                           0x2820030
 #define B_LC_RA_RAM_PIPE_CP_CRMM_0__W                                           16
@@ -14340,8 +12573,6 @@ extern "C" {
 #define B_LC_RA_RAM_PIPE_CP_CRMM_RZ__W                                          16
 #define B_LC_RA_RAM_PIPE_CP_CRMM_RZ__M                                          0xFFFF
 
-
-
 #define B_LC_RA_RAM_PIPE_CP_SRMM_0__A                                           0x2820038
 #define B_LC_RA_RAM_PIPE_CP_SRMM_0__W                                           16
 #define B_LC_RA_RAM_PIPE_CP_SRMM_0__M                                           0xFFFF
@@ -14360,10 +12591,6 @@ extern "C" {
 #define B_LC_RA_RAM_PIPE_CP_SRMM_RZ__A                                          0x282003D
 #define B_LC_RA_RAM_PIPE_CP_SRMM_RZ__W                                          16
 #define B_LC_RA_RAM_PIPE_CP_SRMM_RZ__M                                          0xFFFF
-
-
-
-
 
 #define B_LC_RA_RAM_FILTER_CRMM_A__A                                            0x2820060
 #define B_LC_RA_RAM_FILTER_CRMM_A__W                                            16
@@ -14386,8 +12613,6 @@ extern "C" {
 #define B_LC_RA_RAM_FILTER_CRMM_TMP__W                                          16
 #define B_LC_RA_RAM_FILTER_CRMM_TMP__M                                          0xFFFF
 
-
-
 #define B_LC_RA_RAM_FILTER_SRMM_A__A                                            0x2820068
 #define B_LC_RA_RAM_FILTER_SRMM_A__W                                            16
 #define B_LC_RA_RAM_FILTER_SRMM_A__M                                            0xFFFF
@@ -14408,8 +12633,6 @@ extern "C" {
 #define B_LC_RA_RAM_FILTER_SRMM_TMP__XSZ                                        2
 #define B_LC_RA_RAM_FILTER_SRMM_TMP__W                                          16
 #define B_LC_RA_RAM_FILTER_SRMM_TMP__M                                          0xFFFF
-
-
 
 #define B_LC_RA_RAM_FILTER_PHASE_A__A                                           0x2820070
 #define B_LC_RA_RAM_FILTER_PHASE_A__W                                           16
@@ -14432,8 +12655,6 @@ extern "C" {
 #define B_LC_RA_RAM_FILTER_PHASE_TMP__W                                         16
 #define B_LC_RA_RAM_FILTER_PHASE_TMP__M                                         0xFFFF
 
-
-
 #define B_LC_RA_RAM_FILTER_DELAY_A__A                                           0x2820078
 #define B_LC_RA_RAM_FILTER_DELAY_A__W                                           16
 #define B_LC_RA_RAM_FILTER_DELAY_A__M                                           0xFFFF
@@ -14455,11 +12676,6 @@ extern "C" {
 #define B_LC_RA_RAM_FILTER_DELAY_TMP__W                                         16
 #define B_LC_RA_RAM_FILTER_DELAY_TMP__M                                         0xFFFF
 
-
-
-
-
-
 #define B_LC_IF_RAM_TRP_BPT0__AX                                                0x2830000
 #define B_LC_IF_RAM_TRP_BPT0__XSZ                                               2
 #define B_LC_IF_RAM_TRP_BPT0__W                                                 12
@@ -14475,10 +12691,4 @@ extern "C" {
 #define B_LC_IF_RAM_TRP_WARM__W                                                 12
 #define B_LC_IF_RAM_TRP_WARM__M                                                 0xFFF
 
-#ifdef __cplusplus
-}
 #endif
-
-#endif
-
-

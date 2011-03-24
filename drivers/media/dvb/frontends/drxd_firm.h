@@ -40,7 +40,7 @@ typedef unsigned long u32_t;
 #define HI_I2C_DELAY     84
 #define HI_I2C_BRIDGE_DELAY   750
 
-#define EQ_TD_TPS_PWR_UNKNOWN          0x00C0   /* Unknown configurations */
+#define EQ_TD_TPS_PWR_UNKNOWN          0x00C0	/* Unknown configurations */
 #define EQ_TD_TPS_PWR_QPSK             0x016a
 #define EQ_TD_TPS_PWR_QAM16_ALPHAN     0x0195
 #define EQ_TD_TPS_PWR_QAM16_ALPHA1     0x0195
@@ -65,7 +65,6 @@ typedef unsigned long u32_t;
 
 #define DRXD_SCAN_TIMEOUT    (650)
 
-
 #define DRXD_BANDWIDTH_8MHZ_IN_HZ  (0x8B8249L)
 #define DRXD_BANDWIDTH_7MHZ_IN_HZ  (0x7A1200L)
 #define DRXD_BANDWIDTH_6MHZ_IN_HZ  (0x68A1B6L)
@@ -77,7 +76,6 @@ typedef unsigned long u32_t;
 #define DIFF_INVALID          (511)
 #define DIFF_TARGET           (4)
 #define DIFF_MARGIN           (1)
-
 
 extern u8_t DRXD_InitAtomicRead[];
 extern u8_t DRXD_HiI2cPatch_1[];
@@ -95,7 +93,7 @@ extern u8_t DRXD_InitECA2[];
 extern u8_t DRXD_ResetECA2[];
 extern u8_t DRXD_ResetECRAM[];
 
-extern u8_t  DRXD_A2_microcode[];
+extern u8_t DRXD_A2_microcode[];
 extern u32_t DRXD_A2_microcode_length;
 
 extern u8_t DRXD_InitFEB1_1[];
@@ -114,7 +112,7 @@ extern u8_t DRXD_StartDiversityEnd[];
 extern u8_t DRXD_DiversityDelay8MHZ[];
 extern u8_t DRXD_DiversityDelay6MHZ[];
 
-extern u8_t  DRXD_B1_microcode[];
+extern u8_t DRXD_B1_microcode[];
 extern u32_t DRXD_B1_microcode_length;
 
 #endif
