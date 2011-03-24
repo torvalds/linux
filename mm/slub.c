@@ -849,11 +849,11 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
 		local_irq_save(flags);
 		kmemcheck_slab_free(s, x, s->objsize);
 		debug_check_no_locks_freed(x, s->objsize);
-		if (!(s->flags & SLAB_DEBUG_OBJECTS))
-			debug_check_no_obj_freed(x, s->objsize);
 		local_irq_restore(flags);
 	}
 #endif
+	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+		debug_check_no_obj_freed(x, s->objsize);
 }
 
 /*
