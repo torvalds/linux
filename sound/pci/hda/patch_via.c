@@ -1685,7 +1685,7 @@ static void via_speaker_automute(struct hda_codec *codec)
 	unsigned int hp_present;
 	struct via_spec *spec = codec->spec;
 
-	if (spec->codec_type != VT2002P && spec->codec_type != VT1812)
+	if (!VT2002P_COMPATIBLE(spec))
 		return;
 
 	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
