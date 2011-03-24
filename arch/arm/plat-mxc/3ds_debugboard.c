@@ -100,14 +100,9 @@ static void mxc_expio_irq_handler(u32 irq, struct irq_desc *desc)
 
 	expio_irq = MXC_BOARD_IRQ_START;
 	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
-		struct irq_desc *d;
 		if ((int_valid & 1) == 0)
 			continue;
-		d = irq_desc + expio_irq;
-		if (unlikely(!(d->handle_irq)))
-			pr_err("\nEXPIO irq: %d unhandled\n", expio_irq);
-		else
-			d->handle_irq(expio_irq, d);
+		generic_handle_irq(expio_irq);
 	}
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
