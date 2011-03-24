@@ -414,17 +414,7 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 	fl->fl_ops = NULL;
 	fl->fl_lmops = NULL;
 
-	switch (l->l_type) {
-	case F_RDLCK:
-	case F_WRLCK:
-	case F_UNLCK:
-		fl->fl_type = l->l_type;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return (0);
+	return assign_type(fl, l->l_type);
 }
 #endif
 
