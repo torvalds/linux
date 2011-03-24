@@ -800,7 +800,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 		enum drbd_packet cmd =
 			apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
 
-		p = &mdev->tconn->data.sbuf.rs_param_95;
+		p = mdev->tconn->data.sbuf;
 
 		/* initialize verify_alg and csums_alg */
 		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
@@ -2277,11 +2277,15 @@ static int drbd_alloc_socket(struct drbd_socket *socket)
 	socket->rbuf = (void *) __get_free_page(GFP_KERNEL);
 	if (!socket->rbuf)
 		return -ENOMEM;
+	socket->sbuf = (void *) __get_free_page(GFP_KERNEL);
+	if (!socket->sbuf)
+		return -ENOMEM;
 	return 0;
 }
 
 static void drbd_free_socket(struct drbd_socket *socket)
 {
+	free_page((unsigned long) socket->sbuf);
 	free_page((unsigned long) socket->rbuf);
 }
 

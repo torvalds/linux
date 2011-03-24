@@ -556,27 +556,6 @@ struct p_delay_probe93 {
 
 #define DRBD_SOCKET_BUFFER_SIZE 4096
 
-union p_polymorph {
-        struct p_header           header;
-        struct p_handshake       handshake;
-        struct p_data            data;
-        struct p_block_ack       block_ack;
-        struct p_barrier         barrier;
-        struct p_barrier_ack     barrier_ack;
-        struct p_rs_param_89     rs_param_89;
-        struct p_rs_param_95     rs_param_95;
-        struct p_protocol        protocol;
-        struct p_sizes           sizes;
-        struct p_uuids           uuids;
-        struct p_state           state;
-        struct p_req_state       req_state;
-        struct p_req_state_reply req_state_reply;
-        struct p_block_req       block_req;
-	struct p_delay_probe93   delay_probe93;
-	struct p_rs_uuid         rs_uuid;
-	struct p_block_desc      block_desc;
-} __packed;
-
 /**********************************************************************/
 enum drbd_thread_state {
 	NONE,
@@ -804,7 +783,7 @@ struct drbd_socket {
 	struct socket    *socket;
 	/* this way we get our
 	 * send/receive buffers off the stack */
-	union p_polymorph sbuf;
+	void *sbuf;
 	void *rbuf;
 };
 

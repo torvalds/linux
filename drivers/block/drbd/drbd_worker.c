@@ -1193,7 +1193,7 @@ int w_send_barrier(struct drbd_work *w, int cancel)
 {
 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
 	struct drbd_conf *mdev = w->mdev;
-	struct p_barrier *p = &mdev->tconn->data.sbuf.barrier;
+	struct p_barrier *p = mdev->tconn->data.sbuf;
 	int err = 0;
 
 	/* really avoid racing with tl_clear.  w.cb may have been referenced
