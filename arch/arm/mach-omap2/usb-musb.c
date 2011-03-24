@@ -167,5 +167,7 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 #else
 void __init usb_musb_init(struct omap_musb_board_data *board_data)
 {
+	if (cpu_is_omap44xx())
+		omap4430_phy_init(NULL);
 }
 #endif /* CONFIG_USB_MUSB_SOC */
