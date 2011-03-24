@@ -781,7 +781,7 @@ static int drbd_socket_okay(struct socket **sock)
 int drbd_connected(int vnr, void *p, void *data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *)p;
-	int ok = 1;
+	int err;
 
 	atomic_set(&mdev->packet_seq, 0);
 	mdev->peer_seq = 0;
@@ -790,15 +790,16 @@ int drbd_connected(int vnr, void *p, void *data)
 		&mdev->tconn->cstate_mutex :
 		&mdev->own_state_mutex;
 
-	ok &= !drbd_send_sync_param(mdev);
-	ok &= !drbd_send_sizes(mdev, 0, 0);
-	ok &= !drbd_send_uuids(mdev);
-	ok &= !drbd_send_state(mdev);
+	err = drbd_send_sync_param(mdev);
+	if (!err)
+		err = drbd_send_sizes(mdev, 0, 0);
+	if (!err)
+		err = drbd_send_uuids(mdev);
+	if (!err)
+		err = drbd_send_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
 	clear_bit(RESIZE_PENDING, &mdev->flags);
-
-
-	return !ok;
+	return err;
 }
 
 /*
