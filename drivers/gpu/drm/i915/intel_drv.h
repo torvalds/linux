@@ -39,7 +39,7 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W && !in_dbg_master()) msleep(W);			\
+		if (W && !(in_atomic() || in_dbg_master())) msleep(W);	\
 	}								\
 	ret__;								\
 })
