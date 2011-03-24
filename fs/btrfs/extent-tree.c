@@ -471,7 +471,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	if (load_cache_only)
 		return 0;
 
-	caching_ctl = kzalloc(sizeof(*caching_ctl), GFP_KERNEL);
+	caching_ctl = kzalloc(sizeof(*caching_ctl), GFP_NOFS);
 	BUG_ON(!caching_ctl);
 
 	INIT_LIST_HEAD(&caching_ctl->list);
@@ -1743,7 +1743,7 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 static void btrfs_issue_discard(struct block_device *bdev,
 				u64 start, u64 len)
 {
-	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL, 0);
+	blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_NOFS, 0);
 }
 
 static int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
