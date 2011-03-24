@@ -273,15 +273,13 @@ unsigned int sn_local_vector_to_irq(u8 vector)
 void sn_irq_init(void)
 {
 	int i;
-	struct irq_desc *base_desc = irq_desc;
 
 	ia64_first_device_vector = IA64_SN2_FIRST_DEVICE_VECTOR;
 	ia64_last_device_vector = IA64_SN2_LAST_DEVICE_VECTOR;
 
 	for (i = 0; i < NR_IRQS; i++) {
-		if (base_desc[i].chip == &no_irq_chip) {
-			base_desc[i].chip = &irq_type_sn;
-		}
+		if (irq_get_chip(i) == &no_irq_chip)
+			irq_set_chip(i, &irq_type_sn);
 	}
 }
 
