@@ -497,7 +497,7 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-bool __early_alloc_p2m(unsigned long pfn)
+static bool __init __early_alloc_p2m(unsigned long pfn)
 {
 	unsigned topidx, mididx, idx;
 
@@ -530,7 +530,7 @@ bool __early_alloc_p2m(unsigned long pfn)
 	}
 	return idx != 0;
 }
-unsigned long set_phys_range_identity(unsigned long pfn_s,
+unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 				      unsigned long pfn_e)
 {
 	unsigned long pfn;
