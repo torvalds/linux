@@ -1051,6 +1051,7 @@ static int atalk_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
+	sock_hold(sk);
 	lock_sock(sk);
 	if (sk) {
 		sock_orphan(sk);
@@ -1058,6 +1059,8 @@ static int atalk_release(struct socket *sock)
 		atalk_destroy_socket(sk);
 	}
 	release_sock(sk);
+	sock_put(sk);
+
 	return 0;
 }
 

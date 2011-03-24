@@ -41,9 +41,9 @@ EXPORT_SYMBOL(p9_release_req_pages);
 int
 p9_nr_pages(struct p9_req_t *req)
 {
-	int start_page, end_page;
-	start_page =  (unsigned long long)req->tc->pubuf >> PAGE_SHIFT;
-	end_page = ((unsigned long long)req->tc->pubuf + req->tc->pbuf_size +
+	unsigned long start_page, end_page;
+	start_page =  (unsigned long)req->tc->pubuf >> PAGE_SHIFT;
+	end_page = ((unsigned long)req->tc->pubuf + req->tc->pbuf_size +
 			PAGE_SIZE - 1) >> PAGE_SHIFT;
 	return end_page - start_page;
 }
@@ -69,8 +69,8 @@ p9_payload_gup(struct p9_req_t *req, size_t *pdata_off, int *pdata_len,
 	*pdata_off = (size_t)req->tc->pubuf & (PAGE_SIZE-1);
 
 	if (*pdata_off)
-		first_page_bytes = min((PAGE_SIZE - *pdata_off),
-				req->tc->pbuf_size);
+		first_page_bytes = min(((size_t)PAGE_SIZE - *pdata_off),
+				       req->tc->pbuf_size);
 
 	rpinfo = req->tc->private;
 	pdata_mapped_pages = get_user_pages_fast((unsigned long)req->tc->pubuf,

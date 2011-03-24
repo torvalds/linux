@@ -704,10 +704,6 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_fence;
 	}
 
-	ret = nouveau_backlight_init(dev);
-	if (ret)
-		NV_ERROR(dev, "Error %d registering backlight\n", ret);
-
 	nouveau_fbcon_init(dev);
 	drm_kms_helper_poll_init(dev);
 	return 0;
@@ -758,8 +754,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
-
-	nouveau_backlight_exit(dev);
 
 	if (!engine->graph.accel_blocked) {
 		nouveau_fence_fini(dev);

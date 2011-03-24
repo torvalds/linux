@@ -39,7 +39,10 @@ struct macvlan_port {
 	struct list_head	vlans;
 	struct rcu_head		rcu;
 	bool 			passthru;
+	int			count;
 };
+
+static void macvlan_port_destroy(struct net_device *dev);
 
 #define macvlan_port_get_rcu(dev) \
 	((struct macvlan_port *) rcu_dereference(dev->rx_handler_data))
@@ -457,8 +460,13 @@ static int macvlan_init(struct net_device *dev)
 static void macvlan_uninit(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct macvlan_port *port = vlan->port;
 
 	free_percpu(vlan->pcpu_stats);
+
+	port->count -= 1;
+	if (!port->count)
+		macvlan_port_destroy(port->dev);
 }
 
 static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
@@ -691,12 +699,13 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		vlan->mode = nla_get_u32(data[IFLA_MACVLAN_MODE]);
 
 	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
-		if (!list_empty(&port->vlans))
+		if (port->count)
 			return -EINVAL;
 		port->passthru = true;
 		memcpy(dev->dev_addr, lowerdev->dev_addr, ETH_ALEN);
 	}
 
+	port->count += 1;
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto destroy_port;
@@ -707,7 +716,8 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	return 0;
 
 destroy_port:
-	if (list_empty(&port->vlans))
+	port->count -= 1;
+	if (!port->count)
 		macvlan_port_destroy(lowerdev);
 
 	return err;
@@ -725,13 +735,9 @@ static int macvlan_newlink(struct net *src_net, struct net_device *dev,
 void macvlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct macvlan_port *port = vlan->port;
 
 	list_del(&vlan->list);
 	unregister_netdevice_queue(dev, head);
-
-	if (list_empty(&port->vlans))
-		macvlan_port_destroy(port->dev);
 }
 EXPORT_SYMBOL_GPL(macvlan_dellink);
 

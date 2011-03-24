@@ -254,6 +254,7 @@ static int __init msi_wmi_init(void)
 	if (!acpi_video_backlight_support()) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_PLATFORM;
 		props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
 		backlight = backlight_device_register(DRV_NAME, NULL, NULL,
 						      &msi_backlight_ops,

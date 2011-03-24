@@ -8,8 +8,8 @@ extern void __init pxa168_init_irq(void);
 extern void pxa168_clear_keypad_wakeup(void);
 
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <mach/devices.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 #include <video/pxa168fb.h>
 #include <plat/pxa27x_keypad.h>

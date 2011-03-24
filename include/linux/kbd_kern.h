@@ -159,7 +159,7 @@ static inline void con_schedule_flip(struct tty_struct *t)
 	if (t->buf.tail != NULL)
 		t->buf.tail->commit = t->buf.tail->used;
 	spin_unlock_irqrestore(&t->buf.lock, flags);
-	schedule_delayed_work(&t->buf.work, 0);
+	schedule_work(&t->buf.work);
 }
 
 #endif

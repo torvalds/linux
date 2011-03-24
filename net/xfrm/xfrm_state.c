@@ -1907,7 +1907,7 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	return res;
 }
 
-int xfrm_init_state(struct xfrm_state *x)
+int __xfrm_init_state(struct xfrm_state *x, bool init_replay)
 {
 	struct xfrm_state_afinfo *afinfo;
 	struct xfrm_mode *inner_mode;
@@ -1980,10 +1980,23 @@ int xfrm_init_state(struct xfrm_state *x)
 	if (x->outer_mode == NULL)
 		goto error;
 
+	if (init_replay) {
+		err = xfrm_init_replay(x);
+		if (err)
+			goto error;
+	}
+
 	x->km.state = XFRM_STATE_VALID;
 
 error:
 	return err;
+}
+
+EXPORT_SYMBOL(__xfrm_init_state);
+
+int xfrm_init_state(struct xfrm_state *x)
+{
+	return __xfrm_init_state(x, true);
 }
 
 EXPORT_SYMBOL(xfrm_init_state);

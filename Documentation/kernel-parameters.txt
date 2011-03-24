@@ -872,6 +872,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			       If specified, z/VM IUCV HVC accepts connections
 			       from listed z/VM user IDs only.
 
+	keep_bootcon	[KNL]
+			Do not unregister boot console at start. This is only
+			useful for debugging when something happens in the window
+			between unregistering the boot console and initializing
+			the real console.
+
 	i2c_bus=	[HW] Override the default board specific I2C bus speed
 			     or register an additional I2C bus that is not
 			     registered from board initialization code.
@@ -1597,11 +1603,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: [state][,regs][,debounce][,die]
 
 	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
-			Format: [panic,][num]
+			Format: [panic,][nopanic,][num]
 			Valid num: 0
 			0 - turn nmi_watchdog off
 			When panic is specified, panic when an NMI watchdog
-			timeout occurs.
+			timeout occurs (or 'nopanic' to override the opposite
+			default).
 			This is useful when you use a panic=... timeout and
 			need the box quickly up again.
 
@@ -1824,6 +1831,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			arch_perfmon: [X86] Force use of architectural
 				perfmon on Intel CPUs instead of the
 				CPU specific event set.
+
+	oops=panic	Always panic on oopses. Default is to just kill the process,
+			but there is a small probability of deadlocking the machine.
+			This will also cause panics on machine check exceptions.
+			Useful together with panic=30 to trigger a reboot.
 
 	OSS		[HW,OSS]
 			See Documentation/sound/oss/oss-parameters.txt

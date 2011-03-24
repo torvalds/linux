@@ -34,6 +34,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -41,7 +42,6 @@
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/irda.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
