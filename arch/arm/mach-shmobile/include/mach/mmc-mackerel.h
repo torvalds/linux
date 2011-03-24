@@ -1,5 +1,5 @@
-#ifndef MMCIF_MACKEREL_H
-#define MMCIF_MACKEREL_H
+#ifndef MMC_MACKEREL_H
+#define MMC_MACKEREL_H
 
 #define PORT0CR      (void __iomem *)0xe6051000
 #define PORT1CR      (void __iomem *)0xe6051001
@@ -9,7 +9,7 @@
 #define PORTR031_000DR (void __iomem *)0xe6055000
 #define PORTL159_128DR (void __iomem *)0xe6054010
 
-static inline void mmcif_init_progress(void)
+static inline void mmc_init_progress(void)
 {
        /* Initialise LEDS0-3
         * registers: PORT0CR-PORT2CR,PORT159CR (LED0-LED3 Control)
@@ -21,7 +21,7 @@ static inline void mmcif_init_progress(void)
        __raw_writeb(0x10, PORT159CR);
 }
 
-static inline void mmcif_update_progress(int n)
+static inline void mmc_update_progress(int n)
 {
 	unsigned a = 0, b = 0;
 
@@ -35,5 +35,4 @@ static inline void mmcif_update_progress(int n)
 	__raw_writel((__raw_readl(PORTL159_128DR) & ~(1 << 31)) | b,
 		     PORTL159_128DR);
 }
-
-#endif /* MMCIF_MACKEREL_H */
+#endif /* MMC_MACKEREL_H */
