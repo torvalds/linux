@@ -1018,6 +1018,15 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 	td->enabled = 0;
 }
 
+static int taal_panel_reset(struct omap_dss_device *dssdev)
+{
+	dev_err(&dssdev->dev, "performing LCD reset\n");
+
+	taal_power_off(dssdev);
+	taal_hw_reset(dssdev);
+	return taal_power_on(dssdev);
+}
+
 static int taal_enable(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
@@ -1582,9 +1591,7 @@ static void taal_esd_work(struct work_struct *work)
 err:
 	dev_err(&dssdev->dev, "performing LCD reset\n");
 
-	taal_power_off(dssdev);
-	taal_hw_reset(dssdev);
-	taal_power_on(dssdev);
+	taal_panel_reset(dssdev);
 
 	dsi_bus_unlock();
 
