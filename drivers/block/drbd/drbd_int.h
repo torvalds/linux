@@ -554,6 +554,8 @@ struct p_delay_probe93 {
 #error "PAGE_SIZE too small"
 #endif
 
+#define DRBD_SOCKET_BUFFER_SIZE 4096
+
 union p_polymorph {
         struct p_header           header;
         struct p_handshake       handshake;
@@ -803,7 +805,7 @@ struct drbd_socket {
 	/* this way we get our
 	 * send/receive buffers off the stack */
 	union p_polymorph sbuf;
-	union p_polymorph rbuf;
+	void *rbuf;
 };
 
 struct drbd_md {

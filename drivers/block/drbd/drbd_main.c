@@ -2272,6 +2272,19 @@ found:
 	return tconn;
 }
 
+static int drbd_alloc_socket(struct drbd_socket *socket)
+{
+	socket->rbuf = (void *) __get_free_page(GFP_KERNEL);
+	if (!socket->rbuf)
+		return -ENOMEM;
+	return 0;
+}
+
+static void drbd_free_socket(struct drbd_socket *socket)
+{
+	free_page((unsigned long) socket->rbuf);
+}
+
 struct drbd_tconn *drbd_new_tconn(const char *name)
 {
 	struct drbd_tconn *tconn;
@@ -2282,6 +2295,11 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
 
 	tconn->name = kstrdup(name, GFP_KERNEL);
 	if (!tconn->name)
+		goto fail;
+
+	if (drbd_alloc_socket(&tconn->data))
+		goto fail;
+	if (drbd_alloc_socket(&tconn->meta))
 		goto fail;
 
 	if (!zalloc_cpumask_var(&tconn->cpu_mask, GFP_KERNEL))
@@ -2322,6 +2340,8 @@ struct drbd_tconn *drbd_new_tconn(const char *name)
 fail:
 	tl_cleanup(tconn);
 	free_cpumask_var(tconn->cpu_mask);
+	drbd_free_socket(&tconn->meta);
+	drbd_free_socket(&tconn->data);
 	kfree(tconn->name);
 	kfree(tconn);
 
@@ -2334,6 +2354,8 @@ void drbd_free_tconn(struct drbd_tconn *tconn)
 	idr_destroy(&tconn->volumes);
 
 	free_cpumask_var(tconn->cpu_mask);
+	drbd_free_socket(&tconn->meta);
+	drbd_free_socket(&tconn->data);
 	kfree(tconn->name);
 	kfree(tconn->int_dig_out);
 	kfree(tconn->int_dig_in);
