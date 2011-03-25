@@ -2113,8 +2113,13 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
 		/* Make sure TSC doesn't go backwards */
-		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
-				native_read_tsc() - vcpu->arch.last_host_tsc;
+		s64 tsc_delta;
+		u64 tsc;
+
+		kvm_get_msr(vcpu, MSR_IA32_TSC, &tsc);
+		tsc_delta = !vcpu->arch.last_guest_tsc ? 0 :
+			     tsc - vcpu->arch.last_guest_tsc;
+
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
