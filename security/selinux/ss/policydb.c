@@ -2535,8 +2535,9 @@ static int cat_write(void *vkey, void *datum, void *ptr)
 	return 0;
 }
 
-static int role_trans_write(struct role_trans *r, void *fp)
+static int role_trans_write(struct policydb *p, void *fp)
 {
+	struct role_trans *r = p->role_tr;
 	struct role_trans *tr;
 	u32 buf[3];
 	size_t nel;
@@ -2556,6 +2557,12 @@ static int role_trans_write(struct role_trans *r, void *fp)
 		rc = put_entry(buf, sizeof(u32), 3, fp);
 		if (rc)
 			return rc;
+		if (p->policyvers >= POLICYDB_VERSION_ROLETRANS) {
+			buf[0] = cpu_to_le32(tr->tclass);
+			rc = put_entry(buf, sizeof(u32), 1, fp);
+			if (rc)
+				return rc;
+		}
 	}
 
 	return 0;
@@ -3267,7 +3274,7 @@ int policydb_write(struct policydb *p, void *fp)
 	if (rc)
 		return rc;
 
-	rc = role_trans_write(p->role_tr, fp);
+	rc = role_trans_write(p, fp);
 	if (rc)
 		return rc;
 
