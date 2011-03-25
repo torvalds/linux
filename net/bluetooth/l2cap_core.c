@@ -1591,7 +1591,7 @@ static inline void l2cap_ertm_init(struct l2cap_chan *chan)
 	skb_queue_head_init(&chan->srej_q);
 	skb_queue_head_init(&chan->busy_q);
 
-	INIT_WORK(&l2cap_pi(sk)->busy_work, l2cap_busy_work);
+	INIT_WORK(&chan->busy_work, l2cap_busy_work);
 
 	sk->sk_backlog_rcv = l2cap_ertm_data_rcv;
 }
@@ -3006,21 +3006,21 @@ done:
 static void l2cap_busy_work(struct work_struct *work)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	struct l2cap_pinfo *pi =
-		container_of(work, struct l2cap_pinfo, busy_work);
-	struct sock *sk = (struct sock *)pi;
+	struct l2cap_chan *chan =
+		container_of(work, struct l2cap_chan, busy_work);
+	struct sock *sk = chan->sk;
 	int n_tries = 0, timeo = HZ/5, err;
 	struct sk_buff *skb;
 
 	lock_sock(sk);
 
 	add_wait_queue(sk_sleep(sk), &wait);
-	while ((skb = skb_peek(&pi->chan->busy_q))) {
+	while ((skb = skb_peek(&chan->busy_q))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (n_tries++ > L2CAP_LOCAL_BUSY_TRIES) {
 			err = -EBUSY;
-			l2cap_send_disconn_req(pi->conn, pi->chan, EBUSY);
+			l2cap_send_disconn_req(l2cap_pi(sk)->conn, chan, EBUSY);
 			break;
 		}
 
@@ -3040,7 +3040,7 @@ static void l2cap_busy_work(struct work_struct *work)
 		if (err)
 			break;
 
-		if (l2cap_try_push_rx_skb(l2cap_pi(sk)->chan) == 0)
+		if (l2cap_try_push_rx_skb(chan) == 0)
 			break;
 	}
 
@@ -3052,8 +3052,6 @@ static void l2cap_busy_work(struct work_struct *work)
 
 static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
 {
-	struct sock *sk = chan->sk;
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	int sctrl, err;
 
 	if (chan->conn_state & L2CAP_CONN_LOCAL_BUSY) {
@@ -3071,7 +3069,7 @@ static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 c
 	}
 
 	/* Busy Condition */
-	BT_DBG("sk %p, Enter local busy", sk);
+	BT_DBG("chan %p, Enter local busy", chan);
 
 	chan->conn_state |= L2CAP_CONN_LOCAL_BUSY;
 	bt_cb(skb)->sar = control >> L2CAP_CTRL_SAR_SHIFT;
@@ -3085,7 +3083,7 @@ static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 c
 
 	del_timer(&chan->ack_timer);
 
-	queue_work(_busy_wq, &pi->busy_work);
+	queue_work(_busy_wq, &chan->busy_work);
 
 	return err;
 }

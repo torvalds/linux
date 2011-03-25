@@ -311,6 +311,7 @@ struct l2cap_chan {
 	struct timer_list	ack_timer;
 	struct sk_buff_head	srej_q;
 	struct sk_buff_head	busy_q;
+	struct work_struct	busy_work;
 
 	struct list_head list;
 };
@@ -384,7 +385,6 @@ struct l2cap_pinfo {
 	__le16		sport;
 
 	struct sk_buff_head	tx_queue;
-	struct work_struct	busy_work;
 	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
 	struct l2cap_chan	*chan;
