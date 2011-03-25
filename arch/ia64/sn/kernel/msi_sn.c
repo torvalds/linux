@@ -214,7 +214,7 @@ static int sn_set_msi_irq_affinity(struct irq_data *data,
 
 static void sn_ack_msi_irq(struct irq_data *data)
 {
-	move_native_irq(data->irq);
+	irq_move_irq(data);
 	ia64_eoi();
 }
 

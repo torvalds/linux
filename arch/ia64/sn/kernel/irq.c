@@ -109,7 +109,7 @@ static void sn_ack_irq(struct irq_data *data)
 	HUB_S((u64*)LOCAL_MMR_ADDR(SH_EVENT_OCCURRED_ALIAS), mask);
 	__set_bit(irq, (volatile void *)pda->sn_in_service_ivecs);
 
-	move_native_irq(irq);
+	irq_move_irq(data);
 }
 
 static void sn_irq_info_free(struct rcu_head *head);
