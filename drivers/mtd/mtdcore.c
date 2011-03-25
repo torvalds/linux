@@ -452,6 +452,64 @@ int mtd_device_register(struct mtd_info *master,
 EXPORT_SYMBOL_GPL(mtd_device_register);
 
 /**
+ * mtd_device_parse_register - parse partitions and register an MTD device.
+ *
+ * @mtd: the MTD device to register
+ * @types: the list of MTD partition probes to try, see
+ *         'parse_mtd_partitions()' for more information
+ * @origin: start address of MTD device, %0 unless you are sure you need this.
+ * @parts: fallback partition information to register, if parsing fails;
+ *         only valid if %nr_parts > %0
+ * @nr_parts: the number of partitions in parts, if zero then the full
+ *            MTD device is registered if no partition info is found
+ *
+ * This function aggregates MTD partitions parsing (done by
+ * 'parse_mtd_partitions()') and MTD device and partitions registering. It
+ * basically follows the most common pattern found in many MTD drivers:
+ *
+ * * It first tries to probe partitions on MTD device @mtd using parsers
+ *   specified in @types (if @types is %NULL, then the default list of parsers
+ *   is used, see 'parse_mtd_partitions()' for more information). If none are
+ *   found this functions tries to fallback to information specified in
+ *   @parts/@nr_parts.
+ * * If any parititioning info was found, this function registers the found
+ *   partitions.
+ * * If no partitions were found this function just registers the MTD device
+ *   @mtd and exits.
+ *
+ * Returns zero in case of success and a negative error code in case of failure.
+ */
+int mtd_device_parse_register(struct mtd_info *mtd, const char **types,
+			      unsigned long origin,
+			      const struct mtd_partition *parts,
+			      int nr_parts)
+{
+	int err;
+	struct mtd_partition *real_parts;
+
+	err = parse_mtd_partitions(mtd, types, &real_parts, origin);
+	if (err <= 0 && nr_parts) {
+		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
+				     GFP_KERNEL);
+		err = nr_parts;
+		if (!parts)
+			err = -ENOMEM;
+	}
+
+	if (err > 0) {
+		err = add_mtd_partitions(mtd, real_parts, err);
+		kfree(real_parts);
+	} else if (err == 0) {
+		err = add_mtd_device(mtd);
+		if (err == 1)
+			err = -ENODEV;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mtd_device_parse_register);
+
+/**
  * mtd_device_unregister - unregister an existing MTD device.
  *
  * @master: the MTD device to unregister.  This will unregister both the master
