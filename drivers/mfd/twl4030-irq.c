@@ -320,24 +320,8 @@ static int twl4030_irq_thread(void *data)
 		for (module_irq = twl4030_irq_base;
 				pih_isr;
 				pih_isr >>= 1, module_irq++) {
-			if (pih_isr & 0x1) {
-				struct irq_desc *d = irq_to_desc(module_irq);
-
-				if (!d) {
-					pr_err("twl4030: Invalid SIH IRQ: %d\n",
-					       module_irq);
-					return -EINVAL;
-				}
-
-				/* These can't be masked ... always warn
-				 * if we get any surprises.
-				 */
-				if (d->status & IRQ_DISABLED)
-					note_interrupt(module_irq, d,
-							IRQ_NONE);
-				else
-					d->handle_irq(module_irq, d);
-			}
+			if (pih_isr & 0x1)
+				generic_handle_irq(module_irq);
 		}
 		local_irq_enable();
 
@@ -560,24 +544,18 @@ static void twl4030_sih_do_edge(struct work_struct *work)
 	/* Modify only the bits we know must change */
 	while (edge_change) {
 		int		i = fls(edge_change) - 1;
-		struct irq_desc	*d = irq_to_desc(i + agent->irq_base);
+		struct irq_data	*idata = irq_get_irq_data(i + agent->irq_base);
 		int		byte = 1 + (i >> 2);
 		int		off = (i & 0x3) * 2;
-
-		if (!d) {
-			pr_err("twl4030: Invalid IRQ: %d\n",
-			       i + agent->irq_base);
-			return;
-		}
+		unsigned int	type;
 
 		bytes[byte] &= ~(0x03 << off);
 
-		raw_spin_lock_irq(&d->lock);
-		if (d->status & IRQ_TYPE_EDGE_RISING)
+		type = irqd_get_trigger_type(idata);
+		if (type & IRQ_TYPE_EDGE_RISING)
 			bytes[byte] |= BIT(off + 1);
-		if (d->status & IRQ_TYPE_EDGE_FALLING)
+		if (type & IRQ_TYPE_EDGE_FALLING)
 			bytes[byte] |= BIT(off + 0);
-		raw_spin_unlock_irq(&d->lock);
 
 		edge_change &= ~BIT(i);
 	}
@@ -626,21 +604,13 @@ static void twl4030_sih_unmask(struct irq_data *data)
 static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 {
 	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
-	struct irq_desc *desc = irq_to_desc(data->irq);
 	unsigned long flags;
-
-	if (!desc) {
-		pr_err("twl4030: Invalid IRQ: %d\n", data->irq);
-		return -EINVAL;
-	}
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
 
 	spin_lock_irqsave(&sih_agent_lock, flags);
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) != trigger) {
-		desc->status &= ~IRQ_TYPE_SENSE_MASK;
-		desc->status |= trigger;
+	if (irqd_get_trigger_type(data) != trigger) {
 		sih->edge_change |= BIT(data->irq - sih->irq_base);
 		queue_work(wq, &sih->edge_work);
 	}
