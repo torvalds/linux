@@ -609,6 +609,8 @@ struct kvm_x86_ops {
 	void (*set_tsc_khz)(struct kvm_vcpu *vcpu, u32 user_tsc_khz);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
+	u64 (*compute_tsc_offset)(struct kvm_vcpu *vcpu, u64 target_tsc);
+
 	void (*get_exit_info)(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2);
 
 	int (*check_intercept)(struct kvm_vcpu *vcpu,

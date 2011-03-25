@@ -977,7 +977,7 @@ static u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu)
 		return __this_cpu_read(cpu_tsc_khz);
 }
 
-static inline u64 nsec_to_cycles(u64 nsec)
+static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 {
 	u64 ret;
 
@@ -985,7 +985,7 @@ static inline u64 nsec_to_cycles(u64 nsec)
 	if (kvm_tsc_changes_freq())
 		printk_once(KERN_WARNING
 		 "kvm: unreliable cycle conversion on adjustable rate TSC\n");
-	ret = nsec * __this_cpu_read(cpu_tsc_khz);
+	ret = nsec * vcpu_tsc_khz(vcpu);
 	do_div(ret, USEC_PER_SEC);
 	return ret;
 }
@@ -1015,7 +1015,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	s64 sdiff;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
-	offset = data - native_read_tsc();
+	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
 	ns = get_kernel_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 	sdiff = data - kvm->arch.last_tsc_write;
@@ -1031,13 +1031,13 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	 * In that case, for a reliable TSC, we can match TSC offsets,
 	 * or make a best guest using elapsed value.
 	 */
-	if (sdiff < nsec_to_cycles(5ULL * NSEC_PER_SEC) &&
+	if (sdiff < nsec_to_cycles(vcpu, 5ULL * NSEC_PER_SEC) &&
 	    elapsed < 5ULL * NSEC_PER_SEC) {
 		if (!check_tsc_unstable()) {
 			offset = kvm->arch.last_tsc_offset;
 			pr_debug("kvm: matched tsc offset for %llu\n", data);
 		} else {
-			u64 delta = nsec_to_cycles(elapsed);
+			u64 delta = nsec_to_cycles(vcpu, elapsed);
 			offset += delta;
 			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}

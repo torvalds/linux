@@ -1184,6 +1184,11 @@ static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
 	vmcs_write64(TSC_OFFSET, offset + adjustment);
 }
 
+static u64 vmx_compute_tsc_offset(struct kvm_vcpu *vcpu, u64 target_tsc)
+{
+	return target_tsc - native_read_tsc();
+}
+
 /*
  * Reads an msr value (of 'msr_index') into 'pdata'.
  * Returns 0 on success, non-0 otherwise.
@@ -4510,6 +4515,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_tsc_khz = vmx_set_tsc_khz,
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset = vmx_adjust_tsc_offset,
+	.compute_tsc_offset = vmx_compute_tsc_offset,
 
 	.set_tdp_cr3 = vmx_set_cr3,
 
