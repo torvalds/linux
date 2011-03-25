@@ -28,19 +28,9 @@
 #include <siutils.h>
 #include <bcmsrom.h>
 #include <bcmsrom_tbl.h>
-#ifdef BCMSDIO
-#include <bcmsdh.h>
-#include <sdio.h>
-#endif
 
 #include <bcmnvram.h>
 #include <bcmotp.h>
-
-#if defined(BCMSDIO)
-#include <sbsdio.h>
-#include <sbhnddma.h>
-#include <sbsdpcmdev.h>
-#endif
 
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
 	(((sih->cccaps & CC_CAP_SROM) == 0) ? NULL : \
@@ -64,11 +54,6 @@ static int initvars_srom_si(si_t *sih, void *curmap, char **vars, uint *count);
 static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b);
 static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count);
 static int initvars_flash_si(si_t *sih, char **vars, uint *count);
-#ifdef BCMSDIO
-static int initvars_cis_sdio(char **vars, uint *count);
-static int sprom_cmd_sdio(u8 cmd);
-static int sprom_read_sdio(u16 addr, u16 *data);
-#endif				/* BCMSDIO */
 static int sprom_read_pci(si_t *sih, u16 *sprom,
 			  uint wordoff, u16 *buf, uint nwords, bool check_crc);
 #if defined(BCMNVRAMR)
@@ -172,11 +157,6 @@ int srom_var_init(si_t *sih, uint bustype, void *curmap,
 			return -1;
 
 		return initvars_srom_pci(sih, curmap, vars, count);
-
-#ifdef BCMSDIO
-	case SDIO_BUS:
-		return initvars_cis_sdio(vars, count);
-#endif				/* BCMSDIO */
 
 	default:
 		ASSERT(0);
@@ -1974,92 +1954,6 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 	return err;
 }
 
-#ifdef BCMSDIO
-/*
- * Read the SDIO cis and call parsecis to initialize the vars.
- * Return 0 on success, nonzero on error.
- */
-static int initvars_cis_sdio(char **vars, uint *count)
-{
-	u8 *cis[SBSDIO_NUM_FUNCTION + 1];
-	uint fn, numfn;
-	int rc = 0;
-
-	numfn = bcmsdh_query_iofnum(NULL);
-	ASSERT(numfn <= SDIOD_MAX_IOFUNCS);
-
-	for (fn = 0; fn <= numfn; fn++) {
-		cis[fn] = kzalloc(SBSDIO_CIS_SIZE_LIMIT, GFP_ATOMIC);
-		if (cis[fn] == NULL) {
-			rc = -1;
-			break;
-		}
-
-		if (bcmsdh_cis_read(NULL, fn, cis[fn], SBSDIO_CIS_SIZE_LIMIT) !=
-		    0) {
-			kfree(cis[fn]);
-			rc = -2;
-			break;
-		}
-	}
-
-	if (!rc)
-		rc = srom_parsecis(cis, fn, vars, count);
-
-	while (fn-- > 0)
-		kfree(cis[fn]);
-
-	return rc;
-}
-
-/* set SDIO sprom command register */
-static int sprom_cmd_sdio(u8 cmd)
-{
-	u8 status = 0;
-	uint wait_cnt = 1000;
-
-	/* write sprom command register */
-	bcmsdh_cfg_write(NULL, SDIO_FUNC_1, SBSDIO_SPROM_CS, cmd, NULL);
-
-	/* wait status */
-	while (wait_cnt--) {
-		status =
-		    bcmsdh_cfg_read(NULL, SDIO_FUNC_1, SBSDIO_SPROM_CS, NULL);
-		if (status & SBSDIO_SPROM_DONE)
-			return 0;
-	}
-
-	return 1;
-}
-
-/* read a word from the SDIO srom */
-static int sprom_read_sdio(u16 addr, u16 *data)
-{
-	u8 addr_l, addr_h, data_l, data_h;
-
-	addr_l = (u8) ((addr * 2) & 0xff);
-	addr_h = (u8) (((addr * 2) >> 8) & 0xff);
-
-	/* set address */
-	bcmsdh_cfg_write(NULL, SDIO_FUNC_1, SBSDIO_SPROM_ADDR_HIGH, addr_h,
-			 NULL);
-	bcmsdh_cfg_write(NULL, SDIO_FUNC_1, SBSDIO_SPROM_ADDR_LOW, addr_l,
-			 NULL);
-
-	/* do read */
-	if (sprom_cmd_sdio(SBSDIO_SPROM_READ))
-		return 1;
-
-	/* read data */
-	data_h =
-	    bcmsdh_cfg_read(NULL, SDIO_FUNC_1, SBSDIO_SPROM_DATA_HIGH, NULL);
-	data_l =
-	    bcmsdh_cfg_read(NULL, SDIO_FUNC_1, SBSDIO_SPROM_DATA_LOW, NULL);
-
-	*data = (data_h << 8) | data_l;
-	return 0;
-}
-#endif				/* BCMSDIO */
 
 static int initvars_srom_si(si_t *sih, void *curmap, char **vars, uint *varsz)
 {
