@@ -365,12 +365,14 @@ static ssize_t radeon_set_pm_profile(struct device *dev,
 		else if (strncmp("high", buf, strlen("high")) == 0)
 			rdev->pm.profile = PM_PROFILE_HIGH;
 		else {
-			DRM_ERROR("invalid power profile!\n");
+			count = -EINVAL;
 			goto fail;
 		}
 		radeon_pm_update_profile(rdev);
 		radeon_pm_set_clocks(rdev);
-	}
+	} else
+		count = -EINVAL;
+
 fail:
 	mutex_unlock(&rdev->pm.mutex);
 
@@ -413,7 +415,7 @@ static ssize_t radeon_set_pm_method(struct device *dev,
 		mutex_unlock(&rdev->pm.mutex);
 		cancel_delayed_work_sync(&rdev->pm.dynpm_idle_work);
 	} else {
-		DRM_ERROR("invalid power method!\n");
+		count = -EINVAL;
 		goto fail;
 	}
 	radeon_pm_compute_clocks(rdev);
