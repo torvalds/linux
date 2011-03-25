@@ -24,11 +24,8 @@
 #ifndef _DRXD_FIRM_H_
 #define _DRXD_FIRM_H_
 
+#include <linux/types.h>
 #include "drxd_map_firm.h"
-
-typedef unsigned char u8_t;
-typedef unsigned short u16_t;
-typedef unsigned long u32_t;
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 4
@@ -77,42 +74,42 @@ typedef unsigned long u32_t;
 #define DIFF_TARGET           (4)
 #define DIFF_MARGIN           (1)
 
-extern u8_t DRXD_InitAtomicRead[];
-extern u8_t DRXD_HiI2cPatch_1[];
-extern u8_t DRXD_HiI2cPatch_3[];
+extern u8 DRXD_InitAtomicRead[];
+extern u8 DRXD_HiI2cPatch_1[];
+extern u8 DRXD_HiI2cPatch_3[];
 
-extern u8_t DRXD_InitSC[];
+extern u8 DRXD_InitSC[];
 
-extern u8_t DRXD_ResetCEFR[];
-extern u8_t DRXD_InitFEA2_1[];
-extern u8_t DRXD_InitFEA2_2[];
-extern u8_t DRXD_InitCPA2[];
-extern u8_t DRXD_InitCEA2[];
-extern u8_t DRXD_InitEQA2[];
-extern u8_t DRXD_InitECA2[];
-extern u8_t DRXD_ResetECA2[];
-extern u8_t DRXD_ResetECRAM[];
+extern u8 DRXD_ResetCEFR[];
+extern u8 DRXD_InitFEA2_1[];
+extern u8 DRXD_InitFEA2_2[];
+extern u8 DRXD_InitCPA2[];
+extern u8 DRXD_InitCEA2[];
+extern u8 DRXD_InitEQA2[];
+extern u8 DRXD_InitECA2[];
+extern u8 DRXD_ResetECA2[];
+extern u8 DRXD_ResetECRAM[];
 
-extern u8_t DRXD_A2_microcode[];
-extern u32_t DRXD_A2_microcode_length;
+extern u8 DRXD_A2_microcode[];
+extern u32 DRXD_A2_microcode_length;
 
-extern u8_t DRXD_InitFEB1_1[];
-extern u8_t DRXD_InitFEB1_2[];
-extern u8_t DRXD_InitCPB1[];
-extern u8_t DRXD_InitCEB1[];
-extern u8_t DRXD_InitEQB1[];
-extern u8_t DRXD_InitECB1[];
+extern u8 DRXD_InitFEB1_1[];
+extern u8 DRXD_InitFEB1_2[];
+extern u8 DRXD_InitCPB1[];
+extern u8 DRXD_InitCEB1[];
+extern u8 DRXD_InitEQB1[];
+extern u8 DRXD_InitECB1[];
 
-extern u8_t DRXD_InitDiversityFront[];
-extern u8_t DRXD_InitDiversityEnd[];
-extern u8_t DRXD_DisableDiversity[];
-extern u8_t DRXD_StartDiversityFront[];
-extern u8_t DRXD_StartDiversityEnd[];
+extern u8 DRXD_InitDiversityFront[];
+extern u8 DRXD_InitDiversityEnd[];
+extern u8 DRXD_DisableDiversity[];
+extern u8 DRXD_StartDiversityFront[];
+extern u8 DRXD_StartDiversityEnd[];
 
-extern u8_t DRXD_DiversityDelay8MHZ[];
-extern u8_t DRXD_DiversityDelay6MHZ[];
+extern u8 DRXD_DiversityDelay8MHZ[];
+extern u8 DRXD_DiversityDelay6MHZ[];
 
-extern u8_t DRXD_B1_microcode[];
-extern u32_t DRXD_B1_microcode_length;
+extern u8 DRXD_B1_microcode[];
+extern u32 DRXD_B1_microcode_length;
 
 #endif
