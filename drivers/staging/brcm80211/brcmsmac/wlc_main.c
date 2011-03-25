@@ -6283,7 +6283,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	       ((preamble_type[1] == WLC_MM_PREAMBLE) ==
 		(txh->MModeFbrLen != 0)));
 
-	ac = wme_fifo2ac[queue];
+	ac = skb_get_queue_mapping(p);
 	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
