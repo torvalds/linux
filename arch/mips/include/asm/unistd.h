@@ -362,16 +362,17 @@
 #define __NR_name_to_handle_at		(__NR_Linux + 339)
 #define __NR_open_by_handle_at		(__NR_Linux + 340)
 #define __NR_clock_adjtime		(__NR_Linux + 341)
+#define __NR_syncfs			(__NR_Linux + 342)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		341
+#define __NR_Linux_syscalls		342
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		341
+#define __NR_O32_Linux_syscalls		342
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -680,16 +681,17 @@
 #define __NR_name_to_handle_at		(__NR_Linux + 298)
 #define __NR_open_by_handle_at		(__NR_Linux + 299)
 #define __NR_clock_adjtime		(__NR_Linux + 300)
+#define __NR_syncfs			(__NR_Linux + 301)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		300
+#define __NR_Linux_syscalls		301
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		300
+#define __NR_64_Linux_syscalls		301
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -1003,16 +1005,17 @@
 #define __NR_name_to_handle_at		(__NR_Linux + 303)
 #define __NR_open_by_handle_at		(__NR_Linux + 304)
 #define __NR_clock_adjtime		(__NR_Linux + 305)
+#define __NR_clock_adjtime		(__NR_Linux + 306)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		305
+#define __NR_Linux_syscalls		306
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		305
+#define __NR_N32_Linux_syscalls		306
 
 #ifdef __KERNEL__
 
