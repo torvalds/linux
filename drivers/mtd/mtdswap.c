@@ -850,7 +850,7 @@ static int mtdswap_wlfreq(unsigned int maxdiff)
 static int mtdswap_choose_wl_tree(struct mtdswap_dev *d)
 {
 	static unsigned int pick_cnt;
-	unsigned int i, idx, wear, max;
+	unsigned int i, idx = -1, wear, max;
 	struct rb_root *root;
 
 	max = 0;
