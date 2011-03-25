@@ -596,7 +596,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype, char *vars
 	if (D11REV_IS(sh->corerev, 4))
 		sflags = SISF_2G_PHY | SISF_5G_PHY;
 	else
-		sflags = si_core_sflags(sh->sih, 0, 0);
+		sflags = ai_core_sflags(sh->sih, 0, 0);
 
 	if (BAND_5G(bandtype)) {
 		if ((sflags & (SISF_5G_PHY | SISF_DB_PHY)) == 0) {
@@ -974,7 +974,7 @@ void WLBANDINITFN(wlc_phy_init) (wlc_phy_t *pih, chanspec_t chanspec)
 	}
 
 	if (D11REV_GE(pi->sh->corerev, 5))
-		ASSERT(si_core_sflags(pi->sh->sih, 0, 0) & SISF_FCLKA);
+		ASSERT(ai_core_sflags(pi->sh->sih, 0, 0) & SISF_FCLKA);
 
 	phy_init = pi->pi_fptr.init;
 
@@ -3311,12 +3311,12 @@ void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode)
 				mod_phy_reg(pi, 0x44c, (0x1 << 2), (1) << 2);
 
 			}
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, gpiocontrol), ~0x0,
 				   0x0);
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, gpioout), 0x40, 0x40);
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, gpioouten), 0x40,
 				   0x40);
 		} else {
@@ -3324,11 +3324,11 @@ void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode)
 
 			mod_phy_reg(pi, 0x44d, (0x1 << 2), (0) << 2);
 
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, gpioout), 0x40, 0x00);
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, gpioouten), 0x40, 0x0);
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, gpiocontrol), ~0x0,
 				   0x40);
 		}

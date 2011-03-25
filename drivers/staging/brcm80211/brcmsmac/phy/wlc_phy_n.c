@@ -14550,7 +14550,7 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 	     (pi->sh->chippkg == BCM4718_PKG_ID))) {
 		if ((pi->sh->boardflags & BFL_EXTLNA) &&
 		    (CHSPEC_IS2G(pi->radio_chanspec))) {
-			si_corereg(pi->sh->sih, SI_CC_IDX,
+			ai_corereg(pi->sh->sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, chipcontrol), 0x40,
 				   0x40);
 		}

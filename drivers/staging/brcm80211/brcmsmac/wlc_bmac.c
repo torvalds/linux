@@ -235,7 +235,7 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
 	WL_TRACE("wl%d: wlc_setband_inact\n", wlc_hw->unit);
 
 	ASSERT(bandunit != wlc_hw->band->bandunit);
-	ASSERT(si_iscoreup(wlc_hw->sih));
+	ASSERT(ai_iscoreup(wlc_hw->sih));
 	ASSERT((R_REG(&wlc_hw->regs->maccontrol) & MCTL_EN_MAC) ==
 	       0);
 
@@ -715,7 +715,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 
 	/* set bar0 window to point at D11 core */
 	wlc_hw->regs = (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID, 0);
-	wlc_hw->corerev = si_corerev(wlc_hw->sih);
+	wlc_hw->corerev = ai_corerev(wlc_hw->sih);
 
 	regs = wlc_hw->regs;
 
@@ -1230,7 +1230,7 @@ int wlc_bmac_down_finish(struct wlc_hw_info *wlc_hw)
 	} else {
 
 		/* Reset and disable the core */
-		if (si_iscoreup(wlc_hw->sih)) {
+		if (ai_iscoreup(wlc_hw->sih)) {
 			if (R_REG(&wlc_hw->regs->maccontrol) &
 			    MCTL_EN_MAC)
 				wlc_suspend_mac_and_wait(wlc_hw->wlc);
@@ -1320,7 +1320,7 @@ static void wlc_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 
 		/* check fast clock is available (if core is not in reset) */
 		if (wlc_hw->forcefastclk && wlc_hw->clk)
-			ASSERT(si_core_sflags(wlc_hw->sih, 0, 0) & SISF_FCLKA);
+			ASSERT(ai_core_sflags(wlc_hw->sih, 0, 0) & SISF_FCLKA);
 
 		/* keep the ucode wake bit on if forcefastclk is on
 		 * since we do not want ucode to put us back to slow clock
@@ -1843,17 +1843,17 @@ static void wlc_bmac_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
 
 	if (OFF == clk) {	/* clear gmode bit, put phy into reset */
 
-		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC | SICF_GMODE),
+		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC | SICF_GMODE),
 			       (SICF_PRST | SICF_FGC));
 		udelay(1);
-		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_PRST);
+		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_PRST);
 		udelay(1);
 
 	} else {		/* take phy out of reset */
 
-		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_FGC);
+		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_FGC);
 		udelay(1);
-		si_core_cflags(wlc_hw->sih, (SICF_FGC), 0);
+		ai_core_cflags(wlc_hw->sih, (SICF_FGC), 0);
 		udelay(1);
 
 	}
@@ -1864,16 +1864,16 @@ void wlc_bmac_core_phypll_reset(struct wlc_hw_info *wlc_hw)
 {
 	WL_TRACE("wl%d: wlc_bmac_core_phypll_reset\n", wlc_hw->unit);
 
-	si_corereg(wlc_hw->sih, SI_CC_IDX,
+	ai_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_addr), ~0, 0);
 	udelay(1);
-	si_corereg(wlc_hw->sih, SI_CC_IDX,
+	ai_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 0);
 	udelay(1);
-	si_corereg(wlc_hw->sih, SI_CC_IDX,
+	ai_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 4);
 	udelay(1);
-	si_corereg(wlc_hw->sih, SI_CC_IDX,
+	ai_corereg(wlc_hw->sih, SI_CC_IDX,
 		   offsetof(chipcregs_t, chipcontrol_data), 0x4, 0);
 	udelay(1);
 }
@@ -1888,18 +1888,18 @@ void wlc_bmac_phyclk_fgc(struct wlc_hw_info *wlc_hw, bool clk)
 		return;
 
 	if (ON == clk)
-		si_core_cflags(wlc_hw->sih, SICF_FGC, SICF_FGC);
+		ai_core_cflags(wlc_hw->sih, SICF_FGC, SICF_FGC);
 	else
-		si_core_cflags(wlc_hw->sih, SICF_FGC, 0);
+		ai_core_cflags(wlc_hw->sih, SICF_FGC, 0);
 
 }
 
 void wlc_bmac_macphyclk_set(struct wlc_hw_info *wlc_hw, bool clk)
 {
 	if (ON == clk)
-		si_core_cflags(wlc_hw->sih, SICF_MPCLKE, SICF_MPCLKE);
+		ai_core_cflags(wlc_hw->sih, SICF_MPCLKE, SICF_MPCLKE);
 	else
-		si_core_cflags(wlc_hw->sih, SICF_MPCLKE, 0);
+		ai_core_cflags(wlc_hw->sih, SICF_MPCLKE, 0);
 }
 
 void wlc_bmac_phy_reset(struct wlc_hw_info *wlc_hw)
@@ -1919,7 +1919,7 @@ void wlc_bmac_phy_reset(struct wlc_hw_info *wlc_hw)
 	if (WLCISNPHY(wlc_hw->band) && NREV_GE(wlc_hw->band->phyrev, 3) &&
 	    NREV_LE(wlc_hw->band->phyrev, 4)) {
 		/* Set the PHY bandwidth */
-		si_core_cflags(wlc_hw->sih, SICF_BWMASK, phy_bw_clkbits);
+		ai_core_cflags(wlc_hw->sih, SICF_BWMASK, phy_bw_clkbits);
 
 		udelay(1);
 
@@ -1927,12 +1927,12 @@ void wlc_bmac_phy_reset(struct wlc_hw_info *wlc_hw)
 		wlc_bmac_core_phypll_reset(wlc_hw);
 
 		/* reset the PHY */
-		si_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_PCLKE),
+		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_PCLKE),
 			       (SICF_PRST | SICF_PCLKE));
 		phy_in_reset = true;
 	} else {
 
-		si_core_cflags(wlc_hw->sih,
+		ai_core_cflags(wlc_hw->sih,
 			       (SICF_PRST | SICF_PCLKE | SICF_BWMASK),
 			       (SICF_PRST | SICF_PCLKE | phy_bw_clkbits));
 	}
@@ -1955,9 +1955,9 @@ WLBANDINITFN(wlc_bmac_setband) (struct wlc_hw_info *wlc_hw, uint bandunit,
 	ASSERT(bandunit != wlc_hw->band->bandunit);
 
 	/* Enable the d11 core before accessing it */
-	if (!si_iscoreup(wlc_hw->sih)) {
-		si_core_reset(wlc_hw->sih, 0, 0);
-		ASSERT(si_iscoreup(wlc_hw->sih));
+	if (!ai_iscoreup(wlc_hw->sih)) {
+		ai_core_reset(wlc_hw->sih, 0, 0);
+		ASSERT(ai_iscoreup(wlc_hw->sih));
 		wlc_mctrl_reset(wlc_hw);
 	}
 
@@ -1999,7 +1999,7 @@ void WLBANDINITFN(wlc_setxband) (struct wlc_hw_info *wlc_hw, uint bandunit)
 
 	/* set gmode core flag */
 	if (wlc_hw->sbclk && !wlc_hw->noreset) {
-		si_core_cflags(wlc_hw->sih, SICF_GMODE,
+		ai_core_cflags(wlc_hw->sih, SICF_GMODE,
 			       ((bandunit == 0) ? SICF_GMODE : 0));
 	}
 }
@@ -2096,7 +2096,7 @@ bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
 			wlc_hw->regs =
 			    (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
-		si_core_reset(wlc_hw->sih, flags, resetbits);
+		ai_core_reset(wlc_hw->sih, flags, resetbits);
 		wlc_mctrl_reset(wlc_hw);
 	}
 
@@ -2104,7 +2104,7 @@ bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
 
 	/* put core back into reset */
 	if (!clk)
-		si_core_disable(wlc_hw->sih, 0);
+		ai_core_disable(wlc_hw->sih, 0);
 
 	if (!xtal)
 		wlc_bmac_xtal(wlc_hw, OFF);
@@ -2189,7 +2189,7 @@ void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 		wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
 	/* reset the dma engines except first time thru */
-	if (si_iscoreup(wlc_hw->sih)) {
+	if (ai_iscoreup(wlc_hw->sih)) {
 		for (i = 0; i < NFIFO; i++)
 			if ((wlc_hw->di[i]) && (!dma_txreset(wlc_hw->di[i]))) {
 				WL_ERROR("wl%d: %s: dma_txreset[%d]: cannot stop dma\n",
@@ -2224,7 +2224,7 @@ void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 	 *  with other driver like mips/arm since they may touch chipcommon as well.
 	 */
 	wlc_hw->clk = false;
-	si_core_reset(wlc_hw->sih, flags, resetbits);
+	ai_core_reset(wlc_hw->sih, flags, resetbits);
 	wlc_hw->clk = true;
 	if (wlc_hw->band && wlc_hw->band->pi)
 		wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, true);
@@ -2343,7 +2343,7 @@ static void wlc_coreinit(struct wlc_info *wlc)
 
 	wlc_gpio_init(wlc);
 
-	sflags = si_core_sflags(wlc_hw->sih, 0, 0);
+	sflags = ai_core_sflags(wlc_hw->sih, 0, 0);
 
 	if (D11REV_IS(wlc_hw->corerev, 23)) {
 		if (WLCISNPHY(wlc_hw->band))
@@ -3480,7 +3480,7 @@ void wlc_coredisable(struct wlc_hw_info *wlc_hw)
 		si_gpiocontrol(wlc_hw->sih, ~0, 0, GPIO_DRV_PRIORITY);
 
 	wlc_hw->clk = false;
-	si_core_disable(wlc_hw->sih, 0);
+	ai_core_disable(wlc_hw->sih, 0);
 	wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, false);
 }
 
