@@ -344,14 +344,14 @@ static int __init egpio_probe(struct platform_device *pdev)
 			ei->ack_write = 0;
 		irq_end = ei->irq_start + ei->nirqs;
 		for (irq = ei->irq_start; irq < irq_end; irq++) {
-			set_irq_chip(irq, &egpio_muxed_chip);
-			set_irq_chip_data(irq, ei);
-			set_irq_handler(irq, handle_simple_irq);
+			irq_set_chip(irq, &egpio_muxed_chip);
+			irq_set_chip_data(irq, ei);
+			irq_set_handler(irq, handle_simple_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
-		set_irq_type(ei->chained_irq, IRQ_TYPE_EDGE_RISING);
-		set_irq_data(ei->chained_irq, ei);
-		set_irq_chained_handler(ei->chained_irq, egpio_handler);
+		irq_set_irq_type(ei->chained_irq, IRQ_TYPE_EDGE_RISING);
+		irq_set_handler_data(ei->chained_irq, ei);
+		irq_set_chained_handler(ei->chained_irq, egpio_handler);
 		ack_irqs(ei);
 
 		device_init_wakeup(&pdev->dev, 1);
@@ -373,11 +373,11 @@ static int __exit egpio_remove(struct platform_device *pdev)
 	if (ei->chained_irq) {
 		irq_end = ei->irq_start + ei->nirqs;
 		for (irq = ei->irq_start; irq < irq_end; irq++) {
-			set_irq_chip(irq, NULL);
-			set_irq_handler(irq, NULL);
+			irq_set_chip(irq, NULL);
+			irq_set_handler(irq, NULL);
 			set_irq_flags(irq, 0);
 		}
-		set_irq_chained_handler(ei->chained_irq, NULL);
+		irq_set_chained_handler(ei->chained_irq, NULL);
 		device_init_wakeup(&pdev->dev, 0);
 	}
 	iounmap(ei->base_addr);

@@ -454,7 +454,7 @@ static inline void activate_irq(int irq)
 	set_irq_flags(irq, IRQF_VALID);
 #else
 	/* same effect on other architectures */
-	set_irq_noprobe(irq);
+	irq_set_noprobe(irq);
 #endif
 }
 
@@ -650,7 +650,7 @@ static inline int sih_read_isr(const struct sih *sih)
  */
 static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
 {
-	struct sih_agent *agent = get_irq_data(irq);
+	struct sih_agent *agent = irq_get_handler_data(irq);
 	const struct sih *sih = agent->sih;
 	int isr;
 
@@ -724,9 +724,9 @@ int twl4030_sih_setup(int module)
 	for (i = 0; i < sih->bits; i++) {
 		irq = irq_base + i;
 
-		set_irq_chip_and_handler(irq, &twl4030_sih_irq_chip,
-				handle_edge_irq);
-		set_irq_chip_data(irq, agent);
+		irq_set_chip_and_handler(irq, &twl4030_sih_irq_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, agent);
 		activate_irq(irq);
 	}
 
@@ -735,8 +735,8 @@ int twl4030_sih_setup(int module)
 
 	/* replace generic PIH handler (handle_simple_irq) */
 	irq = sih_mod + twl4030_irq_base;
-	set_irq_data(irq, agent);
-	set_irq_chained_handler(irq, handle_twl4030_sih);
+	irq_set_handler_data(irq, agent);
+	irq_set_chained_handler(irq, handle_twl4030_sih);
 
 	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", sih->name,
 			irq, irq_base, twl4030_irq_next - 1);
@@ -785,8 +785,8 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	twl4030_sih_irq_chip.irq_ack = dummy_irq_chip.irq_ack;
 
 	for (i = irq_base; i < irq_end; i++) {
-		set_irq_chip_and_handler(i, &twl4030_irq_chip,
-				handle_simple_irq);
+		irq_set_chip_and_handler(i, &twl4030_irq_chip,
+					 handle_simple_irq);
 		activate_irq(i);
 	}
 	twl4030_irq_next = i;
@@ -826,7 +826,7 @@ fail_rqirq:
 	/* clean up twl4030_sih_setup */
 fail:
 	for (i = irq_base; i < irq_end; i++)
-		set_irq_chip_and_handler(i, NULL, NULL);
+		irq_set_chip_and_handler(i, NULL, NULL);
 	destroy_workqueue(wq);
 	wq = NULL;
 	return status;

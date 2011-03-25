@@ -348,13 +348,13 @@ static int __devinit htcpld_setup_chip_irq(
 	/* Setup irq handlers */
 	irq_end = chip->irq_start + chip->nirqs;
 	for (irq = chip->irq_start; irq < irq_end; irq++) {
-		set_irq_chip(irq, &htcpld_muxed_chip);
-		set_irq_chip_data(irq, chip);
-		set_irq_handler(irq, handle_simple_irq);
+		irq_set_chip(irq, &htcpld_muxed_chip);
+		irq_set_chip_data(irq, chip);
+		irq_set_handler(irq, handle_simple_irq);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 #else
-		set_irq_probe(irq);
+		irq_set_probe(irq);
 #endif
 	}
 
