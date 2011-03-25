@@ -364,7 +364,7 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 
 /* this is will make Sonics calls directly, since Sonics is no longer supported in the Si abstraction */
 /* this has been customized for the bcm 4329 ONLY */
-#ifdef BCMSDIO
+#ifdef BRCM_FULLMAC
 static si_info_t *si_doattach(si_info_t *sii, uint devid,
 			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
@@ -372,7 +372,6 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid,
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	chipcregs_t *cc;
-	char *pvars = NULL;
 	uint origidx;
 
 	ASSERT(GOODREGS(regs));
@@ -431,69 +430,17 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid,
 		goto exit;
 	}
 
-#ifdef BRCM_FULLMAC
-	pvars = NULL;
-#else
-	/* Init nvram from flash if it exists */
-	nvram_init((void *)&(sii->pub));
-
-	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init
-	    (&sii->pub, bustype, regs, sii->osh, vars, varsz)) {
-		SI_ERROR(("si_doattach: srom_var_init failed: bad srom\n"));
-		goto exit;
-	}
-	pvars = vars ? *vars : NULL;
-	si_nvram_process(sii, pvars);
-#endif
-
-	/* === NVRAM, clock is ready === */
-
-#ifdef BRCM_FULLMAC
-	if (sii->pub.ccrev >= 20) {
-#endif
 	cc = (chipcregs_t *) si_setcore(sih, CC_CORE_ID, 0);
 	W_REG(&cc->gpiopullup, 0);
 	W_REG(&cc->gpiopulldown, 0);
 	sb_setcoreidx(sih, origidx);
-#ifdef BRCM_FULLMAC
-	}
-#endif
-
-#ifndef BRCM_FULLMAC
-	/* PMU specific initializations */
-	if (PMUCTL_ENAB(sih)) {
-		u32 xtalfreq;
-		si_pmu_init(sih);
-		si_pmu_chip_init(sih);
-		xtalfreq = getintvar(pvars, "xtalfreq");
-		/* If xtalfreq var not available, try to measure it */
-		if (xtalfreq == 0)
-			xtalfreq = si_pmu_measure_alpclk(sih);
-		si_pmu_pll_init(sih, xtalfreq);
-		si_pmu_res_init(sih);
-		si_pmu_swreg_init(sih);
-	}
-
-	/* setup the GPIO based LED powersave register */
-	w = getintvar(pvars, "leddc");
-	if (w == 0)
-		w = DEFAULT_GPIOTIMERVAL;
-	sb_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, gpiotimerval), ~0, w);
-
-#ifdef BCMDBG
-	/* clear any previous epidiag-induced target abort */
-	sb_taclear(sih, false);
-#endif				/* BCMDBG */
-#endif
 
 	return sii;
 
  exit:
 	return NULL;
 }
-
-#else				/* BCMSDIO */
+#else /* BRCM_FULLMAC */
 static si_info_t *si_doattach(si_info_t *sii, uint devid,
 			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
@@ -685,7 +632,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid,
 
 	return NULL;
 }
-#endif				/* BCMSDIO */
+#endif /* BRCM_FULLMAC */
 
 /* may be called with core in reset */
 void si_detach(si_t *sih)
