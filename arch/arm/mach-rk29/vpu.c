@@ -244,6 +244,8 @@ static long vpu_write_dec(u32 *src)
 	for (i = REG_NUM_DEC - 1; i > VPU_REG_DEC_GATE; i--)
 		dst[i] = src[i];
 
+	dsb();
+
 	dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
 	dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
 
@@ -257,6 +259,8 @@ static long vpu_write_dec_pp(u32 *src)
 
 	for (i = VPU_REG_EN_DEC_PP + 1; i < REG_NUM_DEC_PP; i++)
 		dst[i] = src[i];
+
+	dsb();
 
 	dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 	dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]	| VPU_REG_DEC_GATE_BIT;
@@ -278,6 +282,8 @@ static long vpu_write_enc(u32 *src)
 	for (i = VPU_REG_EN_ENC + 1; i < REG_NUM_ENC; i++)
 		dst[i] = src[i];
 
+	dsb();
+
 	dst[VPU_REG_ENC_GATE] = src[VPU_REG_ENC_GATE] | VPU_REG_ENC_GATE_BIT;
 	dst[VPU_REG_EN_ENC]   = src[VPU_REG_EN_ENC];
 
@@ -293,6 +299,8 @@ static long vpu_write_pp(u32 *src)
 
 	for (i = VPU_REG_PP_GATE + 1; i < REG_NUM_PP; i++)
 		dst[i] = src[i];
+
+	dsb();
 
 	dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
 
