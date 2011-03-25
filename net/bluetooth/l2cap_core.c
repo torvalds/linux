@@ -2875,13 +2875,13 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU)
 			goto drop;
 
-		pi->sdu_len = get_unaligned_le16(skb->data);
+		chan->sdu_len = get_unaligned_le16(skb->data);
 
-		if (pi->sdu_len > pi->imtu)
+		if (chan->sdu_len > pi->imtu)
 			goto disconnect;
 
-		pi->sdu = bt_skb_alloc(pi->sdu_len, GFP_ATOMIC);
-		if (!pi->sdu)
+		chan->sdu = bt_skb_alloc(chan->sdu_len, GFP_ATOMIC);
+		if (!chan->sdu)
 			return -ENOMEM;
 
 		/* pull sdu_len bytes only after alloc, because of Local Busy
@@ -2889,24 +2889,24 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		 * only once, i.e., when alloc does not fail */
 		skb_pull(skb, 2);
 
-		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 
 		chan->conn_state |= L2CAP_CONN_SAR_SDU;
-		pi->partial_sdu_len = skb->len;
+		chan->partial_sdu_len = skb->len;
 		break;
 
 	case L2CAP_SDU_CONTINUE:
 		if (!(chan->conn_state & L2CAP_CONN_SAR_SDU))
 			goto disconnect;
 
-		if (!pi->sdu)
+		if (!chan->sdu)
 			goto disconnect;
 
-		pi->partial_sdu_len += skb->len;
-		if (pi->partial_sdu_len > pi->sdu_len)
+		chan->partial_sdu_len += skb->len;
+		if (chan->partial_sdu_len > chan->sdu_len)
 			goto drop;
 
-		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 
 		break;
 
@@ -2914,22 +2914,22 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		if (!(chan->conn_state & L2CAP_CONN_SAR_SDU))
 			goto disconnect;
 
-		if (!pi->sdu)
+		if (!chan->sdu)
 			goto disconnect;
 
 		if (!(chan->conn_state & L2CAP_CONN_SAR_RETRY)) {
-			pi->partial_sdu_len += skb->len;
+			chan->partial_sdu_len += skb->len;
 
-			if (pi->partial_sdu_len > pi->imtu)
+			if (chan->partial_sdu_len > pi->imtu)
 				goto drop;
 
-			if (pi->partial_sdu_len != pi->sdu_len)
+			if (chan->partial_sdu_len != chan->sdu_len)
 				goto drop;
 
-			memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+			memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 		}
 
-		_skb = skb_clone(pi->sdu, GFP_ATOMIC);
+		_skb = skb_clone(chan->sdu, GFP_ATOMIC);
 		if (!_skb) {
 			chan->conn_state |= L2CAP_CONN_SAR_RETRY;
 			return -ENOMEM;
@@ -2945,7 +2945,7 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		chan->conn_state &= ~L2CAP_CONN_SAR_RETRY;
 		chan->conn_state &= ~L2CAP_CONN_SAR_SDU;
 
-		kfree_skb(pi->sdu);
+		kfree_skb(chan->sdu);
 		break;
 	}
 
@@ -2953,8 +2953,8 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 	return 0;
 
 drop:
-	kfree_skb(pi->sdu);
-	pi->sdu = NULL;
+	kfree_skb(chan->sdu);
+	chan->sdu = NULL;
 
 disconnect:
 	l2cap_send_disconn_req(pi->conn, chan->sk, ECONNRESET);
@@ -3104,7 +3104,7 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 	switch (control & L2CAP_CTRL_SAR) {
 	case L2CAP_SDU_UNSEGMENTED:
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU) {
-			kfree_skb(pi->sdu);
+			kfree_skb(chan->sdu);
 			break;
 		}
 
@@ -3116,28 +3116,28 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 
 	case L2CAP_SDU_START:
 		if (chan->conn_state & L2CAP_CONN_SAR_SDU) {
-			kfree_skb(pi->sdu);
+			kfree_skb(chan->sdu);
 			break;
 		}
 
-		pi->sdu_len = get_unaligned_le16(skb->data);
+		chan->sdu_len = get_unaligned_le16(skb->data);
 		skb_pull(skb, 2);
 
-		if (pi->sdu_len > pi->imtu) {
+		if (chan->sdu_len > pi->imtu) {
 			err = -EMSGSIZE;
 			break;
 		}
 
-		pi->sdu = bt_skb_alloc(pi->sdu_len, GFP_ATOMIC);
-		if (!pi->sdu) {
+		chan->sdu = bt_skb_alloc(chan->sdu_len, GFP_ATOMIC);
+		if (!chan->sdu) {
 			err = -ENOMEM;
 			break;
 		}
 
-		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 
 		chan->conn_state |= L2CAP_CONN_SAR_SDU;
-		pi->partial_sdu_len = skb->len;
+		chan->partial_sdu_len = skb->len;
 		err = 0;
 		break;
 
@@ -3145,11 +3145,11 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 		if (!(chan->conn_state & L2CAP_CONN_SAR_SDU))
 			break;
 
-		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 
-		pi->partial_sdu_len += skb->len;
-		if (pi->partial_sdu_len > pi->sdu_len)
-			kfree_skb(pi->sdu);
+		chan->partial_sdu_len += skb->len;
+		if (chan->partial_sdu_len > chan->sdu_len)
+			kfree_skb(chan->sdu);
 		else
 			err = 0;
 
@@ -3159,16 +3159,16 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 		if (!(chan->conn_state & L2CAP_CONN_SAR_SDU))
 			break;
 
-		memcpy(skb_put(pi->sdu, skb->len), skb->data, skb->len);
+		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 
 		chan->conn_state &= ~L2CAP_CONN_SAR_SDU;
-		pi->partial_sdu_len += skb->len;
+		chan->partial_sdu_len += skb->len;
 
-		if (pi->partial_sdu_len > pi->imtu)
+		if (chan->partial_sdu_len > pi->imtu)
 			goto drop;
 
-		if (pi->partial_sdu_len == pi->sdu_len) {
-			_skb = skb_clone(pi->sdu, GFP_ATOMIC);
+		if (chan->partial_sdu_len == chan->sdu_len) {
+			_skb = skb_clone(chan->sdu, GFP_ATOMIC);
 			err = sock_queue_rcv_skb(chan->sk, _skb);
 			if (err < 0)
 				kfree_skb(_skb);
@@ -3176,7 +3176,7 @@ static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buf
 		err = 0;
 
 drop:
-		kfree_skb(pi->sdu);
+		kfree_skb(chan->sdu);
 		break;
 	}
 
