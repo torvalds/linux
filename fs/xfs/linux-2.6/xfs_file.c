@@ -896,6 +896,7 @@ xfs_file_fallocate(
 	xfs_flock64_t	bf;
 	xfs_inode_t	*ip = XFS_I(inode);
 	int		cmd = XFS_IOC_RESVSP;
+	int		attr_flags = XFS_ATTR_NOLOCK;
 
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
 		return -EOPNOTSUPP;
@@ -918,7 +919,10 @@ xfs_file_fallocate(
 			goto out_unlock;
 	}
 
-	error = -xfs_change_file_space(ip, cmd, &bf, 0, XFS_ATTR_NOLOCK);
+	if (file->f_flags & O_DSYNC)
+		attr_flags |= XFS_ATTR_SYNC;
+
+	error = -xfs_change_file_space(ip, cmd, &bf, 0, attr_flags);
 	if (error)
 		goto out_unlock;
 
