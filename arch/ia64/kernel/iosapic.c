@@ -450,18 +450,9 @@ static void
 iosapic_ack_edge_irq (struct irq_data *data)
 {
 	unsigned int irq = data->irq;
-	struct irq_desc *idesc = irq_desc + irq;
 
 	irq_complete_move(irq);
 	move_native_irq(irq);
-	/*
-	 * Once we have recorded IRQ_PENDING already, we can mask the
-	 * interrupt for real. This prevents IRQ storms from unhandled
-	 * devices.
-	 */
-	if ((idesc->status & (IRQ_PENDING|IRQ_DISABLED)) ==
-	    (IRQ_PENDING|IRQ_DISABLED))
-		mask_irq(data);
 }
 
 #define iosapic_enable_edge_irq		unmask_irq
