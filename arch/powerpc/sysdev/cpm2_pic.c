@@ -115,26 +115,20 @@ static void cpm2_ack(struct irq_data *d)
 
 static void cpm2_end_irq(struct irq_data *d)
 {
-	struct irq_desc *desc;
 	int	bit, word;
 	unsigned int irq_nr = virq_to_hw(d->irq);
 
-	desc = irq_to_desc(irq_nr);
-	if (!(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS))
-			&& desc->action) {
+	bit = irq_to_siubit[irq_nr];
+	word = irq_to_siureg[irq_nr];
 
-		bit = irq_to_siubit[irq_nr];
-		word = irq_to_siureg[irq_nr];
+	ppc_cached_irq_mask[word] |= 1 << bit;
+	out_be32(&cpm2_intctl->ic_simrh + word, ppc_cached_irq_mask[word]);
 
-		ppc_cached_irq_mask[word] |= 1 << bit;
-		out_be32(&cpm2_intctl->ic_simrh + word, ppc_cached_irq_mask[word]);
-
-		/*
-		 * Work around large numbers of spurious IRQs on PowerPC 82xx
-		 * systems.
-		 */
-		mb();
-	}
+	/*
+	 * Work around large numbers of spurious IRQs on PowerPC 82xx
+	 * systems.
+	 */
+	mb();
 }
 
 static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
@@ -202,6 +196,7 @@ static struct irq_chip cpm2_pic = {
 	.irq_ack = cpm2_ack,
 	.irq_eoi = cpm2_end_irq,
 	.irq_set_type = cpm2_set_irq_type,
+	.flags = IRQCHIP_EOI_IF_HANDLED,
 };
 
 unsigned int cpm2_get_irq(void)
