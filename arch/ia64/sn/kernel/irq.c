@@ -23,11 +23,9 @@
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/sn_feature_sets.h>
 
-static void force_interrupt(int irq);
 static void register_intr_pda(struct sn_irq_info *sn_irq_info);
 static void unregister_intr_pda(struct sn_irq_info *sn_irq_info);
 
-int sn_force_interrupt_flag = 1;
 extern int sn_ioif_inited;
 struct list_head **sn_irq_lh;
 static DEFINE_SPINLOCK(sn_irq_info_lock); /* non-IRQ lock */
@@ -421,20 +419,6 @@ sn_call_force_intr_provider(struct sn_irq_info *sn_irq_info)
 	if (!(irq_desc[sn_irq_info->irq_irq].status & IRQ_DISABLED) &&
 	    pci_provider && pci_provider->force_interrupt)
 		(*pci_provider->force_interrupt)(sn_irq_info);
-}
-
-static void force_interrupt(int irq)
-{
-	struct sn_irq_info *sn_irq_info;
-
-	if (!sn_ioif_inited)
-		return;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sn_irq_info, sn_irq_lh[irq], list)
-		sn_call_force_intr_provider(sn_irq_info);
-
-	rcu_read_unlock();
 }
 
 /*
