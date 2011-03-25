@@ -4020,12 +4020,17 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_NOOP_OUT:
-		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
-			      INI_RD_CMD);
-		if (task->hdr->ttt == ISCSI_RESERVED_TAG)
+		if (task->hdr->ttt != ISCSI_RESERVED_TAG) {
+			AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
+				      TGT_DM_CMD);
+			AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt,
+				      pwrb, 0);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
-		else
+		} else {
+			AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
+				      INI_RD_CMD);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
+		}
 		hwi_write_buffer(pwrb, task);
 		break;
 	case ISCSI_OP_TEXT:
