@@ -56,7 +56,6 @@ extern u32 si_pmu_measure_alpclk(si_t *sih);
 extern u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val);
 extern u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val);
 extern u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val);
-extern void si_pmu_pllupd(si_t *sih);
 extern void si_pmu_sprom_enable(si_t *sih, bool enable);
 
 extern void si_pmu_radio_enable(si_t *sih, bool enable);
