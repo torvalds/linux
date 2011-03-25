@@ -3215,9 +3215,15 @@ void ceph_mdsc_destroy(struct ceph_fs_client *fsc)
 {
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 
+	dout("mdsc_destroy %p\n", mdsc);
 	ceph_mdsc_stop(mdsc);
+
+	/* flush out any connection work with references to us */
+	ceph_msgr_flush();
+
 	fsc->mdsc = NULL;
 	kfree(mdsc);
+	dout("mdsc_destroy %p done\n", mdsc);
 }
 
 
