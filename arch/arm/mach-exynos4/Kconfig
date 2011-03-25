@@ -20,6 +20,11 @@ config EXYNOS4_MCT
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
 
+config EXYNOS4_DEV_AHCI
+	bool
+	help
+	  Compile in platform device definitions for AHCI
+
 config EXYNOS4_DEV_PD
 	bool
 	help
@@ -134,9 +139,9 @@ config MACH_ARMLEX4210
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select EXYNOS4_DEV_AHCI
 	select EXYNOS4_DEV_SYSMMU
 	select EXYNOS4_SETUP_SDHCI
-	select SATA_AHCI_PLATFORM
 	help
 	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
 
