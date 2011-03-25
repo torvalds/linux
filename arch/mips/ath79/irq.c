@@ -127,7 +127,6 @@ static void __init ath79_misc_irq_init(void)
 
 	for (i = ATH79_MISC_IRQ_BASE;
 	     i < ATH79_MISC_IRQ_BASE + ATH79_MISC_IRQ_COUNT; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
 		set_irq_chip_and_handler(i, &ath79_misc_irq_chip,
 					 handle_level_irq);
 	}
