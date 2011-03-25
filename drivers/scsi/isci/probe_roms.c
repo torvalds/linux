@@ -250,9 +250,8 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	copy_len = min(evar->DataSize,
-		       min(oem_hdr->len - sizeof(*oem_hdr),
-			   sizeof(*rom)));
+	copy_len = min_t(u16, evar->DataSize,
+			 min_t(u16, oem_hdr->len - sizeof(*oem_hdr), sizeof(*rom)));
 
 	memcpy(rom, (char *)evar->Data + sizeof(*oem_hdr), copy_len);
 
