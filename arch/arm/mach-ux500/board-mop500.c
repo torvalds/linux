@@ -573,8 +573,7 @@ static void __init mop500_init_machine(void)
 					ARRAY_SIZE(mop500_platform_devs));
 
 	mop500_i2c_init();
-	if (!machine_is_snowball())
-		mop500_sdi_init();
+	mop500_sdi_init();
 	mop500_spi_init();
 	mop500_uart_init();
 
