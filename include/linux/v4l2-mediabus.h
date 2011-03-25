@@ -89,6 +89,9 @@ enum v4l2_mbus_pixelcode {
 	V4L2_MBUS_FMT_SGBRG12_1X12 = 0x3010,
 	V4L2_MBUS_FMT_SGRBG12_1X12 = 0x3011,
 	V4L2_MBUS_FMT_SRGGB12_1X12 = 0x3012,
+
+	/* JPEG compressed formats - next is 0x4002 */
+	V4L2_MBUS_FMT_JPEG_1X8 = 0x4001,
 };
 
 /**
