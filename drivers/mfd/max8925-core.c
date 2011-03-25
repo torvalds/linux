@@ -517,7 +517,6 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 			    struct max8925_platform_data *pdata)
 {
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
-	struct irq_desc *desc;
 	int i, ret;
 	int __irq;
 
@@ -544,7 +543,6 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 	mutex_init(&chip->irq_lock);
 	chip->core_irq = irq;
 	chip->irq_base = pdata->irq_base;
-	desc = irq_to_desc(chip->core_irq);
 
 	/* register with genirq */
 	for (i = 0; i < ARRAY_SIZE(max8925_irqs); i++) {
