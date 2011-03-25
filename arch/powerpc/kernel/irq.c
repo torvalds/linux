@@ -276,7 +276,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "  %-16s", chip->name);
 	else
 		seq_printf(p, "  %-16s", "None");
-	seq_printf(p, " %-8s", (desc->status & IRQ_LEVEL) ? "Level" : "Edge");
+	seq_printf(p, " %-8s", (irqd_is_level_type(&desc->irq_data) ? "Level" : "Edge");
 
 	if (action) {
 		seq_printf(p, "     %s", action->name);
@@ -315,24 +315,26 @@ void fixup_irqs(const struct cpumask *map)
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 
 	for_each_irq(irq) {
+		struct irq_data *data;
 		struct irq_chip *chip;
 
 		desc = irq_to_desc(irq);
 		if (!desc)
 			continue;
 
-		if (desc->status & IRQ_PER_CPU)
+		data = irq_desc_get_irq_data(desc);
+		if (irqd_is_per_cpu(data))
 			continue;
 
-		chip = get_irq_desc_chip(desc);
+		chip = irq_data_get_irq_chip(data);
 
-		cpumask_and(mask, desc->irq_data.affinity, map);
+		cpumask_and(mask, data->affinity, map);
 		if (cpumask_any(mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
 			cpumask_copy(mask, map);
 		}
 		if (chip->irq_set_affinity)
-			chip->irq_set_affinity(&desc->irq_data, mask, true);
+			chip->irq_set_affinity(data, mask, true);
 		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
@@ -827,7 +829,7 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	/* Set type if specified and different than the current one */
 	if (type != IRQ_TYPE_NONE &&
-	    type != (irq_to_desc(virq)->status & IRQF_TRIGGER_MASK))
+	    type != (irqd_get_trigger_type(irq_get_irq_data(virq))))
 		set_irq_type(virq, type);
 	return virq;
 }
