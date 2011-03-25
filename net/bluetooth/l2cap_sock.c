@@ -778,14 +778,16 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 		if (pi->mode == L2CAP_MODE_STREAMING) {
 			l2cap_streaming_send(sk);
-		} else {
-			if ((pi->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
-					(pi->conn_state & L2CAP_CONN_WAIT_F)) {
-				err = len;
-				break;
-			}
-			err = l2cap_ertm_send(sk);
+			err = len;
+			break;
 		}
+
+		if ((pi->chan->conn_state & L2CAP_CONN_REMOTE_BUSY) &&
+				(pi->chan->conn_state & L2CAP_CONN_WAIT_F)) {
+			err = len;
+			break;
+		}
+		err = l2cap_ertm_send(pi->chan);
 
 		if (err >= 0)
 			err = len;

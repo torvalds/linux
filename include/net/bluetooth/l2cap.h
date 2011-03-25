@@ -286,6 +286,8 @@ struct l2cap_chan {
 	__u8		num_conf_req;
 	__u8		num_conf_rsp;
 
+	__u16		conn_state;
+
 	struct list_head list;
 };
 
@@ -350,7 +352,6 @@ struct l2cap_pinfo {
 	__u8		flushable;
 
 	__u8		conf_state;
-	__u16		conn_state;
 
 	__u8		next_tx_seq;
 	__u8		expected_ack_seq;
@@ -456,7 +457,7 @@ struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, siz
 int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len);
 void l2cap_do_send(struct sock *sk, struct sk_buff *skb);
 void l2cap_streaming_send(struct sock *sk);
-int l2cap_ertm_send(struct sock *sk);
+int l2cap_ertm_send(struct l2cap_chan *chan);
 
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
 void l2cap_sock_clear_timer(struct sock *sk);
