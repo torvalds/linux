@@ -276,9 +276,16 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_ACCEPTED	0x0000
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
-/* ----- L2CAP connections ----- */
+/* ----- L2CAP channels and connections ----- */
+
+struct l2cap_chan {
+	struct sock *sk;
+	struct l2cap_chan	*next_c;
+	struct l2cap_chan	*prev_c;
+};
+
 struct l2cap_chan_list {
-	struct sock	*head;
+	struct l2cap_chan *head;
 	rwlock_t	lock;
 };
 
@@ -317,7 +324,7 @@ struct sock_del_list {
 #define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x04
 #define L2CAP_INFO_FEAT_MASK_REQ_DONE	0x08
 
-/* ----- L2CAP channel and socket info ----- */
+/* ----- L2CAP socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 #define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
 #define SREJ_QUEUE(sk) (&l2cap_pi(sk)->srej_queue)
@@ -389,8 +396,7 @@ struct l2cap_pinfo {
 	struct work_struct	busy_work;
 	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
-	struct sock		*next_c;
-	struct sock		*prev_c;
+	struct l2cap_chan	*chan;
 };
 
 #define L2CAP_CONF_REQ_SENT       0x01
@@ -471,7 +477,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent);
 struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock,
 							int proto, gfp_t prio);
 void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err);
-void l2cap_chan_del(struct sock *sk, int err);
+void l2cap_chan_del(struct l2cap_chan *chan, int err);
 int l2cap_do_connect(struct sock *sk);
 
 #endif /* __L2CAP_H */

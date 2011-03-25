@@ -902,7 +902,7 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 			l2cap_send_disconn_req(conn, sk, reason);
 		} else
-			l2cap_chan_del(sk, reason);
+			l2cap_chan_del(l2cap_pi(sk)->chan, reason);
 		break;
 
 	case BT_CONNECT2:
@@ -925,12 +925,12 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		}
 
-		l2cap_chan_del(sk, reason);
+		l2cap_chan_del(l2cap_pi(sk)->chan, reason);
 		break;
 
 	case BT_CONNECT:
 	case BT_DISCONN:
-		l2cap_chan_del(sk, reason);
+		l2cap_chan_del(l2cap_pi(sk)->chan, reason);
 		break;
 
 	default:
