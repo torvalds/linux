@@ -164,15 +164,15 @@ static int xilinx_intc_xlate(struct irq_host *h, struct device_node *ct,
 static int xilinx_intc_map(struct irq_host *h, unsigned int virq,
 				  irq_hw_number_t irq)
 {
-	set_irq_chip_data(virq, h->host_data);
+	irq_set_chip_data(virq, h->host_data);
 
 	if (xilinx_intc_typetable[irq] == IRQ_TYPE_LEVEL_HIGH ||
 	    xilinx_intc_typetable[irq] == IRQ_TYPE_LEVEL_LOW) {
-		set_irq_chip_and_handler(virq, &xilinx_intc_level_irqchip,
-			handle_level_irq);
+		irq_set_chip_and_handler(virq, &xilinx_intc_level_irqchip,
+					 handle_level_irq);
 	} else {
-		set_irq_chip_and_handler(virq, &xilinx_intc_edge_irqchip,
-			handle_edge_irq);
+		irq_set_chip_and_handler(virq, &xilinx_intc_edge_irqchip,
+					 handle_edge_irq);
 	}
 	return 0;
 }
@@ -223,7 +223,7 @@ int xilinx_intc_get_irq(void)
  */
 static void xilinx_i8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
 	if (cascade_irq)
@@ -250,7 +250,7 @@ static void __init xilinx_i8259_setup_cascade(void)
 	}
 
 	i8259_init(cascade_node, 0);
-	set_irq_chained_handler(cascade_irq, xilinx_i8259_cascade);
+	irq_set_chained_handler(cascade_irq, xilinx_i8259_cascade);
 
 	/* Program irq 7 (usb/audio), 14/15 (ide) to level sensitive */
 	/* This looks like a dirty hack to me --gcl */

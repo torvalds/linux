@@ -81,7 +81,7 @@ static void pasemi_msi_teardown_msi_irqs(struct pci_dev *pdev)
 		if (entry->irq == NO_IRQ)
 			continue;
 
-		set_irq_msi(entry->irq, NULL);
+		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap,
 				       virq_to_hw(entry->irq), ALLOC_CHUNK);
 		irq_dispose_mapping(entry->irq);
@@ -131,9 +131,9 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		 */
 		mpic_set_vector(virq, 0);
 
-		set_irq_msi(virq, entry);
-		set_irq_chip(virq, &mpic_pasemi_msi_chip);
-		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
+		irq_set_msi_desc(virq, entry);
+		irq_set_chip(virq, &mpic_pasemi_msi_chip);
+		irq_set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
 		pr_debug("pasemi_msi: allocated virq 0x%x (hw 0x%x) " \
 			 "addr 0x%x\n", virq, hwirq, msg.address_lo);

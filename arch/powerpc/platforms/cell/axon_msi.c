@@ -93,8 +93,8 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-	struct axon_msic *msic = get_irq_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct axon_msic *msic = irq_get_handler_data(irq);
 	u32 write_offset, msi;
 	int idx;
 	int retry = 0;
@@ -287,7 +287,7 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		}
 		dev_dbg(&dev->dev, "axon_msi: allocated virq 0x%x\n", virq);
 
-		set_irq_msi(virq, entry);
+		irq_set_msi_desc(virq, entry);
 		msg.data = virq;
 		write_msi_msg(virq, &msg);
 	}
@@ -305,7 +305,7 @@ static void axon_msi_teardown_msi_irqs(struct pci_dev *dev)
 		if (entry->irq == NO_IRQ)
 			continue;
 
-		set_irq_msi(entry->irq, NULL);
+		irq_set_msi_desc(entry->irq, NULL);
 		irq_dispose_mapping(entry->irq);
 	}
 }
@@ -320,7 +320,7 @@ static struct irq_chip msic_irq_chip = {
 static int msic_host_map(struct irq_host *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
-	set_irq_chip_and_handler(virq, &msic_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(virq, &msic_irq_chip, handle_simple_irq);
 
 	return 0;
 }
@@ -400,8 +400,8 @@ static int axon_msi_probe(struct platform_device *device)
 
 	msic->irq_host->host_data = msic;
 
-	set_irq_data(virq, msic);
-	set_irq_chained_handler(virq, axon_msi_cascade);
+	irq_set_handler_data(virq, msic);
+	irq_set_chained_handler(virq, axon_msi_cascade);
 	pr_devel("axon_msi: irq 0x%x setup for axon_msi\n", virq);
 
 	/* Enable the MSIC hardware */

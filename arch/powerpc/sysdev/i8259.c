@@ -181,7 +181,7 @@ static int i8259_host_map(struct irq_host *h, unsigned int virq,
 	 * be more cautious here but that works for now
 	 */
 	irq_set_status_flags(virq, IRQ_LEVEL);
-	set_irq_chip_and_handler(virq, &i8259_pic, handle_level_irq);
+	irq_set_chip_and_handler(virq, &i8259_pic, handle_level_irq);
 	return 0;
 }
 
@@ -191,7 +191,7 @@ static void i8259_host_unmap(struct irq_host *h, unsigned int virq)
 	i8259_mask_irq(irq_get_irq_data(virq));
 
 	/* remove chip and handler */
-	set_irq_chip_and_handler(virq, NULL, NULL);
+	irq_set_chip_and_handler(virq, NULL, NULL);
 
 	/* Make sure it's completed */
 	synchronize_irq(virq);

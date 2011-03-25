@@ -182,13 +182,13 @@ static int uic_host_map(struct irq_host *h, unsigned int virq,
 {
 	struct uic *uic = h->host_data;
 
-	set_irq_chip_data(virq, uic);
+	irq_set_chip_data(virq, uic);
 	/* Despite the name, handle_level_irq() works for both level
 	 * and edge irqs on UIC.  FIXME: check this is correct */
-	set_irq_chip_and_handler(virq, &uic_irq_chip, handle_level_irq);
+	irq_set_chip_and_handler(virq, &uic_irq_chip, handle_level_irq);
 
 	/* Set default irq type */
-	set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
 	return 0;
 }
@@ -212,9 +212,9 @@ static struct irq_host_ops uic_host_ops = {
 
 void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct irq_data *idata = irq_desc_get_irq_data(desc);
-	struct uic *uic = get_irq_data(virq);
+	struct uic *uic = irq_get_handler_data(virq);
 	u32 msr;
 	int src;
 	int subvirq;
@@ -329,8 +329,8 @@ void __init uic_init_tree(void)
 
 			cascade_virq = irq_of_parse_and_map(np, 0);
 
-			set_irq_data(cascade_virq, uic);
-			set_irq_chained_handler(cascade_virq, uic_irq_cascade);
+			irq_set_handler_data(cascade_virq, uic);
+			irq_set_chained_handler(cascade_virq, uic_irq_cascade);
 
 			/* FIXME: setup critical cascade?? */
 		}

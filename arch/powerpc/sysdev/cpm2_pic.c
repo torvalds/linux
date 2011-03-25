@@ -157,9 +157,9 @@ static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	irqd_set_trigger_type(d, flow_type);
 	if (flow_type & IRQ_TYPE_LEVEL_LOW)
-		__set_irq_handler_unlocked(d->irq, handle_level_irq);
+		__irq_set_handler_locked(d->irq, handle_level_irq);
 	else
-		__set_irq_handler_unlocked(d->irq, handle_edge_irq);
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
 
 	/* internal IRQ senses are LEVEL_LOW
 	 * EXT IRQ and Port C IRQ senses are programmable
@@ -220,7 +220,7 @@ static int cpm2_pic_host_map(struct irq_host *h, unsigned int virq,
 	pr_debug("cpm2_pic_host_map(%d, 0x%lx)\n", virq, hw);
 
 	irq_set_status_flags(virq, IRQ_LEVEL);
-	set_irq_chip_and_handler(virq, &cpm2_pic, handle_level_irq);
+	irq_set_chip_and_handler(virq, &cpm2_pic, handle_level_irq);
 	return 0;
 }
 

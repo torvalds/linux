@@ -685,11 +685,11 @@ static int ipic_host_map(struct irq_host *h, unsigned int virq,
 {
 	struct ipic *ipic = h->host_data;
 
-	set_irq_chip_data(virq, ipic);
-	set_irq_chip_and_handler(virq, &ipic_level_irq_chip, handle_level_irq);
+	irq_set_chip_data(virq, ipic);
+	irq_set_chip_and_handler(virq, &ipic_level_irq_chip, handle_level_irq);
 
 	/* Set default irq type */
-	set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
 	return 0;
 }

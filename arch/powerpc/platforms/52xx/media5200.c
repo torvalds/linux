@@ -82,7 +82,7 @@ static struct irq_chip media5200_irq_chip = {
 
 void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	int sub_virq, val;
 	u32 status, enable;
 
@@ -116,8 +116,8 @@ static int media5200_irq_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
 	pr_debug("%s: h=%p, virq=%i, hwirq=%i\n", __func__, h, virq, (int)hw);
-	set_irq_chip_data(virq, &media5200_irq);
-	set_irq_chip_and_handler(virq, &media5200_irq_chip, handle_level_irq);
+	irq_set_chip_data(virq, &media5200_irq);
+	irq_set_chip_and_handler(virq, &media5200_irq_chip, handle_level_irq);
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	return 0;
 }
@@ -182,8 +182,8 @@ static void __init media5200_init_irq(void)
 
 	media5200_irq.irqhost->host_data = &media5200_irq;
 
-	set_irq_data(cascade_virq, &media5200_irq);
-	set_irq_chained_handler(cascade_virq, media5200_irq_cascade);
+	irq_set_handler_data(cascade_virq, &media5200_irq);
+	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);
 
 	return;
 

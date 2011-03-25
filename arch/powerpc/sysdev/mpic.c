@@ -615,7 +615,7 @@ static struct mpic *mpic_find(unsigned int irq)
 	if (irq < NUM_ISA_INTERRUPTS)
 		return NULL;
 
-	return get_irq_chip_data(irq);
+	return irq_get_chip_data(irq);
 }
 
 /* Determine if the linux irq is an IPI */
@@ -649,7 +649,7 @@ static inline struct mpic * mpic_from_ipi(struct irq_data *d)
 /* Get the mpic structure from the irq number */
 static inline struct mpic * mpic_from_irq(unsigned int irq)
 {
-	return get_irq_chip_data(irq);
+	return irq_get_chip_data(irq);
 }
 
 /* Get the mpic structure from the irq data */
@@ -978,8 +978,8 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 		WARN_ON(!(mpic->flags & MPIC_PRIMARY));
 
 		DBG("mpic: mapping as IPI\n");
-		set_irq_chip_data(virq, mpic);
-		set_irq_chip_and_handler(virq, &mpic->hc_ipi,
+		irq_set_chip_data(virq, mpic);
+		irq_set_chip_and_handler(virq, &mpic->hc_ipi,
 					 handle_percpu_irq);
 		return 0;
 	}
@@ -1001,11 +1001,11 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 
 	DBG("mpic: mapping to irq chip @%p\n", chip);
 
-	set_irq_chip_data(virq, mpic);
-	set_irq_chip_and_handler(virq, chip, handle_fasteoi_irq);
+	irq_set_chip_data(virq, mpic);
+	irq_set_chip_and_handler(virq, chip, handle_fasteoi_irq);
 
 	/* Set default irq type */
-	set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_irq_type(virq, IRQ_TYPE_NONE);
 
 	/* If the MPIC was reset, then all vectors have already been
 	 * initialized.  Otherwise, a per source lazy initialization

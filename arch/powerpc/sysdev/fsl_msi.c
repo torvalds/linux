@@ -66,8 +66,8 @@ static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 
 	irq_set_status_flags(virq, IRQ_TYPE_EDGE_FALLING);
 
-	set_irq_chip_data(virq, msi_data);
-	set_irq_chip_and_handler(virq, chip, handle_edge_irq);
+	irq_set_chip_data(virq, msi_data);
+	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 
 	return 0;
 }
@@ -110,8 +110,8 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		if (entry->irq == NO_IRQ)
 			continue;
-		msi_data = get_irq_data(entry->irq);
-		set_irq_msi(entry->irq, NULL);
+		msi_data = irq_get_handler_data(entry->irq);
+		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_data->bitmap,
 				       virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
@@ -168,8 +168,8 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			rc = -ENOSPC;
 			goto out_free;
 		}
-		set_irq_data(virq, msi_data);
-		set_irq_msi(virq, entry);
+		irq_set_handler_data(virq, msi_data);
+		irq_set_msi_desc(virq, entry);
 
 		fsl_compose_msi_msg(pdev, hwirq, &msg, msi_data);
 		write_msi_msg(virq, &msg);
@@ -193,7 +193,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 have_shift = 0;
 	struct fsl_msi_cascade_data *cascade_data;
 
-	cascade_data = (struct fsl_msi_cascade_data *)get_irq_data(irq);
+	cascade_data = (struct fsl_msi_cascade_data *)irq_get_handler_data(irq);
 	msi_data = cascade_data->msi_data;
 
 	raw_spin_lock(&desc->lock);
@@ -262,7 +262,7 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	for (i = 0; i < NR_MSI_REG; i++) {
 		virq = msi->msi_virqs[i];
 		if (virq != NO_IRQ) {
-			cascade_data = get_irq_data(virq);
+			cascade_data = irq_get_handler_data(virq);
 			kfree(cascade_data);
 			irq_dispose_mapping(virq);
 		}
@@ -298,8 +298,8 @@ static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
 	msi->msi_virqs[irq_index] = virt_msir;
 	cascade_data->index = offset + irq_index;
 	cascade_data->msi_data = msi;
-	set_irq_data(virt_msir, cascade_data);
-	set_irq_chained_handler(virt_msir, fsl_msi_cascade);
+	irq_set_handler_data(virt_msir, cascade_data);
+	irq_set_chained_handler(virt_msir, fsl_msi_cascade);
 
 	return 0;
 }

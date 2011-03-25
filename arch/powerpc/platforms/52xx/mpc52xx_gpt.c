@@ -192,7 +192,7 @@ static struct irq_chip mpc52xx_gpt_irq_chip = {
 
 void mpc52xx_gpt_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
-	struct mpc52xx_gpt_priv *gpt = get_irq_data(virq);
+	struct mpc52xx_gpt_priv *gpt = irq_get_handler_data(virq);
 	int sub_virq;
 	u32 status;
 
@@ -209,8 +209,8 @@ static int mpc52xx_gpt_irq_map(struct irq_host *h, unsigned int virq,
 	struct mpc52xx_gpt_priv *gpt = h->host_data;
 
 	dev_dbg(gpt->dev, "%s: h=%p, virq=%i\n", __func__, h, virq);
-	set_irq_chip_data(virq, gpt);
-	set_irq_chip_and_handler(virq, &mpc52xx_gpt_irq_chip, handle_edge_irq);
+	irq_set_chip_data(virq, gpt);
+	irq_set_chip_and_handler(virq, &mpc52xx_gpt_irq_chip, handle_edge_irq);
 
 	return 0;
 }
@@ -259,8 +259,8 @@ mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	}
 
 	gpt->irqhost->host_data = gpt;
-	set_irq_data(cascade_virq, gpt);
-	set_irq_chained_handler(cascade_virq, mpc52xx_gpt_irq_cascade);
+	irq_set_handler_data(cascade_virq, gpt);
+	irq_set_chained_handler(cascade_virq, mpc52xx_gpt_irq_cascade);
 
 	/* If the GPT is currently disabled, then change it to be in Input
 	 * Capture mode.  If the mode is non-zero, then the pin could be

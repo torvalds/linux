@@ -830,7 +830,7 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 	/* Set type if specified and different than the current one */
 	if (type != IRQ_TYPE_NONE &&
 	    type != (irqd_get_trigger_type(irq_get_irq_data(virq))))
-		set_irq_type(virq, type);
+		irq_set_irq_type(virq, type);
 	return virq;
 }
 EXPORT_SYMBOL_GPL(irq_create_of_mapping);
@@ -853,7 +853,7 @@ void irq_dispose_mapping(unsigned int virq)
 		return;
 
 	/* remove chip and handler */
-	set_irq_chip_and_handler(virq, NULL, NULL);
+	irq_set_chip_and_handler(virq, NULL, NULL);
 
 	/* Make sure it's completed */
 	synchronize_irq(virq);
@@ -1158,7 +1158,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%5d  ", i);
 			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
 
-			chip = get_irq_desc_chip(desc);
+			chip = irq_desc_get_chip(desc);
 			if (chip && chip->name)
 				p = chip->name;
 			else

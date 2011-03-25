@@ -226,11 +226,11 @@ static void cpm_cascade(unsigned int irq, struct irq_desc *desc)
 
 		generic_handle_irq(cascade_irq);
 
-		chip = get_irq_desc_chip(cdesc);
+		chip = irq_desc_get_chip(cdesc);
 		chip->irq_eoi(&cdesc->irq_data);
 	}
 
-	chip = get_irq_desc_chip(desc);
+	chip = irq_desc_get_chip(desc);
 	chip->irq_eoi(&desc->irq_data);
 }
 
@@ -251,5 +251,5 @@ void __init mpc8xx_pics_init(void)
 
 	irq = cpm_pic_init();
 	if (irq != NO_IRQ)
-		set_irq_chained_handler(irq, cpm_cascade);
+		irq_set_chained_handler(irq, cpm_cascade);
 }

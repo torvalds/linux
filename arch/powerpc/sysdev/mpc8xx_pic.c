@@ -80,7 +80,7 @@ static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 		if ((hw & 1) == 0) {
 			siel |= (0x80000000 >> hw);
 			out_be32(&siu_reg->sc_siel, siel);
-			__set_irq_handler_unlocked(irq, handle_edge_irq);
+			__irq_set_handler_locked(irq, handle_edge_irq);
 		}
 	}
 	return 0;
@@ -117,7 +117,7 @@ static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
 	pr_debug("mpc8xx_pic_host_map(%d, 0x%lx)\n", virq, hw);
 
 	/* Set default irq handle */
-	set_irq_chip_and_handler(virq, &mpc8xx_pic, handle_level_irq);
+	irq_set_chip_and_handler(virq, &mpc8xx_pic, handle_level_irq);
 	return 0;
 }
 

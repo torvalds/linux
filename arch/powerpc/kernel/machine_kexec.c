@@ -31,7 +31,7 @@ void machine_kexec_mask_interrupts(void) {
 		if (!desc)
 			continue;
 
-		chip = get_irq_desc_chip(desc);
+		chip = irq_desc_get_chip(desc);
 		if (!chip)
 			continue;
 
