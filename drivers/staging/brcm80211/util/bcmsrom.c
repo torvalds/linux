@@ -42,8 +42,6 @@
 #include <sbsdpcmdev.h>
 #endif
 
-#include <linux/if_ether.h>
-
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
 	(((sih->cccaps & CC_CAP_SROM) == 0) ? NULL : \
 	 ((u8 *)curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP)) : \
