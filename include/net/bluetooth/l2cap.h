@@ -446,9 +446,8 @@ extern struct bt_sock_list l2cap_sk_list;
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
 
-u8 l2cap_get_ident(struct l2cap_conn *conn);
 void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data);
-int l2cap_build_conf_req(struct l2cap_chan *chan, void *data);
+void __l2cap_connect_rsp_defer(struct sock *sk);
 int __l2cap_wait_ack(struct sock *sk);
 
 struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len);

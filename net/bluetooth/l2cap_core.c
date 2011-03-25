@@ -70,6 +70,7 @@ static void l2cap_busy_work(struct work_struct *work);
 
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				u8 code, u8 ident, u16 dlen, void *data);
+static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data);
 
 static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb);
 
@@ -1598,7 +1599,7 @@ static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
 	}
 }
 
-int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
+static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 {
 	struct sock *sk = chan->sk;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
@@ -1932,6 +1933,31 @@ static int l2cap_build_conf_rsp(struct sock *sk, void *data, u16 result, u16 fla
 	rsp->flags  = cpu_to_le16(flags);
 
 	return ptr - data;
+}
+
+void __l2cap_connect_rsp_defer(struct sock *sk)
+{
+	struct l2cap_conn_rsp rsp;
+	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+	u8 buf[128];
+
+	sk->sk_state = BT_CONFIG;
+
+	rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
+	rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
+	rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
+	rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+	l2cap_send_cmd(conn, chan->ident,
+				L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+
+	if (l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT)
+		return;
+
+	l2cap_pi(sk)->conf_state |= L2CAP_CONF_REQ_SENT;
+	l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
+			l2cap_build_conf_req(chan, buf), buf);
+	chan->num_conf_req++;
 }
 
 static void l2cap_conf_rfc_get(struct sock *sk, void *rsp, int len)
