@@ -63,6 +63,8 @@ MODULE_LICENSE("GPL");
 
 #define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
 
+#define TSC_RATIO_RSVD          0xffffff0000000000ULL
+
 static bool erratum_383_found __read_mostly;
 
 static const u32 host_save_user_msrs[] = {
@@ -136,7 +138,12 @@ struct vcpu_svm {
 	unsigned int3_injected;
 	unsigned long int3_rip;
 	u32 apf_reason;
+
+	u64  tsc_ratio;
 };
+
+static DEFINE_PER_CPU(u64, current_tsc_ratio);
+#define TSC_RATIO_DEFAULT	0x0100000000ULL
 
 #define MSR_INVALID			0xffffffffU
 
@@ -560,6 +567,10 @@ static int has_svm(void)
 
 static void svm_hardware_disable(void *garbage)
 {
+	/* Make sure we clean up behind us */
+	if (static_cpu_has(X86_FEATURE_TSCRATEMSR))
+		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
+
 	cpu_svm_disable();
 }
 
@@ -600,6 +611,11 @@ static int svm_hardware_enable(void *garbage)
 	wrmsrl(MSR_EFER, efer | EFER_SVME);
 
 	wrmsrl(MSR_VM_HSAVE_PA, page_to_pfn(sd->save_area) << PAGE_SHIFT);
+
+	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
+		__get_cpu_var(current_tsc_ratio) = TSC_RATIO_DEFAULT;
+	}
 
 	svm_init_erratum_383();
 
@@ -843,6 +859,32 @@ static void init_sys_seg(struct vmcb_seg *seg, uint32_t type)
 	seg->base = 0;
 }
 
+static u64 __scale_tsc(u64 ratio, u64 tsc)
+{
+	u64 mult, frac, _tsc;
+
+	mult  = ratio >> 32;
+	frac  = ratio & ((1ULL << 32) - 1);
+
+	_tsc  = tsc;
+	_tsc *= mult;
+	_tsc += (tsc >> 32) * frac;
+	_tsc += ((tsc & ((1ULL << 32) - 1)) * frac) >> 32;
+
+	return _tsc;
+}
+
+static u64 svm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u64 _tsc = tsc;
+
+	if (svm->tsc_ratio != TSC_RATIO_DEFAULT)
+		_tsc = __scale_tsc(svm->tsc_ratio, tsc);
+
+	return _tsc;
+}
+
 static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1037,6 +1079,8 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 		goto out;
 	}
 
+	svm->tsc_ratio = TSC_RATIO_DEFAULT;
+
 	err = kvm_vcpu_init(&svm->vcpu, kvm, id);
 	if (err)
 		goto free_svm;
@@ -1130,6 +1174,12 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
+
+	if (static_cpu_has(X86_FEATURE_TSCRATEMSR) &&
+	    svm->tsc_ratio != __get_cpu_var(current_tsc_ratio)) {
+		__get_cpu_var(current_tsc_ratio) = svm->tsc_ratio;
+		wrmsrl(MSR_AMD64_TSC_RATIO, svm->tsc_ratio);
+	}
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
@@ -2784,7 +2834,9 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	case MSR_IA32_TSC: {
 		struct vmcb *vmcb = get_host_vmcb(svm);
 
-		*data = vmcb->control.tsc_offset + native_read_tsc();
+		*data = vmcb->control.tsc_offset +
+			svm_scale_tsc(vcpu, native_read_tsc());
+
 		break;
 	}
 	case MSR_STAR:
