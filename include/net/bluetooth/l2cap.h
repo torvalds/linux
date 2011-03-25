@@ -302,6 +302,9 @@ struct l2cap_chan {
 	__u16		partial_sdu_len;
 	struct sk_buff	*sdu;
 
+	__u8		remote_tx_win;
+	__u8		remote_max_tx;
+	__u16		remote_mps;
 
 	struct list_head list;
 };
@@ -370,11 +373,8 @@ struct l2cap_pinfo {
 
 	__u8		tx_win;
 	__u8		max_tx;
-	__u8		remote_tx_win;
-	__u8		remote_max_tx;
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
-	__u16		remote_mps;
 	__u16		mps;
 
 	__le16		sport;
@@ -431,7 +431,7 @@ static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 	if (sub < 0)
 		sub += 64;
 
-	return sub == l2cap_pi(ch->sk)->remote_tx_win;
+	return sub == ch->remote_tx_win;
 }
 
 #define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
@@ -454,7 +454,7 @@ int __l2cap_wait_ack(struct sock *sk);
 struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len);
 struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size_t len);
 struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
-int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len);
+int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
 void l2cap_do_send(struct sock *sk, struct sk_buff *skb);
 void l2cap_streaming_send(struct l2cap_chan *chan);
 int l2cap_ertm_send(struct l2cap_chan *chan);

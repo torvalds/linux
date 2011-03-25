@@ -956,7 +956,7 @@ static void l2cap_monitor_timeout(unsigned long arg)
 	BT_DBG("chan %p", chan);
 
 	bh_lock_sock(sk);
-	if (chan->retry_count >= l2cap_pi(sk)->remote_max_tx) {
+	if (chan->retry_count >= chan->remote_max_tx) {
 		l2cap_send_disconn_req(l2cap_pi(sk)->conn, sk, ECONNABORTED);
 		bh_unlock_sock(sk);
 		return;
@@ -1065,8 +1065,8 @@ static void l2cap_retransmit_one_frame(struct l2cap_chan *chan, u8 tx_seq)
 
 	} while ((skb = skb_queue_next(TX_QUEUE(sk), skb)));
 
-	if (pi->remote_max_tx &&
-			bt_cb(skb)->retries == pi->remote_max_tx) {
+	if (chan->remote_max_tx &&
+			bt_cb(skb)->retries == chan->remote_max_tx) {
 		l2cap_send_disconn_req(pi->conn, sk, ECONNABORTED);
 		return;
 	}
@@ -1106,8 +1106,8 @@ int l2cap_ertm_send(struct l2cap_chan *chan)
 
 	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(chan))) {
 
-		if (pi->remote_max_tx &&
-				bt_cb(skb)->retries == pi->remote_max_tx) {
+		if (chan->remote_max_tx &&
+				bt_cb(skb)->retries == chan->remote_max_tx) {
 			l2cap_send_disconn_req(pi->conn, sk, ECONNABORTED);
 			break;
 		}
@@ -1337,9 +1337,9 @@ struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, siz
 	return skb;
 }
 
-int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len)
+int l2cap_sar_segment_sdu(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 {
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct sock *sk = chan->sk;
 	struct sk_buff *skb;
 	struct sk_buff_head sar_queue;
 	u16 control;
@@ -1347,20 +1347,20 @@ int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len)
 
 	skb_queue_head_init(&sar_queue);
 	control = L2CAP_SDU_START;
-	skb = l2cap_create_iframe_pdu(sk, msg, pi->remote_mps, control, len);
+	skb = l2cap_create_iframe_pdu(sk, msg, chan->remote_mps, control, len);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
 	__skb_queue_tail(&sar_queue, skb);
-	len -= pi->remote_mps;
-	size += pi->remote_mps;
+	len -= chan->remote_mps;
+	size += chan->remote_mps;
 
 	while (len > 0) {
 		size_t buflen;
 
-		if (len > pi->remote_mps) {
+		if (len > chan->remote_mps) {
 			control = L2CAP_SDU_CONTINUE;
-			buflen = pi->remote_mps;
+			buflen = chan->remote_mps;
 		} else {
 			control = L2CAP_SDU_END;
 			buflen = len;
@@ -1810,13 +1810,13 @@ done:
 			break;
 
 		case L2CAP_MODE_ERTM:
-			pi->remote_tx_win = rfc.txwin_size;
-			pi->remote_max_tx = rfc.max_transmit;
+			chan->remote_tx_win = rfc.txwin_size;
+			chan->remote_max_tx = rfc.max_transmit;
 
 			if (le16_to_cpu(rfc.max_pdu_size) > pi->conn->mtu - 10)
 				rfc.max_pdu_size = cpu_to_le16(pi->conn->mtu - 10);
 
-			pi->remote_mps = le16_to_cpu(rfc.max_pdu_size);
+			chan->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
 			rfc.retrans_timeout =
 				le16_to_cpu(L2CAP_DEFAULT_RETRANS_TO);
@@ -1834,7 +1834,7 @@ done:
 			if (le16_to_cpu(rfc.max_pdu_size) > pi->conn->mtu - 10)
 				rfc.max_pdu_size = cpu_to_le16(pi->conn->mtu - 10);
 
-			pi->remote_mps = le16_to_cpu(rfc.max_pdu_size);
+			chan->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
 			pi->conf_state |= L2CAP_CONF_MODE_DONE;
 

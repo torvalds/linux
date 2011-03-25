@@ -757,7 +757,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
 		/* Entire SDU fits into one PDU */
-		if (len <= pi->remote_mps) {
+		if (len <= pi->chan->remote_mps) {
 			control = L2CAP_SDU_UNSEGMENTED;
 			skb = l2cap_create_iframe_pdu(sk, msg, len, control, 0);
 			if (IS_ERR(skb)) {
@@ -771,7 +771,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 		} else {
 		/* Segment SDU into multiples PDUs */
-			err = l2cap_sar_segment_sdu(sk, msg, len);
+			err = l2cap_sar_segment_sdu(pi->chan, msg, len);
 			if (err < 0)
 				goto done;
 		}
