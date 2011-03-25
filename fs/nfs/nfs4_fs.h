@@ -57,7 +57,8 @@ enum nfs4_session_state {
 struct nfs4_minor_version_ops {
 	u32	minor_version;
 
-	int	(*call_sync)(struct nfs_server *server,
+	int	(*call_sync)(struct rpc_clnt *clnt,
+			struct nfs_server *server,
 			struct rpc_message *msg,
 			struct nfs4_sequence_args *args,
 			struct nfs4_sequence_res *res,
@@ -262,6 +263,8 @@ extern int nfs4_proc_destroy_session(struct nfs4_session *);
 extern int nfs4_init_session(struct nfs_server *server);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
+extern int nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data,
+				  bool sync);
 
 static inline bool
 is_ds_only_client(struct nfs_client *clp)
