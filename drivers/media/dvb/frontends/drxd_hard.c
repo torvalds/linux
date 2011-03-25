@@ -2782,12 +2782,8 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	if (Read16(state, 0, 0, 0) < 0)
 		goto error;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-	state->frontend.ops = &state->ops;
-#else
 	memcpy(&state->frontend.ops, &drxd_ops,
 	       sizeof(struct dvb_frontend_ops));
-#endif
 	state->frontend.demodulator_priv = state;
 	ConfigureMPEGOutput(state, 0);
 	return &state->frontend;

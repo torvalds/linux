@@ -36,10 +36,10 @@
 /* Is written via block write, must be little endian */
 #define DATA16(x)      ((x) & 0xFF), (((x)>>8) & 0xFF)
 
-#define WRBLOCK(a,l) ADDRESS(a),LENGTH(l)
-#define WR16(a,d) ADDRESS(a),LENGTH(1),DATA16(d)
+#define WRBLOCK(a, l) ADDRESS(a), LENGTH(l)
+#define WR16(a, d) ADDRESS(a), LENGTH(1), DATA16(d)
 
-#define END_OF_TABLE      0xFF,0xFF,0xFF,0xFF
+#define END_OF_TABLE      0xFF, 0xFF, 0xFF, 0xFF
 
 /* HI firmware patches */
 
@@ -63,7 +63,7 @@ u8 DRXD_InitAtomicRead[] = {
 /* Pins D0 and D1 of the parallel MPEG output can be used
    to set the I2C address of a device. */
 
-#define HI_RST_FUNC_ADDR ( HI_IF_RAM_USR_BEGIN__A + HI_TR_FUNC_SIZE)
+#define HI_RST_FUNC_ADDR (HI_IF_RAM_USR_BEGIN__A + HI_TR_FUNC_SIZE)
 #define HI_RST_FUNC_SIZE 54	/* size of this function in instruction words */
 
 /* D0 Version */

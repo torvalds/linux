@@ -49,7 +49,7 @@ struct drxd_config {
 
 	u32 IF;
 	int (*pll_set) (void *priv, void *priv_params,
-			u8 pll_addr, u8 demoda_addr, s32 * off);
+			u8 pll_addr, u8 demoda_addr, s32 *off);
 	 s16(*osc_deviation) (void *priv, s16 dev, int flag);
 };
 
