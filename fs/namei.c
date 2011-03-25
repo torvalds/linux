@@ -469,43 +469,6 @@ err_root:
 }
 
 /**
- * nameidata_drop_rcu_last - drop nameidata ending path walk out of rcu-walk
- * @nd: nameidata pathwalk data to drop
- * Returns: 0 on success, -ECHILD on failure
- *
- * nameidata_drop_rcu_last attempts to drop the current nd->path into ref-walk.
- * nd->path should be the final element of the lookup, so nd->root is discarded.
- * Must be called from rcu-walk context.
- */
-static int nameidata_drop_rcu_last(struct nameidata *nd)
-{
-	struct dentry *dentry = nd->path.dentry;
-
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
-	nd->flags &= ~LOOKUP_RCU;
-	if (!(nd->flags & LOOKUP_ROOT))
-		nd->root.mnt = NULL;
-	spin_lock(&dentry->d_lock);
-	if (!__d_rcu_to_refcount(dentry, nd->seq))
-		goto err_unlock;
-	BUG_ON(nd->inode != dentry->d_inode);
-	spin_unlock(&dentry->d_lock);
-
-	mntget(nd->path.mnt);
-
-	rcu_read_unlock();
-	br_read_unlock(vfsmount_lock);
-
-	return 0;
-
-err_unlock:
-	spin_unlock(&dentry->d_lock);
-	rcu_read_unlock();
-	br_read_unlock(vfsmount_lock);
-	return -ECHILD;
-}
-
-/**
  * release_open_intent - free up open intent resources
  * @nd: pointer to nameidata
  */
@@ -548,25 +511,38 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return dentry;
 }
 
-/*
- * handle_reval_path - force revalidation of a dentry
+/**
+ * complete_walk - successful completion of path walk
+ * @nd:  pointer nameidata
  *
- * In some situations the path walking code will trust dentries without
- * revalidating them. This causes problems for filesystems that depend on
- * d_revalidate to handle file opens (e.g. NFSv4). When FS_REVAL_DOT is set
- * (which indicates that it's possible for the dentry to go stale), force
- * a d_revalidate call before proceeding.
- *
- * Returns 0 if the revalidation was successful. If the revalidation fails,
- * either return the error returned by d_revalidate or -ESTALE if the
- * revalidation it just returned 0. If d_revalidate returns 0, we attempt to
- * invalidate the dentry. It's up to the caller to handle putting references
- * to the path if necessary.
+ * If we had been in RCU mode, drop out of it and legitimize nd->path.
+ * Revalidate the final result, unless we'd already done that during
+ * the path walk or the filesystem doesn't ask for it.  Return 0 on
+ * success, -error on failure.  In case of failure caller does not
+ * need to drop nd->path.
  */
-static inline int handle_reval_path(struct nameidata *nd)
+static int complete_walk(struct nameidata *nd)
 {
 	struct dentry *dentry = nd->path.dentry;
 	int status;
+
+	if (nd->flags & LOOKUP_RCU) {
+		nd->flags &= ~LOOKUP_RCU;
+		if (!(nd->flags & LOOKUP_ROOT))
+			nd->root.mnt = NULL;
+		spin_lock(&dentry->d_lock);
+		if (unlikely(!__d_rcu_to_refcount(dentry, nd->seq))) {
+			spin_unlock(&dentry->d_lock);
+			rcu_read_unlock();
+			br_read_unlock(vfsmount_lock);
+			return -ECHILD;
+		}
+		BUG_ON(nd->inode != dentry->d_inode);
+		spin_unlock(&dentry->d_lock);
+		mntget(nd->path.mnt);
+		rcu_read_unlock();
+		br_read_unlock(vfsmount_lock);
+	}
 
 	if (likely(!(nd->flags & LOOKUP_JUMPED)))
 		return 0;
@@ -585,6 +561,7 @@ static inline int handle_reval_path(struct nameidata *nd)
 	if (!status)
 		status = -ESTALE;
 
+	path_put(&nd->path);
 	return status;
 }
 
@@ -1598,18 +1575,8 @@ static int path_lookupat(int dfd, const char *name,
 		}
 	}
 
-	if (nd->flags & LOOKUP_RCU) {
-		/* went all way through without dropping RCU */
-		BUG_ON(err);
-		if (nameidata_drop_rcu_last(nd))
-			err = -ECHILD;
-	}
-
-	if (!err) {
-		err = handle_reval_path(nd);
-		if (err)
-			path_put(&nd->path);
-	}
+	if (!err)
+		err = complete_walk(nd);
 
 	if (!err && nd->flags & LOOKUP_DIRECTORY) {
 		if (!nd->inode->i_op->lookup) {
@@ -2075,13 +2042,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 			return ERR_PTR(error);
 		/* fallthrough */
 	case LAST_ROOT:
-		if (nd->flags & LOOKUP_RCU) {
-			if (nameidata_drop_rcu_last(nd))
-				return ERR_PTR(-ECHILD);
-		}
-		error = handle_reval_path(nd);
+		error = complete_walk(nd);
 		if (error)
-			goto exit;
+			return ERR_PTR(error);
 		audit_inode(pathname, nd->path.dentry);
 		if (open_flag & O_CREAT) {
 			error = -EISDIR;
@@ -2089,10 +2052,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		}
 		goto ok;
 	case LAST_BIND:
-		/* can't be RCU mode here */
-		error = handle_reval_path(nd);
+		error = complete_walk(nd);
 		if (error)
-			goto exit;
+			return ERR_PTR(error);
 		audit_inode(pathname, dir);
 		goto ok;
 	}
@@ -2111,10 +2073,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (error) /* symlink */
 			return NULL;
 		/* sayonara */
-		if (nd->flags & LOOKUP_RCU) {
-			if (nameidata_drop_rcu_last(nd))
-				return ERR_PTR(-ECHILD);
-		}
+		error = complete_walk(nd);
+		if (error)
+			return ERR_PTR(-ECHILD);
 
 		error = -ENOTDIR;
 		if (nd->flags & LOOKUP_DIRECTORY) {
@@ -2126,11 +2087,9 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	}
 
 	/* create side of things */
-
-	if (nd->flags & LOOKUP_RCU) {
-		if (nameidata_drop_rcu_last(nd))
-			return ERR_PTR(-ECHILD);
-	}
+	error = complete_walk(nd);
+	if (error)
+		return ERR_PTR(error);
 
 	audit_inode(pathname, dir);
 	error = -EISDIR;
