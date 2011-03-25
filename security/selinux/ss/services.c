@@ -213,7 +213,7 @@ static u16 map_class(u16 pol_value)
 			return i;
 	}
 
-	return pol_value;
+	return SECCLASS_NULL;
 }
 
 static void map_decision(u16 tclass, struct av_decision *avd,
