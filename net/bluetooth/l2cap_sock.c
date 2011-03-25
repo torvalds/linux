@@ -818,7 +818,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 		rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
 		rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-		l2cap_send_cmd(l2cap_pi(sk)->conn, l2cap_pi(sk)->ident,
+		l2cap_send_cmd(l2cap_pi(sk)->conn, l2cap_pi(sk)->chan->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 
 		if (l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT) {
@@ -921,7 +921,7 @@ void __l2cap_sock_close(struct sock *sk, int reason)
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
+			l2cap_send_cmd(conn, l2cap_pi(sk)->chan->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		}
 

@@ -118,8 +118,7 @@ static struct l2cap_chan *__l2cap_get_chan_by_ident(struct l2cap_conn *conn, u8 
 	struct l2cap_chan *c;
 
 	list_for_each_entry(c, &conn->chan_l, list) {
-		struct sock *s = c->sk;
-		if (l2cap_pi(s)->ident == ident)
+		if (c->ident == ident)
 			return c;
 	}
 	return NULL;
@@ -410,8 +409,9 @@ static inline int __l2cap_no_conn_pending(struct sock *sk)
 	return !(l2cap_pi(sk)->conf_state & L2CAP_CONF_CONNECT_PEND);
 }
 
-static void l2cap_do_start(struct sock *sk)
+static void l2cap_do_start(struct l2cap_chan *chan)
 {
+	struct sock *sk = chan->sk;
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT) {
@@ -423,11 +423,11 @@ static void l2cap_do_start(struct sock *sk)
 			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			req.psm  = l2cap_pi(sk)->psm;
 
-			l2cap_pi(sk)->ident = l2cap_get_ident(conn);
+			chan->ident = l2cap_get_ident(conn);
 			l2cap_pi(sk)->conf_state |= L2CAP_CONF_CONNECT_PEND;
 
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_REQ, sizeof(req), &req);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_REQ,
+							sizeof(req), &req);
 		}
 	} else {
 		struct l2cap_info_req req;
@@ -529,11 +529,11 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 			req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 			req.psm  = l2cap_pi(sk)->psm;
 
-			l2cap_pi(sk)->ident = l2cap_get_ident(conn);
+			chan->ident = l2cap_get_ident(conn);
 			l2cap_pi(sk)->conf_state |= L2CAP_CONF_CONNECT_PEND;
 
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-				L2CAP_CONN_REQ, sizeof(req), &req);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_REQ,
+							sizeof(req), &req);
 
 		} else if (sk->sk_state == BT_CONNECT2) {
 			struct l2cap_conn_rsp rsp;
@@ -558,8 +558,8 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 				rsp.status = cpu_to_le16(L2CAP_CS_AUTHEN_PEND);
 			}
 
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
+							sizeof(rsp), &rsp);
 
 			if (l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT ||
 					rsp.result != L2CAP_CR_SUCCESS) {
@@ -694,7 +694,7 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 			sk->sk_state = BT_CONNECTED;
 			sk->sk_state_change(sk);
 		} else if (sk->sk_state == BT_CONNECT)
-			l2cap_do_start(sk);
+			l2cap_do_start(chan);
 
 		bh_unlock_sock(sk);
 	}
@@ -904,7 +904,7 @@ int l2cap_do_connect(struct sock *sk)
 			if (l2cap_check_security(sk))
 				sk->sk_state = BT_CONNECTED;
 		} else
-			l2cap_do_start(sk);
+			l2cap_do_start(chan);
 	}
 
 	err = 0;
@@ -2064,7 +2064,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	l2cap_sock_set_timer(sk, sk->sk_sndtimeo);
 
-	l2cap_pi(sk)->ident = cmd->ident;
+	chan->ident = cmd->ident;
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE) {
 		if (l2cap_check_security(sk)) {
@@ -2157,7 +2157,7 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	switch (result) {
 	case L2CAP_CR_SUCCESS:
 		sk->sk_state = BT_CONFIG;
-		l2cap_pi(sk)->ident = 0;
+		chan->ident = 0;
 		l2cap_pi(sk)->dcid = dcid;
 		l2cap_pi(sk)->conf_state &= ~L2CAP_CONF_CONNECT_PEND;
 
@@ -3862,10 +3862,10 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 				req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 				req.psm  = l2cap_pi(sk)->psm;
 
-				l2cap_pi(sk)->ident = l2cap_get_ident(conn);
+				chan->ident = l2cap_get_ident(conn);
 				l2cap_pi(sk)->conf_state |= L2CAP_CONF_CONNECT_PEND;
 
-				l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
+				l2cap_send_cmd(conn, chan->ident,
 					L2CAP_CONN_REQ, sizeof(req), &req);
 			} else {
 				l2cap_sock_clear_timer(sk);
@@ -3888,8 +3888,8 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
 			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
-					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
+							sizeof(rsp), &rsp);
 		}
 
 		bh_unlock_sock(sk);

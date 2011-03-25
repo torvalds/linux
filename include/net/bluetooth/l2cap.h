@@ -279,6 +279,8 @@ struct l2cap_conn_param_update_rsp {
 /* ----- L2CAP channels and connections ----- */
 struct l2cap_chan {
 	struct sock *sk;
+	__u8		ident;
+
 	struct list_head list;
 };
 
@@ -362,8 +364,6 @@ struct l2cap_pinfo {
 	__u16		sdu_len;
 	__u16		partial_sdu_len;
 	struct sk_buff	*sdu;
-
-	__u8		ident;
 
 	__u8		tx_win;
 	__u8		max_tx;
