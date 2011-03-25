@@ -162,6 +162,7 @@ static void pcap_unmask_irq(struct irq_data *d)
 
 static struct irq_chip pcap_irq_chip = {
 	.name		= "pcap",
+	.irq_disable	= pcap_mask_irq,
 	.irq_mask	= pcap_mask_irq,
 	.irq_unmask	= pcap_unmask_irq,
 };
@@ -196,17 +197,8 @@ static void pcap_isr_work(struct work_struct *work)
 		local_irq_disable();
 		service = isr & ~msr;
 		for (irq = pcap->irq_base; service; service >>= 1, irq++) {
-			if (service & 1) {
-				struct irq_desc *desc = irq_to_desc(irq);
-
-				if (WARN(!desc, "Invalid PCAP IRQ %d\n", irq))
-					break;
-
-				if (desc->status & IRQ_DISABLED)
-					note_interrupt(irq, desc, IRQ_NONE);
-				else
-					desc->handle_irq(irq, desc);
-			}
+			if (service & 1)
+				generic_handle_irq(irq);
 		}
 		local_irq_enable();
 		ezx_pcap_write(pcap, PCAP_REG_MSR, pcap->msr);
