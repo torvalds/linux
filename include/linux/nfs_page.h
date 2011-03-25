@@ -78,7 +78,6 @@ extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
 					    struct page *page,
 					    unsigned int offset,
 					    unsigned int count);
-extern	void nfs_clear_request(struct nfs_page *req);
 extern	void nfs_release_request(struct nfs_page *req);
 
 
