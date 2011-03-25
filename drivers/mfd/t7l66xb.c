@@ -243,9 +243,8 @@ static void t7l66xb_attach_irq(struct platform_device *dev)
 	irq_base = t7l66xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + T7L66XB_NR_IRQS; irq++) {
-		irq_set_chip(irq, &t7l66xb_chip);
+		irq_set_chip_and_handler(irq, &t7l66xb_chip, handle_level_irq);
 		irq_set_chip_data(irq, t7l66xb);
-		irq_set_handler(irq, handle_level_irq);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 #endif

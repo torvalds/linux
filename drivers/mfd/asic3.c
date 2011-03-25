@@ -416,8 +416,7 @@ static void asic3_irq_remove(struct platform_device *pdev)
 
 	for (irq = irq_base; irq < irq_base + ASIC3_NR_IRQS; irq++) {
 		set_irq_flags(irq, 0);
-		irq_set_handler(irq, NULL);
-		irq_set_chip(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
 		irq_set_chip_data(irq, NULL);
 	}
 	irq_set_chained_handler(asic->irq_nr, NULL);

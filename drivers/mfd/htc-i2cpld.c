@@ -348,9 +348,9 @@ static int __devinit htcpld_setup_chip_irq(
 	/* Setup irq handlers */
 	irq_end = chip->irq_start + chip->nirqs;
 	for (irq = chip->irq_start; irq < irq_end; irq++) {
-		irq_set_chip(irq, &htcpld_muxed_chip);
+		irq_set_chip_and_handler(irq, &htcpld_muxed_chip,
+					 handle_simple_irq);
 		irq_set_chip_data(irq, chip);
-		irq_set_handler(irq, handle_simple_irq);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 #else
