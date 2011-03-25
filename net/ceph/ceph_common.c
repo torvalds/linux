@@ -5,6 +5,8 @@
 #include <linux/fs.h>
 #include <linux/inet.h>
 #include <linux/in6.h>
+#include <linux/key.h>
+#include <keys/user-type.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/parser.h>
@@ -197,6 +199,7 @@ enum {
 	Opt_fsid,
 	Opt_name,
 	Opt_secret,
+	Opt_key,
 	Opt_ip,
 	Opt_last_string,
 	/* string args above */
@@ -213,6 +216,7 @@ static match_table_t opt_tokens = {
 	{Opt_fsid, "fsid=%s"},
 	{Opt_name, "name=%s"},
 	{Opt_secret, "secret=%s"},
+	{Opt_key, "key=%s"},
 	{Opt_ip, "ip=%s"},
 	/* string args above */
 	{Opt_noshare, "noshare"},
@@ -231,6 +235,50 @@ void ceph_destroy_options(struct ceph_options *opt)
 	kfree(opt);
 }
 EXPORT_SYMBOL(ceph_destroy_options);
+
+/* get secret from key store */
+static int get_secret(struct ceph_crypto_key *dst, const char *name) {
+	struct key *ukey;
+	int key_err;
+	int err = 0;
+	struct user_key_payload *payload;
+	void *p;
+
+	ukey = request_key(&key_type_user, name, NULL);
+	if (!ukey || IS_ERR(ukey)) {
+		/* request_key errors don't map nicely to mount(2)
+		   errors; don't even try, but still printk */
+		key_err = PTR_ERR(ukey);
+		switch (key_err) {
+		case -ENOKEY:
+			pr_warning("ceph: Mount failed due to key not found: %s\n", name);
+			break;
+		case -EKEYEXPIRED:
+			pr_warning("ceph: Mount failed due to expired key: %s\n", name);
+			break;
+		case -EKEYREVOKED:
+			pr_warning("ceph: Mount failed due to revoked key: %s\n", name);
+			break;
+		default:
+			pr_warning("ceph: Mount failed due to unknown key error"
+			       " %d: %s\n", key_err, name);
+		}
+		err = -EPERM;
+		goto out;
+	}
+
+	payload = ukey->payload.data;
+	p = payload->data;
+	err = ceph_crypto_key_decode(dst, &p, p + payload->datalen);
+	if (err)
+		goto out_key;
+	/* pass through, err is 0 */
+
+out_key:
+	key_put(ukey);
+out:
+	return err;
+}
 
 int ceph_parse_options(struct ceph_options **popt, char *options,
 		       const char *dev_name, const char *dev_name_end,
@@ -325,6 +373,16 @@ int ceph_parse_options(struct ceph_options **popt, char *options,
 				goto out;
 			}
 			err = ceph_crypto_key_unarmor(opt->key, argstr[0].from);
+			if (err < 0)
+				goto out;
+			break;
+		case Opt_key:
+		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
+			if (!opt->key) {
+				err = -ENOMEM;
+				goto out;
+			}
+			err = get_secret(opt->key, argstr[0].from);
 			if (err < 0)
 				goto out;
 			break;
