@@ -777,7 +777,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		}
 
 		if (pi->mode == L2CAP_MODE_STREAMING) {
-			l2cap_streaming_send(sk);
+			l2cap_streaming_send(pi->chan);
 			err = len;
 			break;
 		}

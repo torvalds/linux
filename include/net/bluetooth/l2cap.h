@@ -288,6 +288,12 @@ struct l2cap_chan {
 
 	__u16		conn_state;
 
+	__u8		next_tx_seq;
+	__u8		expected_ack_seq;
+	__u8		expected_tx_seq;
+	__u8		buffer_seq;
+	__u8		buffer_seq_srej;
+
 	struct list_head list;
 };
 
@@ -353,11 +359,6 @@ struct l2cap_pinfo {
 
 	__u8		conf_state;
 
-	__u8		next_tx_seq;
-	__u8		expected_ack_seq;
-	__u8		expected_tx_seq;
-	__u8		buffer_seq;
-	__u8		buffer_seq_srej;
 	__u8		srej_save_reqseq;
 	__u8		frames_sent;
 	__u8		unacked_frames;
@@ -421,17 +422,16 @@ struct l2cap_pinfo {
 #define __mod_ack_timer() mod_timer(&l2cap_pi(sk)->ack_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
 
-static inline int l2cap_tx_window_full(struct sock *sk)
+static inline int l2cap_tx_window_full(struct l2cap_chan *ch)
 {
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	int sub;
 
-	sub = (pi->next_tx_seq - pi->expected_ack_seq) % 64;
+	sub = (ch->next_tx_seq - ch->expected_ack_seq) % 64;
 
 	if (sub < 0)
 		sub += 64;
 
-	return sub == pi->remote_tx_win;
+	return sub == l2cap_pi(ch->sk)->remote_tx_win;
 }
 
 #define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
@@ -456,7 +456,7 @@ struct sk_buff *l2cap_create_basic_pdu(struct sock *sk, struct msghdr *msg, size
 struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk, struct msghdr *msg, size_t len, u16 control, u16 sdulen);
 int l2cap_sar_segment_sdu(struct sock *sk, struct msghdr *msg, size_t len);
 void l2cap_do_send(struct sock *sk, struct sk_buff *skb);
-void l2cap_streaming_send(struct sock *sk);
+void l2cap_streaming_send(struct l2cap_chan *chan);
 int l2cap_ertm_send(struct l2cap_chan *chan);
 
 void l2cap_sock_set_timer(struct sock *sk, long timeout);
