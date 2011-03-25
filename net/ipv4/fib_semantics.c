@@ -695,6 +695,16 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 	fib_info_hash_free(old_laddrhash, bytes);
 }
 
+__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh)
+{
+	nh->nh_saddr = inet_select_addr(nh->nh_dev,
+					nh->nh_gw,
+					nh->nh_cfg_scope);
+	nh->nh_saddr_genid = atomic_read(&net->ipv4.dev_addr_genid);
+
+	return nh->nh_saddr;
+}
+
 struct fib_info *fib_create_info(struct fib_config *cfg)
 {
 	int err;
@@ -855,9 +865,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 	change_nexthops(fi) {
 		nexthop_nh->nh_cfg_scope = cfg->fc_scope;
-		nexthop_nh->nh_saddr = inet_select_addr(nexthop_nh->nh_dev,
-							nexthop_nh->nh_gw,
-							nexthop_nh->nh_cfg_scope);
+		fib_info_update_nh_saddr(net, nexthop_nh);
 	} endfor_nexthops(fi)
 
 link_it:
@@ -1126,24 +1134,6 @@ void fib_select_default(struct fib_result *res)
 	tb->tb_default = last_idx;
 out:
 	return;
-}
-
-void fib_update_nh_saddrs(struct net_device *dev)
-{
-	struct hlist_head *head;
-	struct hlist_node *node;
-	struct fib_nh *nh;
-	unsigned int hash;
-
-	hash = fib_devindex_hashfn(dev->ifindex);
-	head = &fib_info_devhash[hash];
-	hlist_for_each_entry(nh, node, head, nh_hash) {
-		if (nh->nh_dev != dev)
-			continue;
-		nh->nh_saddr = inet_select_addr(nh->nh_dev,
-						nh->nh_gw,
-						nh->nh_cfg_scope);
-	}
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
