@@ -209,7 +209,7 @@ struct drxd_state {
 
 static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 * data, int len)
 {
-	struct i2c_msg msg = {.addr = adr,.flags = 0,.buf = data,.len = len };
+	struct i2c_msg msg = {.addr = adr, .flags = 0, .buf = data, .len = len };
 
 	if (i2c_transfer(adap, &msg, 1) != 1)
 		return -1;
@@ -217,12 +217,16 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 * data, int len)
 }
 
 static int i2c_read(struct i2c_adapter *adap,
-		    u8 adr, u8 * msg, int len, u8 * answ, int alen)
+		    u8 adr, u8 *msg, int len, u8 *answ, int alen)
 {
-	struct i2c_msg msgs[2] = { {.addr = adr,.flags = 0,
-				    .buf = msg,.len = len},
-	{.addr = adr,.flags = I2C_M_RD,
-	 .buf = answ,.len = alen}
+	struct i2c_msg msgs[2] = {
+		{
+			.addr = adr, .flags = 0,
+			.buf = msg, .len = len
+		}, {
+			.addr = adr, .flags = I2C_M_RD,
+			.buf = answ, .len = alen
+		}
 	};
 	if (i2c_transfer(adap, msgs, 2) != 2)
 		return -1;
@@ -233,13 +237,13 @@ inline u32 MulDiv32(u32 a, u32 b, u32 c)
 {
 	u64 tmp64;
 
-	tmp64 = (u64) a *(u64) b;
+	tmp64 = (u64)a * (u64)b;
 	do_div(tmp64, c);
 
 	return (u32) tmp64;
 }
 
-static int Read16(struct drxd_state *state, u32 reg, u16 * data, u8 flags)
+static int Read16(struct drxd_state *state, u32 reg, u16 *data, u8 flags)
 {
 	u8 adr = state->config.demod_address;
 	u8 mm1[4] = { reg & 0xff, (reg >> 16) & 0xff,
@@ -253,7 +257,7 @@ static int Read16(struct drxd_state *state, u32 reg, u16 * data, u8 flags)
 	return mm2[0] | (mm2[1] << 8);
 }
 
-static int Read32(struct drxd_state *state, u32 reg, u32 * data, u8 flags)
+static int Read32(struct drxd_state *state, u32 reg, u32 *data, u8 flags)
 {
 	u8 adr = state->config.demod_address;
 	u8 mm1[4] = { reg & 0xff, (reg >> 16) & 0xff,
@@ -297,7 +301,7 @@ static int Write32(struct drxd_state *state, u32 reg, u32 data, u8 flags)
 }
 
 static int write_chunk(struct drxd_state *state,
-		       u32 reg, u8 * data, u32 len, u8 flags)
+		       u32 reg, u8 *data, u32 len, u8 flags)
 {
 	u8 adr = state->config.demod_address;
 	u8 mm[CHUNK_SIZE + 4] = { reg & 0xff, (reg >> 16) & 0xff,
@@ -308,14 +312,14 @@ static int write_chunk(struct drxd_state *state,
 	for (i = 0; i < len; i++)
 		mm[4 + i] = data[i];
 	if (i2c_write(state->i2c, adr, mm, 4 + len) < 0) {
-		printk("error in write_chunk\n");
+		printk(KERN_ERR "error in write_chunk\n");
 		return -1;
 	}
 	return 0;
 }
 
 static int WriteBlock(struct drxd_state *state,
-		      u32 Address, u16 BlockSize, u8 * pBlock, u8 Flags)
+		      u32 Address, u16 BlockSize, u8 *pBlock, u8 Flags)
 {
 	while (BlockSize > 0) {
 		u16 Chunk = BlockSize > CHUNK_SIZE ? CHUNK_SIZE : BlockSize;
@@ -421,7 +425,7 @@ static int StopOC(struct drxd_state *state)
 		/* Store output configuration */
 		status = Read16(state, EC_OC_REG_SNC_ISC_LVL__A, &ocSyncLvl, 0);
 		if (status < 0)
-			break;;
+			break;
 		/* CHK_ERROR(Read16(EC_OC_REG_OC_MODE_LOP__A, &ocModeLop)); */
 		state->m_EcOcRegSncSncLvl = ocSyncLvl;
 		/* m_EcOcRegOcModeLop = ocModeLop; */
@@ -545,7 +549,7 @@ static int DRX_GetLockStatus(struct drxd_state *state, u32 * pLockStatus)
 
 	status = Read16(state, SC_RA_RAM_LOCK__A, &ScRaRamLock, 0x0000);
 	if (status < 0) {
-		printk("Can't read SC_RA_RAM_LOCK__A status = %08x\n", status);
+		printk(KERN_ERR "Can't read SC_RA_RAM_LOCK__A status = %08x\n", status);
 		return status;
 	}
 
@@ -593,15 +597,14 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 			status = Write16(state, FE_AG_REG_PM1_AGC_WRI__A, FeAgRegPm1AgcWri, 0);
 			if (status < 0)
 				break;
-		}
-		while (0);
+		} while (0);
 	} else if (cfg->ctrlMode == AGC_CTRL_AUTO) {
 		if (((cfg->maxOutputLevel) < (cfg->minOutputLevel)) ||
 		    ((cfg->maxOutputLevel) > DRXD_FE_CTRL_MAX) ||
 		    ((cfg->speed) > DRXD_FE_CTRL_MAX) ||
 		    ((cfg->settleLevel) > DRXD_FE_CTRL_MAX)
 		    )
-			return (-1);
+			return -1;
 		do {
 			u16 FeAgRegAgModeLop;
 			u16 FeAgRegEgcSetLvl;
@@ -706,7 +709,7 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 
 	} else {
 		/* No OFF mode for IF control */
-		return (-1);
+		return -1;
 	}
 	return status;
 }
@@ -919,7 +922,7 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 }
 
 static int DownloadMicrocode(struct drxd_state *state,
-			     const u8 * pMCImage, u32 Length)
+			     const u8 *pMCImage, u32 Length)
 {
 	u8 *pSrc;
 	u16 Flags;
@@ -973,7 +976,8 @@ static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 	u16 waitCmd;
 	int status;
 
-	if ((status = Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0)) < 0)
+	status = Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0);
+	if (status < 0)
 		return status;
 
 	do {
@@ -1053,7 +1057,7 @@ static int DRX_ConfigureI2CBridge(struct drxd_state *state, int bEnableBridge)
 
 #if 0
 static int AtomicReadBlock(struct drxd_state *state,
-			   u32 Addr, u16 DataSize, u8 * pData, u8 Flags)
+			   u32 Addr, u16 DataSize, u8 *pData, u8 Flags)
 {
 	int status;
 	int i = 0;
@@ -1106,7 +1110,7 @@ static int AtomicReadBlock(struct drxd_state *state,
 }
 
 static int AtomicReadReg32(struct drxd_state *state,
-			   u32 Addr, u32 * pData, u8 Flags)
+			   u32 Addr, u32 *pData, u8 Flags)
 {
 	u8 buf[sizeof(u32)];
 	int status;
@@ -1145,7 +1149,7 @@ static int InitCC(struct drxd_state *state)
 	if (state->osc_clock_freq == 0 ||
 	    state->osc_clock_freq > 20000 ||
 	    (state->osc_clock_freq % 4000) != 0) {
-		printk("invalid osc frequency %d\n", state->osc_clock_freq);
+		printk(KERN_ERR "invalid osc frequency %d\n", state->osc_clock_freq);
 		return -1;
 	}
 
@@ -1239,8 +1243,7 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 			if (status < 0)
 				break;
 		}
-	}
-	while (0);
+	} while (0);
 	return status;
 }
 
@@ -1318,7 +1321,7 @@ static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 	Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
 
 	if (errCode == 0xFFFF) {
-		printk("Command Error\n");
+		printk(KERN_ERR "Command Error\n");
 		status = -1;
 	}
 
@@ -1502,17 +1505,17 @@ static int SetDeviceTypeId(struct drxd_state *state)
 		status = Read16(state, CC_REG_JTAGID_L__A, &deviceId, 0);
 		if (status < 0)
 			break;
-		printk("drxd: deviceId = %04x\n", deviceId);
+		printk(KERN_INFO "drxd: deviceId = %04x\n", deviceId);
 
 		state->type_A = 0;
 		state->PGA = 0;
 		state->diversity = 0;
 		if (deviceId == 0) {	/* on A2 only 3975 available */
 			state->type_A = 1;
-			printk("DRX3975D-A2\n");
+			printk(KERN_INFO "DRX3975D-A2\n");
 		} else {
 			deviceId >>= 12;
-			printk("DRX397%dD-B1\n", deviceId);
+			printk(KERN_INFO "DRX397%dD-B1\n", deviceId);
 			switch (deviceId) {
 			case 4:
 				state->diversity = 1;
@@ -1597,10 +1600,10 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 
 		/* These accesses should be AtomicReadReg32, but that
 		   causes trouble (at least for diversity */
-		status = Read32(state, LC_RA_RAM_IFINCR_NOM_L__A, ((u32 *) & nomincr), 0);
+		status = Read32(state, LC_RA_RAM_IFINCR_NOM_L__A, ((u32 *) &nomincr), 0);
 		if (status < 0)
 			break;
-		status = Read32(state, FE_IF_REG_INCR0__A, (u32 *) & incr, 0);
+		status = Read32(state, FE_IF_REG_INCR0__A, (u32 *) &incr, 0);
 		if (status < 0)
 			break;
 
@@ -1633,9 +1636,8 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 		sysClockInHz = MulDiv32(incr, bandwidth, 1 << 21);
 		sysClockFreq = (u32) (sysClockInHz / 1000);
 		/* rounding */
-		if ((sysClockInHz % 1000) > 500) {
+		if ((sysClockInHz % 1000) > 500)
 			sysClockFreq++;
-		}
 
 		/* Compute clock deviation in ppm */
 		oscClockDeviation = (u16) ((((s32) (sysClockFreq) -
@@ -1646,7 +1648,7 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 					   (state->expected_sys_clock_freq));
 
 		Diff = oscClockDeviation - state->osc_clock_deviation;
-		/*printk("sysclockdiff=%d\n", Diff); */
+		/*printk(KERN_INFO "sysclockdiff=%d\n", Diff); */
 		if (Diff >= -200 && Diff <= 200) {
 			state->sys_clock_freq = (u16) sysClockFreq;
 			if (oscClockDeviation != state->osc_clock_deviation) {
@@ -1671,7 +1673,7 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 		}
 	} while (0);
 
-	return (status);
+	return status;
 }
 
 static int DRX_Stop(struct drxd_state *state)
@@ -1843,9 +1845,8 @@ static int SetFrequencyShift(struct drxd_state *state,
 					 1 << 28, state->sys_clock_freq);
 	/* Remove integer part */
 	state->fe_fs_add_incr &= 0x0FFFFFFFL;
-	if (negativeShift) {
+	if (negativeShift)
 		state->fe_fs_add_incr = ((1 << 28) - state->fe_fs_add_incr);
-	}
 
 	/* Save the frequency shift without tunerOffset compensation
 	   for CtrlGetChannel. */
@@ -2530,9 +2531,8 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 		state->rf_agc_cfg.speed = (u16) (ulRfAgcSpeed);
 	}
 
-	if (ulRfAgcMode == 2) {
+	if (ulRfAgcMode == 2)
 		state->rf_agc_cfg.ctrlMode = AGC_CTRL_OFF;
-	}
 
 	if (ulEnvironment <= 2)
 		state->app_env_default = (enum app_env)
@@ -2842,6 +2842,7 @@ int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
 
 	return DRX_ConfigureI2CBridge(state, onoff);
 }
+EXPORT_SYMBOL(drxd_config_i2c);
 
 static int drxd_get_tune_settings(struct dvb_frontend *fe,
 				  struct dvb_frontend_tune_settings *sets)
@@ -2909,7 +2910,7 @@ static int drxd_set_frontend(struct dvb_frontend *fe,
 	    state->config.pll_set(state->priv, param,
 				  state->config.pll_address,
 				  state->config.demoda_address, &off) < 0) {
-		printk("Error in pll_set\n");
+		printk(KERN_ERR "Error in pll_set\n");
 		return -1;
 	}
 
@@ -2988,14 +2989,12 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	return &state->frontend;
 
 error:
-	printk("drxd: not found\n");
+	printk(KERN_ERR "drxd: not found\n");
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL(drxd_attach);
 
 MODULE_DESCRIPTION("DRXD driver");
 MODULE_AUTHOR("Micronas");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(drxd_attach);
-EXPORT_SYMBOL(drxd_config_i2c);
