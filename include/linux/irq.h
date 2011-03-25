@@ -279,6 +279,8 @@ static inline bool irqd_irq_disabled(struct irq_data *d)
  * @irq_set_wake:	enable/disable power-management wake-on of an IRQ
  * @irq_bus_lock:	function to lock access to slow bus (i2c) chips
  * @irq_bus_sync_unlock:function to sync and unlock slow bus (i2c) chips
+ * @irq_cpu_online:	configure an interrupt source for a secondary CPU
+ * @irq_cpu_offline:	un-configure an interrupt source for a secondary CPU
  * @irq_print_chip:	optional to print special chip info in show_interrupts
  * @flags:		chip specific flags
  *
@@ -327,6 +329,9 @@ struct irq_chip {
 	void		(*irq_bus_lock)(struct irq_data *data);
 	void		(*irq_bus_sync_unlock)(struct irq_data *data);
 
+	void		(*irq_cpu_online)(struct irq_data *data);
+	void		(*irq_cpu_offline)(struct irq_data *data);
+
 	void		(*irq_print_chip)(struct irq_data *data, struct seq_file *p);
 
 	unsigned long	flags;
@@ -371,6 +376,9 @@ enum {
 struct irqaction;
 extern int setup_irq(unsigned int irq, struct irqaction *new);
 extern void remove_irq(unsigned int irq, struct irqaction *act);
+
+extern void irq_cpu_online(void);
+extern void irq_cpu_offline(void);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 
