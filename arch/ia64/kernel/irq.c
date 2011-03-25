@@ -137,7 +137,7 @@ static void migrate_irqs(void)
 		struct irq_data *data = irq_desc_get_irq_data(desc);
 		struct irq_chip *chip = irq_data_get_irq_chip(data);
 
-		if (desc->status == IRQ_DISABLED)
+		if (irqd_irq_disabled(data))
 			continue;
 
 		/*
