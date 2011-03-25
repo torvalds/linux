@@ -58,6 +58,7 @@ struct htcpld_chip {
 	uint                    irq_start;
 	int                     nirqs;
 
+	unsigned int		flow_type;
 	/*
 	 * Work structure to allow for setting values outside of any
 	 * possible interrupt context
@@ -97,12 +98,7 @@ static void htcpld_unmask(struct irq_data *data)
 
 static int htcpld_set_type(struct irq_data *data, unsigned int flags)
 {
-	struct irq_desc *d = irq_to_desc(data->irq);
-
-	if (!d) {
-		pr_err("HTCPLD invalid IRQ: %d\n", data->irq);
-		return -EINVAL;
-	}
+	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
 
 	if (flags & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
@@ -111,9 +107,7 @@ static int htcpld_set_type(struct irq_data *data, unsigned int flags)
 	if (flags & (IRQ_TYPE_LEVEL_LOW|IRQ_TYPE_LEVEL_HIGH))
 		return -EINVAL;
 
-	d->status &= ~IRQ_TYPE_SENSE_MASK;
-	d->status |= flags;
-
+	chip->flow_type = flags;
 	return 0;
 }
 
@@ -135,7 +129,6 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 	unsigned int i;
 	unsigned long flags;
 	int irqpin;
-	struct irq_desc *desc;
 
 	if (!htcpld) {
 		pr_debug("htcpld is null in ISR\n");
@@ -195,23 +188,19 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 		 * associated interrupts.
 		 */
 		for (irqpin = 0; irqpin < chip->nirqs; irqpin++) {
-			unsigned oldb, newb;
-			int flags;
+			unsigned oldb, newb, type = chip->flow_type;
 
 			irq = chip->irq_start + irqpin;
-			desc = irq_to_desc(irq);
-			flags = desc->status;
 
 			/* Run the IRQ handler, but only if the bit value
 			 * changed, and the proper flags are set */
 			oldb = (old_val >> irqpin) & 1;
 			newb = (uval >> irqpin) & 1;
 
-			if ((!oldb && newb && (flags & IRQ_TYPE_EDGE_RISING)) ||
-			    (oldb && !newb &&
-			     (flags & IRQ_TYPE_EDGE_FALLING))) {
+			if ((!oldb && newb && (type & IRQ_TYPE_EDGE_RISING)) ||
+			    (oldb && !newb && (type & IRQ_TYPE_EDGE_FALLING))) {
 				pr_debug("fire IRQ %d\n", irqpin);
-				desc->handle_irq(irq, desc);
+				generic_handle_irq(irq);
 			}
 		}
 	}
