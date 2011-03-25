@@ -140,22 +140,7 @@ static int twl6030_irq_thread(void *data)
 			if (sts.int_sts & 0x1) {
 				int module_irq = twl6030_irq_base +
 					twl6030_interrupt_mapping[i];
-				struct irq_desc *d = irq_to_desc(module_irq);
-
-				if (!d) {
-					pr_err("twl6030: Invalid SIH IRQ: %d\n",
-					       module_irq);
-					return -EINVAL;
-				}
-
-				/* These can't be masked ... always warn
-				 * if we get any surprises.
-				 */
-				if (d->status & IRQ_DISABLED)
-					note_interrupt(module_irq, d,
-							IRQ_NONE);
-				else
-					d->handle_irq(module_irq, d);
+				generic_handle_irq(module_irq);
 
 			}
 		local_irq_enable();
