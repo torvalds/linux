@@ -309,6 +309,8 @@ struct l2cap_chan {
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
 	struct timer_list	ack_timer;
+	struct sk_buff_head	srej_q;
+	struct sk_buff_head	busy_q;
 
 	struct list_head list;
 };
@@ -347,8 +349,6 @@ struct l2cap_conn {
 /* ----- L2CAP socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 #define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
-#define SREJ_QUEUE(sk) (&l2cap_pi(sk)->srej_queue)
-#define BUSY_QUEUE(sk) (&l2cap_pi(sk)->busy_queue)
 #define SREJ_LIST(sk) (&l2cap_pi(sk)->srej_l.list)
 
 struct srej_list {
@@ -384,8 +384,6 @@ struct l2cap_pinfo {
 	__le16		sport;
 
 	struct sk_buff_head	tx_queue;
-	struct sk_buff_head	srej_queue;
-	struct sk_buff_head	busy_queue;
 	struct work_struct	busy_work;
 	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
