@@ -803,7 +803,6 @@ int rk29_set_cursor_colour_map(struct rk29fb_inf *inf, int bg_col, int fg_col)
 	printk("%s: bg = %08x,fg = %08x \n",__func__, bg_col, fg_col);
 	LcdMskReg(inf, HWC_COLOR_LUT0, m_HWC_R|m_HWC_G|m_HWC_B,bg_col);
 	LcdMskReg(inf, HWC_COLOR_LUT2, m_HWC_R|m_HWC_G|m_HWC_B,fg_col);
-	LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
 	LcdWrReg(inf, REG_CFG_DONE, 0x01);
     return 0;
 }
