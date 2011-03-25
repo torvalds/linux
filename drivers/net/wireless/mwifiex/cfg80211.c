@@ -1055,11 +1055,10 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 			 * scan. The cfg80211 does not give us the encryption
 			 * mode at this stage so just setting it to WEP here.
 			 */
-			wpa_enabled = 0;
-			auth_type = MWIFIEX_AUTH_MODE_OPEN;
-			ret = mwifiex_set_auth(priv,
-						MWIFIEX_ENCRYPTION_MODE_WEP104,
-						auth_type, wpa_enabled);
+			priv->sec_info.encryption_mode =
+					MWIFIEX_ENCRYPTION_MODE_WEP104;
+			priv->sec_info.authentication_mode =
+					MWIFIEX_AUTH_MODE_OPEN;
 		}
 
 		goto done;
@@ -1075,15 +1074,15 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	if (sme->crypto.n_ciphers_pairwise) {
 		pairwise_encrypt_mode = mwifiex_get_mwifiex_cipher(sme->crypto.
 					ciphers_pairwise[0], &wpa_enabled);
-		ret = mwifiex_set_auth(priv, pairwise_encrypt_mode, auth_type,
-								wpa_enabled);
+		priv->sec_info.encryption_mode = pairwise_encrypt_mode;
+		priv->sec_info.authentication_mode = auth_type;
 	}
 
 	if (sme->crypto.cipher_group) {
 		group_encrypt_mode = mwifiex_get_mwifiex_cipher(sme->crypto.
 						   cipher_group, &wpa_enabled);
-		ret = mwifiex_set_auth(priv, group_encrypt_mode, auth_type,
-								wpa_enabled);
+		priv->sec_info.encryption_mode = group_encrypt_mode;
+		priv->sec_info.authentication_mode = auth_type;
 	}
 	if (sme->ie)
 		ret = mwifiex_set_gen_ie(priv, sme->ie, sme->ie_len);

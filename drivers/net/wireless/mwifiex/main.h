@@ -994,11 +994,6 @@ int mwifiex_get_channel_list(struct mwifiex_private *priv,
 int mwifiex_get_scan_table(struct mwifiex_private *priv,
 			   u8 wait_option,
 			   struct mwifiex_scan_resp *scanresp);
-int mwifiex_get_auth_mode(struct mwifiex_private *priv,
-			  u8 wait_option, u32 *auth_mode);
-int mwifiex_get_encrypt_mode(struct mwifiex_private *priv,
-			     u8 wait_option,
-			     u32 *encrypt_mode);
 int mwifiex_enable_wep_key(struct mwifiex_private *priv, u8 wait_option);
 int mwifiex_find_best_bss(struct mwifiex_private *priv, u8 wait_option,
 			  struct mwifiex_ssid_bssid *ssid_bssid);
@@ -1013,9 +1008,6 @@ int mwifiex_set_radio(struct mwifiex_private *priv, u8 option);
 int mwifiex_drv_get_mode(struct mwifiex_private *priv, u8 wait_option);
 
 int mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel);
-
-int mwifiex_set_auth(struct mwifiex_private *priv, int encrypt_mode,
-		     int auth_mode, int wpa_enabled);
 
 int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
 		       int key_len, u8 key_index, int disable);

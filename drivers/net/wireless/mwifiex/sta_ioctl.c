@@ -1691,20 +1691,6 @@ static int mwifiex_sec_ioctl_set_wapi_key(struct mwifiex_adapter *adapter,
 }
 
 /*
- * IOCTL request handler to set/get authentication mode.
- */
-static int mwifiex_set_auth_mode(struct mwifiex_private *priv, u32 auth_mode)
-{
-	int ret = 0;
-
-	priv->sec_info.authentication_mode = auth_mode;
-	if (priv->sec_info.authentication_mode == MWIFIEX_AUTH_MODE_NETWORKEAP)
-		ret = mwifiex_set_wpa_ie_helper(priv, NULL, 0);
-
-	return ret;
-}
-
-/*
  * IOCTL request handler to set WEP network key.
  *
  * This function prepares the correct firmware command and
@@ -1996,36 +1982,6 @@ int mwifiex_get_signal_info(struct mwifiex_private *priv, u8 wait_option,
 	if (wait && (status != -EINPROGRESS))
 		kfree(wait);
 	return status;
-}
-
-/*
- * Sends IOCTL request to set encryption mode.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- */
-static int mwifiex_set_encrypt_mode(struct mwifiex_private *priv,
-				    u8 wait_option, u32 encrypt_mode)
-{
-	priv->sec_info.encryption_mode = encrypt_mode;
-	return 0;
-}
-
-/*
- * This function set the authentication parameters. It sets both encryption
- * mode and authentication mode, and also enables WPA if required.
- */
-int
-mwifiex_set_auth(struct mwifiex_private *priv, int encrypt_mode,
-		 int auth_mode, int wpa_enabled)
-{
-	if (mwifiex_set_encrypt_mode(priv, MWIFIEX_IOCTL_WAIT, encrypt_mode))
-		return -EFAULT;
-
-	if (mwifiex_set_auth_mode(priv, auth_mode))
-		return -EFAULT;
-
-	return 0;
 }
 
 /*

@@ -441,20 +441,17 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	dev_dbg(priv->adapter->dev, "info: ASSOC_CMD: rates size = %d\n",
 					rates_size);
 
-	/* Add the Authentication type to be used for Auth frames if needed */
-	if (priv->sec_info.authentication_mode != MWIFIEX_AUTH_MODE_AUTO) {
-		auth_tlv = (struct mwifiex_ie_types_auth_type *) pos;
-		auth_tlv->header.type = cpu_to_le16(TLV_TYPE_AUTH_TYPE);
-		auth_tlv->header.len = cpu_to_le16(sizeof(auth_tlv->auth_type));
-		if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
-			auth_tlv->auth_type = cpu_to_le16((u16) priv->sec_info.
-							  authentication_mode);
-		else
-			auth_tlv->auth_type =
-				cpu_to_le16(MWIFIEX_AUTH_MODE_OPEN);
-		pos += sizeof(auth_tlv->header) +
-			le16_to_cpu(auth_tlv->header.len);
-	}
+	/* Add the Authentication type to be used for Auth frames */
+	auth_tlv = (struct mwifiex_ie_types_auth_type *) pos;
+	auth_tlv->header.type = cpu_to_le16(TLV_TYPE_AUTH_TYPE);
+	auth_tlv->header.len = cpu_to_le16(sizeof(auth_tlv->auth_type));
+	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+		auth_tlv->auth_type = cpu_to_le16(
+				(u16) priv->sec_info.authentication_mode);
+	else
+		auth_tlv->auth_type = cpu_to_le16(MWIFIEX_AUTH_MODE_OPEN);
+
+	pos += sizeof(auth_tlv->header) + le16_to_cpu(auth_tlv->header.len);
 
 	if (IS_SUPPORT_MULTI_BANDS(priv->adapter)
 	    && !(ISSUPP_11NENABLED(priv->adapter->fw_cap_info)

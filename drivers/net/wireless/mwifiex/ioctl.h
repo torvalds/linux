@@ -277,8 +277,6 @@ struct mwifiex_debug_info {
 enum {
 	MWIFIEX_AUTH_MODE_OPEN = 0x00,
 	MWIFIEX_AUTH_MODE_SHARED = 0x01,
-	MWIFIEX_AUTH_MODE_NETWORKEAP = 0x80,
-	MWIFIEX_AUTH_MODE_AUTO = 0xFF,
 };
 
 enum {
