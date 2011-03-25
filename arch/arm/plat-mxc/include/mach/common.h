@@ -68,4 +68,5 @@ extern void mxc91231_arch_reset(int, const char *);
 extern void mxc91231_prepare_idle(void);
 extern void mx51_efikamx_reset(void);
 extern int mx53_revision(void);
+extern int mx53_display_revision(void);
 #endif
