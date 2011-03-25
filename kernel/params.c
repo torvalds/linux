@@ -719,9 +719,7 @@ void destroy_params(const struct kernel_param *params, unsigned num)
 			params[i].ops->free(params[i].arg);
 }
 
-static void __init kernel_add_sysfs_param(const char *name,
-					  struct kernel_param *kparam,
-					  unsigned int name_skip)
+static struct module_kobject * __init locate_module_kobject(const char *name)
 {
 	struct module_kobject *mk;
 	struct kobject *kobj;
@@ -729,10 +727,7 @@ static void __init kernel_add_sysfs_param(const char *name,
 
 	kobj = kset_find_obj(module_kset, name);
 	if (kobj) {
-		/* We already have one.  Remove params so we can add more. */
 		mk = to_module_kobject(kobj);
-		/* We need to remove it before adding parameters. */
-		sysfs_remove_group(&mk->kobj, &mk->mp->grp);
 	} else {
 		mk = kzalloc(sizeof(struct module_kobject), GFP_KERNEL);
 		BUG_ON(!mk);
@@ -743,14 +738,35 @@ static void __init kernel_add_sysfs_param(const char *name,
 					   "%s", name);
 		if (err) {
 			kobject_put(&mk->kobj);
-			printk(KERN_ERR "Module '%s' failed add to sysfs, "
-			       "error number %d\n", name, err);
-			printk(KERN_ERR	"The system will be unstable now.\n");
-			return;
+			printk(KERN_ERR
+				"Module '%s' failed add to sysfs, error number %d\n",
+				name, err);
+			printk(KERN_ERR
+				"The system will be unstable now.\n");
+			return NULL;
 		}
-		/* So that exit path is even. */
+
+		/* So that we hold reference in both cases. */
 		kobject_get(&mk->kobj);
 	}
+
+	return mk;
+}
+
+static void __init kernel_add_sysfs_param(const char *name,
+					  struct kernel_param *kparam,
+					  unsigned int name_skip)
+{
+	struct module_kobject *mk;
+	int err;
+
+	mk = locate_module_kobject(name);
+	if (!mk)
+		return;
+
+	/* We need to remove old parameters before adding more. */
+	if (mk->mp)
+		sysfs_remove_group(&mk->kobj, &mk->mp->grp);
 
 	/* These should not fail at boot. */
 	err = add_sysfs_param(mk, kparam, kparam->name + name_skip);
@@ -796,6 +812,32 @@ static void __init param_sysfs_builtin(void)
 	}
 }
 
+ssize_t __modver_version_show(struct module_attribute *mattr,
+			      struct module *mod, char *buf)
+{
+	struct module_version_attribute *vattr =
+		container_of(mattr, struct module_version_attribute, mattr);
+
+	return sprintf(buf, "%s\n", vattr->version);
+}
+
+extern struct module_version_attribute __start___modver[], __stop___modver[];
+
+static void __init version_sysfs_builtin(void)
+{
+	const struct module_version_attribute *vattr;
+	struct module_kobject *mk;
+	int err;
+
+	for (vattr = __start___modver; vattr < __stop___modver; vattr++) {
+		mk = locate_module_kobject(vattr->module_name);
+		if (mk) {
+			err = sysfs_create_file(&mk->kobj, &vattr->mattr.attr);
+			kobject_uevent(&mk->kobj, KOBJ_ADD);
+			kobject_put(&mk->kobj);
+		}
+	}
+}
 
 /* module-related sysfs stuff */
 
@@ -875,6 +917,7 @@ static int __init param_sysfs_init(void)
 	}
 	module_sysfs_initialized = 1;
 
+	version_sysfs_builtin();
 	param_sysfs_builtin();
 
 	return 0;

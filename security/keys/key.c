@@ -249,6 +249,14 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	if (!desc || !*desc)
 		goto error;
 
+	if (type->vet_description) {
+		ret = type->vet_description(desc);
+		if (ret < 0) {
+			key = ERR_PTR(ret);
+			goto error;
+		}
+	}
+
 	desclen = strlen(desc) + 1;
 	quotalen = desclen + type->def_datalen;
 
@@ -415,7 +423,7 @@ static int __key_instantiate_and_link(struct key *key,
 				      size_t datalen,
 				      struct key *keyring,
 				      struct key *authkey,
-				      struct keyring_list **_prealloc)
+				      unsigned long *_prealloc)
 {
 	int ret, awaken;
 
@@ -481,7 +489,7 @@ int key_instantiate_and_link(struct key *key,
 			     struct key *keyring,
 			     struct key *authkey)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	int ret;
 
 	if (keyring) {
@@ -503,30 +511,33 @@ int key_instantiate_and_link(struct key *key,
 EXPORT_SYMBOL(key_instantiate_and_link);
 
 /**
- * key_negate_and_link - Negatively instantiate a key and link it into the keyring.
+ * key_reject_and_link - Negatively instantiate a key and link it into the keyring.
  * @key: The key to instantiate.
  * @timeout: The timeout on the negative key.
+ * @error: The error to return when the key is hit.
  * @keyring: Keyring to create a link in on success (or NULL).
  * @authkey: The authorisation token permitting instantiation.
  *
  * Negatively instantiate a key that's in the uninstantiated state and, if
- * successful, set its timeout and link it in to the destination keyring if one
- * is supplied.  The key and any links to the key will be automatically garbage
- * collected after the timeout expires.
+ * successful, set its timeout and stored error and link it in to the
+ * destination keyring if one is supplied.  The key and any links to the key
+ * will be automatically garbage collected after the timeout expires.
  *
  * Negative keys are used to rate limit repeated request_key() calls by causing
- * them to return -ENOKEY until the negative key expires.
+ * them to return the stored error code (typically ENOKEY) until the negative
+ * key expires.
  *
  * If successful, 0 is returned, the authorisation token is revoked and anyone
  * waiting for the key is woken up.  If the key was already instantiated,
  * -EBUSY will be returned.
  */
-int key_negate_and_link(struct key *key,
+int key_reject_and_link(struct key *key,
 			unsigned timeout,
+			unsigned error,
 			struct key *keyring,
 			struct key *authkey)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	struct timespec now;
 	int ret, awaken, link_ret = 0;
 
@@ -548,6 +559,7 @@ int key_negate_and_link(struct key *key,
 		atomic_inc(&key->user->nikeys);
 		set_bit(KEY_FLAG_NEGATIVE, &key->flags);
 		set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
+		key->type_data.reject_error = -error;
 		now = current_kernel_time();
 		key->expiry = now.tv_sec + timeout;
 		key_schedule_gc(key->expiry + key_gc_delay);
@@ -577,8 +589,7 @@ int key_negate_and_link(struct key *key,
 
 	return ret == 0 ? link_ret : ret;
 }
-
-EXPORT_SYMBOL(key_negate_and_link);
+EXPORT_SYMBOL(key_reject_and_link);
 
 /*
  * Garbage collect keys in process context so that we don't have to disable
@@ -814,7 +825,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			       key_perm_t perm,
 			       unsigned long flags)
 {
-	struct keyring_list *prealloc;
+	unsigned long prealloc;
 	const struct cred *cred = current_cred();
 	struct key_type *ktype;
 	struct key *keyring, *key = NULL;

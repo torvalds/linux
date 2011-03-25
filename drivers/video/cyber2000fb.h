@@ -464,12 +464,14 @@ static void debug_printf(char *fmt, ...)
 struct cfb_info;
 
 struct cyberpro_info {
-	struct pci_dev	*dev;
+	struct device	*dev;
+	struct i2c_adapter *i2c;
 	unsigned char	__iomem *regs;
 	char		__iomem *fb;
 	char		dev_name[32];
 	unsigned int	fb_size;
 	unsigned int	chip_id;
+	unsigned int	irq;
 
 	/*
 	 * The following is a pointer to be passed into the
@@ -478,23 +480,12 @@ struct cyberpro_info {
 	 * is within this structure.
 	 */
 	struct cfb_info *info;
-
-	/*
-	 * Use these to enable the BM or TV registers.  In an SMP
-	 * environment, these two function pointers should only be
-	 * called from the module_init() or module_exit()
-	 * functions.
-	 */
-	void (*enable_extregs)(struct cfb_info *);
-	void (*disable_extregs)(struct cfb_info *);
 };
 
 #define ID_IGA_1682		0
 #define ID_CYBERPRO_2000	1
 #define ID_CYBERPRO_2010	2
 #define ID_CYBERPRO_5000	3
-
-struct fb_var_screeninfo;
 
 /*
  * Note! Writing to the Cyber20x0 registers from an interrupt
@@ -504,4 +495,3 @@ int cyber2000fb_attach(struct cyberpro_info *info, int idx);
 void cyber2000fb_detach(int idx);
 void cyber2000fb_enable_extregs(struct cfb_info *cfb);
 void cyber2000fb_disable_extregs(struct cfb_info *cfb);
-void cyber2000fb_get_fb_var(struct cfb_info *cfb, struct fb_var_screeninfo *var);

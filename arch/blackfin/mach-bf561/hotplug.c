@@ -5,30 +5,36 @@
  * Licensed under the GPL-2 or later.
  */
 
+#include <linux/smp.h>
 #include <asm/blackfin.h>
-#include <asm/irq.h>
-#include <asm/smp.h>
-
-#define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
+#include <asm/cacheflush.h>
+#include <mach/pll.h>
 
 int hotplug_coreb;
 
 void platform_cpu_die(void)
 {
-	unsigned long iwr[2] = {0, 0};
-	unsigned long bank = SIC_SYSIRQ(IRQ_SUPPLE_0) / 32;
-	unsigned long bit = 1 << (SIC_SYSIRQ(IRQ_SUPPLE_0) % 32);
+	unsigned long iwr;
 
 	hotplug_coreb = 1;
 
-	iwr[bank] = bit;
+	/*
+	 * When CoreB wakes up, the code in _coreb_trampoline_start cannot
+	 * turn off the data cache. This causes the CoreB failed to boot.
+	 * As a workaround, we invalidate all the data cache before sleep.
+	 */
+	blackfin_invalidate_entire_dcache();
 
 	/* disable core timer */
 	bfin_write_TCNTL(0);
 
-	/* clear ipi interrupt IRQ_SUPPLE_0 */
+	/* clear ipi interrupt IRQ_SUPPLE_0 of CoreB */
 	bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | (1 << (10 + 1)));
 	SSYNC();
 
-	coreb_sleep(iwr[0], iwr[1], 0);
+	/* set CoreB wakeup by ipi0, iwr will be discarded */
+	bfin_iwr_set_sup0(&iwr, &iwr, &iwr);
+	SSYNC();
+
+	coreb_die();
 }

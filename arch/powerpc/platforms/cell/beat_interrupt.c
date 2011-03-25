@@ -61,59 +61,59 @@ static inline void beatic_update_irq_mask(unsigned int irq_plug)
 		panic("Failed to set mask IRQ!");
 }
 
-static void beatic_mask_irq(unsigned int irq_plug)
+static void beatic_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&beatic_irq_mask_lock, flags);
-	beatic_irq_mask_enable[irq_plug/64] &= ~(1UL << (63 - (irq_plug%64)));
-	beatic_update_irq_mask(irq_plug);
+	beatic_irq_mask_enable[d->irq/64] &= ~(1UL << (63 - (d->irq%64)));
+	beatic_update_irq_mask(d->irq);
 	raw_spin_unlock_irqrestore(&beatic_irq_mask_lock, flags);
 }
 
-static void beatic_unmask_irq(unsigned int irq_plug)
+static void beatic_unmask_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&beatic_irq_mask_lock, flags);
-	beatic_irq_mask_enable[irq_plug/64] |= 1UL << (63 - (irq_plug%64));
-	beatic_update_irq_mask(irq_plug);
+	beatic_irq_mask_enable[d->irq/64] |= 1UL << (63 - (d->irq%64));
+	beatic_update_irq_mask(d->irq);
 	raw_spin_unlock_irqrestore(&beatic_irq_mask_lock, flags);
 }
 
-static void beatic_ack_irq(unsigned int irq_plug)
+static void beatic_ack_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&beatic_irq_mask_lock, flags);
-	beatic_irq_mask_ack[irq_plug/64] &= ~(1UL << (63 - (irq_plug%64)));
-	beatic_update_irq_mask(irq_plug);
+	beatic_irq_mask_ack[d->irq/64] &= ~(1UL << (63 - (d->irq%64)));
+	beatic_update_irq_mask(d->irq);
 	raw_spin_unlock_irqrestore(&beatic_irq_mask_lock, flags);
 }
 
-static void beatic_end_irq(unsigned int irq_plug)
+static void beatic_end_irq(struct irq_data *d)
 {
 	s64 err;
 	unsigned long flags;
 
-	err = beat_downcount_of_interrupt(irq_plug);
+	err = beat_downcount_of_interrupt(d->irq);
 	if (err != 0) {
 		if ((err & 0xFFFFFFFF) != 0xFFFFFFF5) /* -11: wrong state */
 			panic("Failed to downcount IRQ! Error = %16llx", err);
 
-		printk(KERN_ERR "IRQ over-downcounted, plug %d\n", irq_plug);
+		printk(KERN_ERR "IRQ over-downcounted, plug %d\n", d->irq);
 	}
 	raw_spin_lock_irqsave(&beatic_irq_mask_lock, flags);
-	beatic_irq_mask_ack[irq_plug/64] |= 1UL << (63 - (irq_plug%64));
-	beatic_update_irq_mask(irq_plug);
+	beatic_irq_mask_ack[d->irq/64] |= 1UL << (63 - (d->irq%64));
+	beatic_update_irq_mask(d->irq);
 	raw_spin_unlock_irqrestore(&beatic_irq_mask_lock, flags);
 }
 
 static struct irq_chip beatic_pic = {
 	.name = "CELL-BEAT",
-	.unmask = beatic_unmask_irq,
-	.mask = beatic_mask_irq,
-	.eoi = beatic_end_irq,
+	.irq_unmask = beatic_unmask_irq,
+	.irq_mask = beatic_mask_irq,
+	.irq_eoi = beatic_end_irq,
 };
 
 /*
@@ -232,7 +232,7 @@ unsigned int beatic_get_irq(void)
 
 	ret = beatic_get_irq_plug();
 	if (ret != NO_IRQ)
-		beatic_ack_irq(ret);
+		beatic_ack_irq(irq_get_irq_data(ret));
 	return ret;
 }
 

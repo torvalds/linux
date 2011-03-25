@@ -26,23 +26,9 @@
 
 #include <mach/iomap.h>
 
-#if defined(CONFIG_TEGRA_DEBUG_UARTA)
-#define DEBUG_UART_BASE TEGRA_UARTA_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTB)
-#define DEBUG_UART_BASE TEGRA_UARTB_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTC)
-#define DEBUG_UART_BASE TEGRA_UARTC_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTD)
-#define DEBUG_UART_BASE TEGRA_UARTD_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTE)
-#define DEBUG_UART_BASE TEGRA_UARTE_BASE
-#else
-#define DEBUG_UART_BASE NULL
-#endif
-
 static void putc(int c)
 {
-	volatile u8 *uart = (volatile u8 *)DEBUG_UART_BASE;
+	volatile u8 *uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
 	int shift = 2;
 
 	if (uart == NULL)
@@ -59,7 +45,7 @@ static inline void flush(void)
 
 static inline void arch_decomp_setup(void)
 {
-	volatile u8 *uart = (volatile u8 *)DEBUG_UART_BASE;
+	volatile u8 *uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
 	int shift = 2;
 
 	if (uart == NULL)

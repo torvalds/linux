@@ -70,9 +70,7 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#ifndef NO_SYS_SELECT_H
 #include <sys/select.h>
-#endif
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -82,10 +80,6 @@
 #include "../../../include/linux/magic.h"
 #include "types.h"
 #include <sys/ttydefaults.h>
-
-#ifndef NO_ICONV
-#include <iconv.h>
-#endif
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
@@ -235,26 +229,6 @@ static inline int sane_case(int x, int high)
 		x = (x & ~0x20) | high;
 	return x;
 }
-
-#ifndef DIR_HAS_BSD_GROUP_SEMANTICS
-# define FORCE_DIR_SET_GID S_ISGID
-#else
-# define FORCE_DIR_SET_GID 0
-#endif
-
-#ifdef NO_NSEC
-#undef USE_NSEC
-#define ST_CTIME_NSEC(st) 0
-#define ST_MTIME_NSEC(st) 0
-#else
-#ifdef USE_ST_TIMESPEC
-#define ST_CTIME_NSEC(st) ((unsigned int)((st).st_ctimespec.tv_nsec))
-#define ST_MTIME_NSEC(st) ((unsigned int)((st).st_mtimespec.tv_nsec))
-#else
-#define ST_CTIME_NSEC(st) ((unsigned int)((st).st_ctim.tv_nsec))
-#define ST_MTIME_NSEC(st) ((unsigned int)((st).st_mtim.tv_nsec))
-#endif
-#endif
 
 int mkdir_p(char *path, mode_t mode);
 int copyfile(const char *from, const char *to);

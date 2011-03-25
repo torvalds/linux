@@ -1042,7 +1042,7 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	err = ext4_init_security(handle, inode, dir);
+	err = ext4_init_security(handle, inode, dir, qstr);
 	if (err)
 		goto fail_free_drop;
 

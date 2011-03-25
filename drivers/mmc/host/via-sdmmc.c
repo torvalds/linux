@@ -802,11 +802,8 @@ static const struct mmc_host_ops via_sdc_ops = {
 
 static void via_reset_pcictrl(struct via_crdr_mmc_host *host)
 {
-	void __iomem *addrbase;
 	unsigned long flags;
 	u8 gatt;
-
-	addrbase = host->pcictrl_mmiobase;
 
 	spin_lock_irqsave(&host->lock, flags);
 

@@ -1089,7 +1089,6 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 			     base.inqueue.immediate);
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
-	struct sock *sk;
 	struct sctp_inq *inqueue;
 	int state;
 	sctp_subtype_t subtype;
@@ -1097,7 +1096,6 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 
 	/* The association should be held so we should be safe. */
 	ep = asoc->ep;
-	sk = asoc->base.sk;
 
 	inqueue = &asoc->base.inqueue;
 	sctp_association_hold(asoc);

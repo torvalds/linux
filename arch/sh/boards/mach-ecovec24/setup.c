@@ -142,6 +142,8 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8700 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_FAST_SH4,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
 	.ether_link_active_low = 1
 };
 
@@ -723,11 +725,7 @@ static struct platform_device camera_devices[] = {
 
 /* FSI */
 static struct sh_fsi_platform_info fsi_info = {
-	.portb_flags = SH_FSI_BRS_INV |
-		       SH_FSI_OUT_SLAVE_MODE |
-		       SH_FSI_IN_SLAVE_MODE |
-		       SH_FSI_OFMT(I2S) |
-		       SH_FSI_IFMT(I2S),
+	.portb_flags = SH_FSI_BRS_INV,
 };
 
 static struct resource fsi_resources[] = {
@@ -1294,6 +1292,7 @@ static int __init arch_setup(void)
 	i2c_register_board_info(1, i2c1_devices,
 				ARRAY_SIZE(i2c1_devices));
 
+#if defined(CONFIG_VIDEO_SH_VOU) || defined(CONFIG_VIDEO_SH_VOU_MODULE)
 	/* VOU */
 	gpio_request(GPIO_FN_DV_D15, NULL);
 	gpio_request(GPIO_FN_DV_D14, NULL);
@@ -1325,6 +1324,7 @@ static int __init arch_setup(void)
 
 	/* Remove reset */
 	gpio_set_value(GPIO_PTG4, 1);
+#endif
 
 	return platform_add_devices(ecovec_devices,
 				    ARRAY_SIZE(ecovec_devices));

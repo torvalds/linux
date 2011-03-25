@@ -294,6 +294,5 @@ out:
 
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm)
 {
-	if (tfm->crt_cipher.cit_iv)
-		kfree(tfm->crt_cipher.cit_iv);
+	kfree(tfm->crt_cipher.cit_iv);
 }

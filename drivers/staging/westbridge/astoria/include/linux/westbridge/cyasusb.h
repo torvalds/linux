@@ -746,7 +746,7 @@ cy_as_usb_register_callback(
    the West Bridge device as a different
    device when necessary.  This function connects the D+ and D-
    signal physically to the USB host
-   if they have been previously disconnnected.
+   if they have been previously disconnected.
 
    * Valid In Asynchronous Callback: YES (if cb supplied)
    * Nestable: YES

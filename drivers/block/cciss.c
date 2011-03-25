@@ -2833,7 +2833,7 @@ static int cciss_revalidate(struct gendisk *disk)
 	sector_t total_size;
 	InquiryData_struct *inq_buff = NULL;
 
-	for (logvol = 0; logvol < CISS_MAX_LUN; logvol++) {
+	for (logvol = 0; logvol <= h->highest_lun; logvol++) {
 		if (!h->drv[logvol])
 			continue;
 		if (memcmp(h->drv[logvol]->LunID, drv->LunID,
@@ -3169,12 +3169,6 @@ static void do_cciss_request(struct request_queue *q)
 	int i, dir;
 	int sg_index = 0;
 	int chained = 0;
-
-	/* We call start_io here in case there is a command waiting on the
-	 * queue that has not been sent.
-	 */
-	if (blk_queue_plugged(q))
-		goto startio;
 
       queue:
 	creq = blk_peek_request(q);

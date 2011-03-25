@@ -93,6 +93,7 @@ static inline unsigned int socrates_fpga_pic_get_irq(unsigned int irq)
 
 void socrates_fpga_pic_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
 	unsigned int cascade_irq;
 
 	/*
@@ -103,17 +104,16 @@ void socrates_fpga_pic_cascade(unsigned int irq, struct irq_desc *desc)
 
 	if (cascade_irq != NO_IRQ)
 		generic_handle_irq(cascade_irq);
-	desc->chip->eoi(irq);
-
+	chip->irq_eoi(&desc->irq_data);
 }
 
-static void socrates_fpga_pic_ack(unsigned int virq)
+static void socrates_fpga_pic_ack(struct irq_data *d)
 {
 	unsigned long flags;
 	unsigned int hwirq, irq_line;
 	uint32_t mask;
 
-	hwirq = socrates_fpga_irq_to_hw(virq);
+	hwirq = socrates_fpga_irq_to_hw(d->irq);
 
 	irq_line = fpga_irqs[hwirq].irq_line;
 	raw_spin_lock_irqsave(&socrates_fpga_pic_lock, flags);
@@ -124,14 +124,14 @@ static void socrates_fpga_pic_ack(unsigned int virq)
 	raw_spin_unlock_irqrestore(&socrates_fpga_pic_lock, flags);
 }
 
-static void socrates_fpga_pic_mask(unsigned int virq)
+static void socrates_fpga_pic_mask(struct irq_data *d)
 {
 	unsigned long flags;
 	unsigned int hwirq;
 	int irq_line;
 	u32 mask;
 
-	hwirq = socrates_fpga_irq_to_hw(virq);
+	hwirq = socrates_fpga_irq_to_hw(d->irq);
 
 	irq_line = fpga_irqs[hwirq].irq_line;
 	raw_spin_lock_irqsave(&socrates_fpga_pic_lock, flags);
@@ -142,14 +142,14 @@ static void socrates_fpga_pic_mask(unsigned int virq)
 	raw_spin_unlock_irqrestore(&socrates_fpga_pic_lock, flags);
 }
 
-static void socrates_fpga_pic_mask_ack(unsigned int virq)
+static void socrates_fpga_pic_mask_ack(struct irq_data *d)
 {
 	unsigned long flags;
 	unsigned int hwirq;
 	int irq_line;
 	u32 mask;
 
-	hwirq = socrates_fpga_irq_to_hw(virq);
+	hwirq = socrates_fpga_irq_to_hw(d->irq);
 
 	irq_line = fpga_irqs[hwirq].irq_line;
 	raw_spin_lock_irqsave(&socrates_fpga_pic_lock, flags);
@@ -161,14 +161,14 @@ static void socrates_fpga_pic_mask_ack(unsigned int virq)
 	raw_spin_unlock_irqrestore(&socrates_fpga_pic_lock, flags);
 }
 
-static void socrates_fpga_pic_unmask(unsigned int virq)
+static void socrates_fpga_pic_unmask(struct irq_data *d)
 {
 	unsigned long flags;
 	unsigned int hwirq;
 	int irq_line;
 	u32 mask;
 
-	hwirq = socrates_fpga_irq_to_hw(virq);
+	hwirq = socrates_fpga_irq_to_hw(d->irq);
 
 	irq_line = fpga_irqs[hwirq].irq_line;
 	raw_spin_lock_irqsave(&socrates_fpga_pic_lock, flags);
@@ -179,14 +179,14 @@ static void socrates_fpga_pic_unmask(unsigned int virq)
 	raw_spin_unlock_irqrestore(&socrates_fpga_pic_lock, flags);
 }
 
-static void socrates_fpga_pic_eoi(unsigned int virq)
+static void socrates_fpga_pic_eoi(struct irq_data *d)
 {
 	unsigned long flags;
 	unsigned int hwirq;
 	int irq_line;
 	u32 mask;
 
-	hwirq = socrates_fpga_irq_to_hw(virq);
+	hwirq = socrates_fpga_irq_to_hw(d->irq);
 
 	irq_line = fpga_irqs[hwirq].irq_line;
 	raw_spin_lock_irqsave(&socrates_fpga_pic_lock, flags);
@@ -197,7 +197,7 @@ static void socrates_fpga_pic_eoi(unsigned int virq)
 	raw_spin_unlock_irqrestore(&socrates_fpga_pic_lock, flags);
 }
 
-static int socrates_fpga_pic_set_type(unsigned int virq,
+static int socrates_fpga_pic_set_type(struct irq_data *d,
 		unsigned int flow_type)
 {
 	unsigned long flags;
@@ -205,7 +205,7 @@ static int socrates_fpga_pic_set_type(unsigned int virq,
 	int polarity;
 	u32 mask;
 
-	hwirq = socrates_fpga_irq_to_hw(virq);
+	hwirq = socrates_fpga_irq_to_hw(d->irq);
 
 	if (fpga_irqs[hwirq].type != IRQ_TYPE_NONE)
 		return -EINVAL;
@@ -233,12 +233,12 @@ static int socrates_fpga_pic_set_type(unsigned int virq,
 
 static struct irq_chip socrates_fpga_pic_chip = {
 	.name		= "FPGA-PIC",
-	.ack		= socrates_fpga_pic_ack,
-	.mask           = socrates_fpga_pic_mask,
-	.mask_ack       = socrates_fpga_pic_mask_ack,
-	.unmask         = socrates_fpga_pic_unmask,
-	.eoi		= socrates_fpga_pic_eoi,
-	.set_type	= socrates_fpga_pic_set_type,
+	.irq_ack	= socrates_fpga_pic_ack,
+	.irq_mask	= socrates_fpga_pic_mask,
+	.irq_mask_ack	= socrates_fpga_pic_mask_ack,
+	.irq_unmask	= socrates_fpga_pic_unmask,
+	.irq_eoi	= socrates_fpga_pic_eoi,
+	.irq_set_type	= socrates_fpga_pic_set_type,
 };
 
 static int socrates_fpga_pic_host_map(struct irq_host *h, unsigned int virq,

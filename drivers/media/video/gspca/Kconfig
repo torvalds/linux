@@ -104,6 +104,15 @@ config USB_GSPCA_MR97310A
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_mr97310a.
 
+config USB_GSPCA_NW80X
+	tristate "Divio based (NW80x) USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the NW80x chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_nw80x.
+
 config USB_GSPCA_OV519
 	tristate "OV51x / OVFX2 / W996xCF USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
@@ -345,6 +354,16 @@ config USB_GSPCA_VC032X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_vc032x.
+
+config USB_GSPCA_VICAM
+	tristate "ViCam USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for the 3com homeconnect camera
+	  (vicam).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_vicam.
 
 config USB_GSPCA_XIRLINK_CIT
 	tristate "Xirlink C-It USB Camera Driver"

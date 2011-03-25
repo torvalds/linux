@@ -667,6 +667,7 @@ static int asus_backlight_init(struct asus_laptop *asus)
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = 15;
+	props.type = BACKLIGHT_PLATFORM;
 
 	bd = backlight_device_register(ASUS_LAPTOP_FILE,
 				       &asus->platform_device->dev, asus,

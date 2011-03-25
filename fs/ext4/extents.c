@@ -131,7 +131,7 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 		 * fragmenting the file system's free space.  Maybe we
 		 * should have some hueristics or some way to allow
 		 * userspace to pass a hint to file system,
-		 * especiially if the latter case turns out to be
+		 * especially if the latter case turns out to be
 		 * common.
 		 */
 		ex = path[depth].p_ext;
@@ -2844,7 +2844,7 @@ fix_extent_len:
  * ext4_get_blocks_dio_write() when DIO to write
  * to an uninitialized extent.
  *
- * Writing to an uninitized extent may result in splitting the uninitialized
+ * Writing to an uninitialized extent may result in splitting the uninitialized
  * extent into multiple /initialized uninitialized extents (up to three)
  * There are three possibilities:
  *   a> There is no split required: Entire extent should be uninitialized
@@ -3174,9 +3174,10 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		 * that this IO needs to convertion to written when IO is
 		 * completed
 		 */
-		if (io)
+		if (io && !(io->flag & EXT4_IO_END_UNWRITTEN)) {
 			io->flag = EXT4_IO_END_UNWRITTEN;
-		else
+			atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+		} else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		if (ext4_should_dioread_nolock(inode))
 			map->m_flags |= EXT4_MAP_UNINIT;
@@ -3463,9 +3464,10 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		 * that we need to perform convertion when IO is done.
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
-			if (io)
+			if (io && !(io->flag & EXT4_IO_END_UNWRITTEN)) {
 				io->flag = EXT4_IO_END_UNWRITTEN;
-			else
+				atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
+			} else
 				ext4_set_inode_state(inode,
 						     EXT4_STATE_DIO_UNWRITTEN);
 		}

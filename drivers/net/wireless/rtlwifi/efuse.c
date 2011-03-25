@@ -726,9 +726,9 @@ static int efuse_pg_packet_read(struct ieee80211_hw *hw, u8 offset, u8 *data)
 }
 
 static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
-				u8 efuse_data, u8 offset, int *bcontinual,
-				u8 *write_state, struct pgpkt_struct target_pkt,
-				int *repeat_times, int *bresult, u8 word_en)
+			u8 efuse_data, u8 offset, int *bcontinual,
+			u8 *write_state, struct pgpkt_struct *target_pkt,
+			int *repeat_times, int *bresult, u8 word_en)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct pgpkt_struct tmp_pkt;
@@ -744,8 +744,8 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 	tmp_pkt.word_en = tmp_header & 0x0F;
 	tmp_word_cnts = efuse_calculate_word_cnts(tmp_pkt.word_en);
 
-	if (tmp_pkt.offset != target_pkt.offset) {
-		efuse_addr = efuse_addr + (tmp_word_cnts * 2) + 1;
+	if (tmp_pkt.offset != target_pkt->offset) {
+		*efuse_addr = *efuse_addr + (tmp_word_cnts * 2) + 1;
 		*write_state = PG_STATE_HEADER;
 	} else {
 		for (tmpindex = 0; tmpindex < (tmp_word_cnts * 2); tmpindex++) {
@@ -756,23 +756,23 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 		}
 
 		if (bdataempty == false) {
-			efuse_addr = efuse_addr + (tmp_word_cnts * 2) + 1;
+			*efuse_addr = *efuse_addr + (tmp_word_cnts * 2) + 1;
 			*write_state = PG_STATE_HEADER;
 		} else {
 			match_word_en = 0x0F;
-			if (!((target_pkt.word_en & BIT(0)) |
+			if (!((target_pkt->word_en & BIT(0)) |
 			     (tmp_pkt.word_en & BIT(0))))
 				match_word_en &= (~BIT(0));
 
-			if (!((target_pkt.word_en & BIT(1)) |
+			if (!((target_pkt->word_en & BIT(1)) |
 			     (tmp_pkt.word_en & BIT(1))))
 				match_word_en &= (~BIT(1));
 
-			if (!((target_pkt.word_en & BIT(2)) |
+			if (!((target_pkt->word_en & BIT(2)) |
 			     (tmp_pkt.word_en & BIT(2))))
 				match_word_en &= (~BIT(2));
 
-			if (!((target_pkt.word_en & BIT(3)) |
+			if (!((target_pkt->word_en & BIT(3)) |
 			     (tmp_pkt.word_en & BIT(3))))
 				match_word_en &= (~BIT(3));
 
@@ -780,7 +780,7 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 				badworden = efuse_word_enable_data_write(
 							    hw, *efuse_addr + 1,
 							    tmp_pkt.word_en,
-							    target_pkt.data);
+							    target_pkt->data);
 
 				if (0x0F != (badworden & 0x0F)) {
 					u8 reorg_offset = offset;
@@ -791,26 +791,26 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 				}
 
 				tmp_word_en = 0x0F;
-				if ((target_pkt.word_en & BIT(0)) ^
+				if ((target_pkt->word_en & BIT(0)) ^
 				    (match_word_en & BIT(0)))
 					tmp_word_en &= (~BIT(0));
 
-				if ((target_pkt.word_en & BIT(1)) ^
+				if ((target_pkt->word_en & BIT(1)) ^
 				    (match_word_en & BIT(1)))
 					tmp_word_en &= (~BIT(1));
 
-				if ((target_pkt.word_en & BIT(2)) ^
+				if ((target_pkt->word_en & BIT(2)) ^
 					(match_word_en & BIT(2)))
 					tmp_word_en &= (~BIT(2));
 
-				if ((target_pkt.word_en & BIT(3)) ^
+				if ((target_pkt->word_en & BIT(3)) ^
 				    (match_word_en & BIT(3)))
 					tmp_word_en &= (~BIT(3));
 
 				if ((tmp_word_en & 0x0F) != 0x0F) {
 					*efuse_addr = efuse_get_current_size(hw);
-					target_pkt.offset = offset;
-					target_pkt.word_en = tmp_word_en;
+					target_pkt->offset = offset;
+					target_pkt->word_en = tmp_word_en;
 				} else
 					*bcontinual = false;
 				*write_state = PG_STATE_HEADER;
@@ -821,8 +821,8 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 				}
 			} else {
 				*efuse_addr += (2 * tmp_word_cnts) + 1;
-				target_pkt.offset = offset;
-				target_pkt.word_en = word_en;
+				target_pkt->offset = offset;
+				target_pkt->word_en = word_en;
 				*write_state = PG_STATE_HEADER;
 			}
 		}
@@ -938,7 +938,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 				efuse_write_data_case1(hw, &efuse_addr,
 						       efuse_data, offset,
 						       &bcontinual,
-						       &write_state, target_pkt,
+						       &write_state, &target_pkt,
 						       &repeat_times, &bresult,
 						       word_en);
 			else
@@ -1169,21 +1169,3 @@ static u8 efuse_calculate_word_cnts(u8 word_en)
 	return word_cnts;
 }
 
-void efuse_reset_loader(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 tmp_u2b;
-
-	tmp_u2b = rtl_read_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN]);
-	rtl_write_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN],
-		       (tmp_u2b & ~(BIT(12))));
-	udelay(10000);
-	rtl_write_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN],
-		       (tmp_u2b | BIT(12)));
-	udelay(10000);
-}
-
-bool efuse_program_map(struct ieee80211_hw *hw, char *p_filename, u8 tabletype)
-{
-	return true;
-}

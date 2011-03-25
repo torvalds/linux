@@ -93,8 +93,18 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 	if (!pdn)
 		return;
 
-	if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0)
-		pr_debug("rtas_msi: Setting MSIs to 0 failed!\n");
+	/*
+	 * disabling MSI with the explicit interface also disables MSI-X
+	 */
+	if (rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, 0) != 0) {
+		/* 
+		 * may have failed because explicit interface is not
+		 * present
+		 */
+		if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0) {
+			pr_debug("rtas_msi: Setting MSIs to 0 failed!\n");
+		}
+	}
 }
 
 static int rtas_query_irq_number(struct pci_dn *pdn, int offset)

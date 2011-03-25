@@ -50,7 +50,7 @@ static int gact_determ(struct tcf_gact *gact)
 }
 
 typedef int (*g_rand)(struct tcf_gact *gact);
-static g_rand gact_rand[MAX_RAND]= { NULL, gact_net_rand, gact_determ };
+static g_rand gact_rand[MAX_RAND] = { NULL, gact_net_rand, gact_determ };
 #endif /* CONFIG_GACT_PROB */
 
 static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
@@ -89,7 +89,7 @@ static int tcf_gact_init(struct nlattr *nla, struct nlattr *est,
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*gact),
 				     bind, &gact_idx_gen, &gact_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (!ovr) {
@@ -205,9 +205,9 @@ MODULE_LICENSE("GPL");
 static int __init gact_init_module(void)
 {
 #ifdef CONFIG_GACT_PROB
-	printk(KERN_INFO "GACT probability on\n");
+	pr_info("GACT probability on\n");
 #else
-	printk(KERN_INFO "GACT probability NOT on\n");
+	pr_info("GACT probability NOT on\n");
 #endif
 	return tcf_register_action(&act_gact_ops);
 }

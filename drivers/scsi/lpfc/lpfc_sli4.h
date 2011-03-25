@@ -125,9 +125,9 @@ struct lpfc_queue {
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
+	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	struct list_head page_list;
 	uint32_t page_count;	/* Number of pages allocated for this queue */
-
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
@@ -359,6 +359,10 @@ struct lpfc_pc_sli4_params {
 	uint32_t hdr_pp_align;
 	uint32_t sgl_pages_max;
 	uint32_t sgl_pp_align;
+	uint8_t cqv;
+	uint8_t mqv;
+	uint8_t wqv;
+	uint8_t rqv;
 };
 
 /* SLI4 HBA data structure entries */
@@ -562,6 +566,8 @@ void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
+void lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *);
+void lpfc_sli4_vport_delete_fcp_xri_aborted(struct lpfc_vport *);
 int lpfc_sli4_brdreset(struct lpfc_hba *);
 int lpfc_sli4_add_fcf_record(struct lpfc_hba *, struct fcf_record *);
 void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);

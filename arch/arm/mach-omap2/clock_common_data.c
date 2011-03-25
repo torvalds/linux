@@ -37,3 +37,9 @@ const struct clksel_rate gfx_l3_rates[] = {
 	{ .div = 0 }
 };
 
+const struct clksel_rate dsp_ick_rates[] = {
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
+	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
+	{ .div = 3, .val = 3, .flags = RATE_IN_243X },
+	{ .div = 0 },
+};

@@ -18,8 +18,6 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
 
-void blk_unplug_work(struct work_struct *work);
-void blk_unplug_timeout(unsigned long data);
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);
@@ -51,21 +49,17 @@ static inline void blk_clear_rq_complete(struct request *rq)
  */
 #define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
 
-struct request *blk_do_flush(struct request_queue *q, struct request *rq);
+void blk_insert_flush(struct request *rq);
+void blk_abort_flushes(struct request_queue *q);
 
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
 
 	while (1) {
-		while (!list_empty(&q->queue_head)) {
+		if (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
-			if (!(rq->cmd_flags & (REQ_FLUSH | REQ_FUA)) ||
-			    rq == &q->flush_rq)
-				return rq;
-			rq = blk_do_flush(q, rq);
-			if (rq)
-				return rq;
+			return rq;
 		}
 
 		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))
@@ -109,6 +103,8 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 		      struct bio *bio);
 int attempt_back_merge(struct request_queue *q, struct request *rq);
 int attempt_front_merge(struct request_queue *q, struct request *rq);
+int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
+				struct request *next);
 void blk_recalc_rq_segments(struct request *rq);
 void blk_rq_set_mixed_merge(struct request *rq);
 

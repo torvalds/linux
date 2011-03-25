@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/radix-tree.h>
@@ -376,6 +377,70 @@ err0:
 	return -ENOMEM;
 }
 
+static int intc_suspend(void)
+{
+	struct intc_desc_int *d;
+
+	list_for_each_entry(d, &intc_list, list) {
+		int irq;
+
+		/* enable wakeup irqs belonging to this intc controller */
+		for_each_active_irq(irq) {
+			struct irq_data *data;
+			struct irq_desc *desc;
+			struct irq_chip *chip;
+
+			data = irq_get_irq_data(irq);
+			chip = irq_data_get_irq_chip(data);
+			if (chip != &d->chip)
+				continue;
+			desc = irq_to_desc(irq);
+			if ((desc->status & IRQ_WAKEUP))
+				chip->irq_enable(data);
+		}
+	}
+
+	return 0;
+}
+
+static void intc_resume(void)
+{
+	struct intc_desc_int *d;
+
+	list_for_each_entry(d, &intc_list, list) {
+		int irq;
+
+		for_each_active_irq(irq) {
+			struct irq_data *data;
+			struct irq_desc *desc;
+			struct irq_chip *chip;
+
+			data = irq_get_irq_data(irq);
+			chip = irq_data_get_irq_chip(data);
+			/*
+			 * This will catch the redirect and VIRQ cases
+			 * due to the dummy_irq_chip being inserted.
+			 */
+			if (chip != &d->chip)
+				continue;
+			desc = irq_to_desc(irq);
+			if (desc->status & IRQ_DISABLED)
+				chip->irq_disable(data);
+			else
+				chip->irq_enable(data);
+		}
+	}
+}
+
+struct syscore_ops intc_syscore_ops = {
+	.suspend	= intc_suspend,
+	.resume		= intc_resume,
+};
+
+struct sysdev_class intc_sysdev_class = {
+	.name		= "intc",
+};
+
 static ssize_t
 show_intc_name(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
 {
@@ -388,78 +453,12 @@ show_intc_name(struct sys_device *dev, struct sysdev_attribute *attr, char *buf)
 
 static SYSDEV_ATTR(name, S_IRUGO, show_intc_name, NULL);
 
-static int intc_suspend(struct sys_device *dev, pm_message_t state)
-{
-	struct intc_desc_int *d;
-	struct irq_data *data;
-	struct irq_desc *desc;
-	struct irq_chip *chip;
-	int irq;
-
-	/* get intc controller associated with this sysdev */
-	d = container_of(dev, struct intc_desc_int, sysdev);
-
-	switch (state.event) {
-	case PM_EVENT_ON:
-		if (d->state.event != PM_EVENT_FREEZE)
-			break;
-
-		for_each_active_irq(irq) {
-			desc = irq_to_desc(irq);
-			data = irq_get_irq_data(irq);
-			chip = irq_data_get_irq_chip(data);
-
-			/*
-			 * This will catch the redirect and VIRQ cases
-			 * due to the dummy_irq_chip being inserted.
-			 */
-			if (chip != &d->chip)
-				continue;
-			if (desc->status & IRQ_DISABLED)
-				chip->irq_disable(data);
-			else
-				chip->irq_enable(data);
-		}
-		break;
-	case PM_EVENT_FREEZE:
-		/* nothing has to be done */
-		break;
-	case PM_EVENT_SUSPEND:
-		/* enable wakeup irqs belonging to this intc controller */
-		for_each_active_irq(irq) {
-			desc = irq_to_desc(irq);
-			data = irq_get_irq_data(irq);
-			chip = irq_data_get_irq_chip(data);
-
-			if (chip != &d->chip)
-				continue;
-			if ((desc->status & IRQ_WAKEUP))
-				chip->irq_enable(data);
-		}
-		break;
-	}
-
-	d->state = state;
-
-	return 0;
-}
-
-static int intc_resume(struct sys_device *dev)
-{
-	return intc_suspend(dev, PMSG_ON);
-}
-
-struct sysdev_class intc_sysdev_class = {
-	.name		= "intc",
-	.suspend	= intc_suspend,
-	.resume		= intc_resume,
-};
-
-/* register this intc as sysdev to allow suspend/resume */
 static int __init register_intc_sysdevs(void)
 {
 	struct intc_desc_int *d;
 	int error;
+
+	register_syscore_ops(&intc_syscore_ops);
 
 	error = sysdev_class_register(&intc_sysdev_class);
 	if (!error) {

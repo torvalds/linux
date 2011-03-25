@@ -64,14 +64,14 @@ static inline int is_kernel_text(unsigned long addr)
 	if ((addr >= (unsigned long)_stext && addr <= (unsigned long)_etext) ||
 	    arch_is_kernel_text(addr))
 		return 1;
-	return in_gate_area_no_task(addr);
+	return in_gate_area_no_mm(addr);
 }
 
 static inline int is_kernel(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext && addr <= (unsigned long)_end)
 		return 1;
-	return in_gate_area_no_task(addr);
+	return in_gate_area_no_mm(addr);
 }
 
 static int is_ksym_addr(unsigned long addr)
@@ -477,13 +477,11 @@ static int s_show(struct seq_file *m, void *p)
 		 */
 		type = iter->exported ? toupper(iter->type) :
 					tolower(iter->type);
-		seq_printf(m, "%0*lx %c %s\t[%s]\n",
-			   (int)(2 * sizeof(void *)),
-			   iter->value, type, iter->name, iter->module_name);
+		seq_printf(m, "%pK %c %s\t[%s]\n", (void *)iter->value,
+			   type, iter->name, iter->module_name);
 	} else
-		seq_printf(m, "%0*lx %c %s\n",
-			   (int)(2 * sizeof(void *)),
-			   iter->value, iter->type, iter->name);
+		seq_printf(m, "%pK %c %s\n", (void *)iter->value,
+			   iter->type, iter->name);
 	return 0;
 }
 

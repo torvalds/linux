@@ -204,9 +204,10 @@ static inline struct event *find_cache_event(int type)
 	return event;
 }
 
-static void python_process_event(int cpu, void *data,
-				 int size __unused,
-				 unsigned long long nsecs, char *comm)
+static void python_process_event(union perf_event *pevent __unused,
+				 struct perf_sample *sample,
+				 struct perf_session *session __unused,
+				 struct thread *thread)
 {
 	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
 	static char handler_name[256];
@@ -217,6 +218,10 @@ static void python_process_event(int cpu, void *data,
 	unsigned n = 0;
 	int type;
 	int pid;
+	int cpu = sample->cpu;
+	void *data = sample->raw_data;
+	unsigned long long nsecs = sample->time;
+	char *comm = thread->comm;
 
 	t = PyTuple_New(MAX_FIELDS);
 	if (!t)
@@ -248,8 +253,7 @@ static void python_process_event(int cpu, void *data,
 	context = PyCObject_FromVoidPtr(scripting_context, NULL);
 
 	PyTuple_SetItem(t, n++, PyString_FromString(handler_name));
-	PyTuple_SetItem(t, n++,
-			PyCObject_FromVoidPtr(scripting_context, NULL));
+	PyTuple_SetItem(t, n++, context);
 
 	if (handler) {
 		PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));

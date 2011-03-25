@@ -167,7 +167,7 @@ static int irtty_set_dtr_rts(struct sir_dev *dev, int dtr, int rts)
 	 * let's be careful... Jean II
 	 */
 	IRDA_ASSERT(priv->tty->ops->tiocmset != NULL, return -1;);
-	priv->tty->ops->tiocmset(priv->tty, NULL, set, clear);
+	priv->tty->ops->tiocmset(priv->tty, set, clear);
 
 	return 0;
 }

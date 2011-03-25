@@ -1005,11 +1005,23 @@ int osd_req_read_sg(struct osd_request *or,
 	const struct osd_sg_entry *sglist, unsigned numentries)
 {
 	u64 len;
-	int ret = _add_sg_continuation_descriptor(or, sglist, numentries, &len);
+	u64 off;
+	int ret;
 
-	if (ret)
-		return ret;
-	osd_req_read(or, obj, 0, bio, len);
+	if (numentries > 1) {
+		off = 0;
+		ret = _add_sg_continuation_descriptor(or, sglist, numentries,
+						      &len);
+		if (ret)
+			return ret;
+	} else {
+		/* Optimize the case of single segment, read_sg is a
+		 * bidi operation.
+		 */
+		len = sglist->len;
+		off = sglist->offset;
+	}
+	osd_req_read(or, obj, off, bio, len);
 
 	return 0;
 }

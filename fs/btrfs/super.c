@@ -155,7 +155,8 @@ enum {
 	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
 	Opt_compress_type, Opt_compress_force, Opt_compress_force_type,
 	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
-	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed, Opt_err,
+	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
+	Opt_enospc_debug, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -184,6 +185,7 @@ static match_table_t tokens = {
 	{Opt_space_cache, "space_cache"},
 	{Opt_clear_cache, "clear_cache"},
 	{Opt_user_subvol_rm_allowed, "user_subvol_rm_allowed"},
+	{Opt_enospc_debug, "enospc_debug"},
 	{Opt_err, NULL},
 };
 
@@ -358,6 +360,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_user_subvol_rm_allowed:
 			btrfs_set_opt(info->mount_opt, USER_SUBVOL_RM_ALLOWED);
 			break;
+		case Opt_enospc_debug:
+			btrfs_set_opt(info->mount_opt, ENOSPC_DEBUG);
+			break;
 		case Opt_err:
 			printk(KERN_INFO "btrfs: unrecognized mount option "
 			       "'%s'\n", p);
@@ -383,7 +388,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
-	char *opts, *p;
+	char *opts, *orig, *p;
 	int error = 0;
 	int intarg;
 
@@ -397,6 +402,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 	opts = kstrdup(options, GFP_KERNEL);
 	if (!opts)
 		return -ENOMEM;
+	orig = opts;
 
 	while ((p = strsep(&opts, ",")) != NULL) {
 		int token;
@@ -432,7 +438,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 	}
 
  out_free_opts:
-	kfree(opts);
+	kfree(orig);
  out:
 	/*
 	 * If no subvolume name is specified we use the default one.  Allocate
@@ -623,6 +629,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_wait_ordered_extents(root, 0, 0);
 
 	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 	ret = btrfs_commit_transaction(trans, root);
 	return ret;
 }
@@ -761,6 +769,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		}
 
 		btrfs_close_devices(fs_devices);
+		kfree(fs_info);
+		kfree(tree_root);
 	} else {
 		char b[BDEVNAME_SIZE];
 

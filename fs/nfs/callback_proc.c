@@ -188,10 +188,10 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 			rv = NFS4ERR_DELAY;
 		list_del_init(&lo->plh_bulk_recall);
 		spin_unlock(&ino->i_lock);
+		pnfs_free_lseg_list(&free_me_list);
 		put_layout_hdr(lo);
 		iput(ino);
 	}
-	pnfs_free_lseg_list(&free_me_list);
 	return rv;
 }
 
@@ -373,17 +373,11 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 {
 	struct nfs_client *clp;
 	int i;
-	__be32 status;
+	__be32 status = htonl(NFS4ERR_BADSESSION);
 
 	cps->clp = NULL;
 
-	status = htonl(NFS4ERR_BADSESSION);
-	/* Incoming session must match the callback session */
-	if (memcmp(&args->csa_sessionid, cps->svc_sid, NFS4_MAX_SESSIONID_LEN))
-		goto out;
-
-	clp = nfs4_find_client_sessionid(args->csa_addr,
-					 &args->csa_sessionid, 1);
+	clp = nfs4_find_client_sessionid(args->csa_addr, &args->csa_sessionid);
 	if (clp == NULL)
 		goto out;
 
@@ -414,9 +408,9 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	nfs4_cb_take_slot(clp);
-	cps->clp = clp; /* put in nfs4_callback_compound */
 
 out:
+	cps->clp = clp; /* put in nfs4_callback_compound */
 	for (i = 0; i < args->csa_nrclists; i++)
 		kfree(args->csa_rclists[i].rcl_refcalls);
 	kfree(args->csa_rclists);

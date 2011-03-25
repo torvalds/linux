@@ -7,21 +7,9 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/module.h>
-#include <linux/clk.h>
-#include <linux/platform_device.h>
-
-#include <sound/core.h>
-#include <sound/pcm.h>
 #include <sound/soc.h>
 
-#include <plat/audio-simtec.h>
-
-#include "dma.h"
-#include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"
-
-#include "../codecs/tlv320aic23.h"
 
 /* supported machines:
  *
@@ -85,8 +73,8 @@ static int simtec_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link simtec_dai_aic23 = {
 	.name		= "tlv320aic23",
 	.stream_name	= "TLV320AIC23",
-	.codec_name	= "tlv320aic3x-codec.0-0x1a",
-	.cpu_dai_name	= "s3c24xx-i2s",
+	.codec_name	= "tlv320aic3x-codec.0-001a",
+	.cpu_dai_name	= "s3c24xx-iis",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.platform_name	= "samsung-audio",
 	.init		= simtec_tlv320aic23_init,

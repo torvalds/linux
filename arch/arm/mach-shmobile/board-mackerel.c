@@ -169,9 +169,8 @@
  *	SW1	|	SW33
  *		| bit1 | bit2 | bit3 | bit4
  * -------------+------+------+------+-------
- * MMC0	  OFF	|  OFF |  ON  |  ON  |  X
- * MMC1	  ON	|  OFF |  ON  |  X   | ON
- * SDHI1  OFF	|  ON  |   X  |  OFF | ON
+ * MMC0   OFF	|  OFF |   X  |  ON  |  X       (Use MMCIF)
+ * SDHI1  OFF	|  ON  |   X  |  OFF |  X       (Use MFD_SH_MOBILE_SDHI)
  *
  */
 
@@ -296,6 +295,18 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 	},
 };
 
+static int mackerel_set_brightness(void *board_data, int brightness)
+{
+	gpio_set_value(GPIO_PORT31, brightness);
+
+	return 0;
+}
+
+static int mackerel_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PORT31);
+}
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
@@ -304,10 +315,18 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.lcd_cfg = mackerel_lcdc_modes,
 		.num_cfg = ARRAY_SIZE(mackerel_lcdc_modes),
 		.interface_type		= RGB24,
-		.clock_divider		= 2,
+		.clock_divider		= 3,
 		.flags			= 0,
 		.lcd_size_cfg.width	= 152,
 		.lcd_size_cfg.height	= 91,
+		.board_cfg = {
+			.set_brightness = mackerel_set_brightness,
+			.get_brightness = mackerel_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
+		},
 	}
 };
 
@@ -398,6 +417,10 @@ static struct platform_device hdmi_device = {
 	.dev	= {
 		.platform_data	= &hdmi_info,
 	},
+};
+
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
 };
 
 static int __init hdmi_init_pm_clock(void)
@@ -610,16 +633,12 @@ fsi_set_rate_end:
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags =	SH_FSI_BRS_INV		|
-			SH_FSI_OUT_SLAVE_MODE	|
-			SH_FSI_IN_SLAVE_MODE	|
-			SH_FSI_OFMT(PCM)	|
-			SH_FSI_IFMT(PCM),
+	.porta_flags =	SH_FSI_BRS_INV,
 
 	.portb_flags =	SH_FSI_BRS_INV	|
 			SH_FSI_BRM_INV	|
 			SH_FSI_LRS_INV	|
-			SH_FSI_OFMT(SPDIF),
+			SH_FSI_FMT_SPDIF,
 
 	.set_rate = fsi_set_rate,
 };
@@ -902,7 +921,8 @@ static struct platform_device ceu_device = {
 	.num_resources	= ARRAY_SIZE(ceu_resources),
 	.resource	= ceu_resources,
 	.dev		= {
-		.platform_data	= &sh_mobile_ceu_info,
+		.platform_data		= &sh_mobile_ceu_info,
+		.coherent_dma_mask	= 0xffffffff,
 	},
 };
 
@@ -922,6 +942,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&leds_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&fsi_hdmi_device,
 	&sdhi0_device,
 #if !defined(CONFIG_MMC_SH_MMCIF)
 	&sdhi1_device,
@@ -1059,7 +1080,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_LCDDCK,   NULL);
 
 	gpio_request(GPIO_PORT31, NULL); /* backlight */
-	gpio_direction_output(GPIO_PORT31, 1);
+	gpio_direction_output(GPIO_PORT31, 0); /* off by default */
 
 	gpio_request(GPIO_PORT151, NULL); /* LCDDON */
 	gpio_direction_output(GPIO_PORT151, 1);

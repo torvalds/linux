@@ -187,15 +187,6 @@ static struct page *drbd_pp_first_pages_or_try_alloc(struct drbd_conf *mdev, int
 	return NULL;
 }
 
-/* kick lower level device, if we have more than (arbitrary number)
- * reference counts on it, which typically are locally submitted io
- * requests.  don't use unacked_cnt, so we speed up proto A and B, too. */
-static void maybe_kick_lo(struct drbd_conf *mdev)
-{
-	if (atomic_read(&mdev->local_cnt) >= mdev->net_conf->unplug_watermark)
-		drbd_kick_lo(mdev);
-}
-
 static void reclaim_net_ee(struct drbd_conf *mdev, struct list_head *to_be_freed)
 {
 	struct drbd_epoch_entry *e;
@@ -219,7 +210,6 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
 	LIST_HEAD(reclaimed);
 	struct drbd_epoch_entry *e, *t;
 
-	maybe_kick_lo(mdev);
 	spin_lock_irq(&mdev->req_lock);
 	reclaim_net_ee(mdev, &reclaimed);
 	spin_unlock_irq(&mdev->req_lock);
@@ -436,8 +426,7 @@ void _drbd_wait_ee_list_empty(struct drbd_conf *mdev, struct list_head *head)
 	while (!list_empty(head)) {
 		prepare_to_wait(&mdev->ee_wait, &wait, TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(&mdev->req_lock);
-		drbd_kick_lo(mdev);
-		schedule();
+		io_schedule();
 		finish_wait(&mdev->ee_wait, &wait);
 		spin_lock_irq(&mdev->req_lock);
 	}
@@ -1111,8 +1100,6 @@ next_bio:
 	/* > e->sector, unless this is the first bio */
 	bio->bi_sector = sector;
 	bio->bi_bdev = mdev->ldev->backing_bdev;
-	/* we special case some flags in the multi-bio case, see below
-	 * (REQ_UNPLUG) */
 	bio->bi_rw = rw;
 	bio->bi_private = e;
 	bio->bi_end_io = drbd_endio_sec;
@@ -1141,13 +1128,8 @@ next_bio:
 		bios = bios->bi_next;
 		bio->bi_next = NULL;
 
-		/* strip off REQ_UNPLUG unless it is the last bio */
-		if (bios)
-			bio->bi_rw &= ~REQ_UNPLUG;
-
 		drbd_generic_make_request(mdev, fault_type, bio);
 	} while (bios);
-	maybe_kick_lo(mdev);
 	return 0;
 
 fail:
@@ -1166,9 +1148,6 @@ static int receive_Barrier(struct drbd_conf *mdev, enum drbd_packets cmd, unsign
 	struct drbd_epoch *epoch;
 
 	inc_unacked(mdev);
-
-	if (mdev->net_conf->wire_protocol != DRBD_PROT_C)
-		drbd_kick_lo(mdev);
 
 	mdev->current_epoch->barrier_nr = p->barrier;
 	rv = drbd_may_finish_epoch(mdev, mdev->current_epoch, EV_GOT_BARRIER_NR);
@@ -1636,12 +1615,11 @@ static unsigned long write_flags_to_bio(struct drbd_conf *mdev, u32 dpf)
 {
 	if (mdev->agreed_pro_version >= 95)
 		return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
-			(dpf & DP_UNPLUG ? REQ_UNPLUG : 0) |
 			(dpf & DP_FUA ? REQ_FUA : 0) |
 			(dpf & DP_FLUSH ? REQ_FUA : 0) |
 			(dpf & DP_DISCARD ? REQ_DISCARD : 0);
 	else
-		return dpf & DP_RW_SYNC ? (REQ_SYNC | REQ_UNPLUG) : 0;
+		return dpf & DP_RW_SYNC ? REQ_SYNC : 0;
 }
 
 /* mirrored write */
@@ -3556,9 +3534,6 @@ static int receive_skip(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 static int receive_UnplugRemote(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
 {
-	if (mdev->state.disk >= D_INCONSISTENT)
-		drbd_kick_lo(mdev);
-
 	/* Make sure we've acked all the TCP data associated
 	 * with the data requests being unplugged */
 	drbd_tcp_quickack(mdev->data.socket);

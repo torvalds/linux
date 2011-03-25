@@ -220,15 +220,12 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	vdev->ud.tcp_socket = socket;
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
 
+	wake_up_process(vdev->ud.tcp_rx);
+	wake_up_process(vdev->ud.tcp_tx);
+
 	spin_unlock(&vdev->ud.lock);
 	spin_unlock(&the_controller->lock);
 	/* end the lock */
-
-	/*
-	 * this function will sleep, so should be out of the lock. but, it's ok
-	 * because we already marked vdev as being used. really?
-	 */
-	usbip_start_threads(&vdev->ud);
 
 	rh_port_connect(rhport, speed);
 

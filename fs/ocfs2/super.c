@@ -1316,7 +1316,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 			       struct mount_options *mopt,
 			       int is_remount)
 {
-	int status;
+	int status, user_stack = 0;
 	char *p;
 	u32 tmp;
 
@@ -1459,6 +1459,15 @@ static int ocfs2_parse_options(struct super_block *sb,
 			memcpy(mopt->cluster_stack, args[0].from,
 			       OCFS2_STACK_LABEL_LEN);
 			mopt->cluster_stack[OCFS2_STACK_LABEL_LEN] = '\0';
+			/*
+			 * Open code the memcmp here as we don't have
+			 * an osb to pass to
+			 * ocfs2_userspace_stack().
+			 */
+			if (memcmp(mopt->cluster_stack,
+				   OCFS2_CLASSIC_CLUSTER_STACK,
+				   OCFS2_STACK_LABEL_LEN))
+				user_stack = 1;
 			break;
 		case Opt_inode64:
 			mopt->mount_opt |= OCFS2_MOUNT_INODE64;
@@ -1514,13 +1523,16 @@ static int ocfs2_parse_options(struct super_block *sb,
 		}
 	}
 
-	/* Ensure only one heartbeat mode */
-	tmp = mopt->mount_opt & (OCFS2_MOUNT_HB_LOCAL | OCFS2_MOUNT_HB_GLOBAL |
-				 OCFS2_MOUNT_HB_NONE);
-	if (hweight32(tmp) != 1) {
-		mlog(ML_ERROR, "Invalid heartbeat mount options\n");
-		status = 0;
-		goto bail;
+	if (user_stack == 0) {
+		/* Ensure only one heartbeat mode */
+		tmp = mopt->mount_opt & (OCFS2_MOUNT_HB_LOCAL |
+					 OCFS2_MOUNT_HB_GLOBAL |
+					 OCFS2_MOUNT_HB_NONE);
+		if (hweight32(tmp) != 1) {
+			mlog(ML_ERROR, "Invalid heartbeat mount options\n");
+			status = 0;
+			goto bail;
+		}
 	}
 
 	status = 1;
@@ -1645,16 +1657,11 @@ static int __init ocfs2_init(void)
 		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
 	}
 
-	status = ocfs2_quota_setup();
-	if (status)
-		goto leave;
-
 	ocfs2_set_locking_protocol();
 
 	status = register_quota_format(&ocfs2_quota_format);
 leave:
 	if (status < 0) {
-		ocfs2_quota_shutdown();
 		ocfs2_free_mem_caches();
 		exit_ocfs2_uptodate_cache();
 	}
@@ -1670,8 +1677,6 @@ leave:
 static void __exit ocfs2_exit(void)
 {
 	mlog_entry_void();
-
-	ocfs2_quota_shutdown();
 
 	if (ocfs2_wq) {
 		flush_workqueue(ocfs2_wq);

@@ -34,11 +34,12 @@
 #include <asm/bitops.h>
 #include <asm/atomic.h>
 #include <asm/traps.h>
+#include <asm/bitsperlong.h>
 
-#define IPIPE_ARCH_STRING     "1.12-00"
+#define IPIPE_ARCH_STRING     "1.16-01"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    12
-#define IPIPE_PATCH_NUMBER    0
+#define IPIPE_MINOR_NUMBER    16
+#define IPIPE_PATCH_NUMBER    1
 
 #ifdef CONFIG_SMP
 #error "I-pipe/blackfin: SMP not implemented"
@@ -55,25 +56,19 @@ do {						\
 #define task_hijacked(p)						\
 	({								\
 		int __x__ = __ipipe_root_domain_p;			\
-		__clear_bit(IPIPE_SYNC_FLAG, &ipipe_root_cpudom_var(status)); \
 		if (__x__)						\
-			hard_local_irq_enable();				\
+			hard_local_irq_enable();			\
 		!__x__;							\
 	})
 
 struct ipipe_domain;
 
 struct ipipe_sysinfo {
-
-	int ncpus;		/* Number of CPUs on board */
-	u64 cpufreq;		/* CPU frequency (in Hz) */
-
-	/* Arch-dependent block */
-
-	struct {
-		unsigned tmirq;	/* Timer tick IRQ */
-		u64 tmfreq;	/* Timer frequency */
-	} archdep;
+	int sys_nr_cpus;	/* Number of CPUs on board */
+	int sys_hrtimer_irq;	/* hrtimer device IRQ */
+	u64 sys_hrtimer_freq;	/* hrtimer device frequency */
+	u64 sys_hrclock_freq;	/* hrclock device frequency */
+	u64 sys_cpu_freq;	/* CPU frequency (Hz) */
 };
 
 #define ipipe_read_tsc(t)					\
@@ -115,9 +110,19 @@ void __ipipe_enable_irqdesc(struct ipipe_domain *ipd,
 void __ipipe_disable_irqdesc(struct ipipe_domain *ipd,
 			     unsigned irq);
 
-#define __ipipe_enable_irq(irq)		(irq_desc[irq].chip->unmask(irq))
+#define __ipipe_enable_irq(irq)						\
+	do {								\
+		struct irq_desc *desc = irq_to_desc(irq);		\
+		struct irq_chip *chip = get_irq_desc_chip(desc);	\
+		chip->irq_unmask(&desc->irq_data);			\
+	} while (0)
 
-#define __ipipe_disable_irq(irq)	(irq_desc[irq].chip->mask(irq))
+#define __ipipe_disable_irq(irq)					\
+	do {								\
+		struct irq_desc *desc = irq_to_desc(irq);		\
+		struct irq_chip *chip = get_irq_desc_chip(desc);	\
+		chip->irq_mask(&desc->irq_data);			\
+	} while (0)
 
 static inline int __ipipe_check_tickdev(const char *devname)
 {
@@ -128,12 +133,11 @@ void __ipipe_enable_pipeline(void);
 
 #define __ipipe_hook_critical_ipi(ipd) do { } while (0)
 
-#define __ipipe_sync_pipeline  ___ipipe_sync_pipeline
-void ___ipipe_sync_pipeline(unsigned long syncmask);
+void ___ipipe_sync_pipeline(void);
 
 void __ipipe_handle_irq(unsigned irq, struct pt_regs *regs);
 
-int __ipipe_get_irq_priority(unsigned irq);
+int __ipipe_get_irq_priority(unsigned int irq);
 
 void __ipipe_serial_debug(const char *fmt, ...);
 
@@ -152,7 +156,10 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 	return ffs(ul) - 1;
 }
 
-#define __ipipe_run_irqtail()  /* Must be a macro */			\
+#define __ipipe_do_root_xirq(ipd, irq)					\
+	((ipd)->irqs[irq].handler(irq, &__raw_get_cpu_var(__ipipe_tick_regs)))
+
+#define __ipipe_run_irqtail(irq)  /* Must be a macro */			\
 	do {								\
 		unsigned long __pending;				\
 		CSYNC();						\
@@ -164,42 +171,8 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 		}							\
 	} while (0)
 
-#define __ipipe_run_isr(ipd, irq)					\
-	do {								\
-		if (!__ipipe_pipeline_head_p(ipd))			\
-			hard_local_irq_enable();				\
-		if (ipd == ipipe_root_domain) {				\
-			if (unlikely(ipipe_virtual_irq_p(irq))) {	\
-				irq_enter();				\
-				ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
-				irq_exit();				\
-			} else 						\
-				ipd->irqs[irq].handler(irq, &__raw_get_cpu_var(__ipipe_tick_regs)); \
-		} else {						\
-			__clear_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
-			ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
-			/* Attempt to exit the outer interrupt level before \
-			 * starting the deferred IRQ processing. */	\
-			__ipipe_run_irqtail();				\
-			__set_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
-		}							\
-		hard_local_irq_disable();					\
-	} while (0)
-
 #define __ipipe_syscall_watched_p(p, sc)	\
-	(((p)->flags & PF_EVNOTIFY) || (unsigned long)sc >= NR_syscalls)
-
-void ipipe_init_irq_threads(void);
-
-int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
-
-#ifdef CONFIG_TICKSOURCE_CORETMR
-#define IRQ_SYSTMR		IRQ_CORETMR
-#define IRQ_PRIOTMR		IRQ_CORETMR
-#else
-#define IRQ_SYSTMR		IRQ_TIMER0
-#define IRQ_PRIOTMR		CONFIG_IRQ_TIMER0
-#endif
+	(ipipe_notifier_enabled_p(p) || (unsigned long)sc >= NR_syscalls)
 
 #ifdef CONFIG_BF561
 #define bfin_write_TIMER_DISABLE(val)	bfin_write_TMRS8_DISABLE(val)
@@ -219,21 +192,17 @@ int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 
 #define task_hijacked(p)		0
 #define ipipe_trap_notify(t, r)  	0
+#define __ipipe_root_tick_p(regs)	1
 
-#define ipipe_init_irq_threads()		do { } while (0)
-#define ipipe_start_irq_thread(irq, desc)	0
+#endif /* !CONFIG_IPIPE */
 
-#ifndef CONFIG_TICKSOURCE_GPTMR0
+#ifdef CONFIG_TICKSOURCE_CORETMR
 #define IRQ_SYSTMR		IRQ_CORETMR
 #define IRQ_PRIOTMR		IRQ_CORETMR
 #else
 #define IRQ_SYSTMR		IRQ_TIMER0
 #define IRQ_PRIOTMR		CONFIG_IRQ_TIMER0
 #endif
-
-#define __ipipe_root_tick_p(regs)	1
-
-#endif /* !CONFIG_IPIPE */
 
 #define ipipe_update_tick_evtdev(evtdev)	do { } while (0)
 

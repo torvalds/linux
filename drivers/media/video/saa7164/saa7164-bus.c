@@ -158,7 +158,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		return SAA_ERR_BAD_PARAMETER;
 	}
 
-	if ((msg->size > 0) && (buf == 0)) {
+	if ((msg->size > 0) && (buf == NULL)) {
 		printk(KERN_ERR "%s() Missing message buffer\n", __func__);
 		return SAA_ERR_BAD_PARAMETER;
 	}
@@ -315,7 +315,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 
 	saa7164_bus_verify(dev);
 
-	if (msg == 0)
+	if (msg == NULL)
 		return ret;
 
 	if (msg->size > dev->bus.m_wMaxReqSize) {
@@ -324,7 +324,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 		return ret;
 	}
 
-	if ((peekonly == 0) && (msg->size > 0) && (buf == 0)) {
+	if ((peekonly == 0) && (msg->size > 0) && (buf == NULL)) {
 		printk(KERN_ERR
 			"%s() Missing msg buf, size should be %d bytes\n",
 			__func__, msg->size);
@@ -392,7 +392,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 
 		printk(KERN_ERR "%s() Unexpected msg miss-match\n", __func__);
 		saa7164_bus_dumpmsg(dev, msg, buf);
-		saa7164_bus_dumpmsg(dev, &msg_tmp, 0);
+		saa7164_bus_dumpmsg(dev, &msg_tmp, NULL);
 		ret = SAA_ERR_INVALID_COMMAND;
 		goto out;
 	}

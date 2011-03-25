@@ -89,25 +89,6 @@ union acpi_parse_object;
 #define ACPI_MAX_MUTEX                  7
 #define ACPI_NUM_MUTEX                  ACPI_MAX_MUTEX+1
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-#ifdef DEFINE_ACPI_GLOBALS
-
-/* Debug names for the mutexes above */
-
-static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
-	"ACPI_MTX_Interpreter",
-	"ACPI_MTX_Namespace",
-	"ACPI_MTX_Tables",
-	"ACPI_MTX_Events",
-	"ACPI_MTX_Caches",
-	"ACPI_MTX_Memory",
-	"ACPI_MTX_CommandComplete",
-	"ACPI_MTX_CommandReady"
-};
-
-#endif
-#endif
-
 /* Lock structure for reader/writer interfaces */
 
 struct acpi_rw_lock {
@@ -416,10 +397,15 @@ struct acpi_gpe_handler_info {
 	u8 originally_enabled;  /* True if GPE was originally enabled */
 };
 
+struct acpi_gpe_notify_object {
+	struct acpi_namespace_node *node;
+	struct acpi_gpe_notify_object *next;
+};
+
 union acpi_gpe_dispatch_info {
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
-	struct acpi_namespace_node *device_node;        /* Parent _PRW device for implicit notify */
+	struct acpi_gpe_notify_object device;   /* List of _PRW devices for implicit notify */
 };
 
 /*

@@ -468,32 +468,32 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 					 union sctp_addr *saddr)
 {
 	struct rtable *rt;
-	struct flowi fl;
+	struct flowi4 fl4;
 	struct sctp_bind_addr *bp;
 	struct sctp_sockaddr_entry *laddr;
 	struct dst_entry *dst = NULL;
 	union sctp_addr dst_saddr;
 
-	memset(&fl, 0x0, sizeof(struct flowi));
-	fl.fl4_dst  = daddr->v4.sin_addr.s_addr;
-	fl.fl_ip_dport = daddr->v4.sin_port;
-	fl.proto = IPPROTO_SCTP;
+	memset(&fl4, 0x0, sizeof(struct flowi4));
+	fl4.daddr  = daddr->v4.sin_addr.s_addr;
+	fl4.fl4_dport = daddr->v4.sin_port;
+	fl4.flowi4_proto = IPPROTO_SCTP;
 	if (asoc) {
-		fl.fl4_tos = RT_CONN_FLAGS(asoc->base.sk);
-		fl.oif = asoc->base.sk->sk_bound_dev_if;
-		fl.fl_ip_sport = htons(asoc->base.bind_addr.port);
+		fl4.flowi4_tos = RT_CONN_FLAGS(asoc->base.sk);
+		fl4.flowi4_oif = asoc->base.sk->sk_bound_dev_if;
+		fl4.fl4_sport = htons(asoc->base.bind_addr.port);
 	}
 	if (saddr) {
-		fl.fl4_src = saddr->v4.sin_addr.s_addr;
-		fl.fl_ip_sport = saddr->v4.sin_port;
+		fl4.saddr = saddr->v4.sin_addr.s_addr;
+		fl4.fl4_sport = saddr->v4.sin_port;
 	}
 
 	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
-			  __func__, &fl.fl4_dst, &fl.fl4_src);
+			  __func__, &fl4.daddr, &fl4.saddr);
 
-	if (!ip_route_output_key(&init_net, &rt, &fl)) {
+	rt = ip_route_output_key(&init_net, &fl4);
+	if (!IS_ERR(rt))
 		dst = &rt->dst;
-	}
 
 	/* If there is no association or if a source address is passed, no
 	 * more validation is required.
@@ -533,9 +533,10 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			continue;
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
-			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
-			fl.fl_ip_sport = laddr->a.v4.sin_port;
-			if (!ip_route_output_key(&init_net, &rt, &fl)) {
+			fl4.saddr = laddr->a.v4.sin_addr.s_addr;
+			fl4.fl4_sport = laddr->a.v4.sin_port;
+			rt = ip_route_output_key(&init_net, &fl4);
+			if (!IS_ERR(rt)) {
 				dst = &rt->dst;
 				goto out_unlock;
 			}

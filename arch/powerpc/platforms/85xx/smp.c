@@ -91,10 +91,14 @@ smp_85xx_kick_cpu(int nr)
 	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
 		mdelay(1);
 #else
+	smp_generic_kick_cpu(nr);
+
 	out_be64((u64 *)(bptr_vaddr + BOOT_ENTRY_ADDR_UPPER),
 		__pa((u64)*((unsigned long long *) generic_secondary_smp_init)));
 
-	smp_generic_kick_cpu(nr);
+	if (!ioremappable)
+		flush_dcache_range((ulong)bptr_vaddr,
+				(ulong)(bptr_vaddr + SIZE_BOOT_ENTRY));
 #endif
 
 	local_irq_restore(flags);

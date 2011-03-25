@@ -165,8 +165,8 @@ static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 };
 
-#define GPIO_LED1	(2 * 32 + 29)
-#define GPIO_SWITCH1	(2 * 32 + 25)
+#define GPIO_LED1	IMX_GPIO_NR(3, 29)
+#define GPIO_SWITCH1	IMX_GPIO_NR(3, 25)
 #define GPIO_LCDPWR	(4)
 
 static void eukrea_mbimxsd_lcd_power_set(struct plat_lcd_data *pd,

@@ -695,20 +695,22 @@ static int i2o_block_ioctl(struct block_device *bdev, fmode_t mode,
 };
 
 /**
- *	i2o_block_media_changed - Have we seen a media change?
+ *	i2o_block_check_events - Have we seen a media change?
  *	@disk: gendisk which should be verified
+ *	@clearing: events being cleared
  *
  *	Verifies if the media has changed.
  *
  *	Returns 1 if the media was changed or 0 otherwise.
  */
-static int i2o_block_media_changed(struct gendisk *disk)
+static unsigned int i2o_block_check_events(struct gendisk *disk,
+					   unsigned int clearing)
 {
 	struct i2o_block_device *p = disk->private_data;
 
 	if (p->media_change_flag) {
 		p->media_change_flag = 0;
-		return 1;
+		return DISK_EVENT_MEDIA_CHANGE;
 	}
 	return 0;
 }
@@ -895,11 +897,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 {
 	struct request *req;
 
-	while (!blk_queue_plugged(q)) {
-		req = blk_peek_request(q);
-		if (!req)
-			break;
-
+	while ((req = blk_peek_request(q)) != NULL) {
 		if (req->cmd_type == REQ_TYPE_FS) {
 			struct i2o_block_delayed_request *dreq;
 			struct i2o_block_request *ireq = req->special;
@@ -950,7 +948,7 @@ static const struct block_device_operations i2o_block_fops = {
 	.ioctl = i2o_block_ioctl,
 	.compat_ioctl = i2o_block_ioctl,
 	.getgeo = i2o_block_getgeo,
-	.media_changed = i2o_block_media_changed
+	.check_events = i2o_block_check_events,
 };
 
 /**
@@ -1002,6 +1000,7 @@ static struct i2o_block_device *i2o_block_device_alloc(void)
 	gd->major = I2O_MAJOR;
 	gd->queue = queue;
 	gd->fops = &i2o_block_fops;
+	gd->events = DISK_EVENT_MEDIA_CHANGE;
 	gd->private_data = dev;
 
 	dev->gd = gd;

@@ -401,9 +401,8 @@ _xfs_buf_lookup_pages(
 			 * handle buffer allocation failures we can't do much.
 			 */
 			if (!(++retries % 100))
-				printk(KERN_ERR
-					"XFS: possible memory allocation "
-					"deadlock in %s (mode:0x%x)\n",
+				xfs_err(NULL,
+		"possible memory allocation deadlock in %s (mode:0x%x)",
 					__func__, gfp_mask);
 
 			XFS_STATS_INC(xb_page_retries);
@@ -615,8 +614,8 @@ xfs_buf_get(
 	if (!(bp->b_flags & XBF_MAPPED)) {
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
-			printk(KERN_WARNING "%s: failed to map pages\n",
-					__func__);
+			xfs_warn(target->bt_mount,
+				"%s: failed to map pages\n", __func__);
 			goto no_buffer;
 		}
 	}
@@ -850,8 +849,8 @@ xfs_buf_get_uncached(
 
 	error = _xfs_buf_map_pages(bp, XBF_MAPPED);
 	if (unlikely(error)) {
-		printk(KERN_WARNING "%s: failed to map pages\n",
-				__func__);
+		xfs_warn(target->bt_mount,
+			"%s: failed to map pages\n", __func__);
 		goto fail_free_mem;
 	}
 
@@ -991,7 +990,7 @@ xfs_buf_lock(
 	if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
 		xfs_log_force(bp->b_target->bt_mount, 0);
 	if (atomic_read(&bp->b_io_remaining))
-		blk_run_address_space(bp->b_target->bt_mapping);
+		blk_flush_plug(current);
 	down(&bp->b_sema);
 	XB_SET_OWNER(bp);
 
@@ -1035,9 +1034,7 @@ xfs_buf_wait_unpin(
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (atomic_read(&bp->b_pin_count) == 0)
 			break;
-		if (atomic_read(&bp->b_io_remaining))
-			blk_run_address_space(bp->b_target->bt_mapping);
-		schedule();
+		io_schedule();
 	}
 	remove_wait_queue(&bp->b_waiters, &wait);
 	set_current_state(TASK_RUNNING);
@@ -1443,7 +1440,7 @@ xfs_buf_iowait(
 	trace_xfs_buf_iowait(bp, _RET_IP_);
 
 	if (atomic_read(&bp->b_io_remaining))
-		blk_run_address_space(bp->b_target->bt_mapping);
+		blk_flush_plug(current);
 	wait_for_completion(&bp->b_iowait);
 
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
@@ -1617,8 +1614,8 @@ xfs_setsize_buftarg_flags(
 	btp->bt_smask = sectorsize - 1;
 
 	if (set_blocksize(btp->bt_bdev, sectorsize)) {
-		printk(KERN_WARNING
-			"XFS: Cannot set_blocksize to %u on device %s\n",
+		xfs_warn(btp->bt_mount,
+			"Cannot set_blocksize to %u on device %s\n",
 			sectorsize, XFS_BUFTARG_NAME(btp));
 		return EINVAL;
 	}
@@ -1667,7 +1664,6 @@ xfs_mapping_buftarg(
 	struct inode		*inode;
 	struct address_space	*mapping;
 	static const struct address_space_operations mapping_aops = {
-		.sync_page = block_sync_page,
 		.migratepage = fail_migrate_page,
 	};
 
@@ -1948,7 +1944,7 @@ xfsbufd(
 			count++;
 		}
 		if (count)
-			blk_run_address_space(target->bt_mapping);
+			blk_flush_plug(current);
 
 	} while (!kthread_should_stop());
 
@@ -1996,7 +1992,7 @@ xfs_flush_buftarg(
 
 	if (wait) {
 		/* Expedite and wait for IO to complete. */
-		blk_run_address_space(target->bt_mapping);
+		blk_flush_plug(current);
 		while (!list_empty(&wait_list)) {
 			bp = list_first_entry(&wait_list, struct xfs_buf, b_list);
 
@@ -2022,11 +2018,12 @@ xfs_buf_init(void)
 	if (!xfslogd_workqueue)
 		goto out_free_buf_zone;
 
-	xfsdatad_workqueue = create_workqueue("xfsdatad");
+	xfsdatad_workqueue = alloc_workqueue("xfsdatad", WQ_MEM_RECLAIM, 1);
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
-	xfsconvertd_workqueue = create_workqueue("xfsconvertd");
+	xfsconvertd_workqueue = alloc_workqueue("xfsconvertd",
+						WQ_MEM_RECLAIM, 1);
 	if (!xfsconvertd_workqueue)
 		goto out_destroy_xfsdatad_workqueue;
 

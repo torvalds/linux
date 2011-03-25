@@ -396,35 +396,6 @@ static void igbvf_put_txbuf(struct igbvf_adapter *adapter,
 	buffer_info->time_stamp = 0;
 }
 
-static void igbvf_print_tx_hang(struct igbvf_adapter *adapter)
-{
-	struct igbvf_ring *tx_ring = adapter->tx_ring;
-	unsigned int i = tx_ring->next_to_clean;
-	unsigned int eop = tx_ring->buffer_info[i].next_to_watch;
-	union e1000_adv_tx_desc *eop_desc = IGBVF_TX_DESC_ADV(*tx_ring, eop);
-
-	/* detected Tx unit hang */
-	dev_err(&adapter->pdev->dev,
-	        "Detected Tx Unit Hang:\n"
-	        "  TDH                  <%x>\n"
-	        "  TDT                  <%x>\n"
-	        "  next_to_use          <%x>\n"
-	        "  next_to_clean        <%x>\n"
-	        "buffer_info[next_to_clean]:\n"
-	        "  time_stamp           <%lx>\n"
-	        "  next_to_watch        <%x>\n"
-	        "  jiffies              <%lx>\n"
-	        "  next_to_watch.status <%x>\n",
-	        readl(adapter->hw.hw_addr + tx_ring->head),
-	        readl(adapter->hw.hw_addr + tx_ring->tail),
-	        tx_ring->next_to_use,
-	        tx_ring->next_to_clean,
-	        tx_ring->buffer_info[eop].time_stamp,
-	        eop,
-	        jiffies,
-	        eop_desc->wb.status);
-}
-
 /**
  * igbvf_setup_tx_resources - allocate Tx resources (Descriptors)
  * @adapter: board private structure
@@ -771,7 +742,6 @@ static void igbvf_set_itr(struct igbvf_adapter *adapter)
 static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 {
 	struct igbvf_adapter *adapter = tx_ring->adapter;
-	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 	struct igbvf_buffer *buffer_info;
 	struct sk_buff *skb;
@@ -832,22 +802,6 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		}
 	}
 
-	if (adapter->detect_tx_hung) {
-		/* Detect a transmit hang in hardware, this serializes the
-		 * check with the clearing of time_stamp and movement of i */
-		adapter->detect_tx_hung = false;
-		if (tx_ring->buffer_info[i].time_stamp &&
-		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp +
-		               (adapter->tx_timeout_factor * HZ)) &&
-		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
-
-			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
-			/* detected Tx unit hang */
-			igbvf_print_tx_hang(adapter);
-
-			netif_stop_queue(netdev);
-		}
-	}
 	adapter->net_stats.tx_bytes += total_bytes;
 	adapter->net_stats.tx_packets += total_packets;
 	return count < tx_ring->count;
@@ -1863,17 +1817,6 @@ static void igbvf_watchdog_task(struct work_struct *work)
 			                          &adapter->link_duplex);
 			igbvf_print_link_info(adapter);
 
-			/* adjust timeout factor according to speed/duplex */
-			adapter->tx_timeout_factor = 1;
-			switch (adapter->link_speed) {
-			case SPEED_10:
-				adapter->tx_timeout_factor = 16;
-				break;
-			case SPEED_100:
-				/* maybe add some timeout factor ? */
-				break;
-			}
-
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
 		}
@@ -1906,9 +1849,6 @@ static void igbvf_watchdog_task(struct work_struct *work)
 
 	/* Cause software interrupt to ensure Rx ring is cleaned */
 	ew32(EICS, adapter->rx_ring->eims_value);
-
-	/* Force detection of hung controller every watchdog period */
-	adapter->detect_tx_hung = 1;
 
 	/* Reset the timer */
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
@@ -2699,8 +2639,7 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	hw->device_id = pdev->device;
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_device_id = pdev->subsystem_device;
-
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
+	hw->revision_id = pdev->revision;
 
 	err = -EIO;
 	adapter->hw.hw_addr = ioremap(pci_resource_start(pdev, 0),

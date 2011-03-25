@@ -529,7 +529,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
-	r = radeon_bo_create(rdev, NULL, 256 * 1024, PAGE_SIZE, true,
+	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_VRAM,
 				&rdev->stollen_vga_memory);
 	if (r) {
@@ -587,6 +587,20 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	radeon_ttm_global_fini(rdev);
 	rdev->mman.initialized = false;
 	DRM_INFO("radeon: ttm finalized\n");
+}
+
+/* this should only be called at bootup or when userspace
+ * isn't running */
+void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
+{
+	struct ttm_mem_type_manager *man;
+
+	if (!rdev->mman.initialized)
+		return;
+
+	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
+	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
+	man->size = size >> PAGE_SHIFT;
 }
 
 static struct vm_operations_struct radeon_ttm_vm_ops;
@@ -647,6 +661,7 @@ struct radeon_ttm_backend {
 	unsigned long			num_pages;
 	struct page			**pages;
 	struct page			*dummy_read_page;
+	dma_addr_t			*dma_addrs;
 	bool				populated;
 	bool				bound;
 	unsigned			offset;
@@ -655,12 +670,14 @@ struct radeon_ttm_backend {
 static int radeon_ttm_backend_populate(struct ttm_backend *backend,
 				       unsigned long num_pages,
 				       struct page **pages,
-				       struct page *dummy_read_page)
+				       struct page *dummy_read_page,
+				       dma_addr_t *dma_addrs)
 {
 	struct radeon_ttm_backend *gtt;
 
 	gtt = container_of(backend, struct radeon_ttm_backend, backend);
 	gtt->pages = pages;
+	gtt->dma_addrs = dma_addrs;
 	gtt->num_pages = num_pages;
 	gtt->dummy_read_page = dummy_read_page;
 	gtt->populated = true;
@@ -673,6 +690,7 @@ static void radeon_ttm_backend_clear(struct ttm_backend *backend)
 
 	gtt = container_of(backend, struct radeon_ttm_backend, backend);
 	gtt->pages = NULL;
+	gtt->dma_addrs = NULL;
 	gtt->num_pages = 0;
 	gtt->dummy_read_page = NULL;
 	gtt->populated = false;
@@ -693,7 +711,7 @@ static int radeon_ttm_backend_bind(struct ttm_backend *backend,
 		     gtt->num_pages, bo_mem, backend);
 	}
 	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     gtt->num_pages, gtt->pages);
+			     gtt->num_pages, gtt->pages, gtt->dma_addrs);
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
 			  gtt->num_pages, gtt->offset);
@@ -787,9 +805,9 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 		radeon_mem_types_list[i].show = &radeon_mm_dump_table;
 		radeon_mem_types_list[i].driver_features = 0;
 		if (i == 0)
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_VRAM].priv;
+			radeon_mem_types_list[i].data = rdev->mman.bdev.man[TTM_PL_VRAM].priv;
 		else
-			radeon_mem_types_list[i].data = &rdev->mman.bdev.man[TTM_PL_TT].priv;
+			radeon_mem_types_list[i].data = rdev->mman.bdev.man[TTM_PL_TT].priv;
 
 	}
 	/* Add ttm page pool to debugfs */

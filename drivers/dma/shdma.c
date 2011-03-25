@@ -750,7 +750,7 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 		return;
 	}
 
-	/* Find the first not transferred desciptor */
+	/* Find the first not transferred descriptor */
 	list_for_each_entry(desc, &sh_chan->ld_queue, node)
 		if (desc->mark == DESC_SUBMITTED) {
 			dev_dbg(sh_chan->dev, "Queue #%d to %d: %u@%x -> %x\n",

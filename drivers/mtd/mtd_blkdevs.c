@@ -124,7 +124,7 @@ int mtd_blktrans_cease_background(struct mtd_blktrans_dev *dev)
 	if (kthread_should_stop())
 		return 1;
 
-	return !elv_queue_empty(dev->rq);
+	return dev->bg_stop;
 }
 EXPORT_SYMBOL_GPL(mtd_blktrans_cease_background);
 
@@ -141,6 +141,7 @@ static int mtd_blktrans_thread(void *arg)
 	while (!kthread_should_stop()) {
 		int res;
 
+		dev->bg_stop = false;
 		if (!req && !(req = blk_fetch_request(rq))) {
 			if (tr->background && !background_done) {
 				spin_unlock_irq(rq->queue_lock);
@@ -152,7 +153,7 @@ static int mtd_blktrans_thread(void *arg)
 				 * Do background processing just once per idle
 				 * period.
 				 */
-				background_done = 1;
+				background_done = !dev->bg_stop;
 				continue;
 			}
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -198,8 +199,10 @@ static void mtd_blktrans_request(struct request_queue *rq)
 	if (!dev)
 		while ((req = blk_fetch_request(rq)) != NULL)
 			__blk_end_request_all(req, -ENODEV);
-	else
+	else {
+		dev->bg_stop = true;
 		wake_up_process(dev->thread);
+	}
 }
 
 static int blktrans_open(struct block_device *bdev, fmode_t mode)

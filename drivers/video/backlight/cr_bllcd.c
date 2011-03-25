@@ -193,6 +193,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	bdp = backlight_device_register("cr-backlight", &pdev->dev, NULL,
 					&cr_backlight_ops, &props);
 	if (IS_ERR(bdp)) {

@@ -811,8 +811,8 @@ static irqreturn_t cam_isr(int irq, void *data)
 	spin_lock_irqsave(&pcdev->lock, flags);
 
 	if (WARN_ON(!buf)) {
-		dev_warn(dev, "%s: unhandled camera interrupt, status == "
-				"%#x\n", __func__, it_status);
+		dev_warn(dev, "%s: unhandled camera interrupt, status == %#x\n",
+			 __func__, it_status);
 		suspend_capture(pcdev);
 		disable_capture(pcdev);
 		goto out;
@@ -1088,15 +1088,15 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 			xlate->host_fmt	= &omap1_cam_formats[code];
 			xlate->code	= code;
 			xlate++;
-			dev_dbg(dev, "%s: providing format %s "
-					"as byte swapped code #%d\n", __func__,
-					omap1_cam_formats[code].name, code);
+			dev_dbg(dev,
+				"%s: providing format %s as byte swapped code #%d\n",
+				__func__, omap1_cam_formats[code].name, code);
 		}
 	default:
 		if (xlate)
-			dev_dbg(dev, "%s: providing format %s "
-					"in pass-through mode\n", __func__,
-					fmt->name);
+			dev_dbg(dev,
+				"%s: providing format %s in pass-through mode\n",
+				__func__, fmt->name);
 	}
 	formats++;
 	if (xlate) {
@@ -1139,29 +1139,29 @@ static int dma_align(int *width, int *height,
 	return 1;
 }
 
-#define subdev_call_with_sense(pcdev, dev, icd, sd, function, args...)	   \
-({									   \
-	struct soc_camera_sense sense = {				   \
-		.master_clock		= pcdev->camexclk,		   \
-		.pixel_clock_max	= 0,				   \
-	};								   \
-	int __ret;							   \
-									   \
-	if (pcdev->pdata)						   \
-		sense.pixel_clock_max = pcdev->pdata->lclk_khz_max * 1000; \
-	icd->sense = &sense;						   \
-	__ret = v4l2_subdev_call(sd, video, function, ##args);		   \
-	icd->sense = NULL;						   \
-									   \
-	if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {			   \
-		if (sense.pixel_clock > sense.pixel_clock_max) {	   \
-			dev_err(dev, "%s: pixel clock %lu "		   \
-					"set by the camera too high!\n",   \
-					__func__, sense.pixel_clock);	   \
-			__ret = -EINVAL;				   \
-		}							   \
-	}								   \
-	__ret;								   \
+#define subdev_call_with_sense(pcdev, dev, icd, sd, function, args...)		     \
+({										     \
+	struct soc_camera_sense sense = {					     \
+		.master_clock		= pcdev->camexclk,			     \
+		.pixel_clock_max	= 0,					     \
+	};									     \
+	int __ret;								     \
+										     \
+	if (pcdev->pdata)							     \
+		sense.pixel_clock_max = pcdev->pdata->lclk_khz_max * 1000;	     \
+	icd->sense = &sense;							     \
+	__ret = v4l2_subdev_call(sd, video, function, ##args);			     \
+	icd->sense = NULL;							     \
+										     \
+	if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {				     \
+		if (sense.pixel_clock > sense.pixel_clock_max) {		     \
+			dev_err(dev,						     \
+				"%s: pixel clock %lu set by the camera too high!\n", \
+				__func__, sense.pixel_clock);			     \
+			__ret = -EINVAL;					     \
+		}								     \
+	}									     \
+	__ret;									     \
 })
 
 static int set_mbus_format(struct omap1_cam_dev *pcdev, struct device *dev,
@@ -1664,9 +1664,9 @@ static int __exit omap1_cam_remove(struct platform_device *pdev)
 	res = pcdev->res;
 	release_mem_region(res->start, resource_size(res));
 
-	kfree(pcdev);
-
 	clk_put(pcdev->clk);
+
+	kfree(pcdev);
 
 	dev_info(&pdev->dev, "OMAP1 Camera Interface driver unloaded\n");
 

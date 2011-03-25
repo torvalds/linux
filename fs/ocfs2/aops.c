@@ -2043,7 +2043,6 @@ const struct address_space_operations ocfs2_aops = {
 	.write_begin		= ocfs2_write_begin,
 	.write_end		= ocfs2_write_end,
 	.bmap			= ocfs2_bmap,
-	.sync_page		= block_sync_page,
 	.direct_IO		= ocfs2_direct_IO,
 	.invalidatepage		= ocfs2_invalidatepage,
 	.releasepage		= ocfs2_releasepage,

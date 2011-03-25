@@ -52,16 +52,16 @@ static irqreturn_t mmu_fault_isr(int irq, void *data)
 	if (!deh)
 		return IRQ_HANDLED;
 
-	resources = deh->hbridge_context->resources;
+	resources = deh->bridge_context->resources;
 	if (!resources) {
 		dev_dbg(bridge, "%s: Failed to get Host Resources\n",
 				__func__);
 		return IRQ_HANDLED;
 	}
 
-	hw_mmu_event_status(resources->dw_dmmu_base, &event);
+	hw_mmu_event_status(resources->dmmu_base, &event);
 	if (event == HW_MMU_TRANSLATION_FAULT) {
-		hw_mmu_fault_addr_read(resources->dw_dmmu_base, &fault_addr);
+		hw_mmu_fault_addr_read(resources->dmmu_base, &fault_addr);
 		dev_dbg(bridge, "%s: event=0x%x, fault_addr=0x%x\n", __func__,
 				event, fault_addr);
 		/*
@@ -73,10 +73,10 @@ static irqreturn_t mmu_fault_isr(int irq, void *data)
 
 		/* Disable the MMU events, else once we clear it will
 		 * start to raise INTs again */
-		hw_mmu_event_disable(resources->dw_dmmu_base,
+		hw_mmu_event_disable(resources->dmmu_base,
 				HW_MMU_TRANSLATION_FAULT);
 	} else {
-		hw_mmu_event_disable(resources->dw_dmmu_base,
+		hw_mmu_event_disable(resources->dmmu_base,
 				HW_MMU_ALL_INTERRUPTS);
 	}
 	return IRQ_HANDLED;
@@ -113,7 +113,7 @@ int bridge_deh_create(struct deh_mgr **ret_deh,
 	tasklet_init(&deh->dpc_tasklet, mmu_fault_dpc, (u32) deh);
 
 	/* Fill in context structure */
-	deh->hbridge_context = hbridge_context;
+	deh->bridge_context = hbridge_context;
 
 	/* Install ISR function for DSP MMU fault */
 	status = request_irq(INT_DSP_MMU_IRQ, mmu_fault_isr, 0,
@@ -185,10 +185,10 @@ static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 	 * access entry #0. Then add a new entry so that the DSP OS
 	 * can continue in order to dump the stack.
 	 */
-	hw_mmu_twl_disable(resources->dw_dmmu_base);
-	hw_mmu_tlb_flush_all(resources->dw_dmmu_base);
+	hw_mmu_twl_disable(resources->dmmu_base);
+	hw_mmu_tlb_flush_all(resources->dmmu_base);
 
-	hw_mmu_tlb_add(resources->dw_dmmu_base,
+	hw_mmu_tlb_add(resources->dmmu_base,
 			virt_to_phys(dummy_va_addr), fault_addr,
 			HW_PAGE_SIZE4KB, 1,
 			&map_attrs, HW_SET, HW_SET);
@@ -198,12 +198,12 @@ static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 	dsp_gpt_wait_overflow(DSP_CLK_GPT8, 0xfffffffe);
 
 	/* Clear MMU interrupt */
-	hw_mmu_event_ack(resources->dw_dmmu_base,
+	hw_mmu_event_ack(resources->dmmu_base,
 			HW_MMU_TRANSLATION_FAULT);
 	dump_dsp_stack(dev_context);
 	dsp_clk_disable(DSP_CLK_GPT8);
 
-	hw_mmu_disable(resources->dw_dmmu_base);
+	hw_mmu_disable(resources->dmmu_base);
 	free_page((unsigned long)dummy_va_addr);
 }
 #endif
@@ -228,7 +228,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 		return;
 
 	dev_dbg(bridge, "%s: device exception", __func__);
-	dev_context = deh->hbridge_context;
+	dev_context = deh->bridge_context;
 
 	switch (event) {
 	case DSP_SYSERROR:
@@ -254,7 +254,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 	}
 
 	/* Filter subsequent notifications when an error occurs */
-	if (dev_context->dw_brd_state != BRD_ERROR) {
+	if (dev_context->brd_state != BRD_ERROR) {
 		ntfy_notify(deh->ntfy_obj, event);
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 		bridge_recover_schedule();
@@ -262,7 +262,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 	}
 
 	/* Set the Board state as ERROR */
-	dev_context->dw_brd_state = BRD_ERROR;
+	dev_context->brd_state = BRD_ERROR;
 	/* Disable all the clocks that were enabled by DSP */
 	dsp_clock_disable_all(dev_context->dsp_per_clks);
 	/*

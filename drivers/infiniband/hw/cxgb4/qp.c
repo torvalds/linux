@@ -31,9 +31,9 @@
  */
 #include "iw_cxgb4.h"
 
-static int ocqp_support;
+static int ocqp_support = 1;
 module_param(ocqp_support, int, 0644);
-MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=0)");
+MODULE_PARM_DESC(ocqp_support, "Support on-chip SQs (default=1)");
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
 {
@@ -220,7 +220,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		V_FW_RI_RES_WR_DCAEN(0) |
 		V_FW_RI_RES_WR_DCACPU(0) |
 		V_FW_RI_RES_WR_FBMIN(2) |
-		V_FW_RI_RES_WR_FBMAX(3) |
+		V_FW_RI_RES_WR_FBMAX(2) |
 		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
 		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
 		V_FW_RI_RES_WR_EQSIZE(eqsize));
@@ -243,7 +243,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		V_FW_RI_RES_WR_DCAEN(0) |
 		V_FW_RI_RES_WR_DCACPU(0) |
 		V_FW_RI_RES_WR_FBMIN(2) |
-		V_FW_RI_RES_WR_FBMAX(3) |
+		V_FW_RI_RES_WR_FBMAX(2) |
 		V_FW_RI_RES_WR_CIDXFTHRESHO(0) |
 		V_FW_RI_RES_WR_CIDXFTHRESH(0) |
 		V_FW_RI_RES_WR_EQSIZE(eqsize));

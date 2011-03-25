@@ -27,7 +27,7 @@ struct ufs_buffer_head * _ubh_bread_ (struct ufs_sb_private_info * uspi,
 	if (count > UFS_MAXFRAG)
 		return NULL;
 	ubh = (struct ufs_buffer_head *)
-		kmalloc (sizeof (struct ufs_buffer_head), GFP_KERNEL);
+		kmalloc (sizeof (struct ufs_buffer_head), GFP_NOFS);
 	if (!ubh)
 		return NULL;
 	ubh->fragment = fragment;

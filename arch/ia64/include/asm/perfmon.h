@@ -7,7 +7,7 @@
 #define _ASM_IA64_PERFMON_H
 
 /*
- * perfmon comamnds supported on all CPU models
+ * perfmon commands supported on all CPU models
  */
 #define PFM_WRITE_PMCS		0x01
 #define PFM_WRITE_PMDS		0x02

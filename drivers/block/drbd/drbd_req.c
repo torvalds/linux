@@ -960,10 +960,6 @@ allocate_barrier:
 			bio_endio(req->private_bio, -EIO);
 	}
 
-	/* we need to plug ALWAYS since we possibly need to kick lo_dev.
-	 * we plug after submit, so we won't miss an unplug event */
-	drbd_plug_device(mdev);
-
 	return 0;
 
 fail_conflicting:

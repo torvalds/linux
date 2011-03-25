@@ -352,8 +352,8 @@ static int construct_alloc_key(struct key_type *type,
 			       struct key_user *user,
 			       struct key **_key)
 {
-	struct keyring_list *prealloc;
 	const struct cred *cred = current_cred();
+	unsigned long prealloc;
 	struct key *key;
 	key_ref_t key_ref;
 	int ret;
@@ -585,7 +585,7 @@ int wait_for_key_construction(struct key *key, bool intr)
 	if (ret < 0)
 		return ret;
 	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags))
-		return -ENOKEY;
+		return key->type_data.reject_error;
 	return key_validate(key);
 }
 EXPORT_SYMBOL(wait_for_key_construction);

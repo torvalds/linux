@@ -631,8 +631,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics) {
+	if (iwl_bt_statistics(priv)) {
 		rx_info = &(((struct iwl_bt_notif_statistics *)resp)->
 			      rx.general.common);
 		ofdm = &(((struct iwl_bt_notif_statistics *)resp)->rx.ofdm);
@@ -897,8 +896,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics) {
+	if (iwl_bt_statistics(priv)) {
 		rx_info = &(((struct iwl_bt_notif_statistics *)stat_resp)->
 			      rx.general.common);
 	} else {
@@ -913,8 +911,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 
 	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(ctx->staging.channel);
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->bt_statistics) {
+	if (iwl_bt_statistics(priv)) {
 		stat_band24 = !!(((struct iwl_bt_notif_statistics *)
 				 stat_resp)->flag &
 				 STATISTICS_REPLY_FLG_BAND_24G_MSK);

@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2009 Solarflare Communications Inc.
+ * Copyright 2005-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -41,7 +41,7 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"3.0"
+#define EFX_DRIVER_VERSION	"3.1"
 
 #ifdef EFX_ENABLE_DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -63,10 +63,12 @@
 /* Checksum generation is a per-queue option in hardware, so each
  * queue visible to the networking core is backed by two hardware TX
  * queues. */
-#define EFX_MAX_CORE_TX_QUEUES	EFX_MAX_CHANNELS
-#define EFX_TXQ_TYPE_OFFLOAD	1
-#define EFX_TXQ_TYPES		2
-#define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CORE_TX_QUEUES)
+#define EFX_MAX_TX_TC		2
+#define EFX_MAX_CORE_TX_QUEUES	(EFX_MAX_TX_TC * EFX_MAX_CHANNELS)
+#define EFX_TXQ_TYPE_OFFLOAD	1	/* flag */
+#define EFX_TXQ_TYPE_HIGHPRI	2	/* flag */
+#define EFX_TXQ_TYPES		4
+#define EFX_MAX_TX_QUEUES	(EFX_TXQ_TYPES * EFX_MAX_CHANNELS)
 
 /**
  * struct efx_special_buffer - An Efx special buffer
@@ -140,6 +142,7 @@ struct efx_tx_buffer {
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
+ * @initialised: Has hardware queue been initialised?
  * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
@@ -182,6 +185,7 @@ struct efx_tx_queue {
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
+	bool initialised;
 	enum efx_flush_state flushed;
 
 	/* Members used mainly on the completion path */
@@ -210,15 +214,17 @@ struct efx_tx_queue {
  *	If both this and page are %NULL, the buffer slot is currently free.
  * @page: The associated page buffer, if any.
  *	If both this and skb are %NULL, the buffer slot is currently free.
- * @data: Pointer to ethernet header
  * @len: Buffer length, in bytes.
+ * @is_page: Indicates if @page is valid. If false, @skb is valid.
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
-	struct sk_buff *skb;
-	struct page *page;
-	char *data;
+	union {
+		struct sk_buff *skb;
+		struct page *page;
+	} u;
 	unsigned int len;
+	bool is_page;
 };
 
 /**
@@ -358,6 +364,9 @@ struct efx_channel {
 
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
+#ifdef CONFIG_RFS_ACCEL
+	unsigned int rfs_filters_added;
+#endif
 
 	int rx_alloc_level;
 	int rx_alloc_push_pages;
@@ -377,7 +386,7 @@ struct efx_channel {
 	bool rx_pkt_csummed;
 
 	struct efx_rx_queue rx_queue;
-	struct efx_tx_queue tx_queue[2];
+	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
 };
 
 enum efx_led_mode {
@@ -906,7 +915,7 @@ struct efx_nic_type {
 	unsigned int phys_addr_channels;
 	unsigned int tx_dc_base;
 	unsigned int rx_dc_base;
-	unsigned long offload_features;
+	u32 offload_features;
 	u32 reset_world_flags;
 };
 
@@ -938,18 +947,40 @@ efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
 	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
 }
 
+static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
+{
+	return channel->channel - channel->efx->tx_channel_offset <
+		channel->efx->n_tx_channels;
+}
+
 static inline struct efx_tx_queue *
 efx_channel_get_tx_queue(struct efx_channel *channel, unsigned type)
 {
-	struct efx_tx_queue *tx_queue = channel->tx_queue;
-	EFX_BUG_ON_PARANOID(type >= EFX_TXQ_TYPES);
-	return tx_queue->channel ? tx_queue + type : NULL;
+	EFX_BUG_ON_PARANOID(!efx_channel_has_tx_queues(channel) ||
+			    type >= EFX_TXQ_TYPES);
+	return &channel->tx_queue[type];
+}
+
+static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
+{
+	return !(tx_queue->efx->net_dev->num_tc < 2 &&
+		 tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI);
 }
 
 /* Iterate over all TX queues belonging to a channel */
 #define efx_for_each_channel_tx_queue(_tx_queue, _channel)		\
-	for (_tx_queue = efx_channel_get_tx_queue(channel, 0);		\
-	     _tx_queue && _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES; \
+	if (!efx_channel_has_tx_queues(_channel))			\
+		;							\
+	else								\
+		for (_tx_queue = (_channel)->tx_queue;			\
+		     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES && \
+			     efx_tx_queue_used(_tx_queue);		\
+		     _tx_queue++)
+
+/* Iterate over all possible TX queues belonging to a channel */
+#define efx_for_each_possible_channel_tx_queue(_tx_queue, _channel)	\
+	for (_tx_queue = (_channel)->tx_queue;				\
+	     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;		\
 	     _tx_queue++)
 
 static inline struct efx_rx_queue *
@@ -959,18 +990,26 @@ efx_get_rx_queue(struct efx_nic *efx, unsigned index)
 	return &efx->channel[index]->rx_queue;
 }
 
+static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
+{
+	return channel->channel < channel->efx->n_rx_channels;
+}
+
 static inline struct efx_rx_queue *
 efx_channel_get_rx_queue(struct efx_channel *channel)
 {
-	return channel->channel < channel->efx->n_rx_channels ?
-		&channel->rx_queue : NULL;
+	EFX_BUG_ON_PARANOID(!efx_channel_has_rx_queue(channel));
+	return &channel->rx_queue;
 }
 
 /* Iterate over all RX queues belonging to a channel */
 #define efx_for_each_channel_rx_queue(_rx_queue, _channel)		\
-	for (_rx_queue = efx_channel_get_rx_queue(channel);		\
-	     _rx_queue;							\
-	     _rx_queue = NULL)
+	if (!efx_channel_has_rx_queue(_channel))			\
+		;							\
+	else								\
+		for (_rx_queue = &(_channel)->rx_queue;			\
+		     _rx_queue;						\
+		     _rx_queue = NULL)
 
 static inline struct efx_channel *
 efx_rx_queue_channel(struct efx_rx_queue *rx_queue)

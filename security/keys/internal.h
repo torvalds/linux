@@ -87,13 +87,13 @@ extern void key_type_put(struct key_type *ktype);
 extern int __key_link_begin(struct key *keyring,
 			    const struct key_type *type,
 			    const char *description,
-			    struct keyring_list **_prealloc);
+			    unsigned long *_prealloc);
 extern int __key_link_check_live_key(struct key *keyring, struct key *key);
 extern void __key_link(struct key *keyring, struct key *key,
-		       struct keyring_list **_prealloc);
+		       unsigned long *_prealloc);
 extern void __key_link_end(struct key *keyring,
 			   struct key_type *type,
-			   struct keyring_list *prealloc);
+			   unsigned long prealloc);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 				      const struct key_type *type,
@@ -214,6 +214,14 @@ extern long keyctl_assume_authority(key_serial_t);
 extern long keyctl_get_security(key_serial_t keyid, char __user *buffer,
 				size_t buflen);
 extern long keyctl_session_to_parent(void);
+extern long keyctl_reject_key(key_serial_t, unsigned, unsigned, key_serial_t);
+extern long keyctl_instantiate_key_iov(key_serial_t,
+				       const struct iovec __user *,
+				       unsigned, key_serial_t);
+
+extern long keyctl_instantiate_key_common(key_serial_t,
+					  const struct iovec __user *,
+					  unsigned, size_t, key_serial_t);
 
 /*
  * Debugging key validation

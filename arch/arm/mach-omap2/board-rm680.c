@@ -33,16 +33,13 @@
 #include "sdram-nokia.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
 /* Fixed regulator for internal eMMC */
 static struct regulator_init_data rm680_vemmc = {
 	.constraints =	{
 		.name			= "rm680_vemmc",
-		.min_uV			= 2900000,
-		.max_uV			= 2900000,
-		.apply_uV		= 1,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS
@@ -141,14 +138,13 @@ static void __init rm680_peripherals_init(void)
 	omap2_hsmmc_init(mmc);
 }
 
-static void __init rm680_init_irq(void)
+static void __init rm680_init_early(void)
 {
 	struct omap_sdrc_params *sdrc_params;
 
 	omap2_init_common_infrastructure();
 	sdrc_params = nokia_get_sdram_timings();
 	omap2_init_common_devices(sdrc_params, sdrc_params);
-	omap_init_irq();
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -179,9 +175,10 @@ static void __init rm680_map_io(void)
 
 MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.boot_params	= 0x80000100,
-	.map_io		= rm680_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= rm680_init_irq,
+	.map_io		= rm680_map_io,
+	.init_early	= rm680_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= rm680_init,
 	.timer		= &omap_timer,
 MACHINE_END

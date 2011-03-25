@@ -130,10 +130,12 @@ xfs_buf_item_log_check(
 	orig = bip->bli_orig;
 	buffer = XFS_BUF_PTR(bp);
 	for (x = 0; x < XFS_BUF_COUNT(bp); x++) {
-		if (orig[x] != buffer[x] && !btst(bip->bli_logged, x))
-			cmn_err(CE_PANIC,
-	"xfs_buf_item_log_check bip %x buffer %x orig %x index %d",
-				bip, bp, orig, x);
+		if (orig[x] != buffer[x] && !btst(bip->bli_logged, x)) {
+			xfs_emerg(bp->b_mount,
+				"%s: bip %x buffer %x orig %x index %d",
+				__func__, bip, bp, orig, x);
+			ASSERT(0);
+		}
 	}
 }
 #else
@@ -427,13 +429,15 @@ xfs_buf_item_unpin(
 
 		if (remove) {
 			/*
-			 * We have to remove the log item from the transaction
-			 * as we are about to release our reference to the
-			 * buffer.  If we don't, the unlock that occurs later
-			 * in xfs_trans_uncommit() will ry to reference the
+			 * If we are in a transaction context, we have to
+			 * remove the log item from the transaction as we are
+			 * about to release our reference to the buffer.  If we
+			 * don't, the unlock that occurs later in
+			 * xfs_trans_uncommit() will try to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			xfs_trans_del_item(lip);
+			if (lip->li_desc)
+				xfs_trans_del_item(lip);
 
 			/*
 			 * Since the transaction no longer refers to the buffer,
@@ -981,10 +985,9 @@ xfs_buf_iodone_callbacks(
 	if (XFS_BUF_TARGET(bp) != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
-		cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
-				" block 0x%llx in %s",
+		xfs_alert(mp, "Device %s: metadata write error block 0x%llx",
 			XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
-		      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
+		      (__uint64_t)XFS_BUF_ADDR(bp));
 	}
 	lasttarg = XFS_BUF_TARGET(bp);
 

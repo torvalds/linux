@@ -38,20 +38,6 @@
  */
 
 #ifdef MULTI_OMAP2
-
-/*
- * We use __glue to avoid errors with multiple definitions of
- * .globl omap_irq_base as it's included from entry-armv.S but not
- * from entry-common.S.
- */
-#ifdef __glue
-		.pushsection .data
-		.globl	omap_irq_base
-omap_irq_base:
-		.word	0
-		.popsection
-#endif
-
 		/*
 		 * Configure the interrupt base on the first interrupt.
 		 * See also omap_irq_base_init for setting omap_irq_base.
@@ -74,6 +60,14 @@ omap_irq_base:
 		cmp	\irqnr, #0x0
 		bne	9998f
 		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
+		cmp	\irqnr, #0x0
+		bne	9998f
+
+		/*
+		 * ti816x has additional IRQ pending register. Checking this
+		 * register on omap2 & omap3 has no effect (read as 0).
+		 */
+		ldr	\irqnr, [\base, #0xf8] /* IRQ pending reg 4 */
 		cmp	\irqnr, #0x0
 9998:
 		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
@@ -147,6 +141,11 @@ omap_irq_base:
 		bne	9999f
 		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
 		cmp	\irqnr, #0x0
+#ifdef CONFIG_SOC_OMAPTI816X
+		bne	9999f
+		ldr	\irqnr, [\base, #0xf8] /* IRQ pending reg 4 */
+		cmp	\irqnr, #0x0
+#endif
 9999:
 		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
 		and	\irqnr, \irqnr, #ACTIVEIRQ_MASK /* Clear spurious bits */

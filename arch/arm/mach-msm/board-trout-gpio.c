@@ -74,8 +74,6 @@ static int msm_gpiolib_direction_output(struct gpio_chip *chip,
 
 static int trout_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct msm_gpio_chip *msm_gpio = to_msm_gpio_chip(chip);
-
 	return TROUT_GPIO_TO_INT(offset + chip->base);
 }
 

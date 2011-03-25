@@ -709,6 +709,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, data);
 
 	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = ADP8860_MAX_BRIGHTNESS;
 
 	mutex_init(&data->lock);

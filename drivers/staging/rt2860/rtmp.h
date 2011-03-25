@@ -3611,7 +3611,7 @@ struct rt_rtmp_sg_list *rt_get_sg_list_from_packet(void *pPacket,
 
 void announce_802_3_packet(struct rt_rtmp_adapter *pAd, void *pPacket);
 
-u32 BA_Reorder_AMSDU_Annnounce(struct rt_rtmp_adapter *pAd, void *pPacket);
+u32 BA_Reorder_AMSDU_Announce(struct rt_rtmp_adapter *pAd, void *pPacket);
 
 struct net_device *get_netdev_from_bssid(struct rt_rtmp_adapter *pAd, u8 FromWhichBSSID);
 

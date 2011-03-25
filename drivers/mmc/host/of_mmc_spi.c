@@ -34,6 +34,7 @@ enum {
 struct of_mmc_spi {
 	int gpios[NUM_GPIOS];
 	bool alow_gpios[NUM_GPIOS];
+	int detect_irq;
 	struct mmc_spi_platform_data pdata;
 };
 
@@ -59,6 +60,22 @@ static int of_mmc_spi_get_cd(struct device *dev)
 static int of_mmc_spi_get_ro(struct device *dev)
 {
 	return of_mmc_spi_read_gpio(dev, WP_GPIO);
+}
+
+static int of_mmc_spi_init(struct device *dev,
+			   irqreturn_t (*irqhandler)(int, void *), void *mmc)
+{
+	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
+
+	return request_threaded_irq(oms->detect_irq, NULL, irqhandler, 0,
+				    dev_name(dev), mmc);
+}
+
+static void of_mmc_spi_exit(struct device *dev, void *mmc)
+{
+	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
+
+	free_irq(oms->detect_irq, mmc);
 }
 
 struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
@@ -121,8 +138,13 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	if (gpio_is_valid(oms->gpios[WP_GPIO]))
 		oms->pdata.get_ro = of_mmc_spi_get_ro;
 
-	/* We don't support interrupts yet, let's poll. */
-	oms->pdata.caps |= MMC_CAP_NEEDS_POLL;
+	oms->detect_irq = irq_of_parse_and_map(np, 0);
+	if (oms->detect_irq != NO_IRQ) {
+		oms->pdata.init = of_mmc_spi_init;
+		oms->pdata.exit = of_mmc_spi_exit;
+	} else {
+		oms->pdata.caps |= MMC_CAP_NEEDS_POLL;
+	}
 
 	dev->platform_data = &oms->pdata;
 	return dev->platform_data;

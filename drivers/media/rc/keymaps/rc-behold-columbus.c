@@ -28,7 +28,7 @@ static struct rc_map_table behold_columbus[] = {
 	 *                             */
 
 	{ 0x13, KEY_MUTE },
-	{ 0x11, KEY_PROPS },
+	{ 0x11, KEY_VIDEO },
 	{ 0x1C, KEY_TUNER },	/* KEY_TV/KEY_RADIO	*/
 	{ 0x12, KEY_POWER },
 

@@ -152,7 +152,6 @@ struct tmio_mmc_host {
 	struct tasklet_struct	dma_complete;
 	struct tasklet_struct	dma_issue;
 #ifdef CONFIG_TMIO_MMC_DMA
-	unsigned int            dma_sglen;
 	u8			bounce_buf[PAGE_CACHE_SIZE] __attribute__((aligned(MAX_ALIGN)));
 	struct scatterlist	bounce_sg;
 #endif
@@ -220,44 +219,48 @@ static char *tmio_mmc_kmap_atomic(struct scatterlist *sg, unsigned long *flags)
 	return kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
 }
 
-static void tmio_mmc_kunmap_atomic(void *virt, unsigned long *flags)
+static void tmio_mmc_kunmap_atomic(struct scatterlist *sg, unsigned long *flags, void *virt)
 {
-	kunmap_atomic(virt, KM_BIO_SRC_IRQ);
+	kunmap_atomic(virt - sg->offset, KM_BIO_SRC_IRQ);
 	local_irq_restore(*flags);
 }
 
 #ifdef CONFIG_MMC_DEBUG
 
-#define STATUS_TO_TEXT(a) \
+#define STATUS_TO_TEXT(a, status, i) \
 	do { \
-		if (status & TMIO_STAT_##a) \
+		if (status & TMIO_STAT_##a) { \
+			if (i++) \
+				printk(" | "); \
 			printk(#a); \
+		} \
 	} while (0)
 
 void pr_debug_status(u32 status)
 {
+	int i = 0;
 	printk(KERN_DEBUG "status: %08x = ", status);
-	STATUS_TO_TEXT(CARD_REMOVE);
-	STATUS_TO_TEXT(CARD_INSERT);
-	STATUS_TO_TEXT(SIGSTATE);
-	STATUS_TO_TEXT(WRPROTECT);
-	STATUS_TO_TEXT(CARD_REMOVE_A);
-	STATUS_TO_TEXT(CARD_INSERT_A);
-	STATUS_TO_TEXT(SIGSTATE_A);
-	STATUS_TO_TEXT(CMD_IDX_ERR);
-	STATUS_TO_TEXT(STOPBIT_ERR);
-	STATUS_TO_TEXT(ILL_FUNC);
-	STATUS_TO_TEXT(CMD_BUSY);
-	STATUS_TO_TEXT(CMDRESPEND);
-	STATUS_TO_TEXT(DATAEND);
-	STATUS_TO_TEXT(CRCFAIL);
-	STATUS_TO_TEXT(DATATIMEOUT);
-	STATUS_TO_TEXT(CMDTIMEOUT);
-	STATUS_TO_TEXT(RXOVERFLOW);
-	STATUS_TO_TEXT(TXUNDERRUN);
-	STATUS_TO_TEXT(RXRDY);
-	STATUS_TO_TEXT(TXRQ);
-	STATUS_TO_TEXT(ILL_ACCESS);
+	STATUS_TO_TEXT(CARD_REMOVE, status, i);
+	STATUS_TO_TEXT(CARD_INSERT, status, i);
+	STATUS_TO_TEXT(SIGSTATE, status, i);
+	STATUS_TO_TEXT(WRPROTECT, status, i);
+	STATUS_TO_TEXT(CARD_REMOVE_A, status, i);
+	STATUS_TO_TEXT(CARD_INSERT_A, status, i);
+	STATUS_TO_TEXT(SIGSTATE_A, status, i);
+	STATUS_TO_TEXT(CMD_IDX_ERR, status, i);
+	STATUS_TO_TEXT(STOPBIT_ERR, status, i);
+	STATUS_TO_TEXT(ILL_FUNC, status, i);
+	STATUS_TO_TEXT(CMD_BUSY, status, i);
+	STATUS_TO_TEXT(CMDRESPEND, status, i);
+	STATUS_TO_TEXT(DATAEND, status, i);
+	STATUS_TO_TEXT(CRCFAIL, status, i);
+	STATUS_TO_TEXT(DATATIMEOUT, status, i);
+	STATUS_TO_TEXT(CMDTIMEOUT, status, i);
+	STATUS_TO_TEXT(RXOVERFLOW, status, i);
+	STATUS_TO_TEXT(TXUNDERRUN, status, i);
+	STATUS_TO_TEXT(RXRDY, status, i);
+	STATUS_TO_TEXT(TXRQ, status, i);
+	STATUS_TO_TEXT(ILL_ACCESS, status, i);
 	printk("\n");
 }
 
@@ -300,8 +303,7 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 {
-	struct mfd_cell *cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	/*
 	 * Testing on sh-mobile showed that SDIO IRQs are unmasked when
@@ -324,8 +326,7 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
-	struct mfd_cell *cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
@@ -507,7 +508,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 
 	host->sg_off += count;
 
-	tmio_mmc_kunmap_atomic(sg_virt, &flags);
+	tmio_mmc_kunmap_atomic(host->sg_ptr, &flags, sg_virt);
 
 	if (host->sg_off == host->sg_ptr->length)
 		tmio_mmc_next_sg(host);
@@ -666,8 +667,7 @@ out:
 static irqreturn_t tmio_mmc_irq(int irq, void *devid)
 {
 	struct tmio_mmc_host *host = devid;
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 	unsigned int ireg, irq_mask, status;
 	unsigned int sdio_ireg, sdio_irq_mask, sdio_status;
 
@@ -767,7 +767,7 @@ static void tmio_check_bounce_buffer(struct tmio_mmc_host *host)
 		unsigned long flags;
 		void *sg_vaddr = tmio_mmc_kmap_atomic(host->sg_orig, &flags);
 		memcpy(sg_vaddr, host->bounce_buf, host->bounce_sg.length);
-		tmio_mmc_kunmap_atomic(sg_vaddr, &flags);
+		tmio_mmc_kunmap_atomic(host->sg_orig, &flags, sg_vaddr);
 	}
 }
 
@@ -796,8 +796,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *chan = host->chan_rx;
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 	dma_cookie_t cookie;
 	int ret, i;
 	bool aligned = true, multiple = true;
@@ -825,23 +824,16 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 		sg = host->sg_ptr;
 	}
 
-	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len, DMA_FROM_DEVICE);
-	if (ret > 0) {
-		host->dma_sglen = ret;
+	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_FROM_DEVICE);
+	if (ret > 0)
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_FROM_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	}
 
 	if (desc) {
 		desc->callback = tmio_dma_complete;
 		desc->callback_param = host;
-		cookie = desc->tx_submit(desc);
-		if (cookie < 0) {
-			desc = NULL;
-			ret = cookie;
-		} else {
-			chan->device->device_issue_pending(chan);
-		}
+		cookie = dmaengine_submit(desc);
+		dma_async_issue_pending(chan);
 	}
 	dev_dbg(&host->pdev->dev, "%s(): mapped %d -> %d, cookie %d, rq %p\n",
 		__func__, host->sg_len, ret, cookie, host->mrq);
@@ -873,8 +865,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct dma_chan *chan = host->chan_tx;
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 	dma_cookie_t cookie;
 	int ret, i;
 	bool aligned = true, multiple = true;
@@ -901,26 +892,20 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 		void *sg_vaddr = tmio_mmc_kmap_atomic(sg, &flags);
 		sg_init_one(&host->bounce_sg, host->bounce_buf, sg->length);
 		memcpy(host->bounce_buf, sg_vaddr, host->bounce_sg.length);
-		tmio_mmc_kunmap_atomic(sg_vaddr, &flags);
+		tmio_mmc_kunmap_atomic(sg, &flags, sg_vaddr);
 		host->sg_ptr = &host->bounce_sg;
 		sg = host->sg_ptr;
 	}
 
-	ret = dma_map_sg(&host->pdev->dev, sg, host->sg_len, DMA_TO_DEVICE);
-	if (ret > 0) {
-		host->dma_sglen = ret;
+	ret = dma_map_sg(chan->device->dev, sg, host->sg_len, DMA_TO_DEVICE);
+	if (ret > 0)
 		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
 			DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	}
 
 	if (desc) {
 		desc->callback = tmio_dma_complete;
 		desc->callback_param = host;
-		cookie = desc->tx_submit(desc);
-		if (cookie < 0) {
-			desc = NULL;
-			ret = cookie;
-		}
+		cookie = dmaengine_submit(desc);
 	}
 	dev_dbg(&host->pdev->dev, "%s(): mapped %d -> %d, cookie %d, rq %p\n",
 		__func__, host->sg_len, ret, cookie, host->mrq);
@@ -964,7 +949,7 @@ static void tmio_issue_tasklet_fn(unsigned long priv)
 	struct tmio_mmc_host *host = (struct tmio_mmc_host *)priv;
 	struct dma_chan *chan = host->chan_tx;
 
-	chan->device->device_issue_pending(chan);
+	dma_async_issue_pending(chan);
 }
 
 static void tmio_tasklet_fn(unsigned long arg)
@@ -978,10 +963,12 @@ static void tmio_tasklet_fn(unsigned long arg)
 		goto out;
 
 	if (host->data->flags & MMC_DATA_READ)
-		dma_unmap_sg(&host->pdev->dev, host->sg_ptr, host->dma_sglen,
+		dma_unmap_sg(host->chan_rx->device->dev,
+			     host->sg_ptr, host->sg_len,
 			     DMA_FROM_DEVICE);
 	else
-		dma_unmap_sg(&host->pdev->dev, host->sg_ptr, host->dma_sglen,
+		dma_unmap_sg(host->chan_tx->device->dev,
+			     host->sg_ptr, host->sg_len,
 			     DMA_TO_DEVICE);
 
 	tmio_mmc_do_data_irq(host);
@@ -1071,8 +1058,7 @@ static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
 {
-	struct mfd_cell *cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
@@ -1177,8 +1163,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 static int tmio_mmc_get_ro(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	return ((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
 		(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT)) ? 0 : 1;
@@ -1187,8 +1172,7 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 static int tmio_mmc_get_cd(struct mmc_host *mmc)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct mfd_cell	*cell = host->pdev->dev.platform_data;
-	struct tmio_mmc_data *pdata = cell->driver_data;
+	struct tmio_mmc_data *pdata = mfd_get_data(host->pdev);
 
 	if (!pdata->get_cd)
 		return -ENOSYS;
@@ -1207,7 +1191,7 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 #ifdef CONFIG_PM
 static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret;
 
@@ -1222,7 +1206,7 @@ static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 
 static int tmio_mmc_resume(struct platform_device *dev)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
@@ -1245,7 +1229,7 @@ out:
 
 static int __devinit tmio_mmc_probe(struct platform_device *dev)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct tmio_mmc_data *pdata;
 	struct resource *res_ctl;
 	struct tmio_mmc_host *host;
@@ -1260,7 +1244,7 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	if (!res_ctl)
 		goto out;
 
-	pdata = cell->driver_data;
+	pdata = mfd_get_data(dev);
 	if (!pdata || !pdata->hclk)
 		goto out;
 
@@ -1360,7 +1344,7 @@ out:
 
 static int __devexit tmio_mmc_remove(struct platform_device *dev)
 {
-	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 
 	platform_set_drvdata(dev, NULL);

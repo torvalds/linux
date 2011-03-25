@@ -22,6 +22,7 @@
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -35,8 +36,6 @@
 #include <mach/udc.h>
 #include <mach/palmasoc.h>
 #include <mach/palm27x.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -323,7 +322,7 @@ static struct platform_pwm_backlight_data palm27x_backlight_data = {
 	.pwm_id		= 0,
 	.max_brightness	= 0xfe,
 	.dft_brightness	= 0x7e,
-	.pwm_period_ns	= 3500,
+	.pwm_period_ns	= 3500 * 1024,
 	.init		= palm27x_backlight_init,
 	.notify		= palm27x_backlight_notify,
 	.exit		= palm27x_backlight_exit,

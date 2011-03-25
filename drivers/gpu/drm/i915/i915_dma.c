@@ -43,6 +43,17 @@
 #include <linux/slab.h>
 #include <acpi/video.h>
 
+static void i915_write_hws_pga(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 addr;
+
+	addr = dev_priv->status_page_dmah->busaddr;
+	if (INTEL_INFO(dev)->gen >= 4)
+		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
+	I915_WRITE(HWS_PGA, addr);
+}
+
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
@@ -60,16 +71,13 @@ static int i915_init_phys_hws(struct drm_device *dev)
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
+	ring->status_page.page_addr =
+		(void __force __iomem *)dev_priv->status_page_dmah->vaddr;
 
-	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
-					     0xf0;
+	i915_write_hws_pga(dev);
 
-	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
 	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 	return 0;
 }
@@ -152,7 +160,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+	int ret;
 
 	master_priv->sarea = drm_getsarea(dev);
 	if (master_priv->sarea) {
@@ -163,32 +171,21 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	if (init->ring_size != 0) {
-		if (ring->obj != NULL) {
+		if (LP_RING(dev_priv)->obj != NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Client tried to initialize ringbuffer in "
 				  "GEM mode\n");
 			return -EINVAL;
 		}
 
-		ring->size = init->ring_size;
-
-		ring->map.offset = init->ring_start;
-		ring->map.size = init->ring_size;
-		ring->map.type = 0;
-		ring->map.flags = 0;
-		ring->map.mtrr = 0;
-
-		drm_core_ioremap_wc(&ring->map, dev);
-
-		if (ring->map.handle == NULL) {
+		ret = intel_render_ring_init_dri(dev,
+						 init->ring_start,
+						 init->ring_size);
+		if (ret) {
 			i915_dma_cleanup(dev);
-			DRM_ERROR("can not ioremap virtual address for"
-				  " ring buffer\n");
-			return -ENOMEM;
+			return ret;
 		}
 	}
-
-	ring->virtual_start = ring->map.handle;
 
 	dev_priv->cpp = init->cpp;
 	dev_priv->back_offset = init->back_offset;
@@ -227,7 +224,7 @@ static int i915_dma_resume(struct drm_device * dev)
 	if (ring->status_page.gfx_addr != 0)
 		intel_ring_setup_status_page(ring);
 	else
-		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
+		i915_write_hws_pga(dev);
 
 	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
 
@@ -782,6 +779,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		value = INTEL_INFO(dev)->gen >= 4;
 		break;
+	case I915_PARAM_HAS_RELAXED_DELTA:
+		value = 1;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -870,8 +870,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 				" G33 hw status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr = dev_priv->hws_map.handle;
-	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+	ring->status_page.page_addr =
+		(void __force __iomem *)dev_priv->hws_map.handle;
+	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
 
 	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
@@ -1226,9 +1227,15 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
 
-	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
+	/* If we have > 1 VGA cards, then we need to arbitrate access
+	 * to the common VGA resources.
+	 *
+	 * If we are a secondary display controller (!PCI_DISPLAY_CLASS_VGA),
+	 * then we do not take part in VGA arbitration and the
+	 * vga_client_register() fails with -ENODEV.
+	 */
 	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
-	if (ret)
+	if (ret && ret != -ENODEV)
 		goto cleanup_ringbuffer;
 
 	intel_register_dsm_handler();
@@ -1900,6 +1907,17 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN2(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
 
+	/* 965GM sometimes incorrectly writes to hardware status page (HWS)
+	 * using 32bit addressing, overwriting memory if HWS is located
+	 * above 4GB.
+	 *
+	 * The documentation also mentions an issue with undefined
+	 * behaviour if any general state is accessed within a page above 4GB,
+	 * which also needs to be handled carefully.
+	 */
+	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
+		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
+
 	mmio_bar = IS_GEN2(dev) ? 1 : 0;
 	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, 0);
 	if (!dev_priv->regs) {
@@ -2007,9 +2025,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
-	dev_priv->trace_irq_seqno = 0;
 
-	ret = drm_vblank_init(dev, I915_NUM_PIPE);
+	if (IS_MOBILE(dev) || !IS_GEN2(dev))
+		dev_priv->num_pipe = 2;
+	else
+		dev_priv->num_pipe = 1;
+
+	ret = drm_vblank_init(dev, dev_priv->num_pipe);
 	if (ret)
 		goto out_gem_unload;
 

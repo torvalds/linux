@@ -30,7 +30,6 @@
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
@@ -310,7 +309,7 @@ USHORT hdr_checksum(PPSEUDO_HDR pHdr)
 	return chksum;
 }
 
-int card_download(struct net_device *dev, void *pFileStart, UINT FileLength)
+int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 {
 	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
 	int Status = SUCCESS;

@@ -195,7 +195,7 @@ static unsigned int pcc_get_freq(unsigned int cpu)
 cmd_incomplete:
 	iowrite16(0, &pcch_hdr->status);
 	spin_unlock(&pcc_lock);
-	return -EINVAL;
+	return 0;
 }
 
 static int pcc_cpufreq_target(struct cpufreq_policy *policy,
@@ -313,8 +313,6 @@ static int __init pcc_cpufreq_do_osc(acpi_handle *handle)
 	u32 supported;
 	int ret = 0;
 
-	input.count = 4;
-	input.pointer = in_params;
 	input.count = 4;
 	input.pointer = in_params;
 	in_params[0].type               = ACPI_TYPE_BUFFER;

@@ -54,6 +54,21 @@ do {							\
       } 						\
 } while (0)
 
+static inline bool is_tuner(struct cx231xx *dev, struct cx231xx_i2c *bus,
+			const struct i2c_msg *msg, int tuner_type)
+{
+	if (bus->nr != dev->board.tuner_i2c_master)
+		return false;
+
+	if (msg->addr != dev->board.tuner_addr)
+		return false;
+
+	if (dev->tuner_type != tuner_type)
+		return false;
+
+	return true;
+}
+
 /*
  * cx231xx_i2c_send_bytes()
  */
@@ -71,9 +86,7 @@ int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 	u16 saddr = 0;
 	u8 need_gpio = 0;
 
-	if ((bus->nr == 1) && (msg->addr == 0x61)
-	    && (dev->tuner_type == TUNER_XC5000)) {
-
+	if (is_tuner(dev, bus, msg, TUNER_XC5000)) {
 		size = msg->len;
 
 		if (size == 2) {	/* register write sub addr */
@@ -180,9 +193,7 @@ static int cx231xx_i2c_recv_bytes(struct i2c_adapter *i2c_adap,
 	u16 saddr = 0;
 	u8 need_gpio = 0;
 
-	if ((bus->nr == 1) && (msg->addr == 0x61)
-	    && dev->tuner_type == TUNER_XC5000) {
-
+	if (is_tuner(dev, bus, msg, TUNER_XC5000)) {
 		if (msg->len == 2)
 			saddr = msg->buf[0] << 8 | msg->buf[1];
 		else if (msg->len == 1)
@@ -274,9 +285,7 @@ static int cx231xx_i2c_recv_bytes_with_saddr(struct i2c_adapter *i2c_adap,
 	else if (msg1->len == 1)
 		saddr = msg1->buf[0];
 
-	if ((bus->nr == 1) && (msg2->addr == 0x61)
-	    && dev->tuner_type == TUNER_XC5000) {
-
+	if (is_tuner(dev, bus, msg2, TUNER_XC5000)) {
 		if ((msg2->len < 16)) {
 
 			dprintk1(1,
@@ -454,8 +463,8 @@ static char *i2c_devs[128] = {
 	[0x32 >> 1] = "GeminiIII",
 	[0x02 >> 1] = "Aquarius",
 	[0xa0 >> 1] = "eeprom",
-	[0xc0 >> 1] = "tuner/XC3028",
-	[0xc2 >> 1] = "tuner/XC5000",
+	[0xc0 >> 1] = "tuner",
+	[0xc2 >> 1] = "tuner",
 };
 
 /*

@@ -1016,9 +1016,12 @@ struct nfs_read_data {
 	unsigned int		npages;	/* Max length of pagevec */
 	struct nfs_readargs args;
 	struct nfs_readres  res;
-#ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
-#endif
+	struct pnfs_layout_segment *lseg;
+	struct nfs_client	*ds_clp;	/* pNFS data server */
+	const struct rpc_call_ops *mds_ops;
+	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
+	__u64			mds_offset;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
@@ -1035,13 +1038,20 @@ struct nfs_write_data {
 	unsigned int		npages;		/* Max length of pagevec */
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
+	struct pnfs_layout_segment *lseg;
+	struct nfs_client	*ds_clp;	/* pNFS data server */
+	const struct rpc_call_ops *mds_ops;
+	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
+	__u64			mds_offset;	/* Filelayout dense stripe */
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
 struct nfs_access_entry;
+struct nfs_client;
+struct rpc_timeout;
 
 /*
  * RPC procedure vector for NFSv2/NFSv3 demuxing
@@ -1106,6 +1116,8 @@ struct nfs_rpc_ops {
 				struct nfs_open_context *ctx,
 				int open_flags,
 				struct iattr *iattr);
+	int	(*init_client) (struct nfs_client *, const struct rpc_timeout *,
+				const char *, rpc_authflavor_t, int);
 };
 
 /*

@@ -747,7 +747,8 @@ static void fw_device_shutdown(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor = MINOR(device->device.devt);
 
-	if (time_is_after_jiffies(device->card->reset_jiffies + SHUTDOWN_DELAY)
+	if (time_before64(get_jiffies_64(),
+			  device->card->reset_jiffies + SHUTDOWN_DELAY)
 	    && !list_empty(&device->card->link)) {
 		schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
 		return;
@@ -954,8 +955,9 @@ static void fw_device_init(struct work_struct *work)
 			device->config_rom_retries++;
 			schedule_delayed_work(&device->work, RETRY_DELAY);
 		} else {
-			fw_notify("giving up on config rom for node id %x\n",
-				  device->node_id);
+			if (device->node->link_on)
+				fw_notify("giving up on config rom for node id %x\n",
+					  device->node_id);
 			if (device->node == device->card->root_node)
 				fw_schedule_bm_work(device->card, 0);
 			fw_device_release(&device->device);
@@ -1168,9 +1170,12 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 
 	switch (event) {
 	case FW_NODE_CREATED:
-	case FW_NODE_LINK_ON:
-		if (!node->link_on)
-			break;
+		/*
+		 * Attempt to scan the node, regardless whether its self ID has
+		 * the L (link active) flag set or not.  Some broken devices
+		 * send L=0 but have an up-and-running link; others send L=1
+		 * without actually having a link.
+		 */
  create:
 		device = kzalloc(sizeof(*device), GFP_ATOMIC);
 		if (device == NULL)
@@ -1213,6 +1218,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		break;
 
 	case FW_NODE_INITIATED_RESET:
+	case FW_NODE_LINK_ON:
 		device = node->data;
 		if (device == NULL)
 			goto create;
@@ -1230,10 +1236,10 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		break;
 
 	case FW_NODE_UPDATED:
-		if (!node->link_on || node->data == NULL)
+		device = node->data;
+		if (device == NULL)
 			break;
 
-		device = node->data;
 		device->node_id = node->node_id;
 		smp_wmb();  /* update node_id before generation */
 		device->generation = card->generation;

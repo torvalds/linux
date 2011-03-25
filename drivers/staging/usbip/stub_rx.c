@@ -18,6 +18,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -364,7 +365,7 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 
 static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 {
-	struct usb_device *udev = interface_to_usbdev(sdev->interface);
+	struct usb_device *udev = sdev->udev;
 	struct usb_host_endpoint *ep;
 	struct usb_endpoint_descriptor *epd = NULL;
 
@@ -484,7 +485,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	int ret;
 	struct stub_priv *priv;
 	struct usbip_device *ud = &sdev->ud;
-	struct usb_device *udev = interface_to_usbdev(sdev->interface);
+	struct usb_device *udev = sdev->udev;
 	int pipe = get_pipe(sdev, pdu->base.ep, pdu->base.direction);
 
 
@@ -616,19 +617,15 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 }
 
-void stub_rx_loop(struct usbip_task *ut)
+int stub_rx_loop(void *data)
 {
-	struct usbip_device *ud = container_of(ut, struct usbip_device, tcp_rx);
+	struct usbip_device *ud = data;
 
-	while (1) {
-		if (signal_pending(current)) {
-			usbip_dbg_stub_rx("signal caught!\n");
-			break;
-		}
-
+	while (!kthread_should_stop()) {
 		if (usbip_event_happened(ud))
 			break;
 
 		stub_rx_pdu(ud);
 	}
+	return 0;
 }

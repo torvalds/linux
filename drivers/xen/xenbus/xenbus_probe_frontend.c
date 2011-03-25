@@ -85,6 +85,14 @@ static struct device_attribute xenbus_frontend_dev_attrs[] = {
 	__ATTR_NULL
 };
 
+static const struct dev_pm_ops xenbus_pm_ops = {
+	.suspend	= xenbus_dev_suspend,
+	.resume		= xenbus_dev_resume,
+	.freeze		= xenbus_dev_suspend,
+	.thaw		= xenbus_dev_cancel,
+	.restore	= xenbus_dev_resume,
+};
+
 static struct xen_bus_type xenbus_frontend = {
 	.root = "device",
 	.levels = 2,		/* device/type/<id> */
@@ -100,8 +108,7 @@ static struct xen_bus_type xenbus_frontend = {
 		.shutdown	= xenbus_dev_shutdown,
 		.dev_attrs	= xenbus_frontend_dev_attrs,
 
-		.suspend	= xenbus_dev_suspend,
-		.resume		= xenbus_dev_resume,
+		.pm		= &xenbus_pm_ops,
 	},
 };
 

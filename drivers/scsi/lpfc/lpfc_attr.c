@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -623,10 +623,14 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	int status = 0;
 	int cnt = 0;
 	int i;
+	int rc;
 
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl,
+	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_OFFLINE_PREP);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 
 	if (status != 0)
@@ -652,7 +656,10 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	}
 
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl, type);
+	rc = lpfc_workq_post_event(phba, &status, &online_compl, type);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 
 	if (status != 0)
@@ -671,6 +678,7 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
  *
  * Notes:
  * Assumes any error from lpfc_do_offline() will be negative.
+ * Do not make this function static.
  *
  * Returns:
  * lpfc_do_offline() return code if not zero
@@ -682,6 +690,7 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
 	int status = 0;
+	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EIO;
@@ -692,8 +701,11 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 		return status;
 
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &status, &online_compl,
+	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 
 	if (status != 0)
@@ -812,14 +824,17 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = vport->phba;
 	struct completion online_compl;
 	int status=0;
+	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
 	init_completion(&online_compl);
 
 	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
-		lpfc_workq_post_event(phba, &status, &online_compl,
+		rc = lpfc_workq_post_event(phba, &status, &online_compl,
 				      LPFC_EVT_ONLINE);
+		if (rc == 0)
+			return -ENOMEM;
 		wait_for_completion(&online_compl);
 	} else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
 		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
@@ -1279,6 +1294,28 @@ lpfc_fips_rev_show(struct device *dev,  struct device_attribute *attr,
 }
 
 /**
+ * lpfc_dss_show - Return the current state of dss and the configured state
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the formatted text.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_dss_show(struct device *dev, struct device_attribute *attr,
+	      char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%s - %sOperational\n",
+			(phba->cfg_enable_dss) ? "Enabled" : "Disabled",
+			(phba->sli3_options & LPFC_SLI3_DSS_ENABLED) ?
+				"" : "Not ");
+}
+
+/**
  * lpfc_param_show - Return a cfg attribute value in decimal
  *
  * Description:
@@ -1597,13 +1634,13 @@ lpfc_##attr##_store(struct device *dev, struct device_attribute *attr, \
 
 #define LPFC_ATTR(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_init(name, defval, minval, maxval)
 
 #define LPFC_ATTR_R(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
@@ -1611,7 +1648,7 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_ATTR_RW(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
@@ -1622,7 +1659,7 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 
 #define LPFC_ATTR_HEX_R(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_hex_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
@@ -1630,7 +1667,7 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_hex_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
@@ -1641,13 +1678,13 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 
 #define LPFC_VPORT_ATTR(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_init(name, defval, minval, maxval)
 
 #define LPFC_VPORT_ATTR_R(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
@@ -1655,7 +1692,7 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_VPORT_ATTR_RW(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
@@ -1666,7 +1703,7 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 
 #define LPFC_VPORT_ATTR_HEX_R(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_hex_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
@@ -1674,7 +1711,7 @@ static DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_VPORT_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
 static uint lpfc_##name = defval;\
-module_param(lpfc_##name, uint, 0);\
+module_param(lpfc_##name, uint, S_IRUGO);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_vport_param_hex_show(name)\
 lpfc_vport_param_init(name, defval, minval, maxval)\
@@ -1718,7 +1755,7 @@ static DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
 static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
 static DEVICE_ATTR(lpfc_fips_level, S_IRUGO, lpfc_fips_level_show, NULL);
 static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
-
+static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
@@ -1813,6 +1850,7 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 	int stat1=0, stat2=0;
 	unsigned int i, j, cnt=count;
 	u8 wwpn[8];
+	int rc;
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
@@ -1863,7 +1901,11 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 				"0463 lpfc_soft_wwpn attribute set failed to "
 				"reinit adapter - %d\n", stat1);
 	init_completion(&online_compl);
-	lpfc_workq_post_event(phba, &stat2, &online_compl, LPFC_EVT_ONLINE);
+	rc = lpfc_workq_post_event(phba, &stat2, &online_compl,
+				   LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
 	wait_for_completion(&online_compl);
 	if (stat2)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1954,7 +1996,7 @@ static DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,\
 
 
 static int lpfc_poll = 0;
-module_param(lpfc_poll, int, 0);
+module_param(lpfc_poll, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
 		 " 0 - none,"
 		 " 1 - poll with interrupts enabled"
@@ -1964,21 +2006,21 @@ static DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
 		   lpfc_poll_show, lpfc_poll_store);
 
 int  lpfc_sli_mode = 0;
-module_param(lpfc_sli_mode, int, 0);
+module_param(lpfc_sli_mode, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 0 - auto (SLI-3 if supported),"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
 int lpfc_enable_npiv = 1;
-module_param(lpfc_enable_npiv, int, 0);
+module_param(lpfc_enable_npiv, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
 lpfc_param_show(enable_npiv);
 lpfc_param_init(enable_npiv, 1, 0, 1);
 static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO, lpfc_enable_npiv_show, NULL);
 
 int lpfc_enable_rrq;
-module_param(lpfc_enable_rrq, int, 0);
+module_param(lpfc_enable_rrq, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_enable_rrq, "Enable RRQ functionality");
 lpfc_param_show(enable_rrq);
 lpfc_param_init(enable_rrq, 0, 0, 1);
@@ -2040,7 +2082,7 @@ static DEVICE_ATTR(txcmplq_hw, S_IRUGO,
 			 lpfc_txcmplq_hw_show, NULL);
 
 int lpfc_iocb_cnt = 2;
-module_param(lpfc_iocb_cnt, int, 1);
+module_param(lpfc_iocb_cnt, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_iocb_cnt,
 	"Number of IOCBs alloc for ELS, CT, and ABTS: 1k to 5k IOCBs");
 lpfc_param_show(iocb_cnt);
@@ -2192,7 +2234,7 @@ static DEVICE_ATTR(lpfc_nodev_tmo, S_IRUGO | S_IWUSR,
 # disappear until the timer expires. Value range is [0,255]. Default
 # value is 30.
 */
-module_param(lpfc_devloss_tmo, int, 0);
+module_param(lpfc_devloss_tmo, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_devloss_tmo,
 		 "Seconds driver will hold I/O waiting "
 		 "for a device to come back");
@@ -2302,7 +2344,7 @@ LPFC_VPORT_ATTR_R(peer_port_login, 0, 0, 1,
 # Default value of this parameter is 1.
 */
 static int lpfc_restrict_login = 1;
-module_param(lpfc_restrict_login, int, 0);
+module_param(lpfc_restrict_login, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_restrict_login,
 		 "Restrict virtual ports login to remote initiators.");
 lpfc_vport_param_show(restrict_login);
@@ -2473,7 +2515,7 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 	return -EINVAL;
 }
 static int lpfc_topology = 0;
-module_param(lpfc_topology, int, 0);
+module_param(lpfc_topology, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_topology, "Select Fibre Channel topology");
 lpfc_param_show(topology)
 lpfc_param_init(topology, 0, 0, 6)
@@ -2915,7 +2957,7 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 }
 
 static int lpfc_link_speed = 0;
-module_param(lpfc_link_speed, int, 0);
+module_param(lpfc_link_speed, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_link_speed, "Select link speed");
 lpfc_param_show(link_speed)
 
@@ -3043,7 +3085,7 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 }
 
 static int lpfc_aer_support = 1;
-module_param(lpfc_aer_support, int, 1);
+module_param(lpfc_aer_support, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_aer_support, "Enable PCIe device AER support");
 lpfc_param_show(aer_support)
 
@@ -3155,7 +3197,7 @@ LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
 # The value is set in milliseconds.
 */
 static int lpfc_max_scsicmpl_time;
-module_param(lpfc_max_scsicmpl_time, int, 0);
+module_param(lpfc_max_scsicmpl_time, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_max_scsicmpl_time,
 	"Use command completion time to control queue depth");
 lpfc_vport_param_show(max_scsicmpl_time);
@@ -3331,7 +3373,7 @@ LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
 */
 unsigned int lpfc_prot_mask = SHOST_DIF_TYPE1_PROTECTION;
 
-module_param(lpfc_prot_mask, uint, 0);
+module_param(lpfc_prot_mask, uint, S_IRUGO);
 MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
 
 /*
@@ -3343,9 +3385,28 @@ MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
 #
 */
 unsigned char lpfc_prot_guard = SHOST_DIX_GUARD_IP;
-module_param(lpfc_prot_guard, byte, 0);
+module_param(lpfc_prot_guard, byte, S_IRUGO);
 MODULE_PARM_DESC(lpfc_prot_guard, "host protection guard type");
 
+/*
+ * Delay initial NPort discovery when Clean Address bit is cleared in
+ * FLOGI/FDISC accept and FCID/Fabric name/Fabric portname is changed.
+ * This parameter can have value 0 or 1.
+ * When this parameter is set to 0, no delay is added to the initial
+ * discovery.
+ * When this parameter is set to non-zero value, initial Nport discovery is
+ * delayed by ra_tov seconds when Clean Address bit is cleared in FLOGI/FDISC
+ * accept and FCID/Fabric name/Fabric portname is changed.
+ * Driver always delay Nport discovery for subsequent FLOGI/FDISC completion
+ * when Clean Address bit is cleared in FLOGI/FDISC
+ * accept and FCID/Fabric name/Fabric portname is changed.
+ * Default value is 0.
+ */
+int lpfc_delay_discovery;
+module_param(lpfc_delay_discovery, int, S_IRUGO);
+MODULE_PARM_DESC(lpfc_delay_discovery,
+	"Delay NPort discovery when Clean Address bit is cleared. "
+	"Allowed values: 0,1.");
 
 /*
  * lpfc_sg_seg_cnt - Initial Maximum DMA Segment Count
@@ -3437,6 +3498,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_txcmplq_hw,
 	&dev_attr_lpfc_fips_level,
 	&dev_attr_lpfc_fips_rev,
+	&dev_attr_lpfc_dss,
 	NULL,
 };
 
@@ -4639,6 +4701,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_aer_support_init(phba, lpfc_aer_support);
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
+	phba->cfg_enable_dss = 1;
 	return;
 }
 

@@ -241,8 +241,7 @@ static void dump_dmastat(struct cardinfo *card, unsigned int dmastat)
  *
  * Whenever IO on the active page completes, the Ready page is activated
  * and the ex-Active page is clean out and made Ready.
- * Otherwise the Ready page is only activated when it becomes full, or
- * when mm_unplug_device is called via the unplug_io_fn.
+ * Otherwise the Ready page is only activated when it becomes full.
  *
  * If a request arrives while both pages a full, it is queued, and b_rdev is
  * overloaded to record whether it was a read or a write.
@@ -331,17 +330,6 @@ static inline void reset_page(struct mm_page *page)
 	page->headcnt = 0;
 	page->bio = NULL;
 	page->biotail = &page->bio;
-}
-
-static void mm_unplug_device(struct request_queue *q)
-{
-	struct cardinfo *card = q->queuedata;
-	unsigned long flags;
-
-	spin_lock_irqsave(&card->lock, flags);
-	if (blk_remove_plug(q))
-		activate(card);
-	spin_unlock_irqrestore(&card->lock, flags);
 }
 
 /*
@@ -535,7 +523,6 @@ static int mm_make_request(struct request_queue *q, struct bio *bio)
 	*card->biotail = bio;
 	bio->bi_next = NULL;
 	card->biotail = &bio->bi_next;
-	blk_plug_device(q);
 	spin_unlock_irq(&card->lock);
 
 	return 0;
@@ -779,20 +766,10 @@ static int mm_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-/*
- * Future support for removable devices
- */
-static int mm_check_change(struct gendisk *disk)
-{
-/*  struct cardinfo *dev = disk->private_data; */
-	return 0;
-}
-
 static const struct block_device_operations mm_fops = {
 	.owner		= THIS_MODULE,
 	.getgeo		= mm_getgeo,
 	.revalidate_disk = mm_revalidate,
-	.media_changed	= mm_check_change,
 };
 
 static int __devinit mm_pci_probe(struct pci_dev *dev,
@@ -907,7 +884,6 @@ static int __devinit mm_pci_probe(struct pci_dev *dev,
 	blk_queue_make_request(card->queue, mm_make_request);
 	card->queue->queue_lock = &card->lock;
 	card->queue->queuedata = card;
-	card->queue->unplug_fn = mm_unplug_device;
 
 	tasklet_init(&card->tasklet, process_page, (unsigned long)card);
 

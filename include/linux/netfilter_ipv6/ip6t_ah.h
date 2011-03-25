@@ -1,11 +1,13 @@
 #ifndef _IP6T_AH_H
 #define _IP6T_AH_H
 
+#include <linux/types.h>
+
 struct ip6t_ah {
-	u_int32_t spis[2];			/* Security Parameter Index */
-	u_int32_t hdrlen;			/* Header Length */
-	u_int8_t  hdrres;			/* Test of the Reserved Filed */
-	u_int8_t  invflags;			/* Inverse flags */
+	__u32 spis[2];			/* Security Parameter Index */
+	__u32 hdrlen;			/* Header Length */
+	__u8  hdrres;			/* Test of the Reserved Filed */
+	__u8  invflags;			/* Inverse flags */
 };
 
 #define IP6T_AH_SPI 0x01

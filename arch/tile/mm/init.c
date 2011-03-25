@@ -53,22 +53,11 @@
 
 #include "migrate.h"
 
-/*
- * We could set FORCE_MAX_ZONEORDER to "(HPAGE_SHIFT - PAGE_SHIFT + 1)"
- * in the Tile Kconfig, but this generates configure warnings.
- * Do it here and force people to get it right to compile this file.
- * The problem is that with 4KB small pages and 16MB huge pages,
- * the default value doesn't allow us to group enough small pages
- * together to make up a huge page.
- */
-#if CONFIG_FORCE_MAX_ZONEORDER < HPAGE_SHIFT - PAGE_SHIFT + 1
-# error "Change FORCE_MAX_ZONEORDER in arch/tile/Kconfig to match page size"
-#endif
-
 #define clear_pgd(pmdptr) (*(pmdptr) = hv_pte(0))
 
 #ifndef __tilegx__
 unsigned long VMALLOC_RESERVE = CONFIG_VMALLOC_RESERVE;
+EXPORT_SYMBOL(VMALLOC_RESERVE);
 #endif
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
@@ -445,7 +434,7 @@ static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
 
 /* Temporary page table we use for staging. */
 static pgd_t pgtables[PTRS_PER_PGD]
- __attribute__((section(".init.page")));
+ __attribute__((aligned(HV_PAGE_TABLE_ALIGN)));
 
 /*
  * This maps the physical memory to kernel virtual address space, a total
@@ -653,6 +642,17 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	memcpy(pgd_base, pgtables, sizeof(pgtables));
 	__install_page_table(pgd_base, __get_cpu_var(current_asid),
 			     swapper_pgprot);
+
+	/*
+	 * We just read swapper_pgprot and thus brought it into the cache,
+	 * with its new home & caching mode.  When we start the other CPUs,
+	 * they're going to reference swapper_pgprot via their initial fake
+	 * VA-is-PA mappings, which cache everything locally.  At that
+	 * time, if it's in our cache with a conflicting home, the
+	 * simulator's coherence checker will complain.  So, flush it out
+	 * of our cache; we're not going to ever use it again anyway.
+	 */
+	__insn_finv(&swapper_pgprot);
 }
 
 /*
@@ -950,11 +950,7 @@ struct kmem_cache *pgd_cache;
 
 void __init pgtable_cache_init(void)
 {
-	pgd_cache = kmem_cache_create("pgd",
-				PTRS_PER_PGD*sizeof(pgd_t),
-				PTRS_PER_PGD*sizeof(pgd_t),
-				0,
-				NULL);
+	pgd_cache = kmem_cache_create("pgd", SIZEOF_PGD, SIZEOF_PGD, 0, NULL);
 	if (!pgd_cache)
 		panic("pgtable_cache_init(): Cannot create pgd cache");
 }
@@ -989,7 +985,7 @@ static long __write_once initfree = 1;
 static int __init set_initfree(char *str)
 {
 	long val;
-	if (strict_strtol(str, 0, &val)) {
+	if (strict_strtol(str, 0, &val) == 0) {
 		initfree = val;
 		pr_info("initfree: %s free init pages\n",
 			initfree ? "will" : "won't");

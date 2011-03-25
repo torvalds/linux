@@ -553,8 +553,7 @@ static struct uart_driver grlib_apbuart_driver = {
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
 
-static int __devinit apbuart_probe(struct platform_device *op,
-				   const struct of_device_id *match)
+static int __devinit apbuart_probe(struct platform_device *op)
 {
 	int i = -1;
 	struct uart_port *port = NULL;
@@ -587,7 +586,7 @@ static struct of_device_id __initdata apbuart_match[] = {
 	{},
 };
 
-static struct of_platform_driver grlib_apbuart_of_driver = {
+static struct platform_driver grlib_apbuart_of_driver = {
 	.probe = apbuart_probe,
 	.driver = {
 		.owner = THIS_MODULE,
@@ -676,10 +675,10 @@ static int __init grlib_apbuart_init(void)
 		return ret;
 	}
 
-	ret = of_register_platform_driver(&grlib_apbuart_of_driver);
+	ret = platform_driver_register(&grlib_apbuart_of_driver);
 	if (ret) {
 		printk(KERN_ERR
-		       "%s: of_register_platform_driver failed (%i)\n",
+		       "%s: platform_driver_register failed (%i)\n",
 		       __FILE__, ret);
 		uart_unregister_driver(&grlib_apbuart_driver);
 		return ret;
@@ -697,7 +696,7 @@ static void __exit grlib_apbuart_exit(void)
 				     &grlib_apbuart_ports[i]);
 
 	uart_unregister_driver(&grlib_apbuart_driver);
-	of_unregister_platform_driver(&grlib_apbuart_of_driver);
+	platform_driver_unregister(&grlib_apbuart_of_driver);
 }
 
 module_init(grlib_apbuart_init);

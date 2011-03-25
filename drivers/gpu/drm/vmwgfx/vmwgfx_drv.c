@@ -909,21 +909,22 @@ static struct drm_driver driver = {
 #endif
 		 .llseek = noop_llseek,
 	},
-	.pci_driver = {
-		 .name = VMWGFX_DRIVER_NAME,
-		 .id_table = vmw_pci_id_list,
-		 .probe = vmw_probe,
-		 .remove = vmw_remove,
-		 .driver = {
-			 .pm = &vmw_pm_ops
-		 }
-	 },
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
 	.date = VMWGFX_DRIVER_DATE,
 	.major = VMWGFX_DRIVER_MAJOR,
 	.minor = VMWGFX_DRIVER_MINOR,
 	.patchlevel = VMWGFX_DRIVER_PATCHLEVEL
+};
+
+static struct pci_driver vmw_pci_driver = {
+	.name = VMWGFX_DRIVER_NAME,
+	.id_table = vmw_pci_id_list,
+	.probe = vmw_probe,
+	.remove = vmw_remove,
+	.driver = {
+		.pm = &vmw_pm_ops
+	}
 };
 
 static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -934,7 +935,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 static int __init vmwgfx_init(void)
 {
 	int ret;
-	ret = drm_init(&driver);
+	ret = drm_pci_init(&driver, &vmw_pci_driver);
 	if (ret)
 		DRM_ERROR("Failed initializing DRM.\n");
 	return ret;
@@ -942,7 +943,7 @@ static int __init vmwgfx_init(void)
 
 static void __exit vmwgfx_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &vmw_pci_driver);
 }
 
 module_init(vmwgfx_init);

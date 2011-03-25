@@ -81,6 +81,17 @@ config MFD_DM355EVM_MSP
 	  boards.  MSP430 firmware manages resets and power sequencing,
 	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
 
+config MFD_TI_SSP
+	tristate "TI Sequencer Serial Port support"
+	depends on ARCH_DAVINCI_TNETV107X
+	select MFD_CORE
+	---help---
+	  Say Y here if you want support for the Sequencer Serial Port
+	  in a Texas Instruments TNETV107X SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti-ssp.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
@@ -117,6 +128,17 @@ config UCB1400_CORE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
+
+config TPS6105X
+	tristate "TPS61050/61052 Boost Converters"
+	depends on I2C
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  This option enables a driver for the TP61050/TPS61052
+	  high-power "white LED driver". This boost converter is
+	  sometimes used for other things than white LEDs, and
+	  also contains a GPIO pin.
 
 config TPS65010
 	tristate "TPS6501x Power Management chips"
@@ -166,6 +188,16 @@ config TWL4030_CORE
 	  boards, providing power management, RTC, GPIO, keypad, a
 	  high speed USB OTG transceiver, an audio codec (on most
 	  versions) and many other features.
+
+config TWL4030_MADC
+	tristate "Texas Instruments TWL4030 MADC"
+	depends on TWL4030_CORE
+	help
+	This driver provides support for triton TWL4030-MADC. The
+	driver supports both RT and SW conversion methods.
+
+	This driver can be built as a module. If so it will be
+	named twl4030-madc
 
 config TWL4030_POWER
 	bool "Support power resources on TWL4030 family chips"
@@ -292,6 +324,18 @@ config MFD_MAX8925
 	  a Power Management IC. This driver provies common support for
 	  accessing the device, additional drivers must be enabled in order
 	  to use the functionality of the device.
+
+config MFD_MAX8997
+	bool "Maxim Semiconductor MAX8997/8966 PMIC Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  Say yes here to support for Maxim Semiconductor MAX8998/8966.
+	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,
+	  MUIC controls on chip.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 config MFD_MAX8998
 	bool "Maxim Semiconductor MAX8998/National LP3974 PMIC Support"
@@ -523,6 +567,13 @@ config AB8500_DEBUG
          Select this option if you want debug information using the debug
          filesystem, debugfs.
 
+config AB8500_GPADC
+	bool "AB8500 GPADC driver"
+	depends on AB8500_CORE && REGULATOR_AB8500
+	default y
+	help
+	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
+
 config AB3550_CORE
         bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
 	select MFD_CORE
@@ -615,7 +666,7 @@ config MFD_VX855
 	  and/or vx855_gpio drivers for this to do anything useful.
 
 config MFD_WL1273_CORE
-	tristate
+	tristate "Support for TI WL1273 FM radio."
 	depends on I2C
 	select MFD_CORE
 	default n
@@ -623,6 +674,15 @@ config MFD_WL1273_CORE
 	  This is the core driver for the TI WL1273 FM radio. This MFD
 	  driver connects the radio-wl1273 V4L2 module and the wl1273
 	  audio codec.
+
+config MFD_OMAP_USB_HOST
+	bool "Support OMAP USBHS core driver"
+	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
+	default y
+	help
+	  This is the core driver for the OAMP EHCI and OHCI drivers.
+	  This MFD driver does the required setup functionalities for
+	  OMAP USB Host drivers.
 
 endif # MFD_SUPPORT
 

@@ -11,7 +11,7 @@ are not saved by the BIOS and so do not persist after unload and reload.
 	0x0008 tp3780i tracing
 
         Tracing only occurs if the driver has been compiled with the
-        MW_TRACE macro #defined  (i.e. let EXTRA_CFLAGS += -DMW_TRACE
+        MW_TRACE macro #defined  (i.e. let ccflags-y := -DMW_TRACE
         in the Makefile).
 
   mwave_3780i_irq=5/7/10/11/15

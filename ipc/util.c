@@ -329,12 +329,14 @@ retry:
  *
  *	It is called with ipc_ids.rw_mutex and ipcp->lock held.
  */
-static int ipc_check_perms(struct kern_ipc_perm *ipcp, struct ipc_ops *ops,
-			struct ipc_params *params)
+static int ipc_check_perms(struct ipc_namespace *ns,
+			   struct kern_ipc_perm *ipcp,
+			   struct ipc_ops *ops,
+			   struct ipc_params *params)
 {
 	int err;
 
-	if (ipcperms(ipcp, params->flg))
+	if (ipcperms(ns, ipcp, params->flg))
 		err = -EACCES;
 	else {
 		err = ops->associate(ipcp, params->flg);
@@ -396,7 +398,7 @@ retry:
 				 * ipc_check_perms returns the IPC id on
 				 * success
 				 */
-				err = ipc_check_perms(ipcp, ops, params);
+				err = ipc_check_perms(ns, ipcp, ops, params);
 		}
 		ipc_unlock(ipcp);
 	}
@@ -610,10 +612,12 @@ void ipc_rcu_putref(void *ptr)
  *
  *	Check user, group, other permissions for access
  *	to ipc resources. return 0 if allowed
+ *
+ * 	@flag will most probably be 0 or S_...UGO from <linux/stat.h>
  */
  
-int ipcperms (struct kern_ipc_perm *ipcp, short flag)
-{	/* flag will most probably be 0 or S_...UGO from <linux/stat.h> */
+int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flag)
+{
 	uid_t euid = current_euid();
 	int requested_mode, granted_mode;
 
@@ -627,7 +631,7 @@ int ipcperms (struct kern_ipc_perm *ipcp, short flag)
 		granted_mode >>= 3;
 	/* is there some bit set in requested_mode but not in granted_mode? */
 	if ((requested_mode & ~granted_mode & 0007) && 
-	    !capable(CAP_IPC_OWNER))
+	    !ns_capable(ns->user_ns, CAP_IPC_OWNER))
 		return -1;
 
 	return security_ipc_permission(ipcp, flag);
@@ -765,6 +769,7 @@ void ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out)
 
 /**
  * ipcctl_pre_down - retrieve an ipc and check permissions for some IPC_XXX cmd
+ * @ids:  the ipc namespace
  * @ids:  the table of ids where to look for the ipc
  * @id:   the id of the ipc to retrieve
  * @cmd:  the cmd to check
@@ -779,7 +784,8 @@ void ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out)
  *  - returns the ipc with both ipc and rw_mutex locks held in case of success
  *    or an err-code without any lock held otherwise.
  */
-struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
+struct kern_ipc_perm *ipcctl_pre_down(struct ipc_namespace *ns,
+				      struct ipc_ids *ids, int id, int cmd,
 				      struct ipc64_perm *perm, int extra_perm)
 {
 	struct kern_ipc_perm *ipcp;
@@ -799,8 +805,8 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_ids *ids, int id, int cmd,
 					 perm->gid, perm->mode);
 
 	euid = current_euid();
-	if (euid == ipcp->cuid ||
-	    euid == ipcp->uid  || capable(CAP_SYS_ADMIN))
+	if (euid == ipcp->cuid || euid == ipcp->uid  ||
+	    ns_capable(ns->user_ns, CAP_SYS_ADMIN))
 		return ipcp;
 
 	err = -EPERM;

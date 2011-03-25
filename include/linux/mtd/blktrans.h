@@ -36,6 +36,7 @@ struct mtd_blktrans_dev {
 	struct mtd_info *mtd;
 	struct mutex lock;
 	int devnum;
+	bool bg_stop;
 	unsigned long size;
 	int readonly;
 	int open;

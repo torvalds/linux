@@ -11,6 +11,7 @@
 #include <linux/irq.h>
 
 #include <asm/mach/map.h>
+#include <asm/pmu.h>
 
 #include <plat/gpio.h>
 
@@ -18,8 +19,10 @@
 #include <mach/devices.h>
 #include <mach/setup.h>
 #include <mach/irqs.h>
+#include <mach/usb.h>
 
 #include "devices-db5500.h"
+#include "ste-dma40-db5500.h"
 
 static struct map_desc u5500_uart_io_desc[] __initdata = {
 	__IO_DEV_DESC(U5500_UART0_BASE, SZ_4K),
@@ -41,6 +44,26 @@ static struct map_desc u5500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U5500_GPIO3_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GPIO4_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_PRCMU_BASE, SZ_4K),
+};
+
+static struct resource db5500_pmu_resources[] = {
+	[0] = {
+		.start		= IRQ_DB5500_PMU0,
+		.end		= IRQ_DB5500_PMU0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start		= IRQ_DB5500_PMU1,
+		.end		= IRQ_DB5500_PMU1,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device db5500_pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= ARRAY_SIZE(db5500_pmu_resources),
+	.resource		= db5500_pmu_resources,
 };
 
 static struct resource mbox0_resources[] = {
@@ -127,7 +150,8 @@ static struct platform_device mbox2_device = {
 	.num_resources = ARRAY_SIZE(mbox2_resources),
 };
 
-static struct platform_device *u5500_platform_devs[] __initdata = {
+static struct platform_device *db5500_platform_devs[] __initdata = {
+	&db5500_pmu_device,
 	&mbox0_device,
 	&mbox1_device,
 	&mbox2_device,
@@ -166,12 +190,35 @@ void __init u5500_map_io(void)
 	iotable_init(u5500_io_desc, ARRAY_SIZE(u5500_io_desc));
 }
 
+static int usb_db5500_rx_dma_cfg[] = {
+	DB5500_DMA_DEV4_USB_OTG_IEP_1_9,
+	DB5500_DMA_DEV5_USB_OTG_IEP_2_10,
+	DB5500_DMA_DEV6_USB_OTG_IEP_3_11,
+	DB5500_DMA_DEV20_USB_OTG_IEP_4_12,
+	DB5500_DMA_DEV21_USB_OTG_IEP_5_13,
+	DB5500_DMA_DEV22_USB_OTG_IEP_6_14,
+	DB5500_DMA_DEV23_USB_OTG_IEP_7_15,
+	DB5500_DMA_DEV38_USB_OTG_IEP_8
+};
+
+static int usb_db5500_tx_dma_cfg[] = {
+	DB5500_DMA_DEV4_USB_OTG_OEP_1_9,
+	DB5500_DMA_DEV5_USB_OTG_OEP_2_10,
+	DB5500_DMA_DEV6_USB_OTG_OEP_3_11,
+	DB5500_DMA_DEV20_USB_OTG_OEP_4_12,
+	DB5500_DMA_DEV21_USB_OTG_OEP_5_13,
+	DB5500_DMA_DEV22_USB_OTG_OEP_6_14,
+	DB5500_DMA_DEV23_USB_OTG_OEP_7_15,
+	DB5500_DMA_DEV38_USB_OTG_OEP_8
+};
+
 void __init u5500_init_devices(void)
 {
 	db5500_add_gpios();
 	db5500_dma_init();
 	db5500_add_rtc();
+	db5500_add_usb(usb_db5500_rx_dma_cfg, usb_db5500_tx_dma_cfg);
 
-	platform_add_devices(u5500_platform_devs,
-			     ARRAY_SIZE(u5500_platform_devs));
+	platform_add_devices(db5500_platform_devs,
+			     ARRAY_SIZE(db5500_platform_devs));
 }

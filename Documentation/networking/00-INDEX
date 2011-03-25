@@ -40,8 +40,6 @@ decnet.txt
 	- info on using the DECnet networking layer in Linux.
 depca.txt
 	- the Digital DEPCA/EtherWORKS DE1?? and DE2?? LANCE Ethernet driver
-dgrs.txt
-	- the Digi International RightSwitch SE-X Ethernet driver
 dmfe.txt
 	- info on the Davicom DM9102(A)/DM9132/DM9801 fast ethernet driver.
 e100.txt
@@ -50,8 +48,6 @@ e1000.txt
 	- info on Intel's E1000 line of gigabit ethernet boards
 eql.txt
 	- serial IP load balancing
-ethertap.txt
-	- the Ethertap user space packet reception and transmission driver
 ewrk3.txt
 	- the Digital EtherWORKS 3 DE203/4/5 Ethernet driver
 filter.txt
@@ -104,8 +100,6 @@ tuntap.txt
 	- TUN/TAP device driver, allowing user space Rx/Tx of packets.
 vortex.txt
 	- info on using 3Com Vortex (3c590, 3c592, 3c595, 3c597) Ethernet cards.
-wavelan.txt
-	- AT&T GIS (nee NCR) WaveLAN card: An Ethernet-like radio transceiver
 x25.txt
 	- general info on X.25 development.
 x25-iface.txt

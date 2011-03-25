@@ -277,12 +277,21 @@ static const struct {
 	u64 hw_code;
 	u32 keycode;
 } imon_panel_key_table[] = {
-	{ 0x000000000f00ffeell, KEY_PROG1 }, /* Go */
+	{ 0x000000000f00ffeell, KEY_MEDIA }, /* Go */
+	{ 0x000000001200ffeell, KEY_UP },
+	{ 0x000000001300ffeell, KEY_DOWN },
+	{ 0x000000001400ffeell, KEY_LEFT },
+	{ 0x000000001500ffeell, KEY_RIGHT },
+	{ 0x000000001600ffeell, KEY_ENTER },
+	{ 0x000000001700ffeell, KEY_ESC },
 	{ 0x000000001f00ffeell, KEY_AUDIO },
 	{ 0x000000002000ffeell, KEY_VIDEO },
 	{ 0x000000002100ffeell, KEY_CAMERA },
 	{ 0x000000002700ffeell, KEY_DVD },
 	{ 0x000000002300ffeell, KEY_TV },
+	{ 0x000000002b00ffeell, KEY_EXIT },
+	{ 0x000000002c00ffeell, KEY_SELECT },
+	{ 0x000000002d00ffeell, KEY_MENU },
 	{ 0x000000000500ffeell, KEY_PREVIOUS },
 	{ 0x000000000700ffeell, KEY_REWIND },
 	{ 0x000000000400ffeell, KEY_STOP },

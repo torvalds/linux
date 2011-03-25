@@ -219,7 +219,7 @@ static struct snd_soc_dai_link tosa_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "pxa-ac97.0",
+	.cpu_dai_name = "pxa2xx-ac97",
 	.codec_dai_name = "wm9712-hifi",
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm9712-codec",
@@ -229,7 +229,7 @@ static struct snd_soc_dai_link tosa_dai[] = {
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.cpu_dai_name = "pxa-ac97.1",
+	.cpu_dai_name = "pxa2xx-ac97-aux",
 	.codec_dai_name = "wm9712-aux",
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm9712-codec",
@@ -237,7 +237,7 @@ static struct snd_soc_dai_link tosa_dai[] = {
 },
 };
 
-static int tosa_probe(struct platform_device *dev)
+static int tosa_probe(struct snd_soc_card *card)
 {
 	int ret;
 
@@ -251,7 +251,7 @@ static int tosa_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int tosa_remove(struct platform_device *dev)
+static int tosa_remove(struct snd_soc_card *card)
 {
 	gpio_free(TOSA_GPIO_L_MUTE);
 	return 0;

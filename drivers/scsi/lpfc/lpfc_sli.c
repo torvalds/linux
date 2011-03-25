@@ -96,7 +96,8 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	/* set consumption flag every once in a while */
 	if (!((q->host_index + 1) % LPFC_RELEASE_NOTIFICATION_INTERVAL))
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 1);
-
+	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
+		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
 	lpfc_sli_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
 
 	/* Update the host index before invoking device */
@@ -534,15 +535,35 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	uint16_t adj_xri;
 	struct lpfc_node_rrq *rrq;
 	int empty;
+	uint32_t did = 0;
+
+
+	if (!ndlp)
+		return -EINVAL;
+
+	if (!phba->cfg_enable_rrq)
+		return -EINVAL;
+
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
+		goto out;
+	}
+	did = ndlp->nlp_DID;
 
 	/*
 	 * set the active bit even if there is no mem available.
 	 */
 	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
-	if (!ndlp)
-		return -EINVAL;
+
+	if (NLP_CHK_FREE_REQ(ndlp))
+		goto out;
+
+	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
+		goto out;
+
 	if (test_and_set_bit(adj_xri, ndlp->active_rrqs.xri_bitmap))
-		return -EINVAL;
+		goto out;
+
 	rrq = mempool_alloc(phba->rrq_pool, GFP_KERNEL);
 	if (rrq) {
 		rrq->send_rrq = send_rrq;
@@ -553,14 +574,7 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		rrq->vport = ndlp->vport;
 		rrq->rxid = rxid;
 		empty = list_empty(&phba->active_rrq_list);
-		if (phba->cfg_enable_rrq && send_rrq)
-			/*
-			 * We need the xri before we can add this to the
-			 * phba active rrq list.
-			 */
-			rrq->send_rrq = send_rrq;
-		else
-			rrq->send_rrq = 0;
+		rrq->send_rrq = send_rrq;
 		list_add_tail(&rrq->list, &phba->active_rrq_list);
 		if (!(phba->hba_flag & HBA_RRQ_ACTIVE)) {
 			phba->hba_flag |= HBA_RRQ_ACTIVE;
@@ -569,33 +583,41 @@ __lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		}
 		return 0;
 	}
-	return -ENOMEM;
+out:
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2921 Can't set rrq active xri:0x%x rxid:0x%x"
+			" DID:0x%x Send:%d\n",
+			xritag, rxid, did, send_rrq);
+	return -EINVAL;
 }
 
 /**
- * __lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
+ * lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
  * @phba: Pointer to HBA context object.
  * @xritag: xri used in this exchange.
  * @rrq: The RRQ to be cleared.
  *
- * This function is called with hbalock held. This function
  **/
-static void
-__lpfc_clr_rrq_active(struct lpfc_hba *phba,
-			uint16_t xritag,
-			struct lpfc_node_rrq *rrq)
+void
+lpfc_clr_rrq_active(struct lpfc_hba *phba,
+		    uint16_t xritag,
+		    struct lpfc_node_rrq *rrq)
 {
 	uint16_t adj_xri;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *ndlp = NULL;
 
-	ndlp = lpfc_findnode_did(rrq->vport, rrq->nlp_DID);
+	if ((rrq->vport) && NLP_CHK_NODE_ACT(rrq->ndlp))
+		ndlp = lpfc_findnode_did(rrq->vport, rrq->nlp_DID);
 
 	/* The target DID could have been swapped (cable swap)
 	 * we should use the ndlp from the findnode if it is
 	 * available.
 	 */
-	if (!ndlp)
+	if ((!ndlp) && rrq->ndlp)
 		ndlp = rrq->ndlp;
+
+	if (!ndlp)
+		goto out;
 
 	adj_xri = xritag - phba->sli4_hba.max_cfg_param.xri_base;
 	if (test_and_clear_bit(adj_xri, ndlp->active_rrqs.xri_bitmap)) {
@@ -603,6 +625,7 @@ __lpfc_clr_rrq_active(struct lpfc_hba *phba,
 		rrq->xritag = 0;
 		rrq->rrq_stop_time = 0;
 	}
+out:
 	mempool_free(rrq, phba->rrq_pool);
 }
 
@@ -627,34 +650,34 @@ lpfc_handle_rrq_active(struct lpfc_hba *phba)
 	struct lpfc_node_rrq *nextrrq;
 	unsigned long next_time;
 	unsigned long iflags;
+	LIST_HEAD(send_rrq);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	next_time = jiffies + HZ * (phba->fc_ratov + 1);
 	list_for_each_entry_safe(rrq, nextrrq,
-			&phba->active_rrq_list, list) {
-		if (time_after(jiffies, rrq->rrq_stop_time)) {
-			list_del(&rrq->list);
-			if (!rrq->send_rrq)
-				/* this call will free the rrq */
-				__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-			else {
-			/* if we send the rrq then the completion handler
-			 *  will clear the bit in the xribitmap.
-			 */
-				spin_unlock_irqrestore(&phba->hbalock, iflags);
-				if (lpfc_send_rrq(phba, rrq)) {
-					lpfc_clr_rrq_active(phba, rrq->xritag,
-								 rrq);
-				}
-				spin_lock_irqsave(&phba->hbalock, iflags);
-			}
-		} else if  (time_before(rrq->rrq_stop_time, next_time))
+				 &phba->active_rrq_list, list) {
+		if (time_after(jiffies, rrq->rrq_stop_time))
+			list_move(&rrq->list, &send_rrq);
+		else if (time_before(rrq->rrq_stop_time, next_time))
 			next_time = rrq->rrq_stop_time;
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if (!list_empty(&phba->active_rrq_list))
 		mod_timer(&phba->rrq_tmr, next_time);
+	list_for_each_entry_safe(rrq, nextrrq, &send_rrq, list) {
+		list_del(&rrq->list);
+		if (!rrq->send_rrq)
+			/* this call will free the rrq */
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+		else if (lpfc_send_rrq(phba, rrq)) {
+			/* if we send the rrq then the completion handler
+			*  will clear the bit in the xribitmap.
+			*/
+			lpfc_clr_rrq_active(phba, rrq->xritag,
+					    rrq);
+		}
+	}
 }
 
 /**
@@ -692,29 +715,37 @@ lpfc_get_active_rrq(struct lpfc_vport *vport, uint16_t xri, uint32_t did)
 /**
  * lpfc_cleanup_vports_rrqs - Remove and clear the active RRQ for this vport.
  * @vport: Pointer to vport context object.
- *
- * Remove all active RRQs for this vport from the phba->active_rrq_list and
- * clear the rrq.
+ * @ndlp: Pointer to the lpfc_node_list structure.
+ * If ndlp is NULL Remove all active RRQs for this vport from the
+ * phba->active_rrq_list and clear the rrq.
+ * If ndlp is not NULL then only remove rrqs for this vport & this ndlp.
  **/
 void
-lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport)
+lpfc_cleanup_vports_rrqs(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_node_rrq *rrq;
 	struct lpfc_node_rrq *nextrrq;
 	unsigned long iflags;
+	LIST_HEAD(rrq_list);
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list) {
-		if (rrq->vport == vport) {
-			list_del(&rrq->list);
-			__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-		}
+	if (!ndlp) {
+		lpfc_sli4_vport_delete_els_xri_aborted(vport);
+		lpfc_sli4_vport_delete_fcp_xri_aborted(vport);
 	}
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list)
+		if ((rrq->vport == vport) && (!ndlp  || rrq->ndlp == ndlp))
+			list_move(&rrq->list, &rrq_list);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	list_for_each_entry_safe(rrq, nextrrq, &rrq_list, list) {
+		list_del(&rrq->list);
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+	}
 }
 
 /**
@@ -732,24 +763,27 @@ lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
 	struct lpfc_node_rrq *nextrrq;
 	unsigned long next_time;
 	unsigned long iflags;
+	LIST_HEAD(rrq_list);
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	next_time = jiffies + HZ * (phba->fc_ratov * 2);
-	list_for_each_entry_safe(rrq, nextrrq, &phba->active_rrq_list, list) {
-		list_del(&rrq->list);
-		__lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
-	}
+	list_splice_init(&phba->active_rrq_list, &rrq_list);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	list_for_each_entry_safe(rrq, nextrrq, &rrq_list, list) {
+		list_del(&rrq->list);
+		lpfc_clr_rrq_active(phba, rrq->xritag, rrq);
+	}
 	if (!list_empty(&phba->active_rrq_list))
 		mod_timer(&phba->rrq_tmr, next_time);
 }
 
 
 /**
- * __lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
+ * lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
  * @phba: Pointer to HBA context object.
  * @ndlp: Targets nodelist pointer for this exchange.
  * @xritag the xri in the bitmap to test.
@@ -758,8 +792,8 @@ lpfc_cleanup_wt_rrqs(struct lpfc_hba *phba)
  * returns 0 = rrq not active for this xri
  *         1 = rrq is valid for this xri.
  **/
-static int
-__lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+int
+lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 			uint16_t  xritag)
 {
 	uint16_t adj_xri;
@@ -802,52 +836,6 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 }
 
 /**
- * lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
- * @phba: Pointer to HBA context object.
- * @xritag: xri used in this exchange.
- * @rrq: The RRQ to be cleared.
- *
- * This function is takes the hbalock.
- **/
-void
-lpfc_clr_rrq_active(struct lpfc_hba *phba,
-			uint16_t xritag,
-			struct lpfc_node_rrq *rrq)
-{
-	unsigned long iflags;
-
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	__lpfc_clr_rrq_active(phba, xritag, rrq);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-	return;
-}
-
-
-
-/**
- * lpfc_test_rrq_active - Test RRQ bit in xri_bitmap.
- * @phba: Pointer to HBA context object.
- * @ndlp: Targets nodelist pointer for this exchange.
- * @xritag the xri in the bitmap to test.
- *
- * This function takes the hbalock.
- * returns 0 = rrq not active for this xri
- *         1 = rrq is valid for this xri.
- **/
-int
-lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
-			uint16_t  xritag)
-{
-	int ret;
-	unsigned long iflags;
-
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	ret = __lpfc_test_rrq_active(phba, ndlp, xritag);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-	return ret;
-}
-
-/**
  * __lpfc_sli_get_sglq - Allocates an iocb object from sgl pool
  * @phba: Pointer to HBA context object.
  * @piocb: Pointer to the iocbq.
@@ -884,7 +872,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 			return NULL;
 		adj_xri = sglq->sli4_xritag -
 				phba->sli4_hba.max_cfg_param.xri_base;
-		if (__lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
+		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
 			/* This xri has an rrq outstanding for this DID.
 			 * put it back in the list and get another xri.
 			 */
@@ -969,7 +957,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 		} else {
 			sglq->state = SGL_FREED;
 			sglq->ndlp = NULL;
-			list_add(&sglq->list, &phba->sli4_hba.lpfc_sgl_list);
+			list_add_tail(&sglq->list,
+				&phba->sli4_hba.lpfc_sgl_list);
 
 			/* Check if TXQ queue needs to be serviced */
 			if (pring->txq_cnt)
@@ -4817,7 +4806,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"0378 No support for fcpi mode.\n");
 		ftr_rsp++;
 	}
-
+	if (bf_get(lpfc_mbx_rq_ftr_rsp_perfh, &mqe->un.req_ftrs))
+		phba->sli3_options |= LPFC_SLI4_PERFH_ENABLED;
+	else
+		phba->sli3_options &= ~LPFC_SLI4_PERFH_ENABLED;
 	/*
 	 * If the port cannot support the host's requested features
 	 * then turn off the global config parameters to disable the
@@ -5004,7 +4996,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	phba->link_state = LPFC_LINK_DOWN;
 	spin_unlock_irq(&phba->hbalock);
-	rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
+	if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK)
+		rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
 out_unset_queue:
 	/* Unset all the queues set up in this routine when error out */
 	if (rc)
@@ -10478,6 +10471,7 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	cq->type = type;
 	cq->subtype = subtype;
 	cq->queue_id = bf_get(lpfc_mbx_cq_create_q_id, &cq_create->u.response);
+	cq->assoc_qid = eq->queue_id;
 	cq->host_index = 0;
 	cq->hba_index = 0;
 
@@ -10672,6 +10666,7 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 		goto out;
 	}
 	mq->type = LPFC_MQ;
+	mq->assoc_qid = cq->queue_id;
 	mq->subtype = subtype;
 	mq->host_index = 0;
 	mq->hba_index = 0;
@@ -10759,6 +10754,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		goto out;
 	}
 	wq->type = LPFC_WQ;
+	wq->assoc_qid = cq->queue_id;
 	wq->subtype = subtype;
 	wq->host_index = 0;
 	wq->hba_index = 0;
@@ -10876,6 +10872,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		goto out;
 	}
 	hrq->type = LPFC_HRQ;
+	hrq->assoc_qid = cq->queue_id;
 	hrq->subtype = subtype;
 	hrq->host_index = 0;
 	hrq->hba_index = 0;
@@ -10936,6 +10933,7 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		goto out;
 	}
 	drq->type = LPFC_DRQ;
+	drq->assoc_qid = cq->queue_id;
 	drq->subtype = subtype;
 	drq->host_index = 0;
 	drq->hba_index = 0;
@@ -11189,7 +11187,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	if (!mbox)
 		return -ENOMEM;
 	length = (sizeof(struct lpfc_mbx_rq_destroy) -
-		  sizeof(struct mbox_header));
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_RQ_DESTROY,
 			 length, LPFC_SLI4_MBX_EMBED);
@@ -11279,7 +11277,7 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			LPFC_MBOX_OPCODE_FCOE_POST_SGL_PAGES,
 			sizeof(struct lpfc_mbx_post_sgl_pages) -
-			sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+			sizeof(struct lpfc_sli4_cfg_mhdr), LPFC_SLI4_MBX_EMBED);
 
 	post_sgl_pages = (struct lpfc_mbx_post_sgl_pages *)
 				&mbox->u.mqe.un.post_sgl_pages;
@@ -12402,7 +12400,8 @@ lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE,
 			 sizeof(struct lpfc_mbx_post_hdr_tmpl) -
-			 sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+			 sizeof(struct lpfc_sli4_cfg_mhdr),
+			 LPFC_SLI4_MBX_EMBED);
 	bf_set(lpfc_mbx_post_hdr_tmpl_page_cnt,
 	       hdr_tmpl, rpi_page->page_count);
 	bf_set(lpfc_mbx_post_hdr_tmpl_rpi_offset, hdr_tmpl,

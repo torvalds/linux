@@ -1,7 +1,7 @@
 /*
  * Main USB camera driver
  *
- * Copyright (C) 2008-2010 Jean-François Moine <http://moinejf.free.fr>
+ * Copyright (C) 2008-2011 Jean-François Moine <http://moinejf.free.fr>
  *
  * Camera button input handling by Márton Németh
  * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
@@ -414,7 +414,6 @@ resubmit:
  *	- 0 or many INTER_PACKETs
  *	- one LAST_PACKET
  * DISCARD_PACKET invalidates the whole frame.
- * On LAST_PACKET, a new frame is returned.
  */
 void gspca_frame_add(struct gspca_dev *gspca_dev,
 			enum gspca_packet_type packet_type,
@@ -631,7 +630,8 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 		ep = &alt->endpoint[i];
 		attr = ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 		if (attr == xfer
-		    && ep->desc.wMaxPacketSize != 0)
+		    && ep->desc.wMaxPacketSize != 0
+		    && usb_endpoint_dir_in(&ep->desc))
 			return ep;
 	}
 	return NULL;
@@ -1525,10 +1525,12 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		gspca_dev->usb_err = 0;
 		gspca_stream_off(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
+
+		/* Don't restart the stream when switching from read
+		 * to mmap mode */
+		if (gspca_dev->memory == GSPCA_MEMORY_READ)
+			streaming = 0;
 	}
-	/* Don't restart the stream when switching from read to mmap mode */
-	if (gspca_dev->memory == GSPCA_MEMORY_READ)
-		streaming = 0;
 
 	/* free the previous allocated buffers, if any */
 	if (gspca_dev->nframes != 0)
@@ -2152,7 +2154,7 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_g_chip_ident	= vidioc_g_chip_ident,
 };
 
-static struct video_device gspca_template = {
+static const struct video_device gspca_template = {
 	.name = "gspca main driver",
 	.fops = &dev_fops,
 	.ioctl_ops = &dev_ioctl_ops,

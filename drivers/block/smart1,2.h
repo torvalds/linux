@@ -95,7 +95,7 @@ static unsigned long smart4_completed(ctlr_info_t *h)
  /*
  *  This hardware returns interrupt pending at a different place and 
  *  it does not tell us if the fifo is empty, we will have check  
- *  that by getting a 0 back from the comamnd_completed call. 
+ *  that by getting a 0 back from the command_completed call. 
  */
 static unsigned long smart4_intr_pending(ctlr_info_t *h)
 {

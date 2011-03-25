@@ -216,37 +216,17 @@ static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-/*
- * Handle commands from user-space
- */
-static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
-			unsigned long arg)
+static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct sam9_rtc *rtc = dev_get_drvdata(dev);
-	int ret = 0;
 	u32 mr = rtt_readl(rtc, MR);
 
-	dev_dbg(dev, "ioctl: cmd=%08x, arg=%08lx, mr %08x\n", cmd, arg, mr);
-
-	switch (cmd) {
-	case RTC_AIE_OFF:		/* alarm off */
-		rtt_writel(rtc, MR, mr & ~AT91_RTT_ALMIEN);
-		break;
-	case RTC_AIE_ON:		/* alarm on */
+	dev_dbg(dev, "alarm_irq_enable: enabled=%08x, mr %08x\n", enabled, mr);
+	if (enabled)
 		rtt_writel(rtc, MR, mr | AT91_RTT_ALMIEN);
-		break;
-	case RTC_UIE_OFF:		/* update off */
-		rtt_writel(rtc, MR, mr & ~AT91_RTT_RTTINCIEN);
-		break;
-	case RTC_UIE_ON:		/* update on */
-		rtt_writel(rtc, MR, mr | AT91_RTT_RTTINCIEN);
-		break;
-	default:
-		ret = -ENOIOCTLCMD;
-		break;
-	}
-
-	return ret;
+	else
+		rtt_writel(rtc, MR, mr & ~AT91_RTT_ALMIEN);
+	return 0;
 }
 
 /*
@@ -296,12 +276,12 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *_rtc)
 }
 
 static const struct rtc_class_ops at91_rtc_ops = {
-	.ioctl		= at91_rtc_ioctl,
 	.read_time	= at91_rtc_readtime,
 	.set_time	= at91_rtc_settime,
 	.read_alarm	= at91_rtc_readalarm,
 	.set_alarm	= at91_rtc_setalarm,
 	.proc		= at91_rtc_proc,
+	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
 /*

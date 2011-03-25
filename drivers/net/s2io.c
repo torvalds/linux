@@ -7556,7 +7556,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			if (ring_data->lro) {
-				u32 tcp_len;
+				u32 tcp_len = 0;
 				u8 *tcp;
 				int ret = 0;
 

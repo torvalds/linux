@@ -262,7 +262,7 @@ static void status_handle(struct m68k_serial *info, unsigned short status)
 
 static void receive_chars(struct m68k_serial *info, unsigned short rx)
 {
-	struct tty_struct *tty = info->port.tty;
+	struct tty_struct *tty = info->tty;
 	m68328_uart *uart = &uart_addr[info->line];
 	unsigned char ch, flag;
 
@@ -329,7 +329,7 @@ static void transmit_chars(struct m68k_serial *info)
 		goto clear_and_return;
 	}
 
-	if((info->xmit_cnt <= 0) || info->port.tty->stopped) {
+	if((info->xmit_cnt <= 0) || info->tty->stopped) {
 		/* That's peculiar... TX ints off */
 		uart->ustcnt &= ~USTCNT_TX_INTR_MASK;
 		goto clear_and_return;
@@ -383,7 +383,7 @@ static void do_softint(struct work_struct *work)
 	struct m68k_serial	*info = container_of(work, struct m68k_serial, tqueue);
 	struct tty_struct	*tty;
 	
-	tty = info->port.tty;
+	tty = info->tty;
 	if (!tty)
 		return;
 #if 0
@@ -392,28 +392,6 @@ static void do_softint(struct work_struct *work)
 	}
 #endif   
 }
-
-/*
- * This routine is called from the scheduler tqueue when the interrupt
- * routine has signalled that a hangup has occurred.  The path of
- * hangup processing is:
- *
- * 	serial interrupt routine -> (scheduler tqueue) ->
- * 	do_serial_hangup() -> tty->hangup() -> rs_hangup()
- * 
- */
-static void do_serial_hangup(struct work_struct *work)
-{
-	struct m68k_serial	*info = container_of(work, struct m68k_serial, tqueue_hangup);
-	struct tty_struct	*tty;
-	
-	tty = info->port.tty;
-	if (!tty)
-		return;
-
-	tty_hangup(tty);
-}
-
 
 static int startup(struct m68k_serial * info)
 {
@@ -451,8 +429,8 @@ static int startup(struct m68k_serial * info)
 	uart->ustcnt = USTCNT_UEN | USTCNT_RXEN | USTCNT_RX_INTR_MASK;
 #endif
 
-	if (info->port.tty)
-		clear_bit(TTY_IO_ERROR, &info->port.tty->flags);
+	if (info->tty)
+		clear_bit(TTY_IO_ERROR, &info->tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
 
 	/*
@@ -486,8 +464,8 @@ static void shutdown(struct m68k_serial * info)
 		info->xmit_buf = 0;
 	}
 
-	if (info->port.tty)
-		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
+	if (info->tty)
+		set_bit(TTY_IO_ERROR, &info->tty->flags);
 	
 	info->flags &= ~S_INITIALIZED;
 	local_irq_restore(flags);
@@ -553,9 +531,9 @@ static void change_speed(struct m68k_serial *info)
 	unsigned cflag;
 	int	i;
 
-	if (!info->port.tty || !info->port.tty->termios)
+	if (!info->tty || !info->tty->termios)
 		return;
-	cflag = info->port.tty->termios->c_cflag;
+	cflag = info->tty->termios->c_cflag;
 	if (!(port = info->port))
 		return;
 
@@ -967,10 +945,9 @@ static void send_break(struct m68k_serial * info, unsigned int duration)
         local_irq_restore(flags);
 }
 
-static int rs_ioctl(struct tty_struct *tty, struct file * file,
+static int rs_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
-	int error;
 	struct m68k_serial * info = (struct m68k_serial *)tty->driver_data;
 	int retval;
 
@@ -1104,7 +1081,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty_ldisc_flush(tty);
 	tty->closing = 0;
 	info->event = 0;
-	info->port.tty = NULL;
+	info->tty = NULL;
 #warning "This is not and has never been valid so fix it"	
 #if 0
 	if (tty->ldisc.num != ldiscs[N_TTY].num) {
@@ -1142,7 +1119,7 @@ void rs_hangup(struct tty_struct *tty)
 	info->event = 0;
 	info->count = 0;
 	info->flags &= ~S_NORMAL_ACTIVE;
-	info->port.tty = NULL;
+	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
 
@@ -1261,7 +1238,7 @@ int rs_open(struct tty_struct *tty, struct file * filp)
 
 	info->count++;
 	tty->driver_data = info;
-	info->port.tty = tty;
+	info->tty = tty;
 
 	/*
 	 * Start up serial port
@@ -1338,7 +1315,7 @@ rs68328_init(void)
 	    info = &m68k_soft[i];
 	    info->magic = SERIAL_MAGIC;
 	    info->port = (int) &uart_addr[i];
-	    info->port.tty = NULL;
+	    info->tty = NULL;
 	    info->irq = uart_irqs[i];
 	    info->custom_divisor = 16;
 	    info->close_delay = 50;
@@ -1348,7 +1325,6 @@ rs68328_init(void)
 	    info->count = 0;
 	    info->blocked_open = 0;
 	    INIT_WORK(&info->tqueue, do_softint);
-	    INIT_WORK(&info->tqueue_hangup, do_serial_hangup);
 	    init_waitqueue_head(&info->open_wait);
 	    init_waitqueue_head(&info->close_wait);
 	    info->line = i;

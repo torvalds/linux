@@ -68,7 +68,7 @@ static ssize_t ad7476_show_scale(struct device *dev,
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (st->int_vref_mv * 1000) >> st->chip_info->bits;
 
-	return sprintf(buf, "%d.%d\n", scale_uv / 1000, scale_uv % 1000);
+	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
 }
 static IIO_DEVICE_ATTR(in_scale, S_IRUGO, ad7476_show_scale, NULL, 0);
 
@@ -190,7 +190,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	}
 
-	/* Estabilish that the iio_dev is a child of the i2c device */
+	/* Establish that the iio_dev is a child of the spi device */
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->attrs = &ad7476_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);

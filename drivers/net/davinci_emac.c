@@ -1008,7 +1008,7 @@ static void emac_rx_handler(void *token, int len, int status)
 	int			ret;
 
 	/* free and bail if we are shutting down */
-	if (unlikely(!netif_running(ndev))) {
+	if (unlikely(!netif_running(ndev) || !netif_carrier_ok(ndev))) {
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -1730,7 +1730,7 @@ static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 		emac_read(EMAC_TXCARRIERSENSE);
 	emac_write(EMAC_TXCARRIERSENSE, stats_clear_mask);
 
-	ndev->stats.tx_fifo_errors = emac_read(EMAC_TXUNDERRUN);
+	ndev->stats.tx_fifo_errors += emac_read(EMAC_TXUNDERRUN);
 	emac_write(EMAC_TXUNDERRUN, stats_clear_mask);
 
 	return &ndev->stats;

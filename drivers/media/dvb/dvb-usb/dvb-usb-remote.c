@@ -8,60 +8,71 @@
 #include "dvb-usb-common.h"
 #include <linux/usb/input.h>
 
+static unsigned int
+legacy_dvb_usb_get_keymap_index(const struct input_keymap_entry *ke,
+				struct rc_map_table *keymap,
+				unsigned int keymap_size)
+{
+	unsigned int index;
+	unsigned int scancode;
+
+	if (ke->flags & INPUT_KEYMAP_BY_INDEX) {
+		index = ke->index;
+	} else {
+		if (input_scancode_to_scalar(ke, &scancode))
+			return keymap_size;
+
+		/* See if we can match the raw key code. */
+		for (index = 0; index < keymap_size; index++)
+			if (keymap[index].scancode == scancode)
+				break;
+
+		/* See if there is an unused hole in the map */
+		if (index >= keymap_size) {
+			for (index = 0; index < keymap_size; index++) {
+				if (keymap[index].keycode == KEY_RESERVED ||
+				    keymap[index].keycode == KEY_UNKNOWN) {
+					break;
+				}
+			}
+		}
+	}
+
+	return index;
+}
+
 static int legacy_dvb_usb_getkeycode(struct input_dev *dev,
-				unsigned int scancode, unsigned int *keycode)
+				     struct input_keymap_entry *ke)
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
-
 	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
-	int i;
+	unsigned int keymap_size = d->props.rc.legacy.rc_map_size;
+	unsigned int index;
 
-	/* See if we can match the raw key code. */
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
-		if (keymap[i].scancode == scancode) {
-			*keycode = keymap[i].keycode;
-			return 0;
-		}
+	index = legacy_dvb_usb_get_keymap_index(ke, keymap, keymap_size);
+	if (index >= keymap_size)
+		return -EINVAL;
 
-	/*
-	 * If is there extra space, returns KEY_RESERVED,
-	 * otherwise, input core won't let legacy_dvb_usb_setkeycode
-	 * to work
-	 */
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
-		if (keymap[i].keycode == KEY_RESERVED ||
-		    keymap[i].keycode == KEY_UNKNOWN) {
-			*keycode = KEY_RESERVED;
-			return 0;
-		}
+	ke->keycode = keymap[index].keycode;
+	if (ke->keycode == KEY_UNKNOWN)
+		ke->keycode = KEY_RESERVED;
+	ke->len = sizeof(keymap[index].scancode);
+	memcpy(&ke->scancode, &keymap[index].scancode, ke->len);
+	ke->index = index;
 
-	return -EINVAL;
+	return 0;
 }
 
 static int legacy_dvb_usb_setkeycode(struct input_dev *dev,
-				unsigned int scancode, unsigned int keycode)
+				     const struct input_keymap_entry *ke,
+				     unsigned int *old_keycode)
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
-
 	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
-	int i;
+	unsigned int keymap_size = d->props.rc.legacy.rc_map_size;
+	unsigned int index;
 
-	/* Search if it is replacing an existing keycode */
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
-		if (keymap[i].scancode == scancode) {
-			keymap[i].keycode = keycode;
-			return 0;
-		}
-
-	/* Search if is there a clean entry. If so, use it */
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++)
-		if (keymap[i].keycode == KEY_RESERVED ||
-		    keymap[i].keycode == KEY_UNKNOWN) {
-			keymap[i].scancode = scancode;
-			keymap[i].keycode = keycode;
-			return 0;
-		}
-
+	index = legacy_dvb_usb_get_keymap_index(ke, keymap, keymap_size);
 	/*
 	 * FIXME: Currently, it is not possible to increase the size of
 	 * scancode table. For it to happen, one possibility
@@ -69,8 +80,24 @@ static int legacy_dvb_usb_setkeycode(struct input_dev *dev,
 	 * copying data, appending the new key on it, and freeing
 	 * the old one - or maybe just allocating some spare space
 	 */
+	if (index >= keymap_size)
+		return -EINVAL;
 
-	return -EINVAL;
+	*old_keycode = keymap[index].keycode;
+	keymap->keycode = ke->keycode;
+	__set_bit(ke->keycode, dev->keybit);
+
+	if (*old_keycode != KEY_RESERVED) {
+		__clear_bit(*old_keycode, dev->keybit);
+		for (index = 0; index < keymap_size; index++) {
+			if (keymap[index].keycode == *old_keycode) {
+				__set_bit(*old_keycode, dev->keybit);
+				break;
+			}
+		}
+	}
+
+	return 0;
 }
 
 /* Remote-control poll function - called every dib->rc_query_interval ms to see
@@ -246,7 +273,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	dev->map_name = d->props.rc.core.rc_codes;
 	dev->change_protocol = d->props.rc.core.change_protocol;
 	dev->allowed_protos = d->props.rc.core.allowed_protos;
-	dev->driver_type = RC_DRIVER_SCANCODE;
+	dev->driver_type = d->props.rc.core.driver_type;
 	usb_to_input_id(d->udev, &dev->input_id);
 	dev->input_name = "IR-receiver inside an USB DVB receiver";
 	dev->input_phys = d->rc_phys;

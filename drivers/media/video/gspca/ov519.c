@@ -1,7 +1,7 @@
 /**
  * OV519 driver
  *
- * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2008-2011 Jean-François Moine <moinejf@free.fr>
  * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the ov51x-jpeg package, which itself
@@ -61,10 +61,12 @@ static int i2c_detect_tries = 10;
 enum e_ctrl {
 	BRIGHTNESS,
 	CONTRAST,
+	EXPOSURE,
 	COLORS,
 	HFLIP,
 	VFLIP,
 	AUTOBRIGHT,
+	AUTOGAIN,
 	FREQ,
 	NCTRL		/* number of controls */
 };
@@ -118,6 +120,7 @@ struct sd {
 };
 enum sensors {
 	SEN_OV2610,
+	SEN_OV2610AE,
 	SEN_OV3610,
 	SEN_OV6620,
 	SEN_OV6630,
@@ -141,9 +144,11 @@ enum sensors {
 /* V4L2 controls supported by the driver */
 static void setbrightness(struct gspca_dev *gspca_dev);
 static void setcontrast(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
 static void setcolors(struct gspca_dev *gspca_dev);
 static void sethvflip(struct gspca_dev *gspca_dev);
 static void setautobright(struct gspca_dev *gspca_dev);
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static void setfreq(struct gspca_dev *gspca_dev);
 static void setfreq_i(struct sd *sd);
 
@@ -171,6 +176,18 @@ static const struct ctrl sd_ctrls[] = {
 		.default_value = 127,
 	    },
 	    .set_control = setcontrast,
+	},
+[EXPOSURE] = {
+	    {
+		.id      = V4L2_CID_EXPOSURE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Exposure",
+		.minimum = 0,
+		.maximum = 255,
+		.step    = 1,
+		.default_value = 127,
+	    },
+	    .set_control = setexposure,
 	},
 [COLORS] = {
 	    {
@@ -221,6 +238,19 @@ static const struct ctrl sd_ctrls[] = {
 	    },
 	    .set_control = setautobright,
 	},
+[AUTOGAIN] = {
+	    {
+		.id      = V4L2_CID_AUTOGAIN,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Auto Gain",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+		.default_value = 1,
+		.flags	 = V4L2_CTRL_FLAG_UPDATE
+	    },
+	    .set = sd_setautogain,
+	},
 [FREQ] = {
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -237,48 +267,78 @@ static const struct ctrl sd_ctrls[] = {
 
 /* table of the disabled controls */
 static const unsigned ctrl_dis[] = {
-[SEN_OV2610] =		(1 << NCTRL) - 1,	/* no control */
+[SEN_OV2610] =		((1 << NCTRL) - 1)	/* no control */
+			^ ((1 << EXPOSURE)	/* but exposure */
+			 | (1 << AUTOGAIN)),	/* and autogain */
+
+[SEN_OV2610AE] =	((1 << NCTRL) - 1)	/* no control */
+			^ ((1 << EXPOSURE)	/* but exposure */
+			 | (1 << AUTOGAIN)),	/* and autogain */
 
 [SEN_OV3610] =		(1 << NCTRL) - 1,	/* no control */
 
 [SEN_OV6620] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV6630] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV66308AF] =	(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7610] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7620] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7620AE] =	(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7640] =		(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << AUTOBRIGHT) |
-			(1 << CONTRAST),
+			(1 << CONTRAST) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7648] =		(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << AUTOBRIGHT) |
-			(1 << CONTRAST),
+			(1 << CONTRAST) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
-[SEN_OV7660] =		(1 << AUTOBRIGHT),
+[SEN_OV7660] =		(1 << AUTOBRIGHT) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV7670] =		(1 << COLORS) |
-			(1 << AUTOBRIGHT),
+			(1 << AUTOBRIGHT) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV76BE] =		(1 << HFLIP) |
-			(1 << VFLIP),
+			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN),
 
 [SEN_OV8610] =		(1 << HFLIP) |
 			(1 << VFLIP) |
+			(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
 			(1 << FREQ),
 };
 
@@ -428,6 +488,11 @@ static const struct v4l2_pix_format ovfx2_cif_mode[] = {
 		.priv = 0},
 };
 static const struct v4l2_pix_format ovfx2_ov2610_mode[] = {
+	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 800,
+		.sizeimage = 800 * 600,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
 	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 1600,
 		.sizeimage = 1600 * 1200,
@@ -544,6 +609,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
  * buffers, there are some pretty strict real time constraints for
  * isochronous transfer for larger frame sizes).
  */
+/*jfm: this value works well for 1600x1200, but not 800x600 - see isoc_init */
 #define OVFX2_BULK_SIZE (13 * 4096)
 
 /* I2C registers */
@@ -654,6 +720,24 @@ struct ov_i2c_regvals {
 /* Settings for OV2610 camera chip */
 static const struct ov_i2c_regvals norm_2610[] = {
 	{ 0x12, 0x80 },	/* reset */
+};
+
+static const struct ov_i2c_regvals norm_2610ae[] = {
+	{0x12, 0x80},	/* reset */
+	{0x13, 0xcd},
+	{0x09, 0x01},
+	{0x0d, 0x00},
+	{0x11, 0x80},
+	{0x12, 0x20},	/* 1600x1200 */
+	{0x33, 0x0c},
+	{0x35, 0x90},
+	{0x36, 0x37},
+/* ms-win traces */
+	{0x11, 0x83},	/* clock / 3 ? */
+	{0x2d, 0x00},	/* 60 Hz filter */
+	{0x24, 0xb0},	/* normal colors */
+	{0x25, 0x90},
+	{0x10, 0x43},
 };
 
 static const struct ov_i2c_regvals norm_3620b[] = {
@@ -2621,6 +2705,9 @@ static void ov_hires_configure(struct sd *sd)
 	if (high == 0x96 && low == 0x40) {
 		PDEBUG(D_PROBE, "Sensor is an OV2610");
 		sd->sensor = SEN_OV2610;
+	} else if (high == 0x96 && low == 0x41) {
+		PDEBUG(D_PROBE, "Sensor is an OV2610AE");
+		sd->sensor = SEN_OV2610AE;
 	} else if (high == 0x36 && (low & 0x0f) == 0x00) {
 		PDEBUG(D_PROBE, "Sensor is an OV3610");
 		sd->sensor = SEN_OV3610;
@@ -3171,6 +3258,13 @@ static void ov519_set_fr(struct sd *sd)
 	ov518_i2c_w(sd, OV7670_R11_CLKRC, clock);
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	i2c_w_mask(sd, 0x13, sd->ctrls[AUTOGAIN].val ? 0x05 : 0x00, 0x05);
+}
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
@@ -3295,15 +3389,22 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		}
 		break;
 	case BRIDGE_OVFX2:
-		if (sd->sensor == SEN_OV2610) {
+		switch (sd->sensor) {
+		case SEN_OV2610:
+		case SEN_OV2610AE:
 			cam->cam_mode = ovfx2_ov2610_mode;
 			cam->nmodes = ARRAY_SIZE(ovfx2_ov2610_mode);
-		} else if (sd->sensor == SEN_OV3610) {
+			break;
+		case SEN_OV3610:
 			cam->cam_mode = ovfx2_ov3610_mode;
 			cam->nmodes = ARRAY_SIZE(ovfx2_ov3610_mode);
-		} else if (sd->sif) {
-			cam->cam_mode = ov519_sif_mode;
-			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
+			break;
+		default:
+			if (sd->sif) {
+				cam->cam_mode = ov519_sif_mode;
+				cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
+			}
+			break;
 		}
 		break;
 	case BRIDGE_W9968CF:
@@ -3324,6 +3425,12 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 		/* Enable autogain, autoexpo, awb, bandfilter */
 		i2c_w_mask(sd, 0x13, 0x27, 0x27);
+		break;
+	case SEN_OV2610AE:
+		write_i2c_regvals(sd, norm_2610ae, ARRAY_SIZE(norm_2610ae));
+
+		/* enable autoexpo */
+		i2c_w_mask(sd, 0x13, 0x05, 0x05);
 		break;
 	case SEN_OV3610:
 		write_i2c_regvals(sd, norm_3620b, ARRAY_SIZE(norm_3620b));
@@ -3395,6 +3502,22 @@ static int sd_init(struct gspca_dev *gspca_dev)
 error:
 	PDEBUG(D_ERR, "OV519 Config failed");
 	return -EINVAL;
+}
+
+/* function called at start time before URB creation */
+static int sd_isoc_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->bridge) {
+	case BRIDGE_OVFX2:
+		if (gspca_dev->width == 1600)
+			gspca_dev->cam.bulk_size = OVFX2_BULK_SIZE;
+		else
+			gspca_dev->cam.bulk_size = 7 * 4096;
+		break;
+	}
+	return 0;
 }
 
 /* Set up the OV511/OV511+ with the given image parameters.
@@ -3827,6 +3950,25 @@ static void mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
 		return;
+	case SEN_OV2610AE: {
+		u8 v;
+
+		/* frame rates:
+		 *	10fps / 5 fps for 1600x1200
+		 *	40fps / 20fps for 800x600
+		 */
+		v = 80;
+		if (qvga) {
+			if (sd->frame_rate < 25)
+				v = 0x81;
+		} else {
+			if (sd->frame_rate < 10)
+				v = 0x81;
+		}
+		i2c_w(sd, 0x11, v);
+		i2c_w(sd, 0x12, qvga ? 0x60 : 0x20);
+		return;
+	    }
 	case SEN_OV3610:
 		if (qvga) {
 			xstart = (1040 - gspca_dev->width) / 2 + (0x1f << 4);
@@ -3975,6 +4117,7 @@ static void set_ov_sensor_window(struct sd *sd)
 	/* mode setup is fully handled in mode_init_ov_sensor_regs for these */
 	switch (sd->sensor) {
 	case SEN_OV2610:
+	case SEN_OV2610AE:
 	case SEN_OV3610:
 	case SEN_OV7670:
 		mode_init_ov_sensor_regs(sd);
@@ -4110,12 +4253,16 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		setcontrast(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << BRIGHTNESS)))
 		setbrightness(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << EXPOSURE)))
+		setexposure(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << COLORS)))
 		setcolors(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & ((1 << HFLIP) | (1 << VFLIP))))
 		sethvflip(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << AUTOBRIGHT)))
 		setautobright(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << AUTOGAIN)))
+		setautogain(gspca_dev);
 	if (!(sd->gspca_dev.ctrl_dis & (1 << FREQ)))
 		setfreq_i(sd);
 
@@ -4529,6 +4676,14 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void setexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->ctrls[AUTOGAIN].val)
+		i2c_w(sd, 0x10, sd->ctrls[EXPOSURE].val);
+}
+
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -4585,6 +4740,22 @@ static void setautobright(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	i2c_w_mask(sd, 0x2d, sd->ctrls[AUTOBRIGHT].val ? 0x10 : 0x00, 0x10);
+}
+
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->ctrls[AUTOGAIN].val = val;
+	if (val) {
+		gspca_dev->ctrl_inac |= (1 << EXPOSURE);
+	} else {
+		gspca_dev->ctrl_inac &= ~(1 << EXPOSURE);
+		sd->ctrls[EXPOSURE].val = i2c_r(sd, 0x10);
+	}
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
+	return gspca_dev->usb_err;
 }
 
 static void setfreq_i(struct sd *sd)
@@ -4731,6 +4902,7 @@ static const struct sd_desc sd_desc = {
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,

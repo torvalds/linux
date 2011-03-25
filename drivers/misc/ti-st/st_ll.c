@@ -30,7 +30,7 @@ static void send_ll_cmd(struct st_data_s *st_data,
 	unsigned char cmd)
 {
 
-	pr_info("%s: writing %x", __func__, cmd);
+	pr_debug("%s: writing %x", __func__, cmd);
 	st_int_write(st_data, &cmd, 1);
 	return;
 }
@@ -114,23 +114,23 @@ unsigned long st_ll_sleep_state(struct st_data_s *st_data,
 {
 	switch (cmd) {
 	case LL_SLEEP_IND:	/* sleep ind */
-		pr_info("sleep indication recvd");
+		pr_debug("sleep indication recvd");
 		ll_device_want_to_sleep(st_data);
 		break;
 	case LL_SLEEP_ACK:	/* sleep ack */
 		pr_err("sleep ack rcvd: host shouldn't");
 		break;
 	case LL_WAKE_UP_IND:	/* wake ind */
-		pr_info("wake indication recvd");
+		pr_debug("wake indication recvd");
 		ll_device_want_to_wakeup(st_data);
 		break;
 	case LL_WAKE_UP_ACK:	/* wake ack */
-		pr_info("wake ack rcvd");
+		pr_debug("wake ack rcvd");
 		st_data->ll_state = ST_LL_AWAKE;
 		break;
 	default:
 		pr_err(" unknown input/state ");
-		return -1;
+		return -EINVAL;
 	}
 	return 0;
 }

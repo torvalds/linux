@@ -154,13 +154,14 @@
 #define		ROQ_IB2_START(x)				((x) << 8)
 #define	CP_RB_BASE					0xC100
 #define	CP_RB_CNTL					0xC104
-#define		RB_BUFSZ(x)					((x)<<0)
-#define		RB_BLKSZ(x)					((x)<<8)
-#define		RB_NO_UPDATE					(1<<27)
-#define		RB_RPTR_WR_ENA					(1<<31)
+#define		RB_BUFSZ(x)					((x) << 0)
+#define		RB_BLKSZ(x)					((x) << 8)
+#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_RPTR_WR_ENA					(1 << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
+#define		RB_RPTR_SWAP(x)					((x) << 0)
 #define	CP_RB_RPTR_ADDR_HI				0xC110
 #define	CP_RB_RPTR_WR					0xC108
 #define	CP_RB_WPTR					0xC114
@@ -1303,6 +1304,11 @@
 #define     V_038004_FMT_16_16_16_FLOAT                0x0000002E
 #define     V_038004_FMT_32_32_32                      0x0000002F
 #define     V_038004_FMT_32_32_32_FLOAT                0x00000030
+#define     V_038004_FMT_BC1                           0x00000031
+#define     V_038004_FMT_BC2                           0x00000032
+#define     V_038004_FMT_BC3                           0x00000033
+#define     V_038004_FMT_BC4                           0x00000034
+#define     V_038004_FMT_BC5                           0x00000035
 #define R_038010_SQ_TEX_RESOURCE_WORD4_0             0x038010
 #define   S_038010_FORMAT_COMP_X(x)                    (((x) & 0x3) << 0)
 #define   G_038010_FORMAT_COMP_X(x)                    (((x) >> 0) & 0x3)

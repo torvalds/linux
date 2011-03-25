@@ -201,7 +201,7 @@ static u32 tcp_veno_ssthresh(struct sock *sk)
 		return max(tp->snd_cwnd >> 1U, 2U);
 }
 
-static struct tcp_congestion_ops tcp_veno = {
+static struct tcp_congestion_ops tcp_veno __read_mostly = {
 	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_veno_init,
 	.ssthresh	= tcp_veno_ssthresh,

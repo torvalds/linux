@@ -70,6 +70,9 @@
 #define REG_READ(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
+#define REG_READ_MULTI(_ah, _addr, _val, _cnt)		\
+	ath9k_hw_common(_ah)->ops->multi_read((_ah), (_addr), (_val), (_cnt))
+
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
 		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
@@ -92,9 +95,9 @@
 #define REG_READ_FIELD(_a, _r, _f) \
 	(((REG_READ(_a, _r) & _f) >> _f##_S))
 #define REG_SET_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) | _f)
+	REG_WRITE(_a, _r, REG_READ(_a, _r) | (_f))
 #define REG_CLR_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~_f)
+	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~(_f))
 
 #define DO_DELAY(x) do {			\
 		if ((++(x) % 64) == 0)          \
@@ -225,6 +228,7 @@ struct ath9k_ops_config {
 	u32 pcie_waen;
 	u8 analog_shiftreg;
 	u8 ht_enable;
+	u8 paprd_disable;
 	u32 ofdm_trig_low;
 	u32 ofdm_trig_high;
 	u32 cck_trig_high;
@@ -925,6 +929,7 @@ void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
+unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,

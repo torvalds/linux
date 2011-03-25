@@ -82,7 +82,7 @@ config INTEL_IOP_ADMA
 
 config DW_DMAC
 	tristate "Synopsys DesignWare AHB DMA support"
-	depends on AVR32
+	depends on HAVE_CLK
 	select DMA_ENGINE
 	default y if CPU_AT32AP7000
 	help
@@ -221,11 +221,19 @@ config IMX_SDMA
 
 config IMX_DMA
 	tristate "i.MX DMA support"
-	depends on ARCH_MX1 || ARCH_MX21 || MACH_MX27
+	depends on IMX_HAVE_DMA_V1
 	select DMA_ENGINE
 	help
 	  Support the i.MX DMA engine. This engine is integrated into
 	  Freescale i.MX1/21/27 chips.
+
+config MXS_DMA
+	bool "MXS DMA support"
+	depends on SOC_IMX23 || SOC_IMX28
+	select DMA_ENGINE
+	help
+	  Support the MXS DMA engine. This engine including APBH-DMA
+	  and APBX-DMA is integrated into Freescale i.MX23/28 chips.
 
 config DMA_ENGINE
 	bool

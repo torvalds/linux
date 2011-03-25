@@ -116,14 +116,15 @@ static void serport_ldisc_close(struct tty_struct *tty)
 
 /*
  * serport_ldisc_receive() is called by the low level tty driver when characters
- * are ready for us. We forward the characters, one by one to the 'interrupt'
- * routine.
+ * are ready for us. We forward the characters and flags, one by one to the
+ * 'interrupt' routine.
  */
 
 static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *cp, char *fp, int count)
 {
 	struct serport *serport = (struct serport*) tty->disc_data;
 	unsigned long flags;
+	unsigned int ch_flags;
 	int i;
 
 	spin_lock_irqsave(&serport->lock, flags);
@@ -131,8 +132,23 @@ static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *c
 	if (!test_bit(SERPORT_ACTIVE, &serport->flags))
 		goto out;
 
-	for (i = 0; i < count; i++)
-		serio_interrupt(serport->serio, cp[i], 0);
+	for (i = 0; i < count; i++) {
+		switch (fp[i]) {
+		case TTY_FRAME:
+			ch_flags = SERIO_FRAME;
+			break;
+
+		case TTY_PARITY:
+			ch_flags = SERIO_PARITY;
+			break;
+
+		default:
+			ch_flags = 0;
+			break;
+		}
+
+		serio_interrupt(serport->serio, cp[i], ch_flags);
+	}
 
 out:
 	spin_unlock_irqrestore(&serport->lock, flags);

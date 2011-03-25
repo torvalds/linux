@@ -265,7 +265,7 @@ struct atl1c_recv_ret_status {
 	__le32	word3;
 };
 
-/* RFD desciptor */
+/* RFD descriptor */
 struct atl1c_rx_free_desc {
 	__le64	buffer_addr;
 };
@@ -531,7 +531,7 @@ struct atl1c_rfd_ring {
 	struct atl1c_buffer *buffer_info;
 };
 
-/* receive return desciptor (rrd) ring */
+/* receive return descriptor (rrd) ring */
 struct atl1c_rrd_ring {
 	void *desc;		/* descriptor ring virtual address */
 	dma_addr_t dma;		/* descriptor ring physical address */

@@ -33,9 +33,6 @@
 /*  ----------------------------------- Trace & Debug */
 #include <dspbridge/dbc.h>
 
-/*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/ldr.h>
-
 /*  ----------------------------------- Platform Manager */
 /* Include appropriate loader header file */
 #include <dspbridge/dbll.h>
@@ -50,8 +47,7 @@ struct cod_manager {
 	struct dbll_tar_obj *target;
 	struct dbll_library_obj *base_lib;
 	bool loaded;		/* Base library loaded? */
-	u32 ul_entry;
-	struct ldr_module *dll_obj;
+	u32 entry;
 	struct dbll_fxns fxns;
 	struct dbll_attrs attrs;
 	char sz_zl_file[COD_MAXPATHLENGTH];
@@ -78,12 +74,9 @@ static struct dbll_fxns ldr_fxns = {
 	(dbll_get_sect_fxn) dbll_get_sect,
 	(dbll_init_fxn) dbll_init,
 	(dbll_load_fxn) dbll_load,
-	(dbll_load_sect_fxn) dbll_load_sect,
 	(dbll_open_fxn) dbll_open,
 	(dbll_read_sect_fxn) dbll_read_sect,
-	(dbll_set_attrs_fxn) dbll_set_attrs,
 	(dbll_unload_fxn) dbll_unload,
-	(dbll_unload_sect_fxn) dbll_unload_sect,
 };
 
 static bool no_op(void);
@@ -209,8 +202,7 @@ void cod_close(struct cod_libraryobj *lib)
  *      dynamically loaded object files.
  *
  */
-int cod_create(struct cod_manager **mgr, char *str_zl_file,
-		      const struct cod_attrs *attrs)
+int cod_create(struct cod_manager **mgr, char *str_zl_file)
 {
 	struct cod_manager *mgr_new;
 	struct dbll_attrs zl_attrs;
@@ -221,10 +213,6 @@ int cod_create(struct cod_manager **mgr, char *str_zl_file,
 
 	/* assume failure */
 	*mgr = NULL;
-
-	/* we don't support non-default attrs yet */
-	if (attrs != NULL)
-		return -ENOSYS;
 
 	mgr_new = kzalloc(sizeof(struct cod_manager), GFP_KERNEL);
 	if (mgr_new == NULL)
@@ -358,7 +346,7 @@ int cod_get_entry(struct cod_manager *cod_mgr_obj, u32 *entry_pt)
 	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(entry_pt != NULL);
 
-	*entry_pt = cod_mgr_obj->ul_entry;
+	*entry_pt = cod_mgr_obj->entry;
 
 	return 0;
 }
@@ -528,7 +516,7 @@ int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
 	flags = DBLL_CODE | DBLL_DATA | DBLL_SYMB;
 	status = cod_mgr_obj->fxns.load_fxn(cod_mgr_obj->base_lib, flags,
 					    &new_attrs,
-					    &cod_mgr_obj->ul_entry);
+					    &cod_mgr_obj->entry);
 	if (status)
 		cod_mgr_obj->fxns.close_fxn(cod_mgr_obj->base_lib);
 

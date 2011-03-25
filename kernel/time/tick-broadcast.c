@@ -18,7 +18,6 @@
 #include <linux/percpu.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
-#include <linux/tick.h>
 
 #include "tick-internal.h"
 
@@ -598,6 +597,16 @@ void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
 int tick_broadcast_oneshot_active(void)
 {
 	return tick_broadcast_device.mode == TICKDEV_MODE_ONESHOT;
+}
+
+/*
+ * Check whether the broadcast device supports oneshot.
+ */
+bool tick_broadcast_oneshot_available(void)
+{
+	struct clock_event_device *bc = tick_broadcast_device.evtdev;
+
+	return bc ? bc->features & CLOCK_EVT_FEAT_ONESHOT : false;
 }
 
 #endif

@@ -32,9 +32,9 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.set			= mcf_gpio_set_value,
 			.ngpio			= 32,
 		},
-		.pddr				= MCFSIM2_GPIOENABLE,
-		.podr				= MCFSIM2_GPIOWRITE,
-		.ppdr				= MCFSIM2_GPIOREAD,
+		.pddr				= (void __iomem *) MCFSIM2_GPIOENABLE,
+		.podr				= (void __iomem *) MCFSIM2_GPIOWRITE,
+		.ppdr				= (void __iomem *) MCFSIM2_GPIOREAD,
 	},
 	{
 		.gpio_chip			= {
@@ -48,9 +48,9 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 			.base			= 32,
 			.ngpio			= 32,
 		},
-		.pddr				= MCFSIM2_GPIO1ENABLE,
-		.podr				= MCFSIM2_GPIO1WRITE,
-		.ppdr				= MCFSIM2_GPIO1READ,
+		.pddr				= (void __iomem *) MCFSIM2_GPIO1ENABLE,
+		.podr				= (void __iomem *) MCFSIM2_GPIO1WRITE,
+		.ppdr				= (void __iomem *) MCFSIM2_GPIO1READ,
 	},
 };
 

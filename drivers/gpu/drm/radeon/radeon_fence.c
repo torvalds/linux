@@ -60,8 +60,7 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 
 	trace_radeon_fence_emit(rdev->ddev, fence->seq);
 	fence->emited = true;
-	list_del(&fence->list);
-	list_add_tail(&fence->list, &rdev->fence_drv.emited);
+	list_move_tail(&fence->list, &rdev->fence_drv.emited);
 	write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 	return 0;
 }
@@ -121,8 +120,7 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev)
 		i = n;
 		do {
 			n = i->prev;
-			list_del(i);
-			list_add_tail(i, &rdev->fence_drv.signaled);
+			list_move_tail(i, &rdev->fence_drv.signaled);
 			fence = list_entry(i, struct radeon_fence, list);
 			fence->signaled = true;
 			i = n;

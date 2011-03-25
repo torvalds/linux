@@ -107,7 +107,7 @@ void Announce_Reordering_Packet(struct rt_rtmp_adapter *pAd,
 
 	if (mpdu->bAMSDU) {
 		ASSERT(0);
-		BA_Reorder_AMSDU_Annnounce(pAd, pPacket);
+		BA_Reorder_AMSDU_Announce(pAd, pPacket);
 	} else {
 		/* */
 		/* pass this 802.3 packet to upper layer or forward this packet to WM directly */

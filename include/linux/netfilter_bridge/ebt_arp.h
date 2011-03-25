@@ -1,6 +1,8 @@
 #ifndef __LINUX_BRIDGE_EBT_ARP_H
 #define __LINUX_BRIDGE_EBT_ARP_H
 
+#include <linux/types.h>
+
 #define EBT_ARP_OPCODE 0x01
 #define EBT_ARP_HTYPE 0x02
 #define EBT_ARP_PTYPE 0x04
@@ -27,8 +29,8 @@ struct ebt_arp_info
 	unsigned char smmsk[ETH_ALEN];
 	unsigned char dmaddr[ETH_ALEN];
 	unsigned char dmmsk[ETH_ALEN];
-	uint8_t  bitmask;
-	uint8_t  invflags;
+	__u8  bitmask;
+	__u8  invflags;
 };
 
 #endif

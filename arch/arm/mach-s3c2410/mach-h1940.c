@@ -23,8 +23,15 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
+#include <linux/pda_power.h>
+#include <linux/s3c_adc_battery.h>
+#include <linux/delay.h>
+
 #include <video/platform_lcd.h>
 
 #include <linux/mmc/host.h>
@@ -162,29 +169,10 @@ struct gpio_chip h1940_latch_gpiochip = {
 	.get			= h1940_gpiolib_latch_get,
 };
 
-static void h1940_udc_pullup(enum s3c2410_udc_cmd_e cmd)
-{
-	printk(KERN_DEBUG "udc: pullup(%d)\n",cmd);
-
-	switch (cmd)
-	{
-		case S3C2410_UDC_P_ENABLE :
-			gpio_set_value(H1940_LATCH_USB_DP, 1);
-			break;
-		case S3C2410_UDC_P_DISABLE :
-			gpio_set_value(H1940_LATCH_USB_DP, 0);
-			break;
-		case S3C2410_UDC_P_RESET :
-			break;
-		default:
-			break;
-	}
-}
-
 static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
-	.udc_command		= h1940_udc_pullup,
 	.vbus_pin		= S3C2410_GPG(5),
 	.vbus_pin_inverted	= 1,
+	.pullup_pin		= H1940_LATCH_USB_DP,
 };
 
 static struct s3c2410_ts_mach_info h1940_ts_cfg __initdata = {
@@ -222,20 +210,239 @@ static struct s3c2410fb_mach_info h1940_fb_info __initdata = {
 	.num_displays = 1,
 	.default_display = 0,
 
-	.lpcsel=	0x02,
-	.gpccon=	0xaa940659,
-	.gpccon_mask=	0xffffffff,
-	.gpcup=		0x0000ffff,
-	.gpcup_mask=	0xffffffff,
-	.gpdcon=	0xaa84aaa0,
-	.gpdcon_mask=	0xffffffff,
-	.gpdup=		0x0000faff,
-	.gpdup_mask=	0xffffffff,
+	.lpcsel =	0x02,
+	.gpccon =	0xaa940659,
+	.gpccon_mask =	0xffffc0f0,
+	.gpcup =	0x0000ffff,
+	.gpcup_mask =	0xffffffff,
+	.gpdcon =	0xaa84aaa0,
+	.gpdcon_mask =	0xffffffff,
+	.gpdup =	0x0000faff,
+	.gpdup_mask =	0xffffffff,
+};
+
+static int power_supply_init(struct device *dev)
+{
+	return gpio_request(S3C2410_GPF(2), "cable plugged");
+}
+
+static int h1940_is_ac_online(void)
+{
+	return !gpio_get_value(S3C2410_GPF(2));
+}
+
+static void power_supply_exit(struct device *dev)
+{
+	gpio_free(S3C2410_GPF(2));
+}
+
+static char *h1940_supplicants[] = {
+	"main-battery",
+	"backup-battery",
+};
+
+static struct pda_power_pdata power_supply_info = {
+	.init			= power_supply_init,
+	.is_ac_online		= h1940_is_ac_online,
+	.exit			= power_supply_exit,
+	.supplied_to		= h1940_supplicants,
+	.num_supplicants	= ARRAY_SIZE(h1940_supplicants),
+};
+
+static struct resource power_supply_resources[] = {
+	[0] = {
+			.name	= "ac",
+			.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE |
+					  IORESOURCE_IRQ_HIGHEDGE,
+			.start	= IRQ_EINT2,
+			.end	= IRQ_EINT2,
+	},
+};
+
+static struct platform_device power_supply = {
+	.name		= "pda-power",
+	.id		= -1,
+	.dev		= {
+				.platform_data =
+					&power_supply_info,
+	},
+	.resource	= power_supply_resources,
+	.num_resources	= ARRAY_SIZE(power_supply_resources),
+};
+
+static const struct s3c_adc_bat_thresh bat_lut_noac[] = {
+	{ .volt = 4070, .cur = 162, .level = 100},
+	{ .volt = 4040, .cur = 165, .level = 95},
+	{ .volt = 4016, .cur = 164, .level = 90},
+	{ .volt = 3996, .cur = 166, .level = 85},
+	{ .volt = 3971, .cur = 168, .level = 80},
+	{ .volt = 3951, .cur = 168, .level = 75},
+	{ .volt = 3931, .cur = 170, .level = 70},
+	{ .volt = 3903, .cur = 172, .level = 65},
+	{ .volt = 3886, .cur = 172, .level = 60},
+	{ .volt = 3858, .cur = 176, .level = 55},
+	{ .volt = 3842, .cur = 176, .level = 50},
+	{ .volt = 3818, .cur = 176, .level = 45},
+	{ .volt = 3789, .cur = 180, .level = 40},
+	{ .volt = 3769, .cur = 180, .level = 35},
+	{ .volt = 3749, .cur = 184, .level = 30},
+	{ .volt = 3732, .cur = 184, .level = 25},
+	{ .volt = 3716, .cur = 184, .level = 20},
+	{ .volt = 3708, .cur = 184, .level = 15},
+	{ .volt = 3716, .cur = 96, .level = 10},
+	{ .volt = 3700, .cur = 96, .level = 5},
+	{ .volt = 3684, .cur = 96, .level = 0},
+};
+
+static const struct s3c_adc_bat_thresh bat_lut_acin[] = {
+	{ .volt = 4130, .cur = 0, .level = 100},
+	{ .volt = 3982, .cur = 0, .level = 50},
+	{ .volt = 3854, .cur = 0, .level = 10},
+	{ .volt = 3841, .cur = 0, .level = 0},
+};
+
+int h1940_bat_init(void)
+{
+	int ret;
+
+	ret = gpio_request(H1940_LATCH_SM803_ENABLE, "h1940-charger-enable");
+	if (ret)
+		return ret;
+	gpio_direction_output(H1940_LATCH_SM803_ENABLE, 0);
+
+	return 0;
+
+}
+
+void h1940_bat_exit(void)
+{
+	gpio_free(H1940_LATCH_SM803_ENABLE);
+}
+
+void h1940_enable_charger(void)
+{
+	gpio_set_value(H1940_LATCH_SM803_ENABLE, 1);
+}
+
+void h1940_disable_charger(void)
+{
+	gpio_set_value(H1940_LATCH_SM803_ENABLE, 0);
+}
+
+static struct s3c_adc_bat_pdata h1940_bat_cfg = {
+	.init = h1940_bat_init,
+	.exit = h1940_bat_exit,
+	.enable_charger = h1940_enable_charger,
+	.disable_charger = h1940_disable_charger,
+	.gpio_charge_finished = S3C2410_GPF(3),
+	.gpio_inverted = 1,
+	.lut_noac = bat_lut_noac,
+	.lut_noac_cnt = ARRAY_SIZE(bat_lut_noac),
+	.lut_acin = bat_lut_acin,
+	.lut_acin_cnt = ARRAY_SIZE(bat_lut_acin),
+	.volt_channel = 0,
+	.current_channel = 1,
+	.volt_mult = 4056,
+	.current_mult = 1893,
+	.internal_impedance = 200,
+	.backup_volt_channel = 3,
+	/* TODO Check backup volt multiplier */
+	.backup_volt_mult = 4056,
+	.backup_volt_min = 0,
+	.backup_volt_max = 4149288
+};
+
+static struct platform_device h1940_battery = {
+	.name             = "s3c-adc-battery",
+	.id               = -1,
+	.dev = {
+		.parent = &s3c_device_adc.dev,
+		.platform_data = &h1940_bat_cfg,
+	},
+};
+
+DEFINE_SPINLOCK(h1940_blink_spin);
+
+int h1940_led_blink_set(unsigned gpio, int state,
+	unsigned long *delay_on, unsigned long *delay_off)
+{
+	int blink_gpio, check_gpio1, check_gpio2;
+
+	switch (gpio) {
+	case H1940_LATCH_LED_GREEN:
+		blink_gpio = S3C2410_GPA(7);
+		check_gpio1 = S3C2410_GPA(1);
+		check_gpio2 = S3C2410_GPA(3);
+		break;
+	case H1940_LATCH_LED_RED:
+		blink_gpio = S3C2410_GPA(1);
+		check_gpio1 = S3C2410_GPA(7);
+		check_gpio2 = S3C2410_GPA(3);
+		break;
+	default:
+		blink_gpio = S3C2410_GPA(3);
+		check_gpio1 = S3C2410_GPA(1);
+		check_gpio1 = S3C2410_GPA(7);
+		break;
+	}
+
+	if (delay_on && delay_off && !*delay_on && !*delay_off)
+		*delay_on = *delay_off = 500;
+
+	spin_lock(&h1940_blink_spin);
+
+	switch (state) {
+	case GPIO_LED_NO_BLINK_LOW:
+	case GPIO_LED_NO_BLINK_HIGH:
+		if (!gpio_get_value(check_gpio1) &&
+		    !gpio_get_value(check_gpio2))
+			gpio_set_value(H1940_LATCH_LED_FLASH, 0);
+		gpio_set_value(blink_gpio, 0);
+		if (gpio_is_valid(gpio))
+			gpio_set_value(gpio, state);
+		break;
+	case GPIO_LED_BLINK:
+		if (gpio_is_valid(gpio))
+			gpio_set_value(gpio, 0);
+		gpio_set_value(H1940_LATCH_LED_FLASH, 1);
+		gpio_set_value(blink_gpio, 1);
+		break;
+	}
+
+	spin_unlock(&h1940_blink_spin);
+
+	return 0;
+}
+EXPORT_SYMBOL(h1940_led_blink_set);
+
+static struct gpio_led h1940_leds_desc[] = {
+	{
+		.name			= "Green",
+		.default_trigger	= "main-battery-full",
+		.gpio			= H1940_LATCH_LED_GREEN,
+		.retain_state_suspended	= 1,
+	},
+	{
+		.name			= "Red",
+		.default_trigger
+			= "main-battery-charging-blink-full-solid",
+		.gpio			= H1940_LATCH_LED_RED,
+		.retain_state_suspended	= 1,
+	},
+};
+
+static struct gpio_led_platform_data h1940_leds_pdata = {
+	.num_leds	= ARRAY_SIZE(h1940_leds_desc),
+	.leds		= h1940_leds_desc,
+	.gpio_blink_set	= h1940_led_blink_set,
 };
 
 static struct platform_device h1940_device_leds = {
-	.name             = "h1940-leds",
-	.id               = -1,
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+			.platform_data = &h1940_leds_pdata,
+	},
 };
 
 static struct platform_device h1940_device_bluetooth = {
@@ -321,14 +528,14 @@ static struct platform_device h1940_backlight = {
 static void h1940_lcd_power_set(struct plat_lcd_data *pd,
 					unsigned int power)
 {
-	int value;
+	int value, retries = 100;
 
 	if (!power) {
 		gpio_set_value(S3C2410_GPC(0), 0);
 		/* wait for 3ac */
 		do {
 			value = gpio_get_value(S3C2410_GPC(6));
-		} while (value);
+		} while (value && retries--);
 
 		gpio_set_value(H1940_LATCH_LCD_P2, 0);
 		gpio_set_value(H1940_LATCH_LCD_P3, 0);
@@ -346,6 +553,9 @@ static void h1940_lcd_power_set(struct plat_lcd_data *pd,
 		gpio_set_value(H1940_LATCH_LCD_P0, 1);
 		gpio_set_value(H1940_LATCH_LCD_P1, 1);
 
+		gpio_direction_input(S3C2410_GPC(1));
+		gpio_direction_input(S3C2410_GPC(4));
+		mdelay(10);
 		s3c_gpio_cfgpin(S3C2410_GPC(1), S3C_GPIO_SFN(2));
 		s3c_gpio_cfgpin(S3C2410_GPC(4), S3C_GPIO_SFN(2));
 
@@ -381,7 +591,44 @@ static struct i2c_board_info h1940_i2c_devices[] = {
 	},
 };
 
+#define DECLARE_BUTTON(p, k, n, w)	\
+	{				\
+		.gpio		= p,	\
+		.code		= k,	\
+		.desc		= n,	\
+		.wakeup		= w,	\
+		.active_low	= 1,	\
+	}
+
+static struct gpio_keys_button h1940_buttons[] = {
+	DECLARE_BUTTON(S3C2410_GPF(0),       KEY_POWER,          "Power", 1),
+	DECLARE_BUTTON(S3C2410_GPF(6),       KEY_ENTER,         "Select", 1),
+	DECLARE_BUTTON(S3C2410_GPF(7),      KEY_RECORD,         "Record", 0),
+	DECLARE_BUTTON(S3C2410_GPG(0),         KEY_F11,       "Calendar", 0),
+	DECLARE_BUTTON(S3C2410_GPG(2),         KEY_F12,       "Contacts", 0),
+	DECLARE_BUTTON(S3C2410_GPG(3),        KEY_MAIL,           "Mail", 0),
+	DECLARE_BUTTON(S3C2410_GPG(6),        KEY_LEFT,     "Left_arrow", 0),
+	DECLARE_BUTTON(S3C2410_GPG(7),    KEY_HOMEPAGE,           "Home", 0),
+	DECLARE_BUTTON(S3C2410_GPG(8),       KEY_RIGHT,    "Right_arrow", 0),
+	DECLARE_BUTTON(S3C2410_GPG(9),          KEY_UP,       "Up_arrow", 0),
+	DECLARE_BUTTON(S3C2410_GPG(10),       KEY_DOWN,     "Down_arrow", 0),
+};
+
+static struct gpio_keys_platform_data h1940_buttons_data = {
+	.buttons	= h1940_buttons,
+	.nbuttons	= ARRAY_SIZE(h1940_buttons),
+};
+
+static struct platform_device h1940_dev_buttons = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data  = &h1940_buttons_data,
+	}
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
+	&h1940_dev_buttons,
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -398,6 +645,8 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&h1940_lcd_powerdev,
 	&s3c_device_adc,
 	&s3c_device_ts,
+	&power_supply,
+	&h1940_battery,
 };
 
 static void __init h1940_map_io(void)
@@ -475,13 +724,19 @@ static void __init h1940_init(void)
 	gpio_direction_output(H1940_LATCH_LCD_P4, 0);
 	gpio_direction_output(H1940_LATCH_MAX1698_nSHUTDOWN, 0);
 
-	gpio_request(H1940_LATCH_USB_DP, "USB pullup");
-	gpio_direction_output(H1940_LATCH_USB_DP, 0);
-
 	gpio_request(H1940_LATCH_SD_POWER, "SD power");
 	gpio_direction_output(H1940_LATCH_SD_POWER, 0);
 
 	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));
+
+	gpio_request(S3C2410_GPA(1), "Red LED blink");
+	gpio_request(S3C2410_GPA(3), "Blue LED blink");
+	gpio_request(S3C2410_GPA(7), "Green LED blink");
+	gpio_request(H1940_LATCH_LED_FLASH, "LED blink");
+	gpio_direction_output(S3C2410_GPA(1), 0);
+	gpio_direction_output(S3C2410_GPA(3), 0);
+	gpio_direction_output(S3C2410_GPA(7), 0);
+	gpio_direction_output(H1940_LATCH_LED_FLASH, 0);
 
 	i2c_register_board_info(0, h1940_i2c_devices,
 		ARRAY_SIZE(h1940_i2c_devices));

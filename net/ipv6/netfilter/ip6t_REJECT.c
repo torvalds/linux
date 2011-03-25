@@ -47,7 +47,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	struct ipv6hdr *ip6h;
 	struct dst_entry *dst = NULL;
 	u8 proto;
-	struct flowi fl;
+	struct flowi6 fl6;
 
 	if ((!(ipv6_addr_type(&oip6h->saddr) & IPV6_ADDR_UNICAST)) ||
 	    (!(ipv6_addr_type(&oip6h->daddr) & IPV6_ADDR_UNICAST))) {
@@ -89,19 +89,20 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 		return;
 	}
 
-	memset(&fl, 0, sizeof(fl));
-	fl.proto = IPPROTO_TCP;
-	ipv6_addr_copy(&fl.fl6_src, &oip6h->daddr);
-	ipv6_addr_copy(&fl.fl6_dst, &oip6h->saddr);
-	fl.fl_ip_sport = otcph.dest;
-	fl.fl_ip_dport = otcph.source;
-	security_skb_classify_flow(oldskb, &fl);
-	dst = ip6_route_output(net, NULL, &fl);
+	memset(&fl6, 0, sizeof(fl6));
+	fl6.flowi6_proto = IPPROTO_TCP;
+	ipv6_addr_copy(&fl6.saddr, &oip6h->daddr);
+	ipv6_addr_copy(&fl6.daddr, &oip6h->saddr);
+	fl6.fl6_sport = otcph.dest;
+	fl6.fl6_dport = otcph.source;
+	security_skb_classify_flow(oldskb, flowi6_to_flowi(&fl6));
+	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst == NULL || dst->error) {
 		dst_release(dst);
 		return;
 	}
-	if (xfrm_lookup(net, &dst, &fl, NULL, 0))
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+	if (IS_ERR(dst))
 		return;
 
 	hh_len = (dst->dev->hard_header_len + 15)&~15;

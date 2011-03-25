@@ -39,23 +39,23 @@ extern "C" {
 #endif
 
 /* Called to send a DataSet Open Reply back to the Target. */
-A_STATUS wmi_dset_open_reply(struct wmi_t *wmip,
-                             A_UINT32 status,
-                             A_UINT32 access_cookie,
-                             A_UINT32 size,
-                             A_UINT32 version,
-                             A_UINT32 targ_handle,
-                             A_UINT32 targ_reply_fn,
-                             A_UINT32 targ_reply_arg);
+int wmi_dset_open_reply(struct wmi_t *wmip,
+                             u32 status,
+                             u32 access_cookie,
+                             u32 size,
+                             u32 version,
+                             u32 targ_handle,
+                             u32 targ_reply_fn,
+                             u32 targ_reply_arg);
 
 /* Called to send a DataSet Data Reply back to the Target. */
-A_STATUS wmi_dset_data_reply(struct wmi_t *wmip,
-                             A_UINT32 status,
-                             A_UINT8 *host_buf,
-                             A_UINT32 length,
-                             A_UINT32 targ_buf,
-                             A_UINT32 targ_reply_fn,
-                             A_UINT32 targ_reply_arg);
+int wmi_dset_data_reply(struct wmi_t *wmip,
+                             u32 status,
+                             u8 *host_buf,
+                             u32 length,
+                             u32 targ_buf,
+                             u32 targ_reply_fn,
+                             u32 targ_reply_arg);
 
 #ifdef __cplusplus
 }

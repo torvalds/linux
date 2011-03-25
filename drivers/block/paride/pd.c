@@ -794,7 +794,7 @@ static int pd_release(struct gendisk *p, fmode_t mode)
 	return 0;
 }
 
-static int pd_check_media(struct gendisk *p)
+static unsigned int pd_check_events(struct gendisk *p, unsigned int clearing)
 {
 	struct pd_unit *disk = p->private_data;
 	int r;
@@ -803,7 +803,7 @@ static int pd_check_media(struct gendisk *p)
 	pd_special_command(disk, pd_media_check);
 	r = disk->changed;
 	disk->changed = 0;
-	return r;
+	return r ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 static int pd_revalidate(struct gendisk *p)
@@ -822,7 +822,7 @@ static const struct block_device_operations pd_fops = {
 	.release	= pd_release,
 	.ioctl		= pd_ioctl,
 	.getgeo		= pd_getgeo,
-	.media_changed	= pd_check_media,
+	.check_events	= pd_check_events,
 	.revalidate_disk= pd_revalidate
 };
 
@@ -837,6 +837,7 @@ static void pd_probe_drive(struct pd_unit *disk)
 	p->fops = &pd_fops;
 	p->major = major;
 	p->first_minor = (disk - pd) << PD_BITS;
+	p->events = DISK_EVENT_MEDIA_CHANGE;
 	disk->gd = p;
 	p->private_data = disk;
 	p->queue = pd_queue;

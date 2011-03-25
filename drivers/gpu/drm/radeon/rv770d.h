@@ -76,10 +76,10 @@
 #define		ROQ_IB1_START(x)				((x) << 0)
 #define		ROQ_IB2_START(x)				((x) << 8)
 #define	CP_RB_CNTL					0xC104
-#define		RB_BUFSZ(x)					((x)<<0)
-#define		RB_BLKSZ(x)					((x)<<8)
-#define		RB_NO_UPDATE					(1<<27)
-#define		RB_RPTR_WR_ENA					(1<<31)
+#define		RB_BUFSZ(x)					((x) << 0)
+#define		RB_BLKSZ(x)					((x) << 8)
+#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_RPTR_WR_ENA					(1 << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C

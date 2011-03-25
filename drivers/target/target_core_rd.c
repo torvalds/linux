@@ -34,7 +34,6 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 

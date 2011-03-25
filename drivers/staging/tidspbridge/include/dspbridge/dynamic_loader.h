@@ -46,8 +46,6 @@ struct dynamic_loader_initialize;
  * Option flags to modify the behavior of module loading
  */
 #define DLOAD_INITBSS 0x1	/* initialize BSS sections to zero */
-#define DLOAD_BIGEND 0x2	/* require big-endian load module */
-#define DLOAD_LITTLE 0x4	/* require little-endian load module */
 
 /*****************************************************************************
  * Procedure dynamic_load_module

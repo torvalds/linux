@@ -31,13 +31,11 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/in.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
 #include <target/target_core_device.h>
 #include <target/target_core_tpg.h>
 #include <target/target_core_transport.h>

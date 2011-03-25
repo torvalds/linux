@@ -417,7 +417,7 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 		gss_msg->msg.len += len;
 	}
 	if (mech->gm_upcall_enctypes) {
-		len = sprintf(p, mech->gm_upcall_enctypes);
+		len = sprintf(p, "enctypes=%s ", mech->gm_upcall_enctypes);
 		p += len;
 		gss_msg->msg.len += len;
 	}

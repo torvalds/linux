@@ -233,7 +233,7 @@ struct max8998_reg_dump {
 	u8	val;
 };
 #define SAVE_ITEM(x)	{ .addr = (x), .val = 0x0, }
-struct max8998_reg_dump max8998_dump[] = {
+static struct max8998_reg_dump max8998_dump[] = {
 	SAVE_ITEM(MAX8998_REG_IRQM1),
 	SAVE_ITEM(MAX8998_REG_IRQM2),
 	SAVE_ITEM(MAX8998_REG_IRQM3),
@@ -298,7 +298,7 @@ static int max8998_restore(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops max8998_pm = {
+static const struct dev_pm_ops max8998_pm = {
 	.suspend = max8998_suspend,
 	.resume = max8998_resume,
 	.freeze = max8998_freeze,

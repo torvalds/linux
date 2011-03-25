@@ -12,8 +12,7 @@
 #define SOC_MEDIABUS_H
 
 #include <linux/videodev2.h>
-
-#include <media/v4l2-mediabus.h>
+#include <linux/v4l2-mediabus.h>
 
 /**
  * enum soc_mbus_packing - data packing types on the media-bus
@@ -61,5 +60,6 @@ struct soc_mbus_pixelfmt {
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
+int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf);
 
 #endif

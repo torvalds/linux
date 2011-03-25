@@ -239,11 +239,9 @@ static bool
 probe_monitoring_device(struct nouveau_i2c_chan *i2c,
 			struct i2c_board_info *info)
 {
-	char modalias[16] = "i2c:";
 	struct i2c_client *client;
 
-	strlcat(modalias, info->type, sizeof(modalias));
-	request_module(modalias);
+	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
 
 	client = i2c_new_device(&i2c->adapter, info);
 	if (!client)
@@ -265,8 +263,8 @@ nouveau_temp_probe_i2c(struct drm_device *dev)
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("w83l785ts", 0x2d) },
 		{ I2C_BOARD_INFO("w83781d", 0x2d) },
-		{ I2C_BOARD_INFO("f75375", 0x2e) },
 		{ I2C_BOARD_INFO("adt7473", 0x2e) },
+		{ I2C_BOARD_INFO("f75375", 0x2e) },
 		{ I2C_BOARD_INFO("lm99", 0x4c) },
 		{ }
 	};

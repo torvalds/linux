@@ -86,11 +86,14 @@
 /* Default path we try to mount. "%s" gets replaced by our IP address */
 #define NFS_ROOT		"/tftpboot/%s"
 
+/* Default NFSROOT mount options. */
+#define NFS_DEF_OPTIONS		"udp"
+
 /* Parameters passed from the kernel command line */
 static char nfs_root_parms[256] __initdata = "";
 
 /* Text-based mount options passed to super.c */
-static char nfs_root_options[256] __initdata = "";
+static char nfs_root_options[256] __initdata = NFS_DEF_OPTIONS;
 
 /* Address of NFS server */
 static __be32 servaddr __initdata = htonl(INADDR_NONE);
@@ -160,8 +163,14 @@ static int __init root_nfs_copy(char *dest, const char *src,
 }
 
 static int __init root_nfs_cat(char *dest, const char *src,
-				  const size_t destlen)
+			       const size_t destlen)
 {
+	size_t len = strlen(dest);
+
+	if (len && dest[len - 1] != ',')
+		if (strlcat(dest, ",", destlen) > destlen)
+			return -1;
+
 	if (strlcat(dest, src, destlen) > destlen)
 		return -1;
 	return 0;
@@ -194,16 +203,6 @@ static int __init root_nfs_parse_options(char *incoming, char *exppath,
 		if (root_nfs_cat(nfs_root_options, incoming,
 						sizeof(nfs_root_options)))
 			return -1;
-
-	/*
-	 * Possibly prepare for more options to be appended
-	 */
-	if (nfs_root_options[0] != '\0' &&
-	    nfs_root_options[strlen(nfs_root_options)] != ',')
-		if (root_nfs_cat(nfs_root_options, ",",
-						sizeof(nfs_root_options)))
-			return -1;
-
 	return 0;
 }
 
@@ -217,7 +216,7 @@ static int __init root_nfs_parse_options(char *incoming, char *exppath,
  */
 static int __init root_nfs_data(char *cmdline)
 {
-	char addr_option[sizeof("nolock,addr=") + INET_ADDRSTRLEN + 1];
+	char mand_options[sizeof("nolock,addr=") + INET_ADDRSTRLEN + 1];
 	int len, retval = -1;
 	char *tmp = NULL;
 	const size_t tmplen = sizeof(nfs_export_path);
@@ -244,9 +243,9 @@ static int __init root_nfs_data(char *cmdline)
 	 * Append mandatory options for nfsroot so they override
 	 * what has come before
 	 */
-	snprintf(addr_option, sizeof(addr_option), "nolock,addr=%pI4",
+	snprintf(mand_options, sizeof(mand_options), "nolock,addr=%pI4",
 			&servaddr);
-	if (root_nfs_cat(nfs_root_options, addr_option,
+	if (root_nfs_cat(nfs_root_options, mand_options,
 						sizeof(nfs_root_options)))
 		goto out_optionstoolong;
 

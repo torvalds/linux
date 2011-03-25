@@ -608,7 +608,7 @@ static struct {
        { 0xFF, 0x00, 1 }, /* FF */
 };
 
-static int max98088_volatile_register(unsigned int reg)
+static int max98088_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
        return max98088_access[reg].vol;
 }

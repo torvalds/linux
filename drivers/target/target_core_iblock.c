@@ -35,7 +35,6 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/bio.h>
 #include <linux/genhd.h>
 #include <linux/file.h>
@@ -154,7 +153,7 @@ static struct se_device *iblock_create_virtdevice(
 
 	bd = blkdev_get_by_path(ib_dev->ibd_udev_path,
 				FMODE_WRITE|FMODE_READ|FMODE_EXCL, ib_dev);
-	if (!(bd))
+	if (IS_ERR(bd))
 		goto failed;
 	/*
 	 * Setup the local scope queue_limits from struct request_queue->limits
@@ -220,8 +219,10 @@ static void iblock_free_device(void *p)
 {
 	struct iblock_dev *ib_dev = p;
 
-	blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
-	bioset_free(ib_dev->ibd_bio_set);
+	if (ib_dev->ibd_bd != NULL)
+		blkdev_put(ib_dev->ibd_bd, FMODE_WRITE|FMODE_READ|FMODE_EXCL);
+	if (ib_dev->ibd_bio_set != NULL)
+		bioset_free(ib_dev->ibd_bio_set);
 	kfree(ib_dev);
 }
 
@@ -390,9 +391,8 @@ static int iblock_do_task(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct iblock_req *req = IBLOCK_REQ(task);
-	struct iblock_dev *ibd = (struct iblock_dev *)req->ib_dev;
-	struct request_queue *q = bdev_get_queue(ibd->ibd_bd);
 	struct bio *bio = req->ib_bio, *nbio = NULL;
+	struct blk_plug plug;
 	int rw;
 
 	if (task->task_data_direction == DMA_TO_DEVICE) {
@@ -410,6 +410,7 @@ static int iblock_do_task(struct se_task *task)
 		rw = READ;
 	}
 
+	blk_start_plug(&plug);
 	while (bio) {
 		nbio = bio->bi_next;
 		bio->bi_next = NULL;
@@ -419,9 +420,8 @@ static int iblock_do_task(struct se_task *task)
 		submit_bio(rw, bio);
 		bio = nbio;
 	}
+	blk_finish_plug(&plug);
 
-	if (q->unplug_fn)
-		q->unplug_fn(q);
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 

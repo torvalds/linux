@@ -433,8 +433,6 @@ static int has_failed(raid5_conf_t *conf)
 	return 0;
 }
 
-static void unplug_slaves(mddev_t *mddev);
-
 static struct stripe_head *
 get_active_stripe(raid5_conf_t *conf, sector_t sector,
 		  int previous, int noblock, int noquiesce)
@@ -463,8 +461,7 @@ get_active_stripe(raid5_conf_t *conf, sector_t sector,
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    md_raid5_unplug_device(conf)
-					);
+						    md_raid5_kick_device(conf));
 				conf->inactive_blocked = 0;
 			} else
 				init_stripe(sh, sector, previous);
@@ -1473,8 +1470,7 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    !list_empty(&conf->inactive_list),
 				    conf->device_lock,
-				    unplug_slaves(conf->mddev)
-			);
+				    blk_flush_plug(current));
 		osh = get_free_stripe(conf);
 		spin_unlock_irq(&conf->device_lock);
 		atomic_set(&nsh->count, 1);
@@ -3645,58 +3641,19 @@ static void activate_bit_delay(raid5_conf_t *conf)
 	}
 }
 
-static void unplug_slaves(mddev_t *mddev)
+void md_raid5_kick_device(raid5_conf_t *conf)
 {
-	raid5_conf_t *conf = mddev->private;
-	int i;
-	int devs = max(conf->raid_disks, conf->previous_raid_disks);
-
-	rcu_read_lock();
-	for (i = 0; i < devs; i++) {
-		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
-		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
-			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
-
-			atomic_inc(&rdev->nr_pending);
-			rcu_read_unlock();
-
-			blk_unplug(r_queue);
-
-			rdev_dec_pending(rdev, mddev);
-			rcu_read_lock();
-		}
-	}
-	rcu_read_unlock();
-}
-
-void md_raid5_unplug_device(raid5_conf_t *conf)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&conf->device_lock, flags);
-
-	if (plugger_remove_plug(&conf->plug)) {
-		conf->seq_flush++;
-		raid5_activate_delayed(conf);
-	}
+	blk_flush_plug(current);
+	raid5_activate_delayed(conf);
 	md_wakeup_thread(conf->mddev->thread);
-
-	spin_unlock_irqrestore(&conf->device_lock, flags);
-
-	unplug_slaves(conf->mddev);
 }
-EXPORT_SYMBOL_GPL(md_raid5_unplug_device);
+EXPORT_SYMBOL_GPL(md_raid5_kick_device);
 
 static void raid5_unplug(struct plug_handle *plug)
 {
 	raid5_conf_t *conf = container_of(plug, raid5_conf_t, plug);
-	md_raid5_unplug_device(conf);
-}
 
-static void raid5_unplug_queue(struct request_queue *q)
-{
-	mddev_t *mddev = q->queuedata;
-	md_raid5_unplug_device(mddev->private);
+	md_raid5_kick_device(conf);
 }
 
 int md_raid5_congested(mddev_t *mddev, int bits)
@@ -4100,7 +4057,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 				 * add failed due to overlap.  Flush everything
 				 * and wait a while
 				 */
-				md_raid5_unplug_device(conf);
+				md_raid5_kick_device(conf);
 				release_stripe(sh);
 				schedule();
 				goto retry;
@@ -4365,7 +4322,6 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 
 	if (sector_nr >= max_sector) {
 		/* just being told to finish up .. nothing much to do */
-		unplug_slaves(mddev);
 
 		if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)) {
 			end_reshape(conf);
@@ -4569,7 +4525,6 @@ static void raid5d(mddev_t *mddev)
 	spin_unlock_irq(&conf->device_lock);
 
 	async_tx_issue_pending_all();
-	unplug_slaves(mddev);
 
 	pr_debug("--- raid5d inactive\n");
 }
@@ -5205,7 +5160,6 @@ static int run(mddev_t *mddev)
 		mddev->queue->backing_dev_info.congested_data = mddev;
 		mddev->queue->backing_dev_info.congested_fn = raid5_congested;
 		mddev->queue->queue_lock = &conf->device_lock;
-		mddev->queue->unplug_fn = raid5_unplug_queue;
 
 		chunk_size = mddev->chunk_sectors << 9;
 		blk_queue_io_min(mddev->queue, chunk_size);
@@ -5517,7 +5471,6 @@ static int raid5_start_reshape(mddev_t *mddev)
 	raid5_conf_t *conf = mddev->private;
 	mdk_rdev_t *rdev;
 	int spares = 0;
-	int added_devices = 0;
 	unsigned long flags;
 
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
@@ -5527,8 +5480,8 @@ static int raid5_start_reshape(mddev_t *mddev)
 		return -ENOSPC;
 
 	list_for_each_entry(rdev, &mddev->disks, same_set)
-		if ((rdev->raid_disk < 0 || rdev->raid_disk >= conf->raid_disks)
-		     && !test_bit(Faulty, &rdev->flags))
+		if (!test_bit(In_sync, &rdev->flags)
+		    && !test_bit(Faulty, &rdev->flags))
 			spares++;
 
 	if (spares - mddev->degraded < mddev->delta_disks - conf->max_degraded)
@@ -5571,34 +5524,35 @@ static int raid5_start_reshape(mddev_t *mddev)
 	 * to correctly record the "partially reconstructed" state of
 	 * such devices during the reshape and confusion could result.
 	 */
-	if (mddev->delta_disks >= 0)
-	    list_for_each_entry(rdev, &mddev->disks, same_set)
-		if (rdev->raid_disk < 0 &&
-		    !test_bit(Faulty, &rdev->flags)) {
-			if (raid5_add_disk(mddev, rdev) == 0) {
-				char nm[20];
-				if (rdev->raid_disk >= conf->previous_raid_disks) {
-					set_bit(In_sync, &rdev->flags);
-					added_devices++;
-				} else
-					rdev->recovery_offset = 0;
-				sprintf(nm, "rd%d", rdev->raid_disk);
-				if (sysfs_create_link(&mddev->kobj,
-						      &rdev->kobj, nm))
-					/* Failure here is OK */;
-			} else
-				break;
-		} else if (rdev->raid_disk >= conf->previous_raid_disks
-			   && !test_bit(Faulty, &rdev->flags)) {
-			/* This is a spare that was manually added */
-			set_bit(In_sync, &rdev->flags);
-			added_devices++;
-		}
+	if (mddev->delta_disks >= 0) {
+		int added_devices = 0;
+		list_for_each_entry(rdev, &mddev->disks, same_set)
+			if (rdev->raid_disk < 0 &&
+			    !test_bit(Faulty, &rdev->flags)) {
+				if (raid5_add_disk(mddev, rdev) == 0) {
+					char nm[20];
+					if (rdev->raid_disk
+					    >= conf->previous_raid_disks) {
+						set_bit(In_sync, &rdev->flags);
+						added_devices++;
+					} else
+						rdev->recovery_offset = 0;
+					sprintf(nm, "rd%d", rdev->raid_disk);
+					if (sysfs_create_link(&mddev->kobj,
+							      &rdev->kobj, nm))
+						/* Failure here is OK */;
+				}
+			} else if (rdev->raid_disk >= conf->previous_raid_disks
+				   && !test_bit(Faulty, &rdev->flags)) {
+				/* This is a spare that was manually added */
+				set_bit(In_sync, &rdev->flags);
+				added_devices++;
+			}
 
-	/* When a reshape changes the number of devices, ->degraded
-	 * is measured against the larger of the pre and post number of
-	 * devices.*/
-	if (mddev->delta_disks > 0) {
+		/* When a reshape changes the number of devices,
+		 * ->degraded is measured against the larger of the
+		 * pre and post number of devices.
+		 */
 		spin_lock_irqsave(&conf->device_lock, flags);
 		mddev->degraded += (conf->raid_disks - conf->previous_raid_disks)
 			- added_devices;

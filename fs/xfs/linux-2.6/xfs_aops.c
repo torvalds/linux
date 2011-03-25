@@ -413,8 +413,7 @@ xfs_submit_ioend_bio(
 	if (xfs_ioend_new_eof(ioend))
 		xfs_mark_inode_dirty(XFS_I(ioend->io_inode));
 
-	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
-		   WRITE_SYNC_PLUG : WRITE, bio);
+	submit_bio(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE, bio);
 }
 
 STATIC struct bio *
@@ -854,7 +853,7 @@ xfs_aops_discard_page(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		goto out_invalidate;
 
-	xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+	xfs_alert(ip->i_mount,
 		"page discard on page %p, inode 0x%llx, offset %llu.",
 			page, ip->i_ino, offset);
 
@@ -872,7 +871,7 @@ xfs_aops_discard_page(
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+				xfs_alert(ip->i_mount,
 			"page discard unable to remove delalloc mapping.");
 			}
 			break;
@@ -1411,7 +1410,7 @@ xfs_vm_write_failed(
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+				xfs_alert(ip->i_mount,
 			"xfs_vm_write_failed: unable to clean up ino %lld",
 						ip->i_ino);
 			}
@@ -1495,7 +1494,6 @@ const struct address_space_operations xfs_address_space_operations = {
 	.readpages		= xfs_vm_readpages,
 	.writepage		= xfs_vm_writepage,
 	.writepages		= xfs_vm_writepages,
-	.sync_page		= block_sync_page,
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,
 	.write_begin		= xfs_vm_write_begin,

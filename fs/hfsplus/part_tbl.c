@@ -134,7 +134,7 @@ int hfs_part_find(struct super_block *sb,
 	res = hfsplus_submit_bio(sb->s_bdev, *part_start + HFS_PMAP_BLK,
 				 data, READ);
 	if (res)
-		return res;
+		goto out;
 
 	switch (be16_to_cpu(*((__be16 *)data))) {
 	case HFS_OLD_PMAP_MAGIC:
@@ -147,7 +147,7 @@ int hfs_part_find(struct super_block *sb,
 		res = -ENOENT;
 		break;
 	}
-
+out:
 	kfree(data);
 	return res;
 }

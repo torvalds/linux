@@ -144,8 +144,9 @@ static unsigned int eisa_irq_level __read_mostly; /* default to edge triggered *
 
 
 /* called by free irq */
-static void eisa_mask_irq(unsigned int irq)
+static void eisa_mask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	unsigned long flags;
 
 	EISA_DBG("disable irq %d\n", irq);
@@ -164,8 +165,9 @@ static void eisa_mask_irq(unsigned int irq)
 }
 
 /* called by request irq */
-static void eisa_unmask_irq(unsigned int irq)
+static void eisa_unmask_irq(struct irq_data *d)
 {
+	unsigned int irq = d->irq;
 	unsigned long flags;
 	EISA_DBG("enable irq %d\n", irq);
 		
@@ -183,9 +185,9 @@ static void eisa_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip eisa_interrupt_type = {
-	.name	=	"EISA",
-	.unmask	=	eisa_unmask_irq,
-	.mask	=	eisa_mask_irq,
+	.name		=	"EISA",
+	.irq_unmask	=	eisa_unmask_irq,
+	.irq_mask	=	eisa_mask_irq,
 };
 
 static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)

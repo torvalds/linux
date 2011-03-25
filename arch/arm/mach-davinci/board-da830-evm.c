@@ -20,6 +20,8 @@
 #include <linux/i2c/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -30,6 +32,7 @@
 #include <mach/da8xx.h>
 #include <mach/usb.h>
 #include <mach/aemif.h>
+#include <mach/spi.h>
 
 #define DA830_EVM_PHY_ID		""
 /*
@@ -534,6 +537,64 @@ static struct edma_rsv_info da830_edma_rsv[] = {
 	},
 };
 
+static struct mtd_partition da830evm_spiflash_part[] = {
+	[0] = {
+		.name = "DSP-UBL",
+		.offset = 0,
+		.size = SZ_8K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	[1] = {
+		.name = "ARM-UBL",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_16K + SZ_8K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	[2] = {
+		.name = "U-Boot",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_256K - SZ_32K,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	[3] = {
+		.name = "U-Boot-Environment",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_16K,
+		.mask_flags = 0,
+	},
+	[4] = {
+		.name = "Kernel",
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
+		.mask_flags = 0,
+	},
+};
+
+static struct flash_platform_data da830evm_spiflash_data = {
+	.name		= "m25p80",
+	.parts		= da830evm_spiflash_part,
+	.nr_parts	= ARRAY_SIZE(da830evm_spiflash_part),
+	.type		= "w25x32",
+};
+
+static struct davinci_spi_config da830evm_spiflash_cfg = {
+	.io_type	= SPI_IO_TYPE_DMA,
+	.c2tdelay	= 8,
+	.t2cdelay	= 8,
+};
+
+static struct spi_board_info da830evm_spi_info[] = {
+	{
+		.modalias		= "m25p80",
+		.platform_data		= &da830evm_spiflash_data,
+		.controller_data	= &da830evm_spiflash_cfg,
+		.mode			= SPI_MODE_0,
+		.max_speed_hz		= 30000000,
+		.bus_num		= 0,
+		.chip_select		= 0,
+	},
+};
+
 static __init void da830_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -590,6 +651,12 @@ static __init void da830_evm_init(void)
 	ret = da8xx_register_rtc();
 	if (ret)
 		pr_warning("da830_evm_init: rtc setup failed: %d\n", ret);
+
+	ret = da8xx_register_spi(0, da830evm_spi_info,
+				 ARRAY_SIZE(da830evm_spi_info));
+	if (ret)
+		pr_warning("da830_evm_init: spi 0 registration failed: %d\n",
+			   ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

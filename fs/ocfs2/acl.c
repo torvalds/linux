@@ -497,7 +497,7 @@ static int ocfs2_xattr_set_acl(struct dentry *dentry, const char *name,
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
 		return -EOPNOTSUPP;
 
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 
 	if (value) {

@@ -129,10 +129,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	u32 adpa, dpll_md;
 	u32 adpa_reg;
 
-	if (intel_crtc->pipe == 0)
-		dpll_md_reg = DPLL_A_MD;
-	else
-		dpll_md_reg = DPLL_B_MD;
+	dpll_md_reg = DPLL_MD(intel_crtc->pipe);
 
 	if (HAS_PCH_SPLIT(dev))
 		adpa_reg = PCH_ADPA;
@@ -160,16 +157,15 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 			adpa |= PORT_TRANS_A_SEL_CPT;
 		else
 			adpa |= ADPA_PIPE_A_SELECT;
-		if (!HAS_PCH_SPLIT(dev))
-			I915_WRITE(BCLRPAT_A, 0);
 	} else {
 		if (HAS_PCH_CPT(dev))
 			adpa |= PORT_TRANS_B_SEL_CPT;
 		else
 			adpa |= ADPA_PIPE_B_SELECT;
-		if (!HAS_PCH_SPLIT(dev))
-			I915_WRITE(BCLRPAT_B, 0);
 	}
+
+	if (!HAS_PCH_SPLIT(dev))
+		I915_WRITE(BCLRPAT(intel_crtc->pipe), 0);
 
 	I915_WRITE(adpa_reg, adpa);
 }
@@ -353,21 +349,12 @@ intel_crt_load_detect(struct drm_crtc *crtc, struct intel_crt *crt)
 
 	DRM_DEBUG_KMS("starting load-detect on CRT\n");
 
-	if (pipe == 0) {
-		bclrpat_reg = BCLRPAT_A;
-		vtotal_reg = VTOTAL_A;
-		vblank_reg = VBLANK_A;
-		vsync_reg = VSYNC_A;
-		pipeconf_reg = PIPEACONF;
-		pipe_dsl_reg = PIPEADSL;
-	} else {
-		bclrpat_reg = BCLRPAT_B;
-		vtotal_reg = VTOTAL_B;
-		vblank_reg = VBLANK_B;
-		vsync_reg = VSYNC_B;
-		pipeconf_reg = PIPEBCONF;
-		pipe_dsl_reg = PIPEBDSL;
-	}
+	bclrpat_reg = BCLRPAT(pipe);
+	vtotal_reg = VTOTAL(pipe);
+	vblank_reg = VBLANK(pipe);
+	vsync_reg = VSYNC(pipe);
+	pipeconf_reg = PIPECONF(pipe);
+	pipe_dsl_reg = PIPEDSL(pipe);
 
 	save_bclrpat = I915_READ(bclrpat_reg);
 	save_vtotal = I915_READ(vtotal_reg);
@@ -535,6 +522,15 @@ static int intel_crt_set_property(struct drm_connector *connector,
 	return 0;
 }
 
+static void intel_crt_reset(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct intel_crt *crt = intel_attached_crt(connector);
+
+	if (HAS_PCH_SPLIT(dev))
+		crt->force_hotplug_required = 1;
+}
+
 /*
  * Routines for controlling stuff on the analog port
  */
@@ -548,6 +544,7 @@ static const struct drm_encoder_helper_funcs intel_crt_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
+	.reset = intel_crt_reset,
 	.dpms = drm_helper_connector_dpms,
 	.detect = intel_crt_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

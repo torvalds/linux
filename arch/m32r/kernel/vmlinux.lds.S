@@ -53,7 +53,7 @@ SECTIONS
   __init_begin = .;
   INIT_TEXT_SECTION(PAGE_SIZE)
   INIT_DATA_SECTION(16)
-  PERCPU(PAGE_SIZE)
+  PERCPU(32, PAGE_SIZE)
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
   /* freed after init ends here */

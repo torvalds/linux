@@ -377,7 +377,7 @@ union p_header {
 #define DP_HARDBARRIER	      1 /* depricated */
 #define DP_RW_SYNC	      2 /* equals REQ_SYNC    */
 #define DP_MAY_SET_IN_SYNC    4
-#define DP_UNPLUG             8 /* equals REQ_UNPLUG  */
+#define DP_UNPLUG             8 /* not used anymore   */
 #define DP_FUA               16 /* equals REQ_FUA     */
 #define DP_FLUSH             32 /* equals REQ_FLUSH   */
 #define DP_DISCARD           64 /* equals REQ_DISCARD */
@@ -2380,20 +2380,6 @@ static inline int drbd_queue_order_type(struct drbd_conf *mdev)
 #define QUEUE_ORDERED_NONE 0
 #endif
 	return QUEUE_ORDERED_NONE;
-}
-
-static inline void drbd_blk_run_queue(struct request_queue *q)
-{
-	if (q && q->unplug_fn)
-		q->unplug_fn(q);
-}
-
-static inline void drbd_kick_lo(struct drbd_conf *mdev)
-{
-	if (get_ldev(mdev)) {
-		drbd_blk_run_queue(bdev_get_queue(mdev->ldev->backing_bdev));
-		put_ldev(mdev);
-	}
 }
 
 static inline void drbd_md_flush(struct drbd_conf *mdev)

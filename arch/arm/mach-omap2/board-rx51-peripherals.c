@@ -36,6 +36,8 @@
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
+#include <media/radio-si4713.h>
+#include <media/si4713.h>
 
 #include <../drivers/staging/iio/light/tsl2563.h>
 
@@ -47,6 +49,8 @@
 
 #define RX51_WL1251_POWER_GPIO		87
 #define RX51_WL1251_IRQ_GPIO		42
+#define RX51_FMTX_RESET_GPIO		163
+#define RX51_FMTX_IRQ			53
 
 /* list all spi devices here */
 enum {
@@ -331,13 +335,13 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 };
 
 static struct regulator_consumer_supply rx51_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 static struct regulator_consumer_supply rx51_vaux3_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_consumer_supply rx51_vsim_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tlv320aic3x analog supplies */
@@ -348,7 +352,7 @@ static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tpa6130a2 */
 	REGULATOR_SUPPLY("Vdd", "2-0060"),
 	/* Keep vmmc as last item. It is not iterated for newer boards */
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1"),
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
 static struct regulator_consumer_supply rx51_vio_supplies[] = {
@@ -357,14 +361,18 @@ static struct regulator_consumer_supply rx51_vio_supplies[] = {
 	REGULATOR_SUPPLY("DVDD", "2-0018"),
 	REGULATOR_SUPPLY("IOVDD", "2-0019"),
 	REGULATOR_SUPPLY("DVDD", "2-0019"),
+	/* Si4713 IO supply */
+	REGULATOR_SUPPLY("vio", "2-0063"),
 };
 
 static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
+	/* Si4713 supply */
+	REGULATOR_SUPPLY("vdd", "2-0063"),
 };
 
 static struct regulator_consumer_supply rx51_vdac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss"),
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
 };
 
 static struct regulator_init_data rx51_vaux1 = {
@@ -510,6 +518,41 @@ static struct regulator_init_data rx51_vio = {
 	.num_consumer_supplies	= ARRAY_SIZE(rx51_vio_supplies),
 	.consumer_supplies	= rx51_vio_supplies,
 };
+
+static struct si4713_platform_data rx51_si4713_i2c_data __initdata_or_module = {
+	.gpio_reset	= RX51_FMTX_RESET_GPIO,
+};
+
+static struct i2c_board_info rx51_si4713_board_info __initdata_or_module = {
+	I2C_BOARD_INFO("si4713", SI4713_I2C_ADDR_BUSEN_HIGH),
+	.platform_data	= &rx51_si4713_i2c_data,
+};
+
+static struct radio_si4713_platform_data rx51_si4713_data __initdata_or_module = {
+	.i2c_bus	= 2,
+	.subdev_board_info = &rx51_si4713_board_info,
+};
+
+static struct platform_device rx51_si4713_dev __initdata_or_module = {
+	.name	= "radio-si4713",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &rx51_si4713_data,
+	},
+};
+
+static __init void rx51_init_si4713(void)
+{
+	int err;
+
+	err = gpio_request_one(RX51_FMTX_IRQ, GPIOF_DIR_IN, "si4713 irq");
+	if (err) {
+		printk(KERN_ERR "Cannot request si4713 irq gpio. %d\n", err);
+		return;
+	}
+	rx51_si4713_board_info.irq = gpio_to_irq(RX51_FMTX_IRQ);
+	platform_device_register(&rx51_si4713_dev);
+}
 
 static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 {
@@ -699,6 +742,14 @@ static struct twl4030_power_data rx51_t2scripts_data __initdata = {
 	.resource_config = twl4030_rconfig,
 };
 
+struct twl4030_codec_vibra_data rx51_vibra_data __initdata = {
+	.coexist	= 0,
+};
+
+struct twl4030_codec_data rx51_codec_data __initdata = {
+	.audio_mclk	= 26000000,
+	.vibra		= &rx51_vibra_data,
+};
 
 static struct twl4030_platform_data rx51_twldata __initdata = {
 	.irq_base		= TWL4030_IRQ_BASE,
@@ -710,6 +761,7 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.madc			= &rx51_madc_data,
 	.usb			= &rx51_usb_data,
 	.power			= &rx51_t2scripts_data,
+	.codec			= &rx51_codec_data,
 
 	.vaux1			= &rx51_vaux1,
 	.vaux2			= &rx51_vaux2,
@@ -921,6 +973,7 @@ void __init rx51_peripherals_init(void)
 	board_smc91x_init();
 	rx51_add_gpio_keys();
 	rx51_init_wl1251();
+	rx51_init_si4713();
 	spi_register_board_info(rx51_peripherals_spi_board_info,
 				ARRAY_SIZE(rx51_peripherals_spi_board_info));
 
