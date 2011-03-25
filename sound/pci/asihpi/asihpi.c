@@ -381,13 +381,13 @@ static void snd_card_asihpi_pcm_samplerates(struct snd_card_asihpi *asihpi,
 				"No local sampleclock, err %d\n", err);
 		}
 
-		for (idx = 0; idx < 100; idx++) {
-			if (hpi_sample_clock_query_local_rate(
-				h_control, idx, &sample_rate)) {
-				if (!idx)
-					snd_printk(KERN_ERR
-						"Local rate query failed\n");
-
+		for (idx = -1; idx < 100; idx++) {
+			if (idx == -1) {
+				if (hpi_sample_clock_get_sample_rate(h_control,
+								&sample_rate))
+					continue;
+			} else if (hpi_sample_clock_query_local_rate(h_control,
+							idx, &sample_rate)) {
 				break;
 			}
 
@@ -440,8 +440,6 @@ static void snd_card_asihpi_pcm_samplerates(struct snd_card_asihpi *asihpi,
 		}
 	}
 
-	/* printk(KERN_INFO "Supported rates %X %d %d\n",
-	   rates, rate_min, rate_max); */
 	pcmhw->rates = rates;
 	pcmhw->rate_min = rate_min;
 	pcmhw->rate_max = rate_max;
