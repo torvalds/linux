@@ -271,7 +271,7 @@ EXPORT_SYMBOL(blk_start_queue);
  **/
 void blk_stop_queue(struct request_queue *q)
 {
-	cancel_delayed_work(&q->delay_work);
+	__cancel_delayed_work(&q->delay_work);
 	queue_flag_set(QUEUE_FLAG_STOPPED, q);
 }
 EXPORT_SYMBOL(blk_stop_queue);
@@ -2702,7 +2702,10 @@ static void flush_plug_list(struct blk_plug *plug)
 		/*
 		 * rq is already accounted, so use raw insert
 		 */
-		__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);
+		if (rq->cmd_flags & (REQ_FLUSH | REQ_FUA))
+			__elv_add_request(q, rq, ELEVATOR_INSERT_FLUSH);
+		else
+			__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);
 	}
 
 	if (q) {
