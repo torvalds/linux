@@ -139,6 +139,39 @@ static inline void
 irq_get_pending(struct cpumask *mask, struct irq_desc *desc) { }
 #endif
 
+int __irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask)
+{
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	struct irq_desc *desc = irq_data_to_desc(data);
+	int ret = 0;
+
+	if (!chip || !chip->irq_set_affinity)
+		return -EINVAL;
+
+	if (irqd_can_move_in_process_context(data)) {
+		ret = chip->irq_set_affinity(data, mask, false);
+		switch (ret) {
+		case IRQ_SET_MASK_OK:
+			cpumask_copy(data->affinity, mask);
+		case IRQ_SET_MASK_OK_NOCOPY:
+			irq_set_thread_affinity(desc);
+			ret = 0;
+		}
+	} else {
+		irqd_set_move_pending(data);
+		irq_copy_pending(desc, mask);
+	}
+
+	if (desc->affinity_notify) {
+		kref_get(&desc->affinity_notify->kref);
+		schedule_work(&desc->affinity_notify->work);
+	}
+	irq_compat_set_affinity(desc);
+	irqd_set(data, IRQD_AFFINITY_SET);
+
+	return ret;
+}
+
 /**
  *	irq_set_affinity - Set the irq affinity of a given irq
  *	@irq:		Interrupt to set affinity
@@ -148,35 +181,14 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc) { }
 int irq_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_chip *chip = desc->irq_data.chip;
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
-	if (!chip->irq_set_affinity)
+	if (!desc)
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-
-	if (irq_can_move_pcntxt(desc)) {
-		ret = chip->irq_set_affinity(&desc->irq_data, mask, false);
-		switch (ret) {
-		case IRQ_SET_MASK_OK:
-			cpumask_copy(desc->irq_data.affinity, mask);
-		case IRQ_SET_MASK_OK_NOCOPY:
-			irq_set_thread_affinity(desc);
-			ret = 0;
-		}
-	} else {
-		irqd_set_move_pending(&desc->irq_data);
-		irq_copy_pending(desc, mask);
-	}
-
-	if (desc->affinity_notify) {
-		kref_get(&desc->affinity_notify->kref);
-		schedule_work(&desc->affinity_notify->work);
-	}
-	irq_compat_set_affinity(desc);
-	irqd_set(&desc->irq_data, IRQD_AFFINITY_SET);
+	ret =  __irq_set_affinity_locked(irq_desc_get_irq_data(desc), mask);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
