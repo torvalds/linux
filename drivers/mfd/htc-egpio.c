@@ -100,7 +100,7 @@ static struct irq_chip egpio_muxed_chip = {
 
 static void egpio_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct egpio_info *ei = get_irq_data(irq);
+	struct egpio_info *ei = irq_desc_get_handler_data(desc);
 	int irqpin;
 
 	/* Read current pins. */
@@ -113,9 +113,7 @@ static void egpio_handler(unsigned int irq, struct irq_desc *desc)
 	for_each_set_bit(irqpin, &readval, ei->nirqs) {
 		/* Run irq handler */
 		pr_debug("got IRQ %d\n", irqpin);
-		irq = ei->irq_start + irqpin;
-		desc = irq_to_desc(irq);
-		desc->handle_irq(irq, desc);
+		generic_handle_irq(ei->irq_start + irqpin);
 	}
 }
 
