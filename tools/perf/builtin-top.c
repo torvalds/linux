@@ -870,6 +870,12 @@ try_again:
 				goto try_again;
 			}
 
+			if (err == ENOENT) {
+				ui__warning("The %s event is not supported.\n",
+					    event_name(counter));
+				goto out_err;
+			}
+
 			ui__warning("The sys_perf_event_open() syscall "
 				    "returned with %d (%s).  /bin/dmesg "
 				    "may provide additional information.\n"
