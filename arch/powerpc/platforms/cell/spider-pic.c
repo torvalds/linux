@@ -102,7 +102,7 @@ static void spider_ack_irq(struct irq_data *d)
 
 	/* Reset edge detection logic if necessary
 	 */
-	if (irq_to_desc(d->irq)->status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		return;
 
 	/* Only interrupts 47 to 50 can be set to edge */
@@ -119,7 +119,6 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 	struct spider_pic *pic = spider_virq_to_pic(d->irq);
 	unsigned int hw = irq_map[d->irq].hwirq;
 	void __iomem *cfg = spider_get_irq_config(pic, hw);
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 old_mask;
 	u32 ic;
 
@@ -146,12 +145,6 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 	default:
 		return -EINVAL;
 	}
-
-	/* Update irq_desc */
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= type & IRQ_TYPE_SENSE_MASK;
-	if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		desc->status |= IRQ_LEVEL;
 
 	/* Configure the source. One gross hack that was there before and
 	 * that I've kept around is the priority to the BE which I set to
