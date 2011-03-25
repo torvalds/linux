@@ -241,14 +241,14 @@ void tile_irq_activate(unsigned int irq, int tile_irq_type)
 	irq_flow_handler_t handle = handle_level_irq;
 	if (tile_irq_type == TILE_IRQ_PERCPU)
 		handle = handle_percpu_irq;
-	set_irq_chip_and_handler(irq, &tile_irq_chip, handle);
+	irq_set_chip_and_handler(irq, &tile_irq_chip, handle);
 
 	/*
 	 * Flag interrupts that are hardware-cleared so that ack()
 	 * won't clear them.
 	 */
 	if (tile_irq_type == TILE_IRQ_HW_CLEAR)
-		set_irq_chip_data(irq, (void *)IS_HW_CLEARED);
+		irq_set_chip_data(irq, (void *)IS_HW_CLEARED);
 }
 EXPORT_SYMBOL(tile_irq_activate);
 
@@ -290,7 +290,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %14s", get_irq_desc_chip(desc)->name);
+		seq_printf(p, " %14s", irq_desc_get_chip(desc)->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action = action->next; action; action = action->next)
