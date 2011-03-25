@@ -350,29 +350,29 @@ void print_st_err(struct drbd_conf *mdev, union drbd_state os,
 	print_st(mdev, "wanted", ns);
 }
 
-static void print_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
+static long print_state_change(char *pb, union drbd_state os, union drbd_state ns,
 			       enum chg_state_flags flags)
 {
-	char *pbp, pb[300];
+	char *pbp;
 	pbp = pb;
 	*pbp = 0;
-	if (ns.role != os.role)
+	if (ns.role != os.role && flags & CS_DC_ROLE)
 		pbp += sprintf(pbp, "role( %s -> %s ) ",
 			       drbd_role_str(os.role),
 			       drbd_role_str(ns.role));
-	if (ns.peer != os.peer)
+	if (ns.peer != os.peer && flags & CS_DC_PEER)
 		pbp += sprintf(pbp, "peer( %s -> %s ) ",
 			       drbd_role_str(os.peer),
 			       drbd_role_str(ns.peer));
-	if (ns.conn != os.conn && !(flags & CS_NO_CSTATE_CHG))
+	if (ns.conn != os.conn && flags & CS_DC_CONN)
 		pbp += sprintf(pbp, "conn( %s -> %s ) ",
 			       drbd_conn_str(os.conn),
 			       drbd_conn_str(ns.conn));
-	if (ns.disk != os.disk)
+	if (ns.disk != os.disk && flags & CS_DC_DISK)
 		pbp += sprintf(pbp, "disk( %s -> %s ) ",
 			       drbd_disk_str(os.disk),
 			       drbd_disk_str(ns.disk));
-	if (ns.pdsk != os.pdsk)
+	if (ns.pdsk != os.pdsk && flags & CS_DC_PDSK)
 		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
 			       drbd_disk_str(os.pdsk),
 			       drbd_disk_str(ns.pdsk));
@@ -392,9 +392,28 @@ static void print_state_change(struct drbd_conf *mdev, union drbd_state os, unio
 		pbp += sprintf(pbp, "user_isp( %d -> %d ) ",
 			       os.user_isp,
 			       ns.user_isp);
-	if (pbp != pb)
+
+	return pbp - pb;
+}
+
+static void drbd_pr_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
+				 enum chg_state_flags flags)
+{
+	char pb[300];
+
+	if (print_state_change(pb, os, ns, flags ^ CS_DC_MASK))
 		dev_info(DEV, "%s\n", pb);
 }
+
+static void conn_pr_state_change(struct drbd_tconn *tconn, union drbd_state os, union drbd_state ns,
+				 enum chg_state_flags flags)
+{
+	char pb[300];
+
+	if (print_state_change(pb, os, ns, flags))
+		conn_info(tconn, "%s\n", pb);
+}
+
 
 /**
  * is_valid_state() - Returns an SS_ error code if ns is not valid
@@ -827,7 +846,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (warn_sync_abort)
 		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
 
-	print_state_change(mdev, os, ns, flags);
+	drbd_pr_state_change(mdev, os, ns, flags);
 
 	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
 	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
@@ -1364,98 +1383,41 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	return 0;
 }
 
-static void print_conn_state_change(struct drbd_tconn *tconn, enum drbd_conns oc, enum drbd_conns nc)
+void conn_old_common_state(struct drbd_tconn *tconn, union drbd_state *pcs, enum chg_state_flags *pf)
 {
-	char *pbp, pb[300];
-	pbp = pb;
-	*pbp = 0;
-	if (nc != oc)
-		pbp += sprintf(pbp, "conn( %s -> %s ) ",
-			       drbd_conn_str(oc),
-			       drbd_conn_str(nc));
-
-	conn_info(tconn, "%s\n", pb);
-}
-
-enum sp_state {
-	OC_UNINITIALIZED,
-	OC_CONSISTENT,
-	OC_INCONSISTENT,
-} oc_state;
-
-static void common_state_part(enum sp_state *sps, int *sp, int nsp)
-{
-	switch (*sps) {
-	case OC_UNINITIALIZED:
-		*sp = nsp;
-		*sps = OC_CONSISTENT;
-		break;
-	case OC_CONSISTENT:
-		if (*sp != nsp)
-			*sps = OC_INCONSISTENT;
-		break;
-	case OC_INCONSISTENT:
-		break;
-	}
-}
-
-void conn_old_common_state(struct drbd_tconn *tconn, union drbd_state *pcs, union drbd_state *pmask)
-{
-	union drbd_state css = {}; /* common state state */
+	enum chg_state_flags flags = ~0;
 	union drbd_state os, cs = {}; /* old_state, common_state */
-	union drbd_state mask = {};
-	enum sp_state sps;       /* state part state */
-	int sp;                  /* state part */
 	struct drbd_conf *mdev;
-	int vnr;
+	int vnr, first_vol = 1;
 
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		os = mdev->state;
 
-		sps = css.role;
-		sp = cs.role;
-		common_state_part(&sps, &sp, os.role);
-		css.role = sps;
-		cs.role = sp;
+		if (first_vol) {
+			cs = os;
+			first_vol = 0;
+			continue;
+		}
 
-		sps = css.peer;
-		sp = cs.peer;
-		common_state_part(&sps, &sp, os.peer);
-		css.peer = sps;
-		cs.peer = sp;
+		if (cs.role != os.role)
+			flags &= ~CS_DC_ROLE;
 
-		sps = css.conn;
-		sp = cs.conn;
-		common_state_part(&sps, &sp, os.conn);
-		css.conn = sps;
-		cs.conn = sp;
+		if (cs.peer != os.peer)
+			flags &= ~CS_DC_PEER;
 
-		sps = css.disk;
-		sp = cs.disk;
-		common_state_part(&sps, &sp, os.disk);
-		css.disk = sps;
-		cs.disk = sp;
+		if (cs.conn != os.conn)
+			flags &= ~CS_DC_CONN;
 
-		sps = css.pdsk;
-		sp = cs.pdsk;
-		common_state_part(&sps, &sp, os.pdsk);
-		css.pdsk = sps;
-		cs.pdsk = sp;
+		if (cs.disk != os.disk)
+			flags &= ~CS_DC_DISK;
+
+		if (cs.pdsk != os.pdsk)
+			flags &= ~CS_DC_PDSK;
 	}
 
-	if (css.role == OC_CONSISTENT)
-		mask.role = R_MASK;
-	if (css.peer == OC_CONSISTENT)
-		mask.peer = R_MASK;
-	if (css.conn == OC_CONSISTENT)
-		mask.conn = C_MASK;
-	if (css.disk == OC_CONSISTENT)
-		mask.disk = D_MASK;
-	if (css.pdsk == OC_CONSISTENT)
-		mask.pdsk = D_MASK;
-
+	*pf |= CS_DC_MASK;
+	*pf &= flags;
 	*pcs = cs;
-	*pmask = mask;
 }
 
 static enum drbd_state_rv
@@ -1541,7 +1503,7 @@ _conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state 
 	rv = tconn->cstate != C_WF_REPORT_PARAMS ? SS_CW_NO_NEED : SS_UNKNOWN_ERROR;
 
 	if (rv == SS_UNKNOWN_ERROR)
-		rv = conn_is_valid_transition(tconn, mask, val, CS_NO_CSTATE_CHG);
+		rv = conn_is_valid_transition(tconn, mask, val, 0);
 
 	if (rv == SS_SUCCESS)
 		rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
@@ -1583,7 +1545,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	enum drbd_state_rv rv = SS_SUCCESS;
 	struct after_conn_state_chg_work *acscw;
 	enum drbd_conns oc = tconn->cstate;
-	union drbd_state ms, os_val, os_mask;
+	union drbd_state ms, os;
 
 	rv = is_valid_conn_transition(oc, val.conn);
 	if (rv < SS_SUCCESS)
@@ -1600,19 +1562,14 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 			goto abort;
 	}
 
-	conn_old_common_state(tconn, &os_val, &os_mask);
-	if (os_mask.conn == C_MASK) {
-		oc = os_val.conn;
-		print_conn_state_change(tconn, oc, val.conn);
-		flags |= CS_NO_CSTATE_CHG;
-	}
-
+	conn_old_common_state(tconn, &os, &flags);
 	ms = conn_set_state(tconn, mask, val, flags);
 	ms.conn = val.conn;
+	conn_pr_state_change(tconn, os, ms, flags);
 
 	acscw = kmalloc(sizeof(*acscw), GFP_ATOMIC);
 	if (acscw) {
-		acscw->oc = oc;
+		acscw->oc = os.conn;
 		acscw->nms = ms;
 		acscw->flags = flags;
 		acscw->w.cb = w_after_conn_state_ch;

@@ -57,13 +57,18 @@ struct drbd_tconn;
 	__ns.T2 = (S2); __ns.T3 = (S3); __ns; })
 
 enum chg_state_flags {
-	CS_HARD	= 1,
-	CS_VERBOSE = 2,
-	CS_WAIT_COMPLETE = 4,
-	CS_SERIALIZE    = 8,
-	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
-	CS_NO_CSTATE_CHG = 16, /* Do not display changes in cstate. Internal to drbd_state.c */
-	CS_LOCAL_ONLY = 32, /* Do not consider a device pair wide state change */
+	CS_HARD	         = 1 << 0,
+	CS_VERBOSE       = 1 << 1,
+	CS_WAIT_COMPLETE = 1 << 2,
+	CS_SERIALIZE     = 1 << 3,
+	CS_ORDERED       = CS_WAIT_COMPLETE + CS_SERIALIZE,
+	CS_LOCAL_ONLY    = 1 << 4, /* Do not consider a device pair wide state change */
+	CS_DC_ROLE       = 1 << 5, /* DC = display as connection state change */
+	CS_DC_PEER       = 1 << 6,
+	CS_DC_CONN       = 1 << 7,
+	CS_DC_DISK       = 1 << 8,
+	CS_DC_PDSK       = 1 << 9,
+	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
 };
 
 extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
