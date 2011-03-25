@@ -281,6 +281,11 @@ struct l2cap_chan {
 	struct sock *sk;
 	__u8		ident;
 
+	__u8		conf_req[64];
+	__u8		conf_len;
+	__u8		num_conf_req;
+	__u8		num_conf_rsp;
+
 	struct list_head list;
 };
 
@@ -337,8 +342,6 @@ struct l2cap_pinfo {
 	__u16		omtu;
 	__u16		flush_to;
 	__u8		mode;
-	__u8		num_conf_req;
-	__u8		num_conf_rsp;
 
 	__u8		fcs;
 	__u8		sec_level;
@@ -346,8 +349,6 @@ struct l2cap_pinfo {
 	__u8		force_reliable;
 	__u8		flushable;
 
-	__u8		conf_req[64];
-	__u8		conf_len;
 	__u8		conf_state;
 	__u16		conn_state;
 
@@ -447,7 +448,7 @@ void l2cap_cleanup_sockets(void);
 
 u8 l2cap_get_ident(struct l2cap_conn *conn);
 void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data);
-int l2cap_build_conf_req(struct sock *sk, void *data);
+int l2cap_build_conf_req(struct l2cap_chan *chan, void *data);
 int __l2cap_wait_ack(struct sock *sk);
 
 struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, size_t len);

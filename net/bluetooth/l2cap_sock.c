@@ -810,6 +810,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	if (sk->sk_state == BT_CONNECT2 && bt_sk(sk)->defer_setup) {
 		struct l2cap_conn_rsp rsp;
 		struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 		u8 buf[128];
 
 		sk->sk_state = BT_CONFIG;
@@ -818,7 +819,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 		rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
 		rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
-		l2cap_send_cmd(l2cap_pi(sk)->conn, l2cap_pi(sk)->chan->ident,
+		l2cap_send_cmd(l2cap_pi(sk)->conn, chan->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 
 		if (l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT) {
@@ -828,8 +829,8 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 		l2cap_pi(sk)->conf_state |= L2CAP_CONF_REQ_SENT;
 		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
-				l2cap_build_conf_req(sk, buf), buf);
-		l2cap_pi(sk)->num_conf_req++;
+				l2cap_build_conf_req(chan, buf), buf);
+		chan->num_conf_req++;
 
 		release_sock(sk);
 		return 0;
@@ -1035,7 +1036,6 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	}
 
 	/* Default config options */
-	pi->conf_len = 0;
 	pi->flush_to = L2CAP_DEFAULT_FLUSH_TO;
 	skb_queue_head_init(TX_QUEUE(sk));
 	skb_queue_head_init(SREJ_QUEUE(sk));
