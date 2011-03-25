@@ -259,11 +259,11 @@ static DEFINE_RAW_SPINLOCK(octeon_irq_msi_lock);
 static u64 msi_rcv_reg[4];
 static u64 mis_ena_reg[4];
 
-static void octeon_irq_msi_enable_pcie(unsigned int irq)
+static void octeon_irq_msi_enable_pcie(struct irq_data *data)
 {
 	u64 en;
 	unsigned long flags;
-	int msi_number = irq - OCTEON_IRQ_MSI_BIT0;
+	int msi_number = data->irq - OCTEON_IRQ_MSI_BIT0;
 	int irq_index = msi_number >> 6;
 	int irq_bit = msi_number & 0x3f;
 
@@ -275,11 +275,11 @@ static void octeon_irq_msi_enable_pcie(unsigned int irq)
 	raw_spin_unlock_irqrestore(&octeon_irq_msi_lock, flags);
 }
 
-static void octeon_irq_msi_disable_pcie(unsigned int irq)
+static void octeon_irq_msi_disable_pcie(struct irq_data *data)
 {
 	u64 en;
 	unsigned long flags;
-	int msi_number = irq - OCTEON_IRQ_MSI_BIT0;
+	int msi_number = data->irq - OCTEON_IRQ_MSI_BIT0;
 	int irq_index = msi_number >> 6;
 	int irq_bit = msi_number & 0x3f;
 
@@ -293,11 +293,11 @@ static void octeon_irq_msi_disable_pcie(unsigned int irq)
 
 static struct irq_chip octeon_irq_chip_msi_pcie = {
 	.name = "MSI",
-	.enable = octeon_irq_msi_enable_pcie,
-	.disable = octeon_irq_msi_disable_pcie,
+	.irq_enable = octeon_irq_msi_enable_pcie,
+	.irq_disable = octeon_irq_msi_disable_pcie,
 };
 
-static void octeon_irq_msi_enable_pci(unsigned int irq)
+static void octeon_irq_msi_enable_pci(struct irq_data *data)
 {
 	/*
 	 * Octeon PCI doesn't have the ability to mask/unmask MSI
@@ -308,15 +308,15 @@ static void octeon_irq_msi_enable_pci(unsigned int irq)
 	 */
 }
 
-static void octeon_irq_msi_disable_pci(unsigned int irq)
+static void octeon_irq_msi_disable_pci(struct irq_data *data)
 {
 	/* See comment in enable */
 }
 
 static struct irq_chip octeon_irq_chip_msi_pci = {
 	.name = "MSI",
-	.enable = octeon_irq_msi_enable_pci,
-	.disable = octeon_irq_msi_disable_pci,
+	.irq_enable = octeon_irq_msi_enable_pci,
+	.irq_disable = octeon_irq_msi_disable_pci,
 };
 
 /*
