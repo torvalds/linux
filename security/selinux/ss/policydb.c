@@ -128,6 +128,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
 	},
+	{
+		.version	= POLICYDB_VERSION_ROLETRANS,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	},
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -2302,8 +2307,17 @@ int policydb_read(struct policydb *p, void *fp)
 		tr->role = le32_to_cpu(buf[0]);
 		tr->type = le32_to_cpu(buf[1]);
 		tr->new_role = le32_to_cpu(buf[2]);
+		if (p->policyvers >= POLICYDB_VERSION_ROLETRANS) {
+			rc = next_entry(buf, fp, sizeof(u32));
+			if (rc)
+				goto bad;
+			tr->tclass = le32_to_cpu(buf[0]);
+		} else
+			tr->tclass = p->process_class;
+
 		if (!policydb_role_isvalid(p, tr->role) ||
 		    !policydb_type_isvalid(p, tr->type) ||
+		    !policydb_class_isvalid(p, tr->tclass) ||
 		    !policydb_role_isvalid(p, tr->new_role))
 			goto bad;
 		ltr = tr;

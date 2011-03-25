@@ -72,7 +72,8 @@ struct role_datum {
 
 struct role_trans {
 	u32 role;		/* current role */
-	u32 type;		/* program executable type */
+	u32 type;		/* program executable type, or new object type */
+	u32 tclass;		/* process class, or new object class */
 	u32 new_role;		/* new role */
 	struct role_trans *next;
 };
