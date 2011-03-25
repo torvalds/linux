@@ -416,7 +416,6 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 				: chip->companion;
 	unsigned char status_buf[INT_STATUS_NUM];
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
-	struct irq_desc *desc;
 	int i, data, mask, ret = -EINVAL;
 	int __irq;
 
@@ -467,8 +466,6 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 	chip->core_irq = i2c->irq;
 	if (!chip->core_irq)
 		goto out;
-
-	desc = irq_to_desc(chip->core_irq);
 
 	/* register IRQ by genirq */
 	for (i = 0; i < ARRAY_SIZE(pm860x_irqs); i++) {
