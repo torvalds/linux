@@ -1452,8 +1452,6 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		DEFAULT_11N_CAP_MASK;
 	adapter->hw_dev_mcs_support = hw_spec->dev_mcs_support;
 	adapter->usr_dev_mcs_support = adapter->hw_dev_mcs_support;
-	mwifiex_show_dot_11n_dev_cap(adapter, adapter->hw_dot_11n_dev_cap);
-	mwifiex_show_dev_mcs_support(adapter, adapter->hw_dev_mcs_support);
 
 	if (adapter->if_ops.update_mp_end_port)
 		adapter->if_ops.update_mp_end_port(adapter,

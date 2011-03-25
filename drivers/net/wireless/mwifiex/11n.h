@@ -24,8 +24,6 @@
 #include "11n_rxreorder.h"
 #include "wmm.h"
 
-void mwifiex_show_dot_11n_dev_cap(struct mwifiex_adapter *adapter, u32 cap);
-void mwifiex_show_dev_mcs_support(struct mwifiex_adapter *adapter, u8 support);
 int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 			  struct host_cmd_ds_command *resp);
 int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
