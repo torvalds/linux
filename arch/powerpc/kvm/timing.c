@@ -34,8 +34,8 @@ void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu)
 {
 	int i;
 
-	/* pause guest execution to avoid concurrent updates */
-	mutex_lock(&vcpu->mutex);
+	/* Take a lock to avoid concurrent updates */
+	mutex_lock(&vcpu->arch.exit_timing_lock);
 
 	vcpu->arch.last_exit_type = 0xDEAD;
 	for (i = 0; i < __NUMBER_OF_KVM_EXIT_TYPES; i++) {
@@ -49,7 +49,7 @@ void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu)
 	vcpu->arch.timing_exit.tv64 = 0;
 	vcpu->arch.timing_last_enter.tv64 = 0;
 
-	mutex_unlock(&vcpu->mutex);
+	mutex_unlock(&vcpu->arch.exit_timing_lock);
 }
 
 static void add_exit_timing(struct kvm_vcpu *vcpu, u64 duration, int type)
@@ -64,6 +64,8 @@ static void add_exit_timing(struct kvm_vcpu *vcpu, u64 duration, int type)
 			vcpu->arch.timing_count_type[type]);
 		return;
 	}
+
+	mutex_lock(&vcpu->arch.exit_timing_lock);
 
 	vcpu->arch.timing_count_type[type]++;
 
@@ -93,6 +95,8 @@ static void add_exit_timing(struct kvm_vcpu *vcpu, u64 duration, int type)
 		vcpu->arch.timing_min_duration[type] = duration;
 	if (unlikely(duration > vcpu->arch.timing_max_duration[type]))
 		vcpu->arch.timing_max_duration[type] = duration;
+
+	mutex_unlock(&vcpu->arch.exit_timing_lock);
 }
 
 void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu)

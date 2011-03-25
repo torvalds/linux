@@ -255,6 +255,7 @@ struct kvm_vcpu_arch {
 	u32 dbsr;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
+	struct mutex exit_timing_lock;
 	struct kvmppc_exit_timing timing_exit;
 	struct kvmppc_exit_timing timing_last_enter;
 	u32 last_exit_type;
