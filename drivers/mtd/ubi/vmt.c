@@ -790,11 +790,6 @@ static int paranoid_check_volume(struct ubi_device *ubi, int vol_id)
 		goto fail;
 	}
 
-	if (!vol->name) {
-		ubi_err("NULL volume name");
-		goto fail;
-	}
-
 	n = strnlen(vol->name, vol->name_len + 1);
 	if (n != vol->name_len) {
 		ubi_err("bad name_len %lld", n);
