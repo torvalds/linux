@@ -130,6 +130,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		kfree(cifs_sb);
 		return rc;
 	}
+	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	/* copy mount params to sb for use in submounts */
