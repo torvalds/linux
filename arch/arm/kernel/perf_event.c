@@ -79,6 +79,7 @@ struct arm_pmu {
 	void		(*write_counter)(int idx, u32 val);
 	void		(*start)(void);
 	void		(*stop)(void);
+	void		(*reset)(void *);
 	const unsigned	(*cache_map)[PERF_COUNT_HW_CACHE_MAX]
 				    [PERF_COUNT_HW_CACHE_OP_MAX]
 				    [PERF_COUNT_HW_CACHE_RESULT_MAX];
@@ -623,6 +624,19 @@ static struct pmu pmu = {
 #include "perf_event_xscale.c"
 #include "perf_event_v6.c"
 #include "perf_event_v7.c"
+
+/*
+ * Ensure the PMU has sane values out of reset.
+ * This requires SMP to be available, so exists as a separate initcall.
+ */
+static int __init
+armpmu_reset(void)
+{
+	if (armpmu && armpmu->reset)
+		return on_each_cpu(armpmu->reset, NULL, 1);
+	return 0;
+}
+arch_initcall(armpmu_reset);
 
 static int __init
 init_hw_perf_events(void)
