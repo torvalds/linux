@@ -631,10 +631,10 @@ ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action)
 	irq = vec;
 	BUG_ON(bind_irq_vector(irq, vec, CPU_MASK_ALL));
 	irq_set_status_flags(irq, IRQ_PER_CPU);
-	set_irq_chip(irq, &irq_type_ia64_lsapic);
+	irq_set_chip(irq, &irq_type_ia64_lsapic);
 	if (action)
 		setup_irq(irq, action);
-	set_irq_handler(irq, handle_percpu_irq);
+	irq_set_handler(irq, handle_percpu_irq);
 }
 
 void __init

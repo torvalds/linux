@@ -144,9 +144,9 @@ int sn_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *entry)
 	 */
 	msg.data = 0x100 + irq;
 
-	set_irq_msi(irq, entry);
+	irq_set_msi_desc(irq, entry);
 	write_msi_msg(irq, &msg);
-	set_irq_chip_and_handler(irq, &sn_msi_chip, handle_edge_irq);
+	irq_set_chip_and_handler(irq, &sn_msi_chip, handle_edge_irq);
 
 	return 0;
 }

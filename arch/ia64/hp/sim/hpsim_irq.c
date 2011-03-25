@@ -43,9 +43,9 @@ hpsim_irq_init (void)
 	int i;
 
 	for_each_active_irq(i) {
-		struct irq_chip *chip = get_irq_chip(i);
+		struct irq_chip *chip = irq_get_chip(i);
 
 		if (chip == &no_irq_chip)
-			set_irq_chip(i, &irq_type_hp_sim);
+			irq_set_chip(i, &irq_type_hp_sim);
 	}
 }
