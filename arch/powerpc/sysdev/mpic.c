@@ -361,7 +361,7 @@ static inline void mpic_ht_end_irq(struct mpic *mpic, unsigned int source)
 }
 
 static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
-				      unsigned int irqflags)
+				      bool level)
 {
 	struct mpic_irq_fixup *fixup = &mpic->fixups[source];
 	unsigned long flags;
@@ -370,14 +370,14 @@ static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (fixup->base == NULL)
 		return;
 
-	DBG("startup_ht_interrupt(0x%x, 0x%x) index: %d\n",
-	    source, irqflags, fixup->index);
+	DBG("startup_ht_interrupt(0x%x) index: %d\n",
+	    source, fixup->index);
 	raw_spin_lock_irqsave(&mpic->fixup_lock, flags);
 	/* Enable and configure */
 	writeb(0x10 + 2 * fixup->index, fixup->base + 2);
 	tmp = readl(fixup->base + 4);
 	tmp &= ~(0x23U);
-	if (irqflags & IRQ_LEVEL)
+	if (level)
 		tmp |= 0x22;
 	writel(tmp, fixup->base + 4);
 	raw_spin_unlock_irqrestore(&mpic->fixup_lock, flags);
@@ -389,8 +389,7 @@ static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
 #endif
 }
 
-static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
-				       unsigned int irqflags)
+static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source)
 {
 	struct mpic_irq_fixup *fixup = &mpic->fixups[source];
 	unsigned long flags;
@@ -399,7 +398,7 @@ static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (fixup->base == NULL)
 		return;
 
-	DBG("shutdown_ht_interrupt(0x%x, 0x%x)\n", source, irqflags);
+	DBG("shutdown_ht_interrupt(0x%x)\n", source);
 
 	/* Disable */
 	raw_spin_lock_irqsave(&mpic->fixup_lock, flags);
@@ -738,7 +737,7 @@ static void mpic_unmask_ht_irq(struct irq_data *d)
 
 	mpic_unmask_irq(d);
 
-	if (irq_to_desc(d->irq)->status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		mpic_ht_end_irq(mpic, src);
 }
 
@@ -748,7 +747,7 @@ static unsigned int mpic_startup_ht_irq(struct irq_data *d)
 	unsigned int src = mpic_irq_to_hw(d->irq);
 
 	mpic_unmask_irq(d);
-	mpic_startup_ht_interrupt(mpic, src, irq_to_desc(d->irq)->status);
+	mpic_startup_ht_interrupt(mpic, src, irqd_is_level_type(d));
 
 	return 0;
 }
@@ -758,7 +757,7 @@ static void mpic_shutdown_ht_irq(struct irq_data *d)
 	struct mpic *mpic = mpic_from_irq_data(d);
 	unsigned int src = mpic_irq_to_hw(d->irq);
 
-	mpic_shutdown_ht_interrupt(mpic, src, irq_to_desc(d->irq)->status);
+	mpic_shutdown_ht_interrupt(mpic, src);
 	mpic_mask_irq(d);
 }
 
@@ -775,7 +774,7 @@ static void mpic_end_ht_irq(struct irq_data *d)
 	 * latched another edge interrupt coming in anyway
 	 */
 
-	if (irq_to_desc(d->irq)->status & IRQ_LEVEL)
+	if (irqd_is_level_type(d))
 		mpic_ht_end_irq(mpic, src);
 	mpic_eoi(mpic);
 }
@@ -864,7 +863,6 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct mpic *mpic = mpic_from_irq_data(d);
 	unsigned int src = mpic_irq_to_hw(d->irq);
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	unsigned int vecpri, vold, vnew;
 
 	DBG("mpic: set_irq_type(mpic:@%p,virq:%d,src:0x%x,type:0x%x)\n",
@@ -879,10 +877,7 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	if (flow_type == IRQ_TYPE_NONE)
 		flow_type = IRQ_TYPE_LEVEL_LOW;
 
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		desc->status |= IRQ_LEVEL;
+	irqd_set_trigger_type(d, flow_type);
 
 	if (mpic_is_ht_interrupt(mpic, src))
 		vecpri = MPIC_VECPRI_POLARITY_POSITIVE |
@@ -897,7 +892,7 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	if (vold != vnew)
 		mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI), vnew);
 
-	return 0;
+	return IRQ_SET_MASK_OK_NOCOPY;;
 }
 
 void mpic_set_vector(unsigned int virq, unsigned int vector)
