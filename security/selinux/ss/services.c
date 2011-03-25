@@ -1484,17 +1484,15 @@ static int security_compute_sid(u32 ssid,
 				      tcontext->type, tclass, qstr);
 
 	/* Check for class-specific changes. */
-	if  (tclass == policydb.process_class) {
-		if (specified & AVTAB_TRANSITION) {
-			/* Look for a role transition rule. */
-			for (roletr = policydb.role_tr; roletr;
-			     roletr = roletr->next) {
-				if (roletr->role == scontext->role &&
-				    roletr->type == tcontext->type) {
-					/* Use the role transition rule. */
-					newcontext.role = roletr->new_role;
-					break;
-				}
+	if (specified & AVTAB_TRANSITION) {
+		/* Look for a role transition rule. */
+		for (roletr = policydb.role_tr; roletr; roletr = roletr->next) {
+			if ((roletr->role == scontext->role) &&
+			    (roletr->type == tcontext->type) &&
+			    (roletr->tclass == tclass)) {
+				/* Use the role transition rule. */
+				newcontext.role = roletr->new_role;
+				break;
 			}
 		}
 	}
