@@ -398,7 +398,7 @@ iosapic_unmask_level_irq (struct irq_data *data)
 	int do_unmask_irq = 0;
 
 	irq_complete_move(irq);
-	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
+	if (unlikely(irqd_is_setaffinity_pending(data))) {
 		do_unmask_irq = 1;
 		mask_irq(data);
 	} else
@@ -408,7 +408,7 @@ iosapic_unmask_level_irq (struct irq_data *data)
 		iosapic_eoi(rte->iosapic->addr, vec);
 
 	if (unlikely(do_unmask_irq)) {
-		move_masked_irq(irq);
+		irq_move_masked_irq(data);
 		unmask_irq(data);
 	}
 }
@@ -449,10 +449,8 @@ iosapic_startup_edge_irq (struct irq_data *data)
 static void
 iosapic_ack_edge_irq (struct irq_data *data)
 {
-	unsigned int irq = data->irq;
-
-	irq_complete_move(irq);
-	move_native_irq(irq);
+	irq_complete_move(data->irq);
+	irq_move_irq(data);
 }
 
 #define iosapic_enable_edge_irq		unmask_irq
