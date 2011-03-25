@@ -500,12 +500,17 @@ static bool check_hw_exists(void)
 	return true;
 
 bios_fail:
-	printk(KERN_CONT "Broken BIOS detected, using software events only.\n");
+	/*
+	 * We still allow the PMU driver to operate:
+	 */
+	printk(KERN_CONT "Broken BIOS detected, complain to your hardware vendor.\n");
 	printk(KERN_ERR FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n", reg, val);
-	return false;
+
+	return true;
 
 msr_fail:
 	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
+
 	return false;
 }
 
