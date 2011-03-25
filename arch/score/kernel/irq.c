@@ -92,7 +92,7 @@ void __init init_IRQ(void)
 	unsigned long target_addr;
 
 	for (index = 0; index < NR_IRQS; ++index)
-		set_irq_chip_and_handler(index, &score_irq_chip,
+		irq_set_chip_and_handler(index, &score_irq_chip,
 					 handle_level_irq);
 
 	for (target_addr = IRQ_VECTOR_BASE_ADDR;
@@ -136,7 +136,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_printf(p, "%3d: ", i);
 		seq_printf(p, "%10u ", kstat_irqs(i));
-		seq_printf(p, " %8s", get_irq_desc_chip(desc)->name ? : "-");
+		seq_printf(p, " %8s", irq_desc_get_chip(desc)->name ? : "-");
 		seq_printf(p, "  %s", action->name);
 		for (action = action->next; action; action = action->next)
 			seq_printf(p, ", %s", action->name);
