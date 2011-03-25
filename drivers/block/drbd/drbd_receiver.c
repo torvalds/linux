@@ -4459,7 +4459,7 @@ int drbdd_init(struct drbd_thread *thi)
 
 /* ********* acknowledge sender ******** */
 
-static int got_conn_RqSReply(struct drbd_tconn *tconn, enum drbd_packet cmd)
+static int got_conn_RqSReply(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	struct p_req_state_reply *p = tconn->meta.rbuf;
 	int retcode = be32_to_cpu(p->retcode);
@@ -4476,7 +4476,7 @@ static int got_conn_RqSReply(struct drbd_tconn *tconn, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_RqSReply(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_req_state_reply *p = mdev->tconn->meta.rbuf;
 	int retcode = be32_to_cpu(p->retcode);
@@ -4493,13 +4493,13 @@ static int got_RqSReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_Ping(struct drbd_tconn *tconn, enum drbd_packet cmd)
+static int got_Ping(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	return drbd_send_ping_ack(tconn);
 
 }
 
-static int got_PingAck(struct drbd_tconn *tconn, enum drbd_packet cmd)
+static int got_PingAck(struct drbd_tconn *tconn, struct packet_info *pi)
 {
 	/* restore idle timeout */
 	tconn->meta.socket->sk->sk_rcvtimeo = tconn->net_conf->ping_int*HZ;
@@ -4509,7 +4509,7 @@ static int got_PingAck(struct drbd_tconn *tconn, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_IsInSync(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_IsInSync(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_block_ack *p = mdev->tconn->meta.rbuf;
 	sector_t sector = be64_to_cpu(p->sector);
@@ -4554,7 +4554,7 @@ validate_req_change_req_state(struct drbd_conf *mdev, u64 id, sector_t sector,
 	return true;
 }
 
-static int got_BlockAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_BlockAck(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_block_ack *p = mdev->tconn->meta.rbuf;
 	sector_t sector = be64_to_cpu(p->sector);
@@ -4568,7 +4568,7 @@ static int got_BlockAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 		dec_rs_pending(mdev);
 		return true;
 	}
-	switch (cmd) {
+	switch (pi->cmd) {
 	case P_RS_WRITE_ACK:
 		D_ASSERT(mdev->tconn->net_conf->wire_protocol == DRBD_PROT_C);
 		what = WRITE_ACKED_BY_PEER_AND_SIS;
@@ -4599,7 +4599,7 @@ static int got_BlockAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 					     what, false);
 }
 
-static int got_NegAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_NegAck(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_block_ack *p = mdev->tconn->meta.rbuf;
 	sector_t sector = be64_to_cpu(p->sector);
@@ -4632,7 +4632,7 @@ static int got_NegAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_NegDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_NegDReply(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_block_ack *p = mdev->tconn->meta.rbuf;
 	sector_t sector = be64_to_cpu(p->sector);
@@ -4647,7 +4647,7 @@ static int got_NegDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 					     NEG_ACKED, false);
 }
 
-static int got_NegRSDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_NegRSDReply(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	sector_t sector;
 	int size;
@@ -4662,7 +4662,7 @@ static int got_NegRSDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 
 	if (get_ldev_if_state(mdev, D_FAILED)) {
 		drbd_rs_complete_io(mdev, sector);
-		switch (cmd) {
+		switch (pi->cmd) {
 		case P_NEG_RS_DREPLY:
 			drbd_rs_failed_io(mdev, sector, size);
 		case P_RS_CANCEL:
@@ -4678,7 +4678,7 @@ static int got_NegRSDReply(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_BarrierAck(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_BarrierAck(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_barrier_ack *p = mdev->tconn->meta.rbuf;
 
@@ -4694,7 +4694,7 @@ static int got_BarrierAck(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_OVResult(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_OVResult(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	struct p_block_ack *p = mdev->tconn->meta.rbuf;
 	struct drbd_work *w;
@@ -4739,7 +4739,7 @@ static int got_OVResult(struct drbd_conf *mdev, enum drbd_packet cmd)
 	return true;
 }
 
-static int got_skip(struct drbd_conf *mdev, enum drbd_packet cmd)
+static int got_skip(struct drbd_conf *mdev, struct packet_info *pi)
 {
 	return true;
 }
@@ -4774,8 +4774,8 @@ struct asender_cmd {
 	size_t pkt_size;
 	enum mdev_or_conn fa_type; /* first argument's type */
 	union {
-		int (*mdev_fn)(struct drbd_conf *mdev, enum drbd_packet cmd);
-		int (*conn_fn)(struct drbd_tconn *tconn, enum drbd_packet cmd);
+		int (*mdev_fn)(struct drbd_conf *mdev, struct packet_info *);
+		int (*conn_fn)(struct drbd_tconn *tconn, struct packet_info *);
 	};
 };
 
@@ -4902,10 +4902,10 @@ int drbd_asender(struct drbd_thread *thi)
 			bool rv;
 
 			if (cmd->fa_type == CONN) {
-				rv = cmd->conn_fn(tconn, pi.cmd);
+				rv = cmd->conn_fn(tconn, &pi);
 			} else {
 				struct drbd_conf *mdev = vnr_to_mdev(tconn, pi.vnr);
-				rv = cmd->mdev_fn(mdev, pi.cmd);
+				rv = cmd->mdev_fn(mdev, &pi);
 			}
 
 			if (!rv)
