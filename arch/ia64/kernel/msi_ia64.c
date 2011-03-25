@@ -88,7 +88,7 @@ void ia64_teardown_msi_irq(unsigned int irq)
 static void ia64_ack_msi_irq(struct irq_data *data)
 {
 	irq_complete_move(data->irq);
-	move_native_irq(data->irq);
+	irq_move_irq(data);
 	ia64_eoi();
 }
 
