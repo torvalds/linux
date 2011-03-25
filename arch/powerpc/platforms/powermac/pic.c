@@ -157,7 +157,7 @@ static unsigned int pmac_startup_irq(struct irq_data *d)
         int i = src >> 5;
 
 	raw_spin_lock_irqsave(&pmac_pic_lock, flags);
-	if ((irq_to_desc(d->irq)->status & IRQ_LEVEL) == 0)
+	if (!irqd_is_level_type(d))
 		out_le32(&pmac_irq_hw[i]->ack, bit);
         __set_bit(src, ppc_cached_irq_mask);
         __pmac_set_irq_mask(src, 0);
