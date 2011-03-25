@@ -2557,11 +2557,11 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 		if (err) {
 			/* Ensure the znode is dirtied */
 			if (znode->cnext || !ubifs_zn_dirty(znode)) {
-				    znode = dirty_cow_bottom_up(c, znode);
-				    if (IS_ERR(znode)) {
-					    err = PTR_ERR(znode);
-					    goto out_unlock;
-				    }
+				znode = dirty_cow_bottom_up(c, znode);
+				if (IS_ERR(znode)) {
+					err = PTR_ERR(znode);
+					goto out_unlock;
+				}
 			}
 			err = tnc_delete(c, znode, n);
 		}

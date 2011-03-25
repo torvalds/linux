@@ -1144,7 +1144,7 @@ static int check_free_space(struct ubifs_info *c)
 {
 	ubifs_assert(c->dark_wm > 0);
 	if (c->lst.total_free + c->lst.total_dirty < c->dark_wm) {
-		ubifs_err("insufficient free space to mount in read/write mode");
+		ubifs_err("insufficient free space to mount in R/W mode");
 		dbg_dump_budg(c);
 		dbg_dump_lprops(c);
 		return -ENOSPC;
@@ -1456,7 +1456,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	dbg_msg("node sizes:          ref %zu, cmt. start %zu, orph %zu",
 		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
 	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
-	        UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
+		UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
 		UBIFS_MAX_DENT_NODE_SZ, ubifs_idx_node_sz(c, c->fanout));
 	dbg_msg("dead watermark:      %d", c->dead_wm);
 	dbg_msg("dark watermark:      %d", c->dark_wm);

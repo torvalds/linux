@@ -971,11 +971,11 @@ static int do_writepage(struct page *page, int len)
  * the page locked, and it locks @ui_mutex. However, write-back does take inode
  * @i_mutex, which means other VFS operations may be run on this inode at the
  * same time. And the problematic one is truncation to smaller size, from where
- * we have to call 'truncate_setsize()', which first changes @inode->i_size, then
- * drops the truncated pages. And while dropping the pages, it takes the page
- * lock. This means that 'do_truncation()' cannot call 'truncate_setsize()' with
- * @ui_mutex locked, because it would deadlock with 'ubifs_writepage()'. This
- * means that @inode->i_size is changed while @ui_mutex is unlocked.
+ * we have to call 'truncate_setsize()', which first changes @inode->i_size,
+ * then drops the truncated pages. And while dropping the pages, it takes the
+ * page lock. This means that 'do_truncation()' cannot call 'truncate_setsize()'
+ * with @ui_mutex locked, because it would deadlock with 'ubifs_writepage()'.
+ * This means that @inode->i_size is changed while @ui_mutex is unlocked.
  *
  * XXX(truncate): with the new truncate sequence this is not true anymore,
  * and the calls to truncate_setsize can be move around freely.  They should
@@ -1432,10 +1432,11 @@ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
 }
 
 /*
- * mmap()d file has taken write protection fault and is being made
- * writable. UBIFS must ensure page is budgeted for.
+ * mmap()d file has taken write protection fault and is being made writable.
+ * UBIFS must ensure page is budgeted for.
  */
-static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
+				 struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;

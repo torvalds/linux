@@ -2421,7 +2421,8 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 		hashb = key_block(c, &sb->key);
 
 		if (hasha > hashb) {
-			ubifs_err("larger hash %u goes before %u", hasha, hashb);
+			ubifs_err("larger hash %u goes before %u",
+				  hasha, hashb);
 			goto error_dump;
 		}
 	}

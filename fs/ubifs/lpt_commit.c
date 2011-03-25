@@ -586,7 +586,7 @@ static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
 			if (nnode->nbranch[iip].lnum)
 				break;
 		}
-       } while (iip >= UBIFS_LPT_FANOUT);
+	} while (iip >= UBIFS_LPT_FANOUT);
 
 	/* Go right */
 	nnode = ubifs_get_nnode(c, nnode, iip);
