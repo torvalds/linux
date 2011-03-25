@@ -391,7 +391,7 @@ static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 	DBG("%s(%d, 0x%lx)\n", __func__, virq, hw);
 	if ((virq >= 1) && (virq <= 4)){
 		irq = virq + IRQ_PCI_INTAD_BASE - 1;
-		irq_to_desc(irq)->status |= IRQ_LEVEL;
+		irq_set_status_flags(irq, IRQ_LEVEL);
 		set_irq_chip(irq, &tsi108_pci_irq);
 	}
 	return 0;

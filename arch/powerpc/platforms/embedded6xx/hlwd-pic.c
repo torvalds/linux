@@ -95,7 +95,7 @@ static int hlwd_pic_map(struct irq_host *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
 	set_irq_chip_data(virq, h->host_data);
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
+	irq_set_status_flags(virq, IRQ_LEVEL);
 	set_irq_chip_and_handler(virq, &hlwd_pic, handle_level_irq);
 	return 0;
 }
@@ -145,7 +145,7 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 
 	raw_spin_lock(&desc->lock);
 	chip->irq_ack(&desc->irq_data); /* IRQ_LEVEL */
-	if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
+	if (!irqd_irq_disabled(&desc->irq_data) && chip->irq_unmask)
 		chip->irq_unmask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }

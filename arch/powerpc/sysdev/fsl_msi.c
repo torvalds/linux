@@ -64,7 +64,7 @@ static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 	struct fsl_msi *msi_data = h->host_data;
 	struct irq_chip *chip = &fsl_msi_chip;
 
-	irq_to_desc(virq)->status |= IRQ_TYPE_EDGE_FALLING;
+	irq_set_status_flags(virq, IRQ_TYPE_EDGE_FALLING);
 
 	set_irq_chip_data(virq, msi_data);
 	set_irq_chip_and_handler(virq, chip, handle_edge_irq);

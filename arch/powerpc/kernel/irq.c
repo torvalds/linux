@@ -618,7 +618,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			smp_wmb();
 
 			/* Clear norequest flags */
-			irq_to_desc(i)->status &= ~IRQ_NOREQUEST;
+			irq_clear_status_flags(i, IRQ_NOREQUEST);
 
 			/* Legacy flags are left to default at this point,
 			 * one can then use irq_create_mapping() to

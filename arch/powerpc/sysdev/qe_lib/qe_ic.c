@@ -268,7 +268,7 @@ static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
 	chip = &qe_ic->hc_irq;
 
 	set_irq_chip_data(virq, qe_ic);
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
+	irq_set_status_flags(virq, IRQ_LEVEL);
 
 	set_irq_chip_and_handler(virq, chip, handle_level_irq);
 

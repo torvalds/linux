@@ -289,7 +289,6 @@ static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
 static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
 	int level;
 
 	if (hw >= max_irqs)
@@ -300,7 +299,7 @@ static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 	 */
 	level = !!(level_mask[hw >> 5] & (1UL << (hw & 0x1f)));
 	if (level)
-		desc->status |= IRQ_LEVEL;
+		irq_set_status_flags(virq, IRQ_LEVEL);
 	set_irq_chip_and_handler(virq, &pmac_pic, level ?
 				 handle_level_irq : handle_edge_irq);
 	return 0;

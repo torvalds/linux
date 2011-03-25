@@ -132,7 +132,7 @@ static int
 cpld_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	irq_to_desc(virq)->status |= IRQ_LEVEL;
+	irq_set_status_flags(virq, IRQ_LEVEL);
 	set_irq_chip_and_handler(virq, &cpld_pic, handle_level_irq);
 	return 0;
 }

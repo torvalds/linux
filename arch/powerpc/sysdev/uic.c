@@ -244,9 +244,9 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 
 uic_irq_ret:
 	raw_spin_lock(&desc->lock);
-	if (desc->status & IRQ_LEVEL)
+	if (irqd_is_level_type(&desc->irq_data))
 		chip->irq_ack(&desc->irq_data);
-	if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
+	if (!(irq_is_disabled(&desc->irq_data) && chip->irq_unmask)
 		chip->irq_unmask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }

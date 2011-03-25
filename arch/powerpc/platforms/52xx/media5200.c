@@ -107,7 +107,7 @@ void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	/* Processing done; can reenable the cascade now */
 	raw_spin_lock(&desc->lock);
 	chip->irq_ack(&desc->irq_data);
-	if (!(desc->status & IRQ_DISABLED))
+	if (!irqd_irq_disabled(&desc->irq_data))
 		chip->irq_unmask(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }
