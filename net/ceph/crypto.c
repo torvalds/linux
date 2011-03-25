@@ -9,6 +9,17 @@
 #include <linux/ceph/decode.h>
 #include "crypto.h"
 
+int ceph_crypto_key_clone(struct ceph_crypto_key *dst,
+			  const struct ceph_crypto_key *src)
+{
+	memcpy(dst, src, sizeof(struct ceph_crypto_key));
+	dst->key = kmalloc(src->len, GFP_NOFS);
+	if (!dst->key)
+		return -ENOMEM;
+	memcpy(dst->key, src->key, src->len);
+	return 0;
+}
+
 int ceph_crypto_key_encode(struct ceph_crypto_key *key, void **p, void *end)
 {
 	if (*p + sizeof(u16) + sizeof(key->created) +

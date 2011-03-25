@@ -20,6 +20,7 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/auth.h>
+#include "crypto.h"
 
 
 
@@ -117,9 +118,29 @@ int ceph_compare_options(struct ceph_options *new_opt,
 	if (ret)
 		return ret;
 
-	ret = strcmp_null(opt1->secret, opt2->secret);
-	if (ret)
-		return ret;
+	if (opt1->key && !opt2->key)
+		return -1;
+	if (!opt1->key && opt2->key)
+		return 1;
+	if (opt1->key && opt2->key) {
+		if (opt1->key->type != opt2->key->type)
+			return -1;
+		if (opt1->key->created.tv_sec != opt2->key->created.tv_sec)
+			return -1;
+		if (opt1->key->created.tv_nsec != opt2->key->created.tv_nsec)
+			return -1;
+		if (opt1->key->len != opt2->key->len)
+			return -1;
+		if (opt1->key->key && !opt2->key->key)
+			return -1;
+		if (!opt1->key->key && opt2->key->key)
+			return 1;
+		if (opt1->key->key && opt2->key->key) {
+			ret = memcmp(opt1->key->key, opt2->key->key, opt1->key->len);
+			if (ret)
+				return ret;
+		}
+	}
 
 	/* any matching mon ip implies a match */
 	for (i = 0; i < opt1->num_mon; i++) {
@@ -203,7 +224,10 @@ void ceph_destroy_options(struct ceph_options *opt)
 {
 	dout("destroy_options %p\n", opt);
 	kfree(opt->name);
-	kfree(opt->secret);
+	if (opt->key) {
+		ceph_crypto_key_destroy(opt->key);
+		kfree(opt->key);
+	}
 	kfree(opt);
 }
 EXPORT_SYMBOL(ceph_destroy_options);
@@ -295,9 +319,14 @@ int ceph_parse_options(struct ceph_options **popt, char *options,
 					      GFP_KERNEL);
 			break;
 		case Opt_secret:
-			opt->secret = kstrndup(argstr[0].from,
-						argstr[0].to-argstr[0].from,
-						GFP_KERNEL);
+		        opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
+			if (!opt->key) {
+				err = -ENOMEM;
+				goto out;
+			}
+			err = ceph_crypto_key_unarmor(opt->key, argstr[0].from);
+			if (err < 0)
+				goto out;
 			break;
 
 			/* misc */
