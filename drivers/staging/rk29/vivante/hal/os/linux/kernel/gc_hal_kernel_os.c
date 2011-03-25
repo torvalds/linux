@@ -2602,7 +2602,8 @@ gceSTATUS gckOS_MemoryBarrier(
     /* Verify thearguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
 
-    mb();
+    //mb();
+    dsb();
 
     /* Success. */
     return gcvSTATUS_OK;
@@ -5418,6 +5419,8 @@ gckOS_CacheFlush(
 {
 #if (1==gcdENABLE_MEM_CACHE)
     dmac_clean_range(Logical, Logical+Bytes);
+#elif (2==gcdENABLE_MEM_CACHE)
+    dsb();
 #endif
     return gcvSTATUS_OK;
 }
@@ -5454,6 +5457,8 @@ gckOS_CacheInvalidate(
 {
 #if (1==gcdENABLE_MEM_CACHE)
     dmac_flush_range(Logical, Logical+Bytes);
+#elif (2==gcdENABLE_MEM_CACHE)
+    dsb();
 #endif
     return gcvSTATUS_OK;
 }
