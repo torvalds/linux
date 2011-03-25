@@ -44,8 +44,6 @@
 
 #include <linux/if_ether.h>
 
-#define	BS_ERROR(args)
-
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
 	(((sih->cccaps & CC_CAP_SROM) == 0) ? NULL : \
 	 ((u8 *)curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP)) : \
@@ -63,8 +61,6 @@ typedef struct varbuf {
 } varbuf_t;
 extern char *_vars;
 extern uint _varsz;
-
-#define SROM_CIS_SINGLE	1
 
 static int initvars_srom_si(si_t *sih, void *curmap, char **vars, uint *count);
 static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b);
@@ -1424,7 +1420,6 @@ srom_cc_cmd(si_t *sih, void *ccregs, u32 cmd,
 	}
 
 	if (!wait_cnt) {
-		BS_ERROR(("%s: Command 0x%x timed out\n", __func__, cmd));
 		return 0xffff;
 	}
 	if (cmd == SRC_OP_READ)
@@ -1490,8 +1485,6 @@ sprom_read_pci(si_t *sih, u16 *sprom, uint wordoff,
 			 * is blank, regardless of the rest of the content, so declare
 			 * it bad.
 			 */
-			BS_ERROR(("%s: buf[0] = 0x%x, returning bad-crc\n",
-				  __func__, buf[0]));
 			return 1;
 		}
 
@@ -1500,7 +1493,6 @@ sprom_read_pci(si_t *sih, u16 *sprom, uint wordoff,
 		if (hndcrc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
 		    CRC8_GOOD_VALUE) {
 			/* DBG only pci always read srom4 first, then srom8/9 */
-			/* BS_ERROR(("%s: bad crc\n", __func__)); */
 			err = 1;
 		}
 		/* now correct the endianness of the byte array */
@@ -1535,8 +1527,6 @@ static int otp_read_pci(si_t *sih, u16 *buf, uint bufsz)
 		 * is blank, regardless of the rest of the content, so declare
 		 * it bad.
 		 */
-		BS_ERROR(("%s: buf[0] = 0x%x, returning bad-crc\n", __func__,
-			  buf[0]));
 		return 1;
 	}
 
@@ -1544,7 +1534,6 @@ static int otp_read_pci(si_t *sih, u16 *buf, uint bufsz)
 	htol16_buf(buf, bufsz);
 	if (hndcrc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
 	    CRC8_GOOD_VALUE) {
-		BS_ERROR(("%s: bad crc\n", __func__));
 		err = 1;
 	}
 	/* now correct the endianness of the byte array */
@@ -1884,10 +1873,6 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 			    sprom_read_pci(sih, sromwindow, 0, srom,
 					   SROM4_WORDS, true);
 			sromrev = srom[SROM4_CRCREV] & 0xff;
-			if (err)
-				BS_ERROR(("%s: srom %d, bad crc\n", __func__,
-					  sromrev));
-
 		} else if (err == 0) {
 			/* srom is good and is rev < 4 */
 			/* top word of sprom contains version and crc8 */
@@ -1921,15 +1906,12 @@ static int initvars_srom_pci(si_t *sih, void *curmap, char **vars, uint *count)
 		u32 val;
 		val = 0;
 
-		BS_ERROR(("Neither SPROM nor OTP has valid image\n"));
 		value = si_getdevpathvar(sih, "sromrev");
 		if (value) {
 			sromrev = (u8) simple_strtoul(value, NULL, 0);
 			flash = true;
 			goto varscont;
 		}
-
-		BS_ERROR(("%s, SROM CRC Error\n", __func__));
 
 		value = si_getnvramflvar(sih, "sromrev");
 		if (value) {
