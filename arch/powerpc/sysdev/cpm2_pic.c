@@ -140,7 +140,6 @@ static void cpm2_end_irq(struct irq_data *d)
 static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	unsigned int src = virq_to_hw(d->irq);
-	struct irq_desc *desc = irq_to_desc(d->irq);
 	unsigned int vold, vnew, edibit;
 
 	/* Port C interrupts are either IRQ_TYPE_EDGE_FALLING or
@@ -162,13 +161,11 @@ static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 			goto err_sense;
 	}
 
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-	if (flow_type & IRQ_TYPE_LEVEL_LOW)  {
-		desc->status |= IRQ_LEVEL;
-		desc->handle_irq = handle_level_irq;
-	} else
-		desc->handle_irq = handle_edge_irq;
+	irqd_set_trigger_type(d, flow_type);
+	if (flow_type & IRQ_TYPE_LEVEL_LOW)
+		__set_irq_handler_unlocked(d->irq, handle_level_irq);
+	else
+		__set_irq_handler_unlocked(d->irq, handle_edge_irq);
 
 	/* internal IRQ senses are LEVEL_LOW
 	 * EXT IRQ and Port C IRQ senses are programmable
@@ -179,7 +176,8 @@ static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 		if (src >= CPM2_IRQ_PORTC15 && src <= CPM2_IRQ_PORTC0)
 			edibit = (31 - (CPM2_IRQ_PORTC0 - src));
 		else
-			return (flow_type & IRQ_TYPE_LEVEL_LOW) ? 0 : -EINVAL;
+			return (flow_type & IRQ_TYPE_LEVEL_LOW) ?
+				IRQ_SET_MASK_OK_NOCOPY : -EINVAL;
 
 	vold = in_be32(&cpm2_intctl->ic_siexr);
 
@@ -190,7 +188,7 @@ static int cpm2_set_irq_type(struct irq_data *d, unsigned int flow_type)
 
 	if (vold != vnew)
 		out_be32(&cpm2_intctl->ic_siexr, vnew);
-	return 0;
+	return IRQ_SET_MASK_OK_NOCOPY;
 
 err_sense:
 	pr_err("CPM2 PIC: sense type 0x%x not supported\n", flow_type);
