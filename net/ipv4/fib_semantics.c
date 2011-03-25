@@ -222,7 +222,7 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 	unsigned int mask = (fib_info_hash_size - 1);
 	unsigned int val = fi->fib_nhs;
 
-	val ^= fi->fib_protocol;
+	val ^= (fi->fib_protocol << 8) | fi->fib_scope;
 	val ^= (__force u32)fi->fib_prefsrc;
 	val ^= fi->fib_priority;
 	for_nexthops(fi) {
@@ -248,6 +248,7 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 		if (fi->fib_nhs != nfi->fib_nhs)
 			continue;
 		if (nfi->fib_protocol == fi->fib_protocol &&
+		    nfi->fib_scope == fi->fib_scope &&
 		    nfi->fib_prefsrc == fi->fib_prefsrc &&
 		    nfi->fib_priority == fi->fib_priority &&
 		    memcmp(nfi->fib_metrics, fi->fib_metrics,
@@ -328,7 +329,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		goto errout;
 
 	err = fib_dump_info(skb, info->pid, seq, event, tb_id,
-			    fa->fa_type, fa->fa_scope, key, dst_len,
+			    fa->fa_type, key, dst_len,
 			    fa->fa_tos, fa->fa_info, nlm_flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in fib_nlmsg_size() */
@@ -699,7 +700,7 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh)
 {
 	nh->nh_saddr = inet_select_addr(nh->nh_dev,
 					nh->nh_gw,
-					nh->nh_cfg_scope);
+					nh->nh_parent->fib_scope);
 	nh->nh_saddr_genid = atomic_read(&net->ipv4.dev_addr_genid);
 
 	return nh->nh_saddr;
@@ -763,6 +764,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 	fi->fib_net = hold_net(net);
 	fi->fib_protocol = cfg->fc_protocol;
+	fi->fib_scope = cfg->fc_scope;
 	fi->fib_flags = cfg->fc_flags;
 	fi->fib_priority = cfg->fc_priority;
 	fi->fib_prefsrc = cfg->fc_prefsrc;
@@ -864,7 +866,6 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	}
 
 	change_nexthops(fi) {
-		nexthop_nh->nh_cfg_scope = cfg->fc_scope;
 		fib_info_update_nh_saddr(net, nexthop_nh);
 	} endfor_nexthops(fi)
 
@@ -914,7 +915,7 @@ failure:
 }
 
 int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
-		  u32 tb_id, u8 type, u8 scope, __be32 dst, int dst_len, u8 tos,
+		  u32 tb_id, u8 type, __be32 dst, int dst_len, u8 tos,
 		  struct fib_info *fi, unsigned int flags)
 {
 	struct nlmsghdr *nlh;
@@ -936,7 +937,7 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 	NLA_PUT_U32(skb, RTA_TABLE, tb_id);
 	rtm->rtm_type = type;
 	rtm->rtm_flags = fi->fib_flags;
-	rtm->rtm_scope = scope;
+	rtm->rtm_scope = fi->fib_scope;
 	rtm->rtm_protocol = fi->fib_protocol;
 
 	if (rtm->rtm_dst_len)
@@ -1092,7 +1093,7 @@ void fib_select_default(struct fib_result *res)
 	list_for_each_entry_rcu(fa, fa_head, fa_list) {
 		struct fib_info *next_fi = fa->fa_info;
 
-		if (fa->fa_scope != res->scope ||
+		if (next_fi->fib_scope != res->scope ||
 		    fa->fa_type != RTN_UNICAST)
 			continue;
 
