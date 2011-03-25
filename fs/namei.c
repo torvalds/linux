@@ -391,79 +391,28 @@ void path_put(struct path *path)
 }
 EXPORT_SYMBOL(path_put);
 
-/**
- * nameidata_drop_rcu - drop this nameidata out of rcu-walk
- * @nd: nameidata pathwalk data to drop
- * Returns: 0 on success, -ECHILD on failure
- *
+/*
  * Path walking has 2 modes, rcu-walk and ref-walk (see
- * Documentation/filesystems/path-lookup.txt). __drop_rcu* functions attempt
- * to drop out of rcu-walk mode and take normal reference counts on dentries
- * and vfsmounts to transition to rcu-walk mode. __drop_rcu* functions take
- * refcounts at the last known good point before rcu-walk got stuck, so
- * ref-walk may continue from there. If this is not successful (eg. a seqcount
- * has changed), then failure is returned and path walk restarts from the
- * beginning in ref-walk mode.
- *
- * nameidata_drop_rcu attempts to drop the current nd->path and nd->root into
- * ref-walk. Must be called from rcu-walk context.
+ * Documentation/filesystems/path-lookup.txt).  In situations when we can't
+ * continue in RCU mode, we attempt to drop out of rcu-walk mode and grab
+ * normal reference counts on dentries and vfsmounts to transition to rcu-walk
+ * mode.  Refcounts are grabbed at the last known good point before rcu-walk
+ * got stuck, so ref-walk may continue from there. If this is not successful
+ * (eg. a seqcount has changed), then failure is returned and it's up to caller
+ * to restart the path walk from the beginning in ref-walk mode.
  */
-static int nameidata_drop_rcu(struct nameidata *nd)
-{
-	struct fs_struct *fs = current->fs;
-	struct dentry *dentry = nd->path.dentry;
-	int want_root = 0;
-
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
-	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
-		want_root = 1;
-		spin_lock(&fs->lock);
-		if (nd->root.mnt != fs->root.mnt ||
-				nd->root.dentry != fs->root.dentry)
-			goto err_root;
-	}
-	spin_lock(&dentry->d_lock);
-	if (!__d_rcu_to_refcount(dentry, nd->seq))
-		goto err;
-	BUG_ON(nd->inode != dentry->d_inode);
-	spin_unlock(&dentry->d_lock);
-	if (want_root) {
-		path_get(&nd->root);
-		spin_unlock(&fs->lock);
-	}
-	mntget(nd->path.mnt);
-
-	rcu_read_unlock();
-	br_read_unlock(vfsmount_lock);
-	nd->flags &= ~LOOKUP_RCU;
-	return 0;
-err:
-	spin_unlock(&dentry->d_lock);
-err_root:
-	if (want_root)
-		spin_unlock(&fs->lock);
-	return -ECHILD;
-}
-
-/* Try to drop out of rcu-walk mode if we were in it, otherwise do nothing.  */
-static inline int nameidata_drop_rcu_maybe(struct nameidata *nd)
-{
-	if (nd->flags & LOOKUP_RCU)
-		return nameidata_drop_rcu(nd);
-	return 0;
-}
 
 /**
- * nameidata_dentry_drop_rcu - drop nameidata and dentry out of rcu-walk
- * @nd: nameidata pathwalk data to drop
- * @dentry: dentry to drop
+ * unlazy_walk - try to switch to ref-walk mode.
+ * @nd: nameidata pathwalk data
+ * @dentry: child of nd->path.dentry or NULL
  * Returns: 0 on success, -ECHILD on failure
  *
- * nameidata_dentry_drop_rcu attempts to drop the current nd->path and nd->root,
- * and dentry into ref-walk. @dentry must be a path found by a do_lookup call on
- * @nd. Must be called from rcu-walk context.
+ * unlazy_walk attempts to legitimize the current nd->path, nd->root and dentry
+ * for ref-walk mode.  @dentry must be a path found by a do_lookup call on
+ * @nd or NULL.  Must be called from rcu-walk context.
  */
-static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry)
+static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 {
 	struct fs_struct *fs = current->fs;
 	struct dentry *parent = nd->path.dentry;
@@ -478,18 +427,25 @@ static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry
 			goto err_root;
 	}
 	spin_lock(&parent->d_lock);
-	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-	if (!__d_rcu_to_refcount(dentry, nd->seq))
-		goto err;
-	/*
-	 * If the sequence check on the child dentry passed, then the child has
-	 * not been removed from its parent. This means the parent dentry must
-	 * be valid and able to take a reference at this point.
-	 */
-	BUG_ON(!IS_ROOT(dentry) && dentry->d_parent != parent);
-	BUG_ON(!parent->d_count);
-	parent->d_count++;
-	spin_unlock(&dentry->d_lock);
+	if (!dentry) {
+		if (!__d_rcu_to_refcount(parent, nd->seq))
+			goto err_parent;
+		BUG_ON(nd->inode != parent->d_inode);
+	} else {
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+		if (!__d_rcu_to_refcount(dentry, nd->seq))
+			goto err_child;
+		/*
+		 * If the sequence check on the child dentry passed, then
+		 * the child has not been removed from its parent. This
+		 * means the parent dentry must be valid and able to take
+		 * a reference at this point.
+		 */
+		BUG_ON(!IS_ROOT(dentry) && dentry->d_parent != parent);
+		BUG_ON(!parent->d_count);
+		parent->d_count++;
+		spin_unlock(&dentry->d_lock);
+	}
 	spin_unlock(&parent->d_lock);
 	if (want_root) {
 		path_get(&nd->root);
@@ -501,29 +457,15 @@ static int nameidata_dentry_drop_rcu(struct nameidata *nd, struct dentry *dentry
 	br_read_unlock(vfsmount_lock);
 	nd->flags &= ~LOOKUP_RCU;
 	return 0;
-err:
+
+err_child:
 	spin_unlock(&dentry->d_lock);
+err_parent:
 	spin_unlock(&parent->d_lock);
 err_root:
 	if (want_root)
 		spin_unlock(&fs->lock);
 	return -ECHILD;
-}
-
-/* Try to drop out of rcu-walk mode if we were in it, otherwise do nothing.  */
-static inline int nameidata_dentry_drop_rcu_maybe(struct nameidata *nd, struct dentry *dentry)
-{
-	if (nd->flags & LOOKUP_RCU) {
-		if (unlikely(nameidata_dentry_drop_rcu(nd, dentry))) {
-			nd->flags &= ~LOOKUP_RCU;
-			if (!(nd->flags & LOOKUP_ROOT))
-				nd->root.mnt = NULL;
-			rcu_read_unlock();
-			br_read_unlock(vfsmount_lock);
-			return -ECHILD;
-		}
-	}
-	return 0;
 }
 
 /**
@@ -1241,13 +1183,8 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		if (likely(__follow_mount_rcu(nd, path, inode, false)))
 			return 0;
 unlazy:
-		if (dentry) {
-			if (nameidata_dentry_drop_rcu(nd, dentry))
-				return -ECHILD;
-		} else {
-			if (nameidata_drop_rcu(nd))
-				return -ECHILD;
-		}
+		if (unlazy_walk(nd, dentry))
+			return -ECHILD;
 	} else {
 		dentry = __d_lookup(parent, name);
 	}
@@ -1303,7 +1240,7 @@ static inline int may_lookup(struct nameidata *nd)
 		int err = exec_permission(nd->inode, IPERM_FLAG_RCU);
 		if (err != -ECHILD)
 			return err;
-		if (nameidata_drop_rcu(nd))
+		if (unlazy_walk(nd, NULL))
 			return -ECHILD;
 	}
 	return exec_permission(nd->inode, 0);
@@ -1357,8 +1294,12 @@ static inline int walk_component(struct nameidata *nd, struct path *path,
 		return -ENOENT;
 	}
 	if (unlikely(inode->i_op->follow_link) && follow) {
-		if (nameidata_dentry_drop_rcu_maybe(nd, path->dentry))
-			return -ECHILD;
+		if (nd->flags & LOOKUP_RCU) {
+			if (unlikely(unlazy_walk(nd, path->dentry))) {
+				terminate_walk(nd);
+				return -ECHILD;
+			}
+		}
 		BUG_ON(inode != path->dentry->d_inode);
 		return 1;
 	}
