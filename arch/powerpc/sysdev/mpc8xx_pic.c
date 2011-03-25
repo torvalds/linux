@@ -72,13 +72,6 @@ static void mpc8xx_end_irq(struct irq_data *d)
 
 static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct irq_desc *desc = irq_to_desc(d->irq);
-
-	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
-	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		desc->status |= IRQ_LEVEL;
-
 	if (flow_type & IRQ_TYPE_EDGE_FALLING) {
 		irq_hw_number_t hw = (unsigned int)irq_map[d->irq].hwirq;
 		unsigned int siel = in_be32(&siu_reg->sc_siel);
@@ -87,7 +80,7 @@ static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 		if ((hw & 1) == 0) {
 			siel |= (0x80000000 >> hw);
 			out_be32(&siu_reg->sc_siel, siel);
-			desc->handle_irq = handle_edge_irq;
+			__set_irq_handler_unlocked(irq, handle_edge_irq);
 		}
 	}
 	return 0;
