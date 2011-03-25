@@ -1565,6 +1565,7 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 
 	printk("Exit rk29_sdmmc_suspend\n");
 	clk_enable(host->clk);
+        rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
 	if(host->mmc)
 		ret = mmc_resume_host(host->mmc);
 #endif
