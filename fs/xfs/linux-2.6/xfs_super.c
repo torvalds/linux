@@ -1078,7 +1078,7 @@ xfs_fs_write_inode(
 			error = 0;
 			goto out_unlock;
 		}
-		error = xfs_iflush(ip, 0);
+		error = xfs_iflush(ip, SYNC_TRYLOCK);
 	}
 
  out_unlock:

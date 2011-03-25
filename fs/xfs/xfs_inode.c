@@ -2835,7 +2835,7 @@ xfs_iflush(
 	 * Get the buffer containing the on-disk inode.
 	 */
 	error = xfs_itobp(mp, NULL, ip, &dip, &bp,
-				(flags & SYNC_WAIT) ? XBF_LOCK : XBF_TRYLOCK);
+				(flags & SYNC_TRYLOCK) ? XBF_TRYLOCK : XBF_LOCK);
 	if (error || !bp) {
 		xfs_ifunlock(ip);
 		return error;
