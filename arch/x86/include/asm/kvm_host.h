@@ -655,6 +655,13 @@ u8 kvm_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 extern bool tdp_enabled;
 
+/* control of guest tsc rate supported? */
+extern bool kvm_has_tsc_control;
+/* minimum supported tsc_khz for guests */
+extern u32  kvm_min_guest_tsc_khz;
+/* maximum supported tsc_khz for guests */
+extern u32  kvm_max_guest_tsc_khz;
+
 enum emulation_result {
 	EMULATE_DONE,       /* no further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with mmio request */

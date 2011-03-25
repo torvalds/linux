@@ -1263,6 +1263,29 @@ struct kvm_assigned_msix_entry {
 	__u16 padding[3];
 };
 
+4.54 KVM_SET_TSC_KHZ
+
+Capability: KVM_CAP_TSC_CONTROL
+Architectures: x86
+Type: vcpu ioctl
+Parameters: virtual tsc_khz
+Returns: 0 on success, -1 on error
+
+Specifies the tsc frequency for the virtual machine. The unit of the
+frequency is KHz.
+
+4.55 KVM_GET_TSC_KHZ
+
+Capability: KVM_CAP_GET_TSC_KHZ
+Architectures: x86
+Type: vcpu ioctl
+Parameters: none
+Returns: virtual tsc-khz on success, negative value on error
+
+Returns the tsc frequency of the guest. The unit of the return value is
+KHz. If the host has unstable tsc this ioctl returns -EIO instead as an
+error.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
