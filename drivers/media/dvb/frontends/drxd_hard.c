@@ -132,7 +132,7 @@ struct drxd_state {
 
 	int i2c_access;
 	int init_done;
-	struct semaphore mutex;
+	struct mutex mutex;
 
 	u8 chip_adr;
 	u16 hi_cfg_timing_div;
@@ -998,7 +998,7 @@ static int HI_CfgCommand(struct drxd_state *state)
 {
 	int status = 0;
 
-	down(&state->mutex);
+	mutex_lock(&state->mutex);
 	Write16(state, HI_RA_RAM_SRV_CFG_KEY__A, HI_RA_RAM_SRV_RST_KEY_ACT, 0);
 	Write16(state, HI_RA_RAM_SRV_CFG_DIV__A, state->hi_cfg_timing_div, 0);
 	Write16(state, HI_RA_RAM_SRV_CFG_BDL__A, state->hi_cfg_bridge_delay, 0);
@@ -1013,7 +1013,7 @@ static int HI_CfgCommand(struct drxd_state *state)
 				 HI_RA_RAM_SRV_CMD_CONFIG, 0);
 	else
 		status = HI_Command(state, HI_RA_RAM_SRV_CMD_CONFIG, 0);
-	up(&state->mutex);
+	mutex_unlock(&state->mutex);
 	return status;
 }
 
@@ -1029,12 +1029,12 @@ static int HI_ResetCommand(struct drxd_state *state)
 {
 	int status;
 
-	down(&state->mutex);
+	mutex_lock(&state->mutex);
 	status = Write16(state, HI_RA_RAM_SRV_RST_KEY__A,
 			 HI_RA_RAM_SRV_RST_KEY_ACT, 0);
 	if (status == 0)
 		status = HI_Command(state, HI_RA_RAM_SRV_CMD_RESET, 0);
-	up(&state->mutex);
+	mutex_unlock(&state->mutex);
 	msleep(1);
 	return status;
 }
@@ -1066,7 +1066,7 @@ static int AtomicReadBlock(struct drxd_state *state,
 	if ((!pData) || ((DataSize & 1) != 0))
 		return -1;
 
-	down(&state->mutex);
+	mutex_lock(&state->mutex);
 
 	do {
 		/* Instruct HI to read n bytes */
@@ -1105,7 +1105,7 @@ static int AtomicReadBlock(struct drxd_state *state,
 			pData[(2 * i) + 1] = (u8) (word >> 8);
 		}
 	}
-	up(&state->mutex);
+	mutex_unlock(&state->mutex);
 	return status;
 }
 
@@ -1334,7 +1334,7 @@ static int SC_ProcStartCommand(struct drxd_state *state,
 	int status = 0;
 	u16 scExec;
 
-	down(&state->mutex);
+	mutex_lock(&state->mutex);
 	do {
 		Read16(state, SC_COMM_EXEC__A, &scExec, 0);
 		if (scExec != 1) {
@@ -1348,7 +1348,7 @@ static int SC_ProcStartCommand(struct drxd_state *state,
 
 		SC_SendCommand(state, SC_RA_RAM_CMD_PROC_START);
 	} while (0);
-	up(&state->mutex);
+	mutex_unlock(&state->mutex);
 	return status;
 }
 
@@ -1357,7 +1357,7 @@ static int SC_SetPrefParamCommand(struct drxd_state *state,
 {
 	int status;
 
-	down(&state->mutex);
+	mutex_lock(&state->mutex);
 	do {
 		status = SC_WaitForReady(state);
 		if (status < 0)
@@ -1376,7 +1376,7 @@ static int SC_SetPrefParamCommand(struct drxd_state *state,
 		if (status < 0)
 			break;
 	} while (0);
-	up(&state->mutex);
+	mutex_unlock(&state->mutex);
 	return status;
 }
 
@@ -1385,7 +1385,7 @@ static int SC_GetOpParamCommand(struct drxd_state *state, u16 * result)
 {
 	int status = 0;
 
-	down(&state->mutex);
+	mutex_lock(&state->mutex);
 	do {
 		status = SC_WaitForReady(state);
 		if (status < 0)
@@ -1397,7 +1397,7 @@ static int SC_GetOpParamCommand(struct drxd_state *state, u16 * result)
 		if (status < 0)
 			break;
 	} while (0);
-	up(&state->mutex);
+	mutex_unlock(&state->mutex);
 	return status;
 }
 #endif
@@ -2977,7 +2977,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	state->i2c = i2c;
 	state->priv = priv;
 
-	sema_init(&state->mutex, 1);
+	mutex_init(&state->mutex);
 
 	if (Read16(state, 0, 0, 0) < 0)
 		goto error;
