@@ -353,7 +353,6 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 	int cpu = nasid_slice_to_cpuid(nasid, slice);
 #ifdef CONFIG_SMP
 	int cpuphys;
-	struct irq_desc *desc;
 #endif
 
 	pci_dev_get(pci_dev);
@@ -370,12 +369,11 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 #ifdef CONFIG_SMP
 	cpuphys = cpu_physical_id(cpu);
 	set_irq_affinity_info(sn_irq_info->irq_irq, cpuphys, 0);
-	desc = irq_to_desc(sn_irq_info->irq_irq);
 	/*
 	 * Affinity was set by the PROM, prevent it from
 	 * being reset by the request_irq() path.
 	 */
-	desc->status |= IRQ_AFFINITY_SET;
+	irqd_mark_affinity_was_set(irq_get_irq_data(sn_irq_info->irq_irq));
 #endif
 }
 
