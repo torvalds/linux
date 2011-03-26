@@ -251,8 +251,10 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 }
 
 struct ccw_driver zfcp_ccw_driver = {
-	.owner       = THIS_MODULE,
-	.name        = "zfcp",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "zfcp",
+	},
 	.ids         = zfcp_ccw_device_id,
 	.probe       = zfcp_ccw_probe,
 	.remove      = zfcp_ccw_remove,

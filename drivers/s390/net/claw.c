@@ -264,8 +264,10 @@ static struct device *claw_root_dev;
 /* ccwgroup table  */
 
 static struct ccwgroup_driver claw_group_driver = {
-        .owner       = THIS_MODULE,
-        .name        = "claw",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "claw",
+	},
         .max_slaves  = 2,
         .driver_id   = 0xC3D3C1E6,
         .probe       = claw_probe,
@@ -282,8 +284,10 @@ static struct ccw_device_id claw_ids[] = {
 MODULE_DEVICE_TABLE(ccw, claw_ids);
 
 static struct ccw_driver claw_ccw_driver = {
-	.owner	= THIS_MODULE,
-	.name	= "claw",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "claw",
+	},
 	.ids	= claw_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,

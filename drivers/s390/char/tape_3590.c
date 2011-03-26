@@ -1761,8 +1761,10 @@ tape_3590_online(struct ccw_device *cdev)
 }
 
 static struct ccw_driver tape_3590_driver = {
-	.name = "tape_3590",
-	.owner = THIS_MODULE,
+	.driver = {
+		.name = "tape_3590",
+		.owner = THIS_MODULE,
+	},
 	.ids = tape_3590_ids,
 	.probe = tape_generic_probe,
 	.remove = tape_generic_remove,

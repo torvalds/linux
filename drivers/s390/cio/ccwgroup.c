@@ -428,7 +428,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	gdev = to_ccwgroupdev(dev);
 	gdrv = to_ccwgroupdrv(dev->driver);
 
-	if (!try_module_get(gdrv->owner))
+	if (!try_module_get(gdrv->driver.owner))
 		return -EINVAL;
 
 	ret = strict_strtoul(buf, 0, &value);
@@ -442,7 +442,7 @@ ccwgroup_online_store (struct device *dev, struct device_attribute *attr, const 
 	else
 		ret = -EINVAL;
 out:
-	module_put(gdrv->owner);
+	module_put(gdrv->driver.owner);
 	return (ret == 0) ? count : ret;
 }
 
@@ -616,8 +616,6 @@ int ccwgroup_driver_register(struct ccwgroup_driver *cdriver)
 {
 	/* register our new driver with the core */
 	cdriver->driver.bus = &ccwgroup_bus_type;
-	cdriver->driver.name = cdriver->name;
-	cdriver->driver.owner = cdriver->owner;
 
 	return driver_register(&cdriver->driver);
 }
