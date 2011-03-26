@@ -64,26 +64,6 @@
 #include "scu_event_codes.h"
 #include "scu_task_context.h"
 
-void scic_sds_remote_node_context_construct(
-	struct scic_sds_remote_device *device,
-	struct scic_sds_remote_node_context *rnc,
-	u16 remote_node_index)
-{
-	memset(rnc, 0, sizeof(struct scic_sds_remote_node_context));
-
-	rnc->remote_node_index = remote_node_index;
-	rnc->device            = device;
-	rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
-
-	sci_base_state_machine_construct(
-		&rnc->state_machine,
-		&rnc->parent,
-		scic_sds_remote_node_context_state_table,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE
-		);
-
-	sci_base_state_machine_start(&rnc->state_machine);
-}
 
 /**
  *
@@ -124,7 +104,7 @@ bool scic_sds_remote_node_context_is_ready(
  *
  * This method will construct the RNC buffer for this remote device object. none
  */
-void scic_sds_remote_node_context_construct_buffer(
+static void scic_sds_remote_node_context_construct_buffer(
 	struct scic_sds_remote_node_context *this_rnc)
 {
 	union scu_remote_node_context *rnc;
@@ -830,7 +810,7 @@ static enum sci_status scic_sds_remote_node_context_await_suspension_state_event
 
 /* --------------------------------------------------------------------------- */
 
-struct scic_sds_remote_node_context_handlers
+static struct scic_sds_remote_node_context_handlers
 scic_sds_remote_node_context_state_handler_table[
 	SCIC_SDS_REMOTE_NODE_CONTEXT_MAX_STATES] =
 {
@@ -1218,7 +1198,7 @@ static void scic_sds_remote_node_context_await_suspension_state_enter(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_remote_node_context_state_table[] = {
+static const struct sci_base_state scic_sds_remote_node_context_state_table[] = {
 	[SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE] = {
 		.enter_state = scic_sds_remote_node_context_initial_state_enter,
 	},
@@ -1245,3 +1225,23 @@ const struct sci_base_state scic_sds_remote_node_context_state_table[] = {
 	},
 };
 
+void scic_sds_remote_node_context_construct(
+	struct scic_sds_remote_device *device,
+	struct scic_sds_remote_node_context *rnc,
+	u16 remote_node_index)
+{
+	memset(rnc, 0, sizeof(struct scic_sds_remote_node_context));
+
+	rnc->remote_node_index = remote_node_index;
+	rnc->device            = device;
+	rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
+
+	sci_base_state_machine_construct(
+		&rnc->state_machine,
+		&rnc->parent,
+		scic_sds_remote_node_context_state_table,
+		SCIC_SDS_REMOTE_NODE_CONTEXT_INITIAL_STATE
+		);
+
+	sci_base_state_machine_start(&rnc->state_machine);
+}

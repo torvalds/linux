@@ -267,7 +267,7 @@ static void scu_sata_reqeust_construct_task_context(
  * This method will perform any general sata request construction. What part of
  * SATA IO request construction is general? none
  */
-void scic_sds_stp_non_ncq_request_construct(
+static void scic_sds_stp_non_ncq_request_construct(
 	struct scic_sds_request *this_request)
 {
 	this_request->has_started_substate_machine = true;
@@ -326,33 +326,6 @@ static void scic_sds_stp_optimized_request_construct(struct scic_sds_request *sc
  * This method returns an indication as to whether the construction was
  * successful. SCI_SUCCESS Currently this method always returns this value.
  */
-enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
-						    u32 len,
-						    enum dma_data_direction dir)
-{
-	scic_sds_stp_non_ncq_request_construct(sci_req);
-
-	scic_sds_stp_optimized_request_construct(sci_req, SCU_TASK_TYPE_DMA_IN,
-						 len, dir);
-
-	sci_base_state_machine_construct(
-		&sci_req->started_substate_machine,
-		&sci_req->parent.parent,
-		scic_sds_stp_request_started_udma_substate_table,
-		SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE
-		);
-
-	return SCI_SUCCESS;
-}
-
-/**
- *
- * @sci_req: This parameter specifies the request to be constructed.
- *
- * This method will construct the STP UDMA request and its associated TC data.
- * This method returns an indication as to whether the construction was
- * successful. SCI_SUCCESS Currently this method always returns this value.
- */
 enum sci_status scic_sds_stp_ncq_request_construct(struct scic_sds_request *sci_req,
 						   u32 len,
 						   enum dma_data_direction dir)
@@ -364,7 +337,7 @@ enum sci_status scic_sds_stp_ncq_request_construct(struct scic_sds_request *sci_
 }
 
 /**
- *
+ * scu_stp_raw_request_construct_task_context -
  * @this_request: This parameter specifies the STP request object for which to
  *    construct a RAW command frame task context.
  * @task_context: This parameter specifies the SCU specific task context buffer
@@ -373,7 +346,7 @@ enum sci_status scic_sds_stp_ncq_request_construct(struct scic_sds_request *sci_
  * This method performs the operations common to all SATA/STP requests
  * utilizing the raw frame method. none
  */
-void scu_stp_raw_request_construct_task_context(
+static void scu_stp_raw_request_construct_task_context(
 	struct scic_sds_stp_request *this_request,
 	struct scu_task_context *task_context)
 {
@@ -385,59 +358,6 @@ void scu_stp_raw_request_construct_task_context(
 	task_context->type.stp.fis_type     = SATA_FIS_TYPE_REGH2D;
 	task_context->transfer_length_bytes = sizeof(struct sata_fis_reg_h2d) - sizeof(u32);
 }
-
-/**
- *
- * @this_request: This parameter specifies the core request object to
- *    construction into an STP/SATA non-data request.
- *
- * This method will construct the STP Non-data request and its associated TC
- * data.  A non-data request essentially behaves like a 0 length read request
- * in the SCU. This method currently always returns SCI_SUCCESS
- */
-enum sci_status scic_sds_stp_non_data_request_construct(
-	struct scic_sds_request *this_request)
-{
-	scic_sds_stp_non_ncq_request_construct(this_request);
-
-	/* Build the STP task context structure */
-	scu_stp_raw_request_construct_task_context(
-		(struct scic_sds_stp_request *)this_request,
-		this_request->task_context_buffer
-		);
-
-	sci_base_state_machine_construct(
-		&this_request->started_substate_machine,
-		&this_request->parent.parent,
-		scic_sds_stp_request_started_non_data_substate_table,
-		SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE
-		);
-
-	return SCI_SUCCESS;
-}
-
-
-enum sci_status scic_sds_stp_soft_reset_request_construct(
-	struct scic_sds_request *this_request)
-{
-	scic_sds_stp_non_ncq_request_construct(this_request);
-
-	/* Build the STP task context structure */
-	scu_stp_raw_request_construct_task_context(
-		(struct scic_sds_stp_request *)this_request,
-		this_request->task_context_buffer
-		);
-
-	sci_base_state_machine_construct(
-		&this_request->started_substate_machine,
-		&this_request->parent.parent,
-		scic_sds_stp_request_started_soft_reset_substate_table,
-		SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE
-		);
-
-	return SCI_SUCCESS;
-}
-
 
 void scic_stp_io_request_set_ncq_tag(
 	struct scic_sds_request *req,
@@ -474,7 +394,7 @@ void *scic_stp_io_request_get_d2h_reg_address(
  * - if there are more SGL element pairs - advance to the next pair and return
  * element A struct scu_sgl_element*
  */
-struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic_sds_stp_request *stp_req)
+static struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic_sds_stp_request *stp_req)
 {
 	struct scu_sgl_element *current_sgl;
 	struct scic_sds_request *sci_req = &stp_req->parent;
@@ -506,60 +426,6 @@ struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic_sds_st
 	}
 
 	return current_sgl;
-}
-
-/**
- *
- * @scic_io_request: The core request object which is cast to a SATA PIO
- *    request object.
- *
- * This method will construct the SATA PIO request. This method returns an
- * indication as to whether the construction was successful. SCI_SUCCESS
- * Currently this method always returns this value.
- */
-enum sci_status scic_sds_stp_pio_request_construct(
-	struct scic_sds_request *scic_io_request,
-	u8 sat_protocol,
-	bool copy_rx_frame)
-{
-	struct scic_sds_stp_request *this_request;
-
-	this_request = (struct scic_sds_stp_request *)scic_io_request;
-
-	scic_sds_stp_non_ncq_request_construct(&this_request->parent);
-
-	scu_stp_raw_request_construct_task_context(
-		this_request, this_request->parent.task_context_buffer
-		);
-
-	this_request->type.pio.current_transfer_bytes = 0;
-	this_request->type.pio.ending_error = 0;
-	this_request->type.pio.ending_status = 0;
-
-	this_request->type.pio.request_current.sgl_offset = 0;
-	this_request->type.pio.request_current.sgl_set = SCU_SGL_ELEMENT_PAIR_A;
-	this_request->type.pio.sat_protocol = sat_protocol;
-
-	if (copy_rx_frame) {
-		scic_sds_request_build_sgl(&this_request->parent);
-		/*
-		 * Since the IO request copy of the TC contains the same data as
-		 * the actual TC this pointer is vaild for either. */
-		this_request->type.pio.request_current.sgl_pair =
-			&this_request->parent.task_context_buffer->sgl_pair_ab;
-	} else {
-		/* The user does not want the data copied to the SGL buffer location */
-		this_request->type.pio.request_current.sgl_pair = NULL;
-	}
-
-	sci_base_state_machine_construct(
-		&this_request->parent.started_substate_machine,
-		&this_request->parent.parent.parent,
-		scic_sds_stp_request_started_pio_substate_table,
-		SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE
-		);
-
-	return SCI_SUCCESS;
 }
 
 /**
@@ -689,7 +555,7 @@ static enum sci_status scic_sds_stp_request_non_data_await_d2h_frame_handler(
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_non_data_substate_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_non_data_substate_handler_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
@@ -740,7 +606,7 @@ static void scic_sds_stp_request_started_non_data_await_d2h_enter(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_stp_request_started_non_data_substate_table[] = {
+static const struct sci_base_state scic_sds_stp_request_started_non_data_substate_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE] = {
 		.enter_state = scic_sds_stp_request_started_non_data_await_h2d_completion_enter,
 	},
@@ -748,6 +614,23 @@ const struct sci_base_state scic_sds_stp_request_started_non_data_substate_table
 		.enter_state = scic_sds_stp_request_started_non_data_await_d2h_enter,
 	},
 };
+
+enum sci_status scic_sds_stp_non_data_request_construct(struct scic_sds_request *sci_req)
+{
+	struct scic_sds_stp_request *stp_req = container_of(sci_req, typeof(*stp_req), parent);
+
+	scic_sds_stp_non_ncq_request_construct(sci_req);
+
+	/* Build the STP task context structure */
+	scu_stp_raw_request_construct_task_context(stp_req, sci_req->task_context_buffer);
+
+	sci_base_state_machine_construct(&sci_req->started_substate_machine,
+					 &sci_req->parent.parent,
+					 scic_sds_stp_request_started_non_data_substate_table,
+					 SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE);
+
+	return SCI_SUCCESS;
+}
 
 #define SCU_MAX_FRAME_BUFFER_SIZE  0x400  /* 1K is the maximum SCU frame data payload */
 
@@ -1330,7 +1213,7 @@ static enum sci_status scic_sds_stp_request_pio_data_in_await_data_event_handler
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_pio_substate_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_pio_substate_handler_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
@@ -1422,7 +1305,7 @@ static void scic_sds_stp_request_started_pio_data_out_transmit_data_enter(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_stp_request_started_pio_substate_table[] = {
+static const struct sci_base_state scic_sds_stp_request_started_pio_substate_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE] = {
 		.enter_state = scic_sds_stp_request_started_pio_await_h2d_completion_enter,
 	},
@@ -1436,6 +1319,45 @@ const struct sci_base_state scic_sds_stp_request_started_pio_substate_table[] = 
 		.enter_state = scic_sds_stp_request_started_pio_data_out_transmit_data_enter,
 	}
 };
+
+enum sci_status scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_req,
+						   u8 sat_protocol,
+						   bool copy_rx_frame)
+{
+	struct scic_sds_stp_request *stp_req = container_of(sci_req, typeof(*stp_req), parent);
+	struct scic_sds_stp_pio_request *pio = &stp_req->type.pio;
+
+	scic_sds_stp_non_ncq_request_construct(sci_req);
+
+	scu_stp_raw_request_construct_task_context(stp_req,
+						   sci_req->task_context_buffer);
+
+	pio->current_transfer_bytes = 0;
+	pio->ending_error = 0;
+	pio->ending_status = 0;
+
+	pio->request_current.sgl_offset = 0;
+	pio->request_current.sgl_set = SCU_SGL_ELEMENT_PAIR_A;
+	pio->sat_protocol = sat_protocol;
+
+	if (copy_rx_frame) {
+		scic_sds_request_build_sgl(sci_req);
+		/* Since the IO request copy of the TC contains the same data as
+		 * the actual TC this pointer is vaild for either.
+		 */
+		pio->request_current.sgl_pair = &sci_req->task_context_buffer->sgl_pair_ab;
+	} else {
+		/* The user does not want the data copied to the SGL buffer location */
+		pio->request_current.sgl_pair = NULL;
+	}
+
+	sci_base_state_machine_construct(&sci_req->started_substate_machine,
+					 &sci_req->parent.parent,
+					 scic_sds_stp_request_started_pio_substate_table,
+					 SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE);
+
+	return SCI_SUCCESS;
+}
 
 static void scic_sds_stp_request_udma_complete_request(
 	struct scic_sds_request *this_request,
@@ -1594,7 +1516,7 @@ static enum sci_status scic_sds_stp_request_udma_await_d2h_reg_fis_frame_handler
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_udma_substate_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_udma_substate_handler_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
@@ -1648,7 +1570,7 @@ static void scic_sds_stp_request_started_udma_await_d2h_reg_fis_enter(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_stp_request_started_udma_substate_table[] = {
+static const struct sci_base_state scic_sds_stp_request_started_udma_substate_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE] = {
 		.enter_state = scic_sds_stp_request_started_udma_await_tc_completion_enter,
 	},
@@ -1656,6 +1578,25 @@ const struct sci_base_state scic_sds_stp_request_started_udma_substate_table[] =
 		.enter_state = scic_sds_stp_request_started_udma_await_d2h_reg_fis_enter,
 	},
 };
+
+enum sci_status scic_sds_stp_udma_request_construct(struct scic_sds_request *sci_req,
+						    u32 len,
+						    enum dma_data_direction dir)
+{
+	scic_sds_stp_non_ncq_request_construct(sci_req);
+
+	scic_sds_stp_optimized_request_construct(sci_req, SCU_TASK_TYPE_DMA_IN,
+						 len, dir);
+
+	sci_base_state_machine_construct(
+		&sci_req->started_substate_machine,
+		&sci_req->parent.parent,
+		scic_sds_stp_request_started_udma_substate_table,
+		SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE
+		);
+
+	return SCI_SUCCESS;
+}
 
 /**
  *
@@ -1831,7 +1772,7 @@ static enum sci_status scic_sds_stp_request_soft_reset_await_d2h_frame_handler(
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_soft_reset_substate_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_soft_reset_substate_handler_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
@@ -1925,9 +1866,7 @@ static void scic_sds_stp_request_started_soft_reset_await_d2h_response_enter(
 		);
 }
 
-/* --------------------------------------------------------------------------- */
-
-const struct sci_base_state scic_sds_stp_request_started_soft_reset_substate_table[] = {
+static const struct sci_base_state scic_sds_stp_request_started_soft_reset_substate_table[] = {
 	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE] = {
 		.enter_state = scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter,
 	},
@@ -1939,3 +1878,19 @@ const struct sci_base_state scic_sds_stp_request_started_soft_reset_substate_tab
 	},
 };
 
+enum sci_status scic_sds_stp_soft_reset_request_construct(struct scic_sds_request *sci_req)
+{
+	struct scic_sds_stp_request *stp_req = container_of(sci_req, typeof(*stp_req), parent);
+
+	scic_sds_stp_non_ncq_request_construct(sci_req);
+
+	/* Build the STP task context structure */
+	scu_stp_raw_request_construct_task_context(stp_req, sci_req->task_context_buffer);
+
+	sci_base_state_machine_construct(&sci_req->started_substate_machine,
+					 &sci_req->parent.parent,
+					 scic_sds_stp_request_started_soft_reset_substate_table,
+					 SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE);
+
+	return SCI_SUCCESS;
+}

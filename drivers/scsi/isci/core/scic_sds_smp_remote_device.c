@@ -207,7 +207,7 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_frame_handl
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_device_ready_substate_handler_table[] = {
+static const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_device_ready_substate_handler_table[] = {
 	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
 		.parent.start_handler		= scic_sds_remote_device_default_start_handler,
 		.parent.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,

@@ -326,59 +326,6 @@ void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 }
 
 /**
- * This method initializes common portions of the io request object. This
- *    includes construction of the struct sci_base_request parent.
- * @the_controller: This parameter specifies the controller for which the
- *    request is being constructed.
- * @the_target: This parameter specifies the remote device for which the
- *    request is being constructed.
- * @io_tag: This parameter specifies the IO tag to be utilized for this
- *    request.  This parameter can be set to SCI_CONTROLLER_INVALID_IO_TAG.
- * @user_io_request_object: This parameter specifies the user request object
- *    for which the request is being constructed.
- * @this_request: This parameter specifies the request being constructed.
- *
- */
-static void scic_sds_general_request_construct(
-	struct scic_sds_controller *the_controller,
-	struct scic_sds_remote_device *the_target,
-	u16 io_tag,
-	void *user_io_request_object,
-	struct scic_sds_request *this_request)
-{
-	sci_base_request_construct(
-		&this_request->parent,
-		scic_sds_request_state_table
-		);
-
-	this_request->io_tag = io_tag;
-	this_request->user_request = user_io_request_object;
-	this_request->owning_controller = the_controller;
-	this_request->target_device = the_target;
-	this_request->has_started_substate_machine = false;
-	this_request->protocol = SCIC_NO_PROTOCOL;
-	this_request->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
-	this_request->device_sequence = scic_sds_remote_device_get_sequence(the_target);
-
-	this_request->sci_status   = SCI_SUCCESS;
-	this_request->scu_status   = 0;
-	this_request->post_context = 0xFFFFFFFF;
-
-	this_request->is_task_management_request = false;
-
-	if (io_tag == SCI_CONTROLLER_INVALID_IO_TAG) {
-		this_request->was_tag_assigned_by_user = false;
-		this_request->task_context_buffer = NULL;
-	} else {
-		this_request->was_tag_assigned_by_user = true;
-
-		this_request->task_context_buffer =
-			scic_sds_controller_get_task_context_buffer(
-				this_request->owning_controller, io_tag);
-	}
-}
-
-/**
  * This method build the remainder of the IO request object.
  * @this_request: This parameter specifies the request object being constructed.
  *
@@ -754,16 +701,6 @@ static enum sci_status scic_io_request_construct_sata(struct scic_sds_request *s
 	return status;
 }
 
-/*
- * ****************************************************************************
- * * SCIC Interface Implementation
- * **************************************************************************** */
-
-
-
-
-/* --------------------------------------------------------------------------- */
-
 u32 scic_io_request_get_object_size(void)
 {
 	u32 ssp_request_size;
@@ -776,128 +713,6 @@ u32 scic_io_request_get_object_size(void)
 
 	return max(ssp_request_size, max(stp_request_size, smp_request_size));
 }
-
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
-enum sci_status scic_io_request_construct(
-	struct scic_sds_controller *scic_controller,
-	struct scic_sds_remote_device *scic_remote_device,
-	u16 io_tag,
-	void *user_io_request_object,
-	void *scic_io_request_memory,
-	struct scic_sds_request **new_scic_io_request_handle)
-{
-	enum sci_status status = SCI_SUCCESS;
-	struct scic_sds_request *this_request;
-	struct smp_discover_response_protocols device_protocol;
-
-	this_request = (struct scic_sds_request *)scic_io_request_memory;
-
-	/* Build the common part of the request */
-	scic_sds_general_request_construct(
-		(struct scic_sds_controller *)scic_controller,
-		(struct scic_sds_remote_device *)scic_remote_device,
-		io_tag,
-		user_io_request_object,
-		this_request
-		);
-
-	if (
-		scic_sds_remote_device_get_index((struct scic_sds_remote_device *)scic_remote_device)
-		== SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
-		) {
-		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
-	}
-
-	scic_remote_device_get_protocols(scic_remote_device, &device_protocol);
-
-	if (device_protocol.u.bits.attached_ssp_target) {
-		scic_sds_ssp_io_request_assign_buffers(this_request);
-	} else if (device_protocol.u.bits.attached_stp_target) {
-		scic_sds_stp_request_assign_buffers(this_request);
-		memset(this_request->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
-	} else if (device_protocol.u.bits.attached_smp_target) {
-		scic_sds_smp_request_assign_buffers(this_request);
-		memset(this_request->command_buffer, 0, sizeof(struct smp_request));
-	} else {
-		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-	}
-
-	if (status == SCI_SUCCESS) {
-		memset(
-			this_request->task_context_buffer,
-			0,
-			SCI_FIELD_OFFSET(struct scu_task_context, sgl_pair_ab)
-			);
-		*new_scic_io_request_handle = scic_io_request_memory;
-	}
-
-	return status;
-}
-
-/* --------------------------------------------------------------------------- */
-
-
-enum sci_status scic_task_request_construct(
-	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *remote_device,
-	u16 io_tag,
-	void *user_io_request_object,
-	void *scic_task_request_memory,
-	struct scic_sds_request **new_scic_task_request_handle)
-{
-	enum sci_status status = SCI_SUCCESS;
-	struct scic_sds_request *this_request = (struct scic_sds_request *)
-					   scic_task_request_memory;
-	struct smp_discover_response_protocols device_protocol;
-
-	/* Build the common part of the request */
-	scic_sds_general_request_construct(
-		(struct scic_sds_controller *)controller,
-		(struct scic_sds_remote_device *)remote_device,
-		io_tag,
-		user_io_request_object,
-		this_request
-		);
-
-	scic_remote_device_get_protocols(remote_device, &device_protocol);
-
-	if (device_protocol.u.bits.attached_ssp_target) {
-		scic_sds_ssp_task_request_assign_buffers(this_request);
-
-		this_request->has_started_substate_machine = true;
-
-		/* Construct the started sub-state machine. */
-		sci_base_state_machine_construct(
-			&this_request->started_substate_machine,
-			&this_request->parent.parent,
-			scic_sds_io_request_started_task_mgmt_substate_table,
-			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
-			);
-	} else if (device_protocol.u.bits.attached_stp_target) {
-		scic_sds_stp_request_assign_buffers(this_request);
-	} else {
-		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-	}
-
-	if (status == SCI_SUCCESS) {
-		this_request->is_task_management_request = true;
-		memset(this_request->task_context_buffer, 0x00, sizeof(struct scu_task_context));
-		*new_scic_task_request_handle            = scic_task_request_memory;
-	}
-
-	return status;
-}
-
 
 enum sci_status scic_io_request_construct_basic_ssp(
 	struct scic_sds_request *sci_req)
@@ -1915,9 +1730,7 @@ static enum sci_status scic_sds_request_aborting_state_frame_handler(
 	return SCI_SUCCESS;
 }
 
-/* --------------------------------------------------------------------------- */
-
-const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[] = {
 	[SCI_BASE_REQUEST_STATE_INITIAL] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_default_abort_handler,
@@ -2142,9 +1955,7 @@ static void scic_sds_request_final_state_enter(
 		);
 }
 
-/* --------------------------------------------------------------------------- */
-
-const struct sci_base_state scic_sds_request_state_table[] = {
+static const struct sci_base_state scic_sds_request_state_table[] = {
 	[SCI_BASE_REQUEST_STATE_INITIAL] = {
 		.enter_state = scic_sds_request_initial_state_enter,
 	},
@@ -2166,3 +1977,119 @@ const struct sci_base_state scic_sds_request_state_table[] = {
 	},
 };
 
+static void scic_sds_general_request_construct(struct scic_sds_controller *scic,
+					       struct scic_sds_remote_device *sci_dev,
+					       u16 io_tag,
+					       void *user_io_request_object,
+					       struct scic_sds_request *sci_req)
+{
+	sci_base_request_construct(&sci_req->parent, scic_sds_request_state_table);
+	sci_req->io_tag = io_tag;
+	sci_req->user_request = user_io_request_object;
+	sci_req->owning_controller = scic;
+	sci_req->target_device = sci_dev;
+	sci_req->has_started_substate_machine = false;
+	sci_req->protocol = SCIC_NO_PROTOCOL;
+	sci_req->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
+	sci_req->device_sequence = scic_sds_remote_device_get_sequence(sci_dev);
+
+	sci_req->sci_status   = SCI_SUCCESS;
+	sci_req->scu_status   = 0;
+	sci_req->post_context = 0xFFFFFFFF;
+
+	sci_req->is_task_management_request = false;
+
+	if (io_tag == SCI_CONTROLLER_INVALID_IO_TAG) {
+		sci_req->was_tag_assigned_by_user = false;
+		sci_req->task_context_buffer = NULL;
+	} else {
+		sci_req->was_tag_assigned_by_user = true;
+
+		sci_req->task_context_buffer =
+			scic_sds_controller_get_task_context_buffer(scic, io_tag);
+	}
+}
+
+enum sci_status scic_io_request_construct(struct scic_sds_controller *scic,
+					  struct scic_sds_remote_device *sci_dev,
+					  u16 io_tag,
+					  void *user_io_request_object,
+					  struct scic_sds_request *sci_req,
+					  struct scic_sds_request **new_scic_io_request_handle)
+{
+	enum sci_status status = SCI_SUCCESS;
+	struct smp_discover_response_protocols device_protocol;
+
+	/* Build the common part of the request */
+	scic_sds_general_request_construct(scic, sci_dev, io_tag,
+					   user_io_request_object, sci_req);
+
+	if (sci_dev->rnc->remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
+
+	scic_remote_device_get_protocols(sci_dev, &device_protocol);
+
+	if (device_protocol.u.bits.attached_ssp_target) {
+		scic_sds_ssp_io_request_assign_buffers(sci_req);
+	} else if (device_protocol.u.bits.attached_stp_target) {
+		scic_sds_stp_request_assign_buffers(sci_req);
+		memset(sci_req->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
+	} else if (device_protocol.u.bits.attached_smp_target) {
+		scic_sds_smp_request_assign_buffers(sci_req);
+		memset(sci_req->command_buffer, 0, sizeof(struct smp_request));
+	} else {
+		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
+	}
+
+	if (status == SCI_SUCCESS) {
+		memset(sci_req->task_context_buffer, 0,
+			SCI_FIELD_OFFSET(struct scu_task_context, sgl_pair_ab));
+		*new_scic_io_request_handle = sci_req;
+	}
+
+	return status;
+}
+
+enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
+					    struct scic_sds_remote_device *sci_dev,
+					    u16 io_tag,
+					    void *user_io_request_object,
+					    struct scic_sds_request *sci_req,
+					    struct scic_sds_request **new_sci_req)
+{
+	enum sci_status status = SCI_SUCCESS;
+	struct smp_discover_response_protocols device_protocol;
+
+	/* Build the common part of the request */
+	scic_sds_general_request_construct(scic, sci_dev, io_tag,
+					   user_io_request_object,
+					   sci_req);
+
+	scic_remote_device_get_protocols(sci_dev, &device_protocol);
+
+	if (device_protocol.u.bits.attached_ssp_target) {
+		scic_sds_ssp_task_request_assign_buffers(sci_req);
+
+		sci_req->has_started_substate_machine = true;
+
+		/* Construct the started sub-state machine. */
+		sci_base_state_machine_construct(
+			&sci_req->started_substate_machine,
+			&sci_req->parent.parent,
+			scic_sds_io_request_started_task_mgmt_substate_table,
+			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION
+			);
+	} else if (device_protocol.u.bits.attached_stp_target) {
+		scic_sds_stp_request_assign_buffers(sci_req);
+	} else {
+		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
+	}
+
+	if (status == SCI_SUCCESS) {
+		sci_req->is_task_management_request = true;
+		memset(sci_req->task_context_buffer, 0, sizeof(struct scu_task_context));
+		*new_sci_req = sci_req;
+	}
+
+	return status;
+}

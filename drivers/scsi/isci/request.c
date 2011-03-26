@@ -1263,47 +1263,6 @@ enum dma_data_direction isci_request_io_request_get_data_direction(
  *
  * physical address in the specified sge.
  */
-dma_addr_t isci_request_sge_get_address_field(
-	struct isci_request *request,
-	void *sge_address)
-{
-	struct sas_task *task = isci_request_access_task(request);
-	dma_addr_t ret;
-	struct isci_host *isci_host = isci_host_from_sas_ha(
-		task->dev->port->ha);
-
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: request = %p, sge_address = %p\n",
-		__func__,
-		request,
-		sge_address);
-
-	if (task->data_dir == PCI_DMA_NONE)
-		return 0;
-
-	/* the case where num_scatter == 0 is special, in that
-	 * task->scatter is the actual buffer address, not an sgl.
-	 * so a map single is required here.
-	 */
-	if ((task->num_scatter == 0) &&
-	    !sas_protocol_ata(task->task_proto)) {
-		ret = dma_map_single(
-			&isci_host->pdev->dev,
-			task->scatter,
-			task->total_xfer_len,
-			task->data_dir
-			);
-		request->zero_scatter_daddr = ret;
-	} else
-		ret = sg_dma_address(((struct scatterlist *)sge_address));
-
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: bus address = %lx\n",
-		__func__,
-		(unsigned long)ret);
-
-	return ret;
-}
 
 
 /**
@@ -1314,38 +1273,6 @@ dma_addr_t isci_request_sge_get_address_field(
  *
  * length field value in the specified sge.
  */
-u32 isci_request_sge_get_length_field(
-	struct isci_request *request,
-	void *sge_address)
-{
-	struct sas_task *task = isci_request_access_task(request);
-	int ret;
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: request = %p, sge_address = %p\n",
-		__func__,
-		request,
-		sge_address);
-
-	if (task->data_dir == PCI_DMA_NONE)
-		return 0;
-
-	/* the case where num_scatter == 0 is special, in that
-	 * task->scatter is the actual buffer address, not an sgl.
-	 * so we return total_xfer_len here.
-	 */
-	if (task->num_scatter == 0)
-		ret = task->total_xfer_len;
-	else
-		ret = sg_dma_len((struct scatterlist *)sge_address);
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: len = %d\n",
-		__func__,
-		ret);
-
-	return ret;
-}
 
 
 /**

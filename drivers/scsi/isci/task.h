@@ -202,8 +202,6 @@ u16 isci_task_ssp_request_get_io_tag_to_manage(
 u8 isci_task_ssp_request_get_function(
 	struct isci_request *request);
 
-u32 isci_task_ssp_request_get_lun(
-	struct isci_request *request);
 
 void *isci_task_ssp_request_get_response_data_address(
 	struct isci_request *request);
@@ -226,14 +224,6 @@ void isci_task_build_tmf(
 			    void *),
 	void *cb_data);
 
-void isci_task_build_abort_task_tmf(
-	struct isci_tmf *tmf,
-	struct isci_remote_device *isci_device,
-	enum isci_tmf_function_codes code,
-	void (*tmf_sent_cb)(
-		enum isci_tmf_cb_state,
-		struct isci_tmf *, void *),
-	struct isci_request *old_request);
 
 int isci_task_execute_tmf(
 	struct isci_host *isci_host,

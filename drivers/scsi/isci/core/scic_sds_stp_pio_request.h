@@ -99,18 +99,7 @@ enum _SCIC_SDS_STP_REQUEST_STARTED_PIO_SUBSTATES {
 	SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE,
 };
 
-
-/* --------------------------------------------------------------------------- */
-
-extern const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_pio_substate_handler_table[];
-
-extern const struct sci_base_state scic_sds_stp_request_started_pio_substate_table[];
-
-/* --------------------------------------------------------------------------- */
-
 struct scic_sds_stp_request;
 
-struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(
-	struct scic_sds_stp_request *this_request);
 
 #endif   /* _SCIC_SDS_SATA_PIO_REQUEST_H_ */

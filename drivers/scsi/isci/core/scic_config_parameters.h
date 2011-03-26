@@ -261,19 +261,6 @@ enum sci_status scic_user_parameters_set(
 	union scic_user_parameters *user_parameters);
 
 /**
- * scic_user_parameters_get() - This method allows the user to retrieve the
- *    user parameters utilized by the controller.
- * @controller: This parameter specifies the controller on which to set the
- *    user parameters.
- * @user_parameters: This parameter specifies the USER_PARAMETERS object into
- *    which the framework shall save it's parameters.
- *
- */
-void scic_user_parameters_get(
-	struct scic_sds_controller *controller,
-	union scic_user_parameters *user_parameters);
-
-/**
  * scic_oem_parameters_set() - This method allows the user to attempt to change
  *    the OEM parameters utilized by the controller.
  * @controller: This parameter specifies the controller on which to set the

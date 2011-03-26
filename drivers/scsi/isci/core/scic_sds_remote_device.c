@@ -87,30 +87,6 @@ u32 scic_remote_device_get_object_size(void)
 	       + sizeof(struct scic_sds_remote_node_context);
 }
 
-/* --------------------------------------------------------------------------- */
-
-void scic_remote_device_construct(struct scic_sds_port *sci_port,
-				  struct scic_sds_remote_device *sci_dev)
-{
-	sci_dev->owning_port = sci_port;
-	sci_dev->started_request_count = 0;
-	sci_dev->rnc = (struct scic_sds_remote_node_context *) &sci_dev[1];
-
-	sci_base_remote_device_construct(
-		&sci_dev->parent,
-		scic_sds_remote_device_state_table
-		);
-
-	scic_sds_remote_node_context_construct(
-		sci_dev,
-		sci_dev->rnc,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
-		);
-
-	sci_object_set_association(sci_dev->rnc, sci_dev);
-}
-
-
 enum sci_status scic_remote_device_da_construct(
 	struct scic_sds_remote_device *sci_dev)
 {
@@ -1330,7 +1306,7 @@ static enum sci_status scic_sds_remote_device_resetting_state_complete_request_h
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
+static const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_handler_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
 		.parent.start_handler		= scic_sds_remote_device_default_start_handler,
 		.parent.stop_handler		= scic_sds_remote_device_default_stop_handler,
@@ -1741,7 +1717,7 @@ static void scic_sds_remote_device_final_state_enter(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_remote_device_state_table[] = {
+static const struct sci_base_state scic_sds_remote_device_state_table[] = {
 	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
 		.enter_state = scic_sds_remote_device_initial_state_enter,
 	},
@@ -1771,3 +1747,23 @@ const struct sci_base_state scic_sds_remote_device_state_table[] = {
 	},
 };
 
+void scic_remote_device_construct(struct scic_sds_port *sci_port,
+				  struct scic_sds_remote_device *sci_dev)
+{
+	sci_dev->owning_port = sci_port;
+	sci_dev->started_request_count = 0;
+	sci_dev->rnc = (struct scic_sds_remote_node_context *) &sci_dev[1];
+
+	sci_base_remote_device_construct(
+		&sci_dev->parent,
+		scic_sds_remote_device_state_table
+		);
+
+	scic_sds_remote_node_context_construct(
+		sci_dev,
+		sci_dev->rnc,
+		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
+		);
+
+	sci_object_set_association(sci_dev->rnc, sci_dev);
+}

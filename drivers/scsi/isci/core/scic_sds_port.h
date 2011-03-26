@@ -236,12 +236,6 @@ struct scic_sds_port_state_handler {
 
 };
 
-extern const struct sci_base_state scic_sds_port_state_table[];
-extern const struct sci_base_state scic_sds_port_ready_substate_table[];
-
-extern struct scic_sds_port_state_handler scic_sds_port_state_handler_table[];
-extern struct scic_sds_port_state_handler scic_sds_port_ready_substate_handler_table[];
-
 /**
  * scic_sds_port_get_controller() -
  *
@@ -351,10 +345,6 @@ void scic_sds_port_setup_transports(
 	struct scic_sds_port *this_port,
 	u32 device_id);
 
-void scic_sds_port_activate_phy(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy,
-	bool do_notify_user);
 
 void scic_sds_port_deactivate_phy(
 	struct scic_sds_port *this_port,
@@ -363,10 +353,6 @@ void scic_sds_port_deactivate_phy(
 
 
 
-void scic_sds_port_general_link_up_handler(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy,
-	bool do_notify_user);
 
 bool scic_sds_port_link_detected(
 	struct scic_sds_port *this_port,
@@ -397,47 +383,19 @@ enum sci_status scic_sds_port_complete_io(
 
 /* --------------------------------------------------------------------------- */
 
-void scic_sds_port_update_viit_entry(
-	struct scic_sds_port *this_port);
 
 /* --------------------------------------------------------------------------- */
 
-enum sci_status scic_sds_port_default_start_handler(
-	struct sci_base_port *port);
 
 
-enum sci_status scic_sds_port_default_destruct_handler(
-	struct sci_base_port *port);
-
-enum sci_status scic_sds_port_default_reset_handler(
-	struct sci_base_port *port,
-	u32 timeout);
 
 
-enum sci_status scic_sds_port_default_remove_phy_handler(
-	struct sci_base_port *port,
-	struct sci_base_phy *phy);
 
-enum sci_status scic_sds_port_default_frame_handler(
-	struct scic_sds_port *port,
-	u32 frame_index);
 
-enum sci_status scic_sds_port_default_event_handler(
-	struct scic_sds_port *port,
-	u32 event_code);
 
-void scic_sds_port_default_link_up_handler(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy);
 
-void scic_sds_port_default_link_down_handler(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy);
 
-enum sci_status scic_sds_port_default_start_io_handler(
-	struct scic_sds_port *port,
-	struct scic_sds_remote_device *device,
-	struct scic_sds_request *io_request);
+
 
 
 enum sci_sas_link_rate scic_sds_port_get_max_allowed_speed(
@@ -451,12 +409,7 @@ bool scic_sds_port_is_valid_phy_assignment(
 	struct scic_sds_port *this_port,
 	u32 phy_index);
 
-bool scic_sds_port_is_phy_mask_valid(
-	struct scic_sds_port *this_port,
-	u32 phy_mask);
 
-u32 scic_sds_port_get_phys(
-	struct scic_sds_port *this_port);
 
 void scic_sds_port_get_sas_address(
 	struct scic_sds_port *this_port,
@@ -470,13 +423,7 @@ void scic_sds_port_get_attached_protocols(
 	struct scic_sds_port *this_port,
 	struct sci_sas_identify_address_frame_protocols *protocols);
 
-enum sci_status scic_sds_port_set_phy(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy);
 
-enum sci_status scic_sds_port_clear_phy(
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy);
 
 
 

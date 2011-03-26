@@ -402,7 +402,6 @@ struct scic_sds_controller_state_handler {
 
 extern const struct scic_sds_controller_state_handler
 	scic_sds_controller_state_handler_table[];
-extern const struct sci_base_state scic_sds_controller_state_table[];
 
 /**
  * INCREMENT_QUEUE_GET() -
@@ -535,7 +534,6 @@ extern const struct sci_base_state scic_sds_controller_state_table[];
 
 /* --------------------------------------------------------------------------- */
 
-u32 scic_sds_controller_get_object_size(void);
 
 /* --------------------------------------------------------------------------- */
 
@@ -615,8 +613,6 @@ void scic_sds_controller_link_down(
  * * CORE CONTROLLER REMOTE DEVICE MESSAGE PROCESSING
  * ***************************************************************************** */
 
-bool scic_sds_controller_has_remote_devices_stopping(
-	struct scic_sds_controller *this_controller);
 
 void scic_sds_controller_remote_device_started(
 	struct scic_sds_controller *this_controller,
@@ -626,67 +622,11 @@ void scic_sds_controller_remote_device_stopped(
 	struct scic_sds_controller *this_controller,
 	struct scic_sds_remote_device *the_device);
 
-
-/*
- * *****************************************************************************
- * * CORE CONTROLLER PRIVATE METHODS
- * ***************************************************************************** */
-
-enum sci_status scic_sds_controller_validate_memory_descriptor_table(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_ram_initialization(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_assign_task_entries(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_afe_initialization(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_enable_port_task_scheduler(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_initialize_completion_queue(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_initialize_unsolicited_frame_queue(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_phy_timer_stop(
-	struct scic_sds_controller *this_controller);
-
-enum sci_status scic_sds_controller_start_next_phy(
-	struct scic_sds_controller *this_controller);
-
-enum sci_status scic_sds_controller_stop_phys(
-	struct scic_sds_controller *this_controller);
-
-enum sci_status scic_sds_controller_stop_ports(
-	struct scic_sds_controller *this_controller);
-
-enum sci_status scic_sds_controller_stop_devices(
-	struct scic_sds_controller *this_controller);
-
 void scic_sds_controller_copy_task_context(
 	struct scic_sds_controller *this_controller,
 	struct scic_sds_request *this_request);
 
-void scic_sds_controller_timeout_handler(void *controller);
-
-void scic_sds_controller_initialize_power_control(
-	struct scic_sds_controller *this_controller);
-
 void scic_sds_controller_register_setup(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_reset_hardware(
-	struct scic_sds_controller *this_controller);
-
-enum sci_status scic_sds_controller_initialize_phy_startup(
-	struct scic_sds_controller *this_controller);
-
-void scic_sds_controller_build_memory_descriptor_table(
 	struct scic_sds_controller *this_controller);
 
 #endif /* _SCIC_SDS_CONTROLLER_H_ */

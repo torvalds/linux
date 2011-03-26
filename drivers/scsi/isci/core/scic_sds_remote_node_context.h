@@ -279,19 +279,11 @@ struct scic_sds_remote_node_context {
 	struct scic_sds_remote_node_context_handlers *state_handlers;
 };
 
-extern const struct sci_base_state scic_sds_remote_node_context_state_table[];
-
-extern struct scic_sds_remote_node_context_handlers
-	scic_sds_remote_node_context_state_handler_table[
-	SCIC_SDS_REMOTE_NODE_CONTEXT_MAX_STATES];
-
 void scic_sds_remote_node_context_construct(
 	struct scic_sds_remote_device *device,
 	struct scic_sds_remote_node_context *rnc,
 	u16 remote_node_index);
 
-void scic_sds_remote_node_context_construct_buffer(
-	struct scic_sds_remote_node_context *rnc);
 
 bool scic_sds_remote_node_context_is_ready(
 	struct scic_sds_remote_node_context *this_rnc);

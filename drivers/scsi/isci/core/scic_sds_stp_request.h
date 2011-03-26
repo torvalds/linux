@@ -76,7 +76,7 @@ struct scic_sds_stp_request {
 
 		u32 udma;
 
-		struct {
+		struct scic_sds_stp_pio_request {
 			/**
 			 * Total transfer for the entire PIO request recorded at request constuction
 			 * time.
@@ -169,25 +169,7 @@ enum SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_SUBSTATES {
 	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE,
 };
 
-extern const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_udma_substate_handler_table[];
-
-extern const struct sci_base_state scic_sds_stp_request_started_udma_substate_table[];
-
-extern const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_non_data_substate_handler_table[];
-
-extern const struct sci_base_state scic_sds_stp_request_started_non_data_substate_table[];
-
-extern const struct scic_sds_io_request_state_handler scic_sds_stp_request_started_soft_reset_substate_handler_table[];
-
-extern const struct sci_base_state scic_sds_stp_request_started_soft_reset_substate_table[];
-
-/* --------------------------------------------------------------------------- */
-
 u32 scic_sds_stp_request_get_object_size(void);
-
-
-void scic_sds_stp_non_ncq_request_construct(
-	struct scic_sds_request *this_request);
 
 enum sci_status scic_sds_stp_pio_request_construct(
 	struct scic_sds_request *scic_io_request,
@@ -214,8 +196,5 @@ enum sci_status scic_sds_stp_ncq_request_construct(
 	u32 transfer_length,
 	enum dma_data_direction dir);
 
-void scu_stp_raw_request_construct_task_context(
-	struct scic_sds_stp_request *this_request,
-	struct scu_task_context *task_context);
 
 #endif /* _SCIC_SDS_STP_REQUEST_T_ */

@@ -69,19 +69,13 @@
 #include "sci_environment.h"
 #include "scic_sds_controller_registers.h"
 
-
-static void scic_sds_port_invalid_link_up(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *phy);
-static void scic_sds_port_timeout_handler(
-	void *port);
 #define SCIC_SDS_PORT_MIN_TIMER_COUNT  (SCI_MAX_PORTS)
 #define SCIC_SDS_PORT_MAX_TIMER_COUNT  (SCI_MAX_PORTS)
 
 #define SCIC_SDS_PORT_HARD_RESET_TIMEOUT  (1000)
 #define SCU_DUMMY_INDEX    (0xFFFF)
 
-void sci_base_port_construct(
+static void sci_base_port_construct(
 	struct sci_base_port *base_port,
 	const struct sci_base_state *state_table)
 {
@@ -168,7 +162,7 @@ bool scic_sds_port_is_valid_phy_assignment(
  * Return a bit mask indicating which phys are a part of this port. Each bit
  * corresponds to a phy identifier (e.g. bit 0 = phy id 0).
  */
-u32 scic_sds_port_get_phys(struct scic_sds_port *this_port)
+static u32 scic_sds_port_get_phys(struct scic_sds_port *this_port)
 {
 	u32 index;
 	u32 mask;
@@ -196,7 +190,7 @@ u32 scic_sds_port_get_phys(struct scic_sds_port *this_port)
  * phy mask can be supported. true if this is a valid phy assignment for the
  * port false if this is not a valid phy assignment for the port
  */
-bool scic_sds_port_is_phy_mask_valid(
+static bool scic_sds_port_is_phy_mask_valid(
 	struct scic_sds_port *this_port,
 	u32 phy_mask)
 {
@@ -269,7 +263,7 @@ static struct scic_sds_phy *scic_sds_port_get_a_connected_phy(
  * is a functional test that only fails if the phy is currently assigned to a
  * different port.
  */
-enum sci_status scic_sds_port_set_phy(
+static enum sci_status scic_sds_port_set_phy(
 	struct scic_sds_port *port,
 	struct scic_sds_phy *phy)
 {
@@ -304,7 +298,7 @@ enum sci_status scic_sds_port_set_phy(
  * this phy is not currently assinged to this port. bool true if the phy is
  * removed from the port. false if this phy is not assined to this port.
  */
-enum sci_status scic_sds_port_clear_phy(
+static enum sci_status scic_sds_port_clear_phy(
 	struct scic_sds_port *port,
 	struct scic_sds_phy *phy)
 {
@@ -485,7 +479,7 @@ void scic_sds_port_get_attached_protocols(
  * This structure will be posted to the hardware to work around a scheduler
  * error in the hardware.
  */
-void scic_sds_port_construct_dummy_rnc(struct scic_sds_port *sci_port, u16 rni)
+static void scic_sds_port_construct_dummy_rnc(struct scic_sds_port *sci_port, u16 rni)
 {
 	union scu_remote_node_context *rnc;
 
@@ -520,7 +514,7 @@ void scic_sds_port_construct_dummy_rnc(struct scic_sds_port *sci_port, u16 rni)
  * in the hardware.
  *
  */
-void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tci)
+static void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tci)
 {
 	struct scu_task_context *task_context;
 
@@ -554,7 +548,7 @@ void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tci)
 	task_context->task_phase = 0x01;
 }
 
-void scic_sds_port_destroy_dummy_resources(struct scic_sds_port *sci_port)
+static void scic_sds_port_destroy_dummy_resources(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 
@@ -567,38 +561,6 @@ void scic_sds_port_destroy_dummy_resources(struct scic_sds_port *sci_port)
 
 	sci_port->reserved_rni = SCU_DUMMY_INDEX;
 	sci_port->reserved_tci = SCU_DUMMY_INDEX;
-}
-
-void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
-			     struct scic_sds_controller *scic)
-{
-	u32 index;
-
-	sci_base_port_construct(&sci_port->parent, scic_sds_port_state_table);
-
-	sci_base_state_machine_construct(&sci_port->ready_substate_machine,
-					 &sci_port->parent.parent,
-					 scic_sds_port_ready_substate_table,
-					 SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
-
-	sci_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
-	sci_port->physical_port_index = port_index;
-	sci_port->active_phy_mask     = 0;
-
-	sci_port->owning_controller = scic;
-
-	sci_port->started_request_count = 0;
-	sci_port->assigned_device_count = 0;
-
-	sci_port->reserved_rni = SCU_DUMMY_INDEX;
-	sci_port->reserved_tci = SCU_DUMMY_INDEX;
-
-	sci_port->timer_handle = NULL;
-
-	sci_port->port_task_scheduler_registers = NULL;
-
-	for (index = 0; index < SCI_MAX_PHYS; index++)
-		sci_port->phy_table[index] = NULL;
 }
 
 /**
@@ -627,61 +589,18 @@ enum sci_status scic_sds_port_initialize(
 }
 
 /**
+ * scic_port_get_properties() - This method simply returns the properties
+ *    regarding the port, such as: physical index, protocols, sas address, etc.
+ * @port: this parameter specifies the port for which to retrieve the physical
+ *    index.
+ * @properties: This parameter specifies the properties structure into which to
+ *    copy the requested information.
  *
- * @this_port: This is the struct scic_sds_port object for which has a phy that has
- *    gone link up.
- * @the_phy: This is the struct scic_sds_phy object that has gone link up.
- * @do_notify_user: This parameter specifies whether to inform the user (via
- *    scic_cb_port_link_up()) as to the fact that a new phy as become ready.
- *
- * This method is the a general link up handler for the struct scic_sds_port object.
- * This function will determine if this struct scic_sds_phy can be assigned to this
- * struct scic_sds_port object. If the struct scic_sds_phy object can is not a valid PHY for
- * this port then the function will notify the SCIC_USER. A PHY can only be
- * part of a port if it's attached SAS ADDRESS is the same as all other PHYs in
- * the same port. none
+ * Indicate if the user specified a valid port. SCI_SUCCESS This value is
+ * returned if the specified port was valid. SCI_FAILURE_INVALID_PORT This
+ * value is returned if the specified port is not valid.  When this value is
+ * returned, no data is copied to the properties output parameter.
  */
-void scic_sds_port_general_link_up_handler(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy,
-	bool do_notify_user)
-{
-	struct sci_sas_address port_sas_address;
-	struct sci_sas_address phy_sas_address;
-
-	scic_sds_port_get_attached_sas_address(this_port, &port_sas_address);
-	scic_sds_phy_get_attached_sas_address(the_phy, &phy_sas_address);
-
-	/*
-	 * If the SAS address of the new phy matches the SAS address of
-	 * other phys in the port OR this is the first phy in the port,
-	 * then activate the phy and allow it to be used for operations
-	 * in this port. */
-	if (
-		(
-			(phy_sas_address.high == port_sas_address.high)
-			&& (phy_sas_address.low  == port_sas_address.low)
-		)
-		|| (this_port->active_phy_mask == 0)
-		) {
-		scic_sds_port_activate_phy(this_port, the_phy, do_notify_user);
-
-		if (this_port->parent.state_machine.current_state_id
-		    == SCI_BASE_PORT_STATE_RESETTING) {
-			sci_base_state_machine_change_state(
-				&this_port->parent.state_machine, SCI_BASE_PORT_STATE_READY
-				);
-		}
-	} else {
-		scic_sds_port_invalid_link_up(this_port, the_phy);
-	}
-}
-
-enum sci_status scic_port_stop(struct scic_sds_port *port)
-{
-	return port->state_handlers->parent.stop_handler(&port->parent);
-}
-
 enum sci_status scic_port_get_properties(
 	struct scic_sds_port *port,
 	struct scic_port_properties *prop)
@@ -700,7 +619,20 @@ enum sci_status scic_port_get_properties(
 	return SCI_SUCCESS;
 }
 
-
+/**
+ * scic_port_hard_reset() - This method will request the SCI implementation to
+ *    perform a HARD RESET on the SAS Port.  If/When the HARD RESET completes
+ *    the SCI user will be notified via an SCI OS callback indicating a direct
+ *    attached device was found.
+ * @port: a handle corresponding to the SAS port to be hard reset.
+ * @reset_timeout: This parameter specifies the number of milliseconds in which
+ *    the port reset operation should complete.
+ *
+ * The SCI User callback in SCIC_USER_CALLBACKS_T will only be called once for
+ * each phy in the SAS Port at completion of the hard reset sequence. Return a
+ * status indicating whether the hard reset started successfully. SCI_SUCCESS
+ * This value is returned if the hard reset operation started successfully.
+ */
 enum sci_status scic_port_hard_reset(
 	struct scic_sds_port *port,
 	u32 reset_timeout)
@@ -741,12 +673,11 @@ void scic_sds_port_setup_transports(
  * the phy to the port - enabling the Protocol Engine in the silicon. -
  * notifying the user that the link is up. none
  */
-void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
-				struct scic_sds_phy *sci_phy,
-				bool do_notify_user)
+static void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
+				       struct scic_sds_phy *sci_phy,
+				       bool do_notify_user)
 {
-	struct scic_sds_controller *scic =
-		scic_sds_port_get_controller(sci_port);
+	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
 	struct sci_sas_identify_address_frame_protocols protocols;
 	struct isci_host *ihost = sci_object_get_association(scic);
 
@@ -764,22 +695,11 @@ void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
 		isci_port_link_up(ihost, sci_port, sci_phy);
 }
 
-/**
- *
- * @this_port: This is the port on which the phy should be deactivated.
- * @the_phy: This is the specific phy that is no longer active in the port.
- * @do_notify_user: This parameter specifies whether to inform the user (via
- *    isci_port_link_down()) as to the fact that a new phy as become
- *    ready.
- *
- * This function will deactivate the supplied phy in the port. none
- */
 void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 				  struct scic_sds_phy *sci_phy,
 				  bool do_notify_user)
 {
-	struct scic_sds_controller *scic =
-		scic_sds_port_get_controller(sci_port);
+	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
 	struct isci_port *iport = sci_object_get_association(sci_port);
 	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_phy *iphy = sci_object_get_association(sci_phy);
@@ -820,6 +740,48 @@ static void scic_sds_port_invalid_link_up(
 		isci_port_invalid_link_up(scic, sci_port, sci_phy);
 	}
 }
+
+/**
+ * scic_sds_port_general_link_up_handler - phy can be assigned to port?
+ * @sci_port: scic_sds_port object for which has a phy that has gone link up.
+ * @sci_phy: This is the struct scic_sds_phy object that has gone link up.
+ * @do_notify_user: This parameter specifies whether to inform the user (via
+ *    scic_cb_port_link_up()) as to the fact that a new phy as become ready.
+ *
+ * Determine if this phy can be assigned to this
+ * port . If the phy is not a valid PHY for
+ * this port then the function will notify the user. A PHY can only be
+ * part of a port if it's attached SAS ADDRESS is the same as all other PHYs in
+ * the same port. none
+ */
+static void scic_sds_port_general_link_up_handler(struct scic_sds_port *sci_port,
+						  struct scic_sds_phy *sci_phy,
+						  bool do_notify_user)
+{
+	struct sci_sas_address port_sas_address;
+	struct sci_sas_address phy_sas_address;
+
+	scic_sds_port_get_attached_sas_address(sci_port, &port_sas_address);
+	scic_sds_phy_get_attached_sas_address(sci_phy, &phy_sas_address);
+
+	/* If the SAS address of the new phy matches the SAS address of
+	 * other phys in the port OR this is the first phy in the port,
+	 * then activate the phy and allow it to be used for operations
+	 * in this port.
+	 */
+	if ((phy_sas_address.high == port_sas_address.high &&
+	     phy_sas_address.low  == port_sas_address.low) ||
+	    sci_port->active_phy_mask == 0) {
+		struct sci_base_state_machine *sm = &sci_port->parent.state_machine;
+
+		scic_sds_port_activate_phy(sci_port, sci_phy, do_notify_user);
+		if (sm->current_state_id == SCI_BASE_PORT_STATE_RESETTING)
+			sci_base_state_machine_change_state(sm, SCI_BASE_PORT_STATE_READY);
+	} else
+		scic_sds_port_invalid_link_up(sci_port, sci_phy);
+}
+
+
 
 /**
  * This method returns false if the port only has a single phy object assigned.
@@ -1004,7 +966,7 @@ static void scic_sds_port_timeout_handler(void *port)
  *
  *
  */
-void scic_sds_port_update_viit_entry(struct scic_sds_port *this_port)
+static void scic_sds_port_update_viit_entry(struct scic_sds_port *this_port)
 {
 	struct sci_sas_address sas_address;
 
@@ -1483,9 +1445,106 @@ static enum sci_status scic_sds_port_ready_configuring_substate_complete_io_hand
 	return SCI_SUCCESS;
 }
 
-/* --------------------------------------------------------------------------- */
+static enum sci_status default_port_handler(struct sci_base_port *base_port, const char *func)
+{
+	struct scic_sds_port *sci_port;
 
-struct scic_sds_port_state_handler
+	sci_port = container_of(base_port, typeof(*sci_port), parent);
+	dev_warn(sciport_to_dev(sci_port),
+		 "%s: in wrong state: %d\n", func,
+		 sci_base_state_machine_get_state(&base_port->state_machine));
+	return SCI_FAILURE_INVALID_STATE;
+}
+
+static enum sci_status scic_sds_port_default_start_handler(struct sci_base_port *base_port)
+{
+	return default_port_handler(base_port, __func__);
+}
+
+static enum sci_status scic_sds_port_default_stop_handler(struct sci_base_port *base_port)
+{
+	return default_port_handler(base_port, __func__);
+}
+
+static enum sci_status scic_sds_port_default_destruct_handler(struct sci_base_port *base_port)
+{
+	return default_port_handler(base_port, __func__);
+}
+
+static enum sci_status scic_sds_port_default_reset_handler(struct sci_base_port *base_port,
+						    u32 timeout)
+{
+	return default_port_handler(base_port, __func__);
+}
+
+static enum sci_status scic_sds_port_default_add_phy_handler(struct sci_base_port *base_port,
+							     struct sci_base_phy *base_phy)
+{
+	return default_port_handler(base_port, __func__);
+}
+
+static enum sci_status scic_sds_port_default_remove_phy_handler(struct sci_base_port *base_port,
+							 struct sci_base_phy *base_phy)
+{
+	return default_port_handler(base_port, __func__);
+}
+
+/**
+ * scic_sds_port_default_frame_handler
+ * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
+ *    object.
+ *
+ * This is the default method for a port unsolicited frame request.  It will
+ * report a warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE Is it even
+ * possible to receive an unsolicited frame directed to a port object?  It
+ * seems possible if we implementing virtual functions but until then?
+ */
+static enum sci_status scic_sds_port_default_frame_handler(struct scic_sds_port *sci_port,
+						    u32 frame_index)
+{
+	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
+
+	default_port_handler(&sci_port->parent, __func__);
+	scic_sds_controller_release_frame(scic, frame_index);
+
+	return SCI_FAILURE_INVALID_STATE;
+}
+
+static enum sci_status scic_sds_port_default_event_handler(struct scic_sds_port *sci_port,
+						    u32 event_code)
+{
+	return default_port_handler(&sci_port->parent, __func__);
+}
+
+static void scic_sds_port_default_link_up_handler(struct scic_sds_port *sci_port,
+					   struct scic_sds_phy *sci_phy)
+{
+	default_port_handler(&sci_port->parent, __func__);
+}
+
+static void scic_sds_port_default_link_down_handler(struct scic_sds_port *sci_port,
+					     struct scic_sds_phy *sci_phy)
+{
+	default_port_handler(&sci_port->parent, __func__);
+}
+
+static enum sci_status scic_sds_port_default_start_io_handler(struct scic_sds_port *sci_port,
+						       struct scic_sds_remote_device *sci_dev,
+						       struct scic_sds_request *sci_req)
+{
+	return default_port_handler(&sci_port->parent, __func__);
+}
+
+static enum sci_status scic_sds_port_default_complete_io_handler(struct scic_sds_port *sci_port,
+								 struct scic_sds_remote_device *sci_dev,
+								 struct scic_sds_request *sci_req)
+{
+	return default_port_handler(&sci_port->parent, __func__);
+}
+
+
+
+static struct scic_sds_port_state_handler
 scic_sds_port_ready_substate_handler_table[SCIC_SDS_PORT_READY_MAX_SUBSTATES] =
 {
 	/* SCIC_SDS_PORT_READY_SUBSTATE_WAITING */
@@ -1541,7 +1600,6 @@ scic_sds_port_ready_substate_handler_table[SCIC_SDS_PORT_READY_MAX_SUBSTATES] =
 	}
 };
 
-
 /**
  * scic_sds_port_set_ready_state_handlers() -
  *
@@ -1584,7 +1642,7 @@ static void scic_sds_port_suspend_port_task_scheduler(
  * ongoing requests.
  *
  */
-void scic_sds_port_post_dummy_request(struct scic_sds_port *sci_port)
+static void scic_sds_port_post_dummy_request(struct scic_sds_port *sci_port)
 {
 	u32 command;
 	struct scu_task_context *task_context;
@@ -1609,7 +1667,7 @@ void scic_sds_port_post_dummy_request(struct scic_sds_port *sci_port)
  * @sci_port: The port on which the task must be aborted.
  *
  */
-void scic_sds_port_abort_dummy_request(struct scic_sds_port *sci_port)
+static void scic_sds_port_abort_dummy_request(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	u16 tci = sci_port->reserved_tci;
@@ -1801,7 +1859,7 @@ static void scic_sds_port_ready_substate_configuring_exit(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_port_ready_substate_table[] = {
+static const struct sci_base_state scic_sds_port_ready_substate_table[] = {
 	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
 		.enter_state = scic_sds_port_ready_substate_waiting_enter,
 	},
@@ -1814,103 +1872,6 @@ const struct sci_base_state scic_sds_port_ready_substate_table[] = {
 		.exit_state  = scic_sds_port_ready_substate_configuring_exit
 	},
 };
-
-static enum sci_status default_port_handler(struct sci_base_port *base_port, const char *func)
-{
-	struct scic_sds_port *sci_port;
-
-	sci_port = container_of(base_port, typeof(*sci_port), parent);
-	dev_warn(sciport_to_dev(sci_port),
-		 "%s: in wrong state: %d\n", func,
-		 sci_base_state_machine_get_state(&base_port->state_machine));
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-enum sci_status scic_sds_port_default_start_handler(struct sci_base_port *base_port)
-{
-	return default_port_handler(base_port, __func__);
-}
-
-static enum sci_status scic_sds_port_default_stop_handler(struct sci_base_port *base_port)
-{
-	return default_port_handler(base_port, __func__);
-}
-
-enum sci_status scic_sds_port_default_destruct_handler(struct sci_base_port *base_port)
-{
-	return default_port_handler(base_port, __func__);
-}
-
-enum sci_status scic_sds_port_default_reset_handler(struct sci_base_port *base_port,
-						    u32 timeout)
-{
-	return default_port_handler(base_port, __func__);
-}
-
-static enum sci_status scic_sds_port_default_add_phy_handler(struct sci_base_port *base_port,
-							     struct sci_base_phy *base_phy)
-{
-	return default_port_handler(base_port, __func__);
-}
-
-enum sci_status scic_sds_port_default_remove_phy_handler(struct sci_base_port *base_port,
-							 struct sci_base_phy *base_phy)
-{
-	return default_port_handler(base_port, __func__);
-}
-
-/**
- * scic_sds_port_default_frame_handler
- * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
- *    object.
- *
- * This is the default method for a port unsolicited frame request.  It will
- * report a warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE Is it even
- * possible to receive an unsolicited frame directed to a port object?  It
- * seems possible if we implementing virtual functions but until then?
- */
-enum sci_status scic_sds_port_default_frame_handler(struct scic_sds_port *sci_port,
-						    u32 frame_index)
-{
-	struct scic_sds_controller *scic = scic_sds_port_get_controller(sci_port);
-
-	default_port_handler(&sci_port->parent, __func__);
-	scic_sds_controller_release_frame(scic, frame_index);
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-enum sci_status scic_sds_port_default_event_handler(struct scic_sds_port *sci_port,
-						    u32 event_code)
-{
-	return default_port_handler(&sci_port->parent, __func__);
-}
-
-void scic_sds_port_default_link_up_handler(struct scic_sds_port *sci_port,
-					   struct scic_sds_phy *sci_phy)
-{
-	default_port_handler(&sci_port->parent, __func__);
-}
-
-void scic_sds_port_default_link_down_handler(struct scic_sds_port *sci_port,
-					     struct scic_sds_phy *sci_phy)
-{
-	default_port_handler(&sci_port->parent, __func__);
-}
-
-enum sci_status scic_sds_port_default_start_io_handler(struct scic_sds_port *sci_port,
-						       struct scic_sds_remote_device *sci_dev,
-						       struct scic_sds_request *sci_req)
-{
-	return default_port_handler(&sci_port->parent, __func__);
-}
-
-static enum sci_status scic_sds_port_default_complete_io_handler(struct scic_sds_port *sci_port,
-								 struct scic_sds_remote_device *sci_dev,
-								 struct scic_sds_request *sci_req)
-{
-	return default_port_handler(&sci_port->parent, __func__);
-}
 
 /**
  *
@@ -2248,9 +2209,7 @@ static void scic_sds_port_reset_state_link_down_handler(
 	scic_sds_port_deactivate_phy(this_port, phy, false);
 }
 
-/* --------------------------------------------------------------------------- */
-
-struct scic_sds_port_state_handler
+static struct scic_sds_port_state_handler
 scic_sds_port_state_handler_table[SCI_BASE_PORT_MAX_STATES] =
 {
 	/* SCI_BASE_PORT_STATE_STOPPED */
@@ -2384,7 +2343,7 @@ static void scic_sds_port_disable_port_task_scheduler(
 	scu_port_task_scheduler_write(this_port, control, pts_control_value);
 }
 
-void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
+static void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	u8 phys_index = sci_port->physical_port_index;
@@ -2412,7 +2371,7 @@ void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
 	scic_sds_controller_post_request(scic, command);
 }
 
-void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci_port)
+static void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	u8 phys_index = sci_port->physical_port_index;
@@ -2639,7 +2598,7 @@ static void scic_sds_port_failed_state_enter(struct sci_base_object *object)
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_port_state_table[] = {
+static const struct sci_base_state scic_sds_port_state_table[] = {
 	[SCI_BASE_PORT_STATE_STOPPED] = {
 		.enter_state = scic_sds_port_stopped_state_enter,
 		.exit_state  = scic_sds_port_stopped_state_exit
@@ -2661,3 +2620,34 @@ const struct sci_base_state scic_sds_port_state_table[] = {
 	}
 };
 
+void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 port_index,
+			     struct scic_sds_controller *scic)
+{
+	u32 index;
+
+	sci_base_port_construct(&sci_port->parent, scic_sds_port_state_table);
+
+	sci_base_state_machine_construct(&sci_port->ready_substate_machine,
+					 &sci_port->parent.parent,
+					 scic_sds_port_ready_substate_table,
+					 SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
+
+	sci_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
+	sci_port->physical_port_index = port_index;
+	sci_port->active_phy_mask     = 0;
+
+	sci_port->owning_controller = scic;
+
+	sci_port->started_request_count = 0;
+	sci_port->assigned_device_count = 0;
+
+	sci_port->reserved_rni = SCU_DUMMY_INDEX;
+	sci_port->reserved_tci = SCU_DUMMY_INDEX;
+
+	sci_port->timer_handle = NULL;
+
+	sci_port->port_task_scheduler_registers = NULL;
+
+	for (index = 0; index < SCI_MAX_PHYS; index++)
+		sci_port->phy_table[index] = NULL;
+}

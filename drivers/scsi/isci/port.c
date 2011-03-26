@@ -201,7 +201,7 @@ void isci_port_link_up(
 		call_status = scic_sata_phy_get_properties(phy,
 							   &sata_phy_properties);
 
-		/* 
+		/*
 		 * XXX I am concerned about this "assert". shouldn't we
 		 * handle the return appropriately?
 		 */

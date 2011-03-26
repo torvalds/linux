@@ -391,13 +391,7 @@ static inline void *isci_request_io_request_get_next_sge(
 	return ret;
 }
 
-dma_addr_t isci_request_sge_get_address_field(
-	struct isci_request *request,
-	void *sge_address);
 
-u32 isci_request_sge_get_length_field(
-	struct isci_request *request,
-	void *sge_address);
 
 void *isci_request_ssp_io_request_get_cdb_address(
 	struct isci_request *request);

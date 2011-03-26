@@ -193,7 +193,7 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_response_frame_handler
 	return SCI_SUCCESS;
 }
 
-const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_started_substate_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_started_substate_handler_table[] = {
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,

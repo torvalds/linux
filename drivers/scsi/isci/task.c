@@ -588,7 +588,7 @@ void isci_task_build_tmf(
 	tmf->cb_data       = cb_data;
 }
 
-void isci_task_build_abort_task_tmf(
+static void isci_task_build_abort_task_tmf(
 	struct isci_tmf *tmf,
 	struct isci_remote_device *isci_device,
 	enum isci_tmf_function_codes code,
@@ -1528,15 +1528,6 @@ void isci_task_request_complete(
  *
  * lun for specified task request.
  */
-u32 isci_task_ssp_request_get_lun(struct isci_request *request)
-{
-	struct isci_tmf *isci_tmf = isci_request_access_tmf(request);
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: lun = %d\n", __func__, isci_tmf->lun[0]);
-/* @todo: build lun from array of bytes to 32 bit */
-	return isci_tmf->lun[0];
-}
 
 /**
  * isci_task_ssp_request_get_function() - This function is called by the sci

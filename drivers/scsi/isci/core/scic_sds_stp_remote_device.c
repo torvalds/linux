@@ -565,7 +565,7 @@ enum sci_status scic_sds_stp_remote_device_ready_atapi_error_substate_event_hand
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_remote_device_state_handler scic_sds_stp_remote_device_ready_substate_handler_table[] = {
+static const struct scic_sds_remote_device_state_handler scic_sds_stp_remote_device_ready_substate_handler_table[] = {
 	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
 		.parent.start_handler		= scic_sds_remote_device_default_start_handler,
 		.parent.stop_handler		= scic_sds_remote_device_ready_state_stop_handler,

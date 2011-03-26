@@ -188,16 +188,4 @@ struct sci_base_port_state_handler {
 	SCI_BASE_PORT_PHY_HANDLER_T remove_phy_handler;
 
 };
-
-/**
- * sci_base_port_construct() - Construct the base port object
- * @this_port: This parameter specifies the base port to be constructed.
- * @state_table: This parameter specifies the table of state definitions to be
- *    utilized for the domain state machine.
- *
- */
-void sci_base_port_construct(
-	struct sci_base_port *this_port,
-	const struct sci_base_state *state_table);
-
 #endif /* _SCI_BASE_PORT_H_ */

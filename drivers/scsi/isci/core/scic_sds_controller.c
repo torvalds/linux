@@ -219,82 +219,19 @@ sci_controller_get_memory_descriptor_list_handle(struct scic_sds_controller *sci
        return &scic->parent.mdl;
 }
 
-/*
- * ****************************************************************************-
- * * SCIC SDS Controller Initialization Methods
- * ****************************************************************************- */
-
-/**
- * This timer is used to start another phy after we have given up on the
- *    previous phy to transition to the ready state.
- *
- *
- */
-static void scic_sds_controller_phy_startup_timeout_handler(
-	void *controller)
-{
-	enum sci_status status;
-	struct scic_sds_controller *this_controller;
-
-	this_controller = (struct scic_sds_controller *)controller;
-
-	this_controller->phy_startup_timer_pending = false;
-
-	status = SCI_FAILURE;
-
-	while (status != SCI_SUCCESS) {
-		status = scic_sds_controller_start_next_phy(this_controller);
-	}
-}
-
-/**
- *
- *
- * This method initializes the phy startup operations for controller start.
- */
-enum sci_status scic_sds_controller_initialize_phy_startup(
-		struct scic_sds_controller *scic)
+static void scic_sds_controller_initialize_power_control(struct scic_sds_controller *scic)
 {
 	struct isci_host *ihost = sci_object_get_association(scic);
+	scic->power_control.timer = isci_timer_create(ihost,
+						      scic,
+					scic_sds_controller_power_control_timer_handler);
 
-	scic->phy_startup_timer = isci_timer_create(ihost,
-						    scic,
-						    scic_sds_controller_phy_startup_timeout_handler);
-
-	if (scic->phy_startup_timer == NULL)
-		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
-	else {
-		scic->next_phy_to_start = 0;
-		scic->phy_startup_timer_pending = false;
-	}
-
-	return SCI_SUCCESS;
-}
-
-/**
- *
- *
- * This method initializes the power control operations for the controller
- * object.
- */
-void scic_sds_controller_initialize_power_control(
-		struct scic_sds_controller *scic)
-{
-	struct isci_host *ihost = sci_object_get_association(scic);
-	scic->power_control.timer = isci_timer_create(
-			ihost,
-			scic,
-			scic_sds_controller_power_control_timer_handler);
-
-	memset(scic->power_control.requesters,
-	       0,
+	memset(scic->power_control.requesters, 0,
 	       sizeof(scic->power_control.requesters));
 
 	scic->power_control.phys_waiting = 0;
 	scic->power_control.phys_granted_power = 0;
 }
-
-/* --------------------------------------------------------------------------- */
 
 #define SCU_REMOTE_NODE_CONTEXT_ALIGNMENT       (32)
 #define SCU_TASK_CONTEXT_ALIGNMENT              (256)
@@ -302,15 +239,13 @@ void scic_sds_controller_initialize_power_control(
 #define SCU_UNSOLICITED_FRAME_BUFFER_ALIGNMENT  (1024)
 #define SCU_UNSOLICITED_FRAME_HEADER_ALIGNMENT  (64)
 
-/* --------------------------------------------------------------------------- */
-
 /**
  * This method builds the memory descriptor table for this controller.
  * @this_controller: This parameter specifies the controller object for which
  *    to build the memory table.
  *
  */
-void scic_sds_controller_build_memory_descriptor_table(
+static void scic_sds_controller_build_memory_descriptor_table(
 	struct scic_sds_controller *this_controller)
 {
 	sci_base_mde_construct(
@@ -356,7 +291,7 @@ void scic_sds_controller_build_memory_descriptor_table(
  *
  * enum sci_status
  */
-enum sci_status scic_sds_controller_validate_memory_descriptor_table(
+static enum sci_status scic_sds_controller_validate_memory_descriptor_table(
 	struct scic_sds_controller *this_controller)
 {
 	bool mde_list_valid;
@@ -410,7 +345,7 @@ enum sci_status scic_sds_controller_validate_memory_descriptor_table(
  * @this_controller:
  *
  */
-void scic_sds_controller_ram_initialization(
+static void scic_sds_controller_ram_initialization(
 	struct scic_sds_controller *this_controller)
 {
 	struct sci_physical_memory_descriptor *mde;
@@ -457,7 +392,7 @@ void scic_sds_controller_ram_initialization(
  * @this_controller:
  *
  */
-void scic_sds_controller_assign_task_entries(
+static void scic_sds_controller_assign_task_entries(
 	struct scic_sds_controller *this_controller)
 {
 	u32 task_assignment;
@@ -483,7 +418,7 @@ void scic_sds_controller_assign_task_entries(
  *
  *
  */
-void scic_sds_controller_initialize_completion_queue(
+static void scic_sds_controller_initialize_completion_queue(
 	struct scic_sds_controller *this_controller)
 {
 	u32 index;
@@ -533,7 +468,7 @@ void scic_sds_controller_initialize_completion_queue(
  *
  *
  */
-void scic_sds_controller_initialize_unsolicited_frame_queue(
+static void scic_sds_controller_initialize_unsolicited_frame_queue(
 	struct scic_sds_controller *this_controller)
 {
 	u32 frame_queue_control_value;
@@ -565,7 +500,7 @@ void scic_sds_controller_initialize_unsolicited_frame_queue(
  *
  *
  */
-void scic_sds_controller_enable_port_task_scheduler(
+static void scic_sds_controller_enable_port_task_scheduler(
 	struct scic_sds_controller *this_controller)
 {
 	u32 port_task_scheduler_value;
@@ -578,8 +513,6 @@ void scic_sds_controller_enable_port_task_scheduler(
 	SCU_PTSGCR_WRITE(this_controller, port_task_scheduler_value);
 }
 
-/* --------------------------------------------------------------------------- */
-
 /**
  *
  *
@@ -591,7 +524,7 @@ void scic_sds_controller_enable_port_task_scheduler(
 /* Initialize the AFE for this phy index. We need to read the AFE setup from
  * the OEM parameters none
  */
-void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
+static void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
 {
 	const struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
 	u32 afe_status;
@@ -746,7 +679,7 @@ static void scic_sds_controller_transition_to_ready(
 	}
 }
 
-void scic_sds_controller_timeout_handler(void *_scic)
+static void scic_sds_controller_timeout_handler(void *_scic)
 {
 	struct scic_sds_controller *scic = _scic;
 	struct isci_host *ihost = sci_object_get_association(scic);
@@ -764,7 +697,7 @@ void scic_sds_controller_timeout_handler(void *_scic)
 			__func__);
 }
 
-enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
+static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
 {
 	u32 index;
 	enum sci_status port_status;
@@ -802,8 +735,7 @@ static inline void scic_sds_controller_phy_timer_start(
 	scic->phy_startup_timer_pending = true;
 }
 
-inline void scic_sds_controller_phy_timer_stop(
-		struct scic_sds_controller *scic)
+static void scic_sds_controller_phy_timer_stop(struct scic_sds_controller *scic)
 {
 	isci_timer_stop(scic->phy_startup_timer);
 
@@ -811,16 +743,14 @@ inline void scic_sds_controller_phy_timer_stop(
 }
 
 /**
- * This method is called internally by the controller object to start the next
- *    phy on the controller.  If all the phys have been started, then this
- *    method will attempt to transition the controller to the READY state and
- *    inform the user (scic_cb_controller_start_complete()).
- * @this_controller: This parameter specifies the controller object for which
- *    to start the next phy.
+ * scic_sds_controller_start_next_phy - start phy
+ * @scic: controller
  *
- * enum sci_status
+ * If all the phys have been started, then attempt to transition the
+ * controller to the READY state and inform the user
+ * (scic_cb_controller_start_complete()).
  */
-enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_controller *scic)
+static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_controller *scic)
 {
 	struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
 	struct scic_sds_phy *sci_phy;
@@ -907,14 +837,36 @@ enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_controller *s
 	return status;
 }
 
-/**
- *
- * @this_controller:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_controller_stop_phys(
-	struct scic_sds_controller *this_controller)
+static void scic_sds_controller_phy_startup_timeout_handler(void *_scic)
+{
+	struct scic_sds_controller *scic = _scic;
+	enum sci_status status;
+
+	scic->phy_startup_timer_pending = false;
+	status = SCI_FAILURE;
+	while (status != SCI_SUCCESS)
+		status = scic_sds_controller_start_next_phy(scic);
+}
+
+static enum sci_status scic_sds_controller_initialize_phy_startup(struct scic_sds_controller *scic)
+{
+	struct isci_host *ihost = sci_object_get_association(scic);
+
+	scic->phy_startup_timer = isci_timer_create(ihost,
+						    scic,
+						    scic_sds_controller_phy_startup_timeout_handler);
+
+	if (scic->phy_startup_timer == NULL)
+		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+	else {
+		scic->next_phy_to_start = 0;
+		scic->phy_startup_timer_pending = false;
+	}
+
+	return SCI_SUCCESS;
+}
+
+static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller *scic)
 {
 	u32 index;
 	enum sci_status status;
@@ -923,7 +875,7 @@ enum sci_status scic_sds_controller_stop_phys(
 	status = SCI_SUCCESS;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		phy_status = scic_sds_phy_stop(&this_controller->phy_table[index]);
+		phy_status = scic_sds_phy_stop(&scic->phy_table[index]);
 
 		if (
 			(phy_status != SCI_SUCCESS)
@@ -931,25 +883,18 @@ enum sci_status scic_sds_controller_stop_phys(
 			) {
 			status = SCI_FAILURE;
 
-			dev_warn(scic_to_dev(this_controller),
+			dev_warn(scic_to_dev(scic),
 				 "%s: Controller stop operation failed to stop "
 				 "phy %d because of status %d.\n",
 				 __func__,
-				 this_controller->phy_table[index].phy_index, phy_status);
+				 scic->phy_table[index].phy_index, phy_status);
 		}
 	}
 
 	return status;
 }
 
-/**
- *
- * @this_controller:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_controller_stop_devices(
-	struct scic_sds_controller *this_controller)
+static enum sci_status scic_sds_controller_stop_devices(struct scic_sds_controller *scic)
 {
 	u32 index;
 	enum sci_status status;
@@ -957,19 +902,19 @@ enum sci_status scic_sds_controller_stop_devices(
 
 	status = SCI_SUCCESS;
 
-	for (index = 0; index < this_controller->remote_node_entries; index++) {
-		if (this_controller->device_table[index] != NULL) {
+	for (index = 0; index < scic->remote_node_entries; index++) {
+		if (scic->device_table[index] != NULL) {
 			/* / @todo What timeout value do we want to provide to this request? */
-			device_status = scic_remote_device_stop(this_controller->device_table[index], 0);
+			device_status = scic_remote_device_stop(scic->device_table[index], 0);
 
 			if ((device_status != SCI_SUCCESS) &&
 			    (device_status != SCI_FAILURE_INVALID_STATE)) {
-				dev_warn(scic_to_dev(this_controller),
+				dev_warn(scic_to_dev(scic),
 					 "%s: Controller stop operation failed "
 					 "to stop device 0x%p because of "
 					 "status %d.\n",
 					 __func__,
-					 this_controller->device_table[index], device_status);
+					 scic->device_table[index], device_status);
 			}
 		}
 	}
@@ -977,18 +922,7 @@ enum sci_status scic_sds_controller_stop_devices(
 	return status;
 }
 
-/*
- * ****************************************************************************-
- * * SCIC SDS Controller Power Control (Staggered Spinup)
- * ****************************************************************************- */
-
-/**
- * This function starts the power control timer for this controller object.
- *
- * @param scic
- */
-static inline void scic_sds_controller_power_control_timer_start(
-	struct scic_sds_controller *scic)
+static void scic_sds_controller_power_control_timer_start(struct scic_sds_controller *scic)
 {
 	isci_timer_start(scic->power_control.timer,
 			 SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
@@ -996,13 +930,7 @@ static inline void scic_sds_controller_power_control_timer_start(
 	scic->power_control.timer_started = true;
 }
 
-/**
- * This method stops the power control timer for this controller object.
- *
- * @param scic
- */
-static inline void scic_sds_controller_power_control_timer_stop(
-		struct scic_sds_controller *scic)
+static void scic_sds_controller_power_control_timer_stop(struct scic_sds_controller *scic)
 {
 	if (scic->power_control.timer_started) {
 		isci_timer_stop(scic->power_control.timer);
@@ -1010,24 +938,12 @@ static inline void scic_sds_controller_power_control_timer_stop(
 	}
 }
 
-/**
- * This method stops and starts the power control timer for this controller
- * object.
- *
- * @param scic
- */
-static inline void scic_sds_controller_power_control_timer_restart(
-	struct scic_sds_controller *scic)
+static void scic_sds_controller_power_control_timer_restart(struct scic_sds_controller *scic)
 {
 	scic_sds_controller_power_control_timer_stop(scic);
 	scic_sds_controller_power_control_timer_start(scic);
 }
 
-/**
- *
- *
- *
- */
 static void scic_sds_controller_power_control_timer_handler(
 	void *controller)
 {
@@ -1145,8 +1061,6 @@ static bool scic_sds_controller_completion_queue_has_entries(
 
 	return false;
 }
-
-/* --------------------------------------------------------------------------- */
 
 /**
  * This method processes a task completion notification.  This is called from
@@ -1625,10 +1539,6 @@ void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
 }
 
 
-u32 scic_sds_controller_get_object_size(void)
-{
-	return sizeof(struct scic_sds_controller);
-}
 
 
 void scic_sds_controller_link_up(
@@ -1703,7 +1613,7 @@ void scic_sds_controller_remote_device_started(struct scic_sds_controller *scic,
  * controller are still in the stopping state.
  *
  */
-bool scic_sds_controller_has_remote_devices_stopping(
+static bool scic_sds_controller_has_remote_devices_stopping(
 	struct scic_sds_controller *this_controller)
 {
 	u32 index;
@@ -2042,62 +1952,20 @@ static void scic_sds_controller_set_default_config_parameters(struct scic_sds_co
 	scic->user_parameters.sds1.no_outbound_task_timeout = 20;
 }
 
-
-enum sci_status scic_controller_construct(struct scic_sds_controller *controller,
-					  void __iomem *scu_base,
-					  void __iomem *smu_base)
-{
-	u8 index;
-
-	sci_base_controller_construct(
-		&controller->parent,
-		scic_sds_controller_state_table,
-		controller->memory_descriptors,
-		ARRAY_SIZE(controller->memory_descriptors),
-		NULL
-		);
-
-	controller->scu_registers = scu_base;
-	controller->smu_registers = smu_base;
-
-	scic_sds_port_configuration_agent_construct(&controller->port_agent);
-
-	/* Construct the ports for this controller */
-	for (index = 0; index < SCI_MAX_PORTS; index++)
-		scic_sds_port_construct(&controller->port_table[index],
-					index, controller);
-	scic_sds_port_construct(&controller->port_table[index],
-				SCIC_SDS_DUMMY_PORT, controller);
-
-	/* Construct the phys for this controller */
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		/* Add all the PHYs to the dummy port */
-		scic_sds_phy_construct(
-			&controller->phy_table[index],
-			&controller->port_table[SCI_MAX_PORTS],
-			index
-			);
-	}
-
-	controller->invalid_phy_mask = 0;
-
-	/* Set the default maximum values */
-	controller->completion_event_entries      = SCU_EVENT_COUNT;
-	controller->completion_queue_entries      = SCU_COMPLETION_QUEUE_COUNT;
-	controller->remote_node_entries           = SCI_MAX_REMOTE_DEVICES;
-	controller->logical_port_entries          = SCI_MAX_PORTS;
-	controller->task_context_entries          = SCU_IO_REQUEST_COUNT;
-	controller->uf_control.buffers.count      = SCU_UNSOLICITED_FRAME_COUNT;
-	controller->uf_control.address_table.count = SCU_UNSOLICITED_FRAME_COUNT;
-
-	/* Initialize the User and OEM parameters to default values. */
-	scic_sds_controller_set_default_config_parameters(controller);
-
-	return scic_controller_reset(controller);
-}
-
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_initialize() - This method will initialize the controller
+ *    hardware managed by the supplied core controller object.  This method
+ *    will bring the physical controller hardware out of reset and enable the
+ *    core to determine the capabilities of the hardware being managed.  Thus,
+ *    the core controller can determine it's exact physical (DMA capable)
+ *    memory requirements.
+ * @controller: This parameter specifies the controller to be initialized.
+ *
+ * The SCI Core user must have called scic_controller_construct() on the
+ * supplied controller object previously. Indicate if the controller was
+ * successfully initialized or if it failed in some way. SCI_SUCCESS This value
+ * is returned if the controller hardware was successfully initialized.
+ */
 enum sci_status scic_controller_initialize(
 	struct scic_sds_controller *scic)
 {
@@ -2118,8 +1986,18 @@ enum sci_status scic_controller_initialize(
 	return status;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_get_suggested_start_timeout() - This method returns the
+ *    suggested scic_controller_start() timeout amount.  The user is free to
+ *    use any timeout value, but this method provides the suggested minimum
+ *    start timeout value.  The returned value is based upon empirical
+ *    information determined as a result of interoperability testing.
+ * @controller: the handle to the controller object for which to return the
+ *    suggested start timeout.
+ *
+ * This method returns the number of milliseconds for the suggested start
+ * operation timeout.
+ */
 u32 scic_controller_get_suggested_start_timeout(
 	struct scic_sds_controller *sc)
 {
@@ -2146,8 +2024,28 @@ u32 scic_controller_get_suggested_start_timeout(
 		+ ((SCI_MAX_PHYS - 1) * SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_start() - This method will start the supplied core
+ *    controller.  This method will start the staggered spin up operation.  The
+ *    SCI User completion callback is called when the following conditions are
+ *    met: -# the return status of this method is SCI_SUCCESS. -# after all of
+ *    the phys have successfully started or been given the opportunity to start.
+ * @controller: the handle to the controller object to start.
+ * @timeout: This parameter specifies the number of milliseconds in which the
+ *    start operation should complete.
+ *
+ * The SCI Core user must have filled in the physical memory descriptor
+ * structure via the sci_controller_get_memory_descriptor_list() method. The
+ * SCI Core user must have invoked the scic_controller_initialize() method
+ * prior to invoking this method. The controller must be in the INITIALIZED or
+ * STARTED state. Indicate if the controller start method succeeded or failed
+ * in some way. SCI_SUCCESS if the start operation succeeded.
+ * SCI_WARNING_ALREADY_IN_STATE if the controller is already in the STARTED
+ * state. SCI_FAILURE_INVALID_STATE if the controller is not either in the
+ * INITIALIZED or STARTED states. SCI_FAILURE_INVALID_MEMORY_DESCRIPTOR if
+ * there are inconsistent or invalid values in the supplied
+ * struct sci_physical_memory_descriptor array.
+ */
 enum sci_status scic_controller_start(
 	struct scic_sds_controller *scic,
 	u32 timeout)
@@ -2169,8 +2067,24 @@ enum sci_status scic_controller_start(
 	return status;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_stop() - This method will stop an individual controller
+ *    object.This method will invoke the associated user callback upon
+ *    completion.  The completion callback is called when the following
+ *    conditions are met: -# the method return status is SCI_SUCCESS. -# the
+ *    controller has been quiesced. This method will ensure that all IO
+ *    requests are quiesced, phys are stopped, and all additional operation by
+ *    the hardware is halted.
+ * @controller: the handle to the controller object to stop.
+ * @timeout: This parameter specifies the number of milliseconds in which the
+ *    stop operation should complete.
+ *
+ * The controller must be in the STARTED or STOPPED state. Indicate if the
+ * controller stop method succeeded or failed in some way. SCI_SUCCESS if the
+ * stop operation successfully began. SCI_WARNING_ALREADY_IN_STATE if the
+ * controller is already in the STOPPED state. SCI_FAILURE_INVALID_STATE if the
+ * controller is not either in the STARTED or STOPPED states.
+ */
 enum sci_status scic_controller_stop(
 	struct scic_sds_controller *scic,
 	u32 timeout)
@@ -2192,8 +2106,18 @@ enum sci_status scic_controller_stop(
 	return status;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_reset() - This method will reset the supplied core
+ *    controller regardless of the state of said controller.  This operation is
+ *    considered destructive.  In other words, all current operations are wiped
+ *    out.  No IO completions for outstanding devices occur.  Outstanding IO
+ *    requests are not aborted or completed at the actual remote device.
+ * @controller: the handle to the controller object to reset.
+ *
+ * Indicate if the controller reset method succeeded or failed in some way.
+ * SCI_SUCCESS if the reset operation successfully started. SCI_FATAL_ERROR if
+ * the controller reset operation is unable to complete.
+ */
 enum sci_status scic_controller_reset(
 	struct scic_sds_controller *scic)
 {
@@ -2214,6 +2138,33 @@ enum sci_status scic_controller_reset(
 	return status;
 }
 
+/**
+ * scic_controller_start_io() - This method is called by the SCI user to
+ *    send/start an IO request. If the method invocation is successful, then
+ *    the IO request has been queued to the hardware for processing.
+ * @controller: the handle to the controller object for which to start an IO
+ *    request.
+ * @remote_device: the handle to the remote device object for which to start an
+ *    IO request.
+ * @io_request: the handle to the io request object to start.
+ * @io_tag: This parameter specifies a previously allocated IO tag that the
+ *    user desires to be utilized for this request. This parameter is optional.
+ *     The user is allowed to supply SCI_CONTROLLER_INVALID_IO_TAG as the value
+ *    for this parameter.
+ *
+ * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
+ * to ensure that each of the methods that may allocate or free available IO
+ * tags are handled in a mutually exclusive manner.  This method is one of said
+ * methods requiring proper critical code section protection (e.g. semaphore,
+ * spin-lock, etc.). - For SATA, the user is required to manage NCQ tags.  As a
+ * result, it is expected the user will have set the NCQ tag field in the host
+ * to device register FIS prior to calling this method.  There is also a
+ * requirement for the user to call scic_stp_io_set_ncq_tag() prior to invoking
+ * the scic_controller_start_io() method. scic_controller_allocate_tag() for
+ * more information on allocating a tag. Indicate if the controller
+ * successfully started the IO request. SCI_IO_SUCCESS if the IO request was
+ * successfully started. Determine the failure situations and return values.
+ */
 enum sci_io_status scic_controller_start_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
@@ -2231,8 +2182,22 @@ enum sci_io_status scic_controller_start_io(
 			(struct sci_base_request *)io_request, io_tag);
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_terminate_request() - This method is called by the SCI Core
+ *    user to terminate an ongoing (i.e. started) core IO request.  This does
+ *    not abort the IO request at the target, but rather removes the IO request
+ *    from the host controller.
+ * @controller: the handle to the controller object for which to terminate a
+ *    request.
+ * @remote_device: the handle to the remote device object for which to
+ *    terminate a request.
+ * @request: the handle to the io or task management request object to
+ *    terminate.
+ *
+ * Indicate if the controller successfully began the terminate process for the
+ * IO request. SCI_SUCCESS if the terminate process was successfully started
+ * for the request. Determine the failure situations and return values.
+ */
 enum sci_status scic_controller_terminate_request(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
@@ -2249,8 +2214,28 @@ enum sci_status scic_controller_terminate_request(
 				 (struct sci_base_request *)request);
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_complete_io() - This method will perform core specific
+ *    completion operations for an IO request.  After this method is invoked,
+ *    the user should consider the IO request as invalid until it is properly
+ *    reused (i.e. re-constructed).
+ * @controller: The handle to the controller object for which to complete the
+ *    IO request.
+ * @remote_device: The handle to the remote device object for which to complete
+ *    the IO request.
+ * @io_request: the handle to the io request object to complete.
+ *
+ * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
+ * to ensure that each of the methods that may allocate or free available IO
+ * tags are handled in a mutually exclusive manner.  This method is one of said
+ * methods requiring proper critical code section protection (e.g. semaphore,
+ * spin-lock, etc.). - If the IO tag for a request was allocated, by the SCI
+ * Core user, using the scic_controller_allocate_io_tag() method, then it is
+ * the responsibility of the caller to invoke the scic_controller_free_io_tag()
+ * method to free the tag (i.e. this method will not free the IO tag). Indicate
+ * if the controller successfully completed the IO request. SCI_SUCCESS if the
+ * completion process was successful.
+ */
 enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
@@ -2267,9 +2252,34 @@ enum sci_status scic_controller_complete_io(
 			   (struct sci_base_request *)io_request);
 }
 
-/* --------------------------------------------------------------------------- */
-
-
+/**
+ * scic_controller_start_task() - This method is called by the SCIC user to
+ *    send/start a framework task management request.
+ * @controller: the handle to the controller object for which to start the task
+ *    management request.
+ * @remote_device: the handle to the remote device object for which to start
+ *    the task management request.
+ * @task_request: the handle to the task request object to start.
+ * @io_tag: This parameter specifies a previously allocated IO tag that the
+ *    user desires to be utilized for this request.  Note this not the io_tag
+ *    of the request being managed.  It is to be utilized for the task request
+ *    itself. This parameter is optional.  The user is allowed to supply
+ *    SCI_CONTROLLER_INVALID_IO_TAG as the value for this parameter.
+ *
+ * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
+ * to ensure that each of the methods that may allocate or free available IO
+ * tags are handled in a mutually exclusive manner.  This method is one of said
+ * methods requiring proper critical code section protection (e.g. semaphore,
+ * spin-lock, etc.). - The user must synchronize this task with completion
+ * queue processing.  If they are not synchronized then it is possible for the
+ * io requests that are being managed by the task request can complete before
+ * starting the task request. scic_controller_allocate_tag() for more
+ * information on allocating a tag. Indicate if the controller successfully
+ * started the IO request. SCI_TASK_SUCCESS if the task request was
+ * successfully started. SCI_TASK_FAILURE_REQUIRES_SCSI_ABORT This value is
+ * returned if there is/are task(s) outstanding that require termination or
+ * completion before this request can succeed.
+ */
 enum sci_task_status scic_controller_start_task(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
@@ -2297,8 +2307,20 @@ enum sci_task_status scic_controller_start_task(
 	return status;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_complete_task() - This method will perform core specific
+ *    completion operations for task management request. After this method is
+ *    invoked, the user should consider the task request as invalid until it is
+ *    properly reused (i.e. re-constructed).
+ * @controller: The handle to the controller object for which to complete the
+ *    task management request.
+ * @remote_device: The handle to the remote device object for which to complete
+ *    the task management request.
+ * @task_request: the handle to the task management request object to complete.
+ *
+ * Indicate if the controller successfully completed the task management
+ * request. SCI_SUCCESS if the completion process was successful.
+ */
 enum sci_status scic_controller_complete_task(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
@@ -2325,8 +2347,22 @@ enum sci_status scic_controller_complete_task(
 }
 
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_get_port_handle() - This method simply provides the user
+ *    with a unique handle for a given SAS/SATA core port index.
+ * @controller: This parameter represents the handle to the controller object
+ *    from which to retrieve a port (SAS or SATA) handle.
+ * @port_index: This parameter specifies the port index in the controller for
+ *    which to retrieve the port handle. 0 <= port_index < maximum number of
+ *    phys.
+ * @port_handle: This parameter specifies the retrieved port handle to be
+ *    provided to the caller.
+ *
+ * Indicate if the retrieval of the port handle was successful. SCI_SUCCESS
+ * This value is returned if the retrieval was successful.
+ * SCI_FAILURE_INVALID_PORT This value is returned if the supplied port id is
+ * not in the supported range.
+ */
 enum sci_status scic_controller_get_port_handle(
 	struct scic_sds_controller *scic,
 	u8 port_index,
@@ -2341,8 +2377,20 @@ enum sci_status scic_controller_get_port_handle(
 	return SCI_FAILURE_INVALID_PORT;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_get_phy_handle() - This method simply provides the user with
+ *    a unique handle for a given SAS/SATA phy index/identifier.
+ * @controller: This parameter represents the handle to the controller object
+ *    from which to retrieve a phy (SAS or SATA) handle.
+ * @phy_index: This parameter specifies the phy index in the controller for
+ *    which to retrieve the phy handle. 0 <= phy_index < maximum number of phys.
+ * @phy_handle: This parameter specifies the retrieved phy handle to be
+ *    provided to the caller.
+ *
+ * Indicate if the retrieval of the phy handle was successful. SCI_SUCCESS This
+ * value is returned if the retrieval was successful. SCI_FAILURE_INVALID_PHY
+ * This value is returned if the supplied phy id is not in the supported range.
+ */
 enum sci_status scic_controller_get_phy_handle(
 	struct scic_sds_controller *scic,
 	u8 phy_index,
@@ -2361,8 +2409,28 @@ enum sci_status scic_controller_get_phy_handle(
 	return SCI_FAILURE_INVALID_PHY;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_allocate_io_tag() - This method will allocate a tag from the
+ *    pool of free IO tags. Direct allocation of IO tags by the SCI Core user
+ *    is optional. The scic_controller_start_io() method will allocate an IO
+ *    tag if this method is not utilized and the tag is not supplied to the IO
+ *    construct routine.  Direct allocation of IO tags may provide additional
+ *    performance improvements in environments capable of supporting this usage
+ *    model.  Additionally, direct allocation of IO tags also provides
+ *    additional flexibility to the SCI Core user.  Specifically, the user may
+ *    retain IO tags across the lives of multiple IO requests.
+ * @controller: the handle to the controller object for which to allocate the
+ *    tag.
+ *
+ * IO tags are a protected resource.  It is incumbent upon the SCI Core user to
+ * ensure that each of the methods that may allocate or free available IO tags
+ * are handled in a mutually exclusive manner.  This method is one of said
+ * methods requiring proper critical code section protection (e.g. semaphore,
+ * spin-lock, etc.). An unsigned integer representing an available IO tag.
+ * SCI_CONTROLLER_INVALID_IO_TAG This value is returned if there are no
+ * currently available tags to be allocated. All return other values indicate a
+ * legitimate tag.
+ */
 u16 scic_controller_allocate_io_tag(
 	struct scic_sds_controller *scic)
 {
@@ -2380,8 +2448,31 @@ u16 scic_controller_allocate_io_tag(
 	return SCI_CONTROLLER_INVALID_IO_TAG;
 }
 
-/* --------------------------------------------------------------------------- */
-
+/**
+ * scic_controller_free_io_tag() - This method will free an IO tag to the pool
+ *    of free IO tags. This method provides the SCI Core user more flexibility
+ *    with regards to IO tags.  The user may desire to keep an IO tag after an
+ *    IO request has completed, because they plan on re-using the tag for a
+ *    subsequent IO request.  This method is only legal if the tag was
+ *    allocated via scic_controller_allocate_io_tag().
+ * @controller: This parameter specifies the handle to the controller object
+ *    for which to free/return the tag.
+ * @io_tag: This parameter represents the tag to be freed to the pool of
+ *    available tags.
+ *
+ * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
+ * to ensure that each of the methods that may allocate or free available IO
+ * tags are handled in a mutually exclusive manner.  This method is one of said
+ * methods requiring proper critical code section protection (e.g. semaphore,
+ * spin-lock, etc.). - If the IO tag for a request was allocated, by the SCI
+ * Core user, using the scic_controller_allocate_io_tag() method, then it is
+ * the responsibility of the caller to invoke this method to free the tag. This
+ * method returns an indication of whether the tag was successfully put back
+ * (freed) to the pool of available tags. SCI_SUCCESS This return value
+ * indicates the tag was successfully placed into the pool of available IO
+ * tags. SCI_FAILURE_INVALID_IO_TAG This value is returned if the supplied tag
+ * is not a valid IO tag value.
+ */
 enum sci_status scic_controller_free_io_tag(
 	struct scic_sds_controller *scic,
 	u16 io_tag)
@@ -2408,16 +2499,12 @@ enum sci_status scic_controller_free_io_tag(
 	return SCI_FAILURE_INVALID_IO_TAG;
 }
 
-/* --------------------------------------------------------------------------- */
-
 void scic_controller_enable_interrupts(
 	struct scic_sds_controller *scic)
 {
 	BUG_ON(scic->smu_registers == NULL);
 	SMU_IMR_WRITE(scic, 0x00000000);
 }
-
-/* --------------------------------------------------------------------------- */
 
 void scic_controller_disable_interrupts(
 	struct scic_sds_controller *scic)
@@ -2426,9 +2513,7 @@ void scic_controller_disable_interrupts(
 	SMU_IMR_WRITE(scic, 0xffffffff);
 }
 
-/* --------------------------------------------------------------------------- */
-
-enum sci_status scic_controller_set_mode(
+static enum sci_status scic_controller_set_mode(
 	struct scic_sds_controller *scic,
 	enum sci_controller_mode operating_mode)
 {
@@ -2476,7 +2561,7 @@ enum sci_status scic_controller_set_mode(
  *
  * This method will reset the controller hardware.
  */
-void scic_sds_controller_reset_hardware(
+static void scic_sds_controller_reset_hardware(
 	struct scic_sds_controller *scic)
 {
 	/* Disable interrupts so we dont take any spurious interrupts */
@@ -2494,8 +2579,6 @@ void scic_sds_controller_reset_hardware(
 	/* The write to the UFQGP clears the UFQPR */
 	SCU_UFQGP_WRITE(scic, 0x00000000);
 }
-
-/* --------------------------------------------------------------------------- */
 
 enum sci_status scic_user_parameters_set(
 	struct scic_sds_controller *scic,
@@ -2551,17 +2634,6 @@ enum sci_status scic_user_parameters_set(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/* --------------------------------------------------------------------------- */
-
-void scic_user_parameters_get(
-	struct scic_sds_controller *scic,
-	union scic_user_parameters *scic_parms)
-{
-	memcpy(scic_parms, (&scic->user_parameters), sizeof(*scic_parms));
-}
-
-/* --------------------------------------------------------------------------- */
-
 enum sci_status scic_oem_parameters_set(
 	struct scic_sds_controller *scic,
 	union scic_oem_parameters *scic_parms)
@@ -2616,17 +2688,12 @@ enum sci_status scic_oem_parameters_set(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/* --------------------------------------------------------------------------- */
-
 void scic_oem_parameters_get(
 	struct scic_sds_controller *scic,
 	union scic_oem_parameters *scic_parms)
 {
 	memcpy(scic_parms, (&scic->oem_parameters), sizeof(*scic_parms));
 }
-
-/* --------------------------------------------------------------------------- */
-
 
 #define INTERRUPT_COALESCE_TIMEOUT_BASE_RANGE_LOWER_BOUND_NS 853
 #define INTERRUPT_COALESCE_TIMEOUT_BASE_RANGE_UPPER_BOUND_NS 1280
@@ -2635,7 +2702,24 @@ void scic_oem_parameters_get(
 #define INTERRUPT_COALESCE_TIMEOUT_ENCODE_MIN                7
 #define INTERRUPT_COALESCE_TIMEOUT_ENCODE_MAX                28
 
-enum sci_status scic_controller_set_interrupt_coalescence(
+/**
+ * scic_controller_set_interrupt_coalescence() - This method allows the user to
+ *    configure the interrupt coalescence.
+ * @controller: This parameter represents the handle to the controller object
+ *    for which its interrupt coalesce register is overridden.
+ * @coalesce_number: Used to control the number of entries in the Completion
+ *    Queue before an interrupt is generated. If the number of entries exceed
+ *    this number, an interrupt will be generated. The valid range of the input
+ *    is [0, 256]. A setting of 0 results in coalescing being disabled.
+ * @coalesce_timeout: Timeout value in microseconds. The valid range of the
+ *    input is [0, 2700000] . A setting of 0 is allowed and results in no
+ *    interrupt coalescing timeout.
+ *
+ * Indicate if the user successfully set the interrupt coalesce parameters.
+ * SCI_SUCCESS The user successfully updated the interrutp coalescence.
+ * SCI_FAILURE_INVALID_PARAMETER_VALUE The user input value is out of range.
+ */
+static enum sci_status scic_controller_set_interrupt_coalescence(
 	struct scic_sds_controller *scic_controller,
 	u32 coalesce_number,
 	u32 coalesce_timeout)
@@ -3419,7 +3503,7 @@ static enum sci_status scic_sds_controller_stopping_state_complete_io_handler(
  * This method is called when the struct scic_sds_controller is in a stopping state
  * and the remote device has stopped.
  **/
-void scic_sds_controller_stopping_state_device_stopped_handler(
+static void scic_sds_controller_stopping_state_device_stopped_handler(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *remote_device
 )
@@ -3638,7 +3722,7 @@ static void scic_sds_controller_resetting_state_enter(struct sci_base_object *ob
 					    SCI_BASE_CONTROLLER_STATE_RESET);
 }
 
-const struct sci_base_state scic_sds_controller_state_table[] = {
+static const struct sci_base_state scic_sds_controller_state_table[] = {
 	[SCI_BASE_CONTROLLER_STATE_INITIAL] = {
 		.enter_state = scic_sds_controller_initial_state_enter,
 	},
@@ -3662,3 +3746,64 @@ const struct sci_base_state scic_sds_controller_state_table[] = {
 	[SCI_BASE_CONTROLLER_STATE_STOPPED] = {},
 	[SCI_BASE_CONTROLLER_STATE_FAILED] = {}
 };
+
+/**
+ * scic_controller_construct() - This method will attempt to construct a
+ *    controller object utilizing the supplied parameter information.
+ * @c: This parameter specifies the controller to be constructed.
+ * @scu_base: mapped base address of the scu registers
+ * @smu_base: mapped base address of the smu registers
+ *
+ * Indicate if the controller was successfully constructed or if it failed in
+ * some way. SCI_SUCCESS This value is returned if the controller was
+ * successfully constructed. SCI_WARNING_TIMER_CONFLICT This value is returned
+ * if the interrupt coalescence timer may cause SAS compliance issues for SMP
+ * Target mode response processing. SCI_FAILURE_UNSUPPORTED_CONTROLLER_TYPE
+ * This value is returned if the controller does not support the supplied type.
+ * SCI_FAILURE_UNSUPPORTED_INIT_DATA_VERSION This value is returned if the
+ * controller does not support the supplied initialization data version.
+ */
+enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
+					  void __iomem *scu_base,
+					  void __iomem *smu_base)
+{
+	u8 i;
+
+	sci_base_controller_construct(&scic->parent,
+				      scic_sds_controller_state_table,
+				      scic->memory_descriptors,
+				      ARRAY_SIZE(scic->memory_descriptors), NULL);
+
+	scic->scu_registers = scu_base;
+	scic->smu_registers = smu_base;
+
+	scic_sds_port_configuration_agent_construct(&scic->port_agent);
+
+	/* Construct the ports for this controller */
+	for (i = 0; i < SCI_MAX_PORTS; i++)
+		scic_sds_port_construct(&scic->port_table[i], i, scic);
+	scic_sds_port_construct(&scic->port_table[i], SCIC_SDS_DUMMY_PORT, scic);
+
+	/* Construct the phys for this controller */
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		/* Add all the PHYs to the dummy port */
+		scic_sds_phy_construct(&scic->phy_table[i],
+				       &scic->port_table[SCI_MAX_PORTS], i);
+	}
+
+	scic->invalid_phy_mask = 0;
+
+	/* Set the default maximum values */
+	scic->completion_event_entries      = SCU_EVENT_COUNT;
+	scic->completion_queue_entries      = SCU_COMPLETION_QUEUE_COUNT;
+	scic->remote_node_entries           = SCI_MAX_REMOTE_DEVICES;
+	scic->logical_port_entries          = SCI_MAX_PORTS;
+	scic->task_context_entries          = SCU_IO_REQUEST_COUNT;
+	scic->uf_control.buffers.count      = SCU_UNSOLICITED_FRAME_COUNT;
+	scic->uf_control.address_table.count = SCU_UNSOLICITED_FRAME_COUNT;
+
+	/* Initialize the User and OEM parameters to default values. */
+	scic_sds_controller_set_default_config_parameters(scic);
+
+	return scic_controller_reset(scic);
+}

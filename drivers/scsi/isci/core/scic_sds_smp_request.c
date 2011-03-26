@@ -142,73 +142,6 @@ void scic_sds_smp_request_assign_buffers(
 	}
 
 }
-/**
- * This method is called by the SCI user to build an SMP IO request.
- *
- * - The user must have previously called scic_io_request_construct() on the
- * supplied IO request. Indicate if the controller successfully built the IO
- * request. SCI_SUCCESS This value is returned if the IO request was
- * successfully built. SCI_FAILURE_UNSUPPORTED_PROTOCOL This value is returned
- * if the remote_device does not support the SMP protocol.
- * SCI_FAILURE_INVALID_ASSOCIATION This value is returned if the user did not
- * properly set the association between the SCIC IO request and the user's IO
- * request.  Please refer to the sci_object_set_association() routine for more
- * information.
- */
-enum sci_status scic_io_request_construct_smp(
-	struct scic_sds_request *sci_req)
-{
-	struct smp_request *smp_req = kmalloc(sizeof(*smp_req), GFP_KERNEL);
-
-	if (!smp_req)
-		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
-
-	sci_req->protocol                     = SCIC_SMP_PROTOCOL;
-	sci_req->has_started_substate_machine = true;
-
-	/* Construct the started sub-state machine. */
-	sci_base_state_machine_construct(
-		&sci_req->started_substate_machine,
-		&sci_req->parent.parent,
-		scic_sds_smp_request_started_substate_table,
-		SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE
-		);
-
-	/* Construct the SMP SCU Task Context */
-	memcpy(smp_req, sci_req->command_buffer, sizeof(*smp_req));
-
-	/*
-	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
-	 * functions under SAS 2.0, a zero request length really indicates
-	 * a non-zero default length. */
-	if (smp_req->header.request_length == 0) {
-		switch (smp_req->header.function) {
-		case SMP_FUNCTION_DISCOVER:
-		case SMP_FUNCTION_REPORT_PHY_ERROR_LOG:
-		case SMP_FUNCTION_REPORT_PHY_SATA:
-		case SMP_FUNCTION_REPORT_ROUTE_INFORMATION:
-			smp_req->header.request_length = 2;
-			break;
-		case SMP_FUNCTION_CONFIGURE_ROUTE_INFORMATION:
-		case SMP_FUNCTION_PHY_CONTROL:
-		case SMP_FUNCTION_PHY_TEST:
-			smp_req->header.request_length = 9;
-			break;
-			/* Default - zero is a valid default for 2.0. */
-		}
-	}
-
-	scu_smp_request_construct_task_context(sci_req, smp_req);
-
-	sci_base_state_machine_change_state(
-		&sci_req->parent.state_machine,
-		SCI_BASE_REQUEST_STATE_CONSTRUCTED
-		);
-
-	kfree(smp_req);
-
-	return SCI_SUCCESS;
-}
 
 /**
  * This method is called by the SCI user to build an SMP pass-through IO
@@ -595,7 +528,7 @@ static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_ha
 }
 
 
-const struct scic_sds_io_request_state_handler scic_sds_smp_request_started_substate_handler_table[] = {
+static const struct scic_sds_io_request_state_handler scic_sds_smp_request_started_substate_handler_table[] = {
 	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = {
 		.parent.start_handler    = scic_sds_request_default_start_handler,
 		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
@@ -658,7 +591,7 @@ static void scic_sds_smp_request_started_await_tc_completion_substate_enter(
 		);
 }
 
-const struct sci_base_state scic_sds_smp_request_started_substate_table[] = {
+static const struct sci_base_state scic_sds_smp_request_started_substate_table[] = {
 	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = {
 		.enter_state = scic_sds_smp_request_started_await_response_substate_enter,
 	},
@@ -667,3 +600,69 @@ const struct sci_base_state scic_sds_smp_request_started_substate_table[] = {
 	},
 };
 
+/**
+ * This method is called by the SCI user to build an SMP IO request.
+ *
+ * - The user must have previously called scic_io_request_construct() on the
+ * supplied IO request. Indicate if the controller successfully built the IO
+ * request. SCI_SUCCESS This value is returned if the IO request was
+ * successfully built. SCI_FAILURE_UNSUPPORTED_PROTOCOL This value is returned
+ * if the remote_device does not support the SMP protocol.
+ * SCI_FAILURE_INVALID_ASSOCIATION This value is returned if the user did not
+ * properly set the association between the SCIC IO request and the user's IO
+ * request.  Please refer to the sci_object_set_association() routine for more
+ * information.
+ */
+enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
+{
+	struct smp_request *smp_req = kmalloc(sizeof(*smp_req), GFP_KERNEL);
+
+	if (!smp_req)
+		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+
+	sci_req->protocol                     = SCIC_SMP_PROTOCOL;
+	sci_req->has_started_substate_machine = true;
+
+	/* Construct the started sub-state machine. */
+	sci_base_state_machine_construct(
+		&sci_req->started_substate_machine,
+		&sci_req->parent.parent,
+		scic_sds_smp_request_started_substate_table,
+		SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE
+		);
+
+	/* Construct the SMP SCU Task Context */
+	memcpy(smp_req, sci_req->command_buffer, sizeof(*smp_req));
+
+	/*
+	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
+	 * functions under SAS 2.0, a zero request length really indicates
+	 * a non-zero default length. */
+	if (smp_req->header.request_length == 0) {
+		switch (smp_req->header.function) {
+		case SMP_FUNCTION_DISCOVER:
+		case SMP_FUNCTION_REPORT_PHY_ERROR_LOG:
+		case SMP_FUNCTION_REPORT_PHY_SATA:
+		case SMP_FUNCTION_REPORT_ROUTE_INFORMATION:
+			smp_req->header.request_length = 2;
+			break;
+		case SMP_FUNCTION_CONFIGURE_ROUTE_INFORMATION:
+		case SMP_FUNCTION_PHY_CONTROL:
+		case SMP_FUNCTION_PHY_TEST:
+			smp_req->header.request_length = 9;
+			break;
+			/* Default - zero is a valid default for 2.0. */
+		}
+	}
+
+	scu_smp_request_construct_task_context(sci_req, smp_req);
+
+	sci_base_state_machine_change_state(
+		&sci_req->parent.state_machine,
+		SCI_BASE_REQUEST_STATE_CONSTRUCTED
+		);
+
+	kfree(smp_req);
+
+	return SCI_SUCCESS;
+}

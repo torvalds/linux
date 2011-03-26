@@ -256,14 +256,7 @@ struct scic_sds_io_request_state_handler {
 
 };
 
-extern const struct sci_base_state scic_sds_request_state_table[];
-extern const struct scic_sds_io_request_state_handler scic_sds_request_state_handler_table[];
-
 extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substate_table[];
-extern const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_started_substate_handler_table[];
-
-extern const struct sci_base_state scic_sds_smp_request_started_substate_table[];
-extern const struct scic_sds_io_request_state_handler scic_sds_smp_request_started_substate_handler_table[];
 
 /**
  *

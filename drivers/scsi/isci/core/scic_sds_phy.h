@@ -293,12 +293,6 @@ struct scic_sds_phy_state_handler {
 
 };
 
-extern const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[];
-extern const struct sci_base_state scic_sds_phy_state_table[];
-extern const struct sci_base_state scic_sds_phy_starting_substates[];
-extern const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_handler_table[];
-
-
 /**
  * scic_sds_phy_get_index() -
  *
@@ -362,12 +356,6 @@ enum sci_status scic_sds_phy_stop(
 enum sci_status scic_sds_phy_reset(
 	struct scic_sds_phy *this_phy);
 
-void scic_sds_phy_sata_timeout(
-	void *cookie);
-
-void scic_sds_phy_suspend(
-	struct scic_sds_phy *this_phy);
-
 void scic_sds_phy_resume(
 	struct scic_sds_phy *this_phy);
 
@@ -401,28 +389,5 @@ void scic_sds_phy_get_protocols(
 void scic_sds_phy_get_attached_phy_protocols(
 	struct scic_sds_phy *this_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols);
-
-enum sci_status scic_sds_phy_default_start_handler(
-	struct sci_base_phy *phy);
-
-enum sci_status scic_sds_phy_default_stop_handler(
-	struct sci_base_phy *phy);
-
-enum sci_status scic_sds_phy_default_reset_handler(
-	struct sci_base_phy *phy);
-
-enum sci_status scic_sds_phy_default_destroy_handler(
-	struct sci_base_phy *phy);
-
-enum sci_status scic_sds_phy_default_frame_handler(
-	struct scic_sds_phy *phy,
-	u32 frame_index);
-
-enum sci_status scic_sds_phy_default_event_handler(
-	struct scic_sds_phy *phy,
-	u32 evnet_code);
-
-enum sci_status scic_sds_phy_default_consume_power_handler(
-	struct scic_sds_phy *phy);
 
 #endif /* _SCIC_SDS_PHY_H_ */

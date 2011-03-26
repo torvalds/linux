@@ -257,7 +257,7 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
  * restart the starting substate machine since we dont know what has actually
  * happening.
  */
-void scic_sds_phy_sata_timeout(void *phy)
+static void scic_sds_phy_sata_timeout(void *phy)
 {
 	struct scic_sds_phy *sci_phy = phy;
 
@@ -271,47 +271,6 @@ void scic_sds_phy_sata_timeout(void *phy)
 
 	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
 					    SCI_BASE_PHY_STATE_STARTING);
-}
-
-/**
- * This method will construct the struct scic_sds_phy object
- * @this_phy:
- * @owning_port:
- * @phy_index:
- *
- */
-void scic_sds_phy_construct(
-	struct scic_sds_phy *this_phy,
-	struct scic_sds_port *owning_port,
-	u8 phy_index)
-{
-	/*
-	 * Call the base constructor first
-	 */
-	sci_base_phy_construct(
-		&this_phy->parent,
-		scic_sds_phy_state_table
-		);
-
-	/* Copy the rest of the input data to our locals */
-	this_phy->owning_port = owning_port;
-	this_phy->phy_index = phy_index;
-	this_phy->bcn_received_while_port_unassigned = false;
-	this_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
-	this_phy->link_layer_registers = NULL;
-	this_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
-	this_phy->sata_timeout_timer = NULL;
-
-	/* Clear out the identification buffer data */
-	memset(&this_phy->phy_type, 0, sizeof(this_phy->phy_type));
-
-	/* Initialize the the substate machines */
-	sci_base_state_machine_construct(
-		&this_phy->starting_substate_machine,
-		&this_phy->parent.parent,
-		scic_sds_phy_starting_substates,
-		SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL
-		);
 }
 
 /**
@@ -426,7 +385,7 @@ void scic_sds_phy_setup_transport(
  * This function will perform the register reads/writes to suspend the SCU
  * hardware protocol engine. none
  */
-void scic_sds_phy_suspend(
+static void scic_sds_phy_suspend(
 	struct scic_sds_phy *this_phy)
 {
 	u32 scu_sas_pcfg_value;
@@ -1416,7 +1375,62 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_power_consume_p
 	return SCI_SUCCESS;
 }
 
-const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_handler_table[] = {
+static enum sci_status default_phy_handler(struct sci_base_phy *base_phy, const char *func)
+{
+	struct scic_sds_phy *sci_phy;
+
+	sci_phy = container_of(base_phy, typeof(*sci_phy), parent);
+	dev_dbg(sciphy_to_dev(sci_phy),
+		 "%s: in wrong state: %d\n", func,
+		 sci_base_state_machine_get_state(&base_phy->state_machine));
+	return SCI_FAILURE_INVALID_STATE;
+}
+
+static enum sci_status scic_sds_phy_default_start_handler(struct sci_base_phy *base_phy)
+{
+	return default_phy_handler(base_phy, __func__);
+}
+
+static enum sci_status scic_sds_phy_default_stop_handler(struct sci_base_phy *base_phy)
+{
+	return default_phy_handler(base_phy, __func__);
+}
+
+static enum sci_status scic_sds_phy_default_reset_handler(struct sci_base_phy *base_phy)
+{
+	return default_phy_handler(base_phy, __func__);
+}
+
+static enum sci_status scic_sds_phy_default_destroy_handler(struct sci_base_phy *base_phy)
+{
+	return default_phy_handler(base_phy, __func__);
+}
+
+static enum sci_status scic_sds_phy_default_frame_handler(struct scic_sds_phy *sci_phy,
+							  u32 frame_index)
+{
+	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
+
+	default_phy_handler(&sci_phy->parent, __func__);
+	scic_sds_controller_release_frame(scic, frame_index);
+
+	return SCI_FAILURE_INVALID_STATE;
+}
+
+static enum sci_status scic_sds_phy_default_event_handler(struct scic_sds_phy *sci_phy,
+							  u32 event_code)
+{
+	return default_phy_handler(&sci_phy->parent, __func__);
+}
+
+static enum sci_status scic_sds_phy_default_consume_power_handler(struct scic_sds_phy *sci_phy)
+{
+	return default_phy_handler(&sci_phy->parent, __func__);
+}
+
+
+
+static const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_handler_table[] = {
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
 		.parent.start_handler    = scic_sds_phy_default_start_handler,
 		.parent.stop_handler     = scic_sds_phy_starting_substate_general_stop_handler,
@@ -1867,7 +1881,7 @@ static void scic_sds_phy_starting_final_substate_enter(struct sci_base_object *o
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_phy_starting_substates[] = {
+static const struct sci_base_state scic_sds_phy_starting_substates[] = {
 	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
 		.enter_state = scic_sds_phy_starting_initial_substate_enter,
 	},
@@ -1904,196 +1918,6 @@ const struct sci_base_state scic_sds_phy_starting_substates[] = {
 		.enter_state = scic_sds_phy_starting_final_substate_enter,
 	}
 };
-
-/*
- * ***************************************************************************
- * *  DEFAULT HANDLERS
- * *************************************************************************** */
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This is the default method for phy a start request.  It will report a
- * warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_start_handler(
-	struct sci_base_phy *phy)
-{
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
-
-	dev_warn(sciphy_to_dev(this_phy),
-		 "%s: SCIC Phy 0x%p requested to start from invalid "
-		 "state %d\n",
-		 __func__,
-		 this_phy,
-		 sci_base_state_machine_get_state(
-			 &this_phy->parent.state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-
-}
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a
- * struct scic_sds_phy object.
- *
- * This is the default method for phy a stop request.  It will report a warning
- * and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_stop_handler(struct sci_base_phy *base_phy)
-{
-	struct scic_sds_phy *sci_phy;
-
-	sci_phy = (struct scic_sds_phy *)base_phy;
-
-	dev_dbg(sciphy_to_dev(sci_phy),
-		"%s: SCIC Phy 0x%p requested to stop from invalid state %d\n",
-		__func__,
-		sci_phy,
-		sci_base_state_machine_get_state(
-			&sci_phy->parent.state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This is the default method for phy a reset request.  It will report a
- * warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_reset_handler(
-	struct sci_base_phy *phy)
-{
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
-
-	dev_warn(sciphy_to_dev(this_phy),
-		 "%s: SCIC Phy 0x%p requested to reset from invalid state "
-		 "%d\n",
-		 __func__,
-		 this_phy,
-		 sci_base_state_machine_get_state(
-			 &this_phy->parent.state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This is the default method for phy a destruct request.  It will report a
- * warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_destroy_handler(
-	struct sci_base_phy *phy)
-{
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
-
-	/* / @todo Implement something for the default */
-	dev_warn(sciphy_to_dev(this_phy),
-		 "%s: SCIC Phy 0x%p requested to destroy from invalid "
-		 "state %d\n",
-		 __func__,
-		 this_phy,
-		 sci_base_state_machine_get_state(
-			 &this_phy->parent.state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- * @frame_index: This is the frame index that was received from the SCU
- *    hardware.
- *
- * This is the default method for a phy frame handling request.  It will report
- * a warning, release the frame and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_frame_handler(
-	struct scic_sds_phy *this_phy,
-	u32 frame_index)
-{
-	dev_warn(sciphy_to_dev(this_phy),
-		 "%s: SCIC Phy 0x%p received unexpected frame data %d "
-		 "while in state %d\n",
-		 __func__,
-		 this_phy,
-		 frame_index,
-		 sci_base_state_machine_get_state(
-			 &this_phy->parent.state_machine));
-
-	scic_sds_controller_release_frame(
-		scic_sds_phy_get_controller(this_phy), frame_index);
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- * @event_code: This is the event code that was received from the SCU hardware.
- *
- * This is the default method for a phy event handler.  It will report a
- * warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_event_handler(
-	struct scic_sds_phy *this_phy,
-	u32 event_code)
-{
-	dev_dbg(sciphy_to_dev(this_phy),
-		"%s: SCIC Phy 0x%p received unexpected event status %x "
-		"while in state %d\n",
-		__func__,
-		this_phy,
-		event_code,
-		sci_base_state_machine_get_state(
-			&this_phy->parent.state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This is the default method for a phy consume power handler.  It will report
- * a warning and exit. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-enum sci_status scic_sds_phy_default_consume_power_handler(
-	struct scic_sds_phy *this_phy)
-{
-	dev_warn(sciphy_to_dev(this_phy),
-		 "%s: SCIC Phy 0x%p given unexpected permission to consume "
-		 "power while in state %d\n",
-		 __func__,
-		 this_phy,
-		 sci_base_state_machine_get_state(
-			 &this_phy->parent.state_machine));
-
-	return SCI_FAILURE_INVALID_STATE;
-}
-
-/*
- * ******************************************************************************
- * * PHY STOPPED STATE HANDLERS
- * ****************************************************************************** */
 
 /**
  *
@@ -2219,7 +2043,7 @@ static enum sci_status scic_sds_phy_resetting_state_event_handler(struct scic_sd
 
 /* --------------------------------------------------------------------------- */
 
-const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[] = {
+static const struct scic_sds_phy_state_handler scic_sds_phy_state_handler_table[] = {
 	[SCI_BASE_PHY_STATE_INITIAL] = {
 		.parent.start_handler = scic_sds_phy_default_start_handler,
 		.parent.stop_handler  = scic_sds_phy_default_stop_handler,
@@ -2563,7 +2387,7 @@ static void scic_sds_phy_final_state_enter(
 
 /* --------------------------------------------------------------------------- */
 
-const struct sci_base_state scic_sds_phy_state_table[] = {
+static const struct sci_base_state scic_sds_phy_state_table[] = {
 	[SCI_BASE_PHY_STATE_INITIAL] = {
 		.enter_state = scic_sds_phy_initial_state_enter,
 	},
@@ -2585,3 +2409,29 @@ const struct sci_base_state scic_sds_phy_state_table[] = {
 	},
 };
 
+void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
+			    struct scic_sds_port *owning_port, u8 phy_index)
+{
+	/*
+	 * Call the base constructor first
+	 */
+	sci_base_phy_construct(&sci_phy->parent, scic_sds_phy_state_table);
+
+	/* Copy the rest of the input data to our locals */
+	sci_phy->owning_port = owning_port;
+	sci_phy->phy_index = phy_index;
+	sci_phy->bcn_received_while_port_unassigned = false;
+	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
+	sci_phy->link_layer_registers = NULL;
+	sci_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
+	sci_phy->sata_timeout_timer = NULL;
+
+	/* Clear out the identification buffer data */
+	memset(&sci_phy->phy_type, 0, sizeof(sci_phy->phy_type));
+
+	/* Initialize the the substate machines */
+	sci_base_state_machine_construct(&sci_phy->starting_substate_machine,
+					 &sci_phy->parent.parent,
+					 scic_sds_phy_starting_substates,
+					 SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
+}
