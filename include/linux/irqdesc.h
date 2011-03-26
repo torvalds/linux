@@ -100,13 +100,6 @@ struct irq_desc {
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
-/* Will be removed once the last users in power and sh are gone */
-extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
-static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
-{
-	return desc;
-}
-
 #ifdef CONFIG_GENERIC_HARDIRQS
 
 static inline struct irq_data *irq_desc_get_irq_data(struct irq_desc *desc)
@@ -178,7 +171,36 @@ static inline int irq_has_action(unsigned int irq)
 	return desc->action != NULL;
 }
 
+/* caller has locked the irq_desc and both params are valid */
+static inline void __irq_set_handler_locked(unsigned int irq,
+					    irq_flow_handler_t handler)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	desc->handle_irq = handler;
+}
+
+/* caller has locked the irq_desc and both params are valid */
+static inline void
+__irq_set_chip_handler_name_locked(unsigned int irq, struct irq_chip *chip,
+				   irq_flow_handler_t handler, const char *name)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	irq_desc_get_irq_data(desc)->chip = chip;
+	desc->handle_irq = handler;
+	desc->name = name;
+}
+
 #ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
+static inline void __set_irq_handler_unlocked(int irq,
+					      irq_flow_handler_t handler)
+{
+	__irq_set_handler_locked(irq, handler);
+}
+
 static inline int irq_balancing_disabled(unsigned int irq)
 {
 	struct irq_desc *desc;
@@ -188,14 +210,13 @@ static inline int irq_balancing_disabled(unsigned int irq)
 }
 #endif
 
-/* caller has locked the irq_desc and both params are valid */
-static inline void __set_irq_handler_unlocked(int irq,
-					      irq_flow_handler_t handler)
+static inline void
+irq_set_lockdep_class(unsigned int irq, struct lock_class_key *class)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc = irq_to_desc(irq);
-	desc->handle_irq = handler;
+	if (desc)
+		lockdep_set_class(&desc->lock, class);
 }
 
 #ifdef CONFIG_IRQ_PREFLOW_FASTEOI
