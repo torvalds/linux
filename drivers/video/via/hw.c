@@ -2289,6 +2289,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 			get_sync(viafbinfo1));
 	}
 
+	clock.set_engine_pll_state(VIA_STATE_ON);
 	clock.set_primary_clock_source(VIA_CLKSRC_X1, true);
 	clock.set_secondary_clock_source(VIA_CLKSRC_X1, true);
 

@@ -53,6 +53,9 @@ struct via_clock {
 	void (*set_secondary_clock_source)(enum via_clksrc src, bool use_pll);
 	void (*set_secondary_pll_state)(u8 state);
 	void (*set_secondary_pll)(struct via_pll_config config);
+
+	void (*set_engine_pll_state)(u8 state);
+	void (*set_engine_pll)(struct via_pll_config config);
 };
 
 

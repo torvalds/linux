@@ -87,6 +87,15 @@ static inline void k800_set_secondary_pll_encoded(u32 data)
 	via_write_reg_mask(VIASR, 0x40, 0x00, 0x04); /* disable reset */
 }
 
+static inline void set_engine_pll_encoded(u32 data)
+{
+	via_write_reg_mask(VIASR, 0x40, 0x01, 0x01); /* enable reset */
+	via_write_reg(VIASR, 0x47, data & 0xFF);
+	via_write_reg(VIASR, 0x48, (data >> 8) & 0xFF);
+	via_write_reg(VIASR, 0x49, (data >> 16) & 0xFF);
+	via_write_reg_mask(VIASR, 0x40, 0x00, 0x01); /* disable reset */
+}
+
 static void cle266_set_primary_pll(struct via_pll_config config)
 {
 	cle266_set_primary_pll_encoded(cle266_encode_pll(config));
@@ -115,6 +124,16 @@ static void k800_set_secondary_pll(struct via_pll_config config)
 static void vx855_set_secondary_pll(struct via_pll_config config)
 {
 	k800_set_secondary_pll_encoded(vx855_encode_pll(config));
+}
+
+static void k800_set_engine_pll(struct via_pll_config config)
+{
+	set_engine_pll_encoded(k800_encode_pll(config));
+}
+
+static void vx855_set_engine_pll(struct via_pll_config config)
+{
+	set_engine_pll_encoded(vx855_encode_pll(config));
 }
 
 static void set_primary_pll_state(u8 state)
@@ -151,6 +170,24 @@ static void set_secondary_pll_state(u8 state)
 	}
 
 	via_write_reg_mask(VIASR, 0x2D, value, 0x0C);
+}
+
+static void set_engine_pll_state(u8 state)
+{
+	u8 value;
+
+	switch (state) {
+	case VIA_STATE_ON:
+		value = 0x02;
+		break;
+	case VIA_STATE_OFF:
+		value = 0x00;
+		break;
+	default:
+		return;
+	}
+
+	via_write_reg_mask(VIASR, 0x2D, value, 0x03);
 }
 
 static void set_primary_clock_state(u8 state)
@@ -247,6 +284,11 @@ static void dummy_set_pll_state(u8 state)
 	printk(KERN_INFO "Using undocumented set PLL state.\n%s", via_slap);
 }
 
+static void dummy_set_pll(struct via_pll_config config)
+{
+	printk(KERN_INFO "Using undocumented set PLL.\n%s", via_slap);
+}
+
 void via_clock_init(struct via_clock *clock, int gfx_chip)
 {
 	switch (gfx_chip) {
@@ -261,6 +303,9 @@ void via_clock_init(struct via_clock *clock, int gfx_chip)
 		clock->set_secondary_clock_source = dummy_set_clock_source;
 		clock->set_secondary_pll_state = dummy_set_pll_state;
 		clock->set_secondary_pll = cle266_set_secondary_pll;
+
+		clock->set_engine_pll_state = dummy_set_pll_state;
+		clock->set_engine_pll = dummy_set_pll;
 		break;
 	case UNICHROME_K800:
 	case UNICHROME_PM800:
@@ -280,6 +325,9 @@ void via_clock_init(struct via_clock *clock, int gfx_chip)
 		clock->set_secondary_clock_source = set_secondary_clock_source;
 		clock->set_secondary_pll_state = set_secondary_pll_state;
 		clock->set_secondary_pll = k800_set_secondary_pll;
+
+		clock->set_engine_pll_state = set_engine_pll_state;
+		clock->set_engine_pll = k800_set_engine_pll;
 		break;
 	case UNICHROME_VX855:
 	case UNICHROME_VX900:
@@ -292,6 +340,9 @@ void via_clock_init(struct via_clock *clock, int gfx_chip)
 		clock->set_secondary_clock_source = set_secondary_clock_source;
 		clock->set_secondary_pll_state = set_secondary_pll_state;
 		clock->set_secondary_pll = vx855_set_secondary_pll;
+
+		clock->set_engine_pll_state = set_engine_pll_state;
+		clock->set_engine_pll = vx855_set_engine_pll;
 		break;
 
 	}
