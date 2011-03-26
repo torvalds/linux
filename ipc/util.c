@@ -317,6 +317,7 @@ retry:
 
 /**
  *	ipc_check_perms	-	check security and permissions for an IPC
+ *	@ns: IPC namespace
  *	@ipcp: ipc permission set
  *	@ops: the actual security routine to call
  *	@params: its parameters
@@ -607,6 +608,7 @@ void ipc_rcu_putref(void *ptr)
 
 /**
  *	ipcperms	-	check IPC permissions
+ *	@ns: IPC namespace
  *	@ipcp: IPC permission set
  *	@flag: desired permission set.
  *
@@ -769,7 +771,7 @@ void ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out)
 
 /**
  * ipcctl_pre_down - retrieve an ipc and check permissions for some IPC_XXX cmd
- * @ids:  the ipc namespace
+ * @ns:  the ipc namespace
  * @ids:  the table of ids where to look for the ipc
  * @id:   the id of the ipc to retrieve
  * @cmd:  the cmd to check
