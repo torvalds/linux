@@ -1167,7 +1167,7 @@ EXPORT_SYMBOL(igrab);
  * Note: I_NEW is not waited upon so you have to be very careful what you do
  * with the returned inode.  You probably should be using ilookup5() instead.
  *
- * Note: @test is called with the inode_hash_lock held, so can't sleep.
+ * Note2: @test is called with the inode_hash_lock held, so can't sleep.
  */
 struct inode *ilookup5_nowait(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *), void *data)
