@@ -30,10 +30,6 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, SR1A, 0xFB, 0x08},
 {VIASR, SR1E, 0x0F, 0x01},
 {VIASR, SR2A, 0xFF, 0x00},
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
@@ -125,10 +121,6 @@ struct io_reg KM400_ModeXregs[] = {
 	{VIASR, SR2A, 0xFF, 0x00},	/* Power Management Control 5      */
 	{VIASR, SR2D, 0xFF, 0xFF},	/* Power Management Control 1      */
 	{VIASR, SR2E, 0xFF, 0xFF},	/* Power Management Control 2      */
-	{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                    */
-	{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                      */
-	{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High            */
-	{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low            */
 	{VIACR, CR33, 0xFF, 0x00},
 	{VIACR, CR55, 0x80, 0x00},
 	{VIACR, CR5D, 0x80, 0x00},
@@ -162,10 +154,6 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, SR1E, 0xFF, 0x01},
 {VIASR, SR2A, 0xFF, 0x00},
 {VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0xFF, 0x00},
 {VIACR, CR35, 0xFF, 0x00},
@@ -205,13 +193,6 @@ struct io_reg VX855_ModeXregs[] = {
 {VIASR, SR58, 0xFF, 0x00},
 {VIASR, SR59, 0xFF, 0x00},
 {VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
-{VIACR, CR09, 0xFF, 0x00},	/* Initial CR09=0*/
-{VIACR, CR11, 0x8F, 0x00},	/* IGA1 initial  Vertical end       */
-{VIACR, CR17, 0x7F, 0x00}, 	/* IGA1 CRT Mode control init   */
-{VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
-{VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
-{VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
-{VIACR, CR0F, 0xFF, 0x00},	/* Cursor Localtion Low                */
 {VIACR, CR32, 0xFF, 0x00},
 {VIACR, CR33, 0x7F, 0x00},
 {VIACR, CR35, 0xFF, 0x00},

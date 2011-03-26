@@ -308,6 +308,42 @@ static struct io_reg scaling_parameters[] = {
 	{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14 */
 };
 
+static struct io_reg common_vga[] = {
+	{VIACR, CR07, 0x10, 0x10}, /* [0] vertical total (bit 8)
+					[1] vertical display end (bit 8)
+					[2] vertical retrace start (bit 8)
+					[3] start vertical blanking (bit 8)
+					[4] line compare (bit 8)
+					[5] vertical total (bit 9)
+					[6] vertical display end (bit 9)
+					[7] vertical retrace start (bit 9) */
+	{VIACR, CR08, 0xFF, 0x00}, /* [0-4] preset row scan
+					[5-6] byte panning */
+	{VIACR, CR09, 0xDF, 0x40}, /* [0-4] max scan line
+					[5] start vertical blanking (bit 9)
+					[6] line compare (bit 9)
+					[7] scan doubling */
+	{VIACR, CR0A, 0xFF, 0x1E}, /* [0-4] cursor start
+					[5] cursor disable */
+	{VIACR, CR0B, 0xFF, 0x00}, /* [0-4] cursor end
+					[5-6] cursor skew */
+	{VIACR, CR0E, 0xFF, 0x00}, /* [0-7] cursor location (high) */
+	{VIACR, CR0F, 0xFF, 0x00}, /* [0-7] cursor location (low) */
+	{VIACR, CR11, 0xF0, 0x80}, /* [0-3] vertical retrace end
+					[6] memory refresh bandwidth
+					[7] CRTC register protect enable */
+	{VIACR, CR14, 0xFF, 0x00}, /* [0-4] underline location
+					[5] divide memory address clock by 4
+					[6] double word addressing */
+	{VIACR, CR17, 0xFF, 0x63}, /* [0-1] mapping of display address 13-14
+					[2] divide scan line clock by 2
+					[3] divide memory address clock by 2
+					[5] address wrap
+					[6] byte mode select
+					[7] sync enable */
+	{VIACR, CR18, 0xFF, 0xFF}, /* [0-7] line compare */
+};
+
 static struct fifo_depth_select display_fifo_depth_reg = {
 	/* IGA1 FIFO Depth_Select */
 	{IGA1_FIFO_DEPTH_SELECT_REG_NUM, {{SR17, 0, 7} } },
@@ -1167,22 +1203,10 @@ static void load_fix_bit_crtc_reg(void)
 	/* always set to 1 */
 	viafb_write_reg_mask(CR03, VIACR, 0x80, BIT7);
 	/* line compare should set all bits = 1 (extend modes) */
-	viafb_write_reg(CR18, VIACR, 0xff);
-	/* line compare should set all bits = 1 (extend modes) */
-	viafb_write_reg_mask(CR07, VIACR, 0x10, BIT4);
-	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg_mask(CR35, VIACR, 0x10, BIT4);
 	/* line compare should set all bits = 1 (extend modes) */
 	viafb_write_reg_mask(CR33, VIACR, 0x06, BIT0 + BIT1 + BIT2);
 	/*viafb_write_reg_mask(CR32, VIACR, 0x01, BIT0); */
-	/* extend mode always set to e3h */
-	viafb_write_reg(CR17, VIACR, 0xe3);
-	/* extend mode always set to 0h */
-	viafb_write_reg(CR08, VIACR, 0x00);
-	/* extend mode always set to 0h */
-	viafb_write_reg(CR14, VIACR, 0x00);
-	viafb_write_reg_mask(CR09, VIACR, 0x40, 0xDF);
-	viafb_write_reg_mask(CR11, VIACR, 0x00, BIT4 + BIT5 + BIT6);
 
 	viafb_lock_crt();
 
@@ -2353,6 +2377,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	outb(0x00, VIAAR);
 
 	/* Write Common Setting for Video Mode */
+	viafb_write_regx(common_vga, ARRAY_SIZE(common_vga));
 	switch (viaparinfo->chip_info->gfx_chip_name) {
 	case UNICHROME_CLE266:
 		viafb_write_regx(CLE266_ModeXregs, NUM_TOTAL_CLE266_ModeXregs);
