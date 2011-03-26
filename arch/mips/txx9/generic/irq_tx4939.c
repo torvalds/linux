@@ -50,9 +50,9 @@ static struct {
 	unsigned char mode;
 } tx4939irq[TX4939_NUM_IR] __read_mostly;
 
-static void tx4939_irq_unmask(unsigned int irq)
+static void tx4939_irq_unmask(struct irq_data *d)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 	u32 __iomem *lvlp;
 	int ofs;
 	if (irq_nr < 32) {
@@ -68,9 +68,9 @@ static void tx4939_irq_unmask(unsigned int irq)
 		     lvlp);
 }
 
-static inline void tx4939_irq_mask(unsigned int irq)
+static inline void tx4939_irq_mask(struct irq_data *d)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 	u32 __iomem *lvlp;
 	int ofs;
 	if (irq_nr < 32) {
@@ -87,11 +87,11 @@ static inline void tx4939_irq_mask(unsigned int irq)
 	mmiowb();
 }
 
-static void tx4939_irq_mask_ack(unsigned int irq)
+static void tx4939_irq_mask_ack(struct irq_data *d)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 
-	tx4939_irq_mask(irq);
+	tx4939_irq_mask(d);
 	if (TXx9_IRCR_EDGE(tx4939irq[irq_nr].mode)) {
 		irq_nr--;
 		/* clear edge detection */
@@ -101,9 +101,9 @@ static void tx4939_irq_mask_ack(unsigned int irq)
 	}
 }
 
-static int tx4939_irq_set_type(unsigned int irq, unsigned int flow_type)
+static int tx4939_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	unsigned int irq_nr = irq - TXX9_IRQ_BASE;
+	unsigned int irq_nr = d->irq - TXX9_IRQ_BASE;
 	u32 cr;
 	u32 __iomem *crp;
 	int ofs;
@@ -145,11 +145,11 @@ static int tx4939_irq_set_type(unsigned int irq, unsigned int flow_type)
 
 static struct irq_chip tx4939_irq_chip = {
 	.name		= "TX4939",
-	.ack		= tx4939_irq_mask_ack,
-	.mask		= tx4939_irq_mask,
-	.mask_ack	= tx4939_irq_mask_ack,
-	.unmask		= tx4939_irq_unmask,
-	.set_type	= tx4939_irq_set_type,
+	.irq_ack	= tx4939_irq_mask_ack,
+	.irq_mask	= tx4939_irq_mask,
+	.irq_mask_ack	= tx4939_irq_mask_ack,
+	.irq_unmask	= tx4939_irq_unmask,
+	.irq_set_type	= tx4939_irq_set_type,
 };
 
 static int tx4939_irq_set_pri(int irc_irq, int new_pri)

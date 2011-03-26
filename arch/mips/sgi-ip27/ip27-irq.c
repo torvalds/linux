@@ -240,7 +240,7 @@ static int intr_disconnect_level(int cpu, int bit)
 }
 
 /* Startup one of the (PCI ...) IRQs routes over a bridge.  */
-static unsigned int startup_bridge_irq(unsigned int irq)
+static unsigned int startup_bridge_irq(struct irq_data *d)
 {
 	struct bridge_controller *bc;
 	bridgereg_t device;
@@ -248,16 +248,16 @@ static unsigned int startup_bridge_irq(unsigned int irq)
 	int pin, swlevel;
 	cpuid_t cpu;
 
-	pin = SLOT_FROM_PCI_IRQ(irq);
-	bc = IRQ_TO_BRIDGE(irq);
+	pin = SLOT_FROM_PCI_IRQ(d->irq);
+	bc = IRQ_TO_BRIDGE(d->irq);
 	bridge = bc->base;
 
-	pr_debug("bridge_startup(): irq= 0x%x  pin=%d\n", irq, pin);
+	pr_debug("bridge_startup(): irq= 0x%x  pin=%d\n", d->irq, pin);
 	/*
 	 * "map" irq to a swlevel greater than 6 since the first 6 bits
 	 * of INT_PEND0 are taken
 	 */
-	swlevel = find_level(&cpu, irq);
+	swlevel = find_level(&cpu, d->irq);
 	bridge->b_int_addr[pin].addr = (0x20000 | swlevel | (bc->nasid << 8));
 	bridge->b_int_enable |= (1 << pin);
 	bridge->b_int_enable |= 0x7ffffe00;	/* more stuff in int_enable */
@@ -288,53 +288,51 @@ static unsigned int startup_bridge_irq(unsigned int irq)
 }
 
 /* Shutdown one of the (PCI ...) IRQs routes over a bridge.  */
-static void shutdown_bridge_irq(unsigned int irq)
+static void shutdown_bridge_irq(struct irq_data *d)
 {
-	struct bridge_controller *bc = IRQ_TO_BRIDGE(irq);
+	struct bridge_controller *bc = IRQ_TO_BRIDGE(d->irq);
 	bridge_t *bridge = bc->base;
 	int pin, swlevel;
 	cpuid_t cpu;
 
-	pr_debug("bridge_shutdown: irq 0x%x\n", irq);
-	pin = SLOT_FROM_PCI_IRQ(irq);
+	pr_debug("bridge_shutdown: irq 0x%x\n", d->irq);
+	pin = SLOT_FROM_PCI_IRQ(d->irq);
 
 	/*
 	 * map irq to a swlevel greater than 6 since the first 6 bits
 	 * of INT_PEND0 are taken
 	 */
-	swlevel = find_level(&cpu, irq);
+	swlevel = find_level(&cpu, d->irq);
 	intr_disconnect_level(cpu, swlevel);
 
 	bridge->b_int_enable &= ~(1 << pin);
 	bridge->b_wid_tflush;
 }
 
-static inline void enable_bridge_irq(unsigned int irq)
+static inline void enable_bridge_irq(struct irq_data *d)
 {
 	cpuid_t cpu;
 	int swlevel;
 
-	swlevel = find_level(&cpu, irq);	/* Criminal offence */
+	swlevel = find_level(&cpu, d->irq);	/* Criminal offence */
 	intr_connect_level(cpu, swlevel);
 }
 
-static inline void disable_bridge_irq(unsigned int irq)
+static inline void disable_bridge_irq(struct irq_data *d)
 {
 	cpuid_t cpu;
 	int swlevel;
 
-	swlevel = find_level(&cpu, irq);	/* Criminal offence */
+	swlevel = find_level(&cpu, d->irq);	/* Criminal offence */
 	intr_disconnect_level(cpu, swlevel);
 }
 
 static struct irq_chip bridge_irq_type = {
 	.name		= "bridge",
-	.startup	= startup_bridge_irq,
-	.shutdown	= shutdown_bridge_irq,
-	.ack		= disable_bridge_irq,
-	.mask		= disable_bridge_irq,
-	.mask_ack	= disable_bridge_irq,
-	.unmask		= enable_bridge_irq,
+	.irq_startup	= startup_bridge_irq,
+	.irq_shutdown	= shutdown_bridge_irq,
+	.irq_mask	= disable_bridge_irq,
+	.irq_unmask	= enable_bridge_irq,
 };
 
 void __devinit register_bridge_irq(unsigned int irq)
