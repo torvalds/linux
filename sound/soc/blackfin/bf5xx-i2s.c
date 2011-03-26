@@ -140,6 +140,10 @@ static int bf5xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	bf5xx_i2s.tcr2 &= ~0x1f;
 	bf5xx_i2s.rcr2 &= ~0x1f;
 	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S8:
+		bf5xx_i2s->tcr2 |= 7;
+		bf5xx_i2s->rcr2 |= 7;
+		sport_handle->wdsize = 1;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		bf5xx_i2s.tcr2 |= 15;
 		bf5xx_i2s.rcr2 |= 15;
@@ -266,8 +270,11 @@ static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | \
 		SNDRV_PCM_RATE_96000)
 
-#define BF5XX_I2S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |\
-	SNDRV_PCM_FMTBIT_S32_LE)
+#define BF5XX_I2S_FORMATS \
+	(SNDRV_PCM_FMTBIT_S8 | \
+	 SNDRV_PCM_FMTBIT_S16_LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE | \
+	 SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_ops bf5xx_i2s_dai_ops = {
 	.shutdown	= bf5xx_i2s_shutdown,
