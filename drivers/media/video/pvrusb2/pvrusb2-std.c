@@ -370,7 +370,11 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 
 	stddefs = kzalloc(sizeof(struct v4l2_standard) * std_cnt,
 			  GFP_KERNEL);
-	for (idx = 0; idx < std_cnt; idx++) stddefs[idx].index = idx;
+	if (!stddefs)
+		return NULL;
+
+	for (idx = 0; idx < std_cnt; idx++)
+		stddefs[idx].index = idx;
 
 	idx = 0;
 
