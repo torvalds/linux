@@ -907,7 +907,7 @@ sub install {
     return if (!defined($post_install));
 
     my $cp_post_install = $post_install;
-    $cp_post_install = s/\$KERNEL_VERSION/$version/g;
+    $cp_post_install =~ s/\$KERNEL_VERSION/$version/g;
     run_command "$cp_post_install" or
 	dodie "Failed to run post install";
 }
