@@ -406,7 +406,7 @@ static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 		/*
 		   compute a new dma xfer rate for max_mpdu @ max mcs.
 		   This is the minimum dma rate that
-		   can acheive no unferflow condition for the current mpdu size.
+		   can achieve no underflow condition for the current mpdu size.
 		 */
 		/* note : we divide/multiply by 100 to avoid integer overflows */
 		fifo->dmaxferrate =
