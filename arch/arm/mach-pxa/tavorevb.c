@@ -466,7 +466,7 @@ static void __init tavorevb_init_lcd(void)
 {
 	platform_device_register(&tavorevb_backlight_devices[0]);
 	platform_device_register(&tavorevb_backlight_devices[1]);
-	set_pxa_fb_info(&tavorevb_lcd_info);
+	pxa_set_fb_info(NULL, &tavorevb_lcd_info);
 }
 #else
 static inline void tavorevb_init_lcd(void) {}

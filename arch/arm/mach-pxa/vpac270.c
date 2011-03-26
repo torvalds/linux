@@ -572,7 +572,7 @@ static void __init vpac270_lcd_init(void)
 	}
 
 	vpac270_lcd_screen.pxafb_lcd_power = vpac270_lcd_power;
-	set_pxa_fb_info(&vpac270_lcd_screen);
+	pxa_set_fb_info(NULL, &vpac270_lcd_screen);
 	return;
 
 err2:
