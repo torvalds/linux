@@ -464,7 +464,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
       .platform_data  = &mma8452_info,
     },
 #endif
-#if defined (CONFIG_SENSORS_AK8973)
+#if defined (CONFIG_COMPASS_AK8973)
 	{
 		.type    		= "ak8973",
 		.addr           = 0x1d,
@@ -472,7 +472,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN4_PA1,
 	},
 #endif
-#if defined (CONFIG_SENSORS_AK8975)
+#if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type    		= "ak8975",
 		.addr           = 0x1d,
