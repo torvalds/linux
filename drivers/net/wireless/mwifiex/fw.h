@@ -57,9 +57,6 @@ struct tx_packet_hdr {
 #define GET_FW_DEFAULT_BANDS(adapter)  \
 	((adapter->fw_cap_info >> 8) & ALL_802_11_BANDS)
 
-#define SHORT_SLOT_TIME_DISABLED(CapInfo) (CapInfo &= ~BIT(10))
-#define SHORT_SLOT_TIME_ENABLED(CapInfo)  (CapInfo |= BIT(10))
-
 extern u8 supported_rates_b[B_SUPPORTED_RATES];
 extern u8 supported_rates_g[G_SUPPORTED_RATES];
 extern u8 supported_rates_bg[BG_SUPPORTED_RATES];

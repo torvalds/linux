@@ -517,7 +517,7 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	tmp_cap = bss_desc->cap_info_bitmap;
 
 	if (priv->adapter->config_bands == BAND_B)
-		SHORT_SLOT_TIME_DISABLED(tmp_cap);
+		tmp_cap &= ~WLAN_CAPABILITY_SHORT_SLOT_TIME;
 
 	tmp_cap &= CAPINFO_MASK;
 	dev_dbg(priv->adapter->dev, "info: ASSOC_CMD: tmp_cap=%4X CAPINFO_MASK=%4lX\n",
@@ -1015,9 +1015,9 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 			     + S_DS_GEN + cmd_append_size));
 
 	if (adapter->adhoc_start_band == BAND_B)
-		SHORT_SLOT_TIME_DISABLED(tmp_cap);
+		tmp_cap &= ~WLAN_CAPABILITY_SHORT_SLOT_TIME;
 	else
-		SHORT_SLOT_TIME_ENABLED(tmp_cap);
+		tmp_cap |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
 
 	adhoc_start->cap_info_bitmap = cpu_to_le16(tmp_cap);
 
