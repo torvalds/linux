@@ -1629,8 +1629,10 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 	priv->naudint = naudint;
 	priv->workqueue = create_singlethread_workqueue("twl6040-codec");
 
-	if (!priv->workqueue)
+	if (!priv->workqueue) {
+		ret = -ENOMEM;
 		goto work_err;
+	}
 
 	INIT_DELAYED_WORK(&priv->delayed_work, twl6040_accessory_work);
 
