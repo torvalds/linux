@@ -431,8 +431,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	}
 	psecnetwork = (struct ndis_wlan_bssid_ex *)&psecuritypriv->sec_bss;
 	if (psecnetwork == NULL) {
-		if (pcmd != NULL)
-			kfree((unsigned char *)pcmd);
+		kfree(pcmd);
 		return _FAIL;
 	}
 	memset(psecnetwork, 0, t_len);

@@ -1732,8 +1732,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 		memcpy(param + 1, pext + 1, pext->key_len);
 	}
 	ret = wpa_set_encryption(dev, param, param_len);
-	if (param)
-		kfree((u8 *)param);
+	kfree(param);
 	return ret;
 }
 

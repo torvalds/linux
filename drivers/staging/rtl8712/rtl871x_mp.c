@@ -274,8 +274,7 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 	pparm = (struct SetChannel_parm *)_malloc(sizeof(struct
 					 SetChannel_parm));
 	if (pparm == NULL) {
-		if (pcmd != NULL)
-			kfree((u8 *)pcmd);
+		kfree(pcmd);
 		return;
 	}
 	pparm->curr_ch = pAdapter->mppriv.curr_ch;
