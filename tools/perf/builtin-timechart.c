@@ -488,6 +488,7 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 
 static int process_sample_event(union perf_event *event __used,
 				struct perf_sample *sample,
+				struct perf_evsel *evsel __used,
 				struct perf_session *session)
 {
 	struct trace_entry *te;
@@ -506,6 +507,16 @@ static int process_sample_event(union perf_event *event __used,
 		struct power_entry_old *peo;
 		peo = (void *)te;
 #endif
+		/*
+		 * FIXME: use evsel, its already mapped from id to perf_evsel,
+		 * remove perf_header__find_event infrastructure bits.
+		 * Mapping all these "power:cpu_idle" strings to the tracepoint
+		 * ID and then just comparing against evsel->attr.config.
+		 *
+		 * e.g.:
+		 *
+		 * if (evsel->attr.config == power_cpu_idle_id)
+		 */
 		event_str = perf_header__find_event(te->type);
 
 		if (!event_str)

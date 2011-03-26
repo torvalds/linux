@@ -32,6 +32,7 @@ static int hists__add_entry(struct hists *self,
 
 static int diff__process_sample_event(union perf_event *event,
 				      struct perf_sample *sample,
+				      struct perf_evsel *evsel __used,
 				      struct perf_session *session)
 {
 	struct addr_location al;
