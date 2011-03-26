@@ -13,4 +13,3 @@ obj-y += accel/
 obj-y += adc/
 obj-y += light/
 obj-y += trigger/
-obj-y += magnetometer/
