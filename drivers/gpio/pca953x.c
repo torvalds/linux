@@ -395,13 +395,13 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		for (lvl = 0; lvl < chip->gpio_chip.ngpio; lvl++) {
 			int irq = lvl + chip->irq_base;
 
-			set_irq_chip_data(irq, chip);
-			set_irq_chip_and_handler(irq, &pca953x_irq_chip,
+			irq_set_chip_data(irq, chip);
+			irq_set_chip_and_handler(irq, &pca953x_irq_chip,
 						 handle_edge_irq);
 #ifdef CONFIG_ARM
 			set_irq_flags(irq, IRQF_VALID);
 #else
-			set_irq_noprobe(irq);
+			irq_set_noprobe(irq);
 #endif
 		}
 

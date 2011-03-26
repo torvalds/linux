@@ -28,6 +28,7 @@
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
 
+struct seq_file;
 struct irq_desc;
 struct irq_data;
 typedef	void (*irq_flow_handler_t)(unsigned int irq,
@@ -270,6 +271,7 @@ static inline bool irqd_can_move_in_process_context(struct irq_data *d)
  * @irq_set_wake:	enable/disable power-management wake-on of an IRQ
  * @irq_bus_lock:	function to lock access to slow bus (i2c) chips
  * @irq_bus_sync_unlock:function to sync and unlock slow bus (i2c) chips
+ * @irq_print_chip:	optional to print special chip info in show_interrupts
  * @flags:		chip specific flags
  *
  * @release:		release function solely used by UML
@@ -316,6 +318,8 @@ struct irq_chip {
 
 	void		(*irq_bus_lock)(struct irq_data *data);
 	void		(*irq_bus_sync_unlock)(struct irq_data *data);
+
+	void		(*irq_print_chip)(struct irq_data *data, struct seq_file *p);
 
 	unsigned long	flags;
 

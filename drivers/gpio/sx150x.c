@@ -551,12 +551,12 @@ static int sx150x_install_irq_chip(struct sx150x_chip *chip,
 
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = irq_base + n;
-		set_irq_chip_and_handler(irq, &chip->irq_chip, handle_edge_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_chip_and_handler(irq, &chip->irq_chip, handle_edge_irq);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -583,8 +583,7 @@ static void sx150x_remove_irq_chip(struct sx150x_chip *chip)
 
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = chip->irq_base + n;
-		set_irq_handler(irq, NULL);
-		set_irq_chip(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
 	}
 }
 
