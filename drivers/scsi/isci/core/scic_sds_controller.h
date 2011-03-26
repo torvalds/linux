@@ -396,8 +396,7 @@ struct scic_sds_controller_state_handler {
 	sci_base_controller_request_handler_t terminate_request;
 	scic_sds_controller_phy_handler_t link_up;
 	scic_sds_controller_phy_handler_t link_down;
-	scic_sds_controller_device_handler_t remote_device_started_handler;
-	scic_sds_controller_device_handler_t remote_device_stopped_handler;
+	scic_sds_controller_device_handler_t device_stopped;
 };
 
 extern const struct scic_sds_controller_state_handler
@@ -532,16 +531,9 @@ extern const struct scic_sds_controller_state_handler
 #define scic_sds_controller_clear_invalid_phy(controller, phy) \
 	((controller)->invalid_phy_mask &= ~(1 << (phy)->phy_index))
 
-/* --------------------------------------------------------------------------- */
-
-
-/* --------------------------------------------------------------------------- */
-
 void scic_sds_controller_post_request(
 	struct scic_sds_controller *this_controller,
 	u32 request);
-
-/* --------------------------------------------------------------------------- */
 
 void scic_sds_controller_release_frame(
 	struct scic_sds_controller *this_controller,
@@ -551,8 +543,6 @@ void scic_sds_controller_copy_sata_response(
 	void *response_buffer,
 	void *frame_header,
 	void *frame_buffer);
-
-/* --------------------------------------------------------------------------- */
 
 enum sci_status scic_sds_controller_allocate_remote_node_context(
 	struct scic_sds_controller *this_controller,
@@ -568,8 +558,6 @@ union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffe
 	struct scic_sds_controller *this_controller,
 	u16 node_id);
 
-/* --------------------------------------------------------------------------- */
-
 struct scic_sds_request *scic_sds_controller_get_io_request_from_tag(
 	struct scic_sds_controller *this_controller,
 	u16 io_tag);
@@ -579,12 +567,6 @@ struct scu_task_context *scic_sds_controller_get_task_context_buffer(
 	struct scic_sds_controller *this_controller,
 	u16 io_tag);
 
-/*
- * *****************************************************************************
- * * CORE CONTROLLER POWER CONTROL METHODS
- * ***************************************************************************** */
-
-
 void scic_sds_controller_power_control_queue_insert(
 	struct scic_sds_controller *this_controller,
 	struct scic_sds_phy *the_phy);
@@ -592,11 +574,6 @@ void scic_sds_controller_power_control_queue_insert(
 void scic_sds_controller_power_control_queue_remove(
 	struct scic_sds_controller *this_controller,
 	struct scic_sds_phy *the_phy);
-
-/*
- * *****************************************************************************
- * * CORE CONTROLLER PHY MESSAGE PROCESSING
- * ***************************************************************************** */
 
 void scic_sds_controller_link_up(
 	struct scic_sds_controller *this_controller,
@@ -607,16 +584,6 @@ void scic_sds_controller_link_down(
 	struct scic_sds_controller *this_controller,
 	struct scic_sds_port *the_port,
 	struct scic_sds_phy *the_phy);
-
-/*
- * *****************************************************************************
- * * CORE CONTROLLER REMOTE DEVICE MESSAGE PROCESSING
- * ***************************************************************************** */
-
-
-void scic_sds_controller_remote_device_started(
-	struct scic_sds_controller *this_controller,
-	struct scic_sds_remote_device *the_device);
 
 void scic_sds_controller_remote_device_stopped(
 	struct scic_sds_controller *this_controller,

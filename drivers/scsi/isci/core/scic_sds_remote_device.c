@@ -1533,34 +1533,19 @@ static void scic_sds_remote_device_starting_state_enter(
 			SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED);
 }
 
-/**
- *
- * @object: This is the struct sci_base_object that is cast into a
- *    struct scic_sds_remote_device.
- *
- * This is the exit function for the SCI_BASE_REMOTE_DEVICE_STATE_STARTING it
- * reports that the device start is complete. none
- */
-static void scic_sds_remote_device_starting_state_exit(
-	struct sci_base_object *object)
+static void scic_sds_remote_device_starting_state_exit(struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
-	struct scic_sds_controller *scic =
-		scic_sds_remote_device_get_controller(sci_dev);
+	struct scic_sds_remote_device *sci_dev = container_of(object, typeof(*sci_dev),
+							      parent.parent);
+	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 	struct isci_host *ihost = sci_object_get_association(scic);
 	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
-
 
 	/*
 	 * @todo Check the device object for the proper return code for this
 	 * callback
 	 */
 	isci_remote_device_start_complete(ihost, idev, SCI_SUCCESS);
-
-	scic_sds_controller_remote_device_started(
-		scic_sds_remote_device_get_controller(sci_dev),
-		sci_dev);
 }
 
 /**
