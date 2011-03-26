@@ -377,22 +377,6 @@ extern const struct scic_sds_remote_device_state_handler scic_sds_smp_remote_dev
 	((this_device)->state_handlers = (handlers))
 
 /**
- * scic_sds_remote_device_get_base_state_machine() -
- *
- * This macro returns the base sate machine object for the remote device.
- */
-#define scic_sds_remote_device_get_base_state_machine(this_device) \
-	(&(this_device)->parent.state_machine)
-
-/**
- * scic_sds_remote_device_get_ready_substate_machine() -
- *
- * This macro returns the remote device ready substate machine
- */
-#define scic_sds_remote_device_get_ready_substate_machine(this_device) \
-	(&(this_device)->ready_substate_machine)
-
-/**
  * scic_sds_remote_device_get_port() -
  *
  * This macro returns the owning port of this device

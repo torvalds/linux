@@ -135,8 +135,7 @@ enum sci_status scic_remote_device_da_construct(
 		&remote_node_index);
 
 	if (status == SCI_SUCCESS) {
-		scic_sds_remote_node_context_set_remote_node_index(
-			sci_dev->rnc, remote_node_index);
+		sci_dev->rnc->remote_node_index = remote_node_index;
 
 		scic_sds_port_get_attached_sas_address(
 			sci_dev->owning_port, &sci_dev->device_address);
@@ -510,16 +509,14 @@ bool scic_sds_remote_device_is_atapi(
 static void scic_sds_cb_remote_device_rnc_destruct_complete(
 	void *user_parameter)
 {
-	struct scic_sds_remote_device *this_device;
+	struct scic_sds_remote_device *sci_dev;
 
-	this_device = (struct scic_sds_remote_device *)user_parameter;
+	sci_dev = (struct scic_sds_remote_device *)user_parameter;
 
-	BUG_ON(this_device->started_request_count != 0);
+	BUG_ON(sci_dev->started_request_count != 0);
 
-	sci_base_state_machine_change_state(
-		scic_sds_remote_device_get_base_state_machine(this_device),
-		SCI_BASE_REMOTE_DEVICE_STATE_STOPPED
-		);
+	sci_base_state_machine_change_state(&sci_dev->parent.state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPED);
 }
 
 /**
@@ -649,206 +646,64 @@ static enum sci_status scic_sds_remote_device_terminate_requests(
 	return status;
 }
 
-/*
- * *****************************************************************************
- * *  DEFAULT STATE HANDLERS
- * ***************************************************************************** */
+static enum sci_status default_device_handler(struct sci_base_remote_device *base_dev,
+					      const char *func)
+{
+	struct scic_sds_remote_device *sci_dev;
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default start handler.  It logs a warning and returns a
- * failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
+	sci_dev = container_of(base_dev, typeof(*sci_dev), parent);
+	dev_warn(scirdev_to_dev(sci_dev),
+		 "%s: in wrong state: %d\n", func,
+		 sci_base_state_machine_get_state(&base_dev->state_machine));
+	return SCI_FAILURE_INVALID_STATE;
+}
+
 enum sci_status scic_sds_remote_device_default_start_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to start while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default stop handler.  It logs a warning and returns a
- * failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 static enum sci_status scic_sds_remote_device_default_stop_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to stop while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default fail handler.  It logs a warning and returns a
- * failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_fail_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to fail while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default destruct handler.  It logs a warning and returns
- * a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_destruct_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to destroy while in "
-		 "wrong state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default reset handler.  It logs a warning and returns a
- * failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_reset_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to reset while in wrong "
-		 "state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default reset complete handler.  It logs a warning and
- * returns a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_reset_complete_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to complete reset while "
-		 "in wrong state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default suspend handler.  It logs a warning and returns a
- * failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_suspend_handler(
-	struct scic_sds_remote_device *this_device,
-	u32 suspend_type)
+	struct scic_sds_remote_device *sci_dev, u32 suspend_type)
 {
-	dev_warn(scirdev_to_dev(this_device),
-		 "%s: SCIC Remote Device 0x%p requested to suspend %d while "
-		 "in wrong state %d\n",
-		 __func__,
-		 this_device,
-		 suspend_type,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 this_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(&sci_dev->parent, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- *
- * This method is the default resume handler.  It logs a warning and returns a
- * failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_resume_handler(
-	struct scic_sds_remote_device *this_device)
+	struct scic_sds_remote_device *sci_dev)
 {
-	dev_warn(scirdev_to_dev(this_device),
-		 "%s: SCIC Remote Device requested to resume while in "
-		 "wrong state %d\n",
-		 __func__,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 this_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(&sci_dev->parent, __func__);
 }
 
 /**
@@ -960,108 +815,26 @@ enum sci_status scic_sds_remote_device_default_frame_handler(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @request: The struct sci_base_request which is then cast into a SCIC_SDS_IO_REQUEST
- *    to start.
- *
- * This method is the default start io handler.  It logs a warning and returns
- * a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_start_request_handler(
-	struct sci_base_remote_device *device,
+	struct sci_base_remote_device *base_dev,
 	struct sci_base_request *request)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to start io request %p "
-		 "while in wrong state %d\n",
-		 __func__,
-		 request,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 (struct scic_sds_remote_device *)device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @request: The struct sci_base_request which is then cast into a SCIC_SDS_IO_REQUEST
- *    to complete.
- *
- * This method is the default complete io handler.  It logs a warning and
- * returns a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_complete_request_handler(
-	struct sci_base_remote_device *device,
+	struct sci_base_remote_device *base_dev,
 	struct sci_base_request *request)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to complete io_request %p "
-		 "while in wrong state %d\n",
-		 __func__,
-		 request,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-				 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @request: The struct sci_base_request which is then cast into a SCIC_SDS_IO_REQUEST
- *    to continue.
- *
- * This method is the default continue io handler.  It logs a warning and
- * returns a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
 enum sci_status scic_sds_remote_device_default_continue_request_handler(
-	struct sci_base_remote_device *device,
+	struct sci_base_remote_device *base_dev,
 	struct sci_base_request *request)
 {
-	struct scic_sds_remote_device *sds_device =
-		(struct scic_sds_remote_device *)device;
-
-	dev_warn(scirdev_to_dev(sds_device),
-		 "%s: SCIC Remote Device requested to continue io request %p "
-		 "while in wrong state %d\n",
-		 __func__,
-		 request,
-		 sci_base_state_machine_get_state(
-			 scic_sds_remote_device_get_base_state_machine(
-			 sds_device)));
-
-	return SCI_FAILURE_INVALID_STATE;
+	return default_device_handler(base_dev, __func__);
 }
-
-/**
- *
- * @device: The struct sci_base_remote_device which is then cast into a
- *    struct scic_sds_remote_device.
- * @request: The struct sci_base_request which is then cast into a SCIC_SDS_IO_REQUEST
- *    to complete.
- *
- * This method is the default complete task handler.  It logs a warning and
- * returns a failure. enum sci_status SCI_FAILURE_INVALID_STATE
- */
-
-/*
- * *****************************************************************************
- * *  NORMAL STATE HANDLERS
- * ***************************************************************************** */
 
 /**
  *
@@ -1146,45 +919,32 @@ enum sci_status scic_sds_remote_device_general_event_handler(
  * which to construct the remote device.
  */
 static enum sci_status scic_sds_remote_device_stopped_state_start_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
 	enum sci_status status;
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev;
 
-	status = scic_sds_remote_node_context_resume(
-		this_device->rnc,
-		scic_sds_remote_device_resume_complete_handler,
-		this_device
-		);
+	sci_dev = container_of(base_dev, typeof(*sci_dev), parent);
 
-	if (status == SCI_SUCCESS) {
-		sci_base_state_machine_change_state(
-			scic_sds_remote_device_get_base_state_machine(this_device),
-			SCI_BASE_REMOTE_DEVICE_STATE_STARTING
-			);
-	}
+	status = scic_sds_remote_node_context_resume(sci_dev->rnc,
+			scic_sds_remote_device_resume_complete_handler, sci_dev);
+
+	if (status == SCI_SUCCESS)
+		sci_base_state_machine_change_state(&base_dev->state_machine,
+						    SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
 
 	return status;
 }
 
-/**
- *
- * @this_device: The struct sci_base_remote_device which is cast into a
- *    struct scic_sds_remote_device.
- *
- * This method will stop a struct scic_sds_remote_device that is already in a stopped
- * state.  This is not considered an error since the device is already stopped.
- * enum sci_status SCI_SUCCESS
- */
 static enum sci_status scic_sds_remote_device_stopped_state_stop_handler(
-	struct sci_base_remote_device *this_device)
+	struct sci_base_remote_device *base_dev)
 {
 	return SCI_SUCCESS;
 }
 
 /**
  *
- * @this_device: The struct sci_base_remote_device which is cast into a
+ * @sci_dev: The struct sci_base_remote_device which is cast into a
  *    struct scic_sds_remote_device.
  *
  * This method will destruct a struct scic_sds_remote_device that is in a stopped
@@ -1194,25 +954,19 @@ static enum sci_status scic_sds_remote_device_stopped_state_stop_handler(
  * enum sci_status SCI_SUCCESS
  */
 static enum sci_status scic_sds_remote_device_stopped_state_destruct_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev;
+	struct scic_sds_controller *scic;
 
-	scic_sds_controller_free_remote_node_context(
-		scic_sds_remote_device_get_controller(this_device),
-		this_device,
-		this_device->rnc->remote_node_index
-		);
+	sci_dev = container_of(base_dev, typeof(*sci_dev), parent);
+	scic = scic_sds_remote_device_get_controller(sci_dev);
+	scic_sds_controller_free_remote_node_context(scic, sci_dev,
+						     sci_dev->rnc->remote_node_index);
+	sci_dev->rnc->remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
 
-	scic_sds_remote_node_context_set_remote_node_index(
-		this_device->rnc,
-		SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX
-		);
-
-	sci_base_state_machine_change_state(
-		scic_sds_remote_device_get_base_state_machine(this_device),
-		SCI_BASE_REMOTE_DEVICE_STATE_FINAL
-		);
+	sci_base_state_machine_change_state(&base_dev->state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_FINAL);
 
 	return SCI_SUCCESS;
 }
@@ -1223,86 +977,49 @@ static enum sci_status scic_sds_remote_device_stopped_state_destruct_handler(
  * ***************************************************************************** */
 
 static enum sci_status scic_sds_remote_device_starting_state_stop_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev;
 
+	sci_dev = container_of(base_dev, typeof(*sci_dev), parent);
 	/*
 	 * This device has not yet started so there had better be no IO requests
 	 */
-	BUG_ON(this_device->started_request_count != 0);
+	BUG_ON(sci_dev->started_request_count != 0);
 
 	/*
 	 * Destroy the remote node context
 	 */
-	scic_sds_remote_node_context_destruct(
-		this_device->rnc,
-		scic_sds_cb_remote_device_rnc_destruct_complete,
-		this_device
-		);
+	scic_sds_remote_node_context_destruct(sci_dev->rnc,
+		scic_sds_cb_remote_device_rnc_destruct_complete, sci_dev);
 
 	/*
 	 * Transition to the stopping state and wait for the remote node to
 	 * complete being posted and invalidated.
 	 */
-	sci_base_state_machine_change_state(
-		scic_sds_remote_device_get_base_state_machine(this_device),
-		SCI_BASE_REMOTE_DEVICE_STATE_STOPPING
-		);
+	sci_base_state_machine_change_state(&base_dev->state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPING);
 
 	return SCI_SUCCESS;
 }
 
-/*
- * *****************************************************************************
- * *  INITIALIZING STATE HANDLERS
- * ***************************************************************************** */
-
-/* There is nothing to do here for SSP devices */
-
-/*
- * *****************************************************************************
- * *  READY STATE HANDLERS
- * ***************************************************************************** */
-
-/**
- *
- * @this_device: The struct scic_sds_remote_device object to be suspended.
- *
- * This method is the resume handler for the struct scic_sds_remote_device object. It
- * will post an RNC resume to the SCU hardware. enum sci_status SCI_SUCCESS
- */
-
-/**
- *
- * @device: The struct sci_base_remote_device object which is cast to a
- *    struct scic_sds_remote_device object.
- *
- * This method is the default stop handler for the struct scic_sds_remote_device ready
- * substate machine. It will stop the current substate machine and transition
- * the base state machine to SCI_BASE_REMOTE_DEVICE_STATE_STOPPING. enum sci_status
- * SCI_SUCCESS
- */
 enum sci_status scic_sds_remote_device_ready_state_stop_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	enum sci_status status      = SCI_SUCCESS;
+	struct scic_sds_remote_device *sci_dev;
+	enum sci_status status = SCI_SUCCESS;
 
+	sci_dev = container_of(base_dev, typeof(*sci_dev), parent);
 	/* Request the parent state machine to transition to the stopping state */
-	sci_base_state_machine_change_state(
-		scic_sds_remote_device_get_base_state_machine(this_device),
-		SCI_BASE_REMOTE_DEVICE_STATE_STOPPING
-		);
+	sci_base_state_machine_change_state(&base_dev->state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPING);
 
-	if (this_device->started_request_count == 0) {
-		scic_sds_remote_node_context_destruct(
-			this_device->rnc,
+	if (sci_dev->started_request_count == 0) {
+		scic_sds_remote_node_context_destruct(sci_dev->rnc,
 			scic_sds_cb_remote_device_rnc_destruct_complete,
-			this_device
-			);
+			sci_dev);
 	} else
-		status = scic_sds_remote_device_terminate_requests(this_device);
+		status = scic_sds_remote_device_terminate_requests(sci_dev);
 
 	return status;
 }
@@ -1315,29 +1032,17 @@ enum sci_status scic_sds_remote_device_ready_state_stop_handler(
  * This is the ready state device reset handler enum sci_status
  */
 enum sci_status scic_sds_remote_device_ready_state_reset_handler(
-	struct sci_base_remote_device *device)
+	struct sci_base_remote_device *base_dev)
 {
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev;
 
+	sci_dev = container_of(base_dev, typeof(*sci_dev), parent);
 	/* Request the parent state machine to transition to the stopping state */
-	sci_base_state_machine_change_state(
-		scic_sds_remote_device_get_base_state_machine(this_device),
-		SCI_BASE_REMOTE_DEVICE_STATE_RESETTING
-		);
+	sci_base_state_machine_change_state(&base_dev->state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_RESETTING);
 
 	return SCI_SUCCESS;
 }
-
-/**
- *
- * @device: The struct sci_base_remote_device object which is cast to a
- *    struct scic_sds_remote_device object.
- *
- * This is the default fail handler for the struct scic_sds_remote_device ready
- * substate machine.  It will stop the current ready substate and transition
- * the remote device object to the SCI_BASE_REMOTE_DEVICE_STATE_FAILED.
- * enum sci_status SCI_SUCCESS
- */
 
 /**
  *
@@ -1775,19 +1480,15 @@ const struct scic_sds_remote_device_state_handler scic_sds_remote_device_state_h
 static void scic_sds_remote_device_initial_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)object;
+	struct scic_sds_remote_device *sci_dev = (struct scic_sds_remote_device *)object;
 
-	SET_STATE_HANDLER(
-		this_device,
-		scic_sds_remote_device_state_handler_table,
-		SCI_BASE_REMOTE_DEVICE_STATE_INITIAL
-		);
+	sci_dev = container_of(object, typeof(*sci_dev), parent.parent);
+	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
+			  SCI_BASE_REMOTE_DEVICE_STATE_INITIAL);
 
 	/* Initial state is a transitional state to the stopped state */
-	sci_base_state_machine_change_state(
-		scic_sds_remote_device_get_base_state_machine(this_device),
-		SCI_BASE_REMOTE_DEVICE_STATE_STOPPED
-		);
+	sci_base_state_machine_change_state(&sci_dev->parent.state_machine,
+					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPED);
 }
 
 /**
@@ -1803,29 +1504,28 @@ static void scic_sds_remote_device_initial_state_enter(
 static void scic_sds_remote_device_stopped_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_remote_device *sci_dev =
-		(struct scic_sds_remote_device *)object;
-	struct scic_sds_controller *scic =
-		scic_sds_remote_device_get_controller(sci_dev);
-	struct isci_host *ihost = sci_object_get_association(scic);
-	struct isci_remote_device *idev =
-		sci_object_get_association(sci_dev);
+	struct scic_sds_remote_device *sci_dev;
+	struct scic_sds_controller *scic;
+	struct isci_remote_device *idev;
+	struct isci_host *ihost;
+	u32 prev_state;
 
-	SET_STATE_HANDLER(sci_dev,
-			  scic_sds_remote_device_state_handler_table,
+	sci_dev = container_of(object, typeof(*sci_dev), parent.parent);
+	scic = scic_sds_remote_device_get_controller(sci_dev);
+	ihost = sci_object_get_association(scic);
+	idev = sci_object_get_association(sci_dev);
+
+	SET_STATE_HANDLER(sci_dev, scic_sds_remote_device_state_handler_table,
 			  SCI_BASE_REMOTE_DEVICE_STATE_STOPPED);
 
-	/*
-	 * If we are entering from the stopping state let the SCI User know that
+	/* If we are entering from the stopping state let the SCI User know that
 	 * the stop operation has completed.
 	 */
-	if (sci_dev->parent.state_machine.previous_state_id ==
-			SCI_BASE_REMOTE_DEVICE_STATE_STOPPING)
+	prev_state = sci_dev->parent.state_machine.previous_state_id;
+	if (prev_state == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING)
 		isci_remote_device_stop_complete(ihost, idev, SCI_SUCCESS);
 
-	scic_sds_controller_remote_device_stopped(
-		scic_sds_remote_device_get_controller(sci_dev),
-		sci_dev);
+	scic_sds_controller_remote_device_stopped(scic, sci_dev);
 }
 
 /**

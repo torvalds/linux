@@ -296,9 +296,6 @@ void scic_sds_remote_node_context_construct_buffer(
 bool scic_sds_remote_node_context_is_ready(
 	struct scic_sds_remote_node_context *this_rnc);
 
-#define scic_sds_remote_node_context_set_remote_node_index(rnc, rni) \
-	((rnc)->remote_node_index = (rni))
-
 #define scic_sds_remote_node_context_get_remote_node_index(rcn)	\
 	((rnc)->remote_node_index)
 

@@ -251,14 +251,6 @@ extern struct scic_sds_port_state_handler scic_sds_port_ready_substate_handler_t
 	((this_port)->owning_controller)
 
 /**
- * scic_sds_port_get_base_state_machine() -
- *
- * Helper macro to get the base state machine for this port
- */
-#define scic_sds_port_get_base_state_machine(this_port)	\
-	(&(this_port)->parent.state_machine)
-
-/**
  * scic_sds_port_set_base_state_handlers() -
  *
  * This macro will change the state handlers to those of the specified state id
@@ -266,14 +258,6 @@ extern struct scic_sds_port_state_handler scic_sds_port_ready_substate_handler_t
 #define scic_sds_port_set_base_state_handlers(this_port, state_id) \
 	scic_sds_port_set_state_handlers(\
 		(this_port), &scic_sds_port_state_handler_table[(state_id)])
-
-/**
- * scic_sds_port_get_ready_substate_machine() -
- *
- * Helper macro to get the ready substate machine for this port
- */
-#define scic_sds_port_get_ready_substate_machine(this_port) \
-	(&(this_port)->ready_substate_machine)
 
 /**
  * scic_sds_port_set_state_handlers() -

@@ -317,24 +317,6 @@ extern const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_ha
 	(scic_sds_port_get_controller((phy)->owning_port))
 
 /**
- * scic_sds_phy_get_base_state_machine() - This macro returns the state machine
- *    for the base phy
- *
- *
- */
-#define scic_sds_phy_get_base_state_machine(phy) \
-	(&(phy)->parent.state_machine)
-
-/**
- * scic_sds_phy_get_starting_substate_machine() - This macro returns the
- *    starting substate machine for this phy
- *
- *
- */
-#define scic_sds_phy_get_starting_substate_machine(phy)	\
-	(&(phy)->starting_substate_machine)
-
-/**
  * scic_sds_phy_set_state_handlers() - This macro sets the state handlers for
  *    this phy object
  *
@@ -353,27 +335,6 @@ extern const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_ha
 		(phy), \
 		&scic_sds_phy_state_handler_table[(state_id)] \
 		)
-
-/**
- * scic_sds_phy_is_ready() -
- *
- * This macro returns true if the current base state for this phy is
- * SCI_BASE_PHY_STATE_READY
- */
-#define scic_sds_phy_is_ready(phy) \
-	(\
-		SCI_BASE_PHY_STATE_READY \
-		== sci_base_state_machine_get_state(\
-			scic_sds_phy_get_base_state_machine(phy) \
-			) \
-	)
-
-/* --------------------------------------------------------------------------- */
-
-
-
-
-/* --------------------------------------------------------------------------- */
 
 void scic_sds_phy_construct(
 	struct scic_sds_phy *this_phy,
@@ -404,8 +365,6 @@ enum sci_status scic_sds_phy_reset(
 void scic_sds_phy_sata_timeout(
 	void *cookie);
 
-/* --------------------------------------------------------------------------- */
-
 void scic_sds_phy_suspend(
 	struct scic_sds_phy *this_phy);
 
@@ -415,8 +374,6 @@ void scic_sds_phy_resume(
 void scic_sds_phy_setup_transport(
 	struct scic_sds_phy *this_phy,
 	u32 device_id);
-
-/* --------------------------------------------------------------------------- */
 
 enum sci_status scic_sds_phy_event_handler(
 	struct scic_sds_phy *this_phy,
@@ -444,11 +401,6 @@ void scic_sds_phy_get_protocols(
 void scic_sds_phy_get_attached_phy_protocols(
 	struct scic_sds_phy *this_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols);
-
-/*
- * ****************************************************************************-
- * * SCIC SDS PHY Handler Methods
- * ****************************************************************************- */
 
 enum sci_status scic_sds_phy_default_start_handler(
 	struct sci_base_phy *phy);

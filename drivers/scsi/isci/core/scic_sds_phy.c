@@ -246,7 +246,7 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 				      0x1F4);
 
 	/* We can exit the initial state to the stopped state */
-	sci_base_state_machine_change_state(scic_sds_phy_get_base_state_machine(sci_phy),
+	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
 					    SCI_BASE_PHY_STATE_STOPPED);
 
 	return SCI_SUCCESS;
@@ -267,13 +267,10 @@ void scic_sds_phy_sata_timeout(void *phy)
 		 __func__,
 		 sci_phy);
 
-	sci_base_state_machine_stop(
-		scic_sds_phy_get_starting_substate_machine(sci_phy));
+	sci_base_state_machine_stop(&sci_phy->starting_substate_machine);
 
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(sci_phy),
-		SCI_BASE_PHY_STATE_STARTING
-		);
+	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+					    SCI_BASE_PHY_STATE_STARTING);
 }
 
 /**
@@ -390,9 +387,8 @@ enum sci_status scic_sds_phy_initialize(
 	/*
 	 * There is nothing that needs to be done in this state just
 	 * transition to the stopped state. */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(sci_phy),
-		SCI_BASE_PHY_STATE_STOPPED);
+	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+					    SCI_BASE_PHY_STATE_STOPPED);
 
 	return SCI_SUCCESS;
 }
@@ -716,9 +712,9 @@ static void scic_sds_phy_start_sata_link_training(
 }
 
 /**
- * This method performs processing common to all protocols upon completion of
- *    link training.
- * @this_phy: This parameter specifies the phy object for which link training
+ * scic_sds_phy_complete_link_training - perform processing common to
+ *    all protocols upon completion of link training.
+ * @sci_phy: This parameter specifies the phy object for which link training
  *    has completed.
  * @max_link_rate: This parameter specifies the maximum link rate to be
  *    associated with this phy.
@@ -727,37 +723,25 @@ static void scic_sds_phy_start_sata_link_training(
  *
  */
 static void scic_sds_phy_complete_link_training(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	enum sci_sas_link_rate max_link_rate,
 	u32 next_state)
 {
-	this_phy->max_negotiated_speed = max_link_rate;
+	sci_phy->max_negotiated_speed = max_link_rate;
 
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_starting_substate_machine(this_phy), next_state
-		);
+	sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+					    next_state);
 }
 
-/**
- *
- * @this_phy: The struct scic_sds_phy object to restart.
- *
- * This method restarts the struct scic_sds_phy objects base state machine in the
- * starting state from any starting substate. none
- */
 static void scic_sds_phy_restart_starting_state(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	/* Stop the current substate machine */
-	sci_base_state_machine_stop(
-		scic_sds_phy_get_starting_substate_machine(this_phy)
-		);
+	sci_base_state_machine_stop(&sci_phy->starting_substate_machine);
 
 	/* Re-enter the base state machine starting state */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(this_phy),
-		SCI_BASE_PHY_STATE_STARTING
-		);
+	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+					    SCI_BASE_PHY_STATE_STARTING);
 }
 
 /* ****************************************************************************
@@ -1041,7 +1025,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_power_event_han
 }
 
 /**
- *
+ * scic_sds_phy_starting_substate_await_sata_phy_event_handler -
  * @phy: This struct scic_sds_phy object which has received an event.
  * @event_code: This is the event code which the phy object is to decode.
  *
@@ -1054,42 +1038,39 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_power_event_han
  * failure event SCI_FAILURE on any unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sata_phy_event_handler(
-	struct scic_sds_phy *this_phy,
-	u32 event_code)
+	struct scic_sds_phy *sci_phy, u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
 
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	case SCU_EVENT_SATA_SPINUP_HOLD:
-		/*
-		 * These events might be received since we dont know how many may be in
-		 * the completion queue while waiting for power */
+		/* These events might be received since we dont know how many may be in
+		 * the completion queue while waiting for power
+		 */
 		break;
 
 	case SCU_EVENT_SATA_PHY_DETECTED:
-		this_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
+		sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
 
 		/* We have received the SATA PHY notification change state */
-		sci_base_state_machine_change_state(
-			scic_sds_phy_get_starting_substate_machine(this_phy),
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN
-			);
+		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+						    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
 		break;
 
 	case SCU_EVENT_SAS_PHY_DETECTED:
-		/*
-		 * There has been a change in the phy type before OOB/SN for the
-		 * SATA finished start down the SAS link traning path. */
-		scic_sds_phy_start_sas_link_training(this_phy);
+		/* There has been a change in the phy type before OOB/SN for the
+		 * SATA finished start down the SAS link traning path.
+		 */
+		scic_sds_phy_start_sas_link_training(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected event_code %x\n",
 			 __func__,
@@ -1182,7 +1163,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_han
 }
 
 /**
- *
+ * scic_sds_phy_starting_substate_await_sig_fis_event_handler -
  * @phy: This struct scic_sds_phy object which has received an event.
  * @event_code: This is the event code which the phy object is to decode.
  *
@@ -1196,27 +1177,24 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_speed_event_han
  * unexpected event notifation
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_event_handler(
-	struct scic_sds_phy *this_phy,
-	u32 event_code)
+	struct scic_sds_phy *sci_phy, u32 event_code)
 {
 	u32 result = SCI_SUCCESS;
 
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_SATA_PHY_DETECTED:
 		/* Backup the state machine */
-		sci_base_state_machine_change_state(
-			scic_sds_phy_get_starting_substate_machine(this_phy),
-			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN
-			);
+		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+						    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
 		break;
 
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		scic_sds_phy_restart_starting_state(this_phy);
+		scic_sds_phy_restart_starting_state(sci_phy);
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected event_code %x\n",
 			 __func__,
@@ -1249,15 +1227,14 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_event_handle
  * unsolicted frame - release frame buffer enum sci_status SCI_SUCCESS
  */
 static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler(
-	struct scic_sds_phy *this_phy,
-	u32 frame_index)
+	struct scic_sds_phy *sci_phy, u32 frame_index)
 {
 	enum sci_status result;
 	u32 *frame_words;
 	struct sci_sas_identify_address_frame *identify_frame;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_phy_get_controller(this_phy)->uf_control),
+		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
 		frame_index,
 		(void **)&frame_words);
 
@@ -1269,49 +1246,43 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
 	identify_frame = (struct sci_sas_identify_address_frame *)frame_words;
 
 	if (identify_frame->address_frame_type == 0) {
-		/*
-		 * Byte swap the rest of the frame so we can make
-		 * a copy of the buffer */
+		u32 state;
+
+		/* Byte swap the rest of the frame so we can make
+		 * a copy of the buffer
+		 */
 		frame_words[1] = SCIC_SWAP_DWORD(frame_words[1]);
 		frame_words[2] = SCIC_SWAP_DWORD(frame_words[2]);
 		frame_words[3] = SCIC_SWAP_DWORD(frame_words[3]);
 		frame_words[4] = SCIC_SWAP_DWORD(frame_words[4]);
 		frame_words[5] = SCIC_SWAP_DWORD(frame_words[5]);
 
-		memcpy(
-			&this_phy->phy_type.sas.identify_address_frame_buffer,
+		memcpy(&sci_phy->phy_type.sas.identify_address_frame_buffer,
 			identify_frame,
-			sizeof(struct sci_sas_identify_address_frame)
-			);
+			sizeof(struct sci_sas_identify_address_frame));
 
 		if (identify_frame->protocols.u.bits.smp_target) {
-			/*
-			 * We got the IAF for an expander PHY go to the final state since
-			 * there are no power requirements for expander phys. */
-			sci_base_state_machine_change_state(
-				scic_sds_phy_get_starting_substate_machine(this_phy),
-				SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL
-				);
+			/* We got the IAF for an expander PHY go to the final state since
+			 * there are no power requirements for expander phys.
+			 */
+			state = SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL;
 		} else {
 			/* We got the IAF we can now go to the await spinup semaphore state */
-			sci_base_state_machine_change_state(
-				scic_sds_phy_get_starting_substate_machine(this_phy),
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER
-				);
+			state = SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER;
 		}
-
+		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+						    state);
 		result = SCI_SUCCESS;
 	} else
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			"%s: PHY starting substate machine received "
 			"unexpected frame id %x\n",
 			__func__,
 			frame_index);
 
 	/* Regardless of the result release this frame since we are done with it */
-	scic_sds_controller_release_frame(
-		scic_sds_phy_get_controller(this_phy), frame_index
-		);
+	scic_sds_controller_release_frame(scic_sds_phy_get_controller(sci_phy),
+					  frame_index);
 
 	return result;
 }
@@ -1331,7 +1302,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_iaf_uf_frame_handler
  * data
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handler(
-	struct scic_sds_phy *this_phy,
+	struct scic_sds_phy *sci_phy,
 	u32 frame_index)
 {
 	enum sci_status result;
@@ -1340,7 +1311,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 	u32 *fis_frame_data;
 
 	result = scic_sds_unsolicited_frame_control_get_header(
-		&(scic_sds_phy_get_controller(this_phy)->uf_control),
+		&(scic_sds_phy_get_controller(sci_phy)->uf_control),
 		frame_index,
 		(void **)&frame_words);
 
@@ -1350,40 +1321,33 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
 
 	fis_frame_header = (struct sata_fis_header *)frame_words;
 
-	if (
-		(fis_frame_header->fis_type == SATA_FIS_TYPE_REGD2H)
-		&& !(fis_frame_header->status & ATA_STATUS_REG_BSY_BIT)
-		) {
+	if ((fis_frame_header->fis_type == SATA_FIS_TYPE_REGD2H) &&
+	    !(fis_frame_header->status & ATA_STATUS_REG_BSY_BIT)) {
 		scic_sds_unsolicited_frame_control_get_buffer(
-			&(scic_sds_phy_get_controller(this_phy)->uf_control),
+			&(scic_sds_phy_get_controller(sci_phy)->uf_control),
 			frame_index,
-			(void **)&fis_frame_data
-			);
+			(void **)&fis_frame_data);
 
 		scic_sds_controller_copy_sata_response(
-			&this_phy->phy_type.sata.signature_fis_buffer,
+			&sci_phy->phy_type.sata.signature_fis_buffer,
 			frame_words,
-			fis_frame_data
-			);
+			fis_frame_data);
 
 		/* We got the IAF we can now go to the await spinup semaphore state */
-		sci_base_state_machine_change_state(
-			scic_sds_phy_get_starting_substate_machine(this_phy),
-			SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL
-			);
+		sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
 
 		result = SCI_SUCCESS;
 	} else
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: PHY starting substate machine received "
 			 "unexpected frame id %x\n",
 			 __func__,
 			 frame_index);
 
 	/* Regardless of the result release this frame since we are done with it */
-	scic_sds_controller_release_frame(
-		scic_sds_phy_get_controller(this_phy), frame_index
-		);
+	scic_sds_controller_release_frame(scic_sds_phy_get_controller(sci_phy),
+					  frame_index);
 
 	return result;
 }
@@ -1394,7 +1358,7 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
  * ***************************************************************************** */
 
 /**
- *
+ * scic_sds_phy_starting_substate_await_sas_power_consume_power_handler -
  * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
  *    object.
  *
@@ -1404,19 +1368,17 @@ static enum sci_status scic_sds_phy_starting_substate_await_sig_fis_frame_handle
  * SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL. enum sci_status SCI_SUCCESS
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sas_power_consume_power_handler(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 enable_spinup;
 
-	enable_spinup = SCU_SAS_ENSPINUP_READ(this_phy);
+	enable_spinup = SCU_SAS_ENSPINUP_READ(sci_phy);
 	enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
-	SCU_SAS_ENSPINUP_WRITE(this_phy, enable_spinup);
+	SCU_SAS_ENSPINUP_WRITE(sci_phy, enable_spinup);
 
 	/* Change state to the final state this substate machine has run to completion */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_starting_substate_machine(this_phy),
-		SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL
-		);
+	sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+					    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
 
 	return SCI_SUCCESS;
 }
@@ -1431,27 +1393,25 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_power_consume_po
  * SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. enum sci_status SCI_SUCCESS
  */
 static enum sci_status scic_sds_phy_starting_substate_await_sata_power_consume_power_handler(
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_phy *sci_phy)
 {
 	u32 scu_sas_pcfg_value;
 
 	/* Release the spinup hold state and reset the OOB state machine */
-	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(this_phy);
+	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(sci_phy);
 	scu_sas_pcfg_value &=
 		~(SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD) | SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	SCU_SAS_PCFG_WRITE(sci_phy, scu_sas_pcfg_value);
 
 	/* Now restart the OOB operation */
 	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
-	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	SCU_SAS_PCFG_WRITE(sci_phy, scu_sas_pcfg_value);
 
 	/* Change state to the final state this substate machine has run to completion */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_starting_substate_machine(this_phy),
-		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN
-		);
+	sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
 
 	return SCI_SUCCESS;
 }
@@ -1566,7 +1526,7 @@ const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_handler_t
  * **************************************************************************** */
 
 /**
- *
+ * scic_sds_phy_starting_initial_substate_enter -
  * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
  *
  * This method will perform the actions required by the struct scic_sds_phy on
@@ -1574,21 +1534,18 @@ const struct scic_sds_phy_state_handler scic_sds_phy_starting_substate_handler_t
  * handlers are put in place for the struct scic_sds_phy object. - The state is
  * changed to the wait phy type event notification. none
  */
-static void scic_sds_phy_starting_initial_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
+		sci_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
 
 	/* This is just an temporary state go off to the starting state */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_starting_substate_machine(this_phy),
-		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN
-		);
+	sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
+					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN);
 }
 
 /**
@@ -1892,23 +1849,20 @@ static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
  * object state handlers for this state. - Change base state machine to the
  * ready state. none
  */
-static void scic_sds_phy_starting_final_substate_enter(
-	struct sci_base_object *object)
+static void scic_sds_phy_starting_final_substate_enter(struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = container_of(object, typeof(*sci_phy), parent.parent);
 
-	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL
-		);
+	scic_sds_phy_set_starting_substate_handlers(sci_phy,
+						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
 
-	/*
-	 * State machine has run to completion so exit out and change
-	 * the base state machine to the ready state */
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(this_phy),
-		SCI_BASE_PHY_STATE_READY);
+	/* State machine has run to completion so exit out and change
+	 * the base state machine to the ready state
+	 */
+	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+					    SCI_BASE_PHY_STATE_READY);
 }
 
 /* --------------------------------------------------------------------------- */
@@ -2150,153 +2104,85 @@ enum sci_status scic_sds_phy_default_consume_power_handler(
  * attempts to start it. - The phy state machine is transitioned to the
  * SCI_BASE_PHY_STATE_STARTING. enum sci_status SCI_SUCCESS
  */
-static enum sci_status scic_sds_phy_stopped_state_start_handler(
-		struct sci_base_phy *phy)
+static enum sci_status scic_sds_phy_stopped_state_start_handler(struct sci_base_phy *base_phy)
 {
-	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)phy;
-	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
-	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_host *ihost;
+	struct scic_sds_phy *sci_phy;
+	struct scic_sds_controller *scic;
+
+	sci_phy = container_of(base_phy, typeof(*sci_phy), parent);
+	scic = scic_sds_phy_get_controller(sci_phy),
+	ihost = sci_object_get_association(scic);
 
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
-	sci_phy->sata_timeout_timer =
-		isci_timer_create(
-				ihost,
-				sci_phy,
-				scic_sds_phy_sata_timeout);
+	sci_phy->sata_timeout_timer = isci_timer_create(ihost, sci_phy,
+							scic_sds_phy_sata_timeout);
 
-	if (sci_phy->sata_timeout_timer != NULL) {
-		sci_base_state_machine_change_state(
-			scic_sds_phy_get_base_state_machine(sci_phy),
-			SCI_BASE_PHY_STATE_STARTING);
-	}
+	if (sci_phy->sata_timeout_timer)
+		sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+						    SCI_BASE_PHY_STATE_STARTING);
 
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This method takes the struct scic_sds_phy from a stopped state and destroys it. -
- * This function takes no action. Shouldnt this function transition the
- * struct sci_base_phy::state_machine to the SCI_BASE_PHY_STATE_FINAL? enum sci_status
- * SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_stopped_state_destroy_handler(
-	struct sci_base_phy *phy)
+static enum sci_status scic_sds_phy_stopped_state_destroy_handler(struct sci_base_phy *base_phy)
 {
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
-
-	/* @todo what do we actually need to do here? */
 	return SCI_SUCCESS;
 }
 
-/*
- * ******************************************************************************
- * * PHY STARTING STATE HANDLERS
- * ****************************************************************************** */
-
-/* All of these state handlers are mapped to the starting sub-state machine */
-
-/*
- * ******************************************************************************
- * * PHY READY STATE HANDLERS
- * ****************************************************************************** */
-
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This method takes the struct scic_sds_phy from a ready state and attempts to stop
- * it. - The phy state machine is transitioned to the
- * SCI_BASE_PHY_STATE_STOPPED. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_ready_state_stop_handler(
-	struct sci_base_phy *phy)
+static enum sci_status scic_sds_phy_ready_state_stop_handler(struct sci_base_phy *base_phy)
 {
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
-
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(this_phy),
-		SCI_BASE_PHY_STATE_STOPPED
-		);
+	sci_base_state_machine_change_state(&base_phy->state_machine,
+					    SCI_BASE_PHY_STATE_STOPPED);
 
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
- *
- * This method takes the struct scic_sds_phy from a ready state and attempts to reset
- * it. - The phy state machine is transitioned to the
- * SCI_BASE_PHY_STATE_STARTING. enum sci_status SCI_SUCCESS
- */
-static enum sci_status scic_sds_phy_ready_state_reset_handler(
-	struct sci_base_phy *phy)
+static enum sci_status scic_sds_phy_ready_state_reset_handler(struct sci_base_phy *base_phy)
 {
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
-
-	sci_base_state_machine_change_state(
-		scic_sds_phy_get_base_state_machine(this_phy),
-		SCI_BASE_PHY_STATE_RESETTING
-		);
+	sci_base_state_machine_change_state(&base_phy->state_machine,
+					    SCI_BASE_PHY_STATE_RESETTING);
 
 	return SCI_SUCCESS;
 }
 
 /**
- *
+ * scic_sds_phy_ready_state_event_handler -
  * @phy: This is the struct scic_sds_phy object which has received the event.
  *
  * This method request the struct scic_sds_phy handle the received event.  The only
  * event that we are interested in while in the ready state is the link failure
  * event. - decoded event is a link failure - transition the struct scic_sds_phy back
- * to the SCI_BASE_PHY_STATE_STARTING state. - any other event recived will
+ * to the SCI_BASE_PHY_STATE_STARTING state. - any other event received will
  * report a warning message enum sci_status SCI_SUCCESS if the event received is a
  * link failure SCI_FAILURE_INVALID_STATE for any other event received.
  */
-static enum sci_status scic_sds_phy_ready_state_event_handler(
-	struct scic_sds_phy *this_phy,
-	u32 event_code)
+static enum sci_status scic_sds_phy_ready_state_event_handler(struct scic_sds_phy *sci_phy,
+							      u32 event_code)
 {
 	enum sci_status result = SCI_FAILURE;
 
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_LINK_FAILURE:
 		/* Link failure change state back to the starting state */
-		sci_base_state_machine_change_state(
-			scic_sds_phy_get_base_state_machine(this_phy),
-			SCI_BASE_PHY_STATE_STARTING
-			);
-
+		sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+						    SCI_BASE_PHY_STATE_STARTING);
 		result = SCI_SUCCESS;
 		break;
 
 	case SCU_EVENT_BROADCAST_CHANGE:
 		/* Broadcast change received. Notify the port. */
-		if (scic_sds_phy_get_port(this_phy) != NULL)
-			scic_sds_port_broadcast_change_received(this_phy->owning_port, this_phy);
+		if (scic_sds_phy_get_port(sci_phy) != NULL)
+			scic_sds_port_broadcast_change_received(sci_phy->owning_port, sci_phy);
 		else
-			this_phy->bcn_received_while_port_unassigned = true;
+			sci_phy->bcn_received_while_port_unassigned = true;
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%sP SCIC PHY 0x%p ready state machine received "
 			 "unexpected event_code %x\n",
-			 __func__,
-			 this_phy,
-			 event_code);
+			 __func__, sci_phy, event_code);
 
 		result = SCI_FAILURE_INVALID_STATE;
 		break;
@@ -2305,40 +2191,24 @@ static enum sci_status scic_sds_phy_ready_state_event_handler(
 	return result;
 }
 
-/* --------------------------------------------------------------------------- */
-
-/**
- *
- * @this_phy: This is the struct scic_sds_phy object which is receiving the event.
- * @event_code: This is the event code to be processed.
- *
- * This is the resetting state event handler. enum sci_status
- * SCI_FAILURE_INVALID_STATE
- */
-static enum sci_status scic_sds_phy_resetting_state_event_handler(
-	struct scic_sds_phy *this_phy,
-	u32 event_code)
+static enum sci_status scic_sds_phy_resetting_state_event_handler(struct scic_sds_phy *sci_phy,
+								  u32 event_code)
 {
 	enum sci_status result = SCI_FAILURE;
 
 	switch (scu_get_event_code(event_code)) {
 	case SCU_EVENT_HARD_RESET_TRANSMITTED:
 		/* Link failure change state back to the starting state */
-		sci_base_state_machine_change_state(
-			scic_sds_phy_get_base_state_machine(this_phy),
-			SCI_BASE_PHY_STATE_STARTING
-			);
-
+		sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
+						    SCI_BASE_PHY_STATE_STARTING);
 		result = SCI_SUCCESS;
 		break;
 
 	default:
-		dev_warn(sciphy_to_dev(this_phy),
+		dev_warn(sciphy_to_dev(sci_phy),
 			 "%s: SCIC PHY 0x%p resetting state machine received "
 			 "unexpected event_code %x\n",
-			 __func__,
-			 this_phy,
-			 event_code);
+			 __func__, sci_phy, event_code);
 
 		result = SCI_FAILURE_INVALID_STATE;
 		break;

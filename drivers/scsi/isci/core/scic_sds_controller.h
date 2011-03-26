@@ -421,15 +421,6 @@ extern const struct sci_base_state scic_sds_controller_state_table[];
 	}
 
 /**
- * scic_sds_controller_get_base_state_machine() -
- *
- * This is a helper macro that gets the base state machine for the controller
- * object
- */
-#define scic_sds_controller_get_base_state_machine(this_controller) \
-	(&(this_controller)->parent.state_machine)
-
-/**
  * scic_sds_controller_get_port_configuration_agent() -
  *
  * This is a helper macro to get the port configuration agent from the
