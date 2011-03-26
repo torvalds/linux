@@ -1302,8 +1302,7 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	memset(&mcs[rx_mcs_supp], 0,
 			sizeof(struct ieee80211_mcs_info) - rx_mcs_supp);
 	if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA ||
-			(ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap) &&
-			 ISSUPP_CHANWIDTH40(adapter->usr_dot_11n_dev_cap)))
+			ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(mcs_set.rx_mask);
 

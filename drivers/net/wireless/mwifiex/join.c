@@ -970,16 +970,16 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 			       cpu_to_le16(sizeof(struct ieee80211_ht_cap));
 			ht_cap_info = le16_to_cpu(ht_cap->ht_cap.cap_info);
 
-			SETHT_SHORTGI20(ht_cap_info);
+			ht_cap_info |= IEEE80211_HT_CAP_SGI_20;
 			if (adapter->chan_offset) {
-				SETHT_SHORTGI40(ht_cap_info);
-				SETHT_DSSSCCK40(ht_cap_info);
-				SETHT_SUPPCHANWIDTH(ht_cap_info);
+				ht_cap_info |= IEEE80211_HT_CAP_SGI_40;
+				ht_cap_info |= IEEE80211_HT_CAP_DSSSCCK40;
+				ht_cap_info |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 			}
 
 			ht_cap->ht_cap.ampdu_params_info
-					= MAX_RX_AMPDU_SIZE_64K;
+					= IEEE80211_HT_MAX_AMPDU_64K;
 			ht_cap->ht_cap.mcs.rx_mask[0] = 0xff;
 			pos += sizeof(struct mwifiex_ie_types_htcap);
 			cmd_append_size +=
@@ -999,7 +999,8 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 			if (adapter->chan_offset) {
 				ht_info->ht_info.ht_param =
 					adapter->chan_offset;
-				SET_CHANWIDTH40(ht_info->ht_info.ht_param);
+				ht_info->ht_info.ht_param |=
+					IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 			}
 			ht_info->ht_info.operation_mode =
 				cpu_to_le16(NON_GREENFIELD_STAS);

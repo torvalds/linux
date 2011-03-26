@@ -182,76 +182,34 @@ enum MWIFIEX_802_11_WEP_STATUS {
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_4K        4096
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
-#define MAX_RX_AMPDU_SIZE_64K   0x03
 #define NON_GREENFIELD_STAS     0x04
 
-#define HWSPEC_GREENFIELD_SUPP	 BIT(29)
-#define HWSPEC_RXSTBC_SUPP	 BIT(26)
-#define HWSPEC_SHORTGI40_SUPP	 BIT(24)
-#define HWSPEC_SHORTGI20_SUPP	 BIT(23)
-#define HWSPEC_CHANBW40_SUPP	 BIT(17)
-
-#define DEFAULT_11N_CAP_MASK	(HWSPEC_SHORTGI20_SUPP | HWSPEC_RXSTBC_SUPP)
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
-#define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
-#define ISSUPP_RXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(26))
-#define ISSUPP_TXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(25))
-#define ISSUPP_SHORTGI40(Dot11nDevCap) (Dot11nDevCap & BIT(24))
-#define ISSUPP_SHORTGI20(Dot11nDevCap) (Dot11nDevCap & BIT(23))
-#define GET_DELAYEDBACK(Dot11nDevCap) (((Dot11nDevCap >> 20) & 0x03))
+
+/* dev_cap bitmap
+ * BIT
+ * 0-16		reserved
+ * 17		IEEE80211_HT_CAP_SUP_WIDTH_20_40
+ * 18-22	reserved
+ * 23		IEEE80211_HT_CAP_SGI_20
+ * 24		IEEE80211_HT_CAP_SGI_40
+ * 25		IEEE80211_HT_CAP_TX_STBC
+ * 26		IEEE80211_HT_CAP_RX_STBC
+ * 27-28	reserved
+ * 29		IEEE80211_HT_CAP_GRN_FLD
+ * 30-31	reserved
+ */
 #define ISSUPP_CHANWIDTH40(Dot11nDevCap) (Dot11nDevCap & BIT(17))
-#define ISENABLED_40MHZ_INTOLARENT(Dot11nDevCap) (Dot11nDevCap & BIT(8))
-#define SETSUPP_CHANWIDTH40(Dot11nDevCap) (Dot11nDevCap |= BIT(17))
-#define RESETSUPP_CHANWIDTH40(Dot11nDevCap) (Dot11nDevCap &= ~BIT(17))
-#define GET_TXMCSSUPP(DevMCSSupported) (DevMCSSupported >> 4)
+#define ISSUPP_SHORTGI20(Dot11nDevCap) (Dot11nDevCap & BIT(23))
+#define ISSUPP_SHORTGI40(Dot11nDevCap) (Dot11nDevCap & BIT(24))
+#define ISSUPP_TXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(25))
+#define ISSUPP_RXSTBC(Dot11nDevCap) (Dot11nDevCap & BIT(26))
+#define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
+
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
-#define GETHT_SUPPCHANWIDTH(HTCapInfo) (HTCapInfo & BIT(1))
-#define GETHT_GREENFIELD(HTCapInfo) (HTCapInfo & BIT(4))
-#define GETHT_SHORTGI20(HTCapInfo) (HTCapInfo & BIT(5))
-#define GETHT_SHORTGI40(HTCapInfo) (HTCapInfo & BIT(6))
-#define GETHT_TXSTBC(HTCapInfo) (HTCapInfo & BIT(7))
-#define GETHT_RXSTBC(HTCapInfo) ((HTCapInfo >> 8) & 0x03)
-#define GETHT_DELAYEDBACK(HTCapInfo) (HTCapInfo & BIT(10))
-#define GETHT_MAXAMSDU(HTCapInfo) (HTCapInfo & BIT(11))
-#define SETHT_SUPPCHANWIDTH(HTCapInfo) (HTCapInfo |= BIT(1))
-#define SETHT_GREENFIELD(HTCapInfo) (HTCapInfo |= BIT(4))
-#define SETHT_SHORTGI20(HTCapInfo) (HTCapInfo |= BIT(5))
-#define SETHT_SHORTGI40(HTCapInfo) (HTCapInfo |= BIT(6))
-#define SETHT_TXSTBC(HTCapInfo) (HTCapInfo |= BIT(7))
-#define SETHT_RXSTBC(HTCapInfo, value) (HTCapInfo |= (value << 8))
-#define SETHT_DELAYEDBACK(HTCapInfo) (HTCapInfo |= BIT(10))
-#define SETHT_MAXAMSDU(HTCapInfo) (HTCapInfo |= BIT(11))
-#define SETHT_DSSSCCK40(HTCapInfo) (HTCapInfo |= BIT(12))
-#define SETHT_40MHZ_INTOLARANT(HTCapInfo) (HTCapInfo |= BIT(14))
-#define RESETHT_SUPPCHANWIDTH(HTCapInfo) (HTCapInfo &= ~BIT(1))
-#define RESETHT_GREENFIELD(HTCapInfo) (HTCapInfo &= ~BIT(4))
-#define RESETHT_SHORTGI20(HTCapInfo) (HTCapInfo &= ~BIT(5))
-#define RESETHT_SHORTGI40(HTCapInfo) (HTCapInfo &= ~BIT(6))
-#define RESETHT_TXSTBC(HTCapInfo) (HTCapInfo &= ~BIT(7))
-#define RESETHT_RXSTBC(HTCapInfo) (HTCapInfo &= ~(0x03 << 8))
-#define RESETHT_DELAYEDBACK(HTCapInfo) (HTCapInfo &= ~BIT(10))
-#define RESETHT_MAXAMSDU(HTCapInfo) (HTCapInfo &= ~BIT(11))
-#define RESETHT_40MHZ_INTOLARANT(HTCapInfo) (HTCapInfo &= ~BIT(14))
 #define RESETHT_EXTCAP_RDG(HTExtCap) (HTExtCap &= ~BIT(11))
 #define SETHT_MCS32(x) (x[4] |= 1)
-#define SETHT_MCS_SET_DEFINED(x) (x[12] |= 1)
-#define SETHT_RX_HIGHEST_DT_SUPP(x, y) ((*(u16 *) (x + 10)) = y)
-#define AMPDU_FACTOR_64K	0x03
-#define SETAMPDU_SIZE(x, y) do { \
-	x = x & ~0x03; \
-	x |= y & 0x03; \
-} while (0) \
 
-#define SETAMPDU_SPACING(x, y) do { \
-	x = x & ~0x1c; \
-	x |= (y & 0x07) << 2; \
-} while (0) \
-
-#define ISSUPP_BANDA(FwCapInfo) (FwCapInfo & BIT(10))
-#define ISALLOWED_CHANWIDTH40(Field2) (Field2 & BIT(2))
-#define SET_CHANWIDTH40(Field2) (Field2 |= BIT(2))
-#define RESET_CHANWIDTH40(Field2) (Field2 &= ~(BIT(0) | BIT(1) | BIT(2)))
-#define GET_SECONDARYCHAN(Field2) (Field2 & (BIT(0) | BIT(1)))
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))
 
 #define LLC_SNAP_LEN    8

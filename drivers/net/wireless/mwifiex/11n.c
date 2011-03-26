@@ -61,59 +61,42 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv,
 	uint16_t ht_cap_info = le16_to_cpu(ht_cap->ht_cap.cap_info);
 	uint16_t ht_ext_cap = le16_to_cpu(ht_cap->ht_cap.extended_ht_cap_info);
 
-	if (ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap) &&
-	    ISSUPP_CHANWIDTH40(adapter->usr_dot_11n_dev_cap))
-		SETHT_SUPPCHANWIDTH(ht_cap_info);
+	/* Convert dev_cap to IEEE80211_HT_CAP */
+	if (ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap))
+		ht_cap_info |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	else
-		RESETHT_SUPPCHANWIDTH(ht_cap_info);
+		ht_cap_info &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
-	if (ISSUPP_GREENFIELD(adapter->hw_dot_11n_dev_cap) &&
-	    ISSUPP_GREENFIELD(adapter->usr_dot_11n_dev_cap))
-		SETHT_GREENFIELD(ht_cap_info);
+	if (ISSUPP_SHORTGI20(adapter->hw_dot_11n_dev_cap))
+		ht_cap_info |= IEEE80211_HT_CAP_SGI_20;
 	else
-		RESETHT_GREENFIELD(ht_cap_info);
+		ht_cap_info &= ~IEEE80211_HT_CAP_SGI_20;
 
-	if (ISSUPP_SHORTGI20(adapter->hw_dot_11n_dev_cap) &&
-	    ISSUPP_SHORTGI20(adapter->usr_dot_11n_dev_cap))
-		SETHT_SHORTGI20(ht_cap_info);
+	if (ISSUPP_SHORTGI40(adapter->hw_dot_11n_dev_cap))
+		ht_cap_info |= IEEE80211_HT_CAP_SGI_40;
 	else
-		RESETHT_SHORTGI20(ht_cap_info);
+		ht_cap_info &= ~IEEE80211_HT_CAP_SGI_40;
 
-	if (ISSUPP_SHORTGI40(adapter->hw_dot_11n_dev_cap) &&
-	    ISSUPP_SHORTGI40(adapter->usr_dot_11n_dev_cap))
-		SETHT_SHORTGI40(ht_cap_info);
-	else
-		RESETHT_SHORTGI40(ht_cap_info);
-
-	/* No user config for RX STBC yet */
-	if (ISSUPP_RXSTBC(adapter->hw_dot_11n_dev_cap)
-	    && ISSUPP_RXSTBC(adapter->usr_dot_11n_dev_cap))
-		SETHT_RXSTBC(ht_cap_info, 1);
-	else
-		RESETHT_RXSTBC(ht_cap_info);
-
-	/* No user config for TX STBC yet */
 	if (ISSUPP_TXSTBC(adapter->hw_dot_11n_dev_cap))
-		SETHT_TXSTBC(ht_cap_info);
+		ht_cap_info |= IEEE80211_HT_CAP_TX_STBC;
 	else
-		RESETHT_TXSTBC(ht_cap_info);
+		ht_cap_info &= ~IEEE80211_HT_CAP_TX_STBC;
 
-	/* No user config for Delayed BACK yet */
-	if (GET_DELAYEDBACK(adapter->hw_dot_11n_dev_cap))
-		SETHT_DELAYEDBACK(ht_cap_info);
+	if (ISSUPP_RXSTBC(adapter->hw_dot_11n_dev_cap))
+		ht_cap_info |= 1 << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 	else
-		RESETHT_DELAYEDBACK(ht_cap_info);
+		ht_cap_info &= ~(3 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
 
-	if (ISENABLED_40MHZ_INTOLARENT(adapter->usr_dot_11n_dev_cap))
-		SETHT_40MHZ_INTOLARANT(ht_cap_info);
+	if (ISSUPP_GREENFIELD(adapter->hw_dot_11n_dev_cap))
+		ht_cap_info |= IEEE80211_HT_CAP_GRN_FLD;
 	else
-		RESETHT_40MHZ_INTOLARANT(ht_cap_info);
+		ht_cap_info &= ~IEEE80211_HT_CAP_GRN_FLD;
 
-	SETAMPDU_SIZE(ht_cap->ht_cap.ampdu_params_info, AMPDU_FACTOR_64K);
-	SETAMPDU_SPACING(ht_cap->ht_cap.ampdu_params_info, 0);
+	ht_cap_info &= ~IEEE80211_HT_CAP_MAX_AMSDU;
+	ht_cap_info |= IEEE80211_HT_CAP_SM_PS;
 
-	/* Need change to support 8k AMSDU receive */
-	RESETHT_MAXAMSDU(ht_cap_info);
+	ht_cap->ht_cap.ampdu_params_info |= IEEE80211_HT_AMPDU_PARM_FACTOR;
+	ht_cap->ht_cap.ampdu_params_info &= ~IEEE80211_HT_AMPDU_PARM_DENSITY;
 
 	rx_mcs_supp = GET_RXMCSSUPP(adapter->hw_dev_mcs_support);
 
@@ -127,8 +110,7 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv,
 			sizeof(struct ieee80211_mcs_info) - rx_mcs_supp);
 
 	if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA ||
-	    (ISSUPP_CHANWIDTH40(adapter->hw_dot_11n_dev_cap) &&
-	     ISSUPP_CHANWIDTH40(adapter->usr_dot_11n_dev_cap)))
+			(ht_cap_info & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 
@@ -452,10 +434,10 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 			       le16_to_cpu(ht_info->header.len));
 
 			if (!ISSUPP_CHANWIDTH40
-			    (priv->adapter->hw_dot_11n_dev_cap)
-			    || !ISSUPP_CHANWIDTH40(priv->adapter->
-						   usr_dot_11n_dev_cap))
-				RESET_CHANWIDTH40(ht_info->ht_info.ht_param);
+					(priv->adapter->hw_dot_11n_dev_cap))
+				ht_info->ht_info.ht_param &=
+					~(IEEE80211_HT_PARAM_CHAN_WIDTH_ANY |
+					IEEE80211_HT_PARAM_CHA_SEC_OFFSET);
 
 			*buffer += sizeof(struct mwifiex_ie_types_htinfo);
 			ret_len += sizeof(struct mwifiex_ie_types_htinfo);
@@ -474,13 +456,13 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		chan_list->chan_scan_param[0].radio_type =
 			mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
 
-		if ((ISSUPP_CHANWIDTH40(priv->adapter->hw_dot_11n_dev_cap) &&
-		     ISSUPP_CHANWIDTH40(priv->adapter->usr_dot_11n_dev_cap))
-		    && ISALLOWED_CHANWIDTH40(bss_desc->bcn_ht_info->ht_param))
+		if (ISSUPP_CHANWIDTH40(priv->adapter->hw_dot_11n_dev_cap)
+			&& (bss_desc->bcn_ht_info->ht_param &
+				IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
 			SET_SECONDARYCHAN(chan_list->chan_scan_param[0].
 					  radio_type,
-					  GET_SECONDARYCHAN(bss_desc->
-					  bcn_ht_info->ht_param));
+					  (bss_desc->bcn_ht_info->ht_param &
+					  IEEE80211_HT_PARAM_CHA_SEC_OFFSET));
 
 		*buffer += sizeof(struct mwifiex_ie_types_chan_list_param_set);
 		ret_len += sizeof(struct mwifiex_ie_types_chan_list_param_set);
@@ -540,7 +522,8 @@ mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
 	u16 curr_tx_buf_size = 0;
 
 	if (bss_desc->bcn_ht_cap) {
-		if (GETHT_MAXAMSDU(le16_to_cpu(bss_desc->bcn_ht_cap->cap_info)))
+		if (le16_to_cpu(bss_desc->bcn_ht_cap->cap_info) &
+				IEEE80211_HT_CAP_MAX_AMSDU)
 			max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_8K;
 		else
 			max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_4K;
