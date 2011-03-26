@@ -41,7 +41,6 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
@@ -87,7 +86,6 @@ struct io_reg CN700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFD, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR77, 0xFF, 0x00},	/* LCD scaling Factor */
 {VIACR, CR78, 0xFF, 0x00},	/* LCD scaling Factor */
 {VIACR, CR79, 0xFF, 0x00},	/* LCD scaling Factor */
@@ -161,7 +159,7 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIASR, SR1B, 0xFF, 0xF0},
 {VIASR, SR1E, 0xFF, 0x01},
 {VIASR, SR2A, 0xFF, 0x00},
-{VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
+{VIASR, SR2D, 0xC0, 0xC0},	/* delayed E3_ECK */
 {VIACR, CR0A, 0xFF, 0x1E},	/* Cursor Start                        */
 {VIACR, CR0B, 0xFF, 0x00},	/* Cursor End                          */
 {VIACR, CR0E, 0xFF, 0x00},	/* Cursor Location High                */
@@ -174,7 +172,6 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
@@ -204,7 +201,7 @@ struct io_reg VX855_ModeXregs[] = {
 {VIASR, SR2A, 0xF0, 0x00},
 {VIASR, SR58, 0xFF, 0x00},
 {VIASR, SR59, 0xFF, 0x00},
-{VIASR, SR2D, 0xFF, 0xFF},	/* VCK and LCK PLL power on.           */
+{VIASR, SR2D, 0xC0, 0xC0},	/* delayed E3_ECK */
 {VIACR, CR09, 0xFF, 0x00},	/* Initial CR09=0*/
 {VIACR, CR11, 0x8F, 0x00},	/* IGA1 initial  Vertical end       */
 {VIACR, CR17, 0x7F, 0x00}, 	/* IGA1 CRT Mode control init   */
@@ -219,7 +216,6 @@ struct io_reg VX855_ModeXregs[] = {
 {VIACR, CR69, 0xFF, 0x00},
 {VIACR, CR6A, 0xFD, 0x60},
 {VIACR, CR6B, 0xFF, 0x00},
-{VIACR, CR6C, 0xFF, 0x00},
 {VIACR, CR88, 0xFF, 0x40},          /* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},          /* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},          /* LCD Timing Control 1                */
