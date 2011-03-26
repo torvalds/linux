@@ -30,6 +30,10 @@ Supported chips:
     Prefix: 'f71889ed'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Should become available on the Fintek website soon
+  * Fintek F71889A
+    Prefix: 'f71889a'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Should become available on the Fintek website soon
   * Fintek F8000
     Prefix: 'f8000'
     Addresses scanned: none, address read from Super I/O config space

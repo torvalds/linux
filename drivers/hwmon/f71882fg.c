@@ -54,6 +54,7 @@
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
 #define SIO_F71889E_ID		0x0909	/* Chipset ID */
+#define SIO_F71889A_ID		0x1005	/* Chipset ID */
 #define SIO_F8000_ID		0x0581	/* Chipset ID */
 #define SIO_F81865_ID		0x0704	/* Chipset ID */
 
@@ -107,7 +108,7 @@ module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
 enum chips { f71808e, f71858fg, f71862fg, f71869, f71882fg, f71889fg,
-	     f71889ed, f8000, f81865f };
+	     f71889ed, f71889a, f8000, f81865f };
 
 static const char *f71882fg_names[] = {
 	"f71808e",
@@ -117,6 +118,7 @@ static const char *f71882fg_names[] = {
 	"f71882fg",
 	"f71889fg", /* f81801u too, same id */
 	"f71889ed",
+	"f71889a",
 	"f8000",
 	"f81865f",
 };
@@ -129,6 +131,7 @@ static const char f71882fg_has_in[][F71882FG_MAX_INS] = {
 	[f71882fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f71889fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f71889ed]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71889a]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
 	[f8000]		= { 1, 1, 1, 0, 0, 0, 0, 0, 0 },
 	[f81865f]	= { 1, 1, 1, 1, 1, 1, 1, 0, 0 },
 };
@@ -141,6 +144,7 @@ static const char f71882fg_has_in1_alarm[] = {
 	[f71882fg]	= 1,
 	[f71889fg]	= 1,
 	[f71889ed]	= 1,
+	[f71889a]	= 1,
 	[f8000]		= 0,
 	[f81865f]	= 1,
 };
@@ -153,6 +157,7 @@ static const char f71882fg_has_beep[] = {
 	[f71882fg]	= 1,
 	[f71889fg]	= 1,
 	[f71889ed]	= 1,
+	[f71889a]	= 1,
 	[f8000]		= 0,
 	[f81865f]	= 1,
 };
@@ -165,6 +170,7 @@ static const char f71882fg_nr_fans[] = {
 	[f71882fg]	= 4,
 	[f71889fg]	= 3,
 	[f71889ed]	= 3,
+	[f71889a]	= 3,
 	[f8000]		= 3,
 	[f81865f]	= 2,
 };
@@ -177,6 +183,7 @@ static const char f71882fg_nr_temps[] = {
 	[f71882fg]	= 3,
 	[f71889fg]	= 3,
 	[f71889ed]	= 3,
+	[f71889a]	= 3,
 	[f8000]		= 3,
 	[f81865f]	= 2,
 };
@@ -2168,6 +2175,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			/* Fall through to select correct fan/pwm reg bank! */
 		case f71889fg:
 		case f71889ed:
+		case f71889a:
 			reg = f71882fg_read8(data, F71882FG_REG_FAN_FAULT_T);
 			if (reg & F71882FG_FAN_NEG_TEMP_EN)
 				data->auto_point_temp_signed = 1;
@@ -2225,6 +2233,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		case f71869:
 		case f71889fg:
 		case f71889ed:
+		case f71889a:
 			for (i = 0; i < nr_fans; i++) {
 				data->pwm_auto_point_mapping[i] =
 					f71882fg_read8(data,
@@ -2432,6 +2441,9 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 		break;
 	case SIO_F71889E_ID:
 		sio_data->type = f71889ed;
+		break;
+	case SIO_F71889A_ID:
+		sio_data->type = f71889a;
 		break;
 	case SIO_F8000_ID:
 		sio_data->type = f8000;
