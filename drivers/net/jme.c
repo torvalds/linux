@@ -273,7 +273,7 @@ jme_clear_pm(struct jme_adapter *jme)
 {
 	jwrite32(jme, JME_PMCS, 0xFFFF0000 | jme->reg_pmcs);
 	pci_set_power_state(jme->pdev, PCI_D0);
-	pci_enable_wake(jme->pdev, PCI_D0, false);
+	device_set_wakeup_enable(&jme->pdev->dev, false);
 }
 
 static int
@@ -2538,6 +2538,8 @@ jme_set_wol(struct net_device *netdev,
 
 	jwrite32(jme, JME_PMCS, jme->reg_pmcs);
 
+	device_set_wakeup_enable(&jme->pdev->dev, jme->reg_pmcs);
+
 	return 0;
 }
 
@@ -3172,9 +3174,9 @@ jme_shutdown(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int
-jme_suspend(struct pci_dev *pdev, pm_message_t state)
+static int jme_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
@@ -3206,22 +3208,18 @@ jme_suspend(struct pci_dev *pdev, pm_message_t state)
 	tasklet_hi_enable(&jme->rxclean_task);
 	tasklet_hi_enable(&jme->rxempty_task);
 
-	pci_save_state(pdev);
 	jme_powersave_phy(jme);
-	pci_enable_wake(jme->pdev, PCI_D3hot, true);
-	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
 
-static int
-jme_resume(struct pci_dev *pdev)
+static int jme_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
-	jme_clear_pm(jme);
-	pci_restore_state(pdev);
+	jwrite32(jme, JME_PMCS, 0xFFFF0000 | jme->reg_pmcs);
 
 	jme_phy_on(jme);
 	if (test_bit(JME_FLAG_SSET, &jme->flags))
@@ -3238,6 +3236,13 @@ jme_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(jme_pm_ops, jme_suspend, jme_resume);
+#define JME_PM_OPS (&jme_pm_ops)
+
+#else
+
+#define JME_PM_OPS NULL
 #endif
 
 static DEFINE_PCI_DEVICE_TABLE(jme_pci_tbl) = {
@@ -3251,11 +3256,8 @@ static struct pci_driver jme_driver = {
 	.id_table       = jme_pci_tbl,
 	.probe          = jme_init_one,
 	.remove         = __devexit_p(jme_remove_one),
-#ifdef CONFIG_PM
-	.suspend        = jme_suspend,
-	.resume         = jme_resume,
-#endif /* CONFIG_PM */
 	.shutdown       = jme_shutdown,
+	.driver.pm	= JME_PM_OPS,
 };
 
 static int __init
