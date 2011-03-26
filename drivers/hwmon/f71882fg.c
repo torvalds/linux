@@ -114,7 +114,7 @@ static const char *f71882fg_names[] = {
 	"f71862fg",
 	"f71869", /* Both f71869f and f71869e, reg. compatible and same id */
 	"f71882fg",
-	"f71889fg",
+	"f71889fg", /* f81801u too, same id */
 	"f71889ed",
 	"f8000",
 };
