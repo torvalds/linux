@@ -1854,9 +1854,12 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	dma_params.rxcp			= priv->emac_base + 0x660;
 	dma_params.num_chan		= EMAC_MAX_TXRX_CHANNELS;
 	dma_params.min_packet_size	= EMAC_DEF_MIN_ETHPKTSIZE;
-	dma_params.desc_mem_phys	= hw_ram_addr;
+	dma_params.desc_hw_addr		= hw_ram_addr;
 	dma_params.desc_mem_size	= pdata->ctrl_ram_size;
 	dma_params.desc_align		= 16;
+
+	dma_params.desc_mem_phys = pdata->no_bd_ram ? 0 :
+			(u32 __force)res->start + pdata->ctrl_ram_offset;
 
 	priv->dma = cpdma_ctlr_create(&dma_params);
 	if (!priv->dma) {

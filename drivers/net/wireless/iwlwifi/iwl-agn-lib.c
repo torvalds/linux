@@ -2265,7 +2265,7 @@ signed long iwlagn_wait_notification(struct iwl_priv *priv,
 	int ret;
 
 	ret = wait_event_timeout(priv->_agn.notif_waitq,
-				 &wait_entry->triggered,
+				 wait_entry->triggered,
 				 timeout);
 
 	spin_lock_bh(&priv->_agn.notif_wait_lock);

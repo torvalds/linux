@@ -1593,8 +1593,6 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 			rt->rt_peer_genid = rt_peer_genid();
 		}
 		check_peer_pmtu(dst, peer);
-
-		inet_putpeer(peer);
 	}
 }
 
@@ -1720,7 +1718,7 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 
 		rcu_read_lock();
 		if (fib_lookup(dev_net(rt->dst.dev), &fl4, &res) == 0)
-			src = FIB_RES_PREFSRC(res);
+			src = FIB_RES_PREFSRC(dev_net(rt->dst.dev), res);
 		else
 			src = inet_select_addr(rt->dst.dev, rt->rt_gateway,
 					RT_SCOPE_UNIVERSE);
@@ -2617,7 +2615,7 @@ static struct rtable *ip_route_output_slow(struct net *net,
 		fib_select_default(&res);
 
 	if (!fl4.saddr)
-		fl4.saddr = FIB_RES_PREFSRC(res);
+		fl4.saddr = FIB_RES_PREFSRC(net, res);
 
 	dev_out = FIB_RES_DEV(res);
 	fl4.flowi4_oif = dev_out->ifindex;
@@ -3221,6 +3219,8 @@ static __net_init int rt_genid_init(struct net *net)
 {
 	get_random_bytes(&net->ipv4.rt_genid,
 			 sizeof(net->ipv4.rt_genid));
+	get_random_bytes(&net->ipv4.dev_addr_genid,
+			 sizeof(net->ipv4.dev_addr_genid));
 	return 0;
 }
 
