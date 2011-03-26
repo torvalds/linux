@@ -548,10 +548,8 @@ S:	Maintained
 F:	sound/aoa/
 
 APM DRIVER
-M:	Stephen Rothwell <sfr@canb.auug.org.au>
 L:	linux-laptop@vger.kernel.org
-W:	http://www.canb.auug.org.au/~sfr/
-S:	Supported
+S:	Orphan
 F:	arch/x86/kernel/apm_32.c
 F:	include/linux/apm_bios.h
 
