@@ -110,12 +110,12 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 		slave_config.direction = DMA_TO_DEVICE;
 		slave_config.dst_addr = dma_params->dma_addr;
 		slave_config.dst_addr_width = buswidth;
-		slave_config.dst_maxburst = dma_params->burstsize;
+		slave_config.dst_maxburst = dma_params->burstsize * buswidth;
 	} else {
 		slave_config.direction = DMA_FROM_DEVICE;
 		slave_config.src_addr = dma_params->dma_addr;
 		slave_config.src_addr_width = buswidth;
-		slave_config.src_maxburst = dma_params->burstsize;
+		slave_config.src_maxburst = dma_params->burstsize * buswidth;
 	}
 
 	ret = dmaengine_slave_config(iprtd->dma_chan, &slave_config);
@@ -303,6 +303,11 @@ static struct snd_soc_platform_driver imx_soc_platform_mx2 = {
 
 static int __devinit imx_soc_platform_probe(struct platform_device *pdev)
 {
+	struct imx_ssi *ssi = platform_get_drvdata(pdev);
+
+	ssi->dma_params_tx.burstsize = 6;
+	ssi->dma_params_rx.burstsize = 4;
+
 	return snd_soc_register_platform(&pdev->dev, &imx_soc_platform_mx2);
 }
 
