@@ -2439,7 +2439,6 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 
 	dib0700_set_i2c_speed(adap->dev, 340);
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x90, &tfe7090pvr_dib7000p_config[0]);
-
 	if (adap->fe == NULL)
 		return -ENODEV;
 
