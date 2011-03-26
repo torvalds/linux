@@ -87,7 +87,7 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 	fcoe_init1.task_list_pbl_addr_lo = (u32) hba->task_ctx_bd_dma;
 	fcoe_init1.task_list_pbl_addr_hi =
 				(u32) ((u64) hba->task_ctx_bd_dma >> 32);
-	fcoe_init1.mtu = hba->netdev->mtu;
+	fcoe_init1.mtu = BNX2FC_MINI_JUMBO_MTU;
 
 	fcoe_init1.flags = (PAGE_SHIFT <<
 				FCOE_KWQE_INIT1_LOG_PAGE_SIZE_SHIFT);
@@ -590,7 +590,10 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 
 		num_rq = (frame_len + BNX2FC_RQ_BUF_SZ - 1) / BNX2FC_RQ_BUF_SZ;
 
+		spin_lock_bh(&tgt->tgt_lock);
 		rq_data = (unsigned char *)bnx2fc_get_next_rqe(tgt, num_rq);
+		spin_unlock_bh(&tgt->tgt_lock);
+
 		if (rq_data) {
 			buf = rq_data;
 		} else {
@@ -603,8 +606,10 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 			}
 
 			for (i = 0; i < num_rq; i++) {
+				spin_lock_bh(&tgt->tgt_lock);
 				rq_data = (unsigned char *)
 					   bnx2fc_get_next_rqe(tgt, 1);
+				spin_unlock_bh(&tgt->tgt_lock);
 				len = BNX2FC_RQ_BUF_SZ;
 				memcpy(buf1, rq_data, len);
 				buf1 += len;
@@ -615,13 +620,15 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 
 		if (buf != rq_data)
 			kfree(buf);
+		spin_lock_bh(&tgt->tgt_lock);
 		bnx2fc_return_rqe(tgt, num_rq);
+		spin_unlock_bh(&tgt->tgt_lock);
 		break;
 
 	case FCOE_ERROR_DETECTION_CQE_TYPE:
 		/*
-		 *In case of error reporting CQE a single RQ entry
-		 * is consumes.
+		 * In case of error reporting CQE a single RQ entry
+		 * is consumed.
 		 */
 		spin_lock_bh(&tgt->tgt_lock);
 		num_rq = 1;
@@ -705,6 +712,7 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		 *In case of warning reporting CQE a single RQ entry
 		 * is consumes.
 		 */
+		spin_lock_bh(&tgt->tgt_lock);
 		num_rq = 1;
 		err_entry = (struct fcoe_err_report_entry *)
 			     bnx2fc_get_next_rqe(tgt, 1);
@@ -717,6 +725,7 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 			err_entry->tx_buf_off, err_entry->rx_buf_off);
 
 		bnx2fc_return_rqe(tgt, 1);
+		spin_unlock_bh(&tgt->tgt_lock);
 		break;
 
 	default:

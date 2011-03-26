@@ -5,7 +5,8 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2010 Adaptec, Inc.
+ *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -228,6 +229,48 @@ unsigned int aac_command_normal(struct aac_queue *q)
 	return 0;
 }
 
+/*
+ *
+ * aac_aif_callback
+ * @context: the context set in the fib - here it is scsi cmd
+ * @fibptr: pointer to the fib
+ *
+ * Handles the AIFs - new method (SRC)
+ *
+ */
+
+static void aac_aif_callback(void *context, struct fib * fibptr)
+{
+	struct fib *fibctx;
+	struct aac_dev *dev;
+	struct aac_aifcmd *cmd;
+	int status;
+
+	fibctx = (struct fib *)context;
+	BUG_ON(fibptr == NULL);
+	dev = fibptr->dev;
+
+	if (fibptr->hw_fib_va->header.XferState &
+	    cpu_to_le32(NoMoreAifDataAvailable)) {
+		aac_fib_complete(fibptr);
+		aac_fib_free(fibptr);
+		return;
+	}
+
+	aac_intr_normal(dev, 0, 1, 0, fibptr->hw_fib_va);
+
+	aac_fib_init(fibctx);
+	cmd = (struct aac_aifcmd *) fib_data(fibctx);
+	cmd->command = cpu_to_le32(AifReqEvent);
+
+	status = aac_fib_send(AifRequest,
+		fibctx,
+		sizeof(struct hw_fib)-sizeof(struct aac_fibhdr),
+		FsaNormal,
+		0, 1,
+		(fib_callback)aac_aif_callback, fibctx);
+}
+
 
 /**
  *	aac_intr_normal	-	Handle command replies
@@ -238,19 +281,17 @@ unsigned int aac_command_normal(struct aac_queue *q)
  *	know there is a response on our normal priority queue. We will pull off
  *	all QE there are and wake up all the waiters before exiting.
  */
-
-unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
+unsigned int aac_intr_normal(struct aac_dev *dev, u32 index,
+			int isAif, int isFastResponse, struct hw_fib *aif_fib)
 {
 	unsigned long mflags;
 	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, index));
-	if ((index & 0x00000002L)) {
+	if (isAif == 1) {	/* AIF - common */
 		struct hw_fib * hw_fib;
 		struct fib * fib;
 		struct aac_queue *q = &dev->queues->queue[HostNormCmdQueue];
 		unsigned long flags;
 
-		if (index == 0xFFFFFFFEL) /* Special Case */
-			return 0;	  /* Do nothing */
 		/*
 		 *	Allocate a FIB. For non queued stuff we can just use
 		 * the stack so we are happy. We need a fib object in order to
@@ -263,8 +304,13 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 			kfree (fib);
 			return 1;
 		}
-		memcpy(hw_fib, (struct hw_fib *)(((uintptr_t)(dev->regs.sa)) +
-		  (index & ~0x00000002L)), sizeof(struct hw_fib));
+		if (aif_fib != NULL) {
+			memcpy(hw_fib, aif_fib, sizeof(struct hw_fib));
+		} else {
+			memcpy(hw_fib,
+				(struct hw_fib *)(((uintptr_t)(dev->regs.sa)) +
+				index), sizeof(struct hw_fib));
+		}
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;
 		fib->size = sizeof(struct fib);
@@ -277,9 +323,26 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 	        wake_up_interruptible(&q->cmdready);
 		spin_unlock_irqrestore(q->lock, flags);
 		return 1;
+	} else if (isAif == 2) {	/* AIF - new (SRC) */
+		struct fib *fibctx;
+		struct aac_aifcmd *cmd;
+
+		fibctx = aac_fib_alloc(dev);
+		if (!fibctx)
+			return 1;
+		aac_fib_init(fibctx);
+
+		cmd = (struct aac_aifcmd *) fib_data(fibctx);
+		cmd->command = cpu_to_le32(AifReqEvent);
+
+		return aac_fib_send(AifRequest,
+			fibctx,
+			sizeof(struct hw_fib)-sizeof(struct aac_fibhdr),
+			FsaNormal,
+			0, 1,
+			(fib_callback)aac_aif_callback, fibctx);
 	} else {
-		int fast = index & 0x01;
-		struct fib * fib = &dev->fibs[index >> 2];
+		struct fib *fib = &dev->fibs[index];
 		struct hw_fib * hwfib = fib->hw_fib_va;
 
 		/*
@@ -298,7 +361,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 			return 0;
 		}
 
-		if (fast) {
+		if (isFastResponse) {
 			/*
 			 *	Doctor the fib
 			 */

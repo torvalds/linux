@@ -29,10 +29,6 @@ static struct kmem_cache *srb_cachep;
 /*
  * Module parameter information and variables
  */
-int ql4xdiscoverywait = 60;
-module_param(ql4xdiscoverywait, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ql4xdiscoverywait, "Discovery wait time");
-
 int ql4xdontresethba = 0;
 module_param(ql4xdontresethba, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xdontresethba,
@@ -55,6 +51,17 @@ MODULE_PARM_DESC(ql4xenablemsix,
 		" 2 = enable MSI interrupt mechanism.");
 
 #define QL4_DEF_QDEPTH 32
+static int ql4xmaxqdepth = QL4_DEF_QDEPTH;
+module_param(ql4xmaxqdepth, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ql4xmaxqdepth,
+		"Maximum queue depth to report for target devices.\n"
+		" Default: 32.");
+
+static int ql4xsess_recovery_tmo = QL4_SESS_RECOVERY_TMO;
+module_param(ql4xsess_recovery_tmo, int, S_IRUGO);
+MODULE_PARM_DESC(ql4xsess_recovery_tmo,
+		"Target Session Recovery Timeout.\n"
+		" Default: 30 sec.");
 
 /*
  * SCSI host template entry points
@@ -165,7 +172,7 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 		DEBUG2(printk("scsi%ld: %s: ddb [%d] session recovery timeout "
 			      "of (%d) secs exhausted, marking device DEAD.\n",
 			      ha->host_no, __func__, ddb_entry->fw_ddb_index,
-			      QL4_SESS_RECOVERY_TMO));
+			      ddb_entry->sess->recovery_tmo));
 	}
 }
 
@@ -295,7 +302,7 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 {
 	int err;
 
-	ddb_entry->sess->recovery_tmo = QL4_SESS_RECOVERY_TMO;
+	ddb_entry->sess->recovery_tmo = ql4xsess_recovery_tmo;
 
 	err = iscsi_add_session(ddb_entry->sess, ddb_entry->fw_ddb_index);
 	if (err) {
@@ -753,12 +760,6 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 	if (!pci_channel_offline(ha->pdev))
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
 
-	if (test_bit(AF_HBA_GOING_AWAY, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s exited. HBA GOING AWAY\n",
-		    __func__));
-		return;
-	}
-
 	if (is_qla8022(ha)) {
 		qla4_8xxx_watchdog(ha);
 	}
@@ -1067,7 +1068,6 @@ void qla4xxx_dead_adapter_cleanup(struct scsi_qla_host *ha)
 
 	/* Disable the board */
 	ql4_printk(KERN_INFO, ha, "Disabling the board\n");
-	set_bit(AF_HBA_GOING_AWAY, &ha->flags);
 
 	qla4xxx_abort_active_cmds(ha, DID_NO_CONNECT << 16);
 	qla4xxx_mark_all_devices_missing(ha);
@@ -1218,6 +1218,27 @@ recover_ha_init_adapter:
 	return status;
 }
 
+static void qla4xxx_relogin_all_devices(struct scsi_qla_host *ha)
+{
+	struct ddb_entry *ddb_entry, *dtemp;
+
+	list_for_each_entry_safe(ddb_entry, dtemp, &ha->ddb_list, list) {
+		if ((atomic_read(&ddb_entry->state) == DDB_STATE_MISSING) ||
+		    (atomic_read(&ddb_entry->state) == DDB_STATE_DEAD)) {
+			if (ddb_entry->fw_ddb_device_state ==
+			    DDB_DS_SESSION_ACTIVE) {
+				atomic_set(&ddb_entry->state, DDB_STATE_ONLINE);
+				ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ddb[%d]"
+				    " marked ONLINE\n",	ha->host_no, __func__,
+				    ddb_entry->fw_ddb_index);
+
+				iscsi_unblock_session(ddb_entry->sess);
+			} else
+				qla4xxx_relogin_device(ha, ddb_entry);
+		}
+	}
+}
+
 void qla4xxx_wake_dpc(struct scsi_qla_host *ha)
 {
 	if (ha->dpc_thread &&
@@ -1258,11 +1279,6 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 		    ha->host_no, __func__, ha->flags));
 		goto do_dpc_exit;
 	}
-
-	/* HBA is in the process of being permanently disabled.
-	 * Don't process anything */
-	if (test_bit(AF_HBA_GOING_AWAY, &ha->flags))
-		return;
 
 	if (is_qla8022(ha)) {
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
@@ -1331,13 +1347,7 @@ dpc_post_reset_ha:
 	if (test_and_clear_bit(DPC_LINK_CHANGED, &ha->dpc_flags)) {
 		if (!test_bit(AF_LINK_UP, &ha->flags)) {
 			/* ---- link down? --- */
-			list_for_each_entry_safe(ddb_entry, dtemp,
-						 &ha->ddb_list, list) {
-				if (atomic_read(&ddb_entry->state) ==
-						DDB_STATE_ONLINE)
-					qla4xxx_mark_device_missing(ha,
-							ddb_entry);
-			}
+			qla4xxx_mark_all_devices_missing(ha);
 		} else {
 			/* ---- link up? --- *
 			 * F/W will auto login to all devices ONLY ONCE after
@@ -1346,30 +1356,7 @@ dpc_post_reset_ha:
 			 * manually relogin to devices when recovering from
 			 * connection failures, logouts, expired KATO, etc. */
 
-			list_for_each_entry_safe(ddb_entry, dtemp,
-							&ha->ddb_list, list) {
-				if ((atomic_read(&ddb_entry->state) ==
-						 DDB_STATE_MISSING) ||
-				    (atomic_read(&ddb_entry->state) ==
-						 DDB_STATE_DEAD)) {
-					if (ddb_entry->fw_ddb_device_state ==
-					    DDB_DS_SESSION_ACTIVE) {
-						atomic_set(&ddb_entry->state,
-							   DDB_STATE_ONLINE);
-						ql4_printk(KERN_INFO, ha,
-						    "scsi%ld: %s: ddb[%d]"
-						    " marked ONLINE\n",
-						    ha->host_no, __func__,
-						    ddb_entry->fw_ddb_index);
-
-						iscsi_unblock_session(
-						    ddb_entry->sess);
-					} else
-						qla4xxx_relogin_device(
-						    ha, ddb_entry);
-				}
-
-			}
+			qla4xxx_relogin_all_devices(ha);
 		}
 	}
 
@@ -1630,6 +1617,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	uint8_t init_retry_count = 0;
 	char buf[34];
 	struct qla4_8xxx_legacy_intr_set *nx_legacy_intr;
+	uint32_t dev_state;
 
 	if (pci_enable_device(pdev))
 		return -1;
@@ -1713,6 +1701,18 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	status = qla4xxx_initialize_adapter(ha, REBUILD_DDB_LIST);
 	while ((!test_bit(AF_ONLINE, &ha->flags)) &&
 	    init_retry_count++ < MAX_INIT_RETRIES) {
+
+		if (is_qla8022(ha)) {
+			qla4_8xxx_idc_lock(ha);
+			dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+			qla4_8xxx_idc_unlock(ha);
+			if (dev_state == QLA82XX_DEV_FAILED) {
+				ql4_printk(KERN_WARNING, ha, "%s: don't retry "
+				    "initialize adapter. H/W is in failed state\n",
+				    __func__);
+				break;
+			}
+		}
 		DEBUG2(printk("scsi: %s: retrying adapter initialization "
 			      "(%d)\n", __func__, init_retry_count));
 
@@ -1815,6 +1815,44 @@ probe_disable_device:
 }
 
 /**
+ * qla4xxx_prevent_other_port_reinit - prevent other port from re-initialize
+ * @ha: pointer to adapter structure
+ *
+ * Mark the other ISP-4xxx port to indicate that the driver is being removed,
+ * so that the other port will not re-initialize while in the process of
+ * removing the ha due to driver unload or hba hotplug.
+ **/
+static void qla4xxx_prevent_other_port_reinit(struct scsi_qla_host *ha)
+{
+	struct scsi_qla_host *other_ha = NULL;
+	struct pci_dev *other_pdev = NULL;
+	int fn = ISP4XXX_PCI_FN_2;
+
+	/*iscsi function numbers for ISP4xxx is 1 and 3*/
+	if (PCI_FUNC(ha->pdev->devfn) & BIT_1)
+		fn = ISP4XXX_PCI_FN_1;
+
+	other_pdev =
+		pci_get_domain_bus_and_slot(pci_domain_nr(ha->pdev->bus),
+		ha->pdev->bus->number, PCI_DEVFN(PCI_SLOT(ha->pdev->devfn),
+		fn));
+
+	/* Get other_ha if other_pdev is valid and state is enable*/
+	if (other_pdev) {
+		if (atomic_read(&other_pdev->enable_cnt)) {
+			other_ha = pci_get_drvdata(other_pdev);
+			if (other_ha) {
+				set_bit(AF_HA_REMOVAL, &other_ha->flags);
+				DEBUG2(ql4_printk(KERN_INFO, ha, "%s: "
+				    "Prevent %s reinit\n", __func__,
+				    dev_name(&other_ha->pdev->dev)));
+			}
+		}
+		pci_dev_put(other_pdev);
+	}
+}
+
+/**
  * qla4xxx_remove_adapter - calback function to remove adapter.
  * @pci_dev: PCI device pointer
  **/
@@ -1824,7 +1862,8 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	ha = pci_get_drvdata(pdev);
 
-	set_bit(AF_HBA_GOING_AWAY, &ha->flags);
+	if (!is_qla8022(ha))
+		qla4xxx_prevent_other_port_reinit(ha);
 
 	/* remove devs from iscsi_sessions to scsi_devices */
 	qla4xxx_free_ddb_list(ha);
@@ -1868,10 +1907,15 @@ static int qla4xxx_slave_alloc(struct scsi_device *sdev)
 {
 	struct iscsi_cls_session *sess = starget_to_session(sdev->sdev_target);
 	struct ddb_entry *ddb = sess->dd_data;
+	int queue_depth = QL4_DEF_QDEPTH;
 
 	sdev->hostdata = ddb;
 	sdev->tagged_supported = 1;
-	scsi_activate_tcq(sdev, QL4_DEF_QDEPTH);
+
+	if (ql4xmaxqdepth != 0 && ql4xmaxqdepth <= 0xffffU)
+		queue_depth = ql4xmaxqdepth;
+
+	scsi_activate_tcq(sdev, queue_depth);
 	return 0;
 }
 

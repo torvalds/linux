@@ -21,7 +21,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Jan 25, 2011"
+#define DRV_MODULE_RELDATE	"Mar 17, 2011"
 
 
 static char version[] __devinitdata =
@@ -437,17 +437,16 @@ static int bnx2fc_l2_rcv_thread(void *arg)
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
 		schedule();
-		set_current_state(TASK_RUNNING);
 		spin_lock_bh(&bg->fcoe_rx_list.lock);
 		while ((skb = __skb_dequeue(&bg->fcoe_rx_list)) != NULL) {
 			spin_unlock_bh(&bg->fcoe_rx_list.lock);
 			bnx2fc_recv_frame(skb);
 			spin_lock_bh(&bg->fcoe_rx_list.lock);
 		}
+		__set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&bg->fcoe_rx_list.lock);
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	return 0;
 }
 
@@ -569,7 +568,6 @@ int bnx2fc_percpu_io_thread(void *arg)
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
 		schedule();
-		set_current_state(TASK_RUNNING);
 		spin_lock_bh(&p->fp_work_lock);
 		while (!list_empty(&p->work_list)) {
 			list_splice_init(&p->work_list, &work_list);
@@ -583,10 +581,10 @@ int bnx2fc_percpu_io_thread(void *arg)
 
 			spin_lock_bh(&p->fp_work_lock);
 		}
+		__set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&p->fp_work_lock);
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
@@ -661,31 +659,6 @@ static int bnx2fc_shost_config(struct fc_lport *lport, struct device *dev)
 	return 0;
 }
 
-static int  bnx2fc_mfs_update(struct fc_lport *lport)
-{
-	struct fcoe_port *port = lport_priv(lport);
-	struct bnx2fc_hba *hba = port->priv;
-	struct net_device *netdev = hba->netdev;
-	u32 mfs;
-	u32 max_mfs;
-
-	mfs = netdev->mtu - (sizeof(struct fcoe_hdr) +
-			     sizeof(struct fcoe_crc_eof));
-	max_mfs = BNX2FC_MAX_PAYLOAD + sizeof(struct fc_frame_header);
-	BNX2FC_HBA_DBG(lport, "mfs = %d, max_mfs = %d\n", mfs, max_mfs);
-	if (mfs > max_mfs)
-		mfs = max_mfs;
-
-	/* Adjust mfs to be a multiple of 256 bytes */
-	mfs = (((mfs - sizeof(struct fc_frame_header)) / BNX2FC_MIN_PAYLOAD) *
-			BNX2FC_MIN_PAYLOAD);
-	mfs = mfs + sizeof(struct fc_frame_header);
-
-	BNX2FC_HBA_DBG(lport, "Set MFS = %d\n", mfs);
-	if (fc_set_mfs(lport, mfs))
-		return -EINVAL;
-	return 0;
-}
 static void bnx2fc_link_speed_update(struct fc_lport *lport)
 {
 	struct fcoe_port *port = lport_priv(lport);
@@ -754,7 +727,7 @@ static int bnx2fc_net_config(struct fc_lport *lport)
 	    !hba->phys_dev->ethtool_ops->get_pauseparam)
 		return -EOPNOTSUPP;
 
-	if (bnx2fc_mfs_update(lport))
+	if (fc_set_mfs(lport, BNX2FC_MFS))
 		return -EINVAL;
 
 	skb_queue_head_init(&port->fcoe_pending_queue);
@@ -825,14 +798,6 @@ static void bnx2fc_indicate_netevent(void *context, unsigned long event)
 		if (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state))
 			printk(KERN_ERR "indicate_netevent: "\
 					"adapter is not UP!!\n");
-		/* fall thru to update mfs if MTU has changed */
-	case NETDEV_CHANGEMTU:
-		BNX2FC_HBA_DBG(lport, "NETDEV_CHANGEMTU event\n");
-		bnx2fc_mfs_update(lport);
-		mutex_lock(&lport->lp_mutex);
-		list_for_each_entry(vport, &lport->vports, list)
-			bnx2fc_mfs_update(vport);
-		mutex_unlock(&lport->lp_mutex);
 		break;
 
 	case NETDEV_DOWN:
@@ -1094,13 +1059,6 @@ static int bnx2fc_netdev_setup(struct bnx2fc_hba *hba)
 	struct net_device *physdev = hba->phys_dev;
 	struct netdev_hw_addr *ha;
 	int sel_san_mac = 0;
-
-	/* Do not support for bonding device */
-	if ((netdev->priv_flags & IFF_MASTER_ALB) ||
-			(netdev->priv_flags & IFF_SLAVE_INACTIVE) ||
-			(netdev->priv_flags & IFF_MASTER_8023AD)) {
-		return -EOPNOTSUPP;
-	}
 
 	/* setup Source MAC Address */
 	rcu_read_lock();
@@ -1432,16 +1390,9 @@ static int bnx2fc_destroy(struct net_device *netdev)
 	struct net_device *phys_dev;
 	int rc = 0;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	rtnl_lock();
 
 	mutex_lock(&bnx2fc_dev_lock);
-#ifdef CONFIG_SCSI_BNX2X_FCOE_MODULE
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto netdev_err;
-	}
-#endif
 	/* obtain physical netdev */
 	if (netdev->priv_flags & IFF_802_1Q_VLAN)
 		phys_dev = vlan_dev_real_dev(netdev);
@@ -1805,17 +1756,9 @@ static int bnx2fc_disable(struct net_device *netdev)
 	struct ethtool_drvinfo drvinfo;
 	int rc = 0;
 
-	if (!rtnl_trylock()) {
-		printk(KERN_ERR PFX "retrying for rtnl_lock\n");
-		return -EIO;
-	}
+	rtnl_lock();
 
 	mutex_lock(&bnx2fc_dev_lock);
-
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto nodev;
-	}
 
 	/* obtain physical netdev */
 	if (netdev->priv_flags & IFF_802_1Q_VLAN)
@@ -1867,18 +1810,10 @@ static int bnx2fc_enable(struct net_device *netdev)
 	struct ethtool_drvinfo drvinfo;
 	int rc = 0;
 
-	if (!rtnl_trylock()) {
-		printk(KERN_ERR PFX "retrying for rtnl_lock\n");
-		return -EIO;
-	}
+	rtnl_lock();
 
 	BNX2FC_MISC_DBG("Entered %s\n", __func__);
 	mutex_lock(&bnx2fc_dev_lock);
-
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto nodev;
-	}
 
 	/* obtain physical netdev */
 	if (netdev->priv_flags & IFF_802_1Q_VLAN)
@@ -1942,18 +1877,9 @@ static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode)
 		return -EIO;
 	}
 
-	if (!rtnl_trylock()) {
-		printk(KERN_ERR "trying for rtnl_lock\n");
-		return -EIO;
-	}
-	mutex_lock(&bnx2fc_dev_lock);
+	rtnl_lock();
 
-#ifdef CONFIG_SCSI_BNX2X_FCOE_MODULE
-	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
-		rc = -ENODEV;
-		goto mod_err;
-	}
-#endif
+	mutex_lock(&bnx2fc_dev_lock);
 
 	if (!try_module_get(THIS_MODULE)) {
 		rc = -EINVAL;
@@ -2506,7 +2432,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.change_queue_type	= fc_change_queue_type,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
-	.can_queue		= (BNX2FC_MAX_OUTSTANDING_CMNDS/2),
+	.can_queue		= BNX2FC_CAN_QUEUE,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
 	.max_sectors		= 512,
