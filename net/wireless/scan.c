@@ -585,15 +585,22 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	struct cfg80211_internal_bss *res;
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
-	size_t privsz = wiphy->bss_priv_size;
+	size_t privsz;
+
+	if (WARN_ON(!mgmt))
+		return NULL;
+
+	if (WARN_ON(!wiphy))
+		return NULL;
 
 	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 	            (signal < 0 || signal > 100)))
 		return NULL;
 
-	if (WARN_ON(!mgmt || !wiphy ||
-		    len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable)))
+	if (WARN_ON(len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable)))
 		return NULL;
+
+	privsz = wiphy->bss_priv_size;
 
 	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
 	if (!res)
