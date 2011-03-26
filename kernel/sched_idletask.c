@@ -94,6 +94,4 @@ static const struct sched_class idle_sched_class = {
 
 	.prio_changed		= prio_changed_idle,
 	.switched_to		= switched_to_idle,
-
-	/* no .task_new for idle tasks */
 };
