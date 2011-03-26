@@ -84,22 +84,7 @@ static DEFINE_PCI_DEVICE_TABLE(isci_id_table) = {
 	{}
 };
 
-struct isci_firmware *isci_firmware;
-
-static int __devinit isci_pci_probe(
-	struct pci_dev *pdev,
-	const struct pci_device_id *device_id_p);
-
-static void __devexit isci_pci_remove(struct pci_dev *pdev);
-
 MODULE_DEVICE_TABLE(pci, isci_id_table);
-
-static struct pci_driver isci_pci_driver = {
-	.name		= DRV_NAME,
-	.id_table	= isci_id_table,
-	.probe		= isci_pci_probe,
-	.remove		= __devexit_p(isci_pci_remove),
-};
 
 /* linux isci specific settings */
 
@@ -339,7 +324,7 @@ static int num_controllers(struct pci_dev *pdev)
 	 */
 	resource_size_t scu_bar_size = pci_resource_len(pdev, SCI_SCU_BAR*2);
 	resource_size_t smu_bar_size = pci_resource_len(pdev, SCI_SMU_BAR*2);
-	
+
 	if (scu_bar_size >= SCI_SCU_BAR_SIZE*SCI_MAX_CONTROLLERS &&
 	    smu_bar_size >= SCI_SMU_BAR_SIZE*SCI_MAX_CONTROLLERS)
 		return SCI_MAX_CONTROLLERS;
@@ -484,7 +469,7 @@ static void check_si_rev(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "driver configured for %s silicon (rev: %d)\n",
 		 isci_si_rev == ISCI_SI_REVA0 ? "A0" :
 		 isci_si_rev == ISCI_SI_REVA2 ? "A2" : "B0", pdev->revision);
-		
+
 }
 
 static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -572,6 +557,13 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 		scic_controller_disable_interrupts(isci_host->core_controller);
 	}
 }
+
+static struct pci_driver isci_pci_driver = {
+	.name		= DRV_NAME,
+	.id_table	= isci_id_table,
+	.probe		= isci_pci_probe,
+	.remove		= __devexit_p(isci_pci_remove),
+};
 
 static __init int isci_init(void)
 {
