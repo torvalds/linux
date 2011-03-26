@@ -1549,7 +1549,7 @@ static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct rk29_sdmmc *host = platform_get_drvdata(pdev);
 
 	printk("Enter rk29_sdmmc_suspend\n");
-	if(host->mmc)
+	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0))
 		ret = mmc_suspend_host(host->mmc, state);
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 0);
 	clk_disable(host->clk);
@@ -1566,7 +1566,7 @@ static int rk29_sdmmc_resume(struct platform_device *pdev)
 	printk("Exit rk29_sdmmc_suspend\n");
 	clk_enable(host->clk);
         rk29_sdmmc_write(host->regs, SDMMC_CLKENA, 1);
-	if(host->mmc)
+	if(host->mmc && (strncmp(host->dma_name, "sdio", strlen("sdio")) != 0))
 		ret = mmc_resume_host(host->mmc);
 #endif
 	return ret;
