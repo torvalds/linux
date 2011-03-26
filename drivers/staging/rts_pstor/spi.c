@@ -543,7 +543,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 		retval = rtsx_transfer_data(chip, 0, buf, pagelen, 0, DMA_FROM_DEVICE, 10000);
 		if (retval < 0) {
-			rtsx_free_dma_buf(chip, buf);
+			kfree(buf);
 			rtsx_clear_spi_error(chip);
 			spi_set_err_code(chip, SPI_HW_ERR);
 			TRACE_RET(chip, STATUS_FAIL);
@@ -556,7 +556,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	scsi_set_resid(srb, 0);
-	rtsx_free_dma_buf(chip, buf);
+	kfree(buf);
 
 	return STATUS_SUCCESS;
 }
@@ -591,7 +591,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		while (len) {
 			retval = sf_enable_write(chip, SPI_WREN);
 			if (retval != STATUS_SUCCESS) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
@@ -605,7 +605,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = rtsx_send_cmd(chip, 0, 100);
 			if (retval < 0) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				rtsx_clear_spi_error(chip);
 				spi_set_err_code(chip, SPI_HW_ERR);
 				TRACE_RET(chip, STATUS_FAIL);
@@ -613,7 +613,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = sf_polling_status(chip, 100);
 			if (retval != STATUS_SUCCESS) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
@@ -621,7 +621,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 			len--;
 		}
 
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 
 	} else if (program_mode == AAI_PROGRAM) {
 		int first_byte = 1;
@@ -650,7 +650,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = rtsx_send_cmd(chip, 0, 100);
 			if (retval < 0) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				rtsx_clear_spi_error(chip);
 				spi_set_err_code(chip, SPI_HW_ERR);
 				TRACE_RET(chip, STATUS_FAIL);
@@ -658,14 +658,14 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = sf_polling_status(chip, 100);
 			if (retval != STATUS_SUCCESS) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
 			len--;
 		}
 
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 
 		retval = sf_disable_write(chip, SPI_WRDI);
 		if (retval != STATUS_SUCCESS)
@@ -687,7 +687,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = sf_enable_write(chip, SPI_WREN);
 			if (retval != STATUS_SUCCESS) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
@@ -702,7 +702,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = rtsx_transfer_data(chip, 0, buf, pagelen, 0, DMA_TO_DEVICE, 100);
 			if (retval < 0) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				rtsx_clear_spi_error(chip);
 				spi_set_err_code(chip, SPI_HW_ERR);
 				TRACE_RET(chip, STATUS_FAIL);
@@ -710,7 +710,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 			retval = sf_polling_status(chip, 100);
 			if (retval != STATUS_SUCCESS) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
@@ -718,7 +718,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 			len -= pagelen;
 		}
 
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 	} else {
 		spi_set_err_code(chip, SPI_INVALID_COMMAND);
 		TRACE_RET(chip, STATUS_FAIL);

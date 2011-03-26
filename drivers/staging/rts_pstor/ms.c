@@ -875,11 +875,11 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		}
 		retval = rtsx_read_register(chip, MS_TRANS_CFG, &val);
 		if (retval != STATUS_SUCCESS) {
-			rtsx_free_dma_buf(chip, buf);
+			kfree(buf);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 		if (!(val & MS_INT_BREQ)) {
-			rtsx_free_dma_buf(chip, buf);
+			kfree(buf);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 		retval = ms_transfer_data(chip, MS_TM_AUTO_READ, PRO_READ_LONG_DATA,
@@ -891,7 +891,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		}
 	}
 	if (retval != STATUS_SUCCESS) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
@@ -899,7 +899,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 	do {
 		retval = rtsx_read_register(chip, MS_TRANS_CFG, &val);
 		if (retval != STATUS_SUCCESS) {
-			rtsx_free_dma_buf(chip, buf);
+			kfree(buf);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 
@@ -908,7 +908,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 
 		retval = ms_transfer_tpc(chip, MS_TM_NORMAL_READ, PRO_READ_LONG_DATA, 0, WAIT_INT);
 		if (retval != STATUS_SUCCESS) {
-			rtsx_free_dma_buf(chip, buf);
+			kfree(buf);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 
@@ -916,18 +916,18 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 	} while (i < 1024);
 
 	if (retval != STATUS_SUCCESS) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
 	if ((buf[0] != 0xa5) && (buf[1] != 0xc3)) {
 		/* Signature code is wrong */
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
 	if ((buf[4] < 1) || (buf[4] > 12)) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
@@ -949,15 +949,15 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 			RTSX_DEBUGP("sys_info_addr = 0x%x, sys_info_size = 0x%x\n",
 					sys_info_addr, sys_info_size);
 			if (sys_info_size != 96)  {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 			if (sys_info_addr < 0x1A0) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 			if ((sys_info_size + sys_info_addr) > 0x8000) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
@@ -983,15 +983,15 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 			RTSX_DEBUGP("model_name_addr = 0x%x, model_name_size = 0x%x\n",
 					model_name_addr, model_name_size);
 			if (model_name_size != 48)  {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 			if (model_name_addr < 0x1A0) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 			if ((model_name_size + model_name_addr) > 0x8000) {
-				rtsx_free_dma_buf(chip, buf);
+				kfree(buf);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
@@ -1004,7 +1004,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 	}
 
 	if (i == buf[4]) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
@@ -1041,7 +1041,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 	memcpy(ms_card->raw_model_name, buf + model_name_addr, 48);
 #endif
 
-	rtsx_free_dma_buf(chip, buf);
+	kfree(buf);
 
 #ifdef SUPPORT_MSXC
 	if (CHK_MSXC(ms_card)) {
@@ -3817,7 +3817,7 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 GetEKBFinish:
 	if (buf) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 	}
 	return retval;
 }
@@ -4055,7 +4055,7 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 GetICVFinish:
 	if (buf) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 	}
 	return retval;
 }
@@ -4156,7 +4156,7 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 SetICVFinish:
 	if (buf) {
-		rtsx_free_dma_buf(chip, buf);
+		kfree(buf);
 	}
 	return retval;
 }
