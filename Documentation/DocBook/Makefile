@@ -55,7 +55,6 @@ mandocs: $(MAN)
 build_images = mkdir -p $(objtree)/Documentation/DocBook/media/ && \
 	       cp $(srctree)/Documentation/DocBook/dvb/*.png \
 	          $(srctree)/Documentation/DocBook/v4l/*.gif \
-	          $(srctree)/Documentation/DocBook/v4l/*.png \
 		  $(objtree)/Documentation/DocBook/media/
 
 xmldoclinks:
