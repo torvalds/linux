@@ -1,10 +1,5 @@
-PHDRS
-{
-  text PT_LOAD FILEHDR PHDRS FLAGS (7);
-  data PT_LOAD FLAGS (7);
-}
-#ifdef CONFIG_SUN3
-#include "vmlinux-sun3.lds"
+#ifdef CONFIG_MMU
+#include "vmlinux.lds_mm.S"
 #else
-#include "vmlinux-std.lds"
+#include "vmlinux.lds_no.S"
 #endif

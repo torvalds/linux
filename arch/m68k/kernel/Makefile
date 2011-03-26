@@ -1,17 +1,5 @@
-#
-# Makefile for the linux kernel.
-#
-
-ifndef CONFIG_SUN3
-  extra-y := head.o
+ifdef CONFIG_MMU
+include arch/m68k/kernel/Makefile_mm
 else
-  extra-y := sun3-head.o
+include arch/m68k/kernel/Makefile_no
 endif
-extra-y	+= vmlinux.lds
-
-obj-y	:= entry.o process.o traps.o ints.o signal.o ptrace.o module.o \
-	   sys_m68k.o time.o setup.o m68k_ksyms.o devres.o
-
-devres-y = ../../../kernel/irq/devres.o
-
-obj-y$(CONFIG_MMU_SUN3) += dma.o	# no, it's not a typo

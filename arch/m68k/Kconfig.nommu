@@ -1,40 +1,4 @@
-config M68K
-	bool
-	default y
-	select HAVE_IDE
-	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_HARDIRQS_NO_DEPRECATED
-
-config MMU
-	bool
-	default n
-
-config NO_DMA
-	bool
-	depends on !COLDFIRE
-	default y
-
 config FPU
-	bool
-	default n
-
-config ZONE_DMA
-	bool
-	default y
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U32
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
@@ -46,28 +10,13 @@ config GENERIC_GPIO
 	bool
 	default n
 
-config GENERIC_HWEIGHT
-	bool
-	default y
-
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
 config GENERIC_CMOS_UPDATE
-	bool
-	default y
-
-config TIME_LOW_RES
 	bool
 	default y
 
 config GENERIC_CLOCKEVENTS
 	bool
 	default n
-
-config NO_IOPORT
-	def_bool y
 
 config COLDFIRE_SW_A7
 	bool
@@ -84,12 +33,6 @@ config HAVE_MBAR
 
 config HAVE_IPSBAR
 	bool
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
-menu "Processor type and features"
 
 choice
 	prompt "CPU"
@@ -630,11 +573,6 @@ config 4KSTACKS
 	  running more threads on a system and also reduces the pressure
 	  on the VM subsystem for higher order allocations.
 
-config HZ
-	int
-	default 1000 if CLEOPATRA
-	default 100
-
 comment "RAM configuration"
 
 config RAMBASE
@@ -803,10 +741,6 @@ endif
 
 source "kernel/time/Kconfig"
 
-source "mm/Kconfig"
-
-endmenu
-
 config ISA_DMA_API
 	bool
 	depends on !M5272
@@ -814,31 +748,3 @@ config ISA_DMA_API
 
 source "drivers/pcmcia/Kconfig"
 
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-menu "Power management options"
-
-config PM
-	bool "Power Management support"
-	help
-	  Support processor power management modes
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/m68knommu/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

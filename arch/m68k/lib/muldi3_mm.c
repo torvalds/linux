@@ -1,5 +1,6 @@
-/* ashrdi3.c extracted from gcc-2.95.2/libgcc2.c which is: */
-/* Copyright (C) 1989, 92-98, 1999 Free Software Foundation, Inc.
+/* muldi3.c extracted from gcc-2.7.2.3/libgcc2.c and
+			   gcc-2.7.2.3/longlong.h which is: */
+/* Copyright (C) 1989, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,7 +21,19 @@ Boston, MA 02111-1307, USA.  */
 
 #define BITS_PER_UNIT 8
 
-typedef 	 int SItype	__attribute__ ((mode (SI)));
+#define umul_ppmm(w1, w0, u, v) \
+  __asm__ ("mulu%.l %3,%1:%0"						\
+           : "=d" ((USItype)(w0)),					\
+             "=d" ((USItype)(w1))					\
+           : "%0" ((USItype)(u)),					\
+             "dmi" ((USItype)(v)))
+
+#define __umulsidi3(u, v) \
+  ({DIunion __w;							\
+    umul_ppmm (__w.s.high, __w.s.low, u, v);				\
+    __w.ll; })
+
+typedef		 int SItype	__attribute__ ((mode (SI)));
 typedef unsigned int USItype	__attribute__ ((mode (SI)));
 typedef		 int DItype	__attribute__ ((mode (DI)));
 typedef int word_type __attribute__ ((mode (__word__)));
@@ -34,29 +47,17 @@ typedef union
 } DIunion;
 
 DItype
-__ashldi3 (DItype u, word_type b)
+__muldi3 (DItype u, DItype v)
 {
   DIunion w;
-  word_type bm;
-  DIunion uu;
+  DIunion uu, vv;
 
-  if (b == 0)
-    return u;
+  uu.ll = u,
+  vv.ll = v;
 
-  uu.ll = u;
-
-  bm = (sizeof (SItype) * BITS_PER_UNIT) - b;
-  if (bm <= 0)
-    {
-      w.s.low = 0;
-      w.s.high = (USItype)uu.s.low << -bm;
-    }
-  else
-    {
-      USItype carries = (USItype)uu.s.low >> bm;
-      w.s.low = (USItype)uu.s.low << b;
-      w.s.high = ((USItype)uu.s.high << b) | carries;
-    }
+  w.ll = __umulsidi3 (uu.s.low, vv.s.low);
+  w.s.high += ((USItype) uu.s.low * (USItype) vv.s.high
+	       + (USItype) uu.s.high * (USItype) vv.s.low);
 
   return w.ll;
 }
