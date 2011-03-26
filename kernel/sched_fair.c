@@ -22,6 +22,7 @@
 
 #include <linux/latencytop.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
@@ -3850,8 +3851,8 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 		interval = msecs_to_jiffies(interval);
 		if (unlikely(!interval))
 			interval = 1;
-		if (interval > HZ*NR_CPUS/10)
-			interval = HZ*NR_CPUS/10;
+		if (interval > HZ*num_online_cpus()/10)
+			interval = HZ*num_online_cpus()/10;
 
 		need_serialize = sd->flags & SD_SERIALIZE;
 
