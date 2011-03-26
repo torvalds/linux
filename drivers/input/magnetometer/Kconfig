@@ -1,0 +1,25 @@
+#
+# Magnetometer sensors
+#
+
+comment "Magnetometer sensors"
+
+config COMPASS_AK8975
+  tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
+  depends on I2C
+  help
+  Say yes here to build support for Asahi Kasei AK8975 3-Axis
+  Magnetometer.
+
+  To compile this driver as a module, choose M here: the module
+  will be called ak8975.
+
+config COMPASS_AK8973
+  tristate "Asahi Kasei AK8973 3-Axis Magnetometer"
+  depends on I2C
+  help
+  Say yes here to build support for Asahi Kasei AK8973 3-Axis
+  Magnetometer.
+
+  To compile this driver as a module, choose M here: the module
+  will be called ak8973.

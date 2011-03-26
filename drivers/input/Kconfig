@@ -181,6 +181,8 @@ source "drivers/input/touchscreen/Kconfig"
 
 source "drivers/input/misc/Kconfig"
 
+source "drivers/input/magnetometer/Kconfig"
+
 source "drivers/input/gsensor/Kconfig"
 
 source "drivers/input/jogball/Kconfig"
