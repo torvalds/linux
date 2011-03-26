@@ -799,12 +799,12 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	struct inode *dir;
 	int ret;
 	struct btrfs_inode_ref *ref;
-	struct btrfs_dir_item *di;
 	struct inode *inode;
 	char *name;
 	int namelen;
 	unsigned long ref_ptr;
 	unsigned long ref_end;
+	int search_done = 0;
 
 	/*
 	 * it is possible that we didn't log all the parent directories
@@ -845,7 +845,10 @@ again:
 	 * existing back reference, and we don't want to create
 	 * dangling pointers in the directory.
 	 */
-conflict_again:
+
+	if (search_done)
+		goto insert;
+
 	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
 	if (ret == 0) {
 		char *victim_name;
@@ -886,37 +889,21 @@ conflict_again:
 				ret = btrfs_unlink_inode(trans, root, dir,
 							 inode, victim_name,
 							 victim_name_len);
-				kfree(victim_name);
-				btrfs_release_path(root, path);
-				goto conflict_again;
 			}
 			kfree(victim_name);
 			ptr = (unsigned long)(victim_ref + 1) + victim_name_len;
 		}
 		BUG_ON(ret);
+
+		/*
+		 * NOTE: we have searched root tree and checked the
+		 * coresponding ref, it does not need to check again.
+		 */
+		search_done = 1;
 	}
 	btrfs_release_path(root, path);
 
-	/* look for a conflicting sequence number */
-	di = btrfs_lookup_dir_index_item(trans, root, path, dir->i_ino,
-					 btrfs_inode_ref_index(eb, ref),
-					 name, namelen, 0);
-	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
-		BUG_ON(ret);
-	}
-	btrfs_release_path(root, path);
-
-
-	/* look for a conflicting name */
-	di = btrfs_lookup_dir_item(trans, root, path, dir->i_ino,
-				   name, namelen, 0);
-	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
-		BUG_ON(ret);
-	}
-	btrfs_release_path(root, path);
-
+insert:
 	/* insert our name */
 	ret = btrfs_add_link(trans, dir, inode, name, namelen, 0,
 			     btrfs_inode_ref_index(eb, ref));
