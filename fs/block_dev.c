@@ -28,6 +28,8 @@
 #include <linux/kmemleak.h>
 #include <asm/uaccess.h>
 #include "internal.h"
+#include <linux/mtd/blktrans.h>
+#include <linux/mtd/mtd.h>
 
 struct bdev_inode {
 	struct block_device bdev;
@@ -1465,12 +1467,68 @@ static const struct address_space_operations def_blk_aops = {
 	.direct_IO	= blkdev_direct_IO,
 };
 
+
+ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
+{
+    unsigned long buf_addr = (unsigned long)buf;
+    if(memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0 &&(buf_addr >= 0xc0000000))// kernel mem is usb tran
+    {
+        struct mtd_blktrans_dev *dev;
+        struct mtd_blktrans_ops *tr;
+        dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
+        tr = dev->tr;
+
+		if (!tr->readsect)
+			return 0;
+        //printk("mydo_sync_read buf = 0x%lx LBA = 0x%lx len = 0x%x \n",buf, (unsigned long)(*ppos>>9),len);
+        if(tr->readsect(dev, (unsigned long)(*ppos>>9), len>>9, buf))
+        {
+            return 0 ;
+        }
+        *ppos += len;
+        return len;
+    }
+
+    else
+    {
+        return(do_sync_read(filp, buf,len,ppos));
+    }
+}
+
+ssize_t mydo_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
+{
+    unsigned long buf_addr = (unsigned long)buf;
+    if(memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0 &&(buf_addr >= 0xc0000000))// kernel mem is usb tran
+    {
+        struct mtd_blktrans_dev *dev;
+        struct mtd_blktrans_ops *tr;
+        dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
+        tr = dev->tr;
+
+		if (!tr->writesect)
+			return 0;
+        //printk("mydo_sync_write buf = 0x%lx LBA = 0x%lx len = 0x%x \n",buf, (unsigned long)(*ppos>>9),len);
+        if(tr->writesect(dev, (unsigned long)(*ppos>>9), len>>9, buf))
+        {
+            return 0 ;
+        }
+        *ppos += len;
+        return len;
+    }
+
+    else
+    {
+        return(do_sync_write(filp, buf,len,ppos));
+    }
+}
+
+
 const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
+	.read		= mydo_sync_read,
+	.write		= mydo_sync_write,
   	.aio_read	= generic_file_aio_read,
 	.aio_write	= blkdev_aio_write,
 	.mmap		= generic_file_mmap,
