@@ -3816,9 +3816,7 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	rtsx_stor_set_xfer_buf(buf, bufflen, srb);
 
 GetEKBFinish:
-	if (buf) {
-		kfree(buf);
-	}
+	kfree(buf);
 	return retval;
 }
 
@@ -4054,9 +4052,7 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	rtsx_stor_set_xfer_buf(buf, bufflen, srb);
 
 GetICVFinish:
-	if (buf) {
-		kfree(buf);
-	}
+	kfree(buf);
 	return retval;
 }
 
@@ -4155,9 +4151,7 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #endif
 
 SetICVFinish:
-	if (buf) {
-		kfree(buf);
-	}
+	kfree(buf);
 	return retval;
 }
 
