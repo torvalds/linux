@@ -330,6 +330,7 @@ config SENSORS_F71882FG
 	    F71889FG/ED
 	    F8000
 	    F81801U
+	    F81865F
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71882fg.

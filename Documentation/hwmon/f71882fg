@@ -41,6 +41,10 @@ Supported chips:
     Note: This is the 64-pin variant of the F71889FG, they have the
 	  same device ID and are fully compatible as far as hardware
 	  monitoring is concerned.
+  * Fintek F81865F
+    Prefix: 'f81865f'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
 
 Author: Hans de Goede <hdegoede@redhat.com>
 
