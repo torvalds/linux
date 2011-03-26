@@ -1365,9 +1365,9 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 			err = fib_props[fa->fa_type].error;
 			if (err) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-				t->stats.semantic_match_miss++;
+				t->stats.semantic_match_passed++;
 #endif
-				return 1;
+				return err;
 			}
 			if (fi->fib_flags & RTNH_F_DEAD)
 				continue;
