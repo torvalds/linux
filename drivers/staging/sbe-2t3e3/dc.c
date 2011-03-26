@@ -442,15 +442,10 @@ void dc_drop_descriptor_list(struct channel *sc)
 		}
 	}
 
-	if (sc->ether.rx_ring != NULL) {
-		kfree(sc->ether.rx_ring);
-		sc->ether.rx_ring = NULL;
-	}
-
-	if (sc->ether.tx_ring != NULL) {
-		kfree(sc->ether.tx_ring);
-		sc->ether.tx_ring = NULL;
-	}
+	kfree(sc->ether.rx_ring);
+	sc->ether.rx_ring = NULL;
+	kfree(sc->ether.tx_ring);
+	sc->ether.tx_ring = NULL;
 }
 
 
