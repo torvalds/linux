@@ -21,9 +21,6 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
-#define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
-#define cru_writel(v, offset)	do { writel(v, RK29_CRU_BASE + offset); readl(RK29_CRU_BASE + offset); } while (0)
-
 static inline void delay_500ns(void)
 {
 	int delay = 13;

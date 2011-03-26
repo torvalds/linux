@@ -45,19 +45,6 @@ static inline bool pmu_power_domain_is_on(enum pmu_power_domain pd)
 	return !(readl(RK29_PMU_BASE + PMU_PD_ST) & (1 << pd));
 }
 
-static inline void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	if (on)
-		writel(readl(RK29_PMU_BASE + PMU_PD_CON) & ~(1 << pd), RK29_PMU_BASE + PMU_PD_CON);
-	else
-		writel(readl(RK29_PMU_BASE + PMU_PD_CON) |  (1 << pd), RK29_PMU_BASE + PMU_PD_CON);
-	local_irq_restore(flags);
-
-	while (pmu_power_domain_is_on(pd) != on)
-		;
-}
+void pmu_set_power_domain(enum pmu_power_domain pd, bool on);
 
 #endif

@@ -31,6 +31,7 @@
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
+#include <mach/sram.h>
 
 
 /* Clock flags */
@@ -38,9 +39,6 @@
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 #define CONFIG_PARTICIPANT	(1 << 10)	/* Fundamental clock */
 #define IS_PD			(1 << 2)	/* Power Domain */
-
-#define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
-#define cru_writel(v, offset)	writel(v, RK29_CRU_BASE + offset)
 
 #define regfile_readl(offset)	readl(RK29_GRF_BASE + offset)
 #define pmu_readl(offset)	readl(RK29_PMU_BASE + offset)
@@ -1699,6 +1697,38 @@ GATE_CLK(hclk_mmc1, hclk_periph, HCLK_MMC1);
 GATE_CLK(hclk_emmc, hclk_periph, HCLK_EMMC);
 
 
+static void __sramfunc pmu_set_power_domain_sram(enum pmu_power_domain pd, bool on)
+{
+	if (on)
+		writel(readl(RK29_PMU_BASE + PMU_PD_CON) & ~(1 << pd), RK29_PMU_BASE + PMU_PD_CON);
+	else
+		writel(readl(RK29_PMU_BASE + PMU_PD_CON) |  (1 << pd), RK29_PMU_BASE + PMU_PD_CON);
+	dsb();
+
+	while (pmu_power_domain_is_on(pd) != on)
+		;
+}
+
+static noinline void do_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
+{
+	static unsigned long save_sp;
+
+	DDR_SAVE_SP(save_sp);
+	pmu_set_power_domain_sram(pd, on);
+	DDR_RESTORE_SP(save_sp);
+}
+
+void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	mdelay(10);
+	do_pmu_set_power_domain(pd, on);
+	mdelay(10);
+	local_irq_restore(flags);
+}
+
 static int pd_vcodec_mode(struct clk *clk, int on)
 {
 	if (on) {
@@ -1712,8 +1742,6 @@ static int pd_vcodec_mode(struct clk *clk, int on)
 		cru_writel(gate, CRU_CLKGATE3_CON);
 
 		pmu_set_power_domain(PD_VCODEC, true);
-
-		udelay(10);
 
 		cru_writel(cru_clkgate3_con_mirror, CRU_CLKGATE3_CON);
 	} else {
@@ -1757,8 +1785,6 @@ static int pd_display_mode(struct clk *clk, int on)
 		cru_writel(gate, CRU_CLKGATE2_CON);
 
 		pmu_set_power_domain(PD_DISPLAY, true);
-
-		udelay(10);
 
 		cru_writel(gate2, CRU_CLKGATE2_CON);
 		cru_writel(cru_clkgate3_con_mirror, CRU_CLKGATE3_CON);

@@ -27,10 +27,6 @@
 #include <mach/ddr.h>
 #include <mach/memtester.h>
 
-#define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
-#define cru_writel(v, offset)	do { writel(v, RK29_CRU_BASE + offset); readl(RK29_CRU_BASE + offset); } while (0)
-#define pmu_readl(offset)	readl(RK29_PMU_BASE + offset)
-#define pmu_writel(v, offset)	do { writel(v, RK29_PMU_BASE + offset); readl(RK29_PMU_BASE + offset); } while (0)
 static unsigned long save_sp;
 
 #define LOOPS_PER_USEC	13
