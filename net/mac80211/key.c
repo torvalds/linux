@@ -400,11 +400,12 @@ int ieee80211_key_link(struct ieee80211_key *key,
 {
 	struct ieee80211_key *old_key;
 	int idx, ret;
-	bool pairwise = key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE;
+	bool pairwise;
 
 	BUG_ON(!sdata);
 	BUG_ON(!key);
 
+	pairwise = key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE;
 	idx = key->conf.keyidx;
 	key->local = sdata->local;
 	key->sdata = sdata;
