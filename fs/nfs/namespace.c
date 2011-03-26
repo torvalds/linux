@@ -192,13 +192,15 @@ static rpc_authflavor_t nfs_lookup_with_sec(struct nfs_server *server, struct de
 	auth   = rpcauth_create(flavor, clone);
 	if (!auth) {
 		flavor = -EIO;
-		goto out;
+		goto out_shutdown;
 	}
 	err = server->nfs_client->rpc_ops->lookup(clone, parent->d_inode,
 						  &path->dentry->d_name,
 						  fh, fattr);
 	if (err < 0)
 		flavor = err;
+out_shutdown:
+	rpc_shutdown_client(clone);
 out:
 	return flavor;
 }
