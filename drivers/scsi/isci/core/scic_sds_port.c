@@ -738,34 +738,32 @@ void scic_sds_port_setup_transports(
  * @do_notify_user: This parameter specifies whether to inform the user (via
  *    scic_cb_port_link_up()) as to the fact that a new phy as become ready.
  *
- * This method will activate the phy in the port. Activation includes: - adding
+ * This function will activate the phy in the port.
+ * Activation includes: - adding
  * the phy to the port - enabling the Protocol Engine in the silicon. -
  * notifying the user that the link is up. none
  */
-void scic_sds_port_activate_phy(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy,
-	bool do_notify_user)
+void scic_sds_port_activate_phy(struct scic_sds_port *sci_port,
+				struct scic_sds_phy *sci_phy,
+				bool do_notify_user)
 {
-	struct scic_sds_controller *controller;
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
 	struct sci_sas_identify_address_frame_protocols protocols;
+	struct isci_host *ihost = sci_object_get_association(scic);
 
-	controller = scic_sds_port_get_controller(this_port);
-	scic_sds_phy_get_attached_phy_protocols(the_phy, &protocols);
+	scic_sds_phy_get_attached_phy_protocols(sci_phy, &protocols);
 
 	/* If this is sata port then the phy has already been resumed */
-	if (!protocols.u.bits.stp_target) {
-		scic_sds_phy_resume(the_phy);
-	}
+	if (!protocols.u.bits.stp_target)
+		scic_sds_phy_resume(sci_phy);
 
-	this_port->active_phy_mask |= 1 << the_phy->phy_index;
+	sci_port->active_phy_mask |= 1 << sci_phy->phy_index;
 
-	scic_sds_controller_clear_invalid_phy(controller, the_phy);
+	scic_sds_controller_clear_invalid_phy(scic, sci_phy);
 
 	if (do_notify_user == true)
-		isci_event_port_link_up(this_port->owning_controller,
-					this_port,
-					the_phy);
+		isci_port_link_up(ihost, sci_port, sci_phy);
 }
 
 /**
@@ -773,27 +771,30 @@ void scic_sds_port_activate_phy(
  * @this_port: This is the port on which the phy should be deactivated.
  * @the_phy: This is the specific phy that is no longer active in the port.
  * @do_notify_user: This parameter specifies whether to inform the user (via
- *    isci_event_port_link_down()) as to the fact that a new phy as become
+ *    isci_port_link_down()) as to the fact that a new phy as become
  *    ready.
  *
- * This method will deactivate the supplied phy in the port. none
+ * This function will deactivate the supplied phy in the port. none
  */
-void scic_sds_port_deactivate_phy(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy,
-	bool do_notify_user)
+void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
+				  struct scic_sds_phy *sci_phy,
+				  bool do_notify_user)
 {
-	this_port->active_phy_mask &= ~(1 << the_phy->phy_index);
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
+	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_phy *iphy = sci_object_get_association(sci_phy);
 
-	the_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
+	sci_port->active_phy_mask &= ~(1 << sci_phy->phy_index);
+
+	sci_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
 
 	/* Re-assign the phy back to the LP as if it were a narrow port */
-	SCU_PCSPExCR_WRITE(this_port, the_phy->phy_index, the_phy->phy_index);
+	SCU_PCSPExCR_WRITE(sci_port, sci_phy->phy_index, sci_phy->phy_index);
 
 	if (do_notify_user == true)
-		isci_event_port_link_down(this_port->owning_controller,
-					  this_port,
-					  the_phy);
+		isci_port_link_down(ihost, iphy, iport);
 }
 
 /**
@@ -801,22 +802,24 @@ void scic_sds_port_deactivate_phy(
  * @this_port: This is the port on which the phy should be disabled.
  * @the_phy: This is the specific phy which to disabled.
  *
- * This method will disable the phy and report that the phy is not valid for
+ * This function will disable the phy and report that the phy is not valid for
  * this port object. None
  */
 static void scic_sds_port_invalid_link_up(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *the_phy)
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy)
 {
-	struct scic_sds_controller *controller = scic_sds_port_get_controller(this_port);
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
 
 	/*
-	 * Check to see if we have alreay reported this link as bad and if not go
-	 * ahead and tell the SCI_USER that we have discovered an invalid link. */
-	if ((controller->invalid_phy_mask & (1 << the_phy->phy_index)) == 0) {
-		scic_sds_controller_set_invalid_phy(controller, the_phy);
-
-		isci_event_port_invalid_link_up(controller, this_port, the_phy);
+	 * Check to see if we have alreay reported this link as bad and if
+	 * not go ahead and tell the SCI_USER that we have discovered an
+	 * invalid link.
+	 */
+	if ((scic->invalid_phy_mask & (1 << sci_phy->phy_index)) == 0) {
+		scic_sds_controller_set_invalid_phy(scic, sci_phy);
+		isci_port_invalid_link_up(scic, sci_port, sci_phy);
 	}
 }
 
@@ -950,44 +953,48 @@ enum sci_status scic_sds_port_complete_io(
  */
 static void scic_sds_port_timeout_handler(void *port)
 {
-	struct scic_sds_port *this_port = port;
+	struct scic_sds_port *sci_port = port;
 	u32 current_state;
 
 	current_state = sci_base_state_machine_get_state(
-		&this_port->parent.state_machine);
+		&sci_port->parent.state_machine);
 
 	if (current_state == SCI_BASE_PORT_STATE_RESETTING) {
 		/*
-		 * if the port is still in the resetting state then the timeout fired
-		 * before the reset completed. */
+		 * if the port is still in the resetting state then the
+		 * timeout fired before the reset completed.
+		 */
 		sci_base_state_machine_change_state(
-			&this_port->parent.state_machine,
-			SCI_BASE_PORT_STATE_FAILED
-			);
+			&sci_port->parent.state_machine,
+			SCI_BASE_PORT_STATE_FAILED);
 	} else if (current_state == SCI_BASE_PORT_STATE_STOPPED) {
 		/*
 		 * if the port is stopped then the start request failed
-		 * In this case stay in the stopped state. */
-		dev_err(sciport_to_dev(this_port),
+		 * In this case stay in the stopped state.
+		 */
+		dev_err(sciport_to_dev(sci_port),
 			"%s: SCIC Port 0x%p failed to stop before tiemout.\n",
 			__func__,
-			this_port);
+			sci_port);
 	} else if (current_state == SCI_BASE_PORT_STATE_STOPPING) {
-		/* if the port is still stopping then the stop has not completed */
-		isci_event_port_stop_complete(
-			scic_sds_port_get_controller(this_port),
-			port,
-			SCI_FAILURE_TIMEOUT
-			);
+		/*
+		 * if the port is still stopping then the stop has not
+		 * completed
+		 */
+		isci_port_stop_complete(
+				scic_sds_port_get_controller(sci_port),
+				sci_port,
+				SCI_FAILURE_TIMEOUT);
 	} else {
 		/*
-		 * The port is in the ready state and we have a timer reporting a timeout
-		 * this should not happen. */
-		dev_err(sciport_to_dev(this_port),
+		 * The port is in the ready state and we have a timer
+		 * reporting a timeout this should not happen.
+		 */
+		dev_err(sciport_to_dev(sci_port),
 			"%s: SCIC Port 0x%p is processing a timeout operation "
 			"in state %d.\n",
 			__func__,
-			this_port,
+			sci_port,
 			current_state);
 	}
 }
@@ -1067,13 +1074,14 @@ enum sci_sas_link_rate scic_sds_port_get_max_allowed_speed(
  *
  */
 void scic_sds_port_broadcast_change_received(
-	struct scic_sds_port *this_port,
-	struct scic_sds_phy *this_phy)
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy)
 {
+	struct scic_sds_controller *scic = sci_port->owning_controller;
+	struct isci_host *ihost = sci_object_get_association(scic);
+
 	/* notify the user. */
-	isci_event_port_bc_change_primitive_received(
-		this_port->owning_controller, this_port, this_phy
-		);
+	isci_port_bc_change_received(ihost, sci_port, sci_phy);
 }
 
 
@@ -1267,30 +1275,29 @@ static enum sci_status scic_sds_port_ready_waiting_substate_start_io_handler(
  *
  * This method will casue the port to reset. enum sci_status SCI_SUCCESS
  */
-static enum sci_status scic_sds_port_ready_operational_substate_reset_handler(
-	struct sci_base_port *port,
-	u32 timeout)
+static enum
+sci_status scic_sds_port_ready_operational_substate_reset_handler(
+		struct sci_base_port *port,
+		u32 timeout)
 {
 	enum sci_status status = SCI_FAILURE_INVALID_PHY;
 	u32 phy_index;
-	struct scic_sds_port *this_port = (struct scic_sds_port *)port;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)port;
 	struct scic_sds_phy *selected_phy = NULL;
 
 
 	/* Select a phy on which we can send the hard reset request. */
-	for (
-		phy_index = 0;
-		(phy_index < SCI_MAX_PHYS)
-		&& (selected_phy == NULL);
-		phy_index++
-		) {
-		selected_phy = this_port->phy_table[phy_index];
+	for (phy_index = 0;
+	     (phy_index < SCI_MAX_PHYS) && (selected_phy == NULL);
+	     phy_index++) {
+		selected_phy = sci_port->phy_table[phy_index];
 
-		if (
-			(selected_phy != NULL)
-			&& !scic_sds_port_active_phy(this_port, selected_phy)
-			) {
-			/* We found a phy but it is not ready select different phy */
+		if ((selected_phy != NULL) &&
+		    !scic_sds_port_active_phy(sci_port, selected_phy)) {
+			/*
+			 * We found a phy but it is not ready select
+			 * different phy
+			 */
 			selected_phy = NULL;
 		}
 	}
@@ -1300,18 +1307,13 @@ static enum sci_status scic_sds_port_ready_operational_substate_reset_handler(
 		status = scic_sds_phy_reset(selected_phy);
 
 		if (status == SCI_SUCCESS) {
-			isci_event_timer_start(
-				scic_sds_port_get_controller(this_port),
-				this_port->timer_handle,
-				timeout
-				);
-
-			this_port->not_ready_reason = SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
+			isci_timer_start(sci_port->timer_handle, timeout);
+			sci_port->not_ready_reason =
+				SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
 
 			sci_base_state_machine_change_state(
-				&this_port->parent.state_machine,
-				SCI_BASE_PORT_STATE_RESETTING
-				);
+					&sci_port->parent.state_machine,
+					SCI_BASE_PORT_STATE_RESETTING);
 		}
 	}
 
@@ -1686,10 +1688,11 @@ static void scic_sds_port_ready_substate_waiting_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_port object.
  *
- * This method will perform the actions required by the struct scic_sds_port on
- * entering the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function sets
+ * This function will perform the actions required by the struct scic_sds_port
+ * on entering the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function sets
  * the state handlers for the port object, notifies the SCI User that the port
  * is ready, and resumes port operations. none
  */
@@ -1697,32 +1700,34 @@ static void scic_sds_port_ready_substate_operational_enter(
 	struct sci_base_object *object)
 {
 	u32 index;
-	struct scic_sds_port *this_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
+	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_port *iport = sci_object_get_association(sci_port);
 
 	scic_sds_port_set_ready_state_handlers(
-		this_port, SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL
-		);
+			sci_port,
+			SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
 
-	isci_event_port_ready(
-		scic_sds_port_get_controller(this_port), this_port
-		);
+	isci_port_ready(ihost, iport);
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		if (this_port->phy_table[index] != NULL) {
+		if (sci_port->phy_table[index] != NULL)
 			scic_sds_port_write_phy_assignment(
-				this_port, this_port->phy_table[index]
-				);
-		}
+					sci_port,
+					sci_port->phy_table[index]);
 	}
 
-	scic_sds_port_update_viit_entry(this_port);
+	scic_sds_port_update_viit_entry(sci_port);
 
-	scic_sds_port_resume_port_task_scheduler(this_port);
+	scic_sds_port_resume_port_task_scheduler(sci_port);
 
-	/* Post the dummy task for the port so the hardware can schedule
+	/*
+	 * Post the dummy task for the port so the hardware can schedule
 	 * io correctly
 	 */
-	scic_sds_port_post_dummy_request(this_port);
+	scic_sds_port_post_dummy_request(sci_port);
 }
 
 /**
@@ -1736,20 +1741,20 @@ static void scic_sds_port_ready_substate_operational_enter(
 static void scic_sds_port_ready_substate_operational_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_port *this_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
+	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_port *iport = sci_object_get_association(sci_port);
 
-/*
- * Kill the dummy task for this port if it has not yet posted
- * the hardware will treat this as a NOP and just return abort
- * complete.
- */
-	scic_sds_port_abort_dummy_request(this_port);
+	/*
+	 * Kill the dummy task for this port if it has not yet posted
+	 * the hardware will treat this as a NOP and just return abort
+	 * complete.
+	 */
+	scic_sds_port_abort_dummy_request(sci_port);
 
-	isci_event_port_not_ready(
-		scic_sds_port_get_controller(this_port),
-		this_port,
-		this_port->not_ready_reason
-		);
+	isci_port_not_ready(ihost, iport);
 }
 
 /*
@@ -1759,7 +1764,8 @@ static void scic_sds_port_ready_substate_operational_exit(
 
 /**
  * scic_sds_port_ready_substate_configuring_enter() -
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * exiting the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function reports
@@ -1768,29 +1774,26 @@ static void scic_sds_port_ready_substate_operational_exit(
 static void scic_sds_port_ready_substate_configuring_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_port *this_port = (struct scic_sds_port *)object;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
+	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_port *iport = sci_object_get_association(sci_port);
 
 	scic_sds_port_set_ready_state_handlers(
-		this_port, SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING
-		);
+			sci_port,
+			SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
 
-	if (this_port->active_phy_mask == 0) {
-		isci_event_port_not_ready(
-			scic_sds_port_get_controller(this_port),
-			this_port,
-			SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS
-			);
+	if (sci_port->active_phy_mask == 0) {
+		isci_port_not_ready(ihost, iport);
 
 		sci_base_state_machine_change_state(
-			&this_port->ready_substate_machine,
-			SCIC_SDS_PORT_READY_SUBSTATE_WAITING
-			);
-	} else if (this_port->started_request_count == 0) {
+				&sci_port->ready_substate_machine,
+				SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
+	} else if (sci_port->started_request_count == 0)
 		sci_base_state_machine_change_state(
-			&this_port->ready_substate_machine,
-			SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL
-			);
-	}
+				&sci_port->ready_substate_machine,
+				SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
 }
 
 static void scic_sds_port_ready_substate_configuring_exit(
@@ -2165,42 +2168,52 @@ static enum sci_status scic_sds_port_general_complete_io_handler(
 /**
  * scic_sds_port_stopped_state_start_handler() - stop a port from "started"
  *
- * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
- *    object.
+ * @port: This is the struct sci_base_port object which is cast into a
+ * struct scic_sds_port object.
  *
- * This method takes the struct scic_sds_port from a stopped state and attempts to
- * start it.  To start a port it must have no assiged devices and it must have
- * at least one phy assigned to it.  If those conditions are met then the port
- * can transition to the ready state. enum sci_status
- * SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION This struct scic_sds_port object could
- * not be started because the port configuration is not valid. SCI_SUCCESS the
- * start request is successful and the struct scic_sds_port object has transitioned to
- * the SCI_BASE_PORT_STATE_READY.
+ * This function takes the struct scic_sds_port from a stopped state and
+ * attempts to start it.  To start a port it must have no assiged devices and
+ * it must have at least one phy assigned to it.  If those conditions are
+ * met then the port can transition to the ready state.
+ * enum sci_status
+ * SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION
+ * This struct scic_sds_port object could not be started because the port
+ * configuration is not valid.
+ * SCI_SUCCESS
+ * the start request is successful and the struct scic_sds_port object
+ * has transitioned to the SCI_BASE_PORT_STATE_READY.
  */
-static enum sci_status scic_sds_port_stopped_state_start_handler(struct sci_base_port *base_port)
+static enum sci_status
+scic_sds_port_stopped_state_start_handler(struct sci_base_port *base_port)
 {
-	struct scic_sds_port *sci_port = container_of(base_port, typeof(*sci_port), parent);
+	struct scic_sds_port *sci_port =
+		container_of(base_port, typeof(*sci_port), parent);
 	struct scic_sds_controller *scic = sci_port->owning_controller;
+	struct isci_host *ihost = sci_object_get_association(scic);
 	enum sci_status status = SCI_SUCCESS;
 	u32 phy_mask;
 
 	if (sci_port->assigned_device_count > 0) {
 		/*
-		 * / @todo This is a start failure operation because there are still
-		 * /       devices assigned to this port.  There must be no devices
-		 * /       assigned to a port on a start operation. */
+		 * @todo This is a start failure operation because
+		 * there are still devices assigned to this port.
+		 * There must be no devices assigned to a port on a
+		 * start operation.
+		 */
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 	}
 
-	sci_port->timer_handle = isci_event_timer_create(scic,
-							 scic_sds_port_timeout_handler,
-							 sci_port);
+	sci_port->timer_handle =
+		isci_timer_create(ihost,
+				  sci_port,
+				  scic_sds_port_timeout_handler);
 
 	if (!sci_port->timer_handle)
 		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 
 	if (sci_port->reserved_rni == SCU_DUMMY_INDEX) {
-		u16 rni = scic_sds_remote_node_table_allocate_remote_node(&scic->available_remote_nodes, 1);
+		u16 rni = scic_sds_remote_node_table_allocate_remote_node(
+				&scic->available_remote_nodes, 1);
 
 		if (rni != SCU_DUMMY_INDEX)
 			scic_sds_port_construct_dummy_rnc(sci_port, rni);
@@ -2715,50 +2728,41 @@ static void scic_sds_port_stopped_state_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_READY. This function sets the ready state
- * handlers for the struct scic_sds_port object, reports the port object as not ready
- * and starts the ready substate machine. none
+ * handlers for the struct scic_sds_port object, reports the port object as
+ * not ready and starts the ready substate machine. none
  */
-static void scic_sds_port_ready_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_ready_state_enter(struct sci_base_object *object)
 {
-	struct scic_sds_port *this_port;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct isci_port *iport = sci_object_get_association(sci_port);
+	struct scic_sds_controller *scic =
+		scic_sds_port_get_controller(sci_port);
+	struct isci_host *ihost = sci_object_get_association(scic);
 
-	this_port = (struct scic_sds_port *)object;
+	/*
+	 * Put the ready state handlers in place though they will not be
+	 * there long
+	 */
+	scic_sds_port_set_base_state_handlers(sci_port,
+					      SCI_BASE_PORT_STATE_READY);
 
-	/* Put the ready state handlers in place though they will not be there long */
-	scic_sds_port_set_base_state_handlers(
-		this_port, SCI_BASE_PORT_STATE_READY
-		);
-
-	if (
-		SCI_BASE_PORT_STATE_RESETTING
-		== this_port->parent.state_machine.previous_state_id
-		) {
-		isci_event_port_hard_reset_complete(
-			scic_sds_port_get_controller(this_port),
-			this_port,
-			SCI_SUCCESS
-			);
-	} else {
-		/* Notify the caller that the port is not yet ready */
-		isci_event_port_not_ready(
-			scic_sds_port_get_controller(this_port),
-			this_port,
-			SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS
-			);
-	}
+	if (sci_port->parent.state_machine.previous_state_id ==
+			SCI_BASE_PORT_STATE_RESETTING)
+		isci_port_hard_reset_complete(iport, SCI_SUCCESS);
+	else /* Notify the caller that the port is not yet ready */
+		isci_port_not_ready(ihost, iport);
 
 	/* Post and suspend the dummy remote node context for this port. */
-	scic_sds_port_post_dummy_remote_node(this_port);
+	scic_sds_port_post_dummy_remote_node(sci_port);
 
 	/* Start the ready substate machine */
 	sci_base_state_machine_start(
-		scic_sds_port_get_ready_substate_machine(this_port)
-		);
+			scic_sds_port_get_ready_substate_machine(sci_port));
 }
 
 /**
@@ -2802,22 +2806,19 @@ static void scic_sds_port_resetting_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_port object.
  *
- * This method will perform the actions required by the struct scic_sds_port on
+ * This function will perform the actions required by the
+ * struct scic_sds_port on
  * exiting the SCI_BASE_STATE_RESETTING. This function does nothing. none
  */
-static void scic_sds_port_resetting_state_exit(
+static inline void scic_sds_port_resetting_state_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_port *this_port;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 
-	this_port = (struct scic_sds_port *)object;
-
-	isci_event_timer_stop(
-		scic_sds_port_get_controller(this_port),
-		this_port->timer_handle
-		);
+	isci_timer_stop(sci_port->timer_handle);
 }
 
 /**
@@ -2842,51 +2843,42 @@ static void scic_sds_port_stopping_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_port object.
  *
- * This method will perform the actions required by the struct scic_sds_port on
+ * This function will perform the actions required by the
+ * struct scic_sds_port on
  * exiting the SCI_BASE_STATE_STOPPING. This function does nothing. none
  */
-static void scic_sds_port_stopping_state_exit(
-	struct sci_base_object *object)
+static inline void
+scic_sds_port_stopping_state_exit(struct sci_base_object *object)
 {
-	struct scic_sds_port *this_port;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
 
-	this_port = (struct scic_sds_port *)object;
+	isci_timer_stop(sci_port->timer_handle);
 
-	isci_event_timer_stop(
-		scic_sds_port_get_controller(this_port),
-		this_port->timer_handle
-		);
-
-	scic_sds_port_destroy_dummy_resources(this_port);
+	scic_sds_port_destroy_dummy_resources(sci_port);
 }
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_port object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_port object.
  *
- * This method will perform the actions required by the struct scic_sds_port on
+ * This function will perform the actions required by the
+ * struct scic_sds_port on
  * entering the SCI_BASE_PORT_STATE_STOPPING. This function sets the stopping
  * state handlers for the struct scic_sds_port object. none
  */
-static void scic_sds_port_failed_state_enter(
-	struct sci_base_object *object)
+static void scic_sds_port_failed_state_enter(struct sci_base_object *object)
 {
-	struct scic_sds_port *this_port;
+	struct scic_sds_port *sci_port = (struct scic_sds_port *)object;
+	struct isci_port *iport = sci_object_get_association(sci_port);
 
-	this_port = (struct scic_sds_port *)object;
+	scic_sds_port_set_base_state_handlers(sci_port,
+					      SCI_BASE_PORT_STATE_FAILED);
 
-	scic_sds_port_set_base_state_handlers(
-		this_port,
-		SCI_BASE_PORT_STATE_FAILED
-		);
-
-	isci_event_port_hard_reset_complete(
-		scic_sds_port_get_controller(this_port),
-		this_port,
-		SCI_FAILURE_TIMEOUT
-		);
+	isci_port_hard_reset_complete(iport, SCI_FAILURE_TIMEOUT);
 }
 
 /* --------------------------------------------------------------------------- */

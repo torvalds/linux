@@ -147,5 +147,15 @@ int isci_port_perform_hard_reset(
 	struct isci_port *isci_port_ptr,
 	struct isci_phy *isci_phy_ptr);
 
+void isci_port_invalid_link_up(
+		struct scic_sds_controller *scic,
+		struct scic_sds_port *sci_port,
+		struct scic_sds_phy *phy);
+
+void isci_port_stop_complete(
+		struct scic_sds_controller *scic,
+		struct scic_sds_port *sci_port,
+		enum sci_status completion_status);
+
 #endif /* !defined(_ISCI_PORT_H_) */
 

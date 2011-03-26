@@ -2077,30 +2077,24 @@ static void scic_sds_request_started_state_exit(
 static void scic_sds_request_completed_state_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)object;
+	struct scic_sds_request *sci_req = (struct scic_sds_request *)object;
+	struct scic_sds_controller *scic =
+		scic_sds_request_get_controller(sci_req);
+	struct isci_host *ihost = sci_object_get_association(scic);
+	struct isci_request *ireq = sci_object_get_association(sci_req);
 
-	SET_STATE_HANDLER(
-		this_request,
-		scic_sds_request_state_handler_table,
-		SCI_BASE_REQUEST_STATE_COMPLETED
-		);
+
+	SET_STATE_HANDLER(sci_req,
+			  scic_sds_request_state_handler_table,
+			  SCI_BASE_REQUEST_STATE_COMPLETED);
 
 	/* Tell the SCI_USER that the IO request is complete */
-	if (this_request->is_task_management_request == false) {
-		isci_event_io_request_complete(
-			scic_sds_request_get_controller(this_request),
-			scic_sds_request_get_device(this_request),
-			this_request,
-			this_request->sci_status
-			);
-	} else {
-		isci_event_task_request_complete(
-			scic_sds_request_get_controller(this_request),
-			scic_sds_request_get_device(this_request),
-			this_request,
-			this_request->sci_status
-			);
-	}
+	if (sci_req->is_task_management_request == false)
+		isci_request_io_request_complete(ihost,
+						 ireq,
+						 sci_req->sci_status);
+	else
+		isci_task_request_complete(ihost, ireq, sci_req->sci_status);
 }
 
 /**

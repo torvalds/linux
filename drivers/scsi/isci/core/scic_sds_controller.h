@@ -681,8 +681,7 @@ void scic_sds_controller_copy_task_context(
 	struct scic_sds_controller *this_controller,
 	struct scic_sds_request *this_request);
 
-void scic_sds_controller_timeout_handler(
-	struct scic_sds_controller *controller);
+void scic_sds_controller_timeout_handler(void *controller);
 
 void scic_sds_controller_initialize_power_control(
 	struct scic_sds_controller *this_controller);

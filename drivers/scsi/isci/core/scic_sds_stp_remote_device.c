@@ -677,23 +677,22 @@ const struct scic_sds_remote_device_state_handler scic_sds_stp_remote_device_rea
  * *  STP REMOTE DEVICE READY SUBSTATE PRIVATE METHODS
  * ***************************************************************************** */
 
-static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(
-	void *user_cookie)
+static inline void
+scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(
+		void *user_cookie)
 {
-	struct scic_sds_remote_device *this_device;
-
-	this_device = (struct scic_sds_remote_device *)user_cookie;
+	struct scic_sds_remote_device *sci_dev =
+		(struct scic_sds_remote_device *)user_cookie;
+	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	/*
 	 * For NCQ operation we do not issue a
 	 * scic_cb_remote_device_not_ready().  As a result, avoid sending
-	 * the ready notification. */
-	if (this_device->ready_substate_machine.previous_state_id
-	    != SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ) {
-		isci_event_remote_device_ready(
-			scic_sds_remote_device_get_controller(this_device), this_device
-			);
-	}
+	 * the ready notification.
+	 */
+	if (sci_dev->ready_substate_machine.previous_state_id !=
+			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ)
+		isci_remote_device_ready(idev);
 }
 
 /*
@@ -749,26 +748,23 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(
  *    struct scic_sds_remote_device object.
  *
  */
-static void scic_sds_stp_remote_device_ready_cmd_substate_enter(
+static inline void scic_sds_stp_remote_device_ready_cmd_substate_enter(
 	struct sci_base_object *device)
 {
-	struct scic_sds_remote_device *this_device;
+	struct scic_sds_remote_device *sci_dev =
+		(struct scic_sds_remote_device *)device;
+	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
-	this_device = (struct scic_sds_remote_device *)device;
-
-	BUG_ON(this_device->working_request == NULL);
+	BUG_ON(sci_dev->working_request == NULL);
 
 	SET_STATE_HANDLER(
-		this_device,
-		scic_sds_stp_remote_device_ready_substate_handler_table,
-		SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD
-		);
+			sci_dev,
+			scic_sds_stp_remote_device_ready_substate_handler_table,
+			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 
-	isci_event_remote_device_not_ready(
-		scic_sds_remote_device_get_controller(this_device),
-		this_device,
-		SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED
-		);
+	isci_remote_device_not_ready(
+			idev,
+			SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
 }
 
 /*
@@ -807,27 +803,21 @@ static void scic_sds_stp_remote_device_ready_ncq_substate_enter(
  *    struct scic_sds_remote_device object.
  *
  */
-static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(
+static inline void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(
 	struct sci_base_object *device)
 {
-	struct scic_sds_remote_device *this_device;
-
-	this_device = (struct scic_sds_remote_device *)device;
+	struct scic_sds_remote_device *sci_dev =
+		(struct scic_sds_remote_device *)device;
+	struct isci_remote_device *idev = sci_object_get_association(sci_dev);
 
 	SET_STATE_HANDLER(
-		this_device,
-		scic_sds_stp_remote_device_ready_substate_handler_table,
-		SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR
-		);
+			sci_dev,
+			scic_sds_stp_remote_device_ready_substate_handler_table,
+			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
 
-	if (this_device->not_ready_reason ==
-	    SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED) {
-		isci_event_remote_device_not_ready(
-			scic_sds_remote_device_get_controller(this_device),
-			this_device,
-			this_device->not_ready_reason
-			);
-	}
+	if (sci_dev->not_ready_reason ==
+		SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED)
+		isci_remote_device_not_ready(idev, sci_dev->not_ready_reason);
 }
 
 /*

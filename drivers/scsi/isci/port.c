@@ -279,10 +279,8 @@ void isci_port_link_up(
  * @port: This parameter specifies the isci port with the active link.
  *
  */
-void isci_port_link_down(
-	struct isci_host *isci_host,
-	struct isci_phy *isci_phy,
-	struct isci_port *isci_port)
+void isci_port_link_down(struct isci_host *isci_host, struct isci_phy *isci_phy,
+			 struct isci_port *isci_port)
 {
 	struct isci_remote_device *isci_device;
 
@@ -358,9 +356,7 @@ void isci_port_formed(
  * @port: This parameter specifies the sci port with the active link.
  *
  */
-void isci_port_ready(
-	struct isci_host *isci_host,
-	struct isci_port *isci_port)
+void isci_port_ready(struct isci_host *isci_host, struct isci_port *isci_port)
 {
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p\n", __func__, isci_port);
@@ -378,9 +374,7 @@ void isci_port_ready(
  * @port: This parameter specifies the sci port with the active link.
  *
  */
-void isci_port_not_ready(
-	struct isci_host *isci_host,
-	struct isci_port *isci_port)
+void isci_port_not_ready(struct isci_host *isci_host, struct isci_port *isci_port)
 {
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p\n", __func__, isci_port);
@@ -394,9 +388,8 @@ void isci_port_not_ready(
  *    process.
  *
  */
-void isci_port_hard_reset_complete(
-	struct isci_port *isci_port,
-	enum sci_status completion_status)
+void isci_port_hard_reset_complete(struct isci_port *isci_port,
+				   enum sci_status completion_status)
 {
 	dev_dbg(&isci_port->isci_host->pdev->dev,
 		"%s: isci_port = %p, completion_status=%x\n",
@@ -479,4 +472,36 @@ int isci_port_perform_hard_reset(
 	}
 
 	return ret;
+}
+
+/**
+ * isci_port_invalid_link_up() - This function informs the SCI Core user that
+ *    a phy/link became ready, but the phy is not allowed in the port.  In some
+ *    situations the underlying hardware only allows for certain phy to port
+ *    mappings.  If these mappings are violated, then this API is invoked.
+ * @controller: This parameter represents the controller which contains the
+ *    port.
+ * @port: This parameter specifies the SCI port object for which the callback
+ *    is being invoked.
+ * @phy: This parameter specifies the phy that came ready, but the phy can't be
+ *    a valid member of the port.
+ *
+ */
+void isci_port_invalid_link_up(struct scic_sds_controller *scic,
+				      struct scic_sds_port *sci_port,
+				      struct scic_sds_phy *phy)
+{
+	struct isci_host *ihost =
+		(struct isci_host *)sci_object_get_association(scic);
+
+	dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
+}
+
+void isci_port_stop_complete(struct scic_sds_controller *scic,
+					  struct scic_sds_port *sci_port,
+					  enum sci_status completion_status)
+{
+	struct isci_host *ihost = sci_object_get_association(scic);
+
+	dev_dbg(&ihost->pdev->dev, "Port stop complete\n");
 }

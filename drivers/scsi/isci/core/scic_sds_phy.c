@@ -366,18 +366,23 @@ void scic_sds_phy_set_port(
  */
 enum sci_status scic_sds_phy_initialize(
 	struct scic_sds_phy *sci_phy,
-		struct scu_transport_layer_registers __iomem *transport_layer_registers,
-		struct scu_link_layer_registers __iomem *link_layer_registers)
+	struct scu_transport_layer_registers __iomem *transport_layer_registers,
+	struct scu_link_layer_registers __iomem *link_layer_registers)
 {
+	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
+	struct isci_host *ihost = sci_object_get_association(scic);
+
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
-	sci_phy->sata_timeout_timer = isci_event_timer_create(
-		scic_sds_phy_get_controller(sci_phy),
-		scic_sds_phy_sata_timeout,
-		sci_phy
-		);
+	sci_phy->sata_timeout_timer =
+		isci_timer_create(
+			ihost,
+			sci_phy,
+			scic_sds_phy_sata_timeout);
 
 	/* Perfrom the initialization of the TL hardware */
-	scic_sds_phy_transport_layer_initialization(sci_phy, transport_layer_registers);
+	scic_sds_phy_transport_layer_initialization(
+			sci_phy,
+			transport_layer_registers);
 
 	/* Perofrm the initialization of the PE hardware */
 	scic_sds_phy_link_layer_initialization(sci_phy, link_layer_registers);
@@ -387,8 +392,7 @@ enum sci_status scic_sds_phy_initialize(
 	 * transition to the stopped state. */
 	sci_base_state_machine_change_state(
 		scic_sds_phy_get_base_state_machine(sci_phy),
-		SCI_BASE_PHY_STATE_STOPPED
-		);
+		SCI_BASE_PHY_STATE_STOPPED);
 
 	return SCI_SUCCESS;
 }
@@ -1742,49 +1746,42 @@ static void scic_sds_phy_starting_await_sata_power_substate_exit(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_phy object.
  *
- * This method will perform the actions required by the struct scic_sds_phy on
+ * This function will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN. - Set the
  * struct scic_sds_phy object state handlers for this state. none
  */
 static void scic_sds_phy_starting_await_sata_phy_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN
-		);
+			sci_phy,
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
 
-	isci_event_timer_start(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy->sata_timeout_timer,
-		SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT
-		);
+	isci_timer_start(sci_phy->sata_timeout_timer,
+			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_phy object.
  *
- * This method will perform the actions required by the struct scic_sds_phy on exiting
+ * This method will perform the actions required by the struct scic_sds_phy
+ * on exiting
  * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN. - stop the timer
  * that was started on entry to await sata phy event notification none
  */
-static void scic_sds_phy_starting_await_sata_phy_substate_exit(
+static inline void scic_sds_phy_starting_await_sata_phy_substate_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
-	this_phy = (struct scic_sds_phy *)object;
-
-	isci_event_timer_stop(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy->sata_timeout_timer
-		);
+	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
 /**
@@ -1798,104 +1795,92 @@ static void scic_sds_phy_starting_await_sata_phy_substate_exit(
 static void scic_sds_phy_starting_await_sata_speed_substate_enter(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN
-		);
+			sci_phy,
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
 
-	isci_event_timer_start(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy->sata_timeout_timer,
-		SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT
-		);
+	isci_timer_start(sci_phy->sata_timeout_timer,
+			 SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_phy object.
  *
- * This method will perform the actions required by the struct scic_sds_phy on exiting
+ * This function will perform the actions required by the
+ * struct scic_sds_phy on exiting
  * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN. - stop the timer
  * that was started on entry to await sata phy event notification none
  */
-static void scic_sds_phy_starting_await_sata_speed_substate_exit(
+static inline void scic_sds_phy_starting_await_sata_speed_substate_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
-	this_phy = (struct scic_sds_phy *)object;
-
-	isci_event_timer_stop(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy->sata_timeout_timer
-		);
+	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_phy object.
  *
- * This method will perform the actions required by the struct scic_sds_phy on
+ * This function will perform the actions required by the struct scic_sds_phy on
  * entering the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. - Set the
- * struct scic_sds_phy object state handlers for this state. - Start the SIGNATURE FIS
+ * struct scic_sds_phy object state handlers for this state.
+ * - Start the SIGNATURE FIS
  * timeout timer none
  */
 static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(
 	struct sci_base_object *object)
 {
 	bool continue_to_ready_state;
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
 
 	scic_sds_phy_set_starting_substate_handlers(
-		this_phy, SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF
-		);
+			sci_phy,
+			SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
 
 	continue_to_ready_state = scic_sds_port_link_detected(
-		this_phy->owning_port,
-		this_phy
-		);
+		sci_phy->owning_port,
+		sci_phy);
 
 	if (continue_to_ready_state) {
 		/*
-		 * Clear the PE suspend condition so we can actually receive SIG FIS
-		 * The hardware will not respond to the XRDY until the PE suspend
-		 * condition is cleared. */
-		scic_sds_phy_resume(this_phy);
+		 * Clear the PE suspend condition so we can actually
+		 * receive SIG FIS
+		 * The hardware will not respond to the XRDY until the PE
+		 * suspend condition is cleared.
+		 */
+		scic_sds_phy_resume(sci_phy);
 
-		isci_event_timer_start(
-			scic_sds_phy_get_controller(this_phy),
-			this_phy->sata_timeout_timer,
-			SCIC_SDS_SIGNATURE_FIS_TIMEOUT
-			);
-	} else {
-		this_phy->is_in_link_training = false;
-	}
+		isci_timer_start(sci_phy->sata_timeout_timer,
+				 SCIC_SDS_SIGNATURE_FIS_TIMEOUT);
+	} else
+		sci_phy->is_in_link_training = false;
 }
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_phy object.
+ * @object: This is the struct sci_base_object which is cast to a
+ * struct scic_sds_phy object.
  *
- * This method will perform the actions required by the struct scic_sds_phy on exiting
+ * This function will perform the actions required by the
+ * struct scic_sds_phy on exiting
  * the SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF. - Stop the SIGNATURE
  * FIS timeout timer. none
  */
-static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
+static inline void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_phy *this_phy;
+	struct scic_sds_phy *sci_phy;
 
-	this_phy = (struct scic_sds_phy *)object;
+	sci_phy = (struct scic_sds_phy *)object;
 
-	isci_event_timer_stop(
-		scic_sds_phy_get_controller(this_phy),
-		this_phy->sata_timeout_timer
-		);
+	isci_timer_stop(sci_phy->sata_timeout_timer);
 }
 
 /**
@@ -2158,27 +2143,30 @@ enum sci_status scic_sds_phy_default_consume_power_handler(
 
 /**
  *
- * @phy: This is the struct sci_base_phy object which is cast into a struct scic_sds_phy
- *    object.
+ * @phy: This is the struct sci_base_phy object which is cast into a
+ * struct scic_sds_phy object.
  *
- * This method takes the struct scic_sds_phy from a stopped state and attempts to
- * start it. - The phy state machine is transitioned to the
+ * This method takes the struct scic_sds_phy from a stopped state and
+ * attempts to start it. - The phy state machine is transitioned to the
  * SCI_BASE_PHY_STATE_STARTING. enum sci_status SCI_SUCCESS
  */
-static enum sci_status scic_sds_phy_stopped_state_start_handler(struct sci_base_phy *phy)
+static enum sci_status scic_sds_phy_stopped_state_start_handler(
+		struct sci_base_phy *phy)
 {
-	struct scic_sds_phy *this_phy;
-
-	this_phy = (struct scic_sds_phy *)phy;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)phy;
+	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
+	struct isci_host *ihost = sci_object_get_association(scic);
 
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
-	this_phy->sata_timeout_timer = isci_event_timer_create(
-		scic_sds_phy_get_controller(this_phy),
-		scic_sds_phy_sata_timeout, this_phy);
+	sci_phy->sata_timeout_timer =
+		isci_timer_create(
+				ihost,
+				sci_phy,
+				scic_sds_phy_sata_timeout);
 
-	if (this_phy->sata_timeout_timer != NULL) {
+	if (sci_phy->sata_timeout_timer != NULL) {
 		sci_base_state_machine_change_state(
-			scic_sds_phy_get_base_state_machine(this_phy),
+			scic_sds_phy_get_base_state_machine(sci_phy),
 			SCI_BASE_PHY_STATE_STARTING);
 	}
 
@@ -2525,14 +2513,16 @@ static void scic_sds_phy_initial_state_enter(
  * @object: This is the struct sci_base_object which is cast to a
  * struct scic_sds_phy object.
  *
- * This method will perform the actions required by the struct scic_sds_phy on
+ * This function will perform the actions required by the struct scic_sds_phy on
  * entering the SCI_BASE_PHY_STATE_INITIAL. - This function sets the state
  * handlers for the phy object base state machine initial state. - The SCU
  * hardware is requested to stop the protocol engine. none
  */
 static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 {
-	struct scic_sds_phy *sci_phy;
+	struct scic_sds_phy *sci_phy = (struct scic_sds_phy *)object;
+	struct scic_sds_controller *scic = scic_sds_phy_get_controller(sci_phy);
+	struct isci_host *ihost = sci_object_get_association(scic);
 
 	sci_phy = (struct scic_sds_phy *)object;
 
@@ -2541,11 +2531,11 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 	 * reset state
 	 */
 
-	scic_sds_phy_set_base_state_handlers(sci_phy, SCI_BASE_PHY_STATE_STOPPED);
+	scic_sds_phy_set_base_state_handlers(sci_phy,
+					     SCI_BASE_PHY_STATE_STOPPED);
 
 	if (sci_phy->sata_timeout_timer != NULL) {
-		isci_event_timer_destroy(scic_sds_phy_get_controller(sci_phy),
-					 sci_phy->sata_timeout_timer);
+		isci_del_timer(ihost, sci_phy->sata_timeout_timer);
 
 		sci_phy->sata_timeout_timer = NULL;
 	}
@@ -2554,9 +2544,10 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_object *object)
 
 	if (sci_phy->parent.state_machine.previous_state_id !=
 			SCI_BASE_PHY_STATE_INITIAL)
-		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
-					      scic_sds_phy_get_port(sci_phy),
-					      sci_phy);
+		scic_sds_controller_link_down(
+				scic_sds_phy_get_controller(sci_phy),
+				scic_sds_phy_get_port(sci_phy),
+				sci_phy);
 }
 
 /**

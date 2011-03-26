@@ -71,7 +71,6 @@
 #include "timers.h"
 #include "sci_status.h"
 #include "request.h"
-#include "events.h"
 #include "task.h"
 #include "sata.h"
 

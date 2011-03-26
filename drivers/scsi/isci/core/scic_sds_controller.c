@@ -253,19 +253,19 @@ static void scic_sds_controller_phy_startup_timeout_handler(
  * This method initializes the phy startup operations for controller start.
  */
 enum sci_status scic_sds_controller_initialize_phy_startup(
-	struct scic_sds_controller *this_controller)
+		struct scic_sds_controller *scic)
 {
-	this_controller->phy_startup_timer = isci_event_timer_create(
-		this_controller,
-		scic_sds_controller_phy_startup_timeout_handler,
-		this_controller
-		);
+	struct isci_host *ihost = sci_object_get_association(scic);
 
-	if (this_controller->phy_startup_timer == NULL) {
+	scic->phy_startup_timer = isci_timer_create(ihost,
+						    scic,
+						    scic_sds_controller_phy_startup_timeout_handler);
+
+	if (scic->phy_startup_timer == NULL)
 		return SCI_FAILURE_INSUFFICIENT_RESOURCES;
-	} else {
-		this_controller->next_phy_to_start = 0;
-		this_controller->phy_startup_timer_pending = false;
+	else {
+		scic->next_phy_to_start = 0;
+		scic->phy_startup_timer_pending = false;
 	}
 
 	return SCI_SUCCESS;
@@ -278,22 +278,20 @@ enum sci_status scic_sds_controller_initialize_phy_startup(
  * object.
  */
 void scic_sds_controller_initialize_power_control(
-	struct scic_sds_controller *this_controller)
+		struct scic_sds_controller *scic)
 {
-	this_controller->power_control.timer = isci_event_timer_create(
-		this_controller,
-		scic_sds_controller_power_control_timer_handler,
-		this_controller
-		);
+	struct isci_host *ihost = sci_object_get_association(scic);
+	scic->power_control.timer = isci_timer_create(
+			ihost,
+			scic,
+			scic_sds_controller_power_control_timer_handler);
 
-	memset(
-		this_controller->power_control.requesters,
-		0,
-		sizeof(this_controller->power_control.requesters)
-		);
+	memset(scic->power_control.requesters,
+	       0,
+	       sizeof(scic->power_control.requesters));
 
-	this_controller->power_control.phys_waiting = 0;
-	this_controller->power_control.phys_granted_power = 0;
+	scic->power_control.phys_waiting = 0;
+	scic->power_control.phys_granted_power = 0;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -730,30 +728,29 @@ void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
  * none.
  */
 static void scic_sds_controller_transition_to_ready(
-	struct scic_sds_controller *this_controller,
+	struct scic_sds_controller *scic,
 	enum sci_status status)
 {
-	if (this_controller->parent.state_machine.current_state_id
-	    == SCI_BASE_CONTROLLER_STATE_STARTING) {
+	struct isci_host *ihost = sci_object_get_association(scic);
+
+	if (scic->parent.state_machine.current_state_id ==
+			SCI_BASE_CONTROLLER_STATE_STARTING) {
 		/*
 		 * We move into the ready state, because some of the phys/ports
-		 * may be up and operational. */
+		 * may be up and operational.
+		 */
 		sci_base_state_machine_change_state(
-			scic_sds_controller_get_base_state_machine(this_controller),
-			SCI_BASE_CONTROLLER_STATE_READY
-			);
+			scic_sds_controller_get_base_state_machine(scic),
+			SCI_BASE_CONTROLLER_STATE_READY);
 
-		isci_event_controller_start_complete(this_controller, status);
+		isci_host_start_complete(ihost, status);
 	}
 }
 
-/**
- * This method is the general timeout handler for the controller. It will take
- *    the correct timetout action based on the current controller state
- */
-void scic_sds_controller_timeout_handler(
-	struct scic_sds_controller *scic)
+void scic_sds_controller_timeout_handler(void *_scic)
 {
+	struct scic_sds_controller *scic = _scic;
+	struct isci_host *ihost = sci_object_get_association(scic);
 	enum sci_base_controller_states current_state;
 
 	current_state = sci_base_state_machine_get_state(
@@ -766,7 +763,7 @@ void scic_sds_controller_timeout_handler(
 		sci_base_state_machine_change_state(
 			scic_sds_controller_get_base_state_machine(scic),
 			SCI_BASE_CONTROLLER_STATE_FAILED);
-		isci_event_controller_stop_complete(scic, SCI_FAILURE_TIMEOUT);
+		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
 	} else	/* / @todo Now what do we want to do in this case? */
 		dev_err(scic_to_dev(scic),
 			"%s: Controller timer fired when controller was not "
@@ -803,37 +800,21 @@ enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
 	return status;
 }
 
-/**
- *
- *
- *
- */
-static void scic_sds_controller_phy_timer_start(
-	struct scic_sds_controller *this_controller)
+static inline void scic_sds_controller_phy_timer_start(
+		struct scic_sds_controller *scic)
 {
-	isci_event_timer_start(
-		this_controller,
-		this_controller->phy_startup_timer,
-		SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT
-		);
+	isci_timer_start(scic->phy_startup_timer,
+			 SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT);
 
-	this_controller->phy_startup_timer_pending = true;
+	scic->phy_startup_timer_pending = true;
 }
 
-/**
- *
- *
- *
- */
-void scic_sds_controller_phy_timer_stop(
-	struct scic_sds_controller *this_controller)
+inline void scic_sds_controller_phy_timer_stop(
+		struct scic_sds_controller *scic)
 {
-	isci_event_timer_stop(
-		this_controller,
-		this_controller->phy_startup_timer
-		);
+	isci_timer_stop(scic->phy_startup_timer);
 
-	this_controller->phy_startup_timer_pending = false;
+	scic->phy_startup_timer_pending = false;
 }
 
 /**
@@ -1009,19 +990,17 @@ enum sci_status scic_sds_controller_stop_devices(
  * ****************************************************************************- */
 
 /**
+ * This function starts the power control timer for this controller object.
  *
- *
- * This method starts the power control timer for this controller object.
+ * @param scic
  */
-static void scic_sds_controller_power_control_timer_start(
-	struct scic_sds_controller *this_controller)
+static inline void scic_sds_controller_power_control_timer_start(
+	struct scic_sds_controller *scic)
 {
-	isci_event_timer_start(
-		this_controller, this_controller->power_control.timer,
-		SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL
-		);
+	isci_timer_start(scic->power_control.timer,
+			 SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
 
-	this_controller->power_control.timer_started = true;
+	scic->power_control.timer_started = true;
 }
 
 /**
@@ -1029,20 +1008,22 @@ static void scic_sds_controller_power_control_timer_start(
  *
  * @param scic
  */
-void scic_sds_controller_power_control_timer_stop(struct scic_sds_controller *scic)
+static inline void scic_sds_controller_power_control_timer_stop(
+		struct scic_sds_controller *scic)
 {
 	if (scic->power_control.timer_started) {
-		isci_event_timer_stop(scic, scic->power_control.timer);
+		isci_timer_stop(scic->power_control.timer);
 		scic->power_control.timer_started = false;
 	}
 }
 
 /**
- * This method stops and starts the power control timer for this controller object.
+ * This method stops and starts the power control timer for this controller
+ * object.
  *
  * @param scic
  */
-void scic_sds_controller_power_control_timer_restart(
+static inline void scic_sds_controller_power_control_timer_restart(
 	struct scic_sds_controller *scic)
 {
 	scic_sds_controller_power_control_timer_stop(scic);
@@ -2893,51 +2874,41 @@ static enum sci_status scic_sds_controller_general_reset_handler(
  * * RESET STATE HANDLERS
  * ***************************************************************************** */
 
-/**
- *
- * @controller: This is the struct sci_base_controller object which is cast into a
- *    struct scic_sds_controller object.
- *
- * This method is the struct scic_sds_controller initialize handler for the reset
- * state. - Currently this function does nothing enum sci_status SCI_FAILURE This
- * function is not yet implemented and is a valid request from the reset state.
- */
-static enum sci_status scic_sds_controller_reset_state_initialize_handler(
-	struct sci_base_controller *controller)
+static enum sci_status scic_sds_controller_reset_state_initialize_handler(struct sci_base_controller *base_scic)
 {
-	u32 index;
 	enum sci_status result = SCI_SUCCESS;
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
+	struct isci_host *ihost;
+	u32 index;
 
-	this_controller = (struct scic_sds_controller *)controller;
+	scic = container_of(base_scic, typeof(*scic), parent);
+	ihost = sci_object_get_association(scic);
 
 	sci_base_state_machine_change_state(
-		scic_sds_controller_get_base_state_machine(this_controller),
-		SCI_BASE_CONTROLLER_STATE_INITIALIZING
-		);
+		scic_sds_controller_get_base_state_machine(scic),
+		SCI_BASE_CONTROLLER_STATE_INITIALIZING);
 
-	this_controller->timeout_timer = isci_event_timer_create(
-		this_controller,
-		(void (*)(void *))scic_sds_controller_timeout_handler,
-		(void (*)(void *))controller);
+	scic->timeout_timer = isci_timer_create(ihost,
+						scic,
+						scic_sds_controller_timeout_handler);
 
-	scic_sds_controller_initialize_phy_startup(this_controller);
+	scic_sds_controller_initialize_phy_startup(scic);
 
-	scic_sds_controller_initialize_power_control(this_controller);
+	scic_sds_controller_initialize_power_control(scic);
 
 	/*
 	 * There is nothing to do here for B0 since we do not have to
 	 * program the AFE registers.
 	 * / @todo The AFE settings are supposed to be correct for the B0 but
 	 * /       presently they seem to be wrong. */
-	scic_sds_controller_afe_initialization(this_controller);
+	scic_sds_controller_afe_initialization(scic);
 
-	if (SCI_SUCCESS == result) {
+	if (result == SCI_SUCCESS) {
 		u32 status;
 		u32 terminate_loop;
 
 		/* Take the hardware out of reset */
-		SMU_SMUSRCR_WRITE(this_controller, 0x00000000);
+		SMU_SMUSRCR_WRITE(scic, 0x00000000);
 
 		/*
 		 * / @todo Provide meaningfull error code for hardware failure
@@ -2948,11 +2919,11 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 		while (terminate_loop-- && (result != SCI_SUCCESS)) {
 			/* Loop until the hardware reports success */
 			udelay(SCU_CONTEXT_RAM_INIT_STALL_TIME);
-			status = SMU_SMUCSR_READ(this_controller);
+			status = SMU_SMUCSR_READ(scic);
 
-			if ((status & SCU_RAM_INIT_COMPLETED) == SCU_RAM_INIT_COMPLETED) {
+			if ((status & SCU_RAM_INIT_COMPLETED) ==
+					SCU_RAM_INIT_COMPLETED)
 				result = SCI_SUCCESS;
-			}
 		}
 	}
 
@@ -2965,39 +2936,42 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 		/*
 		 * Determine what are the actaul device capacities that the
 		 * hardware will support */
-		device_context_capacity = SMU_DCC_READ(this_controller);
+		device_context_capacity = SMU_DCC_READ(scic);
 
-		max_supported_ports =
-			smu_dcc_get_max_ports(device_context_capacity);
-		max_supported_devices =
-			smu_dcc_get_max_remote_node_context(device_context_capacity);
-		max_supported_io_requests =
-			smu_dcc_get_max_task_context(device_context_capacity);
+		max_supported_ports = smu_dcc_get_max_ports(device_context_capacity);
+		max_supported_devices = smu_dcc_get_max_remote_node_context(device_context_capacity);
+		max_supported_io_requests = smu_dcc_get_max_task_context(device_context_capacity);
 
-		/* Make all PEs that are unassigned match up with the logical ports */
+		/*
+		 * Make all PEs that are unassigned match up with the
+		 * logical ports
+		 */
 		for (index = 0; index < max_supported_ports; index++) {
-			scu_register_write(
-				this_controller,
-				this_controller->scu_registers->peg0.ptsg.protocol_engine[index],
-				index
-				);
+			struct scu_port_task_scheduler_group_registers *ptsg =
+				&scic->scu_registers->peg0.ptsg;
+
+			scu_register_write(scic,
+					   ptsg->protocol_engine[index],
+					   index);
 		}
 
 		/* Record the smaller of the two capacity values */
-		this_controller->logical_port_entries =
-			min(max_supported_ports, this_controller->logical_port_entries);
+		scic->logical_port_entries =
+			min(max_supported_ports, scic->logical_port_entries);
 
-		this_controller->task_context_entries =
-			min(max_supported_io_requests, this_controller->task_context_entries);
+		scic->task_context_entries =
+			min(max_supported_io_requests,
+			    scic->task_context_entries);
 
-		this_controller->remote_node_entries =
-			min(max_supported_devices, this_controller->remote_node_entries);
+		scic->remote_node_entries =
+			min(max_supported_devices, scic->remote_node_entries);
 
 		/*
 		 * Now that we have the correct hardware reported minimum values
 		 * build the MDL for the controller.  Default to a performance
-		 * configuration. */
-		scic_controller_set_mode(this_controller, SCI_MODE_SPEED);
+		 * configuration.
+		 */
+		scic_controller_set_mode(scic, SCI_MODE_SPEED);
 	}
 
 	/* Initialize hardware PCI Relaxed ordering in DMA engines */
@@ -3005,66 +2979,62 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 		u32 dma_configuration;
 
 		/* Configure the payload DMA */
-		dma_configuration = SCU_PDMACR_READ(this_controller);
-		dma_configuration |= SCU_PDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-		SCU_PDMACR_WRITE(this_controller, dma_configuration);
+		dma_configuration = SCU_PDMACR_READ(scic);
+		dma_configuration |=
+			SCU_PDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
+		SCU_PDMACR_WRITE(scic, dma_configuration);
 
 		/* Configure the control DMA */
-		dma_configuration = SCU_CDMACR_READ(this_controller);
-		dma_configuration |= SCU_CDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-		SCU_CDMACR_WRITE(this_controller, dma_configuration);
+		dma_configuration = SCU_CDMACR_READ(scic);
+		dma_configuration |=
+			SCU_CDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
+		SCU_CDMACR_WRITE(scic, dma_configuration);
 	}
 
 	/*
 	 * Initialize the PHYs before the PORTs because the PHY registers
-	 * are accessed during the port initialization. */
+	 * are accessed during the port initialization.
+	 */
 	if (result == SCI_SUCCESS) {
 		/* Initialize the phys */
 		for (index = 0;
 		     (result == SCI_SUCCESS) && (index < SCI_MAX_PHYS);
 		     index++) {
 			result = scic_sds_phy_initialize(
-				&this_controller->phy_table[index],
-				&this_controller->scu_registers->peg0.pe[index].tl,
-				&this_controller->scu_registers->peg0.pe[index].ll
-				);
+				&scic->phy_table[index],
+				&scic->scu_registers->peg0.pe[index].tl,
+				&scic->scu_registers->peg0.pe[index].ll);
 		}
 	}
 
 	if (result == SCI_SUCCESS) {
 		/* Initialize the logical ports */
 		for (index = 0;
-		     (index < this_controller->logical_port_entries)
-		     && (result == SCI_SUCCESS);
+		     (index < scic->logical_port_entries) &&
+		     (result == SCI_SUCCESS);
 		     index++) {
 			result = scic_sds_port_initialize(
-				&this_controller->port_table[index],
-				&this_controller->scu_registers->peg0.ptsg.port[index],
-				&this_controller->scu_registers->peg0.ptsg.protocol_engine,
-				&this_controller->scu_registers->peg0.viit[index]
-				);
+				&scic->port_table[index],
+				&scic->scu_registers->peg0.ptsg.port[index],
+				&scic->scu_registers->peg0.ptsg.protocol_engine,
+				&scic->scu_registers->peg0.viit[index]);
 		}
 	}
 
-	if (SCI_SUCCESS == result) {
+	if (result == SCI_SUCCESS)
 		result = scic_sds_port_configuration_agent_initialize(
-			this_controller,
-			&this_controller->port_agent
-			);
-	}
+				scic,
+				&scic->port_agent);
 
 	/* Advance the controller state machine */
-	if (result == SCI_SUCCESS) {
+	if (result == SCI_SUCCESS)
 		sci_base_state_machine_change_state(
-			scic_sds_controller_get_base_state_machine(this_controller),
-			SCI_BASE_CONTROLLER_STATE_INITIALIZED
-			);
-	} else {
+			scic_sds_controller_get_base_state_machine(scic),
+			SCI_BASE_CONTROLLER_STATE_INITIALIZED);
+	else
 		sci_base_state_machine_change_state(
-			scic_sds_controller_get_base_state_machine(this_controller),
-			SCI_BASE_CONTROLLER_STATE_FAILED
-			);
-	}
+			scic_sds_controller_get_base_state_machine(scic),
+			SCI_BASE_CONTROLLER_STATE_FAILED);
 
 	return result;
 }
@@ -3076,13 +3046,14 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(
 
 /**
  *
- * @controller: This is the struct sci_base_controller object which is cast into a
- *    struct scic_sds_controller object.
+ * @controller: This is the struct sci_base_controller object which is cast
+ * into a struct scic_sds_controller object.
  * @timeout: This is the allowed time for the controller object to reach the
  *    started state.
  *
- * This method is the struct scic_sds_controller start handler for the initialized
- * state. - Validate we have a good memory descriptor table - Initialze the
+ * This function is the struct scic_sds_controller start handler for the
+ * initialized state.
+ * - Validate we have a good memory descriptor table - Initialze the
  * physical memory before programming the hardware - Program the SCU hardware
  * with the physical memory addresses passed in the memory descriptor table. -
  * Initialzie the TCi pool - Initialize the RNi pool - Initialize the
@@ -3099,70 +3070,74 @@ static enum sci_status scic_sds_controller_initialized_state_start_handler(
 {
 	u16 index;
 	enum sci_status result;
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic;
 
-	this_controller = (struct scic_sds_controller *)controller;
+	scic = (struct scic_sds_controller *)controller;
 
-	/* Make sure that the SCI User filled in the memory descriptor table correctly */
-	result = scic_sds_controller_validate_memory_descriptor_table(this_controller);
+	/*
+	 * Make sure that the SCI User filled in the memory descriptor
+	 * table correctly
+	 */
+	result = scic_sds_controller_validate_memory_descriptor_table(scic);
 
 	if (result == SCI_SUCCESS) {
-		/* The memory descriptor list looks good so program the hardware */
-		scic_sds_controller_ram_initialization(this_controller);
+		/*
+		 * The memory descriptor list looks good so program the
+		 * hardware
+		 */
+		scic_sds_controller_ram_initialization(scic);
 	}
 
 	if (result == SCI_SUCCESS) {
 		/* Build the TCi free pool */
-		sci_pool_initialize(this_controller->tci_pool);
-		for (index = 0; index < this_controller->task_context_entries; index++) {
-			sci_pool_put(this_controller->tci_pool, index);
-		}
+		sci_pool_initialize(scic->tci_pool);
+		for (index = 0; index < scic->task_context_entries; index++)
+			sci_pool_put(scic->tci_pool, index);
 
 		/* Build the RNi free pool */
 		scic_sds_remote_node_table_initialize(
-			&this_controller->available_remote_nodes,
-			this_controller->remote_node_entries
-			);
+				&scic->available_remote_nodes,
+				scic->remote_node_entries);
 	}
 
 	if (result == SCI_SUCCESS) {
 		/*
-		 * Before anything else lets make sure we will not be interrupted
-		 * by the hardware. */
-		scic_controller_disable_interrupts(this_controller);
+		 * Before anything else lets make sure we will not be
+		 * interrupted by the hardware.
+		 */
+		scic_controller_disable_interrupts(scic);
 
 		/* Enable the port task scheduler */
-		scic_sds_controller_enable_port_task_scheduler(this_controller);
+		scic_sds_controller_enable_port_task_scheduler(scic);
 
-		/* Assign all the task entries to this controller physical function */
-		scic_sds_controller_assign_task_entries(this_controller);
+		/* Assign all the task entries to scic physical function */
+		scic_sds_controller_assign_task_entries(scic);
 
 		/* Now initialze the completion queue */
-		scic_sds_controller_initialize_completion_queue(this_controller);
+		scic_sds_controller_initialize_completion_queue(scic);
 
 		/* Initialize the unsolicited frame queue for use */
-		scic_sds_controller_initialize_unsolicited_frame_queue(this_controller);
+		scic_sds_controller_initialize_unsolicited_frame_queue(scic);
 	}
 
 	/* Start all of the ports on this controller */
-	for (index = 0; index < this_controller->logical_port_entries &&
-			result == SCI_SUCCESS; index++) {
-		struct scic_sds_port *sci_port = &this_controller->port_table[index];
+	for (index = 0;
+	     (index < scic->logical_port_entries) && (result == SCI_SUCCESS);
+	     index++) {
+		struct scic_sds_port *sci_port = &scic->port_table[index];
 
-		result = sci_port->state_handlers->parent.start_handler(&sci_port->parent);
+		result = sci_port->state_handlers->parent.start_handler(
+				&sci_port->parent);
 	}
 
 	if (result == SCI_SUCCESS) {
-		scic_sds_controller_start_next_phy(this_controller);
+		scic_sds_controller_start_next_phy(scic);
 
-		isci_event_timer_start(this_controller,
-				    this_controller->timeout_timer,
-				    timeout);
+		isci_timer_start(scic->timeout_timer, timeout);
 
 		sci_base_state_machine_change_state(
-			scic_sds_controller_get_base_state_machine(this_controller),
-			SCI_BASE_CONTROLLER_STATE_STARTING
-			);
+			scic_sds_controller_get_base_state_machine(scic),
+			SCI_BASE_CONTROLLER_STATE_STARTING);
 	}
 
 	return result;
@@ -3241,18 +3216,14 @@ static enum sci_status scic_sds_controller_ready_state_stop_handler(
 	struct sci_base_controller *controller,
 	u32 timeout)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic =
+		(struct scic_sds_controller *)controller;
 
-	this_controller = (struct scic_sds_controller *)controller;
-
-	isci_event_timer_start(this_controller,
-			    this_controller->timeout_timer,
-			    timeout);
+	isci_timer_start(scic->timeout_timer, timeout);
 
 	sci_base_state_machine_change_state(
-		scic_sds_controller_get_base_state_machine(this_controller),
-		SCI_BASE_CONTROLLER_STATE_STOPPING
-		);
+		scic_sds_controller_get_base_state_machine(scic),
+		SCI_BASE_CONTROLLER_STATE_STOPPING);
 
 	return SCI_SUCCESS;
 }
@@ -3689,12 +3660,12 @@ static void scic_sds_controller_initial_state_enter(
  * from the SCI_BASE_CONTROLLER_STATE_STARTING. - This function stops the
  * controller starting timeout timer. none
  */
-static void scic_sds_controller_starting_state_exit(
+static inline void scic_sds_controller_starting_state_exit(
 	struct sci_base_object *object)
 {
 	struct scic_sds_controller *scic = (struct scic_sds_controller *)object;
 
-	isci_event_timer_stop(scic, scic->timeout_timer);
+	isci_timer_stop(scic->timeout_timer);
 }
 
 /**
@@ -3762,21 +3733,20 @@ static void scic_sds_controller_stopping_state_enter(
 
 /**
  *
- * @object: This is the struct sci_base_object which is cast to a struct scic_sds_controller
- *    object.
+ * @object: This is the struct sci_base_object which is cast to a struct
+ * scic_sds_controller object.
  *
- * This method implements the actions taken by the struct scic_sds_controller on exit
- * from the SCI_BASE_CONTROLLER_STATE_STOPPING. - This function stops the
- * controller stopping timeout timer. none
+ * This funciton implements the actions taken by the struct scic_sds_controller
+ * on exit from the SCI_BASE_CONTROLLER_STATE_STOPPING. -
+ * This function stops the controller stopping timeout timer.
  */
-static void scic_sds_controller_stopping_state_exit(
+static inline void scic_sds_controller_stopping_state_exit(
 	struct sci_base_object *object)
 {
-	struct scic_sds_controller *this_controller;
+	struct scic_sds_controller *scic =
+		(struct scic_sds_controller *)object;
 
-	this_controller = (struct scic_sds_controller *)object;
-
-	isci_event_timer_stop(this_controller, this_controller->timeout_timer);
+	isci_timer_stop(scic->timeout_timer);
 }
 
 /**

@@ -431,46 +431,47 @@ static void scic_sds_mpc_agent_link_up(
  *    assigned port.
  * @phy: This is the phy object which has gone link down.
  *
- * This method handles the manual port configuration link down notifications.
+ * This function handles the manual port configuration link down notifications.
  * Since all ports and phys are associated at initialization time we just turn
  * around and notifiy the port object of the link down event.  If this PHY is
  * not associated with a port there is no action taken. Is it possible to get a
  * link down notification from a phy that has no assocoated port?
  */
 static void scic_sds_mpc_agent_link_down(
-	struct scic_sds_controller *controller,
+	struct scic_sds_controller *scic,
 	struct scic_sds_port_configuration_agent *port_agent,
-	struct scic_sds_port *port,
-	struct scic_sds_phy *phy)
+	struct scic_sds_port *sci_port,
+	struct scic_sds_phy *sci_phy)
 {
-	if (port != NULL) {
+	if (sci_port != NULL) {
 		/*
-		 * If we can form a new port from the remainder of the phys then we want
-		 * to start the timer to allow the SCI User to cleanup old devices and
-		 * rediscover the port before rebuilding the port with the phys that
-		 * remain in the ready state. */
-		port_agent->phy_ready_mask &= ~(1 << scic_sds_phy_get_index(phy));
-		port_agent->phy_configured_mask &= ~(1 << scic_sds_phy_get_index(phy));
+		 * If we can form a new port from the remainder of the phys
+		 * then we want to start the timer to allow the SCI User to
+		 * cleanup old devices and rediscover the port before
+		 * rebuilding the port with the phys that remain in the ready
+		 * state.
+		 */
+		port_agent->phy_ready_mask &=
+			~(1 << scic_sds_phy_get_index(sci_phy));
+		port_agent->phy_configured_mask &=
+			~(1 << scic_sds_phy_get_index(sci_phy));
 
 		/*
-		 * Check to see if there are more phys waiting to be configured into a port.
-		 * If there are allow the SCI User to tear down this port, if necessary, and
-		 * then reconstruc the port after the timeout. */
-		if (
-			(port_agent->phy_configured_mask == 0x0000)
-			&& (port_agent->phy_ready_mask != 0x0000)
-			&& !port_agent->timer_pending
-			) {
+		 * Check to see if there are more phys waiting to be
+		 * configured into a port. If there are allow the SCI User
+		 * to tear down this port, if necessary, and then reconstruct
+		 * the port after the timeout.
+		 */
+		if ((port_agent->phy_configured_mask == 0x0000) &&
+		    (port_agent->phy_ready_mask != 0x0000) &&
+		    !port_agent->timer_pending) {
 			port_agent->timer_pending = true;
 
-			isci_event_timer_start(
-				controller,
-				port_agent->timer,
-				SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT
-				);
+			isci_timer_start(port_agent->timer,
+					 SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT);
 		}
 
-		scic_sds_port_link_down(port, phy);
+		scic_sds_port_link_down(sci_port, sci_phy);
 	}
 }
 
@@ -535,19 +536,18 @@ static enum sci_status scic_sds_apc_agent_validate_phy_configuration(
  * the next time period.  This could be caused by either a link down event or a
  * link up event where we can not yet tell to which port a phy belongs.
  */
-static void scic_sds_apc_agent_start_timer(
-	struct scic_sds_controller *controller,
+static inline void scic_sds_apc_agent_start_timer(
+	struct scic_sds_controller *scic,
 	struct scic_sds_port_configuration_agent *port_agent,
-	struct scic_sds_phy *phy,
+	struct scic_sds_phy *sci_phy,
 	u32 timeout)
 {
-	if (port_agent->timer_pending) {
-		isci_event_timer_stop(controller, port_agent->timer);
-	}
+	if (port_agent->timer_pending)
+		isci_timer_stop(port_agent->timer);
 
 	port_agent->timer_pending = true;
 
-	isci_event_timer_start(controller, port_agent->timer, timeout);
+	isci_timer_start(port_agent->timer, timeout);
 }
 
 /**
@@ -816,45 +816,46 @@ void scic_sds_port_configuration_agent_construct(
  * This method will construct the port configuration agent for this controller.
  */
 enum sci_status scic_sds_port_configuration_agent_initialize(
-	struct scic_sds_controller *controller,
+	struct scic_sds_controller *scic,
 	struct scic_sds_port_configuration_agent *port_agent)
 {
 	enum sci_status status = SCI_SUCCESS;
 	enum SCIC_PORT_CONFIGURATION_MODE mode;
+	struct isci_host *ihost = sci_object_get_association(scic);
 
-	mode = controller->oem_parameters.sds1.controller.mode_type;
+	mode = scic->oem_parameters.sds1.controller.mode_type;
 
 	if (mode == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
-		status = scic_sds_mpc_agent_validate_phy_configuration(controller, port_agent);
+		status = scic_sds_mpc_agent_validate_phy_configuration(
+				scic, port_agent);
 
 		port_agent->link_up_handler = scic_sds_mpc_agent_link_up;
 		port_agent->link_down_handler = scic_sds_mpc_agent_link_down;
 
-		port_agent->timer = isci_event_timer_create(
-			controller,
-			scic_sds_mpc_agent_timeout_handler,
-			controller
-			);
+		port_agent->timer = isci_timer_create(
+				ihost,
+				scic,
+				scic_sds_mpc_agent_timeout_handler);
 	} else {
-		status = scic_sds_apc_agent_validate_phy_configuration(controller, port_agent);
+		status = scic_sds_apc_agent_validate_phy_configuration(
+				scic, port_agent);
 
 		port_agent->link_up_handler = scic_sds_apc_agent_link_up;
 		port_agent->link_down_handler = scic_sds_apc_agent_link_down;
 
-		port_agent->timer = isci_event_timer_create(
-			controller,
-			scic_sds_apc_agent_timeout_handler,
-			controller
-			);
+		port_agent->timer = isci_timer_create(
+				ihost,
+				scic,
+				scic_sds_apc_agent_timeout_handler);
 	}
 
 	/* Make sure we have actually gotten a timer */
 	if ((status == SCI_SUCCESS) && (port_agent->timer == NULL)) {
-		dev_err(scic_to_dev(controller),
+		dev_err(scic_to_dev(scic),
 			"%s: Controller 0x%p automatic port configuration "
 			"agent could not get timer.\n",
 			__func__,
-			controller);
+			scic);
 
 		status = SCI_FAILURE;
 	}
