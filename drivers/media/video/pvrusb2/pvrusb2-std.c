@@ -278,12 +278,10 @@ static struct v4l2_standard generic_standards[] = {
 	}
 };
 
-#define generic_standards_cnt ARRAY_SIZE(generic_standards)
-
 static struct v4l2_standard *match_std(v4l2_std_id id)
 {
 	unsigned int idx;
-	for (idx = 0; idx < generic_standards_cnt; idx++) {
+	for (idx = 0; idx < ARRAY_SIZE(generic_standards); idx++) {
 		if (generic_standards[idx].id & id) {
 			return generic_standards + idx;
 		}
