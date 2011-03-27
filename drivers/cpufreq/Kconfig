@@ -18,19 +18,6 @@ if CPU_FREQ
 config CPU_FREQ_TABLE
 	tristate
 
-config CPU_FREQ_DEBUG
-	bool "Enable CPUfreq debugging"
-	help
-	  Say Y here to enable CPUfreq subsystem (including drivers)
-	  debugging. You will need to activate it via the kernel
-	  command line by passing
-	     cpufreq.debug=<value>
-
-	  To get <value>, add 
-	       1 to activate CPUfreq core debugging,
-	       2 to activate CPUfreq drivers debugging, and
-	       4 to activate CPUfreq governor debugging
-
 config CPU_FREQ_STAT
 	tristate "CPU frequency translation statistics"
 	select CPU_FREQ_TABLE

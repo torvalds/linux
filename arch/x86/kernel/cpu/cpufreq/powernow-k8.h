@@ -211,8 +211,6 @@ struct pst_s {
 	u8 vid;
 };
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "powernow-k8", msg)
-
 static int core_voltage_pre_transition(struct powernow_k8_data *data,
 	u32 reqvid, u32 regfid);
 static int core_voltage_post_transition(struct powernow_k8_data *data, u32 reqvid);

@@ -57,8 +57,6 @@ MODULE_PARM_DESC(min_fsb,
 		"Minimum FSB to use, if not defined: current FSB - 50");
 
 #define PFX "cpufreq-nforce2: "
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
-		"cpufreq-nforce2", msg)
 
 /**
  * nforce2_calc_fsb - calculate FSB
@@ -270,7 +268,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	dprintk("Old CPU frequency %d kHz, new %d kHz\n",
+	pr_debug("Old CPU frequency %d kHz, new %d kHz\n",
 	       freqs.old, freqs.new);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -282,7 +280,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 		printk(KERN_ERR PFX "Changing FSB to %d failed\n",
 			target_fsb);
 	else
-		dprintk("Changed FSB successfully to %d\n",
+		pr_debug("Changed FSB successfully to %d\n",
 			target_fsb);
 
 	/* Enable IRQs */

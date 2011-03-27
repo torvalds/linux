@@ -397,23 +397,4 @@ void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
 
 
-/*********************************************************************
- *                     UNIFIED DEBUG HELPERS                         *
- *********************************************************************/
-
-#define CPUFREQ_DEBUG_CORE	1
-#define CPUFREQ_DEBUG_DRIVER	2
-#define CPUFREQ_DEBUG_GOVERNOR	4
-
-#ifdef CONFIG_CPU_FREQ_DEBUG
-
-extern void cpufreq_debug_printk(unsigned int type, const char *prefix, 
-				 const char *fmt, ...);
-
-#else
-
-#define cpufreq_debug_printk(msg...) do { } while(0)
-
-#endif /* CONFIG_CPU_FREQ_DEBUG */
-
 #endif /* _LINUX_CPUFREQ_H */
