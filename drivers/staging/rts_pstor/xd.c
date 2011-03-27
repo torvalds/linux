@@ -379,7 +379,7 @@ static void xd_clear_dma_buffer(struct rtsx_chip *chip)
 
 		RTSX_DEBUGP("xD ECC error, dummy write!\n");
 
-		buf = (u8 *)rtsx_alloc_dma_buf(chip, 512, GFP_KERNEL);
+		buf = kmalloc(512, GFP_KERNEL);
 		if (!buf)
 			return;
 

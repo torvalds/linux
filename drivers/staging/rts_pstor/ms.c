@@ -863,7 +863,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	buf = (u8 *)rtsx_alloc_dma_buf(chip, 64 * 512, GFP_KERNEL);
+	buf = kmalloc(64 * 512, GFP_KERNEL);
 	if (buf == NULL) {
 		TRACE_RET(chip, STATUS_ERROR);
 	}
@@ -3783,7 +3783,7 @@ int mg_get_local_EKB(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	buf = (u8 *)rtsx_alloc_dma_buf(chip, 1540, GFP_KERNEL);
+	buf = kmalloc(1540, GFP_KERNEL);
 	if (!buf) {
 		TRACE_RET(chip, STATUS_ERROR);
 	}
@@ -4021,7 +4021,7 @@ int mg_get_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	buf = (u8 *)rtsx_alloc_dma_buf(chip, 1028, GFP_KERNEL);
+	buf = kmalloc(1028, GFP_KERNEL);
 	if (!buf) {
 		TRACE_RET(chip, STATUS_ERROR);
 	}
@@ -4080,7 +4080,7 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	buf = (u8 *)rtsx_alloc_dma_buf(chip, 1028, GFP_KERNEL);
+	buf = kmalloc(1028, GFP_KERNEL);
 	if (!buf) {
 		TRACE_RET(chip, STATUS_ERROR);
 	}

@@ -505,7 +505,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 
-	buf = (u8 *)rtsx_alloc_dma_buf(chip, SF_PAGE_LEN, GFP_KERNEL);
+	buf = kmalloc(SF_PAGE_LEN, GFP_KERNEL);
 	if (buf == NULL)
 		TRACE_RET(chip, STATUS_ERROR);
 
@@ -584,7 +584,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	if (program_mode == BYTE_PROGRAM) {
-		buf = rtsx_alloc_dma_buf(chip, 4, GFP_KERNEL);
+		buf = kmalloc(4, GFP_KERNEL);
 		if (!buf)
 			TRACE_RET(chip, STATUS_ERROR);
 
@@ -630,7 +630,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
 
-		buf = rtsx_alloc_dma_buf(chip, 4, GFP_KERNEL);
+		buf = kmalloc(4, GFP_KERNEL);
 		if (!buf)
 			TRACE_RET(chip, STATUS_ERROR);
 
@@ -675,7 +675,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		if (retval != STATUS_SUCCESS)
 			TRACE_RET(chip, STATUS_FAIL);
 	} else if (program_mode == PAGE_PROGRAM) {
-		buf = rtsx_alloc_dma_buf(chip, SF_PAGE_LEN, GFP_KERNEL);
+		buf = kmalloc(SF_PAGE_LEN, GFP_KERNEL);
 		if (!buf)
 			TRACE_RET(chip, STATUS_NOMEM);
 
