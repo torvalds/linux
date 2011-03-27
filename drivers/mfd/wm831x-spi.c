@@ -27,14 +27,14 @@ static int wm831x_spi_read_device(struct wm831x *wm831x, unsigned short reg,
 
 	/* Go register at a time */
 	for (r = reg; r < reg + (bytes / 2); r++) {
-		tx_val = r | 0x8000;
+		tx_val = cpu_to_be16(r | 0x8000);
 
 		ret = spi_write_then_read(wm831x->control_data,
 					  (u8 *)&tx_val, 2, (u8 *)d, 2);
 		if (ret != 0)
 			return ret;
 
-		*d = be16_to_cpu(*d);
+		//*d = be16_to_cpu(*d);
 
 		d++;
 	}
@@ -52,7 +52,7 @@ static int wm831x_spi_write_device(struct wm831x *wm831x, unsigned short reg,
 
 	/* Go register at a time */
 	for (r = reg; r < reg + (bytes / 2); r++) {
-		data[0] = r;
+		data[0] = cpu_to_be16(r);
 		data[1] = *s++;
 
 		ret = spi_write(spi, (char *)&data, sizeof(data));

@@ -2850,7 +2850,7 @@ static struct spi_board_info board_spi_devices[] = {
 	{
 		.modalias	= "wm8310",
 		.chip_select	= 1,
-		.max_speed_hz	= 12*1000*1000,
+		.max_speed_hz	= 2*1000*1000,
 		.bus_num	= 1,
 		.irq            = RK29_PIN4_PD0,
 		.platform_data = &wm831x_platdata,

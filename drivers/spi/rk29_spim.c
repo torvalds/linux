@@ -1918,7 +1918,7 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
         dev_err(&master->dev, "rk29xx spim failed to init cpufreq support\n");
         goto err_queue_alloc;
     }
-	DBG(KERN_INFO "rk29xx_spim: driver initialized, fifo_len: %d\n", dws->fifo_len);
+	printk(KERN_INFO "rk29xx_spim: driver initialized, fifo_len=%d,bus_num=%d\n", dws->fifo_len,master->bus_num);
 	mrst_spi_debugfs_init(dws);
 	return 0;
 
@@ -2031,7 +2031,7 @@ static void __exit rk29xx_spim_exit(void)
 	platform_driver_unregister(&rk29xx_platform_spim_driver);
 }
 
-subsys_initcall(rk29xx_spim_init);
+arch_initcall_sync(rk29xx_spim_init);
 module_exit(rk29xx_spim_exit);
 
 MODULE_AUTHOR("www.rock-chips.com");
