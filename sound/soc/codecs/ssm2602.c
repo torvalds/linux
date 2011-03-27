@@ -651,7 +651,7 @@ MODULE_DEVICE_TABLE(i2c, ssm2602_i2c_id);
 /* corgi i2c codec control layer */
 static struct i2c_driver ssm2602_i2c_driver = {
 	.driver = {
-		.name = "ssm2602-codec",
+		.name = "ssm2602",
 		.owner = THIS_MODULE,
 	},
 	.probe = ssm2602_i2c_probe,
