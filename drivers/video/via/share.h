@@ -22,14 +22,6 @@
 #ifndef __SHARE_H__
 #define __SHARE_H__
 
-/* Define Return Value */
-#define FAIL        -1
-#define OK          1
-
-#ifndef NULL
-#define NULL 0
-#endif
-
 /* Define Bit Field */
 #define BIT0    0x01
 #define BIT1    0x02

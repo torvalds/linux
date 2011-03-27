@@ -30,12 +30,9 @@ static void __devinit dvi_get_panel_size_from_DDCv1(
 	struct tmds_setting_information *tmds_setting);
 static int viafb_dvi_query_EDID(void);
 
-static int check_tmds_chip(int device_id_subaddr, int device_id)
+static inline bool check_tmds_chip(int device_id_subaddr, int device_id)
 {
-	if (tmds_register_read(device_id_subaddr) == device_id)
-		return OK;
-	else
-		return FAIL;
+	return tmds_register_read(device_id_subaddr) == device_id;
 }
 
 void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
@@ -50,7 +47,7 @@ void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
 	return;
 }
 
-int __devinit viafb_tmds_trasmitter_identify(void)
+bool __devinit viafb_tmds_trasmitter_identify(void)
 {
 	unsigned char sr2a = 0, sr1e = 0, sr3e = 0;
 
@@ -89,7 +86,7 @@ int __devinit viafb_tmds_trasmitter_identify(void)
 	viaparinfo->chip_info->
 		tmds_chip_info.tmds_chip_slave_addr = VT1632_TMDS_I2C_ADDR;
 	viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_31;
-	if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID) != FAIL) {
+	if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID)) {
 		/*
 		 * Currently only support 12bits,dual edge,add 24bits mode later
 		 */
@@ -100,11 +97,10 @@ int __devinit viafb_tmds_trasmitter_identify(void)
 			  viaparinfo->chip_info->tmds_chip_info.tmds_chip_name);
 		DEBUG_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->tmds_chip_info.i2c_port);
-		return OK;
+		return true;
 	} else {
 		viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_2C;
-		if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID)
-		    != FAIL) {
+		if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID)) {
 			tmds_register_write(0x08, 0x3b);
 			DEBUG_MSG(KERN_INFO "\n VT1632 TMDS ! \n");
 			DEBUG_MSG(KERN_INFO "\n %2d",
@@ -113,7 +109,7 @@ int __devinit viafb_tmds_trasmitter_identify(void)
 			DEBUG_MSG(KERN_INFO "\n %2d",
 				  viaparinfo->chip_info->
 				  tmds_chip_info.i2c_port);
-			return OK;
+			return true;
 		}
 	}
 
@@ -123,7 +119,7 @@ int __devinit viafb_tmds_trasmitter_identify(void)
 	    ((viafb_display_hardware_layout == HW_LAYOUT_DVI_ONLY) ||
 	     (viafb_display_hardware_layout == HW_LAYOUT_LCD_DVI))) {
 		DEBUG_MSG(KERN_INFO "\n Integrated TMDS ! \n");
-		return OK;
+		return true;
 	}
 
 	switch (viaparinfo->chip_info->gfx_chip_name) {
@@ -147,7 +143,7 @@ int __devinit viafb_tmds_trasmitter_identify(void)
 		tmds_chip_info.tmds_chip_name = NON_TMDS_TRANSMITTER;
 	viaparinfo->chip_info->tmds_chip_info.
 		tmds_chip_slave_addr = VT1632_TMDS_I2C_ADDR;
-	return FAIL;
+	return false;
 }
 
 static void tmds_register_write(int index, u8 data)
