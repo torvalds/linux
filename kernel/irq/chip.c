@@ -718,8 +718,9 @@ void irq_cpu_online(void)
 		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		chip = irq_data_get_irq_chip(&desc->irq_data);
-
-		if (chip && chip->irq_cpu_online)
+		if (chip && chip->irq_cpu_online &&
+		    (!(chip->flags & IRQCHIP_ONOFFLINE_ENABLED) ||
+		     !(desc->istate & IRQS_DISABLED)))
 			chip->irq_cpu_online(&desc->irq_data);
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
@@ -747,8 +748,9 @@ void irq_cpu_offline(void)
 		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		chip = irq_data_get_irq_chip(&desc->irq_data);
-
-		if (chip && chip->irq_cpu_offline)
+		if (chip && chip->irq_cpu_offline &&
+		    (!(chip->flags & IRQCHIP_ONOFFLINE_ENABLED) ||
+		     !(desc->istate & IRQS_DISABLED)))
 			chip->irq_cpu_offline(&desc->irq_data);
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);

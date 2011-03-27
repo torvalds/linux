@@ -348,11 +348,14 @@ struct irq_chip {
  * IRQCHIP_SET_TYPE_MASKED:	Mask before calling chip.irq_set_type()
  * IRQCHIP_EOI_IF_HANDLED:	Only issue irq_eoi() when irq was handled
  * IRQCHIP_MASK_ON_SUSPEND:	Mask non wake irqs in the suspend path
+ * IRQCHIP_ONOFFLINE_ENABLED:	Only call irq_on/off_line callbacks
+ *				when irq enabled
  */
 enum {
 	IRQCHIP_SET_TYPE_MASKED		= (1 <<  0),
 	IRQCHIP_EOI_IF_HANDLED		= (1 <<  1),
 	IRQCHIP_MASK_ON_SUSPEND		= (1 <<  2),
+	IRQCHIP_ONOFFLINE_ENABLED	= (1 <<  3),
 };
 
 /* This include will go away once we isolated irq_desc usage to core code */
