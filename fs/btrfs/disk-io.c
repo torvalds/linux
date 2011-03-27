@@ -1724,6 +1724,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_bdi;
 	}
 
+	fs_info->btree_inode->i_mapping->flags &= ~__GFP_FS;
+
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);

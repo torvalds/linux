@@ -2536,6 +2536,8 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
+	if (location.objectid == BTRFS_FREE_SPACE_OBJECTID)
+		inode->i_mapping->flags &= ~__GFP_FS;
 
 	/*
 	 * try to precache a NULL acl entry for files that don't have
@@ -4084,7 +4086,6 @@ struct inode *btrfs_iget(struct super_block *s, struct btrfs_key *location,
 		BTRFS_I(inode)->root = root;
 		memcpy(&BTRFS_I(inode)->location, location, sizeof(*location));
 		btrfs_read_locked_inode(inode);
-
 		inode_tree_add(inode);
 		unlock_new_inode(inode);
 		if (new)
