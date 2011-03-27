@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
         Programmer has no control over these numbers.
         TODO there are holes - specifically  1,7,0x0a
 */
-#define VERSION_ID              0       /* Get Version (request/respose) */
+#define VERSION_ID              0       /* Get Version (request/response) */
 #define KEYBD_ID                2       /* Keyboard (event) */
 #define TOUCHS_ID               3       /* Touch Screen (event)*/
 #define EEPROM_READ_ID          4       /* (request/response) */
