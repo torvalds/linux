@@ -423,7 +423,7 @@ static int __devexit ad193x_spi_remove(struct spi_device *spi)
 
 static struct spi_driver ad193x_spi_driver = {
 	.driver = {
-		.name	= "ad193x-codec",
+		.name	= "ad193x",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad193x_spi_probe,
@@ -468,7 +468,7 @@ static int __devexit ad193x_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver ad193x_i2c_driver = {
 	.driver = {
-		.name = "ad193x-codec",
+		.name = "ad193x",
 	},
 	.probe    = ad193x_i2c_probe,
 	.remove   = __devexit_p(ad193x_i2c_remove),
