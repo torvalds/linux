@@ -781,8 +781,10 @@ static int adapter_delete_sq(struct nvme_dev *dev, u16 sqid)
 static void nvme_free_queue(struct nvme_dev *dev, int qid)
 {
 	struct nvme_queue *nvmeq = dev->queues[qid];
+	int vector = dev->entry[nvmeq->cq_vector].vector;
 
-	free_irq(dev->entry[nvmeq->cq_vector].vector, nvmeq);
+	irq_set_affinity_hint(vector, NULL);
+	free_irq(vector, nvmeq);
 
 	/* Don't tell the adapter to delete the admin queue */
 	if (qid) {
