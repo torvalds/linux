@@ -65,7 +65,7 @@
 
 
 /**
- * enum _SCI_STATUS - This is the general return status enumeration for non-IO,
+ * enum sci_status - This is the general return status enumeration for non-IO,
  *    non-task management related SCI interface methods.
  *
  *
@@ -347,7 +347,7 @@ enum sci_status {
 };
 
 /**
- * enum _SCI_IO_STATUS - This enumeration depicts all of the possible IO
+ * enum sci_io_status - This enumeration depicts all of the possible IO
  *    completion status values.  Each value in this enumeration maps directly
  *    to a value in the enum sci_status enumeration.  Please refer to that
  *    enumeration for detailed comments concerning what the status represents.
@@ -380,7 +380,7 @@ enum sci_io_status {
 };
 
 /**
- * enum _SCI_TASK_STATUS - This enumeration depicts all of the possible task
+ * enum sci_task_status - This enumeration depicts all of the possible task
  *    completion status values.  Each value in this enumeration maps directly
  *    to a value in the enum sci_status enumeration.  Please refer to that
  *    enumeration for detailed comments concerning what the status represents.

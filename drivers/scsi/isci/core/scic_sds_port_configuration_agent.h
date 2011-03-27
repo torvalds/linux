@@ -71,7 +71,7 @@ struct scic_sds_port_configuration_agent;
 struct scic_sds_port;
 struct scic_sds_phy;
 
-typedef void (*SCIC_SDS_PORT_CONFIGURATION_AGENT_PHY_HANDLER_T)(
+typedef void (*scic_sds_port_configuration_agent_phy_handler_t)(
 	struct scic_sds_controller *,
 	struct scic_sds_port_configuration_agent *,
 	struct scic_sds_port *,
@@ -91,8 +91,8 @@ struct scic_sds_port_configuration_agent {
 
 	bool timer_pending;
 
-	SCIC_SDS_PORT_CONFIGURATION_AGENT_PHY_HANDLER_T link_up_handler;
-	SCIC_SDS_PORT_CONFIGURATION_AGENT_PHY_HANDLER_T link_down_handler;
+	scic_sds_port_configuration_agent_phy_handler_t link_up_handler;
+	scic_sds_port_configuration_agent_phy_handler_t link_down_handler;
 
 	void *timer;
 

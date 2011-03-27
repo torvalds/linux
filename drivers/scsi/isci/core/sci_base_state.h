@@ -58,11 +58,11 @@
 
 #include "sci_object.h"
 
-typedef void (*SCI_BASE_STATE_HANDLER_T)(
+typedef void (*sci_base_state_handler_t)(
 	void
 	);
 
-typedef void (*SCI_STATE_TRANSITION_T)(
+typedef void (*sci_state_transition_t)(
 	struct sci_base_object *base_object
 	);
 
@@ -77,13 +77,13 @@ struct sci_base_state {
 	 * This field is a function pointer that defines the method to be
 	 * invoked when the state is entered.
 	 */
-	SCI_STATE_TRANSITION_T enter_state;
+	sci_state_transition_t enter_state;
 
 	/**
 	 * This field is a function pointer that defines the method to be
 	 * invoked when the state is exited.
 	 */
-	SCI_STATE_TRANSITION_T exit_state;
+	sci_state_transition_t exit_state;
 
 };
 

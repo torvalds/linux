@@ -128,19 +128,16 @@ struct sci_base_port {
 
 struct sci_base_phy;
 
-typedef enum sci_status (*SCI_BASE_PORT_HANDLER_T)(
-	struct sci_base_port *
-	);
+typedef enum sci_status (*sci_base_port_handler_t) (
+	struct sci_base_port *);
 
-typedef enum sci_status (*SCI_BASE_PORT_PHY_HANDLER_T)(
+typedef enum sci_status (*sci_base_port_phy_handler_t) (
 	struct sci_base_port *,
-	struct sci_base_phy *
-	);
+	struct sci_base_phy *);
 
-typedef enum sci_status (*SCI_BASE_PORT_RESET_HANDLER_T)(
+typedef enum sci_status (*sci_base_port_reset_handler_t) (
 	struct sci_base_port *,
-	u32 timeout
-	);
+	u32 timeout);
 
 /**
  * struct sci_base_port_state_handler - This structure contains all of the
@@ -152,40 +149,39 @@ typedef enum sci_status (*SCI_BASE_PORT_RESET_HANDLER_T)(
  */
 struct sci_base_port_state_handler {
 	/**
-	 * The start_handler specifies the method invoked when a user attempts to
-	 * start a port.
+	 * The start_handler specifies the method invoked when a user
+	 * attempts to start a port.
 	 */
-	SCI_BASE_PORT_HANDLER_T start_handler;
+	sci_base_port_handler_t start_handler;
 
 	/**
-	 * The stop_handler specifies the method invoked when a user attempts to
-	 * stop a port.
+	 * The stop_handler specifies the method invoked when a user
+	 * attempts to stop a port.
 	 */
-	SCI_BASE_PORT_HANDLER_T stop_handler;
+	sci_base_port_handler_t stop_handler;
 
 	/**
 	 * The destruct_handler specifies the method invoked when attempting to
 	 * destruct a port.
 	 */
-	SCI_BASE_PORT_HANDLER_T destruct_handler;
+	sci_base_port_handler_t destruct_handler;
 
 	/**
-	 * The reset_handler specifies the method invoked when a user attempts to
-	 * hard reset a port.
+	 * The reset_handler specifies the method invoked when a user
+	 * attempts to hard reset a port.
 	 */
-	SCI_BASE_PORT_RESET_HANDLER_T reset_handler;
+	sci_base_port_reset_handler_t reset_handler;
 
 	/**
-	 * The add_phy_handler specifies the method invoked when a user attempts to
-	 * add another phy into the port.
+	 * The add_phy_handler specifies the method invoked when a user
+	 * attempts to add another phy into the port.
 	 */
-	SCI_BASE_PORT_PHY_HANDLER_T add_phy_handler;
+	sci_base_port_phy_handler_t add_phy_handler;
 
 	/**
 	 * The remove_phy_handler specifies the method invoked when a user
 	 * attempts to remove a phy from the port.
 	 */
-	SCI_BASE_PORT_PHY_HANDLER_T remove_phy_handler;
-
+	sci_base_port_phy_handler_t remove_phy_handler;
 };
 #endif /* _SCI_BASE_PORT_H_ */

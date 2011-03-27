@@ -213,7 +213,7 @@ enum scis_sds_remote_node_context_states {
  * This enumeration is used to define the end destination state for the remote
  * node context.
  */
-enum SCIC_SDS_REMOTE_NODE_CONTEXT_DESTINATION_STATE {
+enum scic_sds_remote_node_context_destination_state {
 	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED,
 	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY,
 	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL
@@ -257,7 +257,7 @@ struct scic_sds_remote_node_context {
 	 * state.  This can cause an automatic resume on receiving a suspension
 	 * notification.
 	 */
-	enum SCIC_SDS_REMOTE_NODE_CONTEXT_DESTINATION_STATE destination_state;
+	enum scic_sds_remote_node_context_destination_state destination_state;
 
 	/**
 	 * This field contains the callback function that the user requested to be

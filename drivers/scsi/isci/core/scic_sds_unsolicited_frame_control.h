@@ -69,13 +69,13 @@
 #include "sci_status.h"
 
 /**
- * enum UNSOLICITED_FRAME_STATE -
+ * enum unsolicited_frame_state -
  *
  * This enumeration represents the current unsolicited frame state.  The
  * controller object can not updtate the hardware unsolicited frame put pointer
  * unless it has already processed the priror unsolicited frames.
  */
-enum UNSOLICITED_FRAME_STATE {
+enum unsolicited_frame_state {
 	/**
 	 * This state is when the frame is empty and not in use.  It is
 	 * different from the released state in that the hardware could DMA
@@ -110,7 +110,7 @@ struct scic_sds_unsolicited_frame {
 	/**
 	 * This field contains the current frame state
 	 */
-	enum UNSOLICITED_FRAME_STATE state;
+	enum unsolicited_frame_state state;
 
 	/**
 	 * This field points to the frame header data.

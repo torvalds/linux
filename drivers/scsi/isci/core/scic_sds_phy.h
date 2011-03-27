@@ -92,11 +92,11 @@ struct scic_sds_port;
 #define SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT  250
 
 /**
- * enum SCIC_SDS_PHY_STARTING_SUBSTATES -
+ * enum scic_sds_phy_starting_substates -
  *
  *
  */
-enum SCIC_SDS_PHY_STARTING_SUBSTATES {
+enum scic_sds_phy_starting_substates {
 	/**
 	 * Initial state
 	 */
@@ -156,7 +156,7 @@ struct scic_sds_controller;
  *
  *
  */
-enum SCIC_SDS_PHY_PROTOCOL {
+enum scic_sds_phy_protocol {
 	/**
 	 * This is an unknown phy type since there is either nothing on the other
 	 * end or we have not detected the phy type as yet.
@@ -202,7 +202,7 @@ struct scic_sds_phy {
 	 * field contains a legitamite value once the PHY has link trained with
 	 * a remote phy.
 	 */
-	enum SCIC_SDS_PHY_PROTOCOL protocol;
+	enum scic_sds_phy_protocol protocol;
 
 	/**
 	 * This field specifies the index with which this phy is associated (0-3).

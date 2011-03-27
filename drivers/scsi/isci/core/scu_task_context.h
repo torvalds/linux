@@ -65,7 +65,7 @@
 
 
 /**
- * enum SCU_SSP_TASK_TYPE - This enumberation defines the various SSP task
+ * enum scu_ssp_task_type - This enumberation defines the various SSP task
  *    types the SCU hardware will accept. The definition for the various task
  *    types the SCU hardware will accept can be found in the DS specification.
  *
@@ -78,10 +78,10 @@ typedef enum {
 	SCU_TASK_TYPE_RESPONSE,         /* /< Driver generated response frame (targt mode) */
 	SCU_TASK_TYPE_RAW_FRAME,        /* /< Raw frame request type */
 	SCU_TASK_TYPE_PRIMITIVE         /* /< Request for a primitive to be transmitted */
-} SCU_SSP_TASK_TYPE;
+} scu_ssp_task_type;
 
 /**
- * enum SCU_SATA_TASK_TYPE - This enumeration defines the various SATA task
+ * enum scu_sata_task_type - This enumeration defines the various SATA task
  *    types the SCU hardware will accept. The definition for the various task
  *    types the SCU hardware will accept can be found in the DS specification.
  *
@@ -99,7 +99,7 @@ typedef enum {
 	SCU_TASK_TYPE_DMA_OUT,          /* /< Write request */
 	SCU_TASK_TYPE_FPDMAQ_WRITE,     /* /< NCQ write Request */
 	SCU_TASK_TYPE_PACKET_DMA_OUT    /* /< Packet write request */
-} SCU_SATA_TASK_TYPE;
+} scu_sata_task_type;
 
 
 /**
@@ -290,12 +290,12 @@ typedef enum {
 #define SCU_TASK_CONTEXT_PROTOCOL_NONE   0x07
 
 /**
- * struct SSP_TASK_CONTEXT - This is the SCU hardware definition for an SSP
+ * struct ssp_task_context - This is the SCU hardware definition for an SSP
  *    request.
  *
  *
  */
-struct SSP_TASK_CONTEXT {
+struct ssp_task_context {
 	/* OFFSET 0x18 */
 	u32 reserved00:24;
 	u32 frame_type:8;
@@ -324,12 +324,12 @@ struct SSP_TASK_CONTEXT {
 };
 
 /**
- * struct STP_TASK_CONTEXT - This is the SCU hardware definition for an STP
+ * struct stp_task_context - This is the SCU hardware definition for an STP
  *    request.
  *
  *
  */
-struct STP_TASK_CONTEXT {
+struct stp_task_context {
 	/* OFFSET 0x18 */
 	u32 fis_type:8;
 	u32 pm_port:4;
@@ -356,12 +356,12 @@ struct STP_TASK_CONTEXT {
 };
 
 /**
- * struct SMP_TASK_CONTEXT - This is the SCU hardware definition for an SMP
+ * struct smp_task_context - This is the SCU hardware definition for an SMP
  *    request.
  *
  *
  */
-struct SMP_TASK_CONTEXT {
+struct smp_task_context {
 	/* OFFSET 0x18 */
 	u32 response_length:8;
 	u32 function_result:8;
@@ -386,12 +386,12 @@ struct SMP_TASK_CONTEXT {
 };
 
 /**
- * struct PRIMITIVE_TASK_CONTEXT - This is the SCU hardware definition used
+ * struct primitive_task_context - This is the SCU hardware definition used
  *    when the driver wants to send a primitive on the link.
  *
  *
  */
-struct PRIMITIVE_TASK_CONTEXT {
+struct primitive_task_context {
 	/* OFFSET 0x18 */
 	/**
 	 * This field is the control word and it must be 0.
@@ -421,13 +421,13 @@ struct PRIMITIVE_TASK_CONTEXT {
  * The union of the protocols that can be selected in the SCU task context
  *    field.
  *
- * PROTOCOL_CONTEXT
+ * protocol_context
  */
-union PROTOCOL_CONTEXT {
-	struct SSP_TASK_CONTEXT ssp;
-	struct STP_TASK_CONTEXT stp;
-	struct SMP_TASK_CONTEXT smp;
-	struct PRIMITIVE_TASK_CONTEXT primitive;
+union protocol_context {
+	struct ssp_task_context ssp;
+	struct stp_task_context stp;
+	struct smp_task_context smp;
+	struct primitive_task_context primitive;
 	u32 words[6];
 };
 
@@ -502,13 +502,13 @@ struct scu_sgl_element_pair {
 };
 
 /**
- * struct TRANSPORT_SNAPSHOT - This structure is the SCU hardware scratch area
+ * struct transport_snapshot - This structure is the SCU hardware scratch area
  *    for the task context. This is set to 0 by the driver but can be read by
  *    issuing a dump TC request to the SCU.
  *
  *
  */
-struct TRANSPORT_SNAPSHOT {
+struct transport_snapshot {
 	/* OFFSET 0x48 */
 	u32 xfer_rdy_write_data_length;
 
@@ -639,7 +639,7 @@ struct scu_task_context {
 	/**
 	 * This field is programmed with one of the following command type codes
 	 *
-	 * For SAS requests use the SCU_SSP_TASK_TYPE
+	 * For SAS requests use the scu_ssp_task_type
 	 *    - SCU_TASK_TYPE_IOREAD
 	 *    - SCU_TASK_TYPE_IOWRITE
 	 *    - SCU_TASK_TYPE_SMP_REQUEST
@@ -647,7 +647,7 @@ struct scu_task_context {
 	 *    - SCU_TASK_TYPE_RAW_FRAME
 	 *    - SCU_TASK_TYPE_PRIMITIVE
 	 *
-	 * For SATA requests use the SCU_SATA_TASK_TYPE
+	 * For SATA requests use the scu_sata_task_type
 	 *    - SCU_TASK_TYPE_DMA_IN
 	 *    - SCU_TASK_TYPE_FPDMAQ_READ
 	 *    - SCU_TASK_TYPE_PACKET_DMA_IN
@@ -787,7 +787,7 @@ struct scu_task_context {
 	/**
 	 * This union provides for the protocol specif part of the SCU Task Context.
 	 */
-	union PROTOCOL_CONTEXT type;
+	union protocol_context type;
 
 	/* OFFSET 0x30-0x34 */
 	/**
@@ -863,7 +863,7 @@ struct scu_task_context {
 	u32 write_data_length; /* read only set to 0 */
 
 	/* OFFSET 0x48-0x58 */
-	struct TRANSPORT_SNAPSHOT snapshot; /* read only set to 0 */
+	struct transport_snapshot snapshot; /* read only set to 0 */
 
 	/* OFFSET 0x5C */
 	u32 block_protection_enable:1;

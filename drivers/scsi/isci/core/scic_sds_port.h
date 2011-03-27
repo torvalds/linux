@@ -84,21 +84,23 @@
  * This enumeration depicts all of the states for the core port ready substate
  * machine.
  */
-enum SCIC_SDS_PORT_READY_SUBSTATES {
+enum scic_sds_port_ready_substates {
 	/**
-	 * The substate where the port is started and ready but has no active phys.
+	 * The substate where the port is started and ready but has no
+	 * active phys.
 	 */
 	SCIC_SDS_PORT_READY_SUBSTATE_WAITING,
 
 	/**
-	 * The substate where the port is started and ready and there is at least one
-	 * phy operational.
+	 * The substate where the port is started and ready and there is
+	 * at least one phy operational.
 	 */
 	SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL,
 
 	/**
-	 * The substate where the port is started and there was an add/remove phy
-	 * event.  This state is only used in Automatic Port Configuration Mode (APC)
+	 * The substate where the port is started and there was an
+	 * add/remove phy event.  This state is only used in Automatic
+	 * Port Configuration Mode (APC)
 	 */
 	SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING,
 
@@ -122,9 +124,9 @@ struct scic_sds_port {
 	struct sci_base_port parent;
 
 	/**
-	 * This field is the port index that is reported to the SCI USER.  This allows
-	 * the actual hardware physical port to change without the SCI USER getting a
-	 * different answer for the get port index.
+	 * This field is the port index that is reported to the SCI USER.
+	 * This allows the actual hardware physical port to change without
+	 * the SCI USER getting a different answer for the get port index.
 	 */
 	u8 logical_port_index;
 
@@ -134,9 +136,9 @@ struct scic_sds_port {
 	u8 physical_port_index;
 
 	/**
-	 * This field contains the active phy mask for the port.  This mask is used in
-	 * conjunction with the phy state to determine which phy to select for some
-	 * port operations.
+	 * This field contains the active phy mask for the port.
+	 * This mask is used in conjunction with the phy state to determine
+	 * which phy to select for some port operations.
 	 */
 	u8 active_phy_mask;
 
@@ -150,8 +152,8 @@ struct scic_sds_port {
 	u32 started_request_count;
 
 	/**
-	 * This field contains the number of devices assigned to this port.  It is
-	 * used to control port start requests.
+	 * This field contains the number of devices assigned to this port.
+	 * It is used to control port start requests.
 	 */
 	u32 assigned_device_count;
 
@@ -167,7 +169,8 @@ struct scic_sds_port {
 	struct scic_sds_phy *phy_table[SCI_MAX_PHYS];
 
 	/**
-	 * This field is a pointer back to the controller that owns this port object.
+	 * This field is a pointer back to the controller that owns this
+	 * port object.
 	 */
 	struct scic_sds_controller *owning_controller;
 
@@ -178,8 +181,8 @@ struct scic_sds_port {
 
 	/**
 	 * This field points to the current set of state handlers for this port
-	 * object.  These state handlers are assigned at each enter state of the state
-	 * machine.
+	 * object.  These state handlers are assigned at each enter state of
+	 * the state machine.
 	 */
 	struct scic_sds_port_state_handler *state_handlers;
 
@@ -191,17 +194,18 @@ struct scic_sds_port {
 	/* / Memory mapped hardware register space */
 
 	/**
-	 * This field is the pointer to the port task scheduler registers for the SCU
-	 * hardware.
+	 * This field is the pointer to the port task scheduler registers
+	 * for the SCU hardware.
 	 */
-	struct scu_port_task_scheduler_registers __iomem *port_task_scheduler_registers;
+	struct scu_port_task_scheduler_registers __iomem
+		*port_task_scheduler_registers;
 
 	/**
-	 * This field is identical for all port objects and points to the port task
-	 * scheduler group PE configuration registers.  It is used to assign PEs to a
-	 * port.
+	 * This field is identical for all port objects and points to the port
+	 * task scheduler group PE configuration registers.
+	 * It is used to assign PEs to a port.
 	 */
-	SCU_PORT_PE_CONFIGURATION_REGISTER_T *port_pe_configuration_register;
+	u32 *port_pe_configuration_register;
 
 	/**
 	 * This field is the VIIT register space for ths port object.
@@ -211,13 +215,13 @@ struct scic_sds_port {
 };
 
 
-typedef enum sci_status (*SCIC_SDS_PORT_EVENT_HANDLER_T)(struct scic_sds_port *, u32);
+typedef enum sci_status (*scic_sds_port_event_handler_t)(struct scic_sds_port *, u32);
 
-typedef enum sci_status (*SCIC_SDS_PORT_FRAME_HANDLER_T)(struct scic_sds_port *, u32);
+typedef enum sci_status (*scic_sds_port_frame_handler_t)(struct scic_sds_port *, u32);
 
-typedef void (*SCIC_SDS_PORT_LINK_HANDLER_T)(struct scic_sds_port *, struct scic_sds_phy *);
+typedef void (*scic_sds_port_link_handler_t)(struct scic_sds_port *, struct scic_sds_phy *);
 
-typedef enum sci_status (*SCIC_SDS_PORT_IO_REQUEST_HANDLER_T)(
+typedef enum sci_status (*scic_sds_port_io_request_handler_t)(
 	struct scic_sds_port *,
 	struct scic_sds_remote_device *,
 	struct scic_sds_request *);
@@ -225,14 +229,14 @@ typedef enum sci_status (*SCIC_SDS_PORT_IO_REQUEST_HANDLER_T)(
 struct scic_sds_port_state_handler {
 	struct sci_base_port_state_handler parent;
 
-	SCIC_SDS_PORT_FRAME_HANDLER_T frame_handler;
-	SCIC_SDS_PORT_EVENT_HANDLER_T event_handler;
+	scic_sds_port_frame_handler_t frame_handler;
+	scic_sds_port_event_handler_t event_handler;
 
-	SCIC_SDS_PORT_LINK_HANDLER_T link_up_handler;
-	SCIC_SDS_PORT_LINK_HANDLER_T link_down_handler;
+	scic_sds_port_link_handler_t link_up_handler;
+	scic_sds_port_link_handler_t link_down_handler;
 
-	SCIC_SDS_PORT_IO_REQUEST_HANDLER_T start_io_handler;
-	SCIC_SDS_PORT_IO_REQUEST_HANDLER_T complete_io_handler;
+	scic_sds_port_io_request_handler_t start_io_handler;
+	scic_sds_port_io_request_handler_t complete_io_handler;
 
 };
 

@@ -705,7 +705,7 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 
 	for (index = 0; index < scic->logical_port_entries; index++) {
 		struct scic_sds_port *sci_port = &scic->port_table[index];
-		SCI_BASE_PORT_HANDLER_T stop;
+		sci_base_port_handler_t stop;
 
 		stop = sci_port->state_handlers->parent.stop_handler;
 		port_status = stop(&sci_port->parent);

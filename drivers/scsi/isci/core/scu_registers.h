@@ -1423,7 +1423,7 @@ struct scu_sgpio_registers {
  * ***************************************************************************** */
 #define     SCU_VIIT_BASE     0x1c00
 
-struct SCU_VIIT_REGISTERS {
+struct scu_viit_registers {
 	u32 registers[256];
 };
 
@@ -1463,8 +1463,6 @@ struct scu_port_task_scheduler_registers {
 	u32 status;
 };
 
-typedef u32 SCU_PORT_PE_CONFIGURATION_REGISTER_T;
-
 /**
  * struct scu_port_task_scheduler_group_registers - These are the PORT Task
  *    Scheduler registers
@@ -1495,7 +1493,7 @@ struct scu_port_task_scheduler_group_registers {
  * 0x0034 PCSPE1CR
  * 0x0038 PCSPE2CR
  * 0x003C PCSPE3CR */
-	SCU_PORT_PE_CONFIGURATION_REGISTER_T protocol_engine[4];
+	u32 protocol_engine[4];
 /* 0x0040 ETMTSCCR */
 	u32 tc_scanning_interval_control;
 /* 0x0044 ETMRNSCCR */
@@ -1684,12 +1682,12 @@ struct scu_afe_registers {
 	u32 reserved_0c00_0ffc[0x0100];
 };
 
-struct SCU_PROTOCOL_ENGINE_GROUP_REGISTERS {
+struct scu_protocol_engine_group_registers {
 	u32 table[0xE0];
 };
 
 
-struct SCU_VIIT_IIT {
+struct scu_viit_iit {
 	u32 table[256];
 };
 
@@ -1699,7 +1697,7 @@ struct SCU_VIIT_IIT {
  *
  *
  */
-struct SCU_ZONE_PARTITION_TABLE {
+struct scu_zone_partition_table {
 	u32 table[2048];
 };
 
@@ -1709,7 +1707,7 @@ struct SCU_ZONE_PARTITION_TABLE {
  *
  *
  */
-struct SCU_COMPLETION_RAM {
+struct scu_completion_ram {
 	u32 ram[128];
 };
 
@@ -1719,19 +1717,19 @@ struct SCU_COMPLETION_RAM {
  *
  *
  */
-struct SCU_FRAME_BUFFER_RAM {
+struct scu_frame_buffer_ram {
 	u32 ram[128];
 };
 
-#define SCU_SCRATCH_RAM_SIZE_IN_DWORDS  256
+#define scu_scratch_ram_SIZE_IN_DWORDS  256
 
 /**
  * Placeholder for the scratch RAM registers.
  *
  *
  */
-struct SCU_SCRATCH_RAM {
-	u32 ram[SCU_SCRATCH_RAM_SIZE_IN_DWORDS];
+struct scu_scratch_ram {
+	u32 ram[scu_scratch_ram_SIZE_IN_DWORDS];
 };
 
 /**
@@ -1739,7 +1737,7 @@ struct SCU_SCRATCH_RAM {
  *
  *
  */
-struct NOA_PROTOCOL_ENGINE_PARTITION {
+struct noa_protocol_engine_partition {
 	u32 reserved[64];
 };
 
@@ -1748,7 +1746,7 @@ struct NOA_PROTOCOL_ENGINE_PARTITION {
  *
  *
  */
-struct NOA_HUB_PARTITION {
+struct noa_hub_partition {
 	u32 reserved[64];
 };
 
@@ -1757,38 +1755,38 @@ struct NOA_HUB_PARTITION {
  *
  *
  */
-struct NOA_HOST_INTERFACE_PARTITION {
+struct noa_host_interface_partition {
 	u32 reserved[64];
 };
 
 /**
- * struct TRANSPORT_LINK_LAYER_PAIR - The SCU Hardware pairs up the TL
+ * struct transport_link_layer_pair - The SCU Hardware pairs up the TL
  *    registers with the LL registers so we must place them adjcent to make the
  *    array of registers in the PEG.
  *
  *
  */
-struct TRANSPORT_LINK_LAYER_PAIR {
+struct transport_link_layer_pair {
 	struct scu_transport_layer_registers tl;
 	struct scu_link_layer_registers ll;
 };
 
 /**
- * struct SCU_PEG_REGISTERS - SCU Protocol Engine Memory mapped register space.
+ * struct scu_peg_registers - SCU Protocol Engine Memory mapped register space.
  *     These registers are unique to each protocol engine group.  There can be
  *    at most two PEG for a single SCU part.
  *
  *
  */
-struct SCU_PEG_REGISTERS {
-	struct TRANSPORT_LINK_LAYER_PAIR pe[4];
+struct scu_peg_registers {
+	struct transport_link_layer_pair pe[4];
 	struct scu_port_task_scheduler_group_registers ptsg;
-	struct SCU_PROTOCOL_ENGINE_GROUP_REGISTERS peg;
+	struct scu_protocol_engine_group_registers peg;
 	struct scu_sgpio_registers sgpio;
 	u32 reserved_01500_1BFF[0x1C0];
 	struct scu_viit_entry viit[64];
-	struct SCU_ZONE_PARTITION_TABLE zpt0;
-	struct SCU_ZONE_PARTITION_TABLE zpt1;
+	struct scu_zone_partition_table zpt0;
+	struct scu_zone_partition_table zpt1;
 };
 
 /**
@@ -1800,20 +1798,20 @@ struct SCU_PEG_REGISTERS {
  */
 struct scu_registers {
 	/* 0x0000 - PEG 0 */
-	struct SCU_PEG_REGISTERS peg0;
+	struct scu_peg_registers peg0;
 
 	/* 0x6000 - SDMA and Miscellaneous */
 	struct scu_sdma_registers sdma;
-	struct SCU_COMPLETION_RAM cram;
-	struct SCU_FRAME_BUFFER_RAM fbram;
+	struct scu_completion_ram cram;
+	struct scu_frame_buffer_ram fbram;
 	u32 reserved_6800_69FF[0x80];
-	struct NOA_PROTOCOL_ENGINE_PARTITION noa_pe;
-	struct NOA_HUB_PARTITION noa_hub;
-	struct NOA_HOST_INTERFACE_PARTITION noa_if;
+	struct noa_protocol_engine_partition noa_pe;
+	struct noa_hub_partition noa_hub;
+	struct noa_host_interface_partition noa_if;
 	u32 reserved_6d00_7fff[0x4c0];
 
 	/* 0x8000 - PEG 1 */
-	struct SCU_PEG_REGISTERS peg1;
+	struct scu_peg_registers peg1;
 
 	/* 0xE000 - AFE Registers */
 	struct scu_afe_registers afe;
@@ -1822,9 +1820,7 @@ struct scu_registers {
 	u32 reserved_f000_211fff[0x80c00];
 
 	/* 0x212000 - scratch RAM */
-	struct SCU_SCRATCH_RAM scratch_ram;
-
+	struct scu_scratch_ram scratch_ram;
 };
-
 
 #endif   /* _SCU_REGISTERS_HEADER_ */

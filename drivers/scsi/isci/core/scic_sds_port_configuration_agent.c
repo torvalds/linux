@@ -820,7 +820,7 @@ enum sci_status scic_sds_port_configuration_agent_initialize(
 	struct scic_sds_port_configuration_agent *port_agent)
 {
 	enum sci_status status = SCI_SUCCESS;
-	enum SCIC_PORT_CONFIGURATION_MODE mode;
+	enum scic_port_configuration_mode mode;
 	struct isci_host *ihost = sci_object_get_association(scic);
 
 	mode = scic->oem_parameters.sds1.controller.mode_type;

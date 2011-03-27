@@ -74,7 +74,7 @@ struct scic_sds_remote_device;
 struct scic_sds_io_request_state_handler;
 
 /**
- * enum _SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATES - This enumeration
+ * enum _scic_sds_io_request_started_task_mgmt_substates - This enumeration
  *    depicts all of the substates for a task management request to be
  *    performed in the STARTED super-state.
  *
@@ -98,7 +98,7 @@ enum scic_sds_raw_request_started_task_mgmt_substates {
 
 
 /**
- * enum _SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATES - This enumeration depicts all
+ * enum _scic_sds_smp_request_started_substates - This enumeration depicts all
  *    of the substates for a SMP request to be performed in the STARTED
  *    super-state.
  *
@@ -120,7 +120,7 @@ enum scic_sds_smp_request_started_substates {
 };
 
 /**
- * struct SCIC_SDS_IO_REQUEST - This structure contains or references all of
+ * struct scic_sds_request - This structure contains or references all of
  *    the data necessary to process a task management or normal IO request.
  *
  *
@@ -328,7 +328,7 @@ extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substat
  * scic_sds_io_request_tc_completion() -
  *
  * This macro invokes the core state task completion handler for the
- * SCIC_SDS_IO_REQUEST_T object.
+ * struct scic_sds_io_request object.
  */
 #define scic_sds_io_request_tc_completion(this_request, completion_code) \
 	{ \

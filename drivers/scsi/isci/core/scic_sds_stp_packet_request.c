@@ -146,7 +146,7 @@ void scu_stp_packet_request_command_phase_construct_task_context(
 	}
 
 	/* sata header */
-	memset(&(task_context->type.stp), 0, sizeof(struct STP_TASK_CONTEXT));
+	memset(&(task_context->type.stp), 0, sizeof(struct stp_task_context));
 	task_context->type.stp.fis_type = SATA_FIS_TYPE_DATA;
 
 	/*
@@ -213,7 +213,7 @@ void scu_stp_packet_request_command_phase_reconstruct_raw_frame_task_context(
 	memset(this_request->command_buffer, 0, sizeof(struct sata_fis_reg_h2d));
 	memcpy(((u8 *)this_request->command_buffer + sizeof(u32)), atapi_cdb, atapi_cdb_length);
 
-	memset(&(task_context->type.stp), 0, sizeof(struct STP_TASK_CONTEXT));
+	memset(&(task_context->type.stp), 0, sizeof(struct stp_task_context));
 	task_context->type.stp.fis_type = SATA_FIS_TYPE_DATA;
 
 	/*

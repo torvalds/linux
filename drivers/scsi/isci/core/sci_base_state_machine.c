@@ -65,7 +65,7 @@
 static void sci_state_machine_exit_state(struct sci_base_state_machine *sm)
 {
 	u32 state = sm->current_state_id;
-	SCI_STATE_TRANSITION_T exit = sm->state_table[state].exit_state;
+	sci_state_transition_t exit = sm->state_table[state].exit_state;
 
 	if (exit)
 		exit(sm->state_machine_owner);
@@ -74,7 +74,7 @@ static void sci_state_machine_exit_state(struct sci_base_state_machine *sm)
 static void sci_state_machine_enter_state(struct sci_base_state_machine *sm)
 {
 	u32 state = sm->current_state_id;
-	SCI_STATE_TRANSITION_T enter = sm->state_table[state].enter_state;
+	sci_state_transition_t enter = sm->state_table[state].enter_state;
 
 	if (enter)
 		enter(sm->state_machine_owner);

@@ -129,7 +129,7 @@ struct sci_base_request {
 	struct sci_base_state_machine state_machine;
 };
 
-typedef enum sci_status (*SCI_BASE_REQUEST_HANDLER_T)(
+typedef enum sci_status (*sci_base_request_handler_t)(
 	struct sci_base_request *this_request
 	);
 
@@ -146,25 +146,25 @@ struct sci_base_request_state_handler {
 	 * The start_handler specifies the method invoked when a user attempts to
 	 * start a request.
 	 */
-	SCI_BASE_REQUEST_HANDLER_T start_handler;
+	sci_base_request_handler_t start_handler;
 
 	/**
 	 * The abort_handler specifies the method invoked when a user attempts to
 	 * abort a request.
 	 */
-	SCI_BASE_REQUEST_HANDLER_T abort_handler;
+	sci_base_request_handler_t abort_handler;
 
 	/**
 	 * The complete_handler specifies the method invoked when a user attempts to
 	 * complete a request.
 	 */
-	SCI_BASE_REQUEST_HANDLER_T complete_handler;
+	sci_base_request_handler_t complete_handler;
 
 	/**
 	 * The destruct_handler specifies the method invoked when a user attempts to
 	 * destruct a request.
 	 */
-	SCI_BASE_REQUEST_HANDLER_T destruct_handler;
+	sci_base_request_handler_t destruct_handler;
 
 };
 

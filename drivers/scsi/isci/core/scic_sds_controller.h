@@ -90,12 +90,12 @@ struct scic_sds_controller;
 #define SCU_COMPLETION_RAM_ALIGNMENT            (64)
 
 /**
- * enum SCIC_SDS_CONTROLLER_MEMORY_DESCRIPTORS -
+ * enum scic_sds_controller_memory_descriptors -
  *
  * This enumeration depects the types of MDEs that are going to be created for
  * the controller object.
  */
-enum SCIC_SDS_CONTROLLER_MEMORY_DESCRIPTORS {
+enum scic_sds_controller_memory_descriptors {
 	/**
 	 * Completion queue MDE entry
 	 */

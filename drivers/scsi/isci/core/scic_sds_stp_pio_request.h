@@ -72,7 +72,7 @@
  *
  * This is the enumeration of the SATA PIO DATA IN started substate machine.
  */
-enum _SCIC_SDS_STP_REQUEST_STARTED_PIO_SUBSTATES {
+enum _scic_sds_stp_request_started_pio_substates {
 	/**
 	 * While in this state the IO request object is waiting for the TC completion
 	 * notification for the H2D Register FIS

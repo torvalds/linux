@@ -111,7 +111,7 @@ struct isci_oem_hdr {
  * A PORT_PHY mask that assigns just a single PHY to a port and no other PHYs
  * being assigned is sufficient to declare manual PORT configuration.
  */
-enum SCIC_PORT_CONFIGURATION_MODE {
+enum scic_port_configuration_mode {
 	SCIC_PORT_MANUAL_CONFIGURATION_MODE = 0,
 	SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE = 1
 };

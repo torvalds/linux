@@ -67,7 +67,7 @@
 #include "sati_device.h"
 
 /**
- * enum _SATI_TRANSLATOR_SEQUENCE_TYPE - This enumeration defines the possible
+ * enum _sati_translator_sequence_type - This enumeration defines the possible
  *    sequence types for the translator.
  *
  *
@@ -172,7 +172,7 @@ enum sati_translator_sequence_type {
  *
  *
  */
-typedef  struct SATI_MODE_SELECT_PROCESSING_STATE {
+struct sati_mode_select_processing_state {
 	u8 *mode_pages;
 	u32 mode_page_offset;
 	u32 mode_pages_size;
@@ -180,11 +180,10 @@ typedef  struct SATI_MODE_SELECT_PROCESSING_STATE {
 	u32 total_ata_command_sent;
 	u32 ata_command_sent_for_cmp; /* cmp: current mode page */
 	bool current_mode_page_processed;
+};
 
-} SATI_MODE_SELECT_PROCESSING_STATE_T;
 
-
-enum SATI_REASSIGN_BLOCKS_ATA_COMMAND_STATUS {
+enum sati_reassign_blocks_ata_command_status {
 	SATI_REASSIGN_BLOCKS_READY_TO_SEND,
 	SATI_REASSIGN_BLOCKS_COMMAND_FAIL,
 	SATI_REASSIGN_BLOCKS_COMMAND_SUCCESS,
@@ -204,7 +203,7 @@ struct sati_reassign_blocks_processing_state {
 	u32 size_of_data_processed;
 	u32 ata_command_sent_for_current_lba;
 	bool current_lba_processed;
-	enum     SATI_REASSIGN_BLOCKS_ATA_COMMAND_STATUS ata_command_status;
+	enum  sati_reassign_blocks_ata_command_status ata_command_status;
 
 };
 
@@ -291,8 +290,9 @@ struct sati_translator_sequence {
 		u32 translated_command;
 		u32 move_sector_count;
 		u32 scratch;
-		struct sati_reassign_blocks_processing_state reassign_blocks_process_state;
-		SATI_MODE_SELECT_PROCESSING_STATE_T process_state;
+		struct sati_reassign_blocks_processing_state
+			reassign_blocks_process_state;
+		struct sati_mode_select_processing_state process_state;
 		struct sati_atapi_data sati_atapi_data;
 	} command_specific_data;
 

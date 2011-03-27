@@ -620,15 +620,12 @@ enum sci_status scic_port_get_properties(
 }
 
 /**
- * scic_port_hard_reset() - This method will request the SCI implementation to
- *    perform a HARD RESET on the SAS Port.  If/When the HARD RESET completes
- *    the SCI user will be notified via an SCI OS callback indicating a direct
- *    attached device was found.
+ * scic_port_hard_reset() - perform port hard reset
  * @port: a handle corresponding to the SAS port to be hard reset.
  * @reset_timeout: This parameter specifies the number of milliseconds in which
  *    the port reset operation should complete.
  *
- * The SCI User callback in SCIC_USER_CALLBACKS_T will only be called once for
+ * The SCI User callback in scic_user_callbacks_t will only be called once for
  * each phy in the SAS Port at completion of the hard reset sequence. Return a
  * status indicating whether the hard reset started successfully. SCI_SUCCESS
  * This value is returned if the hard reset operation started successfully.
