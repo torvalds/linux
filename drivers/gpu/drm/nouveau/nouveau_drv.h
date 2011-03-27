@@ -466,6 +466,7 @@ struct nouveau_pm_memtiming {
 	u32 reg_100234;
 	u32 reg_100238;
 	u32 reg_10023c;
+	u32 reg_100240;
 };
 
 struct nouveau_pm_memtimings {
@@ -637,6 +638,7 @@ struct drm_nouveau_private {
 	enum nouveau_card_type card_type;
 	/* exact chipset, derived from NV_PMC_BOOT_0 */
 	int chipset;
+	int stepping;
 	int flags;
 
 	void __iomem *mmio;

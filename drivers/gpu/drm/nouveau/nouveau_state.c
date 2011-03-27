@@ -913,11 +913,13 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	/* Time to determine the card architecture */
 	reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
+	dev_priv->stepping = 0; /* XXX: add stepping for pre-NV10? */
 
 	/* We're dealing with >=NV10 */
 	if ((reg0 & 0x0f000000) > 0) {
 		/* Bit 27-20 contain the architecture in hex */
 		dev_priv->chipset = (reg0 & 0xff00000) >> 20;
+		dev_priv->stepping = (reg0 & 0xff);
 	/* NV04 or NV05 */
 	} else if ((reg0 & 0xff00fff0) == 0x20004000) {
 		if (reg0 & 0x00f00000)
