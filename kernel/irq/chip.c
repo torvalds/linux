@@ -141,12 +141,14 @@ EXPORT_SYMBOL_GPL(irq_get_irq_data);
 static void irq_state_clr_disabled(struct irq_desc *desc)
 {
 	desc->istate &= ~IRQS_DISABLED;
+	irqd_clear(&desc->irq_data, IRQD_IRQ_DISABLED);
 	irq_compat_clr_disabled(desc);
 }
 
 static void irq_state_set_disabled(struct irq_desc *desc)
 {
 	desc->istate |= IRQS_DISABLED;
+	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
 	irq_compat_set_disabled(desc);
 }
 
@@ -648,8 +650,7 @@ __irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	if (handle == handle_bad_irq) {
 		if (desc->irq_data.chip != &no_irq_chip)
 			mask_ack_irq(desc);
-		irq_compat_set_disabled(desc);
-		desc->istate |= IRQS_DISABLED;
+		irq_state_set_disabled(desc);
 		desc->depth = 1;
 	}
 	desc->handle_irq = handle;

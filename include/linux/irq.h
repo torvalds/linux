@@ -174,6 +174,8 @@ struct irq_data {
  *				  from suspend
  * IRDQ_MOVE_PCNTXT		- Interrupt can be moved in process
  *				  context
+ * IRQD_IRQ_DISABLED		- Some chip function need to know the
+ *				  disabled state.
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -184,6 +186,7 @@ enum {
 	IRQD_LEVEL			= (1 << 13),
 	IRQD_WAKEUP_STATE		= (1 << 14),
 	IRQD_MOVE_PCNTXT		= (1 << 15),
+	IRQD_IRQ_DISABLED		= (1 << 16),
 };
 
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
@@ -233,6 +236,11 @@ static inline bool irqd_is_wakeup_set(struct irq_data *d)
 static inline bool irqd_can_move_in_process_context(struct irq_data *d)
 {
 	return d->state_use_accessors & IRQD_MOVE_PCNTXT;
+}
+
+static inline bool irqd_irq_disabled(struct irq_data *d)
+{
+	return d->state_use_accessors & IRQD_IRQ_DISABLED;
 }
 
 /**
