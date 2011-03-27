@@ -83,8 +83,6 @@ struct viafb_par {
 	struct chip_information *chip_info;
 };
 
-extern unsigned int viafb_second_virtual_yres;
-extern unsigned int viafb_second_virtual_xres;
 extern int viafb_SAMM_ON;
 extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;
