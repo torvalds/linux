@@ -342,7 +342,7 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		if (IS_ERR(key->u.ccmp.tfm)) {
 			err = PTR_ERR(key->u.ccmp.tfm);
 			kfree(key);
-			key = ERR_PTR(err);
+			return ERR_PTR(err);
 		}
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
@@ -360,7 +360,7 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		if (IS_ERR(key->u.aes_cmac.tfm)) {
 			err = PTR_ERR(key->u.aes_cmac.tfm);
 			kfree(key);
-			key = ERR_PTR(err);
+			return ERR_PTR(err);
 		}
 		break;
 	}
