@@ -63,7 +63,6 @@ EXPORT_SYMBOL(rtl_ps_enable_nic);
 
 bool rtl_ps_disable_nic(struct ieee80211_hw *hw)
 {
-	bool status = true;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	/*<1> Stop all timer */
@@ -75,7 +74,7 @@ bool rtl_ps_disable_nic(struct ieee80211_hw *hw)
 	/*<3> Disable Adapter */
 	rtlpriv->cfg->ops->hw_disable(hw);
 
-	return status;
+	return true;
 }
 EXPORT_SYMBOL(rtl_ps_disable_nic);
 

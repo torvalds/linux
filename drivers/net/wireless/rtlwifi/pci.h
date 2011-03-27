@@ -192,8 +192,8 @@ struct rtl_pci {
 	u8 const_devicepci_aspm_setting;
 	/*If it supports ASPM, Offset[560h] = 0x40,
 	   otherwise Offset[560h] = 0x00. */
-	bool b_support_aspm;
-	bool b_support_backdoor;
+	bool support_aspm;
+	bool support_backdoor;
 
 	/*QOS & EDCA */
 	enum acm_method acm_method;

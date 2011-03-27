@@ -766,7 +766,7 @@ struct rtl_rfkill {
 #define IQK_MATRIX_REG_NUM	8
 #define IQK_MATRIX_SETTINGS_NUM	(1 + 24 + 21)
 struct iqk_matrix_regs {
-	bool b_iqk_done;
+	bool iqk_done;
 	long value[1][IQK_MATRIX_REG_NUM];
 };
 
@@ -1621,19 +1621,19 @@ struct bt_coexist_info {
 	u32 bt_edca_ul;
 	u32 bt_edca_dl;
 
-	bool b_init_set;
-	bool b_bt_busy_traffic;
-	bool b_bt_traffic_mode_set;
-	bool b_bt_non_traffic_mode_set;
+	bool init_set;
+	bool bt_busy_traffic;
+	bool bt_traffic_mode_set;
+	bool bt_non_traffic_mode_set;
 
-	bool b_fw_coexist_all_off;
-	bool b_sw_coexist_all_off;
+	bool fw_coexist_all_off;
+	bool sw_coexist_all_off;
 	u32 current_state;
 	u32 previous_state;
 	u8 bt_pre_rssi_state;
 
-	u8 b_reg_bt_iso;
-	u8 b_reg_bt_sco;
+	u8 reg_bt_iso;
+	u8 reg_bt_sco;
 
 };
 
