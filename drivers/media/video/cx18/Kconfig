@@ -9,6 +9,9 @@ config VIDEO_CX18
 	select VIDEO_CS5345
 	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
+	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_TDA8290 if !MEDIA_TUNER_CUSTOMISE
 	---help---
 	  This is a video4linux driver for Conexant cx23418 based
 	  PCI combo video recorder devices.
