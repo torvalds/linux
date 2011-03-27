@@ -208,6 +208,11 @@ int sparse_keymap_setup(struct input_dev *dev,
 		}
 	}
 
+	if (test_bit(EV_KEY, dev->evbit)) {
+		__set_bit(EV_MSC, dev->evbit);
+		__set_bit(MSC_SCAN, dev->mscbit);
+	}
+
 	dev->keycode = map;
 	dev->keycodemax = map_size;
 	dev->getkeycode = sparse_keymap_getkeycode;
@@ -268,6 +273,7 @@ void sparse_keymap_report_entry(struct input_dev *dev, const struct key_entry *k
 {
 	switch (ke->type) {
 	case KE_KEY:
+		input_event(dev, EV_MSC, MSC_SCAN, ke->code);
 		input_report_key(dev, ke->keycode, value);
 		input_sync(dev);
 		if (value && autorelease) {
