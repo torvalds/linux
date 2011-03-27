@@ -124,11 +124,11 @@ static void __init ath79_misc_irq_init(void)
 
 	for (i = ATH79_MISC_IRQ_BASE;
 	     i < ATH79_MISC_IRQ_BASE + ATH79_MISC_IRQ_COUNT; i++) {
-		set_irq_chip_and_handler(i, &ath79_misc_irq_chip,
+		irq_set_chip_and_handler(i, &ath79_misc_irq_chip,
 					 handle_level_irq);
 	}
 
-	set_irq_chained_handler(ATH79_CPU_IRQ_MISC, ath79_misc_irq_handler);
+	irq_set_chained_handler(ATH79_CPU_IRQ_MISC, ath79_misc_irq_handler);
 }
 
 asmlinkage void plat_irq_dispatch(void)

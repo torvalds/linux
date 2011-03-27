@@ -63,7 +63,7 @@ void __init board_setup(void)
 static int __init db1200_arch_init(void)
 {
 	/* GPIO7 is low-level triggered CPLD cascade */
-	set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	irq_set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
 	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
 
 	/* insert/eject pairs: one of both is always screaming.  To avoid

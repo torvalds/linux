@@ -142,8 +142,8 @@ void __init bcsr_init_irq(int csc_start, int csc_end, int hook_irq)
 	bcsr_csc_base = csc_start;
 
 	for (irq = csc_start; irq <= csc_end; irq++)
-		set_irq_chip_and_handler_name(irq, &bcsr_irq_type,
-			handle_level_irq, "level");
+		irq_set_chip_and_handler_name(irq, &bcsr_irq_type,
+					      handle_level_irq, "level");
 
-	set_irq_chained_handler(hook_irq, bcsr_csc_handler);
+	irq_set_chained_handler(hook_irq, bcsr_csc_handler);
 }

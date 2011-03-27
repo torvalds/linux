@@ -172,7 +172,7 @@ msi_irq_allocated:
 	pci_write_config_word(dev, desc->msi_attrib.pos + PCI_MSI_FLAGS,
 			      control);
 
-	set_irq_msi(irq, desc);
+	irq_set_msi_desc(irq, desc);
 	write_msi_msg(irq, &msg);
 	return 0;
 }
@@ -388,7 +388,7 @@ int __init octeon_msi_initialize(void)
 	}
 
 	for (irq = OCTEON_IRQ_MSI_BIT0; irq <= OCTEON_IRQ_MSI_LAST; irq++)
-		set_irq_chip_and_handler(irq, msi, handle_simple_irq);
+		irq_set_chip_and_handler(irq, msi, handle_simple_irq);
 
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE)) {
 		if (request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt0,

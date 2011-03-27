@@ -312,7 +312,7 @@ void __init arch_init_irq(void)
 		else
 			handler		= &ip22_local3_irq_type;
 
-		set_irq_chip_and_handler(i, handler, handle_level_irq);
+		irq_set_chip_and_handler(i, handler, handle_level_irq);
 	}
 
 	/* vector handler. this register the IRQ as non-sharable */
