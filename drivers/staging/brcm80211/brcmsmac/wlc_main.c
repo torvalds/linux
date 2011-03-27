@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
+#include <linux/pci_ids.h>
 #include <net/mac80211.h>
 
 #include <bcmdefs.h>
@@ -4871,7 +4872,7 @@ void wlc_statsupd(struct wlc_info *wlc)
 
 bool wlc_chipmatch(u16 vendor, u16 device)
 {
-	if (vendor != VENDOR_BROADCOM) {
+	if (vendor != PCI_VENDOR_ID_BROADCOM) {
 		WL_ERROR("wlc_chipmatch: unknown vendor id %04x\n", vendor);
 		return false;
 	}

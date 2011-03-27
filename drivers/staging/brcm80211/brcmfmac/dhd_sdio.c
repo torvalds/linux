@@ -15,6 +15,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/pci_ids.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
 #include <bcmsdh.h>
@@ -5089,7 +5090,7 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 	/* Check the Vendor ID */
 	switch (venid) {
 	case 0x0000:
-	case VENDOR_BROADCOM:
+	case PCI_VENDOR_ID_BROADCOM:
 		break;
 	default:
 		DHD_ERROR(("%s: unknown vendor: 0x%04x\n", __func__, venid));

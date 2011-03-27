@@ -17,9 +17,6 @@
 #ifndef	_BCMDEVS_H
 #define	_BCMDEVS_H
 
-/* PCI vendor IDs */
-#define	VENDOR_BROADCOM		0x14e4
-
 /* DONGLE VID/PIDs */
 #define BCM_DNGL_VID		0x0a5c
 #define BCM_DNGL_BDC_PID	0x0bdc

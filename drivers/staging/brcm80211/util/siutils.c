@@ -337,14 +337,14 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 
 #ifdef BCMSDIO
 	case SPI_BUS:
-		sii->pub.boardvendor = VENDOR_BROADCOM;
+		sii->pub.boardvendor = PCI_VENDOR_ID_BROADCOM;
 		sii->pub.boardtype = SPI_BOARD;
 		break;
 #endif
 
 	case SI_BUS:
 	case JTAG_BUS:
-		sii->pub.boardvendor = VENDOR_BROADCOM;
+		sii->pub.boardvendor = PCI_VENDOR_ID_BROADCOM;
 		sii->pub.boardtype = getintvar(pvars, "prodid");
 		if (pvars == NULL || (sii->pub.boardtype == 0)) {
 			sii->pub.boardtype = getintvar(NULL, "boardtype");
@@ -1865,7 +1865,7 @@ bool si_deviceremoved(si_t *sih)
 	case PCI_BUS:
 		ASSERT(sii->pbus != NULL);
 		pci_read_config_dword(sii->pbus, PCI_CFG_VID, &w);
-		if ((w & 0xFFFF) != VENDOR_BROADCOM)
+		if ((w & 0xFFFF) != PCI_VENDOR_ID_BROADCOM)
 			return true;
 		break;
 	}

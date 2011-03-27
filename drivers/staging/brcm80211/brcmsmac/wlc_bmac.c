@@ -2034,7 +2034,7 @@ static bool wlc_validboardtype(struct wlc_hw_info *wlc_hw)
 			goodboard = false;
 	}
 
-	if (wlc_hw->sih->boardvendor != VENDOR_BROADCOM)
+	if (wlc_hw->sih->boardvendor != PCI_VENDOR_ID_BROADCOM)
 		return goodboard;
 
 	return goodboard;

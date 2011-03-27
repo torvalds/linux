@@ -87,11 +87,11 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 		return true;
 
 	/* Check for BRCM 27XX Standard host controller */
-	if (device == BCM27XX_SDIOH_ID && vendor == VENDOR_BROADCOM)
+	if (device == BCM27XX_SDIOH_ID && vendor == PCI_VENDOR_ID_BROADCOM)
 		return true;
 
 	/* Check for BRCM Standard host controller */
-	if (device == SDIOH_FPGA_ID && vendor == VENDOR_BROADCOM)
+	if (device == SDIOH_FPGA_ID && vendor == PCI_VENDOR_ID_BROADCOM)
 		return true;
 
 	/* Check for TI PCIxx21 Standard host controller */
@@ -111,7 +111,7 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 #endif				/* BCMSDIOH_STD */
 #ifdef BCMSDIOH_SPI
 	/* This is the PciSpiHost. */
-	if (device == SPIH_FPGA_ID && vendor == VENDOR_BROADCOM) {
+	if (device == SPIH_FPGA_ID && vendor == PCI_VENDOR_ID_BROADCOM) {
 		WL_NONE("Found PCI SPI Host Controller\n");
 		return true;
 	}

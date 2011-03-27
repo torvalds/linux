@@ -17,6 +17,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/pci_ids.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
@@ -580,7 +581,7 @@ int bcmsdh_stop(void *sdh)
 int bcmsdh_query_device(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
-	bcmsdh->vendevid = (VENDOR_BROADCOM << 16) | 0;
+	bcmsdh->vendevid = (PCI_VENDOR_ID_BROADCOM << 16) | 0;
 	return bcmsdh->vendevid;
 }
 
