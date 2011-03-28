@@ -2287,7 +2287,7 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 			ctxt->eip = c->eip;
 	}
 
-	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
+	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 }
 
 static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned seg,
@@ -3333,7 +3333,7 @@ done_prefixes:
 	}
 
 done:
-	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
+	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 }
 
 static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
@@ -4163,5 +4163,5 @@ twobyte_insn:
 	goto writeback;
 
 cannot_emulate:
-	return -1;
+	return EMULATION_FAILED;
 }
