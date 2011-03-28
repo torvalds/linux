@@ -69,7 +69,9 @@
 #include "sci_pool.h"
 #include "sci_controller_constants.h"
 #include "sci_memory_descriptor_list.h"
-#include "sci_base_controller.h"
+#include "sci_base_state.h"
+#include "sci_base_state_machine.h"
+#include "sci_base_memory_descriptor_list.h"
 #include "scic_config_parameters.h"
 #include "scic_sds_port.h"
 #include "scic_sds_phy.h"
@@ -82,10 +84,11 @@
 #include "scic_sds_unsolicited_frame_control.h"
 #include "scic_sds_port_configuration_agent.h"
 
+struct sci_base_remote_device;
 struct scic_sds_remote_device;
+struct sci_base_request;
 struct scic_sds_request;
 struct scic_sds_controller;
-
 
 #define SCU_COMPLETION_RAM_ALIGNMENT            (64)
 
@@ -166,10 +169,23 @@ struct scic_power_control {
  */
 struct scic_sds_controller {
 	/**
-	 * The struct sci_base_controller is the parent object for the struct scic_sds_controller
-	 * object.
+	 * The field specifies that the parent object for the base controller
+	 * is the base object itself.
 	 */
-	struct sci_base_controller parent;
+	struct sci_base_object parent;
+
+	/**
+	 * This field points to the memory descriptor list associated with this
+	 * controller.  The MDL indicates the memory requirements necessary for
+	 * this controller object.
+	 */
+	struct sci_base_memory_descriptor_list mdl;
+
+	/**
+	 * This field contains the information for the base controller state
+	 * machine.
+	 */
+	struct sci_base_state_machine state_machine;
 
 	/**
 	 * This field is the driver timer object handler used to time the controller
@@ -376,24 +392,170 @@ struct scic_sds_controller {
 
 };
 
-typedef void (*scic_sds_controller_phy_handler_t)(struct scic_sds_controller *,
-						  struct scic_sds_port *,
-						  struct scic_sds_phy *);
-
-typedef void (*scic_sds_controller_device_handler_t)(struct scic_sds_controller *,
-						  struct scic_sds_remote_device *);
-
-
 /**
- * struct scic_sds_controller_state_handler -
- *
- * This structure contains the SDS core specific definition for the state
- * handlers.
+ * enum scic_sds_controller_states - This enumeration depicts all the states
+ *    for the common controller state machine.
  */
-struct scic_sds_controller_state_handler {
-	struct sci_base_controller_state_handler base;
+enum scic_sds_controller_states {
+	/**
+	 * Simply the initial state for the base controller state machine.
+	 */
+	SCI_BASE_CONTROLLER_STATE_INITIAL = 0,
 
-	sci_base_controller_request_handler_t terminate_request;
+	/**
+	 * This state indicates that the controller is reset.  The memory for
+	 * the controller is in it's initial state, but the controller requires
+	 * initialization.
+	 * This state is entered from the INITIAL state.
+	 * This state is entered from the RESETTING state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_RESET,
+
+	/**
+	 * This state is typically an action state that indicates the controller
+	 * is in the process of initialization.  In this state no new IO operations
+	 * are permitted.
+	 * This state is entered from the RESET state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_INITIALIZING,
+
+	/**
+	 * This state indicates that the controller has been successfully
+	 * initialized.  In this state no new IO operations are permitted.
+	 * This state is entered from the INITIALIZING state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_INITIALIZED,
+
+	/**
+	 * This state indicates the the controller is in the process of becoming
+	 * ready (i.e. starting).  In this state no new IO operations are permitted.
+	 * This state is entered from the INITIALIZED state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_STARTING,
+
+	/**
+	 * This state indicates the controller is now ready.  Thus, the user
+	 * is able to perform IO operations on the controller.
+	 * This state is entered from the STARTING state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_READY,
+
+	/**
+	 * This state is typically an action state that indicates the controller
+	 * is in the process of resetting.  Thus, the user is unable to perform
+	 * IO operations on the controller.  A reset is considered destructive in
+	 * most cases.
+	 * This state is entered from the READY state.
+	 * This state is entered from the FAILED state.
+	 * This state is entered from the STOPPED state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_RESETTING,
+
+	/**
+	 * This state indicates that the controller is in the process of stopping.
+	 * In this state no new IO operations are permitted, but existing IO
+	 * operations are allowed to complete.
+	 * This state is entered from the READY state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_STOPPING,
+
+	/**
+	 * This state indicates that the controller has successfully been stopped.
+	 * In this state no new IO operations are permitted.
+	 * This state is entered from the STOPPING state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_STOPPED,
+
+	/**
+	 * This state indicates that the controller could not successfully be
+	 * initialized.  In this state no new IO operations are permitted.
+	 * This state is entered from the INITIALIZING state.
+	 * This state is entered from the STARTING state.
+	 * This state is entered from the STOPPING state.
+	 * This state is entered from the RESETTING state.
+	 */
+	SCI_BASE_CONTROLLER_STATE_FAILED,
+
+	SCI_BASE_CONTROLLER_MAX_STATES
+
+};
+
+typedef enum sci_status (*scic_sds_controller_handler_t)
+				(struct scic_sds_controller *);
+typedef enum sci_status (*scic_sds_controller_timed_handler_t)
+				(struct scic_sds_controller *, u32);
+typedef enum sci_status (*scic_sds_controller_request_handler_t)
+				(struct scic_sds_controller *,
+				 struct sci_base_remote_device *,
+				 struct sci_base_request *);
+typedef enum sci_status (*scic_sds_controller_start_request_handler_t)
+				(struct scic_sds_controller *,
+				 struct sci_base_remote_device *,
+				 struct sci_base_request *, u16);
+typedef void (*scic_sds_controller_phy_handler_t)
+				(struct scic_sds_controller *,
+				 struct scic_sds_port *,
+				 struct scic_sds_phy *);
+typedef void (*scic_sds_controller_device_handler_t)
+				(struct scic_sds_controller *,
+				 struct scic_sds_remote_device *);
+
+struct scic_sds_controller_state_handler {
+	/**
+	 * The start_handler specifies the method invoked when a user attempts to
+	 * start a controller.
+	 */
+	scic_sds_controller_timed_handler_t start;
+
+	/**
+	 * The stop_handler specifies the method invoked when a user attempts to
+	 * stop a controller.
+	 */
+	scic_sds_controller_timed_handler_t stop;
+
+	/**
+	 * The reset_handler specifies the method invoked when a user attempts to
+	 * reset a controller.
+	 */
+	scic_sds_controller_handler_t reset;
+
+	/**
+	 * The initialize_handler specifies the method invoked when a user
+	 * attempts to initialize a controller.
+	 */
+	scic_sds_controller_handler_t initialize;
+
+	/**
+	 * The start_io_handler specifies the method invoked when a user
+	 * attempts to start an IO request for a controller.
+	 */
+	scic_sds_controller_start_request_handler_t start_io;
+
+	/**
+	 * The complete_io_handler specifies the method invoked when a user
+	 * attempts to complete an IO request for a controller.
+	 */
+	scic_sds_controller_request_handler_t complete_io;
+
+	/**
+	 * The continue_io_handler specifies the method invoked when a user
+	 * attempts to continue an IO request for a controller.
+	 */
+	scic_sds_controller_request_handler_t continue_io;
+
+	/**
+	 * The start_task_handler specifies the method invoked when a user
+	 * attempts to start a task management request for a controller.
+	 */
+	scic_sds_controller_start_request_handler_t start_task;
+
+	/**
+	 * The complete_task_handler specifies the method invoked when a user
+	 * attempts to complete a task management request for a controller.
+	 */
+	scic_sds_controller_request_handler_t complete_task;
+
+	scic_sds_controller_request_handler_t terminate_request;
 	scic_sds_controller_phy_handler_t link_up;
 	scic_sds_controller_phy_handler_t link_down;
 	scic_sds_controller_device_handler_t device_stopped;

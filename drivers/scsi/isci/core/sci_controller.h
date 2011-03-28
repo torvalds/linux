@@ -63,36 +63,7 @@
  *
  */
 
-
-struct sci_base_memory_descriptor_list;
-struct scic_sds_controller;
-
 #define SCI_CONTROLLER_INVALID_IO_TAG 0xFFFF
-
-/**
- * sci_controller_get_memory_descriptor_list_handle() - This method simply
- *    returns a handle for the memory descriptor list associated with the
- *    supplied controller.  The descriptor list provides DMA safe/capable
- *    memory requirements for this controller.
- * @controller: This parameter specifies the controller for which to retrieve
- *    the DMA safe memory descriptor list.
- *
- * The user must adhere to the alignment requirements specified in memory
- * descriptor.  In situations where the operating environment does not offer
- * memory allocation utilities supporting alignment, then it is the
- * responsibility of the user to manually align the memory buffer for SCI.
- * Thus, the user may have to allocate a larger buffer to meet the alignment.
- * Additionally, the user will need to remember the actual memory allocation
- * addresses in order to ensure the memory can be properly freed when necessary
- * to do so. This method will return a valid handle, but the MDL may not be
- * accurate until after the user has invoked the associated
- * sci_controller_initialize() routine. A pointer to a physical memory
- * descriptor array.
- */
-struct sci_base_memory_descriptor_list *
-	sci_controller_get_memory_descriptor_list_handle(
-	struct scic_sds_controller *controller);
-
 
 #endif  /* _SCI_CONTROLLER_H_ */
 
