@@ -839,8 +839,8 @@ static int bcm_enet_open(struct net_device *dev)
 	if (ret)
 		goto out_phy_disconnect;
 
-	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma,
-			  IRQF_SAMPLE_RANDOM | IRQF_DISABLED, dev->name, dev);
+	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma, IRQF_DISABLED,
+			  dev->name, dev);
 	if (ret)
 		goto out_freeirq;
 

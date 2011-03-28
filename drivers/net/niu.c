@@ -6071,8 +6071,7 @@ static int niu_request_irq(struct niu *np)
 	for (i = 0; i < np->num_ldg; i++) {
 		struct niu_ldg *lp = &np->ldg[i];
 
-		err = request_irq(lp->irq, niu_interrupt,
-				  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
+		err = request_irq(lp->irq, niu_interrupt, IRQF_SHARED,
 				  np->irq_name[i], lp);
 		if (err)
 			goto out_free_irqs;
