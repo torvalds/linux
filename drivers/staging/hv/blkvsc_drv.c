@@ -943,7 +943,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	storvsc_req->on_io_completion = request_completion;
 	storvsc_req->context = blkvsc_req;
 
-	storvsc_req->host = blkdev->port;
+	vm_srb->port_number = blkdev->port;
 	storvsc_req->bus = blkdev->path;
 	storvsc_req->target_id = blkdev->target;
 	storvsc_req->lun_id = 0;	 /* this is not really used at all */
