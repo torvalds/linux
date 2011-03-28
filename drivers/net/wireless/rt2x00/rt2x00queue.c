@@ -482,8 +482,11 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	struct skb_frame_desc *skbdesc;
 	u8 rate_idx, rate_flags;
 
-	if (unlikely(rt2x00queue_full(queue)))
+	if (unlikely(rt2x00queue_full(queue))) {
+		ERROR(queue->rt2x00dev,
+		      "Dropping frame due to full tx queue %d.\n", queue->qid);
 		return -ENOBUFS;
+	}
 
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
 				      &entry->flags))) {
