@@ -235,7 +235,7 @@ enum drbd_packet {
 	P_INITIAL_META	      = 0xfff1, /* First Packet on the MetaSock */
 	P_INITIAL_DATA	      = 0xfff2, /* First Packet on the Socket */
 
-	P_HAND_SHAKE	      = 0xfffe	/* FIXED for the next century! */
+	P_CONNECTION_FEATURES = 0xfffe	/* FIXED for the next century! */
 };
 
 extern const char *cmdname(enum drbd_packet cmd);
@@ -374,14 +374,14 @@ struct p_block_req {
 
 /*
  * commands with their own struct for additional fields:
- *   P_HAND_SHAKE
+ *   P_CONNECTION_FEATURES
  *   P_BARRIER
  *   P_BARRIER_ACK
  *   P_SYNC_PARAM
  *   ReportParams
  */
 
-struct p_handshake {
+struct p_connection_features {
 	struct p_header head;   /* Note: vnr will be ignored */
 	u32 protocol_min;
 	u32 feature_flags;

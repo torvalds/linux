@@ -2497,7 +2497,7 @@ int __init drbd_init(void)
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct p_header80) != sizeof(struct p_header95));
-	BUILD_BUG_ON(sizeof(struct p_handshake) != 80);
+	BUILD_BUG_ON(sizeof(struct p_connection_features) != 80);
 
 	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
 		printk(KERN_ERR
@@ -3149,8 +3149,8 @@ const char *cmdname(enum drbd_packet cmd)
 		return "InitialMeta";
 	if (cmd == P_INITIAL_DATA)
 		return "InitialData";
-	if (cmd == P_HAND_SHAKE)
-		return "HandShake";
+	if (cmd == P_CONNECTION_FEATURES)
+		return "ConnectionFeatures";
 	if (cmd >= ARRAY_SIZE(cmdnames))
 		return "Unknown";
 	return cmdnames[cmd];

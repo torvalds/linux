@@ -60,7 +60,7 @@ enum finish_epoch {
 	FE_RECYCLED,
 };
 
-static int drbd_do_handshake(struct drbd_tconn *tconn);
+static int drbd_do_features(struct drbd_tconn *tconn);
 static int drbd_do_auth(struct drbd_tconn *tconn);
 static int drbd_disconnected(int vnr, void *p, void *data);
 
@@ -913,7 +913,7 @@ retry:
 	/* NOT YET ...
 	 * sock->sk->sk_sndtimeo = tconn->net_conf->timeout*HZ/10;
 	 * sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
-	 * first set it to the P_HAND_SHAKE timeout,
+	 * first set it to the P_CONNECTION_FEATURES timeout,
 	 * which we set to 4x the configured ping_timeout. */
 	sock->sk->sk_sndtimeo =
 	sock->sk->sk_rcvtimeo = tconn->net_conf->ping_timeo*4*HZ/10;
@@ -928,7 +928,7 @@ retry:
 
 	tconn->last_received = jiffies;
 
-	h = drbd_do_handshake(tconn);
+	h = drbd_do_features(tconn);
 	if (h <= 0)
 		return h;
 
@@ -4176,10 +4176,10 @@ static int drbd_disconnected(int vnr, void *p, void *data)
  *
  * for now, they are expected to be zero, but ignored.
  */
-static int drbd_send_handshake(struct drbd_tconn *tconn)
+static int drbd_send_features(struct drbd_tconn *tconn)
 {
 	/* ASSERT current == mdev->tconn->receiver ... */
-	struct p_handshake *p = tconn->data.sbuf;
+	struct p_connection_features *p = tconn->data.sbuf;
 	int err;
 
 	if (mutex_lock_interruptible(&tconn->data.mutex)) {
@@ -4195,7 +4195,7 @@ static int drbd_send_handshake(struct drbd_tconn *tconn)
 	memset(p, 0, sizeof(*p));
 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-	err = _conn_send_cmd(tconn, 0, &tconn->data, P_HAND_SHAKE,
+	err = _conn_send_cmd(tconn, 0, &tconn->data, P_CONNECTION_FEATURES,
 			     &p->head, sizeof(*p), 0);
 	mutex_unlock(&tconn->data.mutex);
 	return err;
@@ -4208,15 +4208,15 @@ static int drbd_send_handshake(struct drbd_tconn *tconn)
  *  -1 peer talks different language,
  *     no point in trying again, please go standalone.
  */
-static int drbd_do_handshake(struct drbd_tconn *tconn)
+static int drbd_do_features(struct drbd_tconn *tconn)
 {
 	/* ASSERT current == tconn->receiver ... */
-	struct p_handshake *p = tconn->data.rbuf;
-	const int expect = sizeof(struct p_handshake) - sizeof(struct p_header80);
+	struct p_connection_features *p = tconn->data.rbuf;
+	const int expect = sizeof(struct p_connection_features) - sizeof(struct p_header80);
 	struct packet_info pi;
 	int err;
 
-	err = drbd_send_handshake(tconn);
+	err = drbd_send_features(tconn);
 	if (err)
 		return 0;
 
@@ -4224,14 +4224,14 @@ static int drbd_do_handshake(struct drbd_tconn *tconn)
 	if (err)
 		return 0;
 
-	if (pi.cmd != P_HAND_SHAKE) {
-		conn_err(tconn, "expected HandShake packet, received: %s (0x%04x)\n",
+	if (pi.cmd != P_CONNECTION_FEATURES) {
+		conn_err(tconn, "expected ConnectionFeatures packet, received: %s (0x%04x)\n",
 		     cmdname(pi.cmd), pi.cmd);
 		return -1;
 	}
 
 	if (pi.size != expect) {
-		conn_err(tconn, "expected HandShake length: %u, received: %u\n",
+		conn_err(tconn, "expected ConnectionFeatures length: %u, received: %u\n",
 		     expect, pi.size);
 		return -1;
 	}
