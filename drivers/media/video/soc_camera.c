@@ -41,6 +41,11 @@
 #define DEFAULT_WIDTH	640
 #define DEFAULT_HEIGHT	480
 
+#define is_streaming(ici, icd)				\
+	(((ici)->ops->init_videobuf) ?			\
+	 (icd)->vb_vidq.streaming :			\
+	 vb2_is_streaming(&(icd)->vb2_vidq))
+
 static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
@@ -662,7 +667,7 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	if (icd->streamer && icd->streamer != file)
 		return -EBUSY;
 
-	if (icd->vb_vidq.bufs[0]) {
+	if (is_streaming(to_soc_camera_host(icd->dev.parent), icd)) {
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
 		return -EBUSY;
 	}
@@ -903,14 +908,17 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	if (ret < 0) {
 		dev_err(&icd->dev,
 			"S_CROP denied: getting current crop failed\n");
-	} else if (icd->vb_vidq.bufs[0] &&
-		   (a->c.width != current_crop.c.width ||
-		    a->c.height != current_crop.c.height)) {
+	} else if ((a->c.width == current_crop.c.width &&
+		    a->c.height == current_crop.c.height) ||
+		   !is_streaming(ici, icd)) {
+		/* same size or not streaming - use .set_crop() */
+		ret = ici->ops->set_crop(icd, a);
+	} else if (ici->ops->set_livecrop) {
+		ret = ici->ops->set_livecrop(icd, a);
+	} else {
 		dev_err(&icd->dev,
 			"S_CROP denied: queue initialised and sizes differ\n");
 		ret = -EBUSY;
-	} else {
-		ret = ici->ops->set_crop(icd, a);
 	}
 
 	return ret;
