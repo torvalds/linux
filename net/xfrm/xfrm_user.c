@@ -127,6 +127,9 @@ static inline int verify_replay(struct xfrm_usersa_info *p,
 	if (!rt)
 		return 0;
 
+	if (p->id.proto != IPPROTO_ESP)
+		return -EINVAL;
+
 	if (p->replay_window != 0)
 		return -EINVAL;
 
