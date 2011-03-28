@@ -454,6 +454,7 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 		(struct host_device_context *)scmnd->device->host->hostdata;
 	void (*scsi_done_fn)(struct scsi_cmnd *);
 	struct scsi_sense_hdr sense_hdr;
+	struct vmscsi_request *vm_srb;
 
 	/* ASSERT(request == &cmd_request->request); */
 	/* ASSERT(scmnd); */
@@ -473,7 +474,8 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 				      cmd_request->bounce_sgl_count);
 	}
 
-	scmnd->result = request->status;
+	vm_srb = &request->extension.vstor_packet.vm_srb;
+	scmnd->result = vm_srb->scsi_status;
 
 	if (scmnd->result) {
 		if (scsi_normalize_sense(scmnd->sense_buffer,
@@ -483,7 +485,7 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 
 	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
 	scsi_set_resid(scmnd,
-		request->data_buffer.len - request->bytes_xfer);
+		request->data_buffer.len - vm_srb->data_transfer_length);
 
 	scsi_done_fn = scmnd->scsi_done;
 

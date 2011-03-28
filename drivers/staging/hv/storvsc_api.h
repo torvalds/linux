@@ -70,9 +70,6 @@ struct storvsc_request_extension {
 };
 
 struct hv_storvsc_request {
-	u32 status;
-	u32 bytes_xfer;
-
 
 	struct storvsc_request_extension extension;
 

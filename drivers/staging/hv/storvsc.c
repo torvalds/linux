@@ -296,9 +296,9 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 
 
 	/* Copy over the status...etc */
-	request->status = vstor_packet->vm_srb.scsi_status;
 
-	if (request->status != 0 || vstor_packet->vm_srb.srb_status != 1) {
+	if (vstor_packet->vm_srb.scsi_status != 0 ||
+		vstor_packet->vm_srb.srb_status != 1) {
 		DPRINT_WARN(STORVSC,
 			    "cmd 0x%x scsi status 0x%x srb status 0x%x\n",
 			    vstor_packet->vm_srb.cdb[0],
@@ -306,7 +306,7 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 			    vstor_packet->vm_srb.srb_status);
 	}
 
-	if ((request->status & 0xFF) == 0x02) {
+	if ((vstor_packet->vm_srb.scsi_status & 0xFF) == 0x02) {
 		/* CHECK_CONDITION */
 		if (vstor_packet->vm_srb.srb_status & 0x80) {
 			/* autosense data available */
@@ -321,8 +321,6 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 		}
 	}
 
-	/* TODO: */
-	request->bytes_xfer = vstor_packet->vm_srb.data_transfer_length;
 
 	request->extension.on_io_completion(request);
 
