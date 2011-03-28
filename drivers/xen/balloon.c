@@ -114,7 +114,6 @@ static void __balloon_append(struct page *page)
 	if (PageHighMem(page)) {
 		list_add_tail(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_high++;
-		dec_totalhigh_pages();
 	} else {
 		list_add(&page->lru, &ballooned_pages);
 		balloon_stats.balloon_low++;
@@ -124,6 +123,8 @@ static void __balloon_append(struct page *page)
 static void balloon_append(struct page *page)
 {
 	__balloon_append(page);
+	if (PageHighMem(page))
+		dec_totalhigh_pages();
 	totalram_pages--;
 }
 
@@ -462,7 +463,7 @@ static int __init balloon_init(void)
 	     pfn < extra_pfn_end;
 	     pfn++) {
 		page = pfn_to_page(pfn);
-		/* totalram_pages doesn't include the boot-time
+		/* totalram_pages and totalhigh_pages do not include the boot-time
 		   balloon extension, so don't subtract from it. */
 		__balloon_append(page);
 	}
