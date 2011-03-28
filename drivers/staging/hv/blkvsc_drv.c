@@ -154,7 +154,7 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 	struct storvsc_driver_object *stor_driver;
 	int ret = 0;
 
-	stor_driver = (struct storvsc_driver_object *)driver;
+	stor_driver = hvdr_to_stordr(driver);
 
 	/* Make sure we are at least 2 pages since 1 page is used for control */
 	/* ASSERT(stor_driver->RingBufferSize >= (PAGE_SIZE << 1)); */

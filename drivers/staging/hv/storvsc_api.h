@@ -25,6 +25,7 @@
 #ifndef _STORVSC_API_H_
 #define _STORVSC_API_H_
 
+#include <linux/kernel.h>
 #include "vstorage.h"
 #include "vmbus_api.h"
 
@@ -90,8 +91,6 @@ struct hv_storvsc_request {
 
 /* Represents the block vsc driver */
 struct storvsc_driver_object {
-	/* Must be the first field */
-	/* Which is a bug FIXME! */
 	struct hv_driver base;
 
 	/* Set by caller (in bytes) */
@@ -157,6 +156,11 @@ static inline void put_stor_device(struct hv_device *device)
 	stor_device = (struct storvsc_device *)device->ext;
 
 	atomic_dec(&stor_device->ref_count);
+}
+
+static inline struct storvsc_driver_object *hvdr_to_stordr(struct hv_driver *d)
+{
+	return container_of(d, struct storvsc_driver_object, base);
 }
 
 /* Interface */

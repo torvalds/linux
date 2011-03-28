@@ -79,7 +79,7 @@ static int stor_vsc_initialize(struct hv_driver *driver)
 {
 	struct storvsc_driver_object *stor_driver;
 
-	stor_driver = (struct storvsc_driver_object *)driver;
+	stor_driver = hvdr_to_stordr(driver);
 
 	DPRINT_DBG(STORVSC, "sizeof(STORVSC_REQUEST)=%zd "
 		   "sizeof(struct storvsc_request_extension)=%zd "
