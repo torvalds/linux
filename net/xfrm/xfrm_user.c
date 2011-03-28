@@ -360,6 +360,23 @@ static int attach_aead(struct xfrm_algo_aead **algpp, u8 *props,
 	return 0;
 }
 
+static inline int xfrm_replay_verify_len(struct xfrm_replay_state_esn *replay_esn,
+					 struct nlattr *rp)
+{
+	struct xfrm_replay_state_esn *up;
+
+	if (!replay_esn || !rp)
+		return 0;
+
+	up = nla_data(rp);
+
+	if (xfrm_replay_state_esn_len(replay_esn) !=
+			xfrm_replay_state_esn_len(up))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int xfrm_alloc_replay_state_esn(struct xfrm_replay_state_esn **replay_esn,
 				       struct xfrm_replay_state_esn **preplay_esn,
 				       struct nlattr *rta)
@@ -1764,6 +1781,10 @@ static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ESRCH;
 
 	if (x->km.state != XFRM_STATE_VALID)
+		goto out;
+
+	err = xfrm_replay_verify_len(x->replay_esn, rp);
+	if (err)
 		goto out;
 
 	spin_lock_bh(&x->lock);
