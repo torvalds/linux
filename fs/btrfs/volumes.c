@@ -3126,13 +3126,19 @@ again:
 
 			if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 				u64 stripes;
-				int last_stripe = (stripe_nr_end - 1) %
-					map->num_stripes;
+				u32 last_stripe = 0;
 				int j;
 
+				div_u64_rem(stripe_nr_end - 1,
+					    map->num_stripes,
+					    &last_stripe);
+
 				for (j = 0; j < map->num_stripes; j++) {
-					if ((stripe_nr_end - 1 - j) %
-					      map->num_stripes == stripe_index)
+					u32 test;
+
+					div_u64_rem(stripe_nr_end - 1 - j,
+						    map->num_stripes, &test);
+					if (test == stripe_index)
 						break;
 				}
 				stripes = stripe_nr_end - 1 - j;
@@ -3153,11 +3159,19 @@ again:
 				int j;
 				int factor = map->num_stripes /
 					     map->sub_stripes;
-				int last_stripe = (stripe_nr_end - 1) % factor;
+				u32 last_stripe = 0;
+
+				div_u64_rem(stripe_nr_end - 1,
+					    factor, &last_stripe);
 				last_stripe *= map->sub_stripes;
 
 				for (j = 0; j < factor; j++) {
-					if ((stripe_nr_end - 1 - j) % factor ==
+					u32 test;
+
+					div_u64_rem(stripe_nr_end - 1 - j,
+						    factor, &test);
+
+					if (test ==
 					    stripe_index / map->sub_stripes)
 						break;
 				}
