@@ -1182,6 +1182,8 @@ struct btrfs_root {
 #define BTRFS_INODE_DIRSYNC		(1 << 10)
 
 
+#define BTRFS_INODE_ROOT_ITEM_INIT	(1 << 31)
+
 /* some macros to generate set/get funcs for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
  * one for u8:
@@ -2183,6 +2185,8 @@ int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid);
 int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
 int btrfs_set_root_node(struct btrfs_root_item *item,
 			struct extent_buffer *node);
+void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
+
 /* dir-item.c */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, const char *name,
