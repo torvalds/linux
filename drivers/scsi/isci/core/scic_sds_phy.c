@@ -60,7 +60,6 @@
 #include "scic_phy.h"
 #include "scic_sds_controller.h"
 #include "scic_sds_phy.h"
-#include "scic_sds_phy_registers.h"
 #include "scic_sds_port.h"
 #include "scic_sds_remote_node_context.h"
 #include "sci_environment.h"
@@ -98,12 +97,13 @@ static enum sci_status scic_sds_phy_transport_layer_initialization(
 
 	this_phy->transport_layer_registers = transport_layer_registers;
 
-	SCU_STPTLDARNI_WRITE(this_phy, SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
+	writel(SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX,
+		&this_phy->transport_layer_registers->stp_rni);
 
 	/* Hardware team recommends that we enable the STP prefetch for all transports */
-	tl_control = SCU_TLCR_READ(this_phy);
+	tl_control = readl(&this_phy->transport_layer_registers->control);
 	tl_control |= SCU_TLCR_GEN_BIT(STP_WRITE_DATA_PREFETCH);
-	SCU_TLCR_WRITE(this_phy, tl_control);
+	writel(tl_control, &this_phy->transport_layer_registers->control);
 
 	return SCI_SUCCESS;
 }
@@ -135,30 +135,36 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	/* Set our IDENTIFY frame data */
 	#define SCI_END_DEVICE 0x01
 
-	SCU_SAS_TIID_WRITE(sci_phy, (SCU_SAS_TIID_GEN_BIT(SMP_INITIATOR) |
-				     SCU_SAS_TIID_GEN_BIT(SSP_INITIATOR) |
-				     SCU_SAS_TIID_GEN_BIT(STP_INITIATOR) |
-				     SCU_SAS_TIID_GEN_BIT(DA_SATA_HOST) |
-				     SCU_SAS_TIID_GEN_VAL(DEVICE_TYPE, SCI_END_DEVICE)));
+	writel(SCU_SAS_TIID_GEN_BIT(SMP_INITIATOR) |
+	       SCU_SAS_TIID_GEN_BIT(SSP_INITIATOR) |
+	       SCU_SAS_TIID_GEN_BIT(STP_INITIATOR) |
+	       SCU_SAS_TIID_GEN_BIT(DA_SATA_HOST) |
+	       SCU_SAS_TIID_GEN_VAL(DEVICE_TYPE, SCI_END_DEVICE),
+	       &sci_phy->link_layer_registers->transmit_identification);
 
 	/* Write the device SAS Address */
-	SCU_SAS_TIDNH_WRITE(sci_phy, 0xFEDCBA98);
-	SCU_SAS_TIDNL_WRITE(sci_phy, phy_idx);
+	writel(0xFEDCBA98, &sci_phy->link_layer_registers->sas_device_name_high);
+	writel(phy_idx, &sci_phy->link_layer_registers->sas_device_name_low);
 
 	/* Write the source SAS Address */
-	SCU_SAS_TISSAH_WRITE(sci_phy, phy_oem->sas_address.high);
-	SCU_SAS_TISSAL_WRITE(sci_phy, phy_oem->sas_address.low);
+	writel(phy_oem->sas_address.high,
+		&sci_phy->link_layer_registers->source_sas_address_high);
+	writel(phy_oem->sas_address.low,
+		&sci_phy->link_layer_registers->source_sas_address_low);
 
 	/* Clear and Set the PHY Identifier */
-	SCU_SAS_TIPID_WRITE(sci_phy, 0x00000000);
-	SCU_SAS_TIPID_WRITE(sci_phy, SCU_SAS_TIPID_GEN_VALUE(ID, phy_idx));
+	writel(0, &sci_phy->link_layer_registers->identify_frame_phy_id);
+	writel(SCU_SAS_TIPID_GEN_VALUE(ID, phy_idx),
+		&sci_phy->link_layer_registers->identify_frame_phy_id);
 
 	/* Change the initial state of the phy configuration register */
-	phy_configuration = SCU_SAS_PCFG_READ(sci_phy);
+	phy_configuration =
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 
 	/* Hold OOB state machine in reset */
 	phy_configuration |=  SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	SCU_SAS_PCFG_WRITE(sci_phy, phy_configuration);
+	writel(phy_configuration,
+		&sci_phy->link_layer_registers->phy_configuration);
 
 	/* Configure the SNW capabilities */
 	phy_capabilities.u.all = 0;
@@ -188,13 +194,15 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	if ((parity_count % 2) != 0)
 		phy_capabilities.u.bits.parity = 1;
 
-	SCU_SAS_PHYCAP_WRITE(sci_phy, phy_capabilities.u.all);
+	writel(phy_capabilities.u.all,
+		&sci_phy->link_layer_registers->phy_capabilities);
 
 	/* Set the enable spinup period but disable the ability to send
 	 * notify enable spinup
 	 */
-	SCU_SAS_ENSPINUP_WRITE(sci_phy, SCU_ENSPINUP_GEN_VAL(COUNT,
-			       phy_user->notify_enable_spin_up_insertion_frequency));
+	writel(SCU_ENSPINUP_GEN_VAL(COUNT,
+			phy_user->notify_enable_spin_up_insertion_frequency),
+		&sci_phy->link_layer_registers->notify_enable_spinup_control);
 
 	/* Write the ALIGN Insertion Ferequency for connected phy and
 	 * inpendent of connected state
@@ -205,10 +213,11 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	clksm_value |= SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(GENERAL,
 			phy_user->align_insertion_frequency);
 
-	SCU_SAS_CLKSM_WRITE(sci_phy, clksm_value);
+	writel(clksm_value, &sci_phy->link_layer_registers->clock_skew_management);
 
 	/* @todo Provide a way to write this register correctly */
-	scu_link_layer_register_write(sci_phy, afe_lookup_table_control, 0x02108421);
+	writel(0x02108421,
+		&sci_phy->link_layer_registers->afe_lookup_table_control);
 
 	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
 		(u8)scic->user_parameters.sds1.no_outbound_task_timeout);
@@ -225,8 +234,7 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 		break;
 	}
 	llctl |= SCU_SAS_LLCTL_GEN_VAL(MAX_LINK_RATE, link_rate);
-
-	scu_link_layer_register_write(sci_phy, link_layer_control, llctl);
+	writel(llctl, &sci_phy->link_layer_registers->link_layer_control);
 
 	if (is_a0() || is_a2()) {
 		/* Program the max ARB time for the PHY to 700us so we inter-operate with
@@ -234,16 +242,15 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 		 * many breaks.  This time value will guarantee that the initiator PHY will
 		 * generate the break.
 		 */
-		scu_link_layer_register_write(sci_phy,
-					      maximum_arbitration_wait_timer_timeout,
-					      SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME);
+		writel(SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME,
+			&sci_phy->link_layer_registers->maximum_arbitration_wait_timer_timeout);
 	}
 
 	/*
 	 * Set the link layer hang detection to 500ms (0x1F4) from its default
-	 * value of 128ms.  Max value is 511 ms. */
-	scu_link_layer_register_write(sci_phy, link_layer_hang_detection_timeout,
-				      0x1F4);
+	 * value of 128ms.  Max value is 511 ms.
+	 */
+	writel(0x1F4, &sci_phy->link_layer_registers->link_layer_hang_detection_timeout);
 
 	/* We can exit the initial state to the stopped state */
 	sci_base_state_machine_change_state(&sci_phy->parent.state_machine,
@@ -367,15 +374,15 @@ void scic_sds_phy_setup_transport(
 {
 	u32 tl_control;
 
-	SCU_STPTLDARNI_WRITE(this_phy, device_id);
+	writel(device_id, &this_phy->transport_layer_registers->stp_rni);
 
 	/*
 	 * The read should guarantee that the first write gets posted
 	 * before the next write
 	 */
-	tl_control = SCU_TLCR_READ(this_phy);
+	tl_control = readl(&this_phy->transport_layer_registers->control);
 	tl_control |= SCU_TLCR_GEN_BIT(CLEAR_TCI_NCQ_MAPPING_TABLE);
-	SCU_TLCR_WRITE(this_phy, tl_control);
+	writel(tl_control, &this_phy->transport_layer_registers->control);
 }
 
 /**
@@ -390,9 +397,12 @@ static void scic_sds_phy_suspend(
 {
 	u32 scu_sas_pcfg_value;
 
-	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(this_phy);
+	scu_sas_pcfg_value =
+		readl(&this_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE);
-	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	writel(scu_sas_pcfg_value,
+		&this_phy->link_layer_registers->phy_configuration);
+
 	scic_sds_phy_setup_transport(this_phy, SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
 }
 
@@ -408,11 +418,11 @@ void scic_sds_phy_resume(
 {
 	u32 scu_sas_pcfg_value;
 
-	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(this_phy);
-
+	scu_sas_pcfg_value =
+		readl(&this_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE);
-
-	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	writel(scu_sas_pcfg_value,
+		&this_phy->link_layer_registers->phy_configuration);
 }
 
 /**
@@ -427,8 +437,8 @@ void scic_sds_phy_get_sas_address(
 	struct scic_sds_phy *this_phy,
 	struct sci_sas_address *sas_address)
 {
-	sas_address->high = SCU_SAS_TISSAH_READ(this_phy);
-	sas_address->low  = SCU_SAS_TISSAL_READ(this_phy);
+	sas_address->high = readl(&this_phy->link_layer_registers->source_sas_address_high);
+	sas_address->low = readl(&this_phy->link_layer_registers->source_sas_address_low);
 }
 
 /**
@@ -460,7 +470,10 @@ void scic_sds_phy_get_protocols(
 	struct scic_sds_phy *this_phy,
 	struct sci_sas_identify_address_frame_protocols *protocols)
 {
-	protocols->u.all = (u16)(SCU_SAS_TIID_READ(this_phy) & 0x0000FFFF);
+	protocols->u.all =
+		(u16)(readl(&this_phy->
+			link_layer_registers->transmit_identification) &
+				0x0000FFFF);
 }
 
 /**
@@ -589,8 +602,8 @@ enum sci_status scic_sas_phy_get_properties(
 			sizeof(struct sci_sas_identify_address_frame)
 			);
 
-		properties->received_capabilities.u.all
-			= SCU_SAS_RECPHYCAP_READ(sci_phy);
+		properties->received_capabilities.u.all =
+			readl(&sci_phy->link_layer_registers->receive_phycap);
 
 		return SCI_SUCCESS;
 	}
@@ -639,9 +652,11 @@ static void scic_sds_phy_start_sas_link_training(
 {
 	u32 phy_control;
 
-	phy_control = SCU_SAS_PCFG_READ(this_phy);
+	phy_control =
+		readl(&this_phy->link_layer_registers->phy_configuration);
 	phy_control |= SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD);
-	SCU_SAS_PCFG_WRITE(this_phy, phy_control);
+	writel(phy_control,
+		&this_phy->link_layer_registers->phy_configuration);
 
 	sci_base_state_machine_change_state(
 		&this_phy->starting_substate_machine,
@@ -1331,9 +1346,9 @@ static enum sci_status scic_sds_phy_starting_substate_await_sas_power_consume_po
 {
 	u32 enable_spinup;
 
-	enable_spinup = SCU_SAS_ENSPINUP_READ(sci_phy);
+	enable_spinup = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
 	enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
-	SCU_SAS_ENSPINUP_WRITE(sci_phy, enable_spinup);
+	writel(enable_spinup, &sci_phy->link_layer_registers->notify_enable_spinup_control);
 
 	/* Change state to the final state this substate machine has run to completion */
 	sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
@@ -1357,16 +1372,19 @@ static enum sci_status scic_sds_phy_starting_substate_await_sata_power_consume_p
 	u32 scu_sas_pcfg_value;
 
 	/* Release the spinup hold state and reset the OOB state machine */
-	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(sci_phy);
+	scu_sas_pcfg_value =
+		readl(&sci_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value &=
 		~(SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD) | SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE));
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	SCU_SAS_PCFG_WRITE(sci_phy, scu_sas_pcfg_value);
+	writel(scu_sas_pcfg_value,
+		&sci_phy->link_layer_registers->phy_configuration);
 
 	/* Now restart the OOB operation */
 	scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
-	SCU_SAS_PCFG_WRITE(sci_phy, scu_sas_pcfg_value);
+	writel(scu_sas_pcfg_value,
+		&sci_phy->link_layer_registers->phy_configuration);
 
 	/* Change state to the final state this substate machine has run to completion */
 	sci_base_state_machine_change_state(&sci_phy->starting_substate_machine,
@@ -2120,18 +2138,20 @@ static void scu_link_layer_stop_protocol_engine(
 	u32 enable_spinup_value;
 
 	/* Suspend the protocol engine and place it in a sata spinup hold state */
-	scu_sas_pcfg_value  = SCU_SAS_PCFG_READ(this_phy);
+	scu_sas_pcfg_value =
+		readl(&this_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value |= (
 		SCU_SAS_PCFG_GEN_BIT(OOB_RESET)
 		| SCU_SAS_PCFG_GEN_BIT(SUSPEND_PROTOCOL_ENGINE)
 		| SCU_SAS_PCFG_GEN_BIT(SATA_SPINUP_HOLD)
 		);
-	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	writel(scu_sas_pcfg_value,
+		&this_phy->link_layer_registers->phy_configuration);
 
 	/* Disable the notify enable spinup primitives */
-	enable_spinup_value = SCU_SAS_ENSPINUP_READ(this_phy);
+	enable_spinup_value = readl(&this_phy->link_layer_registers->notify_enable_spinup_control);
 	enable_spinup_value &= ~SCU_ENSPINUP_GEN_BIT(ENABLE);
-	SCU_SAS_ENSPINUP_WRITE(this_phy, enable_spinup_value);
+	writel(enable_spinup_value, &this_phy->link_layer_registers->notify_enable_spinup_control);
 }
 
 /**
@@ -2144,12 +2164,13 @@ static void scu_link_layer_start_oob(
 {
 	u32 scu_sas_pcfg_value;
 
-	scu_sas_pcfg_value = SCU_SAS_PCFG_READ(this_phy);
+	scu_sas_pcfg_value =
+		readl(&this_phy->link_layer_registers->phy_configuration);
 	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
 	scu_sas_pcfg_value &=
 		~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) | SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
-
-	SCU_SAS_PCFG_WRITE(this_phy, scu_sas_pcfg_value);
+	writel(scu_sas_pcfg_value,
+		&this_phy->link_layer_registers->phy_configuration);
 }
 
 /**
@@ -2168,15 +2189,18 @@ static void scu_link_layer_tx_hard_reset(
 	/*
 	 * SAS Phys must wait for the HARD_RESET_TX event notification to transition
 	 * to the starting state. */
-	phy_configuration_value = SCU_SAS_PCFG_READ(this_phy);
+	phy_configuration_value =
+		readl(&this_phy->link_layer_registers->phy_configuration);
 	phy_configuration_value |=
 		(SCU_SAS_PCFG_GEN_BIT(HARD_RESET) | SCU_SAS_PCFG_GEN_BIT(OOB_RESET));
-	SCU_SAS_PCFG_WRITE(this_phy, phy_configuration_value);
+	writel(phy_configuration_value,
+		&this_phy->link_layer_registers->phy_configuration);
 
 	/* Now take the OOB state machine out of reset */
 	phy_configuration_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
 	phy_configuration_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	SCU_SAS_PCFG_WRITE(this_phy, phy_configuration_value);
+	writel(phy_configuration_value,
+		&this_phy->link_layer_registers->phy_configuration);
 }
 
 /*

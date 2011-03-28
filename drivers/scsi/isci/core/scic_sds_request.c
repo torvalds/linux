@@ -62,8 +62,7 @@
 #include "scic_io_request.h"
 #include "scic_remote_device.h"
 #include "scic_sds_controller.h"
-#include "scic_sds_controller_registers.h"
-#include "scic_sds_pci.h"
+#include "scu_registers.h"
 #include "scic_sds_port.h"
 #include "scic_sds_remote_device.h"
 #include "scic_sds_request.h"
@@ -862,20 +861,16 @@ u32 scic_io_request_get_number_of_bytes_transferred(
 {
 	u32 ret_val = 0;
 
-	if (SMU_AMR_READ(scic_sds_request->owning_controller) == 0) {
+	if (readl(&scic_sds_request->owning_controller->smu_registers->address_modifier) == 0) {
 		/*
 		 * get the bytes of data from the Address == BAR1 + 20002Ch + (256*TCi) where
 		 *   BAR1 is the scu_registers
 		 *   0x20002C = 0x200000 + 0x2c
 		 *            = start of task context SRAM + offset of (type.ssp.data_offset)
 		 *   TCi is the io_tag of struct scic_sds_request */
-		ret_val =  scic_sds_pci_read_scu_dword(
-			scic_sds_request->owning_controller,
-			(
-				(u8 *)scic_sds_request->owning_controller->scu_registers +
+		ret_val = readl((u8 *)scic_sds_request->owning_controller->scu_registers +
 				(SCU_TASK_CONTEXT_SRAM + SCI_FIELD_OFFSET(struct scu_task_context, type.ssp.data_offset)) +
 				((sizeof(struct scu_task_context)) * scic_sds_io_tag_get_index(scic_sds_request->io_tag))
-			)
 			);
 	}
 

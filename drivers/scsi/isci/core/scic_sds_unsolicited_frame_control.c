@@ -315,10 +315,7 @@ enum sci_status scic_sds_unsolicited_frame_control_get_buffer(
  * @frame_index: This parameter specifies the frame index to attempt to release.
  *
  * This method returns an indication to the caller as to whether the
- * unsolicited frame get pointer should be updated. true This value indicates
- * the unsolicited frame get pointer should be updated (i.e. write
- * SCU_UFQGP_WRITE). false This value indicates the get pointer should not be
- * updated.
+ * unsolicited frame get pointer should be updated.
  */
 bool scic_sds_unsolicited_frame_control_release_frame(
 	struct scic_sds_unsolicited_frame_control *uf_control,

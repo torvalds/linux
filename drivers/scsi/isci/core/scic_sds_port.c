@@ -60,14 +60,12 @@
 #include "scic_port.h"
 #include "scic_sds_controller.h"
 #include "scic_sds_phy.h"
-#include "scic_sds_phy_registers.h"
 #include "scic_sds_port.h"
-#include "scic_sds_port_registers.h"
 #include "scic_sds_remote_device.h"
 #include "scic_sds_remote_node_context.h"
 #include "scic_sds_request.h"
 #include "sci_environment.h"
-#include "scic_sds_controller_registers.h"
+#include "scu_registers.h"
 
 #define SCIC_SDS_PORT_MIN_TIMER_COUNT  (SCI_MAX_PORTS)
 #define SCIC_SDS_PORT_MAX_TIMER_COUNT  (SCI_MAX_PORTS)
@@ -706,7 +704,8 @@ void scic_sds_port_deactivate_phy(struct scic_sds_port *sci_port,
 	sci_phy->max_negotiated_speed = SCI_SAS_NO_LINK_RATE;
 
 	/* Re-assign the phy back to the LP as if it were a narrow port */
-	SCU_PCSPExCR_WRITE(sci_port, sci_phy->phy_index, sci_phy->phy_index);
+	writel(sci_phy->phy_index,
+		&sci_port->port_pe_configuration_register[sci_phy->phy_index]);
 
 	if (do_notify_user == true)
 		isci_port_link_down(ihost, iphy, iport);
@@ -969,25 +968,20 @@ static void scic_sds_port_update_viit_entry(struct scic_sds_port *this_port)
 
 	scic_sds_port_get_sas_address(this_port, &sas_address);
 
-	scu_port_viit_register_write(
-		this_port, initiator_sas_address_hi, sas_address.high);
-
-	scu_port_viit_register_write(
-		this_port, initiator_sas_address_lo, sas_address.low);
+	writel(sas_address.high,
+		&this_port->viit_registers->initiator_sas_address_hi);
+	writel(sas_address.low,
+		&this_port->viit_registers->initiator_sas_address_lo);
 
 	/* This value get cleared just in case its not already cleared */
-	scu_port_viit_register_write(
-		this_port, reserved, 0);
+	writel(0, &this_port->viit_registers->reserved);
 
 	/* We are required to update the status register last */
-	scu_port_viit_register_write(
-		this_port, status, (
-			SCU_VIIT_ENTRY_ID_VIIT
-			| SCU_VIIT_IPPT_INITIATOR
-			| ((1 << this_port->physical_port_index) << SCU_VIIT_ENTRY_LPVIE_SHIFT)
-			| SCU_VIIT_STATUS_ALL_VALID
-			)
-		);
+	writel(SCU_VIIT_ENTRY_ID_VIIT |
+	       SCU_VIIT_IPPT_INITIATOR |
+	       ((1 << this_port->physical_port_index) << SCU_VIIT_ENTRY_LPVIE_SHIFT) |
+	       SCU_VIIT_STATUS_ALL_VALID,
+	       &this_port->viit_registers->status);
 }
 
 /**
@@ -1059,10 +1053,12 @@ void scic_port_enable_broadcast_change_notification(
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
 		phy = port->phy_table[index];
 		if (phy != NULL) {
-			register_value = SCU_SAS_LLCTL_READ(phy);
+			register_value =
+				readl(&phy->link_layer_registers->link_layer_control);
 
 			/* clear the bit by writing 1. */
-			SCU_SAS_LLCTL_WRITE(phy, register_value);
+			writel(register_value,
+				&phy->link_layer_registers->link_layer_control);
 		}
 	}
 }
@@ -1618,16 +1614,14 @@ scic_sds_port_ready_substate_handler_table[SCIC_SDS_PORT_READY_MAX_SUBSTATES] =
  *
  * This method will susped the port task scheduler for this port object. none
  */
-static void scic_sds_port_suspend_port_task_scheduler(
-	struct scic_sds_port *this_port)
+static void
+scic_sds_port_suspend_port_task_scheduler(struct scic_sds_port *port)
 {
 	u32 pts_control_value;
 
-	pts_control_value = scu_port_task_scheduler_read(this_port, control);
-
+	pts_control_value = readl(&port->port_task_scheduler_registers->control);
 	pts_control_value |= SCU_PTSxCR_GEN_BIT(SUSPEND);
-
-	scu_port_task_scheduler_write(this_port, control, pts_control_value);
+	writel(pts_control_value, &port->port_task_scheduler_registers->control);
 }
 
 /**
@@ -1688,16 +1682,14 @@ static void scic_sds_port_abort_dummy_request(struct scic_sds_port *sci_port)
  *
  * This method will resume the port task scheduler for this port object. none
  */
-static void scic_sds_port_resume_port_task_scheduler(
-	struct scic_sds_port *this_port)
+static void
+scic_sds_port_resume_port_task_scheduler(struct scic_sds_port *port)
 {
 	u32 pts_control_value;
 
-	pts_control_value = scu_port_task_scheduler_read(this_port, control);
-
+	pts_control_value = readl(&port->port_task_scheduler_registers->control);
 	pts_control_value &= ~SCU_PTSxCR_GEN_BIT(SUSPEND);
-
-	scu_port_task_scheduler_write(this_port, control, pts_control_value);
+	writel(pts_control_value, &port->port_task_scheduler_registers->control);
 }
 
 /*
@@ -1763,10 +1755,11 @@ static void scic_sds_port_ready_substate_operational_enter(
 	isci_port_ready(ihost, iport);
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		if (sci_port->phy_table[index] != NULL)
-			scic_sds_port_write_phy_assignment(
-					sci_port,
-					sci_port->phy_table[index]);
+		if (sci_port->phy_table[index]) {
+			writel(sci_port->physical_port_index,
+				&sci_port->port_pe_configuration_register[
+					sci_port->phy_table[index]->phy_index]);
+		}
 	}
 
 	scic_sds_port_update_viit_entry(sci_port);
@@ -2308,16 +2301,14 @@ scic_sds_port_state_handler_table[SCI_BASE_PORT_MAX_STATES] =
  * This method will enable the SCU Port Task Scheduler for this port object but
  * will leave the port task scheduler in a suspended state. none
  */
-static void scic_sds_port_enable_port_task_scheduler(
-	struct scic_sds_port *this_port)
+static void
+scic_sds_port_enable_port_task_scheduler(struct scic_sds_port *port)
 {
 	u32 pts_control_value;
 
-	pts_control_value = scu_port_task_scheduler_read(this_port, control);
-
+	pts_control_value = readl(&port->port_task_scheduler_registers->control);
 	pts_control_value |= SCU_PTSxCR_GEN_BIT(ENABLE) | SCU_PTSxCR_GEN_BIT(SUSPEND);
-
-	scu_port_task_scheduler_write(this_port, control, pts_control_value);
+	writel(pts_control_value, &port->port_task_scheduler_registers->control);
 }
 
 /**
@@ -2327,17 +2318,15 @@ static void scic_sds_port_enable_port_task_scheduler(
  * This method will disable the SCU port task scheduler for this port object.
  * none
  */
-static void scic_sds_port_disable_port_task_scheduler(
-	struct scic_sds_port *this_port)
+static void
+scic_sds_port_disable_port_task_scheduler(struct scic_sds_port *port)
 {
 	u32 pts_control_value;
 
-	pts_control_value = scu_port_task_scheduler_read(this_port, control);
-
-	pts_control_value &= ~(SCU_PTSxCR_GEN_BIT(ENABLE)
-			       | SCU_PTSxCR_GEN_BIT(SUSPEND));
-
-	scu_port_task_scheduler_write(this_port, control, pts_control_value);
+	pts_control_value = readl(&port->port_task_scheduler_registers->control);
+	pts_control_value &=
+		~(SCU_PTSxCR_GEN_BIT(ENABLE) | SCU_PTSxCR_GEN_BIT(SUSPEND));
+	writel(pts_control_value, &port->port_task_scheduler_registers->control);
 }
 
 static void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
@@ -2359,7 +2348,7 @@ static void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
 	/* ensure hardware has seen the post rnc command and give it
 	 * ample time to act before sending the suspend
 	 */
-	SMU_ISR_READ(scic); /* flush */
+	readl(&scic->smu_registers->interrupt_status); /* flush */
 	udelay(10);
 
 	command = SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX_RX |
@@ -2384,7 +2373,7 @@ static void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci
 	 * controller and give it ample time to act before posting the rnc
 	 * invalidate
 	 */
-	SMU_ISR_READ(scic); /* flush */
+	readl(&scic->smu_registers->interrupt_status); /* flush */
 	udelay(10);
 
 	command = SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE |

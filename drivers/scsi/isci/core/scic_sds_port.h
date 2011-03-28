@@ -289,29 +289,6 @@ static inline void scic_sds_port_decrement_request_count(struct scic_sds_port *s
 		sci_port->started_request_count--;
 }
 
-/**
- * scic_sds_port_write_phy_assignment() -
- *
- * Helper macro to write the phys port assignment
- */
-#define scic_sds_port_write_phy_assignment(port, phy) \
-	SCU_PCSPExCR_WRITE(\
-		(port),	\
-		(phy)->phy_index, \
-		(port)->physical_port_index \
-		)
-
-/**
- * scic_sds_port_read_phy_assignment() -
- *
- * Helper macro to read the phys port assignment
- */
-#define scic_sds_port_read_phy_assignment(port, phy) \
-	SCU_PCSPExCR_READ(\
-		(port),	\
-		(phy)->phy_index \
-		)
-
 #define scic_sds_port_active_phy(port, phy) \
 	(((port)->active_phy_mask & (1 << (phy)->phy_index)) != 0)
 

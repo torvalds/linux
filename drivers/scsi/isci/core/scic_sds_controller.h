@@ -57,6 +57,7 @@
 #define _SCIC_SDS_CONTROLLER_H_
 
 #include <linux/string.h>
+#include <linux/io.h>
 
 /**
  * This file contains the structures, constants and prototypes used for the
@@ -80,7 +81,6 @@
 #include "scu_unsolicited_frame.h"
 #include "scic_sds_unsolicited_frame_control.h"
 #include "scic_sds_port_configuration_agent.h"
-#include "scic_sds_pci.h"
 
 struct scic_sds_remote_device;
 struct scic_sds_request;
@@ -426,38 +426,6 @@ extern const struct scic_sds_controller_state_handler
  */
 #define scic_sds_controller_get_port_configuration_agent(controller) \
 	(&(controller)->port_agent)
-
-/**
- * smu_register_write() -
- *
- * This macro writes to the smu_register for this controller
- */
-#define smu_register_write(controller, reg, value) \
-	scic_sds_pci_write_smu_dword((controller), &(reg), (value))
-
-/**
- * smu_register_read() -
- *
- * This macro reads the smu_register for this controller
- */
-#define smu_register_read(controller, reg) \
-	scic_sds_pci_read_smu_dword((controller), &(reg))
-
-/**
- * scu_register_write() -
- *
- * This mcaro writes the scu_register for this controller
- */
-#define scu_register_write(controller, reg, value) \
-	scic_sds_pci_write_scu_dword((controller), &(reg), (value))
-
-/**
- * scu_register_read() -
- *
- * This macro reads the scu_register for this controller
- */
-#define scu_register_read(controller, reg) \
-	scic_sds_pci_read_scu_dword((controller), &(reg))
 
 /**
  * scic_sds_controller_get_protocol_engine_group() -

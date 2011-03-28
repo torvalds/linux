@@ -59,8 +59,7 @@
 #include "scic_port.h"
 #include "scic_remote_device.h"
 #include "scic_sds_controller.h"
-#include "scic_sds_controller_registers.h"
-#include "scic_sds_pci.h"
+#include "scu_registers.h"
 #include "scic_sds_phy.h"
 #include "scic_sds_port_configuration_agent.h"
 #include "scic_sds_port.h"
@@ -355,7 +354,10 @@ static void scic_sds_controller_ram_initialization(
 	 * Therefore it no longer comes out of memory in the MDL. */
 	mde = &this_controller->memory_descriptors[SCU_MDE_COMPLETION_QUEUE];
 	this_controller->completion_queue = (u32 *)mde->virtual_address;
-	SMU_CQBAR_WRITE(this_controller, mde->physical_address);
+	writel(lower_32_bits(mde->physical_address), \
+		&this_controller->smu_registers->completion_queue_lower);
+	writel(upper_32_bits(mde->physical_address),
+		&this_controller->smu_registers->completion_queue_upper);
 
 	/*
 	 * Program the location of the Remote Node Context table
@@ -363,13 +365,19 @@ static void scic_sds_controller_ram_initialization(
 	mde = &this_controller->memory_descriptors[SCU_MDE_REMOTE_NODE_CONTEXT];
 	this_controller->remote_node_context_table = (union scu_remote_node_context *)
 						     mde->virtual_address;
-	SMU_RNCBAR_WRITE(this_controller, mde->physical_address);
+	writel(lower_32_bits(mde->physical_address),
+		&this_controller->smu_registers->remote_node_context_lower);
+	writel(upper_32_bits(mde->physical_address),
+		&this_controller->smu_registers->remote_node_context_upper);
 
 	/* Program the location of the Task Context table into the SCU. */
 	mde = &this_controller->memory_descriptors[SCU_MDE_TASK_CONTEXT];
 	this_controller->task_context_table = (struct scu_task_context *)
 					      mde->virtual_address;
-	SMU_HTTBAR_WRITE(this_controller, mde->physical_address);
+	writel(lower_32_bits(mde->physical_address),
+		&this_controller->smu_registers->host_task_table_lower);
+	writel(upper_32_bits(mde->physical_address),
+		&this_controller->smu_registers->host_task_table_upper);
 
 	mde = &this_controller->memory_descriptors[SCU_MDE_UF_BUFFER];
 	scic_sds_unsolicited_frame_control_construct(
@@ -378,13 +386,17 @@ static void scic_sds_controller_ram_initialization(
 
 	/*
 	 * Inform the silicon as to the location of the UF headers and
-	 * address table. */
-	SCU_UFHBAR_WRITE(
-		this_controller,
-		this_controller->uf_control.headers.physical_address);
-	SCU_PUFATHAR_WRITE(
-		this_controller,
-		this_controller->uf_control.address_table.physical_address);
+	 * address table.
+	 */
+	writel(lower_32_bits(this_controller->uf_control.headers.physical_address),
+		&this_controller->scu_registers->sdma.uf_header_base_address_lower);
+	writel(upper_32_bits(this_controller->uf_control.headers.physical_address),
+		&this_controller->scu_registers->sdma.uf_header_base_address_upper);
+
+	writel(lower_32_bits(this_controller->uf_control.address_table.physical_address),
+		&this_controller->scu_registers->sdma.uf_address_table_lower);
+	writel(upper_32_bits(this_controller->uf_control.address_table.physical_address),
+		&this_controller->scu_registers->sdma.uf_address_table_upper);
 }
 
 /**
@@ -392,25 +404,26 @@ static void scic_sds_controller_ram_initialization(
  * @this_controller:
  *
  */
-static void scic_sds_controller_assign_task_entries(
-	struct scic_sds_controller *this_controller)
+static void
+scic_sds_controller_assign_task_entries(struct scic_sds_controller *controller)
 {
 	u32 task_assignment;
 
 	/*
 	 * Assign all the TCs to function 0
-	 * TODO: Do we actually need to read this register to write it back? */
-	task_assignment = SMU_TCA_READ(this_controller, 0);
+	 * TODO: Do we actually need to read this register to write it back?
+	 */
 
 	task_assignment =
-		(
-			task_assignment
-			| (SMU_TCA_GEN_VAL(STARTING, 0))
-			| (SMU_TCA_GEN_VAL(ENDING,  this_controller->task_context_entries - 1))
-			| (SMU_TCA_GEN_BIT(RANGE_CHECK_ENABLE))
-		);
+		readl(&controller->smu_registers->task_context_assignment[0]);
 
-	SMU_TCA_WRITE(this_controller, 0, task_assignment);
+	task_assignment |= (SMU_TCA_GEN_VAL(STARTING, 0)) |
+		(SMU_TCA_GEN_VAL(ENDING,  controller->task_context_entries - 1)) |
+		(SMU_TCA_GEN_BIT(RANGE_CHECK_ENABLE));
+
+	writel(task_assignment,
+		&controller->smu_registers->task_context_assignment[0]);
+
 }
 
 /**
@@ -433,7 +446,9 @@ static void scic_sds_controller_initialize_completion_queue(
 		| SMU_CQC_EVENT_LIMIT_SET(this_controller->completion_event_entries - 1)
 		);
 
-	SMU_CQC_WRITE(this_controller, completion_queue_control_value);
+	writel(completion_queue_control_value,
+		&this_controller->smu_registers->completion_queue_control);
+
 
 	/* Set the completion queue get pointer and enable the queue */
 	completion_queue_get_value = (
@@ -443,7 +458,8 @@ static void scic_sds_controller_initialize_completion_queue(
 		| (SMU_CQGR_GEN_BIT(EVENT_ENABLE))
 		);
 
-	SMU_CQGR_WRITE(this_controller, completion_queue_get_value);
+	writel(completion_queue_get_value,
+		&this_controller->smu_registers->completion_queue_get);
 
 	/* Set the completion queue put pointer */
 	completion_queue_put_value = (
@@ -451,7 +467,9 @@ static void scic_sds_controller_initialize_completion_queue(
 		| (SMU_CQPR_GEN_VAL(EVENT_POINTER, 0))
 		);
 
-	SMU_CQPR_WRITE(this_controller, completion_queue_put_value);
+	writel(completion_queue_put_value,
+		&this_controller->smu_registers->completion_queue_put);
+
 
 	/* Initialize the cycle bit of the completion queue entries */
 	for (index = 0; index < this_controller->completion_queue_entries; index++) {
@@ -479,7 +497,8 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(
 	frame_queue_control_value =
 		SCU_UFQC_GEN_VAL(QUEUE_SIZE, this_controller->uf_control.address_table.count);
 
-	SCU_UFQC_WRITE(this_controller, frame_queue_control_value);
+	writel(frame_queue_control_value,
+		&this_controller->scu_registers->sdma.unsolicited_frame_queue_control);
 
 	/* Setup the get pointer for the unsolicited frame queue */
 	frame_queue_get_value = (
@@ -487,12 +506,12 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(
 		|  SCU_UFQGP_GEN_BIT(ENABLE_BIT)
 		);
 
-	SCU_UFQGP_WRITE(this_controller, frame_queue_get_value);
-
+	writel(frame_queue_get_value,
+		&this_controller->scu_registers->sdma.unsolicited_frame_get_pointer);
 	/* Setup the put pointer for the unsolicited frame queue */
 	frame_queue_put_value = SCU_UFQPP_GEN_VAL(POINTER, 0);
-
-	SCU_UFQPP_WRITE(this_controller, frame_queue_put_value);
+	writel(frame_queue_put_value,
+		&this_controller->scu_registers->sdma.unsolicited_frame_put_pointer);
 }
 
 /**
@@ -505,12 +524,12 @@ static void scic_sds_controller_enable_port_task_scheduler(
 {
 	u32 port_task_scheduler_value;
 
-	port_task_scheduler_value = SCU_PTSGCR_READ(this_controller);
-
+	port_task_scheduler_value =
+		readl(&this_controller->scu_registers->peg0.ptsg.control);
 	port_task_scheduler_value |=
 		(SCU_PTSGCR_GEN_BIT(ETM_ENABLE) | SCU_PTSGCR_GEN_BIT(PTSG_ENABLE));
-
-	SCU_PTSGCR_WRITE(this_controller, port_task_scheduler_value);
+	writel(port_task_scheduler_value,
+		&this_controller->scu_registers->peg0.ptsg.control);
 }
 
 /**
@@ -531,35 +550,34 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 	u32 phy_id;
 
 	/* Clear DFX Status registers */
-	scu_afe_register_write(scic, afe_dfx_master_control0, 0x0081000f);
+	writel(0x0081000f, &scic->scu_registers->afe.afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Configure bias currents to normal */
 	if (is_a0())
-		scu_afe_register_write(scic, afe_bias_control, 0x00005500);
+		writel(0x00005500, &scic->scu_registers->afe.afe_bias_control);
 	else
-		scu_afe_register_write(scic, afe_bias_control, 0x00005A00);
+		writel(0x00005A00, &scic->scu_registers->afe.afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
 	if (is_b0())
-		scu_afe_register_write(scic, afe_pll_control0, 0x80040A08);
+		writel(0x80040A08, &scic->scu_registers->afe.afe_pll_control0);
 	else
-		scu_afe_register_write(scic, afe_pll_control0, 0x80040908);
+		writel(0x80040908, &scic->scu_registers->afe.afe_pll_control0);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Wait for the PLL to lock */
 	do {
-		afe_status = scu_afe_register_read(
-			scic, afe_common_block_status);
+		afe_status = readl(&scic->scu_registers->afe.afe_common_block_status);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	} while ((afe_status & 0x00001000) == 0);
 
 	if (is_b0()) {
 		/* Shorten SAS SNW lock time (RxLock timer value from 76 us to 50 us) */
-		scu_afe_register_write(scic, afe_pmsn_master_control0, 0x7bcc96ad);
+		writel(0x7bcc96ad, &scic->scu_registers->afe.afe_pmsn_master_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
@@ -568,16 +586,16 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 
 		if (is_b0()) {
 			 /* Configure transmitter SSC parameters */
-			scu_afe_txreg_write(scic, phy_id, afe_tx_ssc_control, 0x00030000);
+			writel(0x00030000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else {
 			/*
 			 * All defaults, except the Receive Word Alignament/Comma Detect
 			 * Enable....(0xe800) */
-			scu_afe_txreg_write(scic, phy_id, afe_xcvr_control0, 0x00004512);
+			writel(0x00004512, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
-			scu_afe_txreg_write(scic, phy_id, afe_xcvr_control1, 0x0050100F);
+			writel(0x0050100F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
@@ -585,61 +603,65 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 		 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 		 * & increase TX int & ext bias 20%....(0xe85c) */
 		if (is_a0())
-			scu_afe_txreg_write(scic, phy_id, afe_channel_control, 0x000003D4);
+			writel(0x000003D4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		else if (is_a2())
-			scu_afe_txreg_write(scic, phy_id, afe_channel_control, 0x000003F0);
+			writel(0x000003F0, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		else {
 			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
-			scu_afe_txreg_write(scic, phy_id, afe_channel_control, 0x000003d7);
+			writel(0x000003d7, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/*
 			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 			 * & increase TX int & ext bias 20%....(0xe85c) */
-			scu_afe_txreg_write(scic, phy_id, afe_channel_control, 0x000003d4);
+			writel(0x000003d4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		if (is_a0() || is_a2()) {
 			/* Enable TX equalization (0xe824) */
-			scu_afe_txreg_write(scic, phy_id, afe_tx_control, 0x00040000);
+			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
 		/*
 		 * RDPI=0x0(RX Power On), RXOOBDETPDNC=0x0, TPD=0x0(TX Power On),
 		 * RDD=0x0(RX Detect Enabled) ....(0xe800) */
-		scu_afe_txreg_write(scic, phy_id, afe_xcvr_control0, 0x00004100);
+		writel(0x00004100, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		/* Leave DFE/FFE on */
 		if (is_a0())
-			scu_afe_txreg_write(scic, phy_id, afe_rx_ssc_control0, 0x3F09983F);
+			writel(0x3F09983F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 		else if (is_a2())
-			scu_afe_txreg_write(scic, phy_id, afe_rx_ssc_control0, 0x3F11103F);
+			writel(0x3F11103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 		else {
-			scu_afe_txreg_write(scic, phy_id, afe_rx_ssc_control0, 0x3F11103F);
+			writel(0x3F11103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */
-			scu_afe_txreg_write(scic, phy_id, afe_tx_control, 0x00040000);
+			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control0);
+		writel(oem_phy->afe_tx_amp_control0,
+			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control1);
+		writel(oem_phy->afe_tx_amp_control1,
+			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control1);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control2);
+		writel(oem_phy->afe_tx_amp_control2,
+			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		scu_afe_txreg_write(scic, phy_id, afe_tx_amp_control0, oem_phy->afe_tx_amp_control3);
+		writel(oem_phy->afe_tx_amp_control3,
+			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control3);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	/* Transfer control to the PEs */
-	scu_afe_register_write(scic, afe_dfx_master_control0, 0x00010f00);
+	writel(0x00010f00, &scic->scu_registers->afe.afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 }
 
@@ -1437,8 +1459,9 @@ static void scic_sds_controller_process_completions(
 			| event_cycle | SMU_CQGR_GEN_VAL(EVENT_POINTER, event_index)
 			| get_cycle   | SMU_CQGR_GEN_VAL(POINTER, get_index);
 
-		SMU_CQGR_WRITE(this_controller,
-			       this_controller->completion_queue_get);
+		writel(this_controller->completion_queue_get,
+			&this_controller->smu_registers->completion_queue_get);
+
 	}
 
 	dev_dbg(scic_to_dev(this_controller),
@@ -1456,15 +1479,15 @@ bool scic_sds_controller_isr(struct scic_sds_controller *scic)
 		/*
 		 * we have a spurious interrupt it could be that we have already
 		 * emptied the completion queue from a previous interrupt */
-		SMU_ISR_WRITE(scic, SMU_ISR_COMPLETION);
+		writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
 
 		/*
 		 * There is a race in the hardware that could cause us not to be notified
 		 * of an interrupt completion if we do not take this step.  We will mask
 		 * then unmask the interrupts so if there is another interrupt pending
 		 * the clearing of the interrupt source we get the next interrupt message. */
-		SMU_IMR_WRITE(scic, 0xFF000000);
-		SMU_IMR_WRITE(scic, 0x00000000);
+		writel(0xFF000000, &scic->smu_registers->interrupt_mask);
+		writel(0, &scic->smu_registers->interrupt_mask);
 	}
 
 	return false;
@@ -1477,18 +1500,18 @@ void scic_sds_controller_completion_handler(struct scic_sds_controller *scic)
 		scic_sds_controller_process_completions(scic);
 
 	/* Clear the interrupt and enable all interrupts again */
-	SMU_ISR_WRITE(scic, SMU_ISR_COMPLETION);
+	writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
 	/* Could we write the value of SMU_ISR_COMPLETION? */
-	SMU_IMR_WRITE(scic, 0xFF000000);
-	SMU_IMR_WRITE(scic, 0x00000000);
+	writel(0xFF000000, &scic->smu_registers->interrupt_mask);
+	writel(0, &scic->smu_registers->interrupt_mask);
 }
 
 bool scic_sds_controller_error_isr(struct scic_sds_controller *scic)
 {
 	u32 interrupt_status;
 
-	interrupt_status = SMU_ISR_READ(scic);
-
+	interrupt_status =
+		readl(&scic->smu_registers->interrupt_status);
 	interrupt_status &= (SMU_ISR_QUEUE_ERROR | SMU_ISR_QUEUE_SUSPEND);
 
 	if (interrupt_status != 0) {
@@ -1504,8 +1527,8 @@ bool scic_sds_controller_error_isr(struct scic_sds_controller *scic)
 	 * then unmask the error interrupts so if there was another interrupt
 	 * pending we will be notified.
 	 * Could we write the value of (SMU_ISR_QUEUE_ERROR | SMU_ISR_QUEUE_SUSPEND)? */
-	SMU_IMR_WRITE(scic, 0x000000FF);
-	SMU_IMR_WRITE(scic, 0x00000000);
+	writel(0xff, &scic->smu_registers->interrupt_mask);
+	writel(0, &scic->smu_registers->interrupt_mask);
 
 	return false;
 }
@@ -1514,14 +1537,14 @@ void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
 {
 	u32 interrupt_status;
 
-	interrupt_status = SMU_ISR_READ(scic);
+	interrupt_status =
+		readl(&scic->smu_registers->interrupt_status);
 
 	if ((interrupt_status & SMU_ISR_QUEUE_SUSPEND) &&
 	    scic_sds_controller_completion_queue_has_entries(scic)) {
 
 		scic_sds_controller_process_completions(scic);
-		SMU_ISR_WRITE(scic, SMU_ISR_QUEUE_SUSPEND);
-
+		writel(SMU_ISR_QUEUE_SUSPEND, &scic->smu_registers->interrupt_status);
 	} else {
 		dev_err(scic_to_dev(scic), "%s: status: %#x\n", __func__,
 			interrupt_status);
@@ -1535,7 +1558,7 @@ void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
 	/* If we dont process any completions I am not sure that we want to do this.
 	 * We are in the middle of a hardware fault and should probably be reset.
 	 */
-	SMU_IMR_WRITE(scic, 0x00000000);
+	writel(0, &scic->smu_registers->interrupt_mask);
 }
 
 
@@ -1648,7 +1671,7 @@ void scic_sds_controller_post_request(
 		this_controller,
 		request);
 
-	SMU_PCP_WRITE(this_controller, request);
+	writel(request, &this_controller->smu_registers->post_context_port);
 }
 
 /**
@@ -1871,7 +1894,8 @@ void scic_sds_controller_release_frame(
 {
 	if (scic_sds_unsolicited_frame_control_release_frame(
 		    &this_controller->uf_control, frame_index) == true)
-		SCU_UFQGP_WRITE(this_controller, this_controller->uf_control.get);
+		writel(this_controller->uf_control.get,
+			&this_controller->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
 /**
@@ -2478,14 +2502,14 @@ void scic_controller_enable_interrupts(
 	struct scic_sds_controller *scic)
 {
 	BUG_ON(scic->smu_registers == NULL);
-	SMU_IMR_WRITE(scic, 0x00000000);
+	writel(0, &scic->smu_registers->interrupt_mask);
 }
 
 void scic_controller_disable_interrupts(
 	struct scic_sds_controller *scic)
 {
 	BUG_ON(scic->smu_registers == NULL);
-	SMU_IMR_WRITE(scic, 0xffffffff);
+	writel(0xffffffff, &scic->smu_registers->interrupt_mask);
 }
 
 static enum sci_status scic_controller_set_mode(
@@ -2543,16 +2567,16 @@ static void scic_sds_controller_reset_hardware(
 	scic_controller_disable_interrupts(scic);
 
 	/* Reset the SCU */
-	SMU_SMUSRCR_WRITE(scic, 0xFFFFFFFF);
+	writel(0xFFFFFFFF, &scic->smu_registers->soft_reset_control);
 
 	/* Delay for 1ms to before clearing the CQP and UFQPR. */
 	udelay(1000);
 
 	/* The write to the CQGR clears the CQP */
-	SMU_CQGR_WRITE(scic, 0x00000000);
+	writel(0x00000000, &scic->smu_registers->completion_queue_get);
 
 	/* The write to the UFQGP clears the UFQPR */
-	SCU_UFQGP_WRITE(scic, 0x00000000);
+	writel(0, &scic->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
 enum sci_status scic_user_parameters_set(
@@ -2778,11 +2802,10 @@ static enum sci_status scic_controller_set_interrupt_coalescence(
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 	}
 
-	SMU_ICC_WRITE(
-		scic_controller,
-		(SMU_ICC_GEN_VAL(NUMBER, coalesce_number) |
-		 SMU_ICC_GEN_VAL(TIMER, timeout_encode))
-		);
+	writel(SMU_ICC_GEN_VAL(NUMBER, coalesce_number) |
+	       SMU_ICC_GEN_VAL(TIMER, timeout_encode),
+	       &scic_controller->smu_registers->interrupt_coalesce_control);
+
 
 	scic_controller->interrupt_coalesce_number = (u16)coalesce_number;
 	scic_controller->interrupt_coalesce_timeout = coalesce_timeout / 100;
@@ -2868,7 +2891,7 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(struct
 		u32 terminate_loop;
 
 		/* Take the hardware out of reset */
-		SMU_SMUSRCR_WRITE(scic, 0x00000000);
+		writel(0, &scic->smu_registers->soft_reset_control);
 
 		/*
 		 * / @todo Provide meaningfull error code for hardware failure
@@ -2879,7 +2902,7 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(struct
 		while (terminate_loop-- && (result != SCI_SUCCESS)) {
 			/* Loop until the hardware reports success */
 			udelay(SCU_CONTEXT_RAM_INIT_STALL_TIME);
-			status = SMU_SMUCSR_READ(scic);
+			status = readl(&scic->smu_registers->control_status);
 
 			if ((status & SCU_RAM_INIT_COMPLETED) ==
 					SCU_RAM_INIT_COMPLETED)
@@ -2896,7 +2919,9 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(struct
 		/*
 		 * Determine what are the actaul device capacities that the
 		 * hardware will support */
-		device_context_capacity = SMU_DCC_READ(scic);
+		device_context_capacity =
+			readl(&scic->smu_registers->device_context_capacity);
+
 
 		max_supported_ports = smu_dcc_get_max_ports(device_context_capacity);
 		max_supported_devices = smu_dcc_get_max_remote_node_context(device_context_capacity);
@@ -2910,9 +2935,7 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(struct
 			struct scu_port_task_scheduler_group_registers *ptsg =
 				&scic->scu_registers->peg0.ptsg;
 
-			scu_register_write(scic,
-					   ptsg->protocol_engine[index],
-					   index);
+			writel(index, &ptsg->protocol_engine[index]);
 		}
 
 		/* Record the smaller of the two capacity values */
@@ -2939,16 +2962,20 @@ static enum sci_status scic_sds_controller_reset_state_initialize_handler(struct
 		u32 dma_configuration;
 
 		/* Configure the payload DMA */
-		dma_configuration = SCU_PDMACR_READ(scic);
+		dma_configuration =
+			readl(&scic->scu_registers->sdma.pdma_configuration);
 		dma_configuration |=
 			SCU_PDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-		SCU_PDMACR_WRITE(scic, dma_configuration);
+		writel(dma_configuration,
+			&scic->scu_registers->sdma.pdma_configuration);
 
 		/* Configure the control DMA */
-		dma_configuration = SCU_CDMACR_READ(scic);
+		dma_configuration =
+			readl(&scic->scu_registers->sdma.cdma_configuration);
 		dma_configuration |=
 			SCU_CDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-		SCU_CDMACR_WRITE(scic, dma_configuration);
+		writel(dma_configuration,
+			&scic->scu_registers->sdma.cdma_configuration);
 	}
 
 	/*
