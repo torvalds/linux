@@ -278,17 +278,17 @@ int wm8994_irq_init(struct wm8994 *wm8994)
 	for (cur_irq = wm8994->irq_base;
 	     cur_irq < ARRAY_SIZE(wm8994_irqs) + wm8994->irq_base;
 	     cur_irq++) {
-		set_irq_chip_data(cur_irq, wm8994);
-		set_irq_chip_and_handler(cur_irq, &wm8994_irq_chip,
+		irq_set_chip_data(cur_irq, wm8994);
+		irq_set_chip_and_handler(cur_irq, &wm8994_irq_chip,
 					 handle_edge_irq);
-		set_irq_nested_thread(cur_irq, 1);
+		irq_set_nested_thread(cur_irq, 1);
 
 		/* ARM needs us to explicitly flag the IRQ as valid
 		 * and will set them noprobe when we do so. */
 #ifdef CONFIG_ARM
 		set_irq_flags(cur_irq, IRQF_VALID);
 #else
-		set_irq_noprobe(cur_irq);
+		irq_set_noprobe(cur_irq);
 #endif
 	}
 

@@ -513,7 +513,7 @@ static int tc6393xb_register_gpio(struct tc6393xb *tc6393xb, int gpio_base)
 static void
 tc6393xb_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct tc6393xb *tc6393xb = get_irq_data(irq);
+	struct tc6393xb *tc6393xb = irq_get_handler_data(irq);
 	unsigned int isr;
 	unsigned int i, irq_base;
 
@@ -572,15 +572,14 @@ static void tc6393xb_attach_irq(struct platform_device *dev)
 	irq_base = tc6393xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + TC6393XB_NR_IRQS; irq++) {
-		set_irq_chip(irq, &tc6393xb_chip);
-		set_irq_chip_data(irq, tc6393xb);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &tc6393xb_chip, handle_edge_irq);
+		irq_set_chip_data(irq, tc6393xb);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 
-	set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
-	set_irq_data(tc6393xb->irq, tc6393xb);
-	set_irq_chained_handler(tc6393xb->irq, tc6393xb_irq);
+	irq_set_irq_type(tc6393xb->irq, IRQ_TYPE_EDGE_FALLING);
+	irq_set_handler_data(tc6393xb->irq, tc6393xb);
+	irq_set_chained_handler(tc6393xb->irq, tc6393xb_irq);
 }
 
 static void tc6393xb_detach_irq(struct platform_device *dev)
@@ -588,15 +587,15 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	unsigned int irq, irq_base;
 
-	set_irq_chained_handler(tc6393xb->irq, NULL);
-	set_irq_data(tc6393xb->irq, NULL);
+	irq_set_chained_handler(tc6393xb->irq, NULL);
+	irq_set_handler_data(tc6393xb->irq, NULL);
 
 	irq_base = tc6393xb->irq_base;
 
 	for (irq = irq_base; irq < irq_base + TC6393XB_NR_IRQS; irq++) {
 		set_irq_flags(irq, 0);
-		set_irq_chip(irq, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip(irq, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
 

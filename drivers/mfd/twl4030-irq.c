@@ -320,24 +320,8 @@ static int twl4030_irq_thread(void *data)
 		for (module_irq = twl4030_irq_base;
 				pih_isr;
 				pih_isr >>= 1, module_irq++) {
-			if (pih_isr & 0x1) {
-				struct irq_desc *d = irq_to_desc(module_irq);
-
-				if (!d) {
-					pr_err("twl4030: Invalid SIH IRQ: %d\n",
-					       module_irq);
-					return -EINVAL;
-				}
-
-				/* These can't be masked ... always warn
-				 * if we get any surprises.
-				 */
-				if (d->status & IRQ_DISABLED)
-					note_interrupt(module_irq, d,
-							IRQ_NONE);
-				else
-					d->handle_irq(module_irq, d);
-			}
+			if (pih_isr & 0x1)
+				generic_handle_irq(module_irq);
 		}
 		local_irq_enable();
 
@@ -470,7 +454,7 @@ static inline void activate_irq(int irq)
 	set_irq_flags(irq, IRQF_VALID);
 #else
 	/* same effect on other architectures */
-	set_irq_noprobe(irq);
+	irq_set_noprobe(irq);
 #endif
 }
 
@@ -560,24 +544,18 @@ static void twl4030_sih_do_edge(struct work_struct *work)
 	/* Modify only the bits we know must change */
 	while (edge_change) {
 		int		i = fls(edge_change) - 1;
-		struct irq_desc	*d = irq_to_desc(i + agent->irq_base);
+		struct irq_data	*idata = irq_get_irq_data(i + agent->irq_base);
 		int		byte = 1 + (i >> 2);
 		int		off = (i & 0x3) * 2;
-
-		if (!d) {
-			pr_err("twl4030: Invalid IRQ: %d\n",
-			       i + agent->irq_base);
-			return;
-		}
+		unsigned int	type;
 
 		bytes[byte] &= ~(0x03 << off);
 
-		raw_spin_lock_irq(&d->lock);
-		if (d->status & IRQ_TYPE_EDGE_RISING)
+		type = irqd_get_trigger_type(idata);
+		if (type & IRQ_TYPE_EDGE_RISING)
 			bytes[byte] |= BIT(off + 1);
-		if (d->status & IRQ_TYPE_EDGE_FALLING)
+		if (type & IRQ_TYPE_EDGE_FALLING)
 			bytes[byte] |= BIT(off + 0);
-		raw_spin_unlock_irq(&d->lock);
 
 		edge_change &= ~BIT(i);
 	}
@@ -626,21 +604,13 @@ static void twl4030_sih_unmask(struct irq_data *data)
 static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 {
 	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
-	struct irq_desc *desc = irq_to_desc(data->irq);
 	unsigned long flags;
-
-	if (!desc) {
-		pr_err("twl4030: Invalid IRQ: %d\n", data->irq);
-		return -EINVAL;
-	}
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
 
 	spin_lock_irqsave(&sih_agent_lock, flags);
-	if ((desc->status & IRQ_TYPE_SENSE_MASK) != trigger) {
-		desc->status &= ~IRQ_TYPE_SENSE_MASK;
-		desc->status |= trigger;
+	if (irqd_get_trigger_type(data) != trigger) {
 		sih->edge_change |= BIT(data->irq - sih->irq_base);
 		queue_work(wq, &sih->edge_work);
 	}
@@ -680,7 +650,7 @@ static inline int sih_read_isr(const struct sih *sih)
  */
 static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
 {
-	struct sih_agent *agent = get_irq_data(irq);
+	struct sih_agent *agent = irq_get_handler_data(irq);
 	const struct sih *sih = agent->sih;
 	int isr;
 
@@ -754,9 +724,9 @@ int twl4030_sih_setup(int module)
 	for (i = 0; i < sih->bits; i++) {
 		irq = irq_base + i;
 
-		set_irq_chip_and_handler(irq, &twl4030_sih_irq_chip,
-				handle_edge_irq);
-		set_irq_chip_data(irq, agent);
+		irq_set_chip_and_handler(irq, &twl4030_sih_irq_chip,
+					 handle_edge_irq);
+		irq_set_chip_data(irq, agent);
 		activate_irq(irq);
 	}
 
@@ -765,8 +735,8 @@ int twl4030_sih_setup(int module)
 
 	/* replace generic PIH handler (handle_simple_irq) */
 	irq = sih_mod + twl4030_irq_base;
-	set_irq_data(irq, agent);
-	set_irq_chained_handler(irq, handle_twl4030_sih);
+	irq_set_handler_data(irq, agent);
+	irq_set_chained_handler(irq, handle_twl4030_sih);
 
 	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", sih->name,
 			irq, irq_base, twl4030_irq_next - 1);
@@ -815,8 +785,8 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	twl4030_sih_irq_chip.irq_ack = dummy_irq_chip.irq_ack;
 
 	for (i = irq_base; i < irq_end; i++) {
-		set_irq_chip_and_handler(i, &twl4030_irq_chip,
-				handle_simple_irq);
+		irq_set_chip_and_handler(i, &twl4030_irq_chip,
+					 handle_simple_irq);
 		activate_irq(i);
 	}
 	twl4030_irq_next = i;
@@ -856,7 +826,7 @@ fail_rqirq:
 	/* clean up twl4030_sih_setup */
 fail:
 	for (i = irq_base; i < irq_end; i++)
-		set_irq_chip_and_handler(i, NULL, NULL);
+		irq_set_chip_and_handler(i, NULL, NULL);
 	destroy_workqueue(wq);
 	wq = NULL;
 	return status;

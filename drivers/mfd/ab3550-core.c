@@ -668,7 +668,7 @@ static int ab3550_startup_irq_enabled(struct device *dev, unsigned int irq)
 	struct ab3550_platform_data *plf_data;
 	bool val;
 
-	ab = get_irq_chip_data(irq);
+	ab = irq_get_chip_data(irq);
 	plf_data = ab->i2c_client[0]->dev.platform_data;
 	irq -= plf_data->irq.base;
 	val = ((ab->startup_events[irq / 8] & BIT(irq % 8)) != 0);
@@ -1296,14 +1296,14 @@ static int __init ab3550_probe(struct i2c_client *client,
 		unsigned int irq;
 
 		irq = ab3550_plf_data->irq.base + i;
-		set_irq_chip_data(irq, ab);
-		set_irq_chip_and_handler(irq, &ab3550_irq_chip,
-			handle_simple_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_chip_data(irq, ab);
+		irq_set_chip_and_handler(irq, &ab3550_irq_chip,
+					 handle_simple_irq);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
