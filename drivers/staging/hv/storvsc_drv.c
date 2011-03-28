@@ -448,7 +448,7 @@ static int storvsc_remove(struct device *device)
 static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 {
 	struct storvsc_cmd_request *cmd_request =
-		(struct storvsc_cmd_request *)request->context;
+		(struct storvsc_cmd_request *)request->extension.context;
 	struct scsi_cmnd *scmnd = cmd_request->cmd;
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
@@ -771,7 +771,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	}
 
 	request->on_io_completion = storvsc_commmand_completion;
-	request->context = cmd_request;/* scmnd; */
+	request->extension.context = cmd_request;/* scmnd; */
 
 	/* request->PortId = scmnd->device->channel; */
 	vm_srb->port_number = host_device_ctx->port;
