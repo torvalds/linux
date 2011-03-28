@@ -1078,7 +1078,7 @@ xfs_fs_write_inode(
 			error = 0;
 			goto out_unlock;
 		}
-		error = xfs_iflush(ip, 0);
+		error = xfs_iflush(ip, SYNC_TRYLOCK);
 	}
 
  out_unlock:
@@ -1539,16 +1539,30 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_sb;
 
-	error = xfs_mountfs(mp);
-	if (error)
-		goto out_filestream_unmount;
-
+	/*
+	 * we must configure the block size in the superblock before we run the
+	 * full mount process as the mount process can lookup and cache inodes.
+	 * For the same reason we must also initialise the syncd and register
+	 * the inode cache shrinker so that inodes can be reclaimed during
+	 * operations like a quotacheck that iterate all inodes in the
+	 * filesystem.
+	 */
 	sb->s_magic = XFS_SB_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
 	sb->s_blocksize_bits = ffs(sb->s_blocksize) - 1;
 	sb->s_maxbytes = xfs_max_file_offset(sb->s_blocksize_bits);
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
+
+	error = xfs_syncd_init(mp);
+	if (error)
+		goto out_filestream_unmount;
+
+	xfs_inode_shrinker_register(mp);
+
+	error = xfs_mountfs(mp);
+	if (error)
+		goto out_syncd_stop;
 
 	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
@@ -1565,14 +1579,11 @@ xfs_fs_fill_super(
 		goto fail_vnrele;
 	}
 
-	error = xfs_syncd_init(mp);
-	if (error)
-		goto fail_vnrele;
-
-	xfs_inode_shrinker_register(mp);
-
 	return 0;
 
+ out_syncd_stop:
+	xfs_inode_shrinker_unregister(mp);
+	xfs_syncd_stop(mp);
  out_filestream_unmount:
 	xfs_filestream_unmount(mp);
  out_free_sb:
@@ -1596,6 +1607,9 @@ xfs_fs_fill_super(
 	}
 
  fail_unmount:
+	xfs_inode_shrinker_unregister(mp);
+	xfs_syncd_stop(mp);
+
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
 	 * This can and will cause log traffic as inodes go inactive
