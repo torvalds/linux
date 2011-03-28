@@ -20,7 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/wait.h>
+#include <linux/completion.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -107,7 +107,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	struct storvsc_device *stor_device;
 	struct storvsc_request_extension *request;
 	struct vstor_packet *vstor_packet;
-	int ret;
+	int ret, t;
 
 	stor_device = get_stor_device(device);
 	if (!stor_device) {
@@ -124,13 +124,12 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	 * channel
 	 */
 	memset(request, 0, sizeof(struct storvsc_request_extension));
-	init_waitqueue_head(&request->wait_event);
+	init_completion(&request->wait_event);
 	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 	DPRINT_INFO(STORVSC, "BEGIN_INITIALIZATION_OPERATION...");
 
-	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -142,13 +141,11 @@ static int stor_vsc_channel_init(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(request->wait_event, request->wait_condition,
-			msecs_to_jiffies(1000));
-	if (request->wait_condition == 0) {
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
-
 
 	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
 	    vstor_packet->status != 0) {
@@ -168,7 +165,6 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	vstor_packet->version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
 	FILL_VMSTOR_REVISION(vstor_packet->version.revision);
 
-	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -180,9 +176,8 @@ static int stor_vsc_channel_init(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(request->wait_event, request->wait_condition,
-			msecs_to_jiffies(1000));
-	if (request->wait_condition == 0) {
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
@@ -205,7 +200,6 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	vstor_packet->storage_channel_properties.port_number =
 					stor_device->port_number;
 
-	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -218,9 +212,8 @@ static int stor_vsc_channel_init(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(request->wait_event, request->wait_condition,
-			msecs_to_jiffies(1000));
-	if (request->wait_condition == 0) {
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
@@ -248,7 +241,6 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	vstor_packet->operation = VSTOR_OPERATION_END_INITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)request,
@@ -261,9 +253,8 @@ static int stor_vsc_channel_init(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(request->wait_event, request->wait_condition,
-			msecs_to_jiffies(1000));
-	if (request->wait_condition == 0) {
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
@@ -397,8 +388,7 @@ static void stor_vsc_on_channel_callback(void *context)
 
 				memcpy(&request->vstor_packet, packet,
 				       sizeof(struct vstor_packet));
-				request->wait_condition = 1;
-				wake_up(&request->wait_event);
+				complete(&request->wait_event);
 			} else {
 				stor_vsc_on_receive(device,
 						(struct vstor_packet *)packet,

@@ -60,8 +60,7 @@ struct storvsc_request_extension {
 	struct hv_device *device;
 
 	/* Synchronize the request/response if needed */
-	int wait_condition;
-	wait_queue_head_t wait_event;
+	struct completion wait_event;
 
 	struct vstor_packet vstor_packet;
 };

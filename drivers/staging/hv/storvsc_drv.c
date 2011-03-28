@@ -231,7 +231,7 @@ static int stor_vsc_on_host_reset(struct hv_device *device)
 	struct storvsc_device *stor_device;
 	struct storvsc_request_extension *request;
 	struct vstor_packet *vstor_packet;
-	int ret;
+	int ret, t;
 
 	DPRINT_INFO(STORVSC, "resetting host adapter...");
 
@@ -245,13 +245,12 @@ static int stor_vsc_on_host_reset(struct hv_device *device)
 	request = &stor_device->reset_request;
 	vstor_packet = &request->vstor_packet;
 
-	init_waitqueue_head(&request->wait_event);
+	init_completion(&request->wait_event);
 
 	vstor_packet->operation = VSTOR_OPERATION_RESET_BUS;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 	vstor_packet->vm_srb.path_id = stor_device->path_id;
 
-	request->wait_condition = 0;
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
 			       (unsigned long)&stor_device->reset_request,
@@ -263,9 +262,8 @@ static int stor_vsc_on_host_reset(struct hv_device *device)
 		goto cleanup;
 	}
 
-	wait_event_timeout(request->wait_event, request->wait_condition,
-			msecs_to_jiffies(1000));
-	if (request->wait_condition == 0) {
+	t = wait_for_completion_timeout(&request->wait_event, HZ);
+	if (t == 0) {
 		ret = -ETIMEDOUT;
 		goto cleanup;
 	}
