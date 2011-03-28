@@ -292,7 +292,7 @@ static int __devexit bfin_i2s_soc_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_i2s_pcm_driver = {
 	.driver = {
-			.name = "bfin-pcm-audio",
+			.name = "bfin-i2s-pcm-audio",
 			.owner = THIS_MODULE,
 	},
 

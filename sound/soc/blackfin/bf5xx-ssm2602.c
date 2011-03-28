@@ -116,15 +116,15 @@ static struct snd_soc_ops bf5xx_ssm2602_ops = {
 static struct snd_soc_dai_link bf5xx_ssm2602_dai = {
 	.name = "ssm2602",
 	.stream_name = "SSM2602",
-	.cpu_dai_name = "bf5xx-i2s",
+	.cpu_dai_name = "bfin-i2s",
 	.codec_dai_name = "ssm2602-hifi",
-	.platform_name = "bf5xx-pcm-audio",
+	.platform_name = "bfin-i2s-pcm-audio",
 	.codec_name = "ssm2602.0-001b",
 	.ops = &bf5xx_ssm2602_ops,
 };
 
 static struct snd_soc_card bf5xx_ssm2602 = {
-	.name = "bf5xx_ssm2602",
+	.name = "bfin-ssm2602",
 	.dai_link = &bf5xx_ssm2602_dai,
 	.num_links = 1,
 };

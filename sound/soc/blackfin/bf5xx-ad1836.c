@@ -82,15 +82,15 @@ static struct snd_soc_ops bf5xx_ad1836_ops = {
 static struct snd_soc_dai_link bf5xx_ad1836_dai = {
 	.name = "ad1836",
 	.stream_name = "AD1836",
-	.cpu_dai_name = "bf5xx-tdm",
+	.cpu_dai_name = "bfin-tdm",
 	.codec_dai_name = "ad1836-hifi",
-	.platform_name = "bf5xx-tdm-pcm-audio",
+	.platform_name = "bfin-tdm-pcm-audio",
 	.codec_name = "ad1836.0",
 	.ops = &bf5xx_ad1836_ops,
 };
 
 static struct snd_soc_card bf5xx_ad1836 = {
-	.name = "bf5xx_ad1836",
+	.name = "bfin-ad1836",
 	.dai_link = &bf5xx_ad1836_dai,
 	.num_links = 1,
 };

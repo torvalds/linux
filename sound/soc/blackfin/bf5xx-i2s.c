@@ -316,7 +316,7 @@ static struct platform_driver bfin_i2s_driver = {
 	.remove = __devexit_p(bfin_i2s_drv_remove),
 
 	.driver = {
-		.name = "bf5xx-i2s",
+		.name = "bfin-i2s",
 		.owner = THIS_MODULE,
 	},
 };

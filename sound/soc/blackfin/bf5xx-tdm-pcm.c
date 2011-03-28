@@ -326,7 +326,7 @@ static int __devexit bf5xx_soc_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_tdm_driver = {
 	.driver = {
-			.name = "bf5xx-tdm-pcm-audio",
+			.name = "bfin-tdm-pcm-audio",
 			.owner = THIS_MODULE,
 	},
 
