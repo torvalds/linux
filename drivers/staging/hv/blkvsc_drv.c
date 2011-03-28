@@ -949,7 +949,8 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	vm_srb->lun = 0;	 /* this is not really used at all */
 
 	vm_srb->cdb_length = blkvsc_req->cmd_len;
-	storvsc_req->cdb = blkvsc_req->cmnd;
+
+	memcpy(vm_srb->cdb, blkvsc_req->cmnd, vm_srb->cdb_length);
 
 	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
 	storvsc_req->sense_buffer_size = SCSI_SENSE_BUFFERSIZE;
