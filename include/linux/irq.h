@@ -413,9 +413,6 @@ static inline void irq_move_masked_irq(struct irq_data *data) { }
 
 extern int no_irq_affinity;
 
-/* Handle irq action chains: */
-extern irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action);
-
 /*
  * Built-in IRQ handlers for various IRQ types,
  * callable via desc->handle_irq()

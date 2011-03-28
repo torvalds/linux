@@ -188,15 +188,3 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 	irq_compat_clr_progress(desc);
 	return ret;
 }
-
-/**
- * handle_IRQ_event - irq action chain handler
- * @irq:	the interrupt number
- * @action:	the interrupt action chain for this irq
- *
- * Handles the action chain of an irq event
- */
-irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
-{
-	return handle_irq_event_percpu(irq_to_desc(irq), action);
-}
