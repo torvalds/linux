@@ -70,7 +70,6 @@ struct hv_storvsc_request {
 	u32 bytes_xfer;
 
 	unsigned char *sense_buffer;
-	u32 sense_buffer_size;
 
 	void *context;
 
