@@ -406,9 +406,9 @@ struct ubi_map_req {
  * @value: value to set
  */
 struct ubi_set_vol_prop_req {
-       __u8  property;
-       __u8  padding[7];
-       __u64 value;
+	__u8  property;
+	__u8  padding[7];
+	__u64 value;
 }  __packed;
 
 #endif /* __UBI_USER_H__ */
