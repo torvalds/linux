@@ -169,7 +169,7 @@ struct omap3_vp {
 	u32 tranxdone_status;
 };
 
-struct omap3_vp omap3_vp[] = {
+static struct omap3_vp omap3_vp[] = {
 	[OMAP3_VP_VDD_MPU_ID] = {
 		.tranxdone_status = OMAP3430_VP1_TRANXDONE_ST_MASK,
 	},
@@ -196,4 +196,19 @@ void omap3_prm_vp_clear_txdone(u8 vp_id)
 
 	omap2_prm_write_mod_reg(vp->tranxdone_status,
 				OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+}
+
+u32 omap3_prm_vcvp_read(u8 offset)
+{
+	return omap2_prm_read_mod_reg(OMAP3430_GR_MOD, offset);
+}
+
+void omap3_prm_vcvp_write(u32 val, u8 offset)
+{
+	omap2_prm_write_mod_reg(val, OMAP3430_GR_MOD, offset);
+}
+
+u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
+{
+	return omap2_prm_rmw_mod_reg_bits(mask, bits, OMAP3430_GR_MOD, offset);
 }
