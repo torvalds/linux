@@ -1703,7 +1703,7 @@ static void rhine_tx(struct net_device *dev)
 static inline u16 rhine_get_vlan_tci(struct sk_buff *skb, int data_size)
 {
 	u8 *trailer = (u8 *)skb->data + ((data_size + 3) & ~3) + 2;
-	return ntohs(*(u16 *)trailer);
+	return be16_to_cpup((__be16 *)trailer);
 }
 
 /* Process up to limit frames from receive ring */
