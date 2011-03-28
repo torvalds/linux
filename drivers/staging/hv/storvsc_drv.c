@@ -784,7 +784,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 	memcpy(vm_srb->cdb, scmnd->cmnd, vm_srb->cdb_length);
 
-	request->sense_buffer = scmnd->sense_buffer;
+	request->extension.sense_buffer = scmnd->sense_buffer;
 
 
 	request->data_buffer.len = scsi_bufflen(scmnd);

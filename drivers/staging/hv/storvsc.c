@@ -314,7 +314,7 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 				    "valid - len %d\n", request_ext,
 				    vstor_packet->vm_srb.sense_info_length);
 
-			memcpy(request->sense_buffer,
+			memcpy(request->extension.sense_buffer,
 			       vstor_packet->vm_srb.sense_data,
 			       vstor_packet->vm_srb.sense_info_length);
 

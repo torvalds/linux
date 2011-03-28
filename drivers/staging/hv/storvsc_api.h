@@ -62,14 +62,14 @@ struct storvsc_request_extension {
 	/* Synchronize the request/response if needed */
 	struct completion wait_event;
 
+	unsigned char *sense_buffer;
+
 	struct vstor_packet vstor_packet;
 };
 
 struct hv_storvsc_request {
 	u32 status;
 	u32 bytes_xfer;
-
-	unsigned char *sense_buffer;
 
 	void *context;
 
