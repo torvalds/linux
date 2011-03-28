@@ -53,6 +53,18 @@ enum storvsc_request_type{
 	UNKNOWN_TYPE,
 };
 
+
+struct storvsc_request_extension {
+	struct hv_storvsc_request *request;
+	struct hv_device *device;
+
+	/* Synchronize the request/response if needed */
+	int wait_condition;
+	wait_queue_head_t wait_event;
+
+	struct vstor_packet vstor_packet;
+};
+
 struct hv_storvsc_request {
 	enum storvsc_request_type type;
 	u32 host;
@@ -101,17 +113,6 @@ struct storvsc_device_info {
 	unsigned int port_number;
 	unsigned char path_id;
 	unsigned char target_id;
-};
-
-struct storvsc_request_extension {
-	struct hv_storvsc_request *request;
-	struct hv_device *device;
-
-	/* Synchronize the request/response if needed */
-	int wait_condition;
-	wait_queue_head_t wait_event;
-
-	struct vstor_packet vstor_packet;
 };
 
 /* A storvsc device is a device object that contains a vmbus channel */
