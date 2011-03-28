@@ -72,9 +72,6 @@ struct blkvsc_request {
 	/* The group this request is part of. Maybe null */
 	struct blkvsc_request_group *group;
 
-	wait_queue_head_t wevent;
-	int cond;
-
 	int write;
 	sector_t sector_start;
 	unsigned long sector_count;
@@ -517,7 +514,7 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 		return -ENOMEM;
 
 	memset(blkvsc_req, 0, sizeof(struct blkvsc_request));
-	init_waitqueue_head(&blkvsc_req->wevent);
+	init_completion(&blkvsc_req->request.wait_event);
 	blkvsc_req->dev = blkdev;
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
@@ -529,14 +526,9 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
 	blkvsc_req->cmd_len = 10;
 
-	/*
-	 * Set this here since the completion routine may be invoked and
-	 * completed before we return
-	 */
-	blkvsc_req->cond = 0;
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
 
-	wait_event_interruptible(blkvsc_req->wevent, blkvsc_req->cond);
+	wait_for_completion_interruptible(&blkvsc_req->request.wait_event);
 
 	kmem_cache_free(blkvsc_req->dev->request_pool, blkvsc_req);
 
@@ -564,7 +556,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 		return -ENOMEM;
 	}
 
-	init_waitqueue_head(&blkvsc_req->wevent);
+	init_completion(&blkvsc_req->request.wait_event);
 	blkvsc_req->dev = blkdev;
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
@@ -580,18 +572,12 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	blkvsc_req->cmnd[4] = 64;
 	blkvsc_req->cmd_len = 6;
 
-	/*
-	 * Set this here since the completion routine may be invoked and
-	 * completed before we return
-	 */
-	blkvsc_req->cond = 0;
-
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
 
-	DPRINT_DBG(BLKVSC_DRV, "waiting %p to complete - cond %d\n",
-		   blkvsc_req, blkvsc_req->cond);
+	DPRINT_DBG(BLKVSC_DRV, "waiting %p to complete\n",
+		   blkvsc_req);
 
-	wait_event_interruptible(blkvsc_req->wevent, blkvsc_req->cond);
+	wait_for_completion_interruptible(&blkvsc_req->request.wait_event);
 
 	buf = kmap(page_buf);
 
@@ -654,7 +640,7 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	}
 
 	vm_srb = &blkvsc_req->request.vstor_packet.vm_srb;
-	init_waitqueue_head(&blkvsc_req->wevent);
+	init_completion(&blkvsc_req->request.wait_event);
 	blkvsc_req->dev = blkdev;
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
@@ -667,18 +653,12 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	blkvsc_req->cmnd[0] = READ_CAPACITY;
 	blkvsc_req->cmd_len = 16;
 
-	/*
-	 * Set this here since the completion routine may be invoked
-	 * and completed before we return
-	 */
-	blkvsc_req->cond = 0;
-
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
 
-	DPRINT_DBG(BLKVSC_DRV, "waiting %p to complete - cond %d\n",
-		   blkvsc_req, blkvsc_req->cond);
+	DPRINT_DBG(BLKVSC_DRV, "waiting %p to complete\n",
+		   blkvsc_req);
 
-	wait_event_interruptible(blkvsc_req->wevent, blkvsc_req->cond);
+	wait_for_completion_interruptible(&blkvsc_req->request.wait_event);
 
 	/* check error */
 	if (vm_srb->scsi_status) {
@@ -734,7 +714,7 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 		return -ENOMEM;
 	}
 
-	init_waitqueue_head(&blkvsc_req->wevent);
+	init_completion(&blkvsc_req->request.wait_event);
 	blkvsc_req->dev = blkdev;
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
@@ -751,14 +731,13 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	 * Set this here since the completion routine may be invoked
 	 * and completed before we return
 	 */
-	blkvsc_req->cond = 0;
 
 	blkvsc_submit_request(blkvsc_req, blkvsc_cmd_completion);
 
-	DPRINT_DBG(BLKVSC_DRV, "waiting %p to complete - cond %d\n",
-		   blkvsc_req, blkvsc_req->cond);
+	DPRINT_DBG(BLKVSC_DRV, "waiting %p to complete\n",
+		   blkvsc_req);
 
-	wait_event_interruptible(blkvsc_req->wevent, blkvsc_req->cond);
+	wait_for_completion_interruptible(&blkvsc_req->request.wait_event);
 
 	/* check error */
 	if (vm_srb->scsi_status) {
@@ -1163,8 +1142,7 @@ static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
 					 SCSI_SENSE_BUFFERSIZE, &sense_hdr))
 			scsi_print_sense_hdr("blkvsc", &sense_hdr);
 
-	blkvsc_req->cond = 1;
-	wake_up_interruptible(&blkvsc_req->wevent);
+	complete(&blkvsc_req->request.wait_event);
 }
 
 static void blkvsc_request_completion(struct hv_storvsc_request *request)
