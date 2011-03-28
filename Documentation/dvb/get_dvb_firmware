@@ -556,6 +556,9 @@ sub ngene {
     my $hash1 = "d798d5a757121174f0dbc5f2833c0c85";
     my $file2 = "ngene_17.fw";
     my $hash2 = "26b687136e127b8ac24b81e0eeafc20b";
+    my $url2 = "http://l4m-daten.de/downloads/firmware/dvb-s2/linux/all/";
+    my $file3 = "ngene_18.fw";
+    my $hash3 = "ebce3ea769a53e3e0b0197c3b3f127e3";
 
     checkstandard();
 
@@ -565,7 +568,10 @@ sub ngene {
     wgetfile($file2, $url . $file2);
     verify($file2, $hash2);
 
-    "$file1, $file2";
+    wgetfile($file3, $url2 . $file3);
+    verify($file3, $hash3);
+
+    "$file1, $file2, $file3";
 }
 
 sub az6027{

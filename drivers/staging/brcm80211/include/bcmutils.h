@@ -54,12 +54,12 @@
 #define PKTQ_MAX_PREC           16	/* Maximum precedence levels */
 #endif
 
-	typedef struct pktq_prec {
+	struct pktq_prec {
 		struct sk_buff *head;	/* first packet to dequeue */
 		struct sk_buff *tail;	/* last packet to dequeue */
 		u16 len;		/* number of queued packets */
 		u16 max;		/* maximum number of queued packets */
-	} pktq_prec_t;
+	};
 
 /* multi-priority pkt queue */
 	struct pktq {
@@ -71,27 +71,10 @@
 		struct pktq_prec q[PKTQ_MAX_PREC];
 	};
 
-/* simple, non-priority pkt queue */
-	struct spktq {
-		u16 num_prec;	/* number of precedences in use (always 1) */
-		u16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
-		u16 max;	/* total max packets */
-		u16 len;	/* total number of packets */
-		/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
-		struct pktq_prec q[1];
-	};
-
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
 
 /* fn(pkt, arg).  return true if pkt belongs to if */
 	typedef bool(*ifpkt_cb_t) (void *, int);
-
-/* forward definition of ether_addr structure used by some function prototypes */
-
-	struct ether_addr;
-
-	extern int ether_isbcast(const void *ea);
-	extern int ether_isnulladdr(const void *ea);
 
 /* operations on a specific precedence in packet queue */
 
@@ -111,12 +94,16 @@ extern struct sk_buff *pktq_penq_head(struct pktq *pq, int prec,
 extern struct sk_buff *pktq_pdeq(struct pktq *pq, int prec);
 extern struct sk_buff *pktq_pdeq_tail(struct pktq *pq, int prec);
 
+/* packet primitives */
+extern struct sk_buff *pkt_buf_get_skb(uint len);
+extern void pkt_buf_free_skb(struct sk_buff *skb);
+
 /* Empty the queue at particular precedence level */
 #ifdef BRCM_FULLMAC
-	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct pktq *pq, int prec,
 		bool dir);
 #else
-	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct pktq *pq, int prec,
 		bool dir, ifpkt_cb_t fn, int arg);
 #endif /* BRCM_FULLMAC */
 
@@ -144,20 +131,20 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 /* prec_out may be NULL if caller is not interested in return value */
 	extern struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out);
 #ifdef BRCM_FULLMAC
-	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir);
+	extern void pktq_flush(struct pktq *pq, bool dir);
 #else
-	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
+	extern void pktq_flush(struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg);
 #endif
 
 /* externs */
 /* packet */
-	extern uint pktfrombuf(struct osl_info *osh, struct sk_buff *p,
+	extern uint pktfrombuf(struct sk_buff *p,
 			       uint offset, int len, unsigned char *buf);
-	extern uint pkttotlen(struct osl_info *osh, struct sk_buff *p);
+	extern uint pkttotlen(struct sk_buff *p);
 
 /* ethernet address */
-	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);
+	extern int bcm_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
 	struct ipv4_addr;
@@ -167,9 +154,11 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, struct osl_info *osh,
-			  struct sk_buff *p0);
+	extern void prpkt(const char *msg, struct sk_buff *p0);
+#else
+#define prpkt(a, b)
 #endif				/* BCMDBG */
+
 #define bcm_perf_enable()
 #define bcmstats(fmt)
 #define	bcmlog(fmt, a1, a2)
@@ -369,12 +358,142 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define REG_MAP(pa, size)       (void *)(0)
 #endif
 
-/* Register operations */
-#define AND_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) & (v))
-#define OR_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) | (v))
+extern u32 g_assert_type;
 
-#define SET_REG(osh, r, mask, val) \
-		W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
+#if defined(BCMDBG_ASSERT)
+#define ASSERT(exp) \
+	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)
+extern void osl_assert(char *exp, char *file, int line);
+#else
+#define ASSERT(exp)	do {} while (0)
+#endif  /* defined(BCMDBG_ASSERT) */
+
+/* register access macros */
+#if defined(BCMSDIO)
+#ifdef BRCM_FULLMAC
+#include <bcmsdh.h>
+#endif
+#define OSL_WRITE_REG(r, v) \
+		(bcmsdh_reg_write(NULL, (unsigned long)(r), sizeof(*(r)), (v)))
+#define OSL_READ_REG(r) \
+		(bcmsdh_reg_read(NULL, (unsigned long)(r), sizeof(*(r))))
+#endif
+
+#if defined(BCMSDIO)
+#define SELECT_BUS_WRITE(mmap_op, bus_op) bus_op
+#define SELECT_BUS_READ(mmap_op, bus_op) bus_op
+#else
+#define SELECT_BUS_WRITE(mmap_op, bus_op) mmap_op
+#define SELECT_BUS_READ(mmap_op, bus_op) mmap_op
+#endif
+
+/* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
+#define	PKTBUFSZ	2048
+
+#define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
+#ifdef BRCM_FULLMAC
+#include <linux/kernel.h>	/* for vsn/printf's */
+#include <linux/string.h>	/* for mem*, str* */
+#endif
+/* bcopy's: Linux kernel doesn't provide these (anymore) */
+#define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
+
+/* register access macros */
+#ifndef IL_BIGENDIAN
+#ifndef __mips__
+#define R_REG(r) (\
+	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
+	readb((volatile u8*)(r)) : \
+	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
+	readl((volatile u32*)(r)), OSL_READ_REG(r)) \
+)
+#else				/* __mips__ */
+#define R_REG(r) (\
+	SELECT_BUS_READ( \
+		({ \
+			__typeof(*(r)) __osl_v; \
+			__asm__ __volatile__("sync"); \
+			switch (sizeof(*(r))) { \
+			case sizeof(u8): \
+				__osl_v = readb((volatile u8*)(r)); \
+				break; \
+			case sizeof(u16): \
+				__osl_v = readw((volatile u16*)(r)); \
+				break; \
+			case sizeof(u32): \
+				__osl_v = \
+				readl((volatile u32*)(r)); \
+				break; \
+			} \
+			__asm__ __volatile__("sync"); \
+			__osl_v; \
+		}), \
+		({ \
+			__typeof(*(r)) __osl_v; \
+			__asm__ __volatile__("sync"); \
+			__osl_v = OSL_READ_REG(r); \
+			__asm__ __volatile__("sync"); \
+			__osl_v; \
+		})) \
+)
+#endif				/* __mips__ */
+
+#define W_REG(r, v) do { \
+	SELECT_BUS_WRITE( \
+		switch (sizeof(*(r))) { \
+		case sizeof(u8): \
+			writeb((u8)(v), (volatile u8*)(r)); break; \
+		case sizeof(u16): \
+			writew((u16)(v), (volatile u16*)(r)); break; \
+		case sizeof(u32): \
+			writel((u32)(v), (volatile u32*)(r)); break; \
+		}, \
+		(OSL_WRITE_REG(r, v))); \
+	} while (0)
+#else				/* IL_BIGENDIAN */
+#define R_REG(r) (\
+	SELECT_BUS_READ( \
+		({ \
+			__typeof(*(r)) __osl_v; \
+			switch (sizeof(*(r))) { \
+			case sizeof(u8): \
+				__osl_v = \
+				readb((volatile u8*)((r)^3)); \
+				break; \
+			case sizeof(u16): \
+				__osl_v = \
+				readw((volatile u16*)((r)^2)); \
+				break; \
+			case sizeof(u32): \
+				__osl_v = readl((volatile u32*)(r)); \
+				break; \
+			} \
+			__osl_v; \
+		}), \
+		OSL_READ_REG(r)) \
+)
+#define W_REG(r, v) do { \
+	SELECT_BUS_WRITE( \
+		switch (sizeof(*(r))) { \
+		case sizeof(u8):	\
+			writeb((u8)(v), \
+			(volatile u8*)((r)^3)); break; \
+		case sizeof(u16):	\
+			writew((u16)(v), \
+			(volatile u16*)((r)^2)); break; \
+		case sizeof(u32):	\
+			writel((u32)(v), \
+			(volatile u32*)(r)); break; \
+		}, \
+		(OSL_WRITE_REG(r, v))); \
+	} while (0)
+#endif				/* IL_BIGENDIAN */
+
+#define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
+#define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
+
+#define SET_REG(r, mask, val) \
+		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
 
 #ifndef setbit
 #ifndef NBBY			/* the BSD family defines NBBY */
@@ -498,18 +617,8 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	extern u16 bcm_qdbm_to_mw(u8 qdbm);
 	extern u8 bcm_mw_to_qdbm(u16 mw);
 
-/* generic datastruct to help dump routines */
-	struct fielddesc {
-		const char *nameandfmt;
-		u32 offset;
-		u32 len;
-	};
-
 	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
 	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
-
-	typedef u32(*bcmutl_rdreg_rtn) (void *arg0, uint arg1,
-					   u32 offset);
 
 	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
 				uint len);

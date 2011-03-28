@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include "../../../../include/linux/list.h"
 
 #ifndef PERF_LIST_H

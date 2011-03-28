@@ -45,7 +45,10 @@ just specify a <constant>NULL</constant> pointer here.</para>
 	<listitem>
 	  <para>Length of the memory area to map. This must be the
 same value as returned by the driver in the &v4l2-buffer;
-<structfield>length</structfield> field.</para>
+<structfield>length</structfield> field for the
+single-planar API, and the same value as returned by the driver
+in the &v4l2-plane; <structfield>length</structfield> field for the
+multi-planar API.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -106,7 +109,10 @@ flag.</para>
 	<listitem>
 	  <para>Offset of the buffer in device memory. This must be the
 same value as returned by the driver in the &v4l2-buffer;
-<structfield>m</structfield> union <structfield>offset</structfield> field.</para>
+<structfield>m</structfield> union <structfield>offset</structfield> field for
+the single-planar API, and the same value as returned by the driver
+in the &v4l2-plane; <structfield>m</structfield> union
+<structfield>mem_offset</structfield> field for the multi-planar API.</para>
 	</listitem>
       </varlistentry>
     </variablelist>

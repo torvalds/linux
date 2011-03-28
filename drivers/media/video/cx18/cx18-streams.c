@@ -207,6 +207,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	s->video_dev->fops = &cx18_v4l2_enc_fops;
 	s->video_dev->release = video_device_release;
 	s->video_dev->tvnorms = V4L2_STD_ALL;
+	set_bit(V4L2_FL_USE_FH_PRIO, &s->video_dev->flags);
 	cx18_set_funcs(s->video_dev);
 	return 0;
 }
@@ -572,7 +573,7 @@ static void cx18_stream_configure_mdls(struct cx18_stream *s)
 		 * Set the MDL size to the exact size needed for one frame.
 		 * Use enough buffers per MDL to cover the MDL size
 		 */
-		s->mdl_size = 720 * s->cx->params.height * 3 / 2;
+		s->mdl_size = 720 * s->cx->cxhdl.height * 3 / 2;
 		s->bufs_per_mdl = s->mdl_size / s->buf_size;
 		if (s->mdl_size % s->buf_size)
 			s->bufs_per_mdl++;
@@ -607,7 +608,6 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	u32 data[MAX_MB_ARGUMENTS];
 	struct cx18 *cx = s->cx;
 	int captype = 0;
-	struct cx18_api_func_private priv;
 	struct cx18_stream *s_idx;
 
 	if (!cx18_stream_enabled(s))
@@ -620,7 +620,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		captype = CAPTURE_CHANNEL_TYPE_MPEG;
 		cx->mpg_data_received = cx->vbi_data_inserted = 0;
 		cx->dualwatch_jiffies = jiffies;
-		cx->dualwatch_stereo_mode = cx->params.audio_properties & 0x300;
+		cx->dualwatch_stereo_mode = v4l2_ctrl_g_ctrl(cx->cxhdl.audio_mode);
 		cx->search_pack_header = 0;
 		break;
 
@@ -710,21 +710,21 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 				 s->handle, cx18_stream_enabled(s_idx) ? 7 : 0);
 
 		/* Call out to the common CX2341x API setup for user controls */
-		priv.cx = cx;
-		priv.s = s;
-		cx2341x_update(&priv, cx18_api_func, NULL, &cx->params);
+		cx->cxhdl.priv = s;
+		cx2341x_handler_setup(&cx->cxhdl);
 
 		/*
 		 * When starting a capture and we're set for radio,
 		 * ensure the video is muted, despite the user control.
 		 */
-		if (!cx->params.video_mute &&
+		if (!cx->cxhdl.video_mute &&
 		    test_bit(CX18_F_I_RADIO_USER, &cx->i_flags))
 			cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2, s->handle,
-				  (cx->params.video_mute_yuv << 8) | 1);
+			  (v4l2_ctrl_g_ctrl(cx->cxhdl.video_mute_yuv) << 8) | 1);
 	}
 
 	if (atomic_read(&cx->tot_capturing) == 0) {
+		cx2341x_handler_set_busy(&cx->cxhdl, 1);
 		clear_bit(CX18_F_I_EOS, &cx->i_flags);
 		cx18_write_reg(cx, 7, CX18_DSP0_INTERRUPT_MASK);
 	}
@@ -826,6 +826,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	if (atomic_read(&cx->tot_capturing) > 0)
 		return 0;
 
+	cx2341x_handler_set_busy(&cx->cxhdl, 0);
 	cx18_write_reg(cx, 5, CX18_DSP0_INTERRUPT_MASK);
 	wake_up(&s->waitq);
 

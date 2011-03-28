@@ -23,6 +23,7 @@ struct tea5761_priv {
 	struct tuner_i2c_props i2c_props;
 
 	u32 frequency;
+	bool standby;
 };
 
 /*****************************************************************************/
@@ -135,18 +136,19 @@ static void tea5761_status_dump(unsigned char *buffer)
 }
 
 /* Freq should be specifyed at 62.5 Hz */
-static int set_radio_freq(struct dvb_frontend *fe,
-			  struct analog_parameters *params)
+static int __set_radio_freq(struct dvb_frontend *fe,
+			    unsigned int freq,
+			    bool mono)
 {
 	struct tea5761_priv *priv = fe->tuner_priv;
-	unsigned int frq = params->frequency;
+	unsigned int frq = freq;
 	unsigned char buffer[7] = {0, 0, 0, 0, 0, 0, 0 };
 	unsigned div;
 	int rc;
 
 	tuner_dbg("radio freq counter %d\n", frq);
 
-	if (params->mode == T_STANDBY) {
+	if (priv->standby) {
 		tuner_dbg("TEA5761 set to standby mode\n");
 		buffer[5] |= TEA5761_TNCTRL_MU;
 	} else {
@@ -154,7 +156,7 @@ static int set_radio_freq(struct dvb_frontend *fe,
 	}
 
 
-	if (params->audmode == V4L2_TUNER_MODE_MONO) {
+	if (mono) {
 		tuner_dbg("TEA5761 set to mono\n");
 		buffer[5] |= TEA5761_TNCTRL_MST;
 	} else {
@@ -174,6 +176,26 @@ static int set_radio_freq(struct dvb_frontend *fe,
 	priv->frequency = frq * 125 / 2;
 
 	return 0;
+}
+
+static int set_radio_freq(struct dvb_frontend *fe,
+			  struct analog_parameters *params)
+{
+	struct tea5761_priv *priv = fe->analog_demod_priv;
+
+	priv->standby = false;
+
+	return __set_radio_freq(fe, params->frequency,
+				params->audmode == V4L2_TUNER_MODE_MONO);
+}
+
+static int set_radio_sleep(struct dvb_frontend *fe)
+{
+	struct tea5761_priv *priv = fe->analog_demod_priv;
+
+	priv->standby = true;
+
+	return __set_radio_freq(fe, priv->frequency, false);
 }
 
 static int tea5761_read_status(struct dvb_frontend *fe, char *buffer)
@@ -284,6 +306,7 @@ static struct dvb_tuner_ops tea5761_tuner_ops = {
 		.name           = "tea5761", // Philips TEA5761HN FM Radio
 	},
 	.set_analog_params = set_radio_freq,
+	.sleep		   = set_radio_sleep,
 	.release           = tea5761_release,
 	.get_frequency     = tea5761_get_frequency,
 	.get_status        = tea5761_get_status,

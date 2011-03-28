@@ -56,6 +56,7 @@ config CRIS
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_HARDIRQS_NO_DEPRECATED
+	select GENERIC_IRQ_SHOW
 
 config HZ
 	int
@@ -275,7 +276,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_CHAR
 	select MTD_BLOCK
 	select MTD_PARTITIONS
-	select MTD_CONCAT
 	select MTD_COMPLEX_MAPPINGS
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use

@@ -40,6 +40,10 @@
  */
 struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 
+#ifdef CONFIG_ICACHE_FLUSH_L1
+unsigned long blackfin_iflush_l1_entry[NR_CPUS];
+#endif
+
 void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
 	*init_saved_seqstat_coreb, *init_saved_icplb_fault_addr_coreb,
 	*init_saved_dcplb_fault_addr_coreb;
@@ -105,10 +109,10 @@ static void ipi_flush_icache(void *info)
 	struct blackfin_flush_data *fdata = info;
 
 	/* Invalidate the memory holding the bounds of the flushed region. */
-	blackfin_dcache_invalidate_range((unsigned long)fdata,
-					 (unsigned long)fdata + sizeof(*fdata));
+	invalidate_dcache_range((unsigned long)fdata,
+		(unsigned long)fdata + sizeof(*fdata));
 
-	blackfin_icache_flush_range(fdata->start, fdata->end);
+	flush_icache_range(fdata->start, fdata->end);
 }
 
 static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)
@@ -244,12 +248,13 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 {
 	cpumask_t callmap;
 
+	preempt_disable();
 	callmap = cpu_online_map;
 	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		return 0;
+	if (!cpus_empty(callmap))
+		smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
 
-	smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
+	preempt_enable();
 
 	return 0;
 }
@@ -286,12 +291,13 @@ void smp_send_stop(void)
 {
 	cpumask_t callmap;
 
+	preempt_disable();
 	callmap = cpu_online_map;
 	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		return;
+	if (!cpus_empty(callmap))
+		smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
 
-	smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
+	preempt_enable();
 
 	return;
 }
@@ -361,8 +367,6 @@ void __cpuinit secondary_start_kernel(void)
 	 */
 	init_exception_vectors();
 
-	bfin_setup_caches(cpu);
-
 	local_irq_disable();
 
 	/* Attach the new idle task to the global mm. */
@@ -380,6 +384,8 @@ void __cpuinit secondary_start_kernel(void)
 	bfin_local_timer_setup();
 
 	local_irq_enable();
+
+	bfin_setup_caches(cpu);
 
 	/*
 	 * Calibrate loops per jiffy value.

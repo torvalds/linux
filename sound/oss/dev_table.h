@@ -271,7 +271,7 @@ struct synth_operations
 	void (*reset) (int dev);
 	void (*hw_control) (int dev, unsigned char *event);
 	int (*load_patch) (int dev, int format, const char __user *addr,
-	     int offs, int count, int pmgr_flag);
+	     int count, int pmgr_flag);
 	void (*aftertouch) (int dev, int voice, int pressure);
 	void (*controller) (int dev, int voice, int ctrl_num, int value);
 	void (*panning) (int dev, int voice, int value);

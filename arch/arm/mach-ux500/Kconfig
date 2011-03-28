@@ -6,6 +6,7 @@ config UX500_SOC_COMMON
 	select ARM_GIC
 	select HAS_MTU
 	select NOMADIK_GPIO
+	select ARM_ERRATA_753970
 
 menu "Ux500 SoC"
 

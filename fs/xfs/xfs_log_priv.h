@@ -87,10 +87,6 @@ static inline uint xlog_get_client_id(__be32 i)
 	return be32_to_cpu(i) >> 24;
 }
 
-#define xlog_panic(args...)	cmn_err(CE_PANIC, ## args)
-#define xlog_exit(args...)	cmn_err(CE_PANIC, ## args)
-#define xlog_warn(args...)	cmn_err(CE_WARN, ## args)
-
 /*
  * In core log state
  */

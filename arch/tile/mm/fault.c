@@ -655,14 +655,6 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
 	}
 
 	/*
-	 * NOTE: the one other type of access that might bring us here
-	 * are the memory ops in __tns_atomic_acquire/__tns_atomic_release,
-	 * but we don't have to check specially for them since we can
-	 * always safely return to the address of the fault and retry,
-	 * since no separate atomic locks are involved.
-	 */
-
-	/*
 	 * Now that we have released the atomic lock (if necessary),
 	 * it's safe to spin if the PTE that caused the fault was migrating.
 	 */

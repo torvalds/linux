@@ -53,7 +53,6 @@ struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
 	struct radix_tree_root tree;
-	pm_message_t state;
 	raw_spinlock_t lock;
 	unsigned int index;
 	unsigned long *reg;

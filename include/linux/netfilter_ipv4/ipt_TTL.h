@@ -4,6 +4,8 @@
 #ifndef _IPT_TTL_H
 #define _IPT_TTL_H
 
+#include <linux/types.h>
+
 enum {
 	IPT_TTL_SET = 0,
 	IPT_TTL_INC,
@@ -13,8 +15,8 @@ enum {
 #define IPT_TTL_MAXMODE	IPT_TTL_DEC
 
 struct ipt_TTL_info {
-	u_int8_t	mode;
-	u_int8_t	ttl;
+	__u8	mode;
+	__u8	ttl;
 };
 
 

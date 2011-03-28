@@ -14,7 +14,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 /* padmux devices to enable */
 static struct pmx_dev *pmx_devs[] = {
@@ -58,14 +58,13 @@ static void __init spear310_evb_init(void)
 {
 	unsigned int i;
 
-	/* call spear310 machine init function */
-	spear310_init();
-
-	/* padmux initialization */
+	/* padmux initialization, must be done before spear310_init */
 	pmx_driver.mode = NULL;
 	pmx_driver.devs = pmx_devs;
 	pmx_driver.devs_count = ARRAY_SIZE(pmx_devs);
-	spear310_pmx_init();
+
+	/* call spear310 machine init function */
+	spear310_init();
 
 	/* Add Platform Devices */
 	platform_add_devices(plat_devs, ARRAY_SIZE(plat_devs));
@@ -79,6 +78,6 @@ MACHINE_START(SPEAR310, "ST-SPEAR310-EVB")
 	.boot_params	=	0x00000100,
 	.map_io		=	spear3xx_map_io,
 	.init_irq	=	spear3xx_init_irq,
-	.timer		=	&spear_sys_timer,
+	.timer		=	&spear3xx_timer,
 	.init_machine	=	spear310_evb_init,
 MACHINE_END

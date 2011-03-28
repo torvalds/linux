@@ -714,7 +714,6 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 				 u_int8_t family)
 {
 	const struct nf_afinfo *afinfo;
-	struct flowi fl1, fl2;
 	int ret = 0;
 
 	/* rcu_read_lock()ed by nf_hook_slow() */
@@ -722,17 +721,20 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 	if (!afinfo)
 		return 0;
 
-	memset(&fl1, 0, sizeof(fl1));
-	memset(&fl2, 0, sizeof(fl2));
-
 	switch (family) {
 	case AF_INET: {
+		struct flowi4 fl1, fl2;
 		struct rtable *rt1, *rt2;
 
-		fl1.fl4_dst = src->ip;
-		fl2.fl4_dst = dst->ip;
-		if (!afinfo->route((struct dst_entry **)&rt1, &fl1)) {
-			if (!afinfo->route((struct dst_entry **)&rt2, &fl2)) {
+		memset(&fl1, 0, sizeof(fl1));
+		fl1.daddr = src->ip;
+
+		memset(&fl2, 0, sizeof(fl2));
+		fl2.daddr = dst->ip;
+		if (!afinfo->route((struct dst_entry **)&rt1,
+				   flowi4_to_flowi(&fl1))) {
+			if (!afinfo->route((struct dst_entry **)&rt2,
+					   flowi4_to_flowi(&fl2))) {
 				if (rt1->rt_gateway == rt2->rt_gateway &&
 				    rt1->dst.dev  == rt2->dst.dev)
 					ret = 1;
@@ -745,12 +747,18 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 #if defined(CONFIG_NF_CONNTRACK_IPV6) || \
     defined(CONFIG_NF_CONNTRACK_IPV6_MODULE)
 	case AF_INET6: {
+		struct flowi6 fl1, fl2;
 		struct rt6_info *rt1, *rt2;
 
-		memcpy(&fl1.fl6_dst, src, sizeof(fl1.fl6_dst));
-		memcpy(&fl2.fl6_dst, dst, sizeof(fl2.fl6_dst));
-		if (!afinfo->route((struct dst_entry **)&rt1, &fl1)) {
-			if (!afinfo->route((struct dst_entry **)&rt2, &fl2)) {
+		memset(&fl1, 0, sizeof(fl1));
+		ipv6_addr_copy(&fl1.daddr, &src->in6);
+
+		memset(&fl2, 0, sizeof(fl2));
+		ipv6_addr_copy(&fl2.daddr, &dst->in6);
+		if (!afinfo->route((struct dst_entry **)&rt1,
+				   flowi6_to_flowi(&fl1))) {
+			if (!afinfo->route((struct dst_entry **)&rt2,
+					   flowi6_to_flowi(&fl2))) {
 				if (!memcmp(&rt1->rt6i_gateway, &rt2->rt6i_gateway,
 					    sizeof(rt1->rt6i_gateway)) &&
 				    rt1->dst.dev == rt2->dst.dev)

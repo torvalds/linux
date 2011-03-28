@@ -18,7 +18,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <dvb-usb.h>
 
@@ -142,11 +141,9 @@ static void s2250loader_disconnect(struct usb_interface *interface)
 {
 	pdevice_extension_t s;
 	printk(KERN_INFO "s2250: disconnect\n");
-	lock_kernel();
 	s = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 	kref_put(&(s->kref), s2250loader_delete);
-	unlock_kernel();
 }
 
 static const struct usb_device_id s2250loader_ids[] = {

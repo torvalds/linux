@@ -60,12 +60,28 @@ struct hci_conn_hash {
 	spinlock_t       lock;
 	unsigned int     acl_num;
 	unsigned int     sco_num;
+	unsigned int     le_num;
 };
 
 struct bdaddr_list {
 	struct list_head list;
 	bdaddr_t bdaddr;
 };
+
+struct bt_uuid {
+	struct list_head list;
+	u8 uuid[16];
+	u8 svc_hint;
+};
+
+struct link_key {
+	struct list_head list;
+	bdaddr_t bdaddr;
+	u8 type;
+	u8 val[16];
+	u8 pin_len;
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -80,13 +96,18 @@ struct hci_dev {
 	bdaddr_t	bdaddr;
 	__u8		dev_name[248];
 	__u8		dev_class[3];
+	__u8		major_class;
+	__u8		minor_class;
 	__u8		features[8];
 	__u8		commands[64];
 	__u8		ssp_mode;
 	__u8		hci_ver;
 	__u16		hci_rev;
+	__u8		lmp_ver;
 	__u16		manufacturer;
+	__le16		lmp_subver;
 	__u16		voice_setting;
+	__u8		io_capability;
 
 	__u16		pkt_type;
 	__u16		esco_type;
@@ -102,18 +123,26 @@ struct hci_dev {
 	atomic_t	cmd_cnt;
 	unsigned int	acl_cnt;
 	unsigned int	sco_cnt;
+	unsigned int	le_cnt;
 
 	unsigned int	acl_mtu;
 	unsigned int	sco_mtu;
+	unsigned int	le_mtu;
 	unsigned int	acl_pkts;
 	unsigned int	sco_pkts;
+	unsigned int	le_pkts;
 
-	unsigned long	cmd_last_tx;
 	unsigned long	acl_last_tx;
 	unsigned long	sco_last_tx;
+	unsigned long	le_last_tx;
 
 	struct workqueue_struct	*workqueue;
 
+	struct work_struct	power_on;
+	struct work_struct	power_off;
+	struct timer_list	off_timer;
+
+	struct timer_list	cmd_timer;
 	struct tasklet_struct	cmd_task;
 	struct tasklet_struct	rx_task;
 	struct tasklet_struct	tx_task;
@@ -129,11 +158,16 @@ struct hci_dev {
 	wait_queue_head_t	req_wait_q;
 	__u32			req_status;
 	__u32			req_result;
-	__u16			req_last_cmd;
+
+	__u16			init_last_cmd;
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
 	struct list_head	blacklist;
+
+	struct list_head	uuids;
+
+	struct list_head	link_keys;
 
 	struct hci_dev_stats	stat;
 
@@ -165,31 +199,37 @@ struct hci_dev {
 struct hci_conn {
 	struct list_head list;
 
-	atomic_t	 refcnt;
-	spinlock_t	 lock;
+	atomic_t	refcnt;
+	spinlock_t	lock;
 
-	bdaddr_t	 dst;
-	__u16		 handle;
-	__u16		 state;
-	__u8             mode;
-	__u8		 type;
-	__u8		 out;
-	__u8		 attempt;
-	__u8		 dev_class[3];
-	__u8             features[8];
-	__u8             ssp_mode;
-	__u16            interval;
-	__u16            pkt_type;
-	__u16            link_policy;
-	__u32		 link_mode;
-	__u8             auth_type;
-	__u8             sec_level;
-	__u8		 pending_sec_level;
-	__u8             power_save;
-	__u16            disc_timeout;
-	unsigned long	 pend;
+	bdaddr_t	dst;
+	__u16		handle;
+	__u16		state;
+	__u8		mode;
+	__u8		type;
+	__u8		out;
+	__u8		attempt;
+	__u8		dev_class[3];
+	__u8		features[8];
+	__u8		ssp_mode;
+	__u16		interval;
+	__u16		pkt_type;
+	__u16		link_policy;
+	__u32		link_mode;
+	__u8		auth_type;
+	__u8		sec_level;
+	__u8		pending_sec_level;
+	__u8		pin_length;
+	__u8		io_capability;
+	__u8		power_save;
+	__u16		disc_timeout;
+	unsigned long	pend;
 
-	unsigned int	 sent;
+	__u8		remote_cap;
+	__u8		remote_oob;
+	__u8		remote_auth;
+
+	unsigned int	sent;
 
 	struct sk_buff_head data_q;
 
@@ -208,6 +248,10 @@ struct hci_conn {
 	void		*priv;
 
 	struct hci_conn	*link;
+
+	void (*connect_cfm_cb)	(struct hci_conn *conn, u8 status);
+	void (*security_cfm_cb)	(struct hci_conn *conn, u8 status);
+	void (*disconn_cfm_cb)	(struct hci_conn *conn, u8 reason);
 };
 
 extern struct hci_proto *hci_proto[];
@@ -274,24 +318,40 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	list_add(&c->list, &h->list);
-	if (c->type == ACL_LINK)
+	switch (c->type) {
+	case ACL_LINK:
 		h->acl_num++;
-	else
+		break;
+	case LE_LINK:
+		h->le_num++;
+		break;
+	case SCO_LINK:
+	case ESCO_LINK:
 		h->sco_num++;
+		break;
+	}
 }
 
 static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	list_del(&c->list);
-	if (c->type == ACL_LINK)
+	switch (c->type) {
+	case ACL_LINK:
 		h->acl_num--;
-	else
+		break;
+	case LE_LINK:
+		h->le_num--;
+		break;
+	case SCO_LINK:
+	case ESCO_LINK:
 		h->sco_num--;
+		break;
+	}
 }
 
 static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
-					__u16 handle)
+								__u16 handle)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct list_head *p;
@@ -306,7 +366,7 @@ static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
 }
 
 static inline struct hci_conn *hci_conn_hash_lookup_ba(struct hci_dev *hdev,
-					__u8 type, bdaddr_t *ba)
+							__u8 type, bdaddr_t *ba)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct list_head *p;
@@ -321,7 +381,7 @@ static inline struct hci_conn *hci_conn_hash_lookup_ba(struct hci_dev *hdev,
 }
 
 static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
-					__u8 type, __u16 state)
+							__u8 type, __u16 state)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct list_head *p;
@@ -437,6 +497,16 @@ int hci_inquiry(void __user *arg);
 struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_blacklist_clear(struct hci_dev *hdev);
 
+int hci_uuids_clear(struct hci_dev *hdev);
+
+int hci_link_keys_clear(struct hci_dev *hdev);
+struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
+						u8 *key, u8 type, u8 pin_len);
+int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+
+void hci_del_off_timer(struct hci_dev *hdev);
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
 int hci_recv_frame(struct sk_buff *skb);
@@ -458,6 +528,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
 #define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
 #define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
+#define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
+#define lmp_le_capable(dev)        ((dev)->features[4] & LMP_LE)
 
 /* ----- HCI protocols ----- */
 struct hci_proto {
@@ -503,6 +575,9 @@ static inline void hci_proto_connect_cfm(struct hci_conn *conn, __u8 status)
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->connect_cfm)
 		hp->connect_cfm(conn, status);
+
+	if (conn->connect_cfm_cb)
+		conn->connect_cfm_cb(conn, status);
 }
 
 static inline int hci_proto_disconn_ind(struct hci_conn *conn)
@@ -532,6 +607,9 @@ static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->disconn_cfm)
 		hp->disconn_cfm(conn, reason);
+
+	if (conn->disconn_cfm_cb)
+		conn->disconn_cfm_cb(conn, reason);
 }
 
 static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
@@ -551,6 +629,9 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->security_cfm)
 		hp->security_cfm(conn, status, encrypt);
+
+	if (conn->security_cfm_cb)
+		conn->security_cfm_cb(conn, status);
 }
 
 static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encrypt)
@@ -564,6 +645,9 @@ static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status, __u
 	hp = hci_proto[HCI_PROTO_SCO];
 	if (hp && hp->security_cfm)
 		hp->security_cfm(conn, status, encrypt);
+
+	if (conn->security_cfm_cb)
+		conn->security_cfm_cb(conn, status);
 }
 
 int hci_register_proto(struct hci_proto *hproto);
@@ -660,12 +744,29 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
 void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data);
 
 /* ----- HCI Sockets ----- */
-void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
+void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
+							struct sock *skip_sk);
 
 /* Management interface */
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
 int mgmt_index_added(u16 index);
 int mgmt_index_removed(u16 index);
+int mgmt_powered(u16 index, u8 powered);
+int mgmt_discoverable(u16 index, u8 discoverable);
+int mgmt_connectable(u16 index, u8 connectable);
+int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type);
+int mgmt_connected(u16 index, bdaddr_t *bdaddr);
+int mgmt_disconnected(u16 index, bdaddr_t *bdaddr);
+int mgmt_disconnect_failed(u16 index);
+int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr);
+int mgmt_pin_code_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value);
+int mgmt_user_confirm_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status);
+int mgmt_user_confirm_neg_reply_complete(u16 index, bdaddr_t *bdaddr,
+								u8 status);
+int mgmt_auth_failed(u16 index, bdaddr_t *bdaddr, u8 status);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
@@ -697,4 +798,6 @@ struct hci_sec_filter {
 
 void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result);
 
+void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
+					u16 latency, u16 to_multiplier);
 #endif /* __HCI_CORE_H */

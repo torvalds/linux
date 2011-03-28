@@ -66,6 +66,9 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 	/* own MCS TX capabilities */
 	tx_mcs_set_cap = sband->ht_cap.mcs.tx_params;
 
+	/* Copy peer MCS TX capabilities, the driver might need them. */
+	ht_cap->mcs.tx_params = ht_cap_ie->mcs.tx_params;
+
 	/* can we TX with MCS rates? */
 	if (!(tx_mcs_set_cap & IEEE80211_HT_MCS_TX_DEFINED))
 		return;
@@ -79,7 +82,7 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 		max_tx_streams = IEEE80211_HT_MCS_TX_MAX_STREAMS;
 
 	/*
-	 * 802.11n D5.0 20.3.5 / 20.6 says:
+	 * 802.11n-2009 20.3.5 / 20.6 says:
 	 * - indices 0 to 7 and 32 are single spatial stream
 	 * - 8 to 31 are multiple spatial streams using equal modulation
 	 *   [8..15 for two streams, 16..23 for three and 24..31 for four]

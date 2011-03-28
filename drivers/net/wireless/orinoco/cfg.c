@@ -153,6 +153,9 @@ static int orinoco_scan(struct wiphy *wiphy, struct net_device *dev,
 	priv->scan_request = request;
 
 	err = orinoco_hw_trigger_scan(priv, request->ssids);
+	/* On error the we aren't processing the request */
+	if (err)
+		priv->scan_request = NULL;
 
 	return err;
 }

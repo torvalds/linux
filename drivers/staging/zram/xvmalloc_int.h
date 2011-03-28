@@ -19,7 +19,11 @@
 /* User configurable params */
 
 /* Must be power of two */
+#ifdef CONFIG_64BIT
+#define XV_ALIGN_SHIFT 3
+#else
 #define XV_ALIGN_SHIFT	2
+#endif
 #define XV_ALIGN	(1 << XV_ALIGN_SHIFT)
 #define XV_ALIGN_MASK	(XV_ALIGN - 1)
 
@@ -27,8 +31,16 @@
 #define XV_MIN_ALLOC_SIZE	32
 #define XV_MAX_ALLOC_SIZE	(PAGE_SIZE - XV_ALIGN)
 
-/* Free lists are separated by FL_DELTA bytes */
-#define FL_DELTA_SHIFT	3
+/*
+ * Free lists are separated by FL_DELTA bytes
+ * This value is 3 for 4k pages and 4 for 64k pages, for any
+ * other page size, a conservative (PAGE_SHIFT - 9) is used.
+ */
+#if PAGE_SHIFT == 16
+#define FL_DELTA_SHIFT 4
+#else
+#define FL_DELTA_SHIFT (PAGE_SHIFT - 9)
+#endif
 #define FL_DELTA	(1 << FL_DELTA_SHIFT)
 #define FL_DELTA_MASK	(FL_DELTA - 1)
 #define NUM_FREE_LISTS	((XV_MAX_ALLOC_SIZE - XV_MIN_ALLOC_SIZE) \
@@ -75,12 +87,9 @@ struct block_header {
 struct xv_pool {
 	ulong flbitmap;
 	ulong slbitmap[MAX_FLI];
-	spinlock_t lock;
-
+	u64 total_pages;	/* stats */
 	struct freelist_entry freelist[NUM_FREE_LISTS];
-
-	/* stats */
-	u64 total_pages;
+	spinlock_t lock;
 };
 
 #endif

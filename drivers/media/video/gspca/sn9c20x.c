@@ -152,6 +152,13 @@ static const struct dmi_system_id flip_dmi_table[] = {
 		}
 	},
 	{
+		.ident = "MSI MS-1633X",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-1633X")
+		}
+	},
+	{
 		.ident = "MSI MS-1635X",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
@@ -369,7 +376,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.priv = SCALE_160x120},
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.sizeimage = 320 * 240 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_320x240 | MODE_JPEG},
 	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -384,7 +391,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.priv = SCALE_320x240},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640,
-		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.sizeimage = 640 * 480 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_640x480 | MODE_JPEG},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -417,7 +424,7 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.priv = SCALE_160x120},
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.sizeimage = 320 * 240 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_320x240 | MODE_JPEG},
 	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -432,7 +439,7 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.priv = SCALE_320x240},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640,
-		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.sizeimage = 640 * 480 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_640x480 | MODE_JPEG},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -884,6 +891,9 @@ static struct i2c_reg_u8 ov7660_init[] = {
 	{0x0e, 0x80}, {0x0d, 0x08}, {0x0f, 0xc3},
 	{0x04, 0xc3}, {0x10, 0x40}, {0x11, 0x40},
 	{0x12, 0x05}, {0x13, 0xba}, {0x14, 0x2a},
+	/* HDG Set hstart and hstop, datasheet default 0x11, 0x61, using
+	   0x10, 0x61 and sd->hstart, vstart = 3, fixes ugly colored borders */
+	{0x17, 0x10}, {0x18, 0x61},
 	{0x37, 0x0f}, {0x38, 0x02}, {0x39, 0x43},
 	{0x3a, 0x00}, {0x69, 0x90}, {0x2d, 0xf6},
 	{0x2e, 0x0b}, {0x01, 0x78}, {0x02, 0x50},
@@ -1332,10 +1342,8 @@ static int ov7660_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
-	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX);
-	sd->hstart = 1;
-	sd->vstart = 1;
+	sd->hstart = 3;
+	sd->vstart = 3;
 	return 0;
 }
 
@@ -1608,6 +1616,18 @@ static int set_hvflip(struct gspca_dev *gspca_dev)
 	}
 
 	switch (sd->sensor) {
+	case SENSOR_OV7660:
+		value = 0x01;
+		if (hflip)
+			value |= 0x20;
+		if (vflip) {
+			value |= 0x10;
+			sd->vstart = 2;
+		} else
+			sd->vstart = 3;
+		reg_w1(gspca_dev, 0x1182, sd->vstart);
+		i2c_w1(gspca_dev, 0x1e, value);
+		break;
 	case SENSOR_OV9650:
 		i2c_r1(gspca_dev, 0x1e, &value);
 		value &= ~0x30;
@@ -2482,7 +2502,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6260), SN9C20X(OV7670, 0x21, 0)},
 	{USB_DEVICE(0x0c45, 0x6270), SN9C20X(MT9VPRB, 0x00, 0)},
-	{USB_DEVICE(0x0c45, 0x627b), SN9C20X(OV7660, 0x21, 0)},
+	{USB_DEVICE(0x0c45, 0x627b), SN9C20X(OV7660, 0x21, FLIP_DETECT)},
 	{USB_DEVICE(0x0c45, 0x627c), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0x0c45, 0x627f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6280), SN9C20X(MT9M001, 0x5d, 0)},
@@ -2494,7 +2514,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x62a0), SN9C20X(OV7670, 0x21, 0)},
 	{USB_DEVICE(0x0c45, 0x62b0), SN9C20X(MT9VPRB, 0x00, 0)},
 	{USB_DEVICE(0x0c45, 0x62b3), SN9C20X(OV9655, 0x30, 0)},
-	{USB_DEVICE(0x0c45, 0x62bb), SN9C20X(OV7660, 0x21, 0)},
+	{USB_DEVICE(0x0c45, 0x62bb), SN9C20X(OV7660, 0x21, LED_REVERSE)},
 	{USB_DEVICE(0x0c45, 0x62bc), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0x045e, 0x00f4), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x145f, 0x013d), SN9C20X(OV7660, 0x21, 0)},

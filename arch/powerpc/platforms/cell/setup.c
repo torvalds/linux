@@ -187,13 +187,15 @@ machine_subsys_initcall(cell, cell_publish_devices);
 
 static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct mpic *mpic = desc->handler_data;
+	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct mpic *mpic = get_irq_desc_data(desc);
 	unsigned int virq;
 
 	virq = mpic_get_one_irq(mpic);
 	if (virq != NO_IRQ)
 		generic_handle_irq(virq);
-	desc->chip->eoi(irq);
+
+	chip->irq_eoi(&desc->irq_data);
 }
 
 static void __init mpic_init_IRQ(void)

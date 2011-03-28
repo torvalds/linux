@@ -57,7 +57,7 @@ void ui__warning(const char *format, ...)
 }
 #endif
 
-void trace_event(event_t *event)
+void trace_event(union perf_event *event)
 {
 	unsigned char *raw_event = (void *)event;
 	const char *color = PERF_COLOR_BLUE;

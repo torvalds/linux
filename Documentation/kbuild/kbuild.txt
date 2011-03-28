@@ -146,7 +146,7 @@ INSTALL_MOD_STRIP
 INSTALL_MOD_STRIP, if defined, will cause modules to be
 stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
 the default option --strip-debug will be used.  Otherwise,
-INSTALL_MOD_STRIP will used as the options to the strip command.
+INSTALL_MOD_STRIP value will be used as the options to the strip command.
 
 INSTALL_FW_PATH
 --------------------------------------------------
@@ -196,3 +196,8 @@ to be included in the databases, separated by blank space. E.g.:
 To get all available archs you can also specify all. E.g.:
 
     $ make ALLSOURCE_ARCHS=all tags
+
+KBUILD_ENABLE_EXTRA_GCC_CHECKS
+--------------------------------------------------
+If enabled over the make command line with "W=1", it turns on additional
+gcc -W... options for more extensive build-time checking.

@@ -17,23 +17,65 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bcmdefs.h>
-#include <stdarg.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
-#include <osl.h>
+#include <linux/sched.h>
+#include <bcmdefs.h>
+#include <stdarg.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>
-#include <bcmendian.h>
 #include <bcmdevs.h>
-#include <proto/ethernet.h>
-#include <proto/802.1d.h>
 #include <proto/802.11.h>
 
+/* Global ASSERT type flag */
+u32 g_assert_type;
+
+struct sk_buff *BCMFASTPATH pkt_buf_get_skb(uint len)
+{
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(len);
+	if (skb) {
+		skb_put(skb, len);
+		skb->priority = 0;
+	}
+
+	return skb;
+}
+
+/* Free the driver packet. Free the tag if present */
+void BCMFASTPATH pkt_buf_free_skb(struct sk_buff *skb)
+{
+	struct sk_buff *nskb;
+	int nest = 0;
+
+	ASSERT(skb);
+
+	/* perversion: we use skb->next to chain multi-skb packets */
+	while (skb) {
+		nskb = skb->next;
+		skb->next = NULL;
+
+		if (skb->destructor)
+			/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
+			 * destructor exists
+			 */
+			dev_kfree_skb_any(skb);
+		else
+			/* can free immediately (even in_irq()) if destructor
+			 * does not exist
+			 */
+			dev_kfree_skb(skb);
+
+		nest++;
+		skb = nskb;
+	}
+}
+
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
+uint pktfrombuf(struct sk_buff *p, uint offset, int len,
 		unsigned char *buf)
 {
 	uint n, ret = 0;
@@ -51,7 +93,7 @@ uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
 	/* copy the data */
 	for (; p && len; p = p->next) {
 		n = min((uint) (p->len) - offset, (uint) len);
-		bcopy(buf, p->data + offset, n);
+		memcpy(p->data + offset, buf, n);
 		buf += n;
 		len -= n;
 		ret += n;
@@ -61,7 +103,7 @@ uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
 	return ret;
 }
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(struct osl_info *osh, struct sk_buff *p)
+uint BCMFASTPATH pkttotlen(struct sk_buff *p)
 {
 	uint total;
 
@@ -188,7 +230,7 @@ struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 }
 
 #ifdef BRCM_FULLMAC
-void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
+void pktq_pflush(struct pktq *pq, int prec, bool dir)
 {
 	struct pktq_prec *q;
 	struct sk_buff *p;
@@ -198,7 +240,7 @@ void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 	while (p) {
 		q->head = p->prev;
 		p->prev = NULL;
-		pkt_buf_free_skb(osh, p, dir);
+		pkt_buf_free_skb(p);
 		q->len--;
 		pq->len--;
 		p = q->head;
@@ -207,16 +249,16 @@ void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 	q->tail = NULL;
 }
 
-void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir)
+void pktq_flush(struct pktq *pq, bool dir)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(osh, pq, prec, dir);
+		pktq_pflush(pq, prec, dir);
 	ASSERT(pq->len == 0);
 }
 #else /* !BRCM_FULLMAC */
 void
-pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
+pktq_pflush(struct pktq *pq, int prec, bool dir,
 	    ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
@@ -232,7 +274,7 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 			else
 				prev->prev = p->prev;
 			p->prev = NULL;
-			pkt_buf_free_skb(osh, p, dir);
+			pkt_buf_free_skb(p);
 			q->len--;
 			pq->len--;
 			p = (head ? q->head : prev->prev);
@@ -248,12 +290,12 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 	}
 }
 
-void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
+void pktq_flush(struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
-		pktq_pflush(osh, pq, prec, dir, fn, arg);
+		pktq_pflush(pq, prec, dir, fn, arg);
 	if (fn == NULL)
 		ASSERT(pq->len == 0);
 }
@@ -348,12 +390,12 @@ struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int bcm_ether_atoe(char *p, struct ether_addr *ea)
+int bcm_ether_atoe(char *p, u8 *ea)
 {
 	int i = 0;
 
 	for (;;) {
-		ea->octet[i++] = (char)simple_strtoul(p, &p, 16);
+		ea[i++] = (char)simple_strtoul(p, &p, 16);
 		if (!*p++ || i == 6)
 			break;
 	}
@@ -410,12 +452,12 @@ int getintvar(char *vars, const char *name)
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, struct osl_info *osh, struct sk_buff *p0)
+void prpkt(const char *msg, struct sk_buff *p0)
 {
 	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
-		printf("%s:\n", msg);
+		printk(KERN_DEBUG "%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
 		prhex(NULL, p->data, p->len);
@@ -866,7 +908,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 	uint i;
 
 	if (msg && (msg[0] != '\0'))
-		printf("%s:\n", msg);
+		printk(KERN_DEBUG "%s:\n", msg);
 
 	p = line;
 	for (i = 0; i < nbytes; i++) {
@@ -882,7 +924,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 		}
 
 		if (i % 16 == 15) {
-			printf("%s\n", line);	/* flush line */
+			printk(KERN_DEBUG "%s\n", line);	/* flush line */
 			p = line;
 			len = sizeof(line);
 		}
@@ -890,7 +932,7 @@ void prhex(const char *msg, unsigned char *buf, uint nbytes)
 
 	/* flush last partial line */
 	if (p != line)
-		printf("%s\n", line);
+		printk(KERN_DEBUG "%s\n", line);
 }
 
 char *bcm_chipname(uint chipid, char *buf, uint len)
@@ -1048,3 +1090,49 @@ int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...)
 	return r;
 }
 
+#if defined(BCMDBG_ASSERT)
+void osl_assert(char *exp, char *file, int line)
+{
+	char tempbuf[256];
+	char *basename;
+
+	basename = strrchr(file, '/');
+	/* skip the '/' */
+	if (basename)
+		basename++;
+
+	if (!basename)
+		basename = file;
+
+	snprintf(tempbuf, 256,
+		 "assertion \"%s\" failed: file \"%s\", line %d\n", exp,
+		 basename, line);
+
+	/*
+	 * Print assert message and give it time to
+	 * be written to /var/log/messages
+	 */
+	if (!in_interrupt()) {
+		const int delay = 3;
+		printk(KERN_ERR "%s", tempbuf);
+		printk(KERN_ERR "panic in %d seconds\n", delay);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(delay * HZ);
+	}
+
+	switch (g_assert_type) {
+	case 0:
+		panic(KERN_ERR "%s", tempbuf);
+		break;
+	case 1:
+		printk(KERN_ERR "%s", tempbuf);
+		BUG();
+		break;
+	case 2:
+		printk(KERN_ERR "%s", tempbuf);
+		break;
+	default:
+		break;
+	}
+}
+#endif				/* defined(BCMDBG_ASSERT) */

@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/pwm_backlight.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/sysdev.h>
 
 #include <asm/irq.h>
@@ -32,8 +33,6 @@
 #include <mach/pxa27x.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/pxafb.h>
-
-#include <plat/i2c.h>
 
 #include "devices.h"
 #include "generic.h"

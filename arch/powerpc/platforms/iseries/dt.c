@@ -242,8 +242,8 @@ static void __init dt_cpus(struct iseries_flat_dt *dt)
 	pft_size[0] = 0; /* NUMA CEC cookie, 0 for non NUMA  */
 	pft_size[1] = __ilog2(HvCallHpt_getHptPages() * HW_PAGE_SIZE);
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (lppaca_of(i).dyn_proc_status >= 2)
+	for (i = 0; i < NR_LPPACAS; i++) {
+		if (lppaca[i].dyn_proc_status >= 2)
 			continue;
 
 		snprintf(p, 32 - (p - buf), "@%d", i);
@@ -251,7 +251,7 @@ static void __init dt_cpus(struct iseries_flat_dt *dt)
 
 		dt_prop_str(dt, "device_type", device_type_cpu);
 
-		index = lppaca_of(i).dyn_hv_phys_proc_index;
+		index = lppaca[i].dyn_hv_phys_proc_index;
 		d = &xIoHriProcessorVpd[index];
 
 		dt_prop_u32(dt, "i-cache-size", d->xInstCacheSize * 1024);

@@ -1,5 +1,5 @@
 /*
-    abituguru.c Copyright (c) 2005-2006 Hans de Goede <j.w.r.degoede@hhs.nl>
+    abituguru.c Copyright (c) 2005-2006 Hans de Goede <hdegoede@redhat.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1505,7 +1505,7 @@ static void __exit abituguru_exit(void)
 	platform_driver_unregister(&abituguru_driver);
 }
 
-MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Abit uGuru Sensor device");
 MODULE_LICENSE("GPL");
 

@@ -4393,8 +4393,7 @@ static void ppc440spe_adma_release_irqs(struct ppc440spe_adma_device *adev,
 /**
  * ppc440spe_adma_probe - probe the asynch device
  */
-static int __devinit ppc440spe_adma_probe(struct platform_device *ofdev,
-					  const struct of_device_id *match)
+static int __devinit ppc440spe_adma_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
@@ -4944,7 +4943,7 @@ static const struct of_device_id ppc440spe_adma_of_match[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, ppc440spe_adma_of_match);
 
-static struct of_platform_driver ppc440spe_adma_driver = {
+static struct platform_driver ppc440spe_adma_driver = {
 	.probe = ppc440spe_adma_probe,
 	.remove = __devexit_p(ppc440spe_adma_remove),
 	.driver = {
@@ -4962,7 +4961,7 @@ static __init int ppc440spe_adma_init(void)
 	if (ret)
 		return ret;
 
-	ret = of_register_platform_driver(&ppc440spe_adma_driver);
+	ret = platform_driver_register(&ppc440spe_adma_driver);
 	if (ret) {
 		pr_err("%s: failed to register platform driver\n",
 			__func__);
@@ -4996,7 +4995,7 @@ out_dev:
 	/* User will not be able to enable h/w RAID-6 */
 	pr_err("%s: failed to create RAID-6 driver interface\n",
 		__func__);
-	of_unregister_platform_driver(&ppc440spe_adma_driver);
+	platform_driver_unregister(&ppc440spe_adma_driver);
 out_reg:
 	dcr_unmap(ppc440spe_mq_dcr_host, ppc440spe_mq_dcr_len);
 	kfree(ppc440spe_dma_fifo_buf);
@@ -5011,7 +5010,7 @@ static void __exit ppc440spe_adma_exit(void)
 			   &driver_attr_enable);
 	driver_remove_file(&ppc440spe_adma_driver.driver,
 			   &driver_attr_devices);
-	of_unregister_platform_driver(&ppc440spe_adma_driver);
+	platform_driver_unregister(&ppc440spe_adma_driver);
 	dcr_unmap(ppc440spe_mq_dcr_host, ppc440spe_mq_dcr_len);
 	kfree(ppc440spe_dma_fifo_buf);
 }

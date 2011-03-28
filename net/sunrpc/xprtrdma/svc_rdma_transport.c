@@ -1335,6 +1335,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 					    p, 0, length, DMA_FROM_DEVICE);
 	if (ib_dma_mapping_error(xprt->sc_cm_id->device, ctxt->sge[0].addr)) {
 		put_page(p);
+		svc_rdma_put_context(ctxt, 1);
 		return;
 	}
 	atomic_inc(&xprt->sc_dma_used);

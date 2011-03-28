@@ -241,11 +241,20 @@ typedef struct deflate_state {
 typedef struct deflate_workspace {
     /* State memory for the deflator */
     deflate_state deflate_memory;
-    Byte window_memory[2 * (1 << MAX_WBITS)];
-    Pos prev_memory[1 << MAX_WBITS];
-    Pos head_memory[1 << (MAX_MEM_LEVEL + 7)];
-    char overlay_memory[(1 << (MAX_MEM_LEVEL + 6)) * (sizeof(ush)+2)];
+    Byte *window_memory;
+    Pos *prev_memory;
+    Pos *head_memory;
+    char *overlay_memory;
 } deflate_workspace;
+
+#define zlib_deflate_window_memsize(windowBits) \
+	(2 * (1 << (windowBits)) * sizeof(Byte))
+#define zlib_deflate_prev_memsize(windowBits) \
+	((1 << (windowBits)) * sizeof(Pos))
+#define zlib_deflate_head_memsize(memLevel) \
+	((1 << ((memLevel)+7)) * sizeof(Pos))
+#define zlib_deflate_overlay_memsize(memLevel) \
+	((1 << ((memLevel)+6)) * (sizeof(ush)+2))
 
 /* Output a byte on the stream.
  * IN assertion: there is enough room in pending_buf.

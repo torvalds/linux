@@ -16,7 +16,7 @@
 
 #include "olpc_dcon.h"
 
-static int dcon_init_xo_1(void)
+static int dcon_init_xo_1(struct dcon_priv *dcon)
 {
 	unsigned char lob;
 
@@ -54,10 +54,10 @@ static int dcon_init_xo_1(void)
 	 * then a value is set.  So, future readings of the pin can use
 	 * READ_BACK, but the first one cannot.  Awesome, huh?
 	 */
-	dcon_source = cs5535_gpio_isset(OLPC_GPIO_DCON_LOAD, GPIO_OUTPUT_VAL)
+	dcon->curr_src = cs5535_gpio_isset(OLPC_GPIO_DCON_LOAD, GPIO_OUTPUT_VAL)
 		? DCON_SOURCE_CPU
 		: DCON_SOURCE_DCON;
-	dcon_pending = dcon_source;
+	dcon->pending_src = dcon->curr_src;
 
 	/* Set the directions for the GPIO pins */
 	gpio_direction_input(OLPC_GPIO_DCON_STAT0);
@@ -65,7 +65,7 @@ static int dcon_init_xo_1(void)
 	gpio_direction_input(OLPC_GPIO_DCON_IRQ);
 	gpio_direction_input(OLPC_GPIO_DCON_BLANK);
 	gpio_direction_output(OLPC_GPIO_DCON_LOAD,
-			dcon_source == DCON_SOURCE_CPU);
+			dcon->curr_src == DCON_SOURCE_CPU);
 
 	/* Set up the interrupt mappings */
 
@@ -81,7 +81,7 @@ static int dcon_init_xo_1(void)
 	outb(lob, 0x4d0);
 
 	/* Register the interupt handler */
-	if (request_irq(DCON_IRQ, &dcon_interrupt, 0, "DCON", &dcon_driver)) {
+	if (request_irq(DCON_IRQ, &dcon_interrupt, 0, "DCON", dcon)) {
 		printk(KERN_ERR "olpc-dcon: failed to request DCON's irq\n");
 		goto err_req_irq;
 	}
@@ -195,7 +195,7 @@ static u8 dcon_read_status_xo_1(void)
 	return status;
 }
 
-static struct dcon_platform_data dcon_pdata_xo_1 = {
+struct dcon_platform_data dcon_pdata_xo_1 = {
 	.init = dcon_init_xo_1,
 	.bus_stabilize_wiggle = dcon_wiggle_xo_1,
 	.set_dconload = dcon_set_dconload_1,

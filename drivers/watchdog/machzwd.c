@@ -54,7 +54,7 @@
 
 /* indexes */			/* size */
 #define ZFL_VERSION	0x02	/* 16   */
-#define CONTROL 	0x10	/* 16   */
+#define CONTROL		0x10	/* 16   */
 #define STATUS		0x12	/* 8    */
 #define COUNTER_1	0x0C	/* 16   */
 #define COUNTER_2	0x0E	/* 8    */

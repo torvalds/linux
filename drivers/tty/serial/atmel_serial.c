@@ -1240,6 +1240,21 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
+static void atmel_set_ldisc(struct uart_port *port, int new)
+{
+	int line = port->line;
+
+	if (line >= port->state->port.tty->driver->num)
+		return;
+
+	if (port->state->port.tty->ldisc->ops->num == N_PPS) {
+		port->flags |= UPF_HARDPPS_CD;
+		atmel_enable_ms(port);
+	} else {
+		port->flags &= ~UPF_HARDPPS_CD;
+	}
+}
+
 /*
  * Return string describing the specified port
  */
@@ -1380,6 +1395,7 @@ static struct uart_ops atmel_pops = {
 	.shutdown	= atmel_shutdown,
 	.flush_buffer	= atmel_flush_buffer,
 	.set_termios	= atmel_set_termios,
+	.set_ldisc	= atmel_set_ldisc,
 	.type		= atmel_type,
 	.release_port	= atmel_release_port,
 	.request_port	= atmel_request_port,

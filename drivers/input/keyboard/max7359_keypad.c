@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 
@@ -271,8 +272,10 @@ static int __devexit max7359_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int max7359_suspend(struct i2c_client *client, pm_message_t mesg)
+static int max7359_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	max7359_fall_deepsleep(client);
 
 	if (device_may_wakeup(&client->dev))
@@ -281,8 +284,10 @@ static int max7359_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-static int max7359_resume(struct i2c_client *client)
+static int max7359_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	if (device_may_wakeup(&client->dev))
 		disable_irq_wake(client->irq);
 
@@ -291,10 +296,9 @@ static int max7359_resume(struct i2c_client *client)
 
 	return 0;
 }
-#else
-#define max7359_suspend	NULL
-#define max7359_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(max7359_pm, max7359_suspend, max7359_resume);
 
 static const struct i2c_device_id max7359_ids[] = {
 	{ "max7359", 0 },
@@ -305,11 +309,10 @@ MODULE_DEVICE_TABLE(i2c, max7359_ids);
 static struct i2c_driver max7359_i2c_driver = {
 	.driver = {
 		.name = "max7359",
+		.pm   = &max7359_pm,
 	},
 	.probe		= max7359_probe,
 	.remove		= __devexit_p(max7359_remove),
-	.suspend	= max7359_suspend,
-	.resume		= max7359_resume,
 	.id_table	= max7359_ids,
 };
 

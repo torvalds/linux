@@ -56,7 +56,7 @@ nv50_channel_del(struct nouveau_channel **pchan)
 	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
-	if (chan->ramin_heap.free_stack.next)
+	if (drm_mm_initialized(&chan->ramin_heap))
 		drm_mm_takedown(&chan->ramin_heap);
 	nouveau_gpuobj_ref(NULL, &chan->ramin);
 	kfree(chan);
@@ -259,7 +259,7 @@ nv50_instmem_takedown(struct drm_device *dev)
 	nouveau_gpuobj_ref(NULL, &dev_priv->bar3_vm->pgt[0].obj[0]);
 	nouveau_vm_ref(NULL, &dev_priv->bar3_vm, NULL);
 
-	if (dev_priv->ramin_heap.free_stack.next)
+	if (drm_mm_initialized(&dev_priv->ramin_heap))
 		drm_mm_takedown(&dev_priv->ramin_heap);
 
 	dev_priv->engine.instmem.priv = NULL;
@@ -300,7 +300,7 @@ nv50_instmem_resume(struct drm_device *dev)
 }
 
 struct nv50_gpuobj_node {
-	struct nouveau_vram *vram;
+	struct nouveau_mem *vram;
 	struct nouveau_vma chan_vma;
 	u32 align;
 };

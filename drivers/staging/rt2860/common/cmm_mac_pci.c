@@ -753,7 +753,7 @@ BOOLEAN AsicCheckCommanOk(struct rt_rtmp_adapter *pAd, u8 Command)
 
 	/* This command's status is at the same position as command. So AND command position's bitmask to read status. */
 	if (i < 200) {
-		/* If Status is 1, the comamnd is success. */
+		/* If Status is 1, the command is success. */
 		if (((CmdStatus & ThisCIDMask) == 0x1)
 		    || ((CmdStatus & ThisCIDMask) == 0x100)
 		    || ((CmdStatus & ThisCIDMask) == 0x10000)

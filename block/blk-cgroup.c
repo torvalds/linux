@@ -371,12 +371,14 @@ void blkiocg_update_io_remove_stats(struct blkio_group *blkg,
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_io_remove_stats);
 
-void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
+void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time,
+				unsigned long unaccounted_time)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&blkg->stats_lock, flags);
 	blkg->stats.time += time;
+	blkg->stats.unaccounted_time += unaccounted_time;
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_timeslice_used);
@@ -604,6 +606,9 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.sectors, cb, dev);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	if (type == BLKIO_STAT_UNACCOUNTED_TIME)
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
+					blkg->stats.unaccounted_time, cb, dev);
 	if (type == BLKIO_STAT_AVG_QUEUE_SIZE) {
 		uint64_t sum = blkg->stats.avg_queue_size_sum;
 		uint64_t samples = blkg->stats.avg_queue_size_samples;
@@ -1125,6 +1130,9 @@ static int blkiocg_file_read_map(struct cgroup *cgrp, struct cftype *cft,
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_QUEUED, 1);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+		case BLKIO_PROP_unaccounted_time:
+			return blkio_read_blkg_stats(blkcg, cft, cb,
+						BLKIO_STAT_UNACCOUNTED_TIME, 0);
 		case BLKIO_PROP_dequeue:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_DEQUEUE, 0);
@@ -1380,6 +1388,12 @@ struct cftype blkio_files[] = {
 		.name = "dequeue",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
 				BLKIO_PROP_dequeue),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "unaccounted_time",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_unaccounted_time),
 		.read_map = blkiocg_file_read_map,
 	},
 #endif

@@ -43,24 +43,24 @@ static void mpic_pasemi_msi_mask_irq(struct irq_data *data)
 {
 	pr_debug("mpic_pasemi_msi_mask_irq %d\n", data->irq);
 	mask_msi_irq(data);
-	mpic_mask_irq(data->irq);
+	mpic_mask_irq(data);
 }
 
 static void mpic_pasemi_msi_unmask_irq(struct irq_data *data)
 {
 	pr_debug("mpic_pasemi_msi_unmask_irq %d\n", data->irq);
-	mpic_unmask_irq(data->irq);
+	mpic_unmask_irq(data);
 	unmask_msi_irq(data);
 }
 
 static struct irq_chip mpic_pasemi_msi_chip = {
-	.irq_shutdown	= mpic_pasemi_msi_mask_irq,
-	.irq_mask	= mpic_pasemi_msi_mask_irq,
-	.irq_unmask	= mpic_pasemi_msi_unmask_irq,
-	.eoi		= mpic_end_irq,
-	.set_type	= mpic_set_irq_type,
-	.set_affinity	= mpic_set_affinity,
-	.name		= "PASEMI-MSI",
+	.irq_shutdown		= mpic_pasemi_msi_mask_irq,
+	.irq_mask		= mpic_pasemi_msi_mask_irq,
+	.irq_unmask		= mpic_pasemi_msi_unmask_irq,
+	.irq_eoi		= mpic_end_irq,
+	.irq_set_type		= mpic_set_irq_type,
+	.irq_set_affinity	= mpic_set_affinity,
+	.name			= "PASEMI-MSI",
 };
 
 static int pasemi_msi_check_device(struct pci_dev *pdev, int nvec, int type)

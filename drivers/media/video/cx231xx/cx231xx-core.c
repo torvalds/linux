@@ -571,6 +571,8 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 							     alt];
 		break;
 	case INDEX_VANC:
+		if (dev->board.no_alt_vanc)
+			return 0;
 		usb_interface_index =
 		    dev->current_pcb_config.hs_config_info[0].interface_info.
 		    vanc_index + 1;
@@ -600,8 +602,7 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 		usb_interface_index, alt);
 		/*To workaround error number=-71 on EP0 for videograbber,
 		 need add following codes.*/
-		if (dev->model != CX231XX_BOARD_CNXT_VIDEO_GRABBER &&
-		    dev->model != CX231XX_BOARD_HAUPPAUGE_USBLIVE2)
+		if (dev->board.no_alt_vanc)
 			return -1;
 	}
 
@@ -1301,8 +1302,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	/* init hardware */
 	/* Note : with out calling set power mode function,
 	afe can not be set up correctly */
-	if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER ||
-	    dev->model == CX231XX_BOARD_HAUPPAUGE_USBLIVE2) {
+	if (dev->board.external_av) {
 		errCode = cx231xx_set_power_mode(dev,
 				 POLARIS_AVMODE_ENXTERNAL_AV);
 		if (errCode < 0) {
@@ -1322,11 +1322,9 @@ int cx231xx_dev_init(struct cx231xx *dev)
 		}
 	}
 
-	/* reset the Tuner */
-	if ((dev->model == CX231XX_BOARD_CNXT_CARRAERA) ||
-		(dev->model == CX231XX_BOARD_CNXT_RDE_250) ||
-		(dev->model == CX231XX_BOARD_CNXT_SHELBY) ||
-		(dev->model == CX231XX_BOARD_CNXT_RDU_250))
+	/* reset the Tuner, if it is a Xceive tuner */
+	if ((dev->board.tuner_type == TUNER_XC5000) ||
+	    (dev->board.tuner_type == TUNER_XC2028))
 			cx231xx_gpio_set(dev, dev->board.tuner_gpio);
 
 	/* initialize Colibri block */

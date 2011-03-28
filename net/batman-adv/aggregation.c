@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -35,7 +35,7 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 			       int packet_len,
 			       unsigned long send_time,
 			       bool directlink,
-			       struct batman_if *if_incoming,
+			       struct hard_iface *if_incoming,
 			       struct forw_packet *forw_packet)
 {
 	struct batman_packet *batman_packet =
@@ -99,7 +99,7 @@ static bool can_aggregate_with(struct batman_packet *new_batman_packet,
 /* create a new aggregated packet and add this packet to it */
 static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 				  unsigned long send_time, bool direct_link,
-				  struct batman_if *if_incoming,
+				  struct hard_iface *if_incoming,
 				  int own_packet)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
@@ -188,7 +188,7 @@ static void aggregate(struct forw_packet *forw_packet_aggr,
 
 void add_bat_packet_to_list(struct bat_priv *bat_priv,
 			    unsigned char *packet_buff, int packet_len,
-			    struct batman_if *if_incoming, char own_packet,
+			    struct hard_iface *if_incoming, char own_packet,
 			    unsigned long send_time)
 {
 	/**
@@ -247,7 +247,7 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 
 /* unpack the aggregated packets and process them one by one */
 void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
-			     int packet_len, struct batman_if *if_incoming)
+			     int packet_len, struct hard_iface *if_incoming)
 {
 	struct batman_packet *batman_packet;
 	int buff_pos = 0;

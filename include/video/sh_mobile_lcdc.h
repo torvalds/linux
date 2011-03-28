@@ -59,11 +59,19 @@ struct sh_mobile_lcdc_board_cfg {
 			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 	void (*display_on)(void *board_data, struct fb_info *info);
 	void (*display_off)(void *board_data);
+	int (*set_brightness)(void *board_data, int brightness);
+	int (*get_brightness)(void *board_data);
 };
 
 struct sh_mobile_lcdc_lcd_size_cfg { /* width and height of panel in mm */
 	unsigned long width;
 	unsigned long height;
+};
+
+/* backlight info */
+struct sh_mobile_lcdc_bl_info {
+	const char *name;
+	int max_brightness;
 };
 
 struct sh_mobile_lcdc_chan_cfg {
@@ -76,7 +84,9 @@ struct sh_mobile_lcdc_chan_cfg {
 	int num_cfg;
 	struct sh_mobile_lcdc_lcd_size_cfg lcd_size_cfg;
 	struct sh_mobile_lcdc_board_cfg board_cfg;
+	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
+	int nonstd;
 };
 
 struct sh_mobile_lcdc_info {

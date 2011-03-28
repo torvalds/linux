@@ -110,6 +110,7 @@ static void wl1271_spi_reset(struct wl1271 *wl)
 	spi_message_add_tail(&t, &m);
 
 	spi_sync(wl_to_spi(wl), &m);
+
 	wl1271_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
 	kfree(cmd);
 }
@@ -319,28 +320,23 @@ static void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 	spi_sync(wl_to_spi(wl), &m);
 }
 
-static irqreturn_t wl1271_irq(int irq, void *cookie)
+static irqreturn_t wl1271_hardirq(int irq, void *cookie)
 {
-	struct wl1271 *wl;
+	struct wl1271 *wl = cookie;
 	unsigned long flags;
 
 	wl1271_debug(DEBUG_IRQ, "IRQ");
 
-	wl = cookie;
-
 	/* complete the ELP completion */
 	spin_lock_irqsave(&wl->wl_lock, flags);
+	set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
 	if (wl->elp_compl) {
 		complete(wl->elp_compl);
 		wl->elp_compl = NULL;
 	}
-
-	if (!test_and_set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
-		ieee80211_queue_work(wl->hw, &wl->irq_work);
-	set_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int wl1271_spi_set_power(struct wl1271 *wl, bool enable)
@@ -412,13 +408,13 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
-	ret = request_irq(wl->irq, wl1271_irq, 0, DRIVER_NAME, wl);
+	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
+				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);
 		goto out_free;
 	}
-
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
 
 	disable_irq(wl->irq);
 
@@ -494,4 +490,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
 MODULE_FIRMWARE(WL1271_FW_NAME);
+MODULE_FIRMWARE(WL1271_AP_FW_NAME);
 MODULE_ALIAS("spi:wl1271");

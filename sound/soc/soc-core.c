@@ -259,8 +259,6 @@ static ssize_t codec_reg_write_file(struct file *file,
 	while (*start == ' ')
 		start++;
 	reg = simple_strtoul(start, &start, 16);
-	if ((reg >= codec->driver->reg_cache_size) || (reg % step))
-		return -EINVAL;
 	while (*start == ' ')
 		start++;
 	if (strict_strtoul(start, 16, &value))

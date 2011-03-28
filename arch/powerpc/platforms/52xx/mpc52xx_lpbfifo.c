@@ -436,8 +436,7 @@ void mpc52xx_lpbfifo_abort(struct mpc52xx_lpbfifo_request *req)
 }
 EXPORT_SYMBOL(mpc52xx_lpbfifo_abort);
 
-static int __devinit mpc52xx_lpbfifo_probe(struct platform_device *op,
-					   const struct of_device_id *match)
+static int __devinit mpc52xx_lpbfifo_probe(struct platform_device *op)
 {
 	struct resource res;
 	int rc = -ENOMEM;
@@ -536,7 +535,7 @@ static struct of_device_id mpc52xx_lpbfifo_match[] __devinitconst = {
 	{},
 };
 
-static struct of_platform_driver mpc52xx_lpbfifo_driver = {
+static struct platform_driver mpc52xx_lpbfifo_driver = {
 	.driver = {
 		.name = "mpc52xx-lpbfifo",
 		.owner = THIS_MODULE,
@@ -551,14 +550,12 @@ static struct of_platform_driver mpc52xx_lpbfifo_driver = {
  */
 static int __init mpc52xx_lpbfifo_init(void)
 {
-	pr_debug("Registering LocalPlus bus FIFO driver\n");
-	return of_register_platform_driver(&mpc52xx_lpbfifo_driver);
+	return platform_driver_register(&mpc52xx_lpbfifo_driver);
 }
 module_init(mpc52xx_lpbfifo_init);
 
 static void __exit mpc52xx_lpbfifo_exit(void)
 {
-	pr_debug("Unregistering LocalPlus bus FIFO driver\n");
-	of_unregister_platform_driver(&mpc52xx_lpbfifo_driver);
+	platform_driver_unregister(&mpc52xx_lpbfifo_driver);
 }
 module_exit(mpc52xx_lpbfifo_exit);

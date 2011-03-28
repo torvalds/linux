@@ -189,15 +189,20 @@ static inline void qe_ic_write(volatile __be32  __iomem * base, unsigned int reg
 
 static inline struct qe_ic *qe_ic_from_irq(unsigned int virq)
 {
-	return irq_to_desc(virq)->chip_data;
+	return get_irq_chip_data(virq);
+}
+
+static inline struct qe_ic *qe_ic_from_irq_data(struct irq_data *d)
+{
+	return irq_data_get_irq_chip_data(d);
 }
 
 #define virq_to_hw(virq)	((unsigned int)irq_map[virq].hwirq)
 
-static void qe_ic_unmask_irq(unsigned int virq)
+static void qe_ic_unmask_irq(struct irq_data *d)
 {
-	struct qe_ic *qe_ic = qe_ic_from_irq(virq);
-	unsigned int src = virq_to_hw(virq);
+	struct qe_ic *qe_ic = qe_ic_from_irq_data(d);
+	unsigned int src = virq_to_hw(d->irq);
 	unsigned long flags;
 	u32 temp;
 
@@ -210,10 +215,10 @@ static void qe_ic_unmask_irq(unsigned int virq)
 	raw_spin_unlock_irqrestore(&qe_ic_lock, flags);
 }
 
-static void qe_ic_mask_irq(unsigned int virq)
+static void qe_ic_mask_irq(struct irq_data *d)
 {
-	struct qe_ic *qe_ic = qe_ic_from_irq(virq);
-	unsigned int src = virq_to_hw(virq);
+	struct qe_ic *qe_ic = qe_ic_from_irq_data(d);
+	unsigned int src = virq_to_hw(d->irq);
 	unsigned long flags;
 	u32 temp;
 
@@ -238,9 +243,9 @@ static void qe_ic_mask_irq(unsigned int virq)
 
 static struct irq_chip qe_ic_irq_chip = {
 	.name = "QEIC",
-	.unmask = qe_ic_unmask_irq,
-	.mask = qe_ic_mask_irq,
-	.mask_ack = qe_ic_mask_irq,
+	.irq_unmask = qe_ic_unmask_irq,
+	.irq_mask = qe_ic_mask_irq,
+	.irq_mask_ack = qe_ic_mask_irq,
 };
 
 static int qe_ic_host_match(struct irq_host *h, struct device_node *node)

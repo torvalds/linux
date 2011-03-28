@@ -175,7 +175,6 @@ nouveau_dp_link_train_adjust(struct drm_encoder *encoder, uint8_t *config)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct bit_displayport_encoder_table_entry *dpse;
 	struct bit_displayport_encoder_table *dpe;
 	int ret, i, dpe_headerlen, vs = 0, pre = 0;
 	uint8_t request[2];
@@ -183,7 +182,6 @@ nouveau_dp_link_train_adjust(struct drm_encoder *encoder, uint8_t *config)
 	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
 	if (!dpe)
 		return false;
-	dpse = (void *)((char *)dpe + dpe_headerlen);
 
 	ret = auxch_rd(encoder, DP_ADJUST_REQUEST_LANE0_1, request, 2);
 	if (ret)

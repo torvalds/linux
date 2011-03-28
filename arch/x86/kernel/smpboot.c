@@ -64,16 +64,13 @@
 #include <asm/mtrr.h>
 #include <asm/mwait.h>
 #include <asm/apic.h>
+#include <asm/io_apic.h>
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
-
-#ifdef CONFIG_X86_32
-u8 apicid_2_node[MAX_APICID];
-#endif
 
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
@@ -130,67 +127,13 @@ EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
+DEFINE_PER_CPU(cpumask_var_t, cpu_llc_shared_map);
+
 /* Per CPU bogomips and other parameters */
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 atomic_t init_deasserted;
-
-#if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
-/* which node each logical CPU is on */
-int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_to_node_map);
-
-/* set up a mapping between cpu and node. */
-static void map_cpu_to_node(int cpu, int node)
-{
-	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
-	cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = node;
-}
-
-/* undo a mapping between cpu and node. */
-static void unmap_cpu_to_node(int cpu)
-{
-	int node;
-
-	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
-	for (node = 0; node < MAX_NUMNODES; node++)
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = 0;
-}
-#else /* !(CONFIG_NUMA && CONFIG_X86_32) */
-#define map_cpu_to_node(cpu, node)	({})
-#define unmap_cpu_to_node(cpu)	({})
-#endif
-
-#ifdef CONFIG_X86_32
-static int boot_cpu_logical_apicid;
-
-u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly =
-					{ [0 ... NR_CPUS-1] = BAD_APICID };
-
-static void map_cpu_to_logical_apicid(void)
-{
-	int cpu = smp_processor_id();
-	int apicid = logical_smp_processor_id();
-	int node = apic->apicid_to_node(apicid);
-
-	if (!node_online(node))
-		node = first_online_node;
-
-	cpu_2_logical_apicid[cpu] = apicid;
-	map_cpu_to_node(cpu, node);
-}
-
-void numa_remove_cpu(int cpu)
-{
-	cpu_2_logical_apicid[cpu] = BAD_APICID;
-	unmap_cpu_to_node(cpu);
-}
-#else
-#define map_cpu_to_logical_apicid()  do {} while (0)
-#endif
 
 /*
  * Report back to the Boot Processor.
@@ -259,7 +202,6 @@ static void __cpuinit smp_callin(void)
 		apic->smp_callin_clear_local_apic();
 	setup_local_APIC();
 	end_local_APIC_setup();
-	map_cpu_to_logical_apicid();
 
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
@@ -355,23 +297,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	cpu_idle();
 }
 
-#ifdef CONFIG_CPUMASK_OFFSTACK
-/* In this case, llc_shared_map is a pointer to a cpumask. */
-static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
-				    const struct cpuinfo_x86 *src)
-{
-	struct cpumask *llc = dst->llc_shared_map;
-	*dst = *src;
-	dst->llc_shared_map = llc;
-}
-#else
-static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
-				    const struct cpuinfo_x86 *src)
-{
-	*dst = *src;
-}
-#endif /* CONFIG_CPUMASK_OFFSTACK */
-
 /*
  * The bootstrap kernel entry code has set these up. Save them for
  * a given CPU
@@ -381,7 +306,7 @@ void __cpuinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
 
-	copy_cpuinfo_x86(c, &boot_cpu_data);
+	*c = boot_cpu_data;
 	c->cpu_index = id;
 	if (id != 0)
 		identify_secondary_cpu(c);
@@ -389,15 +314,12 @@ void __cpuinit smp_store_cpu_info(int id)
 
 static void __cpuinit link_thread_siblings(int cpu1, int cpu2)
 {
-	struct cpuinfo_x86 *c1 = &cpu_data(cpu1);
-	struct cpuinfo_x86 *c2 = &cpu_data(cpu2);
-
 	cpumask_set_cpu(cpu1, cpu_sibling_mask(cpu2));
 	cpumask_set_cpu(cpu2, cpu_sibling_mask(cpu1));
 	cpumask_set_cpu(cpu1, cpu_core_mask(cpu2));
 	cpumask_set_cpu(cpu2, cpu_core_mask(cpu1));
-	cpumask_set_cpu(cpu1, c2->llc_shared_map);
-	cpumask_set_cpu(cpu2, c1->llc_shared_map);
+	cpumask_set_cpu(cpu1, cpu_llc_shared_mask(cpu2));
+	cpumask_set_cpu(cpu2, cpu_llc_shared_mask(cpu1));
 }
 
 
@@ -414,6 +336,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 
 			if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
 				if (c->phys_proc_id == o->phys_proc_id &&
+				    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i) &&
 				    c->compute_unit_id == o->compute_unit_id)
 					link_thread_siblings(cpu, i);
 			} else if (c->phys_proc_id == o->phys_proc_id &&
@@ -425,7 +348,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
 	}
 
-	cpumask_set_cpu(cpu, c->llc_shared_map);
+	cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
 
 	if (__this_cpu_read(cpu_info.x86_max_cores) == 1) {
 		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
@@ -436,8 +359,8 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
-			cpumask_set_cpu(i, c->llc_shared_map);
-			cpumask_set_cpu(cpu, cpu_data(i).llc_shared_map);
+			cpumask_set_cpu(i, cpu_llc_shared_mask(cpu));
+			cpumask_set_cpu(cpu, cpu_llc_shared_mask(i));
 		}
 		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
 			cpumask_set_cpu(i, cpu_core_mask(cpu));
@@ -476,7 +399,7 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 	    !(cpu_has(c, X86_FEATURE_AMD_DCM)))
 		return cpu_core_mask(cpu);
 	else
-		return c->llc_shared_map;
+		return cpu_llc_shared_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -788,7 +711,7 @@ do_rest:
 	stack_start  = c_idle.idle->thread.sp;
 
 	/* start_ip had better be page-aligned! */
-	start_ip = setup_trampoline();
+	start_ip = trampoline_address();
 
 	/* So we see what's up */
 	announce_cpu(cpu, apicid);
@@ -797,6 +720,8 @@ do_rest:
 	 * This grunge runs the startup process for
 	 * the targeted processor.
 	 */
+
+	printk(KERN_DEBUG "smpboot cpu %d: start_ip = %lx\n", cpu, start_ip);
 
 	atomic_set(&init_deasserted, 0);
 
@@ -851,8 +776,8 @@ do_rest:
 			pr_debug("CPU%d: has booted.\n", cpu);
 		else {
 			boot_error = 1;
-			if (*((volatile unsigned char *)trampoline_base)
-					== 0xA5)
+			if (*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status)
+			    == 0xA5A5A5A5)
 				/* trampoline started but...? */
 				pr_err("CPU%d: Stuck ??\n", cpu);
 			else
@@ -878,7 +803,7 @@ do_rest:
 	}
 
 	/* mark "stuck" area as not stuck */
-	*((volatile unsigned long *)trampoline_base) = 0;
+	*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status) = 0;
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 		/*
@@ -945,6 +870,14 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	return 0;
 }
 
+/**
+ * arch_disable_smp_support() - disables SMP support for x86 at runtime
+ */
+void arch_disable_smp_support(void)
+{
+	disable_ioapic_support();
+}
+
 /*
  * Fall back to non SMP mode after errors.
  *
@@ -960,7 +893,6 @@ static __init void disable_smp(void)
 		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	else
 		physid_set_mask_of_physid(0, &phys_cpu_present_map);
-	map_cpu_to_logical_apicid();
 	cpumask_set_cpu(0, cpu_sibling_mask(0));
 	cpumask_set_cpu(0, cpu_core_mask(0));
 }
@@ -1045,7 +977,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 				"(tell your hw vendor)\n");
 		}
 		smpboot_clear_io_apic();
-		arch_disable_smp_support();
+		disable_ioapic_support();
 		return -1;
 	}
 
@@ -1089,21 +1021,19 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	preempt_disable();
 	smp_cpu_index_default();
-	memcpy(__this_cpu_ptr(&cpu_info), &boot_cpu_data, sizeof(cpu_info));
-	cpumask_copy(cpu_callin_mask, cpumask_of(0));
-	mb();
+
 	/*
 	 * Setup boot CPU information
 	 */
 	smp_store_cpu_info(0); /* Final full version of the data */
-#ifdef CONFIG_X86_32
-	boot_cpu_logical_apicid = logical_smp_processor_id();
-#endif
+	cpumask_copy(cpu_callin_mask, cpumask_of(0));
+	mb();
+
 	current_thread_info()->cpu = 0;  /* needed? */
 	for_each_possible_cpu(i) {
 		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
 		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&cpu_data(i).llc_shared_map, GFP_KERNEL);
+		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
 	}
 	set_cpu_sibling_map(0);
 
@@ -1138,8 +1068,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		enable_IO_APIC();
 
 	bsp_end_local_APIC_setup();
-
-	map_cpu_to_logical_apicid();
 
 	if (apic->setup_portio_remap)
 		apic->setup_portio_remap();

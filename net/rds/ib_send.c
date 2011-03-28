@@ -551,7 +551,10 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	if (conn->c_loopback
 	    && rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
 		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
-		return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+		scat = &rm->data.op_sg[sg];
+		ret = sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+		ret = min_t(int, ret, scat->length - conn->c_xmit_data_off);
+		return ret;
 	}
 
 	/* FIXME we may overallocate here */

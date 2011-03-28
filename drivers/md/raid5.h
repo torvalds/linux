@@ -503,6 +503,6 @@ static inline int algorithm_is_DDF(int layout)
 }
 
 extern int md_raid5_congested(mddev_t *mddev, int bits);
-extern void md_raid5_unplug_device(raid5_conf_t *conf);
+extern void md_raid5_kick_device(raid5_conf_t *conf);
 extern int raid5_set_cache_size(mddev_t *mddev, int size);
 #endif

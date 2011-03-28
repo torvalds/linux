@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011 Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -39,16 +39,8 @@
 #define MSM_VIC_PHYS          0xAC000000
 #define MSM_VIC_SIZE          SZ_4K
 
-#define MSM_CSR_BASE          IOMEM(0xE0001000)
-#define MSM_CSR_PHYS          0xAC100000
-#define MSM_CSR_SIZE          SZ_4K
-
-#define MSM_TMR_PHYS          MSM_CSR_PHYS
-#define MSM_TMR_BASE          MSM_CSR_BASE
-#define MSM_TMR_SIZE          SZ_4K
-
-#define MSM_GPT_BASE          MSM_TMR_BASE
-#define MSM_DGT_BASE          (MSM_TMR_BASE + 0x10)
+#define QSD8X50_CSR_PHYS      0xAC100000
+#define QSD8X50_CSR_SIZE      SZ_4K
 
 #define MSM_DMOV_BASE         IOMEM(0xE0002000)
 #define MSM_DMOV_PHYS         0xA9700000
@@ -132,16 +124,16 @@
 #define MSM_UART2DM_PHYS      0xA0900000
 
 
-#define MSM_SDC1_PHYS          0xA0400000
+#define MSM_SDC1_PHYS          0xA0300000
 #define MSM_SDC1_SIZE          SZ_4K
 
-#define MSM_SDC2_PHYS          0xA0500000
+#define MSM_SDC2_PHYS          0xA0400000
 #define MSM_SDC2_SIZE          SZ_4K
 
-#define MSM_SDC3_PHYS          0xA0600000
+#define MSM_SDC3_PHYS          0xA0500000
 #define MSM_SDC3_SIZE           SZ_4K
 
-#define MSM_SDC4_PHYS          0xA0700000
+#define MSM_SDC4_PHYS          0xA0600000
 #define MSM_SDC4_SIZE          SZ_4K
 
 #endif

@@ -394,6 +394,11 @@ static int __init mtd_subpagetest_init(void)
 	}
 
 	subpgsize = mtd->writesize >> mtd->subpage_sft;
+	tmp = mtd->size;
+	do_div(tmp, mtd->erasesize);
+	ebcnt = tmp;
+	pgcnt = mtd->erasesize / mtd->writesize;
+
 	printk(PRINT_PREF "MTD device size %llu, eraseblock size %u, "
 	       "page size %u, subpage size %u, count of eraseblocks %u, "
 	       "pages per eraseblock %u, OOB size %u\n",
@@ -412,11 +417,6 @@ static int __init mtd_subpagetest_init(void)
 		printk(PRINT_PREF "error: cannot allocate memory\n");
 		goto out;
 	}
-
-	tmp = mtd->size;
-	do_div(tmp, mtd->erasesize);
-	ebcnt = tmp;
-	pgcnt = mtd->erasesize / mtd->writesize;
 
 	err = scan_for_bad_eraseblocks();
 	if (err)

@@ -23,6 +23,12 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 			   unsigned long irqflags,
 			   const char *devname,
 			   void *dev_id);
+int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
+					  unsigned int remote_port,
+					  irq_handler_t handler,
+					  unsigned long irqflags,
+					  const char *devname,
+					  void *dev_id);
 
 /*
  * Common unbind function for all event sources. Takes IRQ to unbind from.
@@ -41,9 +47,9 @@ static inline void notify_remote_via_evtchn(int port)
 	(void)HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
 }
 
-extern void notify_remote_via_irq(int irq);
+void notify_remote_via_irq(int irq);
 
-extern void xen_irq_resume(void);
+void xen_irq_resume(void);
 
 /* Clear an irq's pending state, in preparation for polling on it */
 void xen_clear_irq_pending(int irq);
@@ -62,34 +68,28 @@ void xen_poll_irq_timeout(int irq, u64 timeout);
 unsigned irq_from_evtchn(unsigned int evtchn);
 
 /* Xen HVM evtchn vector callback */
-extern void xen_hvm_callback_vector(void);
+void xen_hvm_callback_vector(void);
 extern int xen_have_vector_callback;
 int xen_set_callback_via(uint64_t via);
 void xen_evtchn_do_upcall(struct pt_regs *regs);
 void xen_hvm_evtchn_do_upcall(void);
 
-/* Allocate an irq for a physical interrupt, given a gsi.  "Legacy"
- * GSIs are identity mapped; others are dynamically allocated as
- * usual. */
-int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
-int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
+/* Allocate a pirq for a physical interrupt, given a gsi. */
+int xen_allocate_pirq_gsi(unsigned gsi);
+/* Bind a pirq for a physical interrupt to an irq. */
+int xen_bind_pirq_gsi_to_irq(unsigned gsi,
+			     unsigned pirq, int shareable, char *name);
 
 #ifdef CONFIG_PCI_MSI
-/* Allocate an irq and a pirq to be used with MSIs. */
-#define XEN_ALLOC_PIRQ (1 << 0)
-#define XEN_ALLOC_IRQ  (1 << 1)
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc_mask);
-int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type);
+/* Allocate a pirq for a MSI style physical interrupt. */
+int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc);
+/* Bind an PSI pirq to an irq. */
+int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
+			     int pirq, int vector, const char *name);
 #endif
 
 /* De-allocates the above mentioned physical interrupt. */
 int xen_destroy_irq(int irq);
-
-/* Return vector allocated to pirq */
-int xen_vector_from_irq(unsigned pirq);
-
-/* Return gsi allocated to pirq */
-int xen_gsi_from_irq(unsigned pirq);
 
 /* Return irq from pirq */
 int xen_irq_from_pirq(unsigned pirq);

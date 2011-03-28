@@ -424,37 +424,12 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int rx8025_irq_set_state(struct device *dev, int enabled)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
-	int ctrl1;
-	int err;
-
-	if (client->irq <= 0)
-		return -ENXIO;
-
-	ctrl1 = rx8025->ctrl1 & ~RX8025_BIT_CTRL1_CT;
-	if (enabled)
-		ctrl1 |= RX8025_BIT_CTRL1_CT_1HZ;
-	if (ctrl1 != rx8025->ctrl1) {
-		rx8025->ctrl1 = ctrl1;
-		err = rx8025_write_reg(rx8025->client, RX8025_REG_CTRL1,
-				       rx8025->ctrl1);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static struct rtc_class_ops rx8025_rtc_ops = {
 	.read_time = rx8025_get_time,
 	.set_time = rx8025_set_time,
 	.read_alarm = rx8025_read_alarm,
 	.set_alarm = rx8025_set_alarm,
 	.alarm_irq_enable = rx8025_alarm_irq_enable,
-	.irq_set_state  = rx8025_irq_set_state,
 };
 
 /*

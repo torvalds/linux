@@ -22,12 +22,12 @@
  * @poll: driver-supplied method that polls the device and posts
  *	input events (mandatory).
  * @poll_interval: specifies how often the poll() method should be called.
- *	Defaults to 500 msec unless overriden when registering the device.
+ *	Defaults to 500 msec unless overridden when registering the device.
  * @poll_interval_max: specifies upper bound for the poll interval.
  *	Defaults to the initial value of @poll_interval.
  * @poll_interval_min: specifies lower bound for the poll interval.
  *	Defaults to 0.
- * @input: input device structire associated with the polled device.
+ * @input: input device structure associated with the polled device.
  *	Must be properly initialized by the driver (id, name, phys, bits).
  *
  * Polled input device provides a skeleton for supporting simple input

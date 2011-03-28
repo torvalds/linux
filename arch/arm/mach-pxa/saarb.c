@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/mfd/88pm860x.h>
 
 #include <asm/mach-types.h>
@@ -23,8 +24,6 @@
 #include <mach/mfp.h>
 #include <mach/mfp-pxa930.h>
 #include <mach/gpio.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 

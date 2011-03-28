@@ -11,22 +11,8 @@
 #define	mcfpit_h
 /****************************************************************************/
 
-
 /*
- *	Get address specific defines for the 5270/5271, 5280/5282, and 5208.
- */
-#if defined(CONFIG_M520x)
-#define	MCFPIT_BASE1		0x00080000	/* Base address of TIMER1 */
-#define	MCFPIT_BASE2		0x00084000	/* Base address of TIMER2 */
-#else
-#define	MCFPIT_BASE1		0x00150000	/* Base address of TIMER1 */
-#define	MCFPIT_BASE2		0x00160000	/* Base address of TIMER2 */
-#define	MCFPIT_BASE3		0x00170000	/* Base address of TIMER3 */
-#define	MCFPIT_BASE4		0x00180000	/* Base address of TIMER4 */
-#endif
-
-/*
- *	Define the PIT timer register set addresses.
+ *	Define the PIT timer register address offsets.
  */
 #define	MCFPIT_PCSR		0x0		/* PIT control register */
 #define	MCFPIT_PMR		0x2		/* PIT modulus register */

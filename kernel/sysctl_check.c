@@ -111,11 +111,9 @@ int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table)
 		const char *fail = NULL;
 
 		if (table->parent) {
-			if (table->procname && !table->parent->procname)
+			if (!table->parent->procname)
 				set_fail(&fail, table, "Parent without procname");
 		}
-		if (!table->procname)
-			set_fail(&fail, table, "No procname");
 		if (table->child) {
 			if (table->data)
 				set_fail(&fail, table, "Directory with data?");
@@ -144,12 +142,8 @@ int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table)
 					set_fail(&fail, table, "No maxlen");
 			}
 #ifdef CONFIG_PROC_SYSCTL
-			if (table->procname && !table->proc_handler)
+			if (!table->proc_handler)
 				set_fail(&fail, table, "No proc_handler");
-#endif
-#if 0
-			if (!table->procname && table->proc_handler)
-				set_fail(&fail, table, "proc_handler without procname");
 #endif
 			sysctl_check_leaf(namespaces, table, &fail);
 		}

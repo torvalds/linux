@@ -58,7 +58,7 @@
 
 #include "fc_libfc.h"
 
-struct workqueue_struct *rport_event_queue;
+static struct workqueue_struct *rport_event_queue;
 
 static void fc_rport_enter_flogi(struct fc_rport_priv *);
 static void fc_rport_enter_plogi(struct fc_rport_priv *);
@@ -145,8 +145,10 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	rdata->maxframe_size = FC_MIN_MAX_PAYLOAD;
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
-	if (port_id != FC_FID_DIR_SERV)
+	if (port_id != FC_FID_DIR_SERV) {
+		rdata->lld_event_callback = lport->tt.rport_event_callback;
 		list_add_rcu(&rdata->peers, &lport->disc.rports);
+	}
 	return rdata;
 }
 
@@ -257,6 +259,8 @@ static void fc_rport_work(struct work_struct *work)
 	struct fc_rport_operations *rport_ops;
 	struct fc_rport_identifiers ids;
 	struct fc_rport *rport;
+	struct fc4_prov *prov;
+	u8 type;
 
 	mutex_lock(&rdata->rp_mutex);
 	event = rdata->event;
@@ -300,18 +304,35 @@ static void fc_rport_work(struct work_struct *work)
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
 		}
+		if (rdata->lld_event_callback) {
+			FC_RPORT_DBG(rdata, "lld callback ev %d\n", event);
+			rdata->lld_event_callback(lport, rdata, event);
+		}
 		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		break;
 
 	case RPORT_EV_FAILED:
 	case RPORT_EV_LOGO:
 	case RPORT_EV_STOP:
+		if (rdata->prli_count) {
+			mutex_lock(&fc_prov_mutex);
+			for (type = 1; type < FC_FC4_PROV_SIZE; type++) {
+				prov = fc_passive_prov[type];
+				if (prov && prov->prlo)
+					prov->prlo(rdata);
+			}
+			mutex_unlock(&fc_prov_mutex);
+		}
 		port_id = rdata->ids.port_id;
 		mutex_unlock(&rdata->rp_mutex);
 
 		if (rport_ops && rport_ops->event_callback) {
 			FC_RPORT_DBG(rdata, "callback ev %d\n", event);
 			rport_ops->event_callback(lport, rdata, event);
+		}
+		if (rdata->lld_event_callback) {
+			FC_RPORT_DBG(rdata, "lld callback ev %d\n", event);
+			rdata->lld_event_callback(lport, rdata, event);
 		}
 		cancel_delayed_work_sync(&rdata->retry_work);
 
@@ -336,6 +357,7 @@ static void fc_rport_work(struct work_struct *work)
 			if (port_id == FC_FID_DIR_SERV) {
 				rdata->event = RPORT_EV_NONE;
 				mutex_unlock(&rdata->rp_mutex);
+				kref_put(&rdata->kref, lport->tt.rport_destroy);
 			} else if ((rdata->flags & FC_RP_STARTED) &&
 				   rdata->major_retries <
 				   lport->max_rport_retry_count) {
@@ -575,7 +597,7 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata,
 
 	/* make sure this isn't an FC_EX_CLOSED error, never retry those */
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
-		return fc_rport_error(rdata, fp);
+		goto out;
 
 	if (rdata->retries < rdata->local_port->max_rport_retry_count) {
 		FC_RPORT_DBG(rdata, "Error %ld in state %s, retrying\n",
@@ -588,7 +610,8 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata,
 		return;
 	}
 
-	return fc_rport_error(rdata, fp);
+out:
+	fc_rport_error(rdata, fp);
 }
 
 /**
@@ -878,6 +901,9 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		rdata->ids.port_name = get_unaligned_be64(&plp->fl_wwpn);
 		rdata->ids.node_name = get_unaligned_be64(&plp->fl_wwnn);
 
+		/* save plogi response sp_features for further reference */
+		rdata->sp_features = ntohs(plp->fl_csp.sp_features);
+
 		if (lport->point_to_multipoint)
 			fc_rport_login_complete(rdata, fp);
 		csp_seq = ntohs(plp->fl_csp.sp_tot_seq);
@@ -949,6 +975,8 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
 	} *pp;
+	struct fc_els_spp temp_spp;
+	struct fc4_prov *prov;
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 	u32 fcp_parm = 0;
 	u8 op;
@@ -983,6 +1011,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		resp_code = (pp->spp.spp_flags & FC_SPP_RESP_MASK);
 		FC_RPORT_DBG(rdata, "PRLI spp_flags = 0x%x\n",
 			     pp->spp.spp_flags);
+		rdata->spp_type = pp->spp.spp_type;
 		if (resp_code != FC_SPP_RESP_ACK) {
 			if (resp_code == FC_SPP_RESP_CONF)
 				fc_rport_error(rdata, fp);
@@ -996,6 +1025,15 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		fcp_parm = ntohl(pp->spp.spp_params);
 		if (fcp_parm & FCP_SPPF_RETRY)
 			rdata->flags |= FC_RP_FLAGS_RETRY;
+		if (fcp_parm & FCP_SPPF_CONF_COMPL)
+			rdata->flags |= FC_RP_FLAGS_CONF_REQ;
+
+		prov = fc_passive_prov[FC_TYPE_FCP];
+		if (prov) {
+			memset(&temp_spp, 0, sizeof(temp_spp));
+			prov->prli(rdata, pp->prli.prli_spp_len,
+				   &pp->spp, &temp_spp);
+		}
 
 		rdata->supported_classes = FC_COS_CLASS3;
 		if (fcp_parm & FCP_SPPF_INIT_FCN)
@@ -1033,6 +1071,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		struct fc_els_spp spp;
 	} *pp;
 	struct fc_frame *fp;
+	struct fc4_prov *prov;
 
 	/*
 	 * If the rport is one of the well known addresses
@@ -1054,9 +1093,20 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		return;
 	}
 
-	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_PRLI,
-				  fc_rport_prli_resp, rdata,
-				  2 * lport->r_a_tov))
+	fc_prli_fill(lport, fp);
+
+	prov = fc_passive_prov[FC_TYPE_FCP];
+	if (prov) {
+		pp = fc_frame_payload_get(fp, sizeof(*pp));
+		prov->prli(rdata, sizeof(pp->spp), NULL, &pp->spp);
+	}
+
+	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, rdata->ids.port_id,
+		       fc_host_port_id(lport->host), FC_TYPE_ELS,
+		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+
+	if (!lport->tt.exch_seq_send(lport, fp, fc_rport_prli_resp,
+				    NULL, rdata, 2 * lport->r_a_tov))
 		fc_rport_error_retry(rdata, NULL);
 	else
 		kref_get(&rdata->kref);
@@ -1642,9 +1692,9 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	unsigned int len;
 	unsigned int plen;
 	enum fc_els_spp_resp resp;
+	enum fc_els_spp_resp passive;
 	struct fc_seq_els_data rjt_data;
-	u32 fcp_parm;
-	u32 roles = FC_RPORT_ROLE_UNKNOWN;
+	struct fc4_prov *prov;
 
 	FC_RPORT_DBG(rdata, "Received PRLI request while in state %s\n",
 		     fc_rport_state(rdata));
@@ -1678,46 +1728,42 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	pp->prli.prli_len = htons(len);
 	len -= sizeof(struct fc_els_prli);
 
-	/* reinitialize remote port roles */
-	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
-
 	/*
 	 * Go through all the service parameter pages and build
 	 * response.  If plen indicates longer SPP than standard,
 	 * use that.  The entire response has been pre-cleared above.
 	 */
 	spp = &pp->spp;
+	mutex_lock(&fc_prov_mutex);
 	while (len >= plen) {
+		rdata->spp_type = rspp->spp_type;
 		spp->spp_type = rspp->spp_type;
 		spp->spp_type_ext = rspp->spp_type_ext;
-		spp->spp_flags = rspp->spp_flags & FC_SPP_EST_IMG_PAIR;
-		resp = FC_SPP_RESP_ACK;
+		resp = 0;
 
-		switch (rspp->spp_type) {
-		case 0:	/* common to all FC-4 types */
-			break;
-		case FC_TYPE_FCP:
-			fcp_parm = ntohl(rspp->spp_params);
-			if (fcp_parm & FCP_SPPF_RETRY)
-				rdata->flags |= FC_RP_FLAGS_RETRY;
-			rdata->supported_classes = FC_COS_CLASS3;
-			if (fcp_parm & FCP_SPPF_INIT_FCN)
-				roles |= FC_RPORT_ROLE_FCP_INITIATOR;
-			if (fcp_parm & FCP_SPPF_TARG_FCN)
-				roles |= FC_RPORT_ROLE_FCP_TARGET;
-			rdata->ids.roles = roles;
-
-			spp->spp_params = htonl(lport->service_params);
-			break;
-		default:
-			resp = FC_SPP_RESP_INVL;
-			break;
+		if (rspp->spp_type < FC_FC4_PROV_SIZE) {
+			prov = fc_active_prov[rspp->spp_type];
+			if (prov)
+				resp = prov->prli(rdata, plen, rspp, spp);
+			prov = fc_passive_prov[rspp->spp_type];
+			if (prov) {
+				passive = prov->prli(rdata, plen, rspp, spp);
+				if (!resp || passive == FC_SPP_RESP_ACK)
+					resp = passive;
+			}
+		}
+		if (!resp) {
+			if (spp->spp_flags & FC_SPP_EST_IMG_PAIR)
+				resp |= FC_SPP_RESP_CONF;
+			else
+				resp |= FC_SPP_RESP_INVL;
 		}
 		spp->spp_flags |= resp;
 		len -= plen;
 		rspp = (struct fc_els_spp *)((char *)rspp + plen);
 		spp = (struct fc_els_spp *)((char *)spp + plen);
 	}
+	mutex_unlock(&fc_prov_mutex);
 
 	/*
 	 * Send LS_ACC.	 If this fails, the originator should retry.
@@ -1887,9 +1933,82 @@ int fc_rport_init(struct fc_lport *lport)
 EXPORT_SYMBOL(fc_rport_init);
 
 /**
+ * fc_rport_fcp_prli() - Handle incoming PRLI for the FCP initiator.
+ * @rdata: remote port private
+ * @spp_len: service parameter page length
+ * @rspp: received service parameter page
+ * @spp: response service parameter page
+ *
+ * Returns the value for the response code to be placed in spp_flags;
+ * Returns 0 if not an initiator.
+ */
+static int fc_rport_fcp_prli(struct fc_rport_priv *rdata, u32 spp_len,
+			     const struct fc_els_spp *rspp,
+			     struct fc_els_spp *spp)
+{
+	struct fc_lport *lport = rdata->local_port;
+	u32 fcp_parm;
+
+	fcp_parm = ntohl(rspp->spp_params);
+	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
+	if (fcp_parm & FCP_SPPF_INIT_FCN)
+		rdata->ids.roles |= FC_RPORT_ROLE_FCP_INITIATOR;
+	if (fcp_parm & FCP_SPPF_TARG_FCN)
+		rdata->ids.roles |= FC_RPORT_ROLE_FCP_TARGET;
+	if (fcp_parm & FCP_SPPF_RETRY)
+		rdata->flags |= FC_RP_FLAGS_RETRY;
+	rdata->supported_classes = FC_COS_CLASS3;
+
+	if (!(lport->service_params & FC_RPORT_ROLE_FCP_INITIATOR))
+		return 0;
+
+	spp->spp_flags |= rspp->spp_flags & FC_SPP_EST_IMG_PAIR;
+
+	/*
+	 * OR in our service parameters with other providers (target), if any.
+	 */
+	fcp_parm = ntohl(spp->spp_params);
+	spp->spp_params = htonl(fcp_parm | lport->service_params);
+	return FC_SPP_RESP_ACK;
+}
+
+/*
+ * FC-4 provider ops for FCP initiator.
+ */
+struct fc4_prov fc_rport_fcp_init = {
+	.prli = fc_rport_fcp_prli,
+};
+
+/**
+ * fc_rport_t0_prli() - Handle incoming PRLI parameters for type 0
+ * @rdata: remote port private
+ * @spp_len: service parameter page length
+ * @rspp: received service parameter page
+ * @spp: response service parameter page
+ */
+static int fc_rport_t0_prli(struct fc_rport_priv *rdata, u32 spp_len,
+			    const struct fc_els_spp *rspp,
+			    struct fc_els_spp *spp)
+{
+	if (rspp->spp_flags & FC_SPP_EST_IMG_PAIR)
+		return FC_SPP_RESP_INVL;
+	return FC_SPP_RESP_ACK;
+}
+
+/*
+ * FC-4 provider ops for type 0 service parameters.
+ *
+ * This handles the special case of type 0 which is always successful
+ * but doesn't do anything otherwise.
+ */
+struct fc4_prov fc_rport_t0_prov = {
+	.prli = fc_rport_t0_prli,
+};
+
+/**
  * fc_setup_rport() - Initialize the rport_event_queue
  */
-int fc_setup_rport()
+int fc_setup_rport(void)
 {
 	rport_event_queue = create_singlethread_workqueue("fc_rport_eq");
 	if (!rport_event_queue)
@@ -1900,7 +2019,7 @@ int fc_setup_rport()
 /**
  * fc_destroy_rport() - Destroy the rport_event_queue
  */
-void fc_destroy_rport()
+void fc_destroy_rport(void)
 {
 	destroy_workqueue(rport_event_queue);
 }

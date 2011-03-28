@@ -13,14 +13,16 @@
 
 #define	CPU_NAME		"COLDFIRE(m528x)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		MCF_CLK
 
 #include <asm/m52xxacr.h>
 
 /*
  *	Define the 5280/5282 SIM register set addresses.
  */
-#define	MCFICM_INTC0		0x0c00		/* Base for Interrupt Ctrl 0 */
-#define	MCFICM_INTC1		0x0d00		/* Base for Interrupt Ctrl 0 */
+#define	MCFICM_INTC0		(MCF_IPSBAR + 0x0c00)	/* Base for Interrupt Ctrl 0 */
+#define	MCFICM_INTC1		(MCF_IPSBAR + 0x0d00)	/* Base for Interrupt Ctrl 0 */
+
 #define	MCFINTC_IPRH		0x00		/* Interrupt pending 32-63 */
 #define	MCFINTC_IPRL		0x04		/* Interrupt pending 1-31 */
 #define	MCFINTC_IMRH		0x08		/* Interrupt mask 32-63 */
@@ -39,18 +41,32 @@
 /*
  *	SDRAM configuration registers.
  */
-#define	MCFSIM_DCR		0x44		/* SDRAM control */
-#define	MCFSIM_DACR0		0x48		/* SDRAM base address 0 */
-#define	MCFSIM_DMR0		0x4c		/* SDRAM address mask 0 */
-#define	MCFSIM_DACR1		0x50		/* SDRAM base address 1 */
-#define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
+#define	MCFSIM_DCR		(MCF_IPSBAR + 0x00000044) /* Control */
+#define	MCFSIM_DACR0		(MCF_IPSBAR + 0x00000048) /* Base address 0 */
+#define	MCFSIM_DMR0		(MCF_IPSBAR + 0x0000004c) /* Address mask 0 */
+#define	MCFSIM_DACR1		(MCF_IPSBAR + 0x00000050) /* Base address 1 */
+#define	MCFSIM_DMR1		(MCF_IPSBAR + 0x00000054) /* Address mask 1 */
+
+/*
+ *	DMA unit base addresses.
+ */
+#define	MCFDMA_BASE0		(MCF_IPSBAR + 0x00000100)
+#define	MCFDMA_BASE1		(MCF_IPSBAR + 0x00000140)
+#define	MCFDMA_BASE2		(MCF_IPSBAR + 0x00000180)
+#define	MCFDMA_BASE3		(MCF_IPSBAR + 0x000001C0)
 
 /*
  *	UART module.
  */
-#define MCFUART_BASE1		0x200           /* Base address of UART1 */
-#define MCFUART_BASE2		0x240           /* Base address of UART2 */
-#define MCFUART_BASE3		0x280           /* Base address of UART3 */
+#define	MCFUART_BASE1		(MCF_IPSBAR + 0x00000200)
+#define	MCFUART_BASE2		(MCF_IPSBAR + 0x00000240)
+#define	MCFUART_BASE3		(MCF_IPSBAR + 0x00000280)
+
+/*
+ *	FEC ethernet module.
+ */
+#define	MCFFEC_BASE		(MCF_IPSBAR + 0x00001000)
+#define	MCFFEC_SIZE		0x800
 
 /*
  * 	GPIO registers
@@ -161,6 +177,14 @@
 #define MCFGPIO_PTCPAR		(MCF_IPSBAR + 0x0010005A)
 #define MCFGPIO_PTDPAR		(MCF_IPSBAR + 0x0010005B)
 #define MCFGPIO_PUAPAR		(MCF_IPSBAR + 0x0010005C)
+
+/*
+ * PIT timer base addresses.
+ */
+#define	MCFPIT_BASE1		(MCF_IPSBAR + 0x00150000)
+#define	MCFPIT_BASE2		(MCF_IPSBAR + 0x00160000)
+#define	MCFPIT_BASE3		(MCF_IPSBAR + 0x00170000)
+#define	MCFPIT_BASE4		(MCF_IPSBAR + 0x00180000)
 
 /*
  * 	Edge Port registers

@@ -158,7 +158,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		      FS_SYNC_FL | FS_DIRSYNC_FL))
 		return -EOPNOTSUPP;
 
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
 	mutex_lock(&inode->i_mutex);
@@ -1077,7 +1077,7 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 	if (flags & ~BTRFS_SUBVOL_RDONLY)
 		return -EOPNOTSUPP;
 
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
 	down_write(&root->fs_info->subvol_sem);

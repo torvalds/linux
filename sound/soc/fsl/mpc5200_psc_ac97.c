@@ -272,8 +272,7 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_ac97_of_probe(struct platform_device *op,
-				      const struct of_device_id *match)
+static int __devinit psc_ac97_of_probe(struct platform_device *op)
 {
 	int rc;
 	struct snd_ac97 ac97;
@@ -316,7 +315,7 @@ static struct of_device_id psc_ac97_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, psc_ac97_match);
 
-static struct of_platform_driver psc_ac97_driver = {
+static struct platform_driver psc_ac97_driver = {
 	.probe = psc_ac97_of_probe,
 	.remove = __devexit_p(psc_ac97_of_remove),
 	.driver = {
@@ -332,13 +331,13 @@ static struct of_platform_driver psc_ac97_driver = {
  */
 static int __init psc_ac97_init(void)
 {
-	return of_register_platform_driver(&psc_ac97_driver);
+	return platform_driver_register(&psc_ac97_driver);
 }
 module_init(psc_ac97_init);
 
 static void __exit psc_ac97_exit(void)
 {
-	of_unregister_platform_driver(&psc_ac97_driver);
+	platform_driver_unregister(&psc_ac97_driver);
 }
 module_exit(psc_ac97_exit);
 

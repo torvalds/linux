@@ -44,6 +44,19 @@ struct gic_chip_data {
 	void __iomem *cpu_base;
 };
 
+/*
+ * Supported arch specific GIC irq extension.
+ * Default make them NULL.
+ */
+struct irq_chip gic_arch_extn = {
+	.irq_ack	= NULL,
+	.irq_mask	= NULL,
+	.irq_unmask	= NULL,
+	.irq_retrigger	= NULL,
+	.irq_set_type	= NULL,
+	.irq_set_wake	= NULL,
+};
+
 #ifndef MAX_GIC_NR
 #define MAX_GIC_NR	1
 #endif
@@ -74,6 +87,8 @@ static inline unsigned int gic_irq(struct irq_data *d)
 static void gic_ack_irq(struct irq_data *d)
 {
 	spin_lock(&irq_controller_lock);
+	if (gic_arch_extn.irq_ack)
+		gic_arch_extn.irq_ack(d);
 	writel(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
 	spin_unlock(&irq_controller_lock);
 }
@@ -84,6 +99,8 @@ static void gic_mask_irq(struct irq_data *d)
 
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(d) + GIC_DIST_ENABLE_CLEAR + (gic_irq(d) / 32) * 4);
+	if (gic_arch_extn.irq_mask)
+		gic_arch_extn.irq_mask(d);
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -92,6 +109,8 @@ static void gic_unmask_irq(struct irq_data *d)
 	u32 mask = 1 << (d->irq % 32);
 
 	spin_lock(&irq_controller_lock);
+	if (gic_arch_extn.irq_unmask)
+		gic_arch_extn.irq_unmask(d);
 	writel(mask, gic_dist_base(d) + GIC_DIST_ENABLE_SET + (gic_irq(d) / 32) * 4);
 	spin_unlock(&irq_controller_lock);
 }
@@ -115,6 +134,9 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 
 	spin_lock(&irq_controller_lock);
+
+	if (gic_arch_extn.irq_set_type)
+		gic_arch_extn.irq_set_type(d, type);
 
 	val = readl(base + GIC_DIST_CONFIG + confoff);
 	if (type == IRQ_TYPE_LEVEL_HIGH)
@@ -141,30 +163,52 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static int gic_retrigger(struct irq_data *d)
+{
+	if (gic_arch_extn.irq_retrigger)
+		return gic_arch_extn.irq_retrigger(d);
+
+	return -ENXIO;
+}
+
 #ifdef CONFIG_SMP
-static int
-gic_set_cpu(struct irq_data *d, const struct cpumask *mask_val, bool force)
+static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+			    bool force)
 {
 	void __iomem *reg = gic_dist_base(d) + GIC_DIST_TARGET + (gic_irq(d) & ~3);
 	unsigned int shift = (d->irq % 4) * 8;
 	unsigned int cpu = cpumask_first(mask_val);
-	u32 val;
-	struct irq_desc *desc;
+	u32 val, mask, bit;
+
+	if (cpu >= 8)
+		return -EINVAL;
+
+	mask = 0xff << shift;
+	bit = 1 << (cpu + shift);
 
 	spin_lock(&irq_controller_lock);
-	desc = irq_to_desc(d->irq);
-	if (desc == NULL) {
-		spin_unlock(&irq_controller_lock);
-		return -EINVAL;
-	}
 	d->node = cpu;
-	val = readl(reg) & ~(0xff << shift);
-	val |= 1 << (cpu + shift);
-	writel(val, reg);
+	val = readl(reg) & ~mask;
+	writel(val | bit, reg);
 	spin_unlock(&irq_controller_lock);
 
 	return 0;
 }
+#endif
+
+#ifdef CONFIG_PM
+static int gic_set_wake(struct irq_data *d, unsigned int on)
+{
+	int ret = -ENXIO;
+
+	if (gic_arch_extn.irq_set_wake)
+		ret = gic_arch_extn.irq_set_wake(d, on);
+
+	return ret;
+}
+
+#else
+#define gic_set_wake	NULL
 #endif
 
 static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
@@ -202,9 +246,11 @@ static struct irq_chip gic_chip = {
 	.irq_mask		= gic_mask_irq,
 	.irq_unmask		= gic_unmask_irq,
 	.irq_set_type		= gic_set_type,
+	.irq_retrigger		= gic_retrigger,
 #ifdef CONFIG_SMP
-	.irq_set_affinity	= gic_set_cpu,
+	.irq_set_affinity	= gic_set_affinity,
 #endif
+	.irq_set_wake		= gic_set_wake,
 };
 
 void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)

@@ -123,8 +123,8 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 		((params->numberoflines * params->pitch) / PAGE_SIZE);
 	params->bitspersample = 8;
 	params->linethreshold = 0;
-	params->pagetablelistvirt = 0;
-	params->pagetablelistphys = 0;
+	params->pagetablelistvirt = NULL;
+	params->pagetablelistphys = NULL;
 	params->numpagetableentries = port->hwcfg.buffercount;
 
 	/* Allocate the PCI resources, buffers (hard) */
@@ -1054,7 +1054,7 @@ static int fops_release(struct file *file)
 
 struct saa7164_user_buffer *saa7164_vbi_next_buf(struct saa7164_port *port)
 {
-	struct saa7164_user_buffer *ubuf = 0;
+	struct saa7164_user_buffer *ubuf = NULL;
 	struct saa7164_dev *dev = port->dev;
 	u32 crc;
 
@@ -1334,7 +1334,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 	port->v4l_device = saa7164_vbi_alloc(port,
 		dev->pci, &saa7164_vbi_template, "vbi");
 
-	if (port->v4l_device == NULL) {
+	if (!port->v4l_device) {
 		printk(KERN_INFO "%s: can't allocate vbi device\n",
 			dev->name);
 		result = -ENOMEM;

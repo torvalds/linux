@@ -225,4 +225,20 @@ extern int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr);
  */
 extern int s5p_register_gpio_interrupt(int pin);
 
+/** s5p_register_gpioint_bank() - add gpio bank for further gpio interrupt
+ * registration (see s5p_register_gpio_interrupt function)
+ * @chain_irq: chained irq number for the gpio int handler for this bank
+ * @start: start gpio group number of this bank
+ * @nr_groups: number of gpio groups handled by this bank
+ *
+ * This functions registers initial information about gpio banks that
+ * can be later used by the s5p_register_gpio_interrupt() function to
+ * enable support for gpio interrupt for particular gpio group.
+ */
+#ifdef CONFIG_S5P_GPIO_INT
+extern int s5p_register_gpioint_bank(int chain_irq, int start, int nr_groups);
+#else
+#define s5p_register_gpioint_bank(chain_irq, start, nr_groups) do { } while (0)
+#endif
+
 #endif /* __PLAT_GPIO_CFG_H */

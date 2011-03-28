@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -50,6 +50,7 @@
 
 /* fragmentation defines */
 #define UNI_FRAG_HEAD 0x01
+#define UNI_FRAG_LARGETAIL 0x02
 
 struct batman_packet {
 	uint8_t  packet_type;

@@ -226,8 +226,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (iwl_advanced_bt_coexist(priv)) {
 		if (!priv->cfg->bt_params->bt_sco_disable)
 			cmd->flags |= IWL_POWER_BT_SCO_ENA;
 		else
@@ -313,8 +312,7 @@ static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (iwl_advanced_bt_coexist(priv)) {
 		if (!priv->cfg->bt_params->bt_sco_disable)
 			cmd->flags |= IWL_POWER_BT_SCO_ENA;
 		else
@@ -358,8 +356,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	if (priv->cfg->base_params->broken_powersave)
 		iwl_power_sleep_cam_cmd(priv, cmd);
-	else if (priv->cfg->base_params->supports_idle &&
-		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
+	else if (priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (priv->cfg->ops->lib->tt_ops.lower_power_detection &&
 		 priv->cfg->ops->lib->tt_ops.tt_power_mode &&
@@ -428,7 +425,6 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_power_set_mode);
 
 int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
@@ -437,7 +433,6 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	iwl_power_build_cmd(priv, &cmd);
 	return iwl_power_set_mode(priv, &cmd, force);
 }
-EXPORT_SYMBOL(iwl_power_update_mode);
 
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
@@ -451,4 +446,3 @@ void iwl_power_initialize(struct iwl_priv *priv)
 	memset(&priv->power_data.sleep_cmd, 0,
 		sizeof(priv->power_data.sleep_cmd));
 }
-EXPORT_SYMBOL(iwl_power_initialize);

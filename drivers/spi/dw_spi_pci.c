@@ -20,8 +20,9 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/spi/dw_spi.h>
 #include <linux/spi/spi.h>
+
+#include "dw_spi.h"
 
 #define DRIVER_NAME "dw_spi_pci"
 

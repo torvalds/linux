@@ -24,7 +24,7 @@ static struct rc_map_table encore_enltv[] = {
 	{ 0x1e, KEY_TV },
 	{ 0x00, KEY_VIDEO },
 	{ 0x01, KEY_AUDIO },		/* music */
-	{ 0x02, KEY_MHP },		/* picture */
+	{ 0x02, KEY_CAMERA },		/* picture */
 
 	{ 0x1f, KEY_1 },
 	{ 0x03, KEY_2 },
@@ -77,7 +77,7 @@ static struct rc_map_table encore_enltv[] = {
 	{ 0x50, KEY_SLEEP },		/* shutdown */
 	{ 0x51, KEY_MODE },		/* stereo > main */
 	{ 0x52, KEY_SELECT },		/* stereo > sap */
-	{ 0x53, KEY_PROG1 },		/* teletext */
+	{ 0x53, KEY_TEXT },		/* teletext */
 
 
 	{ 0x59, KEY_RED },		/* AP1 */

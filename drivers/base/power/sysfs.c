@@ -431,9 +431,28 @@ static ssize_t async_store(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(async, 0644, async_show, async_store);
 #endif /* CONFIG_PM_ADVANCED_DEBUG */
 
-static struct attribute * power_attrs[] = {
-	&dev_attr_wakeup.attr,
+static struct attribute *power_attrs[] = {
+#ifdef CONFIG_PM_ADVANCED_DEBUG
 #ifdef CONFIG_PM_SLEEP
+	&dev_attr_async.attr,
+#endif
+#ifdef CONFIG_PM_RUNTIME
+	&dev_attr_runtime_status.attr,
+	&dev_attr_runtime_usage.attr,
+	&dev_attr_runtime_active_kids.attr,
+	&dev_attr_runtime_enabled.attr,
+#endif
+#endif /* CONFIG_PM_ADVANCED_DEBUG */
+	NULL,
+};
+static struct attribute_group pm_attr_group = {
+	.name	= power_group_name,
+	.attrs	= power_attrs,
+};
+
+static struct attribute *wakeup_attrs[] = {
+#ifdef CONFIG_PM_SLEEP
+	&dev_attr_wakeup.attr,
 	&dev_attr_wakeup_count.attr,
 	&dev_attr_wakeup_active_count.attr,
 	&dev_attr_wakeup_hit_count.attr,
@@ -442,25 +461,15 @@ static struct attribute * power_attrs[] = {
 	&dev_attr_wakeup_max_time_ms.attr,
 	&dev_attr_wakeup_last_time_ms.attr,
 #endif
-#ifdef CONFIG_PM_ADVANCED_DEBUG
-	&dev_attr_async.attr,
-#ifdef CONFIG_PM_RUNTIME
-	&dev_attr_runtime_status.attr,
-	&dev_attr_runtime_usage.attr,
-	&dev_attr_runtime_active_kids.attr,
-	&dev_attr_runtime_enabled.attr,
-#endif
-#endif
 	NULL,
 };
-static struct attribute_group pm_attr_group = {
+static struct attribute_group pm_wakeup_attr_group = {
 	.name	= power_group_name,
-	.attrs	= power_attrs,
+	.attrs	= wakeup_attrs,
 };
 
-#ifdef CONFIG_PM_RUNTIME
-
 static struct attribute *runtime_attrs[] = {
+#ifdef CONFIG_PM_RUNTIME
 #ifndef CONFIG_PM_ADVANCED_DEBUG
 	&dev_attr_runtime_status.attr,
 #endif
@@ -468,6 +477,7 @@ static struct attribute *runtime_attrs[] = {
 	&dev_attr_runtime_suspended_time.attr,
 	&dev_attr_runtime_active_time.attr,
 	&dev_attr_autosuspend_delay_ms.attr,
+#endif /* CONFIG_PM_RUNTIME */
 	NULL,
 };
 static struct attribute_group pm_runtime_attr_group = {
@@ -480,12 +490,39 @@ int dpm_sysfs_add(struct device *dev)
 	int rc;
 
 	rc = sysfs_create_group(&dev->kobj, &pm_attr_group);
-	if (rc == 0 && !dev->power.no_callbacks) {
+	if (rc)
+		return rc;
+
+	if (pm_runtime_callbacks_present(dev)) {
 		rc = sysfs_merge_group(&dev->kobj, &pm_runtime_attr_group);
 		if (rc)
-			sysfs_remove_group(&dev->kobj, &pm_attr_group);
+			goto err_out;
 	}
+
+	if (device_can_wakeup(dev)) {
+		rc = sysfs_merge_group(&dev->kobj, &pm_wakeup_attr_group);
+		if (rc) {
+			if (pm_runtime_callbacks_present(dev))
+				sysfs_unmerge_group(&dev->kobj,
+						    &pm_runtime_attr_group);
+			goto err_out;
+		}
+	}
+	return 0;
+
+ err_out:
+	sysfs_remove_group(&dev->kobj, &pm_attr_group);
 	return rc;
+}
+
+int wakeup_sysfs_add(struct device *dev)
+{
+	return sysfs_merge_group(&dev->kobj, &pm_wakeup_attr_group);
+}
+
+void wakeup_sysfs_remove(struct device *dev)
+{
+	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);
 }
 
 void rpm_sysfs_remove(struct device *dev)
@@ -496,19 +533,6 @@ void rpm_sysfs_remove(struct device *dev)
 void dpm_sysfs_remove(struct device *dev)
 {
 	rpm_sysfs_remove(dev);
+	sysfs_unmerge_group(&dev->kobj, &pm_wakeup_attr_group);
 	sysfs_remove_group(&dev->kobj, &pm_attr_group);
 }
-
-#else /* CONFIG_PM_RUNTIME */
-
-int dpm_sysfs_add(struct device * dev)
-{
-	return sysfs_create_group(&dev->kobj, &pm_attr_group);
-}
-
-void dpm_sysfs_remove(struct device * dev)
-{
-	sysfs_remove_group(&dev->kobj, &pm_attr_group);
-}
-
-#endif

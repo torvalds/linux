@@ -28,8 +28,8 @@ struct nfulnl_msg_packet_hw {
 };
 
 struct nfulnl_msg_packet_timestamp {
-	aligned_be64	sec;
-	aligned_be64	usec;
+	__aligned_be64	sec;
+	__aligned_be64	usec;
 };
 
 enum nfulnl_attr_type {

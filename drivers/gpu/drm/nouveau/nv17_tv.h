@@ -112,7 +112,7 @@ extern struct nv17_tv_norm_params {
 } nv17_tv_norms[NUM_TV_NORMS];
 #define get_tv_norm(enc) (&nv17_tv_norms[to_tv_enc(enc)->tv_norm])
 
-extern struct drm_display_mode nv17_tv_modes[];
+extern const struct drm_display_mode nv17_tv_modes[];
 
 static inline int interpolate(int y0, int y1, int y2, int x)
 {

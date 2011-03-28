@@ -1053,8 +1053,7 @@ static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
 	/* Allocate libata host for 1 port */
 	memset(&pinfo, 0, sizeof(struct ata_port_info));
 	pmac_macio_calc_timing_masks(priv, &pinfo);
-	pinfo.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_MMIO |
-				  ATA_FLAG_NO_LEGACY;
+	pinfo.flags		= ATA_FLAG_SLAVE_POSS;
 	pinfo.port_ops		= &pata_macio_ops;
 	pinfo.private_data	= priv;
 

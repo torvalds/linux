@@ -39,10 +39,10 @@ struct pq2ads_pci_pic {
 
 #define NUM_IRQS 32
 
-static void pq2ads_pci_mask_irq(unsigned int virq)
+static void pq2ads_pci_mask_irq(struct irq_data *d)
 {
-	struct pq2ads_pci_pic *priv = get_irq_chip_data(virq);
-	int irq = NUM_IRQS - virq_to_hw(virq) - 1;
+	struct pq2ads_pci_pic *priv = irq_data_get_irq_chip_data(d);
+	int irq = NUM_IRQS - virq_to_hw(d->irq) - 1;
 
 	if (irq != -1) {
 		unsigned long flags;
@@ -55,10 +55,10 @@ static void pq2ads_pci_mask_irq(unsigned int virq)
 	}
 }
 
-static void pq2ads_pci_unmask_irq(unsigned int virq)
+static void pq2ads_pci_unmask_irq(struct irq_data *d)
 {
-	struct pq2ads_pci_pic *priv = get_irq_chip_data(virq);
-	int irq = NUM_IRQS - virq_to_hw(virq) - 1;
+	struct pq2ads_pci_pic *priv = irq_data_get_irq_chip_data(d);
+	int irq = NUM_IRQS - virq_to_hw(d->irq) - 1;
 
 	if (irq != -1) {
 		unsigned long flags;
@@ -71,18 +71,17 @@ static void pq2ads_pci_unmask_irq(unsigned int virq)
 
 static struct irq_chip pq2ads_pci_ic = {
 	.name = "PQ2 ADS PCI",
-	.end = pq2ads_pci_unmask_irq,
-	.mask = pq2ads_pci_mask_irq,
-	.mask_ack = pq2ads_pci_mask_irq,
-	.ack = pq2ads_pci_mask_irq,
-	.unmask = pq2ads_pci_unmask_irq,
-	.enable = pq2ads_pci_unmask_irq,
-	.disable = pq2ads_pci_mask_irq
+	.irq_mask = pq2ads_pci_mask_irq,
+	.irq_mask_ack = pq2ads_pci_mask_irq,
+	.irq_ack = pq2ads_pci_mask_irq,
+	.irq_unmask = pq2ads_pci_unmask_irq,
+	.irq_enable = pq2ads_pci_unmask_irq,
+	.irq_disable = pq2ads_pci_mask_irq
 };
 
 static void pq2ads_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	struct pq2ads_pci_pic *priv = desc->handler_data;
+	struct pq2ads_pci_pic *priv = get_irq_desc_data(desc);
 	u32 stat, mask, pend;
 	int bit;
 

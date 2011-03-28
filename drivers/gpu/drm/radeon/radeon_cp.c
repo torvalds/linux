@@ -2113,9 +2113,9 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 		break;
 	}
 
-	if (drm_device_is_agp(dev))
+	if (drm_pci_device_is_agp(dev))
 		dev_priv->flags |= RADEON_IS_AGP;
-	else if (drm_device_is_pcie(dev))
+	else if (drm_pci_device_is_pcie(dev))
 		dev_priv->flags |= RADEON_IS_PCIE;
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
