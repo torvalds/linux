@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/log2.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
@@ -811,13 +812,18 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags)) {
 		/*
-		 * Allocate txstatus fifo and tasklet, we use a size of 512
-		 * for the kfifo which is big enough to store 512/4=128 tx
-		 * status reports. In the worst case (tx status for all tx
-		 * queues gets reported before we've got a chance to handle
-		 * them) 24*4=384 tx status reports need to be cached.
+		 * Allocate the txstatus fifo. In the worst case the tx
+		 * status fifo has to hold the tx status of all entries
+		 * in all tx queues. Hence, calculate the kfifo size as
+		 * tx_queues * entry_num and round up to the nearest
+		 * power of 2.
 		 */
-		status = kfifo_alloc(&rt2x00dev->txstatus_fifo, 512,
+		int kfifo_size =
+			roundup_pow_of_two(rt2x00dev->ops->tx_queues *
+					   rt2x00dev->ops->tx->entry_num *
+					   sizeof(u32));
+
+		status = kfifo_alloc(&rt2x00dev->txstatus_fifo, kfifo_size,
 				     GFP_KERNEL);
 		if (status)
 			return status;
