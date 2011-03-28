@@ -294,6 +294,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 				}
 				break;
 			}
+			kvmppc_set_exit_type(vcpu, EMULATED_MFSPR_EXITS);
 			break;
 
 		case OP_31_XOP_STHX:
@@ -363,6 +364,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 					printk("mtspr: unknown spr %x\n", sprn);
 				break;
 			}
+			kvmppc_set_exit_type(vcpu, EMULATED_MTSPR_EXITS);
 			break;
 
 		case OP_31_XOP_DCBI:
