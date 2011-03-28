@@ -57,12 +57,10 @@
 #define IWL100_UCODE_API_MIN 5
 
 #define IWL1000_FW_PRE "iwlwifi-1000-"
-#define _IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
-#define IWL1000_MODULE_FIRMWARE(api) _IWL1000_MODULE_FIRMWARE(api)
+#define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
 
 #define IWL100_FW_PRE "iwlwifi-100-"
-#define _IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE #api ".ucode"
-#define IWL100_MODULE_FIRMWARE(api) _IWL100_MODULE_FIRMWARE(api)
+#define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE #api ".ucode"
 
 
 /*

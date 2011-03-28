@@ -60,16 +60,13 @@
 #define IWL200_UCODE_API_MIN 5
 
 #define IWL2030_FW_PRE "iwlwifi-2030-"
-#define _IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE #api ".ucode"
-#define IWL2030_MODULE_FIRMWARE(api) _IWL2030_MODULE_FIRMWARE(api)
+#define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE #api ".ucode"
 
 #define IWL2000_FW_PRE "iwlwifi-2000-"
-#define _IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE #api ".ucode"
-#define IWL2000_MODULE_FIRMWARE(api) _IWL2000_MODULE_FIRMWARE(api)
+#define IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE #api ".ucode"
 
 #define IWL200_FW_PRE "iwlwifi-200-"
-#define _IWL200_MODULE_FIRMWARE(api) IWL200_FW_PRE #api ".ucode"
-#define IWL200_MODULE_FIRMWARE(api) _IWL200_MODULE_FIRMWARE(api)
+#define IWL200_MODULE_FIRMWARE(api) IWL200_FW_PRE #api ".ucode"
 
 static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 {

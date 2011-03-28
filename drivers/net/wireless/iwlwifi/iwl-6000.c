@@ -60,20 +60,16 @@
 #define IWL6000G2_UCODE_API_MIN 4
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
-#define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
-#define IWL6000_MODULE_FIRMWARE(api) _IWL6000_MODULE_FIRMWARE(api)
+#define IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
 
 #define IWL6050_FW_PRE "iwlwifi-6050-"
-#define _IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE #api ".ucode"
-#define IWL6050_MODULE_FIRMWARE(api) _IWL6050_MODULE_FIRMWARE(api)
+#define IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE #api ".ucode"
 
 #define IWL6005_FW_PRE "iwlwifi-6000g2a-"
-#define _IWL6005_MODULE_FIRMWARE(api) IWL6005_FW_PRE #api ".ucode"
-#define IWL6005_MODULE_FIRMWARE(api) _IWL6005_MODULE_FIRMWARE(api)
+#define IWL6005_MODULE_FIRMWARE(api) IWL6005_FW_PRE #api ".ucode"
 
 #define IWL6030_FW_PRE "iwlwifi-6000g2b-"
-#define _IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE #api ".ucode"
-#define IWL6030_MODULE_FIRMWARE(api) _IWL6030_MODULE_FIRMWARE(api)
+#define IWL6030_MODULE_FIRMWARE(api) IWL6030_FW_PRE #api ".ucode"
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
