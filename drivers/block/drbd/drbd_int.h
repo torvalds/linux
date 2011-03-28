@@ -1060,22 +1060,6 @@ static inline struct drbd_conf *vnr_to_mdev(struct drbd_tconn *tconn, int vnr)
 	return (struct drbd_conf *)idr_find(&tconn->volumes, vnr);
 }
 
-static inline int drbd_get_data_sock(struct drbd_tconn *tconn)
-{
-	mutex_lock(&tconn->data.mutex);
-	if (!tconn->data.socket) {
-		/* Disconnected.  */
-		mutex_unlock(&tconn->data.mutex);
-		return -EIO;
-	}
-	return 0;
-}
-
-static inline void drbd_put_data_sock(struct drbd_tconn *tconn)
-{
-	mutex_unlock(&tconn->data.mutex);
-}
-
 /*
  * function declarations
  *************************/
@@ -1118,13 +1102,6 @@ extern int _conn_send_state_req(struct drbd_tconn *, int vnr, enum drbd_packet c
 				union drbd_state, union drbd_state);
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
-extern int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
-			  enum drbd_packet cmd, struct p_header *h, size_t size,
-			  unsigned msg_flags);
-extern int conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
-			 enum drbd_packet cmd, struct p_header *h, size_t size);
-extern int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd,
-			  char *data, size_t size);
 extern int drbd_send_sync_param(struct drbd_conf *mdev);
 extern void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
 			    u32 set_size);
@@ -1149,7 +1126,7 @@ extern int drbd_send_ov_request(struct drbd_conf *mdev,sector_t sector,int size)
 
 extern int drbd_send_bitmap(struct drbd_conf *mdev);
 extern void drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode);
-extern int conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode);
+extern void conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode);
 extern void drbd_free_bc(struct drbd_backing_dev *ldev);
 extern void drbd_mdev_cleanup(struct drbd_conf *mdev);
 void drbd_print_uuids(struct drbd_conf *mdev, const char *text);
@@ -1885,26 +1862,6 @@ static inline void request_ping(struct drbd_tconn *tconn)
 	wake_asender(tconn);
 }
 
-static inline int _drbd_send_cmd(struct drbd_conf *mdev, struct drbd_socket *sock,
-				  enum drbd_packet cmd, struct p_header *h, size_t size,
-				  unsigned msg_flags)
-{
-	return _conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size, msg_flags);
-}
-
-static inline int drbd_send_cmd(struct drbd_conf *mdev, struct drbd_socket *sock,
-				enum drbd_packet cmd, struct p_header *h, size_t size)
-{
-	return conn_send_cmd(mdev->tconn, mdev->vnr, sock, cmd, h, size);
-}
-
-static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
-				      enum drbd_packet cmd)
-{
-	struct p_header h;
-	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
-}
-
 extern void *conn_prepare_command(struct drbd_tconn *, struct drbd_socket *);
 extern void *drbd_prepare_command(struct drbd_conf *, struct drbd_socket *);
 extern int conn_send_command(struct drbd_tconn *, struct drbd_socket *,
@@ -1916,19 +1873,8 @@ extern int drbd_send_command(struct drbd_conf *, struct drbd_socket *,
 
 extern int drbd_send_ping(struct drbd_tconn *tconn);
 extern int drbd_send_ping_ack(struct drbd_tconn *tconn);
-
-static inline int drbd_send_state_req(struct drbd_conf *mdev,
-				      union drbd_state mask, union drbd_state val)
-{
-	return _conn_send_state_req(mdev->tconn, mdev->vnr, P_STATE_CHG_REQ, mask, val);
-}
-
-static inline int conn_send_state_req(struct drbd_tconn *tconn,
-				      union drbd_state mask, union drbd_state val)
-{
-	enum drbd_packet cmd = tconn->agreed_pro_version < 100 ? P_STATE_CHG_REQ : P_CONN_ST_CHG_REQ;
-	return _conn_send_state_req(tconn, 0, cmd, mask, val);
-}
+extern int drbd_send_state_req(struct drbd_conf *, union drbd_state, union drbd_state);
+extern int conn_send_state_req(struct drbd_tconn *, union drbd_state, union drbd_state);
 
 static inline void drbd_thread_stop(struct drbd_thread *thi)
 {

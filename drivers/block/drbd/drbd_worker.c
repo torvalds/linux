@@ -1191,10 +1191,10 @@ int w_prev_work_done(struct drbd_work *w, int cancel)
 
 int w_send_barrier(struct drbd_work *w, int cancel)
 {
+	struct drbd_socket *sock;
 	struct drbd_tl_epoch *b = container_of(w, struct drbd_tl_epoch, w);
 	struct drbd_conf *mdev = w->mdev;
-	struct p_barrier *p = mdev->tconn->data.sbuf;
-	int err = 0;
+	struct p_barrier *p;
 
 	/* really avoid racing with tl_clear.  w.cb may have been referenced
 	 * just before it was reassigned and re-queued, so double check that.
@@ -1208,26 +1208,28 @@ int w_send_barrier(struct drbd_work *w, int cancel)
 	if (cancel)
 		return 0;
 
-	err = drbd_get_data_sock(mdev->tconn);
-	if (err)
-		return err;
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
 	p->barrier = b->br_number;
 	/* inc_ap_pending was done where this was queued.
 	 * dec_ap_pending will be done in got_BarrierAck
 	 * or (on connection loss) in w_clear_epoch.  */
-	err = _drbd_send_cmd(mdev, &mdev->tconn->data, P_BARRIER,
-			     &p->head, sizeof(*p), 0);
-	drbd_put_data_sock(mdev->tconn);
-
-	return err;
+	return drbd_send_command(mdev, sock, P_BARRIER, sizeof(*p), NULL, 0);
 }
 
 int w_send_write_hint(struct drbd_work *w, int cancel)
 {
 	struct drbd_conf *mdev = w->mdev;
+	struct drbd_socket *sock;
+
 	if (cancel)
 		return 0;
-	return drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
+	sock = &mdev->tconn->data;
+	if (!drbd_prepare_command(mdev, sock))
+		return -EIO;
+	return drbd_send_command(mdev, sock, P_UNPLUG_REMOTE, sizeof(struct p_header), NULL, 0);
 }
 
 int w_send_out_of_sync(struct drbd_work *w, int cancel)

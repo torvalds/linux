@@ -717,66 +717,13 @@ static void prepare_header95(struct p_header95 *h, enum drbd_packet cmd, int siz
 	h->length  = cpu_to_be32(size);
 }
 
-static void _prepare_header(struct drbd_tconn *tconn, int vnr, struct p_header *h,
-			    enum drbd_packet cmd, int size)
+static void prepare_header(struct drbd_tconn *tconn, int vnr, struct p_header *h,
+			   enum drbd_packet cmd, int size)
 {
 	if (tconn->agreed_pro_version >= 95)
 		prepare_header95(&h->h95, cmd, size);
 	else
 		prepare_header80(&h->h80, cmd, size);
-}
-
-static void prepare_header(struct drbd_conf *mdev, struct p_header *h,
-			   enum drbd_packet cmd, int size)
-{
-	_prepare_header(mdev->tconn, mdev->vnr, h, cmd, size);
-}
-
-/* the appropriate socket mutex must be held already */
-int _conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
-		   enum drbd_packet cmd, struct p_header *h, size_t size,
-		   unsigned msg_flags)
-{
-	int err;
-
-	_prepare_header(tconn, vnr, h, cmd, size - sizeof(struct p_header));
-	err = drbd_send_all(tconn, sock->socket, h, size, msg_flags);
-	if (err && !signal_pending(current))
-		conn_warn(tconn, "short send %s size=%d\n",
-			  cmdname(cmd), (int)size);
-	return err;
-}
-
-/* don't pass the socket. we may only look at it
- * when we hold the appropriate socket mutex.
- */
-int conn_send_cmd(struct drbd_tconn *tconn, int vnr, struct drbd_socket *sock,
-		  enum drbd_packet cmd, struct p_header *h, size_t size)
-{
-	int err = -EIO;
-
-	mutex_lock(&sock->mutex);
-	if (sock->socket)
-		err = _conn_send_cmd(tconn, vnr, sock, cmd, h, size, 0);
-	mutex_unlock(&sock->mutex);
-	return err;
-}
-
-int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
-		   size_t size)
-{
-	struct p_header80 h;
-	int err;
-
-	prepare_header80(&h, cmd, size);
-	err = drbd_get_data_sock(tconn);
-	if (!err) {
-		err = drbd_send_all(tconn, tconn->data.socket, &h, sizeof(h), 0);
-		if (!err)
-			err = drbd_send_all(tconn, tconn->data.socket, data, size, 0);
-		drbd_put_data_sock(tconn);
-	}
-	return err;
 }
 
 void *conn_prepare_command(struct drbd_tconn *tconn, struct drbd_socket *sock)
@@ -811,8 +758,8 @@ static int __send_command(struct drbd_tconn *tconn, int vnr,
 	 */
 	msg_flags = data ? MSG_MORE : 0;
 
-	_prepare_header(tconn, vnr, sock->sbuf, cmd,
-			header_size - sizeof(struct p_header) + size);
+	prepare_header(tconn, vnr, sock->sbuf, cmd,
+		       header_size - sizeof(struct p_header) + size);
 	err = drbd_send_all(tconn, sock->socket, sock->sbuf, header_size,
 			    msg_flags);
 	if (data && !err)
@@ -845,22 +792,36 @@ int drbd_send_command(struct drbd_conf *mdev, struct drbd_socket *sock,
 
 int drbd_send_ping(struct drbd_tconn *tconn)
 {
-	struct p_header h;
-	return conn_send_cmd(tconn, 0, &tconn->meta, P_PING, &h, sizeof(h));
+	struct drbd_socket *sock;
+
+	sock = &tconn->meta;
+	if (!conn_prepare_command(tconn, sock))
+		return -EIO;
+	return conn_send_command(tconn, sock, P_PING, sizeof(struct p_header), NULL, 0);
 }
 
 int drbd_send_ping_ack(struct drbd_tconn *tconn)
 {
-	struct p_header h;
-	return conn_send_cmd(tconn, 0, &tconn->meta, P_PING_ACK, &h, sizeof(h));
+	struct drbd_socket *sock;
+
+	sock = &tconn->meta;
+	if (!conn_prepare_command(tconn, sock))
+		return -EIO;
+	return conn_send_command(tconn, sock, P_PING_ACK, sizeof(struct p_header), NULL, 0);
 }
 
 int drbd_send_sync_param(struct drbd_conf *mdev)
 {
-	struct p_rs_param_95 *p;
 	struct drbd_socket *sock;
-	int size, err;
+	struct p_rs_param_95 *p;
+	int size;
 	const int apv = mdev->tconn->agreed_pro_version;
+	enum drbd_packet cmd;
+
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
 
 	size = apv <= 87 ? sizeof(struct p_rs_param)
 		: apv == 88 ? sizeof(struct p_rs_param)
@@ -868,112 +829,98 @@ int drbd_send_sync_param(struct drbd_conf *mdev)
 		: apv <= 94 ? sizeof(struct p_rs_param_89)
 		: /* apv >= 95 */ sizeof(struct p_rs_param_95);
 
-	mutex_lock(&mdev->tconn->data.mutex);
-	sock = &mdev->tconn->data;
+	cmd = apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
 
-	if (likely(sock->socket != NULL)) {
-		enum drbd_packet cmd =
-			apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
+	/* initialize verify_alg and csums_alg */
+	memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
 
-		p = mdev->tconn->data.sbuf;
+	if (get_ldev(mdev)) {
+		p->rate = cpu_to_be32(mdev->ldev->dc.resync_rate);
+		p->c_plan_ahead = cpu_to_be32(mdev->ldev->dc.c_plan_ahead);
+		p->c_delay_target = cpu_to_be32(mdev->ldev->dc.c_delay_target);
+		p->c_fill_target = cpu_to_be32(mdev->ldev->dc.c_fill_target);
+		p->c_max_rate = cpu_to_be32(mdev->ldev->dc.c_max_rate);
+		put_ldev(mdev);
+	} else {
+		p->rate = cpu_to_be32(DRBD_RATE_DEF);
+		p->c_plan_ahead = cpu_to_be32(DRBD_C_PLAN_AHEAD_DEF);
+		p->c_delay_target = cpu_to_be32(DRBD_C_DELAY_TARGET_DEF);
+		p->c_fill_target = cpu_to_be32(DRBD_C_FILL_TARGET_DEF);
+		p->c_max_rate = cpu_to_be32(DRBD_C_MAX_RATE_DEF);
+	}
 
-		/* initialize verify_alg and csums_alg */
-		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
+	if (apv >= 88)
+		strcpy(p->verify_alg, mdev->tconn->net_conf->verify_alg);
+	if (apv >= 89)
+		strcpy(p->csums_alg, mdev->tconn->net_conf->csums_alg);
 
-		if (get_ldev(mdev)) {
-			p->rate = cpu_to_be32(mdev->ldev->dc.resync_rate);
-			p->c_plan_ahead = cpu_to_be32(mdev->ldev->dc.c_plan_ahead);
-			p->c_delay_target = cpu_to_be32(mdev->ldev->dc.c_delay_target);
-			p->c_fill_target = cpu_to_be32(mdev->ldev->dc.c_fill_target);
-			p->c_max_rate = cpu_to_be32(mdev->ldev->dc.c_max_rate);
-			put_ldev(mdev);
-		} else {
-			p->rate = cpu_to_be32(DRBD_RATE_DEF);
-			p->c_plan_ahead = cpu_to_be32(DRBD_C_PLAN_AHEAD_DEF);
-			p->c_delay_target = cpu_to_be32(DRBD_C_DELAY_TARGET_DEF);
-			p->c_fill_target = cpu_to_be32(DRBD_C_FILL_TARGET_DEF);
-			p->c_max_rate = cpu_to_be32(DRBD_C_MAX_RATE_DEF);
-		}
-
-		if (apv >= 88)
-			strcpy(p->verify_alg, mdev->tconn->net_conf->verify_alg);
-		if (apv >= 89)
-			strcpy(p->csums_alg, mdev->tconn->net_conf->csums_alg);
-
-		err = _drbd_send_cmd(mdev, sock, cmd, &p->head, size, 0);
-	} else
-		err = -EIO;
-
-	mutex_unlock(&mdev->tconn->data.mutex);
-
-	return err;
+	return drbd_send_command(mdev, sock, cmd, size, NULL, 0);
 }
 
 int drbd_send_protocol(struct drbd_tconn *tconn)
 {
+	struct drbd_socket *sock;
 	struct p_protocol *p;
-	int size, cf, err;
+	int size, cf;
 
-	size = sizeof(struct p_protocol);
+	if (tconn->net_conf->dry_run && tconn->agreed_pro_version < 92) {
+		conn_err(tconn, "--dry-run is not supported by peer");
+		return -EOPNOTSUPP;
+	}
 
+	sock = &tconn->data;
+	p = conn_prepare_command(tconn, sock);
+	if (!p)
+		return -EIO;
+
+	size = sizeof(*p);
 	if (tconn->agreed_pro_version >= 87)
 		size += strlen(tconn->net_conf->integrity_alg) + 1;
-
-	/* we must not recurse into our own queue,
-	 * as that is blocked during handshake */
-	p = kmalloc(size, GFP_NOIO);
-	if (p == NULL)
-		return -ENOMEM;
 
 	p->protocol      = cpu_to_be32(tconn->net_conf->wire_protocol);
 	p->after_sb_0p   = cpu_to_be32(tconn->net_conf->after_sb_0p);
 	p->after_sb_1p   = cpu_to_be32(tconn->net_conf->after_sb_1p);
 	p->after_sb_2p   = cpu_to_be32(tconn->net_conf->after_sb_2p);
 	p->two_primaries = cpu_to_be32(tconn->net_conf->two_primaries);
-
 	cf = 0;
 	if (tconn->net_conf->want_lose)
 		cf |= CF_WANT_LOSE;
-	if (tconn->net_conf->dry_run) {
-		if (tconn->agreed_pro_version >= 92)
-			cf |= CF_DRY_RUN;
-		else {
-			conn_err(tconn, "--dry-run is not supported by peer");
-			kfree(p);
-			return -EOPNOTSUPP;
-		}
-	}
+	if (tconn->net_conf->dry_run)
+		cf |= CF_DRY_RUN;
 	p->conn_flags    = cpu_to_be32(cf);
 
 	if (tconn->agreed_pro_version >= 87)
 		strcpy(p->integrity_alg, tconn->net_conf->integrity_alg);
-
-	err = conn_send_cmd2(tconn, P_PROTOCOL, p->head.payload, size - sizeof(struct p_header));
-	kfree(p);
-	return err;
+	return conn_send_command(tconn, sock, P_PROTOCOL, size, NULL, 0);
 }
 
 int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 {
-	struct p_uuids p;
+	struct drbd_socket *sock;
+	struct p_uuids *p;
 	int i;
 
 	if (!get_ldev_if_state(mdev, D_NEGOTIATING))
 		return 0;
 
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p) {
+		put_ldev(mdev);
+		return -EIO;
+	}
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
-		p.uuid[i] = mdev->ldev ? cpu_to_be64(mdev->ldev->md.uuid[i]) : 0;
+		p->uuid[i] = mdev->ldev ? cpu_to_be64(mdev->ldev->md.uuid[i]) : 0;
 
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
-	p.uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
+	p->uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
 	uuid_flags |= mdev->tconn->net_conf->want_lose ? 1 : 0;
 	uuid_flags |= test_bit(CRASHED_PRIMARY, &mdev->flags) ? 2 : 0;
 	uuid_flags |= mdev->new_state_tmp.disk == D_INCONSISTENT ? 4 : 0;
-	p.uuid[UI_FLAGS] = cpu_to_be64(uuid_flags);
+	p->uuid[UI_FLAGS] = cpu_to_be64(uuid_flags);
 
 	put_ldev(mdev);
-
-	return drbd_send_cmd(mdev, &mdev->tconn->data, P_UUIDS, &p.head, sizeof(p));
+	return drbd_send_command(mdev, sock, P_UUIDS, sizeof(*p), NULL, 0);
 }
 
 int drbd_send_uuids(struct drbd_conf *mdev)
@@ -1006,7 +953,8 @@ void drbd_print_uuids(struct drbd_conf *mdev, const char *text)
 
 void drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 {
-	struct p_rs_uuid p;
+	struct drbd_socket *sock;
+	struct p_rs_uuid *p;
 	u64 uuid;
 
 	D_ASSERT(mdev->state.disk == D_UP_TO_DATE);
@@ -1015,14 +963,19 @@ void drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 	drbd_uuid_set(mdev, UI_BITMAP, uuid);
 	drbd_print_uuids(mdev, "updated sync UUID");
 	drbd_md_sync(mdev);
-	p.uuid = cpu_to_be64(uuid);
 
-	drbd_send_cmd(mdev, &mdev->tconn->data, P_SYNC_UUID, &p.head, sizeof(p));
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (p) {
+		p->uuid = cpu_to_be64(uuid);
+		drbd_send_command(mdev, sock, P_SYNC_UUID, sizeof(*p), NULL, 0);
+	}
 }
 
 int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags)
 {
-	struct p_sizes p;
+	struct drbd_socket *sock;
+	struct p_sizes *p;
 	sector_t d_size, u_size;
 	int q_order_type, max_bio_size;
 
@@ -1041,14 +994,17 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 		max_bio_size = DRBD_MAX_BIO_SIZE; /* ... multiple BIOs per peer_request */
 	}
 
-	p.d_size = cpu_to_be64(d_size);
-	p.u_size = cpu_to_be64(u_size);
-	p.c_size = cpu_to_be64(trigger_reply ? 0 : drbd_get_capacity(mdev->this_bdev));
-	p.max_bio_size = cpu_to_be32(max_bio_size);
-	p.queue_order_type = cpu_to_be16(q_order_type);
-	p.dds_flags = cpu_to_be16(flags);
-
-	return drbd_send_cmd(mdev, &mdev->tconn->data, P_SIZES, &p.head, sizeof(p));
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->d_size = cpu_to_be64(d_size);
+	p->u_size = cpu_to_be64(u_size);
+	p->c_size = cpu_to_be64(trigger_reply ? 0 : drbd_get_capacity(mdev->this_bdev));
+	p->max_bio_size = cpu_to_be32(max_bio_size);
+	p->queue_order_type = cpu_to_be16(q_order_type);
+	p->dds_flags = cpu_to_be16(flags);
+	return drbd_send_command(mdev, sock, P_SIZES, sizeof(*p), NULL, 0);
 }
 
 /**
@@ -1058,50 +1014,72 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 int drbd_send_state(struct drbd_conf *mdev)
 {
 	struct drbd_socket *sock;
-	struct p_state p;
-	int err = -EIO;
+	struct p_state *p;
 
-	mutex_lock(&mdev->tconn->data.mutex);
-
-	p.state = cpu_to_be32(mdev->state.i); /* Within the send mutex */
 	sock = &mdev->tconn->data;
-
-	if (likely(sock->socket != NULL))
-		err = _drbd_send_cmd(mdev, sock, P_STATE, &p.head, sizeof(p), 0);
-
-	mutex_unlock(&mdev->tconn->data.mutex);
-
-	return err;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->state = cpu_to_be32(mdev->state.i); /* Within the send mutex */
+	return drbd_send_command(mdev, sock, P_STATE, sizeof(*p), NULL, 0);
 }
 
-int _conn_send_state_req(struct drbd_tconn *tconn, int vnr, enum drbd_packet cmd,
-			 union drbd_state mask, union drbd_state val)
+int drbd_send_state_req(struct drbd_conf *mdev, union drbd_state mask, union drbd_state val)
 {
-	struct p_req_state p;
+	struct drbd_socket *sock;
+	struct p_req_state *p;
 
-	p.mask    = cpu_to_be32(mask.i);
-	p.val     = cpu_to_be32(val.i);
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->mask = cpu_to_be32(mask.i);
+	p->val = cpu_to_be32(val.i);
+	return drbd_send_command(mdev, sock, P_STATE_CHG_REQ, sizeof(*p), NULL, 0);
 
-	return conn_send_cmd(tconn, vnr, &tconn->data, cmd, &p.head, sizeof(p));
+}
+
+int conn_send_state_req(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val)
+{
+	enum drbd_packet cmd;
+	struct drbd_socket *sock;
+	struct p_req_state *p;
+
+	cmd = tconn->agreed_pro_version < 100 ? P_STATE_CHG_REQ : P_CONN_ST_CHG_REQ;
+	sock = &tconn->data;
+	p = conn_prepare_command(tconn, sock);
+	if (!p)
+		return -EIO;
+	p->mask = cpu_to_be32(mask.i);
+	p->val = cpu_to_be32(val.i);
+	return conn_send_command(tconn, sock, cmd, sizeof(*p), NULL, 0);
 }
 
 void drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode)
 {
-	struct p_req_state_reply p;
+	struct drbd_socket *sock;
+	struct p_req_state_reply *p;
 
-	p.retcode    = cpu_to_be32(retcode);
-
-	drbd_send_cmd(mdev, &mdev->tconn->meta, P_STATE_CHG_REPLY, &p.head, sizeof(p));
+	sock = &mdev->tconn->meta;
+	p = drbd_prepare_command(mdev, sock);
+	if (p) {
+		p->retcode = cpu_to_be32(retcode);
+		drbd_send_command(mdev, sock, P_STATE_CHG_REPLY, sizeof(*p), NULL, 0);
+	}
 }
 
-int conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode)
+void conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode)
 {
-	struct p_req_state_reply p;
+	struct drbd_socket *sock;
+	struct p_req_state_reply *p;
 	enum drbd_packet cmd = tconn->agreed_pro_version < 100 ? P_STATE_CHG_REPLY : P_CONN_ST_CHG_REPLY;
 
-	p.retcode    = cpu_to_be32(retcode);
-
-	return !conn_send_cmd(tconn, 0, &tconn->meta, cmd, &p.head, sizeof(p));
+	sock = &tconn->meta;
+	p = conn_prepare_command(tconn, sock);
+	if (p) {
+		p->retcode = cpu_to_be32(retcode);
+		conn_send_command(tconn, sock, cmd, sizeof(*p), NULL, 0);
+	}
 }
 
 static void dcbp_set_code(struct p_compressed_bm *p, enum drbd_bitmap_code code)
@@ -1224,21 +1202,20 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 static int
 send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 {
-	struct p_compressed_bm *p = mdev->tconn->data.sbuf;
+	struct drbd_socket *sock = &mdev->tconn->data;
+	struct p_compressed_bm *p = sock->sbuf;
 	unsigned long num_words;
 	int len, err;
 
 	len = fill_bitmap_rle_bits(mdev, p, c);
-
 	if (len < 0)
 		return -EIO;
 
 	if (len) {
 		dcbp_set_code(p, RLE_VLI_Bits);
-		err = _drbd_send_cmd(mdev, &mdev->tconn->data,
-				     P_COMPRESSED_BITMAP, &p->head,
-				     sizeof(*p) + len, 0);
-
+		err = __send_command(mdev->tconn, mdev->vnr, sock,
+				     P_COMPRESSED_BITMAP, sizeof(*p) + len,
+				     NULL, 0);
 		c->packets[0]++;
 		c->bytes[0] += sizeof(*p) + len;
 
@@ -1247,14 +1224,14 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev, struct bm_xfer_ctx *c)
 	} else {
 		/* was not compressible.
 		 * send a buffer full of plain text bits instead. */
-		struct p_header *h = mdev->tconn->data.sbuf;
+		struct p_header *h = sock->sbuf;
 		num_words = min_t(size_t, BM_PACKET_WORDS, c->bm_words - c->word_offset);
 		len = num_words * sizeof(long);
 		if (len)
 			drbd_bm_get_lel(mdev, c->word_offset, num_words,
 					(unsigned long *)h->payload);
-		err = _drbd_send_cmd(mdev, &mdev->tconn->data, P_BITMAP,
-				     h, sizeof(struct p_header80) + len, 0);
+		err = __send_command(mdev->tconn, mdev->vnr, sock, P_BITMAP,
+				     sizeof(*h) + len, NULL, 0);
 		c->word_offset += num_words;
 		c->bit_offset = c->word_offset * BITS_PER_LONG;
 
@@ -1314,23 +1291,31 @@ static int _drbd_send_bitmap(struct drbd_conf *mdev)
 
 int drbd_send_bitmap(struct drbd_conf *mdev)
 {
-	int err;
+	struct drbd_socket *sock = &mdev->tconn->data;
+	int err = -1;
 
-	if (drbd_get_data_sock(mdev->tconn))
-		return -1;
-	err = !_drbd_send_bitmap(mdev);
-	drbd_put_data_sock(mdev->tconn);
+	mutex_lock(&sock->mutex);
+	if (sock->socket)
+		err = !_drbd_send_bitmap(mdev);
+	mutex_unlock(&sock->mutex);
 	return err;
 }
+
 void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr, u32 set_size)
 {
-	struct p_barrier_ack p;
+	struct drbd_socket *sock;
+	struct p_barrier_ack *p;
 
-	p.barrier  = barrier_nr;
-	p.set_size = cpu_to_be32(set_size);
+	if (mdev->state.conn < C_CONNECTED)
+		return;
 
-	if (mdev->state.conn >= C_CONNECTED)
-		drbd_send_cmd(mdev, &mdev->tconn->meta, P_BARRIER_ACK, &p.head, sizeof(p));
+	sock = &mdev->tconn->meta;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return;
+	p->barrier = barrier_nr;
+	p->set_size = cpu_to_be32(set_size);
+	drbd_send_command(mdev, sock, P_BARRIER_ACK, sizeof(*p), NULL, 0);
 }
 
 /**
@@ -1344,16 +1329,21 @@ void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr, u32 set_size)
 static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packet cmd,
 			  u64 sector, u32 blksize, u64 block_id)
 {
-	struct p_block_ack p;
+	struct drbd_socket *sock;
+	struct p_block_ack *p;
 
-	p.sector   = sector;
-	p.block_id = block_id;
-	p.blksize  = blksize;
-	p.seq_num  = cpu_to_be32(atomic_inc_return(&mdev->packet_seq));
-
-	if (!mdev->tconn->meta.socket || mdev->state.conn < C_CONNECTED)
+	if (mdev->state.conn < C_CONNECTED)
 		return -EIO;
-	return drbd_send_cmd(mdev, &mdev->tconn->meta, cmd, &p.head, sizeof(p));
+
+	sock = &mdev->tconn->meta;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = sector;
+	p->block_id = block_id;
+	p->blksize = blksize;
+	p->seq_num = cpu_to_be32(atomic_inc_return(&mdev->packet_seq));
+	return drbd_send_command(mdev, sock, cmd, sizeof(*p), NULL, 0);
 }
 
 /* dp->sector and dp->block_id already/still in network byte order,
@@ -1403,43 +1393,51 @@ int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 		       sector_t sector, int size, u64 block_id)
 {
-	struct p_block_req p;
+	struct drbd_socket *sock;
+	struct p_block_req *p;
 
-	p.sector   = cpu_to_be64(sector);
-	p.block_id = block_id;
-	p.blksize  = cpu_to_be32(size);
-
-	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &p.head, sizeof(p));
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(sector);
+	p->block_id = block_id;
+	p->blksize = cpu_to_be32(size);
+	return drbd_send_command(mdev, sock, cmd, sizeof(*p), NULL, 0);
 }
 
 int drbd_send_drequest_csum(struct drbd_conf *mdev, sector_t sector, int size,
 			    void *digest, int digest_size, enum drbd_packet cmd)
 {
-	int err;
-	struct p_block_req p;
+	struct drbd_socket *sock;
+	struct p_block_req *p;
 
-	prepare_header(mdev, &p.head, cmd, sizeof(p) - sizeof(struct p_header) + digest_size);
-	p.sector   = cpu_to_be64(sector);
-	p.block_id = ID_SYNCER /* unused */;
-	p.blksize  = cpu_to_be32(size);
+	/* FIXME: Put the digest into the preallocated socket buffer.  */
 
-	mutex_lock(&mdev->tconn->data.mutex);
-	err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, &p, sizeof(p), 0);
-	if (!err)
-		err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, digest, digest_size, 0);
-	mutex_unlock(&mdev->tconn->data.mutex);
-	return err;
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(sector);
+	p->block_id = ID_SYNCER /* unused */;
+	p->blksize = cpu_to_be32(size);
+	return drbd_send_command(mdev, sock, cmd, sizeof(*p),
+				 digest, digest_size);
 }
 
 int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
 {
-	struct p_block_req p;
+	struct drbd_socket *sock;
+	struct p_block_req *p;
 
-	p.sector   = cpu_to_be64(sector);
-	p.block_id = ID_SYNCER /* unused */;
-	p.blksize  = cpu_to_be32(size);
-
-	return drbd_send_cmd(mdev, &mdev->tconn->data, P_OV_REQUEST, &p.head, sizeof(p));
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(sector);
+	p->block_id = ID_SYNCER /* unused */;
+	p->blksize = cpu_to_be32(size);
+	return drbd_send_command(mdev, sock, P_OV_REQUEST, sizeof(*p), NULL, 0);
 }
 
 /* called on sndtimeo
@@ -1632,39 +1630,30 @@ static u32 bio_flags_to_wire(struct drbd_conf *mdev, unsigned long bi_rw)
  */
 int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 {
-	int err;
-	struct p_data p;
+	struct drbd_socket *sock;
+	struct p_data *p;
 	unsigned int dp_flags = 0;
-	void *dgb;
 	int dgs;
-
-	err = drbd_get_data_sock(mdev->tconn);
-	if (err)
-		return err;
+	int err;
 
 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
 
-	prepare_header(mdev, &p.head, P_DATA, sizeof(p) - sizeof(struct p_header) + dgs + req->i.size);
-	p.sector   = cpu_to_be64(req->i.sector);
-	p.block_id = (unsigned long)req;
-	p.seq_num  = cpu_to_be32(req->seq_num = atomic_inc_return(&mdev->packet_seq));
-
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(req->i.sector);
+	p->block_id = (unsigned long)req;
+	p->seq_num = cpu_to_be32(req->seq_num = atomic_inc_return(&mdev->packet_seq));
 	dp_flags = bio_flags_to_wire(mdev, req->master_bio->bi_rw);
-
 	if (mdev->state.conn >= C_SYNC_SOURCE &&
 	    mdev->state.conn <= C_PAUSED_SYNC_T)
 		dp_flags |= DP_MAY_SET_IN_SYNC;
-
-	p.dp_flags = cpu_to_be32(dp_flags);
-	set_bit(UNPLUG_REMOTE, &mdev->flags);
-	err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, &p,
-			    sizeof(p), dgs ? MSG_MORE : 0);
-	if (!err && dgs) {
-		dgb = mdev->tconn->int_dig_out;
-		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, dgb);
-		err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, dgb, dgs, 0);
-	}
+	p->dp_flags = cpu_to_be32(dp_flags);
+	if (dgs)
+		drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, p + 1);
+	err = __send_command(mdev->tconn, mdev->vnr, sock, P_DATA, sizeof(*p) + dgs, NULL, req->i.size);
 	if (!err) {
 		/* For protocol A, we have to memcpy the payload into
 		 * socket buffers, as we may complete right away
@@ -1688,7 +1677,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 			 * currently supported in kernel crypto. */
 			unsigned char digest[64];
 			drbd_csum_bio(mdev, mdev->tconn->integrity_w_tfm, req->master_bio, digest);
-			if (memcmp(mdev->tconn->int_dig_out, digest, dgs)) {
+			if (memcmp(p + 1, digest, dgs)) {
 				dev_warn(DEV,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
 					(unsigned long long)req->i.sector, req->i.size);
@@ -1697,8 +1686,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		     ... Be noisy about digest too large ...
 		} */
 	}
-
-	drbd_put_data_sock(mdev->tconn);
+	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */
 
 	return err;
 }
@@ -1710,51 +1698,43 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 		    struct drbd_peer_request *peer_req)
 {
+	struct drbd_socket *sock;
+	struct p_data *p;
 	int err;
-	struct p_data p;
-	void *dgb;
 	int dgs;
 
 	dgs = (mdev->tconn->agreed_pro_version >= 87 && mdev->tconn->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->tconn->integrity_w_tfm) : 0;
 
-	prepare_header(mdev, &p.head, cmd, sizeof(p) -
-					   sizeof(struct p_header80) +
-					   dgs + peer_req->i.size);
-	p.sector   = cpu_to_be64(peer_req->i.sector);
-	p.block_id = peer_req->block_id;
-	p.seq_num = 0;  /* unused */
-
-	/* Only called by our kernel thread.
-	 * This one may be interrupted by DRBD_SIG and/or DRBD_SIGKILL
-	 * in response to admin command or module unload.
-	 */
-	err = drbd_get_data_sock(mdev->tconn);
-	if (err)
-		return err;
-	err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, &p,
-			    sizeof(p), dgs ? MSG_MORE : 0);
-	if (!err && dgs) {
-		dgb = mdev->tconn->int_dig_out;
-		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, dgb);
-		err = drbd_send_all(mdev->tconn, mdev->tconn->data.socket, dgb,
-				    dgs, 0);
-	}
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(peer_req->i.sector);
+	p->block_id = peer_req->block_id;
+	p->seq_num = 0;  /* unused */
+	if (dgs)
+		drbd_csum_ee(mdev, mdev->tconn->integrity_w_tfm, peer_req, p + 1);
+	err = __send_command(mdev->tconn, mdev->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
 	if (!err)
 		err = _drbd_send_zc_ee(mdev, peer_req);
-	drbd_put_data_sock(mdev->tconn);
+	mutex_unlock(&sock->mutex);  /* locked by drbd_prepare_command() */
 
 	return err;
 }
 
 int drbd_send_out_of_sync(struct drbd_conf *mdev, struct drbd_request *req)
 {
-	struct p_block_desc p;
+	struct drbd_socket *sock;
+	struct p_block_desc *p;
 
-	p.sector  = cpu_to_be64(req->i.sector);
-	p.blksize = cpu_to_be32(req->i.size);
-
-	return drbd_send_cmd(mdev, &mdev->tconn->data, P_OUT_OF_SYNC, &p.head, sizeof(p));
+	sock = &mdev->tconn->data;
+	p = drbd_prepare_command(mdev, sock);
+	if (!p)
+		return -EIO;
+	p->sector = cpu_to_be64(req->i.sector);
+	p->blksize = cpu_to_be32(req->i.size);
+	return drbd_send_command(mdev, sock, P_OUT_OF_SYNC, sizeof(*p), NULL, 0);
 }
 
 /*

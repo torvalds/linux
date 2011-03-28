@@ -729,24 +729,32 @@ out:
 	return s_estab;
 }
 
-static int drbd_send_fp(struct drbd_tconn *tconn, struct drbd_socket *sock, enum drbd_packet cmd)
-{
-	struct p_header *h = tconn->data.sbuf;
+static int decode_header(struct drbd_tconn *, struct p_header *, struct packet_info *);
 
-	return !_conn_send_cmd(tconn, 0, sock, cmd, h, sizeof(*h), 0);
+static int send_first_packet(struct drbd_tconn *tconn, struct drbd_socket *sock,
+			     enum drbd_packet cmd)
+{
+	if (!conn_prepare_command(tconn, sock))
+		return -EIO;
+	return conn_send_command(tconn, sock, cmd, sizeof(struct p_header), NULL, 0);
 }
 
-static enum drbd_packet drbd_recv_fp(struct drbd_tconn *tconn, struct socket *sock)
+static int receive_first_packet(struct drbd_tconn *tconn, struct socket *sock)
 {
-	struct p_header80 h;
-	int rr;
+	unsigned int header_size = drbd_header_size(tconn);
+	struct packet_info pi;
+	int err;
 
-	rr = drbd_recv_short(sock, &h, sizeof(h), 0);
-
-	if (rr == sizeof(h) && h.magic == cpu_to_be32(DRBD_MAGIC))
-		return be16_to_cpu(h.command);
-
-	return 0xffff;
+	err = drbd_recv_short(sock, tconn->data.rbuf, header_size, 0);
+	if (err != header_size) {
+		if (err >= 0)
+			err = -EIO;
+		return err;
+	}
+	err = decode_header(tconn, tconn->data.rbuf, &pi);
+	if (err)
+		return err;
+	return pi.cmd;
 }
 
 /**
@@ -834,10 +842,10 @@ static int drbd_connect(struct drbd_tconn *tconn)
 		if (s) {
 			if (!tconn->data.socket) {
 				tconn->data.socket = s;
-				drbd_send_fp(tconn, &tconn->data, P_INITIAL_DATA);
+				send_first_packet(tconn, &tconn->data, P_INITIAL_DATA);
 			} else if (!tconn->meta.socket) {
 				tconn->meta.socket = s;
-				drbd_send_fp(tconn, &tconn->meta, P_INITIAL_META);
+				send_first_packet(tconn, &tconn->meta, P_INITIAL_META);
 			} else {
 				conn_err(tconn, "Logic error in drbd_connect()\n");
 				goto out_release_sockets;
@@ -855,7 +863,7 @@ static int drbd_connect(struct drbd_tconn *tconn)
 retry:
 		s = drbd_wait_for_connect(tconn);
 		if (s) {
-			try = drbd_recv_fp(tconn, s);
+			try = receive_first_packet(tconn, s);
 			drbd_socket_okay(&tconn->data.socket);
 			drbd_socket_okay(&tconn->meta.socket);
 			switch (try) {
@@ -1324,6 +1332,10 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector,
 		crypto_hash_digestsize(mdev->tconn->integrity_r_tfm) : 0;
 
 	if (dgs) {
+		/*
+		 * FIXME: Receive the incoming digest into the receive buffer
+		 *	  here, together with its struct p_data?
+		 */
 		err = drbd_recv_all_warn(mdev->tconn, dig_in, dgs);
 		if (err)
 			return NULL;
@@ -4019,8 +4031,8 @@ static void drbdd(struct drbd_tconn *tconn)
 
 		err = cmd->fn(tconn, &pi);
 		if (err) {
-			conn_err(tconn, "error receiving %s, l: %d!\n",
-			    cmdname(pi.cmd), pi.size);
+			conn_err(tconn, "error receiving %s, e: %d l: %d!\n",
+				 cmdname(pi.cmd), err, pi.size);
 			goto err_out;
 		}
 	}
@@ -4179,27 +4191,17 @@ static int drbd_disconnected(int vnr, void *p, void *data)
  */
 static int drbd_send_features(struct drbd_tconn *tconn)
 {
-	/* ASSERT current == mdev->tconn->receiver ... */
-	struct p_connection_features *p = tconn->data.sbuf;
-	int err;
+	struct drbd_socket *sock;
+	struct p_connection_features *p;
 
-	if (mutex_lock_interruptible(&tconn->data.mutex)) {
-		conn_err(tconn, "interrupted during initial handshake\n");
-		return -EINTR;
-	}
-
-	if (tconn->data.socket == NULL) {
-		mutex_unlock(&tconn->data.mutex);
+	sock = &tconn->data;
+	p = conn_prepare_command(tconn, sock);
+	if (!p)
 		return -EIO;
-	}
-
 	memset(p, 0, sizeof(*p));
 	p->protocol_min = cpu_to_be32(PRO_VERSION_MIN);
 	p->protocol_max = cpu_to_be32(PRO_VERSION_MAX);
-	err = _conn_send_cmd(tconn, 0, &tconn->data, P_CONNECTION_FEATURES,
-			     &p->head, sizeof(*p), 0);
-	mutex_unlock(&tconn->data.mutex);
-	return err;
+	return conn_send_command(tconn, sock, P_CONNECTION_FEATURES, sizeof(*p), NULL, 0);
 }
 
 /*
@@ -4283,6 +4285,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 
 static int drbd_do_auth(struct drbd_tconn *tconn)
 {
+	struct drbd_socket *sock;
 	char my_challenge[CHALLENGE_LEN];  /* 64 Bytes... */
 	struct scatterlist sg;
 	char *response = NULL;
@@ -4293,6 +4296,8 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 	struct hash_desc desc;
 	struct packet_info pi;
 	int err, rv;
+
+	/* FIXME: Put the challenge/response into the preallocated socket buffer.  */
 
 	desc.tfm = tconn->cram_hmac_tfm;
 	desc.flags = 0;
@@ -4307,7 +4312,14 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 
 	get_random_bytes(my_challenge, CHALLENGE_LEN);
 
-	rv = !conn_send_cmd2(tconn, P_AUTH_CHALLENGE, my_challenge, CHALLENGE_LEN);
+	sock = &tconn->data;
+	if (!conn_prepare_command(tconn, sock)) {
+		rv = 0;
+		goto fail;
+	}
+	rv = !conn_send_command(tconn, sock, P_AUTH_CHALLENGE,
+				sizeof(struct p_header),
+				my_challenge, CHALLENGE_LEN);
 	if (!rv)
 		goto fail;
 
@@ -4361,7 +4373,13 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 		goto fail;
 	}
 
-	rv = !conn_send_cmd2(tconn, P_AUTH_RESPONSE, response, resp_size);
+	if (!conn_prepare_command(tconn, sock)) {
+		rv = 0;
+		goto fail;
+	}
+	rv = !conn_send_command(tconn, sock, P_AUTH_RESPONSE,
+				sizeof(struct p_header),
+				response, resp_size);
 	if (!rv)
 		goto fail;
 
