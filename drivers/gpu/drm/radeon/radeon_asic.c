@@ -834,6 +834,9 @@ static struct radeon_asic sumo_asic = {
 	.pm_finish = &evergreen_pm_finish,
 	.pm_init_profile = &rs780_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
+	.pre_page_flip = &evergreen_pre_page_flip,
+	.page_flip = &evergreen_page_flip,
+	.post_page_flip = &evergreen_post_page_flip,
 };
 
 static struct radeon_asic btc_asic = {

@@ -195,7 +195,7 @@ static unsigned int pcc_get_freq(unsigned int cpu)
 cmd_incomplete:
 	iowrite16(0, &pcch_hdr->status);
 	spin_unlock(&pcc_lock);
-	return -EINVAL;
+	return 0;
 }
 
 static int pcc_cpufreq_target(struct cpufreq_policy *policy,

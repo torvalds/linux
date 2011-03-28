@@ -39,6 +39,7 @@
 #include <asm/mach/time.h>
 #include <plat/dmtimer.h>
 #include <asm/localtimer.h>
+#include <asm/sched_clock.h>
 
 #include "timer-gp.h"
 
@@ -190,6 +191,7 @@ static void __init omap2_gp_clocksource_init(void)
 /*
  * clocksource
  */
+static DEFINE_CLOCK_DATA(cd);
 static struct omap_dm_timer *gpt_clocksource;
 static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
@@ -203,6 +205,15 @@ static struct clocksource clocksource_gpt = {
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static void notrace dmtimer_update_sched_clock(void)
+{
+	u32 cyc;
+
+	cyc = omap_dm_timer_read_counter(gpt_clocksource);
+
+	update_sched_clock(&cd, cyc, (u32)~0);
+}
 
 /* Setup free-running counter for clocksource */
 static void __init omap2_gp_clocksource_init(void)
@@ -223,6 +234,8 @@ static void __init omap2_gp_clocksource_init(void)
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gpt));
 
 	omap_dm_timer_set_load_start(gpt, 1, 0);
+
+	init_sched_clock(&cd, dmtimer_update_sched_clock, 32, tick_rate);
 
 	if (clocksource_register_hz(&clocksource_gpt, tick_rate))
 		printk(err2, clocksource_gpt.name);

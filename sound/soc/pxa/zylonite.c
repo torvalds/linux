@@ -166,7 +166,7 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.stream_name = "AC97 HiFi",
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa-ac97.0",
+	.cpu_dai_name = "pxa2xx-ac97",
 	.codec_name = "wm9713-hifi",
 	.init = zylonite_wm9713_init,
 },
@@ -175,7 +175,7 @@ static struct snd_soc_dai_link zylonite_dai[] = {
 	.stream_name = "AC97 Aux",
 	.codec_name = "wm9713-codec",
 	.platform_name = "pxa-pcm-audio",
-	.cpu_dai_name = "pxa-ac97.1",
+	.cpu_dai_name = "pxa2xx-ac97-aux",
 	.codec_name = "wm9713-aux",
 },
 {

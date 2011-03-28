@@ -652,6 +652,12 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 		 */
 		rxdesc->flags |= RX_FLAG_IV_STRIPPED;
 
+		/*
+		 * The hardware has already checked the Michael Mic and has
+		 * stripped it from the frame. Signal this to mac80211.
+		 */
+		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
+
 		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS)
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 		else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC)
@@ -1065,6 +1071,8 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x3390), PCI_DEVICE_DATA(&rt2800pci_ops) },
 #endif
 #ifdef CONFIG_RT2800PCI_RT35XX
+	{ PCI_DEVICE(0x1432, 0x7711), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1432, 0x7722), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3060), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3062), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3562), PCI_DEVICE_DATA(&rt2800pci_ops) },

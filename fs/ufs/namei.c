@@ -306,7 +306,6 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
-		inode_inc_link_count(old_inode);
 		ufs_set_link(new_dir, new_de, new_page, old_inode);
 		new_inode->i_ctime = CURRENT_TIME_SEC;
 		if (dir_de)
@@ -318,12 +317,9 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			if (new_dir->i_nlink >= UFS_LINK_MAX)
 				goto out_dir;
 		}
-		inode_inc_link_count(old_inode);
 		err = ufs_add_link(new_dentry, old_inode);
-		if (err) {
-			inode_dec_link_count(old_inode);
+		if (err)
 			goto out_dir;
-		}
 		if (dir_de)
 			inode_inc_link_count(new_dir);
 	}
@@ -331,12 +327,11 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/*
 	 * Like most other Unix systems, set the ctime for inodes on a
  	 * rename.
-	 * inode_dec_link_count() will mark the inode dirty.
 	 */
 	old_inode->i_ctime = CURRENT_TIME_SEC;
 
 	ufs_delete_entry(old_dir, old_de, old_page);
-	inode_dec_link_count(old_inode);
+	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
 		ufs_set_link(old_inode, dir_de, dir_page, new_dir);

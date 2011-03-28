@@ -385,8 +385,9 @@ static void nvt_cir_regs_init(struct nvt_dev *nvt)
 
 static void nvt_cir_wake_regs_init(struct nvt_dev *nvt)
 {
-	/* set number of bytes needed for wake key comparison (default 67) */
-	nvt_cir_wake_reg_write(nvt, CIR_WAKE_FIFO_LEN, CIR_WAKE_FIFO_CMP_DEEP);
+	/* set number of bytes needed for wake from s3 (default 65) */
+	nvt_cir_wake_reg_write(nvt, CIR_WAKE_FIFO_CMP_BYTES,
+			       CIR_WAKE_FIFO_CMP_DEEP);
 
 	/* set tolerance/variance allowed per byte during wake compare */
 	nvt_cir_wake_reg_write(nvt, CIR_WAKE_CMP_TOLERANCE,

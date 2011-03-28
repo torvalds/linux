@@ -54,8 +54,8 @@ int mtx1_pci_idsel(unsigned int devsel, int assert);
 
 static void mtx1_reset(char *c)
 {
-	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
-	au_writel(0x00000000, 0xAE00001C);
+	/* Jump to the reset vector */
+	__asm__ __volatile__("jr\t%0"::"r"(0xbfc00000));
 }
 
 static void mtx1_power_off(void)

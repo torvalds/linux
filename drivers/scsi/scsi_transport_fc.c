@@ -3829,7 +3829,7 @@ fc_bsg_goose_queue(struct fc_rport *rport)
 		  !test_bit(QUEUE_FLAG_REENTER, &rport->rqst_q->queue_flags);
 	if (flagset)
 		queue_flag_set(QUEUE_FLAG_REENTER, rport->rqst_q);
-	__blk_run_queue(rport->rqst_q);
+	__blk_run_queue(rport->rqst_q, false);
 	if (flagset)
 		queue_flag_clear(QUEUE_FLAG_REENTER, rport->rqst_q);
 	spin_unlock_irqrestore(rport->rqst_q->queue_lock, flags);

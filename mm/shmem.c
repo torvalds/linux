@@ -2144,8 +2144,10 @@ static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 {
 	struct inode *inode = dentry->d_inode;
 
-	if (*len < 3)
+	if (*len < 3) {
+		*len = 3;
 		return 255;
+	}
 
 	if (inode_unhashed(inode)) {
 		/* Unfortunately insert_inode_hash is not idempotent,

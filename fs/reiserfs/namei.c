@@ -771,7 +771,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 					EMPTY_DIR_SIZE_V1 : EMPTY_DIR_SIZE,
 					dentry, inode, &security);
 	if (retval) {
-		dir->i_nlink--;
+		DEC_DIR_INODE_NLINK(dir)
 		goto out_failed;
 	}
 
@@ -1121,10 +1121,6 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 		//FIXME: sd_nlink is 32 bit for new files
 		reiserfs_write_unlock(dir->i_sb);
 		return -EMLINK;
-	}
-	if (inode->i_nlink == 0) {
-		reiserfs_write_unlock(dir->i_sb);
-		return -ENOENT;
 	}
 
 	/* inc before scheduling so reiserfs_unlink knows we are here */

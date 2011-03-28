@@ -41,7 +41,7 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 enum chips {
 	any_chip, lm85b, lm85c,
 	adm1027, adt7463, adt7468,
-	emc6d100, emc6d102
+	emc6d100, emc6d102, emc6d103
 };
 
 /* The LM85 registers */
@@ -90,6 +90,9 @@ enum chips {
 #define	LM85_VERSTEP_EMC6D100_A0        0x60
 #define	LM85_VERSTEP_EMC6D100_A1        0x61
 #define	LM85_VERSTEP_EMC6D102		0x65
+#define	LM85_VERSTEP_EMC6D103_A0	0x68
+#define	LM85_VERSTEP_EMC6D103_A1	0x69
+#define	LM85_VERSTEP_EMC6D103S		0x6A	/* Also known as EMC6D103:A2 */
 
 #define	LM85_REG_CONFIG			0x40
 
@@ -348,6 +351,7 @@ static const struct i2c_device_id lm85_id[] = {
 	{ "emc6d100", emc6d100 },
 	{ "emc6d101", emc6d100 },
 	{ "emc6d102", emc6d102 },
+	{ "emc6d103", emc6d103 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm85_id);
@@ -1250,6 +1254,20 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 		case LM85_VERSTEP_EMC6D102:
 			type_name = "emc6d102";
 			break;
+		case LM85_VERSTEP_EMC6D103_A0:
+		case LM85_VERSTEP_EMC6D103_A1:
+			type_name = "emc6d103";
+			break;
+		/*
+		 * Registers apparently missing in EMC6D103S/EMC6D103:A2
+		 * compared to EMC6D103:A0, EMC6D103:A1, and EMC6D102
+		 * (according to the data sheets), but used unconditionally
+		 * in the driver: 62[5:7], 6D[0:7], and 6E[0:7].
+		 * So skip EMC6D103S for now.
+		case LM85_VERSTEP_EMC6D103S:
+			type_name = "emc6d103s";
+			break;
+		 */
 		}
 	} else {
 		dev_dbg(&adapter->dev,
@@ -1283,6 +1301,7 @@ static int lm85_probe(struct i2c_client *client,
 	case adt7468:
 	case emc6d100:
 	case emc6d102:
+	case emc6d103:
 		data->freq_map = adm1027_freq_map;
 		break;
 	default:
@@ -1468,7 +1487,7 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			/* More alarm bits */
 			data->alarms |= lm85_read_value(client,
 						EMC6D100_REG_ALARM3) << 16;
-		} else if (data->type == emc6d102) {
+		} else if (data->type == emc6d102 || data->type == emc6d103) {
 			/* Have to read LSB bits after the MSB ones because
 			   the reading of the MSB bits has frozen the
 			   LSBs (backward from the ADM1027).

@@ -219,6 +219,10 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 		goto out_err;
 	}
 	buf = kmalloc(rlen + 1, GFP_KERNEL);
+	if (!buf) {
+		dprintk("%s: Not enough memory\n", __func__);
+		goto out_err;
+	}
 	buf[rlen] = '\0';
 	memcpy(buf, r_addr, rlen);
 

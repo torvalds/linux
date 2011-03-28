@@ -15,6 +15,7 @@
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
 
+#include <asm/ce4100.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 
@@ -129,4 +130,5 @@ void __init x86_ce4100_early_setup(void)
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 	x86_init.mpparse.find_smp_config = sdv_find_smp_config;
+	x86_init.pci.init = ce4100_pci_init;
 }

@@ -49,7 +49,10 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
 	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
-	nouveau_vm_put(&nvbo->vma);
+	if (nvbo->vma.node) {
+		nouveau_vm_unmap(&nvbo->vma);
+		nouveau_vm_put(&nvbo->vma);
+	}
 	kfree(nvbo);
 }
 

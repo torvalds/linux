@@ -295,12 +295,15 @@ static void usb_wwan_indat_callback(struct urb *urb)
 		    __func__, status, endpoint);
 	} else {
 		tty = tty_port_tty_get(&port->port);
-		if (urb->actual_length) {
-			tty_insert_flip_string(tty, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
-		} else
-			dbg("%s: empty read urb received", __func__);
-		tty_kref_put(tty);
+		if (tty) {
+			if (urb->actual_length) {
+				tty_insert_flip_string(tty, data,
+						urb->actual_length);
+				tty_flip_buffer_push(tty);
+			} else
+				dbg("%s: empty read urb received", __func__);
+			tty_kref_put(tty);
+		}
 
 		/* Resubmit urb so we continue receiving */
 		if (status != -ESHUTDOWN) {

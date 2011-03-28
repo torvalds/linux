@@ -558,7 +558,7 @@ done:
 		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
 		return r;
 	}
-	rdev->mc.active_vram_size = rdev->mc.real_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 	return 0;
 }
 
@@ -566,7 +566,7 @@ void r600_blit_fini(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+	radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
 	if (rdev->r600_blit.shader_obj == NULL)
 		return;
 	/* If we can't reserve the bo, unref should be enough to destroy

@@ -2029,11 +2029,11 @@ static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
 			*errp = sctp_make_op_error_fixed(asoc, chunk);
 
 		if (*errp) {
-			sctp_init_cause_fixed(*errp, SCTP_ERROR_UNKNOWN_PARAM,
-					WORD_ROUND(ntohs(param.p->length)));
-			sctp_addto_chunk_fixed(*errp,
-					WORD_ROUND(ntohs(param.p->length)),
-					param.v);
+			if (!sctp_init_cause_fixed(*errp, SCTP_ERROR_UNKNOWN_PARAM,
+					WORD_ROUND(ntohs(param.p->length))))
+				sctp_addto_chunk_fixed(*errp,
+						WORD_ROUND(ntohs(param.p->length)),
+						param.v);
 		} else {
 			/* If there is no memory for generating the ERROR
 			 * report as specified, an ABORT will be triggered

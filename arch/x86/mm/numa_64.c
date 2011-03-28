@@ -780,11 +780,7 @@ void __cpuinit numa_add_cpu(int cpu)
 	int physnid;
 	int nid = NUMA_NO_NODE;
 
-	apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
-	if (apicid != BAD_APICID)
-		nid = apicid_to_node[apicid];
-	if (nid == NUMA_NO_NODE)
-		nid = early_cpu_to_node(cpu);
+	nid = early_cpu_to_node(cpu);
 	BUG_ON(nid == NUMA_NO_NODE || !node_online(nid));
 
 	/*

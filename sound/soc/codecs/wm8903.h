@@ -165,7 +165,7 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 
 #define WM8903_VMID_RES_50K                          2
 #define WM8903_VMID_RES_250K                         3
-#define WM8903_VMID_RES_5K                           4
+#define WM8903_VMID_RES_5K                           6
 
 /*
  * R8 (0x08) - Analogue DAC 0

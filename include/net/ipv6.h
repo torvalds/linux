@@ -89,6 +89,18 @@
 #define IPV6_ADDR_SCOPE_GLOBAL		0x0e
 
 /*
+ *	Addr flags
+ */
+#ifdef __KERNEL__
+#define IPV6_ADDR_MC_FLAG_TRANSIENT(a)	\
+	((a)->s6_addr[1] & 0x10)
+#define IPV6_ADDR_MC_FLAG_PREFIX(a)	\
+	((a)->s6_addr[1] & 0x20)
+#define IPV6_ADDR_MC_FLAG_RENDEZVOUS(a)	\
+	((a)->s6_addr[1] & 0x40)
+#endif
+
+/*
  *	fragmentation header
  */
 

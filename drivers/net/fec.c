@@ -74,7 +74,8 @@ static struct platform_device_id fec_devtype[] = {
 	}, {
 		.name = "imx28-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_SWAP_FRAME,
-	}
+	},
+	{ }
 };
 
 static unsigned char macaddr[ETH_ALEN];

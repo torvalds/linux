@@ -1011,7 +1011,6 @@ static int m2mtest_remove(struct platform_device *pdev)
 	v4l2_m2m_release(dev->m2m_dev);
 	del_timer_sync(&dev->timer);
 	video_unregister_device(dev->vfd);
-	video_device_release(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 

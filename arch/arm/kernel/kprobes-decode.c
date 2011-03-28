@@ -1437,7 +1437,7 @@ arm_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 
 		return space_cccc_1100_010x(insn, asi);
 
-	} else if ((insn & 0x0e000000) == 0x0c400000) {
+	} else if ((insn & 0x0e000000) == 0x0c000000) {
 
 		return space_cccc_110x(insn, asi);
 

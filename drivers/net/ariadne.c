@@ -425,11 +425,6 @@ static irqreturn_t ariadne_interrupt(int irq, void *data)
     int csr0, boguscnt;
     int handled = 0;
 
-    if (dev == NULL) {
-	printk(KERN_WARNING "ariadne_interrupt(): irq for unknown device.\n");
-	return IRQ_NONE;
-    }
-
     lance->RAP = CSR0;			/* PCnet-ISA Controller Status */
 
     if (!(lance->RDP & INTR))		/* Check if any interrupt has been */

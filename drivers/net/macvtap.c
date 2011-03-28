@@ -528,8 +528,9 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 		vnet_hdr_len = q->vnet_hdr_sz;
 
 		err = -EINVAL;
-		if ((len -= vnet_hdr_len) < 0)
+		if (len < vnet_hdr_len)
 			goto err;
+		len -= vnet_hdr_len;
 
 		err = memcpy_fromiovecend((void *)&vnet_hdr, iv, 0,
 					   sizeof(vnet_hdr));

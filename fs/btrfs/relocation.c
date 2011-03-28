@@ -3654,6 +3654,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	u32 item_size;
 	int ret;
 	int err = 0;
+	int progress = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -3666,9 +3667,10 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	}
 
 	while (1) {
+		progress++;
 		trans = btrfs_start_transaction(rc->extent_root, 0);
 		BUG_ON(IS_ERR(trans));
-
+restart:
 		if (update_backref_cache(trans, &rc->backref_cache)) {
 			btrfs_end_transaction(trans, rc->extent_root);
 			continue;
@@ -3779,6 +3781,15 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 				err = ret;
 				break;
 			}
+		}
+	}
+	if (trans && progress && err == -ENOSPC) {
+		ret = btrfs_force_chunk_alloc(trans, rc->extent_root,
+					      rc->block_group->flags);
+		if (ret == 0) {
+			err = 0;
+			progress = 0;
+			goto restart;
 		}
 	}
 

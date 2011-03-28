@@ -286,6 +286,7 @@ static DEFINE_PCI_DEVICE_TABLE(pch_gpio_pcidev_id) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803) },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, pch_gpio_pcidev_id);
 
 static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",

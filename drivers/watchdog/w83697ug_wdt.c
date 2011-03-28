@@ -109,7 +109,7 @@ static int w83697ug_select_wd_register(void)
 	outb_p(0x08, WDT_EFDR); /* select logical device 8 (GPIO2) */
 	outb_p(0x30, WDT_EFER); /* select CR30 */
 	c = inb_p(WDT_EFDR);
-	outb_p(c || 0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
+	outb_p(c | 0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
 
 	return 0;
 }

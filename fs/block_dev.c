@@ -873,6 +873,11 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	ret = add_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
 	if (ret)
 		goto out_del;
+	/*
+	 * bdev could be deleted beneath us which would implicitly destroy
+	 * the holder directory.  Hold on to it.
+	 */
+	kobject_get(bdev->bd_part->holder_dir);
 
 	list_add(&holder->list, &bdev->bd_holder_disks);
 	goto out_unlock;
@@ -909,6 +914,7 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 		del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
 		del_symlink(bdev->bd_part->holder_dir,
 			    &disk_to_dev(disk)->kobj);
+		kobject_put(bdev->bd_part->holder_dir);
 		list_del_init(&holder->list);
 		kfree(holder);
 	}
@@ -922,14 +928,15 @@ EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
  * flush_disk - invalidates all buffer-cache entries on a disk
  *
  * @bdev:      struct block device to be flushed
+ * @kill_dirty: flag to guide handling of dirty inodes
  *
  * Invalidates all buffer-cache entries on a disk. It should be called
  * when a disk has been changed -- either by a media change or online
  * resize.
  */
-static void flush_disk(struct block_device *bdev)
+static void flush_disk(struct block_device *bdev, bool kill_dirty)
 {
-	if (__invalidate_device(bdev)) {
+	if (__invalidate_device(bdev, kill_dirty)) {
 		char name[BDEVNAME_SIZE] = "";
 
 		if (bdev->bd_disk)
@@ -966,7 +973,7 @@ void check_disk_size_change(struct gendisk *disk, struct block_device *bdev)
 		       "%s: detected capacity change from %lld to %lld\n",
 		       name, bdev_size, disk_size);
 		i_size_write(bdev->bd_inode, disk_size);
-		flush_disk(bdev);
+		flush_disk(bdev, false);
 	}
 }
 EXPORT_SYMBOL(check_disk_size_change);
@@ -1019,7 +1026,7 @@ int check_disk_change(struct block_device *bdev)
 	if (!(events & DISK_EVENT_MEDIA_CHANGE))
 		return 0;
 
-	flush_disk(bdev);
+	flush_disk(bdev, true);
 	if (bdops->revalidate_disk)
 		bdops->revalidate_disk(bdev->bd_disk);
 	return 1;
@@ -1600,7 +1607,7 @@ fail:
 }
 EXPORT_SYMBOL(lookup_bdev);
 
-int __invalidate_device(struct block_device *bdev)
+int __invalidate_device(struct block_device *bdev, bool kill_dirty)
 {
 	struct super_block *sb = get_super(bdev);
 	int res = 0;
@@ -1613,7 +1620,7 @@ int __invalidate_device(struct block_device *bdev)
 		 * hold).
 		 */
 		shrink_dcache_sb(sb);
-		res = invalidate_inodes(sb);
+		res = invalidate_inodes(sb, kill_dirty);
 		drop_super(sb);
 	}
 	invalidate_bdev(bdev);

@@ -725,8 +725,10 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	ret = vram->get(dev, mem->num_pages << PAGE_SHIFT,
 			mem->page_alignment << PAGE_SHIFT, size_nc,
 			(nvbo->tile_flags >> 8) & 0xff, &node);
-	if (ret)
-		return ret;
+	if (ret) {
+		mem->mm_node = NULL;
+		return (ret == -ENOSPC) ? 0 : ret;
+	}
 
 	node->page_shift = 12;
 	if (nvbo->vma.node)

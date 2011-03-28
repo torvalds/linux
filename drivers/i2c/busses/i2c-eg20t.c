@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/ktime.h>
+#include <linux/slab.h>
 
 #define PCH_EVENT_SET	0	/* I2C Interrupt Event Set Status */
 #define PCH_EVENT_NONE	1	/* I2C Interrupt Event Clear Status */

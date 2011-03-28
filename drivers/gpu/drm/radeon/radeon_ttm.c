@@ -589,6 +589,20 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	DRM_INFO("radeon: ttm finalized\n");
 }
 
+/* this should only be called at bootup or when userspace
+ * isn't running */
+void radeon_ttm_set_active_vram_size(struct radeon_device *rdev, u64 size)
+{
+	struct ttm_mem_type_manager *man;
+
+	if (!rdev->mman.initialized)
+		return;
+
+	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
+	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
+	man->size = size >> PAGE_SHIFT;
+}
+
 static struct vm_operations_struct radeon_ttm_vm_ops;
 static const struct vm_operations_struct *ttm_vm_ops = NULL;
 
