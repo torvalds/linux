@@ -522,9 +522,9 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.extension.data_buffer.pfn_array[0] = 0;
-	blkvsc_req->request.extension.data_buffer.offset = 0;
-	blkvsc_req->request.extension.data_buffer.len = 0;
+	blkvsc_req->request.data_buffer.pfn_array[0] = 0;
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 0;
 
 	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
 	blkvsc_req->cmd_len = 10;
@@ -569,10 +569,10 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.extension.data_buffer.pfn_array[0] =
+	blkvsc_req->request.data_buffer.pfn_array[0] =
 	page_to_pfn(page_buf);
-	blkvsc_req->request.extension.data_buffer.offset = 0;
-	blkvsc_req->request.extension.data_buffer.len = 64;
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 64;
 
 	blkvsc_req->cmnd[0] = INQUIRY;
 	blkvsc_req->cmnd[1] = 0x1;		/* Get product data */
@@ -653,16 +653,16 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 		return -ENOMEM;
 	}
 
-	vm_srb = &blkvsc_req->request.extension.vstor_packet.vm_srb;
+	vm_srb = &blkvsc_req->request.vstor_packet.vm_srb;
 	init_waitqueue_head(&blkvsc_req->wevent);
 	blkvsc_req->dev = blkdev;
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.extension.data_buffer.pfn_array[0] =
+	blkvsc_req->request.data_buffer.pfn_array[0] =
 	page_to_pfn(page_buf);
-	blkvsc_req->request.extension.data_buffer.offset = 0;
-	blkvsc_req->request.extension.data_buffer.len = 8;
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 8;
 
 	blkvsc_req->cmnd[0] = READ_CAPACITY;
 	blkvsc_req->cmd_len = 16;
@@ -727,7 +727,7 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 		return -ENOMEM;
 
 	memset(blkvsc_req, 0, sizeof(struct blkvsc_request));
-	vm_srb = &blkvsc_req->request.extension.vstor_packet.vm_srb;
+	vm_srb = &blkvsc_req->request.vstor_packet.vm_srb;
 	page_buf = alloc_page(GFP_KERNEL);
 	if (!page_buf) {
 		kmem_cache_free(blkvsc_req->dev->request_pool, blkvsc_req);
@@ -739,10 +739,10 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.extension.data_buffer.pfn_array[0] =
+	blkvsc_req->request.data_buffer.pfn_array[0] =
 	page_to_pfn(page_buf);
-	blkvsc_req->request.extension.data_buffer.offset = 0;
-	blkvsc_req->request.extension.data_buffer.len = 12;
+	blkvsc_req->request.data_buffer.offset = 0;
+	blkvsc_req->request.data_buffer.len = 12;
 
 	blkvsc_req->cmnd[0] = 0x9E; /* READ_CAPACITY16; */
 	blkvsc_req->cmd_len = 16;
@@ -931,8 +931,8 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 		   (blkvsc_req->write) ? "WRITE" : "READ",
 		   (unsigned long) blkvsc_req->sector_start,
 		   blkvsc_req->sector_count,
-		   blkvsc_req->request.extension.data_buffer.offset,
-		   blkvsc_req->request.extension.data_buffer.len);
+		   blkvsc_req->request.data_buffer.offset,
+		   blkvsc_req->request.data_buffer.len);
 #if 0
 	for (i = 0; i < (blkvsc_req->request.data_buffer.len >> 12); i++) {
 		DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
@@ -943,12 +943,12 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 #endif
 
 	storvsc_req = &blkvsc_req->request;
-	vm_srb = &storvsc_req->extension.vstor_packet.vm_srb;
+	vm_srb = &storvsc_req->vstor_packet.vm_srb;
 
 	vm_srb->data_in = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
 
-	storvsc_req->extension.on_io_completion = request_completion;
-	storvsc_req->extension.context = blkvsc_req;
+	storvsc_req->on_io_completion = request_completion;
+	storvsc_req->context = blkvsc_req;
 
 	vm_srb->port_number = blkdev->port;
 	vm_srb->path_id = blkdev->path;
@@ -959,7 +959,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 
 	memcpy(vm_srb->cdb, blkvsc_req->cmnd, vm_srb->cdb_length);
 
-	storvsc_req->extension.sense_buffer = blkvsc_req->sense_buffer;
+	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;
 
 	ret = storvsc_drv_obj->on_io_request(blkdev->device_ctx,
 					   &blkvsc_req->request);
@@ -1059,10 +1059,10 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 
 					blkvsc_req->dev = blkdev;
 					blkvsc_req->req = req;
-					blkvsc_req->request.extension.
+					blkvsc_req->request.
 					data_buffer.offset
 					= bvec->bv_offset;
-					blkvsc_req->request.extension.
+					blkvsc_req->request.
 					data_buffer.len = 0;
 
 					/* Add to the group */
@@ -1077,10 +1077,10 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 				}
 
 				/* Add the curr bvec/segment to the curr blkvsc_req */
-				blkvsc_req->request.extension.data_buffer.
+				blkvsc_req->request.data_buffer.
 					pfn_array[databuf_idx]
 						= page_to_pfn(bvec->bv_page);
-				blkvsc_req->request.extension.data_buffer.len
+				blkvsc_req->request.data_buffer.len
 					+= bvec->bv_len;
 
 				prev_bvec = bvec;
@@ -1146,7 +1146,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
 {
 	struct blkvsc_request *blkvsc_req =
-			(struct blkvsc_request *)request->extension.context;
+			(struct blkvsc_request *)request->context;
 	struct block_device_context *blkdev =
 			(struct block_device_context *)blkvsc_req->dev;
 	struct scsi_sense_hdr sense_hdr;
@@ -1155,7 +1155,7 @@ static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_cmd_completion() - req %p\n",
 		   blkvsc_req);
 
-	vm_srb = &blkvsc_req->request.extension.vstor_packet.vm_srb;
+	vm_srb = &blkvsc_req->request.vstor_packet.vm_srb;
 	blkdev->num_outstanding_reqs--;
 
 	if (vm_srb->scsi_status)
@@ -1170,7 +1170,7 @@ static void blkvsc_cmd_completion(struct hv_storvsc_request *request)
 static void blkvsc_request_completion(struct hv_storvsc_request *request)
 {
 	struct blkvsc_request *blkvsc_req =
-			(struct blkvsc_request *)request->extension.context;
+			(struct blkvsc_request *)request->context;
 	struct block_device_context *blkdev =
 			(struct block_device_context *)blkvsc_req->dev;
 	unsigned long flags;
@@ -1186,7 +1186,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 		   (blkvsc_req->write) ? "WRITE" : "READ",
 		   (unsigned long)blkvsc_req->sector_start,
 		   blkvsc_req->sector_count,
-		   blkvsc_req->request.extension.data_buffer.len,
+		   blkvsc_req->request.data_buffer.len,
 		   blkvsc_req->group->outstanding,
 		   blkdev->num_outstanding_reqs);
 
@@ -1213,7 +1213,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 			list_del(&comp_req->req_entry);
 
 			vm_srb =
-			&comp_req->request.extension.vstor_packet.vm_srb;
+			&comp_req->request.vstor_packet.vm_srb;
 			if (!__blk_end_request(comp_req->req,
 				(!vm_srb->scsi_status ? 0 : -EIO),
 				comp_req->sector_count * blkdev->sector_size)) {
@@ -1274,7 +1274,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 
 			if (comp_req->req) {
 				vm_srb =
-				&comp_req->request.extension.vstor_packet.
+				&comp_req->request.vstor_packet.
 				vm_srb;
 				ret = __blk_end_request(comp_req->req,
 					(!vm_srb->scsi_status ? 0 : -EIO),

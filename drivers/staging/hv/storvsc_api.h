@@ -55,7 +55,7 @@ enum storvsc_request_type{
 };
 
 
-struct storvsc_request_extension {
+struct hv_storvsc_request {
 	struct hv_storvsc_request *request;
 	struct hv_device *device;
 
@@ -70,11 +70,6 @@ struct storvsc_request_extension {
 	struct vstor_packet vstor_packet;
 };
 
-struct hv_storvsc_request {
-
-	struct storvsc_request_extension extension;
-
-};
 
 /* Represents the block vsc driver */
 struct storvsc_driver_object {
@@ -116,8 +111,8 @@ struct storvsc_device {
 	unsigned char target_id;
 
 	/* Used for vsc/vsp channel reset process */
-	struct storvsc_request_extension init_request;
-	struct storvsc_request_extension reset_request;
+	struct hv_storvsc_request init_request;
+	struct hv_storvsc_request reset_request;
 };
 
 

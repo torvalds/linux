@@ -105,7 +105,7 @@ static inline struct storvsc_device *final_release_stor_device(
 static int stor_vsc_channel_init(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
-	struct storvsc_request_extension *request;
+	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
 	int ret, t;
 
@@ -123,7 +123,7 @@ static int stor_vsc_channel_init(struct hv_device *device)
 	 * Now, initiate the vsc/vsp initialization protocol on the open
 	 * channel
 	 */
-	memset(request, 0, sizeof(struct storvsc_request_extension));
+	memset(request, 0, sizeof(struct hv_storvsc_request));
 	init_completion(&request->wait_event);
 	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
@@ -276,9 +276,8 @@ cleanup:
 
 static void stor_vsc_on_io_completion(struct hv_device *device,
 				  struct vstor_packet *vstor_packet,
-				  struct storvsc_request_extension *request_ext)
+				  struct hv_storvsc_request *request)
 {
-	struct hv_storvsc_request *request;
 	struct storvsc_device *stor_device;
 
 	stor_device = must_get_stor_device(device);
@@ -288,11 +287,10 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 		return;
 	}
 
-	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request extension %p "
-		   "completed bytes xfer %u", request_ext,
+	DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION - request  %p "
+		   "completed bytes xfer %u", request,
 		   vstor_packet->vm_srb.data_transfer_length);
 
-	request = request_ext->request;
 
 
 	/* Copy over the status...etc */
@@ -311,10 +309,10 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 		if (vstor_packet->vm_srb.srb_status & 0x80) {
 			/* autosense data available */
 			DPRINT_WARN(STORVSC, "storvsc pkt %p autosense data "
-				    "valid - len %d\n", request_ext,
+				    "valid - len %d\n", request,
 				    vstor_packet->vm_srb.sense_info_length);
 
-			memcpy(request->extension.sense_buffer,
+			memcpy(request->sense_buffer,
 			       vstor_packet->vm_srb.sense_data,
 			       vstor_packet->vm_srb.sense_info_length);
 
@@ -322,7 +320,7 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 	}
 
 
-	request->extension.on_io_completion(request);
+	request->on_io_completion(request);
 
 	atomic_dec(&stor_device->num_outstanding_req);
 
@@ -331,12 +329,12 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 
 static void stor_vsc_on_receive(struct hv_device *device,
 			     struct vstor_packet *vstor_packet,
-			     struct storvsc_request_extension *request_ext)
+			     struct hv_storvsc_request *request)
 {
 	switch (vstor_packet->operation) {
 	case VSTOR_OPERATION_COMPLETE_IO:
 		DPRINT_DBG(STORVSC, "IO_COMPLETE_OPERATION");
-		stor_vsc_on_io_completion(device, vstor_packet, request_ext);
+		stor_vsc_on_io_completion(device, vstor_packet, request);
 		break;
 	case VSTOR_OPERATION_REMOVE_DEVICE:
 		DPRINT_INFO(STORVSC, "REMOVE_DEVICE_OPERATION");
@@ -357,7 +355,7 @@ static void stor_vsc_on_channel_callback(void *context)
 	u32 bytes_recvd;
 	u64 request_id;
 	unsigned char packet[ALIGN(sizeof(struct vstor_packet), 8)];
-	struct storvsc_request_extension *request;
+	struct hv_storvsc_request *request;
 	int ret;
 
 
@@ -377,7 +375,7 @@ static void stor_vsc_on_channel_callback(void *context)
 				   bytes_recvd, request_id);
 
 
-			request = (struct storvsc_request_extension *)
+			request = (struct hv_storvsc_request *)
 					(unsigned long)request_id;
 
 			if ((request == &stor_device->init_request) ||
@@ -516,20 +514,17 @@ int stor_vsc_on_io_request(struct hv_device *device,
 			      struct hv_storvsc_request *request)
 {
 	struct storvsc_device *stor_device;
-	struct storvsc_request_extension *request_extension;
 	struct vstor_packet *vstor_packet;
 	int ret = 0;
 
-	request_extension = &request->extension;
-	vstor_packet = &request_extension->vstor_packet;
+	vstor_packet = &request->vstor_packet;
 	stor_device = get_stor_device(device);
 
 	DPRINT_DBG(STORVSC, "enter - Device %p, DeviceExt %p, Request %p, "
-		   "Extension %p", device, stor_device, request,
-		   request_extension);
+		   , device, stor_device, request);
 
 	DPRINT_DBG(STORVSC, "req %p len %d",
-		   request, request->extension.data_buffer.len);
+		   request, request->data_buffer.len);
 
 	if (!stor_device) {
 		DPRINT_ERR(STORVSC, "unable to get stor device..."
@@ -538,8 +533,7 @@ int stor_vsc_on_io_request(struct hv_device *device,
 	}
 
 
-	request_extension->request = request;
-	request_extension->device  = device;
+	request->device  = device;
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
@@ -550,7 +544,7 @@ int stor_vsc_on_io_request(struct hv_device *device,
 
 
 	vstor_packet->vm_srb.data_transfer_length =
-	request->extension.data_buffer.len;
+	request->data_buffer.len;
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTE_SRB;
 
@@ -564,17 +558,16 @@ int stor_vsc_on_io_request(struct hv_device *device,
 		   vstor_packet->vm_srb.sense_info_length,
 		   vstor_packet->vm_srb.cdb_length);
 
-	if (request_extension->request->extension.data_buffer.len) {
+	if (request->data_buffer.len) {
 		ret = vmbus_sendpacket_multipagebuffer(device->channel,
-				&request_extension->request->extension.
-				data_buffer,
+				&request->data_buffer,
 				vstor_packet,
 				sizeof(struct vstor_packet),
-				(unsigned long)request_extension);
+				(unsigned long)request);
 	} else {
 		ret = vmbus_sendpacket(device->channel, vstor_packet,
 				       sizeof(struct vstor_packet),
-				       (unsigned long)request_extension,
+				       (unsigned long)request,
 				       VM_PKT_DATA_INBAND,
 				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
