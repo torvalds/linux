@@ -1234,14 +1234,17 @@ static int acer_rfkill_init(struct device *dev)
 
 	rfkill_inited = true;
 
-	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
+	if (ec_raw_mode || !wmi_has_guid(ACERWMID_EVENT_GUID))
+		schedule_delayed_work(&acer_rfkill_work,
+			round_jiffies_relative(HZ));
 
 	return 0;
 }
 
 static void acer_rfkill_exit(void)
 {
-	cancel_delayed_work_sync(&acer_rfkill_work);
+	if (ec_raw_mode || !wmi_has_guid(ACERWMID_EVENT_GUID))
+		cancel_delayed_work_sync(&acer_rfkill_work);
 
 	rfkill_unregister(wireless_rfkill);
 	rfkill_destroy(wireless_rfkill);
@@ -1338,6 +1341,19 @@ static void acer_wmi_notify(u32 value, void *context)
 
 	switch (return_value.function) {
 	case WMID_HOTKEY_EVENT:
+		if (return_value.device_state) {
+			u16 device_state = return_value.device_state;
+			pr_debug("deivces states: 0x%x\n", device_state);
+			if (has_cap(ACER_CAP_WIRELESS))
+				rfkill_set_sw_state(wireless_rfkill,
+				!(device_state & ACER_WMID3_GDS_WIRELESS));
+			if (has_cap(ACER_CAP_BLUETOOTH))
+				rfkill_set_sw_state(bluetooth_rfkill,
+				!(device_state & ACER_WMID3_GDS_BLUETOOTH));
+			if (has_cap(ACER_CAP_THREEG))
+				rfkill_set_sw_state(threeg_rfkill,
+				!(device_state & ACER_WMID3_GDS_THREEG));
+		}
 		if (!sparse_keymap_report_event(acer_wmi_input_dev,
 				return_value.key_num, 1, true))
 			pr_warning("Unknown key number - 0x%x\n",
