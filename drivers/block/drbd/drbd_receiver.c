@@ -833,10 +833,10 @@ static int drbd_connect(struct drbd_tconn *tconn)
 		if (s) {
 			if (!tconn->data.socket) {
 				tconn->data.socket = s;
-				drbd_send_fp(tconn, &tconn->data, P_HAND_SHAKE_S);
+				drbd_send_fp(tconn, &tconn->data, P_INITIAL_DATA);
 			} else if (!tconn->meta.socket) {
 				tconn->meta.socket = s;
-				drbd_send_fp(tconn, &tconn->meta, P_HAND_SHAKE_M);
+				drbd_send_fp(tconn, &tconn->meta, P_INITIAL_META);
 			} else {
 				conn_err(tconn, "Logic error in drbd_connect()\n");
 				goto out_release_sockets;
@@ -858,14 +858,14 @@ retry:
 			drbd_socket_okay(&tconn->data.socket);
 			drbd_socket_okay(&tconn->meta.socket);
 			switch (try) {
-			case P_HAND_SHAKE_S:
+			case P_INITIAL_DATA:
 				if (tconn->data.socket) {
 					conn_warn(tconn, "initial packet S crossed\n");
 					sock_release(tconn->data.socket);
 				}
 				tconn->data.socket = s;
 				break;
-			case P_HAND_SHAKE_M:
+			case P_INITIAL_META:
 				if (tconn->meta.socket) {
 					conn_warn(tconn, "initial packet M crossed\n");
 					sock_release(tconn->meta.socket);

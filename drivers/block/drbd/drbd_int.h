@@ -232,8 +232,8 @@ enum drbd_packet {
 
 	/* special command ids for handshake */
 
-	P_HAND_SHAKE_M	      = 0xfff1, /* First Packet on the MetaSock */
-	P_HAND_SHAKE_S	      = 0xfff2, /* First Packet on the Socket */
+	P_INITIAL_META	      = 0xfff1, /* First Packet on the MetaSock */
+	P_INITIAL_DATA	      = 0xfff2, /* First Packet on the Socket */
 
 	P_HAND_SHAKE	      = 0xfffe	/* FIXED for the next century! */
 };

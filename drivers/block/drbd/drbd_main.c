@@ -3145,10 +3145,10 @@ const char *cmdname(enum drbd_packet cmd)
 		[P_RETRY_WRITE]		= "RetryWrite",
 	};
 
-	if (cmd == P_HAND_SHAKE_M)
-		return "HandShakeM";
-	if (cmd == P_HAND_SHAKE_S)
-		return "HandShakeS";
+	if (cmd == P_INITIAL_META)
+		return "InitialMeta";
+	if (cmd == P_INITIAL_DATA)
+		return "InitialData";
 	if (cmd == P_HAND_SHAKE)
 		return "HandShake";
 	if (cmd >= ARRAY_SIZE(cmdnames))
