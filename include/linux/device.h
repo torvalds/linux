@@ -408,7 +408,7 @@ struct device {
 
 	struct kobject kobj;
 	const char		*init_name; /* initial name of the device */
-	struct device_type	*type;
+	const struct device_type *type;
 
 	struct mutex		mutex;	/* mutex to synchronize calls to
 					 * its driver.
