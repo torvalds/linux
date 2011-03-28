@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
+
 
 #include <linux/mfd/wm831x/core.h>
 
@@ -67,7 +69,8 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 {
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
-
+	int ret,gpio,irq;
+	
 	/* Currently SPI support for ID tables is unmerged, we're faking it */
 	if (strcmp(spi->modalias, "wm8310") == 0)
 		type = WM8310;
@@ -93,13 +96,26 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 
+	gpio = spi->irq;
+	ret = gpio_request(gpio, "wm831x");
+	if (ret) {
+		printk( "failed to request rk gpio irq for wm831x \n");
+		return ret;
+	}
+	gpio_pull_updown(gpio, GPIOPullUp);
+	if (ret) {
+	    printk("failed to pull up gpio irq for wm831x \n");
+		return ret;
+	}	
+	irq = gpio_to_irq(gpio);
+
 	dev_set_drvdata(&spi->dev, wm831x);
 	wm831x->dev = &spi->dev;
 	wm831x->control_data = spi;
 	wm831x->read_dev = wm831x_spi_read_device;
 	wm831x->write_dev = wm831x_spi_write_device;
 
-	return wm831x_device_init(wm831x, type, spi->irq);
+	return wm831x_device_init(wm831x, type, irq);
 }
 
 static int __devexit wm831x_spi_remove(struct spi_device *spi)
