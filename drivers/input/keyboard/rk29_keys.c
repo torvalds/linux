@@ -25,6 +25,8 @@
 
 #include <asm/gpio.h>
 #include <mach/key.h>
+#include <mach/board.h>
+
 
 #define EMPTY_ADVALUE					950
 #define DRIFT_ADVALUE					70
@@ -62,7 +64,7 @@ static void keys_long_press_timer(unsigned long _data)
 	struct rk29_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
 	unsigned int type = EV_KEY;
-	if(button->gpio)
+	if(button->gpio != INVALID_GPIO )
 		state = !!((gpio_get_value(button->gpio) ? 1 : 0) ^ button->active_low);
 	else
 		state = !!button->adc_state;
@@ -70,13 +72,13 @@ static void keys_long_press_timer(unsigned long _data)
 		if(bdata->long_press_count != 0) {
 			if(bdata->long_press_count % (LONG_PRESS_COUNT+ONE_SEC_COUNT) == 0){
 				key_dbg(bdata, "%skey[%s]: report ev[%d] state[0]\n", 
-					(!button->gpio)?"ad":"io", button->desc, button->code_long_press);
+					(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code_long_press);
 				input_event(input, type, button->code_long_press, 0);
 				input_sync(input);
 			}
 			else if(bdata->long_press_count%LONG_PRESS_COUNT == 0) {
 				key_dbg(bdata, "%skey[%s]: report ev[%d] state[1]\n", 
-					(!button->gpio)?"ad":"io", button->desc, button->code_long_press);
+					(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code_long_press);
 				input_event(input, type, button->code_long_press, 1);
 				input_sync(input);
 			}
@@ -89,16 +91,15 @@ static void keys_long_press_timer(unsigned long _data)
 		if(bdata->long_press_count <= LONG_PRESS_COUNT) {
 			bdata->long_press_count = 0;
 			key_dbg(bdata, "%skey[%s]: report ev[%d] state[1], report ev[%d] state[0]\n", 
-					(!button->gpio)?"ad":"io", button->desc, button->code, button->code);
+					(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code, button->code);
 			input_event(input, type, button->code, 1);
 			input_sync(input);
 			input_event(input, type, button->code, 0);
 			input_sync(input);
 		}
-		else {
-			if(bdata->state != state)
+		else if(bdata->state != state) {
 			key_dbg(bdata, "%skey[%s]: report ev[%d] state[0]\n", 
-			(!button->gpio)?"ad":"io", button->desc, button->code_long_press);
+			(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code_long_press);
 			input_event(input, type, button->code_long_press, 0);
 			input_sync(input);
 		}
@@ -113,14 +114,14 @@ static void keys_timer(unsigned long _data)
 	struct input_dev *input = bdata->input;
 	unsigned int type = EV_KEY;
 	
-	if(button->gpio)
+	if(button->gpio != INVALID_GPIO)
 		state = !!((gpio_get_value(button->gpio) ? 1 : 0) ^ button->active_low);
 	else
 		state = !!button->adc_state;
 	if(bdata->state != state) {
 		bdata->state = state;
 		key_dbg(bdata, "%skey[%s]: report ev[%d] state[%d]\n", 
-			(!button->gpio)?"ad":"io", button->desc, button->code, bdata->state);
+			(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code, bdata->state);
 		input_event(input, type, button->code, bdata->state);
 		input_sync(input);
 	}
@@ -237,7 +238,7 @@ static int __devinit keys_probe(struct platform_device *pdev)
 		else if(button->code)
 			setup_timer(&bdata->timer,
 			    	keys_timer, (unsigned long)bdata);
-		if(button->gpio) {
+		if(button->gpio != INVALID_GPIO) {
 			error = gpio_request(button->gpio, button->desc ?: "keys");
 			if (error < 0) {
 				pr_err("gpio-keys: failed to request GPIO %d,"
