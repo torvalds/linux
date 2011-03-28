@@ -717,12 +717,13 @@ static void rt2800pci_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt2800_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
-static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
+static bool rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
 	u32 status;
 	u8 qid;
+	int max_tx_done = 16;
 
 	while (kfifo_get(&rt2x00dev->txstatus_fifo, &status)) {
 		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
@@ -759,7 +760,12 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 
 		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		rt2800_txdone_entry(entry, status);
+
+		if (--max_tx_done == 0)
+			break;
 	}
+
+	return !max_tx_done;
 }
 
 static void rt2800pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
@@ -780,7 +786,9 @@ static void rt2800pci_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 
 static void rt2800pci_txstatus_tasklet(unsigned long data)
 {
-	rt2800pci_txdone((struct rt2x00_dev *)data);
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	if (rt2800pci_txdone(rt2x00dev))
+		tasklet_schedule(&rt2x00dev->txstatus_tasklet);
 
 	/*
 	 * No need to enable the tx status interrupt here as we always
