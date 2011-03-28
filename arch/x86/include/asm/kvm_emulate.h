@@ -158,6 +158,8 @@ struct x86_emulate_ops {
 	int (*set_dr)(int dr, unsigned long value, struct kvm_vcpu *vcpu);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
+	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
+	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */
 };
 
 /* Type, address-of, and value of an instruction's operand. */

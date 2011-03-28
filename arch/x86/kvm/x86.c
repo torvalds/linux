@@ -4281,6 +4281,22 @@ static void emulator_set_segment_selector(u16 sel, int seg,
 	kvm_set_segment(vcpu, &kvm_seg, seg);
 }
 
+static void emulator_get_fpu(struct x86_emulate_ctxt *ctxt)
+{
+	preempt_disable();
+	kvm_load_guest_fpu(ctxt->vcpu);
+	/*
+	 * CR0.TS may reference the host fpu state, not the guest fpu state,
+	 * so it may be clear at this point.
+	 */
+	clts();
+}
+
+static void emulator_put_fpu(struct x86_emulate_ctxt *ctxt)
+{
+	preempt_enable();
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
 	.write_std           = kvm_write_guest_virt_system,
@@ -4304,6 +4320,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_dr              = emulator_set_dr,
 	.set_msr             = kvm_set_msr,
 	.get_msr             = kvm_get_msr,
+	.get_fpu             = emulator_get_fpu,
+	.put_fpu             = emulator_put_fpu,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
