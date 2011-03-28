@@ -186,7 +186,7 @@ static struct snd_soc_dai_link bf5xx_ad73311_dai = {
 	.cpu_dai_name = "bf5xx-i2s",
 	.codec_dai_name = "ad73311-hifi",
 	.platform_name = "bfin-pcm-audio",
-	.codec_name = "ad73311-codec",
+	.codec_name = "ad73311",
 	.ops = &bf5xx_ad73311_ops,
 };
 
