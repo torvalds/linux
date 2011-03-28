@@ -83,8 +83,7 @@ struct hv_storvsc_request {
 
 	void (*on_io_completion)(struct hv_storvsc_request *request);
 
-	/* This points to the memory after DataBuffer */
-	void *extension;
+	struct storvsc_request_extension extension;
 
 	struct hv_multipage_buffer data_buffer;
 };

@@ -533,8 +533,7 @@ int stor_vsc_on_io_request(struct hv_device *device,
 	struct vstor_packet *vstor_packet;
 	int ret = 0;
 
-	request_extension =
-		(struct storvsc_request_extension *)request->extension;
+	request_extension = &request->extension;
 	vstor_packet = &request_extension->vstor_packet;
 	stor_device = get_stor_device(device);
 

@@ -84,12 +84,6 @@ struct blkvsc_request {
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 
 	struct hv_storvsc_request request;
-	/*
-	 * !!!DO NOT ADD ANYTHING BELOW HERE!!! Otherwise, memory can overlap,
-	 * because - The extension buffer falls right here and is pointed to by
-	 * request.Extension;
-	 * Which sounds like a horrible idea, who designed this?
-	 */
 };
 
 /* Per device structure */
@@ -944,8 +938,6 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 #endif
 
 	storvsc_req = &blkvsc_req->request;
-	storvsc_req->extension = (void *)((unsigned long)blkvsc_req +
-					  sizeof(struct blkvsc_request));
 
 	storvsc_req->type = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
 
