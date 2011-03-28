@@ -64,7 +64,16 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks_fqs);
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_printf(m, " of=%lu ri=%lu", rdp->offline_fqs, rdp->resched_ipi);
-	seq_printf(m, " ql=%ld b=%ld", rdp->qlen, rdp->blimit);
+	seq_printf(m, " ql=%ld qs=%c%c%c%c b=%ld",
+		   rdp->qlen,
+		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
+			rdp->nxttail[RCU_NEXT_TAIL]],
+		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
+			rdp->nxttail[RCU_NEXT_READY_TAIL]],
+		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
+			rdp->nxttail[RCU_WAIT_TAIL]],
+		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]],
+		   rdp->blimit);
 	seq_printf(m, " ci=%lu co=%lu ca=%lu\n",
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
 }
@@ -121,7 +130,15 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks_fqs);
 #endif /* #ifdef CONFIG_NO_HZ */
 	seq_printf(m, ",%lu,%lu", rdp->offline_fqs, rdp->resched_ipi);
-	seq_printf(m, ",%ld,%ld", rdp->qlen, rdp->blimit);
+	seq_printf(m, ",%ld,\"%c%c%c%c\",%ld", rdp->qlen,
+		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
+			rdp->nxttail[RCU_NEXT_TAIL]],
+		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
+			rdp->nxttail[RCU_NEXT_READY_TAIL]],
+		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
+			rdp->nxttail[RCU_WAIT_TAIL]],
+		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]],
+		   rdp->blimit);
 	seq_printf(m, ",%lu,%lu,%lu\n",
 		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
 }
