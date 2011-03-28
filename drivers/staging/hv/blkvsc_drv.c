@@ -948,7 +948,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	vm_srb->target_id = blkdev->target;
 	vm_srb->lun = 0;	 /* this is not really used at all */
 
-	storvsc_req->cdb_len = blkvsc_req->cmd_len;
+	vm_srb->cdb_length = blkvsc_req->cmd_len;
 	storvsc_req->cdb = blkvsc_req->cmnd;
 
 	storvsc_req->sense_buffer = blkvsc_req->sense_buffer;

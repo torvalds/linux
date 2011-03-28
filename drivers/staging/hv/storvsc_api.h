@@ -67,7 +67,6 @@ struct storvsc_request_extension {
 
 struct hv_storvsc_request {
 	u8 *cdb;
-	u32 cdb_len;
 	u32 status;
 	u32 bytes_xfer;
 

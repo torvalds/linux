@@ -531,9 +531,8 @@ int stor_vsc_on_io_request(struct hv_device *device,
 		   "Extension %p", device, stor_device, request,
 		   request_extension);
 
-	DPRINT_DBG(STORVSC, "req %p len %d cdblen %d",
-		   request, request->data_buffer.len,
-		   request->cdb_len);
+	DPRINT_DBG(STORVSC, "req %p len %d",
+		   request, request->data_buffer.len);
 
 	if (!stor_device) {
 		DPRINT_ERR(STORVSC, "unable to get stor device..."
@@ -553,8 +552,8 @@ int stor_vsc_on_io_request(struct hv_device *device,
 	vstor_packet->vm_srb.sense_info_length = SENSE_BUFFER_SIZE;
 
 	/* Copy over the scsi command descriptor block */
-	vstor_packet->vm_srb.cdb_length = request->cdb_len;
-	memcpy(&vstor_packet->vm_srb.cdb, request->cdb, request->cdb_len);
+	memcpy(&vstor_packet->vm_srb.cdb, request->cdb,
+		 vstor_packet->vm_srb.cdb_length);
 
 	vstor_packet->vm_srb.data_transfer_length = request->data_buffer.len;
 

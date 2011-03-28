@@ -780,7 +780,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	vm_srb->lun = scmnd->device->lun;
 
 	/* ASSERT(scmnd->cmd_len <= 16); */
-	request->cdb_len = scmnd->cmd_len;
+	vm_srb->cdb_length = scmnd->cmd_len;
 	request->cdb = scmnd->cmnd;
 
 	request->sense_buffer = scmnd->sense_buffer;
