@@ -43,8 +43,11 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 
 	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
 
-	txdesc->u.ht.stbc =
-	    (tx_info->flags & IEEE80211_TX_CTL_STBC) >> IEEE80211_TX_CTL_STBC_SHIFT;
+	/*
+	 * Only one STBC stream is supported for now.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
+		txdesc->u.ht.stbc = 1;
 
 	/*
 	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
