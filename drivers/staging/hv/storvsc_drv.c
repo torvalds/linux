@@ -775,7 +775,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 	/* request->PortId = scmnd->device->channel; */
 	vm_srb->port_number = host_device_ctx->port;
-	request->bus = scmnd->device->channel;
+	vm_srb->path_id = scmnd->device->channel;
 	request->target_id = scmnd->device->id;
 	request->lun_id = scmnd->device->lun;
 

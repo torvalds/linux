@@ -531,8 +531,8 @@ int stor_vsc_on_io_request(struct hv_device *device,
 		   "Extension %p", device, stor_device, request,
 		   request_extension);
 
-	DPRINT_DBG(STORVSC, "req %p len %d bus %d, target %d, lun %d cdblen %d",
-		   request, request->data_buffer.len, request->bus,
+	DPRINT_DBG(STORVSC, "req %p len %d  target %d, lun %d cdblen %d",
+		   request, request->data_buffer.len,
 		   request->target_id, request->lun_id, request->cdb_len);
 
 	if (!stor_device) {
@@ -549,7 +549,6 @@ int stor_vsc_on_io_request(struct hv_device *device,
 
 	vstor_packet->vm_srb.length = sizeof(struct vmscsi_request);
 
-	vstor_packet->vm_srb.path_id = request->bus;
 	vstor_packet->vm_srb.target_id = request->target_id;
 	vstor_packet->vm_srb.lun = request->lun_id;
 
