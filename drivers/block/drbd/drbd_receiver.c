@@ -3568,7 +3568,7 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 	if ((ns.conn == C_CONNECTED || ns.conn == C_WF_BITMAP_S) && ns.disk == D_NEGOTIATING)
 		ns.disk = mdev->new_state_tmp.disk;
 	cs_flags = CS_VERBOSE + (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED ? 0 : CS_HARD);
-	if (ns.pdsk == D_CONSISTENT && is_susp(ns) && ns.conn == C_CONNECTED && os.conn < C_CONNECTED &&
+	if (ns.pdsk == D_CONSISTENT && drbd_suspended(mdev) && ns.conn == C_CONNECTED && os.conn < C_CONNECTED &&
 	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
 		/* Do not allow tl_restart(RESEND) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
@@ -4123,7 +4123,7 @@ static int drbd_disconnected(int vnr, void *p, void *data)
 	kfree(mdev->p_uuid);
 	mdev->p_uuid = NULL;
 
-	if (!is_susp(mdev->state))
+	if (!drbd_suspended(mdev))
 		tl_clear(mdev->tconn);
 
 	drbd_md_sync(mdev);

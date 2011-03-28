@@ -2217,16 +2217,16 @@ static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 	return 1;
 }
 
-static inline int is_susp(union drbd_state s)
+static inline int drbd_suspended(struct drbd_conf *mdev)
 {
-	return s.susp || s.susp_nod || s.susp_fen;
+	return mdev->state.susp || mdev->state.susp_nod || mdev->state.susp_fen;
 }
 
 static inline bool may_inc_ap_bio(struct drbd_conf *mdev)
 {
 	int mxb = drbd_get_max_buffers(mdev);
 
-	if (is_susp(mdev->state))
+	if (drbd_suspended(mdev))
 		return false;
 	if (test_bit(SUSPEND_IO, &mdev->flags))
 		return false;

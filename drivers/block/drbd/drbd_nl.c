@@ -731,7 +731,7 @@ char *ppsize(char *buf, unsigned long long size)
 void drbd_suspend_io(struct drbd_conf *mdev)
 {
 	set_bit(SUSPEND_IO, &mdev->flags);
-	if (is_susp(mdev->state))
+	if (drbd_suspended(mdev))
 		return;
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
 }
@@ -1355,7 +1355,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	drbd_suspend_io(mdev);
 	/* also wait for the last barrier ack. */
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || is_susp(mdev->state));
+	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || drbd_suspended(mdev));
 	/* and for any other previously queued work */
 	drbd_flush_workqueue(mdev);
 

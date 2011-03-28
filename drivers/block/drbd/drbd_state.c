@@ -47,6 +47,11 @@ static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_st
 static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
 				       const char **warn_sync_abort);
 
+static inline bool is_susp(union drbd_state s)
+{
+        return s.susp || s.susp_nod || s.susp_fen;
+}
+
 bool conn_all_vols_unconf(struct drbd_tconn *tconn)
 {
 	struct drbd_conf *mdev;
@@ -1161,7 +1166,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
-				if (is_susp(mdev->state)) {
+				if (drbd_suspended(mdev)) {
 					set_bit(NEW_CUR_UUID, &mdev->flags);
 				} else {
 					drbd_uuid_new_current(mdev);

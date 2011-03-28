@@ -303,7 +303,7 @@ static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_e
 {
 	struct drbd_conf *mdev = req->w.mdev;
 
-	if (!is_susp(mdev->state))
+	if (!drbd_suspended(mdev))
 		_req_may_be_done(req, m);
 }
 
@@ -789,7 +789,7 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 	send_oos = rw == WRITE && drbd_should_send_out_of_sync(mdev->state);
 	D_ASSERT(!(remote && send_oos));
 
-	if (!(local || remote) && !is_susp(mdev->state)) {
+	if (!(local || remote) && !drbd_suspended(mdev)) {
 		if (__ratelimit(&drbd_ratelimit_state))
 			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
 		err = -EIO;
@@ -830,7 +830,7 @@ allocate_barrier:
 		}
 	}
 
-	if (is_susp(mdev->state)) {
+	if (drbd_suspended(mdev)) {
 		/* If we got suspended, use the retry mechanism of
 		   generic_make_request() to restart processing of this
 		   bio. In the next call to drbd_make_request
