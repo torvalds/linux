@@ -64,6 +64,7 @@ struct storvsc_request_extension {
 
 	unsigned char *sense_buffer;
 	void *context;
+	void (*on_io_completion)(struct hv_storvsc_request *request);
 
 	struct vstor_packet vstor_packet;
 };
@@ -72,7 +73,6 @@ struct hv_storvsc_request {
 	u32 status;
 	u32 bytes_xfer;
 
-	void (*on_io_completion)(struct hv_storvsc_request *request);
 
 	struct storvsc_request_extension extension;
 

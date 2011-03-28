@@ -324,7 +324,7 @@ static void stor_vsc_on_io_completion(struct hv_device *device,
 	/* TODO: */
 	request->bytes_xfer = vstor_packet->vm_srb.data_transfer_length;
 
-	request->on_io_completion(request);
+	request->extension.on_io_completion(request);
 
 	atomic_dec(&stor_device->num_outstanding_req);
 

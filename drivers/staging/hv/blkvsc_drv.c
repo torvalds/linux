@@ -940,7 +940,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 
 	vm_srb->data_in = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
 
-	storvsc_req->on_io_completion = request_completion;
+	storvsc_req->extension.on_io_completion = request_completion;
 	storvsc_req->extension.context = blkvsc_req;
 
 	vm_srb->port_number = blkdev->port;
