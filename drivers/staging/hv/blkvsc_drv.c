@@ -162,8 +162,6 @@ static int blk_vsc_initialize(struct hv_driver *driver)
 	driver->name = g_blk_driver_name;
 	memcpy(&driver->dev_type, &g_blk_device_type, sizeof(struct hv_guid));
 
-	stor_driver->request_ext_size =
-	sizeof(struct storvsc_request_extension);
 
 	/*
 	 * Divide the ring buffer data size (which is 1 page less than the ring
@@ -347,8 +345,7 @@ static int blkvsc_probe(struct device *device)
 	/* 	sizeof(struct blkvsc_request)); */
 
 	blkdev->request_pool = kmem_cache_create(dev_name(&device_obj->device),
-					sizeof(struct blkvsc_request) +
-					storvsc_drv_obj->request_ext_size, 0,
+					sizeof(struct blkvsc_request), 0,
 					SLAB_HWCACHE_ALIGN, NULL);
 	if (!blkdev->request_pool) {
 		ret = -ENOMEM;

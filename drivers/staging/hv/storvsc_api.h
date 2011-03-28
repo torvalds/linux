@@ -97,9 +97,6 @@ struct storvsc_driver_object {
 	/* Set by caller (in bytes) */
 	u32 ring_buffer_size;
 
-	/* Allocate this much private extension for each I/O request */
-	u32 request_ext_size;
-
 	/* Maximum # of requests in flight per channel/device */
 	u32 max_outstanding_req_per_channel;
 
