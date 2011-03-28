@@ -65,6 +65,7 @@ struct storvsc_request_extension {
 	unsigned char *sense_buffer;
 	void *context;
 	void (*on_io_completion)(struct hv_storvsc_request *request);
+	struct hv_multipage_buffer data_buffer;
 
 	struct vstor_packet vstor_packet;
 };
@@ -73,7 +74,6 @@ struct hv_storvsc_request {
 
 	struct storvsc_request_extension extension;
 
-	struct hv_multipage_buffer data_buffer;
 };
 
 /* Represents the block vsc driver */

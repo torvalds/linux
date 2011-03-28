@@ -529,7 +529,7 @@ int stor_vsc_on_io_request(struct hv_device *device,
 		   request_extension);
 
 	DPRINT_DBG(STORVSC, "req %p len %d",
-		   request, request->data_buffer.len);
+		   request, request->extension.data_buffer.len);
 
 	if (!stor_device) {
 		DPRINT_ERR(STORVSC, "unable to get stor device..."
@@ -549,7 +549,8 @@ int stor_vsc_on_io_request(struct hv_device *device,
 	vstor_packet->vm_srb.sense_info_length = SENSE_BUFFER_SIZE;
 
 
-	vstor_packet->vm_srb.data_transfer_length = request->data_buffer.len;
+	vstor_packet->vm_srb.data_transfer_length =
+	request->extension.data_buffer.len;
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTE_SRB;
 
@@ -563,9 +564,10 @@ int stor_vsc_on_io_request(struct hv_device *device,
 		   vstor_packet->vm_srb.sense_info_length,
 		   vstor_packet->vm_srb.cdb_length);
 
-	if (request_extension->request->data_buffer.len) {
+	if (request_extension->request->extension.data_buffer.len) {
 		ret = vmbus_sendpacket_multipagebuffer(device->channel,
-				&request_extension->request->data_buffer,
+				&request_extension->request->extension.
+				data_buffer,
 				vstor_packet,
 				sizeof(struct vstor_packet),
 				(unsigned long)request_extension);

@@ -522,9 +522,9 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.pfn_array[0] = 0;
-	blkvsc_req->request.data_buffer.offset = 0;
-	blkvsc_req->request.data_buffer.len = 0;
+	blkvsc_req->request.extension.data_buffer.pfn_array[0] = 0;
+	blkvsc_req->request.extension.data_buffer.offset = 0;
+	blkvsc_req->request.extension.data_buffer.len = 0;
 
 	blkvsc_req->cmnd[0] = SYNCHRONIZE_CACHE;
 	blkvsc_req->cmd_len = 10;
@@ -569,9 +569,10 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.pfn_array[0] = page_to_pfn(page_buf);
-	blkvsc_req->request.data_buffer.offset = 0;
-	blkvsc_req->request.data_buffer.len = 64;
+	blkvsc_req->request.extension.data_buffer.pfn_array[0] =
+	page_to_pfn(page_buf);
+	blkvsc_req->request.extension.data_buffer.offset = 0;
+	blkvsc_req->request.extension.data_buffer.len = 64;
 
 	blkvsc_req->cmnd[0] = INQUIRY;
 	blkvsc_req->cmnd[1] = 0x1;		/* Get product data */
@@ -658,9 +659,10 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.pfn_array[0] = page_to_pfn(page_buf);
-	blkvsc_req->request.data_buffer.offset = 0;
-	blkvsc_req->request.data_buffer.len = 8;
+	blkvsc_req->request.extension.data_buffer.pfn_array[0] =
+	page_to_pfn(page_buf);
+	blkvsc_req->request.extension.data_buffer.offset = 0;
+	blkvsc_req->request.extension.data_buffer.len = 8;
 
 	blkvsc_req->cmnd[0] = READ_CAPACITY;
 	blkvsc_req->cmd_len = 16;
@@ -737,9 +739,10 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	blkvsc_req->req = NULL;
 	blkvsc_req->write = 0;
 
-	blkvsc_req->request.data_buffer.pfn_array[0] = page_to_pfn(page_buf);
-	blkvsc_req->request.data_buffer.offset = 0;
-	blkvsc_req->request.data_buffer.len = 12;
+	blkvsc_req->request.extension.data_buffer.pfn_array[0] =
+	page_to_pfn(page_buf);
+	blkvsc_req->request.extension.data_buffer.offset = 0;
+	blkvsc_req->request.extension.data_buffer.len = 12;
 
 	blkvsc_req->cmnd[0] = 0x9E; /* READ_CAPACITY16; */
 	blkvsc_req->cmd_len = 16;
@@ -928,8 +931,8 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 		   (blkvsc_req->write) ? "WRITE" : "READ",
 		   (unsigned long) blkvsc_req->sector_start,
 		   blkvsc_req->sector_count,
-		   blkvsc_req->request.data_buffer.offset,
-		   blkvsc_req->request.data_buffer.len);
+		   blkvsc_req->request.extension.data_buffer.offset,
+		   blkvsc_req->request.extension.data_buffer.len);
 #if 0
 	for (i = 0; i < (blkvsc_req->request.data_buffer.len >> 12); i++) {
 		DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
@@ -1056,10 +1059,11 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 
 					blkvsc_req->dev = blkdev;
 					blkvsc_req->req = req;
-					blkvsc_req->request.data_buffer.offset
-						= bvec->bv_offset;
-					blkvsc_req->request.data_buffer.len
-						= 0;
+					blkvsc_req->request.extension.
+					data_buffer.offset
+					= bvec->bv_offset;
+					blkvsc_req->request.extension.
+					data_buffer.len = 0;
 
 					/* Add to the group */
 					blkvsc_req->group = group;
@@ -1073,10 +1077,10 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 				}
 
 				/* Add the curr bvec/segment to the curr blkvsc_req */
-				blkvsc_req->request.data_buffer.
+				blkvsc_req->request.extension.data_buffer.
 					pfn_array[databuf_idx]
 						= page_to_pfn(bvec->bv_page);
-				blkvsc_req->request.data_buffer.len
+				blkvsc_req->request.extension.data_buffer.len
 					+= bvec->bv_len;
 
 				prev_bvec = bvec;
@@ -1182,7 +1186,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 		   (blkvsc_req->write) ? "WRITE" : "READ",
 		   (unsigned long)blkvsc_req->sector_start,
 		   blkvsc_req->sector_count,
-		   blkvsc_req->request.data_buffer.len,
+		   blkvsc_req->request.extension.data_buffer.len,
 		   blkvsc_req->group->outstanding,
 		   blkdev->num_outstanding_reqs);
 

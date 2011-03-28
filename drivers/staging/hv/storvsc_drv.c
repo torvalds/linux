@@ -485,7 +485,8 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 
 	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
 	scsi_set_resid(scmnd,
-		request->data_buffer.len - vm_srb->data_transfer_length);
+		request->extension.data_buffer.len -
+		vm_srb->data_transfer_length);
 
 	scsi_done_fn = scmnd->scsi_done;
 
@@ -789,7 +790,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	request->extension.sense_buffer = scmnd->sense_buffer;
 
 
-	request->data_buffer.len = scsi_bufflen(scmnd);
+	request->extension.data_buffer.len = scsi_bufflen(scmnd);
 	if (scsi_sg_count(scmnd)) {
 		sgl = (struct scatterlist *)scsi_sglist(scmnd);
 		sg_count = scsi_sg_count(scmnd);
@@ -830,19 +831,19 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 			sg_count = cmd_request->bounce_sgl_count;
 		}
 
-		request->data_buffer.offset = sgl[0].offset;
+		request->extension.data_buffer.offset = sgl[0].offset;
 
 		for (i = 0; i < sg_count; i++) {
 			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d\n",
 				   i, sgl[i].length, sgl[i].offset);
-			request->data_buffer.pfn_array[i] =
+			request->extension.data_buffer.pfn_array[i] =
 				page_to_pfn(sg_page((&sgl[i])));
 		}
 	} else if (scsi_sglist(scmnd)) {
 		/* ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE); */
-		request->data_buffer.offset =
+		request->extension.data_buffer.offset =
 			virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
-		request->data_buffer.pfn_array[0] =
+		request->extension.data_buffer.pfn_array[0] =
 			virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
 	}
 
