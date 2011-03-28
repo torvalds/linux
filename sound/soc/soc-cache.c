@@ -93,13 +93,13 @@ static unsigned int do_hw_read(struct snd_soc_codec *codec, unsigned int reg)
 }
 
 static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
+				      unsigned int reg)
 {
 	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
+			      unsigned int value)
 {
 	u8 data[2];
 
@@ -111,7 +111,7 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 
 #if defined(CONFIG_SPI_MASTER)
 static int snd_soc_4_12_spi_write(void *control_data, const char *data,
-				 int len)
+				  int len)
 {
 	u8 msg[2];
 
@@ -209,7 +209,7 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 
 #if defined(CONFIG_SPI_MASTER)
 static int snd_soc_8_16_spi_write(void *control_data, const char *data,
-				 int len)
+				  int len)
 {
 	u8 msg[3];
 
@@ -257,7 +257,7 @@ static unsigned int do_i2c_read(struct snd_soc_codec *codec,
 
 #if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 static unsigned int snd_soc_8_8_read_i2c(struct snd_soc_codec *codec,
-					  unsigned int r)
+					 unsigned int r)
 {
 	u8 reg = r;
 	u8 data;
@@ -307,13 +307,13 @@ static unsigned int snd_soc_16_8_read_i2c(struct snd_soc_codec *codec,
 #endif
 
 static unsigned int snd_soc_16_8_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
+				      unsigned int reg)
 {
 	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
-			     unsigned int value)
+			      unsigned int value)
 {
 	u8 data[3];
 
@@ -327,7 +327,7 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 
 #if defined(CONFIG_SPI_MASTER)
 static int snd_soc_16_8_spi_write(void *control_data, const char *data,
-				 int len)
+				  int len)
 {
 	u8 msg[3];
 
@@ -379,7 +379,7 @@ static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
 
 #if defined(CONFIG_SPI_MASTER)
 static int snd_soc_16_16_spi_write(void *control_data, const char *data,
-				 int len)
+				   int len)
 {
 	u8 msg[4];
 
