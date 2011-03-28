@@ -36,7 +36,6 @@ EXPORT_SYMBOL(csum_partial_copy_nocheck);
    their interface isn't gonna change any time soon now, so
    it's OK to leave it out of version control.  */
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memset);
 
 /*
  * libgcc functions - functions that are used internally by the
