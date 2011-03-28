@@ -2009,6 +2009,7 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
+	depends on !ARCH_S5P64X0 && !ARCH_S5P6442
 	def_bool y
 
 endmenu
