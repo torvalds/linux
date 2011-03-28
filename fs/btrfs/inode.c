@@ -2220,8 +2220,6 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 			insert = 1;
 #endif
 		insert = 1;
-	} else {
-		WARN_ON(!BTRFS_I(inode)->orphan_meta_reserved);
 	}
 
 	if (!BTRFS_I(inode)->orphan_meta_reserved) {
