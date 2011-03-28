@@ -772,10 +772,8 @@ static int fb_setcolreg(unsigned regno,
 int rk29_set_cursor_en(struct rk29fb_inf *inf, int enable)
 {
     if (enable){
-		printk("%s: enable hardware cursor \n",__func__);
         LcdSetBit(inf, SYS_CONFIG, m_HWC_ENABLE);
     }else{
-		printk("%s: enable disable hardware cursor \n",__func__);
         LcdClrBit(inf, SYS_CONFIG, m_HWC_ENABLE);
 	}
 	LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -800,7 +798,6 @@ int rk29_set_cursor_pos(struct rk29fb_inf *inf, int x, int y)
 
 int rk29_set_cursor_colour_map(struct rk29fb_inf *inf, int bg_col, int fg_col)
 {
-	printk("%s: bg = %08x,fg = %08x \n",__func__, bg_col, fg_col);
 	LcdMskReg(inf, HWC_COLOR_LUT0, m_HWC_R|m_HWC_G|m_HWC_B,bg_col);
 	LcdMskReg(inf, HWC_COLOR_LUT2, m_HWC_R|m_HWC_G|m_HWC_B,fg_col);
 	LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -845,12 +842,10 @@ int rk29_set_cursor_img(struct rk29fb_inf *inf, char *data)
 {
 	if(data)
 	{
-		printk("%s:use user image \n",__func__);
 		rk29_set_cursor_img_transform(data);
     }
 	else
 	{
-		printk("%s:use default image \n",__func__);
 		rk29_set_cursor_img_transform(cursor_img);
 	}
 	LcdWrReg(inf, HWC_MST, __pa(rk29_cursor_buf));
@@ -1508,7 +1503,7 @@ static int fb0_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		}
 	case FBIOPUT_GET_CURSOR_EN:
 		{
-            u32 en = LcdReadBit(inf, SYS_CONFIG, m_HWC_ENABLE);
+            u32 en = (inf->regbak.SYS_CONFIG & m_HWC_ENABLE);
             if(copy_to_user((void*)arg, &en, 4))  return -EFAULT;
             break;
 		}
@@ -1813,7 +1808,7 @@ int fb1_release(struct fb_info *info, int user)
         win0_blank(FB_BLANK_POWERDOWN, info);
         win1_blank(FB_BLANK_POWERDOWN, info);
         // wait for lcdc stop access memory
-        msleep(50);
+        //msleep(50);
 
         // unmap memory
         info->screen_base = 0;
