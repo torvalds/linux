@@ -193,7 +193,7 @@ static enum bp_state update_schedule(enum bp_state state)
 	return BP_EAGAIN;
 }
 
-static unsigned long current_target(void)
+static long current_credit(void)
 {
 	unsigned long target = balloon_stats.target_pages;
 
@@ -202,7 +202,7 @@ static unsigned long current_target(void)
 		     balloon_stats.balloon_low +
 		     balloon_stats.balloon_high);
 
-	return target;
+	return target - balloon_stats.current_pages;
 }
 
 static enum bp_state increase_reservation(unsigned long nr_pages)
@@ -337,7 +337,7 @@ static void balloon_process(struct work_struct *work)
 	mutex_lock(&balloon_mutex);
 
 	do {
-		credit = current_target() - balloon_stats.current_pages;
+		credit = current_credit();
 
 		if (credit > 0)
 			state = increase_reservation(credit);
@@ -420,7 +420,7 @@ void free_xenballooned_pages(int nr_pages, struct page** pages)
 	}
 
 	/* The balloon may be too large now. Shrink it if needed. */
-	if (current_target() != balloon_stats.current_pages)
+	if (current_credit())
 		schedule_delayed_work(&balloon_worker, 0);
 
 	mutex_unlock(&balloon_mutex);
