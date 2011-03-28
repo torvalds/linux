@@ -363,7 +363,7 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
 
 	/* Allocate memory if needed */
 	self->rx_buff.head =
-		dma_alloc_coherent(NULL, self->rx_buff.truesize,
+		dma_alloc_coherent(&pdev->dev, self->rx_buff.truesize,
 				   &self->rx_buff_dma, GFP_KERNEL);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
@@ -372,7 +372,7 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
 	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
 
 	self->tx_buff.head =
-		dma_alloc_coherent(NULL, self->tx_buff.truesize,
+		dma_alloc_coherent(&pdev->dev, self->tx_buff.truesize,
 				   &self->tx_buff_dma, GFP_KERNEL);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
@@ -404,10 +404,10 @@ static __devinit int via_ircc_open(struct pci_dev *pdev, chipio_t * info,
 	via_hw_init(self);
 	return 0;
  err_out4:
-	dma_free_coherent(NULL, self->tx_buff.truesize,
+	dma_free_coherent(&pdev->dev, self->tx_buff.truesize,
 			  self->tx_buff.head, self->tx_buff_dma);
  err_out3:
-	dma_free_coherent(NULL, self->rx_buff.truesize,
+	dma_free_coherent(&pdev->dev, self->rx_buff.truesize,
 			  self->rx_buff.head, self->rx_buff_dma);
  err_out2:
 	release_region(self->io.fir_base, self->io.fir_ext);
@@ -441,10 +441,10 @@ static void __devexit via_remove_one(struct pci_dev *pdev)
 		   __func__, self->io.fir_base);
 	release_region(self->io.fir_base, self->io.fir_ext);
 	if (self->tx_buff.head)
-		dma_free_coherent(NULL, self->tx_buff.truesize,
+		dma_free_coherent(&pdev->dev, self->tx_buff.truesize,
 				  self->tx_buff.head, self->tx_buff_dma);
 	if (self->rx_buff.head)
-		dma_free_coherent(NULL, self->rx_buff.truesize,
+		dma_free_coherent(&pdev->dev, self->rx_buff.truesize,
 				  self->rx_buff.head, self->rx_buff_dma);
 	pci_set_drvdata(pdev, NULL);
 
