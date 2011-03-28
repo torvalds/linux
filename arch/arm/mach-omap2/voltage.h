@@ -133,7 +133,6 @@ struct omap_volt_pmic_info {
  * @vfsm                : voltage manager FSM data
  * @debug_dir		: debug directory for this voltage domain.
  * @curr_volt		: current voltage for this vdd.
- * @prm_irqst_mod       : PRM module id used for PRM IRQ status register access
  * @vp_enabled		: flag to keep track of whether vp is enabled or not
  * @volt_scale		: API to scale the voltage of the vdd.
  */
@@ -147,8 +146,6 @@ struct omap_vdd_info {
 	u32 curr_volt;
 	bool vp_enabled;
 
-	s16 prm_irqst_mod;
-	u8 prm_irqst_reg;
 	u32 (*read_reg) (u16 mod, u8 offset);
 	void (*write_reg) (u32 val, u16 mod, u8 offset);
 	int (*volt_scale) (struct voltagedomain *voltdm,

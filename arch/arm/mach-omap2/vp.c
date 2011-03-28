@@ -111,10 +111,8 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	 * is <3us
 	 */
 	while (timeout++ < VP_TRANXDONE_TIMEOUT) {
-		vdd->write_reg(vp->prm_irqst_data->tranxdone_status,
-			       vdd->prm_irqst_mod, vdd->prm_irqst_reg);
-		if (!(vdd->read_reg(vdd->prm_irqst_mod, vdd->prm_irqst_reg) &
-		      vp->prm_irqst_data->tranxdone_status))
+		vp->vp_common->ops->clear_txdone(vp->id);
+		if (!vp->vp_common->ops->check_txdone(vp->id))
 			break;
 		udelay(1);
 	}
@@ -146,9 +144,7 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	 * Depends on SMPSWAITTIMEMIN/MAX and voltage change
 	 */
 	timeout = 0;
-	omap_test_timeout((vdd->read_reg(vdd->prm_irqst_mod,
-					 vdd->prm_irqst_reg) &
-			   vp->prm_irqst_data->tranxdone_status),
+	omap_test_timeout(vp->vp_common->ops->check_txdone(vp->id),
 			  VP_TRANXDONE_TIMEOUT, timeout);
 	if (timeout >= VP_TRANXDONE_TIMEOUT)
 		pr_err("%s: vdd_%s TRANXDONE timeout exceeded."
@@ -163,10 +159,8 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 	 */
 	timeout = 0;
 	while (timeout++ < VP_TRANXDONE_TIMEOUT) {
-		vdd->write_reg(vp->prm_irqst_data->tranxdone_status,
-			       vdd->prm_irqst_mod, vdd->prm_irqst_reg);
-		if (!(vdd->read_reg(vdd->prm_irqst_mod, vdd->prm_irqst_reg) &
-		      vp->prm_irqst_data->tranxdone_status))
+		vp->vp_common->ops->clear_txdone(vp->id);
+		if (!vp->vp_common->ops->check_txdone(vp->id))
 			break;
 		udelay(1);
 	}
