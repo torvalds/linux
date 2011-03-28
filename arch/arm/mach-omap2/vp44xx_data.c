@@ -37,7 +37,6 @@ static const struct omap_vp_ops omap4_vp_ops = {
  * XXX This stuff presumably belongs in the vp44xx.c or vp.c file.
  */
 static const struct omap_vp_common_data omap4_vp_common = {
-	.prm_mod = OMAP4430_PRM_DEVICE_INST,
 	.vpconfig_erroroffset_shift = OMAP4430_ERROROFFSET_SHIFT,
 	.vpconfig_errorgain_mask = OMAP4430_ERRORGAIN_MASK,
 	.vpconfig_errorgain_shift = OMAP4430_ERRORGAIN_SHIFT,

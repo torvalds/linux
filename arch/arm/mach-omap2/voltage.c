@@ -46,27 +46,6 @@ static LIST_HEAD(voltdm_list);
 #define VOLTAGE_DIR_SIZE	16
 static struct dentry *voltage_dir;
 
-static u32 omap3_voltage_read_reg(u16 mod, u8 offset)
-{
-	return omap2_prm_read_mod_reg(mod, offset);
-}
-
-static void omap3_voltage_write_reg(u32 val, u16 mod, u8 offset)
-{
-	omap2_prm_write_mod_reg(val, mod, offset);
-}
-
-static u32 omap4_voltage_read_reg(u16 mod, u8 offset)
-{
-	return omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
-					mod, offset);
-}
-
-static void omap4_voltage_write_reg(u32 val, u16 mod, u8 offset)
-{
-	omap4_prminst_write_inst_reg(val, OMAP4430_PRM_PARTITION, mod, offset);
-}
-
 static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 {
 	char *sys_ck_name;
@@ -183,15 +162,7 @@ static int __init omap_vdd_data_configure(struct voltagedomain *voltdm)
 	if (IS_ERR_VALUE(_config_common_vdd_data(voltdm)))
 		goto ovdc_out;
 
-	if (cpu_is_omap34xx()) {
-		vdd->read_reg = omap3_voltage_read_reg;
-		vdd->write_reg = omap3_voltage_write_reg;
-		ret = 0;
-	} else if (cpu_is_omap44xx()) {
-		vdd->read_reg = omap4_voltage_read_reg;
-		vdd->write_reg = omap4_voltage_write_reg;
-		ret = 0;
-	}
+	ret = 0;
 
 ovdc_out:
 	return ret;

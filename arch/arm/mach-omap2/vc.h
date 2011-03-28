@@ -25,7 +25,6 @@ struct voltagedomain;
  * struct omap_vc_common - per-VC register/bitfield data
  * @cmd_on_mask: ON bitmask in PRM_VC_CMD_VAL* register
  * @valid: VALID bitmask in PRM_VC_BYPASS_VAL register
- * @prm_mod: PRM module id used for PRM register access
  * @smps_sa_reg: Offset of PRM_VC_SMPS_SA reg from PRM start
  * @smps_volra_reg: Offset of PRM_VC_SMPS_VOL_RA reg from PRM start
  * @bypass_val_reg: Offset of PRM_VC_BYPASS_VAL reg from PRM start
@@ -43,7 +42,6 @@ struct voltagedomain;
 struct omap_vc_common {
 	u32 cmd_on_mask;
 	u32 valid;
-	s16 prm_mod;
 	u8 smps_sa_reg;
 	u8 smps_volra_reg;
 	u8 bypass_val_reg;

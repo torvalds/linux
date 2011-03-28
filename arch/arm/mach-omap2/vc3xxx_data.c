@@ -30,7 +30,6 @@
  * XXX This stuff presumably belongs in the vc3xxx.c or vc.c file.
  */
 static struct omap_vc_common omap3_vc_common = {
-	.prm_mod         = OMAP3430_GR_MOD,
 	.smps_sa_reg	 = OMAP3_PRM_VC_SMPS_SA_OFFSET,
 	.smps_volra_reg	 = OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET,
 	.bypass_val_reg	 = OMAP3_PRM_VC_BYPASS_VAL_OFFSET,

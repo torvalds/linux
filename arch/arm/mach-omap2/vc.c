@@ -46,7 +46,7 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 		return -ENODATA;
 	}
 
-	if (!vdd->read_reg || !vdd->write_reg) {
+	if (!voltdm->read || !voltdm->write) {
 		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return -EINVAL;
@@ -58,24 +58,22 @@ int omap_vc_pre_scale(struct voltagedomain *voltdm,
 		volt_data = NULL;
 
 	*target_vsel = vdd->pmic_info->uv_to_vsel(target_volt);
-	*current_vsel = vdd->read_reg(vdd->vp_data->vp_common->prm_mod, vdd->vp_data->voltage);
+	*current_vsel = voltdm->read(vdd->vp_data->voltage);
 
 	/* Setting the ON voltage to the new target voltage */
-	vc_cmdval = vdd->read_reg(vc->common->prm_mod, vc->cmdval_reg);
+	vc_cmdval = voltdm->read(vc->cmdval_reg);
 	vc_cmdval &= ~vc->common->cmd_on_mask;
 	vc_cmdval |= (*target_vsel << vc->common->cmd_on_shift);
-	vdd->write_reg(vc_cmdval, vc->common->prm_mod, vc->cmdval_reg);
+	voltdm->write(vc_cmdval, vc->cmdval_reg);
 
 	/* Setting vp errorgain based on the voltage */
 	if (volt_data) {
-		vp_errgain_val = vdd->read_reg(vdd->vp_data->vp_common->prm_mod,
-					       vdd->vp_data->vpconfig);
+		vp_errgain_val = voltdm->read(vdd->vp_data->vpconfig);
 		vdd->vp_rt_data.vpconfig_errorgain = volt_data->vp_errgain;
 		vp_errgain_val &= ~vp_common->vpconfig_errorgain_mask;
 		vp_errgain_val |= vdd->vp_rt_data.vpconfig_errorgain <<
 			vp_common->vpconfig_errorgain_shift;
-		vdd->write_reg(vp_errgain_val, vdd->vp_data->vp_common->prm_mod,
-			       vdd->vp_data->vpconfig);
+		voltdm->write(vp_errgain_val, vdd->vp_data->vpconfig);
 	}
 
 	return 0;
@@ -120,11 +118,10 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 			(vdd->pmic_info->i2c_slave_addr <<
 			vc->common->slaveaddr_shift);
 
-	vdd->write_reg(vc_bypass_value, vc->common->prm_mod, vc_bypass_val_reg);
-	vdd->write_reg(vc_bypass_value | vc_valid, vc->common->prm_mod,
-		       vc_bypass_val_reg);
+	voltdm->write(vc_bypass_value, vc_bypass_val_reg);
+	voltdm->write(vc_bypass_value | vc_valid, vc_bypass_val_reg);
 
-	vc_bypass_value = vdd->read_reg(vc->common->prm_mod, vc_bypass_val_reg);
+	vc_bypass_value = voltdm->read(vc_bypass_val_reg);
 	/*
 	 * Loop till the bypass command is acknowledged from the SMPS.
 	 * NOTE: This is legacy code. The loop count and retry count needs
@@ -143,8 +140,7 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 			loop_cnt = 0;
 			udelay(10);
 		}
-		vc_bypass_value = vdd->read_reg(vc->common->prm_mod,
-						vc_bypass_val_reg);
+		vc_bypass_value = voltdm->read(vc_bypass_val_reg);
 	}
 
 	omap_vc_post_scale(voltdm, target_volt, target_vsel, current_vsel);
@@ -153,18 +149,13 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 
 static void __init omap3_vfsm_init(struct voltagedomain *voltdm)
 {
-	struct omap_vc_channel *vc = voltdm->vc;
-	struct omap_vdd_info *vdd = voltdm->vdd;
-
 	/*
 	 * Voltage Manager FSM parameters init
 	 * XXX This data should be passed in from the board file
 	 */
-	vdd->write_reg(OMAP3_CLKSETUP, vc->common->prm_mod, OMAP3_PRM_CLKSETUP_OFFSET);
-	vdd->write_reg(OMAP3_VOLTOFFSET, vc->common->prm_mod,
-		       OMAP3_PRM_VOLTOFFSET_OFFSET);
-	vdd->write_reg(OMAP3_VOLTSETUP2, vc->common->prm_mod,
-		       OMAP3_PRM_VOLTSETUP2_OFFSET);
+	voltdm->write(OMAP3_CLKSETUP, OMAP3_PRM_CLKSETUP_OFFSET);
+	voltdm->write(OMAP3_VOLTOFFSET, OMAP3_PRM_VOLTOFFSET_OFFSET);
+	voltdm->write(OMAP3_VOLTSETUP2, OMAP3_PRM_VOLTSETUP2_OFFSET);
 }
 
 static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
@@ -187,16 +178,16 @@ static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 		(onlp_vsel << vc->common->cmd_onlp_shift) |
 		(ret_vsel << vc->common->cmd_ret_shift) |
 		(off_vsel << vc->common->cmd_off_shift));
-	vdd->write_reg(vc_val, vc->common->prm_mod, vc->cmdval_reg);
+	voltdm->write(vc_val, vc->cmdval_reg);
 
 	/*
 	 * Generic VC parameters init
 	 * XXX This data should be abstracted out
 	 */
-	vdd->write_reg(OMAP3430_CMD1_MASK | OMAP3430_RAV1_MASK, vc->common->prm_mod,
-			OMAP3_PRM_VC_CH_CONF_OFFSET);
-	vdd->write_reg(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN_MASK, vc->common->prm_mod,
-			OMAP3_PRM_VC_I2C_CFG_OFFSET);
+	voltdm->write(OMAP3430_CMD1_MASK | OMAP3430_RAV1_MASK,
+		       OMAP3_PRM_VC_CH_CONF_OFFSET);
+	voltdm->write(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN_MASK,
+		       OMAP3_PRM_VC_I2C_CFG_OFFSET);
 
 	omap3_vfsm_init(voltdm);
 
@@ -207,8 +198,6 @@ static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 /* OMAP4 specific voltage init functions */
 static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 {
-	struct omap_vc_channel *vc = voltdm->vc;
-	struct omap_vdd_info *vdd = voltdm->vdd;
 	static bool is_initialized;
 	u32 vc_val;
 
@@ -224,11 +213,11 @@ static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 	vc_val = (OMAP4430_RAV_VDD_MPU_L_MASK | OMAP4430_CMD_VDD_MPU_L_MASK |
 		  OMAP4430_RAV_VDD_IVA_L_MASK | OMAP4430_CMD_VDD_IVA_L_MASK |
 		  OMAP4430_RAV_VDD_CORE_L_MASK | OMAP4430_CMD_VDD_CORE_L_MASK);
-	vdd->write_reg(vc_val, vc->common->prm_mod, OMAP4_PRM_VC_CFG_CHANNEL_OFFSET);
+	voltdm->write(vc_val, OMAP4_PRM_VC_CFG_CHANNEL_OFFSET);
 
 	/* XXX These are magic numbers and do not belong! */
 	vc_val = (0x60 << OMAP4430_SCLL_SHIFT | 0x26 << OMAP4430_SCLH_SHIFT);
-	vdd->write_reg(vc_val, vc->common->prm_mod, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
+	voltdm->write(vc_val, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
 
 	is_initialized = true;
 }
@@ -246,34 +235,30 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 		return;
 	}
 
-	if (!vdd->read_reg || !vdd->write_reg) {
+	if (!voltdm->read || !voltdm->write) {
 		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return;
 	}
 
 	/* Set up the SMPS_SA(i2c slave address in VC */
-	vc_val = vdd->read_reg(vc->common->prm_mod,
-			       vc->common->smps_sa_reg);
+	vc_val = voltdm->read(vc->common->smps_sa_reg);
 	vc_val &= ~vc->smps_sa_mask;
 	vc_val |= vdd->pmic_info->i2c_slave_addr << vc->smps_sa_shift;
-	vdd->write_reg(vc_val, vc->common->prm_mod,
-		       vc->common->smps_sa_reg);
+	voltdm->write(vc_val, vc->common->smps_sa_reg);
 
 	/* Setup the VOLRA(pmic reg addr) in VC */
-	vc_val = vdd->read_reg(vc->common->prm_mod,
-			       vc->common->smps_volra_reg);
+	vc_val = voltdm->read(vc->common->smps_volra_reg);
 	vc_val &= ~vc->smps_volra_mask;
 	vc_val |= vdd->pmic_info->volt_reg_addr << vc->smps_volra_shift;
-	vdd->write_reg(vc_val, vc->common->prm_mod,
-		       vc->common->smps_volra_reg);
+	voltdm->write(vc_val, vc->common->smps_volra_reg);
 
 	/* Configure the setup times */
-	vc_val = vdd->read_reg(vc->common->prm_mod, vdd->vfsm->voltsetup_reg);
+	vc_val = voltdm->read(vdd->vfsm->voltsetup_reg);
 	vc_val &= ~vdd->vfsm->voltsetup_mask;
 	vc_val |= vdd->pmic_info->volt_setup_time <<
 			vdd->vfsm->voltsetup_shift;
-	vdd->write_reg(vc_val, vc->common->prm_mod, vdd->vfsm->voltsetup_reg);
+	voltdm->write(vc_val, vdd->vfsm->voltsetup_reg);
 
 	if (cpu_is_omap34xx())
 		omap3_vc_init_channel(voltdm);

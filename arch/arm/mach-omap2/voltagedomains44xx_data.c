@@ -62,6 +62,9 @@ static struct omap_vdd_info omap4_vdd_core_info = {
 static struct voltagedomain omap4_voltdm_mpu = {
 	.name = "mpu",
 	.scalable = true,
+	.read = omap4_prm_vcvp_read,
+	.write = omap4_prm_vcvp_write,
+	.rmw = omap4_prm_vcvp_rmw,
 	.vc = &omap4_vc_mpu,
 	.vdd = &omap4_vdd_mpu_info,
 };
@@ -69,6 +72,9 @@ static struct voltagedomain omap4_voltdm_mpu = {
 static struct voltagedomain omap4_voltdm_iva = {
 	.name = "iva",
 	.scalable = true,
+	.read = omap4_prm_vcvp_read,
+	.write = omap4_prm_vcvp_write,
+	.rmw = omap4_prm_vcvp_rmw,
 	.vc = &omap4_vc_iva,
 	.vdd = &omap4_vdd_iva_info,
 };
@@ -76,6 +82,9 @@ static struct voltagedomain omap4_voltdm_iva = {
 static struct voltagedomain omap4_voltdm_core = {
 	.name = "core",
 	.scalable = true,
+	.read = omap4_prm_vcvp_read,
+	.write = omap4_prm_vcvp_write,
+	.rmw = omap4_prm_vcvp_rmw,
 	.vc = &omap4_vc_core,
 	.vdd = &omap4_vdd_core_info,
 };
