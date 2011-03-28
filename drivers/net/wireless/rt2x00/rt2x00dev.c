@@ -71,6 +71,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00queue_start_queues(rt2x00dev);
 	rt2x00link_start_tuner(rt2x00dev);
+	rt2x00link_start_agc(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
@@ -93,6 +94,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop all queues
 	 */
+	rt2x00link_stop_agc(rt2x00dev);
 	rt2x00link_stop_tuner(rt2x00dev);
 	rt2x00queue_stop_queues(rt2x00dev);
 	rt2x00queue_flush_queues(rt2x00dev, true);

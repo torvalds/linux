@@ -1813,6 +1813,116 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	rt2800_register_read(rt2x00dev, CH_BUSY_STA_SEC, &reg);
 }
 
+static int rt2800_get_gain_calibration_delta(struct rt2x00_dev *rt2x00dev)
+{
+	u8 tssi_bounds[9];
+	u8 current_tssi;
+	u16 eeprom;
+	u8 step;
+	int i;
+
+	/*
+	 * Read TSSI boundaries for temperature compensation from
+	 * the EEPROM.
+	 *
+	 * Array idx               0    1    2    3    4    5    6    7    8
+	 * Matching Delta value   -4   -3   -2   -1    0   +1   +2   +3   +4
+	 * Example TSSI bounds  0xF0 0xD0 0xB5 0xA0 0x88 0x45 0x25 0x15 0x00
+	 */
+	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG1, &eeprom);
+		tssi_bounds[0] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG1_MINUS4);
+		tssi_bounds[1] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG1_MINUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG2, &eeprom);
+		tssi_bounds[2] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG2_MINUS2);
+		tssi_bounds[3] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG2_MINUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG3, &eeprom);
+		tssi_bounds[4] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG3_REF);
+		tssi_bounds[5] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG3_PLUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG4, &eeprom);
+		tssi_bounds[6] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG4_PLUS2);
+		tssi_bounds[7] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG4_PLUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG5, &eeprom);
+		tssi_bounds[8] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_BG5_PLUS4);
+
+		step = rt2x00_get_field16(eeprom,
+					  EEPROM_TSSI_BOUND_BG5_AGC_STEP);
+	} else {
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A1, &eeprom);
+		tssi_bounds[0] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A1_MINUS4);
+		tssi_bounds[1] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A1_MINUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A2, &eeprom);
+		tssi_bounds[2] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A2_MINUS2);
+		tssi_bounds[3] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A2_MINUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A3, &eeprom);
+		tssi_bounds[4] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A3_REF);
+		tssi_bounds[5] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A3_PLUS1);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A4, &eeprom);
+		tssi_bounds[6] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A4_PLUS2);
+		tssi_bounds[7] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A4_PLUS3);
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_A5, &eeprom);
+		tssi_bounds[8] = rt2x00_get_field16(eeprom,
+					EEPROM_TSSI_BOUND_A5_PLUS4);
+
+		step = rt2x00_get_field16(eeprom,
+					  EEPROM_TSSI_BOUND_A5_AGC_STEP);
+	}
+
+	/*
+	 * Check if temperature compensation is supported.
+	 */
+	if (tssi_bounds[4] == 0xff)
+		return 0;
+
+	/*
+	 * Read current TSSI (BBP 49).
+	 */
+	rt2800_bbp_read(rt2x00dev, 49, &current_tssi);
+
+	/*
+	 * Compare TSSI value (BBP49) with the compensation boundaries
+	 * from the EEPROM and increase or decrease tx power.
+	 */
+	for (i = 0; i <= 3; i++) {
+		if (current_tssi > tssi_bounds[i])
+			break;
+	}
+
+	if (i == 4) {
+		for (i = 8; i >= 5; i--) {
+			if (current_tssi < tssi_bounds[i])
+				break;
+		}
+	}
+
+	return (i - 4) * step;
+}
+
 static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 				      enum ieee80211_band band)
 {
@@ -1904,7 +2014,8 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 }
 
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
-				  struct ieee80211_conf *conf)
+				  enum ieee80211_band band,
+				  int power_level)
 {
 	u8 txpower;
 	u16 eeprom;
@@ -1912,14 +2023,17 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 	u8 r1;
 	u32 offset;
-	enum ieee80211_band band = conf->channel->band;
-	int power_level = conf->power_level;
 	int delta;
 
 	/*
 	 * Calculate HT40 compensation delta
 	 */
 	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
+
+	/*
+	 * calculate temperature compensation delta
+	 */
+	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
 
 	/*
 	 * set to normal bbp tx power control mode: +/- 0dBm
@@ -2041,6 +2155,13 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	}
 }
 
+void rt2800_gain_calibration(struct rt2x00_dev *rt2x00dev)
+{
+	rt2800_config_txpower(rt2x00dev, rt2x00dev->curr_band,
+			      rt2x00dev->tx_power);
+}
+EXPORT_SYMBOL_GPL(rt2800_gain_calibration);
+
 static void rt2800_config_retry_limit(struct rt2x00_dev *rt2x00dev,
 				      struct rt2x00lib_conf *libconf)
 {
@@ -2094,10 +2215,12 @@ void rt2800_config(struct rt2x00_dev *rt2x00dev,
 	if (flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		rt2800_config_channel(rt2x00dev, libconf->conf,
 				      &libconf->rf, &libconf->channel);
-		rt2800_config_txpower(rt2x00dev, libconf->conf);
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+				      libconf->conf->power_level);
 	}
 	if (flags & IEEE80211_CONF_CHANGE_POWER)
-		rt2800_config_txpower(rt2x00dev, libconf->conf);
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+				      libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt2800_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_PS)
