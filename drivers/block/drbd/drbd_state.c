@@ -163,9 +163,8 @@ drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
 	enum drbd_state_rv rv;
 
 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
-	ns = apply_mask_val(mdev->state, mask, val);
+	ns = apply_mask_val(drbd_read_state(mdev), mask, val);
 	rv = _drbd_set_state(mdev, ns, f, NULL);
-	ns = mdev->state;
 	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 	return rv;
@@ -198,7 +197,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 		return SS_CW_FAILED_BY_PEER;
 
 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
-	os = mdev->state;
+	os = drbd_read_state(mdev);
 	ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
 	if (rv == SS_SUCCESS)
@@ -244,7 +243,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 		mutex_lock(mdev->state_mutex);
 
 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
-	os = mdev->state;
+	os = drbd_read_state(mdev);
 	ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
 	if (rv < SS_SUCCESS) {
@@ -280,7 +279,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 			goto abort;
 		}
 		spin_lock_irqsave(&mdev->tconn->req_lock, flags);
-		ns = apply_mask_val(mdev->state, mask, val);
+		ns = apply_mask_val(drbd_read_state(mdev), mask, val);
 		rv = _drbd_set_state(mdev, ns, f, &done);
 	} else {
 		rv = _drbd_set_state(mdev, ns, f, &done);
@@ -812,7 +811,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	const char *warn_sync_abort = NULL;
 	struct after_state_chg_work *ascw;
 
-	os = mdev->state;
+	os = drbd_read_state(mdev);
 
 	ns = sanitize_state(mdev, ns, &warn_sync_abort);
 	if (ns.i == os.i)
@@ -1430,7 +1429,7 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union 
 	int vnr;
 
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-		os = mdev->state;
+		os = drbd_read_state(mdev);
 		ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
 
 		if (flags & CS_IGN_OUTD_FAIL && ns.disk == D_OUTDATED && os.disk < D_OUTDATED)
@@ -1474,7 +1473,7 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 		tconn->cstate = val.conn;
 
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-		os = mdev->state;
+		os = drbd_read_state(mdev);
 		ns = apply_mask_val(os, mask, val);
 		ns = sanitize_state(mdev, ns, NULL);
 

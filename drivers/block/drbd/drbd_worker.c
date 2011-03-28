@@ -781,7 +781,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 	ping_peer(mdev);
 
 	spin_lock_irq(&mdev->tconn->req_lock);
-	os = mdev->state;
+	os = drbd_read_state(mdev);
 
 	verify_done = (os.conn == C_VERIFY_S || os.conn == C_VERIFY_T);
 
@@ -1546,7 +1546,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	}
 
 	write_lock_irq(&global_state_lock);
-	ns = mdev->state;
+	ns = drbd_read_state(mdev);
 
 	ns.aftr_isp = !_drbd_may_sync_now(mdev);
 
@@ -1558,7 +1558,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		ns.pdsk = D_INCONSISTENT;
 
 	r = __drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
-	ns = mdev->state;
+	ns = drbd_read_state(mdev);
 
 	if (ns.conn < C_CONNECTED)
 		r = SS_UNKNOWN_ERROR;

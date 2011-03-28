@@ -1682,6 +1682,15 @@ _drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	return rv;
 }
 
+static inline union drbd_state drbd_read_state(struct drbd_conf *mdev)
+{
+	union drbd_state rv;
+
+	rv = mdev->state;
+
+	return rv;
+}
+
 #define __drbd_chk_io_error(m,f) __drbd_chk_io_error_(m,f, __func__)
 static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach, const char *where)
 {

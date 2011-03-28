@@ -1503,8 +1503,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		drbd_suspend_al(mdev); /* IO is still suspended here... */
 
 	spin_lock_irq(&mdev->tconn->req_lock);
-	os = mdev->state;
-	ns.i = os.i;
+	os = drbd_read_state(mdev);
+	ns = os;
 	/* If MDF_CONSISTENT is not set go into inconsistent state,
 	   otherwise investigate MDF_WasUpToDate...
 	   If MDF_WAS_UP_TO_DATE is not set go into D_OUTDATED disk state,
@@ -1546,7 +1546,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rv = _drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
-	ns = mdev->state;
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (rv < SS_SUCCESS)
