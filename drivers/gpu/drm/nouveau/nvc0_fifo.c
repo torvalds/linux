@@ -383,6 +383,32 @@ struct nouveau_enum nvc0_fifo_fault_reason[] = {
 	{}
 };
 
+struct nouveau_enum nvc0_fifo_fault_hubclient[] = {
+	{ 0x01, "PCOPY0" },
+	{ 0x02, "PCOPY1" },
+	{ 0x04, "DISPATCH" },
+	{ 0x05, "CTXCTL" },
+	{ 0x06, "PFIFO" },
+	{ 0x07, "BAR_READ" },
+	{ 0x08, "BAR_WRITE" },
+	{ 0x0b, "PVP" },
+	{ 0x0c, "PPPP" },
+	{ 0x0d, "PBSP" },
+	{ 0x11, "PCOUNTER" },
+	{ 0x12, "PDAEMON" },
+	{ 0x14, "CCACHE" },
+	{ 0x15, "CCACHE_POST" },
+	{}
+};
+
+struct nouveau_enum nvc0_fifo_fault_gpcclient[] = {
+	{ 0x01, "TEX" },
+	{ 0x0c, "ESETUP" },
+	{ 0x0e, "CTXCTL" },
+	{ 0x0f, "PROP" },
+	{}
+};
+
 struct nouveau_bitfield nvc0_fifo_subfifo_intr[] = {
 /*	{ 0x00008000, "" }	seen with null ib push */
 	{ 0x00200000, "ILLEGAL_MTHD" },
@@ -397,12 +423,20 @@ nvc0_fifo_isr_vm_fault(struct drm_device *dev, int unit)
 	u32 valo = nv_rd32(dev, 0x2804 + (unit * 0x10));
 	u32 vahi = nv_rd32(dev, 0x2808 + (unit * 0x10));
 	u32 stat = nv_rd32(dev, 0x280c + (unit * 0x10));
+	u32 client = (stat & 0x00001f00) >> 8;
 
 	NV_INFO(dev, "PFIFO: %s fault at 0x%010llx [",
 		(stat & 0x00000080) ? "write" : "read", (u64)vahi << 32 | valo);
 	nouveau_enum_print(nvc0_fifo_fault_reason, stat & 0x0000000f);
 	printk("] from ");
 	nouveau_enum_print(nvc0_fifo_fault_unit, unit);
+	if (stat & 0x00000040) {
+		printk("/");
+		nouveau_enum_print(nvc0_fifo_fault_hubclient, client);
+	} else {
+		printk("/GPC%d/", (stat & 0x1f000000) >> 24);
+		nouveau_enum_print(nvc0_fifo_fault_gpcclient, client);
+	}
 	printk(" on channel 0x%010llx\n", (u64)inst << 12);
 }
 
