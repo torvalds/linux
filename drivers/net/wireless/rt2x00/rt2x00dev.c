@@ -512,8 +512,6 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 		 (rxdesc.size > header_length) &&
 		 (rxdesc.dev_flags & RXDONE_L2PAD))
 		rt2x00queue_remove_l2pad(entry->skb, header_length);
-	else
-		rt2x00queue_align_payload(entry->skb, header_length);
 
 	/* Trim buffer to correct size */
 	skb_trim(entry->skb, rxdesc.size);

@@ -119,16 +119,6 @@ void rt2x00queue_free_skb(struct queue_entry *entry);
 void rt2x00queue_align_frame(struct sk_buff *skb);
 
 /**
- * rt2x00queue_align_payload - Align 802.11 payload to 4-byte boundary
- * @skb: The skb to align
- * @header_length: Length of 802.11 header
- *
- * Align the 802.11 payload to a 4-byte boundary, this could
- * mean the header is not aligned properly though.
- */
-void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length);
-
-/**
  * rt2x00queue_insert_l2pad - Align 802.11 header & payload to 4-byte boundary
  * @skb: The skb to align
  * @header_length: Length of 802.11 header

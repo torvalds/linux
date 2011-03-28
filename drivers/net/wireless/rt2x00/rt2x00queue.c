@@ -148,19 +148,6 @@ void rt2x00queue_align_frame(struct sk_buff *skb)
 	skb_trim(skb, frame_length);
 }
 
-void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length)
-{
-	unsigned int frame_length = skb->len;
-	unsigned int align = ALIGN_SIZE(skb, header_length);
-
-	if (!align)
-		return;
-
-	skb_push(skb, align);
-	memmove(skb->data, skb->data + align, frame_length);
-	skb_trim(skb, frame_length);
-}
-
 void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
 	unsigned int payload_length = skb->len - header_length;
