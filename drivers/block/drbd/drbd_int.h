@@ -862,6 +862,9 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct list_head all_tconn;	/* linked on global drbd_tconns */
 	struct idr volumes;		/* <tconn, vnr> to mdev mapping */
 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
+	unsigned susp:1;		/* IO suspended by user */
+	unsigned susp_nod:1;		/* IO suspended because no data */
+	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
 	struct mutex cstate_mutex;	/* Protects graceful disconnects */
 
 	unsigned long flags;
@@ -1687,6 +1690,9 @@ static inline union drbd_state drbd_read_state(struct drbd_conf *mdev)
 	union drbd_state rv;
 
 	rv = mdev->state;
+	rv.susp = mdev->tconn->susp;
+	rv.susp_nod = mdev->tconn->susp_nod;
+	rv.susp_fen = mdev->tconn->susp_fen;
 
 	return rv;
 }
@@ -2219,7 +2225,9 @@ static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 
 static inline int drbd_suspended(struct drbd_conf *mdev)
 {
-	return mdev->state.susp || mdev->state.susp_nod || mdev->state.susp_fen;
+	struct drbd_tconn *tconn = mdev->tconn;
+
+	return tconn->susp || tconn->susp_fen || tconn->susp_nod;
 }
 
 static inline bool may_inc_ap_bio(struct drbd_conf *mdev)

@@ -861,6 +861,9 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		atomic_inc(&mdev->local_cnt);
 
 	mdev->state = ns;
+	mdev->tconn->susp = ns.susp;
+	mdev->tconn->susp_nod = ns.susp_nod;
+	mdev->tconn->susp_fen = ns.susp_fen;
 
 	/* solve the race between becoming unconfigured,
 	 * worker doing the cleanup, and
