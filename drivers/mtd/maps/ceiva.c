@@ -194,16 +194,10 @@ static int __init clps_setup_mtd(struct clps_info *clps, int nr, struct mtd_info
 			 * We detected multiple devices.  Concatenate
 			 * them together.
 			 */
-#ifdef CONFIG_MTD_CONCAT
 			*rmtd = mtd_concat_create(subdev, found,
 						  "clps flash");
 			if (*rmtd == NULL)
 				ret = -ENXIO;
-#else
-			printk(KERN_ERR "clps flash: multiple devices "
-			       "found but MTD concat support disabled.\n");
-			ret = -ENXIO;
-#endif
 		}
 	}
 

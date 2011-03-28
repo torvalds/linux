@@ -33,14 +33,6 @@ config MTD_TESTS
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
 
-config MTD_CONCAT
-	tristate "MTD concatenating support"
-	help
-	  Support for concatenating several MTD devices into a single
-	  (virtual) one. This allows you to have -for example- a JFFS(2)
-	  file system spanning multiple physical flash chips. If unsure,
-	  say 'Y'.
-
 config MTD_PARTITIONS
 	bool "MTD partitioning support"
 	help
@@ -332,6 +324,16 @@ config MTD_OOPS
 
 	  To use, add console=ttyMTDx to the kernel command line,
 	  where x is the MTD device number to use.
+
+config MTD_SWAP
+	tristate "Swap on MTD device support"
+	depends on MTD && SWAP
+	select MTD_BLKDEVS
+	help
+	  Provides volatile block device driver on top of mtd partition
+          suitable for swapping.  The mapping of written blocks is not saved.
+	  The driver provides wear leveling by storing erase counter into the
+	  OOB.
 
 source "drivers/mtd/chips/Kconfig"
 

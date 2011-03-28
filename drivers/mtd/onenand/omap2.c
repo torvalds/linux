@@ -629,6 +629,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 {
 	struct omap_onenand_platform_data *pdata;
 	struct omap2_onenand *c;
+	struct onenand_chip *this;
 	int r;
 
 	pdata = pdev->dev.platform_data;
@@ -726,9 +727,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 
 	c->mtd.dev.parent = &pdev->dev;
 
+	this = &c->onenand;
 	if (c->dma_channel >= 0) {
-		struct onenand_chip *this = &c->onenand;
-
 		this->wait = omap2_onenand_wait;
 		if (cpu_is_omap34xx()) {
 			this->read_bufferram = omap3_onenand_read_bufferram;
@@ -748,6 +748,9 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 		c->onenand.enable = omap2_onenand_enable;
 		c->onenand.disable = omap2_onenand_disable;
 	}
+
+	if (pdata->skip_initial_unlocking)
+		this->options |= ONENAND_SKIP_INITIAL_UNLOCKING;
 
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
 		goto err_release_regulator;
