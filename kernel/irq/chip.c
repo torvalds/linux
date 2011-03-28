@@ -604,6 +604,51 @@ out_unlock:
 	raw_spin_unlock(&desc->lock);
 }
 
+#ifdef CONFIG_IRQ_EDGE_EOI_HANDLER
+/**
+ *	handle_edge_eoi_irq - edge eoi type IRQ handler
+ *	@irq:	the interrupt number
+ *	@desc:	the interrupt description structure for this irq
+ *
+ * Similar as the above handle_edge_irq, but using eoi and w/o the
+ * mask/unmask logic.
+ */
+void handle_edge_eoi_irq(unsigned int irq, struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+
+	raw_spin_lock(&desc->lock);
+
+	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
+	/*
+	 * If we're currently running this IRQ, or its disabled,
+	 * we shouldn't process the IRQ. Mark it pending, handle
+	 * the necessary masking and go out
+	 */
+	if (unlikely(irqd_irq_disabled(&desc->irq_data) ||
+		     irqd_irq_inprogress(&desc->irq_data) || !desc->action)) {
+		if (!irq_check_poll(desc)) {
+			desc->istate |= IRQS_PENDING;
+			goto out_eoi;
+		}
+	}
+	kstat_incr_irqs_this_cpu(irq, desc);
+
+	do {
+		if (unlikely(!desc->action))
+			goto out_eoi;
+
+		handle_irq_event(desc);
+
+	} while ((desc->istate & IRQS_PENDING) &&
+		 !irqd_irq_disabled(&desc->irq_data));
+
+out_unlock:
+	chip->irq_eoi(&desc->irq_data);
+	raw_spin_unlock(&desc->lock);
+}
+#endif
+
 /**
  *	handle_percpu_irq - Per CPU local irq handler
  *	@irq:	the interrupt number
