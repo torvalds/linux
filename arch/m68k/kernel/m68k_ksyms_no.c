@@ -20,8 +20,6 @@ extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 /* platform dependent support */
 
-EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(dump_fpu);
 
 EXPORT_SYMBOL(ip_fast_csum);
