@@ -66,7 +66,7 @@ void irq_move_irq(struct irq_data *idata)
 	if (likely(!irqd_is_setaffinity_pending(idata)))
 		return;
 
-	if (unlikely(desc->istate & IRQS_DISABLED))
+	if (unlikely(irqd_irq_disabled(idata)))
 		return;
 
 	/*
@@ -74,7 +74,7 @@ void irq_move_irq(struct irq_data *idata)
 	 * threaded interrupt with ONESHOT set, we can end up with an
 	 * interrupt storm.
 	 */
-	masked = desc->istate & IRQS_MASKED;
+	masked = irqd_irq_masked(idata);
 	if (!masked)
 		idata->chip->irq_mask(idata);
 	irq_move_masked_irq(idata);

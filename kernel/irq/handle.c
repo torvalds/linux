@@ -178,13 +178,13 @@ irqreturn_t handle_irq_event(struct irq_desc *desc)
 	irq_compat_clr_pending(desc);
 	desc->istate &= ~IRQS_PENDING;
 	irq_compat_set_progress(desc);
-	desc->istate |= IRQS_INPROGRESS;
+	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock(&desc->lock);
 
 	ret = handle_irq_event_percpu(desc, action);
 
 	raw_spin_lock(&desc->lock);
-	desc->istate &= ~IRQS_INPROGRESS;
+	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	irq_compat_clr_progress(desc);
 	return ret;
 }

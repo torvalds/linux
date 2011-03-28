@@ -140,27 +140,25 @@ EXPORT_SYMBOL_GPL(irq_get_irq_data);
 
 static void irq_state_clr_disabled(struct irq_desc *desc)
 {
-	desc->istate &= ~IRQS_DISABLED;
 	irqd_clear(&desc->irq_data, IRQD_IRQ_DISABLED);
 	irq_compat_clr_disabled(desc);
 }
 
 static void irq_state_set_disabled(struct irq_desc *desc)
 {
-	desc->istate |= IRQS_DISABLED;
 	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
 	irq_compat_set_disabled(desc);
 }
 
 static void irq_state_clr_masked(struct irq_desc *desc)
 {
-	desc->istate &= ~IRQS_MASKED;
+	irqd_clear(&desc->irq_data, IRQD_IRQ_MASKED);
 	irq_compat_clr_masked(desc);
 }
 
 static void irq_state_set_masked(struct irq_desc *desc)
 {
-	desc->istate |= IRQS_MASKED;
+	irqd_set(&desc->irq_data, IRQD_IRQ_MASKED);
 	irq_compat_set_masked(desc);
 }
 
@@ -380,11 +378,11 @@ void handle_nested_irq(unsigned int irq)
 	kstat_incr_irqs_this_cpu(irq, desc);
 
 	action = desc->action;
-	if (unlikely(!action || (desc->istate & IRQS_DISABLED)))
+	if (unlikely(!action || irqd_irq_disabled(&desc->irq_data)))
 		goto out_unlock;
 
 	irq_compat_set_progress(desc);
-	desc->istate |= IRQS_INPROGRESS;
+	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock_irq(&desc->lock);
 
 	action_ret = action->thread_fn(action->irq, action->dev_id);
@@ -392,7 +390,7 @@ void handle_nested_irq(unsigned int irq)
 		note_interrupt(irq, desc, action_ret);
 
 	raw_spin_lock_irq(&desc->lock);
-	desc->istate &= ~IRQS_INPROGRESS;
+	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	irq_compat_clr_progress(desc);
 
 out_unlock:
@@ -424,14 +422,14 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 {
 	raw_spin_lock(&desc->lock);
 
-	if (unlikely(desc->istate & IRQS_INPROGRESS))
+	if (unlikely(irqd_irq_inprogress(&desc->irq_data)))
 		if (!irq_check_poll(desc))
 			goto out_unlock;
 
 	desc->istate &= ~(IRQS_REPLAY | IRQS_WAITING);
 	kstat_incr_irqs_this_cpu(irq, desc);
 
-	if (unlikely(!desc->action || (desc->istate & IRQS_DISABLED)))
+	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data)))
 		goto out_unlock;
 
 	handle_irq_event(desc);
@@ -456,7 +454,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 	mask_ack_irq(desc);
 
-	if (unlikely(desc->istate & IRQS_INPROGRESS))
+	if (unlikely(irqd_irq_inprogress(&desc->irq_data)))
 		if (!irq_check_poll(desc))
 			goto out_unlock;
 
@@ -467,12 +465,12 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	 * If its disabled or no action available
 	 * keep it masked and get out of here
 	 */
-	if (unlikely(!desc->action || (desc->istate & IRQS_DISABLED)))
+	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data)))
 		goto out_unlock;
 
 	handle_irq_event(desc);
 
-	if (!(desc->istate & (IRQS_DISABLED | IRQS_ONESHOT)))
+	if (!irqd_irq_disabled(&desc->irq_data) && !(desc->istate & IRQS_ONESHOT))
 		unmask_irq(desc);
 out_unlock:
 	raw_spin_unlock(&desc->lock);
@@ -504,7 +502,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 {
 	raw_spin_lock(&desc->lock);
 
-	if (unlikely(desc->istate & IRQS_INPROGRESS))
+	if (unlikely(irqd_irq_inprogress(&desc->irq_data)))
 		if (!irq_check_poll(desc))
 			goto out;
 
@@ -515,7 +513,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	 * If its disabled or no action available
 	 * then mask it and get out of here:
 	 */
-	if (unlikely(!desc->action || (desc->istate & IRQS_DISABLED))) {
+	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
 		irq_compat_set_pending(desc);
 		desc->istate |= IRQS_PENDING;
 		mask_irq(desc);
@@ -566,8 +564,8 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	 * we shouldn't process the IRQ. Mark it pending, handle
 	 * the necessary masking and go out
 	 */
-	if (unlikely((desc->istate & (IRQS_DISABLED | IRQS_INPROGRESS) ||
-		      !desc->action))) {
+	if (unlikely(irqd_irq_disabled(&desc->irq_data) ||
+		     irqd_irq_inprogress(&desc->irq_data) || !desc->action)) {
 		if (!irq_check_poll(desc)) {
 			irq_compat_set_pending(desc);
 			desc->istate |= IRQS_PENDING;
@@ -592,15 +590,15 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 		 * Renable it, if it was not disabled in meantime.
 		 */
 		if (unlikely(desc->istate & IRQS_PENDING)) {
-			if (!(desc->istate & IRQS_DISABLED) &&
-			    (desc->istate & IRQS_MASKED))
+			if (!irqd_irq_disabled(&desc->irq_data) &&
+			    irqd_irq_masked(&desc->irq_data))
 				unmask_irq(desc);
 		}
 
 		handle_irq_event(desc);
 
 	} while ((desc->istate & IRQS_PENDING) &&
-		 !(desc->istate & IRQS_DISABLED));
+		 !irqd_irq_disabled(&desc->irq_data));
 
 out_unlock:
 	raw_spin_unlock(&desc->lock);
@@ -720,7 +718,7 @@ void irq_cpu_online(void)
 		chip = irq_data_get_irq_chip(&desc->irq_data);
 		if (chip && chip->irq_cpu_online &&
 		    (!(chip->flags & IRQCHIP_ONOFFLINE_ENABLED) ||
-		     !(desc->istate & IRQS_DISABLED)))
+		     !irqd_irq_disabled(&desc->irq_data)))
 			chip->irq_cpu_online(&desc->irq_data);
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
@@ -750,7 +748,7 @@ void irq_cpu_offline(void)
 		chip = irq_data_get_irq_chip(&desc->irq_data);
 		if (chip && chip->irq_cpu_offline &&
 		    (!(chip->flags & IRQCHIP_ONOFFLINE_ENABLED) ||
-		     !(desc->istate & IRQS_DISABLED)))
+		     !irqd_irq_disabled(&desc->irq_data)))
 			chip->irq_cpu_offline(&desc->irq_data);
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
