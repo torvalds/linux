@@ -169,10 +169,11 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
+		struct irq_desc *desc = irq_to_desc(i);
 		struct irqaction *action;
 
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		action = desc->action;
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
@@ -183,7 +184,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif
 
-		seq_printf(p, " %14s", irq_desc[i].irq_data.chip->name);
+		seq_printf(p, " %14s", irq_desc_get_chip(desc)->name);
 #ifndef PARISC_IRQ_CR16_COUNTS
 		seq_printf(p, "  %s", action->name);
 
@@ -215,7 +216,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
  skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 
 	return 0;
@@ -233,7 +234,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 int cpu_claim_irq(unsigned int irq, struct irq_chip *type, void *data)
 {
-	if (irq_desc[irq].action)
+	if (irq_has_action(irq))
 		return -EBUSY;
 	if (irq_get_chip(irq) != &cpu_interrupt_type)
 		return -EBUSY;
