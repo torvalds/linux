@@ -74,6 +74,45 @@
 #define AB8500_INT_ACC_DETECT_21DB_F	37
 #define AB8500_INT_ACC_DETECT_21DB_R	38
 #define AB8500_INT_GP_SW_ADC_CONV_END	39
+#define AB8500_INT_ACC_DETECT_1DB_F	33
+#define AB8500_INT_ACC_DETECT_1DB_R	34
+#define AB8500_INT_ACC_DETECT_22DB_F	35
+#define AB8500_INT_ACC_DETECT_22DB_R	36
+#define AB8500_INT_ACC_DETECT_21DB_F	37
+#define AB8500_INT_ACC_DETECT_21DB_R	38
+#define AB8500_INT_GP_SW_ADC_CONV_END	39
+#define AB8500_INT_GPIO6R		40
+#define AB8500_INT_GPIO7R		41
+#define AB8500_INT_GPIO8R		42
+#define AB8500_INT_GPIO9R		43
+#define AB8500_INT_GPIO10R		44
+#define AB8500_INT_GPIO11R		45
+#define AB8500_INT_GPIO12R		46
+#define AB8500_INT_GPIO13R		47
+#define AB8500_INT_GPIO24R		48
+#define AB8500_INT_GPIO25R		49
+#define AB8500_INT_GPIO36R		50
+#define AB8500_INT_GPIO37R		51
+#define AB8500_INT_GPIO38R		52
+#define AB8500_INT_GPIO39R		53
+#define AB8500_INT_GPIO40R		54
+#define AB8500_INT_GPIO41R		55
+#define AB8500_INT_GPIO6F		56
+#define AB8500_INT_GPIO7F		57
+#define AB8500_INT_GPIO8F		58
+#define AB8500_INT_GPIO9F		59
+#define AB8500_INT_GPIO10F		60
+#define AB8500_INT_GPIO11F		61
+#define AB8500_INT_GPIO12F		62
+#define AB8500_INT_GPIO13F		63
+#define AB8500_INT_GPIO24F		64
+#define AB8500_INT_GPIO25F		65
+#define AB8500_INT_GPIO36F		66
+#define AB8500_INT_GPIO37F		67
+#define AB8500_INT_GPIO38F		68
+#define AB8500_INT_GPIO39F		69
+#define AB8500_INT_GPIO40F		70
+#define AB8500_INT_GPIO41F		71
 #define AB8500_INT_ADP_SOURCE_ERROR	72
 #define AB8500_INT_ADP_SINK_ERROR	73
 #define AB8500_INT_ADP_PROBE_PLUG	74
@@ -141,6 +180,7 @@ struct ab8500 {
 
 struct regulator_reg_init;
 struct regulator_init_data;
+struct ab8500_gpio_platform_data;
 
 /**
  * struct ab8500_platform_data - AB8500 platform data
@@ -158,6 +198,7 @@ struct ab8500_platform_data {
 	struct ab8500_regulator_reg_init *regulator_reg_init;
 	int num_regulator;
 	struct regulator_init_data *regulator;
+	struct ab8500_gpio_platform_data *gpio;
 };
 
 extern int __devinit ab8500_init(struct ab8500 *ab8500);
