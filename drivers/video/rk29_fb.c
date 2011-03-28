@@ -2110,49 +2110,7 @@ static void rk29fb_early_suspend(struct early_suspend *h)
 		fbprintk(">>>>>> power down the screen! \n");
 		inf->cur_screen->standby(1);
 	}
-}
 
-static void rk29fb_early_resume(struct early_suspend *h)
-{
-	struct suspend_info *info = container_of(h, struct suspend_info,
-					early_suspend);
-
-    struct rk29fb_inf *inf = info->inf;
-
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-    if(!inf) {
-        printk("inf==0, rk29fb_resume fail! \n");
-        return ;
-    }
-
-	if(inf->cur_screen->standby)
-	{
-		fbprintk(">>>>>> power on the screen! \n");
-		inf->cur_screen->standby(0);
-	}
-    msleep(100);
-    set_lcd_pin(g_pdev, 1);
-	memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
-}
-
-static struct suspend_info suspend_info = {
-	.early_suspend.suspend = rk29fb_early_suspend,
-	.early_suspend.resume = rk29fb_early_resume,
-	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
-};
-#endif
-
-#ifdef CONFIG_PM
-static int rk29fb_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-    struct rk29fb_inf *inf = platform_get_drvdata(pdev);
-
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-    if(!inf) {
-        printk("inf==0, rk29fb_suspend fail! \n");
-        return 0;
-    }
     LcdMskReg(inf, DSP_CTRL0, m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY ,
        v_HSYNC_POLARITY(1) | v_VSYNC_POLARITY(1) | v_DEN_POLARITY(1) );
 
@@ -2177,33 +2135,33 @@ static int rk29fb_suspend(struct platform_device *pdev, pm_message_t mesg)
             clk_disable(inf->aclk);
         }
         clk_disable(inf->pd_display);
-        //pmu_set_power_domain(PD_DISPLAY, 0);
+
 		inf->in_suspend = 1;
 	}
-    return 0;
 }
 
-static int rk29fb_resume(struct platform_device *pdev)
+static void rk29fb_early_resume(struct early_suspend *h)
 {
-    struct rk29fb_inf *inf = platform_get_drvdata(pdev);
+	struct suspend_info *info = container_of(h, struct suspend_info,
+					early_suspend);
+
+    struct rk29fb_inf *inf = info->inf;
     struct rk29fb_screen *screen = inf->cur_screen;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
     if(!inf) {
         printk("inf==0, rk29fb_resume fail! \n");
-        return 0;
+        return ;
     }
 
-	if(inf->in_suspend)
+    if(inf->in_suspend)
 	{
 	    inf->in_suspend = 0;
     	fbprintk(">>>>>> enable the lcdc clk! \n");
+        clk_enable(inf->pd_display);
         clk_enable(inf->aclk_disp_matrix);
         clk_enable(inf->hclk_cpu_display);
         clk_enable(inf->clk);
-        clk_enable(inf->pd_display);
-        //pmu_set_power_domain(PD_DISPLAY, 1);
         clk_enable(inf->aclk_ddr_lcdc);
 
         if (inf->dclk){
@@ -2221,9 +2179,21 @@ static int rk29fb_resume(struct platform_device *pdev)
     LcdMskReg(inf, DSP_CTRL0, m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY ,
        v_HSYNC_POLARITY(screen->pin_hsync) | v_VSYNC_POLARITY(screen->pin_vsync) | v_DEN_POLARITY(screen->pin_den) );
 
-	return 0;
+	if(inf->cur_screen->standby)
+	{
+		fbprintk(">>>>>> power on the screen! \n");
+		inf->cur_screen->standby(0);
+	}
+    msleep(100);
+    set_lcd_pin(g_pdev, 1);
+	memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
 }
 
+static struct suspend_info suspend_info = {
+	.early_suspend.suspend = rk29fb_early_suspend,
+	.early_suspend.resume = rk29fb_early_resume,
+	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
+};
 #endif
 
 static int __init rk29fb_probe (struct platform_device *pdev)
@@ -2675,10 +2645,6 @@ static void rk29fb_shutdown(struct platform_device *pdev)
 static struct platform_driver rk29fb_driver = {
 	.probe		= rk29fb_probe,
 	.remove		= rk29fb_remove,
-	#ifdef CONFIG_PM
-	.suspend	= rk29fb_suspend,
-	.resume		= rk29fb_resume,
-	#endif
 	.driver		= {
 		.name	= "rk29-fb",
 		.owner	= THIS_MODULE,
