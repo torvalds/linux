@@ -42,6 +42,8 @@ extern int ceph_encrypt2(struct ceph_crypto_key *secret,
 			 void *dst, size_t *dst_len,
 			 const void *src1, size_t src1_len,
 			 const void *src2, size_t src2_len);
+extern int ceph_crypto_init(void);
+extern void ceph_crypto_shutdown(void);
 
 /* armor.c */
 extern int ceph_armor(char *dst, const char *src, const char *end);

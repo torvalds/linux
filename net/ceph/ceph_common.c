@@ -6,7 +6,7 @@
 #include <linux/inet.h>
 #include <linux/in6.h>
 #include <linux/key.h>
-#include <keys/user-type.h>
+#include <keys/ceph-type.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/parser.h>
@@ -241,10 +241,9 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 	struct key *ukey;
 	int key_err;
 	int err = 0;
-	struct user_key_payload *payload;
-	void *p;
+	struct ceph_crypto_key *ckey;
 
-	ukey = request_key(&key_type_user, name, NULL);
+	ukey = request_key(&key_type_ceph, name, NULL);
 	if (!ukey || IS_ERR(ukey)) {
 		/* request_key errors don't map nicely to mount(2)
 		   errors; don't even try, but still printk */
@@ -267,9 +266,8 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name) {
 		goto out;
 	}
 
-	payload = ukey->payload.data;
-	p = payload->data;
-	err = ceph_crypto_key_decode(dst, &p, p + payload->datalen);
+	ckey = ukey->payload.data;
+	err = ceph_crypto_key_clone(dst, ckey);
 	if (err)
 		goto out_key;
 	/* pass through, err is 0 */
@@ -583,9 +581,13 @@ static int __init init_ceph_lib(void)
 	if (ret < 0)
 		goto out;
 
-	ret = ceph_msgr_init();
+	ret = ceph_crypto_init();
 	if (ret < 0)
 		goto out_debugfs;
+
+	ret = ceph_msgr_init();
+	if (ret < 0)
+		goto out_crypto;
 
 	pr_info("loaded (mon/osd proto %d/%d, osdmap %d/%d %d/%d)\n",
 		CEPH_MONC_PROTOCOL, CEPH_OSDC_PROTOCOL,
@@ -594,6 +596,8 @@ static int __init init_ceph_lib(void)
 
 	return 0;
 
+out_crypto:
+	ceph_crypto_shutdown();
 out_debugfs:
 	ceph_debugfs_cleanup();
 out:
@@ -604,6 +608,7 @@ static void __exit exit_ceph_lib(void)
 {
 	dout("exit_ceph_lib\n");
 	ceph_msgr_exit();
+	ceph_crypto_shutdown();
 	ceph_debugfs_cleanup();
 }
 
