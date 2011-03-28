@@ -540,9 +540,12 @@ static void __kprobes emulate_ldrd(struct kprobe *p, struct pt_regs *regs)
 {
 	insn_2arg_fn_t *i_fn = (insn_2arg_fn_t *)&p->ainsn.insn[0];
 	kprobe_opcode_t insn = p->opcode;
+	long ppc = (long)p->addr + 8;
 	int rd = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm = insn & 0xf;  /* rm may be invalid, don't care. */
+	long rmv = (rm == 15) ? ppc : regs->uregs[rm];
+	long rnv = (rn == 15) ? ppc : regs->uregs[rn];
 
 	/* Not following the C calling convention here, so need asm(). */
 	__asm__ __volatile__ (
@@ -554,29 +557,36 @@ static void __kprobes emulate_ldrd(struct kprobe *p, struct pt_regs *regs)
 		"str	r0, %[rn]	\n\t"	/* in case of writeback */
 		"str	r2, %[rd0]	\n\t"
 		"str	r3, %[rd1]	\n\t"
-		: [rn]  "+m" (regs->uregs[rn]),
+		: [rn]  "+m" (rnv),
 		  [rd0] "=m" (regs->uregs[rd]),
 		  [rd1] "=m" (regs->uregs[rd+1])
-		: [rm]   "m" (regs->uregs[rm]),
+		: [rm]   "m" (rmv),
 		  [cpsr] "r" (regs->ARM_cpsr),
 		  [i_fn] "r" (i_fn)
 		: "r0", "r1", "r2", "r3", "lr", "cc"
 	);
+	if (rn != 15)
+		regs->uregs[rn] = rnv;  /* Save Rn in case of writeback. */
 }
 
 static void __kprobes emulate_strd(struct kprobe *p, struct pt_regs *regs)
 {
 	insn_4arg_fn_t *i_fn = (insn_4arg_fn_t *)&p->ainsn.insn[0];
 	kprobe_opcode_t insn = p->opcode;
+	long ppc = (long)p->addr + 8;
 	int rd = (insn >> 12) & 0xf;
 	int rn = (insn >> 16) & 0xf;
 	int rm  = insn & 0xf;
-	long rnv = regs->uregs[rn];
-	long rmv = regs->uregs[rm];  /* rm/rmv may be invalid, don't care. */
+	long rnv = (rn == 15) ? ppc : regs->uregs[rn];
+	/* rm/rmv may be invalid, don't care. */
+	long rmv = (rm == 15) ? ppc : regs->uregs[rm];
+	long rnv_wb;
 
-	regs->uregs[rn] = insnslot_4arg_rflags(rnv, rmv, regs->uregs[rd],
+	rnv_wb = insnslot_4arg_rflags(rnv, rmv, regs->uregs[rd],
 					       regs->uregs[rd+1],
 					       regs->ARM_cpsr, i_fn);
+	if (rn != 15)
+		regs->uregs[rn] = rnv_wb;  /* Save Rn in case of writeback. */
 }
 
 static void __kprobes emulate_ldr(struct kprobe *p, struct pt_regs *regs)
