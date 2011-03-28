@@ -755,7 +755,7 @@ static void gpu_early_suspend(struct early_suspend *h)
 {
 	gceSTATUS status;
     
-    printk("Enter %s \n", __func__);
+    //printk("Enter %s \n", __func__);
 
     msleep(50); //Wait for gpu finish
 
@@ -767,14 +767,14 @@ static void gpu_early_suspend(struct early_suspend *h)
 		return;
 	}
 
-	printk("Exit %s \n", __func__);
+	//printk("Exit %s \n", __func__);
 }
 
 static void gpu_early_resume(struct early_suspend *h)
 {
 	gceSTATUS status;
     
-    printk("Enter %s \n", __func__);
+    //printk("Enter %s \n", __func__);
 
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_IDLE);
 
@@ -786,7 +786,7 @@ static void gpu_early_resume(struct early_suspend *h)
 		return;
 	}
 
-	printk("Exit %s \n", __func__);
+	//printk("Exit %s \n", __func__);
 }
 
 struct early_suspend gpu_early_suspend_info = {
@@ -857,7 +857,7 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 	gceSTATUS status;
 	gckGALDEVICE device;
     
-    printk("Enter %s \n", __func__);
+    //printk("Enter %s \n", __func__);
 
 	device = platform_get_drvdata(dev);
 
@@ -871,7 +871,7 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 		return -1;
 	}
 
-	printk("Exit %s \n", __func__);
+	//printk("Exit %s \n", __func__);
 
 	return 0;
 }
@@ -881,7 +881,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 	gceSTATUS status;
 	gckGALDEVICE device;
     
-    printk("Enter %s \n", __func__);
+    //printk("Enter %s \n", __func__);
 
 	device = platform_get_drvdata(dev);
 
@@ -895,7 +895,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 		return -1;
 	}
 
-	printk("Exit %s \n", __func__);
+	//printk("Exit %s \n", __func__);
     
 	return 0;
 }

@@ -1105,6 +1105,7 @@ gckOS_UnmapMemory(
     PLINUX_MDL_MAP          mdlMap;
     PLINUX_MDL              mdl = (PLINUX_MDL)Physical;
     struct task_struct *    task;
+    struct mm_struct *      mm;
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
@@ -1143,12 +1144,19 @@ gckOS_UnmapMemory(
 
         /* Get the current pointer for the task with stored pid. */
         task = FIND_TASK_BY_PID(mdlMap->pid);
+        if(task) {
+            mm = get_task_mm(task);
+            put_task_struct(task);
+        } else {
+            mm = gcvNULL;
+        }
 
-        if (task != gcvNULL && task->mm != gcvNULL)
+        if (mm)
         {
-            down_write(&task->mm->mmap_sem);
-            do_munmap(task->mm, (unsigned long)Logical, mdl->numPages*PAGE_SIZE);
-            up_write(&task->mm->mmap_sem);
+            down_write(&mm->mmap_sem);
+            do_munmap(mm, (unsigned long)Logical, mdl->numPages*PAGE_SIZE);
+            up_write(&mm->mmap_sem);
+            mmput(mm);
         }
         else
         {
@@ -1516,6 +1524,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
     PLINUX_MDL              mdl;
     PLINUX_MDL_MAP          mdlMap;
     struct task_struct *    task;
+    struct mm_struct *      mm;
 
 #ifdef NO_DMA_COHERENT
     unsigned                size;
@@ -1567,12 +1576,18 @@ gceSTATUS gckOS_FreeNonPagedMemory(
         {
             /* Get the current pointer for the task with stored pid. */
             task = FIND_TASK_BY_PID(mdlMap->pid);
+            if(task) {
+                mm = get_task_mm(task);
+                put_task_struct(task);
+            } else {
+                mm = gcvNULL;
+            }
 
-            if (task != gcvNULL && task->mm != gcvNULL)
+            if (mm)
             {
-                down_write(&task->mm->mmap_sem);
+                down_write(&mm->mmap_sem);
 
-                if (do_munmap(task->mm,
+                if (do_munmap(mm,
                             (unsigned long)mdlMap->vmaAddr,
                             mdl->numPages * PAGE_SIZE) < 0)
                 {
@@ -1585,7 +1600,8 @@ gceSTATUS gckOS_FreeNonPagedMemory(
                                 (gctUINT32)mdlMap->vmaAddr);
                 }
 
-                up_write(&task->mm->mmap_sem);
+                up_write(&mm->mmap_sem);
+                mmput(mm);
             }
 
             mdlMap->vmaAddr = gcvNULL;
@@ -3260,6 +3276,7 @@ gceSTATUS gckOS_UnlockPages(
     PLINUX_MDL_MAP          mdlMap;
     PLINUX_MDL              mdl = (PLINUX_MDL)Physical;
     struct task_struct *    task;
+    struct mm_struct *      mm;
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
@@ -3283,12 +3300,19 @@ gceSTATUS gckOS_UnlockPages(
         {
             /* Get the current pointer for the task with stored pid. */
             task = FIND_TASK_BY_PID(mdlMap->pid);
+            if(task) {
+                mm = get_task_mm(task);
+                put_task_struct(task);
+            } else {
+                mm = gcvNULL;
+            }
 
-            if (task != gcvNULL && task->mm != gcvNULL)
+            if (mm)
             {
-                down_write(&task->mm->mmap_sem);
-                do_munmap(task->mm, (unsigned long)Logical, mdl->numPages * PAGE_SIZE);
-                up_write(&task->mm->mmap_sem);
+                down_write(&mm->mmap_sem);
+                do_munmap(mm, (unsigned long)Logical, mdl->numPages * PAGE_SIZE);
+                up_write(&mm->mmap_sem);
+                mmput(mm);
             }
 
             mdlMap->vmaAddr = gcvNULL;
@@ -3878,6 +3902,7 @@ gckOS_UserSignal(
             /* Success. */
             status = gcvSTATUS_OK;
         }
+        put_task_struct(task);
     }
     else
     {
