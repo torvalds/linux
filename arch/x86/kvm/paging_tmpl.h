@@ -325,7 +325,7 @@ no_present:
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			      u64 *spte, const void *pte, unsigned long mmu_seq)
+			      u64 *spte, const void *pte)
 {
 	pt_element_t gpte;
 	unsigned pte_access;
@@ -342,8 +342,6 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		kvm_release_pfn_clean(pfn);
 		return;
 	}
-	if (mmu_notifier_retry(vcpu, mmu_seq))
-		return;
 
 	/*
 	 * we call mmu_set_spte() with host_writable = true because that

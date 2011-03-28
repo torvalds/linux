@@ -274,7 +274,7 @@ struct kvm_mmu {
 			 struct kvm_mmu_page *sp);
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva);
 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			u64 *spte, const void *pte, unsigned long mmu_seq);
+			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
