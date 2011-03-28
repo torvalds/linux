@@ -2313,8 +2313,10 @@ static void rt61pci_tbtt_tasklet(unsigned long data)
 static void rt61pci_rxdone_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
-	rt2x00pci_rxdone(rt2x00dev);
-	rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RXDONE);
+	if (rt2x00pci_rxdone(rt2x00dev))
+		rt2x00pci_rxdone(rt2x00dev);
+	else
+		rt61pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RXDONE);
 }
 
 static void rt61pci_autowake_tasklet(unsigned long data)

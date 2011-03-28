@@ -806,8 +806,10 @@ static void rt2800pci_tbtt_tasklet(unsigned long data)
 static void rt2800pci_rxdone_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
-	rt2x00pci_rxdone(rt2x00dev);
-	rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RX_DONE);
+	if (rt2x00pci_rxdone(rt2x00dev))
+		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
+	else
+		rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_RX_DONE);
 }
 
 static void rt2800pci_autowake_tasklet(unsigned long data)

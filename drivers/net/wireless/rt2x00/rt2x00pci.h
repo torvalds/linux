@@ -101,8 +101,11 @@ struct queue_entry_priv_pci {
 /**
  * rt2x00pci_rxdone - Handle RX done events
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ *
+ * Returns true if there are still rx frames pending and false if all
+ * pending rx frames were processed.
  */
-void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
+bool rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Device initialization handlers.
