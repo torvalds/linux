@@ -212,6 +212,11 @@ static inline bool irqd_affinity_was_set(struct irq_data *d)
 	return d->state_use_accessors & IRQD_AFFINITY_SET;
 }
 
+static inline void irqd_mark_affinity_was_set(struct irq_data *d)
+{
+	d->state_use_accessors |= IRQD_AFFINITY_SET;
+}
+
 static inline u32 irqd_get_trigger_type(struct irq_data *d)
 {
 	return d->state_use_accessors & IRQD_TRIGGER_MASK;
