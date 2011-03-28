@@ -145,7 +145,7 @@ static int intc_irq_set_type(struct irq_data *d, unsigned int type)
  */
 static void intc_external_irq(unsigned int irq, struct irq_desc *desc)
 {
-	get_irq_desc_chip(desc)->irq_ack(&desc->irq_data);
+	irq_desc_get_chip(desc)->irq_ack(&desc->irq_data);
 	handle_simple_irq(irq, desc);
 }
 
@@ -171,16 +171,16 @@ void __init init_IRQ(void)
 	writel(0x88888888, MCF_MBAR + MCFSIM_ICR4);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
-		set_irq_chip(irq, &intc_irq_chip);
+		irq_set_chip(irq, &intc_irq_chip);
 		edge = 0;
 		if ((irq >= MCFINT_VECBASE) && (irq <= MCFINT_VECMAX))
 			edge = intc_irqmap[irq - MCFINT_VECBASE].ack;
 		if (edge) {
-			set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
-			set_irq_handler(irq, intc_external_irq);
+			irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
+			irq_set_handler(irq, intc_external_irq);
 		} else {
-			set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+			irq_set_handler(irq, handle_level_irq);
 		}
 	}
 }
