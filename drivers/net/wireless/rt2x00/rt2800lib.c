@@ -1819,11 +1819,15 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	u16 eeprom;
 	u8 comp_en;
 	u8 comp_type;
-	int comp_value;
+	int comp_value = 0;
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_DELTA, &eeprom);
 
-	if (eeprom == 0xffff)
+	/*
+	 * HT40 compensation not required.
+	 */
+	if (eeprom == 0xffff ||
+	    !test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
 		return 0;
 
 	if (band == IEEE80211_BAND_2GHZ) {
@@ -1865,13 +1869,12 @@ static u8 rt2800_compesate_txpower(struct rt2x00_dev *rt2x00dev,
 	u8 eirp_txpower;
 	u8 eirp_txpower_criterion;
 	u8 reg_limit;
-	int bw_comp = 0;
+	int bw_comp;
 
 	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
 		return txpower;
 
-	if (test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
-		bw_comp = rt2800_get_txpower_bw_comp(rt2x00dev, band);
+	bw_comp = rt2800_get_txpower_bw_comp(rt2x00dev, band);
 
 	if (test_bit(CONFIG_SUPPORT_POWER_LIMIT, &rt2x00dev->flags)) {
 		/*
