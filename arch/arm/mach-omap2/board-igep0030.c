@@ -142,7 +142,7 @@ static void __init igep3_flash_init(void) {}
 #endif
 
 static struct regulator_consumer_supply igep3_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.0");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep3_vmmc1 = {
@@ -160,7 +160,7 @@ static struct regulator_init_data igep3_vmmc1 = {
 };
 
 static struct regulator_consumer_supply igep3_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
 
 static struct regulator_init_data igep3_vio = {
 	.constraints = {
@@ -178,7 +178,7 @@ static struct regulator_init_data igep3_vio = {
 };
 
 static struct regulator_consumer_supply igep3_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
 
 static struct regulator_init_data igep3_vmmc2 = {
 	.constraints	= {
@@ -331,12 +331,11 @@ static struct platform_device *igep3_devices[] __initdata = {
 	&igep3_vwlan_device,
 };
 
-static void __init igep3_init_irq(void)
+static void __init igep3_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(m65kxxxxam_sdrc_params,
 				  m65kxxxxam_sdrc_params);
-	omap_init_irq();
 }
 
 static struct twl4030_platform_data igep3_twl4030_pdata = {
@@ -408,10 +407,10 @@ static void __init igep3_wifi_bt_init(void)
 void __init igep3_wifi_bt_init(void) {}
 #endif
 
-static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
+	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset = true,
 	.reset_gpio_port[0] = -EINVAL,
@@ -435,7 +434,7 @@ static void __init igep3_init(void)
 	platform_add_devices(igep3_devices, ARRAY_SIZE(igep3_devices));
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&ehci_pdata);
+	usbhs_init(&usbhs_bdata);
 
 	igep3_flash_init();
 	igep3_leds_init();
@@ -452,7 +451,8 @@ MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.boot_params	= 0x80000100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_irq	= igep3_init_irq,
+	.init_early	= igep3_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= igep3_init,
 	.timer		= &omap_timer,
 MACHINE_END

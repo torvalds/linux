@@ -89,8 +89,10 @@ xfs_fs_encode_fh(
 	 * seven combinations work.  The real answer is "don't use v2".
 	 */
 	len = xfs_fileid_length(fileid_type);
-	if (*max_len < len)
+	if (*max_len < len) {
+		*max_len = len;
 		return 255;
+	}
 	*max_len = len;
 
 	switch (fileid_type) {

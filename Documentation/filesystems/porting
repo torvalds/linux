@@ -298,11 +298,14 @@ be used instead.  It gets called whenever the inode is evicted, whether it has
 remaining links or not.  Caller does *not* evict the pagecache or inode-associated
 metadata buffers; getting rid of those is responsibility of method, as it had
 been for ->delete_inode().
-	->drop_inode() returns int now; it's called on final iput() with inode_lock
-held and it returns true if filesystems wants the inode to be dropped.  As before,
-generic_drop_inode() is still the default and it's been updated appropriately.
-generic_delete_inode() is also alive and it consists simply of return 1.  Note that
-all actual eviction work is done by caller after ->drop_inode() returns.
+
+	->drop_inode() returns int now; it's called on final iput() with
+inode->i_lock held and it returns true if filesystems wants the inode to be
+dropped.  As before, generic_drop_inode() is still the default and it's been
+updated appropriately.  generic_delete_inode() is also alive and it consists
+simply of return 1.  Note that all actual eviction work is done by caller after
+->drop_inode() returns.
+
 	clear_inode() is gone; use end_writeback() instead.  As before, it must
 be called exactly once on each call of ->evict_inode() (as it used to be for
 each call of ->delete_inode()).  Unlike before, if you are using inode-associated
@@ -394,3 +397,13 @@ file) you must return -EOPNOTSUPP if FALLOC_FL_PUNCH_HOLE is set in mode.
 Currently you can only have FALLOC_FL_PUNCH_HOLE with FALLOC_FL_KEEP_SIZE set,
 so the i_size should not change when hole punching, even when puching the end of
 a file off.
+
+--
+[mandatory]
+
+--
+[mandatory]
+	->get_sb() is gone.  Switch to use of ->mount().  Typically it's just
+a matter of switching from calling get_sb_... to mount_... and changing the
+function type.  If you were doing it manually, just switch from setting ->mnt_root
+to some pointer to returning that pointer.  On errors return ERR_PTR(...).

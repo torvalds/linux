@@ -1973,7 +1973,6 @@ static struct scsi_host_template mptsas_driver_template = {
 	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_abort_handler		= mptscsih_abort,
 	.eh_device_reset_handler	= mptscsih_dev_reset,
-	.eh_bus_reset_handler		= mptscsih_bus_reset,
 	.eh_host_reset_handler		= mptscsih_host_reset,
 	.bios_param			= mptscsih_bios_param,
 	.can_queue			= MPT_SAS_CAN_QUEUE,
@@ -3063,6 +3062,9 @@ static int mptsas_probe_one_phy(struct device *dev,
 	case MPI_SAS_IOUNIT0_RATE_3_0:
 		phy->negotiated_linkrate = SAS_LINK_RATE_3_0_GBPS;
 		break;
+	case MPI_SAS_IOUNIT0_RATE_6_0:
+		phy->negotiated_linkrate = SAS_LINK_RATE_6_0_GBPS;
+		break;
 	case MPI_SAS_IOUNIT0_RATE_SATA_OOB_COMPLETE:
 	case MPI_SAS_IOUNIT0_RATE_UNKNOWN:
 	default:
@@ -3691,7 +3693,8 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 	}
 
 	if (link_rate == MPI_SAS_IOUNIT0_RATE_1_5 ||
-	    link_rate == MPI_SAS_IOUNIT0_RATE_3_0) {
+	    link_rate == MPI_SAS_IOUNIT0_RATE_3_0 ||
+	    link_rate == MPI_SAS_IOUNIT0_RATE_6_0) {
 
 		if (!port_info) {
 			if (ioc->old_sas_discovery_protocal) {

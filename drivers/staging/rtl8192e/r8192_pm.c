@@ -25,9 +25,6 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = ieee80211_priv(dev);
-#ifdef RTL8190P
-	u8	ucRegRead;
-#endif
 	u32	ulRegRead;
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
@@ -36,64 +33,23 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	if (dev->netdev_ops->ndo_stop)
 		dev->netdev_ops->ndo_stop(dev);
-//	dev->stop(dev);
-#if 0
 
-	netif_carrier_off(dev);
-
-	ieee80211_softmac_stop_protocol(priv->ieee80211);
-
-	write_nic_byte(dev,MSR,(read_nic_byte(dev,MSR)&0xfc)|MSR_LINK_NONE);
-	if(!priv->ieee80211->bSupportRemoteWakeUp) {
-		/* disable tx/rx. In 8185 we write 0x10 (Reset bit),
-		 * but here we make reference to WMAC and wirte 0x0.
-		 * 2006.11.21 Emily
-		 */
-		write_nic_byte(dev, CMDR, 0);
-	}
-	//disable interrupt
-	write_nic_dword(dev,INTA_MASK,0);
-	priv->irq_enabled = 0;
-        write_nic_dword(dev,ISR,read_nic_dword(dev, ISR));
-
-	/* need to  free DM related functions */
-	cancel_work_sync(&priv->reset_wq);
-	del_timer_sync(&priv->fsync_timer);
-	del_timer_sync(&priv->watch_dog_timer);
-	cancel_delayed_work(&priv->watch_dog_wq);
-	cancel_delayed_work(&priv->update_beacon_wq);
-	cancel_work_sync(&priv->qos_activate);
-
-	/* TODO
-#if ((DEV_BUS_TYPE == PCI_INTERFACE) && (HAL_CODE_BASE == RTL8192))
-pHalData->bHwRfOffAction = 2;
-#endif
-*/
-#endif
 	// Call MgntActSet_RF_State instead to prevent RF config race condition.
-	// By Bruce, 2008-01-17.
-	//
 	if(!priv->ieee80211->bSupportRemoteWakeUp) {
-		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_INIT);
+		MgntActSet_RF_State(priv, eRfOff, RF_CHANGE_BY_INIT);
 		// 2006.11.30. System reset bit
-		ulRegRead = read_nic_dword(dev, CPU_GEN);
+		ulRegRead = read_nic_dword(priv, CPU_GEN);
 		ulRegRead|=CPU_GEN_SYSTEM_RESET;
-		write_nic_dword(dev, CPU_GEN, ulRegRead);
+		write_nic_dword(priv, CPU_GEN, ulRegRead);
 	} else {
 		//2008.06.03 for WOL
-		write_nic_dword(dev, WFCRC0, 0xffffffff);
-		write_nic_dword(dev, WFCRC1, 0xffffffff);
-		write_nic_dword(dev, WFCRC2, 0xffffffff);
-#ifdef RTL8190P
-		//GPIO 0 = TRUE
-		ucRegRead = read_nic_byte(dev, GPO);
-		ucRegRead |= BIT0;
-		write_nic_byte(dev, GPO, ucRegRead);
-#endif
+		write_nic_dword(priv, WFCRC0, 0xffffffff);
+		write_nic_dword(priv, WFCRC1, 0xffffffff);
+		write_nic_dword(priv, WFCRC2, 0xffffffff);
 		//Write PMR register
-		write_nic_byte(dev, PMR, 0x5);
+		write_nic_byte(priv, PMR, 0x5);
 		//Disable tx, enanble rx
-		write_nic_byte(dev, MacBlkCtrl, 0xa);
+		write_nic_byte(priv, MacBlkCtrl, 0xa);
 	}
 
 out_pci_suspend:
@@ -114,12 +70,10 @@ out_pci_suspend:
 int rtl8192E_resume (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	//struct r8192_priv *priv = ieee80211_priv(dev);
-	//union iwreq_data wrqu;
 	int err;
 	u32 val;
 
-        RT_TRACE(COMP_POWER, "================>r8192E resume call.");
+        RT_TRACE(COMP_POWER, "================>r8192E resume call.\n");
 
 	pci_set_power_state(pdev, PCI_D0);
 
@@ -155,7 +109,6 @@ int rtl8192E_resume (struct pci_dev *pdev)
 	if (dev->netdev_ops->ndo_open)
 		dev->netdev_ops->ndo_open(dev);
 
-//	dev->open(dev);
 out:
         RT_TRACE(COMP_POWER, "<================r8192E resume call.\n");
 	return 0;

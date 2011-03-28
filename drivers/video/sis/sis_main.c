@@ -4563,6 +4563,11 @@ sisfb_post_sis315330(struct pci_dev *pdev)
 }
 #endif
 
+static inline int sisfb_xgi_is21(struct sis_video_info *ivideo)
+{
+	return ivideo->chip_real_id == XGI_21;
+}
+
 static void __devinit
 sisfb_post_xgi_delay(struct sis_video_info *ivideo, int delay)
 {
@@ -4627,11 +4632,11 @@ sisfb_post_xgi_rwtest(struct sis_video_info *ivideo, int starta,
 	return 1;
 }
 
-static void __devinit
+static int __devinit
 sisfb_post_xgi_ramsize(struct sis_video_info *ivideo)
 {
 	unsigned int buswidth, ranksize, channelab, mapsize;
-	int i, j, k, l;
+	int i, j, k, l, status;
 	u8 reg, sr14;
 	static const u8 dramsr13[12 * 5] = {
 		0x02, 0x0e, 0x0b, 0x80, 0x5d,
@@ -4673,7 +4678,7 @@ sisfb_post_xgi_ramsize(struct sis_video_info *ivideo)
 		SiS_SetReg(SISSR, 0x13, 0x35);
 		SiS_SetReg(SISSR, 0x14, 0x41);
 		/* TODO */
-		return;
+		return -ENOMEM;
 	}
 
 	/* Non-interleaving */
@@ -4835,6 +4840,7 @@ bail_out:
 
 	j = (ivideo->chip == XGI_20) ? 5 : 9;
 	k = (ivideo->chip == XGI_20) ? 12 : 4;
+	status = -EIO;
 
 	for(i = 0; i < k; i++) {
 
@@ -4868,11 +4874,15 @@ bail_out:
 		SiS_SetRegANDOR(SISSR, 0x14, 0x0f, (reg & 0xf0));
 		sisfb_post_xgi_delay(ivideo, 1);
 
-		if(sisfb_post_xgi_rwtest(ivideo, j, ((reg >> 4) + channelab - 2 + 20), mapsize))
+		if (sisfb_post_xgi_rwtest(ivideo, j, ((reg >> 4) + channelab - 2 + 20), mapsize)) {
+			status = 0;
 			break;
+		}
 	}
 
 	iounmap(ivideo->video_vbase);
+
+	return status;
 }
 
 static void __devinit
@@ -4929,6 +4939,175 @@ sisfb_post_xgi_setclocks(struct sis_video_info *ivideo, u8 regb)
 	sisfb_post_xgi_delay(ivideo, 0x43);
 	sisfb_post_xgi_delay(ivideo, 0x43);
 	sisfb_post_xgi_delay(ivideo, 0x43);
+}
+
+static void __devinit
+sisfb_post_xgi_ddr2_mrs_default(struct sis_video_info *ivideo, u8 regb)
+{
+	unsigned char *bios = ivideo->bios_abase;
+	u8 v1;
+
+	SiS_SetReg(SISSR, 0x28, 0x64);
+	SiS_SetReg(SISSR, 0x29, 0x63);
+	sisfb_post_xgi_delay(ivideo, 15);
+	SiS_SetReg(SISSR, 0x18, 0x00);
+	SiS_SetReg(SISSR, 0x19, 0x20);
+	SiS_SetReg(SISSR, 0x16, 0x00);
+	SiS_SetReg(SISSR, 0x16, 0x80);
+	SiS_SetReg(SISSR, 0x18, 0xc5);
+	SiS_SetReg(SISSR, 0x19, 0x23);
+	SiS_SetReg(SISSR, 0x16, 0x00);
+	SiS_SetReg(SISSR, 0x16, 0x80);
+	sisfb_post_xgi_delay(ivideo, 1);
+	SiS_SetReg(SISCR, 0x97, 0x11);
+	sisfb_post_xgi_setclocks(ivideo, regb);
+	sisfb_post_xgi_delay(ivideo, 0x46);
+	SiS_SetReg(SISSR, 0x18, 0xc5);
+	SiS_SetReg(SISSR, 0x19, 0x23);
+	SiS_SetReg(SISSR, 0x16, 0x00);
+	SiS_SetReg(SISSR, 0x16, 0x80);
+	sisfb_post_xgi_delay(ivideo, 1);
+	SiS_SetReg(SISSR, 0x1b, 0x04);
+	sisfb_post_xgi_delay(ivideo, 1);
+	SiS_SetReg(SISSR, 0x1b, 0x00);
+	sisfb_post_xgi_delay(ivideo, 1);
+	v1 = 0x31;
+	if (ivideo->haveXGIROM) {
+		v1 = bios[0xf0];
+	}
+	SiS_SetReg(SISSR, 0x18, v1);
+	SiS_SetReg(SISSR, 0x19, 0x06);
+	SiS_SetReg(SISSR, 0x16, 0x04);
+	SiS_SetReg(SISSR, 0x16, 0x84);
+	sisfb_post_xgi_delay(ivideo, 1);
+}
+
+static void __devinit
+sisfb_post_xgi_ddr2_mrs_xg21(struct sis_video_info *ivideo)
+{
+	sisfb_post_xgi_setclocks(ivideo, 1);
+
+	SiS_SetReg(SISCR, 0x97, 0x11);
+	sisfb_post_xgi_delay(ivideo, 0x46);
+
+	SiS_SetReg(SISSR, 0x18, 0x00);	/* EMRS2 */
+	SiS_SetReg(SISSR, 0x19, 0x80);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+
+	SiS_SetReg(SISSR, 0x18, 0x00);	/* EMRS3 */
+	SiS_SetReg(SISSR, 0x19, 0xc0);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+
+	SiS_SetReg(SISSR, 0x18, 0x00);	/* EMRS1 */
+	SiS_SetReg(SISSR, 0x19, 0x40);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+
+	SiS_SetReg(SISSR, 0x18, 0x42);	/* MRS1 */
+	SiS_SetReg(SISSR, 0x19, 0x02);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+	sisfb_post_xgi_delay(ivideo, 1);
+
+	SiS_SetReg(SISSR, 0x1b, 0x04);
+	sisfb_post_xgi_delay(ivideo, 1);
+
+	SiS_SetReg(SISSR, 0x1b, 0x00);
+	sisfb_post_xgi_delay(ivideo, 1);
+
+	SiS_SetReg(SISSR, 0x18, 0x42);	/* MRS1 */
+	SiS_SetReg(SISSR, 0x19, 0x00);
+	SiS_SetReg(SISSR, 0x16, 0x05);
+	SiS_SetReg(SISSR, 0x16, 0x85);
+	sisfb_post_xgi_delay(ivideo, 1);
+}
+
+static void __devinit
+sisfb_post_xgi_ddr2(struct sis_video_info *ivideo, u8 regb)
+{
+	unsigned char *bios = ivideo->bios_abase;
+	static const u8 cs158[8] = {
+		0x88, 0xaa, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	static const u8 cs160[8] = {
+		0x44, 0x77, 0x77, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	static const u8 cs168[8] = {
+		0x48, 0x78, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	u8 reg;
+	u8 v1;
+	u8 v2;
+	u8 v3;
+
+	SiS_SetReg(SISCR, 0xb0, 0x80); /* DDR2 dual frequency mode */
+	SiS_SetReg(SISCR, 0x82, 0x77);
+	SiS_SetReg(SISCR, 0x86, 0x00);
+	reg = SiS_GetReg(SISCR, 0x86);
+	SiS_SetReg(SISCR, 0x86, 0x88);
+	reg = SiS_GetReg(SISCR, 0x86);
+	v1 = cs168[regb]; v2 = cs160[regb]; v3 = cs158[regb];
+	if (ivideo->haveXGIROM) {
+		v1 = bios[regb + 0x168];
+		v2 = bios[regb + 0x160];
+		v3 = bios[regb + 0x158];
+	}
+	SiS_SetReg(SISCR, 0x86, v1);
+	SiS_SetReg(SISCR, 0x82, 0x77);
+	SiS_SetReg(SISCR, 0x85, 0x00);
+	reg = SiS_GetReg(SISCR, 0x85);
+	SiS_SetReg(SISCR, 0x85, 0x88);
+	reg = SiS_GetReg(SISCR, 0x85);
+	SiS_SetReg(SISCR, 0x85, v2);
+	SiS_SetReg(SISCR, 0x82, v3);
+	SiS_SetReg(SISCR, 0x98, 0x01);
+	SiS_SetReg(SISCR, 0x9a, 0x02);
+	if (sisfb_xgi_is21(ivideo))
+		sisfb_post_xgi_ddr2_mrs_xg21(ivideo);
+	else
+		sisfb_post_xgi_ddr2_mrs_default(ivideo, regb);
+}
+
+static u8 __devinit
+sisfb_post_xgi_ramtype(struct sis_video_info *ivideo)
+{
+	unsigned char *bios = ivideo->bios_abase;
+	u8 ramtype;
+	u8 reg;
+	u8 v1;
+
+	ramtype = 0x00; v1 = 0x10;
+	if (ivideo->haveXGIROM) {
+		ramtype = bios[0x62];
+		v1 = bios[0x1d2];
+	}
+	if (!(ramtype & 0x80)) {
+		if (sisfb_xgi_is21(ivideo)) {
+			SiS_SetRegAND(SISCR, 0xb4, 0xfd); /* GPIO control */
+			SiS_SetRegOR(SISCR, 0x4a, 0x80);  /* GPIOH EN */
+			reg = SiS_GetReg(SISCR, 0x48);
+			SiS_SetRegOR(SISCR, 0xb4, 0x02);
+			ramtype = reg & 0x01;		  /* GPIOH */
+		} else if (ivideo->chip == XGI_20) {
+			SiS_SetReg(SISCR, 0x97, v1);
+			reg = SiS_GetReg(SISCR, 0x97);
+			if (reg & 0x10) {
+				ramtype = (reg & 0x01) << 1;
+			}
+		} else {
+			reg = SiS_GetReg(SISSR, 0x39);
+			ramtype = reg & 0x02;
+			if (!(ramtype)) {
+				reg = SiS_GetReg(SISSR, 0x3a);
+				ramtype = (reg >> 1) & 0x01;
+			}
+		}
+	}
+	ramtype &= 0x07;
+
+	return ramtype;
 }
 
 static int __devinit
@@ -5213,9 +5392,23 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		SiS_SetReg(SISCR, 0x77, v1);
 	}
 
-	/* RAM type */
-
-	regb = 0;	/* ! */
+	/* RAM type:
+	 *
+	 * 0 == DDR1, 1 == DDR2, 2..7 == reserved?
+	 *
+	 * The code seems to written so that regb should equal ramtype,
+	 * however, so far it has been hardcoded to 0. Enable other values only
+	 * on XGI Z9, as it passes the POST, and add a warning for others.
+	 */
+	ramtype = sisfb_post_xgi_ramtype(ivideo);
+	if (!sisfb_xgi_is21(ivideo) && ramtype) {
+		dev_warn(&pdev->dev,
+			 "RAM type something else than expected: %d\n",
+			 ramtype);
+		regb = 0;
+	} else {
+		regb = ramtype;
+	}
 
 	v1 = 0xff;
 	if(ivideo->haveXGIROM) {
@@ -5367,38 +5560,16 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		}
 	}
 
-	SiS_SetReg(SISSR, 0x17, 0x00);
+	if (regb == 1)
+		SiS_SetReg(SISSR, 0x17, 0x80);		/* DDR2 */
+	else
+		SiS_SetReg(SISSR, 0x17, 0x00);		/* DDR1 */
 	SiS_SetReg(SISSR, 0x1a, 0x87);
 
 	if(ivideo->chip == XGI_20) {
 		SiS_SetReg(SISSR, 0x15, 0x00);
 		SiS_SetReg(SISSR, 0x1c, 0x00);
 	}
-
-	ramtype = 0x00; v1 = 0x10;
-	if(ivideo->haveXGIROM) {
-		ramtype = bios[0x62];
-		v1 = bios[0x1d2];
-	}
-	if(!(ramtype & 0x80)) {
-		if(ivideo->chip == XGI_20) {
-			SiS_SetReg(SISCR, 0x97, v1);
-			reg = SiS_GetReg(SISCR, 0x97);
-			if(reg & 0x10) {
-				ramtype = (reg & 0x01) << 1;
-			}
-		} else {
-			reg = SiS_GetReg(SISSR, 0x39);
-			ramtype = reg & 0x02;
-			if(!(ramtype)) {
-				reg = SiS_GetReg(SISSR, 0x3a);
-				ramtype = (reg >> 1) & 0x01;
-			}
-		}
-	}
-	ramtype &= 0x07;
-
-	regb = 0;	/* ! */
 
 	switch(ramtype) {
 	case 0:
@@ -5485,61 +5656,7 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		SiS_SetReg(SISSR, 0x1b, 0x00);
 		break;
 	case 1:
-		SiS_SetReg(SISCR, 0x82, 0x77);
-		SiS_SetReg(SISCR, 0x86, 0x00);
-		reg = SiS_GetReg(SISCR, 0x86);
-		SiS_SetReg(SISCR, 0x86, 0x88);
-		reg = SiS_GetReg(SISCR, 0x86);
-		v1 = cs168[regb]; v2 = cs160[regb]; v3 = cs158[regb];
-		if(ivideo->haveXGIROM) {
-			v1 = bios[regb + 0x168];
-			v2 = bios[regb + 0x160];
-			v3 = bios[regb + 0x158];
-		}
-		SiS_SetReg(SISCR, 0x86, v1);
-		SiS_SetReg(SISCR, 0x82, 0x77);
-		SiS_SetReg(SISCR, 0x85, 0x00);
-		reg = SiS_GetReg(SISCR, 0x85);
-		SiS_SetReg(SISCR, 0x85, 0x88);
-		reg = SiS_GetReg(SISCR, 0x85);
-		SiS_SetReg(SISCR, 0x85, v2);
-		SiS_SetReg(SISCR, 0x82, v3);
-		SiS_SetReg(SISCR, 0x98, 0x01);
-		SiS_SetReg(SISCR, 0x9a, 0x02);
-
-		SiS_SetReg(SISSR, 0x28, 0x64);
-		SiS_SetReg(SISSR, 0x29, 0x63);
-		sisfb_post_xgi_delay(ivideo, 15);
-		SiS_SetReg(SISSR, 0x18, 0x00);
-		SiS_SetReg(SISSR, 0x19, 0x20);
-		SiS_SetReg(SISSR, 0x16, 0x00);
-		SiS_SetReg(SISSR, 0x16, 0x80);
-		SiS_SetReg(SISSR, 0x18, 0xc5);
-		SiS_SetReg(SISSR, 0x19, 0x23);
-		SiS_SetReg(SISSR, 0x16, 0x00);
-		SiS_SetReg(SISSR, 0x16, 0x80);
-		sisfb_post_xgi_delay(ivideo, 1);
-		SiS_SetReg(SISCR, 0x97, 0x11);
-		sisfb_post_xgi_setclocks(ivideo, regb);
-		sisfb_post_xgi_delay(ivideo, 0x46);
-		SiS_SetReg(SISSR, 0x18, 0xc5);
-		SiS_SetReg(SISSR, 0x19, 0x23);
-		SiS_SetReg(SISSR, 0x16, 0x00);
-		SiS_SetReg(SISSR, 0x16, 0x80);
-		sisfb_post_xgi_delay(ivideo, 1);
-		SiS_SetReg(SISSR, 0x1b, 0x04);
-		sisfb_post_xgi_delay(ivideo, 1);
-		SiS_SetReg(SISSR, 0x1b, 0x00);
-		sisfb_post_xgi_delay(ivideo, 1);
-		v1 = 0x31;
-		if(ivideo->haveXGIROM) {
-			v1 = bios[0xf0];
-		}
-		SiS_SetReg(SISSR, 0x18, v1);
-		SiS_SetReg(SISSR, 0x19, 0x06);
-		SiS_SetReg(SISSR, 0x16, 0x04);
-		SiS_SetReg(SISSR, 0x16, 0x84);
-		sisfb_post_xgi_delay(ivideo, 1);
+		sisfb_post_xgi_ddr2(ivideo, regb);
 		break;
 	default:
 		sisfb_post_xgi_setclocks(ivideo, regb);
@@ -5648,6 +5765,7 @@ sisfb_post_xgi(struct pci_dev *pdev)
 		SiS_SetReg(SISSR, 0x14, bios[regb + 0xe0 + 8]);
 
 	} else {
+		int err;
 
 		/* Set default mode, don't clear screen */
 		ivideo->SiS_Pr.SiS_UseOEM = false;
@@ -5661,10 +5779,16 @@ sisfb_post_xgi(struct pci_dev *pdev)
 
 		/* Disable read-cache */
 		SiS_SetRegAND(SISSR, 0x21, 0xdf);
-		sisfb_post_xgi_ramsize(ivideo);
+		err = sisfb_post_xgi_ramsize(ivideo);
 		/* Enable read-cache */
 		SiS_SetRegOR(SISSR, 0x21, 0x20);
 
+		if (err) {
+			dev_err(&pdev->dev,
+				"%s: RAM size detection failed: %d\n",
+				__func__, err);
+			return 0;
+		}
 	}
 
 #if 0
@@ -5777,6 +5901,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	ivideo->chip = chipinfo->chip;
+	ivideo->chip_real_id = chipinfo->chip;
 	ivideo->sisvga_engine = chipinfo->vgaengine;
 	ivideo->hwcursor_size = chipinfo->hwcursor_size;
 	ivideo->CRT2_write_enable = chipinfo->CRT2_write_enable;
@@ -6009,6 +6134,18 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(ivideo->SiS_Pr.SiS_CustomT == CUT_NONE) {
 		sisfb_detect_custom_timing(ivideo);
 	}
+
+#ifdef CONFIG_FB_SIS_315
+	if (ivideo->chip == XGI_20) {
+		/* Check if our Z7 chip is actually Z9 */
+		SiS_SetRegOR(SISCR, 0x4a, 0x40);	/* GPIOG EN */
+		reg = SiS_GetReg(SISCR, 0x48);
+		if (reg & 0x02) {			/* GPIOG */
+			ivideo->chip_real_id = XGI_21;
+			dev_info(&pdev->dev, "Z9 detected\n");
+		}
+	}
+#endif
 
 	/* POST card in case this has not been done by the BIOS */
 	if( (!ivideo->sisvga_enabled)

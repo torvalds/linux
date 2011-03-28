@@ -41,7 +41,7 @@ static DEFINE_MUTEX(wdt_lock);
 #define IFACE_ON_COMMAND	1
 #define REBOOT_COMMAND		2
 
-#define WATCHDOG_NAME 		"SBC-FITPC2 Watchdog"
+#define WATCHDOG_NAME		"SBC-FITPC2 Watchdog"
 
 static void wdt_send_data(unsigned char command, unsigned char data)
 {

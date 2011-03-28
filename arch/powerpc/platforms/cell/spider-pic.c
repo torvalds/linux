@@ -79,30 +79,30 @@ static void __iomem *spider_get_irq_config(struct spider_pic *pic,
 	return pic->regs + TIR_CFGA + 8 * src;
 }
 
-static void spider_unmask_irq(unsigned int virq)
+static void spider_unmask_irq(struct irq_data *d)
 {
-	struct spider_pic *pic = spider_virq_to_pic(virq);
-	void __iomem *cfg = spider_get_irq_config(pic, irq_map[virq].hwirq);
+	struct spider_pic *pic = spider_virq_to_pic(d->irq);
+	void __iomem *cfg = spider_get_irq_config(pic, irq_map[d->irq].hwirq);
 
 	out_be32(cfg, in_be32(cfg) | 0x30000000u);
 }
 
-static void spider_mask_irq(unsigned int virq)
+static void spider_mask_irq(struct irq_data *d)
 {
-	struct spider_pic *pic = spider_virq_to_pic(virq);
-	void __iomem *cfg = spider_get_irq_config(pic, irq_map[virq].hwirq);
+	struct spider_pic *pic = spider_virq_to_pic(d->irq);
+	void __iomem *cfg = spider_get_irq_config(pic, irq_map[d->irq].hwirq);
 
 	out_be32(cfg, in_be32(cfg) & ~0x30000000u);
 }
 
-static void spider_ack_irq(unsigned int virq)
+static void spider_ack_irq(struct irq_data *d)
 {
-	struct spider_pic *pic = spider_virq_to_pic(virq);
-	unsigned int src = irq_map[virq].hwirq;
+	struct spider_pic *pic = spider_virq_to_pic(d->irq);
+	unsigned int src = irq_map[d->irq].hwirq;
 
 	/* Reset edge detection logic if necessary
 	 */
-	if (irq_to_desc(virq)->status & IRQ_LEVEL)
+	if (irq_to_desc(d->irq)->status & IRQ_LEVEL)
 		return;
 
 	/* Only interrupts 47 to 50 can be set to edge */
@@ -113,13 +113,13 @@ static void spider_ack_irq(unsigned int virq)
 	out_be32(pic->regs + TIR_EDC, 0x100 | (src & 0xf));
 }
 
-static int spider_set_irq_type(unsigned int virq, unsigned int type)
+static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 {
 	unsigned int sense = type & IRQ_TYPE_SENSE_MASK;
-	struct spider_pic *pic = spider_virq_to_pic(virq);
-	unsigned int hw = irq_map[virq].hwirq;
+	struct spider_pic *pic = spider_virq_to_pic(d->irq);
+	unsigned int hw = irq_map[d->irq].hwirq;
 	void __iomem *cfg = spider_get_irq_config(pic, hw);
-	struct irq_desc *desc = irq_to_desc(virq);
+	struct irq_desc *desc = irq_to_desc(d->irq);
 	u32 old_mask;
 	u32 ic;
 
@@ -169,10 +169,10 @@ static int spider_set_irq_type(unsigned int virq, unsigned int type)
 
 static struct irq_chip spider_pic = {
 	.name = "SPIDER",
-	.unmask = spider_unmask_irq,
-	.mask = spider_mask_irq,
-	.ack = spider_ack_irq,
-	.set_type = spider_set_irq_type,
+	.irq_unmask = spider_unmask_irq,
+	.irq_mask = spider_mask_irq,
+	.irq_ack = spider_ack_irq,
+	.irq_set_type = spider_set_irq_type,
 };
 
 static int spider_host_map(struct irq_host *h, unsigned int virq,
@@ -207,7 +207,8 @@ static struct irq_host_ops spider_host_ops = {
 
 static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct spider_pic *pic = desc->handler_data;
+	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct spider_pic *pic = get_irq_desc_data(desc);
 	unsigned int cs, virq;
 
 	cs = in_be32(pic->regs + TIR_CS) >> 24;
@@ -215,9 +216,11 @@ static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
 		virq = NO_IRQ;
 	else
 		virq = irq_linear_revmap(pic->host, cs);
+
 	if (virq != NO_IRQ)
 		generic_handle_irq(virq);
-	desc->chip->eoi(irq);
+
+	chip->irq_eoi(&desc->irq_data);
 }
 
 /* For hooking up the cascace we have a problem. Our device-tree is

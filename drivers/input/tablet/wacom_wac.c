@@ -675,169 +675,87 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	return 1;
 }
 
-
-static void wacom_tpc_finger_in(struct wacom_wac *wacom, char *data, int idx)
+static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
-	int finger = idx + 1;
-	int x = le16_to_cpup((__le16 *)&data[finger * 2]) & 0x7fff;
-	int y = le16_to_cpup((__le16 *)&data[4 + finger * 2]) & 0x7fff;
+	unsigned char *data = wacom->data;
+	int contact_with_no_pen_down_count = 0;
+	int i;
 
-	/*
-	 * Work around input core suppressing "duplicate" events since
-	 * we are abusing ABS_X/ABS_Y to transmit multi-finger data.
-	 * This should go away once we switch to true multitouch
-	 * protocol.
-	 */
-	if (wacom->last_finger != finger) {
-		if (x == input_abs_get_val(input, ABS_X))
-			x++;
+	for (i = 0; i < 2; i++) {
+		int p = data[1] & (1 << i);
+		bool touch = p && !wacom->shared->stylus_in_proximity;
 
-		if (y == input_abs_get_val(input, ABS_Y))
-			y++;
+		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
+		if (touch) {
+			int x = le16_to_cpup((__le16 *)&data[i * 2 + 2]) & 0x7fff;
+			int y = le16_to_cpup((__le16 *)&data[i * 2 + 6]) & 0x7fff;
+
+			input_report_abs(input, ABS_MT_POSITION_X, x);
+			input_report_abs(input, ABS_MT_POSITION_Y, y);
+			contact_with_no_pen_down_count++;
+		}
 	}
 
-	input_report_abs(input, ABS_X, x);
-	input_report_abs(input, ABS_Y, y);
-	input_report_abs(input, ABS_MISC, wacom->id[0]);
-	input_report_key(input, wacom->tool[finger], 1);
-	if (!idx)
-		input_report_key(input, BTN_TOUCH, 1);
-	input_event(input, EV_MSC, MSC_SERIAL, finger);
-	input_sync(input);
+	/* keep touch state for pen event */
+	wacom->shared->touch_down = (contact_with_no_pen_down_count > 0);
 
-	wacom->last_finger = finger;
+	input_mt_report_pointer_emulation(input, true);
+
+	return 1;
 }
 
-static void wacom_tpc_touch_out(struct wacom_wac *wacom, int idx)
-{
-	struct input_dev *input = wacom->input;
-	int finger = idx + 1;
-
-	input_report_abs(input, ABS_X, 0);
-	input_report_abs(input, ABS_Y, 0);
-	input_report_abs(input, ABS_MISC, 0);
-	input_report_key(input, wacom->tool[finger], 0);
-	if (!idx)
-		input_report_key(input, BTN_TOUCH, 0);
-	input_event(input, EV_MSC, MSC_SERIAL, finger);
-	input_sync(input);
-}
-
-static void wacom_tpc_touch_in(struct wacom_wac *wacom, size_t len)
+static int wacom_tpc_single_touch(struct wacom_wac *wacom, size_t len)
 {
 	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
+	bool prox;
+	int x = 0, y = 0;
 
-	wacom->tool[1] = BTN_TOOL_DOUBLETAP;
-	wacom->id[0] = TOUCH_DEVICE_ID;
-	wacom->tool[2] = BTN_TOOL_TRIPLETAP;
-
-	if (len != WACOM_PKGLEN_TPC1FG) {
-
-		switch (data[0]) {
-
-		case WACOM_REPORT_TPC1FG:
-			input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
-			input_report_abs(input, ABS_Y, le16_to_cpup((__le16 *)&data[4]));
-			input_report_abs(input, ABS_PRESSURE, le16_to_cpup((__le16 *)&data[6]));
-			input_report_key(input, BTN_TOUCH, le16_to_cpup((__le16 *)&data[6]));
-			input_report_abs(input, ABS_MISC, wacom->id[0]);
-			input_report_key(input, wacom->tool[1], 1);
-			input_sync(input);
-			break;
-
-		case WACOM_REPORT_TPC2FG:
-			if (data[1] & 0x01)
-				wacom_tpc_finger_in(wacom, data, 0);
-			else if (wacom->id[1] & 0x01)
-				wacom_tpc_touch_out(wacom, 0);
-
-			if (data[1] & 0x02)
-				wacom_tpc_finger_in(wacom, data, 1);
-			else if (wacom->id[1] & 0x02)
-				wacom_tpc_touch_out(wacom, 1);
-			break;
+	if (!wacom->shared->stylus_in_proximity) {
+		if (len == WACOM_PKGLEN_TPC1FG) {
+			prox = data[0] & 0x01;
+			x = get_unaligned_le16(&data[1]);
+			y = get_unaligned_le16(&data[3]);
+		} else { /* with capacity */
+			prox = data[1] & 0x01;
+			x = le16_to_cpup((__le16 *)&data[2]);
+			y = le16_to_cpup((__le16 *)&data[4]);
 		}
-	} else {
-		input_report_abs(input, ABS_X, get_unaligned_le16(&data[1]));
-		input_report_abs(input, ABS_Y, get_unaligned_le16(&data[3]));
-		input_report_key(input, BTN_TOUCH, 1);
-		input_report_abs(input, ABS_MISC, wacom->id[1]);
-		input_report_key(input, wacom->tool[1], 1);
-		input_sync(input);
+	} else
+		/* force touch out when pen is in prox */
+		prox = 0;
+
+	if (prox) {
+		input_report_abs(input, ABS_X, x);
+		input_report_abs(input, ABS_Y, y);
 	}
+	input_report_key(input, BTN_TOUCH, prox);
+
+	/* keep touch state for pen events */
+	wacom->shared->touch_down = prox;
+
+	return 1;
 }
 
-static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
+static int wacom_tpc_pen(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	int prox = 0, pressure;
-	int retval = 0;
+	int pressure;
+	bool prox = data[1] & 0x20;
 
-	dbg("wacom_tpc_irq: received report #%d", data[0]);
+	if (!wacom->shared->stylus_in_proximity) /* first in prox */
+		/* Going into proximity select tool */
+		wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
 
-	if (len == WACOM_PKGLEN_TPC1FG ||		 /* single touch */
-	    data[0] == WACOM_REPORT_TPC1FG ||		 /* single touch */
-	    data[0] == WACOM_REPORT_TPC2FG) {		 /* 2FG touch */
+	/* keep pen state for touch events */
+	wacom->shared->stylus_in_proximity = prox;
 
-		if (wacom->shared->stylus_in_proximity) {
-			if (wacom->id[1] & 0x01)
-				wacom_tpc_touch_out(wacom, 0);
-
-			if (wacom->id[1] & 0x02)
-				wacom_tpc_touch_out(wacom, 1);
-
-			wacom->id[1] = 0;
-			return 0;
-		}
-
-		if (len == WACOM_PKGLEN_TPC1FG) {	/* with touch */
-			prox = data[0] & 0x01;
-		} else {  /* with capacity */
-			if (data[0] == WACOM_REPORT_TPC1FG)
-				/* single touch */
-				prox = data[1] & 0x01;
-			else
-				/* 2FG touch data */
-				prox = data[1] & 0x03;
-		}
-
-		if (prox) {
-			if (!wacom->id[1])
-				wacom->last_finger = 1;
-			wacom_tpc_touch_in(wacom, len);
-		} else {
-			if (data[0] == WACOM_REPORT_TPC2FG) {
-				/* 2FGT out-prox */
-				if (wacom->id[1] & 0x01)
-					wacom_tpc_touch_out(wacom, 0);
-
-				if (wacom->id[1] & 0x02)
-					wacom_tpc_touch_out(wacom, 1);
-			} else
-				/* one finger touch */
-				wacom_tpc_touch_out(wacom, 0);
-
-			wacom->id[0] = 0;
-		}
-		/* keep prox bit to send proper out-prox event */
-		wacom->id[1] = prox;
-	} else if (data[0] == WACOM_REPORT_PENABLED) { /* Penabled */
-		prox = data[1] & 0x20;
-
-		if (!wacom->shared->stylus_in_proximity) { /* first in prox */
-			/* Going into proximity select tool */
-			wacom->tool[0] = (data[1] & 0x0c) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
-			if (wacom->tool[0] == BTN_TOOL_PEN)
-				wacom->id[0] = STYLUS_DEVICE_ID;
-			else
-				wacom->id[0] = ERASER_DEVICE_ID;
-
-			wacom->shared->stylus_in_proximity = true;
-		}
+	/* send pen events only when touch is up or forced out */
+	if (!wacom->shared->touch_down) {
 		input_report_key(input, BTN_STYLUS, data[1] & 0x02);
 		input_report_key(input, BTN_STYLUS2, data[1] & 0x10);
 		input_report_abs(input, ABS_X, le16_to_cpup((__le16 *)&data[2]));
@@ -847,15 +765,27 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 			pressure = features->pressure_max + pressure + 1;
 		input_report_abs(input, ABS_PRESSURE, pressure);
 		input_report_key(input, BTN_TOUCH, data[1] & 0x05);
-		if (!prox) { /* out-prox */
-			wacom->id[0] = 0;
-			wacom->shared->stylus_in_proximity = false;
-		}
 		input_report_key(input, wacom->tool[0], prox);
-		input_report_abs(input, ABS_MISC, wacom->id[0]);
-		retval = 1;
+		return 1;
 	}
-	return retval;
+
+	return 0;
+}
+
+static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
+{
+	char *data = wacom->data;
+
+	dbg("wacom_tpc_irq: received report #%d", data[0]);
+
+	if (len == WACOM_PKGLEN_TPC1FG || data[0] == WACOM_REPORT_TPC1FG)
+		return wacom_tpc_single_touch(wacom, len);
+	else if (data[0] == WACOM_REPORT_TPC2FG)
+		return wacom_tpc_mt_touch(wacom);
+	else if (data[0] == WACOM_REPORT_PENABLED)
+		return wacom_tpc_pen(wacom);
+
+	return 0;
 }
 
 static int wacom_bpt_touch(struct wacom_wac *wacom)
@@ -1078,7 +1008,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 {
 
 	/* touch device found but size is not defined. use default */
-	if (features->device_type == BTN_TOOL_DOUBLETAP && !features->x_max) {
+	if (features->device_type == BTN_TOOL_FINGER && !features->x_max) {
 		features->x_max = 1023;
 		features->y_max = 1023;
 	}
@@ -1090,7 +1020,7 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* quirks for bamboo touch */
 	if (features->type == BAMBOO_PT &&
-	    features->device_type == BTN_TOOL_TRIPLETAP) {
+	    features->device_type == BTN_TOOL_DOUBLETAP) {
 		features->x_max <<= 5;
 		features->y_max <<= 5;
 		features->x_fuzz <<= 5;
@@ -1226,27 +1156,30 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case TABLETPC2FG:
-		if (features->device_type == BTN_TOOL_TRIPLETAP) {
-			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
-			input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
+		if (features->device_type == BTN_TOOL_DOUBLETAP) {
+
+			input_mt_init_slots(input_dev, 2);
+			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
+					0, MT_TOOL_MAX, 0, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+					0, features->x_max, 0, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+					0, features->y_max, 0, 0);
 		}
 		/* fall through */
 
 	case TABLETPC:
-		if (features->device_type == BTN_TOOL_DOUBLETAP ||
-		    features->device_type == BTN_TOOL_TRIPLETAP) {
+		__clear_bit(ABS_MISC, input_dev->absbit);
+
+		if (features->device_type != BTN_TOOL_PEN) {
 			input_abs_set_res(input_dev, ABS_X,
 				wacom_calculate_touch_res(features->x_max,
 							features->x_phy));
 			input_abs_set_res(input_dev, ABS_Y,
 				wacom_calculate_touch_res(features->y_max,
 							features->y_phy));
-			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
-		}
-
-		if (features->device_type != BTN_TOOL_PEN)
 			break;  /* no need to process stylus stuff */
-
+		}
 		/* fall through */
 
 	case PL:
@@ -1264,7 +1197,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 	case BAMBOO_PT:
 		__clear_bit(ABS_MISC, input_dev->absbit);
 
-		if (features->device_type == BTN_TOOL_TRIPLETAP) {
+		if (features->device_type == BTN_TOOL_DOUBLETAP) {
 			__set_bit(BTN_LEFT, input_dev->keybit);
 			__set_bit(BTN_FORWARD, input_dev->keybit);
 			__set_bit(BTN_BACK, input_dev->keybit);

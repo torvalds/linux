@@ -1,3 +1,26 @@
+Release Date    : Thu. Feb 24, 2011 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.05.34-rc1
+Old Version     : 00.00.05.29-rc1
+    1. Fix some failure gotos from megasas_probe_one(), etc.
+    2. Add missing check_and_restore_queue_depth() call in
+       complete_cmd_fusion().
+    3. Enable MSI-X before calling megasas_init_fw().
+    4. Call tasklet_schedule() even if outbound_intr_status == 0 for MFI based
+       boards in MSI-X mode.
+    5. Fix megasas_probe_one() to clear PCI_MSIX_FLAGS_ENABLE in msi control
+       register in kdump kernel.
+    6. Fix megasas_get_cmd() to only print "Command pool empty" if
+       megasas_dbg_lvl is set.
+    7. Fix megasas_build_dcdb_fusion() to not filter by TYPE_DISK.
+    8. Fix megasas_build_dcdb_fusion() to use io_request->LUN[1] field.
+    9. Add MR_EVT_CFG_CLEARED to megasas_aen_polling().
+    10. Fix tasklet_init() in megasas_init_fw() to use instancet->tasklet.
+    11. Fix fault state handling in megasas_transition_to_ready().
+    12. Fix max_sectors setting for IEEE SGL's.
+    13. Fix iMR OCR support to work correctly.
+-------------------------------------------------------------------------------
 Release Date    : Tues.  Dec 14, 2010 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

@@ -92,7 +92,7 @@ struct nvsp_message_header {
 struct nvsp_message_init {
 	u32 min_protocol_ver;
 	u32 max_protocol_ver;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is used by the VSP to complete the initialization of the
@@ -103,12 +103,12 @@ struct nvsp_message_init_complete {
 	u32 negotiated_protocol_ver;
 	u32 max_mdl_chain_len;
 	u32 status;
-} __attribute__((packed));
+} __packed;
 
 union nvsp_message_init_uber {
 	struct nvsp_message_init init;
 	struct nvsp_message_init_complete init_complete;
-} __attribute__((packed));
+} __packed;
 
 /* Version 1 Messages */
 
@@ -119,7 +119,7 @@ union nvsp_message_init_uber {
 struct nvsp_1_message_send_ndis_version {
 	u32 ndis_major_ver;
 	u32 ndis_minor_ver;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is used by the VSC to send a receive buffer to the VSP. The VSP
@@ -128,14 +128,14 @@ struct nvsp_1_message_send_ndis_version {
 struct nvsp_1_message_send_receive_buffer {
 	u32 gpadl_handle;
 	u16 id;
-} __attribute__((packed));
+} __packed;
 
 struct nvsp_1_receive_buffer_section {
 	u32 offset;
 	u32 sub_alloc_size;
 	u32 num_sub_allocs;
 	u32 end_offset;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is used by the VSP to acknowledge a receive buffer send by the
@@ -166,7 +166,7 @@ struct nvsp_1_message_send_receive_buffer_complete {
 	 */
 
 	struct nvsp_1_receive_buffer_section sections[1];
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is sent by the VSC to revoke the receive buffer.  After the VSP
@@ -184,7 +184,7 @@ struct nvsp_1_message_revoke_receive_buffer {
 struct nvsp_1_message_send_send_buffer {
 	u32 gpadl_handle;
 	u16 id;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is used by the VSP to acknowledge a send buffer sent by the
@@ -201,7 +201,7 @@ struct nvsp_1_message_send_send_buffer_complete {
 	 * decreases.
 	 */
 	u32 section_size;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is sent by the VSC to revoke the send buffer.  After the VSP
@@ -231,7 +231,7 @@ struct nvsp_1_message_send_rndis_packet {
 	 */
 	u32 send_buf_section_index;
 	u32 send_buf_section_size;
-} __attribute__((packed));
+} __packed;
 
 /*
  * This message is used by both the VSP and the VSC to complete a RNDIS message
@@ -257,18 +257,18 @@ union nvsp_1_message_uber {
 	struct nvsp_1_message_send_rndis_packet send_rndis_pkt;
 	struct nvsp_1_message_send_rndis_packet_complete
 						send_rndis_pkt_complete;
-} __attribute__((packed));
+} __packed;
 
 union nvsp_all_messages {
 	union nvsp_message_init_uber init_msg;
 	union nvsp_1_message_uber v1_msg;
-} __attribute__((packed));
+} __packed;
 
 /* ALL Messages */
 struct nvsp_message {
 	struct nvsp_message_header hdr;
 	union nvsp_all_messages msg;
-} __attribute__((packed));
+} __packed;
 
 
 
@@ -318,7 +318,8 @@ struct netvsc_device {
 	struct nvsp_1_receive_buffer_section *recv_section;
 
 	/* Used for NetVSP initialization protocol */
-	struct osd_waitevent *channel_init_event;
+	int wait_condition;
+	wait_queue_head_t channel_init_wait;
 	struct nvsp_message channel_init_pkt;
 
 	struct nvsp_message revoke_packet;

@@ -584,7 +584,9 @@ struct usb_ss_ep_comp_descriptor {
 
 #define USB_DT_SS_EP_COMP_SIZE		6
 /* Bits 4:0 of bmAttributes if this is a bulk endpoint */
-#define USB_SS_MAX_STREAMS(p)		(1 << (p & 0x1f))
+#define USB_SS_MAX_STREAMS(p)		(1 << ((p) & 0x1f))
+/* Bits 1:0 of bmAttributes if this is an isoc endpoint */
+#define USB_SS_MULT(p)			(1 + ((p) & 0x3))
 
 /*-------------------------------------------------------------------------*/
 

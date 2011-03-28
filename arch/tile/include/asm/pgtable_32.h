@@ -24,6 +24,7 @@
 #define PGDIR_SIZE	HV_PAGE_SIZE_LARGE
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
+#define SIZEOF_PGD	(PTRS_PER_PGD * sizeof(pgd_t))
 
 /*
  * The level-2 index is defined by the difference between the huge
@@ -33,6 +34,7 @@
  * this nomenclature is somewhat confusing.
  */
 #define PTRS_PER_PTE (1 << (HV_LOG2_PAGE_SIZE_LARGE - HV_LOG2_PAGE_SIZE_SMALL))
+#define SIZEOF_PTE	(PTRS_PER_PTE * sizeof(pte_t))
 
 #ifndef __ASSEMBLY__
 
@@ -94,7 +96,6 @@ static inline int pgd_addr_invalid(unsigned long addr)
  */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 
 extern int ptep_test_and_clear_young(struct vm_area_struct *,
 				     unsigned long addr, pte_t *);
@@ -108,6 +109,11 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	pte_t pte = *ptep;
 	pte_clear(_mm, addr, ptep);
 	return pte;
+}
+
+static inline void __set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	set_pte(&pmdp->pud.pgd, pmdval.pud.pgd);
 }
 
 /* Create a pmd from a PTFN. */

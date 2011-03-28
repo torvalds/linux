@@ -514,7 +514,7 @@ static struct miscdevice pc87413_miscdev = {
 /* -- Module init functions -------------------------------------*/
 
 /**
- * 	pc87413_init: module's "constructor"
+ *	pc87413_init: module's "constructor"
  *
  *	Set up the WDT watchdog board. All we have to do is grab the
  *	resources we require and bitch if anyone beat us to them.

@@ -50,6 +50,7 @@ next_irq:
 int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v, j;
+	struct irq_desc *desc;
 	struct irqaction *action;
 	unsigned long flags;
 
@@ -61,8 +62,9 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < nr_irq) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+		desc = irq_to_desc(i);
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		action = desc->action;
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
@@ -72,9 +74,9 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %8s", irq_desc[i].status &
+		seq_printf(p, " %8s", desc->status &
 					IRQ_LEVEL ? "level" : "edge");
-		seq_printf(p, " %8s", irq_desc[i].chip->name);
+		seq_printf(p, " %8s", desc->irq_data.chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action = action->next; action; action = action->next)
@@ -82,7 +84,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 	return 0;
 }

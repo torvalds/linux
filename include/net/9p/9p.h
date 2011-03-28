@@ -139,6 +139,8 @@ do { \
  */
 
 enum p9_msg_t {
+	P9_TSYNCFS = 0,
+	P9_RSYNCFS,
 	P9_TLERROR = 6,
 	P9_RLERROR,
 	P9_TSTATFS = 8,
@@ -688,7 +690,11 @@ struct p9_rwstat {
  * @id: protocol operating identifier of type &p9_msg_t
  * @tag: transaction id of the request
  * @offset: used by marshalling routines to track currentposition in buffer
- * @capacity: used by marshalling routines to track total capacity
+ * @capacity: used by marshalling routines to track total malloc'd capacity
+ * @pubuf: Payload user buffer given by the caller
+ * @pubuf: Payload kernel buffer given by the caller
+ * @pbuf_size: pubuf/pkbuf(only one will be !NULL) size to be read/write.
+ * @private: For transport layer's use.
  * @sdata: payload
  *
  * &p9_fcall represents the structure for all 9P RPC
@@ -705,6 +711,10 @@ struct p9_fcall {
 
 	size_t offset;
 	size_t capacity;
+	char __user *pubuf;
+	char *pkbuf;
+	size_t pbuf_size;
+	void *private;
 
 	uint8_t *sdata;
 };

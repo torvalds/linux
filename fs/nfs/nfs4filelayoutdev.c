@@ -37,6 +37,30 @@
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
 /*
+ * Device ID RCU cache. A device ID is unique per client ID and layout type.
+ */
+#define NFS4_FL_DEVICE_ID_HASH_BITS	5
+#define NFS4_FL_DEVICE_ID_HASH_SIZE	(1 << NFS4_FL_DEVICE_ID_HASH_BITS)
+#define NFS4_FL_DEVICE_ID_HASH_MASK	(NFS4_FL_DEVICE_ID_HASH_SIZE - 1)
+
+static inline u32
+nfs4_fl_deviceid_hash(struct nfs4_deviceid *id)
+{
+	unsigned char *cptr = (unsigned char *)id->data;
+	unsigned int nbytes = NFS4_DEVICEID4_SIZE;
+	u32 x = 0;
+
+	while (nbytes--) {
+		x *= 37;
+		x += *cptr++;
+	}
+	return x & NFS4_FL_DEVICE_ID_HASH_MASK;
+}
+
+static struct hlist_head filelayout_deviceid_cache[NFS4_FL_DEVICE_ID_HASH_SIZE];
+static DEFINE_SPINLOCK(filelayout_deviceid_lock);
+
+/*
  * Data server cache
  *
  * Data servers can be mapped to different device ids.
@@ -104,6 +128,67 @@ _data_server_lookup_locked(u32 ip_addr, u32 port)
 	return NULL;
 }
 
+/*
+ * Create an rpc connection to the nfs4_pnfs_ds data server
+ * Currently only support IPv4
+ */
+static int
+nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
+{
+	struct nfs_client *clp;
+	struct sockaddr_in sin;
+	int status = 0;
+
+	dprintk("--> %s ip:port %x:%hu au_flavor %d\n", __func__,
+		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port),
+		mds_srv->nfs_client->cl_rpcclient->cl_auth->au_flavor);
+
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = ds->ds_ip_addr;
+	sin.sin_port = ds->ds_port;
+
+	clp = nfs4_set_ds_client(mds_srv->nfs_client, (struct sockaddr *)&sin,
+				 sizeof(sin), IPPROTO_TCP);
+	if (IS_ERR(clp)) {
+		status = PTR_ERR(clp);
+		goto out;
+	}
+
+	if ((clp->cl_exchange_flags & EXCHGID4_FLAG_MASK_PNFS) != 0) {
+		if (!is_ds_client(clp)) {
+			status = -ENODEV;
+			goto out_put;
+		}
+		ds->ds_clp = clp;
+		dprintk("%s [existing] ip=%x, port=%hu\n", __func__,
+			ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+		goto out;
+	}
+
+	/*
+	 * Do not set NFS_CS_CHECK_LEASE_TIME instead set the DS lease to
+	 * be equal to the MDS lease. Renewal is scheduled in create_session.
+	 */
+	spin_lock(&mds_srv->nfs_client->cl_lock);
+	clp->cl_lease_time = mds_srv->nfs_client->cl_lease_time;
+	spin_unlock(&mds_srv->nfs_client->cl_lock);
+	clp->cl_last_renewal = jiffies;
+
+	/* New nfs_client */
+	status = nfs4_init_ds_session(clp);
+	if (status)
+		goto out_put;
+
+	ds->ds_clp = clp;
+	dprintk("%s [new] ip=%x, port=%hu\n", __func__, ntohl(ds->ds_ip_addr),
+		ntohs(ds->ds_port));
+out:
+	return status;
+out_put:
+	nfs_put_client(clp);
+	goto out;
+}
+
 static void
 destroy_ds(struct nfs4_pnfs_ds *ds)
 {
@@ -122,7 +207,7 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 	struct nfs4_pnfs_ds *ds;
 	int i;
 
-	print_deviceid(&dsaddr->deviceid.de_id);
+	print_deviceid(&dsaddr->deviceid);
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		ds = dsaddr->ds_list[i];
@@ -137,15 +222,6 @@ nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 	}
 	kfree(dsaddr->stripe_indices);
 	kfree(dsaddr);
-}
-
-void
-nfs4_fl_free_deviceid_callback(struct pnfs_deviceid_node *device)
-{
-	struct nfs4_file_layout_dsaddr *dsaddr =
-		container_of(device, struct nfs4_file_layout_dsaddr, deviceid);
-
-	nfs4_fl_free_deviceid(dsaddr);
 }
 
 static struct nfs4_pnfs_ds *
@@ -185,7 +261,7 @@ out:
  * Currently only support ipv4, and one multi-path address.
  */
 static struct nfs4_pnfs_ds *
-decode_and_add_ds(__be32 **pp, struct inode *inode)
+decode_and_add_ds(struct xdr_stream *streamp, struct inode *inode)
 {
 	struct nfs4_pnfs_ds *ds = NULL;
 	char *buf;
@@ -193,24 +269,33 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 	u32 ip_addr, port;
 	int nlen, rlen, i;
 	int tmp[2];
-	__be32 *r_netid, *r_addr, *p = *pp;
+	__be32 *p;
 
 	/* r_netid */
+	p = xdr_inline_decode(streamp, 4);
+	if (unlikely(!p))
+		goto out_err;
 	nlen = be32_to_cpup(p++);
-	r_netid = p;
-	p += XDR_QUADLEN(nlen);
 
-	/* r_addr */
-	rlen = be32_to_cpup(p++);
-	r_addr = p;
-	p += XDR_QUADLEN(rlen);
-	*pp = p;
+	p = xdr_inline_decode(streamp, nlen);
+	if (unlikely(!p))
+		goto out_err;
 
 	/* Check that netid is "tcp" */
-	if (nlen != 3 ||  memcmp((char *)r_netid, "tcp", 3)) {
+	if (nlen != 3 ||  memcmp((char *)p, "tcp", 3)) {
 		dprintk("%s: ERROR: non ipv4 TCP r_netid\n", __func__);
 		goto out_err;
 	}
+
+	/* r_addr */
+	p = xdr_inline_decode(streamp, 4);
+	if (unlikely(!p))
+		goto out_err;
+	rlen = be32_to_cpup(p);
+
+	p = xdr_inline_decode(streamp, rlen);
+	if (unlikely(!p))
+		goto out_err;
 
 	/* ipv6 length plus port is legal */
 	if (rlen > INET6_ADDRSTRLEN + 8) {
@@ -219,8 +304,12 @@ decode_and_add_ds(__be32 **pp, struct inode *inode)
 		goto out_err;
 	}
 	buf = kmalloc(rlen + 1, GFP_KERNEL);
+	if (!buf) {
+		dprintk("%s: Not enough memory\n", __func__);
+		goto out_err;
+	}
 	buf[rlen] = '\0';
-	memcpy(buf, r_addr, rlen);
+	memcpy(buf, p, rlen);
 
 	/* replace the port dots with dashes for the in4_pton() delimiter*/
 	for (i = 0; i < 2; i++) {
@@ -256,118 +345,191 @@ out_err:
 static struct nfs4_file_layout_dsaddr*
 decode_device(struct inode *ino, struct pnfs_device *pdev)
 {
-	int i, dummy;
+	int i;
 	u32 cnt, num;
 	u8 *indexp;
-	__be32 *p = (__be32 *)pdev->area, *indicesp;
-	struct nfs4_file_layout_dsaddr *dsaddr;
+	__be32 *p;
+	u8 *stripe_indices;
+	u8 max_stripe_index;
+	struct nfs4_file_layout_dsaddr *dsaddr = NULL;
+	struct xdr_stream stream;
+	struct xdr_buf buf = {
+		.pages = pdev->pages,
+		.page_len = pdev->pglen,
+		.buflen = pdev->pglen,
+		.len = pdev->pglen,
+	};
+	struct page *scratch;
+
+	/* set up xdr stream */
+	scratch = alloc_page(GFP_KERNEL);
+	if (!scratch)
+		goto out_err;
+
+	xdr_init_decode(&stream, &buf, NULL);
+	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	/* Get the stripe count (number of stripe index) */
-	cnt = be32_to_cpup(p++);
+	p = xdr_inline_decode(&stream, 4);
+	if (unlikely(!p))
+		goto out_err_free_scratch;
+
+	cnt = be32_to_cpup(p);
 	dprintk("%s stripe count  %d\n", __func__, cnt);
 	if (cnt > NFS4_PNFS_MAX_STRIPE_CNT) {
 		printk(KERN_WARNING "%s: stripe count %d greater than "
 		       "supported maximum %d\n", __func__,
 			cnt, NFS4_PNFS_MAX_STRIPE_CNT);
-		goto out_err;
+		goto out_err_free_scratch;
+	}
+
+	/* read stripe indices */
+	stripe_indices = kcalloc(cnt, sizeof(u8), GFP_KERNEL);
+	if (!stripe_indices)
+		goto out_err_free_scratch;
+
+	p = xdr_inline_decode(&stream, cnt << 2);
+	if (unlikely(!p))
+		goto out_err_free_stripe_indices;
+
+	indexp = &stripe_indices[0];
+	max_stripe_index = 0;
+	for (i = 0; i < cnt; i++) {
+		*indexp = be32_to_cpup(p++);
+		max_stripe_index = max(max_stripe_index, *indexp);
+		indexp++;
 	}
 
 	/* Check the multipath list count */
-	indicesp = p;
-	p += XDR_QUADLEN(cnt << 2);
-	num = be32_to_cpup(p++);
+	p = xdr_inline_decode(&stream, 4);
+	if (unlikely(!p))
+		goto out_err_free_stripe_indices;
+
+	num = be32_to_cpup(p);
 	dprintk("%s ds_num %u\n", __func__, num);
 	if (num > NFS4_PNFS_MAX_MULTI_CNT) {
 		printk(KERN_WARNING "%s: multipath count %d greater than "
 			"supported maximum %d\n", __func__,
 			num, NFS4_PNFS_MAX_MULTI_CNT);
-		goto out_err;
+		goto out_err_free_stripe_indices;
 	}
+
+	/* validate stripe indices are all < num */
+	if (max_stripe_index >= num) {
+		printk(KERN_WARNING "%s: stripe index %u >= num ds %u\n",
+			__func__, max_stripe_index, num);
+		goto out_err_free_stripe_indices;
+	}
+
 	dsaddr = kzalloc(sizeof(*dsaddr) +
 			(sizeof(struct nfs4_pnfs_ds *) * (num - 1)),
 			GFP_KERNEL);
 	if (!dsaddr)
-		goto out_err;
-
-	dsaddr->stripe_indices = kzalloc(sizeof(u8) * cnt, GFP_KERNEL);
-	if (!dsaddr->stripe_indices)
-		goto out_err_free;
+		goto out_err_free_stripe_indices;
 
 	dsaddr->stripe_count = cnt;
+	dsaddr->stripe_indices = stripe_indices;
+	stripe_indices = NULL;
 	dsaddr->ds_num = num;
 
-	memcpy(&dsaddr->deviceid.de_id, &pdev->dev_id, sizeof(pdev->dev_id));
-
-	/* Go back an read stripe indices */
-	p = indicesp;
-	indexp = &dsaddr->stripe_indices[0];
-	for (i = 0; i < dsaddr->stripe_count; i++) {
-		*indexp = be32_to_cpup(p++);
-		if (*indexp >= num)
-			goto out_err_free;
-		indexp++;
-	}
-	/* Skip already read multipath list count */
-	p++;
+	memcpy(&dsaddr->deviceid, &pdev->dev_id, sizeof(pdev->dev_id));
 
 	for (i = 0; i < dsaddr->ds_num; i++) {
 		int j;
+		u32 mp_count;
 
-		dummy = be32_to_cpup(p++); /* multipath count */
-		if (dummy > 1) {
+		p = xdr_inline_decode(&stream, 4);
+		if (unlikely(!p))
+			goto out_err_free_deviceid;
+
+		mp_count = be32_to_cpup(p); /* multipath count */
+		if (mp_count > 1) {
 			printk(KERN_WARNING
 			       "%s: Multipath count %d not supported, "
 			       "skipping all greater than 1\n", __func__,
-				dummy);
+				mp_count);
 		}
-		for (j = 0; j < dummy; j++) {
+		for (j = 0; j < mp_count; j++) {
 			if (j == 0) {
-				dsaddr->ds_list[i] = decode_and_add_ds(&p, ino);
+				dsaddr->ds_list[i] = decode_and_add_ds(&stream,
+					ino);
 				if (dsaddr->ds_list[i] == NULL)
-					goto out_err_free;
+					goto out_err_free_deviceid;
 			} else {
 				u32 len;
 				/* skip extra multipath */
-				len = be32_to_cpup(p++);
-				p += XDR_QUADLEN(len);
-				len = be32_to_cpup(p++);
-				p += XDR_QUADLEN(len);
-				continue;
+
+				/* read len, skip */
+				p = xdr_inline_decode(&stream, 4);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
+				len = be32_to_cpup(p);
+
+				p = xdr_inline_decode(&stream, len);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
+
+				/* read len, skip */
+				p = xdr_inline_decode(&stream, 4);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
+				len = be32_to_cpup(p);
+
+				p = xdr_inline_decode(&stream, len);
+				if (unlikely(!p))
+					goto out_err_free_deviceid;
 			}
 		}
 	}
+
+	__free_page(scratch);
 	return dsaddr;
 
-out_err_free:
+out_err_free_deviceid:
 	nfs4_fl_free_deviceid(dsaddr);
+	/* stripe_indicies was part of dsaddr */
+	goto out_err_free_scratch;
+out_err_free_stripe_indices:
+	kfree(stripe_indices);
+out_err_free_scratch:
+	__free_page(scratch);
 out_err:
 	dprintk("%s ERROR: returning NULL\n", __func__);
 	return NULL;
 }
 
 /*
- * Decode the opaque device specified in 'dev'
- * and add it to the list of available devices.
- * If the deviceid is already cached, nfs4_add_deviceid will return
- * a pointer to the cached struct and throw away the new.
+ * Decode the opaque device specified in 'dev' and add it to the cache of
+ * available devices.
  */
-static struct nfs4_file_layout_dsaddr*
+static struct nfs4_file_layout_dsaddr *
 decode_and_add_device(struct inode *inode, struct pnfs_device *dev)
 {
-	struct nfs4_file_layout_dsaddr *dsaddr;
-	struct pnfs_deviceid_node *d;
+	struct nfs4_file_layout_dsaddr *d, *new;
+	long hash;
 
-	dsaddr = decode_device(inode, dev);
-	if (!dsaddr) {
+	new = decode_device(inode, dev);
+	if (!new) {
 		printk(KERN_WARNING "%s: Could not decode or add device\n",
 			__func__);
 		return NULL;
 	}
 
-	d = pnfs_add_deviceid(NFS_SERVER(inode)->nfs_client->cl_devid_cache,
-			      &dsaddr->deviceid);
+	spin_lock(&filelayout_deviceid_lock);
+	d = nfs4_fl_find_get_deviceid(&new->deviceid);
+	if (d) {
+		spin_unlock(&filelayout_deviceid_lock);
+		nfs4_fl_free_deviceid(new);
+		return d;
+	}
 
-	return container_of(d, struct nfs4_file_layout_dsaddr, deviceid);
+	INIT_HLIST_NODE(&new->node);
+	atomic_set(&new->ref, 1);
+	hash = nfs4_fl_deviceid_hash(&new->deviceid);
+	hlist_add_head_rcu(&new->node, &filelayout_deviceid_cache[hash]);
+	spin_unlock(&filelayout_deviceid_lock);
+
+	return new;
 }
 
 /*
@@ -409,11 +571,6 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 			goto out_free;
 	}
 
-	/* set pdev->area */
-	pdev->area = vmap(pages, max_pages, VM_MAP, PAGE_KERNEL);
-	if (!pdev->area)
-		goto out_free;
-
 	memcpy(&pdev->dev_id, dev_id, sizeof(*dev_id));
 	pdev->layout_type = LAYOUT_NFSV4_1_FILES;
 	pdev->pages = pages;
@@ -432,8 +589,6 @@ get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id)
 	 */
 	dsaddr = decode_and_add_device(inode, pdev);
 out_free:
-	if (pdev->area != NULL)
-		vunmap(pdev->area);
 	for (i = 0; i < max_pages; i++)
 		__free_page(pages[i]);
 	kfree(pages);
@@ -442,12 +597,123 @@ out_free:
 	return dsaddr;
 }
 
-struct nfs4_file_layout_dsaddr *
-nfs4_fl_find_get_deviceid(struct nfs_client *clp, struct nfs4_deviceid *id)
+void
+nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr)
 {
-	struct pnfs_deviceid_node *d;
+	if (atomic_dec_and_lock(&dsaddr->ref, &filelayout_deviceid_lock)) {
+		hlist_del_rcu(&dsaddr->node);
+		spin_unlock(&filelayout_deviceid_lock);
 
-	d = pnfs_find_get_deviceid(clp->cl_devid_cache, id);
-	return (d == NULL) ? NULL :
-		container_of(d, struct nfs4_file_layout_dsaddr, deviceid);
+		synchronize_rcu();
+		nfs4_fl_free_deviceid(dsaddr);
+	}
+}
+
+struct nfs4_file_layout_dsaddr *
+nfs4_fl_find_get_deviceid(struct nfs4_deviceid *id)
+{
+	struct nfs4_file_layout_dsaddr *d;
+	struct hlist_node *n;
+	long hash = nfs4_fl_deviceid_hash(id);
+
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(d, n, &filelayout_deviceid_cache[hash], node) {
+		if (!memcmp(&d->deviceid, id, sizeof(*id))) {
+			if (!atomic_inc_not_zero(&d->ref))
+				goto fail;
+			rcu_read_unlock();
+			return d;
+		}
+	}
+fail:
+	rcu_read_unlock();
+	return NULL;
+}
+
+/*
+ * Want res = (offset - layout->pattern_offset)/ layout->stripe_unit
+ * Then: ((res + fsi) % dsaddr->stripe_count)
+ */
+u32
+nfs4_fl_calc_j_index(struct pnfs_layout_segment *lseg, loff_t offset)
+{
+	struct nfs4_filelayout_segment *flseg = FILELAYOUT_LSEG(lseg);
+	u64 tmp;
+
+	tmp = offset - flseg->pattern_offset;
+	do_div(tmp, flseg->stripe_unit);
+	tmp += flseg->first_stripe_index;
+	return do_div(tmp, flseg->dsaddr->stripe_count);
+}
+
+u32
+nfs4_fl_calc_ds_index(struct pnfs_layout_segment *lseg, u32 j)
+{
+	return FILELAYOUT_LSEG(lseg)->dsaddr->stripe_indices[j];
+}
+
+struct nfs_fh *
+nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j)
+{
+	struct nfs4_filelayout_segment *flseg = FILELAYOUT_LSEG(lseg);
+	u32 i;
+
+	if (flseg->stripe_type == STRIPE_SPARSE) {
+		if (flseg->num_fh == 1)
+			i = 0;
+		else if (flseg->num_fh == 0)
+			/* Use the MDS OPEN fh set in nfs_read_rpcsetup */
+			return NULL;
+		else
+			i = nfs4_fl_calc_ds_index(lseg, j);
+	} else
+		i = j;
+	return flseg->fh_array[i];
+}
+
+static void
+filelayout_mark_devid_negative(struct nfs4_file_layout_dsaddr *dsaddr,
+			       int err, u32 ds_addr)
+{
+	u32 *p = (u32 *)&dsaddr->deviceid;
+
+	printk(KERN_ERR "NFS: data server %x connection error %d."
+		" Deviceid [%x%x%x%x] marked out of use.\n",
+		ds_addr, err, p[0], p[1], p[2], p[3]);
+
+	spin_lock(&filelayout_deviceid_lock);
+	dsaddr->flags |= NFS4_DEVICE_ID_NEG_ENTRY;
+	spin_unlock(&filelayout_deviceid_lock);
+}
+
+struct nfs4_pnfs_ds *
+nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
+{
+	struct nfs4_file_layout_dsaddr *dsaddr = FILELAYOUT_LSEG(lseg)->dsaddr;
+	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
+
+	if (ds == NULL) {
+		printk(KERN_ERR "%s: No data server for offset index %d\n",
+			__func__, ds_idx);
+		return NULL;
+	}
+
+	if (!ds->ds_clp) {
+		struct nfs_server *s = NFS_SERVER(lseg->pls_layout->plh_inode);
+		int err;
+
+		if (dsaddr->flags & NFS4_DEVICE_ID_NEG_ENTRY) {
+			/* Already tried to connect, don't try again */
+			dprintk("%s Deviceid marked out of use\n", __func__);
+			return NULL;
+		}
+		err = nfs4_ds_connect(s, ds);
+		if (err) {
+			filelayout_mark_devid_negative(dsaddr, err,
+						       ntohl(ds->ds_ip_addr));
+			return NULL;
+		}
+	}
+	return ds;
 }

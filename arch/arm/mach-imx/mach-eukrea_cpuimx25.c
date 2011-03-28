@@ -84,15 +84,25 @@ static struct i2c_board_info eukrea_cpuimx25_i2c_devices[] = {
 	},
 };
 
+static int eukrea_cpuimx25_otg_init(struct platform_device *pdev)
+{
+	return mx25_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static const struct mxc_usbh_platform_data otg_pdata __initconst = {
+	.init	= eukrea_cpuimx25_otg_init,
 	.portsc	= MXC_EHCI_MODE_UTMI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
+static int eukrea_cpuimx25_usbh2_init(struct platform_device *pdev)
+{
+	return mx25_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_SINGLE_UNI |
+			MXC_EHCI_INTERNAL_PHY | MXC_EHCI_IPPUE_DOWN);
+}
+
 static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
+	.init	= eukrea_cpuimx25_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_SERIAL,
-	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
-		  MXC_EHCI_IPPUE_DOWN,
 };
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
@@ -153,9 +163,10 @@ static struct sys_timer eukrea_cpuimx25_timer = {
 
 MACHINE_START(EUKREA_CPUIMX25, "Eukrea CPUIMX25")
 	/* Maintainer: Eukrea Electromatique */
-	.boot_params    = MX25_PHYS_OFFSET + 0x100,
-	.map_io         = mx25_map_io,
-	.init_irq       = mx25_init_irq,
-	.init_machine   = eukrea_cpuimx25_init,
-	.timer          = &eukrea_cpuimx25_timer,
+	.boot_params = MX25_PHYS_OFFSET + 0x100,
+	.map_io = mx25_map_io,
+	.init_early = imx25_init_early,
+	.init_irq = mx25_init_irq,
+	.timer = &eukrea_cpuimx25_timer,
+	.init_machine = eukrea_cpuimx25_init,
 MACHINE_END

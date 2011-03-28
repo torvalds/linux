@@ -1,6 +1,6 @@
 Device Power Management
 
-Copyright (c) 2010 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+Copyright (c) 2010-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
 Copyright (c) 2010 Alan Stern <stern@rowland.harvard.edu>
 
 
@@ -159,18 +159,18 @@ matter, and the kernel is responsible for keeping track of it.  By contrast,
 whether or not a wakeup-capable device should issue wakeup events is a policy
 decision, and it is managed by user space through a sysfs attribute: the
 power/wakeup file.  User space can write the strings "enabled" or "disabled" to
-set or clear the should_wakeup flag, respectively.  Reads from the file will
-return the corresponding string if can_wakeup is true, but if can_wakeup is
-false then reads will return an empty string, to indicate that the device
-doesn't support wakeup events.  (But even though the file appears empty, writes
-will still affect the should_wakeup flag.)
+set or clear the "should_wakeup" flag, respectively.  This file is only present
+for wakeup-capable devices (i.e. devices whose "can_wakeup" flags are set)
+and is created (or removed) by device_set_wakeup_capable().  Reads from the
+file will return the corresponding string.
 
 The device_may_wakeup() routine returns true only if both flags are set.
-Drivers should check this routine when putting devices in a low-power state
-during a system sleep transition, to see whether or not to enable the devices'
-wakeup mechanisms.  However for runtime power management, wakeup events should
-be enabled whenever the device and driver both support them, regardless of the
-should_wakeup flag.
+This information is used by subsystems, like the PCI bus type code, to see
+whether or not to enable the devices' wakeup mechanisms.  If device wakeup
+mechanisms are enabled or disabled directly by drivers, they also should use
+device_may_wakeup() to decide what to do during a system sleep transition.
+However for runtime power management, wakeup events should be enabled whenever
+the device and driver both support them, regardless of the should_wakeup flag.
 
 
 /sys/devices/.../power/control files
@@ -249,23 +249,18 @@ various phases always run after tasks have been frozen and before they are
 unfrozen.  Furthermore, the *_noirq phases run at a time when IRQ handlers have
 been disabled (except for those marked with the IRQ_WAKEUP flag).
 
-Most phases use bus, type, and class callbacks (that is, methods defined in
-dev->bus->pm, dev->type->pm, and dev->class->pm).  The prepare and complete
-phases are exceptions; they use only bus callbacks.  When multiple callbacks
-are used in a phase, they are invoked in the order: <class, type, bus> during
-power-down transitions and in the opposite order during power-up transitions.
-For example, during the suspend phase the PM core invokes
-
-	dev->class->pm.suspend(dev);
-	dev->type->pm.suspend(dev);
-	dev->bus->pm.suspend(dev);
-
-before moving on to the next device, whereas during the resume phase the core
-invokes
-
-	dev->bus->pm.resume(dev);
-	dev->type->pm.resume(dev);
-	dev->class->pm.resume(dev);
+All phases use bus, type, or class callbacks (that is, methods defined in
+dev->bus->pm, dev->type->pm, or dev->class->pm).  These callbacks are mutually
+exclusive, so if the device type provides a struct dev_pm_ops object pointed to
+by its pm field (i.e. both dev->type and dev->type->pm are defined), the
+callbacks included in that object (i.e. dev->type->pm) will be used.  Otherwise,
+if the class provides a struct dev_pm_ops object pointed to by its pm field
+(i.e. both dev->class and dev->class->pm are defined), the PM core will use the
+callbacks from that object (i.e. dev->class->pm).  Finally, if the pm fields of
+both the device type and class objects are NULL (or those objects do not exist),
+the callbacks provided by the bus (that is, the callbacks from dev->bus->pm)
+will be used (this allows device types to override callbacks provided by bus
+types or classes if necessary).
 
 These callbacks may in turn invoke device- or driver-specific methods stored in
 dev->driver->pm, but they don't have to.
@@ -505,6 +500,49 @@ and completely re-initialized.  In many cases this difference doesn't matter, so
 the resume[_noirq] and restore[_norq] method pointers can be set to the same
 routines.  Nevertheless, different callback pointers are used in case there is a
 situation where it actually matters.
+
+
+Device Power Domains
+--------------------
+Sometimes devices share reference clocks or other power resources.  In those
+cases it generally is not possible to put devices into low-power states
+individually.  Instead, a set of devices sharing a power resource can be put
+into a low-power state together at the same time by turning off the shared
+power resource.  Of course, they also need to be put into the full-power state
+together, by turning the shared power resource on.  A set of devices with this
+property is often referred to as a power domain.
+
+Support for power domains is provided through the pwr_domain field of struct
+device.  This field is a pointer to an object of type struct dev_power_domain,
+defined in include/linux/pm.h, providing a set of power management callbacks
+analogous to the subsystem-level and device driver callbacks that are executed
+for the given device during all power transitions, in addition to the respective
+subsystem-level callbacks.  Specifically, the power domain "suspend" callbacks
+(i.e. ->runtime_suspend(), ->suspend(), ->freeze(), ->poweroff(), etc.) are
+executed after the analogous subsystem-level callbacks, while the power domain
+"resume" callbacks (i.e. ->runtime_resume(), ->resume(), ->thaw(), ->restore,
+etc.) are executed before the analogous subsystem-level callbacks.  Error codes
+returned by the "suspend" and "resume" power domain callbacks are ignored.
+
+Power domain ->runtime_idle() callback is executed before the subsystem-level
+->runtime_idle() callback and the result returned by it is not ignored.  Namely,
+if it returns error code, the subsystem-level ->runtime_idle() callback will not
+be called and the helper function rpm_idle() executing it will return error
+code.  This mechanism is intended to help platforms where saving device state
+is a time consuming operation and should only be carried out if all devices
+in the power domain are idle, before turning off the shared power resource(s).
+Namely, the power domain ->runtime_idle() callback may return error code until
+the pm_runtime_idle() helper (or its asychronous version) has been called for
+all devices in the power domain (it is recommended that the returned error code
+be -EBUSY in those cases), preventing the subsystem-level ->runtime_idle()
+callback from being run prematurely.
+
+The support for device power domains is only relevant to platforms needing to
+use the same subsystem-level (e.g. platform bus type) and device driver power
+management callbacks in many different power domain configurations and wanting
+to avoid incorporating the support for power domains into the subsystem-level
+callbacks.  The other platforms need not implement it or take it into account
+in any way.
 
 
 System Devices

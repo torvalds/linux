@@ -36,6 +36,13 @@ static void ceph_vmtruncate_work(struct work_struct *work);
 /*
  * find or create an inode, given the ceph ino number
  */
+static int ceph_set_ino_cb(struct inode *inode, void *data)
+{
+	ceph_inode(inode)->i_vino = *(struct ceph_vino *)data;
+	inode->i_ino = ceph_vino_to_ino(*(struct ceph_vino *)data);
+	return 0;
+}
+
 struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 {
 	struct inode *inode;
@@ -1030,9 +1037,6 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			dout("fill_trace doing d_move %p -> %p\n",
 			     req->r_old_dentry, dn);
 
-			/* d_move screws up d_subdirs order */
-			ceph_i_clear(dir, CEPH_I_COMPLETE);
-
 			d_move(req->r_old_dentry, dn);
 			dout(" src %p '%.*s' dst %p '%.*s'\n",
 			     req->r_old_dentry,
@@ -1044,12 +1048,15 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			   rehashing bug in vfs_rename_dir */
 			ceph_invalidate_dentry_lease(dn);
 
-			/* take overwritten dentry's readdir offset */
-			dout("dn %p gets %p offset %lld (old offset %lld)\n",
-			     req->r_old_dentry, dn, ceph_dentry(dn)->offset,
+			/*
+			 * d_move() puts the renamed dentry at the end of
+			 * d_subdirs.  We need to assign it an appropriate
+			 * directory offset so we can behave when holding
+			 * I_COMPLETE.
+			 */
+			ceph_set_dentry_offset(req->r_old_dentry);
+			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 
 			     ceph_dentry(req->r_old_dentry)->offset);
-			ceph_dentry(req->r_old_dentry)->offset =
-				ceph_dentry(dn)->offset;
 
 			dn = req->r_old_dentry;  /* use old_dentry */
 			in = dn->d_inode;
@@ -1809,7 +1816,7 @@ int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	err = ceph_do_getattr(inode, CEPH_STAT_CAP_INODE_ALL);
 	if (!err) {
 		generic_fillattr(inode, stat);
-		stat->ino = inode->i_ino;
+		stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);
 		if (ceph_snap(inode) != CEPH_NOSNAP)
 			stat->dev = ceph_snap(inode);
 		else

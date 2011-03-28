@@ -1006,6 +1006,7 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	const struct video_levels *video_levels;
 	const struct color_conversion *color_conversion;
 	bool burst_ena;
+	int pipe = intel_crtc->pipe;
 
 	if (!tv_mode)
 		return;	/* can't happen (mode_prepare prevents this) */
@@ -1149,14 +1150,11 @@ intel_tv_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			   ((video_levels->black << TV_BLACK_LEVEL_SHIFT) |
 			    (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
 	{
-		int pipeconf_reg = (intel_crtc->pipe == 0) ?
-			PIPEACONF : PIPEBCONF;
-		int dspcntr_reg = (intel_crtc->plane == 0) ?
-			DSPACNTR : DSPBCNTR;
+		int pipeconf_reg = PIPECONF(pipe);
+		int dspcntr_reg = DSPCNTR(pipe);
 		int pipeconf = I915_READ(pipeconf_reg);
 		int dspcntr = I915_READ(dspcntr_reg);
-		int dspbase_reg = (intel_crtc->plane == 0) ?
-			DSPAADDR : DSPBADDR;
+		int dspbase_reg = DSPADDR(pipe);
 		int xpos = 0x0, ypos = 0x0;
 		unsigned int xsize, ysize;
 		/* Pipe must be off here */

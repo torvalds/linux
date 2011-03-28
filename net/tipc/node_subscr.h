@@ -2,7 +2,7 @@
  * net/tipc/node_subscr.h: Include file for TIPC "node down" subscription handling
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,5 +59,6 @@ struct tipc_node_subscr {
 void tipc_nodesub_subscribe(struct tipc_node_subscr *node_sub, u32 addr,
 			    void *usr_handle, net_ev_handler handle_down);
 void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub);
+void tipc_nodesub_notify(struct tipc_node *node);
 
 #endif

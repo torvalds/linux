@@ -167,6 +167,7 @@ struct carl9170_rx_filter_cmd {
 #define CARL9170_RX_FILTER_CTL_BACKR	0x20
 #define CARL9170_RX_FILTER_MGMT		0x40
 #define CARL9170_RX_FILTER_DATA		0x80
+#define CARL9170_RX_FILTER_EVERYTHING	(~0)
 
 struct carl9170_bcn_ctrl_cmd {
 	__le32		vif_id;

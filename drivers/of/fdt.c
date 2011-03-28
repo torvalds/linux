@@ -139,12 +139,13 @@ static void *unflatten_dt_alloc(unsigned long *mem, unsigned long size,
 /**
  * unflatten_dt_node - Alloc and populate a device_node from the flat tree
  * @blob: The parent device tree blob
+ * @mem: Memory chunk to use for allocating device nodes and properties
  * @p: pointer to node in flat tree
  * @dad: Parent struct device_node
  * @allnextpp: pointer to ->allnext from last allocated device_node
  * @fpsize: Size of the node path up at the current depth.
  */
-unsigned long unflatten_dt_node(struct boot_param_header *blob,
+static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 				unsigned long mem,
 				unsigned long *p,
 				struct device_node *dad,
@@ -230,6 +231,7 @@ unsigned long unflatten_dt_node(struct boot_param_header *blob,
 		}
 		kref_init(&np->kref);
 	}
+	/* process properties */
 	while (1) {
 		u32 sz, noff;
 		char *pname;
@@ -351,7 +353,7 @@ unsigned long unflatten_dt_node(struct boot_param_header *blob,
  * @dt_alloc: An allocator that provides a virtual address to memory
  * for the resulting tree
  */
-void __unflatten_device_tree(struct boot_param_header *blob,
+static void __unflatten_device_tree(struct boot_param_header *blob,
 			     struct device_node **mynodes,
 			     void * (*dt_alloc)(u64 size, u64 align))
 {

@@ -93,6 +93,15 @@ synchronize with other events.</para>
 been allocated (memory mapping) or enqueued (output) yet.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EPIPE</errorcode></term>
+	<listitem>
+	  <para>The driver implements <link
+	  linkend="pad-level-formats">pad-level format configuration</link> and
+	  the pipeline configuration is invalid.
+	  </para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

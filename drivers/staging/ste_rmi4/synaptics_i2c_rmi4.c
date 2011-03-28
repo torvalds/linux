@@ -764,8 +764,10 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
 								(pdata,	rfi,
 								&rmi_fd,
 								intr_count);
-					if (retval < 0)
+					if (retval < 0) {
+						kfree(rfi);
 						return retval;
+					}
 				}
 				break;
 			}
@@ -924,10 +926,8 @@ static int __devinit synaptics_rmi4_probe
 		goto err_input;
 	}
 
-	dev_set_name(&client->dev, platformdata->name);
-
 	if (platformdata->regulator_en) {
-		rmi4_data->regulator = regulator_get(&client->dev, "v-touch");
+		rmi4_data->regulator = regulator_get(&client->dev, "vdd");
 		if (IS_ERR(rmi4_data->regulator)) {
 			dev_err(&client->dev, "%s:get regulator failed\n",
 								__func__);
@@ -993,11 +993,11 @@ static int __devinit synaptics_rmi4_probe
 	retval = request_threaded_irq(platformdata->irq_number, NULL,
 					synaptics_rmi4_irq,
 					platformdata->irq_type,
-					platformdata->name, rmi4_data);
+					DRIVER_NAME, rmi4_data);
 	if (retval) {
 		dev_err(&client->dev, "%s:Unable to get attn irq %d\n",
 				__func__, platformdata->irq_number);
-		goto err_unset_clientdata;
+		goto err_query_dev;
 	}
 
 	retval = input_register_device(rmi4_data->input_dev);
@@ -1010,8 +1010,6 @@ static int __devinit synaptics_rmi4_probe
 
 err_free_irq:
 	free_irq(platformdata->irq_number, rmi4_data);
-err_unset_clientdata:
-	i2c_set_clientdata(client, NULL);
 err_query_dev:
 	if (platformdata->regulator_en) {
 		regulator_disable(rmi4_data->regulator);

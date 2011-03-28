@@ -29,6 +29,7 @@
 #include <linux/clk.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -650,8 +651,7 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 		iounmap(prv->csreg);
 }
 
-static int __devinit mpc5121_nfc_probe(struct platform_device *op,
-					const struct of_device_id *match)
+static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 {
 	struct device_node *rootnode, *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
@@ -758,9 +758,9 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op,
 
 	/* Enable NFC clock */
 	prv->clk = clk_get(dev, "nfc_clk");
-	if (!prv->clk) {
+	if (IS_ERR(prv->clk)) {
 		dev_err(dev, "Unable to acquire NFC clock!\n");
-		retval = -ENODEV;
+		retval = PTR_ERR(prv->clk);
 		goto error;
 	}
 
@@ -891,7 +891,7 @@ static struct of_device_id mpc5121_nfc_match[] __devinitdata = {
 	{},
 };
 
-static struct of_platform_driver mpc5121_nfc_driver = {
+static struct platform_driver mpc5121_nfc_driver = {
 	.probe		= mpc5121_nfc_probe,
 	.remove		= __devexit_p(mpc5121_nfc_remove),
 	.driver		= {
@@ -903,14 +903,14 @@ static struct of_platform_driver mpc5121_nfc_driver = {
 
 static int __init mpc5121_nfc_init(void)
 {
-	return of_register_platform_driver(&mpc5121_nfc_driver);
+	return platform_driver_register(&mpc5121_nfc_driver);
 }
 
 module_init(mpc5121_nfc_init);
 
 static void __exit mpc5121_nfc_cleanup(void)
 {
-	of_unregister_platform_driver(&mpc5121_nfc_driver);
+	platform_driver_unregister(&mpc5121_nfc_driver);
 }
 
 module_exit(mpc5121_nfc_cleanup);

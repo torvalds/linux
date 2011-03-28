@@ -231,6 +231,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 	struct drm_encoder *tmp_encoder;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	int pipe;
 
 	/* Should never happen!! */
 	if (INTEL_INFO(dev)->gen < 4 && intel_crtc->pipe == 0) {
@@ -277,8 +278,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	 * to register description and PRM.
 	 * Change the value here to see the borders for debugging
 	 */
-	I915_WRITE(BCLRPAT_A, 0);
-	I915_WRITE(BCLRPAT_B, 0);
+	for_each_pipe(pipe)
+		I915_WRITE(BCLRPAT(pipe), 0);
 
 	switch (intel_lvds->fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -474,6 +475,10 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
 
+	status = intel_panel_detect(dev);
+	if (status != connector_status_unknown)
+		return status;
+
 	/* ACPI lid methods were generally unreliable in this generation, so
 	 * don't even bother.
 	 */
@@ -496,7 +501,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 		return drm_add_edid_modes(connector, intel_lvds->edid);
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
-	if (mode == 0)
+	if (mode == NULL)
 		return 0;
 
 	drm_mode_probed_add(connector, mode);

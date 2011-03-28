@@ -63,6 +63,10 @@
 #define USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI	0x0242
 #define USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO	0x0243
 #define USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS	0x0244
+/* Macbook8 (unibody, March 2011) */
+#define USB_DEVICE_ID_APPLE_WELLSPRING5_ANSI	0x0245
+#define USB_DEVICE_ID_APPLE_WELLSPRING5_ISO	0x0246
+#define USB_DEVICE_ID_APPLE_WELLSPRING5_JIS	0x0247
 
 #define BCM5974_DEVICE(prod) {					\
 	.match_flags = (USB_DEVICE_ID_MATCH_DEVICE |		\
@@ -96,6 +100,10 @@ static const struct usb_device_id bcm5974_table[] = {
 	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4A_ANSI),
 	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4A_ISO),
 	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS),
+	/* MacbookPro8 */
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING5_ANSI),
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING5_ISO),
+	BCM5974_DEVICE(USB_DEVICE_ID_APPLE_WELLSPRING5_JIS),
 	/* Terminating entry */
 	{}
 };
@@ -274,6 +282,18 @@ static const struct bcm5974_config bcm5974_config_table[] = {
 		{ DIM_X, DIM_X / SN_COORD, -4616, 5112 },
 		{ DIM_Y, DIM_Y / SN_COORD, -142, 5234 }
 	},
+	{
+		USB_DEVICE_ID_APPLE_WELLSPRING5_ANSI,
+		USB_DEVICE_ID_APPLE_WELLSPRING5_ISO,
+		USB_DEVICE_ID_APPLE_WELLSPRING5_JIS,
+		HAS_INTEGRATED_BUTTON,
+		0x84, sizeof(struct bt_data),
+		0x81, TYPE2, FINGER_TYPE2, FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
+		{ DIM_PRESSURE, DIM_PRESSURE / SN_PRESSURE, 0, 300 },
+		{ DIM_WIDTH, DIM_WIDTH / SN_WIDTH, 0, 2048 },
+		{ DIM_X, DIM_X / SN_COORD, -4415, 5050 },
+		{ DIM_Y, DIM_Y / SN_COORD, -55, 6680 }
+	},
 	{}
 };
 
@@ -430,10 +450,6 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		ptest = int2bound(&c->p, raw_p);
 		origin = raw2int(f->origin);
 
-		/* set the integrated button if applicable */
-		if (c->tp_type == TYPE2)
-			ibt = raw2int(dev->tp_data[BUTTON_TYPE2]);
-
 		/* while tracking finger still valid, count all fingers */
 		if (ptest > PRESSURE_LOW && origin) {
 			abs_p = ptest;
@@ -451,6 +467,10 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 			}
 		}
 	}
+
+	/* set the integrated button if applicable */
+	if (c->tp_type == TYPE2)
+		ibt = raw2int(dev->tp_data[BUTTON_TYPE2]);
 
 	if (dev->fingers < nmin)
 		dev->fingers = nmin;

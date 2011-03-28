@@ -25,10 +25,10 @@ static sysconf8xx_t __iomem *siu_reg;
 
 int cpm_get_irq(struct pt_regs *regs);
 
-static void mpc8xx_unmask_irq(unsigned int virq)
+static void mpc8xx_unmask_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = (unsigned int)irq_map[virq].hwirq;
+	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
 
 	bit = irq_nr & 0x1f;
 	word = irq_nr >> 5;
@@ -37,10 +37,10 @@ static void mpc8xx_unmask_irq(unsigned int virq)
 	out_be32(&siu_reg->sc_simask, ppc_cached_irq_mask[word]);
 }
 
-static void mpc8xx_mask_irq(unsigned int virq)
+static void mpc8xx_mask_irq(struct irq_data *d)
 {
 	int	bit, word;
-	unsigned int irq_nr = (unsigned int)irq_map[virq].hwirq;
+	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
 
 	bit = irq_nr & 0x1f;
 	word = irq_nr >> 5;
@@ -49,19 +49,19 @@ static void mpc8xx_mask_irq(unsigned int virq)
 	out_be32(&siu_reg->sc_simask, ppc_cached_irq_mask[word]);
 }
 
-static void mpc8xx_ack(unsigned int virq)
+static void mpc8xx_ack(struct irq_data *d)
 {
 	int	bit;
-	unsigned int irq_nr = (unsigned int)irq_map[virq].hwirq;
+	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
 
 	bit = irq_nr & 0x1f;
 	out_be32(&siu_reg->sc_sipend, 1 << (31-bit));
 }
 
-static void mpc8xx_end_irq(unsigned int virq)
+static void mpc8xx_end_irq(struct irq_data *d)
 {
 	int bit, word;
-	unsigned int irq_nr = (unsigned int)irq_map[virq].hwirq;
+	unsigned int irq_nr = (unsigned int)irq_map[d->irq].hwirq;
 
 	bit = irq_nr & 0x1f;
 	word = irq_nr >> 5;
@@ -70,9 +70,9 @@ static void mpc8xx_end_irq(unsigned int virq)
 	out_be32(&siu_reg->sc_simask, ppc_cached_irq_mask[word]);
 }
 
-static int mpc8xx_set_irq_type(unsigned int virq, unsigned int flow_type)
+static int mpc8xx_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct irq_desc *desc = irq_to_desc(virq);
+	struct irq_desc *desc = irq_to_desc(d->irq);
 
 	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
 	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
@@ -80,7 +80,7 @@ static int mpc8xx_set_irq_type(unsigned int virq, unsigned int flow_type)
 		desc->status |= IRQ_LEVEL;
 
 	if (flow_type & IRQ_TYPE_EDGE_FALLING) {
-		irq_hw_number_t hw = (unsigned int)irq_map[virq].hwirq;
+		irq_hw_number_t hw = (unsigned int)irq_map[d->irq].hwirq;
 		unsigned int siel = in_be32(&siu_reg->sc_siel);
 
 		/* only external IRQ senses are programmable */
@@ -95,11 +95,11 @@ static int mpc8xx_set_irq_type(unsigned int virq, unsigned int flow_type)
 
 static struct irq_chip mpc8xx_pic = {
 	.name = "MPC8XX SIU",
-	.unmask = mpc8xx_unmask_irq,
-	.mask = mpc8xx_mask_irq,
-	.ack = mpc8xx_ack,
-	.eoi = mpc8xx_end_irq,
-	.set_type = mpc8xx_set_irq_type,
+	.irq_unmask = mpc8xx_unmask_irq,
+	.irq_mask = mpc8xx_mask_irq,
+	.irq_ack = mpc8xx_ack,
+	.irq_eoi = mpc8xx_end_irq,
+	.irq_set_type = mpc8xx_set_irq_type,
 };
 
 unsigned int mpc8xx_get_irq(void)

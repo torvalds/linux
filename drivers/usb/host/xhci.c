@@ -93,17 +93,20 @@ void xhci_quiesce(struct xhci_hcd *xhci)
  *
  * Disable any IRQs and clear the run/stop bit.
  * HC will complete any current and actively pipelined transactions, and
- * should halt within 16 microframes of the run/stop bit being cleared.
+ * should halt within 16 ms of the run/stop bit being cleared.
  * Read HC Halted bit in the status register to see when the HC is finished.
- * XXX: shouldn't we set HC_STATE_HALT here somewhere?
  */
 int xhci_halt(struct xhci_hcd *xhci)
 {
+	int ret;
 	xhci_dbg(xhci, "// Halt the HC\n");
 	xhci_quiesce(xhci);
 
-	return handshake(xhci, &xhci->op_regs->status,
+	ret = handshake(xhci, &xhci->op_regs->status,
 			STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);
+	if (!ret)
+		xhci->xhc_state |= XHCI_STATE_HALTED;
+	return ret;
 }
 
 /*
@@ -130,11 +133,13 @@ static int xhci_start(struct xhci_hcd *xhci)
 		xhci_err(xhci, "Host took too long to start, "
 				"waited %u microseconds.\n",
 				XHCI_MAX_HALT_USEC);
+	if (!ret)
+		xhci->xhc_state &= ~XHCI_STATE_HALTED;
 	return ret;
 }
 
 /*
- * Reset a halted HC, and set the internal HC state to HC_STATE_HALT.
+ * Reset a halted HC.
  *
  * This resets pipelines, timers, counters, state machines, etc.
  * Transactions will be terminated immediately, and operational registers
@@ -156,8 +161,6 @@ int xhci_reset(struct xhci_hcd *xhci)
 	command = xhci_readl(xhci, &xhci->op_regs->command);
 	command |= CMD_RESET;
 	xhci_writel(xhci, command, &xhci->op_regs->command);
-	/* XXX: Why does EHCI set this here?  Shouldn't other code do this? */
-	xhci_to_hcd(xhci)->state = HC_STATE_HALT;
 
 	ret = handshake(xhci, &xhci->op_regs->command,
 			CMD_RESET, 0, 250 * 1000);
@@ -350,7 +353,6 @@ static void xhci_event_ring_work(unsigned long arg)
 
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
 	xhci_dbg(xhci, "ir_set 0 pending = 0x%x\n", temp);
-	xhci_dbg(xhci, "No-op commands handled = %d\n", xhci->noops_handled);
 	xhci_dbg(xhci, "HC error bitmask = 0x%x\n", xhci->error_bitmask);
 	xhci->error_bitmask = 0;
 	xhci_dbg(xhci, "Event ring:\n");
@@ -370,10 +372,6 @@ static void xhci_event_ring_work(unsigned long arg)
 			xhci_dbg_ep_rings(xhci, i, j, &xhci->devs[i]->eps[j]);
 		}
 	}
-
-	if (xhci->noops_submitted != NUM_TEST_NOOPS)
-		if (xhci_setup_one_noop(xhci))
-			xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (!xhci->zombie)
@@ -382,6 +380,21 @@ static void xhci_event_ring_work(unsigned long arg)
 		xhci_dbg(xhci, "Quit polling the event ring.\n");
 }
 #endif
+
+static int xhci_run_finished(struct xhci_hcd *xhci)
+{
+	if (xhci_start(xhci)) {
+		xhci_halt(xhci);
+		return -ENODEV;
+	}
+	xhci->shared_hcd->state = HC_STATE_RUNNING;
+
+	if (xhci->quirks & XHCI_NEC_HOST)
+		xhci_ring_cmd_db(xhci);
+
+	xhci_dbg(xhci, "Finished xhci_run for USB3 roothub\n");
+	return 0;
+}
 
 /*
  * Start the HC after it was halted.
@@ -402,9 +415,14 @@ int xhci_run(struct usb_hcd *hcd)
 	u32 ret;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
-	void (*doorbell)(struct xhci_hcd *) = NULL;
+
+	/* Start the xHCI host controller running only after the USB 2.0 roothub
+	 * is setup.
+	 */
 
 	hcd->uses_new_polling = 1;
+	if (!usb_hcd_is_primary_hcd(hcd))
+		return xhci_run_finished(xhci);
 
 	xhci_dbg(xhci, "xhci_run\n");
 	/* unregister the legacy interrupt */
@@ -461,7 +479,6 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_writel(xhci, temp, &xhci->ir_set->irq_control);
 
 	/* Set the HCD state before we enable the irqs */
-	hcd->state = HC_STATE_RUNNING;
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_EIE);
 	xhci_dbg(xhci, "// Enable interrupts, cmd = 0x%x.\n",
@@ -475,24 +492,27 @@ int xhci_run(struct usb_hcd *hcd)
 			&xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, 0);
 
-	if (NUM_TEST_NOOPS > 0)
-		doorbell = xhci_setup_one_noop(xhci);
 	if (xhci->quirks & XHCI_NEC_HOST)
 		xhci_queue_vendor_command(xhci, 0, 0, 0,
 				TRB_TYPE(TRB_NEC_GET_FW));
 
-	if (xhci_start(xhci)) {
-		xhci_halt(xhci);
-		return -ENODEV;
-	}
-
-	if (doorbell)
-		(*doorbell)(xhci);
-	if (xhci->quirks & XHCI_NEC_HOST)
-		xhci_ring_cmd_db(xhci);
-
-	xhci_dbg(xhci, "Finished xhci_run\n");
+	xhci_dbg(xhci, "Finished xhci_run for USB2 roothub\n");
 	return 0;
+}
+
+static void xhci_only_stop_hcd(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	spin_lock_irq(&xhci->lock);
+	xhci_halt(xhci);
+
+	/* The shared_hcd is going to be deallocated shortly (the USB core only
+	 * calls this function when allocation fails in usb_add_hcd(), or
+	 * usb_remove_hcd() is called).  So we need to unset xHCI's pointer.
+	 */
+	xhci->shared_hcd = NULL;
+	spin_unlock_irq(&xhci->lock);
 }
 
 /*
@@ -509,7 +529,15 @@ void xhci_stop(struct usb_hcd *hcd)
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
+	if (!usb_hcd_is_primary_hcd(hcd)) {
+		xhci_only_stop_hcd(xhci->shared_hcd);
+		return;
+	}
+
 	spin_lock_irq(&xhci->lock);
+	/* Make sure the xHC is halted for a USB3 roothub
+	 * (xhci_stop() could be called as part of failed init).
+	 */
 	xhci_halt(xhci);
 	xhci_reset(xhci);
 	spin_unlock_irq(&xhci->lock);
@@ -542,6 +570,8 @@ void xhci_stop(struct usb_hcd *hcd)
  * This is called when the machine is rebooting or halting.  We assume that the
  * machine will be powered off, and the HC's internal state will be reset.
  * Don't bother to free memory.
+ *
+ * This will only ever be called with the main usb_hcd (the USB3 roothub).
  */
 void xhci_shutdown(struct usb_hcd *hcd)
 {
@@ -657,6 +687,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 
 	spin_lock_irq(&xhci->lock);
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
 	/* step 1: stop endpoint */
 	/* skipped assuming that port suspend has done */
 
@@ -706,10 +737,15 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
-	int	old_state, retval;
+	struct usb_hcd		*secondary_hcd;
+	int			retval;
 
-	old_state = hcd->state;
-	if (time_before(jiffies, xhci->next_statechange))
+	/* Wait a bit if either of the roothubs need to settle from the
+	 * transistion into bus suspend.
+	 */
+	if (time_before(jiffies, xhci->bus_state[0].next_statechange) ||
+			time_before(jiffies,
+				xhci->bus_state[1].next_statechange))
 		msleep(100);
 
 	spin_lock_irq(&xhci->lock);
@@ -762,16 +798,34 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		xhci_dbg(xhci, "xhci_stop completed - status = %x\n",
 			    xhci_readl(xhci, &xhci->op_regs->status));
 
-		xhci_dbg(xhci, "Initialize the HCD\n");
-		retval = xhci_init(hcd);
+		/* USB core calls the PCI reinit and start functions twice:
+		 * first with the primary HCD, and then with the secondary HCD.
+		 * If we don't do the same, the host will never be started.
+		 */
+		if (!usb_hcd_is_primary_hcd(hcd))
+			secondary_hcd = hcd;
+		else
+			secondary_hcd = xhci->shared_hcd;
+
+		xhci_dbg(xhci, "Initialize the xhci_hcd\n");
+		retval = xhci_init(hcd->primary_hcd);
 		if (retval)
 			return retval;
+		xhci_dbg(xhci, "Start the primary HCD\n");
+		retval = xhci_run(hcd->primary_hcd);
+		if (retval)
+			goto failed_restart;
 
-		xhci_dbg(xhci, "Start the HCD\n");
-		retval = xhci_run(hcd);
-		if (!retval)
+		xhci_dbg(xhci, "Start the secondary HCD\n");
+		retval = xhci_run(secondary_hcd);
+		if (!retval) {
 			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+			set_bit(HCD_FLAG_HW_ACCESSIBLE,
+					&xhci->shared_hcd->flags);
+		}
+failed_restart:
 		hcd->state = HC_STATE_SUSPENDED;
+		xhci->shared_hcd->state = HC_STATE_SUSPENDED;
 		return retval;
 	}
 
@@ -792,10 +846,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	 */
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	if (!hibernated)
-		hcd->state = old_state;
-	else
-		hcd->state = HC_STATE_SUSPENDED;
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
 
 	spin_unlock_irq(&xhci->lock);
 	return 0;
@@ -1167,13 +1218,13 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (ret || !urb->hcpriv)
 		goto done;
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
-	if (temp == 0xffffffff) {
+	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "HW died, freeing TD.\n");
 		urb_priv = urb->hcpriv;
 
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, -ESHUTDOWN);
+		usb_hcd_giveback_urb(hcd, urb, -ESHUTDOWN);
 		xhci_urb_free_priv(xhci, urb_priv);
 		return ret;
 	}

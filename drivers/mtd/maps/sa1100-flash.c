@@ -232,10 +232,8 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 		else
 			del_mtd_partitions(info->mtd);
 #endif
-#ifdef CONFIG_MTD_CONCAT
 		if (info->mtd != info->subdev[0].mtd)
 			mtd_concat_destroy(info->mtd);
-#endif
 	}
 
 	kfree(info->parts);
@@ -321,7 +319,6 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 		info->mtd = info->subdev[0].mtd;
 		ret = 0;
 	} else if (info->num_subdev > 1) {
-#ifdef CONFIG_MTD_CONCAT
 		struct mtd_info *cdev[nr];
 		/*
 		 * We detected multiple devices.  Concatenate them together.
@@ -333,11 +330,6 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 					      plat->name);
 		if (info->mtd == NULL)
 			ret = -ENXIO;
-#else
-		printk(KERN_ERR "SA1100 flash: multiple devices "
-		       "found but MTD concat support disabled.\n");
-		ret = -ENXIO;
-#endif
 	}
 
 	if (ret == 0)

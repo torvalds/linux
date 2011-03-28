@@ -74,23 +74,13 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 {
 	struct drm_irq_busid *p = data;
 
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
+	if (!dev->driver->bus->irq_by_busid)
 		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
-	if ((p->busnum >> 8) != drm_get_pci_domain(dev) ||
-	    (p->busnum & 0xff) != dev->pdev->bus->number ||
-	    p->devnum != PCI_SLOT(dev->pdev->devfn) || p->funcnum != PCI_FUNC(dev->pdev->devfn))
-		return -EINVAL;
-
-	p->irq = dev->pdev->irq;
-
-	DRM_DEBUG("%d:%d:%d => IRQ %d\n", p->busnum, p->devnum, p->funcnum,
-		  p->irq);
-
-	return 0;
+	return dev->driver->bus->irq_by_busid(dev, p);
 }
 
 /*
@@ -1135,7 +1125,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 {
 	union drm_wait_vblank *vblwait = data;
 	int ret = 0;
-	unsigned int flags, seq, crtc;
+	unsigned int flags, seq, crtc, high_crtc;
 
 	if ((!drm_dev_to_irq(dev)) || (!dev->irq_enabled))
 		return -EINVAL;
@@ -1144,16 +1134,21 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (vblwait->request.type &
-	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK)) {
+	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
+	      _DRM_VBLANK_HIGH_CRTC_MASK)) {
 		DRM_ERROR("Unsupported type value 0x%x, supported mask 0x%x\n",
 			  vblwait->request.type,
-			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK));
+			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
+			   _DRM_VBLANK_HIGH_CRTC_MASK));
 		return -EINVAL;
 	}
 
 	flags = vblwait->request.type & _DRM_VBLANK_FLAGS_MASK;
-	crtc = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
-
+	high_crtc = (vblwait->request.type & _DRM_VBLANK_HIGH_CRTC_MASK);
+	if (high_crtc)
+		crtc = high_crtc >> _DRM_VBLANK_HIGH_CRTC_SHIFT;
+	else
+		crtc = flags & _DRM_VBLANK_SECONDARY ? 1 : 0;
 	if (crtc >= dev->num_crtcs)
 		return -EINVAL;
 

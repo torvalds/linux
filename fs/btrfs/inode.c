@@ -90,13 +90,14 @@ static noinline int cow_file_range(struct inode *inode,
 				   unsigned long *nr_written, int unlock);
 
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
-				     struct inode *inode,  struct inode *dir)
+				     struct inode *inode,  struct inode *dir,
+				     const struct qstr *qstr)
 {
 	int err;
 
 	err = btrfs_init_acl(trans, inode, dir);
 	if (!err)
-		err = btrfs_xattr_security_init(trans, inode, dir);
+		err = btrfs_xattr_security_init(trans, inode, dir, qstr);
 	return err;
 }
 
@@ -4704,7 +4705,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -4765,7 +4766,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -4806,9 +4807,6 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	int err;
 	int drop_inode = 0;
 
-	if (inode->i_nlink == 0)
-		return -ENOENT;
-
 	/* do not allow sys_link's with other subvols of the same device */
 	if (root->objectid != BTRFS_I(inode)->root->objectid)
 		return -EPERM;
@@ -4821,10 +4819,11 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		goto fail;
 
 	/*
-	 * 1 item for inode ref
+	 * 2 items for inode and inode ref
 	 * 2 items for dir items
+	 * 1 item for parent inode
 	 */
-	trans = btrfs_start_transaction(root, 3);
+	trans = btrfs_start_transaction(root, 5);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		goto fail;
@@ -4893,7 +4892,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	drop_on_err = 1;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err)
 		goto out_fail;
 
@@ -6056,6 +6055,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	if (!skip_sum) {
 		dip->csums = kmalloc(sizeof(u32) * bio->bi_vcnt, GFP_NOFS);
 		if (!dip->csums) {
+			kfree(dip);
 			ret = -ENOMEM;
 			goto free_ordered;
 		}
@@ -7104,7 +7104,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_inode_security(trans, inode, dir);
+	err = btrfs_init_inode_security(trans, inode, dir, &dentry->d_name);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -7340,7 +7340,6 @@ static const struct address_space_operations btrfs_aops = {
 	.writepage	= btrfs_writepage,
 	.writepages	= btrfs_writepages,
 	.readpages	= btrfs_readpages,
-	.sync_page	= block_sync_page,
 	.direct_IO	= btrfs_direct_IO,
 	.invalidatepage = btrfs_invalidatepage,
 	.releasepage	= btrfs_releasepage,

@@ -292,7 +292,6 @@ static int __devinit pxa_ata_probe(struct platform_device *pdev)
 	ap->ops		= &pxa_ata_port_ops;
 	ap->pio_mask	= ATA_PIO4;
 	ap->mwdma_mask	= ATA_MWDMA2;
-	ap->flags	= ATA_FLAG_MMIO;
 
 	ap->ioaddr.cmd_addr	= devm_ioremap(&pdev->dev, cmd_res->start,
 						resource_size(cmd_res));

@@ -202,20 +202,20 @@ static int get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 #define get_irq_server(virq, cpumask, strict_check) (default_server)
 #endif
 
-static void xics_unmask_irq(unsigned int virq)
+static void xics_unmask_irq(struct irq_data *d)
 {
 	unsigned int irq;
 	int call_status;
 	int server;
 
-	pr_devel("xics: unmask virq %d\n", virq);
+	pr_devel("xics: unmask virq %d\n", d->irq);
 
-	irq = (unsigned int)irq_map[virq].hwirq;
+	irq = (unsigned int)irq_map[d->irq].hwirq;
 	pr_devel(" -> map to hwirq 0x%x\n", irq);
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = get_irq_server(virq, irq_to_desc(virq)->affinity, 0);
+	server = get_irq_server(d->irq, d->affinity, 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
@@ -235,61 +235,61 @@ static void xics_unmask_irq(unsigned int virq)
 	}
 }
 
-static unsigned int xics_startup(unsigned int virq)
+static unsigned int xics_startup(struct irq_data *d)
 {
 	/*
 	 * The generic MSI code returns with the interrupt disabled on the
 	 * card, using the MSI mask bits. Firmware doesn't appear to unmask
 	 * at that level, so we do it here by hand.
 	 */
-	if (irq_to_desc(virq)->msi_desc)
-		unmask_msi_irq(irq_get_irq_data(virq));
+	if (d->msi_desc)
+		unmask_msi_irq(d);
 
 	/* unmask it */
-	xics_unmask_irq(virq);
+	xics_unmask_irq(d);
 	return 0;
 }
 
-static void xics_mask_real_irq(unsigned int irq)
+static void xics_mask_real_irq(struct irq_data *d)
 {
 	int call_status;
 
-	if (irq == XICS_IPI)
+	if (d->irq == XICS_IPI)
 		return;
 
-	call_status = rtas_call(ibm_int_off, 1, 1, NULL, irq);
+	call_status = rtas_call(ibm_int_off, 1, 1, NULL, d->irq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_off irq=%u returned %d\n",
-			__func__, irq, call_status);
+			__func__, d->irq, call_status);
 		return;
 	}
 
 	/* Have to set XIVE to 0xff to be able to remove a slot */
-	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq,
+	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, d->irq,
 				default_server, 0xff);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_set_xive(0xff) irq=%u returned %d\n",
-			__func__, irq, call_status);
+			__func__, d->irq, call_status);
 		return;
 	}
 }
 
-static void xics_mask_irq(unsigned int virq)
+static void xics_mask_irq(struct irq_data *d)
 {
 	unsigned int irq;
 
-	pr_devel("xics: mask virq %d\n", virq);
+	pr_devel("xics: mask virq %d\n", d->irq);
 
-	irq = (unsigned int)irq_map[virq].hwirq;
+	irq = (unsigned int)irq_map[d->irq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
-	xics_mask_real_irq(irq);
+	xics_mask_real_irq(d);
 }
 
 static void xics_mask_unknown_vec(unsigned int vec)
 {
 	printk(KERN_ERR "Interrupt %u (real) is invalid, disabling it.\n", vec);
-	xics_mask_real_irq(vec);
+	xics_mask_real_irq(irq_get_irq_data(vec));
 }
 
 static inline unsigned int xics_xirr_vector(unsigned int xirr)
@@ -371,30 +371,31 @@ static unsigned char pop_cppr(void)
 	return os_cppr->stack[--os_cppr->index];
 }
 
-static void xics_eoi_direct(unsigned int virq)
+static void xics_eoi_direct(struct irq_data *d)
 {
-	unsigned int irq = (unsigned int)irq_map[virq].hwirq;
+	unsigned int irq = (unsigned int)irq_map[d->irq].hwirq;
 
 	iosync();
 	direct_xirr_info_set((pop_cppr() << 24) | irq);
 }
 
-static void xics_eoi_lpar(unsigned int virq)
+static void xics_eoi_lpar(struct irq_data *d)
 {
-	unsigned int irq = (unsigned int)irq_map[virq].hwirq;
+	unsigned int irq = (unsigned int)irq_map[d->irq].hwirq;
 
 	iosync();
 	lpar_xirr_info_set((pop_cppr() << 24) | irq);
 }
 
-static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
+static int
+xics_set_affinity(struct irq_data *d, const struct cpumask *cpumask, bool force)
 {
 	unsigned int irq;
 	int status;
 	int xics_status[2];
 	int irq_server;
 
-	irq = (unsigned int)irq_map[virq].hwirq;
+	irq = (unsigned int)irq_map[d->irq].hwirq;
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return -1;
 
@@ -406,13 +407,13 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 		return -1;
 	}
 
-	irq_server = get_irq_server(virq, cpumask, 1);
+	irq_server = get_irq_server(d->irq, cpumask, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
 		printk(KERN_WARNING
 			"%s: No online cpus in the mask %s for irq %d\n",
-			__func__, cpulist, virq);
+			__func__, cpulist, d->irq);
 		return -1;
 	}
 
@@ -430,20 +431,20 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 
 static struct irq_chip xics_pic_direct = {
 	.name = "XICS",
-	.startup = xics_startup,
-	.mask = xics_mask_irq,
-	.unmask = xics_unmask_irq,
-	.eoi = xics_eoi_direct,
-	.set_affinity = xics_set_affinity
+	.irq_startup = xics_startup,
+	.irq_mask = xics_mask_irq,
+	.irq_unmask = xics_unmask_irq,
+	.irq_eoi = xics_eoi_direct,
+	.irq_set_affinity = xics_set_affinity
 };
 
 static struct irq_chip xics_pic_lpar = {
 	.name = "XICS",
-	.startup = xics_startup,
-	.mask = xics_mask_irq,
-	.unmask = xics_unmask_irq,
-	.eoi = xics_eoi_lpar,
-	.set_affinity = xics_set_affinity
+	.irq_startup = xics_startup,
+	.irq_mask = xics_mask_irq,
+	.irq_unmask = xics_unmask_irq,
+	.irq_eoi = xics_eoi_lpar,
+	.irq_set_affinity = xics_set_affinity
 };
 
 
@@ -890,6 +891,7 @@ void xics_migrate_irqs_away(void)
 
 	for_each_irq(virq) {
 		struct irq_desc *desc;
+		struct irq_chip *chip;
 		int xics_status[2];
 		int status;
 		unsigned long flags;
@@ -903,12 +905,15 @@ void xics_migrate_irqs_away(void)
 		/* We need to get IPIs still. */
 		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 			continue;
+
 		desc = irq_to_desc(virq);
 
 		/* We only need to migrate enabled IRQS */
-		if (desc == NULL || desc->chip == NULL
-		    || desc->action == NULL
-		    || desc->chip->set_affinity == NULL)
+		if (desc == NULL || desc->action == NULL)
+			continue;
+
+		chip = get_irq_desc_chip(desc);
+		if (chip == NULL || chip->irq_set_affinity == NULL)
 			continue;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
@@ -934,8 +939,8 @@ void xics_migrate_irqs_away(void)
 			       virq, cpu);
 
 		/* Reset affinity to all cpus */
-		cpumask_setall(irq_to_desc(virq)->affinity);
-		desc->chip->set_affinity(virq, cpu_all_mask);
+		cpumask_setall(desc->irq_data.affinity);
+		chip->irq_set_affinity(&desc->irq_data, cpu_all_mask, true);
 unlock:
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}

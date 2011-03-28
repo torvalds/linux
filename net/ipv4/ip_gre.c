@@ -769,19 +769,12 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			tos = ipv6_get_dsfield((struct ipv6hdr *)old_iph);
 	}
 
-	{
-		struct flowi fl = {
-			.oif = tunnel->parms.link,
-			.fl4_dst = dst,
-			.fl4_src = tiph->saddr,
-			.fl4_tos = RT_TOS(tos),
-			.proto = IPPROTO_GRE,
-			.fl_gre_key = tunnel->parms.o_key
-		};
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			dev->stats.tx_carrier_errors++;
-			goto tx_error;
-		}
+	rt = ip_route_output_gre(dev_net(dev), dst, tiph->saddr,
+				 tunnel->parms.o_key, RT_TOS(tos),
+				 tunnel->parms.link);
+	if (IS_ERR(rt)) {
+		dev->stats.tx_carrier_errors++;
+		goto tx_error;
 	}
 	tdev = rt->dst.dev;
 
@@ -945,17 +938,13 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 	/* Guess output device to choose reasonable mtu and needed_headroom */
 
 	if (iph->daddr) {
-		struct flowi fl = {
-			.oif = tunnel->parms.link,
-			.fl4_dst = iph->daddr,
-			.fl4_src = iph->saddr,
-			.fl4_tos = RT_TOS(iph->tos),
-			.proto = IPPROTO_GRE,
-			.fl_gre_key = tunnel->parms.o_key
-		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_gre(dev_net(dev),
+							iph->daddr, iph->saddr,
+							tunnel->parms.o_key,
+							RT_TOS(iph->tos),
+							tunnel->parms.link);
 
-		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		if (!IS_ERR(rt)) {
 			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
@@ -1207,17 +1196,14 @@ static int ipgre_open(struct net_device *dev)
 	struct ip_tunnel *t = netdev_priv(dev);
 
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
-		struct flowi fl = {
-			.oif = t->parms.link,
-			.fl4_dst = t->parms.iph.daddr,
-			.fl4_src = t->parms.iph.saddr,
-			.fl4_tos = RT_TOS(t->parms.iph.tos),
-			.proto = IPPROTO_GRE,
-			.fl_gre_key = t->parms.o_key
-		};
-		struct rtable *rt;
+		struct rtable *rt = ip_route_output_gre(dev_net(dev),
+							t->parms.iph.daddr,
+							t->parms.iph.saddr,
+							t->parms.o_key,
+							RT_TOS(t->parms.iph.tos),
+							t->parms.link);
 
-		if (ip_route_output_key(dev_net(dev), &rt, &fl))
+		if (IS_ERR(rt))
 			return -EADDRNOTAVAIL;
 		dev = rt->dst.dev;
 		ip_rt_put(rt);

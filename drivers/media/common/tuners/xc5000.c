@@ -65,7 +65,7 @@ struct xc5000_priv {
 };
 
 /* Misc Defines */
-#define MAX_TV_STANDARD			23
+#define MAX_TV_STANDARD			24
 #define XC_MAX_I2C_WRITE_LENGTH		64
 
 /* Signal Types */
@@ -92,6 +92,8 @@ struct xc5000_priv {
 #define XREG_IF_OUT       0x05
 #define XREG_SEEK_MODE    0x07
 #define XREG_POWER_DOWN   0x0A /* Obsolete */
+/* Set the output amplitude - SIF for analog, DTVP/DTVN for digital */
+#define XREG_OUTPUT_AMP   0x0B
 #define XREG_SIGNALSOURCE 0x0D /* 0=Air, 1=Cable */
 #define XREG_SMOOTHEDCVBS 0x0E
 #define XREG_XTALFREQ     0x0F
@@ -173,6 +175,7 @@ struct XC_TV_STANDARD {
 #define DTV7			20
 #define FM_Radio_INPUT2 	21
 #define FM_Radio_INPUT1 	22
+#define FM_Radio_INPUT1_MONO	23
 
 static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC", 0x0400, 0x8020},
@@ -197,7 +200,8 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"DTV7/8",            0x00C0, 0x801B},
 	{"DTV7",              0x00C0, 0x8007},
 	{"FM Radio-INPUT2",   0x9802, 0x9002},
-	{"FM Radio-INPUT1",   0x0208, 0x9002}
+	{"FM Radio-INPUT1",   0x0208, 0x9002},
+	{"FM Radio-INPUT1_MONO", 0x0278, 0x9002}
 };
 
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
@@ -683,6 +687,24 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 			return -EINVAL;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
+	} else if (fe->ops.info.type == FE_QAM) {
+		dprintk(1, "%s() QAM\n", __func__);
+		switch (params->u.qam.modulation) {
+		case QAM_16:
+		case QAM_32:
+		case QAM_64:
+		case QAM_128:
+		case QAM_256:
+		case QAM_AUTO:
+			dprintk(1, "%s() QAM modulation\n", __func__);
+			priv->bandwidth = BANDWIDTH_8_MHZ;
+			priv->video_standard = DTV7_8;
+			priv->freq_hz = params->frequency - 2750000;
+			priv->rf_mode = XC_RF_MODE_CABLE;
+			break;
+		default:
+			return -EINVAL;
+		}
 	} else {
 		printk(KERN_ERR "xc5000 modulation type not supported!\n");
 		return -EINVAL;
@@ -713,6 +735,8 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 		       priv->if_khz);
 		return -EIO;
 	}
+
+	xc_write_reg(priv, XREG_OUTPUT_AMP, 0x8a);
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
@@ -818,6 +842,8 @@ tune_channel:
 		return -EREMOTEIO;
 	}
 
+	xc_write_reg(priv, XREG_OUTPUT_AMP, 0x09);
+
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
 
 	if (debug)
@@ -845,6 +871,8 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 		radio_input = FM_Radio_INPUT1;
 	else if  (priv->radio_input == XC5000_RADIO_FM2)
 		radio_input = FM_Radio_INPUT2;
+	else if  (priv->radio_input == XC5000_RADIO_FM1_MONO)
+		radio_input = FM_Radio_INPUT1_MONO;
 	else {
 		dprintk(1, "%s() unknown radio input %d\n", __func__,
 			priv->radio_input);
@@ -870,6 +898,12 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 			priv->rf_mode);
 		return -EREMOTEIO;
 	}
+
+	if ((priv->radio_input == XC5000_RADIO_FM1) ||
+				(priv->radio_input == XC5000_RADIO_FM2))
+		xc_write_reg(priv, XREG_OUTPUT_AMP, 0x09);
+	else if  (priv->radio_input == XC5000_RADIO_FM1_MONO)
+		xc_write_reg(priv, XREG_OUTPUT_AMP, 0x06);
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
 
@@ -1021,6 +1055,23 @@ static int xc5000_release(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int xc5000_set_config(struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	struct xc5000_config *p = priv_cfg;
+
+	dprintk(1, "%s()\n", __func__);
+
+	if (p->if_khz)
+		priv->if_khz = p->if_khz;
+
+	if (p->radio_input)
+		priv->radio_input = p->radio_input;
+
+	return 0;
+}
+
+
 static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.info = {
 		.name           = "Xceive XC5000",
@@ -1033,6 +1084,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.init		   = xc5000_init,
 	.sleep		   = xc5000_sleep,
 
+	.set_config	   = xc5000_set_config,
 	.set_params	   = xc5000_set_params,
 	.set_analog_params = xc5000_set_analog_params,
 	.get_frequency	   = xc5000_get_frequency,

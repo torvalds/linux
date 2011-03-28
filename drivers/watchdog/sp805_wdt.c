@@ -278,7 +278,7 @@ static struct miscdevice sp805_wdt_miscdev = {
 };
 
 static int __devinit
-sp805_wdt_probe(struct amba_device *adev, struct amba_id *id)
+sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
 

@@ -459,14 +459,14 @@ static int __devinit sh7760fb_probe(struct platform_device *pdev)
 	}
 
 	par->ioarea = request_mem_region(res->start,
-					 (res->end - res->start), pdev->name);
+					 resource_size(res), pdev->name);
 	if (!par->ioarea) {
 		dev_err(&pdev->dev, "mmio area busy\n");
 		ret = -EBUSY;
 		goto out_fb;
 	}
 
-	par->base = ioremap_nocache(res->start, res->end - res->start + 1);
+	par->base = ioremap_nocache(res->start, resource_size(res));
 	if (!par->base) {
 		dev_err(&pdev->dev, "cannot remap\n");
 		ret = -ENODEV;

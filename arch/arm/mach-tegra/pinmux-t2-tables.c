@@ -29,6 +29,7 @@
 
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
+#include <mach/suspend.h>
 
 #define DRIVE_PINGROUP(pg_name, r)				\
 	[TEGRA_DRIVE_PINGROUP_ ## pg_name] = {			\
@@ -65,6 +66,16 @@ const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE
 	DRIVE_PINGROUP(XM2D,		0x8cc),
 	DRIVE_PINGROUP(XM2CLK,		0x8d0),
 	DRIVE_PINGROUP(MEMCOMP,		0x8d4),
+	DRIVE_PINGROUP(SDIO1,		0x8e0),
+	DRIVE_PINGROUP(CRT,		0x8ec),
+	DRIVE_PINGROUP(DDC,		0x8f0),
+	DRIVE_PINGROUP(GMA,		0x8f4),
+	DRIVE_PINGROUP(GMB,		0x8f8),
+	DRIVE_PINGROUP(GMC,		0x8fc),
+	DRIVE_PINGROUP(GMD,		0x900),
+	DRIVE_PINGROUP(GME,		0x904),
+	DRIVE_PINGROUP(OWR,		0x908),
+	DRIVE_PINGROUP(UAD,		0x90c),
 };
 
 #define PINGROUP(pg_name, vdd, f0, f1, f2, f3, f_safe,		\
@@ -216,7 +227,8 @@ const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 #define PULLUPDOWN_REG_NUM     5
 
 static u32 pinmux_reg[TRISTATE_REG_NUM + PIN_MUX_CTL_REG_NUM +
-		     PULLUPDOWN_REG_NUM];
+		      PULLUPDOWN_REG_NUM +
+		      ARRAY_SIZE(tegra_soc_drive_pingroups)];
 
 static inline unsigned long pg_readl(unsigned long offset)
 {
@@ -233,14 +245,17 @@ void tegra_pinmux_suspend(void)
 	unsigned int i;
 	u32 *ctx = pinmux_reg;
 
-	for (i = 0; i < TRISTATE_REG_NUM; i++)
-		*ctx++ = pg_readl(TRISTATE_REG_A + i*4);
-
 	for (i = 0; i < PIN_MUX_CTL_REG_NUM; i++)
 		*ctx++ = pg_readl(PIN_MUX_CTL_REG_A + i*4);
 
 	for (i = 0; i < PULLUPDOWN_REG_NUM; i++)
 		*ctx++ = pg_readl(PULLUPDOWN_REG_A + i*4);
+
+	for (i = 0; i < TRISTATE_REG_NUM; i++)
+		*ctx++ = pg_readl(TRISTATE_REG_A + i*4);
+
+	for (i = 0; i < ARRAY_SIZE(tegra_soc_drive_pingroups); i++)
+		*ctx++ = pg_readl(tegra_soc_drive_pingroups[i].reg);
 }
 
 void tegra_pinmux_resume(void)
@@ -256,5 +271,8 @@ void tegra_pinmux_resume(void)
 
 	for (i = 0; i < TRISTATE_REG_NUM; i++)
 		pg_writel(*ctx++, TRISTATE_REG_A + i*4);
+
+	for (i = 0; i < ARRAY_SIZE(tegra_soc_drive_pingroups); i++)
+		pg_writel(*ctx++, tegra_soc_drive_pingroups[i].reg);
 }
 #endif

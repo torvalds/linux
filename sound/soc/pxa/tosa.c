@@ -237,7 +237,7 @@ static struct snd_soc_dai_link tosa_dai[] = {
 },
 };
 
-static int tosa_probe(struct platform_device *dev)
+static int tosa_probe(struct snd_soc_card *card)
 {
 	int ret;
 
@@ -251,7 +251,7 @@ static int tosa_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int tosa_remove(struct platform_device *dev)
+static int tosa_remove(struct snd_soc_card *card)
 {
 	gpio_free(TOSA_GPIO_L_MUTE);
 	return 0;

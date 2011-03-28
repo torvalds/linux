@@ -277,7 +277,7 @@ static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
 		/*
 		 * Mark inode fully dirty. Since we are allocating blocks, inode
 		 * would become fully dirty soon anyway and it reportedly
-		 * reduces inode_lock contention.
+		 * reduces lock contention.
 		 */
 		mark_inode_dirty(inode);
 	}

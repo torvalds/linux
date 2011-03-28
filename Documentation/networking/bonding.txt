@@ -2558,18 +2558,15 @@ enslaved.
 16. Resources and Links
 =======================
 
-The latest version of the bonding driver can be found in the latest
+	The latest version of the bonding driver can be found in the latest
 version of the linux kernel, found on http://kernel.org
 
-The latest version of this document can be found in either the latest
-kernel source (named Documentation/networking/bonding.txt), or on the
-bonding sourceforge site:
+	The latest version of this document can be found in the latest kernel
+source (named Documentation/networking/bonding.txt).
 
-http://www.sourceforge.net/projects/bonding
-
-Discussions regarding the bonding driver take place primarily on the
-bonding-devel mailing list, hosted at sourceforge.net.  If you have
-questions or problems, post them to the list.  The list address is:
+	Discussions regarding the usage of the bonding driver take place on the
+bonding-devel mailing list, hosted at sourceforge.net. If you have questions or
+problems, post them to the list.  The list address is:
 
 bonding-devel@lists.sourceforge.net
 
@@ -2577,6 +2574,17 @@ bonding-devel@lists.sourceforge.net
 be found at:
 
 https://lists.sourceforge.net/lists/listinfo/bonding-devel
+
+	Discussions regarding the developpement of the bonding driver take place
+on the main Linux network mailing list, hosted at vger.kernel.org. The list
+address is:
+
+netdev@vger.kernel.org
+
+	The administrative interface (to subscribe or unsubscribe) can
+be found at:
+
+http://vger.kernel.org/vger-lists.html#netdev
 
 Donald Becker's Ethernet Drivers and diag programs may be found at :
  - http://web.archive.org/web/*/http://www.scyld.com/network/ 

@@ -28,8 +28,15 @@
 #include "rate.h"
 #include "led.h"
 
-#define IEEE80211_MAX_NULLFUNC_TRIES 2
-#define IEEE80211_MAX_PROBE_TRIES 5
+static int max_nullfunc_tries = 2;
+module_param(max_nullfunc_tries, int, 0644);
+MODULE_PARM_DESC(max_nullfunc_tries,
+		 "Maximum nullfunc tx tries before disconnecting (reason 4).");
+
+static int max_probe_tries = 5;
+module_param(max_probe_tries, int, 0644);
+MODULE_PARM_DESC(max_probe_tries,
+		 "Maximum probe tries before disconnecting (reason 4).");
 
 /*
  * Beacon loss timeout is calculated as N frames times the
@@ -51,7 +58,11 @@
  * a probe request because of beacon loss or for
  * checking the connection still works.
  */
-#define IEEE80211_PROBE_WAIT		(HZ / 2)
+static int probe_wait_ms = 500;
+module_param(probe_wait_ms, int, 0644);
+MODULE_PARM_DESC(probe_wait_ms,
+		 "Maximum time(ms) to wait for probe response"
+		 " before disconnecting (reason 4).");
 
 /*
  * Weight given to the latest Beacon frame when calculating average signal
@@ -134,6 +145,9 @@ void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	if (unlikely(!sdata->u.mgd.associated))
+		return;
+
 	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		return;
 
@@ -161,6 +175,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
 	u32 changed = 0;
+	int hti_cfreq;
 	u16 ht_opmode;
 	bool enable_ht = true;
 	enum nl80211_channel_type prev_chantype;
@@ -174,10 +189,27 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	if (!sband->ht_cap.ht_supported)
 		enable_ht = false;
 
-	/* check that channel matches the right operating channel */
-	if (local->hw.conf.channel->center_freq !=
-	    ieee80211_channel_to_frequency(hti->control_chan))
-		enable_ht = false;
+	if (enable_ht) {
+		hti_cfreq = ieee80211_channel_to_frequency(hti->control_chan,
+							   sband->band);
+		/* check that channel matches the right operating channel */
+		if (local->hw.conf.channel->center_freq != hti_cfreq) {
+			/* Some APs mess this up, evidently.
+			 * Netgear WNDR3700 sometimes reports 4 higher than
+			 * the actual channel, for instance.
+			 */
+			printk(KERN_DEBUG
+			       "%s: Wrong control channel in association"
+			       " response: configured center-freq: %d"
+			       " hti-cfreq: %d  hti->control_chan: %d"
+			       " band: %d.  Disabling HT.\n",
+			       sdata->name,
+			       local->hw.conf.channel->center_freq,
+			       hti_cfreq, hti->control_chan,
+			       sband->band);
+			enable_ht = false;
+		}
+	}
 
 	if (enable_ht) {
 		channel_type = NL80211_CHAN_HT20;
@@ -429,7 +461,8 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		container_of((void *)bss, struct cfg80211_bss, priv);
 	struct ieee80211_channel *new_ch;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num);
+	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num,
+						      cbss->channel->band);
 
 	ASSERT_MGD_MTX(ifmgd);
 
@@ -580,6 +613,37 @@ static void ieee80211_change_ps(struct ieee80211_local *local)
 	}
 }
 
+static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *mgd = &sdata->u.mgd;
+	struct sta_info *sta = NULL;
+	u32 sta_flags = 0;
+
+	if (!mgd->powersave)
+		return false;
+
+	if (!mgd->associated)
+		return false;
+
+	if (!mgd->associated->beacon_ies)
+		return false;
+
+	if (mgd->flags & (IEEE80211_STA_BEACON_POLL |
+			  IEEE80211_STA_CONNECTION_POLL))
+		return false;
+
+	rcu_read_lock();
+	sta = sta_info_get(sdata, mgd->bssid);
+	if (sta)
+		sta_flags = get_sta_flags(sta);
+	rcu_read_unlock();
+
+	if (!(sta_flags & WLAN_STA_AUTHORIZED))
+		return false;
+
+	return true;
+}
+
 /* need to hold RTNL or interface lock */
 void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 {
@@ -600,17 +664,21 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+		if (sdata->vif.type == NL80211_IFTYPE_AP) {
+			/* If an AP vif is found, then disable PS
+			 * by setting the count to zero thereby setting
+			 * ps_sdata to NULL.
+			 */
+			count = 0;
+			break;
+		}
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			continue;
 		found = sdata;
 		count++;
 	}
 
-	if (count == 1 && found->u.mgd.powersave &&
-	    found->u.mgd.associated &&
-	    found->u.mgd.associated->beacon_ies &&
-	    !(found->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
-				    IEEE80211_STA_CONNECTION_POLL))) {
+	if (count == 1 && ieee80211_powersave_allowed(found)) {
 		struct ieee80211_conf *conf = &local->hw.conf;
 		s32 beaconint_us;
 
@@ -700,8 +768,18 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		return;
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)))
+	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
+		netif_tx_stop_all_queues(sdata->dev);
+		/*
+		 * Flush all the frames queued in the driver before
+		 * going to power save
+		 */
+		drv_flush(local, false);
 		ieee80211_send_nullfunc(local, sdata, 1);
+
+		/* Flush once again to get the tx status of nullfunc frame */
+		drv_flush(local, false);
+	}
 
 	if (!((local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) &&
 	      (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)) ||
@@ -710,6 +788,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		local->hw.conf.flags |= IEEE80211_CONF_PS;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
+
+	netif_tx_start_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -1033,12 +1113,6 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
-	/*
-	 * In case we receive frames after disassociation.
-	 */
-	if (!sdata->u.mgd.associated)
-		return;
-
 	ieee80211_sta_reset_conn_monitor(sdata);
 }
 
@@ -1095,7 +1169,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const u8 *ssid;
 	u8 *dst = ifmgd->associated->bssid;
-	u8 unicast_limit = max(1, IEEE80211_MAX_PROBE_TRIES - 3);
+	u8 unicast_limit = max(1, max_probe_tries - 3);
 
 	/*
 	 * Try sending broadcast probe requests for the last three
@@ -1121,7 +1195,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	}
 
 	ifmgd->probe_send_count++;
-	ifmgd->probe_timeout = jiffies + IEEE80211_PROBE_WAIT;
+	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
 	run_again(ifmgd, ifmgd->probe_timeout);
 }
 
@@ -1222,7 +1296,8 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 
 	memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
 
-	printk(KERN_DEBUG "Connection to AP %pM lost.\n", bssid);
+	printk(KERN_DEBUG "%s: Connection to AP %pM lost.\n",
+	       sdata->name, bssid);
 
 	ieee80211_set_disassoc(sdata, true, true);
 	mutex_unlock(&ifmgd->mtx);
@@ -1525,7 +1600,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (elems->ds_params && elems->ds_params_len == 1)
-		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
+		freq = ieee80211_channel_to_frequency(elems->ds_params[0],
+						      rx_status->band);
 	else
 		freq = rx_status->freq;
 
@@ -1966,9 +2042,9 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 		memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
 
 		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
-			max_tries = IEEE80211_MAX_NULLFUNC_TRIES;
+			max_tries = max_nullfunc_tries;
 		else
-			max_tries = IEEE80211_MAX_PROBE_TRIES;
+			max_tries = max_probe_tries;
 
 		/* ACK received for nullfunc probing frame */
 		if (!ifmgd->probe_send_count)
@@ -1978,9 +2054,9 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 				wiphy_debug(local->hw.wiphy,
 					    "%s: No ack for nullfunc frame to"
-					    " AP %pM, try %d\n",
+					    " AP %pM, try %d/%i\n",
 					    sdata->name, bssid,
-					    ifmgd->probe_send_count);
+					    ifmgd->probe_send_count, max_tries);
 #endif
 				ieee80211_mgd_probe_ap_send(sdata);
 			} else {
@@ -2000,17 +2076,17 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				    "%s: Failed to send nullfunc to AP %pM"
 				    " after %dms, disconnecting.\n",
 				    sdata->name,
-				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
+				    bssid, probe_wait_ms);
 #endif
 			ieee80211_sta_connection_lost(sdata, bssid);
 		} else if (ifmgd->probe_send_count < max_tries) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			wiphy_debug(local->hw.wiphy,
 				    "%s: No probe response from AP %pM"
-				    " after %dms, try %d\n",
+				    " after %dms, try %d/%i\n",
 				    sdata->name,
-				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ,
-				    ifmgd->probe_send_count);
+				    bssid, probe_wait_ms,
+				    ifmgd->probe_send_count, max_tries);
 #endif
 			ieee80211_mgd_probe_ap_send(sdata);
 		} else {
@@ -2022,7 +2098,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				    "%s: No probe response from AP %pM"
 				    " after %dms, disconnecting.\n",
 				    sdata->name,
-				    bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
+				    bssid, probe_wait_ms);
 
 			ieee80211_sta_connection_lost(sdata, bssid);
 		}
@@ -2260,6 +2336,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	else
 		wk->type = IEEE80211_WORK_DIRECT_PROBE;
 	wk->chan = req->bss->channel;
+	wk->chan_type = NL80211_CHAN_NO_HT;
 	wk->sdata = sdata;
 	wk->done = ieee80211_probe_auth_done;
 
@@ -2409,6 +2486,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		memcpy(wk->assoc.prev_bssid, req->prev_bssid, ETH_ALEN);
 
 	wk->chan = req->bss->channel;
+	wk->chan_type = NL80211_CHAN_NO_HT;
 	wk->sdata = sdata;
 	wk->done = ieee80211_assoc_done;
 	if (!bss->dtim_period &&

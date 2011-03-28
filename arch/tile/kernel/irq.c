@@ -176,43 +176,43 @@ void disable_percpu_irq(unsigned int irq)
 EXPORT_SYMBOL(disable_percpu_irq);
 
 /* Mask an interrupt. */
-static void tile_irq_chip_mask(unsigned int irq)
+static void tile_irq_chip_mask(struct irq_data *d)
 {
-	mask_irqs(1UL << irq);
+	mask_irqs(1UL << d->irq);
 }
 
 /* Unmask an interrupt. */
-static void tile_irq_chip_unmask(unsigned int irq)
+static void tile_irq_chip_unmask(struct irq_data *d)
 {
-	unmask_irqs(1UL << irq);
+	unmask_irqs(1UL << d->irq);
 }
 
 /*
  * Clear an interrupt before processing it so that any new assertions
  * will trigger another irq.
  */
-static void tile_irq_chip_ack(unsigned int irq)
+static void tile_irq_chip_ack(struct irq_data *d)
 {
-	if ((unsigned long)get_irq_chip_data(irq) != IS_HW_CLEARED)
-		clear_irqs(1UL << irq);
+	if ((unsigned long)irq_data_get_irq_chip_data(d) != IS_HW_CLEARED)
+		clear_irqs(1UL << d->irq);
 }
 
 /*
  * For per-cpu interrupts, we need to avoid unmasking any interrupts
  * that we disabled via disable_percpu_irq().
  */
-static void tile_irq_chip_eoi(unsigned int irq)
+static void tile_irq_chip_eoi(struct irq_data *d)
 {
-	if (!(__get_cpu_var(irq_disable_mask) & (1UL << irq)))
-		unmask_irqs(1UL << irq);
+	if (!(__get_cpu_var(irq_disable_mask) & (1UL << d->irq)))
+		unmask_irqs(1UL << d->irq);
 }
 
 static struct irq_chip tile_irq_chip = {
 	.name = "tile_irq_chip",
-	.ack = tile_irq_chip_ack,
-	.eoi = tile_irq_chip_eoi,
-	.mask = tile_irq_chip_mask,
-	.unmask = tile_irq_chip_unmask,
+	.irq_ack = tile_irq_chip_ack,
+	.irq_eoi = tile_irq_chip_eoi,
+	.irq_mask = tile_irq_chip_mask,
+	.irq_unmask = tile_irq_chip_unmask,
 };
 
 void __init init_IRQ(void)
@@ -277,8 +277,10 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
+		struct irq_desc *desc = irq_to_desc(i);
+
+		raw_spin_lock_irqsave(&desc->lock, flags);
+		action = desc->action;
 		if (!action)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
@@ -288,7 +290,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
+		seq_printf(p, " %14s", get_irq_desc_chip(desc)->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action = action->next; action; action = action->next)
@@ -296,7 +298,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 	return 0;
 }

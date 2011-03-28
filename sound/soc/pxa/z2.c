@@ -95,6 +95,11 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 		.pin	= "Headphone Jack",
 		.mask	= SND_JACK_HEADPHONE,
 	},
+	{
+		.pin    = "Ext Spk",
+		.mask   = SND_JACK_HEADPHONE,
+		.invert = 1
+	},
 };
 
 /* Headset jack detection gpios */
@@ -147,7 +152,7 @@ static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "LINPUT3");
 	snd_soc_dapm_disable_pin(dapm, "RINPUT3");
 	snd_soc_dapm_disable_pin(dapm, "OUT3");
-	snd_soc_dapm_disable_pin(dapm, "MONO");
+	snd_soc_dapm_disable_pin(dapm, "MONO1");
 
 	/* Add z2 specific widgets */
 	snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,

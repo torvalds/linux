@@ -93,7 +93,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame =
-		(struct rt_sigframe __user *)(regs->r1 + STATE_SAVE_ARG_SPACE);
+		(struct rt_sigframe __user *)(regs->r1);
 
 	sigset_t set;
 	int rval;
@@ -197,8 +197,8 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext. */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
+	err |= __put_user(NULL, &frame->uc.uc_link);
+	err |= __put_user((void __user *)current->sas_ss_sp,
 			&frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->r1),
 			&frame->uc.uc_stack.ss_flags);
@@ -247,7 +247,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->r1 = (unsigned long) frame - STATE_SAVE_ARG_SPACE;
+	regs->r1 = (unsigned long) frame;
 
 	/* Signal handler args: */
 	regs->r5 = signal; /* arg 0: signum */

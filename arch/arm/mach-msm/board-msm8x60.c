@@ -28,10 +28,6 @@
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
 
-unsigned long clk_get_max_axi_khz(void)
-{
-	return 0;
-}
 
 static void __init msm8x60_map_io(void)
 {

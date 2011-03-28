@@ -59,7 +59,7 @@ static int __init early_init_dt_scan_serial(unsigned long node,
 {
 	unsigned long l;
 	char *p;
-	int *addr;
+	const __be32 *addr;
 
 	pr_debug("search \"serial\", depth: %d, uname: %s\n", depth, uname);
 

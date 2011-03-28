@@ -63,6 +63,8 @@
 #define WM8994_MICBIAS                          0x3A
 #define WM8994_LDO_1                            0x3B
 #define WM8994_LDO_2                            0x3C
+#define WM8958_MICBIAS1				0x3D
+#define WM8958_MICBIAS2				0x3E
 #define WM8994_CHARGE_PUMP_1                    0x4C
 #define WM8958_CHARGE_PUMP_2                    0x4D
 #define WM8994_CLASS_W_1                        0x51

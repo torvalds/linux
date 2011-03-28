@@ -18,7 +18,7 @@
  * a subset of information returned via ctl info callback
  */
 struct link_ctl_info {
-	int type;		/* value type */
+	snd_ctl_elem_type_t type; /* value type */
 	int count;		/* item count */
 	int min_val, max_val;	/* min, max values */
 };

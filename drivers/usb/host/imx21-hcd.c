@@ -927,7 +927,8 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 		if (state == US_CTRL_SETUP) {
 			dir = TD_DIR_SETUP;
 			if (unsuitable_for_dma(urb->setup_dma))
-				unmap_urb_setup_for_dma(imx21->hcd, urb);
+				usb_hcd_unmap_urb_setup_for_dma(imx21->hcd,
+					urb);
 			etd->dma_handle = urb->setup_dma;
 			etd->cpu_buffer = urb->setup_packet;
 			bufround = 0;
@@ -943,7 +944,7 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 		dir = usb_pipeout(pipe) ? TD_DIR_OUT : TD_DIR_IN;
 		bufround = (dir == TD_DIR_IN) ? 1 : 0;
 		if (unsuitable_for_dma(urb->transfer_dma))
-			unmap_urb_for_dma(imx21->hcd, urb);
+			usb_hcd_unmap_urb_for_dma(imx21->hcd, urb);
 
 		etd->dma_handle = urb->transfer_dma;
 		etd->cpu_buffer = urb->transfer_buffer;
@@ -1471,8 +1472,8 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 		0x0010 |	/* No over current protection */
 		0);
 
-	desc->bitmap[0] = 1 << 1;
-	desc->bitmap[1] = ~0;
+	desc->u.hs.DeviceRemovable[0] = 1 << 1;
+	desc->u.hs.DeviceRemovable[1] = ~0;
 	return 0;
 }
 

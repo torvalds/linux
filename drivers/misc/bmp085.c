@@ -402,7 +402,7 @@ exit:
 	return status;
 }
 
-static int bmp085_probe(struct i2c_client *client,
+static int __devinit bmp085_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct bmp085_data *data;
@@ -438,7 +438,7 @@ exit:
 	return err;
 }
 
-static int bmp085_remove(struct i2c_client *client)
+static int __devexit bmp085_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &bmp085_attr_group);
 	kfree(i2c_get_clientdata(client));
@@ -458,7 +458,7 @@ static struct i2c_driver bmp085_driver = {
 	},
 	.id_table	= bmp085_id,
 	.probe		= bmp085_probe,
-	.remove		= bmp085_remove,
+	.remove		= __devexit_p(bmp085_remove),
 
 	.detect		= bmp085_detect,
 	.address_list	= normal_i2c

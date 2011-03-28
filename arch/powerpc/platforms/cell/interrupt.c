@@ -72,15 +72,15 @@ static irq_hw_number_t iic_pending_to_hwnum(struct cbe_iic_pending_bits bits)
 		return (node << IIC_IRQ_NODE_SHIFT) | (class << 4) | unit;
 }
 
-static void iic_mask(unsigned int irq)
+static void iic_mask(struct irq_data *d)
 {
 }
 
-static void iic_unmask(unsigned int irq)
+static void iic_unmask(struct irq_data *d)
 {
 }
 
-static void iic_eoi(unsigned int irq)
+static void iic_eoi(struct irq_data *d)
 {
 	struct iic *iic = &__get_cpu_var(cpu_iic);
 	out_be64(&iic->regs->prio, iic->eoi_stack[--iic->eoi_ptr]);
@@ -89,19 +89,21 @@ static void iic_eoi(unsigned int irq)
 
 static struct irq_chip iic_chip = {
 	.name = "CELL-IIC",
-	.mask = iic_mask,
-	.unmask = iic_unmask,
-	.eoi = iic_eoi,
+	.irq_mask = iic_mask,
+	.irq_unmask = iic_unmask,
+	.irq_eoi = iic_eoi,
 };
 
 
-static void iic_ioexc_eoi(unsigned int irq)
+static void iic_ioexc_eoi(struct irq_data *d)
 {
 }
 
 static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct cbe_iic_regs __iomem *node_iic = (void __iomem *)desc->handler_data;
+	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct cbe_iic_regs __iomem *node_iic =
+		(void __iomem *)get_irq_desc_data(desc);
 	unsigned int base = (irq & 0xffffff00) | IIC_IRQ_TYPE_IOEXC;
 	unsigned long bits, ack;
 	int cascade;
@@ -128,15 +130,15 @@ static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 		if (ack)
 			out_be64(&node_iic->iic_is, ack);
 	}
-	desc->chip->eoi(irq);
+	chip->irq_eoi(&desc->irq_data);
 }
 
 
 static struct irq_chip iic_ioexc_chip = {
 	.name = "CELL-IOEX",
-	.mask = iic_mask,
-	.unmask = iic_unmask,
-	.eoi = iic_ioexc_eoi,
+	.irq_mask = iic_mask,
+	.irq_unmask = iic_unmask,
+	.irq_eoi = iic_ioexc_eoi,
 };
 
 /* Get an IRQ number from the pending state register of the IIC */
@@ -237,6 +239,8 @@ extern int noirqdebug;
 
 static void handle_iic_irq(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
+
 	raw_spin_lock(&desc->lock);
 
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
@@ -275,7 +279,7 @@ static void handle_iic_irq(unsigned int irq, struct irq_desc *desc)
 
 	desc->status &= ~IRQ_INPROGRESS;
 out_eoi:
-	desc->chip->eoi(irq);
+	chip->irq_eoi(&desc->irq_data);
 	raw_spin_unlock(&desc->lock);
 }
 

@@ -113,7 +113,7 @@ int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_rq_merge_ok);
 
-static inline int elv_try_merge(struct request *__rq, struct bio *bio)
+int elv_try_merge(struct request *__rq, struct bio *bio)
 {
 	int ret = ELEVATOR_NO_MERGE;
 
@@ -421,6 +421,8 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	struct list_head *entry;
 	int stop_flags;
 
+	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
+
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
 
@@ -519,6 +521,40 @@ int elv_merge(struct request_queue *q, struct request **req, struct bio *bio)
 	return ELEVATOR_NO_MERGE;
 }
 
+/*
+ * Attempt to do an insertion back merge. Only check for the case where
+ * we can append 'rq' to an existing request, so we can throw 'rq' away
+ * afterwards.
+ *
+ * Returns true if we merged, false otherwise
+ */
+static bool elv_attempt_insert_merge(struct request_queue *q,
+				     struct request *rq)
+{
+	struct request *__rq;
+
+	if (blk_queue_nomerges(q))
+		return false;
+
+	/*
+	 * First try one-hit cache.
+	 */
+	if (q->last_merge && blk_attempt_req_merge(q, q->last_merge, rq))
+		return true;
+
+	if (blk_queue_noxmerges(q))
+		return false;
+
+	/*
+	 * See if our hash lookup can find a potential backmerge.
+	 */
+	__rq = elv_rqhash_find(q, blk_rq_pos(rq));
+	if (__rq && blk_attempt_req_merge(q, __rq, rq))
+		return true;
+
+	return false;
+}
+
 void elv_merged_request(struct request_queue *q, struct request *rq, int type)
 {
 	struct elevator_queue *e = q->elevator;
@@ -536,14 +572,18 @@ void elv_merge_requests(struct request_queue *q, struct request *rq,
 			     struct request *next)
 {
 	struct elevator_queue *e = q->elevator;
+	const int next_sorted = next->cmd_flags & REQ_SORTED;
 
-	if (e->ops->elevator_merge_req_fn)
+	if (next_sorted && e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
 
 	elv_rqhash_reposition(q, rq);
-	elv_rqhash_del(q, next);
 
-	q->nr_sorted--;
+	if (next_sorted) {
+		elv_rqhash_del(q, next);
+		q->nr_sorted--;
+	}
+
 	q->last_merge = rq;
 }
 
@@ -617,21 +657,12 @@ void elv_quiesce_end(struct request_queue *q)
 
 void elv_insert(struct request_queue *q, struct request *rq, int where)
 {
-	int unplug_it = 1;
-
 	trace_block_rq_insert(q, rq);
 
 	rq->q = q;
 
 	switch (where) {
 	case ELEVATOR_INSERT_REQUEUE:
-		/*
-		 * Most requeues happen because of a busy condition,
-		 * don't force unplug of the queue for that case.
-		 * Clear unplug_it and fall through.
-		 */
-		unplug_it = 0;
-
 	case ELEVATOR_INSERT_FRONT:
 		rq->cmd_flags |= REQ_SOFTBARRIER;
 		list_add(&rq->queuelist, &q->queue_head);
@@ -654,6 +685,14 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		__blk_run_queue(q, false);
 		break;
 
+	case ELEVATOR_INSERT_SORT_MERGE:
+		/*
+		 * If we succeed in merging this request with one in the
+		 * queue already, we are done - rq has now been freed,
+		 * so no need to do anything further.
+		 */
+		if (elv_attempt_insert_merge(q, rq))
+			break;
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(rq->cmd_type != REQ_TYPE_FS &&
 		       !(rq->cmd_flags & REQ_DISCARD));
@@ -673,24 +712,21 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		q->elevator->ops->elevator_add_req_fn(q, rq);
 		break;
 
+	case ELEVATOR_INSERT_FLUSH:
+		rq->cmd_flags |= REQ_SOFTBARRIER;
+		blk_insert_flush(rq);
+		break;
 	default:
 		printk(KERN_ERR "%s: bad insertion point %d\n",
 		       __func__, where);
 		BUG();
 	}
-
-	if (unplug_it && blk_queue_plugged(q)) {
-		int nrq = q->rq.count[BLK_RW_SYNC] + q->rq.count[BLK_RW_ASYNC]
-				- queue_in_flight(q);
-
-		if (nrq >= q->unplug_thresh)
-			__generic_unplug_device(q);
-	}
 }
 
-void __elv_add_request(struct request_queue *q, struct request *rq, int where,
-		       int plug)
+void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 {
+	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
+
 	if (rq->cmd_flags & REQ_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */
 		if (rq->cmd_type == REQ_TYPE_FS ||
@@ -702,37 +738,19 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where,
 		    where == ELEVATOR_INSERT_SORT)
 		where = ELEVATOR_INSERT_BACK;
 
-	if (plug)
-		blk_plug_device(q);
-
 	elv_insert(q, rq, where);
 }
 EXPORT_SYMBOL(__elv_add_request);
 
-void elv_add_request(struct request_queue *q, struct request *rq, int where,
-		     int plug)
+void elv_add_request(struct request_queue *q, struct request *rq, int where)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	__elv_add_request(q, rq, where, plug);
+	__elv_add_request(q, rq, where);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(elv_add_request);
-
-int elv_queue_empty(struct request_queue *q)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (!list_empty(&q->queue_head))
-		return 0;
-
-	if (e->ops->elevator_queue_empty_fn)
-		return e->ops->elevator_queue_empty_fn(q);
-
-	return 1;
-}
-EXPORT_SYMBOL(elv_queue_empty);
 
 struct request *elv_latter_request(struct request_queue *q, struct request *rq)
 {
@@ -759,7 +777,7 @@ int elv_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	if (e->ops->elevator_set_req_fn)
 		return e->ops->elevator_set_req_fn(q, rq, gfp_mask);
 
-	rq->elevator_private = NULL;
+	rq->elevator_private[0] = NULL;
 	return 0;
 }
 
@@ -784,6 +802,8 @@ int elv_may_queue(struct request_queue *q, int rw)
 void elv_abort_queue(struct request_queue *q)
 {
 	struct request *rq;
+
+	blk_abort_flushes(q);
 
 	while (!list_empty(&q->queue_head)) {
 		rq = list_entry_rq(q->queue_head.next);

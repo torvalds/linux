@@ -15,7 +15,7 @@
 #include <linux/string.h> /* memcpy */
 #include <asm/cputype.h>
 #include <asm/mach/map.h>
-#include <mach/memory.h>
+#include <asm/memory.h>
 #include "tcm.h"
 
 static struct gen_pool *tcm_pool;

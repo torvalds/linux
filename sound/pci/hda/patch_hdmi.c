@@ -110,6 +110,12 @@ struct dp_audio_infoframe {
 	u8 LFEPBL01_LSV36_DM_INH7;
 };
 
+union audio_infoframe {
+	struct hdmi_audio_infoframe hdmi;
+	struct dp_audio_infoframe dp;
+	u8 bytes[0];
+};
+
 /*
  * CEA speaker placement:
  *
@@ -620,8 +626,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 	int channels = substream->runtime->channels;
 	int ca;
 	int i;
-	u8 ai[max(sizeof(struct hdmi_audio_infoframe),
-		  sizeof(struct dp_audio_infoframe))];
+	union audio_infoframe ai;
 
 	ca = hdmi_channel_allocation(codec, nid, channels);
 
@@ -633,11 +638,10 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 
 		pin_nid = spec->pin[i];
 
-		memset(ai, 0, sizeof(ai));
+		memset(&ai, 0, sizeof(ai));
 		if (spec->sink_eld[i].conn_type == 0) { /* HDMI */
-			struct hdmi_audio_infoframe *hdmi_ai;
+			struct hdmi_audio_infoframe *hdmi_ai = &ai.hdmi;
 
-			hdmi_ai = (struct hdmi_audio_infoframe *)ai;
 			hdmi_ai->type		= 0x84;
 			hdmi_ai->ver		= 0x01;
 			hdmi_ai->len		= 0x0a;
@@ -645,9 +649,8 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			hdmi_ai->CA		= ca;
 			hdmi_checksum_audio_infoframe(hdmi_ai);
 		} else if (spec->sink_eld[i].conn_type == 1) { /* DisplayPort */
-			struct dp_audio_infoframe *dp_ai;
+			struct dp_audio_infoframe *dp_ai = &ai.dp;
 
-			dp_ai = (struct dp_audio_infoframe *)ai;
 			dp_ai->type		= 0x84;
 			dp_ai->len		= 0x1b;
 			dp_ai->ver		= 0x11 << 2;
@@ -664,7 +667,8 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 		 * sizeof(*dp_ai) to avoid partial match/update problems when
 		 * the user switches between HDMI/DP monitors.
 		 */
-		if (!hdmi_infoframe_uptodate(codec, pin_nid, ai, sizeof(ai))) {
+		if (!hdmi_infoframe_uptodate(codec, pin_nid, ai.bytes,
+					     sizeof(ai))) {
 			snd_printdd("hdmi_setup_audio_infoframe: "
 				    "cvt=%d pin=%d channels=%d\n",
 				    nid, pin_nid,
@@ -672,7 +676,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			hdmi_setup_channel_mapping(codec, pin_nid, ca);
 			hdmi_stop_infoframe_trans(codec, pin_nid);
 			hdmi_fill_audio_infoframe(codec, pin_nid,
-						  ai, sizeof(ai));
+						  ai.bytes, sizeof(ai));
 			hdmi_start_infoframe_trans(codec, pin_nid);
 		}
 	}

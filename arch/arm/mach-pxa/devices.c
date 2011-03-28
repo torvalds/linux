@@ -4,6 +4,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/pxa2xx_spi.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/pmu.h>
 #include <mach/udc.h>
@@ -16,7 +17,6 @@
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <mach/hardware.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "devices.h"

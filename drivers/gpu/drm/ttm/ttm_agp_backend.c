@@ -47,7 +47,8 @@ struct ttm_agp_backend {
 
 static int ttm_agp_populate(struct ttm_backend *backend,
 			    unsigned long num_pages, struct page **pages,
-			    struct page *dummy_read_page)
+			    struct page *dummy_read_page,
+			    dma_addr_t *dma_addrs)
 {
 	struct ttm_agp_backend *agp_be =
 	    container_of(backend, struct ttm_agp_backend, backend);

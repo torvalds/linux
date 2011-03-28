@@ -944,6 +944,7 @@ static int picolcd_init_backlight(struct picolcd_data *data, struct hid_report *
 	}
 
 	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 0xff;
 	bdev = backlight_device_register(dev_name(dev), dev, data,
 			&picolcd_blops, &props);

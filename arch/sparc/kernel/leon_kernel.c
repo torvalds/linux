@@ -30,6 +30,7 @@ struct amba_apb_device leon_percpu_timer_dev[16];
 int leondebug_irq_disable;
 int leon_debug_irqout;
 static int dummy_master_l10_counter;
+unsigned long amba_system_id;
 
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
 unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
@@ -117,10 +118,16 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	master_l10_counter = (unsigned int *)&dummy_master_l10_counter;
 	dummy_master_l10_counter = 0;
 
-	/*Find IRQMP IRQ Controller Registers base address otherwise bail out.*/
 	rootnp = of_find_node_by_path("/ambapp0");
 	if (!rootnp)
 		goto bad;
+
+	/* Find System ID: GRLIB build ID and optional CHIP ID */
+	pp = of_find_property(rootnp, "systemid", &len);
+	if (pp)
+		amba_system_id = *(unsigned long *)pp->value;
+
+	/* Find IRQMP IRQ Controller Registers base adr otherwise bail out */
 	np = of_find_node_by_name(rootnp, "GAISLER_IRQMP");
 	if (!np) {
 		np = of_find_node_by_name(rootnp, "01_00d");
@@ -340,7 +347,7 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
 
 void __init leon_init_IRQ(void)
 {
-	sparc_init_timers = leon_init_timers;
+	sparc_irq_config.init_timers = leon_init_timers;
 
 	BTFIXUPSET_CALL(enable_irq, leon_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, leon_disable_irq, BTFIXUPCALL_NORM);

@@ -435,7 +435,7 @@ ext3_xattr_set_acl(struct dentry *dentry, const char *name, const void *value,
 		return -EINVAL;
 	if (!test_opt(inode->i_sb, POSIX_ACL))
 		return -EOPNOTSUPP;
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 
 	if (value) {

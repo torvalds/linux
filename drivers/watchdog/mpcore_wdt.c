@@ -172,7 +172,7 @@ static int mpcore_wdt_release(struct inode *inode, struct file *file)
 
 	/*
 	 *	Shut off the timer.
-	 * 	Lock it in if it's a module and we set nowayout
+	 *	Lock it in if it's a module and we set nowayout
 	 */
 	if (wdt->expect_close == 42)
 		mpcore_wdt_stop(wdt);

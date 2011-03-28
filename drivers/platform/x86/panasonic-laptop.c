@@ -602,6 +602,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	}
 	/* initialize backlight */
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = pcc->sinf[SINF_AC_MAX_BRIGHT];
 	pcc->backlight = backlight_device_register("panasonic", NULL, pcc,
 						   &pcc_backlight_ops, &props);
