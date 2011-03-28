@@ -3447,7 +3447,7 @@ static int receive_req_conn_state(struct drbd_tconn *tconn, struct packet_info *
 	mask = convert_state(mask);
 	val = convert_state(val);
 
-	rv = conn_request_state(tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY);
+	rv = conn_request_state(tconn, mask, val, CS_VERBOSE | CS_LOCAL_ONLY | CS_IGN_OUTD_FAIL);
 	conn_send_sr_reply(tconn, rv);
 
 	return 0;
