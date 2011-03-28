@@ -80,6 +80,15 @@ config SPI_BFIN
 	help
 	  This is the SPI controller master driver for Blackfin 5xx processor.
 
+config SPI_BFIN_SPORT
+	tristate "SPI bus via Blackfin SPORT"
+	depends on BLACKFIN
+	help
+	  Enable support for a SPI bus via the Blackfin SPORT peripheral.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called spi_bfin_sport.
+
 config SPI_AU1550
 	tristate "Au1550/Au12x0 SPI Controller"
 	depends on (SOC_AU1550 || SOC_AU1200) && EXPERIMENTAL
