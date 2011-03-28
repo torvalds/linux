@@ -275,11 +275,10 @@ try_again:
 				     !no_inherit) < 0) {
 			int err = errno;
 
-			if (err == EPERM || err == EACCES)
-				die("Permission error - are you root?\n"
-					"\t Consider tweaking"
-					" /proc/sys/kernel/perf_event_paranoid.\n");
-			else if (err ==  ENODEV && cpu_list) {
+			if (err == EPERM || err == EACCES) {
+				ui__warning_paranoid();
+				exit(EXIT_FAILURE);
+			} else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
 			} else if (err == EINVAL && sample_id_all_avail) {
