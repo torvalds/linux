@@ -2,6 +2,7 @@
  * HP WMI hotkeys
  *
  * Copyright (C) 2008 Red Hat <mjg@redhat.com>
+ * Copyright (C) 2010, 2011 Anssi Hannula <anssi.hannula@iki.fi>
  *
  * Portions based on wistron_btns.c:
  * Copyright (C) 2005 Miloslav Trmac <mitr@volny.cz>
@@ -51,6 +52,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 #define HPWMI_HARDWARE_QUERY 0x4
 #define HPWMI_WIRELESS_QUERY 0x5
 #define HPWMI_HOTKEY_QUERY 0xc
+#define HPWMI_WIRELESS2_QUERY 0x1b
 
 #define PREFIX "HP WMI: "
 #define UNIMP "Unimplemented "
@@ -86,7 +88,46 @@ struct bios_args {
 struct bios_return {
 	u32 sigpass;
 	u32 return_code;
-	u32 value;
+};
+
+enum hp_return_value {
+	HPWMI_RET_WRONG_SIGNATURE	= 0x02,
+	HPWMI_RET_UNKNOWN_COMMAND	= 0x03,
+	HPWMI_RET_UNKNOWN_CMDTYPE	= 0x04,
+	HPWMI_RET_INVALID_PARAMETERS	= 0x05,
+};
+
+enum hp_wireless2_bits {
+	HPWMI_POWER_STATE	= 0x01,
+	HPWMI_POWER_SOFT	= 0x02,
+	HPWMI_POWER_BIOS	= 0x04,
+	HPWMI_POWER_HARD	= 0x08,
+};
+
+#define IS_HWBLOCKED(x) ((x & (HPWMI_POWER_BIOS | HPWMI_POWER_HARD)) \
+			 != (HPWMI_POWER_BIOS | HPWMI_POWER_HARD))
+#define IS_SWBLOCKED(x) !(x & HPWMI_POWER_SOFT)
+
+struct bios_rfkill2_device_state {
+	u8 radio_type;
+	u8 bus_type;
+	u16 vendor_id;
+	u16 product_id;
+	u16 subsys_vendor_id;
+	u16 subsys_product_id;
+	u8 rfkill_id;
+	u8 power;
+	u8 unknown[4];
+};
+
+/* 7 devices fit into the 128 byte buffer */
+#define HPWMI_MAX_RFKILL2_DEVICES	7
+
+struct bios_rfkill2_state {
+	u8 unknown[7];
+	u8 count;
+	u8 pad[8];
+	struct bios_rfkill2_device_state device[HPWMI_MAX_RFKILL2_DEVICES];
 };
 
 static const struct key_entry hp_wmi_keymap[] = {
@@ -107,6 +148,15 @@ static struct platform_device *hp_wmi_platform_dev;
 static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
 static struct rfkill *wwan_rfkill;
+
+struct rfkill2_device {
+	u8 id;
+	int num;
+	struct rfkill *rfkill;
+};
+
+static int rfkill2_count;
+static struct rfkill2_device rfkill2[HPWMI_MAX_RFKILL2_DEVICES];
 
 static const struct dev_pm_ops hp_wmi_pm_ops = {
 	.resume  = hp_wmi_resume_handler,
@@ -129,7 +179,8 @@ static struct platform_driver hp_wmi_driver = {
  * query:	The commandtype -> What should be queried
  * write:	The command -> 0 read, 1 write, 3 ODM specific
  * buffer:	Buffer used as input and/or output
- * buffersize:	Size of buffer
+ * insize:	Size of input buffer
+ * outsize:	Size of output buffer
  *
  * returns zero on success
  *         an HP WMI query specific error code (which is positive)
@@ -140,25 +191,29 @@ static struct platform_driver hp_wmi_driver = {
  *       size. E.g. Battery info query (0x7) is defined to have 1 byte input
  *       and 128 byte output. The caller would do:
  *       buffer = kzalloc(128, GFP_KERNEL);
- *       ret = hp_wmi_perform_query(0x7, 0, buffer, 128)
+ *       ret = hp_wmi_perform_query(0x7, 0, buffer, 1, 128)
  */
-static int hp_wmi_perform_query(int query, int write, u32 *buffer,
-				int buffersize)
+static int hp_wmi_perform_query(int query, int write, void *buffer,
+				int insize, int outsize)
 {
-	struct bios_return bios_return;
-	acpi_status status;
+	struct bios_return *bios_return;
+	int actual_outsize;
 	union acpi_object *obj;
 	struct bios_args args = {
 		.signature = 0x55434553,
 		.command = write ? 0x2 : 0x1,
 		.commandtype = query,
-		.datasize = buffersize,
-		.data = *buffer,
+		.datasize = insize,
+		.data = 0,
 	};
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	status = wmi_evaluate_method(HPWMI_BIOS_GUID, 0, 0x3, &input, &output);
+	if (WARN_ON(insize > sizeof(args.data)))
+		return -EINVAL;
+	memcpy(&args.data, buffer, insize);
+
+	wmi_evaluate_method(HPWMI_BIOS_GUID, 0, 0x3, &input, &output);
 
 	obj = output.pointer;
 
@@ -169,10 +224,26 @@ static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 		return -EINVAL;
 	}
 
-	bios_return = *((struct bios_return *)obj->buffer.pointer);
+	bios_return = (struct bios_return *)obj->buffer.pointer;
 
-	memcpy(buffer, &bios_return.value, sizeof(bios_return.value));
+	if (bios_return->return_code) {
+		if (bios_return->return_code != HPWMI_RET_UNKNOWN_CMDTYPE)
+			printk(KERN_WARNING PREFIX "query 0x%x returned "
+						   "error 0x%x\n",
+			       query, bios_return->return_code);
+		kfree(obj);
+		return bios_return->return_code;
+	}
 
+	if (!outsize) {
+		/* ignore output data */
+		kfree(obj);
+		return 0;
+	}
+
+	actual_outsize = min(outsize, (int)(obj->buffer.length - sizeof(*bios_return)));
+	memcpy(buffer, obj->buffer.pointer + sizeof(*bios_return), actual_outsize);
+	memset(buffer + actual_outsize, 0, outsize - actual_outsize);
 	kfree(obj);
 	return 0;
 }
@@ -181,7 +252,7 @@ static int hp_wmi_display_state(void)
 {
 	int state = 0;
 	int ret = hp_wmi_perform_query(HPWMI_DISPLAY_QUERY, 0, &state,
-				       sizeof(state));
+				       sizeof(state), sizeof(state));
 	if (ret)
 		return -EINVAL;
 	return state;
@@ -191,7 +262,7 @@ static int hp_wmi_hddtemp_state(void)
 {
 	int state = 0;
 	int ret = hp_wmi_perform_query(HPWMI_HDDTEMP_QUERY, 0, &state,
-				       sizeof(state));
+				       sizeof(state), sizeof(state));
 	if (ret)
 		return -EINVAL;
 	return state;
@@ -201,7 +272,7 @@ static int hp_wmi_als_state(void)
 {
 	int state = 0;
 	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 0, &state,
-				       sizeof(state));
+				       sizeof(state), sizeof(state));
 	if (ret)
 		return -EINVAL;
 	return state;
@@ -211,7 +282,7 @@ static int hp_wmi_dock_state(void)
 {
 	int state = 0;
 	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
-				       sizeof(state));
+				       sizeof(state), sizeof(state));
 
 	if (ret)
 		return -EINVAL;
@@ -223,7 +294,7 @@ static int hp_wmi_tablet_state(void)
 {
 	int state = 0;
 	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
-				       sizeof(state));
+				       sizeof(state), sizeof(state));
 	if (ret)
 		return ret;
 
@@ -237,7 +308,7 @@ static int hp_wmi_set_block(void *data, bool blocked)
 	int ret;
 
 	ret = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1,
-				   &query, sizeof(query));
+				   &query, sizeof(query), 0);
 	if (ret)
 		return -EINVAL;
 	return 0;
@@ -252,7 +323,8 @@ static bool hp_wmi_get_sw_state(enum hp_wmi_radio r)
 	int wireless = 0;
 	int mask;
 	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0,
-			     &wireless, sizeof(wireless));
+			     &wireless, sizeof(wireless),
+			     sizeof(wireless));
 	/* TBD: Pass error */
 
 	mask = 0x200 << (r * 8);
@@ -268,7 +340,8 @@ static bool hp_wmi_get_hw_state(enum hp_wmi_radio r)
 	int wireless = 0;
 	int mask;
 	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0,
-			     &wireless, sizeof(wireless));
+			     &wireless, sizeof(wireless),
+			     sizeof(wireless));
 	/* TBD: Pass error */
 
 	mask = 0x800 << (r * 8);
@@ -277,6 +350,51 @@ static bool hp_wmi_get_hw_state(enum hp_wmi_radio r)
 		return false;
 	else
 		return true;
+}
+
+static int hp_wmi_rfkill2_set_block(void *data, bool blocked)
+{
+	int rfkill_id = (int)(long)data;
+	char buffer[4] = { 0x01, 0x00, rfkill_id, !blocked };
+
+	if (hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, 1,
+				   buffer, sizeof(buffer), 0))
+		return -EINVAL;
+	return 0;
+}
+
+static const struct rfkill_ops hp_wmi_rfkill2_ops = {
+	.set_block = hp_wmi_rfkill2_set_block,
+};
+
+static int hp_wmi_rfkill2_refresh(void)
+{
+	int err, i;
+	struct bios_rfkill2_state state;
+
+	err = hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, 0, &state,
+				   0, sizeof(state));
+	if (err)
+		return err;
+
+	for (i = 0; i < rfkill2_count; i++) {
+		int num = rfkill2[i].num;
+		struct bios_rfkill2_device_state *devstate;
+		devstate = &state.device[num];
+
+		if (num >= state.count ||
+		    devstate->rfkill_id != rfkill2[i].id) {
+			printk(KERN_WARNING PREFIX "power configuration of "
+			       "the wireless devices unexpectedly changed\n");
+			continue;
+		}
+
+		rfkill_set_states(rfkill2[i].rfkill,
+				  IS_SWBLOCKED(devstate->power),
+				  IS_HWBLOCKED(devstate->power));
+	}
+
+	return 0;
 }
 
 static ssize_t show_display(struct device *dev, struct device_attribute *attr,
@@ -329,7 +447,7 @@ static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 {
 	u32 tmp = simple_strtoul(buf, NULL, 10);
 	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 1, &tmp,
-				       sizeof(tmp));
+				       sizeof(tmp), sizeof(tmp));
 	if (ret)
 		return -EINVAL;
 
@@ -402,6 +520,7 @@ static void hp_wmi_notify(u32 value, void *context)
 	case HPWMI_BEZEL_BUTTON:
 		ret = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
 					   &key_code,
+					   sizeof(key_code),
 					   sizeof(key_code));
 		if (ret)
 			break;
@@ -412,6 +531,11 @@ static void hp_wmi_notify(u32 value, void *context)
 			       key_code);
 		break;
 	case HPWMI_WIRELESS:
+		if (rfkill2_count) {
+			hp_wmi_rfkill2_refresh();
+			break;
+		}
+
 		if (wifi_rfkill)
 			rfkill_set_states(wifi_rfkill,
 					  hp_wmi_get_sw_state(HPWMI_WIFI),
@@ -502,31 +626,15 @@ static void cleanup_sysfs(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_tablet);
 }
 
-static int __devinit hp_wmi_bios_setup(struct platform_device *device)
+static int __devinit hp_wmi_rfkill_setup(struct platform_device *device)
 {
 	int err;
 	int wireless = 0;
 
 	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, &wireless,
-				   sizeof(wireless));
+				   sizeof(wireless), sizeof(wireless));
 	if (err)
 		return err;
-
-	err = device_create_file(&device->dev, &dev_attr_display);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_hddtemp);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_als);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_dock);
-	if (err)
-		goto add_sysfs_error;
-	err = device_create_file(&device->dev, &dev_attr_tablet);
-	if (err)
-		goto add_sysfs_error;
 
 	if (wireless & 0x1) {
 		wifi_rfkill = rfkill_alloc("hp-wifi", &device->dev,
@@ -573,14 +681,131 @@ static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 	return 0;
 register_wwan_err:
 	rfkill_destroy(wwan_rfkill);
+	wwan_rfkill = NULL;
 	if (bluetooth_rfkill)
 		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
 	rfkill_destroy(bluetooth_rfkill);
+	bluetooth_rfkill = NULL;
 	if (wifi_rfkill)
 		rfkill_unregister(wifi_rfkill);
 register_wifi_error:
 	rfkill_destroy(wifi_rfkill);
+	wifi_rfkill = NULL;
+	return err;
+}
+
+static int __devinit hp_wmi_rfkill2_setup(struct platform_device *device)
+{
+	int err, i;
+	struct bios_rfkill2_state state;
+	err = hp_wmi_perform_query(HPWMI_WIRELESS2_QUERY, 0, &state,
+				   0, sizeof(state));
+	if (err)
+		return err;
+
+	if (state.count > HPWMI_MAX_RFKILL2_DEVICES) {
+		printk(KERN_WARNING PREFIX "unable to parse 0x1b query output\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < state.count; i++) {
+		struct rfkill *rfkill;
+		enum rfkill_type type;
+		char *name;
+		switch (state.device[i].radio_type) {
+		case HPWMI_WIFI:
+			type = RFKILL_TYPE_WLAN;
+			name = "hp-wifi";
+			break;
+		case HPWMI_BLUETOOTH:
+			type = RFKILL_TYPE_BLUETOOTH;
+			name = "hp-bluetooth";
+			break;
+		case HPWMI_WWAN:
+			type = RFKILL_TYPE_WWAN;
+			name = "hp-wwan";
+			break;
+		default:
+			printk(KERN_WARNING PREFIX "unknown device type 0x%x\n",
+				 state.device[i].radio_type);
+			continue;
+		}
+
+		if (!state.device[i].vendor_id) {
+			printk(KERN_WARNING PREFIX "zero device %d while %d "
+			       "reported\n", i, state.count);
+			continue;
+		}
+
+		rfkill = rfkill_alloc(name, &device->dev, type,
+				      &hp_wmi_rfkill2_ops, (void *)(long)i);
+		if (!rfkill) {
+			err = -ENOMEM;
+			goto fail;
+		}
+
+		rfkill2[rfkill2_count].id = state.device[i].rfkill_id;
+		rfkill2[rfkill2_count].num = i;
+		rfkill2[rfkill2_count].rfkill = rfkill;
+
+		rfkill_init_sw_state(rfkill,
+				     IS_SWBLOCKED(state.device[i].power));
+		rfkill_set_hw_state(rfkill,
+				    IS_HWBLOCKED(state.device[i].power));
+
+		if (!(state.device[i].power & HPWMI_POWER_BIOS))
+			printk(KERN_INFO PREFIX "device %s blocked by BIOS\n",
+			       name);
+
+		err = rfkill_register(rfkill);
+		if (err) {
+			rfkill_destroy(rfkill);
+			goto fail;
+		}
+
+		rfkill2_count++;
+	}
+
+	return 0;
+fail:
+	for (; rfkill2_count > 0; rfkill2_count--) {
+		rfkill_unregister(rfkill2[rfkill2_count - 1].rfkill);
+		rfkill_destroy(rfkill2[rfkill2_count - 1].rfkill);
+	}
+	return err;
+}
+
+static int __devinit hp_wmi_bios_setup(struct platform_device *device)
+{
+	int err;
+
+	/* clear detected rfkill devices */
+	wifi_rfkill = NULL;
+	bluetooth_rfkill = NULL;
+	wwan_rfkill = NULL;
+	rfkill2_count = 0;
+
+	if (hp_wmi_rfkill_setup(device))
+		hp_wmi_rfkill2_setup(device);
+
+	err = device_create_file(&device->dev, &dev_attr_display);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_hddtemp);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_als);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_dock);
+	if (err)
+		goto add_sysfs_error;
+	err = device_create_file(&device->dev, &dev_attr_tablet);
+	if (err)
+		goto add_sysfs_error;
+	return 0;
+
 add_sysfs_error:
 	cleanup_sysfs(device);
 	return err;
@@ -588,7 +813,13 @@ add_sysfs_error:
 
 static int __exit hp_wmi_bios_remove(struct platform_device *device)
 {
+	int i;
 	cleanup_sysfs(device);
+
+	for (i = 0; i < rfkill2_count; i++) {
+		rfkill_unregister(rfkill2[i].rfkill);
+		rfkill_destroy(rfkill2[i].rfkill);
+	}
 
 	if (wifi_rfkill) {
 		rfkill_unregister(wifi_rfkill);
@@ -621,6 +852,9 @@ static int hp_wmi_resume_handler(struct device *device)
 				    hp_wmi_tablet_state());
 		input_sync(hp_wmi_input_dev);
 	}
+
+	if (rfkill2_count)
+		hp_wmi_rfkill2_refresh();
 
 	if (wifi_rfkill)
 		rfkill_set_states(wifi_rfkill,
