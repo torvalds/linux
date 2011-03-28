@@ -1190,7 +1190,7 @@ extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern void nv50_graph_tlb_flush(struct drm_device *dev);
-extern void nv86_graph_tlb_flush(struct drm_device *dev);
+extern void nv84_graph_tlb_flush(struct drm_device *dev);
 extern struct nouveau_enum nv50_data_error_names[];
 
 /* nvc0_graph.c */

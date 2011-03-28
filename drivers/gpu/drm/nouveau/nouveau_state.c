@@ -376,15 +376,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv50_graph_destroy_context;
 		engine->graph.load_context	= nv50_graph_load_context;
 		engine->graph.unload_context	= nv50_graph_unload_context;
-		if (dev_priv->chipset != 0x86)
+		if (dev_priv->chipset == 0x50 ||
+		    dev_priv->chipset == 0xac)
 			engine->graph.tlb_flush	= nv50_graph_tlb_flush;
-		else {
-			/* from what i can see nvidia do this on every
-			 * pre-NVA3 board except NVAC, but, we've only
-			 * ever seen problems on NV86
-			 */
-			engine->graph.tlb_flush	= nv86_graph_tlb_flush;
-		}
+		else
+			engine->graph.tlb_flush	= nv84_graph_tlb_flush;
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nv50_fifo_init;
 		engine->fifo.takedown		= nv50_fifo_takedown;
