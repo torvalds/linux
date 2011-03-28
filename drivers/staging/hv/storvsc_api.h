@@ -66,7 +66,6 @@ struct storvsc_request_extension {
 };
 
 struct hv_storvsc_request {
-	u32 lun_id;
 	u8 *cdb;
 	u32 cdb_len;
 	u32 status;

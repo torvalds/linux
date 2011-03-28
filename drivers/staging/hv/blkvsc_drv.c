@@ -946,7 +946,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	vm_srb->port_number = blkdev->port;
 	vm_srb->path_id = blkdev->path;
 	vm_srb->target_id = blkdev->target;
-	storvsc_req->lun_id = 0;	 /* this is not really used at all */
+	vm_srb->lun = 0;	 /* this is not really used at all */
 
 	storvsc_req->cdb_len = blkvsc_req->cmd_len;
 	storvsc_req->cdb = blkvsc_req->cmnd;
