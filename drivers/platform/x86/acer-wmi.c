@@ -217,6 +217,7 @@ struct acer_debug {
 static struct rfkill *wireless_rfkill;
 static struct rfkill *bluetooth_rfkill;
 static struct rfkill *threeg_rfkill;
+static bool rfkill_inited;
 
 /* Each low-level interface must define at least some of the following */
 struct wmi_interface {
@@ -1157,9 +1158,13 @@ static int acer_rfkill_set(void *data, bool blocked)
 {
 	acpi_status status;
 	u32 cap = (unsigned long)data;
-	status = set_u32(!blocked, cap);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
+
+	if (rfkill_inited) {
+		status = set_u32(!blocked, cap);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
+	}
+
 	return 0;
 }
 
@@ -1183,14 +1188,16 @@ static struct rfkill *acer_rfkill_register(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	status = get_device_status(&state, cap);
-	if (ACPI_SUCCESS(status))
-		rfkill_init_sw_state(rfkill_dev, !state);
 
 	err = rfkill_register(rfkill_dev);
 	if (err) {
 		rfkill_destroy(rfkill_dev);
 		return ERR_PTR(err);
 	}
+
+	if (ACPI_SUCCESS(status))
+		rfkill_set_sw_state(rfkill_dev, !state);
+
 	return rfkill_dev;
 }
 
@@ -1224,6 +1231,8 @@ static int acer_rfkill_init(struct device *dev)
 			return PTR_ERR(threeg_rfkill);
 		}
 	}
+
+	rfkill_inited = true;
 
 	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
 
