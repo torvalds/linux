@@ -371,10 +371,15 @@ struct nouveau_enum nvc0_fifo_fault_unit[] = {
 };
 
 struct nouveau_enum nvc0_fifo_fault_reason[] = {
-	{ 0, "PT_NOT_PRESENT" },
-	{ 1, "PT_TOO_SHORT" },
-	{ 2, "PAGE_NOT_PRESENT" },
-	{ 3, "VM_LIMIT_EXCEEDED" },
+	{ 0x00, "PT_NOT_PRESENT" },
+	{ 0x01, "PT_TOO_SHORT" },
+	{ 0x02, "PAGE_NOT_PRESENT" },
+	{ 0x03, "VM_LIMIT_EXCEEDED" },
+	{ 0x04, "NO_CHANNEL" },
+	{ 0x05, "PAGE_SYSTEM_ONLY" },
+	{ 0x06, "PAGE_READ_ONLY" },
+	{ 0x0a, "COMPRESSED_SYSRAM" },
+	{ 0x0c, "INVALID_STORAGE_TYPE" },
 	{}
 };
 
