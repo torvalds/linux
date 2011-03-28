@@ -78,29 +78,24 @@
  */
 static enum sci_status scic_sds_smp_remote_device_ready_idle_substate_start_io_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status;
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *io_request  = (struct scic_sds_request *)request;
 
 	/* Will the port allow the io request to start? */
 	status = this_device->owning_port->state_handlers->start_io_handler(
-		this_device->owning_port,
-		this_device,
-		io_request
-		);
+		this_device->owning_port, this_device, request);
 
 	if (status == SCI_SUCCESS) {
 		status =
-			scic_sds_remote_node_context_start_io(this_device->rnc, io_request);
+			scic_sds_remote_node_context_start_io(this_device->rnc, request);
+
+		if (status == SCI_SUCCESS)
+			status = scic_sds_request_start(request);
 
 		if (status == SCI_SUCCESS) {
-			status = scic_sds_request_start(io_request);
-		}
-
-		if (status == SCI_SUCCESS) {
-			this_device->working_request = io_request;
+			this_device->working_request = request;
 
 			sci_base_state_machine_change_state(
 				&this_device->ready_substate_machine,
@@ -108,7 +103,7 @@ static enum sci_status scic_sds_smp_remote_device_ready_idle_substate_start_io_h
 				);
 		}
 
-		scic_sds_remote_device_start_request(this_device, io_request, status);
+		scic_sds_remote_device_start_request(this_device, request, status);
 	}
 
 	return status;
@@ -129,7 +124,7 @@ static enum sci_status scic_sds_smp_remote_device_ready_idle_substate_start_io_h
  */
 static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_start_io_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	return SCI_FAILURE_INVALID_STATE;
 }
@@ -144,7 +139,7 @@ static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_start_io_ha
  */
 static enum sci_status scic_sds_smp_remote_device_ready_cmd_substate_complete_io_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status;
 	struct scic_sds_remote_device *this_device;

@@ -65,7 +65,6 @@
 
 #include "intel_sas.h"
 #include "sci_base_remote_device.h"
-#include "sci_base_request.h"
 #include "scu_remote_node_context.h"
 #include "scic_sds_remote_node_context.h"
 
@@ -507,15 +506,15 @@ enum sci_status scic_sds_remote_device_default_reset_complete_handler(
 
 enum sci_status scic_sds_remote_device_default_start_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request);
+	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_complete_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request);
+	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_continue_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request);
+	struct scic_sds_request *request);
 
 enum sci_status scic_sds_remote_device_default_suspend_handler(
 	struct scic_sds_remote_device *this_device,

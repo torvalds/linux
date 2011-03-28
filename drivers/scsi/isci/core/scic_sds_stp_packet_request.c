@@ -659,16 +659,12 @@ enum sci_status scic_sds_stp_packet_request_command_phase_await_d2h_fis_frame_ha
 }
 
 enum sci_status scic_sds_stp_packet_request_started_completion_delay_complete_handler(
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)request;
+	sci_base_state_machine_change_state(&request->parent.state_machine,
+		SCI_BASE_REQUEST_STATE_COMPLETED);
 
-	sci_base_state_machine_change_state(
-		&this_request->parent.state_machine,
-		SCI_BASE_REQUEST_STATE_COMPLETED
-		);
-
-	return this_request->sci_status;
+	return request->sci_status;
 }
 
 /* --------------------------------------------------------------------------- */

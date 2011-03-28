@@ -120,10 +120,8 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
 			);
 
-		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+		sci_base_state_machine_change_state(&this_request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
@@ -143,20 +141,12 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_completion_tc_completi
  * pattern for this particular device).
  */
 static enum sci_status scic_sds_ssp_task_request_await_tc_response_abort_handler(
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
-	struct scic_sds_request *this_request = (struct scic_sds_request *)request;
-
-	sci_base_state_machine_change_state(
-		&this_request->parent.state_machine,
-		SCI_BASE_REQUEST_STATE_ABORTING
-		);
-
-	sci_base_state_machine_change_state(
-		&this_request->parent.state_machine,
-		SCI_BASE_REQUEST_STATE_COMPLETED
-		);
-
+	sci_base_state_machine_change_state(&request->state_machine,
+			SCI_BASE_REQUEST_STATE_ABORTING);
+	sci_base_state_machine_change_state(&request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 	return SCI_SUCCESS;
 }
 
@@ -176,41 +166,36 @@ static enum sci_status scic_sds_ssp_task_request_await_tc_response_abort_handler
  * probably update to check frame type and make sure it is a response frame.
  */
 static enum sci_status scic_sds_ssp_task_request_await_tc_response_frame_handler(
-	struct scic_sds_request *this_request,
+	struct scic_sds_request *request,
 	u32 frame_index)
 {
-	scic_sds_io_request_copy_response(this_request);
+	scic_sds_io_request_copy_response(request);
 
-	sci_base_state_machine_change_state(
-		&this_request->parent.state_machine,
-		SCI_BASE_REQUEST_STATE_COMPLETED
-		);
-
-	scic_sds_controller_release_frame(
-		this_request->owning_controller, frame_index
-		);
-
+	sci_base_state_machine_change_state(&request->state_machine,
+		SCI_BASE_REQUEST_STATE_COMPLETED);
+	scic_sds_controller_release_frame(request->owning_controller,
+			frame_index);
 	return SCI_SUCCESS;
 }
 
 static const struct scic_sds_io_request_state_handler scic_sds_ssp_task_request_started_substate_handler_table[] = {
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = {
-		.parent.start_handler    = scic_sds_request_default_start_handler,
-		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
-		.parent.complete_handler = scic_sds_request_default_complete_handler,
-		.parent.destruct_handler = scic_sds_request_default_destruct_handler,
-		.tc_completion_handler   = scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler,
-		.event_handler           = scic_sds_request_default_event_handler,
-		.frame_handler           = scic_sds_request_default_frame_handler,
+		.start_handler		= scic_sds_request_default_start_handler,
+		.abort_handler		= scic_sds_request_started_state_abort_handler,
+		.complete_handler	= scic_sds_request_default_complete_handler,
+		.destruct_handler	= scic_sds_request_default_destruct_handler,
+		.tc_completion_handler	= scic_sds_ssp_task_request_await_tc_completion_tc_completion_handler,
+		.event_handler		= scic_sds_request_default_event_handler,
+		.frame_handler		= scic_sds_request_default_frame_handler,
 	},
 	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = {
-		.parent.start_handler    = scic_sds_request_default_start_handler,
-		.parent.abort_handler    = scic_sds_ssp_task_request_await_tc_response_abort_handler,
-		.parent.complete_handler = scic_sds_request_default_complete_handler,
-		.parent.destruct_handler = scic_sds_request_default_destruct_handler,
-		.tc_completion_handler   = scic_sds_request_default_tc_completion_handler,
-		.event_handler           = scic_sds_request_default_event_handler,
-		.frame_handler           = scic_sds_ssp_task_request_await_tc_response_frame_handler,
+		.start_handler		= scic_sds_request_default_start_handler,
+		.abort_handler		= scic_sds_ssp_task_request_await_tc_response_abort_handler,
+		.complete_handler	= scic_sds_request_default_complete_handler,
+		.destruct_handler	= scic_sds_request_default_destruct_handler,
+		.tc_completion_handler	= scic_sds_request_default_tc_completion_handler,
+		.event_handler		= scic_sds_request_default_event_handler,
+		.frame_handler		= scic_sds_ssp_task_request_await_tc_response_frame_handler,
 	}
 };
 

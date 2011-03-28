@@ -2161,7 +2161,7 @@ enum sci_status scic_controller_reset(
 enum sci_io_status scic_controller_start_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *io_request,
+	struct scic_sds_request *request,
 	u16 io_tag)
 {
 	u32 state;
@@ -2172,7 +2172,7 @@ enum sci_io_status scic_controller_start_io(
 
 	return start_io(scic,
 			(struct sci_base_remote_device *) remote_device,
-			(struct sci_base_request *)io_request, io_tag);
+			request, io_tag);
 }
 
 /**
@@ -2204,7 +2204,7 @@ enum sci_status scic_controller_terminate_request(
 
 	return terminate_request(scic,
 				 (struct sci_base_remote_device *)remote_device,
-				 (struct sci_base_request *)request);
+				 request);
 }
 
 /**
@@ -2232,7 +2232,7 @@ enum sci_status scic_controller_terminate_request(
 enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *io_request)
+	struct scic_sds_request *request)
 {
 	u32 state;
 	scic_sds_controller_request_handler_t complete_io;
@@ -2242,7 +2242,7 @@ enum sci_status scic_controller_complete_io(
 
 	return complete_io(scic,
 			   (struct sci_base_remote_device *)remote_device,
-			   (struct sci_base_request *)io_request);
+			   request);
 }
 
 /**
@@ -2289,7 +2289,7 @@ enum sci_task_status scic_controller_start_task(
 	if (start_task)
 		status = start_task(scic,
 				    (struct sci_base_remote_device *)remote_device,
-				    (struct sci_base_request *)task_request,
+				    task_request,
 				    task_tag);
 	else
 		dev_warn(scic_to_dev(scic),
@@ -2329,7 +2329,7 @@ enum sci_status scic_controller_complete_task(
 	if (complete_task)
 		status = complete_task(scic,
 				       (struct sci_base_remote_device *)remote_device,
-				       (struct sci_base_request *)task_request);
+				       task_request);
 	else
 		dev_warn(scic_to_dev(scic),
 			 "%s: SCIC Controller completing task from invalid "
@@ -2825,7 +2825,7 @@ default_controller_handler(struct scic_sds_controller *scic, const char *func)
 static enum sci_status scic_sds_controller_default_start_operation_handler(
 	struct scic_sds_controller *scic,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request,
+	struct scic_sds_request *request,
 	u16 io_tag)
 {
 	return default_controller_handler(scic, __func__);
@@ -2834,7 +2834,7 @@ static enum sci_status scic_sds_controller_default_start_operation_handler(
 static enum sci_status scic_sds_controller_default_request_handler(
 	struct scic_sds_controller *scic,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request)
+	struct scic_sds_request *request)
 {
 	return default_controller_handler(scic, __func__);
 }
@@ -3186,26 +3186,24 @@ static enum sci_status scic_sds_controller_ready_state_stop_handler(
 static enum sci_status scic_sds_controller_ready_state_start_io_handler(
 	struct scic_sds_controller *controller,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request,
+	struct scic_sds_request *request,
 	u16 io_tag)
 {
 	enum sci_status status;
 
-	struct scic_sds_request *the_request;
 	struct scic_sds_remote_device *the_device;
 
-	the_request = (struct scic_sds_request *)io_request;
 	the_device = (struct scic_sds_remote_device *)remote_device;
 
-	status = scic_sds_remote_device_start_io(controller, the_device, the_request);
+	status = scic_sds_remote_device_start_io(controller, the_device, request);
 
 	if (status != SCI_SUCCESS)
 		return status;
 
 	controller->io_request_table[
-		scic_sds_io_tag_get_index(the_request->io_tag)] = the_request;
+		scic_sds_io_tag_get_index(request->io_tag)] = request;
 	scic_sds_controller_post_request(controller,
-		scic_sds_request_get_post_context(the_request));
+		scic_sds_request_get_post_context(request));
 	return SCI_SUCCESS;
 }
 
@@ -3220,22 +3218,20 @@ static enum sci_status scic_sds_controller_ready_state_start_io_handler(
 static enum sci_status scic_sds_controller_ready_state_complete_io_handler(
 	struct scic_sds_controller *controller,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request)
+	struct scic_sds_request *request)
 {
 	u16 index;
 	enum sci_status status;
-	struct scic_sds_request *the_request;
 	struct scic_sds_remote_device *the_device;
 
-	the_request = (struct scic_sds_request *)io_request;
 	the_device = (struct scic_sds_remote_device *)remote_device;
 
 	status = scic_sds_remote_device_complete_io(controller, the_device,
-			the_request);
+			request);
 	if (status != SCI_SUCCESS)
 		return status;
 
-	index = scic_sds_io_tag_get_index(the_request->io_tag);
+	index = scic_sds_io_tag_get_index(request->io_tag);
 	controller->io_request_table[index] = NULL;
 	return SCI_SUCCESS;
 }
@@ -3247,16 +3243,12 @@ static enum sci_status scic_sds_controller_ready_state_complete_io_handler(
 static enum sci_status scic_sds_controller_ready_state_continue_io_handler(
 	struct scic_sds_controller *controller,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request)
+	struct scic_sds_request *request)
 {
-	struct scic_sds_request *the_request;
-
-	the_request     = (struct scic_sds_request *)io_request;
-
 	controller->io_request_table[
-		scic_sds_io_tag_get_index(the_request->io_tag)] = the_request;
+		scic_sds_io_tag_get_index(request->io_tag)] = request;
 	scic_sds_controller_post_request(controller,
-		scic_sds_request_get_post_context(the_request));
+		scic_sds_request_get_post_context(request));
 	return SCI_SUCCESS;
 }
 
@@ -3273,27 +3265,25 @@ static enum sci_status scic_sds_controller_ready_state_continue_io_handler(
 static enum sci_status scic_sds_controller_ready_state_start_task_handler(
 	struct scic_sds_controller *controller,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request,
+	struct scic_sds_request *request,
 	u16 task_tag)
 {
-	struct scic_sds_request *the_request     = (struct scic_sds_request *)
-					      io_request;
 	struct scic_sds_remote_device *the_device      = (struct scic_sds_remote_device *)
 						    remote_device;
 	enum sci_status status;
 
 	status = scic_sds_remote_device_start_task(controller, the_device,
-			the_request);
+			request);
 
 	if (status == SCI_SUCCESS) {
 		controller->io_request_table[
-			scic_sds_io_tag_get_index(the_request->io_tag)] = the_request;
+			scic_sds_io_tag_get_index(request->io_tag)] = request;
 
 		scic_sds_controller_post_request(controller,
-			scic_sds_request_get_post_context(the_request));
+			scic_sds_request_get_post_context(request));
 	} else if (status == SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS) {
 		controller->io_request_table[
-			scic_sds_io_tag_get_index(the_request->io_tag)] = the_request;
+			scic_sds_io_tag_get_index(request->io_tag)] = request;
 
 		/*
 		 * We will let framework know this task request started successfully,
@@ -3315,13 +3305,11 @@ static enum sci_status scic_sds_controller_ready_state_start_task_handler(
 static enum sci_status scic_sds_controller_ready_state_terminate_request_handler(
 	struct scic_sds_controller *controller,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request)
+	struct scic_sds_request *request)
 {
-	struct scic_sds_request *the_request     = (struct scic_sds_request *)
-					      io_request;
 	enum sci_status status;
 
-	status = scic_sds_io_request_terminate(the_request);
+	status = scic_sds_io_request_terminate(request);
 	if (status != SCI_SUCCESS)
 		return status;
 
@@ -3330,7 +3318,7 @@ static enum sci_status scic_sds_controller_ready_state_terminate_request_handler
 	 * request sub-type.
 	 */
 	scic_sds_controller_post_request(controller,
-		scic_sds_request_get_post_context(the_request) |
+		scic_sds_request_get_post_context(request) |
 		SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
 	return SCI_SUCCESS;
 }
@@ -3391,7 +3379,7 @@ static void scic_sds_controller_ready_state_link_down_handler(
 static enum sci_status scic_sds_controller_stopping_state_complete_io_handler(
 	struct scic_sds_controller *controller,
 	struct sci_base_remote_device *remote_device,
-	struct sci_base_request *io_request)
+	struct scic_sds_request *request)
 {
 	/* XXX: Implement this function */
 	return SCI_FAILURE;

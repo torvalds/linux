@@ -1090,15 +1090,7 @@ static enum sci_status scic_sds_port_ready_substate_stop_handler(
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
- *    object.
- * @device: This is the struct sci_base_remote_device object which is not used in this
- *    function.
- * @io_request: This is the struct sci_base_request object which is not used in this
- *    function.
- *
+/*
  * This method is the general ready substate complete io handler for the
  * struct scic_sds_port object.  This function decrments the outstanding request count
  * for this port object. enum sci_status SCI_SUCCESS
@@ -1194,15 +1186,7 @@ static void scic_sds_port_ready_waiting_substate_link_up_handler(
 		);
 }
 
-/**
- *
- * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
- *    object.
- * @device: This is the struct sci_base_remote_device object which is not used in this
- *    request.
- * @io_request: This is the struct sci_base_request object which is not used in this
- *    function.
- *
+/*
  * This method is the ready waiting substate start io handler for the
  * struct scic_sds_port object. The port object can not accept new requests so the
  * request is failed. enum sci_status SCI_FAILURE_INVALID_STATE
@@ -1316,15 +1300,7 @@ static void scic_sds_port_ready_operational_substate_link_down_handler(
 						    SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
 }
 
-/**
- *
- * @port: This is the struct sci_base_port object which is cast into a struct scic_sds_port
- *    object.
- * @device: This is the struct sci_base_remote_device object which is not used in this
- *    function.
- * @io_request: This is the struct sci_base_request object which is not used in this
- *    function.
- *
+/*
  * This method is the ready operational substate start io handler for the
  * struct scic_sds_port object.  This function incremetns the outstanding request
  * count for this port object. enum sci_status SCI_SUCCESS

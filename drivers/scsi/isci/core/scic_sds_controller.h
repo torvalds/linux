@@ -86,7 +86,6 @@
 
 struct sci_base_remote_device;
 struct scic_sds_remote_device;
-struct sci_base_request;
 struct scic_sds_request;
 struct scic_sds_controller;
 
@@ -487,11 +486,11 @@ typedef enum sci_status (*scic_sds_controller_timed_handler_t)
 typedef enum sci_status (*scic_sds_controller_request_handler_t)
 				(struct scic_sds_controller *,
 				 struct sci_base_remote_device *,
-				 struct sci_base_request *);
+				 struct scic_sds_request *);
 typedef enum sci_status (*scic_sds_controller_start_request_handler_t)
 				(struct scic_sds_controller *,
 				 struct sci_base_remote_device *,
-				 struct sci_base_request *, u16);
+				 struct scic_sds_request *, u16);
 typedef void (*scic_sds_controller_phy_handler_t)
 				(struct scic_sds_controller *,
 				 struct scic_sds_port *,

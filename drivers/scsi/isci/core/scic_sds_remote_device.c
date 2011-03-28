@@ -363,7 +363,7 @@ enum sci_status scic_sds_remote_device_start_io(
 	struct scic_sds_request *io_request)
 {
 	return this_device->state_handlers->parent.start_io_handler(
-		       &this_device->parent, &io_request->parent);
+		       &this_device->parent, io_request);
 }
 
 /**
@@ -381,7 +381,7 @@ enum sci_status scic_sds_remote_device_complete_io(
 	struct scic_sds_request *io_request)
 {
 	return this_device->state_handlers->parent.complete_io_handler(
-		       &this_device->parent, &io_request->parent);
+		       &this_device->parent, io_request);
 }
 
 /**
@@ -399,7 +399,7 @@ enum sci_status scic_sds_remote_device_start_task(
 	struct scic_sds_request *io_request)
 {
 	return this_device->state_handlers->parent.start_task_handler(
-		       &this_device->parent, &io_request->parent);
+		       &this_device->parent, io_request);
 }
 
 /**
@@ -567,7 +567,7 @@ void scic_sds_remote_device_continue_request(void *dev)
 		scic_sds_controller_request_handler_t continue_io;
 
 		continue_io = scic_sds_controller_state_handler_table[state].continue_io;
-		continue_io(scic, &sci_req->target_device->parent, &sci_req->parent);
+		continue_io(scic, &sci_req->target_device->parent, sci_req);
 	}
 }
 
@@ -792,21 +792,21 @@ enum sci_status scic_sds_remote_device_default_frame_handler(
 
 enum sci_status scic_sds_remote_device_default_start_request_handler(
 	struct sci_base_remote_device *base_dev,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	return default_device_handler(base_dev, __func__);
 }
 
 enum sci_status scic_sds_remote_device_default_complete_request_handler(
 	struct sci_base_remote_device *base_dev,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	return default_device_handler(base_dev, __func__);
 }
 
 enum sci_status scic_sds_remote_device_default_continue_request_handler(
 	struct sci_base_remote_device *base_dev,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	return default_device_handler(base_dev, __func__);
 }
@@ -1019,13 +1019,7 @@ enum sci_status scic_sds_remote_device_ready_state_reset_handler(
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is cast to a
- *    struct scic_sds_remote_device for which the request is to be started.
- * @request: The struct sci_base_request which is cast to a SCIC_SDS_IO_REQUEST that
- *    is to be started.
- *
+/*
  * This method will attempt to start a task request for this device object. The
  * remote device object will issue the start request for the task and if
  * successful it will start the request for the port object then increment its
@@ -1035,38 +1029,28 @@ enum sci_status scic_sds_remote_device_ready_state_reset_handler(
  */
 static enum sci_status scic_sds_remote_device_ready_state_start_task_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status result;
 	struct scic_sds_remote_device *this_device  = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *task_request = (struct scic_sds_request *)request;
 
 	/* See if the port is in a state where we can start the IO request */
 	result = scic_sds_port_start_io(
-		scic_sds_remote_device_get_port(this_device), this_device, task_request);
+		scic_sds_remote_device_get_port(this_device), this_device, request);
 
 	if (result == SCI_SUCCESS) {
 		result = scic_sds_remote_node_context_start_task(
-			this_device->rnc, task_request
-			);
+			this_device->rnc, request);
+		if (result == SCI_SUCCESS)
+			result = scic_sds_request_start(request);
 
-		if (result == SCI_SUCCESS) {
-			result = scic_sds_request_start(task_request);
-		}
-
-		scic_sds_remote_device_start_request(this_device, task_request, result);
+		scic_sds_remote_device_start_request(this_device, request, result);
 	}
 
 	return result;
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is cast to a
- *    struct scic_sds_remote_device for which the request is to be started.
- * @request: The struct sci_base_request which is cast to a SCIC_SDS_IO_REQUEST that
- *    is to be started.
- *
+/*
  * This method will attempt to start an io request for this device object. The
  * remote device object will issue the start request for the io and if
  * successful it will start the request for the port object then increment its
@@ -1076,38 +1060,28 @@ static enum sci_status scic_sds_remote_device_ready_state_start_task_handler(
  */
 static enum sci_status scic_sds_remote_device_ready_state_start_io_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status result;
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *io_request  = (struct scic_sds_request *)request;
 
 	/* See if the port is in a state where we can start the IO request */
 	result = scic_sds_port_start_io(
-		scic_sds_remote_device_get_port(this_device), this_device, io_request);
+		scic_sds_remote_device_get_port(this_device), this_device, request);
 
 	if (result == SCI_SUCCESS) {
 		result = scic_sds_remote_node_context_start_io(
-			this_device->rnc, io_request
-			);
+			this_device->rnc, request);
+		if (result == SCI_SUCCESS)
+			result = scic_sds_request_start(request);
 
-		if (result == SCI_SUCCESS) {
-			result = scic_sds_request_start(io_request);
-		}
-
-		scic_sds_remote_device_start_request(this_device, io_request, result);
+		scic_sds_remote_device_start_request(this_device, request, result);
 	}
 
 	return result;
 }
 
-/**
- *
- * @device: The struct sci_base_remote_device which is cast to a
- *    struct scic_sds_remote_device for which the request is to be completed.
- * @request: The struct sci_base_request which is cast to a SCIC_SDS_IO_REQUEST that
- *    is to be completed.
- *
+/*
  * This method will complete the request for the remote device object.  The
  * method will call the completion handler for the request object and if
  * successful it will complete the request on the port object then decrement
@@ -1115,18 +1089,17 @@ static enum sci_status scic_sds_remote_device_ready_state_start_io_handler(
  */
 static enum sci_status scic_sds_remote_device_ready_state_complete_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status result;
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *the_request = (struct scic_sds_request *)request;
 
-	result = scic_sds_request_complete(the_request);
+	result = scic_sds_request_complete(request);
 
 	if (result == SCI_SUCCESS) {
 		/* See if the port is in a state where we can start the IO request */
 		result = scic_sds_port_complete_io(
-			scic_sds_remote_device_get_port(this_device), this_device, the_request);
+			scic_sds_remote_device_get_port(this_device), this_device, request);
 
 		if (result == SCI_SUCCESS) {
 			scic_sds_remote_device_decrement_request_count(this_device);
@@ -1178,19 +1151,16 @@ static enum sci_status scic_sds_remote_device_stopping_state_stop_handler(
  */
 static enum sci_status scic_sds_remote_device_stopping_state_complete_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status = SCI_SUCCESS;
-	struct scic_sds_request *this_request = (struct scic_sds_request *)request;
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
 
-	status = scic_sds_request_complete(this_request);
+	status = scic_sds_request_complete(request);
 	if (status == SCI_SUCCESS) {
 		status = scic_sds_port_complete_io(
 			scic_sds_remote_device_get_port(this_device),
-			this_device,
-			this_request
-			);
+			this_device, request);
 
 		if (status == SCI_SUCCESS) {
 			scic_sds_remote_device_decrement_request_count(this_device);
@@ -1255,11 +1225,7 @@ static enum sci_status scic_sds_remote_device_resetting_state_stop_handler(
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @device: The device object for which the request is completing.
- * @request: The task request that is being completed.
- *
+/*
  * This method completes requests for this struct scic_sds_remote_device while it is
  * in the SCI_BASE_REMOTE_DEVICE_STATE_RESETTING state. This method calls the
  * complete method for the request object and if that is successful the port
@@ -1268,17 +1234,16 @@ static enum sci_status scic_sds_remote_device_resetting_state_stop_handler(
  */
 static enum sci_status scic_sds_remote_device_resetting_state_complete_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status = SCI_SUCCESS;
-	struct scic_sds_request *this_request = (struct scic_sds_request *)request;
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
 
-	status = scic_sds_request_complete(this_request);
+	status = scic_sds_request_complete(request);
 
 	if (status == SCI_SUCCESS) {
 		status = scic_sds_port_complete_io(
-			scic_sds_remote_device_get_port(this_device), this_device, this_request);
+			scic_sds_remote_device_get_port(this_device), this_device, request);
 
 		if (status == SCI_SUCCESS) {
 			scic_sds_remote_device_decrement_request_count(this_device);

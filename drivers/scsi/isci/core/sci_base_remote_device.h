@@ -65,7 +65,7 @@
 
 #include "sci_base_state_machine.h"
 
-struct sci_base_request;
+struct scic_sds_request;
 
 /**
  * enum sci_base_remote_device_states - This enumeration depicts all the states
@@ -159,12 +159,12 @@ typedef enum sci_status (*sci_base_remote_device_handler_t)(
 
 typedef enum sci_status (*sci_base_remote_device_request_handler_t)(
 	struct sci_base_remote_device *,
-	struct sci_base_request *
+	struct scic_sds_request *
 	);
 
 typedef enum sci_status (*sci_base_remote_device_high_priority_request_complete_handler_t)(
 	struct sci_base_remote_device *,
-	struct sci_base_request *,
+	struct scic_sds_request *,
 	void *,
 	enum sci_io_status
 	);

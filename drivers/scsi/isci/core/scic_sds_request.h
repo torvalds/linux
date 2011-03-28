@@ -64,8 +64,7 @@
  */
 
 #include "scic_io_request.h"
-
-#include "sci_base_request.h"
+#include "sci_base_state_machine.h"
 #include "scu_task_context.h"
 #include "intel_sas.h"
 
@@ -127,9 +126,15 @@ enum scic_sds_smp_request_started_substates {
  */
 struct scic_sds_request {
 	/**
-	 * This field indictes the parent object of the request.
+	 * The field specifies that the parent object for the base request is the
+	 * base object itself.
 	 */
-	struct sci_base_request parent;
+	struct sci_base_object parent;
+
+	/**
+	 * This field contains the information for the base request state machine.
+	 */
+	struct sci_base_state_machine state_machine;
 
 	void *user_request;
 
@@ -231,15 +236,59 @@ struct scic_sds_request {
 
 };
 
+/**
+ * enum sci_base_request_states - This enumeration depicts all the states for
+ *    the common request state machine.
+ *
+ *
+ */
+enum sci_base_request_states {
+	/**
+	 * Simply the initial state for the base request state machine.
+	 */
+	SCI_BASE_REQUEST_STATE_INITIAL,
 
-typedef enum sci_status
-(*scic_sds_io_request_frame_handler_t)(struct scic_sds_request *req, u32 frame);
+	/**
+	 * This state indicates that the request has been constructed. This state
+	 * is entered from the INITIAL state.
+	 */
+	SCI_BASE_REQUEST_STATE_CONSTRUCTED,
 
-typedef enum sci_status
-(*scic_sds_io_request_event_handler_t)(struct scic_sds_request *req, u32 event);
+	/**
+	 * This state indicates that the request has been started. This state is
+	 * entered from the CONSTRUCTED state.
+	 */
+	SCI_BASE_REQUEST_STATE_STARTED,
 
-typedef enum sci_status
-(*scic_sds_io_request_task_completion_handler_t)(struct scic_sds_request *req, u32 completion_code);
+	/**
+	 * This state indicates that the request has completed.
+	 * This state is entered from the STARTED state. This state is entered from
+	 * the ABORTING state.
+	 */
+	SCI_BASE_REQUEST_STATE_COMPLETED,
+
+	/**
+	 * This state indicates that the request is in the process of being
+	 * terminated/aborted.
+	 * This state is entered from the CONSTRUCTED state.
+	 * This state is entered from the STARTED state.
+	 */
+	SCI_BASE_REQUEST_STATE_ABORTING,
+
+	/**
+	 * Simply the final state for the base request state machine.
+	 */
+	SCI_BASE_REQUEST_STATE_FINAL,
+};
+
+typedef enum sci_status (*scic_sds_io_request_handler_t)
+				(struct scic_sds_request *request);
+typedef enum sci_status (*scic_sds_io_request_frame_handler_t)
+				(struct scic_sds_request *req, u32 frame);
+typedef enum sci_status (*scic_sds_io_request_event_handler_t)
+				(struct scic_sds_request *req, u32 event);
+typedef enum sci_status (*scic_sds_io_request_task_completion_handler_t)
+				(struct scic_sds_request *req, u32 completion_code);
 
 /**
  * struct scic_sds_io_request_state_handler - This is the SDS core definition
@@ -248,7 +297,30 @@ typedef enum sci_status
  *
  */
 struct scic_sds_io_request_state_handler {
-	struct sci_base_request_state_handler parent;
+	/**
+	 * The start_handler specifies the method invoked when a user attempts to
+	 * start a request.
+	 */
+	scic_sds_io_request_handler_t start_handler;
+
+	/**
+	 * The abort_handler specifies the method invoked when a user attempts to
+	 * abort a request.
+	 */
+	scic_sds_io_request_handler_t abort_handler;
+
+	/**
+	 * The complete_handler specifies the method invoked when a user attempts to
+	 * complete a request.
+	 */
+	scic_sds_io_request_handler_t complete_handler;
+
+	/**
+	 * The destruct_handler specifies the method invoked when a user attempts to
+	 * destruct a request.
+	 */
+	scic_sds_io_request_handler_t destruct_handler;
+
 
 	scic_sds_io_request_task_completion_handler_t tc_completion_handler;
 	scic_sds_io_request_event_handler_t event_handler;
@@ -319,7 +391,7 @@ extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substat
 	}
 
 #define scic_sds_request_complete(a_request) \
-	((a_request)->state_handlers->parent.complete_handler(&(a_request)->parent))
+	((a_request)->state_handlers->complete_handler(a_request))
 
 
 
@@ -331,15 +403,15 @@ extern const struct sci_base_state scic_sds_io_request_started_task_mgmt_substat
  * struct scic_sds_io_request object.
  */
 #define scic_sds_io_request_tc_completion(this_request, completion_code) \
-	{ \
-		if (this_request->parent.state_machine.current_state_id	 \
-		    == SCI_BASE_REQUEST_STATE_STARTED \
-		    && this_request->has_started_substate_machine \
-		    == false) \
-			scic_sds_request_started_state_tc_completion_handler(this_request, completion_code); \
-		else \
-			this_request->state_handlers->tc_completion_handler(this_request, completion_code); \
-	}
+{ \
+	if (this_request->state_machine.current_state_id	 \
+	    == SCI_BASE_REQUEST_STATE_STARTED \
+	    && this_request->has_started_substate_machine \
+	    == false) \
+		scic_sds_request_started_state_tc_completion_handler(this_request, completion_code); \
+	else \
+		this_request->state_handlers->tc_completion_handler(this_request, completion_code); \
+}
 
 /**
  * SCU_SGL_ZERO() -
@@ -426,14 +498,14 @@ enum sci_status scic_sds_task_request_terminate(
  * ***************************************************************************** */
 
 enum sci_status scic_sds_request_default_start_handler(
-	struct sci_base_request *this_request);
+	struct scic_sds_request *request);
 
 
 enum sci_status scic_sds_request_default_complete_handler(
-	struct sci_base_request *this_request);
+	struct scic_sds_request *request);
 
 enum sci_status scic_sds_request_default_destruct_handler(
-	struct sci_base_request *this_request);
+	struct scic_sds_request *request);
 
 enum sci_status scic_sds_request_default_tc_completion_handler(
 	struct scic_sds_request *this_request,
@@ -453,7 +525,7 @@ enum sci_status scic_sds_request_default_frame_handler(
  * ***************************************************************************** */
 
 enum sci_status scic_sds_request_started_state_abort_handler(
-	struct sci_base_request *this_request);
+	struct scic_sds_request *request);
 
 enum sci_status scic_sds_request_started_state_tc_completion_handler(
 	struct scic_sds_request *this_request,

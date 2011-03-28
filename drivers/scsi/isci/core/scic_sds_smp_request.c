@@ -394,7 +394,7 @@ static enum sci_status scic_sds_smp_request_await_response_frame_handler(
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
+			&this_request->state_machine,
 			SCI_BASE_REQUEST_STATE_COMPLETED
 			);
 	}
@@ -433,9 +433,8 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+			&this_request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_RESP_TO_ERR):
@@ -452,9 +451,8 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+			&this_request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
 	default:
@@ -468,9 +466,8 @@ static enum sci_status scic_sds_smp_request_await_response_tc_completion_handler
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+			&this_request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
@@ -502,9 +499,8 @@ static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_ha
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+			&this_request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 
 	default:
@@ -518,9 +514,8 @@ static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_ha
 			);
 
 		sci_base_state_machine_change_state(
-			&this_request->parent.state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+			&this_request->state_machine,
+			SCI_BASE_REQUEST_STATE_COMPLETED);
 		break;
 	}
 
@@ -530,22 +525,22 @@ static enum sci_status scic_sds_smp_request_await_tc_completion_tc_completion_ha
 
 static const struct scic_sds_io_request_state_handler scic_sds_smp_request_started_substate_handler_table[] = {
 	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = {
-		.parent.start_handler    = scic_sds_request_default_start_handler,
-		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
-		.parent.complete_handler = scic_sds_request_default_complete_handler,
-		.parent.destruct_handler = scic_sds_request_default_destruct_handler,
-		.tc_completion_handler   = scic_sds_smp_request_await_response_tc_completion_handler,
-		.event_handler           = scic_sds_request_default_event_handler,
-		.frame_handler           = scic_sds_smp_request_await_response_frame_handler,
+		.start_handler		= scic_sds_request_default_start_handler,
+		.abort_handler		= scic_sds_request_started_state_abort_handler,
+		.complete_handler	= scic_sds_request_default_complete_handler,
+		.destruct_handler	= scic_sds_request_default_destruct_handler,
+		.tc_completion_handler	= scic_sds_smp_request_await_response_tc_completion_handler,
+		.event_handler		= scic_sds_request_default_event_handler,
+		.frame_handler		= scic_sds_smp_request_await_response_frame_handler,
 	},
 	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION] = {
-		.parent.start_handler    = scic_sds_request_default_start_handler,
-		.parent.abort_handler    = scic_sds_request_started_state_abort_handler,
-		.parent.complete_handler = scic_sds_request_default_complete_handler,
-		.parent.destruct_handler = scic_sds_request_default_destruct_handler,
-		.tc_completion_handler   =  scic_sds_smp_request_await_tc_completion_tc_completion_handler,
-		.event_handler           =  scic_sds_request_default_event_handler,
-		.frame_handler           =  scic_sds_request_default_frame_handler,
+		.start_handler		= scic_sds_request_default_start_handler,
+		.abort_handler		= scic_sds_request_started_state_abort_handler,
+		.complete_handler	= scic_sds_request_default_complete_handler,
+		.destruct_handler	= scic_sds_request_default_destruct_handler,
+		.tc_completion_handler	=  scic_sds_smp_request_await_tc_completion_tc_completion_handler,
+		.event_handler		=  scic_sds_request_default_event_handler,
+		.frame_handler		=  scic_sds_request_default_frame_handler,
 	}
 };
 
@@ -626,7 +621,7 @@ enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 	/* Construct the started sub-state machine. */
 	sci_base_state_machine_construct(
 		&sci_req->started_substate_machine,
-		&sci_req->parent.parent,
+		&sci_req->parent,
 		scic_sds_smp_request_started_substate_table,
 		SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE
 		);
@@ -657,10 +652,8 @@ enum sci_status scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 
 	scu_smp_request_construct_task_context(sci_req, smp_req);
 
-	sci_base_state_machine_change_state(
-		&sci_req->parent.state_machine,
-		SCI_BASE_REQUEST_STATE_CONSTRUCTED
-		);
+	sci_base_state_machine_change_state(&sci_req->state_machine,
+		SCI_BASE_REQUEST_STATE_CONSTRUCTED);
 
 	kfree(smp_req);
 

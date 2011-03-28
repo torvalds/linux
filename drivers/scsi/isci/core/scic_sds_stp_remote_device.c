@@ -78,22 +78,20 @@
  */
 static enum sci_status scic_sds_stp_remote_device_complete_request(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *the_request = (struct scic_sds_request *)request;
 	enum sci_status status;
 
-	status = scic_sds_io_request_complete(the_request);
+	status = scic_sds_io_request_complete(request);
 
 	if (status == SCI_SUCCESS) {
 		status = scic_sds_port_complete_io(
-			this_device->owning_port, this_device, the_request
-			);
+			this_device->owning_port, this_device, request);
 
 		if (status == SCI_SUCCESS) {
 			scic_sds_remote_device_decrement_request_count(this_device);
-			if (the_request->sci_status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
+			if (request->sci_status == SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
 				/*
 				 * This request causes hardware error, device needs to be Lun Reset.
 				 * So here we force the state machine to IDLE state so the rest IOs
@@ -119,7 +117,7 @@ static enum sci_status scic_sds_stp_remote_device_complete_request(
 			__func__,
 			this_device->owning_port,
 			this_device,
-			the_request,
+			request,
 			status);
 
 	return status;
@@ -143,64 +141,54 @@ static enum sci_status scic_sds_stp_remote_device_complete_request(
  */
 static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status;
 	struct scic_sds_remote_device *this_device  = (struct scic_sds_remote_device *)device;
-	struct scic_sds_request *this_request = (struct scic_sds_request *)request;
 
 	/* Will the port allow the io request to start? */
 	status = this_device->owning_port->state_handlers->start_io_handler(
-		this_device->owning_port,
-		this_device,
-		this_request
-		);
+		this_device->owning_port, this_device, request);
+	if (status != SCI_SUCCESS)
+		return status;
 
-	if (SCI_SUCCESS == status) {
-		status =
-			scic_sds_remote_node_context_start_task(this_device->rnc, this_request);
+	status = scic_sds_remote_node_context_start_task(this_device->rnc, request);
+	if (status != SCI_SUCCESS)
+		goto out;
 
-		if (SCI_SUCCESS == status) {
-			status = this_request->state_handlers->parent.start_handler(request);
-		}
+	status = request->state_handlers->start_handler(request);
+	if (status != SCI_SUCCESS)
+		goto out;
 
-		if (status == SCI_SUCCESS) {
-			/*
-			 * / @note If the remote device state is not IDLE this will replace
-			 * /       the request that probably resulted in the task management
-			 * /       request. */
-			this_device->working_request = this_request;
+	/*
+	 * Note: If the remote device state is not IDLE this will replace
+	 * the request that probably resulted in the task management request.
+	 */
+	this_device->working_request = request;
+	sci_base_state_machine_change_state(&this_device->ready_substate_machine,
+			SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 
-			sci_base_state_machine_change_state(
-				&this_device->ready_substate_machine,
-				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD
-				);
+	/*
+	 * The remote node context must cleanup the TCi to NCQ mapping table.
+	 * The only way to do this correctly is to either write to the TLCR
+	 * register or to invalidate and repost the RNC. In either case the
+	 * remote node context state machine will take the correct action when
+	 * the remote node context is suspended and later resumed.
+	 */
+	scic_sds_remote_node_context_suspend(this_device->rnc,
+			SCI_SOFTWARE_SUSPENSION, NULL, NULL);
+	scic_sds_remote_node_context_resume(this_device->rnc,
+			scic_sds_remote_device_continue_request,
+			this_device);
 
-			/*
-			 * The remote node context must cleanup the TCi to NCQ mapping table.
-			 * The only way to do this correctly is to either write to the TLCR
-			 * register or to invalidate and repost the RNC. In either case the
-			 * remote node context state machine will take the correct action when
-			 * the remote node context is suspended and later resumed. */
-			scic_sds_remote_node_context_suspend(
-				this_device->rnc, SCI_SOFTWARE_SUSPENSION, NULL, NULL);
-
-			scic_sds_remote_node_context_resume(
-				this_device->rnc,
-				scic_sds_remote_device_continue_request,
-				this_device);
-		}
-
-		scic_sds_remote_device_start_request(this_device, this_request, status);
-
-		/*
-		 * We need to let the controller start request handler know that it can't
-		 * post TC yet. We will provide a callback function to post TC when RNC gets
-		 * resumed. */
-		return SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS;
-	}
-
-	return status;
+out:
+	scic_sds_remote_device_start_request(this_device, request, status);
+	/*
+	 * We need to let the controller start request handler know that it can't
+	 * post TC yet. We will provide a callback function to post TC when RNC gets
+	 * resumed.
+	 */
+	return SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS;
 }
 
 /*
@@ -221,53 +209,39 @@ static enum sci_status scic_sds_stp_remote_device_ready_substate_start_request_h
  */
 static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_start_io_handler(
 	struct sci_base_remote_device *base_device,
-	struct sci_base_request *base_request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status;
 	struct scic_sds_remote_device *device =
 		(struct scic_sds_remote_device *)&base_device->parent;
-	struct scic_sds_request *sds_request  =
-		(struct scic_sds_request *)&base_request->parent;
 	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+		(struct isci_request *)sci_object_get_association(request);
 
 
 	/* Will the port allow the io request to start? */
 	status = device->owning_port->state_handlers->start_io_handler(
-			device->owning_port,
-			device,
-			sds_request);
+			device->owning_port, device, request);
+	if (status != SCI_SUCCESS)
+		return status;
 
-	if (status == SCI_SUCCESS) {
-		status =
-			scic_sds_remote_node_context_start_io(device->rnc,
-							      sds_request);
+	status = scic_sds_remote_node_context_start_io(device->rnc, request);
+	if (status != SCI_SUCCESS)
+		goto out;
 
-		if (status == SCI_SUCCESS)
-			status =
-				sds_request->state_handlers->
-					parent.start_handler(base_request);
+	status = request->state_handlers->start_handler(request);
+	if (status != SCI_SUCCESS)
+		goto out;
 
-		if (status == SCI_SUCCESS) {
-			if (isci_sata_get_sat_protocol(isci_request) ==
-					SAT_PROTOCOL_FPDMA)
-				sci_base_state_machine_change_state(
-					&device->ready_substate_machine,
-					SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ);
-			else {
-				device->working_request = sds_request;
-
-				sci_base_state_machine_change_state(
-					&device->ready_substate_machine,
-					SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
-			}
-		}
-
-		scic_sds_remote_device_start_request(device,
-						     sds_request,
-						     status);
+	if (isci_sata_get_sat_protocol(isci_request) == SAT_PROTOCOL_FPDMA) {
+		sci_base_state_machine_change_state(&device->ready_substate_machine,
+				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ);
+	} else {
+		device->working_request = request;
+		sci_base_state_machine_change_state(&device->ready_substate_machine,
+				SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
 	}
-
+out:
+	scic_sds_remote_device_start_request(device, request, status);
 	return status;
 }
 
@@ -308,33 +282,30 @@ static enum sci_status scic_sds_stp_remote_device_ready_idle_substate_event_hand
 
 static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_start_io_handler(
 	struct sci_base_remote_device *base_device,
-	struct sci_base_request *base_request)
+	struct scic_sds_request *request)
 {
 	enum sci_status status;
 	struct scic_sds_remote_device *device =
 		(struct scic_sds_remote_device *)&base_device->parent;
-	struct scic_sds_request *sds_request  =
-		(struct scic_sds_request *)&base_request->parent;
 	struct isci_request *isci_request =
-		(struct isci_request *)sci_object_get_association(sds_request);
+		(struct isci_request *)sci_object_get_association(request);
 
 	if (isci_sata_get_sat_protocol(isci_request) == SAT_PROTOCOL_FPDMA) {
 		status = device->owning_port->state_handlers->start_io_handler(
 				device->owning_port,
 				device,
-				sds_request);
+				request);
 
 		if (status == SCI_SUCCESS) {
 			status = scic_sds_remote_node_context_start_io(
 					device->rnc,
-					sds_request);
+					request);
 
 			if (status == SCI_SUCCESS)
-				status = sds_request->state_handlers->
-					parent.start_handler(base_request);
+				status = request->state_handlers->start_handler(request);
 
 			scic_sds_remote_device_start_request(device,
-							     sds_request,
+							     request,
 							     status);
 		}
 	} else
@@ -422,7 +393,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_ncq_substate_frame_handl
  */
 static enum sci_status scic_sds_stp_remote_device_ready_cmd_substate_start_io_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	return SCI_FAILURE_INVALID_STATE;
 }
@@ -475,7 +446,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_cmd_substate_frame_handl
  * ***************************************************************************** */
 static enum sci_status scic_sds_stp_remote_device_ready_await_reset_substate_start_io_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	return SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 }
@@ -494,7 +465,7 @@ static enum sci_status scic_sds_stp_remote_device_ready_await_reset_substate_sta
  */
 static enum sci_status scic_sds_stp_remote_device_ready_await_reset_substate_complete_request_handler(
 	struct sci_base_remote_device *device,
-	struct sci_base_request *request)
+	struct scic_sds_request *request)
 {
 	struct scic_sds_remote_device *this_device = (struct scic_sds_remote_device *)device;
 	struct scic_sds_request *the_request = (struct scic_sds_request *)request;
