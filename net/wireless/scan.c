@@ -124,6 +124,15 @@ void cfg80211_bss_age(struct cfg80211_registered_device *dev,
 }
 
 /* must hold dev->bss_lock! */
+static void __cfg80211_unlink_bss(struct cfg80211_registered_device *dev,
+				  struct cfg80211_internal_bss *bss)
+{
+	list_del_init(&bss->list);
+	rb_erase(&bss->rbn, &dev->bss_tree);
+	kref_put(&bss->ref, bss_release);
+}
+
+/* must hold dev->bss_lock! */
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 {
 	struct cfg80211_internal_bss *bss, *tmp;
@@ -134,9 +143,7 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 			continue;
 		if (!time_after(jiffies, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE))
 			continue;
-		list_del(&bss->list);
-		rb_erase(&bss->rbn, &dev->bss_tree);
-		kref_put(&bss->ref, bss_release);
+		__cfg80211_unlink_bss(dev, bss);
 		expired = true;
 	}
 
@@ -669,11 +676,8 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 
 	spin_lock_bh(&dev->bss_lock);
 	if (!list_empty(&bss->list)) {
-		list_del_init(&bss->list);
+		__cfg80211_unlink_bss(dev, bss);
 		dev->bss_generation++;
-		rb_erase(&bss->rbn, &dev->bss_tree);
-
-		kref_put(&bss->ref, bss_release);
 	}
 	spin_unlock_bh(&dev->bss_lock);
 }
