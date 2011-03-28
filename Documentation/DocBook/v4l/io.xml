@@ -121,18 +121,22 @@ mapped.</para>
     <para>Before applications can access the buffers they must map
 them into their address space with the &func-mmap; function. The
 location of the buffers in device memory can be determined with the
-&VIDIOC-QUERYBUF; ioctl. The <structfield>m.offset</structfield> and
-<structfield>length</structfield> returned in a &v4l2-buffer; are
-passed as sixth and second parameter to the
-<function>mmap()</function> function. The offset and length values
-must not be modified. Remember the buffers are allocated in physical
-memory, as opposed to virtual memory which can be swapped out to disk.
-Applications should free the buffers as soon as possible with the
-&func-munmap; function.</para>
+&VIDIOC-QUERYBUF; ioctl. In the single-planar API case, the
+<structfield>m.offset</structfield> and <structfield>length</structfield>
+returned in a &v4l2-buffer; are passed as sixth and second parameter to the
+<function>mmap()</function> function. When using the multi-planar API,
+struct &v4l2-buffer; contains an array of &v4l2-plane; structures, each
+containing its own <structfield>m.offset</structfield> and
+<structfield>length</structfield>. When using the multi-planar API, every
+plane of every buffer has to be mapped separately, so the number of
+calls to &func-mmap; should be equal to number of buffers times number of
+planes in each buffer. The offset and length values must not be modified.
+Remember, the buffers are allocated in physical memory, as opposed to virtual
+memory, which can be swapped out to disk. Applications should free the buffers
+as soon as possible with the &func-munmap; function.</para>
 
     <example>
-      <title>Mapping buffers</title>
-
+      <title>Mapping buffers in the single-planar API</title>
       <programlisting>
 &v4l2-requestbuffers; reqbuf;
 struct {
@@ -141,63 +145,145 @@ struct {
 } *buffers;
 unsigned int i;
 
-memset (&amp;reqbuf, 0, sizeof (reqbuf));
+memset(&amp;reqbuf, 0, sizeof(reqbuf));
 reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 reqbuf.memory = V4L2_MEMORY_MMAP;
 reqbuf.count = 20;
 
 if (-1 == ioctl (fd, &VIDIOC-REQBUFS;, &amp;reqbuf)) {
 	if (errno == EINVAL)
-		printf ("Video capturing or mmap-streaming is not supported\n");
+		printf("Video capturing or mmap-streaming is not supported\n");
 	else
-		perror ("VIDIOC_REQBUFS");
+		perror("VIDIOC_REQBUFS");
 
-	exit (EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
 /* We want at least five buffers. */
 
 if (reqbuf.count &lt; 5) {
 	/* You may need to free the buffers here. */
-	printf ("Not enough buffer memory\n");
-	exit (EXIT_FAILURE);
+	printf("Not enough buffer memory\n");
+	exit(EXIT_FAILURE);
 }
 
-buffers = calloc (reqbuf.count, sizeof (*buffers));
-assert (buffers != NULL);
+buffers = calloc(reqbuf.count, sizeof(*buffers));
+assert(buffers != NULL);
 
 for (i = 0; i &lt; reqbuf.count; i++) {
 	&v4l2-buffer; buffer;
 
-	memset (&amp;buffer, 0, sizeof (buffer));
+	memset(&amp;buffer, 0, sizeof(buffer));
 	buffer.type = reqbuf.type;
 	buffer.memory = V4L2_MEMORY_MMAP;
 	buffer.index = i;
 
 	if (-1 == ioctl (fd, &VIDIOC-QUERYBUF;, &amp;buffer)) {
-		perror ("VIDIOC_QUERYBUF");
-		exit (EXIT_FAILURE);
+		perror("VIDIOC_QUERYBUF");
+		exit(EXIT_FAILURE);
 	}
 
 	buffers[i].length = buffer.length; /* remember for munmap() */
 
-	buffers[i].start = mmap (NULL, buffer.length,
-				 PROT_READ | PROT_WRITE, /* recommended */
-				 MAP_SHARED,             /* recommended */
-				 fd, buffer.m.offset);
+	buffers[i].start = mmap(NULL, buffer.length,
+				PROT_READ | PROT_WRITE, /* recommended */
+				MAP_SHARED,             /* recommended */
+				fd, buffer.m.offset);
 
 	if (MAP_FAILED == buffers[i].start) {
 		/* If you do not exit here you should unmap() and free()
 		   the buffers mapped so far. */
-		perror ("mmap");
-		exit (EXIT_FAILURE);
+		perror("mmap");
+		exit(EXIT_FAILURE);
 	}
 }
 
 /* Cleanup. */
 
 for (i = 0; i &lt; reqbuf.count; i++)
-	munmap (buffers[i].start, buffers[i].length);
+	munmap(buffers[i].start, buffers[i].length);
+      </programlisting>
+    </example>
+
+    <example>
+      <title>Mapping buffers in the multi-planar API</title>
+      <programlisting>
+&v4l2-requestbuffers; reqbuf;
+/* Our current format uses 3 planes per buffer */
+#define FMT_NUM_PLANES = 3;
+
+struct {
+	void *start[FMT_NUM_PLANES];
+	size_t length[FMT_NUM_PLANES];
+} *buffers;
+unsigned int i, j;
+
+memset(&amp;reqbuf, 0, sizeof(reqbuf));
+reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+reqbuf.memory = V4L2_MEMORY_MMAP;
+reqbuf.count = 20;
+
+if (ioctl(fd, &VIDIOC-REQBUFS;, &amp;reqbuf) &lt; 0) {
+	if (errno == EINVAL)
+		printf("Video capturing or mmap-streaming is not supported\n");
+	else
+		perror("VIDIOC_REQBUFS");
+
+	exit(EXIT_FAILURE);
+}
+
+/* We want at least five buffers. */
+
+if (reqbuf.count &lt; 5) {
+	/* You may need to free the buffers here. */
+	printf("Not enough buffer memory\n");
+	exit(EXIT_FAILURE);
+}
+
+buffers = calloc(reqbuf.count, sizeof(*buffers));
+assert(buffers != NULL);
+
+for (i = 0; i &lt; reqbuf.count; i++) {
+	&v4l2-buffer; buffer;
+	&v4l2-plane; planes[FMT_NUM_PLANES];
+
+	memset(&amp;buffer, 0, sizeof(buffer));
+	buffer.type = reqbuf.type;
+	buffer.memory = V4L2_MEMORY_MMAP;
+	buffer.index = i;
+	/* length in struct v4l2_buffer in multi-planar API stores the size
+	 * of planes array. */
+	buffer.length = FMT_NUM_PLANES;
+	buffer.m.planes = planes;
+
+	if (ioctl(fd, &VIDIOC-QUERYBUF;, &amp;buffer) &lt; 0) {
+		perror("VIDIOC_QUERYBUF");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Every plane has to be mapped separately */
+	for (j = 0; j &lt; FMT_NUM_PLANES; j++) {
+		buffers[i].length[j] = buffer.m.planes[j].length; /* remember for munmap() */
+
+		buffers[i].start[j] = mmap(NULL, buffer.m.planes[j].length,
+				 PROT_READ | PROT_WRITE, /* recommended */
+				 MAP_SHARED,             /* recommended */
+				 fd, buffer.m.planes[j].m.offset);
+
+		if (MAP_FAILED == buffers[i].start[j]) {
+			/* If you do not exit here you should unmap() and free()
+			   the buffers and planes mapped so far. */
+			perror("mmap");
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+/* Cleanup. */
+
+for (i = 0; i &lt; reqbuf.count; i++)
+	for (j = 0; j &lt; FMT_NUM_PLANES; j++)
+		munmap(buffers[i].start[j], buffers[i].length[j]);
       </programlisting>
     </example>
 
@@ -286,13 +372,13 @@ pointer method (not only memory mapping) is supported must be
 determined by calling the &VIDIOC-REQBUFS; ioctl.</para>
 
     <para>This I/O method combines advantages of the read/write and
-memory mapping methods. Buffers are allocated by the application
+memory mapping methods. Buffers (planes) are allocated by the application
 itself, and can reside for example in virtual or shared memory. Only
 pointers to data are exchanged, these pointers and meta-information
-are passed in &v4l2-buffer;. The driver must be switched
-into user pointer I/O mode by calling the &VIDIOC-REQBUFS; with the
-desired buffer type. No buffers are allocated beforehands,
-consequently they are not indexed and cannot be queried like mapped
+are passed in &v4l2-buffer; (or in &v4l2-plane; in the multi-planar API case).
+The driver must be switched into user pointer I/O mode by calling the
+&VIDIOC-REQBUFS; with the desired buffer type. No buffers (planes) are allocated
+beforehand, consequently they are not indexed and cannot be queried like mapped
 buffers with the <constant>VIDIOC_QUERYBUF</constant> ioctl.</para>
 
     <example>
@@ -316,7 +402,7 @@ if (ioctl (fd, &VIDIOC-REQBUFS;, &amp;reqbuf) == -1) {
       </programlisting>
     </example>
 
-    <para>Buffer addresses and sizes are passed on the fly with the
+    <para>Buffer (plane) addresses and sizes are passed on the fly with the
 &VIDIOC-QBUF; ioctl. Although buffers are commonly cycled,
 applications can pass different addresses and sizes at each
 <constant>VIDIOC_QBUF</constant> call. If required by the hardware the
@@ -396,11 +482,18 @@ rest should be evident.</para>
     <title>Buffers</title>
 
     <para>A buffer contains data exchanged by application and
-driver using one of the Streaming I/O methods. Only pointers to
-buffers are exchanged, the data itself is not copied. These pointers,
-together with meta-information like timestamps or field parity, are
-stored in a struct <structname>v4l2_buffer</structname>, argument to
-the &VIDIOC-QUERYBUF;, &VIDIOC-QBUF; and &VIDIOC-DQBUF; ioctl.</para>
+driver using one of the Streaming I/O methods. In the multi-planar API, the
+data is held in planes, while the buffer structure acts as a container
+for the planes. Only pointers to buffers (planes) are exchanged, the data
+itself is not copied. These pointers, together with meta-information like
+timestamps or field parity, are stored in a struct
+<structname>v4l2_buffer</structname>, argument to
+the &VIDIOC-QUERYBUF;, &VIDIOC-QBUF; and &VIDIOC-DQBUF; ioctl.
+In the multi-planar API, some plane-specific members of struct
+<structname>v4l2_buffer</structname>, such as pointers and sizes for each
+plane, are stored in struct <structname>v4l2_plane</structname> instead.
+In that case, struct <structname>v4l2_buffer</structname> contains an array of
+plane structures.</para>
 
       <para>Nominally timestamps refer to the first data byte transmitted.
 In practice however the wide range of hardware covered by the V4L2 API
@@ -551,26 +644,40 @@ in accordance with the selected I/O method.</entry>
 	    <entry></entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>offset</structfield></entry>
-	    <entry>When <structfield>memory</structfield> is
-<constant>V4L2_MEMORY_MMAP</constant> this is the offset of the buffer
-from the start of the device memory. The value is returned by the
-driver and apart of serving as parameter to the &func-mmap; function
-not useful for applications. See <xref linkend="mmap" /> for details.</entry>
+	    <entry>For the single-planar API and when
+<structfield>memory</structfield> is <constant>V4L2_MEMORY_MMAP</constant> this
+is the offset of the buffer from the start of the device memory. The value is
+returned by the driver and apart of serving as parameter to the &func-mmap;
+function not useful for applications. See <xref linkend="mmap" /> for details
+	  </entry>
 	  </row>
 	  <row>
 	    <entry></entry>
 	    <entry>unsigned long</entry>
 	    <entry><structfield>userptr</structfield></entry>
-	    <entry>When <structfield>memory</structfield> is
-<constant>V4L2_MEMORY_USERPTR</constant> this is a pointer to the
-buffer (casted to unsigned long type) in virtual memory, set by the
-application. See <xref linkend="userp" /> for details.</entry>
+	    <entry>For the single-planar API and when
+<structfield>memory</structfield> is <constant>V4L2_MEMORY_USERPTR</constant>
+this is a pointer to the buffer (casted to unsigned long type) in virtual
+memory, set by the application. See <xref linkend="userp" /> for details.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>struct v4l2_plane</entry>
+	    <entry><structfield>*planes</structfield></entry>
+	    <entry>When using the multi-planar API, contains a userspace pointer
+	    to an array of &v4l2-plane;. The size of the array should be put
+	    in the <structfield>length</structfield> field of this
+	    <structname>v4l2_buffer</structname> structure.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>length</structfield></entry>
 	    <entry></entry>
-	    <entry>Size of the buffer (not the payload) in bytes.</entry>
+	    <entry>Size of the buffer (not the payload) in bytes for the
+	    single-planar API. For the multi-planar API should contain the
+	    number of elements in the <structfield>planes</structfield> array.
+	    </entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -596,6 +703,66 @@ should set this to 0.</entry>
       </tgroup>
     </table>
 
+    <table frame="none" pgwide="1" id="v4l2-plane">
+      <title>struct <structname>v4l2_plane</structname></title>
+      <tgroup cols="4">
+        &cs-ustr;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>bytesused</structfield></entry>
+	    <entry></entry>
+	    <entry>The number of bytes occupied by data in the plane
+	    (its payload).</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>length</structfield></entry>
+	    <entry></entry>
+	    <entry>Size in bytes of the plane (not its payload).</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry><structfield>m</structfield></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>mem_offset</structfield></entry>
+	    <entry>When the memory type in the containing &v4l2-buffer; is
+	      <constant>V4L2_MEMORY_MMAP</constant>, this is the value that
+	      should be passed to &func-mmap;, similar to the
+	      <structfield>offset</structfield> field in &v4l2-buffer;.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__unsigned long</entry>
+	    <entry><structfield>userptr</structfield></entry>
+	    <entry>When the memory type in the containing &v4l2-buffer; is
+	      <constant>V4L2_MEMORY_USERPTR</constant>, this is a userspace
+	      pointer to the memory allocated for this plane by an application.
+	      </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>data_offset</structfield></entry>
+	    <entry></entry>
+	    <entry>Offset in bytes to video data in the plane, if applicable.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved[11]</structfield></entry>
+	    <entry></entry>
+	    <entry>Reserved for future use. Should be zeroed by an
+	    application.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
     <table frame="none" pgwide="1" id="v4l2-buf-type">
       <title>enum v4l2_buf_type</title>
       <tgroup cols="3">
@@ -604,13 +771,27 @@ should set this to 0.</entry>
 	  <row>
 	    <entry><constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant></entry>
 	    <entry>1</entry>
-	    <entry>Buffer of a video capture stream, see <xref
+	    <entry>Buffer of a single-planar video capture stream, see <xref
+		linkend="capture" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>
+	    </entry>
+	    <entry>9</entry>
+	    <entry>Buffer of a multi-planar video capture stream, see <xref
 		linkend="capture" />.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant></entry>
 	    <entry>2</entry>
-	    <entry>Buffer of a video output stream, see <xref
+	    <entry>Buffer of a single-planar video output stream, see <xref
+		linkend="output" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>
+	    </entry>
+	    <entry>10</entry>
+	    <entry>Buffer of a multi-planar video output stream, see <xref
 		linkend="output" />.</entry>
 	  </row>
 	  <row>

@@ -42,15 +42,15 @@ static void swsusp_unset_page_forbidden(struct page *);
 
 /*
  * Preferred image size in bytes (tunable via /sys/power/image_size).
- * When it is set to N, swsusp will do its best to ensure the image
- * size will not exceed N bytes, but if that is impossible, it will
- * try to create the smallest image possible.
+ * When it is set to N, the image creating code will do its best to
+ * ensure the image size will not exceed N bytes, but if that is
+ * impossible, it will try to create the smallest image possible.
  */
 unsigned long image_size;
 
 void __init hibernate_image_size_init(void)
 {
-	image_size = ((totalram_pages * 2) / 5) * PAGE_SIZE;
+	image_size = (totalram_pages / 3) * PAGE_SIZE;
 }
 
 /* List of PBEs needed for restoring the pages that were allocated before

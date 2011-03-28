@@ -970,6 +970,7 @@ static int __init compal_init(void)
 	if (!acpi_video_backlight_support()) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_PLATFORM;
 		props.max_brightness = BACKLIGHT_LEVEL_MAX;
 		compalbl_device = backlight_device_register(DRIVER_NAME,
 							    NULL, NULL,

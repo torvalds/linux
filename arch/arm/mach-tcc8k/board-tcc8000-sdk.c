@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -17,6 +18,8 @@
 #include <asm/mach/time.h>
 
 #include <mach/clock.h>
+#include <mach/tcc-nand.h>
+#include <mach/tcc8k-regs.h>
 
 #include "common.h"
 
@@ -51,10 +54,26 @@ static struct sys_timer tcc8k_timer = {
 static void __init tcc8k_map_io(void)
 {
 	tcc8k_map_common_io();
+
+	/* set PLL0 clock to 96MHz, adapt UART0 divisor */
+	__raw_writel(0x00026003, CKC_BASE + PLL0CFG_OFFS);
+	__raw_writel(0x10000001, CKC_BASE + ACLKUART0_OFFS);
+
+	/* set PLL1 clock to 192MHz */
+	__raw_writel(0x00016003, CKC_BASE + PLL1CFG_OFFS);
+
+	/* set PLL2 clock to 48MHz */
+	__raw_writel(0x00036003, CKC_BASE + PLL2CFG_OFFS);
+
+	/* with CPU freq higher than 150 MHz, need extra DTCM wait */
+	__raw_writel(0x00000001, SCFG_BASE + DTCMWAIT_OFFS);
+
+	/* PLL locking time as specified */
+	udelay(300);
 }
 
 MACHINE_START(TCC8000_SDK, "Telechips TCC8000-SDK Demo Board")
-	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
 	.map_io		= tcc8k_map_io,
 	.init_irq	= tcc8k_init_irq,
 	.init_machine	= tcc8k_init,

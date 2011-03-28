@@ -20,7 +20,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-//#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
@@ -28,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-//#include <linux/usb.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/rtnetlink.h>	//for rtnl_lock()
@@ -39,13 +37,14 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
+#include "ieee80211/rtl819x_HT.h"
 #include "ieee80211/ieee80211.h"
 
 
 
 
 #define RTL819xE_MODULE_NAME "rtl819xE"
-//added for HW security, john.0629
+
 #define FALSE 0
 #define TRUE 1
 #define MAX_KEY_LEN     61
@@ -94,16 +93,12 @@
 
 #if 0 //we need to use RT_TRACE instead DMESG as RT_TRACE will clearly show debug level wb.
 #define DMESG(x,a...) printk(KERN_INFO RTL819xE_MODULE_NAME ": " x "\n", ## a)
-#define DMESGW(x,a...) printk(KERN_WARNING RTL819xE_MODULE_NAME ": WW:" x "\n", ## a)
-#define DMESGE(x,a...) printk(KERN_WARNING RTL819xE_MODULE_NAME ": EE:" x "\n", ## a)
 #else
 #define DMESG(x,a...)
-#define DMESGW(x,a...)
-#define DMESGE(x,a...)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
 do { if(rt_global_debug_component & component) \
-	printk(KERN_DEBUG RTL819xE_MODULE_NAME ":" x "\n" , \
+	printk(KERN_DEBUG RTL819xE_MODULE_NAME ":" x , \
 	       ##args);\
 }while(0);
 
@@ -134,9 +129,9 @@ do { if(rt_global_debug_component & component) \
 #define COMP_EVENTS			        BIT19	// Event handling
 
 #define COMP_RF					BIT20	// For RF.
-//1!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//1//1Attention Please!!!<11n or 8190 specific code should be put below this line>
-//1!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+/* 11n or 8190 specific code should be put below this line */
+
 
 #define COMP_FIRMWARE			        BIT21	//for firmware downloading
 #define COMP_HT					BIT22	// For 802.11n HT related information. by Emily 2006-8-11
@@ -149,34 +144,6 @@ do { if(rt_global_debug_component & component) \
 #define COMP_INTR 				BIT28  // for interrupt
 #define COMP_ERR				BIT31  // for error out, always on
 #endif
-
-#define RTL819x_DEBUG
-#ifdef RTL819x_DEBUG
-#define assert(expr) \
-        if (!(expr)) {                                  \
-                printk( "Assertion failed! %s,%s,%s,line=%d\n", \
-                #expr,__FILE__,__FUNCTION__,__LINE__);          \
-        }
-//wb added to debug out data buf
-//if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
-#define RT_DEBUG_DATA(level, data, datalen)      \
-        do{ if ((rt_global_debug_component & (level)) == (level))   \
-                {       \
-                        int i;                                  \
-                        u8* pdata = (u8*) data;                 \
-                        printk(KERN_DEBUG RTL819xE_MODULE_NAME ": %s()\n", __FUNCTION__);   \
-                        for(i=0; i<(int)(datalen); i++)                 \
-                        {                                               \
-                                printk("%2x ", pdata[i]);               \
-                                if ((i+1)%16 == 0) printk("\n");        \
-                        }                               \
-                        printk("\n");                   \
-                }                                       \
-        } while (0)
-#else
-#define assert(expr) do {} while (0)
-#define RT_DEBUG_DATA(level, data, datalen) do {} while(0)
-#endif /* RTL8169_DEBUG */
 
 
 //
@@ -224,6 +191,87 @@ do { if(rt_global_debug_component & component) \
 #define RTL819X_DEFAULT_RF_TYPE RF_1T2R
 #define EEPROM_Default_LegacyHTTxPowerDiff	0x4
 #define IEEE80211_WATCH_DOG_TIME    2000
+
+typedef u32 RT_RF_CHANGE_SOURCE;
+#define RF_CHANGE_BY_SW BIT31
+#define RF_CHANGE_BY_HW BIT30
+#define RF_CHANGE_BY_PS BIT29
+#define RF_CHANGE_BY_IPS BIT28
+#define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
+
+// RF state.
+typedef	enum _RT_RF_POWER_STATE {
+	eRfOn,
+	eRfSleep,
+	eRfOff
+} RT_RF_POWER_STATE;
+
+typedef enum _RT_JOIN_ACTION {
+	RT_JOIN_INFRA = 1,
+	RT_JOIN_IBSS  = 2,
+	RT_START_IBSS = 3,
+	RT_NO_ACTION  = 4,
+} RT_JOIN_ACTION;
+
+typedef enum _IPS_CALLBACK_FUNCION {
+	IPS_CALLBACK_NONE = 0,
+	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
+	IPS_CALLBACK_JOIN_REQUEST = 2,
+} IPS_CALLBACK_FUNCION;
+
+typedef struct _RT_POWER_SAVE_CONTROL {
+	/* Inactive Power Save(IPS) : Disable RF when disconnected */
+	bool			bInactivePs;
+	bool			bIPSModeBackup;
+	bool			bSwRfProcessing;
+	RT_RF_POWER_STATE	eInactivePowerState;
+	struct work_struct 	InactivePsWorkItem;
+	struct timer_list	InactivePsTimer;
+
+	/* Return point for join action */
+	IPS_CALLBACK_FUNCION	ReturnPoint;
+
+	/* Recored Parameters for rescheduled JoinRequest */
+	bool			bTmpBssDesc;
+	RT_JOIN_ACTION		tmpJoinAction;
+	struct ieee80211_network tmpBssDesc;
+
+	/* Recored Parameters for rescheduled MgntLinkRequest */
+	bool			bTmpScanOnly;
+	bool			bTmpActiveScan;
+	bool			bTmpFilterHiddenAP;
+	bool			bTmpUpdateParms;
+	u8			tmpSsidBuf[33];
+	OCTET_STRING		tmpSsid2Scan;
+	bool			bTmpSsid2Scan;
+	u8			tmpNetworkType;
+	u8			tmpChannelNumber;
+	u16			tmpBcnPeriod;
+	u8			tmpDtimPeriod;
+	u16			tmpmCap;
+	OCTET_STRING		tmpSuppRateSet;
+	u8			tmpSuppRateBuf[MAX_NUM_RATES];
+	bool			bTmpSuppRate;
+	IbssParms		tmpIbpm;
+	bool			bTmpIbpm;
+
+	/*
+	 * Leisure Power Save:
+	 * Disable RF if connected but traffic is not busy
+	 */
+	bool			bLeisurePs;
+	u32			PowerProfile;
+	u8			LpsIdleCount;
+
+	u32			CurPsLevel;
+	u32			RegRfPsLevel;
+
+	bool			bFwCtrlLPS;
+	u8			FWCtrlPSMode;
+
+	bool			LinkReqInIPSRFOffPgs;
+	bool			BufConnectinfoBefore;
+} RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
 
 /* For rtl819x */
 typedef struct _tx_desc_819x_pci {
@@ -329,11 +377,6 @@ typedef struct _tx_fwinfo_819x_pci {
         //u32                Reserved;
 }tx_fwinfo_819x_pci, *ptx_fwinfo_819x_pci;
 
-typedef struct rtl8192_rx_info {
-	struct urb *urb;
-	struct net_device *dev;
-	u8 out_pipe;
-}rtl8192_rx_info ;
 typedef struct _rx_desc_819x_pci{
 	//DOWRD 0
 	u16			Length:14;
@@ -386,8 +429,6 @@ typedef struct _rx_fwinfo_819x_pci{
 #define MAX_FIRMWARE_INFORMATION_SIZE   32 /*2006/04/30 by Emily forRTL8190*/
 #define MAX_802_11_HEADER_LENGTH        (40 + MAX_FIRMWARE_INFORMATION_SIZE)
 #define ENCRYPTION_MAX_OVERHEAD		128
-//#define	USB_HWDESC_HEADER_LEN		sizeof(tx_desc_819x_usb)
-//#define TX_PACKET_SHIFT_BYTES 	  	(USB_HWDESC_HEADER_LEN + sizeof(tx_fwinfo_819x_usb))
 #define MAX_FRAGMENT_COUNT		8
 #define MAX_TRANSMIT_BUFFER_SIZE  	(1600+(MAX_802_11_HEADER_LENGTH+ENCRYPTION_MAX_OVERHEAD)*MAX_FRAGMENT_COUNT)
 
@@ -406,11 +447,6 @@ typedef enum _desc_packet_type_e{
 	DESC_PACKET_TYPE_NORMAL = 1,
 }desc_packet_type_e;
 
-typedef enum _firmware_source{
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,		//from header file
-}firmware_source_e, *pfirmware_source_e;
-
 typedef enum _firmware_status{
 	FW_STATUS_0_INIT = 0,
 	FW_STATUS_1_MOVE_BOOT_CODE = 1,
@@ -420,11 +456,6 @@ typedef enum _firmware_status{
 	FW_STATUS_5_READY = 5,
 }firmware_status_e;
 
-typedef struct _rt_firmare_seg_container {
-	u16	seg_size;
-	u8	*seg_ptr;
-}fw_seg_container, *pfw_seg_container;
-
 typedef struct _rt_firmware{
 	firmware_status_e firmware_status;
 	u16		  cmdpacket_frag_thresold;
@@ -433,7 +464,7 @@ typedef struct _rt_firmware{
 	u8		  firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
 }rt_firmware, *prt_firmware;
-//+by amy 080507
+
 #define MAX_RECEIVE_BUFFER_SIZE	9100	// Add this to 9100 bytes to receive A-MSDU from RT-AP
 
 /* Firmware Queue Layout */
@@ -459,67 +490,21 @@ typedef struct _rt_firmware{
 #define RSVD_FW_QUEUE_PAGE_BCN_SHIFT	0x00
 #define RSVD_FW_QUEUE_PAGE_PUB_SHIFT	0x08
 
-//8187B Security
-//#define RWCAM                   0xA0                    // Software read/write CAM config
-//#define WCAMI                   0xA4                    // Software write CAM input content
-//#define RCAMO                   0xA8                    // Output value from CAM according to 0xa0 setting
 #define DCAM                    0xAC                    // Debug CAM Interface
 #define AESMSK_FC               0xB2    // AES Mask register for frame control (0xB2~0xB3). Added by Annie, 2006-03-06.
 
 
 #define CAM_CONTENT_COUNT       8
-//#define CFG_DEFAULT_KEY         BIT5
 #define CFG_VALID               BIT15
-#if 0
-//----------------------------------------------------------------------------
-//       8187B WPA Config Register (offset 0xb0, 1 byte)
-//----------------------------------------------------------------------------
-#define SCR_UseDK                       0x01
-#define SCR_TxSecEnable                 0x02
-#define SCR_RxSecEnable                 0x04
-
-//----------------------------------------------------------------------------
-//       8187B CAM Config Setting (offset 0xb0, 1 byte)
-//----------------------------------------------------------------------------
-#define CAM_VALID                               0x8000
-#define CAM_NOTVALID                    0x0000
-#define CAM_USEDK                               0x0020
-
-
-#define CAM_NONE                                0x0
-#define CAM_WEP40                               0x01
-#define CAM_TKIP                                0x02
-#define CAM_AES                                 0x04
-#define CAM_WEP104                              0x05
-
-//#define CAM_SIZE                              16
-#define TOTAL_CAM_ENTRY         16
-#define CAM_ENTRY_LEN_IN_DW     6       // 6, unit: in u4byte. Added by Annie, 2006-05-25.
-#define CAM_ENTRY_LEN_IN_BYTE   (CAM_ENTRY_LEN_IN_DW*sizeof(u32))    // 24, unit: in u1byte. Added by Annie, 2006-05-25.
-
-#define CAM_CONFIG_USEDK                1
-#define CAM_CONFIG_NO_USEDK             0
-
-#define CAM_WRITE                               0x00010000
-#define CAM_READ                                0x00000000
-#define CAM_POLLINIG                    0x80000000
-
-//=================================================================
-//=================================================================
-
-#endif
 #define EPROM_93c46 0
 #define EPROM_93c56 1
 
 #define DEFAULT_FRAG_THRESHOLD 2342U
 #define MIN_FRAG_THRESHOLD     256U
 #define DEFAULT_BEACONINTERVAL 0x64U
-#define DEFAULT_BEACON_ESSID "Rtl819xU"
 
-#define DEFAULT_SSID ""
 #define DEFAULT_RETRY_RTS 7
 #define DEFAULT_RETRY_DATA 7
-#define PRISM_HDR_SIZE 64
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
 
@@ -543,28 +528,6 @@ typedef struct buffer
 	dma_addr_t dma;
 
 } buffer;
-
-typedef struct rtl_reg_debug{
-        unsigned int  cmd;
-        struct {
-                unsigned char type;
-                unsigned char addr;
-                unsigned char page;
-                unsigned char length;
-        } head;
-        unsigned char buf[0xff];
-}rtl_reg_debug;
-
-#if 0
-
-typedef struct tx_pendingbuf
-{
-	struct ieee80211_txb *txb;
-	short ispending;
-	short descfrag;
-} tx_pendigbuf;
-
-#endif
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];
@@ -595,108 +558,36 @@ typedef enum _tag_TxCmd_Config_Index{
 
 typedef struct Stats
 {
-	unsigned long txrdu;
 	unsigned long rxrdu;
-	//unsigned long rxnolast;
-	//unsigned long rxnodata;
-//	unsigned long rxreset;
-//	unsigned long rxnopointer;
 	unsigned long rxok;
-	unsigned long rxframgment;
-	unsigned long rxcmdpkt[4];		//08/05/08 amy rx cmd element txfeedback/bcn report/cfg set/query
-	unsigned long rxurberr;
-	unsigned long rxstaterr;
-	unsigned long rxcrcerrmin;//crc error (0-500)
-	unsigned long rxcrcerrmid;//crc error (500-1000)
-	unsigned long rxcrcerrmax;//crc error (>1000)
-	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV, 2007 07 03 cosa
-	unsigned long received_preamble_GI[2][32];		//0: Long preamble/GI, 1:Short preamble/GI
-	unsigned long	rx_AMPDUsize_histogram[5]; // level: (<4K), (4K~8K), (8K~16K), (16K~32K), (32K~64K)
-	unsigned long rx_AMPDUnum_histogram[5]; // level: (<5), (5~10), (10~20), (20~40), (>40)
-	unsigned long numpacket_matchbssid;	// debug use only.
-	unsigned long numpacket_toself;		// debug use only.
-	unsigned long num_process_phyinfo;		// debug use only.
-	unsigned long numqry_phystatus;
-	unsigned long numqry_phystatusCCK;
-	unsigned long numqry_phystatusHT;
-	unsigned long received_bwtype[5];              //0: 20M, 1: funn40M, 2: upper20M, 3: lower20M, 4: duplicate
-	unsigned long txnperr;
-	unsigned long txnpdrop;
-	unsigned long txresumed;
-//	unsigned long rxerr;
+	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV
 	unsigned long rxoverflow;
 	unsigned long rxint;
-	unsigned long txnpokint;
-//	unsigned long txhpokint;
-//	unsigned long txhperr;
-	unsigned long ints;
-	unsigned long shints;
 	unsigned long txoverflow;
-//	unsigned long rxdmafail;
-//	unsigned long txbeacon;
-//	unsigned long txbeaconerr;
-	unsigned long txlpokint;
-	unsigned long txlpdrop;
-	unsigned long txlperr;
 	unsigned long txbeokint;
-	unsigned long txbedrop;
-	unsigned long txbeerr;
 	unsigned long txbkokint;
-	unsigned long txbkdrop;
-	unsigned long txbkerr;
 	unsigned long txviokint;
-	unsigned long txvidrop;
-	unsigned long txvierr;
 	unsigned long txvookint;
-	unsigned long txvodrop;
-	unsigned long txvoerr;
 	unsigned long txbeaconokint;
-	unsigned long txbeacondrop;
 	unsigned long txbeaconerr;
 	unsigned long txmanageokint;
-	unsigned long txmanagedrop;
-	unsigned long txmanageerr;
 	unsigned long txcmdpktokint;
-	unsigned long txdatapkt;
 	unsigned long txfeedback;
 	unsigned long txfeedbackok;
 	unsigned long txoktotal;
-	unsigned long txokbytestotal;
-	unsigned long txokinperiod;
-	unsigned long txmulticast;
-	unsigned long txbytesmulticast;
-	unsigned long txbroadcast;
-	unsigned long txbytesbroadcast;
-	unsigned long txunicast;
 	unsigned long txbytesunicast;
 	unsigned long rxbytesunicast;
-	unsigned long txfeedbackfail;
-	unsigned long txerrtotal;
-	unsigned long txerrbytestotal;
-	unsigned long txerrmulticast;
-	unsigned long txerrbroadcast;
-	unsigned long txerrunicast;
-	unsigned long txretrycount;
-	unsigned long txfeedbackretry;
-	u8			last_packet_rate;
+
 	unsigned long slide_signal_strength[100];
 	unsigned long slide_evm[100];
 	unsigned long	slide_rssi_total;	// For recording sliding window's RSSI value
 	unsigned long slide_evm_total;	// For recording sliding window's EVM value
 	long signal_strength; // Transformed, in dbm. Beautified signal strength for UI, not correct.
-	long signal_quality;
-	long last_signal_strength_inpercent;
-	long	recv_signal_power;	// Correct smoothed ss in Dbm, only used in driver to report real power now.
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
-	long rxSNRdB[4];
-	rt_tx_rahis_t txrate;
-	u32 Slide_Beacon_pwdb[100];	//cosa add for beacon rssi
-	u32 Slide_Beacon_Total;		//cosa add for beacon rssi
+	u32 Slide_Beacon_pwdb[100];
+	u32 Slide_Beacon_Total;
 	RT_SMOOTH_DATA_4RF		cck_adc_pwdb;
-	u32	CurrentShowTxate;
-
-
 } Stats;
 
 
@@ -704,8 +595,6 @@ typedef struct Stats
 #define HAL_PRIME_CHNL_OFFSET_DONT_CARE		0
 #define HAL_PRIME_CHNL_OFFSET_LOWER			1
 #define HAL_PRIME_CHNL_OFFSET_UPPER			2
-
-//+by amy 080507
 
 typedef struct 	ChnlAccessSetting {
 	u16 SIFS_Timer;
@@ -735,15 +624,6 @@ typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfTxAFE; 			//Tx IQ DC Offset and Tx DFIR type //		0xc84~0xc87,0xc8c~0xc8f, 0xc94~0xc97, 0xc9c~0xc9f [16 bytes]
 	u32 rfLSSIReadBack; 	//LSSI RF readback data //		0x8a0~0x8af [16 bytes]
 }BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
-
-typedef enum _RT_RF_TYPE_819xU{
-        RF_TYPE_MIN = 0,
-        RF_8225,
-        RF_8256,
-        RF_8258,
-        RF_PSEUDO_11N = 4,
-}RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
-
 
 typedef struct _rate_adaptive
 {
@@ -827,9 +707,7 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_COREGA = 14,
 }RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
-//================================================================================
-// LED customization.
-//================================================================================
+/* LED customization. */
 
 typedef	enum _LED_STRATEGY_8190{
 	SW_LED_MODE0, // SW control 1 LED via GPIO0. It is default option.
@@ -990,18 +868,17 @@ struct rtl8192_tx_ring {
 typedef struct r8192_priv
 {
 	struct pci_dev *pdev;
-	//added for maintain info from eeprom
+	u8 *mem_start;
+
+	/* maintain info from eeprom */
 	short epromtype;
 	u16 eeprom_vid;
 	u16 eeprom_did;
 	u8  eeprom_CustomerID;
 	u16  eeprom_ChannelPlan;
 	RT_CUSTOMER_ID CustomerID;
-	LED_STRATEGY_8190	LedStrategy;
-	//bool bDcut;
 	u8	IC_Cut;
 	int irq;
-	short irq_enabled;
 	struct ieee80211_device *ieee80211;
 #ifdef ENABLE_LPS
 	bool ps_force;
@@ -1010,30 +887,14 @@ typedef struct r8192_priv
 #endif
 	bool being_init_adapter;
 	u8 Rf_Mode;
-	short card_8192; /* O: rtl8192, 1:rtl8185 V B/C, 2:rtl8185 V D */
 	u8 card_8192_version; /* if TCR reports card V B/C this discriminates */
-//	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
-	short enable_gpio0;
-	enum card_type {PCI,MINIPCI,CARDBUS,USB/*rtl8187*/}card_type;
-	short hw_plcp_len;
-	short plcp_preamble_mode;
-	u8 ScanDelay;
-	spinlock_t irq_lock;
 	spinlock_t irq_th_lock;
-	spinlock_t tx_lock;
 	spinlock_t rf_ps_lock;
         struct mutex mutex;
-	spinlock_t rf_lock; //used to lock rf write operation added by wb
-	spinlock_t ps_lock;
 
-	u32 irq_mask;
-//	short irq_enabled;
-//	struct net_device *dev; //comment this out.
 	short chan;
 	short sens;
-	short max_sens;
-	u32 rx_prevlen;
-/*RX stuff*/
+	/* RX stuff */
         rx_desc_819x_pci *rx_ring;
         dma_addr_t rx_ring_dma;
         unsigned int rx_idx;
@@ -1041,158 +902,50 @@ typedef struct r8192_priv
 	int rxringcount;
 	u16 rxbuffersize;
 
-
-	struct sk_buff *rx_skb;
-	u32 *rxring;
-	u32 *rxringtail;
-	dma_addr_t rxringdma;
-	struct buffer *rxbuffer;
-	struct buffer *rxbufferhead;
-	short rx_skb_complete;
-/*TX stuff*/
+	/* TX stuff */
         struct rtl8192_tx_ring tx_ring[MAX_TX_QUEUE_COUNT];
 	int txringcount;
-//{
-	int txbuffsize;
-	int txfwbuffersize;
-	//struct tx_pendingbuf txnp_pending;
-	//struct tasklet_struct irq_tx_tasklet;
+
 	struct tasklet_struct irq_rx_tasklet;
 	struct tasklet_struct irq_tx_tasklet;
         struct tasklet_struct irq_prepare_beacon_tasklet;
-	struct buffer *txmapbufs;
-	struct buffer *txbkpbufs;
-	struct buffer *txbepbufs;
-	struct buffer *txvipbufs;
-	struct buffer *txvopbufs;
-	struct buffer *txcmdbufs;
-	struct buffer *txmapbufstail;
-	struct buffer *txbkpbufstail;
-	struct buffer *txbepbufstail;
-	struct buffer *txvipbufstail;
-	struct buffer *txvopbufstail;
-	struct buffer *txcmdbufstail;
-	/* adhoc/master mode stuff */
-	ptx_ring txbeaconringtail;
-	dma_addr_t txbeaconringdma;
-	ptx_ring txbeaconring;
-	int txbeaconcount;
-	struct buffer *txbeaconbufs;
-	struct buffer *txbeaconbufstail;
-	ptx_ring txmapring;
-	ptx_ring txbkpring;
-	ptx_ring txbepring;
-	ptx_ring txvipring;
-	ptx_ring txvopring;
-	ptx_ring txcmdring;
-	ptx_ring txmapringtail;
-	ptx_ring txbkpringtail;
-	ptx_ring txbepringtail;
-	ptx_ring txvipringtail;
-	ptx_ring txvopringtail;
-	ptx_ring txcmdringtail;
-	ptx_ring txmapringhead;
-	ptx_ring txbkpringhead;
-	ptx_ring txbepringhead;
-	ptx_ring txvipringhead;
-	ptx_ring txvopringhead;
-	ptx_ring txcmdringhead;
-	dma_addr_t txmapringdma;
-	dma_addr_t txbkpringdma;
-	dma_addr_t txbepringdma;
-	dma_addr_t txvipringdma;
-	dma_addr_t txvopringdma;
-	dma_addr_t txcmdringdma;
-	//	u8 chtxpwr[15]; //channels from 1 to 14, 0 not used
-//	u8 chtxpwr_ofdm[15]; //channels from 1 to 14, 0 not used
-//	u8 cck_txpwr_base;
-//	u8 ofdm_txpwr_base;
-//	u8 challow[15]; //channels from 1 to 14, 0 not used
+
 	short up;
 	short crcmon; //if 1 allow bad crc frame reception in monitor mode
-//	short prism_hdr;
-
-//	struct timer_list scan_timer;
-	/*short scanpending;
-	short stopscan;*/
-//	spinlock_t scan_lock;
-//	u8 active_probe;
-	//u8 active_scan_num;
 	struct semaphore wx_sem;
 	struct semaphore rf_sem; //used to lock rf write operation added by wb, modified by david
-//	short hw_wep;
+	u8 rf_type; /* 0 means 1T2R, 1 means 2T4R */
 
-//	short digphy;
-//	short antb;
-//	short diversity;
-//	u8 cs_treshold;
-//	short rcr_csense;
-	u8 rf_type; //0 means 1T2R, 1 means 2T4R
-	RT_RF_TYPE_819xU rf_chip;
-
-//	u32 key0[4];
-	short (*rf_set_sens)(struct net_device *dev,short sens);
-	u8 (*rf_set_chan)(struct net_device *dev,u8 ch);
-	void (*rf_close)(struct net_device *dev);
-	void (*rf_init)(struct net_device *dev);
-	//short rate;
+	short (*rf_set_sens)(struct net_device *dev, short sens);
+	u8 (*rf_set_chan)(struct ieee80211_device *ieee80211, u8 ch);
 	short promisc;
-	/*stats*/
+	/* stats */
 	struct Stats stats;
 	struct iw_statistics wstats;
 	struct proc_dir_entry *dir_dev;
+	struct ieee80211_rx_stats previous_stats;
 
-	/*RX stuff*/
-//	u32 *rxring;
-//	u32 *rxringtail;
-//	dma_addr_t rxringdma;
-
-#ifdef THOMAS_BEACON
-	u32 *oldaddr;
-#endif
-#ifdef THOMAS_TASKLET
-	atomic_t irt_counter;//count for irq_rx_tasklet
-#endif
-#ifdef JACKSON_NEW_RX
-        struct sk_buff **pp_rxskb;
-        int     rx_inx;
-#endif
-
-/* modified by davad for Rx process */
-       struct sk_buff_head rx_queue;
-       struct sk_buff_head skb_queue;
-       struct work_struct qos_activate;
-	short  tx_urb_index;
-	atomic_t tx_pending[0x10];//UART_PRIORITY+1
-
-	struct urb *rxurb_task;
+	/* RX stuff */
+	struct sk_buff_head skb_queue;
+	struct work_struct qos_activate;
 
 	//2 Tx Related variables
 	u16	ShortRetryLimit;
 	u16	LongRetryLimit;
-	u32	TransmitConfig;
-	u8	RegCWinMin;		// For turbo mode CW adaptive. Added by Annie, 2005-10-27.
 
 	u32     LastRxDescTSFHigh;
 	u32     LastRxDescTSFLow;
 
 
 	//2 Rx Related variables
-	u16	EarlyRxThreshold;
 	u32	ReceiveConfig;
-	u8	AcmControl;
-
-	u8	RFProgType;
 
 	u8 retry_data;
 	u8 retry_rts;
-	u16 rts;
-
-	struct 	ChnlAccessSetting  ChannelAccessSetting;
 
 	struct work_struct reset_wq;
+	u8	rx_chk_cnt;
 
-/**********************************************************/
 //for rtl819xPci
 	// Data Rate Config. Added by Annie, 2006-04-13.
 	u16	basic_rate;
@@ -1204,30 +957,23 @@ typedef struct r8192_priv
 /*Firmware*/
 	prt_firmware		pFirmware;
 	rtl819x_loopback_e	LoopbackMode;
-	firmware_source_e	firmware_source;
 	bool AutoloadFailFlag;
-	u16 EEPROMTxPowerDiff;
 	u16 EEPROMAntPwDiff;		// Antenna gain offset from B/C/D to A
 	u8 EEPROMThermalMeter;
-	u8 EEPROMPwDiff;
 	u8 EEPROMCrystalCap;
-	u8 EEPROM_Def_Ver;
 	u8 EEPROMTxPowerLevelCCK[14];// CCK channel 1~14
 	// The following definition is for eeprom 93c56
 	u8 EEPROMRfACCKChnl1TxPwLevel[3];	//RF-A CCK Tx Power Level at channel 7
 	u8 EEPROMRfAOfdmChnlTxPwLevel[3];//RF-A CCK Tx Power Level at [0],[1],[2] = channel 1,7,13
 	u8 EEPROMRfCCCKChnl1TxPwLevel[3];	//RF-C CCK Tx Power Level at channel 7
 	u8 EEPROMRfCOfdmChnlTxPwLevel[3];//RF-C CCK Tx Power Level at [0],[1],[2] = channel 1,7,13
-	u8 EEPROMTxPowerLevelCCK_V1[3];
 	u8 EEPROMTxPowerLevelOFDM24G[14]; // OFDM 2.4G channel 1~14
-	u8 EEPROMTxPowerLevelOFDM5G[24];	// OFDM 5G
 	u8 EEPROMLegacyHTTxPowerDiff;	// Legacy to HT rate power diff
 	bool bTXPowerDataReadFromEEPORM;
 /*channel plan*/
 	u16 RegChannelPlan; // Channel Plan specifed by user, 15: following setting of EEPROM, 0-14: default channel plan index specified by user.
 	u16 ChannelPlan;
 /*PS related*/
-	bool RegRfOff;
 	// Rf off action for power save
 	u8	bHwRfOffAction;	//0:No action, 1:By GPIO, 2:By Disable
 /*PHY related*/
@@ -1243,8 +989,6 @@ typedef struct r8192_priv
 	u8	TxPowerLevelOFDM24G_A[14];	// RF-A, OFDM 2.4G channel 1~14
 	u8	TxPowerLevelOFDM24G_C[14];	// RF-C, OFDM 2.4G channel 1~14
 	u8	LegacyHTTxPowerDiff;			// Legacy to HT rate power diff
-	u8	TxPowerDiff;
-	char	RF_C_TxPwDiff;					// Antenna gain offset, rf-c to rf-a
 	u8	AntennaTxPwDiff[3];				// Antenna gain offset, index 0 for B, 1 for C, and 2 for D
 	u8	CrystalCap;						// CrystalCap.
 	u8	ThermalMeter[2];				// ThermalMeter, index 0 for RFIC0, and 1 for RFIC1
@@ -1257,6 +1001,9 @@ typedef struct r8192_priv
 	char				CCKPresentAttentuation_difference;
 	char				CCKPresentAttentuation;
 	// Use to calculate PWBD.
+	RT_RF_POWER_STATE		eRFPowerState;
+	RT_RF_CHANGE_SOURCE	RfOffReason;
+	RT_POWER_SAVE_CONTROL	PowerSaveControl;
 	u8	bCckHighPower;
 	long	undecorated_smoothed_pwdb;
 	long	undecorated_smoothed_cck_adc_pwdb[4];
@@ -1278,22 +1025,25 @@ typedef struct r8192_priv
 	bool 				brfpath_rxenable[4];
 //+by amy 080507
 	struct timer_list watch_dog_timer;
+	u8 watchdog_last_time;
+	u8 watchdog_check_reset_cnt;
 
 //+by amy 080515 for dynamic mechenism
 	//Add by amy Tx Power Control for Near/Far Range 2008/05/15
-	bool	bdynamic_txpower;  //bDynamicTxPower
 	bool	bDynamicTxHighPower;  // Tx high power state
 	bool	bDynamicTxLowPower;  // Tx low power state
 	bool	bLastDTPFlag_High;
 	bool	bLastDTPFlag_Low;
 
-	bool	bstore_last_dtpflag;
-	bool	bstart_txctrl_bydtp;   //Define to discriminate on High power State or on sitesuvey to change Tx gain index
+	/* OFDM RSSI. For high power or not */
+	u8	phy_check_reg824;
+	u32	phy_reg824_bit9;
+
 	//Add by amy for Rate Adaptive
 	rate_adaptive rate_adaptive;
 	//Add by amy for TX power tracking
 	//2008/05/15  Mars OPEN/CLOSE TX POWER TRACKING
-       txbbgain_struct txbbgain_table[TxBBGainTableLength];
+	const txbbgain_struct * txbbgain_table;
 	u8			   txpower_count;//For 6 sec do tracking again
 	bool			   btxpower_trackingInit;
 	u8			   OFDM_index;
@@ -1301,8 +1051,8 @@ typedef struct r8192_priv
 	u8			   Record_CCK_20Mindex;
 	u8			   Record_CCK_40Mindex;
 	//2007/09/10 Mars Add CCK TX Power Tracking
-	ccktxbbgain_struct	cck_txbbgain_table[CCKTxBBGainTableLength];
-	ccktxbbgain_struct	cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
+	const ccktxbbgain_struct *cck_txbbgain_table;
+	const ccktxbbgain_struct *cck_txbbgain_ch14_table;
 	u8 rfa_txpowertrackingindex;
 	u8 rfa_txpowertrackingindex_real;
 	u8 rfa_txpowertracking_default;
@@ -1321,7 +1071,6 @@ typedef struct r8192_priv
 
 	bool		bis_cur_rdlstate;
 	struct timer_list fsync_timer;
-	bool bfsync_processing;	// 500ms Fsync timer is active or not
 	u32 	rate_record;
 	u32 	rateCountDiffRecord;
 	u32	ContiuneDiffCount;
@@ -1330,32 +1079,13 @@ typedef struct r8192_priv
 	u8	framesync;
 	u32 	framesyncC34;
 	u8   	framesyncMonitor;
-        	//Added by amy 080516  for RX related
-	u16 	nrxAMPDU_size;
-	u8 	nrxAMPDU_aggr_num;
-
-	/*Last RxDesc TSF value*/
-	u32 last_rxdesc_tsf_high;
-	u32 last_rxdesc_tsf_low;
 
 	//by amy for gpio
 	bool bHwRadioOff;
 	//by amy for ps
-	bool RFChangeInProgress; // RF Chnage in progress, by Bruce, 2007-10-30
-	bool SetRFPowerStateInProgress;
 	RT_OP_MODE OpMode;
 	//by amy for reset_count
 	u32 reset_count;
-	bool bpbc_pressed;
-	//by amy for debug
-	u32 txpower_checkcnt;
-	u32 txpower_tracking_callback_cnt;
-	u8 thermal_read_val[40];
-	u8 thermal_readback_index;
-	u32 ccktxpower_adjustcnt_not_ch14;
-	u32 ccktxpower_adjustcnt_ch14;
-	u8 tx_fwinfo_force_subcarriermode;
-	u8 tx_fwinfo_force_subcarrierval;
 
 	//by amy for silent reset
 	RESET_TYPE	ResetProgress;
@@ -1378,154 +1108,41 @@ typedef struct r8192_priv
 	struct workqueue_struct *priv_wq;
 }r8192_priv;
 
-// for rtl8187
-// now mirging to rtl8187B
-/*
-typedef enum{
-	LOW_PRIORITY = 0x02,
-	NORM_PRIORITY
-	} priority_t;
-*/
-//for rtl8187B
-#if 0
-typedef enum{
-	BULK_PRIORITY = 0x01,
-	//RSVD0,
-	//RSVD1,
-	LOW_PRIORITY,
-	NORM_PRIORITY,
-	VO_PRIORITY,
-	VI_PRIORITY, //0x05
-	BE_PRIORITY,
-	BK_PRIORITY,
-	CMD_PRIORITY,//0x8
-	RSVD3,
-	BEACON_PRIORITY, //0x0A
-	HIGH_PRIORITY,
-	MANAGE_PRIORITY,
-	RSVD4,
-	RSVD5,
-	UART_PRIORITY //0x0F
-} priority_t;
-#endif
-typedef enum{
-	NIC_8192E = 1,
-	} nic_t;
+bool init_firmware(struct r8192_priv *priv);
+u32 read_cam(struct r8192_priv *priv, u8 addr);
+void write_cam(struct r8192_priv *priv, u8 addr, u32 data);
+u8 read_nic_byte(struct r8192_priv *priv, int x);
+u32 read_nic_dword(struct r8192_priv *priv, int x);
+u16 read_nic_word(struct r8192_priv *priv, int x) ;
+void write_nic_byte(struct r8192_priv *priv, int x,u8 y);
+void write_nic_word(struct r8192_priv *priv, int x,u16 y);
+void write_nic_dword(struct r8192_priv *priv, int x,u32 y);
 
-
-#if 0 //defined in Qos.h
-//typedef u32 AC_CODING;
-#define AC0_BE	0		// ACI: 0x00	// Best Effort
-#define AC1_BK	1		// ACI: 0x01	// Background
-#define AC2_VI	2		// ACI: 0x10	// Video
-#define AC3_VO	3		// ACI: 0x11	// Voice
-#define AC_MAX	4		// Max: define total number; Should not to be used as a real enum.
-
-//
-// ECWmin/ECWmax field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.13.
-//
-typedef	union _ECW{
-	u8	charData;
-	struct
-	{
-		u8	ECWmin:4;
-		u8	ECWmax:4;
-	}f;	// Field
-}ECW, *PECW;
-
-//
-// ACI/AIFSN Field.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _ACI_AIFSN{
-	u8	charData;
-
-	struct
-	{
-		u8	AIFSN:4;
-		u8	ACM:1;
-		u8	ACI:2;
-		u8	Reserved:1;
-	}f;	// Field
-}ACI_AIFSN, *PACI_AIFSN;
-
-//
-// AC Parameters Record Format.
-// Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
-//
-typedef	union _AC_PARAM{
-	u32	longData;
-	u8	charData[4];
-
-	struct
-	{
-		ACI_AIFSN	AciAifsn;
-		ECW		Ecw;
-		u16		TXOPLimit;
-	}f;	// Field
-}AC_PARAM, *PAC_PARAM;
-
-#endif
-bool init_firmware(struct net_device *dev);
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
-u32 read_cam(struct net_device *dev, u8 addr);
-void write_cam(struct net_device *dev, u8 addr, u32 data);
-u8 read_nic_byte(struct net_device *dev, int x);
-u8 read_nic_byte_E(struct net_device *dev, int x);
-u32 read_nic_dword(struct net_device *dev, int x);
-u16 read_nic_word(struct net_device *dev, int x) ;
-void write_nic_byte(struct net_device *dev, int x,u8 y);
-void write_nic_byte_E(struct net_device *dev, int x,u8 y);
-void write_nic_word(struct net_device *dev, int x,u16 y);
-void write_nic_dword(struct net_device *dev, int x,u32 y);
-
-void rtl8192_halt_adapter(struct net_device *dev, bool reset);
-void rtl8192_rx_enable(struct net_device *);
-void rtl8192_tx_enable(struct net_device *);
-
-void rtl8192_disassociate(struct net_device *dev);
-//void fix_rx_fifo(struct net_device *dev);
-void rtl8185_set_rf_pins_enable(struct net_device *dev,u32 a);
-
-void rtl8192_set_anaparam(struct net_device *dev,u32 a);
-void rtl8185_set_anaparam2(struct net_device *dev,u32 a);
-void rtl8192_update_msr(struct net_device *dev);
 int rtl8192_down(struct net_device *dev);
 int rtl8192_up(struct net_device *dev);
-void rtl8192_commit(struct net_device *dev);
-void rtl8192_set_chan(struct net_device *dev,short ch);
+void rtl8192_commit(struct r8192_priv *priv);
 void write_phy(struct net_device *dev, u8 adr, u8 data);
-void write_phy_cck(struct net_device *dev, u8 adr, u32 data);
-void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
-void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
-void rtl8187_set_rxconf(struct net_device *dev);
-//short check_nic_enough_desc(struct net_device *dev, priority_t priority);
-void CamResetAllEntry(struct net_device* dev);
-void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
-void dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
-void firmware_init_param(struct net_device *dev);
-RT_STATUS cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
-void rtl8192_hw_wakeup_wq (struct work_struct *work);
+void CamResetAllEntry(struct r8192_priv *priv);
+void EnableHWSecurityConfig8192(struct r8192_priv *priv);
+void setKey(struct r8192_priv *priv, u8 EntryNo, u8 KeyIndex, u16 KeyType,
+	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
+void firmware_init_param(struct r8192_priv *priv);
+RT_STATUS cmpk_message_handle_tx(struct r8192_priv *priv, u8 *codevirtualaddress, u32 packettype, u32 buffer_len);
 
-short rtl8192_is_tx_queue_empty(struct net_device *dev);
 #ifdef ENABLE_IPS
-void IPSEnter(struct net_device *dev);
-void IPSLeave(struct net_device *dev);
-void InactivePsWorkItemCallback(struct net_device *dev);
-void IPSLeave_wq(void *data);
-void ieee80211_ips_leave_wq(struct net_device *dev);
-void ieee80211_ips_leave(struct net_device *dev);
+void IPSEnter(struct r8192_priv *priv);
+void IPSLeave(struct r8192_priv *priv);
+void IPSLeave_wq(struct work_struct *work);
+void ieee80211_ips_leave_wq(struct ieee80211_device *ieee80211);
+void ieee80211_ips_leave(struct ieee80211_device *ieee80211);
 #endif
 #ifdef ENABLE_LPS
-void LeisurePSEnter(struct net_device *dev);
-void LeisurePSLeave(struct net_device *dev);
+void LeisurePSEnter(struct ieee80211_device *ieee80211);
+void LeisurePSLeave(struct ieee80211_device *ieee80211);
 #endif
 
-bool NicIFEnableNIC(struct net_device* dev);
-bool NicIFDisableNIC(struct net_device* dev);
+bool NicIFEnableNIC(struct r8192_priv *priv);
+bool NicIFDisableNIC(struct r8192_priv *priv);
 
-void rtl8192_irq_disable(struct net_device *dev);
-void PHY_SetRtl8192eRfOff(struct net_device* dev);
+void PHY_SetRtl8192eRfOff(struct r8192_priv *priv);
 #endif

@@ -765,8 +765,7 @@ static long encrypted_read(const struct key *key, char __user *buffer,
 	size_t asciiblob_len;
 	int ret;
 
-	epayload = rcu_dereference_protected(key->payload.data,
-				  rwsem_is_locked(&((struct key *)key)->sem));
+	epayload = rcu_dereference_key(key);
 
 	/* returns the hex encoded iv, encrypted-data, and hmac as ascii */
 	asciiblob_len = epayload->datablob_len + ivsize + 1

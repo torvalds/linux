@@ -1,14 +1,16 @@
 #ifndef _XT_TIME_H
 #define _XT_TIME_H 1
 
+#include <linux/types.h>
+
 struct xt_time_info {
-	u_int32_t date_start;
-	u_int32_t date_stop;
-	u_int32_t daytime_start;
-	u_int32_t daytime_stop;
-	u_int32_t monthdays_match;
-	u_int8_t weekdays_match;
-	u_int8_t flags;
+	__u32 date_start;
+	__u32 date_stop;
+	__u32 daytime_start;
+	__u32 daytime_stop;
+	__u32 monthdays_match;
+	__u8 weekdays_match;
+	__u8 flags;
 };
 
 enum {

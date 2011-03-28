@@ -42,76 +42,11 @@
     TYPEDEFS
 ----------------------------------------------*/
 
-/*
- * Note that several members of these structres are only here
- * for campatability with the middleware; they are not used
- * by this driver.
- * All user space buffer addresses are set to aligned u64
- * in order to ensure compatibility with 64 bit systems
- */
-
-/*
-  init command struct; this will go away when SCU does init
-*/
-struct init_struct {
-	/* address that SEP can access for message */
-	aligned_u64   message_addr;
-
-	/* message size */
-	u32   message_size_in_words;
-
-	/* offset of the init message in the sep sram */
-	u32   sep_sram_addr;
-
-	/* -not used- resident size in bytes*/
-	u32   unused_resident_size_in_bytes;
-
-	/* -not used- cache size in bytes*/
-	u32   unused_cache_size_in_bytes;
-
-	/* -not used- ext cache current address */
-	aligned_u64   unused_extcache_addr;
-
-	/* -not used- ext cache size in bytes*/
-	u32   unused_extcache_size_in_bytes;
-};
-
-struct realloc_ext_struct {
-	/* -not used- current external cache address */
-	aligned_u64   unused_ext_cache_addr;
-
-	/* -not used- external cache size in bytes*/
-	u32   unused_ext_cache_size_in_bytes;
-};
-
 struct alloc_struct {
 	/* offset from start of shared pool area */
 	u32  offset;
 	/* number of bytes to allocate */
 	u32  num_bytes;
-};
-
-/*
-	Note that all app addresses are cast as u32; the sep
-	middleware sends them as fixed 32 bit words
-*/
-struct bld_syn_tab_struct {
-	/* address value of the data in (user space addr) */
-	aligned_u64 app_in_address;
-
-	/* size of data in */
-	u32 data_in_size;
-
-	/* address of the data out (user space addr) */
-	aligned_u64 app_out_address;
-
-	/* the size of the block of the operation - if needed,
-	   every table will be modulo this parameter */
-	u32 block_size;
-
-	/* -not used- distinct user/kernel layout */
-	bool isKernelVirtualAddress;
-
 };
 
 /* command struct for getting caller id value and address */
@@ -141,11 +76,11 @@ struct sep_dcblock {
 	/* size of data in the first output mlli */
 	u32	output_mlli_data_size;
 	/* pointer to the output virtual tail */
-	u32	out_vr_tail_pt;
+	aligned_u64 out_vr_tail_pt;
 	/* size of tail data */
 	u32	tail_data_size;
 	/* input tail data array */
-	u8	tail_data[64];
+	u8	tail_data[68];
 };
 
 struct sep_caller_id_entry {
@@ -253,10 +188,6 @@ struct sep_lli_entry {
 #define SEP_IOCALLOCDATAPOLL	\
 	_IOW(SEP_IOC_MAGIC_NUMBER, 2, struct alloc_struct)
 
-/* create sym dma lli tables */
-#define SEP_IOCCREATESYMDMATABLE	\
-	_IOW(SEP_IOC_MAGIC_NUMBER, 5, struct bld_syn_tab_struct)
-
 /* free dynamic data aalocated during table creation */
 #define SEP_IOCFREEDMATABLEDATA	 \
 	_IO(SEP_IOC_MAGIC_NUMBER, 7)
@@ -265,22 +196,9 @@ struct sep_lli_entry {
 #define SEP_IOCGETSTATICPOOLADDR	\
 	_IO(SEP_IOC_MAGIC_NUMBER, 8)
 
-/* start sep command */
-#define SEP_IOCSEPSTART	 \
-	_IO(SEP_IOC_MAGIC_NUMBER, 12)
-
-/* init sep command */
-#define SEP_IOCSEPINIT	\
-	_IOW(SEP_IOC_MAGIC_NUMBER, 13, struct init_struct)
-
 /* end transaction command */
 #define SEP_IOCENDTRANSACTION	 \
 	_IO(SEP_IOC_MAGIC_NUMBER, 15)
-
-/* reallocate external app; unused structure still needed for
- * compatability with middleware */
-#define SEP_IOCREALLOCEXTCACHE	\
-	_IOW(SEP_IOC_MAGIC_NUMBER, 18, struct realloc_ext_struct)
 
 #define SEP_IOCRARPREPAREMESSAGE	\
 	_IOW(SEP_IOC_MAGIC_NUMBER, 20, struct rar_hndl_to_bus_struct)

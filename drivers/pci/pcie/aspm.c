@@ -69,6 +69,7 @@ struct pcie_link_state {
 };
 
 static int aspm_disabled, aspm_force, aspm_clear_state;
+static bool aspm_support_enabled = true;
 static DEFINE_MUTEX(aspm_lock);
 static LIST_HEAD(link_list);
 
@@ -707,6 +708,28 @@ void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 	up_read(&pci_bus_sem);
 }
 
+void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
+{
+	struct pcie_link_state *link = pdev->link_state;
+
+	if (aspm_disabled || !pci_is_pcie(pdev) || !link)
+		return;
+
+	if (aspm_policy != POLICY_POWERSAVE)
+		return;
+
+	if ((pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
+	    (pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM))
+		return;
+
+	down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+	pcie_config_aspm_path(link);
+	pcie_set_clkpm(link, policy_to_clkpm_state(link));
+	mutex_unlock(&aspm_lock);
+	up_read(&pci_bus_sem);
+}
+
 /*
  * pci_disable_link_state - disable pci device's link state, so the link will
  * never enter specific states
@@ -747,6 +770,8 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	int i;
 	struct pcie_link_state *link;
 
+	if (aspm_disabled)
+		return -EPERM;
 	for (i = 0; i < ARRAY_SIZE(policy_str); i++)
 		if (!strncmp(val, policy_str[i], strlen(policy_str[i])))
 			break;
@@ -801,6 +826,8 @@ static ssize_t link_state_store(struct device *dev,
 	struct pcie_link_state *link, *root = pdev->link_state->root;
 	u32 val = buf[0] - '0', state = 0;
 
+	if (aspm_disabled)
+		return -EPERM;
 	if (n < 1 || val > 3)
 		return -EINVAL;
 
@@ -896,6 +923,7 @@ static int __init pcie_aspm_disable(char *str)
 {
 	if (!strcmp(str, "off")) {
 		aspm_disabled = 1;
+		aspm_support_enabled = false;
 		printk(KERN_INFO "PCIe ASPM is disabled\n");
 	} else if (!strcmp(str, "force")) {
 		aspm_force = 1;
@@ -930,3 +958,8 @@ int pcie_aspm_enabled(void)
 }
 EXPORT_SYMBOL(pcie_aspm_enabled);
 
+bool pcie_aspm_support_enabled(void)
+{
+	return aspm_support_enabled;
+}
+EXPORT_SYMBOL(pcie_aspm_support_enabled);

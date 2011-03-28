@@ -1048,8 +1048,6 @@ iso_stream_put(struct ehci_hcd *ehci, struct ehci_iso_stream *stream)
 	 * not like a QH -- no persistent state (toggle, halt)
 	 */
 	if (stream->refcount == 1) {
-		int		is_in;
-
 		// BUG_ON (!list_empty(&stream->td_list));
 
 		while (!list_empty (&stream->free_list)) {
@@ -1076,7 +1074,6 @@ iso_stream_put(struct ehci_hcd *ehci, struct ehci_iso_stream *stream)
 			}
 		}
 
-		is_in = (stream->bEndpointAddress & USB_DIR_IN) ? 0x10 : 0;
 		stream->bEndpointAddress &= 0x0f;
 		if (stream->ep)
 			stream->ep->hcpriv = NULL;
@@ -1590,63 +1587,6 @@ itd_link (struct ehci_hcd *ehci, unsigned frame, struct ehci_itd *itd)
 	*hw_p = cpu_to_hc32(ehci, itd->itd_dma | Q_TYPE_ITD);
 }
 
-#define AB_REG_BAR_LOW 0xe0
-#define AB_REG_BAR_HIGH 0xe1
-#define AB_INDX(addr) ((addr) + 0x00)
-#define AB_DATA(addr) ((addr) + 0x04)
-#define NB_PCIE_INDX_ADDR 0xe0
-#define NB_PCIE_INDX_DATA 0xe4
-#define NB_PIF0_PWRDOWN_0 0x01100012
-#define NB_PIF0_PWRDOWN_1 0x01100013
-
-static void ehci_quirk_amd_L1(struct ehci_hcd *ehci, int disable)
-{
-	u32 addr, addr_low, addr_high, val;
-
-	outb_p(AB_REG_BAR_LOW, 0xcd6);
-	addr_low = inb_p(0xcd7);
-	outb_p(AB_REG_BAR_HIGH, 0xcd6);
-	addr_high = inb_p(0xcd7);
-	addr = addr_high << 8 | addr_low;
-	outl_p(0x30, AB_INDX(addr));
-	outl_p(0x40, AB_DATA(addr));
-	outl_p(0x34, AB_INDX(addr));
-	val = inl_p(AB_DATA(addr));
-
-	if (disable) {
-		val &= ~0x8;
-		val |= (1 << 4) | (1 << 9);
-	} else {
-		val |= 0x8;
-		val &= ~((1 << 4) | (1 << 9));
-	}
-	outl_p(val, AB_DATA(addr));
-
-	if (amd_nb_dev) {
-		addr = NB_PIF0_PWRDOWN_0;
-		pci_write_config_dword(amd_nb_dev, NB_PCIE_INDX_ADDR, addr);
-		pci_read_config_dword(amd_nb_dev, NB_PCIE_INDX_DATA, &val);
-		if (disable)
-			val &= ~(0x3f << 7);
-		else
-			val |= 0x3f << 7;
-
-		pci_write_config_dword(amd_nb_dev, NB_PCIE_INDX_DATA, val);
-
-		addr = NB_PIF0_PWRDOWN_1;
-		pci_write_config_dword(amd_nb_dev, NB_PCIE_INDX_ADDR, addr);
-		pci_read_config_dword(amd_nb_dev, NB_PCIE_INDX_DATA, &val);
-		if (disable)
-			val &= ~(0x3f << 7);
-		else
-			val |= 0x3f << 7;
-
-		pci_write_config_dword(amd_nb_dev, NB_PCIE_INDX_DATA, val);
-	}
-
-	return;
-}
-
 /* fit urb's itds into the selected schedule slot; activate as needed */
 static int
 itd_link_urb (
@@ -1675,8 +1615,8 @@ itd_link_urb (
 	}
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
-		if (ehci->amd_l1_fix == 1)
-			ehci_quirk_amd_L1(ehci, 1);
+		if (ehci->amd_pll_fix == 1)
+			usb_amd_quirk_pll_disable();
 	}
 
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs++;
@@ -1804,8 +1744,8 @@ itd_complete (
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
-		if (ehci->amd_l1_fix == 1)
-			ehci_quirk_amd_L1(ehci, 0);
+		if (ehci->amd_pll_fix == 1)
+			usb_amd_quirk_pll_enable();
 	}
 
 	if (unlikely(list_is_singular(&stream->td_list))) {
@@ -2095,8 +2035,8 @@ sitd_link_urb (
 	}
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
-		if (ehci->amd_l1_fix == 1)
-			ehci_quirk_amd_L1(ehci, 1);
+		if (ehci->amd_pll_fix == 1)
+			usb_amd_quirk_pll_disable();
 	}
 
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs++;
@@ -2200,8 +2140,8 @@ sitd_complete (
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
-		if (ehci->amd_l1_fix == 1)
-			ehci_quirk_amd_L1(ehci, 0);
+		if (ehci->amd_pll_fix == 1)
+			usb_amd_quirk_pll_enable();
 	}
 
 	if (list_is_singular(&stream->td_list)) {

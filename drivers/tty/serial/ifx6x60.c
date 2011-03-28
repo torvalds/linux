@@ -8,7 +8,7 @@
  *		      Jan Dumon <j.dumon@option.com>
  *
  * Copyright (C) 2009, 2010 Intel Corp
- * Russ Gorby <richardx.r.gorby@intel.com>
+ * Russ Gorby <russ.gorby@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -67,6 +67,7 @@
 #define IFX_SPI_MORE_MASK		0x10
 #define IFX_SPI_MORE_BIT		12	/* bit position in u16 */
 #define IFX_SPI_CTS_BIT			13	/* bit position in u16 */
+#define IFX_SPI_MODE			SPI_MODE_1
 #define IFX_SPI_TTY_ID			0
 #define IFX_SPI_TIMEOUT_SEC		2
 #define IFX_SPI_HEADER_0		(-1)
@@ -76,7 +77,7 @@
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev);
 
 /* local variables */
-static int spi_b16 = 1;			/* 8 or 16 bit word length */
+static int spi_bpw = 16;		/* 8, 16 or 32 bit word length */
 static struct tty_driver *tty_drv;
 static struct ifx_spi_device *saved_ifx_dev;
 static struct lock_class_key ifx_spi_key;
@@ -244,7 +245,7 @@ static void ifx_spi_timeout(unsigned long arg)
  *	Map the signal state into Linux modem flags and report the value
  *	in Linux terms
  */
-static int ifx_spi_tiocmget(struct tty_struct *tty, struct file *filp)
+static int ifx_spi_tiocmget(struct tty_struct *tty)
 {
 	unsigned int value;
 	struct ifx_spi_device *ifx_dev = tty->driver_data;
@@ -262,7 +263,6 @@ static int ifx_spi_tiocmget(struct tty_struct *tty, struct file *filp)
 /**
  *	ifx_spi_tiocmset	-	set modem bits
  *	@tty: the tty structure
- *	@filp: file handle issuing the request
  *	@set: bits to set
  *	@clear: bits to clear
  *
@@ -271,7 +271,7 @@ static int ifx_spi_tiocmget(struct tty_struct *tty, struct file *filp)
  *
  *	FIXME: do we need to kick the tranfers when we do this ?
  */
-static int ifx_spi_tiocmset(struct tty_struct *tty, struct file *filp,
+static int ifx_spi_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct ifx_spi_device *ifx_dev = tty->driver_data;
@@ -722,9 +722,9 @@ static void ifx_spi_io(unsigned long data)
 		/* note len is BYTES, not transfers */
 		ifx_dev->spi_xfer.len = IFX_SPI_TRANSFER_SIZE;
 		ifx_dev->spi_xfer.cs_change = 0;
-		ifx_dev->spi_xfer.speed_hz = 12500000;
+		ifx_dev->spi_xfer.speed_hz = ifx_dev->spi_dev->max_speed_hz;
 		/* ifx_dev->spi_xfer.speed_hz = 390625; */
-		ifx_dev->spi_xfer.bits_per_word = spi_b16 ? 16 : 8;
+		ifx_dev->spi_xfer.bits_per_word = spi_bpw;
 
 		ifx_dev->spi_xfer.tx_buf = ifx_dev->tx_buffer;
 		ifx_dev->spi_xfer.rx_buf = ifx_dev->rx_buffer;
@@ -732,7 +732,7 @@ static void ifx_spi_io(unsigned long data)
 		/*
 		 * setup dma pointers
 		 */
-		if (ifx_dev->is_6160) {
+		if (ifx_dev->use_dma) {
 			ifx_dev->spi_msg.is_dma_mapped = 1;
 			ifx_dev->tx_dma = ifx_dev->tx_bus;
 			ifx_dev->rx_dma = ifx_dev->rx_bus;
@@ -798,8 +798,8 @@ static int ifx_spi_create_port(struct ifx_spi_device *ifx_dev)
 		goto error_ret;
 	}
 
-	pport->ops = &ifx_tty_port_ops;
 	tty_port_init(pport);
+	pport->ops = &ifx_tty_port_ops;
 	ifx_dev->minor = IFX_SPI_TTY_ID;
 	ifx_dev->tty_dev = tty_register_device(tty_drv, ifx_dev->minor,
 					       &ifx_dev->spi_dev->dev);
@@ -960,11 +960,17 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 {
 	int ret;
 	int srdy;
-	struct ifx_modem_platform_data *pl_data = NULL;
+	struct ifx_modem_platform_data *pl_data;
 	struct ifx_spi_device *ifx_dev;
 
 	if (saved_ifx_dev) {
 		dev_dbg(&spi->dev, "ignoring subsequent detection");
+		return -ENODEV;
+	}
+
+	pl_data = (struct ifx_modem_platform_data *)spi->dev.platform_data;
+	if (!pl_data) {
+		dev_err(&spi->dev, "missing platform data!");
 		return -ENODEV;
 	}
 
@@ -983,14 +989,25 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	init_timer(&ifx_dev->spi_timer);
 	ifx_dev->spi_timer.function = ifx_spi_timeout;
 	ifx_dev->spi_timer.data = (unsigned long)ifx_dev;
-	ifx_dev->is_6160 = pl_data->is_6160;
+	ifx_dev->modem = pl_data->modem_type;
+	ifx_dev->use_dma = pl_data->use_dma;
+	ifx_dev->max_hz = pl_data->max_hz;
+	/* initialize spi mode, etc */
+	spi->max_speed_hz = ifx_dev->max_hz;
+	spi->mode = IFX_SPI_MODE | (SPI_LOOP & spi->mode);
+	spi->bits_per_word = spi_bpw;
+	ret = spi_setup(spi);
+	if (ret) {
+		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
+		return -ENODEV;
+	}
 
 	/* ensure SPI protocol flags are initialized to enable transfer */
 	ifx_dev->spi_more = 0;
 	ifx_dev->spi_slave_cts = 0;
 
 	/*initialize transfer and dma buffers */
-	ifx_dev->tx_buffer = dma_alloc_coherent(&ifx_dev->spi_dev->dev,
+	ifx_dev->tx_buffer = dma_alloc_coherent(ifx_dev->spi_dev->dev.parent,
 				IFX_SPI_TRANSFER_SIZE,
 				&ifx_dev->tx_bus,
 				GFP_KERNEL);
@@ -999,7 +1016,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ifx_dev->rx_buffer = dma_alloc_coherent(&ifx_dev->spi_dev->dev,
+	ifx_dev->rx_buffer = dma_alloc_coherent(ifx_dev->spi_dev->dev.parent,
 				IFX_SPI_TRANSFER_SIZE,
 				&ifx_dev->rx_bus,
 				GFP_KERNEL);
@@ -1025,18 +1042,11 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 
-	pl_data = (struct ifx_modem_platform_data *)spi->dev.platform_data;
-	if (pl_data) {
-		ifx_dev->gpio.reset = pl_data->rst_pmu;
-		ifx_dev->gpio.po = pl_data->pwr_on;
-		ifx_dev->gpio.mrdy = pl_data->mrdy;
-		ifx_dev->gpio.srdy = pl_data->srdy;
-		ifx_dev->gpio.reset_out = pl_data->rst_out;
-	} else {
-		dev_err(&spi->dev, "missing platform data!");
-		ret = -ENODEV;
-		goto error_ret;
-	}
+	ifx_dev->gpio.reset = pl_data->rst_pmu;
+	ifx_dev->gpio.po = pl_data->pwr_on;
+	ifx_dev->gpio.mrdy = pl_data->mrdy;
+	ifx_dev->gpio.srdy = pl_data->srdy;
+	ifx_dev->gpio.reset_out = pl_data->rst_out;
 
 	dev_info(&spi->dev, "gpios %d, %d, %d, %d, %d",
 		 ifx_dev->gpio.reset, ifx_dev->gpio.po, ifx_dev->gpio.mrdy,
@@ -1322,9 +1332,9 @@ static const struct spi_device_id ifx_id_table[] = {
 MODULE_DEVICE_TABLE(spi, ifx_id_table);
 
 /* spi operations */
-static const struct spi_driver ifx_spi_driver_6160 = {
+static const struct spi_driver ifx_spi_driver = {
 	.driver = {
-		.name = "ifx6160",
+		.name = DRVNAME,
 		.bus = &spi_bus_type,
 		.pm = &ifx_spi_pm,
 		.owner = THIS_MODULE},
@@ -1346,7 +1356,7 @@ static void __exit ifx_spi_exit(void)
 {
 	/* unregister */
 	tty_unregister_driver(tty_drv);
-	spi_unregister_driver((void *)&ifx_spi_driver_6160);
+	spi_unregister_driver((void *)&ifx_spi_driver);
 }
 
 /**
@@ -1388,7 +1398,7 @@ static int __init ifx_spi_init(void)
 		return result;
 	}
 
-	result = spi_register_driver((void *)&ifx_spi_driver_6160);
+	result = spi_register_driver((void *)&ifx_spi_driver);
 	if (result) {
 		pr_err("%s: spi_register_driver failed(%d)",
 			DRVNAME, result);

@@ -124,9 +124,13 @@ isofs_export_encode_fh(struct dentry *dentry,
 	 * offset of the inode and the upper 16 bits of fh32[1] to
 	 * hold the offset of the parent.
 	 */
-
-	if (len < 3 || (connectable && len < 5))
+	if (connectable && (len < 5)) {
+		*max_len = 5;
 		return 255;
+	} else if (len < 3) {
+		*max_len = 3;
+		return 255;
+	}
 
 	len = 3;
 	fh32[0] = ei->i_iget5_block;

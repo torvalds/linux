@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2008-2009 Solarflare Communications Inc.
+ * Copyright 2008-2011 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -94,14 +94,15 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 
 	efx_writed(efx, &hdr, pdu);
 
-	for (i = 0; i < inlen; i += 4)
+	for (i = 0; i < inlen; i += 4) {
 		_efx_writed(efx, *((__le32 *)(inbuf + i)), pdu + 4 + i);
-
-	/* Ensure the payload is written out before the header */
-	wmb();
+		/* use wmb() within loop to inhibit write combining */
+		wmb();
+	}
 
 	/* ring the doorbell with a distinctive value */
 	_efx_writed(efx, (__force __le32) 0x45789abc, doorbell);
+	wmb();
 }
 
 static void efx_mcdi_copyout(struct efx_nic *efx, u8 *outbuf, size_t outlen)
@@ -602,7 +603,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
  **************************************************************************
  */
 
-int efx_mcdi_fwver(struct efx_nic *efx, u64 *version, u32 *build)
+void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
 	u8 outbuf[ALIGN(MC_CMD_GET_VERSION_V1_OUT_LEN, 4)];
 	size_t outlength;
@@ -616,29 +617,20 @@ int efx_mcdi_fwver(struct efx_nic *efx, u64 *version, u32 *build)
 	if (rc)
 		goto fail;
 
-	if (outlength == MC_CMD_GET_VERSION_V0_OUT_LEN) {
-		*version = 0;
-		*build = MCDI_DWORD(outbuf, GET_VERSION_OUT_FIRMWARE);
-		return 0;
-	}
-
 	if (outlength < MC_CMD_GET_VERSION_V1_OUT_LEN) {
 		rc = -EIO;
 		goto fail;
 	}
 
 	ver_words = (__le16 *)MCDI_PTR(outbuf, GET_VERSION_OUT_VERSION);
-	*version = (((u64)le16_to_cpu(ver_words[0]) << 48) |
-		    ((u64)le16_to_cpu(ver_words[1]) << 32) |
-		    ((u64)le16_to_cpu(ver_words[2]) << 16) |
-		    le16_to_cpu(ver_words[3]));
-	*build = MCDI_DWORD(outbuf, GET_VERSION_OUT_FIRMWARE);
-
-	return 0;
+	snprintf(buf, len, "%u.%u.%u.%u",
+		 le16_to_cpu(ver_words[0]), le16_to_cpu(ver_words[1]),
+		 le16_to_cpu(ver_words[2]), le16_to_cpu(ver_words[3]));
+	return;
 
 fail:
 	netif_err(efx, probe, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
+	buf[0] = 0;
 }
 
 int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,

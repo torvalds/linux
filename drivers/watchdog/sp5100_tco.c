@@ -259,7 +259,7 @@ static struct miscdevice sp5100_tco_miscdev = {
  * register a pci_driver, because someone else might
  * want to register another driver on the same PCI id.
  */
-static struct pci_device_id sp5100_tco_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(sp5100_tco_pci_tbl) = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS, PCI_ANY_ID,
 	  PCI_ANY_ID, },
 	{ 0, },			/* End of list */

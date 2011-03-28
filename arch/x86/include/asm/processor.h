@@ -94,10 +94,6 @@ struct cpuinfo_x86 {
 	int			x86_cache_alignment;	/* In bytes */
 	int			x86_power;
 	unsigned long		loops_per_jiffy;
-#ifdef CONFIG_SMP
-	/* cpus sharing the last level cache: */
-	cpumask_var_t		llc_shared_map;
-#endif
 	/* cpuid returned max cores value: */
 	u16			 x86_max_cores;
 	u16			apicid;

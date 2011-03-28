@@ -59,7 +59,6 @@ struct dn_hash
 };
 
 #define dz_key_0(key)		((key).datum = 0)
-#define dz_prefix(key,dz)	((key).datum)
 
 #define for_nexthops(fi) { int nhsel; const struct dn_fib_nh *nh;\
 	for(nhsel = 0, nh = (fi)->fib_nh; nhsel < (fi)->fib_nhs; nh++, nhsel++)
@@ -765,7 +764,7 @@ static int dn_fib_table_flush(struct dn_fib_table *tb)
 	return found;
 }
 
-static int dn_fib_table_lookup(struct dn_fib_table *tb, const struct flowi *flp, struct dn_fib_res *res)
+static int dn_fib_table_lookup(struct dn_fib_table *tb, const struct flowidn *flp, struct dn_fib_res *res)
 {
 	int err;
 	struct dn_zone *dz;
@@ -774,7 +773,7 @@ static int dn_fib_table_lookup(struct dn_fib_table *tb, const struct flowi *flp,
 	read_lock(&dn_fib_tables_lock);
 	for(dz = t->dh_zone_list; dz; dz = dz->dz_next) {
 		struct dn_fib_node *f;
-		dn_fib_key_t k = dz_key(flp->fld_dst, dz);
+		dn_fib_key_t k = dz_key(flp->daddr, dz);
 
 		for(f = dz_chain(k, dz); f; f = f->fn_next) {
 			if (!dn_key_eq(k, f->fn_key)) {
@@ -789,7 +788,7 @@ static int dn_fib_table_lookup(struct dn_fib_table *tb, const struct flowi *flp,
 			if (f->fn_state&DN_S_ZOMBIE)
 				continue;
 
-			if (f->fn_scope < flp->fld_scope)
+			if (f->fn_scope < flp->flowidn_scope)
 				continue;
 
 			err = dn_fib_semantic_match(f->fn_type, DN_FIB_INFO(f), flp, res);

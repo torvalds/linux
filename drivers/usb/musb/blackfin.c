@@ -322,7 +322,7 @@ static void bfin_musb_try_idle(struct musb *musb, unsigned long timeout)
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 }
 
-static int bfin_musb_get_vbus_status(struct musb *musb)
+static int bfin_musb_vbus_status(struct musb *musb)
 {
 	return 0;
 }
@@ -540,7 +540,7 @@ static struct dev_pm_ops bfin_pm_ops = {
 	.resume		= bfin_resume,
 };
 
-#define DEV_PM_OPS	&bfin_pm_op,
+#define DEV_PM_OPS	&bfin_pm_ops
 #else
 #define DEV_PM_OPS	NULL
 #endif
@@ -548,7 +548,7 @@ static struct dev_pm_ops bfin_pm_ops = {
 static struct platform_driver bfin_driver = {
 	.remove		= __exit_p(bfin_remove),
 	.driver		= {
-		.name	= "musb-bfin",
+		.name	= "musb-blackfin",
 		.pm	= DEV_PM_OPS,
 	},
 };

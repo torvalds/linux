@@ -1032,6 +1032,9 @@ __netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
 
+	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
+		netxen_linkevent_request(adapter, 0);
+
 	if (adapter->stop_port)
 		adapter->stop_port(adapter);
 

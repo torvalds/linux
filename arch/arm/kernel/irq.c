@@ -179,14 +179,21 @@ int __init arch_probe_nr_irqs(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
+static bool migrate_one_irq(struct irq_data *d)
 {
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->irq_data.node, cpu);
+	unsigned int cpu = cpumask_any_and(d->affinity, cpu_online_mask);
+	bool ret = false;
 
-	raw_spin_lock_irq(&desc->lock);
-	desc->irq_data.chip->irq_set_affinity(&desc->irq_data,
-					      cpumask_of(cpu), false);
-	raw_spin_unlock_irq(&desc->lock);
+	if (cpu >= nr_cpu_ids) {
+		cpu = cpumask_any(cpu_online_mask);
+		ret = true;
+	}
+
+	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", d->irq, d->node, cpu);
+
+	d->chip->irq_set_affinity(d, cpumask_of(cpu), true);
+
+	return ret;
 }
 
 /*
@@ -198,25 +205,30 @@ void migrate_irqs(void)
 {
 	unsigned int i, cpu = smp_processor_id();
 	struct irq_desc *desc;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	for_each_irq_desc(i, desc) {
 		struct irq_data *d = &desc->irq_data;
+		bool affinity_broken = false;
 
-		if (d->node == cpu) {
-			unsigned int newcpu = cpumask_any_and(d->affinity,
-							      cpu_online_mask);
-			if (newcpu >= nr_cpu_ids) {
-				if (printk_ratelimit())
-					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
-					       i, cpu);
+		raw_spin_lock(&desc->lock);
+		do {
+			if (desc->action == NULL)
+				break;
 
-				cpumask_setall(d->affinity);
-				newcpu = cpumask_any_and(d->affinity,
-							 cpu_online_mask);
-			}
+			if (d->node != cpu)
+				break;
 
-			route_irq(desc, i, newcpu);
-		}
+			affinity_broken = migrate_one_irq(d);
+		} while (0);
+		raw_spin_unlock(&desc->lock);
+
+		if (affinity_broken && printk_ratelimit())
+			pr_warning("IRQ%u no longer affine to CPU%u\n", i, cpu);
 	}
+
+	local_irq_restore(flags);
 }
 #endif /* CONFIG_HOTPLUG_CPU */

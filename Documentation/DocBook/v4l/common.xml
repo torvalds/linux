@@ -846,6 +846,8 @@ conversion routine or library for integration into applications.</para>
     </section>
   </section>
 
+  &sub-planar-apis;
+
   <section id="crop">
     <title>Image Cropping, Insertion and Scaling</title>
 

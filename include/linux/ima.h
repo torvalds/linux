@@ -20,7 +20,6 @@ extern void ima_inode_free(struct inode *inode);
 extern int ima_file_check(struct file *file, int mask);
 extern void ima_file_free(struct file *file);
 extern int ima_file_mmap(struct file *file, unsigned long prot);
-extern void ima_counts_get(struct file *file);
 
 #else
 static inline int ima_bprm_check(struct linux_binprm *bprm)
@@ -51,11 +50,6 @@ static inline void ima_file_free(struct file *file)
 static inline int ima_file_mmap(struct file *file, unsigned long prot)
 {
 	return 0;
-}
-
-static inline void ima_counts_get(struct file *file)
-{
-	return;
 }
 
 #endif /* CONFIG_IMA_H */

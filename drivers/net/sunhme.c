@@ -3237,11 +3237,15 @@ static void happy_meal_pci_exit(void)
 #endif
 
 #ifdef CONFIG_SBUS
-static int __devinit hme_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit hme_sbus_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	const char *model = of_get_property(dp, "model", NULL);
-	int is_qfe = (match->data != NULL);
+	int is_qfe;
+
+	if (!op->dev.of_match)
+		return -EINVAL;
+	is_qfe = (op->dev.of_match->data != NULL);
 
 	if (!is_qfe && model && !strcmp(model, "SUNW,sbus-qfe"))
 		is_qfe = 1;
@@ -3292,7 +3296,7 @@ static const struct of_device_id hme_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, hme_sbus_match);
 
-static struct of_platform_driver hme_sbus_driver = {
+static struct platform_driver hme_sbus_driver = {
 	.driver = {
 		.name = "hme",
 		.owner = THIS_MODULE,
@@ -3306,7 +3310,7 @@ static int __init happy_meal_sbus_init(void)
 {
 	int err;
 
-	err = of_register_platform_driver(&hme_sbus_driver);
+	err = platform_driver_register(&hme_sbus_driver);
 	if (!err)
 		err = quattro_sbus_register_irqs();
 
@@ -3315,7 +3319,7 @@ static int __init happy_meal_sbus_init(void)
 
 static void happy_meal_sbus_exit(void)
 {
-	of_unregister_platform_driver(&hme_sbus_driver);
+	platform_driver_unregister(&hme_sbus_driver);
 	quattro_sbus_free_irqs();
 
 	while (qfe_sbus_list) {

@@ -54,15 +54,11 @@ EXPORT_SYMBOL(prom_feval);
 void
 prom_cmdline(void)
 {
-	extern void install_obp_ticker(void);
-	extern void install_linux_ticker(void);
 	unsigned long flags;
 
 	spin_lock_irqsave(&prom_lock, flags);
-	install_obp_ticker();
 	(*(romvec->pv_abort))();
 	restore_current();
-	install_linux_ticker();
 	spin_unlock_irqrestore(&prom_lock, flags);
 	set_auxio(AUXIO_LED, 0);
 }

@@ -282,7 +282,7 @@ static void still_alive(void)
 {
 #if 0
 	sync();
-	msleep(2);
+	mdelay(2);
 #endif
 }
 
@@ -1904,7 +1904,7 @@ init_condition_time(struct nvbios *bios, uint16_t offset,
 			BIOSLOG(bios, "0x%04X: "
 				"Condition not met, sleeping for 20ms\n",
 								offset);
-			msleep(20);
+			mdelay(20);
 		}
 	}
 
@@ -1938,7 +1938,7 @@ init_ltime(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	BIOSLOG(bios, "0x%04X: Sleeping for 0x%04X milliseconds\n",
 		offset, time);
 
-	msleep(time);
+	mdelay(time);
 
 	return 3;
 }
@@ -2962,7 +2962,7 @@ init_time(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	if (time < 1000)
 		udelay(time);
 	else
-		msleep((time + 900) / 1000);
+		mdelay((time + 900) / 1000);
 
 	return 3;
 }
@@ -3856,7 +3856,7 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entr
 
 	if (script == LVDS_PANEL_OFF) {
 		/* off-on delay in ms */
-		msleep(ROM16(bios->data[bios->fp.xlated_entry + 7]));
+		mdelay(ROM16(bios->data[bios->fp.xlated_entry + 7]));
 	}
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
@@ -5950,6 +5950,11 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	}
 }
 
+static const u8 hpd_gpio[16] = {
+	0xff, 0x07, 0x08, 0xff, 0xff, 0x51, 0x52, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0x5e, 0x5f, 0x60,
+};
+
 static void
 parse_dcb_connector_table(struct nvbios *bios)
 {
@@ -5986,23 +5991,9 @@ parse_dcb_connector_table(struct nvbios *bios)
 
 		cte->type  = (cte->entry & 0x000000ff) >> 0;
 		cte->index2 = (cte->entry & 0x00000f00) >> 8;
-		switch (cte->entry & 0x00033000) {
-		case 0x00001000:
-			cte->gpio_tag = 0x07;
-			break;
-		case 0x00002000:
-			cte->gpio_tag = 0x08;
-			break;
-		case 0x00010000:
-			cte->gpio_tag = 0x51;
-			break;
-		case 0x00020000:
-			cte->gpio_tag = 0x52;
-			break;
-		default:
-			cte->gpio_tag = 0xff;
-			break;
-		}
+
+		cte->gpio_tag = ffs((cte->entry & 0x07033000) >> 12);
+		cte->gpio_tag = hpd_gpio[cte->gpio_tag];
 
 		if (cte->type == 0xff)
 			continue;
@@ -6702,11 +6693,11 @@ nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
 	struct nvbios *bios = &dev_priv->vbios;
 	struct init_exec iexec = { true, false };
 
-	mutex_lock(&bios->lock);
+	spin_lock_bh(&bios->lock);
 	bios->display.output = dcbent;
 	parse_init_table(bios, table, &iexec);
 	bios->display.output = NULL;
-	mutex_unlock(&bios->lock);
+	spin_unlock_bh(&bios->lock);
 }
 
 static bool NVInitVBIOS(struct drm_device *dev)
@@ -6715,7 +6706,7 @@ static bool NVInitVBIOS(struct drm_device *dev)
 	struct nvbios *bios = &dev_priv->vbios;
 
 	memset(bios, 0, sizeof(struct nvbios));
-	mutex_init(&bios->lock);
+	spin_lock_init(&bios->lock);
 	bios->dev = dev;
 
 	if (!NVShadowVBIOS(dev, bios->data))

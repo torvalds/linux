@@ -19,6 +19,8 @@
 #ifndef __ARCH_ARM_DAVINCI_SPI_H
 #define __ARCH_ARM_DAVINCI_SPI_H
 
+#include <mach/edma.h>
+
 #define SPI_INTERN_CS	0xFF
 
 enum {
@@ -39,13 +41,16 @@ enum {
  *		to populate if all chip-selects are internal.
  * @cshold_bug:	set this to true if the SPI controller on your chip requires
  *		a write to CSHOLD bit in between transfers (like in DM355).
+ * @dma_event_q: DMA event queue to use if SPI_IO_TYPE_DMA is used for any
+ *		device on the bus.
  */
 struct davinci_spi_platform_data {
-	u8	version;
-	u8	num_chipselect;
-	u8	intr_line;
-	u8	*chip_sel;
-	bool	cshold_bug;
+	u8			version;
+	u8			num_chipselect;
+	u8			intr_line;
+	u8			*chip_sel;
+	bool			cshold_bug;
+	enum dma_event_q	dma_event_q;
 };
 
 /**

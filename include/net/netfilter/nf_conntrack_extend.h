@@ -7,10 +7,19 @@
 
 enum nf_ct_ext_id {
 	NF_CT_EXT_HELPER,
+#if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)
 	NF_CT_EXT_NAT,
+#endif
 	NF_CT_EXT_ACCT,
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	NF_CT_EXT_ECACHE,
+#endif
+#ifdef CONFIG_NF_CONNTRACK_ZONES
 	NF_CT_EXT_ZONE,
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	NF_CT_EXT_TSTAMP,
+#endif
 	NF_CT_EXT_NUM,
 };
 
@@ -19,6 +28,7 @@ enum nf_ct_ext_id {
 #define NF_CT_EXT_ACCT_TYPE struct nf_conn_counter
 #define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
 #define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone
+#define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {

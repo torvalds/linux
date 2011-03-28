@@ -190,7 +190,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 
 	ret = drv_ampdu_action(local, sta->sdata,
 			       IEEE80211_AMPDU_TX_STOP,
-			       &sta->sta, tid, NULL);
+			       &sta->sta, tid, NULL, 0);
 
 	/* HW shall not deny going back to legacy */
 	if (WARN_ON(ret)) {
@@ -311,7 +311,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	start_seq_num = sta->tid_seq[tid] >> 4;
 
 	ret = drv_ampdu_action(local, sdata, IEEE80211_AMPDU_TX_START,
-			       &sta->sta, tid, &start_seq_num);
+			       &sta->sta, tid, &start_seq_num, 0);
 	if (ret) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "BA request denied - HW unavailable for"
@@ -342,7 +342,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, start_seq_num,
-				     0x40, tid_tx->timeout);
+				     local->hw.max_tx_aggregation_subframes,
+				     tid_tx->timeout);
 }
 
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
@@ -487,7 +488,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 
 	drv_ampdu_action(local, sta->sdata,
 			 IEEE80211_AMPDU_TX_OPERATIONAL,
-			 &sta->sta, tid, NULL);
+			 &sta->sta, tid, NULL,
+			 sta->ampdu_mlme.tid_tx[tid]->buf_size);
 
 	/*
 	 * synchronize with TX path, while splicing the TX path
@@ -742,9 +744,11 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 {
 	struct tid_ampdu_tx *tid_tx;
 	u16 capab, tid;
+	u8 buf_size;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
+	buf_size = (capab & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK) >> 6;
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
@@ -767,11 +771,22 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	if (le16_to_cpu(mgmt->u.action.u.addba_resp.status)
 			== WLAN_STATUS_SUCCESS) {
+		/*
+		 * IEEE 802.11-2007 7.3.1.14:
+		 * In an ADDBA Response frame, when the Status Code field
+		 * is set to 0, the Buffer Size subfield is set to a value
+		 * of at least 1.
+		 */
+		if (!buf_size)
+			goto out;
+
 		if (test_and_set_bit(HT_AGG_STATE_RESPONSE_RECEIVED,
 				     &tid_tx->state)) {
 			/* ignore duplicate response */
 			goto out;
 		}
+
+		tid_tx->buf_size = buf_size;
 
 		if (test_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state))
 			ieee80211_agg_tx_operational(local, sta, tid);

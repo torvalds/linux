@@ -26,7 +26,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at http://www.linuxtv.org/
  */
 
 #include <linux/module.h>
@@ -102,6 +102,7 @@ struct budget_ci_ir {
 	int rc5_device;
 	u32 ir_key;
 	bool have_command;
+	bool full_rc5;		/* Outputs a full RC5 code */
 };
 
 struct budget_ci {
@@ -154,11 +155,18 @@ static void msp430_ir_interrupt(unsigned long data)
 		return;
 	budget_ci->ir.have_command = false;
 
-	/* FIXME: We should generate complete scancodes with device info */
 	if (budget_ci->ir.rc5_device != IR_DEVICE_ANY &&
 	    budget_ci->ir.rc5_device != (command & 0x1f))
 		return;
 
+	if (budget_ci->ir.full_rc5) {
+		rc_keydown(dev,
+			   budget_ci->ir.rc5_device <<8 | budget_ci->ir.ir_key,
+			   (command & 0x20) ? 1 : 0);
+		return;
+	}
+
+	/* FIXME: We should generate complete scancodes for all devices */
 	rc_keydown(dev, budget_ci->ir.ir_key, (command & 0x20) ? 1 : 0);
 }
 
@@ -206,7 +214,8 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1011:
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
-		dev->map_name = RC_MAP_HAUPPAUGE_NEW;
+		dev->map_name = RC_MAP_HAUPPAUGE;
+		budget_ci->ir.full_rc5 = true;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;

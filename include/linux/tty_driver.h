@@ -98,8 +98,7 @@
  *
  *	Note: Do not call this function directly, call tty_write_room
  * 
- * int  (*ioctl)(struct tty_struct *tty, struct file * file,
- * 	    unsigned int cmd, unsigned long arg);
+ * int  (*ioctl)(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
  *
  * 	This routine allows the tty driver to implement
  *	device-specific ioctls.  If the ioctl number passed in cmd
@@ -107,7 +106,7 @@
  *
  *	Optional
  *
- * long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
+ * long (*compat_ioctl)(struct tty_struct *tty,,
  * 	                unsigned int cmd, unsigned long arg);
  *
  * 	implement ioctl processing for 32 bit process on 64 bit system
@@ -256,9 +255,9 @@ struct tty_operations {
 	void (*flush_chars)(struct tty_struct *tty);
 	int  (*write_room)(struct tty_struct *tty);
 	int  (*chars_in_buffer)(struct tty_struct *tty);
-	int  (*ioctl)(struct tty_struct *tty, struct file * file,
+	int  (*ioctl)(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg);
-	long (*compat_ioctl)(struct tty_struct *tty, struct file * file,
+	long (*compat_ioctl)(struct tty_struct *tty,
 			     unsigned int cmd, unsigned long arg);
 	void (*set_termios)(struct tty_struct *tty, struct ktermios * old);
 	void (*throttle)(struct tty_struct * tty);
@@ -271,8 +270,8 @@ struct tty_operations {
 	void (*set_ldisc)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, int timeout);
 	void (*send_xchar)(struct tty_struct *tty, char ch);
-	int (*tiocmget)(struct tty_struct *tty, struct file *file);
-	int (*tiocmset)(struct tty_struct *tty, struct file *file,
+	int (*tiocmget)(struct tty_struct *tty);
+	int (*tiocmset)(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 	int (*resize)(struct tty_struct *tty, struct winsize *ws);
 	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);

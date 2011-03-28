@@ -926,7 +926,7 @@ static const struct net_device_ops myri_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit myri_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit myri_sbus_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
@@ -1160,7 +1160,7 @@ static const struct of_device_id myri_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, myri_sbus_match);
 
-static struct of_platform_driver myri_sbus_driver = {
+static struct platform_driver myri_sbus_driver = {
 	.driver = {
 		.name = "myri",
 		.owner = THIS_MODULE,
@@ -1172,12 +1172,12 @@ static struct of_platform_driver myri_sbus_driver = {
 
 static int __init myri_sbus_init(void)
 {
-	return of_register_platform_driver(&myri_sbus_driver);
+	return platform_driver_register(&myri_sbus_driver);
 }
 
 static void __exit myri_sbus_exit(void)
 {
-	of_unregister_platform_driver(&myri_sbus_driver);
+	platform_driver_unregister(&myri_sbus_driver);
 }
 
 module_init(myri_sbus_init);

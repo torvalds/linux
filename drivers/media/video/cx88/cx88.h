@@ -33,6 +33,7 @@
 #include <media/cx2341x.h>
 #include <media/videobuf-dvb.h>
 #include <media/ir-kbd-i2c.h>
+#include <media/wm8775.h>
 
 #include "btcx-risc.h"
 #include "cx88-reg.h"
@@ -240,6 +241,7 @@ extern const struct sram_channel const cx88_sram_channels[];
 #define CX88_BOARD_PROF_7301               83
 #define CX88_BOARD_SAMSUNG_SMT_7020        84
 #define CX88_BOARD_TWINHAN_VP1027_DVBS     85
+#define CX88_BOARD_TEVII_S464              86
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -273,6 +275,9 @@ struct cx88_board {
 	enum cx88_board_type    mpeg;
 	unsigned int            audio_chip;
 	int			num_frontends;
+
+	/* Used for I2S devices */
+	int			i2sinputcntl;
 };
 
 struct cx88_subid {
@@ -379,6 +384,7 @@ struct cx88_core {
 
 	/* I2C remote data */
 	struct IR_i2c_init_data    init_data;
+	struct wm8775_platform_data wm8775_data;
 
 	struct mutex               lock;
 	/* various v4l controls */
@@ -398,16 +404,20 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
 }
 
-#define call_all(core, o, f, args...) 				\
+#define WM8775_GID	(1 << 0)
+
+#define call_hw(core, grpid, o, f, args...) \
 	do {							\
 		if (!core->i2c_rc) {				\
 			if (core->gate_ctrl)			\
 				core->gate_ctrl(core, 1);	\
-			v4l2_device_call_all(&core->v4l2_dev, 0, o, f, ##args); \
+			v4l2_device_call_all(&core->v4l2_dev, grpid, o, f, ##args); \
 			if (core->gate_ctrl)			\
 				core->gate_ctrl(core, 0);	\
 		}						\
 	} while (0)
+
+#define call_all(core, o, f, args...) call_hw(core, 0, o, f, ##args)
 
 struct cx8800_dev;
 struct cx8802_dev;

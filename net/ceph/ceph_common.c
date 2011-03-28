@@ -62,6 +62,7 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_OSD_MAP: return "osd_map";
 	case CEPH_MSG_OSD_OP: return "osd_op";
 	case CEPH_MSG_OSD_OPREPLY: return "osd_opreply";
+	case CEPH_MSG_WATCH_NOTIFY: return "watch_notify";
 	default: return "unknown";
 	}
 }

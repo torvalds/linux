@@ -82,6 +82,11 @@ retry:
 #endif /* CONFIG_NFS_V4 */
 
 /*
+ * Turn off NFSv4 uid/gid mapping when using AUTH_SYS
+ */
+static int nfs4_disable_idmapping = 0;
+
+/*
  * RPC cruft for NFS
  */
 static struct rpc_version *nfs_version[5] = {
@@ -481,7 +486,12 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
  * Look up a client by IP address and protocol version
  * - creates a new record if one doesn't yet exist
  */
-static struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
+static struct nfs_client *
+nfs_get_client(const struct nfs_client_initdata *cl_init,
+	       const struct rpc_timeout *timeparms,
+	       const char *ip_addr,
+	       rpc_authflavor_t authflavour,
+	       int noresvport)
 {
 	struct nfs_client *clp, *new = NULL;
 	int error;
@@ -512,6 +522,13 @@ install_client:
 	clp = new;
 	list_add(&clp->cl_share_link, &nfs_client_list);
 	spin_unlock(&nfs_client_lock);
+
+	error = cl_init->rpc_ops->init_client(clp, timeparms, ip_addr,
+					      authflavour, noresvport);
+	if (error < 0) {
+		nfs_put_client(clp);
+		return ERR_PTR(error);
+	}
 	dprintk("--> nfs_get_client() = %p [new]\n", clp);
 	return clp;
 
@@ -767,9 +784,9 @@ static int nfs_init_server_rpcclient(struct nfs_server *server,
 /*
  * Initialise an NFS2 or NFS3 client
  */
-static int nfs_init_client(struct nfs_client *clp,
-			   const struct rpc_timeout *timeparms,
-			   const struct nfs_parsed_mount_data *data)
+int nfs_init_client(struct nfs_client *clp, const struct rpc_timeout *timeparms,
+		    const char *ip_addr, rpc_authflavor_t authflavour,
+		    int noresvport)
 {
 	int error;
 
@@ -784,7 +801,7 @@ static int nfs_init_client(struct nfs_client *clp,
 	 * - RFC 2623, sec 2.3.2
 	 */
 	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX,
-				      0, data->flags & NFS_MOUNT_NORESVPORT);
+				      0, noresvport);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -820,18 +837,16 @@ static int nfs_init_server(struct nfs_server *server,
 		cl_init.rpc_ops = &nfs_v3_clientops;
 #endif
 
+	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
+			data->timeo, data->retrans);
+
 	/* Allocate or find a client reference we can use */
-	clp = nfs_get_client(&cl_init);
+	clp = nfs_get_client(&cl_init, &timeparms, NULL, RPC_AUTH_UNIX,
+			     data->flags & NFS_MOUNT_NORESVPORT);
 	if (IS_ERR(clp)) {
 		dprintk("<-- nfs_init_server() = error %ld\n", PTR_ERR(clp));
 		return PTR_ERR(clp);
 	}
-
-	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
-			data->timeo, data->retrans);
-	error = nfs_init_client(clp, &timeparms, data);
-	if (error < 0)
-		goto error;
 
 	server->nfs_client = clp;
 
@@ -1009,14 +1024,19 @@ static void nfs_server_insert_lists(struct nfs_server *server)
 	spin_lock(&nfs_client_lock);
 	list_add_tail_rcu(&server->client_link, &clp->cl_superblocks);
 	list_add_tail(&server->master_link, &nfs_volume_list);
+	clear_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
 	spin_unlock(&nfs_client_lock);
 
 }
 
 static void nfs_server_remove_lists(struct nfs_server *server)
 {
+	struct nfs_client *clp = server->nfs_client;
+
 	spin_lock(&nfs_client_lock);
 	list_del_rcu(&server->client_link);
+	if (clp && list_empty(&clp->cl_superblocks))
+		set_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
 	list_del(&server->master_link);
 	spin_unlock(&nfs_client_lock);
 
@@ -1307,11 +1327,11 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
 /*
  * Initialise an NFS4 client record
  */
-static int nfs4_init_client(struct nfs_client *clp,
-		const struct rpc_timeout *timeparms,
-		const char *ip_addr,
-		rpc_authflavor_t authflavour,
-		int flags)
+int nfs4_init_client(struct nfs_client *clp,
+		     const struct rpc_timeout *timeparms,
+		     const char *ip_addr,
+		     rpc_authflavor_t authflavour,
+		     int noresvport)
 {
 	int error;
 
@@ -1325,7 +1345,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	clp->rpc_ops = &nfs_v4_clientops;
 
 	error = nfs_create_rpc_client(clp, timeparms, authflavour,
-				      1, flags & NFS_MOUNT_NORESVPORT);
+				      1, noresvport);
 	if (error < 0)
 		goto error;
 	strlcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
@@ -1378,27 +1398,71 @@ static int nfs4_set_client(struct nfs_server *server,
 	dprintk("--> nfs4_set_client()\n");
 
 	/* Allocate or find a client reference we can use */
-	clp = nfs_get_client(&cl_init);
+	clp = nfs_get_client(&cl_init, timeparms, ip_addr, authflavour,
+			     server->flags & NFS_MOUNT_NORESVPORT);
 	if (IS_ERR(clp)) {
 		error = PTR_ERR(clp);
 		goto error;
 	}
-	error = nfs4_init_client(clp, timeparms, ip_addr, authflavour,
-					server->flags);
-	if (error < 0)
-		goto error_put;
+
+	/*
+	 * Query for the lease time on clientid setup or renewal
+	 *
+	 * Note that this will be set on nfs_clients that were created
+	 * only for the DS role and did not set this bit, but now will
+	 * serve a dual role.
+	 */
+	set_bit(NFS_CS_CHECK_LEASE_TIME, &clp->cl_res_state);
 
 	server->nfs_client = clp;
 	dprintk("<-- nfs4_set_client() = 0 [new %p]\n", clp);
 	return 0;
-
-error_put:
-	nfs_put_client(clp);
 error:
 	dprintk("<-- nfs4_set_client() = xerror %d\n", error);
 	return error;
 }
 
+/*
+ * Set up a pNFS Data Server client.
+ *
+ * Return any existing nfs_client that matches server address,port,version
+ * and minorversion.
+ *
+ * For a new nfs_client, use a soft mount (default), a low retrans and a
+ * low timeout interval so that if a connection is lost, we retry through
+ * the MDS.
+ */
+struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
+		const struct sockaddr *ds_addr,
+		int ds_addrlen, int ds_proto)
+{
+	struct nfs_client_initdata cl_init = {
+		.addr = ds_addr,
+		.addrlen = ds_addrlen,
+		.rpc_ops = &nfs_v4_clientops,
+		.proto = ds_proto,
+		.minorversion = mds_clp->cl_minorversion,
+	};
+	struct rpc_timeout ds_timeout = {
+		.to_initval = 15 * HZ,
+		.to_maxval = 15 * HZ,
+		.to_retries = 1,
+		.to_exponential = 1,
+	};
+	struct nfs_client *clp;
+
+	/*
+	 * Set an authflavor equual to the MDS value. Use the MDS nfs_client
+	 * cl_ipaddr so as to use the same EXCHANGE_ID co_ownerid as the MDS
+	 * (section 13.1 RFC 5661).
+	 */
+	clp = nfs_get_client(&cl_init, &ds_timeout, mds_clp->cl_ipaddr,
+			     mds_clp->cl_rpcclient->cl_auth->au_flavor, 0);
+
+	dprintk("<-- %s %p\n", __func__, clp);
+	return clp;
+}
+EXPORT_SYMBOL(nfs4_set_ds_client);
 
 /*
  * Session has been established, and the client marked ready.
@@ -1434,6 +1498,10 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 	BUG_ON(!server->nfs_client);
 	BUG_ON(!server->nfs_client->rpc_ops);
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
+
+	/* data servers support only a subset of NFSv4.1 */
+	if (is_ds_only_client(server->nfs_client))
+		return -EPROTONOSUPPORT;
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
@@ -1503,6 +1571,13 @@ static int nfs4_init_server(struct nfs_server *server,
 			data->minorversion);
 	if (error < 0)
 		goto error;
+
+	/*
+	 * Don't use NFS uid/gid mapping if we're using AUTH_SYS or lower
+	 * authentication.
+	 */
+	if (nfs4_disable_idmapping && data->auth_flavors[0] == RPC_AUTH_UNIX)
+		server->caps |= NFS_CAP_UIDGID_NOMAP;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -1921,3 +1996,7 @@ void nfs_fs_proc_exit(void)
 }
 
 #endif /* CONFIG_PROC_FS */
+
+module_param(nfs4_disable_idmapping, bool, 0644);
+MODULE_PARM_DESC(nfs4_disable_idmapping,
+		"Turn off NFSv4 idmapping when using 'sec=sys'");

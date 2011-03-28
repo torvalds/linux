@@ -13,7 +13,7 @@ config FT1000_USB
 
 config FT1000_PCMCIA
 	tristate "Driver for ft1000 pcmcia device."
-	depends on PCMCIA && BROKEN
+	depends on PCMCIA
 	depends on NET
 	help
 	  Say Y if you want to have support for Flarion card also called

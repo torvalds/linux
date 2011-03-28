@@ -97,7 +97,6 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>	/* used in new tty drivers */
 #include <linux/signal.h>	/* used in new tty drivers */
 #include <linux/if.h>

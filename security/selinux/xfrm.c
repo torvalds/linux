@@ -112,7 +112,7 @@ int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
  */
 
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *xp,
-			struct flowi *fl)
+			const struct flowi *fl)
 {
 	u32 state_sid;
 	int rc;
@@ -135,10 +135,10 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
 
 	state_sid = x->security->ctx_sid;
 
-	if (fl->secid != state_sid)
+	if (fl->flowi_secid != state_sid)
 		return 0;
 
-	rc = avc_has_perm(fl->secid, state_sid, SECCLASS_ASSOCIATION,
+	rc = avc_has_perm(fl->flowi_secid, state_sid, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__SENDTO,
 			  NULL)? 0:1;
 
@@ -208,7 +208,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 	if (!uctx)
 		goto not_from_user;
 
-	if (uctx->ctx_doi != XFRM_SC_ALG_SELINUX)
+	if (uctx->ctx_alg != XFRM_SC_ALG_SELINUX)
 		return -EINVAL;
 
 	str_len = uctx->ctx_len;

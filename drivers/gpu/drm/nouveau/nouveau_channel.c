@@ -35,7 +35,7 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *pb = chan->pushbuf_bo;
 	struct nouveau_gpuobj *pushbuf = NULL;
-	int ret;
+	int ret = 0;
 
 	if (dev_priv->card_type >= NV_50) {
 		if (dev_priv->card_type < NV_C0) {
@@ -90,8 +90,7 @@ nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
 	else
 		location = TTM_PL_FLAG_TT;
 
-	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, false,
-			     true, &pushbuf);
+	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, &pushbuf);
 	if (ret) {
 		NV_ERROR(dev, "error allocating DMA push buffer: %d\n", ret);
 		return NULL;

@@ -839,7 +839,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	err = journal_bmap(journal, 0, &blocknr);
 	/* If that failed, give up */
 	if (err) {
-		printk(KERN_ERR "%s: Cannnot locate journal superblock\n",
+		printk(KERN_ERR "%s: Cannot locate journal superblock\n",
 		       __func__);
 		goto out_err;
 	}

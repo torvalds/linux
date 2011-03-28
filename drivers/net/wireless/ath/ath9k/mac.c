@@ -143,84 +143,59 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 }
 EXPORT_SYMBOL(ath9k_hw_updatetxtriglevel);
 
-bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
+void ath9k_hw_abort_tx_dma(struct ath_hw *ah)
 {
-#define ATH9K_TX_STOP_DMA_TIMEOUT	4000    /* usec */
+	int i, q;
+
+	REG_WRITE(ah, AR_Q_TXD, AR_Q_TXD_M);
+
+	REG_SET_BIT(ah, AR_PCU_MISC, AR_PCU_FORCE_QUIET_COLL | AR_PCU_CLEAR_VMF);
+	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
+	REG_SET_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGNORE_BACKOFF);
+
+	for (q = 0; q < AR_NUM_QCU; q++) {
+		for (i = 0; i < 1000; i++) {
+			if (i)
+				udelay(5);
+
+			if (!ath9k_hw_numtxpending(ah, q))
+				break;
+		}
+	}
+
+	REG_CLR_BIT(ah, AR_PCU_MISC, AR_PCU_FORCE_QUIET_COLL | AR_PCU_CLEAR_VMF);
+	REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
+	REG_CLR_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGNORE_BACKOFF);
+
+	REG_WRITE(ah, AR_Q_TXD, 0);
+}
+EXPORT_SYMBOL(ath9k_hw_abort_tx_dma);
+
+bool ath9k_hw_stop_dma_queue(struct ath_hw *ah, u32 q)
+{
+#define ATH9K_TX_STOP_DMA_TIMEOUT	1000    /* usec */
 #define ATH9K_TIME_QUANTUM		100     /* usec */
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_hw_capabilities *pCap = &ah->caps;
-	struct ath9k_tx_queue_info *qi;
-	u32 tsfLow, j, wait;
-	u32 wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
-
-	if (q >= pCap->total_queues) {
-		ath_dbg(common, ATH_DBG_QUEUE,
-			"Stopping TX DMA, invalid queue: %u\n", q);
-		return false;
-	}
-
-	qi = &ah->txq[q];
-	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
-		ath_dbg(common, ATH_DBG_QUEUE,
-			"Stopping TX DMA, inactive queue: %u\n", q);
-		return false;
-	}
+	int wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
+	int wait;
 
 	REG_WRITE(ah, AR_Q_TXD, 1 << q);
 
 	for (wait = wait_time; wait != 0; wait--) {
+		if (wait != wait_time)
+			udelay(ATH9K_TIME_QUANTUM);
+
 		if (ath9k_hw_numtxpending(ah, q) == 0)
 			break;
-		udelay(ATH9K_TIME_QUANTUM);
-	}
-
-	if (ath9k_hw_numtxpending(ah, q)) {
-		ath_dbg(common, ATH_DBG_QUEUE,
-			"%s: Num of pending TX Frames %d on Q %d\n",
-			__func__, ath9k_hw_numtxpending(ah, q), q);
-
-		for (j = 0; j < 2; j++) {
-			tsfLow = REG_READ(ah, AR_TSF_L32);
-			REG_WRITE(ah, AR_QUIET2,
-				  SM(10, AR_QUIET2_QUIET_DUR));
-			REG_WRITE(ah, AR_QUIET_PERIOD, 100);
-			REG_WRITE(ah, AR_NEXT_QUIET_TIMER, tsfLow >> 10);
-			REG_SET_BIT(ah, AR_TIMER_MODE,
-				       AR_QUIET_TIMER_EN);
-
-			if ((REG_READ(ah, AR_TSF_L32) >> 10) == (tsfLow >> 10))
-				break;
-
-			ath_dbg(common, ATH_DBG_QUEUE,
-				"TSF has moved while trying to set quiet time TSF: 0x%08x\n",
-				tsfLow);
-		}
-
-		REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
-
-		udelay(200);
-		REG_CLR_BIT(ah, AR_TIMER_MODE, AR_QUIET_TIMER_EN);
-
-		wait = wait_time;
-		while (ath9k_hw_numtxpending(ah, q)) {
-			if ((--wait) == 0) {
-				ath_err(common,
-					"Failed to stop TX DMA in 100 msec after killing last frame\n");
-				break;
-			}
-			udelay(ATH9K_TIME_QUANTUM);
-		}
-
-		REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
 	}
 
 	REG_WRITE(ah, AR_Q_TXD, 0);
+
 	return wait != 0;
 
 #undef ATH9K_TX_STOP_DMA_TIMEOUT
 #undef ATH9K_TIME_QUANTUM
 }
-EXPORT_SYMBOL(ath9k_hw_stoptxdma);
+EXPORT_SYMBOL(ath9k_hw_stop_dma_queue);
 
 void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs)
 {
@@ -690,17 +665,23 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 		rs->rs_flags |= ATH9K_RX_DECRYPT_BUSY;
 
 	if ((ads.ds_rxstatus8 & AR_RxFrameOK) == 0) {
+		/*
+		 * Treat these errors as mutually exclusive to avoid spurious
+		 * extra error reports from the hardware. If a CRC error is
+		 * reported, then decryption and MIC errors are irrelevant,
+		 * the frame is going to be dropped either way
+		 */
 		if (ads.ds_rxstatus8 & AR_CRCErr)
 			rs->rs_status |= ATH9K_RXERR_CRC;
-		if (ads.ds_rxstatus8 & AR_PHYErr) {
+		else if (ads.ds_rxstatus8 & AR_PHYErr) {
 			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
 			rs->rs_phyerr = phyerr;
-		}
-		if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
+		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
-		if (ads.ds_rxstatus8 & AR_MichaelErr)
+		else if (ads.ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= ATH9K_RXERR_MIC;
+
 		if (ads.ds_rxstatus8 & AR_KeyMiss)
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 	}

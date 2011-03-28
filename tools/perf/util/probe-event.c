@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <elf.h>
 
 #undef _GNU_SOURCE
 #include "util.h"
@@ -111,7 +112,25 @@ static struct symbol *__find_kernel_function_by_name(const char *name,
 						     NULL);
 }
 
-const char *kernel_get_module_path(const char *module)
+static struct map *kernel_get_module_map(const char *module)
+{
+	struct rb_node *nd;
+	struct map_groups *grp = &machine.kmaps;
+
+	if (!module)
+		module = "kernel";
+
+	for (nd = rb_first(&grp->maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+		if (strncmp(pos->dso->short_name + 1, module,
+			    pos->dso->short_name_len - 2) == 0) {
+			return pos;
+		}
+	}
+	return NULL;
+}
+
+static struct dso *kernel_get_module_dso(const char *module)
 {
 	struct dso *dso;
 	struct map *map;
@@ -141,7 +160,13 @@ const char *kernel_get_module_path(const char *module)
 		}
 	}
 found:
-	return dso->long_name;
+	return dso;
+}
+
+const char *kernel_get_module_path(const char *module)
+{
+	struct dso *dso = kernel_get_module_dso(module);
+	return (dso) ? dso->long_name : NULL;
 }
 
 #ifdef DWARF_SUPPORT
@@ -384,7 +409,7 @@ int show_line_range(struct line_range *lr, const char *module)
 	setup_pager();
 
 	if (lr->function)
-		fprintf(stdout, "<%s:%d>\n", lr->function,
+		fprintf(stdout, "<%s@%s:%d>\n", lr->function, lr->path,
 			lr->start - lr->offset);
 	else
 		fprintf(stdout, "<%s:%d>\n", lr->path, lr->start);
@@ -426,12 +451,14 @@ end:
 }
 
 static int show_available_vars_at(int fd, struct perf_probe_event *pev,
-				  int max_vls, bool externs)
+				  int max_vls, struct strfilter *_filter,
+				  bool externs)
 {
 	char *buf;
-	int ret, i;
+	int ret, i, nvars;
 	struct str_node *node;
 	struct variable_list *vls = NULL, *vl;
+	const char *var;
 
 	buf = synthesize_perf_probe_point(&pev->point);
 	if (!buf)
@@ -439,36 +466,45 @@ static int show_available_vars_at(int fd, struct perf_probe_event *pev,
 	pr_debug("Searching variables at %s\n", buf);
 
 	ret = find_available_vars_at(fd, pev, &vls, max_vls, externs);
-	if (ret > 0) {
-		/* Some variables were found */
-		fprintf(stdout, "Available variables at %s\n", buf);
-		for (i = 0; i < ret; i++) {
-			vl = &vls[i];
-			/*
-			 * A probe point might be converted to
-			 * several trace points.
-			 */
-			fprintf(stdout, "\t@<%s+%lu>\n", vl->point.symbol,
-				vl->point.offset);
-			free(vl->point.symbol);
-			if (vl->vars) {
-				strlist__for_each(node, vl->vars)
-					fprintf(stdout, "\t\t%s\n", node->s);
-				strlist__delete(vl->vars);
-			} else
-				fprintf(stdout, "(No variables)\n");
-		}
-		free(vls);
-	} else
+	if (ret <= 0) {
 		pr_err("Failed to find variables at %s (%d)\n", buf, ret);
-
+		goto end;
+	}
+	/* Some variables are found */
+	fprintf(stdout, "Available variables at %s\n", buf);
+	for (i = 0; i < ret; i++) {
+		vl = &vls[i];
+		/*
+		 * A probe point might be converted to
+		 * several trace points.
+		 */
+		fprintf(stdout, "\t@<%s+%lu>\n", vl->point.symbol,
+			vl->point.offset);
+		free(vl->point.symbol);
+		nvars = 0;
+		if (vl->vars) {
+			strlist__for_each(node, vl->vars) {
+				var = strchr(node->s, '\t') + 1;
+				if (strfilter__compare(_filter, var)) {
+					fprintf(stdout, "\t\t%s\n", node->s);
+					nvars++;
+				}
+			}
+			strlist__delete(vl->vars);
+		}
+		if (nvars == 0)
+			fprintf(stdout, "\t\t(No matched variables)\n");
+	}
+	free(vls);
+end:
 	free(buf);
 	return ret;
 }
 
 /* Show available variables on given probe point */
 int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			int max_vls, const char *module, bool externs)
+			int max_vls, const char *module,
+			struct strfilter *_filter, bool externs)
 {
 	int i, fd, ret = 0;
 
@@ -485,7 +521,8 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	setup_pager();
 
 	for (i = 0; i < npevs && ret >= 0; i++)
-		ret = show_available_vars_at(fd, &pevs[i], max_vls, externs);
+		ret = show_available_vars_at(fd, &pevs[i], max_vls, _filter,
+					     externs);
 
 	close(fd);
 	return ret;
@@ -531,7 +568,9 @@ int show_line_range(struct line_range *lr __unused, const char *module __unused)
 
 int show_available_vars(struct perf_probe_event *pevs __unused,
 			int npevs __unused, int max_vls __unused,
-			const char *module __unused, bool externs __unused)
+			const char *module __unused,
+			struct strfilter *filter __unused,
+			bool externs __unused)
 {
 	pr_warning("Debuginfo-analysis is not supported.\n");
 	return -ENOSYS;
@@ -556,11 +595,11 @@ static int parse_line_num(char **ptr, int *val, const char *what)
  * The line range syntax is described by:
  *
  *         SRC[:SLN[+NUM|-ELN]]
- *         FNC[:SLN[+NUM|-ELN]]
+ *         FNC[@SRC][:SLN[+NUM|-ELN]]
  */
 int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
-	char *range, *name = strdup(arg);
+	char *range, *file, *name = strdup(arg);
 	int err;
 
 	if (!name)
@@ -610,7 +649,16 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 		}
 	}
 
-	if (strchr(name, '.'))
+	file = strchr(name, '@');
+	if (file) {
+		*file = '\0';
+		lr->file = strdup(++file);
+		if (lr->file == NULL) {
+			err = -ENOMEM;
+			goto err;
+		}
+		lr->function = name;
+	} else if (strchr(name, '.'))
 		lr->file = name;
 	else
 		lr->function = name;
@@ -1784,9 +1832,12 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 	}
 
 	/* Loop 2: add all events */
-	for (i = 0; i < npevs && ret >= 0; i++)
+	for (i = 0; i < npevs; i++) {
 		ret = __add_probe_trace_events(pkgs[i].pev, pkgs[i].tevs,
 						pkgs[i].ntevs, force_add);
+		if (ret < 0)
+			break;
+	}
 end:
 	/* Loop 3: cleanup and free trace events  */
 	for (i = 0; i < npevs; i++) {
@@ -1912,4 +1963,46 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	return ret;
 }
+/* TODO: don't use a global variable for filter ... */
+static struct strfilter *available_func_filter;
 
+/*
+ * If a symbol corresponds to a function with global binding and
+ * matches filter return 0. For all others return 1.
+ */
+static int filter_available_functions(struct map *map __unused,
+				      struct symbol *sym)
+{
+	if (sym->binding == STB_GLOBAL &&
+	    strfilter__compare(available_func_filter, sym->name))
+		return 0;
+	return 1;
+}
+
+int show_available_funcs(const char *module, struct strfilter *_filter)
+{
+	struct map *map;
+	int ret;
+
+	setup_pager();
+
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
+
+	map = kernel_get_module_map(module);
+	if (!map) {
+		pr_err("Failed to find %s map.\n", (module) ? : "kernel");
+		return -EINVAL;
+	}
+	available_func_filter = _filter;
+	if (map__load(map, filter_available_functions)) {
+		pr_err("Failed to load map.\n");
+		return -EINVAL;
+	}
+	if (!dso__sorted_by_name(map->dso, map->type))
+		dso__sort_by_name(map->dso, map->type);
+
+	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
+	return 0;
+}

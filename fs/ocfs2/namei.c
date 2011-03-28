@@ -293,7 +293,7 @@ static int ocfs2_mknod(struct inode *dir,
 	}
 
 	/* get security xattr */
-	status = ocfs2_init_security_get(inode, dir, &si);
+	status = ocfs2_init_security_get(inode, dir, &dentry->d_name, &si);
 	if (status) {
 		if (status == -EOPNOTSUPP)
 			si.enable = 0;
@@ -1665,7 +1665,7 @@ static int ocfs2_symlink(struct inode *dir,
 	}
 
 	/* get security xattr */
-	status = ocfs2_init_security_get(inode, dir, &si);
+	status = ocfs2_init_security_get(inode, dir, &dentry->d_name, &si);
 	if (status) {
 		if (status == -EOPNOTSUPP)
 			si.enable = 0;

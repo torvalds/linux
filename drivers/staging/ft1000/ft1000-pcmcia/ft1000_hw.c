@@ -43,6 +43,10 @@
 #include <linux/firmware.h>
 #include <linux/ethtool.h>
 
+#include <pcmcia/cistpl.h>
+#include <pcmcia/cisreg.h>
+#include <pcmcia/ds.h>
+
 #ifdef FT_DEBUG
 #define DEBUG(n, args...) printk(KERN_DEBUG args);
 #else
@@ -53,7 +57,7 @@
 #include "ft1000_dev.h"
 #include "ft1000.h"
 
-int card_download(struct net_device *dev, void *pFileStart, UINT FileLength);
+int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength);
 
 void ft1000InitProc(struct net_device *dev);
 void ft1000CleanupProc(struct net_device *dev);
@@ -1936,7 +1940,7 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 	}
 
 	info->stats.tx_packets++;
-	// Add 14 bytes for MAC adddress plus ethernet type
+	// Add 14 bytes for MAC address plus ethernet type
 	info->stats.tx_bytes += (len + 14);
 	return SUCCESS;
 }
@@ -2148,13 +2152,11 @@ static const struct ethtool_ops ops = {
 	.get_link = ft1000_get_link
 };
 
-struct net_device *init_ft1000_card(unsigned short irq, int port,
-					unsigned char *mac_addr, void *ft1000_reset,
-					void *link, struct device *fdev)
+struct net_device *init_ft1000_card(struct pcmcia_device *link,
+					void *ft1000_reset)
 {
 	FT1000_INFO *info;
 	struct net_device *dev;
-	int i;
 
 	static const struct net_device_ops ft1000ops =		// Slavius 21.10.2009 due to kernel changes
 	{
@@ -2165,8 +2167,8 @@ struct net_device *init_ft1000_card(unsigned short irq, int port,
 	};
 
 	DEBUG(1, "ft1000_hw: init_ft1000_card()\n");
-	DEBUG(1, "ft1000_hw: irq = %d\n", irq);
-	DEBUG(1, "ft1000_hw: port = 0x%04x\n", port);
+	DEBUG(1, "ft1000_hw: irq = %d\n", link->irq);
+	DEBUG(1, "ft1000_hw: port = 0x%04x\n", link->resource[0]->start);
 
 	flarion_ft1000_cnt++;
 
@@ -2184,7 +2186,7 @@ struct net_device *init_ft1000_card(unsigned short irq, int port,
 		return NULL;
 	}
 
-	SET_NETDEV_DEV(dev, fdev);
+	SET_NETDEV_DEV(dev, &link->dev);
 	info = netdev_priv(dev);
 
 	memset(info, 0, sizeof(FT1000_INFO));
@@ -2227,14 +2229,12 @@ struct net_device *init_ft1000_card(unsigned short irq, int port,
 
 	DEBUG(0, "device name = %s\n", dev->name);
 
-	for (i = 0; i < 6; i++) {
-		dev->dev_addr[i] = mac_addr[i];
-		DEBUG(1, "ft1000_hw: mac_addr %d = 0x%02x\n", i, mac_addr[i]);
+	dev->irq = link->irq;
+	dev->base_addr = link->resource[0]->start;
+	if (pcmcia_get_mac_from_cis(link, dev)) {
+		printk(KERN_ERR "ft1000: Could not read mac address\n");
+		goto err_dev;
 	}
-
-	netif_stop_queue(dev);
-	dev->irq = irq;
-	dev->base_addr = port;
 
 	if (request_irq(dev->irq, ft1000_interrupt, IRQF_SHARED, dev->name, dev)) {
 		printk(KERN_ERR "ft1000: Could not request_irq\n");
@@ -2254,13 +2254,13 @@ struct net_device *init_ft1000_card(unsigned short irq, int port,
 	info->AsicID = ft1000_read_reg(dev, FT1000_REG_ASIC_ID);
 	if (info->AsicID == ELECTRABUZZ_ID) {
 		DEBUG(0, "ft1000_hw: ELECTRABUZZ ASIC\n");
-		if (request_firmware(&fw_entry, "ft1000.img", fdev) != 0) {
+		if (request_firmware(&fw_entry, "ft1000.img", &link->dev) != 0) {
 			printk(KERN_INFO "ft1000: Could not open ft1000.img\n");
 			goto err_unreg;
 		}
 	} else {
 		DEBUG(0, "ft1000_hw: MAGNEMITE ASIC\n");
-		if (request_firmware(&fw_entry, "ft2000.img", fdev) != 0) {
+		if (request_firmware(&fw_entry, "ft2000.img", &link->dev) != 0) {
 			printk(KERN_INFO "ft1000: Could not open ft2000.img\n");
 			goto err_unreg;
 		}

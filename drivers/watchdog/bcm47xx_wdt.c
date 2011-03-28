@@ -150,8 +150,8 @@ static ssize_t bcm47xx_wdt_write(struct file *file, const char __user *data,
 }
 
 static const struct watchdog_info bcm47xx_wdt_info = {
-	.identity 	= DRV_NAME,
-	.options 	= WDIOF_SETTIMEOUT |
+	.identity	= DRV_NAME,
+	.options	= WDIOF_SETTIMEOUT |
 				WDIOF_KEEPALIVEPING |
 				WDIOF_MAGICCLOSE,
 };

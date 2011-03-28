@@ -111,8 +111,8 @@
  * @dev: parent device
  * @lock: read/write operations lock
  * @irq_lock: genirq bus lock
- * @revision: chip revision
  * @irq: irq line
+ * @chip_id: chip revision id
  * @write: register write
  * @read: register read
  * @rx_buf: rx buf for SPI
@@ -124,7 +124,7 @@ struct ab8500 {
 	struct device	*dev;
 	struct mutex	lock;
 	struct mutex	irq_lock;
-	int		revision;
+
 	int		irq_base;
 	int		irq;
 	u8		chip_id;

@@ -14,7 +14,7 @@ HOSTFLAGS	+= -Iarch/$(ARCH)/boot/include
 
 BIG_ENDIAN	:= $(shell echo -e __XTENSA_EB__ | $(CC) -E - | grep -v "\#")
 
-export EXTRA_CFLAGS
+export ccflags-y
 export BIG_ENDIAN
 
 subdir-y	:= lib

@@ -427,7 +427,7 @@ unsigned long native_calibrate_tsc(void)
 	 * the delta to the previous read. We keep track of the min
 	 * and max values of that delta. The delta is mostly defined
 	 * by the IO time of the PIT access, so we can detect when a
-	 * SMI/SMM disturbance happend between the two reads. If the
+	 * SMI/SMM disturbance happened between the two reads. If the
 	 * maximum time is significantly larger than the minimum time,
 	 * then we discard the result and have another try.
 	 *
@@ -900,7 +900,7 @@ static DECLARE_DELAYED_WORK(tsc_irqwork, tsc_refine_calibration_work);
  * timer based, instead of loop based, we don't block the boot
  * process while this longer calibration is done.
  *
- * If there are any calibration anomolies (too many SMIs, etc),
+ * If there are any calibration anomalies (too many SMIs, etc),
  * or the refined calibration is off by 1% of the fast early
  * calibration, we throw out the new calibration and use the
  * early calibration.

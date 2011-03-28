@@ -25,6 +25,7 @@
 #include <linux/bcd.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/pm.h>
 
 #define DS1374_REG_TOD0		0x00 /* Time of Day */
 #define DS1374_REG_TOD1		0x01
@@ -409,32 +410,38 @@ static int __devexit ds1374_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int ds1374_suspend(struct i2c_client *client, pm_message_t state)
+static int ds1374_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	if (client->irq >= 0 && device_may_wakeup(&client->dev))
 		enable_irq_wake(client->irq);
 	return 0;
 }
 
-static int ds1374_resume(struct i2c_client *client)
+static int ds1374_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	if (client->irq >= 0 && device_may_wakeup(&client->dev))
 		disable_irq_wake(client->irq);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(ds1374_pm, ds1374_suspend, ds1374_resume);
+
+#define DS1374_PM (&ds1374_pm)
 #else
-#define ds1374_suspend	NULL
-#define ds1374_resume	NULL
+#define DS1374_PM NULL
 #endif
 
 static struct i2c_driver ds1374_driver = {
 	.driver = {
 		.name = "rtc-ds1374",
 		.owner = THIS_MODULE,
+		.pm = DS1374_PM,
 	},
 	.probe = ds1374_probe,
-	.suspend = ds1374_suspend,
-	.resume = ds1374_resume,
 	.remove = __devexit_p(ds1374_remove),
 	.id_table = ds1374_id,
 };

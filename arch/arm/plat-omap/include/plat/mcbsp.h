@@ -37,6 +37,10 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 	.id	= OMAP_MCBSP##port_nr,			\
 }
 
+#define MCBSP_CONFIG_TYPE2	0x2
+#define MCBSP_CONFIG_TYPE3	0x3
+#define MCBSP_CONFIG_TYPE4	0x4
+
 #define OMAP7XX_MCBSP1_BASE	0xfffb1000
 #define OMAP7XX_MCBSP2_BASE	0xfffb1800
 
@@ -48,32 +52,14 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 #define OMAP1610_MCBSP2_BASE	0xfffb1000
 #define OMAP1610_MCBSP3_BASE	0xe1017000
 
-#define OMAP24XX_MCBSP1_BASE	0x48074000
-#define OMAP24XX_MCBSP2_BASE	0x48076000
-#define OMAP2430_MCBSP3_BASE	0x4808c000
-#define OMAP2430_MCBSP4_BASE	0x4808e000
-#define OMAP2430_MCBSP5_BASE	0x48096000
-
-#define OMAP34XX_MCBSP1_BASE	0x48074000
-#define OMAP34XX_MCBSP2_BASE	0x49022000
-#define OMAP34XX_MCBSP2_ST_BASE	0x49028000
-#define OMAP34XX_MCBSP3_BASE	0x49024000
-#define OMAP34XX_MCBSP3_ST_BASE	0x4902A000
-#define OMAP34XX_MCBSP3_BASE	0x49024000
-#define OMAP34XX_MCBSP4_BASE	0x49026000
-#define OMAP34XX_MCBSP5_BASE	0x48096000
-
-#define OMAP44XX_MCBSP1_BASE	0x49022000
-#define OMAP44XX_MCBSP2_BASE	0x49024000
-#define OMAP44XX_MCBSP3_BASE	0x49026000
-#define OMAP44XX_MCBSP4_BASE	0x48096000
-
-#if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+#ifdef CONFIG_ARCH_OMAP1
 
 #define OMAP_MCBSP_REG_DRR2	0x00
 #define OMAP_MCBSP_REG_DRR1	0x02
 #define OMAP_MCBSP_REG_DXR2	0x04
 #define OMAP_MCBSP_REG_DXR1	0x06
+#define OMAP_MCBSP_REG_DRR	0x02
+#define OMAP_MCBSP_REG_DXR	0x06
 #define OMAP_MCBSP_REG_SPCR2	0x08
 #define OMAP_MCBSP_REG_SPCR1	0x0a
 #define OMAP_MCBSP_REG_RCR2	0x0c
@@ -105,13 +91,6 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 /* Dummy defines, these are not available on omap1 */
 #define OMAP_MCBSP_REG_XCCR	0x00
 #define OMAP_MCBSP_REG_RCCR	0x00
-
-#define AUDIO_MCBSP_DATAWRITE	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1)
-#define AUDIO_MCBSP_DATAREAD	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1)
-
-#define AUDIO_MCBSP		OMAP_MCBSP1
-#define AUDIO_DMA_TX		OMAP_DMA_MCBSP1_TX
-#define AUDIO_DMA_RX		OMAP_DMA_MCBSP1_RX
 
 #else
 
@@ -167,13 +146,6 @@ static struct platform_device omap_mcbsp##port_nr = {	\
 #define OMAP_ST_REG_SGAINCR	0x24
 #define OMAP_ST_REG_SFIRCR	0x28
 #define OMAP_ST_REG_SSELCR	0x2C
-
-#define AUDIO_MCBSP_DATAWRITE	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR1)
-#define AUDIO_MCBSP_DATAREAD	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1)
-
-#define AUDIO_MCBSP		OMAP_MCBSP2
-#define AUDIO_DMA_TX		OMAP24XX_DMA_MCBSP2_TX
-#define AUDIO_DMA_RX		OMAP24XX_DMA_MCBSP2_RX
 
 #endif
 
@@ -428,8 +400,9 @@ struct omap_mcbsp_platform_data {
 #ifdef CONFIG_ARCH_OMAP3
 	/* Sidetone block for McBSP 2 and 3 */
 	unsigned long phys_base_st;
-	u16 buffer_size;
 #endif
+	u16 buffer_size;
+	unsigned int mcbsp_config_type;
 };
 
 struct omap_mcbsp_st_data {
@@ -445,6 +418,7 @@ struct omap_mcbsp_st_data {
 struct omap_mcbsp {
 	struct device *dev;
 	unsigned long phys_base;
+	unsigned long phys_dma_base;
 	void __iomem *io_base;
 	u8 id;
 	u8 free;
@@ -471,7 +445,6 @@ struct omap_mcbsp {
 	/* Protect the field .free, while checking if the mcbsp is in use */
 	spinlock_t lock;
 	struct omap_mcbsp_platform_data *pdata;
-	struct clk *iclk;
 	struct clk *fclk;
 #ifdef CONFIG_ARCH_OMAP3
 	struct omap_mcbsp_st_data *st_data;
@@ -480,7 +453,17 @@ struct omap_mcbsp {
 	u16 max_rx_thres;
 #endif
 	void *reg_cache;
+	unsigned int mcbsp_config_type;
 };
+
+/**
+ * omap_mcbsp_dev_attr - OMAP McBSP device attributes for omap_hwmod
+ * @sidetone: name of the sidetone device
+ */
+struct omap_mcbsp_dev_attr {
+	const char *sidetone;
+};
+
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 
@@ -488,8 +471,8 @@ extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 #define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
 
 int omap_mcbsp_init(void);
-void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
-					int size);
+void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
+			struct omap_mcbsp_platform_data *config, int size);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
 #ifdef CONFIG_ARCH_OMAP3
 void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
@@ -538,6 +521,9 @@ int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
 /* McBSP signal muxing API */
 void omap2_mcbsp1_mux_clkr_src(u8 mux);
 void omap2_mcbsp1_mux_fsr_src(u8 mux);
+
+int omap_mcbsp_dma_ch_params(unsigned int id, unsigned int stream);
+int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream);
 
 #ifdef CONFIG_ARCH_OMAP3
 /* Sidetone specific API */

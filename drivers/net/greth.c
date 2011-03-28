@@ -1411,7 +1411,7 @@ error:
 }
 
 /* Initialize the GRETH MAC */
-static int __devinit greth_of_probe(struct platform_device *ofdev, const struct of_device_id *match)
+static int __devinit greth_of_probe(struct platform_device *ofdev)
 {
 	struct net_device *dev;
 	struct greth_private *greth;
@@ -1646,7 +1646,7 @@ static struct of_device_id greth_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, greth_of_match);
 
-static struct of_platform_driver greth_of_driver = {
+static struct platform_driver greth_of_driver = {
 	.driver = {
 		.name = "grlib-greth",
 		.owner = THIS_MODULE,
@@ -1658,12 +1658,12 @@ static struct of_platform_driver greth_of_driver = {
 
 static int __init greth_init(void)
 {
-	return of_register_platform_driver(&greth_of_driver);
+	return platform_driver_register(&greth_of_driver);
 }
 
 static void __exit greth_cleanup(void)
 {
-	of_unregister_platform_driver(&greth_of_driver);
+	platform_driver_unregister(&greth_of_driver);
 }
 
 module_init(greth_init);

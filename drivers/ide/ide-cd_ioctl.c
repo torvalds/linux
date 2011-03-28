@@ -79,8 +79,8 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 	return CDS_DRIVE_NOT_READY;
 }
 
-int ide_cdrom_check_media_change_real(struct cdrom_device_info *cdi,
-				       int slot_nr)
+unsigned int ide_cdrom_check_events_real(struct cdrom_device_info *cdi,
+					 unsigned int clearing, int slot_nr)
 {
 	ide_drive_t *drive = cdi->handle;
 	int retval;
@@ -89,9 +89,9 @@ int ide_cdrom_check_media_change_real(struct cdrom_device_info *cdi,
 		(void) cdrom_check_status(drive, NULL);
 		retval = (drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED) ? 1 : 0;
 		drive->dev_flags &= ~IDE_DFLAG_MEDIA_CHANGED;
-		return retval;
+		return retval ? DISK_EVENT_MEDIA_CHANGE : 0;
 	} else {
-		return -EINVAL;
+		return 0;
 	}
 }
 

@@ -54,6 +54,9 @@ struct mmc_ext_csd {
 	unsigned int		sec_trim_mult;	/* Secure trim multiplier  */
 	unsigned int		sec_erase_mult;	/* Secure erase multiplier */
 	unsigned int		trim_timeout;		/* In milliseconds */
+	bool			enhanced_area_en;	/* enable bit */
+	unsigned long long	enhanced_area_offset;	/* Units: Byte */
+	unsigned int		enhanced_area_size;	/* Units: KB */
 };
 
 struct sd_scr {
@@ -121,6 +124,7 @@ struct mmc_card {
 						/* for byte mode */
 #define MMC_QUIRK_NONSTD_SDIO	(1<<2)		/* non-standard SDIO card attached */
 						/* (missing CIA registers) */
+#define MMC_QUIRK_BROKEN_CLK_GATING (1<<3)	/* clock gating the sdio bus will make card fail */
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
@@ -147,6 +151,8 @@ struct mmc_card {
 
 	struct dentry		*debugfs_root;
 };
+
+void mmc_fixup_device(struct mmc_card *dev);
 
 #define mmc_card_mmc(c)		((c)->type == MMC_TYPE_MMC)
 #define mmc_card_sd(c)		((c)->type == MMC_TYPE_SD)

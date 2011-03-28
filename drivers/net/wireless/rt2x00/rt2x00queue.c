@@ -221,14 +221,17 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	unsigned long irqflags;
 
-	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) ||
-	    unlikely(!tx_info->control.vif))
+	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
+		return;
+
+	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
+
+	if (!test_bit(DRIVER_REQUIRE_SW_SEQNO, &entry->queue->rt2x00dev->flags))
 		return;
 
 	/*
-	 * Hardware should insert sequence counter.
-	 * FIXME: We insert a software sequence counter first for
-	 * hardware that doesn't support hardware sequence counting.
+	 * The hardware is not able to insert a sequence number. Assign a
+	 * software generated one here.
 	 *
 	 * This is wrong because beacons are not getting sequence
 	 * numbers assigned properly.
@@ -246,7 +249,6 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 
 	spin_unlock_irqrestore(&intf->seqlock, irqflags);
 
-	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 }
 
 static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
@@ -260,6 +262,16 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 	unsigned int duration;
 	unsigned int residual;
 
+	/*
+	 * Determine with what IFS priority this frame should be send.
+	 * Set ifs to IFS_SIFS when the this is not the first fragment,
+	 * or this fragment came after RTS/CTS.
+	 */
+	if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
+		txdesc->u.plcp.ifs = IFS_BACKOFF;
+	else
+		txdesc->u.plcp.ifs = IFS_SIFS;
+
 	/* Data length + CRC + Crypto overhead (IV/EIV/ICV/MIC) */
 	data_length = entry->skb->len + 4;
 	data_length += rt2x00crypto_tx_overhead(rt2x00dev, entry->skb);
@@ -268,12 +280,12 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 	 * PLCP setup
 	 * Length calculation depends on OFDM/CCK rate.
 	 */
-	txdesc->signal = hwrate->plcp;
-	txdesc->service = 0x04;
+	txdesc->u.plcp.signal = hwrate->plcp;
+	txdesc->u.plcp.service = 0x04;
 
 	if (hwrate->flags & DEV_RATE_OFDM) {
-		txdesc->length_high = (data_length >> 6) & 0x3f;
-		txdesc->length_low = data_length & 0x3f;
+		txdesc->u.plcp.length_high = (data_length >> 6) & 0x3f;
+		txdesc->u.plcp.length_low = data_length & 0x3f;
 	} else {
 		/*
 		 * Convert length to microseconds.
@@ -288,18 +300,18 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 			 * Check if we need to set the Length Extension
 			 */
 			if (hwrate->bitrate == 110 && residual <= 30)
-				txdesc->service |= 0x80;
+				txdesc->u.plcp.service |= 0x80;
 		}
 
-		txdesc->length_high = (duration >> 8) & 0xff;
-		txdesc->length_low = duration & 0xff;
+		txdesc->u.plcp.length_high = (duration >> 8) & 0xff;
+		txdesc->u.plcp.length_low = duration & 0xff;
 
 		/*
 		 * When preamble is enabled we should set the
 		 * preamble bit for the signal.
 		 */
 		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-			txdesc->signal |= 0x08;
+			txdesc->u.plcp.signal |= 0x08;
 	}
 }
 
@@ -309,9 +321,9 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
-	struct ieee80211_rate *rate =
-	    ieee80211_get_tx_rate(rt2x00dev->hw, tx_info);
-	const struct rt2x00_rate *hwrate;
+	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
+	struct ieee80211_rate *rate;
+	const struct rt2x00_rate *hwrate = NULL;
 
 	memset(txdesc, 0, sizeof(*txdesc));
 
@@ -365,42 +377,42 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 
 	/*
 	 * Beacons and probe responses require the tsf timestamp
-	 * to be inserted into the frame, except for a frame that has been injected
-	 * through a monitor interface. This latter is needed for testing a
-	 * monitor interface.
+	 * to be inserted into the frame.
 	 */
-	if ((ieee80211_is_beacon(hdr->frame_control) ||
-	    ieee80211_is_probe_resp(hdr->frame_control)) &&
-	    (!(tx_info->flags & IEEE80211_TX_CTL_INJECTED)))
+	if (ieee80211_is_beacon(hdr->frame_control) ||
+	    ieee80211_is_probe_resp(hdr->frame_control))
 		__set_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags);
 
-	/*
-	 * Determine with what IFS priority this frame should be send.
-	 * Set ifs to IFS_SIFS when the this is not the first fragment,
-	 * or this fragment came after RTS/CTS.
-	 */
 	if ((tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) &&
-	    !test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags)) {
+	    !test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags))
 		__set_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags);
-		txdesc->ifs = IFS_BACKOFF;
-	} else
-		txdesc->ifs = IFS_SIFS;
 
 	/*
 	 * Determine rate modulation.
 	 */
-	hwrate = rt2x00_get_rate(rate->hw_value);
-	txdesc->rate_mode = RATE_MODE_CCK;
-	if (hwrate->flags & DEV_RATE_OFDM)
-		txdesc->rate_mode = RATE_MODE_OFDM;
+	if (txrate->flags & IEEE80211_TX_RC_GREEN_FIELD)
+		txdesc->rate_mode = RATE_MODE_HT_GREENFIELD;
+	else if (txrate->flags & IEEE80211_TX_RC_MCS)
+		txdesc->rate_mode = RATE_MODE_HT_MIX;
+	else {
+		rate = ieee80211_get_tx_rate(rt2x00dev->hw, tx_info);
+		hwrate = rt2x00_get_rate(rate->hw_value);
+		if (hwrate->flags & DEV_RATE_OFDM)
+			txdesc->rate_mode = RATE_MODE_OFDM;
+		else
+			txdesc->rate_mode = RATE_MODE_CCK;
+	}
 
 	/*
 	 * Apply TX descriptor handling by components
 	 */
 	rt2x00crypto_create_tx_descriptor(entry, txdesc);
-	rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
 	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
-	rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
+
+	if (test_bit(DRIVER_REQUIRE_HT_TX_DESC, &rt2x00dev->flags))
+		rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
+	else
+		rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
 }
 
 static int rt2x00queue_write_tx_data(struct queue_entry *entry,
@@ -566,13 +578,10 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	return 0;
 }
 
-int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif,
-			      const bool enable_beacon)
+int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
+			     struct ieee80211_vif *vif)
 {
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	struct skb_frame_desc *skbdesc;
-	struct txentry_desc txdesc;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
@@ -584,17 +593,36 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00queue_free_skb(intf->beacon);
 
-	if (!enable_beacon) {
-		rt2x00queue_stop_queue(intf->beacon->queue);
-		mutex_unlock(&intf->beacon_skb_mutex);
-		return 0;
-	}
+	/*
+	 * Clear beacon (single bssid devices don't need to clear the beacon
+	 * since the beacon queue will get stopped anyway).
+	 */
+	if (rt2x00dev->ops->lib->clear_beacon)
+		rt2x00dev->ops->lib->clear_beacon(intf->beacon);
+
+	mutex_unlock(&intf->beacon_skb_mutex);
+
+	return 0;
+}
+
+int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
+				     struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	struct skb_frame_desc *skbdesc;
+	struct txentry_desc txdesc;
+
+	if (unlikely(!intf->beacon))
+		return -ENOBUFS;
+
+	/*
+	 * Clean up the beacon skb.
+	 */
+	rt2x00queue_free_skb(intf->beacon);
 
 	intf->beacon->skb = ieee80211_beacon_get(rt2x00dev->hw, vif);
-	if (!intf->beacon->skb) {
-		mutex_unlock(&intf->beacon_skb_mutex);
+	if (!intf->beacon->skb)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Copy all TX descriptor information into txdesc,
@@ -611,13 +639,25 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	skbdesc->entry = intf->beacon;
 
 	/*
-	 * Send beacon to hardware and enable beacon genaration..
+	 * Send beacon to hardware.
 	 */
 	rt2x00dev->ops->lib->write_beacon(intf->beacon, &txdesc);
 
+	return 0;
+
+}
+
+int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
+			      struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	int ret;
+
+	mutex_lock(&intf->beacon_skb_mutex);
+	ret = rt2x00queue_update_beacon_locked(rt2x00dev, vif);
 	mutex_unlock(&intf->beacon_skb_mutex);
 
-	return 0;
+	return ret;
 }
 
 void rt2x00queue_for_each_entry(struct data_queue *queue,
@@ -664,29 +704,6 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_for_each_entry);
-
-struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
-					 const enum data_queue_qid queue)
-{
-	int atim = test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
-
-	if (queue == QID_RX)
-		return rt2x00dev->rx;
-
-	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
-		return &rt2x00dev->tx[queue];
-
-	if (!rt2x00dev->bcn)
-		return NULL;
-
-	if (queue == QID_BEACON)
-		return &rt2x00dev->bcn[0];
-	else if (queue == QID_ATIM && atim)
-		return &rt2x00dev->bcn[1];
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(rt2x00queue_get_queue);
 
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 					  enum queue_index index)
@@ -885,7 +902,7 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	 * The queue flush has failed...
 	 */
 	if (unlikely(!rt2x00queue_empty(queue)))
-		WARNING(queue->rt2x00dev, "Queue %d failed to flush", queue->qid);
+		WARNING(queue->rt2x00dev, "Queue %d failed to flush\n", queue->qid);
 
 	/*
 	 * Restore the queue to the previous status
@@ -1063,7 +1080,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 		goto exit;
 
 	if (test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags)) {
-		status = rt2x00queue_alloc_entries(&rt2x00dev->bcn[1],
+		status = rt2x00queue_alloc_entries(rt2x00dev->atim,
 						   rt2x00dev->ops->atim);
 		if (status)
 			goto exit;
@@ -1137,6 +1154,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->rx = queue;
 	rt2x00dev->tx = &queue[1];
 	rt2x00dev->bcn = &queue[1 + rt2x00dev->ops->tx_queues];
+	rt2x00dev->atim = req_atim ? &queue[2 + rt2x00dev->ops->tx_queues] : NULL;
 
 	/*
 	 * Initialize queue parameters.
@@ -1153,9 +1171,9 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_init(rt2x00dev, queue, qid++);
 
-	rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[0], QID_BEACON);
+	rt2x00queue_init(rt2x00dev, rt2x00dev->bcn, QID_BEACON);
 	if (req_atim)
-		rt2x00queue_init(rt2x00dev, &rt2x00dev->bcn[1], QID_ATIM);
+		rt2x00queue_init(rt2x00dev, rt2x00dev->atim, QID_ATIM);
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 Freescale Semiconductor, Inc.
+ * Copyright (C) 2007-2011 Freescale Semiconductor, Inc.
  *
  * Author: Tony Li <tony.li@freescale.com>
  *	   Jason Jin <Jason.jin@freescale.com>
@@ -47,14 +47,14 @@ static inline u32 fsl_msi_read(u32 __iomem *base, unsigned int reg)
  * We do not need this actually. The MSIR register has been read once
  * in the cascade interrupt. So, this MSI interrupt has been acked
 */
-static void fsl_msi_end_irq(unsigned int virq)
+static void fsl_msi_end_irq(struct irq_data *d)
 {
 }
 
 static struct irq_chip fsl_msi_chip = {
 	.irq_mask	= mask_msi_irq,
 	.irq_unmask	= unmask_msi_irq,
-	.ack		= fsl_msi_end_irq,
+	.irq_ack	= fsl_msi_end_irq,
 	.name		= "FSL-MSI",
 };
 
@@ -183,6 +183,7 @@ out_free:
 
 static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = get_irq_desc_chip(desc);
 	unsigned int cascade_irq;
 	struct fsl_msi *msi_data;
 	int msir_index = -1;
@@ -196,11 +197,11 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 
 	raw_spin_lock(&desc->lock);
 	if ((msi_data->feature &  FSL_PIC_IP_MASK) == FSL_PIC_IP_IPIC) {
-		if (desc->chip->mask_ack)
-			desc->chip->mask_ack(irq);
+		if (chip->irq_mask_ack)
+			chip->irq_mask_ack(&desc->irq_data);
 		else {
-			desc->chip->mask(irq);
-			desc->chip->ack(irq);
+			chip->irq_mask(&desc->irq_data);
+			chip->irq_ack(&desc->irq_data);
 		}
 	}
 
@@ -238,11 +239,11 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
-		desc->chip->eoi(irq);
+		chip->irq_eoi(&desc->irq_data);
 		break;
 	case FSL_PIC_IP_IPIC:
-		if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
-			desc->chip->unmask(irq);
+		if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
+			chip->irq_unmask(&desc->irq_data);
 		break;
 	}
 unlock:
@@ -273,19 +274,50 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devinit fsl_of_msi_probe(struct platform_device *dev,
-				const struct of_device_id *match)
+static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
+					 struct platform_device *dev,
+					 int offset, int irq_index)
+{
+	struct fsl_msi_cascade_data *cascade_data = NULL;
+	int virt_msir;
+
+	virt_msir = irq_of_parse_and_map(dev->dev.of_node, irq_index);
+	if (virt_msir == NO_IRQ) {
+		dev_err(&dev->dev, "%s: Cannot translate IRQ index %d\n",
+			__func__, irq_index);
+		return 0;
+	}
+
+	cascade_data = kzalloc(sizeof(struct fsl_msi_cascade_data), GFP_KERNEL);
+	if (!cascade_data) {
+		dev_err(&dev->dev, "No memory for MSI cascade data\n");
+		return -ENOMEM;
+	}
+
+	msi->msi_virqs[irq_index] = virt_msir;
+	cascade_data->index = offset + irq_index;
+	cascade_data->msi_data = msi;
+	set_irq_data(virt_msir, cascade_data);
+	set_irq_chained_handler(virt_msir, fsl_msi_cascade);
+
+	return 0;
+}
+
+static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 {
 	struct fsl_msi *msi;
 	struct resource res;
-	int err, i, count;
+	int err, i, j, irq_index, count;
 	int rc;
-	int virt_msir;
 	const u32 *p;
-	struct fsl_msi_feature *features = match->data;
-	struct fsl_msi_cascade_data *cascade_data = NULL;
+	struct fsl_msi_feature *features;
 	int len;
 	u32 offset;
+	static const u32 all_avail[] = { 0, NR_MSI_IRQS };
+
+	if (!dev->dev.of_match)
+		return -EINVAL;
+	features = dev->dev.of_match->data;
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
@@ -332,42 +364,34 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev,
 		goto error_out;
 	}
 
-	p = of_get_property(dev->dev.of_node, "interrupts", &count);
-	if (!p) {
-		dev_err(&dev->dev, "no interrupts property found on %s\n",
-				dev->dev.of_node->full_name);
-		err = -ENODEV;
-		goto error_out;
-	}
-	if (count % 8 != 0) {
-		dev_err(&dev->dev, "Malformed interrupts property on %s\n",
-				dev->dev.of_node->full_name);
+	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
+	if (p && len % (2 * sizeof(u32)) != 0) {
+		dev_err(&dev->dev, "%s: Malformed msi-available-ranges property\n",
+			__func__);
 		err = -EINVAL;
 		goto error_out;
 	}
-	offset = 0;
-	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
-	if (p)
-		offset = *p / IRQS_PER_MSI_REG;
 
-	count /= sizeof(u32);
-	for (i = 0; i < min(count / 2, NR_MSI_REG); i++) {
-		virt_msir = irq_of_parse_and_map(dev->dev.of_node, i);
-		if (virt_msir != NO_IRQ) {
-			cascade_data = kzalloc(
-					sizeof(struct fsl_msi_cascade_data),
-					GFP_KERNEL);
-			if (!cascade_data) {
-				dev_err(&dev->dev,
-					"No memory for MSI cascade data\n");
-				err = -ENOMEM;
+	if (!p)
+		p = all_avail;
+
+	for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
+		if (p[i * 2] % IRQS_PER_MSI_REG ||
+		    p[i * 2 + 1] % IRQS_PER_MSI_REG) {
+			printk(KERN_WARNING "%s: %s: msi available range of %u at %u is not IRQ-aligned\n",
+			       __func__, dev->dev.of_node->full_name,
+			       p[i * 2 + 1], p[i * 2]);
+			err = -EINVAL;
+			goto error_out;
+		}
+
+		offset = p[i * 2] / IRQS_PER_MSI_REG;
+		count = p[i * 2 + 1] / IRQS_PER_MSI_REG;
+
+		for (j = 0; j < count; j++, irq_index++) {
+			err = fsl_msi_setup_hwirq(msi, dev, offset, irq_index);
+			if (err)
 				goto error_out;
-			}
-			msi->msi_virqs[i] = virt_msir;
-			cascade_data->index = i + offset;
-			cascade_data->msi_data = msi;
-			set_irq_data(virt_msir, (void *)cascade_data);
-			set_irq_chained_handler(virt_msir, fsl_msi_cascade);
 		}
 	}
 
@@ -411,7 +435,7 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 	{}
 };
 
-static struct of_platform_driver fsl_of_msi_driver = {
+static struct platform_driver fsl_of_msi_driver = {
 	.driver = {
 		.name = "fsl-msi",
 		.owner = THIS_MODULE,
@@ -423,7 +447,7 @@ static struct of_platform_driver fsl_of_msi_driver = {
 
 static __init int fsl_of_msi_init(void)
 {
-	return of_register_platform_driver(&fsl_of_msi_driver);
+	return platform_driver_register(&fsl_of_msi_driver);
 }
 
 subsys_initcall(fsl_of_msi_init);

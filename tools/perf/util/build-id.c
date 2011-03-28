@@ -14,8 +14,9 @@
 #include <linux/kernel.h>
 #include "debug.h"
 
-static int build_id__mark_dso_hit(event_t *event,
-				  struct sample_data *sample __used,
+static int build_id__mark_dso_hit(union perf_event *event,
+				  struct perf_sample *sample __used,
+				  struct perf_evsel *evsel __used,
 				  struct perf_session *session)
 {
 	struct addr_location al;
@@ -37,13 +38,14 @@ static int build_id__mark_dso_hit(event_t *event,
 	return 0;
 }
 
-static int event__exit_del_thread(event_t *self, struct sample_data *sample __used,
-				  struct perf_session *session)
+static int perf_event__exit_del_thread(union perf_event *event,
+				       struct perf_sample *sample __used,
+				       struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->fork.tid);
+	struct thread *thread = perf_session__findnew(session, event->fork.tid);
 
-	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
-		    self->fork.ppid, self->fork.ptid);
+	dump_printf("(%d:%d):(%d:%d)\n", event->fork.pid, event->fork.tid,
+		    event->fork.ppid, event->fork.ptid);
 
 	if (thread) {
 		rb_erase(&thread->rb_node, &session->threads);
@@ -56,9 +58,9 @@ static int event__exit_del_thread(event_t *self, struct sample_data *sample __us
 
 struct perf_event_ops build_id__mark_dso_hit_ops = {
 	.sample	= build_id__mark_dso_hit,
-	.mmap	= event__process_mmap,
-	.fork	= event__process_task,
-	.exit	= event__exit_del_thread,
+	.mmap	= perf_event__process_mmap,
+	.fork	= perf_event__process_task,
+	.exit	= perf_event__exit_del_thread,
 };
 
 char *dso__build_id_filename(struct dso *self, char *bf, size_t size)

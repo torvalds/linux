@@ -36,11 +36,7 @@
 #include <linux/module.h>
 
 #include "ieee80211.h"
-#if 0
-static const char *ieee80211_modes[] = {
-	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
-};
-#endif
+
 struct modes_unit {
 	char *mode_string;
 	int mode_size;
@@ -203,7 +199,6 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 #if (WIRELESS_EXT < 18)
 	if (ieee->wpa_enabled && network->wpa_ie_len){
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
-	//	printk("WPA IE\n");
 		u8 *p = buf;
 		p += sprintf(p, "wpa_ie=");
 		for (i = 0; i < network->wpa_ie_len; i++) {
@@ -468,7 +463,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
 
 	if (ieee->set_security)
-		ieee->set_security(dev, &sec);
+		ieee->set_security(ieee, &sec);
 
 	/* Do not reset port if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
@@ -477,7 +472,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	 * the callbacks structures used to initialize the 802.11 stack. */
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
-	    ieee->reset_port && ieee->reset_port(dev)) {
+	    ieee->reset_port && ieee->reset_port(ieee)) {
 		printk(KERN_DEBUG "%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
@@ -552,7 +547,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         struct ieee80211_security sec = {
                 .flags = 0,
         };
-	//printk("======>encoding flag:%x,ext flag:%x, ext alg:%d\n", encoding->flags,ext->ext_flags, ext->alg);
         idx = encoding->flags & IW_ENCODE_INDEX;
         if (idx) {
                 if (idx < 1 || idx > WEP_KEYS)
@@ -568,7 +562,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                 group_key = 1;
         } else {
                 /* some Cisco APs use idx>0 for unicast in dynamic WEP */
-		//printk("not group key, flags:%x, ext->alg:%d\n", ext->ext_flags, ext->alg);
                 if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
                         return -EINVAL;
                 if (ieee->iw_mode == IW_MODE_INFRA)
@@ -597,7 +590,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                         sec.level = SEC_LEVEL_0;
                         sec.flags |= SEC_LEVEL;
                 }
-		//printk("disabled: flag:%x\n", encoding->flags);
                 goto done;
         }
 
@@ -674,8 +666,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                 goto done;
         }
 #if 1
- //skip_host_crypt:
-	//printk("skip_host_crypt:ext_flags:%x\n", ext->ext_flags);
         if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
                 ieee->tx_keyidx = idx;
                 sec.active_key = idx;
@@ -706,11 +696,11 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 #endif
 done:
         if (ieee->set_security)
-                ieee->set_security(ieee->dev, &sec);
+		ieee->set_security(ieee, &sec);
 
 	 if (ieee->reset_on_keychange &&
             ieee->iw_mode != IW_MODE_INFRA &&
-            ieee->reset_port && ieee->reset_port(dev)) {
+            ieee->reset_port && ieee->reset_port(ieee)) {
                 IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
                 return -EINVAL;
         }
@@ -795,7 +785,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	switch (data->flags & IW_AUTH_INDEX) {
         case IW_AUTH_WPA_VERSION:
 	     /*need to support wpa2 here*/
-		//printk("wpa version:%x\n", data->value);
 		break;
         case IW_AUTH_CIPHER_PAIRWISE:
         case IW_AUTH_CIPHER_GROUP:
@@ -813,8 +802,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		//printk("======>%s():data->value is %d\n",__FUNCTION__,data->value);
-	//	ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM)?1:0;
 		if(data->value & IW_AUTH_ALG_SHARED_KEY){
 			ieee->open_wep = 0;
 			ieee->auth_mode = 1;
@@ -826,17 +813,14 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 		else if(data->value & IW_AUTH_ALG_LEAP){
 			ieee->open_wep = 1;
 			ieee->auth_mode = 2;
-			//printk("hahahaa:LEAP\n");
 		}
 		else
 			return -EINVAL;
-		//printk("open_wep:%d\n", ieee->open_wep);
 		break;
 
 #if 1
 	case IW_AUTH_WPA_ENABLED:
 		ieee->wpa_enabled = (data->value)?1:0;
-		//printk("enable wpa:%d\n", ieee->wpa_enabled);
 		break;
 
 #endif
@@ -859,7 +843,6 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 
 	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
 	{
-	//	printk("return error out, len:%d\n", len);
 	return -EINVAL;
 	}
 
@@ -879,7 +862,6 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 		ieee->wpa_ie_len = len;
 	}
 	else{
-		if (ieee->wpa_ie)
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;

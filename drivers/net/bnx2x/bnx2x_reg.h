@@ -6083,6 +6083,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_8727_PCS_OPT_CTRL		0xc808
 #define MDIO_PMA_REG_8727_GPIO_CTRL		0xc80e
 #define MDIO_PMA_REG_8727_PCS_GP		0xc842
+#define MDIO_PMA_REG_8727_OPT_CFG_REG		0xc8e4
 
 #define MDIO_AN_REG_8727_MISC_CTRL		0x8309
 

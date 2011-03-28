@@ -27,19 +27,13 @@ static int ath9k_hw_4k_get_eeprom_rev(struct ath_hw *ah)
 	return ((ah->eeprom.map4k.baseEepHeader.version) & 0xFFF);
 }
 
-static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
-{
 #define SIZE_EEPROM_4K (sizeof(struct ar5416_eeprom_4k) / sizeof(u16))
+
+static bool __ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
+{
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data = (u16 *)&ah->eeprom.map4k;
-	int addr, eep_start_loc = 0;
-
-	eep_start_loc = 64;
-
-	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Reading from EEPROM, not flash\n");
-	}
+	int addr, eep_start_loc = 64;
 
 	for (addr = 0; addr < SIZE_EEPROM_4K; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc, eep_data)) {
@@ -51,8 +45,33 @@ static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 	}
 
 	return true;
-#undef SIZE_EEPROM_4K
 }
+
+static bool __ath9k_hw_usb_4k_fill_eeprom(struct ath_hw *ah)
+{
+	u16 *eep_data = (u16 *)&ah->eeprom.map4k;
+
+	ath9k_hw_usb_gen_fill_eeprom(ah, eep_data, 64, SIZE_EEPROM_4K);
+
+	return true;
+}
+
+static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_hw_use_flash(ah)) {
+		ath_dbg(common, ATH_DBG_EEPROM,
+			"Reading from EEPROM, not flash\n");
+	}
+
+	if (common->bus_ops->ath_bus_type == ATH_USB)
+		return __ath9k_hw_usb_4k_fill_eeprom(ah);
+	else
+		return __ath9k_hw_4k_fill_eeprom(ah);
+}
+
+#undef SIZE_EEPROM_4K
 
 static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 {

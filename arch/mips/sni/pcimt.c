@@ -194,33 +194,24 @@ static struct pci_controller sni_controller = {
 	.io_map_base    = SNI_PORT_BASE
 };
 
-static void enable_pcimt_irq(unsigned int irq)
+static void enable_pcimt_irq(struct irq_data *d)
 {
-	unsigned int mask = 1 << (irq - PCIMT_IRQ_INT2);
+	unsigned int mask = 1 << (d->irq - PCIMT_IRQ_INT2);
 
 	*(volatile u8 *) PCIMT_IRQSEL |= mask;
 }
 
-void disable_pcimt_irq(unsigned int irq)
+void disable_pcimt_irq(struct irq_data *d)
 {
-	unsigned int mask = ~(1 << (irq - PCIMT_IRQ_INT2));
+	unsigned int mask = ~(1 << (d->irq - PCIMT_IRQ_INT2));
 
 	*(volatile u8 *) PCIMT_IRQSEL &= mask;
 }
 
-static void end_pcimt_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_pcimt_irq(irq);
-}
-
 static struct irq_chip pcimt_irq_type = {
 	.name = "PCIMT",
-	.ack = disable_pcimt_irq,
-	.mask = disable_pcimt_irq,
-	.mask_ack = disable_pcimt_irq,
-	.unmask = enable_pcimt_irq,
-	.end = end_pcimt_irq,
+	.irq_mask = disable_pcimt_irq,
+	.irq_unmask = enable_pcimt_irq,
 };
 
 /*

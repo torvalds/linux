@@ -38,8 +38,8 @@ static unsigned int timer_baseaddr;
 #define TIMER_BASE	timer_baseaddr
 #endif
 
-unsigned int freq_div_hz;
-unsigned int timer_clock_freq;
+static unsigned int freq_div_hz;
+static unsigned int timer_clock_freq;
 
 #define TCSR0	(0x00)
 #define TLR0	(0x04)
@@ -202,7 +202,7 @@ static struct cyclecounter microblaze_cc = {
 	.shift = 8,
 };
 
-int __init init_microblaze_timecounter(void)
+static int __init init_microblaze_timecounter(void)
 {
 	microblaze_cc.mult = div_sc(timer_clock_freq, NSEC_PER_SEC,
 				microblaze_cc.shift);

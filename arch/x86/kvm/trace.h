@@ -62,21 +62,21 @@ TRACE_EVENT(kvm_hv_hypercall,
 	TP_ARGS(code, fast, rep_cnt, rep_idx, ingpa, outgpa),
 
 	TP_STRUCT__entry(
-		__field(	__u16, 		code		)
-		__field(	bool,		fast		)
 		__field(	__u16,		rep_cnt		)
 		__field(	__u16,		rep_idx		)
 		__field(	__u64,		ingpa		)
 		__field(	__u64,		outgpa		)
+		__field(	__u16, 		code		)
+		__field(	bool,		fast		)
 	),
 
 	TP_fast_assign(
-		__entry->code		= code;
-		__entry->fast		= fast;
 		__entry->rep_cnt	= rep_cnt;
 		__entry->rep_idx	= rep_idx;
 		__entry->ingpa		= ingpa;
 		__entry->outgpa		= outgpa;
+		__entry->code		= code;
+		__entry->fast		= fast;
 	),
 
 	TP_printk("code 0x%x %s cnt 0x%x idx 0x%x in 0x%llx out 0x%llx",

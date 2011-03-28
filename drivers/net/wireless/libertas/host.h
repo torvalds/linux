@@ -387,7 +387,7 @@ struct lbs_offset_value {
 struct mrvl_ie_domain_param_set {
 	struct mrvl_ie_header header;
 
-	u8 country_code[3];
+	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct ieee80211_country_ie_triplet triplet[MAX_11D_TRIPLETS];
 } __packed;
 

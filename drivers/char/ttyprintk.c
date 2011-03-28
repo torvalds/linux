@@ -144,7 +144,7 @@ static int tpk_write_room(struct tty_struct *tty)
 /*
  * TTY operations ioctl function.
  */
-static int tpk_ioctl(struct tty_struct *tty, struct file *file,
+static int tpk_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	struct ttyprintk_port *tpkp = tty->driver_data;

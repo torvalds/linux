@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2010 ServerEngines
+ * Copyright (C) 2005 - 2011 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,11 +8,11 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@serverengines.com
+ * linux-drivers@emulex.com
  *
- * ServerEngines
- * 209 N. Fair Oaks Ave
- * Sunnyvale, CA 94085
+ * Emulex
+ * 3333 Susan Street
+ * Costa Mesa, CA 92626
  */
 
 #include "be.h"
@@ -26,7 +26,8 @@ struct be_ethtool_stat {
 	int offset;
 };
 
-enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT};
+enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT,
+			PMEMSTAT, DRVSTAT};
 #define FIELDINFO(_struct, field) FIELD_SIZEOF(_struct, field), \
 					offsetof(_struct, field)
 #define NETSTAT_INFO(field) 	#field, NETSTAT,\
@@ -43,6 +44,11 @@ enum {NETSTAT, PORTSTAT, MISCSTAT, DRVSTAT_TX, DRVSTAT_RX, ERXSTAT};
 						field)
 #define ERXSTAT_INFO(field) 	#field, ERXSTAT,\
 					FIELDINFO(struct be_erx_stats, field)
+#define PMEMSTAT_INFO(field) 	#field, PMEMSTAT,\
+					FIELDINFO(struct be_pmem_stats, field)
+#define	DRVSTAT_INFO(field)	#field, DRVSTAT,\
+					FIELDINFO(struct be_drv_stats, \
+						field)
 
 static const struct be_ethtool_stat et_stats[] = {
 	{NETSTAT_INFO(rx_packets)},
@@ -99,7 +105,11 @@ static const struct be_ethtool_stat et_stats[] = {
 	{MISCSTAT_INFO(rx_drops_too_many_frags)},
 	{MISCSTAT_INFO(rx_drops_invalid_ring)},
 	{MISCSTAT_INFO(forwarded_packets)},
-	{MISCSTAT_INFO(rx_drops_mtu)}
+	{MISCSTAT_INFO(rx_drops_mtu)},
+	{MISCSTAT_INFO(port0_jabber_events)},
+	{MISCSTAT_INFO(port1_jabber_events)},
+	{PMEMSTAT_INFO(eth_red_drops)},
+	{DRVSTAT_INFO(be_on_die_temperature)}
 };
 #define ETHTOOL_STATS_NUM ARRAY_SIZE(et_stats)
 
@@ -121,7 +131,7 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"MAC Loopback test",
 	"PHY Loopback test",
 	"External Loopback test",
-	"DDR DMA test"
+	"DDR DMA test",
 	"Link test"
 };
 
@@ -276,6 +286,12 @@ be_get_ethtool_stats(struct net_device *netdev,
 		case MISCSTAT:
 			p = &hw_stats->rxf;
 			break;
+		case PMEMSTAT:
+			p = &hw_stats->pmem;
+			break;
+		case DRVSTAT:
+			p = &adapter->drv_stats;
+			break;
 		}
 
 		p = (u8 *)p + et_stats[i].offset;
@@ -376,8 +392,9 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 
 		phy_cmd.size = sizeof(struct be_cmd_req_get_phy_info);
-		phy_cmd.va = pci_alloc_consistent(adapter->pdev, phy_cmd.size,
-					&phy_cmd.dma);
+		phy_cmd.va = dma_alloc_coherent(&adapter->pdev->dev,
+						phy_cmd.size, &phy_cmd.dma,
+						GFP_KERNEL);
 		if (!phy_cmd.va) {
 			dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
 			return -ENOMEM;
@@ -416,8 +433,8 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		adapter->port_type = ecmd->port;
 		adapter->transceiver = ecmd->transceiver;
 		adapter->autoneg = ecmd->autoneg;
-		pci_free_consistent(adapter->pdev, phy_cmd.size,
-					phy_cmd.va, phy_cmd.dma);
+		dma_free_coherent(&adapter->pdev->dev, phy_cmd.size, phy_cmd.va,
+				  phy_cmd.dma);
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
@@ -496,7 +513,7 @@ be_phys_id(struct net_device *netdev, u32 data)
 	int status;
 	u32 cur;
 
-	be_cmd_get_beacon_state(adapter, adapter->port_num, &cur);
+	be_cmd_get_beacon_state(adapter, adapter->hba_port_num, &cur);
 
 	if (cur == BEACON_STATE_ENABLED)
 		return 0;
@@ -504,15 +521,24 @@ be_phys_id(struct net_device *netdev, u32 data)
 	if (data < 2)
 		data = 2;
 
-	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+	status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
 			BEACON_STATE_ENABLED);
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(data*HZ);
 
-	status = be_cmd_set_beacon_state(adapter, adapter->port_num, 0, 0,
+	status = be_cmd_set_beacon_state(adapter, adapter->hba_port_num, 0, 0,
 			BEACON_STATE_DISABLED);
 
 	return status;
+}
+
+static bool
+be_is_wol_supported(struct be_adapter *adapter)
+{
+	if (!be_physfn(adapter))
+		return false;
+	else
+		return true;
 }
 
 static void
@@ -520,7 +546,9 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_MAGIC;
+	if (be_is_wol_supported(adapter))
+		wol->supported = WAKE_MAGIC;
+
 	if (adapter->wol)
 		wol->wolopts = WAKE_MAGIC;
 	else
@@ -536,7 +564,7 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
-	if (wol->wolopts & WAKE_MAGIC)
+	if ((wol->wolopts & WAKE_MAGIC) && be_is_wol_supported(adapter))
 		adapter->wol = true;
 	else
 		adapter->wol = false;
@@ -554,8 +582,8 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	};
 
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
-	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
-					&ddrdma_cmd.dma);
+	ddrdma_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, ddrdma_cmd.size,
+					   &ddrdma_cmd.dma, GFP_KERNEL);
 	if (!ddrdma_cmd.va) {
 		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
 		return -ENOMEM;
@@ -569,20 +597,20 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	}
 
 err:
-	pci_free_consistent(adapter->pdev, ddrdma_cmd.size,
-			ddrdma_cmd.va, ddrdma_cmd.dma);
+	dma_free_coherent(&adapter->pdev->dev, ddrdma_cmd.size, ddrdma_cmd.va,
+			  ddrdma_cmd.dma);
 	return ret;
 }
 
 static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
 				u64 *status)
 {
-	be_cmd_set_loopback(adapter, adapter->port_num,
+	be_cmd_set_loopback(adapter, adapter->hba_port_num,
 				loopback_type, 1);
-	*status = be_cmd_loopback_test(adapter, adapter->port_num,
+	*status = be_cmd_loopback_test(adapter, adapter->hba_port_num,
 				loopback_type, 1500,
 				2, 0xabc);
-	be_cmd_set_loopback(adapter, adapter->port_num,
+	be_cmd_set_loopback(adapter, adapter->hba_port_num,
 				BE_NO_LOOPBACK, 1);
 	return *status;
 }
@@ -621,7 +649,8 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 				&qos_link_speed) != 0) {
 		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = -1;
-	} else if (mac_speed) {
+	} else if (!mac_speed) {
+		test->flags |= ETH_TEST_FL_FAILED;
 		data[4] = 1;
 	}
 }
@@ -662,8 +691,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 
 	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
 	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
-	eeprom_cmd.va = pci_alloc_consistent(adapter->pdev, eeprom_cmd.size,
-				&eeprom_cmd.dma);
+	eeprom_cmd.va = dma_alloc_coherent(&adapter->pdev->dev, eeprom_cmd.size,
+					   &eeprom_cmd.dma, GFP_KERNEL);
 
 	if (!eeprom_cmd.va) {
 		dev_err(&adapter->pdev->dev,
@@ -677,8 +706,8 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
 		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
 	}
-	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
-			eeprom_cmd.dma);
+	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,
+			  eeprom_cmd.dma);
 
 	return status;
 }

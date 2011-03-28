@@ -326,6 +326,9 @@ nfs_file_fsync(struct file *file, int datasync)
 		ret = xchg(&ctx->error, 0);
 	if (!ret && status < 0)
 		ret = status;
+	if (!ret && !datasync)
+		/* application has asked for meta-data sync */
+		ret = pnfs_layoutcommit_inode(inode, true);
 	return ret;
 }
 
@@ -386,10 +389,6 @@ static int nfs_write_begin(struct file *file, struct address_space *mapping,
 		file->f_path.dentry->d_parent->d_name.name,
 		file->f_path.dentry->d_name.name,
 		mapping->host->i_ino, len, (long long) pos);
-
-	pnfs_update_layout(mapping->host,
-			   nfs_file_open_context(file),
-			   IOMODE_RW);
 
 start:
 	/*

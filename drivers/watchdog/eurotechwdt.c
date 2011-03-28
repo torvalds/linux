@@ -201,7 +201,7 @@ static void eurwdt_ping(void)
 static ssize_t eurwdt_write(struct file *file, const char __user *buf,
 size_t count, loff_t *ppos)
 {
-	if (count) 	{
+	if (count) {
 		if (!nowayout) {
 			size_t i;
 

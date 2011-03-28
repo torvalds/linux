@@ -15,7 +15,7 @@
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
-#include <linux/i2c/qt602240_ts.h>
+#include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/mfd/max8998.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/regulator/fixed.h>
@@ -25,6 +25,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -45,6 +46,7 @@
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/clock.h>
+#include <plat/s5p-time.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define GONI_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -108,6 +110,8 @@ static struct s3c_fb_pd_win goni_fb_win0 = {
 	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.virtual_x	= 480,
+	.virtual_y	= 2 * 800,
 };
 
 static struct s3c_fb_platdata goni_lcd_pdata __initdata = {
@@ -222,7 +226,7 @@ static void __init goni_radio_init(void)
 }
 
 /* TSP */
-static struct qt602240_platform_data qt602240_platform_data = {
+static struct mxt_platform_data qt602240_platform_data = {
 	.x_line		= 17,
 	.y_line		= 11,
 	.x_size		= 800,
@@ -230,7 +234,8 @@ static struct qt602240_platform_data qt602240_platform_data = {
 	.blen		= 0x21,
 	.threshold	= 0x28,
 	.voltage	= 2800000,              /* 2.8V */
-	.orient		= QT602240_DIAGONAL,
+	.orient		= MXT_DIAGONAL,
+	.irqflags	= IRQF_TRIGGER_FALLING,
 };
 
 static struct s3c2410_platform_i2c i2c2_data __initdata = {
@@ -269,8 +274,28 @@ static void __init goni_tsp_init(void)
 /* MAX8998 regulators */
 #if defined(CONFIG_REGULATOR_MAX8998) || defined(CONFIG_REGULATOR_MAX8998_MODULE)
 
+static struct regulator_consumer_supply goni_ldo3_consumers[] = {
+	REGULATOR_SUPPLY("vusb_a", "s3c-hsotg"),
+};
+
 static struct regulator_consumer_supply goni_ldo5_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "s3c-sdhci.0"),
+};
+
+static struct regulator_consumer_supply goni_ldo8_consumers[] = {
+	REGULATOR_SUPPLY("vusb_d", "s3c-hsotg"),
+};
+
+static struct regulator_consumer_supply goni_ldo11_consumers[] = {
+	REGULATOR_SUPPLY("vddio", "0-0030"), /* "CAM_IO_2.8V" */
+};
+
+static struct regulator_consumer_supply goni_ldo13_consumers[] = {
+	REGULATOR_SUPPLY("vdda", "0-0030"), /* "CAM_A_2.8V" */
+};
+
+static struct regulator_consumer_supply goni_ldo14_consumers[] = {
+	REGULATOR_SUPPLY("vdd_core", "0-0030"), /* "CAM_CIF_1.8V" */
 };
 
 static struct regulator_init_data goni_ldo2_data = {
@@ -292,8 +317,10 @@ static struct regulator_init_data goni_ldo3_data = {
 		.min_uV		= 1100000,
 		.max_uV		= 1100000,
 		.apply_uV	= 1,
-		.always_on	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(goni_ldo3_consumers),
+	.consumer_supplies = goni_ldo3_consumers,
 };
 
 static struct regulator_init_data goni_ldo4_data = {
@@ -311,6 +338,7 @@ static struct regulator_init_data goni_ldo5_data = {
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(goni_ldo5_consumers),
 	.consumer_supplies = goni_ldo5_consumers,
@@ -341,8 +369,10 @@ static struct regulator_init_data goni_ldo8_data = {
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.apply_uV	= 1,
-		.always_on	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(goni_ldo8_consumers),
+	.consumer_supplies = goni_ldo8_consumers,
 };
 
 static struct regulator_init_data goni_ldo9_data = {
@@ -351,7 +381,6 @@ static struct regulator_init_data goni_ldo9_data = {
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -371,8 +400,10 @@ static struct regulator_init_data goni_ldo11_data = {
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(goni_ldo11_consumers),
+	.consumer_supplies	= goni_ldo11_consumers,
 };
 
 static struct regulator_init_data goni_ldo12_data = {
@@ -381,7 +412,6 @@ static struct regulator_init_data goni_ldo12_data = {
 		.min_uV		= 1200000,
 		.max_uV		= 1200000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -391,8 +421,10 @@ static struct regulator_init_data goni_ldo13_data = {
 		.min_uV		= 2800000,
 		.max_uV		= 2800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(goni_ldo13_consumers),
+	.consumer_supplies	= goni_ldo13_consumers,
 };
 
 static struct regulator_init_data goni_ldo14_data = {
@@ -401,8 +433,10 @@ static struct regulator_init_data goni_ldo14_data = {
 		.min_uV		= 1800000,
 		.max_uV		= 1800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(goni_ldo14_consumers),
+	.consumer_supplies	= goni_ldo14_consumers,
 };
 
 static struct regulator_init_data goni_ldo15_data = {
@@ -411,7 +445,6 @@ static struct regulator_init_data goni_ldo15_data = {
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -421,7 +454,6 @@ static struct regulator_init_data goni_ldo16_data = {
 		.min_uV		= 1800000,
 		.max_uV		= 1800000,
 		.apply_uV	= 1,
-		.always_on	= 1,
 	},
 };
 
@@ -436,13 +468,11 @@ static struct regulator_init_data goni_ldo17_data = {
 };
 
 /* BUCK */
-static struct regulator_consumer_supply buck1_consumer[] = {
-	{	.supply	= "vddarm", },
-};
+static struct regulator_consumer_supply buck1_consumer =
+	REGULATOR_SUPPLY("vddarm", NULL);
 
-static struct regulator_consumer_supply buck2_consumer[] = {
-	{	.supply	= "vddint", },
-};
+static struct regulator_consumer_supply buck2_consumer =
+	REGULATOR_SUPPLY("vddint", NULL);
 
 static struct regulator_init_data goni_buck1_data = {
 	.constraints	= {
@@ -453,8 +483,8 @@ static struct regulator_init_data goni_buck1_data = {
 		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE |
 				  REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= ARRAY_SIZE(buck1_consumer),
-	.consumer_supplies	= buck1_consumer,
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &buck1_consumer,
 };
 
 static struct regulator_init_data goni_buck2_data = {
@@ -466,8 +496,8 @@ static struct regulator_init_data goni_buck2_data = {
 		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE |
 				  REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= ARRAY_SIZE(buck2_consumer),
-	.consumer_supplies	= buck2_consumer,
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &buck2_consumer,
 };
 
 static struct regulator_init_data goni_buck3_data = {
@@ -531,26 +561,14 @@ static struct max8998_platform_data goni_max8998_pdata = {
 #endif
 
 static struct regulator_consumer_supply wm8994_fixed_voltage0_supplies[] = {
-	{
-		.dev_name	= "5-001a",
-		.supply		= "DBVDD",
-	}, {
-		.dev_name	= "5-001a",
-		.supply		= "AVDD2",
-	}, {
-		.dev_name	= "5-001a",
-		.supply		= "CPVDD",
-	},
+	REGULATOR_SUPPLY("DBVDD", "5-001a"),
+	REGULATOR_SUPPLY("AVDD2", "5-001a"),
+	REGULATOR_SUPPLY("CPVDD", "5-001a"),
 };
 
 static struct regulator_consumer_supply wm8994_fixed_voltage1_supplies[] = {
-	{
-		.dev_name	= "5-001a",
-		.supply		= "SPKVDD1",
-	}, {
-		.dev_name	= "5-001a",
-		.supply		= "SPKVDD2",
-	},
+	REGULATOR_SUPPLY("SPKVDD1", "5-001a"),
+	REGULATOR_SUPPLY("SPKVDD2", "5-001a"),
 };
 
 static struct regulator_init_data wm8994_fixed_voltage0_init_data = {
@@ -599,15 +617,11 @@ static struct platform_device wm8994_fixed_voltage1 = {
 	},
 };
 
-static struct regulator_consumer_supply wm8994_avdd1_supply = {
-	.dev_name	= "5-001a",
-	.supply		= "AVDD1",
-};
+static struct regulator_consumer_supply wm8994_avdd1_supply =
+	REGULATOR_SUPPLY("AVDD1", "5-001a");
 
-static struct regulator_consumer_supply wm8994_dcvdd_supply = {
-	.dev_name	= "5-001a",
-	.supply		= "DCVDD",
-};
+static struct regulator_consumer_supply wm8994_dcvdd_supply =
+	REGULATOR_SUPPLY("DCVDD", "5-001a");
 
 static struct regulator_init_data wm8994_ldo1_data = {
 	.constraints	= {
@@ -794,6 +808,7 @@ static struct platform_device *goni_devices[] __initdata = {
 	&goni_i2c_gpio5,
 	&mmc2_fixed_voltage,
 	&goni_device_gpiokeys,
+	&s3c_device_i2c0,
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
@@ -823,12 +838,16 @@ static void __init goni_map_io(void)
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(goni_uartcfgs, ARRAY_SIZE(goni_uartcfgs));
+	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
 
 static void __init goni_machine_init(void)
 {
 	/* Radio: call before I2C 1 registeration */
 	goni_radio_init();
+
+	/* I2C0 */
+	s3c_i2c0_set_platdata(NULL);
 
 	/* I2C1 */
 	s3c_i2c1_set_platdata(NULL);
@@ -873,5 +892,5 @@ MACHINE_START(GONI, "GONI")
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= goni_map_io,
 	.init_machine	= goni_machine_init,
-	.timer		= &s3c24xx_timer,
+	.timer		= &s5p_timer,
 MACHINE_END

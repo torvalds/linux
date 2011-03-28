@@ -32,6 +32,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	u_long wait_count;
 	uint32_t intr_status;
 	unsigned long flags = 0;
+	uint32_t dev_state;
 
 	/* Make sure that pointers are valid */
 	if (!mbx_cmd || !mbx_sts) {
@@ -40,12 +41,23 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		return status;
 	}
 
-	if (is_qla8022(ha) &&
-	    test_bit(AF_FW_RECOVERY, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: prematurely "
-		    "completing mbx cmd as firmware recovery detected\n",
-		    ha->host_no, __func__));
-		return status;
+	if (is_qla8022(ha)) {
+		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "
+			    "prematurely completing mbx cmd as firmware "
+			    "recovery detected\n", ha->host_no, __func__));
+			return status;
+		}
+		/* Do not send any mbx cmd if h/w is in failed state*/
+		qla4_8xxx_idc_lock(ha);
+		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla4_8xxx_idc_unlock(ha);
+		if (dev_state == QLA82XX_DEV_FAILED) {
+			ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: H/W is in "
+			    "failed state, do not send any mailbox commands\n",
+			    ha->host_no, __func__);
+			return status;
+		}
 	}
 
 	if ((is_aer_supported(ha)) &&
@@ -139,7 +151,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
 	    test_bit(AF_INTERRUPTS_ON, &ha->flags) &&
 	    test_bit(AF_ONLINE, &ha->flags) &&
-	    !test_bit(AF_HBA_GOING_AWAY, &ha->flags)) {
+	    !test_bit(AF_HA_REMOVAL, &ha->flags)) {
 		/* Do not poll for completion. Use completion queue */
 		set_bit(AF_MBOX_COMMAND_NOPOLL, &ha->flags);
 		wait_for_completion_timeout(&ha->mbx_intr_comp, MBOX_TOV * HZ);
@@ -395,9 +407,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	/*memcpy(ha->alias, init_fw_cb->Alias,
 	       min(sizeof(ha->alias), sizeof(init_fw_cb->Alias)));*/
 
-	/* Save Command Line Paramater info */
-	ha->discovery_wait = ql4xdiscoverywait;
-
 	if (ha->acb_version == ACB_SUPPORTED) {
 		ha->ipv6_options = init_fw_cb->ipv6_opts;
 		ha->ipv6_addl_options = init_fw_cb->ipv6_addtl_opts;
@@ -466,6 +475,11 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 		    __constant_cpu_to_le16(FWOPT_ENABLE_CRBDB);
 
 	init_fw_cb->fw_options &= __constant_cpu_to_le16(~FWOPT_TARGET_MODE);
+
+	/* Set bit for "serialize task mgmt" all other bits need to be zero */
+	init_fw_cb->add_fw_options = 0;
+	init_fw_cb->add_fw_options |=
+	    __constant_cpu_to_le16(SERIALIZE_TASK_MGMT);
 
 	if (qla4xxx_set_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)
 		!= QLA_SUCCESS) {

@@ -65,6 +65,39 @@ struct sched_poll {
 DEFINE_GUEST_HANDLE_STRUCT(sched_poll);
 
 /*
+ * Declare a shutdown for another domain. The main use of this function is
+ * in interpreting shutdown requests and reasons for fully-virtualized
+ * domains.  A para-virtualized domain may use SCHEDOP_shutdown directly.
+ * @arg == pointer to sched_remote_shutdown structure.
+ */
+#define SCHEDOP_remote_shutdown        4
+struct sched_remote_shutdown {
+    domid_t domain_id;         /* Remote domain ID */
+    unsigned int reason;       /* SHUTDOWN_xxx reason */
+};
+
+/*
+ * Latch a shutdown code, so that when the domain later shuts down it
+ * reports this code to the control tools.
+ * @arg == as for SCHEDOP_shutdown.
+ */
+#define SCHEDOP_shutdown_code 5
+
+/*
+ * Setup, poke and destroy a domain watchdog timer.
+ * @arg == pointer to sched_watchdog structure.
+ * With id == 0, setup a domain watchdog timer to cause domain shutdown
+ *               after timeout, returns watchdog id.
+ * With id != 0 and timeout == 0, destroy domain watchdog timer.
+ * With id != 0 and timeout != 0, poke watchdog timer and set new timeout.
+ */
+#define SCHEDOP_watchdog    6
+struct sched_watchdog {
+    uint32_t id;                /* watchdog ID */
+    uint32_t timeout;           /* timeout */
+};
+
+/*
  * Reason codes for SCHEDOP_shutdown. These may be interpreted by control
  * software to determine the appropriate action. For the most part, Xen does
  * not care about the shutdown code.
@@ -73,5 +106,6 @@ DEFINE_GUEST_HANDLE_STRUCT(sched_poll);
 #define SHUTDOWN_reboot     1  /* Clean up, kill, and then restart.          */
 #define SHUTDOWN_suspend    2  /* Clean up, save suspend info, kill.         */
 #define SHUTDOWN_crash      3  /* Tell controller we've crashed.             */
+#define SHUTDOWN_watchdog   4  /* Restart because watchdog time expired.     */
 
 #endif /* __XEN_PUBLIC_SCHED_H__ */

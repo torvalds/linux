@@ -113,8 +113,8 @@ extern struct attribute_group dev_attr_group;
 /* vhci_hcd.c */
 void rh_port_connect(int rhport, enum usb_device_speed speed);
 void rh_port_disconnect(int rhport);
-void vhci_rx_loop(struct usbip_task *ut);
-void vhci_tx_loop(struct usbip_task *ut);
+int vhci_rx_loop(void *data);
+int vhci_tx_loop(void *data);
 
 struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev,
 					    __u32 seqnum);

@@ -20,4 +20,10 @@ struct xt_NFQ_info_v1 {
 	__u16 queues_total;
 };
 
+struct xt_NFQ_info_v2 {
+	__u16 queuenum;
+	__u16 queues_total;
+	__u16 bypass;
+};
+
 #endif /* _XT_NFQ_TARGET_H */

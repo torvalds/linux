@@ -27,7 +27,6 @@
 
 /**
  * ubifs_debug_info - per-FS debugging information.
- * @buf: a buffer of LEB size, used for various purposes
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
@@ -54,7 +53,6 @@
  * dfs_dump_tnc: "dump TNC" debugfs knob
  */
 struct ubifs_debug_info {
-	void *buf;
 	struct ubifs_zbranch old_zroot;
 	int old_zroot_level;
 	unsigned long long old_zroot_sqnum;
@@ -173,7 +171,7 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 #define dbg_rcvry(fmt, ...) dbg_do_msg(UBIFS_MSG_RCVRY, fmt, ##__VA_ARGS__)
 
 /*
- * Debugging message type flags (must match msg_type_names in debug.c).
+ * Debugging message type flags.
  *
  * UBIFS_MSG_GEN: general messages
  * UBIFS_MSG_JNL: journal messages
@@ -205,14 +203,8 @@ enum {
 	UBIFS_MSG_RCVRY = 0x1000,
 };
 
-/* Debugging message type flags for each default debug message level */
-#define UBIFS_MSG_LVL_0 0
-#define UBIFS_MSG_LVL_1 0x1
-#define UBIFS_MSG_LVL_2 0x7f
-#define UBIFS_MSG_LVL_3 0xffff
-
 /*
- * Debugging check flags (must match chk_names in debug.c).
+ * Debugging check flags.
  *
  * UBIFS_CHK_GEN: general checks
  * UBIFS_CHK_TNC: check TNC
@@ -233,7 +225,7 @@ enum {
 };
 
 /*
- * Special testing flags (must match tst_names in debug.c).
+ * Special testing flags.
  *
  * UBIFS_TST_FORCE_IN_THE_GAPS: force the use of in-the-gaps method
  * UBIFS_TST_RCVRY: failure mode for recovery testing
@@ -242,22 +234,6 @@ enum {
 	UBIFS_TST_FORCE_IN_THE_GAPS = 0x2,
 	UBIFS_TST_RCVRY             = 0x4,
 };
-
-#if CONFIG_UBIFS_FS_DEBUG_MSG_LVL == 1
-#define UBIFS_MSG_FLAGS_DEFAULT UBIFS_MSG_LVL_1
-#elif CONFIG_UBIFS_FS_DEBUG_MSG_LVL == 2
-#define UBIFS_MSG_FLAGS_DEFAULT UBIFS_MSG_LVL_2
-#elif CONFIG_UBIFS_FS_DEBUG_MSG_LVL == 3
-#define UBIFS_MSG_FLAGS_DEFAULT UBIFS_MSG_LVL_3
-#else
-#define UBIFS_MSG_FLAGS_DEFAULT UBIFS_MSG_LVL_0
-#endif
-
-#ifdef CONFIG_UBIFS_FS_DEBUG_CHKS
-#define UBIFS_CHK_FLAGS_DEFAULT 0xffffffff
-#else
-#define UBIFS_CHK_FLAGS_DEFAULT 0
-#endif
 
 extern spinlock_t dbg_lock;
 

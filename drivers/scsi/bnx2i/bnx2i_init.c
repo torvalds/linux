@@ -18,8 +18,8 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.6.2.2"
-#define DRV_MODULE_RELDATE	"Nov 23, 2010"
+#define DRV_MODULE_VERSION	"2.6.2.3"
+#define DRV_MODULE_RELDATE	"Dec 31, 2010"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
@@ -29,7 +29,7 @@ static char version[] __devinitdata =
 MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com> and "
 	      "Eddie Wai <eddie.wai@broadcom.com>");
 
-MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711"
+MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711/57712"
 		   " iSCSI Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
@@ -88,9 +88,11 @@ void bnx2i_identify_device(struct bnx2i_hba *hba)
 	    (hba->pci_did == PCI_DEVICE_ID_NX2_5709S)) {
 		set_bit(BNX2I_NX2_DEV_5709, &hba->cnic_dev_type);
 		hba->mail_queue_access = BNX2I_MQ_BIN_MODE;
-	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710 ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711 ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E)
+	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710  ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711  ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57712  ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57712E)
 		set_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type);
 	else
 		printk(KERN_ALERT "bnx2i: unknown device, 0x%x\n",
@@ -161,6 +163,21 @@ void bnx2i_start(void *handle)
 	struct bnx2i_hba *hba = handle;
 	int i = HZ;
 
+	if (!hba->cnic->max_iscsi_conn) {
+		printk(KERN_ALERT "bnx2i: dev %s does not support "
+			"iSCSI\n", hba->netdev->name);
+
+		if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
+			mutex_lock(&bnx2i_dev_lock);
+			list_del_init(&hba->link);
+			adapter_count--;
+			hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
+			clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
+			mutex_unlock(&bnx2i_dev_lock);
+			bnx2i_free_hba(hba);
+		}
+		return;
+	}
 	bnx2i_send_fw_iscsi_init_msg(hba);
 	while (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state) && i--)
 		msleep(BNX2I_INIT_POLL_TIME);

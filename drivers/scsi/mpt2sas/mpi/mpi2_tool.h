@@ -6,7 +6,7 @@
  *          Title:  MPI diagnostic tool structures and definitions
  *  Creation Date:  March 26, 2007
  *
- *    mpi2_tool.h Version:  02.00.05
+ *    mpi2_tool.h Version:  02.00.06
  *
  *  Version History
  *  ---------------
@@ -23,6 +23,8 @@
  *                      Added MPI2_DIAG_BUF_TYPE_EXTENDED.
  *                      Incremented MPI2_DIAG_BUF_TYPE_COUNT.
  *  05-12-10  02.00.05  Added Diagnostic Data Upload tool.
+ *  08-11-10  02.00.06  Added defines that were missing for Diagnostic Buffer
+ *                      Post Request.
  *  --------------------------------------------------------------------------
  */
 
@@ -353,6 +355,10 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST
 #define MPI2_DIAG_BUF_TYPE_EXTENDED                 (0x02)
 /* count of the number of buffer types */
 #define MPI2_DIAG_BUF_TYPE_COUNT                    (0x03)
+
+/* values for the Flags field */
+#define MPI2_DIAG_BUF_FLAG_RELEASE_ON_FULL          (0x00000002)
+#define MPI2_DIAG_BUF_FLAG_IMMEDIATE_RELEASE        (0x00000001)
 
 
 /****************************************************************************

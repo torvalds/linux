@@ -1346,7 +1346,7 @@ _zero_cipher_left_decrypt:
 	and	$15, %r13				# %r13 = arg4 (mod 16)
 	je	_multiple_of_16_bytes_decrypt
 
-        # Handle the last <16 byte block seperately
+        # Handle the last <16 byte block separately
 
 	paddd ONE(%rip), %xmm0         # increment CNT to get Yn
         movdqa SHUF_MASK(%rip), %xmm10
@@ -1355,7 +1355,7 @@ _zero_cipher_left_decrypt:
 	ENCRYPT_SINGLE_BLOCK  %xmm0, %xmm1    # E(K, Yn)
 	sub $16, %r11
 	add %r13, %r11
-	movdqu (%arg3,%r11,1), %xmm1   # recieve the last <16 byte block
+	movdqu (%arg3,%r11,1), %xmm1   # receive the last <16 byte block
 	lea SHIFT_MASK+16(%rip), %r12
 	sub %r13, %r12
 # adjust the shuffle mask pointer to be able to shift 16-%r13 bytes
@@ -1607,7 +1607,7 @@ _zero_cipher_left_encrypt:
 	and	$15, %r13			# %r13 = arg4 (mod 16)
 	je	_multiple_of_16_bytes_encrypt
 
-         # Handle the last <16 Byte block seperately
+         # Handle the last <16 Byte block separately
 	paddd ONE(%rip), %xmm0                # INCR CNT to get Yn
         movdqa SHUF_MASK(%rip), %xmm10
 	PSHUFB_XMM %xmm10, %xmm0

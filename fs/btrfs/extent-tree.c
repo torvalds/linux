@@ -3342,15 +3342,16 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 	u64 max_reclaim;
 	u64 reclaimed = 0;
 	long time_left;
-	int pause = 1;
 	int nr_pages = (2 * 1024 * 1024) >> PAGE_CACHE_SHIFT;
 	int loops = 0;
+	unsigned long progress;
 
 	block_rsv = &root->fs_info->delalloc_block_rsv;
 	space_info = block_rsv->space_info;
 
 	smp_mb();
 	reserved = space_info->bytes_reserved;
+	progress = space_info->reservation_progress;
 
 	if (reserved == 0)
 		return 0;
@@ -3365,14 +3366,12 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		writeback_inodes_sb_nr_if_idle(root->fs_info->sb, nr_pages);
 
 		spin_lock(&space_info->lock);
-		if (reserved > space_info->bytes_reserved) {
-			loops = 0;
+		if (reserved > space_info->bytes_reserved)
 			reclaimed += reserved - space_info->bytes_reserved;
-		} else {
-			loops++;
-		}
 		reserved = space_info->bytes_reserved;
 		spin_unlock(&space_info->lock);
+
+		loops++;
 
 		if (reserved == 0 || reclaimed >= max_reclaim)
 			break;
@@ -3380,16 +3379,23 @@ static int shrink_delalloc(struct btrfs_trans_handle *trans,
 		if (trans && trans->transaction->blocked)
 			return -EAGAIN;
 
-		__set_current_state(TASK_INTERRUPTIBLE);
-		time_left = schedule_timeout(pause);
+		time_left = schedule_timeout_interruptible(1);
 
 		/* We were interrupted, exit */
 		if (time_left)
 			break;
 
-		pause <<= 1;
-		if (pause > HZ / 10)
-			pause = HZ / 10;
+		/* we've kicked the IO a few times, if anything has been freed,
+		 * exit.  There is no sense in looping here for a long time
+		 * when we really need to commit the transaction, or there are
+		 * just too many writers without enough free space
+		 */
+
+		if (loops > 3) {
+			smp_mb();
+			if (progress != space_info->reservation_progress)
+				break;
+		}
 
 	}
 	return reclaimed >= to_reclaim;
@@ -3612,6 +3618,7 @@ void block_rsv_release_bytes(struct btrfs_block_rsv *block_rsv,
 		if (num_bytes) {
 			spin_lock(&space_info->lock);
 			space_info->bytes_reserved -= num_bytes;
+			space_info->reservation_progress++;
 			spin_unlock(&space_info->lock);
 		}
 	}
@@ -3844,6 +3851,7 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	if (block_rsv->reserved >= block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		sinfo->bytes_reserved -= num_bytes;
+		sinfo->reservation_progress++;
 		block_rsv->reserved = block_rsv->size;
 		block_rsv->full = 1;
 	}
@@ -4005,7 +4013,6 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 		to_reserve = 0;
 	}
 	spin_unlock(&BTRFS_I(inode)->accounting_lock);
-
 	to_reserve += calc_csum_metadata_size(inode, num_bytes);
 	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
 	if (ret)
@@ -4133,6 +4140,7 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			btrfs_set_block_group_used(&cache->item, old_val);
 			cache->reserved -= num_bytes;
 			cache->space_info->bytes_reserved -= num_bytes;
+			cache->space_info->reservation_progress++;
 			cache->space_info->bytes_used += num_bytes;
 			cache->space_info->disk_used += num_bytes * factor;
 			spin_unlock(&cache->lock);
@@ -4184,6 +4192,7 @@ static int pin_down_extent(struct btrfs_root *root,
 	if (reserved) {
 		cache->reserved -= num_bytes;
 		cache->space_info->bytes_reserved -= num_bytes;
+		cache->space_info->reservation_progress++;
 	}
 	spin_unlock(&cache->lock);
 	spin_unlock(&cache->space_info->lock);
@@ -4234,6 +4243,7 @@ static int update_reserved_bytes(struct btrfs_block_group_cache *cache,
 				space_info->bytes_readonly += num_bytes;
 			cache->reserved -= num_bytes;
 			space_info->bytes_reserved -= num_bytes;
+			space_info->reservation_progress++;
 		}
 		spin_unlock(&cache->lock);
 		spin_unlock(&space_info->lock);
@@ -4712,6 +4722,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		if (ret) {
 			spin_lock(&cache->space_info->lock);
 			cache->space_info->bytes_reserved -= buf->len;
+			cache->space_info->reservation_progress++;
 			spin_unlock(&cache->space_info->lock);
 		}
 		goto out;

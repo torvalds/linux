@@ -73,149 +73,135 @@ int vfs_statfs(struct path *path, struct kstatfs *buf)
 }
 EXPORT_SYMBOL(vfs_statfs);
 
-static int do_statfs_native(struct path *path, struct statfs *buf)
+int user_statfs(const char __user *pathname, struct kstatfs *st)
 {
-	struct kstatfs st;
-	int retval;
+	struct path path;
+	int error = user_path(pathname, &path);
+	if (!error) {
+		error = vfs_statfs(&path, st);
+		path_put(&path);
+	}
+	return error;
+}
 
-	retval = vfs_statfs(path, &st);
-	if (retval)
-		return retval;
+int fd_statfs(int fd, struct kstatfs *st)
+{
+	struct file *file = fget(fd);
+	int error = -EBADF;
+	if (file) {
+		error = vfs_statfs(&file->f_path, st);
+		fput(file);
+	}
+	return error;
+}
 
-	if (sizeof(*buf) == sizeof(st))
-		memcpy(buf, &st, sizeof(st));
+static int do_statfs_native(struct kstatfs *st, struct statfs __user *p)
+{
+	struct statfs buf;
+
+	if (sizeof(buf) == sizeof(*st))
+		memcpy(&buf, st, sizeof(*st));
 	else {
-		if (sizeof buf->f_blocks == 4) {
-			if ((st.f_blocks | st.f_bfree | st.f_bavail |
-			     st.f_bsize | st.f_frsize) &
+		if (sizeof buf.f_blocks == 4) {
+			if ((st->f_blocks | st->f_bfree | st->f_bavail |
+			     st->f_bsize | st->f_frsize) &
 			    0xffffffff00000000ULL)
 				return -EOVERFLOW;
 			/*
 			 * f_files and f_ffree may be -1; it's okay to stuff
 			 * that into 32 bits
 			 */
-			if (st.f_files != -1 &&
-			    (st.f_files & 0xffffffff00000000ULL))
+			if (st->f_files != -1 &&
+			    (st->f_files & 0xffffffff00000000ULL))
 				return -EOVERFLOW;
-			if (st.f_ffree != -1 &&
-			    (st.f_ffree & 0xffffffff00000000ULL))
+			if (st->f_ffree != -1 &&
+			    (st->f_ffree & 0xffffffff00000000ULL))
 				return -EOVERFLOW;
 		}
 
-		buf->f_type = st.f_type;
-		buf->f_bsize = st.f_bsize;
-		buf->f_blocks = st.f_blocks;
-		buf->f_bfree = st.f_bfree;
-		buf->f_bavail = st.f_bavail;
-		buf->f_files = st.f_files;
-		buf->f_ffree = st.f_ffree;
-		buf->f_fsid = st.f_fsid;
-		buf->f_namelen = st.f_namelen;
-		buf->f_frsize = st.f_frsize;
-		buf->f_flags = st.f_flags;
-		memset(buf->f_spare, 0, sizeof(buf->f_spare));
+		buf.f_type = st->f_type;
+		buf.f_bsize = st->f_bsize;
+		buf.f_blocks = st->f_blocks;
+		buf.f_bfree = st->f_bfree;
+		buf.f_bavail = st->f_bavail;
+		buf.f_files = st->f_files;
+		buf.f_ffree = st->f_ffree;
+		buf.f_fsid = st->f_fsid;
+		buf.f_namelen = st->f_namelen;
+		buf.f_frsize = st->f_frsize;
+		buf.f_flags = st->f_flags;
+		memset(buf.f_spare, 0, sizeof(buf.f_spare));
 	}
+	if (copy_to_user(p, &buf, sizeof(buf)))
+		return -EFAULT;
 	return 0;
 }
 
-static int do_statfs64(struct path *path, struct statfs64 *buf)
+static int do_statfs64(struct kstatfs *st, struct statfs64 __user *p)
 {
-	struct kstatfs st;
-	int retval;
-
-	retval = vfs_statfs(path, &st);
-	if (retval)
-		return retval;
-
-	if (sizeof(*buf) == sizeof(st))
-		memcpy(buf, &st, sizeof(st));
+	struct statfs64 buf;
+	if (sizeof(buf) == sizeof(*st))
+		memcpy(&buf, st, sizeof(*st));
 	else {
-		buf->f_type = st.f_type;
-		buf->f_bsize = st.f_bsize;
-		buf->f_blocks = st.f_blocks;
-		buf->f_bfree = st.f_bfree;
-		buf->f_bavail = st.f_bavail;
-		buf->f_files = st.f_files;
-		buf->f_ffree = st.f_ffree;
-		buf->f_fsid = st.f_fsid;
-		buf->f_namelen = st.f_namelen;
-		buf->f_frsize = st.f_frsize;
-		buf->f_flags = st.f_flags;
-		memset(buf->f_spare, 0, sizeof(buf->f_spare));
+		buf.f_type = st->f_type;
+		buf.f_bsize = st->f_bsize;
+		buf.f_blocks = st->f_blocks;
+		buf.f_bfree = st->f_bfree;
+		buf.f_bavail = st->f_bavail;
+		buf.f_files = st->f_files;
+		buf.f_ffree = st->f_ffree;
+		buf.f_fsid = st->f_fsid;
+		buf.f_namelen = st->f_namelen;
+		buf.f_frsize = st->f_frsize;
+		buf.f_flags = st->f_flags;
+		memset(buf.f_spare, 0, sizeof(buf.f_spare));
 	}
+	if (copy_to_user(p, &buf, sizeof(buf)))
+		return -EFAULT;
 	return 0;
 }
 
 SYSCALL_DEFINE2(statfs, const char __user *, pathname, struct statfs __user *, buf)
 {
-	struct path path;
-	int error;
-
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct statfs tmp;
-		error = do_statfs_native(&path, &tmp);
-		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-			error = -EFAULT;
-		path_put(&path);
-	}
+	struct kstatfs st;
+	int error = user_statfs(pathname, &st);
+	if (!error)
+		error = do_statfs_native(&st, buf);
 	return error;
 }
 
 SYSCALL_DEFINE3(statfs64, const char __user *, pathname, size_t, sz, struct statfs64 __user *, buf)
 {
-	struct path path;
-	long error;
-
+	struct kstatfs st;
+	int error;
 	if (sz != sizeof(*buf))
 		return -EINVAL;
-	error = user_path(pathname, &path);
-	if (!error) {
-		struct statfs64 tmp;
-		error = do_statfs64(&path, &tmp);
-		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-			error = -EFAULT;
-		path_put(&path);
-	}
+	error = user_statfs(pathname, &st);
+	if (!error)
+		error = do_statfs64(&st, buf);
 	return error;
 }
 
 SYSCALL_DEFINE2(fstatfs, unsigned int, fd, struct statfs __user *, buf)
 {
-	struct file *file;
-	struct statfs tmp;
-	int error;
-
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = do_statfs_native(&file->f_path, &tmp);
-	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-		error = -EFAULT;
-	fput(file);
-out:
+	struct kstatfs st;
+	int error = fd_statfs(fd, &st);
+	if (!error)
+		error = do_statfs_native(&st, buf);
 	return error;
 }
 
 SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, size_t, sz, struct statfs64 __user *, buf)
 {
-	struct file *file;
-	struct statfs64 tmp;
+	struct kstatfs st;
 	int error;
 
 	if (sz != sizeof(*buf))
 		return -EINVAL;
 
-	error = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-	error = do_statfs64(&file->f_path, &tmp);
-	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
-		error = -EFAULT;
-	fput(file);
-out:
+	error = fd_statfs(fd, &st);
+	if (!error)
+		error = do_statfs64(&st, buf);
 	return error;
 }
 

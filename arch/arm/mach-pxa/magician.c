@@ -28,6 +28,7 @@
 #include <linux/regulator/bq24022.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -36,7 +37,6 @@
 #include <mach/pxa27x.h>
 #include <mach/magician.h>
 #include <mach/pxafb.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>

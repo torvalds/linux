@@ -210,8 +210,8 @@ int sparse_keymap_setup(struct input_dev *dev,
 
 	dev->keycode = map;
 	dev->keycodemax = map_size;
-	dev->getkeycode_new = sparse_keymap_getkeycode;
-	dev->setkeycode_new = sparse_keymap_setkeycode;
+	dev->getkeycode = sparse_keymap_getkeycode;
+	dev->setkeycode = sparse_keymap_setkeycode;
 
 	return 0;
 

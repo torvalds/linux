@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.15
+ *    mpi2_cnfg.h Version:  02.00.16
  *
  *  Version History
  *  ---------------
@@ -125,6 +125,8 @@
  *                      define.
  *                      Added MPI2_PHYSDISK0_INCOMPATIBLE_MEDIA_TYPE define.
  *                      Added MPI2_SAS_NEG_LINK_RATE_UNSUPPORTED_PHY define.
+ *  08-11-10  02.00.16  Removed IO Unit Page 1 device path (multi-pathing)
+ *                      defines.
  *  --------------------------------------------------------------------------
  */
 
@@ -745,8 +747,6 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1
 #define MPI2_IOUNITPAGE1_DISABLE_IR                     (0x00000040)
 #define MPI2_IOUNITPAGE1_DISABLE_TASK_SET_FULL_HANDLING (0x00000020)
 #define MPI2_IOUNITPAGE1_IR_USE_STATIC_VOLUME_ID        (0x00000004)
-#define MPI2_IOUNITPAGE1_MULTI_PATHING                  (0x00000002)
-#define MPI2_IOUNITPAGE1_SINGLE_PATHING                 (0x00000000)
 
 
 /* IO Unit Page 3 */

@@ -80,7 +80,7 @@ xfs_qm_dquot_list_print(
 	int		i = 0;
 
 	list_for_each_entry(dqp, &mp->m_quotainfo->qi_dqlist_lock, qi_mplist) {
-		cmn_err(CE_DEBUG, "   %d. \"%d (%s)\"   "
+		xfs_debug(mp, "   %d. \"%d (%s)\"   "
 				  "bcnt = %lld, icnt = %lld, refs = %d",
 			i++, be32_to_cpu(dqp->q_core.d_id),
 			DQFLAGTO_TYPESTR(dqp),
@@ -205,7 +205,7 @@ xfs_qm_destroy(
 	list_for_each_entry_safe(dqp, n, &xqm->qm_dqfrlist, q_freelist) {
 		xfs_dqlock(dqp);
 #ifdef QUOTADEBUG
-		cmn_err(CE_DEBUG, "FREELIST destroy 0x%p", dqp);
+		xfs_debug(dqp->q_mount, "FREELIST destroy 0x%p", dqp);
 #endif
 		list_del_init(&dqp->q_freelist);
 		xfs_Gqm->qm_dqfrlist_cnt--;
@@ -341,9 +341,7 @@ xfs_qm_mount_quotas(
 	 * quotas immediately.
 	 */
 	if (mp->m_sb.sb_rextents) {
-		cmn_err(CE_NOTE,
-			"Cannot turn on quotas for realtime filesystem %s",
-			mp->m_fsname);
+		xfs_notice(mp, "Cannot turn on quotas for realtime filesystem");
 		mp->m_qflags = 0;
 		goto write_changes;
 	}
@@ -402,14 +400,13 @@ xfs_qm_mount_quotas(
 			 * off, but the on disk superblock doesn't know that !
 			 */
 			ASSERT(!(XFS_IS_QUOTA_RUNNING(mp)));
-			xfs_fs_cmn_err(CE_ALERT, mp,
-				"XFS mount_quotas: Superblock update failed!");
+			xfs_alert(mp, "%s: Superblock update failed!",
+				__func__);
 		}
 	}
 
 	if (error) {
-		xfs_fs_cmn_err(CE_WARN, mp,
-			"Failed to initialize disk quotas.");
+		xfs_warn(mp, "Failed to initialize disk quotas.");
 		return;
 	}
 
@@ -1230,13 +1227,6 @@ xfs_qm_qino_alloc(
 	}
 
 	/*
-	 * Keep an extra reference to this quota inode. This inode is
-	 * locked exclusively and joined to the transaction already.
-	 */
-	ASSERT(xfs_isilocked(*ip, XFS_ILOCK_EXCL));
-	IHOLD(*ip);
-
-	/*
 	 * Make the changes in the superblock, and log those too.
 	 * sbfields arg may contain fields other than *QUOTINO;
 	 * VERSIONNUM for example.
@@ -1264,7 +1254,7 @@ xfs_qm_qino_alloc(
 	xfs_mod_sb(tp, sbfields);
 
 	if ((error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES))) {
-		xfs_fs_cmn_err(CE_ALERT, mp, "XFS qino_alloc failed!");
+		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
 		return error;
 	}
 	return 0;
@@ -1299,7 +1289,7 @@ xfs_qm_reset_dqcounts(
 		 * output any warnings because it's perfectly possible to
 		 * find uninitialised dquot blks. See comment in xfs_qm_dqcheck.
 		 */
-		(void) xfs_qm_dqcheck(ddq, id+j, type, XFS_QMOPT_DQREPAIR,
+		(void) xfs_qm_dqcheck(mp, ddq, id+j, type, XFS_QMOPT_DQREPAIR,
 				      "xfs_quotacheck");
 		ddq->d_bcount = 0;
 		ddq->d_icount = 0;
@@ -1676,7 +1666,7 @@ xfs_qm_quotacheck(
 	 */
 	ASSERT(list_empty(&mp->m_quotainfo->qi_dqlist));
 
-	cmn_err(CE_NOTE, "XFS quotacheck %s: Please wait.", mp->m_fsname);
+	xfs_notice(mp, "Quotacheck needed: Please wait.");
 
 	/*
 	 * First we go thru all the dquots on disk, USR and GRP/PRJ, and reset
@@ -1754,9 +1744,9 @@ xfs_qm_quotacheck(
 
  error_return:
 	if (error) {
-		cmn_err(CE_WARN, "XFS quotacheck %s: Unsuccessful (Error %d): "
-			"Disabling quotas.",
-			mp->m_fsname, error);
+		xfs_warn(mp,
+	"Quotacheck: Unsuccessful (Error %d): Disabling quotas.",
+			error);
 		/*
 		 * We must turn off quotas.
 		 */
@@ -1764,12 +1754,11 @@ xfs_qm_quotacheck(
 		ASSERT(xfs_Gqm != NULL);
 		xfs_qm_destroy_quotainfo(mp);
 		if (xfs_mount_reset_sbqflags(mp)) {
-			cmn_err(CE_WARN, "XFS quotacheck %s: "
-				"Failed to reset quota flags.", mp->m_fsname);
+			xfs_warn(mp,
+				"Quotacheck: Failed to reset quota flags.");
 		}
-	} else {
-		cmn_err(CE_NOTE, "XFS quotacheck %s: Done.", mp->m_fsname);
-	}
+	} else
+		xfs_notice(mp, "Quotacheck: Done.");
 	return (error);
 }
 
@@ -1937,8 +1926,8 @@ again:
 			 */
 			error = xfs_qm_dqflush(dqp, 0);
 			if (error) {
-				xfs_fs_cmn_err(CE_WARN, mp,
-			"xfs_qm_dqreclaim: dquot %p flush failed", dqp);
+				xfs_warn(mp, "%s: dquot %p flush failed",
+					__func__, dqp);
 			}
 			goto dqunlock;
 		}
@@ -2115,7 +2104,7 @@ xfs_qm_write_sb_changes(
 	int		error;
 
 #ifdef QUOTADEBUG
-	cmn_err(CE_NOTE, "Writing superblock quota changes :%s", mp->m_fsname);
+	xfs_notice(mp, "Writing superblock quota changes");
 #endif
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
 	if ((error = xfs_trans_reserve(tp, 0,

@@ -25,6 +25,7 @@
 #include <keys/user-type.h>
 #include "ar-internal.h"
 
+static int rxrpc_vet_description_s(const char *);
 static int rxrpc_instantiate(struct key *, const void *, size_t);
 static int rxrpc_instantiate_s(struct key *, const void *, size_t);
 static void rxrpc_destroy(struct key *);
@@ -52,11 +53,29 @@ EXPORT_SYMBOL(key_type_rxrpc);
  */
 struct key_type key_type_rxrpc_s = {
 	.name		= "rxrpc_s",
+	.vet_description = rxrpc_vet_description_s,
 	.instantiate	= rxrpc_instantiate_s,
 	.match		= user_match,
 	.destroy	= rxrpc_destroy_s,
 	.describe	= rxrpc_describe,
 };
+
+/*
+ * Vet the description for an RxRPC server key
+ */
+static int rxrpc_vet_description_s(const char *desc)
+{
+	unsigned long num;
+	char *p;
+
+	num = simple_strtoul(desc, &p, 10);
+	if (*p != ':' || num > 65535)
+		return -EINVAL;
+	num = simple_strtoul(p + 1, &p, 10);
+	if (*p || num < 1 || num > 255)
+		return -EINVAL;
+	return 0;
+}
 
 /*
  * parse an RxKAD type XDR format token

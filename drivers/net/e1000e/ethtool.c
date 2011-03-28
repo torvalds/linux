@@ -46,15 +46,15 @@ struct e1000_stats {
 };
 
 #define E1000_STAT(str, m) { \
-			.stat_string = str, \
-			.type = E1000_STATS, \
-			.sizeof_stat = sizeof(((struct e1000_adapter *)0)->m), \
-			.stat_offset = offsetof(struct e1000_adapter, m) }
+		.stat_string = str, \
+		.type = E1000_STATS, \
+		.sizeof_stat = sizeof(((struct e1000_adapter *)0)->m), \
+		.stat_offset = offsetof(struct e1000_adapter, m) }
 #define E1000_NETDEV_STAT(str, m) { \
-			.stat_string = str, \
-			.type = NETDEV_STATS, \
-			.sizeof_stat = sizeof(((struct net_device *)0)->m), \
-			.stat_offset = offsetof(struct net_device, m) }
+		.stat_string = str, \
+		.type = NETDEV_STATS, \
+		.sizeof_stat = sizeof(((struct rtnl_link_stats64 *)0)->m), \
+		.stat_offset = offsetof(struct rtnl_link_stats64, m) }
 
 static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("rx_packets", stats.gprc),
@@ -65,21 +65,21 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_STAT("tx_broadcast", stats.bptc),
 	E1000_STAT("rx_multicast", stats.mprc),
 	E1000_STAT("tx_multicast", stats.mptc),
-	E1000_NETDEV_STAT("rx_errors", stats.rx_errors),
-	E1000_NETDEV_STAT("tx_errors", stats.tx_errors),
-	E1000_NETDEV_STAT("tx_dropped", stats.tx_dropped),
+	E1000_NETDEV_STAT("rx_errors", rx_errors),
+	E1000_NETDEV_STAT("tx_errors", tx_errors),
+	E1000_NETDEV_STAT("tx_dropped", tx_dropped),
 	E1000_STAT("multicast", stats.mprc),
 	E1000_STAT("collisions", stats.colc),
-	E1000_NETDEV_STAT("rx_length_errors", stats.rx_length_errors),
-	E1000_NETDEV_STAT("rx_over_errors", stats.rx_over_errors),
+	E1000_NETDEV_STAT("rx_length_errors", rx_length_errors),
+	E1000_NETDEV_STAT("rx_over_errors", rx_over_errors),
 	E1000_STAT("rx_crc_errors", stats.crcerrs),
-	E1000_NETDEV_STAT("rx_frame_errors", stats.rx_frame_errors),
+	E1000_NETDEV_STAT("rx_frame_errors", rx_frame_errors),
 	E1000_STAT("rx_no_buffer_count", stats.rnbc),
 	E1000_STAT("rx_missed_errors", stats.mpc),
 	E1000_STAT("tx_aborted_errors", stats.ecol),
 	E1000_STAT("tx_carrier_errors", stats.tncrs),
-	E1000_NETDEV_STAT("tx_fifo_errors", stats.tx_fifo_errors),
-	E1000_NETDEV_STAT("tx_heartbeat_errors", stats.tx_heartbeat_errors),
+	E1000_NETDEV_STAT("tx_fifo_errors", tx_fifo_errors),
+	E1000_NETDEV_STAT("tx_heartbeat_errors", tx_heartbeat_errors),
 	E1000_STAT("tx_window_errors", stats.latecol),
 	E1000_STAT("tx_abort_late_coll", stats.latecol),
 	E1000_STAT("tx_deferred_ok", stats.dc),
@@ -433,13 +433,11 @@ static void e1000_get_regs(struct net_device *netdev,
 	struct e1000_hw *hw = &adapter->hw;
 	u32 *regs_buff = p;
 	u16 phy_data;
-	u8 revision_id;
 
 	memset(p, 0, E1000_REGS_LEN * sizeof(u32));
 
-	pci_read_config_byte(adapter->pdev, PCI_REVISION_ID, &revision_id);
-
-	regs->version = (1 << 24) | (revision_id << 16) | adapter->pdev->device;
+	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
+			adapter->pdev->device;
 
 	regs_buff[0]  = er32(CTRL);
 	regs_buff[1]  = er32(STATUS);
@@ -684,20 +682,13 @@ static int e1000_set_ringparam(struct net_device *netdev,
 	rx_old = adapter->rx_ring;
 
 	err = -ENOMEM;
-	tx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
+	tx_ring = kmemdup(tx_old, sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!tx_ring)
 		goto err_alloc_tx;
-	/*
-	 * use a memcpy to save any previously configured
-	 * items like napi structs from having to be
-	 * reinitialized
-	 */
-	memcpy(tx_ring, tx_old, sizeof(struct e1000_ring));
 
-	rx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
+	rx_ring = kmemdup(rx_old, sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!rx_ring)
 		goto err_alloc_rx;
-	memcpy(rx_ring, rx_old, sizeof(struct e1000_ring));
 
 	adapter->tx_ring = tx_ring;
 	adapter->rx_ring = rx_ring;
@@ -1255,7 +1246,6 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
-	u32 stat_reg = 0;
 	u16 phy_reg = 0;
 	s32 ret_val = 0;
 
@@ -1363,8 +1353,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		 * Set the ILOS bit on the fiber Nic if half duplex link is
 		 * detected.
 		 */
-		stat_reg = er32(STATUS);
-		if ((stat_reg & E1000_STATUS_FD) == 0)
+		if ((er32(STATUS) & E1000_STATUS_FD) == 0)
 			ctrl_reg |= (E1000_CTRL_ILOS | E1000_CTRL_SLU);
 	}
 
@@ -1677,10 +1666,13 @@ static int e1000_link_test(struct e1000_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(hw);
 		if (hw->mac.autoneg)
-			msleep(4000);
+			/*
+			 * On some Phy/switch combinations, link establishment
+			 * can take a few seconds more than expected.
+			 */
+			msleep(5000);
 
-		if (!(er32(STATUS) &
-		      E1000_STATUS_LU))
+		if (!(er32(STATUS) & E1000_STATUS_LU))
 			*data = 1;
 	}
 	return *data;
@@ -1807,8 +1799,7 @@ static void e1000_get_wol(struct net_device *netdev,
 		return;
 
 	wol->supported = WAKE_UCAST | WAKE_MCAST |
-	                 WAKE_BCAST | WAKE_MAGIC |
-	                 WAKE_PHY | WAKE_ARP;
+	    WAKE_BCAST | WAKE_MAGIC | WAKE_PHY;
 
 	/* apply any specific unsupported masks here */
 	if (adapter->flags & FLAG_NO_WAKE_UCAST) {
@@ -1829,19 +1820,16 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_MAGIC;
 	if (adapter->wol & E1000_WUFC_LNKC)
 		wol->wolopts |= WAKE_PHY;
-	if (adapter->wol & E1000_WUFC_ARP)
-		wol->wolopts |= WAKE_ARP;
 }
 
-static int e1000_set_wol(struct net_device *netdev,
-			 struct ethtool_wolinfo *wol)
+static int e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	if (!(adapter->flags & FLAG_HAS_WOL) ||
 	    !device_can_wakeup(&adapter->pdev->dev) ||
 	    (wol->wolopts & ~(WAKE_UCAST | WAKE_MCAST | WAKE_BCAST |
-	                      WAKE_MAGIC | WAKE_PHY | WAKE_ARP)))
+			      WAKE_MAGIC | WAKE_PHY)))
 		return -EOPNOTSUPP;
 
 	/* these settings will always override what we currently have */
@@ -1857,8 +1845,6 @@ static int e1000_set_wol(struct net_device *netdev,
 		adapter->wol |= E1000_WUFC_MAG;
 	if (wol->wolopts & WAKE_PHY)
 		adapter->wol |= E1000_WUFC_LNKC;
-	if (wol->wolopts & WAKE_ARP)
-		adapter->wol |= E1000_WUFC_ARP;
 
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
@@ -1972,8 +1958,15 @@ static int e1000_set_coalesce(struct net_device *netdev,
 static int e1000_nway_reset(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	if (netif_running(netdev))
-		e1000e_reinit_locked(adapter);
+
+	if (!netif_running(netdev))
+		return -EAGAIN;
+
+	if (!adapter->hw.mac.autoneg)
+		return -EINVAL;
+
+	e1000e_reinit_locked(adapter);
+
 	return 0;
 }
 
@@ -1982,14 +1975,15 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 				    u64 *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct rtnl_link_stats64 net_stats;
 	int i;
 	char *p = NULL;
 
-	e1000e_update_stats(adapter);
+	e1000e_get_stats64(netdev, &net_stats);
 	for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {
 		switch (e1000_gstrings_stats[i].type) {
 		case NETDEV_STATS:
-			p = (char *) netdev +
+			p = (char *) &net_stats +
 					e1000_gstrings_stats[i].stat_offset;
 			break;
 		case E1000_STATS:
@@ -2014,7 +2008,7 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 
 	switch (stringset) {
 	case ETH_SS_TEST:
-		memcpy(data, *e1000_gstrings_test, sizeof(e1000_gstrings_test));
+		memcpy(data, e1000_gstrings_test, sizeof(e1000_gstrings_test));
 		break;
 	case ETH_SS_STATS:
 		for (i = 0; i < E1000_GLOBAL_STATS_LEN; i++) {

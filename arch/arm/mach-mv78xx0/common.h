@@ -20,6 +20,7 @@ struct mv_sata_platform_data;
 int mv78xx0_core_index(void);
 void mv78xx0_map_io(void);
 void mv78xx0_init(void);
+void mv78xx0_init_early(void);
 void mv78xx0_init_irq(void);
 
 extern struct mbus_dram_target_info mv78xx0_mbus_dram_info;

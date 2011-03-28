@@ -4,7 +4,7 @@
  * Watchdog driver for PNX4008 board
  *
  * Authors: Dmitry Chigirev <source@mvista.com>,
- * 	    Vitaly Wool <vitalywool@gmail.com>
+ *	    Vitaly Wool <vitalywool@gmail.com>
  * Based on sa1100 driver,
  * Copyright (C) 2000 Oleg Drokin <green@crimea.edu>
  *
