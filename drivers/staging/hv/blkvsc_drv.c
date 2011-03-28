@@ -512,7 +512,7 @@ static int blkvsc_do_flush(struct block_device_context *blkdev)
 	if (blkdev->device_type != HARDDISK_TYPE)
 		return 0;
 
-	blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_KERNEL);
+	blkvsc_req = kmem_cache_zalloc(blkdev->request_pool, GFP_KERNEL);
 	if (!blkvsc_req)
 		return -ENOMEM;
 
@@ -553,7 +553,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_do_inquiry()\n");
 
-	blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_KERNEL);
+	blkvsc_req = kmem_cache_zalloc(blkdev->request_pool, GFP_KERNEL);
 	if (!blkvsc_req)
 		return -ENOMEM;
 
@@ -640,7 +640,7 @@ static int blkvsc_do_read_capacity(struct block_device_context *blkdev)
 	blkdev->capacity = 0;
 	blkdev->media_not_present = 0; /* assume a disk is present */
 
-	blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_KERNEL);
+	blkvsc_req = kmem_cache_zalloc(blkdev->request_pool, GFP_KERNEL);
 	if (!blkvsc_req)
 		return -ENOMEM;
 
@@ -717,7 +717,7 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	blkdev->capacity = 0;
 	blkdev->media_not_present = 0; /* assume a disk is present */
 
-	blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_KERNEL);
+	blkvsc_req = kmem_cache_zalloc(blkdev->request_pool, GFP_KERNEL);
 	if (!blkvsc_req)
 		return -ENOMEM;
 
@@ -915,6 +915,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 	struct storvsc_driver_object *storvsc_drv_obj =
 			drv->priv;
 	struct hv_storvsc_request *storvsc_req;
+	struct vmscsi_request *vm_srb;
 	int ret;
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_submit_request() - "
@@ -935,8 +936,9 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 #endif
 
 	storvsc_req = &blkvsc_req->request;
+	vm_srb = &storvsc_req->extension.vstor_packet.vm_srb;
 
-	storvsc_req->type = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
+	vm_srb->data_in = blkvsc_req->write ? WRITE_TYPE : READ_TYPE;
 
 	storvsc_req->on_io_completion = request_completion;
 	storvsc_req->context = blkvsc_req;
@@ -985,7 +987,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 		  (unsigned long)blk_rq_pos(req));
 
 	/* Create a group to tie req to list of blkvsc_reqs */
-	group = kmem_cache_alloc(blkdev->request_pool, GFP_ATOMIC);
+	group = kmem_cache_zalloc(blkdev->request_pool, GFP_ATOMIC);
 	if (!group)
 		return -ENOMEM;
 
@@ -1028,7 +1030,9 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 					 * Create new blkvsc_req to represent
 					 * the current bvec
 					 */
-					blkvsc_req = kmem_cache_alloc(blkdev->request_pool, GFP_ATOMIC);
+					blkvsc_req =
+					kmem_cache_zalloc(
+					blkdev->request_pool, GFP_ATOMIC);
 					if (!blkvsc_req) {
 						/* free up everything */
 						list_for_each_entry_safe(

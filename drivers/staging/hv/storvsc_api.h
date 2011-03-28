@@ -66,7 +66,6 @@ struct storvsc_request_extension {
 };
 
 struct hv_storvsc_request {
-	enum storvsc_request_type type;
 	u32 host;
 	u32 bus;
 	u32 target_id;

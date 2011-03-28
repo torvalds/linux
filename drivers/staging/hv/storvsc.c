@@ -545,8 +545,6 @@ int stor_vsc_on_io_request(struct hv_device *device,
 	request_extension->request = request;
 	request_extension->device  = device;
 
-	memset(vstor_packet, 0 , sizeof(struct vstor_packet));
-
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
 	vstor_packet->vm_srb.length = sizeof(struct vmscsi_request);
@@ -562,7 +560,6 @@ int stor_vsc_on_io_request(struct hv_device *device,
 	vstor_packet->vm_srb.cdb_length = request->cdb_len;
 	memcpy(&vstor_packet->vm_srb.cdb, request->cdb, request->cdb_len);
 
-	vstor_packet->vm_srb.data_in = request->type;
 	vstor_packet->vm_srb.data_transfer_length = request->data_buffer.len;
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTE_SRB;
