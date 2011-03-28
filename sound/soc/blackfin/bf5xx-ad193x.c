@@ -38,21 +38,11 @@
 #include <asm/portmux.h>
 
 #include "../codecs/ad193x.h"
-#include "bf5xx-sport.h"
 
 #include "bf5xx-tdm-pcm.h"
 #include "bf5xx-tdm.h"
 
 static struct snd_soc_card bf5xx_ad193x;
-
-static int bf5xx_ad193x_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-	snd_soc_dai_set_drvdata(cpu_dai, sport_handle);
-	return 0;
-}
 
 static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -103,23 +93,33 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops bf5xx_ad193x_ops = {
-	.startup = bf5xx_ad193x_startup,
 	.hw_params = bf5xx_ad193x_hw_params,
 };
 
-static struct snd_soc_dai_link bf5xx_ad193x_dai = {
-	.name = "ad193x",
-	.stream_name = "AD193X",
-	.cpu_dai_name = "bfin-tdm",
-	.codec_dai_name ="ad193x-hifi",
-	.platform_name = "bfin-tdm-pcm-audio",
-	.codec_name = "ad193x.5",
-	.ops = &bf5xx_ad193x_ops,
+static struct snd_soc_dai_link bf5xx_ad193x_dai[] = {
+	{
+		.name = "ad193x",
+		.stream_name = "AD193X",
+		.cpu_dai_name = "bfin-tdm.0",
+		.codec_dai_name ="ad193x-hifi",
+		.platform_name = "bfin-tdm-pcm-audio",
+		.codec_name = "ad193x.5",
+		.ops = &bf5xx_ad193x_ops,
+	},
+	{
+		.name = "ad193x",
+		.stream_name = "AD193X",
+		.cpu_dai_name = "bfin-tdm.1",
+		.codec_dai_name ="ad193x-hifi",
+		.platform_name = "bfin-tdm-pcm-audio",
+		.codec_name = "ad193x.5",
+		.ops = &bf5xx_ad193x_ops,
+	},
 };
 
 static struct snd_soc_card bf5xx_ad193x = {
 	.name = "bfin-ad193x",
-	.dai_link = &bf5xx_ad193x_dai,
+	.dai_link = &bf5xx_ad193x_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 };
 
