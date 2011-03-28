@@ -34,7 +34,6 @@ int irq_set_chip(unsigned int irq, struct irq_chip *chip)
 	if (!chip)
 		chip = &no_irq_chip;
 
-	irq_chip_set_defaults(chip);
 	desc->irq_data.chip = chip;
 	irq_put_desc_unlock(desc, flags);
 	/*
@@ -141,25 +140,21 @@ EXPORT_SYMBOL_GPL(irq_get_irq_data);
 static void irq_state_clr_disabled(struct irq_desc *desc)
 {
 	irqd_clear(&desc->irq_data, IRQD_IRQ_DISABLED);
-	irq_compat_clr_disabled(desc);
 }
 
 static void irq_state_set_disabled(struct irq_desc *desc)
 {
 	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
-	irq_compat_set_disabled(desc);
 }
 
 static void irq_state_clr_masked(struct irq_desc *desc)
 {
 	irqd_clear(&desc->irq_data, IRQD_IRQ_MASKED);
-	irq_compat_clr_masked(desc);
 }
 
 static void irq_state_set_masked(struct irq_desc *desc)
 {
 	irqd_set(&desc->irq_data, IRQD_IRQ_MASKED);
-	irq_compat_set_masked(desc);
 }
 
 int irq_startup(struct irq_desc *desc)
@@ -207,126 +202,6 @@ void irq_disable(struct irq_desc *desc)
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
 		irq_state_set_masked(desc);
 	}
-}
-
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
-/* Temporary migration helpers */
-static void compat_irq_mask(struct irq_data *data)
-{
-	data->chip->mask(data->irq);
-}
-
-static void compat_irq_unmask(struct irq_data *data)
-{
-	data->chip->unmask(data->irq);
-}
-
-static void compat_irq_ack(struct irq_data *data)
-{
-	data->chip->ack(data->irq);
-}
-
-static void compat_irq_mask_ack(struct irq_data *data)
-{
-	data->chip->mask_ack(data->irq);
-}
-
-static void compat_irq_eoi(struct irq_data *data)
-{
-	data->chip->eoi(data->irq);
-}
-
-static void compat_irq_enable(struct irq_data *data)
-{
-	data->chip->enable(data->irq);
-}
-
-static void compat_irq_disable(struct irq_data *data)
-{
-	data->chip->disable(data->irq);
-}
-
-static void compat_irq_shutdown(struct irq_data *data)
-{
-	data->chip->shutdown(data->irq);
-}
-
-static unsigned int compat_irq_startup(struct irq_data *data)
-{
-	return data->chip->startup(data->irq);
-}
-
-static int compat_irq_set_affinity(struct irq_data *data,
-				   const struct cpumask *dest, bool force)
-{
-	return data->chip->set_affinity(data->irq, dest);
-}
-
-static int compat_irq_set_type(struct irq_data *data, unsigned int type)
-{
-	return data->chip->set_type(data->irq, type);
-}
-
-static int compat_irq_set_wake(struct irq_data *data, unsigned int on)
-{
-	return data->chip->set_wake(data->irq, on);
-}
-
-static int compat_irq_retrigger(struct irq_data *data)
-{
-	return data->chip->retrigger(data->irq);
-}
-
-static void compat_bus_lock(struct irq_data *data)
-{
-	data->chip->bus_lock(data->irq);
-}
-
-static void compat_bus_sync_unlock(struct irq_data *data)
-{
-	data->chip->bus_sync_unlock(data->irq);
-}
-#endif
-
-/*
- * Fixup enable/disable function pointers
- */
-void irq_chip_set_defaults(struct irq_chip *chip)
-{
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
-	if (chip->enable)
-		chip->irq_enable = compat_irq_enable;
-	if (chip->disable)
-		chip->irq_disable = compat_irq_disable;
-	if (chip->shutdown)
-		chip->irq_shutdown = compat_irq_shutdown;
-	if (chip->startup)
-		chip->irq_startup = compat_irq_startup;
-	if (!chip->end)
-		chip->end = dummy_irq_chip.end;
-	if (chip->bus_lock)
-		chip->irq_bus_lock = compat_bus_lock;
-	if (chip->bus_sync_unlock)
-		chip->irq_bus_sync_unlock = compat_bus_sync_unlock;
-	if (chip->mask)
-		chip->irq_mask = compat_irq_mask;
-	if (chip->unmask)
-		chip->irq_unmask = compat_irq_unmask;
-	if (chip->ack)
-		chip->irq_ack = compat_irq_ack;
-	if (chip->mask_ack)
-		chip->irq_mask_ack = compat_irq_mask_ack;
-	if (chip->eoi)
-		chip->irq_eoi = compat_irq_eoi;
-	if (chip->set_affinity)
-		chip->irq_set_affinity = compat_irq_set_affinity;
-	if (chip->set_type)
-		chip->irq_set_type = compat_irq_set_type;
-	if (chip->set_wake)
-		chip->irq_set_wake = compat_irq_set_wake;
-	if (chip->retrigger)
-		chip->irq_retrigger = compat_irq_retrigger;
-#endif
 }
 
 static inline void mask_ack_irq(struct irq_desc *desc)
@@ -381,7 +256,6 @@ void handle_nested_irq(unsigned int irq)
 	if (unlikely(!action || irqd_irq_disabled(&desc->irq_data)))
 		goto out_unlock;
 
-	irq_compat_set_progress(desc);
 	irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
 	raw_spin_unlock_irq(&desc->lock);
 
@@ -391,7 +265,6 @@ void handle_nested_irq(unsigned int irq)
 
 	raw_spin_lock_irq(&desc->lock);
 	irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
-	irq_compat_clr_progress(desc);
 
 out_unlock:
 	raw_spin_unlock_irq(&desc->lock);
@@ -514,7 +387,6 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	 * then mask it and get out of here:
 	 */
 	if (unlikely(!desc->action || irqd_irq_disabled(&desc->irq_data))) {
-		irq_compat_set_pending(desc);
 		desc->istate |= IRQS_PENDING;
 		mask_irq(desc);
 		goto out;
@@ -567,7 +439,6 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 	if (unlikely(irqd_irq_disabled(&desc->irq_data) ||
 		     irqd_irq_inprogress(&desc->irq_data) || !desc->action)) {
 		if (!irq_check_poll(desc)) {
-			irq_compat_set_pending(desc);
 			desc->istate |= IRQS_PENDING;
 			mask_ack_irq(desc);
 			goto out_unlock;

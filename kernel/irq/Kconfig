@@ -10,10 +10,6 @@ menu "IRQ subsystem"
 config GENERIC_HARDIRQS
        def_bool y
 
-# Select this to disable the deprecated stuff
-config GENERIC_HARDIRQS_NO_DEPRECATED
-       bool
-
 config GENERIC_HARDIRQS_NO_COMPAT
        bool
 
