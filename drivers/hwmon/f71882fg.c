@@ -54,7 +54,9 @@
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
 #define SIO_F71889E_ID		0x0909	/* Chipset ID */
+#define SIO_F71889A_ID		0x1005	/* Chipset ID */
 #define SIO_F8000_ID		0x0581	/* Chipset ID */
+#define SIO_F81865_ID		0x0704	/* Chipset ID */
 
 #define REGION_LENGTH		8
 #define ADDR_REG_OFFSET		5
@@ -106,7 +108,7 @@ module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
 enum chips { f71808e, f71858fg, f71862fg, f71869, f71882fg, f71889fg,
-	     f71889ed, f8000 };
+	     f71889ed, f71889a, f8000, f81865f };
 
 static const char *f71882fg_names[] = {
 	"f71808e",
@@ -114,42 +116,76 @@ static const char *f71882fg_names[] = {
 	"f71862fg",
 	"f71869", /* Both f71869f and f71869e, reg. compatible and same id */
 	"f71882fg",
-	"f71889fg",
+	"f71889fg", /* f81801u too, same id */
 	"f71889ed",
+	"f71889a",
 	"f8000",
+	"f81865f",
 };
 
-static const char f71882fg_has_in[8][F71882FG_MAX_INS] = {
-	{ 1, 1, 1, 1, 1, 1, 0, 1, 1 }, /* f71808e */
-	{ 1, 1, 1, 0, 0, 0, 0, 0, 0 }, /* f71858fg */
-	{ 1, 1, 1, 1, 1, 1, 1, 1, 1 }, /* f71862fg */
-	{ 1, 1, 1, 1, 1, 1, 1, 1, 1 }, /* f71869 */
-	{ 1, 1, 1, 1, 1, 1, 1, 1, 1 }, /* f71882fg */
-	{ 1, 1, 1, 1, 1, 1, 1, 1, 1 }, /* f71889fg */
-	{ 1, 1, 1, 1, 1, 1, 1, 1, 1 }, /* f71889ed */
-	{ 1, 1, 1, 0, 0, 0, 0, 0, 0 }, /* f8000 */
+static const char f71882fg_has_in[][F71882FG_MAX_INS] = {
+	[f71808e]	= { 1, 1, 1, 1, 1, 1, 0, 1, 1 },
+	[f71858fg]	= { 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+	[f71862fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71869]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71882fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71889fg]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71889ed]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f71889a]	= { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+	[f8000]		= { 1, 1, 1, 0, 0, 0, 0, 0, 0 },
+	[f81865f]	= { 1, 1, 1, 1, 1, 1, 1, 0, 0 },
 };
 
-static const char f71882fg_has_in1_alarm[8] = {
-	0, /* f71808e */
-	0, /* f71858fg */
-	0, /* f71862fg */
-	0, /* f71869 */
-	1, /* f71882fg */
-	1, /* f71889fg */
-	1, /* f71889ed */
-	0, /* f8000 */
+static const char f71882fg_has_in1_alarm[] = {
+	[f71808e]	= 0,
+	[f71858fg]	= 0,
+	[f71862fg]	= 0,
+	[f71869]	= 0,
+	[f71882fg]	= 1,
+	[f71889fg]	= 1,
+	[f71889ed]	= 1,
+	[f71889a]	= 1,
+	[f8000]		= 0,
+	[f81865f]	= 1,
 };
 
-static const char f71882fg_has_beep[8] = {
-	0, /* f71808e */
-	0, /* f71858fg */
-	1, /* f71862fg */
-	1, /* f71869 */
-	1, /* f71882fg */
-	1, /* f71889fg */
-	1, /* f71889ed */
-	0, /* f8000 */
+static const char f71882fg_has_beep[] = {
+	[f71808e]	= 0,
+	[f71858fg]	= 0,
+	[f71862fg]	= 1,
+	[f71869]	= 1,
+	[f71882fg]	= 1,
+	[f71889fg]	= 1,
+	[f71889ed]	= 1,
+	[f71889a]	= 1,
+	[f8000]		= 0,
+	[f81865f]	= 1,
+};
+
+static const char f71882fg_nr_fans[] = {
+	[f71808e]	= 3,
+	[f71858fg]	= 3,
+	[f71862fg]	= 3,
+	[f71869]	= 3,
+	[f71882fg]	= 4,
+	[f71889fg]	= 3,
+	[f71889ed]	= 3,
+	[f71889a]	= 3,
+	[f8000]		= 3,
+	[f81865f]	= 2,
+};
+
+static const char f71882fg_nr_temps[] = {
+	[f71808e]	= 2,
+	[f71858fg]	= 3,
+	[f71862fg]	= 3,
+	[f71869]	= 3,
+	[f71882fg]	= 3,
+	[f71889fg]	= 3,
+	[f71889ed]	= 3,
+	[f71889a]	= 3,
+	[f8000]		= 3,
+	[f81865f]	= 2,
 };
 
 static struct platform_device *f71882fg_pdev;
@@ -1071,9 +1107,9 @@ static u16 f71882fg_read_temp(struct f71882fg_data *data, int nr)
 static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
+	int nr_fans = f71882fg_nr_fans[data->type];
+	int nr_temps = f71882fg_nr_temps[data->type];
 	int nr, reg, point;
-	int nr_fans = (data->type == f71882fg) ? 4 : 3;
-	int nr_temps = (data->type == f71808e) ? 2 : 3;
 
 	mutex_lock(&data->update_lock);
 
@@ -2042,8 +2078,9 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
 	struct f71882fg_sio_data *sio_data = pdev->dev.platform_data;
-	int err, i, nr_fans = (sio_data->type == f71882fg) ? 4 : 3;
-	int nr_temps = (sio_data->type == f71808e) ? 2 : 3;
+	int nr_fans = f71882fg_nr_fans[sio_data->type];
+	int nr_temps = f71882fg_nr_temps[sio_data->type];
+	int err, i;
 	u8 start_reg, reg;
 
 	data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL);
@@ -2138,6 +2175,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			/* Fall through to select correct fan/pwm reg bank! */
 		case f71889fg:
 		case f71889ed:
+		case f71889a:
 			reg = f71882fg_read8(data, F71882FG_REG_FAN_FAULT_T);
 			if (reg & F71882FG_FAN_NEG_TEMP_EN)
 				data->auto_point_temp_signed = 1;
@@ -2163,15 +2201,11 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		case f71862fg:
 			err = (data->pwm_enable & 0x15) != 0x15;
 			break;
-		case f71808e:
-		case f71869:
-		case f71882fg:
-		case f71889fg:
-		case f71889ed:
-			err = 0;
-			break;
 		case f8000:
 			err = data->pwm_enable & 0x20;
+			break;
+		default:
+			err = 0;
 			break;
 		}
 		if (err) {
@@ -2199,6 +2233,7 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		case f71869:
 		case f71889fg:
 		case f71889ed:
+		case f71889a:
 			for (i = 0; i < nr_fans; i++) {
 				data->pwm_auto_point_mapping[i] =
 					f71882fg_read8(data,
@@ -2276,8 +2311,9 @@ exit_free:
 static int f71882fg_remove(struct platform_device *pdev)
 {
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
-	int i, nr_fans = (data->type == f71882fg) ? 4 : 3;
-	int nr_temps = (data->type == f71808e) ? 2 : 3;
+	int nr_fans = f71882fg_nr_fans[data->type];
+	int nr_temps = f71882fg_nr_temps[data->type];
+	int i;
 	u8 start_reg = f71882fg_read8(data, F71882FG_REG_START);
 
 	if (data->hwmon_dev)
@@ -2406,8 +2442,14 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	case SIO_F71889E_ID:
 		sio_data->type = f71889ed;
 		break;
+	case SIO_F71889A_ID:
+		sio_data->type = f71889a;
+		break;
 	case SIO_F8000_ID:
 		sio_data->type = f8000;
+		break;
+	case SIO_F81865_ID:
+		sio_data->type = f81865f;
 		break;
 	default:
 		pr_info("Unsupported Fintek device: %04x\n",
