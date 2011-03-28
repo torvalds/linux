@@ -355,11 +355,18 @@ nvc0_fifo_init(struct drm_device *dev)
 }
 
 struct nouveau_enum nvc0_fifo_fault_unit[] = {
-	{ 0, "PGRAPH" },
-	{ 3, "PEEPHOLE" },
-	{ 4, "BAR1" },
-	{ 5, "BAR3" },
-	{ 7, "PFIFO" },
+	{ 0x00, "PGRAPH" },
+	{ 0x03, "PEEPHOLE" },
+	{ 0x04, "BAR1" },
+	{ 0x05, "BAR3" },
+	{ 0x07, "PFIFO" },
+	{ 0x10, "PBSP" },
+	{ 0x11, "PPPP" },
+	{ 0x13, "PCOUNTER" },
+	{ 0x14, "PVP" },
+	{ 0x15, "PCOPY0" },
+	{ 0x16, "PCOPY1" },
+	{ 0x17, "PDAEMON" },
 	{}
 };
 
