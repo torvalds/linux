@@ -687,6 +687,9 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status)
 		mcs = real_mcs;
 	}
 
+	if (aggr == 1 || ampdu == 1)
+		__set_bit(TXDONE_AMPDU, &txdesc.flags);
+
 	/*
 	 * Ralink has a retry mechanism using a global fallback
 	 * table. We setup this fallback table to try the immediate

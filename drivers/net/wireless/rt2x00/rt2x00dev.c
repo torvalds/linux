@@ -353,10 +353,14 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * which would allow the rc algorithm to better decide on
 	 * which rates are suitable.
 	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
+	if (test_bit(TXDONE_AMPDU, &txdesc->flags) ||
+	    tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 		tx_info->status.ampdu_len = 1;
 		tx_info->status.ampdu_ack_len = success ? 1 : 0;
+
+		if (!success)
+			tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 	}
 
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
