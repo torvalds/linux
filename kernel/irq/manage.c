@@ -112,13 +112,13 @@ void irq_set_thread_affinity(struct irq_desc *desc)
 }
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-static inline bool irq_can_move_pcntxt(struct irq_desc *desc)
+static inline bool irq_can_move_pcntxt(struct irq_data *data)
 {
-	return irq_settings_can_move_pcntxt(desc);
+	return irqd_can_move_in_process_context(data);
 }
-static inline bool irq_move_pending(struct irq_desc *desc)
+static inline bool irq_move_pending(struct irq_data *data)
 {
-	return irqd_is_setaffinity_pending(&desc->irq_data);
+	return irqd_is_setaffinity_pending(data);
 }
 static inline void
 irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask)
@@ -131,8 +131,8 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 	cpumask_copy(mask, desc->pending_mask);
 }
 #else
-static inline bool irq_can_move_pcntxt(struct irq_desc *desc) { return true; }
-static inline bool irq_move_pending(struct irq_desc *desc) { return false; }
+static inline bool irq_can_move_pcntxt(struct irq_data *data) { return true; }
+static inline bool irq_move_pending(struct irq_desc *data) { return false; }
 static inline void
 irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask) { }
 static inline void
@@ -148,7 +148,7 @@ int __irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask)
 	if (!chip || !chip->irq_set_affinity)
 		return -EINVAL;
 
-	if (irqd_can_move_in_process_context(data)) {
+	if (irq_can_move_pcntxt(data)) {
 		ret = chip->irq_set_affinity(data, mask, false);
 		switch (ret) {
 		case IRQ_SET_MASK_OK:
@@ -218,7 +218,7 @@ static void irq_affinity_notify(struct work_struct *work)
 		goto out;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	if (irq_move_pending(desc))
+	if (irq_move_pending(&desc->irq_data))
 		irq_get_pending(cpumask, desc);
 	else
 		cpumask_copy(cpumask, desc->irq_data.affinity);
