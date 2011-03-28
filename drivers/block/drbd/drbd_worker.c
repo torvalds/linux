@@ -1319,6 +1319,8 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
 	struct drbd_conf *odev = mdev;
 
 	while (1) {
+		if (!odev->ldev)
+			return 1;
 		if (odev->ldev->dc.resync_after == -1)
 			return 1;
 		odev = minor_to_mdev(odev->ldev->dc.resync_after);
