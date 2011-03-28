@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <linux/fiemap.h>
 
-#define MLOG_MASK_PREFIX ML_EXTENT_MAP
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -39,6 +38,7 @@
 #include "inode.h"
 #include "super.h"
 #include "symlink.h"
+#include "ocfs2_trace.h"
 
 #include "buffer_head_io.h"
 
@@ -841,10 +841,9 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 	u64 p_block, p_count;
 	int i, count, done = 0;
 
-	mlog_entry("(inode = %p, v_block = %llu, nr = %d, bhs = %p, "
-		   "flags = %x, validate = %p)\n",
-		   inode, (unsigned long long)v_block, nr, bhs, flags,
-		   validate);
+	trace_ocfs2_read_virt_blocks(
+	     inode, (unsigned long long)v_block, nr, bhs, flags,
+	     validate);
 
 	if (((v_block + nr - 1) << inode->i_sb->s_blocksize_bits) >=
 	    i_size_read(inode)) {
@@ -897,7 +896,6 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 	}
 
 out:
-	mlog_exit(rc);
 	return rc;
 }
 
