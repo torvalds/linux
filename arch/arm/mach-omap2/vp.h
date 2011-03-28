@@ -21,10 +21,28 @@
 
 struct voltagedomain;
 
+/*
+ * Voltage Processor (VP) identifiers
+ */
+#define OMAP3_VP_VDD_MPU_ID 0
+#define OMAP3_VP_VDD_CORE_ID 1
+#define OMAP4_VP_VDD_CORE_ID 0
+#define OMAP4_VP_VDD_IVA_ID 1
+#define OMAP4_VP_VDD_MPU_ID 2
+
 /* XXX document */
 #define VP_IDLE_TIMEOUT		200
 #define VP_TRANXDONE_TIMEOUT	300
 
+/**
+ * struct omap_vp_ops - per-VP operations
+ * @check_txdone: check for VP transaction done
+ * @clear_txdone: clear VP transaction done status
+ */
+struct omap_vp_ops {
+	u32 (*check_txdone)(u8 vp_id);
+	void (*clear_txdone)(u8 vp_id);
+};
 
 /**
  * struct omap_vp_common_data - register data common to all VDDs
@@ -68,41 +86,31 @@ struct omap_vp_common_data {
 	u8 vlimitto_vddmin_shift;
 	u8 vlimitto_vddmax_shift;
 	u8 vlimitto_timeout_shift;
-};
 
-/**
- * struct omap_vp_prm_irqst_data - PRM_IRQSTATUS_MPU.VP_TRANXDONE_ST data
- * @tranxdone_status: VP_TRANXDONE_ST bitmask in PRM_IRQSTATUS_MPU reg
- *
- * XXX Note that on OMAP3, VP_TRANXDONE interrupt may not work due to a
- *     hardware bug
- * XXX This structure is probably not needed
- */
-struct omap_vp_prm_irqst_data {
-	u32 tranxdone_status;
+	const struct omap_vp_ops *ops;
 };
 
 /**
  * struct omap_vp_instance_data - VP register offsets (per-VDD)
  * @vp_common: pointer to struct omap_vp_common_data * for this SoC
- * @prm_irqst_data: pointer to struct omap_vp_prm_irqst_data for this VDD
  * @vpconfig: PRM_VP*_CONFIG reg offset from PRM start
  * @vstepmin: PRM_VP*_VSTEPMIN reg offset from PRM start
  * @vlimitto: PRM_VP*_VLIMITTO reg offset from PRM start
  * @vstatus: PRM_VP*_VSTATUS reg offset from PRM start
  * @voltage: PRM_VP*_VOLTAGE reg offset from PRM start
+ * @id: Unique identifier for VP instance.
  *
  * XXX vp_common is probably not needed since it is per-SoC
  */
 struct omap_vp_instance_data {
 	const struct omap_vp_common_data *vp_common;
-	const struct omap_vp_prm_irqst_data *prm_irqst_data;
 	u8 vpconfig;
 	u8 vstepmin;
 	u8 vstepmax;
 	u8 vlimitto;
 	u8 vstatus;
 	u8 voltage;
+	u8 id;
 };
 
 /**

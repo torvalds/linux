@@ -27,6 +27,11 @@
 
 #include "vp.h"
 
+static const struct omap_vp_ops omap4_vp_ops = {
+	.check_txdone = omap4_prm_vp_check_txdone,
+	.clear_txdone = omap4_prm_vp_clear_txdone,
+};
+
 /*
  * VP data common to 44xx chips
  * XXX This stuff presumably belongs in the vp44xx.c or vp.c file.
@@ -49,13 +54,11 @@ static const struct omap_vp_common_data omap4_vp_common = {
 	.vlimitto_vddmin_shift = OMAP4430_VDDMIN_SHIFT,
 	.vlimitto_vddmax_shift = OMAP4430_VDDMAX_SHIFT,
 	.vlimitto_timeout_shift = OMAP4430_TIMEOUT_SHIFT,
-};
-
-static const struct omap_vp_prm_irqst_data omap4_vp_mpu_prm_irqst_data = {
-	.tranxdone_status = OMAP4430_VP_MPU_TRANXDONE_ST_MASK,
+	.ops = &omap4_vp_ops,
 };
 
 struct omap_vp_instance_data omap4_vp_mpu_data = {
+	.id = OMAP4_VP_VDD_MPU_ID,
 	.vp_common = &omap4_vp_common,
 	.vpconfig = OMAP4_PRM_VP_MPU_CONFIG_OFFSET,
 	.vstepmin = OMAP4_PRM_VP_MPU_VSTEPMIN_OFFSET,
@@ -63,14 +66,10 @@ struct omap_vp_instance_data omap4_vp_mpu_data = {
 	.vlimitto = OMAP4_PRM_VP_MPU_VLIMITTO_OFFSET,
 	.vstatus = OMAP4_PRM_VP_MPU_STATUS_OFFSET,
 	.voltage = OMAP4_PRM_VP_MPU_VOLTAGE_OFFSET,
-	.prm_irqst_data = &omap4_vp_mpu_prm_irqst_data,
-};
-
-static const struct omap_vp_prm_irqst_data omap4_vp_iva_prm_irqst_data = {
-	.tranxdone_status = OMAP4430_VP_IVA_TRANXDONE_ST_MASK,
 };
 
 struct omap_vp_instance_data omap4_vp_iva_data = {
+	.id = OMAP4_VP_VDD_IVA_ID,
 	.vp_common = &omap4_vp_common,
 	.vpconfig = OMAP4_PRM_VP_IVA_CONFIG_OFFSET,
 	.vstepmin = OMAP4_PRM_VP_IVA_VSTEPMIN_OFFSET,
@@ -78,14 +77,10 @@ struct omap_vp_instance_data omap4_vp_iva_data = {
 	.vlimitto = OMAP4_PRM_VP_IVA_VLIMITTO_OFFSET,
 	.vstatus = OMAP4_PRM_VP_IVA_STATUS_OFFSET,
 	.voltage = OMAP4_PRM_VP_IVA_VOLTAGE_OFFSET,
-	.prm_irqst_data = &omap4_vp_iva_prm_irqst_data,
-};
-
-static const struct omap_vp_prm_irqst_data omap4_vp_core_prm_irqst_data = {
-	.tranxdone_status = OMAP4430_VP_CORE_TRANXDONE_ST_MASK,
 };
 
 struct omap_vp_instance_data omap4_vp_core_data = {
+	.id = OMAP4_VP_VDD_CORE_ID,
 	.vp_common = &omap4_vp_common,
 	.vpconfig = OMAP4_PRM_VP_CORE_CONFIG_OFFSET,
 	.vstepmin = OMAP4_PRM_VP_CORE_VSTEPMIN_OFFSET,
@@ -93,6 +88,4 @@ struct omap_vp_instance_data omap4_vp_core_data = {
 	.vlimitto = OMAP4_PRM_VP_CORE_VLIMITTO_OFFSET,
 	.vstatus = OMAP4_PRM_VP_CORE_STATUS_OFFSET,
 	.voltage = OMAP4_PRM_VP_CORE_VOLTAGE_OFFSET,
-	.prm_irqst_data = &omap4_vp_core_prm_irqst_data,
 };
-
