@@ -48,7 +48,7 @@ bool irq_wait_for_poll(struct irq_desc *desc)
 		while (irqd_irq_inprogress(&desc->irq_data))
 			cpu_relax();
 		raw_spin_lock(&desc->lock);
-	} while irqd_irq_inprogress(&desc->irq_data);
+	} while (irqd_irq_inprogress(&desc->irq_data));
 	/* Might have been disabled in meantime */
 	return !irqd_irq_disabled(&desc->irq_data) && desc->action;
 #else

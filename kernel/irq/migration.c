@@ -60,7 +60,6 @@ void move_masked_irq(int irq)
 
 void irq_move_irq(struct irq_data *idata)
 {
-	struct irq_desc *desc = irq_data_to_desc(idata);
 	bool masked;
 
 	if (likely(!irqd_is_setaffinity_pending(idata)))
