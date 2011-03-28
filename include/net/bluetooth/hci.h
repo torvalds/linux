@@ -614,6 +614,14 @@ struct hci_cp_host_buffer_size {
 
 #define HCI_OP_WRITE_INQUIRY_MODE	0x0c45
 
+#define HCI_MAX_EIR_LENGTH		240
+
+#define HCI_OP_WRITE_EIR		0x0c52
+struct hci_cp_write_eir {
+	uint8_t		fec;
+	uint8_t		data[HCI_MAX_EIR_LENGTH];
+} __packed;
+
 #define HCI_OP_READ_SSP_MODE		0x0c55
 struct hci_rp_read_ssp_mode {
 	__u8     status;

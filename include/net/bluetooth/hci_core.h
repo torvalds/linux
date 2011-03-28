@@ -102,6 +102,7 @@ struct hci_dev {
 	__u8		dev_type;
 	bdaddr_t	bdaddr;
 	__u8		dev_name[HCI_MAX_NAME_LENGTH];
+	__u8		eir[HCI_MAX_EIR_LENGTH];
 	__u8		dev_class[3];
 	__u8		major_class;
 	__u8		minor_class;
