@@ -183,7 +183,8 @@ out_free:
 
 static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_chip *chip = get_irq_desc_chip(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_data *idata = irq_desc_get_irq_data(desc);
 	unsigned int cascade_irq;
 	struct fsl_msi *msi_data;
 	int msir_index = -1;
@@ -198,14 +199,14 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	raw_spin_lock(&desc->lock);
 	if ((msi_data->feature &  FSL_PIC_IP_MASK) == FSL_PIC_IP_IPIC) {
 		if (chip->irq_mask_ack)
-			chip->irq_mask_ack(&desc->irq_data);
+			chip->irq_mask_ack(idata);
 		else {
-			chip->irq_mask(&desc->irq_data);
-			chip->irq_ack(&desc->irq_data);
+			chip->irq_mask(idata);
+			chip->irq_ack(idata);
 		}
 	}
 
-	if (unlikely(desc->status & IRQ_INPROGRESS))
+	if (unlikely(irqd_irq_inprogress(idata)))
 		goto unlock;
 
 	msir_index = cascade_data->index;
@@ -213,7 +214,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	if (msir_index >= NR_MSI_REG)
 		cascade_irq = NO_IRQ;
 
-	desc->status |= IRQ_INPROGRESS;
+	irqd_set_chained_irq_inprogress(idata);
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
 		msir_value = fsl_msi_read(msi_data->msi_regs,
@@ -235,15 +236,15 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		have_shift += intr_index + 1;
 		msir_value = msir_value >> (intr_index + 1);
 	}
-	desc->status &= ~IRQ_INPROGRESS;
+	irqd_clr_chained_irq_inprogress(idata);
 
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
-		chip->irq_eoi(&desc->irq_data);
+		chip->irq_eoi(idata);
 		break;
 	case FSL_PIC_IP_IPIC:
-		if (!(desc->status & IRQ_DISABLED) && chip->irq_unmask)
-			chip->irq_unmask(&desc->irq_data);
+		if (!irqd_irq_disabled(idata) && chip->irq_unmask)
+			chip->irq_unmask(idata);
 		break;
 	}
 unlock:
