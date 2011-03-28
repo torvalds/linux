@@ -256,6 +256,21 @@ static inline bool irqd_irq_inprogress(struct irq_data *d)
 	return d->state_use_accessors & IRQD_IRQ_INPROGRESS;
 }
 
+/*
+ * Functions for chained handlers which can be enabled/disabled by the
+ * standard disable_irq/enable_irq calls. Must be called with
+ * irq_desc->lock held.
+ */
+static inline void irqd_set_chained_irq_inprogress(struct irq_data *d)
+{
+	d->state_use_accessors |= IRQD_IRQ_INPROGRESS;
+}
+
+static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
+{
+	d->state_use_accessors &= ~IRQD_IRQ_INPROGRESS;
+}
+
 /**
  * struct irq_chip - hardware interrupt chip descriptor
  *
