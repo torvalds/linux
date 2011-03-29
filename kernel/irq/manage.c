@@ -132,7 +132,7 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 }
 #else
 static inline bool irq_can_move_pcntxt(struct irq_data *data) { return true; }
-static inline bool irq_move_pending(struct irq_desc *data) { return false; }
+static inline bool irq_move_pending(struct irq_data *data) { return false; }
 static inline void
 irq_copy_pending(struct irq_desc *desc, const struct cpumask *mask) { }
 static inline void
