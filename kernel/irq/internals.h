@@ -44,26 +44,20 @@ enum {
  * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
  *				  detection
  * IRQS_POLL_INPROGRESS		- polling in progress
- * IRQS_INPROGRESS		- Interrupt in progress
  * IRQS_ONESHOT			- irq is not unmasked in primary handler
  * IRQS_REPLAY			- irq is replayed
  * IRQS_WAITING			- irq is waiting
- * IRQS_DISABLED		- irq is disabled
  * IRQS_PENDING			- irq is pending and replayed later
- * IRQS_MASKED			- irq is masked
  * IRQS_SUSPENDED		- irq is suspended
  */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
 	IRQS_SPURIOUS_DISABLED	= 0x00000002,
 	IRQS_POLL_INPROGRESS	= 0x00000008,
-	IRQS_INPROGRESS		= 0x00000010,
 	IRQS_ONESHOT		= 0x00000020,
 	IRQS_REPLAY		= 0x00000040,
 	IRQS_WAITING		= 0x00000080,
-	IRQS_DISABLED		= 0x00000100,
 	IRQS_PENDING		= 0x00000200,
-	IRQS_MASKED		= 0x00000400,
 	IRQS_SUSPENDED		= 0x00000800,
 };
 

@@ -235,54 +235,6 @@ static int iic_host_match(struct irq_host *h, struct device_node *node)
 				    "IBM,CBEA-Internal-Interrupt-Controller");
 }
 
-extern int noirqdebug;
-
-static void handle_iic_irq(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = get_irq_desc_chip(desc);
-
-	raw_spin_lock(&desc->lock);
-
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
-
-	/*
-	 * If we're currently running this IRQ, or its disabled,
-	 * we shouldn't process the IRQ. Mark it pending, handle
-	 * the necessary masking and go out
-	 */
-	if (unlikely((desc->status & (IRQ_INPROGRESS | IRQ_DISABLED)) ||
-		    !desc->action)) {
-		desc->status |= IRQ_PENDING;
-		goto out_eoi;
-	}
-
-	kstat_incr_irqs_this_cpu(irq, desc);
-
-	/* Mark the IRQ currently in progress.*/
-	desc->status |= IRQ_INPROGRESS;
-
-	do {
-		struct irqaction *action = desc->action;
-		irqreturn_t action_ret;
-
-		if (unlikely(!action))
-			goto out_eoi;
-
-		desc->status &= ~IRQ_PENDING;
-		raw_spin_unlock(&desc->lock);
-		action_ret = handle_IRQ_event(irq, action);
-		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret);
-		raw_spin_lock(&desc->lock);
-
-	} while ((desc->status & (IRQ_PENDING | IRQ_DISABLED)) == IRQ_PENDING);
-
-	desc->status &= ~IRQ_INPROGRESS;
-out_eoi:
-	chip->irq_eoi(&desc->irq_data);
-	raw_spin_unlock(&desc->lock);
-}
-
 static int iic_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
@@ -295,7 +247,7 @@ static int iic_host_map(struct irq_host *h, unsigned int virq,
 					 handle_iic_irq);
 		break;
 	default:
-		set_irq_chip_and_handler(virq, &iic_chip, handle_iic_irq);
+		set_irq_chip_and_handler(virq, &iic_chip, handle_edge_eoi_irq);
 	}
 	return 0;
 }
