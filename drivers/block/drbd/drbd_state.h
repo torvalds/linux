@@ -68,8 +68,9 @@ enum chg_state_flags {
 	CS_DC_CONN       = 1 << 7,
 	CS_DC_DISK       = 1 << 8,
 	CS_DC_PDSK       = 1 << 9,
+	CS_DC_SUSP       = 1 << 10,
 	CS_DC_MASK       = CS_DC_ROLE + CS_DC_PEER + CS_DC_CONN + CS_DC_DISK + CS_DC_PDSK,
-	CS_IGN_OUTD_FAIL = 1 << 10,
+	CS_IGN_OUTD_FAIL = 1 << 11,
 };
 
 /* drbd_dev_state and drbd_state are different types. This is to stress the

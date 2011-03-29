@@ -384,6 +384,7 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
 	char *pbp;
 	pbp = pb;
 	*pbp = 0;
+
 	if (ns.role != os.role && flags & CS_DC_ROLE)
 		pbp += sprintf(pbp, "role( %s -> %s ) ",
 			       drbd_role_str(os.role),
@@ -404,10 +405,18 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
 		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
 			       drbd_disk_str(os.pdsk),
 			       drbd_disk_str(ns.pdsk));
-	if (is_susp(ns) != is_susp(os))
-		pbp += sprintf(pbp, "susp( %d -> %d ) ",
-			       is_susp(os),
-			       is_susp(ns));
+
+	return pbp - pb;
+}
+
+static void drbd_pr_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
+				 enum chg_state_flags flags)
+{
+	char pb[300];
+	char *pbp = pb;
+
+	pbp += print_state_change(pbp, os, ns, flags ^ CS_DC_MASK);
+
 	if (ns.aftr_isp != os.aftr_isp)
 		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
 			       os.aftr_isp,
@@ -421,15 +430,7 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
 			       os.user_isp,
 			       ns.user_isp);
 
-	return pbp - pb;
-}
-
-static void drbd_pr_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
-				 enum chg_state_flags flags)
-{
-	char pb[300];
-
-	if (print_state_change(pb, os, ns, flags ^ CS_DC_MASK))
+	if (pbp != pb)
 		dev_info(DEV, "%s\n", pb);
 }
 
@@ -437,8 +438,16 @@ static void conn_pr_state_change(struct drbd_tconn *tconn, union drbd_state os, 
 				 enum chg_state_flags flags)
 {
 	char pb[300];
+	char *pbp = pb;
 
-	if (print_state_change(pb, os, ns, flags))
+	pbp += print_state_change(pbp, os, ns, flags);
+
+	if (is_susp(ns) != is_susp(os) && flags & CS_DC_SUSP)
+		pbp += sprintf(pbp, "susp( %d -> %d ) ",
+			       is_susp(os),
+			       is_susp(ns));
+
+	if (pbp != pb)
 		conn_info(tconn, "%s\n", pb);
 }
 
@@ -875,6 +884,12 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
 
 	drbd_pr_state_change(mdev, os, ns, flags);
+
+	/* Display changes to the susp* flags that where caused by the call to
+	   sanitize_state(). Only display it here if we where not called from
+	   _conn_request_state() */
+	if (!(flags & CS_DC_SUSP))
+		conn_pr_state_change(mdev->tconn, os, ns, (flags & ~CS_DC_MASK) | CS_DC_SUSP);
 
 	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
 	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
@@ -1628,6 +1643,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	}
 
 	conn_old_common_state(tconn, &os, &flags);
+	flags |= CS_DC_SUSP;
 	conn_set_state(tconn, mask, val, &ns_min, &ns_max, flags);
 	conn_pr_state_change(tconn, os, ns_max, flags);
 
