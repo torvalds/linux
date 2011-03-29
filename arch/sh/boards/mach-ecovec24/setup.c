@@ -263,6 +263,18 @@ const static struct fb_videomode ecovec_dvi_modes[] = {
 	},
 };
 
+static int ecovec24_set_brightness(void *board_data, int brightness)
+{
+	gpio_set_value(GPIO_PTR1, brightness);
+
+	return 0;
+}
+
+static int ecovec24_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PTR1);
+}
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -273,6 +285,12 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.height = 91,
 		},
 		.board_cfg = {
+			.set_brightness = ecovec24_set_brightness,
+			.get_brightness = ecovec24_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
 		},
 	}
 };
