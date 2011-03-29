@@ -47,7 +47,7 @@ static void frv_fpga_mask(struct irq_data *d)
 
 static void frv_fpga_ack(struct irq_data *d)
 {
-	__clr_IFR(1 << (irq - IRQ_BASE_FPGA));
+	__clr_IFR(1 << (d->irq - IRQ_BASE_FPGA));
 }
 
 static void frv_fpga_mask_ack(struct irq_data *d)
