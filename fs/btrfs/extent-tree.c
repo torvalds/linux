@@ -105,6 +105,7 @@ void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
 		WARN_ON(cache->pinned > 0);
 		WARN_ON(cache->reserved > 0);
 		WARN_ON(cache->reserved_pinned > 0);
+		kfree(cache->free_space_ctl);
 		kfree(cache);
 	}
 }
@@ -4893,7 +4894,7 @@ wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
 		return 0;
 
 	wait_event(caching_ctl->wait, block_group_cache_done(cache) ||
-		   (cache->free_space >= num_bytes));
+		   (cache->free_space_ctl->free_space >= num_bytes));
 
 	put_caching_control(caching_ctl);
 	return 0;
@@ -8551,24 +8552,22 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			ret = -ENOMEM;
 			goto error;
 		}
+		cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
+						GFP_NOFS);
+		if (!cache->free_space_ctl) {
+			kfree(cache);
+			ret = -ENOMEM;
+			goto error;
+		}
 
 		atomic_set(&cache->count, 1);
 		spin_lock_init(&cache->lock);
-		spin_lock_init(&cache->tree_lock);
 		cache->fs_info = info;
 		INIT_LIST_HEAD(&cache->list);
 		INIT_LIST_HEAD(&cache->cluster_list);
 
 		if (need_clear)
 			cache->disk_cache_state = BTRFS_DC_CLEAR;
-
-		/*
-		 * we only want to have 32k of ram per block group for keeping
-		 * track of free space, and if we pass 1/2 of that we want to
-		 * start converting things over to using bitmaps
-		 */
-		cache->extents_thresh = ((1024 * 32) / 2) /
-			sizeof(struct btrfs_free_space);
 
 		read_extent_buffer(leaf, &cache->item,
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
@@ -8579,6 +8578,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		btrfs_release_path(root, path);
 		cache->flags = btrfs_block_group_flags(&cache->item);
 		cache->sectorsize = root->sectorsize;
+
+		btrfs_init_free_space_ctl(cache);
 
 		/*
 		 * We need to exclude the super stripes now so that the space
@@ -8666,6 +8667,12 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache = kzalloc(sizeof(*cache), GFP_NOFS);
 	if (!cache)
 		return -ENOMEM;
+	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
+					GFP_NOFS);
+	if (!cache->free_space_ctl) {
+		kfree(cache);
+		return -ENOMEM;
+	}
 
 	cache->key.objectid = chunk_offset;
 	cache->key.offset = size;
@@ -8673,18 +8680,12 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache->sectorsize = root->sectorsize;
 	cache->fs_info = root->fs_info;
 
-	/*
-	 * we only want to have 32k of ram per block group for keeping track
-	 * of free space, and if we pass 1/2 of that we want to start
-	 * converting things over to using bitmaps
-	 */
-	cache->extents_thresh = ((1024 * 32) / 2) /
-		sizeof(struct btrfs_free_space);
 	atomic_set(&cache->count, 1);
 	spin_lock_init(&cache->lock);
-	spin_lock_init(&cache->tree_lock);
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
+
+	btrfs_init_free_space_ctl(cache);
 
 	btrfs_set_block_group_used(&cache->item, bytes_used);
 	btrfs_set_block_group_chunk_objectid(&cache->item, chunk_objectid);
