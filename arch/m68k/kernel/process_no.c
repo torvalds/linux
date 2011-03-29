@@ -283,6 +283,7 @@ int dump_fpu(struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 #endif
 	return 1;
 }
+EXPORT_SYMBOL(dump_fpu);
 
 /*
  *	Generic dumping code. Used for panic and debug.
