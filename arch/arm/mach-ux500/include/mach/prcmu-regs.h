@@ -15,8 +15,6 @@
 
 #include <mach/hardware.h>
 
-#define _PRCMU_BASE		IO_ADDRESS(U8500_PRCMU_BASE)
-
 #define PRCM_ARM_PLLDIVPS	(_PRCMU_BASE + 0x118)
 #define PRCM_ARM_CHGCLKREQ	(_PRCMU_BASE + 0x114)
 #define PRCM_PLLARM_ENABLE	(_PRCMU_BASE + 0x98)

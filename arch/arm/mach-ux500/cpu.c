@@ -23,6 +23,8 @@
 
 #include "clock.h"
 
+void __iomem *_PRCMU_BASE;
+
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2x0_base;
 #endif

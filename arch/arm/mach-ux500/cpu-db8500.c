@@ -87,6 +87,8 @@ void __init u8500_map_io(void)
 		iotable_init(u8500_v1_io_desc, ARRAY_SIZE(u8500_v1_io_desc));
 	else if (cpu_is_u8500v2())
 		iotable_init(u8500_v2_io_desc, ARRAY_SIZE(u8500_v2_io_desc));
+
+	_PRCMU_BASE = __io_address(U8500_PRCMU_BASE);
 }
 
 static struct resource db8500_pmu_resources[] = {
