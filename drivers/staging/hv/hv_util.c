@@ -59,9 +59,6 @@ static void shutdown_onchannelcallback(void *context)
 			 PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
-		DPRINT_DBG(VMBUS, "shutdown packet: len=%d, requestid=%lld",
-			   recvlen, requestid);
-
 		icmsghdrp = (struct icmsg_hdr *)&shut_txf_buf[
 			sizeof(struct vmbuspipe_hdr)];
 
@@ -159,9 +156,6 @@ static void timesync_onchannelcallback(void *context)
 			 PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
-		DPRINT_DBG(VMBUS, "timesync packet: recvlen=%d, requestid=%lld",
-			recvlen, requestid);
-
 		icmsghdrp = (struct icmsg_hdr *)&time_txf_buf[
 				sizeof(struct vmbuspipe_hdr)];
 
@@ -200,9 +194,6 @@ static void heartbeat_onchannelcallback(void *context)
 			 PAGE_SIZE, &recvlen, &requestid);
 
 	if (recvlen > 0) {
-		DPRINT_DBG(VMBUS, "heartbeat packet: len=%d, requestid=%lld",
-			   recvlen, requestid);
-
 		icmsghdrp = (struct icmsg_hdr *)&hbeat_txf_buf[
 				sizeof(struct vmbuspipe_hdr)];
 
@@ -213,9 +204,6 @@ static void heartbeat_onchannelcallback(void *context)
 				(struct heartbeat_msg_data *)&hbeat_txf_buf[
 					sizeof(struct vmbuspipe_hdr) +
 					sizeof(struct icmsg_hdr)];
-
-			DPRINT_DBG(VMBUS, "heartbeat seq = %lld",
-				   heartbeat_msg->seq_num);
 
 			heartbeat_msg->seq_num += 1;
 		}
