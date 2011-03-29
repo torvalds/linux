@@ -19,6 +19,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -116,7 +118,7 @@ static int query_hypervisor_info(void)
 		edx = 0;
 		op = HVCPUID_VERSION;
 		cpuid(op, &eax, &ebx, &ecx, &edx);
-		DPRINT_INFO(VMBUS, "OS Build:%d-%d.%d-%d-%d.%d",\
+		pr_info("Hyper-V Host OS Build:%d-%d.%d-%d-%d.%d\n",
 			    eax,
 			    ebx >> 16,
 			    ebx & 0xFFFF,
@@ -369,8 +371,7 @@ void hv_synic_init(void *irqarg)
 		(void *)get_zeroed_page(GFP_ATOMIC);
 
 	if (hv_context.synic_message_page[cpu] == NULL) {
-		DPRINT_ERR(VMBUS,
-			   "unable to allocate SYNIC message page!!");
+		pr_err("Unable to allocate SYNIC message page\n");
 		goto Cleanup;
 	}
 
@@ -378,8 +379,7 @@ void hv_synic_init(void *irqarg)
 		(void *)get_zeroed_page(GFP_ATOMIC);
 
 	if (hv_context.synic_event_page[cpu] == NULL) {
-		DPRINT_ERR(VMBUS,
-			   "unable to allocate SYNIC event page!!");
+		pr_err("Unable to allocate SYNIC event page\n");
 		goto Cleanup;
 	}
 

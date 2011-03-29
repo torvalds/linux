@@ -18,6 +18,8 @@
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -403,8 +405,7 @@ static void vmbus_process_offer(struct work_struct *work)
 	 */
 	ret = vmbus_child_device_register(newchannel->device_obj);
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS,
-			   "unable to add child device object (relid %d)",
+		pr_err("unable to add child device object (relid %d)\n",
 			   newchannel->offermsg.child_relid);
 
 		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
@@ -430,8 +431,9 @@ static void vmbus_process_offer(struct work_struct *work)
 						 hv_cb_utils[cnt].callback,
 						 newchannel) == 0) {
 				hv_cb_utils[cnt].channel = newchannel;
-				DPRINT_INFO(VMBUS, "%s",
-						hv_cb_utils[cnt].log_msg);
+
+				pr_info("%s\n", hv_cb_utils[cnt].log_msg);
+
 				count_hv_channel();
 			}
 		}
@@ -472,7 +474,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	/* Allocate the channel object and save this offer. */
 	newchannel = alloc_channel();
 	if (!newchannel) {
-		DPRINT_ERR(VMBUS, "unable to allocate channel object");
+		pr_err("Unable to allocate channel object\n");
 		return;
 	}
 
@@ -730,8 +732,7 @@ void vmbus_onmessage(void *context)
 	size = msg->header.payload_size;
 
 	if (hdr->msgtype >= CHANNELMSG_COUNT) {
-		DPRINT_ERR(VMBUS,
-			   "Received invalid channel message type %d size %d",
+		pr_err("Received invalid channel message type %d size %d\n",
 			   hdr->msgtype, size);
 		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
 				     (unsigned char *)msg->u.payload, size);
@@ -741,8 +742,7 @@ void vmbus_onmessage(void *context)
 	if (gChannelMessageTable[hdr->msgtype].messageHandler)
 		gChannelMessageTable[hdr->msgtype].messageHandler(hdr);
 	else
-		DPRINT_ERR(VMBUS, "Unhandled channel message type %d",
-			   hdr->msgtype);
+		pr_err("Unhandled channel message type %d\n", hdr->msgtype);
 }
 
 /*
@@ -770,7 +770,7 @@ int vmbus_request_offers(void)
 	ret = vmbus_post_msg(msg,
 			       sizeof(struct vmbus_channel_message_header));
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS, "Unable to request offers - %d", ret);
+		pr_err("Unable to request offers - %d\n", ret);
 
 		goto cleanup;
 	}
@@ -810,9 +810,8 @@ void vmbus_release_unattached_channels(void)
 
 		if (!channel->device_obj->drv) {
 			list_del(&channel->listentry);
-			DPRINT_INFO(VMBUS,
-				    "Releasing unattached device object %p",
-				    channel->device_obj);
+
+			pr_err("Releasing unattached device object\n");
 
 			vmbus_child_device_unregister(channel->device_obj);
 			free_channel(channel);

@@ -18,6 +18,8 @@
  *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -898,7 +900,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	if (userlen > bufferlen) {
 		spin_unlock_irqrestore(&channel->inbound_lock, flags);
 
-		DPRINT_ERR(VMBUS, "buffer too small - got %d needs %d",
+		pr_err("Buffer too small - got %d needs %d\n",
 			   bufferlen, userlen);
 		return -1;
 	}
@@ -950,8 +952,9 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	if (packetlen > bufferlen) {
 		spin_unlock_irqrestore(&channel->inbound_lock, flags);
 
-		DPRINT_ERR(VMBUS, "buffer too small - needed %d bytes but "
-			   "got space for only %d bytes", packetlen, bufferlen);
+		pr_err("Buffer too small - needed %d bytes but "
+			"got space for only %d bytes\n",
+			packetlen, bufferlen);
 		return -2;
 	}
 

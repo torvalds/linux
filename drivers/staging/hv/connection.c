@@ -20,6 +20,8 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -153,9 +155,9 @@ int vmbus_connect(void)
 	if (msginfo->response.version_response.version_supported) {
 		vmbus_connection.conn_state = CONNECTED;
 	} else {
-		DPRINT_ERR(VMBUS, "Vmbus connection failed!!..."
-			   "current version (%d) not supported",
-			   VMBUS_REVISION_NUMBER);
+		pr_err("Unable to connect, "
+			"Version %d not supported by Hyper-V\n",
+			VMBUS_REVISION_NUMBER);
 		ret = -1;
 		goto Cleanup;
 	}
@@ -216,7 +218,7 @@ int vmbus_disconnect(void)
 
 	vmbus_connection.conn_state = DISCONNECTED;
 
-	DPRINT_INFO(VMBUS, "Vmbus disconnected!!");
+	pr_info("hv_vmbus disconnected\n");
 
 Cleanup:
 	kfree(msg);
@@ -269,7 +271,7 @@ static void process_chn_event(void *context)
 		 *			  (void*)channel);
 		 */
 	} else {
-		DPRINT_ERR(VMBUS, "channel not found for relid - %d.", relid);
+		pr_err("channel not found for relid - %d\n", relid);
 	}
 }
 

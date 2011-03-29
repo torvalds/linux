@@ -20,6 +20,8 @@
  *
  * 3/9/2011: K. Y. Srinivasan	- Significant restructuring and cleanup
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -350,18 +352,16 @@ static int vmbus_probe(struct device *child_device)
 		ret = dev->probe_error =
 		drv->driver.probe(child_device);
 		if (ret != 0) {
-			DPRINT_ERR(VMBUS_DRV, "probe() failed for device %s "
-				   "(%p) on driver %s (%d)...",
-				   dev_name(child_device), child_device,
-				   child_device->driver->name, ret);
+			pr_err("probe failed for device %s (%d)\n",
+			       dev_name(child_device), ret);
 
 			INIT_WORK(&dev->probe_failed_work_item,
 				  vmbus_probe_failed_cb);
 			schedule_work(&dev->probe_failed_work_item);
 		}
 	} else {
-		DPRINT_ERR(VMBUS_DRV, "probe() method not set for driver - %s",
-			   child_device->driver->name);
+		pr_err("probe not set for driver %s\n",
+		       dev_name(child_device));
 		ret = -1;
 	}
 	return ret;
@@ -386,9 +386,8 @@ static int vmbus_remove(struct device *child_device)
 		if (drv->driver.remove) {
 			ret = drv->driver.remove(child_device);
 		} else {
-			DPRINT_ERR(VMBUS_DRV,
-				   "remove() method not set for driver - %s",
-				   child_device->driver->name);
+			pr_err("remove not set for driver %s\n",
+				dev_name(child_device));
 			ret = -1;
 		}
 	}
@@ -572,11 +571,9 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
-				ret);
+		pr_err("Unable to initialize the hypervisor - 0x%x\n", ret);
 		goto cleanup;
 	}
-
 
 	hv_bus.bus.name = driver_name;
 
@@ -599,7 +596,7 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 			  driver_name, pdev);
 
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS_DRV, "ERROR - Unable to request IRQ %d",
+		pr_err("Unable to request IRQ %d\n",
 			   pdev->irq);
 
 		bus_unregister(&hv_bus.bus);
@@ -669,8 +666,7 @@ int vmbus_child_driver_register(struct device_driver *drv)
 {
 	int ret;
 
-	DPRINT_INFO(VMBUS_DRV, "child driver (%p) registering - name %s",
-		    drv, drv->name);
+	pr_info("child driver registering - name %s\n", drv->name);
 
 	/* The child driver on this vmbus */
 	drv->bus = &hv_bus.bus;
@@ -695,8 +691,7 @@ EXPORT_SYMBOL(vmbus_child_driver_register);
  */
 void vmbus_child_driver_unregister(struct device_driver *drv)
 {
-	DPRINT_INFO(VMBUS_DRV, "child driver (%p) unregistering - name %s",
-		    drv, drv->name);
+	pr_info("child driver unregistering - name %s\n", drv->name);
 
 	driver_unregister(drv);
 
@@ -717,8 +712,7 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 	/* Allocate the new child device */
 	child_device_obj = kzalloc(sizeof(struct hv_device), GFP_KERNEL);
 	if (!child_device_obj) {
-		DPRINT_ERR(VMBUS_DRV,
-			"unable to allocate device_context for child device");
+		pr_err("Unable to allocate device object for child device\n");
 		return NULL;
 	}
 
@@ -759,11 +753,10 @@ int vmbus_child_device_register(struct hv_device *child_device_obj)
 	ret = child_device_obj->probe_error;
 
 	if (ret)
-		DPRINT_ERR(VMBUS_DRV, "unable to register child device (%p)",
-			   &child_device_obj->device);
+		pr_err("Unable to register child device\n");
 	else
-		DPRINT_INFO(VMBUS_DRV, "child device (%p) registered",
-			    &child_device_obj->device);
+		pr_info("child device %s registered\n",
+			dev_name(&child_device_obj->device));
 
 	return ret;
 }
@@ -780,8 +773,8 @@ void vmbus_child_device_unregister(struct hv_device *device_obj)
 	 */
 	device_unregister(&device_obj->device);
 
-	DPRINT_INFO(VMBUS_DRV, "child device (%p) unregistered",
-		    &device_obj->device);
+	pr_info("child device %s unregistered\n",
+		dev_name(&device_obj->device));
 }
 
 
