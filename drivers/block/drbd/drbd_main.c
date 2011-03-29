@@ -765,6 +765,70 @@ int conn_send_cmd2(struct drbd_tconn *tconn, enum drbd_packet cmd, char *data,
 	return err;
 }
 
+void *conn_prepare_command(struct drbd_tconn *tconn, struct drbd_socket *sock)
+{
+	mutex_lock(&sock->mutex);
+	if (!sock->socket) {
+		mutex_unlock(&sock->mutex);
+		return NULL;
+	}
+	return sock->sbuf;
+}
+
+void *drbd_prepare_command(struct drbd_conf *mdev, struct drbd_socket *sock)
+{
+	return conn_prepare_command(mdev->tconn, sock);
+}
+
+static int __send_command(struct drbd_tconn *tconn, int vnr,
+			  struct drbd_socket *sock, enum drbd_packet cmd,
+			  unsigned int header_size, void *data,
+			  unsigned int size)
+{
+	int msg_flags;
+	int err;
+
+	/*
+	 * Called with @data == NULL and the size of the data blocks in @size
+	 * for commands that send data blocks.  For those commands, omit the
+	 * MSG_MORE flag: this will increase the likelihood that data blocks
+	 * which are page aligned on the sender will end up page aligned on the
+	 * receiver.
+	 */
+	msg_flags = data ? MSG_MORE : 0;
+
+	_prepare_header(tconn, vnr, sock->sbuf, cmd,
+			header_size - sizeof(struct p_header) + size);
+	err = drbd_send_all(tconn, sock->socket, sock->sbuf, header_size,
+			    msg_flags);
+	if (data && !err)
+		err = drbd_send_all(tconn, sock->socket, data, size, 0);
+	return err;
+}
+
+int conn_send_command(struct drbd_tconn *tconn, struct drbd_socket *sock,
+		      enum drbd_packet cmd, unsigned int header_size,
+		      void *data, unsigned int size)
+{
+	int err;
+
+	err = __send_command(tconn, 0, sock, cmd, header_size, data, size);
+	mutex_unlock(&sock->mutex);
+	return err;
+}
+
+int drbd_send_command(struct drbd_conf *mdev, struct drbd_socket *sock,
+		      enum drbd_packet cmd, unsigned int header_size,
+		      void *data, unsigned int size)
+{
+	int err;
+
+	err = __send_command(mdev->tconn, mdev->vnr, sock, cmd, header_size,
+			     data, size);
+	mutex_unlock(&sock->mutex);
+	return err;
+}
+
 int drbd_send_ping(struct drbd_tconn *tconn)
 {
 	struct p_header h;

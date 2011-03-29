@@ -1903,6 +1903,15 @@ static inline int drbd_send_short_cmd(struct drbd_conf *mdev,
 	return drbd_send_cmd(mdev, &mdev->tconn->data, cmd, &h, sizeof(h));
 }
 
+extern void *conn_prepare_command(struct drbd_tconn *, struct drbd_socket *);
+extern void *drbd_prepare_command(struct drbd_conf *, struct drbd_socket *);
+extern int conn_send_command(struct drbd_tconn *, struct drbd_socket *,
+			     enum drbd_packet, unsigned int, void *,
+			     unsigned int);
+extern int drbd_send_command(struct drbd_conf *, struct drbd_socket *,
+			     enum drbd_packet, unsigned int, void *,
+			     unsigned int);
+
 extern int drbd_send_ping(struct drbd_tconn *tconn);
 extern int drbd_send_ping_ack(struct drbd_tconn *tconn);
 
