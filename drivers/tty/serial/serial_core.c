@@ -1483,20 +1483,6 @@ static void uart_hangup(struct tty_struct *tty)
 static void uart_update_termios(struct tty_struct *tty,
 						struct uart_state *state)
 {
-	struct uart_port *port = state->uart_port;
-
-	/*
-	 * If the device failed to grab its irq resources,
-	 * or some other error occurred, don't try to talk
-	 * to the port hardware.
-	 */
-	if (!(tty->flags & (1 << TTY_IO_ERROR))) {
-		/*
-		 * And finally enable the RTS and DTR signals.
-		 */
-		if (tty->termios->c_cflag & CBAUD)
-			uart_set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-	}
 }
 
 static int uart_carrier_raised(struct tty_port *port)
