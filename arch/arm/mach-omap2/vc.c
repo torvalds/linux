@@ -100,7 +100,6 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 			 unsigned long target_volt)
 {
 	struct omap_vc_channel *vc = voltdm->vc;
-	struct omap_vdd_info *vdd = voltdm->vdd;
 	u32 loop_cnt = 0, retries_cnt = 0;
 	u32 vc_valid, vc_bypass_val_reg, vc_bypass_value;
 	u8 target_vsel, current_vsel;
@@ -113,10 +112,8 @@ int omap_vc_bypass_scale(struct voltagedomain *voltdm,
 	vc_valid = vc->common->valid;
 	vc_bypass_val_reg = vc->common->bypass_val_reg;
 	vc_bypass_value = (target_vsel << vc->common->data_shift) |
-			(vdd->pmic_info->volt_reg_addr <<
-			vc->common->regaddr_shift) |
-			(vdd->pmic_info->i2c_slave_addr <<
-			vc->common->slaveaddr_shift);
+		(vc->volt_reg_addr << vc->common->regaddr_shift) |
+		(vc->i2c_slave_addr << vc->common->slaveaddr_shift);
 
 	voltdm->write(vc_bypass_value, vc_bypass_val_reg);
 	voltdm->write(vc_bypass_value | vc_valid, vc_bypass_val_reg);
