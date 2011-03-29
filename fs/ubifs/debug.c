@@ -602,7 +602,7 @@ void dbg_dump_lstats(const struct ubifs_lp_stats *lst)
 	spin_unlock(&dbg_lock);
 }
 
-void dbg_dump_budg(struct ubifs_info *c)
+void dbg_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi)
 {
 	int i;
 	struct rb_node *rb;
@@ -614,20 +614,29 @@ void dbg_dump_budg(struct ubifs_info *c)
 	spin_lock(&dbg_lock);
 	printk(KERN_DEBUG "(pid %d) Budgeting info: data budget sum %lld, "
 	       "total budget sum %lld\n", current->pid,
-	       c->bi.data_growth + c->bi.dd_growth,
-	       c->bi.data_growth + c->bi.dd_growth + c->bi.idx_growth);
+	       bi->data_growth + bi->dd_growth,
+	       bi->data_growth + bi->dd_growth + bi->idx_growth);
 	printk(KERN_DEBUG "\tbudg_data_growth %lld, budg_dd_growth %lld, "
-	       "budg_idx_growth %lld\n", c->bi.data_growth, c->bi.dd_growth,
-	       c->bi.idx_growth);
+	       "budg_idx_growth %lld\n", bi->data_growth, bi->dd_growth,
+	       bi->idx_growth);
 	printk(KERN_DEBUG "\tmin_idx_lebs %d, old_idx_sz %llu, "
-	       "uncommitted_idx %lld\n", c->bi.min_idx_lebs, c->bi.old_idx_sz,
-	       c->bi.uncommitted_idx);
+	       "uncommitted_idx %lld\n", bi->min_idx_lebs, bi->old_idx_sz,
+	       bi->uncommitted_idx);
 	printk(KERN_DEBUG "\tpage_budget %d, inode_budget %d, dent_budget %d\n",
-	       c->bi.page_budget, c->bi.inode_budget, c->bi.dent_budget);
+	       bi->page_budget, bi->inode_budget, bi->dent_budget);
 	printk(KERN_DEBUG "\tnospace %u, nospace_rp %u\n",
-	       c->bi.nospace, c->bi.nospace_rp);
+	       bi->nospace, bi->nospace_rp);
 	printk(KERN_DEBUG "\tdark_wm %d, dead_wm %d, max_idx_node_sz %d\n",
 	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
+
+	if (bi != &c->bi)
+		/*
+		 * If we are dumping saved budgeting data, do not print
+		 * additional information which is about the current state, not
+		 * the old one which corresponded to the saved budgeting data.
+		 */
+		goto out_unlock;
+
 	printk(KERN_DEBUG "\tfreeable_cnt %d, calc_idx_sz %lld, idx_gc_cnt %d\n",
 	       c->freeable_cnt, c->calc_idx_sz, c->idx_gc_cnt);
 	printk(KERN_DEBUG "\tdirty_pg_cnt %ld, dirty_zn_cnt %ld, "
@@ -636,6 +645,7 @@ void dbg_dump_budg(struct ubifs_info *c)
 	       atomic_long_read(&c->clean_zn_cnt));
 	printk(KERN_DEBUG "\tgc_lnum %d, ihead_lnum %d\n",
 	       c->gc_lnum, c->ihead_lnum);
+
 	/* If we are in R/O mode, journal heads do not exist */
 	if (c->jheads)
 		for (i = 0; i < c->jhead_cnt; i++)
@@ -660,6 +670,7 @@ void dbg_dump_budg(struct ubifs_info *c)
 	printk(KERN_DEBUG "Budgeting predictions:\n");
 	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",
 	       available, outstanding, free);
+out_unlock:
 	spin_unlock(&dbg_lock);
 	spin_unlock(&c->space_lock);
 }
@@ -983,6 +994,8 @@ void dbg_save_space_info(struct ubifs_info *c)
 
 	spin_lock(&c->space_lock);
 	memcpy(&d->saved_lst, &c->lst, sizeof(struct ubifs_lp_stats));
+	memcpy(&d->saved_bi, &c->bi, sizeof(struct ubifs_budg_info));
+	d->saved_idx_gc_cnt = c->idx_gc_cnt;
 
 	/*
 	 * We use a dirty hack here and zero out @c->freeable_cnt, because it
@@ -1049,11 +1062,14 @@ int dbg_check_space_info(struct ubifs_info *c)
 out:
 	ubifs_msg("saved lprops statistics dump");
 	dbg_dump_lstats(&d->saved_lst);
-	ubifs_get_lp_stats(c, &lst);
-
+	ubifs_msg("saved budgeting info dump");
+	dbg_dump_budg(c, &d->saved_bi);
+	ubifs_msg("saved idx_gc_cnt %d", d->saved_idx_gc_cnt);
 	ubifs_msg("current lprops statistics dump");
+	ubifs_get_lp_stats(c, &lst);
 	dbg_dump_lstats(&lst);
-	dbg_dump_budg(c);
+	ubifs_msg("current budgeting info dump");
+	dbg_dump_budg(c, &c->bi);
 	dump_stack();
 	return -EINVAL;
 }
@@ -2801,7 +2817,7 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 	if (file->f_path.dentry == d->dfs_dump_lprops)
 		dbg_dump_lprops(c);
 	else if (file->f_path.dentry == d->dfs_dump_budg)
-		dbg_dump_budg(c);
+		dbg_dump_budg(c, &c->bi);
 	else if (file->f_path.dentry == d->dfs_dump_tnc) {
 		mutex_lock(&c->tnc_mutex);
 		dbg_dump_tnc(c);
