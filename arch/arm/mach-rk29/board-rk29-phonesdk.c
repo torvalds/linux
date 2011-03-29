@@ -133,9 +133,10 @@ struct rk29_nand_platform_data rk29_nand_data = {
  * author: zyw@rock-chips.com
  *****************************************************************************************/
 //#ifdef  CONFIG_LCD_TD043MGEA1
-#define LCD_TXD_PIN          INVALID_GPIO
-#define LCD_CLK_PIN          INVALID_GPIO
-#define LCD_CS_PIN           INVALID_GPIO
+#define LCD_RXD_PIN          RK29_PIN2_PC7
+#define LCD_TXD_PIN          RK29_PIN2_PC6
+#define LCD_CLK_PIN          RK29_PIN2_PC4
+#define LCD_CS_PIN           RK29_PIN2_PC5
 /*****************************************************************************************
 * frame buffer  devices
 * author: zyw@rock-chips.com
@@ -153,12 +154,30 @@ struct rk29_nand_platform_data rk29_nand_data = {
 static int rk29_lcd_io_init(void)
 {
     int ret = 0;
+    printk("rk29_lcd_io_init\n");
+    ret = gpio_request(LCD_RXD_PIN, NULL);
+    ret = gpio_request(LCD_TXD_PIN, NULL);
+	ret = gpio_request(LCD_CLK_PIN, NULL);
+	ret = gpio_request(LCD_CS_PIN, NULL);
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_GPIO2C6);
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_GPIO2C5);
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_GPIO2C4);
     return ret;
 }
 
 static int rk29_lcd_io_deinit(void)
 {
     int ret = 0;
+    printk("rk29_lcd_io_deinit\n");
+    gpio_free(LCD_CS_PIN);
+	gpio_free(LCD_CLK_PIN);
+	gpio_free(LCD_TXD_PIN);
+	gpio_free(LCD_RXD_PIN);
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_SPI1_RXD);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_SPI1_TXD);
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_SPI1_CSN0);
+	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_SPI1_CLK);
     return ret;
 }
 
@@ -414,30 +433,6 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .model= 1003,
   .init_platform_hw= EETI_EGALAX_init_platform_hw,
 
-};
-#endif
-
-/* GT801 touch I2C */
-#if defined (CONFIG_GT801)
-#include <drivers/input/touchscreen/gt801.h> 
-#define TOUCH_RESET_PIN RK29_PIN6_PC3
-#define TOUCH_INT_PIN   RK29_PIN4_PD5
-
-static struct gt801_platform_data gt801_info = {
-  .model = 801,
-  .swap_xy = 0,
-  .x_min = 0,
-  .x_max = 480,
-  .y_min = 0,
-  .y_max = 800,
-  .gpio_reset = TOUCH_RESET_PIN,
-  .gpio_reset_active_low = 1,
-  .gpio_pendown = TOUCH_INT_PIN,
-  .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
-  .resetpin_iomux_name = "FFF",
-  .pendown_iomux_mode = GPIO4H_GPIO4D5,
-  .resetpin_iomux_mode = 0,
-  .get_pendown_state = NULL,
 };
 #endif
 
@@ -1572,15 +1567,6 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 	.irq            = RK29_PIN4_PD5,
 	.platform_data = &gt801_info,
 },	
-#endif
-#if defined (CONFIG_GT801)
-    {
-      .type           = "gt801_touch",
-      .addr           = 0x55,
-      .flags          = 0,
-      .irq            = RK29_PIN4_PD5,
-      .platform_data  = &gt801_info,
-    },
 #endif
 #if defined (CONFIG_MFD_WM831X_I2C)
 {

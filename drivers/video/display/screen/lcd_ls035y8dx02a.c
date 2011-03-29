@@ -27,7 +27,7 @@
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
-#define OUT_CLK			26	//***27
+#define OUT_CLK			(26*1000000)	//***27  uint Hz
 #define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��           //rk29
 
 /* Timing */
@@ -57,7 +57,7 @@ int lcd_standby(u8 enable);
 #define CLK_PORT        RK2818_PIN_PB5    //gLcd_info->clk_pin
 #define CS_PORT         RK2818_PIN_PB4    // gLcd_info->cs_pin
 */
-#define RXD_PORT        1
+#define RXD_PORT        RK29_PIN2_PC7
 #define TXD_PORT        gLcd_info->txd_pin
 #define CLK_PORT        gLcd_info->clk_pin
 #define CS_PORT         gLcd_info->cs_pin
@@ -98,16 +98,16 @@ u32 spi_screenreg_get(u32 Addr)
         printk("addr is 0x%x \n", Addr); 
         for(i = 0; i < 9; i++)  //reg
         {
-                if(Addr &(1<<(8-i)))
-                        TXD_SET();
-                else
-                        TXD_CLR();
+			if(Addr &(1<<(8-i)))
+					TXD_SET();
+			else
+					TXD_CLR();
 
-                // \u6a21\u62dfCLK
-                CLK_SET();
-                DRVDelayUs(2);
-                CLK_CLR();
-                DRVDelayUs(2);
+			// \u6a21\u62dfCLK
+			CLK_SET();
+			DRVDelayUs(2);
+			CLK_CLR();
+			DRVDelayUs(2);
         }
 
         CS_SET();
@@ -118,18 +118,18 @@ u32 spi_screenreg_get(u32 Addr)
         CS_CLR();	
         for(i = 0; i < 9; i++)
         {
-                CLK_SET();
-                DRVDelayUs(2);
-                CLK_CLR();
-                if(RXD_GET())
-                {
-                	data |= 1<<(8-i);
-                }
-                else
-                {
-                	data &= ~(1<<(8-i));
-                }
-                DRVDelayUs(2);        		
+			CLK_SET();
+			DRVDelayUs(2);
+			CLK_CLR();
+			if(RXD_GET())
+			{
+				data |= 1<<(8-i);
+			}
+			else
+			{
+				data &= ~(1<<(8-i));
+			}
+			DRVDelayUs(2);
         }
         CS_SET();
         CLK_CLR();
@@ -163,16 +163,16 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
         //printk("addr is 0x%x \n", Addr); 
         for(i = 0; i < 9; i++)  //reg
         {
-                if(Addr &(1<<(8-i)))
-                        TXD_SET();
-                else
-                        TXD_CLR();
+			if(Addr &(1<<(8-i)))
+					TXD_SET();
+			else
+					TXD_CLR();
 
-                // \u6a21\u62dfCLK
-                CLK_SET();
-                DRVDelayUs(2);
-                CLK_CLR();
-                DRVDelayUs(2);
+			// \u6a21\u62dfCLK
+			CLK_SET();
+			DRVDelayUs(2);
+			CLK_CLR();
+			DRVDelayUs(2);
         }
 
         CS_SET();
@@ -190,16 +190,16 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
         //printk("data0 is 0x%x \n", Data); 
         for(i = 0; i < 9; i++)  //data
         {
-                if(Data0 &(1<<(8-i)))
-                        TXD_SET();
-                else
-                        TXD_CLR();
+			if(Data0 &(1<<(8-i)))
+					TXD_SET();
+			else
+					TXD_CLR();
 
-                // \u6a21\u62dfCLK
-                CLK_SET();
-                DRVDelayUs(2);
-                CLK_CLR();
-                DRVDelayUs(2);
+			// \u6a21\u62dfCLK
+			CLK_SET();
+			DRVDelayUs(2);
+			CLK_CLR();
+			DRVDelayUs(2);
         }
 
         CS_SET();
@@ -217,16 +217,16 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
         //printk("data1 is 0x%x \n", Data); 
         for(i = 0; i < 9; i++)  //data
         {
-                if(Data1 &(1<<(8-i)))
-                        TXD_SET();
-                else
-                        TXD_CLR();
+			if(Data1 &(1<<(8-i)))
+					TXD_SET();
+			else
+					TXD_CLR();
 
-                // \u6a21\u62dfCLK
-                CLK_SET();
-                DRVDelayUs(2);
-                CLK_CLR();
-                DRVDelayUs(2);
+			// \u6a21\u62dfCLK
+			CLK_SET();
+			DRVDelayUs(2);
+			CLK_CLR();
+			DRVDelayUs(2);
         }
 
         CS_SET();
@@ -237,7 +237,6 @@ void spi_screenreg_set(u32 Addr, u32 Data0, u32 Data1)
 
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
-	//printk("lcd_hx8357 set_lcd_info \n"); 
     /* screen type & face */
     screen->type = OUT_TYPE;
     screen->face = OUT_FACE;
@@ -281,12 +280,10 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 int lcd_init(void)
 { 
 	volatile u32 data;
-   // rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_GPIO0_B567);
-   // rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4);
-    //gpio_pull_updown(RK2818_PIN_PB7, GPIOPullUp);
-    if(gLcd_info)
-		{printk("lcd init11111111111111111111111111...\n");
-        gLcd_info->io_init();}
+    if(gLcd_info){
+    	printk("lcd init11111111111111111111111111...\n");
+        gLcd_info->io_init();
+	}
 	printk("lcd init22222222222222222222222222...\n");
 	printk("lcd init...\n");
 	spi_screenreg_set(0x29, 0xffff, 0xffff);
