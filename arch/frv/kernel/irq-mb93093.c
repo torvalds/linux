@@ -93,7 +93,7 @@ static irqreturn_t fpga_interrupt(int irq, void *_mask)
 		irq = 31 - irq;
 		mask &= ~(1 << irq);
 
-		generic_irq_handle(IRQ_BASE_FPGA + irq);
+		generic_handle_irq(IRQ_BASE_FPGA + irq);
 	}
 
 	return IRQ_HANDLED;
