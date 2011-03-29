@@ -54,7 +54,11 @@ struct omap_vc_common {
 	u8 cmd_onlp_shift;
 	u8 cmd_ret_shift;
 	u8 cmd_off_shift;
+	u8 cfg_channel_reg;
 };
+
+/* omap_vc_channel.flags values */
+#define OMAP_VC_CHANNEL_DEFAULT BIT(0)
 
 /**
  * struct omap_vc_channel - VC per-instance data
@@ -67,6 +71,7 @@ struct omap_vc_common {
  * @smps_volra_mask: VOLRA* bitmask in the PRM_VC_VOL_RA register
  * @smps_cmdra_mask: CMDRA* bitmask in the PRM_VC_CMD_RA register
  * @cmdval_reg: register for on/ret/off voltage level values for this channel
+ * @flags: VC channel-specific flags (optional)
  */
 struct omap_vc_channel {
 	/* channel state */
@@ -74,6 +79,7 @@ struct omap_vc_channel {
 	u16 volt_reg_addr;
 	u16 cmd_reg_addr;
 	u16 setup_time;
+	u8 cfg_channel;
 
 	/* register access data */
 	const struct omap_vc_common *common;
@@ -81,6 +87,8 @@ struct omap_vc_channel {
 	u32 smps_volra_mask;
 	u32 smps_cmdra_mask;
 	u8 cmdval_reg;
+	u8 cfg_channel_sa_shift;
+	u8 flags;
 };
 
 extern struct omap_vc_channel omap3_vc_mpu;

@@ -43,6 +43,7 @@ static struct omap_vc_common omap3_vc_common = {
 	.cmd_onlp_shift	 = OMAP3430_VC_CMD_ONLP_SHIFT,
 	.cmd_ret_shift	 = OMAP3430_VC_CMD_RET_SHIFT,
 	.cmd_off_shift	 = OMAP3430_VC_CMD_OFF_SHIFT,
+	.cfg_channel_reg = OMAP3_PRM_VC_CH_CONF_OFFSET,
 };
 
 struct omap_vc_channel omap3_vc_mpu = {
@@ -51,6 +52,7 @@ struct omap_vc_channel omap3_vc_mpu = {
 	.smps_sa_mask = OMAP3430_PRM_VC_SMPS_SA_SA0_MASK,
 	.smps_volra_mask = OMAP3430_VOLRA0_MASK,
 	.smps_cmdra_mask = OMAP3430_CMDRA0_MASK,
+	.cfg_channel_sa_shift = OMAP3430_PRM_VC_SMPS_SA_SA0_SHIFT,
 };
 
 struct omap_vc_channel omap3_vc_core = {
@@ -59,4 +61,5 @@ struct omap_vc_channel omap3_vc_core = {
 	.smps_sa_mask = OMAP3430_PRM_VC_SMPS_SA_SA1_MASK,
 	.smps_volra_mask = OMAP3430_VOLRA1_MASK,
 	.smps_cmdra_mask = OMAP3430_CMDRA1_MASK,
+	.cfg_channel_sa_shift = OMAP3430_PRM_VC_SMPS_SA_SA1_SHIFT,
 };
