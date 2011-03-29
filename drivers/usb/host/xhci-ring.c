@@ -2171,8 +2171,10 @@ cleanup:
 /*
  * This function handles all OS-owned events on the event ring.  It may drop
  * xhci->lock between event processing (e.g. to pass up port status changes).
+ * Returns >0 for "possibly more events to process" (caller should call again),
+ * otherwise 0 if done.  In future, <0 returns should indicate error code.
  */
-static void xhci_handle_event(struct xhci_hcd *xhci)
+static int xhci_handle_event(struct xhci_hcd *xhci)
 {
 	union xhci_trb *event;
 	int update_ptrs = 1;
@@ -2181,7 +2183,7 @@ static void xhci_handle_event(struct xhci_hcd *xhci)
 	xhci_dbg(xhci, "In %s\n", __func__);
 	if (!xhci->event_ring || !xhci->event_ring->dequeue) {
 		xhci->error_bitmask |= 1 << 1;
-		return;
+		return 0;
 	}
 
 	event = xhci->event_ring->dequeue;
@@ -2189,7 +2191,7 @@ static void xhci_handle_event(struct xhci_hcd *xhci)
 	if ((le32_to_cpu(event->event_cmd.flags) & TRB_CYCLE) !=
 	    xhci->event_ring->cycle_state) {
 		xhci->error_bitmask |= 1 << 2;
-		return;
+		return 0;
 	}
 	xhci_dbg(xhci, "%s - OS owns TRB\n", __func__);
 
@@ -2233,15 +2235,17 @@ static void xhci_handle_event(struct xhci_hcd *xhci)
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
 		xhci_dbg(xhci, "xHCI host dying, returning from "
 				"event handler.\n");
-		return;
+		return 0;
 	}
 
 	if (update_ptrs)
 		/* Update SW event ring dequeue pointer */
 		inc_deq(xhci, xhci->event_ring, true);
 
-	/* Are there more items on the event ring? */
-	xhci_handle_event(xhci);
+	/* Are there more items on the event ring?  Caller will call us again to
+	 * check.
+	 */
+	return 1;
 }
 
 /*
@@ -2323,7 +2327,7 @@ hw_died:
 	/* FIXME this should be a delayed service routine
 	 * that clears the EHB.
 	 */
-	xhci_handle_event(xhci);
+	while (xhci_handle_event(xhci) > 0) {}
 
 	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	/* If necessary, update the HW's version of the event ring deq ptr. */
