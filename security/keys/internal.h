@@ -109,11 +109,13 @@ extern key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 				    const struct cred *cred,
 				    struct key_type *type,
 				    const void *description,
-				    key_match_func_t match);
+				    key_match_func_t match,
+				    bool no_state_check);
 
 extern key_ref_t search_my_process_keyrings(struct key_type *type,
 					    const void *description,
 					    key_match_func_t match,
+					    bool no_state_check,
 					    const struct cred *cred);
 extern key_ref_t search_process_keyrings(struct key_type *type,
 					 const void *description,
