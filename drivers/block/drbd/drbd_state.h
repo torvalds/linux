@@ -72,6 +72,40 @@ enum chg_state_flags {
 	CS_IGN_OUTD_FAIL = 1 << 10,
 };
 
+/* drbd_dev_state and drbd_state are different types. This is to stress the
+   small difference. There is no suspended flag (.susp), and no suspended
+   while fence handler runs flas (susp_fen). */
+union drbd_dev_state {
+	struct {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned conn:5 ;   /* 17/32	 cstates */
+		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
+		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
+		unsigned _unused:1 ;
+		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
+		unsigned peer_isp:1 ;
+		unsigned user_isp:1 ;
+		unsigned _pad:11;   /* 0	 unused */
+#elif defined(__BIG_ENDIAN_BITFIELD)
+		unsigned _pad:11;
+		unsigned user_isp:1 ;
+		unsigned peer_isp:1 ;
+		unsigned aftr_isp:1 ; /* isp .. imposed sync pause */
+		unsigned _unused:1 ;
+		unsigned pdsk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
+		unsigned disk:4 ;   /* 8/16	 from D_DISKLESS to D_UP_TO_DATE */
+		unsigned conn:5 ;   /* 17/32	 cstates */
+		unsigned peer:2 ;   /* 3/4	 primary/secondary/unknown */
+		unsigned role:2 ;   /* 3/4	 primary/secondary/unknown */
+#else
+# error "this endianess is not supported"
+#endif
+	};
+	unsigned int i;
+};
+
 extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
 					    enum chg_state_flags f,
 					    union drbd_state mask,

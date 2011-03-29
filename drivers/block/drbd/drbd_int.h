@@ -935,7 +935,7 @@ struct drbd_conf {
 	/* Used after attach while negotiating new disk state. */
 	union drbd_state new_state_tmp;
 
-	union drbd_state state;
+	union drbd_dev_state state;
 	wait_queue_head_t misc_wait;
 	wait_queue_head_t state_wait;  /* upon each state change. */
 	unsigned int send_cnt;
@@ -1689,7 +1689,7 @@ static inline union drbd_state drbd_read_state(struct drbd_conf *mdev)
 {
 	union drbd_state rv;
 
-	rv = mdev->state;
+	rv.i = mdev->state.i;
 	rv.susp = mdev->tconn->susp;
 	rv.susp_nod = mdev->tconn->susp_nod;
 	rv.susp_fen = mdev->tconn->susp_fen;
@@ -2155,7 +2155,7 @@ static inline int drbd_get_max_buffers(struct drbd_conf *mdev)
 
 static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 {
-	union drbd_state s = mdev->state;
+	union drbd_dev_state s = mdev->state;
 
 	/* DO NOT add a default clause, we want the compiler to warn us
 	 * for any newly introduced state we may have forgotten to add here */

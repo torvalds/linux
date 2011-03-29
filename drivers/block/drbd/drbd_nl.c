@@ -1435,7 +1435,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND) &&
-	    !(mdev->state.role == R_PRIMARY && mdev->state.susp_nod)) {
+	    !(mdev->state.role == R_PRIMARY && mdev->tconn->susp_nod)) {
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
 		cp_discovered = 1;
 	}
@@ -2348,7 +2348,7 @@ out:
 
 int drbd_adm_resume_sync(struct sk_buff *skb, struct genl_info *info)
 {
-	union drbd_state s;
+	union drbd_dev_state s;
 	enum drbd_ret_code retcode;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
