@@ -588,5 +588,5 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.reserve	= omap_reserve,
 	.init_irq	= osk_init_irq,
 	.init_machine	= osk_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

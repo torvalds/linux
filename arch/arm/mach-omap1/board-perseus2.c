@@ -355,5 +355,5 @@ MACHINE_START(OMAP_PERSEUS2, "OMAP730 Perseus2")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_perseus2_init_irq,
 	.init_machine	= omap_perseus2_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

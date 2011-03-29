@@ -617,5 +617,5 @@ MACHINE_START(OVERO, "Gumstix Overo")
 	.init_early	= overo_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= overo_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

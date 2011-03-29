@@ -306,5 +306,5 @@ MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	.reserve	= omap_reserve,
 	.init_irq	= voiceblue_init_irq,
 	.init_machine	= voiceblue_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

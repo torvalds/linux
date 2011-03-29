@@ -466,5 +466,5 @@ MACHINE_START(OMAP_H2, "TI-H2")
 	.reserve	= omap_reserve,
 	.init_irq	= h2_init_irq,
 	.init_machine	= h2_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

@@ -106,5 +106,5 @@ MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
 	.init_early	= am3517_crane_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= am3517_crane_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

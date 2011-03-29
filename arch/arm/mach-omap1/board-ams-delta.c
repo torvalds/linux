@@ -391,7 +391,7 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.reserve	= omap_reserve,
 	.init_irq	= ams_delta_init_irq,
 	.init_machine	= ams_delta_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END
 
 EXPORT_SYMBOL(ams_delta_latch1_write);

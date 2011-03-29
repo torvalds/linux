@@ -644,5 +644,5 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.init_early	= omap3pandora_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3pandora_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

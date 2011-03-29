@@ -221,5 +221,5 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.init_early	= omap_sdp_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_sdp_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

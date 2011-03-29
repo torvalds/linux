@@ -269,5 +269,5 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_nokia770_init_irq,
 	.init_machine	= omap_nokia770_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END

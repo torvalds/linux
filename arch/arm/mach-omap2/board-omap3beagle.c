@@ -599,5 +599,5 @@ MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	.init_early	= omap3_beagle_init_early,
 	.init_irq	= omap3_beagle_init_irq,
 	.init_machine	= omap3_beagle_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_secure_timer,
 MACHINE_END

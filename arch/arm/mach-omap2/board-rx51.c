@@ -162,5 +162,5 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.init_early	= rx51_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= rx51_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

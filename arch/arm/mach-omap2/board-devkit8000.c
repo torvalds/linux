@@ -707,5 +707,5 @@ MACHINE_START(DEVKIT8000, "OMAP3 Devkit8000")
 	.init_early	= devkit8000_init_early,
 	.init_irq	= devkit8000_init_irq,
 	.init_machine	= devkit8000_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_secure_timer,
 MACHINE_END
