@@ -75,6 +75,7 @@
 #define Stack       (1<<13)     /* Stack instruction (push/pop) */
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
+#define Prefix      (1<<16)     /* Instruction varies with 66/f2/f3 prefix */
 /* Misc flags */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
@@ -106,12 +107,20 @@ struct opcode {
 		int (*execute)(struct x86_emulate_ctxt *ctxt);
 		struct opcode *group;
 		struct group_dual *gdual;
+		struct gprefix *gprefix;
 	} u;
 };
 
 struct group_dual {
 	struct opcode mod012[8];
 	struct opcode mod3[8];
+};
+
+struct gprefix {
+	struct opcode pfx_no;
+	struct opcode pfx_66;
+	struct opcode pfx_f2;
+	struct opcode pfx_f3;
 };
 
 /* EFLAGS bit definitions. */
@@ -2625,7 +2634,8 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
-	int def_op_bytes, def_ad_bytes, dual, goffset;
+	int def_op_bytes, def_ad_bytes, dual, goffset, simd_prefix;
+	bool op_prefix = false;
 	struct opcode opcode, *g_mod012, *g_mod3;
 	struct operand memop = { .type = OP_NONE };
 
@@ -2662,6 +2672,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	for (;;) {
 		switch (c->b = insn_fetch(u8, 1, c->eip)) {
 		case 0x66:	/* operand-size override */
+			op_prefix = true;
 			/* switch between 2/4 bytes */
 			c->op_bytes = def_op_bytes ^ 6;
 			break;
@@ -2739,6 +2750,19 @@ done_prefixes:
 			opcode = g_mod3[goffset];
 		else
 			opcode = g_mod012[goffset];
+		c->d |= opcode.flags;
+	}
+
+	if (c->d & Prefix) {
+		if (c->rep_prefix && op_prefix)
+			return X86EMUL_UNHANDLEABLE;
+		simd_prefix = op_prefix ? 0x66 : c->rep_prefix;
+		switch (simd_prefix) {
+		case 0x00: opcode = opcode.u.gprefix->pfx_no; break;
+		case 0x66: opcode = opcode.u.gprefix->pfx_66; break;
+		case 0xf2: opcode = opcode.u.gprefix->pfx_f2; break;
+		case 0xf3: opcode = opcode.u.gprefix->pfx_f3; break;
+		}
 		c->d |= opcode.flags;
 	}
 
