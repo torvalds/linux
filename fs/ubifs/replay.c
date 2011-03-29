@@ -1065,13 +1065,13 @@ int ubifs_replay_journal(struct ubifs_info *c)
 		goto out;
 
 	/*
-	 * UBIFS budgeting calculations use @c->budg_uncommitted_idx variable
-	 * to roughly estimate index growth. Things like @c->min_idx_lebs
+	 * UBIFS budgeting calculations use @c->bi.uncommitted_idx variable
+	 * to roughly estimate index growth. Things like @c->bi.min_idx_lebs
 	 * depend on it. This means we have to initialize it to make sure
 	 * budgeting works properly.
 	 */
-	c->budg_uncommitted_idx = atomic_long_read(&c->dirty_zn_cnt);
-	c->budg_uncommitted_idx *= c->max_idx_node_sz;
+	c->bi.uncommitted_idx = atomic_long_read(&c->dirty_zn_cnt);
+	c->bi.uncommitted_idx *= c->max_idx_node_sz;
 
 	ubifs_assert(c->bud_bytes <= c->max_bud_bytes || c->need_recovery);
 	dbg_mnt("finished, log head LEB %d:%d, max_sqnum %llu, "

@@ -614,14 +614,14 @@ void dbg_dump_budg(struct ubifs_info *c)
 	spin_lock(&dbg_lock);
 	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
 	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
-	       c->budg_data_growth, c->budg_dd_growth, c->budg_idx_growth);
+	       c->bi.data_growth, c->bi.dd_growth, c->bi.idx_growth);
 	printk(KERN_DEBUG "\tdata budget sum %lld, total budget sum %lld, "
-	       "freeable_cnt %d\n", c->budg_data_growth + c->budg_dd_growth,
-	       c->budg_data_growth + c->budg_dd_growth + c->budg_idx_growth,
+	       "freeable_cnt %d\n", c->bi.data_growth + c->bi.dd_growth,
+	       c->bi.data_growth + c->bi.dd_growth + c->bi.idx_growth,
 	       c->freeable_cnt);
 	printk(KERN_DEBUG "\tmin_idx_lebs %d, old_idx_sz %lld, "
-	       "calc_idx_sz %lld, idx_gc_cnt %d\n", c->min_idx_lebs,
-	       c->old_idx_sz, c->calc_idx_sz, c->idx_gc_cnt);
+	       "calc_idx_sz %lld, idx_gc_cnt %d\n", c->bi.min_idx_lebs,
+	       c->bi.old_idx_sz, c->calc_idx_sz, c->idx_gc_cnt);
 	printk(KERN_DEBUG "\tdirty_pg_cnt %ld, dirty_zn_cnt %ld, "
 	       "clean_zn_cnt %ld\n", atomic_long_read(&c->dirty_pg_cnt),
 	       atomic_long_read(&c->dirty_zn_cnt),
@@ -648,8 +648,8 @@ void dbg_dump_budg(struct ubifs_info *c)
 	printk(KERN_DEBUG "\tcommit state %d\n", c->cmt_state);
 
 	/* Print budgeting predictions */
-	available = ubifs_calc_available(c, c->min_idx_lebs);
-	outstanding = c->budg_data_growth + c->budg_dd_growth;
+	available = ubifs_calc_available(c, c->bi.min_idx_lebs);
+	outstanding = c->bi.data_growth + c->bi.dd_growth;
 	free = ubifs_get_free_space_nolock(c);
 	printk(KERN_DEBUG "Budgeting predictions:\n");
 	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",

@@ -212,7 +212,7 @@ static void release_new_page_budget(struct ubifs_info *c)
  */
 static void release_existing_page_budget(struct ubifs_info *c)
 {
-	struct ubifs_budget_req req = { .dd_growth = c->page_budget};
+	struct ubifs_budget_req req = { .dd_growth = c->bi.page_budget};
 
 	ubifs_release_budget(c, &req);
 }
@@ -1189,7 +1189,7 @@ out_budg:
 	if (budgeted)
 		ubifs_release_budget(c, &req);
 	else {
-		c->nospace = c->nospace_rp = 0;
+		c->bi.nospace = c->bi.nospace_rp = 0;
 		smp_wmb();
 	}
 	return err;
