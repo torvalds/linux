@@ -569,6 +569,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	host->ioaddr = pci_ioremap_bar(pdev, bar);
 	if (!host->ioaddr) {
 		dev_err(&pdev->dev, "failed to remap registers\n");
+		ret = -ENOMEM;
 		goto release;
 	}
 
