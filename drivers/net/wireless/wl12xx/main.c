@@ -1304,6 +1304,16 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
+	/*
+	 * in some very corner case HW recovery scenarios its possible to
+	 * get here before __wl1271_op_remove_interface is complete, so
+	 * opt out if that is the case.
+	 */
+	if (test_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		wl->bss_type = BSS_TYPE_STA_BSS;
@@ -1372,6 +1382,7 @@ power_off:
 
 	wl->vif = vif;
 	wl->state = WL1271_STATE_ON;
+	set_bit(WL1271_FLAG_IF_INITIALIZED, &wl->flags);
 	wl1271_info("firmware booted (%s)", wl->chip.fw_ver_str);
 
 	/* update hw/fw version info in wiphy struct */
@@ -1409,13 +1420,15 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
+	/* because of hardware recovery, we may get here twice */
+	if (wl->state != WL1271_STATE_ON)
+		return;
+
 	wl1271_info("down");
 
 	mutex_lock(&wl_list_mutex);
 	list_del(&wl->list);
 	mutex_unlock(&wl_list_mutex);
-
-	WARN_ON(wl->state != WL1271_STATE_ON);
 
 	/* enable dyn ps just in case (if left on due to fw crash etc) */
 	if (wl->bss_type == BSS_TYPE_STA_BSS)
@@ -1428,6 +1441,10 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 		ieee80211_scan_completed(wl->hw, true);
 	}
 
+	/*
+	 * this must be before the cancel_work calls below, so that the work
+	 * functions don't perform further work.
+	 */
 	wl->state = WL1271_STATE_OFF;
 
 	mutex_unlock(&wl->mutex);
@@ -1464,7 +1481,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
-	wl->flags = 0;
 	wl->vif = NULL;
 	wl->filters = 0;
 	wl1271_free_ap_keys(wl);
@@ -1472,6 +1488,13 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->block_size = 0;
+
+	/*
+	 * this is performed after the cancel_work calls and the associated
+	 * mutex_lock, so that wl1271_op_add_interface does not accidentally
+	 * get executed before all these vars have been reset.
+	 */
+	wl->flags = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
