@@ -20,6 +20,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/version.h>
 #include <linux/clocksource.h>
@@ -91,7 +92,7 @@ static int __init init_hv_clocksource(void)
 	if (!dmi_check_system(hv_timesource_dmi_table))
 		return -ENODEV;
 
-	printk(KERN_INFO "Registering HyperV clock source\n");
+	pr_info("Registering HyperV clock source\n");
 	return clocksource_register(&hyperv_cs);
 }
 
