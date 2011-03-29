@@ -76,6 +76,7 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define Prefix      (1<<16)     /* Instruction varies with 66/f2/f3 prefix */
+#define Sse         (1<<17)     /* SSE Vector instruction */
 /* Misc flags */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
@@ -505,6 +506,11 @@ static int emulate_de(struct x86_emulate_ctxt *ctxt)
 	return emulate_exception(ctxt, DE_VECTOR, 0, false);
 }
 
+static int emulate_nm(struct x86_emulate_ctxt *ctxt)
+{
+	return emulate_exception(ctxt, NM_VECTOR, 0, false);
+}
+
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 			      struct x86_emulate_ops *ops,
 			      unsigned long eip, u8 *dest)
@@ -632,7 +638,63 @@ static void fetch_register_operand(struct operand *op)
 	}
 }
 
-static void decode_register_operand(struct operand *op,
+static void read_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data, int reg)
+{
+	ctxt->ops->get_fpu(ctxt);
+	switch (reg) {
+	case 0: asm("movdqu %%xmm0, %0" : "=m"(*data)); break;
+	case 1: asm("movdqu %%xmm1, %0" : "=m"(*data)); break;
+	case 2: asm("movdqu %%xmm2, %0" : "=m"(*data)); break;
+	case 3: asm("movdqu %%xmm3, %0" : "=m"(*data)); break;
+	case 4: asm("movdqu %%xmm4, %0" : "=m"(*data)); break;
+	case 5: asm("movdqu %%xmm5, %0" : "=m"(*data)); break;
+	case 6: asm("movdqu %%xmm6, %0" : "=m"(*data)); break;
+	case 7: asm("movdqu %%xmm7, %0" : "=m"(*data)); break;
+#ifdef CONFIG_X86_64
+	case 8: asm("movdqu %%xmm8, %0" : "=m"(*data)); break;
+	case 9: asm("movdqu %%xmm9, %0" : "=m"(*data)); break;
+	case 10: asm("movdqu %%xmm10, %0" : "=m"(*data)); break;
+	case 11: asm("movdqu %%xmm11, %0" : "=m"(*data)); break;
+	case 12: asm("movdqu %%xmm12, %0" : "=m"(*data)); break;
+	case 13: asm("movdqu %%xmm13, %0" : "=m"(*data)); break;
+	case 14: asm("movdqu %%xmm14, %0" : "=m"(*data)); break;
+	case 15: asm("movdqu %%xmm15, %0" : "=m"(*data)); break;
+#endif
+	default: BUG();
+	}
+	ctxt->ops->put_fpu(ctxt);
+}
+
+static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
+			  int reg)
+{
+	ctxt->ops->get_fpu(ctxt);
+	switch (reg) {
+	case 0: asm("movdqu %0, %%xmm0" : : "m"(*data)); break;
+	case 1: asm("movdqu %0, %%xmm1" : : "m"(*data)); break;
+	case 2: asm("movdqu %0, %%xmm2" : : "m"(*data)); break;
+	case 3: asm("movdqu %0, %%xmm3" : : "m"(*data)); break;
+	case 4: asm("movdqu %0, %%xmm4" : : "m"(*data)); break;
+	case 5: asm("movdqu %0, %%xmm5" : : "m"(*data)); break;
+	case 6: asm("movdqu %0, %%xmm6" : : "m"(*data)); break;
+	case 7: asm("movdqu %0, %%xmm7" : : "m"(*data)); break;
+#ifdef CONFIG_X86_64
+	case 8: asm("movdqu %0, %%xmm8" : : "m"(*data)); break;
+	case 9: asm("movdqu %0, %%xmm9" : : "m"(*data)); break;
+	case 10: asm("movdqu %0, %%xmm10" : : "m"(*data)); break;
+	case 11: asm("movdqu %0, %%xmm11" : : "m"(*data)); break;
+	case 12: asm("movdqu %0, %%xmm12" : : "m"(*data)); break;
+	case 13: asm("movdqu %0, %%xmm13" : : "m"(*data)); break;
+	case 14: asm("movdqu %0, %%xmm14" : : "m"(*data)); break;
+	case 15: asm("movdqu %0, %%xmm15" : : "m"(*data)); break;
+#endif
+	default: BUG();
+	}
+	ctxt->ops->put_fpu(ctxt);
+}
+
+static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
+				    struct operand *op,
 				    struct decode_cache *c,
 				    int inhibit_bytereg)
 {
@@ -641,6 +703,15 @@ static void decode_register_operand(struct operand *op,
 
 	if (!(c->d & ModRM))
 		reg = (c->b & 7) | ((c->rex_prefix & 1) << 3);
+
+	if (c->d & Sse) {
+		op->type = OP_XMM;
+		op->bytes = 16;
+		op->addr.xmm = reg;
+		read_sse_reg(ctxt, &op->vec_val, reg);
+		return;
+	}
+
 	op->type = OP_REG;
 	if ((c->d & ByteOp) && !inhibit_bytereg) {
 		op->addr.reg = decode_register(reg, c->regs, highbyte_regs);
@@ -680,6 +751,13 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		op->bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		op->addr.reg = decode_register(c->modrm_rm,
 					       c->regs, c->d & ByteOp);
+		if (c->d & Sse) {
+			op->type = OP_XMM;
+			op->bytes = 16;
+			op->addr.xmm = c->modrm_rm;
+			read_sse_reg(ctxt, &op->vec_val, c->modrm_rm);
+			return rc;
+		}
 		fetch_register_operand(op);
 		return rc;
 	}
@@ -1106,6 +1184,9 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 					ctxt->vcpu);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
+		break;
+	case OP_XMM:
+		write_sse_reg(ctxt, &c->dst.vec_val, c->dst.addr.xmm);
 		break;
 	case OP_NONE:
 		/* no writeback */
@@ -2785,6 +2866,9 @@ done_prefixes:
 			c->op_bytes = 4;
 	}
 
+	if (c->d & Sse)
+		c->op_bytes = 16;
+
 	/* ModRM and SIB bytes. */
 	if (c->d & ModRM) {
 		rc = decode_modrm(ctxt, ops, &memop);
@@ -2814,7 +2898,7 @@ done_prefixes:
 	case SrcNone:
 		break;
 	case SrcReg:
-		decode_register_operand(&c->src, c, 0);
+		decode_register_operand(ctxt, &c->src, c, 0);
 		break;
 	case SrcMem16:
 		memop.bytes = 2;
@@ -2905,7 +2989,7 @@ done_prefixes:
 	/* Decode and fetch the destination operand: register or memory. */
 	switch (c->d & DstMask) {
 	case DstReg:
-		decode_register_operand(&c->dst, c,
+		decode_register_operand(ctxt, &c->dst, c,
 			 c->twobyte && (c->b == 0xb6 || c->b == 0xb7));
 		break;
 	case DstImmUByte:
@@ -2998,6 +3082,18 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	if ((c->d & SrcMask) == SrcMemFAddr && c->src.type != OP_MEM) {
 		rc = emulate_ud(ctxt);
+		goto done;
+	}
+
+	if ((c->d & Sse)
+	    && ((ops->get_cr(0, ctxt->vcpu) & X86_CR0_EM)
+		|| !(ops->get_cr(4, ctxt->vcpu) & X86_CR4_OSFXSR))) {
+		rc = emulate_ud(ctxt);
+		goto done;
+	}
+
+	if ((c->d & Sse) && (ops->get_cr(0, ctxt->vcpu) & X86_CR0_TS)) {
+		rc = emulate_nm(ctxt);
 		goto done;
 	}
 
