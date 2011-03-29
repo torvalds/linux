@@ -214,6 +214,8 @@ struct rk29_camera_dev
 	struct clk *hclk_disp_matrix;
 	struct clk *vip_matrix;
 
+	struct clk *pd_display;
+
     void __iomem *base;
 	void __iomem *grf_base;
     int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
@@ -617,8 +619,8 @@ static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera
 
     RK29CAMERA_DG("%s..%d.. \n",__FUNCTION__,__LINE__);
     if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
-		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus ||
-		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) ||
+		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus || !pcdev->pd_display ||
+		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) || IS_ERR(pcdev->pd_display) ||
 		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip_out) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
 
         RK29CAMERA_TR(KERN_ERR "failed to get vip_clk(axi) source\n");
@@ -631,6 +633,8 @@ static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera
         RK29CAMERA_TR(KERN_ERR "failed to get vip_clk(ahb) source\n");
         goto RK29_CAMERA_ACTIVE_ERR;
     }
+
+	clk_enable(pcdev->pd_display);
 
 	clk_enable(pcdev->aclk_ddr_lcdc);
 	clk_enable(pcdev->aclk_disp_matrix);
@@ -713,6 +717,8 @@ static void rk29_camera_deactivate(struct rk29_camera_dev *pcdev)
 
 	clk_disable(pcdev->aclk_ddr_lcdc);
 	clk_disable(pcdev->aclk_disp_matrix);
+
+	clk_disable(pcdev->pd_display);
     return;
 }
 
@@ -1484,9 +1490,11 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	pcdev->hclk_disp_matrix = clk_get(&pdev->dev,"hclk_disp_matrix");
 	pcdev->vip_matrix = clk_get(&pdev->dev,"vip_matrix");
 
+	pcdev->pd_display = clk_get(&pdev->dev,"pd_display");
+
     if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
-		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus ||
-		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) ||
+		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus || !pcdev->pd_display ||
+		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) || IS_ERR(pcdev->pd_display) ||
 		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip_out) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
 
         RK29CAMERA_TR(KERN_ERR "failed to get vip_clk(axi) source\n");
