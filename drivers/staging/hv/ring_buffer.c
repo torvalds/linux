@@ -372,20 +372,12 @@ int ringbuffer_write(struct hv_ring_buffer_info *outring_info,
 				&bytes_avail_toread,
 				&bytes_avail_towrite);
 
-	DPRINT_DBG(VMBUS, "Writing %u bytes...", totalbytes_towrite);
-
 	/* Dumpring_info(Outring_info, "BEFORE "); */
 
 	/* If there is only room for the packet, assume it is full. */
 	/* Otherwise, the next time around, we think the ring buffer */
 	/* is empty since the read index == write index */
 	if (bytes_avail_towrite <= totalbytes_towrite) {
-		DPRINT_DBG(VMBUS,
-			"No more space left on outbound ring buffer "
-			"(needed %u, avail %u)",
-			totalbytes_towrite,
-			bytes_avail_towrite);
-
 		spin_unlock_irqrestore(&outring_info->ring_lock, flags);
 		return -1;
 	}
@@ -499,18 +491,10 @@ int ringbuffer_read(struct hv_ring_buffer_info *inring_info, void *buffer,
 				&bytes_avail_toread,
 				&bytes_avail_towrite);
 
-	DPRINT_DBG(VMBUS, "Reading %u bytes...", buflen);
-
 	/* Dumpring_info(Inring_info, "BEFORE "); */
 
 	/* Make sure there is something to read */
 	if (bytes_avail_toread < buflen) {
-		DPRINT_DBG(VMBUS,
-			"got callback but not enough to read "
-			"<avail to read %d read size %d>!!",
-			bytes_avail_toread,
-			buflen);
-
 		spin_unlock_irqrestore(&inring_info->ring_lock, flags);
 
 		return -1;
@@ -568,8 +552,6 @@ copyto_ringbuffer(
 
 	/* wrap-around detected! */
 	if (srclen > ring_buffer_size - start_write_offset) {
-		DPRINT_DBG(VMBUS, "wrap-around detected!");
-
 		frag_len = ring_buffer_size - start_write_offset;
 		memcpy(ring_buffer + start_write_offset, src, frag_len);
 		memcpy(ring_buffer, src + frag_len, srclen - frag_len);
@@ -607,8 +589,6 @@ copyfrom_ringbuffer(
 
 	/* wrap-around detected at the src */
 	if (destlen > ring_buffer_size - start_read_offset) {
-		DPRINT_DBG(VMBUS, "src wrap-around detected!");
-
 		frag_len = ring_buffer_size - start_read_offset;
 
 		memcpy(dest, ring_buffer + start_read_offset, frag_len);

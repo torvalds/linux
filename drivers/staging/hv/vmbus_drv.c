@@ -245,21 +245,6 @@ static int vmbus_uevent(struct device *device, struct kobj_uevent_env *env)
 	struct hv_device *dev = device_to_hv_device(device);
 	int ret;
 
-	DPRINT_INFO(VMBUS_DRV, "generating uevent - VMBUS_DEVICE_CLASS_GUID={"
-		    "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-		    "%02x%02x%02x%02x%02x%02x%02x%02x}",
-		    dev->dev_type.data[3], dev->dev_type.data[2],
-		    dev->dev_type.data[1], dev->dev_type.data[0],
-		    dev->dev_type.data[5], dev->dev_type.data[4],
-		    dev->dev_type.data[7], dev->dev_type.data[6],
-		    dev->dev_type.data[8], dev->dev_type.data[9],
-		    dev->dev_type.data[10],
-		    dev->dev_type.data[11],
-		    dev->dev_type.data[12],
-		    dev->dev_type.data[13],
-		    dev->dev_type.data[14],
-		    dev->dev_type.data[15]);
-
 	ret = add_uevent_var(env, "VMBUS_DEVICE_CLASS_GUID={"
 			     "%02x%02x%02x%02x-%02x%02x-%02x%02x-"
 			     "%02x%02x%02x%02x%02x%02x%02x%02x}",
@@ -323,10 +308,6 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 		   sizeof(struct hv_guid)) == 0) {
 
 		device_ctx->drv = drv->priv;
-		DPRINT_INFO(VMBUS_DRV,
-			    "device object (%p) set to driver object (%p)",
-			    &device_ctx,
-			    device_ctx->drv);
 
 		match = 1;
 	}
@@ -539,22 +520,16 @@ static int vmbus_on_isr(void)
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be process */
-	if (msg->header.message_type != HVMSG_NONE) {
-		DPRINT_DBG(VMBUS, "received msg type %d size %d",
-				msg->header.message_type,
-				msg->header.payload_size);
+	if (msg->header.message_type != HVMSG_NONE)
 		ret |= 0x1;
-	}
 
 	/* TODO: Check if there are events to be process */
 	page_addr = hv_context.synic_event_page[cpu];
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
-	if (test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
-		DPRINT_DBG(VMBUS, "received event %d", event->flags32[0]);
+	if (test_and_clear_bit(0, (unsigned long *) &event->flags32[0]))
 		ret |= 0x2;
-	}
 
 	return ret;
 }
@@ -593,18 +568,6 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 {
 	int ret;
 	unsigned int vector;
-
-	DPRINT_INFO(VMBUS, "+++++++ HV Driver version = %s +++++++",
-		    HV_DRV_VERSION);
-	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
-			VMBUS_REVISION_NUMBER);
-	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
-			VMBUS_MESSAGE_SINT);
-	DPRINT_DBG(VMBUS, "sizeof(vmbus_channel_packet_page_buffer)=%zd, "
-			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
-			sizeof(struct vmbus_channel_packet_page_buffer),
-			sizeof(struct vmbus_channel_packet_multipage_buffer));
-
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
@@ -646,8 +609,6 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	}
 
 	vector = IRQ0_VECTOR + pdev->irq;
-	DPRINT_INFO(VMBUS_DRV, "irq 0x%x vector 0x%x", pdev->irq,
-			vector);
 
 	/*
 	 * Notify the hypervisor of our irq and
@@ -761,25 +722,6 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 		return NULL;
 	}
 
-	DPRINT_DBG(VMBUS_DRV, "child device (%p) allocated - "
-		"type {%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-		"%02x%02x%02x%02x%02x%02x%02x%02x},"
-		"id {%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-		"%02x%02x%02x%02x%02x%02x%02x%02x}",
-		&child_device_obj->device,
-		type->data[3], type->data[2], type->data[1], type->data[0],
-		type->data[5], type->data[4], type->data[7], type->data[6],
-		type->data[8], type->data[9], type->data[10], type->data[11],
-		type->data[12], type->data[13], type->data[14], type->data[15],
-		instance->data[3], instance->data[2],
-		instance->data[1], instance->data[0],
-		instance->data[5], instance->data[4],
-		instance->data[7], instance->data[6],
-		instance->data[8], instance->data[9],
-		instance->data[10], instance->data[11],
-		instance->data[12], instance->data[13],
-		instance->data[14], instance->data[15]);
-
 	child_device_obj->channel = channel;
 	memcpy(&child_device_obj->dev_type, type, sizeof(struct hv_guid));
 	memcpy(&child_device_obj->dev_instance, instance,
@@ -797,9 +739,6 @@ int vmbus_child_device_register(struct hv_device *child_device_obj)
 	int ret = 0;
 
 	static atomic_t device_num = ATOMIC_INIT(0);
-
-	DPRINT_DBG(VMBUS_DRV, "child device (%p) registering",
-		   child_device_obj);
 
 	/* Set the device name. Otherwise, device_register() will fail. */
 	dev_set_name(&child_device_obj->device, "vmbus_0_%d",
@@ -835,10 +774,6 @@ int vmbus_child_device_register(struct hv_device *child_device_obj)
  */
 void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
-
-	DPRINT_INFO(VMBUS_DRV, "unregistering child device (%p)",
-		    &device_obj->device);
-
 	/*
 	 * Kick off the process of unregistering the device.
 	 * This will call vmbus_remove() and eventually vmbus_device_release()

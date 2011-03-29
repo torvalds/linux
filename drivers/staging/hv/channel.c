@@ -213,9 +213,6 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 
 	/* Establish the gpadl for the ring buffer */
-	DPRINT_DBG(VMBUS, "Establishing ring buffer's gpadl for channel %p...",
-		   newchannel);
-
 	newchannel->ringbuffer_gpadlhandle = 0;
 
 	ret = vmbus_establish_gpadl(newchannel,
@@ -228,16 +225,6 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		err = ret;
 		goto errorout;
 	}
-
-	DPRINT_DBG(VMBUS, "channel %p <relid %d gpadl 0x%x send ring %p "
-		   "size %d recv ring %p size %d, downstreamoffset %d>",
-		   newchannel, newchannel->offermsg.child_relid,
-		   newchannel->ringbuffer_gpadlhandle,
-		   newchannel->outbound.ring_buffer,
-		   newchannel->outbound.ring_size,
-		   newchannel->inbound.ring_buffer,
-		   newchannel->inbound.ring_size,
-		   send_ringbuffer_size);
 
 	/* Create and init the channel open message */
 	openInfo = kmalloc(sizeof(*openInfo) +
@@ -272,14 +259,11 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		      &vmbus_connection.chn_msg_list);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	DPRINT_DBG(VMBUS, "Sending channel open msg...");
-
 	ret = vmbus_post_msg(openMsg,
 			       sizeof(struct vmbus_channel_open_channel));
-	if (ret != 0) {
-		DPRINT_ERR(VMBUS, "unable to open channel - %d", ret);
+
+	if (ret != 0)
 		goto Cleanup;
-	}
 
 	openInfo->wait_condition = 0;
 	wait_event_timeout(openInfo->waitevent,
@@ -291,11 +275,8 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	}
 
 
-	if (openInfo->response.open_result.status == 0)
-		DPRINT_INFO(VMBUS, "channel <%p> open success!!", newchannel);
-	else
-		DPRINT_INFO(VMBUS, "channel <%p> open failed - %d!!",
-			    newchannel, openInfo->response.open_result.status);
+	if (openInfo->response.open_result.status)
+		err = openInfo->response.open_result.status;
 
 Cleanup:
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
@@ -303,7 +284,7 @@ Cleanup:
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	kfree(openInfo);
-	return 0;
+	return err;
 
 errorout:
 	ringbuffer_cleanup(&newchannel->outbound);
@@ -326,6 +307,7 @@ static void dump_gpadl_body(struct vmbus_channel_gpadl_body *gpadl, u32 len)
 
 	pfncount = (len - sizeof(struct vmbus_channel_gpadl_body)) /
 		   sizeof(u64);
+
 	DPRINT_DBG(VMBUS, "gpadl body - len %d pfn count %d", len, pfncount);
 
 	for (i = 0; i < pfncount; i++)
@@ -530,19 +512,12 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 		      &vmbus_connection.chn_msg_list);
 
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
-	DPRINT_DBG(VMBUS, "buffer %p, size %d msg cnt %d",
-		   kbuffer, size, msgcount);
-
-	DPRINT_DBG(VMBUS, "Sending GPADL Header - len %zd",
-		   msginfo->msgsize - sizeof(*msginfo));
 
 	msginfo->wait_condition = 0;
 	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
 			       sizeof(*msginfo));
-	if (ret != 0) {
-		DPRINT_ERR(VMBUS, "Unable to open channel - %d", ret);
+	if (ret != 0)
 		goto Cleanup;
-	}
 
 	if (msgcount > 1) {
 		list_for_each(curr, &msginfo->submsglist) {
@@ -555,10 +530,6 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 			gpadl_body->header.msgtype =
 				CHANNELMSG_GPADL_BODY;
 			gpadl_body->gpadl = next_gpadl_handle;
-
-			DPRINT_DBG(VMBUS, "Sending GPADL Body - len %zd",
-				   submsginfo->msgsize -
-				   sizeof(*submsginfo));
 
 			dump_gpadl_body(gpadl_body, submsginfo->msgsize -
 				      sizeof(*submsginfo));
@@ -577,12 +548,6 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 
 	/* At this point, we received the gpadl created msg */
-	DPRINT_DBG(VMBUS, "Received GPADL created "
-		   "(relid %d, status %d handle %x)",
-		   channel->offermsg.child_relid,
-		   msginfo->response.gpadl_created.creation_status,
-		   gpadlmsg->gpadl);
-
 	*gpadl_handle = gpadlmsg->gpadl;
 
 Cleanup:
@@ -730,9 +695,6 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	u64 aligned_data = 0;
 	int ret;
 
-	DPRINT_DBG(VMBUS, "channel %p buffer %p len %d",
-		   channel, buffer, bufferlen);
-
 	dump_vmbus_channel(channel);
 
 	/* ASSERT((packetLenAligned - packetLen) < sizeof(u64)); */
@@ -846,10 +808,6 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 
 	dump_vmbus_channel(channel);
 
-	DPRINT_DBG(VMBUS, "data buffer - offset %u len %u pfn count %u",
-		multi_pagebuffer->offset,
-		multi_pagebuffer->len, pfncount);
-
 	if ((pfncount < 0) || (pfncount > MAX_MULTIPAGE_BUFFER_COUNT))
 		return -EINVAL;
 
@@ -926,8 +884,6 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 			     sizeof(struct vmpacket_descriptor));
 	if (ret != 0) {
 		spin_unlock_irqrestore(&channel->inbound_lock, flags);
-
-		/* DPRINT_DBG(VMBUS, "nothing to read!!"); */
 		return 0;
 	}
 
@@ -936,11 +892,6 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	packetlen = desc.len8 << 3;
 	userlen = packetlen - (desc.offset8 << 3);
 	/* ASSERT(userLen > 0); */
-
-	DPRINT_DBG(VMBUS, "packet received on channel %p relid %d <type %d "
-		   "flag %d tid %llx pktlen %d datalen %d> ",
-		   channel, channel->offermsg.child_relid, desc.type,
-		   desc.flags, desc.trans_id, packetlen, userlen);
 
 	*buffer_actual_len = userlen;
 
@@ -986,8 +937,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 			     sizeof(struct vmpacket_descriptor));
 	if (ret != 0) {
 		spin_unlock_irqrestore(&channel->inbound_lock, flags);
-
-		/* DPRINT_DBG(VMBUS, "nothing to read!!"); */
 		return 0;
 	}
 
@@ -995,11 +944,6 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 
 	packetlen = desc.len8 << 3;
 	userlen = packetlen - (desc.offset8 << 3);
-
-	DPRINT_DBG(VMBUS, "packet received on channel %p relid %d <type %d "
-		   "flag %d tid %llx pktlen %d datalen %d> ",
-		   channel, channel->offermsg.child_relid, desc.type,
-		   desc.flags, desc.trans_id, packetlen, userlen);
 
 	*buffer_actual_len = packetlen;
 
