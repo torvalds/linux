@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/if_ether.h>
-
+#include <linux/netdevice.h>
 #include "logging.h"
 #include "hv_api.h"
 #include "netvsc_api.h"
@@ -294,10 +294,11 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 			memcpy(&request->response_msg, resp,
 			       resp->msg_len);
 		} else {
-			DPRINT_ERR(NETVSC, "rndis response buffer overflow "
-				  "detected (size %u max %zu)",
-				  resp->msg_len,
-				  sizeof(struct rndis_filter_packet));
+			dev_err(&dev->net_dev->dev->device,
+				"rndis response buffer overflow "
+				"detected (size %u max %zu)\n",
+				resp->msg_len,
+				sizeof(struct rndis_filter_packet));
 
 			if (resp->ndis_msg_type ==
 			    REMOTE_NDIS_RESET_CMPLT) {
@@ -314,10 +315,11 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 		request->wait_condition = 1;
 		wake_up(&request->wait_event);
 	} else {
-		DPRINT_ERR(NETVSC, "no rndis request found for this response "
-			   "(id 0x%x res type 0x%x)",
-			   resp->msg.init_complete.req_id,
-			   resp->ndis_msg_type);
+		dev_err(&dev->net_dev->dev->device,
+			"no rndis request found for this response "
+			"(id 0x%x res type 0x%x)\n",
+			resp->msg.init_complete.req_id,
+			resp->ndis_msg_type);
 	}
 }
 
@@ -380,15 +382,15 @@ static int rndis_filter_receive(struct hv_device *dev,
 
 	/* Make sure the rndis device state is initialized */
 	if (!net_dev->extension) {
-		DPRINT_ERR(NETVSC, "got rndis message but no rndis device..."
-			  "dropping this message!");
+		dev_err(&dev->device, "got rndis message but no rndis device - "
+			  "dropping this message!\n");
 		return -1;
 	}
 
 	rndis_dev = (struct rndis_device *)net_dev->extension;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
-		DPRINT_ERR(NETVSC, "got rndis message but rndis device "
-			   "uninitialized...dropping this message!");
+		dev_err(&dev->device, "got rndis message but rndis device "
+			   "uninitialized...dropping this message!\n");
 		return -1;
 	}
 
@@ -409,8 +411,8 @@ static int rndis_filter_receive(struct hv_device *dev,
 		kunmap_atomic(rndis_hdr - pkt->page_buf[0].offset,
 			      KM_IRQ0);
 
-		DPRINT_ERR(NETVSC, "invalid rndis message? (expected %u "
-			   "bytes got %u)...dropping this message!",
+		dev_err(&dev->device, "invalid rndis message? (expected %u "
+			   "bytes got %u)...dropping this message!\n",
 			   rndis_hdr->msg_len,
 			   pkt->total_data_buflen);
 		return -1;
@@ -419,8 +421,8 @@ static int rndis_filter_receive(struct hv_device *dev,
 
 	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
 	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
-		DPRINT_ERR(NETVSC, "incoming rndis message buffer overflow "
-			   "detected (got %u, max %zu)...marking it an error!",
+		dev_err(&dev->device, "incoming rndis message buffer overflow "
+			   "detected (got %u, max %zu)..marking it an error!\n",
 			   rndis_hdr->msg_len,
 			   sizeof(struct rndis_message));
 	}
@@ -452,7 +454,8 @@ static int rndis_filter_receive(struct hv_device *dev,
 		rndis_filter_receive_indicate_status(rndis_dev, &rndis_msg);
 		break;
 	default:
-		DPRINT_ERR(NETVSC, "unhandled rndis message (type %u len %u)",
+		dev_err(&dev->device,
+			"unhandled rndis message (type %u len %u)\n",
 			   rndis_msg.ndis_msg_type,
 			   rndis_msg.msg_len);
 		break;
@@ -575,7 +578,8 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 		msecs_to_jiffies(2000));
 	if (request->wait_condition == 0) {
 		ret = -1;
-		DPRINT_ERR(NETVSC, "timeout before we got a set response...");
+		dev_err(&dev->net_dev->dev->device,
+			"timeout before we got a set response...\n");
 		/*
 		 * We cant deallocate the request since we may still receive a
 		 * send completion for it.
@@ -789,16 +793,15 @@ static int rndis_filte_device_add(struct hv_device *dev,
 		 */
 	}
 
-	DPRINT_INFO(NETVSC, "Device 0x%p mac addr %pM",
-		    rndisDevice, rndisDevice->hw_mac_adr);
-
 	memcpy(deviceInfo->mac_adr, rndisDevice->hw_mac_adr, ETH_ALEN);
 
 	rndis_filter_query_device_link_status(rndisDevice);
 
 	deviceInfo->link_state = rndisDevice->link_stat;
-	DPRINT_INFO(NETVSC, "Device 0x%p link state %s", rndisDevice,
-		    ((deviceInfo->link_state) ? ("down") : ("up")));
+
+	dev_info(&dev->device, "Device MAC %pM link state %s",
+		 rndisDevice->hw_mac_adr,
+		 ((deviceInfo->link_state) ? ("down\n") : ("up\n")));
 
 	return ret;
 }
