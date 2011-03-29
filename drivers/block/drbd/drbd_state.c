@@ -1358,6 +1358,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 struct after_conn_state_chg_work {
 	struct drbd_work w;
 	enum drbd_conns oc;
+	union drbd_state ns_min;
 	union drbd_state ns_max; /* new, max state, over all mdevs */
 	enum chg_state_flags flags;
 };
@@ -1468,11 +1469,17 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union 
 	return rv;
 }
 
-static union drbd_state
+void
 conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
-	       enum chg_state_flags flags)
+	       union drbd_state *pns_min, union drbd_state *pns_max, enum chg_state_flags flags)
 {
-	union drbd_state ns, os, ms = { };
+	union drbd_state ns, os, ns_max = { };
+	union drbd_state ns_min = {
+		{ .role = R_MASK,
+		  .peer = R_MASK,
+		  .disk = D_MASK,
+		  .pdsk = D_MASK
+		} };
 	struct drbd_conf *mdev;
 	enum drbd_state_rv rv;
 	int vnr;
@@ -1492,13 +1499,26 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 		if (rv < SS_SUCCESS)
 			BUG();
 
-		ms.role = max_role(mdev->state.role, ms.role);
-		ms.peer = max_role(mdev->state.peer, ms.peer);
-		ms.disk = max_t(enum drbd_disk_state, mdev->state.disk, ms.disk);
-		ms.pdsk = max_t(enum drbd_disk_state, mdev->state.pdsk, ms.pdsk);
+		ns.i = mdev->state.i;
+		ns_max.role = max_role(ns.role, ns_max.role);
+		ns_max.peer = max_role(ns.peer, ns_max.peer);
+		ns_max.conn = max_t(enum drbd_conns, ns.conn, ns_max.conn);
+		ns_max.disk = max_t(enum drbd_disk_state, ns.disk, ns_max.disk);
+		ns_max.pdsk = max_t(enum drbd_disk_state, ns.pdsk, ns_max.pdsk);
+
+		ns_min.role = min_role(ns.role, ns_min.role);
+		ns_min.peer = min_role(ns.peer, ns_min.peer);
+		ns_min.conn = min_t(enum drbd_conns, ns.conn, ns_min.conn);
+		ns_min.disk = min_t(enum drbd_disk_state, ns.disk, ns_min.disk);
+		ns_min.pdsk = min_t(enum drbd_disk_state, ns.pdsk, ns_min.pdsk);
 	}
 
-	return ms;
+	ns_min.susp = ns_max.susp = tconn->susp;
+	ns_min.susp_nod = ns_max.susp_nod = tconn->susp_nod;
+	ns_min.susp_fen = ns_max.susp_fen = tconn->susp_fen;
+
+	*pns_min = ns_min;
+	*pns_max = ns_max;
 }
 
 static enum drbd_state_rv
@@ -1558,7 +1578,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	enum drbd_state_rv rv = SS_SUCCESS;
 	struct after_conn_state_chg_work *acscw;
 	enum drbd_conns oc = tconn->cstate;
-	union drbd_state ns_max, os;
+	union drbd_state ns_max, ns_min, os;
 
 	rv = is_valid_conn_transition(oc, val.conn);
 	if (rv < SS_SUCCESS)
@@ -1576,13 +1596,13 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	}
 
 	conn_old_common_state(tconn, &os, &flags);
-	ns_max = conn_set_state(tconn, mask, val, flags);
-	ns_max.conn = val.conn;
+	conn_set_state(tconn, mask, val, &ns_min, &ns_max, flags);
 	conn_pr_state_change(tconn, os, ns_max, flags);
 
 	acscw = kmalloc(sizeof(*acscw), GFP_ATOMIC);
 	if (acscw) {
 		acscw->oc = os.conn;
+		acscw->ns_min = ns_min;
 		acscw->ns_max = ns_max;
 		acscw->flags = flags;
 		acscw->w.cb = w_after_conn_state_ch;
