@@ -2878,6 +2878,17 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj)
 	if (obj->pages == NULL)
 		return;
 
+	/* If the GPU is snooping the contents of the CPU cache,
+	 * we do not need to manually clear the CPU cache lines.  However,
+	 * the caches are only snooped when the render cache is
+	 * flushed/invalidated.  As we always have to emit invalidations
+	 * and flushes when moving into and out of the RENDER domain, correct
+	 * snooping behaviour occurs naturally as the result of our domain
+	 * tracking.
+	 */
+	if (obj->cache_level != I915_CACHE_NONE)
+		return;
+
 	trace_i915_gem_object_clflush(obj);
 
 	drm_clflush_pages(obj->pages, obj->base.size / PAGE_SIZE);
