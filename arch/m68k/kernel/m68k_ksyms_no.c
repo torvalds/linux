@@ -42,15 +42,3 @@ EXPORT_SYMBOL(__mulsi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
 
-#ifdef CONFIG_COLDFIRE
-extern unsigned int *dma_device_address;
-extern unsigned long dma_base_addr, _ramend;
-EXPORT_SYMBOL(dma_base_addr);
-EXPORT_SYMBOL(dma_device_address);
-EXPORT_SYMBOL(_ramend);
-
-extern asmlinkage void trap(void);
-extern void	*_ramvec;
-EXPORT_SYMBOL(trap);
-EXPORT_SYMBOL(_ramvec);
-#endif /* CONFIG_COLDFIRE */
