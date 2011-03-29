@@ -73,7 +73,6 @@ static struct irq_chip frv_fpga_pic = {
 	.mask		= frv_fpga_mask,
 	.mask_ack	= frv_fpga_mask_ack,
 	.unmask		= frv_fpga_unmask,
-	.end		= frv_fpga_end,
 };
 
 /*
