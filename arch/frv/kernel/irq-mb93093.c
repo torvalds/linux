@@ -124,7 +124,7 @@ void __init fpga_init(void)
 	__clr_IFR(0x0000);
 
 	for (irq = IRQ_BASE_FPGA + 8; irq <= IRQ_BASE_FPGA + 10; irq++)
-		set_irq_chip_and_handler(irq, &frv_fpga_pic, handle_edge_irq);
+		irq_set_chip_and_handler(irq, &frv_fpga_pic, handle_edge_irq);
 
 	/* the FPGA drives external IRQ input #2 on the CPU PIC */
 	setup_irq(IRQ_CPU_EXTERNAL2, &fpga_irq[0]);

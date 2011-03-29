@@ -156,10 +156,10 @@ void __init init_IRQ(void)
 	int level;
 
 	for (level = 1; level <= 14; level++)
-		set_irq_chip_and_handler(level, &frv_cpu_pic,
+		irq_set_chip_and_handler(level, &frv_cpu_pic,
 					 handle_level_irq);
 
-	set_irq_handler(IRQ_CPU_TIMER0, handle_edge_irq);
+	irq_set_handler(IRQ_CPU_TIMER0, handle_edge_irq);
 
 	/* set the trigger levels for internal interrupt sources
 	 * - timers all falling-edge
