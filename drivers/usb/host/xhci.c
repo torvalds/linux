@@ -2546,6 +2546,17 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	virt_dev = xhci->devs[udev->slot_id];
 
+	if (WARN_ON(!virt_dev)) {
+		/*
+		 * In plug/unplug torture test with an NEC controller,
+		 * a zero-dereference was observed once due to virt_dev = 0.
+		 * Print useful debug rather than crash if it is observed again!
+		 */
+		xhci_warn(xhci, "Virt dev invalid for slot_id 0x%x!\n",
+			udev->slot_id);
+		return -EINVAL;
+	}
+
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
 	/*
 	 * If this is the first Set Address since device plug-in or
