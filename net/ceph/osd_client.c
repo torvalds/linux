@@ -837,8 +837,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 			dout("moving osd to %p lru\n", req->r_osd);
 			__move_osd_to_lru(osdc, req->r_osd);
 		}
-		if (list_empty(&req->r_osd_item) &&
-		    list_empty(&req->r_linger_item))
+		if (list_empty(&req->r_linger_item))
 			req->r_osd = NULL;
 	}
 
@@ -883,7 +882,8 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 			dout("moving osd to %p lru\n", req->r_osd);
 			__move_osd_to_lru(osdc, req->r_osd);
 		}
-		req->r_osd = NULL;
+		if (list_empty(&req->r_osd_item))
+			req->r_osd = NULL;
 	}
 }
 
