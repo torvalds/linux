@@ -366,8 +366,7 @@ list_set_head(struct ip_set *set, struct sk_buff *skb)
 	NLA_PUT_NET32(skb, IPSET_ATTR_SIZE, htonl(map->size));
 	if (with_timeout(map->timeout))
 		NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT, htonl(map->timeout));
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES,
-		      htonl(atomic_read(&set->ref) - 1));
+	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
 	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE,
 		      htonl(sizeof(*map) + map->size * map->dsize));
 	ipset_nest_end(skb, nested);
@@ -457,8 +456,7 @@ list_set_gc(unsigned long ul_set)
 	struct list_set *map = set->data;
 	struct set_telem *e;
 	u32 i;
-	
-	/* nfnl_lock should be called */
+
 	write_lock_bh(&set->lock);
 	for (i = 0; i < map->size; i++) {
 		e = list_set_telem(map, i);
