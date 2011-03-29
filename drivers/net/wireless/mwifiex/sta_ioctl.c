@@ -404,7 +404,7 @@ static int mwifiex_bss_ioctl_start(struct mwifiex_private *priv,
 	if (!ssid_bssid)
 		return -1;
 
-	if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA) {
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 		/* Infra mode */
 		ret = mwifiex_deauthenticate(priv, NULL, NULL);
 		if (ret)
@@ -413,11 +413,11 @@ static int mwifiex_bss_ioctl_start(struct mwifiex_private *priv,
 		/* Search for the requested SSID in the scan table */
 		if (ssid_bssid->ssid.ssid_len)
 			i = mwifiex_find_ssid_in_list(priv, &ssid_bssid->ssid,
-						NULL, MWIFIEX_BSS_MODE_INFRA);
+						NULL, NL80211_IFTYPE_STATION);
 		else
 			i = mwifiex_find_bssid_in_list(priv,
 						(u8 *) &ssid_bssid->bssid,
-						MWIFIEX_BSS_MODE_INFRA);
+						NL80211_IFTYPE_STATION);
 		if (i < 0)
 			return -1;
 
@@ -451,11 +451,11 @@ static int mwifiex_bss_ioctl_start(struct mwifiex_private *priv,
 		if (ssid_bssid->ssid.ssid_len)
 			i = mwifiex_find_ssid_in_list(priv,
 						      &ssid_bssid->ssid, NULL,
-						      MWIFIEX_BSS_MODE_IBSS);
+						      NL80211_IFTYPE_ADHOC);
 		else
 			i = mwifiex_find_bssid_in_list(priv,
 						       (u8 *)&ssid_bssid->bssid,
-						       MWIFIEX_BSS_MODE_IBSS);
+						       NL80211_IFTYPE_ADHOC);
 
 		if (i >= 0) {
 			dev_dbg(adapter->dev, "info: network found in scan"
@@ -1021,50 +1021,6 @@ int mwifiex_bss_ioctl_channel(struct mwifiex_private *priv, u16 action,
 }
 
 /*
- * IOCTL request handler to set/get BSS mode.
- *
- * This function prepares the correct firmware command and
- * issues it to set or get the BSS mode.
- *
- * In case the mode is changed, a deauthentication is performed
- * first by the function automatically.
- */
-int mwifiex_bss_ioctl_mode(struct mwifiex_private *priv,
-			   struct mwifiex_wait_queue *wait,
-			   u16 action, int *mode)
-{
-	int ret = 0;
-
-	if (!mode)
-		return -1;
-
-	if (action == HostCmd_ACT_GEN_GET) {
-		*mode = priv->bss_mode;
-		return 0;
-	}
-
-	if ((priv->bss_mode == *mode) || (*mode == MWIFIEX_BSS_MODE_AUTO)) {
-		dev_dbg(priv->adapter->dev,
-			"info: Already set to required mode! No change!\n");
-		priv->bss_mode = *mode;
-		return 0;
-	}
-
-	ret = mwifiex_deauthenticate(priv, wait, NULL);
-
-	priv->sec_info.authentication_mode = MWIFIEX_AUTH_MODE_OPEN;
-	priv->bss_mode = *mode;
-	if (priv->bss_mode != MWIFIEX_BSS_MODE_AUTO) {
-		ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
-					  HostCmd_ACT_GEN_SET, 0, wait, NULL);
-		if (!ret)
-			ret = -EINPROGRESS;
-	}
-
-	return ret;
-}
-
-/*
  * IOCTL request handler to set/get Ad-Hoc channel.
  *
  * This function prepares the correct firmware command and
@@ -1234,33 +1190,6 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 done:
 	kfree(wait);
 	return ret;
-}
-
-/*
- * IOCTL request handler to get current driver mode.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- */
-int
-mwifiex_drv_get_mode(struct mwifiex_private *priv, u8 wait_option)
-{
-	struct mwifiex_wait_queue *wait = NULL;
-	int status = 0;
-	int mode = -1;
-
-	/* Allocate wait buffer */
-	wait = mwifiex_alloc_fill_wait_queue(priv, wait_option);
-	if (!wait)
-		return -1;
-
-	status = mwifiex_bss_ioctl_mode(priv, wait, HostCmd_ACT_GEN_GET, &mode);
-
-	status = mwifiex_request_ioctl(priv, wait, status, wait_option);
-
-	if (wait && (status != -EINPROGRESS))
-		kfree(wait);
-	return mode;
 }
 
 /*
@@ -1780,7 +1709,7 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_adapter *adapter,
 		return -1;
 	}
 
-	if (priv->bss_mode == MWIFIEX_BSS_MODE_IBSS) {
+	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * IBSS/WPA-None uses only one key (Group) for both receiving
 		 * and sending unicast and multicast packets.

@@ -82,7 +82,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	priv->is_data_rate_auto = true;
 	priv->data_rate = 0;
 
-	if (priv->bss_mode == MWIFIEX_BSS_MODE_IBSS) {
+	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		priv->adhoc_state = ADHOC_IDLE;
 		priv->adhoc_is_link_sensed = false;
 	}

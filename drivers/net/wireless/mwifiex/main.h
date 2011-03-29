@@ -877,7 +877,7 @@ mwifiex_queuing_ra_based(struct mwifiex_private *priv)
 	 * Currently we assume if we are in Infra, then DA=RA. This might not be
 	 * true in the future
 	 */
-	if ((priv->bss_mode == MWIFIEX_BSS_MODE_INFRA) &&
+	if ((priv->bss_mode == NL80211_IFTYPE_STATION) &&
 	    (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA))
 		return false;
 
@@ -1003,8 +1003,6 @@ int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
 int mwifiex_change_adhoc_chan(struct mwifiex_private *priv, int channel);
 int mwifiex_set_radio(struct mwifiex_private *priv, u8 option);
 
-int mwifiex_drv_get_mode(struct mwifiex_private *priv, u8 wait_option);
-
 int mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel);
 
 int mwifiex_set_encode(struct mwifiex_private *priv, const u8 *key,
@@ -1043,9 +1041,6 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv, int type, int dbm);
 
 int mwifiex_main_process(struct mwifiex_adapter *);
 
-int mwifiex_bss_ioctl_mode(struct mwifiex_private *,
-			   struct mwifiex_wait_queue *,
-			   u16 action, int *mode);
 int mwifiex_bss_ioctl_channel(struct mwifiex_private *,
 			      u16 action,
 			      struct mwifiex_chan_freq_power *cfp);

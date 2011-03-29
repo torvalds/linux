@@ -1089,10 +1089,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	case HostCmd_CMD_SET_BSS_MODE:
 		cmd_ptr->command = cpu_to_le16(cmd_no);
-		if (priv->bss_mode == MWIFIEX_BSS_MODE_IBSS)
+		if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_ADHOC;
-		else if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA)
+		else if (priv->bss_mode == NL80211_IFTYPE_STATION)
 			cmd_ptr->params.bss_mode.con_type =
 				CONNECTION_TYPE_INFRA;
 		cmd_ptr->size = cpu_to_le16(sizeof(struct

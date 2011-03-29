@@ -66,12 +66,6 @@ struct mwifiex_scan_resp {
 	u8 *scan_table;
 };
 
-enum {
-	MWIFIEX_BSS_MODE_INFRA = 1,
-	MWIFIEX_BSS_MODE_IBSS,
-	MWIFIEX_BSS_MODE_AUTO
-};
-
 #define MWIFIEX_PROMISC_MODE            1
 #define MWIFIEX_MULTICAST_MODE		2
 #define	MWIFIEX_ALL_MULTI_MODE		4

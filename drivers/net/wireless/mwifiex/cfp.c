@@ -288,8 +288,7 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 {
 	u32 k = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA) {
-		/* Infra. mode */
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 		switch (adapter->config_bands) {
 		case BAND_B:
 			dev_dbg(adapter->dev, "info: infra band=%d "

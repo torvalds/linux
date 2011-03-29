@@ -455,8 +455,8 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv, u32 index, u32 mode)
 	bss_desc->disable_11n = false;
 
 	/* Don't check for compatibility if roaming */
-	if (priv->media_connected && (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA)
-	    && (bss_desc->bss_mode == MWIFIEX_BSS_MODE_INFRA))
+	if (priv->media_connected && (priv->bss_mode == NL80211_IFTYPE_STATION)
+	    && (bss_desc->bss_mode == NL80211_IFTYPE_STATION))
 		return index;
 
 	if (priv->wps.session_enable) {
@@ -573,8 +573,8 @@ mwifiex_find_best_network_in_list(struct mwifiex_private *priv)
 
 	for (i = 0; i < adapter->num_in_scan_table; i++) {
 		switch (mode) {
-		case MWIFIEX_BSS_MODE_INFRA:
-		case MWIFIEX_BSS_MODE_IBSS:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
 			if (mwifiex_is_network_compatible(priv, i, mode) >= 0) {
 				if (SCAN_RSSI(adapter->scan_table[i].rssi) >
 				    best_rssi) {
@@ -584,7 +584,7 @@ mwifiex_find_best_network_in_list(struct mwifiex_private *priv)
 				}
 			}
 			break;
-		case MWIFIEX_BSS_MODE_AUTO:
+		case NL80211_IFTYPE_UNSPECIFIED:
 		default:
 			if (SCAN_RSSI(adapter->scan_table[i].rssi) >
 			    best_rssi) {
@@ -1314,9 +1314,9 @@ mwifiex_interpret_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 	}
 
 	if (bss_entry->cap_info_bitmap & WLAN_CAPABILITY_IBSS)
-		bss_entry->bss_mode = MWIFIEX_BSS_MODE_IBSS;
+		bss_entry->bss_mode = NL80211_IFTYPE_ADHOC;
 	else
-		bss_entry->bss_mode = MWIFIEX_BSS_MODE_INFRA;
+		bss_entry->bss_mode = NL80211_IFTYPE_STATION;
 
 
 	/* Process variable IE */
@@ -2251,8 +2251,7 @@ mwifiex_scan_delete_ssid_table_entry(struct mwifiex_private *priv,
 	   searching the table for multiple entires for the SSID until no
 	   more are found */
 	while ((table_idx = mwifiex_find_ssid_in_list(priv, del_ssid, NULL,
-						      MWIFIEX_BSS_MODE_AUTO)) >=
-	       0) {
+					NL80211_IFTYPE_UNSPECIFIED)) >= 0) {
 		dev_dbg(priv->adapter->dev,
 			"info: Scan: Delete SSID Entry: Found Idx = %d\n",
 		       table_idx);
@@ -2746,8 +2745,8 @@ mwifiex_find_ssid_in_list(struct mwifiex_private *priv,
 		     (priv, (u8) adapter->scan_table[i].bss_band,
 		      (u16) adapter->scan_table[i].channel))) {
 			switch (mode) {
-			case MWIFIEX_BSS_MODE_INFRA:
-			case MWIFIEX_BSS_MODE_IBSS:
+			case NL80211_IFTYPE_STATION:
+			case NL80211_IFTYPE_ADHOC:
 				j = mwifiex_is_network_compatible(priv, i,
 								  mode);
 
@@ -2765,7 +2764,7 @@ mwifiex_find_ssid_in_list(struct mwifiex_private *priv,
 						net = j;
 				}
 				break;
-			case MWIFIEX_BSS_MODE_AUTO:
+			case NL80211_IFTYPE_UNSPECIFIED:
 			default:
 				/*
 				 * Do not check compatibility if the mode
@@ -2829,8 +2828,8 @@ mwifiex_find_bssid_in_list(struct mwifiex_private *priv, u8 *bssid,
 							    scan_table[i].
 							    channel)) {
 			switch (mode) {
-			case MWIFIEX_BSS_MODE_INFRA:
-			case MWIFIEX_BSS_MODE_IBSS:
+			case NL80211_IFTYPE_STATION:
+			case NL80211_IFTYPE_ADHOC:
 				net = mwifiex_is_network_compatible(priv, i,
 								    mode);
 				break;
@@ -2881,7 +2880,7 @@ int mwifiex_find_best_network(struct mwifiex_private *priv,
 		       (u8 *) &req_bss->mac_address, ETH_ALEN);
 
 		/* Make sure we are in the right mode */
-		if (priv->bss_mode == MWIFIEX_BSS_MODE_AUTO)
+		if (priv->bss_mode == NL80211_IFTYPE_UNSPECIFIED)
 			priv->bss_mode = req_bss->bss_mode;
 	}
 

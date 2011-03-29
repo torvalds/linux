@@ -109,7 +109,7 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv,
 	memset(&mcs[rx_mcs_supp], 0,
 			sizeof(struct ieee80211_mcs_info) - rx_mcs_supp);
 
-	if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA ||
+	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
 			(ht_cap_info & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
@@ -418,7 +418,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 	}
 
 	if (bss_desc->bcn_ht_info) {
-		if (priv->bss_mode == MWIFIEX_BSS_MODE_IBSS) {
+		if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 			ht_info = (struct mwifiex_ie_types_htinfo *) *buffer;
 			memset(ht_info, 0,
 			       sizeof(struct mwifiex_ie_types_htinfo));

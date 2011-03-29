@@ -65,7 +65,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 			if (le16_to_cpu(pm->action) == EN_AUTO_PS &&
 				(le16_to_cpu(pm->params.auto_ps.ps_bitmap) &
 				 BITMAP_STA_PS)
-				&& priv->bss_mode == MWIFIEX_BSS_MODE_IBSS)
+				&& priv->bss_mode == NL80211_IFTYPE_ADHOC)
 				adapter->ps_mode =
 					MWIFIEX_802_11_POWER_MODE_CAM;
 		}

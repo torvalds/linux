@@ -808,7 +808,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 
 	/* Set the BSS mode */
 	adhoc_start->bss_mode = HostCmd_BSS_MODE_IBSS;
-	bss_desc->bss_mode = MWIFIEX_BSS_MODE_IBSS;
+	bss_desc->bss_mode = NL80211_IFTYPE_ADHOC;
 	adhoc_start->beacon_period = cpu_to_le16(priv->beacon_period);
 	bss_desc->beacon_period = priv->beacon_period;
 
@@ -1289,8 +1289,8 @@ int mwifiex_associate(struct mwifiex_private *priv,
 	u8 current_bssid[ETH_ALEN];
 
 	/* Return error if the adapter or table entry is not marked as infra */
-	if ((priv->bss_mode != MWIFIEX_BSS_MODE_INFRA) ||
-	    (bss_desc->bss_mode != MWIFIEX_BSS_MODE_INFRA))
+	if ((priv->bss_mode != NL80211_IFTYPE_STATION) ||
+	    (bss_desc->bss_mode != NL80211_IFTYPE_STATION))
 		return -1;
 
 	memcpy(&current_bssid,
@@ -1358,7 +1358,7 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 	    !mwifiex_ssid_cmp(&bss_desc->ssid,
 			      &priv->curr_bss_params.bss_descriptor.ssid) &&
 	    (priv->curr_bss_params.bss_descriptor.bss_mode ==
-	     MWIFIEX_BSS_MODE_IBSS)) {
+							NL80211_IFTYPE_ADHOC)) {
 		dev_dbg(priv->adapter->dev, "info: ADHOC_J_CMD: new ad-hoc SSID"
 			" is the same as current; not attempting to re-join\n");
 		return -1;
@@ -1421,9 +1421,9 @@ int mwifiex_deauthenticate(struct mwifiex_private *priv,
 	int ret = 0;
 
 	if (priv->media_connected) {
-		if (priv->bss_mode == MWIFIEX_BSS_MODE_INFRA) {
+		if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 			ret = mwifiex_deauthenticate_infra(priv, wait, mac);
-		} else if (priv->bss_mode == MWIFIEX_BSS_MODE_IBSS) {
+		} else if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 			ret = mwifiex_prepare_cmd(priv,
 					HostCmd_CMD_802_11_AD_HOC_STOP,
 					HostCmd_ACT_GEN_SET, 0, wait, NULL);
