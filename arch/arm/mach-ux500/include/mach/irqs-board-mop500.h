@@ -50,6 +50,11 @@
 
 #define MOP500_IRQ_END		MOP500_NR_IRQS
 
+/*
+ * We may have several boards, but only one will run at a
+ * time, so the one with most IRQs will bump this ahead,
+ * but the IRQ_BOARD_START remains the same for either board.
+ */
 #if MOP500_IRQ_END > IRQ_BOARD_END
 #undef IRQ_BOARD_END
 #define IRQ_BOARD_END	MOP500_IRQ_END
