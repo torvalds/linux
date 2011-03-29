@@ -6627,6 +6627,9 @@ static void intel_setup_outputs(struct drm_device *dev)
 	}
 
 	intel_panel_setup_backlight(dev);
+
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
 }
 
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
@@ -7573,12 +7576,11 @@ void intel_modeset_init(struct drm_device *dev)
 		intel_crtc_init(dev, i);
 	}
 
+	/* Just disable it once at startup */
+	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
 
 	intel_enable_clock_gating(dev);
-
-	/* Just disable it once at startup */
-	i915_disable_vga(dev);
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
@@ -7588,12 +7590,15 @@ void intel_modeset_init(struct drm_device *dev)
 	if (IS_GEN6(dev))
 		gen6_enable_rps(dev_priv);
 
-	if (IS_IRONLAKE_M(dev))
-		ironlake_enable_rc6(dev);
-
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,
 		    (unsigned long)dev);
+}
+
+void intel_modeset_gem_init(struct drm_device *dev)
+{
+	if (IS_IRONLAKE_M(dev))
+		ironlake_enable_rc6(dev);
 
 	intel_setup_overlay(dev);
 }
