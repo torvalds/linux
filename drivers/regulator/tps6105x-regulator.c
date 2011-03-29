@@ -158,6 +158,7 @@ static int __devinit tps6105x_regulator_probe(struct platform_device *pdev)
 			"failed to register regulator\n");
 		return ret;
 	}
+	platform_set_drvdata(pdev, tps6105x);
 
 	return 0;
 }
