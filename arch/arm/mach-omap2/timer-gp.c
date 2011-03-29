@@ -45,10 +45,33 @@
 
 #include "timer-gp.h"
 
+/* Parent clocks, eventually these will come from the clock framework */
+
+#define OMAP2_MPU_SOURCE	"sys_ck"
+#define OMAP3_MPU_SOURCE	OMAP2_MPU_SOURCE
+#define OMAP4_MPU_SOURCE	"sys_clkin_ck"
+#define OMAP2_32K_SOURCE	"func_32k_ck"
+#define OMAP3_32K_SOURCE	"omap_32k_fck"
+#define OMAP4_32K_SOURCE	"sys_32k_ck"
+
+#ifdef CONFIG_OMAP_32K_TIMER
+#define OMAP2_CLKEV_SOURCE	OMAP2_32K_SOURCE
+#define OMAP3_CLKEV_SOURCE	OMAP3_32K_SOURCE
+#define OMAP4_CLKEV_SOURCE	OMAP4_32K_SOURCE
+#define OMAP3_SECURE_TIMER	12
+#else
+#define OMAP2_CLKEV_SOURCE	OMAP2_MPU_SOURCE
+#define OMAP3_CLKEV_SOURCE	OMAP3_MPU_SOURCE
+#define OMAP4_CLKEV_SOURCE	OMAP4_MPU_SOURCE
+#define OMAP3_SECURE_TIMER	1
+#endif
 
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
 
+/* Clockevent code */
+
+static struct omap_dm_timer clkev;
 static struct omap_dm_timer *gptimer;
 static struct clock_event_device clockevent_gpt;
 static u8 __initdata gptimer_id = 1;
@@ -57,10 +80,9 @@ struct omap_dm_timer *gptimer_wakeup;
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
-	struct omap_dm_timer *gpt = (struct omap_dm_timer *)dev_id;
 	struct clock_event_device *evt = &clockevent_gpt;
 
-	omap_dm_timer_write_status(gpt, OMAP_TIMER_INT_OVERFLOW);
+	__omap_dm_timer_write_status(clkev.io_base, OMAP_TIMER_INT_OVERFLOW);
 
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
@@ -75,7 +97,8 @@ static struct irqaction omap2_gp_timer_irq = {
 static int omap2_gp_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
-	omap_dm_timer_set_load_start(gptimer, 0, 0xffffffff - cycles);
+	__omap_dm_timer_load_start(clkev.io_base, OMAP_TIMER_CTRL_ST,
+						0xffffffff - cycles, 1);
 
 	return 0;
 }
@@ -85,13 +108,18 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 {
 	u32 period;
 
-	omap_dm_timer_stop(gptimer);
+	__omap_dm_timer_stop(clkev.io_base, 1, clkev.rate);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		period = clk_get_rate(omap_dm_timer_get_fclk(gptimer)) / HZ;
+		period = clkev.rate / HZ;
 		period -= 1;
-		omap_dm_timer_set_load_start(gptimer, 1, 0xffffffff - period);
+		/* Looks like we need to first set the load value separately */
+		__omap_dm_timer_write(clkev.io_base, OMAP_TIMER_LOAD_REG,
+					0xffffffff - period, 1);
+		__omap_dm_timer_load_start(clkev.io_base,
+					OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
+						0xffffffff - period, 1);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -130,43 +158,89 @@ int __init omap2_gp_clockevent_set_gptimer(u8 id)
 	return 0;
 }
 
-static void __init omap2_gp_clockevent_init(void)
+static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
+						int gptimer_id,
+						const char *fck_source)
 {
-	u32 tick_rate;
-	int src;
-	char clockevent_hwmod_name[8]; /* 8 = sizeof("timerXX0") */
+	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
+	struct omap_hwmod *oh;
+	size_t size;
+	int res = 0;
 
-	inited = 1;
+	sprintf(name, "timer%d", gptimer_id);
+	omap_hwmod_setup_one(name);
+	oh = omap_hwmod_lookup(name);
+	if (!oh)
+		return -ENODEV;
 
-	sprintf(clockevent_hwmod_name, "timer%d", gptimer_id);
-	omap_hwmod_setup_one(clockevent_hwmod_name);
+	timer->irq = oh->mpu_irqs[0].irq;
+	timer->phys_base = oh->slaves[0]->addr->pa_start;
+	size = oh->slaves[0]->addr->pa_end - timer->phys_base;
+
+	/* Static mapping, never released */
+	timer->io_base = ioremap(timer->phys_base, size);
+	if (!timer->io_base)
+		return -ENXIO;
+
+	/* After the dmtimer is using hwmod these clocks won't be needed */
+	sprintf(name, "gpt%d_fck", gptimer_id);
+	timer->fclk = clk_get(NULL, name);
+	if (IS_ERR(timer->fclk))
+		return -ENODEV;
+
+	sprintf(name, "gpt%d_ick", gptimer_id);
+	timer->iclk = clk_get(NULL, name);
+	if (IS_ERR(timer->iclk)) {
+		clk_put(timer->fclk);
+		return -ENODEV;
+	}
+
+	omap_hwmod_enable(oh);
+
+	if (gptimer_id != 12) {
+		struct clk *src;
+
+		src = clk_get(NULL, fck_source);
+		if (IS_ERR(src)) {
+			res = -EINVAL;
+		} else {
+			res = __omap_dm_timer_set_source(timer->fclk, src);
+			if (IS_ERR_VALUE(res))
+				pr_warning("%s: timer%i cannot set source\n",
+						__func__, gptimer_id);
+			clk_put(src);
+		}
+	}
+	__omap_dm_timer_reset(timer->io_base, 1, 1);
+	timer->posted = 1;
+
+	timer->rate = clk_get_rate(timer->fclk);
+
+	timer->reserved = 1;
 
 	gptimer = omap_dm_timer_request_specific(gptimer_id);
 	BUG_ON(gptimer == NULL);
 	gptimer_wakeup = gptimer;
 
-#if defined(CONFIG_OMAP_32K_TIMER)
-	src = OMAP_TIMER_SRC_32_KHZ;
-#else
-	src = OMAP_TIMER_SRC_SYS_CLK;
-	WARN(gptimer_id == 12, "WARNING: GPTIMER12 can only use the "
-	     "secure 32KiHz clock source\n");
-#endif
+	return res;
+}
 
-	if (gptimer_id != 12)
-		WARN(IS_ERR_VALUE(omap_dm_timer_set_source(gptimer, src)),
-		     "timer-gp: omap_dm_timer_set_source() failed\n");
+static void __init omap2_gp_clockevent_init(int gptimer_id,
+						const char *fck_source)
+{
+	int res;
 
-	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gptimer));
+	inited = 1;
 
-	pr_info("OMAP clockevent source: GPTIMER%d at %u Hz\n",
-		gptimer_id, tick_rate);
+	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source);
+	BUG_ON(res);
 
 	omap2_gp_timer_irq.dev_id = (void *)gptimer;
-	setup_irq(omap_dm_timer_get_irq(gptimer), &omap2_gp_timer_irq);
-	omap_dm_timer_set_int_enable(gptimer, OMAP_TIMER_INT_OVERFLOW);
+	setup_irq(clkev.irq, &omap2_gp_timer_irq);
 
-	clockevent_gpt.mult = div_sc(tick_rate, NSEC_PER_SEC,
+	__omap_dm_timer_int_enable(clkev.io_base, OMAP_TIMER_INT_OVERFLOW);
+
+	clockevent_gpt.mult = div_sc(clkev.rate, NSEC_PER_SEC,
 				     clockevent_gpt.shift);
 	clockevent_gpt.max_delta_ns =
 		clockevent_delta2ns(0xffffffff, &clockevent_gpt);
@@ -176,6 +250,9 @@ static void __init omap2_gp_clockevent_init(void)
 
 	clockevent_gpt.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_gpt);
+
+	pr_info("OMAP clockevent source: GPTIMER%d at %lu Hz\n",
+		gptimer_id, clkev.rate);
 }
 
 /* Clocksource code */
@@ -247,11 +324,11 @@ static void __init omap2_gp_clocksource_init(void)
 }
 #endif
 
-#define OMAP_SYS_TIMER_INIT(name)					\
+#define OMAP_SYS_TIMER_INIT(name, clkev_nr, clkev_src)			\
 static void __init omap##name##_timer_init(void)			\
 {									\
 	omap_dm_timer_init();						\
-	omap2_gp_clockevent_init();					\
+	omap2_gp_clockevent_init((clkev_nr), clkev_src);		\
 	omap2_gp_clocksource_init();					\
 }
 
@@ -261,14 +338,14 @@ struct sys_timer omap##name##_timer = {					\
 };
 
 #ifdef CONFIG_ARCH_OMAP2
-OMAP_SYS_TIMER_INIT(2)
+OMAP_SYS_TIMER_INIT(2, 1, OMAP2_CLKEV_SOURCE)
 OMAP_SYS_TIMER(2)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-OMAP_SYS_TIMER_INIT(3)
+OMAP_SYS_TIMER_INIT(3, 1, OMAP3_CLKEV_SOURCE)
 OMAP_SYS_TIMER(3)
-OMAP_SYS_TIMER_INIT(3_secure)
+OMAP_SYS_TIMER_INIT(3_secure, OMAP3_SECURE_TIMER, OMAP3_CLKEV_SOURCE)
 OMAP_SYS_TIMER(3_secure)
 #endif
 
@@ -280,7 +357,7 @@ static void __init omap4_timer_init(void)
 	BUG_ON(!twd_base);
 #endif
 	omap_dm_timer_init();
-	omap2_gp_clockevent_init();
+	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
 	omap2_gp_clocksource_init();
 }
 OMAP_SYS_TIMER(4)

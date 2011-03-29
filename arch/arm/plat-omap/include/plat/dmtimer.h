@@ -216,6 +216,7 @@ struct omap_dm_timer {
 	struct clk *iclk, *fclk;
 #endif
 	void __iomem *io_base;
+	unsigned long rate;
 	unsigned reserved:1;
 	unsigned enabled:1;
 	unsigned posted:1;
