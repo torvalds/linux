@@ -56,21 +56,24 @@ struct omap_vc_common {
 
 /**
  * struct omap_vc_channel - VC per-instance data
+ * @i2c_slave_addr: I2C slave address of PMIC for this VC channel
  * @common: pointer to VC common data for this platform
- * @smps_sa_mask: SA* bitmask in the PRM_VC_SMPS_SA register
+ * @smps_sa_mask: i2c slave address bitmask in the PRM_VC_SMPS_SA register
  * @smps_volra_mask: VOLRA* bitmask in the PRM_VC_VOL_RA register
- * @smps_sa_shift: SA* field shift in the PRM_VC_SMPS_SA register
  * @smps_volra_shift: VOLRA* field shift in the PRM_VC_VOL_RA register
  *
  * XXX It is not necessary to have both a *_mask and a *_shift -
  *     remove one
  */
 struct omap_vc_channel {
+	/* channel state */
+	u16 i2c_slave_addr;
+
+	/* register access data */
 	const struct omap_vc_common *common;
 	u32 smps_sa_mask;
 	u32 smps_volra_mask;
 	u8 cmdval_reg;
-	u8 smps_sa_shift;
 	u8 smps_volra_shift;
 };
 

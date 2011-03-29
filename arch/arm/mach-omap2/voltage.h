@@ -102,6 +102,7 @@ struct omap_volt_data {
  * struct omap_volt_pmic_info - PMIC specific data required by voltage driver.
  * @slew_rate:	PMIC slew rate (in uv/us)
  * @step_size:	PMIC voltage step size (in uv)
+ * @i2c_slave_addr: I2C slave address of PMIC
  * @vsel_to_uv:	PMIC API to convert vsel value to actual voltage in uV.
  * @uv_to_vsel:	PMIC API to convert voltage in uV to vsel value.
  * @volt_reg_addr: voltage configuration register address
@@ -115,13 +116,13 @@ struct omap_volt_pmic_info {
 	u32 ret_volt;
 	u32 off_volt;
 	u16 volt_setup_time;
+	u16 i2c_slave_addr;
 	u8 vp_erroroffset;
 	u8 vp_vstepmin;
 	u8 vp_vstepmax;
 	u8 vp_vddmin;
 	u8 vp_vddmax;
 	u8 vp_timeout_us;
-	u8 i2c_slave_addr;
 	u8 volt_reg_addr;
 	u8 cmd_reg_addr;
 	unsigned long (*vsel_to_uv) (const u8 vsel);

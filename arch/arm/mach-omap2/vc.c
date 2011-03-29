@@ -241,11 +241,13 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 		return;
 	}
 
-	/* Set up the SMPS_SA(i2c slave address in VC */
-	vc_val = voltdm->read(vc->common->smps_sa_reg);
-	vc_val &= ~vc->smps_sa_mask;
-	vc_val |= vdd->pmic_info->i2c_slave_addr << vc->smps_sa_shift;
-	voltdm->write(vc_val, vc->common->smps_sa_reg);
+	/* get PMIC/board specific settings */
+	vc->i2c_slave_addr = vdd->pmic_info->i2c_slave_addr;
+
+	/* Configure the i2c slave address for this VC */
+	voltdm->rmw(vc->smps_sa_mask,
+		    vc->i2c_slave_addr << __ffs(vc->smps_sa_mask),
+		    vc->common->smps_sa_reg);
 
 	/* Setup the VOLRA(pmic reg addr) in VC */
 	vc_val = voltdm->read(vc->common->smps_volra_reg);
