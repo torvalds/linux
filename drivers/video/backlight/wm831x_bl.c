@@ -28,18 +28,19 @@ struct wm831x_backlight_data {
 	struct wm831x *wm831x;
 	int isink_reg;
 	int current_brightness;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct 	early_suspend early_suspend;
+	struct delayed_work work;
+	int suspend_flag;
+#endif
 };
 #define TS_POLL_DELAY (10000*1000*1000)
-int suspend_flag = 0;
 int wm831x_bright = 0;
 int max_tp = 0;
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static struct backlight_device *wm831x_bl;
-static struct timer_list wm831x_timer;
-static struct wm831x_backlight_data *wm831x_data;
-static struct wm831x *gpwm831x;
+static struct backlight_device *gwm831x_bl;
+static struct wm831x_backlight_data *gwm831x_data;
 #endif
-struct hrtimer wm831x_bl_timer;
 static int wm831x_backlight_set(struct backlight_device *bl, int brightness)
 {
 	struct wm831x_backlight_data *data = bl_get_data(bl);
@@ -115,8 +116,10 @@ err:
 static int wm831x_backlight_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
-	if (suspend_flag == 1)
+
+	if(gwm831x_data->suspend_flag == 1)
 		brightness = 0;
+		
 	if (bl->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
 
@@ -125,7 +128,9 @@ static int wm831x_backlight_update_status(struct backlight_device *bl)
 
 	if (bl->props.state & BL_CORE_SUSPENDED)
 		brightness = 0;
-	
+
+	printk("backlight brightness=%d\n", brightness);
+
 	return wm831x_backlight_set(bl, brightness);
 }
 
@@ -135,39 +140,39 @@ static int wm831x_backlight_get_brightness(struct backlight_device *bl)
 	return data->current_brightness;
 }
 
-static const struct backlight_ops wm831x_backlight_ops = {
+static struct backlight_ops wm831x_backlight_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.update_status	= wm831x_backlight_update_status,
 	.get_brightness	= wm831x_backlight_get_brightness,
 };
-static void wm831x_delaybacklight_timer(unsigned long data)
-{
-
-      wm831x_backlight_update_status(wm831x_bl);
-}
 #ifdef CONFIG_HAS_EARLYSUSPEND
+static void wm831x_bl_work(struct work_struct *work)
+{
+	//struct wm831x_backlight_data *wm831x_data = container_of(work, struct wm831x_backlight_data,
+						   //work.work);
+	backlight_update_status(gwm831x_bl);
+}
+
 static void wm831x_bl_suspend(struct early_suspend *h)
 {
-	suspend_flag = 1;
-	wm831x_delaybacklight_timer(NULL);
+	struct wm831x_backlight_data *wm831x_data;
+	wm831x_data = container_of(h, struct wm831x_backlight_data, early_suspend);
+	wm831x_data->suspend_flag = 1;
+
+	schedule_delayed_work(&wm831x_data->work, msecs_to_jiffies(100));		
 }
 
 
 static void wm831x_bl_resume(struct early_suspend *h)
 {
-//	wm831x_timer.expires  = jiffies + 30;
-//	add_timer(&wm831x_timer);
-	suspend_flag = 0;
-	wm831x_delaybacklight_timer(NULL);
+	struct wm831x_backlight_data *wm831x_data;
+	wm831x_data = container_of(h, struct wm831x_backlight_data, early_suspend);
+	wm831x_data->suspend_flag = 0;
+	
+	schedule_delayed_work(&wm831x_data->work, msecs_to_jiffies(100));
 }
 
-static struct early_suspend bl_early_suspend;
 #endif
-static enum hrtimer_restart wm831x_bl_timer_fuction(struct hrtimer *handle)
-{
-	backlight_update_status(wm831x_bl);
-	return HRTIMER_NORESTART;
-}
 static int wm831x_backlight_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
@@ -177,7 +182,6 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	struct backlight_device *bl;
 	struct backlight_properties props;
 	int ret, i, max_isel, isink_reg, dcdc_cfg;
-	
 
 	/* We need platform data */
 	if (pdev->dev.parent->platform_data) {
@@ -239,40 +243,40 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	if (data == NULL)
 		return -ENOMEM;
 
-	data->wm831x = gpwm831x = wm831x;
+	data->wm831x = wm831x;
 	data->current_brightness = 0;
 	data->isink_reg = isink_reg;
-	
+
 	props.max_brightness = max_isel;
-	//bl = backlight_device_register("wm831x", &pdev->dev, data,
-	//			       &wm831x_backlight_ops, &props);
-	wm831x_bl = bl = backlight_device_register("wm831x", &pdev->dev, data,
+	bl = backlight_device_register("wm831x", &pdev->dev, data,
 				       &wm831x_backlight_ops);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);
 		return PTR_ERR(bl);
 	}
-    setup_timer(&wm831x_timer, wm831x_delaybacklight_timer, NULL);
 
 	bl->props.brightness = BL_SET;
 	bl->props.max_brightness= BL_SET;
-	wm831x_set_bits(wm831x, WM831X_DCDC_ENABLE, WM831X_DC4_ENA, 0);
+
 	platform_set_drvdata(pdev, bl);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	bl_early_suspend.suspend = wm831x_bl_suspend;
-	bl_early_suspend.resume = wm831x_bl_resume;
-	bl_early_suspend.level = ~0x0;
-	register_early_suspend(&bl_early_suspend);
+#ifdef CONFIG_HAS_EARLYSUSPEND	
+	data->early_suspend.level = ~0x0;
+	data->early_suspend.suspend = wm831x_bl_suspend;
+	data->early_suspend.resume = wm831x_bl_resume;
+	register_early_suspend(&data->early_suspend);
+	INIT_DELAYED_WORK(&data->work, wm831x_bl_work);
+	gwm831x_bl = bl;
+	gwm831x_data = data;
 #endif
-	hrtimer_init(&wm831x_bl_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	wm831x_bl_timer.function = wm831x_bl_timer_fuction;
-	hrtimer_start(&wm831x_bl_timer, ktime_set(0, TS_POLL_DELAY),
-					HRTIMER_MODE_REL);
+
+
 	/* Disable the DCDC if it was started so we can bootstrap */
-	
+	wm831x_set_bits(wm831x, WM831X_DCDC_ENABLE, WM831X_DC4_ENA, 0);
+
 	//backlight_update_status(bl);
+	schedule_delayed_work(&data->work, msecs_to_jiffies(100));
 
 	return 0;
 }
@@ -284,7 +288,7 @@ static int wm831x_backlight_remove(struct platform_device *pdev)
 
 	backlight_device_unregister(bl);
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&bl_early_suspend);
+	unregister_early_suspend(&data->early_suspend);
 #endif 
 	kfree(data);
 	return 0;
