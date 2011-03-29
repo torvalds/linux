@@ -95,35 +95,35 @@ int show_interrupts(struct seq_file *p, void *v)
 /*
  * on-CPU PIC operations
  */
-static void frv_cpupic_ack(unsigned int irqlevel)
+static void frv_cpupic_ack(struct irq_data *d)
 {
-	__clr_RC(irqlevel);
+	__clr_RC(d->irq);
 	__clr_IRL();
 }
 
-static void frv_cpupic_mask(unsigned int irqlevel)
+static void frv_cpupic_mask(struct irq_data *d)
 {
-	__set_MASK(irqlevel);
+	__set_MASK(d->irq);
 }
 
-static void frv_cpupic_mask_ack(unsigned int irqlevel)
+static void frv_cpupic_mask_ack(struct irq_data *d)
 {
-	__set_MASK(irqlevel);
-	__clr_RC(irqlevel);
+	__set_MASK(d->irq);
+	__clr_RC(d->irq);
 	__clr_IRL();
 }
 
-static void frv_cpupic_unmask(unsigned int irqlevel)
+static void frv_cpupic_unmask(struct irq_data *d)
 {
-	__clr_MASK(irqlevel);
+	__clr_MASK(d->irq);
 }
 
 static struct irq_chip frv_cpu_pic = {
 	.name		= "cpu",
-	.ack		= frv_cpupic_ack,
-	.mask		= frv_cpupic_mask,
-	.mask_ack	= frv_cpupic_mask_ack,
-	.unmask		= frv_cpupic_unmask,
+	.irq_ack	= frv_cpupic_ack,
+	.irq_mask	= frv_cpupic_mask,
+	.irq_mask_ack	= frv_cpupic_mask_ack,
+	.irq_unmask	= frv_cpupic_unmask,
 };
 
 /*
