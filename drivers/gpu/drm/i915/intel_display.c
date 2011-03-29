@@ -5440,7 +5440,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			goto fail_locked;
 		}
 
-		ret = i915_gem_object_set_to_gtt_domain(obj, 0);
+		ret = i915_gem_object_set_to_display_plane(obj, NULL);
 		if (ret) {
 			DRM_ERROR("failed to move cursor bo into the GTT\n");
 			goto fail_unpin;

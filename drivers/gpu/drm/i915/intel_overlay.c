@@ -777,7 +777,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_object_set_to_gtt_domain(new_bo, 0);
+	ret = i915_gem_object_set_to_display_plane(new_bo, NULL);
 	if (ret != 0)
 		goto out_unpin;
 
