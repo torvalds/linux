@@ -175,6 +175,8 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->hid0); break;
 	case SPRN_HID1:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->hid1); break;
+	case SPRN_SVR:
+		kvmppc_set_gpr(vcpu, rt, vcpu_e500->svr); break;
 
 	case SPRN_MMUCSR0:
 		kvmppc_set_gpr(vcpu, rt, 0); break;
