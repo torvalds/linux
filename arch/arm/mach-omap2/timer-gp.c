@@ -72,11 +72,9 @@
 /* Clockevent code */
 
 static struct omap_dm_timer clkev;
-static struct omap_dm_timer *gptimer;
 static struct clock_event_device clockevent_gpt;
 static u8 __initdata gptimer_id = 1;
 static u8 __initdata inited;
-struct omap_dm_timer *gptimer_wakeup;
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
@@ -218,10 +216,6 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 	timer->reserved = 1;
 
-	gptimer = omap_dm_timer_request_specific(gptimer_id);
-	BUG_ON(gptimer == NULL);
-	gptimer_wakeup = gptimer;
-
 	return res;
 }
 
@@ -235,7 +229,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source);
 	BUG_ON(res);
 
-	omap2_gp_timer_irq.dev_id = (void *)gptimer;
+	omap2_gp_timer_irq.dev_id = (void *)&clkev;
 	setup_irq(clkev.irq, &omap2_gp_timer_irq);
 
 	__omap_dm_timer_int_enable(clkev.io_base, OMAP_TIMER_INT_OVERFLOW);
