@@ -109,12 +109,8 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 		return 0;
 	}
 
-	if (mc_header->processor_rev_id != equiv_cpu_id) {
-		printk(KERN_ERR	"microcode: CPU%d: patch mismatch "
-		       "(processor_rev_id: %x, equiv_cpu_id: %x)\n",
-		       cpu, mc_header->processor_rev_id, equiv_cpu_id);
+	if (mc_header->processor_rev_id != equiv_cpu_id)
 		return 0;
-	}
 
 	/* ucode might be chipset specific -- currently we don't support this */
 	if (mc_header->nb_dev_id || mc_header->sb_dev_id) {
@@ -184,9 +180,6 @@ get_next_ucode(const u8 *buf, unsigned int size, unsigned int *mc_size)
 	}
 
 	total_size = (unsigned long) (section_hdr[4] + (section_hdr[5] << 8));
-
-	printk(KERN_DEBUG "microcode: size %u, total_size %u\n",
-	       size, total_size);
 
 	if (total_size > size || total_size > UCODE_MAX_SIZE) {
 		printk(KERN_ERR "microcode: error: size mismatch\n");
