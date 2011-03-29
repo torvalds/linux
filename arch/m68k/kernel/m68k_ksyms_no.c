@@ -16,10 +16,6 @@
 #include <asm/checksum.h>
 #include <asm/current.h>
 
-/* platform dependent support */
-
-EXPORT_SYMBOL(kernel_thread);
-
 /*
  * libgcc functions - functions that are used internally by the
  * compiler...  (prototypes are not correct though, but that

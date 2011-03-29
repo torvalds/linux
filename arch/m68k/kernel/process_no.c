@@ -151,6 +151,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	set_fs(fs);
 	return retval;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 void flush_thread(void)
 {
