@@ -36,20 +36,16 @@ struct powerdomain;
 struct omap_vdd_info;
 
 /**
- * struct omap_vfsm_instance_data - per-voltage manager FSM register/bitfield
+ * struct omap_vfsm_instance - per-voltage manager FSM register/bitfield
  * data
  * @voltsetup_mask: SETUP_TIME* bitmask in the PRM_VOLTSETUP* register
  * @voltsetup_reg: register offset of PRM_VOLTSETUP from PRM base
- * @voltsetup_shift: SETUP_TIME* field shift in the PRM_VOLTSETUP* register
  *
  * XXX What about VOLTOFFSET/VOLTCTRL?
- * XXX It is not necessary to have both a _mask and a _shift for the same
- *     bitfield - remove one!
  */
-struct omap_vfsm_instance_data {
+struct omap_vfsm_instance {
 	u32 voltsetup_mask;
 	u8 voltsetup_reg;
-	u8 voltsetup_shift;
 };
 
 /**
@@ -70,6 +66,7 @@ struct voltagedomain {
 	struct list_head node;
 	struct list_head pwrdm_list;
 	struct omap_vc_channel *vc;
+	const struct omap_vfsm_instance *vfsm;
 
 	/* VC/VP register access functions: SoC specific */
 	u32 (*read) (u8 offset);
@@ -139,7 +136,6 @@ struct omap_volt_pmic_info {
  * @vp_data		: the register values, shifts, masks for various
  *			  vp registers
  * @vp_rt_data          : VP data derived at runtime, not predefined
- * @vfsm                : voltage manager FSM data
  * @debug_dir		: debug directory for this voltage domain.
  * @curr_volt		: current voltage for this vdd.
  * @vp_enabled		: flag to keep track of whether vp is enabled or not
@@ -150,7 +146,6 @@ struct omap_vdd_info {
 	struct omap_volt_pmic_info *pmic_info;
 	struct omap_vp_instance_data *vp_data;
 	struct omap_vp_runtime_data vp_rt_data;
-	const struct omap_vfsm_instance_data *vfsm;
 	struct dentry *debug_dir;
 	u32 curr_volt;
 	bool vp_enabled;

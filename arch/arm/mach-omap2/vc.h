@@ -61,6 +61,7 @@ struct omap_vc_common {
  * @i2c_slave_addr: I2C slave address of PMIC for this VC channel
  * @volt_reg_addr: voltage configuration register address
  * @cmd_reg_addr: command configuration register address
+ * @setup_time: setup time (in sys_clk cycles) of regulator for this channel
  * @common: pointer to VC common data for this platform
  * @smps_sa_mask: i2c slave address bitmask in the PRM_VC_SMPS_SA register
  * @smps_volra_mask: VOLRA* bitmask in the PRM_VC_VOL_RA register
@@ -72,6 +73,7 @@ struct omap_vc_channel {
 	u16 i2c_slave_addr;
 	u16 volt_reg_addr;
 	u16 cmd_reg_addr;
+	u16 setup_time;
 
 	/* register access data */
 	const struct omap_vc_common *common;

@@ -31,26 +31,22 @@
  * VDD data
  */
 
-static const struct omap_vfsm_instance_data omap3_vdd1_vfsm_data = {
+static const struct omap_vfsm_instance omap3_vdd1_vfsm = {
 	.voltsetup_reg = OMAP3_PRM_VOLTSETUP1_OFFSET,
-	.voltsetup_shift = OMAP3430_SETUP_TIME1_SHIFT,
 	.voltsetup_mask = OMAP3430_SETUP_TIME1_MASK,
 };
 
 static struct omap_vdd_info omap3_vdd1_info = {
 	.vp_data = &omap3_vp1_data,
-	.vfsm = &omap3_vdd1_vfsm_data,
 };
 
-static const struct omap_vfsm_instance_data omap3_vdd2_vfsm_data = {
+static const struct omap_vfsm_instance omap3_vdd2_vfsm = {
 	.voltsetup_reg = OMAP3_PRM_VOLTSETUP1_OFFSET,
-	.voltsetup_shift = OMAP3430_SETUP_TIME2_SHIFT,
 	.voltsetup_mask = OMAP3430_SETUP_TIME2_MASK,
 };
 
 static struct omap_vdd_info omap3_vdd2_info = {
 	.vp_data = &omap3_vp2_data,
-	.vfsm = &omap3_vdd2_vfsm_data,
 };
 
 static struct voltagedomain omap3_voltdm_mpu = {
@@ -60,6 +56,7 @@ static struct voltagedomain omap3_voltdm_mpu = {
 	.write = omap3_prm_vcvp_write,
 	.rmw = omap3_prm_vcvp_rmw,
 	.vc = &omap3_vc_mpu,
+	.vfsm = &omap3_vdd1_vfsm,
 	.vdd = &omap3_vdd1_info,
 };
 
@@ -70,6 +67,7 @@ static struct voltagedomain omap3_voltdm_core = {
 	.write = omap3_prm_vcvp_write,
 	.rmw = omap3_prm_vcvp_rmw,
 	.vc = &omap3_vc_core,
+	.vfsm = &omap3_vdd2_vfsm,
 	.vdd = &omap3_vdd2_info,
 };
 

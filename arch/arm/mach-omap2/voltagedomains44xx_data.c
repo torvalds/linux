@@ -32,31 +32,28 @@
 #include "vc.h"
 #include "vp.h"
 
-static const struct omap_vfsm_instance_data omap4_vdd_mpu_vfsm_data = {
+static const struct omap_vfsm_instance omap4_vdd_mpu_vfsm = {
 	.voltsetup_reg = OMAP4_PRM_VOLTSETUP_MPU_RET_SLEEP_OFFSET,
 };
 
 static struct omap_vdd_info omap4_vdd_mpu_info = {
 	.vp_data = &omap4_vp_mpu_data,
-	.vfsm = &omap4_vdd_mpu_vfsm_data,
 };
 
-static const struct omap_vfsm_instance_data omap4_vdd_iva_vfsm_data = {
+static const struct omap_vfsm_instance omap4_vdd_iva_vfsm = {
 	.voltsetup_reg = OMAP4_PRM_VOLTSETUP_IVA_RET_SLEEP_OFFSET,
 };
 
 static struct omap_vdd_info omap4_vdd_iva_info = {
 	.vp_data = &omap4_vp_iva_data,
-	.vfsm = &omap4_vdd_iva_vfsm_data,
 };
 
-static const struct omap_vfsm_instance_data omap4_vdd_core_vfsm_data = {
+static const struct omap_vfsm_instance omap4_vdd_core_vfsm = {
 	.voltsetup_reg = OMAP4_PRM_VOLTSETUP_CORE_RET_SLEEP_OFFSET,
 };
 
 static struct omap_vdd_info omap4_vdd_core_info = {
 	.vp_data = &omap4_vp_core_data,
-	.vfsm = &omap4_vdd_core_vfsm_data,
 };
 
 static struct voltagedomain omap4_voltdm_mpu = {
@@ -66,6 +63,7 @@ static struct voltagedomain omap4_voltdm_mpu = {
 	.write = omap4_prm_vcvp_write,
 	.rmw = omap4_prm_vcvp_rmw,
 	.vc = &omap4_vc_mpu,
+	.vfsm = &omap4_vdd_mpu_vfsm,
 	.vdd = &omap4_vdd_mpu_info,
 };
 
@@ -76,6 +74,7 @@ static struct voltagedomain omap4_voltdm_iva = {
 	.write = omap4_prm_vcvp_write,
 	.rmw = omap4_prm_vcvp_rmw,
 	.vc = &omap4_vc_iva,
+	.vfsm = &omap4_vdd_iva_vfsm,
 	.vdd = &omap4_vdd_iva_info,
 };
 
@@ -86,6 +85,7 @@ static struct voltagedomain omap4_voltdm_core = {
 	.write = omap4_prm_vcvp_write,
 	.rmw = omap4_prm_vcvp_rmw,
 	.vc = &omap4_vc_core,
+	.vfsm = &omap4_vdd_core_vfsm,
 	.vdd = &omap4_vdd_core_info,
 };
 

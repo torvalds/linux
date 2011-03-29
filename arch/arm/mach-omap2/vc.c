@@ -223,7 +223,6 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 {
 	struct omap_vc_channel *vc = voltdm->vc;
 	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 vc_val;
 
 	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
 		pr_err("%s: PMIC info requried to configure vc for"
@@ -242,6 +241,7 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	vc->i2c_slave_addr = vdd->pmic_info->i2c_slave_addr;
 	vc->volt_reg_addr = vdd->pmic_info->volt_reg_addr;
 	vc->cmd_reg_addr = vdd->pmic_info->cmd_reg_addr;
+	vc->setup_time = vdd->pmic_info->volt_setup_time;
 
 	/* Configure the i2c slave address for this VC */
 	voltdm->rmw(vc->smps_sa_mask,
@@ -260,11 +260,9 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 			    vc->common->smps_cmdra_reg);
 
 	/* Configure the setup times */
-	vc_val = voltdm->read(vdd->vfsm->voltsetup_reg);
-	vc_val &= ~vdd->vfsm->voltsetup_mask;
-	vc_val |= vdd->pmic_info->volt_setup_time <<
-			vdd->vfsm->voltsetup_shift;
-	voltdm->write(vc_val, vdd->vfsm->voltsetup_reg);
+	voltdm->rmw(voltdm->vfsm->voltsetup_mask,
+		    vc->setup_time << __ffs(voltdm->vfsm->voltsetup_mask),
+		    voltdm->vfsm->voltsetup_reg);
 
 	if (cpu_is_omap34xx())
 		omap3_vc_init_channel(voltdm);
