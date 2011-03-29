@@ -286,7 +286,8 @@ static void isp_power_settings(struct isp_device *isp, int idle)
  */
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
-			       const struct isp_parallel_platform_data *pdata)
+			       const struct isp_parallel_platform_data *pdata,
+			       unsigned int shift)
 {
 	u32 ispctrl_val;
 
@@ -299,9 +300,9 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	switch (input) {
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
-		ispctrl_val |= pdata->data_lane_shift << ISPCTRL_SHIFT_SHIFT;
 		ispctrl_val |= pdata->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
 		ispctrl_val |= pdata->bridge << ISPCTRL_PAR_BRIDGE_SHIFT;
+		shift += pdata->data_lane_shift * 2;
 		break;
 
 	case CCDC_INPUT_CSI2A:
@@ -319,6 +320,8 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	default:
 		return;
 	}
+
+	ispctrl_val |= ((shift/2) << ISPCTRL_SHIFT_SHIFT) & ISPCTRL_SHIFT_MASK;
 
 	ispctrl_val &= ~ISPCTRL_SYNC_DETECT_MASK;
 	ispctrl_val |= ISPCTRL_SYNC_DETECT_VSRISE;

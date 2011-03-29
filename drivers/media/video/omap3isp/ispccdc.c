@@ -1116,21 +1116,38 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	struct isp_parallel_platform_data *pdata = NULL;
 	struct v4l2_subdev *sensor;
 	struct v4l2_mbus_framefmt *format;
+	const struct isp_format_info *fmt_info;
+	struct v4l2_subdev_format fmt_src;
+	unsigned int depth_out;
+	unsigned int depth_in = 0;
 	struct media_pad *pad;
 	unsigned long flags;
+	unsigned int shift;
 	u32 syn_mode;
 	u32 ccdc_pattern;
 
-	if (ccdc->input == CCDC_INPUT_PARALLEL) {
-		pad = media_entity_remote_source(&ccdc->pads[CCDC_PAD_SINK]);
-		sensor = media_entity_to_v4l2_subdev(pad->entity);
+	pad = media_entity_remote_source(&ccdc->pads[CCDC_PAD_SINK]);
+	sensor = media_entity_to_v4l2_subdev(pad->entity);
+	if (ccdc->input == CCDC_INPUT_PARALLEL)
 		pdata = &((struct isp_v4l2_subdevs_group *)sensor->host_priv)
 			->bus.parallel;
+
+	/* Compute shift value for lane shifter to configure the bridge. */
+	fmt_src.pad = pad->index;
+	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	if (!v4l2_subdev_call(sensor, pad, get_fmt, NULL, &fmt_src)) {
+		fmt_info = omap3isp_video_format_info(fmt_src.format.code);
+		depth_in = fmt_info->bpp;
 	}
 
-	omap3isp_configure_bridge(isp, ccdc->input, pdata);
+	fmt_info = omap3isp_video_format_info
+		(isp->isp_ccdc.formats[CCDC_PAD_SINK].code);
+	depth_out = fmt_info->bpp;
 
-	ccdc->syncif.datsz = pdata ? pdata->width : 10;
+	shift = depth_in - depth_out;
+	omap3isp_configure_bridge(isp, ccdc->input, pdata, shift);
+
+	ccdc->syncif.datsz = depth_out;
 	ccdc_config_sync_if(ccdc, &ccdc->syncif);
 
 	/* CCDC_PAD_SINK */

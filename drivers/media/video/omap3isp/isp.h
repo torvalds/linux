@@ -132,7 +132,6 @@ struct isp_reg {
 
 /**
  * struct isp_parallel_platform_data - Parallel interface platform data
- * @width: Parallel bus width in bits (8, 10, 11 or 12)
  * @data_lane_shift: Data lane shifter
  *		0 - CAMEXT[13:0] -> CAM[13:0]
  *		1 - CAMEXT[13:2] -> CAM[11:0]
@@ -146,7 +145,6 @@ struct isp_reg {
  *		ISPCTRL_PAR_BRIDGE_BENDIAN - Big endian
  */
 struct isp_parallel_platform_data {
-	unsigned int width;
 	unsigned int data_lane_shift:2;
 	unsigned int clk_pol:1;
 	unsigned int bridge:4;
@@ -312,7 +310,8 @@ int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 				 enum isp_pipeline_stream_state state);
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
-			       const struct isp_parallel_platform_data *pdata);
+			       const struct isp_parallel_platform_data *pdata,
+			       unsigned int shift);
 
 #define ISP_XCLK_NONE			0
 #define ISP_XCLK_A			1
