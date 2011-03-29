@@ -176,6 +176,7 @@ struct vivi_dev {
 	struct v4l2_ctrl	   *int64;
 	struct v4l2_ctrl	   *menu;
 	struct v4l2_ctrl	   *string;
+	struct v4l2_ctrl	   *bitmask;
 
 	spinlock_t                 slock;
 	struct mutex		   mutex;
@@ -493,9 +494,10 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	snprintf(str, sizeof(str), " autogain %d, gain %3d, volume %3d ",
 			dev->autogain->cur.val, gain, dev->volume->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
-	snprintf(str, sizeof(str), " int32 %d, int64 %lld ",
+	snprintf(str, sizeof(str), " int32 %d, int64 %lld, bitmask %08x ",
 			dev->int32->cur.val,
-			dev->int64->cur.val64);
+			dev->int64->cur.val64,
+			dev->bitmask->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 	snprintf(str, sizeof(str), " boolean %d, menu %s, string \"%s\" ",
 			dev->boolean->cur.val,
@@ -1152,6 +1154,17 @@ static const struct v4l2_ctrl_config vivi_ctrl_string = {
 	.step = 1,
 };
 
+static const struct v4l2_ctrl_config vivi_ctrl_bitmask = {
+	.ops = &vivi_ctrl_ops,
+	.id = VIVI_CID_CUSTOM_BASE + 6,
+	.name = "Bitmask",
+	.type = V4L2_CTRL_TYPE_BITMASK,
+	.def = 0x80002000,
+	.min = 0,
+	.max = 0x80402010,
+	.step = 0,
+};
+
 static const struct v4l2_file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
 	.open           = v4l2_fh_open,
@@ -1260,6 +1273,7 @@ static int __init vivi_create_instance(int inst)
 	dev->boolean = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_boolean, NULL);
 	dev->menu = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_menu, NULL);
 	dev->string = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_string, NULL);
+	dev->bitmask = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_bitmask, NULL);
 	if (hdl->error) {
 		ret = hdl->error;
 		goto unreg_dev;
