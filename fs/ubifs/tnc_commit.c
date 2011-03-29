@@ -383,9 +383,7 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				 * option which forces in-the-gaps is enabled.
 				 */
 				ubifs_err("out of space");
-				spin_lock(&c->space_lock);
 				dbg_dump_budg(c);
-				spin_unlock(&c->space_lock);
 				dbg_dump_lprops(c);
 			}
 			/* Try to commit anyway */

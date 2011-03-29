@@ -610,7 +610,7 @@ void dbg_dump_budg(struct ubifs_info *c)
 	struct ubifs_gced_idx_leb *idx_gc;
 	long long available, outstanding, free;
 
-	ubifs_assert(spin_is_locked(&c->space_lock));
+	spin_lock(&c->space_lock);
 	spin_lock(&dbg_lock);
 	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
 	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
@@ -655,6 +655,7 @@ void dbg_dump_budg(struct ubifs_info *c)
 	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",
 	       available, outstanding, free);
 	spin_unlock(&dbg_lock);
+	spin_unlock(&c->space_lock);
 }
 
 void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp)
@@ -1046,10 +1047,7 @@ out:
 
 	ubifs_msg("current lprops statistics dump");
 	dbg_dump_lstats(&lst);
-
-	spin_lock(&c->space_lock);
 	dbg_dump_budg(c);
-	spin_unlock(&c->space_lock);
 	dump_stack();
 	return -EINVAL;
 }
@@ -2796,11 +2794,9 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 
 	if (file->f_path.dentry == d->dfs_dump_lprops)
 		dbg_dump_lprops(c);
-	else if (file->f_path.dentry == d->dfs_dump_budg) {
-		spin_lock(&c->space_lock);
+	else if (file->f_path.dentry == d->dfs_dump_budg)
 		dbg_dump_budg(c);
-		spin_unlock(&c->space_lock);
-	} else if (file->f_path.dentry == d->dfs_dump_tnc) {
+	else if (file->f_path.dentry == d->dfs_dump_tnc) {
 		mutex_lock(&c->tnc_mutex);
 		dbg_dump_tnc(c);
 		mutex_unlock(&c->tnc_mutex);

@@ -380,10 +380,8 @@ out:
 	if (err == -ENOSPC) {
 		/* This are some budgeting problems, print useful information */
 		down_write(&c->commit_sem);
-		spin_lock(&c->space_lock);
 		dbg_dump_stack();
 		dbg_dump_budg(c);
-		spin_unlock(&c->space_lock);
 		dbg_dump_lprops(c);
 		cmt_retries = dbg_check_lprops(c);
 		up_write(&c->commit_sem);
