@@ -121,6 +121,18 @@ enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn)
 	return ds;
 }
 
+enum drbd_disk_state conn_lowest_disk(struct drbd_tconn *tconn)
+{
+	enum drbd_disk_state ds = D_MASK;
+	struct drbd_conf *mdev;
+	int vnr;
+
+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
+		ds = min_t(enum drbd_disk_state, ds, mdev->state.disk);
+
+	return ds;
+}
+
 enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
 {
 	enum drbd_disk_state ds = D_DISKLESS;
