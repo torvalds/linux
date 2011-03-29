@@ -32,6 +32,9 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/clk.h>
+#include <linux/delay.h>
+
 #ifndef __ASM_ARCH_DMTIMER_H
 #define __ASM_ARCH_DMTIMER_H
 
@@ -217,5 +220,121 @@ struct omap_dm_timer {
 	unsigned enabled:1;
 	unsigned posted:1;
 };
+
+void omap_dm_timer_prepare(struct omap_dm_timer *timer);
+
+static inline u32 __omap_dm_timer_read(void __iomem *base, u32 reg,
+						int posted)
+{
+	if (posted)
+		while (__raw_readl(base + (OMAP_TIMER_WRITE_PEND_REG & 0xff))
+				& (reg >> WPSHIFT))
+			cpu_relax();
+
+	return __raw_readl(base + (reg & 0xff));
+}
+
+static inline void __omap_dm_timer_write(void __iomem *base, u32 reg, u32 val,
+						int posted)
+{
+	if (posted)
+		while (__raw_readl(base + (OMAP_TIMER_WRITE_PEND_REG & 0xff))
+				& (reg >> WPSHIFT))
+			cpu_relax();
+
+	__raw_writel(val, base + (reg & 0xff));
+}
+
+/* Assumes the source clock has been set by caller */
+static inline void __omap_dm_timer_reset(void __iomem *base, int autoidle,
+						int wakeup)
+{
+	u32 l;
+
+	l = __omap_dm_timer_read(base, OMAP_TIMER_OCP_CFG_REG, 0);
+	l |= 0x02 << 3;  /* Set to smart-idle mode */
+	l |= 0x2 << 8;   /* Set clock activity to perserve f-clock on idle */
+
+	if (autoidle)
+		l |= 0x1 << 0;
+
+	if (wakeup)
+		l |= 1 << 2;
+
+	__omap_dm_timer_write(base, OMAP_TIMER_OCP_CFG_REG, l, 0);
+
+	/* Match hardware reset default of posted mode */
+	__omap_dm_timer_write(base, OMAP_TIMER_IF_CTRL_REG,
+					OMAP_TIMER_CTRL_POSTED, 0);
+}
+
+static inline int __omap_dm_timer_set_source(struct clk *timer_fck,
+						struct clk *parent)
+{
+	int ret;
+
+	clk_disable(timer_fck);
+	ret = clk_set_parent(timer_fck, parent);
+	clk_enable(timer_fck);
+
+	/*
+	 * When the functional clock disappears, too quick writes seem
+	 * to cause an abort. XXX Is this still necessary?
+	 */
+	__delay(300000);
+
+	return ret;
+}
+
+static inline void __omap_dm_timer_stop(void __iomem *base, int posted,
+						unsigned long rate)
+{
+	u32 l;
+
+	l = __omap_dm_timer_read(base, OMAP_TIMER_CTRL_REG, posted);
+	if (l & OMAP_TIMER_CTRL_ST) {
+		l &= ~0x1;
+		__omap_dm_timer_write(base, OMAP_TIMER_CTRL_REG, l, posted);
+#ifdef CONFIG_ARCH_OMAP2PLUS
+		/* Readback to make sure write has completed */
+		__omap_dm_timer_read(base, OMAP_TIMER_CTRL_REG, posted);
+		/*
+		 * Wait for functional clock period x 3.5 to make sure that
+		 * timer is stopped
+		 */
+		udelay(3500000 / rate + 1);
+#endif
+	}
+
+	/* Ack possibly pending interrupt */
+	__omap_dm_timer_write(base, OMAP_TIMER_STAT_REG,
+					OMAP_TIMER_INT_OVERFLOW, 0);
+}
+
+static inline void __omap_dm_timer_load_start(void __iomem *base, u32 ctrl,
+						unsigned int load, int posted)
+{
+	__omap_dm_timer_write(base, OMAP_TIMER_COUNTER_REG, load, posted);
+	__omap_dm_timer_write(base, OMAP_TIMER_CTRL_REG, ctrl, posted);
+}
+
+static inline void __omap_dm_timer_int_enable(void __iomem *base,
+						unsigned int value)
+{
+	__omap_dm_timer_write(base, OMAP_TIMER_INT_EN_REG, value, 0);
+	__omap_dm_timer_write(base, OMAP_TIMER_WAKEUP_EN_REG, value, 0);
+}
+
+static inline unsigned int __omap_dm_timer_read_counter(void __iomem *base,
+							int posted)
+{
+	return __omap_dm_timer_read(base, OMAP_TIMER_COUNTER_REG, posted);
+}
+
+static inline void __omap_dm_timer_write_status(void __iomem *base,
+						unsigned int value)
+{
+	__omap_dm_timer_write(base, OMAP_TIMER_STAT_REG, value, 0);
+}
 
 #endif /* __ASM_ARCH_DMTIMER_H */
