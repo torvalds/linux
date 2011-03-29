@@ -67,7 +67,7 @@
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       0x01300000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
-#define MEM_CAMIPP_SIZE     SZ_4M
+#define MEM_CAMIPP_SIZE     SZ_8M
 #else
 #define MEM_CAMIPP_SIZE     0
 #endif
