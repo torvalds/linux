@@ -1688,12 +1688,6 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
 	u32 error_mask;
 
-	DRM_INIT_WAITQUEUE(&dev_priv->ring[RCS].irq_queue);
-	if (HAS_BSD(dev))
-		DRM_INIT_WAITQUEUE(&dev_priv->ring[VCS].irq_queue);
-	if (HAS_BLT(dev))
-		DRM_INIT_WAITQUEUE(&dev_priv->ring[BCS].irq_queue);
-
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
 	if (HAS_PCH_SPLIT(dev))

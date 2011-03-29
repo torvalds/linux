@@ -800,6 +800,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->gpu_write_list);
 
+	init_waitqueue_head(&ring->irq_queue);
 	spin_lock_init(&ring->irq_lock);
 	ring->irq_mask = ~0;
 
