@@ -157,25 +157,10 @@ static void __init omap3_vfsm_init(struct voltagedomain *voltdm)
 
 static void __init omap3_vc_init_channel(struct voltagedomain *voltdm)
 {
-	struct omap_vc_channel *vc = voltdm->vc;
-	struct omap_vdd_info *vdd = voltdm->vdd;
 	static bool is_initialized;
-	u8 on_vsel, onlp_vsel, ret_vsel, off_vsel;
-	u32 vc_val;
 
 	if (is_initialized)
 		return;
-
-	/* Set up the on, inactive, retention and off voltage */
-	on_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->on_volt);
-	onlp_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->onlp_volt);
-	ret_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->ret_volt);
-	off_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->off_volt);
-	vc_val	= ((on_vsel << vc->common->cmd_on_shift) |
-		(onlp_vsel << vc->common->cmd_onlp_shift) |
-		(ret_vsel << vc->common->cmd_ret_shift) |
-		(off_vsel << vc->common->cmd_off_shift));
-	voltdm->write(vc_val, vc->cmdval_reg);
 
 	/*
 	 * Generic VC parameters init
@@ -201,8 +186,6 @@ static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
 	if (is_initialized)
 		return;
 
-	/* TODO: Configure setup times and CMD_VAL values*/
-
 	/*
 	 * Generic VC parameters init
 	 * XXX This data should be abstracted out
@@ -223,6 +206,8 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 {
 	struct omap_vc_channel *vc = voltdm->vc;
 	struct omap_vdd_info *vdd = voltdm->vdd;
+	u8 on_vsel, onlp_vsel, ret_vsel, off_vsel;
+	u32 val;
 
 	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
 		pr_err("%s: PMIC info requried to configure vc for"
@@ -258,6 +243,17 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 		voltdm->rmw(vc->smps_cmdra_mask,
 			    vc->cmd_reg_addr << __ffs(vc->smps_cmdra_mask),
 			    vc->common->smps_cmdra_reg);
+
+	/* Set up the on, inactive, retention and off voltage */
+	on_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->on_volt);
+	onlp_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->onlp_volt);
+	ret_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->ret_volt);
+	off_vsel = vdd->pmic_info->uv_to_vsel(vdd->pmic_info->off_volt);
+	val = ((on_vsel << vc->common->cmd_on_shift) |
+	       (onlp_vsel << vc->common->cmd_onlp_shift) |
+	       (ret_vsel << vc->common->cmd_ret_shift) |
+	       (off_vsel << vc->common->cmd_off_shift));
+	voltdm->write(val, vc->cmdval_reg);
 
 	/* Configure the setup times */
 	voltdm->rmw(voltdm->vfsm->voltsetup_mask,
