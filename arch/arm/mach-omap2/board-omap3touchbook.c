@@ -51,7 +51,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "common-board-devices.h"
 
 #include <asm/setup.h>
@@ -372,9 +371,6 @@ static void __init omap3_touchbook_init_early(void)
 static void __init omap3_touchbook_init_irq(void)
 {
 	omap3_init_irq();
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
-#endif
 }
 
 static struct platform_device *omap3_touchbook_devices[] __initdata = {

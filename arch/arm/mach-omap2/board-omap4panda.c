@@ -41,7 +41,6 @@
 #include <plat/usb.h>
 #include <plat/mmc.h>
 #include <video/omap-panel-generic-dpi.h>
-#include "timer-gp.h"
 
 #include "hsmmc.h"
 #include "control.h"

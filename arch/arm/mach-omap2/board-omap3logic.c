@@ -35,7 +35,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "control.h"
 #include "common-board-devices.h"
 

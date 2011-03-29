@@ -43,8 +43,6 @@
 #include <plat/common.h>
 #include <plat/omap_hwmod.h>
 
-#include "timer-gp.h"
-
 /* Parent clocks, eventually these will come from the clock framework */
 
 #define OMAP2_MPU_SOURCE	"sys_ck"
@@ -75,8 +73,6 @@ u32 sys_timer_reserved;
 
 static struct omap_dm_timer clkev;
 static struct clock_event_device clockevent_gpt;
-static u8 __initdata gptimer_id = 1;
-static u8 __initdata inited;
 
 static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 {
@@ -137,26 +133,6 @@ static struct clock_event_device clockevent_gpt = {
 	.set_next_event	= omap2_gp_timer_set_next_event,
 	.set_mode	= omap2_gp_timer_set_mode,
 };
-
-/**
- * omap2_gp_clockevent_set_gptimer - set which GPTIMER is used for clockevents
- * @id: GPTIMER to use (1..MAX_GPTIMER_ID)
- *
- * Define the GPTIMER that the system should use for the tick timer.
- * Meant to be called from board-*.c files in the event that GPTIMER1, the
- * default, is unsuitable.  Returns -EINVAL on error or 0 on success.
- */
-int __init omap2_gp_clockevent_set_gptimer(u8 id)
-{
-	if (id < 1 || id > MAX_GPTIMER_ID)
-		return -EINVAL;
-
-	BUG_ON(inited);
-
-	gptimer_id = id;
-
-	return 0;
-}
 
 static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 						int gptimer_id,
@@ -227,8 +203,6 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 						const char *fck_source)
 {
 	int res;
-
-	inited = 1;
 
 	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source);
 	BUG_ON(res);

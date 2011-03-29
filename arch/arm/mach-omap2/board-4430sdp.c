@@ -40,7 +40,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "control.h"
 #include "common-board-devices.h"
 
@@ -295,9 +294,6 @@ static void __init omap_4430sdp_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(1);
-#endif
 }
 
 static struct omap_musb_board_data musb_board_data = {

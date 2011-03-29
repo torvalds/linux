@@ -58,7 +58,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "common-board-devices.h"
 
 #define OMAP_DM9000_GPIO_IRQ	25
@@ -439,9 +438,6 @@ static void __init devkit8000_init_early(void)
 static void __init devkit8000_init_irq(void)
 {
 	omap3_init_irq();
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
-#endif
 }
 
 #define OMAP_DM9000_BASE	0x2c000000

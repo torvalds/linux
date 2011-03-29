@@ -50,7 +50,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "pm.h"
 #include "common-board-devices.h"
 
@@ -487,9 +486,6 @@ static void __init omap3_beagle_init_early(void)
 static void __init omap3_beagle_init_irq(void)
 {
 	omap3_init_irq();
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
-#endif
 }
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
