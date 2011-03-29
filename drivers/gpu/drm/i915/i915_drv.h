@@ -188,7 +188,7 @@ struct drm_i915_error_state {
 		u32 dirty:1;
 		u32 purgeable:1;
 		u32 ring:4;
-		u32 agp_type:1;
+		u32 cache_level:2;
 	} *active_bo, *pinned_bo;
 	u32 active_bo_count, pinned_bo_count;
 	struct intel_overlay_error_state *overlay;
@@ -711,6 +711,12 @@ typedef struct drm_i915_private {
 	struct drm_property *broadcast_rgb_property;
 } drm_i915_private_t;
 
+enum i915_cache_level {
+	I915_CACHE_NONE,
+	I915_CACHE_LLC,
+	I915_CACHE_LLC_MLC, /* gen6+ */
+};
+
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
 
@@ -797,6 +803,8 @@ struct drm_i915_gem_object {
 	unsigned int pending_fenced_gpu_access:1;
 	unsigned int fenced_gpu_access:1;
 
+	unsigned int cache_level:2;
+
 	struct page **pages;
 
 	/**
@@ -833,8 +841,6 @@ struct drm_i915_gem_object {
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
-	/** AGP mapping type (AGP_USER_MEMORY or AGP_USER_CACHED_MEMORY */
-	uint32_t agp_type;
 
 	/**
 	 * If present, while GEM_DOMAIN_CPU is in the read domain this array

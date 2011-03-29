@@ -676,7 +676,7 @@ static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 		err->dirty = obj->dirty;
 		err->purgeable = obj->madv != I915_MADV_WILLNEED;
 		err->ring = obj->ring ? obj->ring->id : 0;
-		err->agp_type = obj->agp_type == AGP_USER_CACHED_MEMORY;
+		err->cache_level = obj->cache_level;
 
 		if (++i == count)
 			break;

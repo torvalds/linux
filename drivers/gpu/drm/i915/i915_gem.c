@@ -3569,7 +3569,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	obj->agp_type = AGP_USER_MEMORY;
+	obj->cache_level = I915_CACHE_NONE;
 	obj->base.driver_private = NULL;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj->mm_list);

@@ -236,7 +236,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		ret = -ENOMEM;
 		goto err;
 	}
-	obj->agp_type = AGP_USER_CACHED_MEMORY;
+	obj->cache_level = I915_CACHE_LLC;
 
 	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret)
@@ -759,7 +759,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 		ret = -ENOMEM;
 		goto err;
 	}
-	obj->agp_type = AGP_USER_CACHED_MEMORY;
+	obj->cache_level = I915_CACHE_LLC;
 
 	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret != 0) {

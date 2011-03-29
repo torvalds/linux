@@ -106,11 +106,12 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
     }
 }
 
-static const char *agp_type_str(int type)
+static const char *cache_level_str(int type)
 {
 	switch (type) {
-	case 0: return " uncached";
-	case 1: return " snooped";
+	case I915_CACHE_NONE: return " uncached";
+	case I915_CACHE_LLC: return " snooped (LLC)";
+	case I915_CACHE_LLC_MLC: return " snooped (LLC+MLC)";
 	default: return "";
 	}
 }
@@ -127,7 +128,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.write_domain,
 		   obj->last_rendering_seqno,
 		   obj->last_fenced_seqno,
-		   agp_type_str(obj->agp_type == AGP_USER_CACHED_MEMORY),
+		   cache_level_str(obj->cache_level),
 		   obj->dirty ? " dirty" : "",
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
@@ -714,7 +715,7 @@ static void print_error_buffers(struct seq_file *m,
 			   dirty_flag(err->dirty),
 			   purgeable_flag(err->purgeable),
 			   ring_str(err->ring),
-			   agp_type_str(err->agp_type));
+			   cache_level_str(err->cache_level));
 
 		if (err->name)
 			seq_printf(m, " (name: %d)", err->name);
