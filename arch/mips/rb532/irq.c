@@ -207,8 +207,8 @@ void __init arch_init_irq(void)
 	pr_info("Initializing IRQ's: %d out of %d\n", RC32434_NR_IRQS, NR_IRQS);
 
 	for (i = 0; i < RC32434_NR_IRQS; i++)
-		set_irq_chip_and_handler(i,  &rc32434_irq_type,
-					handle_level_irq);
+		irq_set_chip_and_handler(i, &rc32434_irq_type,
+					 handle_level_irq);
 }
 
 /* Main Interrupt dispatcher */

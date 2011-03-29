@@ -1102,7 +1102,7 @@ static int __init arch_setup(void)
 
 		/* enable TouchScreen */
 		i2c_register_board_info(0, &ts_i2c_clients, 1);
-		set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
 	}
 
 	/* enable CEU0 */

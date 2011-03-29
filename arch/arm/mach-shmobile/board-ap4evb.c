@@ -1255,7 +1255,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_KEYIN4,     NULL);
 
 	/* enable TouchScreen */
-	set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ28;
 	i2c_register_board_info(1, &tsc_device, 1);
@@ -1311,7 +1311,7 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].lcd_size_cfg.height	= 91;
 
 	/* enable TouchScreen */
-	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ7;
 	i2c_register_board_info(0, &tsc_device, 1);

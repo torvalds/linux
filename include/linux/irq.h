@@ -92,18 +92,6 @@ enum {
 	IRQ_NO_BALANCING	= (1 << 13),
 	IRQ_MOVE_PCNTXT		= (1 << 14),
 	IRQ_NESTED_THREAD	= (1 << 15),
-
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-	IRQ_INPROGRESS		= (1 << 16),
-	IRQ_REPLAY		= (1 << 17),
-	IRQ_WAITING		= (1 << 18),
-	IRQ_DISABLED		= (1 << 19),
-	IRQ_PENDING		= (1 << 20),
-	IRQ_MASKED		= (1 << 21),
-	IRQ_MOVE_PENDING	= (1 << 22),
-	IRQ_AFFINITY_SET	= (1 << 23),
-	IRQ_WAKEUP		= (1 << 24),
-#endif
 };
 
 #define IRQF_MODIFY_MASK	\
@@ -321,28 +309,6 @@ static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
  */
 struct irq_chip {
 	const char	*name;
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_DEPRECATED
-	unsigned int	(*startup)(unsigned int irq);
-	void		(*shutdown)(unsigned int irq);
-	void		(*enable)(unsigned int irq);
-	void		(*disable)(unsigned int irq);
-
-	void		(*ack)(unsigned int irq);
-	void		(*mask)(unsigned int irq);
-	void		(*mask_ack)(unsigned int irq);
-	void		(*unmask)(unsigned int irq);
-	void		(*eoi)(unsigned int irq);
-
-	void		(*end)(unsigned int irq);
-	int		(*set_affinity)(unsigned int irq,
-					const struct cpumask *dest);
-	int		(*retrigger)(unsigned int irq);
-	int		(*set_type)(unsigned int irq, unsigned int flow_type);
-	int		(*set_wake)(unsigned int irq, unsigned int on);
-
-	void		(*bus_lock)(unsigned int irq);
-	void		(*bus_sync_unlock)(unsigned int irq);
-#endif
 	unsigned int	(*irq_startup)(struct irq_data *data);
 	void		(*irq_shutdown)(struct irq_data *data);
 	void		(*irq_enable)(struct irq_data *data);
@@ -420,13 +386,9 @@ extern int __irq_set_affinity_locked(struct irq_data *data,  const struct cpumas
 #ifdef CONFIG_GENERIC_HARDIRQS
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_PENDING_IRQ)
-void move_native_irq(int irq);
-void move_masked_irq(int irq);
 void irq_move_irq(struct irq_data *data);
 void irq_move_masked_irq(struct irq_data *data);
 #else
-static inline void move_native_irq(int irq) { }
-static inline void move_masked_irq(int irq) { }
 static inline void irq_move_irq(struct irq_data *data) { }
 static inline void irq_move_masked_irq(struct irq_data *data) { }
 #endif
@@ -588,89 +550,6 @@ static inline struct msi_desc *irq_data_get_msi(struct irq_data *d)
 {
 	return d->msi_desc;
 }
-
-#ifndef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-/* Please do not use: Use the replacement functions instead */
-static inline int set_irq_chip(unsigned int irq, struct irq_chip *chip)
-{
-	return irq_set_chip(irq, chip);
-}
-static inline int set_irq_data(unsigned int irq, void *data)
-{
-	return irq_set_handler_data(irq, data);
-}
-static inline int set_irq_chip_data(unsigned int irq, void *data)
-{
-	return irq_set_chip_data(irq, data);
-}
-static inline int set_irq_type(unsigned int irq, unsigned int type)
-{
-	return irq_set_irq_type(irq, type);
-}
-static inline int set_irq_msi(unsigned int irq, struct msi_desc *entry)
-{
-	return irq_set_msi_desc(irq, entry);
-}
-static inline struct irq_chip *get_irq_chip(unsigned int irq)
-{
-	return irq_get_chip(irq);
-}
-static inline void *get_irq_chip_data(unsigned int irq)
-{
-	return irq_get_chip_data(irq);
-}
-static inline void *get_irq_data(unsigned int irq)
-{
-	return irq_get_handler_data(irq);
-}
-static inline void *irq_data_get_irq_data(struct irq_data *d)
-{
-	return irq_data_get_irq_handler_data(d);
-}
-static inline struct msi_desc *get_irq_msi(unsigned int irq)
-{
-	return irq_get_msi_desc(irq);
-}
-static inline void set_irq_noprobe(unsigned int irq)
-{
-	irq_set_noprobe(irq);
-}
-static inline void set_irq_probe(unsigned int irq)
-{
-	irq_set_probe(irq);
-}
-static inline void set_irq_nested_thread(unsigned int irq, int nest)
-{
-	irq_set_nested_thread(irq, nest);
-}
-static inline void
-set_irq_chip_and_handler_name(unsigned int irq, struct irq_chip *chip,
-			      irq_flow_handler_t handle, const char *name)
-{
-	irq_set_chip_and_handler_name(irq, chip, handle, name);
-}
-static inline void
-set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,
-			 irq_flow_handler_t handle)
-{
-	irq_set_chip_and_handler(irq, chip, handle);
-}
-static inline void
-__set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
-		  const char *name)
-{
-	__irq_set_handler(irq, handle, is_chained, name);
-}
-static inline void set_irq_handler(unsigned int irq, irq_flow_handler_t handle)
-{
-	irq_set_handler(irq, handle);
-}
-static inline void
-set_irq_chained_handler(unsigned int irq, irq_flow_handler_t handle)
-{
-	irq_set_chained_handler(irq, handle);
-}
-#endif
 
 int irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node);
 void irq_free_descs(unsigned int irq, unsigned int cnt);

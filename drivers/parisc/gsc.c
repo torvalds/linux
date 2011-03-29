@@ -152,8 +152,8 @@ int gsc_assign_irq(struct irq_chip *type, void *data)
 	if (irq > GSC_IRQ_MAX)
 		return NO_IRQ;
 
-	set_irq_chip_and_handler(irq, type, handle_simple_irq);
-	set_irq_chip_data(irq, data);
+	irq_set_chip_and_handler(irq, type, handle_simple_irq);
+	irq_set_chip_data(irq, data);
 
 	return irq++;
 }

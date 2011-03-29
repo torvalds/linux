@@ -15,10 +15,6 @@
 
 #define istate core_internal_state__do_not_mess_with_it
 
-#ifdef CONFIG_GENERIC_HARDIRQS_NO_COMPAT
-# define status status_use_accessors
-#endif
-
 extern int noirqdebug;
 
 /*
@@ -61,14 +57,10 @@ enum {
 	IRQS_SUSPENDED		= 0x00000800,
 };
 
-#include "compat.h"
 #include "debug.h"
 #include "settings.h"
 
 #define irq_data_to_desc(data)	container_of(data, struct irq_desc, irq_data)
-
-/* Set default functions for irq_chip structures: */
-extern void irq_chip_set_defaults(struct irq_chip *chip);
 
 extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		unsigned long flags);
@@ -156,13 +148,11 @@ irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
 static inline void irqd_set_move_pending(struct irq_data *d)
 {
 	d->state_use_accessors |= IRQD_SETAFFINITY_PENDING;
-	irq_compat_set_move_pending(irq_data_to_desc(d));
 }
 
 static inline void irqd_clr_move_pending(struct irq_data *d)
 {
 	d->state_use_accessors &= ~IRQD_SETAFFINITY_PENDING;
-	irq_compat_clr_move_pending(irq_data_to_desc(d));
 }
 
 static inline void irqd_clear(struct irq_data *d, unsigned int mask)

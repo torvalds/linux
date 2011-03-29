@@ -176,8 +176,8 @@ void __init tx4939_irq_init(void)
 	for (i = 1; i < TX4939_NUM_IR; i++) {
 		tx4939irq[i].level = 4; /* middle level */
 		tx4939irq[i].mode = TXx9_IRCR_LOW;
-		set_irq_chip_and_handler(TXX9_IRQ_BASE + i,
-					 &tx4939_irq_chip, handle_level_irq);
+		irq_set_chip_and_handler(TXX9_IRQ_BASE + i, &tx4939_irq_chip,
+					 handle_level_irq);
 	}
 
 	/* mask all IRC interrupts */
@@ -193,7 +193,7 @@ void __init tx4939_irq_init(void)
 	__raw_writel(TXx9_IRCER_ICE, &tx4939_ircptr->den.r);
 	__raw_writel(irc_elevel, &tx4939_ircptr->msk.r);
 
-	set_irq_chained_handler(MIPS_CPU_IRQ_BASE + TX4939_IRC_INT,
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + TX4939_IRC_INT,
 				handle_simple_irq);
 
 	/* raise priority for errors, timers, sio */

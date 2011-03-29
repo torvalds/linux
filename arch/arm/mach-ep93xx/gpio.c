@@ -117,7 +117,7 @@ static void ep93xx_gpio_irq_ack(struct irq_data *d)
 	int port = line >> 3;
 	int port_mask = 1 << (line & 7);
 
-	if ((irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH) {
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
 		ep93xx_gpio_update_int_params(port);
 	}
@@ -131,7 +131,7 @@ static void ep93xx_gpio_irq_mask_ack(struct irq_data *d)
 	int port = line >> 3;
 	int port_mask = 1 << (line & 7);
 
-	if ((irq_desc[d->irq].status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
+	if (irqd_get_trigger_type(d) == IRQ_TYPE_EDGE_BOTH)
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
 
 	gpio_int_unmasked[port] &= ~port_mask;
@@ -165,10 +165,10 @@ static void ep93xx_gpio_irq_unmask(struct irq_data *d)
  */
 static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
-	struct irq_desc *desc = irq_desc + d->irq;
 	const int gpio = irq_to_gpio(d->irq);
 	const int port = gpio >> 3;
 	const int port_mask = 1 << (gpio & 7);
+	irq_flow_handler_t handler;
 
 	gpio_direction_input(gpio);
 
@@ -176,22 +176,22 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_RISING:
 		gpio_int_type1[port] |= port_mask;
 		gpio_int_type2[port] |= port_mask;
-		desc->handle_irq = handle_edge_irq;
+		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		gpio_int_type1[port] |= port_mask;
 		gpio_int_type2[port] &= ~port_mask;
-		desc->handle_irq = handle_edge_irq;
+		handler = handle_edge_irq;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		gpio_int_type1[port] &= ~port_mask;
 		gpio_int_type2[port] |= port_mask;
-		desc->handle_irq = handle_level_irq;
+		handler = handle_level_irq;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		gpio_int_type1[port] &= ~port_mask;
 		gpio_int_type2[port] &= ~port_mask;
-		desc->handle_irq = handle_level_irq;
+		handler = handle_level_irq;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		gpio_int_type1[port] |= port_mask;
@@ -200,17 +200,16 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 			gpio_int_type2[port] &= ~port_mask; /* falling */
 		else
 			gpio_int_type2[port] |= port_mask; /* rising */
-		desc->handle_irq = handle_edge_irq;
+		handler = handle_edge_irq;
 		break;
 	default:
 		pr_err("failed to set irq type %d for gpio %d\n", type, gpio);
 		return -EINVAL;
 	}
 
-	gpio_int_enabled[port] |= port_mask;
+	__irq_set_handler_locked(d->irq, handler);
 
-	desc->status &= ~IRQ_TYPE_SENSE_MASK;
-	desc->status |= type & IRQ_TYPE_SENSE_MASK;
+	gpio_int_enabled[port] |= port_mask;
 
 	ep93xx_gpio_update_int_params(port);
 
@@ -232,20 +231,29 @@ void __init ep93xx_gpio_init_irq(void)
 
 	for (gpio_irq = gpio_to_irq(0);
 	     gpio_irq <= gpio_to_irq(EP93XX_GPIO_LINE_MAX_IRQ); ++gpio_irq) {
-		set_irq_chip(gpio_irq, &ep93xx_gpio_irq_chip);
-		set_irq_handler(gpio_irq, handle_level_irq);
+		irq_set_chip_and_handler(gpio_irq, &ep93xx_gpio_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(gpio_irq, IRQF_VALID);
 	}
 
-	set_irq_chained_handler(IRQ_EP93XX_GPIO_AB, ep93xx_gpio_ab_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO0MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO1MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO2MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO3MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO4MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO5MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO6MUX, ep93xx_gpio_f_irq_handler);
-	set_irq_chained_handler(IRQ_EP93XX_GPIO7MUX, ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO_AB,
+				ep93xx_gpio_ab_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO0MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO1MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO2MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO3MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO4MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO5MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO6MUX,
+				ep93xx_gpio_f_irq_handler);
+	irq_set_chained_handler(IRQ_EP93XX_GPIO7MUX,
+				ep93xx_gpio_f_irq_handler);
 }
 
 
