@@ -600,7 +600,7 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 
 	mwifiex_deauthenticate(priv, wait, NULL);
 
-	priv->sec_info.authentication_mode = MWIFIEX_AUTH_MODE_OPEN;
+	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
 
 	ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 				  HostCmd_ACT_GEN_SET, 0, wait, NULL);
@@ -1056,7 +1056,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 			priv->sec_info.encryption_mode =
 					MWIFIEX_ENCRYPTION_MODE_WEP104;
 			priv->sec_info.authentication_mode =
-					MWIFIEX_AUTH_MODE_OPEN;
+					NL80211_AUTHTYPE_OPEN_SYSTEM;
 		}
 
 		goto done;
@@ -1065,9 +1065,9 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	/* Now handle infra mode. "sme" is valid for infra mode only */
 	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC
 			|| sme->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM)
-		auth_type = MWIFIEX_AUTH_MODE_OPEN;
+		auth_type = NL80211_AUTHTYPE_OPEN_SYSTEM;
 	else if (sme->auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		auth_type = MWIFIEX_AUTH_MODE_SHARED;
+		auth_type = NL80211_AUTHTYPE_SHARED_KEY;
 
 	if (sme->crypto.n_ciphers_pairwise) {
 		pairwise_encrypt_mode = mwifiex_get_mwifiex_cipher(sme->crypto.

@@ -449,7 +449,7 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 		auth_tlv->auth_type = cpu_to_le16(
 				(u16) priv->sec_info.authentication_mode);
 	else
-		auth_tlv->auth_type = cpu_to_le16(MWIFIEX_AUTH_MODE_OPEN);
+		auth_tlv->auth_type = cpu_to_le16(NL80211_AUTHTYPE_OPEN_SYSTEM);
 
 	pos += sizeof(auth_tlv->header) + le16_to_cpu(auth_tlv->header.len);
 
