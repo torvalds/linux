@@ -133,6 +133,18 @@ enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
 	return ds;
 }
 
+enum drbd_conns conn_lowest_conn(struct drbd_tconn *tconn)
+{
+	enum drbd_conns conn = C_MASK;
+	struct drbd_conf *mdev;
+	int vnr;
+
+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
+		conn = min_t(enum drbd_conns, conn, mdev->state.conn);
+
+	return conn;
+}
+
 /**
  * cl_wide_st_chg() - true if the state change is a cluster wide one
  * @mdev:	DRBD device.
