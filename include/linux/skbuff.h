@@ -122,8 +122,14 @@ struct sk_buff_head {
 
 struct sk_buff;
 
-/* To allow 64K frame to be packed as single skb without frag_list */
+/* To allow 64K frame to be packed as single skb without frag_list. Since
+ * GRO uses frags we allocate at least 16 regardless of page size.
+ */
+#if (65536/PAGE_SIZE + 2) < 16
+#define MAX_SKB_FRAGS 16
+#else
 #define MAX_SKB_FRAGS (65536/PAGE_SIZE + 2)
+#endif
 
 typedef struct skb_frag_struct skb_frag_t;
 
