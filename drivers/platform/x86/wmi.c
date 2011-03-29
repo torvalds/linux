@@ -486,16 +486,16 @@ static void wmi_dump_wdg(const struct guid_block *g)
 	pr_info("\tnotify_id: %02X\n", g->notify_id);
 	pr_info("\treserved: %02X\n", g->reserved);
 	pr_info("\tinstance_count: %d\n", g->instance_count);
-	pr_info("\tflags: %#x ", g->flags);
+	pr_info("\tflags: %#x", g->flags);
 	if (g->flags) {
 		if (g->flags & ACPI_WMI_EXPENSIVE)
-			pr_cont("ACPI_WMI_EXPENSIVE ");
+			pr_cont(" ACPI_WMI_EXPENSIVE");
 		if (g->flags & ACPI_WMI_METHOD)
-			pr_cont("ACPI_WMI_METHOD ");
+			pr_cont(" ACPI_WMI_METHOD");
 		if (g->flags & ACPI_WMI_STRING)
-			pr_cont("ACPI_WMI_STRING ");
+			pr_cont(" ACPI_WMI_STRING");
 		if (g->flags & ACPI_WMI_EVENT)
-			pr_cont("ACPI_WMI_EVENT ");
+			pr_cont(" ACPI_WMI_EVENT");
 	}
 	pr_cont("\n");
 
