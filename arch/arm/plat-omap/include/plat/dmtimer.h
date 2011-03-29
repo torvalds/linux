@@ -61,8 +61,6 @@
 struct omap_dm_timer;
 struct clk;
 
-int omap_dm_timer_init(void);
-
 struct omap_dm_timer *omap_dm_timer_request(void);
 struct omap_dm_timer *omap_dm_timer_request_specific(int timer_id);
 void omap_dm_timer_free(struct omap_dm_timer *timer);
@@ -221,6 +219,7 @@ struct omap_dm_timer {
 	unsigned posted:1;
 };
 
+extern u32 sys_timer_reserved;
 void omap_dm_timer_prepare(struct omap_dm_timer *timer);
 
 static inline u32 __omap_dm_timer_read(void __iomem *base, u32 reg,

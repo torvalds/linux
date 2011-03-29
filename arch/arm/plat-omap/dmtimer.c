@@ -572,7 +572,7 @@ int omap_dm_timers_active(void)
 }
 EXPORT_SYMBOL_GPL(omap_dm_timers_active);
 
-int __init omap_dm_timer_init(void)
+static int __init omap_dm_timer_init(void)
 {
 	struct omap_dm_timer *timer;
 	int i, map_size = SZ_8K;	/* Module 4KB + L4 4KB except on omap1 */
@@ -625,8 +625,16 @@ int __init omap_dm_timer_init(void)
 			sprintf(clk_name, "gpt%d_fck", i + 1);
 			timer->fclk = clk_get(NULL, clk_name);
 		}
+
+		/* One or two timers may be set up early for sys_timer */
+		if (sys_timer_reserved & (1  << i)) {
+			timer->reserved = 1;
+			timer->posted = 1;
+		}
 #endif
 	}
 
 	return 0;
 }
+
+arch_initcall(omap_dm_timer_init);
