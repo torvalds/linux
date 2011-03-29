@@ -790,9 +790,6 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 	/* Connection status */
 	info->media_connected = priv->media_connected;
 
-	/* Radio status */
-	info->radio_on = adapter->radio_on;
-
 	/* Tx power information */
 	info->max_power_level = priv->max_tx_power_level;
 	info->min_power_level = priv->min_tx_power_level;

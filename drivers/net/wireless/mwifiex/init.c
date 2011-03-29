@@ -234,7 +234,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(adapter->bcn_buf, 0, sizeof(adapter->bcn_buf));
 	adapter->bcn_buf_end = adapter->bcn_buf;
 
-	adapter->radio_on = RADIO_ON;
 	adapter->multiple_dtim = 1;
 
 	adapter->local_listen_interval = 0;	/* default value in firmware

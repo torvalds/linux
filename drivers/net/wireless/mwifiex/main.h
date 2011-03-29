@@ -611,7 +611,6 @@ struct mwifiex_adapter {
 	u16 curr_tx_buf_size;
 	u32 ioport;
 	enum MWIFIEX_HARDWARE_STATUS hw_status;
-	u16 radio_on;
 	u16 number_of_antenna;
 	u32 fw_cap_info;
 	/* spin lock for interrupt handling */

@@ -875,9 +875,6 @@ struct host_cmd_ds_802_11_snmp_mib {
 	u8 value[1];
 } __packed;
 
-#define RADIO_ON                                0x01
-#define RADIO_OFF                               0x00
-
 struct mwifiex_rate_scope {
 	__le16 type;
 	__le16 length;

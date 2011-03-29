@@ -193,7 +193,6 @@ struct mwifiex_bss_info {
 	u32 bss_chan;
 	u32 region_code;
 	u32 media_connected;
-	u32 radio_on;
 	u32 max_power_level;
 	u32 min_power_level;
 	u32 adhoc_state;
