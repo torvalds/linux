@@ -2193,6 +2193,11 @@ static void xhci_handle_event(struct xhci_hcd *xhci)
 	}
 	xhci_dbg(xhci, "%s - OS owns TRB\n", __func__);
 
+	/*
+	 * Barrier between reading the TRB_CYCLE (valid) flag above and any
+	 * speculative reads of the event's flags/data below.
+	 */
+	rmb();
 	/* FIXME: Handle more event types. */
 	switch ((le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK)) {
 	case TRB_TYPE(TRB_COMPLETION):
