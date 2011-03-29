@@ -283,14 +283,6 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 		 */
 		if (request->request_msg.msg.init_req.req_id
 		    == resp->msg.init_complete.req_id) {
-			DPRINT_DBG(NETVSC, "found rndis request for "
-				"this response (id 0x%x req type 0x%x res "
-				"type 0x%x)",
-				request->request_msg.msg.
-				   init_req.req_id,
-				request->request_msg.ndis_msg_type,
-				resp->ndis_msg_type);
-
 			found = true;
 			break;
 		}
@@ -605,9 +597,6 @@ Exit:
 
 int rndis_filter_init(struct netvsc_driver *drv)
 {
-	DPRINT_DBG(NETVSC, "sizeof(struct rndis_filter_packet) == %zd",
-		   sizeof(struct rndis_filter_packet));
-
 	drv->req_ext_size = sizeof(struct rndis_filter_packet);
 
 	/* Driver->Context = rndisDriver; */
@@ -764,8 +753,6 @@ static int rndis_filte_device_add(struct hv_device *dev,
 	rndisDevice = get_rndis_device();
 	if (!rndisDevice)
 		return -1;
-
-	DPRINT_DBG(NETVSC, "rndis device object allocated - %p", rndisDevice);
 
 	/*
 	 * Let the inner driver handle this first to create the netvsc channel

@@ -136,9 +136,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	int ret;
 	unsigned int i, num_pages;
 
-	DPRINT_DBG(NETVSC_DRV, "xmit packet - len %d data_len %d",
-		   skb->len, skb->data_len);
-
 	/* Add 1 for skb->data and additional one for RNDIS */
 	num_pages = skb_shinfo(skb)->nr_frags + 1 + 1;
 	if (num_pages > net_device_ctx->avail)
@@ -195,10 +192,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;
-
-		DPRINT_DBG(NETVSC_DRV, "# of xmits %lu total size %lu",
-			   net->stats.tx_packets,
-			   net->stats.tx_bytes);
 
 		net_device_ctx->avail -= num_pages;
 		if (net_device_ctx->avail < PACKET_PAGES_LOWATER)
@@ -296,9 +289,6 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	 * TODO - use NAPI?
 	 */
 	netif_rx(skb);
-
-	DPRINT_DBG(NETVSC_DRV, "# of recvs %lu total size %lu",
-		   net->stats.rx_packets, net->stats.rx_bytes);
 
 	return 0;
 }
