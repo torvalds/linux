@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap2/timer-gp.c
+ * linux/arch/arm/mach-omap2/timer.c
  *
  * OMAP2 GP timer support.
  *
@@ -230,7 +230,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 /* Clocksource code */
 
 #ifdef CONFIG_OMAP_32K_TIMER
-/* 
+/*
  * When 32k-timer is enabled, don't use GPTimer for clocksource
  * instead, just leave default clocksource which uses the 32k
  * sync counter.  See clocksource setup in plat-omap/counter_32k.c
