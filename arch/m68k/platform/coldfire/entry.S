@@ -78,7 +78,7 @@ ENTRY(system_call)
 	movel	%d2,%a0
 	movel	%a0@,%a1		/* save top of frame */
 	movel	%sp,%a1@(TASK_THREAD+THREAD_ESP0)
-	btst	#(TIF_SYSCALL_TRACE%8),%a0@(TI_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
+	btst	#(TIF_SYSCALL_TRACE%8),%a0@(TINFO_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
 	bnes	1f
 
 	movel	%d3,%a0
@@ -113,11 +113,11 @@ ret_from_exception:
 	movel	%sp,%d1			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d1	/* at base of kernel stack */
 	movel	%d1,%a0
-	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
+	movel	%a0@(TINFO_FLAGS),%d1	/* get thread_info->flags */
 	andl	#(1<<TIF_NEED_RESCHED),%d1
 	jeq	Lkernel_return
 
-	movel	%a0@(TI_PREEMPTCOUNT),%d1
+	movel	%a0@(TINFO_PREEMPT),%d1
 	cmpl	#0,%d1
 	jne	Lkernel_return
 
@@ -137,14 +137,14 @@ Luser_return:
 	movel	%sp,%d1			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d1	/* at base of kernel stack */
 	movel	%d1,%a0
-	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
+	movel	%a0@(TINFO_FLAGS),%d1	/* get thread_info->flags */
 	jne	Lwork_to_do		/* still work to do */
 
 Lreturn:
 	RESTORE_USER
 
 Lwork_to_do:
-	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
+	movel	%a0@(TINFO_FLAGS),%d1	/* get thread_info->flags */
 	move	#0x2000,%sr		/* enable intrs again */
 	btst	#TIF_NEED_RESCHED,%d1
 	jne	reschedule

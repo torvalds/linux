@@ -76,7 +76,7 @@ ENTRY(system_call)
 	movel	%sp,%d1			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d1
 	movel	%d1,%a2
-	btst	#(TIF_SYSCALL_TRACE%8),%a2@(TI_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
+	btst	#(TIF_SYSCALL_TRACE%8),%a2@(TINFO_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
 	jne	do_trace
 	cmpl	#NR_syscalls,%d0
 	jcc	badsys
@@ -103,12 +103,12 @@ Luser_return:
 	andl	#-THREAD_SIZE,%d1
 	movel	%d1,%a2
 1:
-	move	%a2@(TI_FLAGS),%d1	/* thread_info->flags */
+	move	%a2@(TINFO_FLAGS),%d1	/* thread_info->flags */
 	jne	Lwork_to_do
 	RESTORE_ALL
 
 Lwork_to_do:
-	movel	%a2@(TI_FLAGS),%d1	/* thread_info->flags */
+	movel	%a2@(TINFO_FLAGS),%d1	/* thread_info->flags */
 	btst	#TIF_NEED_RESCHED,%d1
 	jne	reschedule
 
