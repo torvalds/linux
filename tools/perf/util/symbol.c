@@ -2406,6 +2406,8 @@ int symbol__init(void)
 	if (symbol_conf.initialized)
 		return 0;
 
+	symbol_conf.priv_size = ALIGN(symbol_conf.priv_size, sizeof(u64));
+
 	elf_version(EV_CURRENT);
 	if (symbol_conf.sort_by_name)
 		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
