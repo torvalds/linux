@@ -50,7 +50,7 @@ static void xhci_common_hub_descriptor(struct xhci_hcd *xhci,
 	temp |= 0x0008;
 	/* Bits 6:5 - no TTs in root ports */
 	/* Bit  7 - no port indicators */
-	desc->wHubCharacteristics = (__force __u16) cpu_to_le16(temp);
+	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
 /* Fill in the USB 2.0 roothub descriptor */
@@ -314,7 +314,7 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 }
 
 static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
-		u16 wIndex, u32 __iomem *addr, u32 port_status)
+		u16 wIndex, __le32 __iomem *addr, u32 port_status)
 {
 	/* Don't allow the USB core to disable SuperSpeed ports. */
 	if (hcd->speed == HCD_USB3) {
@@ -331,7 +331,7 @@ static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 }
 
 static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
-		u16 wIndex, u32 __iomem *addr, u32 port_status)
+		u16 wIndex, __le32 __iomem *addr, u32 port_status)
 {
 	char *port_change_bit;
 	u32 status;
@@ -376,7 +376,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	unsigned long flags;
 	u32 temp, temp1, status;
 	int retval = 0;
-	u32 __iomem **port_array;
+	__le32 __iomem **port_array;
 	int slot_id;
 	struct xhci_bus_state *bus_state;
 
@@ -664,7 +664,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int i, retval;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ports;
-	u32 __iomem **port_array;
+	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 
 	if (hcd->speed == HCD_USB3) {
@@ -709,7 +709,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	u32 __iomem **port_array;
+	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	unsigned long flags;
 
@@ -779,7 +779,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 
 		if (DEV_HIGHSPEED(t1)) {
 			/* enable remote wake up for USB 2.0 */
-			u32 __iomem *addr;
+			__le32 __iomem *addr;
 			u32 tmp;
 
 			/* Add one to the port status register address to get
@@ -801,7 +801,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	u32 __iomem **port_array;
+	__le32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	u32 temp;
 	unsigned long flags;
@@ -875,7 +875,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 
 		if (DEV_HIGHSPEED(temp)) {
 			/* disable remote wake up for USB 2.0 */
-			u32 __iomem *addr;
+			__le32 __iomem *addr;
 			u32 tmp;
 
 			/* Add one to the port status register address to get
