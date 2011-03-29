@@ -18,12 +18,7 @@
 
 /* platform dependent support */
 
-EXPORT_SYMBOL(ip_fast_csum);
-
 EXPORT_SYMBOL(kernel_thread);
-
-/* Networking helper routines. */
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
 
 /*
  * libgcc functions - functions that are used internally by the
