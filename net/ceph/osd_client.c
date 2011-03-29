@@ -1672,7 +1672,7 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	if (req->r_sent == 0) {
 		rc = __map_request(osdc, req);
 		if (rc < 0)
-			return rc;
+			goto out_unlock;
 		if (req->r_osd == NULL) {
 			dout("send_request %p no up osds in pg\n", req);
 			ceph_monc_request_next_osdmap(&osdc->client->monc);
@@ -1689,6 +1689,8 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			}
 		}
 	}
+
+out_unlock:
 	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
 	return rc;
