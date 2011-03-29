@@ -627,7 +627,12 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 		       "mma8452_probe: mma8452_init_client failed\n");
 		goto exit_request_gpio_irq_failed;
 	}
-		
+
+	if (MMA8452_DEVID != mma8452_get_devid(this_client)) {
+		pr_info("mma8452: invalid devid\n");
+		goto exit_invalid_devid;
+	}
+
 	mma8452->input_dev = input_allocate_device();
 	if (!mma8452->input_dev) {
 		err = -ENOMEM;
@@ -678,13 +683,9 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
     mma8452_early_suspend.level = 0x2;
     register_early_suspend(&mma8452_early_suspend);
 #endif
-	if(MMA8452_DEVID == mma8452_get_devid(this_client))
-		printk(KERN_INFO "mma8452 probe ok\n");
-	else
-		goto exit_gsensor_sysfs_init_failed;
-	
 
 	mma8452->status = -1;
+	printk(KERN_INFO "mma8452 probe ok\n");
 #if  0	
 //	mma8452_start_test(this_client);
 	mma8452_start(client, MMA8452_RATE_12P5);
@@ -698,6 +699,7 @@ exit_misc_device_register_mma8452_device_failed:
 exit_input_register_device_failed:
 	input_free_device(mma8452->input_dev);
 exit_input_allocate_device_failed:
+exit_invalid_devid:
     free_irq(client->irq, mma8452);
 exit_request_gpio_irq_failed:
 	kfree(mma8452);	
