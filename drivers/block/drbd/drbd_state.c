@@ -1358,7 +1358,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 struct after_conn_state_chg_work {
 	struct drbd_work w;
 	enum drbd_conns oc;
-	union drbd_state nms; /* new, max state, over all mdevs */
+	union drbd_state ns_max; /* new, max state, over all mdevs */
 	enum chg_state_flags flags;
 };
 
@@ -1376,12 +1376,12 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		container_of(w, struct after_conn_state_chg_work, w);
 	struct drbd_tconn *tconn = w->tconn;
 	enum drbd_conns oc = acscw->oc;
-	union drbd_state nms = acscw->nms;
+	union drbd_state ns_max = acscw->ns_max;
 
 	kfree(acscw);
 
 	/* Upon network configuration, we need to start the receiver */
-	if (oc == C_STANDALONE && nms.conn == C_UNCONNECTED)
+	if (oc == C_STANDALONE && ns_max.conn == C_UNCONNECTED)
 		drbd_thread_start(&tconn->receiver);
 
 	//conn_err(tconn, STATE_FMT, STATE_ARGS("nms", nms));
@@ -1558,7 +1558,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	enum drbd_state_rv rv = SS_SUCCESS;
 	struct after_conn_state_chg_work *acscw;
 	enum drbd_conns oc = tconn->cstate;
-	union drbd_state ms, os;
+	union drbd_state ns_max, os;
 
 	rv = is_valid_conn_transition(oc, val.conn);
 	if (rv < SS_SUCCESS)
@@ -1576,14 +1576,14 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	}
 
 	conn_old_common_state(tconn, &os, &flags);
-	ms = conn_set_state(tconn, mask, val, flags);
-	ms.conn = val.conn;
-	conn_pr_state_change(tconn, os, ms, flags);
+	ns_max = conn_set_state(tconn, mask, val, flags);
+	ns_max.conn = val.conn;
+	conn_pr_state_change(tconn, os, ns_max, flags);
 
 	acscw = kmalloc(sizeof(*acscw), GFP_ATOMIC);
 	if (acscw) {
 		acscw->oc = os.conn;
-		acscw->nms = ms;
+		acscw->ns_max = ns_max;
 		acscw->flags = flags;
 		acscw->w.cb = w_after_conn_state_ch;
 		acscw->w.tconn = tconn;
