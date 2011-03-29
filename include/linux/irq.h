@@ -386,13 +386,9 @@ extern int __irq_set_affinity_locked(struct irq_data *data,  const struct cpumas
 #ifdef CONFIG_GENERIC_HARDIRQS
 
 #if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_PENDING_IRQ)
-void move_native_irq(int irq);
-void move_masked_irq(int irq);
 void irq_move_irq(struct irq_data *data);
 void irq_move_masked_irq(struct irq_data *data);
 #else
-static inline void move_native_irq(int irq) { }
-static inline void move_masked_irq(int irq) { }
 static inline void irq_move_irq(struct irq_data *data) { }
 static inline void irq_move_masked_irq(struct irq_data *data) { }
 #endif
