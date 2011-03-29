@@ -1223,7 +1223,7 @@ static int asus_wmi_sysfs_init(struct platform_device *device)
 /*
  * Platform device
  */
-static int __init asus_wmi_platform_init(struct asus_wmi *asus)
+static int asus_wmi_platform_init(struct asus_wmi *asus)
 {
 	int rv;
 
