@@ -2362,7 +2362,7 @@ qla24xx_abort_command(srb_t *sp)
 	abt->entry_count = 1;
 	abt->handle = MAKE_HANDLE(req->id, abt->handle);
 	abt->nport_handle = cpu_to_le16(fcport->loop_id);
-	abt->handle_to_abort = handle;
+	abt->handle_to_abort = MAKE_HANDLE(req->id, handle);
 	abt->port_id[0] = fcport->d_id.b.al_pa;
 	abt->port_id[1] = fcport->d_id.b.area;
 	abt->port_id[2] = fcport->d_id.b.domain;
