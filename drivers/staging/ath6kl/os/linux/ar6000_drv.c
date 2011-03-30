@@ -1573,10 +1573,6 @@ init_netdev(struct net_device *dev, char *name)
         strcpy(dev->name, name);
     }
 
-#ifdef SET_MODULE_OWNER
-    SET_MODULE_OWNER(dev);
-#endif
-
 #ifdef CONFIG_CHECKSUM_OFFLOAD
     if(csumOffload){
         dev->features |= NETIF_F_IP_CSUM; /*advertise kernel capability to do TCP/UDP CSUM offload for IPV4*/
