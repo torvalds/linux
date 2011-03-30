@@ -570,8 +570,7 @@ void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	/* Use 3ms as that was the old plug delay */
-	if (rq)
-		blk_delay_queue(q, 3);
+	blk_delay_queue(q, 3);
 }
 
 static int drive_is_ready(ide_drive_t *drive)
