@@ -583,17 +583,22 @@ duration:
 	duration_cap = &tpm_cmd.params.getcap_out.cap.duration;
 	chip->vendor.duration[TPM_SHORT] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_short));
-	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
-	 * value wrong and apparently reports msecs rather than usecs. So we
-	 * fix up the resulting too-small TPM_SHORT value to make things work.
-	 */
-	if (chip->vendor.duration[TPM_SHORT] < (HZ/100))
-		chip->vendor.duration[TPM_SHORT] = HZ;
-
 	chip->vendor.duration[TPM_MEDIUM] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_medium));
 	chip->vendor.duration[TPM_LONG] =
 	    usecs_to_jiffies(be32_to_cpu(duration_cap->tpm_long));
+
+	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
+	 * value wrong and apparently reports msecs rather than usecs. So we
+	 * fix up the resulting too-small TPM_SHORT value to make things work.
+	 * We also scale the TPM_MEDIUM and -_LONG values by 1000.
+	 */
+	if (chip->vendor.duration[TPM_SHORT] < (HZ / 100)) {
+		chip->vendor.duration[TPM_SHORT] = HZ;
+		chip->vendor.duration[TPM_MEDIUM] *= 1000;
+		chip->vendor.duration[TPM_LONG] *= 1000;
+		dev_info(chip->dev, "Adjusting TPM timeout parameters.");
+	}
 }
 EXPORT_SYMBOL_GPL(tpm_get_timeouts);
 
