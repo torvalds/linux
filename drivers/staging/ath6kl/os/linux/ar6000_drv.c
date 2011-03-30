@@ -603,7 +603,7 @@ static int __init
 ar6000_init_module(void)
 {
     static int probed = 0;
-    int status;
+    int r;
     OSDRV_CALLBACKS osdrvCallbacks;
 
     a_module_debug_support_init();
@@ -636,7 +636,9 @@ ar6000_init_module(void)
     osdrvCallbacks.devicePowerChangeHandler = ar6000_power_change_ev;
 #endif
 
-    ar6000_pm_init();
+    r = ar6000_pm_init();
+    if (r)
+	return r;
 
 #ifdef DEBUG
     /* Set the debug flags if specified at load time */
@@ -655,9 +657,9 @@ ar6000_init_module(void)
     memset(&aptcTR, 0, sizeof(APTC_TRAFFIC_RECORD));
 #endif /* ADAPTIVE_POWER_THROUGHPUT_CONTROL */
 
-    status = HIFInit(&osdrvCallbacks);
-    if (status)
-        return -ENODEV;
+    r = HIFInit(&osdrvCallbacks);
+    if (r)
+        return r;
 
     return 0;
 }

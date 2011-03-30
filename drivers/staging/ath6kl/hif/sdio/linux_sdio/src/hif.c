@@ -125,31 +125,27 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(hif,
 /* ------ Functions ------ */
 int HIFInit(OSDRV_CALLBACKS *callbacks)
 {
-    int status;
-    AR_DEBUG_ASSERT(callbacks != NULL);
+	int r;
+	AR_DEBUG_ASSERT(callbacks != NULL);
 
-    A_REGISTER_MODULE_DEBUG_INFO(hif);
+	A_REGISTER_MODULE_DEBUG_INFO(hif);
 
-    /* store the callback handlers */
-    osdrvCallbacks = *callbacks;
+	/* store the callback handlers */
+	osdrvCallbacks = *callbacks;
 
-    /* Register with bus driver core */
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: HIFInit registering\n"));
-    registered = 1;
+	/* Register with bus driver core */
+	registered = 1;
+
 #if defined(CONFIG_PM)
-    if (callbacks->deviceSuspendHandler && callbacks->deviceResumeHandler) {
-        ar6k_driver.drv.pm = &ar6k_device_pm_ops;
-    }
+	if (callbacks->deviceSuspendHandler && callbacks->deviceResumeHandler)
+		ar6k_driver.drv.pm = &ar6k_device_pm_ops;
 #endif /* CONFIG_PM */
-    status = sdio_register_driver(&ar6k_driver);
-    AR_DEBUG_ASSERT(status==0);
 
-    if (status != 0) {
-        return A_ERROR;
-    }
+	r = sdio_register_driver(&ar6k_driver);
+	if (r < 0)
+		return r;
 
-    return 0;
-
+	return 0;
 }
 
 static int

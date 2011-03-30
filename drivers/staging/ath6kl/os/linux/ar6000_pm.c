@@ -660,24 +660,28 @@ ar6000_set_wlan_state(struct ar6_softc *ar, AR6000_WLAN_STATE state)
     return status;
 }
 
-void ar6000_pm_init()
+int ar6000_pm_init()
 {
-    A_REGISTER_MODULE_DEBUG_INFO(pm);
+	int  r;
+	A_REGISTER_MODULE_DEBUG_INFO(pm);
+
 #ifdef CONFIG_PM
-    /*
-     * Register ar6000_pm_device into system.
-     * We should also add platform_device into the first item of array
-     * of devices[] in file arch/xxx/mach-xxx/board-xxxx.c
-     */
-    if (platform_driver_register(&ar6000_pm_device)) {
-        AR_DEBUG_PRINTF(ATH_DEBUG_ERR,("ar6000: fail to register the power control driver.\n"));
-    }
+	/*
+	 * Register ar6000_pm_device into system.
+	 * We should also add platform_device into the first item of array
+	 * of devices[] in file arch/xxx/mach-xxx/board-xxxx.c
+	 */
+	r = platform_driver_register(&ar6000_pm_device);
+	if (r < 0)
+		return -ENODEV;
 #endif /* CONFIG_PM */
+
+	return 0;
 }
 
 void ar6000_pm_exit()
 {
 #ifdef CONFIG_PM
-    platform_driver_unregister(&ar6000_pm_device);
+	platform_driver_unregister(&ar6000_pm_device);
 #endif /* CONFIG_PM */
 }
