@@ -31,15 +31,15 @@
 #define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��           //rk29
 
 /* Timing */
-#define H_PW			16 //8
-#define H_BP			24//6
+#define H_PW			8 //16
+#define H_BP			6//24
 #define H_VD			480//320	//***800 
-#define H_FP			16//60
+#define H_FP			60//16
 
-#define V_PW			2//12
-#define V_BP			2// 4
+#define V_PW			12//2
+#define V_BP			4// 2
 #define V_VD			800//480	//***480
-#define V_FP			4//40
+#define V_FP			40//4
 
 #define LCD_WIDTH       800    //need modify   //rk29
 #define LCD_HEIGHT      480
@@ -284,6 +284,16 @@ int lcd_init(void)
     	printk("lcd init11111111111111111111111111...\n");
         gLcd_info->io_init();
 	}
+
+    /* reset lcd to start init lcd */
+    gpio_request(RK29_PIN6_PC6, NULL);
+    gpio_direction_output(RK29_PIN6_PC6, 0);
+    mdelay(2);
+    gpio_set_value(RK29_PIN6_PC6, 1);
+    mdelay(10);
+    gpio_free(RK29_PIN6_PC6);
+
+
 	printk("lcd init22222222222222222222222222...\n");
 	printk("lcd init...\n");
 	spi_screenreg_set(0x29, 0xffff, 0xffff);

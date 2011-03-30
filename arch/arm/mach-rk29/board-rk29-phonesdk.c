@@ -142,9 +142,9 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
-#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
-#define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
+#define FB_DISPLAY_ON_PIN           INVALID_GPIO//RK29_PIN6_PD0
+#define FB_LCD_STANDBY_PIN          INVALID_GPIO//RK29_PIN6_PD1
+#define FB_LCD_CABC_EN_PIN          INVALID_GPIO//RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
@@ -154,12 +154,12 @@ struct rk29_nand_platform_data rk29_nand_data = {
 static int rk29_lcd_io_init(void)
 {
     int ret = 0;
-    printk("rk29_lcd_io_init\n");
-    ret = gpio_request(LCD_RXD_PIN, NULL);
+    //printk("rk29_lcd_io_init\n");
+    //ret = gpio_request(LCD_RXD_PIN, NULL);
     ret = gpio_request(LCD_TXD_PIN, NULL);
 	ret = gpio_request(LCD_CLK_PIN, NULL);
 	ret = gpio_request(LCD_CS_PIN, NULL);
-	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
+	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
 	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_GPIO2C6);
 	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_GPIO2C5);
 	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_GPIO2C4);
@@ -169,12 +169,12 @@ static int rk29_lcd_io_init(void)
 static int rk29_lcd_io_deinit(void)
 {
     int ret = 0;
-    printk("rk29_lcd_io_deinit\n");
+    //printk("rk29_lcd_io_deinit\n");
     gpio_free(LCD_CS_PIN);
 	gpio_free(LCD_CLK_PIN);
 	gpio_free(LCD_TXD_PIN);
-	gpio_free(LCD_RXD_PIN);
-	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_SPI1_RXD);
+	//gpio_free(LCD_RXD_PIN);
+	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_SPI1_RXD);
 	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_SPI1_TXD);
 	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_SPI1_CSN0);
 	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_SPI1_CLK);
@@ -681,7 +681,7 @@ int wm831x_last_deinit(struct wm831x *parm)
 
 struct wm831x_backlight_pdata wm831x_backlight_platdata = {
 	.isink = 1,     /** ISINK to use, 1 or 2 */
-	.max_uA = 5000,    /** Maximum current to allow */
+	.max_uA = 19484,    /** Maximum current to allow */
 };
 
 struct wm831x_backup_pdata wm831x_backup_platdata = {
@@ -1562,7 +1562,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #if defined (CONFIG_TOUCHSCREEN_GT801_IIC)
 {
 	.type           = "gt801_ts",
-	.addr           = 0x55,
+	.addr           = 0xAA,
 	.flags          = 0,
 	.irq            = RK29_PIN4_PD5,
 	.platform_data = &gt801_info,
