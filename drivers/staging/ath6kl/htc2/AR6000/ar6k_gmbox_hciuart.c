@@ -108,7 +108,7 @@ static void HCIUartCleanup(struct gmbox_proto_hci_uart *pProtocol)
     A_MUTEX_DELETE(&pProtocol->HCIRxLock);
     A_MUTEX_DELETE(&pProtocol->HCITxLock);
         
-    A_FREE(pProtocol);    
+    kfree(pProtocol);    
 }
 
 static int InitTxCreditState(struct gmbox_proto_hci_uart *pProt)

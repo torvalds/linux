@@ -743,7 +743,7 @@ static void DevCleanupVirtualScatterSupport(struct ar6k_device *pDev)
         if (NULL == pReq) {
             break;
         }
-        A_FREE(pReq);
+        kfree(pReq);
     }
 
 }

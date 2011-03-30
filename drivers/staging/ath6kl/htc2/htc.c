@@ -70,7 +70,7 @@ static void HTCCleanup(struct htc_target *target)
     
     for (i = 0;i < NUM_CONTROL_BUFFERS;i++) {
         if (target->HTCControlBuffers[i].Buffer) {
-            A_FREE(target->HTCControlBuffers[i].Buffer);
+            kfree(target->HTCControlBuffers[i].Buffer);
         }
     }
     
@@ -86,7 +86,7 @@ static void HTCCleanup(struct htc_target *target)
         A_MUTEX_DELETE(&target->HTCTxLock);
     }
         /* free our instance */
-    A_FREE(target);
+    kfree(target);
 }
 
 /* registered target arrival callback from the HIF layer */

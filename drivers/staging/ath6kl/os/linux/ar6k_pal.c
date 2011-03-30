@@ -318,7 +318,7 @@ void ar6k_cleanup_hci_pal(void *ar_p)
 
 	if (pHciPalInfo != NULL) {
 		bt_cleanup_hci_pal(pHciPalInfo);   
-		A_FREE(pHciPalInfo);
+		kfree(pHciPalInfo);
 		ar->hcipal_info = NULL;
 	}
 }

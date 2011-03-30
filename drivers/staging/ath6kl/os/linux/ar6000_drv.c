@@ -982,7 +982,7 @@ ar6000_softmac_update(struct ar6_softc *ar, u8 *eeprom_data, size_t size)
                 }
                 source = "softmac file";
             }
-            A_FREE(macbuf);
+            kfree(macbuf);
         }
         A_RELEASE_FIRMWARE(softmac_entry);
     }
@@ -2134,7 +2134,7 @@ ar6000_destroy(struct net_device *dev, unsigned int unregister)
 
 #ifdef HTC_RAW_INTERFACE
     if (ar->arRawHtc) {
-        A_FREE(ar->arRawHtc);
+        kfree(ar->arRawHtc);
         ar->arRawHtc = NULL;
     }
 #endif 
@@ -4883,7 +4883,7 @@ ar6000_neighborReport_event(struct ar6_softc *ar, int numAps, WMI_NEIGHBOR_INFO 
         memcpy(pmkcand->bssid.sa_data, info->bssid, ATH_MAC_LEN);
         wrqu.data.length = sizeof(struct iw_pmkid_cand);
         wireless_send_event(ar->arNetDev, IWEVPMKIDCAND, &wrqu, (char *)pmkcand);
-        A_FREE(pmkcand);
+        kfree(pmkcand);
 #else /* WIRELESS_EXT >= 18 */
         snprintf(buf, sizeof(buf), "%s%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x",
                  tag,
@@ -5603,7 +5603,7 @@ void ar6000_send_event_to_app(struct ar6_softc *ar, u16 eventId,
     A_MEMZERO(&wrqu, sizeof(wrqu));
     wrqu.data.length = size;
     wireless_send_event(ar->arNetDev, IWEVCUSTOM, &wrqu, buf);
-    A_FREE(buf);
+    kfree(buf);
 #endif
 
 
@@ -5648,7 +5648,7 @@ void ar6000_send_generic_event_to_app(struct ar6_softc *ar, u16 eventId,
     wrqu.data.length = size;
     wireless_send_event(ar->arNetDev, IWEVGENIE, &wrqu, buf);
 
-    A_FREE(buf);
+    kfree(buf);
 
 #endif /* (WIRELESS_EXT >= 18) */
 

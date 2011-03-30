@@ -2132,7 +2132,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 if (copy_to_user(rq->ifr_data, buffer, length)) {
                     ret = -EFAULT;
                 }
-                A_FREE(buffer);
+                kfree(buffer);
             } else {
                 ret = -ENOMEM;
             }
@@ -2155,7 +2155,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 } else {
                     ret = BMIWriteMemory(hifDevice, address, buffer, length);
                 }
-                A_FREE(buffer);
+                kfree(buffer);
             } else {
                 ret = -ENOMEM;
             }
@@ -2308,7 +2308,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                 } else {
                     ret = BMILZData(hifDevice, buffer, length);
                 }
-                A_FREE(buffer);
+                kfree(buffer);
             } else {
                 ret = -ENOMEM;
             }
@@ -3822,7 +3822,7 @@ int ar6000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
                         ret = BMIrompatchDeactivate(hifDevice, rompatch_count, (u32 *)buffer);
                     }
                 }
-                A_FREE(buffer);
+                kfree(buffer);
             } else {
                 ret = -ENOMEM;
             }

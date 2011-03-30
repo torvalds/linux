@@ -79,7 +79,6 @@
 #define A_MEMZERO(addr, len)            memset(addr, 0, len)
 #define A_MALLOC(size)                  kmalloc((size), GFP_KERNEL)
 #define A_MALLOC_NOWAIT(size)           kmalloc((size), GFP_ATOMIC)
-#define A_FREE(addr)                    kfree(addr)
 
 #if defined(ANDROID_ENV) && defined(CONFIG_ANDROID_LOGGER)
 extern unsigned int enablelogcat;
@@ -364,7 +363,6 @@ static inline void *A_ALIGN_TO_CACHE_LINE(void *ptr) {
 
 #define A_MEMZERO(addr, len)            memset((addr), 0, (len))
 #define A_MALLOC(size)                  malloc(size)
-#define A_FREE(addr)                    free(addr)
 
 #ifdef ANDROID
 #ifndef err

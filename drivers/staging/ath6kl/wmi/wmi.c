@@ -381,7 +381,7 @@ wmi_shutdown(struct wmi_t *wmip)
             A_MUTEX_DELETE(&wmip->wmi_lock);
 #endif
         }
-        A_FREE(wmip);
+        kfree(wmip);
     }
 }
 
@@ -5877,7 +5877,7 @@ wmi_scan_indication (struct wmi_t *wmip)
 
     ar6000_scan_indication (wmip->wmi_devt, pAr6kScanIndEvent, size);
 
-    A_FREE(pAr6kScanIndEvent);
+    kfree(pAr6kScanIndEvent);
 }
 #endif
 

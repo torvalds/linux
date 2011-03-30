@@ -72,7 +72,7 @@ wlan_node_alloc(struct ieee80211_node_table *nt, int wh_size)
         {
         ni->ni_buf = A_MALLOC_NOWAIT(wh_size);
         if (ni->ni_buf == NULL) {
-            A_FREE(ni);
+            kfree(ni);
             ni = NULL;
             return ni;
         }
@@ -104,9 +104,9 @@ void
 wlan_node_free(bss_t *ni)
 {
     if (ni->ni_buf != NULL) {
-        A_FREE(ni->ni_buf);
+        kfree(ni->ni_buf);
     }
-    A_FREE(ni);
+    kfree(ni);
 }
 
 void

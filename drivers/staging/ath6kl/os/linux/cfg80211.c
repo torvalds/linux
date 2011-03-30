@@ -552,7 +552,7 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
                                         ibss_channel, mgmt,
                                         le16_to_cpu(size),
                                         signal, GFP_KERNEL);
-        A_FREE(ieeemgmtbuf);
+        kfree(ieeemgmtbuf);
         cfg80211_put_bss(bss);
     }
 
@@ -729,7 +729,7 @@ ar6k_cfg80211_scan_node(void *arg, bss_t *ni)
                               le16_to_cpu(size),
                               signal, GFP_KERNEL);
 
-    A_FREE (ieeemgmtbuf);
+    kfree (ieeemgmtbuf);
 }
 
 static int

@@ -60,11 +60,6 @@
 #ifndef A_MALLOC
 #define A_MALLOC(size)  kmalloc((size),GFP_KERNEL)
 #endif /* A_MALLOC */
-
-
-#ifndef A_FREE
-#define A_FREE(addr)  kfree((addr))
-#endif /* A_MALLOC */
 #endif /* HCI_TRANSPORT_UART */
 
 /* String manipulation APIs */
