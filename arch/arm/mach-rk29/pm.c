@@ -266,8 +266,9 @@ static void __sramfunc rk29_sram_suspend(void)
 {
 	u32 clksel0;
 
-    if((ddr_debug == 1)||(ddr_debug == 2))
-        ddr_testmode();
+	if ((ddr_debug == 1) || (ddr_debug == 2))
+		ddr_testmode();
+
 	printch('5');
 	ddr_suspend();
 
@@ -327,15 +328,39 @@ static void dump_irq(void)
 		printk("wakeup gpio6: %08x\n", readl(RK29_GPIO6_BASE + GPIO_INT_STATUS));
 }
 
+#define DUMP_GPIO_INTEN(ID) \
+do { \
+	u32 en = readl(RK29_GPIO##ID##_BASE + GPIO_INTEN); \
+	if (en) { \
+		printascii("GPIO" #ID "_INTEN: "); \
+		printhex(en); \
+		printch('\n'); \
+	} \
+} while (0)
+
+static void dump_inten(void)
+{
+	DUMP_GPIO_INTEN(0);
+	DUMP_GPIO_INTEN(1);
+	DUMP_GPIO_INTEN(2);
+	DUMP_GPIO_INTEN(3);
+	DUMP_GPIO_INTEN(4);
+	DUMP_GPIO_INTEN(5);
+	DUMP_GPIO_INTEN(6);
+}
+
 static int rk29_pm_enter(suspend_state_t state)
 {
 	u32 apll, cpll, gpll, mode, clksel0;
 	u32 clkgate[4];
 
 	// memory teseter
-    if(ddr_debug == 3)
-        ddr_testmode();
-        
+	if (ddr_debug == 3)
+		ddr_testmode();
+
+	// dump GPIO INTEN for debug
+	dump_inten();
+
 	printch('0');
 
 #ifdef CONFIG_RK29_PWM_REGULATOR
