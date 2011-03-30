@@ -206,6 +206,16 @@ config BT_HCIBCM4325
 	  Say Y here to compile support for HCI BCM4325 devices into the
 	  kernel or say M to compile it as module (bcm4325).
 
+if BT_HCIBCM432x
+choice
+        prompt "BD_ADDR read from"
+config IDBLOCK
+        bool "NAND ID block"
+config WIFI_MAC
+        bool "WIFI MAC+1"
+endchoice
+endif
+
 
 endmenu
 

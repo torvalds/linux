@@ -31,6 +31,7 @@ static struct miscdevice vflash_miscdev;
 #define READ_BDADDR_FROM_FLASH  0x01
 
 extern char GetSNSectorInfo(char * pbuf);
+extern unsigned char wlan_mac_addr[6];
 
 static int vflash_ioctl(struct inode *inode, struct file *file,
 					unsigned int cmd, unsigned long arg)
@@ -47,6 +48,35 @@ static int vflash_ioctl(struct inode *inode, struct file *file,
     {
         case READ_BDADDR_FROM_FLASH:
         {   
+#if CONFIG_WIFI_MAC
+            unsigned char bd_addr[6] = {0};
+            int i;
+
+            printk("vflash: wlan_mac_addr:%X:%X:%X:%x:%X:%x\n", wlan_mac_addr[0],
+                                                wlan_mac_addr[1],
+                                                wlan_mac_addr[2],
+                                                wlan_mac_addr[3],
+                                                wlan_mac_addr[4],
+                                                wlan_mac_addr[5] );
+            for (i=1; i<6; i++) {
+                bd_addr[i] = wlan_mac_addr[5-i];
+            }
+
+            bd_addr[0] = wlan_mac_addr[5]+1;
+
+            printk("vflash: bd_addr:%X:%X:%X:%x:%X:%x\n", bd_addr[5],
+                                                bd_addr[4],
+                                                bd_addr[3],
+                                                bd_addr[2],
+                                                bd_addr[1],
+                                                bd_addr[0] );
+
+
+            if(copy_to_user(argp, bd_addr, 6)) {
+                printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
+                return -EFAULT;
+            }
+#else
             char *tempBuf = (char *)kmalloc(512, GFP_KERNEL);
 	    char bd_addr[6] = {0};
             int i;
@@ -68,6 +98,7 @@ static int vflash_ioctl(struct inode *inode, struct file *file,
             }
             
             kfree(tempBuf);
+#endif
         }
         break;
         default:
