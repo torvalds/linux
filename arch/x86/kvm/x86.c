@@ -2395,9 +2395,9 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		int i;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-		for (i = 1; *nent < maxnent; ++i) {
-			if (entry[i - 1].eax == 0 && i != 2)
-				break;
+		for (i = 1; *nent < maxnent && i < 64; ++i) {
+			if (entry[i].eax == 0)
+				continue;
 			do_cpuid_1_ent(&entry[i], function, i);
 			entry[i].flags |=
 			       KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
