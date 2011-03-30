@@ -1436,20 +1436,13 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci,
 void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend)
 {
 	u16 aci;
-	int i_ac, i;
+	int i_ac;
 	edcf_acparam_t *edcf_acp;
-	shm_acparams_t acp_shm;
-	u16 *shm_entry;
+
 	struct ieee80211_tx_queue_params txq_pars;
 	struct ieee80211_tx_queue_params *params = &txq_pars;
 
 	ASSERT(wlc);
-
-	/* Only apply params if the core is out of reset and has clocks */
-	if (!wlc->clk) {
-		WL_ERROR("wl%d: %s : no-clock\n", wlc->pub->unit, __func__);
-		return;
-	}
 
 	/*
 	 * AP uses AC params from wme_param_ie_ap.
@@ -1459,10 +1452,7 @@ void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend)
 
 	edcf_acp = (edcf_acparam_t *) &wlc->wme_param_ie.acparam[0];
 
-	wlc->wme_admctl = 0;
-
 	for (i_ac = 0; i_ac < AC_COUNT; i_ac++, edcf_acp++) {
-		memset((char *)&acp_shm, 0, sizeof(shm_acparams_t));
 		/* find out which ac this set of params applies to */
 		aci = (edcf_acp->ACI & EDCF_ACI_MASK) >> EDCF_ACI_SHIFT;
 		ASSERT(aci < AC_COUNT);
@@ -1473,48 +1463,14 @@ void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend)
 
 		/* fill in shm ac params struct */
 		params->txop = edcf_acp->TXOP;
-		acp_shm.txop = le16_to_cpu(params->txop);
-		/* convert from units of 32us to us for ucode */
-		wlc->edcf_txop[aci & 0x3] = acp_shm.txop =
-		    EDCF_TXOP2USEC(acp_shm.txop);
 		params->aifs = edcf_acp->ACI;
-		acp_shm.aifs = (params->aifs & EDCF_AIFSN_MASK);
-		if (aci == AC_VI && acp_shm.txop == 0
-		    && acp_shm.aifs < EDCF_AIFSN_MAX)
-			acp_shm.aifs++;
-
-		if (acp_shm.aifs < EDCF_AIFSN_MIN
-		    || acp_shm.aifs > EDCF_AIFSN_MAX) {
-			WL_ERROR("wl%d: wlc_edcf_setparams: bad aifs %d\n",
-				 wlc->pub->unit, acp_shm.aifs);
-			continue;
-		}
 
 		/* CWmin = 2^(ECWmin) - 1 */
 		params->cw_min = EDCF_ECW2CW(edcf_acp->ECW & EDCF_ECWMIN_MASK);
-		acp_shm.cwmin = params->cw_min;
 		/* CWmax = 2^(ECWmax) - 1 */
 		params->cw_max = EDCF_ECW2CW((edcf_acp->ECW & EDCF_ECWMAX_MASK)
 					    >> EDCF_ECWMAX_SHIFT);
-		acp_shm.cwmax = params->cw_max;
-		acp_shm.cwcur = acp_shm.cwmin;
-		acp_shm.bslots =
-		    R_REG(&wlc->regs->tsf_random) & acp_shm.cwcur;
-		acp_shm.reggap = acp_shm.bslots + acp_shm.aifs;
-		/* Indicate the new params to the ucode */
-		acp_shm.status = wlc_read_shm(wlc, (M_EDCF_QINFO +
-						    wme_shmemacindex(aci) *
-						    M_EDCF_QLEN +
-						    M_EDCF_STATUS_OFF));
-		acp_shm.status |= WME_STATUS_NEWAC;
-
-		/* Fill in shm acparam table */
-		shm_entry = (u16 *) &acp_shm;
-		for (i = 0; i < (int)sizeof(shm_acparams_t); i += 2)
-			wlc_write_shm(wlc,
-				      M_EDCF_QINFO +
-				      wme_shmemacindex(aci) * M_EDCF_QLEN + i,
-				      *shm_entry++);
+		wlc_wme_setparams(wlc, aci, params, suspend);
 	}
 
 	if (suspend)
