@@ -64,8 +64,8 @@ int smp_query_cpu_stopped(unsigned int pcpu)
 	int qcss_tok = rtas_token("query-cpu-stopped-state");
 
 	if (qcss_tok == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_INFO "Firmware doesn't support "
-				"query-cpu-stopped-state\n");
+		printk_once(KERN_INFO
+			"Firmware doesn't support query-cpu-stopped-state\n");
 		return QCSS_HARDWARE_ERROR;
 	}
 
