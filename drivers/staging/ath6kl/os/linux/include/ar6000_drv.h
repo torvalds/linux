@@ -238,11 +238,7 @@ typedef enum _AR6K_BIN_FILE {
 #define HCIUARTSTEP_DEFAULT        0
 #endif /* AR600x_BT_AR3001 */
 
-#ifdef INIT_MODE_DRV_ENABLED
 #define WLAN_INIT_MODE_DEFAULT     WLAN_INIT_MODE_DRV
-#else
-#define WLAN_INIT_MODE_DEFAULT     WLAN_INIT_MODE_USR
-#endif /* INIT_MODE_DRV_ENABLED */
 
 #define AR6K_PATCH_DOWNLOAD_ADDRESS(_param, _ver) do { \
     if ((_ver) == AR6003_REV1_VERSION) { \
