@@ -43,7 +43,7 @@
     #define TOUCH_NUMBER 2
 #endif
 
-#define TOUCH_REG_NUM 5 //Ã¿×é×ø±êÐèÒªµÄ¼Ä´æÆ÷ÊýÄ¿
+#define TOUCH_REG_NUM 5 //Ã¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ä¼Ä´ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿
 
 const unsigned char GT801_RegData[GT801_REGS_NUM]={	
 	0x19,0x05,0x06,0x28,0x02,0x14,0x14,0x10,0x40,0xB0,0x01,0xE0,0x03,0x4C,0x78,0x9A,0xBC,0xDE,0x65,0x43,0x20,0x11,0x00,0x00,0x00,0x00,0x05,0xCF,0x20,0x0B,0x0D,0x8D,0x32,0x3C,0x1E,0x28,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
@@ -109,6 +109,7 @@ static int gt801_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned
 static int gt801_write_regs(struct i2c_client *client, u8 reg, u8 const buf[], unsigned short len)
 {
 	int ret;
+	int i = len;
 	ret = i2c_master_reg8_send(client,reg, buf, len, 200*1000);
  	if (ret < 0) {
 	  printk("gt801_ts_work_func:i2c_transfer fail =%d\n",ret);
@@ -205,13 +206,14 @@ static void gt801_ts_work_func(struct work_struct *work)
 		}
 		else{
 			x = ((( ((unsigned short)buf[i+ptxh] )<< 8) ) | buf[i+ptxl]);
-			y= (((((unsigned short)buf[i+ptyh] )<< 8) )| buf[i+ptyl]);
-			
+			y = (((((unsigned short)buf[i+ptyh] )<< 8) )| buf[i+ptyl]);
+			x = 480-x;
+			y = 800-y;
 			if (ts->swap_xy)
 				swap(x, y);
 			
 			if (verify_coord(ts,&x,&y))
-				;//goto out;	
+				;//goto out;
 			
 			gt801printk("input_report_abs--%d-%d-(%d/%d)\n", i,touch_state_index, x, y);	
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1); //Finger Size
@@ -284,8 +286,6 @@ static int __devinit setup_resetPin(struct i2c_client *client, struct gt801_ts_d
 		return err;
 	}
 	
-	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
-
 	err = gpio_direction_output(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	if (err) {
 		dev_err(&client->dev, "failed to pulldown resetPin GPIO%d,err%d\n",
@@ -293,13 +293,10 @@ static int __devinit setup_resetPin(struct i2c_client *client, struct gt801_ts_d
 		gpio_free(ts->gpio_reset);
 		return err;
 	}
-	
-    mdelay(100);
-
-	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
-
 	mdelay(100);
-	 
+	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
+	mdelay(100);
+
 	return 0;
 }
 static int __devinit setup_pendown(struct i2c_client *client, struct gt801_ts_data *ts)

@@ -391,7 +391,7 @@ static struct gt801_platform_data gt801_info = {
 	.y_min			= 0,
 	.y_max			= 800,
 	.gpio_reset     = GT801_GPIO_RESET,
-	.gpio_reset_active_low = 1,
+	.gpio_reset_active_low = 0,
 	.gpio_pendown		= GT801_GPIO_INT,
     .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
     .resetpin_iomux_name = NULL,
@@ -1348,13 +1348,13 @@ struct wm8994_pdata wm8994_platdata = {
 	.ldo = {
 		{
 			.enable = 0,
-			//TCA6424_P11
-			.supply = "wm8994-ldo1",
+			//RK29_PIN5_PA1
+			.supply = NULL,
 			.init_data = &regulator_init_data_ldo1,
 		},
 		{
 			.enable = 0,
-			.supply = "wm8994-ldo2",		
+			.supply = NULL,		
 			.init_data = &regulator_init_data_ldo2,
 		}
 	},
@@ -1433,7 +1433,7 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.bus_num    = 2,
 	.flags      = 0,
 	.slave_addr = 0xff,
-	.scl_rate  = 400*1000,
+	.scl_rate  = 200*1000,
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c2_io_init,
 };
@@ -1473,7 +1473,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_SND_SOC_WM8994)
 	{
 		.type    		= "wm8994",
-		.addr           = 0x34,
+		.addr           = 0x1a,
 		.flags			= 0,
 		.platform_data  = &wm8994_platdata,	
 	},
@@ -1562,7 +1562,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #if defined (CONFIG_TOUCHSCREEN_GT801_IIC)
 {
 	.type           = "gt801_ts",
-	.addr           = 0xAA,
+	.addr           = 0x55,
 	.flags          = 0,
 	.irq            = RK29_PIN4_PD5,
 	.platform_data = &gt801_info,
@@ -2836,7 +2836,7 @@ static struct spi_board_info board_spi_devices[] = {
 	{
 		.modalias	= "wm8310",
 		.chip_select	= 1,
-		.max_speed_hz	= 2*1000*1000,
+		.max_speed_hz	= 1*1000*1000,
 		.bus_num	= 1,
 		.irq            = RK29_PIN4_PD0,
 		.platform_data = &wm831x_platdata,
@@ -2874,6 +2874,11 @@ static void __init machine_rk29_board_init(void)
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
+
+// codec		 
+	gpio_request(RK29_PIN5_PA1, NULL);			 
+	gpio_direction_output(RK29_PIN5_PA1,GPIO_HIGH); 		
+	gpio_free(RK29_PIN5_PA1);
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
                 rk29sdk_wifi_bt_gpio_control_init();
