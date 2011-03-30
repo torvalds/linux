@@ -3,8 +3,6 @@
 #
 
 # 16-bit client drivers
-obj-$(CONFIG_PCMCIA_3C589)	+= 3c589_cs.o
-obj-$(CONFIG_PCMCIA_3C574)	+= 3c574_cs.o
 obj-$(CONFIG_PCMCIA_FMVJ18X)	+= fmvj18x_cs.o
 obj-$(CONFIG_PCMCIA_NMCLAN)	+= nmclan_cs.o
 obj-$(CONFIG_PCMCIA_PCNET)	+= pcnet_cs.o

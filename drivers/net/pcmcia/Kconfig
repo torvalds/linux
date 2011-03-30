@@ -21,24 +21,6 @@ menuconfig NET_PCMCIA
 
 if NET_PCMCIA && PCMCIA
 
-config PCMCIA_3C589
-	tristate "3Com 3c589 PCMCIA support"
-	help
-	  Say Y here if you intend to attach a 3Com 3c589 or compatible PCMCIA
-	  (PC-card) Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called 3c589_cs.  If unsure, say N.
-
-config PCMCIA_3C574
-	tristate "3Com 3c574 PCMCIA support"
-	help
-	  Say Y here if you intend to attach a 3Com 3c574 or compatible PCMCIA
-	  (PC-card) Fast Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called 3c574_cs.  If unsure, say N.
-
 config PCMCIA_FMVJ18X
 	tristate "Fujitsu FMV-J18x PCMCIA support"
 	select CRC32

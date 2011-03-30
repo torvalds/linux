@@ -11,4 +11,6 @@ menuconfig ETHERNET
 
 if ETHERNET
 
+source "drivers/net/ethernet/3com/Kconfig"
+
 endif # ETHERNET

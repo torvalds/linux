@@ -124,13 +124,13 @@ M:	Steffen Klassert <klassert@mathematik.tu-chemnitz.de>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/vortex.txt
-F:	drivers/net/3c59x.c
+F:	drivers/net/ethernet/3com/3c59x.c
 
 3CR990 NETWORK DRIVER
 M:	David Dillow <dave@thedillows.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/typhoon*
+F:	drivers/net/ethernet/3com/typhoon*
 
 3WARE SAS/SATA-RAID SCSI DRIVERS (3W-XXXX, 3W-9XXX, 3W-SAS)
 M:	Adam Radford <linuxraid@lsi.com>
@@ -214,7 +214,7 @@ ACENIC DRIVER
 M:	Jes Sorensen <jes@trained-monkey.org>
 L:	linux-acenic@sunsite.dk
 S:	Maintained
-F:	drivers/net/acenic*
+F:	drivers/net/ethernet/3com/acenic*
 
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Feuerer <peter@piie.net>

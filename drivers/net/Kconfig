@@ -616,38 +616,11 @@ config SUNVNET
 	help
 	  Support for virtual network devices under Sun Logical Domains.
 
-config NET_VENDOR_3COM
-	bool "3COM cards"
-	depends on ISA || EISA || MCA || PCI
-	help
-	  If you have a network (Ethernet) card belonging to this class, say Y
-	  and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about 3COM cards. If you say Y, you will be asked for
-	  your specific card in the following questions.
-
-config EL1
-	tristate "3c501 \"EtherLink\" support"
-	depends on NET_VENDOR_3COM && ISA
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Also, consider buying a
-	  new card, since the 3c501 is slow, broken, and obsolete: you will
-	  have problems.  Some people suggest to ping ("man ping") a nearby
-	  machine every minute ("man cron") when using this card.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c501.
-
 config EL2
 	tristate "3c503 \"EtherLink II\" support"
-	depends on NET_VENDOR_3COM && ISA
+	depends on ISA
 	select CRC32
-	help
+	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
@@ -657,7 +630,7 @@ config EL2
 
 config ELPLUS
 	tristate "3c505 \"EtherLink Plus\" support"
-	depends on NET_VENDOR_3COM && ISA && ISA_DMA_API
+	depends on ISA && ISA_DMA_API
 	---help---
 	  Information about this network (Ethernet) card can be found in
 	  <file:Documentation/networking/3c505.txt>.  If you have a card of
@@ -669,8 +642,8 @@ config ELPLUS
 
 config EL16
 	tristate "3c507 \"EtherLink 16\" support (EXPERIMENTAL)"
-	depends on NET_VENDOR_3COM && ISA && EXPERIMENTAL
-	help
+	depends on ISA && EXPERIMENTAL
+	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
@@ -678,36 +651,10 @@ config EL16
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c507.
 
-config EL3
-	tristate "3c509/3c529 (MCA)/3c579 \"EtherLink III\" support"
-	depends on NET_VENDOR_3COM && (ISA || EISA || MCA)
-	---help---
-	  If you have a network (Ethernet) card belonging to the 3Com
-	  EtherLinkIII series, say Y and read the Ethernet-HOWTO, available
-	  from <http://www.tldp.org/docs.html#howto>.
-
-	  If your card is not working you may need to use the DOS
-	  setup disk to disable Plug & Play mode, and to select the default
-	  media type.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c509.
-
-config 3C515
-	tristate "3c515 ISA \"Fast EtherLink\""
-	depends on NET_VENDOR_3COM && (ISA || EISA) && ISA_DMA_API
-	help
-	  If you have a 3Com ISA EtherLink XL "Corkscrew" 3c515 Fast Ethernet
-	  network card, say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c515.
-
 config ELMC
 	tristate "3c523 \"EtherLink/MC\" support"
-	depends on NET_VENDOR_3COM && MCA_LEGACY
-	help
+	depends on MCA_LEGACY
+	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
@@ -717,54 +664,14 @@ config ELMC
 
 config ELMC_II
 	tristate "3c527 \"EtherLink/MC 32\" support (EXPERIMENTAL)"
-	depends on NET_VENDOR_3COM && MCA && MCA_LEGACY
-	help
+	depends on MCA && MCA_LEGACY
+	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called 3c527.
-
-config VORTEX
-	tristate "3c590/3c900 series (592/595/597) \"Vortex/Boomerang\" support"
-	depends on NET_VENDOR_3COM && (PCI || EISA)
-	select MII
-	---help---
-	  This option enables driver support for a large number of 10Mbps and
-	  10/100Mbps EISA, PCI and PCMCIA 3Com network cards:
-
-	  "Vortex"    (Fast EtherLink 3c590/3c592/3c595/3c597) EISA and PCI
-	  "Boomerang" (EtherLink XL 3c900 or 3c905)            PCI
-	  "Cyclone"   (3c540/3c900/3c905/3c980/3c575/3c656)    PCI and Cardbus
-	  "Tornado"   (3c905)                                  PCI
-	  "Hurricane" (3c555/3cSOHO)                           PCI
-
-	  If you have such a card, say Y and read the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>. More
-	  specific information is in
-	  <file:Documentation/networking/vortex.txt> and in the comments at
-	  the beginning of <file:drivers/net/3c59x.c>.
-
-	  To compile this support as a module, choose M here.
-
-config TYPHOON
-	tristate "3cr990 series \"Typhoon\" support"
-	depends on NET_VENDOR_3COM && PCI
-	select CRC32
-	---help---
-	  This option enables driver support for the 3cr990 series of cards:
-
-	  3C990-TX, 3CR990-TX-95, 3CR990-TX-97, 3CR990-FX-95, 3CR990-FX-97,
-	  3CR990SVR, 3CR990SVR95, 3CR990SVR97, 3CR990-FX-95 Server,
-	  3CR990-FX-97 Server, 3C990B-TX-M, 3C990BSVR
-
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called typhoon.
 
 config LANCE
 	tristate "AMD LANCE and PCnet (AT1500 and NE2100) support"
@@ -2045,33 +1952,6 @@ menuconfig NETDEV_1000
 	  If you say N, all options in this submenu will be skipped and disabled.
 
 if NETDEV_1000
-
-config ACENIC
-	tristate "Alteon AceNIC/3Com 3C985/NetGear GA620 Gigabit support"
-	depends on PCI
-	---help---
-	  Say Y here if you have an Alteon AceNIC, 3Com 3C985(B), NetGear
-	  GA620, SGI Gigabit or Farallon PN9000-SX PCI Gigabit Ethernet
-	  adapter. The driver allows for using the Jumbo Frame option (9000
-	  bytes/frame) however it requires that your switches can handle this
-	  as well. To enable Jumbo Frames, add `mtu 9000' to your ifconfig
-	  line.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called acenic.
-
-config ACENIC_OMIT_TIGON_I
-	bool "Omit support for old Tigon I based AceNICs"
-	depends on ACENIC
-	help
-	  Say Y here if you only have Tigon II based AceNICs and want to leave
-	  out support for the older Tigon I based cards which are no longer
-	  being sold (ie. the original Alteon AceNIC and 3Com 3C985 (non B
-	  version)).  This will reduce the size of the driver object by
-	  app. 100KB.  If you are not sure whether your card is a Tigon I or a
-	  Tigon II, say N here.
-
-	  The safe and default value for this is N.
 
 config DL2K
 	tristate "DL2000/TC902x-based Gigabit Ethernet support"
