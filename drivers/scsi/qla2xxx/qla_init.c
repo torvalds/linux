@@ -5508,26 +5508,26 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
  *
  * Return:
  *	non-zero (if found)
- * 	0 (if not found)
+ *	-1 (if not found)
  *
  * Context:
  * 	Kernel context
  */
-uint8_t
+static int
 qla24xx_get_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
 	int i, entries;
 	uint8_t pid_match, wwn_match;
-	uint8_t priority;
+	int priority;
 	uint32_t pid1, pid2;
 	uint64_t wwn1, wwn2;
 	struct qla_fcp_prio_entry *pri_entry;
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!ha->fcp_prio_cfg || !ha->flags.fcp_prio_enabled)
-		return 0;
+		return -1;
 
-	priority = 0;
+	priority = -1;
 	entries = ha->fcp_prio_cfg->num_entries;
 	pri_entry = &ha->fcp_prio_cfg->entry[0];
 
@@ -5610,7 +5610,7 @@ int
 qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
 	int ret;
-	uint8_t priority;
+	int priority;
 	uint16_t mb[5];
 
 	if (fcport->port_type != FCT_TARGET ||
@@ -5618,6 +5618,9 @@ qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 		return QLA_FUNCTION_FAILED;
 
 	priority = qla24xx_get_fcp_prio(vha, fcport);
+	if (priority < 0)
+		return QLA_FUNCTION_FAILED;
+
 	ret = qla24xx_set_fcp_prio(vha, fcport->loop_id, priority, mb);
 	if (ret == QLA_SUCCESS)
 		fcport->fcp_prio = priority;
