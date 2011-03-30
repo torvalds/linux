@@ -6919,8 +6919,7 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 		preamble = 0;
 		if (IS_CCK(rspec)) {
 			if (rxh->PhyRxStatus_0 & PRXS0_SHORTH)
-				WL_ERROR("Short CCK\n");
-			rx_status->flag |= RX_FLAG_SHORTPRE;
+				rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else if (IS_OFDM(rspec)) {
 			rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else {
