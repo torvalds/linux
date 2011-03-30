@@ -386,7 +386,6 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	switch (data[0]) {
 	case MBS_COMMAND_COMPLETE:
 		if (fcport->flags & FCF_FCP2_DEVICE) {
-			fcport->flags |= FCF_ASYNC_SENT;
 			qla2x00_post_async_adisc_work(vha, fcport, data);
 			break;
 		}
