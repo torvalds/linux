@@ -586,8 +586,10 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&dev_priv->video_ctx);
 
-	dev_priv->num_pipe = 2;
-
+	if (IS_MRST(dev))
+		dev_priv->num_pipe = 1;
+	else
+		dev_priv->num_pipe = 2;
 
 	dev_priv->dev = dev;
 	bdev = &dev_priv->bdev;

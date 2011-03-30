@@ -569,7 +569,9 @@ static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 	if ((pfit_control & PFIT_ENABLE) == 0)
 		return -1;
 	/* Must be on PIPE 1 for PSB */
-	return 1;
+	if (!IS_MRST(dev))
+		return 1;
+	return (pfit_control >> 29) & 3;
 }
 
 static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,

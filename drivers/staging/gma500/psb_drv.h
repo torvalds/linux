@@ -45,6 +45,8 @@ enum {
 	CHIP_PSB_8109 = 1,
 };
 
+#define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
+
 /*
  *Hardware bugfixes
  */
@@ -52,10 +54,6 @@ enum {
 #define DRIVER_NAME "pvrsrvkm"
 #define DRIVER_DESC "drm driver for the Intel GMA500"
 #define DRIVER_AUTHOR "Intel Corporation"
-#define OSPM_PROC_ENTRY "ospm"
-#define RTPM_PROC_ENTRY "rtpm"
-#define BLC_PROC_ENTRY "mrst_blc"
-#define DISPLAY_PROC_ENTRY "display_status"
 
 #define PSB_DRM_DRIVER_DATE "2009-03-10"
 #define PSB_DRM_DRIVER_MAJOR 8

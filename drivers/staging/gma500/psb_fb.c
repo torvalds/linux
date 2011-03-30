@@ -716,7 +716,11 @@ static void psb_setup_outputs(struct drm_device *dev)
 			break;
 		case INTEL_OUTPUT_LVDS:
 			PSB_DEBUG_ENTRY("LVDS.\n");
-			crtc_mask = (1 << 1);
+			if (IS_MRST(dev))
+			        crtc_mask = (1 << 0);
+                        else
+        			crtc_mask = (1 << 1);
+
 			clone_mask = (1 << INTEL_OUTPUT_LVDS);
 			break;
 		case INTEL_OUTPUT_MIPI:
