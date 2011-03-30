@@ -612,22 +612,28 @@ void dbg_dump_budg(struct ubifs_info *c)
 
 	spin_lock(&c->space_lock);
 	spin_lock(&dbg_lock);
-	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
-	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
-	       c->bi.data_growth, c->bi.dd_growth, c->bi.idx_growth);
-	printk(KERN_DEBUG "\tdata budget sum %lld, total budget sum %lld, "
-	       "freeable_cnt %d\n", c->bi.data_growth + c->bi.dd_growth,
-	       c->bi.data_growth + c->bi.dd_growth + c->bi.idx_growth,
-	       c->freeable_cnt);
-	printk(KERN_DEBUG "\tmin_idx_lebs %d, old_idx_sz %lld, "
-	       "calc_idx_sz %lld, idx_gc_cnt %d\n", c->bi.min_idx_lebs,
-	       c->bi.old_idx_sz, c->calc_idx_sz, c->idx_gc_cnt);
+	printk(KERN_DEBUG "(pid %d) Budgeting info: data budget sum %lld, "
+	       "total budget sum %lld\n", current->pid,
+	       c->bi.data_growth + c->bi.dd_growth,
+	       c->bi.data_growth + c->bi.dd_growth + c->bi.idx_growth);
+	printk(KERN_DEBUG "\tbudg_data_growth %lld, budg_dd_growth %lld, "
+	       "budg_idx_growth %lld\n", c->bi.data_growth, c->bi.dd_growth,
+	       c->bi.idx_growth);
+	printk(KERN_DEBUG "\tmin_idx_lebs %d, old_idx_sz %llu, "
+	       "uncommitted_idx %lld\n", c->bi.min_idx_lebs, c->bi.old_idx_sz,
+	       c->bi.uncommitted_idx);
+	printk(KERN_DEBUG "\tpage_budget %d, inode_budget %d, dent_budget %d\n",
+	       c->bi.page_budget, c->bi.inode_budget, c->bi.dent_budget);
+	printk(KERN_DEBUG "\tnospace %u, nospace_rp %u\n",
+	       c->bi.nospace, c->bi.nospace_rp);
+	printk(KERN_DEBUG "\tdark_wm %d, dead_wm %d, max_idx_node_sz %d\n",
+	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
+	printk(KERN_DEBUG "\tfreeable_cnt %d, calc_idx_sz %lld, idx_gc_cnt %d\n",
+	       c->freeable_cnt, c->calc_idx_sz, c->idx_gc_cnt);
 	printk(KERN_DEBUG "\tdirty_pg_cnt %ld, dirty_zn_cnt %ld, "
 	       "clean_zn_cnt %ld\n", atomic_long_read(&c->dirty_pg_cnt),
 	       atomic_long_read(&c->dirty_zn_cnt),
 	       atomic_long_read(&c->clean_zn_cnt));
-	printk(KERN_DEBUG "\tdark_wm %d, dead_wm %d, max_idx_node_sz %d\n",
-	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
 	printk(KERN_DEBUG "\tgc_lnum %d, ihead_lnum %d\n",
 	       c->gc_lnum, c->ihead_lnum);
 	/* If we are in R/O mode, journal heads do not exist */
